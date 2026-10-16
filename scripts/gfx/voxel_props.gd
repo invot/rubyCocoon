@@ -58,21 +58,22 @@ static func grass_tuft(base_hex: String, variant: int) -> ArrayMesh:
 	return _cached("tuft:%s:%d" % [base_hex, variant], func():
 		var base := Color(base_hex)
 		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0, 0, 0, 0))
+		# see-through pixels keep the grass colour, so the smaller mipmaps don't fade the blades to black
+		img.fill(Color(base, 0.0))
 		var rng := RandomNumberGenerator.new()
 		rng.seed = variant * 977 + base_hex.hash()
-		var shades := [base, base.darkened(0.18), base.lightened(0.12), base.darkened(0.3)]
-		for i in 18:
+		var shades := [base, base.lightened(0.1), base.lightened(0.2), base.darkened(0.12)]
+		for i in 26:
 			var x := rng.randf_range(2, 29)
 			var hgt := rng.randi_range(12, 31)
 			var lean := rng.randf_range(-0.35, 0.35)
 			var c: Color = shades[rng.randi_range(0, 3)]
 			for k in hgt:
 				var px := clampi(int(x + lean * k), 0, 31)
-				img.set_pixel(px, 31 - k, base.lightened(0.2) if k >= hgt - 2 else c.darkened(0.15 * (1.0 - float(k) / hgt)))
+				img.set_pixel(px, 31 - k, base.lightened(0.3) if k >= hgt - 2 else c.darkened(0.08 * (1.0 - float(k) / hgt)))
 				if k < hgt / 3:
 					img.set_pixel(clampi(px + 1, 0, 31), 31 - k, c.darkened(0.1))
-		return _cards(img, 3, 0.62, 0.6))
+		return _cards(img, 3, 0.72, 0.62))
 
 
 ## A patch of flowers: blooms painted on a card lying just above the ground (the camera looks down on them), with
@@ -83,7 +84,7 @@ static func flowers(variant: int) -> ArrayMesh:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = variant * 313
 		var flat := Image.create(20, 20, false, Image.FORMAT_RGBA8)
-		flat.fill(Color(0, 0, 0, 0))
+		flat.fill(Color("#4a8a3a", 0.0))
 		# four or five blooms, each a little pixel daisy about a sixth of a tile across
 		var spots := [Vector2i(4, 4), Vector2i(14, 5), Vector2i(9, 10), Vector2i(4, 15), Vector2i(15, 15)]
 		for i in spots.size():
@@ -97,7 +98,7 @@ static func flowers(variant: int) -> ArrayMesh:
 					flat.set_pixel(q.x, q.y, pc if absi(d.x) + absi(d.y) <= 1 else pc.darkened(0.12))
 			flat.set_pixel(p.x, p.y, Color("#ffd040"))
 		var up := Image.create(32, 16, false, Image.FORMAT_RGBA8)
-		up.fill(Color(0, 0, 0, 0))
+		up.fill(Color("#4a8a3a", 0.0))
 		for i in 3:
 			var x := rng.randi_range(4, 27)
 			var top := rng.randi_range(4, 9)
