@@ -19,6 +19,7 @@ const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
+const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Bar = preload("res://scripts/ui/bar.gd")
 
@@ -194,20 +195,28 @@ func _build_stage() -> void:
 	ground.material_override = _tex_mat(ground_tex, Vector2(70, 50))
 	ground.position = Vector3(0, 0, -10)
 	add_child(ground)
-	# a blocky voxel platform under each side
+	# a low cobbled mound under each side: a flat oval top with a sloping rim
 	for center in [Vector3(-3.5, 0, 0.5), Vector3(3.5, 0, -2.3)]:
-		var cube := BoxMesh.new()
-		cube.size = Vector3(1, 0.16, 1)
-		var tiles := []
-		for dx in range(-3, 4):
-			for dz in range(-2, 2):
-				if absi(dx) == 3 and (dz == -2 or dz == 1):
-					continue
-				tiles.append(_xf(center + Vector3(dx * 1.0 + 0.5 * signf(dz), 0.0, dz * 1.0 + 0.5) + Vector3(0, rng.randf_range(0.0, 0.03), 0)))
-		var mat: StandardMaterial3D = VT.material("cobble" if not dark else "stone_dark").duplicate()
-		mat.vertex_color_use_as_albedo = false
-		mat.albedo_color = Color(biome["path"] if not arena else biome["plaza"]) if not dark else Color("#5a5664")
-		_multimesh(cube, tiles, mat)
+		var k := VBld.Kit.new()
+		var col := Color(biome["path"] if not arena else biome["plaza"]) if not dark else Color("#5a5664")
+		var tex := "cobble" if not dark else "stone_dark"
+		var n := 14
+		var top := []
+		var foot := []
+		for i in n:
+			var a := TAU * i / n
+			var wob := 1.0 + rng.randf_range(-0.05, 0.05)
+			top.append(Vector3(cos(a) * 3.6 * wob, 0.14, sin(a) * 2.1 * wob))
+			foot.append(Vector3(cos(a) * 4.0 * wob, -0.02, sin(a) * 2.45 * wob))
+		for i in n:
+			var j := (i + 1) % n
+			k.poly(tex, [Vector3(0, 0.14, 0), top[i], top[j]], Vector3.UP, col)
+			var out: Vector3 = (top[i] + top[j]).normalized()
+			k.poly(tex, [top[i], top[j], foot[j], foot[i]], (out + Vector3(0, 0.6, 0)).normalized(), col.darkened(0.12))
+		var mi := MeshInstance3D.new()
+		mi.mesh = k.mesh()
+		mi.position = center
+		add_child(mi)
 	if arena:
 		_arena_scenery(rng)
 	elif dark:

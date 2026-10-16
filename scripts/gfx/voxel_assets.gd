@@ -19,7 +19,7 @@ static func names_with(prefix: String) -> Array:
 
 
 ## Models drawn in code rather than loaded (nothing in the packs fits): name -> [builder, variant].
-const PROCEDURAL := {"cactus_1": ["cactus", 0], "cactus_2": ["cactus", 1], "cactus_3": ["cactus", 2]}
+const PROCEDURAL := {"cactus_1": ["cactus", 0], "cactus_2": ["cactus", 1], "cactus_3": ["cactus", 2], "head_totem": ["totem", 0]}
 
 
 ## The model's mesh with its palette material set to sharp (nearest) sampling.

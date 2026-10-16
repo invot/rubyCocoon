@@ -194,7 +194,7 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 			"hideout":
 				pass
 			"temple":
-				pass
+				_temple(kit, w, d)
 			_:
 				if shop in COMMERCIAL:
 					_shop(kit, w, d, st, SHOP_LOOKS.get(style_name, SHOP_LOOKS["town"]), shop, door_lx, rng)
@@ -228,8 +228,6 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 			hole.position = Vector3(door_lx, 0.65, d / 2.0 + 0.02)
 			node.add_child(hole)
 		"temple":
-			var tm := VA.instance_footprint("temple", w + 0.3, d + 0.3)
-			node.add_child(tm)
 			var gate := MeshInstance3D.new()
 			gate.mesh = _temple_gate(d, door_lx, Color(b.get("glow", "#ffd870")))
 			node.add_child(gate)
@@ -244,7 +242,7 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 			gmat.emission = col
 			gmat.emission_energy_multiplier = 3.0
 			gem.material_override = gmat
-			gem.position = Vector3(0, tm.scale.y * VA.aabb("temple").size.y + 0.8, 0)
+			gem.position = Vector3(0, _temple(null, w, d) + 0.75, 0)
 			gem.set_meta("spin", true)
 			node.add_child(gem)
 			var l := OmniLight3D.new()
@@ -572,6 +570,37 @@ static func _house(k: Kit, w: float, d: float, H: float, st: Dictionary, shop: S
 			k.box("glow", Vector3(door_lx + sx * 0.65, wy + 1.4, wd / 2.0 + 0.2), Vector3(0.2, 0.28, 0.2), Color("#ff6a3a"))
 	if shop in ["house", "home"] and String(st["roof_type"]) in ["gable", "steep"] and rng.randf() < 0.7:
 		k.box("brick", Vector3(-ww / 4.0, wy + H + 0.9, -wd / 4.0), Vector3(0.35, 1.1, 0.35), Color("#8a5a4a"))
+
+
+## An elemental temple: a weathered three-tier ziggurat of cut stone, each tier lipped, with a pillared shrine and a
+## slate pyramid roof on top. Returns the height of the roof's peak (with no kit, only works that out).
+static func _temple(k: Kit, w: float, d: float) -> float:
+	var stone := Color("#a89880")
+	var y := 0.0
+	var tw := w + 0.3
+	var td := d + 0.3
+	for t in 3:
+		var h := 0.75
+		if k:
+			k.box("stone", Vector3(0, y + h / 2.0, 0), Vector3(tw, h, td), stone.darkened(0.05 * t))
+			k.box("stone", Vector3(0, y + h - 0.05, 0), Vector3(tw + 0.12, 0.12, td + 0.12), stone.lightened(0.08))
+		y += h
+		tw -= 1.3
+		td -= 1.1
+	var sw := maxf(1.6, tw)
+	var sd := maxf(1.4, td)
+	var sh := 1.2
+	if k:
+		k.box("stone_dark", Vector3(0, y + sh / 2.0, 0), Vector3(sw - 0.3, sh, sd - 0.3), stone.darkened(0.2))
+		# pillars at the corners and either side of a dark doorway
+		for sx in [-1.0, 1.0]:
+			for sz in [-1.0, 1.0]:
+				k.box("stone", Vector3(sx * (sw / 2.0 - 0.12), y + sh / 2.0, sz * (sd / 2.0 - 0.12)), Vector3(0.24, sh, 0.24), stone.lightened(0.1))
+		k.box("color", Vector3(0, y + 0.45, sd / 2.0 - 0.14), Vector3(0.55, 0.9, 0.04), Color("#16100c"))
+		k.box("stone", Vector3(0, y + sh + 0.06, 0), Vector3(sw + 0.1, 0.12, sd + 0.1), stone.lightened(0.05))
+		return _hip(k, sw, sd, y + sh + 0.12, 0.9, 0.2, false, "slate", stone.darkened(0.3), stone)
+	var hs := minf(sw, sd) / 2.0 + 0.2
+	return y + sh + 0.12 + 0.04 + hs * 0.9
 
 
 ## A temple's way in: a stone arch with a glowing keystone at the front of its base, and a vaulted passage running

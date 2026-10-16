@@ -161,6 +161,29 @@ static func cactus(variant: int) -> ArrayMesh:
 		return VM.build(g, VS))
 
 
+## The old shrine's carved stone head: a mossy block with a heavy brow, deep eyes and a grim mouth, on a plinth.
+static func totem(_variant: int) -> ArrayMesh:
+	return _cached("totem", func():
+		var g := VM.Grid.new(16, 30, 16)
+		var stone := g.add_color(Color("#9a9080"))
+		var dark := g.add_color(Color("#5a5248"))
+		var moss := g.add_color(Color("#6a8a4a"))
+		var eye := g.add_color(Color("#ffd870"), true)
+		g.box(1, 0, 1, 14, 3, 14, dark)
+		g.box(3, 4, 3, 12, 27, 12, stone)
+		g.ellipsoid(Vector3(8, 27.5, 8), Vector3(5.2, 2.2, 5.2), stone)
+		# brow, nose and mouth on the front (+z)
+		g.box(2, 19, 11, 13, 21, 13, stone)
+		g.box(7, 13, 12, 8, 19, 14, stone)
+		g.box(5, 9, 12, 10, 10, 13, dark)
+		g.box(4, 16, 12, 6, 18, 12, dark)
+		g.box(9, 16, 12, 11, 18, 12, dark)
+		g.box(5, 17, 13, 5, 17, 13, eye)
+		g.box(10, 17, 13, 10, 17, 13, eye)
+		g.paint_if(moss, stone, func(x, y, z): return y < 9 or (x * 5 + y * 3 + z * 7) % 11 == 0)
+		return VM.build(g, VS))
+
+
 # ---------------------------------------------------------------- eggs, shards, sacks
 const EGG_COLORS := {
 	"fire": ["#e8553a", "#ffd040"], "water": ["#3f8fe0", "#e8f4ff"], "earth": ["#9a6a40", "#7fc050"],

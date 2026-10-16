@@ -5,6 +5,31 @@ Third-party assets live in their original folders (`voxelassets/`, `ui/`, `music
 the game uses converted copies in `assets/`. **Several packs came without licence files: check
 each source's terms before releasing the game.**
 
+## PSX art (`psx/` → `assets/psx/`)
+The low-poly PS1-style world. The packs were downloaded into `psx/` (not part of the game; see
+`psx/Jade Coccon index.csv`). `tools/build_psx_textures.gd` and `tools/import_psx_models.gd` make the
+copies the game uses. *Changes made to all of them:* textures shrunk to 128 px or less and, for the
+surface textures, turned grey so the game can colour them per town and biome; some models brightened,
+desaturated or recoloured; each model's meshes merged into one, with automatic levels of detail.
+- **3D Retro Medieval/Fantasy Building Kit** by chilly_durango, CC0,
+  https://chilly-durango.itch.io/medieval-building-parts (wall, wood, cobble and paving textures).
+- **Mini Texture Pack 2: Rooftops** by Screaming Brain Studios, CC0,
+  https://screamingbrainstudios.itch.io/mini-texture-pack-2-rooftops (roof and bamboo textures).
+- **RetroGround Free** by Binbun3D, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/),
+  https://binbun3d.itch.io/retroground-free (ground textures).
+- **FOXTEX** by Foxhead, CC0, https://foxh3ad.itch.io/foxtexcom (water and lava animation frames).
+- **Retro PSX Style Tree Pack** by Elegant Crow, CC0, https://elegantcrow.itch.io/psx-retro-style-tree-pack (trees).
+- **PSX Forest Free** by heyheythere - https://heyheythere.itch.io/psx-forest-free - CC BY 4.0
+  (bushes, fern, boulder, dead tree, stump, fence, log, campfire).
+- **PSX Cemetery Kit Free** by heyheythere - https://heyheythere.itch.io/psx-cemetery-kit-free - CC BY 4.0
+  (headstones, celtic cross, tomb, gas lamp, iron gate, stone wall and pier).
+- **PSX Castle Kit Free** by heyheythere - https://heyheythere.itch.io/psx-castle-kit-free - CC BY 4.0
+  (cask, crate, banner, torch, round pillar).
+- **PSX Western Town Kit Free** by heyheythere - https://heyheythere.itch.io/psx-western-town-kit-free - CC BY 4.0
+  (tumbleweed).
+- **PSX The Island Pack** by Caliber Creations, https://caliberuk.itch.io/psx-the-island-pack (palms, beach
+  plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
+
 ## Voxel art (`voxelassets/` → `assets/voxel/`)
 See `assets/voxel/CREDITS.md` for the full list. Highlights:
 - **StickyBizcuit**: village/dungeon pack. The required easter egg is the hidden NPC "Bizcuit" in the
