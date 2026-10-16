@@ -124,7 +124,7 @@ func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null) -> void:
 func _tex_mat(t: Texture2D, uv := Vector2.ONE) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = t
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	m.uv1_scale = Vector3(uv.x, uv.y, 1)
 	m.roughness = 1.0
 	return m
@@ -217,12 +217,6 @@ func _build_stage() -> void:
 
 	cam = Camera3D.new()
 	cam.fov = 40
-	var attr := CameraAttributesPractical.new()
-	attr.dof_blur_far_enabled = true
-	attr.dof_blur_far_distance = 17.0
-	attr.dof_blur_far_transition = 8.0
-	attr.dof_blur_amount = 0.06
-	cam.attributes = attr
 	add_child(cam)
 	cam.position = CAM_POS
 	cam.look_at(CAM_LOOK, Vector3.UP)

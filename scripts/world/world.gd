@@ -4,6 +4,7 @@ extends Node3D
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
+const Terrain = preload("res://scripts/world/terrain_mesh.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
@@ -133,7 +134,7 @@ func tile_pos(p: Vector2i) -> Vector3:
 func _tex_mat(t: Texture2D, world_triplanar := false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = t
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 	m.roughness = 1.0
 	if world_triplanar:
 		m.uv1_triplanar = true
@@ -240,17 +241,16 @@ func _build_environment() -> void:
 
 
 # ================================================================ terrain
-## Every tile is a voxel block. Water and lava sit lower; cliffs rise.
+## The ground is one low-poly height field (terrain_mesh.gd): flat where people walk, sloping down into river beds
+## and lava, rising into faceted rock. Town walls and push-puzzle rocks stand on it as stone blocks.
 func _build_terrain() -> void:
 	var w: int = map["w"]
 	var h: int = map["h"]
-	var g_hex: String = biome["ground"]
-	var side_hex: String = biome["side"]
-	var tops := {"grass": [], "path": [], "plaza": [], "sand": [], "rock": [], "water_bed": [], "lava_bed": [], "wall": [], "ice": []}
-	var sides := {"soil": [], "rock": [], "sandside": [], "wall": []}
-	var water := []
-	var lava := []
+	var t := Terrain.new()
+	t.setup(w, h, map_id.hash())
 	var planks := []
+	var walls := []
+	var puzzle_rocks := []
 	var log_tiles := {}
 	for tiles in map.get("log_bridges", []):
 		for q in tiles:
@@ -263,7 +263,8 @@ func _build_terrain() -> void:
 			var center := Vector3(x + 0.5, 0, y + 0.5)
 			var top := 0.0
 			var kind := "grass"
-			var side := "soil"
+			var liquid := 0
+			var craggy := false
 			if c in [MapGen.LAMP, MapGen.SIGN]:
 				# a lamp post or a signpost stands on whatever ground is around it
 				c = MapLoader._infer_floor(map, Vector2i(x, y))
@@ -274,82 +275,68 @@ func _build_terrain() -> void:
 					kind = "plaza"
 				MapGen.SAND:
 					kind = "sand"
-					side = "sandside"
 				MapGen.ICE:
 					kind = "ice"
 				MapGen.WATER, MapGen.BRIDGE:
 					top = -0.42
-					kind = "water_bed"
-					water.append(_xf(center + Vector3(0, -0.12, 0)))
+					kind = "bed"
+					liquid = 1
 					if c == MapGen.BRIDGE and not log_tiles.has(Vector2i(x, y)):
 						planks.append(_xf(center + Vector3(0, 0.03, 0)))
 				MapGen.LAVA:
 					top = -0.3
 					kind = "lava_bed"
-					lava.append(_xf(center + Vector3(0, -0.16, 0)))
+					liquid = 2
 				MapGen.ROCK:
 					top = rng.randf_range(0.9, 1.5)
-					if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).has_point(Vector2i(x, y)):
-						top = 1.0
 					kind = "rock"
-					side = "rock"
+					craggy = true
+					if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).has_point(Vector2i(x, y)):
+						# a maze wall: a squared-off stone block on flat ground, so the maze reads clearly
+						top = 1.0
+						puzzle_rocks.append(center)
 					rock_tops[Vector2i(x, y)] = top
 				MapGen.WALL:
-					top = 1.6
-					kind = "wall"
-					side = "wall"
+					kind = "paving"
+					walls.append(center)
 				MapGen.OBSTACLE:
 					var grp: Dictionary = map["obstacles"].get(Vector2i(x, y), {})
 					if grp.get("kind", "") == "broken_bridge":
 						top = -0.42
-						kind = "water_bed"
-						water.append(_xf(center + Vector3(0, -0.12, 0)))
+						kind = "bed"
+						liquid = 1
 					elif grp.get("kind", "") == "chasm":
 						top = -1.6
 						kind = "rock"
-						side = "rock"
+						craggy = true
 					elif grp.get("kind", "") == "sand":
 						kind = "sand"
-						side = "sandside"
 			if _sandy() and kind == "grass":
 				kind = "sand"
-				side = "sandside"
-			tops[kind].append(_xf(center + Vector3(0, top, 0)))
-			var depth := 0.7 + maxf(0.0, top)
-			sides[side].append(Transform3D(Basis().scaled(Vector3(1, depth, 1)), center + Vector3(0, top - depth / 2.0 - 0.002, 0)))
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(1, 1)
-	var cube := BoxMesh.new()
-	cube.size = Vector3(1, 1, 1)
-	var rock_hex := "#8a8478" if biome["id"] != "volcano" else "#4a3e3a"
-	var top_tex := {
-		"grass": VT.terrain("top_grass", g_hex), "path": VT.terrain("top_path", biome["path"]),
-		"plaza": VT.terrain("top_plaza", biome["plaza"]), "sand": VT.terrain("top_sand", biome["sand"]),
-		"rock": VT.terrain("top_rock", rock_hex),
-		"water_bed": VT.terrain("top_sand", Color(biome["sand"]).darkened(0.35).to_html(false)),
-		"lava_bed": VT.terrain("top_rock", "#3a2a28"), "wall": VT.terrain("top_plaza", "#9a948a"),
-		"ice": VT.terrain("top_plaza", "#cfeaf6"),
-	}
-	for k in tops:
-		_multimesh(plane, tops[k], _tex_mat(top_tex[k]), false)
-	var lip := g_hex if not _sandy() else ""
-	_multimesh(cube, sides["soil"], _tex_mat(VT.terrain("side_soil", side_hex, lip), true), true)
-	_multimesh(cube, sides["sandside"], _tex_mat(VT.terrain("side_soil", Color(biome["sand"]).darkened(0.12).to_html(false))), true)
-	_multimesh(cube, sides["rock"], _tex_mat(VT.terrain("side_rock", "#7a7468" if biome["id"] != "volcano" else "#3e3430"), true), true)
-	_multimesh(cube, sides["wall"], VT.material("stone"), true)
-	var wm := _tex_mat(VT.terrain("water", biome["water"]))
-	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wm.albedo_color = Color(1, 1, 1, 0.82)
-	wm.roughness = 0.15
-	wm.metallic_specular = 0.9
-	water_mats.append(wm)
-	_multimesh(plane, water, wm, false)
-	var lm := _tex_mat(VT.terrain("lava", "#ff6a20"))
-	lm.emission_enabled = true
-	lm.emission_texture = lm.albedo_texture
-	lm.emission_energy_multiplier = 1.6
-	water_mats.append(lm)
-	_multimesh(plane, lava, lm, false)
+			var ground_top := 0.0 if c == MapGen.WALL or puzzle_rocks.has(center) else top
+			t.set_tile(x, y, kind, ground_top, craggy and ground_top > 0.0 or c == MapGen.OBSTACLE and kind == "rock", liquid)
+	# the crags take on a little of the local soil: grey on the coast, ochre in the desert, near black by the volcano
+	var rock_hex := Color("#8a8478").lerp(Color(biome["side"]).lightened(0.15), 0.55).to_html(false) if biome["id"] != "volcano" else "#4a3e3a"
+	var tints := []
+	for layer in VT.GROUND_LAYERS:
+		tints.append(Color({"grass": biome["ground"], "path": biome["path"], "plaza": biome["plaza"], "sand": biome["sand"],
+			"rock": rock_hex, "bed": Color(biome["sand"]).darkened(0.35).to_html(false), "lava_bed": "#3a2a28",
+			"paving": "#9a948a", "ice": "#cfeaf6"}[layer]))
+	t.build(self, tints, Color(biome["water"]))
+	var wk := VBld.Kit.new()
+	wk.box("stone", Vector3(0, 0.8, 0), Vector3(1.0, 1.6, 1.0), Color("#b8b0a0"))
+	wk.box("stone", Vector3(0, 1.66, 0), Vector3(1.06, 0.12, 1.06), Color("#cfc7b6"))
+	var wx := []
+	for c in walls:
+		wx.append(_xf(c))
+	_multimesh(wk.mesh(), wx)
+	var rk := VBld.Kit.new()
+	rk.box("ground_rock", Vector3(0, 0.45, 0), Vector3(0.96, 0.9, 0.96), Color(rock_hex))
+	rk.box("ground_rock", Vector3(0.04, 0.95, -0.03), Vector3(0.8, 0.12, 0.8), Color(rock_hex).lightened(0.08))
+	var rx := []
+	for c in puzzle_rocks:
+		rx.append(_xf(c, _voxel_rot(rng)))
+	_multimesh(rk.mesh(), rx)
 	var pb := BoxMesh.new()
 	pb.size = Vector3(1.0, 0.1, 1.0)
 	# a plain box has no vertex colours, so the plank texture gets its wood colour here
@@ -357,45 +344,6 @@ func _build_terrain() -> void:
 	pm.vertex_color_use_as_albedo = false
 	pm.albedo_color = Color("#a8784a")
 	_multimesh(pb, planks, pm, true)
-	_build_sea_aprons()
-
-
-func _build_sea_aprons() -> void:
-	var w: int = map["w"]
-	var h: int = map["h"]
-	var sides := {
-		"north": [Rect2(-20, -20, w + 40, 20), func(i): return Vector2i(i, 0), w],
-		"south": [Rect2(-20, h, w + 40, 20), func(i): return Vector2i(i, h - 1), w],
-		"west": [Rect2(-20, 0, 20, h), func(i): return Vector2i(0, i), h],
-		"east": [Rect2(w, 0, 20, h), func(i): return Vector2i(w - 1, i), h],
-	}
-	for side in sides:
-		var info: Array = sides[side]
-		var n: int = info[2]
-		var wcount := 0
-		for i in n:
-			var p: Vector2i = info[1].call(i)
-			if MapGen.get_t(map, p.x, p.y) == MapGen.WATER:
-				wcount += 1
-		var r: Rect2 = info[0]
-		var mi := MeshInstance3D.new()
-		var pm := PlaneMesh.new()
-		pm.size = r.size
-		mi.mesh = pm
-		var m := StandardMaterial3D.new()
-		if wcount * 2 > n:
-			m.albedo_texture = VT.terrain("water", biome["water"])
-			m.roughness = 0.15
-			m.metallic_specular = 0.9
-			water_mats.append(m)
-			mi.position = Vector3(r.get_center().x, -0.12, r.get_center().y)
-		else:
-			m.albedo_texture = VT.terrain("top_grass" if not _sandy() else "top_sand", biome["ground"] if not _sandy() else biome["sand"])
-			mi.position = Vector3(r.get_center().x, -0.7, r.get_center().y)
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		m.uv1_scale = Vector3(r.size.x, r.size.y, 1)
-		mi.material_override = m
-		add_child(mi)
 
 
 # ================================================================ scatter: grass, trees, rocks, props
@@ -574,23 +522,11 @@ func refresh_locks() -> void:
 		f["meshes"] = node.find_children("*", "GeometryInstance3D", true, false)
 
 
+## Scenery houses nobody lives in: built like every other house in the town's style.
 func _decor_building(b: Dictionary, style: String) -> Node3D:
-	var options := []
-	match style:
-		"adobe", "western":
-			options = ["adobe_smallbuilding01", "adobe_smallbuilding02", "adobe_tinybuilding01", "adobe_largebuilding01"]
-		"coastal", "town", "island":
-			options = ["village_house_1", "village_house_2", "village_house_3"]
-		"mining":
-			options = ["country_house"]
-	if options.is_empty():
-		var bb := b.duplicate()
-		bb["shop"] = "house"
-		return VBld.build(bb, style)
-	var name: String = options[int(b["seed"]) % options.size()]
-	var node := Node3D.new()
-	node.add_child(VA.instance(name, -1.0, maxf(float(b["w"]), float(b["d"])) + 0.2))
-	return node
+	var bb := b.duplicate()
+	bb["shop"] = "house"
+	return VBld.build(bb, style)
 
 
 func _build_statue() -> void:
@@ -938,15 +874,7 @@ func _build_player() -> void:
 func _build_camera() -> void:
 	cam = Camera3D.new()
 	cam.fov = 34 if not interior else 40
-	var attr := CameraAttributesPractical.new()
-	attr.dof_blur_far_enabled = true
-	attr.dof_blur_far_distance = 22.0 if not interior else 18.0
-	attr.dof_blur_far_transition = 10.0
-	attr.dof_blur_near_enabled = not interior
-	attr.dof_blur_near_distance = 11.0
-	attr.dof_blur_near_transition = 3.0
-	attr.dof_blur_amount = 0.07
-	cam.attributes = attr
+	# no depth-of-field: the PSX look keeps every pixel sharp and lets the fog soften the distance
 	add_child(cam)
 	cam.current = true
 
@@ -983,7 +911,8 @@ func _walkable(p: Vector2i) -> bool:
 func _process(delta: float) -> void:
 	_time += delta
 	for m in water_mats:
-		m.uv1_offset = Vector3(sin(_time * 0.5) * 0.04, _time * 0.025, 0)
+		if m is BaseMaterial3D:
+			m.uv1_offset = Vector3(sin(_time * 0.5) * 0.04, _time * 0.025, 0)
 	for sp in spinners:
 		if is_instance_valid(sp):
 			sp.rotation.y = _time * 1.4

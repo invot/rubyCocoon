@@ -7,7 +7,7 @@ static var _meshes := {}
 
 
 static func has(name: String) -> bool:
-	return Manifest.ASSETS.has(name)
+	return Manifest.ASSETS.has(name) or PROCEDURAL.has(name)
 
 
 static func names_with(prefix: String) -> Array:
@@ -18,9 +18,18 @@ static func names_with(prefix: String) -> Array:
 	return out
 
 
+## Models drawn in code rather than loaded (nothing in the packs fits): name -> [builder, variant].
+const PROCEDURAL := {"cactus_1": ["cactus", 0], "cactus_2": ["cactus", 1], "cactus_3": ["cactus", 2]}
+
+
 ## The model's mesh with its palette material set to sharp (nearest) sampling.
 static func mesh(name: String) -> Mesh:
 	if _meshes.has(name):
+		return _meshes[name]
+	if PROCEDURAL.has(name):
+		var VP = load("res://scripts/gfx/voxel_props.gd")
+		var p: Array = PROCEDURAL[name]
+		_meshes[name] = VP.call(p[0], p[1])
 		return _meshes[name]
 	var path: String = Manifest.ASSETS.get(name, "")
 	# the most detailed trees have a half-resolution version (tools/voxel_lod.py): a quarter of the triangles,
@@ -35,7 +44,8 @@ static func mesh(name: String) -> Mesh:
 		_meshes[name] = bm
 		return bm
 	var m: Mesh = _recentered(load(path))
-	for s in m.get_surface_count():
+	# PSX models (assets/psx/models) come with their own materials; the voxel OBJs get sharp palette sampling
+	for s in (m.get_surface_count() if path.ends_with(".obj") else 0):
 		var mat = m.surface_get_material(s)
 		if mat is BaseMaterial3D:
 			var nm: BaseMaterial3D = mat.duplicate()

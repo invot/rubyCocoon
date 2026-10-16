@@ -75,9 +75,7 @@ class Kit:
 		]
 		if bottom:
 			faces.append([Vector3(0, -1, 0), [Vector3(-h.x, -h.y, h.z), Vector3(h.x, -h.y, h.z), Vector3(h.x, -h.y, -h.z), Vector3(-h.x, -h.y, -h.z)]])
-		if not surf.has(mat):
-			surf[mat] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray()]
-		var arr: Array = surf[mat]
+		var arr := _arrays(mat)
 		for f in faces:
 			var n: Vector3 = f[0]
 			var q: Array = f[1]
@@ -92,6 +90,49 @@ class Kit:
 				arr[0].append(v)
 				arr[1].append(n)
 				arr[2].append(cc)
+				arr[3].append(Kit.planar_uv(v, n))
+
+	## A flat polygon (3 or 4 corners, any order around its edge) facing `n`: roof slopes, gable ends, eaves.
+	## `uv_axis` runs along the texture's rows (roof tiles run along the ridge); world units, like the boxes.
+	func poly(mat: String, pts: Array, n: Vector3, col := Color.WHITE, uv_axis := Vector3.ZERO, uv_origin := Vector3.ZERO) -> void:
+		var arr := _arrays(mat)
+		n = n.normalized()
+		var cc := col
+		if mat != "glow":
+			# the same soft per-face shading the boxes get, by how much the face looks up or away
+			var sh := lerpf(0.82, 1.0, clampf(n.y * 0.5 + 0.5 + n.z * 0.15, 0.0, 1.0))
+			cc = Color(col.r * sh, col.g * sh, col.b * sh, col.a)
+		var tris := [[pts[0], pts[1], pts[2]]]
+		if pts.size() == 4:
+			tris.append([pts[0], pts[2], pts[3]])
+		var u_dir := uv_axis.normalized()
+		var v_dir := n.cross(u_dir).normalized() if u_dir != Vector3.ZERO else Vector3.ZERO
+		for t in tris:
+			var a: Vector3 = t[0]
+			var b: Vector3 = t[1]
+			var d: Vector3 = t[2]
+			var tri := [a, b, d] if (b - a).cross(d - a).dot(n) < 0.0 else [a, d, b]
+			for v in tri:
+				arr[0].append(v)
+				arr[1].append(n)
+				arr[2].append(cc)
+				if u_dir != Vector3.ZERO:
+					arr[3].append(Vector2((v - uv_origin).dot(u_dir), (v - uv_origin).dot(v_dir)))
+				else:
+					arr[3].append(Kit.planar_uv(v, n))
+
+	func _arrays(mat: String) -> Array:
+		if not surf.has(mat):
+			surf[mat] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray(), PackedVector2Array()]
+		return surf[mat]
+
+	## Box-style texture coordinates in world units: each face is mapped straight on (crisp, unlike triplanar).
+	static func planar_uv(p: Vector3, n: Vector3) -> Vector2:
+		if absf(n.y) >= absf(n.x) and absf(n.y) >= absf(n.z):
+			return Vector2(p.x, p.z)
+		if absf(n.z) >= absf(n.x):
+			return Vector2(p.x * signf(n.z), -p.y)
+		return Vector2(-p.z * signf(n.x), -p.y)
 
 	func mesh() -> ArrayMesh:
 		var m := ArrayMesh.new()
@@ -102,6 +143,7 @@ class Kit:
 			arrays[Mesh.ARRAY_VERTEX] = arr[0]
 			arrays[Mesh.ARRAY_NORMAL] = arr[1]
 			arrays[Mesh.ARRAY_COLOR] = arr[2]
+			arrays[Mesh.ARRAY_TEX_UV] = arr[3]
 			m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 			var mat: Material
 			if key == "color":
@@ -109,7 +151,7 @@ class Kit:
 			elif key == "glow":
 				mat = VT.glow_material()
 			else:
-				mat = VT.material(key)
+				mat = VT.kit_material(key)
 			m.surface_set_material(m.get_surface_count() - 1, mat)
 		return m
 
@@ -404,8 +446,17 @@ static func _shop(k: Kit, w: float, d: float, st: Dictionary, look: Dictionary, 
 				k.box("color", Vector3(r, wy + G + 0.28, front + 0.96), Vector3(0.05, 0.44, 0.05), trim)
 				r += 0.3
 		if look.get("skirt", false):
-			k.box(roof_tex, Vector3(0, wy + G + 0.12, 0), Vector3(ww + 0.8, 0.14, wd + 0.8), roof_col)
-			k.box(roof_tex, Vector3(0, wy + G + 0.24, 0), Vector3(ww + 0.4, 0.12, wd + 0.4), roof_col.darkened(0.05))
+			# a tiled skirt roof between the floors: four slopes from the wide eaves in to the upper walls
+			var y0 := wy + G + 0.06
+			var y1 := y0 + 0.36
+			var ox := ww / 2.0 + 0.45
+			var oz := wd / 2.0 + 0.45
+			var ix := ww / 2.0 - 0.02
+			var iz := wd / 2.0 + jet - 0.02
+			for s in [-1.0, 1.0]:
+				_slope(k, roof_tex, [Vector3(-ox, y0, oz * s), Vector3(ox, y0, oz * s), Vector3(ix, y1, iz * s), Vector3(-ix, y1, iz * s)], roof_col if s > 0 else roof_col.darkened(0.06), Vector3.RIGHT)
+				_slope(k, roof_tex, [Vector3(ox * s, y0, -oz), Vector3(ox * s, y0, oz), Vector3(ix * s, y1, iz), Vector3(ix * s, y1, -iz)], roof_col.darkened(0.03), Vector3.BACK)
+				k.box("color", Vector3(0, y0 - 0.03, oz * s), Vector3(ox * 2.0, 0.06, 0.06), trim)
 	# ---- the roof
 	match String(look["roof"]):
 		"flat":
@@ -591,29 +642,90 @@ static func _gear(k: Kit, c: Vector3, r: float, col: Color) -> void:
 	k.box("color", c + Vector3(0, 0, 0.05), Vector3(0.12, 0.12, 0.04), Color("#3a3a3a"))
 
 
+## One sloped roof face (3 or 4 corners) with its tile rows running along `along`; it always faces up.
+static func _slope(k: Kit, tex: String, pts: Array, col: Color, along: Vector3) -> void:
+	var a: Vector3 = pts[0]
+	var n: Vector3 = (pts[1] - a).cross(pts[2] - a)
+	if n.length() < 0.0001 and pts.size() == 4:
+		n = (pts[2] - a).cross(pts[3] - a)
+	n = n.normalized()
+	if n.y < 0.0:
+		n = -n
+	k.poly(tex, pts, n, col, along, a)
+
+
+## A pitched roof whose ridge runs along x: two slopes, gable-end walls under them, a ridge cap and thin eaves.
+## `slope` is rise over run; the roof hangs `ov` past the walls.
+static func _gable(k: Kit, w: float, d: float, top: float, slope: float, ov: float, tex: String, col: Color, wall_tex: String, wall_col: Color, trim: Color) -> float:
+	var hw := w / 2.0 + 0.15
+	var hd := d / 2.0 + ov
+	var rh := hd * slope
+	var y0 := top + 0.04
+	var ridge := y0 + rh
+	for sz in [-1.0, 1.0]:
+		_slope(k, tex, [Vector3(-hw, y0, hd * sz), Vector3(hw, y0, hd * sz), Vector3(hw, ridge, 0), Vector3(-hw, ridge, 0)], col if sz > 0 else col.darkened(0.06), Vector3.RIGHT)
+		# the eaves' edge, so the roof has some thickness from below
+		k.box("color", Vector3(0, y0 - 0.03, hd * sz), Vector3(hw * 2.0, 0.07, 0.07), trim)
+	# gable ends: the wall carries on up into the triangle under the roof
+	var gw := (w - 0.2) / 2.0
+	var gd := (d - 0.3) / 2.0
+	for sx in [-1.0, 1.0]:
+		k.poly(wall_tex, [Vector3(gw * sx, top, -gd), Vector3(gw * sx, top, gd), Vector3(gw * sx, ridge - 0.04, 0)], Vector3(sx, 0, 0), wall_col)
+	k.box(tex, Vector3(0, ridge + 0.02, 0), Vector3(hw * 2.0 + 0.04, 0.09, 0.18), col.darkened(0.22))
+	return ridge
+
+
+## A hipped roof: slopes on all four sides up to a short ridge (or a point on a square plan). A pagoda's eaves flare:
+## each side is cut in two, a shallow skirt and a steeper upper slope, with the corners kicked up.
+static func _hip(k: Kit, w: float, d: float, top: float, slope: float, ov: float, flare: bool, tex: String, col: Color, trim: Color) -> float:
+	var long_x := w >= d
+	var hl := (w if long_x else d) / 2.0 + ov
+	var hs := (d if long_x else w) / 2.0 + ov
+	var rl := maxf(0.0, hl - hs)
+	var y0 := top + 0.04
+	# the profile from eave to ridge as [inset, height] points
+	var prof := [[0.0, y0], [hs, y0 + hs * slope]]
+	if flare:
+		var skirt := minf(0.55, hs * 0.4)
+		prof = [[0.0, y0], [skirt, y0 + skirt * slope * 0.45], [hs, y0 + skirt * slope * 0.45 + (hs - skirt) * slope * 1.25]]
+	var P := func(along: float, across: float, y: float) -> Vector3:
+		return Vector3(along, y, across) if long_x else Vector3(across, y, along)
+	var along_axis := Vector3.RIGHT if long_x else Vector3.BACK
+	for seg in prof.size() - 1:
+		var i0: float = prof[seg][0]
+		var i1: float = prof[seg + 1][0]
+		var ya: float = prof[seg][1]
+		var yb: float = prof[seg + 1][1]
+		var l0 := hl - i0
+		var l1 := maxf(rl, hl - i1)
+		var s0 := hs - i0
+		var s1 := hs - i1
+		var shade := col.darkened(0.04 * seg)
+		for side in [-1.0, 1.0]:
+			# the long sides: trapezoids
+			_slope(k, tex, [P.call(-l0, s0 * side, ya), P.call(l0, s0 * side, ya), P.call(l1, s1 * side, yb), P.call(-l1, s1 * side, yb)], shade if side > 0 else shade.darkened(0.06), along_axis)
+			# the short ends: trapezoids closing to the ridge's ends
+			var e: float = side
+			_slope(k, tex, [P.call(l0 * e, -s0, ya), P.call(l0 * e, s0, ya), P.call(l1 * e, s1, yb), P.call(l1 * e, -s1, yb)], shade.darkened(0.03), Vector3.BACK if long_x else Vector3.RIGHT)
+	var ridge_y: float = prof[prof.size() - 1][1]
+	for side in [-1.0, 1.0]:
+		k.box("color", P.call(0.0, hs * side, y0 - 0.03), Vector3(hl * 2.0, 0.07, 0.07) if long_x else Vector3(0.07, 0.07, hl * 2.0), trim)
+	if flare:
+		for sx in [-1.0, 1.0]:
+			for sz in [-1.0, 1.0]:
+				k.box(tex, Vector3(sx * (w / 2.0 + ov - 0.05), y0 + 0.12, sz * (d / 2.0 + ov - 0.05)), Vector3(0.22, 0.1, 0.22), col.lightened(0.05))
+	if rl > 0.05:
+		k.box(tex, P.call(0.0, 0.0, ridge_y + 0.03), Vector3(rl * 2.0 + 0.1, 0.09, 0.16) if long_x else Vector3(0.16, 0.09, rl * 2.0 + 0.1), col.darkened(0.2))
+	k.box("color", Vector3(0, ridge_y + 0.15, 0), Vector3(0.14, 0.26, 0.14), trim)
+	return ridge_y
+
+
 static func _roof(k: Kit, t: String, w: float, d: float, top: float, tex: String, col: Color, wall_tex: String, wall_col: Color, trim: Color) -> void:
 	match t:
 		"gable", "steep":
-			var steps := int(ceil(d / 2.0 / 0.25)) + 1
-			var rise := 0.22 if t == "gable" else 0.42
-			for i in steps:
-				var depth := d + 0.5 - i * 0.5
-				if depth <= 0.1:
-					break
-				k.box(tex, Vector3(0, top + i * rise + 0.08, 0), Vector3(w + 0.3, 0.18, depth), col.darkened(0.04 * (i % 2)))
-				if i > 0:
-					k.box(wall_tex, Vector3(0, top + (i - 0.5) * rise, 0), Vector3(w - 0.3, rise, maxf(0.1, depth - 0.6)), wall_col)
+			_gable(k, w, d, top, 0.88 if t == "gable" else 1.68, 0.25, tex, col, wall_tex, wall_col, trim)
 		"hip", "pagoda":
-			var layers := 6 if t == "hip" else 4
-			for i in layers:
-				var f := 1.0 - float(i) / layers
-				var ex := 0.45 if t == "hip" else (0.6 if i == 0 else 0.3)
-				k.box(tex, Vector3(0, top + i * 0.24 + 0.1, 0), Vector3((w + ex) * f + 0.2, 0.22, (d + ex) * f + 0.2), col.darkened(0.05 * (i % 2)))
-				if t == "pagoda" and i == 0:
-					for sx in [-1, 1]:
-						for sz in [-1, 1]:
-							k.box(tex, Vector3(sx * (w / 2.0 + 0.35), top + 0.24, sz * (d / 2.0 + 0.35)), Vector3(0.3, 0.12, 0.3), col)
-			k.box("color", Vector3(0, top + layers * 0.24 + 0.15, 0), Vector3(0.2, 0.3, 0.2), trim)
+			_hip(k, w, d, top, 0.62 if t == "hip" else 0.55, 0.45 if t == "hip" else 0.6, t == "pagoda", tex, col, trim)
 		"flat":
 			k.box(tex, Vector3(0, top + 0.08, 0), Vector3(w - 0.1, 0.16, d - 0.2), col)
 			for sz in [-1, 1]:
@@ -633,8 +745,17 @@ static func _roof(k: Kit, t: String, w: float, d: float, top: float, tex: String
 			for px in [-w / 2.0 + 0.1, w / 2.0 - 0.1]:
 				k.box("color", Vector3(px, (top - 0.6) / 2.0, d / 2.0 + 0.85), Vector3(0.1, top - 0.6, 0.1), trim)
 		"shed":
-			for i in 4:
-				k.box(tex, Vector3(0, top + i * 0.12 + 0.06, -d / 2.0 + 0.25 + i * (d / 4.0) * 0.0), Vector3(w + 0.3, 0.12, d + 0.3 - i * 0.2), col.darkened(0.05 * (i % 2)))
+			# one slope, high at the back, low over the door
+			var hw := w / 2.0 + 0.15
+			var hd := d / 2.0 + 0.15
+			var lo := top + 0.04
+			var hi := top + 0.5
+			_slope(k, tex, [Vector3(-hw, lo, hd), Vector3(hw, lo, hd), Vector3(hw, hi, -hd), Vector3(-hw, hi, -hd)], col, Vector3.RIGHT)
+			var gw := (w - 0.2) / 2.0
+			var gd := (d - 0.3) / 2.0
+			for sx in [-1.0, 1.0]:
+				k.poly(wall_tex, [Vector3(gw * sx, top, -gd), Vector3(gw * sx, top, gd), Vector3(gw * sx, lo + (hi - lo) * (hd + gd) / (2.0 * hd), -gd)], Vector3(sx, 0, 0), wall_col)
+			k.box("color", Vector3(0, lo - 0.03, hd), Vector3(hw * 2.0, 0.07, 0.07), trim)
 
 
 # ---------------------------------------------------------------- special buildings

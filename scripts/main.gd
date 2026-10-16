@@ -10,10 +10,13 @@ const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 
-## Render the 3D world at 1/PIXEL_SCALE resolution (1 = full resolution, crisp voxels).
-const PIXEL_SCALE := 1
+## PSX look: the 3D world renders at about this many lines, then each pixel is blown up by a whole number of screen
+## pixels (4x at 1080p, 3x at 900p...) with nearest sampling, so the pixels stay crisp and evenly sized. The UI is
+## drawn on top at full resolution.
+const PSX_LINES := 270
 
-var container: SubViewportContainer
+## Shows the low-resolution 3D view, scaled up to fill the window.
+var screen: TextureRect
 var view: SubViewport
 var world = null
 var in_battle := false
@@ -29,18 +32,24 @@ func _ready() -> void:
 	if Prefs.is_mobile():
 		# a steady 60 fps: chasing a 120-144 Hz screen makes uneven frames and heats the phone until it throttles
 		Engine.max_fps = 60
-	container = SubViewportContainer.new()
-	container.stretch = true
-	container.stretch_shrink = PIXEL_SCALE
-	container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	container.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(container)
 	view = SubViewport.new()
 	view.handle_input_locally = false
 	view.audio_listener_enable_3d = false
-	view.msaa_3d = Viewport.MSAA_2X
-	container.add_child(view)
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# hard pixel edges, like the hardware: no anti-aliasing at this resolution
+	view.msaa_3d = Viewport.MSAA_DISABLED
+	view.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	add_child(view)
+	screen = TextureRect.new()
+	screen.texture = view.get_texture()
+	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	screen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	screen.stretch_mode = TextureRect.STRETCH_SCALE
+	screen.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(screen)
+	get_window().size_changed.connect(_fit_view)
+	_fit_view()
 	_parse_test_args()
 	if _test.has("scene"):
 		_run_test.call_deferred()
@@ -58,7 +67,21 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if ev is InputEventScreenTouch and ev.pressed and world != null and not in_battle and not _transitioning and not world.demo:
 		if UI.touch_blocks(ev.position) or not UI.stack.is_empty():
 			return
-		world.tap_at(ev.position / float(PIXEL_SCALE))
+		world.tap_at(to_view(ev.position))
+
+
+## Sizes the 3D view to the window: PSX_LINES tall, give or take, at a whole-number scale.
+func _fit_view() -> void:
+	var win := Vector2(get_window().size)
+	if win.y < 1.0:
+		return
+	var k := maxf(1.0, roundf(win.y / float(PSX_LINES)))
+	view.size = Vector2i(ceili(win.x / k), ceili(win.y / k))
+
+
+## A point on the screen (in UI units) -> the same point in the low-resolution 3D view.
+func to_view(p: Vector2) -> Vector2:
+	return p * Vector2(view.size) / get_viewport().get_visible_rect().size
 
 
 func _process(_delta: float) -> void:
