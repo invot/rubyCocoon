@@ -11,8 +11,8 @@ var text_speed := 60.0
 var touch_controls := "auto"
 var show_key_legend := true
 var fullscreen := false
-## the menus' highlight colour: one of UIKit.ACCENTS ("red", "blue", "green", "purple", "silver")
-var accent := "red"
+## the gem the menus are tinted with: one of UIKit.ACCENTS ("ruby", "sapphire", "emerald", "hematite")
+var accent := "ruby"
 
 signal changed
 
@@ -34,6 +34,8 @@ func load_prefs() -> void:
 	show_key_legend = bool(c.get_value("controls", "key_legend", show_key_legend))
 	fullscreen = bool(c.get_value("video", "fullscreen", fullscreen))
 	accent = String(c.get_value("ui", "accent", accent))
+	# the old highlight colours became gems
+	accent = {"red": "ruby", "blue": "sapphire", "green": "emerald", "silver": "hematite", "purple": "ruby"}.get(accent, accent)
 
 
 func save_prefs() -> void:

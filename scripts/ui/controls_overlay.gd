@@ -26,6 +26,8 @@ var _legend_up := false
 var touch_root: Node2D
 var _buttons := {}
 var _touch_on := false
+## the gem the legend and pad were drawn in
+var _gem := ""
 
 
 func _ready() -> void:
@@ -33,6 +35,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_legend()
 	_build_touch()
+	_gem = UIKit.accent_name
 	get_viewport().size_changed.connect(_layout)
 	if is_instance_valid(Prefs):
 		Prefs.changed.connect(refresh)
@@ -40,6 +43,8 @@ func _ready() -> void:
 
 
 func refresh() -> void:
+	if _gem != UIKit.accent_name:
+		_recolour()
 	_touch_on = Prefs.touch_enabled()
 	touch_root.visible = _touch_on
 	legend.visible = not _touch_on and Prefs.show_key_legend
@@ -77,16 +82,47 @@ func touch_visible() -> bool:
 	return _touch_on
 
 
+## The d-pad and A/B step aside while a screen that is tapped directly (the Start book) is on top.
+func _process(_delta: float) -> void:
+	if not _touch_on or _buttons.is_empty():
+		return
+	var top = UI.stack.back() if is_instance_valid(UI) and not UI.stack.is_empty() else null
+	var hide: bool = top != null and top.get("hides_touch_pad") == true
+	if _buttons["a"].visible == hide:
+		for id in ["up", "down", "left", "right", "a", "b"]:
+			_buttons[id].visible = not hide
+		_dpad_base.visible = not hide
+
+
+## Redraws the legend strip, key caps and pad faces in the current gem.
+func _recolour() -> void:
+	_gem = UIKit.accent_name
+	legend.add_theme_stylebox_override("panel", _legend_style())
+	for row in [_legend_row, _flute_row]:
+		for item in row.get_children():
+			var cap: PanelContainer = item.get_child(0)
+			cap.add_theme_stylebox_override("panel", UIKit.box("frame", Vector4(2, -5, 2, -5)))
+	_paint_pad()
+
+
 # ---------------------------------------------------------------- desktop key legend
-func _build_legend() -> void:
-	legend = PanelContainer.new()
+func _legend_style() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.03, 0.03, 0.04, 0.92)
-	sb.border_color = UIKit.ACCENT
-	sb.border_width_top = 3
+	sb.bg_color = Color(UIKit.WINDOW_BOTTOM, 0.94)
+	sb.border_color = UIKit.BORDER
+	sb.border_width_top = 2
+	sb.corner_radius_top_left = 22
+	sb.corner_radius_top_right = 22
+	sb.corner_detail = 8
+	sb.anti_aliasing = true
 	sb.content_margin_left = 16
 	sb.content_margin_right = 16
-	legend.add_theme_stylebox_override("panel", sb)
+	return sb
+
+
+func _build_legend() -> void:
+	legend = PanelContainer.new()
+	legend.add_theme_stylebox_override("panel", _legend_style())
 	legend.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	legend.offset_top = -LEGEND_H
 	legend.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -108,7 +144,7 @@ func _legend_keys(keys: Array) -> HBoxContainer:
 		item.add_theme_constant_override("separation", 8)
 		var cap := PanelContainer.new()
 		cap.add_theme_stylebox_override("panel", UIKit.box("frame", Vector4(2, -5, 2, -5)))
-		var kl := UIKit.header(k[0], UIKit.INK, UIKit.HEAD_SMALL)
+		var kl := UIKit.label(k[0], 20, UIKit.INK)
 		kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cap.add_child(kl)
 		item.add_child(cap)
@@ -120,96 +156,271 @@ func _legend_keys(keys: Array) -> HBoxContainer:
 
 
 # ---------------------------------------------------------------- touch controls
+## One arm of the d-pad (the cross is three arms across), A and B's diameter, and Start / Pause's pill.
+const ARM := 88.0
+const ROUND := 104.0
+const PILL := Vector2(100, 44)
+## room below each face for its drop shadow
+const SHADOW_ROOM := 8
+
+## the d-pad's cross, drawn whole under its four arm buttons (which only show when pressed)
+var _dpad_base: Sprite2D
+## A, B, Start and Pause's labels: they sink a little while their button is held
+var _labels := {}
+
+
 func _build_touch() -> void:
 	touch_root = Node2D.new()
+	# the faces are drawn smooth (soft edges and shading), so they are scaled smoothly too
+	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	add_child(touch_root)
+	_dpad_base = Sprite2D.new()
+	_dpad_base.centered = false
+	touch_root.add_child(_dpad_base)
 	for dir in ["up", "down", "left", "right"]:
-		var b := _touch_button(dir, "button_square", "button_square_down")
-		var arrow := Sprite2D.new()
-		arrow.texture = UIKit.tex("icon_arrow")
-		arrow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		arrow.position = Vector2(44, 44)
-		arrow.rotation = {"right": 0.0, "down": PI / 2.0, "left": PI, "up": -PI / 2.0}[dir]
-		b.add_child(arrow)
+		_touch_button(dir, Vector2(ARM, ARM))
 	for k in ["a", "b"]:
-		var b2 := _touch_button(k, "button_round" if k == "a" else "button_round_alt", "button_round_down")
-		var l := UIKit.header(k.to_upper(), UIKit.LIGHT, 48)
-		l.add_theme_color_override("font_outline_color", Color.BLACK)
-		l.add_theme_constant_override("outline_size", 6)
-		l.size = Vector2(104, 104)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var b2 := _touch_button(k, Vector2(ROUND, ROUND))
+		var l := UIKit.label(k.to_upper(), UIKit.BODY_HUGE, UIKit.LIGHT)
+		# big letters: 64 screen pixels on a 1080p phone (BoldPixels stays crisp on multiples of 16)
+		l.add_theme_font_size_override("font_size", UIKit.body_px(43))
+		_style_cap_label(l, Vector2(ROUND, ROUND))
 		b2.add_child(l)
+		_labels[k] = l
 	for k in ["start", "pause"]:
-		var b3 := _touch_button(k, "button_pill", "button_pill_down")
-		var l2 := UIKit.header(k.to_upper(), UIKit.LIGHT, UIKit.HEAD_SMALL)
-		l2.size = Vector2(90, 66)
-		l2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l2.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var b3 := _touch_button(k, PILL)
+		var l2 := UIKit.label(k.to_upper(), 20, UIKit.LIGHT)
+		_style_cap_label(l2, PILL)
 		b3.add_child(l2)
-		var cap := UIKit.label("Menu" if k == "start" else "Pause", 20, UIKit.LIGHT)
-		cap.add_theme_color_override("font_outline_color", Color.BLACK)
-		cap.add_theme_constant_override("outline_size", 5)
-		cap.position = Vector2(0, -28)
-		cap.size = Vector2(90, 24)
-		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		b3.add_child(cap)
+		_labels[k] = l2
+	_paint_pad()
 
 
-## The touch buttons' faces, drawn here: black and see-through with a white rim; pressed, they fill with the accent.
-## "square" (the d-pad, 88), "round" (A and B, 104), "pill" (Start and Pause, 90 x 66).
-static func _pad_face(shape: String, pressed: bool) -> ImageTexture:
-	var sz: Vector2i = {"square": Vector2i(88, 88), "round": Vector2i(104, 104), "pill": Vector2i(90, 66)}[shape]
-	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var fill := Color(UIKit.ACCENT, 0.85) if pressed else Color(0.04, 0.04, 0.05, 0.62)
-	var c := Vector2(sz) / 2.0
-	for y in sz.y:
-		for x in sz.x:
+## A button's label: crisp pixel text (not smoothed like the faces), centred, with a soft shadow below it.
+func _style_cap_label(l: Label, box: Vector2) -> void:
+	l.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	l.size = box
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_constant_override("shadow_offset_x", 0)
+	l.add_theme_constant_override("shadow_offset_y", 3)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+## (Re)draws every face in the current gem.
+func _paint_pad() -> void:
+	_dpad_base.texture = _dpad_face()
+	for dir in ["up", "down", "left", "right"]:
+		var b: TouchScreenButton = _buttons[dir]
+		b.texture_normal = _blank(Vector2i(int(ARM), int(ARM)))
+		b.texture_pressed = _arm_pressed(dir)
+	for k in ["a", "b"]:
+		_buttons[k].texture_normal = _dome_face(k, false)
+		_buttons[k].texture_pressed = _dome_face(k, true)
+	for k in ["start", "pause"]:
+		_buttons[k].texture_normal = _pill_face(false)
+		_buttons[k].texture_pressed = _pill_face(true)
+	for k in _labels:
+		(_labels[k] as Label).add_theme_color_override("font_shadow_color", Color(UIKit.BROWN, 0.85))
+
+
+# ---- shapes: signed distances, positive inside
+static func _sd_box(p: Vector2, rect: Rect2, r: float) -> float:
+	var q := (p - rect.get_center()).abs() - (rect.size / 2.0 - Vector2(r, r))
+	return -(Vector2(maxf(q.x, 0.0), maxf(q.y, 0.0)).length() + minf(maxf(q.x, q.y), 0.0) - r)
+
+
+## The d-pad's cross, in its own 264 x 264 space.
+static func _sd_cross(p: Vector2) -> float:
+	var v := _sd_box(p, Rect2(ARM, 0, ARM, ARM * 3.0), 16.0)
+	var h := _sd_box(p, Rect2(0, ARM, ARM * 3.0, ARM), 16.0)
+	return maxf(v, h)
+
+
+## The arrow on the arm `dir`, pointing outwards (signed distance to a triangle).
+static func _sd_arrow(p: Vector2, dir: String) -> float:
+	var c := Vector2(ARM * 1.5, ARM * 1.5)
+	var out: Vector2 = {"up": Vector2.UP, "down": Vector2.DOWN, "left": Vector2.LEFT, "right": Vector2.RIGHT}[dir]
+	var side := Vector2(-out.y, out.x)
+	var mid := c + out * ARM * 1.02
+	var tip := mid + out * 15.0
+	var b1 := mid - out * 11.0 + side * 16.0
+	var b2 := mid - out * 11.0 - side * 16.0
+	var d := INF
+	for e in [[tip, b1], [b1, b2], [b2, tip]]:
+		var a: Vector2 = e[0]
+		var n: Vector2 = (e[1] - a).orthogonal().normalized()
+		# the inside is on the side of the third corner
+		var third: Vector2 = tip + b1 + b2 - e[0] - e[1]
+		if n.dot(third - a) < 0.0:
+			n = -n
+		d = minf(d, n.dot(p - a))
+	return d - 1.5
+
+
+## The plate colour of the d-pad and pills (a deep shade of the gem), from the top (t = 0) to the bottom (t = 1).
+static func _plate(t: float) -> Color:
+	var g := UIKit.ACCENT
+	return Color.from_hsv(g.h, g.s * 0.55, 0.40).lerp(Color.from_hsv(g.h, g.s * 0.62, 0.17), t)
+
+
+## Shades a pixel near a face's edge: lit along the top, shadowed along the bottom (`n` points outwards).
+static func _bevel(col: Color, d: float, n: Vector2, width := 7.0) -> Color:
+	if d < 0.0 or d > width:
+		return col
+	var k := 1.0 - d / width
+	var f := n.dot(Vector2(-0.3, -1.0).normalized())
+	return col.lerp(Color.WHITE, 0.30 * f * k) if f > 0.0 else col.lerp(Color.BLACK, -0.40 * f * k)
+
+
+static func _cover(d: float) -> float:
+	return clampf(d + 0.5, 0.0, 1.0)
+
+
+## The whole cross: a soft shadow, the rim, a top-lit gradient with bevelled edges, a dimple in the middle and pale
+## raised arrows.
+static func _dpad_face() -> ImageTexture:
+	var n := int(ARM * 3.0)
+	var img := Image.create(n, n + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
+	var rim := UIKit.BORDER
+	var centre := Vector2(ARM * 1.5, ARM * 1.5)
+	var arrow_col := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.12, 0.96)
+	for y in img.get_height():
+		for x in n:
 			var p := Vector2(x + 0.5, y + 0.5)
-			var d := 0.0
-			match shape:
-				"round":
-					d = c.x - p.distance_to(c)
-				"pill":
-					var r := c.y
-					var q := Vector2(clampf(p.x, r, sz.x - r), c.y)
-					d = r - p.distance_to(q)
-				_:
-					# a square with corners rounded a little
-					var r2 := 12.0
-					var q2 := Vector2(clampf(p.x, r2, sz.x - r2), clampf(p.y, r2, sz.y - r2))
-					d = r2 - p.distance_to(q2)
-			if d < 0.0:
-				continue
-			if d < 3.0:
-				img.set_pixel(x, y, UIKit.BORDER)
-			elif d < 5.0:
-				img.set_pixel(x, y, Color(0, 0, 0, 0.7))
-			else:
-				img.set_pixel(x, y, fill)
+			var sh := _sd_cross(p - Vector2(0, 6))
+			var col := Color(0, 0, 0, clampf((sh + 4.0) / 8.0, 0.0, 1.0) * 0.38)
+			var d := _sd_cross(p)
+			var a := _cover(d)
+			if a > 0.0:
+				var g := Vector2(_sd_cross(p + Vector2(1, 0)) - _sd_cross(p - Vector2(1, 0)), _sd_cross(p + Vector2(0, 1)) - _sd_cross(p - Vector2(0, 1)))
+				var outward := -g.normalized() if g.length() > 0.001 else Vector2.ZERO
+				var body := _plate(p.y / n)
+				body = _bevel(body, d - 2.5, outward)
+				# the dimple in the middle: a shallow bowl, dark at the top and lit at the bottom
+				var dc := p.distance_to(centre)
+				if dc < 24.0:
+					var bowl := (p - centre) / 24.0
+					body = body.lerp(Color.BLACK, 0.18).lerp(Color.WHITE, clampf(bowl.y, 0.0, 1.0) * 0.12)
+				elif dc < 26.0:
+					body = body.lerp(Color.WHITE, 0.10)
+				for dir in ["up", "down", "left", "right"]:
+					var ash := _sd_arrow(p - Vector2(0, 2), dir)
+					if ash > -1.0:
+						body = body.lerp(Color.BLACK, _cover(ash) * 0.35)
+					var ad := _sd_arrow(p, dir)
+					if ad > -1.0:
+						body = body.lerp(arrow_col, _cover(ad))
+				if d < 2.5:
+					body = rim.lerp(rim.darkened(0.45), p.y / n)
+				col = col.blend(Color(body, 0.94 * a))
+			img.set_pixel(x, y, col)
 	return ImageTexture.create_from_image(img)
 
 
-func _touch_button(id: String, tex_up: String, tex_down: String) -> TouchScreenButton:
+## A pressed arm: its part of the cross sinks into shadow and its arrow lights up in the gem.
+static func _arm_pressed(dir: String) -> ImageTexture:
+	var off: Vector2 = {"up": Vector2(ARM, 0), "down": Vector2(ARM, ARM * 2.0), "left": Vector2(0, ARM), "right": Vector2(ARM * 2.0, ARM)}[dir]
+	var n := int(ARM)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var p := off + Vector2(x + 0.5, y + 0.5)
+			var d := _sd_cross(p)
+			var col := Color(0, 0, 0, 0)
+			if d > -0.5:
+				col = Color(0, 0, 0, 0.30 * _cover(d - 2.5))
+				var ad := _sd_arrow(p, dir)
+				if ad > -1.0:
+					col = col.blend(Color(UIKit.ACCENT.lightened(0.25), _cover(ad)))
+			img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
+
+
+## A or B: a round, domed button in the gem (B a deeper shade) with a pale rim, a top-lit bevel, a glossy highlight
+## and a shadow below; pressed, it sinks onto its shadow and darkens.
+static func _dome_face(which: String, pressed: bool) -> ImageTexture:
+	var w := int(ROUND)
+	var img := Image.create(w, w + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
+	var r := ROUND / 2.0 - 2.0
+	var c := Vector2(ROUND / 2.0, ROUND / 2.0 + (3.0 if pressed else 0.0))
+	var sc := Vector2(ROUND / 2.0, ROUND / 2.0 + (4.0 if pressed else 7.0))
+	var g := UIKit.ACCENT
+	var top := g.lightened(0.22) if which == "a" else g.darkened(0.12)
+	var bottom := g.darkened(0.40) if which == "a" else g.darkened(0.62)
+	if pressed:
+		top = top.darkened(0.2)
+		bottom = bottom.darkened(0.15)
+	for y in img.get_height():
+		for x in w:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var col := Color(0, 0, 0, clampf((r - p.distance_to(sc) + 3.0) / 6.0, 0.0, 1.0) * 0.40)
+			var d := r - p.distance_to(c)
+			var a := _cover(d)
+			if a > 0.0:
+				var t := clampf((p.y - (c.y - r)) / (2.0 * r), 0.0, 1.0)
+				var body := top.lerp(bottom, t)
+				body = _bevel(body, d - 3.0, (p - c).normalized(), 9.0)
+				# a glossy highlight across the top of the dome
+				var hd := ((p - (c + Vector2(-0.12 * r, -0.50 * r))) / Vector2(0.55 * r, 0.26 * r)).length()
+				if hd < 1.0:
+					body = body.lerp(Color.WHITE, (1.0 - hd) * (0.12 if pressed else 0.32))
+				if d < 3.0:
+					body = UIKit.BORDER.lerp(UIKit.BORDER.darkened(0.45), t)
+				col = col.blend(Color(body, 0.94 * a))
+			img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
+
+
+## Start / Pause: a small pill plate in the d-pad's colours, raised on a shadow.
+static func _pill_face(pressed: bool) -> ImageTexture:
+	var sz := Vector2i(int(PILL.x), int(PILL.y) + SHADOW_ROOM)
+	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
+	var rect := Rect2(Vector2(0, 2.0 if pressed else 0.0), PILL).grow(-1)
+	var shadow := Rect2(Vector2(0, 3.0 if pressed else 6.0), PILL).grow(-1)
+	var rad := PILL.y / 2.0 - 1.0
+	for y in sz.y:
+		for x in sz.x:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var col := Color(0, 0, 0, clampf((_sd_box(p, shadow, rad) + 3.0) / 6.0, 0.0, 1.0) * 0.38)
+			var d := _sd_box(p, rect, rad)
+			var a := _cover(d)
+			if a > 0.0:
+				var t := clampf((p.y - rect.position.y) / rect.size.y, 0.0, 1.0)
+				var body := _plate(t)
+				if pressed:
+					body = body.lerp(UIKit.ACCENT, 0.45)
+				var gr := Vector2(_sd_box(p + Vector2(1, 0), rect, rad) - _sd_box(p - Vector2(1, 0), rect, rad),
+					_sd_box(p + Vector2(0, 1), rect, rad) - _sd_box(p - Vector2(0, 1), rect, rad))
+				body = _bevel(body, d - 2.5, -gr.normalized() if gr.length() > 0.001 else Vector2.ZERO, 6.0)
+				if d < 2.5:
+					body = UIKit.BORDER.lerp(UIKit.BORDER.darkened(0.45), t)
+				col = col.blend(Color(body, 0.94 * a))
+			img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
+
+
+static func _blank(sz: Vector2i) -> ImageTexture:
+	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	return ImageTexture.create_from_image(img)
+
+
+## A touch button whose face covers `box` (the hit area reaches a little further, so near-misses still count).
+func _touch_button(id: String, box: Vector2) -> TouchScreenButton:
 	var b := TouchScreenButton.new()
-	var shape := "square" if "square" in tex_up else ("round" if "round" in tex_up else "pill")
-	b.texture_normal = _pad_face(shape, false)
-	b.texture_pressed = _pad_face(shape, true)
+	b.texture_normal = _blank(Vector2i(int(box.x), int(box.y)))
 	b.passby_press = id in ["up", "down", "left", "right"]
 	b.visibility_mode = TouchScreenButton.VISIBILITY_ALWAYS
-	b.modulate = Color(1, 1, 1, 0.85)
 	b.pressed.connect(_send.bind(id, true))
 	b.released.connect(_send.bind(id, false))
-	# a hit area bigger than the drawing, so near-misses still count
-	var tex_size: Vector2 = b.texture_normal.get_size()
 	if id in ["a", "b"]:
 		var circle := CircleShape2D.new()
-		circle.radius = tex_size.x / 2.0 + TOUCH_SLOP
+		circle.radius = box.x / 2.0 + TOUCH_SLOP
 		b.shape = circle
 	else:
 		var rect := RectangleShape2D.new()
-		rect.size = tex_size + Vector2.ONE * TOUCH_SLOP * (1.0 if id in ["up", "down", "left", "right"] else 2.0)
+		rect.size = box + Vector2.ONE * TOUCH_SLOP * (1.0 if id in ["up", "down", "left", "right"] else 2.0)
 		b.shape = rect
 	b.shape_centered = true
 	b.shape_visible = false
@@ -241,6 +452,8 @@ func set_flute_mode(on: bool) -> void:
 
 
 func _send(id: String, down: bool) -> void:
+	if _labels.has(id):
+		(_labels[id] as Label).position.y = (3.0 if id in ["a", "b"] else 2.0) if down else 0.0
 	var actions: Array = PAD_ACTIONS[id]
 	if flute_mode and FLUTE_LANES.has(id):
 		actions = [FLUTE_LANES[id]]
@@ -257,15 +470,16 @@ func _layout() -> void:
 	if touch_root == null:
 		return
 	var vp := get_viewport().get_visible_rect().size
-	var pad := Vector2(28, vp.y - 28 - 88 * 3)
-	_buttons["up"].position = pad + Vector2(88, 0)
-	_buttons["left"].position = pad + Vector2(0, 88)
-	_buttons["right"].position = pad + Vector2(176, 88)
-	_buttons["down"].position = pad + Vector2(88, 176)
-	_buttons["a"].position = Vector2(vp.x - 28 - 104, vp.y - 28 - 104 - 70)
-	_buttons["b"].position = Vector2(vp.x - 28 - 104 - 124, vp.y - 28 - 104)
-	_buttons["start"].position = Vector2(vp.x / 2.0 - 100, vp.y - 24 - 66)
-	_buttons["pause"].position = Vector2(vp.x / 2.0 + 10, vp.y - 24 - 66)
+	var pad := Vector2(28, vp.y - 28 - ARM * 3.0)
+	_dpad_base.position = pad
+	_buttons["up"].position = pad + Vector2(ARM, 0)
+	_buttons["left"].position = pad + Vector2(0, ARM)
+	_buttons["right"].position = pad + Vector2(ARM * 2.0, ARM)
+	_buttons["down"].position = pad + Vector2(ARM, ARM * 2.0)
+	_buttons["a"].position = Vector2(vp.x - 28 - ROUND, vp.y - 28 - ROUND - 70)
+	_buttons["b"].position = Vector2(vp.x - 28 - ROUND - 124, vp.y - 28 - ROUND)
+	_buttons["start"].position = Vector2(roundf(vp.x / 2.0) - PILL.x - 8, vp.y - 26 - PILL.y)
+	_buttons["pause"].position = Vector2(roundf(vp.x / 2.0) + 8, vp.y - 26 - PILL.y)
 
 
 ## The button clusters, each one no-tap zone: the whole d-pad (its middle and the corners between the arrows too),
@@ -281,6 +495,8 @@ func covers(p: Vector2) -> bool:
 	if not _touch_on:
 		return false
 	for group in CLUSTERS:
+		if not (_buttons[group[0]] as TouchScreenButton).visible:
+			continue
 		var zone := Rect2()
 		for i in group.size():
 			var b: TouchScreenButton = _buttons[group[i]]

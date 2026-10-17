@@ -250,3 +250,6 @@ func load_dict(d: Dictionary) -> void:
 	lineage = lin
 	if genes.has("size"):
 		genes["size"] = float(genes["size"])
+	# saves from before the PSX beasts: the model comes from the race
+	if not genes.has("form") and not genes.has("model"):
+		genes["form"] = RaceDB.form(race)

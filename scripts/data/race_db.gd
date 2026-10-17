@@ -70,6 +70,24 @@ const RACES := [
 	["Tank Walker", "earth", "quad", "flat", "antenna", "none", "shell", "plain", "#5a7a3a", "#4a4a52", "#ff4a3a", 1.3],
 ]
 
+## The PSX model each race is drawn with (assets/psx/beasts/<form>.res, baked by tools/import_psx_beasts.gd from the
+## creature packs in psx/Creatures), recoloured with the race's c1 / c2 colours. Merged beasts inherit one parent's.
+const FORMS := [
+	# fire
+	"raccoon", "red_fox", "aardvark", "dobermann", "toad", "falcon", "rattlesnake", "bison", "firefly", "dragon",
+	"tortoise", "lion",
+	# water
+	"puppy", "frog", "clownfish", "bobcat", "scorpion", "catfish", "crocodile", "dragon", "snail", "otter", "capybara",
+	"alligator",
+	# earth
+	"hedgehog", "rabbit", "gorilla", "bighorn", "boar", "komodo", "armadillo", "sloth", "muskox", "iguana", "rhino", "elk",
+	# air
+	"ptarmigan", "red_panda", "slime", "snowy_owl", "perch", "moth", "bat", "eagle", "alpaca", "coral_snake",
+	"kit_fox", "butterfly",
+	# legendary guardians
+	"shark", "condor", "tiger", "mammoth",
+]
+
 const NORMAL_COUNT := 48
 const LEGENDARY := [48, 49, 50, 51]
 const ROBOTS := [52, 53, 54, 55]
@@ -155,7 +173,14 @@ static func genes(id: int) -> Dictionary:
 	}
 	if ROBOT_MODELS.has(id):
 		g["model"] = ROBOT_MODELS[id]
+	else:
+		g["form"] = form(id)
 	return g
+
+
+## The PSX model a race is drawn with ("" for the robots, which use their own models).
+static func form(id: int) -> String:
+	return FORMS[id] if id >= 0 and id < FORMS.size() else ""
 
 
 static func base_stats(id: int) -> Array:

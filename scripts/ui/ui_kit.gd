@@ -1,55 +1,66 @@
 extends RefCounted
-## Shared UI construction helpers and the game theme: the windows of an early PS2 RPG. Near-black, slightly
-## see-through windows with a white double border and white text; the selection, headings, tabs, bars and tags take
-## the player's accent colour (see set_accent and Prefs.accent).
-## Window frames, the selection bar and the small icons are drawn here, pixel by pixel (cached textures); a few icons
-## come from the flatUI kit (assets/ui/flat, copied by tools/build_ui_icons.gd).
-## Font: Lunchtime Doubly So (ui/lunchds.ttf) for everything.
+## Shared UI construction helpers and the game theme: the soft, rounded windows of a cosy PS2 RPG, all in one colour.
+## Windows are deep shades of the player's gem (Ruby, Sapphire, Emerald or Hematite; see set_accent and Prefs.accent)
+## with a gentle gradient, a pale border, round corners and a soft shadow (cozy_box.gd); text, bars, tags and the
+## selection pill are lighter and brighter shades of the same gem.
+## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
+## copied by tools/build_ui_icons.gd).
+## Fonts: BoldPixels (ui/BoldPixels.ttf) for body text, menus and dialogue; Lunchtime Doubly So (ui/lunchds.ttf) only
+## for headings (titles, tabs, name plates, map names).
 
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
+const CozyBox = preload("res://scripts/ui/cozy_box.gd")
 
 const UI_DIR := "res://assets/ui/"
-const BODY_FONT := "res://ui/lunchds.ttf"
+const BODY_FONT := "res://ui/BoldPixels.ttf"
 const HEAD_FONT := "res://ui/lunchds.ttf"
-## Lunchtime Doubly So is drawn on an 8-pixels-per-em grid: sizes that are multiples of 8 on the real screen keep
-## every stroke on whole pixels (see _crisp).
-const BODY_SMALL := 24
-const BODY_BIG := 32
+## Both fonts are drawn on a 16-pixels-per-em grid: sizes that are multiples of 16 on the real screen keep every
+## stroke on whole pixels (see _crisp). On a 1080p screen (scale 1.5) body text lands on 32 screen pixels and
+## dialogue on 48.
+const BODY_SMALL := 21
+const BODY_BIG := 21
 ## dialogue text: three lines fill the box
-const BODY_HUGE := 40
-const HEAD_SIZE := 32
-const HEAD_SMALL := 24
-const FONT_STEP := 8.0
+const BODY_HUGE := 32
+const HEAD_SIZE := 22
+const HEAD_SMALL := 21
+const HEAD_BIG := 32
+const FONT_STEP := 16.0
 
-## The accent colours the player can pick (Settings > Highlight).
-const ACCENTS := {"red": Color("#d42a3c"), "blue": Color("#2f72dc"), "green": Color("#2c9e50"), "purple": Color("#8a46d6"),
-	"silver": Color("#7e8a9c")}
-const ACCENT_ORDER := ["red", "blue", "green", "purple", "silver"]
+## The gem the whole interface is tinted with (Settings > Gem): every window, border, text, bar and tag is a shade
+## of it, so the menus are one colour.
+const ACCENTS := {"ruby": Color("#d6304f"), "sapphire": Color("#3a6ad8"), "emerald": Color("#26a468"),
+	"hematite": Color("#6f7d90")}
+const ACCENT_ORDER := ["ruby", "sapphire", "emerald", "hematite"]
+## settings saved by older versions
+const OLD_ACCENTS := {"red": "ruby", "blue": "sapphire", "green": "emerald", "silver": "hematite", "purple": "ruby", "amber": "ruby"}
 
-# ---- palette ----
-## text on the windows
-const INK := Color("#f2f2ee")
-const LIGHT := Color("#ffffff")
+## window corner radius
+const RADIUS := 16.0
+
+# ---- palette: shades of the gem (see set_accent) ----
+static var accent_name := "ruby"
+## the gem itself: the selection pill, tabs, headings, stripes
+static var ACCENT := Color("#d6304f")
+## highlighted text: the gem, lifted so it reads on the dark windows
+static var GOLD := Color("#e57a8e")
+static var GOLD_BRIGHT := Color("#efa6b4")
+static var ORANGE := Color("#d6304f")
+## text on the windows: white with a breath of the gem
+static var INK := Color("#fff2f4")
+static var LIGHT := Color("#fff9fa")
 ## secondary text
-const DIM := Color("#9c9ca6")
+static var DIM := Color("#c9a3ab")
 ## the window fill (top and bottom of its gradient) and the border
-const WINDOW_TOP := Color(0.11, 0.11, 0.13, 0.95)
-const WINDOW_BOTTOM := Color(0.02, 0.02, 0.03, 0.95)
-const BORDER := Color("#f4f4f4")
-const BORDER_INNER := Color("#6c6c76")
-const PAGE := Color("#0c0c10")
-const BROWN := Color("#060608")
-const BG := Color("#060608")
+static var WINDOW_TOP := Color(0.24, 0.10, 0.13, 0.94)
+static var WINDOW_BOTTOM := Color(0.12, 0.04, 0.06, 0.94)
+static var BORDER := Color("#f8dfe4")
+static var BORDER_INNER := Color("#73404a")
+static var PAGE := Color("#1e0c10")
+static var BROWN := Color("#14080b")
+static var BG := Color("#14080b")
 ## legacy name used across the game: TEXT = body ink
-const TEXT := INK
-## the accent and its shades (follow set_accent)
-static var accent_name := "red"
-static var ACCENT := Color("#d42a3c")
-## highlighted text: the accent, lifted so it reads on black
-static var GOLD := Color("#e85a68")
-static var GOLD_BRIGHT := Color("#f08a94")
-static var ORANGE := Color("#d42a3c")
+static var TEXT := INK
 
 static var _fonts := {}
 ## How much the 1280x720 UI is scaled up on this screen (1.5 on a 1080p-tall phone or a 1920x1080 window).
@@ -58,24 +69,45 @@ static var _tex := {}
 static var _styles := {}
 
 
-## Switches the accent colour (one of ACCENTS); the theme and any window built afterwards follow it.
+## Switches the gem (one of ACCENTS, or an older colour name) and derives every shade of the palette from it; the
+## theme and any window built afterwards follow it.
 static func set_accent(name: String) -> void:
+	name = OLD_ACCENTS.get(name, name)
 	if not ACCENTS.has(name):
-		name = "red"
+		name = "ruby"
 	accent_name = name
-	ACCENT = ACCENTS[name]
-	GOLD = ACCENT.lerp(Color.WHITE, 0.28)
-	GOLD_BRIGHT = ACCENT.lerp(Color.WHITE, 0.5)
-	ORANGE = ACCENT
+	var g: Color = ACCENTS[name]
+	var h := g.h
+	var sat := g.s
+	ACCENT = g
+	GOLD = g.lerp(Color.WHITE, 0.38)
+	GOLD_BRIGHT = g.lerp(Color.WHITE, 0.58)
+	ORANGE = g
+	INK = Color.from_hsv(h, sat * 0.07, 1.0)
+	LIGHT = Color.from_hsv(h, sat * 0.03, 1.0)
+	DIM = Color.from_hsv(h, sat * 0.30, 0.80)
+	WINDOW_TOP = Color.from_hsv(h, minf(1.0, sat * 0.62), 0.25, 0.94)
+	WINDOW_BOTTOM = Color.from_hsv(h, minf(1.0, sat * 0.70), 0.12, 0.94)
+	BORDER = Color.from_hsv(h, sat * 0.14, 0.98)
+	BORDER_INNER = Color.from_hsv(h, sat * 0.50, 0.46)
+	PAGE = Color.from_hsv(h, sat * 0.6, 0.12)
+	BROWN = Color.from_hsv(h, sat * 0.6, 0.08)
+	BG = BROWN
+	TEXT = INK
 	_styles.clear()
 	for k in _tex.keys():
 		if String(k).begins_with("gen:"):
 			_tex.erase(k)
 
 
+## The display name of a gem ("ruby" -> "Ruby").
+static func gem_name(name: String) -> String:
+	return String(OLD_ACCENTS.get(name, name)).capitalize()
+
+
 ## How tall a menu row is: about a centimetre on a phone (48 dp or more), a little less with keys and a mouse.
 static func row_h() -> float:
-	return 84.0 if is_instance_valid(UI) and UI.is_touch() else 60.0
+	return 80.0 if is_instance_valid(UI) and UI.is_touch() else 52.0
 
 
 # ================================================================ crisp pixel fonts
@@ -122,8 +154,8 @@ static func _font(path: String) -> Font:
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	f.generate_mipmaps = false
 	f.multichannel_signed_distance_field = false
-	# Lunchtime has no arrows, stars or notes: those come from Godot's default font
-	f.fallbacks = [ThemeDB.fallback_font]
+	# Lunchtime has no arrows or stars and neither font has notes: those come from BoldPixels, then Godot's default
+	f.fallbacks = [ThemeDB.fallback_font] if path == BODY_FONT else [_font(BODY_FONT), ThemeDB.fallback_font]
 	_fonts[path] = f
 	return f
 
@@ -145,46 +177,36 @@ static func tex(name: String) -> Texture2D:
 
 
 # ================================================================ windows
-## A window's frame: a vertical gradient from WINDOW_TOP to WINDOW_BOTTOM inside a 2-pixel white border, a 1-pixel gap
-## and a fine grey inner line, the corners clipped by a pixel. Drawn tall so the gradient spans the whole window when
-## the middle is stretched. `stripe` adds an accent bar down the left edge (map names and notices).
-static func _window_image(stripe: bool) -> Image:
-	var w := 32
-	var h := 64
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for y in h:
-		var fill := WINDOW_TOP.lerp(WINDOW_BOTTOM, clampf((y - 4.0) / (h - 8.0), 0.0, 1.0))
-		for x in w:
-			var edge := mini(mini(x, w - 1 - x), mini(y, h - 1 - y))
-			var corner := (x < 2 or x > w - 3) and (y < 2 or y > h - 3)
-			var c := fill
-			if edge < 2:
-				c = BORDER
-			elif edge == 3:
-				c = BORDER_INNER
-			if corner and ((x == 0 or x == w - 1) and (y == 0 or y == h - 1)):
-				c = Color(0, 0, 0, 0)
-			if stripe and edge >= 4 and x >= 4 and x < 8:
-				c = ACCENT
-			img.set_pixel(x, y, c)
-	return img
+## A rounded window in the theme's colours; `pad` is extra content padding (l, t, r, b).
+static func cozy(pad := Vector4(0, 0, 0, 0), radius := RADIUS) -> CozyBox:
+	var sb := CozyBox.new()
+	sb.top = WINDOW_TOP
+	sb.bottom = WINDOW_BOTTOM
+	sb.border = BORDER
+	sb.radius = radius
+	sb.content_margin_left = 14 + pad.x
+	sb.content_margin_top = 10 + pad.y
+	sb.content_margin_right = 14 + pad.z
+	sb.content_margin_bottom = 10 + pad.w
+	return sb
 
 
-static func _window_box(key: String, stripe: bool, pad: Vector4) -> StyleBoxTexture:
-	var tkey := "gen:" + ("banner" if stripe else "window")
-	if not _tex.has(tkey):
-		_tex[tkey] = ImageTexture.create_from_image(_window_image(stripe))
-	var sb := StyleBoxTexture.new()
-	sb.texture = _tex[tkey]
-	sb.texture_margin_left = 8 if stripe else 6
-	sb.texture_margin_right = 6
-	sb.texture_margin_top = 6
-	sb.texture_margin_bottom = 6
-	sb.content_margin_left = (8 if stripe else 6) + pad.x
-	sb.content_margin_top = 6 + pad.y
-	sb.content_margin_right = 6 + pad.z
-	sb.content_margin_bottom = 6 + pad.w
+## A small rounded chip: `fill` inside a `edge` border (tags, key caps, name plates).
+static func chip(fill: Color, edge: Color, radius := 10.0, pad := Vector4(10, 2, 10, 2), edge_w := 2.0) -> CozyBox:
+	var sb := CozyBox.new()
+	sb.top = fill.lightened(0.12)
+	sb.bottom = fill.darkened(0.08)
+	sb.border = edge
+	sb.border_w = edge_w
+	sb.radius = radius
+	sb.rim = Color(1, 1, 1, 0.0)
+	sb.shadow = Color(0, 0, 0, 0.22)
+	sb.shadow_off = Vector2(0, 2)
+	sb.shadow_size = 3.0
+	sb.content_margin_left = pad.x
+	sb.content_margin_top = pad.y
+	sb.content_margin_right = pad.z
+	sb.content_margin_bottom = pad.w
 	return sb
 
 
@@ -193,63 +215,40 @@ static func _window_box(key: String, stripe: bool, pad: Vector4) -> StyleBoxText
 static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 	match name:
 		"banner":
-			return _window_box(name, true, pad + Vector4(14, 4, 14, 4))
+			# map names and notices: an accent stripe down the left edge
+			var b := cozy(pad + Vector4(18, 2, 10, 2))
+			b.stripe = ACCENT
+			return b
+		"dialogue":
+			return cozy(pad + Vector4(0, 2, 0, 0), RADIUS + 6.0)
 		"nameplate", "ribbon", "ribbon_small":
-			var sb := StyleBoxFlat.new()
-			sb.bg_color = ACCENT
-			sb.border_color = BORDER
-			sb.set_border_width_all(2)
-			sb.content_margin_left = 14 + pad.x
-			sb.content_margin_right = 14 + pad.z
-			sb.content_margin_top = 4 + pad.y
-			sb.content_margin_bottom = 4 + pad.w
-			sb.anti_aliasing = false
-			return sb
+			var np := chip(ACCENT, BORDER, 14.0, Vector4(18 + pad.x, 4 + pad.y, 18 + pad.z, 4 + pad.w), 3.0)
+			return np
 		"frame":
 			# key caps
-			var kc := StyleBoxFlat.new()
-			kc.bg_color = Color("#1c1c22")
-			kc.border_color = BORDER
-			kc.set_border_width_all(2)
-			kc.content_margin_left = 6 + pad.x
-			kc.content_margin_right = 6 + pad.z
-			kc.content_margin_top = 2 + pad.y
-			kc.content_margin_bottom = 2 + pad.w
-			kc.anti_aliasing = false
-			return kc
+			return chip(WINDOW_TOP, BORDER, 8.0, Vector4(8 + pad.x, 2 + pad.y, 8 + pad.z, 2 + pad.w))
 		"bar_frame":
-			var bf := StyleBoxFlat.new()
-			bf.bg_color = Color("#101014")
-			bf.border_color = BORDER
-			bf.set_border_width_all(2)
-			bf.anti_aliasing = false
-			return bf
-	return _window_box(name, false, pad + Vector4(10, 6, 10, 6))
+			return chip(WINDOW_BOTTOM, BORDER, 8.0, Vector4.ZERO)
+		"slot":
+			return cozy(pad + Vector4(-4, -2, -4, -2), 12.0)
+	return cozy(pad + Vector4(4, 2, 4, 2))
 
 
 # ================================================================ theme
-## The selected row: a bar in the accent colour fading out to the right, with a solid edge on the left (the cursor of
-## the PS2 menus). `right` leaves room for a right-hand label.
+## The selected row: a rounded pill in the accent, bright on the left and fading to the right, with a soft cream
+## edge. `right` leaves room for a right-hand label.
 static func highlight(right := 0.0) -> StyleBox:
-	if not _tex.has("gen:cursor_bar"):
-		var w := 64
-		var h := 8
-		var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-		for y in h:
-			for x in w:
-				var a := lerpf(0.95, 0.12, clampf((x - 6.0) / (w - 8.0), 0.0, 1.0))
-				var c := ACCENT if x >= 6 else BORDER
-				if x < 4:
-					c = BORDER
-				elif x < 6:
-					c = ACCENT.lerp(BORDER, 0.5)
-				img.set_pixel(x, y, Color(c, 1.0 if x < 6 else a))
-		_tex["gen:cursor_bar"] = ImageTexture.create_from_image(img)
-	var sb := StyleBoxTexture.new()
-	sb.texture = _tex["gen:cursor_bar"]
-	sb.texture_margin_left = 8
-	sb.texture_margin_right = 2
-	sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	var sb := CozyBox.new()
+	sb.horizontal = true
+	sb.top = Color(ACCENT.lightened(0.08), 0.95)
+	sb.bottom = Color(ACCENT, 0.30)
+	sb.border = Color(BORDER, 0.55)
+	sb.border_w = 2.0
+	sb.radius = 14.0
+	sb.rim = Color(1, 1, 1, 0.16)
+	sb.shadow = Color(0, 0, 0, 0.18)
+	sb.shadow_off = Vector2(0, 2)
+	sb.shadow_size = 3.0
 	sb.content_margin_left = 22
 	sb.content_margin_right = 12 + right
 	sb.content_margin_top = 2
@@ -265,7 +264,7 @@ static func make_theme() -> Theme:
 	t.set_stylebox("panel", "PanelContainer", win)
 	t.set_stylebox("panel", "Panel", win)
 
-	# menu items, with the accent bar behind the focused row
+	# menu items (body font), with the accent pill behind the focused row
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 22
 	empty.content_margin_right = 12
@@ -276,8 +275,8 @@ static func make_theme() -> Theme:
 		t.set_stylebox(st, "Button", empty)
 	for st in ["hover", "focus", "pressed", "hover_pressed"]:
 		t.set_stylebox(st, "Button", hl)
-	t.set_font("font", "Button", font_head())
-	t.set_font_size("font_size", "Button", head_px(HEAD_SIZE))
+	t.set_font("font", "Button", font_body())
+	t.set_font_size("font_size", "Button", body_px(BODY_BIG))
 	for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
 		t.set_color(c, "Button", INK)
 	t.set_color("font_disabled_color", "Button", Color(DIM, 0.6))
@@ -285,58 +284,52 @@ static func make_theme() -> Theme:
 
 	t.set_color("font_color", "Label", INK)
 	t.set_constant("outline_size", "Label", 0)
-	t.set_constant("line_spacing", "Label", 2)
+	t.set_constant("line_spacing", "Label", 4)
 
-	var le := StyleBoxFlat.new()
-	le.bg_color = Color("#101014")
-	le.border_color = ACCENT
-	le.set_border_width_all(2)
-	le.content_margin_left = 12
-	le.content_margin_right = 12
-	le.content_margin_top = 6
-	le.content_margin_bottom = 6
+	var le := chip(WINDOW_BOTTOM, ACCENT, 12.0, Vector4(14, 6, 14, 6))
 	t.set_stylebox("normal", "LineEdit", le)
 	t.set_stylebox("focus", "LineEdit", le)
 	t.set_color("font_color", "LineEdit", INK)
 	t.set_color("caret_color", "LineEdit", GOLD)
 	t.set_color("selection_color", "LineEdit", Color(ACCENT, 0.5))
 	t.set_font("font", "LineEdit", font_body())
-	t.set_font_size("font_size", "LineEdit", body_px(BODY_BIG))
+	t.set_font_size("font_size", "LineEdit", body_px(BODY_HUGE))
 
 	var sb_bg := StyleBoxFlat.new()
-	sb_bg.bg_color = Color("#26262c")
+	sb_bg.bg_color = Color(BORDER_INNER, 0.5)
+	sb_bg.set_corner_radius_all(6)
 	sb_bg.content_margin_left = 4
 	sb_bg.content_margin_right = 4
 	var sb_grab := StyleBoxFlat.new()
 	sb_grab.bg_color = ACCENT
-	sb_grab.border_color = BORDER
-	sb_grab.set_border_width_all(1)
+	sb_grab.set_corner_radius_all(6)
 	for st in ["grabber", "grabber_highlight", "grabber_pressed"]:
 		t.set_stylebox(st, "VScrollBar", sb_grab)
 	t.set_stylebox("scroll", "VScrollBar", sb_bg)
 
 	var sep := StyleBoxLine.new()
-	sep.color = BORDER_INNER
+	sep.color = Color(BORDER, 0.22)
 	sep.thickness = 2
-	sep.content_margin_top = 6
-	sep.content_margin_bottom = 6
+	sep.grow_begin = -8
+	sep.grow_end = -8
 	t.set_stylebox("separator", "HSeparator", sep)
 	t.set_constant("separation", "HSeparator", 14)
 	return t
 
 
 # ================================================================ widgets
-## Body text: small (<24), big (24-39) or huge (40+), each snapped to a crisp size for this screen.
+## Body text (BoldPixels): small (<24), big (24-31) or huge (32+, dialogue), each snapped to a crisp size for this
+## screen.
 static func label(text: String, size := 20, color := TEXT) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_override("font", font_body())
-	l.add_theme_font_size_override("font_size", body_px(BODY_HUGE if size >= 40 else (BODY_BIG if size >= 24 else BODY_SMALL)))
+	l.add_theme_font_size_override("font_size", body_px(BODY_HUGE if size >= BODY_HUGE else (BODY_BIG if size >= 24 else BODY_SMALL)))
 	l.add_theme_color_override("font_color", color)
 	return l
 
 
-## Header / menu text.
+## Heading text (Lunchtime Doubly So): titles, tabs, name plates, map names.
 static func header(text: String, color := INK, size := HEAD_SIZE) -> Label:
 	var l := Label.new()
 	l.text = text
@@ -348,7 +341,7 @@ static func header(text: String, color := INK, size := HEAD_SIZE) -> Label:
 
 ## White text with a black outline, for text drawn straight over the 3D world.
 static func shadow_label(text: String, size := 20, color := LIGHT) -> Label:
-	var l := header(text, color, 64 if size >= 60 else HEAD_SIZE) if size >= 28 else label(text, size, color)
+	var l := header(text, color, 64 if size >= 60 else HEAD_BIG) if size >= 28 else label(text, size, color)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 8 if size >= 28 else 6)
 	return l
@@ -399,25 +392,16 @@ static func icon(name: String, px := 0.0) -> TextureRect:
 	return tr
 
 
-## A small tag: white text on a dark chip edged in `col`.
+## A small tag: light text on a rounded chip in a dark shade of `col`.
 static func tag(text: String, col: Color, size := 14) -> PanelContainer:
 	var p := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = col.darkened(0.35)
-	sb.border_color = col.lerp(Color.WHITE, 0.3)
-	sb.set_border_width_all(2)
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 0
-	sb.content_margin_bottom = 0
-	sb.anti_aliasing = false
-	p.add_theme_stylebox_override("panel", sb)
+	p.add_theme_stylebox_override("panel", chip(col.darkened(0.45), col.lerp(Color.WHITE, 0.55), 9.0, Vector4(9, 0, 9, 0)))
 	var l := label(text, size, LIGHT)
 	p.add_child(l)
 	return p
 
 
-## An element's tag, in the accent (its name tells the element apart).
+## An element's tag, in the gem like everything else (its name tells the element apart).
 static func element_tag(el: String, size := 14) -> PanelContainer:
 	return tag(Elements.label(el), ACCENT, size)
 
@@ -492,10 +476,10 @@ static func place(c: Control, where: String, margin := Vector2(24, 24)) -> void:
 			c.offset_top = -margin.y
 
 
-## A health bar's colour: the accent, dimming as it runs low (everything in the UI takes the accent).
+## A health bar's colour: a light shade of the gem while healthy, the gem when hurt, a dark shade when nearly out.
 static func hp_color(ratio: float) -> Color:
 	if ratio > 0.5:
-		return ACCENT.lerp(Color.WHITE, 0.12)
+		return ACCENT.lerp(Color.WHITE, 0.30)
 	if ratio > 0.2:
 		return ACCENT
 	return ACCENT.darkened(0.35)

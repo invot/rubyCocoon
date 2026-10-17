@@ -1,8 +1,13 @@
 extends RefCounted
-## Builds a low-poly model of a beast from its body-part genes (the same genes merging mixes).
-## The parts are drawn as shapes in a voxel-sized grid (lowpoly_mesher.gd turns them into smooth polygons): rounded
-## bodies and heads, tapered legs with paws, plate-like fins, glossy eyes.
-## Model space: the beast faces +X, stands on y = 0, centred on X/Z.
+## Builds a beast's model from its genes.
+## Every race is drawn with a model from the PSX creature packs (its "form" gene: assets/psx/beasts/<form>.res, see
+## RaceDB.FORMS and tools/import_psx_beasts.gd), recoloured with the beast's own colours: the model's mid tones take
+## c1, its dark tones a deep shade (or c2 when that is the darker colour), its light tones c2 (or a pale c1), while
+## eyes, claws and glints keep their own colours. Ghost beasts are dusky and glow faintly. Merged beasts inherit one
+## parent's form and mix the colours, so a merge reads as kin to both parents.
+## Genes without a form (very old saves) fall back to the old shape builder below: rounded low-poly parts in a
+## voxel-sized grid (lowpoly_mesher.gd).
+## Model space: the beast faces +X, stands on y = 0 (flyers float above it), centred on X/Z.
 
 const VM = preload("res://scripts/gfx/lowpoly_mesher.gd")
 
@@ -11,16 +16,26 @@ const SY := 32
 const SZ := 22
 const CZ := 11.0
 const VSIZE := 0.058
+const PSX_DIR := "res://assets/psx/beasts/"
+## a form's larger measure (its height, or 0.62 of its length) at gene size 1
+const PSX_SIZE := 1.0
 
 static var _cache := {}
+## per form: its base mesh and the luminance spread of its colours {mesh, lo, mid, hi}
+static var _forms := {}
 
 
 static func mesh(genes: Dictionary) -> ArrayMesh:
 	var key := JSON.stringify(genes)
 	if _cache.has(key):
 		return _cache[key]
-	var g := grid(genes)
-	var m := VM.build(g, VSIZE * float(genes.get("size", 1.0)), null, 1.35)
+	var m: ArrayMesh = null
+	var form := String(genes.get("form", ""))
+	if form != "" and ResourceLoader.exists(PSX_DIR + form + ".res"):
+		m = _psx_mesh(genes, form)
+	else:
+		var g := grid(genes)
+		m = VM.build(g, VSIZE * float(genes.get("size", 1.0)), null, 1.35)
 	_cache[key] = m
 	return m
 
@@ -30,6 +45,112 @@ static func height(genes: Dictionary) -> float:
 	return mesh(genes).get_aabb().end.y
 
 
+# ================================================================ PSX models
+static func _form(form: String) -> Dictionary:
+	if _forms.has(form):
+		return _forms[form]
+	var base: ArrayMesh = load(PSX_DIR + form + ".res")
+	var lums := []
+	for s in base.get_surface_count():
+		var arrays := base.surface_get_arrays(s)
+		var cols = arrays[Mesh.ARRAY_COLOR]
+		var mat := base.surface_get_material(s) as BaseMaterial3D
+		if mat != null and mat.albedo_texture != null:
+			var img := mat.albedo_texture.get_image()
+			if img.is_compressed():
+				img.decompress()
+			for y in range(0, img.get_height(), 2):
+				for x in range(0, img.get_width(), 2):
+					var c := img.get_pixel(x, y)
+					if c.a > 0.5 and not _kept(c):
+						lums.append(c.get_luminance())
+		elif cols != null:
+			for c in (cols as PackedColorArray):
+				if not _kept(c):
+					lums.append(c.get_luminance())
+	lums.sort()
+	var q := func(f: float) -> float: return float(lums[clampi(int(f * (lums.size() - 1)), 0, lums.size() - 1)]) if not lums.is_empty() else 0.5
+	var info := {"mesh": base, "lo": q.call(0.06), "mid": q.call(0.5), "hi": q.call(0.94)}
+	_forms[form] = info
+	return info
+
+
+## Colours a model keeps as they are: near-black (eyes, noses, claws) and the bright white glints in the eyes.
+static func _kept(c: Color) -> bool:
+	var l := c.get_luminance()
+	return l < 0.07 or (l > 0.96 and c.s < 0.06)
+
+
+## The beast's three tones (dark, body, light) from its genes; ghosts are dusky.
+static func _tones(gn: Dictionary) -> Array:
+	var c1 := Color(str(gn.get("c1", "#888888")))
+	var c2 := Color(str(gn.get("c2", "#cccccc")))
+	var shade: float = float(gn.get("shade", 0.0))
+	var dark := c2 if c2.get_luminance() < c1.get_luminance() - 0.12 else c1.darkened(0.55)
+	var light := c2 if c2.get_luminance() > c1.get_luminance() + 0.08 else c1.lerp(Color("#fff8ec"), 0.55)
+	if shade > 0.0:
+		c1 = c1.lerp(Color("#2a2038"), shade)
+		dark = dark.lerp(Color("#120c1a"), shade)
+		light = light.lerp(Color("#8a6cc8"), shade)
+	return [dark, c1, light]
+
+
+static func _recolour(c: Color, info: Dictionary, tones: Array) -> Color:
+	if _kept(c):
+		return c
+	var l := c.get_luminance()
+	var lo: float = info["lo"]
+	var mid: float = info["mid"]
+	var hi: float = info["hi"]
+	var out: Color
+	if l <= mid:
+		out = (tones[0] as Color).lerp(tones[1], clampf((l - lo) / maxf(0.02, mid - lo), 0.0, 1.0))
+	else:
+		out = (tones[1] as Color).lerp(tones[2], clampf((l - mid) / maxf(0.02, hi - mid), 0.0, 1.0))
+	return Color(out, c.a)
+
+
+static func _psx_mesh(gn: Dictionary, form: String) -> ArrayMesh:
+	var info := _form(form)
+	var base: ArrayMesh = info["mesh"]
+	var tones := _tones(gn)
+	var shade: float = float(gn.get("shade", 0.0))
+	var k := PSX_SIZE * float(gn.get("size", 1.0))
+	var lift: float = float(base.get_meta("hover", 0.0)) * k
+	var out := ArrayMesh.new()
+	for s in base.get_surface_count():
+		var arrays := base.surface_get_arrays(s)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for i in verts.size():
+			verts[i] = verts[i] * k + Vector3(0, lift, 0)
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		var mat: StandardMaterial3D = (base.surface_get_material(s) as StandardMaterial3D).duplicate()
+		if mat.albedo_texture != null:
+			var img: Image = mat.albedo_texture.get_image().duplicate()
+			if img.is_compressed():
+				img.decompress()
+			img.clear_mipmaps()
+			img.convert(Image.FORMAT_RGBA8)
+			for y in img.get_height():
+				for x in img.get_width():
+					img.set_pixel(x, y, _recolour(img.get_pixel(x, y), info, tones))
+			img.generate_mipmaps()
+			mat.albedo_texture = ImageTexture.create_from_image(img)
+		elif arrays[Mesh.ARRAY_COLOR] != null:
+			var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+			for i in cols.size():
+				cols[i] = _recolour(cols[i], info, tones)
+			arrays[Mesh.ARRAY_COLOR] = cols
+		if shade > 0.3:
+			mat.emission_enabled = true
+			mat.emission = Color(0.55, 0.32, 1.0)
+			mat.emission_energy_multiplier = 0.35 * shade
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(out.get_surface_count() - 1, mat)
+	return out
+
+
+# ================================================================ fallback shape builder
 static func _anchors(body: String) -> Dictionary:
 	match body:
 		"biped":

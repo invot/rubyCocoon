@@ -147,8 +147,24 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   "C:\Program Files\Godot\Godot_v4.7-stable_win64.exe" --headless --path . --import
   ```
 
-- **Beasts, people, buildings, eggs, signs and obstacles** are built procedurally from voxels:
-  - `voxel_beast.gd` builds all 48 races, ghosts and merged children from their genes.
+- **Beasts** are low-poly models from the PSX creature packs (`psx/Creatures`): fox, raccoon, otter, lion, owl,
+  rattlesnake, mammoth, firefly, moth, clownfish, dragon and more (`RaceDB.FORMS`, one per race). `tools/import_psx_beasts.gd`
+  bakes them into `assets/psx/beasts/` (turned to face +x, centred, scaled to one size), and `voxel_beast.gd` recolours
+  each with the beast's own gene colours (mid tones take c1, dark tones a deep shade, light tones c2, eyes and claws
+  keep theirs); ghosts are dusky and glow faintly. Merged beasts inherit one parent's form and mix the colours. Menu
+  icons are rendered from the same models by `tools/make_beast_icons.gd` and recoloured the same way.
+- **Houses and most shops** are houses from the PS1 House Pack (100 low-poly houses, `tools/import_psx_houses.gd` →
+  `assets/psx/houses/`): `house_models.gd` picks one per plot from the town style's list (weatherboard cottages on the
+  coast, round thatched huts and stilt houses on the islands, terracotta huts in the desert, log cabins in the
+  mountains, dark timber at the hot springs, stone on the moor), re-skins it in the style's own tiles, fits it to the
+  plot and lines its front door up with the map's door. A house may lean over the hedges and trees beside and behind
+  its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
+  striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
+  The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
+- **Past the map's edge** a ring of scenery nobody can reach keeps every edge and corner hidden: a deep wood to the
+  north and sides, only shrubs and rocks to the south (between the camera and the map), the sea running on past
+  coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
+- **People, eggs, signs and obstacles** are built procedurally:
   - `voxel_person.gd` builds people with walk animations, including staff uniforms (collar, badge, short sleeves, optional half apron) and staff hats (visor, diner paper hat, headband).
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
@@ -169,17 +185,24 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 48 races with live voxel portraits and where to find them. |
 | Map | The twelve towns, with the full world map on A. |
-| Settings | Music and sound volume, text speed, touch pad, key guide, fullscreen, save, credits and quit. |
+| Settings | Music and sound volume, text speed, the gem the menus are cut from, touch pad, key guide, fullscreen, save, credits and quit. |
 
 ## UI and audio
 
-- **Pixel-art UI** in a warm storybook palette:
-  - The TravelBook pack provides the book, pages, bookmarks, banner, slots, cursor and icons.
-  - The doboui kit provides the dialogue scroll, name plate, ribbons, buttons, toggles and touch buttons. Its pieces are pixelated and recoloured to match.
-  - set1 provides the bronze HP bars, stars and arena crest gems.
-  - `tools/build_ui_assets.py` turns the kits in `ui/` into the textures in `assets/ui/`.
-- **Fonts**: Ticketing for body text and BoldPixels for menu items and headings. Both are pixel fonts, so every size is snapped to one where their pixel steps land on whole screen pixels (`UIKit.body_px` / `head_px`); the desktop window opens at 1920x1080 for the same 1.5x scale as phones. Dialogue is three lines to a page. Text sits at the top of every text box.
-- The selected menu item has a yellow highlight frame (no pointer arrow).
+- **Cosy PS2-style UI in one colour**: soft rounded windows with a gentle gradient, a pale border and a drop shadow
+  (`scripts/ui/cozy_box.gd`), drawn smooth at any screen scale. Every window, border, text, bar, tag and the selected
+  row's pill is a shade of one **gem** the player picks in Start → Settings → Gem: **Ruby** (the default),
+  **Sapphire**, **Emerald** or **Hematite** (slate grey). `UIKit.set_accent` derives the whole palette from the gem.
+- **Fonts**: **BoldPixels** for body text, menus and dialogue; **Lunchtime Doubly So** only for headings (window and
+  page titles, tabs' section headers, name plates, map names). Both are drawn on a 16-pixel grid, so every size is
+  snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
+  text is 32 screen pixels and dialogue 48. The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
+  Dialogue is three lines to a page. Text sits at the top of every text box.
+- **Phones**: the touch pad is a joined cross-shaped d-pad with raised arrows, glossy domed A and B buttons that sink
+  when pressed (BoldPixels letters), and Start / Pause pills, all tinted with the gem. While the Start book or the
+  world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book. The
+  book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
+  place of the battle text while it is open.
 - The game starts straight into the title screen (no engine splash).
 - **Music**:
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
@@ -271,7 +294,7 @@ scripts/
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         import_psx_beasts.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
@@ -285,7 +308,10 @@ godot --headless --path . -- --scene=flow                                # scrip
 godot --path . -- --scene=knock                                         # knock on locked doors (a Tidewater house, the cathedral)
 godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Thunderhawk
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
-godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # voxel beast gallery (pages 0-3, 4 = merges)
+godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery (pages 0-3, 4 = merges)
+godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
+godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run
+godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --auto=1                  # Scout Bram's battle lesson through its real menus

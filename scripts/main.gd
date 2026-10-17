@@ -340,7 +340,7 @@ func _show_slot_preview(i: int) -> void:
 	tr.texture = GameState.slot_texture(i)
 	frame.add_child(tr)
 	if info.is_empty():
-		vb.add_child(UIKit.label("An empty slot.", 33, UIKit.DIM))
+		vb.add_child(UIKit.label("An empty slot.", 24, UIKit.DIM))
 	else:
 		vb.add_child(UIKit.label("%s  ·  %s" % [info["name"], info["place"]], 33, UIKit.INK))
 		vb.add_child(UIKit.label("Play time %s   ·   saved %s" % [GameState.time_text(info["play_time"]), info["date"]], 20, UIKit.DIM))
@@ -451,6 +451,11 @@ func _parse_test_args() -> void:
 func _run_test() -> void:
 	var scene: String = _test["scene"]
 	var wait := float(_test.get("wait", "3"))
+	if _test.has("gem"):
+		# try a gem for this run only (the player's saved setting is left alone)
+		UIKit.set_accent(String(_test["gem"]))
+		UI.root.theme = UIKit.make_theme()
+		UI.controls.refresh()
 	GameState.new_game("Tester")
 	GameState.set_flag("intro_done")
 	GameState.set_flag("got_egg")
@@ -472,6 +477,16 @@ func _run_test() -> void:
 			for f in String(_test["flags"]).split("+"):
 				GameState.set_flag(f)
 		_do_goto(id, sp)
+		if _test.has("overview"):
+			# look down on the whole map from high above its south edge (--overview=1, or =height)
+			while not is_instance_valid(world) or world.cam == null:
+				await get_tree().process_frame
+			world.cam_free = true
+			var mw: float = world.map["w"]
+			var mh: float = world.map["h"]
+			var hgt := maxf(float(_test["overview"]), 1.0) if float(_test["overview"]) > 1.0 else maxf(mw, mh) * 0.75
+			world.cam.position = Vector3(mw / 2.0, hgt, mh + hgt * 0.45)
+			world.cam.look_at(Vector3(mw / 2.0, 0, mh * 0.45), Vector3.UP)
 		await get_tree().create_timer(wait).timeout
 	elif scene == "battle":
 		_do_goto("route3", "south")

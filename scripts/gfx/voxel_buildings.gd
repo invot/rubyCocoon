@@ -8,6 +8,7 @@ const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const HouseBuilder = preload("res://scripts/gfx/house_builder.gd")
+const HouseModels = preload("res://scripts/gfx/house_models.gd")
 
 const SHADE := {Vector3(0, 1, 0): 1.0, Vector3(0, -1, 0): 0.6, Vector3(1, 0, 0): 0.86, Vector3(-1, 0, 0): 0.86, Vector3(0, 0, 1): 0.95, Vector3(0, 0, -1): 0.78}
 
@@ -33,6 +34,8 @@ const SHOP_ROOF := {"center": "#d84848", "arena": "#c8a030", "electronics": "#3a
 ##   jetty: the upper floor juts out over the street; balcony: a porch roof with a railing above it; skirt: a tiled
 ##   skirt roof between the floors; vigas: log beam ends under the roof; open: an open market counter instead of windows
 const COMMERCIAL := ["apothecary", "beast_gear", "trainer_gear", "bookstore", "cafe", "music_shop", "fortune"]
+## Other buildings that are a house from the PSX pack with the shop front (awning and sign) added (house_models.gd).
+const SIGNED_HOUSES := ["dojo", "museum", "music_hall"]
 const SHOP_LOOKS := {
 	"coastal": {"floors": 2, "ground": ["brick", "#b0563c"], "upper": ["brick", "#9e4a34"], "roof": "flat", "trim": "#ece2d0", "flat_roof": "#5a5650"},
 	"steampunk": {"floors": 2, "ground": ["brick", "#8a3a2a"], "upper": ["brick", "#7a3426"], "roof": "flat", "trim": "#c8a040", "flat_roof": "#3a3a42"},
@@ -171,6 +174,22 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	var d: float = b["d"]
 	var door_lx: float = float(b["door"].x) + 0.5 - (float(b["x"]) + w / 2.0)
 	var locked: bool = b.get("locked", false)
+	# houses are houses from the PSX pack, fitted to their plot by world.gd (see house_models.gd)
+	if not (b.get("house_plan", {}) as Dictionary).is_empty():
+		var hp0: Dictionary = b["house_plan"]
+		hp0["planters"] = not (shop in COMMERCIAL or shop in SIGNED_HOUSES)
+		var house := HouseModels.build(hp0, locked)
+		if shop in COMMERCIAL or shop in SIGNED_HOUSES:
+			_shop_front(house, b["house_plan"], shop, st)
+		if locked:
+			var lk := Kit.new()
+			var hp: Dictionary = b["house_plan"]
+			var ds: Vector2 = hp["door_size"]
+			_door_lock(lk, hp["door_at"], ds.x, ds.y)
+			var lmi := MeshInstance3D.new()
+			lmi.mesh = lk.mesh()
+			house.add_child(lmi)
+		return house
 	var node := Node3D.new()
 	if shop in COMMERCIAL or shop not in SPECIAL or PACK_LOOKS.has(shop):
 		_pack_building(node, b, style_name, st, shop, w, d, door_lx, locked)
@@ -411,13 +430,20 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 			mi.position = Vector3(door_lx + (0.95 if door_lx < w / 2.0 - 1.4 else -0.95), y0 + 1.7, front)
 			node.add_child(mi)
 	var rt := String(look["roof"]) if commercial else String(st["roof_type"])
+	if shop == "center":
+		# the Beast Center: a railcar diner's curved roof and a roadside sign, the same in every town
+		_diner_roof(k, w, d, top, Color(look["flat_roof"]), Color(look["brand"]))
+		_diner_pylon(node, k, w, d, door_lx, top, Color(look["brand"]))
+		rt = "none"
 	if rt == "false_front":
 		rt = "western"
 	if rt == "western" and not commercial:
 		rt = "gable"
 	var roof_col := Color(SHOP_ROOF.get(shop, st["roof"][1])).lerp(Color(st["roof"][1]), 0.5) if commercial else \
 		(Color(SHOP_ROOF.get(shop, st["roof"][1])) if shop != "house" else Color(st["roof"][1]).lerp(Color.from_hsv(rng.randf(), 0.4, 0.7), 0.25))
-	if rt == "flat":
+	if rt == "none":
+		pass
+	elif rt == "flat":
 		_roof(k, rt, w, d, top, String(look.get("flat_roof", st["roof"][0])) if false else st["roof"][0], Color(look.get("flat_roof", roof_col.to_html())) if commercial else roof_col, String(upper[0]), Color(upper[1]), trim)
 	else:
 		_roof(k, rt, w, d, top, st["roof"][0], roof_col, String(upper[0]), Color(upper[1]), trim)
@@ -436,6 +462,81 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 	var km := MeshInstance3D.new()
 	km.mesh = k.mesh()
 	node.add_child(km)
+
+
+## A shop in a house from the PSX pack: a striped awning in the shop's colour over its door, and above it a sign board
+## with the shop's icon, so a shop reads as a shop from across the square.
+static func _shop_front(node: Node3D, plan: Dictionary, shop: String, st: Dictionary) -> void:
+	var k := Kit.new()
+	var brand := Color(SHOP_ROOF.get(shop, "#c84040"))
+	var trim := Color(st["trim"])
+	var door: Vector3 = plan["door_at"]
+	var ds: Vector2 = plan["door_size"]
+	var front := door.z + 0.02
+	var ay := door.y + ds.y / 2.0 + 0.3
+	var half := 1.25
+	var x := door.x - half
+	var i := 0
+	while x < door.x + half - 0.01:
+		var x2 := minf(x + 0.42, door.x + half)
+		k.poly("color", [Vector3(x, ay, front), Vector3(x2, ay, front), Vector3(x2, ay - 0.36, front + 0.75), Vector3(x, ay - 0.36, front + 0.75)],
+			Vector3(0, 0.9, 0.45), brand if i % 2 == 0 else Color("#f4f0e4"))
+		x = x2
+		i += 1
+	k.box("color", Vector3(door.x, ay - 0.43, front + 0.76), Vector3(half * 2.0, 0.14, 0.03), brand.darkened(0.15))
+	# the sign board, on the wall above the awning
+	k.box("planks", Vector3(door.x, ay + 0.38, front + 0.04), Vector3(1.5, 0.46, 0.08), trim)
+	k.box("color", Vector3(door.x, ay + 0.38, front + 0.085), Vector3(1.3, 0.34, 0.02), brand.darkened(0.25))
+	var mi := MeshInstance3D.new()
+	mi.mesh = k.mesh()
+	node.add_child(mi)
+	var icon := MeshInstance3D.new()
+	icon.mesh = VP.icon(shop)
+	icon.position = Vector3(door.x, ay + 0.36, _on_face(icon.mesh, front + 0.1))
+	node.add_child(icon)
+
+
+## A railcar diner's roof: a low barrel vault along the building in brushed steel with a stripe of the brand colour
+## along its crown, closed at both ends, with a chrome band at the eaves.
+static func _diner_roof(k: Kit, w: float, d: float, top: float, steel: Color, brand: Color) -> void:
+	var seg := 12
+	var half := d / 2.0 + 0.18
+	var rise := 1.05
+	var x0 := -w / 2.0 - 0.12
+	var x1 := w / 2.0 + 0.12
+	var arc := []
+	for i in seg + 1:
+		var a := PI * float(i) / seg
+		arc.append(Vector2(cos(a) * half, sin(a) * rise))
+	for i in seg:
+		var p0: Vector2 = arc[i]
+		var p1: Vector2 = arc[i + 1]
+		var n := Vector3(0, (p0.y + p1.y) / rise, (p0.x + p1.x) / half).normalized()
+		var col := brand if i in [seg / 2 - 1, seg / 2] else steel.lightened(0.06 * float(i % 2))
+		k.poly("color", [Vector3(x0, top + p0.y, p0.x), Vector3(x1, top + p0.y, p0.x), Vector3(x1, top + p1.y, p1.x), Vector3(x0, top + p1.y, p1.x)], n, col)
+	for ex in [x0, x1]:
+		for i in seg:
+			var p0: Vector2 = arc[i]
+			var p1: Vector2 = arc[i + 1]
+			k.poly("color", [Vector3(ex, top, 0.0), Vector3(ex, top + p0.y, p0.x), Vector3(ex, top + p1.y, p1.x)], Vector3(signf(ex), 0, 0), steel.darkened(0.12))
+	for sz in [-1.0, 1.0]:
+		k.box("color", Vector3(0, top + 0.06, sz * half), Vector3(x1 - x0 + 0.04, 0.12, 0.08), Color("#e8ecf0"))
+
+
+## The Beast Center's sign: a post rising from the front corner of its roof (away from the door) holding a board in
+## the brand colour with the pawprint, seen from across town; it stays over the diner, clear of its neighbours.
+static func _diner_pylon(node: Node3D, k: Kit, w: float, d: float, door_lx: float, top: float, brand: Color) -> void:
+	var x := w / 2.0 - 0.6 if door_lx < w / 4.0 else -w / 2.0 + 0.6
+	var z := d / 2.0 - 0.35
+	var y := top + 0.35
+	k.box("color", Vector3(x, y + 0.7, z - 0.1), Vector3(0.14, 1.4, 0.14), Color("#d8dce2"))
+	k.box("color", Vector3(x, y + 1.75, z), Vector3(0.95, 0.95, 0.14), brand)
+	k.box("color", Vector3(x, y + 1.75, z - 0.02), Vector3(1.07, 1.07, 0.08), Color("#f4f4f0"))
+	k.box("glow", Vector3(x, y + 2.3, z), Vector3(0.8, 0.09, 0.16), Color("#ffe8a0"))
+	var paw := MeshInstance3D.new()
+	paw.mesh = VP.icon("center")
+	paw.position = Vector3(x, y + 1.7, _on_face(paw.mesh, z + 0.08))
+	node.add_child(paw)
 
 
 # ---------------------------------------------------------------- Beast Center: a 1950s roadside diner

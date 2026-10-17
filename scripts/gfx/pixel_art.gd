@@ -2,6 +2,8 @@ extends RefCounted
 ## Procedural pixel art: modular beasts, people, tiles and props.
 ## Beasts are assembled from body-part "genes", so merged beasts really mix their parents' parts.
 
+const VBeast = preload("res://scripts/gfx/voxel_beast.gd")
+
 const BW := 40
 const BH := 40
 
@@ -120,13 +122,46 @@ static func tex(img: Image) -> ImageTexture:
 
 
 # ---------------------------------------------------------------- beasts
+## A beast's menu icon: the rendered icon of its PSX form (assets/psx/beasts/icons, made by tools/make_beast_icons.gd)
+## recoloured with its genes the way its model is; beasts without a form get the old drawn icon.
 static func beast_texture(genes: Dictionary) -> ImageTexture:
 	var key := "beast:" + JSON.stringify(genes)
 	if _cache.has(key):
 		return _cache[key]
-	var t := tex(beast_image(genes))
+	var form := String(genes.get("form", ""))
+	var path := "res://assets/psx/beasts/icons/%s.res" % form
+	var t: ImageTexture
+	if form != "" and ResourceLoader.exists(path):
+		t = tex(_form_icon(genes, path))
+	else:
+		t = tex(beast_image(genes))
 	_cache[key] = t
 	return t
+
+
+static func _form_icon(genes: Dictionary, path: String) -> Image:
+	var src: Image = (load(path) as Texture2D).get_image()
+	if src.is_compressed():
+		src.decompress()
+	var img: Image = src.duplicate()
+	img.convert(Image.FORMAT_RGBA8)
+	# the icon's own spread of tones (it is lit, so brighter than the model's raw colours)
+	var lums := []
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a > 0.5 and not VBeast._kept(c):
+				lums.append(c.get_luminance())
+	lums.sort()
+	var q := func(f: float) -> float: return float(lums[clampi(int(f * (lums.size() - 1)), 0, lums.size() - 1)]) if not lums.is_empty() else 0.5
+	var info := {"lo": q.call(0.06), "mid": q.call(0.5), "hi": q.call(0.94)}
+	var tones := VBeast._tones(genes)
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a > 0.5:
+				img.set_pixel(x, y, VBeast._recolour(c, info, tones))
+	return img
 
 
 static func beast_image(g: Dictionary) -> Image:

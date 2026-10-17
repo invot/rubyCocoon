@@ -35,6 +35,9 @@ const CREST_ICONS := {"Wave Crest": "crest_wave", "Coral Crest": "crest_coral", 
 const ARENA_ORDER := ["tidewater", "kelpwick", "sundown", "copperpick", "cogsworth", "emberfall", "vinehollow", "riverbend"]
 
 static var last_tab := 1
+## On a phone the d-pad and A/B buttons hide while the book is on top: its rows and tabs are tapped directly, and
+## Start closes it (see controls_overlay.gd).
+var hides_touch_pad := true
 
 var world = null
 var tab := 1
@@ -115,12 +118,20 @@ func _ready() -> void:
 	line.thickness = 2
 	divider.add_theme_stylebox_override("separator", line)
 	panes.add_child(divider)
+	# the detail pane scrolls, so a tall page (a beast's skills and family tree on a phone) never pushes the window
+	# off the screen
+	var right_scroll := ScrollContainer.new()
+	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_scroll.size_flags_stretch_ratio = 1.0 - LEFT_SHARE
+	panes.add_child(right_scroll)
 	right_box = VBoxContainer.new()
 	right_box.add_theme_constant_override("separation", 8)
 	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_box.size_flags_stretch_ratio = 1.0 - LEFT_SHARE
+	right_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panes.add_child(right_box)
+	right_scroll.add_child(right_box)
 	_layout()
 	resized.connect(_layout)
 	if is_instance_valid(Prefs):
@@ -151,20 +162,20 @@ func _on_prefs_changed() -> void:
 	_style_tabs()
 
 
-## The tabs: the open one filled with the accent, the rest dark with a white edge.
+## The tabs: rounded chips, the open one filled with the gem and edged in its palest shade, the rest dark with a soft
+## edge.
 func _style_tabs() -> void:
 	for k in markers.size():
 		var m: Button = markers[k]
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = UIKit.ACCENT if k == tab else Color(0.06, 0.06, 0.08, 0.9)
-		sb.border_color = UIKit.BORDER if k == tab else UIKit.BORDER_INNER
-		sb.set_border_width_all(2)
-		sb.content_margin_left = 10
-		sb.content_margin_right = 10
-		sb.anti_aliasing = false
+		var open := k == tab
+		var sb := UIKit.chip(UIKit.ACCENT if open else UIKit.WINDOW_BOTTOM, UIKit.BORDER if open else Color(UIKit.BORDER, 0.35),
+			16.0, Vector4(10, 0, 10, 0), 3.0 if open else 2.0)
+		if not open:
+			sb.top = Color(UIKit.WINDOW_TOP, 0.92)
+			sb.bottom = Color(UIKit.WINDOW_BOTTOM, 0.92)
 		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
 			m.add_theme_stylebox_override(st, sb)
-		var col := UIKit.LIGHT if k == tab else UIKit.DIM
+		var col := UIKit.LIGHT if open else UIKit.DIM
 		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 			m.add_theme_color_override(c, col)
 		m.add_theme_color_override("icon_normal_color", col)
@@ -368,6 +379,15 @@ func _close_book() -> void:
 
 
 # ================================================================ small builders
+## How to use a row: tapped on a phone (the A button hides while the book is open), A with keys or a pad.
+func _press() -> String:
+	return "Tap" if UI.is_touch() else "Press A"
+
+
+func _adjust_hint() -> String:
+	return "Tap to change it" if UI.is_touch() else "Use ←/→ to adjust"
+
+
 func _h(text: String, color := UIKit.INK, size := UIKit.HEAD_SIZE) -> Label:
 	return UIKit.header(text, color, size)
 
@@ -465,7 +485,7 @@ func _tab_trainer() -> void:
 		var id: String = GameState.gear[slot]
 		_add_row({"text": SLOT_SHORT[slot], "right": ItemDB.item_name(id) if id != "" else "—", "right_width": 190,
 			"act": func(): await Menus.equip_trainer_slot(slot),
-			"detail": func(c): c.add_child(_t_label(ItemDB.get_item(id).get("desc", "Nothing equipped.") if id != "" else "Nothing equipped. Press A to equip trainer gear."))})
+			"detail": func(c): c.add_child(_t_label(ItemDB.get_item(id).get("desc", "Nothing equipped.") if id != "" else "Nothing equipped. %s to equip trainer gear." % _press()))})
 	var flyer = Places.own_flyer()
 	var outdoors: bool = world != null and not world.interior
 	_add_row({"text": "Fly", "disabled": flyer == null or not outdoors, "act": _fly,
@@ -688,7 +708,7 @@ func _song_detail(c: VBoxContainer, sid: String) -> void:
 	c.add_child(_spacer())
 	var flute: String = GameState.gear["flute"]
 	c.add_child(_t_label("Your flute: %s" % ItemDB.item_name(flute)))
-	c.add_child(_t_label("Press A to practise it.", UIKit.ACCENT))
+	c.add_child(_t_label("%s to practise it." % _press(), UIKit.ACCENT))
 
 
 func _capture_detail(c: VBoxContainer, sid: String) -> void:
@@ -705,7 +725,7 @@ func _capture_detail(c: VBoxContainer, sid: String) -> void:
 	if lv >= SongDB.CAPTURE_CAPS.size():
 		c.add_child(_t_label("This is the final level of Capture. Nothing can resist you now!", UIKit.ACCENT))
 	elif GameState.next_capture_ready():
-		c.add_child(_t_label("Your beasts have outgrown it! Press A to practise %s (up to Lv %d)." % [SongDB.song_name(SongDB.capture_id(lv + 1)), SongDB.CAPTURE_CAPS[lv]], UIKit.ACCENT))
+		c.add_child(_t_label("Your beasts have outgrown it! %s to practise %s (up to Lv %d)." % [_press(), SongDB.song_name(SongDB.capture_id(lv + 1)), SongDB.CAPTURE_CAPS[lv]], UIKit.ACCENT))
 	else:
 		c.add_child(_t_label("Next: %s, once one of your beasts reaches Lv %d." % [SongDB.song_name(SongDB.capture_id(lv + 1)), GameState.capture_cap()], UIKit.DIM))
 	c.add_child(_spacer())
@@ -752,14 +772,14 @@ func _item_detail(c: VBoxContainer, id: String) -> void:
 	c.add_child(_spacer())
 	c.add_child(_t_label(it.get("desc", "")))
 	c.add_child(_spacer())
-	var how := "Press A to use it on a beast."
+	var how := "%s to use it on a beast." % _press()
 	match it["kind"]:
 		"gear":
-			how = "Press A to give it to a beast."
+			how = "%s to give it to a beast." % _press()
 		"tgear":
-			how = "Press A to equip it."
+			how = "%s to equip it." % _press()
 		"sheet":
-			how = "Press A to play from the sheet and learn the song."
+			how = "%s to play from the sheet and learn the song." % _press()
 	if it.get("battle_only", false):
 		how = "Use it on your own turn in battle."
 	c.add_child(_t_label(how, UIKit.ACCENT))
@@ -838,7 +858,7 @@ func _town_detail(c: VBoxContainer, t: String) -> void:
 		c.add_child(_row_of([UIKit.icon(CREST_ICONS.get(a["crest"], "crest_empty") if won else "crest_empty"),
 			_w("%s %s\n%s" % [a["title"], a["leader"], "Crest won!" if won else "Not yet challenged"])]))
 	c.add_child(_spacer())
-	c.add_child(_t_label("Press A to open the full map.", UIKit.ACCENT))
+	c.add_child(_t_label("%s to open the full map." % _press(), UIKit.ACCENT))
 
 
 # ================================================================ Settings
@@ -857,15 +877,21 @@ func _tab_settings() -> void:
 	_add_row({"text": "Music", "right": "◄ %s ►" % pct.call(Prefs.music_volume), "right_width": 150,
 		"adjust": func(d): Prefs.set_value("music_volume", clampf(snappedf(Prefs.music_volume + 0.1 * d, 0.1), 0.0, 1.0)),
 		"act": func(): Prefs.set_value("music_volume", 0.0 if Prefs.music_volume >= 1.0 else clampf(snappedf(Prefs.music_volume + 0.1, 0.1), 0.0, 1.0)),
-		"detail": _controls_help.bind("Music volume. Use ←/→ to adjust.")})
+		"detail": _controls_help.bind("Music volume. %s." % _adjust_hint())})
 	_add_row({"text": "Sounds", "right": "◄ %s ►" % pct.call(Prefs.sfx_volume), "right_width": 150,
 		"adjust": func(d): Prefs.set_value("sfx_volume", clampf(snappedf(Prefs.sfx_volume + 0.1 * d, 0.1), 0.0, 1.0)),
 		"act": func(): Prefs.set_value("sfx_volume", 0.0 if Prefs.sfx_volume >= 1.0 else clampf(snappedf(Prefs.sfx_volume + 0.1, 0.1), 0.0, 1.0)),
-		"detail": _controls_help.bind("Sound effect volume. Use ←/→ to adjust.")})
+		"detail": _controls_help.bind("Sound effect volume. %s." % _adjust_hint())})
 	_add_row({"text": "Text speed", "right": "◄ %s ►" % speeds[cur_speed][0], "right_width": 150,
 		"adjust": func(d): Prefs.set_value("text_speed", float(speeds[posmod(cur_speed + d, speeds.size())][1])),
 		"act": func(): Prefs.set_value("text_speed", float(speeds[posmod(cur_speed + 1, speeds.size())][1])),
 		"detail": _controls_help.bind("How fast dialogue appears.")})
+	var gems: Array = UIKit.ACCENT_ORDER
+	var gi := maxi(0, gems.find(UIKit.accent_name))
+	_add_row({"text": "Gem", "right": "◄ %s ►" % UIKit.gem_name(gems[gi]), "right_width": 150,
+		"adjust": func(d): Prefs.set_value("accent", gems[posmod(gi + d, gems.size())]),
+		"act": func(): Prefs.set_value("accent", gems[posmod(gi + 1, gems.size())]),
+		"detail": _controls_help.bind("The gem the menus are cut from: Ruby, Sapphire, Emerald or Hematite.")})
 	var touch_opts := ["auto", "on", "off"]
 	var ti := maxi(0, touch_opts.find(Prefs.touch_controls))
 	_add_row({"text": "Touch pad", "right": "◄ %s ►" % String(touch_opts[ti]).capitalize(), "right_width": 150,
@@ -896,7 +922,7 @@ func _controls_help(c: VBoxContainer, what: String) -> void:
 		var cap := PanelContainer.new()
 		cap.add_theme_stylebox_override("panel", UIKit.box("frame", Vector4(4, -2, 4, -2)))
 		cap.custom_minimum_size.x = 92
-		var kl := UIKit.header(k[0], UIKit.INK, UIKit.HEAD_SMALL)
+		var kl := UIKit.label(k[0], 20, UIKit.INK)
 		kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cap.add_child(kl)
 		c.add_child(_row_of([cap, _w(k[1])], 10))
@@ -908,8 +934,9 @@ func _credits() -> void:
 	await UI.say([
 		"Ruby Cocoon. Thank you for playing!",
 		"PSX art: chilly_durango, Screaming Brain Studios, Foxhead, Elegant Crow and Caliber Creations; RetroGround Free by Binbun3D (CC BY 4.0); PSX Forest, Cemetery, Castle and Western Town Kits by heyheythere (CC BY 4.0). People: Characters PSX by Elbolilloduro; the hero by yugg0 (base mesh by Vinrax).",
+		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
 		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
-		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); fonts Ticketing and BoldPixels.",
+		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); fonts BoldPixels and Lunchtime Doubly So.",
 		"Music: Kevin MacLeod (incompetech.com), CC BY 4.0; plus DJARTMUSIC, Howling Hound Music and Monume (Pixabay).",
 		"Sound effects: the packs in the sfx folder. Full list in CREDITS.md.",
 	], "Credits")

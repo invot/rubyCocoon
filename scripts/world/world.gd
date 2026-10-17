@@ -13,6 +13,7 @@ const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
+const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -66,6 +67,10 @@ var obstacle_nodes := {}
 ## push-puzzle blocks: tile -> {"kind": "boulder" / "ice", "node"}
 var pushables := {}
 var rock_tops := {}
+## Tiles a house from the PSX pack leans over (trees and hedges beside or behind its plot): nothing grows there.
+var house_cover := {}
+## Test harness: the camera is placed by hand (main.gd --overview) and stops following the player.
+var cam_free := false
 var building_fades: Array = []
 var water_mats: Array = []
 var spinners: Array = []
@@ -89,6 +94,7 @@ func build(id: String) -> void:
 	else:
 		_build_environment()
 		_build_terrain()
+		_plan_houses()
 		_build_scatter()
 		_build_backdrop()
 		_build_buildings()
@@ -357,9 +363,16 @@ func _build_terrain() -> void:
 
 
 # ================================================================ backdrop
-## What lies past the edge of the map, now that the camera looks out across it: the ground running on, a deep belt of
-## the biome's trees all round (thinner behind the camera), and big hills on the horizon to the north, softened by
-## the fog.
+## What lies past the edge of the map, so no edge or corner of it ever shows: the ground running on (the terrain
+## itself carries on Terrain.MARGIN tiles), and a ring of scenery nobody can reach, dressed to suit the edge it borders:
+##   land edges: a deep wood of the biome's trees to the north and the sides (lower detail: no shadows past the first
+##   row), only shrubs, bushes and rocks to the south, between the camera and the map, so nothing hides the player;
+##   beaches: a few palms or rocks; water and lava: nothing (the sea runs on); exits: kept clear, so the road leads on.
+## Around towns, a few larger houses of the town's style stand among the trees beyond the edge (house_models.gd).
+## Then big hills on the horizon to the north, softened by the fog.
+const RING := 15
+
+
 func _build_backdrop() -> void:
 	var w: float = map["w"]
 	var h: float = map["h"]
@@ -372,29 +385,66 @@ func _build_backdrop() -> void:
 	var layer := "top_sand" if _sandy() else "top_grass"
 	var gm := _tex_mat(VT.terrain(layer, String(biome["sand"] if _sandy() else biome["ground"])), true)
 	ground.material_override = gm
-	ground.position = Vector3(w / 2.0, -0.04, h / 2.0)
+	# below the water and lava beds (the terrain itself carries on MARGIN tiles past the edge): any higher and it
+	# covers every sea and river on the map
+	ground.position = Vector3(w / 2.0, -0.7, h / 2.0)
 	add_child(ground)
 	var trees: Array = biome["trees"]
-	if trees.is_empty():
-		return
+	var shrubs: Array = biome["shrubs"]
+	var rocks: Array = biome["rocks"]
 	var by_asset := {}
-	# a band of trees all round the map, deepest to the north where the camera looks
-	for band in [[-22.0, 0.0, -0.5, w + 0.5, 0.55], [h, h + 6.0, -0.5, w + 0.5, 0.35], [-22.0, h + 6.0, -14.0, 0.0, 0.5],
-			[-22.0, h + 6.0, w, w + 14.0, 0.5]]:
-		var z := float(band[0])
-		while z < float(band[1]):
-			var x := float(band[2])
-			while x < float(band[3]):
-				if rng.randf() < float(band[4]):
-					var name := _pick_weighted(trees, rng)
-					var bb := VA.aabb(name)
-					var sc := VA.fit_scale(name, rng.randf_range(2.6, 4.0))
-					var p := Vector3(x + rng.randf_range(0.0, 1.4), -bb.position.y * sc, z + rng.randf_range(0.0, 1.4))
-					_add_asset(by_asset, name + SHADOWLESS, _xf(p, rng.randf() * TAU, sc))
-				x += 1.4
-			z += 1.4
+	var taken := {}
+	if map["kind"] == "town":
+		_outskirt_houses(rng, taken)
+	var iw := int(w)
+	var ih := int(h)
+	for tz in range(-RING, ih + RING):
+		for tx in range(-RING, iw + RING):
+			if tx >= 0 and tz >= 0 and tx < iw and tz < ih:
+				continue
+			if taken.has(Vector2i(tx, tz)):
+				continue
+			var depth := maxi(maxi(-tx, tx - iw + 1), maxi(-tz, tz - ih + 1))
+			var edge := MapGen.get_t(map, clampi(tx, 0, iw - 1), clampi(tz, 0, ih - 1))
+			if edge in [MapGen.WATER, MapGen.LAVA, MapGen.BRIDGE]:
+				continue
+			# an exit: the road leads on, clear
+			if MapGen.walkable(edge) and edge != MapGen.SAND:
+				continue
+			var south := tz >= ih
+			var c := Vector3(tx + 0.5 + rng.randf_range(-0.3, 0.3), 0.0, tz + 0.5 + rng.randf_range(-0.3, 0.3))
+			var shadow := depth <= 1
+			if edge == MapGen.SAND:
+				# a beach running on: a palm or a rock here and there
+				if rng.randf() < 0.1:
+					_ring_rock(by_asset, rocks, c, rng, 0.5, 0.9)
+				elif rng.randf() < 0.12 and not south:
+					_ring_tree(by_asset, trees, c, rng, 2.4, 3.4, shadow)
+				continue
+			if south:
+				# between the camera and the map: low things only
+				if depth > 9:
+					continue
+				var roll := rng.randf()
+				if roll < 0.5:
+					_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.1)
+				elif roll < 0.62:
+					_ring_rock(by_asset, rocks, c, rng, 0.5, 0.8)
+				continue
+			if trees.is_empty():
+				# open country (the desert): rocks and scrub
+				if rng.randf() < 0.25:
+					_ring_rock(by_asset, rocks, c, rng, 0.7, 1.4)
+				elif rng.randf() < 0.2:
+					_ring_shrub(by_asset, shrubs, c, rng, 0.5, 0.9)
+				continue
+			# a wood: thick near the map, a little thinner deep in (the fog takes over there)
+			if rng.randf() < (0.8 if depth <= 6 else 0.6):
+				_ring_tree(by_asset, trees, c, rng, 2.4, 4.0, shadow)
+			elif depth <= 2 and rng.randf() < 0.5:
+				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.0)
 	for name in by_asset:
-		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, false)
+		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	# hills on the horizon
 	var hills := ["mountain_0", "mountain_2", "mountain_4", "mountain_6", "mountain_8"]
 	var hx := -20.0
@@ -411,6 +461,73 @@ func _build_backdrop() -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(mi)
 		hx += rng.randf_range(12.0, 18.0)
+
+
+func _ring_tree(by_asset: Dictionary, trees: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float, shadow: bool) -> void:
+	if trees.is_empty():
+		return
+	var name := _pick_weighted(trees, rng)
+	var bb := VA.aabb(name)
+	var sc := VA.fit_scale(name, rng.randf_range(lo, hi))
+	_add_asset(by_asset, name if shadow else name + SHADOWLESS, _xf(c - Vector3(0, bb.position.y * sc, 0), rng.randf() * TAU, sc))
+
+
+func _ring_shrub(by_asset: Dictionary, shrubs: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
+	if shrubs.is_empty():
+		return
+	var name: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
+	var sc := VA.fit_scale(name, rng.randf_range(lo, hi))
+	_add_asset(by_asset, name + SHADOWLESS, _xf(c - Vector3(0, VA.aabb(name).position.y * sc, 0), rng.randf() * TAU, sc))
+
+
+func _ring_rock(by_asset: Dictionary, rocks: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
+	if rocks.is_empty():
+		return
+	var name: String = rocks[rng.randi_range(0, rocks.size() - 1)]
+	var sc := VA.fit_scale(name, -1.0, rng.randf_range(lo, hi))
+	_add_asset(by_asset, name + SHADOWLESS, _xf(c - Vector3(0, VA.aabb(name).position.y * sc, 0), rng.randf() * TAU, sc))
+
+
+## A few of the town's larger houses just past the north edge and the sides, behind the trees, so the town seems to
+## carry on beyond what you can walk; their tiles are marked in `taken` so no tree grows through them.
+func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
+	if not HouseModels.available():
+		return
+	var style: String = biome.get("style", "town")
+	var w: int = map["w"]
+	var h: int = map["h"]
+	var spots := []
+	# along the north, every 9 tiles or so, a few tiles back
+	var x := rng.randi_range(2, 6)
+	while x < w - 2:
+		spots.append(Vector2(x, -rng.randf_range(5.0, 7.0)))
+		x += rng.randi_range(8, 12)
+	# down the sides, beside the northern half of the town
+	for side in [-1, 1]:
+		var z := rng.randf_range(2.0, 5.0)
+		while z < h * 0.55:
+			spots.append(Vector2(-5.5 if side < 0 else w + 5.5, z))
+			z += rng.randf_range(9.0, 12.0)
+	for p in spots:
+		# not over the sea or a road out of town
+		var edge := MapGen.get_t(map, clampi(int(p.x), 0, w - 1), clampi(int(p.y), 0, h - 1))
+		if edge in [MapGen.WATER, MapGen.LAVA, MapGen.BRIDGE, MapGen.SAND] or MapGen.walkable(edge):
+			continue
+		var made := HouseModels.backdrop(style, rng)
+		var node: Node3D = made[0]
+		if node == null:
+			continue
+		var r: float = made[1]
+		node.position = Vector3(p.x, 0.0, p.y)
+		# facing the town
+		if p.y < 0.0:
+			node.rotation.y = 0.0
+		else:
+			node.rotation.y = PI / 2.0 if p.x < 0.0 else -PI / 2.0
+		add_child(node)
+		for tz in range(int(p.y - r - 1.0), int(p.y + r + 2.0)):
+			for tx in range(int(p.x - r - 1.0), int(p.x + r + 2.0)):
+				taken[Vector2i(tx, tz)] = true
 
 
 # ================================================================ scatter: grass, trees, rocks, props
@@ -465,6 +582,9 @@ func _build_scatter() -> void:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
 			var center := Vector3(x + 0.5, 0, y + 0.5)
+			if house_cover.has(Vector2i(x, y)):
+				# a house leans over this tree or hedge
+				continue
 			match c:
 				MapGen.TALL:
 					for k in 2:
@@ -493,7 +613,10 @@ func _build_scatter() -> void:
 						var s2 := VA.fit_scale(rn, -1.0, rng.randf_range(0.7, 1.0))
 						_add_asset(by_asset, rn, _xf(center + Vector3(0, top - VA.aabb(rn).position.y * s2, 0), _voxel_rot(rng), s2))
 				MapGen.GRASS:
-					if rng.randf() < 0.05 and not shrubs.is_empty():
+					# town lawns: a patch of flowers here and there (only to look at; you can walk through them)
+					if map["kind"] == "town" and rng.randf() < 0.07 and not _sandy():
+						flowers[rng.randi_range(0, 1)].append(_xf(center + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2)), _voxel_rot(rng), rng.randf_range(0.6, 0.9)))
+					elif rng.randf() < 0.05 and not shrubs.is_empty():
 						var sn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						var s3 := VA.fit_scale(sn, rng.randf_range(0.35, 0.6))
 						_add_asset(by_asset, sn, _xf(center + Vector3(rng.randf_range(-0.3, 0.3), -VA.aabb(sn).position.y * s3, rng.randf_range(-0.3, 0.3)), _voxel_rot(rng), s3))
@@ -542,6 +665,103 @@ func _build_scatter() -> void:
 
 
 # ================================================================ buildings
+## Plans every house (and scenery building) as a house from the PSX pack (house_models.gd), before the trees go in:
+## a house may lean a little over the hedges and trees beside its plot and further over the wood behind it, so its
+## L-plan, porch or wing has room, but never over a tile anyone can walk on. Those tiles stay clear of trees.
+func _plan_houses() -> void:
+	if not HouseModels.available():
+		return
+	var style: String = biome.get("style", "town")
+	var used := {}
+	for b in map["buildings"]:
+		var shop: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in VBld.SIGNED_HOUSES
+		if not b["shop"] in ["house", "home", "decor"] and not shop:
+			continue
+		var x0: int = b["x"]
+		var y0: int = b["y"]
+		var w: int = b["w"]
+		var d: int = b["d"]
+		var room := {"left": _lean_room(x0 - 1, -1, y0, y0 + d - 1), "right": _lean_room(x0 + w, 1, y0, y0 + d - 1), "back": 0.0}
+		var back := 0
+		while back < 3 and _leanable_row(y0 - back - 1, x0, x0 + w - 1):
+			back += 1
+		room["back"] = float(back)
+		var o := Vector2(float(x0) + float(w) / 2.0, float(y0) + float(d) / 2.0)
+		var plan := {}
+		# the house must stand only on its plot and on trees, hedges and rocks: if it would reach a path or another
+		# building (leaning sideways and back at once), plan again with less room
+		for attempt in 4:
+			plan = HouseModels.plan(b, style, room, shop, used)
+			if plan.is_empty() or _house_fits(plan["rect"], o, b):
+				break
+			room["back"] = maxf(0.0, float(room["back"]) - 1.0)
+			room["left"] = minf(float(room["left"]), 0.45)
+			room["right"] = minf(float(room["right"]), 0.45)
+			plan = {}
+		if plan.is_empty():
+			continue
+		b["house_plan"] = plan
+		used[plan["key"]] = int(used.get(plan["key"], 0)) + 1
+		var r: Rect2 = plan["rect"]
+		for ty in range(floori(o.y + r.position.y + 0.15), ceili(o.y + r.end.y - 0.15)):
+			for tx in range(floori(o.x + r.position.x + 0.15), ceili(o.x + r.end.x - 0.15)):
+				var c := MapGen.get_t(map, tx, ty)
+				if c in [MapGen.TREE, MapGen.BUSH]:
+					house_cover[Vector2i(tx, ty)] = true
+
+
+## True if a planned house (rect: local to the plot's centre o) covers only its own plot and leanable tiles.
+func _house_fits(r: Rect2, o: Vector2, b: Dictionary) -> bool:
+	var plot := Rect2i(int(b["x"]), int(b["y"]), int(b["w"]), int(b["d"]))
+	for ty in range(floori(o.y + r.position.y + 0.15), ceili(o.y + r.end.y - 0.15)):
+		for tx in range(floori(o.x + r.position.x + 0.15), ceili(o.x + r.end.x - 0.15)):
+			if plot.has_point(Vector2i(tx, ty)):
+				continue
+			# the door row's front edge may poke a step out over the street
+			if ty >= plot.end.y:
+				continue
+			if not _leanable(tx, ty):
+				return false
+	return true
+
+
+## How far a house may lean sideways from column x outwards (step -1 or 1) over trees and hedges: the whole run of
+## leanable columns if open country lies beyond, but only half of it if another building stands there.
+func _lean_room(x: int, step: int, y0: int, y1: int) -> float:
+	var n := 0
+	while n < 3 and _leanable_cols(x + n * step, y0, y1):
+		n += 1
+	if n == 0:
+		return 0.0
+	var beyond := x + n * step
+	var next_is_building := false
+	for y in range(y0, y1 + 1):
+		if MapGen.get_t(map, beyond, y) in [MapGen.BUILDING, MapGen.DOOR]:
+			next_is_building = true
+	return float(n) * 0.5 - 0.1 if next_is_building else float(n) - 0.3
+
+
+## True if nobody can walk on any tile of column x from row y0 to y1 (trees, hedges, rocks, or off the map).
+func _leanable_cols(x: int, y0: int, y1: int) -> bool:
+	for y in range(y0, y1 + 1):
+		if not _leanable(x, y):
+			return false
+	return true
+
+
+func _leanable_row(y: int, x0: int, x1: int) -> bool:
+	for x in range(x0, x1 + 1):
+		if not _leanable(x, y):
+			return false
+	return true
+
+
+func _leanable(x: int, y: int) -> bool:
+	if x < 0 or y < 0 or x >= map["w"] or y >= map["h"]:
+		return true
+	return MapGen.get_t(map, x, y) in [MapGen.TREE, MapGen.BUSH, MapGen.ROCK]
+
+
 func _build_buildings() -> void:
 	var style: String = biome.get("style", "town")
 	for b in map["buildings"]:
@@ -967,7 +1187,9 @@ func _beast_node(genes: Dictionary, scale := 1.0) -> Node3D:
 	else:
 		mi = MeshInstance3D.new()
 		mi.mesh = VB.mesh(genes)
-		mi.scale = Vector3(scale, scale, scale)
+		# the PSX beasts are slim next to the old chunky ones: a little larger, so they read from the overworld camera
+		var k := scale * (1.3 if genes.has("form") else 1.0)
+		mi.scale = Vector3(k, k, k)
 	mi.name = "Model"
 	root.add_child(mi)
 	return root
@@ -1092,6 +1314,8 @@ func _build_camera() -> void:
 
 
 func _place_camera(instant := false) -> void:
+	if cam_free:
+		return
 	var w: float = map["w"]
 	var h: float = map["h"]
 	var t := cam_target

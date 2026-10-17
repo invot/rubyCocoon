@@ -9,6 +9,8 @@ const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 
 const SIZE_R := {"hamlet": 9.0, "village": 11.0, "town": 13.0, "city": 16.0}
 
+## On a phone the d-pad and A/B hide while the map is open: towns are tapped (see controls_overlay.gd).
+var hides_touch_pad := true
 var here := ""
 var _t := 0.0
 var _focus := 0
@@ -28,8 +30,19 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## The map is drawn in its own 1100 x 640 space, scaled down (never up) to fit above the touch buttons / key guide.
 func _area() -> Rect2:
-	return Rect2((size.x - 1100) / 2.0, (size.y - 640) / 2.0, 1100, 640)
+	return Rect2(0, 0, 1100, 640)
+
+
+func _fit_scale() -> float:
+	var avail := Vector2(size.x - 32.0, size.y - UI.bottom_reserve() - 24.0)
+	return minf(1.0, minf(avail.x / 1100.0, avail.y / 640.0))
+
+
+func _fit_origin() -> Vector2:
+	var k := _fit_scale()
+	return Vector2(roundf((size.x - 1100.0 * k) / 2.0), roundf((size.y - UI.bottom_reserve() - 640.0 * k) / 2.0))
 
 
 func _to_screen(p: Vector2) -> Vector2:
@@ -49,6 +62,7 @@ func _route_points(rid: String) -> Array:
 
 func _draw() -> void:
 	super._draw()
+	draw_set_transform(_fit_origin(), 0.0, Vector2.ONE * _fit_scale())
 	var font := UIKit.font_body()
 	var hfont := UIKit.font_head()
 	var a := _area()
@@ -89,14 +103,14 @@ func _draw() -> void:
 		var p := _to_screen(WorldDB.MAP_POS[tid])
 		var rad: float = SIZE_R.get(t["size"], 10.0)
 		var visited: bool = GameState.visited.has(tid)
-		var col := UIKit.ACCENT if visited else Color("#3a3a42")
+		var col := UIKit.ACCENT if visited else UIKit.BORDER_INNER
 		draw_circle(p, rad + 3, UIKit.BORDER)
 		draw_circle(p, rad, col)
 		var arena: Dictionary = WorldDB.ARENAS.get(tid, {})
 		if not arena.is_empty():
 			var won: bool = GameState.crests.has(arena["crest"])
 			draw_circle(p + Vector2(rad, -rad), 7, UIKit.BORDER)
-			draw_circle(p + Vector2(rad, -rad), 5, UIKit.GOLD_BRIGHT if won else Color("#3a3a42"))
+			draw_circle(p + Vector2(rad, -rad), 5, UIKit.GOLD_BRIGHT if won else UIKit.BORDER_INNER)
 		var label: String = t["name"] if visited else "???"
 		draw_string(font, p + Vector2(-110, rad + 22), label, HORIZONTAL_ALIGNMENT_CENTER, 220, UIKit.body_px(22), UIKit.INK)
 		if i == _focus:
@@ -119,7 +133,8 @@ func _draw() -> void:
 	else:
 		draw_string(hfont, box.position + Vector2(18, 34), "Unexplored", HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.head_px(32), UIKit.DIM)
 		draw_string(font, box.position + Vector2(18, 62), "You haven't been here yet.", HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(22), UIKit.INK)
-	draw_string(font, a.position + Vector2(a.size.x - 300, a.size.y - 22), "Left/Right: browse towns    S: close", HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(22), UIKit.DIM)
+	var hint := "Tap a town · tap outside to close" if UI.is_touch() else "Left/Right: browse towns    S: close"
+	draw_string(font, a.position + Vector2(24, a.size.y - 22), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(22), UIKit.DIM)
 
 
 func _marker(p: Vector2) -> void:
@@ -154,6 +169,15 @@ func on_input(ev: InputEvent) -> void:
 		close()
 
 
+## A tap (or click) on a town shows it; anywhere else closes the map.
 func _gui_input(ev: InputEvent) -> void:
-	if ev is InputEventMouseButton and ev.pressed:
+	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+		var mp: Vector2 = (ev.position - _fit_origin()) / _fit_scale()
+		for i in _order.size():
+			if mp.distance_to(_to_screen(WorldDB.MAP_POS[_order[i]])) < 40.0:
+				if i != _focus:
+					_focus = i
+					Sfx.play("blip")
+				return
+		Sfx.play("back")
 		close()

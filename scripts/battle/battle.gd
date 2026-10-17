@@ -70,6 +70,7 @@ var shield_bubble: MeshInstance3D
 
 var hud: Control
 var msg_label: Label
+var msg_panel: PanelContainer
 var ally_panels: Array = []
 var foe_panels: Array = []
 
@@ -412,6 +413,9 @@ func _update_shield() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	# on a phone the command menus sit where the battle text is: while one is open, its title asks the question
+	if is_instance_valid(msg_panel) and UI.is_touch():
+		msg_panel.visible = UI.stack.is_empty()
 	for b in nodes:
 		var n: Node3D = nodes[b]
 		if is_instance_valid(n) and n.has_meta("phase"):
@@ -513,7 +517,7 @@ func _build_hud() -> void:
 	UI.hud.add_child(hud)
 	var touch: bool = UI.is_touch()
 	var reserve: float = UI.bottom_reserve()
-	var pw := 236.0 if touch else 300.0
+	var pw := 264.0 if touch else 300.0
 	# your beasts stand on the left of the field, the foes on the right: their readouts match
 	var ally_row := VBoxContainer.new()
 	ally_row.add_theme_constant_override("separation", 6)
@@ -534,11 +538,12 @@ func _build_hud() -> void:
 	var mp := PanelContainer.new()
 	mp.add_theme_stylebox_override("panel", UIKit.box("dialogue", Vector4(26, 8, 26, 4)))
 	mp.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	mp.offset_left = 270.0 if touch else 16.0
+	mp.offset_left = 304.0 if touch else 16.0
 	mp.offset_right = -270.0 if touch else -450.0
 	mp.offset_top = -10.0 - (3.0 * UIKit.body_px(UIKit.BODY_HUGE) + 44.0) - reserve
 	mp.offset_bottom = -10.0 - reserve
 	hud.add_child(mp)
+	msg_panel = mp
 	msg_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.INK)
 	msg_label.add_theme_constant_override("line_spacing", 0)
 	msg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -560,13 +565,14 @@ func _make_panel(row: BoxContainer, width: float, ally: bool) -> Dictionary:
 	var name_l := UIKit.label("", 20, UIKit.LIGHT)
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_l.clip_text = true
+	name_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	top.add_child(name_l)
 	var lv := UIKit.label("", 20, UIKit.GOLD_BRIGHT)
 	top.add_child(lv)
 	var bar := Bar.new(Vector2(width - 20, 30))
 	vb.add_child(bar)
 	var mpb := Bar.new(Vector2(width - 20, 8))
-	mpb.fixed_color = Color("#5aa8ff")
+	mpb.fixed_color = UIKit.GOLD_BRIGHT
 	vb.add_child(mpb)
 	var bottom := HBoxContainer.new()
 	vb.add_child(bottom)

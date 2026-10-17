@@ -1,6 +1,6 @@
 # Ruby Cocoon: credits
 
-Code, procedural voxel beasts, people and buildings, maps and writing were made for this project.
+Code, procedural buildings, maps and writing were made for this project.
 Third-party assets live in their original folders (`voxelassets/`, `ui/`, `music/`, `sfx/`);
 the game uses converted copies in `assets/`. **Several packs came without licence files: check
 each source's terms before releasing the game.**
@@ -30,6 +30,18 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
 - **PSX The Island Pack** by Caliber Creations, https://caliberuk.itch.io/psx-the-island-pack (palms, beach
   plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
 
+### Beasts (`assets/psx/beasts/`, made by `tools/import_psx_beasts.gd` and `tools/make_beast_icons.gd`)
+*Changes made:* models turned, centred and scaled to one size; textures shrunk to 128 px; every model is
+recoloured in the game with each beast's own colours (and its menu icon rendered from it and recoloured the same way).
+- **Everything Library 01 - Animals** by David OReilly, https://davidoreilly.itch.io/everything-library-animals
+  (most of the beasts).
+- **LowPoly Animated Monsters** by Quaternius, CC0, https://quaternius.itch.io/lowpoly-animated-monsters
+  (the dragon and the slime).
+- **PS1/PSX Fish Pack** by CursedLake, https://cursedlake.itch.io/ps1psx-fish-pack (clownfish, catfish, perch).
+- **Fish - PolyPack Asset** by ALSTRA INFINITE, https://alstrainfinite.itch.io/fish (the shark).
+- **PS1/PSX style alpaca & capybara models** by obliviist,
+  https://obliviist.itch.io/ps1psx-style-alpaca-capybara-models.
+
 ### People (`assets/psx/people/`, made by `tools/import_psx_people.gd`)
 *Changes made:* textures shrunk to 256 px; each face moved onto a front-facing texture of its own with anime eyes
 painted in; the hero's texture repainted (red jacket over a white shirt, belt, jeans, red sneakers). The game poses
@@ -53,7 +65,8 @@ See `assets/voxel/CREDITS.md` for the full list. Highlights:
   ribbons, buttons, toggles, arrows, icons).
 - **set1 / set2** pixel UI sheet (bars, stars, crests): author not included with the files.
   *Changes made:* crest gems recoloured per arena.
-- Fonts: **Ticketing** and **BoldPixels** (licence files not included; check the authors' terms).
+- Fonts: **BoldPixels** (body text, menus, dialogue) and **Lunchtime Doubly So** (headings); licence files not
+  included, check the authors' terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)
 Most tracks appear to be by **Kevin MacLeod (incompetech.com)**, licensed under Creative Commons

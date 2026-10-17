@@ -6,7 +6,7 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 
 const GHOST_STAT_MULT := 1.25
-const PARTS := ["body", "head", "ears", "tail", "back", "pattern"]
+const PARTS := ["body", "head", "ears", "tail", "back", "pattern", "form"]
 
 
 static func create(race_id: int, level: int, ghost := false) -> Beast:

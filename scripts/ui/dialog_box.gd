@@ -35,7 +35,7 @@ func _ready() -> void:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", UIKit.box("dialogue", Vector4(26, 8, 26, 4)))
 	p.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	var side := 270.0 if UI.is_touch() else 48.0
+	var side := 304.0 if UI.is_touch() else 48.0
 	p.offset_left = side
 	p.offset_right = -side
 	_box_h = 3.0 * UIKit.body_px(UIKit.BODY_HUGE) + 70.0
@@ -109,7 +109,7 @@ func _bottom_gap() -> float:
 
 
 func _place_more(bob: float) -> void:
-	var side := 270.0 if UI.is_touch() else 48.0
+	var side := 304.0 if UI.is_touch() else 48.0
 	var vp := size if size.x > 0 else get_viewport_rect().size
 	more.position = Vector2(vp.x - side - 64, vp.y - _bottom_gap() - 48 + bob)
 
