@@ -644,7 +644,8 @@ func _build_scatter() -> void:
 		fx.append(_xf(tile_pos(p) - Vector3(0, VA.aabb(fence_name).position.y * fs, 0), 0.0 if horiz else PI / 2.0, fs))
 	_multimesh(VA.mesh(fence_name), fx)
 	var lx := []
-	var ls := VA.fit_scale("lamp", 2.2)
+	# gas lamps a head and more above the people
+	var ls := VA.fit_scale("lamp", 2.8)
 	var gloomy: bool = float(biome.get("sun_e", 1.3)) < 1.0
 	for c in lamps:
 		lx.append(_xf(c, 0.0, ls))
@@ -654,7 +655,7 @@ func _build_scatter() -> void:
 		l.light_color = Color("#ffd090")
 		l.light_energy = 0.7
 		l.omni_range = 4.0
-		l.position = c + Vector3(0, 2.0, 0)
+		l.position = c + Vector3(0, 2.6, 0)
 		add_child(l)
 	_multimesh(VA.mesh("lamp"), lx)
 	var sx := []
@@ -775,7 +776,7 @@ func _build_buildings() -> void:
 			meshes.append(c)
 		building_fades.append({"b": b, "meshes": meshes, "node": node})
 		if b["shop"] == "skytower" and node.has_node("Bird"):
-			bobbers.append([node.get_node("Bird"), 7.25, 1.3])
+			bobbers.append([node.get_node("Bird"), (node.get_node("Bird") as Node3D).position.y, 1.3])
 		for c in node.get_children():
 			if c.has_meta("spin"):
 				spinners.append(c)
@@ -1414,7 +1415,7 @@ func _fade_buildings(delta: float) -> void:
 		var b: Dictionary = f["b"]
 		var by: float = b["y"]
 		var bx: float = b["x"]
-		var tall := 10.0 if b["shop"] in ["ceo_tower", "skytower", "cathedral"] else 7.5
+		var tall := 12.0 if b["shop"] in ["ceo_tower", "skytower", "cathedral"] else 7.5
 		var occl: bool = pp.y < by + 0.5 and pp.y > by - tall and pp.x > bx - 1.0 and pp.x < bx + float(b["w"]) + 1.0
 		var target := 0.9 if occl else 0.0
 		for gi in f["meshes"]:

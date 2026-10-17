@@ -194,6 +194,16 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	if shop in COMMERCIAL or shop not in SPECIAL or PACK_LOOKS.has(shop):
 		_pack_building(node, b, style_name, st, shop, w, d, door_lx, locked)
 		return node
+	match shop:
+		"skytower":
+			_pack_skytower(node, st, w, d, door_lx)
+			return node
+		"ceo_tower":
+			_pack_ceo_tower(node, w, d, door_lx, locked)
+			return node
+		"cathedral":
+			_pack_cathedral(node, w, d, door_lx, locked)
+			return node
 	var key := "%s:%s:%d:%d:%d%s" % [style_name if shop != "center" else "diner", shop, int(w), int(d), int(b.get("seed", 0)) % 3, ":locked" if locked else ""]
 	var kit_mesh: ArrayMesh = _mesh_cache.get(key, null)
 	var extras := []
@@ -206,14 +216,8 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 				_diner(kit, w, d, door_lx)
 			"arena":
 				_arena(kit, w, d, st, door_lx)
-			"skytower":
-				_skytower(kit, w, d, st)
 			"electronics":
 				_electronics(kit, w, d, door_lx)
-			"ceo_tower":
-				_ceo_tower(kit, w, d, door_lx)
-			"cathedral":
-				_cathedral(kit, w, d, door_lx, locked)
 			"hideout":
 				pass
 			"temple":
@@ -229,27 +233,16 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	mi.mesh = kit_mesh
 	node.add_child(mi)
 	match shop:
-		"skytower":
-			var bird := MeshInstance3D.new()
-			bird.mesh = VB.mesh(RaceDB.genes(43))
-			bird.scale = Vector3(1.7, 1.7, 1.7)
-			bird.position = Vector3(0, 7.25, 0)
-			bird.rotation.y = -PI / 2.0
-			bird.name = "Bird"
-			node.add_child(bird)
 		"hideout":
+			# a rocky outcrop, tall enough to tunnel into, with a timbered mine entrance in its face
 			var rock := VA.instance_footprint("mountain_4", d + 0.4, w + 0.6)
 			rock.rotation.y = PI / 2.0
+			var rh: float = VA.aabb("mountain_4").size.y * rock.scale.y
+			if rh < 3.4:
+				rock.scale.y *= 3.4 / maxf(0.1, rh)
+				rock.position.y = -VA.aabb("mountain_4").position.y * rock.scale.y
 			node.add_child(rock)
-			var hole := MeshInstance3D.new()
-			var bm := BoxMesh.new()
-			bm.size = Vector3(1.0, 1.3, 0.2)
-			hole.mesh = bm
-			var hm := StandardMaterial3D.new()
-			hm.albedo_color = Color("#0a0806")
-			hole.material_override = hm
-			hole.position = Vector3(door_lx, 0.65, d / 2.0 + 0.02)
-			node.add_child(hole)
+			_mine_entrance(node, door_lx, d / 2.0 + 0.05)
 		"temple":
 			var gate := MeshInstance3D.new()
 			gate.mesh = _temple_gate(d, door_lx, Color(b.get("glow", "#ffd870")))
@@ -537,6 +530,285 @@ static func _diner_pylon(node: Node3D, k: Kit, w: float, d: float, door_lx: floa
 	paw.mesh = VP.icon("center")
 	paw.position = Vector3(x, y + 1.7, _on_face(paw.mesh, z + 0.08))
 	node.add_child(paw)
+
+
+## The Sky Tower: a slender lookout of three storeys in the town's wall finish (the pack's door, windows and corner
+## posts), a beam at each floor, an open deck on top behind a railing, a windsock, and the Thunderhawk perched up there.
+static func _pack_skytower(node: Node3D, st: Dictionary, w: float, d: float, door_lx: float) -> void:
+	var hb = HouseBuilder.new()
+	hb.node = node
+	hb.w = w
+	hb.d = d
+	hb.rng.seed = 4242
+	var k := Kit.new()
+	var trim := Color(st["trim"])
+	k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), Color(st["base"]))
+	k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.3, 0.14, 0.4), Color(st["base"]).lightened(0.08))
+	var mat: Material = HouseBuilder.wall_material(String(st["wall"][0]), Color(st["wall"][1]))
+	var y := 0.24
+	for f in 3:
+		hb.storey(y, mat, PACK_DOORS[2] if f == 0 else "", door_lx, {2: PACK_SMALL}, false, true)
+		hb.corners(k, y, HouseBuilder.STOREY, trim)
+		y += HouseBuilder.STOREY
+		k.box("planks", Vector3(0, y + 0.07, 0), Vector3(w - 0.1, 0.14, d - 0.1), trim)
+		y += 0.14
+	# the lookout deck, overhanging the walls, with a railing all round
+	var deck := Vector2(w + 0.5, d + 0.5)
+	k.box("planks", Vector3(0, y + 0.08, 0), Vector3(deck.x, 0.16, deck.y), trim.lightened(0.2))
+	var x := -deck.x / 2.0
+	while x <= deck.x / 2.0 + 0.01:
+		for sz in [-1.0, 1.0]:
+			k.box("color", Vector3(x, y + 0.6, sz * deck.y / 2.0), Vector3(0.08, 0.9, 0.08), trim)
+		x += 0.5
+	var z := -deck.y / 2.0
+	while z <= deck.y / 2.0 + 0.01:
+		for sx in [-1.0, 1.0]:
+			k.box("color", Vector3(sx * deck.x / 2.0, y + 0.6, z), Vector3(0.08, 0.9, 0.08), trim)
+		z += 0.5
+	for sz in [-1.0, 1.0]:
+		k.box("color", Vector3(0, y + 1.05, sz * deck.y / 2.0), Vector3(deck.x, 0.07, 0.07), trim)
+	for sx in [-1.0, 1.0]:
+		k.box("color", Vector3(sx * deck.x / 2.0, y + 1.05, 0), Vector3(0.07, 0.07, deck.y), trim)
+	# a windsock on a pole at the back corner
+	k.box("color", Vector3(deck.x / 2.0 - 0.1, y + 1.6, -deck.y / 2.0 + 0.1), Vector3(0.08, 2.9, 0.08), trim)
+	k.box("color", Vector3(deck.x / 2.0 - 0.5, y + 2.85, -deck.y / 2.0 + 0.1), Vector3(0.7, 0.3, 0.3), Color("#e84a3a"))
+	k.box("color", Vector3(deck.x / 2.0 - 1.0, y + 2.85, -deck.y / 2.0 + 0.1), Vector3(0.4, 0.22, 0.22), Color("#f4f0e8"))
+	var bird := MeshInstance3D.new()
+	bird.mesh = VB.mesh(RaceDB.genes(43))
+	bird.scale = Vector3(1.7, 1.7, 1.7)
+	bird.position = Vector3(0, y + 0.2, 0)
+	bird.rotation.y = -PI / 2.0
+	bird.name = "Bird"
+	node.add_child(bird)
+	# its sign over the door
+	var icon := MeshInstance3D.new()
+	icon.mesh = VP.icon("skytower")
+	icon.position = Vector3(door_lx, 0.24 + 2.55, _on_face(icon.mesh, d / 2.0 - HouseBuilder.INSET))
+	node.add_child(icon)
+	hb.finish()
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+
+
+## Gearhart Tower: the steam company's offices, a stepped brick tower of the house pack's walls and windows (two
+## storeys, then two narrower set-backs), brass bands at each set-back, a clock on the top tier, chimney stacks
+## at the back, gears on the front and a brass spire with a red beacon.
+static func _pack_ceo_tower(node: Node3D, w: float, d: float, door_lx: float, locked: bool) -> void:
+	var brick := Color("#8a3a2a")
+	var brass := Color("#c8a040")
+	var k := Kit.new()
+	k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), Color("#5a5a62"))
+	k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.6, 0.14, 0.4), Color("#6a6a72"))
+	var mat: Material = HouseBuilder.wall_material("brick", brick)
+	var upper: Material = HouseBuilder.wall_material("brick", brick.darkened(0.1))
+	var y := 0.24
+	# [width, depth, storeys]
+	var tiers := [[w, d, 2], [w - 1.6, d - 1.6, 1], [maxf(2.2, w - 3.0), maxf(2.2, d - 3.0), 1]]
+	for ti in tiers.size():
+		var t: Array = tiers[ti]
+		var hb = HouseBuilder.new()
+		hb.node = node
+		hb.w = t[0]
+		hb.d = t[1]
+		hb.rng.seed = 900 + ti
+		for f in int(t[2]):
+			var ground: bool = ti == 0 and f == 0
+			hb.storey(y, mat if ti == 0 else upper, ("door_1" if locked else PACK_DOORS[4]) if ground else "", door_lx,
+				{2: PACK_WINDOWS, 3: PACK_WIDE} if ground else {2: PACK_WINDOWS}, false, true)
+			hb.corners(k, y, HouseBuilder.STOREY, Color("#4a3a32"))
+			y += HouseBuilder.STOREY
+		hb.finish()
+		# a flat roof and a brass band where the next tier steps back
+		k.box("stone", Vector3(0, y + 0.08, 0), Vector3(float(t[0]) - 0.1, 0.16, float(t[1]) - 0.1), Color("#4a4a52"))
+		k.box("brass", Vector3(0, y + 0.2, 0), Vector3(float(t[0]) + 0.05, 0.12, float(t[1]) + 0.05), brass)
+		y += 0.26
+	if locked:
+		_door_lock(k, Vector3(door_lx, 1.24, d / 2.0 - HouseBuilder.INSET + 0.06), 0.8, 1.9)
+	# the clock on the top tier's front, and the spire
+	var top: Array = tiers[tiers.size() - 1]
+	var cz: float = float(top[1]) / 2.0 - HouseBuilder.INSET + 0.04
+	var clock := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.7
+	disc.bottom_radius = 0.7
+	disc.height = 0.08
+	disc.radial_segments = 16
+	clock.mesh = disc
+	var cm := StandardMaterial3D.new()
+	cm.albedo_color = Color("#f4ecd0")
+	cm.emission_enabled = true
+	cm.emission = Color("#fff0c0")
+	cm.emission_energy_multiplier = 0.4
+	clock.material_override = cm
+	clock.rotation.x = PI / 2.0
+	clock.position = Vector3(0, y - 1.5, cz + 0.05)
+	node.add_child(clock)
+	k.box("brass", Vector3(0, y - 1.5, cz + 0.02), Vector3(1.6, 1.6, 0.04), brass)
+	k.box("color", Vector3(0, y - 1.3, cz + 0.11), Vector3(0.07, 0.5, 0.03), Color("#2a2a2a"))
+	k.box("color", Vector3(0.17, y - 1.5, cz + 0.11), Vector3(0.38, 0.07, 0.03), Color("#2a2a2a"))
+	k.box("brass", Vector3(0, y + 1.4, 0), Vector3(0.3, 2.8, 0.3), brass)
+	k.box("glow", Vector3(0, y + 2.9, 0), Vector3(0.28, 0.28, 0.28), Color("#ff4a3a"))
+	var beacon := OmniLight3D.new()
+	beacon.light_color = Color("#ff5a3a")
+	beacon.light_energy = 1.2
+	beacon.omni_range = 4.0
+	beacon.position = Vector3(0, y + 2.9, 0)
+	node.add_child(beacon)
+	# chimney stacks at the back of the first roof
+	var ch := HouseBuilder.piece("chimney")
+	if ch != null:
+		for sx in [-1.0, 1.0]:
+			var mi := MeshInstance3D.new()
+			mi.mesh = ch
+			mi.scale = Vector3(1.0, 2.2, 1.0)
+			mi.position = Vector3(sx * (w / 2.0 - 0.6), 0.24 + 2.0 * HouseBuilder.STOREY + 0.26, -d / 2.0 + 0.6)
+			node.add_child(mi)
+	_gear(k, Vector3(door_lx - 1.5, 2.2, d / 2.0 - HouseBuilder.INSET + 0.05), 0.5, brass)
+	_gear(k, Vector3(door_lx + 1.5, 2.6, d / 2.0 - HouseBuilder.INSET + 0.05), 0.36, brass)
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+
+
+## Gravenmoor Cathedral: a dark stone nave of the house pack's walls (two storeys of tall windows down its sides, the
+## great door at the front under a round rose window that glows violet) under a steep slate roof, and two square towers
+## at the front corners, three storeys of small windows each, with pyramid spires.
+static func _pack_cathedral(node: Node3D, w: float, d: float, door_lx: float, locked: bool) -> void:
+	var stone := Color("#6a6a74")
+	var mat: Material = HouseBuilder.wall_material("stone_dark", stone)
+	var tmat: Material = HouseBuilder.wall_material("stone_dark", stone.lightened(0.06))
+	var k := Kit.new()
+	k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), Color("#4a4a52"))
+	k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(2.0, 0.14, 0.4), Color("#5a5a62"))
+	# the nave, set back a little behind the towers' fronts
+	var nave := Node3D.new()
+	nave.position.z = -0.4
+	node.add_child(nave)
+	var nw := w - 2.4
+	var nd := d - 0.8
+	var hb = HouseBuilder.new()
+	hb.node = nave
+	hb.w = nw
+	hb.d = nd
+	hb.rng.seed = 666
+	var y := 0.24
+	hb.storey(y, mat, "door_1" if locked else PACK_DOORS[1], door_lx, {2: PACK_WINDOWS}, false, true)
+	y += HouseBuilder.STOREY
+	# the upper storey: plain at the front (the rose window goes there), tall windows down the sides
+	hb.storey(y, mat, "", 0.0, {}, false, true)
+	y += HouseBuilder.STOREY
+	hb.finish()
+	var nk := Kit.new()
+	_roof(nk, "steep", nw, nd, y, "slate", Color("#2e2e3a"), "stone_dark", stone, Color("#3a3a42"))
+	var nmi := MeshInstance3D.new()
+	nmi.mesh = nk.mesh()
+	nave.add_child(nmi)
+	var front := nd / 2.0 - HouseBuilder.INSET - 0.4
+	if locked:
+		_door_lock(k, Vector3(door_lx, 1.24, front + 0.06), 0.8, 1.9)
+	# the rose window: a stone ring round a violet glass disc
+	var rose_y := 0.24 + HouseBuilder.STOREY * 1.5
+	var glass := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.8
+	disc.bottom_radius = 0.8
+	disc.height = 0.05
+	disc.radial_segments = 16
+	glass.mesh = disc
+	var gm := StandardMaterial3D.new()
+	gm.albedo_color = Color("#5a3a8a")
+	gm.emission_enabled = true
+	gm.emission = Color("#8a50d0")
+	gm.emission_energy_multiplier = 0.55
+	glass.material_override = gm
+	glass.rotation.x = PI / 2.0
+	glass.position = Vector3(door_lx, rose_y, front + 0.06)
+	node.add_child(glass)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.78
+	torus.outer_radius = 0.98
+	torus.rings = 16
+	torus.ring_segments = 6
+	ring.mesh = torus
+	ring.material_override = HouseBuilder.wall_material("stone", Color("#8a8a92"))
+	ring.rotation.x = PI / 2.0
+	ring.position = glass.position + Vector3(0, 0, 0.03)
+	node.add_child(ring)
+	for sp in [-0.5, 0.5]:
+		k.box("stone", Vector3(door_lx + sp * 1.1, rose_y, front + 0.08), Vector3(0.08, 1.5, 0.05), Color("#8a8a92"))
+	var violet := OmniLight3D.new()
+	violet.light_color = Color("#b070ff")
+	violet.light_energy = 1.0
+	violet.omni_range = 4.5
+	violet.position = Vector3(door_lx, rose_y, front + 1.0)
+	node.add_child(violet)
+	# the towers
+	for sx in [-1.0, 1.0]:
+		var tower := Node3D.new()
+		tower.position = Vector3(sx * (w / 2.0 - 0.8), 0, d / 2.0 - 0.9)
+		node.add_child(tower)
+		var tb = HouseBuilder.new()
+		tb.node = tower
+		tb.w = 1.6
+		tb.d = 1.6
+		tb.rng.seed = 700 + int(sx)
+		var ty := 0.24
+		for f in 3:
+			tb.storey(ty, tmat, "", 0.0, {2: PACK_SMALL}, false, true)
+			ty += HouseBuilder.STOREY
+		tb.finish()
+		var tk := Kit.new()
+		tk.box("stone", Vector3(0, ty + 0.1, 0), Vector3(1.75, 0.2, 1.75), Color("#5a5a64"))
+		_hip(tk, 1.5, 1.5, ty + 0.2, 3.0, 0.15, false, "slate", Color("#2e2e3a"), Color("#3a3a42"))
+		var tmi := MeshInstance3D.new()
+		tmi.mesh = tk.mesh()
+		tower.add_child(tmi)
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+
+
+## A mine entrance cut into the bandits' rock: a dark passage behind a timber frame (two posts and a lintel, with a
+## brace either side), a lantern on the frame, and crates and barrels stacked outside. `fz` is the rock's front face.
+static func _mine_entrance(node: Node3D, door_lx: float, fz: float) -> void:
+	var k := Kit.new()
+	var timber := Color("#6a4a2a")
+	k.box("color", Vector3(door_lx, 1.1, fz - 0.6), Vector3(1.3, 2.2, 1.6), Color("#0a0806"))
+	for sx in [-1.0, 1.0]:
+		k.box("planks", Vector3(door_lx + sx * 0.72, 1.15, fz), Vector3(0.22, 2.3, 0.26), timber)
+		k.box("planks", Vector3(door_lx + sx * 0.55, 2.05, fz + 0.02), Vector3(0.36, 0.14, 0.2), timber.darkened(0.1))
+	k.box("planks", Vector3(door_lx, 2.36, fz), Vector3(1.9, 0.26, 0.3), timber)
+	k.box("planks", Vector3(door_lx, 0.04, fz + 0.4), Vector3(1.4, 0.08, 0.9), timber.lightened(0.1))
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+	var lamp := OmniLight3D.new()
+	lamp.light_color = Color("#ffb060")
+	lamp.light_energy = 0.9
+	lamp.omni_range = 3.0
+	lamp.position = Vector3(door_lx + 0.72, 2.0, fz + 0.4)
+	node.add_child(lamp)
+	var lantern: Mesh = load("res://assets/psx/interior/wall_light.res") if ResourceLoader.exists("res://assets/psx/interior/wall_light.res") else null
+	if lantern != null:
+		var lm := MeshInstance3D.new()
+		lm.mesh = lantern
+		lm.scale = Vector3.ONE * 1.3
+		lm.position = Vector3(door_lx + 0.72, 1.75, fz + 0.14)
+		node.add_child(lm)
+	# supplies outside
+	var spots := [["crate", Vector3(-1.5, 0, 0.6), 0.3], ["crate_open", Vector3(-1.45, 0.62, 0.6), -0.2], ["barrel", Vector3(1.45, 0, 0.5), 0.0],
+		["keg", Vector3(1.9, 0, 0.85), 1.2]]
+	for e in spots:
+		var m := HouseBuilder.piece(String(e[0]))
+		if m == null:
+			continue
+		var mi := MeshInstance3D.new()
+		mi.mesh = m
+		mi.position = Vector3(door_lx, 0, fz) + (e[1] as Vector3)
+		mi.rotation.y = float(e[2])
+		node.add_child(mi)
 
 
 # ---------------------------------------------------------------- Beast Center: a 1950s roadside diner
@@ -831,7 +1103,7 @@ static func _temple(k: Kit, w: float, d: float) -> float:
 	var tw := w + 0.3
 	var td := d + 0.3
 	for t in 3:
-		var h := 0.75
+		var h := 1.0
 		if k:
 			k.box("stone", Vector3(0, y + h / 2.0, 0), Vector3(tw, h, td), stone.darkened(0.05 * t))
 			k.box("stone", Vector3(0, y + h - 0.05, 0), Vector3(tw + 0.12, 0.12, td + 0.12), stone.lightened(0.08))
@@ -840,14 +1112,14 @@ static func _temple(k: Kit, w: float, d: float) -> float:
 		td -= 1.1
 	var sw := maxf(1.6, tw)
 	var sd := maxf(1.4, td)
-	var sh := 1.2
+	var sh := 1.9
 	if k:
 		k.box("stone_dark", Vector3(0, y + sh / 2.0, 0), Vector3(sw - 0.3, sh, sd - 0.3), stone.darkened(0.2))
 		# pillars at the corners and either side of a dark doorway
 		for sx in [-1.0, 1.0]:
 			for sz in [-1.0, 1.0]:
 				k.box("stone", Vector3(sx * (sw / 2.0 - 0.12), y + sh / 2.0, sz * (sd / 2.0 - 0.12)), Vector3(0.24, sh, 0.24), stone.lightened(0.1))
-		k.box("color", Vector3(0, y + 0.45, sd / 2.0 - 0.14), Vector3(0.55, 0.9, 0.04), Color("#16100c"))
+		k.box("color", Vector3(0, y + 0.8, sd / 2.0 - 0.14), Vector3(0.75, 1.6, 0.04), Color("#16100c"))
 		k.box("stone", Vector3(0, y + sh + 0.06, 0), Vector3(sw + 0.1, 0.12, sd + 0.1), stone.lightened(0.05))
 		return _hip(k, sw, sd, y + sh + 0.12, 0.9, 0.2, false, "slate", stone.darkened(0.3), stone)
 	var hs := minf(sw, sd) / 2.0 + 0.2
@@ -860,14 +1132,15 @@ static func _temple_gate(d: float, door_lx: float, glow: Color) -> ArrayMesh:
 	var k := Kit.new()
 	var stone := Color("#8a7260")
 	var fz := d / 2.0 - 0.05
-	k.box("stone", Vector3(door_lx, 0.95, fz - 0.9), Vector3(1.5, 1.9, 1.8), stone.darkened(0.15))
-	k.box("color", Vector3(door_lx, 0.72, fz + 0.01), Vector3(0.9, 1.44, 0.02), Color("#0a0806"))
+	# sized for people: a doorway 1.2 wide and 2.2 high
+	k.box("stone", Vector3(door_lx, 1.35, fz - 0.9), Vector3(1.9, 2.7, 1.8), stone.darkened(0.15))
+	k.box("color", Vector3(door_lx, 1.1, fz + 0.01), Vector3(1.2, 2.2, 0.02), Color("#0a0806"))
 	for sx in [-1, 1]:
-		k.box("stone", Vector3(door_lx + sx * 0.62, 1.05, fz), Vector3(0.28, 2.1, 0.36), stone)
-		k.box("stone", Vector3(door_lx + sx * 0.62, 0.1, fz), Vector3(0.4, 0.2, 0.46), stone.darkened(0.1))
-	k.box("stone", Vector3(door_lx, 2.08, fz), Vector3(1.66, 0.3, 0.4), stone.lightened(0.05))
-	k.box("glow", Vector3(door_lx, 2.08, fz + 0.21), Vector3(0.22, 0.24, 0.04), glow)
-	k.box("stone", Vector3(door_lx, 0.05, fz + 0.3), Vector3(1.2, 0.1, 0.24), stone.darkened(0.05))
+		k.box("stone", Vector3(door_lx + sx * 0.8, 1.4, fz), Vector3(0.34, 2.8, 0.4), stone)
+		k.box("stone", Vector3(door_lx + sx * 0.8, 0.12, fz), Vector3(0.48, 0.24, 0.5), stone.darkened(0.1))
+	k.box("stone", Vector3(door_lx, 2.86, fz), Vector3(2.1, 0.36, 0.46), stone.lightened(0.05))
+	k.box("glow", Vector3(door_lx, 2.86, fz + 0.24), Vector3(0.26, 0.28, 0.04), glow)
+	k.box("stone", Vector3(door_lx, 0.05, fz + 0.3), Vector3(1.5, 0.1, 0.28), stone.darkened(0.05))
 	return k.mesh()
 
 
@@ -1065,35 +1338,6 @@ static func _arena(k: Kit, w: float, d: float, st: Dictionary, door_lx: float) -
 	k.box("planks_v", Vector3(door_lx, 0.85, d / 2.0 - 0.05), Vector3(1.3, 1.6, 0.06), Color("#6a4a2a"))
 
 
-static func _skytower(k: Kit, w: float, d: float, st: Dictionary) -> void:
-	var wall_tex: String = st["wall"][0]
-	var col := Color(st["wall"][1])
-	var trim := Color(st["trim"])
-	var H := 6.8
-	k.box("stone", Vector3(0, 0.1, 0), Vector3(w - 0.1, 0.2, d - 0.1), Color(st["base"]))
-	k.box(wall_tex, Vector3(0, H / 2.0, 0), Vector3(w - 0.8, H, d - 0.8), col)
-	for sx in [-1, 1]:
-		for sz in [-1, 1]:
-			k.box("color", Vector3(sx * (w - 0.8) / 2.0, H / 2.0, sz * (d - 0.8) / 2.0), Vector3(0.2, H, 0.2), trim)
-	# windows up the stairwell (clear of the sign over the door)
-	for y in [3.0, 4.4, 5.8]:
-		k.box("glow", Vector3(0, y, (d - 0.8) / 2.0 + 0.02), Vector3(0.4, 0.6, 0.04), Color("#ffe8a8"))
-	k.box("planks", Vector3(0, H + 0.1, 0), Vector3(w + 0.4, 0.2, d + 0.4), trim.lightened(0.2))
-	var x := -(w + 0.4) / 2.0
-	while x <= (w + 0.4) / 2.0 + 0.01:
-		for sz in [-1, 1]:
-			k.box("color", Vector3(x, H + 0.45, sz * (d + 0.4) / 2.0), Vector3(0.08, 0.5, 0.08), trim)
-		x += 0.5
-	k.box("color", Vector3(0, H + 0.7, (d + 0.4) / 2.0), Vector3(w + 0.4, 0.06, 0.06), trim)
-	k.box("color", Vector3(0, H + 0.7, -(d + 0.4) / 2.0), Vector3(w + 0.4, 0.06, 0.06), trim)
-	k.box("color", Vector3((w + 0.4) / 2.0, H + 1.3, -(d + 0.4) / 2.0), Vector3(0.08, 1.8, 0.08), trim)
-	k.box("color", Vector3((w + 0.4) / 2.0 - 0.35, H + 1.95, -(d + 0.4) / 2.0), Vector3(0.6, 0.3, 0.04), Color("#e84a3a"))
-	# the door, in a frame, standing on the plinth
-	var front := (d - 0.8) / 2.0
-	k.box("color", Vector3(0, 0.92, front + 0.04), Vector3(0.88, 1.44, 0.08), trim)
-	k.box("planks_v", Vector3(0, 0.86, front + 0.07), Vector3(0.68, 1.3, 0.06), Color(st["door"]))
-	k.box("color", Vector3(0.22, 0.84, front + 0.11), Vector3(0.06, 0.06, 0.04), Color("#e8c060"))
-
 
 static func _electronics(k: Kit, w: float, d: float, door_lx: float) -> void:
 	var H := 2.6
@@ -1120,51 +1364,3 @@ static func _electronics(k: Kit, w: float, d: float, door_lx: float) -> void:
 	k.box("tin", Vector3(0, H + 0.24, 0), Vector3(w, 0.16, d - 0.1), Color("#5a5a66"))
 	k.box("color", Vector3(w / 2.0 - 0.6, H + 0.75, -0.3), Vector3(0.08, 0.9, 0.08), Color("#8a8a90"))
 	k.box("color", Vector3(w / 2.0 - 0.6, H + 1.25, -0.3), Vector3(0.6, 0.5, 0.06), Color("#d8dce4"))
-
-
-static func _ceo_tower(k: Kit, w: float, d: float, door_lx: float) -> void:
-	var brick := Color("#8a3a2a")
-	var brass := Color("#c8a040")
-	var y := 0.0
-	var tiers := [[w - 0.2, d - 0.3, 4.0], [w - 1.2, d - 1.0, 4.0], [w - 2.0, d - 1.6, 3.5], [w - 2.8, d - 2.2, 2.5]]
-	for t in tiers:
-		k.box("brick", Vector3(0, y + t[2] / 2.0, 0), Vector3(t[0], t[2], t[1]), brick)
-		k.box("brass", Vector3(0, y + t[2] - 0.08, 0), Vector3(t[0] + 0.15, 0.16, t[1] + 0.15), brass)
-		var x: float = -t[0] / 2.0 + 0.5
-		while x < t[0] / 2.0 - 0.3:
-			for ry in range(1, int(t[2])):
-				k.box("glow", Vector3(x, y + ry - 0.1, t[1] / 2.0 + 0.03), Vector3(0.36, 0.5, 0.04), Color("#ffd890"))
-			x += 0.8
-		y += t[2]
-	# clock face and spire
-	k.box("color", Vector3(0, 10.6, (d - 1.6) / 2.0 + 0.06), Vector3(1.6, 1.6, 0.08), Color("#f4ecd0"))
-	k.box("color", Vector3(0, 10.9, (d - 1.6) / 2.0 + 0.11), Vector3(0.08, 0.6, 0.04), Color("#2a2a2a"))
-	k.box("color", Vector3(0.2, 10.6, (d - 1.6) / 2.0 + 0.11), Vector3(0.45, 0.08, 0.04), Color("#2a2a2a"))
-	k.box("brass", Vector3(0, y + 1.2, 0), Vector3(0.3, 2.4, 0.3), brass)
-	k.box("glow", Vector3(0, y + 2.5, 0), Vector3(0.25, 0.25, 0.25), Color("#ff4a3a"))
-	for sx in [-1, 1]:
-		k.box("brick", Vector3(sx * (w / 2.0 - 0.5), 5.5, -d / 2.0 + 0.6), Vector3(0.6, 11.0, 0.6), Color("#5a5a62"))
-	_gear(k, Vector3(-w / 2.0 + 1.0, 2.5, d / 2.0 - 0.1), 0.55, brass)
-	_gear(k, Vector3(w / 2.0 - 1.0, 3.2, d / 2.0 - 0.1), 0.4, brass)
-	k.box("brass", Vector3(door_lx, 0.9, d / 2.0 - 0.1), Vector3(1.3, 1.8, 0.1), brass)
-	k.box("color", Vector3(door_lx, 0.85, d / 2.0 - 0.04), Vector3(1.0, 1.6, 0.06), Color("#2a2a32"))
-
-
-static func _cathedral(k: Kit, w: float, d: float, door_lx: float, locked := false) -> void:
-	var stone := Color("#6a6a74")
-	var H := 5.0
-	k.box("stone_dark", Vector3(0, H / 2.0, -0.4), Vector3(w - 2.4, H, d - 1.1), stone)
-	_roof(k, "steep", w - 2.4, d - 1.1, H, "slate", Color("#2e2e3a"), "stone_dark", stone, Color("#3a3a42"))
-	for sx in [-1, 1]:
-		var tx: float = sx * (w / 2.0 - 0.75)
-		k.box("stone_dark", Vector3(tx, 4.0, d / 2.0 - 0.9), Vector3(1.5, 8.0, 1.5), stone.lightened(0.05))
-		for i in 6:
-			k.box("slate", Vector3(tx, 8.2 + i * 0.4, d / 2.0 - 0.9), Vector3(1.5 - i * 0.25, 0.4, 1.5 - i * 0.25), Color("#2e2e3a"))
-		k.box("glow", Vector3(tx, 5.5, d / 2.0 - 0.13), Vector3(0.4, 1.2, 0.04), Color("#9a6aff"))
-	# rose window and doors, flat on the front wall
-	var wall := -0.4 + (d - 1.1) / 2.0
-	k.box("glow", Vector3(door_lx, 3.4, wall + 0.02), Vector3(1.4, 1.4, 0.04), Color("#c070ff"))
-	k.box("color", Vector3(door_lx, 1.1, wall + 0.04), Vector3(1.4, 2.2, 0.08), Color("#2a1a2a"))
-	k.box("planks_v", Vector3(door_lx, 1.0, wall + 0.07), Vector3(1.1, 2.0, 0.06), LOCKED_DOOR if locked else Color("#4a2a3a"))
-	if locked:
-		_door_lock(k, Vector3(door_lx, 1.0, wall + 0.1), 1.1, 2.0)

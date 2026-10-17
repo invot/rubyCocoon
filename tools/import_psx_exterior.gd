@@ -91,6 +91,19 @@ func _init() -> void:
 			continue
 		var mesh := B.bake(scene, {"scale": 1.0})
 		scene.free()
+		# the kit's models name its texture sheet but don't carry it: give them the sheet, PSX-sized
+		var kit_sheet := Image.load_from_file(src + HB.get_base_dir().get_base_dir() + "/atlas.png")
+		if kit_sheet != null:
+			kit_sheet.convert(Image.FORMAT_RGBA8)
+			if kit_sheet.get_width() > 256:
+				kit_sheet.resize(256, 256 * kit_sheet.get_height() / kit_sheet.get_width(), Image.INTERPOLATE_LANCZOS)
+			kit_sheet.generate_mipmaps()
+			var kt := ImageTexture.create_from_image(kit_sheet)
+			for si in mesh.get_surface_count():
+				var sm := mesh.surface_get_material(si) as BaseMaterial3D
+				if sm != null and sm.albedo_texture == null:
+					sm.albedo_texture = kt
+					sm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 		var err := ResourceSaver.save(mesh, OUT + name + ".res", ResourceSaver.FLAG_COMPRESS)
 		print("  %-16s %s  %s" % [name, mesh.get_aabb().size.snapped(Vector3.ONE * 0.01), "ok" if err == OK else "SAVE FAILED"])
 	for name in STREET:

@@ -1315,8 +1315,7 @@ func _flow_test() -> void:
 	var hid := _bld("hideout")
 	await _go(hid["interior"], "entry")
 	await _wait(1.5)
-	for p in world.npcs.keys():
-		var n: Dictionary = world.npcs[p]
+	for n in world.npcs.values().duplicate():
 		if n.get("bandit_boss", false):
 			for b in GameState.party:
 				b.heal_full()
@@ -1332,8 +1331,8 @@ func _flow_test() -> void:
 	for f in [1, 2, 3, 4]:
 		await _go(MapLoader.floor_id(ct["interior"], f), "entry")
 		await _wait(1.5)
-		for p in world.npcs.keys():
-			var n2: Dictionary = world.npcs[p]
+		# people walk about their rooms, so go by who's there rather than where they stood
+		for n2 in world.npcs.values().duplicate():
 			if n2.has("robot_body") and not GameState.flag(n2["flag"]):
 				for b in GameState.party:
 					b.heal_full()
@@ -1372,9 +1371,9 @@ func _flow_test() -> void:
 	GameState.party = []
 	for r in [7, 18, 31, 42, 3, 22]:
 		GameState.party.append(Beasts.create(r, 72))
-	for p in world.npcs.keys():
-		if world.npcs[p].get("flag", "") == "tr_gravenmoor_gate":
-			await Story.talk(world, world.npcs[p])
+	for n3 in world.npcs.values().duplicate():
+		if n3.get("flag", "") == "tr_gravenmoor_gate":
+			await Story.talk(world, n3)
 	var cat := _bld("cathedral")
 	await _go(cat["interior"], "entry")
 	await _wait(1.5)
