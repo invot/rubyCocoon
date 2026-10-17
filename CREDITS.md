@@ -30,6 +30,14 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
 - **PSX The Island Pack** by Caliber Creations, https://caliberuk.itch.io/psx-the-island-pack (palms, beach
   plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
 
+### People (`assets/psx/people/`, made by `tools/import_psx_people.gd`)
+*Changes made:* textures shrunk to 256 px; each face moved onto a front-facing texture of its own with anime eyes
+painted in; the hero's texture repainted (red jacket over a white shirt, belt, jeans, red sneakers). The game poses
+the skeletons itself.
+- **Characters PSX** by Elbolilloduro, https://elbolilloduro.itch.io/characters-psx (the townsfolk, Beast Center
+  staff and Umbral Legion). Free for commercial use; the files may not be re-uploaded.
+- **Male Character | PSX / PS1** by yugg0, https://yugg0.itch.io/male (the hero), on a base mesh by Vinrax.
+
 ## Voxel art (`voxelassets/` → `assets/voxel/`)
 See `assets/voxel/CREDITS.md` for the full list. Highlights:
 - **StickyBizcuit**: village/dungeon pack. The required easter egg is the hidden NPC "Bizcuit" in the
