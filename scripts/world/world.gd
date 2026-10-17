@@ -17,10 +17,10 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
-## The hero: navy cap with a ruby emblem, ruby bomber jacket with gold trim, backpack, sneakers.
-const PLAYER_LOOK := {"skin": "#f0c8a0", "hair": "#3a2216", "shirt": "#b8283a", "pants": "#2a3550", "hat": "#24365e", "hair_style": 0,
-	"hat_style": "cap", "logo": "#e8303f", "face": "hero", "outfit": "jacket", "tee": "#f4f0e8", "trim": "#ffd071",
-	"backpack": "#8a5a32", "gloves": "#3a2a2a", "shoes": "#d8283a"}
+## The hero: navy cap, an open red jacket over a white shirt, a belt, blue jeans, sneakers and a backpack.
+const PLAYER_LOOK := {"skin": "#f0c8a0", "hair": "#3a2216", "shirt": "#b8283a", "pants": "#3d5a8f", "hat": "#24365e", "hair_style": 0,
+	"hat_style": "cap", "face": "hero", "outfit": "jacket", "tee": "#f4f0e8", "belt": "#4a3020",
+	"backpack": "#8a5a32", "shoes": "#d8283a"}
 const CAM_OFFSET := Vector3(0, 9.6, 11.2)
 const CAM_OFFSET_ROOM := Vector3(0, 7.4, 8.6)
 ## Rugs are woven kilims from the seamless pattern sheet (tools/build_patterns.py): each room gets the one closest to
