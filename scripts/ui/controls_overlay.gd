@@ -6,7 +6,7 @@ extends CanvasLayer
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
-const LEGEND_H := 40.0
+const LEGEND_H := 48.0
 ## The touch buttons answer taps a little outside their drawn edge (pixels).
 const TOUCH_SLOP := 22.0
 ## A and B click at a lower pitch than the menu blip, B two notes (a minor third) below A, and softer.
@@ -81,8 +81,8 @@ func touch_visible() -> bool:
 func _build_legend() -> void:
 	legend = PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("#2f2424", 0.9)
-	sb.border_color = Color("#ffa34d")
+	sb.bg_color = Color(0.03, 0.03, 0.04, 0.92)
+	sb.border_color = UIKit.ACCENT
 	sb.border_width_top = 3
 	sb.content_margin_left = 16
 	sb.content_margin_right = 16
@@ -127,13 +127,14 @@ func _build_touch() -> void:
 		var b := _touch_button(dir, "button_square", "button_square_down")
 		var arrow := Sprite2D.new()
 		arrow.texture = UIKit.tex("icon_arrow")
+		arrow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		arrow.position = Vector2(44, 44)
 		arrow.rotation = {"right": 0.0, "down": PI / 2.0, "left": PI, "up": -PI / 2.0}[dir]
 		b.add_child(arrow)
 	for k in ["a", "b"]:
 		var b2 := _touch_button(k, "button_round" if k == "a" else "button_round_alt", "button_round_down")
 		var l := UIKit.header(k.to_upper(), UIKit.LIGHT, 48)
-		l.add_theme_color_override("font_outline_color", Color("#2f2424"))
+		l.add_theme_color_override("font_outline_color", Color.BLACK)
 		l.add_theme_constant_override("outline_size", 6)
 		l.size = Vector2(104, 104)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -147,7 +148,7 @@ func _build_touch() -> void:
 		l2.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		b3.add_child(l2)
 		var cap := UIKit.label("Menu" if k == "start" else "Pause", 20, UIKit.LIGHT)
-		cap.add_theme_color_override("font_outline_color", Color("#2f2424"))
+		cap.add_theme_color_override("font_outline_color", Color.BLACK)
 		cap.add_theme_constant_override("outline_size", 5)
 		cap.position = Vector2(0, -28)
 		cap.size = Vector2(90, 24)
@@ -155,10 +156,46 @@ func _build_touch() -> void:
 		b3.add_child(cap)
 
 
+## The touch buttons' faces, drawn here: black and see-through with a white rim; pressed, they fill with the accent.
+## "square" (the d-pad, 88), "round" (A and B, 104), "pill" (Start and Pause, 90 x 66).
+static func _pad_face(shape: String, pressed: bool) -> ImageTexture:
+	var sz: Vector2i = {"square": Vector2i(88, 88), "round": Vector2i(104, 104), "pill": Vector2i(90, 66)}[shape]
+	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var fill := Color(UIKit.ACCENT, 0.85) if pressed else Color(0.04, 0.04, 0.05, 0.62)
+	var c := Vector2(sz) / 2.0
+	for y in sz.y:
+		for x in sz.x:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var d := 0.0
+			match shape:
+				"round":
+					d = c.x - p.distance_to(c)
+				"pill":
+					var r := c.y
+					var q := Vector2(clampf(p.x, r, sz.x - r), c.y)
+					d = r - p.distance_to(q)
+				_:
+					# a square with corners rounded a little
+					var r2 := 12.0
+					var q2 := Vector2(clampf(p.x, r2, sz.x - r2), clampf(p.y, r2, sz.y - r2))
+					d = r2 - p.distance_to(q2)
+			if d < 0.0:
+				continue
+			if d < 3.0:
+				img.set_pixel(x, y, UIKit.BORDER)
+			elif d < 5.0:
+				img.set_pixel(x, y, Color(0, 0, 0, 0.7))
+			else:
+				img.set_pixel(x, y, fill)
+	return ImageTexture.create_from_image(img)
+
+
 func _touch_button(id: String, tex_up: String, tex_down: String) -> TouchScreenButton:
 	var b := TouchScreenButton.new()
-	b.texture_normal = UIKit.tex(tex_up)
-	b.texture_pressed = UIKit.tex(tex_down)
+	var shape := "square" if "square" in tex_up else ("round" if "round" in tex_up else "pill")
+	b.texture_normal = _pad_face(shape, false)
+	b.texture_pressed = _pad_face(shape, true)
 	b.passby_press = id in ["up", "down", "left", "right"]
 	b.visibility_mode = TouchScreenButton.VISIBILITY_ALWAYS
 	b.modulate = Color(1, 1, 1, 0.85)

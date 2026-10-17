@@ -57,7 +57,7 @@ func _ready() -> void:
 	left.add_child(tags)
 	left.add_child(UIKit.label("Rank %s   Lv %d / %d" % [b.rank_stars(), b.level, b.level_cap()], 18, UIKit.GOLD))
 	var xpb := Bar.new(Vector2(280, 8))
-	xpb.fixed_color = Color("#60a0ff")
+	xpb.fixed_color = UIKit.GOLD
 	xpb.set_ratio(b.xp_progress(), true)
 	left.add_child(xpb)
 	if b.at_cap():
@@ -78,7 +78,7 @@ func _ready() -> void:
 	right.add_child(hpb)
 	right.add_child(UIKit.label("MP %d / %d   (elemental attacks spend it)" % [b.mp, b.max_mp()], 20))
 	var mpb := Bar.new(Vector2(400, 8))
-	mpb.fixed_color = Color("#5aa8ff")
+	mpb.fixed_color = UIKit.GOLD_BRIGHT
 	mpb.set_ratio(b.mp_ratio(), true)
 	right.add_child(mpb)
 	var grid := GridContainer.new()
@@ -89,12 +89,12 @@ func _ready() -> void:
 		grid.add_child(UIKit.header(b.STAT_NAMES[s], UIKit.DIM, UIKit.HEAD_SMALL))
 		grid.add_child(UIKit.label(str(b.stat(s)), 18))
 		var sbar := Bar.new(Vector2(220, 8))
-		sbar.fixed_color = Color("#e8c060")
+		sbar.fixed_color = UIKit.GOLD
 		sbar.set_ratio(float(b.stat(s)) / maxf(60.0, b.level * 2.6 + 10), true)
 		grid.add_child(sbar)
 	right.add_child(HSeparator.new())
 	for ps in b.passives:
-		var pl := UIKit.label("◆ %s — %s" % [ps, RaceDB.PASSIVE_DESC.get(ps, "")], 16, UIKit.ACCENT)
+		var pl := UIKit.label("%s — %s" % [ps, RaceDB.PASSIVE_DESC.get(ps, "")], 16, UIKit.ACCENT)
 		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		right.add_child(pl)
 	var eq := "Gear: " + (ItemDB.item_name(b.equip) if b.equip != "" else "(none)")

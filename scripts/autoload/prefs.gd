@@ -1,5 +1,5 @@
 extends Node
-## Player settings (volume, text speed, controls), saved to user://settings.cfg.
+## Player settings (volume, text speed, controls, highlight colour), saved to user://settings.cfg.
 
 const PATH := "user://settings.cfg"
 
@@ -11,6 +11,8 @@ var text_speed := 60.0
 var touch_controls := "auto"
 var show_key_legend := true
 var fullscreen := false
+## the menus' highlight colour: one of UIKit.ACCENTS ("red", "blue", "green", "purple", "silver")
+var accent := "red"
 
 signal changed
 
@@ -31,6 +33,7 @@ func load_prefs() -> void:
 	touch_controls = String(c.get_value("controls", "touch", touch_controls))
 	show_key_legend = bool(c.get_value("controls", "key_legend", show_key_legend))
 	fullscreen = bool(c.get_value("video", "fullscreen", fullscreen))
+	accent = String(c.get_value("ui", "accent", accent))
 
 
 func save_prefs() -> void:
@@ -41,6 +44,7 @@ func save_prefs() -> void:
 	c.set_value("controls", "touch", touch_controls)
 	c.set_value("controls", "key_legend", show_key_legend)
 	c.set_value("video", "fullscreen", fullscreen)
+	c.set_value("ui", "accent", accent)
 	c.save(PATH)
 
 

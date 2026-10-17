@@ -1,5 +1,6 @@
 extends Control
-## An animated value bar (HP / XP). Tall bars use the bronze set1 frame; slim ones a plain pixel border.
+## An animated value bar (HP / MP / XP): a white-edged black trough filled with the accent (or `fixed_color`), with a
+## lighter top line and a darker bottom line on the fill.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
@@ -7,7 +8,6 @@ var ratio := 1.0
 var shown := 1.0
 var fixed_color := Color(0, 0, 0, 0)
 var text := ""
-var _frame: StyleBoxTexture
 
 
 func _init(min_size := Vector2(160, 10)) -> void:
@@ -31,24 +31,17 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var col := fixed_color if fixed_color.a > 0 else UIKit.hp_color(shown)
 	var r := Rect2(Vector2.ZERO, size)
-	var inner: Rect2
-	if size.y >= 24:
-		if _frame == null:
-			_frame = UIKit.box("bar_frame")
-		draw_style_box(_frame, r)
-		inner = r.grow_individual(-9, -9, -9, -9)
-		draw_rect(inner, Color("#2a1c1c"))
-	else:
-		draw_rect(r, Color("#493333"))
-		inner = r.grow(-2)
-		draw_rect(inner, Color("#2a1c1c"))
-	var w := floorf(inner.size.x * shown / 3.0) * 3.0
-	if w <= 0.0:
-		return
-	var fill := Rect2(inner.position, Vector2(w, inner.size.y))
-	draw_rect(fill, col)
-	var band := maxf(2.0, floorf(inner.size.y / 3.0))
-	draw_rect(Rect2(fill.position, Vector2(w, band)), col.lightened(0.3))
-	draw_rect(Rect2(fill.position + Vector2(0, inner.size.y - band), Vector2(w, band)), col.darkened(0.25))
+	var edge := 2.0 if size.y >= 10 else 1.0
+	draw_rect(r, UIKit.BORDER)
+	var inner := r.grow(-edge)
+	draw_rect(inner, Color("#0a0a0e"))
+	inner = inner.grow(-1.0) if size.y >= 14 else inner
+	var w := floorf(inner.size.x * shown / 2.0) * 2.0
+	if w > 0.0:
+		var fill := Rect2(inner.position, Vector2(w, inner.size.y))
+		draw_rect(fill, col)
+		var band := maxf(1.0, floorf(inner.size.y / 4.0))
+		draw_rect(Rect2(fill.position, Vector2(w, band)), col.lerp(Color.WHITE, 0.35))
+		draw_rect(Rect2(fill.position + Vector2(0, inner.size.y - band), Vector2(w, band)), col.darkened(0.3))
 	if text != "":
 		draw_string(UIKit.font_body(), Vector2(6, size.y - 6), text, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(UIKit.BODY_SMALL), UIKit.LIGHT)

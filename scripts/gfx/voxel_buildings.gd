@@ -7,6 +7,7 @@ const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
+const HouseBuilder = preload("res://scripts/gfx/house_builder.gd")
 
 const SHADE := {Vector3(0, 1, 0): 1.0, Vector3(0, -1, 0): 0.6, Vector3(1, 0, 0): 0.86, Vector3(-1, 0, 0): 0.86, Vector3(0, 0, 1): 0.95, Vector3(0, 0, -1): 0.78}
 
@@ -44,8 +45,8 @@ const SHOP_LOOKS := {
 	"island": {"floors": 1, "ground": ["bamboo", "#d8b878"], "roof": "hip", "open": true},
 	"jungle": {"floors": 1, "ground": ["planks_v", "#9a7040"], "roof": "hip", "open": true},
 }
-const SHOP_GROUND := 2.3
-const SHOP_UPPER := 1.9
+const SHOP_GROUND := 2.8
+const SHOP_UPPER := 2.9
 ## Locked doors (b["locked"]) are crimson in every town, with iron straps and a brass padlock, so you can tell them
 ## from the doors you can open. No style's ordinary door is red.
 const LOCKED_DOOR := Color("#b3262c")
@@ -171,6 +172,9 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	var door_lx: float = float(b["door"].x) + 0.5 - (float(b["x"]) + w / 2.0)
 	var locked: bool = b.get("locked", false)
 	var node := Node3D.new()
+	if shop in COMMERCIAL or shop not in SPECIAL or PACK_LOOKS.has(shop):
+		_pack_building(node, b, style_name, st, shop, w, d, door_lx, locked)
+		return node
 	var key := "%s:%s:%d:%d:%d%s" % [style_name if shop != "center" else "diner", shop, int(w), int(d), int(b.get("seed", 0)) % 3, ":locked" if locked else ""]
 	var kit_mesh: ArrayMesh = _mesh_cache.get(key, null)
 	var extras := []
@@ -286,6 +290,152 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		l2.position = Vector3(door_lx, 1.6, d / 2.0 + 0.6)
 		node.add_child(l2)
 	return node
+
+
+## Buildings with a look of their own; every other house and shop is built from the house pack (_pack_building).
+const SPECIAL := ["center", "arena", "skytower", "electronics", "ceo_tower", "cathedral", "hideout", "temple"]
+## The special buildings built from the house pack too, with a look of their own (as SHOP_LOOKS): the Beast Center's
+## chrome diner, the electronics shop's steel and glass, the arena's stone hall.
+const PACK_LOOKS := {
+	"center": {"floors": 1, "ground": ["tin", "#eef0f2"], "roof": "flat", "trim": "#d8283a", "flat_roof": "#b8bcc4", "brand": "#d8283a"},
+	"electronics": {"floors": 2, "ground": ["tin", "#c8ccd4"], "upper": ["brick", "#6a6a78"], "roof": "flat", "trim": "#3a6ab0", "flat_roof": "#4a4a52", "brand": "#3a6ab0"},
+	"arena": {"floors": 2, "ground": ["stone", "#c8bca8"], "upper": ["stone", "#b8ac98"], "roof": "hip", "trim": "#6a4a2a", "brand": "#c8a030"},
+}
+## House paints by town style: soft colours, so a street of houses isn't all one shade.
+const HOUSE_PAINTS := {
+	"town": ["#efe4cc", "#f0e2a8", "#f0d4c8", "#d8e2ec", "#dce4c8", "#f4f0e8"],
+	"coastal": ["#f2eee2", "#cfe4f0", "#f4d8c8", "#e4f0d4", "#f8e8b8", "#e8dcf0"],
+	"adobe": ["#dcb88a", "#e4c494", "#d4a878", "#e8cca4"],
+	"western": ["#b8804a", "#a8784a", "#c49060", "#9a6a40"],
+	"island": ["#d8b878", "#e0c088", "#c8a868"],
+	"jungle": ["#9a7040", "#a87c48", "#8a6438"],
+	"steampunk": ["#a8503a", "#985040", "#b05a40"],
+	"hotspring": ["#7a4a32", "#8a5a3a"],
+}
+const PACK_DOORS := ["door_2", "door_3", "door_4", "door_5", "door_6", "door_7", "door_8"]
+const PACK_WINDOWS := ["win_1", "win_2", "win_3", "win_4"]
+const PACK_SMALL := ["win_small_1", "win_small_2", "win_small_3"]
+const PACK_WIDE := ["win_double_1", "win_double_2", "win_double_3", "win_double_4"]
+
+
+## A house or shop of the house pack's pieces (see house_builder.gd): a stone plinth (or a deck on stilts), one or two
+## storeys of the town's wall finish with the pack's doors, windows and shutters, corner posts, a beam between the
+## storeys and the style's roof. Shops get display windows, a striped awning in the shop's colour and a sign board with
+## its icon; houses a lamp by the door and, under pitched roofs, a chimney.
+static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: Dictionary, shop: String, w: float, d: float, door_lx: float, locked: bool) -> void:
+	var hb = HouseBuilder.new()
+	hb.node = node
+	hb.w = w
+	hb.d = d
+	hb.rng.seed = ("%s:%d:%d" % [shop, int(b.get("seed", 0)), int(w)]).hash()
+	var rng: RandomNumberGenerator = hb.rng
+	var commercial := shop in COMMERCIAL or PACK_LOOKS.has(shop)
+	var look: Dictionary = PACK_LOOKS.get(shop, SHOP_LOOKS.get(style_name, SHOP_LOOKS["town"]))
+	var k := Kit.new()
+	var trim := Color(look.get("trim", st["trim"])) if commercial else Color(st["trim"])
+	var base := Color(st["base"])
+	var lift := 0.0
+	if st.get("stilts", false):
+		lift = 0.5
+		for sx in [-1, 1]:
+			for sz in [-1, 1]:
+				k.box("color", Vector3(sx * (w / 2.0 - 0.3), lift / 2.0, sz * (d / 2.0 - 0.3)), Vector3(0.22, lift, 0.22), trim)
+		k.box("planks", Vector3(0, lift - 0.06, 0.1), Vector3(w + 0.1, 0.12, d + 0.3), trim.lightened(0.2))
+		for i in 2:
+			k.box("planks", Vector3(door_lx, 0.12 + i * 0.2, d / 2.0 + 0.55 - i * 0.22), Vector3(1.1, 0.12, 0.3), trim.lightened(0.1))
+	else:
+		k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), base)
+		# a step up to the door
+		k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.3, 0.14, 0.4), base.lightened(0.08))
+	var y0 := lift + (0.24 if lift == 0.0 else 0.0)
+	var ground: Array = look["ground"] if commercial else st["wall"]
+	var upper: Array = look.get("upper", look["ground"]) if commercial else st["wall"]
+	# houses in town wear plaster below and half-timbering above, like the shops
+	if not commercial and style_name == "town" and rng.randf() < 0.5:
+		ground = ["plaster", st["wall"][1]]
+	# every house its own paint
+	if not commercial and HOUSE_PAINTS.has(style_name):
+		var paints: Array = HOUSE_PAINTS[style_name]
+		var paint: String = paints[rng.randi_range(0, paints.size() - 1)]
+		if String(ground[0]) in ["plaster", "timber", "adobe", "planks_v", "planks"]:
+			ground = [ground[0], paint]
+		if String(upper[0]) in ["plaster", "timber", "adobe", "planks_v", "planks"]:
+			upper = [upper[0], paint]
+	var gmat: Material = HouseBuilder.wall_material(String(ground[0]), Color(ground[1]))
+	var umat: Material = HouseBuilder.wall_material(String(upper[0]), Color(upper[1]))
+	var floors := int(look["floors"]) if commercial else (2 if (w >= 4 and rng.randf() < 0.55) or shop == "home" else 1)
+	var door: String = "door_1" if locked else PACK_DOORS[rng.randi_range(0, PACK_DOORS.size() - 1)]
+	var shutters := not commercial and style_name in ["town", "coastal", "gothic", "steampunk"] and rng.randf() < 0.75
+	var kinds := {2: PACK_WINDOWS, 3: PACK_WIDE} if commercial else {2: PACK_WINDOWS if rng.randf() < 0.6 else PACK_SMALL}
+	hb.storey(y0, gmat, door, door_lx, kinds, shutters, d >= 3)
+	hb.corners(k, y0, HouseBuilder.STOREY, trim)
+	if locked:
+		_door_lock(k, Vector3(door_lx, y0 + 1.0, d / 2.0 - HouseBuilder.INSET + 0.06), 0.8, 1.9)
+	var top := y0 + HouseBuilder.STOREY
+	if floors == 2:
+		# a beam between the storeys
+		k.box("planks", Vector3(0, top + 0.07, 0), Vector3(w - 0.14, 0.14, d - 0.14), trim)
+		top += 0.14
+		hb.storey(top, umat, "", 0.0, {2: PACK_WINDOWS if commercial else PACK_SMALL}, shutters, d >= 3)
+		hb.corners(k, top, HouseBuilder.STOREY, trim)
+		top += HouseBuilder.STOREY
+	var front := d / 2.0 - HouseBuilder.INSET
+	if commercial:
+		var brand := Color(look.get("brand", SHOP_ROOF.get(shop, "#c84040")))
+		# a striped awning over the shop front
+		var ay := y0 + 2.3
+		var x := -w / 2.0 + 0.2
+		var i := 0
+		while x < w / 2.0 - 0.2:
+			var x2 := minf(x + 0.45, w / 2.0 - 0.2)
+			k.poly("color", [Vector3(x, ay, front), Vector3(x2, ay, front), Vector3(x2, ay - 0.42, front + 0.85), Vector3(x, ay - 0.42, front + 0.85)],
+				Vector3(0, 0.9, 0.45), brand if i % 2 == 0 else Color("#f4f0e4"))
+			x = x2
+			i += 1
+		# the awning's valance
+		k.box("color", Vector3(0, ay - 0.5, front + 0.86), Vector3(w - 0.4, 0.16, 0.03), brand.darkened(0.15))
+		# the sign board, above the awning
+		k.box("planks", Vector3(door_lx, y0 + 2.62, front + 0.05), Vector3(1.7, 0.42, 0.08), trim)
+		k.box("color", Vector3(door_lx, y0 + 2.62, front + 0.09), Vector3(1.5, 0.3, 0.02), brand.darkened(0.25))
+		var icon := MeshInstance3D.new()
+		icon.mesh = VP.icon(shop)
+		icon.position = Vector3(door_lx, y0 + 2.6, _on_face(icon.mesh, front + 0.1))
+		node.add_child(icon)
+	else:
+		# a lamp on the wall by the door (the interior pack's sconce)
+		var lamp: Mesh = load("res://assets/psx/interior/wall_light.res") if ResourceLoader.exists("res://assets/psx/interior/wall_light.res") else null
+		if lamp != null:
+			var mi := MeshInstance3D.new()
+			mi.mesh = lamp
+			mi.scale = Vector3.ONE * 1.3
+			mi.position = Vector3(door_lx + (0.95 if door_lx < w / 2.0 - 1.4 else -0.95), y0 + 1.7, front)
+			node.add_child(mi)
+	var rt := String(look["roof"]) if commercial else String(st["roof_type"])
+	if rt == "false_front":
+		rt = "western"
+	if rt == "western" and not commercial:
+		rt = "gable"
+	var roof_col := Color(SHOP_ROOF.get(shop, st["roof"][1])).lerp(Color(st["roof"][1]), 0.5) if commercial else \
+		(Color(SHOP_ROOF.get(shop, st["roof"][1])) if shop != "house" else Color(st["roof"][1]).lerp(Color.from_hsv(rng.randf(), 0.4, 0.7), 0.25))
+	if rt == "flat":
+		_roof(k, rt, w, d, top, String(look.get("flat_roof", st["roof"][0])) if false else st["roof"][0], Color(look.get("flat_roof", roof_col.to_html())) if commercial else roof_col, String(upper[0]), Color(upper[1]), trim)
+	else:
+		_roof(k, rt, w, d, top, st["roof"][0], roof_col, String(upper[0]), Color(upper[1]), trim)
+	if not commercial and rt in ["gable", "steep"] and rng.randf() < 0.7:
+		var ch := hb.piece("chimney")
+		if ch != null:
+			var mi2 := MeshInstance3D.new()
+			mi2.mesh = ch
+			mi2.scale = Vector3(0.85, 1.3, 0.85)
+			mi2.position = Vector3(-w / 4.0, top + 0.15, -d / 4.0)
+			node.add_child(mi2)
+	if st.get("lanterns", false):
+		for sx in [-1, 1]:
+			k.box("glow", Vector3(door_lx + sx * 0.75, y0 + 1.6, front + 0.2), Vector3(0.22, 0.32, 0.22), Color("#ff6a3a"))
+	hb.finish()
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
 
 
 # ---------------------------------------------------------------- Beast Center: a 1950s roadside diner

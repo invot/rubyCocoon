@@ -34,7 +34,9 @@ func _ready() -> void:
 	layer = 10
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	UIKit.set_screen_scale(Vector2(DisplayServer.window_get_size()))
+	UIKit.set_accent(Prefs.accent)
 	get_tree().root.size_changed.connect(_on_window_resized)
+	Prefs.changed.connect(_on_prefs_changed)
 	root = Control.new()
 	root.name = "Root"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -75,6 +77,13 @@ func _ready() -> void:
 ## Pixel fonts are sized for the screen's scale; when it changes, the theme follows (new text picks it up).
 func _on_window_resized() -> void:
 	if UIKit.set_screen_scale(Vector2(DisplayServer.window_get_size())):
+		root.theme = UIKit.make_theme()
+
+
+## A new highlight colour: the theme is rebuilt (screens built afterwards pick it up; the open book redraws itself).
+func _on_prefs_changed() -> void:
+	if Prefs.accent != UIKit.accent_name:
+		UIKit.set_accent(Prefs.accent)
 		root.theme = UIKit.make_theme()
 
 

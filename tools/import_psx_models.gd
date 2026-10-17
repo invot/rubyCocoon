@@ -79,10 +79,47 @@ const MODELS := {
 }
 
 
+## Beast races drawn with a collection model (see voxel_beast.gd RACE_MODELS): name: [source, yaw in degrees to face
+## +x]. Each material is tagged by its resource_name with the colour it takes from the beast's genes: "c1" (the
+## largest coloured part), "c2", "c3", or "keep" (dark parts: eyes, hooves, mouths keep their own colour).
+## Textured parts are turned grey, so the gene colour can be laid over them.
+const CM := "Creatures/"
+const CREATURES := {
+	"bat": [CM + "LowPoly Animated Monsters (Quaternius)/FBX/Bat.fbx", 0.0],
+	"dragon": [CM + "LowPoly Animated Monsters (Quaternius)/FBX/Dragon.fbx", 0.0],
+	"slime": [CM + "LowPoly Animated Monsters (Quaternius)/FBX/Slime.fbx", 0.0],
+	"pug": [CM + "LowPoly Animated Animals (Quaternius)/FBX/Pug.fbx", 0.0],
+	"sheep": [CM + "LowPoly Animated Animals (Quaternius)/FBX/Sheep.fbx", 0.0],
+	"cow": [CM + "LowPoly Animated Animals (Quaternius)/FBX/Cow.fbx", 0.0],
+	"clownfish": [CM + "PS1-PSX Fish Pack (CursedLake)/GLB/Clownfish.glb", 0.0],
+	"swamphen": [CM + "Australasian Swamphen (Pukeko) (ACTG)/glb/australasian_swamphen.glb", 0.0],
+}
+
+
 func _init() -> void:
 	var src := ProjectSettings.globalize_path("res://psx/")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	var only := OS.get_cmdline_user_args()
+	for name in CREATURES:
+		if not only.is_empty() and not only.has("beast_" + name) and not only.has("beasts"):
+			continue
+		var e: Array = CREATURES[name]
+		var scene := _load(src + e[0])
+		if scene == null:
+			push_error("could not load " + e[0])
+			continue
+		var mesh := _bake(scene, {"max_tex": 64})
+		scene.free()
+		mesh = _turned(mesh, float(e[1]))
+		_tag_roles(mesh)
+		var err := ResourceSaver.save(mesh, OUT + "beast_" + name + ".res", ResourceSaver.FLAG_COMPRESS)
+		var roles := []
+		for s in mesh.get_surface_count():
+			roles.append(mesh.surface_get_material(s).resource_name)
+		print("  beast_%-10s %5d tris  %s  %s" % [name, _tris(mesh), roles, "ok" if err == OK else "SAVE FAILED"])
+	if not only.is_empty() and (only.has("beasts") or only[0].begins_with("beast_")):
+		quit()
+		return
 	for name in MODELS:
 		if not only.is_empty() and not only.has(name):
 			continue
@@ -231,6 +268,99 @@ func _psx_material(src: Material, opt: Dictionary) -> StandardMaterial3D:
 	else:
 		m.albedo_color = tint
 	return m
+
+
+## The mesh turned `deg` degrees about y (so it faces +x), centred again on x/z.
+func _turned(m: ArrayMesh, deg: float) -> ArrayMesh:
+	if absf(deg) < 0.01:
+		return m
+	var basis := Basis(Vector3.UP, deg_to_rad(deg))
+	var out := ArrayMesh.new()
+	var bb := AABB()
+	var first := true
+	var all := []
+	for s in m.get_surface_count():
+		var arrays := m.surface_get_arrays(s)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for i in verts.size():
+			verts[i] = basis * verts[i]
+			bb = AABB(verts[i], Vector3.ZERO) if first else bb.expand(verts[i])
+			first = false
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		if arrays[Mesh.ARRAY_NORMAL] != null:
+			var ns: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			for i in ns.size():
+				ns[i] = basis * ns[i]
+			arrays[Mesh.ARRAY_NORMAL] = ns
+		all.append([arrays, m.surface_get_material(s)])
+	var off := Vector3(bb.get_center().x, 0, bb.get_center().z)
+	for e in all:
+		var verts: PackedVector3Array = e[0][Mesh.ARRAY_VERTEX]
+		for i in verts.size():
+			verts[i] -= off
+		e[0][Mesh.ARRAY_VERTEX] = verts
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, e[0])
+		out.surface_set_material(out.get_surface_count() - 1, e[1])
+	return out
+
+
+## Tags each surface's material with the gene colour it takes (see CREATURES) and makes it ready to be coloured.
+func _tag_roles(m: ArrayMesh) -> void:
+	var info := []
+	for s in m.get_surface_count():
+		var mat: StandardMaterial3D = m.surface_get_material(s)
+		var col := mat.albedo_color
+		if mat.albedo_texture != null:
+			var img := mat.albedo_texture.get_image()
+			if img.is_compressed():
+				img.decompress()
+			var acc := Vector3.ZERO
+			var n := 0
+			for y in range(0, img.get_height(), 2):
+				for x in range(0, img.get_width(), 2):
+					var c := img.get_pixel(x, y)
+					if c.a > 0.5:
+						acc += Vector3(c.r, c.g, c.b)
+						n += 1
+			acc /= maxf(1.0, n)
+			col = Color(acc.x * col.r, acc.y * col.g, acc.z * col.b)
+		# the surface's area, to rank the coloured parts
+		var arrays := m.surface_get_arrays(s)
+		var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx = arrays[Mesh.ARRAY_INDEX]
+		var area := 0.0
+		var count: int = idx.size() if idx != null else v.size()
+		for i in range(0, count, 3):
+			var a: Vector3 = v[idx[i]] if idx != null else v[i]
+			var b: Vector3 = v[idx[i + 1]] if idx != null else v[i + 1]
+			var c: Vector3 = v[idx[i + 2]] if idx != null else v[i + 2]
+			area += (b - a).cross(c - a).length() / 2.0
+		info.append({"s": s, "col": col, "area": area, "mat": mat})
+	var coloured := info.filter(func(e): return (e["col"] as Color).get_luminance() > 0.14)
+	coloured.sort_custom(func(a, b): return a["area"] > b["area"])
+	var roles := ["c1", "c2", "c3"]
+	for e in info:
+		var mat: StandardMaterial3D = (e["mat"] as StandardMaterial3D).duplicate()
+		var k := coloured.find(e)
+		mat.resource_name = roles[mini(k, 2)] if k >= 0 else "keep"
+		if k >= 0:
+			if mat.albedo_texture != null:
+				# grey the texture, evened out round a bright middle, so the gene colour shows true over it
+				var img: Image = mat.albedo_texture.get_image().duplicate()
+				if img.is_compressed():
+					img.decompress()
+				img.clear_mipmaps()
+				img.convert(Image.FORMAT_RGBA8)
+				var mean := maxf(0.05, (e["col"] as Color).get_luminance())
+				for y in img.get_height():
+					for x in img.get_width():
+						var c := img.get_pixel(x, y)
+						var l := clampf(c.get_luminance() / mean * 0.8, 0.0, 1.0)
+						img.set_pixel(x, y, Color(l, l, l, c.a))
+				img.generate_mipmaps()
+				mat.albedo_texture = ImageTexture.create_from_image(img)
+			mat.albedo_color = Color.WHITE
+		m.surface_set_material(e["s"], mat)
 
 
 ## The same mesh with automatic levels of detail: far away (most of the screen at this camera) the dense rocks and

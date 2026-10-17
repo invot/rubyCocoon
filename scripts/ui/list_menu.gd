@@ -1,11 +1,10 @@
 extends "res://scripts/ui/modal.gd"
-## Keyboard/touch list menu on a parchment card. Emits the chosen index, or -1 when cancelled.
+## Keyboard/touch list menu in a window, with a title tab above it. Emits the chosen index, or -1 when cancelled.
 ## items: Array of String or Dictionary {text, right, disabled, desc, icon}
 ## opts: anchor, width, rows, cancel, start, on_focus (Callable), dim, title_size, margin
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
-const ROW_H := 46.0
 
 var title := ""
 var items: Array = []
@@ -31,15 +30,14 @@ func setup(_title: String, _items: Array, _opts := {}) -> Control:
 
 
 func _ready() -> void:
-	var width := float(opts.get("width", 360)) + 40.0
+	var width := float(opts.get("width", 360)) * (1.25 if UI.is_touch() else 1.1) + 40.0
 	var outer := VBoxContainer.new()
-	outer.add_theme_constant_override("separation", -10)
+	outer.add_theme_constant_override("separation", -2)
 	add_child(outer)
 	var title_lines := title.split("\n")
 	if title != "":
 		var rib := UIKit.ribbon(title_lines[0], true)
-		rib.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		rib.custom_minimum_size.x = minf(width, maxf(220.0, title_lines[0].length() * 19.0 + 80.0))
+		rib.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		rib.z_index = 1
 		outer.add_child(rib)
 	_panel = UIKit.panel()
@@ -61,7 +59,7 @@ func _ready() -> void:
 	for it in items:
 		if it.has("icon") and it["icon"] != null:
 			has_icons = true
-	var row_h := 56.0 if has_icons else ROW_H
+	var row_h := UIKit.row_h() + (8.0 if has_icons else 0.0)
 	var rows := int(opts.get("rows", 8))
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -84,7 +82,7 @@ func _ready() -> void:
 		if it.has("icon") and it["icon"] != null:
 			b.icon = it["icon"]
 			b.expand_icon = false
-			b.add_theme_constant_override("icon_max_width", 48)
+			b.add_theme_constant_override("icon_max_width", 56)
 		if it.has("right"):
 			var rl := UIKit.label(str(it["right"]), 20, UIKit.ACCENT if not b.disabled else UIKit.DIM)
 			rl.set_anchors_preset(Control.PRESET_RIGHT_WIDE)

@@ -1,8 +1,10 @@
 extends RefCounted
-## Builds a 3D voxel model of a beast from its body-part genes (the same genes merging mixes).
+## Builds a low-poly model of a beast from its body-part genes (the same genes merging mixes).
+## The parts are drawn as shapes in a voxel-sized grid (lowpoly_mesher.gd turns them into smooth polygons): rounded
+## bodies and heads, tapered legs with paws, plate-like fins, glossy eyes.
 ## Model space: the beast faces +X, stands on y = 0, centred on X/Z.
 
-const VM = preload("res://scripts/gfx/voxel_mesher.gd")
+const VM = preload("res://scripts/gfx/lowpoly_mesher.gd")
 
 const SX := 32
 const SY := 32
@@ -18,7 +20,7 @@ static func mesh(genes: Dictionary) -> ArrayMesh:
 	if _cache.has(key):
 		return _cache[key]
 	var g := grid(genes)
-	var m := VM.build(g, VSIZE * float(genes.get("size", 1.0)))
+	var m := VM.build(g, VSIZE * float(genes.get("size", 1.0)), null, 1.35)
 	_cache[key] = m
 	return m
 
@@ -88,7 +90,7 @@ static func grid(gn: Dictionary) -> VM.Grid:
 		for i in int(10 * shade):
 			var p := Vector3i(rng.randi_range(2, SX - 3), rng.randi_range(4, SY - 2), rng.randi_range(2, SZ - 3))
 			if g.get_v(p.x, p.y, p.z) == 0 and g.get_v(p.x, p.y - 2, p.z) != 0:
-				g.set_v(p.x, p.y, p.z, WISP)
+				g.ellipsoid(Vector3(p) + Vector3(0.5, 0.5, 0.5), Vector3(0.6, 0.9, 0.6), WISP, -1, true)
 	return g
 
 
@@ -96,23 +98,24 @@ static func _body(g: VM.Grid, body: String, p: Dictionary) -> void:
 	var c1: int = p["c1"]
 	match body:
 		"quad":
-			for lx in [9, 18]:
-				for lz in [7, 14]:
-					g.box(lx, 0, lz, lx + 2, 7, lz + 1, c1)
-					g.box(lx, 0, lz, lx + 2, 0, lz + 1, p["dark"])
+			for lx in [10.0, 19.0]:
+				for lz in [7.5, 14.5]:
+					g.capsule(Vector3(lx, 8.5, lz), Vector3(lx + 0.4, 1.4, lz), 1.9, 1.4, c1)
+					g.ellipsoid(Vector3(lx + 0.7, 0.9, lz), Vector3(1.9, 0.9, 1.5), p["dark"])
 			g.ellipsoid(Vector3(15, 10.5, CZ), Vector3(9, 4.8, 5.2), c1)
 			g.ellipsoid(Vector3(21, 14, CZ), Vector3(3.6, 4.2, 3.5), c1)
 		"biped":
-			for lz in [8, 13]:
-				g.box(12, 0, lz, 15, 8, lz + 1, c1)
-				g.box(12, 0, lz, 16, 0, lz + 1, p["dark"])
+			for lz in [8.5, 13.5]:
+				g.capsule(Vector3(13.5, 9, lz), Vector3(13.8, 1.6, lz), 2.1, 1.6, c1)
+				g.ellipsoid(Vector3(14.6, 1.0, lz), Vector3(2.4, 1.0, 1.6), p["dark"])
 			g.ellipsoid(Vector3(14, 14, CZ), Vector3(5.5, 7, 5), c1)
 			g.capsule(Vector3(14, 18, CZ - 5), Vector3(17, 11, CZ - 6.5), 1.5, 1.3, c1)
 			g.capsule(Vector3(14, 18, CZ + 5), Vector3(17, 11, CZ + 6.5), 1.5, 1.3, c1)
 		"bird":
-			for lz in [9, 13]:
-				g.box(13, 0, lz, 13, 6, lz, p["c3"])
-				g.box(13, 0, lz - 1, 15, 0, lz + 1, p["c3"])
+			for lz in [9.0, 13.0]:
+				g.capsule(Vector3(13, 7, lz), Vector3(13.5, 0.8, lz), 0.6, 0.5, p["c3"])
+				for toe in [-0.9, 0.0, 0.9]:
+					g.capsule(Vector3(13.5, 0.6, lz), Vector3(15.6, 0.5, lz + toe * 1.4), 0.5, 0.4, p["c3"])
 			g.ellipsoid(Vector3(13, 10, CZ), Vector3(8, 5, 5), c1)
 		"serpent":
 			for i in 26:
@@ -139,11 +142,12 @@ static func _body(g: VM.Grid, body: String, p: Dictionary) -> void:
 			g.ellipsoid(Vector3(16, 12, CZ - 4.5), Vector3(3, 1.2, 2), p["c2"])
 			g.ellipsoid(Vector3(16, 12, CZ + 4.5), Vector3(3, 1.2, 2), p["c2"])
 		"golem":
-			for lz in [6, 13]:
-				g.box(10, 0, lz, 14, 7, lz + 3, c1)
-				g.box(10, 0, lz, 15, 1, lz + 3, p["dark"])
+			for lz in [7.5, 14.5]:
+				g.capsule(Vector3(12, 9, lz), Vector3(12.3, 2.2, lz), 3.0, 2.6, c1)
+				g.ellipsoid(Vector3(13.2, 1.4, lz), Vector3(3.6, 1.4, 2.8), p["dark"])
 			g.ellipsoid(Vector3(13, 14, CZ), Vector3(8.5, 7.5, 7), c1)
-			g.box(7, 10, CZ - 6, 19, 17, CZ + 6, c1)
+			# broad, rocky shoulders
+			g.ellipsoid(Vector3(13, 15.5, CZ), Vector3(7, 4, 8), c1)
 			g.capsule(Vector3(13, 18, CZ - 8), Vector3(15, 6, CZ - 9), 2.6, 2.4, c1)
 			g.capsule(Vector3(13, 18, CZ + 8), Vector3(15, 6, CZ + 9), 2.6, 2.4, c1)
 		_:
@@ -177,7 +181,7 @@ static func _head(g: VM.Grid, head: String, hc: Vector3, r: float, pattern: Stri
 		"pointy":
 			g.ellipsoid(hc, Vector3(r, r * 0.9, r * 0.92), c1)
 			g.capsule(hc + Vector3(r - 1.5, -1.0, 0), hc + Vector3(r + 3.5, -1.5, 0), 2.6, 1.2, c1)
-			g.set_v(int(hc.x + r + 4), int(hc.y - 1.5), int(CZ), p["dark"])
+			g.ellipsoid(Vector3(hc.x + r + 3.6, hc.y - 1.5, CZ), Vector3(0.7, 0.6, 0.8), p["dark"])
 		"beak":
 			g.ellipsoid(hc, Vector3(r, r, r * 0.95), c1)
 			g.capsule(hc + Vector3(r - 1.5, -0.5, 0), hc + Vector3(r + 4.0, -1.5, 0), 2.2, 0.8, p["c3"])
@@ -188,26 +192,22 @@ static func _head(g: VM.Grid, head: String, hc: Vector3, r: float, pattern: Stri
 		"snout":
 			g.ellipsoid(hc, Vector3(r, r, r * 0.95), c1)
 			g.ellipsoid(hc + Vector3(r + 0.5, -1.8, 0), Vector3(3, 2.2, 2.6), p["c2"])
-			g.box(int(hc.x + r + 3), int(hc.y - 1), int(CZ) - 1, int(hc.x + r + 3), int(hc.y - 1), int(CZ), p["dark"])
+			g.ellipsoid(Vector3(hc.x + r + 3.2, hc.y - 1.0, CZ), Vector3(0.6, 0.7, 1.4), p["dark"])
 		"flat":
 			g.ellipsoid(hc + Vector3(0, 0.5, 0), Vector3(r + 1.5, r - 1.5, r + 0.8), c1)
 		_:
 			g.ellipsoid(hc, Vector3(r, r, r), c1)
 	if pattern == "mask":
 		g.paint_if(p["c2"], c1, func(x, y, _z): return absf(y - hc.y) <= 1.5 and x >= hc.x - r * 0.2 and Vector2(x - hc.x, y - hc.y).length() <= r + 1)
-	# eyes on both sides, near the front
-	for side in [-1, 1]:
-		var ex := int(hc.x + r * 0.45)
-		var ey := int(hc.y + 0.5)
-		var ez := int(CZ + side * r * 0.7)
-		# push to the surface
-		var z := ez
-		while g.get_v(ex, ey, z + side) != 0 and absi(z - int(CZ)) < SZ / 2:
-			z += side
-		g.box(ex - 1, ey, z, ex, ey + 1, z, p["eye"])
-		g.box(ex, ey, z, ex, ey + 1, z, p["pup"])
+	# eyes on both sides, near the front, laid on the head's surface: a white, a big dark pupil and a glint
+	for side in [-1.0, 1.0]:
+		var dir := Vector3(0.62, 0.16, side * 0.77).normalized()
+		var ec := hc + dir * r * 0.93
+		g.ellipsoid(ec, Vector3(1.15, 1.55, 0.75), p["eye"], -1, true)
+		g.ellipsoid(ec + dir * 0.45 + Vector3(0.25, -0.1, 0), Vector3(0.8, 1.15, 0.55), p["pup"], -1, true)
+		g.ellipsoid(ec + dir * 0.85 + Vector3(0.35, 0.45, 0), Vector3(0.3, 0.3, 0.3), p["eye"], -1, true)
 	if head != "beak":
-		g.set_v(int(hc.x + r - 0.5), int(hc.y - r * 0.55), int(CZ), p["dark"])
+		g.ellipsoid(Vector3(hc.x + r - 0.2, hc.y - r * 0.5, CZ), Vector3(0.7, 0.55, 0.9), p["dark"], -1, true)
 
 
 static func _ears(g: VM.Grid, ears: String, hc: Vector3, r: float, p: Dictionary) -> void:
@@ -218,7 +218,7 @@ static func _ears(g: VM.Grid, ears: String, hc: Vector3, r: float, p: Dictionary
 				for k in 5:
 					var rr := 2.2 - k * 0.42
 					g.ellipsoid(Vector3(hc.x - 1, top + k, hc.z + side * r * 0.5), Vector3(rr, 0.6, rr * 0.7), p["c1"])
-				g.set_v(int(hc.x), int(top + 1), int(hc.z + side * r * 0.5), p["c2"])
+				g.ellipsoid(Vector3(hc.x - 0.6, top + 1.2, hc.z + side * r * 0.5), Vector3(0.9, 1.0, 0.6), p["c2"])
 		"round":
 			for side in [-1, 1]:
 				g.ellipsoid(Vector3(hc.x - 1, top + 1, hc.z + side * r * 0.6), Vector3(1.4, 2.2, 2.2), p["c1"])
@@ -228,8 +228,8 @@ static func _ears(g: VM.Grid, ears: String, hc: Vector3, r: float, p: Dictionary
 				g.capsule(Vector3(hc.x - 1, top, hc.z + side * 2.0), Vector3(hc.x - 3, top + 7, hc.z + side * 3.0), 1.4, 1.1, p["c1"])
 		"fins":
 			for side in [-1, 1]:
-				for k in 5:
-					g.box(int(hc.x - k), int(hc.y - 1 + k * 0.6), int(hc.z + side * (r + 0.5)), int(hc.x - k), int(hc.y + 1 + k), int(hc.z + side * (r + 0.5)), p["c2"])
+				g.ellipsoid(Vector3(hc.x - 2.5, hc.y + 1.5, hc.z + side * (r + 0.2)), Vector3(3.2, 2.6, 0.55), p["c2"])
+				g.ellipsoid(Vector3(hc.x - 4.0, hc.y + 3.2, hc.z + side * (r - 0.2)), Vector3(1.6, 1.8, 0.5), p["c2"])
 		"horns":
 			for side in [-1, 1]:
 				g.capsule(Vector3(hc.x - 1, top, hc.z + side * 2.5), Vector3(hc.x - 4, top + 5, hc.z + side * 4.5), 1.3, 0.6, p["c3"])
@@ -257,8 +257,10 @@ static func _tail(g: VM.Grid, tail: String, t: Vector3, p: Dictionary) -> void:
 				g.ellipsoid(t + Vector3(-1.5 - k * 0.7, k * 1.4, 0), Vector3(rr, 1.2, rr), p["flame"])
 			g.ellipsoid(t + Vector3(-2.5, 2.5, 0), Vector3(1.2, 2.5, 1.2), p["core"])
 		"fin":
-			for k in 7:
-				g.box(int(t.x - k), int(t.y - k * 0.8), int(CZ), int(t.x - k), int(t.y + k * 0.8), int(CZ), p["c2"])
+			# a forked tail fin
+			g.capsule(t, t + Vector3(-3, 0, 0), 1.6, 1.0, p["c1"])
+			g.ellipsoid(t + Vector3(-5, 2.6, 0), Vector3(2.8, 3.2, 0.6), p["c2"])
+			g.ellipsoid(t + Vector3(-5, -2.2, 0), Vector3(2.6, 2.8, 0.6), p["c2"])
 		"spike":
 			g.capsule(t, t + Vector3(-8, -1, 0), 2.2, 0.8, p["c1"])
 			for k in 3:
@@ -302,7 +304,8 @@ static func _back(g: VM.Grid, back: String, b: Vector3, hw: float, p: Dictionary
 				var x := b.x - 4 + k * 4
 				for j in 5:
 					g.ellipsoid(Vector3(x - j * 0.3, b.y + j * 1.2, CZ), Vector3(2.0 - j * 0.35, 0.9, 2.0 - j * 0.35), p["flame"])
-				g.set_v(int(x), int(b.y + 1), int(CZ), p["core"])
+				g.ellipsoid(Vector3(x, b.y + 1, CZ), Vector3(0.7, 0.7, 0.7), p["core"])
 		"fin":
-			for k in 8:
-				g.box(int(b.x - 3 + k), int(b.y - 1), int(CZ), int(b.x - 3 + k), int(b.y + 6 - absf(k - 3.5) * 1.4), int(CZ), p["c2"])
+			# a swept-back dorsal fin
+			g.ellipsoid(Vector3(b.x - 0.5, b.y + 2.5, CZ), Vector3(4.2, 3.8, 0.6), p["c2"])
+			g.ellipsoid(Vector3(b.x - 2.5, b.y + 5.0, CZ), Vector3(2.0, 1.8, 0.5), p["c2"])

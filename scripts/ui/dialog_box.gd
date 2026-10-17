@@ -1,5 +1,5 @@
 extends "res://scripts/ui/modal.gd"
-## Typewriter dialogue on a parchment scroll at the bottom of the screen, with a maroon name plate.
+## Typewriter dialogue in a window along the bottom of the screen, with the speaker's name on an accent tab.
 ## Text sits at the top of the box (not vertically centred), three big lines at a time: longer lines are split into pages.
 
 const LINES_PER_PAGE := 3
@@ -63,16 +63,15 @@ func _ready() -> void:
 		name_panel = PanelContainer.new()
 		name_panel.add_theme_stylebox_override("panel", UIKit.box("nameplate", Vector4(8, -2, 8, -2)))
 		var nl := UIKit.header(speaker, UIKit.LIGHT)
-		nl.add_theme_color_override("font_outline_color", Color("#493333"))
-		nl.add_theme_constant_override("outline_size", 4)
 		name_panel.add_child(nl)
 		name_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-		name_panel.offset_left = side + 38
-		name_panel.offset_top = -12.0 - _box_h - 48.0 - _bottom_gap()
-		name_panel.offset_bottom = -12.0 - _box_h + 22.0 - _bottom_gap()
+		name_panel.offset_left = side + 24
+		name_panel.offset_top = -12.0 - _box_h - 46.0 - _bottom_gap()
+		name_panel.offset_bottom = -12.0 - _box_h + 6.0 - _bottom_gap()
 		add_child(name_panel)
 	more = UIKit.icon("arrow_down")
 	more.stretch_mode = TextureRect.STRETCH_KEEP
+	more.self_modulate = UIKit.GOLD
 	add_child(more)
 	_place_more(0.0)
 	text_label.text = ""
@@ -112,7 +111,7 @@ func _bottom_gap() -> float:
 func _place_more(bob: float) -> void:
 	var side := 270.0 if UI.is_touch() else 48.0
 	var vp := size if size.x > 0 else get_viewport_rect().size
-	more.position = Vector2(vp.x - side - 70, vp.y - _bottom_gap() - 58 + bob)
+	more.position = Vector2(vp.x - side - 64, vp.y - _bottom_gap() - 48 + bob)
 
 
 func _show_line() -> void:

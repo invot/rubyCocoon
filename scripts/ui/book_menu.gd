@@ -1,5 +1,6 @@
 extends "res://scripts/ui/modal.gd"
-## The Start menu: a travel journal with bookmark tabs (TravelBook UI pack).
+## The Start menu: one large window with a strip of tabs across the top and two panes, a list on the left and the
+## chosen row's details on the right (the menus of the early PS2 RPGs).
 ## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
 ## Controls: ←/→ switch tabs, ↑/↓ choose, A to act, S (back) returns to the tabs / closes, Start closes.
 
@@ -23,9 +24,11 @@ const TABS := [
 	{"id": "map", "name": "Map", "icon": "icon_map"},
 	{"id": "settings", "name": "Settings", "icon": "tab_settings"},
 ]
-const COVER := Vector2(896, 640)
-const PAGE := Vector2(416, 588)
-const TAB_STRIP := 40.0
+## the tab strip's height, and the gap between the tabs and the window
+const TAB_H := 64.0
+const TAB_GAP := 6.0
+## the left (list) pane's share of the window
+const LEFT_SHARE := 0.46
 const SLOT_SHORT := {"flute": "Flute", "head": "Hat", "feet": "Boots", "acc": "Charm"}
 const CREST_ICONS := {"Wave Crest": "crest_wave", "Coral Crest": "crest_coral", "Spur Crest": "crest_spur", "Ore Crest": "crest_ore",
 	"Cog Crest": "crest_cog", "Flame Crest": "crest_flame", "Vine Crest": "crest_vine", "River Crest": "crest_river"}
@@ -38,8 +41,8 @@ var tab := 1
 var mode := "list"
 var book: Control
 var markers: Array = []
-var left_page: Control
-var right_page: Control
+var window: PanelContainer
+var tab_strip: HBoxContainer
 var left_box: VBoxContainer
 var right_box: VBoxContainer
 var list_box: VBoxContainer
@@ -73,62 +76,100 @@ func _ready() -> void:
 	Sfx.play("open")
 	book = Control.new()
 	book.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	book.size = Vector2(COVER.x, COVER.y + TAB_STRIP)
 	add_child(book)
+	# the tabs: an icon and a name each; the open one is filled with the accent
+	tab_strip = HBoxContainer.new()
+	tab_strip.add_theme_constant_override("separation", 4)
+	tab_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	book.add_child(tab_strip)
+	for i in TABS.size():
+		var m := Button.new()
+		m.focus_mode = Control.FOCUS_NONE
+		m.icon = UIKit.tex(TABS[i]["icon"])
+		m.expand_icon = false
+		m.add_theme_constant_override("icon_max_width", 36)
+		m.text = TABS[i]["name"]
+		m.add_theme_font_size_override("font_size", UIKit.head_px(UIKit.HEAD_SMALL))
+		m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		m.custom_minimum_size.y = TAB_H
+		m.pressed.connect(_click_tab.bind(i))
+		tab_strip.add_child(m)
+		markers.append(m)
+	window = PanelContainer.new()
+	window.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	book.add_child(window)
+	var panes := HBoxContainer.new()
+	panes.add_theme_constant_override("separation", 18)
+	panes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	window.add_child(panes)
+	left_box = VBoxContainer.new()
+	left_box.add_theme_constant_override("separation", 8)
+	left_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_box.size_flags_stretch_ratio = LEFT_SHARE
+	left_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panes.add_child(left_box)
+	var divider := VSeparator.new()
+	var line := StyleBoxLine.new()
+	line.vertical = true
+	line.color = UIKit.BORDER_INNER
+	line.thickness = 2
+	divider.add_theme_stylebox_override("separator", line)
+	panes.add_child(divider)
+	right_box = VBoxContainer.new()
+	right_box.add_theme_constant_override("separation", 8)
+	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_box.size_flags_stretch_ratio = 1.0 - LEFT_SHARE
+	right_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panes.add_child(right_box)
 	_layout()
 	resized.connect(_layout)
-	var cover := TextureRect.new()
-	cover.texture = UIKit.tex("book_cover")
-	cover.position = Vector2(0, TAB_STRIP)
-	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	book.add_child(cover)
-	for i in TABS.size():
-		var m := TextureButton.new()
-		m.texture_normal = UIKit.tex("marker")
-		m.ignore_texture_size = true
-		m.stretch_mode = TextureButton.STRETCH_SCALE
-		m.size = Vector2(80, 64)
-		m.position = Vector2(84 + i * 104, 12)
-		m.focus_mode = Control.FOCUS_NONE
-		m.pressed.connect(_click_tab.bind(i))
-		var ic := UIKit.icon(TABS[i]["icon"], 36)
-		ic.position = Vector2(22, 6)
-		m.add_child(ic)
-		book.add_child(m)
-		markers.append(m)
-	left_page = _page("book_page_left", Vector2(32, TAB_STRIP + 26))
-	right_page = _page("book_page_right", Vector2(448, TAB_STRIP + 26))
-	left_box = left_page.get_child(0).get_child(0)
-	right_box = right_page.get_child(0).get_child(0)
+	if is_instance_valid(Prefs):
+		Prefs.changed.connect(_on_prefs_changed)
 	_open_tab(tab)
 
 
+## The window fills most of the screen (above the key guide or touch pad), so rows and text are big enough to tap.
 func _layout() -> void:
 	var vp := size if size.x > 0 else get_viewport_rect().size
 	var avail := vp.y - (UI.bottom_reserve() if is_instance_valid(UI) else 0.0)
-	book.position = Vector2(roundf((vp.x - COVER.x) / 2.0), maxf(0.0, roundf((avail - COVER.y - TAB_STRIP) / 2.0)))
+	var side := 24.0
+	var top := 14.0
+	var w := minf(vp.x - side * 2.0, 1240.0)
+	book.position = Vector2(roundf((vp.x - w) / 2.0), top)
+	book.size = Vector2(w, avail - top - 10.0)
+	tab_strip.position = Vector2.ZERO
+	tab_strip.size = Vector2(w, TAB_H)
+	window.position = Vector2(0, TAB_H + TAB_GAP)
+	window.size = Vector2(w, book.size.y - TAB_H - TAB_GAP)
 
 
-func _page(tex_name: String, pos: Vector2) -> Control:
-	var pg := TextureRect.new()
-	pg.texture = UIKit.tex(tex_name)
-	pg.position = pos
-	pg.size = PAGE
-	pg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	book.add_child(pg)
-	var mc := MarginContainer.new()
-	mc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	mc.add_theme_constant_override("margin_left", 26)
-	mc.add_theme_constant_override("margin_right", 26)
-	mc.add_theme_constant_override("margin_top", 18)
-	mc.add_theme_constant_override("margin_bottom", 46)
-	mc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pg.add_child(mc)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 6)
-	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mc.add_child(vb)
-	return pg
+## A new highlight colour (from the Settings tab): the open tab is redrawn in it.
+func _on_prefs_changed() -> void:
+	if not is_inside_tree():
+		return
+	window.add_theme_stylebox_override("panel", UIKit.box("textfield"))
+	_style_tabs()
+
+
+## The tabs: the open one filled with the accent, the rest dark with a white edge.
+func _style_tabs() -> void:
+	for k in markers.size():
+		var m: Button = markers[k]
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = UIKit.ACCENT if k == tab else Color(0.06, 0.06, 0.08, 0.9)
+		sb.border_color = UIKit.BORDER if k == tab else UIKit.BORDER_INNER
+		sb.set_border_width_all(2)
+		sb.content_margin_left = 10
+		sb.content_margin_right = 10
+		sb.anti_aliasing = false
+		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
+			m.add_theme_stylebox_override(st, sb)
+		var col := UIKit.LIGHT if k == tab else UIKit.DIM
+		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+			m.add_theme_color_override(c, col)
+		m.add_theme_color_override("icon_normal_color", col)
+		m.add_theme_color_override("icon_hover_color", col)
+		m.add_theme_color_override("icon_pressed_color", col)
 
 
 # ================================================================ tabs & rows
@@ -143,11 +184,7 @@ func _click_tab(i: int) -> void:
 func _open_tab(i: int) -> void:
 	tab = i
 	last_tab = i
-	for k in markers.size():
-		var m: TextureButton = markers[k]
-		m.position.y = 0.0 if k == tab else 12.0
-		m.z_index = 1 if k == tab else 0
-		m.modulate = Color.WHITE if k == tab else Color(0.85, 0.78, 0.72)
+	_style_tabs()
 	_clear(left_box)
 	_clear(right_box)
 	rows = []
@@ -179,12 +216,9 @@ func _clear(c: Control) -> void:
 		ch.queue_free()
 
 
-## Puts a ribbon title, a scrolling list and (optionally) a detail area on the chosen pages.
+## Puts a title, a scrolling list and (optionally) a detail area in the chosen panes.
 func _make_list(on: VBoxContainer, title: String, detail_on: VBoxContainer = null) -> void:
-	var rib := UIKit.ribbon(title, true)
-	rib.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	rib.custom_minimum_size.x = 300
-	on.add_child(rib)
+	on.add_child(_pane_title(title))
 	list_scroll = ScrollContainer.new()
 	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	list_scroll.follow_focus = true
@@ -200,36 +234,36 @@ func _make_list(on: VBoxContainer, title: String, detail_on: VBoxContainer = nul
 ## row: {text, right, icon, disabled, act: Callable, detail: Callable(VBoxContainer), adjust: Callable(dir), header: bool}
 func _add_row(row: Dictionary) -> void:
 	if row.get("header", false):
-		var h := UIKit.header(row["text"], UIKit.ACCENT, UIKit.HEAD_SMALL)
-		h.custom_minimum_size.y = 30
+		var h := UIKit.header(row["text"], UIKit.GOLD, UIKit.HEAD_SMALL)
+		h.custom_minimum_size.y = 40
 		h.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 		list_box.add_child(h)
 		return
 	var b := Button.new()
 	b.text = row.get("text", "")
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.custom_minimum_size = Vector2(0, 50 if row.has("icon") else 44)
+	b.custom_minimum_size = Vector2(0, UIKit.row_h())
 	b.clip_text = true
 	b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	if row.get("disabled", false):
-		b.add_theme_color_override("font_color", Color(UIKit.INK, 0.45))
-		b.add_theme_color_override("font_focus_color", Color(UIKit.INK, 0.55))
-		b.add_theme_color_override("font_hover_color", Color(UIKit.INK, 0.55))
+		b.add_theme_color_override("font_color", Color(UIKit.DIM, 0.7))
+		b.add_theme_color_override("font_focus_color", UIKit.DIM)
+		b.add_theme_color_override("font_hover_color", UIKit.DIM)
 	if row.has("icon") and row["icon"] != null:
 		b.icon = row["icon"]
 		b.expand_icon = false
 		b.add_theme_constant_override("icon_max_width", 44)
 	if row.has("right"):
-		var rl := UIKit.label(str(row["right"]), 20, UIKit.ACCENT)
+		var rl := UIKit.label(str(row["right"]), 20, UIKit.GOLD)
 		rl.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-		rl.offset_left = -170
+		rl.offset_left = -220
 		rl.offset_right = -8
 		rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		rl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		rl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(rl)
 		var empty := StyleBoxEmpty.new()
-		empty.content_margin_left = 18
+		empty.content_margin_left = 22
 		empty.content_margin_right = 12 + float(row.get("right_width", 110))
 		var hl := UIKit.highlight(float(row.get("right_width", 110)))
 		b.add_theme_stylebox_override("normal", empty)
@@ -283,9 +317,9 @@ func _activate(i: int) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	# while the tabs have the cursor, the open tab pulses
 	for k in markers.size():
-		if k == tab and mode == "tabs":
-			markers[k].position.y = -absf(sin(_t * 5.0)) * 4.0
+		(markers[k] as Control).modulate = Color(1, 1, 1, 0.7 + 0.3 * absf(sin(_t * 4.0))) if k == tab and mode == "tabs" else Color.WHITE
 
 
 func on_input(ev: InputEvent) -> void:
@@ -369,13 +403,25 @@ func _spacer(h := 6.0) -> Control:
 
 
 func _sub(text: String) -> Label:
-	var l := UIKit.header(text, UIKit.ACCENT, UIKit.HEAD_SMALL)
+	var l := UIKit.header(text, UIKit.GOLD, UIKit.HEAD_SMALL)
 	return l
+
+
+## A pane's title: white text over an accent underline.
+func _pane_title(text: String) -> Control:
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 2)
+	vb.add_child(UIKit.header(text, UIKit.LIGHT, UIKit.HEAD_SIZE))
+	var bar := ColorRect.new()
+	bar.color = UIKit.ACCENT
+	bar.custom_minimum_size.y = 3
+	vb.add_child(bar)
+	return vb
 
 
 # ================================================================ Trainer
 func _tab_trainer() -> void:
-	left_box.add_child(UIKit.ribbon(GameState.player_name, true))
+	left_box.add_child(_pane_title(GameState.player_name))
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 8)
 	left_box.add_child(top)
@@ -478,12 +524,12 @@ func _beast_detail(c: VBoxContainer, b) -> void:
 	hp.text = "HP %d/%d" % [maxi(0, b.hp), b.max_hp()]
 	c.add_child(hp)
 	var mpb := Bar.new(Vector2(360, 22))
-	mpb.fixed_color = Color("#5aa8ff")
+	mpb.fixed_color = UIKit.GOLD_BRIGHT
 	mpb.set_ratio(b.mp_ratio(), true)
 	mpb.text = "MP %d/%d" % [b.mp, b.max_mp()]
 	c.add_child(mpb)
 	var xp := Bar.new(Vector2(360, 10))
-	xp.fixed_color = Color("#ffd071")
+	xp.fixed_color = UIKit.GOLD
 	xp.set_ratio(b.xp_progress(), true)
 	c.add_child(xp)
 	var stats := GridContainer.new()
@@ -555,7 +601,7 @@ class FamilyTree extends Control:
 
 	func _link(a: Vector2, b: Vector2) -> void:
 		var mid := (a.y + b.y) / 2.0
-		var col := Color("#c7895d")
+		var col := UIKit.BORDER_INNER
 		draw_line(a, Vector2(a.x, mid), col, 3.0)
 		draw_line(Vector2(a.x, mid), Vector2(b.x, mid), col, 3.0)
 		draw_line(Vector2(b.x, mid), b, col, 3.0)
@@ -567,10 +613,10 @@ class FamilyTree extends Control:
 			name = name.substr(0, maxi(3, maxc - 1)) + "."
 		var bw := minf(w, name.length() * 10.0 + 24.0)
 		var r := Rect2(c - Vector2(bw / 2.0, 15), Vector2(bw, 30))
-		draw_rect(r, Color("#ffe3c6") if root else Color("#ffd7a8"))
-		draw_rect(r, Color("#493333"), false, 2.0)
+		draw_rect(r, Color("#1c1c22") if root else Color("#101014"))
+		draw_rect(r, UIKit.ACCENT if root else UIKit.BORDER, false, 2.0)
 		var el: String = n.get("element", "fire")
-		draw_rect(Rect2(r.position + Vector2(4, 9), Vector2(10, 12)), Elements.color(el))
+		draw_rect(Rect2(r.position + Vector2(4, 9), Vector2(10, 12)), UIKit.ACCENT)
 		draw_string(f, r.position + Vector2(18, 22), name, HORIZONTAL_ALIGNMENT_LEFT, bw - 20, UIKit.body_px(22), UIKit.INK)
 
 
@@ -581,17 +627,21 @@ func _tab_flute() -> void:
 		_add_row({"text": "No flute yet", "detail": func(c): c.add_child(_t_label("Your father's reed flute is waiting for you with Uncle Rafe in Tidewater, east along the Coastal Path. He'll teach you to play it."))})
 		return
 	_make_list(left_box, "Songs %d / %d" % [GameState.songs.size(), SongDB.ORDER.size()], right_box)
-	var effect_hdr := false
-	var charm_hdr := false
+	# the songs you know come first (battle songs, then charms), the ones still to learn after them
+	var known_ids := []
+	var unknown_ids := []
 	for sid in SongDB.ordered(GameState.songs):
+		(known_ids if GameState.knows_song(sid) else unknown_ids).append(sid)
+	var charms := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] == "charm")
+	var battle := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] != "charm")
+	var hdr := ""
+	for sid in battle + charms + unknown_ids:
 		var s := SongDB.get_song(sid)
 		var known := GameState.knows_song(sid)
-		if s["kind"] == "effect" and not effect_hdr:
-			effect_hdr = true
-			_add_row({"header": true, "text": "BATTLE SONGS"})
-		elif s["kind"] == "charm" and not charm_hdr:
-			charm_hdr = true
-			_add_row({"header": true, "text": "CHARM SONGS"})
+		var want: String = ("CHARM SONGS" if s["kind"] == "charm" else "BATTLE SONGS") if known else "NOT YET LEARNED"
+		if want != hdr:
+			hdr = want
+			_add_row({"header": true, "text": hdr})
 		var ready: bool = SongDB.capture_level(sid) > 0 and GameState.next_capture_ready()
 		var is_cap: bool = SongDB.capture_level(sid) > 0
 		_add_row({"text": s["name"] if known else "? ? ?", "right": ("★ new" if ready else SongDB.tag(sid)) if known else "", "right_width": 80 if is_cap else 150,
@@ -618,7 +668,7 @@ func _song_detail(c: VBoxContainer, sid: String) -> void:
 		c.add_child(_t_label("Where to learn it: " + String(s["from"]), UIKit.DIM))
 		return
 	c.add_child(_h(s["name"]))
-	var kt := UIKit.tag("CHARM" if s["kind"] == "charm" else "BATTLE", Color("#9c4351") if s["kind"] == "charm" else Color("#c7895d"))
+	var kt := UIKit.tag("CHARM" if s["kind"] == "charm" else "BATTLE", UIKit.ACCENT)
 	kt.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	c.add_child(kt)
 	c.add_child(_spacer())
@@ -644,7 +694,7 @@ func _song_detail(c: VBoxContainer, sid: String) -> void:
 func _capture_detail(c: VBoxContainer, sid: String) -> void:
 	var lv := GameState.capture_level()
 	c.add_child(_h(SongDB.song_name(sid)))
-	var ct := UIKit.tag("CHARM", Color("#9c4351"))
+	var ct := UIKit.tag("CHARM", UIKit.ACCENT)
 	ct.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	c.add_child(ct)
 	c.add_child(_spacer())
@@ -796,7 +846,7 @@ func _tab_settings() -> void:
 	_make_list(left_box, "Settings")
 	detail_box = VBoxContainer.new()
 	detail_box.add_theme_constant_override("separation", 6)
-	right_box.add_child(UIKit.ribbon("Controls", true))
+	right_box.add_child(_pane_title("Controls"))
 	right_box.add_child(detail_box)
 	var pct := func(v: float): return "%d%%" % int(round(v * 100))
 	var speeds := [["Slow", 30.0], ["Normal", 60.0], ["Fast", 120.0], ["Instant", 0.0]]

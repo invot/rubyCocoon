@@ -13,6 +13,7 @@ const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
+const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -21,15 +22,19 @@ const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const PLAYER_LOOK := {"skin": "#f0c8a0", "hair": "#3a2216", "shirt": "#b8283a", "pants": "#3d5a8f", "hat": "#24365e", "hair_style": 0,
 	"hat_style": "cap", "face": "hero", "outfit": "jacket", "tee": "#f4f0e8", "belt": "#4a3020",
 	"backpack": "#8a5a32", "shoes": "#d8283a"}
-const CAM_OFFSET := Vector3(0, 9.6, 11.2)
-const CAM_OFFSET_ROOM := Vector3(0, 7.4, 8.6)
+## The camera sits behind and above the player, looking down at about 32 degrees outdoors and 29 indoors (lower and
+## closer than a top-down view, so walls and buildings are seen from the front, as in the PS2 games).
+const CAM_OFFSET := Vector3(0, 7.0, 11.0)
+const CAM_OFFSET_ROOM := Vector3(0, 4.6, 8.2)
+## the point the camera looks at, above the player's feet
+const CAM_LOOK_Y := 1.0
 ## Rugs are woven kilims from the seamless pattern sheet (tools/build_patterns.py): each room gets the one closest to
 ## its rug colour.
 const RUG_PATTERNS := {"rug_red": "#c8283a", "rug_wine": "#7a2030", "rug_gold": "#d8901a", "rug_tribal": "#a83020",
 	"rug_blue": "#2a7ac0", "rug_navy": "#2a2a48", "rug_green": "#4a8a3a", "rug_teal": "#1a8a7a"}
 const PROP_CODES := [MapGen.ALTAR, MapGen.BOARD, MapGen.TERMINAL, MapGen.EXHIBIT, MapGen.BOOKSHELF, MapGen.SHELF,
 	MapGen.ORGAN, MapGen.CRYSTAL, MapGen.BED, MapGen.FIREPLACE, MapGen.FOUNTAIN, MapGen.PLANT, MapGen.COUNTER, MapGen.TABLE,
-	MapGen.HEALER, MapGen.INCUBATOR, MapGen.KENNEL]
+	MapGen.HEALER, MapGen.INCUBATOR, MapGen.KENNEL, MapGen.FURN, MapGen.LOCKED]
 
 var map: Dictionary
 var map_id := ""
@@ -85,7 +90,10 @@ func build(id: String) -> void:
 		_build_environment()
 		_build_terrain()
 		_build_scatter()
+		_build_backdrop()
 		_build_buildings()
+		if map["kind"] == "town":
+			_build_street_props()
 		_build_statue()
 		_build_obstacles()
 		_build_pushables()
@@ -116,6 +124,8 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 			facing = Vector2i(-1, 0)
 		"entry":
 			facing = Vector2i(0, -1)
+		"wake":
+			facing = Vector2i(0, 1)
 		_:
 			facing = GameState.facing if typeof(key) == TYPE_VECTOR2I else Vector2i(0, 1)
 	if face != Vector2i.ZERO:
@@ -346,6 +356,63 @@ func _build_terrain() -> void:
 	_multimesh(pb, planks, pm, true)
 
 
+# ================================================================ backdrop
+## What lies past the edge of the map, now that the camera looks out across it: the ground running on, a deep belt of
+## the biome's trees all round (thinner behind the camera), and big hills on the horizon to the north, softened by
+## the fog.
+func _build_backdrop() -> void:
+	var w: float = map["w"]
+	var h: float = map["h"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_id.hash() + 99
+	var ground := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(w + 120.0, h + 120.0)
+	ground.mesh = plane
+	var layer := "top_sand" if _sandy() else "top_grass"
+	var gm := _tex_mat(VT.terrain(layer, String(biome["sand"] if _sandy() else biome["ground"])), true)
+	ground.material_override = gm
+	ground.position = Vector3(w / 2.0, -0.04, h / 2.0)
+	add_child(ground)
+	var trees: Array = biome["trees"]
+	if trees.is_empty():
+		return
+	var by_asset := {}
+	# a band of trees all round the map, deepest to the north where the camera looks
+	for band in [[-22.0, 0.0, -0.5, w + 0.5, 0.55], [h, h + 6.0, -0.5, w + 0.5, 0.35], [-22.0, h + 6.0, -14.0, 0.0, 0.5],
+			[-22.0, h + 6.0, w, w + 14.0, 0.5]]:
+		var z := float(band[0])
+		while z < float(band[1]):
+			var x := float(band[2])
+			while x < float(band[3]):
+				if rng.randf() < float(band[4]):
+					var name := _pick_weighted(trees, rng)
+					var bb := VA.aabb(name)
+					var sc := VA.fit_scale(name, rng.randf_range(2.6, 4.0))
+					var p := Vector3(x + rng.randf_range(0.0, 1.4), -bb.position.y * sc, z + rng.randf_range(0.0, 1.4))
+					_add_asset(by_asset, name + SHADOWLESS, _xf(p, rng.randf() * TAU, sc))
+				x += 1.4
+			z += 1.4
+	for name in by_asset:
+		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, false)
+	# hills on the horizon
+	var hills := ["mountain_0", "mountain_2", "mountain_4", "mountain_6", "mountain_8"]
+	var hx := -20.0
+	while hx < w + 20.0:
+		var name: String = hills[rng.randi_range(0, hills.size() - 1)]
+		var mi := MeshInstance3D.new()
+		mi.mesh = VA.mesh(name)
+		if mi.mesh != null:
+			var bb2: AABB = mi.mesh.get_aabb()
+			var sc2 := rng.randf_range(14.0, 22.0) / maxf(bb2.size.x, 0.01)
+			mi.scale = Vector3(sc2, sc2 * rng.randf_range(0.6, 1.0), sc2)
+			mi.position = Vector3(hx, -bb2.position.y * mi.scale.y - 0.5, rng.randf_range(-48.0, -36.0))
+			mi.rotation.y = rng.randf() * TAU
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(mi)
+		hx += rng.randf_range(12.0, 18.0)
+
+
 # ================================================================ scatter: grass, trees, rocks, props
 func _pick_weighted(list: Array, rng: RandomNumberGenerator) -> String:
 	var total := 0
@@ -492,6 +559,151 @@ func _build_buildings() -> void:
 		for c in node.get_children():
 			if c.has_meta("spin"):
 				spinners.append(c)
+
+
+## Street furniture from the packs (assets/psx/exterior) on the open ground beside the town's buildings: benches,
+## bins, planters and crates outside shops, rain barrels, flower pots and hedges by houses, crates, barrels and
+## dumpsters down the sides, air conditioners on city shop walls. Each takes a grass or plaza tile that touches a
+## building's front or side (never the door's own row in front of it), and only if every street, door and way out of
+## town can still be reached without it; the tile then stops being walkable.
+const STREET_DIR := "res://assets/psx/exterior/"
+const STREET_FRONT_SHOP := ["bench", "bench", "trash_can", "crate", "barrel", "planter", "hydrant"]
+const STREET_FRONT_HOUSE := ["planter", "barrel", "hedge_round", "bench", "crate", "planter"]
+const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "hedge_round", "barrel"]
+
+
+func _street_mesh(name: String) -> Mesh:
+	if name == "planter":
+		return load("res://assets/psx/interior/plant_tall.res") if ResourceLoader.exists("res://assets/psx/interior/plant_tall.res") else null
+	return load(STREET_DIR + name + ".res") if ResourceLoader.exists(STREET_DIR + name + ".res") else null
+
+
+## Tiles anyone can reach from the town's start, walking.
+func _reachable(start: Vector2i) -> Dictionary:
+	var seen := {start: true}
+	var stack := [start]
+	while not stack.is_empty():
+		var q: Vector2i = stack.pop_back()
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var r: Vector2i = q + d
+			if not seen.has(r) and r.x >= 0 and r.y >= 0 and r.x < map["w"] and r.y < map["h"] and MapGen.walkable(MapGen.get_t(map, r.x, r.y)):
+				seen[r] = true
+				stack.append(r)
+	return seen
+
+
+func _build_street_props() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_id.hash() + 31
+	var style: String = biome.get("style", "town")
+	var city: bool = WorldDB.TOWNS.get(map_id, {}).get("size", "") in ["town", "city"]
+	var start: Vector2i = map["spawns"].get("start", map["spawns"].get("center", Vector2i(map["w"] / 2, map["h"] / 2)))
+	if not MapGen.walkable(MapGen.get_t(map, start.x, start.y)):
+		return
+	var before := _reachable(start)
+	# what must stay reachable: the tile in front of every door, every exit, every person and item
+	var keep := []
+	for b in map["buildings"]:
+		keep.append(Vector2i(b["door"]) + Vector2i(0, 1))
+	for t in map["exits"]:
+		keep.append(t)
+	for n in map["npcs"]:
+		keep.append(n["pos"])
+	for it in map["items"]:
+		keep.append(it["pos"])
+	keep = keep.filter(func(q): return before.has(q))
+	var taken := {}
+	for q in keep:
+		taken[q] = true
+	var placed := []
+	for b in map["buildings"]:
+		if b["shop"] in ["decor", "hideout", "temple"]:
+			continue
+		var commercial: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in ["center", "electronics", "arena", "museum", "music_hall", "dojo"]
+		var bx: int = b["x"]
+		var by: int = b["y"]
+		var bw: int = b["w"]
+		var bd: int = b["d"]
+		var door: Vector2i = b["door"]
+		var cands := []
+		# along the front, either side of the door's own column
+		for x in range(bx, bx + bw):
+			if absi(x - door.x) >= 1:
+				cands.append([Vector2i(x, by + bd), Vector2i(0, 1), "front"])
+		# down both sides
+		for y in range(by, by + bd):
+			cands.append([Vector2i(bx - 1, y), Vector2i(-1, 0), "side"])
+			cands.append([Vector2i(bx + bw, y), Vector2i(1, 0), "side"])
+		var n_front := 0
+		for c in cands:
+			var t: Vector2i = c[0]
+			if taken.has(t) or not MapGen.get_t(map, t.x, t.y) in [MapGen.GRASS, MapGen.PLAZA, MapGen.SAND]:
+				continue
+			if rng.randf() > (0.55 if c[2] == "front" else 0.35):
+				continue
+			if c[2] == "front" and n_front >= 2:
+				continue
+			# would it cut anything off?
+			var was := MapGen.get_t(map, t.x, t.y)
+			MapGen.set_t(map, t.x, t.y, MapGen.STREET_PROP)
+			var after := _reachable(start)
+			var ok := after.size() == before.size() - 1 if before.has(t) else after.size() == before.size()
+			for q in keep:
+				if not after.has(q):
+					ok = false
+					break
+			if not ok:
+				MapGen.set_t(map, t.x, t.y, was)
+				continue
+			before = after
+			taken[t] = true
+			var list: Array = STREET_SIDE if c[2] == "side" else (STREET_FRONT_SHOP if commercial else STREET_FRONT_HOUSE)
+			var name: String = list[rng.randi_range(0, list.size() - 1)]
+			if name == "hydrant" and not city:
+				name = "trash_can"
+			if c[2] == "side" and commercial and city and rng.randf() < 0.3:
+				name = "dumpster"
+			placed.append([t, c[1], name])
+			if c[2] == "front":
+				n_front += 1
+	for e in placed:
+		var t: Vector2i = e[0]
+		var face: Vector2i = e[1]
+		var mesh := _street_mesh(e[2])
+		if mesh == null:
+			continue
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		var bb := mesh.get_aabb()
+		# its back to the building, a little away from the wall
+		mi.rotation.y = atan2(float(face.x), float(face.y)) + (rng.randf_range(-0.25, 0.25) if e[2] in ["barrel", "crate", "crate_open", "keg", "planter"] else 0.0)
+		var fit := minf(1.0, 0.92 / maxf(bb.size.x, bb.size.z))
+		mi.scale = Vector3.ONE * fit
+		mi.position = tile_pos(t) - Vector3(face.x, 0, face.y) * maxf(0.0, 0.5 - bb.size.z * fit / 2.0 - 0.05)
+		add_child(mi)
+		# a second crate on top now and then
+		if e[2] in ["crate", "crate_open"] and rng.randf() < 0.4:
+			var top := MeshInstance3D.new()
+			top.mesh = _street_mesh("crate")
+			top.scale = mi.scale * 0.85
+			top.rotation.y = mi.rotation.y + rng.randf_range(-0.6, 0.6)
+			top.position = mi.position + Vector3(0, bb.size.y * fit, 0)
+			add_child(top)
+	# air conditioners on the side walls of shops in bigger towns
+	if city:
+		var ac := _street_mesh("ac_unit")
+		for b in map["buildings"]:
+			if ac == null or not (b["shop"] in VBld.COMMERCIAL or b["shop"] in ["center", "electronics"]) or rng.randf() < 0.4:
+				continue
+			for sx in [-1, 1]:
+				if rng.randf() < 0.5:
+					continue
+				var mi2 := MeshInstance3D.new()
+				mi2.mesh = ac
+				mi2.rotation.y = sx * PI / 2.0
+				var x: float = float(b["x"]) + (float(b["w"]) + 0.02 if sx > 0 else -0.02) - sx * 0.1
+				mi2.position = Vector3(x + sx * ac.get_aabb().size.z / 2.0, 1.9 + rng.randf_range(0, 2.4), float(b["y"]) + float(b["d"]) * rng.randf_range(0.3, 0.7))
+				add_child(mi2)
 
 
 ## Builds and places one building; a locked door gets painted differently.
@@ -873,7 +1085,7 @@ func _build_player() -> void:
 
 func _build_camera() -> void:
 	cam = Camera3D.new()
-	cam.fov = 34 if not interior else 40
+	cam.fov = 36 if not interior else 44
 	# no depth-of-field: the PSX look keeps every pixel sharp and lets the fog soften the distance
 	add_child(cam)
 	cam.current = true
@@ -884,17 +1096,18 @@ func _place_camera(instant := false) -> void:
 	var h: float = map["h"]
 	var t := cam_target
 	if interior:
-		t.x = w / 2.0 if w <= 15.0 else clampf(t.x, 7.0, w - 7.0)
-		t.z = h / 2.0 + 0.5 if h <= 11.0 else clampf(t.z, 5.0, h - 2.5)
+		# follows the player round the room, but stops short of showing much beyond its walls
+		t.x = w / 2.0 if w <= 11.0 else clampf(t.x, 5.5, w - 5.5)
+		t.z = h / 2.0 if h <= 7.0 else clampf(t.z, 3.0, h - 2.0)
 		var want_r := t + CAM_OFFSET_ROOM
 		cam.position = want_r if instant else cam.position.lerp(want_r, 0.15)
-		cam.look_at(cam.position - CAM_OFFSET_ROOM + Vector3(0, 0.6, 0), Vector3.UP)
+		cam.look_at(cam.position - CAM_OFFSET_ROOM + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
 		return
 	t.x = clampf(t.x, 7.0, maxf(7.0, w - 7.0))
 	t.z = clampf(t.z, 4.0, maxf(4.0, h - 2.5))
 	var want := t + CAM_OFFSET
 	cam.position = want if instant else cam.position.lerp(want, 0.12)
-	cam.look_at(cam.position - CAM_OFFSET + Vector3(0, 0.6, 0), Vector3.UP)
+	cam.look_at(cam.position - CAM_OFFSET + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
 
 
 # ================================================================ movement
@@ -929,6 +1142,8 @@ func _process(delta: float) -> void:
 		return
 	_animate_npcs(delta)
 	_fade_buildings(delta)
+	if interior:
+		_cutaway(delta)
 	_update_wilds(delta)
 	if moving:
 		anim_t += delta * move_speed * 1.6
@@ -953,6 +1168,20 @@ func _process(delta: float) -> void:
 		_read_input()
 	cam_target = player.position
 	_place_camera()
+
+
+## Walls south of the player (between them and the camera) sink to a low stub, like a dolls' house, so you can always
+## see into the room you're in; walls behind the player stand full height.
+func _cutaway(delta: float) -> void:
+	var py := player.position.z
+	for y in room_rows:
+		var n: Node3D = room_rows[y]
+		if not is_instance_valid(n) or int(y) >= map["h"] - 1:
+			continue
+		var target := 0.08 if float(y) + 0.5 > py + 0.6 else 1.0
+		if n.scale.y != target:
+			n.scale.y = move_toward(n.scale.y, target, delta * 5.0)
+			n.visible = n.scale.y > 0.02
 
 
 func _fade_buildings(delta: float) -> void:
@@ -1897,6 +2126,8 @@ func _flat_mat(col: Color, glow := 0.0, metal := 0.0, rough := 0.8) -> StandardM
 # ---------------------------------------------------------------- the kennel
 ## Pen tiles in reading order (pen i shows beast i of the town's kennel) and the beasts standing in them.
 var kennel_pens: Array = []
+## The room's walls, row by row (see room_builder.gd): rows between the camera and the player are cut down low.
+var room_rows := {}
 var _kennel_nodes: Array = []
 
 
@@ -2194,7 +2425,7 @@ func _build_room() -> void:
 	env.tonemap_white = 2.2
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
-	env.glow_hdr_threshold = 0.85
+	env.glow_hdr_threshold = 1.15
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.8
 	env.adjustment_enabled = true
@@ -2208,16 +2439,11 @@ func _build_room() -> void:
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-60, 20, 0)
 	add_child(sun)
-	var lamp_col := Color("#ffd8a0") if not dark else Color("#b090ff")
-	# ceiling lamps (none outdoors)
-	for ly in range(2, h - 1, 4) if not open_air else []:
-		for lx in range(3, w - 1, 5):
-			var l := OmniLight3D.new()
-			l.light_color = lamp_col
-			l.light_energy = 1.3
-			l.omni_range = 6.5
-			l.position = Vector3(lx + 0.5, 2.4, ly + 0.5)
-			add_child(l)
+	# floors, walls, doors, windows, furniture and a light per room (an open-air roof keeps its deck and railings)
+	room_rows = {}
+	if not open_air:
+		var rb = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
+		room_rows = rb.rows
 	var k := VBld.Kit.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(1, 1)
@@ -2256,15 +2482,11 @@ func _build_room() -> void:
 							for ry in [0.45, 0.85]:
 								k.box("color", center + along * 0.5 + Vector3(0, ry, 0), Vector3(0.06, 0.06, 0.06) + along * 0.94, wall_col.darkened(0.35))
 					continue
-				MapGen.IWALL, MapGen.IWINDOW:
-					var front := y == h - 1
-					var wh := 0.3 if front else 2.9
-					k.box(wall_tex, center + Vector3(0, wh / 2.0, 0), Vector3(1, wh, 1), wall_col)
-					if c == MapGen.IWINDOW and y == 0:
-						k.box("glow", Vector3(x + 0.5, 1.7, y + 1.02), Vector3(0.6, 0.75, 0.04), Color("#bfe4ff"))
-						k.box("color", Vector3(x + 0.5, 1.7, y + 1.04), Vector3(0.06, 0.75, 0.04), dk)
+				MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.FURN, MapGen.IVOID:
 					continue
 				MapGen.RUG, MapGen.MAT:
+					if not open_air:
+						continue
 					floors["rug"].append(fxf)
 					# a dark woven border round the edge of each rug
 					for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
@@ -2276,40 +2498,50 @@ func _build_room() -> void:
 					floors["ring"].append(fxf)
 					continue
 				MapGen.IFLOOR:
-					floors["tile" if stone_floor else "wood"].append(fxf)
+					if open_air:
+						floors["tile" if stone_floor else "wood"].append(fxf)
 					continue
 				MapGen.ITILE:
-					floors["tile"].append(fxf)
+					if open_air:
+						floors["tile"].append(fxf)
 					continue
 				MapGen.MIST:
-					floors[main_floor].append(fxf)
+					if open_air:
+						floors[main_floor].append(fxf)
 					mist.append(_xf(center, _voxel_rot(rng)))
 					continue
 				MapGen.LAVA:
 					floors["lava"].append(_xf(center + Vector3(0, -0.05, 0)))
 					continue
 				MapGen.STAIRS_UP:
-					floors[main_floor].append(fxf)
+					if open_air:
+						floors[main_floor].append(fxf)
 					for i in 4:
 						var sy := (i + 1) * 0.18
 						k.box("stone", center + Vector3(0, sy / 2.0, 0.375 - i * 0.25), Vector3(1, sy, 0.25), stone)
 					continue
 				MapGen.STAIRS_DOWN:
-					floors[main_floor].append(fxf)
+					if open_air:
+						floors[main_floor].append(fxf)
 					k.box("color", center + Vector3(0, 0.015, 0), Vector3(0.9, 0.02, 0.9), Color("#1a1420"))
 					for i in 3:
 						k.box("stone", center + Vector3(0, 0.03, -0.3 + i * 0.3), Vector3(0.9, 0.04, 0.12), stone.darkened(0.4))
 					continue
-			# furniture stands on the floor around it
-			match MapLoader.floor_around(map, Vector2i(x, y), -1):
-				MapGen.RUG:
-					floors["rug"].append(fxf)
-				MapGen.IFLOOR:
-					floors["tile" if stone_floor else "wood"].append(fxf)
-				MapGen.ITILE:
-					floors["tile"].append(fxf)
-				_:
-					floors[main_floor].append(fxf)
+			# the room builder draws the floor under everything else, and the furniture
+			if not open_air:
+				if c in MapLoader.FURNITURE_CODES or map.get("furniture", {}).has(Vector2i(x, y)):
+					continue
+			else:
+				# furniture stands on the floor around it
+				match MapLoader.floor_around(map, Vector2i(x, y), -1):
+					MapGen.RUG:
+						floors["rug"].append(fxf)
+					MapGen.IFLOOR:
+						floors["tile" if stone_floor else "wood"].append(fxf)
+					MapGen.ITILE:
+						floors["tile"].append(fxf)
+					_:
+						floors[main_floor].append(fxf)
 			match c:
 				MapGen.HEALER:
 					_build_healer(center)
@@ -2325,12 +2557,12 @@ func _build_room() -> void:
 						k.box("pat_wood", center + Vector3(px, 0.2, 0.44), Vector3(0.08, 0.4, 0.06), Color.WHITE)
 					k.box("pat_wood", center + Vector3(0, 0.3, 0.44), Vector3(0.9, 0.06, 0.05), Color.WHITE)
 					kennel_pens.append(Vector2i(x, y))
-				MapGen.COUNTER:
+				MapGen.COUNTER when open_air:
 					if diner:
 						k.box("color", center + Vector3(0, 0.475, 0), Vector3(1.0, 0.95, 0.9), vinyl)
 						k.box("color", center + Vector3(0, 0.2, 0.46), Vector3(1.0, 0.12, 0.02), chrome)
 						k.box("tin", center + Vector3(0, 0.98, 0), Vector3(1.02, 0.08, 0.95), chrome)
-					else:
+					elif open_air:
 						k.box("pat_planks", center + Vector3(0, 0.475, 0), Vector3(1.0, 0.95, 0.9), Color.WHITE)
 						k.box("pat_wood", center + Vector3(0, 0.98, 0), Vector3(1.02, 0.08, 0.95), Color.WHITE)
 				MapGen.SHELF:
@@ -2393,10 +2625,8 @@ func _build_room() -> void:
 					k.box("planks", center + Vector3(0, 1.3, -0.42), Vector3(1.0, 1.4, 0.1), lw)
 					for i in 5:
 						k.box("color", center + Vector3(rng.randf_range(-0.35, 0.35), rng.randf_range(0.8, 1.8), -0.36), Vector3(0.22, 0.26, 0.02), Color("#f4eedc"))
-				MapGen.TERMINAL:
+				MapGen.TERMINAL when open_air:
 					k.box("tin", center + Vector3(0, 0.75, -0.1), Vector3(0.8, 1.5, 0.6), Color("#8a96a8"))
-					k.box("pat_metal", center + Vector3(0, 0.45, 0.21), Vector3(0.7, 0.6, 0.02), Color.WHITE)
-					k.box("glow", center + Vector3(0, 1.1, 0.21), Vector3(0.55, 0.4, 0.04), Color("#5affd0"))
 				MapGen.PILLAR:
 					k.box("stone", center + Vector3(0, 1.45, 0), Vector3(0.6, 2.9, 0.6), stone)
 					k.box("stone", center + Vector3(0, 0.1, 0), Vector3(0.8, 0.2, 0.8), stone.darkened(0.1))

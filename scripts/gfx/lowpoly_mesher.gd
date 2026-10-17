@@ -27,6 +27,8 @@ class Shape:
 	var rb := 0.0
 	var c := 0
 	var only := -1
+	## false for small details laid on a surface (eyes, glints): they add their own faces but repaint nothing
+	var paints := true
 	var order := 0
 	var lo := Vector3.ZERO     # bounding box, for quick rejects
 	var hi := Vector3.ZERO
@@ -119,15 +121,16 @@ class Grid:
 		s.only = only
 		_add(s)
 
-	func ellipsoid(c3: Vector3, r: Vector3, col: int, only := -1) -> void:
+	func ellipsoid(c3: Vector3, r: Vector3, col: int, only := -1, overlay := false) -> void:
 		if col == 0:
 			return
 		var s := Shape.new()
 		s.kind = ELL
 		s.a = c3
-		s.b = Vector3(maxf(r.x, 0.5), maxf(r.y, 0.5), maxf(r.z, 0.5))
+		s.b = Vector3(maxf(r.x, 0.25), maxf(r.y, 0.25), maxf(r.z, 0.25))
 		s.c = col
 		s.only = only
+		s.paints = not overlay
 		_add(s)
 
 	## A tube from a to b, radius tapering from ra to rb.
@@ -230,8 +233,10 @@ static func build(g: Grid, vsize: float, pivot = null, detail := 1.0) -> ArrayMe
 	for i in tris.size():
 		# buried inside another solid shape: never seen
 		var own: int = tris[i][7]
+		var t: Array = tris[i]
 		for s in solids:
-			if s.order != own and s.has(cents[i], -0.35):
+			# only faces wholly inside another shape go: one poking out would leave a hole
+			if s.order != own and s.paints and s.has(cents[i], -0.2) and s.has(t[0], -0.05) and s.has(t[1], -0.05) and s.has(t[2], -0.05):
 				keep[i] = 0
 				break
 	for e in events:
@@ -240,7 +245,7 @@ static func build(g: Grid, vsize: float, pivot = null, detail := 1.0) -> ArrayMe
 			for i in tris.size():
 				if keep[i] == 0 or int(tris[i][7]) >= s.order:
 					continue
-				if (s.only < 0 or int(tris[i][6]) == s.only) and s.has(cents[i], 0.45):
+				if s.paints and (s.only < 0 or int(tris[i][6]) == s.only) and s.has(cents[i], 0.45):
 					tris[i][6] = s.c
 		else:
 			var p: Array = e[1]

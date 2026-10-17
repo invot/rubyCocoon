@@ -25,8 +25,12 @@ const ROOM_CHARS := {
 	"G": MapGen.BOARD, "M": MapGen.TERMINAL, "o": MapGen.PILLAR, "e": MapGen.EXHIBIT, "n": MapGen.ORGAN,
 	"=": MapGen.BENCH, "~": MapGen.FOUNTAIN, "Y": MapGen.CRYSTAL, "D": MapGen.MAT, "%": MapGen.LAVA,
 	">": MapGen.STAIRS_UP, "<": MapGen.STAIRS_DOWN, "g": MapGen.MIST, "H": MapGen.HEALER, "I": MapGen.INCUBATOR,
-	"K": MapGen.KENNEL,
+	"K": MapGen.KENNEL, "d": MapGen.IDOOR, "L": MapGen.LOCKED, "Z": MapGen.LOCKED, " ": MapGen.IVOID,
 }
+## Tiles drawn as furniture (see room_builder.gd KINDS): the furniture letters of interior_maps.gd plus the older
+## room tiles that are furniture too.
+const FURNITURE_CODES := {MapGen.BED: "bed", MapGen.TABLE: "table", MapGen.STOOL: "stool", MapGen.PLANT: "plant",
+	MapGen.BOOKSHELF: "bookshelf", MapGen.SHELF: "shelf", MapGen.RUG: "rug"}
 const BUILDING_LETTERS := {
 	"C": "center", "A": "apothecary", "G": "beast_gear", "O": "trainer_gear", "K": "bookstore",
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",
@@ -495,6 +499,10 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["anchors"] = {}
 	m["exhibits"] = {}
 	m["shards"] = []
+	m["furniture"] = {}
+	m["staff_doors"] = {}
+	m["zone_rows"] = room.get("zones", [])
+	m["zone_default"] = room.get("zone", _default_zone(key, room))
 	var dots := 0
 	var tiles := 0
 	var rng := RandomNumberGenerator.new()
@@ -510,8 +518,13 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		for x in w:
 			var ch := row[x]
 			var p := Vector2i(x, y)
-			if ROOM_CHARS.has(ch):
+			if InteriorMaps.FURNITURE.has(ch):
+				MapGen.set_t(m, x, y, MapGen.FURN)
+				m["furniture"][p] = InteriorMaps.FURNITURE[ch]
+			elif ROOM_CHARS.has(ch):
 				MapGen.set_t(m, x, y, ROOM_CHARS[ch])
+				if ch == "Z":
+					m["staff_doors"][p] = true
 				if ch == ".":
 					dots += 1
 				elif ch == ":":
@@ -556,6 +569,20 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		spots.append(m["spawns"]["entry"])
 	for q in spots:
 		MapGen.set_t(m, q.x, q.y, floor_around(m, q, MapGen.get_t(m, q.x, q.y)))
+	# the older furniture tiles are drawn as furniture too
+	for y in h:
+		for x in w:
+			var fc := MapGen.get_t(m, x, y)
+			var diner: bool = room.get("checker", false)
+			if fc == MapGen.TABLE and diner:
+				m["furniture"][Vector2i(x, y)] = "diner_table"
+			elif FURNITURE_CODES.has(fc) and not m["furniture"].has(Vector2i(x, y)):
+				m["furniture"][Vector2i(x, y)] = FURNITURE_CODES[fc]
+			# benches: the diner's are red leather booths
+			elif fc == MapGen.BENCH and not room.get("open", false):
+				m["furniture"][Vector2i(x, y)] = "booth" if diner else "bench"
+			elif fc == MapGen.TERMINAL:
+				m["furniture"][Vector2i(x, y)] = "computer"
 	# people face the middle of the room, or the table they're sitting at; never a wall
 	# (staff stay facing out over their counters)
 	for n in m["npcs"]:
@@ -581,11 +608,31 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				m["spawns"]["from_above"] = q
 				break
 	m["spawns"]["start"] = m["spawns"].get("entry", Vector2i(w / 2, h - 2))
+	# where you wake up on the first morning (your home)
+	if room.has("wake"):
+		m["spawns"]["wake"] = Vector2i(room["wake"][0], room["wake"][1])
 	m["spawns"]["center"] = m["spawns"]["start"]
 	if room.has("encounter"):
 		var enc: Dictionary = room["encounter"]
 		m["encounter"] = {"races": enc.get("races", []), "lv": enc["lv"], "rate": 0.13, "ghosts": 1.0 if enc.get("ghost", false) else 0.0}
 	return m
+
+
+## The kind of room a template is, if it doesn't say (see room_builder.gd ZONES).
+static func _default_zone(key: String, room: Dictionary) -> String:
+	if room.get("checker", false):
+		return "diner"
+	if key.begins_with("temple") or key.begins_with("crypt") or key in ["hideout"]:
+		return "stone"
+	if key in ["cathedral", "museum", "music_hall"]:
+		return "grand"
+	if key.begins_with("ceo") or key in ["skytower", "electronics"]:
+		return "office"
+	if key in ["dojo", "arena", "fortune"]:
+		return "wood"
+	if key in ["home", "house_a", "house_b"]:
+		return "living"
+	return "shop"
 
 
 ## The floor a person or a piece of furniture at `p` stands on: a rug if it's in the middle of one, otherwise

@@ -148,7 +148,8 @@ func _title() -> void:
 			_clear_title()
 			UI.allow_pause = true
 			var home := MapLoader.interior_of("caccoon", "home")
-			_pending_goto = {"map": home if home != "" else "caccoon", "spawn": "entry"}
+			# the first morning starts in your bedroom
+			_pending_goto = {"map": home if home != "" else "caccoon", "spawn": "wake" if home != "" else "start"}
 			return
 
 

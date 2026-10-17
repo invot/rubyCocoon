@@ -960,6 +960,37 @@ const BOOK_TITLES := [
 
 
 ## Something in a room was examined. `code` is the MapGen tile code.
+## What you see when you look at a piece of furniture (see room_builder.gd KINDS).
+const FURNITURE_LINES := {
+	"counter": "A clean kitchen counter. Someone wiped it down this morning.",
+	"kitchen_sink": "A few cups are drying by the sink.",
+	"stove": "Something smells good. A pot's been on the stove all afternoon.",
+	"fridge": "Leftovers, a carton of milk and a jar of beast treats.",
+	"pantry": "Shelves of rice, beans and honey jars.",
+	"toilet": "It's a toilet. It's very clean.",
+	"bathtub": "A deep tub. A rubber Puddlepup floats in the corner.",
+	"basin": "The tap drips, very slowly.",
+	"washer": "The washing machine is humming through a spin cycle.",
+	"sofa": "A comfy sofa, worn soft in all the right places.",
+	"armchair": "Someone's favourite armchair.",
+	"tv": "A cooking show is on. The chef is arguing with a Redcoon.",
+	"chair": "A sturdy wooden chair.",
+	"stool": "A stool.",
+	"coffee_table": "A little table, ringed with old mug marks.",
+	"wardrobe": "Clothes, neatly folded. Better leave them be.",
+	"nightstand": "A lamp and a dog-eared book on the nightstand.",
+	"dresser": "A dresser full of socks.",
+	"desk": "Papers, pencils and a half-written letter.",
+	"storage": "Shelves of boxes, all neatly labelled.",
+	"boxes": "Cardboard boxes, taped shut.",
+	"mop": "A mop and bucket.",
+	"floor_lamp": "A tall lamp casts a warm glow.",
+	"coat_stand": "Coats, scarves and an umbrella.",
+	"trash": "The bin's nearly full.",
+	"bunk": "A bunk bed. Top bunk's the best bunk.",
+}
+
+
 func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 	var b: Dictionary = map.get("building", {})
 	var town: String = b.get("town", GameState.map_id)
@@ -1026,3 +1057,12 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 			await UI.say(["A healthy potted plant. Someone waters it every day."])
 		MapGen.COUNTER, MapGen.TABLE:
 			pass
+		MapGen.LOCKED:
+			if map.get("staff_doors", {}).has(t):
+				await UI.say(["A brass plate on the door: STAFF ONLY. It's locked."])
+			else:
+				await UI.say(["The door's locked."])
+		MapGen.FURN:
+			var line: String = FURNITURE_LINES.get(map.get("furniture", {}).get(t, ""), "")
+			if line != "":
+				await UI.say([line])

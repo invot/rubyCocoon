@@ -12,9 +12,16 @@ enum { GRASS, PATH, TALL, TREE, WATER, ROCK, FLOWERS, BUILDING, DOOR, FENCE, PLA
 	# voxel era
 	OBSTACLE, GATE, STAIRS_UP, STAIRS_DOWN, MIST,
 	# Beast Center machines, route puzzles
-	HEALER, INCUBATOR, ICE, ROPE, KENNEL }
+	HEALER, INCUBATOR, ICE, ROPE, KENNEL,
+	# rooms within buildings: an open doorway, a locked door, a piece of furniture (see map "furniture")
+	IDOOR, LOCKED, FURN,
+	# outside an L-shaped building's walls: nothing at all
+	IVOID,
+	# street furniture beside a building (a bench, barrels, a bin...): see world.gd _build_street_props
+	STREET_PROP }
 
-const WALKABLE := [GRASS, PATH, TALL, FLOWERS, PLAZA, SAND, BRIDGE, IFLOOR, ITILE, RUG, RING, MAT, STAIRS_UP, STAIRS_DOWN, MIST, ICE, ROPE]
+const WALKABLE := [GRASS, PATH, TALL, FLOWERS, PLAZA, SAND, BRIDGE, IFLOOR, ITILE, RUG, RING, MAT, STAIRS_UP, STAIRS_DOWN, MIST, ICE, ROPE,
+	IDOOR]
 ## Tiles where wild beasts can appear.
 const ENCOUNTER_TILES := [TALL, MIST]
 
