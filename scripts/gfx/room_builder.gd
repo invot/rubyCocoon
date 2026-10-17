@@ -23,7 +23,8 @@ const WIN_TOP := 2.07
 const FRONT_H := 0.3
 ## one texture repeat, in world units (a pack module)
 const SPAN := 2.8
-const WALLISH := [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED]
+const WALLISH := [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.IDIAG_A, MapGen.IDIAG_B]
+const DIAGS := [MapGen.IDIAG_A, MapGen.IDIAG_B]
 
 ## Kinds of room: floor and wall textures (each building picks one of each, so no two houses look alike), and the
 ## colour of their light.
@@ -137,6 +138,23 @@ class Mesher:
 			tris = [p[0], p[2], p[1], p[0], p[3], p[2]]
 		var col := Color(shade, shade, shade)
 		for v in tris:
+			a[0].append(v)
+			a[1].append(n)
+			a[2].append(Vector2((v as Vector3).dot(u_dir), (v as Vector3).dot(v_dir)))
+			a[3].append(col)
+
+	## One triangle (corners in any order), facing `n`.
+	func tri(key: String, mat: Material, p: Array, n: Vector3, u_dir: Vector3, v_dir: Vector3, shade := 1.0) -> void:
+		if not surf.has(key):
+			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray()]
+			mats[key] = mat
+		var a: Array = surf[key]
+		var p0: Vector3 = p[0]
+		var p1: Vector3 = p[1]
+		var p2: Vector3 = p[2]
+		var order := [p0, p1, p2] if (p1 - p0).cross(p2 - p0).dot(n) < 0.0 else [p0, p2, p1]
+		var col := Color(shade, shade, shade)
+		for v in order:
 			a[0].append(v)
 			a[1].append(n)
 			a[2].append(Vector2((v as Vector3).dot(u_dir), (v as Vector3).dot(v_dir)))
@@ -281,8 +299,26 @@ func _floors() -> void:
 			if not c in WALLISH:
 				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y))
 				continue
+			if c in DIAGS:
+				# each half of the tile takes the floor of the room on its side of the diagonal
+				for side in _diag_sides(x, y):
+					var zz: String = side[1]
+					if zz != "":
+						_floor_tri(side[0], zz)
+				continue
 			# under a wall: each quarter takes the floor of the room beside it
 			for q in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+				if code(x + q.x, y + q.y) in DIAGS and _diag_joins(x + q.x, y + q.y, x, y):
+					# a diagonal wall carries on from this tile's centre to its corner: the quarter is cut in two
+					var c0 := Vector3(x + 0.5, 0, y + 0.5)
+					var k := c0 + Vector3(q.x, 0, q.y) * 0.5
+					var za := zone(x + q.x, y)
+					var zb := zone(x, y + q.y)
+					if za != "":
+						_floor_tri([c0, c0 + Vector3(q.x * 0.5, 0, 0), k], za)
+					if zb != "":
+						_floor_tri([c0, c0 + Vector3(0, 0, q.y * 0.5), k], zb)
+					continue
 				var z := zone(x + q.x, y)
 				if z == "":
 					z = zone(x, y + q.y)
@@ -298,6 +334,42 @@ func _floor_quad(x: int, y: int, ox: float, oz: float, sx: float, sz: float, z: 
 	var z0 := y + oz
 	floor_mesher.quad("floor_" + z, floor_mat(z), [Vector3(x0, 0, z0), Vector3(x0 + sx, 0, z0), Vector3(x0 + sx, 0, z0 + sz),
 		Vector3(x0, 0, z0 + sz)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+
+
+func _floor_tri(pts: Array, z: String) -> void:
+	floor_mesher.tri("floor_" + z, floor_mat(z), pts, Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+
+
+## A diagonal tile's two halves: [[three corners], the room's kind on that side]. "/" (IDIAG_A) splits the tile from
+## its bottom-left to its top-right corner, "\\" (IDIAG_B) from its top-left to its bottom-right.
+func _diag_sides(x: int, y: int) -> Array:
+	var a := Vector3(x, 0, y)
+	var b := Vector3(x + 1, 0, y)
+	var c := Vector3(x + 1, 0, y + 1)
+	var d := Vector3(x, 0, y + 1)
+	if code(x, y) == MapGen.IDIAG_A:
+		return [[[a, b, d], _first_zone([Vector2i(x - 1, y), Vector2i(x, y - 1)])],
+			[[b, c, d], _first_zone([Vector2i(x + 1, y), Vector2i(x, y + 1)])]]
+	return [[[a, b, c], _first_zone([Vector2i(x + 1, y), Vector2i(x, y - 1)])],
+		[[a, c, d], _first_zone([Vector2i(x - 1, y), Vector2i(x, y + 1)])]]
+
+
+func _first_zone(tiles: Array) -> String:
+	for t in tiles:
+		var z := zone(t.x, t.y)
+		if z != "":
+			return z
+	return ""
+
+
+## Whether the diagonal wall in tile (dx, dy) runs on into the wall tile (wx, wy) next to it corner to corner.
+func _diag_joins(dx: int, dy: int, wx: int, wy: int) -> bool:
+	if not wallish(wx, wy) or code(wx, wy) in DIAGS:
+		return false
+	var o := Vector2i(wx - dx, wy - dy)
+	if code(dx, dy) == MapGen.IDIAG_A:
+		return o == Vector2i(1, -1) or o == Vector2i(-1, 1)
+	return o == Vector2i(1, 1) or o == Vector2i(-1, -1)
 
 
 # ---------------------------------------------------------------- walls
@@ -324,6 +396,22 @@ func _walls() -> void:
 			var s := wallish(x, y + 1)
 			var horiz := e or wv or (not n and not s)
 			var vert := n or s
+			if c in DIAGS:
+				# corner to corner across the tile, each face finished like the room it faces
+				var sides := _diag_sides(x, y)
+				var p0 := Vector2(x, y + 1) if c == MapGen.IDIAG_A else Vector2(x, y)
+				var p1 := Vector2(x + 1, y) if c == MapGen.IDIAG_A else Vector2(x + 1, y + 1)
+				_slant(y, p0, p1, 0.0, top, sides[0][1], sides[1][1], c)
+				continue
+			if c == MapGen.IWALL:
+				# a diagonal wall next door, corner to corner: carry it on to this tile's centre
+				for q in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+					var dx: int = x + q.x
+					var dy: int = y + q.y
+					if code(dx, dy) in DIAGS and _diag_joins(dx, dy, x, y):
+						var sides2 := _diag_sides(dx, dy)
+						var ctr := Vector2(x + 0.5, y + 0.5)
+						_slant(y, ctr, ctr + Vector2(q.x, q.y) * 0.5, 0.0, top, sides2[0][1], sides2[1][1], code(dx, dy))
 			match c:
 				MapGen.IWALL:
 					_bars(x, y, 0.0, top, horiz, vert, e, wv, n, s)
@@ -389,6 +477,39 @@ func _bars(x: int, y: int, y0: float, y1: float, horiz: bool, vert: bool, e: boo
 					Vector3(cx + T / 2.0, y1, zb0), Vector3(cx - T / 2.0, y1, zb0)], Vector3.BACK, Vector3.RIGHT)
 		m.quad("cut", cut, [Vector3(cx - T / 2.0, y1, za0), Vector3(cx + T / 2.0, y1, za0), Vector3(cx + T / 2.0, y1, zb0), Vector3(cx - T / 2.0, y1, zb0)],
 			Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+
+
+## A stretch of diagonal wall between floor points p0 and p1 (x, z), from y0 to y1, T thick: a face each side, the
+## first finished like `z_a` (the side the tile's first half lies on, see _diag_sides), the second like `z_b`, with
+## skirting, and the dark cut along the top. Each end runs on a little, into the wall it meets.
+func _slant(row: int, p0: Vector2, p1: Vector2, y0: float, y1: float, z_a: String, z_b: String, c: int) -> void:
+	var m := _row(row)
+	var dir := (p1 - p0).normalized()
+	var a := p0 - dir * T * 0.5
+	var b := p1 + dir * T * 0.5
+	# the normal towards the first half: up-left for "/", up-right for "\\"
+	var n2 := Vector2(-1, -1).normalized() if c == MapGen.IDIAG_A else Vector2(1, -1).normalized()
+	if z_a == "":
+		z_a = z_b
+	if z_b == "":
+		z_b = z_a
+	if z_a == "":
+		z_a = default_zone
+		z_b = default_zone
+	for side in [[n2, z_a], [-n2, z_b]]:
+		var nn: Vector2 = side[0]
+		var off := nn * T * 0.5
+		var pa := Vector3(a.x + off.x, y0, a.y + off.y)
+		var pb := Vector3(b.x + off.x, y0, b.y + off.y)
+		var nrm := Vector3(nn.x, 0, nn.y)
+		var along := (pb - pa).normalized()
+		_face(m, side[1], [pa, pb, pb + Vector3(0, y1 - y0, 0), pa + Vector3(0, y1 - y0, 0)], nrm, along)
+		if y0 < 0.01:
+			_skirting(m, pa, pb, nrm)
+	var cut := surface("cut", Color("#3a302a"))
+	var o := Vector2(-dir.y, dir.x) * T * 0.5
+	m.quad("cut", cut, [Vector3(a.x + o.x, y1, a.y + o.y), Vector3(b.x + o.x, y1, b.y + o.y), Vector3(b.x - o.x, y1, b.y - o.y),
+		Vector3(a.x - o.x, y1, a.y - o.y)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
 
 
 func _face(m: Mesher, z: String, p: Array, nrm: Vector3, along: Vector3) -> void:
@@ -671,7 +792,7 @@ const COUNTER_GOODS := {
 	"apothecary": ["bottle", "bottle_2", "product_1", "product_3", "el_vase", "plant_small"],
 	"bookstore": ["books", "books_2", "book", "el_photo", "el_vase"],
 	"cafe": ["el_coffee_maker", "el_slush", "cup", "cup_2", "plate", "el_flowers"],
-	"electronics": ["el_monitor", "phone", "radio", "el_monitor"],
+	"electronics": ["phone", "radio", "books_2", "product_2"],
 	"music_shop": ["radio", "books", "el_photo"],
 	"center": ["el_coffee", "cup", "plate_2", "el_flowers"],
 	"beast_gear": ["product_2", "product_4", "box_3"],
@@ -679,70 +800,104 @@ const COUNTER_GOODS := {
 }
 
 
-## Counters are wooden sideboards from the interior pack (panelled doors, drawers and brass knobs), set end to end along
-## each run of counter tiles, two tiles to a sideboard where they fit, turned to face the customers (the open side,
-## away from the staff); the Beast Center's diner counters are the dark-wood ones with chrome handles. On top: the till
-## by the keeper and a few things from the shop's trade.
+## Shop counters are store counters: the 6TWELVE shop's dark-wood counter with its glass-fronted displays of sweets,
+## facing the customers (the open side, away from the staff), cut into pieces of three to six tiles along each run of
+## counter tiles; a run of one or two tiles (the ends of a U round a desk) is a kitchen base unit with a marble top.
+## On top: one till by the person working there, its keys and screen turned to them (a cash register; the electronics
+## shop's terminal is a computer; the Beast Center's nurse has her coffee machine), and a few things from the trade.
+const TILL := {"electronics": "el_monitor", "center": "el_coffee"}
+
+
 func _counters() -> void:
 	var shop: String = map.get("building", {}).get("shop", "")
 	var goods: Array = COUNTER_GOODS.get(shop, ["product_1", "books", "cup"])
-	var diner: bool = map.get("room", {}).get("checker", false)
 	var keeper := Vector2i(-99, -99)
 	for n in map.get("npcs", []):
 		if n.get("kind", "") in ["keeper", "guide", "receptionist"] or n.get("role", "") == "keeper":
 			keeper = n["pos"]
 			break
-	var model := piece("sideboard_2" if diner else "sideboard")
-	if model == null:
+	var long_piece := piece("el_display")
+	var short_piece := piece("counter")
+	if long_piece == null or short_piece == null:
 		return
-	var mbb := model.get_aabb()
 	var till_done := false
 	var done := {}
 	for y in h:
 		for x in w:
 			if code(x, y) != MapGen.COUNTER or done.has(Vector2i(x, y)):
 				continue
-			# the customer side: open floor not next to the keeper, preferring the side towards the camera
+			# the customer side: open floor away from the keeper, preferring the side towards the camera
 			var face := Vector2i(0, 1)
 			for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
 				var q: Vector2i = Vector2i(x, y) + d
 				if MapGen.walkable(code(q.x, q.y)) and q.distance_to(keeper) >= 1.1:
 					face = d
 					break
-			# the run goes along the counter's face: east for a counter facing north or south, south otherwise
+			# the whole run along the counter's face: east for a counter facing north or south, south otherwise
 			var step := Vector2i(1, 0) if face.y != 0 else Vector2i(0, 1)
 			var run := [Vector2i(x, y)]
-			while run.size() < 2:
+			while true:
 				var nx: Vector2i = run[-1] + step
 				if code(nx.x, nx.y) != MapGen.COUNTER or done.has(nx):
+					break
+				# a tile whose open side faces another way starts a run of its own
+				var open := nx + face
+				if not MapGen.walkable(code(open.x, open.y)) and code(open.x, open.y) != MapGen.COUNTER:
 					break
 				run.append(nx)
 			for q in run:
 				done[q] = true
-			var n := run.size()
 			var yaw := atan2(float(face.x), float(face.y))
-			var mid := Vector3(x + 0.5, 0, y + 0.5) + Vector3(step.x, 0, step.y) * (n - 1) / 2.0
-			var mi := MeshInstance3D.new()
-			mi.mesh = model
-			# the sideboard stretched to counter height, as long as its tiles and most of a tile deep
-			mi.scale = Vector3(n * 0.98 / mbb.size.x, 0.98 / mbb.size.y, 0.85 / mbb.size.z)
-			mi.rotation.y = yaw
-			mi.position = mid
-			parent.add_child(mi)
+			# pieces of about four tiles (never under three) for a long run; short runs are single base units
+			var pieces := []
+			if run.size() >= 3:
+				var k := maxi(1, int(round(run.size() / 4.5)))
+				var at := 0
+				for pi in k:
+					var len := (run.size() - at) / (k - pi)
+					pieces.append([at, len])
+					at += len
+			for pc in pieces:
+				var a: int = pc[0]
+				var n: int = pc[1]
+				var c := Vector3(run[a].x + 0.5, 0, run[a].y + 0.5) + Vector3(step.x, 0, step.y) * (n - 1) / 2.0
+				var bb := long_piece.get_aabb()
+				var mi := MeshInstance3D.new()
+				mi.mesh = long_piece
+				mi.scale = Vector3(n * 0.99 / bb.size.x, 1.0, 0.92 / bb.size.z)
+				mi.rotation.y = yaw
+				mi.position = c
+				parent.add_child(mi)
+			if pieces.is_empty():
+				var sb := short_piece.get_aabb()
+				for q in run:
+					var mi2 := MeshInstance3D.new()
+					mi2.mesh = short_piece
+					mi2.scale = Vector3(1.0 / sb.size.x, 1.0 / sb.size.y, 0.9 / sb.size.z)
+					mi2.rotation.y = yaw
+					mi2.position = Vector3(q.x + 0.5, 0, q.y + 0.5)
+					parent.add_child(mi2)
 			for q in run:
 				var item := ""
-				if q.distance_to(keeper) < 1.5 and not till_done:
-					item = "el_register" if not diner else "el_coffee"
+				var mine := false
+				if not till_done and q.distance_to(keeper) < 1.5:
+					item = TILL.get(shop, "mall_register")
 					till_done = true
-				elif rng.randf() < 0.55:
+					mine = true
+				elif rng.randf() < 0.45:
 					item = goods[rng.randi_range(0, goods.size() - 1)]
 				if item == "" or piece(item) == null:
 					continue
 				var t := MeshInstance3D.new()
 				t.mesh = piece(item)
-				var turn := PI if item in ["el_register", "el_monitor", "el_coffee"] else rng.randf_range(-0.5, 0.5)
-				t.position = Vector3(q.x + 0.5, 0.98, q.y + 0.5) + Basis(Vector3.UP, yaw) * Vector3(rng.randf_range(-0.15, 0.15), 0, -0.08)
-				t.rotation.y = yaw + turn
+				var back := Basis(Vector3.UP, yaw)
+				if mine:
+					# by the keeper, at the back edge of the counter, its front (keys, screen) turned to them
+					t.position = Vector3(q.x + 0.5, 1.0, q.y + 0.5) + back * Vector3(0, 0, -0.2)
+					t.rotation.y = yaw + PI
+				else:
+					t.position = Vector3(q.x + 0.5, 1.0, q.y + 0.5) + back * Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.15, 0.05))
+					t.rotation.y = yaw + rng.randf_range(-0.5, 0.5)
 				parent.add_child(t)
 
 

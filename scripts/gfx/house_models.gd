@@ -19,28 +19,28 @@ const LOCKED_DOOR := Color("#b3262c")
 ## The houses each style builds on its plots (small ones: a plot is 4 or 5 tiles wide) and, larger, on its outskirts.
 ## plan() steers away from the tall narrow ones (townhouse, tower house) unless the style is all towers.
 const PLOT_HOUSES := {
-	"coastal": ["cape-cod", "i-house", "central-hallway", "gable-front", "side-hall", "row-cottage", "saltbox", "storey-and-half", "double-pen", "tiny-house", "townhouse"],
-	"island": ["rondavel", "roundhouse", "stilt-house", "queenslander", "tiny-house", "trullo"],
-	"adobe": ["trullo", "rondavel", "single-pen", "mews", "tiny-house", "izba"],
-	"western": ["single-pen", "log-cabin", "double-pen", "saddlebag", "tiny-house", "gable-front", "side-hall"],
-	"mining": ["log-cabin", "izba", "a-frame", "single-pen", "dacha", "double-pen"],
-	"steampunk": ["townhouse", "row-cottage", "tower-house", "mews", "side-hall", "gable-front", "i-house"],
-	"hotspring": ["machiya", "mews", "single-pen", "tiny-house", "izba"],
-	"jungle": ["roundhouse", "rondavel", "stilt-house", "queenslander", "tiny-house"],
-	"town": ["hall-parlor", "mews", "storey-and-half", "cape-cod", "gambrel", "hip-dormers", "i-house", "side-hall", "gable-front", "row-cottage"],
-	"gothic": ["tower-house", "townhouse", "side-hall", "mews", "gable-front", "georgian-cottage"],
+	"coastal": ["cape-cod", "i-house", "central-hallway", "gable-front", "side-hall", "row-cottage", "saltbox", "storey-and-half", "double-pen", "tiny-house", "townhouse", "foursquare"],
+	"island": ["rondavel", "roundhouse", "stilt-house", "queenslander", "tiny-house", "trullo", "yurt"],
+	"adobe": ["trullo", "rondavel", "single-pen", "mews", "tiny-house", "izba", "roundhouse"],
+	"western": ["single-pen", "log-cabin", "double-pen", "saddlebag", "tiny-house", "gable-front", "side-hall", "central-hallway", "dacha"],
+	"mining": ["log-cabin", "izba", "a-frame", "single-pen", "dacha", "double-pen", "foursquare", "saltbox"],
+	"steampunk": ["townhouse", "row-cottage", "tower-house", "mews", "side-hall", "gable-front", "i-house", "foursquare", "central-hallway"],
+	"hotspring": ["machiya", "mews", "single-pen", "tiny-house", "izba", "dacha", "central-hallway"],
+	"jungle": ["roundhouse", "rondavel", "stilt-house", "queenslander", "tiny-house", "yurt", "trullo"],
+	"town": ["hall-parlor", "mews", "storey-and-half", "cape-cod", "gambrel", "hip-dormers", "i-house", "side-hall", "gable-front", "row-cottage", "saltbox", "central-hallway", "foursquare", "dacha"],
+	"gothic": ["tower-house", "townhouse", "side-hall", "mews", "gable-front", "georgian-cottage", "saltbox", "foursquare"],
 }
 const OUTSKIRT_HOUSES := {
-	"coastal": ["colonial", "cape-cod", "saltbox", "queen-anne", "foursquare", "eaves-front", "north-shore"],
-	"island": ["stilt-house", "queenslander", "longhouse", "roundhouse", "rondavel"],
-	"adobe": ["pueblo", "riad", "patio-house", "courtyard", "trullo"],
-	"western": ["ranch", "dogtrot", "barndominium", "log-cabin", "saddlebag", "double-pen"],
-	"mining": ["chalet", "a-frame", "izba", "dacha", "log-cabin", "barndominium"],
-	"steampunk": ["mansard", "federal", "maisonette-stack", "terrace", "tower-house", "townhouse"],
-	"hotspring": ["machiya", "siheyuan", "longhouse", "mews"],
-	"jungle": ["stilt-house", "roundhouse", "longhouse", "queenslander", "rondavel"],
-	"town": ["queen-anne", "gable-and-wing", "manor", "hip-dormers", "villa", "storey-and-half"],
-	"gothic": ["manor", "mansard", "tower-house", "georgian-house", "palladian"],
+	"coastal": ["colonial", "cape-cod", "saltbox", "queen-anne", "foursquare", "eaves-front", "north-shore", "l-plan", "t-plan", "gable-and-wing", "colonial-wing", "charleston-single"],
+	"island": ["stilt-house", "queenslander", "longhouse", "roundhouse", "rondavel", "patio-house", "courtyard"],
+	"adobe": ["pueblo", "riad", "patio-house", "courtyard", "trullo", "u-plan", "h-plan", "atrium-house", "z-plan"],
+	"western": ["ranch", "dogtrot", "barndominium", "log-cabin", "saddlebag", "double-pen", "l-plan", "t-plan", "california-ranch", "z-plan"],
+	"mining": ["chalet", "a-frame", "izba", "dacha", "log-cabin", "barndominium", "l-plan-two", "t-plan", "cross-plan"],
+	"steampunk": ["mansard", "federal", "maisonette-stack", "terrace", "tower-house", "townhouse", "h-plan", "u-plan", "l-plan-two", "semi-detached"],
+	"hotspring": ["machiya", "siheyuan", "longhouse", "mews", "courtyard", "patio-house"],
+	"jungle": ["stilt-house", "roundhouse", "longhouse", "queenslander", "rondavel", "courtyard", "patio-house", "pinwheel"],
+	"town": ["queen-anne", "gable-and-wing", "manor", "hip-dormers", "villa", "storey-and-half", "l-plan", "cross-plan", "t-plan", "pinwheel", "u-plan"],
+	"gothic": ["manor", "mansard", "tower-house", "georgian-house", "palladian", "h-plan", "l-plan-two", "cross-plan"],
 }
 ## Skins: shell (walls), roof, trim (frames), door, extras (steps, decks, chimneys), all tiles of the pack.
 const SKINS := {
@@ -80,8 +80,11 @@ const SKINS := {
 		["ashlar_grey", "slate_grey", "trim_charcoal", "door_dark", "stone_step"],
 		["clapboard_grey", "slate_grey", "trim_charcoal", "door_dark", "stone_step"]],
 }
-## Houses with a shape of their own (porches, wings, dormers, round walls, stilts): picked over plain boxes.
-const CHARACTER := ["cape-cod", "saltbox", "gambrel", "gable-and-wing", "queen-anne", "hip-dormers", "storey-and-half",
+## Houses with a shape of their own (porches, wings, dormers, round walls, stilts, L and T plans, courtyards): picked
+## over plain boxes.
+const CHARACTER := ["central-hallway", "foursquare", "yurt", "l-plan", "l-plan-two", "t-plan", "cross-plan", "u-plan",
+	"h-plan", "z-plan", "pinwheel", "patio-house", "courtyard", "colonial-wing", "charleston-single", "california-ranch",
+	"atrium-house", "siheyuan", "cape-cod", "saltbox", "gambrel", "gable-and-wing", "queen-anne", "hip-dormers", "storey-and-half",
 	"rondavel", "roundhouse", "trullo", "stilt-house", "queenslander", "a-frame", "chalet", "log-cabin", "dogtrot", "izba",
 	"machiya", "mews", "tower-house", "dacha", "eaves-front", "colonial", "pyramidal", "georgian-cottage"]
 ## Shops (a wider plot, and a shop front added to the house) may also use these.

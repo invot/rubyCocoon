@@ -26,6 +26,7 @@ const ROOM_CHARS := {
 	"=": MapGen.BENCH, "~": MapGen.FOUNTAIN, "Y": MapGen.CRYSTAL, "D": MapGen.MAT, "%": MapGen.LAVA,
 	">": MapGen.STAIRS_UP, "<": MapGen.STAIRS_DOWN, "g": MapGen.MIST, "H": MapGen.HEALER, "I": MapGen.INCUBATOR,
 	"K": MapGen.KENNEL, "d": MapGen.IDOOR, "L": MapGen.LOCKED, "Z": MapGen.LOCKED, " ": MapGen.IVOID,
+	"/": MapGen.IDIAG_A, "\\": MapGen.IDIAG_B,
 }
 ## Tiles drawn as furniture (see room_builder.gd KINDS): the furniture letters of interior_maps.gd plus the older
 ## room tiles that are furniture too.
@@ -593,6 +594,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				n["wander"] = false
 			else:
 				n["facing"] = room_facing(m, n["pos"])
+				# visitors and people at home walk about the room (see world.gd _roam)
+				if n.get("kind", "") in ["villager", "resident"]:
+					n["roam"] = true
 	for t in mats:
 		m["exits"][t] = {"to": parent, "spawn": b["door"] + Vector2i(0, 1), "face": Vector2i(0, 1)}
 	for t in ups:
@@ -711,7 +715,8 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			return {"kind": "story", "id": "kennel_keeper", "name": "Kennel Keeper Pip", "pos": p, "facing": Vector2i(0, 1),
 				"look": CENTER_UNIFORM.merged({"skin": "#c8946a", "hair": "#5a3a22", "hair_style": 0, "apron": "#7ab04a"}, true)}
 		"guide":
-			return {"kind": "story", "id": "center_guide", "name": "Guide Dottie", "pos": p, "facing": Vector2i(0, 1),
+			# she walks about the front of the room, ready to help (see world.gd _roam)
+			return {"kind": "story", "id": "center_guide", "name": "Guide Dottie", "pos": p, "facing": Vector2i(0, 1), "roam": true,
 				"look": CENTER_UNIFORM.merged({"skin": "#f0c8a0", "hair": "#f0d070", "hair_style": 1}, true)}
 		"receptionist":
 			# Gearhart Industries' brass-trimmed company uniform

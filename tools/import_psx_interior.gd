@@ -66,18 +66,20 @@ const PIECES := {
 	"window": ["geometry/WindowWood.glb", 0], "window_2": ["geometry/windowWood3.glb", 0],
 }
 
-## Shop, diner and kitchen fittings from Elbolilloduro's environment packs (each a node out of the pack's scene):
+## Shop, diner and kitchen fittings from Elbolilloduro's environment packs (each a node out of the pack's scene) and
+## the till from heyheythere's PSX Mall Kit:
 ## name: [source under psx/Environments, degrees to turn so it faces +z, height in game units]. The packs' own scales
 ## differ, so each is sized by its height. (The diner's vending machine and soda fountain are left out: they carry a
 ## real drinks brand.)
 const EB := "Environments/"
 const FITTINGS := {
+	"mall_register": ["PSX Mall Kit Free - Supermarket Kit Sampler (heyheythere)/glb/register.glb", 0, 0.3],
+	"el_display": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Mostrator", -90, 1.0],
 	"el_booth": ["DINER (Elbolilloduro)/Models/Objects.fbx#Seat", -90, 1.05],
 	"el_diner_table": ["DINER (Elbolilloduro)/Models/Objects.fbx#Table", 0, 0.74],
 	"el_coffee": ["DINER (Elbolilloduro)/Models/Objects.fbx#Coffee_machine", 0, 0.42],
-	"el_register": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Cash_register", 0, 0.2],
 	"el_coffee_maker": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Coffee_maker", 0, 0.42],
-	"el_monitor": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Monitor", -90, 0.4],
+	"el_monitor": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Monitor", 65, 0.4],
 	"el_slush": ["Gas station (Elbolilloduro)/Models/Gas_station_Props.fbx#ice_slush_machine", 0, 0.62],
 	"el_microwave": ["Trailer Park (Elbolilloduro)/Models/Trailer_Park_Props.fbx#Microwave", -90, 0.28],
 	"el_toaster": ["Trailer Park (Elbolilloduro)/Models/Trailer_Park_Props.fbx#Toaster", 0, 0.2],

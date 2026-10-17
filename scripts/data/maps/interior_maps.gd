@@ -34,8 +34,8 @@ const FURNITURE := {
 const ROOMS := {
 	## Every Beast Center is the same 50s diner. Each machine has its own bay along the back wall: the soda-can healing
 	## machine (H), the storage terminal (M), the nurse's counter with her egg incubator (1, I) and the merge altar (A).
-	## Through the side door is the kennel: Pip (4) behind the counter, the pens (K) behind him. Guide Dottie (2) has an
-	## info desk by the entrance.
+	## Through the side door is the kennel: Pip (4) behind the counter, the pens (K) behind him. Guide Dottie (2) walks
+	## about the room by the entrance.
 	"center": {
 		"wall": "#eef6f2", "rug": "#d8283a", "checker": true,
 		"npcs": {"1": "keeper", "2": "guide", "3": "patron", "4": "kennel"},
@@ -49,8 +49,8 @@ const ROOMS := {
 			"#T.T#:::::::::::::::3:#=t=....#",
 			"#...#=t=:::::::::::=t=#.......#",
 			"#...d:::::::::::::p:::::......#",
-			"#u.u#::::::::::::C2C:::.......#",
-			"#...#::::::::::::CCC::#p.....p#",
+			"#u.u#:::::::::::::2::::.......#",
+			"#...#:::::::::::::::::#p.....p#",
 			"#..z#::::::::P::::::::#.......#",
 			"#############DD################",
 		],
@@ -171,8 +171,8 @@ const ROOMS := {
 		"wall": "#c8c0b0", "rug": "#b03a3a",
 		"npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"},
 		"rows": [
-			"#####################    ",
-			"#===================#    ",
+			"  #################      ",
+			" /=================\\     ",
 			"#=::::::::3::::::::=#    ",
 			"#=:xxxxxxxxxxxxxxx:=#    ",
 			"#::x:::::::::::::x::#    ",
@@ -271,8 +271,8 @@ const ROOMS := {
 		"wall": "#d0d8e0", "rug": "#3a5a8a",
 		"npcs": {"1": "keeper", "2": "patron"},
 		"rows": [
-			"#######w#######w###",
-			"#T.u#e.e.e.e.e.e.e#",
+			"#######w#######w#  ",
+			"#T.u#e.e.e.e.e.e.\\ ",
 			"#...d:::::::::::::#",
 			"#..z#e.e:::::::e.e#",
 			"#####::::::oo:::2:#",
@@ -301,8 +301,8 @@ const ROOMS := {
 		"wall": "#c0c8e8", "rug": "#8a2a3a",
 		"npcs": {"1": "keeper", "2": "patron"},
 		"rows": [
-			"##Z#w#####w####    ",
-			"#p::::nnn::::p#    ",
+			"  ##Z#####w##      ",
+			" /::::nnn::::\\     ",
 			"#rrrrrC1Crrrrr#    ",
 			"#rrrrrCCCrrrrr#####",
 			"#.............#T.u#",
@@ -361,8 +361,8 @@ const ROOMS := {
 		"wall": "#6a4a7a", "rug": "#5a2a6a",
 		"npcs": {"1": "keeper"},
 		"rows": [
-			"####wZw####",
-			"#p..p1p..p#",
+			"  ##wZw##  ",
+			" /..p1p..\\ ",
 			"#...YYY...#",
 			"#rrrrrrrrr#",
 			"#rrrrrrrrr#",
@@ -410,8 +410,8 @@ const ROOMS := {
 		"wall": "#d8e0c8", "rug": "#4a6a8a",
 		"npcs": {"1": "resident", "2": "resident"},
 		"rows": [
-			"###w#####w#####",
-			"#UU.T#NbN..J.R#",
+			"###w#####w###  ",
+			"#UU.T#NbN..JR\\ ",
 			"#....#.b...J..#",
 			"#u...#.......Q#",
 			"#W...#p.....cE#",
@@ -706,11 +706,11 @@ const ROOMS := {
 		"wall": "#6a6a74", "rug": "#5a1a3a",
 		"npcs": {"1": "nyx", "2": "grunt", "3": "grunt"},
 		"rows": [
-			"######w###w######",
-			"#>o...pAAAp...o.#",
-			"#.......1.......Z",
+			"######w###w####  ",
+			"#>o...pAAAp...o\\ ",
+			"#.......1.......#",
 			"#o.............o#",
-			"#...2..rrr..3...#",
+			"#...2..rrr..3...Z",
 			"#.===..rrr..===.#",
 			"#......rrr......#",
 			"#.===..rrr..===.#",

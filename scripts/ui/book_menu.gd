@@ -934,6 +934,7 @@ func _credits() -> void:
 	await UI.say([
 		"Ruby Cocoon. Thank you for playing!",
 		"PSX art: chilly_durango, Screaming Brain Studios, Foxhead, Elegant Crow and Caliber Creations; RetroGround Free by Binbun3D (CC BY 4.0); PSX Forest, Cemetery, Castle and Western Town Kits by heyheythere (CC BY 4.0). People: Characters PSX by Elbolilloduro; the hero by yugg0 (base mesh by Vinrax).",
+		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant.",
 		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
 		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
 		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); fonts BoldPixels and Lunchtime Doubly So.",

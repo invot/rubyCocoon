@@ -30,6 +30,31 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
 - **PSX The Island Pack** by Caliber Creations, https://caliberuk.itch.io/psx-the-island-pack (palms, beach
   plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
 
+### Towns and buildings (`assets/psx/houses/`, `assets/psx/exterior/`, `assets/psx/interior/`)
+Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd` and `tools/import_psx_interior.gd`.
+*Changes made:* models merged, centred, turned to face one way and scaled to the game's people; textures shrunk to
+128 px or less; houses re-skinned per town from the pack's own tiles; wall sections split so each building's own wall
+finish shows through; counters, booths and street furniture stretched to fit their tiles.
+- **PS1 House Pack - 100 Low Poly Houses, Textured Inside and Out** by najjar320,
+  https://najjar320.itch.io/ps1-house-pack-100-low-poly-houses (the houses and shops). Free for commercial use; credit
+  appreciated, not required; the files may not be redistributed.
+- **PSX modular house interior pack** by DissonantVoid, https://dissonantvoid.itch.io/psx-retro-interior-pack
+  (furniture, kitchens, bathrooms, beds, doors, windows, wall and floor textures). Free for commercial use; the
+  files may not be redistributed.
+- **Retro Modular House Pack** by Elegant Crow, CC0, https://elegantcrow.itch.io/retro-modular-house-pack (wall
+  sections with doors, windows and shutters).
+- **DINER**, **6TWELVE** and **Trailer Park** by Elbolilloduro, https://elbolilloduro.itch.io (shop counters, diner
+  booths and tables, coffee machines, kitchen appliances, lamps, plants and ornaments). Free for commercial use; the
+  files may not be re-uploaded.
+- **PSX Mall Kit Free** by heyheythere - https://heyheythere.itch.io/psx-mall-kit-free - CC BY 4.0 (the till).
+- **PSX Building Kit Free** by heyheythere - https://heyheythere.itch.io/psx-building-kit-free - CC BY 4.0 (chimney).
+- **Retro 3D Assets Pack - Urban Props #1**: 3D Model by Conor McKenna (CyberThreat/Aphelios),
+  https://cyberthreat.itch.io/retro-3d-style-assets-pack-1-urban-props, licensed under CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/) (benches, bins, hydrants, air conditioners, dumpsters).
+- **PSX Dungeon Boxes and Barrels Pack** by Games by McSteeg, https://mcsteeg.itch.io (crates and barrels). Free for
+  commercial use; the files may not be redistributed.
+- **PSX style modular hedges** by valsekamerplant, CC0, https://valsekamerplant.itch.io/psx-style-hedges.
+
 ### Beasts (`assets/psx/beasts/`, made by `tools/import_psx_beasts.gd` and `tools/make_beast_icons.gd`)
 *Changes made:* models turned, centred and scaled to one size; textures shrunk to 128 px; every model is
 recoloured in the game with each beast's own colours (and its menu icon rendered from it and recoloured the same way).

@@ -1246,16 +1246,16 @@ func _build_npcs() -> void:
 			node.add_child(mark)
 			n["mark"] = mark
 		if n.get("story", false):
-			var st := Label3D.new()
-			st.text = "▼"
-			st.font_size = 56
-			st.modulate = Color("#ffd060")
-			st.outline_size = 10
-			st.pixel_size = 0.009
-			st.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			st.position = Vector3(0, 2.1 if n.get("beast_genes", null) == null else 2.8, 0)
+			# someone with something to tell you: a glowing crystal over their head, spinning slowly and bobbing
+			var st := MeshInstance3D.new()
+			st.mesh = _story_crystal()
+			st.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var top := 2.0 if n.get("beast_genes", null) == null else 2.8
+			st.position = Vector3(0, top, 0)
 			node.add_child(st)
 			n["story_mark"] = st
+			spinners.append(st)
+			bobbers.append([st, top, 2.6])
 
 
 func _free_tile_near(p: Vector2i) -> Vector2i:
@@ -1663,6 +1663,7 @@ func _open_menu() -> void:
 
 
 func _animate_npcs(delta: float) -> void:
+	var arrived := []
 	for p in npcs:
 		var n: Dictionary = npcs[p]
 		var node: Node3D = n.get("node", null)
@@ -1672,6 +1673,19 @@ func _animate_npcs(delta: float) -> void:
 			var m: Node3D = node.get_node_or_null("Model")
 			if m:
 				m.position.y = absf(sin(_time * 2.6 + p.x)) * 0.06
+		if n.has("walking"):
+			# a step across the room, legs and arms swinging
+			var wk: Dictionary = n["walking"]
+			wk["t"] = minf(1.0, float(wk["t"]) + delta / ROAM_STEP)
+			node.position = (wk["from"] as Vector3).lerp(wk["to"], wk["t"])
+			VPer.animate(node, float(wk["t"]) * PI * 2.0, 0.8)
+			if float(wk["t"]) >= 1.0:
+				arrived.append(n)
+	for n in arrived:
+		n.erase("walking")
+		VPer.animate(n["node"], 0.0, 0.0)
+	if not busy and not frozen:
+		_roam(delta)
 	if busy:
 		return
 	if randf() < delta * 0.6:
@@ -1690,6 +1704,57 @@ func _animate_npcs(delta: float) -> void:
 				_face_npc(n2, dirs[randi() % dirs.size()])
 
 
+## Visitors in a room (n["roam"]) walk about it: every few seconds one takes a step to a free floor tile near where it
+## started. Never into a doorway, onto the mat by the door, onto the stairs, next to something you use (a counter, a
+## machine, a shelf) or another person, nor onto or next to the player, so nobody stands in your way for long.
+const ROAM_STEP := 0.6
+const ROAM_LEASH := 4
+const ROAM_FLOORS := [MapGen.IFLOOR, MapGen.ITILE, MapGen.RUG]
+
+
+func _roam(delta: float) -> void:
+	var moves := []
+	for p in npcs:
+		var n: Dictionary = npcs[p]
+		if not n.get("roam", false) or n.has("walking") or n.get("node", null) == null:
+			continue
+		n["roam_t"] = float(n.get("roam_t", randf_range(1.0, 4.0))) - delta
+		if float(n["roam_t"]) > 0.0:
+			continue
+		n["roam_t"] = randf_range(2.0, 5.0)
+		var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
+		dirs.shuffle()
+		for d in dirs:
+			var t: Vector2i = p + d
+			if _roam_free(t, p, n):
+				moves.append([p, t, d])
+				break
+	for mv in moves:
+		var n2: Dictionary = npcs[mv[0]]
+		npcs.erase(mv[0])
+		npcs[mv[1]] = n2
+		n2["pos"] = mv[1]
+		_face_npc(n2, mv[2])
+		n2["walking"] = {"from": tile_pos(mv[0]), "to": tile_pos(mv[1]), "t": 0.0}
+
+
+func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
+	if not MapGen.get_t(map, t.x, t.y) in ROAM_FLOORS or map["exits"].has(t):
+		return false
+	var home: Vector2i = n.get("home", from)
+	if absi(t.x - home.x) + absi(t.y - home.y) > ROAM_LEASH:
+		return false
+	if npcs.has(t) or items.has(t) or shards.has(t) or t == player_pos:
+		return false
+	for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+		var q: Vector2i = t + d
+		if q == player_pos or (npcs.has(q) and q != from):
+			return false
+		if MapGen.get_t(map, q.x, q.y) in PROP_CODES and MapGen.get_t(map, q.x, q.y) != MapGen.FURN:
+			return false
+	return true
+
+
 func remove_npc(n: Dictionary) -> void:
 	var node: Node3D = n.get("node", null)
 	if node:
@@ -1697,6 +1762,64 @@ func remove_npc(n: Dictionary) -> void:
 		tw.tween_property(node, "scale", Vector3(0.05, 0.05, 0.05), 0.4)
 		tw.tween_callback(node.queue_free)
 	npcs.erase(n["pos"])
+
+
+## The crystal over a person with news: a cut gem, four long facets tapering down to a point under a short crown,
+## warm gold, a little see-through, glowing softly.
+static var _crystal_mesh: ArrayMesh
+
+
+static func _story_crystal() -> ArrayMesh:
+	if _crystal_mesh != null:
+		return _crystal_mesh
+	var ring := []
+	for i in 4:
+		var a := TAU * i / 4.0 + PI / 4.0
+		ring.append(Vector3(cos(a) * 0.15, 0.0, sin(a) * 0.15))
+	var crown := Vector3(0, 0.09, 0)
+	var tip := Vector3(0, -0.36, 0)
+	var vs := PackedVector3Array()
+	var ns := PackedVector3Array()
+	var cs := PackedColorArray()
+	for i in 4:
+		var r0: Vector3 = ring[i]
+		var r1: Vector3 = ring[(i + 1) % 4]
+		# each face flat-shaded, wound to face outwards; the lower facets a shade deeper than the crown
+		for tri in [[crown, r1, r0, Color(1.0, 0.96, 0.7)], [tip, r0, r1, Color(0.82, 0.58, 0.16) if i % 2 == 0 else Color(1.0, 0.8, 0.32)]]:
+			var p0: Vector3 = tri[0]
+			var p1: Vector3 = tri[1]
+			var p2: Vector3 = tri[2]
+			var nrm := (p1 - p0).cross(p2 - p0).normalized()
+			if nrm.dot((p0 + p1 + p2) / 3.0) < 0.0:
+				var t := p1
+				p1 = p2
+				p2 = t
+				nrm = -nrm
+			for v in [p0, p1, p2]:
+				vs.append(v)
+				ns.append(nrm)
+				cs.append(tri[3])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vs
+	arrays[Mesh.ARRAY_NORMAL] = ns
+	arrays[Mesh.ARRAY_COLOR] = cs
+	_crystal_mesh = ArrayMesh.new()
+	_crystal_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.albedo_color = Color(1.0, 0.9, 0.55, 0.85)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.metallic = 0.3
+	m.roughness = 0.15
+	m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	m.emission_enabled = true
+	m.emission = Color("#ffcf4a")
+	m.emission_energy_multiplier = 0.45
+	m.rim_enabled = true
+	m.rim = 0.6
+	_crystal_mesh.surface_set_material(0, m)
+	return _crystal_mesh
 
 
 func refresh_npc_marks() -> void:
@@ -2562,6 +2685,34 @@ func play_heal_fx(count: int) -> void:
 
 
 # ================================================================ interiors
+## A scenery model (voxel_manifest.gd) stretched to `size` (width, height, depth), standing on the floor at `center`.
+func _room_model(name: String, center: Vector3, size: Vector3) -> Node3D:
+	var m: Mesh = VA.mesh(name)
+	if m == null:
+		return null
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	var bb := m.get_aabb()
+	mi.scale = Vector3(size.x / maxf(bb.size.x, 0.001), size.y / maxf(bb.size.y, 0.001), size.z / maxf(bb.size.z, 0.001))
+	mi.position = center - Vector3(bb.get_center().x * mi.scale.x, bb.position.y * mi.scale.y, bb.get_center().z * mi.scale.z)
+	add_child(mi)
+	return mi
+
+
+## The same for a piece of the interior pack (assets/psx/interior).
+func _room_model_interior(name: String, center: Vector3, size: Vector3) -> Node3D:
+	var m := RoomBuilder.piece(name)
+	if m == null:
+		return null
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	var bb := m.get_aabb()
+	mi.scale = Vector3(size.x / maxf(bb.size.x, 0.001), size.y / maxf(bb.size.y, 0.001), size.z / maxf(bb.size.z, 0.001))
+	mi.position = center - Vector3(bb.get_center().x * mi.scale.x, bb.position.y * mi.scale.y, bb.get_center().z * mi.scale.z)
+	add_child(mi)
+	return mi
+
+
 ## The kilim closest in colour to `col`.
 func _rug_pattern(col: Color) -> String:
 	var best := "rug_red"
@@ -2706,7 +2857,7 @@ func _build_room() -> void:
 							for ry in [0.45, 0.85]:
 								k.box("color", center + along * 0.5 + Vector3(0, ry, 0), Vector3(0.06, 0.06, 0.06) + along * 0.94, wall_col.darkened(0.35))
 					continue
-				MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.FURN, MapGen.IVOID:
+				MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.FURN, MapGen.IVOID, MapGen.IDIAG_A, MapGen.IDIAG_B:
 					continue
 				MapGen.RUG, MapGen.MAT:
 					if not open_air:
@@ -2852,11 +3003,11 @@ func _build_room() -> void:
 				MapGen.TERMINAL when open_air:
 					k.box("tin", center + Vector3(0, 0.75, -0.1), Vector3(0.8, 1.5, 0.6), Color("#8a96a8"))
 				MapGen.PILLAR:
-					k.box("stone", center + Vector3(0, 1.45, 0), Vector3(0.6, 2.9, 0.6), stone)
-					k.box("stone", center + Vector3(0, 0.1, 0), Vector3(0.8, 0.2, 0.8), stone.darkened(0.1))
-					k.box("stone", center + Vector3(0, 2.8, 0), Vector3(0.8, 0.2, 0.8), stone.darkened(0.1))
+					# the castle kit's round stone pillar, floor to ceiling
+					_room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.7, 2.85, 0.7))
 				MapGen.EXHIBIT:
-					k.box("stone", center + Vector3(0, 0.35, 0), Vector3(0.75, 0.7, 0.75), stone)
+					# a short round stone plinth (the same pillar, cut down) with the beast on top
+					_room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.72, 0.7, 0.72))
 					var race: int = map["exhibits"].get(Vector2i(x, y), 0)
 					var ex := MeshInstance3D.new()
 					ex.mesh = VB.mesh(RaceDB.genes(race))
@@ -2877,8 +3028,34 @@ func _build_room() -> void:
 					k.box("stone", center + Vector3(0, 0.175, 0), Vector3(1.0, 0.35, 1.0), stone)
 					k.box("glow", center + Vector3(0, 0.36, 0), Vector3(0.8, 0.05, 0.8), Color("#4aa8ff"))
 				MapGen.CRYSTAL:
-					k.box("color", center + Vector3(0, 0.35, 0), Vector3(0.95, 0.7, 0.95), Color("#3a1a4a"))
-					k.box("glow", center + Vector3(0, 0.95, 0), Vector3(0.4, 0.4, 0.4), Color("#7affff"))
+					# a round table under a violet cloth, the crystal ball glowing on a little stand
+					var tm: Node3D = _room_model_interior("table_round", center, Vector3(0.95, 0.78, 0.95))
+					if tm != null:
+						var cloth := StandardMaterial3D.new()
+						cloth.albedo_color = Color("#5a2a7a")
+						cloth.roughness = 0.9
+						(tm as MeshInstance3D).material_override = cloth
+					var ball := MeshInstance3D.new()
+					var sph := SphereMesh.new()
+					sph.radius = 0.17
+					sph.height = 0.34
+					sph.radial_segments = 10
+					sph.rings = 6
+					ball.mesh = sph
+					var bm := StandardMaterial3D.new()
+					bm.albedo_color = Color("#9affff")
+					bm.emission_enabled = true
+					bm.emission = Color("#5adcff")
+					bm.emission_energy_multiplier = 1.6
+					ball.material_override = bm
+					ball.position = center + Vector3(0, 0.98, 0)
+					add_child(ball)
+					var cl := OmniLight3D.new()
+					cl.light_color = Color("#7affff")
+					cl.light_energy = 0.6
+					cl.omni_range = 2.2
+					cl.position = center + Vector3(0, 1.1, 0)
+					add_child(cl)
 	if open_air:
 		_build_tower_drop(k, w, h, wall_col, rng)
 	var mi := MeshInstance3D.new()

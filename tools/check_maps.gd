@@ -74,7 +74,8 @@ func _check(m: Dictionary) -> Array:
 			elif MapGen.get_t(m, q.x, q.y) in [MapGen.COUNTER, MapGen.CRYSTAL, MapGen.TABLE] and seen.has(q + d):
 				adj = true
 		var staff: bool = n.get("kind", "") == "keeper" or n.get("id", "") in ["center_guide", "kennel_keeper", "receptionist"]
-		if m["kind"] == "interior" and staff and not walled_in:
+		# (staff who walk about the room, like the Beast Center's guide, are meant to be walked up to)
+		if m["kind"] == "interior" and staff and not walled_in and not n.get("roam", false):
 			problems.append("%s at %s can be walked up to; staff belong behind a counter" % [n.get("name", "keeper"), n["pos"]])
 		if not adj:
 			problems.append("%s at %s unreachable" % [n.get("kind", "npc"), n["pos"]])

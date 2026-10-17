@@ -127,7 +127,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - The **storage terminal** and the **merge altar** each have a bay of their own.
   - Nurse Clover at the counter hatches eggs in the **incubator** beside her (it sparkles when an egg hatches), and runs storage and the merge altar. Saving is done from the Start book.
   - Through the side door is the **kennel**. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adopt one, or drop one of yours off for another trainer (Pip thanks you with a little gold). Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
-  - Guide Dottie explains how it all works from her info desk by the entrance.
+  - Guide Dottie walks about the room by the entrance and explains how it all works.
   - All three wear the Beast Center uniform: a white polo with red collar and cuffs, a name badge and a diner paper hat (Pip adds a green apron).
 - **Saving**: ten save slots.
   - A new game takes the first empty slot the first time you save; after that every save goes back into the same slot.

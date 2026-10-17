@@ -18,7 +18,10 @@ enum { GRASS, PATH, TALL, TREE, WATER, ROCK, FLOWERS, BUILDING, DOOR, FENCE, PLA
 	# outside an L-shaped building's walls: nothing at all
 	IVOID,
 	# street furniture beside a building (a bench, barrels, a bin...): see world.gd _build_street_props
-	STREET_PROP }
+	STREET_PROP,
+	# a wall cutting across a room's corner at 45 degrees: "/" runs from the tile's bottom-left to its top-right corner,
+	# "\\" from its top-left to its bottom-right (see room_builder.gd)
+	IDIAG_A, IDIAG_B }
 
 const WALKABLE := [GRASS, PATH, TALL, FLOWERS, PLAZA, SAND, BRIDGE, IFLOOR, ITILE, RUG, RING, MAT, STAIRS_UP, STAIRS_DOWN, MIST, ICE, ROPE,
 	IDOOR]
