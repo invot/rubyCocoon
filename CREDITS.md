@@ -42,7 +42,7 @@ finish shows through; counters, booths and street furniture stretched to fit the
   (furniture, kitchens, bathrooms, beds, doors, windows, wall and floor textures). Free for commercial use; the
   files may not be redistributed.
 - **Retro Modular House Pack** by Elegant Crow, CC0, https://elegantcrow.itch.io/retro-modular-house-pack (wall
-  sections with doors, windows and shutters).
+  sections with doors, windows and shutters: shop fronts and the landmarks).
 - **DINER**, **6TWELVE** and **Trailer Park** by Elbolilloduro, https://elbolilloduro.itch.io (shop counters, diner
   booths and tables, coffee machines, kitchen appliances, lamps, plants and ornaments). Free for commercial use; the
   files may not be re-uploaded.

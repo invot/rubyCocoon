@@ -171,6 +171,14 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
+- **Landmarks** are built from the wall sections of the Retro Modular House Pack (`assets/psx/exterior`: doors,
+  windows and frames, laid round any outline by `HouseBuilder.span`), each with a shape of its own and its door on
+  the map's door tile: the **arena** is an oval stadium (an arcade below, a parapet, open stands round a sand ring, a
+  striped awning and pennants) behind a crenellated gatehouse between two turrets, in each region's stone;
+  **Sparkwire Electronics** is a streamlined shop with a curved glass corner, a wrap-round canopy, a drum carrying a
+  blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
+  stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Thunderhawk on the rail.
+  Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
 - **Past the map's edge** a ring of scenery nobody can reach keeps every edge and corner hidden: a deep wood to the
   north and sides, only shrubs and rocks to the south (between the camera and the map), the sea running on past
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
