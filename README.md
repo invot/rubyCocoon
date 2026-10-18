@@ -183,6 +183,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
   stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Thunderhawk on the rail.
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
+- **Inside**, walls between the camera and you fade rather than sink (`room_builder.gd` `fade`): in a cone opening from
+  you towards the camera, a wall ahead of you is clear, about 70% opaque while you pass through its doorway, and solid
+  once it's behind you. Walls right beside you stay solid; doors, windows and pictures fade with their wall.
 - **Past the map's edge** a ring of scenery nobody can reach keeps every edge and corner hidden: a deep wood to the
   north and sides, only shrubs and rocks to the south (between the camera and the map), the sea running on past
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.

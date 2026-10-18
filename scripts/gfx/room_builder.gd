@@ -6,8 +6,8 @@ extends RefCounted
 ##
 ## Rooms: the map's "zone_rows" give each tile's kind of room (see ZONES), so a kitchen gets tiles and a bedroom
 ## carpet and wallpaper; each side of a wall takes the finish of the room it faces.
-## Walls run through the middle of their tiles, a fifth of a tile thick. Each row of walls is its own node, so the
-## world can cut away the walls between the camera and the player (see world.gd _cutaway).
+## Walls run through the middle of their tiles, a fifth of a tile thick. Each row of walls is one mesh whose vertices
+## know their tile, so the walls between the camera and the player can fade, tile by tile (see fade).
 ## Furniture: tiles with the same piece next to each other make one piece; it stands with its back to the wall it
 ## touches most, pushed right up against it, and faces into the room.
 
@@ -122,12 +122,14 @@ static func surface(tex: String, tint: Color, extra: Dictionary = {}) -> Standar
 class Mesher:
 	var surf := {}
 	var mats := {}
+	## the centre of the wall tile being built (x, z), kept in each vertex's UV2 so the tile can fade on its own
+	var tile := Vector2(-1, -1)
 
 	## Corners in order round the quad; uv runs along u_dir and v_dir (world units) from the first corner's
 	## projection onto them; shade darkens it (vertex colour).
 	func quad(key: String, mat: Material, p: Array, n: Vector3, u_dir: Vector3, v_dir: Vector3, shade := 1.0) -> void:
 		if not surf.has(key):
-			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray()]
+			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray(), PackedVector2Array()]
 			mats[key] = mat
 		var a: Array = surf[key]
 		var tris := [p[0], p[1], p[2], p[0], p[2], p[3]]
@@ -142,11 +144,12 @@ class Mesher:
 			a[1].append(n)
 			a[2].append(Vector2((v as Vector3).dot(u_dir), (v as Vector3).dot(v_dir)))
 			a[3].append(col)
+			a[4].append(tile)
 
 	## One triangle (corners in any order), facing `n`.
 	func tri(key: String, mat: Material, p: Array, n: Vector3, u_dir: Vector3, v_dir: Vector3, shade := 1.0) -> void:
 		if not surf.has(key):
-			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray()]
+			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray(), PackedVector2Array()]
 			mats[key] = mat
 		var a: Array = surf[key]
 		var p0: Vector3 = p[0]
@@ -159,6 +162,7 @@ class Mesher:
 			a[1].append(n)
 			a[2].append(Vector2((v as Vector3).dot(u_dir), (v as Vector3).dot(v_dir)))
 			a[3].append(col)
+			a[4].append(tile)
 
 	## An axis-aligned box's faces (no bottom), in one material.
 	func box(key: String, mat: Material, c: Vector3, s: Vector3, shade := 1.0) -> void:
@@ -187,6 +191,7 @@ class Mesher:
 			arrays[Mesh.ARRAY_NORMAL] = a[1]
 			arrays[Mesh.ARRAY_TEX_UV] = a[2]
 			arrays[Mesh.ARRAY_COLOR] = a[3]
+			arrays[Mesh.ARRAY_TEX_UV2] = a[4]
 			m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 			m.surface_set_material(m.get_surface_count() - 1, mats[key])
 		return m
@@ -207,6 +212,22 @@ var _row_meshers := {}
 var floor_mesher := Mesher.new()
 var lights: Array = []
 var pick_seed := 0
+
+## Fading walls (see fade): each wall tile's kind, "v" for a wall running away from the camera, "h" for the rest (the
+## walls you walk through on your way towards the camera or away from it), and how opaque it is now
+var wall_kind := {}
+var fade_alpha := {}
+## the doors, windows, plates and things hung on each wall tile, which fade with it
+var _attached := {}
+var _row_mi := {}
+var _row_shadow := {}
+var _row_tiles := {}
+var _row_fading := {}
+## each wall tile's opacity, one texel per tile, read by the walls' fade material
+var _fade_img: Image
+var _fade_tex: ImageTexture
+var _fade_mats := {}
+var _snap := true
 
 
 ## Builds everything into `p`. extra: textures by name to use instead of the pack's ("checker").
@@ -238,7 +259,127 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 		var mi := MeshInstance3D.new()
 		mi.mesh = (rb._row_meshers[y] as Mesher).mesh()
 		(rb.rows[y] as Node3D).add_child(mi)
+		rb._row_mi[y] = mi
+		# while the row fades (see fade), this keeps its shadow on the floor
+		var sh := MeshInstance3D.new()
+		sh.mesh = mi.mesh
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		sh.visible = false
+		(rb.rows[y] as Node3D).add_child(sh)
+		rb._row_shadow[y] = sh
+	rb._fade_img = Image.create(maxi(rb.w, 1), maxi(rb.h, 1), false, Image.FORMAT_R8)
+	rb._fade_img.fill(Color(1, 0, 0))
+	rb._fade_tex = ImageTexture.create_from_image(rb._fade_img)
+	for t: Vector2i in rb.wall_kind:
+		if not rb._row_tiles.has(t.y):
+			rb._row_tiles[t.y] = []
+		rb._row_tiles[t.y].append(t)
 	return rb
+
+
+# ---------------------------------------------------------------- fading walls
+## In a cone opening from the player towards the camera, a wall ahead of the player is clear, about 70% opaque while
+## they pass through it, and solid once it's behind them. Walls right beside the player, and the low front kerb,
+## stay solid. The cone: CONE_BASE tiles either side at the player, widening by CONE_SLOPE per tile ahead, its edge
+## softened over CONE_SOFT.
+const CONE_BASE := 1.1
+const CONE_SLOPE := 0.7
+const CONE_SOFT := 0.6
+const PASSING := 0.7
+const FADE_SPEED := 3.0
+const FADE_SHADER := preload("res://scripts/gfx/wall_fade.gdshader")
+
+
+## How opaque wall tile `t` should be with the player at `p`.
+func fade_target(t: Vector2i, p: Vector3) -> float:
+	if t.y >= h - 1:
+		return 1.0
+	var dx := absf(t.x + 0.5 - p.x)
+	var dz := t.y + 0.5 - p.z
+	var a := 1.0
+	if wall_kind[t] == "v":
+		# running away from the camera: clear once it's ahead of the player, solid beside them
+		a = clampf(1.0 - (dz - 0.4) / 0.5, 0.0, 1.0)
+	elif dz >= 0.0:
+		# ahead: clear, coming up to PASSING as the player steps into it
+		a = PASSING * clampf(1.0 - dz / 0.8, 0.0, 1.0)
+	else:
+		# passed through: solid again as the player steps clear of it
+		a = lerpf(PASSING, 1.0, clampf(-dz / 0.7, 0.0, 1.0))
+	var half := CONE_BASE + maxf(dz, 0.0) * CONE_SLOPE
+	return lerpf(a, 1.0, clampf((dx - half) / CONE_SOFT, 0.0, 1.0))
+
+
+## Moves every wall tile's opacity towards where the player at `p` wants it (call every frame).
+func fade(p: Vector3, delta: float) -> void:
+	# the first call (on entering) sets them straight away
+	var step := 1.0 if _snap else delta * FADE_SPEED
+	_snap = false
+	var changed := false
+	var touched := {}
+	for t: Vector2i in wall_kind:
+		var target := fade_target(t, p)
+		var a: float = fade_alpha.get(t, 1.0)
+		if a == target:
+			continue
+		a = move_toward(a, target, step)
+		fade_alpha[t] = a
+		_fade_img.set_pixel(t.x, t.y, Color(a, 0, 0))
+		changed = true
+		touched[t.y] = true
+		for gi in _attached.get(t, []):
+			if is_instance_valid(gi):
+				(gi as GeometryInstance3D).transparency = 1.0 - a
+				(gi as GeometryInstance3D).visible = a > 0.02
+	if changed:
+		_fade_tex.update(_fade_img)
+	for y in touched:
+		var fading := false
+		for t in _row_tiles.get(y, []):
+			if fade_alpha.get(t, 1.0) < 0.999:
+				fading = true
+				break
+		if fading != _row_fading.get(y, false):
+			_row_fading[y] = fading
+			_set_row_fading(y, fading)
+
+
+## A row of walls with any tile fading draws with the fade material (the rest of the time, its own, opaque). The fade
+## material is see-through, so casts no shadow: the row's shadow-only twin stands in meanwhile.
+func _set_row_fading(y: int, on: bool) -> void:
+	var mi: MeshInstance3D = _row_mi.get(y)
+	if mi == null or mi.mesh == null:
+		return
+	(_row_shadow[y] as MeshInstance3D).visible = on
+	for si in mi.mesh.get_surface_count():
+		mi.set_surface_override_material(si, _fade_mat(mi.mesh.surface_get_material(si)) if on else null)
+
+
+func _fade_mat(std: Material) -> Material:
+	if _fade_mats.has(std):
+		return _fade_mats[std]
+	var sm := ShaderMaterial.new()
+	sm.shader = FADE_SHADER
+	var bm := std as BaseMaterial3D
+	if bm != null:
+		sm.set_shader_parameter("albedo_tex", bm.albedo_texture)
+		sm.set_shader_parameter("albedo_color", bm.albedo_color)
+		sm.set_shader_parameter("uv_scale", Vector2(bm.uv1_scale.x, bm.uv1_scale.y))
+		sm.set_shader_parameter("roughness_v", bm.roughness)
+	sm.set_shader_parameter("fade_map", _fade_tex)
+	sm.set_shader_parameter("map_size", Vector2(w, h))
+	_fade_mats[std] = sm
+	return sm
+
+
+## Puts `node` on wall tile (x, y): in its row, fading with the tile.
+func _attach(x: int, y: int, node: Node3D) -> void:
+	_row(y)
+	(rows[y] as Node3D).add_child(node)
+	var t := Vector2i(x, y)
+	if not _attached.has(t):
+		_attached[t] = []
+	_attached[t].append(node)
 
 
 # ---------------------------------------------------------------- rooms
@@ -396,6 +537,9 @@ func _walls() -> void:
 			var s := wallish(x, y + 1)
 			var horiz := e or wv or (not n and not s)
 			var vert := n or s
+			# everything built for this tile from here on fades with it
+			_row(y).tile = Vector2(x + 0.5, y + 0.5)
+			wall_kind[Vector2i(x, y)] = "v" if vert and not horiz and not c in DIAGS else "h"
 			if c in DIAGS:
 				# corner to corner across the tile, each face finished like the room it faces
 				var sides := _diag_sides(x, y)
@@ -554,7 +698,7 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 			door.scale = Vector3(0.84 / bb.size.x, (top - 0.02) / bb.size.y, 1.0)
 			door.position = c
 			door.rotation.y = 0.0 if horiz else PI / 2.0
-			(rows[y] as Node3D).add_child(door)
+			_attach(x, y, door)
 		if map.get("staff_doors", {}).has(Vector2i(x, y)):
 			# a small brass plate: STAFF ONLY
 			for side in [-1.0, 1.0]:
@@ -573,8 +717,8 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 				plate.material_override = surface("brass", Color("#d8b050"))
 				plate.position = c + Vector3(0, 1.45, 0) + across * side * 0.11
 				plate.rotation.y = lab.rotation.y
-				(rows[y] as Node3D).add_child(plate)
-				(rows[y] as Node3D).add_child(lab)
+				_attach(x, y, plate)
+				_attach(x, y, lab)
 
 
 ## A box's size given its length along `along`, height, and depth across.
@@ -585,7 +729,6 @@ func _axes(along: Vector3, length: float, height: float, depth: float, horiz: bo
 ## A window in the wall: the pack's frame, sky glowing beyond the glass, and curtains on the room side of a living
 ## room or bedroom.
 func _window(x: int, y: int, horiz: bool) -> void:
-	var node: Node3D = rows[y]
 	var c := Vector3(x + 0.5, 0, y + 0.5)
 	# which side is the room?
 	var inside := Vector2i(0, 1) if horiz else Vector2i(1, 0)
@@ -600,7 +743,7 @@ func _window(x: int, y: int, horiz: bool) -> void:
 		win.scale = Vector3(0.98 / bb.size.x, (WIN_TOP - SILL) / bb.size.y, 1.6)
 		win.position = c + Vector3(0, SILL, 0)
 		win.rotation.y = yaw
-		node.add_child(win)
+		_attach(x, y, win)
 	var sky := MeshInstance3D.new()
 	var q := QuadMesh.new()
 	q.size = Vector2(0.98, WIN_TOP - SILL)
@@ -613,7 +756,7 @@ func _window(x: int, y: int, horiz: bool) -> void:
 	sky.material_override = sm
 	sky.position = c + Vector3(0, (SILL + WIN_TOP) / 2.0, 0) - Vector3(inside.x, 0, inside.y) * 0.04
 	sky.rotation.y = yaw
-	node.add_child(sky)
+	_attach(x, y, sky)
 	if z in ["living", "bedroom"]:
 		var cur := MeshInstance3D.new()
 		cur.mesh = piece(["curtains_1", "curtains_2", "curtains_3", "curtains_4"][rng.randi_range(0, 3)])
@@ -622,7 +765,7 @@ func _window(x: int, y: int, horiz: bool) -> void:
 			cur.scale = Vector3(1.3 / cb.size.x, 1.0, 1.0)
 			cur.position = c + Vector3(0, WIN_TOP + 0.25 - cb.size.y, 0) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.08)
 			cur.rotation.y = yaw
-			node.add_child(cur)
+			_attach(x, y, cur)
 	# a radiator under the sill, now and then
 	if z in ["living", "bedroom", "office", "hall"] and rng.randf() < 0.6:
 		_hang("radiator", x, y, inside, 0.12, 0.0)
@@ -950,8 +1093,8 @@ func _hang(name: String, x: int, y: int, inside: Vector2i, up: float, side: floa
 	c += Basis(Vector3.UP, yaw) * Vector3(side, 0, 0)
 	mi.position = c
 	mi.rotation.y = yaw
-	if rows.has(y):
-		(rows[y] as Node3D).add_child(mi)
+	if wall_kind.has(Vector2i(x, y)):
+		_attach(x, y, mi)
 	else:
 		parent.add_child(mi)
 

@@ -1369,8 +1369,8 @@ func _process(delta: float) -> void:
 		return
 	_animate_npcs(delta)
 	_fade_buildings(delta)
-	if interior:
-		_cutaway(delta)
+	if interior and room_walls != null:
+		room_walls.fade(player.position, delta)
 	_update_wilds(delta)
 	if moving:
 		anim_t += delta * move_speed * 1.9
@@ -1396,20 +1396,6 @@ func _process(delta: float) -> void:
 	VPer.animate(player, anim_t, _stride)
 	cam_target = player.position
 	_place_camera()
-
-
-## Walls south of the player (between them and the camera) sink to a low stub, like a dolls' house, so you can always
-## see into the room you're in; walls behind the player stand full height.
-func _cutaway(delta: float) -> void:
-	var py := player.position.z
-	for y in room_rows:
-		var n: Node3D = room_rows[y]
-		if not is_instance_valid(n) or int(y) >= map["h"] - 1:
-			continue
-		var target := 0.08 if float(y) + 0.5 > py + 0.6 else 1.0
-		if n.scale.y != target:
-			n.scale.y = move_toward(n.scale.y, target, delta * 5.0)
-			n.visible = n.scale.y > 0.02
 
 
 func _fade_buildings(delta: float) -> void:
@@ -2483,8 +2469,8 @@ func _flat_mat(col: Color, glow := 0.0, metal := 0.0, rough := 0.8) -> StandardM
 # ---------------------------------------------------------------- the kennel
 ## Pen tiles in reading order (pen i shows beast i of the town's kennel) and the beasts standing in them.
 var kennel_pens: Array = []
-## The room's walls, row by row (see room_builder.gd): rows between the camera and the player are cut down low.
-var room_rows := {}
+## The room's walls (room_builder.gd): the ones between the camera and the player fade out of the way (see its fade).
+var room_walls = null
 var _kennel_nodes: Array = []
 
 
@@ -2825,10 +2811,9 @@ func _build_room() -> void:
 	sun.rotation_degrees = Vector3(-60, 20, 0)
 	add_child(sun)
 	# floors, walls, doors, windows, furniture and a light per room (an open-air roof keeps its deck and railings)
-	room_rows = {}
+	room_walls = null
 	if not open_air:
-		var rb = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
-		room_rows = rb.rows
+		room_walls = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
 	var k := VBld.Kit.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(1, 1)
