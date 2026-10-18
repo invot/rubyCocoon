@@ -1,267 +1,81 @@
 extends "res://scripts/ui/modal.gd"
-## The battle's command panel (as in Jade Cocoon 2): you, then your three active beasts, stacked in rows.
-##   ◄ / ►  change the focused row's action (your action, or the beast's move: the side's element, neutral or Defend)
-##   A       confirm it; a move that needs a target then asks for one with ◄ / ► and A
+## Choosing the round's commands (as in Jade Cocoon 2). Nothing of its own is drawn: it drives the move bars and the
+## grids of the battle HUD (battle_bars.gd, ring_grid.gd).
+##   ◄ / ►  change the chosen bar's action: your own, or the beast's move (the side's element, neutral or Defend)
+##   A       confirm it; a move aimed at someone then picks its target with ◄ / ► (a foe on the side facing you, or
+##           their trainer when the middle of that side is down) and A
 ##   B       go back a step
-##   ▲ / ▼   move between the beasts; ▲ on the top beast or ▼ on the bottom one turns the ring to the next side with
-##           a beast standing on it (your beasts' choices are then made afresh)
-## You choose your own action first (you always act first), then the beasts'. When every standing beast has its move,
-## the round begins. Every part can be tapped too.
+##   ▲ / ▼   move between the beasts; ▲ on the top beast turns the ring anticlockwise, ▼ on the bottom one clockwise
+##           (to the next side with a beast standing on it; the beasts' choices are then made afresh)
+## You choose your own action first, then the beasts'. When every standing beast has its move, the round begins. The
+## bars and the foe's tiles can be tapped too.
 ##
-## The panel only collects choices: rows (built by battle.gd) keep their state, so the panel can close for a sub-menu
-## (items, the flute) and open again where it left off. done emits {"kind": "go"} when everything is chosen,
-## {"kind": "rotate", "dir": -1 / 1}, or {"kind": "sub", "row": i} (the focused option needs battle.gd's own menu).
-## rows: [{kind: "trainer" | "beast", beast, name, icon, sub, options: [{label, right, desc, target, disabled,
-##         sub}], sel, done, target_sel, targets: [{label, ref}], status: "" | "down" | "empty", locked}]
-## info: {side, up, down, prompt}; on_point: Callable(ref) points the battle's arrow at a target (or null).
-
-const UIKit = preload("res://scripts/ui/ui_kit.gd")
+## rows (built by battle.gd) keep their state, so the panel can close for a sub-menu (items, the flute) or a turn of
+## the ring and open again where it left off. done emits {"kind": "go"} when everything is chosen, {"kind": "rotate",
+## "dir": -1 / 1}, or {"kind": "sub", "row": i} (the chosen option needs battle.gd's own menu).
+## rows: [{kind: "trainer" | "beast", beast, options: [{label, target, disabled, desc, sub, move}], sel, done,
+##         target_sel, targets: [{label, ref, tile, grid}], status: "" | "down" | "empty", locked}]
+## info: {up, down, prompt}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
+##        bars, foe_grid, ally_grid (to listen for taps)}
 
 var rows: Array = []
 var info: Dictionary = {}
 var focus := 0
 var picking := false
-var on_point: Callable
 var targets_for: Callable
-
-var _panel: PanelContainer
-var _row_nodes: Array = []
-var _desc: Label
-var _side_label: Label
-var _hint_label: Label
-var _up_btn: Button
-var _down_btn: Button
+var hooks: Dictionary = {}
 
 
-func setup(_rows: Array, _info: Dictionary, _focus: int, _targets_for: Callable, _on_point: Callable) -> Control:
+func setup(_rows: Array, _info: Dictionary, _focus: int, _targets_for: Callable, _hooks: Dictionary) -> Control:
 	rows = _rows
 	info = _info
 	focus = clampi(_focus, 0, rows.size() - 1)
 	targets_for = _targets_for
-	on_point = _on_point
+	hooks = _hooks
 	return self
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var touch: bool = UI.is_touch()
-	var row_h := 56.0 if touch else 42.0
-	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", UIKit.box("dialogue", Vector4(0, -4, 0, -2)))
-	# desktop: the bottom-right corner, clear of your ring; phones: between the d-pad and A / B
-	var vw := get_viewport_rect().size.x
-	var w := 640.0 if not touch else minf(900.0, vw - 600.0)
-	_panel.custom_minimum_size = Vector2(w, 0)
-	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	var bottom := 10.0 + (UI.bottom_reserve() if is_instance_valid(UI) else 0.0)
-	if touch:
-		_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-		_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		_panel.offset_left = -w / 2.0
-		_panel.offset_right = w / 2.0
-	else:
-		_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		_panel.offset_left = -16.0 - w
-		_panel.offset_right = -16.0
-	_panel.offset_bottom = -bottom
-	_panel.offset_top = -bottom
-	add_child(_panel)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 2)
-	_panel.add_child(vb)
-	# the side facing the foe, and where ▲ / ▼ would turn the ring
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 12)
-	vb.add_child(head)
-	_side_label = UIKit.header("", UIKit.GOLD)
-	head.add_child(_side_label)
-	var sp := Control.new()
-	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(sp)
-	_hint_label = UIKit.label("", 20, UIKit.DIM)
-	_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	head.add_child(_hint_label)
-	for i in rows.size():
-		if i == 1:
-			_up_btn = _turn_button(-1)
-			vb.add_child(_up_btn)
-		var r := _make_row(i, row_h)
-		vb.add_child(r)
-		_row_nodes.append(r)
-	_down_btn = _turn_button(1)
-	vb.add_child(_down_btn)
-	var sep := HSeparator.new()
-	vb.add_child(sep)
-	_desc = UIKit.label("", 20, UIKit.INK)
-	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_desc.add_theme_constant_override("line_spacing", 0)
-	_desc.custom_minimum_size = Vector2(w - 50.0, 2.0 * UIKit.body_px(20) + 6.0)
-	_desc.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	vb.add_child(_desc)
+	var bars = hooks.get("bars", null)
+	if bars != null:
+		bars.tapped.connect(_bar_tapped)
+	for g in ["foe_grid", "ally_grid"]:
+		var grid = hooks.get(g, null)
+		if grid != null:
+			grid.tile_tapped.connect(_tile_tapped.bind(g))
+	_point_row()
 	_redraw()
 
 
-## A slim "turn the ring" bar above the top beast (▲) and below the bottom one (▼), for tapping.
-func _turn_button(dir: int) -> Button:
-	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(0, 30 if UI.is_touch() else 24)
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.add_theme_font_size_override("font_size", UIKit.body_px(20))
-	b.pressed.connect(func(): _rotate(dir))
-	var empty := StyleBoxEmpty.new()
-	for st in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:
-		b.add_theme_stylebox_override(st, empty)
-	b.add_theme_color_override("font_color", UIKit.DIM)
-	b.add_theme_color_override("font_hover_color", UIKit.GOLD)
-	b.add_theme_color_override("font_disabled_color", Color(UIKit.DIM, 0.35))
-	return b
+func _exit_tree() -> void:
+	var bars = hooks.get("bars", null)
+	if bars != null and bars.tapped.is_connected(_bar_tapped):
+		bars.tapped.disconnect(_bar_tapped)
+	for g in ["foe_grid", "ally_grid"]:
+		var grid = hooks.get(g, null)
+		if grid != null:
+			for c in grid.tile_tapped.get_connections():
+				grid.tile_tapped.disconnect(c["callable"])
 
 
-func _make_row(i: int, row_h: float) -> Control:
-	var row: Dictionary = rows[i]
-	var c := PanelContainer.new()
-	c.custom_minimum_size = Vector2(0, row_h)
-	c.mouse_filter = Control.MOUSE_FILTER_STOP
-	c.gui_input.connect(func(ev): _row_click(i, ev))
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 10)
-	c.add_child(hb)
-	var ic := TextureRect.new()
-	ic.texture = row.get("icon", null)
-	ic.custom_minimum_size = Vector2(row_h - 10.0, row_h - 10.0)
-	ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hb.add_child(ic)
-	var nl := UIKit.label(row.get("name", ""), 20, UIKit.LIGHT)
-	nl.clip_text = true
-	nl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	nl.custom_minimum_size = Vector2(150, 0)
-	nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	nl.name = "Name"
-	hb.add_child(nl)
-	var left := _arrow_button("◄", func(): _focus_row(i); _cycle(-1))
-	left.name = "Left"
-	hb.add_child(left)
-	var opt := HBoxContainer.new()
-	opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt.add_theme_constant_override("separation", 8)
-	opt.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hb.add_child(opt)
-	var ol := UIKit.label("", 20, UIKit.INK)
-	ol.name = "Opt"
-	ol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ol.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	ol.clip_text = true
-	ol.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	opt.add_child(ol)
-	var orr := UIKit.label("", 20, UIKit.GOLD)
-	orr.name = "Right"
-	orr.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	orr.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	opt.add_child(orr)
-	var right := _arrow_button("►", func(): _focus_row(i); _cycle(1))
-	right.name = "RightBtn"
-	hb.add_child(right)
-	var ok := _arrow_button("OK", func(): _focus_row(i); _confirm())
-	ok.name = "Ok"
-	ok.custom_minimum_size.x = 56
-	hb.add_child(ok)
-	return c
-
-
-func _arrow_button(text: String, cb: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(48 if UI.is_touch() else 36, 0)
-	b.pressed.connect(cb)
-	var sb := UIKit.chip(UIKit.WINDOW_TOP, Color(UIKit.BORDER, 0.5), 10.0, Vector4(6, 0, 6, 0))
-	for st in ["normal", "disabled"]:
-		b.add_theme_stylebox_override(st, sb)
-	var hl := UIKit.chip(UIKit.ACCENT, UIKit.BORDER, 10.0, Vector4(6, 0, 6, 0))
-	for st in ["hover", "pressed", "hover_pressed", "focus"]:
-		b.add_theme_stylebox_override(st, hl)
-	b.add_theme_font_size_override("font_size", UIKit.body_px(20))
-	return b
-
-
-# ---------------------------------------------------------------- drawing
 func _redraw() -> void:
-	_side_label.text = String(info.get("side", ""))
-	var up: String = info.get("up", "")
-	var down: String = info.get("down", "")
-	_hint_label.text = "◄► change   A ok   B back"
-	if _up_btn:
-		_up_btn.text = ("      ▲  turn to the %s side" % up) if up != "" else ""
-		_up_btn.disabled = up == "" or not rows[0].get("done", false)
-	if _down_btn:
-		_down_btn.text = ("      ▼  turn to the %s side" % down) if down != "" else ""
-		_down_btn.disabled = down == "" or not rows[0].get("done", false)
-	for i in rows.size():
-		var row: Dictionary = rows[i]
-		var node: PanelContainer = _row_nodes[i]
-		var on := i == focus
-		var sb: StyleBox
-		if on:
-			sb = UIKit.highlight()
-		else:
-			sb = StyleBoxEmpty.new()
-		node.add_theme_stylebox_override("panel", sb)
-		var opt_l: Label = node.find_child("Opt", true, false)
-		var right_l: Label = node.find_child("Right", true, false)
-		var ok_b: Button = node.find_child("Ok", true, false)
-		var lb: Button = node.find_child("Left", true, false)
-		var rb: Button = node.find_child("RightBtn", true, false)
-		var status: String = row.get("status", "")
-		var usable: bool = status == "" and not row.get("locked", false) and _row_enabled(i)
-		lb.visible = usable
-		rb.visible = usable
-		ok_b.visible = usable
-		if status == "down":
-			opt_l.text = "Fainted"
-			right_l.text = ""
-			opt_l.add_theme_color_override("font_color", UIKit.DIM)
-			continue
-		if status == "empty":
-			opt_l.text = "— empty slot —"
-			right_l.text = ""
-			opt_l.add_theme_color_override("font_color", UIKit.DIM)
-			continue
-		var opts: Array = row["options"]
-		var o: Dictionary = opts[clampi(int(row.get("sel", 0)), 0, opts.size() - 1)]
-		if picking and on:
-			var ts: Array = row.get("targets", [])
-			var t: Dictionary = ts[clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1)] if not ts.is_empty() else {}
-			opt_l.text = "%s  →  %s" % [o["label"], t.get("label", "?")]
-			right_l.text = "◄► target"
-		else:
-			opt_l.text = ("✓ " if row.get("done", false) else "") + String(o["label"])
-			right_l.text = String(o.get("right", ""))
-		var col := UIKit.INK
-		if o.get("disabled", false):
-			col = Color(UIKit.DIM, 0.8)
-		elif row.get("done", false):
-			col = UIKit.GOLD_BRIGHT
-		opt_l.add_theme_color_override("font_color", col)
-		ok_b.text = "✓" if row.get("done", false) else "OK"
-	var fr: Dictionary = rows[focus]
-	if fr.get("status", "") != "":
-		_desc.text = String(fr.get("status_desc", ""))
-	else:
-		var fo: Dictionary = fr["options"][clampi(int(fr.get("sel", 0)), 0, fr["options"].size() - 1)]
-		_desc.text = String(fo.get("desc", ""))
-		if picking:
-			_desc.text = "Choose a target with ◄ ►, then A.   B: back to the moves."
-	if String(info.get("prompt", "")) != "" and focus == 0 and not rows[0].get("done", false):
-		_desc.text = String(info["prompt"]) + "\n" + _desc.text
+	if hooks.has("render"):
+		(hooks["render"] as Callable).call(rows, focus, picking)
+	var text := ""
+	if picking:
+		text = "Choose a target."
+	elif focus == 0 and not rows[0].get("done", false):
+		text = String(info.get("prompt", ""))
+	_hint(text)
 
 
-## The beasts' rows open once your own action is chosen.
+func _hint(text: String) -> void:
+	if hooks.has("hint"):
+		(hooks["hint"] as Callable).call(text)
+
+
+## The beasts' bars open once your own action is chosen.
 func _row_enabled(i: int) -> bool:
 	return i == 0 or rows[0].get("done", false)
 
@@ -286,19 +100,44 @@ func on_input(ev: InputEvent) -> void:
 		_back()
 
 
-func _row_click(i: int, ev: InputEvent) -> void:
-	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
-		if i != focus:
+func _bar_tapped(i: int, zone: String) -> void:
+	if closed:
+		return
+	if i != focus:
+		if _row_enabled(i):
 			_focus_row(i)
-		elif not picking:
+		return
+	match zone:
+		"left":
+			_cycle(-1)
+		"right":
+			_cycle(1)
+		_:
 			_confirm()
+
+
+## Tapping a foe's tile while picking a target aims at it (and confirms when it's already the one aimed at).
+func _tile_tapped(tile: int, grid: String) -> void:
+	if closed or not picking:
+		return
+	var row: Dictionary = rows[focus]
+	var ts: Array = row.get("targets", [])
+	for j in ts.size():
+		if int(ts[j].get("tile", -100)) == tile and String(ts[j].get("grid", "")) == grid:
+			if j == int(row.get("target_sel", 0)):
+				_confirm()
+			else:
+				row["target_sel"] = j
+				Sfx.play("select")
+				_point_row()
+				_redraw()
+			return
 
 
 func _focus_row(i: int) -> void:
 	if i == focus or not _row_enabled(i):
 		return
-	if picking:
-		picking = false
+	picking = false
 	focus = i
 	Sfx.play("select")
 	_point_row()
@@ -306,14 +145,16 @@ func _focus_row(i: int) -> void:
 
 
 func _point_row() -> void:
-	if not on_point.is_valid():
+	if not hooks.has("point"):
 		return
 	var row: Dictionary = rows[focus]
+	var ref = null
 	if picking:
 		var ts: Array = row.get("targets", [])
-		on_point.call(ts[clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1)]["ref"] if not ts.is_empty() else null)
+		ref = ts[clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1)]["ref"] if not ts.is_empty() else null
 	else:
-		on_point.call("trainer_self" if row["kind"] == "trainer" else row.get("beast", null))
+		ref = "trainer_self" if row["kind"] == "trainer" else row.get("beast", null)
+	(hooks["point"] as Callable).call(ref)
 
 
 func _cycle(dir: int) -> void:
@@ -337,32 +178,40 @@ func _cycle(dir: int) -> void:
 	_redraw()
 
 
-## ▲ / ▼: to the next beast row; past the top or bottom beast, turn the ring.
+## ▲ / ▼: to the next beast that can act (skipping empty slots and fainted beasts); past the top or bottom one, turn
+## the ring.
 func _move(dir: int) -> void:
 	if picking:
 		return
 	if focus == 0:
 		if dir > 0 and rows[0].get("done", false):
-			_focus_row(1)
+			var first := _next_beast(0, 1)
+			if first > 0:
+				_focus_row(first)
+			else:
+				_rotate(1)
 		return
-	var nxt := focus + dir
-	if nxt < 1:
-		_rotate(-1)
-		return
-	if nxt >= rows.size():
-		_rotate(1)
+	var nxt := _next_beast(focus, dir)
+	if nxt < 0:
+		_rotate(dir)
 		return
 	_focus_row(nxt)
 
 
+## The next beast's row from `from` in direction `dir` that can act, or -1.
+func _next_beast(from: int, dir: int) -> int:
+	var i := from + dir
+	while i >= 1 and i < rows.size():
+		if rows[i].get("status", "") == "":
+			return i
+		i += dir
+	return -1
+
+
 func _rotate(dir: int) -> void:
-	if not rows[0].get("done", false):
+	if not rows[0].get("done", false) or String(info.get("up" if dir < 0 else "down", "")) == "":
 		Sfx.play("error")
 		return
-	if String(info.get("up" if dir < 0 else "down", "")) == "":
-		Sfx.play("error")
-		return
-	Sfx.play("page")
 	close({"kind": "rotate", "dir": dir, "focus": 1 if dir < 0 else rows.size() - 1})
 
 
@@ -376,6 +225,7 @@ func _confirm() -> void:
 	var o: Dictionary = row["options"][clampi(int(row.get("sel", 0)), 0, row["options"].size() - 1)]
 	if o.get("disabled", false):
 		Sfx.play("error")
+		_hint(String(o.get("desc", "")))
 		return
 	if picking:
 		picking = false
@@ -392,7 +242,7 @@ func _confirm() -> void:
 		var ts: Array = targets_for.call(row, o) if targets_for.is_valid() else []
 		if ts.is_empty():
 			Sfx.play("error")
-			_desc.text = "There's no one to use that on right now."
+			_hint("There's no one to use that on right now.")
 			return
 		row["targets"] = ts
 		row["target_sel"] = clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1)
@@ -410,7 +260,7 @@ func _confirm() -> void:
 	_advance()
 
 
-## After a confirmation: to the next beast that still needs a move, or begin the round when all are set.
+## After a confirmation: on to the next beast that still needs a move, or begin the round when all are set.
 func _advance() -> void:
 	for i in range(1, rows.size()):
 		var k := posmod(focus - 1 + i, rows.size() - 1) + 1 if focus > 0 else i
@@ -421,8 +271,8 @@ func _advance() -> void:
 			_redraw()
 			return
 	if rows[0].get("done", false):
-		if on_point.is_valid():
-			on_point.call(null)
+		if hooks.has("point"):
+			(hooks["point"] as Callable).call(null)
 		close({"kind": "go", "focus": focus})
 		return
 	focus = 0

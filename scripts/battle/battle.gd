@@ -2,8 +2,9 @@ extends Node3D
 ## Turn-based ring battle (as in Jade Cocoon 2). Each trainer stands in the middle of a ring of eight slots (ring.gd):
 ## a side per element, with corners between. One side faces the foe: its three beasts fight, using only that side's
 ## element (and plain, neutral moves). At the start of each turn a trainer may turn the ring to another side with a
-## beast standing on it. You choose your own action first (you always act first), then a move for each of your three
-## beasts (command_panel.gd), and the round plays out by priority and speed.
+## beast standing on it. You choose your own action, then a move for each of your three beasts (command_panel.gd, on
+## the move bars beside your grid); then the two sides take their turns, the faster side first (its beasts' speed and
+## its trainer's level). The foe's choices are never shown: they happen on its turn.
 ## If a side's middle beast is down (or its middle slot is empty), its trainer can be attacked directly: each hit
 ## breaks a shield point, and a hit with no shield left loses the battle. A trainer battle ends only that way, or
 ## when someone forfeits. Wild beasts have no ring and no trainer: beat them all to win.
@@ -26,20 +27,26 @@ const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
-const Bar = preload("res://scripts/ui/bar.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const CommandPanel = preload("res://scripts/battle/command_panel.gd")
-const RingView = preload("res://scripts/ui/ring_view.gd")
+const RingGrid = preload("res://scripts/battle/ring_grid.gd")
+const BattleBars = preload("res://scripts/battle/battle_bars.gd")
 
-## the middles of the two rings: you on the left, nearer the camera; the foe on the right, further back
-const ALLY_CENTER := Vector3(-4.3, 0, 1.5)
-const FOE_CENTER := Vector3(4.3, 0, -2.6)
+## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
+## the top left
+const ALLY_CENTER := Vector3(2.4, 0, 5.4)
+const FOE_CENTER := Vector3(-2.6, 0, -2.4)
 const PLAYER_POS := ALLY_CENTER
 const RIVAL_POS := FOE_CENTER
 ## a ring's radius (to the middle of its pads)
 const RING_R := 2.25
-const CAM_POS := Vector3(1.4, 10.2, 12.6)
-const CAM_LOOK := Vector3(0.9, -0.4, -0.6)
+## the camera, behind you and off to your left (in metres, along and across the line from your ring to the foe's), and
+## where on that line it looks (0 = you, 1 = the foe)
+const CAM_BACK := 10.5
+const CAM_SIDE := 8.0
+const CAM_HIGH := 7.5
+const CAM_T := 0.35
+const CAM_FOV := 24.0
 const STAGE_NAMES := {"atk": "Attack", "def": "Defense", "spr": "Spirit", "spd": "Speed", "eva": "Evasion", "acc": "Accuracy"}
 const EGG_CHANCE := 0.2
 
@@ -66,7 +73,7 @@ var tutorial := false
 ## what the trainer and the beast must do each tutorial round (1-based)
 const TUTORIAL_PLAN := {1: "Slingshot", 2: "Watch", 3: "Items"}
 const TUTORIAL_BEAST := {1: "Fight", 2: "Defend", 3: "Fight"}
-## Defending halves the damage a beast takes for the rest of the round.
+## Defending halves the damage a beast takes until its side's next turn.
 const DEFEND_MULT := 0.5
 
 var cam: Camera3D
@@ -80,9 +87,13 @@ var shield_bubble: MeshInstance3D
 
 var hud: Control
 var msg_label: Label
-var msg_panel: PanelContainer
-var ally_panels: Array = []
-var foe_panels: Array = []
+var caption: PanelContainer
+var bars: Control
+var ally_grid: Control
+var foe_grid: Control
+var cmd_root: Control
+## true while the command panel owns the bars
+var _commanding := false
 
 ## the rings: {slot: beast}. Wild beasts stand in a plain line (foe_slots) with no ring.
 var ally_ring := {}
@@ -97,8 +108,6 @@ var foe_max_shield := 0
 var ring_psi := {"ally": 0.0, "foe": 0.0}
 var ring_root := {}
 var pads := {"ally": {}, "foe": {}}
-var ally_view: Control
-var foe_view: Control
 var rival_shield_label: Label3D
 var rival_bubble: MeshInstance3D
 ## whether each trainer was open to attack at the last check (for the announcements)
@@ -259,10 +268,10 @@ func _build_stage() -> void:
 		_outdoor_scenery(rng)
 
 	cam = Camera3D.new()
-	cam.fov = 40
+	cam.fov = CAM_FOV
 	add_child(cam)
-	cam.position = CAM_POS
-	cam.look_at(CAM_LOOK, Vector3.UP)
+	cam.position = _cam_pos()
+	cam.look_at(_cam_look(), Vector3.UP)
 	cam.current = true
 	arrow = Label3D.new()
 	arrow.text = "▼"
@@ -291,22 +300,38 @@ func _facing(team: String) -> float:
 	return atan2(d.z, d.x)
 
 
-## Beasts face the other side, turned a little towards the camera so you see their faces.
+## Your right, looking at the foe.
+func _right() -> Vector3:
+	var f := _toward("ally")
+	return Vector3(-f.z, 0, f.x)
+
+
+## Over your shoulder: behind you and off to your left, so you stand at the bottom right and the foe at the top left.
+func _cam_pos() -> Vector3:
+	return ALLY_CENTER - _toward("ally") * CAM_BACK - _right() * CAM_SIDE + Vector3(0, CAM_HIGH, 0)
+
+
+func _cam_look() -> Vector3:
+	return ALLY_CENTER.lerp(FOE_CENTER, CAM_T) + Vector3(0, 0.6, 0)
+
+
+## Beasts face the other side, turned a little towards the camera.
 func _beast_yaw(team: String) -> float:
-	return -(_facing(team) + (0.45 if team == "ally" else -0.45))
+	return -(_facing(team) + (-0.5 if team == "ally" else 0.35))
 
 
 func _center(team: String) -> Vector3:
 	return ALLY_CENTER if team == "ally" else FOE_CENTER
 
 
-## The ring's turn that puts `side`'s middle slot towards the foe (slot k sits at angle k * 45 deg - psi).
+## The ring's turn that puts `side`'s middle slot towards the foe. Slot k sits at angle psi - k * 45 deg, so the slots
+## run anticlockwise seen from above (as on the grids in the HUD): a side's top slot stands at its front right.
 func _psi_for(team: String, side: int) -> float:
-	return deg_to_rad(90.0 * side) - _facing(team)
+	return _facing(team) + deg_to_rad(90.0 * side)
 
 
 func _slot_pos(team: String, k: int) -> Vector3:
-	var a := deg_to_rad(45.0 * k) - float(ring_psi[team])
+	var a := float(ring_psi[team]) - deg_to_rad(45.0 * k)
 	return _center(team) + Vector3(cos(a), 0.0, sin(a)) * RING_R
 
 
@@ -318,108 +343,287 @@ func _build_ring(team: String) -> void:
 	ring_root[team] = root
 	var circle := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(RING_R * 2.0 + 2.6, RING_R * 2.0 + 2.6)
+	pm.size = Vector2(RING_R * 2.0 + 2.9, RING_R * 2.0 + 2.9)
 	circle.mesh = pm
 	var cm := StandardMaterial3D.new()
 	cm.albedo_texture = _circle_texture()
 	cm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	cm.albedo_color = Color("#ffe9a8") if team == "ally" else Color("#ffd0a8")
+	cm.albedo_color = Color("#ffe39a") if team == "ally" else Color("#ffc890")
 	cm.emission_enabled = true
 	cm.emission = cm.albedo_color
-	cm.emission_energy_multiplier = 1.3
+	cm.emission_energy_multiplier = 1.4
 	circle.material_override = cm
 	circle.position.y = 0.03
 	circle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(circle)
+	# the trainer's own dais in the middle
+	root.add_child(_dais())
 	for k in Ring.SLOTS:
-		var pad := MeshInstance3D.new()
-		pad.mesh = _pad_mesh(k)
-		var a := deg_to_rad(45.0 * k)
+		var pad := _make_pad(k)
+		var a := -deg_to_rad(45.0 * k)
 		pad.position = Vector3(cos(a), 0.0, sin(a)) * RING_R
 		pad.rotation.y = -a
 		root.add_child(pad)
 		pads[team][k] = pad
 	ring_psi[team] = _psi_for(team, ally_side if team == "ally" else foe_side)
-	root.rotation.y = float(ring_psi[team])
+	root.rotation.y = -float(ring_psi[team])
 
 
-## A pad: a squat stone tile with an inset in its side's element colour (a corner's split between its two).
-func _pad_mesh(k: int) -> ArrayMesh:
-	var key := "pad:%d" % k
-	if _pad_cache.has(key):
-		return _pad_cache[key]
-	var kit := VBld.Kit.new()
-	var stone := Color("#b8b0a4")
-	kit.box("stone", Vector3(0, 0.07, 0), Vector3(1.1, 0.14, 1.1), stone)
-	var els := Ring.slot_elements(k)
-	if els.size() == 1:
-		kit.box("color", Vector3(0, 0.15, 0), Vector3(0.78, 0.03, 0.78), Elements.color(els[0]).darkened(0.15))
-	else:
-		kit.box("color", Vector3(0, 0.15, -0.2), Vector3(0.78, 0.03, 0.38), Elements.color(els[0]).darkened(0.15))
-		kit.box("color", Vector3(0, 0.15, 0.2), Vector3(0.78, 0.03, 0.38), Elements.color(els[1]).darkened(0.15))
-	var m: ArrayMesh = kit.mesh()
-	_pad_cache[key] = m
-	return m
+## A pad: a six-sided stone plinth on a wider foot, trimmed in gold, with gold studs at its corners and a glowing sigil
+## of its slot's element(s) on top.
+func _make_pad(k: int) -> Node3D:
+	var pad := Node3D.new()
+	var stone := VT.material("stone")
+	var foot := MeshInstance3D.new()
+	foot.mesh = _hex_mesh(0.78, 0.84, 0.08)
+	foot.material_override = stone
+	foot.position.y = 0.04
+	pad.add_child(foot)
+	var body := MeshInstance3D.new()
+	body.mesh = _hex_mesh(0.62, 0.7, 0.14)
+	body.material_override = stone
+	body.position.y = 0.15
+	pad.add_child(body)
+	var trim := MeshInstance3D.new()
+	trim.mesh = _hex_mesh(0.645, 0.645, 0.04)
+	trim.material_override = _gold_mat()
+	trim.position.y = 0.235
+	pad.add_child(trim)
+	var studs := []
+	for i in 6:
+		var a := TAU * i / 6.0
+		studs.append(Transform3D(Basis(), Vector3(cos(a) * 0.74, 0.11, sin(a) * 0.74)))
+	var sm := SphereMesh.new()
+	sm.radius = 0.055
+	sm.height = 0.11
+	sm.radial_segments = 6
+	sm.rings = 3
+	for x in studs:
+		var st_mi := MeshInstance3D.new()
+		st_mi.mesh = sm
+		st_mi.material_override = _gold_mat()
+		st_mi.transform = x
+		pad.add_child(st_mi)
+	var top := MeshInstance3D.new()
+	var q := PlaneMesh.new()
+	q.size = Vector2(1.12, 1.12)
+	top.mesh = q
+	var tm := StandardMaterial3D.new()
+	tm.albedo_texture = _sigil_texture(Ring.slot_elements(k))
+	tm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	tm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	tm.emission_enabled = true
+	tm.emission_texture = tm.albedo_texture
+	tm.emission_energy_multiplier = 0.35
+	tm.roughness = 0.6
+	top.material_override = tm
+	top.position.y = 0.262
+	top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pad.add_child(top)
+	pad.set_meta("sigil", tm)
+	return pad
 
 
-static var _pad_cache := {}
+## The trainer's dais: a low round step with a gold rim.
+func _dais() -> Node3D:
+	var n := Node3D.new()
+	var base := MeshInstance3D.new()
+	var cy := CylinderMesh.new()
+	cy.top_radius = 0.82
+	cy.bottom_radius = 0.92
+	cy.height = 0.1
+	cy.radial_segments = 16
+	cy.rings = 1
+	base.mesh = cy
+	base.material_override = VT.material("stone")
+	base.position.y = 0.05
+	n.add_child(base)
+	var rim := MeshInstance3D.new()
+	var tor := TorusMesh.new()
+	tor.inner_radius = 0.76
+	tor.outer_radius = 0.84
+	tor.rings = 24
+	tor.ring_segments = 4
+	rim.mesh = tor
+	rim.material_override = _gold_mat()
+	rim.position.y = 0.1
+	n.add_child(rim)
+	return n
+
+
+static var _hex_cache := {}
+static var _gold: StandardMaterial3D = null
+static var _sigils := {}
+
+
+## A six-sided prism (a squat hexagonal cylinder), cached by size.
+static func _hex_mesh(top_r: float, bottom_r: float, h: float) -> CylinderMesh:
+	var key := "%s:%s:%s" % [top_r, bottom_r, h]
+	if _hex_cache.has(key):
+		return _hex_cache[key]
+	var cy := CylinderMesh.new()
+	cy.top_radius = top_r
+	cy.bottom_radius = bottom_r
+	cy.height = h
+	cy.radial_segments = 6
+	cy.rings = 1
+	_hex_cache[key] = cy
+	return cy
+
+
+static func _gold_mat() -> StandardMaterial3D:
+	if _gold == null:
+		_gold = StandardMaterial3D.new()
+		_gold.albedo_color = Color("#d9b25a")
+		_gold.metallic = 0.7
+		_gold.roughness = 0.35
+		_gold.emission_enabled = true
+		_gold.emission = Color("#6a4a10")
+		_gold.emission_energy_multiplier = 0.4
+	return _gold
+
+
+## A pad's sigil: a gold ring with rune ticks round a disc in its element's colour (a corner's disc split between its
+## two), with the element's sign in the middle.
+static func _sigil_texture(els: Array) -> ImageTexture:
+	var key := ",".join(els)
+	if _sigils.has(key):
+		return _sigils[key]
+	var n := 128
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var c := Vector2(n, n) / 2.0
+	var gold := Color("#f4d27a")
+	var c0 := Elements.color(String(els[0]))
+	var c1 := Elements.color(String(els[els.size() - 1]))
+	for y in n:
+		for x in n:
+			var p := Vector2(x + 0.5, y + 0.5) - c
+			var r := p.length() / (n / 2.0)
+			var ang := atan2(p.y, p.x)
+			var col := Color(0, 0, 0, 0)
+			if r < 0.74:
+				# the disc: its element's colour, darker at the rim, split on a diagonal for a corner
+				var base := c0 if (els.size() == 1 or p.x + p.y < 0.0) else c1
+				col = base.darkened(0.15 + 0.35 * r)
+				col.a = 0.92
+			# the gold ring, its inner hairline and the rune ticks between them
+			var ring := clampf(1.0 - absf(r - 0.86) / 0.05, 0.0, 1.0)
+			ring = maxf(ring, clampf(1.0 - absf(r - 0.74) / 0.02, 0.0, 1.0))
+			if r > 0.76 and r < 0.84:
+				var t := fposmod(ang / TAU * 24.0, 1.0)
+				if t < 0.18 or (t > 0.45 and t < 0.55 and r < 0.8):
+					ring = maxf(ring, 0.85)
+			if ring > 0.0:
+				col = col.lerp(gold, ring)
+				col.a = maxf(col.a, ring)
+			img.set_pixel(x, y, col)
+	_draw_sign(img, String(els[0]) if els.size() == 1 else "", gold)
+	img.generate_mipmaps()
+	var tex := ImageTexture.create_from_image(img)
+	_sigils[key] = tex
+	return tex
+
+
+## The element's sign in the middle of a sigil: a flame (triangle), a drop (circle), a swirl (three arcs) or a stone
+## (diamond). Corners get a small star.
+static func _draw_sign(img: Image, el: String, col: Color) -> void:
+	var n := img.get_width()
+	var c := Vector2(n, n) / 2.0
+	var s := n * 0.2
+	for y in n:
+		for x in n:
+			var p := (Vector2(x + 0.5, y + 0.5) - c) / s
+			var on := false
+			match el:
+				"fire":
+					on = p.y < 0.85 and p.y > -1.0 and absf(p.x) < (p.y + 1.0) * 0.45 and not (absf(p.x) < (p.y + 0.4) * 0.25 and p.y > 0.0)
+				"water":
+					var r := p.length()
+					on = (r < 0.75 and r > 0.48) or (p.y < -0.5 and absf(p.x) < (p.y + 1.25) * 0.5 and p.y > -1.2)
+				"air":
+					for i in 3:
+						var q := p - Vector2(0, (i - 1) * 0.55)
+						var w := 0.9 - absf(i - 1) * 0.2
+						on = on or (absf(q.y + sin(q.x * 3.0) * 0.12) < 0.1 and absf(q.x) < w)
+				"earth":
+					on = absf(p.x) + absf(p.y) < 0.95 and absf(p.x) + absf(p.y) > 0.62
+				"ghost":
+					on = p.length() < 0.7 and p.length() > 0.45
+				_:
+					var a := atan2(p.y, p.x)
+					var r2 := p.length()
+					on = r2 < 0.35 + 0.35 * pow(absf(cos(a * 2.0)), 6.0)
+			if on:
+				img.set_pixel(x, y, col)
+
+
 static var _circle_tex: ImageTexture = null
 
 
-## The ring's circle on the ground: two rings, an eight-pointed star of lines and small marks, in soft white (the
-## material tints and lights it).
+## The ring's circle on the ground: a double outer ring with a band of runes, an eight-pointed star and an inner ring,
+## in soft white (the material tints and lights it).
 static func _circle_texture() -> ImageTexture:
 	if _circle_tex != null:
 		return _circle_tex
-	var n := 256
+	var n := 384
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	img.fill(Color(1, 1, 1, 0))
 	var c := Vector2(n, n) / 2.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	# the runes: short strokes in cells round the band between the two outer rings
+	var runes := []
+	for i in 40:
+		var strokes := []
+		for j in rng.randi_range(2, 3):
+			strokes.append([Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1)), Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1))])
+		runes.append(strokes)
 	for y in n:
 		for x in n:
 			var p := Vector2(x + 0.5, y + 0.5) - c
 			var r := p.length() / (n / 2.0)
 			var a := 0.0
-			# the outer and inner rings
-			a = maxf(a, clampf(1.0 - absf(r - 0.92) / 0.018, 0.0, 1.0))
-			a = maxf(a, clampf(1.0 - absf(r - 0.86) / 0.008, 0.0, 1.0) * 0.7)
-			a = maxf(a, clampf(1.0 - absf(r - 0.42) / 0.012, 0.0, 1.0) * 0.8)
-			# an eight-pointed star: lines between every third point of an octagon on the outer ring
-			if r < 0.92:
+			a = maxf(a, clampf(1.0 - absf(r - 0.95) / 0.012, 0.0, 1.0))
+			a = maxf(a, clampf(1.0 - absf(r - 0.83) / 0.008, 0.0, 1.0) * 0.8)
+			a = maxf(a, clampf(1.0 - absf(r - 0.3) / 0.01, 0.0, 1.0) * 0.8)
+			a = maxf(a, clampf(1.0 - absf(r - 0.26) / 0.005, 0.0, 1.0) * 0.6)
+			if r > 0.85 and r < 0.93:
+				var ang := fposmod(atan2(p.y, p.x), TAU)
+				var cell := int(ang / TAU * 40.0)
+				var lx := (fposmod(ang / TAU * 40.0, 1.0) - 0.5) * 2.0 / 0.7
+				var ly := (r - 0.89) / 0.03
+				if absf(lx) < 1.0 and absf(ly) < 1.0:
+					for sk in runes[cell]:
+						var d := Geometry2D.get_closest_point_to_segment(Vector2(lx, ly), sk[0], sk[1]).distance_to(Vector2(lx, ly))
+						a = maxf(a, clampf(1.0 - d / 0.22, 0.0, 1.0) * 0.75)
+			if r < 0.83:
 				for i in 8:
-					var p0 := Vector2(cos(TAU * i / 8.0), sin(TAU * i / 8.0)) * 0.86 * n / 2.0
-					var p1 := Vector2(cos(TAU * (i + 3) / 8.0), sin(TAU * (i + 3) / 8.0)) * 0.86 * n / 2.0
-					var d := Geometry2D.get_closest_point_to_segment(p, p0, p1).distance_to(p) / (n / 2.0)
-					a = maxf(a, clampf(1.0 - d / 0.009, 0.0, 1.0) * 0.55)
+					var p0 := Vector2(cos(TAU * i / 8.0), sin(TAU * i / 8.0)) * 0.83 * n / 2.0
+					var p1 := Vector2(cos(TAU * (i + 3) / 8.0), sin(TAU * (i + 3) / 8.0)) * 0.83 * n / 2.0
+					var d2 := Geometry2D.get_closest_point_to_segment(p, p0, p1).distance_to(p) / (n / 2.0)
+					a = maxf(a, clampf(1.0 - d2 / 0.007, 0.0, 1.0) * 0.55)
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	img.generate_mipmaps()
 	_circle_tex = ImageTexture.create_from_image(img)
 	return _circle_tex
 
 
-## Lights the pads of the side facing the foe.
+## Lights the sigils of the side facing the foe.
 func _light_pads(team: String) -> void:
 	var side := ally_side if team == "ally" else foe_side
 	var on := Ring.side_slots(side)
 	for k in pads[team]:
-		var pad: MeshInstance3D = pads[team][k]
-		if k in on:
-			var m := StandardMaterial3D.new()
-			m.albedo_color = Color(1, 1, 1, 0.0)
-			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			m.emission_enabled = true
-			m.emission = Color("#ffe6a0")
-			m.emission_energy_multiplier = 0.55
-			pad.material_overlay = m
-		else:
-			pad.material_overlay = null
+		var pad: Node3D = pads[team][k]
+		var m: StandardMaterial3D = pad.get_meta("sigil")
+		m.emission_energy_multiplier = 1.5 if k in on else 0.3
 
 
 ## Puts every beast of a ring on its pad (after the ring turns), facing the foe.
 func _place_ring(team: String) -> void:
 	if ring_root.has(team):
-		(ring_root[team] as Node3D).rotation.y = float(ring_psi[team])
+		(ring_root[team] as Node3D).rotation.y = -float(ring_psi[team])
 	var r: Dictionary = ally_ring if team == "ally" else foe_ring
 	for k in r:
 		var b = r[k]
@@ -436,10 +640,15 @@ func _turn_ring(team: String, side: int) -> void:
 	var from := float(ring_psi[team])
 	var to := _psi_for(team, side)
 	to = from + wrapf(to - from, -PI, PI)
+	var was := ally_side if team == "ally" else foe_side
 	if team == "ally":
 		ally_side = side
 	else:
 		foe_side = side
+	var grid: Control = ally_grid if team == "ally" else foe_grid
+	if grid != null and not (team == "foe" and wild):
+		grid.side = side
+		grid.animate_turn(was)
 	Sfx.play("page")
 	var tw := create_tween()
 	tw.tween_method(func(v: float): ring_psi[team] = v; _place_ring(team), from, to, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
@@ -538,10 +747,13 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 	for name in by_asset:
 		_multimesh(VA.mesh(name), by_asset[name])
 	var tufts := [[], [], []]
-	for i in 46:
-		var p := Vector3(rng.randf_range(-11, 11), 0, rng.randf_range(-6, 4))
-		if absf(p.x) < 7.2 and p.z > -4.2 and p.z < 3.0:
-			p.x = (7.2 + rng.randf_range(0, 3)) * signf(p.x + 0.01)
+	for i in 56:
+		var p := Vector3(rng.randf_range(-12, 12), 0, rng.randf_range(-7, 10))
+		# clear of both rings
+		for c: Vector3 in [ALLY_CENTER, FOE_CENTER]:
+			var off: Vector3 = p - c
+			if off.length() < 4.0:
+				p = c + off.normalized() * rng.randf_range(4.0, 5.5)
 		tufts[i % 3].append(_xf(p, rng.randi_range(0, 3) * PI / 2.0, rng.randf_range(0.9, 1.3)))
 	for i in 3:
 		_multimesh(VP.grass_tuft(biome["tuft"], i), tufts[i])
@@ -627,9 +839,11 @@ func _indoor_scenery(rng: RandomNumberGenerator) -> void:
 
 func _build_trainers() -> void:
 	player_rig = VPer.build(GameState.main.world.PLAYER_LOOK if is_instance_valid(GameState.main) and GameState.main.world != null else {})
-	player_rig.position = PLAYER_POS
-	VPer.face(player_rig, Vector2i(1, 0))
-	player_rig.rotation.y -= 0.35
+	player_rig.position = PLAYER_POS + Vector3(0, 0.1, 0)
+	# your back to the camera, facing the foe
+	VPer.face(player_rig, Vector2i(0, 1))
+	var f := _toward("ally")
+	player_rig.rotation.y = atan2(f.x, f.z)
 	add_child(player_rig)
 	shield_label = Label3D.new()
 	shield_label.font_size = 52
@@ -658,16 +872,17 @@ func _build_trainers() -> void:
 	if wild:
 		return
 	var look: Dictionary = trainer.get("look", {})
+	var g := _toward("foe")
 	if String(trainer.get("robot_body", "")) != "":
 		rival_rig = Node3D.new()
 		rival_rig.add_child(VA.instance(String(trainer["robot_body"]), 1.9))
-		rival_rig.rotation.y = PI / 2.0
+		rival_rig.rotation.y = atan2(-g.x, -g.z)
 	elif not look.is_empty():
 		rival_rig = VPer.build(look)
-		VPer.face(rival_rig, Vector2i(-1, 0))
-		rival_rig.rotation.y += 0.35
+		VPer.face(rival_rig, Vector2i(0, 1))
+		rival_rig.rotation.y = atan2(g.x, g.z) - 0.25
 	if rival_rig:
-		rival_rig.position = RIVAL_POS
+		rival_rig.position = RIVAL_POS + Vector3(0, 0.1, 0)
 		add_child(rival_rig)
 	# the rival's shield: pips above their head and a bubble that flashes when it takes a hit
 	rival_shield_label = Label3D.new()
@@ -700,9 +915,8 @@ func _update_shield() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	# on a phone the command menus sit where the battle text is: while one is open, its title asks the question
-	if is_instance_valid(msg_panel) and UI.is_touch():
-		msg_panel.visible = UI.stack.is_empty()
+	if caption != null:
+		caption.visible = msg_label.text != ""
 	for b in nodes:
 		var n: Node3D = nodes[b]
 		if is_instance_valid(n) and n.has_meta("phase"):
@@ -711,9 +925,11 @@ func _process(delta: float) -> void:
 				m.position.y = float(n.get_meta("lift")) + absf(sin(_time * 2.4 + float(n.get_meta("phase")))) * 0.05
 	if is_instance_valid(player_rig):
 		VPer.animate(player_rig, 0.0, 0.0)
+	if is_instance_valid(rival_rig):
+		VPer.animate(rival_rig, 0.0, 0.0)
 	if is_instance_valid(cam):
-		cam.position = CAM_POS + Vector3(sin(_time * 0.21) * 0.35, sin(_time * 0.17) * 0.08, 0)
-		cam.look_at(CAM_LOOK, Vector3.UP)
+		cam.position = _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
+		cam.look_at(_cam_look(), Vector3.UP)
 	if _arrow_target != null and nodes.has(_arrow_target) and is_instance_valid(nodes[_arrow_target]):
 		var n2: Node3D = nodes[_arrow_target]
 		arrow.visible = true
@@ -767,7 +983,7 @@ func _spawn(b, side: String, slot: int) -> void:
 	nodes[b] = root
 	root.scale = Vector3(0.2, 0.2, 0.2)
 	var tw := create_tween()
-	tw.tween_property(root, "scale", Vector3.ONE * (0.85 if ringed else 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(root, "scale", Vector3.ONE * (1.15 if ringed else 1.25), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var s := _st(b)
 	s["side"] = side
 	s["down"] = b.hp <= 0
@@ -802,157 +1018,168 @@ func _st(b) -> Dictionary:
 
 
 # ================================================================ HUD
+## The HUD is kept to what JC2 shows: the foe's grid at the top left, your grid at the bottom right with the move bars
+## beside it, and one slim line of battle text at the top.
 func _build_hud() -> void:
 	hud = Control.new()
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UI.hud.add_child(hud)
 	var touch: bool = UI.is_touch()
-	var reserve: float = UI.bottom_reserve()
-	var pw := 264.0 if touch else 300.0
-	# your beasts stand on the left of the field, the foes on the right: their readouts match
-	var ally_row := VBoxContainer.new()
-	ally_row.add_theme_constant_override("separation", 6)
-	ally_row.position = Vector2(16, 12)
-	hud.add_child(ally_row)
-	var foe_row := VBoxContainer.new()
-	foe_row.add_theme_constant_override("separation", 6)
-	foe_row.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	foe_row.offset_left = -16 - pw
-	foe_row.offset_right = -16
-	foe_row.offset_top = 12
-	foe_row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	hud.add_child(foe_row)
-	for i in 3:
-		foe_panels.append(_make_panel(foe_row, pw, false))
-		ally_panels.append(_make_panel(ally_row, pw, true))
-	# each ring as a small diagram beside its readouts, its active side towards the other trainer
-	var rv := RingView.new(150.0 if not touch else 136.0)
-	rv.position = Vector2(16 + pw + 10, 12)
-	rv.facing = PI / 2.0
-	hud.add_child(rv)
-	ally_view = rv
-	if not wild:
-		var fv := RingView.new(150.0 if not touch else 136.0)
-		fv.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		fv.offset_left = -16 - pw - 10 - fv.custom_minimum_size.x
-		fv.offset_right = -16 - pw - 10
-		fv.offset_top = 12
-		fv.offset_bottom = 12 + fv.custom_minimum_size.y
-		fv.facing = -PI / 2.0
-		hud.add_child(fv)
-		foe_view = fv
-	# battle text looks like the dialogue box: same panel, same text size, three lines tall
-	var mp := PanelContainer.new()
-	mp.add_theme_stylebox_override("panel", UIKit.box("dialogue", Vector4(26, 8, 26, 4)))
-	mp.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	mp.offset_left = 304.0 if touch else 16.0
-	mp.offset_right = -270.0 if touch else -16.0
-	mp.offset_top = -10.0 - (3.0 * UIKit.body_px(UIKit.BODY_HUGE) + 44.0) - reserve
-	mp.offset_bottom = -10.0 - reserve
-	hud.add_child(mp)
-	msg_panel = mp
-	msg_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.INK)
-	msg_label.add_theme_constant_override("line_spacing", 0)
+	var k := 1.05 if touch else 1.0
+	# the foe's grid, top left (a wild pack: a line of three)
+	foe_grid = RingGrid.new("foe", wild, k * 0.9)
+	foe_grid.show_shield = not wild
+	foe_grid.position = Vector2(12, 8)
+	hud.add_child(foe_grid)
+	# your bars and grid, bottom right (on a phone, left of A and B)
+	cmd_root = Control.new()
+	cmd_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(cmd_root)
+	bars = BattleBars.new(k)
+	cmd_root.add_child(bars)
+	ally_grid = RingGrid.new("ally", false, k)
+	cmd_root.add_child(ally_grid)
+	var gap := 8.0 * k
+	bars.position = Vector2.ZERO
+	bars.size = bars.custom_minimum_size
+	ally_grid.position = Vector2(bars.size.x + gap - 4.0 * k - 2.0 * ally_grid.slant, bars.pitch_y + bars.pill_h * 0.5 - ally_grid.top_pad())
+	ally_grid.size = ally_grid.custom_minimum_size
+	var block := Vector2(ally_grid.position.x + ally_grid.size.x, maxf(bars.size.y, ally_grid.position.y + ally_grid.size.y))
+	cmd_root.size = block
+	cmd_root.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	var right := 16.0 if not touch else 300.0
+	cmd_root.offset_left = -right - block.x
+	cmd_root.offset_right = -right
+	# phones: above START and PAUSE
+	var bottom := 10.0 if not touch else 78.0
+	cmd_root.offset_top = -bottom - block.y
+	cmd_root.offset_bottom = -bottom
+	# one line of battle text along the top, clear of the foe's grid
+	var cp := PanelContainer.new()
+	cp.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.9), Color(UIKit.BORDER, 0.7), 14.0, Vector4(18, 4, 18, 6)))
+	cp.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	cp.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	cp.offset_top = 10.0
+	cp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(cp)
+	caption = cp
+	msg_label = UIKit.label("", UIKit.BODY_BIG, UIKit.INK)
+	msg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	msg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	msg_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	mp.add_child(msg_label)
+	msg_label.add_theme_constant_override("line_spacing", 0)
+	cp.add_child(msg_label)
+	cp.visible = false
+	_place_caption()
 
 
-func _make_panel(row: BoxContainer, width: float, ally: bool) -> Dictionary:
-	var p := UIKit.dark_panel(Vector2(width, 0))
-	row.add_child(p)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 0)
-	p.add_child(vb)
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 6)
-	vb.add_child(top)
-	var tag_holder := HBoxContainer.new()
-	top.add_child(tag_holder)
-	var name_l := UIKit.label("", 20, UIKit.LIGHT)
-	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_l.clip_text = true
-	name_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	top.add_child(name_l)
-	var lv := UIKit.label("", 20, UIKit.GOLD_BRIGHT)
-	top.add_child(lv)
-	var bar := Bar.new(Vector2(width - 20, 30))
-	vb.add_child(bar)
-	var mpb := Bar.new(Vector2(width - 20, 8))
-	mpb.fixed_color = UIKit.GOLD_BRIGHT
-	vb.add_child(mpb)
-	var bottom := HBoxContainer.new()
-	vb.add_child(bottom)
-	var status := UIKit.label("", 20, UIKit.ORANGE)
-	status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status.clip_text = true
-	bottom.add_child(status)
-	var hp := UIKit.label("", 20, UIKit.LIGHT)
-	hp.visible = ally
-	bottom.add_child(hp)
-	p.visible = false
-	return {"root": p, "name": name_l, "lv": lv, "bar": bar, "mp": mpb, "status": status, "hp": hp, "tags": tag_holder, "beast": null}
+## The battle text sits at the top, between the foe's grid and the right edge, as wide as its words need.
+func _place_caption() -> void:
+	if caption == null:
+		return
+	var vw := hud.get_viewport_rect().size.x
+	var left := foe_grid.position.x + foe_grid.size.x + 12.0
+	var room := vw - left - 16.0
+	var font := UIKit.font_body()
+	var fs := UIKit.body_px(UIKit.BODY_BIG)
+	var w := minf(room, font.get_string_size(msg_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 44.0)
+	w = maxf(w, 160.0)
+	msg_label.custom_minimum_size = Vector2(w - 36.0, 0)
+	caption.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	caption.position = Vector2(left + (room - w) * 0.5, 10.0)
+	caption.visible = msg_label.text != ""
+	caption.reset_size()
+	caption.size = Vector2(w, 0)
+
+
+## Shows a line of battle text (empty: hides it).
+func _caption(text: String) -> void:
+	if msg_label == null:
+		return
+	msg_label.text = text
+	_place_caption()
 
 
 func _refresh() -> void:
-	for side in [[ally_slots, ally_panels], [foe_slots, foe_panels]]:
-		var slots: Array = side[0]
-		var panels: Array = side[1]
-		for i in 3:
-			var b = slots[i]
-			var p: Dictionary = panels[i]
-			if b == null:
-				p["root"].visible = false
-				p["beast"] = null
-				continue
-			p["root"].visible = true
-			p["root"].modulate = Color(1, 1, 1, 1.0 if b.hp > 0 else 0.55)
-			if p["beast"] != b:
-				p["beast"] = b
-				for c in p["tags"].get_children():
-					c.queue_free()
-				for el in b.elements():
-					p["tags"].add_child(UIKit.element_tag(el, 12))
-				p["bar"].set_ratio(b.hp_ratio(), true)
-				p["mp"].set_ratio(b.mp_ratio(), true)
-			p["name"].text = " " + b.nickname
-			p["lv"].text = "Lv%d" % b.level
-			p["bar"].set_ratio(b.hp_ratio())
-			p["mp"].set_ratio(b.mp_ratio())
-			p["hp"].text = "%d/%d  MP %d" % [maxi(0, b.hp), b.max_hp(), b.mp]
-			var s := _st(b)
-			var bits := []
-			if b.status != "":
-				bits.append(MoveDB.STATUS_NAMES.get(b.status, b.status))
-			if s["shield"] > 0:
-				bits.append("Shield")
-			if s["taunt"] > 0:
-				bits.append("Taunting")
-			if s["regen"] > 0:
-				bits.append("Regen")
-			if s["defend"]:
-				bits.append("Defending")
-			for k in s["stages"]:
-				var v: int = s["stages"][k]
-				if v != 0:
-					bits.append("%s%s%d" % [k.to_upper(), "+" if v > 0 else "", v])
-			if b.hp <= 0:
-				bits = ["Fainted"]
-			p["status"].text = " ".join(bits)
-	if ally_view != null:
-		ally_view.shield = GameState.shield
-		ally_view.max_shield = GameState.max_shield
-		ally_view.set_ring(ally_ring, ally_side)
-	if foe_view != null:
-		foe_view.shield = foe_shield
-		foe_view.max_shield = foe_max_shield
-		foe_view.set_ring(foe_ring, foe_side)
+	if ally_grid != null:
+		ally_grid.set_ring(ally_ring, ally_side)
+		ally_grid.open = _side_open("ally")
+	if foe_grid != null:
+		if wild:
+			foe_grid.set_line(foe_slots)
+		else:
+			foe_grid.set_ring(foe_ring, foe_side)
+			foe_grid.shield = foe_shield
+			foe_grid.max_shield = foe_max_shield
+			foe_grid.open = _side_open("foe")
+	if bars != null and not _commanding:
+		bars.set_rows(_idle_rows(), -1)
 	_update_shield()
 
 
+## The bars out of the command phase: your name and shield, then the names of the beasts facing the foe.
+func _idle_rows() -> Array:
+	var out := [{"kind": "trainer", "lv": GameState.trainer_level, "text": GameState.player_name, "shield": GameState.shield, "max_shield": GameState.max_shield}]
+	for b in ally_slots:
+		out.append(_beast_bar(b, "" if b == null else b.nickname))
+	return out
+
+
+func _beast_bar(b, text: String) -> Dictionary:
+	if b == null:
+		return {"kind": "beast", "status": "empty", "text": "—"}
+	return {"kind": "beast", "lv": b.level, "text": text if b.hp > 0 else "Fainted", "status": "" if b.hp > 0 else "down",
+		"hp": maxi(0, b.hp), "max_hp": b.max_hp(), "mp": b.mp, "max_mp": b.max_mp()}
+
+
+## The command panel's view of its rows: the bars, the chosen beast's tile and the target being aimed at.
+func _render_rows(rows: Array, focus: int, picking: bool) -> void:
+	var out := []
+	for i in rows.size():
+		var r: Dictionary = rows[i]
+		var opts: Array = r.get("options", [])
+		var o: Dictionary = opts[clampi(int(r.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {}
+		var text := String(o.get("label", ""))
+		if r.has("act"):
+			var act: Dictionary = r["act"]
+			if act.get("type", "") == "item":
+				text = ItemDB.item_name(String(act["item"]))
+		var targets: Array = r.get("targets", [])
+		if (picking and i == focus) or (r.get("done", false) and targets.size() > 1):
+			var t: Dictionary = targets[clampi(int(r.get("target_sel", 0)), 0, targets.size() - 1)] if not targets.is_empty() else {}
+			if not t.is_empty():
+				text += " → " + String(t["label"])
+		if r["kind"] == "trainer":
+			out.append({"kind": "trainer", "lv": GameState.trainer_level, "text": text, "arrows": not r.get("locked", false) and opts.size() > 1 and not picking,
+				"done": r.get("done", false), "disabled": o.get("disabled", false), "shield": GameState.shield, "max_shield": GameState.max_shield})
+			continue
+		var bb = r.get("beast", null)
+		var row := _beast_bar(bb, text)
+		if row.get("status", "") == "":
+			row["arrows"] = opts.size() > 1 and not picking
+			row["done"] = r.get("done", false)
+			row["disabled"] = o.get("disabled", false)
+			row["cost"] = MoveDB.mp_cost(String(o["move"])) if o.has("move") else 0
+		out.append(row)
+	bars.set_rows(out, focus)
+	var fr: Dictionary = rows[focus]
+	ally_grid.focus = -1
+	if fr["kind"] == "beast" and focus >= 1:
+		ally_grid.focus = Ring.side_slots(ally_side)[focus - 1]
+	ally_grid.target = -1
+	foe_grid.target = -1
+	if picking:
+		var ts: Array = fr.get("targets", [])
+		if not ts.is_empty():
+			var t2: Dictionary = ts[clampi(int(fr.get("target_sel", 0)), 0, ts.size() - 1)]
+			var g: Control = foe_grid if String(t2.get("grid", "")) == "foe_grid" else ally_grid
+			g.target = int(t2.get("tile", -1))
+	ally_grid.queue_redraw()
+	foe_grid.queue_redraw()
+
+
 func msg(text: String, wait := 0.95) -> void:
-	msg_label.text = text
+	_caption(text)
 	var t := 0.0
 	while t < wait:
 		await get_tree().process_frame
@@ -1033,8 +1260,8 @@ func _run() -> void:
 	_check_end()
 	await _check_exposed()
 	if tutorial:
-		await _tut_say(["Battles go in rounds. Each round, YOU choose first, then a move for each beast on the side of your ring facing me.",
-			"You always act first; then the fastest moves happen first. Let's take it one step at a time!"])
+		await _tut_say(["Battles go in rounds. Each round, pick your own action on the top bar, then a move for each beast on the side of your ring facing me.",
+			"Then each side takes its turn, the faster side first. I'll let you go first today. Let's take it one step at a time!"])
 	while result == "":
 		round_no += 1
 		for b in ally_slots:
@@ -1048,9 +1275,21 @@ func _run() -> void:
 			acts = await _command_phase()
 		if result != "":
 			break
-		if ambush != "player":
-			acts += await _ai_actions()
-		await _resolve(acts)
+		# then the two sides take their turns, the faster one first (its beasts' speed, and its trainer's level);
+		# the foe's choices are only made, and seen, when its turn comes
+		var first := _who_first()
+		if not tutorial and ambush == "":
+			var who := "You move" if first == "ally" else ("The wild beasts move" if wild else "%s moves" % trainer.get("name", "The trainer"))
+			await msg("%s first!" % who, 0.6)
+		for team in [first, "foe" if first == "ally" else "ally"]:
+			if result != "":
+				break
+			_end_defend(team)
+			if team == "ally":
+				if ambush != "foe":
+					await _resolve(acts)
+			elif ambush != "player":
+				await _resolve(await _ai_actions())
 		if result != "":
 			break
 		await _end_round()
@@ -1062,6 +1301,45 @@ func _run() -> void:
 		_refresh()
 	await _finish()
 	finished.emit(result)
+
+
+## Which side takes its turn first this round: the one whose beasts facing the foe are faster, helped by its
+## trainer's level (a wild pack has none). Scout Bram lets you go first.
+func _who_first() -> String:
+	if tutorial:
+		return "ally"
+	return "ally" if _initiative("ally") >= _initiative("foe") else "foe"
+
+
+func _initiative(team: String) -> float:
+	var alive := _alive(ally_slots if team == "ally" else foe_slots)
+	var spd := 0.0
+	for b in alive:
+		spd += _eff_stat(b, "spd")
+	spd = spd / alive.size() if not alive.is_empty() else 10.0
+	var lv := 0.0
+	if team == "ally":
+		lv = GameState.trainer_level
+	elif not wild:
+		lv = _foe_trainer_level()
+	return spd * (1.0 + 0.08 * lv) * randf_range(0.9, 1.1)
+
+
+## A rival's trainer level: given by the battle (the arena ladder's rank), or judged from their beasts.
+func _foe_trainer_level() -> int:
+	if trainer.has("level"):
+		return int(trainer["level"])
+	var sum := 0
+	for f in foes:
+		sum += int(f.level)
+	return clampi(sum / maxi(1, foes.size()) / 4 + 1, 1, GameState.TRAINER_LEVEL_MAX)
+
+
+## A side's Defend lasts until that side's next turn.
+func _end_defend(team: String) -> void:
+	for b in st:
+		if String(st[b]["side"]) == team:
+			st[b]["defend"] = false
 
 
 # ================================================================ tutorial
@@ -1090,7 +1368,7 @@ func _tut_round_intro() -> void:
 				"Pick Slingshot."])
 		2:
 			await _tut_say(["Uh oh. Nugget's puffing up for a big attack!",
-				"This round, just Watch. Then have %s Defend: a defending beast takes only half the damage until the round ends." % (b.nickname if b != null else "your beast")])
+				"This round, just Watch. Then have %s Defend: a defending beast takes only half the damage until your next turn." % (b.nickname if b != null else "your beast")])
 		3:
 			await _tut_say(["Ouch, Nugget nipped %s! When a beast gets hurt, patch it up." % (b.nickname if b != null else "your beast"),
 				"Open Items and give it a Minor Potion. Then finish the battle!"])
@@ -1193,12 +1471,16 @@ func _command_phase() -> Array:
 		if rows[0].get("done", false) and not _rows_waiting(rows):
 			break
 		var p := CommandPanel.new()
-		p.setup(rows, _panel_info(), focus, _row_targets, _point_at)
-		msg_panel.visible = false
+		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "point": _point_at,
+			"bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid})
+		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
-		msg_panel.visible = true
+		_commanding = false
 		_point_at(null)
+		ally_grid.focus = -1
+		ally_grid.target = -1
+		foe_grid.target = -1
 		focus = int(r.get("focus", focus))
 		match String(r.get("kind", "")):
 			"go":
@@ -1211,7 +1493,12 @@ func _command_phase() -> Array:
 					var keep: Dictionary = rows[0]
 					rows = _panel_rows()
 					rows[0] = keep
-				focus = 1 if int(r["dir"]) < 0 else rows.size() - 1
+				# on to the new side's first beast that can act
+				focus = 1
+				for i in range(1, rows.size()):
+					if rows[i].get("status", "") == "":
+						focus = i
+						break
 			"sub":
 				var opt: Dictionary = rows[0]["options"][int(rows[0]["sel"])]
 				match String(opt["id"]):
@@ -1248,6 +1535,8 @@ func _command_phase() -> Array:
 							result = "forfeit"
 							return []
 	_point_at(null)
+	_caption("")
+	_refresh()
 	return _acts_from_rows(rows)
 
 
@@ -1350,7 +1639,7 @@ func _move_options(b) -> Array:
 	if el == "neutral" and not b.ghost:
 		out[0]["desc"] = "%s can't use %s moves from the %s side: plain moves only.\n" % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()] + String(out[0]["desc"])
 	var d := {"id": "defend", "label": "Defend", "target": "none", "right": "half damage",
-		"desc": "Brace for impact: %s takes half damage until the end of the round. Defending happens before anything else." % b.nickname}
+		"desc": "Brace for impact: %s takes half damage until your side's next turn." % b.nickname}
 	if tutorial and TUTORIAL_BEAST.get(round_no, "Fight") != "Defend":
 		d["disabled"] = true
 		d["desc"] = "Scout Bram: \"Not now! Attack this round.\""
@@ -1361,25 +1650,21 @@ func _move_options(b) -> Array:
 func _panel_info() -> Dictionary:
 	var up := Ring.next_side(ally_ring, ally_side, -1)
 	var down := Ring.next_side(ally_ring, ally_side, 1)
-	var side := "%s side" % Ring.side_element(ally_side).capitalize()
-	if _side_open("ally"):
-		side += "  ·  you're open to attack!"
-	if GameState.max_shield > 0:
-		side += "   Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield)
-	return {"side": side, "up": Ring.side_element(up).capitalize() if up != ally_side and not tutorial else "",
+	return {"up": Ring.side_element(up).capitalize() if up != ally_side and not tutorial else "",
 		"down": Ring.side_element(down).capitalize() if down != ally_side and not tutorial else "",
 		"prompt": "What will you do, %s?" % GameState.player_name}
 
 
-## Who a row's option can be aimed at: [{label, ref}]. An open rival trainer is a target too.
+## Who a row's option can be aimed at: [{label, ref, tile, grid}] (tile: where it stands on its grid). An open rival
+## trainer is a target too.
 func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
 	var out := []
 	match String(opt.get("target", "none")):
 		"enemy":
 			for b in _alive(foe_slots):
-				out.append({"label": "%s  %d%%" % [b.nickname, int(b.hp_ratio() * 100)], "ref": b})
+				out.append({"label": b.nickname, "ref": b, "grid": "foe_grid", "tile": foe_slots.find(b) if wild else _slot_of(foe_ring, b)})
 			if _side_open("foe"):
-				out.append({"label": "%s (shield %d)" % [trainer.get("name", "the trainer"), foe_shield], "ref": "foe_trainer"})
+				out.append({"label": String(trainer.get("name", "the trainer")), "ref": "foe_trainer", "grid": "foe_grid", "tile": -2})
 			# start on the foe facing this beast's own row
 			var mine = row.get("beast", null)
 			var i := ally_slots.find(mine)
@@ -1387,14 +1672,21 @@ func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
 				row["target_sel"] = _alive(foe_slots).find(foe_slots[i])
 		"ally":
 			for b in _alive(ally_slots):
-				out.append({"label": "%s  %d%%" % [b.nickname, int(b.hp_ratio() * 100)], "ref": b})
+				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": _slot_of(ally_ring, b)})
 		"ally_ko":
 			for b in GameState.party.filter(func(x): return x.hp <= 0 and x.slot >= 0):
-				out.append({"label": b.nickname, "ref": b})
+				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": int(b.slot)})
 	return out
 
 
-## The round's actions from the panel's rows. Your own action always goes first.
+func _slot_of(r: Dictionary, b) -> int:
+	for k in r:
+		if r[k] == b:
+			return int(k)
+	return -1
+
+
+## Your side's actions from the panel's rows: on your side's turn, your own action goes first.
 func _acts_from_rows(rows: Array) -> Array:
 	var acts := []
 	var r0: Dictionary = rows[0]
@@ -2079,7 +2371,7 @@ func _field_revived(t) -> void:
 		var tw := create_tween()
 		tw.tween_property(n, "rotation:z", 0.0, 0.3)
 		tw.parallel().tween_property(n, "position:y", 0.0, 0.3)
-		tw.parallel().tween_property(n, "scale", Vector3.ONE * 0.85, 0.3)
+		tw.parallel().tween_property(n, "scale", Vector3.ONE * 1.15, 0.3)
 	_refresh()
 
 
@@ -2691,7 +2983,6 @@ func _end_round() -> void:
 		for k in ["taunt", "counter", "regen", "wraith"]:
 			s[k] = maxi(0, int(s[k]) - 1)
 		s["vanish"] = false
-		s["defend"] = false
 		var cds: Dictionary = s["cd"]
 		for mv in cds.keys():
 			cds[mv] = int(cds[mv]) - 1
