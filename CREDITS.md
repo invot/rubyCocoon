@@ -67,6 +67,14 @@ recoloured in the game with each beast's own colours (and its menu icon rendered
 - **PS1/PSX style alpaca & capybara models** by obliviist,
   https://obliviist.itch.io/ps1psx-style-alpaca-capybara-models.
 
+### Robots (`assets/psx/robots/`, made by `tools/import_psx_robots.gd` and `tools/make_beast_icons.gd`)
+*Changes made:* models merged, turned, centred and scaled to one size; the T-posed arms swung down to the sides;
+textures shrunk to 128 px; menu icons rendered from them.
+- **Retro Robots without Rig - PSX Asset** by Bricchi Games, https://bricchi-games.itch.io/retro-robots, licensed
+  under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) (Clockwork Sentry, Steam Mecha, Iron Golem).
+- **Low poly Robot guy** by CokeEnthusiast, https://cokeenthusiast.itch.io/low-poly-robot-guy (Tank Walker). No
+  licence is given on the page, and the author notes its texture was made with ChatGPT: check before release.
+
 ### People (`assets/psx/people/`, made by `tools/import_psx_people.gd`)
 *Changes made:* textures shrunk to 256 px; each face moved onto a front-facing texture of its own with anime eyes
 painted in; the hero's texture repainted (red jacket over a white shirt, belt, jeans, red sneakers). The game poses

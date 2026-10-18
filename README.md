@@ -158,6 +158,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   each with the beast's own gene colours (mid tones take c1, dark tones a deep shade, light tones c2, eyes and claws
   keep theirs); ghosts are dusky and glow faintly. Merged beasts inherit one parent's form and mix the colours. Menu
   icons are rendered from the same models by `tools/make_beast_icons.gd` and recoloured the same way.
+- **Gearhart robots** (`RaceDB.ROBOTS`) are PSX robots: the Clockwork Sentry with a wind-up key, the boiler-bodied
+  Steam Mecha and the broad Iron Golem from Bricchi Games' Retro Robots, and the boxy Tank Walker from CokeEnthusiast's
+  Robot guy (`RaceDB.ROBOT_MODELS`). `tools/import_psx_robots.gd` bakes them into `assets/psx/robots/` (T-posed arms
+  swung down, turned to face +x like the beasts, 1 unit tall) with their own textures and glowing eyes and vents; they
+  are listed in `voxel_manifest.gd`, and `tools/make_beast_icons.gd` renders their menu icons too.
 - **Houses and most shops** are houses from the PS1 House Pack (100 low-poly houses, `tools/import_psx_houses.gd` →
   `assets/psx/houses/`): `house_models.gd` picks one per plot from the town style's list (weatherboard cottages on the
   coast, round thatched huts and stilt houses on the islands, terracotta huts in the desert, log cabins in the
@@ -299,7 +304,7 @@ scripts/
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         import_psx_beasts.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
