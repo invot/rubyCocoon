@@ -20,10 +20,12 @@ const SCALE := 0.94
 ## Heads are drawn larger than life, a touch of anime proportion.
 const HEAD_SCALE := 1.25
 ## Limbs are drawn chunkier than the packs made them, a toy-like look: how much wider each part is (see _thicken).
-const LIMBS := {"l_arm": 1.45, "r_arm": 1.45, "l_forearm": 1.4, "r_forearm": 1.4,
-	"l_thigh": 1.25, "r_thigh": 1.25, "l_shin": 1.3, "r_shin": 1.3}
-const HAND := 1.2
-const FOOT := 1.15
+const LIMBS := {"l_arm": 1.9, "r_arm": 1.9, "l_forearm": 1.8, "r_forearm": 1.8,
+	"l_thigh": 1.55, "r_thigh": 1.55, "l_shin": 1.6, "r_shin": 1.6}
+const HAND := 1.35
+const FOOT := 1.25
+## the body between the hips and the neck, a little fuller to carry the limbs
+const TORSO := 1.15
 const LEGION := ["21_police", "22_police", "25_female_police", "26_female_police"]
 const CENTER_STAFF := ["23_female_doctor", "24_female_doctor", "25_doctor", "26_doctor"]
 
@@ -132,6 +134,14 @@ static func _thicken(model: Node3D, sk: Skeleton3D) -> void:
 			var tip_end := _bone_end(sk, tip) if tip >= 0 else Vector3.ZERO
 			if tip_end != Vector3.ZERO:
 				fat[tip] = [tip_end, HAND if role.ends_with("forearm") else FOOT, false]
+	# the spine, from the hips up to (not including) the neck under the head
+	var j := sk.get_bone_parent(sk.get_bone_parent(sk.find_bone(map["head"])))
+	var hips := sk.find_bone(map["hips"])
+	while j >= 0 and j != hips:
+		var end := _bone_end(sk, j)
+		if end != Vector3.ZERO:
+			fat[j] = [end, TORSO, false]
+		j = sk.get_bone_parent(j)
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		if mi.skin == null or not mi.mesh is ArrayMesh:
 			continue
@@ -259,7 +269,7 @@ static func _rig(rig: Node3D) -> Dictionary:
 		var dir := (_global_rest(sk, fore).origin - a).normalized()
 		var out := signf((a - hips).dot(lat))
 		# held a little further out than life, to clear the (thickened) body
-		var hang := (down + lat * out * 0.2 + fwd * 0.04).normalized()
+		var hang := (down + lat * out * 0.3 + fwd * 0.04).normalized()
 		info[side + "_arm"]["down"] = Quaternion(dir, hang)
 	_rigs[id] = info
 	return info
@@ -332,8 +342,8 @@ static func animate(rig: Node3D, phase: float, amount: float, t := -1.0) -> void
 		var fore: Dictionary = r[side + "_forearm"]
 		_turn(sk, fore, ag, Quaternion(lat, -0.14 - 0.1 * walk - 0.3 * maxf(0.0, -s * swing)))
 	var body: Node3D = rig.get_node("Body")
-	body.position.y = pow(bob, 1.5) * 0.085 * walk + (breath * 0.5 + 0.5) * 0.01 * still
-	var squash := (bob - 0.5) * 0.07 * walk + breath * 0.012 * still
+	body.position.y = pow(bob, 1.5) * 0.11 * walk + (breath * 0.5 + 0.5) * 0.01 * still
+	var squash := (bob - 0.5) * 0.09 * walk + breath * 0.012 * still
 	body.scale = Vector3(1.0 - squash * 0.5, 1.0 + squash, 1.0 - squash * 0.5)
 
 

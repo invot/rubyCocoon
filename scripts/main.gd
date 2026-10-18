@@ -1,5 +1,5 @@
 extends Node
-## Game root: owns the pixelated 3D view, the title screen, map transitions and battles.
+## Game root: owns the 3D view, the title screen, map transitions and battles.
 
 const World = preload("res://scripts/world/world.gd")
 const Battle = preload("res://scripts/battle/battle.gd")
@@ -11,12 +11,8 @@ const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 
-## PSX look: the 3D world renders at about this many lines, then each pixel is blown up by a whole number of screen
-## pixels (4x at 1080p, 3x at 900p...) with nearest sampling, so the pixels stay crisp and evenly sized. The UI is
-## drawn on top at full resolution.
-const PSX_LINES := 270
-
-## Shows the low-resolution 3D view, scaled up to fill the window.
+## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
+## Shows the 3D view, filling the window.
 var screen: TextureRect
 var view: SubViewport
 var world = null
@@ -37,8 +33,7 @@ func _ready() -> void:
 	view.handle_input_locally = false
 	view.audio_listener_enable_3d = false
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	# hard pixel edges, like the hardware: no anti-aliasing at this resolution
-	view.msaa_3d = Viewport.MSAA_DISABLED
+	view.msaa_3d = Viewport.MSAA_2X
 	view.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	add_child(view)
 	screen = TextureRect.new()
@@ -46,7 +41,7 @@ func _ready() -> void:
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	screen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	screen.stretch_mode = TextureRect.STRETCH_SCALE
-	screen.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	screen.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(screen)
 	get_window().size_changed.connect(_fit_view)
@@ -71,16 +66,15 @@ func _unhandled_input(ev: InputEvent) -> void:
 		world.tap_at(to_view(ev.position))
 
 
-## Sizes the 3D view to the window: PSX_LINES tall, give or take, at a whole-number scale.
+## Sizes the 3D view to the window, pixel for pixel.
 func _fit_view() -> void:
-	var win := Vector2(get_window().size)
-	if win.y < 1.0:
+	var win := get_window().size
+	if win.y < 1:
 		return
-	var k := maxf(1.0, roundf(win.y / float(PSX_LINES)))
-	view.size = Vector2i(ceili(win.x / k), ceili(win.y / k))
+	view.size = win
 
 
-## A point on the screen (in UI units) -> the same point in the low-resolution 3D view.
+## A point on the screen (in UI units) -> the same point in the 3D view.
 func to_view(p: Vector2) -> Vector2:
 	return p * Vector2(view.size) / get_viewport().get_visible_rect().size
 
