@@ -1,14 +1,15 @@
 extends Control
-## The move bars beside your grid in battle (as in Jade Cocoon 2): your own bar on top, then one bar for each slot of
-## the side of your ring facing the foe, each level with its row of the grid (ring_grid.gd) and leaning with it.
+## The move bars beside your grid in battle (as in Jade Cocoon 2): one bar for each slot of the side of your ring facing
+## the foe, each level with its row of the grid (ring_grid.gd) and leaning with it, and your own bar.
+##   - Your bar comes first, on its own: while you choose your action it stands level with the grid's middle row (you
+##     stand in its centre cell), trimmed in gold; your trainer level, then your action. Once you move on to your
+##     beasts it gives way to their bars. (Your shield points are orbs under the grid.)
 ##   - A beast's bar: its level on the left, then the move it will use (◄ ► change it while the bar is chosen). Under
 ##     it, its HP and MP. If the move costs MP, the part of the MP bar it would spend slowly flashes.
-##   - Your bar: your trainer level, then your action. Under it, your shield points as blue orbs.
 ##   - Out of the command phase the bars show the beasts' names.
 ## battle.gd fills `rows` (see set_rows) and the command panel picks the focus; every bar can be tapped too.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
-const RingGrid = preload("res://scripts/battle/ring_grid.gd")
 
 ## zone: "left" (the ◄ end), "right" (the ► end) or "body"
 signal tapped(row: int, zone: String)
@@ -44,50 +45,68 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## Row i's pill (0 = you, 1..3 = the top, middle and bottom slots), leaning left as the rows go down.
+## Row i's pill (1..3 = the top, middle and bottom slots, leaning left as the rows go down; 0 = you, on the middle
+## row, level with the grid's centre cell).
 func pill_rect(i: int) -> Rect2:
-	var right := size.x - maxf(0.0, float(i - 1)) * slant
-	return Rect2(right - bar_w, float(i) * pitch_y, bar_w, pill_h)
+	var row := 2 if i == 0 else i
+	var right := size.x - float(row - 1) * slant
+	return Rect2(right - bar_w, float(row) * pitch_y, bar_w, pill_h)
+
+
+## The rows showing: your bar alone while you choose your action, else the beasts'.
+func shown() -> Array:
+	if focus == 0:
+		return [0]
+	return range(1, rows.size())
 
 
 func _draw() -> void:
 	var font := UIKit.font_body()
 	var big := UIKit.body_px(20)
 	var small := UIKit.body_px(11)
-	for i in rows.size():
+	for i: int in shown():
 		var row: Dictionary = rows[i]
 		var r := pill_rect(i)
 		var on := i == focus
+		var you: bool = row.get("kind", "") == "trainer"
 		var status: String = row.get("status", "")
 		var fade := 1.0
 		if status == "down":
 			fade = 0.6
 		elif status == "empty":
 			fade = 0.3
-		# the pill
+		# the pill (yours: a gold rim, and a gold line inside it)
 		var fill := UIKit.ACCENT.darkened(0.1) if on else UIKit.WINDOW_TOP
 		fill.a = 0.95 * fade if not on else 0.97
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = fill
 		sb.set_corner_radius_all(int(pill_h * 0.5))
-		sb.border_color = Color(UIKit.BORDER, (0.95 if on else 0.55) * fade)
-		sb.set_border_width_all(2)
+		sb.border_color = Color(UIKit.GOLD_BRIGHT, 0.95) if you else Color(UIKit.BORDER, (0.95 if on else 0.55) * fade)
+		sb.set_border_width_all(3 if you else 2)
 		sb.anti_aliasing = true
 		sb.shadow_color = Color(0, 0, 0, 0.35 * fade)
 		sb.shadow_size = 3
 		sb.shadow_offset = Vector2(0, 2)
 		draw_style_box(sb, r)
-		# the level, in a cap on the left
+		if you:
+			var inner := StyleBoxFlat.new()
+			inner.draw_center = false
+			inner.set_corner_radius_all(int(pill_h * 0.5) - 3)
+			inner.border_color = Color(UIKit.GOLD_BRIGHT, 0.35)
+			inner.set_border_width_all(1)
+			inner.anti_aliasing = true
+			draw_style_box(inner, r.grow(-4.0))
+		# the level, in a cap on the left (yours: a gold cap)
 		var cap := Rect2(r.position + Vector2(3, 3), Vector2(pill_h * 1.9, pill_h - 6))
 		var cb := StyleBoxFlat.new()
-		cb.bg_color = Color(UIKit.WINDOW_BOTTOM, 0.95 * fade)
+		cb.bg_color = UIKit.GOLD_BRIGHT if you else Color(UIKit.WINDOW_BOTTOM, 0.95 * fade)
 		cb.set_corner_radius_all(int((pill_h - 6) * 0.5))
 		cb.anti_aliasing = true
 		draw_style_box(cb, cap)
 		if status != "empty":
 			var lv := "Lv%d" % int(row.get("lv", 1))
 			var ls := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, small)
-			draw_string(font, cap.get_center() + Vector2(-ls.x * 0.5, ls.y * 0.32), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, small, Color(UIKit.GOLD_BRIGHT, fade))
+			draw_string(font, cap.get_center() + Vector2(-ls.x * 0.5, ls.y * 0.32), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, small, UIKit.WINDOW_BOTTOM if you else Color(UIKit.GOLD_BRIGHT, fade))
 		# the move / action, between the arrows
 		var x0 := cap.end.x + 8.0
 		var x1 := r.end.x - 12.0
@@ -112,14 +131,9 @@ func _draw() -> void:
 		text = _fit(font, text, big, x1 - x0)
 		var ts := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, big)
 		draw_string(font, Vector2(x0, r.get_center().y + ts.y * 0.3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, big, col)
-		# under the pill: HP and MP, or your shield
+		# under a beast's pill: its HP and MP
 		var sub := Rect2(Vector2(cap.position.x + 8.0, r.end.y + 4.0), Vector2(r.size.x - 30.0, maxf(6.0, pill_h * 0.24)))
-		if row.get("kind", "") == "trainer":
-			var n := int(row.get("max_shield", 0))
-			if n > 0:
-				RingGrid._orbs(self, Vector2(sub.position.x, sub.get_center().y + 1.0), int(row.get("shield", 0)), n, sub.size.y * 0.75)
-			continue
-		if status == "empty":
+		if you or status == "empty":
 			continue
 		var hp_w := sub.size.x * 0.58
 		var hr := Rect2(sub.position, Vector2(hp_w, sub.size.y))
@@ -169,7 +183,7 @@ func _gui_input(ev: InputEvent) -> void:
 	if not (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var p: Vector2 = (ev as InputEventMouseButton).position
-	for i in rows.size():
+	for i: int in shown():
 		var r := pill_rect(i)
 		if r.grow(4.0).has_point(p):
 			var zone := "body"

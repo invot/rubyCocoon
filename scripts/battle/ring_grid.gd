@@ -31,13 +31,14 @@ var wild := false
 var ring: Dictionary = {}
 var line: Array = []
 var side := 0
-## shield points, drawn as blue orbs under the grid (the foe's only: yours sit on your trainer bar)
+## shield points, drawn as blue orbs under the grid
 var shield := 0
 var max_shield := 0
 var show_shield := false
 ## the trainer can be hit (the middle of the fighting side is down)
 var open := false
-## the tile of the beast you're choosing for (a slot, or a line index for the wild pack), or -1
+## the tile of the beast you're choosing for (a slot, or a line index for the wild pack), -2 for the trainer (while
+## you choose your own action), or -1
 var focus := -1
 ## the tile being aimed at: a slot / line index, -2 for the trainer, or -1
 var target := -1
@@ -56,7 +57,7 @@ func _init(_team := "ally", _wild := false, scale_k := 1.0) -> void:
 	slant *= scale_k
 	tile *= scale_k
 	mouse_filter = Control.MOUSE_FILTER_PASS
-	custom_minimum_size = Vector2(4.0 + 2.0 * slant + tile.x + 2.0 * pitch.x + 4.0, top_pad() + 2.0 * pitch.y + tile.y * 0.5 + (26.0 * scale_k if team == "foe" else 6.0))
+	custom_minimum_size = Vector2(4.0 + 2.0 * slant + tile.x + 2.0 * pitch.x + 4.0, top_pad() + 2.0 * pitch.y + tile.y * 0.5 + 26.0 * scale_k)
 
 
 ## Room above the top row's tiles for the icons standing on them.
@@ -220,8 +221,8 @@ func _draw_trainer(p: Vector2) -> void:
 	var loop := pts.duplicate()
 	loop.append(pts[0])
 	draw_polyline(loop, Color(UIKit.BORDER, 0.7), 2.0, true)
-	if target == -2:
-		var pulse := Color("#ffe08a")
+	if target == -2 or focus == -2:
+		var pulse := Color("#ffe08a") if target == -2 else UIKit.LIGHT
 		pulse.a = 0.55 + 0.45 * sin(_time * 7.0)
 		var big := PackedVector2Array()
 		for v in loop:

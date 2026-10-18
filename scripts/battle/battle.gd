@@ -903,6 +903,10 @@ func _build_trainers() -> void:
 
 
 func _update_shield() -> void:
+	if ally_grid != null:
+		ally_grid.shield = GameState.shield
+		ally_grid.max_shield = GameState.max_shield
+		ally_grid.queue_redraw()
 	if shield_label == null:
 		return
 	if GameState.max_shield <= 0:
@@ -1039,6 +1043,7 @@ func _build_hud() -> void:
 	bars = BattleBars.new(k)
 	cmd_root.add_child(bars)
 	ally_grid = RingGrid.new("ally", false, k)
+	ally_grid.show_shield = true
 	cmd_root.add_child(ally_grid)
 	var gap := 8.0 * k
 	bars.position = Vector2.ZERO
@@ -1123,7 +1128,8 @@ func _refresh() -> void:
 	_update_shield()
 
 
-## The bars out of the command phase: your name and shield, then the names of the beasts facing the foe.
+## The bars out of the command phase: the names of the beasts facing the foe (and yours, which only shows while you
+## choose your action).
 func _idle_rows() -> Array:
 	var out := [{"kind": "trainer", "lv": GameState.trainer_level, "text": GameState.player_name, "shield": GameState.shield, "max_shield": GameState.max_shield}]
 	for b in ally_slots:
@@ -1169,7 +1175,8 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 		out.append(row)
 	bars.set_rows(out, focus)
 	var fr: Dictionary = rows[focus]
-	ally_grid.focus = -1
+	# your own turn lights your centre cell, a beast's its tile
+	ally_grid.focus = -2 if fr["kind"] == "trainer" else -1
 	if fr["kind"] == "beast" and focus >= 1:
 		ally_grid.focus = Ring.side_slots(ally_side)[focus - 1]
 	ally_grid.target = -1
