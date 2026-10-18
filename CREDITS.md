@@ -42,7 +42,7 @@ finish shows through; counters, booths and street furniture stretched to fit the
   (furniture, kitchens, bathrooms, beds, doors, windows, wall and floor textures). Free for commercial use; the
   files may not be redistributed.
 - **Retro Modular House Pack** by Elegant Crow, CC0, https://elegantcrow.itch.io/retro-modular-house-pack (wall
-  sections with doors, windows and shutters).
+  sections with doors, windows and shutters: shop fronts and the landmarks).
 - **DINER**, **6TWELVE** and **Trailer Park** by Elbolilloduro, https://elbolilloduro.itch.io (shop counters, diner
   booths and tables, coffee machines, kitchen appliances, lamps, plants and ornaments). Free for commercial use; the
   files may not be re-uploaded.
@@ -66,6 +66,14 @@ recoloured in the game with each beast's own colours (and its menu icon rendered
 - **Fish - PolyPack Asset** by ALSTRA INFINITE, https://alstrainfinite.itch.io/fish (the shark).
 - **PS1/PSX style alpaca & capybara models** by obliviist,
   https://obliviist.itch.io/ps1psx-style-alpaca-capybara-models.
+
+### Robots (`assets/psx/robots/`, made by `tools/import_psx_robots.gd` and `tools/make_beast_icons.gd`)
+*Changes made:* models merged, turned, centred and scaled to one size; the T-posed arms swung down to the sides;
+textures shrunk to 128 px; menu icons rendered from them.
+- **Retro Robots without Rig - PSX Asset** by Bricchi Games, https://bricchi-games.itch.io/retro-robots, licensed
+  under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) (Clockwork Sentry, Steam Mecha, Iron Golem).
+- **Low poly Robot guy** by CokeEnthusiast, https://cokeenthusiast.itch.io/low-poly-robot-guy (Tank Walker). No
+  licence is given on the page, and the author notes its texture was made with ChatGPT: check before release.
 
 ### People (`assets/psx/people/`, made by `tools/import_psx_people.gd`)
 *Changes made:* textures shrunk to 256 px; each face moved onto a front-facing texture of its own with anime eyes

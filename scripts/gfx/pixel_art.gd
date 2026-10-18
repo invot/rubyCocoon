@@ -123,16 +123,20 @@ static func tex(img: Image) -> ImageTexture:
 
 # ---------------------------------------------------------------- beasts
 ## A beast's menu icon: the rendered icon of its PSX form (assets/psx/beasts/icons, made by tools/make_beast_icons.gd)
-## recoloured with its genes the way its model is; beasts without a form get the old drawn icon.
+## recoloured with its genes the way its model is; a robot's rendered icon (assets/psx/robots/icons) as it is;
+## beasts without a form get the old drawn icon.
 static func beast_texture(genes: Dictionary) -> ImageTexture:
 	var key := "beast:" + JSON.stringify(genes)
 	if _cache.has(key):
 		return _cache[key]
 	var form := String(genes.get("form", ""))
 	var path := "res://assets/psx/beasts/icons/%s.res" % form
+	var robot := "res://assets/psx/robots/icons/%s.res" % String(genes.get("model", ""))
 	var t: ImageTexture
 	if form != "" and ResourceLoader.exists(path):
 		t = tex(_form_icon(genes, path))
+	elif genes.has("model") and ResourceLoader.exists(robot):
+		t = load(robot)
 	else:
 		t = tex(beast_image(genes))
 	_cache[key] = t

@@ -1,6 +1,7 @@
 extends RefCounted
-## Name -> model. PSX models come from tools/import_psx_models.gd (assets/psx/models); the rest are the
-## voxel models converted by tools/import_voxel_assets.py.
+## Name -> model. PSX models come from tools/import_psx_models.gd (assets/psx/models) and
+## tools/import_psx_robots.gd (assets/psx/robots); the rest are the voxel models converted by
+## tools/import_voxel_assets.py.
 
 const ASSETS := {
 	"tree_oak": "res://assets/psx/models/tree_oak.res",
@@ -171,9 +172,10 @@ const ASSETS := {
 	"trapped_room": "res://assets/voxel/dungeon/trapped_room.obj",
 	"treasure_room": "res://assets/voxel/dungeon/treasure_room.obj",
 	"boxing_gym": "res://assets/voxel/arena/boxing_gym.obj",
-	"field_fighter": "res://assets/voxel/robots/field_fighter.obj",
-	"mecha": "res://assets/voxel/robots/mecha.obj",
-	"mecha_golem": "res://assets/voxel/robots/mecha_golem.obj",
-	"quad_tank": "res://assets/voxel/robots/quad_tank.obj",
+	# the Gearhart robots (tools/import_psx_robots.gd): facing +x like the beasts
+	"robot_clockwork": "res://assets/psx/robots/robot_clockwork.res",
+	"robot_steam": "res://assets/psx/robots/robot_steam.res",
+	"robot_golem": "res://assets/psx/robots/robot_golem.res",
+	"robot_walker": "res://assets/psx/robots/robot_walker.res",
 	"log": "res://assets/psx/models/log.res",
 }

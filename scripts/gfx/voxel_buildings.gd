@@ -198,6 +198,12 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		"skytower":
 			_pack_skytower(node, st, w, d, door_lx)
 			return node
+		"arena":
+			_pack_arena(node, style_name, w, d, door_lx, locked)
+			return node
+		"electronics":
+			_pack_electronics(node, w, d, door_lx, locked)
+			return node
 		"ceo_tower":
 			_pack_ceo_tower(node, w, d, door_lx, locked)
 			return node
@@ -214,10 +220,6 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		match shop:
 			"center":
 				_diner(kit, w, d, door_lx)
-			"arena":
-				_arena(kit, w, d, st, door_lx)
-			"electronics":
-				_electronics(kit, w, d, door_lx)
 			"hideout":
 				pass
 			"temple":
@@ -278,15 +280,9 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		var icon := MeshInstance3D.new()
 		icon.mesh = VP.icon(shop)
 		var hgt := float(b.get("height", 2.4))
-		if shop == "skytower":
-			hgt = 2.4
-		elif shop == "arena":
-			hgt = 3.0
 		var iy := 2.15
 		if STYLES.get(style_name, {}).get("stilts", false):
 			iy += 0.45
-		if shop == "arena":
-			iy = 2.3
 		var iz := _on_face(icon.mesh, _sign_face(shop, d))
 		if shop in COMMERCIAL:
 			# on the shop's sign board
@@ -306,12 +302,11 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 
 ## Buildings with a look of their own; every other house and shop is built from the house pack (_pack_building).
 const SPECIAL := ["center", "arena", "skytower", "electronics", "ceo_tower", "cathedral", "hideout", "temple"]
-## The special buildings built from the house pack too, with a look of their own (as SHOP_LOOKS): the Beast Center's
-## chrome diner, the electronics shop's steel and glass, the arena's stone hall.
+## The special buildings built as a shop of the house pack with a look of their own (as SHOP_LOOKS): the Beast
+## Center's chrome diner. The other landmarks have builders of their own (_pack_arena, _pack_electronics,
+## _pack_skytower, _pack_ceo_tower, _pack_cathedral).
 const PACK_LOOKS := {
 	"center": {"floors": 1, "ground": ["tin", "#eef0f2"], "roof": "flat", "trim": "#d8283a", "flat_roof": "#b8bcc4", "brand": "#d8283a"},
-	"electronics": {"floors": 2, "ground": ["tin", "#c8ccd4"], "upper": ["brick", "#6a6a78"], "roof": "flat", "trim": "#3a6ab0", "flat_roof": "#4a4a52", "brand": "#3a6ab0"},
-	"arena": {"floors": 2, "ground": ["stone", "#c8bca8"], "upper": ["stone", "#b8ac98"], "roof": "hip", "trim": "#6a4a2a", "brand": "#c8a030"},
 }
 ## House paints by town style: soft colours, so a street of houses isn't all one shade.
 const HOUSE_PAINTS := {
@@ -532,63 +527,539 @@ static func _diner_pylon(node: Node3D, k: Kit, w: float, d: float, door_lx: floa
 	node.add_child(paw)
 
 
-## The Sky Tower: a slender lookout of three storeys in the town's wall finish (the pack's door, windows and corner
-## posts), a beam at each floor, an open deck on top behind a railing, a windsock, and the Thunderhawk perched up there.
+## The Sky Tower: an eight-sided lookout of the house pack's walls in the town's wall finish, three storeys that step
+## in as they rise (the door on the front face, small windows round about, a rib up every corner and a ledge at every
+## floor), then a gallery on brackets with a railing all round, a glazed lantern room under a pointed roof with a
+## weathervane, a windsock, and the Thunderhawk perched on the gallery.
 static func _pack_skytower(node: Node3D, st: Dictionary, w: float, d: float, door_lx: float) -> void:
 	var hb = HouseBuilder.new()
 	hb.node = node
 	hb.w = w
 	hb.d = d
-	hb.rng.seed = 4242
 	var k := Kit.new()
 	var trim := Color(st["trim"])
-	k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), Color(st["base"]))
-	k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.3, 0.14, 0.4), Color(st["base"]).lightened(0.08))
 	var mat: Material = HouseBuilder.wall_material(String(st["wall"][0]), Color(st["wall"][1]))
+	# centred on the door, so the front face (and its door) stands on the door's tile
+	var c := Vector2(clampf(door_lx, -w / 2.0 + 1.5, w / 2.0 - 1.5), 0.0)
+	var r0 := (d / 2.0 - HouseBuilder.INSET) / cos(PI / 8.0)
+	_plinth(k, _loop(c, r0 + 0.08, r0 + 0.08, 8, PI / 8.0), c, 0.24, Color(st["base"]))
+	k.box("stone", Vector3(c.x, 0.07, d / 2.0 + 0.12), Vector3(1.3, 0.14, 0.4), Color(st["base"]).lightened(0.08))
 	var y := 0.24
+	var r := r0
 	for f in 3:
-		hb.storey(y, mat, PACK_DOORS[2] if f == 0 else "", door_lx, {2: PACK_SMALL}, false, true)
-		hb.corners(k, y, HouseBuilder.STOREY, trim)
+		var pts := _loop(c, r, r, 8, PI / 8.0)
+		for i in 8:
+			# corner i-1 to corner i: face i is centred at i * 45 degrees round from the front
+			var a: Vector2 = pts[(i + 7) % 8]
+			var b: Vector2 = pts[i]
+			var piece := "wall_1"
+			if i == 0:
+				piece = PACK_DOORS[3] if f == 0 else "win_small_3"
+			elif i % 2 == 1 or (f > 0 and i == 4):
+				piece = "win_small_2" if f < 2 else "win_small_3"
+			hb.span(piece, a, b, y, mat, c)
+		for p in pts:
+			_column(k, "planks", Vector3(p.x, y, p.y), 0.1, HouseBuilder.STOREY, 4, trim, PI / 4.0)
 		y += HouseBuilder.STOREY
-		k.box("planks", Vector3(0, y + 0.07, 0), Vector3(w - 0.1, 0.14, d - 0.1), trim)
+		# the ledge where the next storey steps in
+		var nr := r * 0.9 if f < 2 else r
+		_ledge(k, "planks", _loop(c, r + 0.1, r + 0.1, 8, PI / 8.0), _loop(c, nr - 0.05, nr - 0.05, 8, PI / 8.0), c, y, 0.14, trim)
 		y += 0.14
-	# the lookout deck, overhanging the walls, with a railing all round
-	var deck := Vector2(w + 0.5, d + 0.5)
-	k.box("planks", Vector3(0, y + 0.08, 0), Vector3(deck.x, 0.16, deck.y), trim.lightened(0.2))
-	var x := -deck.x / 2.0
-	while x <= deck.x / 2.0 + 0.01:
-		for sz in [-1.0, 1.0]:
-			k.box("color", Vector3(x, y + 0.6, sz * deck.y / 2.0), Vector3(0.08, 0.9, 0.08), trim)
-		x += 0.5
-	var z := -deck.y / 2.0
-	while z <= deck.y / 2.0 + 0.01:
-		for sx in [-1.0, 1.0]:
-			k.box("color", Vector3(sx * deck.x / 2.0, y + 0.6, z), Vector3(0.08, 0.9, 0.08), trim)
-		z += 0.5
-	for sz in [-1.0, 1.0]:
-		k.box("color", Vector3(0, y + 1.05, sz * deck.y / 2.0), Vector3(deck.x, 0.07, 0.07), trim)
-	for sx in [-1.0, 1.0]:
-		k.box("color", Vector3(sx * deck.x / 2.0, y + 1.05, 0), Vector3(0.07, 0.07, deck.y), trim)
-	# a windsock on a pole at the back corner
-	k.box("color", Vector3(deck.x / 2.0 - 0.1, y + 1.6, -deck.y / 2.0 + 0.1), Vector3(0.08, 2.9, 0.08), trim)
-	k.box("color", Vector3(deck.x / 2.0 - 0.5, y + 2.85, -deck.y / 2.0 + 0.1), Vector3(0.7, 0.3, 0.3), Color("#e84a3a"))
-	k.box("color", Vector3(deck.x / 2.0 - 1.0, y + 2.85, -deck.y / 2.0 + 0.1), Vector3(0.4, 0.22, 0.22), Color("#f4f0e8"))
+		r = nr
+	hb.finish()
+	# the gallery, on a bracket under every corner
+	var deck_r := r0 + 0.55
+	var deck := _loop(c, deck_r, deck_r, 8, PI / 8.0)
+	var top_pts := _loop(c, r, r, 8, PI / 8.0)
+	for i in 8:
+		var p: Vector2 = top_pts[i]
+		var q: Vector2 = deck[i]
+		_beam(k, "planks", Vector3(p.x, y - 1.0, p.y), Vector3(lerpf(p.x, q.x, 0.85), y - 0.02, lerpf(p.y, q.y, 0.85)), 0.12, trim)
+	_ledge(k, "planks", deck, _fill(c, 8), c, y, 0.16, trim.lightened(0.25))
+	var gy := y + 0.16
+	# its railing: a post at every corner and halfway along every side, two rails
+	for i in 8:
+		var a: Vector2 = deck[i]
+		var b: Vector2 = deck[(i + 1) % 8]
+		var ai := a.lerp(c, 0.04)
+		var bi := b.lerp(c, 0.04)
+		for t in [0.0, 0.5]:
+			var p := ai.lerp(bi, t)
+			_column(k, "color", Vector3(p.x, gy, p.y), 0.04, 0.95, 4, trim)
+		for h in [0.45, 0.95]:
+			_beam(k, "color", Vector3(ai.x, gy + h, ai.y), Vector3(bi.x, gy + h, bi.y), 0.07, trim)
+	# the lantern room: glazed all round
+	var lr := r0 * 0.62
+	var lpts := _loop(c, lr, lr, 8, PI / 8.0)
+	var lb = HouseBuilder.new()
+	lb.node = node
+	for i in 8:
+		lb.span("win_3", lpts[(i + 7) % 8], lpts[i], gy, mat, c, 2.1)
+	lb.finish()
+	for p in lpts:
+		_column(k, "planks", Vector3(p.x, gy, p.y), 0.07, 2.1, 4, trim, PI / 4.0)
+	var ry := gy + 2.1
+	_ledge(k, "planks", _loop(c, lr + 0.3, lr + 0.3, 8, PI / 8.0), _fill(c, 8), c, ry, 0.12, trim)
+	var roof_col := Color(st["roof"][1])
+	var peak := ry + 0.12 + 1.7
+	_spire(k, String(st["roof"][0]), _loop(c, lr + 0.36, lr + 0.36, 8, PI / 8.0), ry + 0.12, c, 1.7, roof_col)
+	# a finial, a brass ball and the weathervane's arrow
+	_column(k, "brass", Vector3(c.x, peak - 0.1, c.y), 0.05, 1.0, 6, Color("#c8a040"))
+	_column(k, "brass", Vector3(c.x, peak + 0.5, c.y), 0.12, 0.2, 8, Color("#e0c060"))
+	_beam(k, "color", Vector3(c.x - 0.5, peak + 0.8, c.y), Vector3(c.x + 0.45, peak + 0.8, c.y), 0.05, Color("#3a3a3a"))
+	k.poly("color", [Vector3(c.x + 0.45, peak + 0.68, c.y), Vector3(c.x + 0.62, peak + 0.8, c.y), Vector3(c.x + 0.45, peak + 0.92, c.y)], Vector3.BACK, Color("#3a3a3a"))
+	k.poly("color", [Vector3(c.x - 0.5, peak + 0.8, c.y), Vector3(c.x - 0.36, peak + 0.8, c.y), Vector3(c.x - 0.36, peak + 1.0, c.y), Vector3(c.x - 0.5, peak + 1.0, c.y)], Vector3.BACK, Color("#3a3a3a"))
+	# a windsock on a pole at the gallery's back corner
+	var sp: Vector2 = deck[4].lerp(c, 0.08)
+	_column(k, "color", Vector3(sp.x, gy, sp.y), 0.04, 2.4, 4, trim)
+	k.box("color", Vector3(sp.x - 0.4, gy + 2.25, sp.y), Vector3(0.6, 0.28, 0.28), Color("#e84a3a"))
+	k.box("color", Vector3(sp.x - 0.85, gy + 2.22, sp.y), Vector3(0.35, 0.2, 0.2), Color("#f4f0e8"))
 	var bird := MeshInstance3D.new()
 	bird.mesh = VB.mesh(RaceDB.genes(43))
-	bird.scale = Vector3(1.7, 1.7, 1.7)
-	bird.position = Vector3(0, y + 0.2, 0)
+	bird.scale = Vector3(1.25, 1.25, 1.25)
+	# on the front of the gallery, facing the street, its wings spread along the rail
+	bird.position = Vector3(c.x, gy, c.y + deck_r * 0.82)
 	bird.rotation.y = -PI / 2.0
 	bird.name = "Bird"
 	node.add_child(bird)
 	# its sign over the door
 	var icon := MeshInstance3D.new()
 	icon.mesh = VP.icon("skytower")
-	icon.position = Vector3(door_lx, 0.24 + 2.55, _on_face(icon.mesh, d / 2.0 - HouseBuilder.INSET))
+	icon.position = Vector3(c.x, 0.24 + 2.55, _on_face(icon.mesh, d / 2.0 - HouseBuilder.INSET))
 	node.add_child(icon)
-	hb.finish()
 	var km := MeshInstance3D.new()
 	km.mesh = k.mesh()
 	node.add_child(km)
+
+
+## The arena's stone by town: sandstone in the west and the desert, granite in the mines, mossy in the jungle.
+const ARENA_STONE := {"western": "#dcb890", "adobe": "#e0bc8c", "mining": "#b8b4ac", "jungle": "#bcc09c", "island": "#e2d6ba",
+	"hotspring": "#b0a49a", "gothic": "#a4a4ac"}
+
+
+## The arena: an oval stadium of the house pack's walls (an arcade of tall windows below, small ones above, a pilaster
+## at every corner, a cornice and a parapet), open to the sky over its tiers of seats and its sand ring, with a striped
+## awning on masts over the far stands and pennants round the rim. At the front, on the door's tile, a crenellated
+## gatehouse with the great carved door, banners and the arena's sign, between two round turrets with pointed roofs.
+static func _pack_arena(node: Node3D, style_name: String, w: float, d: float, door_lx: float, locked: bool) -> void:
+	var stone := Color(ARENA_STONE.get(style_name, "#d8ccb4"))
+	var dark := stone.darkened(0.22)
+	var brand := Color("#c8a030")
+	var flags := [Color("#c83a3a"), Color("#3a6ac8"), Color("#e8c040")]
+	var mat: Material = HouseBuilder.wall_material("stone", stone)
+	var k := Kit.new()
+	var hb = HouseBuilder.new()
+	hb.node = node
+	hb.w = w
+	hb.d = d
+	var y0 := 0.24
+	var top := y0 + HouseBuilder.STOREY * 2.0
+	# the oval, set back a little so the gatehouse stands proud of it
+	var c := Vector2(0.0, -0.22)
+	var ax := w / 2.0 - 0.2
+	var az := d / 2.0 - 0.38
+	var n := 18
+	var ring := _loop(c, ax, az, n, PI / n)
+	# the gatehouse: from a little inside the oval out to the front of the plot
+	var gx0 := door_lx - 1.45
+	var gx1 := door_lx + 1.45
+	var gz1 := d / 2.0 - HouseBuilder.INSET
+	var gz0 := c.y + az * 0.45
+	_plinth(k, _scaled(ring, c, 1.025), c, y0, dark)
+	k.box("stone", Vector3((gx0 + gx1) / 2.0, y0 / 2.0, (gz0 + gz1) / 2.0 + 0.04), Vector3(gx1 - gx0 + 0.16, y0, gz1 - gz0 + 0.08), dark)
+	k.box("stone", Vector3(door_lx, 0.07, gz1 + 0.24), Vector3(1.6, 0.14, 0.4), dark.lightened(0.1))
+	var hidden := func(p: Vector2) -> bool: return p.x > gx0 - 0.3 and p.x < gx1 + 0.3 and p.y > gz0
+	for i in n:
+		var a: Vector2 = ring[i]
+		var b: Vector2 = ring[(i + 1) % n]
+		if hidden.call((a + b) / 2.0):
+			continue
+		hb.span("win_1", a, b, y0, mat, c)
+		hb.span("win_small_1", a, b, y0 + HouseBuilder.STOREY, mat, c)
+	for p in ring:
+		if not hidden.call(p):
+			_column(k, "stone", Vector3(p.x, y0, p.y), 0.17, HouseBuilder.STOREY * 2.0, 6, stone.lightened(0.06))
+	# a cornice between the storeys and round the top, and the parapet
+	for cy in [y0 + HouseBuilder.STOREY, top]:
+		_ledge(k, "stone", _scaled(ring, c, 1.045), ring, c, cy - 0.08, 0.16, dark)
+	_skirt(k, "stone", ring, top, 0.62, stone, c)
+	var inner := _scaled(ring, c, 0.95)
+	_skirt(k, "stone", inner, top, 0.62, stone.darkened(0.12), c, true)
+	_band(k, "stone", _scaled(ring, c, 1.01), inner, top + 0.62, stone.lightened(0.05))
+	# the stands: four tiers stepping down to the arena wall, and the sand inside it
+	var ty := top + 0.1
+	var f := 0.95
+	for t in 4:
+		var nf := f - 0.08
+		_band(k, "stone", _scaled(ring, c, f), _scaled(ring, c, nf), ty, stone.darkened(0.04 * float(t % 2)))
+		_skirt(k, "stone", _scaled(ring, c, nf), ty - 0.42, 0.42, dark.darkened(0.06), c, true)
+		ty -= 0.42
+		f = nf
+	var floor_y := ty - 1.1
+	_skirt(k, "stone", _scaled(ring, c, f), floor_y, 1.1, dark.darkened(0.15), c, true)
+	_band(k, "ground_sand", _scaled(ring, c, f), _fill(c, n), floor_y, Color("#e8d4a0"))
+	# the white battle ring painted on the sand
+	_band(k, "color", _scaled(ring, c, 0.36), _scaled(ring, c, 0.32), floor_y + 0.01, Color("#f4f0e4"))
+	# masts round the rim, the far ones holding up a striped awning over the stands
+	var i2 := 0
+	for i in n:
+		var p: Vector2 = ring[i]
+		if hidden.call(p):
+			continue
+		var far := p.y < c.y - az * 0.25
+		var mh := 1.55 if far else 1.0
+		_column(k, "color", Vector3(p.x, top + 0.62, p.y), 0.045, mh, 4, Color("#5a4a3a"))
+		if i % 2 == 0 or far:
+			_pennant(k, Vector3(p.x, top + 0.62 + mh, p.y), flags[i2 % 3])
+			i2 += 1
+		var q: Vector2 = ring[(i + 1) % n]
+		if far and q.y < c.y - az * 0.25:
+			var pin := p.lerp(c, 0.3)
+			var qin := q.lerp(c, 0.3)
+			k.poly("color", [Vector3(p.x, top + 1.95, p.y), Vector3(q.x, top + 1.95, q.y), Vector3(qin.x, top + 1.25, qin.y), Vector3(pin.x, top + 1.25, pin.y)],
+				Vector3((c.x - p.x) * 0.2, 1.0, (c.y - p.y) * 0.2), brand if i % 2 == 0 else Color("#f6f0e0"))
+	# the gatehouse: two storeys and a crenellated top, the carved door, a window over it
+	var gc := Vector2((gx0 + gx1) / 2.0, (gz0 + gz1) / 2.0)
+	var dw := 1.3
+	hb.span("door_1" if locked else "door_3", Vector2(door_lx - dw / 2.0, gz1), Vector2(door_lx + dw / 2.0, gz1), y0, mat, gc)
+	hb.span("wall_1", Vector2(gx0, gz1), Vector2(door_lx - dw / 2.0, gz1), y0, mat, gc)
+	hb.span("wall_1", Vector2(door_lx + dw / 2.0, gz1), Vector2(gx1, gz1), y0, mat, gc)
+	hb.span("win_double_2", Vector2(gx0, gz1), Vector2(gx1, gz1), y0 + HouseBuilder.STOREY, mat, gc)
+	for gx in [gx0, gx1]:
+		for fl in 2:
+			hb.span("wall_2" if fl == 0 else "win_small_1", Vector2(gx, gz0), Vector2(gx, gz1), y0 + HouseBuilder.STOREY * fl, mat, gc)
+	hb.finish()
+	# an attic over the gatehouse, so its battlements stand above the oval's parapet
+	var gtop := top + 0.95
+	k.box("stone", Vector3(gc.x, (top + gtop) / 2.0, gc.y + 0.02), Vector3(gx1 - gx0 - 0.02, gtop - top + 0.02, gz1 - gz0 - 0.02), stone)
+	k.box("stone", Vector3(gc.x, gtop + 0.06, gc.y), Vector3(gx1 - gx0 + 0.12, 0.12, gz1 - gz0 + 0.12), dark)
+	k.box("stone", Vector3(gc.x, y0 + HouseBuilder.STOREY, gz1 + 0.04), Vector3(gx1 - gx0 + 0.1, 0.14, 0.12), dark)
+	var mx := gx0 + 0.15
+	while mx < gx1 - 0.1:
+		k.box("stone", Vector3(mx, gtop + 0.34, gz1 - 0.12), Vector3(0.3, 0.44, 0.24), stone)
+		mx += 0.55
+	var mz := gz0 + 0.2
+	while mz < gz1 - 0.4:
+		for gx in [gx0, gx1]:
+			k.box("stone", Vector3(gx + (0.12 if gx == gx0 else -0.12), gtop + 0.34, mz), Vector3(0.24, 0.44, 0.3), stone)
+		mz += 0.55
+	# banners either side of the door and the sign over it
+	for sx in [-1.0, 1.0]:
+		var bx: float = door_lx + sx * (dw / 2.0 + 0.36)
+		k.box("color", Vector3(bx, y0 + 1.75, gz1 + 0.03), Vector3(0.44, 1.5, 0.03), flags[0 if sx < 0 else 1])
+		k.box("color", Vector3(bx, y0 + 1.75, gz1 + 0.05), Vector3(0.12, 1.5, 0.02), brand)
+		k.box("color", Vector3(bx, y0 + 2.52, gz1 + 0.05), Vector3(0.56, 0.06, 0.06), Color("#5a4a3a"))
+		# a brazier on a post either side of the steps
+		_column(k, "stone", Vector3(door_lx + sx * 1.15, 0.0, gz1 + 0.45), 0.09, 0.9, 6, dark)
+		_column(k, "brass", Vector3(door_lx + sx * 1.15, 0.9, gz1 + 0.45), 0.18, 0.14, 6, Color("#6a4a2a"))
+		k.box("glow", Vector3(door_lx + sx * 1.15, 1.12, gz1 + 0.45), Vector3(0.18, 0.2, 0.18), Color("#ff8a3a"))
+	var icon := MeshInstance3D.new()
+	icon.mesh = VP.icon("arena")
+	icon.position = Vector3(door_lx, y0 + 2.55, _on_face(icon.mesh, gz1))
+	node.add_child(icon)
+	# the turrets either side of the gatehouse
+	for gx in [gx0, gx1]:
+		var tc := Vector3(gx, 0.0, gz1 - 0.55)
+		var th := top + 1.75
+		_column(k, "stone", tc, 0.66, y0, 8, dark, PI / 8.0)
+		_column(k, "stone", tc + Vector3(0, y0, 0), 0.6, th - y0, 8, stone.lightened(0.04), PI / 8.0)
+		# arrow slits up the front
+		for sy in [1.3, 3.6, 5.9]:
+			k.box("color", Vector3(gx, sy, tc.z + 0.57), Vector3(0.1, 0.55, 0.04), Color("#2a221c"))
+		_ledge(k, "stone", _loop(Vector2(tc.x, tc.z), 0.76, 0.76, 8, PI / 8.0), _fill(Vector2(tc.x, tc.z), 8), Vector2(tc.x, tc.z), th, 0.14, dark)
+		var tp := th + 0.14 + 1.5
+		_spire(k, "tile", _loop(Vector2(tc.x, tc.z), 0.8, 0.8, 8, PI / 8.0), th + 0.14, Vector2(tc.x, tc.z), 1.5, Color("#b84a32"))
+		_column(k, "color", Vector3(tc.x, tp - 0.1, tc.z), 0.035, 0.75, 4, Color("#5a4a3a"))
+		_pennant(k, Vector3(tc.x, tp + 0.65, tc.z), brand)
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+
+
+## Sparkwire Electronics: a streamlined shop of the house pack's walls in white render with blue speed stripes. Its
+## front-left corner curves round in glass, under a cantilevered canopy that wraps the corner with the shop's sign on
+## its fascia; above it, two storeys up, a round drum carries a tall blade sign with a lightning bolt. On the flat roof,
+## a satellite dish and a lattice radio mast with a red beacon.
+static func _pack_electronics(node: Node3D, w: float, d: float, door_lx: float, locked: bool) -> void:
+	var render := Color("#eef0f2")
+	var steel := Color("#9aa2ae")
+	var brand := Color("#3a6ab0")
+	var neon := Color("#5af0ff")
+	var mat: Material = HouseBuilder.wall_material("plaster", render)
+	var k := Kit.new()
+	var hb = HouseBuilder.new()
+	hb.node = node
+	hb.w = w
+	hb.d = d
+	var I := HouseBuilder.INSET
+	var x0 := -w / 2.0 + I
+	var x1 := w / 2.0 - I
+	var z0 := -d / 2.0 + I
+	var z1 := d / 2.0 - I
+	# the curved corner: as round as the room left of the door allows
+	var dw := 1.2
+	var rad := clampf(door_lx - dw / 2.0 - 0.25 - x0, 0.6, minf(1.3, z1 - z0 - 0.6))
+	var cc := Vector2(x0 + rad, z1 - rad)
+	var arc := []
+	for i in 4:
+		var a := -PI / 2.0 * float(i) / 3.0
+		arc.append(Vector2(cc.x + rad * sin(a), cc.y + rad * cos(a)))
+	# the outline, round from the front's right end: front, curve, left side, back, right side
+	var outline := [Vector2(x1, z1)]
+	outline.append_array(arc)
+	outline.append_array([Vector2(x0, z0), Vector2(x1, z0)])
+	var centre := Vector2(0.0, 0.0)
+	_plinth(k, _grown(outline, 0.08), centre, 0.24, Color("#8a8a90"))
+	k.box("stone", Vector3(door_lx, 0.07, z1 + 0.22), Vector3(1.3, 0.14, 0.4), Color("#9a9aa0"))
+	var y0 := 0.24
+	var S := HouseBuilder.STOREY
+	for fl in 2:
+		var y := y0 + S * fl
+		var front: Vector2 = arc[0]
+		if fl == 0:
+			if door_lx - dw / 2.0 - front.x > 0.3:
+				hb.span("win_2", front, Vector2(door_lx - dw / 2.0, z1), y, mat, centre)
+			hb.span("door_1" if locked else "door_7", Vector2(door_lx - dw / 2.0, z1), Vector2(door_lx + dw / 2.0, z1), y, mat, centre)
+			if x1 - door_lx - dw / 2.0 > 0.3:
+				hb.span("win_double_2", Vector2(door_lx + dw / 2.0, z1), Vector2(x1, z1), y, mat, centre)
+		else:
+			# a ribbon of windows along the front
+			hb.span("win_double_2", front, Vector2(x1, z1), y, mat, centre)
+		for i in 3:
+			hb.span("win_double_2" if fl == 0 else "win_2", arc[i], arc[i + 1], y, mat, centre)
+		hb.span("win_2" if fl == 0 else "win_small_2", arc[3], Vector2(x0, z0), y, mat, centre)
+		hb.span("wall_2", Vector2(x0, z0), Vector2(x1, z0), y, mat, centre)
+		hb.span("win_small_3" if fl == 1 else "wall_2", Vector2(x1, z0), Vector2(x1, z1), y, mat, centre)
+	# corner posts where the straight walls meet
+	for p in [Vector2(x1, z1), Vector2(x0, z0), Vector2(x1, z0)]:
+		_column(k, "tin", Vector3(p.x, y0, p.y), 0.12, S * 2.0, 4, steel, PI / 4.0)
+	# speed stripes round the upper storey, and the roof's slab and parapet
+	for sy in [y0 + S + 0.22, y0 + S + 0.42]:
+		_skirt(k, "color", _grown(outline, 0.02), sy, 0.08, brand, centre)
+	var top := y0 + S * 2.0
+	var roof_in := _grown(outline, -0.12)
+	_ledge(k, "plaster", _grown(outline, 0.1), roof_in, centre, top, 0.4, render.darkened(0.04))
+	_skirt(k, "plaster", roof_in, top + 0.22, 0.18, render.darkened(0.12), centre, true)
+	_band(k, "tin", roof_in, _fill(centre, outline.size()), top + 0.22, Color("#5a5a66"))
+	_skirt(k, "color", _grown(outline, 0.11), top + 0.3, 0.06, brand, centre)
+	# the canopy over the shop front, wrapping the corner: a slab with a blue fascia and a neon strip
+	var cy := y0 + 2.42
+	var cin := [Vector2(x1, z1)]
+	cin.append_array(arc)
+	var cout := []
+	for p in cin:
+		var o: Vector2 = p
+		if p == Vector2(x1, z1):
+			o = p + Vector2(0.1, 0.55)
+		else:
+			o = cc + (p - cc).normalized() * (rad + 0.55)
+		cout.append(o)
+	for i in cin.size() - 1:
+		var a: Vector2 = cin[i]
+		var b: Vector2 = cin[i + 1]
+		var ao: Vector2 = cout[i]
+		var bo: Vector2 = cout[i + 1]
+		k.poly("tin", [Vector3(a.x, cy + 0.12, a.y), Vector3(b.x, cy + 0.12, b.y), Vector3(bo.x, cy + 0.12, bo.y), Vector3(ao.x, cy + 0.12, ao.y)], Vector3.UP, Color("#d8dce4"))
+		k.poly("tin", [Vector3(a.x, cy, a.y), Vector3(b.x, cy, b.y), Vector3(bo.x, cy, bo.y), Vector3(ao.x, cy, ao.y)], Vector3.DOWN, Color("#c8ccd4"))
+		var on := Vector2(bo.y - ao.y, ao.x - bo.x).normalized()
+		if on.dot((ao + bo) / 2.0 - cc) < 0.0:
+			on = -on
+		k.poly("color", [Vector3(ao.x, cy - 0.16, ao.y), Vector3(bo.x, cy - 0.16, bo.y), Vector3(bo.x, cy + 0.2, bo.y), Vector3(ao.x, cy + 0.2, ao.y)], Vector3(on.x, 0, on.y), brand)
+		k.poly("glow", [Vector3(ao.x + on.x * 0.01, cy - 0.12, ao.y + on.y * 0.01), Vector3(bo.x + on.x * 0.01, cy - 0.12, bo.y + on.y * 0.01),
+			Vector3(bo.x + on.x * 0.01, cy - 0.08, bo.y + on.y * 0.01), Vector3(ao.x + on.x * 0.01, cy - 0.08, ao.y + on.y * 0.01)], Vector3(on.x, 0, on.y), neon)
+	# the canopy's right end
+	var e0: Vector2 = cin[0]
+	var e1: Vector2 = cout[0]
+	k.poly("color", [Vector3(e0.x, cy - 0.16, e0.y), Vector3(e1.x, cy - 0.16, e1.y), Vector3(e1.x, cy + 0.2, e1.y), Vector3(e0.x, cy + 0.2, e0.y)], Vector3.RIGHT, brand)
+	var icon := MeshInstance3D.new()
+	icon.mesh = VP.icon("electronics")
+	icon.position = Vector3(door_lx, cy + 0.04, _on_face(icon.mesh, z1 + 0.56))
+	icon.scale = Vector3(0.7, 0.7, 0.7)
+	node.add_child(icon)
+	# the drum over the corner, a storey above the roof, with the blade sign rising from it
+	var dr := rad * 0.92
+	var drum := _loop(cc, dr, dr, 8, PI / 8.0)
+	for i in 8:
+		hb.span("win_2" if i in [0, 6, 7] else "wall_1", drum[(i + 7) % 8], drum[i], top + 0.22, mat, cc, 2.2)
+	hb.finish()
+	var dtop := top + 0.22 + 2.2
+	for sy in [dtop - 1.75, dtop - 1.55]:
+		_skirt(k, "color", _scaled(drum, cc, 1.02), sy, 0.08, brand, cc)
+	_ledge(k, "plaster", _scaled(drum, cc, 1.12), _fill(cc, 8), cc, dtop, 0.18, render.darkened(0.04))
+	var fin := Vector3(cc.x, dtop + 0.18, cc.y + dr * 0.35)
+	k.box("color", fin + Vector3(0, 1.1, 0), Vector3(1.0, 2.2, 0.16), Color("#f4f4f0"))
+	k.box("color", fin + Vector3(0, 1.1, 0), Vector3(0.84, 2.04, 0.2), brand)
+	k.box("glow", fin + Vector3(0, 2.2, 0), Vector3(1.0, 0.06, 0.18), neon)
+	k.box("glow", fin + Vector3(0, 0.02, 0), Vector3(1.0, 0.06, 0.18), neon)
+	var bolt := MeshInstance3D.new()
+	bolt.mesh = VP.icon("electronics")
+	bolt.scale = Vector3(1.25, 1.25, 1.25)
+	bolt.position = Vector3(fin.x, fin.y + 1.05, _on_face(bolt.mesh, fin.z + 0.1) + 0.02)
+	node.add_child(bolt)
+	# the satellite dish and the radio mast on the roof behind
+	var free := Vector2((cc.x + dr + x1) / 2.0 + 0.1, (z0 + z1) / 2.0 + 0.25)
+	_dish(k, Vector3(free.x, top + 0.22, free.y), 0.62, Color("#e4e6ea"))
+	var mp := Vector3(x1 - 0.42, top + 0.22, z0 + 0.42)
+	var mh := 3.2
+	var legs := [Vector3(-0.3, 0, -0.3), Vector3(0.3, 0, -0.3), Vector3(0.3, 0, 0.3), Vector3(-0.3, 0, 0.3)]
+	var tip := mp + Vector3(0, mh, 0)
+	for l in legs:
+		_beam(k, "color", mp + l, tip, 0.05, Color("#c84a3a"))
+	for h in [0.8, 1.6, 2.4]:
+		var s: float = 1.0 - h / mh
+		for i in 4:
+			var a: Vector3 = mp + legs[i] * s + Vector3(0, h, 0)
+			var b: Vector3 = mp + legs[(i + 1) % 4] * s + Vector3(0, h, 0)
+			_beam(k, "color", a, b, 0.035, Color("#e8e8e8"))
+	k.box("glow", tip + Vector3(0, 0.08, 0), Vector3(0.14, 0.14, 0.14), Color("#ff3a2a"))
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+
+
+## A satellite dish on a short post: a shallow bowl of twelve petals tipped back towards the sky, a feed arm and its
+## horn at the focus.
+static func _dish(k: Kit, base: Vector3, r: float, col: Color) -> void:
+	_column(k, "tin", base, 0.07, 0.55, 6, Color("#7a7a84"))
+	var c := base + Vector3(0, 0.75, 0)
+	# tipped back 40 degrees from upright, facing the front of the shop and a little left
+	var face := Basis(Vector3.UP, -0.45) * Basis(Vector3.RIGHT, -deg_to_rad(40.0))
+	var depth := r * 0.3
+	var n := 12
+	for i in n:
+		var a0 := TAU * float(i) / n
+		var a1 := TAU * float(i + 1) / n
+		var p0 := c + face * Vector3(r * cos(a0), r * sin(a0), depth)
+		var p1 := c + face * Vector3(r * cos(a1), r * sin(a1), depth)
+		k.poly("tin", [c, p0, p1], face * Vector3(0, 0, 1), col)
+		k.poly("tin", [c, p1, p0], face * Vector3(0, 0, -1), col.darkened(0.25))
+	_beam(k, "color", c + face * Vector3(0, -r, depth), c + face * Vector3(0, 0, r * 0.9), 0.04, Color("#5a5a62"))
+	_beam(k, "color", c + face * Vector3(0, 0, r * 0.8), c + face * Vector3(0, 0, r), 0.12, Color("#3a3a42"))
+
+
+# ---------------------------------------------------------------- shapes for the landmarks
+## Corners round an ellipse (a circle when ax == az): n of them round centre c (x/z), the first `rot` radians round
+## from +z towards +x. A face is centred on the front when rot = PI / n.
+static func _loop(c: Vector2, ax: float, az: float, n: int, rot := 0.0) -> Array:
+	var out := []
+	for i in n:
+		var a := rot + TAU * float(i) / float(n)
+		out.append(Vector2(c.x + ax * sin(a), c.y + az * cos(a)))
+	return out
+
+
+## An outline scaled about its centre (an ellipse stays an ellipse).
+static func _scaled(pts: Array, c: Vector2, f: float) -> Array:
+	return pts.map(func(p): return c + (p - c) * f)
+
+
+## A closed outline grown outwards by `by` (shrunk, for a negative `by`): every side moved out square to itself, the
+## corners mitred.
+static func _grown(pts: Array, by: float) -> Array:
+	var n := pts.size()
+	# which way round the outline runs, so "out" is the same side of every edge
+	var area := 0.0
+	for i in n:
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[(i + 1) % n]
+		area += a.x * b.y - b.x * a.y
+	var turn := 1.0 if area > 0.0 else -1.0
+	var out := []
+	for i in n:
+		var p: Vector2 = pts[i]
+		var e1: Vector2 = (p - (pts[(i + n - 1) % n] as Vector2)).normalized()
+		var e2: Vector2 = ((pts[(i + 1) % n] as Vector2) - p).normalized()
+		var n1 := Vector2(e1.y, -e1.x) * turn
+		var n2 := Vector2(e2.y, -e2.x) * turn
+		var m := (n1 + n2).normalized()
+		out.append(p + m * by / maxf(0.3, m.dot(n1)))
+	return out
+
+
+## `n` copies of the centre: the inner edge of a band that closes into a disc.
+static func _fill(c: Vector2, n: int) -> Array:
+	var out := []
+	out.resize(n)
+	out.fill(c)
+	return out
+
+
+## Upright faces along a closed outline (x/z), from y0 up h, facing away from `centre` (or towards it, `inward`, for
+## the inside of a parapet or the arena's stands).
+static func _skirt(k: Kit, tex: String, pts: Array, y0: float, h: float, col: Color, centre: Vector2, inward := false) -> void:
+	for i in pts.size():
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[(i + 1) % pts.size()]
+		var n := Vector2(b.y - a.y, a.x - b.x).normalized()
+		if (n.dot((a + b) / 2.0 - centre) < 0.0) != inward:
+			n = -n
+		k.poly(tex, [Vector3(a.x, y0, a.y), Vector3(b.x, y0, b.y), Vector3(b.x, y0 + h, b.y), Vector3(a.x, y0 + h, a.y)], Vector3(n.x, 0, n.y), col, Vector3(b.x - a.x, 0, b.y - a.y))
+
+
+## A flat band between two outlines with as many corners (x/z) at height y, facing up (or down): decks, roofs round a
+## drum, the treads of the arena's stands; with an inner edge of _fill() it is a disc.
+static func _band(k: Kit, tex: String, outer: Array, inner: Array, y: float, col: Color, up := true) -> void:
+	for i in outer.size():
+		var j := (i + 1) % outer.size()
+		var o0: Vector2 = outer[i]
+		var o1: Vector2 = outer[j]
+		var i0: Vector2 = inner[i]
+		var i1: Vector2 = inner[j]
+		k.poly(tex, [Vector3(o0.x, y, o0.y), Vector3(o1.x, y, o1.y), Vector3(i1.x, y, i1.y), Vector3(i0.x, y, i0.y)], Vector3.UP if up else Vector3.DOWN, col)
+
+
+## A slab between two outlines: its top, its underside and its outer edge, `t` thick from y (ledges, cornices, decks).
+static func _ledge(k: Kit, tex: String, outer: Array, inner: Array, c: Vector2, y: float, t: float, col: Color) -> void:
+	_band(k, tex, outer, inner, y + t, col)
+	_band(k, tex, outer, inner, y, col.darkened(0.2), false)
+	_skirt(k, tex, outer, y, t, col.darkened(0.06), c)
+
+
+## A stone plinth `h` high under an outline.
+static func _plinth(k: Kit, pts: Array, c: Vector2, h: float, col: Color) -> void:
+	_skirt(k, "stone", pts, 0.0, h, col, c)
+	_band(k, "stone", pts, _fill(c, pts.size()), h, col.lightened(0.04))
+
+
+## A pointed roof over a closed outline (x/z) at height y, its faces rising `rise` to a point over `apex`.
+static func _spire(k: Kit, tex: String, pts: Array, y: float, apex: Vector2, rise: float, col: Color) -> void:
+	var tip := Vector3(apex.x, y + rise, apex.y)
+	for i in pts.size():
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[(i + 1) % pts.size()]
+		_slope(k, tex, [Vector3(a.x, y, a.y), Vector3(b.x, y, b.y), tip], col.darkened(0.05 * float(i % 2)), Vector3(b.x - a.x, 0, b.y - a.y))
+	# the roof's underside, so it reads as a roof from the gallery below
+	_band(k, tex, pts, _fill(apex, pts.size()), y, col.darkened(0.3), false)
+
+
+## A post of `sides` faces round an upright axis (a column, a turret, a mast), radius r, from c.y up h, with a lid.
+static func _column(k: Kit, tex: String, c: Vector3, r: float, h: float, sides: int, col: Color, rot := 0.0) -> void:
+	var base := Vector2(c.x, c.z)
+	var pts := _loop(base, r, r, sides, rot)
+	_skirt(k, tex, pts, c.y, h, col, base)
+	_band(k, tex, pts, _fill(base, sides), c.y + h, col.lightened(0.05))
+
+
+## A beam of square section `t` between two points: rails, brackets, the struts of a mast.
+static func _beam(k: Kit, tex: String, p0: Vector3, p1: Vector3, t: float, col: Color) -> void:
+	var dir := (p1 - p0).normalized()
+	var u := dir.cross(Vector3.UP)
+	if u.length() < 0.01:
+		u = dir.cross(Vector3.RIGHT)
+	u = u.normalized() * t / 2.0
+	var v := dir.cross(u).normalized() * t / 2.0
+	var cs := [u + v, -u + v, -u - v, u - v]
+	for i in 4:
+		var a: Vector3 = cs[i]
+		var b: Vector3 = cs[(i + 1) % 4]
+		k.poly(tex, [p0 + a, p0 + b, p1 + b, p1 + a], (a + b).normalized(), col, dir)
+
+
+## A pennant flying from the top of a pole at p, towards +x, drawn from both sides.
+static func _pennant(k: Kit, p: Vector3, col: Color) -> void:
+	var pts := [p, p + Vector3(0.62, -0.13, 0), p + Vector3(0, -0.3, 0)]
+	k.poly("color", pts, Vector3.BACK, col)
+	k.poly("color", pts, Vector3.FORWARD, col.darkened(0.2))
 
 
 ## Gearhart Tower: the steam company's offices, a stepped brick tower of the house pack's walls and windows (two
@@ -1309,58 +1780,3 @@ static func _roof(k: Kit, t: String, w: float, d: float, top: float, tex: String
 			for sx in [-1.0, 1.0]:
 				k.poly(wall_tex, [Vector3(gw * sx, top, -gd), Vector3(gw * sx, top, gd), Vector3(gw * sx, lo + (hi - lo) * (hd + gd) / (2.0 * hd), -gd)], Vector3(sx, 0, 0), wall_col)
 			k.box("color", Vector3(0, lo - 0.03, hd), Vector3(hw * 2.0, 0.07, 0.07), trim)
-
-
-# ---------------------------------------------------------------- special buildings
-static func _arena(k: Kit, w: float, d: float, st: Dictionary, door_lx: float) -> void:
-	var stone := Color("#c8bca8")
-	var H := 3.0
-	k.box("stone", Vector3(0, H / 2.0, 0), Vector3(w - 0.2, H, d - 0.3), stone)
-	for sx in [-1, 1]:
-		for sz in [-1, 1]:
-			k.box("stone", Vector3(sx * (w / 2.0 - 0.3), (H + 0.8) / 2.0, sz * (d / 2.0 - 0.35)), Vector3(0.9, H + 0.8, 0.9), stone.lightened(0.05))
-			k.box("color", Vector3(sx * (w / 2.0 - 0.3), H + 0.95, sz * (d / 2.0 - 0.35)), Vector3(0.2, 0.5, 0.2), Color("#c83a3a"))
-	var x := -w / 2.0 + 0.3
-	while x < w / 2.0:
-		k.box("stone", Vector3(x, H + 0.15, d / 2.0 - 0.2), Vector3(0.3, 0.3, 0.3), stone)
-		k.box("stone", Vector3(x, H + 0.15, -d / 2.0 + 0.2), Vector3(0.3, 0.3, 0.3), stone)
-		x += 0.6
-	# arches and banners
-	x = -w / 2.0 + 1.0
-	var i := 0
-	while x < w / 2.0 - 0.6:
-		if absf(x - door_lx) > 1.0:
-			k.box("color", Vector3(x, 1.6, d / 2.0 - 0.1), Vector3(0.5, 1.2, 0.06), Color("#3a2a20"))
-			k.box("color", Vector3(x, 2.4, d / 2.0 - 0.08), Vector3(0.6, 0.9, 0.05), [Color("#c83a3a"), Color("#3a6ac8"), Color("#e8c040")][i % 3])
-			i += 1
-		x += 1.2
-	k.box("color", Vector3(door_lx, 0.9, d / 2.0 - 0.1), Vector3(1.6, 1.8, 0.1), Color("#c8a040"))
-	k.box("planks_v", Vector3(door_lx, 0.85, d / 2.0 - 0.05), Vector3(1.3, 1.6, 0.06), Color("#6a4a2a"))
-
-
-
-static func _electronics(k: Kit, w: float, d: float, door_lx: float) -> void:
-	var H := 2.6
-	var fz := (d - 0.3) / 2.0
-	var y0 := 0.16
-	var metal := Color("#3a4a5a")
-	k.box("stone", Vector3(0, 0.08, 0), Vector3(w - 0.05, 0.16, d - 0.05), Color("#8a8a90"))
-	k.box("plaster", Vector3(0, y0 + H / 2.0, 0), Vector3(w - 0.2, H, d - 0.3), Color("#c8ccd4"))
-	# shop windows either side of the door, lit by the screens on show
-	for side in [-1, 1]:
-		var a: float = door_lx + side * 0.6
-		var b: float = side * ((w - 0.2) / 2.0 - 0.3)
-		var span := absf(b - a)
-		if span < 0.4:
-			continue
-		var cx: float = (a + b) / 2.0
-		k.box("color", Vector3(cx, y0 + 1.05, fz + 0.03), Vector3(span, 1.4, 0.06), metal)
-		k.box("glow", Vector3(cx, y0 + 1.05, fz + 0.07), Vector3(span - 0.12, 1.26, 0.02), Color("#8ad8ff"))
-	# a glass door in a metal frame, with a push bar
-	k.box("color", Vector3(door_lx, y0 + 0.76, fz + 0.04), Vector3(0.9, 1.52, 0.08), metal)
-	k.box("glow", Vector3(door_lx, y0 + 0.74, fz + 0.09), Vector3(0.66, 1.34, 0.02), Color("#bfeaff"))
-	k.box("color", Vector3(door_lx, y0 + 0.72, fz + 0.115), Vector3(0.5, 0.05, 0.04), Color("#d8dce4"))
-	k.box("glow", Vector3(0, H + 0.1, fz + 0.05), Vector3(w - 0.1, 0.12, 0.06), Color("#3affd8"))
-	k.box("tin", Vector3(0, H + 0.24, 0), Vector3(w, 0.16, d - 0.1), Color("#5a5a66"))
-	k.box("color", Vector3(w / 2.0 - 0.6, H + 0.75, -0.3), Vector3(0.08, 0.9, 0.08), Color("#8a8a90"))
-	k.box("color", Vector3(w / 2.0 - 0.6, H + 1.25, -0.3), Vector3(0.6, 0.5, 0.06), Color("#d8dce4"))

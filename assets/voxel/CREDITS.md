@@ -12,7 +12,6 @@ Models in this folder were converted from the packs in `voxelassets/` (kept outs
 - **ancient temple**: Ancient temple / artifacts voxel pack
 - **dungeon crawler**: Voxel dungeon crawler pack
 - **nature pack**: Smokey's Voxel Nature Pack
-- **robots**: Voxel robots pack
 - **house interiors**: "House Interior Rooms - Free Sample"
 - **desert town**: Voxel desert town pack
 - **battle area**: "Boxing Gym - Free Sample"

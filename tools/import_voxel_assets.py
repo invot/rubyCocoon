@@ -93,8 +93,6 @@ ASSETS = [
     ('dungeon', 'throne_room', DC + 'Kings Throne'), ('dungeon', 'chamber', DC + 'Princess  Chamber'), ('dungeon', 'stairs', DC + 'Stairs'),
     ('dungeon', 'corridor', DC + 'Thirsty Corridor'), ('dungeon', 'trapped_room', DC + 'TrappedRoom'), ('dungeon', 'treasure_room', DC + 'Treasure'),
     ('arena', 'boxing_gym', 'battle area/Boxing Gym - Free Sample'),
-    ('robots', 'field_fighter', 'robots/FieldFighter'), ('robots', 'mecha', 'robots/Mecha01'),
-    ('robots', 'mecha_golem', 'robots/MechaGolem'), ('robots', 'quad_tank', 'robots/QuadrupedTank'),
 ]
 
 CREDITS = {
@@ -108,7 +106,6 @@ CREDITS = {
     'ancient temple': 'Ancient temple / artifacts voxel pack',
     'dungeon crawler': 'Voxel dungeon crawler pack',
     'nature pack': 'Smokey\'s Voxel Nature Pack',
-    'robots': 'Voxel robots pack',
     'house interiors': '"House Interior Rooms - Free Sample"',
     'desert town': 'Voxel desert town pack',
     'battle area': '"Boxing Gym - Free Sample"',

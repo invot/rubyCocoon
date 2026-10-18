@@ -91,8 +91,8 @@ const FORMS := [
 const NORMAL_COUNT := 48
 const LEGENDARY := [48, 49, 50, 51]
 const ROBOTS := [52, 53, 54, 55]
-## Robots are drawn with the converted voxel robot models.
-const ROBOT_MODELS := {52: "field_fighter", 53: "mecha", 54: "mecha_golem", 55: "quad_tank"}
+## Robots are drawn with the PSX robot models (assets/psx/robots, tools/import_psx_robots.gd), facing +x like the beasts.
+const ROBOT_MODELS := {52: "robot_clockwork", 53: "robot_steam", 54: "robot_golem", 55: "robot_walker"}
 const LEGENDARY_PASSIVES := {48: ["Healing Tide", "Regenerate"], 49: ["Slippery", "Swift"], 50: ["Blaze", "Thick Hide"], 51: ["Sturdy", "Rock Skin"]}
 
 const STARTERS := [1, 12, 24, 36]

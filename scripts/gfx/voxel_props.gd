@@ -535,7 +535,8 @@ static func icon(shop: String) -> ArrayMesh:
 		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		m.roughness = 0.9
 		var s := 14 * 0.042 / 2.0
-		var d := 0.063
+		# just in front of the board's face (0.063), or the board hides the picture
+		var d := 0.066
 		var mesh := ArrayMesh.new()
 		var front := [Vector3(-s, -s, d), Vector3(s, -s, d), Vector3(s, s, d), Vector3(-s, s, d)]
 		var uv := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]

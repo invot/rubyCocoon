@@ -951,9 +951,9 @@ func _spawn(b, side: String, slot: int) -> void:
 	var model: Node3D
 	var height := 1.2
 	if b.genes.has("model"):
+		# a robot (assets/psx/robots): faces +x like the beasts
 		model = VA.instance(String(b.genes["model"]), 1.3 * float(b.genes.get("size", 1.0)))
 		height = 1.3 * float(b.genes.get("size", 1.0))
-		model.rotation.y = PI / 2.0
 	else:
 		var mi := MeshInstance3D.new()
 		mi.mesh = VB.mesh(b.genes)

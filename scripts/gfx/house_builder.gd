@@ -79,6 +79,22 @@ func place(name: String, side: Vector2i, along: float, width: float, y0: float, 
 	_add(m, Transform3D(basis, origin), mat)
 
 
+## Puts one piece on a wall at any angle: the wall's outer face runs from `a` to `b` (x/z), its outside away from
+## `centre`, `h` tall from `y0` (a storey, or less). Round towers, curved shop fronts and the arena's oval are built
+## of these: neighbouring pieces meet at their outer corners, so a ring of them closes without gaps.
+func span(name: String, a: Vector2, b: Vector2, y0: float, mat: Material, centre := Vector2.ZERO, h := STOREY) -> void:
+	var m := piece(name)
+	if m == null:
+		return
+	var along := b - a
+	var n := Vector2(along.y, -along.x).normalized()
+	var mid := (a + b) / 2.0
+	if n.dot(mid - centre) < 0.0:
+		n = -n
+	var basis := Basis(Vector3.UP, atan2(n.x, n.y)).scaled_local(Vector3(along.length() / m.get_aabb().size.x, h / 3.0, 1.0))
+	_add(m, Transform3D(basis, Vector3(mid.x - n.x * THICK, y0, mid.y - n.y * THICK)), mat)
+
+
 func _add(m: Mesh, xf: Transform3D, mat: Material) -> void:
 	# gathered by mesh and finish
 	var k := "%d:%d" % [m.get_instance_id(), mat.get_instance_id() if mat != null else 0]

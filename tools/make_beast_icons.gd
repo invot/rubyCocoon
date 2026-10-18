@@ -1,20 +1,25 @@
 extends SceneTree
-## Renders the menu icon of every PSX beast form (assets/psx/beasts/<form>.res) to assets/psx/beasts/icons/<form>.res
+## Renders the menu icon of every PSX beast form (assets/psx/beasts/<form>.res) to assets/psx/beasts/icons/<form>.res,
+## and of every Gearhart robot (assets/psx/robots/<key>.res) to assets/psx/robots/icons/<key>.res
 ## (an ImageTexture, so the game needs no import step):
 ## a three-quarter side view in the model's own colours, 48 x 48, with a soft dark outline. PixelArt.beast_texture
-## recolours it with each beast's genes, the same way voxel_beast.gd recolours the model, so icon and model match.
+## recolours a beast's icon with its genes, the same way voxel_beast.gd recolours the model, so icon and model match;
+## robots keep their own colours.
 ## Needs a window (it renders):
 ##   godot --path . --script res://tools/make_beast_icons.gd [-- form1 form2 ...]
 
-const SRC := "res://assets/psx/beasts/"
-const OUT := "res://assets/psx/beasts/icons/"
+## model folder: [icon folder, how far the model is turned towards the viewer from side on]
+## (the robots stand upright, and read best from nearer the front)
+const DIRS := {
+	"res://assets/psx/beasts/": ["res://assets/psx/beasts/icons/", 0.45],
+	"res://assets/psx/robots/": ["res://assets/psx/robots/icons/", 0.95],
+}
 const SIZE := 48
 ## rendered larger, then shrunk, for clean edges
 const SS := 4
 
 
 func _initialize() -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	var only := OS.get_cmdline_user_args()
 	var vp := SubViewport.new()
 	vp.size = Vector2i(SIZE * SS, SIZE * SS)
@@ -39,24 +44,31 @@ func _initialize() -> void:
 	vp.add_child(cam)
 	var mi := MeshInstance3D.new()
 	vp.add_child(mi)
-	var dir := DirAccess.open(SRC)
-	var forms := []
-	for f in dir.get_files():
-		if f.ends_with(".res"):
-			forms.append(f.get_basename())
-	forms.sort()
+	# every model: [its file, its icon's file, its turn]
+	var jobs := []
+	for src in DIRS:
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIRS[src][0]))
+		var names := []
+		for f in DirAccess.get_files_at(src):
+			if f.ends_with(".res"):
+				names.append(f.get_basename())
+		names.sort()
+		for n in names:
+			if only.is_empty() or only.has(n):
+				jobs.append([src + n + ".res", DIRS[src][0] + n + ".res", DIRS[src][1]])
+	if jobs.is_empty():
+		quit()
+		return
 	# the very first render comes out empty: draw one throwaway frame first
-	mi.mesh = load(SRC + forms[0] + ".res")
+	mi.mesh = load(jobs[0][0])
 	cam.position = Vector3(0, 1.2, 4.0)
 	for i in 6:
 		await process_frame
-	for form in forms:
-		if not only.is_empty() and not only.has(form):
-			continue
-		var m: ArrayMesh = load(SRC + form + ".res")
+	for job in jobs:
+		var m: ArrayMesh = load(job[0])
 		mi.mesh = m
 		# turned a little towards the viewer, facing right
-		mi.rotation = Vector3(0, -0.45, 0)
+		mi.rotation = Vector3(0, -float(job[2]), 0)
 		var bb := mi.transform * m.get_aabb()
 		var c := bb.get_center()
 		# flat models (birds in flight, crocodiles) are seen from higher up, so they show their shape
@@ -71,8 +83,8 @@ func _initialize() -> void:
 		img.convert(Image.FORMAT_RGBA8)
 		img.resize(SIZE, SIZE, Image.INTERPOLATE_BILINEAR)
 		_finish(img)
-		ResourceSaver.save(ImageTexture.create_from_image(img), OUT + form + ".res", ResourceSaver.FLAG_COMPRESS)
-		print("  icon ", form)
+		ResourceSaver.save(ImageTexture.create_from_image(img), job[1], ResourceSaver.FLAG_COMPRESS)
+		print("  icon ", job[1])
 	quit()
 
 
