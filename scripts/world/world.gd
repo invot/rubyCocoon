@@ -1372,7 +1372,7 @@ func _process(delta: float) -> void:
 		_cutaway(delta)
 	_update_wilds(delta)
 	if moving:
-		anim_t += delta * move_speed * 1.6
+		anim_t += delta * move_speed * 1.9
 		move_t += delta * move_speed
 		if move_t >= 1.0:
 			var spill := move_t - 1.0
@@ -1383,15 +1383,16 @@ func _process(delta: float) -> void:
 			if not moving and not busy and not frozen and not UI.busy() and _next_step():
 				move_t = minf(spill, 0.5)
 				player.position = move_from.lerp(move_to, move_t)
-			elif not moving:
-				_stride = 0.0
-				VPer.animate(player, 0.0, 0.0)
 		else:
 			player.position = move_from.lerp(move_to, move_t)
-			_stride = minf(1.0, _stride + delta * 8.0)
-			VPer.animate(player, anim_t, _stride)
+			# a run swings wider than a walk
+			_stride = move_toward(_stride, 1.25 if move_speed > 6.0 else 1.0, delta * 8.0)
 	elif not busy and not frozen and not UI.busy():
 		_read_input()
+	if not moving:
+		# easing back to standing, then breathing and looking about
+		_stride = maxf(0.0, _stride - delta * 6.0)
+	VPer.animate(player, anim_t, _stride)
 	cam_target = player.position
 	_place_camera()
 
@@ -1544,14 +1545,17 @@ func _trainer_approach(n: Dictionary, p: Vector2i, dist: int) -> void:
 	var f: Vector2i = n["facing"]
 	var node: Node3D = n["node"]
 	var cur := p
+	node.set_meta("posed", true)
 	for i in dist - 1:
 		var nxt := cur + f
 		var tw := create_tween()
 		tw.tween_property(node, "position", tile_pos(nxt), 0.22)
 		if node.has_node("Body"):
-			VPer.animate(node, i * 2.0, 1.0)
+			# one stride per tile, legs moving all the way
+			tw.parallel().tween_method(func(ph: float): VPer.animate(node, ph, 1.0), i * PI, (i + 1) * PI, 0.22)
 		await tw.finished
 		cur = nxt
+	node.remove_meta("posed")
 	if node.has_node("Body"):
 		VPer.animate(node, 0.0, 0.0)
 	npcs.erase(p)
@@ -1683,6 +1687,9 @@ func _animate_npcs(delta: float) -> void:
 			VPer.animate(node, float(wk["t"]) * PI * 2.0, 0.8)
 			if float(wk["t"]) >= 1.0:
 				arrived.append(n)
+		elif not node.has_meta("posed") and node.position.distance_squared_to(player.position) < 300.0:
+			# standing about (near enough to see): breathing, shifting weight, looking round
+			VPer.animate(node, 0.0, 0.0)
 	for n in arrived:
 		n.erase("walking")
 		VPer.animate(n["node"], 0.0, 0.0)

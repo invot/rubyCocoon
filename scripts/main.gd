@@ -1540,10 +1540,16 @@ func _hero_gallery() -> void:
 	sun.shadow_enabled = true
 	root.add_child(sun)
 	var look: Dictionary = load("res://scripts/world/world.gd").PLAYER_LOOK
+	if _test.has("model"):
+		look = {"model": _test["model"]}
+	# --pose=walk: side views a quarter of a stride apart (--amount = stride, 1 walk, 1.25 run)
+	var walk: bool = _test.get("pose", "") == "walk"
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	for i in 4:
 		var rig: Node3D = VPer.build(look)
-		VPer.face(rig, dirs[i])
+		VPer.face(rig, Vector2i(1, 0) if walk else dirs[i])
+		if walk:
+			VPer.animate(rig, i * PI / 4.0, float(_test.get("amount", "1")), 0.0)
 		rig.position = Vector3(i * 1.4, 0, 0)
 		root.add_child(rig)
 	var cam := Camera3D.new()
