@@ -3,6 +3,7 @@ extends Node
 
 const Beast = preload("res://scripts/core/beast.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
+const Ring = preload("res://scripts/core/ring.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
@@ -14,7 +15,15 @@ const TEST_SAVE_DIR := "user://test_saves/"
 ## the single save file from before save slots existed
 const LEGACY_SAVE := "user://savegame.json"
 const SLOT_COUNT := 10
-const PARTY_MAX := 6
+## The most beasts a trainer can carry: one per slot of the battle ring (see ring.gd). A new trainer has room for
+## BEAST_SLOTS_START; Volt at Sparkwire Electronics adds more as your trainer level grows.
+const PARTY_MAX := 8
+const BEAST_SLOTS_START := 3
+## Trainer levels: earned by beating trainers (on the roads, and up the arena ladder). Each level lets Volt fit one more
+## beast slot (up to 8) and, every other level, one more shield point (up to 4); both still cost crystal shards.
+const TRAINER_LEVEL_MAX := 10
+## shield points every trainer starts with (Volt adds more, up to 4)
+const SHIELD_START := 1
 
 var main: Node = null
 
@@ -48,6 +57,14 @@ var shards := 0
 var shards_spent := 0
 var max_shield := 0
 var shield := 0
+## how many beasts you can carry (3 to 8): the slots of your battle ring that are wired up
+var beast_slots := BEAST_SLOTS_START
+var trainer_level := 1
+var trainer_xp := 0
+## arena ladder: rank (1..LadderDB.RANKS) -> Array of the opponent indices beaten in it
+var ladder := {}
+## the side of your ring that faced the foe when your last battle ended (see ring.gd)
+var ring_side := 0
 ## the save slot this game lives in (-1 until it's first saved)
 var current_slot := -1
 
@@ -131,20 +148,31 @@ func new_game(pname: String) -> void:
 	eggs = []
 	shards = 0
 	shards_spent = 0
-	max_shield = 0
-	shield = 0
+	# every trainer starts with one shield point: one blow survived when the middle of your ring falls
+	max_shield = SHIELD_START
+	shield = SHIELD_START
+	beast_slots = BEAST_SLOTS_START
+	trainer_level = 1
+	trainer_xp = 0
+	ladder = {}
+	ring_side = 0
 	current_slot = -1
 
 
 # ---------------------------------------------------------------- beasts
+## Takes a beast in: onto a free slot of your ring it may stand in, if you have room, else into storage.
 func add_beast(b: Beast) -> String:
 	b.abandoned = false
 	b.status = ""
 	caught[str(b.race)] = true
 	seen[str(b.race)] = true
-	if party.size() < PARTY_MAX:
-		party.append(b)
-		return "party"
+	if party.size() < party_max():
+		var k := free_slot_for(b)
+		if k >= 0:
+			b.slot = k
+			party.append(b)
+			return "party"
+	b.slot = -1
 	storage.append(b)
 	return "storage"
 
@@ -152,18 +180,137 @@ func add_beast(b: Beast) -> String:
 func remove_beast(b: Beast) -> void:
 	party.erase(b)
 	storage.erase(b)
+	b.slot = -1
 
 
 func replace_beast(old: Beast, new_b: Beast) -> void:
 	var i := party.find(old)
 	if i >= 0:
 		party[i] = new_b
+		new_b.slot = old.slot
+		fix_ring()
 		return
 	i = storage.find(old)
 	if i >= 0:
 		storage[i] = new_b
+		new_b.slot = -1
 		return
 	add_beast(new_b)
+
+
+# ---------------------------------------------------------------- the battle ring
+## How many beasts you can carry right now.
+func party_max() -> int:
+	return clampi(beast_slots, 1, PARTY_MAX)
+
+
+## The party beast standing in a ring slot, or null.
+func beast_at(k: int) -> Beast:
+	for b in party:
+		if b.slot == k:
+			return b
+	return null
+
+
+## Your ring as {slot: beast}.
+func ring() -> Dictionary:
+	var out := {}
+	for b in party:
+		if b.slot >= 0:
+			out[b.slot] = b
+	return out
+
+
+## The best free ring slot a beast may stand in, or -1.
+func free_slot_for(b: Beast) -> int:
+	var slots := Ring.preferred_slots(b, ring())
+	return slots[0] if not slots.is_empty() else -1
+
+
+## Moves a party beast to another ring slot, trading places with whoever stands there (if that beast may stand in the
+## slot being left). Returns "" or the reason it can't.
+func move_to_slot(b: Beast, k: int) -> String:
+	if not Ring.can_hold(b, k):
+		return "%s can't stand on the %s." % [b.nickname, Ring.slot_name(k)]
+	var other := beast_at(k)
+	if other == b:
+		return ""
+	if other != null:
+		if b.slot < 0 or not Ring.can_hold(other, b.slot):
+			return "%s can't move to the %s to make room." % [other.nickname, Ring.slot_name(b.slot) if b.slot >= 0 else "bench"]
+		other.slot = b.slot
+	b.slot = k
+	return ""
+
+
+## Makes the ring consistent: every party beast on its own slot it may stand in. Beasts that no longer fit (old saves,
+## a merge that changed an element) are moved to a free legal slot; a beast with none goes to storage.
+## Returns the beasts sent to storage.
+func fix_ring() -> Array:
+	var used := {}
+	var homeless := []
+	for b in party:
+		if b.slot >= 0 and b.slot < Ring.SLOTS and not used.has(b.slot) and Ring.can_hold(b, b.slot):
+			used[b.slot] = true
+		else:
+			homeless.append(b)
+	var sent := []
+	for b in homeless:
+		b.slot = -1
+		var placed := {}
+		for x in party:
+			if x.slot >= 0:
+				placed[x.slot] = x
+		var slots := Ring.preferred_slots(b, placed)
+		if not slots.is_empty():
+			b.slot = slots[0]
+			used[b.slot] = true
+		else:
+			sent.append(b)
+	for b in sent:
+		party.erase(b)
+		storage.append(b)
+	while party.size() > party_max():
+		var extra: Beast = party.pop_back()
+		extra.slot = -1
+		storage.append(extra)
+		sent.append(extra)
+	return sent
+
+
+# ---------------------------------------------------------------- trainer level
+## Total trainer XP needed to reach a trainer level.
+static func trainer_xp_for(level: int) -> int:
+	return 50 * (level - 1) * level
+
+
+## Adds trainer XP; returns how many levels were gained.
+func add_trainer_xp(amount: int) -> int:
+	var before := trainer_level
+	trainer_xp += maxi(0, amount)
+	while trainer_level < TRAINER_LEVEL_MAX and trainer_xp >= trainer_xp_for(trainer_level + 1):
+		trainer_level += 1
+	return trainer_level - before
+
+
+## Raises the trainer level to at least `level` (clearing an arena ladder rank does this). Returns levels gained.
+func reach_trainer_level(level: int) -> int:
+	level = mini(level, TRAINER_LEVEL_MAX)
+	if level <= trainer_level:
+		return 0
+	var gained := level - trainer_level
+	trainer_level = level
+	trainer_xp = maxi(trainer_xp, trainer_xp_for(level))
+	return gained
+
+
+## The most shield points and beast slots Volt can fit at your trainer level.
+func shield_cap() -> int:
+	return mini(4, (trainer_level + 2) / 2)
+
+
+func slot_cap() -> int:
+	return mini(PARTY_MAX, 2 + trainer_level)
 
 
 func all_beasts() -> Array:
@@ -604,6 +751,8 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"pos": [pos.x, pos.y], "facing": [facing.x, facing.y], "last_center": last_center,
 		"seen": seen, "caught": caught, "play_time": play_time, "steps": steps,
 		"eggs": eggs, "shards": shards, "shards_spent": shards_spent, "max_shield": max_shield,
+		"beast_slots": beast_slots, "trainer_level": trainer_level, "trainer_xp": trainer_xp, "ladder": ladder,
+		"ring_side": ring_side,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var f := FileAccess.open(slot_path(slot), FileAccess.WRITE)
@@ -661,8 +810,18 @@ func load_game(slot := -2) -> bool:
 		eggs.append({"race": int(e["race"]), "kind": String(e["kind"]), "ghost": bool(e.get("ghost", false))})
 	shards = int(d.get("shards", 0))
 	shards_spent = int(d.get("shards_spent", 0))
-	max_shield = int(d.get("max_shield", 0))
+	max_shield = maxi(SHIELD_START, int(d.get("max_shield", 0)))
 	shield = max_shield
+	trainer_level = int(d.get("trainer_level", 1))
+	trainer_xp = int(d.get("trainer_xp", 0))
+	ring_side = int(d.get("ring_side", 0))
+	ladder = {}
+	var ld: Dictionary = d.get("ladder", {})
+	for k in ld:
+		ladder[int(k)] = (ld[k] as Array).map(func(x): return int(x))
+	# saves from before the battle ring: room for the beasts already carried
+	beast_slots = int(d.get("beast_slots", clampi(party.size(), BEAST_SLOTS_START, PARTY_MAX)))
+	fix_ring()
 	return true
 
 

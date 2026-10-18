@@ -16,6 +16,8 @@ var lineage: Array = []
 ## the two beasts merged into this one, as snapshots (see family_node), two generations deep
 var parents: Array = []
 var element := "fire"
+## a merged beast of two neighbouring elements on the ring also counts as this one ("" for most beasts)
+var element2 := ""
 var ghost := false
 var rank := 1
 var level := 1
@@ -33,6 +35,8 @@ var status_turns := 0
 var origin := "wild"
 var merges := 0
 var abandoned := false
+## where it stands on its trainer's battle ring (see ring.gd), or -1 (in storage, or not placed yet)
+var slot := -1
 
 
 static func xp_for_level(l: int) -> int:
@@ -92,6 +96,16 @@ func heal_full() -> void:
 
 func display_name() -> String:
 	return nickname
+
+
+## The beast's elements: one, or two for a dual beast (water and earth, say).
+func elements() -> Array:
+	return [element] if element2 == "" else [element, element2]
+
+
+## "Water", or "Water / Earth" for a dual beast.
+func element_text() -> String:
+	return " / ".join(elements().map(func(e): return String(e).capitalize()))
 
 
 func rank_stars() -> String:
@@ -213,7 +227,7 @@ func lineage_text() -> String:
 
 func to_dict() -> Dictionary:
 	return {
-		"uid": uid, "nickname": nickname, "race": race, "lineage": lineage, "element": element,
+		"uid": uid, "nickname": nickname, "race": race, "lineage": lineage, "element": element, "element2": element2, "slot": slot,
 		"ghost": ghost, "rank": rank, "level": level, "xp": xp, "mp": mp, "base": base, "genes": genes,
 		"moves": moves, "known": known, "passives": passives, "equip": equip, "hp": hp,
 		"origin": origin, "merges": merges, "abandoned": abandoned, "parents": parents,
@@ -226,6 +240,8 @@ func load_dict(d: Dictionary) -> void:
 	race = int(d.get("race", 0))
 	lineage = d.get("lineage", [race])
 	element = d.get("element", "fire")
+	element2 = String(d.get("element2", ""))
+	slot = int(d.get("slot", -1))
 	ghost = d.get("ghost", false)
 	rank = int(d.get("rank", 1))
 	level = int(d.get("level", 1))

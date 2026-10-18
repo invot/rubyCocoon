@@ -184,7 +184,7 @@ func on_map_enter(world) -> void:
 		GameState.set_flag("seen_tidewater")
 		await UI.say(["Tidewater! Ferries to the Isle of Tides leave from the long pier.",
 			"Uncle Rafe lives in the little house right by the west gate. He's got your father's flute!",
-			"Sparkwire Electronics is here too. You've heard they can upgrade a trainer's shield using crystal shards."])
+			"Sparkwire Electronics is here too. You've heard they can add shield points and beast slots for crystal shards."])
 	elif id == "gravenmoor" and not GameState.flag("ghost_merge"):
 		GameState.set_flag("ghost_merge")
 		await UI.say(["A cold fog rolls over Gravenmoor. Black Legion banners hang from every rooftop.",
@@ -235,8 +235,8 @@ func uncle_lessons() -> bool:
 		await UI.say(["First song: Weaken. Play it on your turn in battle and every foe drops its guard: their Defense falls.",
 			"Songs are written down as sheet music. Every note on the staff is one of your buttons: left, right, A or %s." % b_key,
 			"It works like this. The song plays once, and each note lights up on the sheet as it sounds.",
-			"Then it's your turn. Remember the notes, because the moment you play the first one, the sheet hides!",
-			"Play them all in order from memory before your time runs out. Today I'll give you plenty of time, and I'll walk you through it on the page."], who)
+			"Then it's your turn. Play the notes back in order. The sheet stays up, so read as you go!",
+			"Play them all in order before your time runs out. Today I'll give you plenty of time, and I'll walk you through it on the page."], who)
 		if not await Places.learn_attempts("weaken", who, 0.0, {"coach": who, "lesson": true}):
 			await UI.say(["No rush, kid. Come back whenever you want another go. I'm not going anywhere. Well, fishing. But then right back here."], who)
 			return false
@@ -633,7 +633,7 @@ func _elder(_world, _n: Dictionary) -> void:
 		"Remember: fire is weak to air, earth to water, water to air, and air to fire.",
 		"You have %d of 8 arena crests. Each arena master teaches a new flute song." % GameState.crest_count(),
 		"Your beasts' elemental powers work outside battle too. Vines burn, sand washes away, boulders shatter!",
-		"Crystal shards glitter in hidden corners. Five of them buy a shield upgrade in Tidewater.",
+		"Crystal shards glitter in hidden corners. Volt in Tidewater turns them into shield points and beast slots.",
 		"Merge two beasts at their level limit at a Beast Center, and the child gets stronger.",
 	]
 	await UI.say([tips[randi() % tips.size()]], "Elder Rowan")

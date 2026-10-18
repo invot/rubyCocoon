@@ -6,6 +6,7 @@ const Battle = preload("res://scripts/battle/battle.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+const CommandPanelScript = preload("res://scripts/battle/command_panel.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -498,6 +499,26 @@ func _run_test() -> void:
 		else:
 			start_battle({"wild": true, "foes": foes, "seed": 5})
 		await get_tree().create_timer(wait).timeout
+	elif scene == "ring":
+		# a trainer battle on the ring, driven by key presses once the command panel is up:
+		#   --keys=a,r,a,d,u,b...  (a = A, b = B, l / r = left / right, u / d = up / down), --kind=wild for wild beasts
+		_do_goto("route3", "south")
+		await _wait(1.0)
+		var flv := int(_test.get("foe_level", "10"))
+		var team := [Beasts.create(13, flv), Beasts.create(16, flv + 1), Beasts.create(23, flv), Beasts.create(20, flv - 1), Beasts.create(12, flv)]
+		if _test.get("kind", "") == "wild":
+			start_battle({"wild": true, "foes": [Beasts.create(13, 10), Beasts.create(36, 11)], "seed": 5})
+		else:
+			start_battle({"wild": false, "foes": team, "seed": 5, "trainer": {"name": "Marina", "cls": "Swimmer", "shield": int(_test.get("foe_shield", "1")),
+				"look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}})
+		var tries := 0
+		while tries < 400 and not (UI.stack.size() > 0 and UI.stack.back() is CommandPanelScript):
+			await get_tree().process_frame
+			tries += 1
+		for k in String(_test.get("keys", "")).split(",", false):
+			await _press({"a": "ui_accept", "b": "ui_cancel", "l": "ui_left", "r": "ui_right", "u": "ui_up", "d": "ui_down"}.get(k, "ui_accept"))
+			await _wait(float(_test.get("gap", "0.4")))
+		await _wait(wait)
 	elif scene == "defeat":
 		# a foe vanishing in a puff of smoke, with a damage number on its partner (--at = seconds after the puff)
 		_do_goto("route3", "south")
@@ -527,7 +548,6 @@ func _run_test() -> void:
 			var g = UI.stack.back()
 			g._end_listen()
 			for i in int(_test["play"]):
-				g._hidden = true
 				g.phase = "play"
 				for btn in g.melody[i]:
 					g._press(int(btn))
@@ -721,7 +741,8 @@ func _run_test() -> void:
 			GameState.add_item(id, 2)
 		var m := Beasts.merge(Beasts.create(1, 20), Beasts.create(36, 20))
 		m.level = 24
-		GameState.party.append(m)
+		GameState.beast_slots = 4
+		GameState.add_beast(m)
 		for i in 10:
 			GameState.seen[str(i * 3)] = true
 		Menus.pause_menu(world, scene.get_slice(":", 1))
@@ -826,7 +847,10 @@ func _run_test() -> void:
 				await _wait(0.3)
 		else:
 			print("(no room in front of beast 2)")
-		# 3. a weak beast flees
+		# 3. a weak beast flees (back on the route first: the last fight may have sent you to a Beast Center)
+		GameState.heal_party()
+		_do_goto("route1", "west")
+		await _wait(2.0)
 		for b in GameState.party:
 			b.level = 30
 		var w2: Dictionary = world.wilds[0] if not world.wilds.is_empty() else {}

@@ -2,6 +2,8 @@ extends Node
 ## Everything that happens inside buildings: shops, Beast Centers, arenas, temples and attractions.
 
 const ItemDB = preload("res://scripts/data/item_db.gd")
+const Ring = preload("res://scripts/core/ring.gd")
+const LadderDB = preload("res://scripts/data/ladder_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -294,7 +296,7 @@ func storage() -> void:
 	while true:
 		var c: int = await UI.choose("Storage", [
 			{"text": "Deposit", "desc": "Leave a beast here. Stored beasts are healed."},
-			{"text": "Withdraw", "desc": "Take a beast with you (max %d)." % GameState.PARTY_MAX},
+			{"text": "Withdraw", "desc": "Take a beast with you: it stands on a free slot of your battle ring (room for %d)." % GameState.party_max()},
 			{"text": "Back"}], {"anchor": "right", "width": 300})
 		if c == 0:
 			if GameState.party.size() <= 1:
@@ -303,21 +305,27 @@ func storage() -> void:
 			var b = await Menus.pick_beast("Deposit which beast?", GameState.party)
 			if b != null:
 				GameState.party.erase(b)
+				b.slot = -1
 				b.heal_full()
 				GameState.storage.append(b)
 				UI.toast("%s was stored." % b.nickname)
 		elif c == 1:
-			if GameState.party.size() >= GameState.PARTY_MAX:
-				await UI.say(["Your party is full."])
+			if GameState.party.size() >= GameState.party_max():
+				await UI.say(["Your party is full. Volt at Sparkwire Electronics can wire up more beast slots as your trainer level grows."])
 				continue
 			if GameState.storage.is_empty():
 				await UI.say(["Storage is empty."])
 				continue
 			var b2 = await Menus.pick_beast("Withdraw which beast?", GameState.storage)
 			if b2 != null:
+				var k: int = GameState.free_slot_for(b2)
+				if k < 0:
+					await UI.say(["There's no free slot on your ring for a %s beast. Its side and corners are taken: store one of them first, or rearrange your ring in the Beasts page of your book." % b2.element_text()])
+					continue
 				GameState.storage.erase(b2)
+				b2.slot = k
 				GameState.party.append(b2)
-				UI.toast("%s joined your party." % b2.nickname)
+				UI.toast("%s joined your party (%s)." % [b2.nickname, Ring.slot_name(k)])
 		else:
 			return
 
@@ -355,12 +363,16 @@ func merge_altar(temple: bool, keeper := "Nurse Clover") -> void:
 	GameState.remove_beast(b)
 	if GameState.party.is_empty():
 		GameState.storage.erase(child)
+		child.slot = GameState.free_slot_for(child)
 		GameState.party.append(child)
+	GameState.fix_ring()
 	GameState.caught[str(child.race)] = true
 	await UI.show_beast(child, "A new beast is born: %s!" % child.nickname)
 	var lines := ["%s and %s became %s! It is now Rank %d with a level limit of %d." % [a.nickname, b.nickname, child.nickname, child.rank, child.level_cap()]]
 	if Beasts.dominance(a, b) != 0.5:
 		lines.append("The legendary parent's blood ran strong: most of %s's traits came from it." % child.nickname)
+	if child.element2 != "":
+		lines.append("%s carries both %s! On your battle ring it can stand on the %s corner, or on either side, and fight with whichever of its elements faces the foe." % [child.nickname, child.element_text(), child.element_text()])
 	await UI.say(lines, keeper)
 
 
@@ -507,27 +519,49 @@ func fly_menu(here: String, cost: int, who: String) -> bool:
 
 
 # ================================================================ electronics
+## Shield points and beast slots cost crystal shards; how many Volt can fit depends on your trainer level
+## (GameState.shield_cap / slot_cap), which grows by beating trainers and climbing the arena ladder.
+const SLOT_COST := 3
+
+
 func electronics(b: Dictionary) -> void:
 	var k: String = KEEPERS["electronics"]
 	if not GameState.flag("met_volt"):
 		GameState.set_flag("met_volt")
 		await UI.say(["Welcome to Sparkwire Electronics! I'm Volt.",
-			"See that wrist band of yours? With a few crystal shards I can wire it into a personal shield emitter.",
-			"If all your beasts go down in battle, wild beasts and trainers will come straight for you. Each shield point blocks one hit.",
-			"Lose your last point and take a hit, and it's lights out. You'll wake up at the nearest Beast Center.",
-			"Bring me %d crystal shards per upgrade, up to %d shield points." % [SHIELD_COST, MAX_SHIELD]], k)
+			"See that wrist band of yours? It's a shield emitter. Right now it holds %d point." % GameState.max_shield,
+			"In a ring battle, if the beast in the middle of the side facing your foe goes down, they can come straight for you. Each shield point blocks one hit. Take a hit with none left, and it's lights out.",
+			"I can add shield points, and wire up more slots on your battle ring so you can carry more beasts. The better a trainer you are, the more I can fit: beat trainers and climb the arena ladder.",
+			"Shield points are %d crystal shards each, beast slots %d." % [SHIELD_COST, SLOT_COST]], k)
 	while true:
-		var can := GameState.shards >= SHIELD_COST and GameState.max_shield < MAX_SHIELD
+		var sh_cap := GameState.shield_cap()
+		var sl_cap := GameState.slot_cap()
+		var can_sh := GameState.shards >= SHIELD_COST and GameState.max_shield < sh_cap
+		var can_sl := GameState.shards >= SLOT_COST and GameState.beast_slots < sl_cap
+		var sh_desc := ""
+		if GameState.max_shield >= MAX_SHIELD:
+			sh_desc = "Your shield is fully upgraded!"
+		elif GameState.max_shield >= sh_cap:
+			sh_desc = "Shield %d / %d. Volt can't fit more until you're a Lv %d trainer (you're Lv %d)." % [GameState.max_shield, MAX_SHIELD, _level_for(func(): return GameState.shield_cap(), GameState.max_shield + 1), GameState.trainer_level]
+		else:
+			sh_desc = "Shield %d / %d. You have %d crystal shards." % [GameState.max_shield, MAX_SHIELD, GameState.shards]
+		var sl_desc := ""
+		if GameState.beast_slots >= GameState.PARTY_MAX:
+			sl_desc = "All eight slots of your ring are wired up!"
+		elif GameState.beast_slots >= sl_cap:
+			sl_desc = "Beast slots %d / %d. Volt can wire another once you're a Lv %d trainer (you're Lv %d)." % [GameState.beast_slots, GameState.PARTY_MAX, _level_for(func(): return GameState.slot_cap(), GameState.beast_slots + 1), GameState.trainer_level]
+		else:
+			sl_desc = "Beast slots %d / %d: you can carry that many beasts on your ring. You have %d crystal shards." % [GameState.beast_slots, GameState.PARTY_MAX, GameState.shards]
 		var items := [
-			{"text": "Upgrade shield", "right": "%d shards" % SHIELD_COST, "disabled": not can,
-				"desc": ("Your shield is fully upgraded!" if GameState.max_shield >= MAX_SHIELD else "Shield %d / %d. You have %d crystal shards." % [GameState.max_shield, MAX_SHIELD, GameState.shards])},
+			{"text": "Add a shield point", "right": "%d shards" % SHIELD_COST, "disabled": not can_sh, "desc": sh_desc},
+			{"text": "Wire a beast slot", "right": "%d shards" % SLOT_COST, "disabled": not can_sl, "desc": sl_desc},
 			{"text": "Buy gadgets", "desc": "Nets, flash powder and tonics for the trainer's turn in battle."},
 			{"text": "Leave"},
 		]
-		var c: int = await UI.choose("Sparkwire Electronics   ·   Shards: %d   ·   Shield: %d/%d" % [GameState.shards, GameState.max_shield, MAX_SHIELD], items, {"anchor": "right", "width": 440})
+		var c: int = await UI.choose("Sparkwire Electronics  ·  Shards %d  ·  Trainer Lv %d" % [GameState.shards, GameState.trainer_level], items, {"anchor": "right", "width": 460})
 		match c:
 			0:
-				if not can:
+				if not can_sh:
 					continue
 				GameState.shards -= SHIELD_COST
 				GameState.shards_spent += SHIELD_COST
@@ -538,9 +572,32 @@ func electronics(b: Dictionary) -> void:
 				await UI.say(["Bzzt... click... done! Your shield now holds %d point%s." % [GameState.max_shield, "" if GameState.max_shield == 1 else "s"],
 					"It recharges after every battle, so don't worry about wearing it out."], k)
 			1:
+				if not can_sl:
+					continue
+				GameState.shards -= SLOT_COST
+				GameState.shards_spent += SLOT_COST
+				GameState.beast_slots += 1
+				Sfx.play("levelup")
+				await UI.flash(Color("#7af0ff"), 2)
+				await UI.say(["Zzzap! Another slot on your battle ring is live. You can carry %d beasts now." % GameState.beast_slots,
+					"Pick one up from storage at any Beast Center. Remember: a side takes its own element, a corner either of its two."], k)
+			2:
 				await shop_loop("Gadgets", ["sticky_snare", "haste_tonic", "smoke_bomb", "flash_powder", "stun_net", "fire_bomb", "gale_bomb"])
 			_:
 				return
+
+
+## The lowest trainer level at which cap() reaches `want` (for "come back at Lv N").
+func _level_for(cap: Callable, want: int) -> int:
+	var keep := GameState.trainer_level
+	var lv := keep
+	while lv < GameState.TRAINER_LEVEL_MAX:
+		lv += 1
+		GameState.trainer_level = lv
+		if int(cap.call()) >= want:
+			break
+	GameState.trainer_level = keep
+	return lv
 
 
 # ================================================================ arena
@@ -558,7 +615,8 @@ func arena(b: Dictionary, town: String) -> void:
 		var items := [
 			{"text": ("Rematch " if beaten else "Challenge ") + leader,
 				"desc": ("Rematch for prize money. Levels ~%d." % (lv + 6)) if beaten else "Leader's beasts are around Lv %d. Prize: %s, the song %s, and %d gold." % [lv, a["crest"], song["name"], a["gold"]]},
-			{"text": "Exhibition match", "desc": "Battle a visiting trainer for prize money (Lv ~%d)." % (lv - 3)},
+			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
+				"desc": "Climb the ladder of ring trainers. Beat every trainer of a rank to open the next; each rank you clear raises your trainer level (you're Lv %d) and earns a crystal shard." % GameState.trainer_level},
 			{"text": "Leave"},
 		]
 		var c: int = await UI.choose(b["name"], items, {"anchor": "right", "width": 400})
@@ -572,16 +630,81 @@ func arena(b: Dictionary, town: String) -> void:
 			if res != "win":
 				return
 		else:
-			var rng := RandomNumberGenerator.new()
-			rng.randomize()
-			var team2 := []
-			for i in 3:
-				team2.append([rng.randi_range(0, 47), maxi(3, lv - 4 + rng.randi_range(0, 2)), false])
-			var tname: String = WorldDB.TRAINER_NAMES[rng.randi_range(0, WorldDB.TRAINER_NAMES.size() - 1)]
-			var res2 := await Story.trainer_battle({"name": tname, "cls": "Arena Challenger", "team": team2, "arena": true, "look": MapGen.random_look(rng),
-				"reward": lv * 45, "defeat": "Good match!"})
-			if res2 != "win":
+			if not await ladder():
 				return
+
+
+# ================================================================ arena ladder
+## The highest rank open to you: every rank below it is cleared.
+func _ladder_rank() -> int:
+	var r := 1
+	while r < LadderDB.RANKS and _rank_cleared(r):
+		r += 1
+	return r
+
+
+func _rank_cleared(r: int) -> bool:
+	return (GameState.ladder.get(r, []) as Array).size() >= LadderDB.count(r)
+
+
+## The ladder: your open rank's trainers first, then the earlier ranks' for rematches. Returns false after a battle
+## you didn't win (you leave the arena).
+func ladder() -> bool:
+	var host := "Arena Host"
+	if not GameState.flag("met_ladder"):
+		GameState.set_flag("met_ladder")
+		await UI.say(["The arena ladder! Ring trainers from all over battle here, rank by rank.",
+			"Beat every trainer of your rank and the next rank opens up. Each rank you clear makes you a stronger trainer, and Volt at Sparkwire Electronics can do more for a stronger trainer: more beast slots, a bigger shield.",
+			"Ladder battles are ring battles to the end: knock out a side's middle beast, then break the trainer's shield!"], host)
+	while true:
+		var top := _ladder_rank()
+		var items := []
+		var refs := []
+		for r in range(top, 0, -1):
+			for i in LadderDB.count(r):
+				var o := LadderDB.opponent(r, i)
+				var beaten: bool = (GameState.ladder.get(r, []) as Array).has(i)
+				var lv := 0
+				for t in o["team"]:
+					lv += int(t[1])
+				lv /= maxi(1, o["team"].size())
+				items.append({"text": "%s %s" % [o["cls"], o["name"]], "right": ("✓  " if beaten else "") + "Lv %d" % lv,
+					"desc": "%s.  %d beasts, %d shield point%s; favours the %s side of the ring.  Prize: %d gold%s." % [LadderDB.rank_name(r), o["team"].size(),
+						o["shield"], "" if int(o["shield"]) == 1 else "s", String(o["theme"]).capitalize(), int(o["reward"]) / (2 if beaten else 1), " (rematch)" if beaten else ""]})
+				refs.append([r, i])
+		var c: int = await UI.choose("Arena ladder  ·  %s  ·  Trainer Lv %d" % [LadderDB.rank_name(top), GameState.trainer_level], items, {"anchor": "right", "width": 480, "rows": 7})
+		if c < 0:
+			return true
+		if GameState.alive_party().is_empty():
+			await UI.say(["Your beasts need healing before they can battle!"], host)
+			continue
+		var r2: int = refs[c][0]
+		var i2: int = refs[c][1]
+		var o2 := LadderDB.opponent(r2, i2)
+		var again: bool = (GameState.ladder.get(r2, []) as Array).has(i2)
+		var res := await Story.trainer_battle({"name": o2["name"], "cls": o2["cls"], "team": o2["team"], "arena": true, "look": o2["look"],
+			"shield": o2["shield"], "reward": int(o2["reward"]) / (2 if again else 1), "defeat": "Well fought! See you higher up the ladder."})
+		if res != "win":
+			return false
+		if again:
+			continue
+		var beaten2: Array = (GameState.ladder.get(r2, []) as Array).duplicate()
+		beaten2.append(i2)
+		GameState.ladder[r2] = beaten2
+		if _rank_cleared(r2):
+			Sfx.play("levelup")
+			var before_slots := GameState.slot_cap()
+			var before_shield := GameState.shield_cap()
+			GameState.reach_trainer_level(r2 + 1)
+			GameState.shards += 1
+			var lines := ["You've cleared %s of the arena ladder!" % LadderDB.rank_name(r2),
+				"You're a Lv %d trainer now. Here's a crystal shard for your trouble. (%d in your bag)" % [GameState.trainer_level, GameState.shards]]
+			if GameState.slot_cap() > before_slots or GameState.shield_cap() > before_shield:
+				lines.append("Volt at Sparkwire Electronics in Tidewater can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
+					else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")))
+			lines.append("%s is open!" % LadderDB.rank_name(r2 + 1) if r2 < LadderDB.RANKS else "You're the ladder's Champion! Come back for a rematch any time.")
+			await UI.say(lines, host)
+	return true
 
 
 ## The leader fight. Returns the battle result.
@@ -670,7 +793,7 @@ func music_shop() -> void:
 		var sheets := _owned_sheets()
 		var c: int = await UI.choose("Brass & Reed Music   (%d gold)" % GameState.gold, [
 			{"text": "Hear a song", "right": "free" if free_left else "used", "disabled": not free_left,
-				"desc": "The Maestro plays a song from his book. Then play it back from memory to learn it. Only once!" if free_left else "You've already had your free performance."},
+				"desc": "The Maestro plays a song from his book. Then play it back to learn it. Only once!" if free_left else "You've already had your free performance."},
 			{"text": "Buy sheet music", "desc": "Learn songs at your own pace: play from the sheet (here or from your bag) until you get it right."},
 			{"text": "Play from sheet music", "right": "%d" % sheets.size(), "desc": "Try to learn a song from sheet music you own.", "disabled": sheets.is_empty()},
 			{"text": "Practice a song", "desc": "Raise your mastery: each star makes a song stronger, and a little longer."},
@@ -741,7 +864,7 @@ func learn_attempts(sid: String, speaker := "", need := 0.0, first_opts := {}) -
 		var opts := {"mode": "learn", "goal": {"accuracy": need}}
 		opts.merge(extra, true)
 		extra = {}
-		var r: Dictionary = await UI.flute_ex(sid, "Play it back from memory to learn it", opts)
+		var r: Dictionary = await UI.flute_ex(sid, "Play it back to learn it", opts)
 		Sfx.music(GameState.main.music_for(GameState.map_id))
 		if not r["cancelled"] and String(r.get("failed", "")) == "" and float(r["acc"]) > 0.0 and float(r["acc"]) >= need:
 			GameState.learn_song(sid)

@@ -41,7 +41,7 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 
 | Region | Towns | What happens |
 |---|---|---|
-| Coast | Cocoon Cove, Tidewater | Tidewater has the first arena, **Sparkwire Electronics** (shield upgrades), a Sky Tower and the ferry. |
+| Coast | Cocoon Cove, Tidewater | Tidewater has the first arena, **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
 | Isle of Tides | Shellhaven, Kelpwick | The two villages are feuding. Hear both chiefs, catch the smuggler on the Isle Trail who framed them, and they open the coral gate to the reef and the **Temple of Tides**. |
 | Desert | Dustwell Oasis, Sundown Gulch (western town) | Bandits terrorise Sundown. Talk to the Sheriff, then beat Black Bart in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
 | Mountains | Copperpick, Cogsworth (steampunk city) | CEO Magnus Gearhart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearhart Tower: each floor's robot sentries must fall before the stairs unlock. |
@@ -78,6 +78,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
 - **Temple guardians**: each elemental temple holds a legendary guardian: Abyssion, Zephyrax, Pyroclast and Terranox. Beating it gives a **Radiant Egg** of that element.
 - **Merging** happens at Beast Centers, between two beasts at their level cap. A normal merge is 50/50. A legendary parent dominates at **80/20** and keeps its race. Ghost merging unlocks in Gravenmoor.
+  - Beasts of neighbouring elements on the ring (Fire–Air, Air–Water, Water–Earth, Earth–Fire) merge into a **dual beast** of both elements. Opposite elements (Fire–Water, Air–Earth) can't merge.
 - **Wild beasts** roam the routes in plain sight; there are no random encounters (the tall grass is still there).
   - Each beast sees in a cone in front of it, half as far if you're in tall grass, and hears you running nearby.
   - Beasts come running when they spot you. Only a lone beast hopelessly outmatched by your best one (8+ levels below it) bolts.
@@ -87,18 +88,22 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Each road's trainers are stronger than any wild beast on it. The Coastal Path has the weakest beasts (Lv 1-2) and single-beast trainers.
 - **Levelling** is slower than before: about twice as many wins per level.
 - **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. MP comes back only from healing (the Beast Center machine, Mom, your bed) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
-- **Battles**: up to 3 beasts per side. Your readouts (HP and MP) are on the left, the foes' on the right. Winning plays *Android Sock Hop*. A beaten foe vanishes with a smack in a puff of smoke; damage numbers use BoldPixels, and battle messages are the same size as dialogue. Each beast can **Fight**, **Defend** (half damage for the rest of the round; it goes first) or **Swap**. **You get a turn too**:
-  - Fire your **slingshot**.
-  - Use **items**: potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares and weaken powder, and haste, iron and war-drum tonics.
-  - Play a **flute song**.
-  - Run (wild battles only).
-- **Shield**:
-  - When all your beasts are down, foes attack you directly, and each hit breaks one shield point.
-  - If you're hit with no shield left, you lose and wake up at the nearest Beast Center you've visited.
-  - Every 5 **crystal shards** you find buy +1 shield point at Sparkwire Electronics in Tidewater, up to 4. The shield recharges after every battle.
-- **Flute songs** are a sheet-music memory game.
+- **The battle ring** (as in Jade Cocoon 2, `scripts/core/ring.gd`): every trainer stands in the middle of a ring of 8 slots.
+  - The ring has a side per element, in this order round it: **Fire, Air, Water, Earth**. A side's middle slot holds a beast of that element; the **corner** between two sides holds a beast of either element, or a dual beast of both.
+  - You carry as many beasts as you have **beast slots** wired up: 3 to start, up to 8. New beasts take a free slot they may stand in, joining the side most of your team stands on; move them round in **Start → Beasts → Battle ring**.
+- **Battles** (`battle.gd`, `command_panel.gd`): one side of each ring faces the foe, and only its three beasts fight, using **that side's element** or plain (neutral) moves. A dual beast in a corner uses whichever of its elements faces the foe.
+  - Each turn you choose your own action first (you always act first), then each beast's move, in stacked rows: ◄ ► change the action, A confirms, a move that needs a target then asks for one with ◄ ►, B goes back. **▲ on the top beast or ▼ on the bottom one turns the ring** to the next side with a beast standing on it.
+  - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, or **Defend** (half damage for the rest of the round; it goes first).
+  - Your readouts (HP and MP) and a diagram of your ring are on the left, the foe's on the right. Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. Damage numbers use BoldPixels.
+- **Shield and the end of a battle**:
+  - If the beast in the middle of the side facing the foe is down (or that slot is empty), its trainer can be **attacked directly**: each hit breaks one shield point. Turn your ring to a side whose middle still stands to cover yourself.
+  - A trainer battle ends only when a trainer is hit with no shield left, or someone forfeits. Wild beasts have no trainer: beat them all to win. If you're the one hit with no shield left, you wake up at the nearest Beast Center you've visited.
+  - Every trainer starts with 1 shield point; trainers on the roads have 0 to 3, depending on their strength. The shield recharges after every battle.
+- **Trainer level**: beating trainers earns trainer XP, and clearing a rank of the **arena ladder** raises your trainer level to at least that rank + 1. The ladder (`ladder_db.gd`) is the same at every arena: ten ranks of three or four ring trainers each; beat them all to open the next rank. Each rank cleared earns a crystal shard; beaten trainers can be fought again.
+- **Sparkwire Electronics** (Volt, Tidewater): **shield points** (5 crystal shards each, up to 4) and **beast slots** (3 shards each, up to 8). How many Volt can fit depends on your trainer level: one more slot per level, one more shield point every other level.
+- **Flute songs** are a sheet-music game.
   - The song plays once while its notes light up on the staff. Each line and space is a button: ← → A B from the bottom up.
-  - Then the clock starts. Your first note hides the sheet, so you play the rest in order from memory.
+  - Then the clock starts. Play the notes in order: the sheet stays up the whole time, with the notes you've played lit.
   - You have 10 seconds for four notes and 5 more for every four more (30 seconds in Uncle Rafe's lessons). The bar shrinks without numbers, going green, then yellow, orange and red. The colour you finish in sets the song's power: full in the green, about half in the red.
   - Each wrong note breaks one of three hearts and costs a little power. Lose all three, or run out of time, and the song fails.
   - Songs start at 4 notes and grow to 16 as they level up. Capture levels up through Capture I to XI; every other song levels up with mastery stars. Bigger songs add ↑, then ↓, and finally chords (A or B pressed together with a direction).
@@ -180,7 +185,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Tab | What's in it |
 |---|---|
 | Trainer | Your portrait, gold, shield and shards, arena crests, trainer gear, Fly and Save. |
-| Beasts | Your party and eggs. Each beast's page shows stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
+| Beasts | Your battle ring (move beasts between its slots), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
 | Flute | Every song with its effect and mastery; press A to practise one. The Capture page shows your level and when the next one is ready to learn. Unknown songs show where to learn them. |
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 48 races with live voxel portraits and where to find them. |
@@ -287,10 +292,10 @@ python tools/town_check.py
 scripts/
   data/        race_db, move_db, item_db, song_db, world_db (towns, routes, temples, obstacles, biomes), voxel_manifest
   data/maps/   hand-made ASCII maps: towns, routes, room templates
-  core/        beast.gd (a beast instance), beasts.gd (creation, merging, legendary dominance)
+  core/        beast.gd (a beast instance), beasts.gd (creation, merging, legendary dominance), ring.gd (the battle ring)
   gfx/         voxel_mesher (greedy mesher), voxel_beast, voxel_person, voxel_buildings, voxel_props, voxel_textures, voxel_assets
   world/       map_loader.gd (ASCII → map), world.gd (voxel overworld + interiors), map_gen.gd (tile types)
-  battle/      battle.gd (3v3 battles, trainer turn, shield, egg drops)
+  battle/      battle.gd (ring battles, trainer turn, shields, egg drops), command_panel.gd (the stacked command rows)
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
@@ -319,6 +324,7 @@ godot --headless --path . -- --scene=capture                            # Captur
 godot --headless --path . -- --scene=puzzles                            # solves every road puzzle (bridge, cliff, rockslide, ice, checkpoint, warden, sentinel)
 godot --headless --path . -- --scene=wilds                              # roaming wild beasts: sneak attack, chase, ambush, flee
 godot --path . -- --scene=marks --shot=C:/tmp/k.png                     # the !, blue ! and ? marks
+godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a ring battle driven by keys (a b l r u d); --kind=wild, --foe_level, --foe_shield
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere

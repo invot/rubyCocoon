@@ -1,8 +1,8 @@
 extends "res://scripts/ui/modal.gd"
-## The flute minigame: sheet music you memorise, then play back from memory.
+## The flute minigame: sheet music you read, then play back.
 ##   1. Listen: the flute plays the song once and each note lights up on the staff. The clock waits.
-##   2. Study: the sheet stays up, but the clock is running.
-##   3. Play: your first note hides the sheet. Play the rest in order from memory.
+##   2. Study: the sheet stays up and the clock is running.
+##   3. Play: play the notes in order; the sheet stays up the whole time, the notes you have played lit.
 ## Each staff position is a button: ← → A B from the bottom line up; higher-level songs add ↓ and ↑ above them.
 ## Two stacked notes are a chord: A or B pressed together with a direction.
 ## The timer bar shrinks green → yellow → orange → red, and the colour you finish in sets the song's power
@@ -45,7 +45,7 @@ const COACH := [
 	{"when": "listened", "focus": "timer", "text": "Your turn! This bar is your time. As soon as I stop talking, it starts to shrink."},
 	{"when": "listened", "focus": "timer", "text": "Finish while it's green and the song works at full power. Yellow and orange are weaker. In the red it's only half as strong, and if the bar runs out, the song fails."},
 	{"when": "listened", "focus": "hearts", "text": "These hearts are your slips. A wrong note breaks one, and the right note peeks out to help you. Break all three and the song falls apart."},
-	{"when": "listened", "focus": "staff", "text": "Read the notes and remember them. The moment you play your first note, the sheet hides! Play the rest from memory. Ready? Go!"},
+	{"when": "listened", "focus": "staff", "text": "Read the notes, then play them in order. The sheet stays up while you play. Ready? Go!"},
 ]
 
 var song_id := "weaken"
@@ -71,7 +71,6 @@ var _clock := 0.0
 var _listen_t := 0.0
 var _lit := -1
 var _spb := 0.6
-var _hidden := false
 ## chord half pressed -> clock time
 var _chord := {}
 var _pop := {}
@@ -195,7 +194,6 @@ func on_input(ev: InputEvent) -> void:
 		"listen":
 			_end_listen()
 		"study":
-			_hidden = true
 			phase = "play"
 			_press(b)
 		"play":
@@ -347,9 +345,9 @@ func _draw() -> void:
 			if coach_name == "" and _coach_line.is_empty():
 				status += "   (press any note to skip)"
 		"study":
-			status = "Memorise it! Your first note hides the sheet."
+			status = "Read the sheet, then play it! The clock is running."
 		"play":
-			status = "From memory!   Note %d of %d" % [mini(pos + 1, melody.size()), melody.size()]
+			status = "Note %d of %d" % [mini(pos + 1, melody.size()), melody.size()]
 	if status != "":
 		draw_string(font, Vector2(pr.position.x, pr.position.y + 126), status, HORIZONTAL_ALIGNMENT_CENTER, w, UIKit.body_px(22), UIKit.INK)
 
@@ -394,7 +392,7 @@ func _draw() -> void:
 	# the notes
 	for i in melody.size():
 		var x := notes_l + spacing * float(units[i])
-		var shown := not _hidden or i < pos
+		var shown := true
 		if shown:
 			var a := 1.0
 			if phase == "listen":

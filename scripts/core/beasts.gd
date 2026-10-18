@@ -2,6 +2,7 @@ extends RefCounted
 ## Creates beasts: wild/trainer beasts, loaded beasts, and temple merges.
 
 const Beast = preload("res://scripts/core/beast.gd")
+const Ring = preload("res://scripts/core/ring.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 
@@ -67,7 +68,25 @@ static func can_merge(a: Beast, b: Beast, ghost_allowed: bool) -> String:
 		return "Ghost beasts resist merging... Only in Gravenmoor, where the shadows gather, can they be merged."
 	if maxi(a.rank, b.rank) >= 5:
 		return "These beasts are already at the highest rank."
+	if merged_elements(a, b).is_empty():
+		return "%s and %s beasts can't merge: their elements stand opposite each other on the ring." % [a.element_text(), b.element_text()]
 	return ""
+
+
+## The elements a merge of a and b would have: one, or two neighbouring ones (a dual beast), or [] if the pair
+## cannot merge (opposite elements, or more than two between them). Ghosts make ghosts.
+static func merged_elements(a: Beast, b: Beast) -> Array:
+	if a.ghost or b.ghost:
+		return ["ghost"]
+	var els := []
+	for e in a.elements() + b.elements():
+		if not els.has(e):
+			els.append(e)
+	if els.size() == 1:
+		return els
+	if els.size() == 2 and Ring.adjacent(els[0], els[1]):
+		return els
+	return []
 
 
 static func merged_name(a: String, b: String) -> String:
@@ -102,12 +121,17 @@ static func merge(a: Beast, b: Beast, temple := false) -> Beast:
 		primary = a if pa > 0.5 else b  # the legendary keeps its race
 	c.race = primary.race
 	c.ghost = a.ghost or b.ghost
-	if c.ghost:
-		c.element = "ghost"
-	elif a.element == b.element:
-		c.element = a.element
+	var els := merged_elements(a, b)
+	if c.ghost or els.is_empty():
+		c.element = "ghost" if c.ghost else primary.element
 	else:
-		c.element = a.element if pick.call() else b.element
+		# the primary parent's element leads; two neighbouring elements make a dual beast
+		c.element = primary.element if primary.element in els else els[0]
+		c.element2 = ""
+		for e in els:
+			if e != c.element:
+				c.element2 = e
+	c.slot = primary.slot
 	c.rank = maxi(a.rank, b.rank) + 1
 	c.level = mini(maxi(a.level, b.level) + 1, c.level_cap())
 	c.xp = Beast.xp_for_level(c.level)

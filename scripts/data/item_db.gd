@@ -123,7 +123,7 @@ static func sheet(song_id: String) -> Dictionary:
 	var s := SongDB.get_song(song_id)
 	return {"name": "Sheet Music: " + s["name"], "kind": "sheet", "song": song_id, "price": int(s.get("shop", 1000)),
 		"desc": "%s
-Read it, then play it back from memory to learn it." % SongDB.describe(song_id)}
+Read it, then play it back to learn it." % SongDB.describe(song_id)}
 
 
 ## Items from `kind` stocked at shop tier `t`, deterministic per shop seed.

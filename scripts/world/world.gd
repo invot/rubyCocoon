@@ -1315,7 +1315,8 @@ func _build_camera() -> void:
 
 
 func _place_camera(instant := false) -> void:
-	if cam_free:
+	# a battle can take the world out of the tree halfway through a frame
+	if cam_free or not cam.is_inside_tree():
 		return
 	var w: float = map["w"]
 	var h: float = map["h"]

@@ -1,8 +1,13 @@
 extends Node3D
-## Turn-based battle: up to three beasts per side, plus the trainer's own turn.
+## Turn-based ring battle (as in Jade Cocoon 2). Each trainer stands in the middle of a ring of eight slots (ring.gd):
+## a side per element, with corners between. One side faces the foe: its three beasts fight, using only that side's
+## element (and plain, neutral moves). At the start of each turn a trainer may turn the ring to another side with a
+## beast standing on it. You choose your own action first (you always act first), then a move for each of your three
+## beasts (command_panel.gd), and the round plays out by priority and speed.
+## If a side's middle beast is down (or its middle slot is empty), its trainer can be attacked directly: each hit
+## breaks a shield point, and a hit with no shield left loses the battle. A trainer battle ends only that way, or
+## when someone forfeits. Wild beasts have no ring and no trainer: beat them all to win.
 ## Fire = offense tanks, Water = healers, Earth = defenders, Air = status/evasion, Ghost = Legion.
-## When all your beasts are down, foes attack you directly: each hit costs one shield point,
-## and a hit with no shield left loses the battle.
 
 signal finished(result: String)
 
@@ -22,13 +27,19 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Bar = preload("res://scripts/ui/bar.gd")
+const Ring = preload("res://scripts/core/ring.gd")
+const CommandPanel = preload("res://scripts/battle/command_panel.gd")
+const RingView = preload("res://scripts/ui/ring_view.gd")
 
-const ALLY_POS := [Vector3(-1.7, 0, 1.5), Vector3(-3.5, 0, 0.5), Vector3(-5.3, 0, -0.5)]
-const FOE_POS := [Vector3(1.7, 0, -1.3), Vector3(3.5, 0, -2.3), Vector3(5.3, 0, -3.3)]
-const PLAYER_POS := Vector3(-7.0, 0, -1.5)
-const RIVAL_POS := Vector3(7.2, 0, -4.6)
-const CAM_POS := Vector3(0.0, 4.6, 9.8)
-const CAM_LOOK := Vector3(0, 0.0, -1.6)
+## the middles of the two rings: you on the left, nearer the camera; the foe on the right, further back
+const ALLY_CENTER := Vector3(-4.3, 0, 1.5)
+const FOE_CENTER := Vector3(4.3, 0, -2.6)
+const PLAYER_POS := ALLY_CENTER
+const RIVAL_POS := FOE_CENTER
+## a ring's radius (to the middle of its pads)
+const RING_R := 2.25
+const CAM_POS := Vector3(1.4, 10.2, 12.6)
+const CAM_LOOK := Vector3(0.9, -0.4, -0.6)
 const STAGE_NAMES := {"atk": "Attack", "def": "Defense", "spr": "Spirit", "spd": "Speed", "eva": "Evasion", "acc": "Accuracy"}
 const EGG_CHANCE := 0.2
 
@@ -46,7 +57,6 @@ var flute_used := false
 var round_no := 0
 var biome: Dictionary
 var indoor := false
-var exposed := false
 var drops: Array = []
 ## songs the rival trainer played this battle (song id -> true); you may try to learn them afterwards
 var heard_songs := {}
@@ -73,6 +83,26 @@ var msg_label: Label
 var msg_panel: PanelContainer
 var ally_panels: Array = []
 var foe_panels: Array = []
+
+## the rings: {slot: beast}. Wild beasts stand in a plain line (foe_slots) with no ring.
+var ally_ring := {}
+var foe_ring := {}
+## the side of each ring facing the other (0 Fire, 1 Air, 2 Water, 3 Earth)
+var ally_side := 0
+var foe_side := 0
+## the rival trainer's shield (yours is GameState.shield)
+var foe_shield := 0
+var foe_max_shield := 0
+## each ring's turn (radians), and its pads and circle
+var ring_psi := {"ally": 0.0, "foe": 0.0}
+var ring_root := {}
+var pads := {"ally": {}, "foe": {}}
+var ally_view: Control
+var foe_view: Control
+var rival_shield_label: Label3D
+var rival_bubble: MeshInstance3D
+## whether each trainer was open to attack at the last check (for the announcements)
+var _open_was := {"ally": false, "foe": false}
 
 
 func setup(c: Dictionary) -> void:
@@ -196,8 +226,11 @@ func _build_stage() -> void:
 	ground.material_override = _tex_mat(ground_tex, Vector2(70, 50))
 	ground.position = Vector3(0, 0, -10)
 	add_child(ground)
-	# a low cobbled mound under each side: a flat oval top with a sloping rim
-	for center in [Vector3(-3.5, 0, 0.5), Vector3(3.5, 0, -2.3)]:
+	_build_ring("ally")
+	if not wild:
+		_build_ring("foe")
+	# a low cobbled mound under the wild beasts
+	for center in ([] if not wild else [FOE_CENTER + _toward("foe") * 0.9]):
 		var k := VBld.Kit.new()
 		var col := Color(biome["path"] if not arena else biome["plaza"]) if not dark else Color("#5a5664")
 		var tex := "cobble" if not dark else "stone_dark"
@@ -207,8 +240,8 @@ func _build_stage() -> void:
 		for i in n:
 			var a := TAU * i / n
 			var wob := 1.0 + rng.randf_range(-0.05, 0.05)
-			top.append(Vector3(cos(a) * 3.6 * wob, 0.14, sin(a) * 2.1 * wob))
-			foot.append(Vector3(cos(a) * 4.0 * wob, -0.02, sin(a) * 2.45 * wob))
+			top.append(Vector3(cos(a) * 3.4 * wob, 0.14, sin(a) * 2.0 * wob))
+			foot.append(Vector3(cos(a) * 3.8 * wob, -0.02, sin(a) * 2.35 * wob))
 		for i in n:
 			var j := (i + 1) % n
 			k.poly(tex, [Vector3(0, 0.14, 0), top[i], top[j]], Vector3.UP, col)
@@ -242,6 +275,242 @@ func _build_stage() -> void:
 	arrow.visible = false
 	add_child(arrow)
 	_build_trainers()
+
+
+
+# ================================================================ rings
+## Which way a team faces: the direction (in the ground plane) from its ring to the other side.
+func _toward(team: String) -> Vector3:
+	var d := (FOE_CENTER - ALLY_CENTER) if team == "ally" else (ALLY_CENTER - FOE_CENTER)
+	d.y = 0.0
+	return d.normalized()
+
+
+func _facing(team: String) -> float:
+	var d := _toward(team)
+	return atan2(d.z, d.x)
+
+
+## Beasts face the other side, turned a little towards the camera so you see their faces.
+func _beast_yaw(team: String) -> float:
+	return -(_facing(team) + (0.45 if team == "ally" else -0.45))
+
+
+func _center(team: String) -> Vector3:
+	return ALLY_CENTER if team == "ally" else FOE_CENTER
+
+
+## The ring's turn that puts `side`'s middle slot towards the foe (slot k sits at angle k * 45 deg - psi).
+func _psi_for(team: String, side: int) -> float:
+	return deg_to_rad(90.0 * side) - _facing(team)
+
+
+func _slot_pos(team: String, k: int) -> Vector3:
+	var a := deg_to_rad(45.0 * k) - float(ring_psi[team])
+	return _center(team) + Vector3(cos(a), 0.0, sin(a)) * RING_R
+
+
+## The glowing circle and the eight pads of a ring (they turn together; the beasts on them are placed each turn).
+func _build_ring(team: String) -> void:
+	var root := Node3D.new()
+	root.position = _center(team)
+	add_child(root)
+	ring_root[team] = root
+	var circle := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(RING_R * 2.0 + 2.6, RING_R * 2.0 + 2.6)
+	circle.mesh = pm
+	var cm := StandardMaterial3D.new()
+	cm.albedo_texture = _circle_texture()
+	cm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	cm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	cm.albedo_color = Color("#ffe9a8") if team == "ally" else Color("#ffd0a8")
+	cm.emission_enabled = true
+	cm.emission = cm.albedo_color
+	cm.emission_energy_multiplier = 1.3
+	circle.material_override = cm
+	circle.position.y = 0.03
+	circle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(circle)
+	for k in Ring.SLOTS:
+		var pad := MeshInstance3D.new()
+		pad.mesh = _pad_mesh(k)
+		var a := deg_to_rad(45.0 * k)
+		pad.position = Vector3(cos(a), 0.0, sin(a)) * RING_R
+		pad.rotation.y = -a
+		root.add_child(pad)
+		pads[team][k] = pad
+	ring_psi[team] = _psi_for(team, ally_side if team == "ally" else foe_side)
+	root.rotation.y = float(ring_psi[team])
+
+
+## A pad: a squat stone tile with an inset in its side's element colour (a corner's split between its two).
+func _pad_mesh(k: int) -> ArrayMesh:
+	var key := "pad:%d" % k
+	if _pad_cache.has(key):
+		return _pad_cache[key]
+	var kit := VBld.Kit.new()
+	var stone := Color("#b8b0a4")
+	kit.box("stone", Vector3(0, 0.07, 0), Vector3(1.1, 0.14, 1.1), stone)
+	var els := Ring.slot_elements(k)
+	if els.size() == 1:
+		kit.box("color", Vector3(0, 0.15, 0), Vector3(0.78, 0.03, 0.78), Elements.color(els[0]).darkened(0.15))
+	else:
+		kit.box("color", Vector3(0, 0.15, -0.2), Vector3(0.78, 0.03, 0.38), Elements.color(els[0]).darkened(0.15))
+		kit.box("color", Vector3(0, 0.15, 0.2), Vector3(0.78, 0.03, 0.38), Elements.color(els[1]).darkened(0.15))
+	var m: ArrayMesh = kit.mesh()
+	_pad_cache[key] = m
+	return m
+
+
+static var _pad_cache := {}
+static var _circle_tex: ImageTexture = null
+
+
+## The ring's circle on the ground: two rings, an eight-pointed star of lines and small marks, in soft white (the
+## material tints and lights it).
+static func _circle_texture() -> ImageTexture:
+	if _circle_tex != null:
+		return _circle_tex
+	var n := 256
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	var c := Vector2(n, n) / 2.0
+	for y in n:
+		for x in n:
+			var p := Vector2(x + 0.5, y + 0.5) - c
+			var r := p.length() / (n / 2.0)
+			var a := 0.0
+			# the outer and inner rings
+			a = maxf(a, clampf(1.0 - absf(r - 0.92) / 0.018, 0.0, 1.0))
+			a = maxf(a, clampf(1.0 - absf(r - 0.86) / 0.008, 0.0, 1.0) * 0.7)
+			a = maxf(a, clampf(1.0 - absf(r - 0.42) / 0.012, 0.0, 1.0) * 0.8)
+			# an eight-pointed star: lines between every third point of an octagon on the outer ring
+			if r < 0.92:
+				for i in 8:
+					var p0 := Vector2(cos(TAU * i / 8.0), sin(TAU * i / 8.0)) * 0.86 * n / 2.0
+					var p1 := Vector2(cos(TAU * (i + 3) / 8.0), sin(TAU * (i + 3) / 8.0)) * 0.86 * n / 2.0
+					var d := Geometry2D.get_closest_point_to_segment(p, p0, p1).distance_to(p) / (n / 2.0)
+					a = maxf(a, clampf(1.0 - d / 0.009, 0.0, 1.0) * 0.55)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	img.generate_mipmaps()
+	_circle_tex = ImageTexture.create_from_image(img)
+	return _circle_tex
+
+
+## Lights the pads of the side facing the foe.
+func _light_pads(team: String) -> void:
+	var side := ally_side if team == "ally" else foe_side
+	var on := Ring.side_slots(side)
+	for k in pads[team]:
+		var pad: MeshInstance3D = pads[team][k]
+		if k in on:
+			var m := StandardMaterial3D.new()
+			m.albedo_color = Color(1, 1, 1, 0.0)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.emission_enabled = true
+			m.emission = Color("#ffe6a0")
+			m.emission_energy_multiplier = 0.55
+			pad.material_overlay = m
+		else:
+			pad.material_overlay = null
+
+
+## Puts every beast of a ring on its pad (after the ring turns), facing the foe.
+func _place_ring(team: String) -> void:
+	if ring_root.has(team):
+		(ring_root[team] as Node3D).rotation.y = float(ring_psi[team])
+	var r: Dictionary = ally_ring if team == "ally" else foe_ring
+	for k in r:
+		var b = r[k]
+		if b == null or not nodes.has(b):
+			continue
+		var n: Node3D = nodes[b]
+		var p := _slot_pos(team, k)
+		n.position = Vector3(p.x, n.position.y, p.z)
+		n.rotation.y = _beast_yaw(team)
+
+
+## Turns a ring so `side` faces the foe (a short spin), and makes that side's beasts the active three.
+func _turn_ring(team: String, side: int) -> void:
+	var from := float(ring_psi[team])
+	var to := _psi_for(team, side)
+	to = from + wrapf(to - from, -PI, PI)
+	if team == "ally":
+		ally_side = side
+	else:
+		foe_side = side
+	Sfx.play("page")
+	var tw := create_tween()
+	tw.tween_method(func(v: float): ring_psi[team] = v; _place_ring(team), from, to, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+	ring_psi[team] = to
+	_place_ring(team)
+	_sync_slots()
+	_light_pads(team)
+	_refresh()
+
+
+## The three active rows of each side, from the rings (top corner, middle, bottom corner).
+func _sync_slots() -> void:
+	var a := []
+	for k in Ring.side_slots(ally_side):
+		a.append(ally_ring.get(k, null))
+	ally_slots = a
+	if not wild:
+		var f := []
+		for k in Ring.side_slots(foe_side):
+			f.append(foe_ring.get(k, null))
+		foe_slots = f
+
+
+## True if a trainer can be attacked directly: the middle beast of the side facing the foe is down, or missing.
+## Wild beasts have no trainer to attack.
+func _side_open(team: String) -> bool:
+	if team == "foe" and wild:
+		return false
+	var mid = (ally_slots if team == "ally" else foe_slots)[1]
+	return mid == null or mid.hp <= 0
+
+
+func _team(b) -> String:
+	return String(_st(b)["side"])
+
+
+## The element a beast fights with right now (see ring.gd); a wild beast fights with its own.
+func _fight_el(b) -> String:
+	if _team(b) == "foe" and wild:
+		return "ghost" if b.ghost else String(b.element)
+	return Ring.fighting_element(b, ally_side if _team(b) == "ally" else foe_side)
+
+
+func _guard_el(b) -> String:
+	if _team(b) == "foe" and wild:
+		return String(b.element)
+	return Ring.guarding_element(b, ally_side if _team(b) == "ally" else foe_side)
+
+
+## The moves a beast can use this round: those of the element it fights with, and neutral ones (always including a
+## plain attack, in case it has none).
+func _usable_moves(b) -> Array:
+	var el := _fight_el(b)
+	var out := []
+	for mv in b.battle_moves():
+		var m := MoveDB.get_move(mv)
+		if m["el"] == "neutral" or m["el"] == el:
+			out.append(mv)
+	if not out.any(func(mv): return MoveDB.mp_cost(mv) == 0 and MoveDB.get_move(mv)["kind"] == "attack" and MoveDB.get_move(mv)["el"] == "neutral"):
+		out.append("tackle")
+	return out
+
+
+## Where a wild beast stands (row i of up to three), in a loose line in front of the foe's side.
+func _wild_pos(i: int) -> Vector3:
+	var d := _toward("foe")
+	var perp := Vector3(-d.z, 0, d.x)
+	var n := mini(3, foes.size())
+	var off := (float(i) - float(n - 1) / 2.0) * 2.1
+	return FOE_CENTER + d * 0.9 + perp * off
 
 
 func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
@@ -400,6 +669,22 @@ func _build_trainers() -> void:
 	if rival_rig:
 		rival_rig.position = RIVAL_POS
 		add_child(rival_rig)
+	# the rival's shield: pips above their head and a bubble that flashes when it takes a hit
+	rival_shield_label = Label3D.new()
+	rival_shield_label.font_size = 52
+	rival_shield_label.outline_size = 10
+	rival_shield_label.pixel_size = 0.008
+	rival_shield_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	rival_shield_label.modulate = Color("#ffc890")
+	rival_shield_label.position = RIVAL_POS + Vector3(0, 2.3, 0)
+	add_child(rival_shield_label)
+	rival_bubble = MeshInstance3D.new()
+	rival_bubble.mesh = shield_bubble.mesh
+	var rbm: StandardMaterial3D = (shield_bubble.material_override as StandardMaterial3D).duplicate()
+	rbm.albedo_color = Color(1.0, 0.75, 0.45, 0.0)
+	rival_bubble.material_override = rbm
+	rival_bubble.position = RIVAL_POS + Vector3(0, 0.9, 0)
+	add_child(rival_bubble)
 
 
 func _update_shield() -> void:
@@ -409,6 +694,8 @@ func _update_shield() -> void:
 		shield_label.text = ""
 		return
 	shield_label.text = "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield)
+	if rival_shield_label != null:
+		rival_shield_label.text = "◆".repeat(foe_shield) + "◇".repeat(maxi(0, foe_max_shield - foe_shield)) if foe_max_shield > 0 else ""
 
 
 func _process(delta: float) -> void:
@@ -431,9 +718,9 @@ func _process(delta: float) -> void:
 		var n2: Node3D = nodes[_arrow_target]
 		arrow.visible = true
 		arrow.position = n2.position + Vector3(0, float(n2.get_meta("height")) + 0.35 + sin(_time * 6.0) * 0.08, 0)
-	elif typeof(_arrow_target) == TYPE_STRING and _arrow_target == "trainer":
+	elif typeof(_arrow_target) == TYPE_STRING and _arrow_target in ["trainer", "trainer_self", "foe_trainer"]:
 		arrow.visible = true
-		arrow.position = PLAYER_POS + Vector3(0, 2.0 + sin(_time * 6.0) * 0.08, 0)
+		arrow.position = (RIVAL_POS if _arrow_target == "foe_trainer" else PLAYER_POS) + Vector3(0, 2.0 + sin(_time * 6.0) * 0.08, 0)
 	else:
 		arrow.visible = false
 
@@ -442,6 +729,7 @@ func _point_at(b) -> void:
 	_arrow_target = b
 
 
+## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
 func _spawn(b, side: String, slot: int) -> void:
 	var root := Node3D.new()
 	var model: Node3D
@@ -459,12 +747,12 @@ func _spawn(b, side: String, slot: int) -> void:
 	holder.name = "Model"
 	holder.add_child(model)
 	root.add_child(holder)
-	var lift := 0.0
-	if b.genes.get("body", "") in ["fish", "bird"]:
-		lift = 0.35
+	var lift := 0.16
 	holder.position.y = lift
-	root.rotation.y = -0.45 if side == "ally" else PI + 0.45
-	root.position = (ALLY_POS if side == "ally" else FOE_POS)[slot]
+	root.rotation.y = _beast_yaw(side)
+	var ringed: bool = side == "ally" or not wild
+	root.position = _slot_pos(side, slot) if ringed else _wild_pos(slot)
+	root.set_meta("slot", slot)
 	root.set_meta("height", height + lift)
 	root.set_meta("lift", lift)
 	root.set_meta("phase", randf() * TAU)
@@ -479,10 +767,14 @@ func _spawn(b, side: String, slot: int) -> void:
 	nodes[b] = root
 	root.scale = Vector3(0.2, 0.2, 0.2)
 	var tw := create_tween()
-	tw.tween_property(root, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(root, "scale", Vector3.ONE * (0.85 if ringed else 1.0), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var s := _st(b)
 	s["side"] = side
-	s["down"] = false
+	s["down"] = b.hp <= 0
+	if b.hp <= 0:
+		# already down when the battle began: lying on its pad
+		root.rotation.z = -1.4
+		root.position.y = -0.3
 	if side == "foe":
 		GameState.mark_seen(b)
 	else:
@@ -534,12 +826,28 @@ func _build_hud() -> void:
 	for i in 3:
 		foe_panels.append(_make_panel(foe_row, pw, false))
 		ally_panels.append(_make_panel(ally_row, pw, true))
+	# each ring as a small diagram beside its readouts, its active side towards the other trainer
+	var rv := RingView.new(150.0 if not touch else 136.0)
+	rv.position = Vector2(16 + pw + 10, 12)
+	rv.facing = PI / 2.0
+	hud.add_child(rv)
+	ally_view = rv
+	if not wild:
+		var fv := RingView.new(150.0 if not touch else 136.0)
+		fv.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		fv.offset_left = -16 - pw - 10 - fv.custom_minimum_size.x
+		fv.offset_right = -16 - pw - 10
+		fv.offset_top = 12
+		fv.offset_bottom = 12 + fv.custom_minimum_size.y
+		fv.facing = -PI / 2.0
+		hud.add_child(fv)
+		foe_view = fv
 	# battle text looks like the dialogue box: same panel, same text size, three lines tall
 	var mp := PanelContainer.new()
 	mp.add_theme_stylebox_override("panel", UIKit.box("dialogue", Vector4(26, 8, 26, 4)))
 	mp.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	mp.offset_left = 304.0 if touch else 16.0
-	mp.offset_right = -270.0 if touch else -450.0
+	mp.offset_right = -270.0 if touch else -16.0
 	mp.offset_top = -10.0 - (3.0 * UIKit.body_px(UIKit.BODY_HUGE) + 44.0) - reserve
 	mp.offset_bottom = -10.0 - reserve
 	hud.add_child(mp)
@@ -599,11 +907,13 @@ func _refresh() -> void:
 				p["beast"] = null
 				continue
 			p["root"].visible = true
+			p["root"].modulate = Color(1, 1, 1, 1.0 if b.hp > 0 else 0.55)
 			if p["beast"] != b:
 				p["beast"] = b
 				for c in p["tags"].get_children():
 					c.queue_free()
-				p["tags"].add_child(UIKit.element_tag(b.element, 12))
+				for el in b.elements():
+					p["tags"].add_child(UIKit.element_tag(el, 12))
 				p["bar"].set_ratio(b.hp_ratio(), true)
 				p["mp"].set_ratio(b.mp_ratio(), true)
 			p["name"].text = " " + b.nickname
@@ -627,7 +937,17 @@ func _refresh() -> void:
 				var v: int = s["stages"][k]
 				if v != 0:
 					bits.append("%s%s%d" % [k.to_upper(), "+" if v > 0 else "", v])
+			if b.hp <= 0:
+				bits = ["Fainted"]
 			p["status"].text = " ".join(bits)
+	if ally_view != null:
+		ally_view.shield = GameState.shield
+		ally_view.max_shield = GameState.max_shield
+		ally_view.set_ring(ally_ring, ally_side)
+	if foe_view != null:
+		foe_view.shield = foe_shield
+		foe_view.max_shield = foe_max_shield
+		foe_view.set_ring(foe_ring, foe_side)
 	_update_shield()
 
 
@@ -644,12 +964,32 @@ func msg(text: String, wait := 0.95) -> void:
 # ================================================================ main loop
 func _run() -> void:
 	await get_tree().process_frame
-	var alive := GameState.alive_party()
-	for i in mini(3, alive.size()):
-		ally_slots[i] = alive[i]
-	for i in mini(3, foes.size()):
-		foe_slots[i] = foes[i]
-		_spawn(foes[i], "foe", i)
+	# your ring, turned to the side you last fought with (if anyone stands on it)
+	GameState.fix_ring()
+	ally_ring = GameState.ring()
+	ally_side = GameState.ring_side
+	if not Ring.side_alive(ally_ring, ally_side):
+		ally_side = maxi(0, Ring.best_side(ally_ring))
+	if not wild:
+		var placed := Ring.arrange(foes)
+		for k in placed:
+			if int(k) >= 0:
+				foe_ring[k] = placed[k]
+		foe_side = maxi(0, Ring.best_side(foe_ring))
+		foe_max_shield = _trainer_shield()
+		foe_shield = foe_max_shield
+	for team in ring_root:
+		ring_psi[team] = _psi_for(team, ally_side if team == "ally" else foe_side)
+		_light_pads(team)
+	_sync_slots()
+	if wild:
+		for i in mini(3, foes.size()):
+			foe_slots[i] = foes[i]
+			_spawn(foes[i], "foe", i)
+	else:
+		for k in foe_ring:
+			_spawn(foe_ring[k], "foe", k)
+		_place_ring("foe")
 	_refresh()
 	if wild:
 		var names := []
@@ -675,23 +1015,26 @@ func _run() -> void:
 			Sfx.play("stinger")
 		await msg("%s %s wants to battle!" % [trainer.get("cls", "Trainer"), trainer.get("name", "")])
 		var names2 := []
-		for i in 3:
-			if foe_slots[i] != null:
-				names2.append(foe_slots[i].nickname)
-		await msg("%s sent out %s!" % [trainer.get("name", "The trainer"), ", ".join(names2)])
+		for b in _alive(foe_slots):
+			names2.append(b.nickname)
+		await msg("%s faces you with the %s side of their ring: %s!" % [trainer.get("name", "The trainer"), Ring.side_element(foe_side).capitalize(), ", ".join(names2)])
+		if foe_max_shield > 0:
+			await msg("%s's shield holds %d point%s." % [trainer.get("name", "The trainer"), foe_max_shield, "" if foe_max_shield == 1 else "s"], 0.8)
 	var go := []
-	for i in 3:
-		if ally_slots[i] != null:
-			_spawn(ally_slots[i], "ally", i)
-			go.append(ally_slots[i].nickname)
+	for k in ally_ring:
+		_spawn(ally_ring[k], "ally", k)
+	_place_ring("ally")
+	for b in _alive(ally_slots):
+		go.append(b.nickname)
 	_refresh()
 	if not go.is_empty():
-		await msg("Go, %s!" % ", ".join(go), 0.8)
+		await msg("Your %s side faces the foe. Go, %s!" % [Ring.side_element(ally_side).capitalize(), ", ".join(go)], 0.9)
 	await _start_passives()
 	_check_end()
+	await _check_exposed()
 	if tutorial:
-		await _tut_say(["Battles go in rounds. Each round, YOU get a turn first, then every beast you sent out.",
-			"Then the foe acts, and the fastest moves happen first. Let's take it one step at a time!"])
+		await _tut_say(["Battles go in rounds. Each round, YOU choose first, then a move for each beast on the side of your ring facing me.",
+			"You always act first; then the fastest moves happen first. Let's take it one step at a time!"])
 	while result == "":
 		round_no += 1
 		for b in ally_slots:
@@ -706,7 +1049,7 @@ func _run() -> void:
 		if result != "":
 			break
 		if ambush != "player":
-			acts += _ai_actions()
+			acts += await _ai_actions()
 		await _resolve(acts)
 		if result != "":
 			break
@@ -716,6 +1059,7 @@ func _run() -> void:
 		await _refill()
 		_check_end()
 		await _check_exposed()
+		_refresh()
 	await _finish()
 	finished.emit(result)
 
@@ -728,7 +1072,7 @@ func _tut_say(lines: Array) -> void:
 ## The attack the tutorial teaches: the beast's own-element attack if it has one, else its first attack.
 func _tut_move(b) -> String:
 	var first := ""
-	for mv in b.battle_moves():
+	for mv in _usable_moves(b):
 		var m := MoveDB.get_move(mv)
 		if m["kind"] == "attack" and m["target"] == "enemy":
 			if first == "":
@@ -800,232 +1144,344 @@ func _theirs(b) -> Array:
 	return foe_slots if _st(b)["side"] == "ally" else ally_slots
 
 
+## Wild battles end when every wild beast is down (Scout Bram's lesson too). Trainer battles end only when a trainer
+## is hit with no shield left (see _strike), or someone forfeits.
 func _check_end() -> void:
 	if result != "":
 		return
-	var left := foes.filter(func(f): return f.hp > 0)
-	if left.is_empty():
-		result = "win"
+	if wild or tutorial:
+		var left := foes.filter(func(f): return f.hp > 0)
+		if left.is_empty():
+			result = "win"
 
 
-## When every beast is down, the trainer stands alone behind their shield.
+## Announces a trainer coming open to attack: the middle beast of the side facing the foe is down (or missing).
 func _check_exposed() -> void:
 	if result != "":
 		return
-	var any_alive := not GameState.alive_party().is_empty()
-	if any_alive:
-		exposed = false
-		return
-	if exposed:
-		return
-	exposed = true
-	await msg("All your beasts are down! The foes turn on you...", 1.2)
-	if GameState.shield > 0:
-		_shield_pulse()
-		await msg("Your shield crackles to life! It can block %d hit%s." % [GameState.shield, "" if GameState.shield == 1 else "s"], 1.1)
-	else:
-		await msg("You have no shield! One more hit and it's over. Revive a beast, or run!" if wild else "You have no shield! Revive a beast quickly!", 1.3)
+	for team in ["ally", "foe"]:
+		if team == "foe" and wild:
+			continue
+		var open := _side_open(team)
+		if open and not bool(_open_was[team]):
+			if team == "ally":
+				var anyone := not GameState.alive_party().is_empty()
+				await msg(("The middle of your %s side is down! The foe can attack you directly." % Ring.side_element(ally_side).capitalize()) if anyone
+					else "All your beasts are down! The foes turn on you...", 1.2)
+				if GameState.shield > 0:
+					_shield_pulse(shield_bubble)
+					await msg("Your shield crackles to life! It can block %d hit%s." % [GameState.shield, "" if GameState.shield == 1 else "s"], 1.0)
+				else:
+					await msg("You have no shield! One more hit and it's over. %s" % ("Turn your ring to a side with a beast in its middle!" if anyone else ("Revive a beast, or run!" if wild else "Revive a beast, or forfeit!")), 1.3)
+			else:
+				await msg("%s's middle beast is down! Your beasts can attack %s directly." % [trainer.get("name", "The trainer"), trainer.get("name", "them")], 1.1)
+		_open_was[team] = open
 
 
 # ================================================================ player commands
 func _command_phase() -> Array:
-	if cfg.get("autoplay", false):
-		var auto := []
-		for b in _alive(ally_slots):
-			auto.append(_ai_choose(b))
-		var ta := _auto_trainer_action()
-		if not ta.is_empty():
-			auto.append(ta)
-		return auto
+	if cfg.get("autoplay", false) or UI.auto:
+		return await _auto_commands()
 	flute_used = false
-	var actors: Array = ["trainer"]
-	for i in 3:
-		if ally_slots[i] != null and ally_slots[i].hp > 0:
-			actors.append(ally_slots[i])
-	var acts := {}
-	var reserved := []
-	var locked := false
-	var k := 0
-	if tutorial and not cfg.get("autoplay", false):
+	if tutorial:
 		await _tut_round_intro()
-	while k < actors.size():
-		var who = actors[k]
-		if typeof(who) == TYPE_STRING:
-			_point_at("trainer")
-			var ta: Dictionary = await _trainer_menu()
-			if result != "":
-				return []
-			if ta.is_empty():
-				continue
-			if ta.get("type", "") in ["flute", "run_failed"]:
-				locked = true
-			acts[k] = ta
-			k += 1
-			continue
-		var b = who
-		_point_at(b)
-		msg_label.text = "What will %s do?" % b.nickname
-		var want_b: String = TUTORIAL_BEAST.get(round_no, "Fight")
-		if tutorial:
-			if want_b == "Defend":
-				await _tut_say(["Now %s's turn. Choose Defend!" % b.nickname])
-			else:
-				await _tut_say(["Now it's %s's turn. Choose Fight, then %s!" % [b.nickname, MoveDB.get_move(_tut_move(b))["name"]]])
-		var items := [
-			{"text": "Fight", "desc": "Use one of %s's moves." % b.nickname},
-			{"text": "Defend", "desc": "Brace for impact: %s takes half damage until the end of the round. Defending happens before anything else." % b.nickname},
-			{"text": "Swap", "desc": "Scout Bram: \"Swapping is for when you've got more beasts!\"" if tutorial else "Switch %s with a benched beast." % b.nickname, "disabled": tutorial},
-		]
-		if tutorial:
-			for it in items:
-				if it["text"] != want_b:
-					it["disabled"] = true
-					it["desc"] = "Scout Bram: \"Not now! %s this round.\"" % want_b
-		var can_back: bool = not (k == 1 and locked) and not tutorial
-		var c: int = await UI.choose("%s  Lv%d" % [b.nickname, b.level], items, {"anchor": "bottom_right", "width": 300, "cancel": can_back, "margin": Vector2(20, 20)})
-		if c == -1:
-			if can_back:
-				var prev: Dictionary = acts.get(k - 1, {})
-				if prev.get("type", "") == "swap":
-					reserved.erase(prev["with"])
-				acts.erase(k - 1)
-				k -= 1
-			continue
-		var act := {}
-		if c == 0:
-			act = await _choose_move(b)
-		elif c == 1:
-			act = {"type": "defend", "actor": b, "prio": 7}
-		else:
-			act = await _choose_swap(b, reserved)
-			if not act.is_empty():
-				reserved.append(act["with"])
-		if act.is_empty():
-			continue
-		acts[k] = act
-		k += 1
+	var rows := _panel_rows()
+	var focus := 0
+	while true:
+		if result != "":
+			return []
+		if rows[0].get("done", false) and not _rows_waiting(rows):
+			break
+		var p := CommandPanel.new()
+		p.setup(rows, _panel_info(), focus, _row_targets, _point_at)
+		msg_panel.visible = false
+		UI.push(p)
+		var r: Dictionary = await p.done
+		msg_panel.visible = true
+		_point_at(null)
+		focus = int(r.get("focus", focus))
+		match String(r.get("kind", "")):
+			"go":
+				break
+			"rotate":
+				var ns := Ring.next_side(ally_ring, ally_side, int(r["dir"]))
+				if ns != ally_side:
+					await _turn_ring("ally", ns)
+					# a new side: its beasts choose afresh
+					var keep: Dictionary = rows[0]
+					rows = _panel_rows()
+					rows[0] = keep
+				focus = 1 if int(r["dir"]) < 0 else rows.size() - 1
+			"sub":
+				var opt: Dictionary = rows[0]["options"][int(rows[0]["sel"])]
+				match String(opt["id"]):
+					"items":
+						var act := await _choose_item()
+						if not act.is_empty():
+							act["prio"] = 9
+							rows[0]["act"] = act
+							rows[0]["done"] = true
+							focus = 1
+					"flute":
+						var played: bool = await _flute_flow()
+						if result != "":
+							return []
+						if played:
+							rows[0]["act"] = {"type": "flute"}
+							rows[0]["done"] = true
+							rows[0]["locked"] = true
+							focus = 1
+							# a charmed beast has left the field: the beasts' targets are chosen afresh
+							var keep2: Dictionary = rows[0]
+							rows = _panel_rows()
+							rows[0] = keep2
+					"run":
+						if await _try_run():
+							result = "run"
+							return []
+						rows[0]["act"] = {"type": "none"}
+						rows[0]["done"] = true
+						rows[0]["locked"] = true
+						focus = 1
+					"forfeit":
+						if await UI.ask("Forfeit the battle? It counts as a loss, but you keep your gold."):
+							result = "forfeit"
+							return []
 	_point_at(null)
-	return acts.values()
+	return _acts_from_rows(rows)
 
 
-## The trainer's own action. Returns an action dict, or {} to ask again.
-func _trainer_menu() -> Dictionary:
-	msg_label.text = "What will you do, %s?" % GameState.player_name
+## True while a standing beast on the active side still needs its move.
+func _rows_waiting(rows: Array) -> bool:
+	for i in range(1, rows.size()):
+		var r: Dictionary = rows[i]
+		if r.get("status", "") == "" and not r.get("done", false):
+			return true
+	return false
+
+
+## The command panel's rows: you, then the three slots of the side facing the foe.
+func _panel_rows() -> Array:
+	var rows := []
 	var shield := ""
 	if GameState.max_shield > 0:
-		shield = "   Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield)
-	var items := [
-		{"text": "Slingshot", "desc": "Fire a stone at a foe. Small, but it never hurts to help!"},
-		{"text": "Items", "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
-		{"text": "Flute", "desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Tidewater is keeping your father's.",
-			"disabled": not GameState.has_flute()},
-		{"text": "Watch", "desc": "Let your beasts handle this round."},
-		{"text": "Run", "desc": "Try to escape." if wild else "There's no running from this battle!", "disabled": not wild},
+		shield = "Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield) + "   "
+	var t_opts := [
+		{"id": "slingshot", "label": "Slingshot", "target": "enemy", "desc": "Fire a stone at a foe (or at an open trainer). Small, but it never hurts to help!"},
+		{"id": "items", "label": "Items", "sub": true, "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
+		{"id": "flute", "label": "Flute", "sub": true, "disabled": not GameState.has_flute(),
+			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Tidewater is keeping your father's."},
+		{"id": "watch", "label": "Watch", "target": "none", "desc": "Let your beasts handle this round."},
 	]
+	if wild:
+		t_opts.append({"id": "run", "label": "Run", "sub": true, "desc": "Try to escape."})
+	else:
+		t_opts.append({"id": "forfeit", "label": "Forfeit", "sub": true, "disabled": tutorial,
+			"desc": "Give up the battle. It counts as a loss, but you keep your gold and can try again." if not tutorial else "Scout Bram: \"No giving up on your first lesson!\""})
 	if tutorial:
 		var want: String = TUTORIAL_PLAN.get(round_no, "Watch")
-		for it in items:
-			if it["text"] != want:
-				it["disabled"] = true
-				it["desc"] = "Scout Bram: \"Not yet! Try %s this round.\"" % want
-	var c: int = await UI.choose("%s%s" % [GameState.player_name, shield], items, {"anchor": "bottom_right", "width": 320, "cancel": false, "rows": 5, "margin": Vector2(20, 20)})
-	match c:
-		0:
-			var t = await _choose_target(_alive(foe_slots), "Target")
-			if t == null:
-				return {}
-			return {"type": "slingshot", "target": t, "prio": 3}
-		1:
-			return await _choose_item()
-		2:
-			var played: bool = await _flute_flow()
-			if result != "":
-				return {"type": "none"}
-			return {"type": "flute"} if played else {}
-		3:
-			return {"type": "none"}
-		4:
-			if await _try_run():
-				result = "run"
-				return {"type": "none"}
-			return {"type": "run_failed"}
-	return {}
+		for o in t_opts:
+			if o["label"] != want:
+				o["disabled"] = true
+				o["desc"] = "Scout Bram: \"Not yet! Try %s this round.\"" % want
+	var start := 0
+	for i in t_opts.size():
+		if not t_opts[i].get("disabled", false):
+			start = i
+			break
+	rows.append({"kind": "trainer", "name": GameState.player_name, "sub": "%sTrainer Lv %d" % [shield, GameState.trainer_level],
+		"icon": UIKit.tex("tab_trainer"), "options": t_opts, "sel": start, "done": false})
+	for k in Ring.side_slots(ally_side):
+		var b = ally_ring.get(k, null)
+		if b == null:
+			rows.append({"kind": "beast", "beast": null, "name": Ring.slot_name(k), "sub": "", "status": "empty", "options": [{"label": ""}],
+				"status_desc": "Nobody stands on the %s of your ring." % Ring.slot_name(k)})
+			continue
+		var row := {"kind": "beast", "beast": b, "name": b.nickname, "icon": PixelArt.beast_texture(b.genes),
+			"sub": "Lv %d  HP %d/%d  MP %d" % [b.level, maxi(0, b.hp), b.max_hp(), b.mp], "sel": 0, "done": false}
+		if b.hp <= 0:
+			row["status"] = "down"
+			row["options"] = [{"label": ""}]
+			row["status_desc"] = "%s has fainted. Revive it with an item, or turn the ring to another side." % b.nickname
+		else:
+			row["options"] = _move_options(b)
+			for i in row["options"].size():
+				if not row["options"][i].get("disabled", false):
+					row["sel"] = i
+					break
+		rows.append(row)
+	return rows
+
+
+## A beast's choices this round: its moves of the element it fights with and neutral ones, then Defend.
+func _move_options(b) -> Array:
+	var out := []
+	var s := _st(b)
+	var el := _fight_el(b)
+	for mv in _usable_moves(b):
+		var m := MoveDB.get_move(mv)
+		var cd: int = s["cd"].get(mv, 0)
+		var cost := MoveDB.mp_cost(mv)
+		var right: String = String(m["el"]).to_upper()
+		if m.has("power"):
+			right += "  %d" % m["power"]
+		if cost > 0:
+			right += "   MP %d" % cost
+		var desc := MoveDB.summary(mv)
+		var star := ""
+		if m["kind"] == "attack" and m["target"] in ["enemy", "enemies"]:
+			for f in _alive(foe_slots):
+				if Elements.multiplier(m["el"], _guard_el(f)) >= 2.0:
+					star = "  ★"
+		var off: bool = cd > 0 or b.mp < cost
+		if cd > 0:
+			desc = "Recharging for %d more turn(s).\n" % cd + desc
+			right = "wait %d" % cd
+		elif b.mp < cost:
+			desc = "Not enough MP! (%d of %d) Heal at a Beast Center or use a Spirit Drop.\n" % [b.mp, cost] + desc
+		elif cost > 0:
+			desc = "Costs %d MP (%s has %d).\n" % [cost, b.nickname, b.mp] + desc
+		if tutorial:
+			var want_b: String = TUTORIAL_BEAST.get(round_no, "Fight")
+			if want_b != "Fight" or mv != _tut_move(b):
+				off = true
+				desc = "Scout Bram: \"%s\"" % ("Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"])
+		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "target": m["target"], "disabled": off})
+	if el == "neutral" and not b.ghost:
+		out[0]["desc"] = "%s can't use %s moves from the %s side: plain moves only.\n" % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()] + String(out[0]["desc"])
+	var d := {"id": "defend", "label": "Defend", "target": "none", "right": "half damage",
+		"desc": "Brace for impact: %s takes half damage until the end of the round. Defending happens before anything else." % b.nickname}
+	if tutorial and TUTORIAL_BEAST.get(round_no, "Fight") != "Defend":
+		d["disabled"] = true
+		d["desc"] = "Scout Bram: \"Not now! Attack this round.\""
+	out.append(d)
+	return out
+
+
+func _panel_info() -> Dictionary:
+	var up := Ring.next_side(ally_ring, ally_side, -1)
+	var down := Ring.next_side(ally_ring, ally_side, 1)
+	var side := "%s side" % Ring.side_element(ally_side).capitalize()
+	if _side_open("ally"):
+		side += "  ·  you're open to attack!"
+	if GameState.max_shield > 0:
+		side += "   Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield)
+	return {"side": side, "up": Ring.side_element(up).capitalize() if up != ally_side and not tutorial else "",
+		"down": Ring.side_element(down).capitalize() if down != ally_side and not tutorial else "",
+		"prompt": "What will you do, %s?" % GameState.player_name}
+
+
+## Who a row's option can be aimed at: [{label, ref}]. An open rival trainer is a target too.
+func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
+	var out := []
+	match String(opt.get("target", "none")):
+		"enemy":
+			for b in _alive(foe_slots):
+				out.append({"label": "%s  %d%%" % [b.nickname, int(b.hp_ratio() * 100)], "ref": b})
+			if _side_open("foe"):
+				out.append({"label": "%s (shield %d)" % [trainer.get("name", "the trainer"), foe_shield], "ref": "foe_trainer"})
+			# start on the foe facing this beast's own row
+			var mine = row.get("beast", null)
+			var i := ally_slots.find(mine)
+			if i >= 0 and foe_slots[i] != null and foe_slots[i].hp > 0:
+				row["target_sel"] = _alive(foe_slots).find(foe_slots[i])
+		"ally":
+			for b in _alive(ally_slots):
+				out.append({"label": "%s  %d%%" % [b.nickname, int(b.hp_ratio() * 100)], "ref": b})
+		"ally_ko":
+			for b in GameState.party.filter(func(x): return x.hp <= 0 and x.slot >= 0):
+				out.append({"label": b.nickname, "ref": b})
+	return out
+
+
+## The round's actions from the panel's rows. Your own action always goes first.
+func _acts_from_rows(rows: Array) -> Array:
+	var acts := []
+	var r0: Dictionary = rows[0]
+	if r0.has("act"):
+		acts.append(r0["act"])
+	else:
+		var o: Dictionary = r0["options"][int(r0["sel"])]
+		match String(o["id"]):
+			"slingshot":
+				acts.append({"type": "slingshot", "target": _row_ref(r0), "prio": 9})
+			_:
+				acts.append({"type": "none"})
+	for i in range(1, rows.size()):
+		var r: Dictionary = rows[i]
+		if r.get("status", "") != "" or r.get("beast", null) == null:
+			continue
+		var b = r["beast"]
+		var o2: Dictionary = r["options"][int(r["sel"])]
+		if o2["id"] == "defend":
+			acts.append({"type": "defend", "actor": b, "prio": 7})
+		else:
+			var mv: String = o2["move"]
+			acts.append({"type": "move", "actor": b, "move": mv, "target": _row_ref(r), "prio": int(MoveDB.get_move(mv).get("prio", 0))})
+	return acts
+
+
+func _row_ref(r: Dictionary):
+	var ts: Array = r.get("targets", [])
+	if ts.is_empty():
+		return null
+	var ref = ts[clampi(int(r.get("target_sel", 0)), 0, ts.size() - 1)]["ref"]
+	return "trainer" if typeof(ref) == TYPE_STRING and ref == "foe_trainer" else ref
+
+
+## Test runs and simulated battles: you play like the AI does (Scout Bram's lesson by his plan).
+func _auto_commands() -> Array:
+	var acts := []
+	if not Ring.side_alive(ally_ring, ally_side) or (_side_open("ally") and not tutorial):
+		var ns := -1
+		for side in 4:
+			var mid = ally_ring.get(side * 2, null)
+			if mid != null and mid.hp > 0:
+				ns = side
+				break
+		if ns < 0:
+			ns = Ring.best_side(ally_ring)
+		if ns >= 0 and ns != ally_side:
+			await _turn_ring("ally", ns)
+	if tutorial:
+		var b0 = _alive(ally_slots)[0] if not _alive(ally_slots).is_empty() else null
+		match String(TUTORIAL_PLAN.get(round_no, "Watch")):
+			"Slingshot":
+				acts.append({"type": "slingshot", "target": _alive(foe_slots)[0] if not _alive(foe_slots).is_empty() else null, "prio": 9})
+			"Items":
+				if GameState.item_count("minor_potion") == 0:
+					GameState.add_item("minor_potion")
+				if b0 != null:
+					acts.append({"type": "item", "item": "minor_potion", "target": b0, "prio": 9})
+		if b0 != null:
+			if TUTORIAL_BEAST.get(round_no, "Fight") == "Defend":
+				acts.append({"type": "defend", "actor": b0, "prio": 7})
+			else:
+				acts.append({"type": "move", "actor": b0, "move": _tut_move(b0), "target": _alive(foe_slots)[0] if not _alive(foe_slots).is_empty() else null, "prio": 0})
+		UI.auto_log.append("[menu] tutorial round %d -> %s, %s" % [round_no, TUTORIAL_PLAN.get(round_no, "Watch"), TUTORIAL_BEAST.get(round_no, "Fight")])
+		return acts
+	for b in _alive(ally_slots):
+		acts.append(_ai_choose(b))
+	var ta := _auto_trainer_action()
+	if not ta.is_empty():
+		acts.append(ta)
+	return acts
 
 
 func _auto_trainer_action() -> Dictionary:
 	var foes_alive := _alive(foe_slots)
+	if round_no == 1 and GameState.knows_song("weaken") and not foes_alive.is_empty():
+		return {"type": "player_song", "song": "weaken", "acc": 0.75, "prio": 9}
+	if _side_open("ally") and GameState.item_count("revival_seed") > 0:
+		var kos := GameState.party.filter(func(x): return x.hp <= 0 and x.slot >= 0)
+		if not kos.is_empty():
+			return {"type": "item", "item": "revival_seed", "target": kos[0], "prio": 9}
+	if _side_open("foe"):
+		return {"type": "slingshot", "target": "trainer", "prio": 9}
 	if foes_alive.is_empty():
 		return {}
-	if round_no == 1 and GameState.knows_song("weaken"):
-		return {"type": "player_song", "song": "weaken", "acc": 0.75, "prio": 4}
-	if exposed and GameState.item_count("revival_seed") > 0:
-		var kos := GameState.party.filter(func(x): return x.hp <= 0)
-		if not kos.is_empty():
-			return {"type": "item", "item": "revival_seed", "target": kos[0], "prio": 5}
 	foes_alive.sort_custom(func(x, y): return x.hp_ratio() < y.hp_ratio())
-	return {"type": "slingshot", "target": foes_alive[0], "prio": 3}
-
-
-func _choose_move(b) -> Dictionary:
-	var list: Array = b.battle_moves().duplicate()
-	# out of MP? a regular attack is always there
-	if not list.any(func(mv): return MoveDB.mp_cost(mv) == 0 and MoveDB.get_move(mv)["kind"] == "attack"):
-		list.append("tackle")
-	var s := _st(b)
-	var items := []
-	for mv in list:
-		var m := MoveDB.get_move(mv)
-		var cd: int = s["cd"].get(mv, 0)
-		var right: String = m["el"].to_upper()
-		if m.has("power"):
-			right += "  %d" % m["power"]
-		var desc := MoveDB.summary(mv)
-		if cd > 0:
-			desc = "Recharging for %d more turn(s).\n" % cd + desc
-			right = "wait %d" % cd
-		var eff_hint := ""
-		if m["kind"] == "attack" and m["target"] == "enemy":
-			var best := 0.0
-			for f in _alive(foe_slots):
-				best = maxf(best, Elements.multiplier(m["el"], f.element))
-			if best >= 2.0:
-				eff_hint = "  ★"
-		var cost := MoveDB.mp_cost(mv)
-		if cost > 0:
-			if cd <= 0:
-				right = "MP %d" % cost
-			desc = "Costs %d MP (%s has %d).\n" % [cost, b.nickname, b.mp] + desc
-		var off: bool = cd > 0 or (tutorial and mv != _tut_move(b)) or b.mp < cost
-		if b.mp < cost and cd <= 0:
-			desc = "Not enough MP! Heal at a Beast Center or use a Spirit Drop.\n" + desc
-		if tutorial and mv != _tut_move(b):
-			desc = "Scout Bram: \"Use %s for now. You'll try the others soon!\"" % MoveDB.get_move(_tut_move(b))["name"]
-		items.append({"text": m["name"] + eff_hint, "right": right, "disabled": off, "desc": desc})
-	var c: int = await UI.choose("Moves", items, {"anchor": "bottom_right", "width": 420, "rows": 5, "margin": Vector2(20, 20), "cancel": not tutorial,
-		"start": maxi(0, list.find(_tut_move(b))) if tutorial else 0})
-	if c < 0:
-		return {}
-	var mv: String = list[c]
-	var m2 := MoveDB.get_move(mv)
-	var target = null
-	match m2["target"]:
-		"enemy":
-			target = await _choose_target(_alive(foe_slots), "Target")
-			if target == null:
-				return {}
-		"ally":
-			target = await _choose_target(_alive(ally_slots), "Which ally?")
-			if target == null:
-				return {}
-		"ally_ko":
-			var kos := GameState.party.filter(func(x): return x.hp <= 0)
-			if kos.is_empty():
-				await msg("No one needs reviving right now.", 0.8)
-				return {}
-			target = await _choose_target(kos, "Revive whom?")
-			if target == null:
-				return {}
-	return {"type": "move", "actor": b, "move": mv, "target": target, "prio": int(m2.get("prio", 0))}
+	return {"type": "slingshot", "target": foes_alive[0], "prio": 9}
 
 
 func _choose_target(list: Array, title: String):
@@ -1393,20 +1849,6 @@ func _choose_item() -> Dictionary:
 	return {"type": "item", "item": id, "target": t, "prio": 5}
 
 
-func _choose_swap(b, reserved: Array) -> Dictionary:
-	var bench := GameState.party.filter(func(x): return x.hp > 0 and not ally_slots.has(x) and not reserved.has(x))
-	if bench.is_empty():
-		await msg("There's no one on the bench to swap in.", 0.8)
-		return {}
-	var items := []
-	for x in bench:
-		items.append({"text": x.nickname, "right": "Lv%d %d%%" % [x.level, int(x.hp_ratio() * 100)], "icon": PixelArt.beast_texture(x.genes)})
-	var c: int = await UI.choose("Swap in whom?", items, {"anchor": "bottom_right", "width": 380, "margin": Vector2(20, 20)})
-	if c < 0:
-		return {}
-	return {"type": "swap", "actor": b, "with": bench[c], "prio": 6}
-
-
 func _try_run() -> bool:
 	var mine := 0.0
 	var theirs := 0.0
@@ -1415,7 +1857,7 @@ func _try_run() -> bool:
 	for b in _alive(foe_slots):
 		theirs += _eff_stat(b, "spd")
 	var chance := clampf(0.55 + (mine - theirs) / maxf(1.0, mine + theirs), 0.3, 0.95)
-	if exposed:
+	if _side_open("ally"):
 		chance = 0.5
 	if randf() < chance:
 		Sfx.play("back")
@@ -1426,7 +1868,14 @@ func _try_run() -> bool:
 
 
 # ================================================================ AI
+## The foe's turn: a trainer may first turn its ring (to a side whose middle still stands, or now and then to a
+## stronger side); then each of its active beasts picks a move.
 func _ai_actions() -> Array:
+	if not wild and not tutorial:
+		var ns := _ai_pick_side()
+		if ns != foe_side:
+			await msg("%s turns their ring to the %s side!" % [trainer.get("name", "The trainer"), Ring.side_element(ns).capitalize()], 0.8)
+			await _turn_ring("foe", ns)
 	var out := []
 	for b in foe_slots:
 		if b != null and b.hp > 0:
@@ -1436,6 +1885,32 @@ func _ai_actions() -> Array:
 	return out
 
 
+func _ai_pick_side() -> int:
+	var best := Ring.best_side(foe_ring)
+	if best < 0:
+		return foe_side
+	if not Ring.side_alive(foe_ring, foe_side) or _side_open("foe"):
+		# guard the trainer: a side whose middle beast still stands
+		var pick := -1
+		var score := -1.0
+		for side in 4:
+			var mid = foe_ring.get(side * 2, null)
+			if mid == null or mid.hp <= 0:
+				continue
+			var sc := 0.0
+			for k in Ring.side_slots(side):
+				var b = foe_ring.get(k, null)
+				if b != null and b.hp > 0:
+					sc += 1.0 + b.hp_ratio()
+			if sc > score:
+				score = sc
+				pick = side
+		return pick if pick >= 0 else best
+	if best != foe_side and randf() < 0.15:
+		return best
+	return foe_side
+
+
 func _ai_choose(b) -> Dictionary:
 	if tutorial:
 		var enemies0 := _alive(_theirs(b))
@@ -1443,14 +1918,16 @@ func _ai_choose(b) -> Dictionary:
 			return {"type": "none"}
 		return {"type": "move", "actor": b, "move": _tut_move(b), "target": enemies0[0], "prio": 0}
 	var s := _st(b)
-	var moves: Array = b.battle_moves().filter(func(mv): return int(s["cd"].get(mv, 0)) <= 0 and MoveDB.mp_cost(mv) <= b.mp)
+	var moves: Array = _usable_moves(b).filter(func(mv): return int(s["cd"].get(mv, 0)) <= 0 and MoveDB.mp_cost(mv) <= b.mp)
 	if moves.is_empty():
 		moves = ["tackle"]
 	var allies := _alive(_mine(b))
 	var enemies := _alive(_theirs(b))
+	var other := "foe" if _team(b) == "ally" else "ally"
+	var open := _side_open(other)
 	if enemies.is_empty():
-		if s["side"] == "foe" and exposed:
-			return {"type": "strike_trainer", "actor": b, "prio": 0}
+		if open:
+			return {"type": "move", "actor": b, "move": _best_attack(b, moves), "target": "trainer", "prio": 0}
 		return {"type": "none"}
 	if not tutorial and b.hp_ratio() < 0.3 and randf() < 0.25:
 		return {"type": "defend", "actor": b, "prio": 7}
@@ -1464,8 +1941,8 @@ func _ai_choose(b) -> Dictionary:
 		match m["kind"]:
 			"attack":
 				for e in enemies:
-					var eff := Elements.multiplier(m["el"], e.element)
-					var sc: float = float(m["power"]) * eff * (1.25 if m["el"] == b.element else 1.0) * float(m.get("acc", 100)) / 100.0
+					var eff := Elements.multiplier(m["el"], _guard_el(e))
+					var sc: float = float(m["power"]) * eff * (1.25 if m["el"] == _fight_el(b) else 1.0) * float(m.get("acc", 100)) / 100.0
 					if m["target"] == "enemies":
 						sc *= 0.7 * enemies.size()
 					if e.hp_ratio() < 0.3:
@@ -1505,7 +1982,23 @@ func _ai_choose(b) -> Dictionary:
 			best_score = score
 			best_mv = mv
 			best_t = target
+	# an open trainer is a tempting target: every hit breaks a shield point, and one more ends the battle
+	if open and MoveDB.get_move(best_mv)["kind"] == "attack":
+		var other_shield: int = GameState.shield if other == "ally" else foe_shield
+		if randf() < (0.85 if other_shield == 0 else 0.45):
+			best_t = "trainer"
 	return {"type": "move", "actor": b, "move": best_mv, "target": best_t, "prio": int(MoveDB.get_move(best_mv).get("prio", 0))}
+
+
+func _best_attack(b, moves: Array) -> String:
+	var best := "tackle"
+	var power := -1
+	for mv in moves:
+		var m := MoveDB.get_move(mv)
+		if m["kind"] == "attack" and int(m.get("power", 0)) > power:
+			power = int(m.get("power", 0))
+			best = mv
+	return best
 
 
 # ================================================================ resolution
@@ -1542,14 +2035,12 @@ func _resolve(acts: Array) -> void:
 		if result != "":
 			return
 		match a.get("type", "none"):
-			"swap":
-				await _do_swap(a)
 			"item":
 				await _do_item(a)
 			"slingshot":
 				await _do_slingshot(a)
 			"strike_trainer":
-				await _do_strike_trainer(a)
+				await _strike(a.get("actor", null), "ally")
 			"rival_song":
 				await _do_rival_song(a)
 			"player_song":
@@ -1579,30 +2070,17 @@ func _resolve(acts: Array) -> void:
 		_check_end()
 
 
-func _do_swap(a: Dictionary) -> void:
-	var b = a["actor"]
-	var nb = a["with"]
-	var i := ally_slots.find(b)
-	if i < 0 or nb.hp <= 0 or ally_slots.has(nb):
-		return
-	await msg("%s, come back! Go, %s!" % [b.nickname, nb.nickname], 0.8)
-	_despawn(b)
-	st.erase(b)
-	ally_slots[i] = nb
-	_spawn(nb, "ally", i)
-	_refresh()
-
-
-## Puts a just-revived beast straight into an empty battle slot.
+## A revived beast gets back up on its pad.
 func _field_revived(t) -> void:
-	if ally_slots.has(t):
-		return
-	for i in 3:
-		if ally_slots[i] == null:
-			ally_slots[i] = t
-			_spawn(t, "ally", i)
-			exposed = false
-			return
+	_st(t)["down"] = false
+	if nodes.has(t):
+		var n: Node3D = nodes[t]
+		n.show()
+		var tw := create_tween()
+		tw.tween_property(n, "rotation:z", 0.0, 0.3)
+		tw.parallel().tween_property(n, "position:y", 0.0, 0.3)
+		tw.parallel().tween_property(n, "scale", Vector3.ONE * 0.85, 0.3)
+	_refresh()
 
 
 func _trainer_throw(target_pos: Vector3, col: Color) -> void:
@@ -1637,7 +2115,13 @@ func _target_point(b) -> Vector3:
 
 func _do_slingshot(a: Dictionary) -> void:
 	var t = a["target"]
-	if t == null or t.hp <= 0 or not foe_slots.has(t):
+	if typeof(t) == TYPE_STRING and t == "trainer" and _side_open("foe"):
+		await msg("%s fires the slingshot at %s!" % [GameState.player_name, trainer.get("name", "the trainer")], 0.5)
+		Sfx.play("slingshot")
+		await _trainer_throw(RIVAL_POS + Vector3(0, 1.2, 0), Color("#8a847a"))
+		await _strike(null, "foe")
+		return
+	if typeof(t) == TYPE_STRING or t == null or t.hp <= 0 or not foe_slots.has(t):
 		var alive := _alive(foe_slots)
 		if alive.is_empty():
 			return
@@ -1687,7 +2171,7 @@ func _do_item(a: Dictionary) -> void:
 		var col := Color("#c0a0ff")
 		if it.has("bomb"):
 			col = Color({"fire": "#ff7a30", "water": "#4ab0ff", "earth": "#c89a50", "air": "#c8fff0"}.get(it["bomb"]["el"], "#ffffff"))
-		await _trainer_throw(_target_point(targets[0]) if not targets.is_empty() else FOE_POS[0], col)
+		await _trainer_throw(_target_point(targets[0]) if not targets.is_empty() else FOE_CENTER, col)
 		if it.has("bomb"):
 			Sfx.play("explosion")
 	for t in targets:
@@ -1703,6 +2187,7 @@ func _apply_item(it: Dictionary, t) -> void:
 			return
 		t.hp = maxi(1, int(t.max_hp() * float(it["revive_pct"])))
 		st.erase(t)
+		_st(t)["side"] = "ally"
 		Sfx.play("heal")
 		_field_revived(t)
 		_refresh()
@@ -1713,7 +2198,7 @@ func _apply_item(it: Dictionary, t) -> void:
 		return
 	if it.has("bomb"):
 		var bomb: Dictionary = it["bomb"]
-		var eff := Elements.multiplier(bomb["el"], t.element)
+		var eff := Elements.multiplier(bomb["el"], _guard_el(t))
 		var dmg := maxi(1, int(t.max_hp() * float(bomb["pct"]) * eff * randf_range(0.9, 1.1)))
 		await _deal(null, t, {"dmg": dmg, "eff": eff, "crit": false, "pierce": false})
 	if it.has("heal") or it.has("heal_pct"):
@@ -1749,48 +2234,54 @@ func _apply_item(it: Dictionary, t) -> void:
 			await msg("%s shrugged it off!" % t.nickname, 0.6)
 
 
-func _shield_pulse() -> void:
-	if shield_bubble == null:
+func _shield_pulse(bubble: MeshInstance3D = null) -> void:
+	if bubble == null:
+		bubble = shield_bubble
+	if bubble == null:
 		return
-	var m: StandardMaterial3D = shield_bubble.material_override
+	var m: StandardMaterial3D = bubble.material_override
 	var tw := create_tween()
 	tw.tween_property(m, "albedo_color:a", 0.45, 0.12)
 	tw.tween_property(m, "albedo_color:a", 0.0, 0.5)
 
 
-func _do_strike_trainer(a: Dictionary) -> void:
-	var b = a["actor"]
-	if b.hp <= 0 or not _active(b):
-		return
-	if not _alive(ally_slots).is_empty():
-		var redo := _ai_choose(b)
-		if redo.get("type", "") == "move":
-			await _do_move(b, redo["move"], redo["target"])
-		return
-	_point_at("trainer")
-	await msg("%s charges straight at %s!" % [b.nickname, GameState.player_name], 0.6)
-	if nodes.has(b):
-		var n: Node3D = nodes[b]
-		var start := n.position
-		var tw := create_tween()
-		tw.tween_property(n, "position", start.lerp(PLAYER_POS, 0.75), 0.22).set_ease(Tween.EASE_IN)
-		tw.tween_property(n, "position", start, 0.25)
-		await get_tree().create_timer(0.22).timeout
+## A blow at a trainer who is open to attack (`team_hit`: "ally" for you, "foe" for the rival): it breaks a shield
+## point, or, with none left, ends the battle. `b` is the beast that strikes, or null for your slingshot.
+func _strike(b, team_hit: String) -> void:
+	var pos := PLAYER_POS if team_hit == "ally" else RIVAL_POS
+	var who: String = GameState.player_name if team_hit == "ally" else String(trainer.get("name", "the trainer"))
+	_point_at("trainer" if team_hit == "ally" else "foe_trainer")
+	if b != null:
+		await msg("%s charges straight at %s!" % [b.nickname, who], 0.6)
+		if nodes.has(b):
+			var n: Node3D = nodes[b]
+			var start := n.position
+			var tw := create_tween()
+			tw.tween_property(n, "position", start.lerp(pos, 0.75), 0.22).set_ease(Tween.EASE_IN)
+			tw.tween_property(n, "position", start, 0.25)
+			await get_tree().create_timer(0.22).timeout
 	_point_at(null)
-	if GameState.shield > 0:
-		GameState.shield -= 1
+	var left: int = GameState.shield if team_hit == "ally" else foe_shield
+	if left > 0:
+		if team_hit == "ally":
+			GameState.shield -= 1
+		else:
+			foe_shield -= 1
 		Sfx.play("shield")
-		_shield_pulse()
+		_shield_pulse(shield_bubble if team_hit == "ally" else rival_bubble)
 		_update_shield()
-		await msg("Your shield absorbed the blow! (%d left)" % GameState.shield, 0.9)
-	else:
-		Sfx.play("crit")
+		_refresh()
+		await msg("%s shield absorbed the blow! (%d left)" % ["Your" if team_hit == "ally" else "%s's" % who, left - 1], 0.9)
+		return
+	Sfx.play("crit")
+	if team_hit == "ally":
 		await UI.flash(Color("#ff4040"), 1)
-		if is_instance_valid(player_rig):
-			var tw2 := create_tween()
-			tw2.tween_property(player_rig, "rotation:z", -1.4, 0.3)
-		await msg("%s was knocked off their feet!" % GameState.player_name, 1.2)
-		result = "lose"
+	var rig: Node3D = player_rig if team_hit == "ally" else rival_rig
+	if is_instance_valid(rig):
+		var tw2 := create_tween()
+		tw2.tween_property(rig, "rotation:z", -1.4 if team_hit == "ally" else 1.4, 0.3)
+	await msg("%s was knocked off their feet!" % who, 1.2)
+	result = "lose" if team_hit == "ally" else "win"
 
 
 func _do_move(b, mv: String, target) -> void:
@@ -1840,6 +2331,13 @@ func _do_move(b, mv: String, target) -> void:
 		s["cd"][mv] = int(m["cd"]) + 1
 	_point_at(null)
 	await msg("%s used %s!" % [b.nickname, m["name"]], 0.55)
+	# straight at an open trainer
+	if typeof(target) == TYPE_STRING and target == "trainer":
+		var other := "foe" if _team(b) == "ally" else "ally"
+		if m["kind"] == "attack" and _side_open(other):
+			await _strike(b, other)
+			return
+		target = null
 	await _lunge(b, m["kind"] == "attack")
 	var targets := _targets_for(b, m, target)
 	if targets.is_empty():
@@ -1859,7 +2357,7 @@ func _targets_for(b, m: Dictionary, target) -> Array:
 		"self":
 			return [b]
 		"enemy":
-			var t = target
+			var t = target if typeof(target) != TYPE_STRING else null
 			if not fx.get("pierce", false):
 				for x in _alive(theirs):
 					if int(_st(x)["taunt"]) > 0:
@@ -1905,7 +2403,7 @@ func _hit_check(a, t, m: Dictionary) -> bool:
 		acc *= 0.6
 	if t.passives.has("Slippery"):
 		acc *= 0.9
-	if t.element == "air":
+	if "air" in t.elements():
 		acc *= 0.95
 	return randf() < acc
 
@@ -1998,10 +2496,11 @@ func _apply_move(a, t, mv: String, m: Dictionary) -> void:
 				await msg("But it failed!", 0.6)
 				return
 			t.hp = maxi(1, int(t.max_hp() * float(fx.get("revive_pct", 0.3))))
+			var side_t := _team(a)
 			st.erase(t)
+			_st(t)["side"] = side_t
 			Sfx.play("heal")
-			if _st(a)["side"] == "ally":
-				_field_revived(t)
+			_field_revived(t)
 			_refresh()
 			await msg("%s was revived!" % t.nickname)
 		"cleanse":
@@ -2021,8 +2520,8 @@ func _calc_damage(a, t, m: Dictionary) -> Dictionary:
 	var df := _eff_stat(t, "def")
 	var lvl: float = a.level
 	var base := ((2.0 * lvl / 5.0 + 2.0) * float(m["power"]) * atk / maxf(1.0, df)) / 50.0 + 2.0
-	var stab := 1.25 if m["el"] == a.element else 1.0
-	var eff := Elements.multiplier(m["el"], t.element)
+	var stab := 1.25 if m["el"] == _fight_el(a) else 1.0
+	var eff := Elements.multiplier(m["el"], _guard_el(t))
 	var crit := randf() < 0.0625 + float(m.get("fx", {}).get("crit", 0.0))
 	var dmg := base * stab * eff * randf_range(0.85, 1.0) * (1.5 if crit else 1.0)
 	if a.passives.has("Blaze") and a.hp_ratio() < 0.34:
@@ -2212,9 +2711,10 @@ func _tick_damage(b, d: int, text: String) -> void:
 
 
 func _handle_faints() -> void:
-	for side in [ally_slots, foe_slots]:
-		for i in 3:
-			var b = side[i]
+	var groups := [["ally", ally_ring.values()], ["foe", foe_ring.values() if not wild else foe_slots.duplicate()]]
+	for g in groups:
+		var team: String = g[0]
+		for b in g[1]:
 			if b == null or b.hp > 0:
 				continue
 			var s := _st(b)
@@ -2228,8 +2728,8 @@ func _handle_faints() -> void:
 				await msg("%s's Phoenix Plume blazes! It rises again!" % b.nickname, 1.0)
 				continue
 			s["down"] = true
-			var beaten_foe: bool = _st(b)["side"] == "foe"
-			# a beaten foe vanishes with a smack in a puff of smoke; your own beast just keels over
+			var beaten_foe: bool = team == "foe"
+			# a beaten foe vanishes with a smack in a puff of smoke; your own beast keels over on its pad
 			Sfx.play("defeat" if beaten_foe else "faint")
 			if nodes.has(b):
 				var n: Node3D = nodes[b]
@@ -2242,20 +2742,22 @@ func _handle_faints() -> void:
 					tw.tween_callback(n.hide)
 				else:
 					tw.tween_property(n, "rotation:z", -1.4, 0.35)
-					tw.parallel().tween_property(n, "position:y", -0.4, 0.5)
+					tw.parallel().tween_property(n, "position:y", -0.3, 0.5)
 					tw.parallel().tween_property(n, "scale", Vector3(0.6, 0.6, 0.6), 0.5)
 			await msg("%s fainted!" % b.nickname, 0.8)
-			if nodes.has(b):
-				nodes[b].queue_free()
-				nodes.erase(b)
-			side[i] = null
+			if beaten_foe and wild:
+				var i := foe_slots.find(b)
+				if i >= 0:
+					foe_slots[i] = null
+				if nodes.has(b):
+					nodes[b].queue_free()
+					nodes.erase(b)
 			_refresh()
-			if is_same(side, foe_slots):
+			if beaten_foe:
 				_roll_egg(b)
 				await _award_xp(b)
 
 
-## Defeated wild beasts sometimes leave an egg (collected when the battle ends).
 func _roll_egg(b) -> void:
 	if not wild or RaceDB.is_robot(b.race) or RaceDB.is_legendary(b.race):
 		return
@@ -2308,7 +2810,10 @@ func _award_xp(foe) -> void:
 				SongDB.get_song(SongDB.capture_id(GameState.capture_level() + 1))["name"]], 1.8)
 
 
+## Wild beasts beyond the first three step up as others fall. (Ring battles have no bench: everyone is on the ring.)
 func _refill() -> void:
+	if not wild:
+		return
 	for i in 3:
 		if foe_slots[i] != null:
 			continue
@@ -2317,29 +2822,13 @@ func _refill() -> void:
 				foe_slots[i] = f
 				_spawn(f, "foe", i)
 				_refresh()
-				await msg("%s sent out %s!" % [trainer.get("name", "The foe"), f.nickname], 0.8)
+				await msg("Another %s joins the fight!" % f.nickname, 0.8)
 				break
-	for i in 3:
-		if ally_slots[i] != null:
-			continue
-		var bench := GameState.party.filter(func(x): return x.hp > 0 and not ally_slots.has(x))
-		if bench.is_empty():
-			continue
-		var pick = bench[0]
-		if bench.size() > 1:
-			var items := []
-			for x in bench:
-				items.append({"text": x.nickname, "right": "Lv%d %d%%" % [x.level, int(x.hp_ratio() * 100)], "icon": PixelArt.beast_texture(x.genes)})
-			var c: int = 0 if cfg.get("autoplay", false) else await UI.choose("Send out which beast?", items, {"anchor": "bottom_right", "cancel": false, "width": 380, "margin": Vector2(20, 20)})
-			pick = bench[maxi(0, c)]
-		ally_slots[i] = pick
-		_spawn(pick, "ally", i)
-		_refresh()
-		await msg("Go, %s!" % pick.nickname, 0.7)
 
 
 func _finish() -> void:
 	_point_at(null)
+	GameState.ring_side = ally_side
 	match result:
 		"win":
 			Sfx.music("victory")
@@ -2357,6 +2846,7 @@ func _finish() -> void:
 					gold = int(gold * 1.5)
 				GameState.gold += gold
 				await msg("You received %d gold." % gold)
+				await _trainer_xp()
 			if GameState.lucky_battles > 0:
 				GameState.lucky_battles -= 1
 			if not cfg.get("autoplay", false) or UI.auto:
@@ -2366,6 +2856,8 @@ func _finish() -> void:
 		"lose":
 			await msg("Everything goes dark...")
 			await msg("You were carried to the nearest Beast Center.", 1.2)
+		"forfeit":
+			await msg("You forfeited the battle.", 0.9)
 	if result != "lose":
 		for d in drops:
 			GameState.add_egg(int(d["race"]), bool(d["ghost"]))
@@ -2378,16 +2870,50 @@ func _finish() -> void:
 		hud.queue_free()
 
 
+## Trainer XP for beating a trainer: their beasts' levels, more for bosses and arena opponents.
+func _trainer_xp() -> void:
+	if tutorial:
+		return
+	var xp := 0
+	for f in foes:
+		xp += int(f.level)
+	xp = int(xp * (1.5 if trainer.get("arena", false) else 1.0) * (2.0 if is_boss() else 1.0))
+	var before_slots := GameState.slot_cap()
+	var before_shield := GameState.shield_cap()
+	var gained := GameState.add_trainer_xp(xp)
+	await msg("You gained %d trainer XP." % xp, 0.6)
+	if gained > 0:
+		Sfx.play("levelup")
+		await msg("You're now a Lv %d trainer!" % GameState.trainer_level, 1.0)
+		if GameState.slot_cap() > before_slots or GameState.shield_cap() > before_shield:
+			await msg("Volt at Sparkwire Electronics in Tidewater can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
+				else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")), 1.4)
+
+
+## How many shield points a rival trainer has: none for the weakest, more for strong trainers and bosses.
+func _trainer_shield() -> int:
+	if trainer.has("shield"):
+		return int(trainer["shield"])
+	if tutorial:
+		return 0
+	var top := 0
+	for f in foes:
+		top = maxi(top, int(f.level))
+	var sh := 0 if top < 12 else (1 if top < 30 else 2)
+	if is_boss() or trainer.get("guardian", false):
+		sh += 1
+	return mini(sh, 4)
+
+
 # ================================================================ effects
 func _lunge(b, attack: bool) -> void:
 	if not nodes.has(b):
 		return
 	var n: Node3D = nodes[b]
-	var dir := 1.0 if _st(b)["side"] == "ally" else -1.0
 	var start := n.position
 	var tw := create_tween()
 	if attack:
-		tw.tween_property(n, "position", start + Vector3(0.6 * dir, 0.15, -0.25 * dir), 0.1)
+		tw.tween_property(n, "position", start + _toward(_team(b)) * 0.65 + Vector3(0, 0.15, 0), 0.1)
 		tw.tween_property(n, "position", start, 0.12)
 	else:
 		tw.tween_property(n, "position", start + Vector3(0, 0.35, 0), 0.12)
@@ -2463,7 +2989,7 @@ func _float_text(b, text: String, col: Color) -> void:
 	var l := Label3D.new()
 	l.text = text
 	# damage and healing numbers in the chunky pixel font
-	l.font = UIKit.font_head()
+	l.font = UIKit.font_body()
 	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	l.font_size = 64
 	l.outline_size = 14
