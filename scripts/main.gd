@@ -479,15 +479,21 @@ func _run_test() -> void:
 				GameState.set_flag(f)
 		_do_goto(id, sp)
 		if _test.has("overview"):
-			# look down on the whole map from high above its south edge (--overview=1, or =height)
+			# look down on the whole map from high above its south edge (--overview=1, or =height); --focus=x,y looks at
+			# that tile instead, from `height` above and south of it
 			while not is_instance_valid(world) or world.cam == null:
 				await get_tree().process_frame
 			world.cam_free = true
 			var mw: float = world.map["w"]
 			var mh: float = world.map["h"]
 			var hgt := maxf(float(_test["overview"]), 1.0) if float(_test["overview"]) > 1.0 else maxf(mw, mh) * 0.75
-			world.cam.position = Vector3(mw / 2.0, hgt, mh + hgt * 0.45)
-			world.cam.look_at(Vector3(mw / 2.0, 0, mh * 0.45), Vector3.UP)
+			var at := Vector2(mw / 2.0, mh * 0.45)
+			var back := mh * 0.55 + hgt * 0.45
+			if _test.has("focus"):
+				at = Vector2(float(String(_test["focus"]).get_slice(",", 0)), float(String(_test["focus"]).get_slice(",", 1)))
+				back = hgt * 0.8
+			world.cam.position = Vector3(at.x, hgt, at.y + back)
+			world.cam.look_at(Vector3(at.x, 0, at.y), Vector3.UP)
 		await get_tree().create_timer(wait).timeout
 	elif scene == "battle":
 		_do_goto("route3", "south")

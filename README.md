@@ -171,6 +171,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
+- **The arena and the electronics shop** are landmarks of their own (`tools/import_psx_landmarks.gd` →
+  `assets/psx/landmarks/`). Every arena is the same small sandstone keep, built from McSteeg's Castle and Fort pack:
+  crenellated walls round a slate roof, two round front towers with battlements, glazed windows and cone roofs flying
+  gold pennants, the Castle Kit's studded door between torches, red-and-gold banners and the arena's crest. Sparkwire
+  Electronics is two storeys of the house pack's walls with a glass door, a shop window of glowing TV sets (colour
+  bars, a menu, a beast at sunset, snow), a neon fascia in its blue, and on the roof EmaceArt's billboard lit blue with
+  the lightning sign, an aerial on a utility pole with a red beacon, a satellite dish and an air conditioner.
 - **Past the map's edge** a ring of scenery nobody can reach keeps every edge and corner hidden: a deep wood to the
   north and sides, only shrubs and rocks to the south (between the camera and the map), the sea running on past
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
@@ -304,7 +311,7 @@ scripts/
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_landmarks.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
@@ -320,6 +327,7 @@ godot --path . -- --scene=skytower                                      # into a
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery (pages 0-3, 4 = merges)
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
+godot --path . -- --scene=world:tidewater --overview=13 --focus=34,21 --shot=C:/tmp/a.png   # one spot (a tile), 13 up
 godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)

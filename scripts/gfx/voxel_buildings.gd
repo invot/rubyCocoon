@@ -204,6 +204,12 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		"cathedral":
 			_pack_cathedral(node, w, d, door_lx, locked)
 			return node
+		"arena":
+			_pack_arena(node, w, d, door_lx, locked)
+			return node
+		"electronics":
+			_pack_electronics(node, w, d, door_lx, locked)
+			return node
 	var key := "%s:%s:%d:%d:%d%s" % [style_name if shop != "center" else "diner", shop, int(w), int(d), int(b.get("seed", 0)) % 3, ":locked" if locked else ""]
 	var kit_mesh: ArrayMesh = _mesh_cache.get(key, null)
 	var extras := []
@@ -214,10 +220,6 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		match shop:
 			"center":
 				_diner(kit, w, d, door_lx)
-			"arena":
-				_arena(kit, w, d, st, door_lx)
-			"electronics":
-				_electronics(kit, w, d, door_lx)
 			"hideout":
 				pass
 			"temple":
@@ -280,13 +282,9 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		var hgt := float(b.get("height", 2.4))
 		if shop == "skytower":
 			hgt = 2.4
-		elif shop == "arena":
-			hgt = 3.0
 		var iy := 2.15
 		if STYLES.get(style_name, {}).get("stilts", false):
 			iy += 0.45
-		if shop == "arena":
-			iy = 2.3
 		var iz := _on_face(icon.mesh, _sign_face(shop, d))
 		if shop in COMMERCIAL:
 			# on the shop's sign board
@@ -307,11 +305,9 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 ## Buildings with a look of their own; every other house and shop is built from the house pack (_pack_building).
 const SPECIAL := ["center", "arena", "skytower", "electronics", "ceo_tower", "cathedral", "hideout", "temple"]
 ## The special buildings built from the house pack too, with a look of their own (as SHOP_LOOKS): the Beast Center's
-## chrome diner, the electronics shop's steel and glass, the arena's stone hall.
+## chrome diner. (The arena and the electronics shop have builders of their own: _pack_arena, _pack_electronics.)
 const PACK_LOOKS := {
 	"center": {"floors": 1, "ground": ["tin", "#eef0f2"], "roof": "flat", "trim": "#d8283a", "flat_roof": "#b8bcc4", "brand": "#d8283a"},
-	"electronics": {"floors": 2, "ground": ["tin", "#c8ccd4"], "upper": ["brick", "#6a6a78"], "roof": "flat", "trim": "#3a6ab0", "flat_roof": "#4a4a52", "brand": "#3a6ab0"},
-	"arena": {"floors": 2, "ground": ["stone", "#c8bca8"], "upper": ["stone", "#b8ac98"], "roof": "hip", "trim": "#6a4a2a", "brand": "#c8a030"},
 }
 ## House paints by town style: soft colours, so a street of houses isn't all one shade.
 const HOUSE_PAINTS := {
@@ -768,6 +764,298 @@ static func _pack_cathedral(node: Node3D, w: float, d: float, door_lx: float, lo
 	var km := MeshInstance3D.new()
 	km.mesh = k.mesh()
 	node.add_child(km)
+
+
+## A landmark dressing piece (tools/import_psx_landmarks.gd → assets/psx/landmarks), in its pack's metres, centred on
+## x/z, standing on y = 0, its front facing +z.
+static func _lm(name: String) -> Mesh:
+	if not _lm_cache.has(name):
+		var p := "res://assets/psx/landmarks/%s.res" % name
+		_lm_cache[name] = load(p) if ResourceLoader.exists(p) else null
+	return _lm_cache[name]
+
+
+static var _lm_cache := {}
+
+
+## One landmark piece under `node`: its foot at `pos`, scaled by `s` along its own axes, turned `yaw` about y.
+static func _lm_put(node: Node3D, name: String, pos: Vector3, s: Vector3, yaw := 0.0) -> MeshInstance3D:
+	var m := _lm(name)
+	if m == null:
+		return null
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	mi.transform = Transform3D(Basis(Vector3.UP, yaw).scaled_local(s), pos)
+	node.add_child(mi)
+	return mi
+
+
+## The arena, the same in every town: a small stone keep of McSteeg's castle pieces. Crenellated walls round a slate
+## roof, and at the front two round towers with battlements, glazed windows, the arena's red-and-gold banners and cone
+## roofs flying gold pennants; between them the Castle Kit's studded door, torches either side and the arena's crest.
+static func _pack_arena(node: Node3D, w: float, d: float, door_lx: float, locked: bool) -> void:
+	var k := Kit.new()
+	var gold := Color(SHOP_ROOF["arena"])
+	var stone := Color("#a8a49a")
+	k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), stone)
+	k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.7, 0.14, 0.4), stone.lightened(0.08))
+	var y0 := 0.24
+	# the pack's walls are 2 m with their battlements: 3.2 here, and thicker to match
+	var sy := 1.6
+	var th := 0.4 * sy
+	var r := 0.95
+	var tx := w / 2.0 - 1.0
+	var tz := d / 2.0 - 1.0
+	var fz := d / 2.0 - 0.55
+	var bz := -d / 2.0 + 0.2 + th / 2.0
+	var sxw := w / 2.0 - 0.2 - th / 2.0
+	# the front wall runs into the towers; the back and the sides close the keep
+	var fl := 2.0 * (tx - r * 0.7)
+	_lm_put(node, "fort_wall", Vector3(0, y0, fz), Vector3(fl / 4.0, sy, sy))
+	_lm_put(node, "fort_wall", Vector3(0, y0, bz), Vector3((w - 0.4) / 4.0, sy, sy), PI)
+	var z_back := bz - th / 2.0
+	var sl := (tz - r * 0.5) - z_back
+	for sx in [-1.0, 1.0]:
+		_lm_put(node, "fort_wall", Vector3(sx * sxw, y0, z_back + sl / 2.0), Vector3(sl / 4.0, sy, sy), sx * PI / 2.0)
+	# a hipped slate roof behind the battlements
+	var rw := 2.0 * sxw - th
+	var rd := (fz - th / 2.0) - (bz + th / 2.0)
+	var roof_k := Kit.new()
+	_hip(roof_k, rw, rd, y0 + 2.6, 0.5, 0.05, false, "slate", Color("#6a7080"), Color("#4a4a52"))
+	var rm := MeshInstance3D.new()
+	rm.mesh = roof_k.mesh()
+	rm.position.z = (fz + bz) / 2.0
+	node.add_child(rm)
+	# the towers
+	var body := 3.7
+	for sx in [-1.0, 1.0]:
+		var c := Vector3(sx * tx, y0, tz)
+		_lm_put(node, "fort_tower", c, Vector3(r, body / 2.0, r))
+		_lm_put(node, "fort_tower_top", c + Vector3(0, body, 0), Vector3(r, 0.8, r))
+		var eave := y0 + body + 1.25
+		_lm_put(node, "fort_cone", Vector3(c.x, eave, c.z), Vector3(r * 0.86, 0.95, r * 0.86))
+		var tip := eave + 2.23 * 0.95
+		# a gold pennant on the cone's tip
+		k.box("color", Vector3(c.x, tip + 0.3, c.z), Vector3(0.06, 0.75, 0.06), Color("#3a3a40"))
+		for n in [Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+			k.poly("color", [Vector3(c.x, tip + 0.66, c.z), Vector3(c.x, tip + 0.36, c.z), Vector3(c.x + sx * 0.62, tip + 0.53, c.z)], n, gold)
+		# a banner on its front and a glazed window above
+		var front := c.z + r
+		_lm_put(node, "castle_banner", Vector3(c.x, y0 + 0.95, front + 0.07), Vector3.ONE * 0.72)
+		_lm_put(node, "fort_window", Vector3(c.x, y0 + 2.6, front - 0.04), Vector3.ONE * 0.55)
+	# the door, studded oak in a dressed-stone frame, with a torch either side and the crest over it
+	var face := fz + th / 2.0
+	var ds := 0.78
+	_lm_put(node, "castle_door", Vector3(door_lx, y0, face + 0.14 * ds), Vector3.ONE * ds)
+	if locked:
+		_door_lock(k, Vector3(door_lx, y0 + 1.05, face + 0.23), 1.3, 2.0)
+	var torch: Mesh = VA.mesh("torch") if VA.has("torch") else null
+	for sx in [-1.0, 1.0]:
+		var x: float = door_lx + sx * 1.0
+		if torch != null and absf(x) < fl / 2.0 - 0.15:
+			var tm := MeshInstance3D.new()
+			tm.mesh = torch
+			tm.scale = Vector3.ONE * 1.15
+			tm.position = Vector3(x, y0 + 1.15, _on_face(torch, face) + 0.02)
+			node.add_child(tm)
+	var icon := MeshInstance3D.new()
+	icon.mesh = VP.icon("arena")
+	icon.position = Vector3(door_lx, y0 + 2.5, _on_face(icon.mesh, face))
+	node.add_child(icon)
+	var l := OmniLight3D.new()
+	l.light_color = Color("#ffb070")
+	l.light_energy = 0.8
+	l.omni_range = 3.5
+	l.position = Vector3(door_lx, y0 + 1.7, face + 0.7)
+	node.add_child(l)
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+
+
+## Sparkwire Electronics: two storeys of the house pack's walls (tin below, dark brick above) with a glass door, a
+## shop window full of glowing TV sets and a neon fascia in the brand blue carrying the shop's sign; on the flat roof
+## a billboard (EmaceArt's, its board lit blue with the lightning sign), an aerial on a utility pole with a red beacon,
+## a satellite dish and an air conditioner.
+static func _pack_electronics(node: Node3D, w: float, d: float, door_lx: float, locked: bool) -> void:
+	var blue := Color("#3a6ab0")
+	var neon := Color("#8ad8ff")
+	var trim := Color("#3a3a48")
+	var hb = HouseBuilder.new()
+	hb.node = node
+	hb.w = w
+	hb.d = d
+	hb.rng.seed = 5150
+	var k := Kit.new()
+	k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), Color("#8a8a90"))
+	k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.3, 0.14, 0.4), Color("#9a9aa0"))
+	var y0 := 0.24
+	var gmat: Material = HouseBuilder.wall_material("tin", Color("#c8ccd4"))
+	var umat: Material = HouseBuilder.wall_material("brick", Color("#6a6a78"))
+	# the ground floor: a glass door and plain tin walls, the TVs going on the widest stretch
+	var x0 := -w / 2.0 + HouseBuilder.INSET + HouseBuilder.THICK
+	var x1 := w / 2.0 - HouseBuilder.INSET - HouseBuilder.THICK
+	var dw := 1.2
+	hb.place("door_1" if locked else "door_7", Vector2i(0, 1), door_lx, dw, y0, gmat)
+	hb.fill(Vector2i(0, 1), x0, door_lx - dw / 2.0, y0, gmat, {}, false)
+	hb.fill(Vector2i(0, 1), door_lx + dw / 2.0, x1, y0, gmat, {}, false)
+	hb.place("wall_2", Vector2i(0, -1), 0.0, x1 - x0, y0, gmat)
+	var z0 := -d / 2.0 + HouseBuilder.INSET + HouseBuilder.THICK
+	var z1 := d / 2.0 - HouseBuilder.INSET - HouseBuilder.THICK
+	for sx in [-1, 1]:
+		hb.place("wall_2", Vector2i(sx, 0), (z0 + z1) / 2.0, z1 - z0, y0, gmat)
+	hb.corners(k, y0, HouseBuilder.STOREY, trim)
+	var front := d / 2.0 - HouseBuilder.INSET
+	if locked:
+		_door_lock(k, Vector3(door_lx, y0 + 1.0, front + 0.06), 0.8, 1.9)
+	var tv := 0
+	for span in [[x0, door_lx - dw / 2.0], [door_lx + dw / 2.0, x1]]:
+		var a: float = span[0]
+		var b: float = span[1]
+		if b - a >= 0.9:
+			tv = _tv_window(node, k, Vector3((a + b) / 2.0, y0 + 1.2, front), b - a - 0.16, tv)
+	var top := y0 + HouseBuilder.STOREY
+	# the neon fascia over the shop front, with the sign over the door
+	k.box("color", Vector3(0, top + 0.1, front + 0.07), Vector3(w - 0.12, 0.62, 0.14), blue.darkened(0.25))
+	for fy in [top - 0.19, top + 0.39]:
+		k.box("glow", Vector3(0, fy, front + 0.15), Vector3(w - 0.16, 0.04, 0.03), neon)
+	var icon := MeshInstance3D.new()
+	icon.mesh = VP.icon("electronics")
+	icon.position = Vector3(door_lx, top + 0.08, _on_face(icon.mesh, front + 0.14))
+	node.add_child(icon)
+	k.box("planks", Vector3(0, top + 0.07, 0), Vector3(w - 0.14, 0.14, d - 0.14), trim)
+	top += 0.14
+	hb.storey(top, umat, "", 0.0, {2: PACK_WINDOWS}, false, true)
+	hb.corners(k, top, HouseBuilder.STOREY, trim)
+	top += HouseBuilder.STOREY
+	_roof(k, "flat", w, d, top, "tin", Color("#4a4a52"), "brick", Color("#6a6a78"), trim)
+	var roof := top + 0.16
+	# the billboard at the back of the roof, facing the street, its board lit in the brand blue with the sign
+	var bs := (w - 1.0) / 11.05
+	var bz := -d / 2.0 + 0.95
+	_lm_put(node, "billboard", Vector3(0, roof, bz), Vector3.ONE * bs)
+	var board := Vector3(0.08, 8.3, 1.32) * bs + Vector3(0, roof, bz)
+	k.box("color", board + Vector3(0, 0, 0.03), Vector3(8.6, 4.5, 0.06) * bs, blue.darkened(0.1))
+	k.box("glow", board + Vector3(0, 0, 0.07), Vector3(8.1, 4.0, 0.02) * bs, blue.lightened(0.15))
+	var sign := MeshInstance3D.new()
+	sign.mesh = VP.icon("electronics")
+	sign.scale = Vector3.ONE * 1.9
+	sign.position = Vector3(board.x, board.y - 0.05, board.z + 0.09 - sign.mesh.get_aabb().position.z * 1.9)
+	node.add_child(sign)
+	# an aerial on a utility pole at a front corner of the roof, a red beacon on top
+	var ph := 2.4
+	var pp := Vector3(w / 2.0 - 0.4, roof, d / 2.0 - 0.55)
+	_lm_put(node, "utility_pole", pp, Vector3.ONE * (ph / 17.46), PI / 2.0)
+	k.box("glow", pp + Vector3(0, ph + 0.06, 0), Vector3(0.12, 0.12, 0.12), Color("#ff3a2a"))
+	# a satellite dish at the other front corner, tipped back to the sky, and an air conditioner between them
+	_dish(node, k, Vector3(-w / 2.0 + 0.5, roof, d / 2.0 - 0.6))
+	var ac := HouseBuilder.piece("ac_unit")
+	if ac != null:
+		var am := MeshInstance3D.new()
+		am.mesh = ac
+		am.position = Vector3(-0.35, roof, d / 2.0 - 0.65)
+		node.add_child(am)
+	hb.finish()
+	var km := MeshInstance3D.new()
+	km.mesh = k.mesh()
+	node.add_child(km)
+
+
+static var _tv_mats := []
+
+
+## A shop window full of TVs, centred at `c` on the wall face: a dark frame and glass, two rows of sets on shelves,
+## their screens lit (colour bars, a blue menu, a beast at sunset, snow), and their glow on the pavement. Returns the
+## next screen to show, so neighbouring windows differ.
+static func _tv_window(node: Node3D, k: Kit, c: Vector3, width: float, first: int) -> int:
+	var h := 1.5
+	k.box("color", c + Vector3(0, 0, 0.04), Vector3(width + 0.14, h + 0.14, 0.08), Color("#2a2a32"))
+	k.box("color", c + Vector3(0, 0, 0.06), Vector3(width - 0.02, h - 0.02, 0.08), Color("#141826"))
+	var cols := maxi(1, int(round(width / 0.62)))
+	var cw := (width - 0.08) / cols
+	var i := first
+	for row in 2:
+		k.box("color", c + Vector3(0, -h / 2.0 + 0.1 + row * 0.66, 0.12), Vector3(width - 0.06, 0.05, 0.12), Color("#c8ccd4"))
+		for col in cols:
+			var p := c + Vector3(-width / 2.0 + 0.04 + cw * (col + 0.5), -h / 2.0 + 0.4 + row * 0.66, 0.13)
+			k.box("color", p, Vector3(cw - 0.08, 0.5, 0.1), Color("#3a3a44"))
+			var q := MeshInstance3D.new()
+			var qm := QuadMesh.new()
+			qm.size = Vector2(cw - 0.2, 0.36)
+			q.mesh = qm
+			q.material_override = _tv_material(i)
+			q.position = p + Vector3(0, 0.02, 0.052)
+			node.add_child(q)
+			i += 1
+	var l := OmniLight3D.new()
+	l.light_color = Color("#8ab8ff")
+	l.light_energy = 0.5
+	l.omni_range = 2.2
+	l.position = c + Vector3(0, -0.2, 0.6)
+	node.add_child(l)
+	return i
+
+
+## The pictures on the shop's TVs: tiny unshaded images, sharp.
+static func _tv_material(i: int) -> StandardMaterial3D:
+	if _tv_mats.is_empty():
+		var bars := ["#c0c0c0", "#c0c000", "#00c0c0", "#00c000", "#c000c0", "#c00000", "#0000c0", "#181818"]
+		for kind in 4:
+			var img := Image.create(16, 12, false, Image.FORMAT_RGBA8)
+			var rng := RandomNumberGenerator.new()
+			rng.seed = 77 + kind
+			for y in 12:
+				for x in 16:
+					var col: Color
+					match kind:
+						0:
+							# colour bars
+							col = Color(bars[x / 2]) if y < 9 else (Color("#f0f0f0") if x % 5 == 1 else Color("#202028"))
+						1:
+							# a blue menu with a cursor
+							col = Color("#f4f4f4") if y in [3, 6, 9] and x >= 4 and x < 13 - y % 3 else Color("#2850c0")
+							if y == 6 and x == 2:
+								col = Color("#ffd040")
+						2:
+							# a beast on a hill at sunset
+							col = Color("#ff9a4a").lerp(Color("#ff5a8a"), y / 8.0) if y < 8 else Color("#2a5a30")
+							if (x >= 6 and x <= 9 and y >= 5 and y <= 8) or (y == 4 and x in [6, 9]):
+								col = Color("#1a1018")
+						_:
+							# snow
+							var v := rng.randf_range(0.15, 0.95)
+							col = Color(v, v, v)
+					img.set_pixel(x, y, col)
+			var m := StandardMaterial3D.new()
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.albedo_texture = ImageTexture.create_from_image(img)
+			m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			_tv_mats.append(m)
+	return _tv_mats[i % _tv_mats.size()]
+
+
+## A satellite dish on a short post, tipped back towards the sky: a shallow ten-sided cone with a feed arm.
+static func _dish(node: Node3D, k: Kit, p: Vector3) -> void:
+	k.box("color", p + Vector3(0, 0.3, 0), Vector3(0.08, 0.6, 0.08), Color("#8a8a90"))
+	var mi := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.42
+	cm.bottom_radius = 0.07
+	cm.height = 0.16
+	cm.radial_segments = 10
+	cm.rings = 1
+	mi.mesh = cm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color("#e4e6ea")
+	m.roughness = 0.7
+	mi.material_override = m
+	mi.position = p + Vector3(0, 0.72, 0)
+	mi.rotation = Vector3(deg_to_rad(50), 0.4, 0)
+	node.add_child(mi)
+	# the feed, held out in front of the dish on a thin arm
+	var aim := mi.transform.basis * Vector3.UP
+	k.box("color", mi.position + aim * 0.32, Vector3(0.06, 0.06, 0.06), Color("#3a3a40"))
+	k.box("color", mi.position + aim * 0.16, Vector3(0.03, 0.03, 0.03) + aim.abs() * 0.28, Color("#8a8a90"))
 
 
 ## A mine entrance cut into the bandits' rock: a dark passage behind a timber frame (two posts and a lintel, with a
@@ -1309,58 +1597,3 @@ static func _roof(k: Kit, t: String, w: float, d: float, top: float, tex: String
 			for sx in [-1.0, 1.0]:
 				k.poly(wall_tex, [Vector3(gw * sx, top, -gd), Vector3(gw * sx, top, gd), Vector3(gw * sx, lo + (hi - lo) * (hd + gd) / (2.0 * hd), -gd)], Vector3(sx, 0, 0), wall_col)
 			k.box("color", Vector3(0, lo - 0.03, hd), Vector3(hw * 2.0, 0.07, 0.07), trim)
-
-
-# ---------------------------------------------------------------- special buildings
-static func _arena(k: Kit, w: float, d: float, st: Dictionary, door_lx: float) -> void:
-	var stone := Color("#c8bca8")
-	var H := 3.0
-	k.box("stone", Vector3(0, H / 2.0, 0), Vector3(w - 0.2, H, d - 0.3), stone)
-	for sx in [-1, 1]:
-		for sz in [-1, 1]:
-			k.box("stone", Vector3(sx * (w / 2.0 - 0.3), (H + 0.8) / 2.0, sz * (d / 2.0 - 0.35)), Vector3(0.9, H + 0.8, 0.9), stone.lightened(0.05))
-			k.box("color", Vector3(sx * (w / 2.0 - 0.3), H + 0.95, sz * (d / 2.0 - 0.35)), Vector3(0.2, 0.5, 0.2), Color("#c83a3a"))
-	var x := -w / 2.0 + 0.3
-	while x < w / 2.0:
-		k.box("stone", Vector3(x, H + 0.15, d / 2.0 - 0.2), Vector3(0.3, 0.3, 0.3), stone)
-		k.box("stone", Vector3(x, H + 0.15, -d / 2.0 + 0.2), Vector3(0.3, 0.3, 0.3), stone)
-		x += 0.6
-	# arches and banners
-	x = -w / 2.0 + 1.0
-	var i := 0
-	while x < w / 2.0 - 0.6:
-		if absf(x - door_lx) > 1.0:
-			k.box("color", Vector3(x, 1.6, d / 2.0 - 0.1), Vector3(0.5, 1.2, 0.06), Color("#3a2a20"))
-			k.box("color", Vector3(x, 2.4, d / 2.0 - 0.08), Vector3(0.6, 0.9, 0.05), [Color("#c83a3a"), Color("#3a6ac8"), Color("#e8c040")][i % 3])
-			i += 1
-		x += 1.2
-	k.box("color", Vector3(door_lx, 0.9, d / 2.0 - 0.1), Vector3(1.6, 1.8, 0.1), Color("#c8a040"))
-	k.box("planks_v", Vector3(door_lx, 0.85, d / 2.0 - 0.05), Vector3(1.3, 1.6, 0.06), Color("#6a4a2a"))
-
-
-
-static func _electronics(k: Kit, w: float, d: float, door_lx: float) -> void:
-	var H := 2.6
-	var fz := (d - 0.3) / 2.0
-	var y0 := 0.16
-	var metal := Color("#3a4a5a")
-	k.box("stone", Vector3(0, 0.08, 0), Vector3(w - 0.05, 0.16, d - 0.05), Color("#8a8a90"))
-	k.box("plaster", Vector3(0, y0 + H / 2.0, 0), Vector3(w - 0.2, H, d - 0.3), Color("#c8ccd4"))
-	# shop windows either side of the door, lit by the screens on show
-	for side in [-1, 1]:
-		var a: float = door_lx + side * 0.6
-		var b: float = side * ((w - 0.2) / 2.0 - 0.3)
-		var span := absf(b - a)
-		if span < 0.4:
-			continue
-		var cx: float = (a + b) / 2.0
-		k.box("color", Vector3(cx, y0 + 1.05, fz + 0.03), Vector3(span, 1.4, 0.06), metal)
-		k.box("glow", Vector3(cx, y0 + 1.05, fz + 0.07), Vector3(span - 0.12, 1.26, 0.02), Color("#8ad8ff"))
-	# a glass door in a metal frame, with a push bar
-	k.box("color", Vector3(door_lx, y0 + 0.76, fz + 0.04), Vector3(0.9, 1.52, 0.08), metal)
-	k.box("glow", Vector3(door_lx, y0 + 0.74, fz + 0.09), Vector3(0.66, 1.34, 0.02), Color("#bfeaff"))
-	k.box("color", Vector3(door_lx, y0 + 0.72, fz + 0.115), Vector3(0.5, 0.05, 0.04), Color("#d8dce4"))
-	k.box("glow", Vector3(0, H + 0.1, fz + 0.05), Vector3(w - 0.1, 0.12, 0.06), Color("#3affd8"))
-	k.box("tin", Vector3(0, H + 0.24, 0), Vector3(w, 0.16, d - 0.1), Color("#5a5a66"))
-	k.box("color", Vector3(w / 2.0 - 0.6, H + 0.75, -0.3), Vector3(0.08, 0.9, 0.08), Color("#8a8a90"))
-	k.box("color", Vector3(w / 2.0 - 0.6, H + 1.25, -0.3), Vector3(0.6, 0.5, 0.06), Color("#d8dce4"))
