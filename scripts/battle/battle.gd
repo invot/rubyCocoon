@@ -1032,7 +1032,7 @@ func _build_hud() -> void:
 	foe_grid.show_shield = not wild
 	foe_grid.position = Vector2(12, 8)
 	hud.add_child(foe_grid)
-	# your bars and grid, bottom right (on a phone, left of A and B)
+	# your bars and grid, bottom right (on a phone, over START and PAUSE)
 	cmd_root = Control.new()
 	cmd_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(cmd_root)
@@ -1047,14 +1047,20 @@ func _build_hud() -> void:
 	ally_grid.size = ally_grid.custom_minimum_size
 	var block := Vector2(ally_grid.position.x + ally_grid.size.x, maxf(bars.size.y, ally_grid.position.y + ally_grid.size.y))
 	cmd_root.size = block
-	cmd_root.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	var right := 16.0 if not touch else 300.0
-	cmd_root.offset_left = -right - block.x
-	cmd_root.offset_right = -right
-	# phones: above START and PAUSE
-	var bottom := 10.0 if not touch else 78.0
-	cmd_root.offset_top = -bottom - block.y
-	cmd_root.offset_bottom = -bottom
+	if touch:
+		# phones: the bars stand centred on START and PAUSE, just above them; the grid runs on to the right, its
+		# back under A and B (which draw over it)
+		cmd_root.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+		cmd_root.offset_left = -roundf(bars.size.x / 2.0)
+		cmd_root.offset_right = cmd_root.offset_left + block.x
+		cmd_root.offset_top = -78.0 - bars.size.y
+		cmd_root.offset_bottom = cmd_root.offset_top + block.y
+	else:
+		cmd_root.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		cmd_root.offset_left = -16.0 - block.x
+		cmd_root.offset_right = -16.0
+		cmd_root.offset_top = -10.0 - block.y
+		cmd_root.offset_bottom = -10.0
 	# one line of battle text along the top, clear of the foe's grid
 	var cp := PanelContainer.new()
 	cp.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.9), Color(UIKit.BORDER, 0.7), 14.0, Vector4(18, 4, 18, 6)))
