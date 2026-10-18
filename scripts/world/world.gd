@@ -2998,8 +2998,10 @@ func _build_room() -> void:
 				MapGen.TERMINAL when open_air:
 					k.box("tin", center + Vector3(0, 0.75, -0.1), Vector3(0.8, 1.5, 0.6), Color("#8a96a8"))
 				MapGen.PILLAR:
-					# the castle kit's round stone pillar, floor to ceiling
-					_room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.7, 2.85, 0.7))
+					# the castle kit's round stone pillar, floor to ceiling (fading like the walls when it's in the way)
+					var pil := _room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.7, 2.85, 0.7))
+					if pil != null and room_walls != null:
+						room_walls.add_prop([pil], Vector2i(x, y), Vector2.ONE)
 				MapGen.EXHIBIT:
 					# a short round stone plinth (the same pillar, cut down) with the beast on top
 					_room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.72, 0.7, 0.72))

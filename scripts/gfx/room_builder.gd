@@ -228,6 +228,9 @@ var _fade_img: Image
 var _fade_tex: ImageTexture
 var _fade_mats := {}
 var _snap := true
+## furniture at least this tall (metres) fades too (see add_prop): {nodes, x, z (its middle), half_w, a (opacity)}
+const TALL := 1.2
+var _props: Array = []
 
 
 ## Builds everything into `p`. extra: textures by name to use instead of the pack's ("checker").
@@ -294,10 +297,14 @@ const FADE_SHADER := preload("res://scripts/gfx/wall_fade.gdshader")
 func fade_target(t: Vector2i, p: Vector3) -> float:
 	if t.y >= h - 1:
 		return 1.0
-	var dx := absf(t.x + 0.5 - p.x)
-	var dz := t.y + 0.5 - p.z
+	return _cone(absf(t.x + 0.5 - p.x), t.y + 0.5 - p.z, wall_kind[t])
+
+
+## How opaque something `dx` tiles to the side of the player and `dz` ahead of them (towards the camera) should be:
+## kind "h" for a wall you walk through, "v" for one you only ever pass beside (and tall furniture).
+func _cone(dx: float, dz: float, kind: String) -> float:
 	var a := 1.0
-	if wall_kind[t] == "v":
+	if kind == "v":
 		# running away from the camera: clear once it's ahead of the player, solid beside them
 		a = clampf(1.0 - (dz - 0.4) / 0.5, 0.0, 1.0)
 	elif dz >= 0.0:
@@ -333,6 +340,19 @@ func fade(p: Vector3, delta: float) -> void:
 				(gi as GeometryInstance3D).visible = a > 0.02
 	if changed:
 		_fade_tex.update(_fade_img)
+	# tall furniture: clear ahead of the player, solid beside and behind them, like a wall they pass beside
+	for prop: Dictionary in _props:
+		var dx := maxf(0.0, absf(float(prop["x"]) - p.x) - float(prop["half_w"]))
+		var target := _cone(dx, float(prop["z"]) - p.z, "v")
+		var pa: float = prop["a"]
+		if pa == target:
+			continue
+		pa = move_toward(pa, target, step)
+		prop["a"] = pa
+		for gi in prop["nodes"]:
+			if is_instance_valid(gi):
+				(gi as GeometryInstance3D).transparency = 1.0 - pa
+				(gi as GeometryInstance3D).visible = pa > 0.02
 	for y in touched:
 		var fading := false
 		for t in _row_tiles.get(y, []):
@@ -370,6 +390,11 @@ func _fade_mat(std: Material) -> Material:
 	sm.set_shader_parameter("map_size", Vector2(w, h))
 	_fade_mats[std] = sm
 	return sm
+
+
+## Makes a tall piece standing on tiles `lo` .. `lo + size` (with the things on it, `nodes`) fade like the walls.
+func add_prop(nodes: Array, lo: Vector2i, size: Vector2) -> void:
+	_props.append({"nodes": nodes, "x": lo.x + size.x / 2.0, "z": lo.y + size.y / 2.0, "half_w": size.x / 2.0 - 0.5, "a": 1.0})
 
 
 ## Puts `node` on wall tile (x, y): in its row, fading with the tile.
@@ -894,6 +919,8 @@ func _place(kind: String, group: Array) -> void:
 		pos.y = 0.012
 	mi.position = pos
 	parent.add_child(mi)
+	# the piece and everything on it, to fade together if it's tall
+	var pieces: Array = [mi]
 	var top_y := bb.size.y * sc.y
 	# things standing on it
 	var tops: Array = k.get("top", [])
@@ -912,6 +939,7 @@ func _place(kind: String, group: Array) -> void:
 			t.position = pos + Basis(Vector3.UP, yaw) * off + Vector3(0, top_y, 0)
 			t.rotation.y = yaw + (rng.randf_range(-0.6, 0.6) if not k.get("always_top", false) else 0.0)
 			parent.add_child(t)
+			pieces.append(t)
 	if k.has("with"):
 		var t2 := MeshInstance3D.new()
 		t2.mesh = piece(k["with"])
@@ -919,8 +947,11 @@ func _place(kind: String, group: Array) -> void:
 			t2.position = pos + Basis(Vector3.UP, yaw) * Vector3(0.3, 0, -0.1)
 			t2.rotation = Vector3(0, yaw, 0.15)
 			parent.add_child(t2)
+			pieces.append(t2)
 	if k.get("goods", false):
-		_goods(pos, yaw, bb, sc)
+		pieces.append_array(_goods(pos, yaw, bb, sc))
+	if top_y >= TALL:
+		add_prop(pieces, lo, size)
 	if k.get("lamp", false):
 		var l := OmniLight3D.new()
 		l.light_color = Color("#ffcf8a")
@@ -1063,8 +1094,9 @@ func _choose(names: Array, span: float, depth: float) -> Mesh:
 	return best
 
 
-## Goods on a shop's shelves: rows of packets and bottles at each shelf.
-func _goods(pos: Vector3, yaw: float, bb: AABB, sc: Vector3) -> void:
+## Goods on a shop's shelves: rows of packets and bottles at each shelf. Returns them.
+func _goods(pos: Vector3, yaw: float, bb: AABB, sc: Vector3) -> Array:
+	var out := []
 	var basis := Basis(Vector3.UP, yaw)
 	var width := bb.size.x * sc.x
 	for shelf_y in [0.06, 0.36, 0.66]:
@@ -1076,7 +1108,9 @@ func _goods(pos: Vector3, yaw: float, bb: AABB, sc: Vector3) -> void:
 				t.position = pos + basis * Vector3(x, bb.size.y * sc.y * shelf_y, 0.0)
 				t.rotation.y = yaw
 				parent.add_child(t)
+				out.append(t)
 			x += rng.randf_range(0.1, 0.18)
+	return out
 
 
 # ---------------------------------------------------------------- on the walls
