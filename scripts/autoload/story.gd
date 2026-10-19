@@ -608,6 +608,9 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	if GameState.party.is_empty():
 		await UI.say(["You don't have any beasts? Come back once you've hatched one!"], name)
 		return
+	if n.has("lesson"):
+		# a lesson can't be lost: it starts with your beasts at their best
+		GameState.heal_party()
 	if GameState.alive_party().is_empty() and GameState.shield <= 0:
 		await UI.say(["Your beasts are too tired to battle! Heal them first."], name)
 		return
@@ -1183,6 +1186,8 @@ func wild_battle(_world, foes: Array, kind: String) -> String:
 	# (not for older saves that have caught beasts already)
 	if _lessons_done() and not GameState.flag("flute_lesson_done") and GameState.caught.size() <= 2 and foes.size() == 1 and not foes[0].ghost:
 		lesson = "flute"
+		# a lesson can't be lost: it starts with your beasts at their best
+		GameState.heal_party()
 	return await GameState.main.start_battle({"wild": true, "foes": foes, "seed": randi(), "intro": kind, "lesson": lesson,
 		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "") if lesson == "" else ""})
 
