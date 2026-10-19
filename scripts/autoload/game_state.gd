@@ -83,20 +83,14 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- input
-## Keyboard: arrows move (two at once go diagonally), A = action, S = back (hold to run), Space = Start, Shift = Pause.
-## Gamepads: d-pad or left stick, A / B, Start, Back/Select. Touch buttons send these same actions.
+## Keyboard: arrows move (one of the four ways), A = action, S = back (hold to run), Space = Start, Shift = Pause.
+## Gamepads: d-pad, A / B, Start, Back/Select (the left stick steers too, read by world.gd _stick_dir). Touch buttons
+## send these same actions.
 func _setup_input() -> void:
 	_bind("move_up", [KEY_UP], [JOY_BUTTON_DPAD_UP])
 	_bind("move_down", [KEY_DOWN], [JOY_BUTTON_DPAD_DOWN])
 	_bind("move_left", [KEY_LEFT], [JOY_BUTTON_DPAD_LEFT])
 	_bind("move_right", [KEY_RIGHT], [JOY_BUTTON_DPAD_RIGHT])
-	# the left stick steers too (two of these at once on a diagonal)
-	for a in [["move_up", JOY_AXIS_LEFT_Y, -1.0], ["move_down", JOY_AXIS_LEFT_Y, 1.0], ["move_left", JOY_AXIS_LEFT_X, -1.0], ["move_right", JOY_AXIS_LEFT_X, 1.0]]:
-		var m := InputEventJoypadMotion.new()
-		m.axis = a[1]
-		m.axis_value = a[2]
-		InputMap.action_add_event(a[0], m)
-		InputMap.action_set_deadzone(a[0], 0.35)
 	_bind("interact", [KEY_A, KEY_ENTER, KEY_KP_ENTER], [JOY_BUTTON_A])
 	_bind("run", [KEY_S], [JOY_BUTTON_B])
 	_bind("menu", [KEY_SPACE], [JOY_BUTTON_START])

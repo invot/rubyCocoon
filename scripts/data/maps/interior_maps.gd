@@ -637,6 +637,22 @@ const ROOMS := {
 			"######DDD######",
 		],
 	},
+	## Youngster Kit's log cabin by the Coastal Path's washed-out footbridge: Kit (1, story.gd LESSON_TRAINERS) waits
+	## by the fire with the logs he's gathered, and teaches you your own turn before he hands them over.
+	"kit_cabin": {
+		"wall": "#c89a6a", "rug": "#a85a3a", "zone": "wood",
+		"anchors": {"1": "lesson_slingshot"},
+		"rows": [
+			"###w###w###",
+			"#R.bb.Nq.X#",
+			"#X.......F#",
+			"#....1....#",
+			"#.ctc...a.#",
+			"#.ctc.....#",
+			"#l...P...O#",
+			"####DDD####",
+		],
+	},
 	"ceo_1": {
 		"wall": "#a8503a", "rug": "#7a2a2a",
 		"npcs": {"1": "receptionist", "2": "patron", "3": "robot", "4": "robot"},
@@ -778,6 +794,7 @@ const SHOP_ROOMS := {
 	"electronics": ["electronics"],
 	"skytower": ["skytower", "skytower_top"],
 	"hideout": ["hideout"],
+	"cabin": ["kit_cabin"],
 	"ceo_tower": ["ceo_1", "ceo_2", "ceo_3", "ceo_4"],
 	"cathedral": ["cathedral", "crypt_1", "crypt_2"],
 }

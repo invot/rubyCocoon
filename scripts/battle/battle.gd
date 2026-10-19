@@ -31,6 +31,7 @@ const Ring = preload("res://scripts/core/ring.gd")
 const CommandPanel = preload("res://scripts/battle/command_panel.gd")
 const RingGrid = preload("res://scripts/battle/ring_grid.gd")
 const BattleBars = preload("res://scripts/battle/battle_bars.gd")
+const TargetCards = preload("res://scripts/battle/target_cards.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -85,7 +86,8 @@ const LESSONS := {
 			"That's you at the bottom right, in the middle of your battle ring. I'm up at the top left, in mine.",
 			"The little grids in the corners are the rings seen from above: mine top left, yours bottom right. Each tile is a slot, with a beast's icon and a tiny health bar on it.",
 			"Beside your grid are the move bars, one for each beast: its level, the move it'll use, and underneath, its HP (its health) and MP (the energy elemental moves use).",
-			"Each round you pick your own action first, on the gold-trimmed bar, then a move for each beast. Left and right change the choice, A confirms it, B goes back."],
+			"Each round you pick your own action first, on the gold-trimmed bar, then a move for each beast. Left and right change the choice, A confirms it, B goes back.",
+			"When a move could hit more than one foe, a card for each of them lines up at the top. The one in the glowing frame, with the ring at its feet, is your target: left and right (or a tap on its card) to change it, A to confirm."],
 		"rounds": [
 			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch on your own bar, then the move on {beast}'s bar."],
 				"you": "Watch", "beast": "Fight"},
@@ -146,6 +148,11 @@ const DEFEND_MULT := 0.5
 var cam: Camera3D
 var arrow: Label3D
 var _arrow_target = null
+## while you pick a target: a ring of light in the gem round its feet (the arrow over it turns the gem's colour too),
+## and the other beasts you could aim at dimmed (see _mark_target)
+var target_ring: MeshInstance3D
+var _ring_target = null
+var _dimmed: Array = []
 var _time := 0.0
 var player_rig: Node3D
 var rival_rig: Node3D
@@ -159,6 +166,7 @@ var caption: PanelContainer
 var move_info: PanelContainer
 var _info_hint := ""
 var bars: Control
+var target_cards: Control
 var ally_grid: Control
 var foe_grid: Control
 var cmd_root: Control
@@ -355,6 +363,20 @@ func _build_stage() -> void:
 	arrow.no_depth_test = true
 	arrow.visible = false
 	add_child(arrow)
+	target_ring = MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.62
+	tm.outer_radius = 0.78
+	tm.rings = 24
+	tm.ring_segments = 6
+	target_ring.mesh = tm
+	var rm := StandardMaterial3D.new()
+	rm.albedo_color = Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.75, 1.0)
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.no_depth_test = true
+	target_ring.material_override = rm
+	target_ring.visible = false
+	add_child(target_ring)
 	_build_trainers()
 
 
@@ -1006,6 +1028,21 @@ func _process(delta: float) -> void:
 	if is_instance_valid(cam):
 		cam.position = _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
 		cam.look_at(_cam_look(), Vector3.UP)
+	var aiming := _ring_target != null
+	arrow.modulate = Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.7, 1.0) if aiming else Color("#ffd060")
+	arrow.font_size = 96 if aiming else 64
+	target_ring.visible = false
+	if aiming:
+		var at = null
+		if nodes.has(_ring_target) and is_instance_valid(nodes[_ring_target]):
+			at = (nodes[_ring_target] as Node3D).position
+		elif typeof(_ring_target) == TYPE_STRING:
+			at = RIVAL_POS
+		if at != null:
+			var swell := 1.0 + 0.12 * sin(_time * TAU / 0.9)
+			target_ring.visible = true
+			target_ring.position = Vector3(at.x, 0.06, at.z)
+			target_ring.scale = Vector3(swell, 0.35, swell)
 	if _arrow_target != null and nodes.has(_arrow_target) and is_instance_valid(nodes[_arrow_target]):
 		var n2: Node3D = nodes[_arrow_target]
 		arrow.visible = true
@@ -1019,6 +1056,50 @@ func _process(delta: float) -> void:
 
 func _point_at(b) -> void:
 	_arrow_target = b
+
+
+## Picking a target: `ref` gets the ring of light and the cards' frame; the rest of `all` (the beasts you could aim at
+## instead) are dimmed. null: none.
+func _mark_target(ref, all: Array) -> void:
+	_ring_target = ref
+	for b in _dimmed:
+		if nodes.has(b) and is_instance_valid(nodes[b]):
+			(nodes[b].get_meta("flash") as StandardMaterial3D).albedo_color = Color(1, 1, 1, 0)
+	_dimmed = []
+	if ref == null:
+		return
+	for b in all:
+		if typeof(b) != TYPE_STRING and b != ref and nodes.has(b):
+			(nodes[b].get_meta("flash") as StandardMaterial3D).albedo_color = Color(0.05, 0.03, 0.08, 0.55)
+			_dimmed.append(b)
+
+
+## The target cards for a list of targets ({ref, label} or beasts), the aimed-at one framed (see target_cards.gd).
+## `mv`: the move being aimed, so a foe weak to it is marked.
+func _show_cards(list: Array, sel: int, mv := "") -> void:
+	var cards := []
+	var refs := []
+	for t in list:
+		var ref = t["ref"] if typeof(t) == TYPE_DICTIONARY else t
+		refs.append(ref)
+		if typeof(ref) == TYPE_STRING:
+			cards.append({"name": String(trainer.get("name", "Trainer")), "trainer": true, "shield": foe_shield, "max_shield": foe_max_shield,
+				"icon": UIKit.tex("tab_trainer")})
+			continue
+		var weak := false
+		if mv != "" and MoveDB.get_move(mv).get("kind", "") == "attack" and nodes.has(ref):
+			weak = Elements.multiplier(String(MoveDB.get_move(mv)["el"]), _guard_el(ref)) >= 2.0
+		cards.append({"name": ref.nickname, "lv": ref.level, "element": _guard_el(ref) if nodes.has(ref) else String(ref.element),
+			"hp": maxi(0, ref.hp), "max_hp": ref.max_hp(), "icon": PixelArt.beast_texture(ref.genes), "weak": weak})
+	target_cards.show_cards(cards, sel)
+	_place_caption()
+	_mark_target(refs[clampi(sel, 0, refs.size() - 1)] if not refs.is_empty() else null, refs)
+
+
+func _hide_cards() -> void:
+	if target_cards != null:
+		target_cards.hide_cards()
+	_mark_target(null, [])
 
 
 ## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
@@ -1102,7 +1183,8 @@ func _build_hud() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UI.hud.add_child(hud)
 	var touch: bool = UI.is_touch()
-	var k := 1.05 if touch else 1.0
+	# big enough to read across a phone held at arm's length
+	var k := 1.5 if touch else 1.4
 	# the foe's grid, top left (a wild pack: a line of three)
 	foe_grid = RingGrid.new("foe", wild, k * 0.9)
 	foe_grid.show_shield = not wild
@@ -1130,12 +1212,11 @@ func _build_hud() -> void:
 	var block := Vector2(ally_grid.position.x + ally_grid.size.x, maxf(bars.size.y, ally_grid.position.y + ally_grid.size.y))
 	cmd_root.size = block
 	if touch:
-		# phones: the bars stand centred on START and PAUSE, just above them; the grid runs on to the right, its
-		# back under A and B (which draw over it)
+		# phones: the bars and the grid stand centred just above START and PAUSE, clear of the d-pad and of A and B
 		cmd_root.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-		cmd_root.offset_left = -roundf(bars.size.x / 2.0)
+		cmd_root.offset_left = -roundf(block.x / 2.0)
 		cmd_root.offset_right = cmd_root.offset_left + block.x
-		cmd_root.offset_top = -78.0 - bars.size.y
+		cmd_root.offset_top = -78.0 - block.y
 		cmd_root.offset_bottom = cmd_root.offset_top + block.y
 	else:
 		cmd_root.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -1152,12 +1233,15 @@ func _build_hud() -> void:
 	cp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.add_child(cp)
 	caption = cp
-	msg_label = UIKit.label("", UIKit.BODY_BIG, UIKit.INK)
+	msg_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.INK)
 	msg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	msg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	msg_label.add_theme_constant_override("line_spacing", 0)
 	cp.add_child(msg_label)
 	cp.visible = false
+	# the target cards, under the battle text while you aim a move
+	target_cards = TargetCards.new()
+	hud.add_child(target_cards)
 	_place_caption()
 	# the move window, in the same place, big enough to read on a phone
 	move_info = PanelContainer.new()
@@ -1175,7 +1259,7 @@ func _place_caption() -> void:
 	var left := foe_grid.position.x + foe_grid.size.x + 12.0
 	var room := vw - left - 16.0
 	var font := UIKit.font_body()
-	var fs := UIKit.body_px(UIKit.BODY_BIG)
+	var fs := UIKit.body_px(UIKit.BODY_HUGE)
 	var w := minf(room, font.get_string_size(msg_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 44.0)
 	w = maxf(w, 160.0)
 	msg_label.custom_minimum_size = Vector2(w - 36.0, 0)
@@ -1184,6 +1268,14 @@ func _place_caption() -> void:
 	caption.visible = msg_label.text != ""
 	caption.reset_size()
 	caption.size = Vector2(w, 0)
+	if target_cards != null and target_cards.visible:
+		# centred under the text (or the move window), between the foe's grid and the right edge
+		var above := 10.0
+		if move_info != null and move_info.visible:
+			above += move_info.size.y + 6.0
+		elif caption.visible:
+			above += caption.get_combined_minimum_size().y + 4.0
+		target_cards.position = Vector2(left + (room - target_cards.size.x) * 0.5, above)
 
 
 ## Shows a line of battle text (empty: hides it). While the move window is up, the line goes along its foot instead.
@@ -1289,9 +1381,17 @@ func _show_option(row: Dictionary, o: Dictionary) -> void:
 	move_info.reset_size()
 	var w := move_info.get_combined_minimum_size().x
 	move_info.position = Vector2(left + maxf(0.0, (vw - left - 16.0 - w) * 0.5), 10.0)
-	# (and once the wrapped lines know their width, no taller than they need)
-	move_info.reset_size.call_deferred()
+	# (and once the wrapped lines know their width, no taller than they need, the target cards under it)
+	if not get_tree().process_frame.is_connected(_settle_top):
+		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
 	msg_label.text = ""
+	_place_caption()
+
+
+## The move window shrunk to its laid-out words, and the things under it placed again (a frame after it changes).
+func _settle_top() -> void:
+	if move_info != null and move_info.visible:
+		move_info.reset_size()
 	_place_caption()
 
 
@@ -1418,6 +1518,11 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 			var t2: Dictionary = ts[clampi(int(fr.get("target_sel", 0)), 0, ts.size() - 1)]
 			var g: Control = foe_grid if String(t2.get("grid", "")) == "foe_grid" else ally_grid
 			g.target = int(t2.get("tile", -1))
+			var opts: Array = fr.get("options", [])
+			var o2: Dictionary = opts[clampi(int(fr.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {}
+			_show_cards(ts, int(fr.get("target_sel", 0)), String(o2.get("move", "")))
+	else:
+		_hide_cards()
 	ally_grid.queue_redraw()
 	foe_grid.queue_redraw()
 
@@ -1746,13 +1851,14 @@ func _command_phase() -> Array:
 			break
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "point": _point_at,
-			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid})
+			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid, "cards": target_cards})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
 		_commanding = false
 		_show_option({}, {})
 		_point_at(null)
+		_hide_cards()
 		ally_grid.focus = -1
 		ally_grid.target = -1
 		foe_grid.target = -1
@@ -2080,8 +2186,9 @@ func _choose_target(list: Array, title: String):
 	var items := []
 	for t in list:
 		items.append({"text": t.nickname, "right": "%d%%" % int(t.hp_ratio() * 100) if t.hp > 0 else "fainted"})
-	var c: int = await UI.choose(title, items, {"anchor": "bottom_right", "width": 360, "margin": Vector2(20, 20),
-		"on_focus": func(k): _point_at(list[k])})
+	var c: int = await UI.choose(title, items, {"anchor": "bottom_right", "width": 360, "margin": Vector2(20, 20), "font_size": 28,
+		"on_focus": func(k): _point_at(list[k]); _show_cards(list, k)})
+	_hide_cards()
 	if c < 0:
 		return null
 	return list[c]
@@ -2117,7 +2224,8 @@ func _flute_flow() -> bool:
 		var desc := (why + "\n" if why != "" else "") + SongDB.describe(sid) + "\nMastery " + "★".repeat(stars) + "☆".repeat(5 - stars)
 		ids.append(sid)
 		items.append({"text": s["name"], "right": SongDB.tag(sid), "disabled": why != "", "desc": desc})
-	var c: int = await UI.choose("Play which song?", items, {"anchor": "bottom_right", "width": 460, "margin": Vector2(20, 20), "cancel": not tutorial})
+	var c: int = await UI.choose("Play which song?", items, {"anchor": "bottom_right", "width": 460, "margin": Vector2(20, 20), "cancel": not tutorial,
+		"font_size": 28, "rows": 6})
 	if c < 0:
 		return false
 	var song: String = ids[c]
@@ -2415,7 +2523,7 @@ func _choose_item() -> Dictionary:
 		await msg("You have no usable items.", 0.8)
 		return {}
 	var c: int = await UI.choose("Items", items, {"anchor": "bottom_right", "width": 420, "margin": Vector2(20, 20), "cancel": not tutorial,
-		"start": maxi(0, ids.find("minor_potion")) if tutorial else 0})
+		"start": maxi(0, ids.find("minor_potion")) if tutorial else 0, "font_size": 28, "rows": 6})
 	if c < 0:
 		return {}
 	var id: String = ids[c]
