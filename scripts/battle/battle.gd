@@ -69,7 +69,8 @@ var drops: Array = []
 ## songs the rival trainer played this battle (song id -> true); you may try to learn them afterwards
 var heard_songs := {}
 var rival_song_count := 0
-## A guided battle (see LESSONS): only what's being taught can be picked each round, and you can't lose.
+## A guided battle (see LESSONS): each round there's one thing to pick on every bar and in every menu (what's being
+## taught), and you can't lose: your beasts always keep at least 1 HP, and nobody can run, forfeit or hit you.
 var tutorial := false
 var lesson_id := ""
 var lesson: Dictionary = {}
@@ -87,7 +88,7 @@ const LESSONS := {
 			"The little grids in the corners are the rings seen from above: mine top left, yours bottom right. Each tile is a slot, with a beast's icon and a tiny health bar on it.",
 			"Beside your grid are the move bars, one for each beast: its level, the move it'll use, and underneath, its HP (its health) and MP (the energy elemental moves use).",
 			"Each round you pick your own action first, on the gold-trimmed bar, then a move for each beast. Left and right change the choice, A confirms it, B goes back.",
-			"When a move could hit more than one foe, a card for each of them lines up at the top. The one in the glowing frame, with the ring at its feet, is your target: left and right (or a tap on its card) to change it, A to confirm."],
+			"In a lesson there's just the one thing to pick, so A it is! In a real battle, when a move could hit more than one foe, a card for each of them lines up at the top: left and right (or a tap on a card) choose your target, A confirms."],
 		"rounds": [
 			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch on your own bar, then the move on {beast}'s bar."],
 				"you": "Watch", "beast": "Fight"},
@@ -137,7 +138,7 @@ const LESSONS := {
 			"The arena's practice beasts will stand in your empty slots today. They're very professional. They've been bonked by the best.",
 			"After your own action, each beast's bar opens in turn. Up and down move between your beasts; left and right pick a move."],
 		"rounds": [
-			{"say": ["Pick a move for every one of your beasts. When a move could hit either of mine, aim it with the cards at the top."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Pick a move for every one of your beasts. Today they all go for the same one of mine: in a real battle, the cards at the top let you aim each move."], "you": "Watch", "beast": "Fight"},
 			{"say": ["Teamwork! Two beasts on the same foe knock it out twice as fast. Finish my team!"], "you": "Watch", "beast": "Fight"},
 		]},
 	"elements": {"finish": 2, "practice": true,
@@ -1493,6 +1494,11 @@ func _beast_bar(b, text: String) -> Dictionary:
 		"hp": maxi(0, b.hp), "max_hp": b.max_hp(), "mp": b.mp, "max_mp": b.max_mp()}
 
 
+## How many of a bar's options ◄ ► move between (in a lesson, only the ones that can be picked: see command_panel.gd).
+func _choices(opts: Array) -> int:
+	return opts.filter(func(o): return not o.get("disabled", false)).size() if tutorial else opts.size()
+
+
 ## The command panel's view of its rows: the bars, the chosen beast's tile and the target being aimed at.
 func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 	var out := []
@@ -1511,13 +1517,13 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 			if not t.is_empty():
 				text += " → " + String(t["label"])
 		if r["kind"] == "trainer":
-			out.append({"kind": "trainer", "lv": GameState.trainer_level, "text": text, "arrows": not r.get("locked", false) and opts.size() > 1 and not picking,
+			out.append({"kind": "trainer", "lv": GameState.trainer_level, "text": text, "arrows": not r.get("locked", false) and _choices(opts) > 1 and not picking,
 				"done": r.get("done", false), "disabled": o.get("disabled", false), "shield": GameState.shield, "max_shield": GameState.max_shield})
 			continue
 		var bb = r.get("beast", null)
 		var row := _beast_bar(bb, text)
 		if row.get("status", "") == "":
-			row["arrows"] = opts.size() > 1 and not picking
+			row["arrows"] = _choices(opts) > 1 and not picking
 			row["done"] = r.get("done", false)
 			row["disabled"] = o.get("disabled", false)
 			row["cost"] = MoveDB.mp_cost(String(o["move"])) if o.has("move") else 0
@@ -1753,12 +1759,13 @@ func _tut_finish() -> bool:
 	return f > 0 and round_no >= f
 
 
-## The attack the tutorial teaches: the beast's own-element attack if it has one, else its first attack.
+## The attack the tutorial teaches, of those the beast can use right now (with the MP for it, and not recharging): its
+## own-element attack if it has one, else its first attack. So there's always one to pick: a plain attack is free.
 func _tut_move(b) -> String:
 	var first := ""
 	for mv in _usable_moves(b):
 		var m := MoveDB.get_move(mv)
-		if m["kind"] == "attack" and m["target"] == "enemy":
+		if m["kind"] == "attack" and m["target"] == "enemy" and int(_st(b)["cd"].get(mv, 0)) <= 0 and MoveDB.mp_cost(mv) <= b.mp:
 			if first == "":
 				first = mv
 			if m["el"] == b.element:
@@ -1771,6 +1778,12 @@ func _tut_round_intro() -> void:
 	# the last round's words aren't said again while it repeats, except a capture to try again
 	if round_no <= rounds.size() or _tut_you() == "Flute":
 		await _tut_say(_tut_round().get("say", []))
+
+
+## How much of `d` damage `b` takes from recoil, confusion or a status: in a lesson your side's beasts always keep at
+## least 1 HP (the foes' blows are kept small already, see _tut_damage).
+func _spare(b, d: int) -> int:
+	return clampi(d, 0, maxi(0, b.hp - 1)) if tutorial and _st(b)["side"] == "ally" else d
 
 
 func _tut_damage(a, t) -> int:
@@ -2078,7 +2091,7 @@ func _panel_info() -> Dictionary:
 	var down := Ring.next_side(ally_ring, ally_side, 1)
 	return {"up": Ring.side_element(up).capitalize() if up != ally_side and not tutorial else "",
 		"down": Ring.side_element(down).capitalize() if down != ally_side and not tutorial else "",
-		"prompt": "What will you do, %s?" % GameState.player_name}
+		"prompt": "What will you do, %s?" % GameState.player_name, "lesson": tutorial}
 
 
 ## Who a row's option can be aimed at: [{label, ref, tile, grid}] (tile: where it stands on its grid). An open rival
@@ -2102,6 +2115,14 @@ func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
 		"ally_ko":
 			for b in GameState.party.filter(func(x): return x.hp <= 0 and x.slot >= 0):
 				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": int(b.slot)})
+	if tutorial and out.size() > 1:
+		# a lesson aims at one: the trainer when that's the lesson, else the teacher's first beast (or your first one)
+		var want := 0
+		for j in out.size():
+			if typeof(out[j]["ref"]) == TYPE_STRING and _tut_round().get("target", "") == "trainer":
+				want = j
+		out = [out[want]]
+		row["target_sel"] = 0
 	return out
 
 
@@ -2218,7 +2239,7 @@ func _auto_trainer_action() -> Dictionary:
 func _choose_target(list: Array, title: String):
 	if list.is_empty():
 		return null
-	if list.size() == 1 and title == "Target":
+	if list.size() == 1 and (title == "Target" or tutorial):
 		return list[0]
 	var items := []
 	for t in list:
@@ -2251,12 +2272,12 @@ func _flute_flow() -> bool:
 			elif _charmable(sid).is_empty():
 				why = ("None of these beasts will listen to it (max Lv %d)." % GameState.capture_cap()) if not s.get("ghost", false) else "Only ghost beasts listen to the Requiem."
 		if tutorial:
+			# a lesson lists just the song it teaches (for Capture, the first capture song you know); its beast always
+			# listens
 			var want_song := String(_tut_round().get("song", ""))
-			if sid == want_song or (want_song == "capture" and s["kind"] == "charm" and not s.get("ghost", false)):
-				# the lesson's beast always listens
-				why = ""
-			else:
-				why = "%s: \"%s\"" % [_tut_who(), "Play Weaken for now!" if want_song == "weaken" else "Play Capture now!"]
+			if not ids.is_empty() or not (sid == want_song or (want_song == "capture" and s["kind"] == "charm" and not s.get("ghost", false))):
+				continue
+			why = ""
 		var stars := GameState.mastery_stars(sid)
 		var desc := (why + "\n" if why != "" else "") + SongDB.describe(sid) + "\nMastery " + "★".repeat(stars) + "☆".repeat(5 - stars)
 		ids.append(sid)
@@ -2552,15 +2573,15 @@ func _choose_item() -> Dictionary:
 		var it := ItemDB.get_item(id)
 		if it.get("kind", "") != "use" or it.get("field_only", false):
 			continue
+		if tutorial and id != "minor_potion":
+			continue
 		ids.append(id)
-		var lock: bool = tutorial and id != "minor_potion"
-		items.append({"text": it["name"], "right": "x%d" % GameState.item_count(id), "disabled": lock,
-			"desc": "%s: \"The Minor Potion, please!\"" % _tut_who() if lock else it.get("desc", "")})
+		items.append({"text": it["name"], "right": "x%d" % GameState.item_count(id), "desc": it.get("desc", "")})
 	if ids.is_empty():
 		await msg("You have no usable items.", 0.8)
 		return {}
 	var c: int = await UI.choose("Items", items, {"anchor": "bottom_right", "width": 420, "margin": Vector2(20, 20), "cancel": not tutorial,
-		"start": maxi(0, ids.find("minor_potion")) if tutorial else 0, "font_size": 28, "rows": 6})
+		"font_size": 28, "rows": 6})
 	if c < 0:
 		return {}
 	var id: String = ids[c]
@@ -2576,6 +2597,9 @@ func _choose_item() -> Dictionary:
 			t = await _choose_target(kos, "Revive whom?")
 		"ally":
 			var pool: Array = _alive(ally_slots) if it2.has("buff") else GameState.alive_party()
+			if tutorial:
+				# the beast the teacher's just nipped
+				pool = _alive(ally_slots).slice(0, 1)
 			if pool.is_empty():
 				await msg("There's no one to use it on.", 0.8)
 				return {}
@@ -3057,7 +3081,7 @@ func _do_move(b, mv: String, target) -> void:
 		"confuse":
 			if randf() < 0.33:
 				await msg("%s is confused and hurt itself!" % b.nickname, 0.7)
-				var d := maxi(1, int(b.max_hp() * 0.08))
+				var d := _spare(b, maxi(1, int(b.max_hp() * 0.08)))
 				b.hp = maxi(0, b.hp - d)
 				_hit_fx(b, false)
 				_float_text(b, "-%d" % d, Color("#ff7070"))
@@ -3179,7 +3203,7 @@ func _apply_move(a, t, mv: String, m: Dictionary) -> void:
 					_refresh()
 					await msg("%s drained %d HP!" % [a.nickname, h], 0.6)
 			if fx.has("recoil") and dealt > 0:
-				var rc := maxi(1, int(dealt * float(fx["recoil"])))
+				var rc := _spare(a, maxi(1, int(dealt * float(fx["recoil"]))))
 				a.hp = maxi(0, a.hp - rc)
 				_float_text(a, "-%d" % rc, Color("#ff9070"))
 				_refresh()
@@ -3329,7 +3353,7 @@ func _deal(a, t, r: Dictionary) -> int:
 		if int(s["counter"]) > 0:
 			refl += 0.3
 		if refl > 0.0:
-			var rd := maxi(1, int(dmg * refl))
+			var rd := _spare(a, maxi(1, int(dmg * refl)))
 			a.hp = maxi(0, a.hp - rd)
 			_float_text(a, "-%d" % rd, Color("#ff9070"))
 			_refresh()
@@ -3447,6 +3471,7 @@ func _end_round() -> void:
 
 
 func _tick_damage(b, d: int, text: String) -> void:
+	d = _spare(b, d)
 	b.hp = maxi(0, b.hp - d)
 	_hit_fx(b, false)
 	_float_text(b, "-%d" % d, Color("#c080ff"))

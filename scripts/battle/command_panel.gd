@@ -8,14 +8,15 @@ extends "res://scripts/ui/modal.gd"
 ##   ▲ / ▼   move between the beasts; ▲ on the top beast turns the ring anticlockwise, ▼ on the bottom one clockwise
 ##           (to the next side with a beast standing on it; the beasts' choices are then made afresh)
 ## You choose your own action first, then the beasts'. When every standing beast has its move, the round begins. The
-## bars, the foe's tiles and the target cards can be tapped too.
+## bars, the foe's tiles and the target cards can be tapped too. In a lesson (info.lesson) each bar has one thing to
+## pick: ◄ ► stay on it, and the hint says why.
 ##
 ## rows (built by battle.gd) keep their state, so the panel can close for a sub-menu (items, the flute) or a turn of
 ## the ring and open again where it left off. done emits {"kind": "go"} when everything is chosen, {"kind": "rotate",
 ## "dir": -1 / 1}, or {"kind": "sub", "row": i} (the chosen option needs battle.gd's own menu).
 ## rows: [{kind: "trainer" | "beast", beast, options: [{label, target, disabled, desc, sub, move}], sel, done,
 ##         target_sel, targets: [{label, ref, tile, grid}], status: "" | "down" | "empty", locked}]
-## info: {up, down, prompt}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
+## info: {up, down, prompt, lesson}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
 ##        option: Callable(row, option) (the action or move now highlighted, for battle.gd's window that explains it),
 ##        bars, foe_grid, ally_grid, cards (to listen for taps)}
 
@@ -199,7 +200,19 @@ func _cycle(dir: int) -> void:
 	var n: int = row["options"].size()
 	if n <= 1:
 		return
-	row["sel"] = posmod(int(row.get("sel", 0)) + dir, n)
+	var sel := int(row.get("sel", 0))
+	var nxt := posmod(sel + dir, n)
+	if info.get("lesson", false):
+		# only what the lesson teaches can be picked: skip the rest (none left: the teacher says what to do)
+		var k := nxt
+		while k != sel and row["options"][k].get("disabled", false):
+			k = posmod(k + dir, n)
+		if k == sel:
+			Sfx.play("error")
+			_hint(String(row["options"][nxt].get("desc", "")))
+			return
+		nxt = k
+	row["sel"] = nxt
 	row["done"] = false
 	Sfx.play("select")
 	_redraw()

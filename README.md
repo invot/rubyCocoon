@@ -38,8 +38,11 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it (`world_db.gd`
    LESSON_TRAINERS, battle.gd LESSONS). Each looks straight across the trail where you can't slip past, so you always
    walk into their line of sight and they come over and stop you; you never need to talk to them first. Youngster Kit
-   faces his cabin's door and stops you as you come in. Each gives a guided battle: only what's being taught can be
-   picked, you can't lose, and your beast grows a level or so. Camper Tilly: the battle screen and
+   faces his cabin's door and stops you as you come in. Each gives a guided battle, and so do the arena's coaches and
+   the flute lesson (`battle.gd` LESSONS): every bar and every menu has just the one thing to pick, the one being
+   taught (◄ ► stay put, and the teacher says what to do), the target and the beast to heal are chosen for you, and
+   you can't lose: your beasts are healed first and always keep at least 1 HP, and nobody can run, forfeit or hit
+   you. Your beast grows a level or so. Camper Tilly: the battle screen and
    fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, in his log cabin by the creek: your own turn (slingshot, Watch, Run and Forfeit).
    Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
    striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
@@ -407,6 +410,7 @@ godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the St
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
 godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Tidewater arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
+godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")
 godot --headless --path . -- --scene=coaches                            # a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one: every teacher must stop them, in order ("coaches DONE: 0 problem(s)")
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
 godot --headless --path . -- --scene=mascot                             # mascots' signature moves: the rules, teaching at Lv 39 / 40, another race, a merge
