@@ -547,6 +547,11 @@ func _talk_villager(world, n: Dictionary) -> void:
 		lines.append(quest)
 	elif r < 36:
 		lines.append(WorldDB.TIPS[rng.randi_range(0, WorldDB.TIPS.size() - 1)])
+	elif r < 46 and MoveDB.SIGNATURE.has(int(town.get("mascot", -1))):
+		# the town's mascot and the move it teaches its own kind
+		var race := int(town["mascot"])
+		var tip: String = ChatterDB.MASCOT_MOVE[rng.randi_range(0, ChatterDB.MASCOT_MOVE.size() - 1)]
+		lines.append(tip.replace("{mascot}", RaceDB.race_name(race)).replace("{move}", MoveDB.get_move(MoveDB.SIGNATURE[race])["name"]).replace("{lv}", str(MoveDB.SIGNATURE_LEVEL)))
 	elif r < 62 and ChatterDB.TOWNS.has(world.map_id):
 		lines = ChatterDB.pick(ChatterDB.TOWNS[world.map_id], rng)
 	else:
@@ -652,6 +657,42 @@ func _give(gift: Dictionary) -> void:
 		UI.toast("Received %d %s!" % [k, ItemDB.item_name(item) + ("s" if k > 1 else "")], UIKit.GOLD)
 
 
+## A town's mascot: it teaches its signature move (MoveDB.SIGNATURE) to a beast of its own race at Lv 40 or more, and
+## only to one of those; anyone else just gets its antics.
+func _mascot(world, n: Dictionary) -> void:
+	Sfx.play("growl")
+	var race := int(WorldDB.TOWNS.get(world.map_id, {}).get("mascot", -1))
+	var mv: String = MoveDB.SIGNATURE.get(race, "")
+	var name: String = n.get("name", "")
+	var kin: Array = GameState.party.filter(func(b): return b.race == race and not b.ghost)
+	if mv == "" or kin.is_empty():
+		await UI.say([String(ChatterDB.MASCOT[randi() % ChatterDB.MASCOT.size()]) % name])
+		return
+	var move_name: String = MoveDB.get_move(mv)["name"]
+	var ready: Array = kin.filter(func(b): return b.level >= MoveDB.SIGNATURE_LEVEL and not b.known.has(mv))
+	if ready.is_empty():
+		if kin.any(func(b): return b.known.has(mv)):
+			await UI.say(["The %s and your %s trade a knowing look. They both know %s." % [name, kin[0].nickname, move_name]])
+		else:
+			await UI.say(["The %s sniffs your %s from nose to tail, then puffs out its chest. It seems to want it stronger first." % [name, kin[0].nickname],
+				"(A %s of Lv %d or more can learn %s here.)" % [name, MoveDB.SIGNATURE_LEVEL, move_name]])
+		return
+	var b = ready[0]
+	if ready.size() > 1:
+		var c: int = await UI.choose("Which %s learns %s?" % [name, move_name], ready.map(func(x): return {"text": x.nickname, "right": "Lv %d" % x.level}))
+		if c < 0:
+			return
+		b = ready[c]
+	if not await UI.ask("The %s strikes a pose in front of your %s, then does it again, slower. It wants to teach it %s! Learn it?" % [name, b.nickname, move_name]):
+		return
+	var res: String = b.learn(mv)
+	Sfx.play("levelup")
+	var out := ["%s learned %s!" % [b.nickname, move_name]]
+	if res == "known":
+		out.append("It already uses four moves, so %s waits among its known moves: swap it in from Start → Beasts → Moves." % move_name)
+	await UI.say(out)
+
+
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
 		"elder":
@@ -709,8 +750,7 @@ func _talk_story(world, n: Dictionary) -> void:
 				Sfx.play("buy")
 				await UI.say(["Here, have some biscuits. Well, cakes. Close enough!", "You received 3 Honey Cakes!"], "Bizcuit")
 		"mascot":
-			Sfx.play("growl")
-			await UI.say([String(ChatterDB.MASCOT[randi() % ChatterDB.MASCOT.size()]) % n.get("name", "")])
+			await _mascot(world, n)
 		"ferry":
 			await _ferry(world)
 		"chief_shell", "chief_kelp":

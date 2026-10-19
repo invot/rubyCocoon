@@ -797,6 +797,19 @@ func _run_test() -> void:
 		# gamepad's d-pad and stick, B to run, tap to walk and a porch's raised deck; every stop must be on a tile centre
 		await _walk4_test()
 		await _wait(wait)
+	elif scene == "mascot":
+		# each town's mascot and its signature move: the move's rules, then teaching it (Lv 39: not yet; Lv 40: yes),
+		# another race, and a merge. With --plaque (rendered): reads the statue's plaque on screen instead.
+		if _test.has("plaque"):
+			_do_goto("caccoon", Vector2i(17, 12), Vector2i(0, -1))
+			await _wait(1.5)
+			world._interact()
+			for i in int(_test.get("pages", "2")):
+				await _wait(0.8)
+				_press("ui_accept")
+			await _wait(wait)
+		else:
+			await _mascot_test()
 	elif scene == "flutelesson":
 		# the first lone wild beast after Uncle Rafe's lessons: Weaken, then Capture (played by the autoplay)
 		GameState.set_flag("flute_lesson_done", false)
@@ -1740,6 +1753,56 @@ func _touch(at: Vector2, down: bool) -> void:
 	t.pressed = down
 	t.position = at
 	Input.parse_input_event(t)
+
+
+## The mascot test (--scene=mascot): prints each check and a count of problems at the end.
+func _mascot_test() -> void:
+	var MoveDB = load("res://scripts/data/move_db.gd")
+	var bad := 0
+	for id in WorldDB.TOWN_ORDER:
+		var race: int = WorldDB.TOWNS[id]["mascot"]
+		var mv: String = MoveDB.SIGNATURE.get(race, "")
+		var m: Dictionary = MoveDB.get_move(mv)
+		var el := RaceDB.element(race)
+		var strongest := 0
+		for p in MoveDB.POOLS[el]:
+			strongest = maxi(strongest, int(MoveDB.get_move(p).get("power", 0)))
+		var levelled: bool = RaceDB.learnset(race).any(func(e): return e[1] == mv)
+		var ok: bool = mv != "" and MoveDB.MOVES.has(mv) and m["el"] == el and m["kind"] == "attack" and int(m["power"]) > strongest and not levelled
+		if not ok:
+			bad += 1
+		print("%s %-11s %-12s %-18s %s power %d (strongest %s move by levelling: %d)  %s statue" % ["ok  " if ok else "FAIL", id, RaceDB.race_name(race), m.get("name", "?"), el, int(m.get("power", 0)), el, strongest, WorldDB.statue_metal(id)])
+	UI.auto = true
+	_do_goto("caccoon", "start")
+	await _wait(1.5)
+	var mascot := _npc("mascot")
+	# (straight into the party: the mascot only teaches a beast you have with you)
+	var redcoon := Beasts.create(0, 39)
+	GameState.party.append(redcoon)
+	UI.auto_answers = [0]
+	await Story.talk(world, mascot)
+	var early: bool = not redcoon.known.has("bandit_blaze")
+	print("%s a Lv 39 Redcoon can't learn it yet: %s" % ["ok  " if early else "FAIL", UI.auto_log.back()])
+	redcoon.level = 40
+	UI.auto_answers = [0]
+	await Story.talk(world, mascot)
+	var learned: bool = redcoon.known.has("bandit_blaze")
+	print("%s at Lv 40 it learns Bandit Blaze: %s  (moves %s)" % ["ok  " if learned else "FAIL", learned, redcoon.moves])
+	GameState.party.erase(redcoon)
+	var other := Beasts.create(1, 45)
+	GameState.party.append(other)
+	UI.auto_answers = [0]
+	await Story.talk(world, mascot)
+	var refused: bool = not other.known.has("bandit_blaze")
+	print("%s an Emberkit (another fire race) isn't taught: %s" % ["ok  " if refused else "FAIL", UI.auto_log.back()])
+	var child := Beasts.merge(other, redcoon, true)
+	var kept: bool = child.known.has("bandit_blaze") == (child.race == 0)
+	print("%s a merge (%s) keeps Bandit Blaze only if it's a Redcoon: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
+	for ok2 in [early, learned, refused, kept]:
+		if not ok2:
+			bad += 1
+	UI.auto = false
+	print("MASCOT TEST DONE: %d problem(s)" % bad)
 
 
 ## Battle test scenes: once the command panel is up, presses --keys (a b l r u d: A, B, left, right, up, down), one

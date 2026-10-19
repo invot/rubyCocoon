@@ -8,6 +8,7 @@ const Terrain = preload("res://scripts/world/terrain_mesh.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
+const MoveDB = preload("res://scripts/data/move_db.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
@@ -1005,6 +1006,9 @@ func _decor_building(b: Dictionary, style: String) -> Node3D:
 	return VBld.build(bb, style)
 
 
+const STATUE_METALS := {"bronze": Color("#b8783e"), "silver": Color("#c8ccd6"), "gold": Color("#e0b040")}
+
+
 func _build_statue() -> void:
 	var st: Dictionary = map["statue"]
 	if st.is_empty():
@@ -1023,6 +1027,13 @@ func _build_statue() -> void:
 	mi.scale = Vector3(1.5, 1.5, 1.5)
 	mi.rotation.y = -PI / 2.0 + 0.4
 	mi.position = center + Vector3(0, 0.7, 0)
+	# cast in the town's metal (WorldDB.statue_metal), all one shining colour
+	var metal := StandardMaterial3D.new()
+	metal.albedo_color = STATUE_METALS[WorldDB.statue_metal(map_id)]
+	metal.metallic = 0.85
+	metal.roughness = 0.32
+	metal.metallic_specular = 0.7
+	mi.material_override = metal
 	add_child(mi)
 
 
@@ -1624,8 +1635,13 @@ func _interact() -> void:
 		await UI.say([map["signs"][t]])
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.STATUE:
 		var race: int = map["statue"]["race"]
-		await UI.say(["A statue of %s, guardian of %s." % [RaceDB.race_name(race), map["name"]],
-			WorldDB.TOWNS.get(map_id, {}).get("blurb", "")])
+		var lines := ["A %s statue of %s, guardian of %s." % [WorldDB.statue_metal(map_id), RaceDB.race_name(race), map["name"]],
+			WorldDB.TOWNS.get(map_id, {}).get("blurb", "")]
+		var mv: String = MoveDB.SIGNATURE.get(race, "")
+		if mv != "":
+			lines.append("The plaque reads: \"Our own %s, who roams the town, knows %s: the mightiest %s move a %s can ever know.\"" % [RaceDB.race_name(race), MoveDB.get_move(mv)["name"], MoveDB.get_move(mv)["el"], RaceDB.race_name(race)])
+			lines.append("\"It will teach it to any %s of Lv %d or more, and only a %s, and only here. Bring yours to meet it!\"" % [RaceDB.race_name(race), MoveDB.SIGNATURE_LEVEL, RaceDB.race_name(race)])
+		await UI.say(lines)
 	elif interior and MapGen.get_t(map, t.x, t.y) in PROP_CODES:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
