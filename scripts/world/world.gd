@@ -1555,17 +1555,23 @@ func _on_step_done() -> void:
 		return
 
 
-func _check_trainer_sight() -> bool:
+## A trainer who can see you (straight ahead, up to their sight) comes over and battles. lessons_only: just the
+## teachers (see spot_you). A teacher whose lesson needs another one first doesn't notice you yet.
+func _check_trainer_sight(lessons_only := false) -> bool:
 	if GameState.party.is_empty():
 		return false
 	for p in npcs.keys():
 		var n: Dictionary = npcs[p]
 		if n.get("kind", "") != "trainer" or GameState.flag(n.get("flag", "")):
 			continue
+		if (lessons_only and not n.has("lesson")) or (n.has("needs") and not GameState.flag(String(n["needs"]))):
+			continue
 		var f: Vector2i = n.get("facing", Vector2i(0, 1))
 		for i in range(1, int(n.get("sight", 4)) + 1):
 			var q: Vector2i = p + f * i
 			if q == player_pos:
+				# they stop you: a tapped walk ends here
+				_clear_path()
 				busy = true
 				await _trainer_approach(n, p, i)
 				busy = false
@@ -1573,6 +1579,15 @@ func _check_trainer_sight() -> bool:
 			if not MapGen.walkable(MapGen.get_t(map, q.x, q.y)) or npcs.has(q):
 				break
 	return false
+
+
+## The teachers don't wait for you to take a step: arriving on a map (Youngster Kit as you come through his door, the
+## Tidewater arena's coaches at its entrance), or after another teacher's lesson, any who can see you comes over.
+## Other trainers only notice you once you walk into their sight.
+func spot_you() -> void:
+	if frozen or player == null or (GameState.main != null and GameState.main.in_battle):
+		return
+	await _check_trainer_sight(true)
 
 
 func _trainer_approach(n: Dictionary, p: Vector2i, dist: int) -> void:

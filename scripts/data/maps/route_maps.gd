@@ -20,9 +20,10 @@ extends RefCounted
 
 const MAPS := {
 	"route1": {
-		# a winding trail through the woods: each of the five teachers (story.gd LESSON_TRAINERS) watches a stretch of it
-		# you can't slip past, and the clearings of tall grass beside it are dead ends. Youngster Kit (the third) lives in
-		# the log cabin by the washed-out footbridge (interior_maps.gd "kit_cabin") and mends it with you after his lesson
+		# a winding trail through the woods: each of the five teachers (world_db.gd LESSON_TRAINERS) looks across a
+		# stretch of it you can't slip past (check_maps.gd checks it), and the clearings of tall grass beside it are dead
+		# ends. Youngster Kit (the third) lives in the log cabin by the washed-out footbridge (interior_maps.gd
+		# "kit_cabin") and mends it with you after his lesson
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",

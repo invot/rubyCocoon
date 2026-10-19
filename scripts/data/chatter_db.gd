@@ -194,7 +194,7 @@ const HINTS := {
 		"Your uncle in Tidewater is keeping your father's flute. Go and get it!"],
 	"rafe": ["Rafe's lessons are worth finishing. Weaken AND Capture! A trainer without songs is just a person with a pet.",
 		"Go back and see your uncle. He's got songs to teach you. He hums them in the street. It's very distracting."],
-	"arena": ["Tidewater's arena gives every new trainer battle lessons before they face Tide Captain Marina. Coach Rory and Coach Ondine are by the ring.",
+	"arena": ["Tidewater's arena gives every new trainer battle lessons before they face Tide Captain Marina. Coach Rory and Coach Ondine wait just inside the door. You can't miss them. They won't let you.",
 		"Want to sail to the Isle of Tides? Captain Gull only takes trainers with Marina's Wave Crest. Start with the arena's coaches!",
 		"Coach Rory yells a lot, but he knows teamwork. Coach Ondine knows elements. Between them, Marina won't know what hit her."],
 	"marina": ["Done with the coaches? Then Tide Captain Marina's waiting in the arena's ring. Her beasts are all water... and water hates air.",
