@@ -36,7 +36,7 @@ const BUILDING_LETTERS := {
 	"C": "center", "A": "apothecary", "G": "beast_gear", "O": "trainer_gear", "K": "bookstore",
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",
 	"H": "house", "Z": "home", "Q": "temple", "X": "electronics", "V": "skytower", "I": "ceo_tower",
-	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop",
+	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin",
 }
 const ENTITY_CHARS := "@v^<>$*123456789P"
 const FACING := {"v": Vector2i(0, 1), "^": Vector2i(0, -1), "<": Vector2i(-1, 0), ">": Vector2i(1, 0)}
@@ -392,6 +392,8 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 			b["name"] = "Gravenmoor Cathedral"
 		"hideout":
 			b["name"] = "Bandit Hideout"
+		"cabin":
+			b["name"] = "Kit's Cabin"
 		"temple":
 			var tk := WorldDB.ROUTES.get(map_id, {}).get("temple", "water") as String
 			b["temple"] = tk
@@ -511,6 +513,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(b["seed"]) + fl * 101
 	var npc_roles: Dictionary = room.get("npcs", {})
+	# named spots the story puts its own people on (Youngster Kit in his cabin), as outdoors
+	var anchor_names: Dictionary = room.get("anchors", {})
 	var exhibit_k := 0
 	var mats := []
 	var ups := []
@@ -535,6 +539,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			elif ch == "P":
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
 				m["spawns"]["entry"] = p
+			elif anchor_names.has(ch):
+				MapGen.set_t(m, x, y, MapGen.IFLOOR)
+				m["anchors"][anchor_names[ch]] = p
 			elif npc_roles.has(ch):
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
 				var npc := _room_npc(npc_roles[ch], b, p, rng, id, ch)
@@ -565,7 +572,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			if MapGen.get_t(m, x, y) == MapGen.IFLOOR and String(rows[y])[x] != ".":
 				MapGen.set_t(m, x, y, fcode)
 	# someone standing on a rug stands ON the rug: their tile takes the floor around them
-	var spots: Array = m["npcs"].map(func(n): return n["pos"])
+	var spots: Array = m["npcs"].map(func(n): return n["pos"]) + m["anchors"].values()
 	for it in m["items"] + m["shards"]:
 		spots.append(it["pos"])
 	if m["spawns"].has("entry"):

@@ -14,7 +14,7 @@ Open `D:\Games\RubyCaccoon\project.godot` in Godot 4.7 and press **F5**. You can
 
 | Action | Keyboard | Gamepad | Touch (phones and tablets) |
 |---|---|---|---|
-| Move (any of 8 ways) | Arrow keys (two at once go diagonally) | D-pad or left stick (pushed further, faster) | Joystick, bottom left: push further to go faster, past its outer ring to run (the d-pad returns in battles and the flute game) |
+| Move (one of the four ways, a whole tile at a time) | Arrow keys (with two held, you keep going the way you were walking, else the newest one counts) | D-pad or left stick (the way it's pushed further) | D-pad, bottom left (one arrow at a time) |
 | Action: talk, confirm, use a beast on an obstacle | A (or Enter) | A | A, bottom right |
 | Back; hold to run | S (or Esc) | B | B, bottom right |
 | Start: the travel book menu | Space | Start | START, bottom centre |
@@ -38,10 +38,12 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it, each standing where
    you can't slip past (`story.gd` LESSON_TRAINERS, battle.gd LESSONS). Each gives a guided battle: only what's being
    taught can be picked, you can't lose, and your beast grows a level or so. Camper Tilly: the battle screen and
-   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit: your own turn (slingshot, Watch, Run and Forfeit).
+   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, in his log cabin by the creek: your own turn (slingshot, Watch, Run and Forfeit).
    Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
    striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
-6. Rebuild the washed-out footbridge on the Coastal Path (five logs lie along the trail) to reach Tidewater.
+6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater: Youngster Kit, the slingshot teacher, lives in
+   the log cabin just west of it and gives you the logs he's gathered once you've had his lesson. Lay them across the
+   creek.
 7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas, and Captain Gull's ferry to the Isle of Tides, only take trainers with a flute.
@@ -64,7 +66,7 @@ Every road between towns narrows to one bottleneck with a puzzle, getting harder
 
 | Road | Puzzle |
 |---|---|
-| Coastal Path | A washed-out footbridge. Find the five logs lying along the trail and lay them across the creek, one at a time. |
+| Coastal Path | A washed-out footbridge. Youngster Kit, in the log cabin beside it, hands over the five logs after his lesson; lay them across the creek. |
 | Isle Trail | Thorny brambles. A fire beast burns them; an air beast slices them down. |
 | Dune Road | A sheer cliff with a rope ladder coiled at the top. A beast with wings flies up and drops it. |
 | Mesa Trail | A rockslide: push the boulders around until a path opens. |
@@ -90,9 +92,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Temple guardians**: each elemental temple holds a legendary guardian: Abyssion, Zephyrax, Pyroclast and Terranox. Beating it gives a **Radiant Egg** of that element.
 - **Merging** happens at Beast Centers, between two beasts at their level cap. A normal merge is 50/50. A legendary parent dominates at **80/20** and keeps its race. Ghost merging unlocks in Gravenmoor.
   - Beasts of neighbouring elements on the ring (Fire–Air, Air–Water, Water–Earth, Earth–Fire) merge into a **dual beast** of both elements. Opposite elements (Fire–Water, Air–Earth) can't merge.
-- **Everyone moves any of the eight ways** on the tile grid: you, strolling townsfolk and wild beasts. A diagonal step only
-  cuts a corner when both tiles beside it are open; otherwise you slide along whatever is in the way. Doors, boulders,
-  obstacles and beasts are only met head on, and people still look (trainers still watch) straight ahead.
+- **Everyone moves one of the four ways** on the tile grid, a whole tile at a time: you, strolling townsfolk and wild
+  beasts. A step, once started, always ends in the middle of the next tile (whatever you let go of or press on the
+  way), so you always stop lined up with people, doors and items. With two arrows held you keep walking the way you
+  were going, else the newest arrow counts (`world.gd` _key_dir).
 - **Wild beasts** roam the routes in plain sight; there are no random encounters (the tall grass is still there).
   - Each beast sees in a cone in front of it, half as far if you're in tall grass, and hears you running nearby.
   - Beasts come running when they spot you. Only a lone beast hopelessly outmatched by your best one (8+ levels below it) bolts.
@@ -109,7 +112,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - The camera looks over your shoulder: you stand at the bottom right, the foe at the top left. Every slot is an ornate hexagonal pad with a glowing sigil of its element(s); the side facing the foe glows brighter.
   - The HUD is kept to JC2's: the foe's ring as a slanted 3x3 grid at the top left (a wild pack: a line of three tiles), yours at the bottom right, and one line of battle text at the top. Each grid tile is a slot: a beast's icon (with a small HP bar) stands on it, a fainted beast's icon is crossed out, and empty slots are faded. The trainer stands on the middle tile; the foe's shield points are blue orbs under its grid.
   - Beside your grid are the **move bars**, one per beast on the side facing the foe, level with its row: its level, then the move it will use, with its HP and MP underneath. If the move costs MP, the part of the MP bar it would spend slowly flashes. Your own bar comes first, on its own: while you choose your action it stands level with your grid's centre cell (which glows), trimmed in gold, showing your trainer level and action; once you move on, the beasts' bars take its place. Your shield points are blue orbs under your grid.
-  - Each round you choose your own action first, then each beast's move: ◄ ► change it, A confirms (a move aimed at someone then picks its target with ◄ ►: a foe on the side facing you, or their trainer when that side's middle beast is down), B goes back. ▲ ▼ move between your beasts; **▲ on the top beast turns the ring (and the grid) anticlockwise, ▼ on the bottom one clockwise**, to the next side with a beast standing on it. Phones (`--touch`): the bars stand centred just above START and PAUSE, the grid's back under A and B; bars and the foe's tiles can be tapped.
+  - Each round you choose your own action first, then each beast's move: ◄ ► change it, A confirms (a move aimed at someone then picks its target with ◄ ►: a foe on the side facing you, or their trainer when that side's middle beast is down), B goes back. ▲ ▼ move between your beasts; **▲ on the top beast turns the ring (and the grid) anticlockwise, ▼ on the bottom one clockwise**, to the next side with a beast standing on it. The bars, the grids and the battle text are drawn large (1.4x on desktops, 1.5x on phones). Phones (`--touch`): the bars and your grid stand centred just above START and PAUSE, clear of the d-pad and A and B; bars and the foe's tiles can be tapped.
+  - **Choosing a target**: once a move (or the slingshot, or an item) could hit more than one, a card for each target lines up at the top (`target_cards.gd`): its icon, name, level and element, and its HP (a trainer: their shield points), with ★ WEAK when the move hits its element hard. The one aimed at wears a bright, pulsing frame in the gem and the others dim; in the field a pulsing ring in the gem lies at its feet, a large arrow in the gem hangs over it, and the other beasts you could aim at darken. ◄ ► (keys or d-pad) move along the cards, a tap on a card aims at it (a second tap confirms), and A confirms.
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, or **Defend** (half damage until its side's next turn).
   - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. Damage numbers use BoldPixels.
@@ -185,7 +189,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   `assets/psx/houses/`): `house_models.gd` picks one per plot from the town style's list (weatherboard cottages on the
   coast, round thatched huts and stilt houses on the islands, terracotta huts in the desert, log cabins in the
   mountains, dark timber at the hot springs, stone on the moor), re-skins it in the style's own tiles, fits it to the
-  plot and lines its front door up with the map's door. A house may lean over the hedges and trees beside and behind
+  plot and lines its front door up with the map's door. A porch's deck or a stoop in front of the door is squashed down
+  to one easy step at the door's sill (at most 0.25, `house_models.gd` steps(), MAX_STEP), its posts stretching to
+  meet it, and people step up onto it. A house may lean over the hedges and trees beside and behind
   its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
@@ -203,6 +209,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Past the map's edge** a ring of scenery nobody can reach keeps every edge and corner hidden: a deep wood to the
   north and sides, only shrubs and rocks to the south (between the camera and the map), the sea running on past
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
+  Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in
+  plain sight.
 - **People, eggs, signs and obstacles** are built procedurally:
   - `voxel_person.gd` builds people from the PSX character packs, with much chunkier arms and legs (and a fuller body) than the packs gave them, a walk built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=<id>`).
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
@@ -237,16 +245,18 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
   text is 32 screen pixels and dialogue 48. The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
   Dialogue is three lines to a page. Text sits at the top of every text box.
-- **Phones**: getting about uses a joystick: a round plate with a gem-tinted outer ring past a groove, an arrow each of
-  the eight ways, and a domed knob that follows your thumb. It steers the nearest of the eight ways; how far you push
-  sets the pace (a walk rising to the hero's jog inside the ring, a run past it; `UI.STICK_RUN`, `world.gd`
-  _step_speed). Battles and the flute game bring back the joined cross-shaped d-pad with raised arrows. With them,
-  glossy domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
+- **Phones**: a joined cross-shaped d-pad with raised arrows, for getting about (hold B to run), battles and the flute
+  game alike. Each arm answers in its own quarter of the pad (a wedge from the middle out past its arrow), and only one
+  arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
+  domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
   the gem. While the Start book or the
   world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
-- The game starts straight into the title screen (no engine splash).
+- The game starts straight into the title screen (no engine splash). With no save yet, **New Game** is a big, glowing
+  pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
+  and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
+  it).
 - The title's menu comes up first, on the splash colour; the town behind it is built a moment later and fades in. The world and battle scripts, the travel book and the world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
@@ -308,15 +318,18 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Buildings** are solid rectangles of one letter, for example:
   - `C` Beast Center, `X` electronics, `V` Sky Tower
   - `I` Gearhart Tower, `B` cathedral, `J` hideout, `Q` temple
-- **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, rebuilt from five logs laid one at a time) and `k` (a cliff that needs a winged beast).
+- **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with logs: Youngster Kit gives you them after his lesson) and `k` (a cliff that needs a winged beast).
+- `b` is Youngster Kit's log cabin on the Coastal Path (room `kit_cabin` in `interior_maps.gd`, where an `anchors` entry puts Kit by the fire).
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
-- **Anchors** named `item:<id>` place a fixed item (the footbridge logs; one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers.
+- **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too.
 - **Story gates** use `&`.
 - **Shards** use `*`.
 - **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, and `K` is a kennel pen.
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
+
+- **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
 
 After editing, run the map checkers (the Godot one also flags anyone indoors who faces a wall):
 
@@ -347,6 +360,7 @@ tools/         import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, 
 godot --path . -- --scene=world:cogsworth --shot=C:/tmp/a.png            # screenshot any map (or world:cogsworth#10 for an interior)
 godot --path . -- --scene=world:reef --spawn=33,10 --flags=island_peace  # spawn at a tile with story flags set
 godot --path . -- --scene=battle --kind=robots --wait=5 --shot=C:/tmp/b.png
+godot --path . --resolution 2400x1080 -- --touch --scene=battle --keys=r,r,r,a,a --tapcard=2 --shot=C:/tmp/t.png   # aiming a move: the target cards (tap card 2)
 godot --headless --path . -- --scene=sim --n=10                          # simulated auto battles
 godot --headless --path . -- --scene=flow                                # scripted run through the whole story
 godot --path . -- --scene=knock                                         # knock on locked doors (a Tidewater house, the cathedral)
@@ -367,7 +381,7 @@ godot --path . -- --scene=marks --shot=C:/tmp/k.png                     # the !,
 godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a ring battle driven by keys (a b l r u d); --kind=wild, --foe_level, --foe_shield
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
-godot --path . -- --scene=walk8 --touch                                 # eight-way walking: two arrows at once, then the joystick half and fully pushed
+godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere
 godot --path . -- --scene=saves --card=1 --shot=C:/tmp/c.png            # save slots and the "Game saved!" card
 godot --path . -- --scene=heal --shot=C:/tmp/h.png                      # the Beast Center healing machine (--what=hatch for the incubator)
