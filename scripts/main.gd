@@ -126,9 +126,11 @@ func _title() -> void:
 		items.append("New Game")
 		if not Prefs.is_mobile():
 			items.append("Quit")
-		# big enough to read across a phone; a lone "New Game" is just its text, with no box round it
-		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 60),
-			"font_size": UIKit.BODY_HUGE if items.size() > 1 else 56, "bare": items.size() == 1})
+		# big enough to read across a phone; with no save yet, "New Game" is a big glowing button with no box round it
+		# (Quit, on desktops, plain text under it)
+		var first := not items.has("Continue")
+		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 70 if first else 60),
+			"font_size": 64 if first else UIKit.BODY_HUGE, "bare": first})
 		var pick: String = items[c]
 		if pick == "Quit":
 			get_tree().quit()
@@ -435,8 +437,6 @@ const SPIRAL_COLORS := {"sneak": Color("#3fbf5a"), "wild": Color("#3f8fe0"), "am
 
 func start_battle(cfg: Dictionary) -> String:
 	in_battle = true
-	# the d-pad comes back for battles (the joystick is for getting about)
-	UI.controls.set_dpad_mode(true)
 	if autoplay:
 		cfg["autoplay"] = true
 	Sfx.play("encounter")
@@ -466,7 +466,6 @@ func start_battle(cfg: Dictionary) -> String:
 	world.refresh_locks()
 	Sfx.music(music_for(world.map_id))
 	in_battle = false
-	UI.controls.set_dpad_mode(false)
 	GameState.recharge_shield()
 	if result == "lose":
 		GameState.heal_party()
@@ -538,6 +537,8 @@ func _run_test() -> void:
 			start_battle({"wild": false, "foes": foes, "seed": 5, "trainer": {"name": "Gearhart", "cls": "CEO", "look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}})
 		else:
 			start_battle({"wild": true, "foes": foes, "seed": 5})
+		# (--keys: pressed once the command panel is up, as for --scene=ring)
+		await _battle_keys()
 		await get_tree().create_timer(wait).timeout
 	elif scene == "ring":
 		# a trainer battle on the ring, driven by key presses once the command panel is up:
@@ -551,13 +552,7 @@ func _run_test() -> void:
 		else:
 			start_battle({"wild": false, "foes": team, "seed": 5, "trainer": {"name": "Marina", "cls": "Swimmer", "shield": int(_test.get("foe_shield", "1")),
 				"look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}})
-		var tries := 0
-		while tries < 400 and not (UI.stack.size() > 0 and UI.stack.back().get_script() == load(PANEL_PATH)):
-			await get_tree().process_frame
-			tries += 1
-		for k in String(_test.get("keys", "")).split(",", false):
-			await _press({"a": "ui_accept", "b": "ui_cancel", "l": "ui_left", "r": "ui_right", "u": "ui_up", "d": "ui_down"}.get(k, "ui_accept"))
-			await _wait(float(_test.get("gap", "0.4")))
+		await _battle_keys()
 		await _wait(wait)
 	elif scene == "defeat":
 		# a foe vanishing in a puff of smoke, with a damage number on its partner (--at = seconds after the puff)
@@ -791,33 +786,10 @@ func _run_test() -> void:
 			_press("ui_down")
 			await _wait(0.12)
 		await _wait(wait)
-	elif scene == "walk8":
-		# eight-way walking: two arrows at once, then the touch joystick (needs --touch) pushed half way and all the way
-		_do_goto("caccoon", "start")
-		await _wait(1.5)
-		var p0: Vector2i = world.player_pos
-		Input.action_press("move_right")
-		Input.action_press("move_down")
-		await _wait(0.6)
-		Input.action_release("move_right")
-		Input.action_release("move_down")
-		await _wait(0.4)
-		print("keys right+down: from ", p0, " to ", world.player_pos, "  facing ", world.facing)
-		var c: Vector2 = UI.controls._stick_centre()
-		# touches arrive in window pixels; the overlay works in the stretched view
-		var to_window := Vector2(get_window().size) / get_viewport().get_visible_rect().size
-		for push in [0.5, 1.0]:
-			var at: Vector2 = c + Vector2(-1, -1).normalized() * float(UI.controls.STICK_REACH) * float(push)
-			var t := InputEventScreenTouch.new()
-			t.pressed = true
-			t.position = at * to_window
-			Input.parse_input_event(t)
-			await _wait(0.7)
-			print("stick up-left pushed ", push, ": pace ", snappedf(world.move_speed, 0.01), "  at ", world.player_pos, "  facing ", world.facing)
-			var r := InputEventScreenTouch.new()
-			r.position = at * to_window
-			Input.parse_input_event(r)
-			await _wait(0.5)
+	elif scene == "walk4":
+		# four-way walking on the grid (--touch adds the d-pad): two keys at once, a change of way mid-step, the
+		# gamepad's d-pad and stick, B to run, tap to walk and a porch's raised deck; every stop must be on a tile centre
+		await _walk4_test()
 		await _wait(wait)
 	elif scene == "flutelesson":
 		# the first lone wild beast after Uncle Rafe's lessons: Weaken, then Capture (played by the autoplay)
@@ -840,7 +812,8 @@ func _run_test() -> void:
 		GameState.party[0].heal_full()
 		GameState.gear["flute"] = ""
 		GameState.set_flag("tutorial_done", false)
-		_do_goto("route1", "west")
+		var spot := _teacher_spot(String(_test.get("lesson", "screen")))
+		_do_goto(spot[0], spot[1])
 		await _wait(1.5)
 		var teacher := _lesson_trainer(String(_test.get("lesson", "screen")))
 		if _test.get("auto", "0") == "1":
@@ -1087,7 +1060,7 @@ func _run_test() -> void:
 		print("tapped the Beast Center building -> now in ", world.map_id)
 	elif scene == "puzzles":
 		UI.auto = true
-		# route1: the washed-out footbridge, rebuilt one log at a time
+		# route1: the washed-out footbridge, mended with the logs Youngster Kit hands over after his lesson
 		await _go("route1", "west")
 		await _wait(1.0)
 		var bridge_at := Vector2i(-1, -1)
@@ -1096,18 +1069,19 @@ func _run_test() -> void:
 				bridge_at = t
 		var bridge_grp: Dictionary = world.map["obstacles"][bridge_at]
 		await Story.field_move(world, bridge_grp)
-		var logs: Array = world.items.values().filter(func(it): return it["item"] == "bridge_log")
-		print("logs lying along the path: ", logs.size(), " ", logs.map(func(it): return it["pos"]))
-		await world._pickup(logs[0])
-		await world._pickup(logs[1])
-		UI.auto_answers = [0, 0, 0]
+		print("logs lying along the path: ", world.items.values().filter(func(it): return it["item"] == "bridge_log").size(),
+			"  logs Kit would give: ", Story.logs_missing())
+		# (an older save: two logs found along the path before Kit kept them)
+		GameState.add_item("bridge_log", 2)
+		UI.auto_answers = [0]
 		await Story.field_move(world, bridge_grp)
-		print("two logs placed: ", GameState.flags.get(bridge_grp["flag"] + "_logs", 0), "  fixed: ", GameState.flag(bridge_grp["flag"]))
-		for it in logs.slice(2):
-			await world._pickup(it)
-		UI.auto_answers = [0, 0, 0, 0]
+		print("two logs placed: ", GameState.flags.get(bridge_grp["flag"] + "_logs", 0), "  fixed: ", GameState.flag(bridge_grp["flag"]),
+			"  Kit makes up the rest: ", Story.logs_missing())
+		Story._give({"bridge_log": 5})
+		UI.auto_answers = [0]
 		await Story.field_move(world, bridge_grp)
-		print("bridge with five logs fixed: ", GameState.flag(bridge_grp["flag"]), "  tile now walkable: ", world._walkable(bridge_at))
+		print("bridge with five logs fixed: ", GameState.flag(bridge_grp["flag"]), "  tile now walkable: ", world._walkable(bridge_at),
+			"  logs left over: ", GameState.item_count("bridge_log"))
 		if _test.has("shot"):
 			world.player_pos = bridge_at + Vector2i(-2, 0)
 			world.player.position = world.tile_pos(world.player_pos)
@@ -1263,6 +1237,14 @@ func _npc(id: String) -> Dictionary:
 	return {}
 
 
+## Where the Coastal Path teacher who gives `lesson` stands: [map, spawn] (the path, or Youngster Kit's cabin).
+func _teacher_spot(lesson: String) -> Array:
+	for t in Story.LESSON_TRAINERS:
+		if t["lesson"] == lesson and not MapLoader.load_map("route1", {})["anchors"].has(t["anchor"]):
+			return [MapLoader.interior_of("route1", "cabin"), "entry"]
+	return ["route1", "west"]
+
+
 ## The Coastal Path teacher who gives `lesson` (see Story.LESSON_TRAINERS).
 func _lesson_trainer(lesson: String) -> Dictionary:
 	for p in world.npcs:
@@ -1317,8 +1299,24 @@ func _flow_test() -> void:
 		"  wild beasts before the flute: ", world.wilds.size())
 	for t in Story.LESSON_TRAINERS:
 		_step("Coastal Path lesson: " + String(t["lesson"]), [])
+		var spot := _teacher_spot(String(t["lesson"]))
+		if world.map_id != spot[0]:
+			await _go(spot[0], spot[1])
+			await _wait(1.0)
 		await Story.talk(world, _lesson_trainer(String(t["lesson"])))
 		await _wait(0.5)
+		if t["lesson"] == "slingshot":
+			# Kit's logs, laid across the footbridge just outside his cabin
+			print("Kit's logs: ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
+			await _go("route1", "west")
+			await _wait(1.0)
+			for q in world.map["obstacles"]:
+				var bridge: Dictionary = world.map["obstacles"][q]
+				if bridge["kind"] == "broken_bridge":
+					UI.auto_answers = [0]
+					await Story.field_move(world, bridge)
+					print("footbridge mended: ", GameState.flag(bridge["flag"]), "  logs left ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
+					break
 	print("after the lessons: tutorial_done ", GameState.flag("tutorial_done"), "  starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level,
 		"  minor potions ", GameState.item_count("minor_potion"), "  hint: ", Story.next_goal())
 	_step("wild battle at Lv1", [])
@@ -1546,6 +1544,227 @@ func _flow_test() -> void:
 		print("   ", l)
 	print("FLOW TEST DONE")
 	Engine.time_scale = 1.0
+
+
+## The four-way walking test (--scene=walk4): prints each check and a count of problems at the end.
+func _walk4_test() -> void:
+	_do_goto("caccoon", "start")
+	await _wait(1.5)
+	var w = world
+	var bad := [0]
+	# every frame: someone walking the grid is always on a tile's middle line across one axis or the other
+	var watch := func():
+		if not is_instance_valid(w) or not w.is_inside_tree():
+			return
+		var pos: Vector3 = w.player.position
+		if absf(fposmod(pos.x, 1.0) - 0.5) > 0.01 and absf(fposmod(pos.z, 1.0) - 0.5) > 0.01:
+			bad[0] += 1
+			print("  OFF THE GRID at ", pos)
+	get_tree().process_frame.connect(watch)
+	# open ground east of the plaza
+	var start := Vector2i(22, 10)
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	var check := func(what: String, want: Vector2i) -> void:
+		# (the world sees a key a frame after it's pressed)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		for i in 100:
+			if not w.moving:
+				break
+			await get_tree().process_frame
+		var at: Vector2i = w.player_pos
+		var centred: bool = not w.moving and (w.player.position as Vector3).is_equal_approx(w.tile_pos(at))
+		var four: bool = absi(w.facing.x) + absi(w.facing.y) == 1
+		var ok: bool = centred and four and (want.x == -999 or at == want)
+		if not ok:
+			bad[0] += 1
+		print("%s %s: at %s%s, facing %s, on the tile's centre %s" % ["ok  " if ok else "FAIL", what, at, "" if want.x == -999 or at == want else " (wanted %s)" % want, w.facing, centred])
+	# two keys pressed together: one of the four ways, never a diagonal
+	Input.action_press("move_right")
+	Input.action_press("move_down")
+	await _wait(0.45)
+	Input.action_release("move_right")
+	Input.action_release("move_down")
+	await check.call("keys right+down together", Vector2i(-999, -999))
+	var p: Vector2i = w.player_pos
+	var straight: bool = p.x == start.x or p.y == start.y
+	if not straight:
+		bad[0] += 1
+	print("%s   ... walked straight from %s to %s" % ["ok  " if straight else "FAIL", start, p])
+	# holding right, then down too: keep going right; let go of right: down
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	Input.action_press("move_right")
+	await _wait(0.25)
+	Input.action_press("move_down")
+	await _wait(0.4)
+	var mid: Vector2i = w.player_pos
+	var kept: bool = mid.y == start.y and mid.x > start.x
+	if not kept:
+		bad[0] += 1
+	print("%s right held, then down too: still going right (at %s)" % ["ok  " if kept else "FAIL", mid])
+	Input.action_release("move_right")
+	await _wait(0.3)
+	Input.action_release("move_down")
+	await check.call("let go of right, down takes over", Vector2i(-999, -999))
+	var turned: bool = w.player_pos.y > mid.y
+	if not turned:
+		bad[0] += 1
+	print("%s   ... then went down (at %s)" % ["ok  " if turned else "FAIL", w.player_pos])
+	# the briefest tap still makes one whole step
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	await _press("move_right")
+	await check.call("a one-frame tap right", start + Vector2i(1, 0))
+	# a change of way part way through a step: the step finishes first
+	start = w.player_pos
+	Input.action_press("move_up")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Input.action_release("move_up")
+	Input.action_press("move_left")
+	await _wait(0.05)
+	Input.action_release("move_left")
+	await check.call("up, switched to left mid-step", Vector2i(-999, -999))
+	var finished: bool = w.player_pos.y == start.y - 1
+	if not finished:
+		bad[0] += 1
+	print("%s   ... the step up finished first (at %s)" % ["ok  " if finished else "FAIL", w.player_pos])
+	# the gamepad's d-pad
+	var jb := InputEventJoypadButton.new()
+	jb.button_index = JOY_BUTTON_DPAD_DOWN
+	jb.pressed = true
+	Input.parse_input_event(jb)
+	await _wait(0.3)
+	var jb2 := InputEventJoypadButton.new()
+	jb2.button_index = JOY_BUTTON_DPAD_DOWN
+	Input.parse_input_event(jb2)
+	await check.call("gamepad d-pad down", Vector2i(-999, -999))
+	# the gamepad's left stick pushed between right and down (mostly right): right only
+	p = w.player_pos
+	for ax in [[JOY_AXIS_LEFT_X, 0.8], [JOY_AXIS_LEFT_Y, 0.55]]:
+		var jm := InputEventJoypadMotion.new()
+		jm.axis = ax[0]
+		jm.axis_value = ax[1]
+		Input.parse_input_event(jm)
+	await _wait(0.4)
+	for ax in [JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y]:
+		var jm2 := InputEventJoypadMotion.new()
+		jm2.axis = ax
+		jm2.axis_value = 0.0
+		Input.parse_input_event(jm2)
+	await check.call("gamepad stick right and a little down", Vector2i(-999, -999))
+	var stick_ok: bool = w.player_pos.y == p.y and w.player_pos.x > p.x
+	if not stick_ok:
+		bad[0] += 1
+	print("%s   ... went right only (%s to %s)" % ["ok  " if stick_ok else "FAIL", p, w.player_pos])
+	# B held: a run
+	start = Vector2i(22, 10)
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	Input.action_press("run")
+	Input.action_press("move_right")
+	await _wait(0.2)
+	var pace: float = w.move_speed
+	Input.action_release("move_right")
+	Input.action_release("run")
+	await check.call("running right (pace %.1f)" % pace, Vector2i(-999, -999))
+	if pace < 7.0:
+		bad[0] += 1
+		print("FAIL   ... B held should run")
+	# the touch d-pad
+	if UI.is_touch():
+		var to_window := Vector2(get_window().size) / get_viewport().get_visible_rect().size
+		var arm: float = UI.controls.ARM
+		var right_btn: TouchScreenButton = UI.controls._buttons["right"]
+		w.player_pos = start
+		w.player.position = w.tile_pos(start)
+		var at: Vector2 = right_btn.position + Vector2(arm, arm) / 2.0
+		_touch(at * to_window, true)
+		await _wait(0.35)
+		_touch(at * to_window, false)
+		await check.call("touch d-pad: right arm", Vector2i(-999, -999))
+		# a thumb on the corner between up and right holds just one of them
+		var up_btn: TouchScreenButton = UI.controls._buttons["up"]
+		var corner: Vector2 = up_btn.position + Vector2(arm + 4.0, arm - 4.0)
+		_touch(corner * to_window, true)
+		await get_tree().process_frame
+		var both: bool = Input.is_action_pressed("move_up") and Input.is_action_pressed("move_right")
+		var one: bool = Input.is_action_pressed("move_up") or Input.is_action_pressed("move_right")
+		await _wait(0.3)
+		_touch(corner * to_window, false)
+		if both or not one:
+			bad[0] += 1
+		print("%s touch d-pad: a thumb between up and right holds one arrow (up %s, right %s)" % ["ok  " if one and not both else "FAIL",
+			Input.is_action_pressed("move_up"), Input.is_action_pressed("move_right")])
+		await check.call("   ... and walks one way", Vector2i(-999, -999))
+	# tap to walk, a few tiles away round a corner
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	await _wait(0.2)
+	var goal := start + Vector2i(3, 2)
+	w.tap_at(w.cam.unproject_position(w.tile_pos(goal)))
+	for i in 60:
+		await _wait(0.1)
+		if w._path.is_empty() and not w.moving:
+			break
+	await check.call("tap to walk to %s" % goal, goal)
+	# a porch's raised deck: walk up onto it and off again
+	var decks: Array = w.ground_h.keys().filter(func(t): return float(w.ground_h[t]) > 0.0 and w._walkable(t))
+	if decks.is_empty():
+		print("(no raised porch on this map)")
+	else:
+		var deck: Vector2i = decks[0]
+		await _walk_test([deck])
+		await check.call("onto a porch deck at height %.2f" % float(w.ground_h[deck]), deck)
+		var y_ok: bool = is_equal_approx(w.player.position.y, float(w.ground_h[deck]))
+		if not y_ok:
+			bad[0] += 1
+		print("%s   ... standing on the deck (y %.2f)" % ["ok  " if y_ok else "FAIL", w.player.position.y])
+		await _walk_test([deck + Vector2i(0, 2)])
+		await check.call("off the deck again", deck + Vector2i(0, 2))
+	get_tree().process_frame.disconnect(watch)
+	print("WALK TEST DONE: %d problem(s)" % bad[0])
+
+
+## A finger touching (or lifting off) the screen at `at` (window pixels).
+func _touch(at: Vector2, down: bool) -> void:
+	var t := InputEventScreenTouch.new()
+	t.pressed = down
+	t.position = at
+	Input.parse_input_event(t)
+
+
+## Battle test scenes: once the command panel is up, presses --keys (a b l r u d: A, B, left, right, up, down), one
+## every --gap seconds.
+func _battle_keys() -> void:
+	if not _test.has("keys"):
+		return
+	var tries := 0
+	while tries < 400 and not (UI.stack.size() > 0 and UI.stack.back().get_script() == load(PANEL_PATH)):
+		await get_tree().process_frame
+		tries += 1
+	for k in String(_test.get("keys", "")).split(",", false):
+		await _press({"a": "ui_accept", "b": "ui_cancel", "l": "ui_left", "r": "ui_right", "u": "ui_up", "d": "ui_down"}.get(k, "ui_accept"))
+		await _wait(float(_test.get("gap", "0.4")))
+	# --tapcard=i: then taps target card i (as a finger would), printing who's aimed at
+	if _test.has("tapcard") and UI.stack.size() > 0:
+		var panel = UI.stack.back()
+		var cards: Control = panel.hooks.get("cards", null) if "hooks" in panel else null
+		if cards == null or not cards.visible:
+			print("tapcard: no target cards showing")
+			return
+		var at: Vector2 = cards.get_global_transform_with_canvas() * cards.card_rect(int(_test["tapcard"])).get_center()
+		for down in [true, false]:
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.pressed = down
+			ev.position = at * Vector2(get_window().size) / get_viewport().get_visible_rect().size
+			Input.parse_input_event(ev)
+			await get_tree().process_frame
+		var row: Dictionary = panel.rows[panel.focus]
+		print("tapcard %s: aiming at %s (card %d framed)" % [_test["tapcard"], row["targets"][int(row.get("target_sel", 0))]["label"], cards.sel])
 
 
 ## Walks the player (by tapped path) to one of `goals` and waits until they arrive.

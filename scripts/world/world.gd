@@ -47,8 +47,6 @@ var move_from := Vector3.ZERO
 var move_to := Vector3.ZERO
 var move_t := 0.0
 var move_speed := 4.5
-## how long this step is: 1 tile, or the diagonal of one
-var move_len := 1.0
 var anim_t := 0.0
 ## 0..1: how far into the walk cycle the limbs are swinging (eases in instead of snapping)
 var _stride := 0.0
@@ -135,6 +133,8 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 			facing = GameState.facing if typeof(key) == TYPE_VECTOR2I else Vector2i(0, 1)
 	if face != Vector2i.ZERO:
 		facing = face
+	# (a game saved while walking eight ways may still face a diagonal)
+	facing = _four_way(facing)
 	player.position = tile_pos(player_pos)
 	VPer.face(player, facing)
 	cam_target = player.position
@@ -145,7 +145,7 @@ func tile_pos(p: Vector2i) -> Vector3:
 	return Vector3(p.x + 0.5, float(ground_h.get(p, 0.0)), p.y + 0.5)
 
 
-## Tiles raised off the ground, by how much: a porch's deck (see house_models.gd porch()), stepped up onto.
+## Tiles raised off the ground, by how much: a porch's deck or a stoop (see house_models.gd steps()), stepped up onto.
 var ground_h := {}
 
 
@@ -414,7 +414,8 @@ func _build_backdrop() -> void:
 			# an exit: the road leads on, clear
 			if MapGen.walkable(edge) and edge != MapGen.SAND:
 				continue
-			var south := tz >= ih
+			# just south of a road leading out at the sides, low things only too, so the road stays in plain sight
+			var south := tz >= ih or _side_road_behind(tx, tz)
 			var c := Vector3(tx + 0.5 + rng.randf_range(-0.3, 0.3), 0.0, tz + 0.5 + rng.randf_range(-0.3, 0.3))
 			var shadow := depth <= 1
 			if edge == MapGen.SAND:
@@ -466,6 +467,20 @@ func _build_backdrop() -> void:
 		hx += rng.randf_range(12.0, 18.0)
 
 
+## True past the east or west edge within three rows south of a road leading out on that side (the camera looks north,
+## so anything tall there would stand in front of it).
+func _side_road_behind(tx: int, tz: int) -> bool:
+	var iw: int = map["w"]
+	if tx >= 0 and tx < iw:
+		return false
+	var ex := 0 if tx < 0 else iw - 1
+	for dz in range(1, 4):
+		var e := MapGen.get_t(map, ex, tz - dz)
+		if tz - dz >= 0 and MapGen.walkable(e) and e != MapGen.SAND:
+			return true
+	return false
+
+
 func _ring_tree(by_asset: Dictionary, trees: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float, shadow: bool) -> void:
 	if trees.is_empty():
 		return
@@ -512,15 +527,30 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 			spots.append(Vector2(-5.5 if side < 0 else w + 5.5, z))
 			z += rng.randf_range(9.0, 12.0)
 	for p in spots:
-		# not over the sea or a road out of town
-		var edge := MapGen.get_t(map, clampi(int(p.x), 0, w - 1), clampi(int(p.y), 0, h - 1))
-		if edge in [MapGen.WATER, MapGen.LAVA, MapGen.BRIDGE, MapGen.SAND] or MapGen.walkable(edge):
-			continue
 		var made := HouseModels.backdrop(style, rng)
 		var node: Node3D = made[0]
 		if node == null:
 			continue
 		var r: float = made[1]
+		# not over the sea or a road out of town: every edge tile along the house's width (and a tile more) must be
+		# woodland; down the sides, nor in front of a road leading out (the camera looks north, so a house a little south
+		# of a road hides it)
+		var clear := true
+		var lo := int(floor((p.x if p.y < 0.0 else p.y) - r - 1.0))
+		var hi := int(ceil((p.x if p.y < 0.0 else p.y) + r + 1.0))
+		for i in range(lo, hi + 1):
+			var et := Vector2i(clampi(i, 0, w - 1), 0) if p.y < 0.0 else Vector2i(0 if p.x < 0.0 else w - 1, clampi(i, 0, h - 1))
+			var edge := MapGen.get_t(map, et.x, et.y)
+			if edge in [MapGen.WATER, MapGen.LAVA, MapGen.BRIDGE, MapGen.SAND] or MapGen.walkable(edge):
+				clear = false
+		if p.y >= 0.0:
+			for z in range(maxi(0, int(p.y - r - 10.0)), mini(h, int(p.y) + 1)):
+				var e2 := MapGen.get_t(map, 0 if p.x < 0.0 else w - 1, z)
+				if MapGen.walkable(e2) and e2 != MapGen.SAND:
+					clear = false
+		if not clear:
+			node.free()
+			continue
 		node.position = Vector3(p.x, 0.0, p.y)
 		# facing the town
 		if p.y < 0.0:
@@ -679,7 +709,7 @@ func _plan_houses() -> void:
 	var used := {}
 	for b in map["buildings"]:
 		var shop: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in VBld.SIGNED_HOUSES
-		if not b["shop"] in ["house", "home", "decor"] and not shop:
+		if not b["shop"] in ["house", "home", "decor", "cabin"] and not shop:
 			continue
 		var x0: int = b["x"]
 		var y0: int = b["y"]
@@ -695,7 +725,8 @@ func _plan_houses() -> void:
 		# the house must stand only on its plot and on trees, hedges and rocks: if it would reach a path or another
 		# building (leaning sideways and back at once), plan again with less room
 		for attempt in 4:
-			plan = HouseModels.plan(b, style, room, shop, used)
+			# (Kit's cabin is always a log cabin, whatever the road's style)
+			plan = HouseModels.plan(b, "cabin" if b["shop"] == "cabin" else style, room, shop, used)
 			if plan.is_empty() or _house_fits(plan["rect"], o, b):
 				break
 			room["back"] = maxf(0.0, float(room["back"]) - 1.0)
@@ -706,8 +737,8 @@ func _plan_houses() -> void:
 			continue
 		b["house_plan"] = plan
 		used[plan["key"]] = int(used.get(plan["key"], 0)) + 1
-		# a porch's deck lifts the tiles it covers: people step up onto it
-		var pc: Dictionary = plan.get("porch", {})
+		# a porch's deck or a stoop lifts the tiles it covers: people step up onto it
+		var pc: Dictionary = plan.get("steps", {})
 		if not pc.is_empty():
 			var pr: Rect2 = pc["rect"]
 			for ty in range(floori(o.y + pr.position.y), ceili(o.y + pr.end.y)):
@@ -1384,13 +1415,15 @@ func _process(delta: float) -> void:
 	if interior and room_walls != null:
 		room_walls.fade(player.position, delta)
 	_update_wilds(delta)
+	_note_keys()
 	if moving:
 		# the legs keep pace with the ground (a step every half turn of the phase)
 		anim_t += VPer.phase_for(delta * move_speed, move_speed)
-		move_t += delta * move_speed / move_len
+		move_t += delta * move_speed
 		if move_t >= 1.0:
+			# a step always lands on the middle of its tile, whatever was let go of or pressed on the way
 			var spill := move_t - 1.0
-			player.position = move_to
+			player.position = tile_pos(player_pos)
 			moving = false
 			_on_step_done()
 			# keep walking without a stop between tiles when the next step is ready right away (keys or a tapped path)
@@ -1438,25 +1471,22 @@ func _read_input() -> void:
 ## Starts the next step: held direction keys first, else the next tile of a tapped path.
 ## Returns true if the player started moving.
 func _next_step() -> bool:
-	var d := Vector2i.ZERO
-	if not _key_dir().is_empty():
+	var d := _key_dir()
+	if d != Vector2i.ZERO:
 		_clear_path()
 	elif not _path.is_empty():
 		return _follow_path()
-	# eight ways: two arrows at once (or the joystick between them) go diagonally
-	d.x = int(Input.is_action_pressed("move_right")) - int(Input.is_action_pressed("move_left"))
-	d.y = int(Input.is_action_pressed("move_down")) - int(Input.is_action_pressed("move_up"))
-	if d == Vector2i.ZERO:
+	else:
+		_walk_dir = Vector2i.ZERO
 		return false
 	return _step(d, Input.is_action_pressed("run"))
 
 
-## Faces `d` (any of the eight ways) and walks one tile that way if possible. Returns true if a step started.
+## Faces `d` (one of the four ways) and walks one tile that way if possible. Returns true if a step started.
 func _step(d: Vector2i, run: bool) -> bool:
 	facing = d
 	VPer.face(player, facing, true)
-	if d.x != 0 and d.y != 0:
-		return _step_diagonal(d, run)
+	_walk_dir = Vector2i.ZERO
 	var target := player_pos + d
 	if d == Vector2i(0, -1) and doors.has(target):
 		_enter_building(doors[target])
@@ -1469,59 +1499,19 @@ func _step(d: Vector2i, run: bool) -> bool:
 		return false
 	if _walkable(target):
 		_begin_step(target, run)
+		_walk_dir = d
 		return true
 	return false
 
 
-## A diagonal step: straight there when the tile and both tiles beside the corner are open; else sliding along the
-## wall (or whatever's in the way) on whichever of the two straight ways is open. Doors, boulders and beasts are
-## only met head on.
-func _step_diagonal(d: Vector2i, run: bool) -> bool:
-	var target := player_pos + d
-	var side_x := player_pos + Vector2i(d.x, 0)
-	var side_y := player_pos + Vector2i(0, d.y)
-	if _open(target) and _open(side_x) and _open(side_y):
-		_begin_step(target, run)
-		return true
-	for t in [side_x, side_y]:
-		if _open(t):
-			_begin_step(t, run)
-			return true
-	return false
-
-
-## A tile the player can walk onto: walkable, with no wild beast on it.
-func _open(t: Vector2i) -> bool:
-	return _walkable(t) and _beast_at(t) == null
-
-
+## One whole tile, from the middle of this one to the middle of the next, at the hero's jog (a sprint while running).
 func _begin_step(target: Vector2i, run: bool) -> void:
 	moving = true
 	move_t = 0.0
 	move_from = tile_pos(player_pos)
 	move_to = tile_pos(target)
-	move_len = (target - player_pos).length()
 	player_pos = target
-	move_speed = _step_speed(run)
-
-
-## The pace of a step: the hero's jog, or a sprint while running. With the touch joystick or a gamepad's stick it
-## follows how far the stick is pushed: inside the ring, from a walk up to the jog; past the ring (UI.STICK_RUN), a
-## sprint.
-func _step_speed(run: bool) -> float:
-	var base := 4.6 * (1.0 + GameState.gear_fx("speed"))
-	var push := _stick_push()
-	if run or push >= UI.STICK_RUN:
-		return base * 1.7
-	if push > 0.0:
-		return base * lerpf(0.45, 1.0, push / UI.STICK_RUN)
-	return base
-
-
-## How far the touch joystick, or a gamepad's left stick, is pushed (0 to 1); 0 for keys and buttons.
-func _stick_push() -> float:
-	var pad := Vector2(Input.get_joy_axis(0, JOY_AXIS_LEFT_X), Input.get_joy_axis(0, JOY_AXIS_LEFT_Y)).length()
-	return maxf(UI.stick_push(), clampf(pad, 0.0, 1.0) if pad > 0.3 else 0.0)
+	move_speed = 4.6 * (1.0 + GameState.gear_fx("speed")) * (1.7 if run else 1.0)
 
 
 func _on_step_done() -> void:
@@ -1643,18 +1633,8 @@ func _interact() -> void:
 	busy = false
 
 
-## The tile the player is facing. Facing a diagonal, it's the tile on the diagonal if anything is there to talk to or
-## use, else whichever of the two tiles beside it has something.
 func _facing_tile() -> Vector2i:
-	var t := player_pos + facing
-	if facing.x == 0 or facing.y == 0:
-		return t
-	for q in [t, player_pos + Vector2i(facing.x, 0), player_pos + Vector2i(0, facing.y)]:
-		if _beast_at(q) != null or npcs.has(q) or doors.has(q) or items.has(q) or shards.has(q) or map.get("obstacles", {}).has(q) \
-				or map["signs"].has(q) or MapGen.get_t(map, q.x, q.y) in [MapGen.STATUE, MapGen.COUNTER, MapGen.CRYSTAL, MapGen.TABLE] \
-				or (interior and MapGen.get_t(map, q.x, q.y) in PROP_CODES):
-			return q
-	return t
+	return player_pos + facing
 
 
 ## The person standing behind a counter tile: straight across, or one step to either side.
@@ -1693,9 +1673,9 @@ func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 	var node: Node3D = n.get("node", null)
 	if node == null or not node.has_node("Body"):
 		return
-	# they turn any of the eight ways, but look (for trainers, watch) straight along the nearer of the four
-	n["facing"] = Vector2i(signi(f.x), 0) if absi(f.x) > absi(f.y) or f.y == 0 else Vector2i(0, signi(f.y))
-	VPer.face(node, f, smooth)
+	# the nearer of the four ways
+	n["facing"] = _four_way(f)
+	VPer.face(node, n["facing"], smooth)
 
 
 func _pickup(it: Dictionary) -> void:
@@ -1741,8 +1721,7 @@ func _animate_npcs(delta: float) -> void:
 		if n.has("walking"):
 			# a step across the room, legs and arms swinging
 			var wk: Dictionary = n["walking"]
-			# a stroll at one pace: a diagonal takes longer
-			wk["t"] = minf(1.0, float(wk["t"]) + delta / (ROAM_STEP * float(wk.get("len", 1.0))))
+			wk["t"] = minf(1.0, float(wk["t"]) + delta / ROAM_STEP)
 			node.position = (wk["from"] as Vector3).lerp(wk["to"], wk["t"])
 			# a stroll, the legs keeping pace with the ground from one tile to the next
 			n["phase"] = float(n.get("phase", 0.0)) + VPer.phase_for(delta / ROAM_STEP, 1.0 / ROAM_STEP)
@@ -1797,12 +1776,11 @@ func _roam(delta: float) -> void:
 		if float(n["roam_t"]) > 0.0:
 			continue
 		n["roam_t"] = randf_range(2.0, 5.0)
-		var dirs := EIGHT_WAYS.duplicate()
+		var dirs := FOUR_WAYS.duplicate()
 		dirs.shuffle()
 		for d in dirs:
 			var t: Vector2i = p + d
-			# a diagonal only when both tiles beside the corner are open floor too
-			if _roam_free(t, p, n) and (d.x == 0 or d.y == 0 or (_roam_floor(p + Vector2i(d.x, 0)) and _roam_floor(p + Vector2i(0, d.y)))):
+			if _roam_free(t, p, n):
 				moves.append([p, t, d])
 				break
 	for mv in moves:
@@ -1811,16 +1789,18 @@ func _roam(delta: float) -> void:
 		npcs[mv[1]] = n2
 		n2["pos"] = mv[1]
 		_face_npc(n2, mv[2], true)
-		n2["walking"] = {"from": tile_pos(mv[0]), "to": tile_pos(mv[1]), "t": 0.0, "len": Vector2(mv[2]).length()}
+		n2["walking"] = {"from": tile_pos(mv[0]), "to": tile_pos(mv[1]), "t": 0.0}
 
 
-## The eight ways anyone can step (the four straight ones first).
-const EIGHT_WAYS := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
+## The four ways anyone can step: everyone walks the grid, one whole tile at a time.
+const FOUR_WAYS := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
 
 
-## Open floor a stroller could cut a corner past: floor, with nobody and nothing standing on it.
-func _roam_floor(t: Vector2i) -> bool:
-	return MapGen.get_t(map, t.x, t.y) in ROAM_FLOORS and not npcs.has(t) and not items.has(t) and t != player_pos
+## The nearer of the four ways to `d` (down for none).
+static func _four_way(d: Vector2i) -> Vector2i:
+	if d == Vector2i.ZERO:
+		return Vector2i(0, 1)
+	return Vector2i(signi(d.x), 0) if absi(d.x) > absi(d.y) else Vector2i(0, signi(d.y))
 
 
 func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
@@ -1926,11 +1906,40 @@ var _last_tap_tile := Vector2i(-999, -999)
 var _tap_ring: MeshInstance3D
 
 
-func _key_dir() -> Array:
-	for a in ["move_up", "move_down", "move_left", "move_right"]:
-		if Input.is_action_pressed(a):
-			return [a]
-	return []
+## The direction keys (or d-pad arrows) held down, oldest first: with two at once you keep walking the way you were
+## going, else the newest one counts (_note_keys, _key_dir).
+const DIR_ACTIONS := {"move_up": Vector2i(0, -1), "move_down": Vector2i(0, 1), "move_left": Vector2i(-1, 0), "move_right": Vector2i(1, 0)}
+var _held: Array = []
+## the way the last step went, while the walk goes on (zero once you stop or bump into something)
+var _walk_dir := Vector2i.ZERO
+
+
+func _note_keys() -> void:
+	for a in DIR_ACTIONS:
+		var d: Vector2i = DIR_ACTIONS[a]
+		if not Input.is_action_pressed(a):
+			_held.erase(d)
+		elif not d in _held:
+			_held.append(d)
+
+
+## The way the keys (or the d-pad, or a gamepad's left stick) are steering: one of the four, or zero.
+func _key_dir() -> Vector2i:
+	if _held.is_empty():
+		return _stick_dir()
+	if _walk_dir in _held:
+		return _walk_dir
+	return _held.back()
+
+
+## A gamepad's left stick steers along whichever axis it's pushed further; the axis you're walking along holds until
+## the other is clearly further.
+func _stick_dir() -> Vector2i:
+	var v := Vector2(Input.get_joy_axis(0, JOY_AXIS_LEFT_X), Input.get_joy_axis(0, JOY_AXIS_LEFT_Y))
+	if v.length() < 0.35:
+		return Vector2i.ZERO
+	var x_wins := absf(v.x) * (1.25 if _walk_dir.x != 0 else 1.0) > absf(v.y) * (1.25 if _walk_dir.y != 0 else 1.0)
+	return Vector2i(int(signf(v.x)), 0) if x_wins else Vector2i(0, int(signf(v.y)))
 
 
 func _clear_path() -> void:
@@ -2347,9 +2356,8 @@ func _wild_step(w: Dictionary, d: Vector2i, speed: float) -> bool:
 	w["facing"] = d
 	_face_wild(w)
 	var q: Vector2i = w["pos"] + d
-	if not _wild_free(q, w) or not _wild_corner_free(w, d):
+	if not _wild_free(q, w):
 		return false
-	w["len"] = Vector2(d).length()
 	w["from"] = (w["node"] as Node3D).position
 	w["to"] = tile_pos(q)
 	w["pos"] = q
@@ -2359,23 +2367,14 @@ func _wild_step(w: Dictionary, d: Vector2i, speed: float) -> bool:
 	return true
 
 
-## A diagonal step only cuts a corner with both tiles beside it free.
-func _wild_corner_free(w: Dictionary, d: Vector2i) -> bool:
-	if d.x == 0 or d.y == 0:
-		return true
-	return _wild_free(w["pos"] + Vector2i(d.x, 0), w) and _wild_free(w["pos"] + Vector2i(0, d.y), w)
-
-
-## Steps towards (sign 1) or away from (sign -1) the player, any of the eight ways (it can only reach you head on,
-## though: a battle starts beside you, not across a corner). Returns false if boxed in.
+## Steps towards (sign 1) or away from (sign -1) the player, one of the four ways. Returns false if boxed in.
 func _wild_step_rel(w: Dictionary, sgn: int, speed: float) -> bool:
 	var best := []
 	var best_d := INF
 	var here := Vector2(player_pos - w["pos"]).length()
-	for d in EIGHT_WAYS:
+	for d in FOUR_WAYS:
 		var q: Vector2i = w["pos"] + d
-		var straight: bool = d.x == 0 or d.y == 0
-		if not (_wild_free(q, w) and _wild_corner_free(w, d)) and not (sgn > 0 and q == player_pos and straight):
+		if not _wild_free(q, w) and not (sgn > 0 and q == player_pos):
 			continue
 		var dist := Vector2(player_pos - q).length() * float(sgn)
 		if sgn < 0 and -dist <= here - 0.01:
@@ -2398,7 +2397,7 @@ func _wild_step_rel(w: Dictionary, sgn: int, speed: float) -> bool:
 func _animate_wild(w: Dictionary, delta: float) -> void:
 	var node: Node3D = w["node"]
 	if w["moving"]:
-		w["mt"] = float(w["mt"]) + delta * float(w["speed"]) / float(w.get("len", 1.0))
+		w["mt"] = float(w["mt"]) + delta * float(w["speed"])
 		if float(w["mt"]) >= 1.0:
 			node.position = w["to"]
 			w["moving"] = false
@@ -2438,7 +2437,7 @@ func _update_wilds(delta: float) -> void:
 					_wild_spotted(w)
 				elif not w["moving"] and float(w["t"]) <= 0.0:
 					w["t"] = randf_range(1.2, 3.4)
-					var d: Vector2i = EIGHT_WAYS[randi() % EIGHT_WAYS.size()]
+					var d: Vector2i = FOUR_WAYS[randi() % FOUR_WAYS.size()]
 					if randf() < 0.35:
 						w["facing"] = d
 						_face_wild(w)

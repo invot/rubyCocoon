@@ -22,10 +22,13 @@ var pitch_y := 50.0
 var slant := 22.0
 var bar_w := 300.0
 var pill_h := 30.0
+## how much larger than the base sizes everything is drawn (the text too)
+var k := 1.0
 var _time := 0.0
 
 
-func _init(k := 1.0) -> void:
+func _init(_k := 1.0) -> void:
+	k = _k
 	pitch_y *= k
 	slant *= k
 	bar_w *= k
@@ -62,8 +65,8 @@ func shown() -> Array:
 
 func _draw() -> void:
 	var font := UIKit.font_body()
-	var big := UIKit.body_px(20)
-	var small := UIKit.body_px(11)
+	var big := UIKit.body_px(20 * k)
+	var small := UIKit.body_px(12 * k)
 	for i: int in shown():
 		var row: Dictionary = rows[i]
 		var r := pill_rect(i)

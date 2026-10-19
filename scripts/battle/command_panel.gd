@@ -8,7 +8,7 @@ extends "res://scripts/ui/modal.gd"
 ##   ▲ / ▼   move between the beasts; ▲ on the top beast turns the ring anticlockwise, ▼ on the bottom one clockwise
 ##           (to the next side with a beast standing on it; the beasts' choices are then made afresh)
 ## You choose your own action first, then the beasts'. When every standing beast has its move, the round begins. The
-## bars and the foe's tiles can be tapped too.
+## bars, the foe's tiles and the target cards can be tapped too.
 ##
 ## rows (built by battle.gd) keep their state, so the panel can close for a sub-menu (items, the flute) or a turn of
 ## the ring and open again where it left off. done emits {"kind": "go"} when everything is chosen, {"kind": "rotate",
@@ -16,7 +16,7 @@ extends "res://scripts/ui/modal.gd"
 ## rows: [{kind: "trainer" | "beast", beast, options: [{label, target, disabled, desc, sub, move}], sel, done,
 ##         target_sel, targets: [{label, ref, tile, grid}], status: "" | "down" | "empty", locked}]
 ## info: {up, down, prompt}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
-##        bars, foe_grid, ally_grid (to listen for taps)}
+##        bars, foe_grid, ally_grid, cards (to listen for taps)}
 
 var rows: Array = []
 var info: Dictionary = {}
@@ -44,6 +44,9 @@ func _ready() -> void:
 		var grid = hooks.get(g, null)
 		if grid != null:
 			grid.tile_tapped.connect(_tile_tapped.bind(g))
+	var cards = hooks.get("cards", null)
+	if cards != null:
+		cards.tapped.connect(_card_tapped)
 	_point_row()
 	_redraw()
 
@@ -57,6 +60,9 @@ func _exit_tree() -> void:
 		if grid != null:
 			for c in grid.tile_tapped.get_connections():
 				grid.tile_tapped.disconnect(c["callable"])
+	var cards = hooks.get("cards", null)
+	if cards != null and cards.tapped.is_connected(_card_tapped):
+		cards.tapped.disconnect(_card_tapped)
 
 
 func _redraw() -> void:
@@ -132,6 +138,22 @@ func _tile_tapped(tile: int, grid: String) -> void:
 				_point_row()
 				_redraw()
 			return
+
+
+## Tapping a target card aims at it (and confirms when it's already the one aimed at).
+func _card_tapped(j: int) -> void:
+	if closed or not picking:
+		return
+	var row: Dictionary = rows[focus]
+	if j < 0 or j >= (row.get("targets", []) as Array).size():
+		return
+	if j == int(row.get("target_sel", 0)):
+		_confirm()
+		return
+	row["target_sel"] = j
+	Sfx.play("select")
+	_point_row()
+	_redraw()
 
 
 func _focus_row(i: int) -> void:

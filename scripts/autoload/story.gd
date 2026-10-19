@@ -19,6 +19,7 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
+const MapLoader = preload("res://scripts/world/map_loader.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
@@ -60,7 +61,8 @@ func _has_anchor(map: Dictionary, name: String) -> bool:
 
 
 ## The Coastal Path's teachers (see battle.gd LESSONS). Each stands beside the trail where you can't slip past them
-## and walks you through one part of battling, before you have a flute; the last one sets "tutorial_done".
+## and walks you through one part of battling, before you have a flute; the last one sets "tutorial_done". Youngster
+## Kit lives in the log cabin by the washed-out footbridge, and his gift is the logs to mend it (see logs_missing).
 ## lines: before the battle; after: once you've won; defeat: when you talk to them again; gift: items they give you.
 const LESSON_TRAINERS := [
 	{"anchor": "lesson_screen", "lesson": "screen", "name": "Tilly", "cls": "Camper", "team": [[21, 2]], "facing": Vector2i(0, 1),
@@ -71,13 +73,14 @@ const LESSON_TRAINERS := [
 	{"anchor": "lesson_turns", "lesson": "turns", "name": "Dale", "cls": "Fisher", "team": [[38, 2]], "facing": Vector2i(0, -1),
 		"look": {"skin": "#c08a60", "hair": "#303040", "shirt": "#3a6a9a", "pants": "#4a4a52", "hat": "#e8c040"},
 		"lines": ["Shh, the fish are bit... oh, a trainer! Never mind the fish. They never bite anyway. Let's talk about turns."],
-		"after": ["Patience wins battles, and Defend buys you time. Down by the creek, Youngster Kit will show you your own turn. He's VERY excited about it."],
+		"after": ["Patience wins battles, and Defend buys you time. Youngster Kit lives in the log cabin by the creek. He'll show you your own turn. He's VERY excited about it."],
 		"defeat": "Everyone picks first, then the faster side goes. Defend always goes first and halves the hurt."},
 	{"anchor": "lesson_slingshot", "lesson": "slingshot", "name": "Kit", "cls": "Youngster", "team": [[12, 3]], "facing": Vector2i(0, 1),
 		"look": {"skin": "#e0b088", "hair": "#5a3a20", "shirt": "#e07a5a", "pants": "#3a4a6a"},
-		"lines": ["You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
-		"after": ["The footbridge washed out in the storm, but there are logs lying all along the trail. Five would do it!",
-			"Picnicker Mae is over on the far side of the creek. Bring an appetite."],
+		"gift": {"bridge_log": 5},
+		"lines": ["A visitor! Nobody visits! You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
+		"after": ["Want to cross the creek? I've been hauling logs from the storm trees all week. Take them!",
+			"Lay them across the old footbridge's posts, just east of my cabin. Picnicker Mae is over on the far side. Bring an appetite."],
 		"defeat": "Your own bar: Slingshot, Items, Watch... and Run from wild beasts, or Forfeit against trainers."},
 	{"anchor": "lesson_items", "lesson": "items", "name": "Mae", "cls": "Picnicker", "team": [[25, 3]], "facing": Vector2i(0, 1),
 		"gift": {"minor_potion": 3},
@@ -94,11 +97,46 @@ const LESSON_TRAINERS := [
 ]
 
 
+## The Coastal Path's teachers standing on this map's anchors (the path itself, or Kit's cabin).
+func _lesson_trainers(map: Dictionary) -> Array:
+	var out := []
+	for t in LESSON_TRAINERS:
+		if _has_anchor(map, t["anchor"]):
+			var lt: Dictionary = t.duplicate(true)
+			lt["kind"] = "trainer"
+			lt["pos"] = _at(map, t["anchor"], Vector2i.ZERO)
+			lt["sight"] = 4
+			lt["flag"] = "lesson_" + String(t["lesson"])
+			lt["reward"] = 40
+			out.append(lt)
+	return out
+
+
+## How many more logs the Coastal Path's footbridge needs than you're carrying: Kit hands over that many (0 once the
+## bridge is mended).
+func logs_missing() -> int:
+	var bf := _bridge_flag()
+	if bf == "" or GameState.flag(bf):
+		return 0
+	var need := int(WorldDB.OBSTACLES["n"].get("need", 1))
+	return maxi(0, need - int(GameState.flags.get(bf + "_logs", 0)) - GameState.item_count("bridge_log"))
+
+
+## The flag the Coastal Path's footbridge sets once it's mended ("" if the map has none).
+func _bridge_flag() -> String:
+	var m := MapLoader.load_map("route1", {})
+	for q in m["obstacles"]:
+		if m["obstacles"][q]["kind"] == "broken_bridge":
+			return m["obstacles"][q]["flag"]
+	return ""
+
+
 func extra_npcs(map: Dictionary) -> Array:
 	var out := []
 	var id: String = map["id"]
 	if map["kind"] == "interior":
-		return out
+		# a teacher at home (Youngster Kit, in his cabin)
+		return _lesson_trainers(map)
 	var plaza: Vector2i = map.get("plaza", Vector2i(map["w"] / 2, map["h"] / 2))
 	if WorldDB.TOWNS.has(id):
 		var race: int = WorldDB.TOWNS[id]["mascot"]
@@ -116,15 +154,7 @@ func extra_npcs(map: Dictionary) -> Array:
 				out.append({"kind": "story", "id": "bizcuit", "name": "Bizcuit", "pos": Vector2i(3, 2), "facing": Vector2i(0, 1),
 					"look": {"skin": "#f0c8a0", "hair": "#c8843a", "shirt": "#e8b860", "pants": "#6a4a2a", "hat": "#a0603a", "outfit": "apron"}})
 		"route1":
-			for t in LESSON_TRAINERS:
-				if _has_anchor(map, t["anchor"]):
-					var lt: Dictionary = t.duplicate(true)
-					lt["kind"] = "trainer"
-					lt["pos"] = _at(map, t["anchor"], plaza)
-					lt["sight"] = 4
-					lt["flag"] = "lesson_" + String(t["lesson"])
-					lt["reward"] = 40
-					out.append(lt)
+			out.append_array(_lesson_trainers(map))
 		"tidewater", "shellhaven":
 			if id == "tidewater" and not GameState.flag("guardian_water"):
 				_close_edge(map, "north", "The Dune Road is shut: sandstorms as tall as lighthouses. Folk say they won't settle until things are calm at the Temple of Tides, out on the Isle of Tides.")
@@ -396,7 +426,8 @@ func field_move(world, grp: Dictionary) -> void:
 
 
 ## A broken bridge (or similar) fixed with a key item.
-## The washed-out footbridge: find logs along the path and lay them across the creek, one at a time.
+## The washed-out footbridge: Youngster Kit, in the cabin beside it, gives you the logs once you've had his lesson; lay
+## them across the creek, one after another.
 func _item_obstacle(world, grp: Dictionary, info: Dictionary) -> void:
 	var item: String = info["item"]
 	var need := int(info.get("need", 1))
@@ -405,22 +436,20 @@ func _item_obstacle(world, grp: Dictionary, info: Dictionary) -> void:
 	if GameState.item_count(item) <= 0:
 		if placed == 0:
 			await UI.say(["The footbridge has washed away. Only its four posts are left standing in the creek.",
-				"Logs from the trees the storm knocked down are lying all along the path. %d of them laid side by side would reach across." % need])
+				"Youngster Kit, in the log cabin just west of here, has been gathering logs from the storm trees to mend it."])
 		else:
-			await UI.say(["%d of %d logs are laid across the creek. %d more to find along the path!" % [placed, need, need - placed]])
+			await UI.say(["%d of %d logs are laid across the creek. Youngster Kit in the cabin nearby has the rest." % [placed, need]])
+		return
+	if not await UI.ask("Lay Kit's logs across the creek?"):
 		return
 	while GameState.item_count(item) > 0 and placed < need:
-		var prompt := "Lay a log across the creek?" if placed == 0 else "Lay another log across? (%d of %d so far)" % [placed, need]
-		if not await UI.ask(prompt):
-			return
 		GameState.remove_item(item)
 		placed += 1
 		GameState.set_flag(key, placed)
 		Sfx.play("smash", 0.2)
 		await world.place_bridge_log(grp, placed)
-		if placed < need:
-			await UI.say(["Thunk! %d of %d logs in place." % [placed, need] + ("" if GameState.item_count(item) > 0 else " Better find some more.")])
 	if placed < need:
+		await UI.say(["Thunk! %d of %d logs in place. Youngster Kit must have the rest." % [placed, need]])
 		return
 	GameState.set_flag(grp["flag"])
 	world.clear_obstacle(grp)
@@ -531,9 +560,14 @@ func _talk_villager(world, n: Dictionary) -> void:
 
 ## What the player should do next, for the townsfolk's hints (ChatterDB.HINTS).
 func next_goal() -> String:
-	for step in [["got_egg", "egg"], ["has_starter", "hatch"], ["tutorial_done", "path"]]:
+	for step in [["got_egg", "egg"], ["has_starter", "hatch"]]:
 		if not GameState.flag(step[0]):
 			return step[1]
+	if not GameState.flag("tutorial_done"):
+		# Kit's logs, still to be laid across the footbridge
+		if GameState.flag("lesson_slingshot") and _bridge_flag() != "" and not GameState.flag(_bridge_flag()):
+			return "bridge"
+		return "path"
 	if not GameState.has_flute():
 		return "flute"
 	if not _lessons_done():
@@ -561,6 +595,10 @@ func _talk_trainer(world, n: Dictionary) -> void:
 					"look": n.get("look", {}), "song": song, "flute_skill": n.get("flute_skill", 0.8), "encore": true, "reward": 60})
 			return
 		await UI.say([n.get("defeat", "Good battle!") if typeof(n.get("defeat")) == TYPE_STRING else "Good battle!"], name)
+		# (a game saved before Kit kept the logs in his cabin: he hands over any the footbridge still needs)
+		if n.get("gift", {}).has("bridge_log") and logs_missing() > 0:
+			await UI.say(["Oh! You still need logs for the footbridge? Here, I've got plenty!"], name)
+			_give({"bridge_log": 1})
 		return
 	if GameState.party.is_empty():
 		await UI.say(["You don't have any beasts? Come back once you've hatched one!"], name)
@@ -598,13 +636,20 @@ func _talk_trainer(world, n: Dictionary) -> void:
 func _lesson_done(n: Dictionary, name: String) -> void:
 	GameState.heal_party()
 	await UI.say(n.get("after", []), name)
-	var gift: Dictionary = n.get("gift", {})
-	for item in gift:
-		GameState.add_item(item, int(gift[item]))
-		Sfx.play("pickup")
-		UI.toast("Received %d %s!" % [int(gift[item]), ItemDB.item_name(item) + ("s" if int(gift[item]) > 1 else "")], UIKit.GOLD)
+	_give(n.get("gift", {}))
 	if LESSON_TRAINERS.all(func(t): return GameState.flag("lesson_" + String(t["lesson"]))):
 		GameState.set_flag("tutorial_done")
+
+
+## A teacher's gift. Kit's logs: as many as the footbridge still needs.
+func _give(gift: Dictionary) -> void:
+	for item in gift:
+		var k := logs_missing() if item == "bridge_log" else int(gift[item])
+		if k <= 0:
+			continue
+		GameState.add_item(item, k)
+		Sfx.play("pickup")
+		UI.toast("Received %d %s!" % [k, ItemDB.item_name(item) + ("s" if k > 1 else "")], UIKit.GOLD)
 
 
 func _talk_story(world, n: Dictionary) -> void:

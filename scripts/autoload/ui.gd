@@ -87,15 +87,6 @@ func _on_prefs_changed() -> void:
 		root.theme = UIKit.make_theme()
 
 
-## How far the touch joystick is pushed (0 to 1) past which the hero runs (see world.gd _step_speed).
-const STICK_RUN := 0.8
-
-
-## How far the touch joystick is pushed (0 to 1), or 0 when nobody's touching it.
-func stick_push() -> float:
-	return controls.stick_push() if controls != null else 0.0
-
-
 ## Height kept clear at the bottom of the screen for the key legend / touch buttons.
 func bottom_reserve() -> float:
 	if controls == null:
