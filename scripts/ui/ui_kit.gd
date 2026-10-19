@@ -54,7 +54,7 @@ const PIXEL_DIM := Color("#9d9fa8")
 const PIXEL_SCALE := 2
 ## For each frame piece: how far in from its edges its corners reach (piece pixels), so a window stretches only its
 ## straight sides and middle.
-const PIECE_MARGIN := {"window": 9, "panel": 5, "plate": 4, "plate_small": 3, "panel_pins": 6, "panel_tall": 6}
+const PIECE_MARGIN := {"window": 16, "panel": 5, "plate": 4, "plate_small": 3, "panel_pins": 6, "panel_tall": 6}
 ## The game's icon names drawn with the 1-bit kit's icons in the Pixel style: [piece, fill, line] ("fill"/"line" are
 ## the style's own colours, "dim" its grey, "gem" the accent).
 const PIXEL_ICONS := {
@@ -301,7 +301,7 @@ static func tex(name: String) -> Texture2D:
 static func cozy(pad := Vector4(0, 0, 0, 0), radius := RADIUS) -> StyleBox:
 	if pixel():
 		return pixel_box("window" if radius >= RADIUS else "panel", WINDOW_BOTTOM, PIXEL_LINE,
-			Vector4(20, 16, 20, 16) + pad if radius >= RADIUS else Vector4(14, 10, 14, 10) + pad)
+			Vector4(34, 32, 34, 32) + pad if radius >= RADIUS else Vector4(16, 14, 16, 14) + pad)
 	var sb := CozyBox.new()
 	sb.top = WINDOW_TOP
 	sb.bottom = WINDOW_BOTTOM
@@ -336,7 +336,8 @@ static func pixel_plate(fill: Color, line := PIXEL_LINE, alpha := 1.0, scale := 
 ## those colours.
 static func chip(fill: Color, edge: Color, radius := 10.0, pad := Vector4(10, 2, 10, 2), edge_w := 2.0) -> StyleBox:
 	if pixel():
-		return pixel_box("plate", fill, edge if edge.a > 0.3 else BORDER_INNER, pad)
+		# (a little more room inside than the rounded chip gives: the plate's edge and corner ticks are square)
+		return pixel_box("plate", fill, edge if edge.a > 0.3 else BORDER_INNER, pad + Vector4(4, 2, 4, 2))
 	var sb := CozyBox.new()
 	sb.top = fill.lightened(0.12)
 	sb.bottom = fill.darkened(0.08)
@@ -360,16 +361,16 @@ static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 	if pixel():
 		match name:
 			"banner":
-				return pixel_box("panel_pins", WINDOW_BOTTOM, PIXEL_LINE, Vector4(22, 10, 18, 10) + pad)
+				return pixel_box("panel_pins", WINDOW_BOTTOM, PIXEL_LINE, Vector4(24, 12, 22, 12) + pad)
 			"nameplate", "ribbon", "ribbon_small":
-				return pixel_box("plate", ACCENT, PIXEL_LINE, Vector4(18, 4, 18, 4) + pad)
+				return pixel_box("plate", ACCENT, PIXEL_LINE, Vector4(20, 6, 20, 6) + pad)
 			"frame":
-				return pixel_box("plate", WINDOW_BOTTOM, PIXEL_LINE, Vector4(8, 2, 8, 2) + pad)
+				return pixel_box("plate", WINDOW_BOTTOM, PIXEL_LINE, Vector4(10, 3, 10, 3) + pad)
 			"bar_frame":
 				return pixel_box("plate", WINDOW_BOTTOM, PIXEL_LINE, Vector4.ZERO)
 			"slot":
-				return pixel_box("panel", WINDOW_BOTTOM, PIXEL_LINE, Vector4(10, 8, 10, 8) + pad)
-		return pixel_box("window", WINDOW_BOTTOM, PIXEL_LINE, Vector4(20, 16, 20, 16) + pad)
+				return pixel_box("panel", WINDOW_BOTTOM, PIXEL_LINE, Vector4(14, 12, 14, 12) + pad)
+		return pixel_box("window", WINDOW_BOTTOM, PIXEL_LINE, Vector4(34, 32, 34, 32) + pad)
 	match name:
 		"banner":
 			# map names and notices: an accent stripe down the left edge

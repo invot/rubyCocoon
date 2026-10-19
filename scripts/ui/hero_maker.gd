@@ -33,6 +33,9 @@ var _names_by_body := {"male": 0, "female": 0}
 var row := 0
 var _rows := {}
 var _name_label: Label
+## each row's name: white on the row being chosen, dim on the rest (the rows themselves aren't highlighted, so
+## nothing in them moves)
+var _row_labels := {}
 var _start: Button
 var _arrows: Array = []
 var _chips := {}
@@ -152,6 +155,7 @@ func _row(id: String) -> Control:
 	var l := UIKit.label(ROW_NAMES[id], UIKit.BODY_HUGE, UIKit.GOLD)
 	l.custom_minimum_size.x = 150
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_row_labels[id] = l
 	hb.add_child(l)
 	match id:
 		"name":
@@ -285,8 +289,8 @@ func _names() -> Array:
 
 # ---------------------------------------------------------------- showing
 func _show() -> void:
-	for id in _rows:
-		(_rows[id] as PanelContainer).add_theme_stylebox_override("panel", UIKit.highlight() if ROWS[row] == id else StyleBoxEmpty.new())
+	for id in _row_labels:
+		(_row_labels[id] as Label).add_theme_color_override("font_color", UIKit.LIGHT if ROWS[row] == id else UIKit.DIM)
 	_name_label.text = _names()[pick["name"]]
 	for a in _arrows:
 		_paint(a, false)

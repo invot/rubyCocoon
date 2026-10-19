@@ -21,12 +21,14 @@ const SCALE := 0.94
 ## Heads are drawn larger than life, a touch of anime proportion.
 const HEAD_SCALE := 1.25
 ## Limbs are drawn chunkier than the packs made them, a toy-like look: how much wider each part is (see _thicken).
-const LIMBS := {"l_arm": 1.9, "r_arm": 1.9, "l_forearm": 1.8, "r_forearm": 1.8,
+const LIMBS := {"l_arm": 1.4, "r_arm": 1.4, "l_forearm": 1.35, "r_forearm": 1.35,
 	"l_thigh": 1.55, "r_thigh": 1.55, "l_shin": 1.6, "r_shin": 1.6}
-const HAND := 1.35
+const HAND := 1.2
 const FOOT := 1.25
 ## the body between the hips and the neck, a little fuller to carry the limbs
 const TORSO := 1.15
+## How far out from the sides the arms hang (the sideways part of their direction, against 1 down).
+const ARM_OUT := 0.12
 const LEGION := ["21_police", "22_police", "25_female_police", "26_female_police"]
 const CENTER_STAFF := ["23_female_doctor", "24_female_doctor", "25_doctor", "26_doctor"]
 ## The bodies the hero can have (the character creator's choice), never anyone else's.
@@ -342,7 +344,7 @@ static func face(rig: Node3D, dir: Vector2i, smooth := false) -> void:
 ## What posing a person's skeleton needs, worked out once per model from its rest pose, in the skeleton's own space
 ## (whatever its axes and units): the side-to-side axis the limbs swing about, and for each limb bone its index, its
 ## parent's rest rotation and its own; the arms also get the turn that lowers them from the pack's T or A pose to
-## hang at the sides, a little out and forward.
+## hang at the sides, just clear of the body and a touch forward.
 static func _rig(rig: Node3D) -> Dictionary:
 	var id: String = rig.get_meta("model")
 	if _rigs.has(id):
@@ -385,8 +387,8 @@ static func _rig(rig: Node3D) -> Dictionary:
 		var a := _global_rest(sk, arm).origin
 		var dir := (_global_rest(sk, fore).origin - a).normalized()
 		var out := signf((a - hips).dot(lat))
-		# held a little further out than life, to clear the (thickened) body
-		var hang := (down + lat * out * 0.3 + fwd * 0.04).normalized()
+		# close to the sides, just clear of the (thickened) body: about 7 degrees out
+		var hang := (down + lat * out * ARM_OUT + fwd * 0.03).normalized()
 		info[side + "_arm"]["down"] = Quaternion(dir, hang)
 	# the legs measured in the Body's space (y up, facing +z, standing on y = 0), to place the feet: where the hip and
 	# ankle are, how long the thigh and shin are and how far forward each points at rest, the foot's length; the ankle
@@ -553,19 +555,23 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		var sg := _place_bone(sk, shin, tg, Quaternion(lat, -(s - float(leg["s0"]))) * shin["parent"] * shin["local"])
 		var ank: Dictionary = r[side + "_ankle"]
 		_place_bone(sk, ank, sg, Quaternion(lat, float(feet[side][1])) * ank["parent"] * ank["local"])
-	# arms swing against the legs, a little behind them; the forearms trail the arms; a run bends the elbows and pumps
-	var arm_amp := lerpf(0.3, 0.62, run) * m + 0.15 * sprint
-	var elbow := lerpf(0.18, 1.25, run) * m + 0.12 * still
+	# arms swing against the legs, a little behind them, and as in life further back than forward (the swing centred a
+	# little behind the hip); walking, the forearm lifts a little as the arm comes forward; a run bends the elbows to a
+	# steady angle and swings from the shoulder less, the hands passing the hips, never reaching out in front
+	var arm_amp := lerpf(0.24, 0.34, run) * m + 0.08 * sprint
+	var arm_back := lerpf(0.06, 0.2, run) * m
+	var ahead_part := lerpf(0.7, 0.5, run)
+	var elbow := lerpf(0.14, 0.95, run) * m + 0.12 * still
 	for side in ["l", "r"]:
 		var sgn := 1.0 if side == "l" else -1.0
 		# 1 at the arm's furthest forward: the left arm leads as the right heel lands
 		var ahead := -sgn * cos(TAU * (u - 0.06))
 		var trail := -sgn * cos(TAU * (u - 0.14))
 		var arm: Dictionary = r[side + "_arm"]
-		var a_swing := arm_amp * ahead + sin(t * 2.2 + sgn) * 0.03 * still
+		var a_swing := arm_amp * ahead * (ahead_part if ahead > 0.0 else 1.0) - arm_back + sin(t * 2.2 + sgn) * 0.03 * still
 		var ag := _turn(sk, arm, arm["parent"], Quaternion(lat, -a_swing) * arm["down"])
 		var fore: Dictionary = r[side + "_forearm"]
-		_turn(sk, fore, ag, Quaternion(lat, -(elbow + lerpf(0.22, 0.35, run) * m * maxf(0.0, trail))))
+		_turn(sk, fore, ag, Quaternion(lat, -(elbow + lerpf(0.22, 0.08, run) * m * maxf(0.0, trail))))
 
 
 ## How far one step carries a person at `speed` (game units a second): the faster, the longer the stride (a stroll's
