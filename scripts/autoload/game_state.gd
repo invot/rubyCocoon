@@ -28,6 +28,9 @@ const SHIELD_START := 1
 var main: Node = null
 
 var player_name := "Andrew"
+## The hero as the character creator made them: "body" (a key of voxel_person.gd HERO_BODIES) and the colours of
+## their "top", "trousers", "hair" and "eyes" (with none of them, the hero as the model comes).
+var hero := {}
 var gold := 0
 var party: Array = []
 var storage: Array = []
@@ -80,13 +83,20 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- input
-## Keyboard: arrows move, A = action, S = back (hold to run), Space = Start, Shift = Pause.
-## Gamepads: d-pad, A / B, Start, Back/Select. Touch buttons send these same actions.
+## Keyboard: arrows move (two at once go diagonally), A = action, S = back (hold to run), Space = Start, Shift = Pause.
+## Gamepads: d-pad or left stick, A / B, Start, Back/Select. Touch buttons send these same actions.
 func _setup_input() -> void:
 	_bind("move_up", [KEY_UP], [JOY_BUTTON_DPAD_UP])
 	_bind("move_down", [KEY_DOWN], [JOY_BUTTON_DPAD_DOWN])
 	_bind("move_left", [KEY_LEFT], [JOY_BUTTON_DPAD_LEFT])
 	_bind("move_right", [KEY_RIGHT], [JOY_BUTTON_DPAD_RIGHT])
+	# the left stick steers too (two of these at once on a diagonal)
+	for a in [["move_up", JOY_AXIS_LEFT_Y, -1.0], ["move_down", JOY_AXIS_LEFT_Y, 1.0], ["move_left", JOY_AXIS_LEFT_X, -1.0], ["move_right", JOY_AXIS_LEFT_X, 1.0]]:
+		var m := InputEventJoypadMotion.new()
+		m.axis = a[1]
+		m.axis_value = a[2]
+		InputMap.action_add_event(a[0], m)
+		InputMap.action_set_deadzone(a[0], 0.35)
 	_bind("interact", [KEY_A, KEY_ENTER, KEY_KP_ENTER], [JOY_BUTTON_A])
 	_bind("run", [KEY_S], [JOY_BUTTON_B])
 	_bind("menu", [KEY_SPACE], [JOY_BUTTON_START])
@@ -122,8 +132,21 @@ func _bind(action: String, keys: Array, pads := []) -> void:
 
 
 # ---------------------------------------------------------------- new game
-func new_game(pname: String) -> void:
+## How the hero is drawn (see voxel_person.gd).
+func hero_look() -> Dictionary:
+	var look := {"face": "hero"}
+	look.merge(hero)
+	return look
+
+
+## The word for the hero that depends on whether they're a he or a she: hero_word("nephew", "niece").
+func hero_word(male: String, female: String) -> String:
+	return female if hero.get("body", "male") == "female" else male
+
+
+func new_game(pname: String, look := {}) -> void:
 	player_name = pname if pname.strip_edges() != "" else "Andrew"
+	hero = look.duplicate()
 	gold = 300
 	party = []
 	storage = []
@@ -743,7 +766,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 	DirAccess.make_dir_recursive_absolute(save_dir())
 	var d := {
 		"version": 2,
-		"player_name": player_name, "gold": gold,
+		"player_name": player_name, "hero": hero, "gold": gold,
 		"party": party.map(func(b): return b.to_dict()),
 		"storage": storage.map(func(b): return b.to_dict()),
 		"inventory": inventory, "gear": gear, "songs": songs, "song_mastery": song_mastery,
@@ -773,7 +796,7 @@ func load_game(slot := -2) -> bool:
 	var d := _read_slot(slot)
 	if d.is_empty():
 		return false
-	new_game(d.get("player_name", "Andrew"))
+	new_game(d.get("player_name", "Andrew"), d.get("hero", {}))
 	current_slot = slot
 	gold = int(d.get("gold", 0))
 	party = []

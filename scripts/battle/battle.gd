@@ -68,11 +68,78 @@ var drops: Array = []
 ## songs the rival trainer played this battle (song id -> true); you may try to learn them afterwards
 var heard_songs := {}
 var rival_song_count := 0
-## Scout Bram's scripted first battle: only the taught option can be picked each round, and you always win.
+## A guided battle (see LESSONS): only what's being taught can be picked each round, and you can't lose.
 var tutorial := false
-## what the trainer and the beast must do each tutorial round (1-based)
-const TUTORIAL_PLAN := {1: "Slingshot", 2: "Watch", 3: "Items"}
-const TUTORIAL_BEAST := {1: "Fight", 2: "Defend", 3: "Fight"}
+var lesson_id := ""
+var lesson: Dictionary = {}
+## The guided battles: the Coastal Path's five teachers, met before you have a flute (Story.LESSON_TRAINERS), and your
+## first lone wild beast after Uncle Rafe's lessons ("flute"). intro: what the teacher says before the first round
+## (narration: a line before that, with no speaker; coach: who's speaking, if not the trainer). rounds: in turn (the
+## last repeats), what the teacher says ({beast} is your beast, {foe} theirs), your own action ("you": Slingshot,
+## Watch, Items or Flute, with "song": weaken or capture), your beast's ("beast": Fight or Defend; "target":
+## "trainer" sends it at the trainer). finish: the round the foe's beast goes down (0 never). trainer: the battle
+## ends by striking the trainer rather than when their beasts are down. level: the level your beast reaches.
+const LESSONS := {
+	"screen": {"level": 2, "finish": 2,
+		"intro": ["Ooh, a brand-new trainer! I'll show you around a battle. It's less scary than it looks. Mostly.",
+			"That's you at the bottom right, in the middle of your battle ring. I'm up at the top left, in mine.",
+			"The little grids in the corners are the rings seen from above: mine top left, yours bottom right. Each tile is a slot, with a beast's icon and a tiny health bar on it.",
+			"Beside your grid are the move bars, one for each beast: its level, the move it'll use, and underneath, its HP (its health) and MP (the energy elemental moves use).",
+			"Each round you pick your own action first, on the gold-trimmed bar, then a move for each beast. Left and right change the choice, A confirms it, B goes back."],
+		"rounds": [
+			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch on your own bar, then the move on {beast}'s bar."],
+				"you": "Watch", "beast": "Fight"},
+			{"say": ["Nice hit! The number that popped up is the damage it did. Once more to finish my {foe}!"], "you": "Watch", "beast": "Fight"},
+		]},
+	"turns": {"level": 3, "finish": 3,
+		"intro": ["Battles go in rounds, like the tide. Everybody picks what they'll do first, then the two sides take their turns.",
+			"The side with the faster beasts goes first, and a higher trainer level helps too. I'll let you go first today. The fish can wait."],
+		"rounds": [
+			{"say": ["Uh oh, my {foe} is winding up something big!", "When a big hit is coming, Defend: a defending beast takes half damage until your side's next turn, and Defend always goes first.",
+				"Watch on your own bar, then Defend on {beast}'s."], "you": "Watch", "beast": "Defend"},
+			{"say": ["Barely a scratch! Now strike back.", "Elemental moves cost MP, but plain moves are free, so you can always fight."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Once more, with feeling!"], "you": "Watch", "beast": "Fight"},
+		]},
+	"slingshot": {"level": 3, "finish": 2,
+		"intro": ["You're not just a spectator, you know! You get a turn too: your own bar comes first.",
+			"Slingshot flings a pebble at a foe. Watch lets your beasts handle it. Items patch someone up. Once you have a flute, you can play songs.",
+			"Run gets you out of a wild battle. Against a trainer it's Forfeit: it counts as a loss, but nobody holds a grudge. Except my cousin."],
+		"rounds": [
+			{"say": ["Fire your slingshot at my {foe}! On your side's turn your own action goes first, before your beasts move."], "you": "Slingshot", "beast": "Fight"},
+			{"say": ["Pew! Again, both of you together!"], "you": "Slingshot", "beast": "Fight"},
+		]},
+	"items": {"level": 4, "finish": 3,
+		"intro": ["Picnic rule number one: never battle hungry. Rule number two: always, ALWAYS pack potions."],
+		"rounds": [
+			{"say": ["Warm-up round! You Watch, {beast} Fights."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Ouch, {beast} got nipped! Open Items on your own bar and give it a Minor Potion.",
+				"Potions heal HP, Spirit Drops bring back MP, and there are cures, bombs and tonics too. The apothecary in every town sells them."],
+				"you": "Items", "beast": "Fight"},
+			{"say": ["Good as new! Now finish it!"], "you": "Watch", "beast": "Fight"},
+		]},
+	"ring": {"level": 4, "finish": 1, "trainer": true,
+		"intro": ["Last lesson before Tidewater: the battle ring. This is how the pros fight.",
+			"Every trainer stands in the middle of a ring of eight slots. It has a side for each element, round it in this order: Fire, Air, Water, Earth.",
+			"Only the side facing the foe fights, with that side's element or plain moves. With more beasts, you can turn your ring: up on the top beast, or down on the bottom one.",
+			"The beast in the MIDDLE of the side facing the foe guards its trainer. Knock out the foe's middle beast, and the trainer behind it is open to attack!"],
+		"rounds": [
+			{"say": ["My {foe} is guarding me. Take it down!"], "you": "Watch", "beast": "Fight"},
+			{"say": ["My middle beast is down, so I'm wide open! Have {beast} attack me directly. Go on, I can take it.",
+				"Every hit on a trainer breaks one of their shield points: the blue orbs under their grid. A trainer hit with no shield left loses the battle. I've got none today."],
+				"you": "Watch", "beast": "Fight", "target": "trainer"},
+		]},
+	"flute": {"finish": 6, "coach": "Uncle Rafe",
+		"narration": "A wild {foe}! Uncle Rafe's advice comes back to you...",
+		"intro": ["\"A wild beast's your chance to put that flute to work. Songs change how a fight goes. Weaken, for one, makes a foe drop its guard so your beasts hit harder.\""],
+		"rounds": [
+			{"say": ["\"Open Flute on your own bar and play Weaken at it. Your beast can Fight in the meantime.\""],
+				"you": "Flute", "song": "weaken", "beast": "Fight"},
+			{"say": ["\"See it flinch? Weakened and worn down, a beast listens much better. So does one that's asleep or out of sorts.\"",
+				"\"Now play Capture, and it might just join you! Have {beast} Defend, so you don't knock it out first.\""],
+				"you": "Flute", "song": "capture", "beast": "Defend"},
+			{"say": ["\"So close! Play it again, nice and steady.\""], "you": "Flute", "song": "capture", "beast": "Defend"},
+		]},
+}
 ## Defending halves the damage a beast takes until its side's next turn.
 const DEFEND_MULT := 0.5
 
@@ -119,7 +186,9 @@ func setup(c: Dictionary) -> void:
 	wild = c.get("wild", true)
 	foes = c["foes"]
 	trainer = c.get("trainer", {})
-	tutorial = bool(trainer.get("tutorial", false))
+	lesson_id = String(c.get("lesson", trainer.get("lesson", "")))
+	lesson = LESSONS.get(lesson_id, {})
+	tutorial = not lesson.is_empty()
 	var map_id: String = c.get("map", "route1")
 	biome = WorldDB.biome_of(map_id)
 	indoor = "#" in map_id
@@ -838,7 +907,7 @@ func _indoor_scenery(rng: RandomNumberGenerator) -> void:
 
 
 func _build_trainers() -> void:
-	player_rig = VPer.build(GameState.main.world.PLAYER_LOOK if is_instance_valid(GameState.main) and GameState.main.world != null else {})
+	player_rig = VPer.build(GameState.hero_look())
 	player_rig.position = PLAYER_POS + Vector3(0, 0.1, 0)
 	# your back to the camera, facing the foe
 	VPer.face(player_rig, Vector2i(0, 1))
@@ -1273,8 +1342,9 @@ func _run() -> void:
 	_check_end()
 	await _check_exposed()
 	if tutorial:
-		await _tut_say(["Battles go in rounds. Each round, pick your own action on the top bar, then a move for each beast on the side of your ring facing me.",
-			"Then each side takes its turn, the faster side first. I'll let you go first today. Let's take it one step at a time!"])
+		if lesson.has("narration"):
+			await UI.say([_tut_fill(lesson["narration"])])
+		await _tut_say(lesson.get("intro", []))
 	while result == "":
 		round_no += 1
 		for b in ally_slots:
@@ -1317,7 +1387,7 @@ func _run() -> void:
 
 
 ## Which side takes its turn first this round: the one whose beasts facing the foe are faster, helped by its
-## trainer's level (a wild pack has none). Scout Bram lets you go first.
+## trainer's level (a wild pack has none). A lesson lets you go first.
 func _who_first() -> String:
 	if tutorial:
 		return "ally"
@@ -1356,8 +1426,44 @@ func _end_defend(team: String) -> void:
 
 
 # ================================================================ tutorial
+## Who is teaching: the lesson's coach, else the trainer.
+func _tut_who() -> String:
+	return String(lesson.get("coach", ("%s %s" % [trainer.get("cls", ""), trainer.get("name", "")]).strip_edges()))
+
+
 func _tut_say(lines: Array) -> void:
-	await UI.say(lines, ("%s %s" % [trainer.get("cls", ""), trainer.get("name", "")]).strip_edges())
+	if not lines.is_empty():
+		await UI.say(lines.map(func(l): return _tut_fill(String(l))), _tut_who())
+
+
+## A lesson line with {beast} (your beast) and {foe} (theirs) filled in.
+func _tut_fill(line: String) -> String:
+	var b = _alive(ally_slots)[0] if not _alive(ally_slots).is_empty() else null
+	var f = _alive(foe_slots)[0] if not _alive(foe_slots).is_empty() else (foes[0] if not foes.is_empty() else null)
+	return line.replace("{beast}", b.nickname if b != null else "your beast").replace("{foe}", f.nickname if f != null else "beast")
+
+
+## This round of the lesson (the last one repeats).
+func _tut_round() -> Dictionary:
+	var rounds: Array = lesson.get("rounds", [])
+	if rounds.is_empty():
+		return {}
+	return rounds[clampi(round_no, 1, rounds.size()) - 1]
+
+
+## What you, and your beast, may do this round of the lesson.
+func _tut_you() -> String:
+	return String(_tut_round().get("you", "Watch"))
+
+
+func _tut_beast() -> String:
+	return String(_tut_round().get("beast", "Fight"))
+
+
+## Whether the foe's beast goes down this round of the lesson.
+func _tut_finish() -> bool:
+	var f := int(lesson.get("finish", 0))
+	return f > 0 and round_no >= f
 
 
 ## The attack the tutorial teaches: the beast's own-element attack if it has one, else its first attack.
@@ -1374,17 +1480,10 @@ func _tut_move(b) -> String:
 
 
 func _tut_round_intro() -> void:
-	var b = _alive(ally_slots)[0] if not _alive(ally_slots).is_empty() else null
-	match round_no:
-		1:
-			await _tut_say(["First, YOUR turn. Every trainer packs a slingshot. It's small, but it helps!",
-				"Pick Slingshot."])
-		2:
-			await _tut_say(["Uh oh. Nugget's puffing up for a big attack!",
-				"This round, just Watch. Then have %s Defend: a defending beast takes only half the damage until your next turn." % (b.nickname if b != null else "your beast")])
-		3:
-			await _tut_say(["Ouch, Nugget nipped %s! When a beast gets hurt, patch it up." % (b.nickname if b != null else "your beast"),
-				"Open Items and give it a Minor Potion. Then finish the battle!"])
+	var rounds: Array = lesson.get("rounds", [])
+	# the last round's words aren't said again while it repeats, except a capture to try again
+	if round_no <= rounds.size() or _tut_you() == "Flute":
+		await _tut_say(_tut_round().get("say", []))
 
 
 func _tut_damage(a, t) -> int:
@@ -1393,7 +1492,7 @@ func _tut_damage(a, t) -> int:
 	var mx: int = t.max_hp()
 	if a == null:
 		return mini(maxi(1, ceili(mx * 0.15)), maxi(0, t.hp - 1))
-	if round_no >= 3:
+	if _tut_finish():
 		return t.hp
 	return mini(maxi(1, ceili(mx * 0.35)), maxi(0, t.hp - 1))
 
@@ -1435,12 +1534,12 @@ func _theirs(b) -> Array:
 	return foe_slots if _st(b)["side"] == "ally" else ally_slots
 
 
-## Wild battles end when every wild beast is down (Scout Bram's lesson too). Trainer battles end only when a trainer
-## is hit with no shield left (see _strike), or someone forfeits.
+## Wild battles end when every wild beast is down (most lessons too). Trainer battles end only when a trainer is hit
+## with no shield left (see _strike), or someone forfeits.
 func _check_end() -> void:
 	if result != "":
 		return
-	if wild or tutorial:
+	if wild or (tutorial and not lesson.get("trainer", false)):
 		var left := foes.filter(func(f): return f.hp > 0)
 		if left.is_empty():
 			result = "win"
@@ -1579,13 +1678,13 @@ func _panel_rows() -> Array:
 		t_opts.append({"id": "run", "label": "Run", "sub": true, "desc": "Try to escape."})
 	else:
 		t_opts.append({"id": "forfeit", "label": "Forfeit", "sub": true, "disabled": tutorial,
-			"desc": "Give up the battle. It counts as a loss, but you keep your gold and can try again." if not tutorial else "Scout Bram: \"No giving up on your first lesson!\""})
+			"desc": "Give up the battle. It counts as a loss, but you keep your gold and can try again." if not tutorial else "%s: \"No giving up in the middle of a lesson!\"" % _tut_who()})
 	if tutorial:
-		var want: String = TUTORIAL_PLAN.get(round_no, "Watch")
+		var want := _tut_you()
 		for o in t_opts:
 			if o["label"] != want:
 				o["disabled"] = true
-				o["desc"] = "Scout Bram: \"Not yet! Try %s this round.\"" % want
+				o["desc"] = "%s: \"Not yet! Try %s this round.\"" % [_tut_who(), want]
 	var start := 0
 	for i in t_opts.size():
 		if not t_opts[i].get("disabled", false):
@@ -1644,18 +1743,18 @@ func _move_options(b) -> Array:
 		elif cost > 0:
 			desc = "Costs %d MP (%s has %d).\n" % [cost, b.nickname, b.mp] + desc
 		if tutorial:
-			var want_b: String = TUTORIAL_BEAST.get(round_no, "Fight")
+			var want_b := _tut_beast()
 			if want_b != "Fight" or mv != _tut_move(b):
 				off = true
-				desc = "Scout Bram: \"%s\"" % ("Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"])
+				desc = "%s: \"%s\"" % [_tut_who(), "Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"]]
 		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "target": m["target"], "disabled": off})
 	if el == "neutral" and not b.ghost:
 		out[0]["desc"] = "%s can't use %s moves from the %s side: plain moves only.\n" % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()] + String(out[0]["desc"])
 	var d := {"id": "defend", "label": "Defend", "target": "none", "right": "half damage",
 		"desc": "Brace for impact: %s takes half damage until your side's next turn." % b.nickname}
-	if tutorial and TUTORIAL_BEAST.get(round_no, "Fight") != "Defend":
+	if tutorial and _tut_beast() != "Defend":
 		d["disabled"] = true
-		d["desc"] = "Scout Bram: \"Not now! Attack this round.\""
+		d["desc"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
 	out.append(d)
 	return out
 
@@ -1722,7 +1821,8 @@ func _acts_from_rows(rows: Array) -> Array:
 			acts.append({"type": "defend", "actor": b, "prio": 7})
 		else:
 			var mv: String = o2["move"]
-			acts.append({"type": "move", "actor": b, "move": mv, "target": _row_ref(r), "prio": int(MoveDB.get_move(mv).get("prio", 0))})
+			var ref = "trainer" if tutorial and _tut_round().get("target", "") == "trainer" else _row_ref(r)
+			acts.append({"type": "move", "actor": b, "move": mv, "target": ref, "prio": int(MoveDB.get_move(mv).get("prio", 0))})
 	return acts
 
 
@@ -1734,7 +1834,7 @@ func _row_ref(r: Dictionary):
 	return "trainer" if typeof(ref) == TYPE_STRING and ref == "foe_trainer" else ref
 
 
-## Test runs and simulated battles: you play like the AI does (Scout Bram's lesson by his plan).
+## Test runs and simulated battles: you play like the AI does (a lesson by its plan).
 func _auto_commands() -> Array:
 	var acts := []
 	if not Ring.side_alive(ally_ring, ally_side) or (_side_open("ally") and not tutorial):
@@ -1750,20 +1850,31 @@ func _auto_commands() -> Array:
 			await _turn_ring("ally", ns)
 	if tutorial:
 		var b0 = _alive(ally_slots)[0] if not _alive(ally_slots).is_empty() else null
-		match String(TUTORIAL_PLAN.get(round_no, "Watch")):
+		var f0 = _alive(foe_slots)[0] if not _alive(foe_slots).is_empty() else null
+		match _tut_you():
 			"Slingshot":
-				acts.append({"type": "slingshot", "target": _alive(foe_slots)[0] if not _alive(foe_slots).is_empty() else null, "prio": 9})
+				acts.append({"type": "slingshot", "target": f0, "prio": 9})
 			"Items":
 				if GameState.item_count("minor_potion") == 0:
 					GameState.add_item("minor_potion")
 				if b0 != null:
 					acts.append({"type": "item", "item": "minor_potion", "target": b0, "prio": 9})
+			"Flute":
+				if String(_tut_round().get("song", "")) == "weaken":
+					acts.append({"type": "player_song", "song": "weaken", "acc": 0.75, "prio": 9})
+				else:
+					# played right away, as from the panel (UI.auto_flute gives the performance)
+					for sid in SongDB.ordered(GameState.songs):
+						var s := SongDB.get_song(sid)
+						if s["kind"] == "charm" and not s.get("ghost", false) and GameState.knows_song(sid):
+							await _charm_flow(sid)
+							break
 		if b0 != null:
-			if TUTORIAL_BEAST.get(round_no, "Fight") == "Defend":
+			if _tut_beast() == "Defend":
 				acts.append({"type": "defend", "actor": b0, "prio": 7})
 			else:
-				acts.append({"type": "move", "actor": b0, "move": _tut_move(b0), "target": _alive(foe_slots)[0] if not _alive(foe_slots).is_empty() else null, "prio": 0})
-		UI.auto_log.append("[menu] tutorial round %d -> %s, %s" % [round_no, TUTORIAL_PLAN.get(round_no, "Watch"), TUTORIAL_BEAST.get(round_no, "Fight")])
+				acts.append({"type": "move", "actor": b0, "move": _tut_move(b0), "target": "trainer" if _tut_round().get("target", "") == "trainer" else f0, "prio": 0})
+		UI.auto_log.append("[menu] lesson %s round %d -> %s, %s" % [lesson_id, round_no, _tut_you(), _tut_beast()])
 		return acts
 	for b in _alive(ally_slots):
 		acts.append(_ai_choose(b))
@@ -1823,8 +1934,13 @@ func _flute_flow() -> bool:
 				why = "You can't charm another trainer's beasts."
 			elif _charmable(sid).is_empty():
 				why = ("None of these beasts will listen to it (max Lv %d)." % GameState.capture_cap()) if not s.get("ghost", false) else "Only ghost beasts listen to the Requiem."
-		if tutorial and sid != "weaken":
-			why = "Scout Bram: \"Play Weaken for now!\""
+		if tutorial:
+			var want_song := String(_tut_round().get("song", ""))
+			if sid == want_song or (want_song == "capture" and s["kind"] == "charm" and not s.get("ghost", false)):
+				# the lesson's beast always listens
+				why = ""
+			else:
+				why = "%s: \"%s\"" % [_tut_who(), "Play Weaken for now!" if want_song == "weaken" else "Play Capture now!"]
 		var stars := GameState.mastery_stars(sid)
 		var desc := (why + "\n" if why != "" else "") + SongDB.describe(sid) + "\nMastery " + "★".repeat(stars) + "☆".repeat(5 - stars)
 		ids.append(sid)
@@ -1839,6 +1955,8 @@ func _flute_flow() -> bool:
 
 
 func _charmable(song: String) -> Array:
+	if lesson_id == "flute":
+		return _alive(foe_slots)
 	return _alive(foe_slots).filter(func(f): return GameState.song_can_charm(song, f) == "")
 
 
@@ -1877,7 +1995,7 @@ func _charm_flow(song: String) -> bool:
 		return false
 	flute_used = true
 	_point_at(t)
-	var flawless: bool = GameState.needs_flawless(t)
+	var flawless: bool = GameState.needs_flawless(t) and not tutorial
 	if flawless:
 		await msg("%s is stronger than any of your beasts. Only a flawless performance will reach it!" % t.nickname, 1.2)
 	await msg("You raise your flute and play %s..." % SongDB.get_song(song)["name"], 0.7)
@@ -1888,6 +2006,9 @@ func _charm_flow(song: String) -> bool:
 	var mistakes: int = int(r["mistakes"])
 	_battle_music()
 	var chance := GameState.capture_chance(t, song, acc, mistakes)
+	if tutorial and acc > 0.0:
+		# the lesson's beast joins whenever the song is played through
+		chance = 1.0
 	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
 	await _note_effect(t)
 	if flawless and mistakes > 0:
@@ -1901,6 +2022,8 @@ func _charm_flow(song: String) -> bool:
 		await msg("A flawless performance!", 0.6)
 	if randf() < chance:
 		Sfx.play("capture")
+		if lesson_id == "flute":
+			GameState.set_flag("flute_lesson_done")
 		await msg("%s was charmed by your melody!" % t.nickname)
 		var slot := foe_slots.find(t)
 		if slot >= 0:
@@ -2115,7 +2238,7 @@ func _choose_item() -> Dictionary:
 		ids.append(id)
 		var lock: bool = tutorial and id != "minor_potion"
 		items.append({"text": it["name"], "right": "x%d" % GameState.item_count(id), "disabled": lock,
-			"desc": "Scout Bram: \"The Minor Potion, please!\"" if lock else it.get("desc", "")})
+			"desc": "%s: \"The Minor Potion, please!\"" % _tut_who() if lock else it.get("desc", "")})
 	if ids.is_empty():
 		await msg("You have no usable items.", 0.8)
 		return {}
@@ -2367,7 +2490,7 @@ func _resolve(acts: Array) -> void:
 				continue
 		await _handle_faints()
 		_check_end()
-	if tutorial and round_no >= 3 and result == "":
+	if tutorial and _tut_finish() and result == "":
 		for f in _alive(foe_slots):
 			f.hp = 0
 			_refresh()
@@ -3082,8 +3205,8 @@ func _award_xp(foe) -> void:
 			continue
 		var share := 1.0 if participants.has(b) else 0.5
 		var amt := int(base * share * (1.0 + float(b.gear_fx("xp", 0.0)) + GameState.gear_fx("xp")))
-		if tutorial:
-			amt = maxi(0, b.xp_for_level(2) - b.xp)
+		if lesson.has("level"):
+			amt = maxi(0, b.xp_for_level(int(lesson["level"])) - b.xp)
 			if amt == 0:
 				continue
 		if b.level <= 3:

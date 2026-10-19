@@ -1,7 +1,8 @@
 extends "res://scripts/ui/modal.gd"
 ## Keyboard/touch list menu in a window, with a title tab above it. Emits the chosen index, or -1 when cancelled.
 ## items: Array of String or Dictionary {text, right, disabled, desc, icon}
-## opts: anchor, width, rows, cancel, start, on_focus (Callable), dim, title_size, margin
+## opts: anchor, width, rows, cancel, start, on_focus (Callable), dim, title_size, margin; font_size: the rows' text
+## size (UI units); bare: no box at all, just the options' text, centred and gently pulsing (e.g. a lone "New Game")
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
@@ -60,6 +61,12 @@ func _ready() -> void:
 		if it.has("icon") and it["icon"] != null:
 			has_icons = true
 	var row_h := UIKit.row_h() + (8.0 if has_icons else 0.0)
+	var font_size := int(opts.get("font_size", 0))
+	if font_size > 0:
+		row_h = maxf(row_h, font_size * 2.0)
+	var bare: bool = opts.get("bare", false)
+	if bare:
+		_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var rows := int(opts.get("rows", 8))
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -93,6 +100,19 @@ func _ready() -> void:
 			rl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			b.add_child(rl)
 			_reserve_right(b, 150.0)
+		if font_size > 0:
+			b.add_theme_font_size_override("font_size", UIKit.body_px(font_size))
+		if bare:
+			for st in ["normal", "hover", "pressed", "focus", "hover_pressed", "disabled"]:
+				b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+			b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+			b.add_theme_constant_override("outline_size", 12)
+			b.add_theme_color_override("font_outline_color", Color("#493333"))
+			for c in ["font_color", "font_focus_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+				b.add_theme_color_override(c, UIKit.LIGHT)
+			var pulse := b.create_tween().set_loops()
+			pulse.tween_property(b, "modulate:a", 0.75, 0.9).set_trans(Tween.TRANS_SINE)
+			pulse.tween_property(b, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_SINE)
 		b.pressed.connect(_pick.bind(i))
 		b.focus_entered.connect(_focused.bind(i))
 		b.mouse_entered.connect(b.grab_focus)

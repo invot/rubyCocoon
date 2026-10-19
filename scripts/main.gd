@@ -1,12 +1,18 @@
 extends Node
 ## Game root: owns the 3D view, the title screen, map transitions and battles.
 
-const World = preload("res://scripts/world/world.gd")
-const Battle = preload("res://scripts/battle/battle.gd")
+## The world and battle scripts (with everything they preload) are the slowest part of starting up, so they aren't
+## preloaded: the title screen shows its menu first and loads them in the background (see _title_backdrop).
+const WORLD_PATH := "res://scripts/world/world.gd"
+const BATTLE_PATH := "res://scripts/battle/battle.gd"
+const PANEL_PATH := "res://scripts/battle/command_panel.gd"
+## Resources the world's scripts preload that have to be loaded on the main thread (see _title_backdrop).
+const THREAD_SHY := ["res://scripts/gfx/terrain.gdshader", "res://scripts/gfx/water.gdshader", "res://scripts/gfx/wall_fade.gdshader"]
+## project.godot's boot splash colour
+const SPLASH_COLOR := Color(0.184, 0.141, 0.141)
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
-const CommandPanelScript = preload("res://scripts/battle/command_panel.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -26,6 +32,8 @@ var autoplay := false
 
 func _ready() -> void:
 	GameState.main = self
+	# the same colour as the boot splash, behind the title until its town has been built
+	RenderingServer.set_default_clear_color(SPLASH_COLOR)
 	if Prefs.is_mobile():
 		# a steady 60 fps: chasing a 120-144 Hz screen makes uneven frames and heats the phone until it throttles
 		Engine.max_fps = 60
@@ -90,7 +98,9 @@ func _process(_delta: float) -> void:
 # ================================================================ title
 func _title() -> void:
 	UI.allow_pause = false
-	_load_world("caccoon", "start", true)
+	UI.controls.set_title_mode(true)
+	# the menu comes up straight away; the town behind it is built a moment later
+	_title_backdrop()
 	Sfx.music("title")
 	Sfx.ambience("")
 	var box := VBoxContainer.new()
@@ -106,20 +116,19 @@ func _title() -> void:
 	t.add_theme_color_override("font_outline_color", Color("#493333"))
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(t)
-	var rib := UIKit.ribbon("Hatch · Train · Merge · Battle")
-	rib.custom_minimum_size.x = 640
-	rib.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.add_child(rib)
 	_title_nodes = [box]
 	while true:
 		var items := []
-		if GameState.has_save():
+		# (--saves=0: a test run shows the title as a first launch would)
+		if GameState.has_save() and _test.get("saves", "1") == "1":
 			items.append("Continue")
 			items.append("Load Game")
 		items.append("New Game")
 		if not Prefs.is_mobile():
 			items.append("Quit")
-		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 280, "cancel": false, "margin": Vector2(0, 60)})
+		# big enough to read across a phone; a lone "New Game" is just its text, with no box round it
+		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 60),
+			"font_size": UIKit.BODY_HUGE if items.size() > 1 else 56, "bare": items.size() == 1})
 		var pick: String = items[c]
 		if pick == "Quit":
 			get_tree().quit()
@@ -138,8 +147,13 @@ func _title() -> void:
 			_pending_goto = {"map": GameState.map_id, "spawn": spawn}
 			return
 		if pick == "New Game":
-			var nm := await UI.text_input("What's your name, trainer?", "Andrew")
-			GameState.new_game(nm)
+			# who you are: a name, a body and your colours
+			_title_nodes[0].visible = false
+			var made = await UI.make_hero()
+			_title_nodes[0].visible = true
+			if made == null:
+				continue
+			GameState.new_game(made["name"], made["look"])
 			_clear_title()
 			UI.allow_pause = true
 			var home := MapLoader.interior_of("caccoon", "home")
@@ -160,6 +174,7 @@ func back_to_title() -> void:
 
 func _clear_title() -> void:
 	_hide_slot_preview()
+	UI.controls.set_title_mode(false)
 	for n in _title_nodes:
 		if is_instance_valid(n):
 			n.queue_free()
@@ -167,13 +182,40 @@ func _clear_title() -> void:
 
 
 # ================================================================ maps
+## Behind the title's menu: loads the world's scripts in the background, builds the town and fades it in (unless a game
+## has started meanwhile), then loads the battle scripts, the travel book and the world map in the background too.
+func _title_backdrop() -> void:
+	screen.modulate.a = 0.0
+	# shaders can't be loaded off the main thread: load the ones the world's scripts preload first
+	for sh in THREAD_SHY:
+		load(sh)
+	ResourceLoader.load_threaded_request(WORLD_PATH)
+	# a frame at least, so the menu is up first
+	await get_tree().process_frame
+	while ResourceLoader.load_threaded_get_status(WORLD_PATH) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		await get_tree().process_frame
+	if not _title_nodes.is_empty() and _pending_goto.is_empty():
+		_load_world("caccoon", "start", true)
+		await get_tree().process_frame
+	create_tween().tween_property(screen, "modulate:a", 1.0, 0.8)
+	for path in [BATTLE_PATH, Menus.BOOK_PATH, Menus.MAP_PATH]:
+		ResourceLoader.load_threaded_request(path)
+
+
+## A script loaded in the background (see _title_backdrop), or loaded now if it wasn't asked for or isn't done yet.
+func loaded_script(path: String) -> GDScript:
+	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		return ResourceLoader.load_threaded_get(path)
+	return load(path)
+
+
 func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> void:
 	if world != null:
 		if world.get_parent():
 			world.get_parent().remove_child(world)
 		world.queue_free()
 		world = null
-	world = World.new()
+	world = loaded_script(WORLD_PATH).new()
 	world.demo = demo
 	view.add_child(world)
 	world.build(id)
@@ -393,6 +435,8 @@ const SPIRAL_COLORS := {"sneak": Color("#3fbf5a"), "wild": Color("#3f8fe0"), "am
 
 func start_battle(cfg: Dictionary) -> String:
 	in_battle = true
+	# the d-pad comes back for battles (the joystick is for getting about)
+	UI.controls.set_dpad_mode(true)
 	if autoplay:
 		cfg["autoplay"] = true
 	Sfx.play("encounter")
@@ -405,7 +449,7 @@ func start_battle(cfg: Dictionary) -> String:
 		await UI.flash(Color.WHITE, 2)
 		await UI.fade_out(0.2)
 	view.remove_child(world)
-	var b := Battle.new()
+	var b = loaded_script(BATTLE_PATH).new()
 	cfg["map"] = GameState.map_id
 	b.setup(cfg)
 	view.add_child(b)
@@ -422,6 +466,7 @@ func start_battle(cfg: Dictionary) -> String:
 	world.refresh_locks()
 	Sfx.music(music_for(world.map_id))
 	in_battle = false
+	UI.controls.set_dpad_mode(false)
 	GameState.recharge_shield()
 	if result == "lose":
 		GameState.heal_party()
@@ -456,6 +501,7 @@ func _run_test() -> void:
 	GameState.set_flag("got_egg")
 	GameState.set_flag("has_starter")
 	GameState.set_flag("tutorial_done")
+	GameState.set_flag("flute_lesson_done")
 	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("reed_flute")
 	GameState.learn_song("weaken")
@@ -506,7 +552,7 @@ func _run_test() -> void:
 			start_battle({"wild": false, "foes": team, "seed": 5, "trainer": {"name": "Marina", "cls": "Swimmer", "shield": int(_test.get("foe_shield", "1")),
 				"look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}})
 		var tries := 0
-		while tries < 400 and not (UI.stack.size() > 0 and UI.stack.back() is CommandPanelScript):
+		while tries < 400 and not (UI.stack.size() > 0 and UI.stack.back().get_script() == load(PANEL_PATH)):
 			await get_tree().process_frame
 			tries += 1
 		for k in String(_test.get("keys", "")).split(",", false):
@@ -521,7 +567,7 @@ func _run_test() -> void:
 		await _wait(2.5)
 		var bt: Node = null
 		for c in view.get_children():
-			if c is Battle:
+			if c.get_script() == load(BATTLE_PATH):
 				bt = c
 		bt.msg_label.text = "Emberkit gained 27 XP. Redcoon grew to Lv 13!"
 		bt.foe_slots[0].hp = 0
@@ -745,26 +791,67 @@ func _run_test() -> void:
 			_press("ui_down")
 			await _wait(0.12)
 		await _wait(wait)
+	elif scene == "walk8":
+		# eight-way walking: two arrows at once, then the touch joystick (needs --touch) pushed half way and all the way
+		_do_goto("caccoon", "start")
+		await _wait(1.5)
+		var p0: Vector2i = world.player_pos
+		Input.action_press("move_right")
+		Input.action_press("move_down")
+		await _wait(0.6)
+		Input.action_release("move_right")
+		Input.action_release("move_down")
+		await _wait(0.4)
+		print("keys right+down: from ", p0, " to ", world.player_pos, "  facing ", world.facing)
+		var c: Vector2 = UI.controls._stick_centre()
+		# touches arrive in window pixels; the overlay works in the stretched view
+		var to_window := Vector2(get_window().size) / get_viewport().get_visible_rect().size
+		for push in [0.5, 1.0]:
+			var at: Vector2 = c + Vector2(-1, -1).normalized() * float(UI.controls.STICK_REACH) * float(push)
+			var t := InputEventScreenTouch.new()
+			t.pressed = true
+			t.position = at * to_window
+			Input.parse_input_event(t)
+			await _wait(0.7)
+			print("stick up-left pushed ", push, ": pace ", snappedf(world.move_speed, 0.01), "  at ", world.player_pos, "  facing ", world.facing)
+			var r := InputEventScreenTouch.new()
+			r.position = at * to_window
+			Input.parse_input_event(r)
+			await _wait(0.5)
+		await _wait(wait)
+	elif scene == "flutelesson":
+		# the first lone wild beast after Uncle Rafe's lessons: Weaken, then Capture (played by the autoplay)
+		GameState.set_flag("flute_lesson_done", false)
+		# a new trainer's: just the starter caught so far
+		GameState.caught = {}
+		_do_goto("route1", "west")
+		await _wait(1.5)
+		UI.auto = true
+		UI.auto_flute = [{"acc": 0.8, "mistakes": 0}]
+		var before := GameState.party.size() + GameState.storage.size()
+		var res: String = await Story.wild_battle(world, [Beasts.create(21, 3)], "wild")
+		print("flute lesson: result ", res, "  done ", GameState.flag("flute_lesson_done"), "  beasts before ", before, " after ", GameState.party.size() + GameState.storage.size())
+		for l in UI.auto_log:
+			if l.begins_with("[menu]"):
+				print("   ", l)
 	elif scene == "tutorial":
-		# the starter-egg state: one fresh Lv1 hatchling, lesson not done yet
+		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring
 		GameState.party = [Beasts.create(1, 1)]
 		GameState.party[0].heal_full()
+		GameState.gear["flute"] = ""
 		GameState.set_flag("tutorial_done", false)
-		_do_goto("caccoon", "center")
+		_do_goto("route1", "west")
 		await _wait(1.5)
+		var teacher := _lesson_trainer(String(_test.get("lesson", "screen")))
 		if _test.get("auto", "0") == "1":
 			UI.auto = true
-			# R1 slingshot, Fight, Ember | R2 watch, Defend | R3 items, Minor Potion, on Emberkit, Fight, Ember
-			GameState.gear["flute"] = ""
-			UI.auto_answers = [0, 0, 1, 3, 1, 1, 0, 0, 0, 1]
-			await Story.talk(world, _npc("guard"))
-			print("tutorial result: done=", GameState.flag("tutorial_done"), " level=", GameState.party[0].level, " hp=", GameState.party[0].hp, "/", GameState.party[0].max_hp(),
-				" leftover answers=", UI.auto_answers.size())
+			await Story.talk(world, teacher)
+			print("lesson result: won=", GameState.flag(teacher.get("flag", "")), " level=", GameState.party[0].level, " hp=", GameState.party[0].hp, "/", GameState.party[0].max_hp())
 			for l in UI.auto_log:
-				if l.begins_with("[menu]") or l.begins_with("[flute]") or l.begins_with("Scout"):
+				if l.begins_with("[menu]"):
 					print("   ", l)
 		else:
-			Story.talk(world, _npc("guard"))
+			Story.talk(world, teacher)
 			for i in int(_test.get("presses", "6")):
 				await _wait(0.7)
 				_press("ui_accept")
@@ -808,6 +895,9 @@ func _run_test() -> void:
 		var w0: Dictionary = world.wilds[0]
 		w0["state"] = "stunned"
 		w0["t"] = 99.0
+		# (beasts face any of the eight ways; you only bump into one head on)
+		w0["facing"] = Vector2i(1, 0)
+		world._face_wild(w0)
 		var behind: Vector2i = w0["pos"] - w0["facing"]
 		world.player_pos = behind
 		world.player.position = world.tile_pos(behind)
@@ -1000,7 +1090,11 @@ func _run_test() -> void:
 		# route1: the washed-out footbridge, rebuilt one log at a time
 		await _go("route1", "west")
 		await _wait(1.0)
-		var bridge_grp: Dictionary = world.map["obstacles"][Vector2i(37, 6)]
+		var bridge_at := Vector2i(-1, -1)
+		for t in world.map["obstacles"]:
+			if world.map["obstacles"][t]["kind"] == "broken_bridge" and bridge_at.x < 0:
+				bridge_at = t
+		var bridge_grp: Dictionary = world.map["obstacles"][bridge_at]
 		await Story.field_move(world, bridge_grp)
 		var logs: Array = world.items.values().filter(func(it): return it["item"] == "bridge_log")
 		print("logs lying along the path: ", logs.size(), " ", logs.map(func(it): return it["pos"]))
@@ -1013,9 +1107,9 @@ func _run_test() -> void:
 			await world._pickup(it)
 		UI.auto_answers = [0, 0, 0, 0]
 		await Story.field_move(world, bridge_grp)
-		print("bridge with five logs fixed: ", GameState.flag(bridge_grp["flag"]), "  tile now walkable: ", world._walkable(Vector2i(37, 6)))
+		print("bridge with five logs fixed: ", GameState.flag(bridge_grp["flag"]), "  tile now walkable: ", world._walkable(bridge_at))
 		if _test.has("shot"):
-			world.player_pos = Vector2i(35, 7)
+			world.player_pos = bridge_at + Vector2i(-2, 0)
 			world.player.position = world.tile_pos(world.player_pos)
 			await _wait(1.0)
 			get_viewport().get_texture().get_image().save_png(String(_test["shot"]).replace(".png", "_bridge.png"))
@@ -1114,6 +1208,19 @@ func _run_test() -> void:
 	elif scene == "hero":
 		await _hero_gallery()
 		await _wait(wait)
+	elif scene == "maker":
+		# the character creator over the town; --picks=body:1,top:3,row:2 as if chosen (row: the one highlighted)
+		_do_goto("caccoon", "start")
+		await _wait(1.0)
+		var m: Control = load("res://scripts/ui/hero_maker.gd").new()
+		UI.push(m)
+		await get_tree().process_frame
+		for kv in String(_test.get("picks", "")).split(",", false):
+			if kv.get_slice(":", 0) == "row":
+				m._go(int(kv.get_slice(":", 1)), false)
+			else:
+				m._choose(kv.get_slice(":", 0), int(kv.get_slice(":", 1)))
+		await _wait(wait)
 	elif scene == "pause":
 		_do_goto("tidewater", "center")
 		await _wait(1.5)
@@ -1156,6 +1263,14 @@ func _npc(id: String) -> Dictionary:
 	return {}
 
 
+## The Coastal Path teacher who gives `lesson` (see Story.LESSON_TRAINERS).
+func _lesson_trainer(lesson: String) -> Dictionary:
+	for p in world.npcs:
+		if world.npcs[p].get("lesson", "") == lesson:
+			return world.npcs[p]
+	return {}
+
+
 func _step(name: String, answers: Array) -> void:
 	UI.auto_answers = answers
 	print("--- ", name, "  gold=", GameState.gold, " party=", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]))
@@ -1192,16 +1307,20 @@ func _flow_test() -> void:
 	print("party after hatch: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), " has_starter ", GameState.flag("has_starter"))
 	await _go("caccoon", "center")
 	await _wait(1.5)
-	print("east exits before the lesson: ", world.map["exits"].values().filter(func(e): return e["to"] == "route1").size(),
-		"  guard has news: ", Story.npc_has_news(_npc("guard")))
-	_step("Scout Bram's battle lesson", [])
+	print("east exits with a beast: ", world.map["exits"].values().filter(func(e): return e["to"] == "route1").size(),
+		"  guard has news: ", Story.npc_has_news(_npc("guard")), "  hint: ", Story.next_goal())
+	_step("Scout Bram sends you off", [])
 	await Story.talk(world, _npc("guard"))
-	await _wait(1.5)
-	print("after the lesson: tutorial_done ", GameState.flag("tutorial_done"), "  starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level,
-		"  east exits: ", world.map["exits"].values().filter(func(e): return e["to"] == "route1").size())
 	await _go("route1", "west")
 	await _wait(1.5)
-	print("now on ", world.map_id, " encounter ", world.map["encounter"].keys(), " transitioning ", _transitioning)
+	print("now on ", world.map_id, " encounter ", world.map["encounter"].keys(), " transitioning ", _transitioning,
+		"  wild beasts before the flute: ", world.wilds.size())
+	for t in Story.LESSON_TRAINERS:
+		_step("Coastal Path lesson: " + String(t["lesson"]), [])
+		await Story.talk(world, _lesson_trainer(String(t["lesson"])))
+		await _wait(0.5)
+	print("after the lessons: tutorial_done ", GameState.flag("tutorial_done"), "  starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level,
+		"  minor potions ", GameState.item_count("minor_potion"), "  hint: ", Story.next_goal())
 	_step("wild battle at Lv1", [])
 	world.busy = true
 	await Story.wild_encounter(world)
@@ -1229,11 +1348,14 @@ func _flow_test() -> void:
 	print("starting songs: ", GameState.songs)
 	await _go("route1", "west")
 	await _wait(1.0)
+	print("wild beasts on the Coastal Path with a flute: ", world.wilds.size(), "  sizes ", world.wilds.map(func(w): return (w["beasts"] as Array).size()))
+	await _go("route2", "west")
+	await _wait(1.0)
 	var bard := {}
 	for p in world.npcs:
 		if world.npcs[p].get("song", "") != "":
 			bard = world.npcs[p]
-	print("bard on route1: ", bard.get("name", "none"), " plays ", bard.get("song", ""))
+	print("bard on route2: ", bard.get("name", "none"), " plays ", bard.get("song", ""))
 	_step("bard battle, fumble the song", [])
 	UI.auto_flute = [{"acc": 0.8, "mistakes": 2}]
 	await Story.talk(world, bard)
@@ -1355,7 +1477,7 @@ func _flow_test() -> void:
 				for b in GameState.party:
 					b.heal_full()
 				await Story.talk(world, n2)
-		print("floor ", f, " room ", world.map["room_key"], " stairs ok: ", await Story.can_use_exit(world, {"to": MapLoader.floor_id(ct["interior"], f + 1)}))
+		print("floor ", f, " room ", world.map.get("room_key", "(not in the tower: " + world.map_id + ")"), " stairs ok: ", await Story.can_use_exit(world, {"to": MapLoader.floor_id(ct["interior"], f + 1)}))
 	for b in GameState.party:
 		b.heal_full()
 	_step("ceo", [])
@@ -1533,17 +1655,21 @@ func _hero_gallery() -> void:
 	sun.rotation_degrees = Vector3(-40, 30, 0)
 	sun.shadow_enabled = true
 	root.add_child(sun)
-	var look: Dictionary = load("res://scripts/world/world.gd").PLAYER_LOOK
+	# --body=female --top=3a6ab8 --trousers=... --hair=... --eyes=...: the hero as the character creator can make them
+	var look := {"face": "hero"}
+	for k in ["body", "top", "trousers", "hair", "eyes"]:
+		if _test.has(k):
+			look[k] = _test[k]
 	if _test.has("model"):
 		look = {"model": _test["model"]}
-	# --pose=walk: side views a quarter of a stride apart (--amount = stride, 1 walk, 1.25 run)
+	# --pose=walk: side views an eighth of a stride apart (--speed: 1.7 a stroll, 4.6 the hero's jog, 7.8 a sprint)
 	var walk: bool = _test.get("pose", "") == "walk"
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	for i in 4:
 		var rig: Node3D = VPer.build(look)
 		VPer.face(rig, Vector2i(1, 0) if walk else dirs[i])
 		if walk:
-			VPer.animate(rig, i * PI / 4.0, float(_test.get("amount", "1")), 0.0)
+			VPer.animate(rig, i * PI / 4.0 + float(_test.get("phase", "0")), float(_test.get("speed", "4.6")), 0.0)
 		rig.position = Vector3(i * 1.4, 0, 0)
 		root.add_child(rig)
 	var cam := Camera3D.new()

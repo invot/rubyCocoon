@@ -45,7 +45,7 @@ func _ready() -> void:
 func refresh() -> void:
 	if _gem != UIKit.accent_name:
 		_recolour()
-	_touch_on = Prefs.touch_enabled()
+	_touch_on = Prefs.touch_enabled() and not title_mode
 	touch_root.visible = _touch_on
 	legend.visible = not _touch_on and Prefs.show_key_legend
 	_place_legend(true)
@@ -88,10 +88,20 @@ func _process(_delta: float) -> void:
 		return
 	var top = UI.stack.back() if is_instance_valid(UI) and not UI.stack.is_empty() else null
 	var hide: bool = top != null and top.get("hides_touch_pad") == true
-	if _buttons["a"].visible == hide:
-		for id in ["up", "down", "left", "right", "a", "b"]:
+	var stick := not hide and not dpad_mode and not flute_mode
+	var pad := not hide and not stick
+	if _buttons["a"].visible == hide or _dpad_base.visible != pad or _stick_base.visible != stick:
+		for id in ["up", "down", "left", "right"]:
+			_buttons[id].visible = pad
+			# hidden touch buttons still catch touches: switch the arms off while the joystick is up
+			_buttons[id].process_mode = Node.PROCESS_MODE_INHERIT if pad else Node.PROCESS_MODE_DISABLED
+		for id in ["a", "b"]:
 			_buttons[id].visible = not hide
-		_dpad_base.visible = not hide
+		_dpad_base.visible = pad
+		_stick_base.visible = stick
+		_knob.visible = stick
+		if not stick and _stick_finger >= 0:
+			_stick_release()
 
 
 ## Redraws the legend strip, key caps and pad faces in the current gem.
@@ -165,6 +175,20 @@ const SHADOW_ROOM := 8
 
 ## the d-pad's cross, drawn whole under its four arm buttons (which only show when pressed)
 var _dpad_base: Sprite2D
+## Getting about uses a joystick in the d-pad's place: a round base with a knob that follows the thumb, steering any
+## of the eight ways, faster the further it's pushed (past the ring marked on the base, a run; see UI.STICK_RUN).
+## Battles and the flute game bring the d-pad back (set_dpad_mode, flute_mode).
+const STICK := 280.0
+const KNOB := 84.0
+## how far the knob travels from the centre at a full push, and how far it must go before it steers at all
+const STICK_REACH := 108.0
+const STICK_DEAD := 0.2
+var dpad_mode := false
+var _stick_base: Sprite2D
+var _knob: Sprite2D
+var _stick_finger := -1
+var _stick_amount := 0.0
+var _stick_held := {}
 ## A, B, Start and Pause's labels: they sink a little while their button is held
 var _labels := {}
 
@@ -177,6 +201,12 @@ func _build_touch() -> void:
 	_dpad_base = Sprite2D.new()
 	_dpad_base.centered = false
 	touch_root.add_child(_dpad_base)
+	_stick_base = Sprite2D.new()
+	_stick_base.centered = false
+	touch_root.add_child(_stick_base)
+	_knob = Sprite2D.new()
+	_knob.centered = false
+	touch_root.add_child(_knob)
 	for dir in ["up", "down", "left", "right"]:
 		_touch_button(dir, Vector2(ARM, ARM))
 	for k in ["a", "b"]:
@@ -207,21 +237,82 @@ func _style_cap_label(l: Label, box: Vector2) -> void:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## (Re)draws every face in the current gem.
+## The faces, painted pixel by pixel, take a second or more on a phone: they're painted on a worker thread and kept
+## in user:// for each gem, so the game doesn't wait for them and later launches just load them. Bump PAD_STYLE when
+## their look changes, so the kept ones are painted afresh.
+const PAD_CACHE := "user://touch_pad/"
+const PAD_STYLE := 4
+const FACES := ["dpad", "up", "down", "left", "right", "a", "a_pressed", "b", "b_pressed", "pill", "pill_pressed", "stick", "knob"]
+
+
+## (Re)draws every face in the current gem: kept ones straight away, else on a worker thread (until they're ready the
+## buttons work, unpainted).
 func _paint_pad() -> void:
-	_dpad_base.texture = _dpad_face()
+	for k in _labels:
+		(_labels[k] as Label).add_theme_color_override("font_shadow_color", Color(UIKit.BROWN, 0.85))
+	var key := _pad_key()
+	var faces := _kept_faces(key)
+	if not faces.is_empty():
+		_show_faces(faces)
+		return
+	WorkerThreadPool.add_task(_paint_faces.bind(key))
+
+
+## Where this gem's faces are kept: its name, and its colours, the sizes and PAD_STYLE, so any change paints afresh.
+static func _pad_key() -> String:
+	return "%s_%x" % [UIKit.accent_name, hash([PAD_STYLE, UIKit.ACCENT.to_html(), UIKit.BORDER.to_html(), UIKit.BROWN.to_html(), ARM, ROUND, PILL])]
+
+
+static func _kept_faces(key: String) -> Dictionary:
+	var out := {}
+	for f in FACES:
+		var path: String = PAD_CACHE + key + "/" + f + ".png"
+		if not FileAccess.file_exists(path):
+			return {}
+		var img := Image.load_from_file(path)
+		if img == null or img.is_empty():
+			return {}
+		out[f] = img
+	return out
+
+
+## On a worker thread: paints every face, keeps them, and hands them to the main thread.
+func _paint_faces(key: String) -> void:
+	var faces := {"dpad": _dpad_face(), "pill": _pill_face(false), "pill_pressed": _pill_face(true),
+		"stick": _stick_base_face(), "knob": _knob_face()}
+	for dir in ["up", "down", "left", "right"]:
+		faces[dir] = _arm_pressed(dir)
+	for k in ["a", "b"]:
+		faces[k] = _dome_face(k, false)
+		faces[k + "_pressed"] = _dome_face(k, true)
+	DirAccess.make_dir_recursive_absolute(PAD_CACHE + key)
+	for f in faces:
+		(faces[f] as Image).save_png(PAD_CACHE + key + "/" + f + ".png")
+	_faces_painted.call_deferred(key, faces)
+
+
+func _faces_painted(key: String, faces: Dictionary) -> void:
+	if key != _pad_key():
+		# the gem changed while they were being painted
+		_paint_pad()
+		return
+	_show_faces(faces)
+
+
+func _show_faces(faces: Dictionary) -> void:
+	_dpad_base.texture = ImageTexture.create_from_image(faces["dpad"])
+	_stick_base.texture = ImageTexture.create_from_image(faces["stick"])
+	_knob.texture = ImageTexture.create_from_image(faces["knob"])
 	for dir in ["up", "down", "left", "right"]:
 		var b: TouchScreenButton = _buttons[dir]
 		b.texture_normal = _blank(Vector2i(int(ARM), int(ARM)))
-		b.texture_pressed = _arm_pressed(dir)
+		b.texture_pressed = ImageTexture.create_from_image(faces[dir])
 	for k in ["a", "b"]:
-		_buttons[k].texture_normal = _dome_face(k, false)
-		_buttons[k].texture_pressed = _dome_face(k, true)
+		_buttons[k].texture_normal = ImageTexture.create_from_image(faces[k])
+		_buttons[k].texture_pressed = ImageTexture.create_from_image(faces[k + "_pressed"])
 	for k in ["start", "pause"]:
-		_buttons[k].texture_normal = _pill_face(false)
-		_buttons[k].texture_pressed = _pill_face(true)
-	for k in _labels:
-		(_labels[k] as Label).add_theme_color_override("font_shadow_color", Color(UIKit.BROWN, 0.85))
+		_buttons[k].texture_normal = ImageTexture.create_from_image(faces["pill"])
+		_buttons[k].texture_pressed = ImageTexture.create_from_image(faces["pill_pressed"])
 
 
 # ---- shapes: signed distances, positive inside
@@ -279,7 +370,7 @@ static func _cover(d: float) -> float:
 
 ## The whole cross: a soft shadow, the rim, a top-lit gradient with bevelled edges, a dimple in the middle and pale
 ## raised arrows.
-static func _dpad_face() -> ImageTexture:
+static func _dpad_face() -> Image:
 	var n := int(ARM * 3.0)
 	var img := Image.create(n, n + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
 	var rim := UIKit.BORDER
@@ -315,11 +406,11 @@ static func _dpad_face() -> ImageTexture:
 					body = rim.lerp(rim.darkened(0.45), p.y / n)
 				col = col.blend(Color(body, 0.94 * a))
 			img.set_pixel(x, y, col)
-	return ImageTexture.create_from_image(img)
+	return img
 
 
 ## A pressed arm: its part of the cross sinks into shadow and its arrow lights up in the gem.
-static func _arm_pressed(dir: String) -> ImageTexture:
+static func _arm_pressed(dir: String) -> Image:
 	var off: Vector2 = {"up": Vector2(ARM, 0), "down": Vector2(ARM, ARM * 2.0), "left": Vector2(0, ARM), "right": Vector2(ARM * 2.0, ARM)}[dir]
 	var n := int(ARM)
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
@@ -334,12 +425,12 @@ static func _arm_pressed(dir: String) -> ImageTexture:
 				if ad > -1.0:
 					col = col.blend(Color(UIKit.ACCENT.lightened(0.25), _cover(ad)))
 			img.set_pixel(x, y, col)
-	return ImageTexture.create_from_image(img)
+	return img
 
 
 ## A or B: a round, domed button in the gem (B a deeper shade) with a pale rim, a top-lit bevel, a glossy highlight
 ## and a shadow below; pressed, it sinks onto its shadow and darkens.
-static func _dome_face(which: String, pressed: bool) -> ImageTexture:
+static func _dome_face(which: String, pressed: bool) -> Image:
 	var w := int(ROUND)
 	var img := Image.create(w, w + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
 	var r := ROUND / 2.0 - 2.0
@@ -369,11 +460,11 @@ static func _dome_face(which: String, pressed: bool) -> ImageTexture:
 					body = UIKit.BORDER.lerp(UIKit.BORDER.darkened(0.45), t)
 				col = col.blend(Color(body, 0.94 * a))
 			img.set_pixel(x, y, col)
-	return ImageTexture.create_from_image(img)
+	return img
 
 
 ## Start / Pause: a small pill plate in the d-pad's colours, raised on a shadow.
-static func _pill_face(pressed: bool) -> ImageTexture:
+static func _pill_face(pressed: bool) -> Image:
 	var sz := Vector2i(int(PILL.x), int(PILL.y) + SHADOW_ROOM)
 	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
 	var rect := Rect2(Vector2(0, 2.0 if pressed else 0.0), PILL).grow(-1)
@@ -397,7 +488,60 @@ static func _pill_face(pressed: bool) -> ImageTexture:
 					body = UIKit.BORDER.lerp(UIKit.BORDER.darkened(0.45), t)
 				col = col.blend(Color(body, 0.94 * a))
 			img.set_pixel(x, y, col)
-	return ImageTexture.create_from_image(img)
+	return img
+
+
+## The joystick's markings, nothing solid: two thin rings round the knob's travel (inside the first, a walk; between
+## the two, a run), pale and gem-coloured with a soft dark edge so they read over any ground.
+static func _stick_base_face() -> Image:
+	var n := int(STICK)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var c := Vector2(STICK / 2.0, STICK / 2.0)
+	var pale := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.12, 0.97)
+	var rings := [[STICK_REACH * UI.STICK_RUN, pale, 0.75], [STICK_REACH, UIKit.ACCENT.lightened(0.35), 0.95]]
+	for y in n:
+		for x in n:
+			var dc := Vector2(x + 0.5, y + 0.5).distance_to(c)
+			var col := Color(0, 0, 0, 0)
+			# each ring: a dark halo, then the line
+			for ring in rings:
+				var g := absf(dc - float(ring[0]))
+				col = col.blend(Color(0, 0, 0, clampf(3.5 - g, 0.0, 1.0) * 0.35))
+				col = col.blend(Color(ring[1], clampf(1.6 - g, 0.0, 1.0) * float(ring[2])))
+			img.set_pixel(x, y, col)
+	return img
+
+
+## The joystick's knob: a domed cap in the plate's colours, lit from above with a glossy highlight and a grip ring.
+static func _knob_face() -> Image:
+	var w := int(KNOB)
+	var img := Image.create(w, w + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
+	var r := KNOB / 2.0 - 2.0
+	var c := Vector2(KNOB / 2.0, KNOB / 2.0)
+	var sc := c + Vector2(0, 6)
+	var top := _plate(0.0).lightened(0.22)
+	var bottom := _plate(1.0).darkened(0.1)
+	for y in img.get_height():
+		for x in w:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var col := Color(0, 0, 0, clampf((r - p.distance_to(sc) + 3.0) / 6.0, 0.0, 1.0) * 0.45)
+			var d := r - p.distance_to(c)
+			var a := _cover(d)
+			if a > 0.0:
+				var t := clampf((p.y - (c.y - r)) / (2.0 * r), 0.0, 1.0)
+				var body := top.lerp(bottom, t)
+				body = _bevel(body, d - 3.0, (p - c).normalized(), 9.0)
+				var gr := absf(p.distance_to(c) - r * 0.58)
+				if gr < 1.5:
+					body = body.lerp(Color.BLACK, 0.22 * (1.0 - gr / 1.5))
+				var hd := ((p - (c + Vector2(-0.12 * r, -0.5 * r))) / Vector2(0.55 * r, 0.26 * r)).length()
+				if hd < 1.0:
+					body = body.lerp(Color.WHITE, (1.0 - hd) * 0.3)
+				if d < 3.0:
+					body = UIKit.BORDER.lerp(UIKit.BORDER.darkened(0.45), t)
+				col = col.blend(Color(body, 0.96 * a))
+			img.set_pixel(x, y, col)
+	return img
 
 
 static func _blank(sz: Vector2i) -> ImageTexture:
@@ -437,6 +581,89 @@ var _legend_row: Control
 var _flute_row: Control
 
 
+## The title screen shows no buttons at all: its menu is tapped (or picked with the keys).
+var title_mode := false
+
+
+func set_title_mode(on: bool) -> void:
+	if on == title_mode:
+		return
+	if _stick_finger >= 0:
+		_stick_release()
+	title_mode = on
+	refresh()
+
+
+## Battles use the d-pad; getting about, the joystick.
+func set_dpad_mode(on: bool) -> void:
+	if on == dpad_mode:
+		return
+	if _stick_finger >= 0:
+		_stick_release()
+	dpad_mode = on
+
+
+## How far the joystick is pushed (0 to 1) while a thumb is on it and it's steering, else 0.
+func stick_push() -> float:
+	return _stick_amount
+
+
+func _stick_shown() -> bool:
+	return _touch_on and _stick_base != null and _stick_base.visible
+
+
+func _stick_centre() -> Vector2:
+	return _stick_base.position + Vector2(STICK, STICK) / 2.0
+
+
+## A thumb that lands on the joystick steers it until it lifts.
+func _input(ev: InputEvent) -> void:
+	if not _stick_shown():
+		return
+	if ev is InputEventScreenTouch:
+		if ev.pressed and _stick_finger < 0 and ev.position.distance_to(_stick_centre()) <= STICK / 2.0 + TOUCH_SLOP:
+			_stick_finger = ev.index
+			_stick_to(ev.position)
+			get_viewport().set_input_as_handled()
+		elif not ev.pressed and ev.index == _stick_finger:
+			_stick_release()
+			get_viewport().set_input_as_handled()
+	elif ev is InputEventScreenDrag and ev.index == _stick_finger:
+		_stick_to(ev.position)
+		get_viewport().set_input_as_handled()
+
+
+## The knob follows the thumb (up to its reach); the way it points, rounded to the nearest of the eight, holds the
+## arrows for it, and how far it's out sets the pace.
+func _stick_to(pos: Vector2) -> void:
+	var v := pos - _stick_centre()
+	var m := clampf(v.length() / STICK_REACH, 0.0, 1.0)
+	_knob.position = _stick_centre() + v.limit_length(STICK_REACH) - Vector2(KNOB, KNOB) / 2.0
+	var dir := Vector2i.ZERO
+	if m >= STICK_DEAD:
+		var a := snappedf(v.angle(), PI / 4.0)
+		dir = Vector2i(roundi(cos(a)), roundi(sin(a)))
+	_stick_amount = m if dir != Vector2i.ZERO else 0.0
+	_stick_aim(dir)
+
+
+func _stick_release() -> void:
+	_stick_finger = -1
+	_stick_amount = 0.0
+	_stick_aim(Vector2i.ZERO)
+	var tw := create_tween()
+	tw.tween_property(_knob, "position", _stick_centre() - Vector2(KNOB, KNOB) / 2.0, 0.08)
+
+
+## Holds the arrows for one of the eight ways (two at once on a diagonal), letting go of the rest.
+func _stick_aim(dir: Vector2i) -> void:
+	var want := {"left": dir.x < 0, "right": dir.x > 0, "up": dir.y < 0, "down": dir.y > 0}
+	for id in want:
+		if want[id] != bool(_stick_held.get(id, false)):
+			_stick_held[id] = want[id]
+			_send(id, want[id])
+
+
 func set_flute_mode(on: bool) -> void:
 	if on == flute_mode:
 		return
@@ -472,6 +699,9 @@ func _layout() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	var pad := Vector2(28, vp.y - 28 - ARM * 3.0)
 	_dpad_base.position = pad
+	_stick_base.position = pad + Vector2(ARM * 3.0 - STICK, ARM * 3.0 - STICK) / 2.0
+	if _stick_finger < 0:
+		_knob.position = _stick_centre() - Vector2(KNOB, KNOB) / 2.0
 	_buttons["up"].position = pad + Vector2(ARM, 0)
 	_buttons["left"].position = pad + Vector2(0, ARM)
 	_buttons["right"].position = pad + Vector2(ARM * 2.0, ARM)
@@ -494,6 +724,8 @@ const NO_TAP_MARGIN := 48.0
 func covers(p: Vector2) -> bool:
 	if not _touch_on:
 		return false
+	if _stick_shown() and p.distance_to(_stick_centre()) <= STICK / 2.0 + TOUCH_SLOP + NO_TAP_MARGIN:
+		return true
 	for group in CLUSTERS:
 		if not (_buttons[group[0]] as TouchScreenButton).visible:
 			continue

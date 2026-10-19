@@ -87,6 +87,15 @@ func _on_prefs_changed() -> void:
 		root.theme = UIKit.make_theme()
 
 
+## How far the touch joystick is pushed (0 to 1) past which the hero runs (see world.gd _step_speed).
+const STICK_RUN := 0.8
+
+
+## How far the touch joystick is pushed (0 to 1), or 0 when nobody's touching it.
+func stick_push() -> float:
+	return controls.stick_push() if controls != null else 0.0
+
+
 ## Height kept clear at the bottom of the screen for the key legend / touch buttons.
 func bottom_reserve() -> float:
 	if controls == null:
@@ -195,6 +204,17 @@ func text_input(prompt: String, default := "") -> String:
 	push(t)
 	var r = await t.done
 	return str(r)
+
+
+## The character creator (hero_maker.gd, loaded only when a new game begins): {"name", "look"}, or null if backed
+## out of.
+func make_hero():
+	if auto:
+		await get_tree().process_frame
+		return {"name": "Robin", "look": {}}
+	var m: Control = load("res://scripts/ui/hero_maker.gd").new()
+	push(m)
+	return await m.done
 
 
 func show_beast(b, heading := "") -> void:

@@ -2,8 +2,11 @@ extends Node
 ## Story events, quests, NPC conversations, field moves, trainer battles and wild encounters.
 ##
 ## Quest flags (GameState.flags):
-##   intro_done, got_egg, has_starter            - the first egg and the first hatch
+##   intro_done, got_egg, has_starter            - the first egg and the first hatch (opens the Coastal Path)
+##   lesson_screen/turns/slingshot/items/ring, tutorial_done   - the Coastal Path's teachers
+##   flute_lesson_done                             - the guided capture of your first wild beast after the flute
 ##   shell_heard, kelp_heard, culprit_beaten, island_peace   - the Isle of Tides feud (opens the reef)
+##   guardian_water                                - also opens the Dune Road to the desert
 ##   met_sheriff, bandits_cleared                  - Sundown's bandits (opens the Dune Sea)
 ##   ceo_defeated                                  - Gearhart Tower (opens Caldera Road)
 ##   relic_quest, relic_sun, relic_moon, relic_earth, ritual_done   - the jungle ritual (raises the earth temple)
@@ -19,6 +22,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
+const ItemDB = preload("res://scripts/data/item_db.gd")
 
 const ELDER_LOOK := {"skin": "#e8c0a0", "hair": "#e8e8e8", "shirt": "#6a4a8a", "pants": "#3a2a4a", "outfit": "robe"}
 const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "pants": "#3a3a2a", "hat": "#6a5a3a"}
@@ -55,6 +59,41 @@ func _has_anchor(map: Dictionary, name: String) -> bool:
 	return map.get("anchors", {}).has(name)
 
 
+## The Coastal Path's teachers (see battle.gd LESSONS). Each stands beside the trail where you can't slip past them
+## and walks you through one part of battling, before you have a flute; the last one sets "tutorial_done".
+## lines: before the battle; after: once you've won; defeat: when you talk to them again; gift: items they give you.
+const LESSON_TRAINERS := [
+	{"anchor": "lesson_screen", "lesson": "screen", "name": "Tilly", "cls": "Camper", "team": [[21, 2]], "facing": Vector2i(0, 1),
+		"look": {"skin": "#f0c8a0", "hair": "#a06030", "hair_style": 1, "shirt": "#6aa84f", "pants": "#5a4a3a", "hat": "#d8b060"},
+		"lines": ["Hey hey, a new trainer! Everyone who walks the Coastal Path gets a lesson from us. It's tradition. We started it last Tuesday."],
+		"after": ["That's the battle screen! Keep heading along the trail. Fisher Dale will teach you about turns. He's very patient. He's a fisher."],
+		"defeat": "Your own bar comes first, then one for each beast. Left and right to choose, A to confirm, B to go back!"},
+	{"anchor": "lesson_turns", "lesson": "turns", "name": "Dale", "cls": "Fisher", "team": [[38, 2]], "facing": Vector2i(0, -1),
+		"look": {"skin": "#c08a60", "hair": "#303040", "shirt": "#3a6a9a", "pants": "#4a4a52", "hat": "#e8c040"},
+		"lines": ["Shh, the fish are bit... oh, a trainer! Never mind the fish. They never bite anyway. Let's talk about turns."],
+		"after": ["Patience wins battles, and Defend buys you time. Down by the creek, Youngster Kit will show you your own turn. He's VERY excited about it."],
+		"defeat": "Everyone picks first, then the faster side goes. Defend always goes first and halves the hurt."},
+	{"anchor": "lesson_slingshot", "lesson": "slingshot", "name": "Kit", "cls": "Youngster", "team": [[12, 3]], "facing": Vector2i(0, 1),
+		"look": {"skin": "#e0b088", "hair": "#5a3a20", "shirt": "#e07a5a", "pants": "#3a4a6a"},
+		"lines": ["You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
+		"after": ["The footbridge washed out in the storm, but there are logs lying all along the trail. Five would do it!",
+			"Picnicker Mae is over on the far side of the creek. Bring an appetite."],
+		"defeat": "Your own bar: Slingshot, Items, Watch... and Run from wild beasts, or Forfeit against trainers."},
+	{"anchor": "lesson_items", "lesson": "items", "name": "Mae", "cls": "Picnicker", "team": [[25, 3]], "facing": Vector2i(0, 1),
+		"gift": {"minor_potion": 3},
+		"look": {"skin": "#f8d8c0", "hair": "#e0c070", "hair_style": 1, "shirt": "#e8a0c0", "pants": "#6a5a8a"},
+		"lines": ["Is that a beast? Is it hungry? Never mind. Let's talk about the most important thing in a battle: snacks. I mean items."],
+		"after": ["Take these for the road: three Minor Potions! Ranger Holt waits just before Tidewater with the last lesson."],
+		"defeat": "Potions heal HP and Spirit Drops bring back MP. Apothecaries sell them. Picnic baskets don't. I checked."},
+	{"anchor": "lesson_ring", "lesson": "ring", "name": "Holt", "cls": "Ranger", "team": [[36, 3]], "facing": Vector2i(0, -1),
+		"look": {"skin": "#8a5a3a", "hair": "#2a1a10", "shirt": "#5a7a3a", "pants": "#4a3a2a", "hat": "#4a6a2a"},
+		"lines": ["Halt! Rangers check every new trainer before Tidewater. Relax, it's a lesson, not a test. Well. A little bit a test."],
+		"after": ["You're ready. Shields recharge after every battle, and Volt at Sparkwire Electronics can add shield points and beast slots for crystal shards.",
+			"Now go and see your uncle! Tidewater's just along the trail."],
+		"defeat": "Knock out the foe's middle beast, then hit the trainer. No shield left? That trainer loses."},
+]
+
+
 func extra_npcs(map: Dictionary) -> Array:
 	var out := []
 	var id: String = map["id"]
@@ -70,13 +109,25 @@ func extra_npcs(map: Dictionary) -> Array:
 		"caccoon":
 			out.append({"kind": "story", "id": "elder", "name": "Elder Rowan", "pos": _at(map, "elder", plaza), "look": ELDER_LOOK, "facing": Vector2i(0, 1), "story": true})
 			out.append({"kind": "story", "id": "guard", "name": "Scout Bram", "pos": _at(map, "guard", plaza + Vector2i(8, 1)), "look": GUARD_LOOK, "facing": Vector2i(-1, 0)})
-			if not GameState.flag("tutorial_done"):
-				_close_edge(map, "east", "A wooden gate. Scout Bram won't let anyone onto the Coastal Path without a beast and a battle lesson.")
+			if not GameState.flag("has_starter"):
+				_close_edge(map, "east", "A wooden gate. Scout Bram won't let anyone onto the Coastal Path without a beast of their own.")
 			# a little thank-you to the voxel artist StickyBizcuit, tucked away in the north-west corner
 			if MapGen.walkable(MapGen.get_t(map, 3, 2)):
 				out.append({"kind": "story", "id": "bizcuit", "name": "Bizcuit", "pos": Vector2i(3, 2), "facing": Vector2i(0, 1),
 					"look": {"skin": "#f0c8a0", "hair": "#c8843a", "shirt": "#e8b860", "pants": "#6a4a2a", "hat": "#a0603a", "outfit": "apron"}})
+		"route1":
+			for t in LESSON_TRAINERS:
+				if _has_anchor(map, t["anchor"]):
+					var lt: Dictionary = t.duplicate(true)
+					lt["kind"] = "trainer"
+					lt["pos"] = _at(map, t["anchor"], plaza)
+					lt["sight"] = 4
+					lt["flag"] = "lesson_" + String(t["lesson"])
+					lt["reward"] = 40
+					out.append(lt)
 		"tidewater", "shellhaven":
+			if id == "tidewater" and not GameState.flag("guardian_water"):
+				_close_edge(map, "north", "The Dune Road is shut: sandstorms as tall as lighthouses. Folk say they won't settle until things are calm at the Temple of Tides, out on the Isle of Tides.")
 			if _has_anchor(map, "uncle"):
 				out.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", plaza), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
 			if _has_anchor(map, "ferry"):
@@ -142,7 +193,7 @@ func npc_has_news(n: Dictionary) -> bool:
 		"uncle":
 			return not _lessons_done()
 		"guard":
-			return GameState.flag("has_starter") and not GameState.flag("tutorial_done")
+			return GameState.flag("has_starter") and not GameState.flag("bram_sendoff")
 		"chief_shell":
 			return not GameState.flag("shell_heard") or (GameState.flag("culprit_beaten") and not GameState.flag("island_peace"))
 		"chief_kelp":
@@ -255,7 +306,7 @@ func uncle_lessons() -> bool:
 		if not await Places.learn_attempts(SongDB.capture_id(1), who, 0.0, {"lesson": true}):
 			await UI.say(["Almost had it! Talk to me when you want another try."], who)
 			return false
-		await UI.say(["That's my nephew! When one of your beasts outgrows Capture I, practise the next level from your book.",
+		await UI.say(["That's my %s! When one of your beasts outgrows Capture I, practise the next level from your book." % GameState.hero_word("nephew", "niece"),
 			"Oh, and the Tidewater Arena only lets in trainers with a flute. You've got one now. Go show Captain Marina what you can do!"], who)
 	return true
 
@@ -471,7 +522,33 @@ func _talk_villager(world, n: Dictionary) -> void:
 		lines = ChatterDB.pick(ChatterDB.TOWNS[world.map_id], rng)
 	else:
 		lines = ChatterDB.pick(ChatterDB.QUIRKY, rng)
+	# and a casual hint about what to do next (it changes once you've done it)
+	var hints: Array = ChatterDB.HINTS.get(next_goal(), [])
+	if not hints.is_empty():
+		lines = lines + [hints[rng.randi_range(0, hints.size() - 1)]]
 	await UI.say(ChatterDB.fill(lines, GameState.player_name), n.get("name", ""))
+
+
+## What the player should do next, for the townsfolk's hints (ChatterDB.HINTS).
+func next_goal() -> String:
+	for step in [["got_egg", "egg"], ["has_starter", "hatch"], ["tutorial_done", "path"]]:
+		if not GameState.flag(step[0]):
+			return step[1]
+	if not GameState.has_flute():
+		return "flute"
+	if not _lessons_done():
+		return "rafe"
+	if not GameState.flag("shell_heard") and not GameState.flag("kelp_heard"):
+		return "ferry"
+	if not (GameState.flag("shell_heard") and GameState.flag("kelp_heard")):
+		return "chiefs"
+	for step in [["culprit_beaten", "smuggler"], ["island_peace", "peace"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
+			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
+			["guardian_fire", "flame"], ["relic_quest", "jungle"], ["ritual_done", "relics"], ["guardian_earth", "roots"],
+			["nyx_defeated", "gravenmoor"], ["game_cleared", "vexmora"]]:
+		if not GameState.flag(step[0]):
+			return step[1]
+	return "done"
 
 
 func _talk_trainer(world, n: Dictionary) -> void:
@@ -492,11 +569,17 @@ func _talk_trainer(world, n: Dictionary) -> void:
 		await UI.say(["Your beasts are too tired to battle! Heal them first."], name)
 		return
 	await UI.say(n.get("lines", ["Let's battle!"]), name)
-	var res := await trainer_battle({"name": n.get("name", ""), "cls": n.get("cls", "Trainer"), "team": n["team"], "defeat": n.get("defeat", ""),
-		"look": n.get("look", {}), "robot_body": n.get("robot_body", ""), "song": song, "boss": n.get("bandit_boss", false), "flute_skill": n.get("flute_skill", 0.8), "encore": n.get("encore", false)})
+	var def := {"name": n.get("name", ""), "cls": n.get("cls", "Trainer"), "team": n["team"], "defeat": n.get("defeat", ""),
+		"look": n.get("look", {}), "robot_body": n.get("robot_body", ""), "song": song, "boss": n.get("bandit_boss", false), "flute_skill": n.get("flute_skill", 0.8), "encore": n.get("encore", false)}
+	for k in ["lesson", "reward"]:
+		if n.has(k):
+			def[k] = n[k]
+	var res := await trainer_battle(def)
 	if res != "win":
 		return
 	GameState.set_flag(n["flag"])
+	if n.has("lesson"):
+		await _lesson_done(n, name)
 	if n.get("vanish", false):
 		world.remove_npc(n)
 	if n.get("bandit_boss", false):
@@ -508,6 +591,20 @@ func _talk_trainer(world, n: Dictionary) -> void:
 		GameState.set_flag("met_legion")
 		await UI.say(["So the rumours are true... The Umbral Legion is here, with beasts twisted into shadow.",
 			"Those ghost beasts had no weakness at all. You'll need strong, merged beasts to stand against them."])
+
+
+## After a teacher's lesson on the Coastal Path: their parting words, a gift, and once all five are done, the path's
+## lessons are over.
+func _lesson_done(n: Dictionary, name: String) -> void:
+	GameState.heal_party()
+	await UI.say(n.get("after", []), name)
+	var gift: Dictionary = n.get("gift", {})
+	for item in gift:
+		GameState.add_item(item, int(gift[item]))
+		Sfx.play("pickup")
+		UI.toast("Received %d %s!" % [int(gift[item]), ItemDB.item_name(item) + ("s" if int(gift[item]) > 1 else "")], UIKit.GOLD)
+	if LESSON_TRAINERS.all(func(t): return GameState.flag("lesson_" + String(t["lesson"]))):
+		GameState.set_flag("tutorial_done")
 
 
 func _talk_story(world, n: Dictionary) -> void:
@@ -529,15 +626,18 @@ func _talk_story(world, n: Dictionary) -> void:
 			elif GameState.flag("has_starter"):
 				await UI.say(["You look tired! Let me take care of your beasts.", "...There. Good as new! Come home any time."], "Mom")
 			elif GameState.flag("got_egg"):
-				await UI.say(["What a lovely egg! Take it to the Beast Center. Nurse Clover can hatch it."], "Mom")
+				await UI.say(["What a lovely egg! Take it to the Beast Center by the square, the one with the red-and-white awning and the paw print over the door. Nurse Clover can hatch it."], "Mom")
 			else:
 				await UI.say(["Elder Rowan is waiting for you in the plaza.", "I'm so proud of you, %s." % GameState.player_name], "Mom")
 		"guard":
 			if GameState.flag("has_starter") and not GameState.flag("tutorial_done"):
-				await _battle_lesson(world)
+				GameState.set_flag("bram_sendoff")
+				await UI.say(["Hey, you hatched it! Look at that little %s. It has your nose." % GameState.party[0].nickname,
+					"The gate's open. Along the Coastal Path, the trainers will each teach you a bit of battling. Everyone who passes gets a lesson. Rules are rules. Mostly my rules.",
+					"Your uncle's waiting in Tidewater at the end of the path. Off you go, champ!"], "Scout Bram")
 			elif GameState.flag("has_starter"):
-				await UI.say(["Off you go! The Coastal Path leads east to Tidewater. Your uncle's waiting for you there.",
-					"Wild beasts roam the path. Creep up behind one and you'll get the jump on it. Let one sneak up behind YOU and, well... don't.",
+				await UI.say(["Off you go! The Coastal Path leads east to Tidewater.",
+					"Wild beasts roam the path once you've got a flute to play them. Creep up behind one and you'll get the jump on it. Let one sneak up behind YOU and, well... don't.",
 					"...I hide in the tall grass sometimes. It makes me harder to spot. Nobody knows. Now you know."], "Scout Bram")
 			else:
 				await UI.say(["Whoa there! Wild beasts roam the Coastal Path. Also bees. Mostly beasts.", "I can't let you through without a beast of your own. Go see Elder Rowan in the plaza!"], "Scout Bram")
@@ -617,14 +717,15 @@ func _elder(_world, _n: Dictionary) -> void:
 		GameState.set_flag("got_egg")
 		Sfx.play("capture")
 		await UI.say(["You received the %s Egg!" % RaceDB.element(pick).capitalize()])
-		await UI.say(["Take it to the Beast Center. Nurse Clover will help it hatch.",
+		await UI.say(["Take it to the Beast Center, right across the road from this square: the blue building with the red-and-white striped awning and a red paw print over the door. Nurse Clover will help it hatch.",
 			"A fresh hatchling starts at level 1, so be gentle with it at first. Win battles and it will grow strong.",
 			"Defeated wild beasts sometimes leave an egg behind, about one time in five. Collect them and hatch them too!",
 			"Remember the elements: fire is weak to air, earth to water, water to air, and air to fire.",
 			"And %s... beware the Umbral Legion. Their ghost beasts have no weakness." % GameState.player_name], "Elder Rowan")
 		return
 	if not GameState.flag("has_starter"):
-		await UI.say(["Your egg won't hatch in your pocket! The Beast Center is just north of the plaza."], "Elder Rowan")
+		await UI.say(["Your egg won't hatch in your pocket! The Beast Center is right across the road from this square.",
+			"Look for the red-and-white striped awning and the red paw print over the door. Nurse Clover is inside."], "Elder Rowan")
 		return
 	if GameState.flag("game_cleared"):
 		await UI.say(["The ghost beasts are free, and the Legion is gone. You did it, %s." % GameState.player_name], "Elder Rowan")
@@ -639,30 +740,11 @@ func _elder(_world, _n: Dictionary) -> void:
 	await UI.say([tips[randi() % tips.size()]], "Elder Rowan")
 
 
-## Scout Bram's scripted first battle. You can only pick what he teaches, and you always win.
-func _battle_lesson(world) -> void:
-	var b = GameState.party[0] if not GameState.party.is_empty() else null
-	if b == null:
-		return
-	await UI.say(["Hey, you hatched it! Look at that little %s. It has your nose." % b.nickname,
-		"Before I let you out on the Coastal Path, you need to know how to battle. Rules are rules. Mostly my rules.",
-		"My Redcoon, Nugget, will go easy on you. Just do exactly what I say, okay?"], "Scout Bram")
-	GameState.heal_party()
-	var res := await trainer_battle({"name": "Bram", "cls": "Scout", "team": [[0, 1]], "nicknames": ["Nugget"], "tutorial": true,
-		"look": GUARD_LOOK, "reward": 100, "defeat": "Ha! Nugget, you were robbed. ...Kidding. That was a great first battle!"})
-	if res != "win":
-		return
-	GameState.set_flag("tutorial_done")
-	GameState.heal_party()
-	Sfx.play("levelup")
-	await UI.say(["See? Beasts grow stronger with every battle. %s already reached level %d!" % [b.nickname, b.level],
-		"Wild beasts roam the Coastal Path. Sneak up on one from behind and you'll catch it off guard. Beat them and they might even leave an egg behind.",
-		"If your beasts get tired, the healing machine in any Beast Center fixes them up for free.",
-		"Oh, and your uncle in Tidewater has your father's flute. Go and get it! The gate's open. Off you go, champ!"], "Scout Bram")
-	await GameState.main.reload_map()
-
-
 func _ferry(world) -> void:
+	if not _lessons_done():
+		await UI.say(["Ahoy! The Isle of Tides is no place for a trainer without a flute.",
+			"Go and see your Uncle Rafe first. Then we'll talk boats."], "Captain Gull")
+		return
 	var here: String = world.map_id
 	var dest := "shellhaven" if here == "tidewater" else "tidewater"
 	if not await UI.ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
@@ -711,7 +793,7 @@ func _culprit(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Ha! Your beasts can barely stand. Scram!"], "Smuggler Rook")
 		return
-	var res := await trainer_battle({"name": "Rook", "cls": "Smuggler", "boss": true, "team": [[17, 10], [40, 10], [14, 11]], "look": SMUGGLER_LOOK,
+	var res := await trainer_battle({"name": "Rook", "cls": "Smuggler", "boss": true, "team": [[17, 7], [40, 8]], "look": SMUGGLER_LOOK,
 		"defeat": "Alright, alright! I'll give the nets back. And I'll tell the chiefs everything...", "reward": 900})
 	if res == "win":
 		GameState.set_flag("culprit_beaten")
@@ -891,6 +973,9 @@ func _guardian(world, n: Dictionary) -> void:
 	var room: Dictionary = world.map.get("room", {})
 	var minions: Array = room.get("encounter", {}).get("races", [race, race])
 	var team := [[race, lv], [int(minions[0]), lv - 3], [int(minions[minions.size() - 1]), lv - 3]]
+	if lv < 20:
+		# the first temple's guardian brings just one helper
+		team.resize(2)
 	var res := await trainer_battle({"name": RaceDB.race_name(race), "cls": "Guardian", "team": team, "guardian": true,
 		"defeat": "", "reward": lv * 60})
 	if res != "win":
@@ -944,16 +1029,28 @@ func roll_wild(map: Dictionary) -> Array:
 	var first := _roll_wild_race(races)
 	var lead = _roll_wild_beast(first, lv, ghost_rate)
 	var foes := [lead]
+	var cap := pack_cap(enc)
+	if cap <= 1:
+		return foes
 	if lead.level <= GameState.best_level() and randf() < PACK_CHANCE_WEAK:
 		# safety in numbers: two or three of the same beast
-		var n := 3 if GameState.alive_party().size() >= 2 and randf() < 0.4 else 2
+		var n := mini(cap, 3 if GameState.alive_party().size() >= 2 and randf() < 0.4 else 2)
 		for i in range(1, n):
 			foes.append(_roll_wild_beast(first, lv, ghost_rate))
 	elif int(lv[0]) >= PACK_MIN_LEVEL and String(RaceDB.genes(first).get("body", "")) in PACK_BODIES and randf() < 0.3:
-		var n2 := 2 if int(lv[0]) < 26 or randf() < 0.5 else 3
+		var n2 := mini(cap, 2 if int(lv[0]) < 26 or randf() < 0.5 else 3)
 		for i in range(1, n2):
 			foes.append(_roll_wild_beast(first if randf() < 0.7 else _roll_wild_race(races), lv, ghost_rate))
 	return foes
+
+
+## The most beasts in one roaming group: alone on the early roads (always on the Coastal Path), pairs from Lv 7, and
+## threes only from Lv 16. A road's "pack" sets it outright.
+func pack_cap(enc: Dictionary) -> int:
+	if enc.has("pack"):
+		return int(enc["pack"])
+	var lo := int(enc["lv"][0])
+	return 1 if lo < 7 else (2 if lo < 16 else 3)
 
 
 func _roll_wild_race(races: Array) -> int:
@@ -980,11 +1077,17 @@ func _roll_wild_beast(race: int, lv: Array, ghost_rate: float):
 
 
 ## A battle with roaming beasts. kind: "sneak" (you caught it off guard), "wild" (face to face) or "ambush" (it caught you).
+## The first lone wild beast after Uncle Rafe's lessons is a guided battle (battle.gd LESSONS "flute"): playing Weaken,
+## then Capture to win it over.
 func wild_battle(_world, foes: Array, kind: String) -> String:
 	if GameState.alive_party().is_empty():
 		return "run"
-	return await GameState.main.start_battle({"wild": true, "foes": foes, "seed": randi(), "intro": kind,
-		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "")})
+	var lesson := ""
+	# (not for older saves that have caught beasts already)
+	if _lessons_done() and not GameState.flag("flute_lesson_done") and GameState.caught.size() <= 2 and foes.size() == 1 and not foes[0].ghost:
+		lesson = "flute"
+	return await GameState.main.start_battle({"wild": true, "foes": foes, "seed": randi(), "intro": kind, "lesson": lesson,
+		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "") if lesson == "" else ""})
 
 
 ## A random wild battle on the current map (test scenes).

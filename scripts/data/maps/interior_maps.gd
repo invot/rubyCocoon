@@ -544,7 +544,7 @@ const ROOMS := {
 	"temple_water": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
 		"npcs": {"1": "guardian", "2": "patron"},
-		"encounter": {"lv": [12, 16], "races": [14, 16, 17, 18, 13]},
+		"encounter": {"lv": [8, 11], "races": [14, 16, 17, 18, 13]},
 		"rows": [
 			"#####w#####w#####",
 			"#o~~~o..A..o~~~o#",

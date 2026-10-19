@@ -14,7 +14,7 @@ Open `D:\Games\RubyCaccoon\project.godot` in Godot 4.7 and press **F5**. You can
 
 | Action | Keyboard | Gamepad | Touch (phones and tablets) |
 |---|---|---|---|
-| Move | Arrow keys | D-pad | D-pad, bottom left |
+| Move (any of 8 ways) | Arrow keys (two at once go diagonally) | D-pad or left stick (pushed further, faster) | Joystick, bottom left: push further to go faster, past its outer ring to run (the d-pad returns in battles and the flute game) |
 | Action: talk, confirm, use a beast on an obstacle | A (or Enter) | A | A, bottom right |
 | Back; hold to run | S (or Esc) | B | B, bottom right |
 | Start: the travel book menu | Space | Start | START, bottom centre |
@@ -34,10 +34,21 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Tidewater, the next town east.
 2. Elder Rowan lets you choose one of four elemental eggs.
 3. The Beast Center hatches it into a **level 1** beast.
-4. Scout Bram won't open the gate to the Coastal Path until you've done his **battle lesson**. It's a scripted three-round fight that teaches the slingshot, your beast's attack, **Defend** and items. You can only pick what he asks, you always win, and your beast reaches level 2.
-5. Rebuild the washed-out footbridge on the Coastal Path (five logs) to reach Tidewater.
-6. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
-7. Arenas only let in trainers with a flute.
+4. Scout Bram keeps the gate to the Coastal Path shut until you have a beast of your own.
+5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it, each standing where
+   you can't slip past (`story.gd` LESSON_TRAINERS, battle.gd LESSONS). Each gives a guided battle: only what's being
+   taught can be picked, you can't lose, and your beast grows a level or so. Camper Tilly: the battle screen and
+   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit: your own turn (slingshot, Watch, Run and Forfeit).
+   Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
+   striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
+6. Rebuild the washed-out footbridge on the Coastal Path (five logs lie along the trail) to reach Tidewater.
+7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
+8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
+9. Arenas, and Captain Gull's ferry to the Isle of Tides, only take trainers with a flute.
+10. The journey runs in one line: the Dune Road north of Tidewater stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
+
+Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
+`Story.next_goal()`), so what they talk about moves on as soon as you've done it.
 
 | Region | Towns | What happens |
 |---|---|---|
@@ -53,7 +64,7 @@ Every road between towns narrows to one bottleneck with a puzzle, getting harder
 
 | Road | Puzzle |
 |---|---|
-| Coastal Path | A washed-out footbridge. Find the five logs lying along the path and lay them across the creek, one at a time. |
+| Coastal Path | A washed-out footbridge. Find the five logs lying along the trail and lay them across the creek, one at a time. |
 | Isle Trail | Thorny brambles. A fire beast burns them; an air beast slices them down. |
 | Dune Road | A sheer cliff with a rope ladder coiled at the top. A beast with wings flies up and drops it. |
 | Mesa Trail | A rockslide: push the boulders around until a path opens. |
@@ -79,13 +90,16 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Temple guardians**: each elemental temple holds a legendary guardian: Abyssion, Zephyrax, Pyroclast and Terranox. Beating it gives a **Radiant Egg** of that element.
 - **Merging** happens at Beast Centers, between two beasts at their level cap. A normal merge is 50/50. A legendary parent dominates at **80/20** and keeps its race. Ghost merging unlocks in Gravenmoor.
   - Beasts of neighbouring elements on the ring (Fire–Air, Air–Water, Water–Earth, Earth–Fire) merge into a **dual beast** of both elements. Opposite elements (Fire–Water, Air–Earth) can't merge.
+- **Everyone moves any of the eight ways** on the tile grid: you, strolling townsfolk and wild beasts. A diagonal step only
+  cuts a corner when both tiles beside it are open; otherwise you slide along whatever is in the way. Doors, boulders,
+  obstacles and beasts are only met head on, and people still look (trainers still watch) straight ahead.
 - **Wild beasts** roam the routes in plain sight; there are no random encounters (the tall grass is still there).
   - Each beast sees in a cone in front of it, half as far if you're in tall grass, and hears you running nearby.
   - Beasts come running when they spot you. Only a lone beast hopelessly outmatched by your best one (8+ levels below it) bolts.
   - Marks: a yellow **!** when one spots you, a blue **!** when it's scared and fleeing, and **?** when it loses you. Nothing shows while it charges, or once it goes back to roaming.
   - Walk into one from behind before it spots you: a **sneak attack** (green spiral, it loses its first turn). Meet one face to face: a normal battle (blue spiral). Let one catch you from behind: an **ambush** (red spiral, you lose your first turn).
-  - A beast no stronger than your best one usually (70%) roams with one or two more of its own kind, and the pack stands its ground. On roads with wild Lv 16+, stronger four-legged beasts, insects, birds and fish sometimes run in packs too.
-  - Each road's trainers are stronger than any wild beast on it. The Coastal Path has the weakest beasts (Lv 1-2) and single-beast trainers.
+  - Groups grow slowly through the game (`Story.pack_cap`): beasts roam alone on the early roads (always on the Coastal Path), in pairs from wild Lv 7, and in threes only from Lv 16. Within that, a beast no stronger than your best one usually (70%) roams with more of its own kind, and the pack stands its ground; on roads with wild Lv 16+, stronger four-legged beasts, insects, birds and fish sometimes run in packs too.
+  - Each road's trainers are stronger than any wild beast on it. The early levels climb slowly: Coastal Path Lv 2-4, Isle Trail 4-7, Coral Reef 7-10, the Temple of Tides 8-11 (its guardian Lv 12, with one helper), Dune Road 10-13.
 - **Levelling** is slower than before: about twice as many wins per level.
 - **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. MP comes back only from healing (the Beast Center machine, Mom, your bed) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
 - **The battle ring** (as in Jade Cocoon 2, `scripts/core/ring.gd`): every trainer stands in the middle of a ring of 8 slots.
@@ -190,7 +204,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   north and sides, only shrubs and rocks to the south (between the camera and the map), the sea running on past
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
 - **People, eggs, signs and obstacles** are built procedurally:
-  - `voxel_person.gd` builds people from the PSX character packs, with much chunkier arms and legs (and a fuller body) than the packs gave them, a bouncy walk (the body springs up as the legs pass under it, the hips twist, the arms swing wide) and an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk` shows a stride (`--model=<id>` for another person).
+  - `voxel_person.gd` builds people from the PSX character packs, with much chunkier arms and legs (and a fuller body) than the packs gave them, a walk built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=<id>`).
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
 - The terrain is made of textured voxel blocks; water and lava sit one step lower.
@@ -223,12 +237,17 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
   text is 32 screen pixels and dialogue 48. The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
   Dialogue is three lines to a page. Text sits at the top of every text box.
-- **Phones**: the touch pad is a joined cross-shaped d-pad with raised arrows, glossy domed A and B buttons that sink
-  when pressed (BoldPixels letters), and Start / Pause pills, all tinted with the gem. While the Start book or the
+- **Phones**: getting about uses a joystick: a round plate with a gem-tinted outer ring past a groove, an arrow each of
+  the eight ways, and a domed knob that follows your thumb. It steers the nearest of the eight ways; how far you push
+  sets the pace (a walk rising to the hero's jog inside the ring, a run past it; `UI.STICK_RUN`, `world.gd`
+  _step_speed). Battles and the flute game bring back the joined cross-shaped d-pad with raised arrows. With them,
+  glossy domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
+  the gem. While the Start book or the
   world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
 - The game starts straight into the title screen (no engine splash).
+- The title's menu comes up first, on the splash colour; the town behind it is built a moment later and fades in. The world and battle scripts, the travel book and the world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
   - Tidewater plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
@@ -339,7 +358,8 @@ godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # tr
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
-godot --headless --path . -- --scene=tutorial --auto=1                  # Scout Bram's battle lesson through its real menus
+godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
+godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
 godot --headless --path . -- --scene=capture                            # Capture rules, Uncle Rafe's lessons and the arena's flute rule
 godot --headless --path . -- --scene=puzzles                            # solves every road puzzle (bridge, cliff, rockslide, ice, checkpoint, warden, sentinel)
 godot --headless --path . -- --scene=wilds                              # roaming wild beasts: sneak attack, chase, ambush, flee
@@ -347,6 +367,7 @@ godot --path . -- --scene=marks --shot=C:/tmp/k.png                     # the !,
 godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a ring battle driven by keys (a b l r u d); --kind=wild, --foe_level, --foe_shield
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
+godot --path . -- --scene=walk8 --touch                                 # eight-way walking: two arrows at once, then the joystick half and fully pushed
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere
 godot --path . -- --scene=saves --card=1 --shot=C:/tmp/c.png            # save slots and the "Game saved!" card
 godot --path . -- --scene=heal --shot=C:/tmp/h.png                      # the Beast Center healing machine (--what=hatch for the incubator)

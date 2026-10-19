@@ -164,6 +164,62 @@ const MASCOT := [
 ]
 
 
+## Casual hints about what to do next, by Story.next_goal(): townsfolk add one to whatever else they say, so what they
+## talk about moves on as soon as you've done it.
+const HINTS := {
+	"egg": ["Elder Rowan's waiting in the plaza with a beast egg for you. She's been polishing it all morning. It's very shiny now.",
+		"Big day, huh? Go and see Elder Rowan in the plaza. She's got something round and important for you.",
+		"I'd hurry to the plaza if I were you. Last time Elder Rowan waited, she knitted a whole sweater. For a Redcoon."],
+	"hatch": ["An egg! Nurse Clover at the Beast Center can hatch that for you. It's right across from the square: red-and-white awning, red paw print over the door.",
+		"Eggs don't hatch in your pocket, you know! The Beast Center's the one by the square with the striped awning and the paw-print sign.",
+		"The Beast Center's incubator is warm and cosy. Your egg would love it. Just across the road from the statue, under the red-and-white awning."],
+	"path": ["Heading down the Coastal Path? The trainers out there teach every newcomer how battling works. Listen to them!",
+		"Scout Bram's opened the east gate for you. Follow the trail, and the trainers along it will show you the ropes.",
+		"My first battles were on the Coastal Path. A camper taught me everything. Then a fisher taught me everything again, but slower."],
+	"flute": ["Tidewater's at the far end of the Coastal Path. Your uncle Rafe lives right by its west gate.",
+		"I hear Rafe in Tidewater has been polishing a reed flute for years. Waiting for someone, maybe? Someone like you?",
+		"Your uncle in Tidewater is keeping your father's flute. Go and get it!"],
+	"rafe": ["Rafe's lessons are worth finishing. Weaken AND Capture! A trainer without songs is just a person with a pet.",
+		"Go back and see your uncle. He's got songs to teach you. He hums them in the street. It's very distracting."],
+	"ferry": ["Captain Gull's ferry sails from Tidewater's long pier to the Isle of Tides. The islanders are having a terrible squabble, I hear.",
+		"The Isle of Tides! Take the ferry from the pier. Bring a sweater. And a referee: Shellhaven and Kelpwick are at each other's throats.",
+		"Tried your flute on a wild beast yet? Weaken first, then Capture. Then catch the ferry from the pier. The island's waiting."],
+	"chiefs": ["Heard one side of the island feud? Better hear the other too. Chief Marlo's in Shellhaven, Chief Coralie's in Kelpwick, along the Isle Trail.",
+		"Two villages, two chiefs, one big misunderstanding. Talk to both of them!"],
+	"smuggler": ["Someone's been skulking about the Isle Trail with a sack of nets. Suspicious, if you ask me. Nobody ever asks me.",
+		"If neither village did it, who did? I'd look along the Isle Trail. Smugglers love a trail."],
+	"peace": ["You caught the smuggler? Go and tell one of the chiefs! They'll want to hear it from you.",
+		"The chiefs are still glaring at each other. Go and tell them what you found!"],
+	"temple": ["The coral gate's open past Kelpwick! The Temple of Tides is out across the reef. Its guardian keeps the sea, and some say the desert winds, all riled up.",
+		"Calm the Temple of Tides and the sandstorms on the Dune Road might settle. That's what my aunt says. She's usually right about weather.",
+		"Past Kelpwick and over the reef stands the Temple of Tides. Bring waterproof courage."],
+	"desert": ["The Dune Road north of Tidewater is open again! Dustwell Oasis is lovely. Sundown Gulch beyond it is... less lovely. Bandits.",
+		"The sandstorms have settled! Head north from Tidewater into the desert. I hear Sundown's sheriff could use a hand."],
+	"bandits": ["Black Bart's gang holes up in a hideout near Sundown Gulch. Somebody ought to give them what for.",
+		"The sheriff in Sundown can't handle Black Bart alone. You look like you could."],
+	"winds": ["With Black Bart gone, the Dune Sea road is open. They say the Temple of Winds stands out in those dunes.",
+		"North of Sundown, over the Dune Sea, lies Copperpick. And somewhere in the dunes, the Temple of Winds."],
+	"mine": ["The Mine Road out of Copperpick is closed without a Miner's Pass. Foreman Gorran signs them if you beat him at the Copperpick Arena.",
+		"Want to reach Cogsworth? You'll need a Miner's Pass. Copperpick's arena is where you earn one."],
+	"gearhart": ["Magnus Gearhart has Cogsworth under his thumb, and he's sealed the road to the volcano. Someone should climb that tower of his.",
+		"Gearhart Tower is crawling with robot sentries. Beat every one on a floor and the stairs open up."],
+	"flame": ["The Caldera Road's open now that Gearhart's beaten! The Temple of Flame waits on the way to Emberfall. Bring a water beast for the lava.",
+		"Past Cogsworth, up the Caldera Road, the Temple of Flame. Sunscreen recommended."],
+	"jungle": ["Over the Summit Pass lies Vinehollow, deep in the jungle. Their shaman's been looking for a capable trainer.",
+		"Vinehollow sells the finest gear in the land. And their shaman has a job for someone brave."],
+	"relics": ["Shaman Ayo needs the Sun, Moon and Earth relics. They're scattered far and wide. Keep your eyes peeled!",
+		"Found any relics yet? The shaman in Vinehollow is counting on you."],
+	"roots": ["The ritual raised the Temple of Roots on the Jungle Trail! Go and see it before the vines take it back.",
+		"There's a temple on the Jungle Trail that wasn't there last week. You should probably go and poke it."],
+	"gravenmoor": ["Past Riverbend, the Moor Road leads to Gravenmoor, the Umbral Legion's town. Old Mort the gravedigger knows a song that soothes ghosts.",
+		"Commander Nyx guards Gravenmoor Cathedral. Bring strong, merged beasts. Ghosts have no weakness."],
+	"vexmora": ["General Vexmora waits in the crypt beneath the cathedral. This is it. Go and get her!",
+		"The Legion's general is down in the crypt. Everyone's counting on you. No pressure!"],
+	"done": ["You saved us all! Now, about that sweater I knitted you...",
+		"The whole land's talking about you. Mostly good things. One bad thing, about your hat."],
+}
+
+
 static func pick(list: Array, rng: RandomNumberGenerator) -> Variant:
 	return list[rng.randi_range(0, list.size() - 1)]
 

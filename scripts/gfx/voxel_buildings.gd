@@ -452,6 +452,10 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 	node.add_child(km)
 
 
+## How far a shop awning slopes down from the wall (its lower edge stays above the door's top, clear of every head).
+const AWNING_DROP := 0.16
+
+
 ## A shop in a house from the PSX pack: a striped awning in the shop's colour over its door, and above it a sign board
 ## with the shop's icon, so a shop reads as a shop from across the square.
 static func _shop_front(node: Node3D, plan: Dictionary, shop: String, st: Dictionary) -> void:
@@ -461,26 +465,52 @@ static func _shop_front(node: Node3D, plan: Dictionary, shop: String, st: Dictio
 	var door: Vector3 = plan["door_at"]
 	var ds: Vector2 = plan["door_size"]
 	var front := door.z + 0.02
-	var ay := door.y + ds.y / 2.0 + 0.3
-	var half := 1.25
-	var x := door.x - half
+	# just above the door, sloping gently, so its lower edge clears everyone's heads where it reaches over the street;
+	# over a porch, at the top of its posts, reaching to the porch's front
+	var ay := door.y + ds.y / 2.0 + AWNING_DROP + 0.18
+	var depth := 0.7
+	var pc: Dictionary = plan.get("porch", {})
+	var drop := AWNING_DROP
+	if not pc.is_empty():
+		# over a porch it lies flat on the tops of its posts
+		ay = float(pc["top"]) + 0.01
+		drop = 0.0
+		depth = maxf(depth, (pc["rect"] as Rect2).end.y - front)
+	# over the door; over a porch, the whole of it
+	var x0 := door.x - 1.25
+	var x1 := door.x + 1.25
+	if not pc.is_empty():
+		x0 = (pc["rect"] as Rect2).position.x
+		x1 = (pc["rect"] as Rect2).end.x
+	var x := x0
 	var i := 0
-	while x < door.x + half - 0.01:
-		var x2 := minf(x + 0.42, door.x + half)
-		k.poly("color", [Vector3(x, ay, front), Vector3(x2, ay, front), Vector3(x2, ay - 0.36, front + 0.75), Vector3(x, ay - 0.36, front + 0.75)],
-			Vector3(0, 0.9, 0.45), brand if i % 2 == 0 else Color("#f4f0e4"))
+	while x < x1 - 0.01:
+		var x2 := minf(x + 0.42, x1)
+		k.poly("color", [Vector3(x, ay, front), Vector3(x2, ay, front), Vector3(x2, ay - drop, front + depth), Vector3(x, ay - drop, front + depth)],
+			Vector3(0, 0.95, 0.3), brand if i % 2 == 0 else Color("#f4f0e4"))
 		x = x2
 		i += 1
-	k.box("color", Vector3(door.x, ay - 0.43, front + 0.76), Vector3(half * 2.0, 0.14, 0.03), brand.darkened(0.15))
-	# the sign board, on the wall above the awning
-	k.box("planks", Vector3(door.x, ay + 0.38, front + 0.04), Vector3(1.5, 0.46, 0.08), trim)
-	k.box("color", Vector3(door.x, ay + 0.38, front + 0.085), Vector3(1.3, 0.34, 0.02), brand.darkened(0.25))
+	# the valance along its front edge (over a porch, a trim along the edge instead, so the posts meet it)
+	if pc.is_empty():
+		k.box("color", Vector3((x0 + x1) / 2.0, ay - drop - 0.07, front + depth + 0.01), Vector3(x1 - x0, 0.14, 0.03), brand.darkened(0.15))
+	else:
+		k.box("color", Vector3((x0 + x1) / 2.0, ay + 0.03, front + depth), Vector3(x1 - x0, 0.06, 0.05), brand.darkened(0.15))
+
+	# the sign board, on the wall above the awning (over a porch, at the porch's end: standing on the awning's front
+	# edge, so the awning can sit high on the posts)
+	var sign_y := ay + 0.34
+	var sign_z := front + 0.04
+	if not pc.is_empty():
+		sign_y = ay + 0.27
+		sign_z = front + depth - 0.06
+	k.box("planks", Vector3(door.x, sign_y, sign_z), Vector3(1.5, 0.46, 0.08), trim)
+	k.box("color", Vector3(door.x, sign_y, sign_z + 0.045), Vector3(1.3, 0.34, 0.02), brand.darkened(0.25))
 	var mi := MeshInstance3D.new()
 	mi.mesh = k.mesh()
 	node.add_child(mi)
 	var icon := MeshInstance3D.new()
 	icon.mesh = VP.icon(shop)
-	icon.position = Vector3(door.x, ay + 0.36, _on_face(icon.mesh, front + 0.1))
+	icon.position = Vector3(door.x, sign_y - 0.02, _on_face(icon.mesh, sign_z + 0.06))
 	node.add_child(icon)
 
 

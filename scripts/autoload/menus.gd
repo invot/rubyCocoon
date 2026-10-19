@@ -8,15 +8,17 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
-const WorldMapView = preload("res://scripts/ui/world_map_view.gd")
-const BookMenu = preload("res://scripts/ui/book_menu.gd")
+## The travel book and the world map aren't preloaded (they'd slow the start): main.gd loads them in the background
+## once the title is up, and they're fetched when first opened.
+const BOOK_PATH := "res://scripts/ui/book_menu.gd"
+const MAP_PATH := "res://scripts/ui/world_map_view.gd"
 
 
 ## The Start menu: the travel book.
 func pause_menu(world, start_tab := "") -> void:
 	if UI.auto:
 		return
-	var book := BookMenu.new()
+	var book = GameState.main.loaded_script(BOOK_PATH).new()
 	book.setup(world, start_tab)
 	UI.push(book)
 	await book.done
@@ -342,7 +344,7 @@ func songs_menu() -> void:
 func world_map() -> void:
 	if UI.auto:
 		return
-	var v := WorldMapView.new()
+	var v = GameState.main.loaded_script(MAP_PATH).new()
 	v.setup(GameState.map_id)
 	UI.push(v)
 	await v.done

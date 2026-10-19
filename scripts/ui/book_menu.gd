@@ -447,8 +447,7 @@ func _tab_trainer() -> void:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 8)
 	left_box.add_child(top)
-	var look: Dictionary = GameState.main.world.PLAYER_LOOK if GameState.main and GameState.main.world else {}
-	top.add_child(VoxelPortrait.new().setup_person(look, 150))
+	top.add_child(VoxelPortrait.new().setup_person(GameState.hero_look(), 150))
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 2)
 	top.add_child(info)

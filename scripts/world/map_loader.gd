@@ -291,7 +291,9 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 			if not legion and not bard.is_empty() and int(bard["index"]) == k:
 				_make_bard(t, bard)
 			m["npcs"].append(t)
-		m["encounter"] = {"races": r["races"], "lv": r["lv"], "rate": 0.11, "ghosts": r.get("ghosts", 0.0)}
+		m["encounter"] = {"races": r["races"], "lv": r["lv"], "rate": 0.11, "ghosts": r.get("ghosts", 0.0), "after_flute": r.get("after_flute", false)}
+		if r.has("pack"):
+			m["encounter"]["pack"] = r["pack"]
 
 	# exits along each connected edge
 	var edges := WorldDB.town_edges(id) if WorldDB.TOWNS.has(id) else WorldDB.route_edges(id)

@@ -19,10 +19,6 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
-## The hero: navy cap, an open red jacket over a white shirt, a belt, blue jeans, sneakers and a backpack.
-const PLAYER_LOOK := {"skin": "#f0c8a0", "hair": "#3a2216", "shirt": "#b8283a", "pants": "#3d5a8f", "hat": "#24365e", "hair_style": 0,
-	"hat_style": "cap", "face": "hero", "outfit": "jacket", "tee": "#f4f0e8", "belt": "#4a3020",
-	"backpack": "#8a5a32", "shoes": "#d8283a"}
 ## The camera sits behind and above the player, looking down at about 32 degrees outdoors and 29 indoors (lower and
 ## closer than a top-down view, so walls and buildings are seen from the front, as in the PS2 games).
 const CAM_OFFSET := Vector3(0, 7.0, 11.0)
@@ -51,6 +47,8 @@ var move_from := Vector3.ZERO
 var move_to := Vector3.ZERO
 var move_t := 0.0
 var move_speed := 4.5
+## how long this step is: 1 tile, or the diagonal of one
+var move_len := 1.0
 var anim_t := 0.0
 ## 0..1: how far into the walk cycle the limbs are swinging (eases in instead of snapping)
 var _stride := 0.0
@@ -83,6 +81,7 @@ var _demo_t := 0.0
 
 func build(id: String) -> void:
 	map_id = id
+	ground_h = {}
 	map = MapLoader.load_map(id, GameState.flags)
 	biome = map["biome"]
 	interior = map["kind"] == "interior"
@@ -143,7 +142,11 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 
 
 func tile_pos(p: Vector2i) -> Vector3:
-	return Vector3(p.x + 0.5, 0.0, p.y + 0.5)
+	return Vector3(p.x + 0.5, float(ground_h.get(p, 0.0)), p.y + 0.5)
+
+
+## Tiles raised off the ground, by how much: a porch's deck (see house_models.gd porch()), stepped up onto.
+var ground_h := {}
 
 
 # ================================================================ helpers
@@ -703,6 +706,15 @@ func _plan_houses() -> void:
 			continue
 		b["house_plan"] = plan
 		used[plan["key"]] = int(used.get(plan["key"], 0)) + 1
+		# a porch's deck lifts the tiles it covers: people step up onto it
+		var pc: Dictionary = plan.get("porch", {})
+		if not pc.is_empty():
+			var pr: Rect2 = pc["rect"]
+			for ty in range(floori(o.y + pr.position.y), ceili(o.y + pr.end.y)):
+				for tx in range(floori(o.x + pr.position.x), ceili(o.x + pr.end.x)):
+					var tc := Vector2(tx + 0.5, ty + 0.5) - o
+					if pr.grow(-0.05).has_point(tc) and MapGen.walkable(MapGen.get_t(map, tx, ty)):
+						ground_h[Vector2i(tx, ty)] = float(pc["y"])
 		var r: Rect2 = plan["rect"]
 		for ty in range(floori(o.y + r.position.y + 0.15), ceili(o.y + r.end.y - 0.15)):
 			for tx in range(floori(o.x + r.position.x + 0.15), ceili(o.x + r.end.x - 0.15)):
@@ -1303,7 +1315,7 @@ func _build_items() -> void:
 
 
 func _build_player() -> void:
-	player = VPer.build(PLAYER_LOOK)
+	player = VPer.build(GameState.hero_look())
 	add_child(player)
 
 
@@ -1373,8 +1385,9 @@ func _process(delta: float) -> void:
 		room_walls.fade(player.position, delta)
 	_update_wilds(delta)
 	if moving:
-		anim_t += delta * move_speed * 1.9
-		move_t += delta * move_speed
+		# the legs keep pace with the ground (a step every half turn of the phase)
+		anim_t += VPer.phase_for(delta * move_speed, move_speed)
+		move_t += delta * move_speed / move_len
 		if move_t >= 1.0:
 			var spill := move_t - 1.0
 			player.position = move_to
@@ -1386,13 +1399,13 @@ func _process(delta: float) -> void:
 				player.position = move_from.lerp(move_to, move_t)
 		else:
 			player.position = move_from.lerp(move_to, move_t)
-			# a run swings wider than a walk
-			_stride = move_toward(_stride, 1.25 if move_speed > 6.0 else 1.0, delta * 8.0)
+			# easing into the pace (_stride is the speed the legs show)
+			_stride = move_toward(_stride, move_speed, delta * 30.0)
 	elif not busy and not frozen and not UI.busy():
 		_read_input()
 	if not moving:
 		# easing back to standing, then breathing and looking about
-		_stride = maxf(0.0, _stride - delta * 6.0)
+		_stride = move_toward(_stride, 0.0, delta * 25.0)
 	VPer.animate(player, anim_t, _stride)
 	cam_target = player.position
 	_place_camera()
@@ -1430,23 +1443,20 @@ func _next_step() -> bool:
 		_clear_path()
 	elif not _path.is_empty():
 		return _follow_path()
-	if Input.is_action_pressed("move_up"):
-		d = Vector2i(0, -1)
-	elif Input.is_action_pressed("move_down"):
-		d = Vector2i(0, 1)
-	elif Input.is_action_pressed("move_left"):
-		d = Vector2i(-1, 0)
-	elif Input.is_action_pressed("move_right"):
-		d = Vector2i(1, 0)
+	# eight ways: two arrows at once (or the joystick between them) go diagonally
+	d.x = int(Input.is_action_pressed("move_right")) - int(Input.is_action_pressed("move_left"))
+	d.y = int(Input.is_action_pressed("move_down")) - int(Input.is_action_pressed("move_up"))
 	if d == Vector2i.ZERO:
 		return false
 	return _step(d, Input.is_action_pressed("run"))
 
 
-## Faces `d` and walks one tile that way if possible. Returns true if a step started.
+## Faces `d` (any of the eight ways) and walks one tile that way if possible. Returns true if a step started.
 func _step(d: Vector2i, run: bool) -> bool:
 	facing = d
-	VPer.face(player, facing)
+	VPer.face(player, facing, true)
+	if d.x != 0 and d.y != 0:
+		return _step_diagonal(d, run)
 	var target := player_pos + d
 	if d == Vector2i(0, -1) and doors.has(target):
 		_enter_building(doors[target])
@@ -1458,17 +1468,60 @@ func _step(d: Vector2i, run: bool) -> bool:
 	if pushables.has(target) and not _push(target, d):
 		return false
 	if _walkable(target):
-		moving = true
-		move_t = 0.0
-		move_from = tile_pos(player_pos)
-		move_to = tile_pos(target)
-		player_pos = target
-		var spd := 4.6 * (1.0 + GameState.gear_fx("speed"))
-		if run:
-			spd *= 1.7
-		move_speed = spd
+		_begin_step(target, run)
 		return true
 	return false
+
+
+## A diagonal step: straight there when the tile and both tiles beside the corner are open; else sliding along the
+## wall (or whatever's in the way) on whichever of the two straight ways is open. Doors, boulders and beasts are
+## only met head on.
+func _step_diagonal(d: Vector2i, run: bool) -> bool:
+	var target := player_pos + d
+	var side_x := player_pos + Vector2i(d.x, 0)
+	var side_y := player_pos + Vector2i(0, d.y)
+	if _open(target) and _open(side_x) and _open(side_y):
+		_begin_step(target, run)
+		return true
+	for t in [side_x, side_y]:
+		if _open(t):
+			_begin_step(t, run)
+			return true
+	return false
+
+
+## A tile the player can walk onto: walkable, with no wild beast on it.
+func _open(t: Vector2i) -> bool:
+	return _walkable(t) and _beast_at(t) == null
+
+
+func _begin_step(target: Vector2i, run: bool) -> void:
+	moving = true
+	move_t = 0.0
+	move_from = tile_pos(player_pos)
+	move_to = tile_pos(target)
+	move_len = (target - player_pos).length()
+	player_pos = target
+	move_speed = _step_speed(run)
+
+
+## The pace of a step: the hero's jog, or a sprint while running. With the touch joystick or a gamepad's stick it
+## follows how far the stick is pushed: inside the ring, from a walk up to the jog; past the ring (UI.STICK_RUN), a
+## sprint.
+func _step_speed(run: bool) -> float:
+	var base := 4.6 * (1.0 + GameState.gear_fx("speed"))
+	var push := _stick_push()
+	if run or push >= UI.STICK_RUN:
+		return base * 1.7
+	if push > 0.0:
+		return base * lerpf(0.45, 1.0, push / UI.STICK_RUN)
+	return base
+
+
+## How far the touch joystick, or a gamepad's left stick, is pushed (0 to 1); 0 for keys and buttons.
+func _stick_push() -> float:
+	var pad := Vector2(Input.get_joy_axis(0, JOY_AXIS_LEFT_X), Input.get_joy_axis(0, JOY_AXIS_LEFT_Y)).length()
+	return maxf(UI.stick_push(), clampf(pad, 0.0, 1.0) if pad > 0.3 else 0.0)
 
 
 func _on_step_done() -> void:
@@ -1533,13 +1586,14 @@ func _trainer_approach(n: Dictionary, p: Vector2i, dist: int) -> void:
 	var node: Node3D = n["node"]
 	var cur := p
 	node.set_meta("posed", true)
+	# a jog: a tile every 0.22 s, the legs keeping pace
+	var per_tile := VPer.phase_for(1.0, 1.0 / 0.22)
 	for i in dist - 1:
 		var nxt := cur + f
 		var tw := create_tween()
 		tw.tween_property(node, "position", tile_pos(nxt), 0.22)
 		if node.has_node("Body"):
-			# one stride per tile, legs moving all the way
-			tw.parallel().tween_method(func(ph: float): VPer.animate(node, ph, 1.0), i * PI, (i + 1) * PI, 0.22)
+			tw.parallel().tween_method(func(ph: float): VPer.animate(node, ph, 1.0 / 0.22), i * per_tile, (i + 1) * per_tile, 0.22)
 		await tw.finished
 		cur = nxt
 	node.remove_meta("posed")
@@ -1554,7 +1608,7 @@ func _trainer_approach(n: Dictionary, p: Vector2i, dist: int) -> void:
 
 
 func _interact() -> void:
-	var t := player_pos + facing
+	var t := _facing_tile()
 	var wb = _beast_at(t)
 	if wb != null:
 		_bump_wild(wb)
@@ -1589,10 +1643,27 @@ func _interact() -> void:
 	busy = false
 
 
+## The tile the player is facing. Facing a diagonal, it's the tile on the diagonal if anything is there to talk to or
+## use, else whichever of the two tiles beside it has something.
+func _facing_tile() -> Vector2i:
+	var t := player_pos + facing
+	if facing.x == 0 or facing.y == 0:
+		return t
+	for q in [t, player_pos + Vector2i(facing.x, 0), player_pos + Vector2i(0, facing.y)]:
+		if _beast_at(q) != null or npcs.has(q) or doors.has(q) or items.has(q) or shards.has(q) or map.get("obstacles", {}).has(q) \
+				or map["signs"].has(q) or MapGen.get_t(map, q.x, q.y) in [MapGen.STATUE, MapGen.COUNTER, MapGen.CRYSTAL, MapGen.TABLE] \
+				or (interior and MapGen.get_t(map, q.x, q.y) in PROP_CODES):
+			return q
+	return t
+
+
 ## The person standing behind a counter tile: straight across, or one step to either side.
 func _across_counter(t: Vector2i) -> Vector2i:
-	var side := Vector2i(facing.y, facing.x)
-	for q in [t + facing, t + facing + side, t + facing - side]:
+	var f := t - player_pos
+	if f.x != 0 and f.y != 0:
+		return Vector2i(-999, -999)
+	var side := Vector2i(f.y, f.x)
+	for q in [t + f, t + f + side, t + f - side]:
 		if npcs.has(q):
 			return q
 	return Vector2i(-999, -999)
@@ -1618,12 +1689,13 @@ func _enter_building(b: Dictionary) -> void:
 	GameState.main.goto_map(b["interior"], "entry")
 
 
-func _face_npc(n: Dictionary, f: Vector2i) -> void:
+func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 	var node: Node3D = n.get("node", null)
 	if node == null or not node.has_node("Body"):
 		return
-	n["facing"] = f
-	VPer.face(node, f)
+	# they turn any of the eight ways, but look (for trainers, watch) straight along the nearer of the four
+	n["facing"] = Vector2i(signi(f.x), 0) if absi(f.x) > absi(f.y) or f.y == 0 else Vector2i(0, signi(f.y))
+	VPer.face(node, f, smooth)
 
 
 func _pickup(it: Dictionary) -> void:
@@ -1669,17 +1741,24 @@ func _animate_npcs(delta: float) -> void:
 		if n.has("walking"):
 			# a step across the room, legs and arms swinging
 			var wk: Dictionary = n["walking"]
-			wk["t"] = minf(1.0, float(wk["t"]) + delta / ROAM_STEP)
+			# a stroll at one pace: a diagonal takes longer
+			wk["t"] = minf(1.0, float(wk["t"]) + delta / (ROAM_STEP * float(wk.get("len", 1.0))))
 			node.position = (wk["from"] as Vector3).lerp(wk["to"], wk["t"])
-			VPer.animate(node, float(wk["t"]) * PI * 2.0, 0.8)
+			# a stroll, the legs keeping pace with the ground from one tile to the next
+			n["phase"] = float(n.get("phase", 0.0)) + VPer.phase_for(delta / ROAM_STEP, 1.0 / ROAM_STEP)
+			n["gait"] = move_toward(float(n.get("gait", 0.0)), 1.0 / ROAM_STEP, delta * 12.0)
+			VPer.animate(node, n["phase"], n["gait"])
 			if float(wk["t"]) >= 1.0:
 				arrived.append(n)
 		elif not node.has_meta("posed") and node.position.distance_squared_to(player.position) < 300.0:
-			# standing about (near enough to see): breathing, shifting weight, looking round
-			VPer.animate(node, 0.0, 0.0)
+			# standing about (near enough to see): settling from a walk, then breathing, shifting weight, looking round
+			n["gait"] = move_toward(float(n.get("gait", 0.0)), 0.0, delta * 8.0)
+			VPer.animate(node, float(n.get("phase", 0.0)), n["gait"])
 	for n in arrived:
 		n.erase("walking")
-		VPer.animate(n["node"], 0.0, 0.0)
+		if (n["node"] as Node3D).position.distance_squared_to(player.position) >= 300.0:
+			n["gait"] = 0.0
+			VPer.animate(n["node"], 0.0, 0.0)
 	if not busy and not frozen:
 		_roam(delta)
 	if busy:
@@ -1718,11 +1797,12 @@ func _roam(delta: float) -> void:
 		if float(n["roam_t"]) > 0.0:
 			continue
 		n["roam_t"] = randf_range(2.0, 5.0)
-		var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
+		var dirs := EIGHT_WAYS.duplicate()
 		dirs.shuffle()
 		for d in dirs:
 			var t: Vector2i = p + d
-			if _roam_free(t, p, n):
+			# a diagonal only when both tiles beside the corner are open floor too
+			if _roam_free(t, p, n) and (d.x == 0 or d.y == 0 or (_roam_floor(p + Vector2i(d.x, 0)) and _roam_floor(p + Vector2i(0, d.y)))):
 				moves.append([p, t, d])
 				break
 	for mv in moves:
@@ -1730,8 +1810,17 @@ func _roam(delta: float) -> void:
 		npcs.erase(mv[0])
 		npcs[mv[1]] = n2
 		n2["pos"] = mv[1]
-		_face_npc(n2, mv[2])
-		n2["walking"] = {"from": tile_pos(mv[0]), "to": tile_pos(mv[1]), "t": 0.0}
+		_face_npc(n2, mv[2], true)
+		n2["walking"] = {"from": tile_pos(mv[0]), "to": tile_pos(mv[1]), "t": 0.0, "len": Vector2(mv[2]).length()}
+
+
+## The eight ways anyone can step (the four straight ones first).
+const EIGHT_WAYS := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1), Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]
+
+
+## Open floor a stroller could cut a corner past: floor, with nobody and nothing standing on it.
+func _roam_floor(t: Vector2i) -> bool:
+	return MapGen.get_t(map, t.x, t.y) in ROAM_FLOORS and not npcs.has(t) and not items.has(t) and t != player_pos
 
 
 func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
@@ -2109,6 +2198,9 @@ var _wild_think := 0.0
 func _spawn_wilds() -> void:
 	if demo or map.get("encounter", {}).is_empty() or player == null:
 		return
+	# the Coastal Path has only its teachers until you have a flute
+	if map["encounter"].get("after_flute", false) and not GameState.has_flute():
+		return
 	_wild_cands = []
 	for y in map["h"]:
 		for x in map["w"]:
@@ -2234,7 +2326,7 @@ func _wild_sees(w: Dictionary) -> bool:
 		sight *= 0.5
 	if dist > sight:
 		return false
-	if to.normalized().dot(Vector2(w["facing"])) < 0.35:
+	if to.normalized().dot(Vector2(w["facing"]).normalized()) < 0.35:
 		return false
 	return _line_clear(w["pos"], player_pos)
 
@@ -2255,8 +2347,9 @@ func _wild_step(w: Dictionary, d: Vector2i, speed: float) -> bool:
 	w["facing"] = d
 	_face_wild(w)
 	var q: Vector2i = w["pos"] + d
-	if not _wild_free(q, w):
+	if not _wild_free(q, w) or not _wild_corner_free(w, d):
 		return false
+	w["len"] = Vector2(d).length()
 	w["from"] = (w["node"] as Node3D).position
 	w["to"] = tile_pos(q)
 	w["pos"] = q
@@ -2266,14 +2359,23 @@ func _wild_step(w: Dictionary, d: Vector2i, speed: float) -> bool:
 	return true
 
 
-## Steps towards (sign 1) or away from (sign -1) the player. Returns false if boxed in.
+## A diagonal step only cuts a corner with both tiles beside it free.
+func _wild_corner_free(w: Dictionary, d: Vector2i) -> bool:
+	if d.x == 0 or d.y == 0:
+		return true
+	return _wild_free(w["pos"] + Vector2i(d.x, 0), w) and _wild_free(w["pos"] + Vector2i(0, d.y), w)
+
+
+## Steps towards (sign 1) or away from (sign -1) the player, any of the eight ways (it can only reach you head on,
+## though: a battle starts beside you, not across a corner). Returns false if boxed in.
 func _wild_step_rel(w: Dictionary, sgn: int, speed: float) -> bool:
 	var best := []
 	var best_d := INF
 	var here := Vector2(player_pos - w["pos"]).length()
-	for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+	for d in EIGHT_WAYS:
 		var q: Vector2i = w["pos"] + d
-		if not _wild_free(q, w) and not (sgn > 0 and q == player_pos):
+		var straight: bool = d.x == 0 or d.y == 0
+		if not (_wild_free(q, w) and _wild_corner_free(w, d)) and not (sgn > 0 and q == player_pos and straight):
 			continue
 		var dist := Vector2(player_pos - q).length() * float(sgn)
 		if sgn < 0 and -dist <= here - 0.01:
@@ -2296,7 +2398,7 @@ func _wild_step_rel(w: Dictionary, sgn: int, speed: float) -> bool:
 func _animate_wild(w: Dictionary, delta: float) -> void:
 	var node: Node3D = w["node"]
 	if w["moving"]:
-		w["mt"] = float(w["mt"]) + delta * float(w["speed"])
+		w["mt"] = float(w["mt"]) + delta * float(w["speed"]) / float(w.get("len", 1.0))
 		if float(w["mt"]) >= 1.0:
 			node.position = w["to"]
 			w["moving"] = false
@@ -2336,8 +2438,7 @@ func _update_wilds(delta: float) -> void:
 					_wild_spotted(w)
 				elif not w["moving"] and float(w["t"]) <= 0.0:
 					w["t"] = randf_range(1.2, 3.4)
-					var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
-					var d: Vector2i = dirs[randi() % 4]
+					var d: Vector2i = EIGHT_WAYS[randi() % EIGHT_WAYS.size()]
 					if randf() < 0.35:
 						w["facing"] = d
 						_face_wild(w)
@@ -2357,7 +2458,7 @@ func _update_wilds(delta: float) -> void:
 					var gap := absi(w["pos"].x - player_pos.x) + absi(w["pos"].y - player_pos.y)
 					if gap == 1 and not moving:
 						var to_beast: Vector2i = w["pos"] - player_pos
-						_wild_encounter(w, "wild" if facing == to_beast else "ambush")
+						_wild_encounter(w, "wild" if Vector2(facing).dot(Vector2(to_beast)) > 0.0 else "ambush")
 						return
 					_wild_step_rel(w, 1, WILD_CHASE_SPEED)
 				if think:

@@ -47,10 +47,11 @@ const TOWNS := {
 
 ## Each route connects `from` to `to` (to = "" for a dead end); `dir` is the edge of `from` it leaves by.
 const ROUTES := {
-	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [1, 2], "races": [0, 21, 38, 12, 25, 36]},
-	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [6, 10], "races": [13, 20, 24, 46, 2]},
-	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "island", "lv": [10, 14], "races": [14, 16, 17, 18]},
-	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [9, 13], "races": [45, 28, 1, 41, 33]},
+	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [2, 4], "races": [0, 21, 38, 12, 25, 36],
+		"after_flute": true, "pack": 1},
+	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [4, 7], "races": [13, 20, 24, 46, 2]},
+	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "island", "lv": [7, 10], "races": [14, 16, 17, 18]},
+	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [45, 28, 1, 41, 33]},
 	"route4": {"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [37, 8, 30, 5]},
 	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [42, 3, 27, 40, 29], "temple": "air"},
 	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [32, 34, 10, 26], "legion": true},
@@ -62,7 +63,7 @@ const ROUTES := {
 
 ## The four elemental temples. Each holds a guardian beast whose defeat leaves a legendary egg.
 const TEMPLES := {
-	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 48, "level": 22, "glow": "#5ac8ff", "element": "water"},
+	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 48, "level": 12, "glow": "#5ac8ff", "element": "water"},
 	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 49, "level": 30, "glow": "#c8fff0", "element": "air"},
 	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 50, "level": 40, "glow": "#ff7a3a", "element": "fire"},
 	"earth": {"name": "Temple of Roots", "route": "route9", "room": "temple_earth", "guardian": 51, "level": 48, "glow": "#7ae05a", "element": "earth"},
@@ -147,7 +148,7 @@ const TRAINER_CLASSES := ["Hiker", "Beast Tamer", "Wanderer", "Fisher", "Bird Ke
 ## Route trainers who carry a flute and play a song in battle (index = trainer in reading order).
 ## Beat them and play the song back without a mistake to learn it; they'll battle again for an encore.
 const BARDS := {
-	"route1": {"index": 1, "name": "Tamsin", "song": "jig", "skill": 0.75},
+	"route2": {"index": 0, "name": "Tamsin", "song": "jig", "skill": 0.75},
 	"route3": {"index": 0, "name": "Wren", "song": "dazzle", "skill": 0.8},
 	"route4": {"index": 1, "name": "Silas", "song": "venom", "skill": 0.8},
 	"route8": {"index": 0, "name": "Oriel", "song": "mending", "skill": 0.85},

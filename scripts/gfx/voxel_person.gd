@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## build(look) picks the person who fits a look best:
 ##   look "model": that person outright (an id from people.json);
-##   face "hero": the hero;
+##   face "hero": the hero, in the body the character creator gave them ("body": a key of HERO_BODIES), with the top,
+##   trousers, hair and eyes it coloured (see dress());
 ##   outfit "armor": the Umbral Legion, in black tactical gear; "robe": the elders; Beast Center staff (a white
 ##   "uniform" with red trim): the doctors and nurses;
 ##   hair_style 1 (long hair) is a woman, other styles a man; with no hair_style the look itself decides;
@@ -28,11 +29,17 @@ const FOOT := 1.25
 const TORSO := 1.15
 const LEGION := ["21_police", "22_police", "25_female_police", "26_female_police"]
 const CENTER_STAFF := ["23_female_doctor", "24_female_doctor", "25_doctor", "26_doctor"]
+## The bodies the hero can have (the character creator's choice), never anyone else's.
+const HERO_BODIES := {"male": "hero", "female": "50_female"}
+## What dress() colours, by the label tools/make_hero_masks.gd gave a texel.
+const DYED := {1: "top", 2: "trousers", 3: "hair", 4: "eyes"}
 
 static var _list := {}
 static var _scenes := {}
 static var _rigs := {}
 static var _fat_meshes := {}
+static var _dye_src := {}
+static var _dyed := {}
 
 
 static func _people() -> Dictionary:
@@ -47,7 +54,7 @@ static func model_for(look: Dictionary) -> String:
 	if people.has(String(look.get("model", ""))):
 		return look["model"]
 	if look.get("face", "") == "hero" or look.is_empty():
-		return "hero"
+		return HERO_BODIES.get(String(look.get("body", "male")), "hero")
 	var seed := absi(str(look).hash())
 	var female: bool = int(look["hair_style"]) == 1 if look.has("hair_style") else seed % 2 == 0
 	var outfit: String = look.get("outfit", "")
@@ -62,7 +69,7 @@ static func model_for(look: Dictionary) -> String:
 		var hair := Color(look.get("hair", "#000000"))
 		var groups := ["elder"] if outfit == "robe" or (hair.s < 0.2 and hair.v > 0.6) else ["town"]
 		for id in people:
-			if people[id]["group"] in groups:
+			if people[id]["group"] in groups and not id in HERO_BODIES.values():
 				pool.append(id)
 	# the woman's or man's version where the pool has both
 	var matched := pool.filter(func(id: String) -> bool: return bool(people[id]["female"]) == female)
@@ -114,8 +121,120 @@ static func build(look: Dictionary) -> Node3D:
 	var head := sk.find_bone(model.get_meta("bones")["head"])
 	sk.set_bone_pose_scale(head, sk.get_bone_rest(head).basis.get_scale() * HEAD_SCALE)
 	_thicken(model, sk)
+	dress(root, look)
 	animate(root, 0.0, 0.0, 0.0)
 	return root
+
+
+## Colours a hero's top, trousers, hair and eyes as a look asks (its "top", "trousers", "hair" and "eyes"), keeping
+## the folds, weave and shading their texture has; whatever the look leaves out stays as the model has it. Again on
+## the same rig, it changes them (the character creator). Bodies without masks (everyone but the hero) are left be.
+static func dress(rig: Node3D, look: Dictionary) -> void:
+	var id: String = rig.get_meta("model")
+	var src := _dye_source(id)
+	if src.is_empty():
+		return
+	var want := {}
+	for k in DYED.values():
+		if look.has(k):
+			want[k] = Color(look[k])
+	var model: Node3D = rig.get_node("Body").get_child(0)
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		for si in mi.mesh.get_surface_count():
+			var which := "face" if mi.mesh.surface_get_name(si) == "face" else "body"
+			if src.has(which):
+				mi.set_surface_override_material(si, _dyed_material(id, which, want))
+
+
+## A body's textures and masks, read once: for its body and its face texture, the material, the texture's texels and
+## where the labelled ones are.
+static func _dye_source(id: String) -> Dictionary:
+	if _dye_src.has(id):
+		return _dye_src[id]
+	var out := {}
+	var path := DIR + id + "_recolour.res"
+	if id in HERO_BODIES.values() and ResourceLoader.exists(path):
+		var res: Resource = load(path)
+		out["colours"] = res.get_meta("colours")
+		if not _scenes.has(id):
+			_scenes[id] = load(DIR + id + ".scn")
+		var model: Node3D = (_scenes[id] as PackedScene).instantiate()
+		for mi in model.find_children("*", "MeshInstance3D", true, false):
+			for si in mi.mesh.get_surface_count():
+				var which := "face" if mi.mesh.surface_get_name(si) == "face" else "body"
+				var mat := mi.get_surface_override_material(si) as StandardMaterial3D
+				if out.has(which) or mat == null or mat.albedo_texture == null or not res.has_meta(which):
+					continue
+				var img := mat.albedo_texture.get_image()
+				if img.is_compressed():
+					img.decompress()
+				img.clear_mipmaps()
+				img.convert(Image.FORMAT_RGBA8)
+				var mask: Image = res.get_meta(which)
+				var md := mask.get_data()
+				var at := PackedInt32Array()
+				var lab := PackedByteArray()
+				for i in md.size():
+					if md[i] > 0:
+						at.append(i * 4)
+						lab.append(md[i])
+				out[which] = {"mat": mat, "img": img, "at": at, "lab": lab}
+		model.free()
+	_dye_src[id] = out
+	return out
+
+
+## The material for one of a body's textures dyed as `want` says (made once per body and colours, a few kept).
+static func _dyed_material(id: String, which: String, want: Dictionary) -> Material:
+	var src: Dictionary = _dye_src[id][which]
+	if want.is_empty():
+		return src["mat"]
+	var key := id + "/" + which
+	for k in DYED.values():
+		key += "/" + (want[k].to_html(false) if want.has(k) else "-")
+	if _dyed.has(key):
+		return _dyed[key]
+	var ref: Dictionary = _dye_src[id]["colours"]
+	var tint := {}
+	for l in DYED:
+		var k: String = DYED[l]
+		if want.has(k):
+			var rl := Color(ref[k]).get_luminance()
+			var tl := maxf((want[k] as Color).get_luminance(), 0.02)
+			# dark hair dyed light: its darkest strands softened, or they'd show as black streaks
+			tint[l] = [want[k], rl, tl, clampf(sqrt(rl / tl), 0.45, 1.0)]
+	var img: Image = src["img"]
+	var px := img.get_data()
+	var at: PackedInt32Array = src["at"]
+	var lab: PackedByteArray = src["lab"]
+	for i in at.size():
+		var l := lab[i]
+		if not tint.has(l):
+			continue
+		var o := at[i]
+		var t: Color = tint[l][0]
+		var rl: float = tint[l][1]
+		var tl: float = tint[l][2]
+		var lum := (0.2126 * px[o] + 0.7152 * px[o + 1] + 0.0722 * px[o + 2]) / 255.0
+		# a texel as much darker or lighter than the part's own colour as it was; lighter, by whichever is less:
+		# the same proportion (a white shirt's sheen stays faint when it's dyed black) or the same share of the way
+		# on to white (dark hair's highlights don't flare when it's dyed blond)
+		var nl := tl * pow(lum / maxf(rl, 0.02), tint[l][3]) if lum < rl else tl * lum / maxf(rl, 0.02)
+		if lum > rl:
+			nl = minf(nl, tl + (1.0 - tl) * (lum - rl) / maxf(1.0 - rl, 0.02))
+		var c := Color(t.r, t.g, t.b) * (nl / tl) if nl <= tl else t.lerp(Color.WHITE, (nl - tl) / maxf(1.0 - tl, 0.02))
+		px[o] = clampi(roundi(c.r * 255.0), 0, 255)
+		px[o + 1] = clampi(roundi(c.g * 255.0), 0, 255)
+		px[o + 2] = clampi(roundi(c.b * 255.0), 0, 255)
+	var out := Image.create_from_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, px)
+	out.generate_mipmaps()
+	var mat: StandardMaterial3D = (src["mat"] as StandardMaterial3D).duplicate()
+	mat.albedo_texture = ImageTexture.create_from_image(out)
+	# the creator tries many colours: only the latest few are kept
+	if _dyed.size() >= 12:
+		_dyed.clear()
+	_dyed[key] = mat
+	return mat
 
 
 ## Swaps a person's meshes for copies with chunkier arms and legs (made once per mesh, then shared).
@@ -210,16 +329,14 @@ static func _far_child(sk: Skeleton3D, i: int) -> int:
 	return best
 
 
-static func face(rig: Node3D, dir: Vector2i) -> void:
+## Turns a person to look along `dir` (any of the eight ways); smooth: over a moment, as they're animated (see
+## animate), rather than at once.
+static func face(rig: Node3D, dir: Vector2i, smooth := false) -> void:
 	var body: Node3D = rig.get_node("Body")
-	var ang := 0.0
-	if dir == Vector2i(0, -1):
-		ang = PI
-	elif dir == Vector2i(1, 0):
-		ang = PI / 2.0
-	elif dir == Vector2i(-1, 0):
-		ang = -PI / 2.0
-	body.rotation.y = ang
+	var ang := atan2(float(dir.x), float(dir.y)) if dir != Vector2i.ZERO else 0.0
+	body.set_meta("yaw_to", ang)
+	if not smooth:
+		body.rotation.y = ang
 
 
 ## What posing a person's skeleton needs, worked out once per model from its rest pose, in the skeleton's own space
@@ -271,6 +388,30 @@ static func _rig(rig: Node3D) -> Dictionary:
 		# held a little further out than life, to clear the (thickened) body
 		var hang := (down + lat * out * 0.3 + fwd * 0.04).normalized()
 		info[side + "_arm"]["down"] = Quaternion(dir, hang)
+	# the legs measured in the Body's space (y up, facing +z, standing on y = 0), to place the feet: where the hip and
+	# ankle are, how long the thigh and shin are and how far forward each points at rest, the foot's length; the ankle
+	# is the toe's parent (or the toe itself, if the pack's foot is one bone)
+	var to_body := model.transform
+	var chain := Transform3D.IDENTITY
+	n = sk
+	while n != model:
+		chain = (n as Node3D).transform * chain
+		n = n.get_parent()
+	to_body = to_body * chain
+	for side in ["l", "r"]:
+		var shin_i: int = info[side + "_shin"]["i"]
+		var toe_i := sk.find_bone(map[side + "_foot"])
+		var ank_i := sk.get_bone_parent(toe_i)
+		if ank_i == shin_i or ank_i < 0:
+			ank_i = toe_i
+		var hip_p := to_body * _global_rest(sk, info[side + "_thigh"]["i"]).origin
+		var knee_p := to_body * _global_rest(sk, shin_i).origin
+		var ank_p := to_body * _global_rest(sk, ank_i).origin
+		var toe_p := to_body * _global_rest(sk, toe_i).origin
+		info[side + "_ankle"] = bone.call(ank_i)
+		info[side + "_leg"] = {"hip": hip_p, "ankle": ank_p, "thigh": hip_p.distance_to(knee_p), "shin": knee_p.distance_to(ank_p),
+			"a0": atan2(knee_p.z - hip_p.z, hip_p.y - knee_p.y), "s0": atan2(ank_p.z - knee_p.z, knee_p.y - ank_p.y),
+			"foot": maxf(0.1, Vector2(toe_p.z - ank_p.z, toe_p.y - ank_p.y).length())}
 	_rigs[id] = info
 	return info
 
@@ -293,13 +434,17 @@ static func _turn(sk: Skeleton3D, bone: Dictionary, parent: Quaternion, by: Quat
 	return g
 
 
-## Walk cycle and idle, cartoon-bouncy. phase in radians; amount 0 (standing) .. 1 (full stride), up to 1.3 for a
-## run. The body springs up as the legs pass under it and squashes a little as each foot lands; the hips twist and rock
-## with the stride while the chest twists back and leans into the walk; arms swing wide against the legs, elbows
-## bending as they come forward; each knee lifts as its leg comes through.
-## Standing, a person breathes, shifts their weight and looks about a little. That motion runs on `t` (seconds;
-## by default the clock, offset per person so a crowd doesn't move in step), so call this every frame to see it.
-static func animate(rig: Node3D, phase: float, amount: float, t := -1.0) -> void:
+## How people walk, after the animators' rules for a walk cycle. The cadence follows the speed and the stride lengthens
+## with it (step_length), so a planted foot stays put instead of skating. Each foot follows its own path: the heel
+## strikes with the toes up, the foot rolls flat, the heel peels up for the toe-off, then the foot swings through,
+## lifting; the knee bends just enough for the leg to reach it. The hips settle as each foot lands and rise as the legs
+## pass; they twist with the stride while the chest twists back; the arms swing against the legs and trail them a
+## little, the forearms trailing the arms; the head stays level, looking ahead. A stroll (speed about 1.7) blends into
+## the hero's jog (4.6: leaning in, a moment in the air between steps, elbows bent and pumping) and a sprint (7.8).
+## Standing, a person breathes, shifts their weight and looks about. That runs on `t` (seconds; by default the clock,
+## offset per person so a crowd doesn't move in step), so call this every frame to see it; `t` also eases turns (face).
+## phase: radians, a step every half turn (see phase_for); speed: game units a second, 0 standing.
+static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	if not rig.has_meta("skeleton"):
 		return
 	var sk: Skeleton3D = rig.get_meta("skeleton")
@@ -307,44 +452,146 @@ static func animate(rig: Node3D, phase: float, amount: float, t := -1.0) -> void
 	var lat: Vector3 = r["lat"]
 	var up: Vector3 = r["up"]
 	var fwd: Vector3 = r["fwd"]
+	var body: Node3D = rig.get_node("Body")
 	if t < 0.0:
 		t = Time.get_ticks_msec() / 1000.0 + float(rig.get_instance_id() % 1000) * 0.61
-	var walk := clampf(amount, 0.0, 1.3)
-	var still := 1.0 - clampf(amount, 0.0, 1.0)
-	var swing := sin(phase) * 0.5 * walk
-	var lift := cos(phase) * walk
-	# 1 as the legs pass under the body, 0 at the full stride
-	var bob := absf(cos(phase))
+	# turning to a new facing: quickly, but not all at once
+	var dt := clampf(t - float(rig.get_meta("clock", t)), 0.0, 0.1)
+	rig.set_meta("clock", t)
+	var yaw_to: float = body.get_meta("yaw_to", body.rotation.y)
+	if dt <= 0.0 or absf(angle_difference(body.rotation.y, yaw_to)) < 0.02:
+		body.rotation.y = yaw_to
+	else:
+		body.rotation.y = lerp_angle(body.rotation.y, yaw_to, 1.0 - exp(-dt * 18.0))
+	speed = maxf(speed, 0.0)
+	# how much of a gait there is (0 standing), how much of it is a run, how much a sprint
+	var m := clampf(speed / 1.2, 0.0, 1.0)
+	var run := smoothstep(2.4, 4.2, speed)
+	var sprint := smoothstep(4.6, 7.8, speed)
+	var still := 1.0 - m
 	var breath := sin(t * 2.2)
-	var sway := sin(t * 0.85)
-	var rock := sin(phase) * 0.07 * walk + sway * 0.035 * still
-	# torso: forward is a positive turn about lat for a bone pointing up
+	var shift := sin(t * 0.85)
+	# the part of each step a foot is on the ground, how far it travels back meanwhile, and how far ahead it lands
+	var duty := lerpf(0.62, 0.36, run) - 0.06 * sprint
+	var reach := 2.0 * duty * step_length(speed) * m
+	var front := reach * lerpf(0.42, 0.34, run)
+	var lift := lerpf(0.1, 0.3, run) * m
+	var heel := lerpf(0.3, 0.08, run)
+	var toe_off := lerpf(0.55, 0.45, run)
+	# where the left leg is in its cycle, 0 as its heel strikes; the right leg is half a cycle on
+	var u := fposmod(phase / TAU, 1.0)
+	# knees a little bent on the move, a little more to run; standing, shifting the weight dips the hips a touch
+	var body_y := -lerpf(0.012, 0.05, run) * m - 0.008 * still * (0.5 + 0.5 * shift)
+	# a run leaves the ground between steps: lowest with a foot under the body, highest in the air
+	body_y += 0.045 * run * m * (0.5 - 0.5 * cos(TAU * 2.0 * (u - duty * 0.5)))
+	var feet := {}
+	for side in ["l", "r"]:
+		var leg: Dictionary = r[side + "_leg"]
+		var w := fposmod(u + (0.0 if side == "l" else 0.5), 1.0)
+		var z := 0.0
+		var y := 0.0
+		var toe := 0.0
+		var planted := w < duty
+		if planted:
+			var k := w / duty
+			z = front - reach * k
+			toe = -heel * (1.0 - smoothstep(0.0, 0.25, k)) + toe_off * smoothstep(0.6, 1.0, k)
+		else:
+			var k := (w - duty) / (1.0 - duty)
+			z = lerpf(front - reach, front, 0.5 - 0.5 * cos(PI * k))
+			y = lift * sin(PI * pow(k, 0.75))
+			toe = lerpf(toe_off, -heel, smoothstep(0.0, 0.8, k))
+		toe *= m
+		# rolling up onto the toes lifts the ankle
+		y += float(leg["foot"]) * sin(maxf(toe, 0.0))
+		var ankle: Vector3 = leg["ankle"]
+		var hip: Vector3 = leg["hip"]
+		var target := Vector2(ankle.z + z, ankle.y + y)
+		feet[side] = [target, toe]
+		if planted:
+			# the hips can't be higher than a planted foot lets them
+			var long: float = (float(leg["thigh"]) + float(leg["shin"])) * 0.995
+			var dz := target.x - hip.z
+			body_y = minf(body_y, target.y + sqrt(maxf(0.0, long * long - dz * dz)) - hip.y)
+	body.position.y = body_y
+	# the hips twist so the leg that lands leads; they dip on the side of the leg in the air
+	var twist := -lerpf(0.11, 0.16, run) * m * cos(TAU * u)
+	var roll := lerpf(0.045, 0.025, run) * m * sin(TAU * u) + 0.03 * still * shift
+	var posed := {}
 	var hips: Dictionary = r["hips"]
-	var g := _turn(sk, hips, hips["parent"], Quaternion(up, swing * 0.28) * Quaternion(fwd, rock))
+	var g := _turn(sk, hips, hips["parent"], Quaternion(up, twist) * Quaternion(fwd, roll))
+	posed[hips["i"]] = g
+	# the chest leans into the pace and twists back past straight, so the shoulders turn against the hips
+	var lean := lerpf(0.05, 0.2, run) * m + 0.06 * sprint + breath * 0.025 * still
 	var spine: Array = r["spine"]
 	var each := 1.0 / maxf(1.0, spine.size())
-	var lean := 0.16 * walk * (0.6 + 0.4 * bob) + breath * 0.03 * still
 	for bone in spine:
-		g = _turn(sk, bone, g, Quaternion(lat, lean * each) * Quaternion(up, -swing * 0.5 * each) * Quaternion(fwd, -rock * each))
+		g = _turn(sk, bone, g, Quaternion(lat, lean * each) * Quaternion(up, -1.5 * twist * each) * Quaternion(fwd, -0.8 * roll * each))
+		posed[bone["i"]] = g
+	# the head keeps looking ahead, nodding a little behind each step
 	var head: Dictionary = r["head"]
-	_turn(sk, head, g, Quaternion(up, sin(t * 0.53) * 0.14 * still) * Quaternion(lat, -0.08 * walk * bob + sin(t * 1.1) * 0.02 * still))
+	var nod := 0.025 * m * sin(TAU * 2.0 * u - 1.2)
+	_turn(sk, head, g, Quaternion(up, 0.5 * twist + sin(t * 0.53) * 0.14 * still)
+		* Quaternion(lat, -0.7 * lean + nod + sin(t * 1.1) * 0.02 * still) * Quaternion(fwd, 0.2 * roll))
+	# each leg bent to reach its foot (the thigh and shin as a two-bone chain, in the Body's side view)
 	for side in ["l", "r"]:
-		var s := 1.0 if side == "l" else -1.0
-		# legs: forward is a turn that brings the foot towards +z
+		var leg: Dictionary = r[side + "_leg"]
 		var thigh: Dictionary = r[side + "_thigh"]
-		var tg := _turn(sk, thigh, thigh["parent"], Quaternion(lat, -s * swing))
 		var shin: Dictionary = r[side + "_shin"]
-		_turn(sk, shin, tg, Quaternion(lat, 0.05 + 0.95 * maxf(0.0, s * lift) + 0.18 * walk * (1.0 - bob)))
-		# arms: lowered, then swung against the leg on the same side
+		var target: Vector2 = feet[side][0]
+		var hip: Vector3 = leg["hip"]
+		var d := target - Vector2(hip.z, hip.y + body_y)
+		var lt: float = leg["thigh"]
+		var ls: float = leg["shin"]
+		var dist := clampf(d.length(), absf(lt - ls) + 0.01, (lt + ls) * 0.999)
+		var bend := PI - acos(clampf((lt * lt + ls * ls - dist * dist) / (2.0 * lt * ls), -1.0, 1.0))
+		# how far forward the thigh and the shin point, from straight down
+		var a := atan2(d.x, -d.y) + acos(clampf((lt * lt + dist * dist - ls * ls) / (2.0 * lt * dist), -1.0, 1.0))
+		var s := a - bend
+		var tg := _place_bone(sk, thigh, _posed_rot(sk, sk.get_bone_parent(thigh["i"]), posed),
+			Quaternion(lat, -(a - float(leg["a0"]))) * thigh["parent"] * thigh["local"])
+		var sg := _place_bone(sk, shin, tg, Quaternion(lat, -(s - float(leg["s0"]))) * shin["parent"] * shin["local"])
+		var ank: Dictionary = r[side + "_ankle"]
+		_place_bone(sk, ank, sg, Quaternion(lat, float(feet[side][1])) * ank["parent"] * ank["local"])
+	# arms swing against the legs, a little behind them; the forearms trail the arms; a run bends the elbows and pumps
+	var arm_amp := lerpf(0.3, 0.62, run) * m + 0.15 * sprint
+	var elbow := lerpf(0.18, 1.25, run) * m + 0.12 * still
+	for side in ["l", "r"]:
+		var sgn := 1.0 if side == "l" else -1.0
+		# 1 at the arm's furthest forward: the left arm leads as the right heel lands
+		var ahead := -sgn * cos(TAU * (u - 0.06))
+		var trail := -sgn * cos(TAU * (u - 0.14))
 		var arm: Dictionary = r[side + "_arm"]
-		var a_swing := s * swing * 1.05 + sin(t * 2.2 + s) * 0.035 * still
-		var ag := _turn(sk, arm, arm["parent"], Quaternion(lat, a_swing) * arm["down"])
+		var a_swing := arm_amp * ahead + sin(t * 2.2 + sgn) * 0.03 * still
+		var ag := _turn(sk, arm, arm["parent"], Quaternion(lat, -a_swing) * arm["down"])
 		var fore: Dictionary = r[side + "_forearm"]
-		_turn(sk, fore, ag, Quaternion(lat, -0.14 - 0.1 * walk - 0.3 * maxf(0.0, -s * swing)))
-	var body: Node3D = rig.get_node("Body")
-	body.position.y = pow(bob, 1.5) * 0.11 * walk + (breath * 0.5 + 0.5) * 0.01 * still
-	var squash := (bob - 0.5) * 0.09 * walk + breath * 0.012 * still
-	body.scale = Vector3(1.0 - squash * 0.5, 1.0 + squash, 1.0 - squash * 0.5)
+		_turn(sk, fore, ag, Quaternion(lat, -(elbow + lerpf(0.22, 0.35, run) * m * maxf(0.0, trail))))
+
+
+## How far one step carries a person at `speed` (game units a second): the faster, the longer the stride (a stroll's
+## step is about 0.67, the hero's jog about 1.2, a sprint 1.7).
+static func step_length(speed: float) -> float:
+	return clampf(0.38 + 0.17 * speed, 0.5, 1.7)
+
+
+## The walk's phase (radians) after going `dist` at `speed`: half a turn a step, so the feet keep pace with the ground.
+static func phase_for(dist: float, speed: float) -> float:
+	return dist * PI / step_length(speed)
+
+
+## Poses one bone so it ends up turned `g` in skeleton space, under a parent now turned `parent`. Returns g.
+static func _place_bone(sk: Skeleton3D, bone: Dictionary, parent: Quaternion, g: Quaternion) -> Quaternion:
+	sk.set_bone_pose_rotation(bone["i"], parent.inverse() * g)
+	return g
+
+
+## A bone's skeleton-space rotation as posed this frame: the bones posed so far from `posed`, others from their parent.
+static func _posed_rot(sk: Skeleton3D, i: int, posed: Dictionary) -> Quaternion:
+	if i < 0:
+		return Quaternion.IDENTITY
+	if posed.has(i):
+		return posed[i]
+	return _posed_rot(sk, sk.get_bone_parent(i), posed) * sk.get_bone_rest(i).basis.orthonormalized().get_rotation_quaternion()
 
 
 static func height() -> float:
