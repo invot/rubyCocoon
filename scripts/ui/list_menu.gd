@@ -90,6 +90,8 @@ func _ready() -> void:
 		scroll.custom_minimum_size = Vector2(width, row_h * mini(rows, maxi(1, items.size())) + 2)
 		vb.add_child(scroll)
 		scroll.add_child(list)
+		# Prev / Next under a menu longer than it shows (see pager.gd)
+		vb.add_child(load("res://scripts/ui/pager.gd").new().setup(scroll))
 	for i in items.size():
 		var it: Dictionary = items[i]
 		var b := Button.new()

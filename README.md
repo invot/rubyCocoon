@@ -250,7 +250,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 48 races with live voxel portraits and where to find them. |
 | Map | The twelve towns, with the full world map on A. |
-| Settings | Music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, save, credits and quit. |
+| Settings | Save (first), music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, save, credits and quit. |
 
 ## UI and audio
 
@@ -279,7 +279,10 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
   domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
   the gem. While the Start book or the
-  world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book. The
+  world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book.
+  Anything that runs past one page (either of the book's pages, a long menu) gets **◄ Prev** and **Next ►** buttons
+  with "page / pages" at its foot, each turning a whole page (`scripts/ui/pager.gd`), so all of it can be reached
+  with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
 - The game starts straight into the title screen (no engine splash). With no save yet, **New Game** is a big, glowing

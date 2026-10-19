@@ -18,6 +18,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const RingView = preload("res://scripts/ui/ring_view.gd")
+const Pager = preload("res://scripts/ui/pager.gd")
 
 const TABS := [
 	{"id": "trainer", "name": "Trainer", "icon": "tab_trainer"},
@@ -156,7 +157,14 @@ func _build() -> void:
 	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right_scroll.size_flags_stretch_ratio = 1.0 - LEFT_SHARE
-	panes.add_child(right_scroll)
+	# with Prev / Next under it once it runs past a page (see pager.gd)
+	var right_col := VBoxContainer.new()
+	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_col.size_flags_stretch_ratio = 1.0 - LEFT_SHARE
+	right_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panes.add_child(right_col)
+	right_col.add_child(right_scroll)
+	right_col.add_child(Pager.new().setup(right_scroll))
 	right_box = VBoxContainer.new()
 	right_box.add_theme_constant_override("separation", 8)
 	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -180,9 +188,14 @@ func _build_pages() -> void:
 	left_box.add_theme_constant_override("separation", 8)
 	left_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	left_page.add_child(left_box)
+	var right_col := VBoxContainer.new()
+	right_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_page.add_child(right_col)
 	var right_scroll := ScrollContainer.new()
 	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right_page.add_child(right_scroll)
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_col.add_child(right_scroll)
+	right_col.add_child(Pager.new().setup(right_scroll))
 	right_box = VBoxContainer.new()
 	right_box.add_theme_constant_override("separation", 8)
 	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -463,6 +476,7 @@ func _make_list(on: VBoxContainer, title: String, detail_on: VBoxContainer = nul
 	list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list_box.add_theme_constant_override("separation", 0)
 	list_scroll.add_child(list_box)
+	on.add_child(Pager.new().setup(list_scroll))
 	detail_box = detail_on
 
 
@@ -1173,6 +1187,7 @@ func _tab_settings() -> void:
 	right_box.add_child(_pane_title("Controls"))
 	right_box.add_child(detail_box)
 	var pct := func(v: float): return "%d%%" % int(round(v * 100))
+	_add_row({"text": "Save game", "act": _save, "detail": _controls_help.bind("Write your progress to the book.")})
 	var speeds := [["Slow", 30.0], ["Normal", 60.0], ["Fast", 120.0], ["Instant", 0.0]]
 	var cur_speed := 1
 	for i in speeds.size():
@@ -1217,7 +1232,6 @@ func _tab_settings() -> void:
 			"adjust": func(_d): Prefs.set_value("fullscreen", not Prefs.fullscreen),
 			"act": func(): Prefs.set_value("fullscreen", not Prefs.fullscreen),
 			"detail": _controls_help.bind("Play in a window or full screen.")})
-	_add_row({"text": "Save game", "act": _save, "detail": _controls_help.bind("Write your progress to the book.")})
 	_add_row({"text": "Credits", "act": _credits, "detail": _controls_help.bind("The artists, musicians and sound designers behind Ruby Cocoon.")})
 	_add_row({"text": "Quit to title", "act": _quit, "detail": _controls_help.bind("Return to the title screen. Unsaved progress is lost!")})
 

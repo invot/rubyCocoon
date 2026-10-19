@@ -84,5 +84,7 @@ func _draw_text() -> void:
 		var fs := UIKit.body_px(UIKit.BODY_SMALL)
 		var font := UIKit.font_body()
 		var y := (size.y + font.get_ascent(fs) - font.get_descent(fs)) / 2.0
-		draw_string_outline(font, Vector2(10, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0, 0, 0, 0.7))
-		draw_string(font, Vector2(10, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.LIGHT)
+		# (Pixel: dark letters edged in white, readable on the white fill and the dark trough alike)
+		var ink := UIKit.PIXEL_FILL if UIKit.pixel() else UIKit.LIGHT
+		draw_string_outline(font, Vector2(10, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, UIKit.PIXEL_LINE if UIKit.pixel() else Color(0, 0, 0, 0.7))
+		draw_string(font, Vector2(10, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, ink)

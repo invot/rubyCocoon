@@ -787,6 +787,13 @@ func _run_test() -> void:
 		for i in int(_test.get("downs", "0")):
 			_press("ui_down")
 			await _wait(0.12)
+		# --next=N: the left page's Next pressed N times (pager.gd)
+		for i in int(_test.get("next", "0")):
+			for pg in get_tree().root.find_children("*", "HBoxContainer", true, false):
+				if pg.get_script() != null and String(pg.get_script().resource_path).ends_with("pager.gd") and pg.visible:
+					pg._next.pressed.emit()
+					break
+			await _wait(0.4)
 		if _test.has("flip"):
 			# --flip=cozy / pixel: Settings > Style changed with the book open (not saved)
 			await _wait(1.0)
