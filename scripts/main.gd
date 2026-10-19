@@ -860,6 +860,10 @@ func _run_test() -> void:
 				await _wait(0.7)
 				_press("ui_accept")
 			await _wait(wait)
+	elif scene == "lessons":
+		# every guided battle played by a button masher: one thing to pick on every bar and in every menu, your beasts
+		# never down, and every lesson won
+		await _lessons_test()
 	elif scene == "capture":
 		UI.auto = true
 		GameState.songs = []
@@ -1863,6 +1867,87 @@ func _coaches_test() -> void:
 	get_tree().process_frame.disconnect(watch)
 	print("starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level, "  hint: ", Story.next_goal())
 	print("coaches DONE: %d problem(s)" % bad[0])
+
+
+## --scene=lessons: every guided battle (the Coastal Path's teachers, Tidewater's arena coaches and the flute lesson)
+## played by a button masher (random presses of A, B and the d-pad, nothing automatic), once with just a hatchling and
+## once with a second beast beside it. Every bar and every menu must offer exactly one thing to pick, your beasts must
+## never go down, and every lesson must be won. --seed=n
+func _lessons_test() -> void:
+	Engine.time_scale = 3.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(_test.get("seed", "1"))
+	var bad := [0]
+	var teachers: Array = Story.LESSON_TRAINERS + Story.ARENA_LESSONS
+	for party in [[1], [1, 2]]:
+		for t in teachers + [{"lesson": "flute", "name": "Uncle Rafe"}]:
+			var lesson := String(t["lesson"])
+			while _transitioning or not _pending_goto.is_empty() or in_battle:
+				await _wait(0.1)
+			# a new trainer's hatchling (and a second fire beast, as if adopted from the kennel), with no lessons yet
+			GameState.party = []
+			for r in party:
+				GameState.party.append(Beasts.create(r, 1 if lesson != "flute" else 3))
+			GameState.storage = []
+			GameState.fix_ring()
+			GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
+			for l in teachers:
+				GameState.set_flag("lesson_" + String(l["lesson"]), false)
+			GameState.set_flag(String(t.get("needs", "")), true)
+			GameState.set_flag("tutorial_done", lesson == "flute")
+			GameState.set_flag("flute_lesson_done", false)
+			GameState.caught = {}
+			GameState.gear["flute"] = "reed_flute" if lesson == "flute" else ""
+			var res := [""]
+			if lesson == "flute":
+				_do_goto("route1", "west")
+				await _wait(1.5)
+				var wild := func(): res[0] = await Story.wild_battle(world, [Beasts.create(21, 3)], "wild")
+				wild.call()
+			else:
+				var spot := _teacher_spot(lesson)
+				_do_goto(spot[0], spot[1])
+				await _wait(1.5)
+				# (Youngster Kit and the arena's coaches have stopped you already)
+				if not (world.busy or in_battle):
+					Story.talk(world, _lesson_trainer(lesson))
+			var problems := {}
+			var presses := 0
+			var lowest := 999
+			for i in 6000:
+				if not in_battle and (res[0] != "" or GameState.flag("lesson_" + lesson)) and not world.busy and not UI.busy():
+					break
+				var top = UI.stack.back() if not UI.stack.is_empty() else null
+				if top != null and top.get_script() == load(PANEL_PATH):
+					for j in top.rows.size():
+						var row: Dictionary = top.rows[j]
+						var open: Array = row["options"].filter(func(o): return not o.get("disabled", false))
+						if row.get("status", "") == "" and not row.get("locked", false) and open.size() != 1:
+							problems["a bar offers %s" % [open.map(func(o): return o.get("label", ""))]] = true
+						if top.picking and j == top.focus and (row.get("targets", []) as Array).size() != 1:
+							problems["%d targets to pick from" % (row["targets"] as Array).size()] = true
+				elif top is UI.ListMenu:
+					var open2: Array = top.items.filter(func(o): return not o.get("disabled", false))
+					if open2.size() != 1:
+						problems["the %s menu offers %s" % [top.title, open2.map(func(o): return o.get("text", ""))]] = true
+				if in_battle:
+					for c in view.get_children():
+						if c.get_script() == load(BATTLE_PATH):
+							for b in c.ally_slots:
+								if b != null:
+									lowest = mini(lowest, b.hp)
+									if b.hp <= 0:
+										problems["%s went down" % b.nickname] = true
+				_press(["ui_accept", "ui_accept", "ui_accept", "ui_left", "ui_right", "ui_up", "ui_down", "ui_cancel"][rng.randi() % 8])
+				presses += 1
+				await _wait(0.12)
+			var won: bool = res[0] == "win" if lesson == "flute" else GameState.flag("lesson_" + lesson)
+			if not won:
+				problems["not won"] = true
+			bad[0] += problems.size()
+			print("%s %s's lesson (%s), %d beast(s): %d presses, lowest HP %d%s" % ["ok  " if problems.is_empty() else "FAIL", t["name"], lesson, party.size(), presses, lowest,
+				"" if problems.is_empty() else "  " + ", ".join(problems.keys())])
+	print("lessons DONE: %d problem(s)" % bad[0])
 
 
 ## Tapped walks to the nearest of `goals` on this map, again after each stop (a teacher's lesson, say), until you're on
