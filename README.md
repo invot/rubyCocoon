@@ -46,15 +46,21 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
    creek.
 7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
-9. Arenas, and Captain Gull's ferry to the Isle of Tides, only take trainers with a flute.
-10. The journey runs in one line: the Dune Road north of Tidewater stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
+9. Arenas only take trainers with a flute.
+10. Tidewater's arena teaches you to battle properly before you may face its master (`story.gd` ARENA_LESSONS,
+    battle.gd LESSONS "team" and "elements"): **Coach Rory** shows you fighting with a whole side of your ring (the
+    arena's practice beasts fill your empty slots for the lesson), then **Coach Ondine** elemental weaknesses (her beast
+    is weak to the element of the side facing it; with your earth side facing, you borrow the arena's air practice
+    team, since nothing is weak to earth). Only then can you challenge **Tide Captain Marina**, and Captain Gull's
+    ferry to the Isle of Tides only takes trainers with her Wave Crest.
+11. The journey runs in one line: the Dune Road north of Tidewater stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
 
 Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
 `Story.next_goal()`), so what they talk about moves on as soon as you've done it.
 
 | Region | Towns | What happens |
 |---|---|---|
-| Coast | Cocoon Cove, Tidewater | Tidewater has the first arena, **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
+| Coast | Cocoon Cove, Tidewater | Tidewater has the first arena (its coaches' lessons, then Tide Captain Marina, whose Wave Crest the ferry asks for), **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
 | Isle of Tides | Shellhaven, Kelpwick | The two villages are feuding. Hear both chiefs, catch the smuggler on the Isle Trail who framed them, and they open the coral gate to the reef and the **Temple of Tides**. |
 | Desert | Dustwell Oasis, Sundown Gulch (western town) | Bandits terrorise Sundown. Talk to the Sheriff, then beat Black Bart in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
 | Mountains | Copperpick, Cogsworth (steampunk city) | CEO Magnus Gearhart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearhart Tower: each floor's robot sentries must fall before the stairs unlock. |
@@ -379,6 +385,7 @@ godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
+godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Tidewater arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
 godot --headless --path . -- --scene=mascot                             # mascots' signature moves: the rules, teaching at Lv 39 / 40, another race, a merge
 godot --path . -- --scene=mascot --plaque=1 --pages=2 --shot=C:/tmp/q.png   # read Cocoon Cove's statue plaque

@@ -612,9 +612,15 @@ func arena(b: Dictionary, town: String) -> void:
 		var beaten: bool = GameState.crests.has(a["crest"])
 		var lv: int = a["team"][0][1]
 		var song := SongDB.get_song(a["song"])
+		var desc := "Rematch for prize money. Levels ~%d." % (lv + 6)
+		if not beaten:
+			desc = "Leader's beasts are around Lv %d. Prize: %s, the song %s, and %d gold." % [lv, a["crest"], song["name"], a["gold"]]
+		# (Tidewater: the coaches' lessons come first, see Story.ARENA_LESSONS)
+		var ready: bool = beaten or Story.arena_lessons_done(town)
+		if not ready:
+			desc = "First, the arena's battle lessons: talk to Coach Rory, then Coach Ondine, by the ring."
 		var items := [
-			{"text": ("Rematch " if beaten else "Challenge ") + leader,
-				"desc": ("Rematch for prize money. Levels ~%d." % (lv + 6)) if beaten else "Leader's beasts are around Lv %d. Prize: %s, the song %s, and %d gold." % [lv, a["crest"], song["name"], a["gold"]]},
+			{"text": ("Rematch " if beaten else "Challenge ") + leader, "disabled": not ready, "desc": desc},
 			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
 				"desc": "Climb the ladder of ring trainers. Beat every trainer of a rank to open the next; each rank you clear raises your trainer level (you're Lv %d) and earns a crystal shard." % GameState.trainer_level},
 			{"text": "Leave"},
@@ -716,6 +722,8 @@ func arena_challenge(town: String) -> String:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Your beasts can barely stand. Heal them at the Beast Center first!"], leader)
 		return "skip"
+	if not beaten and await _lessons_first(town, leader):
+		return "skip"
 	var team := []
 	for t in a["team"]:
 		team.append([t[0], int(t[1]) + (6 if beaten else 0), false])
@@ -733,6 +741,14 @@ func arena_challenge(town: String) -> String:
 		await _miner_pass(town)
 		await Story.on_crest()
 	return res
+
+
+## True (after saying so) while the arena's coaches still have lessons for you (Tidewater, see Story.ARENA_LESSONS).
+func _lessons_first(town: String, leader: String) -> bool:
+	if Story.arena_lessons_done(town):
+		return false
+	await UI.say(["Not so fast! Every challenger takes our coaches' lessons first: Coach Rory, then Coach Ondine. They're by the ring."], leader)
+	return true
 
 
 ## Copperpick's arena master signs the Miner's Pass for the Mine Road checkpoint.
@@ -754,6 +770,8 @@ func leader_talk(b: Dictionary) -> void:
 	var beaten: bool = GameState.crests.has(a["crest"])
 	if beaten:
 		await _miner_pass(town)
+	elif await _lessons_first(town, leader):
+		return
 	var q := "Ready for our rematch?" if beaten else "I am %s, master of this arena. Do you challenge me for the %s?" % [leader, a["crest"]]
 	if await UI.ask(q, leader):
 		await arena_challenge(town)

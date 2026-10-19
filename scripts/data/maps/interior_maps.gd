@@ -167,9 +167,12 @@ const ROOMS := {
 		],
 	},
 	## The arena: the ring, benches all round, a locker room and restroom on the east side.
+	## In Tidewater the arena's two coaches stand by the ring (6, 7: story.gd ARENA_LESSONS); elsewhere those tiles are
+	## plain floor.
 	"arena": {
 		"wall": "#c8c0b0", "rug": "#b03a3a",
 		"npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"},
+		"anchors": {"6": "lesson_team", "7": "lesson_elements"},
 		"rows": [
 			"  #################      ",
 			" /=================\\     ",
@@ -181,7 +184,7 @@ const ROOMS := {
 			"#=:xxxxxxxxxxxxxxx:=#T.u#",
 			"#=:::::::::::::::::=#..z#",
 			"#===:::::::::::::===##d##",
-			"#o1C:::::::::::::::o#R.R#",
+			"#o1C::6:::::::7::::o#R.R#",
 			"#:C:4:::::::::::5:::d...#",
 			"#:::::::::P:::::::::#=..#",
 			"#########DD##############",
