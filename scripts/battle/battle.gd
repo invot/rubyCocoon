@@ -130,6 +130,24 @@ const LESSONS := {
 				"Every hit on a trainer breaks one of their shield points: the blue orbs under their grid. A trainer hit with no shield left loses the battle. I've got none today."],
 				"you": "Watch", "beast": "Fight", "target": "trainer"},
 		]},
+	# Tidewater's arena coaches (story.gd ARENA_LESSONS). practice: the arena's practice beasts fill the empty slots of
+	# the side facing the foe (and the coach's "practice_side" turns your ring to that side first), see _practice_beasts
+	"team": {"finish": 2, "practice": true,
+		"intro": ["In a real battle, every beast on the side of your ring facing the foe fights: up to three at once, each with its own bar.",
+			"The arena's practice beasts will stand in your empty slots today. They're very professional. They've been bonked by the best.",
+			"After your own action, each beast's bar opens in turn. Up and down move between your beasts; left and right pick a move."],
+		"rounds": [
+			{"say": ["Pick a move for every one of your beasts. When a move could hit either of mine, aim it with the cards at the top."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Teamwork! Two beasts on the same foe knock it out twice as fast. Finish my team!"], "you": "Watch", "beast": "Fight"},
+		]},
+	"elements": {"finish": 2, "practice": true,
+		"intro": ["Every element has a weakness: fire beasts are weak to air, earth to water, water to air, and air to fire.",
+			"Hit a beast with the element it's weak to and it takes double damage! Hit it with its own element, though, and it shrugs some off.",
+			"A ★ beside a move, and ★ WEAK on a target's card, mean it will hit hard. Only the element of the side facing the foe can be used: in a real battle, turn your ring to the side that hits hardest. Today I've turned it for you."],
+		"rounds": [
+			{"say": ["My {foe} is weak to the element of your side. Pick the move with the ★ and watch it fly!"], "you": "Watch", "beast": "Fight"},
+			{"say": ["Double damage! Finish it the same way. And remember: your beasts have weaknesses too."], "you": "Watch", "beast": "Fight"},
+		]},
 	"flute": {"finish": 6, "coach": "Uncle Rafe",
 		"narration": "A wild {foe}! Uncle Rafe's advice comes back to you...",
 		"intro": ["\"A wild beast's your chance to put that flute to work. Songs change how a fight goes. Weaken, for one, makes a foe drop its guard so your beasts hit harder.\""],
@@ -1546,6 +1564,8 @@ func _run() -> void:
 	ally_side = GameState.ring_side
 	if not Ring.side_alive(ally_ring, ally_side):
 		ally_side = maxi(0, Ring.best_side(ally_ring))
+	if tutorial and lesson.get("practice", false):
+		_practice_beasts()
 	if not wild:
 		var placed := Ring.arrange(foes)
 		for k in placed:
@@ -1762,6 +1782,22 @@ func _tut_damage(a, t) -> int:
 	if _tut_finish():
 		return t.hp
 	return mini(maxi(1, ceili(mx * 0.35)), maxi(0, t.hp - 1))
+
+
+## The arena's practice beasts for a lesson: one of the side's element in each empty slot of the side facing the foe
+## (a coach's "practice_side" turns your ring to that side first). They only stand in for the battle: never yours.
+const PRACTICE_RACES := {"fire": 1, "water": 12, "earth": 25, "air": 36}
+
+
+func _practice_beasts() -> void:
+	if trainer.has("practice_side"):
+		ally_side = Ring.side_index(String(trainer["practice_side"]))
+	var el := Ring.side_element(ally_side)
+	for k in Ring.side_slots(ally_side):
+		if ally_ring.get(k, null) == null:
+			var b := Beasts.create(int(PRACTICE_RACES[el]), maxi(2, GameState.best_level()))
+			b.nickname = "Practice " + b.nickname
+			ally_ring[k] = b
 
 
 func _start_passives() -> void:
@@ -2147,11 +2183,12 @@ func _auto_commands() -> Array:
 						if s["kind"] == "charm" and not s.get("ghost", false) and GameState.knows_song(sid):
 							await _charm_flow(sid)
 							break
-		if b0 != null:
+		# every beast on the side facing the foe (in most lessons, just yours)
+		for b in _alive(ally_slots):
 			if _tut_beast() == "Defend":
-				acts.append({"type": "defend", "actor": b0, "prio": 7})
+				acts.append({"type": "defend", "actor": b, "prio": 7})
 			else:
-				acts.append({"type": "move", "actor": b0, "move": _tut_move(b0), "target": "trainer" if _tut_round().get("target", "") == "trainer" else f0, "prio": 0})
+				acts.append({"type": "move", "actor": b, "move": _tut_move(b), "target": "trainer" if _tut_round().get("target", "") == "trainer" else f0, "prio": 0})
 		UI.auto_log.append("[menu] lesson %s round %d -> %s, %s" % [lesson_id, round_no, _tut_you(), _tut_beast()])
 		return acts
 	for b in _alive(ally_slots):

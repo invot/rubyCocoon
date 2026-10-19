@@ -16,6 +16,7 @@ const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
+const Ring = preload("res://scripts/core/ring.gd")
 
 ## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
 ## Shows the 3D view, filling the window.
@@ -826,8 +827,13 @@ func _run_test() -> void:
 			if l.begins_with("[menu]"):
 				print("   ", l)
 	elif scene == "tutorial":
-		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring
-		GameState.party = [Beasts.create(1, 1)]
+		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring, or
+		# Tidewater's arena coaches: team|elements (--egg=race: the hatchling's race, e.g. 24 for an earth one)
+		GameState.party = [Beasts.create(int(_test.get("egg", "1")), 1)]
+		GameState.fix_ring()
+		GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
+		if _test.get("lesson", "") == "elements":
+			GameState.set_flag("lesson_team")
 		GameState.party[0].heal_full()
 		GameState.gear["flute"] = ""
 		GameState.set_flag("tutorial_done", false)
@@ -844,6 +850,8 @@ func _run_test() -> void:
 					print("   ", l)
 		else:
 			Story.talk(world, teacher)
+			await _battle_keys()
+			await _wait(wait)
 			for i in int(_test.get("presses", "6")):
 				await _wait(0.7)
 				_press("ui_accept")
@@ -1256,15 +1264,19 @@ func _npc(id: String) -> Dictionary:
 	return {}
 
 
-## Where the Coastal Path teacher who gives `lesson` stands: [map, spawn] (the path, or Youngster Kit's cabin).
+## Where the teacher who gives `lesson` stands: [map, spawn] (the Coastal Path, Youngster Kit's cabin, or for the
+## coaches' lessons the arena of their town).
 func _teacher_spot(lesson: String) -> Array:
+	for t in Story.ARENA_LESSONS:
+		if t["lesson"] == lesson:
+			return [MapLoader.interior_of(String(t["town"]), "arena"), "entry"]
 	for t in Story.LESSON_TRAINERS:
 		if t["lesson"] == lesson and not MapLoader.load_map("route1", {})["anchors"].has(t["anchor"]):
 			return [MapLoader.interior_of("route1", "cabin"), "entry"]
 	return ["route1", "west"]
 
 
-## The Coastal Path teacher who gives `lesson` (see Story.LESSON_TRAINERS).
+## The teacher who gives `lesson` (see Story.LESSON_TRAINERS and ARENA_LESSONS).
 func _lesson_trainer(lesson: String) -> Dictionary:
 	for p in world.npcs:
 		if world.npcs[p].get("lesson", "") == lesson:
@@ -1405,6 +1417,25 @@ func _flow_test() -> void:
 	await Places.skytower(_bld("skytower"))
 	await _wait(2.0)
 	print("after sky tower: ", world.map_id, " at ", world.player_pos)
+	await _go("tidewater", "dock")
+	await _wait(1.5)
+	_step("ferry before the Wave Crest", [0])
+	await Story.talk(world, _npc("ferry"))
+	await _wait(1.0)
+	print("still in ", world.map_id, "  hint: ", Story.next_goal())
+	_step("arena: Coach Rory, Coach Ondine, then Tide Captain Marina", [])
+	await _go(MapLoader.interior_of("tidewater", "arena"), "entry")
+	await _wait(1.0)
+	await Places.leader_talk(world.map["building"])
+	print("Marina before the lessons: ", UI.auto_log.back(), "  crest ", GameState.crests.has("Wave Crest"))
+	print("  the host's Challenge before the lessons: ", await Places.arena_challenge("tidewater"))
+	for l in ["elements", "team", "elements"]:
+		await Story.talk(world, _lesson_trainer(l))
+		await _wait(0.5)
+		print("  lesson ", l, ": done ", GameState.flag("lesson_" + l))
+	print("arena lessons done: ", Story.arena_lessons_done("tidewater"), "  hint: ", Story.next_goal())
+	GameState.heal_party()
+	print("Marina: ", await Places.arena_challenge("tidewater"), "  Wave Crest ", GameState.crests.has("Wave Crest"), "  hint: ", Story.next_goal())
 	await _go("tidewater", "dock")
 	await _wait(1.5)
 	_step("ferry", [0])
@@ -1811,9 +1842,12 @@ func _battle_keys() -> void:
 	if not _test.has("keys"):
 		return
 	var tries := 0
-	while tries < 400 and not (UI.stack.size() > 0 and UI.stack.back().get_script() == load(PANEL_PATH)):
+	while tries < 1200 and not (UI.stack.size() > 0 and UI.stack.back().get_script() == load(PANEL_PATH)):
 		await get_tree().process_frame
 		tries += 1
+		# (a lesson's words come first: read on through them)
+		if tries % 30 == 0 and UI.stack.size() > 0 and UI.stack.back() is UI.DialogBox:
+			_press("ui_accept")
 	for k in String(_test.get("keys", "")).split(",", false):
 		await _press({"a": "ui_accept", "b": "ui_cancel", "l": "ui_left", "r": "ui_right", "u": "ui_up", "d": "ui_down"}.get(k, "ui_accept"))
 		await _wait(float(_test.get("gap", "0.4")))

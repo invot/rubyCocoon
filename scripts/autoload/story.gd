@@ -24,6 +24,7 @@ const VP = preload("res://scripts/gfx/voxel_props.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
+const Ring = preload("res://scripts/core/ring.gd")
 
 const ELDER_LOOK := {"skin": "#e8c0a0", "hair": "#e8e8e8", "shirt": "#6a4a8a", "pants": "#3a2a4a", "outfit": "robe"}
 const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "pants": "#3a3a2a", "hat": "#6a5a3a"}
@@ -76,7 +77,7 @@ const LESSON_TRAINERS := [
 		"after": ["Patience wins battles, and Defend buys you time. Youngster Kit lives in the log cabin by the creek. He'll show you your own turn. He's VERY excited about it."],
 		"defeat": "Everyone picks first, then the faster side goes. Defend always goes first and halves the hurt."},
 	{"anchor": "lesson_slingshot", "lesson": "slingshot", "name": "Kit", "cls": "Youngster", "team": [[12, 3]], "facing": Vector2i(0, 1),
-		"look": {"skin": "#e0b088", "hair": "#5a3a20", "shirt": "#e07a5a", "pants": "#3a4a6a"},
+		"look": {"skin": "#e0b088", "hair": "#5a3a20", "hair_style": 0, "shirt": "#e07a5a", "pants": "#3a4a6a"},
 		"gift": {"bridge_log": 5},
 		"lines": ["A visitor! Nobody visits! You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
 		"after": ["Want to cross the creek? I've been hauling logs from the storm trees all week. Take them!",
@@ -100,12 +101,13 @@ const LESSON_TRAINERS := [
 ## The Coastal Path's teachers standing on this map's anchors (the path itself, or Kit's cabin).
 func _lesson_trainers(map: Dictionary) -> Array:
 	var out := []
-	for t in LESSON_TRAINERS:
-		if _has_anchor(map, t["anchor"]):
+	var town: String = map.get("parent", map["id"])
+	for t in LESSON_TRAINERS + ARENA_LESSONS:
+		if _has_anchor(map, t["anchor"]) and String(t.get("town", town)) == town:
 			var lt: Dictionary = t.duplicate(true)
 			lt["kind"] = "trainer"
 			lt["pos"] = _at(map, t["anchor"], Vector2i.ZERO)
-			lt["sight"] = 4
+			lt["sight"] = int(t.get("sight", 4))
 			lt["flag"] = "lesson_" + String(t["lesson"])
 			lt["reward"] = 40
 			out.append(lt)
@@ -129,6 +131,51 @@ func _bridge_flag() -> String:
 		if m["obstacles"][q]["kind"] == "broken_bridge":
 			return m["obstacles"][q]["flag"]
 	return ""
+
+
+## Tidewater's arena coaches (battle.gd LESSONS "team" and "elements"): before you may challenge Tide Captain Marina,
+## and so before Captain Gull sails you to the Isle of Tides, Coach Rory teaches battling with a whole side of your
+## ring and Coach Ondine elemental weaknesses (her beast is weak to your side's element, see _elements_lesson). They
+## stand by the ring in Tidewater's arena (interior_maps.gd "arena" anchors), and wait to be talked to (sight 0).
+## needs: a lesson to have had first.
+const ARENA_LESSONS := [
+	{"anchor": "lesson_team", "lesson": "team", "town": "tidewater", "sight": 0, "name": "Rory", "cls": "Coach", "team": [[12, 4], [36, 4]],
+		"facing": Vector2i(0, 1), "look": {"skin": "#c8946a", "hair": "#3a2a1a", "hair_style": 0, "shirt": "#2f6fb0", "pants": "#2a2a3a", "hat": "#f0f0f0"},
+		"lines": ["Ahoy! I'm Coach Rory. Nobody faces Tide Captain Marina without a lesson from me and one from Coach Ondine. Arena rules!",
+			"Today: fighting as a team. One beast is a pet. Three beasts is a crew!"],
+		"after": ["That's teamwork! Every beast on the side facing the foe gets a move each round, so a full side hits three times as hard.",
+			"Fill your ring's sides with beasts and you'll never fight alone. Now go and see Coach Ondine about elements."],
+		"defeat": "Up and down move between your beasts' bars. Every beast on the side facing the foe gets a move!"},
+	{"anchor": "lesson_elements", "lesson": "elements", "town": "tidewater", "sight": 0, "needs": "lesson_team", "name": "Ondine", "cls": "Coach",
+		"team": [[37, 4]], "facing": Vector2i(0, 1),
+		"look": {"skin": "#f0c8a0", "hair": "#30a0b0", "hair_style": 1, "shirt": "#e8e0c0", "pants": "#3a5a7a"},
+		"first": "Coach Rory's lesson comes first, sweetie. Teamwork, then elements. I don't make the rules. Rory does. Loudly.",
+		"lines": ["I'm Coach Ondine. Let's talk elements: the secret to beating beasts bigger than yours."],
+		"after": ["Remember the wheel: fire is weak to air, earth to water, water to air, and air to fire.",
+			"Tide Captain Marina's beasts are all water... and water is weak to air. Just saying! She's waiting for you in the ring."],
+		"defeat": "Look for the ★ beside a move and ★ WEAK on a target's card: that's double damage!"},
+]
+## Coach Ondine's beast for the side of your ring facing the foe: one that's weak to that side's element.
+const WEAK_FOES := {"fire": 37, "water": 24, "air": 2}
+
+
+## True once a town's arena lessons are all done (always, for a town without any).
+func arena_lessons_done(town: String) -> bool:
+	return ARENA_LESSONS.all(func(t): return String(t["town"]) != town or GameState.flag("lesson_" + String(t["lesson"])))
+
+
+## Coach Ondine's lesson: her beast is weak to the element of the side of your ring that will face it. Nothing is weak
+## to earth, so with your earth side facing the foe you borrow the arena's air practice beasts for the lesson.
+func _elements_lesson(def: Dictionary) -> void:
+	var ring := GameState.ring()
+	var side := GameState.ring_side
+	if not Ring.side_alive(ring, side):
+		side = maxi(0, Ring.best_side(ring))
+	var el := Ring.side_element(side)
+	if not WEAK_FOES.has(el):
+		el = "air"
+	def["practice_side"] = el
+	def["team"] = [[WEAK_FOES[el], 4]]
 
 
 func extra_npcs(map: Dictionary) -> Array:
@@ -577,6 +624,11 @@ func next_goal() -> String:
 		return "flute"
 	if not _lessons_done():
 		return "rafe"
+	# Tidewater's arena: its coaches' lessons, then Tide Captain Marina's crest (the ferry wants it)
+	if not arena_lessons_done("tidewater"):
+		return "arena"
+	if not GameState.crests.has(WorldDB.ARENAS["tidewater"]["crest"]):
+		return "marina"
 	if not GameState.flag("shell_heard") and not GameState.flag("kelp_heard"):
 		return "ferry"
 	if not (GameState.flag("shell_heard") and GameState.flag("kelp_heard")):
@@ -611,12 +663,17 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty() and GameState.shield <= 0:
 		await UI.say(["Your beasts are too tired to battle! Heal them first."], name)
 		return
+	if n.has("needs") and not GameState.flag(String(n["needs"])):
+		await UI.say([String(n.get("first", "Come back once you've had the other lesson!"))], name)
+		return
 	await UI.say(n.get("lines", ["Let's battle!"]), name)
 	var def := {"name": n.get("name", ""), "cls": n.get("cls", "Trainer"), "team": n["team"], "defeat": n.get("defeat", ""),
 		"look": n.get("look", {}), "robot_body": n.get("robot_body", ""), "song": song, "boss": n.get("bandit_boss", false), "flute_skill": n.get("flute_skill", 0.8), "encore": n.get("encore", false)}
 	for k in ["lesson", "reward"]:
 		if n.has(k):
 			def[k] = n[k]
+	if n.get("lesson", "") == "elements":
+		_elements_lesson(def)
 	var res := await trainer_battle(def)
 	if res != "win":
 		return
@@ -831,6 +888,11 @@ func _ferry(world) -> void:
 			"Go and see your Uncle Rafe first. Then we'll talk boats."], "Captain Gull")
 		return
 	var here: String = world.map_id
+	var crest: String = WorldDB.ARENAS["tidewater"]["crest"]
+	if here == "tidewater" and not GameState.crests.has(crest):
+		await UI.say(["Ahoy! The islanders only let proven trainers ashore. Earn the %s from Tide Captain Marina at the arena first." % crest,
+			"The arena's coaches will get you ready for her. Then we'll talk boats."], "Captain Gull")
+		return
 	var dest := "shellhaven" if here == "tidewater" else "tidewater"
 	if not await UI.ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
 		return
