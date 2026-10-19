@@ -37,6 +37,8 @@ var max_shield := 0
 var show_shield := false
 ## the trainer can be hit (the middle of the fighting side is down)
 var open := false
+## the trainer standing in the middle: a small picture of them (battle.gd _person_icon); without one, a plain figure
+var trainer_icon: Texture2D = null
 ## the tile of the beast you're choosing for (a slot, or a line index for the wild pack), -2 for the trainer (while
 ## you choose your own action), or -1
 var focus := -1
@@ -206,7 +208,7 @@ func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, le
 			draw_line(c - d, c + d, UIKit.ACCENT.lightened(0.2), 4.0, true)
 
 
-## The trainer's tile in the middle: a round dais with a little figure, glowing when the trainer is open to attack.
+## The trainer's tile in the middle: a round dais with the trainer standing on it, glowing when they're open to attack.
 func _draw_trainer(p: Vector2) -> void:
 	var w := tile.x * 0.5
 	var h := tile.y * 0.5
@@ -228,6 +230,15 @@ func _draw_trainer(p: Vector2) -> void:
 		for v in loop:
 			big.append(p + (v - p) * 1.3)
 		draw_polyline(big, pulse, 3.0, true)
+	if trainer_icon != null:
+		# the trainer, full length, standing on the dais, with a dark outline so they read over the field
+		var ih := tile.x * 1.05
+		var isz := Vector2(ih * float(trainer_icon.get_width()) / maxf(1.0, float(trainer_icon.get_height())), ih)
+		var r := Rect2(p - Vector2(isz.x * 0.5, isz.y - h * 0.45), isz)
+		for d in [Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(0, -1.5), Vector2(0, 1.5)]:
+			draw_texture_rect(trainer_icon, Rect2(r.position + d, r.size), false, Color(0, 0, 0, 0.75))
+		draw_texture_rect(trainer_icon, r, false)
+		return
 	# a little person: head and shoulders
 	var col := UIKit.LIGHT
 	draw_circle(p + Vector2(0, -h * 1.25), h * 0.42, col)

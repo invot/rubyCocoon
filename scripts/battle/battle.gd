@@ -155,6 +155,9 @@ var shield_bubble: MeshInstance3D
 var hud: Control
 var msg_label: Label
 var caption: PanelContainer
+## while commands are chosen: the window at the top explaining the highlighted action or move (see _show_option)
+var move_info: PanelContainer
+var _info_hint := ""
 var bars: Control
 var ally_grid: Control
 var foe_grid: Control
@@ -1114,6 +1117,11 @@ func _build_hud() -> void:
 	ally_grid = RingGrid.new("ally", false, k)
 	ally_grid.show_shield = true
 	cmd_root.add_child(ally_grid)
+	# the trainers in the middle of their grids, locking eyes across the screen: you from behind, looking up and left
+	# to the foe's grid; the rival from the front, looking down and right to yours
+	ally_grid.trainer_icon = _person_icon(GameState.hero_look(), PI + 0.5)
+	if not wild and not (trainer.get("look", {}) as Dictionary).is_empty():
+		foe_grid.trainer_icon = _person_icon(trainer["look"], 0.5)
 	var gap := 8.0 * k
 	bars.position = Vector2.ZERO
 	bars.size = bars.custom_minimum_size
@@ -1151,6 +1159,12 @@ func _build_hud() -> void:
 	cp.add_child(msg_label)
 	cp.visible = false
 	_place_caption()
+	# the move window, in the same place, big enough to read on a phone
+	move_info = PanelContainer.new()
+	move_info.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.94), UIKit.BORDER, 16.0, Vector4(22, 10, 22, 12), 3.0))
+	move_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	move_info.visible = false
+	hud.add_child(move_info)
 
 
 ## The battle text sits at the top, between the foe's grid and the right edge, as wide as its words need.
@@ -1172,12 +1186,160 @@ func _place_caption() -> void:
 	caption.size = Vector2(w, 0)
 
 
-## Shows a line of battle text (empty: hides it).
+## Shows a line of battle text (empty: hides it). While the move window is up, the line goes along its foot instead.
 func _caption(text: String) -> void:
 	if msg_label == null:
 		return
+	if _commanding and move_info != null and move_info.visible:
+		_info_hint = text
+		var foot := move_info.find_child("Foot", true, false) as Label
+		if foot != null:
+			foot.text = text
+			foot.visible = text != ""
+		text = ""
 	msg_label.text = text
 	_place_caption()
+
+
+## What each kind of move is called in the move window.
+const KIND_NAMES := {"attack": "Attack", "buff": "Boost", "debuff": "Weaken", "heal": "Heal", "revive": "Revive",
+	"cleanse": "Cleanse", "shield": "Shield", "status": "Status", "taunt": "Taunt", "special": "Special"}
+const TARGET_NAMES := {"enemy": "one foe", "enemies": "all foes", "ally": "one ally", "allies": "all allies",
+	"self": "itself", "ally_ko": "a fainted ally", "none": ""}
+
+
+## The window at the top while you choose: the highlighted move's name, element and kind, who it reaches, its MP cost
+## (against the beast's MP), power and accuracy, what it does, and any warning (recharging, short of MP, a lesson);
+## for your own actions and Defend, just what they do. Empty: hides it.
+func _show_option(row: Dictionary, o: Dictionary) -> void:
+	if move_info == null:
+		return
+	for c in move_info.get_children():
+		move_info.remove_child(c)
+		c.queue_free()
+	var status_desc := String(row.get("status_desc", "")) if row.get("status", "") != "" else ""
+	if o.is_empty() or (String(o.get("label", "")) == "" and status_desc == ""):
+		move_info.visible = false
+		_place_caption()
+		return
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 4)
+	move_info.add_child(vb)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	vb.add_child(top)
+	var b = row.get("beast", null)
+	var title := String(o.get("label", "")).replace("  ★", "")
+	var desc := String(o.get("desc", ""))
+	var note := String(o.get("note", ""))
+	if status_desc != "":
+		title = String(row.get("name", ""))
+		desc = status_desc
+	top.add_child(UIKit.header(title, UIKit.LIGHT, UIKit.HEAD_BIG))
+	if o.has("move"):
+		var mv := String(o["move"])
+		var m := MoveDB.get_move(mv)
+		top.add_child(_info_tag(UIKit.element_tag(String(m["el"]), 18)))
+		var kind := String(KIND_NAMES.get(String(m.get("kind", "")), String(m.get("kind", "")).capitalize()))
+		var reach := String(TARGET_NAMES.get(String(m.get("target", "enemy")), ""))
+		top.add_child(_info_tag(UIKit.label(kind + (" · " + reach if reach != "" else ""), UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+		var gap := Control.new()
+		gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top.add_child(gap)
+		var cost := MoveDB.mp_cost(mv)
+		var mp_text := "No MP"
+		if cost > 0:
+			mp_text = "MP %d" % cost + (" (has %d)" % b.mp if b != null else "")
+		var short: bool = b != null and b.mp < cost
+		top.add_child(_info_tag(UIKit.label(mp_text, UIKit.BODY_BIG, UIKit.ACCENT.lightened(0.35) if short else UIKit.INK)))
+		var facts := []
+		if m.has("power"):
+			facts.append("Power %d" % m["power"])
+		if m.has("acc"):
+			facts.append("Accuracy %d" % m["acc"])
+		if int(m.get("cd", 0)) > 0:
+			facts.append("Rests %d turn%s after use" % [m["cd"], "" if int(m["cd"]) == 1 else "s"])
+		if not facts.is_empty():
+			vb.add_child(UIKit.label("   ".join(facts), UIKit.BODY_BIG, UIKit.DIM))
+		desc = String(m.get("desc", ""))
+	elif o.get("id", "") == "defend":
+		top.add_child(_info_tag(UIKit.label("Guard · itself", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+		if b != null:
+			desc = "Brace for impact: %s takes half damage until your side's next turn." % b.nickname
+	elif row.get("kind", "") == "trainer" and status_desc == "":
+		top.add_child(_info_tag(UIKit.label("Your action", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+	var d := UIKit.label(desc, UIKit.BODY_HUGE, UIKit.INK)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.add_theme_constant_override("line_spacing", -10)
+	d.custom_minimum_size.x = 620.0
+	vb.add_child(d)
+	if note != "":
+		var nl := UIKit.label(note, UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nl.custom_minimum_size.x = 620.0
+		vb.add_child(nl)
+	var foot := UIKit.label(_info_hint, UIKit.BODY_BIG, UIKit.DIM)
+	foot.name = "Foot"
+	foot.visible = _info_hint != ""
+	vb.add_child(foot)
+	move_info.visible = true
+	# along the top, clear of the foe's grid, like the battle text
+	var vw := hud.get_viewport_rect().size.x
+	var left := foe_grid.position.x + foe_grid.size.x + 12.0
+	move_info.reset_size()
+	var w := move_info.get_combined_minimum_size().x
+	move_info.position = Vector2(left + maxf(0.0, (vw - left - 16.0 - w) * 0.5), 10.0)
+	# (and once the wrapped lines know their width, no taller than they need)
+	move_info.reset_size.call_deferred()
+	msg_label.text = ""
+	_place_caption()
+
+
+## A small full-length picture of a person for the middle of a ring grid, turned `yaw` from facing the viewer
+## (positive: towards the right of the screen; PI: their back): rendered off screen for a moment, then kept as it is.
+func _person_icon(look: Dictionary, yaw: float) -> Texture2D:
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	vp.msaa_3d = Viewport.MSAA_4X
+	vp.size = Vector2i(132, 176)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(vp)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.7
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var we := WorldEnvironment.new()
+	we.environment = env
+	vp.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-35, 30, 0)
+	sun.light_energy = 1.25
+	vp.add_child(sun)
+	var rig := VPer.build(look)
+	VPer.face(rig, Vector2i(0, 1))
+	rig.rotation.y = yaw
+	vp.add_child(rig)
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = VPer.height() * 1.12
+	var at := Vector3(0, 1.6, 5.0)
+	cam.transform = Transform3D(Basis.looking_at(Vector3(0, VPer.height() * 0.52, 0) - at, Vector3.UP), at)
+	vp.add_child(cam)
+	cam.current = true
+	# a picture, not a scene: stop drawing it once it's had a moment to render
+	get_tree().create_timer(0.6).timeout.connect(func() -> void:
+		if is_instance_valid(vp):
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED)
+	return vp.get_texture()
+
+
+## A tag in the move window, centred on its line.
+func _info_tag(c: Control) -> Control:
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return c
 
 
 func _refresh() -> void:
@@ -1584,11 +1746,12 @@ func _command_phase() -> Array:
 			break
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "point": _point_at,
-			"bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid})
+			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
 		_commanding = false
+		_show_option({}, {})
 		_point_at(null)
 		ally_grid.focus = -1
 		ally_grid.target = -1
@@ -1735,11 +1898,15 @@ func _move_options(b) -> Array:
 				if Elements.multiplier(m["el"], _guard_el(f)) >= 2.0:
 					star = "  ★"
 		var off: bool = cd > 0 or b.mp < cost
+		# (note: the move window's warning line)
+		var note := "Strong against a foe on the field!" if star != "" else ""
 		if cd > 0:
 			desc = "Recharging for %d more turn(s).\n" % cd + desc
+			note = "Recharging: ready again in %d turn%s." % [cd, "" if cd == 1 else "s"]
 			right = "wait %d" % cd
 		elif b.mp < cost:
 			desc = "Not enough MP! (%d of %d) Heal at a Beast Center or use a Spirit Drop.\n" % [b.mp, cost] + desc
+			note = "Not enough MP (%d of %d). Heal at a Beast Center or use a Spirit Drop." % [b.mp, cost]
 		elif cost > 0:
 			desc = "Costs %d MP (%s has %d).\n" % [cost, b.nickname, b.mp] + desc
 		if tutorial:
@@ -1747,14 +1914,19 @@ func _move_options(b) -> Array:
 			if want_b != "Fight" or mv != _tut_move(b):
 				off = true
 				desc = "%s: \"%s\"" % [_tut_who(), "Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"]]
-		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "target": m["target"], "disabled": off})
+				note = desc
+		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
 	if el == "neutral" and not b.ghost:
-		out[0]["desc"] = "%s can't use %s moves from the %s side: plain moves only.\n" % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()] + String(out[0]["desc"])
+		var plain := "%s can't use %s moves from the %s side: plain moves only." % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()]
+		out[0]["desc"] = plain + "\n" + String(out[0]["desc"])
+		if String(out[0].get("note", "")) == "":
+			out[0]["note"] = plain
 	var d := {"id": "defend", "label": "Defend", "target": "none", "right": "half damage",
 		"desc": "Brace for impact: %s takes half damage until your side's next turn." % b.nickname}
 	if tutorial and _tut_beast() != "Defend":
 		d["disabled"] = true
-		d["desc"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
+		d["note"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
+		d["desc"] = String(d["note"])
 	out.append(d)
 	return out
 
