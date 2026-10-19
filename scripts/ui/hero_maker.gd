@@ -1,5 +1,5 @@
 extends "res://scripts/ui/modal.gd"
-## The character creator, before a new game: the hero's name (one of NAMES: no keyboard), body, and the colours of
+## The character creator, before a new game: the hero's name (one of their body's NAMES: no keyboard), body, and the colours of
 ## their top, trousers, hair and eyes, on a turning preview. Closes with {"name", "look"} (the look for
 ## GameState.hero), or null when backed out of.
 ## Keys: up and down pick a row, left and right change it, A on Start begins, B backs out. Touch: tap the arrows,
@@ -8,7 +8,11 @@ extends "res://scripts/ui/modal.gd"
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 
-const NAMES := ["Robin", "Sam", "Alex", "Jamie", "Riley", "Morgan", "Quinn", "Kai", "Sky", "Avery"]
+## ten names for each body, the first the one it starts with
+const NAMES := {
+	"male": ["Andrew", "Ben", "Fritzy", "Sam", "Leo", "Max", "Kai", "Finn", "Theo", "Jack"],
+	"female": ["Regan", "Tessa", "Christina", "Mia", "Lily", "Ava", "Nora", "Ivy", "Zoe", "Clara"],
+}
 const BODIES := ["male", "female"]
 const BODY_NAMES := {"male": "Male", "female": "Female"}
 const SWATCHES := {
@@ -24,6 +28,8 @@ const ROW_NAMES := {"name": "Name", "body": "Body", "top": "Top", "trousers": "T
 const CHIP := 46.0
 
 var pick := {"name": 0, "body": 0, "top": 0, "trousers": 0, "hair": 0, "eyes": 0}
+## the name last picked for each body, so switching back keeps it
+var _names_by_body := {"male": 0, "female": 0}
 var row := 0
 var _rows := {}
 var _name_label: Label
@@ -228,7 +234,7 @@ func _change(id: String, d: int) -> void:
 	_go(ROWS.find(id), false)
 	match id:
 		"name":
-			pick["name"] = posmod(pick["name"] + d, NAMES.size())
+			pick["name"] = posmod(pick["name"] + d, _names().size())
 			Sfx.play("blip")
 			_show()
 		"body":
@@ -248,6 +254,9 @@ func _choose(id: String, i: int) -> void:
 		# a top left as the last body's own becomes this one's
 		if pick["top"] == DEFAULT_TOP[BODIES[pick["body"]]]:
 			pick["top"] = DEFAULT_TOP[BODIES[i]]
+		# and the name: the one last picked for this body (to begin with, its own)
+		_names_by_body[BODIES[pick["body"]]] = pick["name"]
+		pick["name"] = _names_by_body[BODIES[i]]
 		pick["body"] = i
 		_build_rig()
 	else:
@@ -266,14 +275,19 @@ func look() -> Dictionary:
 
 func _finish() -> void:
 	Sfx.play("confirm")
-	close({"name": NAMES[pick["name"]], "look": look()})
+	close({"name": _names()[pick["name"]], "look": look()})
+
+
+## The names the chosen body picks from.
+func _names() -> Array:
+	return NAMES[BODIES[pick["body"]]]
 
 
 # ---------------------------------------------------------------- showing
 func _show() -> void:
 	for id in _rows:
 		(_rows[id] as PanelContainer).add_theme_stylebox_override("panel", UIKit.highlight() if ROWS[row] == id else StyleBoxEmpty.new())
-	_name_label.text = NAMES[pick["name"]]
+	_name_label.text = _names()[pick["name"]]
 	for a in _arrows:
 		_paint(a, false)
 	_paint(_start, ROWS[row] == "start")

@@ -202,7 +202,7 @@ func text_input(prompt: String, default := "") -> String:
 func make_hero():
 	if auto:
 		await get_tree().process_frame
-		return {"name": "Robin", "look": {}}
+		return {"name": "Andrew", "look": {}}
 	var m: Control = load("res://scripts/ui/hero_maker.gd").new()
 	push(m)
 	return await m.done
