@@ -282,7 +282,7 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO) -> void:
 	elif WorldDB.ROUTES.has(id):
 		var lv: Array = WorldDB.ROUTES[id]["lv"]
 		sub = "Wild beasts Lv %d-%d" % [lv[0], lv[1]]
-	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] == "house"):
+	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] in ["house", "uncle"]):
 		UI.banner(title, sub)
 	_transitioning = false
 	await Story.on_map_enter(world)
@@ -1362,10 +1362,14 @@ func _flow_test() -> void:
 			await Story.talk(world, _lesson_trainer(String(t["lesson"])))
 		await _wait(0.5)
 		if t["lesson"] == "slingshot":
-			# Kit's logs, laid across the footbridge just outside his cabin
-			print("Kit's logs: ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
+			# Old Hal the builder: he asks you to mend the footbridge with the logs by his door, then gives you an egg
+			await _go(MapLoader.interior_of("route1", "cabin"), "entry")
+			await _wait(1.0)
+			await Story.talk(world, _npc("builder"))
 			await _go("route1", "west")
 			await _wait(1.0)
+			await Story.talk(world, _npc("logpile"))
+			print("the builder's logs: ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
 			for q in world.map["obstacles"]:
 				var bridge: Dictionary = world.map["obstacles"][q]
 				if bridge["kind"] == "broken_bridge":
@@ -1373,6 +1377,13 @@ func _flow_test() -> void:
 					await Story.field_move(world, bridge)
 					print("footbridge mended: ", GameState.flag(bridge["flag"]), "  logs left ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
 					break
+			var eggs_before := GameState.eggs.size()
+			await _go(MapLoader.interior_of("route1", "cabin"), "entry")
+			await _wait(1.0)
+			await Story.talk(world, _npc("builder"))
+			print("the builder's egg: ", GameState.eggs.size() - eggs_before, "  hint: ", Story.next_goal())
+			await _go("route1", "west")
+			await _wait(1.0)
 	print("after the lessons: tutorial_done ", GameState.flag("tutorial_done"), "  starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level,
 		"  minor potions ", GameState.item_count("minor_potion"), "  hint: ", Story.next_goal())
 	_step("wild battle at Lv1", [])
@@ -1391,6 +1402,9 @@ func _flow_test() -> void:
 	print("flute before Tidewater: ", GameState.has_flute(), "  songs ", GameState.songs)
 	await _go("tidewater", "west")
 	await _wait(1.5)
+	# Uncle Rafe is at home, by the west gate
+	await _go(MapLoader.interior_of("tidewater", "uncle"), "entry")
+	await _wait(1.0)
 	_step("uncle's flute lessons", [])
 	await Story.talk(world, _npc("uncle"))
 	print("after the uncle: flute ", GameState.has_flute(), "  songs ", GameState.songs)
@@ -1836,13 +1850,16 @@ func _coaches_test() -> void:
 	get_tree().process_frame.connect(watch)
 	await _go("route1", "west")
 	await _settle("route1")
-	# along the trail to Kit's door, and in: he sees you come in
+	# along the trail (Youngster Kit stops you by the creek) to the builder's door, and in: he asks you to mend the
+	# footbridge with the logs by his door
 	var cabin := _bld("cabin")
 	await _walk_road([cabin["door"] + Vector2i(0, 1)])
 	world._step(Vector2i(0, -1), false)
 	await _settle(MapLoader.interior_of("route1", "cabin"))
+	await Story.talk(world, _npc("builder"))
 	await _walk_road(world.map["exits"].keys())
 	await _settle("route1")
+	await Story.talk(world, _npc("logpile"))
 	# his logs, across the footbridge
 	var post := Vector2i(-999, -999)
 	for q in world.map["obstacles"]:
@@ -1854,7 +1871,7 @@ func _coaches_test() -> void:
 	UI.auto_answers = [0]
 	await world._interact()
 	var mended: bool = not world.map["obstacles"].has(post + Vector2i(1, 0))
-	print("%s footbridge mended with Kit's logs" % ("ok  " if mended else "FAIL"))
+	print("%s footbridge mended with the builder's logs" % ("ok  " if mended else "FAIL"))
 	if not mended:
 		bad[0] += 1
 	# on along the trail to Tidewater

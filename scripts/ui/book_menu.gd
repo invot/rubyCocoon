@@ -1166,7 +1166,7 @@ func _town_detail(c: VBoxContainer, t: String) -> void:
 	c.add_child(_t_label("Mascot: %s" % RaceDB.race_name(info["mascot"])))
 	var shops := []
 	for s in info["shops"]:
-		if s != "house" and not shops.has(s):
+		if not s in ["house", "uncle"] and not shops.has(s):
 			shops.append(String(s).replace("_", " ").capitalize())
 	var sl := _t_label("Places: " + ", ".join(shops), UIKit.DIM)
 	c.add_child(sl)

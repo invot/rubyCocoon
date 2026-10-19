@@ -276,7 +276,7 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		paw.position = Vector3(door_lx + 0.95, 1.4, _on_face(paw.mesh, _sign_face(shop, d)))
 		node.add_child(paw)
 	# wordless sign above the door
-	if shop not in ["house", "home", "hideout", "temple", "decor", "cathedral", "ceo_tower", "center"]:
+	if shop not in ["house", "home", "hideout", "temple", "decor", "cathedral", "ceo_tower", "center", "uncle"]:
 		var icon := MeshInstance3D.new()
 		icon.mesh = VP.icon(shop)
 		var hgt := float(b.get("height", 2.4))
@@ -371,6 +371,9 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 	var gmat: Material = HouseBuilder.wall_material(String(ground[0]), Color(ground[1]))
 	var umat: Material = HouseBuilder.wall_material(String(upper[0]), Color(upper[1]))
 	var floors := int(look["floors"]) if commercial else (2 if (w >= 4 and rng.randf() < 0.55) or shop == "home" else 1)
+	# (one with a street close behind it is kept to one storey: see world.gd _plan_houses)
+	if b.get("low", false):
+		floors = 1
 	var door: String = "door_1" if locked else PACK_DOORS[rng.randi_range(0, PACK_DOORS.size() - 1)]
 	var shutters := not commercial and style_name in ["town", "coastal", "gothic", "steampunk"] and rng.randf() < 0.75
 	var kinds := {2: PACK_WINDOWS, 3: PACK_WIDE} if commercial else {2: PACK_WINDOWS if rng.randf() < 0.6 else PACK_SMALL}

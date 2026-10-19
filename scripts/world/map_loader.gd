@@ -36,7 +36,7 @@ const BUILDING_LETTERS := {
 	"C": "center", "A": "apothecary", "G": "beast_gear", "O": "trainer_gear", "K": "bookstore",
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",
 	"H": "house", "Z": "home", "Q": "temple", "X": "electronics", "V": "skytower", "I": "ceo_tower",
-	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin",
+	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin", "r": "uncle",
 }
 const ENTITY_CHARS := "@v^<>$*123456789P"
 const FACING := {"v": Vector2i(0, 1), "^": Vector2i(0, -1), "<": Vector2i(-1, 0), ">": Vector2i(1, 0)}
@@ -295,6 +295,34 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		if r.has("pack"):
 			m["encounter"]["pack"] = r["pack"]
 
+	# a town's catching meadow (Tidewater's): wild beasts live only inside its ring of hedges, never in the streets
+	if src.has("meadow"):
+		var md: Dictionary = src["meadow"]
+		m["encounter"] = {"races": md["races"], "lv": md["lv"], "rate": 0.11, "ghosts": 0.0, "after_flute": true, "pack": 1}
+		var mc := Vector2(float(md["center"][0]), float(md["center"][1]))
+		var area := {}
+		for y in h:
+			for x in w:
+				if Vector2(x, y).distance_to(mc) <= float(md["radius"]) and MapGen.walkable(MapGen.get_t(m, x, y)):
+					area[Vector2i(x, y)] = true
+		m["wild_area"] = area
+	# a building standing in the water (a fishery on the docks) stands on planks over it
+	var over := {}
+	for b in m["buildings"]:
+		if b["shop"] != "decor":
+			continue
+		var wet := false
+		for y in range(int(b["y"]) - 1, int(b["y"]) + int(b["d"]) + 1):
+			for x in range(int(b["x"]) - 1, int(b["x"]) + int(b["w"]) + 1):
+				if MapGen.get_t(m, x, y) == MapGen.WATER:
+					wet = true
+		if wet:
+			b["name"] = "Fishery"
+			for y in range(int(b["y"]), int(b["y"]) + int(b["d"])):
+				for x in range(int(b["x"]), int(b["x"]) + int(b["w"])):
+					over[Vector2i(x, y)] = true
+	if not over.is_empty():
+		m["over_water"] = over
 	# exits along each connected edge
 	var edges := WorldDB.town_edges(id) if WorldDB.TOWNS.has(id) else WorldDB.route_edges(id)
 	for dir in edges:
@@ -393,7 +421,9 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 		"hideout":
 			b["name"] = "Bandit Hideout"
 		"cabin":
-			b["name"] = "Kit's Cabin"
+			b["name"] = "Builder's Cabin"
+		"uncle":
+			b["name"] = "Uncle Rafe's House"
 		"temple":
 			var tk := WorldDB.ROUTES.get(map_id, {}).get("temple", "water") as String
 			b["temple"] = tk
@@ -643,7 +673,7 @@ static func _default_zone(key: String, room: Dictionary) -> String:
 		return "office"
 	if key in ["dojo", "arena", "fortune"]:
 		return "wood"
-	if key in ["home", "house_a", "house_b"]:
+	if key in ["home", "house_a", "house_b", "uncle_home"]:
 		return "living"
 	return "shop"
 

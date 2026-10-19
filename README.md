@@ -38,17 +38,19 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it (`world_db.gd`
    LESSON_TRAINERS, battle.gd LESSONS). Each looks straight across the trail where you can't slip past, so you always
    walk into their line of sight and they come over and stop you; you never need to talk to them first. Youngster Kit
-   faces his cabin's door and stops you as you come in. Each gives a guided battle, and so do the arena's coaches and
+   watches the trail where it reaches the creek. Each gives a guided battle, and so do the arena's coaches and
    the flute lesson (`battle.gd` LESSONS): every bar and every menu has just the one thing to pick, the one being
    taught (◄ ► stay put, and the teacher says what to do), the target and the beast to heal are chosen for you, and
    you can't lose: your beasts are healed first and always keep at least 1 HP, and nobody can run, forfeit or hit
    you. Your beast grows a level or so. Camper Tilly: the battle screen and
-   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, in his log cabin by the creek: your own turn (slingshot, Watch, Run and Forfeit).
+   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, on the trail by the creek: your own turn (slingshot, Watch, Run and Forfeit).
    Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
    striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
-6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater: Youngster Kit, the slingshot teacher, lives in
-   the log cabin just west of it and gives you the logs he's gathered once you've had his lesson. Lay them across the
-   creek.
+6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater (the sign only says there's a footbridge ahead
+   and a builder's cabin by the creek). Old Hal the builder, in the cabin just west of it, is too tired to rebuild it
+   himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
+   in and he gives you a beast egg (a Seashelly) to hatch at Tidewater's Beast Center. Mended, it's a plank footbridge
+   with railings.
 7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute.
@@ -78,7 +80,7 @@ Every road between towns narrows to one bottleneck with a puzzle, getting harder
 
 | Road | Puzzle |
 |---|---|
-| Coastal Path | A washed-out footbridge. Youngster Kit, in the log cabin beside it, hands over the five logs after his lesson; lay them across the creek. |
+| Coastal Path | A washed-out footbridge. Old Hal the builder, in the cabin beside it, lends you the logs stacked by his door; lay them across the creek, then he gives you an egg. |
 | Isle Trail | Thorny brambles. A fire beast burns them; an air beast slices them down. |
 | Dune Road | A sheer cliff with a rope ladder coiled at the top. A beast with wings flies up and drops it. |
 | Mesa Trail | A rockslide: push the boulders around until a path opens. |
@@ -350,7 +352,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Buildings** are solid rectangles of one letter, for example:
   - `C` Beast Center, `X` electronics, `V` Sky Tower
   - `I` Gearhart Tower, `B` cathedral, `J` hideout, `Q` temple
-- **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with logs: Youngster Kit gives you them after his lesson) and `k` (a cliff that needs a winged beast).
+- **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with the logs stacked by Old Hal's door) and `k` (a cliff that needs a winged beast).
 - `b` is Youngster Kit's log cabin on the Coastal Path (room `kit_cabin` in `interior_maps.gd`, where an `anchors` entry puts Kit by the fire).
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too.

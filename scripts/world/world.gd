@@ -288,6 +288,8 @@ func _build_terrain() -> void:
 			if c in [MapGen.LAMP, MapGen.SIGN]:
 				# a lamp post or a signpost stands on whatever ground is around it
 				c = MapLoader._infer_floor(map, Vector2i(x, y))
+			if c == MapGen.BUILDING and map.get("over_water", {}).has(Vector2i(x, y)):
+				c = MapGen.BRIDGE
 			match c:
 				MapGen.PATH, MapGen.DOOR:
 					kind = "path"
@@ -443,11 +445,13 @@ func _build_backdrop() -> void:
 				elif rng.randf() < 0.2:
 					_ring_shrub(by_asset, shrubs, c, rng, 0.5, 0.9)
 				continue
-			# a wood: thick near the map, a little thinner deep in (the fog takes over there)
-			if rng.randf() < (0.8 if depth <= 6 else 0.6):
-				_ring_tree(by_asset, trees, c, rng, 2.4, 4.0, shadow)
-			elif depth <= 2 and rng.randf() < 0.5:
-				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.0)
+			# a wood: thick near the map, a little thinner deep in (the fog takes over there); a mixed one has gaps
+			# filled with shrubs
+			var mixed := float(biome.get("mixed", 0.0))
+			if rng.randf() < (0.8 if depth <= 6 else 0.6) * (1.0 - mixed * 0.7):
+				_ring_tree(by_asset, trees, c, rng, 2.0 if mixed > 0.0 else 2.4, 4.0, shadow)
+			elif (depth <= 2 or (mixed > 0.0 and depth <= 6)) and rng.randf() < 0.5 + mixed:
+				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.2)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	# hills on the horizon
@@ -626,8 +630,16 @@ func _build_scatter() -> void:
 				MapGen.FLOWERS:
 					flowers[rng.randi_range(0, 1)].append(_xf(center, _voxel_rot(rng)))
 				MapGen.TREE:
+					# a mixed wood (the coast's): some of it thickets of different shrubs in place of trees
+					var mix := float(biome.get("mixed", 0.0))
+					if mix > 0.0 and y < h - 3 and rng.randf() < mix:
+						for k in rng.randi_range(2, 3):
+							var tn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
+							var s4 := VA.fit_scale(tn, rng.randf_range(0.55, 1.25))
+							_add_asset(by_asset, tn + SHADOWLESS, _xf(center + Vector3(rng.randf_range(-0.35, 0.35), -VA.aabb(tn).position.y * s4, rng.randf_range(-0.35, 0.35)), _voxel_rot(rng), s4))
+						continue
 					var name := _pick_weighted(trees, rng)
-					var hgt := rng.randf_range(2.2, 3.1)
+					var hgt := rng.randf_range(2.2, 3.1) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
 					if y >= h - 3:
 						name = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						hgt = rng.randf_range(0.7, 1.0)
@@ -710,7 +722,7 @@ func _plan_houses() -> void:
 	var used := {}
 	for b in map["buildings"]:
 		var shop: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in VBld.SIGNED_HOUSES
-		if not b["shop"] in ["house", "home", "decor", "cabin"] and not shop:
+		if not b["shop"] in ["house", "home", "decor", "cabin", "uncle"] and not shop:
 			continue
 		var x0: int = b["x"]
 		var y0: int = b["y"]
@@ -721,13 +733,22 @@ func _plan_houses() -> void:
 		while back < 3 and _leanable_row(y0 - back - 1, x0, x0 + w - 1):
 			back += 1
 		room["back"] = float(back)
+		# somewhere people walk not far behind it: the camera (CAM_OFFSET, behind and above whoever's there) looks over
+		# the house, so it leans no further back and stands no taller than the line from the camera down to them
+		var gap := _walk_gap_behind(x0, y0, w)
+		var max_h := INF
+		if gap < CAM_OFFSET.z + 1.0:
+			room["back"] = 0.0
+			b["low"] = true
+			# (never lower than a one-storey house: it's those that are wanted there)
+			max_h = maxf(4.6, CAM_LOOK_Y + (CAM_OFFSET.y - CAM_LOOK_Y) * (float(gap) + 0.5) / CAM_OFFSET.z)
 		var o := Vector2(float(x0) + float(w) / 2.0, float(y0) + float(d) / 2.0)
 		var plan := {}
 		# the house must stand only on its plot and on trees, hedges and rocks: if it would reach a path or another
 		# building (leaning sideways and back at once), plan again with less room
 		for attempt in 4:
 			# (Kit's cabin is always a log cabin, whatever the road's style)
-			plan = HouseModels.plan(b, "cabin" if b["shop"] == "cabin" else style, room, shop, used)
+			plan = HouseModels.plan(b, "cabin" if b["shop"] == "cabin" else style, room, shop, used, max_h)
 			if plan.is_empty() or _house_fits(plan["rect"], o, b):
 				break
 			room["back"] = maxf(0.0, float(room["back"]) - 1.0)
@@ -805,6 +826,20 @@ func _leanable(x: int, y: int) -> bool:
 	if x < 0 or y < 0 or x >= map["w"] or y >= map["h"]:
 		return true
 	return MapGen.get_t(map, x, y) in [MapGen.TREE, MapGen.BUSH, MapGen.ROCK]
+
+
+## How many rows behind (north of) a plot it is to the nearest outdoor tile anyone can walk on, across the plot's width
+## (99 if there's none for a long way).
+func _walk_gap_behind(x0: int, y0: int, w: int) -> int:
+	for k in range(1, 15):
+		var y := y0 - k
+		if y < 0:
+			return 99
+		for x in range(x0, x0 + w):
+			var c := MapGen.get_t(map, x, y)
+			if MapGen.walkable(c) and c != MapGen.DOOR and not c in [MapGen.WATER, MapGen.BRIDGE]:
+				return k - 1
+	return 99
 
 
 func _build_buildings() -> void:
@@ -1071,8 +1106,9 @@ var _log_bridge_nodes := {}
 
 
 func _build_log_bridges() -> void:
+	# mended: the finished footbridge, its logs under the deck
 	for tiles in map.get("log_bridges", []):
-		_lay_logs(tiles, _logs_needed(), "")
+		_lay_logs(tiles, _logs_needed(), "", true)
 	var seen := {}
 	for p in map["obstacles"]:
 		var grp: Dictionary = map["obstacles"][p]
@@ -1105,26 +1141,80 @@ func _log_slot(tiles: Array, i: int) -> Array:
 	return [Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(r.position.x + step2 * (i + 0.5), y, r.position.y + r.size.y / 2.0)), r.size.y * 16 + 2]
 
 
-func _lay_logs(tiles: Array, placed: int, key: String) -> void:
+func _lay_logs(tiles: Array, placed: int, key: String, mended := false) -> void:
 	var holder := Node3D.new()
 	add_child(holder)
 	if key != "":
 		_log_bridge_nodes[key] = holder
-	# a stout post at each corner of the old bridge
-	var r := _bridge_rect(tiles)
-	var k := VBld.Kit.new()
-	for cx in [r.position.x, r.end.x]:
-		for cz in [r.position.y, r.end.y]:
-			k.box("color", Vector3(cx, 0.0, cz), Vector3(0.22, 0.9, 0.22), Color("#5a3c22"))
-	var posts := MeshInstance3D.new()
-	posts.mesh = k.mesh()
-	holder.add_child(posts)
+	if mended:
+		holder.add_child(_footbridge(tiles))
+	else:
+		# a stout post at each corner of the old bridge
+		var r := _bridge_rect(tiles)
+		var k := VBld.Kit.new()
+		for cx in [r.position.x, r.end.x]:
+			for cz in [r.position.y, r.end.y]:
+				k.box("color", Vector3(cx, 0.0, cz), Vector3(0.22, 0.9, 0.22), Color("#5a3c22"))
+		var posts := MeshInstance3D.new()
+		posts.mesh = k.mesh()
+		posts.name = "Posts"
+		holder.add_child(posts)
 	for i in mini(placed, _logs_needed()):
 		var slot := _log_slot(tiles, i)
 		var lg := MeshInstance3D.new()
 		lg.mesh = VP.log_mesh(int(slot[1]), 3.4)
 		lg.transform = slot[0]
 		holder.add_child(lg)
+
+
+## The mended footbridge: plank decking across the creek, level with the banks and running a little onto each, on
+## two beams (the logs lie under it), with a railing of posts, a top rail and a middle rail along each side.
+func _footbridge(tiles: Array) -> MeshInstance3D:
+	var r := _bridge_rect(tiles)
+	var along_x := MapGen.get_t(map, r.position.x - 1, r.position.y) != MapGen.WATER
+	# in the bridge's own terms: a runs across the creek, b across the deck
+	var len_a := float(r.size.x if along_x else r.size.y) + 0.6
+	var wid := float(r.size.y if along_x else r.size.x) - 0.06
+	var mid := Vector3(r.position.x + r.size.x / 2.0, 0.0, r.position.y + r.size.y / 2.0)
+	var at := func(a: float, y: float, b: float) -> Vector3:
+		return mid + (Vector3(a, y, b) if along_x else Vector3(b, y, a))
+	var size := func(sa: float, sy: float, sb: float) -> Vector3:
+		return Vector3(sa, sy, sb) if along_x else Vector3(sb, sy, sa)
+	var k := VBld.Kit.new()
+	var wood := Color("#a07a4c")
+	var dark := Color("#6a4a2a")
+	for b in [-wid / 2.0 + 0.16, wid / 2.0 - 0.16]:
+		k.box("color", at.call(0.0, -0.1, b), size.call(len_a, 0.14, 0.18), dark, true)
+	var n := int(len_a / 0.24)
+	for i in n:
+		var a := -len_a / 2.0 + (i + 0.5) * len_a / n
+		k.box("color", at.call(a, 0.0, 0.0), size.call(len_a / n - 0.03, 0.07, wid), wood if i % 3 != 1 else wood.darkened(0.12), true)
+	for b in [-wid / 2.0 + 0.05, wid / 2.0 - 0.05]:
+		var posts := maxi(3, int(len_a) + 1)
+		for i in posts:
+			var a := -len_a / 2.0 + 0.08 + i * (len_a - 0.16) / (posts - 1)
+			k.box("color", at.call(a, 0.34, b), size.call(0.1, 0.7, 0.1), dark)
+		k.box("color", at.call(0.0, 0.68, b), size.call(len_a - 0.04, 0.07, 0.09), wood)
+		k.box("color", at.call(0.0, 0.4, b), size.call(len_a - 0.08, 0.05, 0.06), wood.darkened(0.15))
+	var mi := MeshInstance3D.new()
+	mi.mesh = k.mesh()
+	mi.name = "Footbridge"
+	return mi
+
+
+## The last log in: the old posts give way to the finished footbridge, dropped onto the logs.
+func finish_footbridge(grp: Dictionary) -> void:
+	var holder: Node3D = _log_bridge_nodes.get(grp["flag"], null)
+	if holder == null:
+		return
+	var posts := holder.get_node_or_null("Posts")
+	if posts != null:
+		posts.queue_free()
+	var fb := _footbridge(grp["tiles"])
+	holder.add_child(fb)
+	fb.position.y = 0.9
+	var tw := create_tween()
+	tw.tween_property(fb, "position:y", 0.0, 0.4).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 ## Drops log number `placed` into its place with a bounce.
@@ -1287,7 +1377,7 @@ func _build_npcs() -> void:
 		n["node"] = node
 		n["home"] = p
 		npcs[p] = n
-		if n.has("mesh"):
+		if n.has("mesh") and not n.get("still", false):
 			bobbers.append([node, 0.1, 2.0])
 		if n.get("kind", "") == "trainer" and not GameState.flag(n.get("flag", "")):
 			var mark := Label3D.new()
@@ -2246,6 +2336,8 @@ func _spawn_wilds() -> void:
 		for x in map["w"]:
 			var c := MapGen.get_t(map, x, y)
 			if (interior and c == MapGen.MIST) or (not interior and c in [MapGen.TALL, MapGen.GRASS, MapGen.SAND, MapGen.FLOWERS]):
+				if map.has("wild_area") and not map["wild_area"].has(Vector2i(x, y)):
+					continue
 				_wild_cands.append(Vector2i(x, y))
 	if _wild_cands.is_empty():
 		return
@@ -2335,8 +2427,10 @@ func _wild_free(p: Vector2i, w: Dictionary) -> bool:
 	var c := MapGen.get_t(map, p.x, p.y)
 	if not MapGen.walkable(c) or (interior and c != MapGen.MIST) or c == MapGen.DOOR or c == MapGen.ICE:
 		return false
-	# wild beasts keep out of the push puzzles
+	# wild beasts keep out of the push puzzles, and in a town keep to its meadow
 	if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).grow(1).has_point(p):
+		return false
+	if map.has("wild_area") and not map["wild_area"].has(p):
 		return false
 	if npcs.has(p) or items.has(p) or shards.has(p) or pushables.has(p) or map["exits"].has(p) or doors.has(p - Vector2i(0, 1)):
 		return false
