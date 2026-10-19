@@ -618,7 +618,7 @@ func arena(b: Dictionary, town: String) -> void:
 		# (Tidewater: the coaches' lessons come first, see Story.ARENA_LESSONS)
 		var ready: bool = beaten or Story.arena_lessons_done(town)
 		if not ready:
-			desc = "First, the arena's battle lessons: talk to Coach Rory, then Coach Ondine, by the ring."
+			desc = "First, the arena's battle lessons: Coach Rory, then Coach Ondine, just inside the door."
 		var items := [
 			{"text": ("Rematch " if beaten else "Challenge ") + leader, "disabled": not ready, "desc": desc},
 			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
@@ -747,7 +747,7 @@ func arena_challenge(town: String) -> String:
 func _lessons_first(town: String, leader: String) -> bool:
 	if Story.arena_lessons_done(town):
 		return false
-	await UI.say(["Not so fast! Every challenger takes our coaches' lessons first: Coach Rory, then Coach Ondine. They're by the ring."], leader)
+	await UI.say(["Not so fast! Every challenger takes our coaches' lessons first: Coach Rory, then Coach Ondine. They're just inside the door."], leader)
 	return true
 
 

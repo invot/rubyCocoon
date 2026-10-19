@@ -35,9 +35,11 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 2. Elder Rowan lets you choose one of four elemental eggs.
 3. The Beast Center hatches it into a **level 1** beast.
 4. Scout Bram keeps the gate to the Coastal Path shut until you have a beast of your own.
-5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it, each standing where
-   you can't slip past (`story.gd` LESSON_TRAINERS, battle.gd LESSONS). Each gives a guided battle: only what's being
-   taught can be picked, you can't lose, and your beast grows a level or so. Camper Tilly: the battle screen and
+5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it (`world_db.gd`
+   LESSON_TRAINERS, battle.gd LESSONS). Each looks straight across the trail where you can't slip past, so you always
+   walk into their line of sight and they come over and stop you; you never need to talk to them first. Youngster Kit
+   faces his cabin's door and stops you as you come in. Each gives a guided battle: only what's being taught can be
+   picked, you can't lose, and your beast grows a level or so. Camper Tilly: the battle screen and
    fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, in his log cabin by the creek: your own turn (slingshot, Watch, Run and Forfeit).
    Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
    striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
@@ -47,12 +49,13 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute.
-10. Tidewater's arena teaches you to battle properly before you may face its master (`story.gd` ARENA_LESSONS,
-    battle.gd LESSONS "team" and "elements"): **Coach Rory** shows you fighting with a whole side of your ring (the
-    arena's practice beasts fill your empty slots for the lesson), then **Coach Ondine** elemental weaknesses (her beast
-    is weak to the element of the side facing it; with your earth side facing, you borrow the arena's air practice
-    team, since nothing is weak to earth). Only then can you challenge **Tide Captain Marina**, and Captain Gull's
-    ferry to the Isle of Tides only takes trainers with her Wave Crest.
+10. Tidewater's arena teaches you to battle properly before you may face its master (`world_db.gd` ARENA_LESSONS,
+    battle.gd LESSONS "team" and "elements"). Both coaches stand just inside the door and see you as you walk in.
+    **Coach Rory** stops you first and shows you fighting with a whole side of your ring (the arena's practice beasts
+    fill your empty slots for the lesson). Then **Coach Ondine**, who doesn't notice you until you've had Rory's
+    lesson, steps in with elemental weaknesses: her beast is weak to the element of the side facing it (with your earth
+    side facing, you borrow the arena's air practice team, since nothing is weak to earth). Only then can you challenge
+    **Tide Captain Marina**, and Captain Gull's ferry to the Isle of Tides only takes trainers with her Wave Crest.
 11. The journey runs in one line: the Dune Road north of Tidewater stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
 
 Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
@@ -342,6 +345,11 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
 
 - **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
+- **No slipping past a teacher**: `check_maps.gd` also walks every way from each of a map's exits to the others and
+  flags a teacher (`world_db.gd` LESSON_TRAINERS, ARENA_LESSONS) whose line of sight (straight ahead, 4 tiles, up to
+  the first wall or person) it can get past without crossing, and indoors one who doesn't see the tile you come in on.
+  Teachers notice you as you arrive on a map and after another teacher's lesson, not only when you step into their
+  sight (`world.gd` spot_you).
 
 After editing, run the map checkers (the Godot one also flags anyone indoors who faces a wall):
 
@@ -386,6 +394,7 @@ godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the St
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
 godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Tidewater arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
+godot --headless --path . -- --scene=coaches                            # a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one: every teacher must stop them, in order ("coaches DONE: 0 problem(s)")
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
 godot --headless --path . -- --scene=mascot                             # mascots' signature moves: the rules, teaching at Lv 39 / 40, another race, a merge
 godot --path . -- --scene=mascot --plaque=1 --pages=2 --shot=C:/tmp/q.png   # read Cocoon Cove's statue plaque

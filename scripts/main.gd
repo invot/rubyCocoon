@@ -792,6 +792,10 @@ func _run_test() -> void:
 		# gamepad's d-pad and stick, B to run, tap to walk and a porch's raised deck; every stop must be on a tile centre
 		await _walk4_test()
 		await _wait(wait)
+	elif scene == "coaches":
+		# the teachers stop you: a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one,
+		# and every teacher must spot them and give their lesson
+		await _coaches_test()
 	elif scene == "mascot":
 		# each town's mascot and its signature move: the move's rules, then teaching it (Lv 39: not yet; Lv 40: yes),
 		# another race, and a merge. With --plaque (rendered): reads the statue's plaque on screen instead.
@@ -832,18 +836,24 @@ func _run_test() -> void:
 		GameState.gear["flute"] = ""
 		GameState.set_flag("tutorial_done", false)
 		var spot := _teacher_spot(String(_test.get("lesson", "screen")))
+		# (Youngster Kit and the arena's coaches stop you as you come in, so their lessons begin by themselves)
+		UI.auto = _test.get("auto", "0") == "1"
 		_do_goto(spot[0], spot[1])
 		await _wait(1.5)
 		var teacher := _lesson_trainer(String(_test.get("lesson", "screen")))
-		if _test.get("auto", "0") == "1":
-			UI.auto = true
-			await Story.talk(world, teacher)
+		var begun: bool = world.busy or in_battle
+		if UI.auto:
+			while world.busy or in_battle:
+				await _wait(0.2)
+			if not begun:
+				await Story.talk(world, teacher)
 			print("lesson result: won=", GameState.flag(teacher.get("flag", "")), " level=", GameState.party[0].level, " hp=", GameState.party[0].hp, "/", GameState.party[0].max_hp())
 			for l in UI.auto_log:
 				if l.begins_with("[menu]"):
 					print("   ", l)
 		else:
-			Story.talk(world, teacher)
+			if not begun:
+				Story.talk(world, teacher)
 			await _battle_keys()
 			await _wait(wait)
 			for i in int(_test.get("presses", "6")):
@@ -1328,7 +1338,11 @@ func _flow_test() -> void:
 		if world.map_id != spot[0]:
 			await _go(spot[0], spot[1])
 			await _wait(1.0)
-		await Story.talk(world, _lesson_trainer(String(t["lesson"])))
+		# (Youngster Kit stops you at his door; the others are talked to here: --scene=coaches walks the path)
+		if GameState.flag("lesson_" + String(t["lesson"])):
+			print(t["name"], " stopped you as you came in")
+		else:
+			await Story.talk(world, _lesson_trainer(String(t["lesson"])))
 		await _wait(0.5)
 		if t["lesson"] == "slingshot":
 			# Kit's logs, laid across the footbridge just outside his cabin
@@ -1418,14 +1432,13 @@ func _flow_test() -> void:
 	await _wait(1.0)
 	print("still in ", world.map_id, "  hint: ", Story.next_goal())
 	_step("arena: Coach Rory, Coach Ondine, then Tide Captain Marina", [])
-	await _go(MapLoader.interior_of("tidewater", "arena"), "entry")
-	await _wait(1.0)
-	await Places.leader_talk(world.map["building"])
+	await Places.leader_talk(_bld("arena"))
 	print("Marina before the lessons: ", UI.auto_log.back(), "  crest ", GameState.crests.has("Wave Crest"))
 	print("  the host's Challenge before the lessons: ", await Places.arena_challenge("tidewater"))
-	for l in ["elements", "team", "elements"]:
-		await Story.talk(world, _lesson_trainer(l))
-		await _wait(0.5)
+	# walking in, Coach Rory stops you at the door, and Coach Ondine right after him
+	await _go(MapLoader.interior_of("tidewater", "arena"), "entry")
+	await _wait(1.0)
+	for l in ["team", "elements"]:
 		print("  lesson ", l, ": done ", GameState.flag("lesson_" + l))
 	print("arena lessons done: ", Story.arena_lessons_done("tidewater"), "  hint: ", Story.next_goal())
 	GameState.heal_party()
@@ -1781,6 +1794,103 @@ func _touch(at: Vector2, down: bool) -> void:
 
 
 ## The mascot test (--scene=mascot): prints each check and a count of problems at the end.
+## --scene=coaches: a new trainer (a Lv 1 hatchling, no flute, no lessons) walks the Coastal Path by tapped walks from
+## Cocoon Cove to Tidewater, in and out of Youngster Kit's cabin and over his footbridge, then (with a flute) into
+## Tidewater's arena. Nobody is talked to: every teacher must stop you and give their lesson, in the path's order.
+func _coaches_test() -> void:
+	Engine.time_scale = 8.0
+	UI.auto = true
+	autoplay = true
+	GameState.party = [Beasts.create(1, 1)]
+	GameState.storage = []
+	GameState.fix_ring()
+	GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
+	GameState.gear["flute"] = ""
+	GameState.set_flag("tutorial_done", false)
+	var bad := [0]
+	var teachers: Array = Story.LESSON_TRAINERS + Story.ARENA_LESSONS
+	# every frame: a lesson that's just been given, and where you were
+	var given := []
+	var watch := func():
+		for t in teachers:
+			if GameState.flag("lesson_" + String(t["lesson"])) and not given.has(t["lesson"]):
+				given.append(t["lesson"])
+				print("  %s %s stopped you (%s, at %s)" % [t["cls"], t["name"], world.map_id, world.player_pos])
+	get_tree().process_frame.connect(watch)
+	await _go("route1", "west")
+	await _settle("route1")
+	# along the trail to Kit's door, and in: he sees you come in
+	var cabin := _bld("cabin")
+	await _walk_road([cabin["door"] + Vector2i(0, 1)])
+	world._step(Vector2i(0, -1), false)
+	await _settle(MapLoader.interior_of("route1", "cabin"))
+	await _walk_road(world.map["exits"].keys())
+	await _settle("route1")
+	# his logs, across the footbridge
+	var post := Vector2i(-999, -999)
+	for q in world.map["obstacles"]:
+		var r: Vector2i = q + Vector2i(-1, 0)
+		if world.map["obstacles"][q]["kind"] == "broken_bridge" and not world.map["obstacles"].has(r) and world._walkable(r):
+			post = r
+	await _walk_road([post])
+	world.facing = Vector2i(1, 0)
+	UI.auto_answers = [0]
+	await world._interact()
+	var mended: bool = not world.map["obstacles"].has(post + Vector2i(1, 0))
+	print("%s footbridge mended with Kit's logs" % ("ok  " if mended else "FAIL"))
+	if not mended:
+		bad[0] += 1
+	# on along the trail to Tidewater
+	await _walk_road(world.map["exits"].keys().filter(func(e): return world.map["exits"][e]["to"] == "tidewater"))
+	await _settle("tidewater")
+	var path_lessons: Array = Story.LESSON_TRAINERS.map(func(t): return t["lesson"])
+	var ok: bool = given == path_lessons and GameState.flag("tutorial_done")
+	print("%s the Coastal Path's teachers, in order: %s (wanted %s), tutorial_done %s" % ["ok  " if ok else "FAIL", given, path_lessons, GameState.flag("tutorial_done")])
+	if not ok:
+		bad[0] += 1
+	# Uncle Rafe's flute, then into the arena: Coach Rory at the door, then Coach Ondine
+	GameState.gear["flute"] = "reed_flute"
+	GameState.set_flag("reed_flute")
+	var arena := _bld("arena")
+	await _walk_road([arena["door"] + Vector2i(0, 1)])
+	world._step(Vector2i(0, -1), false)
+	await _settle(MapLoader.interior_of("tidewater", "arena"))
+	var all_lessons: Array = teachers.map(func(t): return t["lesson"])
+	ok = given == all_lessons and Story.arena_lessons_done("tidewater")
+	print("%s the arena's coaches, in order: %s (wanted %s)" % ["ok  " if ok else "FAIL", given.slice(path_lessons.size()), all_lessons.slice(path_lessons.size())])
+	if not ok:
+		bad[0] += 1
+	get_tree().process_frame.disconnect(watch)
+	print("starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level, "  hint: ", Story.next_goal())
+	print("coaches DONE: %d problem(s)" % bad[0])
+
+
+## Tapped walks to the nearest of `goals` on this map, again after each stop (a teacher's lesson, say), until you're on
+## one or the map changes.
+func _walk_road(goals: Array) -> void:
+	var w = world
+	for i in 3000:
+		if world != w or _transitioning or not _pending_goto.is_empty():
+			return
+		if w.player_pos in goals and not w.moving:
+			return
+		if not (w.busy or w.moving or in_battle or UI.busy()) and w._path.is_empty():
+			w._walk_to(goals, Vector2i(-999, -999), false)
+		await _wait(0.1)
+	print("FAIL   couldn't walk to ", goals, " (at ", w.player_pos, ")")
+
+
+## Waits until you're on map `id` with nothing going on (its arrival and any lesson that stops you there done).
+func _settle(id: String) -> void:
+	for i in 3000:
+		if world != null and world.map_id == id and not _transitioning and _pending_goto.is_empty() and not world.busy and not in_battle and not UI.busy():
+			await _wait(0.5)
+			if not (world.busy or in_battle):
+				return
+		await _wait(0.1)
+	print("FAIL   never settled on ", id)
+
+
 func _mascot_test() -> void:
 	var MoveDB = load("res://scripts/data/move_db.gd")
 	var bad := 0

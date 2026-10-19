@@ -167,8 +167,8 @@ const ROOMS := {
 		],
 	},
 	## The arena: the ring, benches all round, a locker room and restroom on the east side.
-	## In Tidewater the arena's two coaches stand by the ring (6, 7: story.gd ARENA_LESSONS); elsewhere those tiles are
-	## plain floor.
+	## In Tidewater the arena's two coaches (6, 7: world_db.gd ARENA_LESSONS) stand by the entrance: Rory looking
+	## straight at the door, Ondine along the row you come in on. Elsewhere those tiles are plain floor.
 	"arena": {
 		"wall": "#c8c0b0", "rug": "#b03a3a",
 		"npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"},
@@ -183,10 +183,10 @@ const ROOMS := {
 			"#::x:::::::::::::x::#####",
 			"#=:xxxxxxxxxxxxxxx:=#T.u#",
 			"#=:::::::::::::::::=#..z#",
-			"#===:::::::::::::===##d##",
-			"#o1C::6:::::::7::::o#R.R#",
+			"#===::::::6::::::===##d##",
+			"#o1C:::::::::::::::o#R.R#",
 			"#:C:4:::::::::::5:::d...#",
-			"#:::::::::P:::::::::#=..#",
+			"#:::::::::P::7::::::#=..#",
 			"#########DD##############",
 		],
 		"zones": [

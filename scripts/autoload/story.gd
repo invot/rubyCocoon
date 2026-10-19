@@ -61,44 +61,12 @@ func _has_anchor(map: Dictionary, name: String) -> bool:
 	return map.get("anchors", {}).has(name)
 
 
-## The Coastal Path's teachers (see battle.gd LESSONS). Each stands beside the trail where you can't slip past them
-## and walks you through one part of battling, before you have a flute; the last one sets "tutorial_done". Youngster
-## Kit lives in the log cabin by the washed-out footbridge, and his gift is the logs to mend it (see logs_missing).
-## lines: before the battle; after: once you've won; defeat: when you talk to them again; gift: items they give you.
-const LESSON_TRAINERS := [
-	{"anchor": "lesson_screen", "lesson": "screen", "name": "Tilly", "cls": "Camper", "team": [[21, 2]], "facing": Vector2i(0, 1),
-		"look": {"skin": "#f0c8a0", "hair": "#a06030", "hair_style": 1, "shirt": "#6aa84f", "pants": "#5a4a3a", "hat": "#d8b060"},
-		"lines": ["Hey hey, a new trainer! Everyone who walks the Coastal Path gets a lesson from us. It's tradition. We started it last Tuesday."],
-		"after": ["That's the battle screen! Keep heading along the trail. Fisher Dale will teach you about turns. He's very patient. He's a fisher."],
-		"defeat": "Your own bar comes first, then one for each beast. Left and right to choose, A to confirm, B to go back!"},
-	{"anchor": "lesson_turns", "lesson": "turns", "name": "Dale", "cls": "Fisher", "team": [[38, 2]], "facing": Vector2i(0, -1),
-		"look": {"skin": "#c08a60", "hair": "#303040", "shirt": "#3a6a9a", "pants": "#4a4a52", "hat": "#e8c040"},
-		"lines": ["Shh, the fish are bit... oh, a trainer! Never mind the fish. They never bite anyway. Let's talk about turns."],
-		"after": ["Patience wins battles, and Defend buys you time. Youngster Kit lives in the log cabin by the creek. He'll show you your own turn. He's VERY excited about it."],
-		"defeat": "Everyone picks first, then the faster side goes. Defend always goes first and halves the hurt."},
-	{"anchor": "lesson_slingshot", "lesson": "slingshot", "name": "Kit", "cls": "Youngster", "team": [[12, 3]], "facing": Vector2i(0, 1),
-		"look": {"skin": "#e0b088", "hair": "#5a3a20", "hair_style": 0, "shirt": "#e07a5a", "pants": "#3a4a6a"},
-		"gift": {"bridge_log": 5},
-		"lines": ["A visitor! Nobody visits! You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
-		"after": ["Want to cross the creek? I've been hauling logs from the storm trees all week. Take them!",
-			"Lay them across the old footbridge's posts, just east of my cabin. Picnicker Mae is over on the far side. Bring an appetite."],
-		"defeat": "Your own bar: Slingshot, Items, Watch... and Run from wild beasts, or Forfeit against trainers."},
-	{"anchor": "lesson_items", "lesson": "items", "name": "Mae", "cls": "Picnicker", "team": [[25, 3]], "facing": Vector2i(0, 1),
-		"gift": {"minor_potion": 3},
-		"look": {"skin": "#f8d8c0", "hair": "#e0c070", "hair_style": 1, "shirt": "#e8a0c0", "pants": "#6a5a8a"},
-		"lines": ["Is that a beast? Is it hungry? Never mind. Let's talk about the most important thing in a battle: snacks. I mean items."],
-		"after": ["Take these for the road: three Minor Potions! Ranger Holt waits just before Tidewater with the last lesson."],
-		"defeat": "Potions heal HP and Spirit Drops bring back MP. Apothecaries sell them. Picnic baskets don't. I checked."},
-	{"anchor": "lesson_ring", "lesson": "ring", "name": "Holt", "cls": "Ranger", "team": [[36, 3]], "facing": Vector2i(0, -1),
-		"look": {"skin": "#8a5a3a", "hair": "#2a1a10", "shirt": "#5a7a3a", "pants": "#4a3a2a", "hat": "#4a6a2a"},
-		"lines": ["Halt! Rangers check every new trainer before Tidewater. Relax, it's a lesson, not a test. Well. A little bit a test."],
-		"after": ["You're ready. Shields recharge after every battle, and Volt at Sparkwire Electronics can add shield points and beast slots for crystal shards.",
-			"Now go and see your uncle! Tidewater's just along the trail."],
-		"defeat": "Knock out the foe's middle beast, then hit the trainer. No shield left? That trainer loses."},
-]
+## The Coastal Path's teachers and Tidewater's arena coaches (WorldDB.LESSON_TRAINERS, ARENA_LESSONS).
+const LESSON_TRAINERS = WorldDB.LESSON_TRAINERS
+const ARENA_LESSONS = WorldDB.ARENA_LESSONS
 
 
-## The Coastal Path's teachers standing on this map's anchors (the path itself, or Kit's cabin).
+## The teachers standing on this map's anchors (the Coastal Path, Kit's cabin, or Tidewater's arena).
 func _lesson_trainers(map: Dictionary) -> Array:
 	var out := []
 	var town: String = map.get("parent", map["id"])
@@ -133,28 +101,6 @@ func _bridge_flag() -> String:
 	return ""
 
 
-## Tidewater's arena coaches (battle.gd LESSONS "team" and "elements"): before you may challenge Tide Captain Marina,
-## and so before Captain Gull sails you to the Isle of Tides, Coach Rory teaches battling with a whole side of your
-## ring and Coach Ondine elemental weaknesses (her beast is weak to your side's element, see _elements_lesson). They
-## stand by the ring in Tidewater's arena (interior_maps.gd "arena" anchors), and wait to be talked to (sight 0).
-## needs: a lesson to have had first.
-const ARENA_LESSONS := [
-	{"anchor": "lesson_team", "lesson": "team", "town": "tidewater", "sight": 0, "name": "Rory", "cls": "Coach", "team": [[12, 4], [36, 4]],
-		"facing": Vector2i(0, 1), "look": {"skin": "#c8946a", "hair": "#3a2a1a", "hair_style": 0, "shirt": "#2f6fb0", "pants": "#2a2a3a", "hat": "#f0f0f0"},
-		"lines": ["Ahoy! I'm Coach Rory. Nobody faces Tide Captain Marina without a lesson from me and one from Coach Ondine. Arena rules!",
-			"Today: fighting as a team. One beast is a pet. Three beasts is a crew!"],
-		"after": ["That's teamwork! Every beast on the side facing the foe gets a move each round, so a full side hits three times as hard.",
-			"Fill your ring's sides with beasts and you'll never fight alone. Now go and see Coach Ondine about elements."],
-		"defeat": "Up and down move between your beasts' bars. Every beast on the side facing the foe gets a move!"},
-	{"anchor": "lesson_elements", "lesson": "elements", "town": "tidewater", "sight": 0, "needs": "lesson_team", "name": "Ondine", "cls": "Coach",
-		"team": [[37, 4]], "facing": Vector2i(0, 1),
-		"look": {"skin": "#f0c8a0", "hair": "#30a0b0", "hair_style": 1, "shirt": "#e8e0c0", "pants": "#3a5a7a"},
-		"first": "Coach Rory's lesson comes first, sweetie. Teamwork, then elements. I don't make the rules. Rory does. Loudly.",
-		"lines": ["I'm Coach Ondine. Let's talk elements: the secret to beating beasts bigger than yours."],
-		"after": ["Remember the wheel: fire is weak to air, earth to water, water to air, and air to fire.",
-			"Tide Captain Marina's beasts are all water... and water is weak to air. Just saying! She's waiting for you in the ring."],
-		"defeat": "Look for the ★ beside a move and ★ WEAK on a target's card: that's double damage!"},
-]
 ## Coach Ondine's beast for the side of your ring facing the foe: one that's weak to that side's element.
 const WEAK_FOES := {"fire": 37, "water": 24, "air": 2}
 
@@ -329,6 +275,8 @@ func on_map_enter(world) -> void:
 		await UI.say(["The Moor Road. Ghost beasts drift through the fog... They have no weakness at all."])
 	world.busy = false
 	world.refresh_npc_marks()
+	# a teacher who can see you where you've arrived stops you straight away
+	await world.spot_you()
 
 
 func _intro() -> void:
@@ -680,6 +628,8 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	GameState.set_flag(n["flag"])
 	if n.has("lesson"):
 		await _lesson_done(n, name)
+		# the next teacher who can see you (Coach Ondine, right after Coach Rory) steps in
+		await world.spot_you()
 	if n.get("vanish", false):
 		world.remove_npc(n)
 	if n.get("bandit_boss", false):
