@@ -86,7 +86,29 @@ const MOVES := {
 	"void_pulse": {"name": "Void Pulse", "el": "ghost", "kind": "attack", "power": 75, "acc": 95, "target": "enemies", "desc": "Hits all foes."},
 	"phantom_rush": {"name": "Phantom Rush", "el": "ghost", "kind": "attack", "power": 110, "acc": 100, "target": "enemy", "cd": 2, "fx": {"ignore_eva": true, "pierce": true}, "desc": "Ignores evasion and shields."},
 	"eclipse": {"name": "Eclipse", "el": "ghost", "kind": "attack", "power": 150, "acc": 90, "target": "enemies", "cd": 4, "desc": "Blots out the sun."},
+
+	# ---------------- Signature moves: taught only by a town's mascot, to its own race (see SIGNATURE) ----------------
+	"bandit_blaze": {"name": "Bandit Blaze", "el": "fire", "kind": "attack", "power": 150, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "burn", "chance": 0.3}, "desc": "Cocoon Cove's masked whirl of flame. May burn."},
+	"tidewater_torrent": {"name": "Tidewater Torrent", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"debuff": {"spd": -1}, "chance": 0.5}, "desc": "The whole harbour at once. Often lowers Speed."},
+	"pearl_cannon": {"name": "Pearl Cannon", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"self_buff": {"def": 1}}, "desc": "Fires a polished pearl. Raises own Defense."},
+	"kelp_maelstrom": {"name": "Kelp Maelstrom", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"debuff": {"eva": -1}, "chance": 0.4}, "desc": "A whirl of sea and kelp. May tangle the foe."},
+	"sirocco": {"name": "Sirocco", "el": "air", "kind": "attack", "power": 115, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "confuse", "chance": 0.3}, "desc": "The oasis's scorching desert wind. May confuse."},
+	"tumbleweed_twister": {"name": "Tumbleweed Twister", "el": "air", "kind": "attack", "power": 115, "acc": 90, "target": "enemy", "cd": 3, "fx": {"crit": 0.3}, "desc": "A whirling frontier gale. High critical chance."},
+	"motherlode": {"name": "Motherlode", "el": "earth", "kind": "attack", "power": 125, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "stun", "chance": 0.25}, "desc": "A seam of solid ore, dropped from above. May stun."},
+	"clockwork_crusher": {"name": "Clockwork Crusher", "el": "earth", "kind": "attack", "power": 125, "acc": 90, "target": "enemy", "cd": 3, "fx": {"pierce": true}, "desc": "Iron gears grind through any shield."},
+	"caldera_burst": {"name": "Caldera Burst", "el": "fire", "kind": "attack", "power": 150, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "burn", "chance": 0.3}, "desc": "Mount Cinder's heart, let loose. May burn."},
+	"elder_grove": {"name": "Elder Grove", "el": "earth", "kind": "attack", "power": 125, "acc": 90, "target": "enemy", "cd": 3, "fx": {"drain": 0.3}, "desc": "Ancient roots that drink. Absorbs 30% of damage dealt."},
+	"riverbend_rapids": {"name": "Riverbend Rapids", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"debuff": {"atk": -1}, "chance": 0.4}, "desc": "White water round every bend. May lower Attack."},
+	"moonlit_gale": {"name": "Moonlit Gale", "el": "air", "kind": "attack", "power": 115, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "sleep", "chance": 0.25}, "desc": "A silver wind off the moor. May lull the foe to sleep."},
 }
+
+## Each town's mascot (WorldDB.TOWNS "mascot", a race) teaches a beast of its own race this move once it has reached
+## SIGNATURE_LEVEL: elemental, mightier than any move of its element a beast learns by levelling, and taught by nobody
+## else (merging keeps it only for a beast of that race, see beasts.gd merge).
+const SIGNATURE := {0: "bandit_blaze", 13: "tidewater_torrent", 20: "pearl_cannon", 14: "kelp_maelstrom", 45: "sirocco",
+	37: "tumbleweed_twister", 32: "motherlode", 34: "clockwork_crusher", 7: "caldera_burst", 31: "elder_grove",
+	21: "riverbend_rapids", 41: "moonlit_gale"}
+const SIGNATURE_LEVEL := 40
 
 ## Ordered by strength; used to build learnsets.
 const POOLS := {
@@ -106,6 +128,10 @@ const STATUS_NAMES := {
 
 static func get_move(id: String) -> Dictionary:
 	return MOVES.get(id, MOVES["tackle"])
+
+
+static func is_signature(id: String) -> bool:
+	return SIGNATURE.values().has(id)
 
 
 ## MP an attack costs: elemental attacks cost about a tenth of their power (at least 2); regular (neutral) attacks

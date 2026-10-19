@@ -200,6 +200,13 @@ static func town_tier(id: String) -> int:
 	return maxi(0, TOWN_ORDER.find(id))
 
 
+## What a town's mascot statue is cast in: bronze along the coast and the isles, silver from the desert to the
+## mountains, gold in the far towns.
+static func statue_metal(id: String) -> String:
+	var tier := town_tier(id)
+	return "bronze" if tier < 4 else ("silver" if tier < 8 else "gold")
+
+
 static func is_town(id: String) -> bool:
 	return TOWNS.has(id)
 
