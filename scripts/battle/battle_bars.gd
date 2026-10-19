@@ -81,6 +81,9 @@ func _draw() -> void:
 		# the pill (yours: a gold rim, and a gold line inside it)
 		var fill := UIKit.ACCENT.darkened(0.1) if on else UIKit.WINDOW_TOP
 		fill.a = 0.95 * fade if not on else 0.97
+		if UIKit.pixel():
+			# the 1-bit plate: the gem behind the white for the bar being chosen
+			draw_style_box(UIKit.pixel_plate(UIKit.ACCENT if on else UIKit.PIXEL_FILL, UIKit.PIXEL_LINE if on or you else UIKit.PIXEL_DIM, 0.97 if on else 0.95 * fade), r)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = fill
 		sb.set_corner_radius_all(int(pill_h * 0.5))
@@ -90,8 +93,9 @@ func _draw() -> void:
 		sb.shadow_color = Color(0, 0, 0, 0.35 * fade)
 		sb.shadow_size = 3
 		sb.shadow_offset = Vector2(0, 2)
-		draw_style_box(sb, r)
-		if you:
+		if not UIKit.pixel():
+			draw_style_box(sb, r)
+		if you and not UIKit.pixel():
 			var inner := StyleBoxFlat.new()
 			inner.draw_center = false
 			inner.set_corner_radius_all(int(pill_h * 0.5) - 3)
@@ -105,7 +109,10 @@ func _draw() -> void:
 		cb.bg_color = UIKit.GOLD_BRIGHT if you else Color(UIKit.WINDOW_BOTTOM, 0.95 * fade)
 		cb.set_corner_radius_all(int((pill_h - 6) * 0.5))
 		cb.anti_aliasing = true
-		draw_style_box(cb, cap)
+		if UIKit.pixel():
+			draw_style_box(UIKit.pixel_plate(UIKit.PIXEL_LINE if you else UIKit.PIXEL_FILL, UIKit.PIXEL_LINE, fade), cap.grow(1.0))
+		else:
+			draw_style_box(cb, cap)
 		if status != "empty":
 			var lv := "Lv%d" % int(row.get("lv", 1))
 			var ls := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, small)

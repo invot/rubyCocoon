@@ -35,7 +35,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_legend()
 	_build_touch()
-	_gem = UIKit.accent_name
+	_gem = UIKit.accent_name + UIKit.style
 	get_viewport().size_changed.connect(_layout)
 	if is_instance_valid(Prefs):
 		Prefs.changed.connect(refresh)
@@ -43,7 +43,7 @@ func _ready() -> void:
 
 
 func refresh() -> void:
-	if _gem != UIKit.accent_name:
+	if _gem != UIKit.accent_name + UIKit.style:
 		_recolour()
 	_touch_on = Prefs.touch_enabled() and not title_mode
 	touch_root.visible = _touch_on
@@ -102,7 +102,7 @@ func _process(_delta: float) -> void:
 
 ## Redraws the legend strip, key caps and pad faces in the current gem.
 func _recolour() -> void:
-	_gem = UIKit.accent_name
+	_gem = UIKit.accent_name + UIKit.style
 	legend.add_theme_stylebox_override("panel", _legend_style())
 	for row in [_legend_row, _flute_row]:
 		for item in row.get_children():
@@ -117,8 +117,9 @@ func _legend_style() -> StyleBoxFlat:
 	sb.bg_color = Color(UIKit.WINDOW_BOTTOM, 0.94)
 	sb.border_color = UIKit.BORDER
 	sb.border_width_top = 2
-	sb.corner_radius_top_left = 22
-	sb.corner_radius_top_right = 22
+	# (Pixel: square, a crisp white line along its top)
+	sb.corner_radius_top_left = 0 if UIKit.pixel() else 22
+	sb.corner_radius_top_right = 0 if UIKit.pixel() else 22
 	sb.corner_detail = 8
 	sb.anti_aliasing = true
 	sb.content_margin_left = 16
@@ -238,7 +239,7 @@ func _paint_pad() -> void:
 
 ## Where this gem's faces are kept: its name, and its colours, the sizes and PAD_STYLE, so any change paints afresh.
 static func _pad_key() -> String:
-	return "%s_%x" % [UIKit.accent_name, hash([PAD_STYLE, UIKit.ACCENT.to_html(), UIKit.BORDER.to_html(), UIKit.BROWN.to_html(), ARM, ROUND, PILL])]
+	return "%s_%x" % [UIKit.accent_name, hash([PAD_STYLE, UIKit.style, UIKit.ACCENT.to_html(), UIKit.BORDER.to_html(), UIKit.BROWN.to_html(), ARM, ROUND, PILL])]
 
 
 static func _kept_faces(key: String) -> Dictionary:
@@ -256,12 +257,16 @@ static func _kept_faces(key: String) -> Dictionary:
 
 ## On a worker thread: paints every face, keeps them, and hands them to the main thread.
 func _paint_faces(key: String) -> void:
-	var faces := {"dpad": _dpad_face(), "pill": _pill_face(false), "pill_pressed": _pill_face(true)}
-	for dir in ["up", "down", "left", "right"]:
-		faces[dir] = _arm_pressed(dir)
-	for k in ["a", "b"]:
-		faces[k] = _dome_face(k, false)
-		faces[k + "_pressed"] = _dome_face(k, true)
+	var faces := {}
+	if UIKit.pixel():
+		faces = _pixel_faces()
+	else:
+		faces = {"dpad": _dpad_face(), "pill": _pill_face(false), "pill_pressed": _pill_face(true)}
+		for dir in ["up", "down", "left", "right"]:
+			faces[dir] = _arm_pressed(dir)
+		for k in ["a", "b"]:
+			faces[k] = _dome_face(k, false)
+			faces[k + "_pressed"] = _dome_face(k, true)
 	DirAccess.make_dir_recursive_absolute(PAD_CACHE + key)
 	for f in faces:
 		(faces[f] as Image).save_png(PAD_CACHE + key + "/" + f + ".png")
@@ -277,6 +282,8 @@ func _faces_painted(key: String, faces: Dictionary) -> void:
 
 
 func _show_faces(faces: Dictionary) -> void:
+	# (the Pixel style's faces are hard-edged pixels, kept crisp; the Classic ones are smooth)
+	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if UIKit.pixel() else CanvasItem.TEXTURE_FILTER_LINEAR
 	_dpad_base.texture = ImageTexture.create_from_image(faces["dpad"])
 	for dir in ["up", "down", "left", "right"]:
 		var b: TouchScreenButton = _buttons[dir]
@@ -464,6 +471,116 @@ static func _pill_face(pressed: bool) -> Image:
 				col = col.blend(Color(body, 0.94 * a))
 			img.set_pixel(x, y, col)
 	return img
+
+
+# ---- the Pixel style's faces
+## The 1-bit kit's way: painted at half size with hard edges, then doubled, so each of their pixels is two UI pixels
+## like the rest of the Pixel interface. Near-black with a white edge and white arrows, a hard shadow below; the gem
+## goes behind the white: on A and B, and wherever a button is held.
+static func _pixel_faces() -> Dictionary:
+	var faces := {"dpad": _px_dpad(), "pill": _px_pill(false), "pill_pressed": _px_pill(true)}
+	for dir in ARMS:
+		faces[dir] = _px_arm(dir)
+	for k in ["a", "b"]:
+		faces[k] = _px_dome(k, false)
+		faces[k + "_pressed"] = _px_dome(k, true)
+	return faces
+
+
+static func _px_double(img: Image) -> Image:
+	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
+	return img
+
+
+## The cross: near-black, edged in white, white arrows, a white ring in the middle.
+static func _px_dpad() -> Image:
+	var n := int(ARM * 1.5)
+	var img := Image.create(n, n + SHADOW_ROOM / 2, false, Image.FORMAT_RGBA8)
+	var c := Vector2(n, n) / 2.0
+	for y in img.get_height():
+		for x in n:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var d := _sd_cross(p * 2.0) / 2.0
+			var col := Color(0, 0, 0, 0)
+			if d <= 0.0 and _sd_cross((p - Vector2(0, 3)) * 2.0) > 0.0:
+				col = Color(0, 0, 0, 0.4)
+			elif d > 0.0:
+				col = Color(UIKit.PIXEL_FILL, 0.94)
+				var dc := p.distance_to(c)
+				if d < 1.0 or (dc > 7.0 and dc < 8.0):
+					col = UIKit.PIXEL_LINE
+				for dir in ARMS:
+					if _sd_arrow(p * 2.0, dir) > 0.0:
+						col = UIKit.PIXEL_LINE
+			img.set_pixel(x, y, col)
+	return _px_double(img)
+
+
+## A held arm: its part of the cross filled with the gem, behind its white edge and arrow.
+static func _px_arm(dir: String) -> Image:
+	var off: Vector2 = {"up": Vector2(ARM, 0), "down": Vector2(ARM, ARM * 2.0), "left": Vector2(0, ARM), "right": Vector2(ARM * 2.0, ARM)}[dir]
+	var n := int(ARM / 2.0)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var p := off / 2.0 + Vector2(x + 0.5, y + 0.5)
+			var d := _sd_cross(p * 2.0) / 2.0
+			var col := Color(0, 0, 0, 0)
+			if d > 0.0:
+				col = UIKit.PIXEL_LINE if d < 1.0 or _sd_arrow(p * 2.0, dir) > 0.0 else UIKit.ACCENT
+			img.set_pixel(x, y, col)
+	return _px_double(img)
+
+
+## A or B: a disc of the gem (B a deeper shade) with a white rim and the kit's little shine; held, it sinks onto its
+## shadow and darkens.
+static func _px_dome(which: String, pressed: bool) -> Image:
+	var w := int(ROUND / 2.0)
+	var img := Image.create(w, w + SHADOW_ROOM / 2, false, Image.FORMAT_RGBA8)
+	var r := w / 2.0 - 0.5
+	var c := Vector2(w / 2.0, w / 2.0 + (1.0 if pressed else 0.0))
+	var sc := Vector2(w / 2.0, w / 2.0 + (1.0 if pressed else 3.0))
+	var fill := UIKit.ACCENT if which == "a" else UIKit.ACCENT.darkened(0.35)
+	if pressed:
+		fill = fill.darkened(0.3)
+	for y in img.get_height():
+		for x in w:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var dist := p.distance_to(c)
+			var col := Color(0, 0, 0, 0)
+			if dist >= r and p.distance_to(sc) < r:
+				col = Color(0, 0, 0, 0.4)
+			elif dist < r:
+				col = UIKit.PIXEL_LINE if dist > r - 1.5 else fill
+				# the shine: a short white stroke up in the top left, as on the kit's round icons
+				var q := p - c
+				if q.x < -r * 0.25 and q.y < -r * 0.25 and absf(q.x - q.y * 0.0 + q.y + r * 0.95) < 0.8 and q.length() > r * 0.55 and q.length() < r * 0.8:
+					col = UIKit.PIXEL_LINE
+			img.set_pixel(x, y, col)
+	return _px_double(img)
+
+
+## Start / Pause: the 1-bit plate, near-black (held: the gem) inside a white edge, its corners nicked, on a hard shadow.
+static func _px_pill(pressed: bool) -> Image:
+	var sz := Vector2i(int(PILL.x / 2.0), int(PILL.y / 2.0) + SHADOW_ROOM / 2)
+	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
+	var rect := Rect2(Vector2(0, 1.0 if pressed else 0.0), PILL / 2.0)
+	var shadow := Rect2(Vector2(0, 1.0 if pressed else 3.0), PILL / 2.0)
+	for y in sz.y:
+		for x in sz.x:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var d := _sd_box(p, rect, 2.0)
+			var col := Color(0, 0, 0, 0)
+			if d <= 0.0 and _sd_box(p, shadow, 2.0) > 0.0:
+				col = Color(0, 0, 0, 0.4)
+			elif d > 0.0:
+				col = UIKit.PIXEL_LINE if d < 1.0 else (UIKit.ACCENT if pressed else Color(UIKit.PIXEL_FILL, 0.94))
+				# the kit's tick in the top left corner
+				var q := p - rect.position
+				if (q.x > 2.0 and q.x < 3.0 and q.y > 2.0 and q.y < 4.0) or (q.x > 2.0 and q.x < 4.0 and q.y > 2.0 and q.y < 3.0):
+					col = UIKit.PIXEL_LINE
+			img.set_pixel(x, y, col)
+	return _px_double(img)
 
 
 static func _blank(sz: Vector2i) -> ImageTexture:

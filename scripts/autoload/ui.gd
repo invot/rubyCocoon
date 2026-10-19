@@ -35,6 +35,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	UIKit.set_screen_scale(Vector2(DisplayServer.window_get_size()))
 	UIKit.set_accent(Prefs.accent)
+	UIKit.set_style(Prefs.ui_style)
 	get_tree().root.size_changed.connect(_on_window_resized)
 	Prefs.changed.connect(_on_prefs_changed)
 	root = Control.new()
@@ -80,9 +81,11 @@ func _on_window_resized() -> void:
 		root.theme = UIKit.make_theme()
 
 
-## A new highlight colour: the theme is rebuilt (screens built afterwards pick it up; the open book redraws itself).
+## A new highlight colour or style: the theme is rebuilt (screens built afterwards pick it up; the open book redraws
+## itself, or is built again in the new style).
 func _on_prefs_changed() -> void:
-	if Prefs.accent != UIKit.accent_name:
+	if Prefs.accent != UIKit.accent_name or Prefs.ui_style != UIKit.style:
+		UIKit.style = Prefs.ui_style if Prefs.ui_style in UIKit.STYLES else "pixel"
 		UIKit.set_accent(Prefs.accent)
 		root.theme = UIKit.make_theme()
 

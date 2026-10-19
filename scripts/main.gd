@@ -490,9 +490,10 @@ func _parse_test_args() -> void:
 func _run_test() -> void:
 	var scene: String = _test["scene"]
 	var wait := float(_test.get("wait", "3"))
-	if _test.has("gem"):
-		# try a gem for this run only (the player's saved setting is left alone)
-		UIKit.set_accent(String(_test["gem"]))
+	if _test.has("gem") or _test.has("style"):
+		# try a gem or a style (--style=pixel / cozy) for this run only (the player's saved settings are left alone)
+		UIKit.style = String(_test.get("style", UIKit.style))
+		UIKit.set_accent(String(_test.get("gem", UIKit.accent_name)))
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
@@ -785,6 +786,11 @@ func _run_test() -> void:
 		for i in int(_test.get("downs", "0")):
 			_press("ui_down")
 			await _wait(0.12)
+		if _test.has("flip"):
+			# --flip=cozy / pixel: Settings > Style changed with the book open (not saved)
+			await _wait(1.0)
+			Prefs.ui_style = String(_test["flip"])
+			Prefs.changed.emit()
 		await _wait(wait)
 	elif scene == "walk4":
 		# four-way walking on the grid (--touch adds the d-pad): two keys at once, a change of way mid-step, the

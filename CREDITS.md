@@ -98,6 +98,14 @@ See `assets/voxel/CREDITS.md` for the full list. Highlights:
   ribbons, buttons, toggles, arrows, icons).
 - **set1 / set2** pixel UI sheet (bars, stars, crests): author not included with the files.
   *Changes made:* crest gems recoloured per arena.
+- **Humble Gift - v1.3** by Humble Pixel (@Humblepixel), https://humblepixel.itch.io: the Start book's pages, their
+  ornament frames, arrows and buttons in the Pixel style. Free for commercial use and may be modified; the asset files
+  may not be redistributed or resold; credit appreciated, not required. *Changes made:* pieces cut out by
+  `tools/build_pixel_ui.gd` into `assets/ui/pixel_ui.res` and turned to tones, so the game paints them dark in the
+  player's gem with white lines.
+- **1-bit UI** by BatuhanK (`ui/1-bit_UI_byBatuhanK.png`): the Pixel style's windows, plates, bars, stars, hearts,
+  shields and round icons. *Changes made:* cut out by `tools/build_pixel_ui.gd` into `assets/ui/pixel_ui.res`, the
+  near-black fill painted in the player's gem where something is picked out.
 - Fonts: **BoldPixels** (body text, menus, dialogue) and **Lunchtime Doubly So** (headings); licence files not
   included, check the authors' terms.
 

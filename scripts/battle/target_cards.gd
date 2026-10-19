@@ -69,7 +69,9 @@ func _draw() -> void:
 		var on := i == sel
 		var fade := 1.0 if on else 0.5
 		var rad := card.y * 0.2
-		if on:
+		if UIKit.pixel():
+			_draw_pixel_card(r, on, pulse, fade)
+		elif on:
 			# the glow: a few soft rounded layers in the gem, breathing with the frame
 			var glow := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.8, 1.0)
 			for g in 5:
@@ -89,7 +91,8 @@ func _draw() -> void:
 		# the frame: thick, bright and pulsing on the one aimed at
 		sb.border_color = UIKit.ACCENT.lightened(0.25).lerp(UIKit.GOLD_BRIGHT.lightened(0.3), pulse) if on else Color(UIKit.BORDER, 0.35)
 		sb.set_border_width_all(int(maxf(3.0, card.y * 0.06)) if on else 2)
-		draw_style_box(sb, r)
+		if not UIKit.pixel():
+			draw_style_box(sb, r)
 		# the icon
 		var ic := Rect2(r.position + Vector2(card.y * 0.12, card.y * 0.12), Vector2(card.y * 0.76, card.y * 0.76))
 		var tex: Texture2D = c.get("icon", null)
@@ -119,9 +122,19 @@ func _draw() -> void:
 				draw_circle(bar.position + Vector2(orb * 0.6 + k * orb * 1.5, bar.size.y * 0.5), orb * 0.55, Color("#6ab0ff", fade) if full else Color(0.2, 0.25, 0.4, 0.8 * fade))
 			continue
 		var ratio := float(c.get("hp", 0)) / maxf(1.0, float(c.get("max_hp", 1)))
-		draw_rect(bar.grow(2.0), Color(0, 0, 0, 0.55 * fade))
+		draw_rect(bar.grow(2.0), Color(UIKit.PIXEL_LINE, fade) if UIKit.pixel() else Color(0, 0, 0, 0.55 * fade))
 		draw_rect(bar, Color(UIKit.WINDOW_BOTTOM, 0.9 * fade))
 		draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(ratio, 0.0, 1.0), bar.size.y)), Color(UIKit.hp_color(ratio), fade))
+
+
+## Pixel style: the 1-bit plate, the gem behind the white for the card aimed at, ringed by crisp outlines in the gem
+## that pulse outwards; the rest near-black with a grey edge.
+func _draw_pixel_card(r: Rect2, on: bool, pulse: float, fade: float) -> void:
+	if on:
+		for g in 3:
+			var grow := 4.0 + g * 4.0 + roundf(pulse * 2.0) * 2.0
+			draw_rect(r.grow(grow), Color(UIKit.ACCENT.lightened(0.2), (0.7 - g * 0.22) * (0.6 + 0.4 * pulse)), false, 2.0)
+	draw_style_box(UIKit.pixel_plate(UIKit.ACCENT if on else UIKit.PIXEL_FILL, UIKit.PIXEL_LINE if on else UIKit.PIXEL_DIM, 1.0 if on else 0.85), r)
 
 
 static func _fit(font: Font, text: String, fs: int, w: float) -> String:

@@ -232,14 +232,25 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 48 races with live voxel portraits and where to find them. |
 | Map | The twelve towns, with the full world map on A. |
-| Settings | Music and sound volume, text speed, the gem the menus are cut from, touch pad, key guide, fullscreen, save, credits and quit. |
+| Settings | Music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, save, credits and quit. |
 
 ## UI and audio
 
-- **Cosy PS2-style UI in one colour**: soft rounded windows with a gentle gradient, a pale border and a drop shadow
-  (`scripts/ui/cozy_box.gd`), drawn smooth at any screen scale. Every window, border, text, bar, tag and the selected
-  row's pill is a shade of one **gem** the player picks in Start → Settings → Gem: **Ruby** (the default),
-  **Sapphire**, **Emerald** or **Hematite** (slate grey). `UIKit.set_accent` derives the whole palette from the gem.
+- **Two looks**, picked in Start → Settings → Style (`UIKit.set_style`, kept as `Prefs.ui_style`):
+  - **Pixel** (the default): the 1-bit kit's crisp white frames on near-black windows, every pixel of them two UI
+    pixels (three screen pixels on a 1080p phone). Text and lines are plain white; the **gem** goes behind the white,
+    never into it: the selected row, the open tab, the chosen battle bar, the target aimed at, tags, name plates,
+    New Game and the held touch buttons are filled with it. The Start book is two of Humble Gift's paper pages, dark
+    with the gem and lined in white, each with its ornament frame and its title written into the gap atop it: the left
+    page unfolds as the book opens, and the right one slides out from behind it whenever a tab opens. The touch pad,
+    bars, battle bars, target cards, ring tiles and the key guide are drawn the same way. Its pieces are cut from the
+    two kits by `tools/build_pixel_ui.gd` into `assets/ui/pixel_ui.res`, stored as tones (fill, mid, line) that
+    `UIKit.piece` paints in any colours.
+  - **Classic**: soft rounded windows with a gentle gradient, a pale border and a drop shadow
+    (`scripts/ui/cozy_box.gd`), drawn smooth at any screen scale, every window, border, text, bar and tag a shade of
+    the gem.
+  The gem is picked in Start → Settings → Gem: **Ruby** (the default), **Sapphire**, **Emerald** or **Hematite** (slate
+  grey). `UIKit.set_accent` derives the whole palette from the gem (and the style).
 - **Fonts**: **BoldPixels** for body text, menus and dialogue; **Lunchtime Doubly So** only for headings (window and
   page titles, tabs' section headers, name plates, map names). Both are drawn on a 16-pixel grid, so every size is
   snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
@@ -368,7 +379,9 @@ godot --path . -- --scene=skytower                                      # into a
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery (pages 0-3, 4 = merges)
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
-godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run
+godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run (--style=cozy / pixel: a style)
+godot --path . -- --scene=book:map --flip=cozy --wait=1 --shot=C:/tmp/f.png   # Settings > Style changed with the book open
+godot --headless --path . --script res://tools/build_pixel_ui.gd          # cut the Pixel style's pieces from the two UI kits
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout

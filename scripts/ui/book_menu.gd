@@ -1,6 +1,8 @@
 extends "res://scripts/ui/modal.gd"
 ## The Start menu: one large window with a strip of tabs across the top and two panes, a list on the left and the
-## chosen row's details on the right (the menus of the early PS2 RPGs).
+## chosen row's details on the right (the menus of the early PS2 RPGs). In the Pixel style (UIKit.style) the panes are
+## the Humble Gift kit's two paper pages, dark with the gem and lined in white: they unfold as the book opens, the
+## right one slides out from behind the left whenever a tab opens, and the page titles write themselves in.
 ## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
 ## Controls: ←/→ switch tabs, ↑/↓ choose, A to act, S (back) returns to the tabs / closes, Start closes.
 
@@ -31,6 +33,10 @@ const TAB_H := 64.0
 const TAB_GAP := 6.0
 ## the left (list) pane's share of the window
 const LEFT_SHARE := 0.46
+## Pixel style: the gap between the two pages, and how far in from a page's edge its ornament frame runs (in the
+## kit's pixels: see _draw_frame)
+const PAGE_GAP := 12.0
+const FRAME_INSET := Vector2(12, 14)
 const SLOT_SHORT := {"flute": "Flute", "head": "Hat", "feet": "Boots", "acc": "Charm"}
 const CREST_ICONS := {"Wave Crest": "crest_wave", "Coral Crest": "crest_coral", "Spur Crest": "crest_spur", "Ore Crest": "crest_ore",
 	"Cog Crest": "crest_cog", "Flame Crest": "crest_flame", "Vine Crest": "crest_vine", "River Crest": "crest_river"}
@@ -47,6 +53,12 @@ var mode := "list"
 var book: Control
 var markers: Array = []
 var window: PanelContainer
+## Pixel style: the pages (placed by hand, so the right one can slide) and the style the book was built in
+var pages: Control
+var left_page: PanelContainer
+var right_page: PanelContainer
+var _built_style := ""
+var _slide: Tween
 var tab_strip: HBoxContainer
 var left_box: VBoxContainer
 var right_box: VBoxContainer
@@ -79,6 +91,19 @@ func _ready() -> void:
 	if UI.controls:
 		UI.controls.show_legend(true)
 	Sfx.play("open")
+	_build()
+	resized.connect(_layout)
+	if is_instance_valid(Prefs):
+		Prefs.changed.connect(_on_prefs_changed)
+	_open_tab(tab)
+	if UIKit.pixel():
+		_unfold()
+
+
+## The tabs, the window and its two panes, in the style the interface is in now.
+func _build() -> void:
+	_built_style = UIKit.style
+	markers = []
 	book = Control.new()
 	book.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(book)
@@ -100,6 +125,10 @@ func _ready() -> void:
 		m.pressed.connect(_click_tab.bind(i))
 		tab_strip.add_child(m)
 		markers.append(m)
+	if UIKit.pixel():
+		_build_pages()
+		_layout()
+		return
 	window = PanelContainer.new()
 	window.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	book.add_child(window)
@@ -135,11 +164,167 @@ func _ready() -> void:
 	right_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right_scroll.add_child(right_box)
 	_layout()
-	resized.connect(_layout)
-	if is_instance_valid(Prefs):
-		Prefs.changed.connect(_on_prefs_changed)
-	_open_tab(tab)
 
+
+## Pixel style: the two pages. The right one is drawn first, so it slides out from behind the left.
+func _build_pages() -> void:
+	window = null
+	pages = Control.new()
+	pages.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	book.add_child(pages)
+	right_page = _page()
+	pages.add_child(right_page)
+	left_page = _page()
+	pages.add_child(left_page)
+	left_box = VBoxContainer.new()
+	left_box.add_theme_constant_override("separation", 8)
+	left_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	left_page.add_child(left_box)
+	var right_scroll := ScrollContainer.new()
+	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right_page.add_child(right_scroll)
+	right_box = VBoxContainer.new()
+	right_box.add_theme_constant_override("separation", 8)
+	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_scroll.add_child(right_box)
+
+
+## A page: the kit's paper, dark with the gem and edged in white, with its ornament frame drawn over it.
+func _page() -> PanelContainer:
+	var p := PanelContainer.new()
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_theme_stylebox_override("panel", _page_style())
+	p.draw.connect(_draw_frame.bind(p))
+	return p
+
+
+func _page_style() -> StyleBox:
+	var s := float(UIKit.PIXEL_SCALE)
+	var sb := StyleBoxTexture.new()
+	sb.texture = UIKit.piece("page", _page_fill(), UIKit.PIXEL_LINE, UIKit.ACCENT.darkened(0.45))
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		sb.set_texture_margin(side, 7.0 * s)
+	# (clear of the frame's corner diamonds, which reach 13 pixels in from its corners)
+	sb.content_margin_left = (FRAME_INSET.x + 10.0) * s
+	sb.content_margin_right = (FRAME_INSET.x + 10.0) * s
+	sb.content_margin_top = (FRAME_INSET.y + 14.0) * s
+	sb.content_margin_bottom = (FRAME_INSET.y + 15.0) * s
+	return sb
+
+
+## The pages' paper: the gem, deep enough that white text reads on it.
+func _page_fill() -> Color:
+	return UIKit.ACCENT.darkened(0.7)
+
+
+## A page's ornament frame (the kit's thin white line with its diamond corners), a little in from the edge, its top
+## left open in the middle for the page's title.
+func _draw_frame(p: PanelContainer) -> void:
+	var s := float(UIKit.PIXEL_SCALE)
+	var tex := UIKit.piece("page_frame", Color(0, 0, 0, 0), UIKit.PIXEL_LINE)
+	if tex == null:
+		return
+	var f := Rect2(FRAME_INSET * s, p.size - FRAME_INSET * s * 2.0)
+	var c := 16.0 * s
+	var col := UIKit.PIXEL_LINE
+	# the corners (as the kit drew them, from its 159 x 249 frame)
+	p.draw_texture_rect_region(tex, Rect2(f.position, Vector2(c, c)), Rect2(0, 0, c, c))
+	p.draw_texture_rect_region(tex, Rect2(Vector2(f.end.x - c, f.position.y), Vector2(c, c)), Rect2(143.0 * s, 0, c, c))
+	p.draw_texture_rect_region(tex, Rect2(Vector2(f.position.x, f.end.y - c), Vector2(c, c)), Rect2(0, 233.0 * s, c, c))
+	p.draw_texture_rect_region(tex, Rect2(f.end - Vector2(c, c), Vector2(c, c)), Rect2(143.0 * s, 233.0 * s, c, c))
+	# the sides and the foot
+	p.draw_rect(Rect2(f.position.x, f.position.y + c, s, f.size.y - 2.0 * c), col)
+	p.draw_rect(Rect2(f.end.x - s, f.position.y + c, s, f.size.y - 2.0 * c), col)
+	p.draw_rect(Rect2(f.position.x + c, f.end.y - s, f.size.x - 2.0 * c, s), col)
+	# the top, open round the page's title (written in, letter by letter, as the page opens), each side ending in the
+	# kit's little chevron
+	var title := String(p.get_meta("title", ""))
+	var font := UIKit.font_head()
+	var fs := UIKit.head_px(UIKit.HEAD_SIZE)
+	var gap := 0.0
+	if title != "":
+		var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		gap = tw + 44.0
+		var shown := title.substr(0, ceili(title.length() * float(p.get_meta("title_ratio", 1.0))))
+		var base := Vector2(f.get_center().x - tw / 2.0, f.position.y + font.get_ascent(fs) * 0.5 - 2.0)
+		p.draw_string(font, base, shown, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	gap = clampf(gap, 0.0, f.size.x - 2.0 * c - 20.0 * s)
+	var cap := Vector2(9.0 * s, 3.0 * s)
+	var gl := f.get_center().x - gap / 2.0
+	var gr := f.get_center().x + gap / 2.0
+	if gap <= 0.0:
+		p.draw_rect(Rect2(f.position.x + c, f.position.y, f.size.x - 2.0 * c, s), col)
+		return
+	p.draw_rect(Rect2(f.position.x + c, f.position.y, gl - cap.x - f.position.x - c, s), col)
+	p.draw_texture_rect_region(tex, Rect2(Vector2(gl - cap.x, f.position.y), cap), Rect2(32.0 * s, 0, cap.x, cap.y))
+	p.draw_texture_rect_region(tex, Rect2(Vector2(gr, f.position.y), cap), Rect2(118.0 * s, 0, cap.x, cap.y))
+	p.draw_rect(Rect2(gr + cap.x, f.position.y, f.end.x - c - gr - cap.x, s), col)
+
+
+## Where the right page rests (and, hidden, where it slides out from: tucked behind the left page).
+func _right_rest() -> Vector2:
+	return Vector2(left_page.size.x + PAGE_GAP, 0)
+
+
+func _right_hidden() -> Vector2:
+	return Vector2(left_page.size.x - right_page.size.x * 0.92, 0)
+
+
+## Opening the book: the left page unfolds from its middle, then the right slides out from behind it.
+func _unfold() -> void:
+	left_page.pivot_offset = left_page.size / 2.0
+	left_page.scale = Vector2(1, 0.04)
+	tab_strip.modulate.a = 0.0
+	right_page.position = _right_hidden()
+	right_page.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(left_page, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(tab_strip, "modulate:a", 1.0, 0.22)
+	tw.tween_callback(_slide_out)
+
+
+## The right page slides out from behind the left (each time a tab opens), and the titles write themselves in.
+func _slide_out() -> void:
+	if right_page == null:
+		return
+	if _slide != null and _slide.is_valid():
+		_slide.kill()
+	right_page.position = _right_hidden()
+	right_page.modulate.a = 0.0
+	_slide = create_tween()
+	_slide.tween_property(right_page, "position", _right_rest(), 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_slide.parallel().tween_property(right_page, "modulate:a", 1.0, 0.12)
+	for page in [left_page, right_page]:
+		var pg := page as Control
+		pg.set_meta("title_ratio", 0.0)
+		_slide.parallel().tween_method(func(v: float) -> void:
+			if is_instance_valid(pg):
+				pg.set_meta("title_ratio", v)
+				pg.queue_redraw(), 0.0, 1.0, 0.26)
+
+
+## Pixel style: each page's title, for its frame to write in the gap at its top: the pane's title, or, for the
+## right page without one, the heading its details open with (then left out of the page itself).
+func _retitle() -> void:
+	for p in [left_page, right_page]:
+		if p == null:
+			continue
+		var page := p as PanelContainer
+		var title := ""
+		var t := page.find_child("PaneTitle", true, false)
+		if t != null:
+			title = (t.get_child(0) as Label).text
+		elif page == right_page:
+			var n: Node = right_box
+			while n is Container and n.get_child_count() > 0:
+				n = n.get_child(0)
+			if n is Label and (n as Label).get_theme_font("font") == UIKit.font_head():
+				title = (n as Label).text
+				(n as Label).visible = false
+		page.set_meta("title", title)
+		page.queue_redraw()
 
 ## The window fills most of the screen (above the key guide or touch pad), so rows and text are big enough to tap.
 func _layout() -> void:
@@ -152,15 +337,43 @@ func _layout() -> void:
 	book.size = Vector2(w, avail - top - 10.0)
 	tab_strip.position = Vector2.ZERO
 	tab_strip.size = Vector2(w, TAB_H)
+	if pages != null and is_instance_valid(pages):
+		pages.position = Vector2(0, TAB_H + TAB_GAP)
+		pages.size = Vector2(w, book.size.y - TAB_H - TAB_GAP)
+		var lw := roundf((w - PAGE_GAP) * LEFT_SHARE)
+		left_page.position = Vector2.ZERO
+		left_page.size = Vector2(lw, pages.size.y)
+		left_page.pivot_offset = left_page.size / 2.0
+		right_page.size = Vector2(w - lw - PAGE_GAP, pages.size.y)
+		if _slide == null or not _slide.is_running():
+			right_page.position = _right_rest()
+		return
 	window.position = Vector2(0, TAB_H + TAB_GAP)
 	window.size = Vector2(w, book.size.y - TAB_H - TAB_GAP)
 
 
-## A new highlight colour (from the Settings tab): the open tab is redrawn in it.
+## A new highlight colour (from the Settings tab): the open tab is redrawn in it. A new style: the book is built
+## again in it.
 func _on_prefs_changed() -> void:
 	if not is_inside_tree():
 		return
-	window.add_theme_stylebox_override("panel", UIKit.box("textfield"))
+	if UIKit.style != _built_style:
+		book.queue_free()
+		pages = null
+		left_page = null
+		right_page = null
+		_build()
+		_open_tab(tab)
+		_focus_first.call_deferred()
+		if UIKit.pixel():
+			_unfold()
+		return
+	if window != null:
+		window.add_theme_stylebox_override("panel", UIKit.box("textfield"))
+	else:
+		for p in [left_page, right_page]:
+			(p as PanelContainer).add_theme_stylebox_override("panel", _page_style())
+			(p as Control).queue_redraw()
 	_style_tabs()
 
 
@@ -170,11 +383,15 @@ func _style_tabs() -> void:
 	for k in markers.size():
 		var m: Button = markers[k]
 		var open := k == tab
-		var sb := UIKit.chip(UIKit.ACCENT if open else UIKit.WINDOW_BOTTOM, UIKit.BORDER if open else Color(UIKit.BORDER, 0.35),
+		var sb: StyleBox = UIKit.chip(UIKit.ACCENT if open else UIKit.WINDOW_BOTTOM, UIKit.BORDER if open else Color(UIKit.BORDER, 0.35),
 			16.0, Vector4(10, 0, 10, 0), 3.0 if open else 2.0)
-		if not open:
+		if not open and sb is UIKit.CozyBox:
 			sb.top = Color(UIKit.WINDOW_TOP, 0.92)
 			sb.bottom = Color(UIKit.WINDOW_BOTTOM, 0.92)
+		elif UIKit.pixel():
+			# the 1-bit plate: the open tab filled with the gem, the rest near-black with a grey edge
+			sb = UIKit.pixel_box("plate", UIKit.ACCENT if open else UIKit.WINDOW_BOTTOM, UIKit.PIXEL_LINE if open else UIKit.PIXEL_DIM,
+				Vector4(10, 0, 10, 0))
 		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
 			m.add_theme_stylebox_override(st, sb)
 		var col := UIKit.LIGHT if open else UIKit.DIM
@@ -195,9 +412,12 @@ func _click_tab(i: int) -> void:
 
 
 func _open_tab(i: int) -> void:
+	var turned := i != tab
 	tab = i
 	last_tab = i
 	_style_tabs()
+	if turned and right_page != null:
+		_slide_out.call_deferred()
 	_clear(left_box)
 	_clear(right_box)
 	rows = []
@@ -221,6 +441,8 @@ func _open_tab(i: int) -> void:
 			_tab_settings()
 	if mode == "list":
 		_focus_first.call_deferred()
+	if left_page != null:
+		_retitle()
 
 
 func _clear(c: Control) -> void:
@@ -311,6 +533,8 @@ func _row_focused(i: int) -> void:
 	if detail_box != null and row.has("detail"):
 		_clear(detail_box)
 		(row["detail"] as Callable).call(detail_box)
+		if left_page != null:
+			_retitle()
 
 
 func _activate(i: int) -> void:
@@ -429,9 +653,16 @@ func _sub(text: String) -> Label:
 	return l
 
 
-## A pane's title: white text over an accent underline.
+## A pane's title: white text over an accent underline (Pixel: centred in the gap atop the page's frame).
 func _pane_title(text: String) -> Control:
 	var vb := VBoxContainer.new()
+	vb.name = "PaneTitle"
+	if UIKit.pixel():
+		# (the page's frame writes it: see _retitle)
+		var l := UIKit.header(text, UIKit.PIXEL_LINE, UIKit.HEAD_SIZE)
+		l.visible = false
+		vb.add_child(l)
+		return vb
 	vb.add_theme_constant_override("separation", 2)
 	vb.add_child(UIKit.header(text, UIKit.LIGHT, UIKit.HEAD_SIZE))
 	var bar := ColorRect.new()
@@ -965,6 +1196,12 @@ func _tab_settings() -> void:
 		"adjust": func(d): Prefs.set_value("accent", gems[posmod(gi + d, gems.size())]),
 		"act": func(): Prefs.set_value("accent", gems[posmod(gi + 1, gems.size())]),
 		"detail": _controls_help.bind("The gem the menus are cut from: Ruby, Sapphire, Emerald or Hematite.")})
+	var styles: Array = UIKit.STYLES
+	var si := maxi(0, styles.find(UIKit.style))
+	_add_row({"text": "Style", "right": "◄ %s ►" % UIKit.STYLE_NAMES[styles[si]], "right_width": 150,
+		"adjust": func(d): Prefs.set_value("ui_style", styles[posmod(si + d, styles.size())]),
+		"act": func(): Prefs.set_value("ui_style", styles[posmod(si + 1, styles.size())]),
+		"detail": _controls_help.bind("How the menus look: Pixel (crisp white pixel frames and a paper book) or Classic (soft rounded windows).")})
 	var touch_opts := ["auto", "on", "off"]
 	var ti := maxi(0, touch_opts.find(Prefs.touch_controls))
 	_add_row({"text": "Touch pad", "right": "◄ %s ►" % String(touch_opts[ti]).capitalize(), "right_width": 150,
@@ -1010,7 +1247,7 @@ func _credits() -> void:
 		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant.",
 		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
 		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
-		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); fonts BoldPixels and Lunchtime Doubly So.",
+		"UI: Humble Gift by Humble Pixel (@Humblepixel); 1-bit UI by BatuhanK; Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); fonts BoldPixels and Lunchtime Doubly So.",
 		"Music: Kevin MacLeod (incompetech.com), CC BY 4.0; plus DJARTMUSIC, Howling Hound Music and Monume (Pixabay).",
 		"Sound effects: the packs in the sfx folder. Full list in CREDITS.md.",
 	], "Credits")

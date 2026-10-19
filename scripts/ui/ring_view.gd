@@ -63,7 +63,12 @@ func _draw() -> void:
 		sb.set_border_width_all(3 if on_side or k == highlight else 2)
 		sb.set_corner_radius_all(int(cell * (0.22 if not Ring.is_corner(k) else 0.45)))
 		sb.anti_aliasing = true
-		draw_style_box(sb, r)
+		if UIKit.pixel():
+			# the 1-bit plate: the gem behind the white on the side facing the foe
+			draw_style_box(UIKit.pixel_plate(UIKit.ACCENT.darkened(0.2) if on_side else UIKit.PIXEL_FILL,
+				UIKit.PIXEL_LINE if on_side or k == highlight else UIKit.PIXEL_DIM, 0.95), r)
+		else:
+			draw_style_box(sb, r)
 		var b = ring.get(k, null)
 		if b != null:
 			var tex := PixelArt.beast_texture(b.genes)

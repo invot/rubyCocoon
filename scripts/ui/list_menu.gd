@@ -186,6 +186,9 @@ func _process(delta: float) -> void:
 ## top, deep at the bottom) with a glossy upper half, a pale border inside a dark edge, and every few seconds a band
 ## of light sweeping across it. Brighter while it's the picked option.
 func _draw_hero() -> void:
+	if UIKit.pixel():
+		_draw_hero_pixel()
+		return
 	var rect := Rect2(Vector2.ZERO, _hero_face.size)
 	var r := rect.size.y / 2.0
 	var on := _hero.has_focus() or buttons.size() == 1
@@ -222,6 +225,35 @@ func _draw_hero() -> void:
 	var rim := UIKit.CozyBox._round_rect(rect.grow(-2.5), r - 2.5)
 	rim.append(rim[0])
 	_hero_face.draw_polyline(rim, UIKit.BORDER if on else UIKit.DIM, 5.0, true)
+
+
+## Pixel style: the 1-bit plate drawn big (its pixels four times the size), filled with the gem behind its white edge,
+## ringed by crisp outlines in the gem that breathe outwards, over a hard drop shadow; every few seconds a band of
+## light steps across it, a pixel row at a time.
+func _draw_hero_pixel() -> void:
+	var rect := Rect2(Vector2.ZERO, _hero_face.size)
+	var on := _hero.has_focus() or buttons.size() == 1
+	var breath := 0.5 + 0.5 * sin(_t * TAU / 1.6)
+	var g := UIKit.ACCENT
+	var glow := Color.from_hsv(g.h, g.s * 0.8, 1.0)
+	for i in 4:
+		var grow := 6.0 + float(i) * 6.0 + roundf(breath * 2.0) * 2.0
+		_hero_face.draw_rect(rect.grow(grow), Color(glow, (0.55 if on else 0.15) * (1.0 - float(i) / 4.0) * (0.5 + 0.5 * breath)), false, 4.0)
+	_hero_face.draw_rect(Rect2(rect.position + Vector2(0, 8), rect.size), Color(0, 0, 0, 0.45))
+	_hero_face.draw_style_box(UIKit.pixel_plate(g if on else g.darkened(0.45), UIKit.PIXEL_LINE, 1.0, 4), rect)
+	var k := fposmod(_t, SHINE_EVERY) / SHINE_CROSS
+	if on and k < 1.0:
+		var inner := rect.grow(-8.0)
+		var x := lerpf(inner.position.x - inner.size.y, inner.end.x, k)
+		var row := 4.0
+		var y := inner.position.y
+		while y < inner.end.y:
+			var off := (inner.end.y - y) * 0.5
+			var a := clampf(x + off, inner.position.x, inner.end.x)
+			var b := clampf(x + off + inner.size.y * 0.4, inner.position.x, inner.end.x)
+			if b > a:
+				_hero_face.draw_rect(Rect2(a, y, b - a, minf(row, inner.end.y - y)), Color(1, 1, 1, 0.35))
+			y += row
 
 
 ## Keeps a button's text clear of its right-hand label.
