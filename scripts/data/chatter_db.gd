@@ -154,6 +154,15 @@ const DEFEATS := [
 ]
 
 ## Mascots doing mascot things ("%s" is the mascot's name).
+## Townsfolk on their mascot's signature move (see MoveDB.SIGNATURE): {mascot}, {move} and {lv} are filled in.
+const MASCOT_MOVE := [
+	"Read the plaque on our statue? Our {mascot} teaches {move} to any {mascot} of Lv {lv}. My {mascot} is Lv 3. We're working on it.",
+	"I asked our {mascot} to teach ME {move}. It looked at me like I'd asked a fish to climb a ladder. Only another {mascot} can learn it.",
+	"Rumour has it our {mascot} knows {move}. It only shows a fellow {mascot}, and only one of Lv {lv} or more. Very exclusive club.",
+	"A {mascot} at Lv {lv} can learn {move} from ours. It's the strongest move a {mascot} will ever know. Ours mostly uses it to open coconuts.",
+	"Our mascot won't teach {move} to just anyone. It has to be a {mascot}, Lv {lv} or better. I tried a fake moustache. It didn't fall for it.",
+	"Every town's mascot has a secret move for its own kind. Ours is {move}. Bring a Lv {lv} {mascot} and watch the fireworks!",
+]
 const MASCOT := [
 	"The %s chases its own tail. It's winning.",
 	"The %s yawns, stretches, and pretends you don't exist. Classic mascot.",

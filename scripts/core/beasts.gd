@@ -195,8 +195,10 @@ static func merge(a: Beast, b: Beast, temple := false) -> Beast:
 			break
 		if not active.has(m):
 			active.append(m)
-	c.moves = active
-	c.known = pool
+	# a mascot's signature move stays only with a beast of the race it was taught to
+	var own: String = MoveDB.SIGNATURE.get(c.race, "")
+	c.moves = active.filter(func(m): return not MoveDB.is_signature(m) or m == own)
+	c.known = pool.filter(func(m): return not MoveDB.is_signature(m) or m == own)
 
 	# passives
 	var ppool := []

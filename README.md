@@ -96,6 +96,12 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   beasts. A step, once started, always ends in the middle of the next tile (whatever you let go of or press on the
   way), so you always stop lined up with people, doors and items. With two arrows held you keep walking the way you
   were going, else the newest arrow counts (`world.gd` _key_dir).
+- **Town mascots and their signature moves**: every town has a mascot beast roaming its square and a statue of it
+  beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
+  teaches a beast of its own race, once it reaches **Lv 40**, that race's signature move: an elemental attack mightier
+  than any move of its element learnt by levelling (`move_db.gd` SIGNATURE, e.g. Redcoon's Bandit Blaze in Cocoon
+  Cove, Tidalotl's Tidewater Torrent in Tidewater). Nobody else teaches it, and a merge keeps it only for a beast of
+  that race. The statue's plaque explains it, and townsfolk bring it up now and then (`chatter_db.gd` MASCOT_MOVE).
 - **Wild beasts** roam the routes in plain sight; there are no random encounters (the tall grass is still there).
   - Each beast sees in a cone in front of it, half as far if you're in tall grass, and hears you running nearby.
   - Beasts come running when they spot you. Only a lone beast hopelessly outmatched by your best one (8+ levels below it) bolts.
@@ -374,6 +380,8 @@ godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the St
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
+godot --headless --path . -- --scene=mascot                             # mascots' signature moves: the rules, teaching at Lv 39 / 40, another race, a merge
+godot --path . -- --scene=mascot --plaque=1 --pages=2 --shot=C:/tmp/q.png   # read Cocoon Cove's statue plaque
 godot --headless --path . -- --scene=capture                            # Capture rules, Uncle Rafe's lessons and the arena's flute rule
 godot --headless --path . -- --scene=puzzles                            # solves every road puzzle (bridge, cliff, rockslide, ice, checkpoint, warden, sentinel)
 godot --headless --path . -- --scene=wilds                              # roaming wild beasts: sneak attack, chase, ambush, flee
