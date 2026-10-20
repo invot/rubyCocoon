@@ -1842,13 +1842,15 @@ func _battlecmd_test() -> void:
 	var foes := [Beasts.create(25, 20), Beasts.create(26, 20)]
 	start_battle({"wild": false, "foes": foes, "trainer": {"name": "Tess", "cls": "Tester", "team": []}, "seed": 7})
 	var bt: Node = null
+	var heal_foes := [true]
 	var panel := func():
-		# the next command panel, with everyone but the fallen healed (so the test's battle lasts)
+		# the next command panel, with the foes healed (so the test's battle lasts)
 		for i in 3000:
 			var top = UI.stack.back() if not UI.stack.is_empty() else null
 			if top != null and top.get_script() == load(PANEL_PATH) and not top.closed:
 				for f in foes:
-					f.hp = f.max_hp()
+					if heal_foes[0]:
+						f.hp = f.max_hp()
 				return top
 			await get_tree().process_frame
 		return null
@@ -1983,6 +1985,29 @@ func _battlecmd_test() -> void:
 	air_c.hp = 0
 	p = await panel.call()
 	check.call(p != null and bt.ally_side != 1 and Ring.side_alive(bt.ally_ring, bt.ally_side), "with everyone on the air side down, the ring turned by itself to the %s side" % Ring.side_element(bt.ally_side))
+	# Tess's Move: her middle beast falls, and her corner beast steps into its place
+	var mid_foe = bt.foe_ring.get(bt.foe_side * 2, null)
+	var corner_foe = null
+	for k in Ring.side_slots(bt.foe_side):
+		var f = bt.foe_ring.get(k, null)
+		if f != null and f != mid_foe and f.hp > 0:
+			corner_foe = f
+	check.call(mid_foe != null and corner_foe != null, "Tess's ring: %s in the middle, %s on a corner" % [mid_foe.nickname if mid_foe != null else "nobody", corner_foe.nickname if corner_foe != null else "nobody"])
+	if mid_foe != null and corner_foe != null:
+		mid_foe.hp = 0
+		heal_foes[0] = false
+		# your side braces (Defend, and you Watch), so nobody knocks the corner beast out first
+		for r in p.rows:
+			var want := "watch" if r["kind"] == "trainer" else "defend"
+			for i in (r["options"] as Array).size():
+				if String(r["options"][i].get("id", "")) == want:
+					r["sel"] = i
+			r["done"] = true
+		p.close({"kind": "go"})
+		p = await panel.call()
+		var now_mid = bt.foe_ring.get(bt.foe_side * 2, null)
+		check.call(now_mid == corner_foe and corner_foe.hp > 0 and not bt._side_open("foe"),
+			"Tess's %s moved into the middle, covering her again (middle now: %s)" % [corner_foe.nickname, now_mid.nickname if now_mid != null else "nobody"])
 	print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
 
 
