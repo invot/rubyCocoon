@@ -298,11 +298,31 @@ def rig(v, f, part):
     return vpart, attach, weight, joints, parents
 
 
-def shading(v, n, vpart, joints):
+def smooth_normals(v, f, n, vpart, iters=14):
+    """The normals blurred over each part's surface (welded, neighbour to neighbour, `iters` times), so what's
+    painted by them (the belly patch) has smooth edges rather than following every facet."""
+    w = weld(v)
+    nw = np.zeros((w.max() + 1, 3))
+    np.add.at(nw, w, n)
+    pw = np.zeros(w.max() + 1, int)
+    pw[w] = vpart
+    edges = np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]])
+    a, b = w[edges[:, 0]], w[edges[:, 1]]
+    same = pw[a] == pw[b]
+    a, b = a[same], b[same]
+    for _ in range(iters):
+        acc = nw.copy()
+        np.add.at(acc, a, nw[b])
+        np.add.at(acc, b, nw[a])
+        nw = acc / np.maximum(np.linalg.norm(acc, axis=1, keepdims=True), 1e-9)
+    return nw[w]
+
+
+def shading(v, f, n, vpart, joints):
     """What the toon shader paints by, per vertex: tip (0 at its part's joint to 1 at the far end: hands, feet,
     claws and the tips of spikes take their own colour from some way along), belly (how much it faces forward and
-    down: a belly patch) and pattern (around its part's upright axis, 0..1, and its height: stripes and bands). An
-    eye's tip is how much it looks forward instead (its pupil)."""
+    down, by its smoothed normal: a belly patch) and pattern (around its part's upright axis, 0..1, and its height:
+    stripes and bands). An eye's tip is how much it looks forward instead (its pupil)."""
     tip = np.zeros(len(v))
     pat = np.zeros((len(v), 2))
     for p in set(vpart.tolist()):
@@ -319,7 +339,7 @@ def shading(v, n, vpart, joints):
             tip[sel] = d / max(d.max(), 1e-6)
     fwd = np.array([1.0, -0.55, 0.0])
     fwd /= np.linalg.norm(fwd)
-    belly = np.clip(n @ fwd * 0.5 + 0.5, 0.0, 1.0)
+    belly = np.clip(smooth_normals(v, f, n, vpart) @ fwd * 0.5 + 0.5, 0.0, 1.0)
     return tip, belly, pat
 
 
@@ -346,7 +366,7 @@ def bake(src, name, spec, debug_dir=None):
         size = 1.0 / max(v[:, 1].max() - lo[1], 0.62 * max(ext[0], ext[2]))
         v = (v - lo) * size
         joints = {k: np.round((np.array(j) - lo) * size, 4).tolist() for k, j in joints.items()}
-    tip, belly, pat = shading(v, n, vpart, joints)
+    tip, belly, pat = shading(v, f, n, vpart, joints)
     out = {'name': name, 'verts': np.round(v, 5).ravel().tolist(), 'normals': np.round(n, 4).ravel().tolist(),
            'faces': f.ravel().tolist(), 'vpart': vpart.tolist(), 'attach': attach.tolist(), 'weight': np.round(weight, 3).tolist(),
            'tip': np.round(tip, 3).tolist(), 'belly': np.round(belly, 3).tolist(), 'pattern': np.round(pat, 4).ravel().tolist(),
