@@ -14,6 +14,7 @@ const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
+const Fishing = preload("res://scripts/world/fishing.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
@@ -71,6 +72,8 @@ var cam_free := false
 var building_fades: Array = []
 var water_mats: Array = []
 var spinners: Array = []
+## the rippling fishing spots: [ring nodes, phase] (see _build_ripples)
+var ripples: Array = []
 var bobbers: Array = []
 ## Beast Center machines: "healer" / "incubator" -> {"node", "window", "slots", "dome", "pos"}
 var machines := {}
@@ -101,6 +104,8 @@ func build(id: String) -> void:
 		_build_statue()
 		_build_obstacles()
 		_build_pushables()
+		_build_ripples()
+		_build_boats()
 	_build_npcs()
 	_build_items()
 	_build_player()
@@ -1372,6 +1377,12 @@ func _build_npcs() -> void:
 		else:
 			node = VPer.build(n.get("look", {}))
 			VPer.face(node, n.get("facing", Vector2i(0, 1)))
+			if n.get("rod", false):
+				# someone fishing: a rod held out in front, its line down into the water
+				var body: Node3D = node.get_node("Body")
+				var tip := Vector3(0.2, 2.0, 1.55)
+				body.add_child(_rod_mesh(Vector3(0.22, 1.0, 0.25), tip))
+				body.add_child(_rod_mesh(tip, Vector3(0.24, -0.1, 2.1), 0.008, Color("#e8e8e8")))
 		node.position = tile_pos(p)
 		add_child(node)
 		n["node"] = node
@@ -1504,6 +1515,14 @@ func _process(delta: float) -> void:
 		if is_instance_valid(b[0]):
 			var n: Node3D = b[0]
 			n.position.y = float(b[1]) + sin(_time * float(b[2])) * 0.08
+	for rp in ripples:
+		# each ring spreads out and fades, one after another
+		for k in (rp[0] as Array).size():
+			var ring: MeshInstance3D = rp[0][k]
+			if is_instance_valid(ring):
+				var f := fposmod(_time * 0.45 + float(rp[1]) + k / 3.0, 1.0)
+				ring.scale = Vector3.ONE * lerpf(0.25, 1.15, f)
+				ring.transparency = lerpf(0.25, 1.0, f)
 	if demo:
 		_demo_t += delta
 		cam_target = Vector3(map["w"] / 2.0 + sin(_demo_t * 0.15) * 6.0, 0, map["h"] / 2.0 + 2.0)
@@ -1545,18 +1564,41 @@ func _process(delta: float) -> void:
 	_place_camera()
 
 
+## A building between the camera and you (the arena, a tall house you've walked behind) fades almost away, so you're
+## never lost from sight: whenever the line from the camera to your head or your middle passes through its bounds.
 func _fade_buildings(delta: float) -> void:
-	var pp := Vector2(player.position.x, player.position.z)
+	if cam == null:
+		return
+	var from := cam.global_position
+	# (stopping a step short of you: an awning or a porch over the street right where you stand isn't in the way)
+	var head := player.position + Vector3(0, 1.6, 0)
+	head += (from - head).normalized() * 1.1
+	var middle := player.position + Vector3(0, 0.8, 0)
+	middle += (from - middle).normalized() * 1.1
 	for f in building_fades:
-		var b: Dictionary = f["b"]
-		var by: float = b["y"]
-		var bx: float = b["x"]
-		var tall := 12.0 if b["shop"] in ["ceo_tower", "skytower", "cathedral"] else 7.5
-		var occl: bool = pp.y < by + 0.5 and pp.y > by - tall and pp.x > bx - 1.0 and pp.x < bx + float(b["w"]) + 1.0
-		var target := 0.9 if occl else 0.0
+		if not f.has("box"):
+			f["box"] = _fade_box(f["meshes"])
+		var box: AABB = f["box"]
+		var occl: bool = box.size != Vector3.ZERO and (box.intersects_segment(from, head) or box.intersects_segment(from, middle))
+		var target := 0.93 if occl else 0.0
 		for gi in f["meshes"]:
 			if is_instance_valid(gi) and gi.transparency != target:
 				gi.transparency = move_toward(gi.transparency, target, delta * 3.0)
+
+
+## The bounds of a building's meshes, in the world, trimmed a little so brushing past a corner doesn't fade it.
+func _fade_box(meshes: Array) -> AABB:
+	var box := AABB()
+	var any := false
+	for gi in meshes:
+		if not is_instance_valid(gi) or not gi is VisualInstance3D or not (gi as Node3D).is_inside_tree():
+			continue
+		var bb: AABB = (gi as Node3D).global_transform * (gi as VisualInstance3D).get_aabb()
+		box = bb if not any else box.merge(bb)
+		any = true
+	if not any:
+		return AABB()
+	return box.grow(-0.15)
 
 
 func _read_input() -> void:
@@ -1750,8 +1792,129 @@ func _interact() -> void:
 	elif interior and MapGen.get_t(map, t.x, t.y) in PROP_CODES:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
-		await UI.say(["The water sparkles. Something might live down there..."])
+		await Fishing.cast(self, t)
 	busy = false
+
+
+# ---------------------------------------------------------------- fishing (see fishing.gd)
+## The rippling water where fish bite best: three rings spreading out over each spot.
+func _build_ripples() -> void:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(1, 1, 1, 0.7)
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.34
+	torus.outer_radius = 0.4
+	torus.rings = 24
+	torus.ring_segments = 4
+	torus.material = m
+	var i := 0
+	for p in map.get("fish_spots", {}):
+		var rings := []
+		for k in 3:
+			var mi := MeshInstance3D.new()
+			mi.mesh = torus
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.position = tile_pos(p) + Vector3(0, -0.1, 0)
+			add_child(mi)
+			rings.append(mi)
+		ripples.append([rings, i * 0.37])
+		i += 1
+
+
+## Boats moored in the water (map "boats": x, z, yaw, model, length), rocking gently.
+func _build_boats() -> void:
+	for bt in map.get("boats", []):
+		var name := String(bt[3])
+		var bb := VA.aabb(name)
+		var mi := MeshInstance3D.new()
+		mi.mesh = VA.mesh(name)
+		var s := float(bt[4]) / maxf(0.01, maxf(bb.size.x, bb.size.z))
+		mi.scale = Vector3(s, s, s)
+		var holder := Node3D.new()
+		holder.position = Vector3(float(bt[0]), 0.0, float(bt[1]))
+		holder.rotation.y = deg_to_rad(float(bt[2]))
+		mi.position.y = -0.3 - bb.position.y * s
+		holder.add_child(mi)
+		add_child(holder)
+		bobbers.append([holder, 0.0, 1.3 + float(bt[0]) * 0.01])
+
+
+## The fishing line cast into water tile `t`: a red-and-white float bobbing there, and the line out to it from your
+## rod. Free it once you're done.
+func fishing_line(t: Vector2i) -> Node3D:
+	VPer.face(player, t - player_pos)
+	var holder := Node3D.new()
+	add_child(holder)
+	var fl := Node3D.new()
+	fl.name = "Float"
+	var top := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.08
+	sm.height = 0.16
+	var red := StandardMaterial3D.new()
+	red.albedo_color = Color("#e03030")
+	sm.material = red
+	top.mesh = sm
+	top.position.y = 0.05
+	fl.add_child(top)
+	var low := MeshInstance3D.new()
+	var sm2 := SphereMesh.new()
+	sm2.radius = 0.08
+	sm2.height = 0.12
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color("#f4f0e8")
+	sm2.material = white
+	low.mesh = sm2
+	low.position.y = -0.03
+	fl.add_child(low)
+	fl.position = tile_pos(t) + Vector3(0, -0.08, 0)
+	holder.add_child(fl)
+	bobbers.append([fl, -0.08, 3.0])
+	# the rod held out over the water, and the line down to the float
+	var tip := tile_pos(player_pos) + Vector3(t.x - player_pos.x, 0, t.y - player_pos.y) * 0.55 + Vector3(0, 1.75, 0)
+	var rod := _rod_mesh(tile_pos(player_pos) + Vector3(0, 1.0, 0), tip)
+	holder.add_child(rod)
+	var line := _rod_mesh(tip, fl.position + Vector3(0, 0.1, 0), 0.008, Color("#e8e8e8"))
+	line.name = "Line"
+	holder.add_child(line)
+	return holder
+
+
+## Something nibbles: the float bobs under.
+func dip_line(holder: Node3D) -> void:
+	if not is_instance_valid(holder):
+		return
+	var fl := holder.get_node_or_null("Float") as Node3D
+	if fl == null:
+		return
+	for b in bobbers:
+		if b[0] == fl:
+			bobbers.erase(b)
+			break
+	var tw := create_tween().set_loops(4)
+	tw.tween_property(fl, "position:y", -0.3, 0.12)
+	tw.tween_property(fl, "position:y", -0.12, 0.18)
+
+
+## A thin pole from `a` to `b` (a fishing rod, or its line).
+func _rod_mesh(a: Vector3, b: Vector3, r := 0.025, col := Color("#6a4a2a")) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = r * 0.6
+	cyl.bottom_radius = r
+	cyl.height = a.distance_to(b)
+	cyl.radial_segments = 6
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	cyl.material = m
+	mi.mesh = cyl
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var up := (b - a).normalized()
+	var side := up.cross(Vector3.FORWARD if absf(up.z) < 0.9 else Vector3.RIGHT).normalized()
+	mi.transform = Transform3D(Basis(side, up, side.cross(up)).orthonormalized(), (a + b) / 2.0)
+	return mi
 
 
 func _facing_tile() -> Vector2i:

@@ -36,7 +36,7 @@ const BUILDING_LETTERS := {
 	"C": "center", "A": "apothecary", "G": "beast_gear", "O": "trainer_gear", "K": "bookstore",
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",
 	"H": "house", "Z": "home", "Q": "temple", "X": "electronics", "V": "skytower", "I": "ceo_tower",
-	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin", "r": "uncle",
+	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin", "r": "uncle", "p": "fishery",
 }
 const ENTITY_CHARS := "@v^<>$*123456789P"
 const FACING := {"v": Vector2i(0, 1), "^": Vector2i(0, -1), "<": Vector2i(-1, 0), ">": Vector2i(1, 0)}
@@ -309,7 +309,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# a building standing in the water (a fishery on the docks) stands on planks over it
 	var over := {}
 	for b in m["buildings"]:
-		if b["shop"] != "decor":
+		if not b["shop"] in ["decor", "fishery"]:
 			continue
 		var wet := false
 		for y in range(int(b["y"]) - 1, int(b["y"]) + int(b["d"]) + 1):
@@ -317,12 +317,15 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 				if MapGen.get_t(m, x, y) == MapGen.WATER:
 					wet = true
 		if wet:
-			b["name"] = "Fishery"
+			if b["shop"] == "decor":
+				b["name"] = "Fishery"
 			for y in range(int(b["y"]), int(b["y"]) + int(b["d"])):
 				for x in range(int(b["x"]), int(b["x"]) + int(b["w"])):
 					over[Vector2i(x, y)] = true
 	if not over.is_empty():
 		m["over_water"] = over
+	m["fish_spots"] = _fish_spots(id, m, src.get("fish_spots", []))
+	m["boats"] = src.get("boats", [])
 	# exits along each connected edge
 	var edges := WorldDB.town_edges(id) if WorldDB.TOWNS.has(id) else WorldDB.route_edges(id)
 	for dir in edges:
@@ -346,6 +349,37 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		if a == "dock":
 			m["spawns"]["dock"] = m["anchors"][a]
 	return m
+
+
+## Where the water ripples and the fish bite (fishing.gd): the map's own spots, and a few more by the shore or a pier,
+## well apart (the same ones every time).
+static func _fish_spots(id: String, m: Dictionary, given: Array) -> Dictionary:
+	var out := {}
+	for g in given:
+		out[Vector2i(int(g[0]), int(g[1]))] = true
+	var cands := []
+	for y in range(1, int(m["h"]) - 1):
+		for x in range(1, int(m["w"]) - 1):
+			if MapGen.get_t(m, x, y) != MapGen.WATER:
+				continue
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var c := MapGen.get_t(m, x + d.x, y + d.y)
+				if c != MapGen.WATER and (MapGen.walkable(c) or c == MapGen.BRIDGE):
+					cands.append(Vector2i(x, y))
+					break
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (id + ":fish").hash()
+	var tries := 0
+	while out.size() < 3 + given.size() and not cands.is_empty() and tries < 60:
+		tries += 1
+		var q: Vector2i = cands[rng.randi_range(0, cands.size() - 1)]
+		var far := true
+		for o in out:
+			if Vector2(q - o).length() < 7.0:
+				far = false
+		if far:
+			out[q] = true
+	return out
 
 
 ## A trainer who plays a flute song in battle.
@@ -424,6 +458,8 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 			b["name"] = "Builder's Cabin"
 		"uncle":
 			b["name"] = "Uncle Rafe's House"
+		"fishery":
+			b["name"] = "Gil's Fishing Shack"
 		"temple":
 			var tk := WorldDB.ROUTES.get(map_id, {}).get("temple", "water") as String
 			b["temple"] = tk

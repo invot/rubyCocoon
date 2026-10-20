@@ -173,9 +173,9 @@ const ROOMS := {
 			"#::x:::::::::::::x::#####",
 			"#=:xxxxxxxxxxxxxxx:=#T.u#",
 			"#=:::::::::::::::::=#..z#",
-			"#===::::::6::::::===##d##",
-			"#o1C:::::::::::::::o#R.R#",
-			"#:C:4:::::::::::5:::d...#",
+			"#pC:::::::6::::::===##d##",
+			"#1C::::::::::::::::o#R.R#",
+			"#pC:4:::::::::::5:::d...#",
 			"#:::::::::P::7::::::#=..#",
 			"#########DD##############",
 		],
@@ -396,6 +396,19 @@ const ROOMS := {
 			"#llllllllkkkkk#",
 			"#llllllllkkkkk#",
 			"###############",
+		],
+	},
+	## Fisher Gil's shack on the Tidewater docks: nets, crates, and his spare fishing pole (1) leaning by the back wall.
+	"fishery": {
+		"wall": "#8a6a52", "rug": "#3a5a7a", "zone": "wood",
+		"anchors": {"1": "rod"},
+		"rows": [
+			"####w####",
+			"#X.F..1X#",
+			"#.......#",
+			"#th.....#",
+			"#....P..#",
+			"####DD###",
 		],
 	},
 	## Uncle Rafe's house in Tidewater, by the west gate: he waits in his front room (1) with your father's flute.
@@ -822,6 +835,7 @@ const SHOP_ROOMS := {
 	"hideout": ["hideout"],
 	"cabin": ["kit_cabin"],
 	"uncle": ["uncle_home"],
+	"fishery": ["fishery"],
 	"ceo_tower": ["ceo_1", "ceo_2", "ceo_3", "ceo_4"],
 	"cathedral": ["cathedral", "crypt_1", "crypt_2"],
 }

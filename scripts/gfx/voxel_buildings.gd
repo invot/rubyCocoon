@@ -174,6 +174,8 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	var d: float = b["d"]
 	var door_lx: float = float(b["door"].x) + 0.5 - (float(b["x"]) + w / 2.0)
 	var locked: bool = b.get("locked", false)
+	if shop == "fishery":
+		return _rust_shack(w, d, door_lx)
 	# houses are houses from the PSX pack, fitted to their plot by world.gd (see house_models.gd)
 	if not (b.get("house_plan", {}) as Dictionary).is_empty():
 		var hp0: Dictionary = b["house_plan"]
@@ -320,6 +322,8 @@ const HOUSE_PAINTS := {
 	"hotspring": ["#7a4a32", "#8a5a3a"],
 }
 const PACK_DOORS := ["door_2", "door_3", "door_4", "door_5", "door_6", "door_7", "door_8"]
+## A door panel's own width (2 m in the pack, at the storey's scale): any narrower and its door comes out tall and thin.
+const DOOR_PANEL_W := 1.85
 const PACK_WINDOWS := ["win_1", "win_2", "win_3", "win_4"]
 const PACK_SMALL := ["win_small_1", "win_small_2", "win_small_3"]
 const PACK_WIDE := ["win_double_1", "win_double_2", "win_double_3", "win_double_4"]
@@ -587,7 +591,8 @@ static func _pack_skytower(node: Node3D, st: Dictionary, w: float, d: float, doo
 			var b: Vector2 = pts[i]
 			var piece := "wall_1"
 			if i == 0:
-				piece = PACK_DOORS[3] if f == 0 else "win_small_3"
+				# (the ground floor's door is in the entrance porch in front, below)
+				piece = "wall_1" if f == 0 else "win_small_3"
 			elif i % 2 == 1 or (f > 0 and i == 4):
 				piece = "win_small_2" if f < 2 else "win_small_3"
 			hb.span(piece, a, b, y, mat, c)
@@ -599,6 +604,15 @@ static func _pack_skytower(node: Node3D, st: Dictionary, w: float, d: float, doo
 		_ledge(k, "planks", _loop(c, r + 0.1, r + 0.1, 8, PI / 8.0), _loop(c, nr - 0.05, nr - 0.05, 8, PI / 8.0), c, y, 0.14, trim)
 		y += 0.14
 		r = nr
+	# the entrance: a little porch in front of the front face, wide enough for the door panel at its own width (on the
+	# narrow face it came out tall and thin), its cheeks in the walls' finish and a cornice of the trim on top
+	var front_z := c.y + r0 * cos(PI / 8.0)
+	var pz := front_z + 0.32
+	var ph := HouseBuilder.STOREY * 0.86
+	hb.span(PACK_DOORS[3], Vector2(c.x - DOOR_PANEL_W / 2.0, pz), Vector2(c.x + DOOR_PANEL_W / 2.0, pz), 0.24, mat, Vector2(c.x, front_z - 1.0), ph)
+	for sx in [-1.0, 1.0]:
+		k.box("stone", Vector3(c.x + sx * (DOOR_PANEL_W / 2.0 - 0.04), 0.24 + ph / 2.0, (front_z + pz) / 2.0 - 0.08), Vector3(0.12, ph, pz - front_z + 0.3), Color(st["base"]).lightened(0.15))
+	k.box("planks", Vector3(c.x, 0.24 + ph + 0.06, (front_z + pz) / 2.0 - 0.05), Vector3(DOOR_PANEL_W + 0.2, 0.12, pz - front_z + 0.42), trim)
 	hb.finish()
 	# the gallery, on a bracket under every corner
 	var deck_r := r0 + 0.55
@@ -829,8 +843,9 @@ static func _pack_electronics(node: Node3D, w: float, d: float, door_lx: float, 
 	var x1 := w / 2.0 - I
 	var z0 := -d / 2.0 + I
 	var z1 := d / 2.0 - I
-	# the curved corner: as round as the room left of the door allows
-	var dw := 1.2
+	# the curved corner: as round as the room left of the door allows; the door panel at its own width (squeezed, the
+	# pack's door comes out tall and thin)
+	var dw := DOOR_PANEL_W
 	var rad := clampf(door_lx - dw / 2.0 - 0.25 - x0, 0.6, minf(1.3, z1 - z0 - 0.6))
 	var cc := Vector2(x0 + rad, z1 - rad)
 	var arc := []
@@ -1667,6 +1682,98 @@ static func _on_face(mesh: Mesh, face: float) -> float:
 
 ## Dresses a locked door: two iron straps across it and a brass padlock where the handle would be.
 ## `c` is the centre of the door's front face; `dw` and `dh` its width and height.
+## Fisher Gil's shack on the Tidewater docks: a lean-to nailed together from corrugated sheets of every rust and old grey
+## zinc, each a little off true and a different height, a patched roof sloping to the front past its plank door, a
+## boarded window, a stovepipe, a lifebuoy and a crate of floats. It stands on the pier's planks (map_loader.gd
+## over_water).
+static func _rust_shack(w: float, d: float, door_lx: float) -> Node3D:
+	var node := Node3D.new()
+	var k := Kit.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7311
+	var rusts := [Color("#8a4a2a"), Color("#a65a2e"), Color("#6e3a24"), Color("#9a6a4a"), Color("#7e7a70"), Color("#b4703c"), Color("#5e4a3e")]
+	var hw := w / 2.0 - 0.3
+	var hd := d / 2.0 - 0.25
+	var front_h := 2.3
+	var back_h := 2.9
+	var height_at := func(z: float) -> float:
+		return lerpf(back_h, front_h, (z + hd) / (2.0 * hd))
+	# a run of sheets along one wall: x runs for the front and back, z runs for the sides; `gap`: a doorway left open
+	var sheets := func(along_x: bool, fixed: float, from: float, to: float, out: float, gap: Vector2) -> void:
+		var t := from
+		var i := 0
+		while t < to - 0.02:
+			var sw := minf(rng.randf_range(0.62, 0.9), to - t)
+			var mid := t + sw / 2.0
+			t += sw
+			i += 1
+			if mid > gap.x and mid < gap.y:
+				continue
+			var top: float = height_at.call(fixed if along_x else mid) + rng.randf_range(-0.12, 0.06)
+			var bottom := rng.randf_range(0.0, 0.08)
+			var col: Color = rusts[rng.randi_range(0, rusts.size() - 1)]
+			# every other sheet lapped a little proud of the last
+			var o := out * (0.03 if i % 2 == 0 else 0.0)
+			var c := Vector3(mid, (top + bottom) / 2.0, fixed + o) if along_x else Vector3(fixed + o, (top + bottom) / 2.0, mid)
+			var size := Vector3(sw + 0.04, top - bottom, 0.05) if along_x else Vector3(0.05, top - bottom, sw + 0.04)
+			k.box("tin", c, size, col)
+			# a rust run down from a nail, now and then
+			if rng.randf() < 0.45:
+				var sx := rng.randf_range(-sw * 0.35, sw * 0.35)
+				var streak := Vector3(mid + sx, top - 0.45, fixed + out * 0.035) if along_x else Vector3(fixed + out * 0.035, top - 0.45, mid + sx)
+				k.box("color", streak, Vector3(0.06, 0.7, 0.01) if along_x else Vector3(0.01, 0.7, 0.06), col.darkened(0.35))
+	var door_gap := Vector2(door_lx - 0.55, door_lx + 0.55)
+	sheets.call(true, hd, -hw, hw, 1.0, door_gap)
+	sheets.call(true, -hd, -hw, hw, -1.0, Vector2(99, 99))
+	sheets.call(false, -hw, -hd, hd, -1.0, Vector2(99, 99))
+	sheets.call(false, hw, -hd, hd, 1.0, Vector2(99, 99))
+	# the door: weathered planks in a rough frame, hung a touch crooked
+	var dark := Color("#4a3424")
+	k.box("color", Vector3(door_lx, 1.0, hd + 0.02), Vector3(1.04, 2.0, 0.04), dark)
+	for i in 4:
+		k.box("planks", Vector3(door_lx - 0.33 + i * 0.22, 0.95, hd + 0.05), Vector3(0.2, 1.84 - (i % 2) * 0.05, 0.04), Color("#8a6a48").darkened(0.08 * i))
+	k.box("color", Vector3(door_lx, 1.45, hd + 0.08), Vector3(0.9, 0.08, 0.03), dark)
+	k.box("color", Vector3(door_lx, 0.45, hd + 0.08), Vector3(0.9, 0.08, 0.03), dark)
+	k.box("color", Vector3(door_lx + 0.32, 1.0, hd + 0.1), Vector3(0.06, 0.06, 0.04), Color("#2a2a2e"))
+	# the roof: four sheets lapped across, sloping from the back down to the front, overhanging
+	var roof_x := -hw - 0.25
+	var strip := (2.0 * hw + 0.5) / 4.0
+	for i in 4:
+		var x0 := roof_x + i * strip - 0.03
+		var x1 := x0 + strip + 0.06
+		var lift := 0.02 * (i % 2)
+		var col2: Color = rusts[rng.randi_range(0, rusts.size() - 1)]
+		var pts := [Vector3(x0, back_h + 0.08 + lift, -hd - 0.3), Vector3(x1, back_h + 0.08 + lift, -hd - 0.3),
+			Vector3(x1, front_h - 0.05 + lift, hd + 0.5), Vector3(x0, front_h - 0.05 + lift, hd + 0.5)]
+		var n: Vector3 = (pts[1] - pts[0]).cross(pts[3] - pts[0]).normalized()
+		if n.y < 0.0:
+			n = -n
+		k.poly("tin", pts, n, col2, Vector3(1, 0, 0))
+		# its underside, seen from the deck
+		var under := [pts[0] - Vector3(0, 0.03, 0), pts[3] - Vector3(0, 0.03, 0), pts[2] - Vector3(0, 0.03, 0), pts[1] - Vector3(0, 0.03, 0)]
+		k.poly("color", under, -n, col2.darkened(0.45))
+	# a boarded-up window on the side
+	k.box("color", Vector3(hw + 0.06, 1.45, -0.1), Vector3(0.03, 0.6, 0.7), Color("#2a2420"))
+	for i in 2:
+		k.box("planks", Vector3(hw + 0.09, 1.3 + i * 0.3, -0.1), Vector3(0.03, 0.12, 0.85), Color("#9a7a52"))
+	# a stovepipe through the roof at the back
+	k.box("tin", Vector3(-hw + 0.5, back_h + 0.35, -hd + 0.25), Vector3(0.16, 1.1, 0.16), Color("#5a5a5e"))
+	k.box("tin", Vector3(-hw + 0.5, back_h + 0.92, -hd + 0.25), Vector3(0.26, 0.06, 0.26), Color("#4a4a4e"))
+	# a lifebuoy on the front wall, and a crate of floats by the door
+	var bx := door_lx + (0.95 if door_lx < 0.0 else -0.95)
+	for a in 8:
+		var ang := a * TAU / 8.0
+		k.box("color", Vector3(bx + cos(ang) * 0.24, 1.55 + sin(ang) * 0.24, hd + 0.08), Vector3(0.13, 0.13, 0.07), Color("#e8e4dc") if a % 2 == 0 else Color("#d8402c"))
+	var cx := door_lx + (-0.95 if door_lx < 0.0 else 0.95)
+	k.box("planks", Vector3(cx, 0.22, hd + 0.4), Vector3(0.6, 0.44, 0.45), Color("#9a7a52"))
+	for f in 3:
+		k.box("color", Vector3(cx - 0.15 + f * 0.15, 0.5, hd + 0.4), Vector3(0.11, 0.11, 0.11), Color("#e04030") if f != 1 else Color("#f0f0e8"))
+	var mi := MeshInstance3D.new()
+	mi.mesh = k.mesh()
+	node.add_child(mi)
+	return node
+
+
 static func _door_lock(k: Kit, c: Vector3, dw: float, dh: float) -> void:
 	var iron := Color("#2a2a30")
 	for f in [-0.28, 0.28]:

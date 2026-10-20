@@ -96,6 +96,19 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 ## Systems
 
+- **Fishing** (`scripts/world/fishing.gd`, `scripts/ui/fishing_game.gd`). Fisher Gil fishes off the deck of his rusty
+  tin shack on Tidewater's docks. Talk to him and he offers his spare pole, leaning in the shack (take it before asking
+  and you're told stealing is bad). Come back out with it and he stops you for a first cast: something always bites,
+  the line is gentler, and he has you try again until you land it. After that, face any water and press A to cast.
+  Where the water ripples (each map's `fish_spots`, plus a few picked along its shores) something nearly always bites,
+  and quickly; anywhere else only now and then. When the float dips, tap A to strike, then reel: each tap pulls the
+  line tighter and it slackens on its own; tap it up into the bright zone and keep it there with steady taps until the
+  catch meter fills. Too fast and the line snaps, too slow and the beast slips off. Land it and it leaps out for a
+  wild battle on a plank dock with the beast out on the water (`battle.gd` _fishing_scenery). Bait (put on your hook
+  from the bag, worn until something bites) brings stronger, rarer water beasts, sooner: Wriggly Worms on the islands
+  (Shellhaven, Kelpwick), a Spinner Lure from Copperpick, Cogsworth and Emberfall, a Glow Lure from Riverbend and
+  Gravenmoor. Captain Gull's ferry is moored by the long pier, and Gil's rowboat by his shack (map `boats`).
+
 - **48 races**, 12 each of Fire, Water, Earth and Air. The weaknesses are: Fire to Air, Earth to Water, Water to Air, and Air to Fire.
 - **Element roles**: Fire are offensive tanks, Water are healers, Earth are defenders, and Air handle status and evasion.
 - **Eggs**:
@@ -415,6 +428,8 @@ godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the St
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
 godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Tidewater arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
+godot --path . -- --scene=fishing --taps=4.6 --snap=10 --shot=C:/tmp/f.png  # Gil's lesson (--lesson=0: a cast at a ripple, --bait=worm_bait)
+godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a reeled-in beast's battle: the dock and the water
 godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")
 godot --headless --path . -- --scene=coaches                            # a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one: every teacher must stop them, in order ("coaches DONE: 0 problem(s)")
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute

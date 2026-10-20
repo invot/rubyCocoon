@@ -91,7 +91,7 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	if UI.controls:
 		UI.controls.show_legend(true)
-	Sfx.play("open")
+	Sfx.play("page")
 	_build()
 	resized.connect(_layout)
 	if is_instance_valid(Prefs):
@@ -1063,6 +1063,7 @@ func _tab_bag() -> void:
 		["BEAST GEAR", func(it): return it["kind"] == "gear"],
 		["TRAINER GEAR", func(it): return it["kind"] == "tgear"],
 		["SHEET MUSIC", func(it): return it["kind"] == "sheet"],
+		["FISHING", func(it): return it["kind"] == "bait" or it.get("name", "") == "Fishing Pole"],
 		["TOMES", func(it): return it["kind"] == "tome"]]
 	var ids := GameState.inventory.keys()
 	ids.sort_custom(func(a, b): return ItemDB.item_name(a) < ItemDB.item_name(b))
@@ -1077,7 +1078,7 @@ func _tab_bag() -> void:
 				_add_row({"header": true, "text": g[0]})
 				first = false
 			any = true
-			_add_row({"text": it["name"], "right": "x%d" % GameState.item_count(id), "right_width": 60,
+			_add_row({"text": it["name"] + ("  (on your hook)" if GameState.bait == id else ""), "right": "x%d" % GameState.item_count(id), "right_width": 60,
 				"act": func(): await Menus.use_bag_item(id), "detail": _item_detail.bind(id)})
 	if not any:
 		right_box.add_child(_t_label("Your bag is empty. Shops and hidden sacks will fill it up!", UIKit.DIM))
@@ -1098,6 +1099,10 @@ func _item_detail(c: VBoxContainer, id: String) -> void:
 			how = "%s to equip it." % _press()
 		"sheet":
 			how = "%s to play from the sheet and learn the song." % _press()
+		"bait":
+			how = ("%s to take it off your hook." if GameState.bait == id else "%s to put it on your hook.") % _press()
+		"key":
+			how = "Bait on your hook: %s." % (ItemDB.item_name(GameState.bait) if GameState.bait != "" else "none")
 	if it.get("battle_only", false):
 		how = "Use it on your own turn in battle."
 	c.add_child(_t_label(how, UIKit.ACCENT))

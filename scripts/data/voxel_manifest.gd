@@ -178,4 +178,6 @@ const ASSETS := {
 	"robot_golem": "res://assets/psx/robots/robot_golem.res",
 	"robot_walker": "res://assets/psx/robots/robot_walker.res",
 	"log": "res://assets/psx/models/log.res",
+	"boat": "res://assets/psx/models/boat.res",
+	"boat_dark": "res://assets/psx/models/boat_dark.res",
 }

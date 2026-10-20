@@ -13,6 +13,7 @@ const SPLASH_COLOR := Color(0.184, 0.141, 0.141)
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -206,9 +207,15 @@ func _title_backdrop() -> void:
 
 
 ## A script loaded in the background (see _title_backdrop), or loaded now if it wasn't asked for or isn't done yet.
+var _battle_warm := false
+
+
 func loaded_script(path: String) -> GDScript:
 	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-		return ResourceLoader.load_threaded_get(path)
+		var got = ResourceLoader.load_threaded_get(path)
+		# (a background load that failed: load it here instead of leaving nothing to build with)
+		if got is GDScript:
+			return got
 	return load(path)
 
 
@@ -226,6 +233,10 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 		world.player.visible = false
 	else:
 		world.spawn_at(spawn, face)
+		# the first battle's ring, ready before anyone meets a beast (behind this load's fade)
+		if not _battle_warm:
+			_battle_warm = true
+			loaded_script(BATTLE_PATH).prewarm()
 
 
 func music_for(id: String) -> String:
@@ -437,10 +448,14 @@ const SPIRAL_COLORS := {"sneak": Color("#3fbf5a"), "wild": Color("#3f8fe0"), "am
 
 
 func start_battle(cfg: Dictionary) -> String:
+	# one battle at a time: a trainer who spots you on the very step a wild beast reaches you mustn't start a second
+	# one under the first one's swirl (taking the map away twice left the swirl stuck over the screen)
+	if in_battle:
+		return "run"
 	in_battle = true
 	if autoplay:
 		cfg["autoplay"] = true
-	Sfx.play("encounter")
+	Sfx.battle_start()
 	if not _test.is_empty():
 		print("[battle] intro=", cfg.get("intro", "trainer"), " ambush=", cfg.get("ambush", ""), " foes=", cfg["foes"].map(func(f): return "%s L%d" % [f.nickname, f.level]))
 	var spiral: bool = SPIRAL_COLORS.has(String(cfg.get("intro", "")))
@@ -449,11 +464,15 @@ func start_battle(cfg: Dictionary) -> String:
 	else:
 		await UI.flash(Color.WHITE, 2)
 		await UI.fade_out(0.2)
-	view.remove_child(world)
+	var t0 := Time.get_ticks_msec()
+	if world.get_parent() == view:
+		view.remove_child(world)
 	var b = loaded_script(BATTLE_PATH).new()
 	cfg["map"] = GameState.map_id
 	b.setup(cfg)
 	view.add_child(b)
+	if not _test.is_empty():
+		print("[battle] built in %d ms" % (Time.get_ticks_msec() - t0))
 	if spiral:
 		await UI.spiral_out(0.35)
 	else:
@@ -534,7 +553,10 @@ func _run_test() -> void:
 		_do_goto("route3", "south")
 		await get_tree().create_timer(1.0).timeout
 		var foes := [Beasts.create(13, 10), Beasts.create(36, 11), Beasts.create(7, 12, true)]
-		if _test.get("kind", "") == "robots":
+		if _test.get("kind", "") == "fishing":
+			# a beast reeled in: the dock and the water
+			start_battle({"wild": true, "foes": [Beasts.create(14, 8)], "seed": 5, "fishing": true})
+		elif _test.get("kind", "") == "robots":
 			foes = [Beasts.create(53, 12), Beasts.create(54, 12), Beasts.create(55, 12)]
 			start_battle({"wild": false, "foes": foes, "seed": 5, "trainer": {"name": "Gearhart", "cls": "CEO", "look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}})
 		else:
@@ -1229,6 +1251,45 @@ func _run_test() -> void:
 			await _wait(wait)
 	elif scene == "hero":
 		await _hero_gallery()
+		await _wait(wait)
+	elif scene == "fishing":
+		# Gil's fishing: --lesson=1 (default) his lesson off the shack's deck, 0 an ordinary cast at a ripple; A is pressed
+		# --taps times a second once the float dips (--taps=0: never strike); --snap=secs saves a screenshot mid-cast
+		autoplay = true
+		_do_goto("tidewater", Vector2i(7, 33), Vector2i(0, 1))
+		await _wait(1.5)
+		# (after arriving, so the arrival doesn't start Gil's lesson by itself)
+		GameState.set_flag("fisher_met")
+		GameState.set_flag("got_rod")
+		GameState.add_item("fishing_rod")
+		var lesson: bool = _test.get("lesson", "1") == "1"
+		if not lesson:
+			GameState.set_flag("fish_lesson")
+		if _test.has("bait"):
+			GameState.add_item(String(_test["bait"]), 2)
+			GameState.bait = String(_test["bait"])
+		if _test.has("snap"):
+			get_tree().create_timer(float(_test["snap"])).timeout.connect(func():
+				get_viewport().get_texture().get_image().save_png(String(_test.get("shot", "C:/tmp/fish.png")).replace(".png", "_mid.png")))
+		var rate := float(_test.get("taps", "4.6"))
+		var tapping := [true]
+		if rate > 0.0:
+			var tap_loop := func():
+				while tapping[0]:
+					# (A also moves the talk along; while the line just waits for a bite it does nothing)
+					if not UI.stack.is_empty():
+						await _press("ui_accept")
+					await _wait(1.0 / rate)
+			tap_loop.call()
+		world.busy = true
+		if lesson:
+			await Story.fish_lesson(world)
+			print("fishing lesson done: ", GameState.flag("fish_lesson"))
+		else:
+			print("fishing result: ", await Fishing.cast(world, Vector2i(7, 34)), "  bait left ", GameState.item_count(String(_test.get("bait", "worm_bait"))))
+		tapping[0] = false
+		world.busy = false
+		print("party: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), "  caught ", GameState.caught.size())
 		await _wait(wait)
 	elif scene == "maker":
 		# the character creator over the town; --picks=body:1,top:3,row:2 as if chosen (row: the one highlighted)

@@ -318,8 +318,12 @@ func _build_stage() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(cfg.get("seed", randi()))
 	var sandy: bool = biome["id"] in ["desert", "mesa", "western"]
+	# a beast you've reeled in: you on a plank dock, the beach behind you, the beast out on the water
+	var fishing: bool = cfg.get("fishing", false)
 	var ground_tex: Texture2D
-	if arena:
+	if fishing:
+		ground_tex = VT.terrain("top_sand", biome.get("sand", "#ecd8a0"))
+	elif arena:
 		ground_tex = VT.terrain("top_plaza", biome["plaza"])
 	elif dark:
 		ground_tex = VT.terrain("top_plaza", "#4a4652")
@@ -332,13 +336,13 @@ func _build_stage() -> void:
 	pm.size = Vector2(70, 50)
 	ground.mesh = pm
 	ground.material_override = _tex_mat(ground_tex, Vector2(70, 50))
-	ground.position = Vector3(0, 0, -10)
+	ground.position = Vector3(0, 0, -10) if not fishing else Vector3(0, -0.6, -10)
 	add_child(ground)
 	_build_ring("ally")
 	if not wild:
 		_build_ring("foe")
-	# a low cobbled mound under the wild beasts
-	for center in ([] if not wild else [FOE_CENTER + _toward("foe") * 0.9]):
+	# a low cobbled mound under the wild beasts (not out on the water)
+	for center in ([] if not wild or fishing else [FOE_CENTER + _toward("foe") * 0.9]):
 		var k := VBld.Kit.new()
 		var col := Color(biome["path"] if not arena else biome["plaza"]) if not dark else Color("#5a5664")
 		var tex := "cobble" if not dark else "stone_dark"
@@ -359,7 +363,9 @@ func _build_stage() -> void:
 		mi.mesh = k.mesh()
 		mi.position = center
 		add_child(mi)
-	if arena:
+	if fishing:
+		_fishing_scenery(rng)
+	elif arena:
 		_arena_scenery(rng)
 	elif dark:
 		_indoor_scenery(rng)
@@ -568,6 +574,19 @@ func _dais() -> Node3D:
 static var _hex_cache := {}
 static var _gold: StandardMaterial3D = null
 static var _sigils := {}
+
+
+## Paints the ring's textures and makes its pieces ahead of the first battle (main.gd, while a map loads behind the
+## fade): painted pixel by pixel, they held the first battle's swirl still for seconds on a phone, as if it had hung.
+static func prewarm() -> void:
+	_circle_texture()
+	for k in Ring.SLOTS:
+		_sigil_texture(Ring.slot_elements(k))
+	_hex_mesh(0.78, 0.84, 0.08)
+	_hex_mesh(0.62, 0.7, 0.14)
+	_hex_mesh(0.645, 0.645, 0.04)
+	_gold_mat()
+	VT.material("stone")
 
 
 ## A six-sided prism (a squat hexagonal cylinder), cached by size.
@@ -881,6 +900,116 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		water.material_override = wm
 		water.position = Vector3(0, 0.02, -24)
 		add_child(water)
+
+
+## The fishing battle: open water from just past your ring out to a far shore of trees, your ring on a plank dock
+## running out from the beach, mooring posts along it, a few rocks in the water, and ripples round the beast you hooked.
+func _fishing_scenery(rng: RandomNumberGenerator) -> void:
+	var f := _toward("ally")
+	var side := Vector3(-f.z, 0, f.x)
+	var water_col := String(biome.get("water", "#3a90e0"))
+	# the water a little below the dock (the sandy bed sinks out of sight under it), and the beach on your side of a
+	# shoreline just behind your ring
+	var turn := -atan2(f.z, f.x) + PI / 2.0
+	var shore := ALLY_CENTER - f * 4.0
+	var water := MeshInstance3D.new()
+	var wp := PlaneMesh.new()
+	wp.size = Vector2(110, 110)
+	water.mesh = wp
+	var wm := _tex_mat(VT.terrain("water", water_col), Vector2(110, 110))
+	wm.roughness = 0.15
+	wm.metallic_specular = 0.9
+	water.material_override = wm
+	water.position = FOE_CENTER + Vector3(0, -0.15, 0)
+	add_child(water)
+	var beach := MeshInstance3D.new()
+	var bp := PlaneMesh.new()
+	bp.size = Vector2(90, 40)
+	beach.mesh = bp
+	beach.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 40))
+	beach.position = shore - f * 20.0
+	beach.rotation.y = turn
+	add_child(beach)
+	# the dock: planks across, from the beach out past your ring, with mooring posts down each side
+	var k := VBld.Kit.new()
+	var wood := Color("#9a7448")
+	var start := -4.4
+	var stop := 3.4
+	var half := 3.0
+	var t := start
+	var i := 0
+	while t < stop:
+		var c := ALLY_CENTER + f * t
+		var col := wood if i % 3 != 1 else wood.darkened(0.12)
+		var corners := [c - side * half, c + side * half, c + side * half + f * 0.28, c - side * half + f * 0.28]
+		for q in 4:
+			corners[q].y = 0.02
+		k.poly("planks", corners, Vector3.UP, col)
+		t += 0.3
+		i += 1
+	for s in [-1.0, 1.0]:
+		var d := start + 0.6
+		while d < stop:
+			var pp: Vector3 = ALLY_CENTER + f * d + side * s * (half + 0.12) + Vector3(0, 0.2, 0)
+			k.box("color", pp, Vector3(0.22, 0.7, 0.22), Color("#5a3e26"))
+			d += 2.2
+	# the dock's edge, a beam along each side
+	for s2 in [-1.0, 1.0]:
+		var a: Vector3 = ALLY_CENTER + f * start + side * s2 * half
+		var b: Vector3 = ALLY_CENTER + f * stop + side * s2 * half
+		k.poly("color", [a + Vector3(0, 0.02, 0), b + Vector3(0, 0.02, 0), b + Vector3(0, -0.35, 0), a + Vector3(0, -0.35, 0)], side * s2, Color("#6a4a2a"))
+	var dock := MeshInstance3D.new()
+	dock.mesh = k.mesh()
+	add_child(dock)
+	# rocks in the water and a far shore of trees
+	var by_asset := {}
+	var rocks: Array = biome.get("rocks", ["rock_small"])
+	for n in 6:
+		var rn: String = rocks[rng.randi_range(0, rocks.size() - 1)]
+		var s3 := VA.fit_scale(rn, -1.0, rng.randf_range(0.8, 1.5))
+		var p := FOE_CENTER + side * rng.randf_range(-11.0, 11.0) + f * rng.randf_range(2.0, 9.0)
+		if (p - FOE_CENTER).length() < 4.0:
+			p += side * 5.0
+		if not by_asset.has(rn):
+			by_asset[rn] = []
+		by_asset[rn].append(_xf(p + Vector3(0, -VA.aabb(rn).position.y * s3 - 0.25, 0), rng.randi_range(0, 3) * PI / 2.0, s3))
+	var trees: Array = biome.get("trees", [["palm", 1]])
+	for n in 26:
+		var e: Array = trees[rng.randi_range(0, trees.size() - 1)]
+		var name: String = e[0]
+		var p2 := FOE_CENTER + f * rng.randf_range(16.0, 22.0) + side * rng.randf_range(-24.0, 24.0)
+		var s4 := VA.fit_scale(name, rng.randf_range(2.6, 3.6))
+		if not by_asset.has(name):
+			by_asset[name] = []
+		by_asset[name].append(_xf(p2 + Vector3(0, -VA.aabb(name).position.y * s4, 0), rng.randi_range(0, 3) * PI / 2.0, s4))
+	for name in by_asset:
+		_multimesh(VA.mesh(name), by_asset[name])
+	# the far shore's sand under those trees
+	var far := MeshInstance3D.new()
+	var fp := PlaneMesh.new()
+	fp.size = Vector2(90, 12)
+	far.mesh = fp
+	far.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 12))
+	far.position = FOE_CENTER + f * 20.0
+	far.rotation.y = turn
+	add_child(far)
+	# ripples round the beasts out on the water
+	var rm := StandardMaterial3D.new()
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rm.albedo_color = Color(1, 1, 1, 0.55)
+	for j in mini(3, foes.size()):
+		for r in 2:
+			var ring := MeshInstance3D.new()
+			var tor := TorusMesh.new()
+			tor.inner_radius = 0.75 + r * 0.45
+			tor.outer_radius = 0.85 + r * 0.45
+			tor.rings = 28
+			tor.ring_segments = 4
+			tor.material = rm
+			ring.mesh = tor
+			ring.position = _wild_pos(j) + Vector3(0, -0.12, 0)
+			add_child(ring)
 
 
 func _arena_scenery(rng: RandomNumberGenerator) -> void:

@@ -40,6 +40,9 @@ const GRUNT_LOOK := {"skin": "#d8b8a0", "hair": "#20182a", "shirt": "#2a2038", "
 const BUILDER_LOOK := {"skin": "#d8a880", "hair": "#c8c8d0", "shirt": "#c8803a", "pants": "#4a5a7a", "hat": "#e8c040", "outfit": "coat"}
 ## The egg Old Hal gives you for mending the footbridge (a Seashelly).
 const BUILDER_EGG := 20
+const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
+const FISHER_LOOK := {"skin": "#c08a60", "hair": "#d8d8d8", "shirt": "#e8c040", "pants": "#3a4a5a", "hat": "#e8c040", "outfit": "coat"}
+const Fishing = preload("res://scripts/world/fishing.gd")
 const UNCLE_LOOK := {"skin": "#e0b088", "hair": "#6a3a20", "shirt": "#3a7a8a", "pants": "#3a3a48", "hat": "#e8d8a0", "outfit": "coat"}
 
 const EGG_BLURB := {
@@ -133,6 +136,9 @@ func extra_npcs(map: Dictionary) -> Array:
 	if map["kind"] == "interior":
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
 		var inside := _lesson_trainers(map)
+		# Gil's spare fishing pole, leaning in his shack until you take it
+		if _has_anchor(map, "rod") and not GameState.flag("got_rod"):
+			inside.append({"kind": "story", "id": "rod", "name": "", "pos": _at(map, "rod", Vector2i.ZERO), "mesh": _pole_mesh(), "still": true, "facing": Vector2i(0, 1)})
 		if _has_anchor(map, "builder"):
 			inside.append({"kind": "story", "id": "builder", "name": "Old Hal", "pos": _at(map, "builder", Vector2i.ZERO), "look": BUILDER_LOOK, "facing": Vector2i(0, 1), "story": true})
 		if _has_anchor(map, "uncle"):
@@ -164,6 +170,8 @@ func extra_npcs(map: Dictionary) -> Array:
 				_close_edge(map, "north", "The Dune Road is shut: sandstorms as tall as lighthouses. Folk say they won't settle until things are calm at the Temple of Tides, out on the Isle of Tides.")
 			if _has_anchor(map, "uncle"):
 				out.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", plaza), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
+			if _has_anchor(map, "fisher"):
+				out.append({"kind": "story", "id": "fisher", "name": "Fisher Gil", "pos": _at(map, "fisher", plaza), "look": FISHER_LOOK, "facing": Vector2i(0, 1), "rod": true})
 			if _has_anchor(map, "ferry"):
 				out.append({"kind": "story", "id": "ferry", "name": "Captain Gull", "pos": _at(map, "ferry", plaza), "look": CAPTAIN_LOOK, "facing": Vector2i(0, 1)})
 			if id == "shellhaven":
@@ -270,6 +278,8 @@ func on_map_enter(world) -> void:
 		await UI.say(["Tidewater! Ferries to the Isle of Tides leave from the long pier.",
 			"Uncle Rafe lives in the little house right by the west gate. He's got your father's flute!",
 			"Sparkwire Electronics is here too. You've heard they can add shield points and beast slots for crystal shards."])
+	elif id == "tidewater" and GameState.flag("got_rod") and not GameState.flag("fish_lesson") and not world.interior:
+		await fish_lesson(world)
 	elif id == "gravenmoor" and not GameState.flag("ghost_merge"):
 		GameState.set_flag("ghost_merge")
 		await UI.say(["A cold fog rolls over Gravenmoor. Black Legion banners hang from every rooftop.",
@@ -432,6 +442,76 @@ func field_move(world, grp: Dictionary) -> void:
 
 
 ## A broken bridge (or similar) fixed with a key item.
+## Fisher Gil, on the Tidewater pier: he offers you his spare pole, and once you've taken it, shows you how to fish.
+func _fisher(world) -> void:
+	var who := "Fisher Gil"
+	if not GameState.flag("fisher_met"):
+		GameState.set_flag("fisher_met")
+		await UI.say(["Ahoy! Gil's the name. Been fishing off this pier since before there was a pier.",
+			"Water beasts live all round the docks. Hook one, reel it in, and it'll come out fighting. Catch it, if you've a flute!",
+			"Fancy a go? There's a spare pole in my shack, right there on the planks. Go on in and take it."], who)
+		return
+	if GameState.flag("got_rod") and not GameState.flag("fish_lesson"):
+		await fish_lesson(world)
+		return
+	if not GameState.flag("got_rod"):
+		await UI.say(["The spare pole's in my shack, just along the planks. Help yourself!"], who)
+		return
+	await UI.say([["They bite best where the water ripples. Cast anywhere else and you'll mostly catch your breath.",
+		"No bait? They'll still bite. But put some worms on your hook and the bigger ones come up. The island folk sell them.",
+		"Further on, they sell fancy lures. Shiny ones bring up beasts I've only heard about in songs."][randi() % 3]], who)
+
+
+## Gil's spare pole in his shack: yours once you've asked him, and taking it without asking is stealing.
+func _take_rod(world, n: Dictionary) -> void:
+	if not GameState.flag("fisher_met"):
+		await UI.say(["A fishing pole, leaning in the corner. It isn't yours.",
+			"Taking somebody's things without asking is stealing, and stealing is bad! Whoever owns it is probably fishing off the pier outside."])
+		return
+	GameState.set_flag("got_rod")
+	GameState.add_item("fishing_rod")
+	Sfx.play("item")
+	world.remove_npc(n)
+	UI.toast("Received the Fishing Pole!", UIKit.GOLD)
+	await UI.say(["You took Gil's spare fishing pole. He'll want to see you use it!"])
+
+
+## Out of the shack with his pole: Gil stops you and shows you how to fish, off the deck in front of it (something
+## always bites, the line is gentler, and you can't lose it for good: he has you try again).
+func fish_lesson(world) -> void:
+	var who := "Fisher Gil"
+	await UI.say(["Hold on there! Before you go dropping that line just anywhere, let me show you how it's done.",
+		"See the water rippling? That's where they're feeding. Face the water, press A, and your line's in."], who)
+	var t: Vector2i = world.player_pos + world.facing
+	if MapGen.get_t(world.map, t.x, t.y) != MapGen.WATER:
+		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+			if MapGen.get_t(world.map, world.player_pos.x + d.x, world.player_pos.y + d.y) == MapGen.WATER:
+				t = world.player_pos + d
+				break
+	world.facing = t - world.player_pos
+	while true:
+		var res := await Fishing.cast(world, t, true, who)
+		if res == "landed":
+			break
+		if res == "":
+			return
+		await UI.say([{"cancelled": "Patience! Don't reel in before it bites. Let's go again.",
+			"too_fast": "Too eager! Steady taps, not a frenzy. Again!",
+			"too_slow": "Faster than that, or it wriggles free. Again!"}.get(res, "Ah, it got away! Happens to the best of us. Again!")], who)
+	GameState.set_flag("fish_lesson")
+	await UI.say(["Not bad at all for a first catch!",
+		"You can fish in any water you can reach, but the ripples are where they bite. And put some bait on your hook: it stays on till something bites, and the better the bait, the bigger the beast."], who)
+
+
+## The fishing pole leaning in Gil's shack: a long cane pole, its reel, and a coil of line.
+func _pole_mesh() -> Mesh:
+	var k := VBld.Kit.new()
+	k.box("color", Vector3(0, 1.05, -0.3), Vector3(0.05, 2.1, 0.05), Color("#7a5a32"))
+	k.box("color", Vector3(0, 0.55, -0.26), Vector3(0.12, 0.12, 0.08), Color("#3a3a40"))
+	k.box("color", Vector3(0, 0.03, -0.3), Vector3(0.3, 0.06, 0.3), Color("#e8e0c8"))
+	return k.mesh()
+
+
 ## Old Hal the builder, in his cabin by the washed-out footbridge: he's too tired to mend it himself, so he lends you
 ## the logs stacked by his door; once it's mended, he gives you an egg to hatch at the next Beast Center.
 func _builder() -> void:
@@ -793,6 +873,10 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _elder(world, n)
 		"builder":
 			await _builder()
+		"fisher":
+			await _fisher(world)
+		"rod":
+			await _take_rod(world, n)
 		"logpile":
 			await _logpile(world, n)
 		"uncle":
@@ -1267,7 +1351,7 @@ func _roll_wild_beast(race: int, lv: Array, ghost_rate: float):
 ## A battle with roaming beasts. kind: "sneak" (you caught it off guard), "wild" (face to face) or "ambush" (it caught you).
 ## The first lone wild beast after Uncle Rafe's lessons is a guided battle (battle.gd LESSONS "flute"): playing Weaken,
 ## then Capture to win it over.
-func wild_battle(_world, foes: Array, kind: String) -> String:
+func wild_battle(_world, foes: Array, kind: String, extra := {}) -> String:
 	if GameState.alive_party().is_empty():
 		return "run"
 	var lesson := ""
@@ -1276,8 +1360,10 @@ func wild_battle(_world, foes: Array, kind: String) -> String:
 		lesson = "flute"
 		# a lesson can't be lost: it starts with your beasts at their best
 		GameState.heal_party()
-	return await GameState.main.start_battle({"wild": true, "foes": foes, "seed": randi(), "intro": kind, "lesson": lesson,
-		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "") if lesson == "" else ""})
+	var cfg := {"wild": true, "foes": foes, "seed": randi(), "intro": kind, "lesson": lesson,
+		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "") if lesson == "" else ""}
+	cfg.merge(extra, true)
+	return await GameState.main.start_battle(cfg)
 
 
 ## A random wild battle on the current map (test scenes).
