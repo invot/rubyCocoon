@@ -873,8 +873,10 @@ func _run_test() -> void:
 		# never down, and every lesson won
 		await _lessons_test()
 	elif scene == "newbeasts":
-		# the new beasts side by side: a column per line, its stages down it (--lines=dino,owl,..., --anim=idle|walk|
-		# lie|attack, --ghost=1; --merge=dino_3+owl_3,...: each pair with a few of their merges)
+		# the new beasts side by side: a column per line, its stages down it (--lines=dino,owl,..., --stages=1,3,
+		# --anim=idle|walk|lie|attack (--at: a screenshot that long into the first attack), --ghost=1, --view=three|
+		# side|front, --yaw, --zoom, --centre (raise the view's centre); --merge=dino_3+owl_3,... (--seeds=1,2,3): a
+		# row per pair, with their merges)
 		await _newbeasts_test()
 		await _wait(wait)
 	elif scene == "capture":
@@ -2281,76 +2283,99 @@ func _newbeasts_test() -> void:
 	root.add_child(sun)
 	var anim := String(_test.get("anim", "idle"))
 	var ghost: bool = _test.get("ghost", "0") == "1"
-	# the cells: [[label, form or [a, b, seed]], ...] per column
-	var cols := []
+	# the cells, [column, row, label, form or [a, b, seed]]: a column per line, its stages down it; or a row per pair
+	# of parents, then a few of their merges
+	var cells := []
 	if _test.has("merge"):
+		var r := 0
 		for pair in String(_test["merge"]).split(","):
 			var a := pair.get_slice("+", 0)
 			var b := pair.get_slice("+", 1)
-			var col := [[a, a], [b, b]]
-			for sd in [1, 2, 3]:
-				col.append(["%s × %s #%d" % [a.get_slice("_", 0), b.get_slice("_", 0), sd], [a, b, sd]])
-			cols.append(col)
+			cells.append([0, r, a, a])
+			cells.append([1, r, b, b])
+			var seeds := String(_test.get("seeds", "1,2,3")).split(",")
+			for k in seeds.size():
+				cells.append([2 + k, r, "%s × %s #%s" % [a.get_slice("_", 0), b.get_slice("_", 0), seeds[k]], [a, b, int(seeds[k])]])
+			r += 1
 	else:
+		var c := 0
+		var stages := String(_test.get("stages", "1,2,3")).split(",")
 		for line in String(_test.get("lines", "dino,scorpion,berry,beetle,cactus")).split(","):
-			var col := []
-			for st in [1, 2, 3]:
-				var f := "%s_%d" % [line, st]
-				col.append([f, f])
-			cols.append(col)
+			for k in stages.size():
+				var f := "%s_%s" % [line, stages[k]]
+				cells.append([c, k, f, f])
+			c += 1
+	var cols := 0
 	var rows := 0
-	for col in cols:
-		rows = maxi(rows, col.size())
+	for cell in cells:
+		cols = maxi(cols, cell[0] + 1)
+		rows = maxi(rows, cell[1] + 1)
+	# --view: three (three quarters, the default), side or front (looking it in the face)
+	var vw := String(_test.get("view", "three"))
+	var across := Vector3(1, 0, 0) if vw != "front" else Vector3(0, 0, -1)
+	var back := Vector3(0, 0, -1) if vw != "front" else Vector3(-1, 0, 0)
+	var yaw := float(_test.get("yaw", "-60" if vw == "three" else "0"))
 	var dx := 2.2
-	var dy := 1.55
+	var dy := 1.8
 	var rigs := []
-	for c in cols.size():
-		for r in cols[c].size():
-			var cell: Array = cols[c][r]
-			var rig: Node3D = Rig.new()
-			root.add_child(rig)
-			if cell[1] is Array:
-				rig.setup_merge(cell[1][0], cell[1][1], cell[1][2], ghost)
-			else:
-				rig.setup(cell[1], ghost)
-			var s: float = 1.0 if cell[1] is Array else [0.72, 0.86, 1.0][int(String(cell[1]).get_slice("_", 1)) - 1]
-			var at := Vector3(c * dx, -r * dy, -r * 0.8)
-			rig.position = at
-			rig.scale = Vector3(s, s, s)
-			rig.rotation_degrees.y = -60.0
-			rig.state = "idle" if anim == "attack" else anim
-			rigs.append(rig)
-			var pad := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
-			cyl.top_radius = 0.75
-			cyl.bottom_radius = 0.75
-			cyl.height = 0.04
-			pad.mesh = cyl
-			var pm := StandardMaterial3D.new()
-			pm.albedo_color = Color("#8fbf6a")
-			pad.material_override = pm
-			pad.position = at - Vector3(0, 0.02, 0)
-			root.add_child(pad)
-			var lb := Label3D.new()
-			lb.text = cell[0]
-			lb.font_size = 36
-			lb.outline_size = 8
-			lb.pixel_size = 0.004
-			lb.position = at + Vector3(0, -0.2, 0.8)
-			root.add_child(lb)
+	for cell in cells:
+		var rig: Node3D = Rig.new()
+		root.add_child(rig)
+		if cell[3] is Array:
+			rig.setup_merge(cell[3][0], cell[3][1], cell[3][2], ghost)
+		else:
+			rig.setup(cell[3], ghost)
+		var s: float = 1.0 if cell[3] is Array else [0.72, 0.86, 1.0][int(String(cell[3]).get_slice("_", 1)) - 1]
+		var at: Vector3 = across * (cell[0] * dx) + Vector3(0, -cell[1] * dy, 0) + back * (cell[1] * 0.8)
+		rig.position = at
+		rig.scale = Vector3(s, s, s)
+		rig.rotation_degrees.y = yaw
+		rig.state = "idle" if anim == "attack" else anim
+		rigs.append(rig)
+		var pad := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.75
+		cyl.bottom_radius = 0.75
+		cyl.height = 0.04
+		pad.mesh = cyl
+		var pm := StandardMaterial3D.new()
+		pm.albedo_color = Color("#8fbf6a")
+		pad.material_override = pm
+		pad.position = at - Vector3(0, 0.02, 0)
+		root.add_child(pad)
+		var lb := Label3D.new()
+		lb.text = cell[2]
+		lb.font_size = 36
+		lb.outline_size = 8
+		lb.pixel_size = 0.004
+		lb.position = at + Vector3(0, -0.22, 0) - back * 0.8
+		if vw == "front":
+			lb.rotation_degrees.y = 90.0
+		root.add_child(lb)
 	var cam := Camera3D.new()
 	root.add_child(cam)
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = rows * dy + 0.3
-	var mid := Vector3((cols.size() - 1) * dx / 2.0, -(rows - 1) * dy / 2.0 + 0.45, -(rows - 1) * 0.4)
-	cam.position = mid + Vector3(0, 2.0, 10.0)
+	var vs := get_viewport().get_visible_rect().size
+	cam.size = maxf(rows * dy + 0.3, (cols * dx + 0.2) * vs.y / vs.x) / float(_test.get("zoom", "1"))
+	var mid: Vector3 = across * ((cols - 1) * dx / 2.0) + Vector3(0, -(rows - 1) * dy / 2.0 + 0.5, 0) + back * ((rows - 1) * 0.4)
+	mid.y += float(_test.get("centre", "0"))
+	cam.position = mid - back * 10.0 + Vector3(0, 2.0, 0)
 	cam.look_at(mid, Vector3.UP)
 	cam.current = true
 	if anim == "attack":
+		# an attack every 1.3 s, the first 0.4 s in (--at: a screenshot that long into it)
+		var tm := Timer.new()
+		tm.wait_time = 1.3
+		root.add_child(tm)
+		tm.timeout.connect(func() -> void:
+			for rig in rigs:
+				rig.attack())
 		await _wait(0.4)
 		for rig in rigs:
 			rig.attack()
-		await _wait(float(_test.get("at", "0.3")))
+		tm.start()
+		if _test.has("at"):
+			await _wait(float(_test["at"]))
 
 
 ## Tapped walks to the nearest of `goals` on this map, again after each stop (a teacher's lesson, say), until you're on
