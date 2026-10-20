@@ -872,6 +872,11 @@ func _run_test() -> void:
 		# every guided battle played by a button masher: one thing to pick on every bar and in every menu, your beasts
 		# never down, and every lesson won
 		await _lessons_test()
+	elif scene == "newbeasts":
+		# the new beasts side by side: a column per line, its stages down it (--lines=dino,owl,..., --anim=idle|walk|
+		# lie|attack, --ghost=1; --merge=dino_3+owl_3,...: each pair with a few of their merges)
+		await _newbeasts_test()
+		await _wait(wait)
 	elif scene == "capture":
 		UI.auto = true
 		GameState.songs = []
@@ -2255,6 +2260,97 @@ func _lessons_test() -> void:
 			print("%s %s's lesson (%s), %d beast(s): %d presses, lowest HP %d%s" % ["ok  " if problems.is_empty() else "FAIL", t["name"], lesson, party.size(), presses, lowest,
 				"" if problems.is_empty() else "  " + ", ".join(problems.keys())])
 	print("lessons DONE: %d problem(s)" % bad[0])
+
+
+func _newbeasts_test() -> void:
+	var Rig = load("res://scripts/gfx/beast_rig.gd")
+	var root := Node3D.new()
+	view.add_child(root)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color("#9cc3e6")
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.55
+	var we := WorldEnvironment.new()
+	we.environment = env
+	root.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, -35, 0)
+	sun.shadow_enabled = true
+	root.add_child(sun)
+	var anim := String(_test.get("anim", "idle"))
+	var ghost: bool = _test.get("ghost", "0") == "1"
+	# the cells: [[label, form or [a, b, seed]], ...] per column
+	var cols := []
+	if _test.has("merge"):
+		for pair in String(_test["merge"]).split(","):
+			var a := pair.get_slice("+", 0)
+			var b := pair.get_slice("+", 1)
+			var col := [[a, a], [b, b]]
+			for sd in [1, 2, 3]:
+				col.append(["%s × %s #%d" % [a.get_slice("_", 0), b.get_slice("_", 0), sd], [a, b, sd]])
+			cols.append(col)
+	else:
+		for line in String(_test.get("lines", "dino,scorpion,berry,beetle,cactus")).split(","):
+			var col := []
+			for st in [1, 2, 3]:
+				var f := "%s_%d" % [line, st]
+				col.append([f, f])
+			cols.append(col)
+	var rows := 0
+	for col in cols:
+		rows = maxi(rows, col.size())
+	var dx := 2.2
+	var dy := 1.55
+	var rigs := []
+	for c in cols.size():
+		for r in cols[c].size():
+			var cell: Array = cols[c][r]
+			var rig: Node3D = Rig.new()
+			root.add_child(rig)
+			if cell[1] is Array:
+				rig.setup_merge(cell[1][0], cell[1][1], cell[1][2], ghost)
+			else:
+				rig.setup(cell[1], ghost)
+			var s: float = 1.0 if cell[1] is Array else [0.72, 0.86, 1.0][int(String(cell[1]).get_slice("_", 1)) - 1]
+			var at := Vector3(c * dx, -r * dy, -r * 0.8)
+			rig.position = at
+			rig.scale = Vector3(s, s, s)
+			rig.rotation_degrees.y = -60.0
+			rig.state = "idle" if anim == "attack" else anim
+			rigs.append(rig)
+			var pad := MeshInstance3D.new()
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.75
+			cyl.bottom_radius = 0.75
+			cyl.height = 0.04
+			pad.mesh = cyl
+			var pm := StandardMaterial3D.new()
+			pm.albedo_color = Color("#8fbf6a")
+			pad.material_override = pm
+			pad.position = at - Vector3(0, 0.02, 0)
+			root.add_child(pad)
+			var lb := Label3D.new()
+			lb.text = cell[0]
+			lb.font_size = 36
+			lb.outline_size = 8
+			lb.pixel_size = 0.004
+			lb.position = at + Vector3(0, -0.2, 0.8)
+			root.add_child(lb)
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = rows * dy + 0.3
+	var mid := Vector3((cols.size() - 1) * dx / 2.0, -(rows - 1) * dy / 2.0 + 0.45, -(rows - 1) * 0.4)
+	cam.position = mid + Vector3(0, 2.0, 10.0)
+	cam.look_at(mid, Vector3.UP)
+	cam.current = true
+	if anim == "attack":
+		await _wait(0.4)
+		for rig in rigs:
+			rig.attack()
+		await _wait(float(_test.get("at", "0.3")))
 
 
 ## Tapped walks to the nearest of `goals` on this map, again after each stop (a teacher's lesson, say), until you're on
