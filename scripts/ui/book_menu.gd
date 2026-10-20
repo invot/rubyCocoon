@@ -16,6 +16,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const RingView = preload("res://scripts/ui/ring_view.gd")
+const RingEditor = preload("res://scripts/ui/ring_editor.gd")
 
 const TABS := [
 	{"id": "trainer", "name": "Trainer", "icon": "tab_trainer"},
@@ -513,7 +514,7 @@ func _tab_beasts() -> void:
 	GameState.fix_ring()
 	_make_list(left_box, "Beasts %d / %d" % [GameState.party.size(), GameState.party_max()], right_box)
 	if not GameState.party.is_empty():
-		_add_row({"text": "Battle ring", "right": "%s side" % Ring.side_element(GameState.ring_side).capitalize(), "right_width": 150,
+		_add_row({"text": "Battle ring & storage", "right": "%s side" % Ring.side_element(GameState.ring_side).capitalize(), "right_width": 150,
 			"act": _arrange_ring, "detail": _ring_detail})
 	var ordered: Array = GameState.party.duplicate()
 	ordered.sort_custom(func(x, y): return int(x.slot) < int(y.slot))
@@ -539,50 +540,14 @@ func _ring_detail(c: VBoxContainer) -> void:
 	rv.facing = 0.0
 	c.add_child(rv)
 	c.add_child(_t_label("You stand in the middle; the side facing the foe fights (outlined). Each side takes its own element, each corner either of its two, or a dual beast of both. Turn the ring in battle with ▲ / ▼ past your top or bottom beast.", UIKit.DIM))
-	c.add_child(_t_label("%s to move your beasts round the ring." % _press(), UIKit.ACCENT))
+	c.add_child(_t_label("%s to arrange your beasts: move them round the ring, or in and out of storage (%d there)." % [_press(), GameState.storage.size()], UIKit.ACCENT))
 
 
-## Moves beasts round the ring: pick a beast, then the slot it should stand on (trading places with whoever is there).
+## Arranging your beasts round the ring and in storage (ring_editor.gd).
 func _arrange_ring() -> void:
-	while true:
-		var party: Array = GameState.party.duplicate()
-		party.sort_custom(func(x, y): return int(x.slot) < int(y.slot))
-		var items := []
-		for b in party:
-			items.append({"text": b.nickname, "right": _slot_short(b.slot), "icon": PixelArt.beast_texture(b.genes),
-				"desc": "%s beast, on the %s." % [b.element_text(), Ring.slot_name(b.slot)]})
-		var c: int = await UI.choose("Move which beast?", items, {"width": 420, "rows": 8})
-		if c < 0:
-			return
-		var b = party[c]
-		var spots := []
-		for k in Ring.SLOTS:
-			var occ = GameState.beast_at(k)
-			var why := ""
-			if occ == b:
-				why = "%s already stands here." % b.nickname
-			elif not Ring.can_hold(b, k):
-				why = "A %s beast can't stand on the %s." % [b.element_text(), Ring.slot_name(k)]
-			elif occ != null and not Ring.can_hold(occ, b.slot):
-				why = "%s can't move to the %s to trade places." % [occ.nickname, Ring.slot_name(b.slot)]
-			spots.append({"text": Ring.slot_name(k), "right": occ.nickname if occ != null else "—", "disabled": why != "",
-				"desc": why if why != "" else ("Trade places with %s." % occ.nickname if occ != null else "Move %s here." % b.nickname)})
-		var c2: int = await UI.choose("Where should %s stand?" % b.nickname, spots, {"width": 460, "rows": 8})
-		if c2 < 0:
-			continue
-		var err := GameState.move_to_slot(b, c2)
-		if err != "":
-			Sfx.play("error")
-			await UI.say([err])
-		else:
-			Sfx.play("confirm")
-
-
-## "Fire", "Fire/Air": a slot's short name.
-func _slot_short(k: int) -> String:
-	if k < 0:
-		return "—"
-	return "/".join(Ring.slot_elements(k).map(func(e): return String(e).capitalize()))
+	var ed := RingEditor.new()
+	UI.push(ed)
+	await ed.done
 
 
 func _egg_detail(c: VBoxContainer, e: Dictionary) -> void:

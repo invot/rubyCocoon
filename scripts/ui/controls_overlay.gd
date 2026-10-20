@@ -577,6 +577,10 @@ func _send_actions(id: String, down: bool) -> void:
 	var actions: Array = PAD_ACTIONS[id]
 	if flute_mode and FLUTE_LANES.has(id):
 		actions = [FLUTE_LANES[id]]
+	elif id == "a" and down and not UI.stack.is_empty():
+		# a menu, a dialog or the battle's command panel is on top: it takes A as either action, so one press sends just
+		# one (two would confirm twice: a whole round of moves, or two pages of a dialog, from a single tap)
+		actions = ["ui_accept"]
 	for action in actions:
 		var ev := InputEventAction.new()
 		ev.action = action

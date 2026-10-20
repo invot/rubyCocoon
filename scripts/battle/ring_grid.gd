@@ -40,8 +40,10 @@ var open := false
 ## the tile of the beast you're choosing for (a slot, or a line index for the wild pack), -2 for the trainer (while
 ## you choose your own action), or -1
 var focus := -1
-## the tile being aimed at: a slot / line index, -2 for the trainer, or -1
+## the tile being aimed at: a slot / line index, -2 for the trainer, or -1; targets: more of them (a move that hits
+## them all, or a slot a beast could Move to)
 var target := -1
+var targets: Array = []
 
 ## turning: the border's cells are drawn this many steps round from their places (eased back to 0)
 var _turn := 0.0
@@ -67,7 +69,7 @@ func top_pad() -> float:
 
 func _process(delta: float) -> void:
 	_time += delta
-	if focus != -1 or target != -1 or open:
+	if focus != -1 or target != -1 or not targets.is_empty() or open:
 		queue_redraw()
 
 
@@ -124,7 +126,7 @@ func _draw() -> void:
 	if wild:
 		for i in 3:
 			var b = line[i] if i < line.size() else null
-			_draw_tile(line_pos(i), b, true, i == focus, i == target, "")
+			_draw_tile(line_pos(i), b, true, i == focus, i == target or i in targets, "")
 		return
 	var fighting := Ring.side_slots(side)
 	# back to front: the top row first, so icons overlap the row above them
@@ -142,7 +144,7 @@ func _draw() -> void:
 		var letter := ""
 		if not Ring.is_corner(k):
 			letter = String(Ring.slot_elements(k)[0]).substr(0, 1).to_upper()
-		_draw_tile(p, ring.get(k, null), k in fighting, k == focus, k == target, letter)
+		_draw_tile(p, ring.get(k, null), k in fighting, k == focus, k == target or k in targets, letter)
 	if not drew_trainer:
 		_draw_trainer(centre)
 	if show_shield and max_shield > 0:
@@ -221,8 +223,8 @@ func _draw_trainer(p: Vector2) -> void:
 	var loop := pts.duplicate()
 	loop.append(pts[0])
 	draw_polyline(loop, Color(UIKit.BORDER, 0.7), 2.0, true)
-	if target == -2 or focus == -2:
-		var pulse := Color("#ffe08a") if target == -2 else UIKit.LIGHT
+	if target == -2 or -2 in targets or focus == -2:
+		var pulse := Color("#ffe08a") if target == -2 or -2 in targets else UIKit.LIGHT
 		pulse.a = 0.55 + 0.45 * sin(_time * 7.0)
 		var big := PackedVector2Array()
 		for v in loop:
