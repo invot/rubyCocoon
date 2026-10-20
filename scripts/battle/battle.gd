@@ -2365,46 +2365,56 @@ func _middle_standing(r: Dictionary, side: int) -> bool:
 	return m != null and m.hp > 0
 
 
-## Where a beast on the side facing the foe can Move to: any other slot it can stand on that's empty, or holds a
-## fainted beast that can stand on the slot it leaves (they trade places), as long as that doesn't leave the side
-## then facing the foe (see _shift_side) without a beast standing in its middle when it had one: so the beast
-## guarding you can't just walk off, but a corner beast can step into a fallen one's place. In ring order from its own
-## slot, as ▲ ▼ go through them.
-func _shift_spots(b) -> Array:
-	var s := _slot_of(ally_ring, b)
-	if s < 0 or b.hp <= 0 or not ally_slots.has(b):
+## Where a beast on the side facing the other trainer can Move to (`team`: "ally" for yours, "foe" for theirs): any
+## other slot it can stand on that's empty, or holds a fainted beast that can stand on the slot it leaves (they trade
+## places), as long as that doesn't leave the side then facing the foe (see _shift_side) without a beast standing in
+## its middle when it had one: so the beast guarding its trainer can't just walk off, but a corner beast can step into
+## a fallen one's place. In ring order from its own slot, as ▲ ▼ go through them.
+func _shift_spots(b, team := "ally") -> Array:
+	var r: Dictionary = ally_ring if team == "ally" else foe_ring
+	var s := _slot_of(r, b)
+	if s < 0 or b.hp <= 0 or not (ally_slots if team == "ally" else foe_slots).has(b):
 		return []
-	var covered := _middle_standing(ally_ring, ally_side)
+	var covered := _middle_standing(r, ally_side if team == "ally" else foe_side)
 	var out := []
 	for i in range(1, Ring.SLOTS):
 		var k := posmod(s + i, Ring.SLOTS)
 		if not Ring.can_hold(b, k):
 			continue
-		var o = ally_ring.get(k, null)
+		var o = r.get(k, null)
 		if o != null and (o.hp > 0 or not Ring.can_hold(o, s)):
 			continue
-		var after := ally_ring.duplicate()
-		after[k] = b
-		if o != null:
-			after[s] = o
-		else:
-			after.erase(s)
-		if covered and not _middle_standing(after, _shift_side(after, k, b)):
+		var after := _ring_after(r, b, k)
+		if covered and not _middle_standing(after, _shift_side(after, k, b, team)):
 			continue
 		out.append(k)
 	return out
 
 
-## The side that faces the foe once a beast has moved to slot k (the ring as it is then): k's side; for a corner, of
-## its two sides the one facing the foe already, else the one with a beast standing in its middle, else the one of
-## the beast's own element.
-func _shift_side(r: Dictionary, k: int, b) -> int:
+## A ring as it would be once `b` moved to slot k (trading places with whoever is there).
+func _ring_after(r: Dictionary, b, k: int) -> Dictionary:
+	var s := _slot_of(r, b)
+	var after := r.duplicate()
+	var o = r.get(k, null)
+	after[k] = b
+	if o != null:
+		after[s] = o
+	else:
+		after.erase(s)
+	return after
+
+
+## The side that faces the other trainer once a beast has moved to slot k (the ring as it is then): k's side; for a
+## corner, of its two sides the one facing them already, else the one with a beast standing in its middle, else the
+## one of the beast's own element.
+func _shift_side(r: Dictionary, k: int, b, team := "ally") -> int:
 	if not Ring.is_corner(k):
 		return k / 2
 	var a := k / 2
 	var c := (a + 1) % 4
-	if ally_side == a or ally_side == c:
-		return ally_side
+	var now := ally_side if team == "ally" else foe_side
+	if now == a or now == c:
+		return now
 	var sa := _middle_standing(r, a)
 	var sc := _middle_standing(r, c)
 	if sa != sc:
@@ -2413,35 +2423,43 @@ func _shift_side(r: Dictionary, k: int, b) -> int:
 
 
 ## A beast's Move: it steps over to slot k (trading places with a fainted beast there), and the side it moved to turns
-## to face the foe. Checked again now, as the ring may have changed since it was chosen.
+## to face the other trainer. Checked again now, as the ring may have changed since it was chosen.
 func _do_shift(b, k: int) -> void:
-	var s := _slot_of(ally_ring, b)
-	if not k in _shift_spots(b):
+	var team := _team(b)
+	var r: Dictionary = ally_ring if team == "ally" else foe_ring
+	var s := _slot_of(r, b)
+	var who: String = b.nickname if team == "ally" else "%s's %s" % [trainer.get("name", "The trainer"), b.nickname]
+	if not k in _shift_spots(b, team):
 		if b.hp > 0 and _active(b):
-			await msg("%s couldn't move to the %s." % [b.nickname, Ring.slot_name(k)], 0.7)
+			await msg("%s couldn't move to the %s." % [who, Ring.slot_name(k)], 0.7)
 		return
-	var o = ally_ring.get(k, null)
-	ally_ring.erase(s)
-	ally_ring[k] = b
-	b.slot = k
+	var o = r.get(k, null)
+	r.erase(s)
+	r[k] = b
 	if o != null:
-		ally_ring[s] = o
-		o.slot = s
-	await msg("%s moves over to the %s!" % [b.nickname, Ring.slot_name(k)], 0.5)
+		r[s] = o
+	if team == "ally":
+		b.slot = k
+		if o != null:
+			o.slot = s
+	await msg("%s moves over to the %s!" % [who, Ring.slot_name(k)], 0.5)
 	Sfx.play("step_grass")
 	var tw := create_tween()
 	for pair in [[b, k], [o, s]]:
 		if pair[0] != null and nodes.has(pair[0]):
 			var n: Node3D = nodes[pair[0]]
-			var p := _slot_pos("ally", int(pair[1]))
+			var p := _slot_pos(team, int(pair[1]))
 			tw.parallel().tween_property(n, "position", Vector3(p.x, n.position.y, p.z), 0.45).set_trans(Tween.TRANS_SINE)
 	await tw.finished
-	var side := _shift_side(ally_ring, k, b)
-	if side != ally_side:
-		await _turn_ring("ally", side)
-		await msg("Your %s side faces the foe now." % Ring.side_element(side).capitalize(), 0.7)
+	var side := _shift_side(r, k, b, team)
+	if side != (ally_side if team == "ally" else foe_side):
+		await _turn_ring(team, side)
+		if team == "ally":
+			await msg("Your %s side faces the foe now." % Ring.side_element(side).capitalize(), 0.7)
+		else:
+			await msg("%s's %s side faces you now." % [trainer.get("name", "The trainer"), Ring.side_element(side).capitalize()], 0.7)
 	else:
-		_place_ring("ally")
+		_place_ring(team)
 		_sync_slots()
 		_refresh()
 	await _check_exposed()
@@ -3019,18 +3037,54 @@ func _try_run() -> bool:
 ## The foe's turn: a trainer may first turn its ring (to a side whose middle still stands, or now and then to a
 ## stronger side); then each of its active beasts picks a move.
 func _ai_actions() -> Array:
-	if not wild and not tutorial:
-		var ns := _ai_pick_side()
-		if ns != foe_side:
-			await msg("%s turns their ring to the %s side!" % [trainer.get("name", "The trainer"), Ring.side_element(ns).capitalize()], 0.8)
-			await _turn_ring("foe", ns)
 	var out := []
+	var mover = null
+	if not wild and not tutorial:
+		# a fallen middle beast: one of the corner beasts may step into its place instead of the ring turning
+		var shift := _ai_shift()
+		if not shift.is_empty():
+			mover = shift["actor"]
+			out.append(shift)
+		else:
+			var ns := _ai_pick_side()
+			if ns != foe_side:
+				await msg("%s turns their ring to the %s side!" % [trainer.get("name", "The trainer"), Ring.side_element(ns).capitalize()], 0.8)
+				await _turn_ring("foe", ns)
 	for b in foe_slots:
-		if b != null and b.hp > 0:
+		if b != null and b.hp > 0 and b != mover:
 			out.append(_ai_choose(b))
 	if _rival_wants_song():
 		out.append({"type": "rival_song", "song": String(trainer["song"]), "prio": 4})
 	return out
+
+
+## The foe trainer's Move (see _shift_spots): when the beast in the middle of the side facing you is down (or gone), a
+## beast on that side steps into a slot that covers the trainer again, if that keeps at least as many of their beasts
+## fighting as turning the ring to a side whose middle beast stands would (_ai_pick_side). Last in their turn, like
+## yours. {} for none.
+func _ai_shift() -> Dictionary:
+	if not _side_open("foe"):
+		return {}
+	var turn_to := _ai_pick_side()
+	var there := 0
+	if turn_to != foe_side and _middle_standing(foe_ring, turn_to):
+		there = _alive(Ring.side_slots(turn_to).map(func(k): return foe_ring.get(k, null))).size()
+	var best := {}
+	var best_score := -1.0
+	for b in _alive(foe_slots):
+		for k in _shift_spots(b, "foe"):
+			var after := _ring_after(foe_ring, b, k)
+			var side := _shift_side(after, k, b, "foe")
+			if not _middle_standing(after, side):
+				continue
+			var n := _alive(Ring.side_slots(side).map(func(q): return after.get(q, null))).size()
+			var sc: float = float(n) + (0.5 if side == foe_side else 0.0) + b.hp_ratio() * 0.1
+			if sc > best_score:
+				best_score = sc
+				best = {"type": "shift", "actor": b, "slot": k, "prio": -9}
+	if best.is_empty() or best_score < float(there):
+		return {}
+	return best
 
 
 func _ai_pick_side() -> int:
