@@ -1169,12 +1169,9 @@ func _update_shield() -> void:
 		ally_grid.shield = GameState.shield
 		ally_grid.max_shield = GameState.max_shield
 		ally_grid.queue_redraw()
-	if shield_label == null:
-		return
-	if GameState.max_shield <= 0:
+	# your own shield points are under your bar (battle_bars.gd), not over your head as well
+	if shield_label != null:
 		shield_label.text = ""
-		return
-	shield_label.text = "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield)
 	if rival_shield_label != null:
 		rival_shield_label.text = "◆".repeat(foe_shield) + "◇".repeat(maxi(0, foe_max_shield - foe_shield)) if foe_max_shield > 0 else ""
 
@@ -1455,7 +1452,8 @@ func _build_hud() -> void:
 	bars = BattleBars.new(k)
 	cmd_root.add_child(bars)
 	ally_grid = RingGrid.new("ally", false, k)
-	ally_grid.show_shield = true
+	# (your shield points show under your own bar instead: battle_bars.gd)
+	ally_grid.show_shield = false
 	cmd_root.add_child(ally_grid)
 	# the trainers in the middle of their grids, locking eyes across the screen: you from behind, looking up and left
 	# to the foe's grid; the rival from the front, looking down and right to yours

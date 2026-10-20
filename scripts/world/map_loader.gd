@@ -325,6 +325,13 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	if not over.is_empty():
 		m["over_water"] = over
 	m["fish_spots"] = _fish_spots(id, m, src.get("fish_spots", []))
+	# each spot's patch of water: FISH_AREA x FISH_AREA tiles round it, where the fish bite best
+	var areas := {}
+	for c in m["fish_spots"]:
+		for dy in range(-1, FISH_AREA - 1):
+			for dx in range(-1, FISH_AREA - 1):
+				areas[Vector2i(c.x + dx, c.y + dy)] = true
+	m["fish_areas"] = areas
 	m["boats"] = src.get("boats", [])
 	# exits along each connected edge
 	var edges := WorldDB.town_edges(id) if WorldDB.TOWNS.has(id) else WorldDB.route_edges(id)
@@ -351,8 +358,12 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	return m
 
 
+## How many tiles across each fishing spot's patch of rippling water is.
+const FISH_AREA := 4
+
+
 ## Where the water ripples and the fish bite (fishing.gd): the map's own spots, and a few more by the shore or a pier,
-## well apart (the same ones every time).
+## well apart (the same ones every time). Each is the middle of a FISH_AREA-square patch (see "fish_areas").
 static func _fish_spots(id: String, m: Dictionary, given: Array) -> Dictionary:
 	var out := {}
 	for g in given:

@@ -141,9 +141,12 @@ func _draw() -> void:
 		text = _fit(font, text, big, x1 - x0)
 		var ts := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, big)
 		draw_string(font, Vector2(x0, r.get_center().y + ts.y * 0.3), text, HORIZONTAL_ALIGNMENT_LEFT, -1, big, col)
-		# under a beast's pill: its HP and MP
+		# under a beast's pill: its HP and MP; under yours: your shield points
 		var sub := Rect2(Vector2(cap.position.x + 8.0, r.end.y + 4.0), Vector2(r.size.x - 30.0, maxf(6.0, pill_h * 0.24)))
-		if you or status == "empty":
+		if you:
+			_shield_pips(sub, int(row.get("shield", 0)), int(row.get("max_shield", 0)), fade)
+			continue
+		if status == "empty":
 			continue
 		var hp_w := sub.size.x * 0.58
 		var hr := Rect2(sub.position, Vector2(hp_w, sub.size.y))
@@ -164,6 +167,25 @@ func _draw() -> void:
 				draw_rect(mr, Color(UIKit.ACCENT, 0.5 * pulse), false, 1.5)
 		else:
 			_gauge(mr, mp / mmax, mp_col, fade)
+
+
+## Your shield points under your bar, unlabelled: a filled circle for each one left, a hollow one for each spent. (The
+## foe can hit you once the middle of your fighting side is down; spend them all and you lose.)
+func _shield_pips(sub: Rect2, n: int, of: int, fade: float) -> void:
+	if of <= 0:
+		return
+	var r := maxf(5.0, sub.size.y * 1.0)
+	var cy := sub.get_center().y + 2.0
+	var full := Color("#7af0ff")
+	for i in of:
+		var c := Vector2(sub.position.x + r + i * r * 2.7, cy)
+		if i < n:
+			draw_circle(c, r + 1.5, Color(0, 0, 0, 0.55 * fade))
+			draw_circle(c, r, Color(full, fade))
+			draw_circle(c + Vector2(-r * 0.3, -r * 0.35), r * 0.32, Color(1, 1, 1, 0.75 * fade))
+		else:
+			draw_arc(c, r, 0, TAU, 20, Color(0, 0, 0, 0.5 * fade), 4.0, true)
+			draw_arc(c, r, 0, TAU, 20, Color(full, 0.75 * fade), 2.0, true)
 
 
 ## A thin gauge: a dark trough with a coloured fill.

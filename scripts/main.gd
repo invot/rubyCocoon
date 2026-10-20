@@ -517,6 +517,10 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if _test.has("shield"):
+		# --shield=2/4: shield points left / in all
+		GameState.max_shield = int(String(_test["shield"]).get_slice("/", 1))
+		GameState.shield = int(String(_test["shield"]).get_slice("/", 0))
 	GameState.set_flag("intro_done")
 	GameState.set_flag("got_egg")
 	GameState.set_flag("has_starter")
@@ -570,6 +574,9 @@ func _run_test() -> void:
 		_do_goto("route3", "south")
 		await _wait(1.0)
 		var flv := int(_test.get("foe_level", "10"))
+		# --down=1: your first beast has fainted (its tile crossed out)
+		if _test.get("down", "0") == "1" and GameState.party.size() > 1:
+			GameState.party[1].hp = 0
 		var team := [Beasts.create(13, flv), Beasts.create(16, flv + 1), Beasts.create(23, flv), Beasts.create(20, flv - 1), Beasts.create(12, flv)]
 		if _test.get("kind", "") == "wild":
 			start_battle({"wild": true, "foes": [Beasts.create(13, 10), Beasts.create(36, 11)], "seed": 5})
@@ -1279,13 +1286,23 @@ func _run_test() -> void:
 		if _test.has("snap"):
 			get_tree().create_timer(float(_test["snap"])).timeout.connect(func():
 				get_viewport().get_texture().get_image().save_png(String(_test.get("shot", "C:/tmp/fish.png")).replace(".png", "_mid.png")))
-		var rate := float(_test.get("taps", "4.6"))
+		var rate := float(_test.get("taps", "7"))
 		var tapping := [true]
 		if rate > 0.0:
 			var tap_loop := func():
 				while tapping[0]:
-					# (A also moves the talk along; while the line just waits for a bite it does nothing)
-					if not UI.stack.is_empty():
+					# (A also moves the talk along; while the line just waits for a bite it does nothing). Reeling, it taps
+					# like a player: only while the line's below the middle of the zone, at most `rate` times a second
+					var g = UI.stack.back() if not UI.stack.is_empty() else null
+					if g != null and g.get("phase") == "reel":
+						var z: Vector2 = g._zone()
+						if float(g.tension) < (z.x + z.y) / 2.0:
+							await _press("ui_accept")
+							await _wait(1.0 / rate)
+						else:
+							await _wait(0.03)
+						continue
+					if g != null:
 						await _press("ui_accept")
 					await _wait(1.0 / rate)
 			tap_loop.call()
@@ -1295,6 +1312,7 @@ func _run_test() -> void:
 			print("fishing lesson done: ", GameState.flag("fish_lesson"))
 		else:
 			print("fishing result: ", await Fishing.cast(world, Vector2i(7, 34)), "  bait left ", GameState.item_count(String(_test.get("bait", "worm_bait"))))
+			print("in a rippling patch: ", world.map.get("fish_areas", {}).has(Vector2i(7, 34)))
 		tapping[0] = false
 		world.busy = false
 		print("party: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), "  caught ", GameState.caught.size())

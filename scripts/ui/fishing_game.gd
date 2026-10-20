@@ -13,7 +13,7 @@ extends "res://scripts/ui/modal.gd"
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
 ## each tap of A: how much tighter the line pulls (share of the bar)
-const TAP := 0.085
+const TAP := 0.11
 ## how quickly the line slackens, per second, for the weakest and the strongest beasts
 const DRAIN := Vector2(0.3, 0.44)
 ## the zone: its middle, and how wide it is for the weakest and the strongest beasts

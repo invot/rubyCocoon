@@ -1521,7 +1521,7 @@ func _process(delta: float) -> void:
 			var ring: MeshInstance3D = rp[0][k]
 			if is_instance_valid(ring):
 				var f := fposmod(_time * 0.45 + float(rp[1]) + k / 3.0, 1.0)
-				ring.scale = Vector3.ONE * lerpf(0.25, 1.15, f)
+				ring.scale = Vector3.ONE * lerpf(0.25, 1.15, f) * float(rp[2])
 				ring.transparency = lerpf(0.25, 1.0, f)
 	if demo:
 		_demo_t += delta
@@ -1797,7 +1797,8 @@ func _interact() -> void:
 
 
 # ---------------------------------------------------------------- fishing (see fishing.gd)
-## The rippling water where fish bite best: three rings spreading out over each spot.
+## The rippling water where fish bite best: over each spot's 4-tile-square patch, a scatter of ripples of different
+## sizes, each three rings spreading out one after another, out of step with the others.
 func _build_ripples() -> void:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1809,18 +1810,29 @@ func _build_ripples() -> void:
 	torus.rings = 24
 	torus.ring_segments = 4
 	torus.material = m
-	var i := 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_id.hash() + 41
+	var n := MapLoader.FISH_AREA
 	for p in map.get("fish_spots", {}):
-		var rings := []
-		for k in 3:
-			var mi := MeshInstance3D.new()
-			mi.mesh = torus
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mi.position = tile_pos(p) + Vector3(0, -0.1, 0)
-			add_child(mi)
-			rings.append(mi)
-		ripples.append([rings, i * 0.37])
-		i += 1
+		var c: Vector2i = p
+		# the patch's corner and far corner, in the world
+		var lo := Vector2(c.x - 1, c.y - 1)
+		for e in 7:
+			var at := lo + Vector2(rng.randf_range(0.4, n - 0.4), rng.randf_range(0.4, n - 0.4))
+			var q := Vector2i(floori(at.x), floori(at.y))
+			# only over water (the patch can run past the map's edge, where the sea carries on)
+			var inside: bool = q.x >= 0 and q.y >= 0 and q.x < map["w"] and q.y < map["h"]
+			if inside and MapGen.get_t(map, q.x, q.y) != MapGen.WATER:
+				continue
+			var rings := []
+			for k in 3:
+				var mi := MeshInstance3D.new()
+				mi.mesh = torus
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				mi.position = Vector3(at.x, -0.1, at.y)
+				add_child(mi)
+				rings.append(mi)
+			ripples.append([rings, rng.randf(), rng.randf_range(0.55, 1.7)])
 
 
 ## Boats moored in the water (map "boats": x, z, yaw, model, length), rocking gently.

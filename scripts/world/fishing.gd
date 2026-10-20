@@ -1,6 +1,6 @@
 extends RefCounted
 ## Fishing. With Fisher Gil's pole (from his shack in Tidewater), face any water and press A to cast. Where the water
-## ripples (map "fish_spots", see map_loader.gd) something nearly always bites, and quickly; elsewhere only now and
+## ripples (a 4-tile-square patch round each of the map's "fish_spots", see map_loader.gd) something nearly always bites, and quickly; elsewhere only now and
 ## then. When the float dips, strike, then reel (ui/fishing_game.gd); land it and the water beast leaps out for a wild
 ## battle (catch it with the flute, or beat it). Bait on your hook (GameState.bait) is used up whenever something
 ## bites, and brings up stronger, rarer water beasts, sooner: worms from the islands, lures further on.
@@ -33,7 +33,7 @@ static func cast(world, tile: Vector2i, lesson := false, coach := "") -> String:
 	if GameState.bait != "" and GameState.item_count(GameState.bait) <= 0:
 		GameState.bait = ""
 	var tier := int(ItemDB.get_item(GameState.bait).get("bait", 0)) if GameState.bait != "" else 0
-	var spot: bool = world.map.get("fish_spots", {}).has(tile)
+	var spot: bool = world.map.get("fish_areas", {}).has(tile)
 	var beast = pick_beast(world.map, tier) if not lesson else Beasts.create(12, 3)
 	var chance := 1.0 if lesson else (BITE_SPOT if spot else BITE_OPEN) + 0.05 * tier
 	var bite := -1.0

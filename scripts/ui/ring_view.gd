@@ -75,7 +75,7 @@ func _draw() -> void:
 			var col := Color.WHITE if b.hp > 0 else Color(0.35, 0.35, 0.4, 0.7)
 			draw_texture_rect(tex, r.grow(-cell * 0.08), false, col)
 			if b.hp <= 0:
-				draw_line(r.position + Vector2(cell * 0.2, cell * 0.2), r.end - Vector2(cell * 0.2, cell * 0.2), Color(UIKit.BORDER, 0.8), 2.0)
+				UIKit.draw_cross(self, r.get_center(), cell * 0.32)
 		if not Ring.is_corner(k):
 			# the side's element, just outside its cell
 			var out := (p - c).normalized()

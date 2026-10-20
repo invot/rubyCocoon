@@ -90,8 +90,9 @@ const MAPS := {
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 		],
 		"anchors": {"3": "mascot", "4": "ferry", "5": "dock", "8": "fisher"},
-		# rippling water where the fish bite (and more picked by map_loader.gd): in front of Gil's shack, at Gil's line, by the ferry
-		"fish_spots": [[7, 34], [5, 34], [26, 30]],
+		# rippling water where the fish bite, each a 4-tile-square patch (and more picked by map_loader.gd): in front of
+		# Gil's shack and his line, and by the ferry pier
+		"fish_spots": [[6, 35], [20, 31]],
 		# moored in the water: Captain Gull's ferry along the long pier, and Gil's rowboat by his shack
 		# ([x, z, yaw in degrees, model, length in tiles])
 		"boats": [[27.4, 31.2, 0.0, "boat", 4.2], [2.6, 32.0, 8.0, "boat_dark", 2.4]],

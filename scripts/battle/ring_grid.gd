@@ -203,11 +203,7 @@ func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, le
 		draw_rect(Rect2(br.position, Vector2(br.size.x * ratio, br.size.y)), UIKit.hp_color(ratio))
 	else:
 		# fallen: a bold cross over the icon
-		var c := ir.get_center()
-		var s := isz * 0.32
-		for d in [Vector2(s, s), Vector2(s, -s)]:
-			draw_line(c - d, c + d, Color(0, 0, 0, 0.7), 7.0, true)
-			draw_line(c - d, c + d, UIKit.ACCENT.lightened(0.2), 4.0, true)
+		UIKit.draw_cross(self, ir.get_center(), isz * 0.42)
 
 
 ## The trainer's tile in the middle: a round dais with the trainer standing on it, glowing when they're open to attack.

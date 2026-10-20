@@ -645,6 +645,25 @@ static func place(c: Control, where: String, margin := Vector2(24, 24)) -> void:
 			c.offset_top = -margin.y
 
 
+## The cross over a fallen beast: one bold X, a single shape with square-cut arms (a plus turned 45 degrees), filled in
+## the gem's light shade inside a dark outline. `c`: its middle; `s`: half its width.
+static func draw_cross(ci: CanvasItem, c: Vector2, s: float) -> void:
+	var t := s * 0.3
+	var outline := _cross_shape(c, s + 2.5, t + 2.5)
+	ci.draw_colored_polygon(outline, Color(0, 0, 0, 0.75))
+	ci.draw_colored_polygon(_cross_shape(c, s, t), ACCENT.lightened(0.25))
+
+
+## An X: a plus sign with arms `s` long and `t` thick either side of the middle, turned 45 degrees.
+static func _cross_shape(c: Vector2, s: float, t: float) -> PackedVector2Array:
+	var plus := [Vector2(-t, -s), Vector2(t, -s), Vector2(t, -t), Vector2(s, -t), Vector2(s, t), Vector2(t, t),
+		Vector2(t, s), Vector2(-t, s), Vector2(-t, t), Vector2(-s, t), Vector2(-s, -t), Vector2(-t, -t)]
+	var out := PackedVector2Array()
+	for p in plus:
+		out.append(c + (p as Vector2).rotated(PI / 4.0))
+	return out
+
+
 ## A health bar's colour: a light shade of the gem while healthy, the gem when hurt, a dark shade when nearly out.
 static func hp_color(ratio: float) -> Color:
 	if pixel():
