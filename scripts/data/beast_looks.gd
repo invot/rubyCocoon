@@ -37,7 +37,7 @@ const LINES := {
 	"tree": {"base": {"col": {"body": "#f5b862", "head": "#f5b862", "arms": "#e08a40", "legs": "#f5b862", "horn": "#f5b862"},
 			"tip": {"arms": ["#fbd9a0", 0.86, 0.0], "head": ["#e08a48", 0.0, 0.0, 0.22]}, "belly": ["#f9d49c", 0.64, ["body"]], "lid": "#e08a48"}},
 	"frog": {"base": {"col": {"body": "#6fd6a2", "head": "#6fd6a2", "arms": "#6fd6a2", "legs": "#f27a62", "tail": "#6fd6a2", "horn": "#f27a62"},
-			"tip": {"arms": ["#f27a62", 0.55, 0.0]}, "belly": ["#f2d870", 0.62, ["body"]]}},
+			"tip": {"arms": ["#f27a62", 0.55, 0.0]}, "belly": ["#f2d870", 0.72, ["body"]]}},
 	"marmot": {"base": {"col": {"body": "#f2709a", "head": "#f2709a", "arms": "#f2709a", "legs": "#f2709a", "horn": "#a33244"},
 			"tip": {"arms": ["#f8e2b4", 0.86, 0.0], "head": ["#a33244", 0.66, 0.04]}, "belly": ["#f7a0bd", 0.64, ["body"]], "lid": "#a33244"},
 		"3": {"col": {"arms": "#a33244"}}},
