@@ -28,8 +28,9 @@ const SHIELD_START := 1
 var main: Node = null
 
 var player_name := "Andrew"
-## The hero as the character creator made them: "body" (a key of voxel_person.gd HERO_BODIES) and the colours of
-## their "top", "trousers", "hair" and "eyes" (with none of them, the hero as the model comes).
+## The hero as the character creator made them: "body" ("male" or "female"), "person" (their outfit, one of
+## townfolk.gd HERO_OUTFITS), "hairdo" (one of its HAIRDOS) and "pack" (one of its packs, from 1; 0 none), and the
+## colours of their "skin", "top", "trousers", "hair" and "eyes" (whatever's left out, as their body begins).
 var hero := {}
 var gold := 0
 var party: Array = []

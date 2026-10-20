@@ -1,12 +1,13 @@
 extends "res://scripts/ui/modal.gd"
-## The character creator, before a new game: the hero's name (one of their body's NAMES: no keyboard), body, and the colours of
-## their top, trousers, hair and eyes, on a turning preview. Closes with {"name", "look"} (the look for
-## GameState.hero), or null when backed out of.
+## The character creator, before a new game: the hero's name (one of their body's NAMES: no keyboard), body, outfit,
+## hairdo and pack (see townfolk.gd HERO_OUTFITS, HAIRDOS and packs), and the colours of their skin, top, trousers,
+## hair and eyes, on a turning preview. Closes with {"name", "look"} (the look for GameState.hero), or null when backed out of.
 ## Keys: up and down pick a row, left and right change it, A on Start begins, B backs out. Touch: tap the arrows,
 ## the swatches and Start; drag the preview to turn the hero round.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
+const Townfolk = preload("res://scripts/gfx/townfolk.gd")
 
 ## ten names for each body, the first the one it starts with
 const NAMES := {
@@ -16,6 +17,7 @@ const NAMES := {
 const BODIES := ["male", "female"]
 const BODY_NAMES := {"male": "Male", "female": "Female"}
 const SWATCHES := {
+	"skin": ["#f6d8c0", "#f0c8a0", "#e0ac84", "#c68a62", "#9a6440", "#6e4428"],
 	"top": ["#b93646", "#3a6ab8", "#3a8a4a", "#d8b030", "#7a4aa8", "#2a2a30", "#e8e4dc", "#d8702a"],
 	"trousers": ["#39588a", "#222228", "#5a3e2a", "#9a8a62", "#6a6a70", "#d8d4cc", "#3e5a3a", "#8a2a2a"],
 	"hair": ["#1a1410", "#3a2216", "#6a4026", "#8a3a20", "#c0602a", "#d8b060", "#c8c8d0", "#d87a9a"],
@@ -23,16 +25,26 @@ const SWATCHES := {
 }
 ## each body's own top to begin with: his red jacket, her white top
 const DEFAULT_TOP := {"male": 0, "female": 6}
-const ROWS := ["name", "body", "top", "trousers", "hair", "eyes", "start"]
-const ROW_NAMES := {"name": "Name", "body": "Body", "top": "Top", "trousers": "Trousers", "hair": "Hair", "eyes": "Eyes"}
-const CHIP := 46.0
+## each body's skin to begin with
+const DEFAULT_SKIN := 1
+const ROWS := ["name", "body", "outfit", "hairdo", "pack", "skin", "top", "trousers", "hair", "eyes", "start"]
+const ROW_NAMES := {"name": "Name", "body": "Body", "outfit": "Outfit", "hairdo": "Hairdo", "pack": "Pack", "skin": "Skin",
+	"top": "Top", "trousers": "Trousers", "hair": "Hair", "eyes": "Eyes"}
+## the rows stepped through with arrows, and the label each shows
+const STEPPED := ["name", "outfit", "hairdo", "pack"]
+const CHIP := 40.0
 
-var pick := {"name": 0, "body": 0, "top": 0, "trousers": 0, "hair": 0, "eyes": 0}
-## the name last picked for each body, so switching back keeps it
+var pick := {"name": 0, "body": 0, "outfit": 0, "hairdo": Townfolk.HERO_HAIRDO["male"], "pack": Townfolk.HERO_PACK,
+	"skin": DEFAULT_SKIN, "top": 0, "trousers": 0, "hair": 0, "eyes": 0}
+## the name, outfit and hairdo last picked for each body, so switching back keeps them
 var _names_by_body := {"male": 0, "female": 0}
+var _outfit_by_body := {"male": 0, "female": 0}
+var _hairdo_by_body := Townfolk.HERO_HAIRDO.duplicate()
 var row := 0
 var _rows := {}
 var _name_label: Label
+## the labels of the rows stepped through with arrows (the name's too)
+var _stepped := {}
 ## each row's name: white on the row being chosen, dim on the rest (the rows themselves aren't highlighted, so
 ## nothing in them moves)
 var _row_labels := {}
@@ -128,8 +140,8 @@ func _preview() -> Control:
 	vp.add_child(_turn)
 	var cam := Camera3D.new()
 	cam.fov = 30
-	var at := Vector3(0, 1.1, 3.8)
-	cam.transform = Transform3D(Basis.looking_at(Vector3(0, 0.84, 0) - at, Vector3.UP), at)
+	var at := Vector3(0, VPer.height() * 0.75, 3.3)
+	cam.transform = Transform3D(Basis.looking_at(Vector3(0, VPer.height() * 0.52, 0) - at, Vector3.UP), at)
 	vp.add_child(cam)
 	cam.current = true
 	return frame
@@ -138,7 +150,7 @@ func _preview() -> Control:
 func _row(id: String) -> Control:
 	var pc := PanelContainer.new()
 	pc.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	pc.custom_minimum_size.y = 58
+	pc.custom_minimum_size.y = 44
 	_rows[id] = pc
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 8)
@@ -148,7 +160,7 @@ func _row(id: String) -> Control:
 		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
 			_go(ROWS.find(id), false))
 	if id == "start":
-		_start = _button("Start your journey", func() -> void: _finish(), Vector2(0, 54))
+		_start = _button("Start your journey", func() -> void: _finish(), Vector2(0, 48))
 		_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hb.add_child(_start)
 		return pc
@@ -158,20 +170,25 @@ func _row(id: String) -> Control:
 	_row_labels[id] = l
 	hb.add_child(l)
 	match id:
-		"name":
-			_arrows.append(_button("<", func() -> void: _change("name", -1), Vector2(58, 50)))
-			hb.add_child(_arrows[0])
-			_name_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.LIGHT)
-			_name_label.custom_minimum_size.x = 200
-			_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			hb.add_child(_name_label)
-			_arrows.append(_button(">", func() -> void: _change("name", 1), Vector2(58, 50)))
-			hb.add_child(_arrows[1])
+		"name", "outfit", "hairdo", "pack":
+			var lt := _button("<", func() -> void: _change(id, -1), Vector2(54, 42))
+			_arrows.append(lt)
+			hb.add_child(lt)
+			var nl := UIKit.label("", UIKit.BODY_HUGE, UIKit.LIGHT)
+			nl.custom_minimum_size.x = 200
+			nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			nl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			hb.add_child(nl)
+			_stepped[id] = nl
+			if id == "name":
+				_name_label = nl
+			var rt := _button(">", func() -> void: _change(id, 1), Vector2(54, 42))
+			_arrows.append(rt)
+			hb.add_child(rt)
 		"body":
 			_chips["body"] = []
 			for i in BODIES.size():
-				var b := _button(BODY_NAMES[BODIES[i]], func() -> void: _choose("body", i), Vector2(150, 50))
+				var b := _button(BODY_NAMES[BODIES[i]], func() -> void: _choose("body", i), Vector2(150, 44))
 				hb.add_child(b)
 				_chips["body"].append(b)
 		_:
@@ -243,6 +260,13 @@ func _change(id: String, d: int) -> void:
 			_show()
 		"body":
 			_choose("body", posmod(pick["body"] + d, BODIES.size()))
+		"outfit":
+			_choose("outfit", posmod(pick["outfit"] + d, _outfits().size()))
+		"hairdo":
+			_choose("hairdo", posmod(pick["hairdo"] + d, Townfolk.HAIRDOS.size()))
+		"pack":
+			# none, then each pack
+			_choose("pack", posmod(pick["pack"] + d, Townfolk.packs().size() + 1))
 		"start":
 			pass
 		_:
@@ -258,23 +282,34 @@ func _choose(id: String, i: int) -> void:
 		# a top left as the last body's own becomes this one's
 		if pick["top"] == DEFAULT_TOP[BODIES[pick["body"]]]:
 			pick["top"] = DEFAULT_TOP[BODIES[i]]
-		# and the name: the one last picked for this body (to begin with, its own)
-		_names_by_body[BODIES[pick["body"]]] = pick["name"]
-		pick["name"] = _names_by_body[BODIES[i]]
+		# and the name, outfit and hairdo: the ones last picked for this body (to begin with, its own)
+		var was: String = BODIES[pick["body"]]
+		var now: String = BODIES[i]
+		_names_by_body[was] = pick["name"]
+		_outfit_by_body[was] = pick["outfit"]
+		_hairdo_by_body[was] = pick["hairdo"]
+		pick["name"] = _names_by_body[now]
+		pick["outfit"] = _outfit_by_body[now]
+		pick["hairdo"] = _hairdo_by_body[now]
 		pick["body"] = i
 		_build_rig()
 	else:
 		pick[id] = i
-		VPer.dress(_rig, look())
+		VPer.dress(_rig, _hero_look())
 	_show()
 
 
 ## The look chosen so far (see GameState.hero).
 func look() -> Dictionary:
-	var out := {"body": BODIES[pick["body"]]}
+	var out := {"body": BODIES[pick["body"]], "person": _outfits()[pick["outfit"]], "hairdo": pick["hairdo"], "pack": pick["pack"]}
 	for k in SWATCHES:
 		out[k] = SWATCHES[k][pick[k]]
 	return out
+
+
+## The outfits the chosen body picks from (people in townfolk.json).
+func _outfits() -> Array:
+	return Townfolk.HERO_OUTFITS[BODIES[pick["body"]]]
 
 
 func _finish() -> void:
@@ -292,6 +327,9 @@ func _show() -> void:
 	for id in _row_labels:
 		(_row_labels[id] as Label).add_theme_color_override("font_color", UIKit.LIGHT if ROWS[row] == id else UIKit.DIM)
 	_name_label.text = _names()[pick["name"]]
+	_stepped["outfit"].text = "%d of %d" % [pick["outfit"] + 1, _outfits().size()]
+	_stepped["hairdo"].text = Townfolk.HAIRDOS[pick["hairdo"]][1]
+	_stepped["pack"].text = Townfolk.packs()[pick["pack"] - 1]["name"] if pick["pack"] > 0 else "None"
 	for a in _arrows:
 		_paint(a, false)
 	_paint(_start, ROWS[row] == "start")

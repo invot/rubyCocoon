@@ -672,13 +672,16 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				m["furniture"][Vector2i(x, y)] = "computer"
 	# people face the middle of the room, or the table they're sitting at; never a wall
 	# (staff stay facing out over their counters)
+	# (a diner's patrons sit at their tables too)
 	for n in m["npcs"]:
-		if n.get("kind", "") in ["villager", "resident"] or n.get("id", "") == "mom":
-			var table := _table_beside(m, n["pos"])
+		var table := _table_beside(m, n["pos"])
+		if n.get("kind", "") in ["villager", "resident", "patron"] or n.get("id", "") == "mom":
 			if table != Vector2i.ZERO:
+				# sitting there, on a chair (see world.gd seat)
 				n["facing"] = table
 				n["wander"] = false
-			else:
+				n["sit"] = true
+			elif n.get("kind", "") != "patron":
 				n["facing"] = room_facing(m, n["pos"])
 				# visitors and people at home walk about the room (see world.gd _roam)
 				if n.get("kind", "") in ["villager", "resident"]:

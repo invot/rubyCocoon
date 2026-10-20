@@ -1377,11 +1377,13 @@ func _build_npcs() -> void:
 		else:
 			node = VPer.build(n.get("look", {}))
 			VPer.face(node, n.get("facing", Vector2i(0, 1)))
+			if n.get("sit", false):
+				seat(node, n.get("facing", Vector2i(0, 1)))
 			if n.get("rod", false):
 				# someone fishing: a rod held out in front, its line down into the water
 				var body: Node3D = node.get_node("Body")
-				var tip := Vector3(0.2, 2.0, 1.55)
-				body.add_child(_rod_mesh(Vector3(0.22, 1.0, 0.25), tip))
+				var tip := Vector3(0.2, VPer.hand_height() + 0.8, 1.35)
+				body.add_child(_rod_mesh(Vector3(0.2, VPer.hand_height(), 0.25), tip))
 				body.add_child(_rod_mesh(tip, Vector3(0.24, -0.1, 2.1), 0.008, Color("#e8e8e8")))
 		node.position = tile_pos(p)
 		add_child(node)
@@ -1398,7 +1400,7 @@ func _build_npcs() -> void:
 			mark.outline_size = 12
 			mark.pixel_size = 0.01
 			mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			mark.position = Vector3(0, 1.65, 0)
+			mark.position = Vector3(0, VPer.height() + 0.25, 0)
 			mark.visible = false
 			node.add_child(mark)
 			n["mark"] = mark
@@ -1407,7 +1409,7 @@ func _build_npcs() -> void:
 			var st := MeshInstance3D.new()
 			st.mesh = _story_crystal()
 			st.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			var top := 2.0 if n.get("beast_genes", null) == null else 2.8
+			var top := VPer.height() + 0.5 if n.get("beast_genes", null) == null else 2.8
 			st.position = Vector3(0, top, 0)
 			node.add_child(st)
 			n["story_mark"] = st
@@ -1571,9 +1573,9 @@ func _fade_buildings(delta: float) -> void:
 		return
 	var from := cam.global_position
 	# (stopping a step short of you: an awning or a porch over the street right where you stand isn't in the way)
-	var head := player.position + Vector3(0, 1.6, 0)
+	var head := player.position + Vector3(0, VPer.height() * 0.95, 0)
 	head += (from - head).normalized() * 1.1
-	var middle := player.position + Vector3(0, 0.8, 0)
+	var middle := player.position + Vector3(0, VPer.height() * 0.5, 0)
 	middle += (from - middle).normalized() * 1.1
 	for f in building_fades:
 		if not f.has("box"):
@@ -1765,7 +1767,7 @@ func _interact() -> void:
 	if npcs.has(t):
 		var n: Dictionary = npcs[t]
 		_face_npc(n, -facing)
-		await Story.talk(self, n)
+		await _talk(n)
 	elif doors.has(t):
 		await _enter_building(doors[t])
 	elif items.has(t):
@@ -1777,7 +1779,7 @@ func _interact() -> void:
 	elif _counter_like(t) and _across_counter(t) != Vector2i(-999, -999):
 		var n2: Dictionary = npcs[_across_counter(t)]
 		_face_npc(n2, -facing)
-		await Story.talk(self, n2)
+		await _talk(n2)
 	elif map["signs"].has(t):
 		await UI.say([map["signs"][t]])
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.STATUE:
@@ -1885,8 +1887,8 @@ func fishing_line(t: Vector2i) -> Node3D:
 	holder.add_child(fl)
 	bobbers.append([fl, -0.08, 3.0])
 	# the rod held out over the water, and the line down to the float
-	var tip := tile_pos(player_pos) + Vector3(t.x - player_pos.x, 0, t.y - player_pos.y) * 0.55 + Vector3(0, 1.75, 0)
-	var rod := _rod_mesh(tile_pos(player_pos) + Vector3(0, 1.0, 0), tip)
+	var tip := tile_pos(player_pos) + Vector3(t.x - player_pos.x, 0, t.y - player_pos.y) * 0.55 + Vector3(0, VPer.hand_height() + 0.8, 0)
+	var rod := _rod_mesh(tile_pos(player_pos) + Vector3(0, VPer.hand_height(), 0), tip)
 	holder.add_child(rod)
 	var line := _rod_mesh(tip, fl.position + Vector3(0, 0.1, 0), 0.008, Color("#e8e8e8"))
 	line.name = "Line"
@@ -1965,9 +1967,47 @@ func _enter_building(b: Dictionary) -> void:
 	GameState.main.goto_map(b["interior"], "entry")
 
 
+## Talking with someone (Story.talk): they gesture as they speak (see VPer.set_talking), then stop.
+func _talk(n: Dictionary) -> void:
+	var node: Node3D = n.get("node", null)
+	var person: bool = node != null and node.has_meta("skeleton")
+	if person:
+		VPer.set_talking(node, true)
+	await Story.talk(self, n)
+	if person and is_instance_valid(node):
+		VPer.set_talking(node, false)
+
+
+## How tall the chairs people sit on at tables are (to the top of the back), sized for the townsfolk.
+const CHAIR_H := 0.78
+## The seat's height, for that size of chair.
+const CHAIR_SEAT := 0.34
+
+
+## Sits a person down on a chair (one put under them), facing `facing`: someone at a table, the chair's back away
+## from it.
+static func seat(node: Node3D, facing: Vector2i) -> void:
+	var mesh := RoomBuilder.piece("chair_wood")
+	if mesh != null:
+		var bb := mesh.get_aabb()
+		var s := CHAIR_H / maxf(0.01, bb.size.y)
+		var chair := MeshInstance3D.new()
+		chair.name = "Chair"
+		chair.mesh = mesh
+		var c := Vector3(bb.position.x + bb.size.x / 2.0, bb.position.y, bb.position.z + bb.size.z / 2.0) * s
+		var yaw := atan2(float(facing.x), float(facing.y))
+		chair.transform = Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), -c.rotated(Vector3.UP, yaw))
+		node.add_child(chair)
+	VPer.face(node, facing)
+	VPer.set_pose(node, "sit", CHAIR_SEAT, true)
+
+
 func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 	var node: Node3D = n.get("node", null)
 	if node == null or not node.has_node("Body"):
+		return
+	# someone sitting at a table stays turned to it
+	if VPer.pose_of(node) == "sit":
 		return
 	# the nearer of the four ways
 	n["facing"] = _four_way(f)

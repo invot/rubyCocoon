@@ -75,7 +75,22 @@ textures shrunk to 128 px; menu icons rendered from them.
 - **Low poly Robot guy** by CokeEnthusiast, https://cokeenthusiast.itch.io/low-poly-robot-guy (Tank Walker). No
   licence is given on the page, and the author notes its texture was made with ChatGPT: check before release.
 
-### People (`assets/psx/people/`, made by `tools/import_psx_people.gd`)
+### Townsfolk and the hero (`assets/townfolk/`, made by `tools/import_townfolk.gd`)
+*Changes made:* the kit's 80 people split into their parts (each distinct piece kept once) and rigged on one
+skeleton of our own, weighted by where each part sits on the body; the legs drawn longer and the heads smaller;
+recoloured by a shader (skin, hair, eyes, clothes) from each person's look, the kit's own colours kept on the
+details; whites added to the eyes. The game poses the skeleton itself (walk, run, idle, talk, sit).
+- **Townfolk collection** (a stylized characters kit; its texture is `65588_STYLIZED_CHARACTERS_TEXTURE.png`),
+  downloaded into `new models/townfolk collection/`. Its author, source and licence still need recording here:
+  check before release.
+- The trainers' camo jacket (collar, belt, padded sleeves and trousers) is made by `tools/import_townfolk.gd` on the
+  kit's own pieces, after the look of the "camo-jacket duo" models in `new models/camo-jacket duo/` (none of their
+  meshes or textures are used).
+- **Backpacks** (`new models/backpack/`): eight of its packs and bags, turned to sit on the back, scaled to the
+  townsfolk, coloured (the pack has no textures) and given shoulder or cross-body straps of our own. Its author,
+  source and licence still need recording here: check before release.
+
+### People, before the townsfolk (`assets/psx/people/`, made by `tools/import_psx_people.gd`; no longer used)
 *Changes made:* textures shrunk to 256 px; each face moved onto a front-facing texture of its own with anime eyes
 painted in; the hero's texture repainted (red jacket over a white shirt, belt, jeans, red sneakers). The game poses
 the skeletons itself.

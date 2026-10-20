@@ -2585,19 +2585,37 @@ func _hero_gallery() -> void:
 	root.add_child(sun)
 	# --body=female --top=3a6ab8 --trousers=... --hair=... --eyes=...: the hero as the character creator can make them
 	var look := {"face": "hero"}
-	for k in ["body", "top", "trousers", "hair", "eyes"]:
+	for k in ["body", "top", "trousers", "hair", "eyes", "person", "hairdo", "pack"]:
 		if _test.has(k):
-			look[k] = _test[k]
+			look[k] = _test[k] if not k in ["person", "hairdo", "pack"] else int(_test[k])
 	if _test.has("model"):
 		look = {"model": _test["model"]}
-	# --pose=walk: side views an eighth of a stride apart (--speed: 1.7 a stroll, 4.6 the hero's jog, 7.8 a sprint)
+	# --pose=walk: side views an eighth of a stride apart (--speed: 1.7 a stroll, 4.6 the hero's jog, 7.8 a sprint);
+	# --pose=talk: four moments a second apart of someone talking; --pose=sit: sitting, from four sides;
+	# --packs=n: the hero in four of the packs from n on (from behind)
 	var walk: bool = _test.get("pose", "") == "walk"
+	var act: String = _test.get("pose", "") if _test.get("pose", "") in ["talk", "sit"] else ""
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	for i in 4:
+		# --trainer=n: four route trainers (random looks from seed n on, in their camo)
+		if _test.has("trainer"):
+			var rng := RandomNumberGenerator.new()
+			rng.seed = int(_test["trainer"]) + i
+			look = MapGen.random_look(rng)
+			look["outfit"] = "camo"
+		if _test.has("packs"):
+			look["pack"] = int(_test["packs"]) + i
 		var rig: Node3D = VPer.build(look)
-		VPer.face(rig, Vector2i(1, 0) if walk else dirs[i])
+		VPer.face(rig, Vector2i(1, 0) if walk else (Vector2i(0, 1) if act == "talk" else ([Vector2i(0, -1), Vector2i(-1, 0)][int(_test.get("view", "0"))] if _test.has("packs") else dirs[i])))
 		if walk:
 			VPer.animate(rig, i * PI / 4.0 + float(_test.get("phase", "0")), float(_test.get("speed", "4.6")), 0.0)
+		elif act == "talk":
+			VPer.set_talking(rig, true, true)
+			VPer.animate(rig, 0.0, 0.0, 10.0 + i * 1.1)
+		elif act == "sit":
+			var World = load("res://scripts/world/world.gd")
+			World.seat(rig, dirs[i])
+			VPer.animate(rig, 0.0, 0.0, 10.0 + i * 1.1)
 		rig.position = Vector3(i * 1.4, 0, 0)
 		root.add_child(rig)
 	var cam := Camera3D.new()
