@@ -860,6 +860,14 @@ func _run_test() -> void:
 				await _wait(0.7)
 				_press("ui_accept")
 			await _wait(wait)
+	elif scene == "battlecmd":
+		# the command panel played with keys and a touch A (--stop=arc|all|move: stop there for a screenshot)
+		await _battlecmd_test()
+		await _wait(wait)
+	elif scene == "ringedit":
+		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
+		await _ringedit_test()
+		await _wait(wait)
 	elif scene == "lessons":
 		# every guided battle played by a button masher: one thing to pick on every bar and in every menu, your beasts
 		# never down, and every lesson won
@@ -1797,7 +1805,281 @@ func _touch(at: Vector2, down: bool) -> void:
 	Input.parse_input_event(t)
 
 
-## The mascot test (--scene=mascot): prints each check and a count of problems at the end.
+## --scene=battlecmd: a trainer battle's command panel played with the keys and a touch A, your fire beasts on the
+## ring's fire side (top corner, middle) and an air one on its fire / air corner, and the ring last turned to the air
+## side: the battle turns it round to a side with a beast standing in its middle; one tap of A confirms once; your
+## own action, then each beast from the top, has its move and then its target confirmed (one target still has it
+## picked out, with its card and an arc; a move that hits them all shows them all); ▲ on your own bar turns the ring;
+## Move's rules (the beast in the middle can't leave it, a corner beast steps into a fallen one's place or over to
+## another side, which then faces the foe; one beast moves each round); and with everyone facing the foe down, the
+## ring turns by itself. --stop=arc|all|move stops at that moment (for --shot). Prints "BATTLE COMMANDS DONE: n".
+func _battlecmd_test() -> void:
+	Engine.time_scale = 2.0
+	_do_goto("route1", "west")
+	await _wait(1.5)
+	var bad := [0]
+	var check := func(ok: bool, what: String) -> void:
+		if not ok:
+			bad[0] += 1
+		print("%s %s" % ["ok  " if ok else "FAIL", what])
+	var stop := String(_test.get("stop", ""))
+	var fire_a := Beasts.create(1, 20)
+	var fire_b := Beasts.create(2, 20)
+	var air_c := Beasts.create(36, 20)
+	var water := Beasts.create(12, 20)
+	fire_b.moves.append("fire_spin")
+	GameState.beast_slots = 4
+	GameState.party = [fire_a, fire_b, air_c, water]
+	fire_a.slot = 7
+	fire_b.slot = 0
+	air_c.slot = 1
+	water.slot = 4
+	water.hp = 0
+	GameState.storage = []
+	GameState.ring_side = 1
+	GameState.max_shield = 4
+	GameState.shield = 4
+	var foes := [Beasts.create(25, 20), Beasts.create(26, 20)]
+	start_battle({"wild": false, "foes": foes, "trainer": {"name": "Tess", "cls": "Tester", "team": []}, "seed": 7})
+	var bt: Node = null
+	var panel := func():
+		# the next command panel, with everyone but the fallen healed (so the test's battle lasts)
+		for i in 3000:
+			var top = UI.stack.back() if not UI.stack.is_empty() else null
+			if top != null and top.get_script() == load(PANEL_PATH) and not top.closed:
+				for f in foes:
+					f.hp = f.max_hp()
+				return top
+			await get_tree().process_frame
+		return null
+	var key := func(a: String) -> void:
+		await _press(a)
+		await _wait(0.12)
+	var opt_to := func(p, id: String, move := "") -> void:
+		# ◄ ► round the focused bar to an option
+		for i in 12:
+			var o: Dictionary = p.rows[p.focus]["options"][int(p.rows[p.focus].get("sel", 0))]
+			if String(o.get("id", "")) == id and (move == "" or String(o.get("move", "")) == move):
+				return
+			await key.call("ui_right")
+	var p = await panel.call()
+	for c in view.get_children():
+		if c.get_script() == load(BATTLE_PATH):
+			bt = c
+	check.call(p != null and bt != null, "the command panel opens")
+	if p == null:
+		print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
+		return
+	check.call(bt.ally_side == 0, "the ring last faced the air side (nobody in its middle): it starts turned to the %s side" % Ring.side_element(bt.ally_side))
+	# one touch A: your slingshot, picked out on its target, but not confirmed twice
+	UI.controls._send("a", true)
+	await get_tree().process_frame
+	UI.controls._send("a", false)
+	await _wait(0.2)
+	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "one tap of A: the slingshot only goes on to its target (picking %s, your action done %s)" % [p.picking, p.rows[0].get("done", false)])
+	check.call(bt.target_cards.visible and bt._aim_from == "trainer_self" and bt._aim_to.size() == 1, "its target's card shows, and an arc runs from you to it")
+	await key.call("ui_accept")
+	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
+	# the top beast: its move, then its target (two foes)
+	await opt_to.call(p, "move")
+	await key.call("ui_accept")
+	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
+	await _wait(0.1)
+	var arcs: int = (bt.aim_mesh.mesh as ImmediateMesh).get_surface_count()
+	check.call(bt._aim_from == fire_a and bt._aim_to.size() == 1 and arcs > 0, "an arc runs from %s to its target (%d surface)" % [fire_a.nickname, arcs])
+	var first_target = bt._aim_to[0]
+	await key.call("ui_right")
+	check.call(bt._aim_to.size() == 1 and bt._aim_to[0] != first_target and bt.target_cards.sel == int(p.rows[1]["target_sel"]), "► aims at the other foe, and the arc and the framed card follow")
+	if stop == "arc":
+		return
+	await key.call("ui_accept")
+	check.call(p.rows[1].get("done", false) and p.focus == 2 and not p.rows[2].get("done", false), "A: the top beast is set, on to the middle one (the round waits)")
+	# the middle beast: Move is out (it guards you); Fire Spin hits them all
+	var shift: Dictionary = {}
+	for o in p.rows[2]["options"]:
+		if o.get("id", "") == "shift":
+			shift = o
+	check.call(not shift.is_empty() and shift.get("disabled", false), "the beast in the middle can't Move: \"%s\"" % shift.get("desc", ""))
+	await opt_to.call(p, "move", "fire_spin")
+	await key.call("ui_accept")
+	check.call(p.picking and p.rows[2].get("target_all", false) and bt.target_cards.sel == -1 and bt._aim_to.size() == 2, "Fire Spin shows both foes framed, with an arc to each, to confirm")
+	if stop == "all":
+		return
+	await key.call("ui_left")
+	check.call(bt._aim_to.size() == 2, "◄ doesn't pick one out of a move that hits them all")
+	await key.call("ui_accept")
+	check.call(p.rows[2].get("done", false) and p.focus == 3, "A: on to the bottom beast")
+	await opt_to.call(p, "move")
+	await key.call("ui_accept")
+	await key.call("ui_accept")
+	# the middle beast falls before the round is over (as if knocked out), for round two
+	fire_b.hp = 0
+	p = await panel.call()
+	check.call(p != null and bt.round_no == 2, "after the bottom beast's target, the round played out (now round %d)" % bt.round_no)
+	if p == null:
+		print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
+		return
+	fire_a.hp = fire_a.max_hp()
+	air_c.hp = air_c.max_hp()
+	# round two: Watch, then ▲ on your own bar turns the ring
+	await opt_to.call(p, "watch")
+	await key.call("ui_accept")
+	var side_was: int = bt.ally_side
+	await key.call("ui_up")
+	p = await panel.call()
+	check.call(bt.ally_side != side_was, "▲ on your own bar turns the ring (%s side now)" % Ring.side_element(bt.ally_side))
+	# and round to the fire side again: ▼ past the bottom beast
+	for i in 4:
+		if bt.ally_side == 0:
+			break
+		while p.focus < p.rows.size() - 1 and p._next_beast(p.focus, 1) > 0:
+			await key.call("ui_down")
+		await key.call("ui_down")
+		p = await panel.call()
+	check.call(bt.ally_side == 0, "▼ past the bottom beast turns it back to the fire side")
+	# Move: the air beast on the fire / air corner may step to the air side's middle, or its corner
+	var air_row := -1
+	var fire_row := -1
+	for i in p.rows.size():
+		if p.rows[i].get("beast", null) == air_c:
+			air_row = i
+		if p.rows[i].get("beast", null) == fire_a:
+			fire_row = i
+	var spots: Array = bt._shift_spots(air_c)
+	check.call(spots.has(2) and not spots.has(0), "%s may Move to %s (not the fire side's middle)" % [air_c.nickname, spots.map(func(k): return Ring.slot_name(k))])
+	check.call(bt._shift_spots(fire_a) == [0], "%s may Move into the fallen middle beast's place: %s" % [fire_a.nickname, bt._shift_spots(fire_a).map(func(k): return Ring.slot_name(k))])
+	while p.focus != air_row:
+		await key.call("ui_down" if p.focus < air_row else "ui_up")
+	await opt_to.call(p, "shift")
+	await key.call("ui_accept")
+	check.call(p.picking and String(p.rows[air_row].get("pick_kind", "")) == "slot", "Move picks a slot")
+	var first_slot: int = int(p.rows[air_row]["targets"][int(p.rows[air_row]["target_sel"])]["ref"])
+	await key.call("ui_down")
+	var second_slot: int = int(p.rows[air_row]["targets"][int(p.rows[air_row]["target_sel"])]["ref"])
+	check.call(spots.size() < 2 or first_slot != second_slot, "▼ goes on to the next slot (%s, then %s)" % [Ring.slot_name(first_slot), Ring.slot_name(second_slot)])
+	while int(p.rows[air_row]["targets"][int(p.rows[air_row]["target_sel"])]["ref"]) != 2:
+		await key.call("ui_down")
+	if stop == "move":
+		return
+	await key.call("ui_accept")
+	check.call(p.rows[air_row].get("done", false), "A: %s will Move to the air side's middle" % air_c.nickname)
+	# one beast moves each round
+	while p.focus != fire_row:
+		await key.call("ui_up" if p.focus > fire_row else "ui_down")
+	await opt_to.call(p, "shift")
+	await key.call("ui_accept")
+	check.call(not p.picking and not p.rows[fire_row].get("done", false), "a second beast can't Move the same round")
+	await opt_to.call(p, "move")
+	await key.call("ui_accept")
+	await key.call("ui_accept")
+	for i in 20:
+		if UI.stack.is_empty() or UI.stack.back() != p:
+			break
+		await key.call("ui_accept")
+	p = await panel.call()
+	check.call(air_c.slot == 2 and bt.ally_side == 1, "%s moved to the %s, and the air side faces the foe now (%s side)" % [air_c.nickname, Ring.slot_name(air_c.slot), Ring.side_element(bt.ally_side)])
+	# everyone facing the foe down: the ring turns by itself
+	UI.stack.back().close({"kind": "go"})
+	air_c.hp = 0
+	p = await panel.call()
+	check.call(p != null and bt.ally_side != 1 and Ring.side_alive(bt.ally_ring, bt.ally_side), "with everyone on the air side down, the ring turned by itself to the %s side" % Ring.side_element(bt.ally_side))
+	print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
+
+
+## --scene=ringedit: the ring editor (ring_editor.gd, GameState.ring_move): who may go where on the ring and in and out
+## of storage, every lit cell agreeing with the rules, and taps (as a finger would) picking a beast up and putting it
+## down. Prints each check and "RING EDIT DONE: n problem(s)".
+func _ringedit_test() -> void:
+	_do_goto("tidewater", "center")
+	await _wait(1.5)
+	var bad := [0]
+	var check := func(ok: bool, what: String) -> void:
+		if not ok:
+			bad[0] += 1
+		print("%s %s" % ["ok  " if ok else "FAIL", what])
+	# fire, water and air beasts on the ring (3 / 3), an earth and a second fire one in storage
+	var fire := Beasts.create(1, 6)
+	var water := Beasts.create(12, 6)
+	var air := Beasts.create(36, 6)
+	var earth := Beasts.create(25, 6)
+	var fire2 := Beasts.create(1, 4)
+	GameState.beast_slots = 3
+	GameState.party = [fire, water, air]
+	fire.slot = 0
+	water.slot = 4
+	air.slot = 2
+	GameState.storage = [earth, fire2]
+	GameState.ring_side = 0
+	check.call(GameState.ring_move_reason(fire, {"slot": 4}) != "", "a fire beast can't stand on the water side: \"%s\"" % GameState.ring_move_reason(fire, {"slot": 4}))
+	check.call(GameState.ring_move(fire, {"slot": 1}) == "" and fire.slot == 1, "fire to the empty fire / air corner")
+	check.call(GameState.ring_move_reason(fire, {"slot": 2}) != "", "fire can't trade places with the air side's middle: \"%s\"" % GameState.ring_move_reason(fire, {"slot": 2}))
+	check.call(GameState.ring_move_reason(air, {"slot": 1}) != "", "air can't trade places with fire on the fire / air corner, as fire can't stand on the air side: \"%s\"" % GameState.ring_move_reason(air, {"slot": 1}))
+	check.call(GameState.ring_move_reason(earth, {"slot": 6}) != "", "a full ring takes no one from storage onto an empty slot: \"%s\"" % GameState.ring_move_reason(earth, {"slot": 6}))
+	check.call(GameState.ring_move_reason(earth, {"slot": 4}) != "", "earth can't take the water side's middle")
+	check.call(GameState.ring_move(fire2, {"slot": 1}) == "" and fire2.slot == 1 and GameState.storage.has(fire) and fire.slot == -1,
+		"the stored fire beast trades places with the one on the corner")
+	check.call(GameState.ring_move_reason(earth, {"slot": 2}) != "", "earth can't swap in for the air side's beast")
+	check.call(GameState.ring_move(water, {"store": GameState.storage.size()}) == "" and GameState.storage.has(water) and GameState.party.size() == 2,
+		"water into storage's empty cell")
+	check.call(GameState.ring_move(earth, {"slot": 6}) == "" and earth.slot == 6, "now there's room: earth onto the earth side")
+	check.call(GameState.ring_move(water, {"store": 0}) == "" and GameState.storage[0] == water, "storage reorders freely")
+	GameState.ring_move(earth, {"store": GameState.storage.size()})
+	GameState.ring_move(fire2, {"store": GameState.storage.size()})
+	check.call(GameState.party.size() == 1 and GameState.ring_move_reason(air, {"store": GameState.storage.size()}) != "",
+		"the last beast stays with you: \"%s\"" % GameState.ring_move_reason(air, {"store": GameState.storage.size()}))
+	# back to fire, water and air on the ring, earth and fire2 in storage, for the screen
+	for b in [fire, water]:
+		GameState.ring_move(b, {"slot": 0 if b == fire else 4})
+	# the editor: lit cells match the rules
+	world.frozen = true
+	var ed: Node = load("res://scripts/ui/ring_editor.gd").new()
+	UI.push(ed)
+	await _wait(0.6)
+	var cell_of := func(dest: Dictionary):
+		for c in ed.cells:
+			if c.dest == dest:
+				return c
+		return null
+	var tap := func(c) -> void:
+		var at: Vector2 = (c as Control).get_global_rect().get_center()
+		var vp := get_viewport()
+		var px: Vector2 = vp.get_screen_transform() * vp.get_canvas_transform() * at
+		for down in [true, false]:
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.pressed = down
+			ev.position = px
+			ev.global_position = px
+			Input.parse_input_event(ev)
+			await get_tree().process_frame
+		await get_tree().process_frame
+	await tap.call(cell_of.call({"slot": 0}))
+	check.call(ed.picked == fire, "tapping the fire beast picks it up (picked: %s)" % (ed.picked.nickname if ed.picked != null else "none"))
+	var lit := []
+	var agree := true
+	for c in ed.cells:
+		var rule: bool = GameState.ring_move_reason(fire, c.dest) == "" and ed.beast_in(c.dest) != fire
+		if ed.can_go(c.dest) != rule:
+			agree = false
+		if ed.can_go(c.dest):
+			lit.append(c.dest)
+	check.call(agree, "the lit cells are just the ones the rules allow: %s" % [lit])
+	check.call(not ed.can_go({"slot": 4}) and not ed.can_go({"slot": 2}), "the water and air sides stay dark for a fire beast")
+	await tap.call(cell_of.call({"slot": 4}))
+	check.call(fire.slot == 0 and ed.picked == fire and ed.hint.text != "", "tapping a dark cell does nothing but say why: \"%s\"" % ed.hint.text)
+	await tap.call(cell_of.call({"slot": 7}))
+	check.call(fire.slot == 7 and ed.picked == null, "tapping a lit slot moves it there (now on the %s)" % Ring.slot_name(fire.slot))
+	await tap.call(cell_of.call({"store": 1}))
+	await tap.call(cell_of.call({"slot": 7}))
+	check.call(fire2.slot == 7 and GameState.storage.has(fire), "a stored beast tapped onto an occupied slot trades places with it")
+	await tap.call(cell_of.call({"slot": 7}))
+	await tap.call(cell_of.call({"slot": 7}))
+	check.call(ed.picked == null and fire2.slot == 7, "tapping the picked-up beast again puts it back down")
+	# for the screenshot: the air beast picked up
+	await tap.call(cell_of.call({"slot": 2}))
+	print("RING EDIT DONE: %d problem(s)" % bad[0])
+
+
 ## --scene=coaches: a new trainer (a Lv 1 hatchling, no flute, no lessons) walks the Coastal Path by tapped walks from
 ## Cocoon Cove to Tidewater, in and out of Youngster Kit's cabin and over his footbridge, then (with a flute) into
 ## Tidewater's arena. Nobody is talked to: every teacher must stop you and give their lesson, in the path's order.
@@ -1976,6 +2258,7 @@ func _settle(id: String) -> void:
 	print("FAIL   never settled on ", id)
 
 
+## The mascot test (--scene=mascot): prints each check and a count of problems at the end.
 func _mascot_test() -> void:
 	var MoveDB = load("res://scripts/data/move_db.gd")
 	var bad := 0
