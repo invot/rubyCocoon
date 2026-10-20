@@ -167,10 +167,15 @@ const DEFEND_MULT := 0.5
 var cam: Camera3D
 var arrow: Label3D
 var _arrow_target = null
-## while you pick a target: a ring of light in the gem round its feet (the arrow over it turns the gem's colour too),
-## and the other beasts you could aim at dimmed (see _mark_target)
+## while you pick a target: a ring of light in the gem round its feet (round each of them, for a move that hits them
+## all; the arrow over it turns the gem's colour too), the other beasts you could aim at dimmed (see _mark_target), and
+## a glowing arc from the beast choosing (or you) over to it (see _draw_arcs)
 var target_ring: MeshInstance3D
-var _ring_target = null
+var target_rings: Array = []
+var _ring_targets: Array = []
+var aim_mesh: MeshInstance3D
+var _aim_from = null
+var _aim_to: Array = []
 var _dimmed: Array = []
 var _time := 0.0
 var player_rig: Node3D
@@ -191,6 +196,8 @@ var foe_grid: Control
 var cmd_root: Control
 ## true while the command panel owns the bars
 var _commanding := false
+## the command panel's rows this round (see _panel_rows)
+var _rows_now: Array = []
 
 ## the rings: {slot: beast}. Wild beasts stand in a plain line (foe_slots) with no ring.
 var ally_ring := {}
@@ -402,6 +409,19 @@ func _build_stage() -> void:
 	target_ring.material_override = rm
 	target_ring.visible = false
 	add_child(target_ring)
+	target_rings = [target_ring]
+	aim_mesh = MeshInstance3D.new()
+	aim_mesh.mesh = ImmediateMesh.new()
+	var am := StandardMaterial3D.new()
+	am.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	am.vertex_color_use_as_albedo = true
+	am.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	am.no_depth_test = true
+	am.cull_mode = BaseMaterial3D.CULL_DISABLED
+	am.render_priority = 10
+	aim_mesh.material_override = am
+	aim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(aim_mesh)
 	_build_trainers()
 
 
@@ -1176,30 +1196,110 @@ func _process(delta: float) -> void:
 	if is_instance_valid(cam):
 		cam.position = _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
 		cam.look_at(_cam_look(), Vector3.UP)
-	var aiming := _ring_target != null
+	var aiming := not _ring_targets.is_empty()
 	arrow.modulate = Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.7, 1.0) if aiming else Color("#ffd060")
 	arrow.font_size = 96 if aiming else 64
-	target_ring.visible = false
-	if aiming:
-		var at = null
-		if nodes.has(_ring_target) and is_instance_valid(nodes[_ring_target]):
-			at = (nodes[_ring_target] as Node3D).position
-		elif typeof(_ring_target) == TYPE_STRING:
-			at = RIVAL_POS
+	var swell := 1.0 + 0.12 * sin(_time * TAU / 0.9)
+	while target_rings.size() < _ring_targets.size():
+		var extra := target_ring.duplicate() as MeshInstance3D
+		add_child(extra)
+		target_rings.append(extra)
+	for i in target_rings.size():
+		var tr: MeshInstance3D = target_rings[i]
+		var at = _ref_pos(_ring_targets[i]) if i < _ring_targets.size() else null
+		tr.visible = at != null
 		if at != null:
-			var swell := 1.0 + 0.12 * sin(_time * TAU / 0.9)
-			target_ring.visible = true
-			target_ring.position = Vector3(at.x, 0.06, at.z)
-			target_ring.scale = Vector3(swell, 0.35, swell)
-	if _arrow_target != null and nodes.has(_arrow_target) and is_instance_valid(nodes[_arrow_target]):
-		var n2: Node3D = nodes[_arrow_target]
-		arrow.visible = true
-		arrow.position = n2.position + Vector3(0, float(n2.get_meta("height")) + 0.35 + sin(_time * 6.0) * 0.08, 0)
-	elif typeof(_arrow_target) == TYPE_STRING and _arrow_target in ["trainer", "trainer_self", "foe_trainer"]:
-		arrow.visible = true
-		arrow.position = (RIVAL_POS if _arrow_target == "foe_trainer" else PLAYER_POS) + Vector3(0, 2.0 + sin(_time * 6.0) * 0.08, 0)
-	else:
-		arrow.visible = false
+			tr.position = Vector3(at.x, 0.06, at.z)
+			tr.scale = Vector3(swell, 0.35, swell) * (0.75 if typeof(_ring_targets[i]) == TYPE_INT else 1.0)
+	var ap = _ref_pos(_arrow_target)
+	arrow.visible = ap != null
+	if ap != null:
+		arrow.position = ap + Vector3(0, _ref_height(_arrow_target) + 0.35 + sin(_time * 6.0) * 0.08, 0)
+	_draw_arcs()
+
+
+## Where someone (or somewhere) aimed at stands, on the ground: a beast, a trainer ("foe_trainer"; "trainer" or
+## "trainer_self" for you), or a slot of your ring (an int: a Move's), or null.
+func _ref_pos(ref):
+	if ref == null:
+		return null
+	if typeof(ref) == TYPE_INT:
+		return _slot_pos("ally", ref)
+	if typeof(ref) == TYPE_STRING:
+		return RIVAL_POS if ref == "foe_trainer" else (PLAYER_POS if ref in ["trainer", "trainer_self"] else null)
+	if nodes.has(ref) and is_instance_valid(nodes[ref]):
+		return (nodes[ref] as Node3D).position
+	return null
+
+
+func _ref_height(ref) -> float:
+	if typeof(ref) == TYPE_INT:
+		return 0.2
+	if typeof(ref) == TYPE_STRING:
+		return 1.65
+	return float(nodes[ref].get_meta("height")) if nodes.has(ref) else 1.0
+
+
+## Aims the arcs: from `from` (the beast choosing, or "trainer_self") to each of `to` (none: no arcs).
+func _aim(from, to: Array) -> void:
+	_aim_from = from
+	_aim_to = to
+
+
+## The aiming arcs: from the beast (or you) choosing, a glowing arch over to each target ending in an arrowhead, with a
+## white core and pulses running along it towards the target, over a dark edge so it reads against bright ground.
+func _draw_arcs() -> void:
+	var im := aim_mesh.mesh as ImmediateMesh
+	im.clear_surfaces()
+	var a = _ref_pos(_aim_from)
+	if a == null or _aim_to.is_empty() or cam == null:
+		return
+	var view := cam.global_transform.basis.z
+	var glow := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.6, 1.0)
+	var from: Vector3 = a + Vector3.UP * _ref_height(_aim_from) * 0.75
+	var began := false
+	for t in _aim_to:
+		var b = _ref_pos(t)
+		if b == null:
+			continue
+		var to: Vector3 = b + Vector3.UP * _ref_height(t) * 0.6
+		var top := (from + to) / 2.0 + Vector3.UP * (1.2 + from.distance_to(to) * 0.22)
+		if not began:
+			im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+			began = true
+		_arc_strip(im, from, top, to, 0.52, Color(0, 0, 0, 0.55), false, view)
+		_arc_strip(im, from, top, to, 0.34, glow, true, view)
+		_arc_strip(im, from, top, to, 0.1, Color(1, 1, 1, 0.9), true, view)
+	if began:
+		im.surface_end()
+
+
+## One arc as a ribbon facing the camera along the curve from p0 over c to p2 (stopping short for its arrowhead).
+func _arc_strip(im: ImmediateMesh, p0: Vector3, c: Vector3, p2: Vector3, w: float, col: Color, pulse: bool, view: Vector3) -> void:
+	const N := 32
+	const HEAD := 0.86
+	var pts := []
+	for i in N + 1:
+		var u := HEAD * float(i) / N
+		pts.append(p0 * (1.0 - u) * (1.0 - u) + c * 2.0 * (1.0 - u) * u + p2 * u * u)
+	for i in N:
+		var d: Vector3 = pts[i + 1] - pts[i]
+		var side := d.cross(view).normalized() * w * 0.5
+		var cc := col
+		if pulse:
+			# brighter pulses running from the beast to its target
+			var wave := fposmod(float(i) / N * 2.5 - _time * 1.6, 1.0)
+			cc.a = col.a * (0.82 + 0.18 * pow(wave, 3.0))
+			cc = cc.lerp(Color(1, 1, 1, cc.a), 0.55 * pow(wave, 6.0))
+		var q := [pts[i] - side, pts[i] + side, pts[i + 1] + side, pts[i + 1] - side]
+		for v in [q[0], q[1], q[2], q[0], q[2], q[3]]:
+			im.surface_set_color(cc)
+			im.surface_add_vertex(v)
+	var base: Vector3 = pts[N]
+	var side2 := (p2 - base).cross(view).normalized() * w * 2.0
+	for v in [base - side2, base + side2, p2]:
+		im.surface_set_color(Color(col, 1.0) if pulse else col)
+		im.surface_add_vertex(v)
 
 
 func _point_at(b) -> void:
@@ -1207,14 +1307,14 @@ func _point_at(b) -> void:
 
 
 ## Picking a target: `ref` gets the ring of light and the cards' frame; the rest of `all` (the beasts you could aim at
-## instead) are dimmed. null: none.
+## instead) are dimmed. An Array: every one of them is aimed at (a move that hits them all). null: none.
 func _mark_target(ref, all: Array) -> void:
-	_ring_target = ref
+	_ring_targets = ref if typeof(ref) == TYPE_ARRAY else ([] if ref == null else [ref])
 	for b in _dimmed:
 		if nodes.has(b) and is_instance_valid(nodes[b]):
 			(nodes[b].get_meta("flash") as StandardMaterial3D).albedo_color = Color(1, 1, 1, 0)
 	_dimmed = []
-	if ref == null:
+	if ref == null or typeof(ref) == TYPE_ARRAY:
 		return
 	for b in all:
 		if typeof(b) != TYPE_STRING and b != ref and nodes.has(b):
@@ -1230,6 +1330,12 @@ func _show_cards(list: Array, sel: int, mv := "") -> void:
 	for t in list:
 		var ref = t["ref"] if typeof(t) == TYPE_DICTIONARY else t
 		refs.append(ref)
+		if typeof(ref) == TYPE_INT:
+			# a slot to Move to: its name, and who's there
+			var occ = ally_ring.get(ref, null)
+			cards.append({"name": Ring.slot_name(ref), "slot": true, "note": String(t.get("note", "")) if typeof(t) == TYPE_DICTIONARY else "",
+				"icon": PixelArt.beast_texture(occ.genes) if occ != null else null})
+			continue
 		if typeof(ref) == TYPE_STRING:
 			cards.append({"name": String(trainer.get("name", "Trainer")), "trainer": true, "shield": foe_shield, "max_shield": foe_max_shield,
 				"icon": UIKit.tex("tab_trainer")})
@@ -1241,13 +1347,17 @@ func _show_cards(list: Array, sel: int, mv := "") -> void:
 			"hp": maxi(0, ref.hp), "max_hp": ref.max_hp(), "icon": PixelArt.beast_texture(ref.genes), "weak": weak})
 	target_cards.show_cards(cards, sel)
 	_place_caption()
-	_mark_target(refs[clampi(sel, 0, refs.size() - 1)] if not refs.is_empty() else null, refs)
+	if sel < 0:
+		_mark_target(refs, refs)
+	else:
+		_mark_target(refs[clampi(sel, 0, refs.size() - 1)] if not refs.is_empty() else null, refs)
 
 
 func _hide_cards() -> void:
 	if target_cards != null:
 		target_cards.hide_cards()
 	_mark_target(null, [])
+	_aim(null, [])
 
 
 ## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
@@ -1641,9 +1751,11 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 			if act.get("type", "") == "item":
 				text = ItemDB.item_name(String(act["item"]))
 		var targets: Array = r.get("targets", [])
-		if (picking and i == focus) or (r.get("done", false) and targets.size() > 1):
+		if (picking and i == focus) or (r.get("done", false) and not targets.is_empty()):
 			var t: Dictionary = targets[clampi(int(r.get("target_sel", 0)), 0, targets.size() - 1)] if not targets.is_empty() else {}
-			if not t.is_empty():
+			if r.get("target_all", false):
+				text += " → all"
+			elif not t.is_empty():
 				text += " → " + String(t["label"])
 		if r["kind"] == "trainer":
 			out.append({"kind": "trainer", "lv": GameState.trainer_level, "text": text, "arrows": not r.get("locked", false) and _choices(opts) > 1 and not picking,
@@ -1665,15 +1777,26 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 		ally_grid.focus = Ring.side_slots(ally_side)[focus - 1]
 	ally_grid.target = -1
 	foe_grid.target = -1
+	ally_grid.targets = []
+	foe_grid.targets = []
 	if picking:
 		var ts: Array = fr.get("targets", [])
 		if not ts.is_empty():
-			var t2: Dictionary = ts[clampi(int(fr.get("target_sel", 0)), 0, ts.size() - 1)]
-			var g: Control = foe_grid if String(t2.get("grid", "")) == "foe_grid" else ally_grid
-			g.target = int(t2.get("tile", -1))
+			var all: bool = fr.get("target_all", false)
+			var sel := -1 if all else clampi(int(fr.get("target_sel", 0)), 0, ts.size() - 1)
+			for j in ts.size():
+				if all or j == sel:
+					var g: Control = foe_grid if String(ts[j].get("grid", "")) == "foe_grid" else ally_grid
+					g.targets.append(int(ts[j].get("tile", -1)))
 			var opts: Array = fr.get("options", [])
 			var o2: Dictionary = opts[clampi(int(fr.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {}
-			_show_cards(ts, int(fr.get("target_sel", 0)), String(o2.get("move", "")))
+			_show_cards(ts, sel, String(o2.get("move", "")))
+			# the arc from the beast choosing (or you) to its target, or to each of them
+			var to := []
+			for j in ts.size():
+				if all or j == sel:
+					to.append(ts[j]["ref"])
+			_aim(fr.get("beast", null) if fr["kind"] == "beast" else "trainer_self", to)
 	else:
 		_hide_cards()
 	ally_grid.queue_redraw()
@@ -1693,12 +1816,11 @@ func msg(text: String, wait := 0.95) -> void:
 # ================================================================ main loop
 func _run() -> void:
 	await get_tree().process_frame
-	# your ring, turned to the side you last fought with (if anyone stands on it)
+	# your ring, turned to the side you last fought with if the beast in its middle is standing, else round to the
+	# nearest side whose middle beast is (see Ring.covered_side)
 	GameState.fix_ring()
 	ally_ring = GameState.ring()
-	ally_side = GameState.ring_side
-	if not Ring.side_alive(ally_ring, ally_side):
-		ally_side = maxi(0, Ring.best_side(ally_ring))
+	ally_side = Ring.covered_side(ally_ring, GameState.ring_side)
 	if tutorial and lesson.get("practice", false):
 		_practice_beasts()
 	if not wild:
@@ -1758,6 +1880,8 @@ func _run() -> void:
 	for b in _alive(ally_slots):
 		go.append(b.nickname)
 	_refresh()
+	if ally_side != GameState.ring_side and not tutorial:
+		await msg("Nobody stands in the middle of your %s side, so you turn your ring round." % Ring.side_element(GameState.ring_side).capitalize(), 1.0)
 	if not go.is_empty():
 		await msg("Your %s side faces the foe. Go, %s!" % [Ring.side_element(ally_side).capitalize(), ", ".join(go)], 0.9)
 	await _start_passives()
@@ -2015,6 +2139,12 @@ func _check_exposed() -> void:
 
 # ================================================================ player commands
 func _command_phase() -> Array:
+	if not Ring.side_alive(ally_ring, ally_side):
+		# everyone facing the foe is down: the ring turns to the nearest side with a beast standing in its middle
+		var ns := Ring.covered_side(ally_ring, ally_side)
+		if ns != ally_side:
+			await msg("Everyone on your %s side is down! You turn your ring to the %s side." % [Ring.side_element(ally_side).capitalize(), Ring.side_element(ns).capitalize()], 1.0)
+			await _turn_ring("ally", ns)
 	if cfg.get("autoplay", false) or UI.auto:
 		return await _auto_commands()
 	flute_used = false
@@ -2040,6 +2170,8 @@ func _command_phase() -> Array:
 		ally_grid.focus = -1
 		ally_grid.target = -1
 		foe_grid.target = -1
+		ally_grid.targets = []
+		foe_grid.targets = []
 		focus = int(r.get("focus", focus))
 		match String(r.get("kind", "")):
 			"go":
@@ -2109,6 +2241,7 @@ func _rows_waiting(rows: Array) -> bool:
 
 
 ## The command panel's rows: you, then the three slots of the side facing the foe.
+## (_rows_now: the rows being chosen, so a target list can see what the other beasts have chosen)
 func _panel_rows() -> Array:
 	var rows := []
 	var shield := ""
@@ -2158,6 +2291,7 @@ func _panel_rows() -> Array:
 					row["sel"] = i
 					break
 		rows.append(row)
+	_rows_now = rows
 	return rows
 
 
@@ -2212,7 +2346,105 @@ func _move_options(b) -> Array:
 		d["note"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
 		d["desc"] = String(d["note"])
 	out.append(d)
+	# Move: to another slot of the ring (see _shift_spots), in place of its move this round
+	var spots := _shift_spots(b)
+	var mv_desc := "%s steps over to another slot of your ring (▲ ▼ to choose it): the side it moves to faces the foe. It uses up its turn." % b.nickname
+	if spots.is_empty():
+		mv_desc = ("%s guards you from the middle of the side: if it left, you'd be open to attack." % b.nickname) if _slot_of(ally_ring, b) == ally_side * 2 \
+			else "There's no open slot %s can move to without leaving you open to attack." % b.nickname
+	if tutorial:
+		mv_desc = "%s: \"Not in a lesson! Attack this round.\"" % _tut_who()
+	out.append({"id": "shift", "label": "Move", "target": "slot", "right": "uses its turn", "desc": mv_desc, "disabled": spots.is_empty() or tutorial,
+		"none_hint": "Only one beast can move each round."})
 	return out
+
+
+## True if the beast in the middle of a ring's side is standing.
+func _middle_standing(r: Dictionary, side: int) -> bool:
+	var m = r.get(posmod(side, 4) * 2, null)
+	return m != null and m.hp > 0
+
+
+## Where a beast on the side facing the foe can Move to: any other slot it can stand on that's empty, or holds a
+## fainted beast that can stand on the slot it leaves (they trade places), as long as that doesn't leave the side
+## then facing the foe (see _shift_side) without a beast standing in its middle when it had one: so the beast
+## guarding you can't just walk off, but a corner beast can step into a fallen one's place. In ring order from its own
+## slot, as ▲ ▼ go through them.
+func _shift_spots(b) -> Array:
+	var s := _slot_of(ally_ring, b)
+	if s < 0 or b.hp <= 0 or not ally_slots.has(b):
+		return []
+	var covered := _middle_standing(ally_ring, ally_side)
+	var out := []
+	for i in range(1, Ring.SLOTS):
+		var k := posmod(s + i, Ring.SLOTS)
+		if not Ring.can_hold(b, k):
+			continue
+		var o = ally_ring.get(k, null)
+		if o != null and (o.hp > 0 or not Ring.can_hold(o, s)):
+			continue
+		var after := ally_ring.duplicate()
+		after[k] = b
+		if o != null:
+			after[s] = o
+		else:
+			after.erase(s)
+		if covered and not _middle_standing(after, _shift_side(after, k, b)):
+			continue
+		out.append(k)
+	return out
+
+
+## The side that faces the foe once a beast has moved to slot k (the ring as it is then): k's side; for a corner, of
+## its two sides the one facing the foe already, else the one with a beast standing in its middle, else the one of
+## the beast's own element.
+func _shift_side(r: Dictionary, k: int, b) -> int:
+	if not Ring.is_corner(k):
+		return k / 2
+	var a := k / 2
+	var c := (a + 1) % 4
+	if ally_side == a or ally_side == c:
+		return ally_side
+	var sa := _middle_standing(r, a)
+	var sc := _middle_standing(r, c)
+	if sa != sc:
+		return a if sa else c
+	return c if Ring.side_element(c) in b.elements() else a
+
+
+## A beast's Move: it steps over to slot k (trading places with a fainted beast there), and the side it moved to turns
+## to face the foe. Checked again now, as the ring may have changed since it was chosen.
+func _do_shift(b, k: int) -> void:
+	var s := _slot_of(ally_ring, b)
+	if not k in _shift_spots(b):
+		if b.hp > 0 and _active(b):
+			await msg("%s couldn't move to the %s." % [b.nickname, Ring.slot_name(k)], 0.7)
+		return
+	var o = ally_ring.get(k, null)
+	ally_ring.erase(s)
+	ally_ring[k] = b
+	b.slot = k
+	if o != null:
+		ally_ring[s] = o
+		o.slot = s
+	await msg("%s moves over to the %s!" % [b.nickname, Ring.slot_name(k)], 0.5)
+	Sfx.play("step_grass")
+	var tw := create_tween()
+	for pair in [[b, k], [o, s]]:
+		if pair[0] != null and nodes.has(pair[0]):
+			var n: Node3D = nodes[pair[0]]
+			var p := _slot_pos("ally", int(pair[1]))
+			tw.parallel().tween_property(n, "position", Vector3(p.x, n.position.y, p.z), 0.45).set_trans(Tween.TRANS_SINE)
+	await tw.finished
+	var side := _shift_side(ally_ring, k, b)
+	if side != ally_side:
+		await _turn_ring("ally", side)
+		await msg("Your %s side faces the foe now." % Ring.side_element(side).capitalize(), 0.7)
+	else:
+		_place_ring("ally")
+		_sync_slots()
+		_refresh()
+	await _check_exposed()
 
 
 func _panel_info() -> Dictionary:
@@ -2244,7 +2476,22 @@ func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
 		"ally_ko":
 			for b in GameState.party.filter(func(x): return x.hp <= 0 and x.slot >= 0):
 				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": int(b.slot)})
-	if tutorial and out.size() > 1:
+		"enemies":
+			for b in _alive(foe_slots):
+				out.append({"label": b.nickname, "ref": b, "grid": "foe_grid", "tile": foe_slots.find(b) if wild else _slot_of(foe_ring, b)})
+		"allies":
+			for b in _alive(ally_slots):
+				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": _slot_of(ally_ring, b)})
+		"slot":
+			# the slots it can Move to (one beast moves each round)
+			for r2 in _rows_now:
+				if r2 != row and r2.get("kind", "") == "beast" and r2.get("done", false) and String(r2["options"][int(r2.get("sel", 0))].get("id", "")) == "shift":
+					return []
+			for k in _shift_spots(row.get("beast", null)):
+				var o = ally_ring.get(k, null)
+				out.append({"label": Ring.slot_name(k), "ref": k, "grid": "ally_grid", "tile": k,
+					"note": "Empty" if o == null else "%s (down) trades places" % o.nickname})
+	if tutorial and out.size() > 1 and String(opt.get("target", "")) in ["enemy", "ally", "ally_ko"]:
 		# a lesson aims at one: the trainer when that's the lesson, else the teacher's first beast (or your first one)
 		var want := 0
 		for j in out.size():
@@ -2283,6 +2530,9 @@ func _acts_from_rows(rows: Array) -> Array:
 		var o2: Dictionary = r["options"][int(r["sel"])]
 		if o2["id"] == "defend":
 			acts.append({"type": "defend", "actor": b, "prio": 7})
+		elif o2["id"] == "shift":
+			# last of your side's turn, so the others' moves land before the ring turns
+			acts.append({"type": "shift", "actor": b, "slot": int(_row_ref(r)), "prio": -9})
 		else:
 			var mv: String = o2["move"]
 			var ref = "trainer" if tutorial and _tut_round().get("target", "") == "trainer" else _row_ref(r)
@@ -2374,7 +2624,7 @@ func _choose_target(list: Array, title: String):
 	for t in list:
 		items.append({"text": t.nickname, "right": "%d%%" % int(t.hp_ratio() * 100) if t.hp > 0 else "fainted"})
 	var c: int = await UI.choose(title, items, {"anchor": "bottom_right", "width": 360, "margin": Vector2(20, 20), "font_size": 28,
-		"on_focus": func(k): _point_at(list[k]); _show_cards(list, k)})
+		"on_focus": func(k): _point_at(list[k]); _show_cards(list, k); _aim("trainer_self", [list[k]])})
 	_hide_cards()
 	if c < 0:
 		return null
@@ -2939,6 +3189,8 @@ func _resolve(acts: Array) -> void:
 				await _do_slingshot(a)
 			"strike_trainer":
 				await _strike(a.get("actor", null), "ally")
+			"shift":
+				await _do_shift(a["actor"], int(a["slot"]))
 			"rival_song":
 				await _do_rival_song(a)
 			"player_song":

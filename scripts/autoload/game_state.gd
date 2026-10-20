@@ -246,19 +246,79 @@ func free_slot_for(b: Beast) -> int:
 	return slots[0] if not slots.is_empty() else -1
 
 
-## Moves a party beast to another ring slot, trading places with whoever stands there (if that beast may stand in the
-## slot being left). Returns "" or the reason it can't.
-func move_to_slot(b: Beast, k: int) -> String:
-	if not Ring.can_hold(b, k):
-		return "%s can't stand on the %s." % [b.nickname, Ring.slot_name(k)]
-	var other := beast_at(k)
-	if other == b:
+## The ring editor's moves (ring_editor.gd): `b` (on your ring, or in storage) to `dest`, {"slot": k} on the ring or
+## {"store": j} in storage (j = storage.size(): the empty cell at its end), trading places with whoever is there.
+## Returns "" if it may go, else why not: it must be able to stand on its new slot, and anyone it trades places with
+## on its old one; your ring holds party_max() beasts; and one beast always stays with you.
+func ring_move_reason(b: Beast, dest: Dictionary) -> String:
+	var carried := party.has(b)
+	if dest.has("slot"):
+		var k: int = dest["slot"]
+		if carried and b.slot == k:
+			return "%s already stands here." % b.nickname
+		if not Ring.can_hold(b, k):
+			return "A %s beast can't stand on the %s." % [b.element_text(), Ring.slot_name(k)]
+		var o := beast_at(k)
+		if o == null:
+			if not carried and party.size() >= party_max():
+				return "Your ring has room for %d beasts. Trade places with one of them, or have Volt at Sparkwire Electronics wire up another slot." % party_max()
+			return ""
+		if carried and not Ring.can_hold(o, b.slot):
+			return "%s can't stand on the %s to trade places." % [o.nickname, Ring.slot_name(b.slot)]
 		return ""
-	if other != null:
-		if b.slot < 0 or not Ring.can_hold(other, b.slot):
-			return "%s can't move to the %s to make room." % [other.nickname, Ring.slot_name(b.slot) if b.slot >= 0 else "bench"]
-		other.slot = b.slot
-	b.slot = k
+	var j: int = dest["store"]
+	var q: Beast = storage[j] if j >= 0 and j < storage.size() else null
+	if not carried:
+		return "%s is already here." % b.nickname if q == b else ""
+	if q == null:
+		return "You need to keep at least one beast with you." if party.size() <= 1 else ""
+	if not Ring.can_hold(q, b.slot):
+		return "%s can't stand on the %s to trade places." % [q.nickname, Ring.slot_name(b.slot)]
+	return ""
+
+
+## Makes a ring editor move (see ring_move_reason). Returns "" or why it can't.
+func ring_move(b: Beast, dest: Dictionary) -> String:
+	var why := ring_move_reason(b, dest)
+	if why != "":
+		return why
+	if dest.has("slot"):
+		var k: int = dest["slot"]
+		var o := beast_at(k)
+		if party.has(b):
+			if o != null:
+				o.slot = b.slot
+		else:
+			var i := storage.find(b)
+			if o != null:
+				party.erase(o)
+				o.slot = -1
+				storage[i] = o
+			else:
+				storage.remove_at(i)
+			party.append(b)
+		b.slot = k
+		return ""
+	var j: int = dest["store"]
+	var q: Beast = storage[j] if j < storage.size() else null
+	if party.has(b):
+		if q != null:
+			q.slot = b.slot
+			party[party.find(b)] = q
+			storage[j] = b
+		else:
+			party.erase(b)
+			storage.append(b)
+		b.slot = -1
+	else:
+		# reordering storage
+		var i := storage.find(b)
+		if q != null:
+			storage[i] = q
+			storage[j] = b
+		else:
+			storage.remove_at(i)
+			storage.append(b)
 	return ""
 
 

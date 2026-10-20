@@ -2,7 +2,8 @@ extends Control
 ## While you pick a target in battle, one card for each beast (or trainer) the move can be aimed at, in a row at the
 ## top of the screen: its icon, name, level and element, and its HP. The one aimed at wears a bright frame in the gem
 ## that pulses, with a soft glow; the others are dimmed. ◄ ► (or the d-pad) move along the row, A confirms, and a card
-## can be tapped (a second tap on the aimed-at one confirms, see command_panel.gd).
+## can be tapped (a second tap on the aimed-at one confirms, see command_panel.gd). A move that hits them all frames
+## every card (sel -1). For a beast's Move, a card for each slot it could step to: its name and who's there.
 ## battle.gd fills the cards (see show_cards) and hides them once the target is chosen.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -12,7 +13,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 signal tapped(index: int)
 
 ## [{name, lv, element, hp, max_hp, icon: Texture2D, weak: the move aimed is super effective on it, trainer: bool,
-##   shield, max_shield}]
+##   shield, max_shield, slot: bool (a Move's), note}]
 var cards: Array = []
 var sel := 0
 ## a card's size and the gap between cards (UI units), and its text sizes: compact, so the row stays clear of the foes
@@ -66,7 +67,7 @@ func _draw() -> void:
 	for i in cards.size():
 		var c: Dictionary = cards[i]
 		var r := card_rect(i)
-		var on := i == sel
+		var on := i == sel or sel < 0
 		var fade := 1.0 if on else 0.5
 		var rad := card.y * 0.2
 		if UIKit.pixel():
@@ -111,7 +112,11 @@ func _draw() -> void:
 		var name: String = _fit(font, String(c.get("name", "")), big, x1 - x0)
 		draw_string(font, Vector2(x0, r.position.y + name_y), name, HORIZONTAL_ALIGNMENT_LEFT, -1, big, col)
 		var info := "Trainer" if c.get("trainer", false) else "Lv %d  %s" % [int(c.get("lv", 1)), Elements.label(String(c.get("element", "neutral")))]
+		if c.get("slot", false):
+			info = String(c.get("note", ""))
 		draw_string(font, Vector2(x0, r.position.y + info_y), _fit(font, info, small, x1 - x0), HORIZONTAL_ALIGNMENT_LEFT, -1, small, Color(UIKit.GOLD_BRIGHT if on else UIKit.DIM, fade))
+		if c.get("slot", false):
+			continue
 		# HP (a trainer: shield points)
 		var bar := Rect2(Vector2(x0, r.position.y + bar_y), Vector2(x1 - x0, bar_h))
 		if c.get("trainer", false):
