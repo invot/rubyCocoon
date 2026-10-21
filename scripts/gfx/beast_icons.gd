@@ -49,7 +49,7 @@ func render(genes: Dictionary) -> Image:
 	r.scale = Vector3.ONE
 	r.rotation.y = -TURN
 	# held in its first pose, the smoke round a ghost left out (it would only blur at this size)
-	r.set_process(false)
+	r.hold()
 	if r.smoke != null:
 		r.smoke.hide()
 	add_child(r)

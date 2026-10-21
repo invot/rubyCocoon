@@ -2663,9 +2663,13 @@ func _beast_gallery(page: int) -> void:
 			var c := Beasts.merge(a, b, true)
 			genes_list.append([c.nickname, c.genes])
 	var t0 := Time.get_ticks_msec()
+	var Model = load("res://scripts/gfx/beast_model.gd")
 	for i in genes_list.size():
-		var mi := MeshInstance3D.new()
-		mi.mesh = VB.mesh(genes_list[i][1])
+		# (drawn as the game draws it: a new beast animated, a legendary its old model)
+		var mi: Node3D = Model.rig(genes_list[i][1], 1.2)
+		if mi == null:
+			mi = MeshInstance3D.new()
+			(mi as MeshInstance3D).mesh = VB.mesh(genes_list[i][1])
 		mi.rotation.y = -0.6
 		mi.position = Vector3((i % 4) * 2.6, 0, (i / 4) * 2.6)
 		root.add_child(mi)

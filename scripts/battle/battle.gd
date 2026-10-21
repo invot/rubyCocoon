@@ -1332,6 +1332,8 @@ func _lie_down(b, ease := true) -> void:
 	var rig := _rig(b)
 	if rig != null:
 		rig.state = "lie"
+		if not ease:
+			rig.settle()
 		return
 	var n: Node3D = nodes[b]
 	if not ease:

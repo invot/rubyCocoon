@@ -3170,7 +3170,7 @@ func _build_room() -> void:
 					# (a new beast holding still, on show)
 					var ex: Node3D = BeastModel.rig(RaceDB.genes(race), 0.45)
 					if ex != null:
-						ex.set_process(false)
+						ex.hold()
 					else:
 						var em := MeshInstance3D.new()
 						em.mesh = VB.mesh(RaceDB.genes(race))
