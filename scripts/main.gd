@@ -143,7 +143,9 @@ func _title() -> void:
 			_title_nodes[0].visible = false
 			load_slot = await slot_manager()
 			_title_nodes[0].visible = true
-		if load_slot >= 0 and GameState.load_game(load_slot):
+		if load_slot >= 0 and GameState.slot_outdated(load_slot):
+			UI.toast("That save is from before the new beasts, so it can't be loaded. Start a new game!", UIKit.ACCENT)
+		elif load_slot >= 0 and GameState.load_game(load_slot):
 			_clear_title()
 			UI.allow_pause = true
 			var spawn = GameState.pos if GameState.pos.x >= 0 else "center"
@@ -2410,14 +2412,15 @@ func _mascot_test() -> void:
 	var bad := 0
 	for id in WorldDB.TOWN_ORDER:
 		var race: int = WorldDB.TOWNS[id]["mascot"]
-		var mv: String = MoveDB.SIGNATURE.get(race, "")
+		var mv: String = WorldDB.TOWNS[id].get("signature", "")
 		var m: Dictionary = MoveDB.get_move(mv)
-		var el := RaceDB.element(race)
+		# (a dual line's move may be of its second element)
+		var el := RaceDB.element2(race) if String(m.get("el", "")) == RaceDB.element2(race) else RaceDB.element(race)
 		var strongest := 0
 		for p in MoveDB.POOLS[el]:
 			strongest = maxi(strongest, int(MoveDB.get_move(p).get("power", 0)))
 		var levelled: bool = RaceDB.learnset(race).any(func(e): return e[1] == mv)
-		var ok: bool = mv != "" and MoveDB.MOVES.has(mv) and m["el"] == el and m["kind"] == "attack" and int(m["power"]) > strongest and not levelled
+		var ok: bool = mv != "" and MoveDB.MOVES.has(mv) and m["el"] == el and m["kind"] == "attack" and int(m["power"]) > strongest and not levelled and int(MoveDB.SIGNATURE.get(mv, -1)) == RaceDB.first_form(race)
 		if not ok:
 			bad += 1
 		print("%s %-11s %-12s %-18s %s power %d (strongest %s move by levelling: %d)  %s statue" % ["ok  " if ok else "FAIL", id, RaceDB.race_name(race), m.get("name", "?"), el, int(m.get("power", 0)), el, strongest, WorldDB.statue_metal(id)])
@@ -2426,27 +2429,28 @@ func _mascot_test() -> void:
 	await _wait(1.5)
 	var mascot := _npc("mascot")
 	# (straight into the party: the mascot only teaches a beast you have with you)
-	var redcoon := Beasts.create(0, 39)
-	GameState.party.append(redcoon)
+	# a Cinderex (the dino line's second form, as the Pyrosaur mascot's line)
+	var kin := Beasts.create(0, 39)
+	GameState.party.append(kin)
 	UI.auto_answers = [0]
 	await Story.talk(world, mascot)
-	var early: bool = not redcoon.known.has("bandit_blaze")
-	print("%s a Lv 39 Redcoon can't learn it yet: %s" % ["ok  " if early else "FAIL", UI.auto_log.back()])
-	redcoon.level = 40
+	var early: bool = not kin.known.has("bandit_blaze")
+	print("%s a Lv 39 %s can't learn it yet: %s" % ["ok  " if early else "FAIL", kin.nickname, UI.auto_log.back()])
+	kin.level = 40
 	UI.auto_answers = [0]
 	await Story.talk(world, mascot)
-	var learned: bool = redcoon.known.has("bandit_blaze")
-	print("%s at Lv 40 it learns Bandit Blaze: %s  (moves %s)" % ["ok  " if learned else "FAIL", learned, redcoon.moves])
-	GameState.party.erase(redcoon)
-	var other := Beasts.create(1, 45)
+	var learned: bool = kin.known.has("bandit_blaze")
+	print("%s at Lv 40 it learns Bandit Blaze: %s  (moves %s)" % ["ok  " if learned else "FAIL", learned, kin.moves])
+	GameState.party.erase(kin)
+	var other := Beasts.create(3, 45)
 	GameState.party.append(other)
 	UI.auto_answers = [0]
 	await Story.talk(world, mascot)
 	var refused: bool = not other.known.has("bandit_blaze")
-	print("%s an Emberkit (another fire race) isn't taught: %s" % ["ok  " if refused else "FAIL", UI.auto_log.back()])
-	var child := Beasts.merge(other, redcoon, true)
-	var kept: bool = child.known.has("bandit_blaze") == (child.race == 0)
-	print("%s a merge (%s) keeps Bandit Blaze only if it's a Redcoon: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
+	print("%s a %s (another fire line) isn't taught: %s" % ["ok  " if refused else "FAIL", other.nickname, UI.auto_log.back()])
+	var child := Beasts.merge(other, kin, true)
+	var kept: bool = child.known.has("bandit_blaze") == (RaceDB.first_form(child.race) == 0)
+	print("%s a merge (%s) keeps Bandit Blaze only if it's of the dino line: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
 	for ok2 in [early, learned, refused, kept]:
 		if not ok2:
 			bad += 1

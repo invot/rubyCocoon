@@ -14,6 +14,8 @@ const SAVE_DIR := "user://saves/"
 const TEST_SAVE_DIR := "user://test_saves/"
 ## the single save file from before save slots existed
 const LEGACY_SAVE := "user://savegame.json"
+## saves older than this (from before the beasts of the 13 lines) can't be loaded
+const SAVE_VERSION := 3
 const SLOT_COUNT := 10
 ## The most beasts a trainer can carry: one per slot of the battle ring (see ring.gd). A new trainer has room for
 ## BEAST_SLOTS_START; Volt at Sparkwire Electronics adds more as your trainer level grows.
@@ -406,12 +408,20 @@ func party_element(elements: Array) -> Beast:
 	return null
 
 
-## A healthy party beast with wings (or a bird), for flying up cliffs.
+## A healthy party beast with wings (a flyer, a merge with a flyer's wings, or an old bird), for flying up cliffs.
 func party_flyer() -> Beast:
 	for b in party:
-		if b.hp > 0 and (String(b.genes.get("back", "")) == "wings" or String(b.genes.get("body", "")) == "bird"):
+		if b.hp > 0 and has_wings(b):
 			return b
 	return null
+
+
+static func has_wings(b: Beast) -> bool:
+	var g := b.genes
+	var recipe: Dictionary = g.get("recipe", {})
+	if recipe.has("wings"):
+		return true
+	return String(g.get("body", "")) in ["flyer", "bird"] or String(g.get("back", "")) == "wings"
 
 
 func alive_party() -> Array:
@@ -717,9 +727,15 @@ func slot_exists(i: int) -> bool:
 func has_save() -> bool:
 	_migrate_legacy()
 	for i in SLOT_COUNT:
-		if slot_exists(i):
+		if slot_exists(i) and not slot_outdated(i):
 			return true
 	return false
+
+
+## A save from before the beasts of the 13 lines: it stays in its slot, but can't be loaded.
+func slot_outdated(i: int) -> bool:
+	var d := _read_slot(i)
+	return not d.is_empty() and int(d.get("version", 1)) < SAVE_VERSION
 
 
 func first_free_slot() -> int:
@@ -734,7 +750,7 @@ func latest_slot() -> int:
 	var best := -1
 	var best_t := -1.0
 	for i in SLOT_COUNT:
-		if slot_exists(i):
+		if slot_exists(i) and not slot_outdated(i):
 			var t := float(slot_info(i).get("saved_at", 0.0))
 			if t > best_t:
 				best_t = t
@@ -761,6 +777,8 @@ func slot_info(i: int) -> Dictionary:
 	var party_txt := []
 	for bd in d.get("party", []):
 		party_txt.append("%s Lv%d" % [String(bd.get("nickname", "?")), int(bd.get("level", 1))])
+	if int(d.get("version", 1)) < SAVE_VERSION:
+		party_txt = ["From before the new beasts: it can't be loaded"]
 	var mid: String = d.get("map_id", "caccoon")
 	var place: String = WorldDB.map_name(mid.get_slice("#", 0))
 	var saved_at := float(d.get("saved_at", 0.0))
@@ -819,7 +837,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		return false
 	DirAccess.make_dir_recursive_absolute(save_dir())
 	var d := {
-		"version": 2,
+		"version": SAVE_VERSION,
 		"player_name": player_name, "hero": hero, "gold": gold,
 		"party": party.map(func(b): return b.to_dict()),
 		"storage": storage.map(func(b): return b.to_dict()),
@@ -848,7 +866,7 @@ func load_game(slot := -2) -> bool:
 	if slot == -2:
 		slot = current_slot if current_slot >= 0 else latest_slot()
 	var d := _read_slot(slot)
-	if d.is_empty():
+	if d.is_empty() or int(d.get("version", 1)) < SAVE_VERSION:
 		return false
 	new_game(d.get("player_name", "Andrew"), d.get("hero", {}))
 	current_slot = slot
