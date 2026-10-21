@@ -44,8 +44,8 @@ var skel: Skeleton3D
 var mats: Array[ShaderMaterial] = []
 var smoke: CPUParticles3D = null
 
-## each piece's own eyelid (eye_style.x), to close them for blinking and sleeping
-var _lids: Array[float] = []
+## how far its eyelids are shut over its own (the shader's lid_shut), for blinking and sleeping
+var _shut := -1.0
 var _joint := {}
 var _rest := {}
 var _centre := Vector3.ZERO
@@ -108,7 +108,7 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	for c in get_children():
 		c.queue_free()
 	mats.clear()
-	_lids.clear()
+	_shut = -1.0
 	ghost = as_ghost
 	var frame: String = recipe["frame"]
 	form = frame
@@ -140,7 +140,6 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 		mat.set_shader_parameter("ghost", 1.0 if ghost else 0.0)
 		mi.material_override = mat
 		mats.append(mat)
-		_lids.append(float(eyes[4]) if eyes.size() > 4 else 0.0)
 		skel.add_child(mi)
 	# one bone per part, at its joint, under its parent (the dirt round a worm in its hole stays where it is)
 	for p in PARTS:
@@ -165,7 +164,7 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	for p in fhi:
 		top = maxf(top, (fhi[p] as Vector3).y)
 	_height = top
-	_measure(meshes, flo, blo, bhi)
+	_measure(meshes, fi, blo, bhi)
 	if ghost:
 		_add_smoke(blo, bhi)
 	_t = randf() * 10.0 if OS.get_environment("RIG_CYCLE") == "" else 0.0
@@ -180,8 +179,9 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 ##   - each arm's swing to strike: from the way it points round to forward and a little down (arms it stands on: up
 ##     over its head, then down)
 ##   - how far the body sinks lying down: till its belly (on two, its seat) is on the ground, its legs folding out;
-##     flyers settle on their feet, and a worm in its hole sinks most of the way into it
-func _measure(meshes: Array, flo: Dictionary, blo: Vector3, bhi: Vector3) -> void:
+##     flyers settle on their feet, and a worm in its hole sinks into it as far as its head (on the dirt round it)
+func _measure(meshes: Array, fi: Dictionary, blo: Vector3, bhi: Vector3) -> void:
+	var flo: Dictionary = fi["lo"]
 	_feet.clear()
 	_swing.clear()
 	_fold.clear()
@@ -301,7 +301,10 @@ func _measure(meshes: Array, flo: Dictionary, blo: Vector3, bhi: Vector3) -> voi
 		"flyer":
 			_drop = (hip if hip < 9.0 else 0.0) * 0.2
 		"serpent":
-			_drop = (_height - blo.y) * 0.42 if _hole else 0.0
+			if _hole:
+				_drop = (_height - blo.y) * 0.42
+				if flo.has("head"):
+					_drop = clampf(float(flo["head"].y) - float(fi["hi"]["deco"].y) - 0.03, 0.0, _drop)
 		_:
 			_drop = 0.0
 	_ground = bottom if bottom > 0.01 and bottom < 9.0 else 0.0
@@ -662,11 +665,8 @@ func _pose() -> void:
 		skel.set_bone_pose_rotation(i, q)
 		skel.set_bone_pose_scale(i, sc)
 	# eyes half shut lying down, and a blink now and then
-	for i in mats.size():
-		var lid := lerpf(_lids[i], 0.85, lie)
-		if _blink < 0.0:
-			lid = 1.0
-		var es: Vector4 = mats[i].get_shader_parameter("eye_style")
-		if es.x != lid:
-			es.x = lid
-			mats[i].set_shader_parameter("eye_style", es)
+	var shut := 1.0 if _blink < 0.0 else lerpf(0.0, 0.85, lie)
+	if shut != _shut:
+		_shut = shut
+		for m in mats:
+			m.set_shader_parameter("lid_shut", shut)

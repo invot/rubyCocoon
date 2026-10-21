@@ -3,11 +3,15 @@ extends RefCounted
 ## Beasts are assembled from body-part "genes", so merged beasts really mix their parents' parts.
 
 const VBeast = preload("res://scripts/gfx/voxel_beast.gd")
+const BeastModel = preload("res://scripts/gfx/beast_model.gd")
+const BeastIcons = preload("res://scripts/gfx/beast_icons.gd")
 
 const BW := 40
 const BH := 40
 
 static var _cache := {}
+## renders merged beasts' icons (beast_icons.gd), once each
+static var _painter: SubViewport = null
 
 
 # ---------------------------------------------------------------- canvas helpers
@@ -122,9 +126,10 @@ static func tex(img: Image) -> ImageTexture:
 
 
 # ---------------------------------------------------------------- beasts
-## A beast's menu icon: the rendered icon of its PSX form (assets/psx/beasts/icons, made by tools/make_beast_icons.gd)
-## recoloured with its genes the way its model is; a robot's rendered icon (assets/psx/robots/icons) as it is;
-## beasts without a form get the old drawn icon.
+## A beast's menu icon: a new beast's (a line's form, or a merge of them: _rig_icon()); the rendered icon of a
+## legendary's PSX form (assets/psx/beasts/icons, made by tools/make_beast_icons.gd) recoloured with its genes the
+## way its model is; a robot's rendered icon (assets/psx/robots/icons) as it is; beasts without a form get the old
+## drawn icon.
 static func beast_texture(genes: Dictionary) -> ImageTexture:
 	var key := "beast:" + JSON.stringify(genes)
 	if _cache.has(key):
@@ -133,7 +138,9 @@ static func beast_texture(genes: Dictionary) -> ImageTexture:
 	var path := "res://assets/psx/beasts/icons/%s.res" % form
 	var robot := "res://assets/psx/robots/icons/%s.res" % String(genes.get("model", ""))
 	var t: ImageTexture
-	if form != "" and ResourceLoader.exists(path):
+	if BeastModel.rigged(genes):
+		t = _rig_icon(genes)
+	elif form != "" and ResourceLoader.exists(path):
 		t = tex(_form_icon(genes, path))
 	elif genes.has("model") and ResourceLoader.exists(robot):
 		t = load(robot)
@@ -141,6 +148,40 @@ static func beast_texture(genes: Dictionary) -> ImageTexture:
 		t = tex(beast_image(genes))
 	_cache[key] = t
 	return t
+
+
+## A new beast's icon: its form's (assets/beasts/icons, made by tools/make_new_beast_icons.gd; a ghost's in its
+## black and purple). A merge has its own rendered the first time it's shown (beast_icons.gd), its frame's showing
+## till then.
+static func _rig_icon(genes: Dictionary) -> ImageTexture:
+	var form := String(genes.get("form", ""))
+	var path := "res://assets/beasts/icons/%s%s.res" % [form, "_ghost" if BeastModel.ghostly(genes) else ""]
+	var has := ResourceLoader.exists(path)
+	var recipe: Dictionary = genes.get("recipe", {})
+	if not _own_look(recipe):
+		return load(path) if has else tex(beast_image(genes))
+	var img: Image
+	if has:
+		img = (load(path) as Texture2D).get_image()
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+	else:
+		img = Image.create(BeastIcons.SIZE, BeastIcons.SIZE, false, Image.FORMAT_RGBA8)
+	var t := tex(img)
+	if _painter == null:
+		_painter = BeastIcons.new()
+		(Engine.get_main_loop() as SceneTree).root.add_child.call_deferred(_painter)
+	_painter.paint(genes, t)
+	return t
+
+
+## Whether a merge looks other than its frame (given parts, or another parent's colours).
+static func _own_look(recipe: Dictionary) -> bool:
+	for k in recipe:
+		if k != "frame" and recipe[k] != recipe.get("frame", ""):
+			return true
+	return false
 
 
 static func _form_icon(genes: Dictionary, path: String) -> Image:
