@@ -1,6 +1,6 @@
 extends SceneTree
-## Renders the app icon: the game's own voxel Redcoon on a little floating meadow island, with sky, clouds and green
-## hills behind. Three passes, saved as 1024 x 1024 PNGs for tools/make_icon.py to cut into Android icon layers:
+## Renders the app icon: the game's old voxel Redcoon (a beast from before the 13 lines) on a little floating meadow
+## island, with sky, clouds and green hills behind. Three passes, saved as 1024 x 1024 PNGs for tools/make_icon.py to cut into Android icon layers:
 ##   <out>_full.png  everything   <out>_fg.png  island + Redcoon on transparency   <out>_bg.png  sky, clouds, hills
 ##   <out>_mono.png  the Redcoon alone on transparency (its silhouette becomes the monochrome icon)
 ## Run (needs a window, not --headless):
@@ -9,10 +9,13 @@ extends SceneTree
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
-const RaceDB = preload("res://scripts/data/race_db.gd")
-const VM = preload("res://scripts/gfx/voxel_mesher.gd")
+## (the mesher voxel_beast.gd builds its grids with)
+const VM = preload("res://scripts/gfx/lowpoly_mesher.gd")
 
 const V := 0.2  # one voxel of ground
+## The Redcoon's genes, as the old race table had them (the voxel beast's parts and colours)
+const REDCOON := {"body": "quad", "head": "round", "ears": "round", "tail": "fluffy", "back": "none", "pattern": "mask",
+	"c1": "#c43a3a", "c2": "#2e2230", "c3": "#ffcf6b", "size": 1.0, "shade": 0.0}
 
 var out := "user://icon"
 var rot := -PI / 2.0 + 0.3
@@ -239,7 +242,7 @@ func _island(parent: Node3D) -> void:
 ## The game's Redcoon with an icon-only face painted on the front of its head: big shiny eyes in its mask, a cream
 ## muzzle with a little mouth, and pink cheeks. (In the game its eyes are small dots on the sides of its head.)
 func _redcoon() -> Mesh:
-	var genes := RaceDB.genes(0)
+	var genes: Dictionary = REDCOON
 	var g: VM.Grid = VB.grid(genes)
 	var hc: Vector3 = VB._anchors(String(genes["body"]))["head"]
 	var cy := int(round(hc.y))

@@ -238,6 +238,51 @@ def nearest(a, b):
     return dd[i, j], a[i], b[j]
 
 
+def split_seams(v, n, f, part, cut=0.25):
+    """Frees a limb where the source welds it to the body (or another part) away from where it joins: an arm
+    hanging against the side, a tail lying along the back. Those shared vertices get a copy of their own for the
+    limb's faces, so the limb can swing away there instead of stretching the faces between. (Near its joint, the
+    first `cut` of its length, it stays welded and bends.)"""
+    body = np.unique(f[part == 0])
+    body_c = v[body].mean(0) if len(body) else v.mean(0)
+    v, n, f = v.copy(), n.copy(), f.copy()
+    for p in range(len(PARTS)):
+        if PARTS[p].split('_')[0] not in ('arm', 'wing', 'leg', 'tail'):
+            continue
+        mine = part == p
+        pv = np.unique(f[mine])
+        if len(pv) < 9:
+            continue
+        others = np.unique(f[~mine & (part != PARTS.index('horn')) & (part != PARTS.index('eye'))])
+        shared = np.intersect1d(pv, others)
+        if not len(shared):
+            continue
+        near, ax, length = limb_axis(v[pv], body_c)
+        far = shared[(v[shared] - near) @ ax / max(length, 1e-6) > cut]
+        if not len(far):
+            continue
+        copy = {int(vi): len(v) + i for i, vi in enumerate(far)}
+        v = np.concatenate([v, v[far]])
+        n = np.concatenate([n, n[far]])
+        sub = f[mine]
+        for vi, ci in copy.items():
+            sub[sub == vi] = ci
+        f[mine] = sub
+    return v, n, f
+
+
+def limb_axis(pts, toward):
+    """A limb's length: its main axis, from the end nearest `toward` (where it joins) to the far end: (the near end,
+    the axis outwards, the length)."""
+    c = pts.mean(0)
+    ax = np.linalg.svd(pts - c, full_matrices=False)[2][0]
+    t = (pts - c) @ ax
+    a, b = c + ax * np.percentile(t, 3), c + ax * np.percentile(t, 97)
+    if np.linalg.norm(b - toward) < np.linalg.norm(a - toward):
+        a, b, ax = b, a, -ax
+    return a, ax, np.linalg.norm(b - a)
+
+
 def rig(v, f, part):
     """Each part's joint (where it meets its parent: the body, or the head for horns and eyes on it), each vertex's
     part and how much it follows it (1 away from the joint, easing to 0 where it grows out of its parent, so a limb
@@ -255,6 +300,7 @@ def rig(v, f, part):
             on.setdefault(w[vi], set()).add(int(p))
     joints, parents = {}, {}
     weight = np.ones(len(v))
+    body_c = v[vpart == 0].mean(0) if (vpart == 0).any() else v.mean(0)
     head_i = PARTS.index('head')
     for p in order:
         if PARTS[p] == 'body':
@@ -281,6 +327,16 @@ def rig(v, f, part):
             if a is None:
                 _, a, b = nearest(v[pv], v[vpart != p])
             joint = (a + b) / 2 if a is not None else v[pv].mean(0)
+        if PARTS[p].split('_')[0] in ('arm', 'wing', 'leg', 'tail') and len(pv) > 8:
+            # a limb turns at the end of its length nearest the body (a shoulder, a hip, the root of a tail or a
+            # wing), not where it happens to touch the body (an elbow against its side, a shell sunk into it), and
+            # follows its own bone more the further out along it
+            near, ax, length = limb_axis(v[pv], body_c)
+            along = (joint - near) @ ax / max(length, 1e-6)
+            if not border or along > 0.12:
+                joint = near + ax * length * 0.06
+            t = (v[pv] - joint) @ ax / max(length, 1e-6)
+            weight[pv] = np.clip(t / 0.2, 0.0, 1.0) ** 0.7 if border else 1.0
         joints[PARTS[p]] = np.round(joint, 4).tolist() if PARTS[p] not in joints else joints[PARTS[p]]
         parents[PARTS[p]] = PARTS[parent]
     # horns and eyes don't move by themselves: each piece of them is fixed to the part it's on (a spike on the back
@@ -290,9 +346,14 @@ def rig(v, f, part):
     for p in (PARTS.index('horn'), PARTS.index('eye')):
         isl = islands(f, w, part == p)
         for k in range(isl.max() + 1):
-            iv = np.unique(f[isl == k])
-            iv = iv[vpart[iv] == p]
-            if len(iv) and others:
+            fv = np.unique(f[isl == k])
+            iv = fv[vpart[fv] == p]
+            # the part it grows out of (whose vertices its faces share), else the nearest
+            grown = [q for q in vpart[fv].tolist() if q in others]
+            if len(iv) and grown:
+                attach[iv] = max(set(grown), key=grown.count)
+                weight[iv] = 1.0
+            elif len(iv) and others:
                 attach[iv] = min(others, key=lambda q: nearest(v[iv], v[vpart == q])[0])
                 weight[iv] = 1.0
     return vpart, attach, weight, joints, parents
@@ -359,6 +420,7 @@ def bake(src, name, spec, debug_dir=None):
     lab = pieces(v, f)
     st = stats(v, f, lab)
     part, isl, names = label(v, f, lab, st, spec)
+    v, n, f = split_seams(v, n, f, part)
     vpart, attach, weight, joints, parents = rig(v, f, part)
     if 'ground' in spec:
         lo = np.array([0.0, spec['ground'], 0.0])

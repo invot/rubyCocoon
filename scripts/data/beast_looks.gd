@@ -23,7 +23,9 @@ const LINES := {
 		"3": {"eyes": [0.085, 0.765, 0.04, 0.171, 0.4, 0.9, 0.5, 0.0]}},
 	"scorpion": {"base": {"col": {"body": "#3fc463", "head": "#3fc463", "arms": "#1f9d5e", "legs": "#8e4fd0", "tail": "#3fc463", "horn": "#9b5bd8"},
 			"tip": {"tail": ["#9b5bd8", 0.8, 0.05]}, "belly": ["#5fd67e", 0.7, ["body"]]},
-		# 1, 2: modelled eyes; 3: round eyes under its purple lids
+		# 1, 2: painted over their eyeballs (so they blink); 3: round eyes under its purple lids
+		"1": {"eyes": [0.16, 0.615, 0.07, 0.13, 0.4, -0.8, 0.45, 0.0]},
+		"2": {"eyes": [0.097, 0.56, 0.065, 0.194, 0.4, -0.9, 0.45, 0.0]},
 		"3": {"eyes": [0.072, 0.758, 0.036, 0.05, 0.0, -0.9, 0.55, 0.0]}},
 	"berry": {"base": {"col": {"body": "#2f6fe0", "arms": "#5cb84a", "horn": "#5fb14a"},
 			"tip": {"arms": ["#e8409a", 0.72, 0.0]}},
@@ -40,12 +42,17 @@ const LINES := {
 		"3": {"eyes": [0.046, 0.71, 0.03, 0.064, 0.4, 0.9, 0.5, 0.0]}},
 	"cactus": {"base": {"col": {"body": "#5cc552", "head": "#5cc552", "arms": "#4fb048", "legs": "#4fb048", "horn": "#ff9a4a"},
 			"tip": {"horn": ["#ff5468", 0.55, 0.35]}, "stripes": {"body": ["#3e9a3e", 9]}, "lid": "#3e9a3e"},
-		# 1, 3: modelled eyes
-		"2": {"eyes": [0.075, 0.622, 0.05, 0.13, 0.45, -0.7, 0.5, 0.0]}},
+		# 1, 3: painted over their eyeballs (so they blink)
+		"1": {"eyes": [0.125, 0.79, 0.1, 0.086, 0.35, -0.7, 0.45, 0.0]},
+		"2": {"eyes": [0.075, 0.622, 0.05, 0.13, 0.45, -0.7, 0.5, 0.0]},
+		"3": {"eyes": [0.078, 0.752, 0.064, 0.091, 0.4, -0.9, 0.45, 0.0]}},
 	"crab": {"base": {"col": {"body": "#e8304e", "head": "#e8304e", "arms": "#e83a50", "legs": "#36c6d6", "horn": "#e8304e", "tail": "#e8304e"},
 			"belly": ["#ffd21f", 0.6, ["body"]], "lid": "#e8304e"},
-		# its eye part is only a scrap of one eye: painted on the fronts of its stalks
-		"1": {"eyes": [0.135, 0.68, 0.05, 0.155, 0.35, -0.8, 0.55, 0.0]}},
+		# painted on the fronts of its eye stalks (1's eye part is only a scrap of one) and eyeballs (2, 3: as sculpted,
+		# under an angry lid, rather than the eye part's own forward-facing pupil)
+		"1": {"eyes": [0.135, 0.68, 0.05, 0.155, 0.35, -0.8, 0.55, 0.0]},
+		"2": {"eyes": [0.125, 0.86, 0.058, -0.089, 0.45, -0.8, 0.5, 0.0]},
+		"3": {"eyes": [0.085, 0.885, 0.05, -0.02, 0.4, -0.8, 0.5, 0.0]}},
 	"owl": {"base": {"col": {"body": "#f0882a", "head": "#f0882a", "wings": "#ffc22e", "legs": "#f5a030", "tail": "#ffc22e", "horn": "#ffcf3a"},
 			"tip": {"wings": ["#e06a1e", 0.78, 0.1]}, "belly": ["#ffb050", 0.68, ["body"]], "lid": "#c86a20"},
 		# (1's eye part is only a scrap of a brow)

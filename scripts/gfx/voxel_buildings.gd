@@ -4,7 +4,7 @@ extends RefCounted
 
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
-const VB = preload("res://scripts/gfx/voxel_beast.gd")
+const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const HouseBuilder = preload("res://scripts/gfx/house_builder.gd")
@@ -644,10 +644,9 @@ static func _pack_skytower(node: Node3D, st: Dictionary, w: float, d: float, doo
 	_column(k, "color", Vector3(sp.x, gy, sp.y), 0.04, 2.4, 4, trim)
 	k.box("color", Vector3(sp.x - 0.4, gy + 2.25, sp.y), Vector3(0.6, 0.28, 0.28), Color("#e84a3a"))
 	k.box("color", Vector3(sp.x - 0.85, gy + 2.22, sp.y), Vector3(0.35, 0.2, 0.2), Color("#f4f0e8"))
-	var bird := MeshInstance3D.new()
-	bird.mesh = VB.mesh(RaceDB.genes(43))
-	bird.scale = Vector3(1.25, 1.25, 1.25)
-	# on the front of the gallery, facing the street, its wings spread along the rail
+	# Tempestrix, the owl line's last form, hovering on the front of the gallery, facing the street, its wings
+	# beating over the rail (beast_rig.gd)
+	var bird := BeastModel.rig(RaceDB.genes(RaceDB.of_form("owl_3")), 1.25)
 	bird.position = Vector3(c.x, gy, c.y + deck_r * 0.82)
 	bird.rotation.y = -PI / 2.0
 	bird.name = "Bird"

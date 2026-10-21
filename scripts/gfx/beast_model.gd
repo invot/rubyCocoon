@@ -47,6 +47,18 @@ static func height(r: Rig) -> float:
 	return (r.height() + (Rig.HOVER if r.kind == "flyer" else 0.0)) * r.scale.y
 
 
+## A rig's bounds in its own space, its pieces as they stand at rest (a flyer hovering).
+static func bounds(r: Rig) -> AABB:
+	var bb := AABB()
+	var first := true
+	for mi in r.find_children("*", "MeshInstance3D", true, false):
+		var xf: Transform3D = r.pivot.transform * r.skel.transform * (mi as MeshInstance3D).transform
+		var b: AABB = xf * (mi as MeshInstance3D).get_aabb()
+		bb = b if first else bb.merge(b)
+		first = false
+	return bb
+
+
 ## A rig cast as a statue: every piece in one material, holding still in its first pose.
 static func cast(r: Rig, mat: Material) -> void:
 	r.set_process(false)

@@ -185,7 +185,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Brass & Reed Music** in Cogsworth: Maestro Clef plays one song from his book for free, once. Play it back from memory to learn it. He also sells sheet music, which you can practise from your bag until you get it right.
   - **Flute trainers** play their own songs in battle: four route bards, three arena masters, Commander Nyx and General Vexmora. Win, then play the song back **without a single mistake** to learn it. Bards and arena masters will battle again for an encore.
 - **Fast travel**:
-  - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Thunderhawk flies you to any town you've visited, for a fee.
+  - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Tempestrix flies you to any town you've visited, for a fee.
   - Once you own an air beast of **Lv 40+**, pick *Fly* on the Trainer page of the Start book to travel from anywhere outdoors.
 - **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door. Each machine has its own bay along the back wall.
   - The **healing machine** is a giant soda can with a black glass window and a slot per beast. Use it yourself, any time, for free.
@@ -204,7 +204,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 ## Art: voxels
 
-- **App icon**: the game's own voxel Redcoon (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
+- **App icon**: the game's old voxel Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
 - **World and props** come from the voxel packs in `voxelassets/`. They are converted to OBJ plus palette PNG by `tools/import_voxel_assets.py`, which uses `tools/vox2obj.py` for `.vox` files. The models are imported into `assets/voxel/` and listed in `scripts/data/voxel_manifest.gd`. To re-import:
 
   ```
@@ -250,7 +250,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   striped awning and pennants) behind a crenellated gatehouse between two turrets, in each region's stone;
   **Sparkwire Electronics** is a streamlined shop with a curved glass corner, a wrap-round canopy, a drum carrying a
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
-  stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Thunderhawk on the rail.
+  stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Tempestrix on the rail.
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
 - **Inside**, walls between the camera and you fade rather than sink (`room_builder.gd` `fade`): in a cone opening from
   you towards the camera, a wall ahead of you is clear, about 70% opaque while you pass through its doorway, and solid
@@ -419,7 +419,7 @@ godot --path . --resolution 2400x1080 -- --touch --scene=battle --keys=r,r,r,a,a
 godot --headless --path . -- --scene=sim --n=10                          # simulated auto battles
 godot --headless --path . -- --scene=flow                                # scripted run through the whole story
 godot --path . -- --scene=knock                                         # knock on locked doors (a Tidewater house, the cathedral)
-godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Thunderhawk
+godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Tempestrix
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery (pages 0-3, 4 = merges)
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above

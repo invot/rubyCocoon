@@ -438,7 +438,9 @@ func mark_seen(b: Beast) -> void:
 
 
 # ---------------------------------------------------------------- eggs & shield
+## An egg always hatches as its line's first form (a Pyrosaur's egg is an Embit's).
 func add_egg(race: int, ghost := false) -> void:
+	race = RaceDB.first_form(race)
 	var kind := RaceDB.element(race)
 	if RaceDB.is_legendary(race):
 		kind = "legendary"
@@ -698,7 +700,7 @@ func kennel_beast(town: String) -> Beast:
 		if r["from"] == town or r["to"] == town:
 			races += r["races"]
 	if races.is_empty():
-		races = [0, 25, 38, 21]
+		races = [0, 15, 36, 27]
 	var b := Beasts.create(int(races.pick_random()), clampi(party_level() + randi_range(-2, 1), 1, 99))
 	b.abandoned = true
 	b.origin = "trade"

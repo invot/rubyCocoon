@@ -73,7 +73,7 @@ vec3 painted_eye(vec3 c) {
 		float lid = max(st.x, lid_shut);
 		float shut = lid * lid;
 		float lk = 0.45 * angry * (1.0 - shut);
-		float above = (p.y - 1.2 + 1.95 * shut - lk * p.x) / sqrt(1.0 + lk * lk);
+		float above = (p.y - 1.2 + 2.1 * shut - lk * p.x) / sqrt(1.0 + lk * lk);
 		if (above > 0.0) {
 			return above < 0.14 ? eye_dark : lid_col;
 		}
@@ -95,8 +95,8 @@ void fragment() {
 	vec3 c = part_col[part];
 	float t = attr.g;
 	if (part == EYE) {
-		// white with a pupil where it looks forward (t: its normal's x); with painted eyes (where the eye part is only
-		// a scrap of one), the face's colour with them painted on
+		// white with a pupil where it looks forward (t: its normal's x); with painted eyes, the face's colour with them
+		// painted on it, as on the face (so a sculpted eyeball blinks with them)
 		c = eye_pos[0].z > 0.0 ? painted_eye(c) : (t > 0.82 ? eye_dark : (t > 0.74 ? vec3(0.3) : vec3(0.97, 0.96, 0.94)));
 	} else {
 		if (tip_from[part] <= 1.0) {
