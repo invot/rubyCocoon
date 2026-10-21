@@ -1303,9 +1303,9 @@ func _build_model(root: Node3D, b) -> void:
 
 ## A beast's rig on the field, or null (not on it, or drawn the old way).
 func _rig(b) -> Node3D:
-	if not nodes.has(b) or not is_instance_valid(nodes[b]):
+	if not nodes.has(b) or not is_instance_valid(nodes[b]) or not nodes[b].has_meta("rig"):
 		return null
-	var r = nodes[b].get_meta("rig", null)
+	var r = nodes[b].get_meta("rig")
 	return r if is_instance_valid(r) else null
 
 

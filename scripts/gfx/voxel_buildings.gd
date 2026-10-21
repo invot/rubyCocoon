@@ -560,7 +560,7 @@ static func _diner_pylon(node: Node3D, k: Kit, w: float, d: float, door_lx: floa
 ## The Sky Tower: an eight-sided lookout of the house pack's walls in the town's wall finish, three storeys that step
 ## in as they rise (the door on the front face, small windows round about, a rib up every corner and a ledge at every
 ## floor), then a gallery on brackets with a railing all round, a glazed lantern room under a pointed roof with a
-## weathervane, a windsock, and the Thunderhawk perched on the gallery.
+## weathervane, a windsock, and Tempestrix (the owl line's last form) hovering at the gallery.
 static func _pack_skytower(node: Node3D, st: Dictionary, w: float, d: float, door_lx: float) -> void:
 	var hb = HouseBuilder.new()
 	hb.node = node
