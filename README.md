@@ -227,8 +227,12 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - `beast_rig.gd` builds a beast on its skeleton and moves it by hand: a bouncy idle, walking (a trot on four legs,
     a waddle on two, a wriggle, a hop, flying), lying down, and attacking; ghosts trail smoke. `beast_parts.gd` puts
     merged beasts together from their parents' parts.
-  - The four legendary guardians are still the PSX creature models (`assets/psx/beasts/`, recoloured by
-    `voxel_beast.gd`).
+  - `beast_model.gd` picks what a beast is drawn with, everywhere (battle, the overworld, portraits): the rig for the
+    lines' forms and their merges. The four legendary guardians are still the PSX creature models
+    (`assets/psx/beasts/`, recoloured by `voxel_beast.gd`).
+  - Menu icons: `tools/make_new_beast_icons.gd` renders every form and its ghost into `assets/beasts/icons/` (run it
+    with a display: `godot --path . --script res://tools/make_new_beast_icons.gd`); a merge shows its frame's icon
+    until the game has rendered its own (`beast_icons.gd`).
 - **Gearhart robots** (`RaceDB.ROBOTS`) are PSX robots: the Clockwork Sentry with a wind-up key, the boiler-bodied
   Steam Mecha and the broad Iron Golem from Bricchi Games' Retro Robots, and the boxy Tank Walker from CokeEnthusiast's
   Robot guy (`RaceDB.ROBOT_MODELS`). `tools/import_psx_robots.gd` bakes them into `assets/psx/robots/` (T-posed arms
@@ -399,14 +403,14 @@ scripts/
   data/        race_db, move_db, item_db, song_db, world_db (towns, routes, temples, obstacles, biomes), voxel_manifest
   data/maps/   hand-made ASCII maps: towns, routes, room templates
   core/        beast.gd (a beast instance, growing up), beasts.gd (creation, merging, legendary dominance), ring.gd (the battle ring)
-  gfx/         beast_rig, beast_parts, beast_toon.gdshader (the beasts), voxel_mesher (greedy mesher), voxel_beast, voxel_person, voxel_buildings, voxel_props, voxel_textures, voxel_assets
+  gfx/         beast_rig, beast_parts, beast_model, beast_icons, beast_toon.gdshader (the beasts), voxel_mesher (greedy mesher), voxel_beast, voxel_person, voxel_buildings, voxel_props, voxel_textures, voxel_assets
   data/        ... beast_looks (each beast line's colours)
   world/       map_loader.gd (ASCII → map), world.gd (voxel overworld + interiors), map_gen.gd (tile types)
   battle/      battle.gd (ring battles, trainer turn, shields, egg drops), command_panel.gd (the stacked command rows)
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, make_new_beast_icons.gd, check_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
@@ -421,7 +425,7 @@ godot --headless --path . -- --scene=flow                                # scrip
 godot --path . -- --scene=knock                                         # knock on locked doors (a Tidewater house, the cathedral)
 godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Tempestrix
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
-godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery (pages 0-3, 4 = merges)
+godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery as the game draws them (pages 0-3: the forms, then the legendaries; 4 = merges)
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
 godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
