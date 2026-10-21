@@ -160,9 +160,10 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 		# (a mesh isn't bound to the skeleton it sits under until it's told so)
 		(mi as MeshInstance3D).skeleton = NodePath("..")
 		(mi as MeshInstance3D).skin = skin
+	# (measured on what was built: a merge can stand taller than its frame)
 	var top := 0.0
-	for p in fhi:
-		top = maxf(top, (fhi[p] as Vector3).y)
+	for m in meshes:
+		top = maxf(top, (m as Mesh).get_aabb().end.y)
 	_height = top
 	_measure(meshes, fi, blo, bhi)
 	if ghost:

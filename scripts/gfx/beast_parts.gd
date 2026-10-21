@@ -28,9 +28,11 @@ const DEEP := 0.1
 ## is only the tip of the one its body ends in); "move": [part, from, lo, hi]: the
 ## vertices of part `from` in that box are `part`'s (the beetle's beak is its head's, its hands are labelled feet
 ## and so is the ridge down its back; the crab's front legs are labelled back legs);
-## "join": [part, lo, hi]: the pieces of only body in that box are `part`'s (the crab's legs' upper joints)
+## "join": [part, lo, hi]: the pieces in that box are `part`'s (the dino's hands, labelled feet; the crab's legs'
+## upper joints)
 const FIX := {
-	"dino_3": {"slight": ["tail"]},
+	"dino_3": {"slight": ["tail"], "join": [["arm_l", Vector3(0.12, 0.1, -0.36), Vector3(0.4, 0.45, -0.1)],
+		["arm_r", Vector3(0.12, 0.1, 0.1), Vector3(0.4, 0.45, 0.36)]]},
 	"owl_3": {"slight": ["head"]},
 	"cactus_3": {"slight": ["legs"]},
 	"beetle_3": {"move": [["head", "body", Vector3(0.15, 0.5, -0.12), Vector3(0.4, 0.7, 0.12)],
@@ -54,9 +56,9 @@ static var _forms := {}
 ## How a merge of a and b is put together: {frame, colours, head/arms/wings/tail/legs: the form each comes from}.
 ## The parent that isn't the frame gives two of its parts (three now and then; one if it has no more), bigger ones
 ## and ones the frame lacks likelier: a head only onto a frame with a head of its own (a face drawn on the body stays
-## the body's), legs only onto legs. Which parent gives the frame turns round, mostly, when that lets the other give
-## more; and the other mostly gives the colours too when it gives only one part. Everything in it is a String, so it
-## keeps as it is (in a merged beast's genes).
+## the body's), legs only onto legs. Which parent gives the frame turns round when that lets the other give more (or
+## bigger); and the other mostly gives the colours too when it gives only one part. Everything in it is a String, so it keeps
+## as it is (in a merged beast's genes).
 static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_n
@@ -64,7 +66,7 @@ static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
 	var other := b if frame == a else a
 	var can := givable(info(other), info(frame))
 	var back := givable(info(frame), info(other))
-	if can.size() < mini(2, back.size()) and (can.is_empty() or rng.randf() < 0.7):
+	if can.size() < mini(2, back.size()) or (can.size() == back.size() and weight(can) < 0.6 * weight(back)):
 		var was := frame
 		frame = other
 		other = was
@@ -72,10 +74,7 @@ static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
 	var want := mini(can.size(), 2 + (1 if rng.randf() < 0.35 else 0))
 	var r := {"frame": frame, "colours": other if rng.randf() < (0.5 if want > 1 else 0.75) else frame}
 	for i in want:
-		var total := 0.0
-		for g in can:
-			total += float(can[g])
-		var x := rng.randf() * total
+		var x := rng.randf() * weight(can)
 		var pick: String = can.keys()[can.size() - 1]
 		for g in can:
 			x -= float(can[g])
@@ -87,8 +86,17 @@ static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
 	return r
 
 
+## How much a givable() gives, all told.
+static func weight(can: Dictionary) -> float:
+	var sum := 0.0
+	for g in can:
+		sum += float(can[g])
+	return sum
+
+
 ## What donor `di` can give frame `fi` (info()s): {group: how likely}, by its size against the donor's body, and more
-## for what the frame lacks; legs only of about the frame's length (stretched much, they'd look like stilts).
+## for what the frame lacks; legs only of about the frame's length (stretched much, they'd look like stilts), and no
+## arms to a frame that stands on its own.
 static func givable(di: Dictionary, fi: Dictionary) -> Dictionary:
 	var out := {}
 	var slight_d: Array = FIX.get(di["form"], {}).get("slight", [])
@@ -99,7 +107,7 @@ static func givable(di: Dictionary, fi: Dictionary) -> Dictionary:
 		var lacks: bool = not has_group(fi, g) or g in slight_f
 		if lacks and (g == "head" or g == "legs"):
 			continue
-		if g == "legs" and not legs_fit(fi, di):
+		if (g == "legs" and not legs_fit(fi, di)) or (g == "arms" and on_arms(fi)):
 			continue
 		var big := 0.0
 		for p in GROUPS[g]:
@@ -121,6 +129,18 @@ static func legs_fit(fi: Dictionary, di: Dictionary) -> bool:
 			if sy < 0.5 or sy > 2.0 or girth(di, src) * clampf(s, sy * 0.8, sy * 1.25) < 0.5 * girth(fi, p):
 				return false
 	return true
+
+
+## Whether a form stands on its arms (by regions()): they reach the ground, and neither its body nor a leg does.
+static func on_arms(fi: Dictionary) -> bool:
+	var arms := false
+	for p in fi["clo"]:
+		var low: float = (fi["clo"][p] as Vector3).y
+		if p.begins_with("arm_"):
+			arms = arms or low < 0.03
+		elif (p == "body" or p.begins_with("leg_")) and low < 0.03:
+			return false
+	return arms
 
 
 ## How thick a part is (by regions()): its larger measure across.
@@ -220,13 +240,13 @@ static func regions(fi: Dictionary) -> void:
 		if not cells.has(c):
 			cells[c] = []
 		cells[c].append(i)
-	# a piece of only body in a box of "join" is that part's
+	# a piece in a box of "join" is that part's
 	for fx in fix.get("join", []):
 		for key in piece:
 			var vs: Array = piece[key]
 			var inside := true
 			for i in vs:
-				inside = inside and lab[i] == 0 and verts[i].clamp(fx[1], fx[2]) == verts[i]
+				inside = inside and verts[i].clamp(fx[1], fx[2]) == verts[i]
 			if inside:
 				for i in vs:
 					lab[i] = PARTS.find(fx[0])
@@ -502,7 +522,8 @@ static func socket(fi: Dictionary, p: String) -> Vector3:
 		"head":
 			at = Vector3(lerpf(c.x, bhi.x, 0.5), c.y, 0.0)
 		"arm_l", "arm_r":
-			at = Vector3(lerpf(c.x, bhi.x, 0.3 if upright else 0.55), lerpf(blo.y, bhi.y, 0.62 if upright else 0.45), 0.0)
+			at = Vector3(lerpf(c.x, bhi.x, 0.3 if upright else 0.55), lerpf(blo.y, bhi.y, 0.62 if upright else 0.45),
+				0.0)
 			out = Vector3(0.0, 0.0, side)
 		"wing_l", "wing_r":
 			at = Vector3(c.x if upright else lerpf(c.x, blo.x, 0.15), lerpf(blo.y, bhi.y, 0.75) if upright else c.y,
@@ -655,9 +676,14 @@ static func cut(di: Dictionary, keep: Dictionary, moves: Dictionary) -> ArrayMes
 			nc.append(src_c[i])
 			nu.append(src_u[i])
 			nu2.append(src_u2[i])
-			for k in 4:
-				nb.append(bones[i * 4 + k])
-				nw.append(src_w[i * 4 + k])
+			if keep.has(PARTS[bones[i * 4]]):
+				for k in 4:
+					nb.append(bones[i * 4 + k])
+					nw.append(src_w[i * 4 + k])
+			else:
+				# (kept, though fixed to a part it gives up: now to what that part grew out of)
+				nb.append_array([bones[i * 4 + 1], 0, 0, 0])
+				nw.append_array([1.0, 0.0, 0.0, 0.0])
 		for t in range(0, idx.size(), 3):
 			if take[idx[t]] >= 0 and take[idx[t + 1]] >= 0 and take[idx[t + 2]] >= 0:
 				ni.append_array([take[idx[t]], take[idx[t + 1]], take[idx[t + 2]]])
