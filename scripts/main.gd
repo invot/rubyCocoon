@@ -1949,6 +1949,10 @@ func _battlecmd_test() -> void:
 	var air_c := Beasts.create(30, 20)
 	var water := Beasts.create(24, 20)
 	fire_b.moves.append("fire_spin")
+	# (sturdy, so none of them falls by chance before the test downs it)
+	for b in [fire_a, fire_b, air_c]:
+		b.base["hp"] = float(b.base["hp"]) * 4.0
+		b.hp = b.max_hp()
 	GameState.beast_slots = 4
 	GameState.party = [fire_a, fire_b, air_c, water]
 	fire_a.slot = 7
