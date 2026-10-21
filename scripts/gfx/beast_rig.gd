@@ -167,7 +167,7 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	_measure(meshes, fi, blo, bhi)
 	if ghost:
 		_add_smoke(blo, bhi)
-	_t = randf() * 10.0 if OS.get_environment("RIG_CYCLE") == "" else 0.0
+	_t = randf() * 10.0
 	_pose()
 
 
@@ -400,12 +400,6 @@ func _process(delta: float) -> void:
 	if skel == null:
 		return
 	_t += delta
-	if OS.get_environment("RIG_CYCLE") != "":
-		var was_k := int((_t - delta) / 1.2)
-		var k := int(_t / 1.2)
-		state = ["idle", "walk", "lie", "idle", "walk", "idle"][k % 6]
-		if k != was_k and k % 6 == 3:
-			attack()
 	_walk = move_toward(_walk, 1.0 if state == "walk" else 0.0, delta * 4.0)
 	_lie = move_toward(_lie, 1.0 if state == "lie" else 0.0, delta * 1.4)
 	# (slow breaths lying down)

@@ -54,13 +54,7 @@ func render(genes: Dictionary) -> Image:
 		r.smoke.hide()
 	add_child(r)
 	# framed by its pieces as they stand
-	var bb := AABB()
-	var first := true
-	for mi in r.find_children("*", "MeshInstance3D", true, false):
-		var xf: Transform3D = r.transform * r.pivot.transform * r.skel.transform * (mi as MeshInstance3D).transform
-		var b: AABB = xf * (mi as MeshInstance3D).get_aabb()
-		bb = b if first else bb.merge(b)
-		first = false
+	var bb: AABB = r.transform * BeastModel.bounds(r)
 	var c := bb.get_center()
 	var off := Vector3(0.0, 1.2, 4.0)
 	# (set as a transform: the viewport may not be in the tree yet)

@@ -39,11 +39,12 @@ const DIGGER_LOOK := {"skin": "#c8b8a8", "hair": "#7a7a7a", "shirt": "#4a4048", 
 const GRUNT_LOOK := {"skin": "#d8b8a0", "hair": "#20182a", "shirt": "#2a2038", "pants": "#18121f", "hat": "#4a2a6a", "outfit": "armor"}
 const UNCLE_LOOK := {"skin": "#e0b088", "hair": "#6a3a20", "shirt": "#3a7a8a", "pants": "#3a3a48", "hat": "#e8d8a0", "outfit": "coat"}
 
+## Elder Rowan's four eggs (RaceDB.STARTERS), by the line's first form.
 const EGG_BLURB := {
-	1: "A warm, flickering egg. Fire beasts are offensive tanks: tough and hard-hitting.",
-	12: "A cool, rippling egg. Water beasts are healers who keep the team alive.",
-	24: "A heavy, pebbly egg. Earth beasts are defenders who shield their friends.",
-	36: "A light, breezy egg. Air beasts are tricksters of status and evasion.",
+	0: "A warm, flickering egg. Fire beasts are offensive tanks: tough and hard-hitting.",
+	24: "A cool, rippling egg. Water beasts are healers who keep the team alive.",
+	12: "A heavy, pebbly egg. Earth beasts are defenders who shield their friends.",
+	30: "A light, breezy egg. Air beasts are tricksters of status and evasion.",
 }
 const RELICS := {
 	"sun": {"name": "Sun Relic", "map": "vinehollow", "anchor": "relic_sun"},
@@ -102,7 +103,7 @@ func _bridge_flag() -> String:
 
 
 ## Coach Ondine's beast for the side of your ring facing the foe: one that's weak to that side's element.
-const WEAK_FOES := {"fire": 37, "water": 24, "air": 2}
+const WEAK_FOES := {"fire": 36, "water": 12, "air": 3}
 
 
 ## True once a town's arena lessons are all done (always, for a town without any).
@@ -166,13 +167,13 @@ func extra_npcs(map: Dictionary) -> Array:
 		"route9":
 			if _has_anchor(map, "warden") and not GameState.flag("warden_beaten"):
 				out.append({"kind": "story", "id": "warden", "name": "Warden Kato", "pos": _at(map, "warden", plaza), "story": true, "facing": Vector2i(0, -1),
-					"flag": "warden_beaten", "look": SHAMAN_LOOK, "team": [[31, 41], [15, 41], [47, 42]],
+					"flag": "warden_beaten", "look": SHAMAN_LOOK, "team": [[18, 41], [27, 41], [33, 42]],
 					"lines": ["Stop. Beyond this crossing the jungle grows wild and old.", "Only trainers strong enough to protect it may pass. Show me!"],
 					"defeat": "Your beasts fight with a good heart. Go, and tread softly."})
 		"route10":
 			if _has_anchor(map, "sentinel") and not GameState.flag("sentinel_beaten"):
 				out.append({"kind": "story", "id": "sentinel", "name": "Sentinel Morrow", "pos": _at(map, "sentinel", plaza), "story": true, "facing": Vector2i(-1, 0),
-					"flag": "sentinel_beaten", "look": GRUNT_LOOK, "team": [[23, 47, true], [41, 47, true], [9, 48, true]],
+					"flag": "sentinel_beaten", "look": GRUNT_LOOK, "team": [[21, 47, true], [33, 47, true], [0, 48, true]],
 					"lines": ["No one reaches Gravenmoor. General Vexmora's orders.", "Turn back, or join the shadows!"],
 					"defeat": "The General... will not be pleased..."})
 		"route2":
@@ -190,7 +191,7 @@ func extra_npcs(map: Dictionary) -> Array:
 			if _has_anchor(map, "grunt_a"):
 				out.append({"kind": "trainer", "pos": _at(map, "grunt_a", plaza), "facing": Vector2i(0, 1), "sight": 2, "flag": "tr_gravenmoor_gate",
 					"name": "Grunt Vesper", "cls": "Umbral Legion", "look": GRUNT_LOOK, "legion": true,
-					"team": [[23, 44, true], [9, 44, true], [38, 45, true]], "lines": ["The cathedral is closed by order of General Vexmora!"],
+					"team": [[27, 44, true], [6, 44, true], [36, 45, true]], "lines": ["The cathedral is closed by order of General Vexmora!"],
 					"defeat": "Fine... go in. Commander Nyx will finish you.", "vanish": true})
 	for k in RELICS:
 		var r: Dictionary = RELICS[k]
@@ -282,7 +283,7 @@ func on_map_enter(world) -> void:
 func _intro() -> void:
 	GameState.set_flag("intro_done")
 	await UI.say([
-		"Cocoon Cove: a sleepy seaside hamlet, where Redcoons nap on every rooftop.",
+		"Cocoon Cove: a sleepy seaside hamlet, where Embits nap on every sunny rooftop.",
 		"For generations, trainers from the Cove have raised beasts of fire, water, earth and air.",
 		"But lately, travellers whisper of the Umbral Legion and their ghost beasts, black as night and stronger than any element.",
 		"Today, %s is finally old enough to raise a beast of their own." % GameState.player_name,
@@ -325,7 +326,7 @@ func uncle_lessons() -> bool:
 	if GameState.capture_level() == 0:
 		await UI.say(["Now the important one: Capture. Play it for a wild beast and it might choose to join you.",
 			"It works on beasts up to level %d, as long as one of your own beasts is at least as strong." % SongDB.CAPTURE_CAPS[0],
-			"Play it flawlessly, without a single wrong note, and even a stronger beast might listen. Your father caught a Thunderhawk that way once. Allegedly. I wasn't there.",
+			"Play it flawlessly, without a single wrong note, and even a stronger beast might listen. Your father caught a Tempestrix that way once. Allegedly. I wasn't there.",
 			"Speed matters here too: finish in the green and a beast is far likelier to listen. In the red, your odds are about half.",
 			"Same as before: listen, remember, play it back. This time you're on your own!"], who)
 		if not await Places.learn_attempts(SongDB.capture_id(1), who, 0.0, {"lesson": true}):
@@ -894,7 +895,7 @@ func _culprit(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Ha! Your beasts can barely stand. Scram!"], "Smuggler Rook")
 		return
-	var res := await trainer_battle({"name": "Rook", "cls": "Smuggler", "boss": true, "team": [[17, 7], [40, 8]], "look": SMUGGLER_LOOK,
+	var res := await trainer_battle({"name": "Rook", "cls": "Smuggler", "boss": true, "team": [[21, 7], [33, 8]], "look": SMUGGLER_LOOK,
 		"defeat": "Alright, alright! I'll give the nets back. And I'll tell the chiefs everything...", "reward": 900})
 	if res == "win":
 		GameState.set_flag("culprit_beaten")
@@ -919,7 +920,7 @@ func _sheriff() -> void:
 	GameState.set_flag("met_sheriff")
 	await UI.say(["Howdy, stranger. Mind yourself in Sundown. Black Bart's gang has this town by the throat.",
 		"They raid our stores, then hole up in their hideout out on the Dune Sea road. They've barricaded the road north, too.",
-		"I'm one sheriff with one old Dustdevil. If you're half the trainer you look, go teach those varmints some manners.",
+		"I'm one sheriff with one old Galeberry. If you're half the trainer you look, go teach those varmints some manners.",
 		"Their hideout's a door in the rocks, just north of town."], "Sheriff Dalton")
 
 
@@ -945,7 +946,7 @@ func _ceo(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Hah! Your beasts are already broken. Security will see you out."], "Magnus Gearhart")
 		return
-	var res := await trainer_battle({"name": "Gearhart", "cls": "CEO", "boss": true, "team": [[53, 34], [54, 35], [55, 35], [52, 36]],
+	var res := await trainer_battle({"name": "Gearhart", "cls": "CEO", "boss": true, "team": [[44, 34], [45, 35], [46, 35], [43, 36]],
 		"look": n.get("look", {}), "defeat": "Impossible... My machines... my fortune...", "reward": 6000})
 	if res == "win":
 		GameState.set_flag("ceo_defeated")
@@ -1026,7 +1027,7 @@ func _nyx(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Come back when your beasts can stand."], "Commander Nyx")
 		return
-	var res := await trainer_battle({"name": "Nyx", "cls": "Commander", "boss": true, "team": [[3, 49, true], [18, 49, true], [29, 50, true]],
+	var res := await trainer_battle({"name": "Nyx", "cls": "Commander", "boss": true, "team": [[3, 49, true], [24, 49, true], [18, 50, true]],
 		"look": n.get("look", {}), "song": "discord", "flute_skill": 0.85, "defeat": "General... forgive me.", "reward": 5000})
 	if res == "win":
 		GameState.set_flag("nyx_defeated")
@@ -1043,7 +1044,7 @@ func _finale(world, n: Dictionary) -> void:
 	await UI.say(["So the child from Cocoon Cove made it all the way to my crypt.",
 		"Every ghost beast in this place answers to me. They have no weakness. No fear. No mercy.",
 		"With them, the Legion will take every town from the coast to the jungle. Starting with you."], "General Vexmora")
-	var res := await trainer_battle({"name": "Vexmora", "cls": "General", "boss": true, "team": [[7, 54, true], [23, 54, true], [43, 55, true], [35, 56, true]],
+	var res := await trainer_battle({"name": "Vexmora", "cls": "General", "boss": true, "team": [[9, 54, true], [21, 54, true], [30, 55, true], [12, 56, true]],
 		"look": n.get("look", {}), "song": "dread", "flute_skill": 0.9, "defeat": "...The light in your beasts. It's stronger than any shadow.", "reward": 12000})
 	if res != "win":
 		return
@@ -1111,8 +1112,9 @@ func trainer_battle(def: Dictionary) -> String:
 	return res
 
 
-## Bodies of the beasts that live in packs (and only in the high-level areas). Everything else roams alone.
-const PACK_BODIES := ["quad", "insect", "bird", "fish"]
+## Bodies of the beasts that live in packs (and only in the high-level areas): herds, flocks and the eels' shoals.
+## Everything else roams alone.
+const PACK_BODIES := ["quad", "flyer", "serpent"]
 ## Wild levels at or above this can have packs.
 const PACK_MIN_LEVEL := 16
 ## A beast no stronger than your best one usually roams with more of its own kind (and stands its ground).
@@ -1138,7 +1140,7 @@ func roll_wild(map: Dictionary) -> Array:
 		var n := mini(cap, 3 if GameState.alive_party().size() >= 2 and randf() < 0.4 else 2)
 		for i in range(1, n):
 			foes.append(_roll_wild_beast(first, lv, ghost_rate))
-	elif int(lv[0]) >= PACK_MIN_LEVEL and String(RaceDB.genes(first).get("body", "")) in PACK_BODIES and randf() < 0.3:
+	elif int(lv[0]) >= PACK_MIN_LEVEL and String(lead.genes.get("body", "")) in PACK_BODIES and randf() < 0.3:
 		var n2 := mini(cap, 2 if int(lv[0]) < 26 or randf() < 0.5 else 3)
 		for i in range(1, n2):
 			foes.append(_roll_wild_beast(first if randf() < 0.7 else _roll_wild_race(races), lv, ghost_rate))

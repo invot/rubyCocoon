@@ -222,7 +222,7 @@ func use_cell(c) -> void:
 	hint.text = _where(moved) + ("" if b == null else " " + _where(b))
 
 
-## "Emberkit stands on the Fire side.", "Emberkit is in storage."
+## "Embit stands on the Fire side.", "Embit is in storage."
 func _where(b) -> String:
 	if GameState.party.has(b):
 		return "%s stands on the %s." % [b.nickname, Ring.slot_name(b.slot)]

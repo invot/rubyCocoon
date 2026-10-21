@@ -22,6 +22,8 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
+const BeastModel = preload("res://scripts/gfx/beast_model.gd")
+const Rig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
@@ -1231,20 +1233,8 @@ func _hide_cards() -> void:
 ## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
 func _spawn(b, side: String, slot: int) -> void:
 	var root := Node3D.new()
-	var model: Node3D
-	var height := 1.2
-	if b.genes.has("model"):
-		# a robot (assets/psx/robots): faces +x like the beasts
-		model = VA.instance(String(b.genes["model"]), 1.3 * float(b.genes.get("size", 1.0)))
-		height = 1.3 * float(b.genes.get("size", 1.0))
-	else:
-		var mi := MeshInstance3D.new()
-		mi.mesh = VB.mesh(b.genes)
-		model = mi
-		height = mi.mesh.get_aabb().end.y
 	var holder := Node3D.new()
 	holder.name = "Model"
-	holder.add_child(model)
 	root.add_child(holder)
 	var lift := 0.16
 	holder.position.y = lift
@@ -1252,16 +1242,13 @@ func _spawn(b, side: String, slot: int) -> void:
 	var ringed: bool = side == "ally" or not wild
 	root.position = _slot_pos(side, slot) if ringed else _wild_pos(slot)
 	root.set_meta("slot", slot)
-	root.set_meta("height", height + lift)
 	root.set_meta("lift", lift)
-	root.set_meta("phase", randf() * TAU)
 	var flash := StandardMaterial3D.new()
 	flash.albedo_color = Color(1, 1, 1, 0)
 	flash.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	flash.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	root.set_meta("flash", flash)
-	for gi in root.find_children("*", "GeometryInstance3D", true, false):
-		gi.material_overlay = flash
+	_build_model(root, b)
 	add_child(root)
 	nodes[b] = root
 	root.scale = Vector3(0.2, 0.2, 0.2)
@@ -1272,12 +1259,89 @@ func _spawn(b, side: String, slot: int) -> void:
 	s["down"] = b.hp <= 0
 	if b.hp <= 0:
 		# already down when the battle began: lying on its pad
-		root.rotation.z = -1.4
-		root.position.y = -0.3
+		_lie_down(b, false)
 	if side == "foe":
 		GameState.mark_seen(b)
 	else:
 		participants[b] = true
+
+
+## Builds a beast's model in its node's holder ("Model"), in place of any it had: the new beasts animated (beast_rig.gd:
+## bobbing and blinking on their own; meta "rig"), the legendaries' PSX models and the robots bobbing in _process
+## (meta "phase"). Every piece but a ghost's smoke takes the node's flash overlay (_hit_fx, and dimming the beasts not
+## aimed at).
+func _build_model(root: Node3D, b) -> void:
+	var holder: Node3D = root.get_node("Model")
+	for c in holder.get_children():
+		holder.remove_child(c)
+		c.queue_free()
+	holder.position = Vector3(0, float(root.get_meta("lift")), 0)
+	var model: Node3D = BeastModel.rig(b.genes)
+	var height := 1.2
+	if model != null:
+		height = BeastModel.height(model)
+		root.set_meta("rig", model)
+		root.remove_meta("phase")
+	else:
+		if b.genes.has("model"):
+			# a robot (assets/psx/robots): faces +x like the beasts
+			model = VA.instance(String(b.genes["model"]), 1.3 * float(b.genes.get("size", 1.0)))
+			height = 1.3 * float(b.genes.get("size", 1.0))
+		else:
+			var mi := MeshInstance3D.new()
+			mi.mesh = VB.mesh(b.genes)
+			model = mi
+			height = mi.mesh.get_aabb().end.y
+		root.remove_meta("rig")
+		root.set_meta("phase", randf() * TAU)
+	holder.add_child(model)
+	root.set_meta("height", height + float(root.get_meta("lift")))
+	for gi in holder.find_children("*", "GeometryInstance3D", true, false):
+		if not gi is CPUParticles3D:
+			gi.material_overlay = root.get_meta("flash")
+
+
+## A beast's rig on the field, or null (not on it, or drawn the old way).
+func _rig(b) -> Node3D:
+	if not nodes.has(b) or not is_instance_valid(nodes[b]):
+		return null
+	var r = nodes[b].get_meta("rig", null)
+	return r if is_instance_valid(r) else null
+
+
+## A beast that grew into its next form mid-battle (an "evolve" event of Beast.gain_xp) takes on its new model, in a
+## flash of light.
+func _remodel(b) -> void:
+	if not nodes.has(b):
+		return
+	var n: Node3D = nodes[b]
+	_build_model(n, b)
+	var flash: StandardMaterial3D = n.get_meta("flash")
+	flash.albedo_color = Color(1, 1, 1, 0.9)
+	var tw := create_tween()
+	tw.tween_property(flash, "albedo_color", Color(1, 1, 1, 0.0), 0.5)
+	var sc := n.scale
+	var tw2 := create_tween()
+	tw2.tween_property(n, "scale", sc * 1.2, 0.12).set_ease(Tween.EASE_OUT)
+	tw2.tween_property(n, "scale", sc, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## A fainted beast on its pad: a new beast lies down to rest (beast_rig.gd), an old model keels over on its side
+## (eased, or there at once).
+func _lie_down(b, ease := true) -> void:
+	var rig := _rig(b)
+	if rig != null:
+		rig.state = "lie"
+		return
+	var n: Node3D = nodes[b]
+	if not ease:
+		n.rotation.z = -1.4
+		n.position.y = -0.3
+		return
+	var tw := create_tween()
+	tw.tween_property(n, "rotation:z", -1.4, 0.35)
+	tw.parallel().tween_property(n, "position:y", -0.3, 0.5)
+	tw.parallel().tween_property(n, "scale", Vector3(0.6, 0.6, 0.6), 0.5)
 
 
 func _despawn(b) -> void:
@@ -1748,7 +1812,7 @@ func _tut_damage(a, t) -> int:
 
 ## The arena's practice beasts for a lesson: one of the side's element in each empty slot of the side facing the foe
 ## (a coach's "practice_side" turns your ring to that side first). They only stand in for the battle: never yours.
-const PRACTICE_RACES := {"fire": 1, "water": 12, "earth": 25, "air": 36}
+const PRACTICE_RACES := {"fire": 3, "water": 27, "earth": 15, "air": 36}
 
 
 func _practice_beasts() -> void:
@@ -2135,8 +2199,12 @@ func _do_shift(b, k: int) -> void:
 		if pair[0] != null and nodes.has(pair[0]):
 			var n: Node3D = nodes[pair[0]]
 			var p := _slot_pos(team, int(pair[1]))
+			_walk_to(pair[0], p)
 			tw.parallel().tween_property(n, "position", Vector3(p.x, n.position.y, p.z), 0.45).set_trans(Tween.TRANS_SINE)
 	await tw.finished
+	for who2 in [b, o]:
+		if who2 != null:
+			_walk_to(who2, null)
 	var side := _shift_side(r, k, b, team)
 	if side != (ally_side if team == "ally" else foe_side):
 		await _turn_ring(team, side)
@@ -2149,6 +2217,23 @@ func _do_shift(b, k: int) -> void:
 		_sync_slots()
 		_refresh()
 	await _check_exposed()
+
+
+## A beast's rig walking over to `to` (a Move), turned the way it goes; to = null: it stops, facing the foe again.
+## (A fainted one is slid along lying down.)
+func _walk_to(b, to) -> void:
+	var rig := _rig(b)
+	if rig == null or _st(b)["down"]:
+		return
+	var n: Node3D = nodes[b]
+	var yaw := 0.0
+	if to != null:
+		var d: Vector3 = n.basis.inverse() * ((to as Vector3) - n.position)
+		yaw = atan2(-d.z, d.x)
+	rig.state = "idle" if to == null else "walk"
+	rig.pace = 1.6
+	var tw := create_tween()
+	tw.tween_property(n.get_node("Model"), "rotation:y", yaw, 0.15)
 
 
 func _panel_info() -> Dictionary:
@@ -2966,6 +3051,9 @@ func _field_revived(t) -> void:
 	if nodes.has(t):
 		var n: Node3D = nodes[t]
 		n.show()
+		var rig := _rig(t)
+		if rig != null:
+			rig.state = "idle"
 		var tw := create_tween()
 		tw.tween_property(n, "rotation:z", 0.0, 0.3)
 		tw.parallel().tween_property(n, "position:y", 0.0, 0.3)
@@ -3147,9 +3235,16 @@ func _strike(b, team_hit: String) -> void:
 			var n: Node3D = nodes[b]
 			var start := n.position
 			var tw := create_tween()
+			var lead := 0.0
+			var rig := _rig(b)
+			if rig != null:
+				# rearing back first (its attack, beast_rig.gd), the blow landing as it reaches them
+				rig.attack()
+				lead = maxf(Rig.ATTACK_TIME * Rig.HIT_AT - 0.22, 0.0)
+				tw.tween_interval(lead)
 			tw.tween_property(n, "position", start.lerp(pos, 0.75), 0.22).set_ease(Tween.EASE_IN)
 			tw.tween_property(n, "position", start, 0.25)
-			await get_tree().create_timer(0.22).timeout
+			await get_tree().create_timer(lead + 0.22).timeout
 	_point_at(null)
 	var left: int = GameState.shield if team_hit == "ally" else foe_shield
 	if left > 0:
@@ -3631,9 +3726,8 @@ func _handle_faints() -> void:
 					tw.tween_property(n, "scale", Vector3(0.01, 0.01, 0.01), 0.14).set_ease(Tween.EASE_IN)
 					tw.tween_callback(n.hide)
 				else:
-					tw.tween_property(n, "rotation:z", -1.4, 0.35)
-					tw.parallel().tween_property(n, "position:y", -0.3, 0.5)
-					tw.parallel().tween_property(n, "scale", Vector3(0.6, 0.6, 0.6), 0.5)
+					tw.kill()
+					_lie_down(b)
 			await msg("%s fainted!" % b.nickname, 0.8)
 			if beaten_foe and wild:
 				var i := foe_slots.find(b)
@@ -3654,7 +3748,8 @@ func _roll_egg(b) -> void:
 	if b.ghost and not GameState.flag("ghost_merge"):
 		return
 	if randf() < EGG_CHANCE:
-		drops.append({"race": b.race, "ghost": b.ghost, "name": b.nickname})
+		# (an egg of its line's first form: a Cinderex leaves an Embit's egg)
+		drops.append({"race": RaceDB.first_form(b.race), "ghost": b.ghost, "name": b.nickname})
 
 
 func _award_xp(foe) -> void:
@@ -3676,23 +3771,38 @@ func _award_xp(foe) -> void:
 			amt = maxi(amt, 4)
 		if b.at_cap():
 			continue
+		# (called by its old name until it grows into its next form: "Cinderex grew to Lv 40!", "Cinderex grew into
+		# Pyrosaur!")
+		var who: String = b.nickname
 		var events: Array = b.gain_xp(amt)
+		for e in events:
+			if e["type"] == "evolve":
+				who = e["from"]
+				break
 		if participants.has(b):
-			await msg("%s gained %d XP." % [b.nickname, amt], 0.5)
+			await msg("%s gained %d XP." % [who, amt], 0.5)
 		for e in events:
 			match e["type"]:
 				"level":
 					Sfx.play("levelup")
 					_refresh()
-					await msg("%s grew to Lv %d!" % [b.nickname, e["level"]], 0.8)
+					await msg("%s grew to Lv %d!" % [who, e["level"]], 0.8)
+				"evolve":
+					# grown into its line's next form: its new model, in a flash
+					_remodel(b)
+					Sfx.play("merge")
+					who = e["to"]
+					GameState.caught[str(b.race)] = true
+					GameState.seen[str(b.race)] = true
+					await msg("%s grew into %s!" % [e["from"], e["to"]], 1.4)
 				"learn":
 					var mn: String = MoveDB.get_move(e["move"])["name"]
 					if e["active"]:
-						await msg("%s learned %s!" % [b.nickname, mn], 0.8)
+						await msg("%s learned %s!" % [who, mn], 0.8)
 					else:
-						await msg("%s can now use %s! Swap it in from the Beasts menu." % [b.nickname, mn], 1.1)
+						await msg("%s can now use %s! Swap it in from the Beasts menu." % [who, mn], 1.1)
 				"cap":
-					await msg("%s reached its level limit! Merge it at a Beast Center to grow stronger." % b.nickname, 1.6)
+					await msg("%s reached its level limit! Merge it at a Beast Center to grow stronger." % who, 1.6)
 		if GameState.next_capture_ready() and not GameState.flag("capture_hint_%d" % GameState.capture_level()):
 			GameState.set_flag("capture_hint_%d" % GameState.capture_level())
 			Sfx.play("notify")
@@ -3801,6 +3911,21 @@ func _lunge(b, attack: bool) -> void:
 		return
 	var n: Node3D = nodes[b]
 	var start := n.position
+	var rig := _rig(b)
+	if attack and rig != null:
+		# its own attack (beast_rig.gd): rearing back, then lunging at the foe, its model leaping that way with it; the
+		# move goes on as the blow lands, while it springs back and settles
+		rig.attack()
+		var h: Node3D = n.get_node("Model")
+		var rest := Vector3(0, float(n.get_meta("lift")), 0)
+		var hit := Rig.ATTACK_TIME * Rig.HIT_AT
+		var lt := create_tween()
+		lt.tween_interval(hit * 0.65)
+		lt.tween_property(h, "position", rest + n.basis.inverse() * (_toward(_team(b)) * 0.55 + Vector3(0, 0.08, 0)), hit * 0.35).set_ease(Tween.EASE_IN)
+		lt.tween_interval(0.1)
+		lt.tween_property(h, "position", rest, 0.3).set_trans(Tween.TRANS_SINE)
+		await get_tree().create_timer(hit).timeout
+		return
 	var tw := create_tween()
 	if attack:
 		tw.tween_property(n, "position", start + _toward(_team(b)) * 0.65 + Vector3(0, 0.15, 0), 0.1)

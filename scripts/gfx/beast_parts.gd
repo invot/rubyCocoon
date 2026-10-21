@@ -53,20 +53,22 @@ static var _forms := {}
 ## The parent that isn't the frame gives two of its parts (three now and then; one if it has no more), bigger ones
 ## and ones the frame lacks likelier: a head only onto a frame with a head of its own (a face drawn on the body stays
 ## the body's), legs only onto legs. Which parent gives the frame turns round, mostly, when that lets the other give
-## more.
+## more; and the other mostly gives the colours too when it gives only one part. Everything in it is a String, so it
+## keeps as it is (in a merged beast's genes).
 static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_n
 	var frame := a if rng.randf() < 0.5 else b
 	var other := b if frame == a else a
-	var r := {"frame": frame, "colours": a if rng.randf() < 0.5 else b}
 	var can := givable(info(other), info(frame))
 	var back := givable(info(frame), info(other))
 	if can.size() < mini(2, back.size()) and (can.is_empty() or rng.randf() < 0.7):
-		r["frame"] = other
-		other = frame
+		var was := frame
+		frame = other
+		other = was
 		can = back
 	var want := mini(can.size(), 2 + (1 if rng.randf() < 0.35 else 0))
+	var r := {"frame": frame, "colours": other if rng.randf() < (0.5 if want > 1 else 0.75) else frame}
 	for i in want:
 		var total := 0.0
 		for g in can:
@@ -442,8 +444,8 @@ static func socket(fi: Dictionary, p: String) -> Vector3:
 			at = Vector3(lerpf(c.x, bhi.x, 0.3 if upright else 0.55), lerpf(blo.y, bhi.y, 0.62 if upright else 0.45), 0.0)
 			out = Vector3(0.0, 0.0, side)
 		"wing_l", "wing_r":
-			at = Vector3(c.x if upright else lerpf(c.x, blo.x, 0.15), lerpf(blo.y, bhi.y, 0.72) if upright else c.y,
-				side * e.z * 0.15)
+			at = Vector3(c.x if upright else lerpf(c.x, blo.x, 0.15), lerpf(blo.y, bhi.y, 0.75) if upright else c.y,
+				side * e.z * 0.25)
 			out = Vector3.LEFT if upright else Vector3.UP
 		"tail":
 			at = Vector3(c.x, lerpf(blo.y, bhi.y, 0.3 if upright else 0.45), 0.0)

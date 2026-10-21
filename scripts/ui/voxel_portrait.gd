@@ -1,7 +1,9 @@
 extends SubViewportContainer
-## A small live 3D view of one voxel beast, slowly turning. Used on summary cards and when eggs hatch.
+## A small live 3D view of one beast, slowly turning (the new beasts going about their idle, beast_rig.gd). Used on
+## summary cards and when eggs hatch.
 
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
+const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 
@@ -47,6 +49,12 @@ func setup(genes: Dictionary, px := 280, person := {}) -> SubViewportContainer:
 		var h := VPer.height()
 		bb = AABB(Vector3(-0.4, 0, -0.3), Vector3(0.8, h, 0.6))
 		spin_speed = 0.35
+	elif BeastModel.rigged(genes):
+		var rig := BeastModel.rig(genes)
+		rig.scale = Vector3.ONE
+		bb = BeastModel.bounds(rig)
+		rig.position = Vector3(-bb.get_center().x, 0, -bb.get_center().z)
+		_pivot.add_child(rig)
 	elif genes.has("model"):
 		var inst := VA.instance(String(genes["model"]), 1.6)
 		_pivot.add_child(inst)
