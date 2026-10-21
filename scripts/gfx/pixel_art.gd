@@ -154,19 +154,11 @@ static func beast_texture(genes: Dictionary) -> ImageTexture:
 ## black and purple). A merge has its own rendered the first time it's shown (beast_icons.gd), its frame's showing
 ## till then.
 static func _rig_icon(genes: Dictionary) -> ImageTexture:
-	var form := String(genes.get("form", ""))
-	var path := "res://assets/beasts/icons/%s%s.res" % [form, "_ghost" if BeastModel.ghostly(genes) else ""]
-	var has := ResourceLoader.exists(path)
-	var recipe: Dictionary = genes.get("recipe", {})
-	if not _own_look(recipe):
-		return load(path) if has else tex(beast_image(genes))
-	var img: Image
-	if has:
-		img = (load(path) as Texture2D).get_image()
-		if img.is_compressed():
-			img.decompress()
-		img.convert(Image.FORMAT_RGBA8)
-	else:
+	var path := _icon_path(genes)
+	if not _own_look(genes.get("recipe", {})):
+		return load(path) if ResourceLoader.exists(path) else tex(beast_image(genes))
+	var img := _form_icon_image(genes)
+	if img == null:
 		img = Image.create(BeastIcons.SIZE, BeastIcons.SIZE, false, Image.FORMAT_RGBA8)
 	var t := tex(img)
 	if _painter == null:
@@ -174,6 +166,23 @@ static func _rig_icon(genes: Dictionary) -> ImageTexture:
 		(Engine.get_main_loop() as SceneTree).root.add_child.call_deferred(_painter)
 	_painter.paint(genes, t)
 	return t
+
+
+## A new beast's form's icon file (a merge's frame's; a ghost's in its black and purple).
+static func _icon_path(genes: Dictionary) -> String:
+	return "res://assets/beasts/icons/%s%s.res" % [String(genes.get("form", "")), "_ghost" if BeastModel.ghostly(genes) else ""]
+
+
+## A new beast's form's icon as an Image to draw on, or null where there's none.
+static func _form_icon_image(genes: Dictionary) -> Image:
+	var path := _icon_path(genes)
+	if not ResourceLoader.exists(path):
+		return null
+	var img: Image = (load(path) as Texture2D).get_image()
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	return img
 
 
 ## Whether a merge looks other than its frame (given parts, or another parent's colours).
@@ -209,7 +218,13 @@ static func _form_icon(genes: Dictionary, path: String) -> Image:
 	return img
 
 
+## A beast drawn as an Image: a new beast's form's icon (a merge's frame's: _form_icon_image()), or for the others
+## the old drawing from its body-part genes.
 static func beast_image(g: Dictionary) -> Image:
+	if BeastModel.rigged(g):
+		var icon := _form_icon_image(g)
+		if icon != null:
+			return icon
 	var c := Canvas.new(BW, BH)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = JSON.stringify(g).hash()
