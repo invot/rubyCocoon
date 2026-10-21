@@ -23,12 +23,14 @@ const TOUCH := 0.03
 ## (attach())
 const SINK := 0.03
 const DEEP := 0.1
-## what the labels still get wrong for merging, per form: "slight": groups too slight to swap (the owl's head is only
-## its ear tufts, its face being on its body; the cactus's legs are nubs under it); "move": [part, from, lo, hi]: the
+## what the labels still get wrong for merging, per form: "slight": groups too slight to give, or to swap for (the
+## owl's head is only its ear tufts, its face being on its body; the cactus's legs are nubs under it; the dino's tail
+## is only the tip of the one its body ends in); "move": [part, from, lo, hi]: the
 ## vertices of part `from` in that box are `part`'s (the beetle's beak is its head's, its hands are labelled feet
 ## and so is the ridge down its back; the crab's front legs are labelled back legs);
 ## "join": [part, lo, hi]: the pieces of only body in that box are `part`'s (the crab's legs' upper joints)
 const FIX := {
+	"dino_3": {"slight": ["tail"]},
 	"owl_3": {"slight": ["head"]},
 	"cactus_3": {"slight": ["legs"]},
 	"beetle_3": {"move": [["head", "body", Vector3(0.15, 0.5, -0.12), Vector3(0.4, 0.7, 0.12)],
@@ -259,15 +261,18 @@ static func regions(fi: Dictionary) -> void:
 			plo = plo.min(verts[i])
 			phi = phi.max(verts[i])
 		# a part's few vertices on a piece that's mostly another's (and that's not where most of the part is) are
-		# that one's
+		# that one's, and a leg's on the body's middle piece (the top of a thigh, in its hips) are the body's
 		var most: int = count.keys()[0]
 		for k in count:
 			if count[k] > count[most]:
 				most = k
+		var middle := mid.clamp(plo, phi) == mid
 		for i in vs:
 			if count[lab[i]] < GROW * vs.size() and count[lab[i]] < 0.5 * total[lab[i]]:
 				cut[i] = most
-		if not count.has(0) or mid.clamp(plo, phi) == mid:
+			elif middle and PARTS[lab[i]].begins_with("leg_") and count[lab[i]] < 0.5 * total[lab[i]]:
+				cut[i] = 0
+		if not count.has(0) or middle:
 			continue
 		var grow := []
 		for k in count:
@@ -382,15 +387,7 @@ static func regions(fi: Dictionary) -> void:
 			if verts[i].distance_to(mid) < closest:
 				closest = verts[i].distance_to(mid)
 				inner = verts[i]
-			var c := Vector3i((verts[i] / TOUCH).floor())
-			var touch := false
-			for dx in [-1, 0, 1]:
-				for dy in [-1, 0, 1]:
-					for dz in [-1, 0, 1]:
-						for j in near_body.get(c + Vector3i(dx, dy, dz), []):
-							if not touch and verts[i].distance_to(verts[j]) < TOUCH:
-								touch = true
-			if touch:
+			if touches(verts, verts[i], near_body):
 				at += verts[i]
 				m += 1
 		cj[p] = at / float(m) if m >= 3 else inner
@@ -398,6 +395,18 @@ static func regions(fi: Dictionary) -> void:
 	fi["clo"] = clo
 	fi["chi"] = chi
 	fi["cj"] = cj
+
+
+## Whether `v` is less than TOUCH from one of the vertices in `cells` (lists of them by their cell of TOUCH).
+static func touches(verts: PackedVector3Array, v: Vector3, cells: Dictionary) -> bool:
+	var c := Vector3i((v / TOUCH).floor())
+	for dx in [-1, 0, 1]:
+		for dy in [-1, 0, 1]:
+			for dz in [-1, 0, 1]:
+				for j in cells.get(c + Vector3i(dx, dy, dz), []):
+					if v.distance_squared_to(verts[j]) < TOUCH * TOUCH:
+						return true
+	return false
 
 
 ## A part's size (its larger measure) by regions().
