@@ -218,7 +218,7 @@ func beast_center(town: String) -> void:
 		var items := [
 			{"text": "Hatchery", "right": "%d" % GameState.eggs.size(), "desc": "Hatch the eggs you're carrying in the incubator. Hatchlings start at Lv 1."},
 			{"text": "Beast storage", "desc": "Deposit or withdraw beasts. (%d in storage)" % GameState.storage.size()},
-			{"text": "Merge altar", "desc": "Merge two beasts that have reached their level limit into one stronger beast."},
+			{"text": "Merge altar", "desc": "Merge two beasts in their final form, at their level limit, into one stronger beast."},
 			{"text": "Leave"},
 		]
 		var c: int = await UI.choose("Beast Center", items, {"anchor": "right", "width": 340})
@@ -337,8 +337,8 @@ func merge_altar(temple: bool, keeper := "Nurse Clover") -> void:
 		return
 	var ready := GameState.all_beasts().filter(func(x): return x.at_cap())
 	if ready.size() < 2:
-		await UI.say(["Merging needs two beasts that have reached their level limit.",
-			"Rank 1 beasts top out at Lv 20, Rank 2 at Lv 40, Rank 3 at Lv 60, and so on.",
+		await UI.say(["Merging needs two beasts in their final form that have reached their level limit.",
+			"A beast grows into its final form at Lv %d, where Rank 1 beasts top out. Rank 2 tops out at Lv 60, Rank 3 at Lv 80, and so on." % RaceDB.EVOLVE[-1],
 			"Beasts ready to merge right now: %d." % ready.size()], keeper)
 		return
 	await UI.say(["Choose two beasts. Their looks, moves, stats and passives will mix at random, and the new beast will rank up!"], keeper)
@@ -474,15 +474,15 @@ func kennel_drop_off(world, town: String) -> void:
 ## The Sky Tower: climb to the platform where a great bird flies you to any town you've visited.
 ## Skykeeper Aria's ticket desk in the Sky Tower's lobby.
 func skytower_desk() -> void:
-	await UI.say(["Welcome to the Sky Tower! The Thunderhawk is waiting on the roof. Take the stairs up and climb aboard.",
+	await UI.say(["Welcome to the Sky Tower! The Tempestrix is waiting on the roof. Take the stairs up and climb aboard.",
 		"He'll carry you to any town you've visited, %d gold a flight." % FLIGHT_COST,
 		"Raise an air beast of your own to Lv %d, and it'll be strong enough to carry you itself!" % FLY_LEVEL], KEEPERS["skytower"])
 
 
-## The Thunderhawk on the Sky Tower's roof flies you to any town you've visited.
+## The Tempestrix on the Sky Tower's roof flies you to any town you've visited.
 func skytower(b: Dictionary) -> void:
 	var town: String = b.get("town", GameState.map_id)
-	await UI.say(["The Thunderhawk ruffles its feathers and lowers a wing for you to climb aboard."])
+	await UI.say(["The Tempestrix ruffles its feathers and lowers a wing for you to climb aboard."])
 	await fly_menu(town, FLIGHT_COST, "")
 
 
@@ -612,9 +612,15 @@ func arena(b: Dictionary, town: String) -> void:
 		var beaten: bool = GameState.crests.has(a["crest"])
 		var lv: int = a["team"][0][1]
 		var song := SongDB.get_song(a["song"])
+		var desc := "Rematch for prize money. Levels ~%d." % (lv + 6)
+		if not beaten:
+			desc = "Leader's beasts are around Lv %d. Prize: %s, the song %s, and %d gold." % [lv, a["crest"], song["name"], a["gold"]]
+		# (Tidewater: the coaches' lessons come first, see Story.ARENA_LESSONS)
+		var ready: bool = beaten or Story.arena_lessons_done(town)
+		if not ready:
+			desc = "First, the arena's battle lessons: Coach Rory, then Coach Ondine, just inside the door."
 		var items := [
-			{"text": ("Rematch " if beaten else "Challenge ") + leader,
-				"desc": ("Rematch for prize money. Levels ~%d." % (lv + 6)) if beaten else "Leader's beasts are around Lv %d. Prize: %s, the song %s, and %d gold." % [lv, a["crest"], song["name"], a["gold"]]},
+			{"text": ("Rematch " if beaten else "Challenge ") + leader, "disabled": not ready, "desc": desc},
 			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
 				"desc": "Climb the ladder of ring trainers. Beat every trainer of a rank to open the next; each rank you clear raises your trainer level (you're Lv %d) and earns a crystal shard." % GameState.trainer_level},
 			{"text": "Leave"},
@@ -716,6 +722,8 @@ func arena_challenge(town: String) -> String:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Your beasts can barely stand. Heal them at the Beast Center first!"], leader)
 		return "skip"
+	if not beaten and await _lessons_first(town, leader):
+		return "skip"
 	var team := []
 	for t in a["team"]:
 		team.append([t[0], int(t[1]) + (6 if beaten else 0), false])
@@ -733,6 +741,14 @@ func arena_challenge(town: String) -> String:
 		await _miner_pass(town)
 		await Story.on_crest()
 	return res
+
+
+## True (after saying so) while the arena's coaches still have lessons for you (Tidewater, see Story.ARENA_LESSONS).
+func _lessons_first(town: String, leader: String) -> bool:
+	if Story.arena_lessons_done(town):
+		return false
+	await UI.say(["Not so fast! Every challenger takes our coaches' lessons first: Coach Rory, then Coach Ondine. They're just inside the door."], leader)
+	return true
 
 
 ## Copperpick's arena master signs the Miner's Pass for the Mine Road checkpoint.
@@ -754,6 +770,8 @@ func leader_talk(b: Dictionary) -> void:
 	var beaten: bool = GameState.crests.has(a["crest"])
 	if beaten:
 		await _miner_pass(town)
+	elif await _lessons_first(town, leader):
+		return
 	var q := "Ready for our rematch?" if beaten else "I am %s, master of this arena. Do you challenge me for the %s?" % [leader, a["crest"]]
 	if await UI.ask(q, leader):
 		await arena_challenge(town)
@@ -918,17 +936,17 @@ func dojo() -> void:
 
 func museum() -> void:
 	var n := GameState.caught.size()
-	await UI.say(["Welcome to the Bestiary Museum! You've recorded %d of 48 beast races." % n], KEEPERS["museum"])
+	await UI.say(["Welcome to the Bestiary Museum! You've recorded %d of %d beasts." % [n, RaceDB.count()]], KEEPERS["museum"])
 	if GameState.party.is_empty():
 		return
-	var rewards := [[5, "potion", 3], [10, "revival_seed", 2], [20, "training_candy", 2], [30, "mega_potion", 5], [40, "golden_flute", 1], [48, "phoenix_plume", 1]]
+	var rewards := [[5, "potion", 3], [10, "revival_seed", 2], [20, "training_candy", 2], [30, "mega_potion", 5], [35, "golden_flute", 1], [RaceDB.count(), "phoenix_plume", 1]]
 	for r in rewards:
 		var key := "museum_%d" % r[0]
 		if n >= int(r[0]) and not GameState.flag(key):
 			GameState.set_flag(key)
 			GameState.add_item(r[1], int(r[2]))
 			Sfx.play("buy")
-			await UI.say(["For recording %d races, please accept %d × %s!" % [r[0], r[2], ItemDB.item_name(r[1])]], KEEPERS["museum"])
+			await UI.say(["For recording %d beasts, please accept %d × %s!" % [r[0], r[2], ItemDB.item_name(r[1])]], KEEPERS["museum"])
 	await Menus.bestiary()
 
 
@@ -1002,7 +1020,8 @@ func fortune() -> void:
 	var r: Dictionary = WorldDB.ROUTES[rid]
 	var names := []
 	for x in r["races"]:
-		names.append(RaceDB.race_name(x))
+		# the form they've grown into by the middle of the route's levels
+		names.append(RaceDB.race_name(RaceDB.for_level(int(x), (int(r["lv"][0]) + int(r["lv"][1])) / 2)))
 	var lines := ["I see... %s, on %s." % [", ".join(names), r["name"]]]
 	if randf() < 0.5:
 		GameState.lucky_battles = 3
@@ -1066,16 +1085,16 @@ func house(b: Dictionary, resident_seed := 0) -> void:
 
 # ================================================================ furniture
 const BOOK_TITLES := [
-	"\"Forty-Eight Beasts and Where to Find Them\", a field guide with a very worn cover.",
+	"\"Thirty-Nine Beasts and Where to Find Them\", a field guide with a very worn cover.",
 	"\"The Art of the Flute\": Keep the beat, and the beasts will keep you.",
 	"\"Merging for Beginners\": Two beasts become one. Nobody knows which parts you'll get!",
 	"\"A History of the Umbral Legion\": The pages about Nocthra have been torn out.",
 	"\"Elemental Matchups\": Fire fears the wind. Water fears the wind too. Wind fears fire.",
 	"\"Earth and Stone\": The best defence is a good Earth beast. Shield your friends!",
-	"\"Cooking with Cindermoles\": Please don't.",
+	"\"Cooking with Embits\": Please don't.",
 	"\"The Twelve Towns\", a travel guide. Someone has circled Cogsworth and written 'NEVER AGAIN'.",
 	"\"Temples of the Four Winds\": Tides on the reef, Winds in the desert, Flame in the volcano, Roots in the jungle.",
-	"\"Eggs and Hatchlings\": A fresh hatchling is weak, but it grows faster than any wild beast.",
+	"\"Eggs and Hatchlings\": A fresh hatchling is weak, but it grows faster than any wild beast, into a new form at Lv 20 and its last at Lv 40.",
 	"\"Song of the Sea\", a collection of Tidewater sea shanties.",
 	"\"Ghost Beasts: Myth or Menace?\" by a very nervous scholar.",
 	"\"Building Worlds One Cube at a Time\" by S. Bizcuit. Someone has scribbled in the margin: NEVER GIVE UPPPPPP!!!",
@@ -1091,12 +1110,12 @@ const FURNITURE_LINES := {
 	"fridge": "Leftovers, a carton of milk and a jar of beast treats.",
 	"pantry": "Shelves of rice, beans and honey jars.",
 	"toilet": "It's a toilet. It's very clean.",
-	"bathtub": "A deep tub. A rubber Puddlepup floats in the corner.",
+	"bathtub": "A deep tub. A rubber Tadlet floats in the corner.",
 	"basin": "The tap drips, very slowly.",
 	"washer": "The washing machine is humming through a spin cycle.",
 	"sofa": "A comfy sofa, worn soft in all the right places.",
 	"armchair": "Someone's favourite armchair.",
-	"tv": "A cooking show is on. The chef is arguing with a Redcoon.",
+	"tv": "A cooking show is on. The chef is arguing with an Impkin.",
 	"chair": "A sturdy wooden chair.",
 	"stool": "A stool.",
 	"coffee_table": "A little table, ringed with old mug marks.",
@@ -1112,6 +1131,11 @@ const FURNITURE_LINES := {
 	"trash": "The bin's nearly full.",
 	"bunk": "A bunk bed. Top bunk's the best bunk.",
 }
+
+
+## "a Pyrosaur", "an Embit", "an earth beast".
+static func _a(word: String) -> String:
+	return ("an " if word.left(1).to_lower() in ["a", "e", "i", "o", "u"] else "a ") + word
 
 
 func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
@@ -1143,8 +1167,12 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 		MapGen.EXHIBIT:
 			var race: int = map.get("exhibits", {}).get(t, 0)
 			var el := RaceDB.element(race)
+			var els := el if RaceDB.element2(race) == "" else "%s and %s" % [el, RaceDB.element2(race)]
 			GameState.seen[str(race)] = true
-			await UI.say(["Exhibit: %s, a %s beast (%s)." % [RaceDB.race_name(race), el, Elements.ROLE.get(el, "")],
+			# its line's three forms, and the levels it grows at
+			var k := RaceDB.first_form(race)
+			await UI.say(["Exhibit: %s, %s beast (%s)." % [RaceDB.race_name(race), _a(els), Elements.ROLE.get(el, "")],
+				"It hatches as %s, grows into %s at Lv %d and %s at Lv %d." % [_a(RaceDB.race_name(k)), _a(RaceDB.race_name(k + 1)), RaceDB.EVOLVE[0], _a(RaceDB.race_name(k + 2)), RaceDB.EVOLVE[1]],
 				"Its passive trait is %s. %s" % [RaceDB.get_race(race)["passive"], RaceDB.PASSIVE_DESC.get(RaceDB.get_race(race)["passive"], "")]])
 		MapGen.BOOKSHELF:
 			var rng := RandomNumberGenerator.new()

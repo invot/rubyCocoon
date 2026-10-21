@@ -14,6 +14,8 @@ const SAVE_DIR := "user://saves/"
 const TEST_SAVE_DIR := "user://test_saves/"
 ## the single save file from before save slots existed
 const LEGACY_SAVE := "user://savegame.json"
+## saves older than this (from before the beasts of the 13 lines) can't be loaded
+const SAVE_VERSION := 3
 const SLOT_COUNT := 10
 ## The most beasts a trainer can carry: one per slot of the battle ring (see ring.gd). A new trainer has room for
 ## BEAST_SLOTS_START; Volt at Sparkwire Electronics adds more as your trainer level grows.
@@ -83,20 +85,14 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- input
-## Keyboard: arrows move (two at once go diagonally), A = action, S = back (hold to run), Space = Start, Shift = Pause.
-## Gamepads: d-pad or left stick, A / B, Start, Back/Select. Touch buttons send these same actions.
+## Keyboard: arrows move (one of the four ways), A = action, S = back (hold to run), Space = Start, Shift = Pause.
+## Gamepads: d-pad, A / B, Start, Back/Select (the left stick steers too, read by world.gd _stick_dir). Touch buttons
+## send these same actions.
 func _setup_input() -> void:
 	_bind("move_up", [KEY_UP], [JOY_BUTTON_DPAD_UP])
 	_bind("move_down", [KEY_DOWN], [JOY_BUTTON_DPAD_DOWN])
 	_bind("move_left", [KEY_LEFT], [JOY_BUTTON_DPAD_LEFT])
 	_bind("move_right", [KEY_RIGHT], [JOY_BUTTON_DPAD_RIGHT])
-	# the left stick steers too (two of these at once on a diagonal)
-	for a in [["move_up", JOY_AXIS_LEFT_Y, -1.0], ["move_down", JOY_AXIS_LEFT_Y, 1.0], ["move_left", JOY_AXIS_LEFT_X, -1.0], ["move_right", JOY_AXIS_LEFT_X, 1.0]]:
-		var m := InputEventJoypadMotion.new()
-		m.axis = a[1]
-		m.axis_value = a[2]
-		InputMap.action_add_event(a[0], m)
-		InputMap.action_set_deadzone(a[0], 0.35)
 	_bind("interact", [KEY_A, KEY_ENTER, KEY_KP_ENTER], [JOY_BUTTON_A])
 	_bind("run", [KEY_S], [JOY_BUTTON_B])
 	_bind("menu", [KEY_SPACE], [JOY_BUTTON_START])
@@ -250,19 +246,79 @@ func free_slot_for(b: Beast) -> int:
 	return slots[0] if not slots.is_empty() else -1
 
 
-## Moves a party beast to another ring slot, trading places with whoever stands there (if that beast may stand in the
-## slot being left). Returns "" or the reason it can't.
-func move_to_slot(b: Beast, k: int) -> String:
-	if not Ring.can_hold(b, k):
-		return "%s can't stand on the %s." % [b.nickname, Ring.slot_name(k)]
-	var other := beast_at(k)
-	if other == b:
+## The ring editor's moves (ring_editor.gd): `b` (on your ring, or in storage) to `dest`, {"slot": k} on the ring or
+## {"store": j} in storage (j = storage.size(): the empty cell at its end), trading places with whoever is there.
+## Returns "" if it may go, else why not: it must be able to stand on its new slot, and anyone it trades places with
+## on its old one; your ring holds party_max() beasts; and one beast always stays with you.
+func ring_move_reason(b: Beast, dest: Dictionary) -> String:
+	var carried := party.has(b)
+	if dest.has("slot"):
+		var k: int = dest["slot"]
+		if carried and b.slot == k:
+			return "%s already stands here." % b.nickname
+		if not Ring.can_hold(b, k):
+			return "A %s beast can't stand on the %s." % [b.element_text(), Ring.slot_name(k)]
+		var o := beast_at(k)
+		if o == null:
+			if not carried and party.size() >= party_max():
+				return "Your ring has room for %d beasts. Trade places with one of them, or have Volt at Sparkwire Electronics wire up another slot." % party_max()
+			return ""
+		if carried and not Ring.can_hold(o, b.slot):
+			return "%s can't stand on the %s to trade places." % [o.nickname, Ring.slot_name(b.slot)]
 		return ""
-	if other != null:
-		if b.slot < 0 or not Ring.can_hold(other, b.slot):
-			return "%s can't move to the %s to make room." % [other.nickname, Ring.slot_name(b.slot) if b.slot >= 0 else "bench"]
-		other.slot = b.slot
-	b.slot = k
+	var j: int = dest["store"]
+	var q: Beast = storage[j] if j >= 0 and j < storage.size() else null
+	if not carried:
+		return "%s is already here." % b.nickname if q == b else ""
+	if q == null:
+		return "You need to keep at least one beast with you." if party.size() <= 1 else ""
+	if not Ring.can_hold(q, b.slot):
+		return "%s can't stand on the %s to trade places." % [q.nickname, Ring.slot_name(b.slot)]
+	return ""
+
+
+## Makes a ring editor move (see ring_move_reason). Returns "" or why it can't.
+func ring_move(b: Beast, dest: Dictionary) -> String:
+	var why := ring_move_reason(b, dest)
+	if why != "":
+		return why
+	if dest.has("slot"):
+		var k: int = dest["slot"]
+		var o := beast_at(k)
+		if party.has(b):
+			if o != null:
+				o.slot = b.slot
+		else:
+			var i := storage.find(b)
+			if o != null:
+				party.erase(o)
+				o.slot = -1
+				storage[i] = o
+			else:
+				storage.remove_at(i)
+			party.append(b)
+		b.slot = k
+		return ""
+	var j: int = dest["store"]
+	var q: Beast = storage[j] if j < storage.size() else null
+	if party.has(b):
+		if q != null:
+			q.slot = b.slot
+			party[party.find(b)] = q
+			storage[j] = b
+		else:
+			party.erase(b)
+			storage.append(b)
+		b.slot = -1
+	else:
+		# reordering storage
+		var i := storage.find(b)
+		if q != null:
+			storage[i] = q
+			storage[j] = b
+		else:
+			storage.remove_at(i)
+			storage.append(b)
 	return ""
 
 
@@ -352,12 +408,20 @@ func party_element(elements: Array) -> Beast:
 	return null
 
 
-## A healthy party beast with wings (or a bird), for flying up cliffs.
+## A healthy party beast with wings (a flyer, a merge with a flyer's wings, or an old bird), for flying up cliffs.
 func party_flyer() -> Beast:
 	for b in party:
-		if b.hp > 0 and (String(b.genes.get("back", "")) == "wings" or String(b.genes.get("body", "")) == "bird"):
+		if b.hp > 0 and has_wings(b):
 			return b
 	return null
+
+
+static func has_wings(b: Beast) -> bool:
+	var g := b.genes
+	var recipe: Dictionary = g.get("recipe", {})
+	if recipe.has("wings"):
+		return true
+	return String(g.get("body", "")) in ["flyer", "bird"] or String(g.get("back", "")) == "wings"
 
 
 func alive_party() -> Array:
@@ -374,7 +438,9 @@ func mark_seen(b: Beast) -> void:
 
 
 # ---------------------------------------------------------------- eggs & shield
+## An egg always hatches as its line's first form (a Pyrosaur's egg is an Embit's).
 func add_egg(race: int, ghost := false) -> void:
+	race = RaceDB.first_form(race)
 	var kind := RaceDB.element(race)
 	if RaceDB.is_legendary(race):
 		kind = "legendary"
@@ -634,7 +700,7 @@ func kennel_beast(town: String) -> Beast:
 		if r["from"] == town or r["to"] == town:
 			races += r["races"]
 	if races.is_empty():
-		races = [0, 25, 38, 21]
+		races = [0, 15, 36, 27]
 	var b := Beasts.create(int(races.pick_random()), clampi(party_level() + randi_range(-2, 1), 1, 99))
 	b.abandoned = true
 	b.origin = "trade"
@@ -663,9 +729,15 @@ func slot_exists(i: int) -> bool:
 func has_save() -> bool:
 	_migrate_legacy()
 	for i in SLOT_COUNT:
-		if slot_exists(i):
+		if slot_exists(i) and not slot_outdated(i):
 			return true
 	return false
+
+
+## A save from before the beasts of the 13 lines: it stays in its slot, but can't be loaded.
+func slot_outdated(i: int) -> bool:
+	var d := _read_slot(i)
+	return not d.is_empty() and int(d.get("version", 1)) < SAVE_VERSION
 
 
 func first_free_slot() -> int:
@@ -680,7 +752,7 @@ func latest_slot() -> int:
 	var best := -1
 	var best_t := -1.0
 	for i in SLOT_COUNT:
-		if slot_exists(i):
+		if slot_exists(i) and not slot_outdated(i):
 			var t := float(slot_info(i).get("saved_at", 0.0))
 			if t > best_t:
 				best_t = t
@@ -707,6 +779,8 @@ func slot_info(i: int) -> Dictionary:
 	var party_txt := []
 	for bd in d.get("party", []):
 		party_txt.append("%s Lv%d" % [String(bd.get("nickname", "?")), int(bd.get("level", 1))])
+	if int(d.get("version", 1)) < SAVE_VERSION:
+		party_txt = ["From before the new beasts: it can't be loaded"]
 	var mid: String = d.get("map_id", "caccoon")
 	var place: String = WorldDB.map_name(mid.get_slice("#", 0))
 	var saved_at := float(d.get("saved_at", 0.0))
@@ -765,7 +839,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		return false
 	DirAccess.make_dir_recursive_absolute(save_dir())
 	var d := {
-		"version": 2,
+		"version": SAVE_VERSION,
 		"player_name": player_name, "hero": hero, "gold": gold,
 		"party": party.map(func(b): return b.to_dict()),
 		"storage": storage.map(func(b): return b.to_dict()),
@@ -794,7 +868,7 @@ func load_game(slot := -2) -> bool:
 	if slot == -2:
 		slot = current_slot if current_slot >= 0 else latest_slot()
 	var d := _read_slot(slot)
-	if d.is_empty():
+	if d.is_empty() or int(d.get("version", 1)) < SAVE_VERSION:
 		return false
 	new_game(d.get("player_name", "Andrew"), d.get("hero", {}))
 	current_slot = slot

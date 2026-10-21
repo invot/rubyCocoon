@@ -8,7 +8,7 @@ const QUIRKY := [
 	["My beast and I wear matching hats.", "Well, I wear a hat. He wears a bucket. It's the same energy."],
 	["Psst. Want to know a secret?", "...I don't have one. I just really like saying 'psst'."],
 	["I named my beast 'Lunch'.", "Now every time I call him, I get hungry. Rookie mistake."],
-	["Some say the Redcoon was the very first beast.", "Others say it was a very confident potato. I'm in the potato camp."],
+	["Some say the Pyrosaur was the very first beast.", "Others say it was a very confident potato. I'm in the potato camp."],
 	["I counted every blade of grass in town. Then the wind blew.", "...Three. Four. Five..."],
 	["Shh! I'm practising being a statue for the plaza.", "...", "Darn. I blinked."],
 	["My grandma merged two beasts and got one that only speaks in sneezes.", "Bless you, Grandma's beast. Bless you forever."],
@@ -34,7 +34,7 @@ const QUIRKY := [
 	["My beast ate my homework. I don't have homework. I'm forty-two.", "I don't know where it found homework."],
 	["I've decided to become mysterious.", "...", "How am I doing? Be honest."],
 	["Wild beasts are just tame beasts that haven't met the right snack yet. That's my philosophy."],
-	["I once high-fived a Thunderhawk. My hair has been like this ever since."],
+	["I once high-fived a Tempestrix. My hair has been like this ever since."],
 	["I'm training to be the world's best trainer trainer.", "I train trainers to train. My first student is a rock. We're making progress."],
 	["Excuse me, have you seen a sock? Blue, slightly heroic, answers to 'Gerald'?"],
 	["They say an egg dropped by a defeated beast is a gift.", "I got one once. It was a regular chicken egg. Delicious, though."],
@@ -44,7 +44,7 @@ const QUIRKY := [
 ## Town-specific characters (keyed by town id).
 const TOWNS := {
 	"caccoon": [
-		["The Redcoons nap on the rooftops here.", "I tried it once. The roof did not appreciate me."],
+		["The Embits nap on the rooftops here.", "I tried it once. The roof did not appreciate me."],
 		["Elder Rowan has been 'about to retire' for forty years.", "Every year he says 'just one more trainer'. That's you! Congratulations, you're his excuse."],
 		["Welcome to Cocoon Cove: population small, naps large."],
 	],
@@ -101,12 +101,12 @@ const TOWNS := {
 const RESIDENTS := [
 	["Oh! A visitor! Quick, everyone act natural!", "...I live alone. I panicked."],
 	["Welcome to my home! Please wipe your feet. And your hands. And your opinions about my wallpaper."],
-	["My grandpa merged a Burrowbun with a Zephyrling once. It had wings AND floppy ears!", "It couldn't fly. It just sort of... hopped majestically."],
+	["My grandpa merged a Crystusk with a Tempestrix once. It had wings AND tusks!", "It couldn't fly. It just sort of... trotted majestically."],
 	["Have you been up a Sky Tower? The big bird flies you anywhere you've been!", "I asked it to fly me to the moon. It gave me a look."],
 	["My beast dropped an egg after a battle once. The Beast Center hatched it for free!", "Now I have two beasts and zero quiet mornings."],
 	["I found a crystal shard behind the well. They say five of them make a shield!", "I made a very small hat out of mine instead. No regrets."],
 	["Shh, the baby's sleeping.", "...The baby is my beast. It's twelve. It sleeps a LOT."],
-	["Please don't open the cupboard. There's nothing in the cupboard.", "...", "Okay, there's a Wisplet in the cupboard. It pays rent."],
+	["Please don't open the cupboard. There's nothing in the cupboard.", "...", "Okay, there's a Flittle in the cupboard. It pays rent."],
 	["I'm learning the flute! Listen!", "♪ Fweeeee-HONK ♪", "...I'm learning."],
 	["Earth beasts can protect the whole team. I always bring one along.", "Mostly to carry my snacks. Very sturdy snack carriers."],
 	["You can stay for tea! I only have hot water and good intentions, though."],
@@ -128,7 +128,7 @@ const LOCKED_DOOR := [
 	["Sorry! I'm having a bubble bath with my water beast. It's mostly beast at this point."],
 	["Is that {player}? Wait right there, I'll find a pen for an autograph!", "...", "...I can't find a pen. Bye!"],
 	["No visitors! We have a very important nap scheduled. It's a family tradition."],
-	["Not now! I've been on hold with the Sky Tower for three hours and the Thunderhawk just picked up!"],
+	["Not now! I've been on hold with the Sky Tower for three hours and the Tempestrix just picked up!"],
 	["I can't find my key! I've looked everywhere except where I left it, which is probably where it is."],
 ]
 
@@ -154,6 +154,15 @@ const DEFEATS := [
 ]
 
 ## Mascots doing mascot things ("%s" is the mascot's name).
+## Townsfolk on their mascot's signature move (see MoveDB.SIGNATURE): {mascot}, {move} and {lv} are filled in.
+const MASCOT_MOVE := [
+	"Read the plaque on our statue? Our {mascot} teaches {move} to any {mascot} of Lv {lv}. My {mascot} is Lv 3. We're working on it.",
+	"I asked our {mascot} to teach ME {move}. It looked at me like I'd asked a fish to climb a ladder. Only another {mascot} can learn it.",
+	"Rumour has it our {mascot} knows {move}. It only shows a fellow {mascot}, and only one of Lv {lv} or more. Very exclusive club.",
+	"A {mascot} at Lv {lv} can learn {move} from ours. It's the strongest move a {mascot} will ever know. Ours mostly uses it to open coconuts.",
+	"Our mascot won't teach {move} to just anyone. It has to be a {mascot}, Lv {lv} or better. I tried a fake moustache. It didn't fall for it.",
+	"Every town's mascot has a secret move for its own kind. Ours is {move}. Bring a Lv {lv} {mascot} and watch the fireworks!",
+]
 const MASCOT := [
 	"The %s chases its own tail. It's winning.",
 	"The %s yawns, stretches, and pretends you don't exist. Classic mascot.",
@@ -169,18 +178,28 @@ const MASCOT := [
 const HINTS := {
 	"egg": ["Elder Rowan's waiting in the plaza with a beast egg for you. She's been polishing it all morning. It's very shiny now.",
 		"Big day, huh? Go and see Elder Rowan in the plaza. She's got something round and important for you.",
-		"I'd hurry to the plaza if I were you. Last time Elder Rowan waited, she knitted a whole sweater. For a Redcoon."],
+		"I'd hurry to the plaza if I were you. Last time Elder Rowan waited, she knitted a whole sweater. For a Pyrosaur."],
 	"hatch": ["An egg! Nurse Clover at the Beast Center can hatch that for you. It's right across from the square: red-and-white awning, red paw print over the door.",
 		"Eggs don't hatch in your pocket, you know! The Beast Center's the one by the square with the striped awning and the paw-print sign.",
 		"The Beast Center's incubator is warm and cosy. Your egg would love it. Just across the road from the statue, under the red-and-white awning."],
 	"path": ["Heading down the Coastal Path? The trainers out there teach every newcomer how battling works. Listen to them!",
 		"Scout Bram's opened the east gate for you. Follow the trail, and the trainers along it will show you the ropes.",
-		"My first battles were on the Coastal Path. A camper taught me everything. Then a fisher taught me everything again, but slower."],
+		"My first battles were on the Coastal Path. A camper taught me everything. Then a fisher taught me everything again, but slower.",
+		"The footbridge on the Coastal Path washed out. Young Kit in the log cabin by the creek has been hoarding logs. Pay him a visit!"],
+	"bridge": ["Kit gave you his logs? Lay them across the footbridge by his cabin and you can cross the creek.",
+		"Logs don't lay themselves! Well, Kit's logs nearly do. Take them to the footbridge's posts by the creek.",
+		"Once that footbridge on the Coastal Path is mended, Tidewater's just a stroll away."],
 	"flute": ["Tidewater's at the far end of the Coastal Path. Your uncle Rafe lives right by its west gate.",
 		"I hear Rafe in Tidewater has been polishing a reed flute for years. Waiting for someone, maybe? Someone like you?",
 		"Your uncle in Tidewater is keeping your father's flute. Go and get it!"],
 	"rafe": ["Rafe's lessons are worth finishing. Weaken AND Capture! A trainer without songs is just a person with a pet.",
 		"Go back and see your uncle. He's got songs to teach you. He hums them in the street. It's very distracting."],
+	"arena": ["Tidewater's arena gives every new trainer battle lessons before they face Tide Captain Marina. Coach Rory and Coach Ondine wait just inside the door. You can't miss them. They won't let you.",
+		"Want to sail to the Isle of Tides? Captain Gull only takes trainers with Marina's Wave Crest. Start with the arena's coaches!",
+		"Coach Rory yells a lot, but he knows teamwork. Coach Ondine knows elements. Between them, Marina won't know what hit her."],
+	"marina": ["Done with the coaches? Then Tide Captain Marina's waiting in the arena's ring. Her beasts are all water... and water hates air.",
+		"Win Marina's Wave Crest and Captain Gull will happily sail you to the Isle of Tides.",
+		"Marina's beasts are all water. Bring something airy. Or something with a lot of confidence."],
 	"ferry": ["Captain Gull's ferry sails from Tidewater's long pier to the Isle of Tides. The islanders are having a terrible squabble, I hear.",
 		"The Isle of Tides! Take the ferry from the pier. Bring a sweater. And a referee: Shellhaven and Kelpwick are at each other's throats.",
 		"Tried your flute on a wild beast yet? Weaken first, then Capture. Then catch the ferry from the pier. The island's waiting."],

@@ -1,11 +1,20 @@
 extends SceneTree
 ## Verifies every map and every building interior:
-## exits, doors, trainers, items and people reachable; all of a town's shops present.
+## exits, doors, trainers, items and people reachable; all of a town's shops present; outdoors, nothing tall (a tree
+## or a building) within HIDE_ROWS tiles south of a road or a person, where it would hide them from the camera; and no
+## way past a teacher without crossing their line of sight (see _slip_past).
 ## Run: godot --headless --path . --script res://tools/check_maps.gd
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
+
+## The camera looks north from the south: a tree or a building this many tiles (or fewer) south of a road, a bridge,
+## the plaza or someone standing about stands between them and the camera. (Trees in a map's last three rows are drawn
+## as shrubs, see world.gd _build_scatter, so they don't count.)
+const HIDE_ROWS := 3
+const TALL := [MapGen.TREE, MapGen.BUILDING, MapGen.DOOR]
+const ROADS := [MapGen.PATH, MapGen.PLAZA, MapGen.BRIDGE]
 
 
 func _init() -> void:
@@ -86,6 +95,9 @@ func _check(m: Dictionary) -> Array:
 				adj3 = true
 		if not adj3:
 			problems.append("shard at %s unreachable" % sh["pos"])
+	if m["kind"] != "interior":
+		problems.append_array(_hidden(m))
+	problems.append_array(_slip_past(m))
 	var groups := {}
 	for q in m.get("obstacles", {}):
 		groups[m["obstacles"][q]["flag"]] = m["obstacles"][q]
@@ -108,10 +120,88 @@ func _check(m: Dictionary) -> Array:
 	return problems
 
 
-func _flood(m: Dictionary, start: Vector2i) -> Dictionary:
+## Roads (and their bridges and the washed-out ones), and the people on the map, with something tall just south of
+## them: one problem per stretch of road, naming its tiles.
+func _hidden(m: Dictionary) -> Array:
+	var spots := {}
+	for y in m["h"]:
+		for x in m["w"]:
+			var c := MapGen.get_t(m, x, y)
+			if c in ROADS or (c == MapGen.OBSTACLE and m["obstacles"].has(Vector2i(x, y)) and m["obstacles"][Vector2i(x, y)]["kind"] == "broken_bridge"):
+				spots[Vector2i(x, y)] = "road"
+	for n in m["npcs"]:
+		spots[n["pos"]] = n.get("name", n.get("kind", "someone"))
+	# the story's people (teachers, chiefs, the mascot...) stand on the map's anchors
+	for a in m.get("anchors", {}):
+		if not a in ["puzzle_exit", "dock"]:
+			spots[m["anchors"][a]] = a
+	var hidden := {}
+	for p in spots:
+		for dy in range(1, HIDE_ROWS + 1):
+			var q: Vector2i = p + Vector2i(0, dy)
+			var c := MapGen.get_t(m, q.x, q.y)
+			if q.y < m["h"] and c in TALL and not (c == MapGen.TREE and q.y >= m["h"] - 3):
+				hidden[p] = q
+				break
+	var out := []
+	var people := []
+	var road := []
+	for p in hidden:
+		if spots[p] == "road":
+			road.append(p)
+		else:
+			people.append("%s at %s hidden by %s" % [spots[p], p, "a tree" if MapGen.get_t(m, hidden[p].x, hidden[p].y) == MapGen.TREE else "a building"])
+	if not road.is_empty():
+		road.sort()
+		out.append("road hidden behind something tall at %s" % ", ".join(road.map(func(t): return "%d,%d" % [t.x, t.y])))
+	out.append_array(people)
+	return out
+
+
+## The teachers (WorldDB.LESSON_TRAINERS, ARENA_LESSONS) must stop you: outdoors, every way from one of the map's
+## exits to another crosses each one's line of sight (as world.gd _check_trainer_sight sees it); indoors, they see you
+## where you come in (world.gd spot_you).
+func _slip_past(m: Dictionary) -> Array:
+	var out := []
+	var town: String = m.get("parent", m["id"])
+	for t in WorldDB.LESSON_TRAINERS + WorldDB.ARENA_LESSONS:
+		if not m.get("anchors", {}).has(t["anchor"]) or String(t.get("town", town)) != town:
+			continue
+		var p: Vector2i = m["anchors"][t["anchor"]]
+		var who := "%s %s at %s" % [t["cls"], t["name"], p]
+		# the teacher's own tile and what they can see from it
+		var sight := {p: true}
+		for i in range(1, int(t.get("sight", 4)) + 1):
+			var q: Vector2i = p + Vector2i(t["facing"]) * i
+			if not MapGen.walkable(MapGen.get_t(m, q.x, q.y)) or m["npcs"].any(func(n): return n["pos"] == q):
+				break
+			sight[q] = true
+		if m["kind"] == "interior":
+			if not sight.has(m["spawns"].get("entry", p)):
+				out.append("%s doesn't see you come in" % who)
+			continue
+		# the map's ways in and out (an exit's tiles, side by side)
+		var ways := {}
+		for e in m["exits"]:
+			var k := "%s %s" % [m["exits"][e]["to"], m["exits"][e]["spawn"]]
+			if not ways.has(k):
+				ways[k] = []
+			ways[k].append(e)
+		for w in ways:
+			if sight.has(ways[w][0]):
+				continue
+			var seen := _flood(m, ways[w][0], sight)
+			for v in ways:
+				if v != w and (ways[v] as Array).any(func(e): return seen.has(e)):
+					out.append("%s can be walked past, from %s to %s" % [who, ways[w][0], ways[v][0]])
+	return out
+
+
+## The tiles you can reach from start (avoid: tiles to keep off as well as the people and items).
+func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 	var seen := {start: true}
 	var q := [start]
-	var blockers := {}
+	var blockers := avoid.duplicate()
 	for n in m["npcs"]:
 		if not n.get("vanish", false):
 			blockers[n["pos"]] = true

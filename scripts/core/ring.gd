@@ -193,6 +193,20 @@ static func best_side(ring: Dictionary) -> int:
 	return best
 
 
+## The side to face the foe with: `side` if the beast in its middle is standing, else the nearest side round the ring
+## whose middle beast is (so the trainer starts covered); with none, `side` if anyone stands on it, else the best side.
+static func covered_side(ring: Dictionary, side: int) -> int:
+	for d in [0, 1, -1, 2]:
+		var s := posmod(side + d, 4)
+		var b = ring.get(s * 2, null)
+		if b != null and b.hp > 0:
+			return s
+	if side_alive(ring, side):
+		return side
+	var best := best_side(ring)
+	return best if best >= 0 else side
+
+
 ## True if some beast is standing on `side` (a trainer may only turn the ring to such a side).
 static func side_alive(ring: Dictionary, side: int) -> bool:
 	for k in side_slots(side):
