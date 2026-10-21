@@ -46,7 +46,6 @@ const SOUNDS := {
 	"confirm": [["res://sfx/01_UI_Menu/UI_Menu_Confirm_001.mp3"], -9.0],
 	"back": [["res://sfx/01_UI_Menu/UI_Menu_Click_001.mp3"], -10.0],
 	"error": [["res://sfx/01_UI_Menu/UI_Menu_Error_001.mp3"], -9.0],
-	"open": [["res://sfx/01_UI_Menu/UI_Menu_OpenMenu_001.mp3"], -8.0],
 	"page": [["res://sfx/UI Samples/UI_Guitar_Percussion_Select_1.wav", "res://sfx/UI Samples/UI_Guitar_Percussion_Select_2.wav"], -10.0],
 	"toggle": [["res://sfx/UI Samples/UI_SteelDrum_Toggle_1.wav"], -10.0],
 	"notify": [["res://sfx/06_Feedback/Feedback_Notification_001.mp3"], -10.0],
@@ -206,6 +205,15 @@ func tone(freq: float, dur := 0.25, wave := "sine", vol := -8.0, slide := 0.0, v
 
 func flute_note(freq: float) -> void:
 	tone(freq, 0.42, "flute", -4.0, 0.0, 0.012)
+
+
+## A battle begins (the swirl or the flash): the whoosh, with a rising chiptune sweep the length of the swirl under it,
+## so it sounds unlike a trainer spotting you.
+func battle_start() -> void:
+	play("encounter")
+	tone(196, 0.8, "square", -17, 600)
+	tone(392, 0.8, "square", -23, 1200)
+	tone(784, 0.3, "tri", -16, 0)
 
 
 ## Plays a named effect. `pitch_jitter` varies the pitch a little so repeats don't sound robotic.

@@ -104,14 +104,13 @@ const LESSON_TRAINERS := [
 	{"anchor": "lesson_turns", "lesson": "turns", "name": "Dale", "cls": "Fisher", "team": [[38, 2]], "facing": Vector2i(0, -1),
 		"look": {"skin": "#c08a60", "hair": "#303040", "shirt": "#3a6a9a", "pants": "#4a4a52", "hat": "#e8c040"},
 		"lines": ["Shh, the fish are bit... oh, a trainer! Never mind the fish. They never bite anyway. Let's talk about turns."],
-		"after": ["Patience wins battles, and Defend buys you time. Youngster Kit lives in the log cabin by the creek. He'll show you your own turn. He's VERY excited about it."],
+		"after": ["Patience wins battles, and Defend buys you time. Youngster Kit hangs about on the trail by the creek. He'll show you your own turn. He's VERY excited about it."],
 		"defeat": "Everyone picks first, then the faster side goes. Defend always goes first and halves the hurt."},
 	{"anchor": "lesson_slingshot", "lesson": "slingshot", "name": "Kit", "cls": "Youngster", "team": [[12, 3]], "facing": Vector2i(0, 1),
 		"look": {"skin": "#e0b088", "hair": "#5a3a20", "hair_style": 0, "shirt": "#e07a5a", "pants": "#3a4a6a"},
-		"gift": {"bridge_log": 5},
-		"lines": ["A visitor! Nobody visits! You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
-		"after": ["Want to cross the creek? I've been hauling logs from the storm trees all week. Take them!",
-			"Lay them across the old footbridge's posts, just east of my cabin. Picnicker Mae is over on the far side. Bring an appetite."],
+		"lines": ["Hey! You! You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
+		"after": ["The footbridge is out, did you see? Old Hal the builder lives in the cabin by the creek. Ask him about it!",
+			"Picnicker Mae is over on the far side. Bring an appetite."],
 		"defeat": "Your own bar: Slingshot, Items, Watch... and Run from wild beasts, or Forfeit against trainers."},
 	{"anchor": "lesson_items", "lesson": "items", "name": "Mae", "cls": "Picnicker", "team": [[25, 3]], "facing": Vector2i(0, 1),
 		"gift": {"minor_potion": 3},
@@ -165,7 +164,8 @@ const ARENAS := {
 
 const BIOMES := {
 	"coast": {"ground": "#7cc05a", "side": "#9a7a50", "sand": "#ecd8a0", "path": "#c8a878", "plaza": "#c8c0b0", "tuft": "#5aa040",
-		"trees": [["palm", 3], ["tree_round_1", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_1", "shrub_3"],
+		"trees": [["palm", 3], ["tree_round_1", 2], ["tree_oak", 1], ["tree_birch", 1], ["tree_round_2", 1]], "rocks": ["beach_rock", "rock_small"],
+		"shrubs": ["shrub_1", "shrub_3", "shrub_4", "bush_1", "bush_2"], "mixed": 0.35,
 		"sky_top": "#4aa8f0", "sky_hz": "#d8f0f8", "sun": "#fff8e8", "sun_e": 1.3, "amb": 0.6, "style": "coastal", "water": "#3a90e0", "music": "coast"},
 	"island": {"ground": "#6ac050", "side": "#9a7a50", "sand": "#f0e0a8", "path": "#d8b880", "plaza": "#d8ccb0", "tuft": "#4ab040",
 		"trees": [["palm", 4], ["tree_round_1", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
@@ -348,7 +348,7 @@ static func nearest_center(from_id: String, visited: Array) -> String:
 const MAP_MUSIC := {"caccoon": "home", "route8": "summit", "tidewater": "andreas"}
 const ROOM_MUSIC := {
 	"temple": "temple", "cathedral": "crypt", "hideout": "hideout", "ceo_tower": "krampus", "arena": "arena",
-	"center": "center", "house": "house", "home": "house", "museum": "house", "music_hall": "house",
+	"center": "center", "house": "house", "home": "house", "uncle": "house", "museum": "house", "music_hall": "house",
 	"cafe": "silly", "music_shop": "silly", "fortune": "silly",
 }
 ## Ambient loops layered under the music.

@@ -16,7 +16,7 @@ func _init() -> void:
 func _ready() -> void:
 	_was_paused = get_tree().paused
 	get_tree().paused = true
-	Sfx.play("open")
+	Sfx.play("toggle")
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 10)
 	add_child(vb)

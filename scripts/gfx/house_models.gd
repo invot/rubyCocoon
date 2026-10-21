@@ -112,8 +112,12 @@ const TALL := 1.28
 ## Fitted to a plot, a house comes out smaller than life next to the people: its ground storey (up to a little above
 ## the door) is stretched a little taller so the front door stands DOOR_H high, clear of every head; the storeys above
 ## keep their proportions (see warped()). A house that would need more than WARP_MAX isn't used on that plot.
-const DOOR_H := 1.85
+const DOOR_H := 1.8
 const WARP_MAX := 1.3
+## Fitted to a plot (narrower than it is tall), the pack's own front door comes out tall and thin: each house is given
+## a front door of ordinary proportions instead (height to width), a little wider, set over the pack's (see
+## _front_door).
+const DOOR_ASPECT := 2.15
 ## the pack's front doors are this tall, and the ground storey ends this far above a door's top
 const PACK_DOOR := 2.09
 const STOREY_ABOVE_DOOR := 0.4
@@ -126,6 +130,7 @@ static var _meshes := {}
 static var _porches := {}
 static var _steps := {}
 static var _mats := {}
+static var _tile_cols := {}
 
 
 static func available() -> bool:
@@ -195,10 +200,11 @@ static func warped(key: String, r: float, step := INF) -> ArrayMesh:
 
 
 ## The house for a plot. b: the map's building (w, d, door, x, seed); room: how far the house may lean past the plot
-## on each side, in tiles, over ground nobody walks on {"left", "right", "back"}.
+## on each side, in tiles, over ground nobody walks on {"left", "right", "back"}; max_h: how tall it may stand (a house
+## with a street not far behind it is kept low, so it never hides anyone walking there from the camera).
 ## Returns {key, skin, scale: Vector3, offset: Vector3, mirror, rect: Rect2 (local, x/z), door_at: Vector3 (the front
 ## door's centre), door_size: Vector2} or {} if none fits.
-static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, used := {}) -> Dictionary:
+static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, used := {}, max_h := INF) -> Dictionary:
 	var w := float(b["w"])
 	var d := float(b["d"])
 	var door_lx := float(b["door"].x) + 0.5 - (float(b["x"]) + w / 2.0)
@@ -237,6 +243,8 @@ static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, 
 			var stretch := DOOR_H / (PACK_DOOR * minf(s * TALL, 1.0))
 			if stretch > WARP_MAX:
 				continue
+			if warp_y(bb.end.y, ground_top(key), maxf(1.0, stretch)) * minf(s * TALL, 1.0) > max_h:
+				continue
 			# how well it fills the plot itself (leaning over the trees is allowed, not wanted), how close to its natural
 			# scale it stays, how little its ground storey is stretched, and whether it has a shape of its own
 			var fill := (hi - lo) * s / w
@@ -259,9 +267,15 @@ static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, 
 	var offset := Vector3(door_lx - float(pick["dx"]) * sv, 0.0, front - door_v.z * sv)
 	var mb: AABB = pick["bb"]
 	var rect := Rect2(Vector2(offset.x + float(pick["lo"]) * sv, offset.z + mb.position.z * sv), Vector2((float(pick["hi"]) - float(pick["lo"])) * sv, mb.size.z * sv))
+	# the pack's doorway once fitted, and the house's own door over it: standing on the same sill, just taller than the
+	# doorway and as wide as an ordinary door that tall (door_at / door_size are the new door's)
+	var hole := Vector2(0.93 * sv, PACK_DOOR * r * sy)
+	var hole_y := warp_y(door_v.y, g, r) * sy
+	var dh := maxf(hole.y + 0.05, DOOR_H)
+	var dw := maxf(dh / DOOR_ASPECT, hole.x + 0.12)
 	var out := {"key": pick["key"], "skin": skins[rng.randi_range(0, skins.size() - 1)], "scale": Vector3(sv, sy, sv),
 		"offset": offset, "mirror": pick["mirror"], "rect": rect,
-		"door_at": Vector3(door_lx, warp_y(door_v.y, g, r) * sy, front + 0.02), "door_size": Vector2(0.93 * sv, PACK_DOOR * r * sy), "warp": r}
+		"door_at": Vector3(door_lx, hole_y - hole.y / 2.0 + dh / 2.0, front + 0.02), "door_size": Vector2(dw, dh), "warp": r}
 	# a deck or stoop in front of the door: in the plot's space, how high it stands (one easy step at most, level with
 	# the door's sill), and for a porch how high its posts reach
 	var st := steps(String(pick["key"]))
@@ -393,9 +407,61 @@ static func build(p: Dictionary, locked := false) -> Node3D:
 	mi.position = p["offset"]
 	_skin(mi, m, p["skin"], locked)
 	node.add_child(mi)
+	_front_door(node, p, m, locked)
 	if p.get("planters", true):
 		_planters(node, p)
 	return node
+
+
+## The house's front door (see DOOR_ASPECT): a frame in the colour of its trim, and the door itself in its door tile
+## (crimson when locked, as every locked door is), standing just proud of the wall over the pack's narrow doorway.
+static func _front_door(node: Node3D, p: Dictionary, m: ArrayMesh, locked: bool) -> void:
+	var c: Vector3 = p["door_at"]
+	var ds: Vector2 = p["door_size"]
+	var skin: Array = p["skin"]
+	var frame := MeshInstance3D.new()
+	var fb := BoxMesh.new()
+	fb.size = Vector3(ds.x + 0.16, ds.y + 0.08, 0.06)
+	var trim := "trim:" + String(skin[2])
+	if not _mats.has(trim):
+		var fm := StandardMaterial3D.new()
+		fm.albedo_color = _tile_colour(String(skin[2]))
+		fm.roughness = 0.9
+		_mats[trim] = fm
+	fb.material = _mats[trim]
+	frame.mesh = fb
+	frame.position = Vector3(c.x, c.y + 0.04, c.z + 0.02)
+	node.add_child(frame)
+	var leaf := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = ds
+	for s in m.get_surface_count():
+		var base := m.surface_get_material(s) as StandardMaterial3D
+		if base != null and String(base.resource_name) == "door":
+			q.material = _part_mat(base, "door", String(skin[3]), locked)
+			break
+	leaf.mesh = q
+	leaf.position = Vector3(c.x, c.y, c.z + 0.06)
+	node.add_child(leaf)
+
+
+## A tile's average colour (the trim round a door is drawn plain, in its trim's colour).
+static func _tile_colour(tile: String) -> Color:
+	if _tile_cols.has(tile):
+		return _tile_cols[tile]
+	var col := Color("#e8e4dc")
+	if ResourceLoader.exists(TILES + tile + ".res"):
+		var img := (load(TILES + tile + ".res") as Texture2D).get_image()
+		if img.is_compressed():
+			img.decompress()
+		img.resize(4, 4, Image.INTERPOLATE_BILINEAR)
+		var sum := Color(0, 0, 0, 0)
+		for y in 4:
+			for x in 4:
+				sum += img.get_pixel(x, y)
+		col = Color(sum.r / 16.0, sum.g / 16.0, sum.b / 16.0)
+	_tile_cols[tile] = col
+	return col
 
 
 ## Two wooden planters of flowers either side of the front door.
@@ -457,15 +523,18 @@ static func _skin(mi: MeshInstance3D, m: ArrayMesh, skin: Array, locked: bool) -
 		var role := String(base.resource_name)
 		if not parts.has(role):
 			continue
-		var tile := String(parts[role])
-		# a log house keeps logs for its "extras" (chimney) only if it has no step tile of its own
-		var key := "%s:%s:%s" % [role, tile, "locked" if locked and role == "door" else ""]
-		if not _mats.has(key):
-			var mat: StandardMaterial3D = base.duplicate()
-			if ResourceLoader.exists(TILES + tile + ".res"):
-				mat.albedo_texture = load(TILES + tile + ".res")
-			if locked and role == "door":
-				mat.albedo_texture = load(TILES + "door_dark.res") if ResourceLoader.exists(TILES + "door_dark.res") else mat.albedo_texture
-				mat.albedo_color = LOCKED_DOOR.lightened(0.35)
-			_mats[key] = mat
-		mi.set_surface_override_material(s, _mats[key])
+		mi.set_surface_override_material(s, _part_mat(base, role, String(parts[role]), locked))
+
+
+## A part of a house in one of the pack's tiles (made once per part, tile and lock).
+static func _part_mat(base: StandardMaterial3D, role: String, tile: String, locked: bool) -> StandardMaterial3D:
+	var key := "%s:%s:%s" % [role, tile, "locked" if locked and role == "door" else ""]
+	if not _mats.has(key):
+		var mat: StandardMaterial3D = base.duplicate()
+		if ResourceLoader.exists(TILES + tile + ".res"):
+			mat.albedo_texture = load(TILES + tile + ".res")
+		if locked and role == "door":
+			mat.albedo_texture = load(TILES + "door_dark.res") if ResourceLoader.exists(TILES + "door_dark.res") else mat.albedo_texture
+			mat.albedo_color = LOCKED_DOOR.lightened(0.35)
+		_mats[key] = mat
+	return _mats[key]

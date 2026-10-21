@@ -14,6 +14,7 @@ const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
+const Fishing = preload("res://scripts/world/fishing.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
@@ -71,6 +72,8 @@ var cam_free := false
 var building_fades: Array = []
 var water_mats: Array = []
 var spinners: Array = []
+## the rippling fishing spots: [ring nodes, phase] (see _build_ripples)
+var ripples: Array = []
 var bobbers: Array = []
 ## Beast Center machines: "healer" / "incubator" -> {"node", "window", "slots", "dome", "pos"}
 var machines := {}
@@ -101,6 +104,8 @@ func build(id: String) -> void:
 		_build_statue()
 		_build_obstacles()
 		_build_pushables()
+		_build_ripples()
+		_build_boats()
 	_build_npcs()
 	_build_items()
 	_build_player()
@@ -288,6 +293,8 @@ func _build_terrain() -> void:
 			if c in [MapGen.LAMP, MapGen.SIGN]:
 				# a lamp post or a signpost stands on whatever ground is around it
 				c = MapLoader._infer_floor(map, Vector2i(x, y))
+			if c == MapGen.BUILDING and map.get("over_water", {}).has(Vector2i(x, y)):
+				c = MapGen.BRIDGE
 			match c:
 				MapGen.PATH, MapGen.DOOR:
 					kind = "path"
@@ -443,11 +450,13 @@ func _build_backdrop() -> void:
 				elif rng.randf() < 0.2:
 					_ring_shrub(by_asset, shrubs, c, rng, 0.5, 0.9)
 				continue
-			# a wood: thick near the map, a little thinner deep in (the fog takes over there)
-			if rng.randf() < (0.8 if depth <= 6 else 0.6):
-				_ring_tree(by_asset, trees, c, rng, 2.4, 4.0, shadow)
-			elif depth <= 2 and rng.randf() < 0.5:
-				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.0)
+			# a wood: thick near the map, a little thinner deep in (the fog takes over there); a mixed one has gaps
+			# filled with shrubs
+			var mixed := float(biome.get("mixed", 0.0))
+			if rng.randf() < (0.8 if depth <= 6 else 0.6) * (1.0 - mixed * 0.7):
+				_ring_tree(by_asset, trees, c, rng, 2.0 if mixed > 0.0 else 2.4, 4.0, shadow)
+			elif (depth <= 2 or (mixed > 0.0 and depth <= 6)) and rng.randf() < 0.5 + mixed:
+				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.2)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	# hills on the horizon
@@ -626,8 +635,16 @@ func _build_scatter() -> void:
 				MapGen.FLOWERS:
 					flowers[rng.randi_range(0, 1)].append(_xf(center, _voxel_rot(rng)))
 				MapGen.TREE:
+					# a mixed wood (the coast's): some of it thickets of different shrubs in place of trees
+					var mix := float(biome.get("mixed", 0.0))
+					if mix > 0.0 and y < h - 3 and rng.randf() < mix:
+						for k in rng.randi_range(2, 3):
+							var tn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
+							var s4 := VA.fit_scale(tn, rng.randf_range(0.55, 1.25))
+							_add_asset(by_asset, tn + SHADOWLESS, _xf(center + Vector3(rng.randf_range(-0.35, 0.35), -VA.aabb(tn).position.y * s4, rng.randf_range(-0.35, 0.35)), _voxel_rot(rng), s4))
+						continue
 					var name := _pick_weighted(trees, rng)
-					var hgt := rng.randf_range(2.2, 3.1)
+					var hgt := rng.randf_range(2.2, 3.1) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
 					if y >= h - 3:
 						name = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						hgt = rng.randf_range(0.7, 1.0)
@@ -710,7 +727,7 @@ func _plan_houses() -> void:
 	var used := {}
 	for b in map["buildings"]:
 		var shop: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in VBld.SIGNED_HOUSES
-		if not b["shop"] in ["house", "home", "decor", "cabin"] and not shop:
+		if not b["shop"] in ["house", "home", "decor", "cabin", "uncle"] and not shop:
 			continue
 		var x0: int = b["x"]
 		var y0: int = b["y"]
@@ -721,13 +738,22 @@ func _plan_houses() -> void:
 		while back < 3 and _leanable_row(y0 - back - 1, x0, x0 + w - 1):
 			back += 1
 		room["back"] = float(back)
+		# somewhere people walk not far behind it: the camera (CAM_OFFSET, behind and above whoever's there) looks over
+		# the house, so it leans no further back and stands no taller than the line from the camera down to them
+		var gap := _walk_gap_behind(x0, y0, w)
+		var max_h := INF
+		if gap < CAM_OFFSET.z + 1.0:
+			room["back"] = 0.0
+			b["low"] = true
+			# (never lower than a one-storey house: it's those that are wanted there)
+			max_h = maxf(4.6, CAM_LOOK_Y + (CAM_OFFSET.y - CAM_LOOK_Y) * (float(gap) + 0.5) / CAM_OFFSET.z)
 		var o := Vector2(float(x0) + float(w) / 2.0, float(y0) + float(d) / 2.0)
 		var plan := {}
 		# the house must stand only on its plot and on trees, hedges and rocks: if it would reach a path or another
 		# building (leaning sideways and back at once), plan again with less room
 		for attempt in 4:
 			# (Kit's cabin is always a log cabin, whatever the road's style)
-			plan = HouseModels.plan(b, "cabin" if b["shop"] == "cabin" else style, room, shop, used)
+			plan = HouseModels.plan(b, "cabin" if b["shop"] == "cabin" else style, room, shop, used, max_h)
 			if plan.is_empty() or _house_fits(plan["rect"], o, b):
 				break
 			room["back"] = maxf(0.0, float(room["back"]) - 1.0)
@@ -805,6 +831,20 @@ func _leanable(x: int, y: int) -> bool:
 	if x < 0 or y < 0 or x >= map["w"] or y >= map["h"]:
 		return true
 	return MapGen.get_t(map, x, y) in [MapGen.TREE, MapGen.BUSH, MapGen.ROCK]
+
+
+## How many rows behind (north of) a plot it is to the nearest outdoor tile anyone can walk on, across the plot's width
+## (99 if there's none for a long way).
+func _walk_gap_behind(x0: int, y0: int, w: int) -> int:
+	for k in range(1, 15):
+		var y := y0 - k
+		if y < 0:
+			return 99
+		for x in range(x0, x0 + w):
+			var c := MapGen.get_t(map, x, y)
+			if MapGen.walkable(c) and c != MapGen.DOOR and not c in [MapGen.WATER, MapGen.BRIDGE]:
+				return k - 1
+	return 99
 
 
 func _build_buildings() -> void:
@@ -1071,8 +1111,9 @@ var _log_bridge_nodes := {}
 
 
 func _build_log_bridges() -> void:
+	# mended: the finished footbridge, its logs under the deck
 	for tiles in map.get("log_bridges", []):
-		_lay_logs(tiles, _logs_needed(), "")
+		_lay_logs(tiles, _logs_needed(), "", true)
 	var seen := {}
 	for p in map["obstacles"]:
 		var grp: Dictionary = map["obstacles"][p]
@@ -1105,26 +1146,80 @@ func _log_slot(tiles: Array, i: int) -> Array:
 	return [Transform3D(Basis(Vector3.UP, PI / 2.0), Vector3(r.position.x + step2 * (i + 0.5), y, r.position.y + r.size.y / 2.0)), r.size.y * 16 + 2]
 
 
-func _lay_logs(tiles: Array, placed: int, key: String) -> void:
+func _lay_logs(tiles: Array, placed: int, key: String, mended := false) -> void:
 	var holder := Node3D.new()
 	add_child(holder)
 	if key != "":
 		_log_bridge_nodes[key] = holder
-	# a stout post at each corner of the old bridge
-	var r := _bridge_rect(tiles)
-	var k := VBld.Kit.new()
-	for cx in [r.position.x, r.end.x]:
-		for cz in [r.position.y, r.end.y]:
-			k.box("color", Vector3(cx, 0.0, cz), Vector3(0.22, 0.9, 0.22), Color("#5a3c22"))
-	var posts := MeshInstance3D.new()
-	posts.mesh = k.mesh()
-	holder.add_child(posts)
+	if mended:
+		holder.add_child(_footbridge(tiles))
+	else:
+		# a stout post at each corner of the old bridge
+		var r := _bridge_rect(tiles)
+		var k := VBld.Kit.new()
+		for cx in [r.position.x, r.end.x]:
+			for cz in [r.position.y, r.end.y]:
+				k.box("color", Vector3(cx, 0.0, cz), Vector3(0.22, 0.9, 0.22), Color("#5a3c22"))
+		var posts := MeshInstance3D.new()
+		posts.mesh = k.mesh()
+		posts.name = "Posts"
+		holder.add_child(posts)
 	for i in mini(placed, _logs_needed()):
 		var slot := _log_slot(tiles, i)
 		var lg := MeshInstance3D.new()
 		lg.mesh = VP.log_mesh(int(slot[1]), 3.4)
 		lg.transform = slot[0]
 		holder.add_child(lg)
+
+
+## The mended footbridge: plank decking across the creek, level with the banks and running a little onto each, on
+## two beams (the logs lie under it), with a railing of posts, a top rail and a middle rail along each side.
+func _footbridge(tiles: Array) -> MeshInstance3D:
+	var r := _bridge_rect(tiles)
+	var along_x := MapGen.get_t(map, r.position.x - 1, r.position.y) != MapGen.WATER
+	# in the bridge's own terms: a runs across the creek, b across the deck
+	var len_a := float(r.size.x if along_x else r.size.y) + 0.6
+	var wid := float(r.size.y if along_x else r.size.x) - 0.06
+	var mid := Vector3(r.position.x + r.size.x / 2.0, 0.0, r.position.y + r.size.y / 2.0)
+	var at := func(a: float, y: float, b: float) -> Vector3:
+		return mid + (Vector3(a, y, b) if along_x else Vector3(b, y, a))
+	var size := func(sa: float, sy: float, sb: float) -> Vector3:
+		return Vector3(sa, sy, sb) if along_x else Vector3(sb, sy, sa)
+	var k := VBld.Kit.new()
+	var wood := Color("#a07a4c")
+	var dark := Color("#6a4a2a")
+	for b in [-wid / 2.0 + 0.16, wid / 2.0 - 0.16]:
+		k.box("color", at.call(0.0, -0.1, b), size.call(len_a, 0.14, 0.18), dark, true)
+	var n := int(len_a / 0.24)
+	for i in n:
+		var a := -len_a / 2.0 + (i + 0.5) * len_a / n
+		k.box("color", at.call(a, 0.0, 0.0), size.call(len_a / n - 0.03, 0.07, wid), wood if i % 3 != 1 else wood.darkened(0.12), true)
+	for b in [-wid / 2.0 + 0.05, wid / 2.0 - 0.05]:
+		var posts := maxi(3, int(len_a) + 1)
+		for i in posts:
+			var a := -len_a / 2.0 + 0.08 + i * (len_a - 0.16) / (posts - 1)
+			k.box("color", at.call(a, 0.34, b), size.call(0.1, 0.7, 0.1), dark)
+		k.box("color", at.call(0.0, 0.68, b), size.call(len_a - 0.04, 0.07, 0.09), wood)
+		k.box("color", at.call(0.0, 0.4, b), size.call(len_a - 0.08, 0.05, 0.06), wood.darkened(0.15))
+	var mi := MeshInstance3D.new()
+	mi.mesh = k.mesh()
+	mi.name = "Footbridge"
+	return mi
+
+
+## The last log in: the old posts give way to the finished footbridge, dropped onto the logs.
+func finish_footbridge(grp: Dictionary) -> void:
+	var holder: Node3D = _log_bridge_nodes.get(grp["flag"], null)
+	if holder == null:
+		return
+	var posts := holder.get_node_or_null("Posts")
+	if posts != null:
+		posts.queue_free()
+	var fb := _footbridge(grp["tiles"])
+	holder.add_child(fb)
+	fb.position.y = 0.9
+	var tw := create_tween()
+	tw.tween_property(fb, "position:y", 0.0, 0.4).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 ## Drops log number `placed` into its place with a bounce.
@@ -1282,12 +1377,20 @@ func _build_npcs() -> void:
 		else:
 			node = VPer.build(n.get("look", {}))
 			VPer.face(node, n.get("facing", Vector2i(0, 1)))
+			if n.get("sit", false):
+				seat(node, n.get("facing", Vector2i(0, 1)))
+			if n.get("rod", false):
+				# someone fishing: a rod held out in front, its line down into the water
+				var body: Node3D = node.get_node("Body")
+				var tip := Vector3(0.2, VPer.hand_height() + 0.8, 1.35)
+				body.add_child(_rod_mesh(Vector3(0.2, VPer.hand_height(), 0.25), tip))
+				body.add_child(_rod_mesh(tip, Vector3(0.24, -0.1, 2.1), 0.008, Color("#e8e8e8")))
 		node.position = tile_pos(p)
 		add_child(node)
 		n["node"] = node
 		n["home"] = p
 		npcs[p] = n
-		if n.has("mesh"):
+		if n.has("mesh") and not n.get("still", false):
 			bobbers.append([node, 0.1, 2.0])
 		if n.get("kind", "") == "trainer" and not GameState.flag(n.get("flag", "")):
 			var mark := Label3D.new()
@@ -1297,7 +1400,7 @@ func _build_npcs() -> void:
 			mark.outline_size = 12
 			mark.pixel_size = 0.01
 			mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			mark.position = Vector3(0, 1.65, 0)
+			mark.position = Vector3(0, VPer.height() + 0.25, 0)
 			mark.visible = false
 			node.add_child(mark)
 			n["mark"] = mark
@@ -1306,7 +1409,7 @@ func _build_npcs() -> void:
 			var st := MeshInstance3D.new()
 			st.mesh = _story_crystal()
 			st.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			var top := 2.0 if n.get("beast_genes", null) == null else 2.8
+			var top := VPer.height() + 0.5 if n.get("beast_genes", null) == null else 2.8
 			st.position = Vector3(0, top, 0)
 			node.add_child(st)
 			n["story_mark"] = st
@@ -1414,6 +1517,14 @@ func _process(delta: float) -> void:
 		if is_instance_valid(b[0]):
 			var n: Node3D = b[0]
 			n.position.y = float(b[1]) + sin(_time * float(b[2])) * 0.08
+	for rp in ripples:
+		# each ring spreads out and fades, one after another
+		for k in (rp[0] as Array).size():
+			var ring: MeshInstance3D = rp[0][k]
+			if is_instance_valid(ring):
+				var f := fposmod(_time * 0.45 + float(rp[1]) + k / 3.0, 1.0)
+				ring.scale = Vector3.ONE * lerpf(0.25, 1.15, f) * float(rp[2])
+				ring.transparency = lerpf(0.25, 1.0, f)
 	if demo:
 		_demo_t += delta
 		cam_target = Vector3(map["w"] / 2.0 + sin(_demo_t * 0.15) * 6.0, 0, map["h"] / 2.0 + 2.0)
@@ -1455,18 +1566,41 @@ func _process(delta: float) -> void:
 	_place_camera()
 
 
+## A building between the camera and you (the arena, a tall house you've walked behind) fades almost away, so you're
+## never lost from sight: whenever the line from the camera to your head or your middle passes through its bounds.
 func _fade_buildings(delta: float) -> void:
-	var pp := Vector2(player.position.x, player.position.z)
+	if cam == null:
+		return
+	var from := cam.global_position
+	# (stopping a step short of you: an awning or a porch over the street right where you stand isn't in the way)
+	var head := player.position + Vector3(0, VPer.height() * 0.95, 0)
+	head += (from - head).normalized() * 1.1
+	var middle := player.position + Vector3(0, VPer.height() * 0.5, 0)
+	middle += (from - middle).normalized() * 1.1
 	for f in building_fades:
-		var b: Dictionary = f["b"]
-		var by: float = b["y"]
-		var bx: float = b["x"]
-		var tall := 12.0 if b["shop"] in ["ceo_tower", "skytower", "cathedral"] else 7.5
-		var occl: bool = pp.y < by + 0.5 and pp.y > by - tall and pp.x > bx - 1.0 and pp.x < bx + float(b["w"]) + 1.0
-		var target := 0.9 if occl else 0.0
+		if not f.has("box"):
+			f["box"] = _fade_box(f["meshes"])
+		var box: AABB = f["box"]
+		var occl: bool = box.size != Vector3.ZERO and (box.intersects_segment(from, head) or box.intersects_segment(from, middle))
+		var target := 0.93 if occl else 0.0
 		for gi in f["meshes"]:
 			if is_instance_valid(gi) and gi.transparency != target:
 				gi.transparency = move_toward(gi.transparency, target, delta * 3.0)
+
+
+## The bounds of a building's meshes, in the world, trimmed a little so brushing past a corner doesn't fade it.
+func _fade_box(meshes: Array) -> AABB:
+	var box := AABB()
+	var any := false
+	for gi in meshes:
+		if not is_instance_valid(gi) or not gi is VisualInstance3D or not (gi as Node3D).is_inside_tree():
+			continue
+		var bb: AABB = (gi as Node3D).global_transform * (gi as VisualInstance3D).get_aabb()
+		box = bb if not any else box.merge(bb)
+		any = true
+	if not any:
+		return AABB()
+	return box.grow(-0.15)
 
 
 func _read_input() -> void:
@@ -1633,7 +1767,7 @@ func _interact() -> void:
 	if npcs.has(t):
 		var n: Dictionary = npcs[t]
 		_face_npc(n, -facing)
-		await Story.talk(self, n)
+		await _talk(n)
 	elif doors.has(t):
 		await _enter_building(doors[t])
 	elif items.has(t):
@@ -1645,7 +1779,7 @@ func _interact() -> void:
 	elif _counter_like(t) and _across_counter(t) != Vector2i(-999, -999):
 		var n2: Dictionary = npcs[_across_counter(t)]
 		_face_npc(n2, -facing)
-		await Story.talk(self, n2)
+		await _talk(n2)
 	elif map["signs"].has(t):
 		await UI.say([map["signs"][t]])
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.STATUE:
@@ -1660,8 +1794,141 @@ func _interact() -> void:
 	elif interior and MapGen.get_t(map, t.x, t.y) in PROP_CODES:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
-		await UI.say(["The water sparkles. Something might live down there..."])
+		await Fishing.cast(self, t)
 	busy = false
+
+
+# ---------------------------------------------------------------- fishing (see fishing.gd)
+## The rippling water where fish bite best: over each spot's 4-tile-square patch, a scatter of ripples of different
+## sizes, each three rings spreading out one after another, out of step with the others.
+func _build_ripples() -> void:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(1, 1, 1, 0.7)
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.34
+	torus.outer_radius = 0.4
+	torus.rings = 24
+	torus.ring_segments = 4
+	torus.material = m
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_id.hash() + 41
+	var n := MapLoader.FISH_AREA
+	for p in map.get("fish_spots", {}):
+		var c: Vector2i = p
+		# the patch's corner and far corner, in the world
+		var lo := Vector2(c.x - 1, c.y - 1)
+		for e in 7:
+			var at := lo + Vector2(rng.randf_range(0.4, n - 0.4), rng.randf_range(0.4, n - 0.4))
+			var q := Vector2i(floori(at.x), floori(at.y))
+			# only over water (the patch can run past the map's edge, where the sea carries on)
+			var inside: bool = q.x >= 0 and q.y >= 0 and q.x < map["w"] and q.y < map["h"]
+			if inside and MapGen.get_t(map, q.x, q.y) != MapGen.WATER:
+				continue
+			var rings := []
+			for k in 3:
+				var mi := MeshInstance3D.new()
+				mi.mesh = torus
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				mi.position = Vector3(at.x, -0.1, at.y)
+				add_child(mi)
+				rings.append(mi)
+			ripples.append([rings, rng.randf(), rng.randf_range(0.55, 1.7)])
+
+
+## Boats moored in the water (map "boats": x, z, yaw, model, length), rocking gently.
+func _build_boats() -> void:
+	for bt in map.get("boats", []):
+		var name := String(bt[3])
+		var bb := VA.aabb(name)
+		var mi := MeshInstance3D.new()
+		mi.mesh = VA.mesh(name)
+		var s := float(bt[4]) / maxf(0.01, maxf(bb.size.x, bb.size.z))
+		mi.scale = Vector3(s, s, s)
+		var holder := Node3D.new()
+		holder.position = Vector3(float(bt[0]), 0.0, float(bt[1]))
+		holder.rotation.y = deg_to_rad(float(bt[2]))
+		mi.position.y = -0.3 - bb.position.y * s
+		holder.add_child(mi)
+		add_child(holder)
+		bobbers.append([holder, 0.0, 1.3 + float(bt[0]) * 0.01])
+
+
+## The fishing line cast into water tile `t`: a red-and-white float bobbing there, and the line out to it from your
+## rod. Free it once you're done.
+func fishing_line(t: Vector2i) -> Node3D:
+	VPer.face(player, t - player_pos)
+	var holder := Node3D.new()
+	add_child(holder)
+	var fl := Node3D.new()
+	fl.name = "Float"
+	var top := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.08
+	sm.height = 0.16
+	var red := StandardMaterial3D.new()
+	red.albedo_color = Color("#e03030")
+	sm.material = red
+	top.mesh = sm
+	top.position.y = 0.05
+	fl.add_child(top)
+	var low := MeshInstance3D.new()
+	var sm2 := SphereMesh.new()
+	sm2.radius = 0.08
+	sm2.height = 0.12
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color("#f4f0e8")
+	sm2.material = white
+	low.mesh = sm2
+	low.position.y = -0.03
+	fl.add_child(low)
+	fl.position = tile_pos(t) + Vector3(0, -0.08, 0)
+	holder.add_child(fl)
+	bobbers.append([fl, -0.08, 3.0])
+	# the rod held out over the water, and the line down to the float
+	var tip := tile_pos(player_pos) + Vector3(t.x - player_pos.x, 0, t.y - player_pos.y) * 0.55 + Vector3(0, VPer.hand_height() + 0.8, 0)
+	var rod := _rod_mesh(tile_pos(player_pos) + Vector3(0, VPer.hand_height(), 0), tip)
+	holder.add_child(rod)
+	var line := _rod_mesh(tip, fl.position + Vector3(0, 0.1, 0), 0.008, Color("#e8e8e8"))
+	line.name = "Line"
+	holder.add_child(line)
+	return holder
+
+
+## Something nibbles: the float bobs under.
+func dip_line(holder: Node3D) -> void:
+	if not is_instance_valid(holder):
+		return
+	var fl := holder.get_node_or_null("Float") as Node3D
+	if fl == null:
+		return
+	for b in bobbers:
+		if b[0] == fl:
+			bobbers.erase(b)
+			break
+	var tw := create_tween().set_loops(4)
+	tw.tween_property(fl, "position:y", -0.3, 0.12)
+	tw.tween_property(fl, "position:y", -0.12, 0.18)
+
+
+## A thin pole from `a` to `b` (a fishing rod, or its line).
+func _rod_mesh(a: Vector3, b: Vector3, r := 0.025, col := Color("#6a4a2a")) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = r * 0.6
+	cyl.bottom_radius = r
+	cyl.height = a.distance_to(b)
+	cyl.radial_segments = 6
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	cyl.material = m
+	mi.mesh = cyl
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var up := (b - a).normalized()
+	var side := up.cross(Vector3.FORWARD if absf(up.z) < 0.9 else Vector3.RIGHT).normalized()
+	mi.transform = Transform3D(Basis(side, up, side.cross(up)).orthonormalized(), (a + b) / 2.0)
+	return mi
 
 
 func _facing_tile() -> Vector2i:
@@ -1700,9 +1967,47 @@ func _enter_building(b: Dictionary) -> void:
 	GameState.main.goto_map(b["interior"], "entry")
 
 
+## Talking with someone (Story.talk): they gesture as they speak (see VPer.set_talking), then stop.
+func _talk(n: Dictionary) -> void:
+	var node: Node3D = n.get("node", null)
+	var person: bool = node != null and node.has_meta("skeleton")
+	if person:
+		VPer.set_talking(node, true)
+	await Story.talk(self, n)
+	if person and is_instance_valid(node):
+		VPer.set_talking(node, false)
+
+
+## How tall the chairs people sit on at tables are (to the top of the back), sized for the townsfolk.
+const CHAIR_H := 0.78
+## The seat's height, for that size of chair.
+const CHAIR_SEAT := 0.34
+
+
+## Sits a person down on a chair (one put under them), facing `facing`: someone at a table, the chair's back away
+## from it.
+static func seat(node: Node3D, facing: Vector2i) -> void:
+	var mesh := RoomBuilder.piece("chair_wood")
+	if mesh != null:
+		var bb := mesh.get_aabb()
+		var s := CHAIR_H / maxf(0.01, bb.size.y)
+		var chair := MeshInstance3D.new()
+		chair.name = "Chair"
+		chair.mesh = mesh
+		var c := Vector3(bb.position.x + bb.size.x / 2.0, bb.position.y, bb.position.z + bb.size.z / 2.0) * s
+		var yaw := atan2(float(facing.x), float(facing.y))
+		chair.transform = Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), -c.rotated(Vector3.UP, yaw))
+		node.add_child(chair)
+	VPer.face(node, facing)
+	VPer.set_pose(node, "sit", CHAIR_SEAT, true)
+
+
 func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 	var node: Node3D = n.get("node", null)
 	if node == null or not node.has_node("Body"):
+		return
+	# someone sitting at a table stays turned to it
+	if VPer.pose_of(node) == "sit":
 		return
 	# the nearer of the four ways
 	n["facing"] = _four_way(f)
@@ -2246,6 +2551,8 @@ func _spawn_wilds() -> void:
 		for x in map["w"]:
 			var c := MapGen.get_t(map, x, y)
 			if (interior and c == MapGen.MIST) or (not interior and c in [MapGen.TALL, MapGen.GRASS, MapGen.SAND, MapGen.FLOWERS]):
+				if map.has("wild_area") and not map["wild_area"].has(Vector2i(x, y)):
+					continue
 				_wild_cands.append(Vector2i(x, y))
 	if _wild_cands.is_empty():
 		return
@@ -2335,8 +2642,10 @@ func _wild_free(p: Vector2i, w: Dictionary) -> bool:
 	var c := MapGen.get_t(map, p.x, p.y)
 	if not MapGen.walkable(c) or (interior and c != MapGen.MIST) or c == MapGen.DOOR or c == MapGen.ICE:
 		return false
-	# wild beasts keep out of the push puzzles
+	# wild beasts keep out of the push puzzles, and in a town keep to its meadow
 	if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).grow(1).has_point(p):
+		return false
+	if map.has("wild_area") and not map["wild_area"].has(p):
 		return false
 	if npcs.has(p) or items.has(p) or shards.has(p) or pushables.has(p) or map["exits"].has(p) or doors.has(p - Vector2i(0, 1)):
 		return false

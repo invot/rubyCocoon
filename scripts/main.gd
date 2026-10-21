@@ -13,6 +13,7 @@ const SPLASH_COLOR := Color(0.184, 0.141, 0.141)
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -206,9 +207,15 @@ func _title_backdrop() -> void:
 
 
 ## A script loaded in the background (see _title_backdrop), or loaded now if it wasn't asked for or isn't done yet.
+var _battle_warm := false
+
+
 func loaded_script(path: String) -> GDScript:
 	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-		return ResourceLoader.load_threaded_get(path)
+		var got = ResourceLoader.load_threaded_get(path)
+		# (a background load that failed: load it here instead of leaving nothing to build with)
+		if got is GDScript:
+			return got
 	return load(path)
 
 
@@ -226,6 +233,10 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 		world.player.visible = false
 	else:
 		world.spawn_at(spawn, face)
+		# the first battle's ring, ready before anyone meets a beast (behind this load's fade)
+		if not _battle_warm:
+			_battle_warm = true
+			loaded_script(BATTLE_PATH).prewarm()
 
 
 func music_for(id: String) -> String:
@@ -282,7 +293,7 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO) -> void:
 	elif WorldDB.ROUTES.has(id):
 		var lv: Array = WorldDB.ROUTES[id]["lv"]
 		sub = "Wild beasts Lv %d-%d" % [lv[0], lv[1]]
-	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] == "house"):
+	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] in ["house", "uncle"]):
 		UI.banner(title, sub)
 	_transitioning = false
 	await Story.on_map_enter(world)
@@ -437,10 +448,14 @@ const SPIRAL_COLORS := {"sneak": Color("#3fbf5a"), "wild": Color("#3f8fe0"), "am
 
 
 func start_battle(cfg: Dictionary) -> String:
+	# one battle at a time: a trainer who spots you on the very step a wild beast reaches you mustn't start a second
+	# one under the first one's swirl (taking the map away twice left the swirl stuck over the screen)
+	if in_battle:
+		return "run"
 	in_battle = true
 	if autoplay:
 		cfg["autoplay"] = true
-	Sfx.play("encounter")
+	Sfx.battle_start()
 	if not _test.is_empty():
 		print("[battle] intro=", cfg.get("intro", "trainer"), " ambush=", cfg.get("ambush", ""), " foes=", cfg["foes"].map(func(f): return "%s L%d" % [f.nickname, f.level]))
 	var spiral: bool = SPIRAL_COLORS.has(String(cfg.get("intro", "")))
@@ -449,11 +464,15 @@ func start_battle(cfg: Dictionary) -> String:
 	else:
 		await UI.flash(Color.WHITE, 2)
 		await UI.fade_out(0.2)
-	view.remove_child(world)
+	var t0 := Time.get_ticks_msec()
+	if world.get_parent() == view:
+		view.remove_child(world)
 	var b = loaded_script(BATTLE_PATH).new()
 	cfg["map"] = GameState.map_id
 	b.setup(cfg)
 	view.add_child(b)
+	if not _test.is_empty():
+		print("[battle] built in %d ms" % (Time.get_ticks_msec() - t0))
 	if spiral:
 		await UI.spiral_out(0.35)
 	else:
@@ -491,12 +510,17 @@ func _parse_test_args() -> void:
 func _run_test() -> void:
 	var scene: String = _test["scene"]
 	var wait := float(_test.get("wait", "3"))
-	if _test.has("gem"):
-		# try a gem for this run only (the player's saved setting is left alone)
-		UIKit.set_accent(String(_test["gem"]))
+	if _test.has("gem") or _test.has("style"):
+		# try a gem or a style (--style=pixel / cozy) for this run only (the player's saved settings are left alone)
+		UIKit.style = String(_test.get("style", UIKit.style))
+		UIKit.set_accent(String(_test.get("gem", UIKit.accent_name)))
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if _test.has("shield"):
+		# --shield=2/4: shield points left / in all
+		GameState.max_shield = int(String(_test["shield"]).get_slice("/", 1))
+		GameState.shield = int(String(_test["shield"]).get_slice("/", 0))
 	GameState.set_flag("intro_done")
 	GameState.set_flag("got_egg")
 	GameState.set_flag("has_starter")
@@ -533,7 +557,10 @@ func _run_test() -> void:
 		_do_goto("route3", "south")
 		await get_tree().create_timer(1.0).timeout
 		var foes := [Beasts.create(13, 10), Beasts.create(36, 11), Beasts.create(7, 12, true)]
-		if _test.get("kind", "") == "robots":
+		if _test.get("kind", "") == "fishing":
+			# a beast reeled in: the dock and the water
+			start_battle({"wild": true, "foes": [Beasts.create(14, 8)], "seed": 5, "fishing": true})
+		elif _test.get("kind", "") == "robots":
 			foes = [Beasts.create(53, 12), Beasts.create(54, 12), Beasts.create(55, 12)]
 			start_battle({"wild": false, "foes": foes, "seed": 5, "trainer": {"name": "Gearhart", "cls": "CEO", "look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}})
 		else:
@@ -547,6 +574,9 @@ func _run_test() -> void:
 		_do_goto("route3", "south")
 		await _wait(1.0)
 		var flv := int(_test.get("foe_level", "10"))
+		# --down=1: your first beast has fainted (its tile crossed out)
+		if _test.get("down", "0") == "1" and GameState.party.size() > 1:
+			GameState.party[1].hp = 0
 		var team := [Beasts.create(13, flv), Beasts.create(16, flv + 1), Beasts.create(23, flv), Beasts.create(20, flv - 1), Beasts.create(12, flv)]
 		if _test.get("kind", "") == "wild":
 			start_battle({"wild": true, "foes": [Beasts.create(13, 10), Beasts.create(36, 11)], "seed": 5})
@@ -786,6 +816,18 @@ func _run_test() -> void:
 		for i in int(_test.get("downs", "0")):
 			_press("ui_down")
 			await _wait(0.12)
+		# --next=N: the left page's Next pressed N times (pager.gd)
+		for i in int(_test.get("next", "0")):
+			for pg in get_tree().root.find_children("*", "HBoxContainer", true, false):
+				if pg.get_script() != null and String(pg.get_script().resource_path).ends_with("pager.gd") and pg.visible:
+					pg._next.pressed.emit()
+					break
+			await _wait(0.4)
+		if _test.has("flip"):
+			# --flip=cozy / pixel: Settings > Style changed with the book open (not saved)
+			await _wait(1.0)
+			Prefs.ui_style = String(_test["flip"])
+			Prefs.changed.emit()
 		await _wait(wait)
 	elif scene == "walk4":
 		# four-way walking on the grid (--touch adds the d-pad): two keys at once, a change of way mid-step, the
@@ -1225,6 +1267,56 @@ func _run_test() -> void:
 	elif scene == "hero":
 		await _hero_gallery()
 		await _wait(wait)
+	elif scene == "fishing":
+		# Gil's fishing: --lesson=1 (default) his lesson off the shack's deck, 0 an ordinary cast at a ripple; A is pressed
+		# --taps times a second once the float dips (--taps=0: never strike); --snap=secs saves a screenshot mid-cast
+		autoplay = true
+		_do_goto("tidewater", Vector2i(7, 33), Vector2i(0, 1))
+		await _wait(1.5)
+		# (after arriving, so the arrival doesn't start Gil's lesson by itself)
+		GameState.set_flag("fisher_met")
+		GameState.set_flag("got_rod")
+		GameState.add_item("fishing_rod")
+		var lesson: bool = _test.get("lesson", "1") == "1"
+		if not lesson:
+			GameState.set_flag("fish_lesson")
+		if _test.has("bait"):
+			GameState.add_item(String(_test["bait"]), 2)
+			GameState.bait = String(_test["bait"])
+		if _test.has("snap"):
+			get_tree().create_timer(float(_test["snap"])).timeout.connect(func():
+				get_viewport().get_texture().get_image().save_png(String(_test.get("shot", "C:/tmp/fish.png")).replace(".png", "_mid.png")))
+		var rate := float(_test.get("taps", "7"))
+		var tapping := [true]
+		if rate > 0.0:
+			var tap_loop := func():
+				while tapping[0]:
+					# (A also moves the talk along; while the line just waits for a bite it does nothing). Reeling, it taps
+					# like a player: only while the line's below the middle of the zone, at most `rate` times a second
+					var g = UI.stack.back() if not UI.stack.is_empty() else null
+					if g != null and g.get("phase") == "reel":
+						var z: Vector2 = g._zone()
+						if float(g.tension) < (z.x + z.y) / 2.0:
+							await _press("ui_accept")
+							await _wait(1.0 / rate)
+						else:
+							await _wait(0.03)
+						continue
+					if g != null:
+						await _press("ui_accept")
+					await _wait(1.0 / rate)
+			tap_loop.call()
+		world.busy = true
+		if lesson:
+			await Story.fish_lesson(world)
+			print("fishing lesson done: ", GameState.flag("fish_lesson"))
+		else:
+			print("fishing result: ", await Fishing.cast(world, Vector2i(7, 34)), "  bait left ", GameState.item_count(String(_test.get("bait", "worm_bait"))))
+			print("in a rippling patch: ", world.map.get("fish_areas", {}).has(Vector2i(7, 34)))
+		tapping[0] = false
+		world.busy = false
+		print("party: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), "  caught ", GameState.caught.size())
+		await _wait(wait)
 	elif scene == "maker":
 		# the character creator over the town; --picks=body:1,top:3,row:2 as if chosen (row: the one highlighted)
 		_do_goto("caccoon", "start")
@@ -1357,10 +1449,14 @@ func _flow_test() -> void:
 			await Story.talk(world, _lesson_trainer(String(t["lesson"])))
 		await _wait(0.5)
 		if t["lesson"] == "slingshot":
-			# Kit's logs, laid across the footbridge just outside his cabin
-			print("Kit's logs: ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
+			# Old Hal the builder: he asks you to mend the footbridge with the logs by his door, then gives you an egg
+			await _go(MapLoader.interior_of("route1", "cabin"), "entry")
+			await _wait(1.0)
+			await Story.talk(world, _npc("builder"))
 			await _go("route1", "west")
 			await _wait(1.0)
+			await Story.talk(world, _npc("logpile"))
+			print("the builder's logs: ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
 			for q in world.map["obstacles"]:
 				var bridge: Dictionary = world.map["obstacles"][q]
 				if bridge["kind"] == "broken_bridge":
@@ -1368,6 +1464,13 @@ func _flow_test() -> void:
 					await Story.field_move(world, bridge)
 					print("footbridge mended: ", GameState.flag(bridge["flag"]), "  logs left ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
 					break
+			var eggs_before := GameState.eggs.size()
+			await _go(MapLoader.interior_of("route1", "cabin"), "entry")
+			await _wait(1.0)
+			await Story.talk(world, _npc("builder"))
+			print("the builder's egg: ", GameState.eggs.size() - eggs_before, "  hint: ", Story.next_goal())
+			await _go("route1", "west")
+			await _wait(1.0)
 	print("after the lessons: tutorial_done ", GameState.flag("tutorial_done"), "  starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level,
 		"  minor potions ", GameState.item_count("minor_potion"), "  hint: ", Story.next_goal())
 	_step("wild battle at Lv1", [])
@@ -1386,6 +1489,9 @@ func _flow_test() -> void:
 	print("flute before Tidewater: ", GameState.has_flute(), "  songs ", GameState.songs)
 	await _go("tidewater", "west")
 	await _wait(1.5)
+	# Uncle Rafe is at home, by the west gate
+	await _go(MapLoader.interior_of("tidewater", "uncle"), "entry")
+	await _wait(1.0)
 	_step("uncle's flute lessons", [])
 	await Story.talk(world, _npc("uncle"))
 	print("after the uncle: flute ", GameState.has_flute(), "  songs ", GameState.songs)
@@ -2130,13 +2236,16 @@ func _coaches_test() -> void:
 	get_tree().process_frame.connect(watch)
 	await _go("route1", "west")
 	await _settle("route1")
-	# along the trail to Kit's door, and in: he sees you come in
+	# along the trail (Youngster Kit stops you by the creek) to the builder's door, and in: he asks you to mend the
+	# footbridge with the logs by his door
 	var cabin := _bld("cabin")
 	await _walk_road([cabin["door"] + Vector2i(0, 1)])
 	world._step(Vector2i(0, -1), false)
 	await _settle(MapLoader.interior_of("route1", "cabin"))
+	await Story.talk(world, _npc("builder"))
 	await _walk_road(world.map["exits"].keys())
 	await _settle("route1")
+	await Story.talk(world, _npc("logpile"))
 	# his logs, across the footbridge
 	var post := Vector2i(-999, -999)
 	for q in world.map["obstacles"]:
@@ -2148,7 +2257,7 @@ func _coaches_test() -> void:
 	UI.auto_answers = [0]
 	await world._interact()
 	var mended: bool = not world.map["obstacles"].has(post + Vector2i(1, 0))
-	print("%s footbridge mended with Kit's logs" % ("ok  " if mended else "FAIL"))
+	print("%s footbridge mended with the builder's logs" % ("ok  " if mended else "FAIL"))
 	if not mended:
 		bad[0] += 1
 	# on along the trail to Tidewater
@@ -2476,19 +2585,37 @@ func _hero_gallery() -> void:
 	root.add_child(sun)
 	# --body=female --top=3a6ab8 --trousers=... --hair=... --eyes=...: the hero as the character creator can make them
 	var look := {"face": "hero"}
-	for k in ["body", "top", "trousers", "hair", "eyes"]:
+	for k in ["body", "top", "trousers", "hair", "eyes", "person", "hairdo", "pack"]:
 		if _test.has(k):
-			look[k] = _test[k]
+			look[k] = _test[k] if not k in ["person", "hairdo", "pack"] else int(_test[k])
 	if _test.has("model"):
 		look = {"model": _test["model"]}
-	# --pose=walk: side views an eighth of a stride apart (--speed: 1.7 a stroll, 4.6 the hero's jog, 7.8 a sprint)
+	# --pose=walk: side views an eighth of a stride apart (--speed: 1.7 a stroll, 4.6 the hero's jog, 7.8 a sprint);
+	# --pose=talk: four moments a second apart of someone talking; --pose=sit: sitting, from four sides;
+	# --packs=n: the hero in four of the packs from n on (from behind)
 	var walk: bool = _test.get("pose", "") == "walk"
+	var act: String = _test.get("pose", "") if _test.get("pose", "") in ["talk", "sit"] else ""
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	for i in 4:
+		# --trainer=n: four route trainers (random looks from seed n on, in their camo)
+		if _test.has("trainer"):
+			var rng := RandomNumberGenerator.new()
+			rng.seed = int(_test["trainer"]) + i
+			look = MapGen.random_look(rng)
+			look["outfit"] = "camo"
+		if _test.has("packs"):
+			look["pack"] = int(_test["packs"]) + i
 		var rig: Node3D = VPer.build(look)
-		VPer.face(rig, Vector2i(1, 0) if walk else dirs[i])
+		VPer.face(rig, Vector2i(1, 0) if walk else (Vector2i(0, 1) if act == "talk" else ([Vector2i(0, -1), Vector2i(-1, 0)][int(_test.get("view", "0"))] if _test.has("packs") else dirs[i])))
 		if walk:
 			VPer.animate(rig, i * PI / 4.0 + float(_test.get("phase", "0")), float(_test.get("speed", "4.6")), 0.0)
+		elif act == "talk":
+			VPer.set_talking(rig, true, true)
+			VPer.animate(rig, 0.0, 0.0, 10.0 + i * 1.1)
+		elif act == "sit":
+			var World = load("res://scripts/world/world.gd")
+			World.seat(rig, dirs[i])
+			VPer.animate(rig, 0.0, 0.0, 10.0 + i * 1.1)
 		rig.position = Vector3(i * 1.4, 0, 0)
 		root.add_child(rig)
 	var cam := Camera3D.new()

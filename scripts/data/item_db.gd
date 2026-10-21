@@ -77,6 +77,17 @@ const ITEMS := {
 
 	# ---------------- trainer gear ----------------
 	# key items for the road puzzles
+	# ---------------- fishing (see scripts/world/fishing.gd) ----------------
+	"fishing_rod": {"name": "Fishing Pole", "kind": "key", "price": 0, "tier": 99,
+		"desc": "Fisher Gil's spare pole. Face the water and press A to cast. Rippling water is where the fish are."},
+	## bait: put on your hook from the bag; it stays on until something bites. Better bait brings up stronger,
+	## rarer water beasts and bites sooner. sold_in: the towns whose apothecary or outfitter stocks it.
+	"worm_bait": {"name": "Wriggly Worms", "kind": "bait", "bait": 1, "price": 25, "tier": 99, "sold_in": ["shellhaven", "kelpwick"],
+		"desc": "Plain old worms. Water beasts of the shallows can't resist them."},
+	"spinner_lure": {"name": "Spinner Lure", "kind": "bait", "bait": 2, "price": 70, "tier": 99, "sold_in": ["copperpick", "cogsworth", "emberfall"],
+		"desc": "A flashy brass lure that twirls in the water. Draws up bigger water beasts."},
+	"glow_lure": {"name": "Glow Lure", "kind": "bait", "bait": 3, "price": 180, "tier": 99, "sold_in": ["riverbend", "gravenmoor"],
+		"desc": "It shines in the deep like a little moon. The rarest water beasts rise to it."},
 	"bridge_log": {"name": "Log", "kind": "key", "price": 0, "tier": 99, "desc": "A sturdy log from a tree the storm knocked down. Five of them would bridge the creek on the Coastal Path."},
 	"bridge_planks": {"name": "Bridge Planks", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of sturdy planks, just right for patching a footbridge."},
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
