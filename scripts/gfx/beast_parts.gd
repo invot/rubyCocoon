@@ -16,8 +16,8 @@ const GROUPS := {"head": ["head"], "arms": ["arm_l", "arm_r"], "wings": ["wing_l
 ## a part takes the rest of each piece of the model it's at least this much of (but not the piece the body's middle
 ## is in), and gives up its vertices on one it's less of, unless that's where most of it is
 const GROW := 0.2
-## how far above its joint a leg grows, and how near the body a part that grew touches it
-const LEG_GROW := 0.12
+## how far above its top (as labelled) a leg grows, and how near the body a part that grew touches it
+const LEG_GROW := 0.06
 const TOUCH := 0.03
 ## how far into the frame's body a part given it is set (but legs), and how deep in its body a part's joint can be
 ## (attach())
@@ -163,7 +163,7 @@ static func info(f: String) -> Dictionary:
 ## that grew, the middle of where it touches the body).
 ## A part grows to the rest of each piece of the model it's at least GROW of, as the bat's wing tips to the arms they
 ## end, unless that's the body's middle piece (its middle in the piece's bounds); a piece two parts share goes
-## vertex by vertex to the nearer. A leg grows only a little above its joint (LEG_GROW), so it keeps its length: a
+## vertex by vertex to the nearer. A leg grows only a little above its top (LEG_GROW), so it keeps its length: a
 ## haunch stays the body's.
 static func regions(fi: Dictionary) -> void:
 	if fi.has("cut"):
@@ -228,6 +228,23 @@ static func regions(fi: Dictionary) -> void:
 			if inside:
 				for i in vs:
 					lab[i] = PARTS.find(fx[0])
+	# each leg's top as labelled, and its joint: the middle of its top quarter (the models' own joints are where the
+	# animation wants them, which for a leg can be anywhere along it)
+	var leg_lo := {}
+	var leg_hi := {}
+	for i in n:
+		if PARTS[lab[i]].begins_with("leg_"):
+			leg_lo[lab[i]] = minf(leg_lo.get(lab[i], INF), verts[i].y)
+			leg_hi[lab[i]] = maxf(leg_hi.get(lab[i], -INF), verts[i].y)
+	var leg_at := {}
+	var leg_n := {}
+	for i in n:
+		if leg_lo.has(lab[i]) and verts[i].y >= lerpf(leg_lo[lab[i]], leg_hi[lab[i]], 0.75):
+			leg_at[lab[i]] = leg_at.get(lab[i], Vector3.ZERO) + verts[i]
+			leg_n[lab[i]] = leg_n.get(lab[i], 0) + 1
+	for k in leg_at:
+		leg_at[k] = leg_at[k] / float(leg_n[k])
+		leg_at[k].y = lerpf(leg_lo[k], leg_hi[k], 0.75)
 	var total := {}
 	for i in n:
 		total[lab[i]] = total.get(lab[i], 0) + 1
@@ -268,13 +285,15 @@ static func regions(fi: Dictionary) -> void:
 					if lab[j] in grow and verts[i].distance_squared_to(verts[j]) < near:
 						near = verts[i].distance_squared_to(verts[j])
 						best = lab[j]
-			if PARTS[best].begins_with("leg_") and fi["joints"].has(PARTS[best]) \
-					and verts[i].y > (fi["joints"][PARTS[best]] as Vector3).y + LEG_GROW:
+			if leg_hi.has(best) and verts[i].y > float(leg_hi[best]) + LEG_GROW:
 				continue
 			cut[i] = best
-	# and a piece of only body that touches a part but no other piece of the body (teeth in a claw, a fist on an arm)
+	# and a small piece of only body that touches a part but no other piece of the body (teeth in a claw, a fist on an
+	# arm)
 	for key in piece:
 		var vs: Array = piece[key]
+		if vs.size() > 0.1 * n:
+			continue
 		var touch := {}
 		for i in vs:
 			if cut[i] != 0:
@@ -290,6 +309,36 @@ static func regions(fi: Dictionary) -> void:
 		if touch.size() == 1 and not touch.has(0) and not touch.has(-1):
 			for i in vs:
 				cut[i] = touch.keys()[0]
+	# and a bit of a part on a piece of its own, away from the rest of it (a sliver of a seam), is what it touches
+	var count := {}
+	for i in n:
+		count[cut[i]] = count.get(cut[i], 0) + 1
+	for key in piece:
+		var vs: Array = piece[key]
+		var k: int = cut[vs[0]]
+		if k == 0 or vs.size() >= 0.1 * count[k]:
+			continue
+		var touch := {}
+		for i in vs:
+			if cut[i] != k:
+				touch.clear()
+				touch[k] = 1
+				break
+			var c := Vector3i((verts[i] / TOUCH).floor())
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					for dz in [-1, 0, 1]:
+						for j in cells.get(c + Vector3i(dx, dy, dz), []):
+							if root[j] != key and verts[i].distance_to(verts[j]) < TOUCH:
+								touch[cut[j]] = touch.get(cut[j], 0) + 1
+		if touch.has(k):
+			continue
+		var best := 0
+		for q in touch:
+			if touch[q] > touch.get(best, 0):
+				best = q
+		for i in vs:
+			cut[i] = best
 	var clo := {}
 	var chi := {}
 	var sum := {}
@@ -316,10 +365,13 @@ static func regions(fi: Dictionary) -> void:
 	for p in clo:
 		if p == "body":
 			continue
-		if fi["joints"].has(p) and (p.begins_with("leg_") or grown.get(p, 0) < 0.1 * float(sum[p])):
+		var k := PARTS.find(p)
+		if leg_at.has(k):
+			cj[p] = leg_at[k]
+			continue
+		if fi["joints"].has(p) and grown.get(p, 0) < 0.1 * float(sum[p]):
 			cj[p] = fi["joints"][p]
 			continue
-		var k := PARTS.find(p)
 		var at := Vector3.ZERO
 		var m := 0
 		var inner := Vector3.ZERO

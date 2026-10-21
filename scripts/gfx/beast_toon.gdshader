@@ -41,9 +41,13 @@ uniform float rim = 0.35;
 
 varying vec4 attr;
 varying vec2 face;
+// (the part, unblended: a face across two parts takes one of them whole, rather than whatever parts' numbers lie
+// between theirs)
+varying flat float part_id;
 
 void vertex() {
 	attr = COLOR;
+	part_id = COLOR.r;
 	face = UV2;
 }
 
@@ -91,7 +95,7 @@ vec3 painted_eye(vec3 c) {
 }
 
 void fragment() {
-	int part = clamp(int(attr.r * 15.0 + 0.5), 0, PARTS - 1);
+	int part = clamp(int(part_id * 15.0 + 0.5), 0, PARTS - 1);
 	vec3 c = part_col[part];
 	float t = attr.g;
 	if (part == EYE) {
