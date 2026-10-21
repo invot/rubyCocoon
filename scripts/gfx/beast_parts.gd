@@ -19,8 +19,10 @@ const GROW := 0.2
 ## how far above its joint a leg grows, and how near the body a part that grew touches it
 const LEG_GROW := 0.12
 const TOUCH := 0.03
-## how far into the frame's body a part given it is set (but legs)
+## how far into the frame's body a part given it is set (but legs), and how deep in its body a part's joint can be
+## (attach())
 const SINK := 0.03
+const DEEP := 0.1
 ## what the labels still get wrong for merging, per form: "slight": groups too slight to swap (the owl's head is only
 ## its ear tufts, its face being on its body; the cactus's legs are nubs under it); "move": [part, from, lo, hi]: the
 ## vertices of part `from` in that box are `part`'s (the beetle's beak is its head's, its hands are labelled feet
@@ -452,8 +454,9 @@ static func socket(fi: Dictionary, p: String) -> Vector3:
 
 
 ## Where a form's part p joins the outside of its body (by regions()): out from its joint to the body's surface,
-## sideways for arms and wings, up for a head, back for a tail (a leg, or a joint outside the body: the joint), so a
-## part set from one form's onto another's sinks into the body as deep as it did.
+## sideways for arms and wings, up for a head, back for a tail (a leg, or a joint outside the body or deeper in it
+## than DEEP, where that would be some other bit of it: the joint), so a part set from one form's onto another's sinks
+## into the body as deep as it did.
 static func attach(fi: Dictionary, p: String) -> Vector3:
 	var j: Vector3 = fi["cj"][p]
 	if p.begins_with("leg_"):
@@ -462,7 +465,7 @@ static func attach(fi: Dictionary, p: String) -> Vector3:
 	if p == "head" or p == "tail":
 		out = Vector3.UP if p == "head" else Vector3.LEFT
 	var at := surface(fi, j, out, size(fi, "body"))
-	return at if (at - j).dot(out) > 0.0 else j
+	return at if (at - j).dot(out) > 0.0 and (at - j).dot(out) < DEEP else j
 
 
 ## A form's body surface (by regions()) out from `at` along `out`: its farthest vertex that way, near that line.
@@ -486,9 +489,9 @@ static func surface(fi: Dictionary, at: Vector3, out: Vector3, big: float) -> Ve
 ## How the donor's part `src` is set onto the frame's part `p` (where the frame's own joined it, or a socket() on its
 ## body): [src, from (where it joins the donor: attach()), to, scale]. Limbs, wings and tails keep their size
 ## against the body halfway (wings new to the frame a little bigger, to be seen, but never much bigger than they
-## were), a head against the frame's head (but no bigger than its body); legs are stretched to the frame's
-## (leg_stretch()), their feet on the ground; and nothing else reaches into the ground: it's made smaller, then set
-## higher.
+## were), a head a little against the frame's head (but no bigger than its body), on its neck; legs are stretched
+## to the frame's (leg_stretch()), their feet on the ground; and nothing else reaches into the ground: it's made
+## smaller, then set higher.
 static func move(p: String, src: String, fi: Dictionary, di: Dictionary) -> Array:
 	var from := attach(di, src)
 	var to := attach(fi, p) if fi["cj"].has(p) else socket(fi, p)
@@ -496,7 +499,9 @@ static func move(p: String, src: String, fi: Dictionary, di: Dictionary) -> Arra
 	var low: float = (di["clo"][src] as Vector3).y
 	if p == "head":
 		var dh := maxf(size(di, "head"), 0.05)
-		s = minf(clampf(sqrt(size(fi, "head") / dh), 0.6, 1.6), 0.8 * size(fi, "body") / dh)
+		s = minf(clampf(pow(size(fi, "head") / dh, 0.3), 0.7, 1.4), 0.8 * size(fi, "body") / dh)
+		# set on the neck, not hanging from it (a boar's, low in front of its chest)
+		from.y = minf(from.y, lerpf(low, (di["chi"][src] as Vector3).y, 0.2))
 	elif p.begins_with("wing_"):
 		s = minf(s * (1.2 if not fi["clo"].has(p) else 1.0), 1.1)
 	elif p.begins_with("leg_"):
@@ -635,7 +640,8 @@ static func cut(di: Dictionary, keep: Dictionary, moves: Dictionary) -> ArrayMes
 	return mesh
 
 
-## Sets the toon shader's colours from a look (beast_looks.gd), with painted eyes ([] for none).
+## Sets the toon shader's colours from a look (beast_looks.gd), with painted eyes: a look's "eyes" (a pair, or an
+## array of pairs, one for each face; [] for none).
 static func paint(mat: ShaderMaterial, look: Dictionary, eyes: Array) -> void:
 	var col: Dictionary = look.get("col", {})
 	var tips: Dictionary = look.get("tip", {})
@@ -681,12 +687,24 @@ static func paint(mat: ShaderMaterial, look: Dictionary, eyes: Array) -> void:
 	var head := Color(String(col["head"])) if col.has("head") else body
 	var lid := Color(String(look["lid"])) if look.has("lid") else head.darkened(0.3)
 	mat.set_shader_parameter("lid_col", lin(lid))
-	if eyes.size() >= 8:
-		mat.set_shader_parameter("eye_pos", Vector4(eyes[0], eyes[1], eyes[2], eyes[3]))
-		mat.set_shader_parameter("eye_style", Vector4(eyes[4], eyes[5], eyes[6], eyes[7]))
-	else:
-		mat.set_shader_parameter("eye_pos", Vector4(0, 0, 0, 9))
-		mat.set_shader_parameter("eye_style", Vector4(0, 0, 0.5, 0))
+	# the shader's three pairs: [z, y, radius, front x, lid, brow, pupil, look up, (mirror z)] each, radius 0: none
+	var pairs: Array = eyes if not eyes.is_empty() and eyes[0] is Array else [eyes]
+	var ep := PackedVector4Array()
+	var es := PackedVector4Array()
+	var em := PackedFloat32Array()
+	for i in 3:
+		var e: Array = pairs[i] if i < pairs.size() else []
+		if e.size() >= 8:
+			ep.append(Vector4(e[0], e[1], e[2], e[3]))
+			es.append(Vector4(e[4], e[5], e[6], e[7]))
+			em.append(float(e[8]) if e.size() > 8 else 0.0)
+		else:
+			ep.append(Vector4(0, 0, 0, 9))
+			es.append(Vector4(0, 0, 0.5, 0))
+			em.append(0.0)
+	mat.set_shader_parameter("eye_pos", ep)
+	mat.set_shader_parameter("eye_style", es)
+	mat.set_shader_parameter("eye_mid", em)
 
 
 static func lin(c: Color) -> Vector3:
