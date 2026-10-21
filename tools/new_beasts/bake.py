@@ -257,7 +257,7 @@ def split_seams(v, n, f, part, cut=0.25):
         shared = np.intersect1d(pv, others)
         if not len(shared):
             continue
-        near, ax, length = limb_axis(v[pv], body_c)
+        near, ax, length = limb_axis(v[pv], body_c, PARTS[p].startswith('leg'))
         far = shared[(v[shared] - near) @ ax / max(length, 1e-6) > cut]
         if not len(far):
             continue
@@ -271,10 +271,13 @@ def split_seams(v, n, f, part, cut=0.25):
     return v, n, f
 
 
-def limb_axis(pts, toward):
+def limb_axis(pts, toward, down=False):
     """A limb's length: its main axis, from the end nearest `toward` (where it joins) to the far end: (the near end,
-    the axis outwards, the length)."""
+    the axis outwards, the length). down: straight down from its top (a leg, however stubby or long in the foot)."""
     c = pts.mean(0)
+    if down:
+        top, bottom = np.percentile(pts[:, 1], 97), np.percentile(pts[:, 1], 3)
+        return np.array([c[0], top, c[2]]), np.array([0.0, -1.0, 0.0]), top - bottom
     ax = np.linalg.svd(pts - c, full_matrices=False)[2][0]
     t = (pts - c) @ ax
     a, b = c + ax * np.percentile(t, 3), c + ax * np.percentile(t, 97)
@@ -331,7 +334,7 @@ def rig(v, f, part):
             # a limb turns at the end of its length nearest the body (a shoulder, a hip, the root of a tail or a
             # wing), not where it happens to touch the body (an elbow against its side, a shell sunk into it), and
             # follows its own bone more the further out along it
-            near, ax, length = limb_axis(v[pv], body_c)
+            near, ax, length = limb_axis(v[pv], body_c, PARTS[p].startswith('leg'))
             along = (joint - near) @ ax / max(length, 1e-6)
             if not border or along > 0.12:
                 joint = near + ax * length * 0.06
