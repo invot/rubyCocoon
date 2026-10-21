@@ -278,6 +278,16 @@ func use_bag_item(id2: String) -> void:
 				UI.toast("%s equipped %s." % [b2.nickname, it2["name"]])
 		"sheet":
 			await Places.play_sheet(id2)
+		"bait":
+			if GameState.item_count("fishing_rod") <= 0:
+				await UI.say(["You'll need a fishing pole to use bait."])
+			elif GameState.bait == id2:
+				GameState.bait = ""
+				UI.toast("You took the %s off your hook." % it2["name"])
+			else:
+				GameState.bait = id2
+				Sfx.play("pickup")
+				UI.toast("%s on your hook! It stays on until something bites." % it2["name"])
 		"tgear":
 			var slot: String = it2["slot"]
 			if GameState.gear[slot] != "" and GameState.gear[slot] != "reed_flute":

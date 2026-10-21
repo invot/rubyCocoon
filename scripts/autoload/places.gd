@@ -43,7 +43,7 @@ func open(b: Dictionary, world) -> void:
 			await beast_center(town)
 		"apothecary":
 			await UI.say(["Welcome! Potions, remedies, and a few things that go boom."], KEEPERS[shop])
-			await shop_loop(b["name"], apothecary_stock(tier, town))
+			await shop_loop(b["name"], apothecary_stock(tier, town) + bait_stock(town))
 		"electronics":
 			await electronics(b)
 		"skytower":
@@ -53,7 +53,7 @@ func open(b: Dictionary, world) -> void:
 			await shop_loop(b["name"], ["spicy_bun", "mint_tea", "honey_cake"])
 		"beast_gear":
 			await UI.say(["Gear for your beasts! Some pieces even teach them new tricks."], KEEPERS[shop])
-			await shop_loop(b["name"], ItemDB.stock("gear", tier, town + ":bg", 8))
+			await shop_loop(b["name"], ItemDB.stock("gear", tier, town + ":bg", 8) + bait_stock(town))
 		"trainer_gear":
 			await UI.say(["Boots, hats, flutes... everything a trainer needs!"], KEEPERS[shop])
 			await shop_loop(b["name"], ItemDB.stock("tgear", tier, town + ":tg", 7))
@@ -136,6 +136,15 @@ func _sell() -> void:
 		GameState.remove_item(id2)
 		GameState.gold += int(ItemDB.get_item(id2)["price"]) / 2
 		Sfx.play("buy")
+
+
+## The fishing bait sold in a town (ItemDB "sold_in"): worms on the islands, lures further on.
+func bait_stock(town: String) -> Array:
+	var out := []
+	for id in ItemDB.ITEMS:
+		if ItemDB.ITEMS[id]["kind"] == "bait" and town in ItemDB.ITEMS[id].get("sold_in", []):
+			out.append(id)
+	return out
 
 
 ## Care items (healing, cures, revives) plus a seeded selection of battle items for the trainer.

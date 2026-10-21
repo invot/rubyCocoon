@@ -186,6 +186,9 @@ var shield_bubble: MeshInstance3D
 var hud: Control
 var msg_label: Label
 var caption: PanelContainer
+## while commands are chosen: the window at the top explaining the highlighted action or move (see _show_option)
+var move_info: PanelContainer
+var _info_hint := ""
 var bars: Control
 var target_cards: Control
 var ally_grid: Control
@@ -322,8 +325,12 @@ func _build_stage() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(cfg.get("seed", randi()))
 	var sandy: bool = biome["id"] in ["desert", "mesa", "western"]
+	# a beast you've reeled in: you on a plank dock, the beach behind you, the beast out on the water
+	var fishing: bool = cfg.get("fishing", false)
 	var ground_tex: Texture2D
-	if arena:
+	if fishing:
+		ground_tex = VT.terrain("top_sand", biome.get("sand", "#ecd8a0"))
+	elif arena:
 		ground_tex = VT.terrain("top_plaza", biome["plaza"])
 	elif dark:
 		ground_tex = VT.terrain("top_plaza", "#4a4652")
@@ -336,13 +343,13 @@ func _build_stage() -> void:
 	pm.size = Vector2(70, 50)
 	ground.mesh = pm
 	ground.material_override = _tex_mat(ground_tex, Vector2(70, 50))
-	ground.position = Vector3(0, 0, -10)
+	ground.position = Vector3(0, 0, -10) if not fishing else Vector3(0, -0.6, -10)
 	add_child(ground)
 	_build_ring("ally")
 	if not wild:
 		_build_ring("foe")
-	# a low cobbled mound under the wild beasts
-	for center in ([] if not wild else [FOE_CENTER + _toward("foe") * 0.9]):
+	# a low cobbled mound under the wild beasts (not out on the water)
+	for center in ([] if not wild or fishing else [FOE_CENTER + _toward("foe") * 0.9]):
 		var k := VBld.Kit.new()
 		var col := Color(biome["path"] if not arena else biome["plaza"]) if not dark else Color("#5a5664")
 		var tex := "cobble" if not dark else "stone_dark"
@@ -363,7 +370,9 @@ func _build_stage() -> void:
 		mi.mesh = k.mesh()
 		mi.position = center
 		add_child(mi)
-	if arena:
+	if fishing:
+		_fishing_scenery(rng)
+	elif arena:
 		_arena_scenery(rng)
 	elif dark:
 		_indoor_scenery(rng)
@@ -585,6 +594,19 @@ func _dais() -> Node3D:
 static var _hex_cache := {}
 static var _gold: StandardMaterial3D = null
 static var _sigils := {}
+
+
+## Paints the ring's textures and makes its pieces ahead of the first battle (main.gd, while a map loads behind the
+## fade): painted pixel by pixel, they held the first battle's swirl still for seconds on a phone, as if it had hung.
+static func prewarm() -> void:
+	_circle_texture()
+	for k in Ring.SLOTS:
+		_sigil_texture(Ring.slot_elements(k))
+	_hex_mesh(0.78, 0.84, 0.08)
+	_hex_mesh(0.62, 0.7, 0.14)
+	_hex_mesh(0.645, 0.645, 0.04)
+	_gold_mat()
+	VT.material("stone")
 
 
 ## A six-sided prism (a squat hexagonal cylinder), cached by size.
@@ -900,6 +922,116 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		add_child(water)
 
 
+## The fishing battle: open water from just past your ring out to a far shore of trees, your ring on a plank dock
+## running out from the beach, mooring posts along it, a few rocks in the water, and ripples round the beast you hooked.
+func _fishing_scenery(rng: RandomNumberGenerator) -> void:
+	var f := _toward("ally")
+	var side := Vector3(-f.z, 0, f.x)
+	var water_col := String(biome.get("water", "#3a90e0"))
+	# the water a little below the dock (the sandy bed sinks out of sight under it), and the beach on your side of a
+	# shoreline just behind your ring
+	var turn := -atan2(f.z, f.x) + PI / 2.0
+	var shore := ALLY_CENTER - f * 4.0
+	var water := MeshInstance3D.new()
+	var wp := PlaneMesh.new()
+	wp.size = Vector2(110, 110)
+	water.mesh = wp
+	var wm := _tex_mat(VT.terrain("water", water_col), Vector2(110, 110))
+	wm.roughness = 0.15
+	wm.metallic_specular = 0.9
+	water.material_override = wm
+	water.position = FOE_CENTER + Vector3(0, -0.15, 0)
+	add_child(water)
+	var beach := MeshInstance3D.new()
+	var bp := PlaneMesh.new()
+	bp.size = Vector2(90, 40)
+	beach.mesh = bp
+	beach.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 40))
+	beach.position = shore - f * 20.0
+	beach.rotation.y = turn
+	add_child(beach)
+	# the dock: planks across, from the beach out past your ring, with mooring posts down each side
+	var k := VBld.Kit.new()
+	var wood := Color("#9a7448")
+	var start := -4.4
+	var stop := 3.4
+	var half := 3.0
+	var t := start
+	var i := 0
+	while t < stop:
+		var c := ALLY_CENTER + f * t
+		var col := wood if i % 3 != 1 else wood.darkened(0.12)
+		var corners := [c - side * half, c + side * half, c + side * half + f * 0.28, c - side * half + f * 0.28]
+		for q in 4:
+			corners[q].y = 0.02
+		k.poly("planks", corners, Vector3.UP, col)
+		t += 0.3
+		i += 1
+	for s in [-1.0, 1.0]:
+		var d := start + 0.6
+		while d < stop:
+			var pp: Vector3 = ALLY_CENTER + f * d + side * s * (half + 0.12) + Vector3(0, 0.2, 0)
+			k.box("color", pp, Vector3(0.22, 0.7, 0.22), Color("#5a3e26"))
+			d += 2.2
+	# the dock's edge, a beam along each side
+	for s2 in [-1.0, 1.0]:
+		var a: Vector3 = ALLY_CENTER + f * start + side * s2 * half
+		var b: Vector3 = ALLY_CENTER + f * stop + side * s2 * half
+		k.poly("color", [a + Vector3(0, 0.02, 0), b + Vector3(0, 0.02, 0), b + Vector3(0, -0.35, 0), a + Vector3(0, -0.35, 0)], side * s2, Color("#6a4a2a"))
+	var dock := MeshInstance3D.new()
+	dock.mesh = k.mesh()
+	add_child(dock)
+	# rocks in the water and a far shore of trees
+	var by_asset := {}
+	var rocks: Array = biome.get("rocks", ["rock_small"])
+	for n in 6:
+		var rn: String = rocks[rng.randi_range(0, rocks.size() - 1)]
+		var s3 := VA.fit_scale(rn, -1.0, rng.randf_range(0.8, 1.5))
+		var p := FOE_CENTER + side * rng.randf_range(-11.0, 11.0) + f * rng.randf_range(2.0, 9.0)
+		if (p - FOE_CENTER).length() < 4.0:
+			p += side * 5.0
+		if not by_asset.has(rn):
+			by_asset[rn] = []
+		by_asset[rn].append(_xf(p + Vector3(0, -VA.aabb(rn).position.y * s3 - 0.25, 0), rng.randi_range(0, 3) * PI / 2.0, s3))
+	var trees: Array = biome.get("trees", [["palm", 1]])
+	for n in 26:
+		var e: Array = trees[rng.randi_range(0, trees.size() - 1)]
+		var name: String = e[0]
+		var p2 := FOE_CENTER + f * rng.randf_range(16.0, 22.0) + side * rng.randf_range(-24.0, 24.0)
+		var s4 := VA.fit_scale(name, rng.randf_range(2.6, 3.6))
+		if not by_asset.has(name):
+			by_asset[name] = []
+		by_asset[name].append(_xf(p2 + Vector3(0, -VA.aabb(name).position.y * s4, 0), rng.randi_range(0, 3) * PI / 2.0, s4))
+	for name in by_asset:
+		_multimesh(VA.mesh(name), by_asset[name])
+	# the far shore's sand under those trees
+	var far := MeshInstance3D.new()
+	var fp := PlaneMesh.new()
+	fp.size = Vector2(90, 12)
+	far.mesh = fp
+	far.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 12))
+	far.position = FOE_CENTER + f * 20.0
+	far.rotation.y = turn
+	add_child(far)
+	# ripples round the beasts out on the water
+	var rm := StandardMaterial3D.new()
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rm.albedo_color = Color(1, 1, 1, 0.55)
+	for j in mini(3, foes.size()):
+		for r in 2:
+			var ring := MeshInstance3D.new()
+			var tor := TorusMesh.new()
+			tor.inner_radius = 0.75 + r * 0.45
+			tor.outer_radius = 0.85 + r * 0.45
+			tor.rings = 28
+			tor.ring_segments = 4
+			tor.material = rm
+			ring.mesh = tor
+			ring.position = _wild_pos(j) + Vector3(0, -0.12, 0)
+			add_child(ring)
+
+
 func _arena_scenery(rng: RandomNumberGenerator) -> void:
 	var xs := []
 	var bx := []
@@ -1037,12 +1169,9 @@ func _update_shield() -> void:
 		ally_grid.shield = GameState.shield
 		ally_grid.max_shield = GameState.max_shield
 		ally_grid.queue_redraw()
-	if shield_label == null:
-		return
-	if GameState.max_shield <= 0:
+	# your own shield points are under your bar (battle_bars.gd), not over your head as well
+	if shield_label != null:
 		shield_label.text = ""
-		return
-	shield_label.text = "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield)
 	if rival_shield_label != null:
 		rival_shield_label.text = "◆".repeat(foe_shield) + "◇".repeat(maxi(0, foe_max_shield - foe_shield)) if foe_max_shield > 0 else ""
 
@@ -1323,8 +1452,14 @@ func _build_hud() -> void:
 	bars = BattleBars.new(k)
 	cmd_root.add_child(bars)
 	ally_grid = RingGrid.new("ally", false, k)
-	ally_grid.show_shield = true
+	# (your shield points show under your own bar instead: battle_bars.gd)
+	ally_grid.show_shield = false
 	cmd_root.add_child(ally_grid)
+	# the trainers in the middle of their grids, locking eyes across the screen: you from behind, looking up and left
+	# to the foe's grid; the rival from the front, looking down and right to yours
+	ally_grid.trainer_icon = _person_icon(GameState.hero_look(), PI + 0.5)
+	if not wild and not (trainer.get("look", {}) as Dictionary).is_empty():
+		foe_grid.trainer_icon = _person_icon(trainer["look"], 0.5)
 	var gap := 8.0 * k
 	bars.position = Vector2.ZERO
 	bars.size = bars.custom_minimum_size
@@ -1364,6 +1499,12 @@ func _build_hud() -> void:
 	target_cards = TargetCards.new()
 	hud.add_child(target_cards)
 	_place_caption()
+	# the move window, in the same place, big enough to read on a phone
+	move_info = PanelContainer.new()
+	move_info.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.94), UIKit.BORDER, 16.0, Vector4(22, 10, 22, 12), 3.0))
+	move_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	move_info.visible = false
+	hud.add_child(move_info)
 
 
 ## The battle text sits at the top, between the foe's grid and the right edge, as wide as its words need.
@@ -1384,16 +1525,177 @@ func _place_caption() -> void:
 	caption.reset_size()
 	caption.size = Vector2(w, 0)
 	if target_cards != null and target_cards.visible:
-		# centred under the text, between the foe's grid and the right edge
-		target_cards.position = Vector2(left + (room - target_cards.size.x) * 0.5, 10.0 + caption.get_combined_minimum_size().y + 4.0)
+		# centred under the text (or the move window), between the foe's grid and the right edge
+		var above := 10.0
+		if move_info != null and move_info.visible:
+			above += move_info.size.y + 6.0
+		elif caption.visible:
+			above += caption.get_combined_minimum_size().y + 4.0
+		target_cards.position = Vector2(left + (room - target_cards.size.x) * 0.5, above)
 
 
-## Shows a line of battle text (empty: hides it).
+## Shows a line of battle text (empty: hides it). While the move window is up, the line goes along its foot instead.
 func _caption(text: String) -> void:
 	if msg_label == null:
 		return
+	if _commanding and move_info != null and move_info.visible:
+		_info_hint = text
+		var foot := move_info.find_child("Foot", true, false) as Label
+		if foot != null:
+			foot.text = text
+			foot.visible = text != ""
+		text = ""
 	msg_label.text = text
 	_place_caption()
+
+
+## What each kind of move is called in the move window.
+const KIND_NAMES := {"attack": "Attack", "buff": "Boost", "debuff": "Weaken", "heal": "Heal", "revive": "Revive",
+	"cleanse": "Cleanse", "shield": "Shield", "status": "Status", "taunt": "Taunt", "special": "Special"}
+const TARGET_NAMES := {"enemy": "one foe", "enemies": "all foes", "ally": "one ally", "allies": "all allies",
+	"self": "itself", "ally_ko": "a fainted ally", "none": ""}
+
+
+## The window at the top while you choose: the highlighted move's name, element and kind, who it reaches, its MP cost
+## (against the beast's MP), power and accuracy, what it does, and any warning (recharging, short of MP, a lesson);
+## for your own actions and Defend, just what they do. Empty: hides it.
+func _show_option(row: Dictionary, o: Dictionary) -> void:
+	if move_info == null:
+		return
+	for c in move_info.get_children():
+		move_info.remove_child(c)
+		c.queue_free()
+	var status_desc := String(row.get("status_desc", "")) if row.get("status", "") != "" else ""
+	if o.is_empty() or (String(o.get("label", "")) == "" and status_desc == ""):
+		move_info.visible = false
+		_place_caption()
+		return
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 4)
+	move_info.add_child(vb)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	vb.add_child(top)
+	var b = row.get("beast", null)
+	var title := String(o.get("label", "")).replace("  ★", "")
+	var desc := String(o.get("desc", ""))
+	var note := String(o.get("note", ""))
+	if status_desc != "":
+		title = String(row.get("name", ""))
+		desc = status_desc
+	top.add_child(UIKit.header(title, UIKit.LIGHT, UIKit.HEAD_BIG))
+	if o.has("move"):
+		var mv := String(o["move"])
+		var m := MoveDB.get_move(mv)
+		top.add_child(_info_tag(UIKit.element_tag(String(m["el"]), 18)))
+		var kind := String(KIND_NAMES.get(String(m.get("kind", "")), String(m.get("kind", "")).capitalize()))
+		var reach := String(TARGET_NAMES.get(String(m.get("target", "enemy")), ""))
+		top.add_child(_info_tag(UIKit.label(kind + (" · " + reach if reach != "" else ""), UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+		var gap := Control.new()
+		gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top.add_child(gap)
+		var cost := MoveDB.mp_cost(mv)
+		var mp_text := "No MP"
+		if cost > 0:
+			mp_text = "MP %d" % cost + (" (has %d)" % b.mp if b != null else "")
+		var short: bool = b != null and b.mp < cost
+		top.add_child(_info_tag(UIKit.label(mp_text, UIKit.BODY_BIG, UIKit.ACCENT.lightened(0.35) if short else UIKit.INK)))
+		var facts := []
+		if m.has("power"):
+			facts.append("Power %d" % m["power"])
+		if m.has("acc"):
+			facts.append("Accuracy %d" % m["acc"])
+		if int(m.get("cd", 0)) > 0:
+			facts.append("Rests %d turn%s after use" % [m["cd"], "" if int(m["cd"]) == 1 else "s"])
+		if not facts.is_empty():
+			vb.add_child(UIKit.label("   ".join(facts), UIKit.BODY_BIG, UIKit.DIM))
+		desc = String(m.get("desc", ""))
+	elif o.get("id", "") == "defend":
+		top.add_child(_info_tag(UIKit.label("Guard · itself", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+		if b != null:
+			desc = "Brace for impact: %s takes half damage until your side's next turn." % b.nickname
+	elif row.get("kind", "") == "trainer" and status_desc == "":
+		top.add_child(_info_tag(UIKit.label("Your action", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+	var d := UIKit.label(desc, UIKit.BODY_HUGE, UIKit.INK)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.add_theme_constant_override("line_spacing", -10)
+	d.custom_minimum_size.x = 620.0
+	vb.add_child(d)
+	if note != "":
+		var nl := UIKit.label(note, UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nl.custom_minimum_size.x = 620.0
+		vb.add_child(nl)
+	var foot := UIKit.label(_info_hint, UIKit.BODY_BIG, UIKit.DIM)
+	foot.name = "Foot"
+	foot.visible = _info_hint != ""
+	vb.add_child(foot)
+	move_info.visible = true
+	# along the top, clear of the foe's grid, like the battle text
+	var vw := hud.get_viewport_rect().size.x
+	var left := foe_grid.position.x + foe_grid.size.x + 12.0
+	move_info.reset_size()
+	var w := move_info.get_combined_minimum_size().x
+	move_info.position = Vector2(left + maxf(0.0, (vw - left - 16.0 - w) * 0.5), 10.0)
+	# (and once the wrapped lines know their width, no taller than they need, the target cards under it)
+	if not get_tree().process_frame.is_connected(_settle_top):
+		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
+	msg_label.text = ""
+	_place_caption()
+
+
+## The move window shrunk to its laid-out words, and the things under it placed again (a frame after it changes).
+func _settle_top() -> void:
+	if move_info != null and move_info.visible:
+		move_info.reset_size()
+	_place_caption()
+
+
+## A small full-length picture of a person for the middle of a ring grid, turned `yaw` from facing the viewer
+## (positive: towards the right of the screen; PI: their back): rendered off screen for a moment, then kept as it is.
+func _person_icon(look: Dictionary, yaw: float) -> Texture2D:
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	vp.msaa_3d = Viewport.MSAA_4X
+	vp.size = Vector2i(132, 176)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(vp)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.7
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var we := WorldEnvironment.new()
+	we.environment = env
+	vp.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-35, 30, 0)
+	sun.light_energy = 1.25
+	vp.add_child(sun)
+	var rig := VPer.build(look)
+	VPer.face(rig, Vector2i(0, 1))
+	rig.rotation.y = yaw
+	vp.add_child(rig)
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = VPer.height() * 1.12
+	var at := Vector3(0, 1.6, 5.0)
+	cam.transform = Transform3D(Basis.looking_at(Vector3(0, VPer.height() * 0.52, 0) - at, Vector3.UP), at)
+	vp.add_child(cam)
+	cam.current = true
+	# a picture, not a scene: stop drawing it once it's had a moment to render
+	get_tree().create_timer(0.6).timeout.connect(func() -> void:
+		if is_instance_valid(vp):
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED)
+	return vp.get_texture()
+
+
+## A tag in the move window, centred on its line.
+func _info_tag(c: Control) -> Control:
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return c
 
 
 func _refresh() -> void:
@@ -1855,11 +2157,12 @@ func _command_phase() -> Array:
 			break
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "point": _point_at,
-			"bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid, "cards": target_cards})
+			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid, "cards": target_cards})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
 		_commanding = false
+		_show_option({}, {})
 		_point_at(null)
 		_hide_cards()
 		ally_grid.focus = -1
@@ -2011,11 +2314,15 @@ func _move_options(b) -> Array:
 				if Elements.multiplier(m["el"], _guard_el(f)) >= 2.0:
 					star = "  ★"
 		var off: bool = cd > 0 or b.mp < cost
+		# (note: the move window's warning line)
+		var note := "Strong against a foe on the field!" if star != "" else ""
 		if cd > 0:
 			desc = "Recharging for %d more turn(s).\n" % cd + desc
+			note = "Recharging: ready again in %d turn%s." % [cd, "" if cd == 1 else "s"]
 			right = "wait %d" % cd
 		elif b.mp < cost:
 			desc = "Not enough MP! (%d of %d) Heal at a Beast Center or use a Spirit Drop.\n" % [b.mp, cost] + desc
+			note = "Not enough MP (%d of %d). Heal at a Beast Center or use a Spirit Drop." % [b.mp, cost]
 		elif cost > 0:
 			desc = "Costs %d MP (%s has %d).\n" % [cost, b.nickname, b.mp] + desc
 		if tutorial:
@@ -2023,14 +2330,19 @@ func _move_options(b) -> Array:
 			if want_b != "Fight" or mv != _tut_move(b):
 				off = true
 				desc = "%s: \"%s\"" % [_tut_who(), "Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"]]
-		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "target": m["target"], "disabled": off})
+				note = desc
+		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
 	if el == "neutral" and not b.ghost:
-		out[0]["desc"] = "%s can't use %s moves from the %s side: plain moves only.\n" % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()] + String(out[0]["desc"])
+		var plain := "%s can't use %s moves from the %s side: plain moves only." % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()]
+		out[0]["desc"] = plain + "\n" + String(out[0]["desc"])
+		if String(out[0].get("note", "")) == "":
+			out[0]["note"] = plain
 	var d := {"id": "defend", "label": "Defend", "target": "none", "right": "half damage",
 		"desc": "Brace for impact: %s takes half damage until your side's next turn." % b.nickname}
 	if tutorial and _tut_beast() != "Defend":
 		d["disabled"] = true
-		d["desc"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
+		d["note"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
+		d["desc"] = String(d["note"])
 	out.append(d)
 	# Move: to another slot of the ring (see _shift_spots), in place of its move this round
 	var spots := _shift_spots(b)

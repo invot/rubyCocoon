@@ -28,14 +28,17 @@ const SHIELD_START := 1
 var main: Node = null
 
 var player_name := "Andrew"
-## The hero as the character creator made them: "body" (a key of voxel_person.gd HERO_BODIES) and the colours of
-## their "top", "trousers", "hair" and "eyes" (with none of them, the hero as the model comes).
+## The hero as the character creator made them: "body" ("male" or "female"), "person" (their outfit, one of
+## townfolk.gd HERO_OUTFITS), "hairdo" (one of its HAIRDOS) and "pack" (one of its packs, from 1; 0 none), and the
+## colours of their "skin", "top", "trousers", "hair" and "eyes" (whatever's left out, as their body begins).
 var hero := {}
 var gold := 0
 var party: Array = []
 var storage: Array = []
 var inventory := {}
 var gear := {"flute": "", "head": "", "feet": "", "acc": ""}
+## the bait on your fishing hook (an ItemDB "bait" item), "" for none: one is used up each time something bites
+var bait := ""
 var songs: Array = []
 var song_mastery := {}
 var crests: Array = []
@@ -823,7 +826,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"player_name": player_name, "hero": hero, "gold": gold,
 		"party": party.map(func(b): return b.to_dict()),
 		"storage": storage.map(func(b): return b.to_dict()),
-		"inventory": inventory, "gear": gear, "songs": songs, "song_mastery": song_mastery,
+		"inventory": inventory, "gear": gear, "bait": bait, "songs": songs, "song_mastery": song_mastery,
 		"crests": crests, "flags": flags, "visited": visited, "map_id": map_id,
 		"pos": [pos.x, pos.y], "facing": [facing.x, facing.y], "last_center": last_center,
 		"seen": seen, "caught": caught, "play_time": play_time, "steps": steps,
@@ -864,6 +867,7 @@ func load_game(slot := -2) -> bool:
 	for k in inv:
 		inventory[k] = int(inv[k])
 	gear = d.get("gear", gear)
+	bait = String(d.get("bait", ""))
 	songs = d.get("songs", [])
 	song_mastery = {}
 	var sm: Dictionary = d.get("song_mastery", {})

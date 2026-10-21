@@ -53,4 +53,4 @@ static func opponent(rank: int, i: int) -> Dictionary:
 	var names: Array = WorldDB.TRAINER_NAMES
 	return {"name": names[(rank * 7 + i * 3 + rng.randi_range(0, 3)) % names.size()], "cls": CLASSES[clampi(rank - 1, 0, RANKS - 1)],
 		"team": team, "shield": SHIELD[clampi(rank - 1, 0, RANKS - 1)], "reward": 80 * rank + 30 * i,
-		"look": MapGen.random_look(rng), "theme": theme}
+		"look": MapGen.random_look(rng).merged({"outfit": "camo"}), "theme": theme}
