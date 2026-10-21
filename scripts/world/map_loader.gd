@@ -796,8 +796,8 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			return {"kind": "guardian", "id": "guardian_" + tk, "temple": tk, "name": RaceDB.race_name(t["guardian"]), "pos": p,
 				"beast_genes": RaceDB.genes(t["guardian"]), "facing": Vector2i(0, 1), "flag": "guardian_" + tk, "big": true}
 		"thunderhawk":
-			# the Sky Tower's giant bird, waiting on the roof
-			return {"kind": "story", "id": "thunderhawk", "name": "Thunderhawk", "pos": p, "beast_genes": RaceDB.genes(43), "big": true,
+			# the Sky Tower's giant bird, a Tempestrix, waiting on the roof (its id is from when it was a Thunderhawk)
+			return {"kind": "story", "id": "thunderhawk", "name": "Tempestrix", "pos": p, "beast_genes": RaceDB.genes(32), "big": true,
 				"facing": Vector2i(0, 1), "building": b}
 		"kennel":
 			# the Beast Center uniform, with a green apron for the muddy paws
@@ -825,9 +825,9 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 		"bandit", "bandit_boss":
 			var boss := role == "bandit_boss"
 			var lv2 := 22 if boss else 18
-			var team := [[37, lv2, false], [3, lv2, false]]
+			var team := [[36, lv2, false], [6, lv2, false]]
 			if boss:
-				team = [[29, 24, false], [3, 24, false], [42, 25, false]]
+				team = [[9, 24, false], [6, 24, false], [33, 25, false]]
 			return {"kind": "trainer", "pos": p, "facing": Vector2i(0, 1), "sight": 3, "flag": "tr_%s_%s" % [map_id, ch],
 				"name": "Black Bart" if boss else "Bandit %s" % WorldDB.TRAINER_NAMES[rng.randi_range(0, 30)], "cls": "Bandit Boss" if boss else "Bandit",
 				"look": BANDIT_LOOK, "team": team, "lines": ["This here's our hideout, stranger. Turn around!"] if not boss else ["So you're the one roughin' up my boys. Let's dance!"],
@@ -836,7 +836,7 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			var lv3 := 44 if role == "ghost_grunt" else 40
 			var team2 := []
 			for i in 2:
-				team2.append([rng.randi_range(0, 47), lv3 + i, true])
+				team2.append([rng.randi_range(0, RaceDB.NORMAL_COUNT - 1), lv3 + i, true])
 			return {"kind": "trainer", "pos": p, "facing": Vector2i(0, 1), "sight": 3, "flag": "tr_%s_%s" % [map_id, ch],
 				"name": "Grunt " + WorldDB.TRAINER_NAMES[rng.randi_range(0, 30)], "cls": "Umbral Legion", "look": GRUNT_LOOK, "legion": true,
 				"team": team2, "lines": ["None shall disturb the General's ritual!"], "defeat": "The shadows... retreat...", "vanish": true}

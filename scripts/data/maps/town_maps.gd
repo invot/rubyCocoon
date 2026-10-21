@@ -97,7 +97,7 @@ const MAPS := {
 		# ([x, z, yaw in degrees, model, length in tiles])
 		"boats": [[27.4, 31.2, 0.0, "boat", 4.2], [2.6, 32.0, 8.0, "boat_dark", 2.4]],
 		# the meadow east of town: wild beasts live only inside its ring of hedges (map_loader.gd "meadow")
-		"meadow": {"center": [53, 13], "radius": 6.0, "races": [0, 21, 38, 12, 25, 36, 13], "lv": [3, 5]},
+		"meadow": {"center": [53, 13], "radius": 6.0, "races": [0, 27, 36, 24, 15, 30, 21], "lv": [3, 5]},
 		"signs": [
 			"Tidewater. Ferries to the Isle of Tides leave from the long pier.",
 			"Tidewater Meadow. Wild beasts roam the long grass: catch a few before you take on the arena.",

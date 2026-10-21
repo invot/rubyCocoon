@@ -45,8 +45,10 @@ static func xp_for_level(l: int) -> int:
 	return int(pow(l, 3))
 
 
+## Rank 1 tops out at Lv 40, when a beast has grown into its line's final form and can merge; every merge raises
+## the limit by 20.
 func level_cap() -> int:
-	return rank * 20
+	return mini(100, 20 + rank * 20)
 
 
 func at_cap() -> bool:
@@ -145,15 +147,15 @@ func can_learn(move_id: String) -> bool:
 		return true
 	if ghost:
 		return true
-	return el == element or _lineage_elements().has(el)
+	return el == element or el == element2 or _lineage_elements().has(el)
 
 
 func _lineage_elements() -> Array:
 	var out := []
 	for r in lineage:
-		var e := RaceDB.element(int(r))
-		if not out.has(e):
-			out.append(e)
+		for e in [RaceDB.element(int(r)), RaceDB.element2(int(r))]:
+			if e != "" and not out.has(e):
+				out.append(e)
 	return out
 
 
@@ -181,6 +183,11 @@ func gain_xp(amount: int) -> Array:
 		hp = mini(max_hp(), hp + (max_hp() - old_max)) if hp > 0 else hp
 		mp = mini(max_mp(), mp + (max_mp() - old_mp))
 		events.append({"type": "level", "level": level})
+		var nf := RaceDB.for_level(race, level)
+		if nf != race:
+			var was := nickname
+			evolve(nf)
+			events.append({"type": "evolve", "from": was, "to": nickname})
 		for mv in _learnset_at(level):
 			var res := learn(mv)
 			if res != "":
@@ -189,6 +196,28 @@ func gain_xp(amount: int) -> Array:
 		xp = xp_for_level(level)
 		events.append({"type": "cap"})
 	return events
+
+
+## Grows into another form of its line (as it levels past RaceDB.EVOLVE): its stats grow as the forms' do, and it
+## takes the new form's look and its name (unless it was given a name of its own).
+func evolve(nf: int) -> void:
+	var old := race
+	var ob := RaceDB.base_stats(old)
+	var nb := RaceDB.base_stats(nf)
+	var old_max := max_hp()
+	for i in STAT_KEYS.size():
+		var k: String = STAT_KEYS[i]
+		base[k] = snappedf(float(base.get(k, 50.0)) * nb[i] / maxf(ob[i], 1.0), 0.1)
+	var shade: float = genes.get("shade", 0.0)
+	genes = RaceDB.genes(nf)
+	genes["shade"] = shade
+	var oname := RaceDB.race_name(old)
+	if nickname == oname or nickname == "Umbral " + oname:
+		nickname = nickname.replace(oname, RaceDB.race_name(nf))
+	lineage = lineage.map(func(r): return nf if int(r) == old else int(r))
+	race = nf
+	if hp > 0:
+		hp = mini(max_hp(), hp + (max_hp() - old_max))
 
 
 func xp_progress() -> float:
@@ -266,6 +295,3 @@ func load_dict(d: Dictionary) -> void:
 	lineage = lin
 	if genes.has("size"):
 		genes["size"] = float(genes["size"])
-	# saves from before the PSX beasts: the model comes from the race
-	if not genes.has("form") and not genes.has("model"):
-		genes["form"] = RaceDB.form(race)

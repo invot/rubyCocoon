@@ -502,7 +502,7 @@ static func _make_trainer(map_id: String, k: int, pos: Vector2i, face: Vector2i,
 	if legion:
 		size = 3 if lv[0] > 20 else 2
 		for i in size:
-			team.append([rng.randi_range(0, 47), int(lv[1]) - 1 + rng.randi_range(0, 2), true])
+			team.append([rng.randi_range(0, RaceDB.NORMAL_COUNT - 1), int(lv[1]) - 1 + rng.randi_range(0, 2), true])
 		npc["name"] = "Grunt " + WorldDB.TRAINER_NAMES[rng.randi_range(0, WorldDB.TRAINER_NAMES.size() - 1)]
 		npc["cls"] = "Umbral Legion"
 		npc["look"] = {"skin": "#d8b8a0", "hair": "#20182a", "shirt": "#2a2038", "pants": "#18121f", "hat": "#4a2a6a"}
@@ -512,7 +512,7 @@ static func _make_trainer(map_id: String, k: int, pos: Vector2i, face: Vector2i,
 	else:
 		var races: Array = r["races"]
 		for i in size:
-			var race: int = races[rng.randi_range(0, races.size() - 1)] if rng.randf() < 0.75 else rng.randi_range(0, 47)
+			var race: int = races[rng.randi_range(0, races.size() - 1)] if rng.randf() < 0.75 else rng.randi_range(0, RaceDB.NORMAL_COUNT - 1)
 			# route trainers are always a step above anything wild on their road
 			team.append([race, rng.randi_range(int(lv[1]) + 1, int(lv[1]) + 2), false])
 		npc["name"] = WorldDB.TRAINER_NAMES[rng.randi_range(0, WorldDB.TRAINER_NAMES.size() - 1)]

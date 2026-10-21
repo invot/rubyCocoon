@@ -11,8 +11,10 @@ const ItemDB = preload("res://scripts/data/item_db.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const FishingGame = preload("res://scripts/ui/fishing_game.gd")
 
-## The water beasts that bite, by bait (none, worms, spinner lure, glow lure).
-const POOLS := [[21, 12, 20, 14], [14, 16, 15, 13, 22], [17, 19, 15, 18, 22], [18, 19, 23, 17]]
+## The water beasts that bite, by bait (none, worms, spinner lure, glow lure): the first forms of the water lines
+## (frog, crab, and the worm that's an eel in the sea), grown to whatever form their level gives (RaceDB.for_level);
+## the better the bait, the likelier the rarer eel.
+const POOLS := [[27, 27, 24, 24, 21], [27, 24, 24, 21], [27, 24, 21, 21], [24, 21, 21, 27]]
 ## how many levels above the place's own each bait brings them up
 const BAIT_LEVELS := [0, 2, 5, 9]
 ## the chance something bites, at a ripple and in open water (each better bait adds a little)
@@ -34,7 +36,7 @@ static func cast(world, tile: Vector2i, lesson := false, coach := "") -> String:
 		GameState.bait = ""
 	var tier := int(ItemDB.get_item(GameState.bait).get("bait", 0)) if GameState.bait != "" else 0
 	var spot: bool = world.map.get("fish_areas", {}).has(tile)
-	var beast = pick_beast(world.map, tier) if not lesson else Beasts.create(12, 3)
+	var beast = pick_beast(world.map, tier) if not lesson else Beasts.create(27, 3)
 	var chance := 1.0 if lesson else (BITE_SPOT if spot else BITE_OPEN) + 0.05 * tier
 	var bite := -1.0
 	if randf() < chance:

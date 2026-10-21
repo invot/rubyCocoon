@@ -1,6 +1,6 @@
 # Ruby Cocoon
 
-A voxel beast-training RPG for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger, charm wild beasts with your flute, merge beasts into stronger ones, and stop the Umbral Legion and their ghost beasts.
+A voxel beast-training RPG for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
 ## Running it
 
@@ -109,15 +109,32 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   (Shellhaven, Kelpwick), a Spinner Lure from Copperpick, Cogsworth and Emberfall, a Glow Lure from Riverbend and
   Gravenmoor. Captain Gull's ferry is moored by the long pier, and Gil's rowboat by his shack (map `boats`).
 
-- **48 races**, 12 each of Fire, Water, Earth and Air. The weaknesses are: Fire to Air, Earth to Water, Water to Air, and Air to Fire.
+- **13 beast lines** of three forms each (`race_db.gd` LINES): Fire has the spiky dino (Embit, Cinderex, Pyrosaur),
+  the cactus (Pricklet, Spinesear, Saguaroar) and the pink imp (Impkin, Scampyre, Infernook); Earth the beetle
+  (Grubbit, Shellhorn, Rhinoclad), the armoured boar (Tuskit, Bristlehog, Crystusk) and the tree (Saplet, Barkbrute,
+  Elderoot); Water the crab (Clawlet, Snapshell, Crustacor) and the frog (Tadlet, Croakus, Toadmiral); Air the owl
+  (Hootlet, Gustowl, Tempestrix), the bat (Flittle, Duskwing, Nocturna) and the berries (Berrypuff, Bramblume,
+  Galeberry). Two lines are of two elements: the scorpion (Nipskit, Scorchpin, Calderak) is Fire and Earth, and the
+  worm that is an eel in the sea (Wrigglet, Mudwhip, Abyssel) Earth and Water. The weaknesses are: Fire to Air, Earth
+  to Water, Water to Air, and Air to Fire.
+- **Growing up**: a beast hatches as its line's first form and grows into the second at **Lv 20** and the third at
+  **Lv 40** (`RaceDB.EVOLVE`, `Beast.evolve`): bigger, stronger, with the new form's name (unless it has a name of its
+  own). It keeps its moves, and a line learns the same moves at every form. Wild and trainers' beasts are whatever form
+  their level gives.
 - **Element roles**: Fire are offensive tanks, Water are healers, Earth are defenders, and Air handle status and evasion.
 - **Eggs**:
   - A defeated wild beast has a **20%** chance to leave an egg at the end of the battle.
   - Trainers' beasts, robots and guardians never drop eggs.
-  - Beast Centers hatch eggs into level 1 beasts.
+  - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
 - **Temple guardians**: each elemental temple holds a legendary guardian: Abyssion, Zephyrax, Pyroclast and Terranox. Beating it gives a **Radiant Egg** of that element.
-- **Merging** happens at Beast Centers, between two beasts at their level cap. A normal merge is 50/50. A legendary parent dominates at **80/20** and keeps its race. Ghost merging unlocks in Gravenmoor.
+- **Merging** happens at Beast Centers, between two beasts grown into their final form and at their level limit: **Lv
+  40** at rank 1, and each merge raises the limit by 20 (`Beast.level_cap`). A normal merge is 50/50. The new beast is
+  put together from both parents' models (`beast_parts.gd`): one gives its frame, the other some of its parts (its
+  head, arms, wings, tail or legs, each set where the frame's own were), and it is painted in one parent's colours. A
+  legendary parent dominates at **80/20** and keeps its race. Ghost merging unlocks in Gravenmoor.
+- **Ghost beasts** aren't beasts of their own: they're the same beasts in black and purple, glowing faintly and
+  wrapped in smoke.
   - Beasts of neighbouring elements on the ring (Fire–Air, Air–Water, Water–Earth, Earth–Fire) merge into a **dual beast** of both elements. Opposite elements (Fire–Water, Air–Earth) can't merge.
 - **Everyone moves one of the four ways** on the tile grid, a whole tile at a time: you, strolling townsfolk and wild
   beasts. A step, once started, always ends in the middle of the next tile (whatever you let go of or press on the
@@ -125,16 +142,16 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   were going, else the newest arrow counts (`world.gd` _key_dir).
 - **Town mascots and their signature moves**: every town has a mascot beast roaming its square and a statue of it
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
-  teaches a beast of its own race, once it reaches **Lv 40**, that race's signature move: an elemental attack mightier
-  than any move of its element learnt by levelling (`move_db.gd` SIGNATURE, e.g. Redcoon's Bandit Blaze in Cocoon
-  Cove, Tidalotl's Tidewater Torrent in Tidewater). Nobody else teaches it, and a merge keeps it only for a beast of
-  that race. The statue's plaque explains it, and townsfolk bring it up now and then (`chatter_db.gd` MASCOT_MOVE).
+  teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
+  than any move of its element learnt by levelling (`world_db.gd` TOWNS "signature", `move_db.gd` SIGNATURE, e.g. the
+  Pyrosaur's Bandit Blaze in Cocoon Cove; the frogs' Toadmiral is the mascot of both Tidewater and Riverbend, and
+  teaches each town's own move). Nobody else teaches it, and a merge keeps it only for a beast of that line. The statue's plaque explains it, and townsfolk bring it up now and then (`chatter_db.gd` MASCOT_MOVE).
 - **Wild beasts** roam the routes in plain sight; there are no random encounters (the tall grass is still there).
   - Each beast sees in a cone in front of it, half as far if you're in tall grass, and hears you running nearby.
   - Beasts come running when they spot you. Only a lone beast hopelessly outmatched by your best one (8+ levels below it) bolts.
   - Marks: a yellow **!** when one spots you, a blue **!** when it's scared and fleeing, and **?** when it loses you. Nothing shows while it charges, or once it goes back to roaming.
   - Walk into one from behind before it spots you: a **sneak attack** (green spiral, it loses its first turn). Meet one face to face: a normal battle (blue spiral). Let one catch you from behind: an **ambush** (red spiral, you lose your first turn).
-  - Groups grow slowly through the game (`Story.pack_cap`): beasts roam alone on the early roads (always on the Coastal Path), in pairs from wild Lv 7, and in threes only from Lv 16. Within that, a beast no stronger than your best one usually (70%) roams with more of its own kind, and the pack stands its ground; on roads with wild Lv 16+, stronger four-legged beasts, insects, birds and fish sometimes run in packs too.
+  - Groups grow slowly through the game (`Story.pack_cap`): beasts roam alone on the early roads (always on the Coastal Path), in pairs from wild Lv 7, and in threes only from Lv 16. Within that, a beast no stronger than your best one usually (70%) roams with more of its own kind, and the pack stands its ground; on roads with wild Lv 16+, stronger four-legged beasts, flyers and serpents sometimes run in packs too.
   - Each road's trainers are stronger than any wild beast on it. The early levels climb slowly: Coastal Path Lv 2-4, Isle Trail 4-7, Coral Reef 7-10, the Temple of Tides 8-11 (its guardian Lv 12, with one helper), Dune Road 10-13.
 - **Levelling** is slower than before: about twice as many wins per level.
 - **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. MP comes back only from healing (the Beast Center machine, Mom, your bed) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
@@ -183,7 +200,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Brass & Reed Music** in Cogsworth: Maestro Clef plays one song from his book for free, once. Play it back from memory to learn it. He also sells sheet music, which you can practise from your bag until you get it right.
   - **Flute trainers** play their own songs in battle: four route bards, three arena masters, Commander Nyx and General Vexmora. Win, then play the song back **without a single mistake** to learn it. Bards and arena masters will battle again for an encore.
 - **Fast travel**:
-  - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Thunderhawk flies you to any town you've visited, for a fee.
+  - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Tempestrix flies you to any town you've visited, for a fee.
   - Once you own an air beast of **Lv 40+**, pick *Fly* on the Trainer page of the Start book to travel from anywhere outdoors.
 - **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door. Each machine has its own bay along the back wall.
   - The **healing machine** is a giant soda can with a black glass window and a slot per beast. Use it yourself, any time, for free.
@@ -202,7 +219,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 ## Art: voxels
 
-- **App icon**: the game's own voxel Redcoon (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
+- **App icon**: the game's old voxel Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
 - **World and props** come from the voxel packs in `voxelassets/`. They are converted to OBJ plus palette PNG by `tools/import_voxel_assets.py`, which uses `tools/vox2obj.py` for `.vox` files. The models are imported into `assets/voxel/` and listed in `scripts/data/voxel_manifest.gd`. To re-import:
 
   ```
@@ -210,12 +227,23 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   "C:\Program Files\Godot\Godot_v4.7-stable_win64.exe" --headless --path . --import
   ```
 
-- **Beasts** are low-poly models from the PSX creature packs (`psx/Creatures`): fox, raccoon, otter, lion, owl,
-  rattlesnake, mammoth, firefly, moth, clownfish, dragon and more (`RaceDB.FORMS`, one per race). `tools/import_psx_beasts.gd`
-  bakes them into `assets/psx/beasts/` (turned to face +x, centred, scaled to one size), and `voxel_beast.gd` recolours
-  each with the beast's own gene colours (mid tones take c1, dark tones a deep shade, light tones c2, eyes and claws
-  keep theirs); ghosts are dusky and glow faintly. Merged beasts inherit one parent's form and mix the colours. Menu
-  icons are rendered from the same models by `tools/make_beast_icons.gd` and recoloured the same way.
+- **Beasts** are the 39 untextured models of the "new beasts" folder (three to a line), painted and animated in the
+  game:
+  - `python tools/new_beasts/bake.py "path/to/new beasts"` cuts each form out of its .obj (some files hold a whole
+    line side by side), turns it to face +x standing on y = 0, scales it to one size, drops the stray triangles the
+    source meshes carry between parts, and labels each face with a part of the body (body, head, arms, wings, legs,
+    tail, horns, eyes; `tools/new_beasts/forms.json` holds each form's corrections) and each part with its joint.
+    `--debug out_dir` draws every form with its parts coloured. Then
+    `godot --headless --path . --script res://tools/import_new_beasts.gd` makes `assets/beasts/<form>.res`, skinned to
+    one bone per part.
+  - `beast_toon.gdshader` paints them flat and bright by part, as the creature packs they came from were painted: each
+    part's colour, tips (hands, feet, claws, spikes), stripes and bands, a belly patch, and painted cartoon eyes;
+    `scripts/data/beast_looks.gd` holds each line's colours. A ghost is the same beast in black and purple.
+  - `beast_rig.gd` builds a beast on its skeleton and moves it by hand: a bouncy idle, walking (a trot on four legs,
+    a waddle on two, a wriggle, a hop, flying), lying down, and attacking; ghosts trail smoke. `beast_parts.gd` puts
+    merged beasts together from their parents' parts.
+  - The four legendary guardians are still the PSX creature models (`assets/psx/beasts/`, recoloured by
+    `voxel_beast.gd`).
 - **Gearhart robots** (`RaceDB.ROBOTS`) are PSX robots: the Clockwork Sentry with a wind-up key, the boiler-bodied
   Steam Mecha and the broad Iron Golem from Bricchi Games' Retro Robots, and the boxy Tank Walker from CokeEnthusiast's
   Robot guy (`RaceDB.ROBOT_MODELS`). `tools/import_psx_robots.gd` bakes them into `assets/psx/robots/` (T-posed arms
@@ -237,7 +265,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   striped awning and pennants) behind a crenellated gatehouse between two turrets, in each region's stone;
   **Sparkwire Electronics** is a streamlined shop with a curved glass corner, a wrap-round canopy, a drum carrying a
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
-  stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Thunderhawk on the rail.
+  stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Tempestrix on the rail.
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
 - **Inside**, walls between the camera and you fade rather than sink (`room_builder.gd` `fade`): in a cone opening from
   you towards the camera, a wall ahead of you is clear, about 70% opaque while you pass through its doorway, and solid
@@ -266,7 +294,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Beasts | Your battle ring and storage (tap a beast, then where it should go: see Arranging your beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
 | Flute | Every song with its effect and mastery; press A to practise one. The Capture page shows your level and when the next one is ready to learn. Unknown songs show where to learn them. |
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
-| Bestiary | All 48 races with live voxel portraits and where to find them. |
+| Bestiary | All 39 forms with live portraits and where to find them. |
 | Map | The twelve towns, with the full world map on A. |
 | Settings | Save (first), music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, save, credits and quit. |
 
@@ -399,14 +427,15 @@ python tools/town_check.py
 scripts/
   data/        race_db, move_db, item_db, song_db, world_db (towns, routes, temples, obstacles, biomes), voxel_manifest
   data/maps/   hand-made ASCII maps: towns, routes, room templates
-  core/        beast.gd (a beast instance), beasts.gd (creation, merging, legendary dominance), ring.gd (the battle ring)
-  gfx/         voxel_mesher (greedy mesher), voxel_beast, voxel_person, voxel_buildings, voxel_props, voxel_textures, voxel_assets
+  core/        beast.gd (a beast instance, growing up), beasts.gd (creation, merging, legendary dominance), ring.gd (the battle ring)
+  gfx/         beast_rig, beast_parts, beast_toon.gdshader (the beasts), voxel_mesher (greedy mesher), voxel_beast, voxel_person, voxel_buildings, voxel_props, voxel_textures, voxel_assets
+  data/        ... beast_looks (each beast line's colours)
   world/       map_loader.gd (ASCII → map), world.gd (voxel overworld + interiors), map_gen.gd (tile types)
   battle/      battle.gd (ring battles, trainer turn, shields, egg drops), command_panel.gd (the stacked command rows)
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
@@ -419,7 +448,7 @@ godot --path . --resolution 2400x1080 -- --touch --scene=battle --keys=r,r,r,a,a
 godot --headless --path . -- --scene=sim --n=10                          # simulated auto battles
 godot --headless --path . -- --scene=flow                                # scripted run through the whole story
 godot --path . -- --scene=knock                                         # knock on locked doors (a Tidewater house, the cathedral)
-godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Thunderhawk
+godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Tempestrix
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery (pages 0-3, 4 = merges)
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
@@ -438,7 +467,9 @@ godot --path . -- --scene=ringedit --touch                              # the ri
 godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")
 godot --headless --path . -- --scene=coaches                            # a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one: every teacher must stop them, in order ("coaches DONE: 0 problem(s)")
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
-godot --headless --path . -- --scene=mascot                             # mascots' signature moves: the rules, teaching at Lv 39 / 40, another race, a merge
+godot --headless --path . -- --scene=mascot                             # mascots' signature moves: the rules, teaching at Lv 39 / 40, another line, a merge
+godot --headless --path . --script res://tools/check_beasts.gd           # every form's name, elements and model; growing up at Lv 20 and 40; merging only final forms ("BEASTS CHECK DONE: 0 problem(s)")
+godot --path . -- --scene=newbeasts --lines=dino,owl --shot=C:/tmp/n.png  # the beasts side by side, a column per line (--stages=1,3, --anim=idle|walk|lie|attack, --ghost=1, --view=three|side|front, --zoom, --merge=dino_3+owl_3 --seeds=1,2,3)
 godot --path . -- --scene=mascot --plaque=1 --pages=2 --shot=C:/tmp/q.png   # read Cocoon Cove's statue plaque
 godot --headless --path . -- --scene=capture                            # Capture rules, Uncle Rafe's lessons and the arena's flute rule
 godot --headless --path . -- --scene=puzzles                            # solves every road puzzle (bridge, cliff, rockslide, ice, checkpoint, warden, sentinel)

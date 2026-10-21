@@ -700,7 +700,7 @@ func _tab_trainer() -> void:
 	info.add_child(_row_of([UIKit.icon("icon_coin"), _w("%d gold" % GameState.gold)]))
 	info.add_child(_w("Played %s" % GameState.time_text()))
 	info.add_child(_w("Towns %d / 12" % GameState.visited.size()))
-	info.add_child(_w("Caught %d / 48" % GameState.caught.size()))
+	info.add_child(_w("Caught %d / %d" % [GameState.caught.size(), RaceDB.count()]))
 	var nxt := GameState.trainer_xp_for(GameState.trainer_level + 1)
 	info.add_child(_w("Trainer Lv %d%s" % [GameState.trainer_level, ("  (%d / %d XP)" % [GameState.trainer_xp, nxt]) if GameState.trainer_level < GameState.TRAINER_LEVEL_MAX else ""]))
 	info.add_child(_w("Beast slots %d / %d" % [GameState.beast_slots, GameState.PARTY_MAX]))
@@ -1090,7 +1090,7 @@ func _race_detail(c: VBoxContainer, i: int) -> void:
 		c.add_child(_t_label("You haven't met this beast yet.", UIKit.DIM))
 		var hint := []
 		for rid in WorldDB.ROUTES:
-			if WorldDB.ROUTES[rid]["races"].has(i):
+			if WorldDB.route_forms(rid).has(i):
 				hint.append(WorldDB.ROUTES[rid]["name"])
 		if not hint.is_empty():
 			c.add_child(_t_label("Rumoured to live on the %s." % hint[0], UIKit.DIM))
@@ -1103,9 +1103,16 @@ func _race_detail(c: VBoxContainer, i: int) -> void:
 	c.add_child(pc)
 	var r := RaceDB.get_race(i)
 	c.add_child(_t_label("Trait: %s. %s" % [r["passive"], RaceDB.PASSIVE_DESC.get(r["passive"], "")]))
+	# its line: the three forms, the one shown marked, and the levels it grows at
+	var k := RaceDB.first_form(i)
+	var forms := []
+	for st in 3:
+		var nm := RaceDB.race_name(k + st) if GameState.seen.has(str(k + st)) else "?"
+		forms.append(("[%s]" % nm if k + st == i else nm) + ("" if st == 0 else " (Lv %d)" % RaceDB.EVOLVE[st - 1]))
+	c.add_child(_t_label("Grows: " + " → ".join(forms), UIKit.DIM))
 	var where := []
 	for rid in WorldDB.ROUTES:
-		if WorldDB.ROUTES[rid]["races"].has(i):
+		if WorldDB.route_forms(rid).has(i):
 			where.append(WorldDB.ROUTES[rid]["name"])
 	c.add_child(_t_label("Found: " + (", ".join(where) if not where.is_empty() else "nowhere in the wild..."), UIKit.DIM))
 	if GameState.caught.has(str(i)):

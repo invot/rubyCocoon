@@ -551,7 +551,7 @@ const ROOMS := {
 		],
 	},
 	## The Sky Tower: Skykeeper Aria's ticket desk and the stairs in the lobby, and up top an open-air platform
-	## ("open": railings instead of walls, sky all round) where the Thunderhawk waits to fly you away.
+	## ("open": railings instead of walls, sky all round) where the Tempestrix waits to fly you away.
 	"skytower": {
 		"wall": "#e4ecf4", "rug": "#3a7ac8",
 		"npcs": {"1": "keeper"},
@@ -583,7 +583,7 @@ const ROOMS := {
 	"temple_water": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
 		"npcs": {"1": "guardian", "2": "patron"},
-		"encounter": {"lv": [8, 11], "races": [14, 16, 17, 18, 13]},
+		"encounter": {"lv": [8, 11], "races": [21, 24, 27]},
 		"rows": [
 			"#####w#####w#####",
 			"#o~~~o..A..o~~~o#",
@@ -603,7 +603,7 @@ const ROOMS := {
 	"temple_air": {
 		"wall": "#e8dcc0", "rug": "#4ab8a0",
 		"npcs": {"1": "guardian"},
-		"encounter": {"lv": [20, 25], "races": [42, 40, 39, 36, 45]},
+		"encounter": {"lv": [20, 25], "races": [33, 30, 36]},
 		"rows": [
 			"###w###w###w###w#",
 			"#o.....AAA.....o#",
@@ -623,7 +623,7 @@ const ROOMS := {
 	"temple_fire": {
 		"wall": "#5a3a34", "rug": "#c83a1a",
 		"npcs": {"1": "guardian"},
-		"encounter": {"lv": [30, 35], "races": [4, 6, 9, 3, 7]},
+		"encounter": {"lv": [30, 35], "races": [3, 9, 0, 6]},
 		"rows": [
 			"#################",
 			"#o%%%o..A..o%%%o#",
@@ -643,7 +643,7 @@ const ROOMS := {
 	"temple_earth": {
 		"wall": "#6a8a5a", "rug": "#5a8a3a",
 		"npcs": {"1": "guardian"},
-		"encounter": {"lv": [38, 43], "races": [31, 26, 35, 24, 30]},
+		"encounter": {"lv": [38, 43], "races": [18, 21, 15, 12]},
 		"rows": [
 			"#################",
 			"#op..p..A..p..po#",

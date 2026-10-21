@@ -11,6 +11,8 @@ const ItemDB = preload("res://scripts/data/item_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
+const BeastModel = preload("res://scripts/gfx/beast_model.gd")
+const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
@@ -859,7 +861,8 @@ func _build_buildings() -> void:
 		for c in node.find_children("*", "GeometryInstance3D", true, false):
 			meshes.append(c)
 		building_fades.append({"b": b, "meshes": meshes, "node": node})
-		if b["shop"] == "skytower" and node.has_node("Bird"):
+		# (a new beast hovers on its own)
+		if b["shop"] == "skytower" and node.has_node("Bird") and not node.get_node("Bird") is BeastRig:
 			bobbers.append([node.get_node("Bird"), (node.get_node("Bird") as Node3D).position.y, 1.3])
 		for c in node.get_children():
 			if c.has_meta("spin"):
@@ -1062,18 +1065,24 @@ func _build_statue() -> void:
 	ped.mesh = k.mesh()
 	ped.position = center
 	add_child(ped)
-	var mi := MeshInstance3D.new()
-	mi.mesh = VB.mesh(RaceDB.genes(int(st["race"])))
-	mi.scale = Vector3(1.5, 1.5, 1.5)
-	mi.rotation.y = -PI / 2.0 + 0.4
-	mi.position = center + Vector3(0, 0.7, 0)
-	# cast in the town's metal (WorldDB.statue_metal), all one shining colour
+	var genes := RaceDB.genes(int(st["race"]))
+	# cast in the town's metal (WorldDB.statue_metal), all one shining colour (a new beast standing still in it)
 	var metal := StandardMaterial3D.new()
 	metal.albedo_color = STATUE_METALS[WorldDB.statue_metal(map_id)]
 	metal.metallic = 0.85
 	metal.roughness = 0.32
 	metal.metallic_specular = 0.7
-	mi.material_override = metal
+	var mi: Node3D = BeastModel.rig(genes, 1.5)
+	if mi != null:
+		BeastModel.cast(mi, metal)
+	else:
+		var m := MeshInstance3D.new()
+		m.mesh = VB.mesh(genes)
+		m.scale = Vector3(1.5, 1.5, 1.5)
+		m.material_override = metal
+		mi = m
+	mi.rotation.y = -PI / 2.0 + 0.4
+	mi.position = center + Vector3(0, 0.7, 0)
 	add_child(mi)
 
 
@@ -1329,20 +1338,35 @@ func clear_obstacle(grp: Dictionary) -> void:
 
 
 # ================================================================ characters
+## A beast standing in the world, its model named "Model": the new beasts animated (beast_rig.gd: _beast_gait()
+## walks them), the legendaries' PSX models and the robots bobbed by hand.
 func _beast_node(genes: Dictionary, scale := 1.0) -> Node3D:
 	var root := Node3D.new()
-	var mi: MeshInstance3D
-	if genes.has("model"):
+	# the beasts are slim next to the old chunky ones: a little larger, so they read from the overworld camera
+	var mi: Node3D = BeastModel.rig(genes, scale * 1.3)
+	if mi == null and genes.has("model"):
 		mi = VA.instance(String(genes["model"]), 1.7 * scale)
-	else:
-		mi = MeshInstance3D.new()
-		mi.mesh = VB.mesh(genes)
-		# the PSX beasts are slim next to the old chunky ones: a little larger, so they read from the overworld camera
+	elif mi == null:
+		var m := MeshInstance3D.new()
+		m.mesh = VB.mesh(genes)
 		var k := scale * (1.3 if genes.has("form") else 1.0)
-		mi.scale = Vector3(k, k, k)
+		m.scale = Vector3(k, k, k)
+		mi = m
 	mi.name = "Model"
 	root.add_child(mi)
 	return root
+
+
+## Moves a beast of _beast_node(): a new beast walks (at `pace`, beast_rig.gd) or stands about, and only while it's
+## near enough to see (frozen as it was beyond); an old model hops (`hop` high, `spd` hops a second) or bobs.
+func _beast_gait(body: Node3D, moving: bool, pace: float, hop: float, spd: float, phase: float) -> void:
+	var m: Node3D = body.get_node_or_null("Model")
+	if m is BeastRig:
+		m.set_process(body.global_position.distance_squared_to(player.position) < 300.0)
+		m.state = "walk" if moving else "idle"
+		m.pace = pace
+		return
+	body.position.y = absf(sin(_time * spd + phase)) * hop
 
 
 func _build_npcs() -> void:
@@ -1786,10 +1810,11 @@ func _interact() -> void:
 		var race: int = map["statue"]["race"]
 		var lines := ["A %s statue of %s, guardian of %s." % [WorldDB.statue_metal(map_id), RaceDB.race_name(race), map["name"]],
 			WorldDB.TOWNS.get(map_id, {}).get("blurb", "")]
-		var mv: String = MoveDB.SIGNATURE.get(race, "")
+		var mv: String = WorldDB.TOWNS.get(map_id, {}).get("signature", "")
 		if mv != "":
-			lines.append("The plaque reads: \"Our own %s, who roams the town, knows %s: the mightiest %s move a %s can ever know.\"" % [RaceDB.race_name(race), MoveDB.get_move(mv)["name"], MoveDB.get_move(mv)["el"], RaceDB.race_name(race)])
-			lines.append("\"It will teach it to any %s of Lv %d or more, and only a %s, and only here. Bring yours to meet it!\"" % [RaceDB.race_name(race), MoveDB.SIGNATURE_LEVEL, RaceDB.race_name(race)])
+			var kin := RaceDB.race_name(RaceDB.first_form(race))
+			lines.append("The plaque reads: \"Our own %s, who roams the town, knows %s: the mightiest %s move its kind can ever know.\"" % [RaceDB.race_name(race), MoveDB.get_move(mv)["name"], MoveDB.get_move(mv)["el"]])
+			lines.append("\"It will teach it to any %s (or one grown from one) of Lv %d or more, and only those, and only here. Bring yours to meet it!\"" % [kin, MoveDB.SIGNATURE_LEVEL])
 		await UI.say(lines)
 	elif interior and MapGen.get_t(map, t.x, t.y) in PROP_CODES:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
@@ -2052,7 +2077,10 @@ func _animate_npcs(delta: float) -> void:
 			continue
 		if n.get("beast_genes", null) != null or n.has("robot_body"):
 			var m: Node3D = node.get_node_or_null("Model")
-			if m:
+			if m is BeastRig:
+				# (a new beast bobs on its own, while it's near enough to see)
+				m.set_process(node.position.distance_squared_to(player.position) < 300.0)
+			elif m:
 				m.position.y = absf(sin(_time * 2.6 + p.x)) * 0.06
 		if n.has("walking"):
 			# a step across the room, legs and arms swinging
@@ -2745,11 +2773,13 @@ func _animate_wild(w: Dictionary, delta: float) -> void:
 			node.position = (w["from"] as Vector3).lerp(w["to"], float(w["mt"]))
 	var hop := 0.12 if w["moving"] else 0.04
 	var spd := 9.0 if w["moving"] else 2.6
+	# new beasts step along at the pace they go (a wander, a charge, a dash away)
+	var pace := 1.4 * float(w["speed"]) / WILD_WANDER_SPEED
 	var lead: Node3D = node.get_node("Lead")
-	lead.position.y = absf(sin(_time * spd + float(w["phase"]))) * hop
+	_beast_gait(lead, w["moving"], pace, hop, spd, float(w["phase"]))
 	for i in (w["followers"] as Array).size():
 		var f: Node3D = w["followers"][i]
-		f.position.y = absf(sin(_time * spd + float(w["phase"]) + 1.3 + i)) * hop
+		_beast_gait(f, w["moving"], pace, hop, spd, float(w["phase"]) + 1.3 + i)
 
 
 func _update_wilds(delta: float) -> void:
@@ -3446,9 +3476,15 @@ func _build_room() -> void:
 					# a short round stone plinth (the same pillar, cut down) with the beast on top
 					_room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.72, 0.7, 0.72))
 					var race: int = map["exhibits"].get(Vector2i(x, y), 0)
-					var ex := MeshInstance3D.new()
-					ex.mesh = VB.mesh(RaceDB.genes(race))
-					ex.scale = Vector3(0.45, 0.45, 0.45)
+					# (a new beast holding still, on show)
+					var ex: Node3D = BeastModel.rig(RaceDB.genes(race), 0.45)
+					if ex != null:
+						ex.hold()
+					else:
+						var em := MeshInstance3D.new()
+						em.mesh = VB.mesh(RaceDB.genes(race))
+						em.scale = Vector3(0.45, 0.45, 0.45)
+						ex = em
 					ex.rotation.y = -PI / 2.0
 					ex.position = center + Vector3(0, 0.7, 0)
 					add_child(ex)

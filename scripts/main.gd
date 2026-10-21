@@ -144,7 +144,9 @@ func _title() -> void:
 			_title_nodes[0].visible = false
 			load_slot = await slot_manager()
 			_title_nodes[0].visible = true
-		if load_slot >= 0 and GameState.load_game(load_slot):
+		if load_slot >= 0 and GameState.slot_outdated(load_slot):
+			UI.toast("That save is from before the new beasts, so it can't be loaded. Start a new game!", UIKit.ACCENT)
+		elif load_slot >= 0 and GameState.load_game(load_slot):
 			_clear_title()
 			UI.allow_pause = true
 			var spawn = GameState.pos if GameState.pos.x >= 0 else "center"
@@ -530,7 +532,8 @@ func _run_test() -> void:
 	GameState.set_flag("reed_flute")
 	GameState.learn_song("weaken")
 	GameState.learn_song("capture3")
-	for r in [1, 12, 24]:
+	# a Pricklet, a Clawlet and a Grubbit: fire, water and earth (none of Cocoon Cove's dino line, for --scene=mascot)
+	for r in [3, 24, 12]:
 		var b := Beasts.create(r, 12)
 		GameState.add_beast(b)
 	if scene.begins_with("world:"):
@@ -556,12 +559,12 @@ func _run_test() -> void:
 	elif scene == "battle":
 		_do_goto("route3", "south")
 		await get_tree().create_timer(1.0).timeout
-		var foes := [Beasts.create(13, 10), Beasts.create(36, 11), Beasts.create(7, 12, true)]
+		var foes := [Beasts.create(27, 10), Beasts.create(30, 11), Beasts.create(9, 12, true)]
 		if _test.get("kind", "") == "fishing":
 			# a beast reeled in: the dock and the water
-			start_battle({"wild": true, "foes": [Beasts.create(14, 8)], "seed": 5, "fishing": true})
+			start_battle({"wild": true, "foes": [Beasts.create(27, 8)], "seed": 5, "fishing": true})
 		elif _test.get("kind", "") == "robots":
-			foes = [Beasts.create(53, 12), Beasts.create(54, 12), Beasts.create(55, 12)]
+			foes = [Beasts.create(44, 12), Beasts.create(45, 12), Beasts.create(46, 12)]
 			start_battle({"wild": false, "foes": foes, "seed": 5, "trainer": {"name": "Gearhart", "cls": "CEO", "look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}})
 		else:
 			start_battle({"wild": true, "foes": foes, "seed": 5})
@@ -577,9 +580,10 @@ func _run_test() -> void:
 		# --down=1: your first beast has fainted (its tile crossed out)
 		if _test.get("down", "0") == "1" and GameState.party.size() > 1:
 			GameState.party[1].hp = 0
-		var team := [Beasts.create(13, flv), Beasts.create(16, flv + 1), Beasts.create(23, flv), Beasts.create(20, flv - 1), Beasts.create(12, flv)]
+		# water beasts (the worm, earth and water, too)
+		var team := [Beasts.create(27, flv), Beasts.create(24, flv + 1), Beasts.create(21, flv), Beasts.create(27, flv - 1), Beasts.create(24, flv)]
 		if _test.get("kind", "") == "wild":
-			start_battle({"wild": true, "foes": [Beasts.create(13, 10), Beasts.create(36, 11)], "seed": 5})
+			start_battle({"wild": true, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5})
 		else:
 			start_battle({"wild": false, "foes": team, "seed": 5, "trainer": {"name": "Marina", "cls": "Swimmer", "shield": int(_test.get("foe_shield", "1")),
 				"look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}})
@@ -589,13 +593,13 @@ func _run_test() -> void:
 		# a foe vanishing in a puff of smoke, with a damage number on its partner (--at = seconds after the puff)
 		_do_goto("route3", "south")
 		await _wait(1.0)
-		start_battle({"wild": true, "foes": [Beasts.create(13, 10), Beasts.create(36, 11)], "seed": 5})
+		start_battle({"wild": true, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5})
 		await _wait(2.5)
 		var bt: Node = null
 		for c in view.get_children():
 			if c.get_script() == load(BATTLE_PATH):
 				bt = c
-		bt.msg_label.text = "Emberkit gained 27 XP. Redcoon grew to Lv 13!"
+		bt.msg_label.text = "Pricklet gained 27 XP. Grubbit grew to Lv 13!"
 		bt.foe_slots[0].hp = 0
 		bt._handle_faints()
 		bt._float_text(bt.foe_slots[1], "-27", Color("#ffe060"))
@@ -630,17 +634,17 @@ func _run_test() -> void:
 			GameState.heal_party()
 			var foes2 := []
 			for k in randi_range(1, 3):
-				foes2.append(Beasts.create(randi_range(0, 47), randi_range(9, 14), randf() < 0.3))
+				foes2.append(Beasts.create(randi_range(0, RaceDB.NORMAL_COUNT - 1), randi_range(9, 14), randf() < 0.3))
 			var r: String = await start_battle({"wild": i % 2 == 0, "foes": foes2, "autoplay": true, "trainer": {"name": "Sim", "cls": "Bot"}})
 			tally[r] = tally.get(r, 0) + 1
 			print("battle ", i, ": ", r, "  party lv ", GameState.party.map(func(x): return x.level))
 		print("SIM RESULTS ", tally)
-		# merge checks
-		var a := Beasts.create(1, 20)
-		var b2 := Beasts.create(36, 20)
+		# merge checks: final forms at their level limit (Lv 40 at rank 1), a fire one and an air one
+		var a := Beasts.create(0, 40)
+		var b2 := Beasts.create(30, 40)
 		var m := Beasts.merge(a, b2, true)
-		print("merge: ", m.nickname, " rank ", m.rank, " lv ", m.level, " el ", m.element, " moves ", m.moves, " genes ", m.genes)
-		var g := Beasts.create(5, 20, true)
+		print("merge: ", m.nickname, " rank ", m.rank, " lv ", m.level, " el ", m.element_text(), " moves ", m.moves, " genes ", m.genes)
+		var g := Beasts.create(6, 40, true)
 		print("ghost merge allowed? ", Beasts.can_merge(m, g, false), " | ", Beasts.can_merge(a, g, true))
 		print("capture chance lv5 Capture III acc1 full hp: ", GameState.capture_chance(Beasts.create(0, 5), "capture3", 1.0))
 		Engine.time_scale = 1.0
@@ -748,7 +752,7 @@ func _run_test() -> void:
 						print("  after the guard falls: locked=%s" % b.get("locked", false))
 		UI.auto = false
 	elif scene == "skytower":
-		# into the Sky Tower, a word at the ticket desk, up the stairs to the roof and away on the Thunderhawk
+		# into the Sky Tower, a word at the ticket desk, up the stairs to the roof and away on the Tempestrix
 		UI.auto = true
 		GameState.visited = ["caccoon", "tidewater"]
 		GameState.gold = 500
@@ -802,11 +806,11 @@ func _run_test() -> void:
 		GameState.crests = ["Wave Crest", "Coral Crest", "Spur Crest"]
 		GameState.learn_song("jig")
 		GameState.learn_song("lullaby")
-		GameState.add_egg(14)
+		GameState.add_egg(27)
 		for id in ["potion", "fire_bomb", "haste_tonic", "power_collar", "sheet_hymn", "silver_flute"]:
 			GameState.add_item(id, 2)
-		var m := Beasts.merge(Beasts.create(1, 20), Beasts.create(36, 20))
-		m.level = 24
+		var m := Beasts.merge(Beasts.create(0, 40), Beasts.create(30, 40))
+		m.level = 44
 		GameState.beast_slots = 4
 		GameState.add_beast(m)
 		for i in 10:
@@ -861,15 +865,15 @@ func _run_test() -> void:
 		UI.auto = true
 		UI.auto_flute = [{"acc": 0.8, "mistakes": 0}]
 		var before := GameState.party.size() + GameState.storage.size()
-		var res: String = await Story.wild_battle(world, [Beasts.create(21, 3)], "wild")
+		var res: String = await Story.wild_battle(world, [Beasts.create(27, 3)], "wild")
 		print("flute lesson: result ", res, "  done ", GameState.flag("flute_lesson_done"), "  beasts before ", before, " after ", GameState.party.size() + GameState.storage.size())
 		for l in UI.auto_log:
 			if l.begins_with("[menu]"):
 				print("   ", l)
 	elif scene == "tutorial":
 		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring, or
-		# Tidewater's arena coaches: team|elements (--egg=race: the hatchling's race, e.g. 24 for an earth one)
-		GameState.party = [Beasts.create(int(_test.get("egg", "1")), 1)]
+		# Tidewater's arena coaches: team|elements (--egg=race: the hatchling's race, e.g. 12 for an earth one)
+		GameState.party = [Beasts.create(int(_test.get("egg", "0")), 1)]
 		GameState.fix_ring()
 		GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
 		if _test.get("lesson", "") == "elements":
@@ -914,12 +918,19 @@ func _run_test() -> void:
 		# every guided battle played by a button masher: one thing to pick on every bar and in every menu, your beasts
 		# never down, and every lesson won
 		await _lessons_test()
+	elif scene == "newbeasts":
+		# the new beasts side by side: a column per line, its stages down it (--lines=dino,owl,..., --stages=1,3,
+		# --anim=idle|walk|lie|attack (--at: a screenshot that long into the first attack), --ghost=1, --view=three|
+		# side|front, --yaw, --zoom, --centre (raise the view's centre); --merge=dino_3+owl_3,... (--seeds=1,2,3): a
+		# row per pair, with their merges)
+		await _newbeasts_test()
+		await _wait(wait)
 	elif scene == "capture":
 		UI.auto = true
 		GameState.songs = []
 		GameState.gear["flute"] = ""
 		GameState.set_flag("reed_flute", false)
-		GameState.party = [Beasts.create(1, 2)]
+		GameState.party = [Beasts.create(0, 2)]
 		await _do_goto("tidewater", "west")
 		await _wait(0.5)
 		var arena := _bld("arena")
@@ -929,9 +940,9 @@ func _run_test() -> void:
 		print("uncle: fail Weaken and give up -> done: ", await Story.uncle_lessons(), "  flute ", GameState.has_flute(), "  songs ", GameState.songs)
 		print("uncle again, pass both -> done: ", await Story.uncle_lessons(), "  songs ", GameState.songs)
 		print("arena with a flute -> allowed: ", await Story.can_enter(world, arena))
-		var weak := Beasts.create(0, 2)
-		var strong := Beasts.create(0, 3)
-		var too_big := Beasts.create(0, 6)
+		var weak := Beasts.create(6, 2)
+		var strong := Beasts.create(6, 3)
+		var too_big := Beasts.create(6, 6)
 		print("best beast Lv", GameState.best_level(), "  Capture cap ", GameState.capture_cap())
 		print("Lv2 target, 90%%, 2 mistakes: %.2f" % GameState.capture_chance(weak, "capture1", 0.9, 2))
 		print("Lv3 target (stronger than yours), 2 mistakes: %.2f   flawless: %.2f" % [GameState.capture_chance(strong, "capture1", 0.9, 2), GameState.capture_chance(strong, "capture1", 1.0, 0)])
@@ -1178,10 +1189,11 @@ func _run_test() -> void:
 		var cliff: Dictionary = world.map["obstacles"][Vector2i(15, 21)]
 		await Story.field_move(world, cliff)
 		print("cliff without wings: ", GameState.flag(cliff["flag"]))
-		GameState.party.append(Beasts.create(36, 12))
+		# a Hootlet: the owls are flyers
+		GameState.party.append(Beasts.create(30, 12))
 		UI.auto_answers = [0]
 		await Story.field_move(world, cliff)
-		print("cliff with a Zephyrling: ", GameState.flag(cliff["flag"]), "  rope walkable: ", world._walkable(Vector2i(15, 20)))
+		print("cliff with a Hootlet: ", GameState.flag(cliff["flag"]), "  rope walkable: ", world._walkable(Vector2i(15, 20)))
 		# route4: push the boulders, following the solver's moves
 		await _go("route4", "south")
 		await _wait(1.0)
@@ -1341,8 +1353,8 @@ func _run_test() -> void:
 	elif scene == "view":
 		_do_goto("caccoon", "start")
 		await get_tree().create_timer(1.0).timeout
-		var a = GameState.party[0]
-		var c := Beasts.merge(a, GameState.party[1], true)
+		# a Pyrosaur and a Tempestrix, final forms at their level limit
+		var c := Beasts.merge(Beasts.create(0, 40), Beasts.create(30, 40), true)
 		UI.show_beast(c, "A new beast is born!")
 		await get_tree().create_timer(wait).timeout
 	if _test.has("shot"):
@@ -1498,7 +1510,7 @@ func _flow_test() -> void:
 	_pending_goto = {}
 	GameState.heal_party()
 	GameState.gold = 99999
-	for r in [3, 14, 27, 40]:
+	for r in [6, 27, 15, 33]:
 		GameState.add_beast(Beasts.create(r, 20))
 	print("starting songs: ", GameState.songs)
 	await _go("route1", "west")
@@ -1594,7 +1606,10 @@ func _flow_test() -> void:
 	for p in world.npcs:
 		if world.npcs[p].get("kind", "") == "guardian":
 			for b in GameState.party:
+				# (and grown into the form Lv 40 gives, as levelling up would have)
 				b.level = 40
+				if RaceDB.for_level(b.race, b.level) != b.race:
+					b.evolve(RaceDB.for_level(b.race, b.level))
 				b.heal_full()
 			_step("water guardian", [])
 			await Story.talk(world, world.npcs[p])
@@ -1614,9 +1629,9 @@ func _flow_test() -> void:
 			leg = b
 	print("legendary hatched: ", leg.nickname if leg != null else "none")
 	if leg != null:
-		leg.level = 20
+		leg.level = 40
 		var other = GameState.party.filter(func(x): return x != leg)[0]
-		other.level = 20
+		other.level = 40
 		var child := Beasts.merge(leg, other)
 		print("80/20 merge: ", child.nickname, " race ", RaceDB.race_name(child.race), " el ", child.element)
 	await _go("sundown", "center")
@@ -1682,7 +1697,7 @@ func _flow_test() -> void:
 	_step("gravedigger", [])
 	await Story.talk(world, _npc("gravedigger"))
 	GameState.party = []
-	for r in [7, 18, 31, 42, 3, 22]:
+	for r in [9, 27, 18, 33, 6, 24]:
 		GameState.party.append(Beasts.create(r, 72))
 	for n3 in world.npcs.values().duplicate():
 		if n3.get("flag", "") == "tr_gravenmoor_gate":
@@ -1701,12 +1716,12 @@ func _flow_test() -> void:
 	await Story.talk(world, _npc("vexmora"))
 	print("game_cleared=", GameState.flag("game_cleared"))
 	_step("shield loss battle", [])
-	GameState.party = [Beasts.create(1, 2)]
+	GameState.party = [Beasts.create(0, 2)]
 	GameState.max_shield = 1
 	GameState.recharge_shield()
 	await _go("route10", "west")
 	await _wait(1.5)
-	var r: String = await start_battle({"wild": true, "foes": [Beasts.create(23, 40)], "seed": 3})
+	var r: String = await start_battle({"wild": true, "foes": [Beasts.create(21, 40)], "seed": 3})
 	await _wait(2.0)
 	print("hopeless battle -> ", r, "  now at ", world.map_id if world else "?", "  shield ", GameState.shield, "/", GameState.max_shield)
 	_step("save/load", [])
@@ -1929,10 +1944,10 @@ func _battlecmd_test() -> void:
 			bad[0] += 1
 		print("%s %s" % ["ok  " if ok else "FAIL", what])
 	var stop := String(_test.get("stop", ""))
-	var fire_a := Beasts.create(1, 20)
-	var fire_b := Beasts.create(2, 20)
-	var air_c := Beasts.create(36, 20)
-	var water := Beasts.create(12, 20)
+	var fire_a := Beasts.create(0, 20)
+	var fire_b := Beasts.create(3, 20)
+	var air_c := Beasts.create(30, 20)
+	var water := Beasts.create(24, 20)
 	fire_b.moves.append("fire_spin")
 	GameState.beast_slots = 4
 	GameState.party = [fire_a, fire_b, air_c, water]
@@ -1945,7 +1960,7 @@ func _battlecmd_test() -> void:
 	GameState.ring_side = 1
 	GameState.max_shield = 4
 	GameState.shield = 4
-	var foes := [Beasts.create(25, 20), Beasts.create(26, 20)]
+	var foes := [Beasts.create(12, 20), Beasts.create(15, 20)]
 	start_battle({"wild": false, "foes": foes, "trainer": {"name": "Tess", "cls": "Tester", "team": []}, "seed": 7})
 	var bt: Node = null
 	var heal_foes := [true]
@@ -2129,11 +2144,11 @@ func _ringedit_test() -> void:
 			bad[0] += 1
 		print("%s %s" % ["ok  " if ok else "FAIL", what])
 	# fire, water and air beasts on the ring (3 / 3), an earth and a second fire one in storage
-	var fire := Beasts.create(1, 6)
-	var water := Beasts.create(12, 6)
-	var air := Beasts.create(36, 6)
-	var earth := Beasts.create(25, 6)
-	var fire2 := Beasts.create(1, 4)
+	var fire := Beasts.create(0, 6)
+	var water := Beasts.create(24, 6)
+	var air := Beasts.create(30, 6)
+	var earth := Beasts.create(12, 6)
+	var fire2 := Beasts.create(3, 4)
 	GameState.beast_slots = 3
 	GameState.party = [fire, water, air]
 	fire.slot = 0
@@ -2218,7 +2233,7 @@ func _coaches_test() -> void:
 	Engine.time_scale = 8.0
 	UI.auto = true
 	autoplay = true
-	GameState.party = [Beasts.create(1, 1)]
+	GameState.party = [Beasts.create(0, 1)]
 	GameState.storage = []
 	GameState.fix_ring()
 	GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
@@ -2295,7 +2310,7 @@ func _lessons_test() -> void:
 	rng.seed = int(_test.get("seed", "1"))
 	var bad := [0]
 	var teachers: Array = Story.LESSON_TRAINERS + Story.ARENA_LESSONS
-	for party in [[1], [1, 2]]:
+	for party in [[0], [0, 3]]:
 		for t in teachers + [{"lesson": "flute", "name": "Uncle Rafe"}]:
 			var lesson := String(t["lesson"])
 			while _transitioning or not _pending_goto.is_empty() or in_battle:
@@ -2318,7 +2333,7 @@ func _lessons_test() -> void:
 			if lesson == "flute":
 				_do_goto("route1", "west")
 				await _wait(1.5)
-				var wild := func(): res[0] = await Story.wild_battle(world, [Beasts.create(21, 3)], "wild")
+				var wild := func(): res[0] = await Story.wild_battle(world, [Beasts.create(27, 3)], "wild")
 				wild.call()
 			else:
 				var spot := _teacher_spot(lesson)
@@ -2366,6 +2381,120 @@ func _lessons_test() -> void:
 	print("lessons DONE: %d problem(s)" % bad[0])
 
 
+func _newbeasts_test() -> void:
+	var Rig = load("res://scripts/gfx/beast_rig.gd")
+	var root := Node3D.new()
+	view.add_child(root)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color("#9cc3e6")
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.55
+	var we := WorldEnvironment.new()
+	we.environment = env
+	root.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, -35, 0)
+	sun.shadow_enabled = true
+	root.add_child(sun)
+	var anim := String(_test.get("anim", "idle"))
+	var ghost: bool = _test.get("ghost", "0") == "1"
+	# the cells, [column, row, label, form or [a, b, seed]]: a column per line, its stages down it; or a row per pair
+	# of parents, then a few of their merges
+	var cells := []
+	if _test.has("merge"):
+		var r := 0
+		for pair in String(_test["merge"]).split(","):
+			var a := pair.get_slice("+", 0)
+			var b := pair.get_slice("+", 1)
+			cells.append([0, r, a, a])
+			cells.append([1, r, b, b])
+			var seeds := String(_test.get("seeds", "1,2,3")).split(",")
+			for k in seeds.size():
+				cells.append([2 + k, r, "%s × %s #%s" % [a.get_slice("_", 0), b.get_slice("_", 0), seeds[k]], [a, b, int(seeds[k])]])
+			r += 1
+	else:
+		var c := 0
+		var stages := String(_test.get("stages", "1,2,3")).split(",")
+		for line in String(_test.get("lines", "dino,scorpion,berry,beetle,cactus")).split(","):
+			for k in stages.size():
+				var f := "%s_%s" % [line, stages[k]]
+				cells.append([c, k, f, f])
+			c += 1
+	var cols := 0
+	var rows := 0
+	for cell in cells:
+		cols = maxi(cols, cell[0] + 1)
+		rows = maxi(rows, cell[1] + 1)
+	# --view: three (three quarters, the default), side or front (looking it in the face)
+	var vw := String(_test.get("view", "three"))
+	var across := Vector3(1, 0, 0) if vw != "front" else Vector3(0, 0, -1)
+	var back := Vector3(0, 0, -1) if vw != "front" else Vector3(-1, 0, 0)
+	var yaw := float(_test.get("yaw", "-60" if vw == "three" else "0"))
+	var dx := 2.2
+	var dy := 1.8
+	var rigs := []
+	for cell in cells:
+		var rig: Node3D = Rig.new()
+		root.add_child(rig)
+		if cell[3] is Array:
+			rig.setup_merge(cell[3][0], cell[3][1], cell[3][2], ghost)
+		else:
+			rig.setup(cell[3], ghost)
+		var s: float = 1.0 if cell[3] is Array else [0.72, 0.86, 1.0][int(String(cell[3]).get_slice("_", 1)) - 1]
+		var at: Vector3 = across * (cell[0] * dx) + Vector3(0, -cell[1] * dy, 0) + back * (cell[1] * 0.8)
+		rig.position = at
+		rig.scale = Vector3(s, s, s)
+		rig.rotation_degrees.y = yaw
+		rig.state = "idle" if anim == "attack" else anim
+		rigs.append(rig)
+		var pad := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.75
+		cyl.bottom_radius = 0.75
+		cyl.height = 0.04
+		pad.mesh = cyl
+		var pm := StandardMaterial3D.new()
+		pm.albedo_color = Color("#8fbf6a")
+		pad.material_override = pm
+		pad.position = at - Vector3(0, 0.02, 0)
+		root.add_child(pad)
+		var lb := Label3D.new()
+		lb.text = cell[2]
+		lb.font_size = 36
+		lb.outline_size = 8
+		lb.pixel_size = 0.004
+		lb.position = at + Vector3(0, -0.22, 0) - back * 0.8
+		if vw == "front":
+			lb.rotation_degrees.y = 90.0
+		root.add_child(lb)
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	var vs := get_viewport().get_visible_rect().size
+	cam.size = maxf(rows * dy + 0.3, (cols * dx + 0.2) * vs.y / vs.x) / float(_test.get("zoom", "1"))
+	var mid: Vector3 = across * ((cols - 1) * dx / 2.0) + Vector3(0, -(rows - 1) * dy / 2.0 + 0.5, 0) + back * ((rows - 1) * 0.4)
+	mid.y += float(_test.get("centre", "0"))
+	cam.position = mid - back * 10.0 + Vector3(0, 2.0, 0)
+	cam.look_at(mid, Vector3.UP)
+	cam.current = true
+	if anim == "attack":
+		# an attack every 1.3 s, the first 0.4 s in (--at: a screenshot that long into it)
+		var tm := Timer.new()
+		tm.wait_time = 1.3
+		root.add_child(tm)
+		tm.timeout.connect(func() -> void:
+			for rig in rigs:
+				rig.attack())
+		await _wait(0.4)
+		for rig in rigs:
+			rig.attack()
+		tm.start()
+		if _test.has("at"):
+			await _wait(float(_test["at"]))
+
+
 ## Tapped walks to the nearest of `goals` on this map, again after each stop (a teacher's lesson, say), until you're on
 ## one or the map changes.
 func _walk_road(goals: Array) -> void:
@@ -2398,14 +2527,15 @@ func _mascot_test() -> void:
 	var bad := 0
 	for id in WorldDB.TOWN_ORDER:
 		var race: int = WorldDB.TOWNS[id]["mascot"]
-		var mv: String = MoveDB.SIGNATURE.get(race, "")
+		var mv: String = WorldDB.TOWNS[id].get("signature", "")
 		var m: Dictionary = MoveDB.get_move(mv)
-		var el := RaceDB.element(race)
+		# (a dual line's move may be of its second element)
+		var el := RaceDB.element2(race) if String(m.get("el", "")) == RaceDB.element2(race) else RaceDB.element(race)
 		var strongest := 0
 		for p in MoveDB.POOLS[el]:
 			strongest = maxi(strongest, int(MoveDB.get_move(p).get("power", 0)))
 		var levelled: bool = RaceDB.learnset(race).any(func(e): return e[1] == mv)
-		var ok: bool = mv != "" and MoveDB.MOVES.has(mv) and m["el"] == el and m["kind"] == "attack" and int(m["power"]) > strongest and not levelled
+		var ok: bool = mv != "" and MoveDB.MOVES.has(mv) and m["el"] == el and m["kind"] == "attack" and int(m["power"]) > strongest and not levelled and int(MoveDB.SIGNATURE.get(mv, -1)) == RaceDB.first_form(race)
 		if not ok:
 			bad += 1
 		print("%s %-11s %-12s %-18s %s power %d (strongest %s move by levelling: %d)  %s statue" % ["ok  " if ok else "FAIL", id, RaceDB.race_name(race), m.get("name", "?"), el, int(m.get("power", 0)), el, strongest, WorldDB.statue_metal(id)])
@@ -2414,27 +2544,28 @@ func _mascot_test() -> void:
 	await _wait(1.5)
 	var mascot := _npc("mascot")
 	# (straight into the party: the mascot only teaches a beast you have with you)
-	var redcoon := Beasts.create(0, 39)
-	GameState.party.append(redcoon)
+	# a Cinderex (the dino line's second form, as the Pyrosaur mascot's line)
+	var kin := Beasts.create(0, 39)
+	GameState.party.append(kin)
 	UI.auto_answers = [0]
 	await Story.talk(world, mascot)
-	var early: bool = not redcoon.known.has("bandit_blaze")
-	print("%s a Lv 39 Redcoon can't learn it yet: %s" % ["ok  " if early else "FAIL", UI.auto_log.back()])
-	redcoon.level = 40
+	var early: bool = not kin.known.has("bandit_blaze")
+	print("%s a Lv 39 %s can't learn it yet: %s" % ["ok  " if early else "FAIL", kin.nickname, UI.auto_log.back()])
+	kin.level = 40
 	UI.auto_answers = [0]
 	await Story.talk(world, mascot)
-	var learned: bool = redcoon.known.has("bandit_blaze")
-	print("%s at Lv 40 it learns Bandit Blaze: %s  (moves %s)" % ["ok  " if learned else "FAIL", learned, redcoon.moves])
-	GameState.party.erase(redcoon)
-	var other := Beasts.create(1, 45)
+	var learned: bool = kin.known.has("bandit_blaze")
+	print("%s at Lv 40 it learns Bandit Blaze: %s  (moves %s)" % ["ok  " if learned else "FAIL", learned, kin.moves])
+	GameState.party.erase(kin)
+	var other := Beasts.create(3, 45)
 	GameState.party.append(other)
 	UI.auto_answers = [0]
 	await Story.talk(world, mascot)
 	var refused: bool = not other.known.has("bandit_blaze")
-	print("%s an Emberkit (another fire race) isn't taught: %s" % ["ok  " if refused else "FAIL", UI.auto_log.back()])
-	var child := Beasts.merge(other, redcoon, true)
-	var kept: bool = child.known.has("bandit_blaze") == (child.race == 0)
-	print("%s a merge (%s) keeps Bandit Blaze only if it's a Redcoon: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
+	print("%s a %s (another fire line) isn't taught: %s" % ["ok  " if refused else "FAIL", other.nickname, UI.auto_log.back()])
+	var child := Beasts.merge(other, kin, true)
+	var kept: bool = child.known.has("bandit_blaze") == (RaceDB.first_form(child.race) == 0)
+	print("%s a merge (%s) keeps Bandit Blaze only if it's of the dino line: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
 	for ok2 in [early, learned, refused, kept]:
 		if not ok2:
 			bad += 1
@@ -2648,18 +2779,24 @@ func _beast_gallery(page: int) -> void:
 	root.add_child(sun)
 	var genes_list := []
 	if page < 4:
-		for i in range(page * 12, page * 12 + 12):
+		# the lines' forms, then the legendaries
+		for i in range(page * 12, mini(page * 12 + 12, RaceDB.NORMAL_COUNT + RaceDB.LEGENDARY.size())):
 			genes_list.append([RaceDB.race_name(i), RaceDB.genes(i)])
 	else:
+		# merges of final forms (Lv 40), some with a ghost
 		for i in 12:
-			var a := Beasts.create(i * 4, 20, i % 3 == 0)
-			var b := Beasts.create((i * 7 + 13) % 48, 20)
+			var a := Beasts.create(i * 3, 40, i % 3 == 0)
+			var b := Beasts.create((i * 7 + 13) % RaceDB.NORMAL_COUNT, 40)
 			var c := Beasts.merge(a, b, true)
 			genes_list.append([c.nickname, c.genes])
 	var t0 := Time.get_ticks_msec()
+	var Model = load("res://scripts/gfx/beast_model.gd")
 	for i in genes_list.size():
-		var mi := MeshInstance3D.new()
-		mi.mesh = VB.mesh(genes_list[i][1])
+		# (drawn as the game draws it: a new beast animated, a legendary its old model)
+		var mi: Node3D = Model.rig(genes_list[i][1], 1.2)
+		if mi == null:
+			mi = MeshInstance3D.new()
+			(mi as MeshInstance3D).mesh = VB.mesh(genes_list[i][1])
 		mi.rotation.y = -0.6
 		mi.position = Vector3((i % 4) * 2.6, 0, (i / 4) * 2.6)
 		root.add_child(mi)
