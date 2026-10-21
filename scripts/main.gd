@@ -1500,7 +1500,10 @@ func _flow_test() -> void:
 	for p in world.npcs:
 		if world.npcs[p].get("kind", "") == "guardian":
 			for b in GameState.party:
+				# (and grown into the form Lv 40 gives, as levelling up would have)
 				b.level = 40
+				if RaceDB.for_level(b.race, b.level) != b.race:
+					b.evolve(RaceDB.for_level(b.race, b.level))
 				b.heal_full()
 			_step("water guardian", [])
 			await Story.talk(world, world.npcs[p])
