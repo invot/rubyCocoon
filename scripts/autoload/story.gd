@@ -542,11 +542,11 @@ func _talk_villager(world, n: Dictionary) -> void:
 		lines.append(quest)
 	elif r < 36:
 		lines.append(WorldDB.TIPS[rng.randi_range(0, WorldDB.TIPS.size() - 1)])
-	elif r < 46 and MoveDB.SIGNATURE.has(int(town.get("mascot", -1))):
+	elif r < 46 and town.has("signature"):
 		# the town's mascot and the move it teaches its own kind
 		var race := int(town["mascot"])
 		var tip: String = ChatterDB.MASCOT_MOVE[rng.randi_range(0, ChatterDB.MASCOT_MOVE.size() - 1)]
-		lines.append(tip.replace("{mascot}", RaceDB.race_name(race)).replace("{move}", MoveDB.get_move(MoveDB.SIGNATURE[race])["name"]).replace("{lv}", str(MoveDB.SIGNATURE_LEVEL)))
+		lines.append(tip.replace("{mascot}", RaceDB.race_name(race)).replace("{move}", MoveDB.get_move(town["signature"])["name"]).replace("{lv}", str(MoveDB.SIGNATURE_LEVEL)))
 	elif r < 62 and ChatterDB.TOWNS.has(world.map_id):
 		lines = ChatterDB.pick(ChatterDB.TOWNS[world.map_id], rng)
 	else:
@@ -667,14 +667,15 @@ func _give(gift: Dictionary) -> void:
 		UI.toast("Received %d %s!" % [k, ItemDB.item_name(item) + ("s" if k > 1 else "")], UIKit.GOLD)
 
 
-## A town's mascot: it teaches its signature move (MoveDB.SIGNATURE) to a beast of its own race at Lv 40 or more, and
-## only to one of those; anyone else just gets its antics.
+## A town's mascot: it teaches its town's signature move (WorldDB.TOWNS "signature", MoveDB.SIGNATURE) to a beast of
+## its own line at Lv 40 or more, and only to one of those; anyone else just gets its antics.
 func _mascot(world, n: Dictionary) -> void:
 	Sfx.play("growl")
-	var race := int(WorldDB.TOWNS.get(world.map_id, {}).get("mascot", -1))
-	var mv: String = MoveDB.SIGNATURE.get(race, "")
+	var town: Dictionary = WorldDB.TOWNS.get(world.map_id, {})
+	var race := int(town.get("mascot", -1))
+	var mv: String = town.get("signature", "")
 	var name: String = n.get("name", "")
-	var kin: Array = GameState.party.filter(func(b): return b.race == race and not b.ghost)
+	var kin: Array = GameState.party.filter(func(b): return RaceDB.first_form(b.race) == RaceDB.first_form(race) and not b.ghost)
 	if mv == "" or kin.is_empty():
 		await UI.say([String(ChatterDB.MASCOT[randi() % ChatterDB.MASCOT.size()]) % name])
 		return

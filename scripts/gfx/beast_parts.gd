@@ -3,7 +3,9 @@ extends RefCounted
 ## each one holds, how a merge of two is put together from their parts, and how a look (beast_looks.gd) sets the toon
 ## shader's colours.
 ## A merge: one parent gives the frame (the body, and every part the other doesn't give), the other some of its parts
-## (head, arms, wings, tail, legs), each set where the frame's own was, or where it would be on the frame's body.
+## (head, arms, wings, tail, legs), each set where the frame's own was, or where it would grow out of the frame's body.
+## The models are many overlapping pieces, their parts labelled by boxes, so for merging each part first takes the
+## rest of the pieces it's most of (regions()): a claw its arm, a hoof its leg, a head its jaw.
 
 const Looks = preload("res://scripts/data/beast_looks.gd")
 const DIR := "res://assets/beasts/"
@@ -11,46 +13,112 @@ const PARTS := Looks.PARTS
 ## the parts a merge can take from the parent that doesn't give the frame
 const GROUPS := {"head": ["head"], "arms": ["arm_l", "arm_r"], "wings": ["wing_l", "wing_r"], "tail": ["tail"],
 	"legs": ["leg_fl", "leg_fr", "leg_bl", "leg_br"]}
+## a part takes the rest of each piece of the model it's at least this much of (but not the piece the body's middle
+## is in), and gives up its vertices on one it's less of, unless that's where most of it is
+const GROW := 0.2
+## how far above its joint a leg grows, and how near the body a part that grew touches it
+const LEG_GROW := 0.12
+const TOUCH := 0.03
+## how far into the frame's body a part given it is set (but legs)
+const SINK := 0.03
+## what the labels still get wrong for merging, per form: "slight": groups too slight to swap (the owl's head is only
+## its ear tufts, its face being on its body; the cactus's legs are nubs under it); "move": [part, from, lo, hi]: the
+## vertices of part `from` in that box are `part`'s (the beetle's beak is its head's, its hands are labelled feet
+## and so is the ridge down its back; the crab's front legs are labelled back legs);
+## "join": [part, lo, hi]: the pieces of only body in that box are `part`'s (the crab's legs' upper joints)
+const FIX := {
+	"owl_3": {"slight": ["head"]},
+	"cactus_3": {"slight": ["legs"]},
+	"beetle_3": {"move": [["head", "body", Vector3(0.15, 0.5, -0.12), Vector3(0.4, 0.7, 0.12)],
+		["arm_l", "leg_fl", Vector3(0.1, 0.1, -0.3), Vector3(0.3, 0.32, -0.1)],
+		["arm_r", "leg_fr", Vector3(0.1, 0.1, 0.1), Vector3(0.3, 0.32, 0.3)],
+		["body", "leg_fl", Vector3(-0.4, 0.0, -0.02), Vector3(-0.07, 0.7, 0.02)],
+		["body", "leg_fr", Vector3(-0.4, 0.0, -0.02), Vector3(-0.07, 0.7, 0.02)]]},
+	"crab_3": {"move": [["leg_fl", "leg_bl", Vector3(-0.17, -1.0, -1.0), Vector3(1.0, 1.0, 1.0)],
+		["leg_fr", "leg_br", Vector3(-0.17, -1.0, -1.0), Vector3(1.0, 1.0, 1.0)]],
+		"join": [["leg_fl", Vector3(-0.17, -0.01, -0.4), Vector3(0.05, 0.27, -0.05)],
+		["leg_fr", Vector3(-0.17, -0.01, 0.05), Vector3(0.05, 0.27, 0.4)],
+		["leg_bl", Vector3(-0.4, -0.01, -0.4), Vector3(-0.17, 0.27, -0.05)],
+		["leg_br", Vector3(-0.4, -0.01, 0.05), Vector3(-0.17, 0.27, 0.4)]]},
+}
 
-## per form: {mesh, arrays, joints, parents, kind, lo, hi} (lo/hi: each part's bounds)
+## per form: {form, mesh, arrays, joints, parents, kind, lo, hi} (lo/hi: each part's bounds), and once it's merged,
+## regions()
 static var _forms := {}
 
 
 ## How a merge of a and b is put together: {frame, colours, head/arms/wings/tail/legs: the form each comes from}.
-## The parent that isn't the frame gives at least one part (two, when it can): a head only onto a frame with a head
-## of its own (a face drawn on the body stays the body's), legs only for as many legs.
+## The parent that isn't the frame gives two of its parts (three now and then; one if it has no more), bigger ones
+## and ones the frame lacks likelier: a head only onto a frame with a head of its own (a face drawn on the body stays
+## the body's), legs only onto legs. Which parent gives the frame turns round, mostly, when that lets the other give
+## more.
 static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_n
 	var frame := a if rng.randf() < 0.5 else b
 	var other := b if frame == a else a
 	var r := {"frame": frame, "colours": a if rng.randf() < 0.5 else b}
-	var fi := info(frame)
-	var oi := info(other)
-	var can := []
-	for g in GROUPS:
-		if not has_group(oi, g):
-			continue
-		if g == "head" and not has_group(fi, "head"):
-			continue
-		if g == "legs" and (has_group(fi, "legs") != has_group(oi, "legs") or fi["lo"].has("leg_bl") != oi["lo"].has("leg_bl")):
-			continue
-		can.append(g)
-	var order := can.duplicate()
-	for i in range(order.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var tmp = order[i]
-		order[i] = order[j]
-		order[j] = tmp
-	var want := mini(order.size(), 2 + (1 if rng.randf() < 0.35 else 0))
+	var can := givable(info(other), info(frame))
+	var back := givable(info(frame), info(other))
+	if can.size() < mini(2, back.size()) and (can.is_empty() or rng.randf() < 0.7):
+		r["frame"] = other
+		other = frame
+		can = back
+	var want := mini(can.size(), 2 + (1 if rng.randf() < 0.35 else 0))
 	for i in want:
-		r[order[i]] = other
+		var total := 0.0
+		for g in can:
+			total += float(can[g])
+		var x := rng.randf() * total
+		var pick: String = can.keys()[can.size() - 1]
+		for g in can:
+			x -= float(can[g])
+			if x <= 0.0:
+				pick = g
+				break
+		r[pick] = other
+		can.erase(pick)
 	return r
 
 
+## What donor `di` can give frame `fi` (info()s): {group: how likely}, by its size against the donor's body, and more
+## for what the frame lacks; legs only of about the frame's length (stretched much, they'd look like stilts).
+static func givable(di: Dictionary, fi: Dictionary) -> Dictionary:
+	var out := {}
+	var slight_d: Array = FIX.get(di["form"], {}).get("slight", [])
+	var slight_f: Array = FIX.get(fi["form"], {}).get("slight", [])
+	for g in GROUPS:
+		if not has_group(di, g) or g in slight_d:
+			continue
+		var lacks: bool = not has_group(fi, g) or g in slight_f
+		if lacks and (g == "head" or g == "legs"):
+			continue
+		if g == "legs" and not legs_fit(fi, di):
+			continue
+		var big := 0.0
+		for p in GROUPS[g]:
+			big = maxf(big, size(di, p))
+		out[g] = clampf(big / maxf(size(di, "body"), 0.05), 0.2, 1.2) * (1.5 if lacks else 1.0)
+	return out
+
+
+## Whether the donor's legs, stretched to the frame's (leg_stretch()), keep about their shape.
+static func legs_fit(fi: Dictionary, di: Dictionary) -> bool:
+	for p in GROUPS["legs"]:
+		if fi["clo"].has(p):
+			var src := leg_from(p, di)
+			if src == "":
+				return false
+			var sy := leg_stretch(p, src, fi, di)
+			if sy < 0.5 or sy > 2.0:
+				return false
+	return true
+
+
 static func has_group(fi: Dictionary, g: String) -> bool:
+	regions(fi)
 	for p in GROUPS[g]:
-		if fi["lo"].has(p):
+		if fi["clo"].has(p):
 			return true
 	return false
 
@@ -72,128 +140,412 @@ static func info(f: String) -> Dictionary:
 		else:
 			lo[p] = (lo[p] as Vector3).min(verts[i])
 			hi[p] = (hi[p] as Vector3).max(verts[i])
-	var d := {"mesh": m, "arrays": arrays, "joints": m.get_meta("joints", {}), "parents": m.get_meta("parents", {}),
-		"kind": String(m.get_meta("body", "quad")), "lo": lo, "hi": hi}
+	var d := {"form": f, "mesh": m, "arrays": arrays, "joints": m.get_meta("joints", {}),
+		"parents": m.get_meta("parents", {}), "kind": String(m.get_meta("body", "quad")), "lo": lo, "hi": hi}
 	_forms[f] = d
 	return d
 
 
-## The frame's joints, and where each part it lacks would join its body (socket()).
+## Each vertex's part for merging, in fi: "cut" (by the bone it's fixed to, so horns and eyes go with the part
+## they're on), each part's bounds by it ("clo", "chi") and where it joins the body ("cj": its joint, or for a part
+## that grew, the middle of where it touches the body).
+## A part grows to the rest of each piece of the model it's at least GROW of, as the bat's wing tips to the arms they
+## end, unless that's the body's middle piece (its middle in the piece's bounds); a piece two parts share goes
+## vertex by vertex to the nearer. A leg grows only a little above its joint (LEG_GROW), so it keeps its length: a
+## haunch stays the body's.
+static func regions(fi: Dictionary) -> void:
+	if fi.has("cut"):
+		return
+	var arrays: Array = fi["arrays"]
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var n := verts.size()
+	var lab := PackedInt32Array()
+	lab.resize(n)
+	var root := PackedInt32Array()
+	root.resize(n)
+	var blo := Vector3(INF, INF, INF)
+	var bhi := -blo
+	for i in n:
+		lab[i] = bones[i * 4]
+		root[i] = i
+		if lab[i] == 0:
+			blo = blo.min(verts[i])
+			bhi = bhi.max(verts[i])
+	var mid := (blo + bhi) / 2.0
+	var fix: Dictionary = FIX.get(fi["form"], {})
+	for fx in fix.get("move", []):
+		var to := PARTS.find(fx[0])
+		var from := PARTS.find(fx[1])
+		for i in n:
+			if lab[i] == from and verts[i].clamp(fx[2], fx[3]) == verts[i]:
+				lab[i] = to
+	# the pieces: vertices joined by triangles
+	for t in range(0, idx.size(), 3):
+		var top := []
+		for k in 3:
+			var a := idx[t + k]
+			while root[a] != a:
+				root[a] = root[root[a]]
+				a = root[a]
+			top.append(a)
+		root[top[1]] = top[0]
+		root[top[2]] = top[0]
+	var piece := {}
+	var cells := {}
+	for i in n:
+		var a := i
+		while root[a] != a:
+			a = root[a]
+		root[i] = a
+		if not piece.has(a):
+			piece[a] = []
+		piece[a].append(i)
+		var c := Vector3i((verts[i] / TOUCH).floor())
+		if not cells.has(c):
+			cells[c] = []
+		cells[c].append(i)
+	# a piece of only body in a box of "join" is that part's
+	for fx in fix.get("join", []):
+		for key in piece:
+			var vs: Array = piece[key]
+			var inside := true
+			for i in vs:
+				inside = inside and lab[i] == 0 and verts[i].clamp(fx[1], fx[2]) == verts[i]
+			if inside:
+				for i in vs:
+					lab[i] = PARTS.find(fx[0])
+	var total := {}
+	for i in n:
+		total[lab[i]] = total.get(lab[i], 0) + 1
+	var cut := lab.duplicate()
+	for key in piece:
+		var vs: Array = piece[key]
+		var count := {}
+		var plo: Vector3 = verts[vs[0]]
+		var phi := plo
+		for i in vs:
+			count[lab[i]] = count.get(lab[i], 0) + 1
+			plo = plo.min(verts[i])
+			phi = phi.max(verts[i])
+		# a part's few vertices on a piece that's mostly another's (and that's not where most of the part is) are
+		# that one's
+		var most: int = count.keys()[0]
+		for k in count:
+			if count[k] > count[most]:
+				most = k
+		for i in vs:
+			if count[lab[i]] < GROW * vs.size() and count[lab[i]] < 0.5 * total[lab[i]]:
+				cut[i] = most
+		if not count.has(0) or mid.clamp(plo, phi) == mid:
+			continue
+		var grow := []
+		for k in count:
+			if k != 0 and count[k] >= GROW * vs.size():
+				grow.append(k)
+		if grow.is_empty():
+			continue
+		for i in vs:
+			if cut[i] != 0:
+				continue
+			var best: int = grow[0]
+			if grow.size() > 1:
+				var near := INF
+				for j in vs:
+					if lab[j] in grow and verts[i].distance_squared_to(verts[j]) < near:
+						near = verts[i].distance_squared_to(verts[j])
+						best = lab[j]
+			if PARTS[best].begins_with("leg_") and fi["joints"].has(PARTS[best]) \
+					and verts[i].y > (fi["joints"][PARTS[best]] as Vector3).y + LEG_GROW:
+				continue
+			cut[i] = best
+	# and a piece of only body that touches a part but no other piece of the body (teeth in a claw, a fist on an arm)
+	for key in piece:
+		var vs: Array = piece[key]
+		var touch := {}
+		for i in vs:
+			if cut[i] != 0:
+				touch[-1] = true
+				break
+			var c := Vector3i((verts[i] / TOUCH).floor())
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					for dz in [-1, 0, 1]:
+						for j in cells.get(c + Vector3i(dx, dy, dz), []):
+							if root[j] != key and verts[i].distance_to(verts[j]) < TOUCH:
+								touch[cut[j]] = true
+		if touch.size() == 1 and not touch.has(0) and not touch.has(-1):
+			for i in vs:
+				cut[i] = touch.keys()[0]
+	var clo := {}
+	var chi := {}
+	var sum := {}
+	var grown := {}
+	for i in n:
+		var p: String = PARTS[cut[i]]
+		if not clo.has(p):
+			clo[p] = verts[i]
+			chi[p] = verts[i]
+		clo[p] = (clo[p] as Vector3).min(verts[i])
+		chi[p] = (chi[p] as Vector3).max(verts[i])
+		sum[p] = sum.get(p, 0) + 1
+		if cut[i] != bones[i * 4]:
+			grown[p] = grown.get(p, 0) + 1
+	# where the parts that grew touch what's left of the body: vertices less than TOUCH from it
+	var near_body := {}
+	for i in n:
+		if cut[i] == 0:
+			var c := Vector3i((verts[i] / TOUCH).floor())
+			if not near_body.has(c):
+				near_body[c] = []
+			near_body[c].append(i)
+	var cj := {}
+	for p in clo:
+		if p == "body":
+			continue
+		if fi["joints"].has(p) and (p.begins_with("leg_") or grown.get(p, 0) < 0.1 * float(sum[p])):
+			cj[p] = fi["joints"][p]
+			continue
+		var k := PARTS.find(p)
+		var at := Vector3.ZERO
+		var m := 0
+		var inner := Vector3.ZERO
+		var closest := INF
+		for i in n:
+			if cut[i] != k:
+				continue
+			if verts[i].distance_to(mid) < closest:
+				closest = verts[i].distance_to(mid)
+				inner = verts[i]
+			var c := Vector3i((verts[i] / TOUCH).floor())
+			var touch := false
+			for dx in [-1, 0, 1]:
+				for dy in [-1, 0, 1]:
+					for dz in [-1, 0, 1]:
+						for j in near_body.get(c + Vector3i(dx, dy, dz), []):
+							if not touch and verts[i].distance_to(verts[j]) < TOUCH:
+								touch = true
+			if touch:
+				at += verts[i]
+				m += 1
+		cj[p] = at / float(m) if m >= 3 else inner
+	fi["cut"] = cut
+	fi["clo"] = clo
+	fi["chi"] = chi
+	fi["cj"] = cj
+
+
+## A part's size (its larger measure) by regions().
+static func size(fi: Dictionary, p: String) -> float:
+	regions(fi)
+	if not fi["clo"].has(p):
+		return 0.0
+	var e: Vector3 = fi["chi"][p] - fi["clo"][p]
+	return maxf(e.x, maxf(e.y, e.z))
+
+
+## The frame's joints, where each of its parts meets its parent (those it lacks: its body's middle). For a merge,
+## pieces() then sets those of the parts it's given.
 static func joints(fi: Dictionary) -> Dictionary:
 	var blo: Vector3 = fi["lo"].get("body", Vector3.ZERO)
 	var bhi: Vector3 = fi["hi"].get("body", Vector3(0.2, 0.5, 0.2))
 	var out := {}
 	for p in PARTS:
-		out[p] = fi["joints"].get(p, socket(p, blo, bhi))
+		out[p] = fi["joints"].get(p, (blo + bhi) / 2.0)
 	return out
 
 
 ## The meshes a beast (recipe: {frame}, or a merge_recipe()) is built from: [{mesh, face}], face: the form whose
-## painted eyes it carries ("" for none: a piece without the face).
+## painted eyes it carries ("" for none: a piece without the face). For a merge it also moves frame_joints (joints())
+## of the parts given to where each now joins the frame, so the bones built at them bend those parts there.
 static func pieces(recipe: Dictionary, frame_joints: Dictionary) -> Array:
 	var frame: String = recipe["frame"]
 	var fi := info(frame)
+	# each part the frame is given: [donor, its part set there]
 	var given := {}
 	for g in GROUPS:
-		if recipe.has(g) and recipe[g] != frame:
-			for p in GROUPS[g]:
-				given[p] = recipe[g]
-	var donors := [frame]
-	for p in given:
-		if not given[p] in donors:
-			donors.append(given[p])
+		if not recipe.has(g) or recipe[g] == frame:
+			continue
+		var donor := String(recipe[g])
+		var di := info(donor)
+		regions(fi)
+		regions(di)
+		for p in GROUPS[g]:
+			var src: String = p
+			if g == "legs":
+				src = leg_from(p, di) if fi["clo"].has(p) else ""
+			if di["clo"].has(src):
+				given[p] = [donor, src]
+	if given.is_empty():
+		return [{"mesh": fi["mesh"], "face": frame}]
+	var keep := {}
+	for p in PARTS:
+		if not given.has(p):
+			keep[p] = true
 	var out := []
+	var mesh := cut(fi, keep, {})
+	if mesh != null:
+		out.append({"mesh": mesh, "face": frame if keep.has("head") or not fi["clo"].has("head") else ""})
+	var donors := []
+	for p in given:
+		if not given[p][0] in donors:
+			donors.append(given[p][0])
 	for donor in donors:
 		var di := info(donor)
-		var keep := {}
 		var moves := {}
-		for p in PARTS:
-			if given.get(p, frame) != donor:
-				continue
-			keep[p] = true
-			if donor != frame:
-				moves[p] = move(p, fi, di, frame_joints)
-		var mesh := cut(di, keep, moves)
-		if mesh == null:
-			continue
-		var face_here: bool = keep.has("head") or not di["lo"].has("head")
-		out.append({"mesh": mesh, "face": donor if face_here else ""})
+		for p in given:
+			if given[p][0] == donor:
+				moves[p] = move(p, given[p][1], fi, di)
+				frame_joints[p] = moves[p][2]
+		mesh = cut(di, {}, moves)
+		if mesh != null:
+			out.append({"mesh": mesh, "face": donor if moves.has("head") else ""})
 	return out
 
 
-## Where a part the frame lacks would join it, on its body's bounds.
-static func socket(p: String, blo: Vector3, bhi: Vector3) -> Vector3:
+## The donor's leg set at the frame's leg p: the one on the same side, at the same end if it has one.
+static func leg_from(p: String, di: Dictionary) -> String:
+	if di["clo"].has(p):
+		return p
+	var o := p.replace("_f", "_b") if p.begins_with("leg_f") else p.replace("_b", "_f")
+	return o if di["clo"].has(o) else ""
+
+
+## Where a part the frame lacks would grow out of its body (by regions()), on its surface: arms from its sides
+## at the shoulders, wings from its back, a tail from its rump, a head on top (for a body longer than it's tall:
+## arms low at the front, wings on top).
+static func socket(fi: Dictionary, p: String) -> Vector3:
+	regions(fi)
+	var blo: Vector3 = fi["clo"].get("body", Vector3.ZERO)
+	var bhi: Vector3 = fi["chi"].get("body", Vector3(0.2, 0.5, 0.2))
 	var c := (blo + bhi) / 2.0
-	var hw := (bhi.z - blo.z) / 2.0
+	var e := bhi - blo
 	var side := -1.0 if p.ends_with("_l") else 1.0
+	var upright := e.y > e.x
+	var at := c
+	var out := Vector3.UP
 	match p:
 		"head":
-			return Vector3(lerpf(c.x, bhi.x, 0.6), bhi.y * 0.92, 0.0)
+			at = Vector3(lerpf(c.x, bhi.x, 0.5), c.y, 0.0)
 		"arm_l", "arm_r":
-			return Vector3(lerpf(c.x, bhi.x, 0.25), lerpf(blo.y, bhi.y, 0.6), side * hw * 0.85)
+			at = Vector3(lerpf(c.x, bhi.x, 0.3 if upright else 0.55), lerpf(blo.y, bhi.y, 0.62 if upright else 0.45), 0.0)
+			out = Vector3(0.0, 0.0, side)
 		"wing_l", "wing_r":
-			return Vector3(lerpf(c.x, blo.x, 0.2), lerpf(blo.y, bhi.y, 0.8), side * hw * 0.6)
+			at = Vector3(c.x if upright else lerpf(c.x, blo.x, 0.15), lerpf(blo.y, bhi.y, 0.72) if upright else c.y,
+				side * e.z * 0.15)
+			out = Vector3.LEFT if upright else Vector3.UP
 		"tail":
-			return Vector3(lerpf(c.x, blo.x, 0.9), lerpf(blo.y, bhi.y, 0.35), 0.0)
-	return c
+			at = Vector3(c.x, lerpf(blo.y, bhi.y, 0.3 if upright else 0.45), 0.0)
+			out = Vector3.LEFT
+		_:
+			return c
+	return surface(fi, at, out, maxf(e.x, maxf(e.y, e.z)))
 
 
-## How a part a merge takes from donor `di` is set onto the frame `fi` (fj: its joints()): [donor's joint, the
-## frame's socket, scale].
-## Limbs and tails keep their size against the body halfway; legs are made as long as the frame's, so it stands;
-## a head keeps its size against the frame's head halfway.
-static func move(p: String, fi: Dictionary, di: Dictionary, fj: Dictionary) -> Array:
-	var dj: Dictionary = di["joints"]
-	var g := ""
-	for k in GROUPS:
-		if p in GROUPS[k]:
-			g = k
-	var src: Vector3 = dj.get(p, Vector3.ZERO)
-	var s := 1.0
-	var fsz := extent(fi, "body")
-	var dsz := extent(di, "body")
-	if g == "head":
-		fsz = extent(fi, "head")
-		dsz = extent(di, "head")
-	if g == "legs":
-		s = clampf((fj[p] as Vector3).y / maxf(src.y, 0.02), 0.5, 2.0)
-	elif dsz > 0.001:
-		s = clampf(sqrt(fsz / dsz), 0.6, 1.6)
-	return [src, fj[p], s]
+## Where a form's part p joins the outside of its body (by regions()): out from its joint to the body's surface,
+## sideways for arms and wings, up for a head, back for a tail (a leg, or a joint outside the body: the joint), so a
+## part set from one form's onto another's sinks into the body as deep as it did.
+static func attach(fi: Dictionary, p: String) -> Vector3:
+	var j: Vector3 = fi["cj"][p]
+	if p.begins_with("leg_"):
+		return j
+	var out := Vector3(0.0, 0.0, -1.0 if p.ends_with("_l") else 1.0)
+	if p == "head" or p == "tail":
+		out = Vector3.UP if p == "head" else Vector3.LEFT
+	var at := surface(fi, j, out, size(fi, "body"))
+	return at if (at - j).dot(out) > 0.0 else j
 
 
-static func extent(fi: Dictionary, p: String) -> float:
-	if not fi["lo"].has(p):
-		return 0.0
-	var e: Vector3 = fi["hi"][p] - fi["lo"][p]
-	return maxf(e.x, maxf(e.y, e.z))
+## A form's body surface (by regions()) out from `at` along `out`: its farthest vertex that way, near that line.
+static func surface(fi: Dictionary, at: Vector3, out: Vector3, big: float) -> Vector3:
+	var verts: PackedVector3Array = fi["arrays"][Mesh.ARRAY_VERTEX]
+	var cut: PackedInt32Array = fi["cut"]
+	for r in [0.06, 0.12, 0.25]:
+		var far := -INF
+		for i in verts.size():
+			if cut[i] != 0:
+				continue
+			var d := verts[i] - at
+			var along := d.dot(out)
+			if along > far and (d - out * along).length() < r * big:
+				far = along
+		if far > -INF:
+			return at + out * far
+	return at
 
 
-## The donor's mesh cut down to the parts in `keep` (by the bone each vertex is fixed to, so horns and eyes go with
-## the part they're on), those in `moves` set onto the frame ([from, to, scale]).
+## How the donor's part `src` is set onto the frame's part `p` (where the frame's own joined it, or a socket() on its
+## body): [src, from (where it joins the donor: attach()), to, scale]. Limbs, wings and tails keep their size
+## against the body halfway (wings new to the frame a little bigger, to be seen, but never much bigger than they
+## were), a head against the frame's head (but no bigger than its body); legs are stretched to the frame's
+## (leg_stretch()), their feet on the ground; and nothing else reaches into the ground: it's made smaller, then set
+## higher.
+static func move(p: String, src: String, fi: Dictionary, di: Dictionary) -> Array:
+	var from := attach(di, src)
+	var to := attach(fi, p) if fi["cj"].has(p) else socket(fi, p)
+	var s := clampf(sqrt(size(fi, "body") / maxf(size(di, "body"), 0.05)), 0.6, 1.6)
+	var low: float = (di["clo"][src] as Vector3).y
+	if p == "head":
+		var dh := maxf(size(di, "head"), 0.05)
+		s = minf(clampf(sqrt(size(fi, "head") / dh), 0.6, 1.6), 0.8 * size(fi, "body") / dh)
+	elif p.begins_with("wing_"):
+		s = minf(s * (1.2 if not fi["clo"].has(p) else 1.0), 1.1)
+	elif p.begins_with("leg_"):
+		var sy := leg_stretch(p, src, fi, di)
+		var sx := clampf(s, sy * 0.8, sy * 1.25)
+		return [src, from, Vector3(to.x, (from.y - low) * sy, to.z), Vector3(sx, sy, sx)]
+	# a little into the body, so the seam's hidden
+	var mid: Vector3 = (fi["clo"]["body"] + fi["chi"]["body"]) / 2.0
+	to = to.move_toward(mid, SINK)
+	var reach := from.y - low
+	if reach > 0.01 and to.y - reach * s < 0.01:
+		s = maxf((to.y - 0.01) / reach, s * 0.7)
+		to.y = maxf(to.y, 0.01 + reach * s)
+	return [src, from, to, Vector3(s, s, s)]
+
+
+## How much the donor's leg `src` is stretched up and down to be the frame's leg p: from its foot on the ground to
+## the frame's joint for it, and at least up into the frame's body over it (hip()).
+static func leg_stretch(p: String, src: String, fi: Dictionary, di: Dictionary) -> float:
+	var from: Vector3 = di["cj"][src]
+	var low: float = (di["clo"][src] as Vector3).y
+	var top: float = (di["chi"][src] as Vector3).y
+	var to: Vector3 = fi["cj"][p]
+	return maxf(to.y / maxf(from.y - low, 0.02), (hip(fi, to) + 0.04) / maxf(top - low, 0.02))
+
+
+## The underside of the frame's body over its leg's joint `at` (by regions(): its lowest vertex near above it), or
+## the joint where the body is lower.
+static func hip(fi: Dictionary, at: Vector3) -> float:
+	var verts: PackedVector3Array = fi["arrays"][Mesh.ARRAY_VERTEX]
+	var cut: PackedInt32Array = fi["cut"]
+	for r in [0.04, 0.08, 0.15]:
+		var low := INF
+		for i in verts.size():
+			if cut[i] == 0 and Vector2(verts[i].x - at.x, verts[i].z - at.z).length() < r:
+				low = minf(low, verts[i].y)
+		if low < INF:
+			return maxf(low, at.y)
+	return at.y
+
+
+## The model cut down for a merge (by regions()): the frame keeps the parts in `keep` ({part: true}) as they are;
+## a donor gives each in `moves` ({the frame's part: move()}), with the ring of triangles round it where it grew out
+## of its own body (so the seam overlaps the frame's rather than gapes), set onto the frame and bent by the frame's
+## bone for it, from where it joins (fixed) to a third of its size out (following it).
 static func cut(di: Dictionary, keep: Dictionary, moves: Dictionary) -> ArrayMesh:
 	var arrays: Array = di["arrays"]
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var src_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var src_c: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var src_u: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var src_u2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
 	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var src_w: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var lab: PackedInt32Array = di["cut"]
 	var n := verts.size()
-	var all := true
-	var take := PackedInt32Array()
-	take.resize(n)
-	var count := 0
-	for i in n:
-		var p: String = PARTS[bones[i * 4]]
-		if keep.has(p):
-			take[i] = count
-			count += 1
-		else:
-			take[i] = -1
-			all = false
-	if count == 0:
-		return null
-	if all and moves.is_empty():
-		return di["mesh"]
-	var out := []
-	out.resize(Mesh.ARRAY_MAX)
 	var nv := PackedVector3Array()
 	var nn := PackedVector3Array()
 	var nc := PackedColorArray()
@@ -201,35 +553,55 @@ static func cut(di: Dictionary, keep: Dictionary, moves: Dictionary) -> ArrayMes
 	var nu2 := PackedVector2Array()
 	var nb := PackedInt32Array()
 	var nw := PackedFloat32Array()
-	var src_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var src_c: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	var src_u: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var src_u2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
-	var src_w: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-	for i in n:
-		if take[i] < 0:
-			continue
-		var p: String = PARTS[bones[i * 4]]
-		var v := verts[i]
-		if moves.has(p):
-			var m: Array = moves[p]
-			v = (m[1] as Vector3) + (v - (m[0] as Vector3)) * float(m[2])
-		nv.append(v)
-		nn.append(src_n[i])
-		nc.append(src_c[i])
-		nu.append(src_u[i])
-		nu2.append(src_u2[i])
-		for k in 4:
-			nb.append(bones[i * 4 + k])
-			nw.append(src_w[i * 4 + k])
-	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var ni := PackedInt32Array()
-	for t in range(0, idx.size(), 3):
-		var a := take[idx[t]]
-		var b := take[idx[t + 1]]
-		var c := take[idx[t + 2]]
-		if a >= 0 and b >= 0 and c >= 0:
-			ni.append_array([a, b, c])
+	var take := PackedInt32Array()
+	take.resize(n)
+	if moves.is_empty():
+		for i in n:
+			take[i] = -1
+			if not keep.has(PARTS[lab[i]]):
+				continue
+			take[i] = nv.size()
+			nv.append(verts[i])
+			nn.append(src_n[i])
+			nc.append(src_c[i])
+			nu.append(src_u[i])
+			nu2.append(src_u2[i])
+			for k in 4:
+				nb.append(bones[i * 4 + k])
+				nw.append(src_w[i * 4 + k])
+		for t in range(0, idx.size(), 3):
+			if take[idx[t]] >= 0 and take[idx[t + 1]] >= 0 and take[idx[t + 2]] >= 0:
+				ni.append_array([take[idx[t]], take[idx[t + 1]], take[idx[t + 2]]])
+	for p in moves:
+		var m: Array = moves[p]
+		var part := PARTS.find(m[0])
+		var from: Vector3 = m[1]
+		var to: Vector3 = m[2]
+		var sc: Vector3 = m[3]
+		var bone := PARTS.find(p)
+		var reach := maxf(size(di, m[0]) * 0.3, 0.02)
+		take.fill(-1)
+		for t in range(0, idx.size(), 3):
+			if lab[idx[t]] != part and lab[idx[t + 1]] != part and lab[idx[t + 2]] != part:
+				continue
+			for k in 3:
+				var i := idx[t + k]
+				if take[i] < 0:
+					take[i] = nv.size()
+					var w := smoothstep(0.0, reach, verts[i].distance_to(from)) if lab[i] == part else 0.0
+					nv.append(to + (verts[i] - from) * sc)
+					nn.append((src_n[i] / sc).normalized())
+					nc.append(src_c[i])
+					nu.append(src_u[i])
+					nu2.append(src_u2[i])
+					nb.append_array([bone, 0, 0, 0])
+					nw.append_array([w, 1.0 - w, 0.0, 0.0])
+				ni.append(take[i])
+	if ni.is_empty():
+		return null
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
 	out[Mesh.ARRAY_VERTEX] = nv
 	out[Mesh.ARRAY_NORMAL] = nn
 	out[Mesh.ARRAY_COLOR] = nc

@@ -102,12 +102,13 @@ const MOVES := {
 	"moonlit_gale": {"name": "Moonlit Gale", "el": "air", "kind": "attack", "power": 115, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "sleep", "chance": 0.25}, "desc": "A silver wind off the moor. May lull the foe to sleep."},
 }
 
-## Each town's mascot (WorldDB.TOWNS "mascot", a race) teaches a beast of its own race this move once it has reached
-## SIGNATURE_LEVEL: elemental, mightier than any move of its element a beast learns by levelling, and taught by nobody
-## else (merging keeps it only for a beast of that race, see beasts.gd merge).
-const SIGNATURE := {0: "bandit_blaze", 13: "tidewater_torrent", 20: "pearl_cannon", 14: "kelp_maelstrom", 45: "sirocco",
-	37: "tumbleweed_twister", 32: "motherlode", 34: "clockwork_crusher", 7: "caldera_burst", 31: "elder_grove",
-	21: "riverbend_rapids", 41: "moonlit_gale"}
+## Each town's mascot (WorldDB.TOWNS "mascot", a race, and "signature") teaches its town's move to a beast of its own
+## line once it has reached SIGNATURE_LEVEL: elemental, mightier than any move of its element a beast learns by
+## levelling, and taught by nobody else (merging keeps it only for a beast of that line, see beasts.gd merge).
+## {move: the first form of the line it belongs to}; a line can be two towns' mascot, with a move from each.
+const SIGNATURE := {"bandit_blaze": 0, "tidewater_torrent": 27, "pearl_cannon": 24, "kelp_maelstrom": 21, "sirocco": 30,
+	"tumbleweed_twister": 36, "motherlode": 15, "clockwork_crusher": 12, "caldera_burst": 9, "elder_grove": 18,
+	"riverbend_rapids": 27, "moonlit_gale": 33}
 const SIGNATURE_LEVEL := 40
 
 ## Ordered by strength; used to build learnsets.
@@ -131,7 +132,7 @@ static func get_move(id: String) -> Dictionary:
 
 
 static func is_signature(id: String) -> bool:
-	return SIGNATURE.values().has(id)
+	return SIGNATURE.has(id)
 
 
 ## MP an attack costs: elemental attacks cost about a tenth of their power (at least 2); regular (neutral) attacks

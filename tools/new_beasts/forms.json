@@ -457,7 +457,6 @@
   "body": "biped",
   "regions": [
    {"part": "body"},
-   {"part": "horn", "y>": 0.85},
    {"part": "arm_l", "z<": -0.3, "y<": 0.7},
    {"part": "arm_r", "z>": 0.3, "y<": 0.7},
    {"part": "leg_fl", "y<": 0.3, "z<": 0, "|z|<": 0.3},

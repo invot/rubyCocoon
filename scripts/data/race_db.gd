@@ -1,101 +1,60 @@
 extends RefCounted
-## The 48 beast races: 12 each of fire, water, earth and air.
-## Each entry: name, element, body, head, ears, tail, back, pattern, c1, c2, c3, size
-## The appearance fields are "genes" that merging mixes between parents.
+## The beast races. Most belong to the 13 lines of three forms: a beast hatches as its line's first form, grows into
+## the second at Lv 20 and the third at Lv 40 (EVOLVE, beast.gd gain_xp), and only a line's third form can merge
+## (beasts.gd). A line has one element, or two neighbouring ones on the ring: the scorpion is fire and earth, and the
+## worm, an eel in the sea, earth and water. Race id = line × 3 + stage - 1. Each form is drawn with its own model
+## (assets/beasts/<line>_<stage>.res, beast_rig.gd), the earlier stages smaller.
+## After the lines come the four legendary temple guardians and the Gearhart robots, in the old shape (name, element,
+## body, head, ears, tail, back, pattern, c1, c2, c3, size) and drawn with the PSX models (voxel_beast.gd).
 
 const MoveDB = preload("res://scripts/data/move_db.gd")
 
-const RACES := [
-	# ---------------- FIRE ----------------
-	["Redcoon", "fire", "quad", "round", "round", "fluffy", "none", "mask", "#c43a3a", "#2e2230", "#ffcf6b", 1.0],
-	["Emberkit", "fire", "quad", "pointy", "pointed", "flame", "none", "belly", "#f07a2a", "#ffe2b0", "#ffd23f", 0.85],
-	["Cindermole", "fire", "quad", "snout", "none", "spike", "none", "belly", "#6b3b2e", "#f0a060", "#ff5a1f", 0.85],
-	["Blazehound", "fire", "quad", "pointy", "pointed", "flame", "flames", "stripes", "#d9482b", "#3b1f1a", "#ffb43f", 1.1],
-	["Magmaw", "fire", "blob", "flat", "horns", "none", "spikes", "spots", "#3d2b2b", "#ff6a1f", "#ffd23f", 1.15],
-	["Pyrowing", "fire", "bird", "beak", "crest", "feather", "wings", "belly", "#e8452c", "#ffb347", "#ffe680", 0.95],
-	["Scorchscale", "fire", "serpent", "flat", "fins", "spike", "spikes", "stripes", "#b8321e", "#ff9a3c", "#ffe066", 1.1],
-	["Infernox", "fire", "golem", "horned", "horns", "spike", "flames", "plain", "#7a2a1e", "#e0603a", "#ffcf4a", 1.3],
-	["Flarefly", "fire", "insect", "round", "antenna", "flame", "wings", "spots", "#ffb02e", "#c8401e", "#fff27a", 0.75],
-	["Ashwyrm", "fire", "serpent", "horned", "horns", "long", "wings", "belly", "#4a4040", "#ff7b2e", "#ffcf6b", 1.25],
-	["Kilnback", "fire", "golem", "flat", "none", "spike", "shell", "spots", "#8a5a3a", "#c2452a", "#ffa43f", 1.2],
-	["Solarion", "fire", "quad", "round", "crest", "flame", "flames", "belly", "#f2a23a", "#c8401e", "#fff1a0", 1.2],
-	# ---------------- WATER ----------------
-	["Puddlepup", "water", "quad", "round", "long", "fin", "none", "belly", "#3f8fe0", "#cfe9ff", "#7fe0ff", 0.85],
-	["Tidalotl", "water", "blob", "round", "fins", "fin", "none", "spots", "#ff9fc8", "#ffd0e4", "#5fd0ff", 0.9],
-	["Bubblefin", "water", "fish", "round", "fins", "fin", "fin", "stripes", "#4fc0e8", "#ffffff", "#ffd23f", 0.85],
-	["Coralynx", "water", "quad", "pointy", "pointed", "long", "crystals", "spots", "#2f7fb8", "#ff8fa0", "#9ff0ff", 1.05],
-	["Mistcrab", "water", "insect", "flat", "antenna", "none", "shell", "plain", "#3f6fa0", "#a0d8ff", "#ff7f6a", 0.9],
-	["Rippleray", "water", "fish", "flat", "none", "long", "wings", "belly", "#2a4f8a", "#8fd0ff", "#e0f8ff", 1.1],
-	["Lagoonaga", "water", "serpent", "pointy", "fins", "fin", "fin", "belly", "#1f8f9f", "#a0f0e0", "#ffd86b", 1.15],
-	["Dewdrake", "water", "biped", "horned", "fins", "long", "wings", "belly", "#3a7fd0", "#bfe8ff", "#5ff0ff", 1.1],
-	["Seashelly", "water", "blob", "round", "antenna", "none", "shell", "rings", "#7fc8d8", "#f0d0a0", "#ff8fa0", 0.85],
-	["Brookotter", "water", "quad", "round", "round", "long", "none", "belly", "#7a5a3f", "#d8c0a0", "#4fb0ff", 0.95],
-	["Aquapon", "water", "quad", "snout", "round", "fin", "shell", "spots", "#5f7fc8", "#c0d0ff", "#3fe0d0", 1.25],
-	["Leviathorn", "water", "serpent", "horned", "crest", "fin", "spikes", "stripes", "#1f3f8f", "#4fb0e0", "#e0ffff", 1.35],
-	# ---------------- EARTH ----------------
-	["Pebblit", "earth", "blob", "round", "none", "none", "crystals", "spots", "#8a8a7a", "#c0b8a0", "#7fd06f", 0.75],
-	["Burrowbun", "earth", "quad", "round", "long", "fluffy", "none", "belly", "#a07a50", "#e8d8b8", "#6fa040", 0.85],
-	["Mossback", "earth", "golem", "flat", "none", "spike", "leaves", "plain", "#5a7a3a", "#8a6a40", "#b0e060", 1.2],
-	["Quarrion", "earth", "biped", "horned", "horns", "spike", "spikes", "belly", "#8a6a50", "#c8b090", "#e0c060", 1.1],
-	["Thornhog", "earth", "quad", "snout", "round", "none", "spikes", "belly", "#6a5038", "#c8a878", "#8fc050", 0.9],
-	["Clayvern", "earth", "biped", "pointy", "horns", "long", "wings", "belly", "#b0683a", "#e8b080", "#7f5030", 1.15],
-	["Geodillo", "earth", "quad", "snout", "pointed", "spike", "shell", "stripes", "#7a7060", "#a8a090", "#c080ff", 0.95],
-	["Rootling", "earth", "biped", "round", "leaf", "leaf", "leaves", "plain", "#6a8a3a", "#a0703a", "#ffd060", 0.8],
-	["Boulderox", "earth", "golem", "horned", "horns", "fluffy", "none", "plain", "#6a6a70", "#a09080", "#e0d0b0", 1.35],
-	["Mudmander", "earth", "quad", "flat", "none", "long", "none", "spots", "#6a4a30", "#a07850", "#f0c040", 1.0],
-	["Ironhide", "earth", "golem", "flat", "crest", "spike", "spikes", "stripes", "#5a6070", "#9aa0b0", "#ff9040", 1.3],
-	["Terragon", "earth", "quad", "horned", "horns", "spike", "crystals", "belly", "#4a6a3a", "#c0a070", "#60e0c0", 1.3],
-	# ---------------- AIR ----------------
-	["Zephyrling", "air", "bird", "beak", "crest", "feather", "wings", "belly", "#8fd0e8", "#ffffff", "#ffd23f", 0.8],
-	["Galeferret", "air", "quad", "pointy", "round", "long", "none", "stripes", "#d8d0b0", "#8a7a5a", "#70e0c0", 0.9],
-	["Wisplet", "air", "blob", "round", "antenna", "none", "wings", "plain", "#e0f0ff", "#a0c8ff", "#ffe06b", 0.7],
-	["Stormowl", "air", "bird", "beak", "pointed", "feather", "wings", "spots", "#6a6a8a", "#c8c8e0", "#ffe040", 1.05],
-	["Cloudsquid", "air", "fish", "round", "none", "long", "none", "plain", "#f0f0ff", "#c0d0f0", "#ff9fd0", 1.0],
-	["Mothmyst", "air", "insect", "round", "antenna", "none", "wings", "spots", "#b8a0e0", "#f0e0ff", "#70f0e0", 0.9],
-	["Breezebat", "air", "biped", "pointy", "long", "none", "wings", "belly", "#6a5a9a", "#c0b0e0", "#ffd060", 0.9],
-	["Thunderhawk", "air", "bird", "beak", "crest", "feather", "wings", "stripes", "#3f4f8a", "#ffe040", "#ffffff", 1.2],
-	["Nimbuskit", "air", "quad", "round", "pointed", "fluffy", "wings", "belly", "#e8eef8", "#a8b8d8", "#8fe0ff", 0.95],
-	["Dustdevil", "air", "serpent", "pointy", "none", "long", "fin", "rings", "#d8c090", "#a08860", "#ffffff", 1.0],
-	["Featherfox", "air", "quad", "pointy", "pointed", "feather", "none", "belly", "#70c0a0", "#f0f0e0", "#ffb040", 1.0],
-	["Aurorasprite", "air", "biped", "round", "antenna", "none", "wings", "plain", "#a0f0d0", "#f0a0f0", "#ffffa0", 0.85],
-	# ---------------- LEGENDARY temple guardians (48-51) ----------------
+const LINES := [
+	# line (its models' name), its forms' names, element, second element, each form's body
+	["dino", ["Embit", "Cinderex", "Pyrosaur"], "fire", "", ["quad", "quad", "biped"]],
+	["cactus", ["Pricklet", "Spinesear", "Saguaroar"], "fire", "", ["biped", "biped", "biped"]],
+	["marmot", ["Impkin", "Scampyre", "Infernook"], "fire", "", ["biped", "biped", "biped"]],
+	["scorpion", ["Nipskit", "Scorchpin", "Calderak"], "fire", "earth", ["quad", "quad", "quad"]],
+	["beetle", ["Grubbit", "Shellhorn", "Rhinoclad"], "earth", "", ["quad", "quad", "biped"]],
+	["boar", ["Tuskit", "Bristlehog", "Crystusk"], "earth", "", ["quad", "quad", "quad"]],
+	["tree", ["Saplet", "Barkbrute", "Elderoot"], "earth", "", ["biped", "biped", "biped"]],
+	["worm", ["Wrigglet", "Mudwhip", "Abyssel"], "earth", "water", ["serpent", "serpent", "serpent"]],
+	["crab", ["Clawlet", "Snapshell", "Crustacor"], "water", "", ["quad", "quad", "quad"]],
+	["frog", ["Tadlet", "Croakus", "Toadmiral"], "water", "", ["biped", "biped", "biped"]],
+	["owl", ["Hootlet", "Gustowl", "Tempestrix"], "air", "", ["flyer", "flyer", "flyer"]],
+	["bat", ["Flittle", "Duskwing", "Nocturna"], "air", "", ["flyer", "flyer", "flyer"]],
+	["berry", ["Berrypuff", "Bramblume", "Galeberry"], "air", "", ["blob", "blob", "blob"]],
+]
+## the levels a beast grows into its line's second and third forms
+const EVOLVE := [20, 40]
+## each stage's size (the "size" gene), and its share of the line's full stats
+const STAGE_SIZE := [0.72, 0.86, 1.0]
+const STAGE_STATS := [0.8, 0.9, 1.0]
+
+const SPECIAL := [
+	# legendary temple guardians (39-42)
 	["Abyssion", "water", "serpent", "horned", "crest", "fin", "fin", "stripes", "#1a4a9a", "#5ad0f0", "#e8ffff", 1.45],
 	["Zephyrax", "air", "bird", "beak", "crest", "feather", "wings", "stripes", "#e8f8ff", "#5ad8c8", "#ffd040", 1.4],
 	["Pyroclast", "fire", "quad", "horned", "horns", "flame", "flames", "belly", "#c8281a", "#2a1a1a", "#ffb030", 1.45],
 	["Terranox", "earth", "golem", "horned", "crest", "spike", "crystals", "stripes", "#4a6a3a", "#8a7a5a", "#7affb0", 1.5],
-	# ---------------- Gearhart robots (52-55): not catchable, no eggs ----------------
+	# Gearhart robots (43-46): not catchable, no eggs
 	["Clockwork Sentry", "air", "biped", "flat", "antenna", "none", "none", "plain", "#8a8a96", "#c8a040", "#ff4a3a", 1.2],
 	["Steam Mecha", "fire", "golem", "flat", "none", "none", "none", "plain", "#c8c8d0", "#a83a2a", "#ffcf40", 1.3],
 	["Iron Golem", "earth", "golem", "flat", "horns", "none", "spikes", "plain", "#5a6070", "#9aa0b0", "#ff9040", 1.4],
 	["Tank Walker", "earth", "quad", "flat", "antenna", "none", "shell", "plain", "#5a7a3a", "#4a4a52", "#ff4a3a", 1.3],
 ]
+## the PSX models the legendaries are drawn with (assets/psx/beasts/<form>.res, tools/import_psx_beasts.gd)
+const SPECIAL_FORMS := ["shark", "condor", "tiger", "mammoth"]
 
-## The PSX model each race is drawn with (assets/psx/beasts/<form>.res, baked by tools/import_psx_beasts.gd from the
-## creature packs in psx/Creatures), recoloured with the race's c1 / c2 colours. Merged beasts inherit one parent's.
-const FORMS := [
-	# fire
-	"raccoon", "red_fox", "aardvark", "dobermann", "toad", "falcon", "rattlesnake", "bison", "firefly", "dragon",
-	"tortoise", "lion",
-	# water
-	"puppy", "frog", "clownfish", "bobcat", "scorpion", "catfish", "crocodile", "dragon", "snail", "otter", "capybara",
-	"alligator",
-	# earth
-	"hedgehog", "rabbit", "gorilla", "bighorn", "boar", "komodo", "armadillo", "sloth", "muskox", "iguana", "rhino", "elk",
-	# air
-	"ptarmigan", "red_panda", "slime", "snowy_owl", "perch", "moth", "bat", "eagle", "alpaca", "coral_snake",
-	"kit_fox", "butterfly",
-	# legendary guardians
-	"shark", "condor", "tiger", "mammoth",
-]
-
-const NORMAL_COUNT := 48
-const LEGENDARY := [48, 49, 50, 51]
-const ROBOTS := [52, 53, 54, 55]
+const NORMAL_COUNT := 39
+const LEGENDARY := [39, 40, 41, 42]
+const ROBOTS := [43, 44, 45, 46]
 ## Robots are drawn with the PSX robot models (assets/psx/robots, tools/import_psx_robots.gd), facing +x like the beasts.
-const ROBOT_MODELS := {52: "robot_clockwork", 53: "robot_steam", 54: "robot_golem", 55: "robot_walker"}
-const LEGENDARY_PASSIVES := {48: ["Healing Tide", "Regenerate"], 49: ["Slippery", "Swift"], 50: ["Blaze", "Thick Hide"], 51: ["Sturdy", "Rock Skin"]}
+const ROBOT_MODELS := {43: "robot_clockwork", 44: "robot_steam", 45: "robot_golem", 46: "robot_walker"}
+const LEGENDARY_PASSIVES := {39: ["Healing Tide", "Regenerate"], 40: ["Slippery", "Swift"], 41: ["Blaze", "Thick Hide"], 42: ["Sturdy", "Rock Skin"]}
 
-const STARTERS := [1, 12, 24, 36]
+## the four eggs to choose from: fire, water, earth and air
+const STARTERS := [0, 24, 12, 30]
 
 ## base stats per element role: hp, atk, def, spr, spd
 const ROLE_STATS := {
@@ -105,7 +64,7 @@ const ROLE_STATS := {
 	"air": [62, 72, 56, 70, 96],
 }
 const BODY_MOD := {
-	"quad": [0, 4, 0, 0, 4], "biped": [0, 2, 2, 2, 0], "bird": [-6, 2, -4, 0, 10],
+	"quad": [0, 4, 0, 0, 4], "biped": [0, 2, 2, 2, 0], "bird": [-6, 2, -4, 0, 10], "flyer": [-6, 2, -4, 0, 10],
 	"serpent": [2, 8, 0, -2, 0], "blob": [12, -4, 2, 4, -6], "insect": [-6, 0, 0, 2, 8],
 	"fish": [0, 0, -2, 6, 4], "golem": [10, 4, 10, -4, -14],
 }
@@ -136,7 +95,6 @@ const PASSIVE_DESC := {
 static var _ls_cache := {}
 static var _ghost_ls_cache := {}
 
-
 static func count() -> int:
 	return NORMAL_COUNT
 
@@ -149,24 +107,84 @@ static func is_robot(id: int) -> bool:
 	return id in ROBOTS
 
 
+## A form of one of the lines (not a legendary or a robot).
+static func in_line(id: int) -> bool:
+	return id >= 0 and id < NORMAL_COUNT
+
+
+static func _special(id: int) -> Array:
+	return SPECIAL[clampi(id - NORMAL_COUNT, 0, SPECIAL.size() - 1)]
+
+
+static func _line(id: int) -> Array:
+	return LINES[clampi(id, 0, NORMAL_COUNT - 1) / 3]
+
+
+## The line a race belongs to ("dino"), "" for the legendaries and robots.
+static func line(id: int) -> String:
+	return _line(id)[0] if in_line(id) else ""
+
+
+## Its stage in its line, 1..3 (the legendaries and robots count as final forms).
+static func stage(id: int) -> int:
+	return id % 3 + 1 if in_line(id) else 3
+
+
+## Its line's first form (what its eggs hatch as).
+static func first_form(id: int) -> int:
+	return id - id % 3 if in_line(id) else id
+
+
+## The form of its line a beast of this level has grown into.
+static func for_level(id: int, level: int) -> int:
+	if not in_line(id):
+		return id
+	var s := 0
+	for l in EVOLVE:
+		if level >= l:
+			s += 1
+	return first_form(id) + s
+
+
+## The race of one of the lines' forms ("dino_2"), or -1 (a legendary's model, or not a form).
+static func of_form(f: String) -> int:
+	var st := int(f.get_slice("_", 1)) if f.get_slice_count("_") == 2 else 0
+	for i in LINES.size():
+		if LINES[i][0] == f.get_slice("_", 0) and st >= 1 and st <= 3:
+			return i * 3 + st - 1
+	return -1
+
+
+## How it moves and fights: quad, biped, flyer, serpent or blob (the legendaries' and robots' old bodies).
+static func body(id: int) -> String:
+	return _line(id)[4][stage(id) - 1] if in_line(id) else _special(id)[2]
+
+
 static func get_race(id: int) -> Dictionary:
-	var r: Array = RACES[clampi(id, 0, RACES.size() - 1)]
-	var el: String = r[1]
+	var el := element(id)
+	var k := id / 3 if in_line(id) else id
 	return {
-		"id": id, "name": r[0], "el": el, "passive": PASSIVES[el][id % 3],
+		"id": id, "name": race_name(id), "el": el, "el2": element2(id), "passive": PASSIVES[el][k % 3],
 	}
 
 
 static func race_name(id: int) -> String:
-	return RACES[clampi(id, 0, RACES.size() - 1)][0]
+	return _line(id)[1][stage(id) - 1] if in_line(id) else _special(id)[0]
 
 
 static func element(id: int) -> String:
-	return RACES[clampi(id, 0, RACES.size() - 1)][1]
+	return _line(id)[2] if in_line(id) else _special(id)[1]
+
+
+## Its line's second element ("" for most).
+static func element2(id: int) -> String:
+	return _line(id)[3] if in_line(id) else ""
 
 
 static func genes(id: int) -> Dictionary:
-	var r: Array = RACES[clampi(id, 0, RACES.size() - 1)]
+	if in_line(id):
+		return {"form": form(id), "body": body(id), "size": STAGE_SIZE[stage(id) - 1], "shade": 0.0}
+	var r := _special(id)
 	var g := {
 		"body": r[2], "head": r[3], "ears": r[4], "tail": r[5], "back": r[6], "pattern": r[7],
 		"c1": r[8], "c2": r[9], "c3": r[10], "size": r[11], "shade": 0.0,
@@ -178,20 +196,31 @@ static func genes(id: int) -> Dictionary:
 	return g
 
 
-## The PSX model a race is drawn with ("" for the robots, which use their own models).
+## The model a race is drawn with: its form's ("dino_2"), a legendary's PSX model, or "" for the robots (their own
+## models).
 static func form(id: int) -> String:
-	return FORMS[id] if id >= 0 and id < FORMS.size() else ""
+	if in_line(id):
+		return "%s_%d" % [line(id), stage(id)]
+	return SPECIAL_FORMS[id - NORMAL_COUNT] if is_legendary(id) else ""
 
 
 static func base_stats(id: int) -> Array:
-	var r: Array = RACES[id]
-	var role: Array = ROLE_STATS[r[1]]
-	var bm: Array = BODY_MOD[r[2]]
+	var role: Array = ROLE_STATS[element(id)]
+	var bm: Array = BODY_MOD[body(id)]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = id * 4513 + 77
-	var size: float = r[11]
-	var bonus := 34.0 if is_legendary(id) else (10.0 if is_robot(id) else 0.0)
 	var out := []
+	if in_line(id):
+		# a line's forms share its build, each stage a share of the last; a dual line is half of each element
+		var el2 := element2(id)
+		rng.seed = first_form(id) * 4513 + 77
+		for i in 5:
+			var v: float = role[i] if el2 == "" else (role[i] + ROLE_STATS[el2][i]) / 2.0
+			v = (v + bm[i] + rng.randi_range(-8, 8)) * STAGE_STATS[stage(id) - 1]
+			out.append(maxf(25.0, v))
+		return out
+	rng.seed = id * 4513 + 77
+	var size: float = _special(id)[11]
+	var bonus := 34.0 if is_legendary(id) else 10.0
 	for i in 5:
 		var v: float = role[i] + bm[i] + rng.randi_range(-8, 8) + bonus
 		if i == 0 or i == 1:
@@ -209,43 +238,49 @@ static func xp_yield(id: int) -> int:
 	return int(total / 6.0)
 
 
-## [[level, move_id], ...]
+## [[level, move_id], ...]: the same for every form of a line, so growing into the next keeps what it would learn.
+## A dual line learns every third move from its second element.
 static func learnset(id: int) -> Array:
-	if _ls_cache.has(id):
-		return _ls_cache[id]
-	var r: Array = RACES[id]
-	var el: String = r[1]
-	var body: String = r[2]
+	var key := first_form(id)
+	if _ls_cache.has(key):
+		return _ls_cache[key]
+	var el := element(key)
+	var el2 := element2(key)
+	var bd := body(key)
 	var pool: Array = MoveDB.POOLS[el].duplicate()
+	if el2 != "":
+		var other: Array = MoveDB.POOLS[el2]
+		for i in range(2, mini(pool.size(), other.size()), 3):
+			pool[i] = other[i]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = id * 7919 + 13
+	rng.seed = key * 7919 + 13
 	for i in range(1, pool.size() - 1):
 		if rng.randf() < 0.35:
 			var tmp = pool[i]
 			pool[i] = pool[i + 1]
 			pool[i + 1] = tmp
-	# each race skips a couple of its element's moves, so races feel distinct
-	if not is_legendary(id):
+	# each line skips a couple of its element's moves, so lines feel distinct
+	if not is_legendary(key):
 		for _k in 2:
 			pool.remove_at(rng.randi_range(2, pool.size() - 2))
 	var levels := [1, 5, 9, 13, 17, 21, 26, 31, 37, 43, 50, 57, 64]
-	if is_legendary(id):
+	if is_legendary(key):
 		levels = [1, 3, 6, 9, 12, 15, 19, 23, 27, 32, 37, 43, 50]
 	var first := "scratch"
-	if body in ["golem", "blob", "fish", "serpent"]:
+	if bd in ["golem", "blob", "fish", "serpent"]:
 		first = "tackle"
 	var out := [[1, first]]
 	for i in pool.size():
 		out.append([levels[mini(i, levels.size() - 1)], pool[i]])
 	var extra := "bite"
-	if body in ["golem", "biped"]:
+	if bd in ["golem", "biped"]:
 		extra = "headbutt"
-	elif el == "air" or body in ["bird", "insect"]:
+	elif el == "air" or bd in ["bird", "insect", "flyer"]:
 		extra = "quick_strike"
 	out.append([11, extra])
 	out.append([19, "brace" if el == "earth" or el == "water" else "howl"])
 	out.sort_custom(func(a, b): return a[0] < b[0])
-	_ls_cache[id] = out
+	_ls_cache[key] = out
 	return out
 
 

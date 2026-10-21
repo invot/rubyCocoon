@@ -1652,10 +1652,11 @@ func _interact() -> void:
 		var race: int = map["statue"]["race"]
 		var lines := ["A %s statue of %s, guardian of %s." % [WorldDB.statue_metal(map_id), RaceDB.race_name(race), map["name"]],
 			WorldDB.TOWNS.get(map_id, {}).get("blurb", "")]
-		var mv: String = MoveDB.SIGNATURE.get(race, "")
+		var mv: String = WorldDB.TOWNS.get(map_id, {}).get("signature", "")
 		if mv != "":
-			lines.append("The plaque reads: \"Our own %s, who roams the town, knows %s: the mightiest %s move a %s can ever know.\"" % [RaceDB.race_name(race), MoveDB.get_move(mv)["name"], MoveDB.get_move(mv)["el"], RaceDB.race_name(race)])
-			lines.append("\"It will teach it to any %s of Lv %d or more, and only a %s, and only here. Bring yours to meet it!\"" % [RaceDB.race_name(race), MoveDB.SIGNATURE_LEVEL, RaceDB.race_name(race)])
+			var kin := RaceDB.race_name(RaceDB.first_form(race))
+			lines.append("The plaque reads: \"Our own %s, who roams the town, knows %s: the mightiest %s move its kind can ever know.\"" % [RaceDB.race_name(race), MoveDB.get_move(mv)["name"], MoveDB.get_move(mv)["el"]])
+			lines.append("\"It will teach it to any %s (or one grown from one) of Lv %d or more, and only those, and only here. Bring yours to meet it!\"" % [kin, MoveDB.SIGNATURE_LEVEL])
 		await UI.say(lines)
 	elif interior and MapGen.get_t(map, t.x, t.y) in PROP_CODES:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
