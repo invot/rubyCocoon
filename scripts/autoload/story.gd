@@ -19,10 +19,12 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
+const MapLoader = preload("res://scripts/world/map_loader.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
+const Ring = preload("res://scripts/core/ring.gd")
 
 const ELDER_LOOK := {"skin": "#e8c0a0", "hair": "#e8e8e8", "shirt": "#6a4a8a", "pants": "#3a2a4a", "outfit": "robe"}
 const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "pants": "#3a3a2a", "hat": "#6a5a3a"}
@@ -37,11 +39,12 @@ const DIGGER_LOOK := {"skin": "#c8b8a8", "hair": "#7a7a7a", "shirt": "#4a4048", 
 const GRUNT_LOOK := {"skin": "#d8b8a0", "hair": "#20182a", "shirt": "#2a2038", "pants": "#18121f", "hat": "#4a2a6a", "outfit": "armor"}
 const UNCLE_LOOK := {"skin": "#e0b088", "hair": "#6a3a20", "shirt": "#3a7a8a", "pants": "#3a3a48", "hat": "#e8d8a0", "outfit": "coat"}
 
+## Elder Rowan's four eggs (RaceDB.STARTERS), by the line's first form.
 const EGG_BLURB := {
-	1: "A warm, flickering egg. Fire beasts are offensive tanks: tough and hard-hitting.",
-	12: "A cool, rippling egg. Water beasts are healers who keep the team alive.",
-	24: "A heavy, pebbly egg. Earth beasts are defenders who shield their friends.",
-	36: "A light, breezy egg. Air beasts are tricksters of status and evasion.",
+	0: "A warm, flickering egg. Fire beasts are offensive tanks: tough and hard-hitting.",
+	24: "A cool, rippling egg. Water beasts are healers who keep the team alive.",
+	12: "A heavy, pebbly egg. Earth beasts are defenders who shield their friends.",
+	30: "A light, breezy egg. Air beasts are tricksters of status and evasion.",
 }
 const RELICS := {
 	"sun": {"name": "Sun Relic", "map": "vinehollow", "anchor": "relic_sun"},
@@ -59,46 +62,75 @@ func _has_anchor(map: Dictionary, name: String) -> bool:
 	return map.get("anchors", {}).has(name)
 
 
-## The Coastal Path's teachers (see battle.gd LESSONS). Each stands beside the trail where you can't slip past them
-## and walks you through one part of battling, before you have a flute; the last one sets "tutorial_done".
-## lines: before the battle; after: once you've won; defeat: when you talk to them again; gift: items they give you.
-const LESSON_TRAINERS := [
-	{"anchor": "lesson_screen", "lesson": "screen", "name": "Tilly", "cls": "Camper", "team": [[21, 2]], "facing": Vector2i(0, 1),
-		"look": {"skin": "#f0c8a0", "hair": "#a06030", "hair_style": 1, "shirt": "#6aa84f", "pants": "#5a4a3a", "hat": "#d8b060"},
-		"lines": ["Hey hey, a new trainer! Everyone who walks the Coastal Path gets a lesson from us. It's tradition. We started it last Tuesday."],
-		"after": ["That's the battle screen! Keep heading along the trail. Fisher Dale will teach you about turns. He's very patient. He's a fisher."],
-		"defeat": "Your own bar comes first, then one for each beast. Left and right to choose, A to confirm, B to go back!"},
-	{"anchor": "lesson_turns", "lesson": "turns", "name": "Dale", "cls": "Fisher", "team": [[38, 2]], "facing": Vector2i(0, -1),
-		"look": {"skin": "#c08a60", "hair": "#303040", "shirt": "#3a6a9a", "pants": "#4a4a52", "hat": "#e8c040"},
-		"lines": ["Shh, the fish are bit... oh, a trainer! Never mind the fish. They never bite anyway. Let's talk about turns."],
-		"after": ["Patience wins battles, and Defend buys you time. Down by the creek, Youngster Kit will show you your own turn. He's VERY excited about it."],
-		"defeat": "Everyone picks first, then the faster side goes. Defend always goes first and halves the hurt."},
-	{"anchor": "lesson_slingshot", "lesson": "slingshot", "name": "Kit", "cls": "Youngster", "team": [[12, 3]], "facing": Vector2i(0, 1),
-		"look": {"skin": "#e0b088", "hair": "#5a3a20", "shirt": "#e07a5a", "pants": "#3a4a6a"},
-		"lines": ["You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
-		"after": ["The footbridge washed out in the storm, but there are logs lying all along the trail. Five would do it!",
-			"Picnicker Mae is over on the far side of the creek. Bring an appetite."],
-		"defeat": "Your own bar: Slingshot, Items, Watch... and Run from wild beasts, or Forfeit against trainers."},
-	{"anchor": "lesson_items", "lesson": "items", "name": "Mae", "cls": "Picnicker", "team": [[25, 3]], "facing": Vector2i(0, 1),
-		"gift": {"minor_potion": 3},
-		"look": {"skin": "#f8d8c0", "hair": "#e0c070", "hair_style": 1, "shirt": "#e8a0c0", "pants": "#6a5a8a"},
-		"lines": ["Is that a beast? Is it hungry? Never mind. Let's talk about the most important thing in a battle: snacks. I mean items."],
-		"after": ["Take these for the road: three Minor Potions! Ranger Holt waits just before Tidewater with the last lesson."],
-		"defeat": "Potions heal HP and Spirit Drops bring back MP. Apothecaries sell them. Picnic baskets don't. I checked."},
-	{"anchor": "lesson_ring", "lesson": "ring", "name": "Holt", "cls": "Ranger", "team": [[36, 3]], "facing": Vector2i(0, -1),
-		"look": {"skin": "#8a5a3a", "hair": "#2a1a10", "shirt": "#5a7a3a", "pants": "#4a3a2a", "hat": "#4a6a2a"},
-		"lines": ["Halt! Rangers check every new trainer before Tidewater. Relax, it's a lesson, not a test. Well. A little bit a test."],
-		"after": ["You're ready. Shields recharge after every battle, and Volt at Sparkwire Electronics can add shield points and beast slots for crystal shards.",
-			"Now go and see your uncle! Tidewater's just along the trail."],
-		"defeat": "Knock out the foe's middle beast, then hit the trainer. No shield left? That trainer loses."},
-]
+## The Coastal Path's teachers and Tidewater's arena coaches (WorldDB.LESSON_TRAINERS, ARENA_LESSONS).
+const LESSON_TRAINERS = WorldDB.LESSON_TRAINERS
+const ARENA_LESSONS = WorldDB.ARENA_LESSONS
+
+
+## The teachers standing on this map's anchors (the Coastal Path, Kit's cabin, or Tidewater's arena).
+func _lesson_trainers(map: Dictionary) -> Array:
+	var out := []
+	var town: String = map.get("parent", map["id"])
+	for t in LESSON_TRAINERS + ARENA_LESSONS:
+		if _has_anchor(map, t["anchor"]) and String(t.get("town", town)) == town:
+			var lt: Dictionary = t.duplicate(true)
+			lt["kind"] = "trainer"
+			lt["pos"] = _at(map, t["anchor"], Vector2i.ZERO)
+			lt["sight"] = int(t.get("sight", 4))
+			lt["flag"] = "lesson_" + String(t["lesson"])
+			lt["reward"] = 40
+			out.append(lt)
+	return out
+
+
+## How many more logs the Coastal Path's footbridge needs than you're carrying: Kit hands over that many (0 once the
+## bridge is mended).
+func logs_missing() -> int:
+	var bf := _bridge_flag()
+	if bf == "" or GameState.flag(bf):
+		return 0
+	var need := int(WorldDB.OBSTACLES["n"].get("need", 1))
+	return maxi(0, need - int(GameState.flags.get(bf + "_logs", 0)) - GameState.item_count("bridge_log"))
+
+
+## The flag the Coastal Path's footbridge sets once it's mended ("" if the map has none).
+func _bridge_flag() -> String:
+	var m := MapLoader.load_map("route1", {})
+	for q in m["obstacles"]:
+		if m["obstacles"][q]["kind"] == "broken_bridge":
+			return m["obstacles"][q]["flag"]
+	return ""
+
+
+## Coach Ondine's beast for the side of your ring facing the foe: one that's weak to that side's element.
+const WEAK_FOES := {"fire": 36, "water": 12, "air": 3}
+
+
+## True once a town's arena lessons are all done (always, for a town without any).
+func arena_lessons_done(town: String) -> bool:
+	return ARENA_LESSONS.all(func(t): return String(t["town"]) != town or GameState.flag("lesson_" + String(t["lesson"])))
+
+
+## Coach Ondine's lesson: her beast is weak to the element of the side of your ring that will face it. Nothing is weak
+## to earth, so with your earth side facing the foe you borrow the arena's air practice beasts for the lesson.
+func _elements_lesson(def: Dictionary) -> void:
+	var ring := GameState.ring()
+	var side := GameState.ring_side
+	if not Ring.side_alive(ring, side):
+		side = maxi(0, Ring.best_side(ring))
+	var el := Ring.side_element(side)
+	if not WEAK_FOES.has(el):
+		el = "air"
+	def["practice_side"] = el
+	def["team"] = [[WEAK_FOES[el], 4]]
 
 
 func extra_npcs(map: Dictionary) -> Array:
 	var out := []
 	var id: String = map["id"]
 	if map["kind"] == "interior":
-		return out
+		# a teacher at home (Youngster Kit, in his cabin)
+		return _lesson_trainers(map)
 	var plaza: Vector2i = map.get("plaza", Vector2i(map["w"] / 2, map["h"] / 2))
 	if WorldDB.TOWNS.has(id):
 		var race: int = WorldDB.TOWNS[id]["mascot"]
@@ -116,15 +148,7 @@ func extra_npcs(map: Dictionary) -> Array:
 				out.append({"kind": "story", "id": "bizcuit", "name": "Bizcuit", "pos": Vector2i(3, 2), "facing": Vector2i(0, 1),
 					"look": {"skin": "#f0c8a0", "hair": "#c8843a", "shirt": "#e8b860", "pants": "#6a4a2a", "hat": "#a0603a", "outfit": "apron"}})
 		"route1":
-			for t in LESSON_TRAINERS:
-				if _has_anchor(map, t["anchor"]):
-					var lt: Dictionary = t.duplicate(true)
-					lt["kind"] = "trainer"
-					lt["pos"] = _at(map, t["anchor"], plaza)
-					lt["sight"] = 4
-					lt["flag"] = "lesson_" + String(t["lesson"])
-					lt["reward"] = 40
-					out.append(lt)
+			out.append_array(_lesson_trainers(map))
 		"tidewater", "shellhaven":
 			if id == "tidewater" and not GameState.flag("guardian_water"):
 				_close_edge(map, "north", "The Dune Road is shut: sandstorms as tall as lighthouses. Folk say they won't settle until things are calm at the Temple of Tides, out on the Isle of Tides.")
@@ -143,13 +167,13 @@ func extra_npcs(map: Dictionary) -> Array:
 		"route9":
 			if _has_anchor(map, "warden") and not GameState.flag("warden_beaten"):
 				out.append({"kind": "story", "id": "warden", "name": "Warden Kato", "pos": _at(map, "warden", plaza), "story": true, "facing": Vector2i(0, -1),
-					"flag": "warden_beaten", "look": SHAMAN_LOOK, "team": [[31, 41], [15, 41], [47, 42]],
+					"flag": "warden_beaten", "look": SHAMAN_LOOK, "team": [[18, 41], [27, 41], [33, 42]],
 					"lines": ["Stop. Beyond this crossing the jungle grows wild and old.", "Only trainers strong enough to protect it may pass. Show me!"],
 					"defeat": "Your beasts fight with a good heart. Go, and tread softly."})
 		"route10":
 			if _has_anchor(map, "sentinel") and not GameState.flag("sentinel_beaten"):
 				out.append({"kind": "story", "id": "sentinel", "name": "Sentinel Morrow", "pos": _at(map, "sentinel", plaza), "story": true, "facing": Vector2i(-1, 0),
-					"flag": "sentinel_beaten", "look": GRUNT_LOOK, "team": [[23, 47, true], [41, 47, true], [9, 48, true]],
+					"flag": "sentinel_beaten", "look": GRUNT_LOOK, "team": [[21, 47, true], [33, 47, true], [0, 48, true]],
 					"lines": ["No one reaches Gravenmoor. General Vexmora's orders.", "Turn back, or join the shadows!"],
 					"defeat": "The General... will not be pleased..."})
 		"route2":
@@ -167,7 +191,7 @@ func extra_npcs(map: Dictionary) -> Array:
 			if _has_anchor(map, "grunt_a"):
 				out.append({"kind": "trainer", "pos": _at(map, "grunt_a", plaza), "facing": Vector2i(0, 1), "sight": 2, "flag": "tr_gravenmoor_gate",
 					"name": "Grunt Vesper", "cls": "Umbral Legion", "look": GRUNT_LOOK, "legion": true,
-					"team": [[23, 44, true], [9, 44, true], [38, 45, true]], "lines": ["The cathedral is closed by order of General Vexmora!"],
+					"team": [[27, 44, true], [6, 44, true], [36, 45, true]], "lines": ["The cathedral is closed by order of General Vexmora!"],
 					"defeat": "Fine... go in. Commander Nyx will finish you.", "vanish": true})
 	for k in RELICS:
 		var r: Dictionary = RELICS[k]
@@ -252,12 +276,14 @@ func on_map_enter(world) -> void:
 		await UI.say(["The Moor Road. Ghost beasts drift through the fog... They have no weakness at all."])
 	world.busy = false
 	world.refresh_npc_marks()
+	# a teacher who can see you where you've arrived stops you straight away
+	await world.spot_you()
 
 
 func _intro() -> void:
 	GameState.set_flag("intro_done")
 	await UI.say([
-		"Cocoon Cove: a sleepy seaside hamlet, where Redcoons nap on every rooftop.",
+		"Cocoon Cove: a sleepy seaside hamlet, where Embits nap on every sunny rooftop.",
 		"For generations, trainers from the Cove have raised beasts of fire, water, earth and air.",
 		"But lately, travellers whisper of the Umbral Legion and their ghost beasts, black as night and stronger than any element.",
 		"Today, %s is finally old enough to raise a beast of their own." % GameState.player_name,
@@ -300,7 +326,7 @@ func uncle_lessons() -> bool:
 	if GameState.capture_level() == 0:
 		await UI.say(["Now the important one: Capture. Play it for a wild beast and it might choose to join you.",
 			"It works on beasts up to level %d, as long as one of your own beasts is at least as strong." % SongDB.CAPTURE_CAPS[0],
-			"Play it flawlessly, without a single wrong note, and even a stronger beast might listen. Your father caught a Thunderhawk that way once. Allegedly. I wasn't there.",
+			"Play it flawlessly, without a single wrong note, and even a stronger beast might listen. Your father caught a Tempestrix that way once. Allegedly. I wasn't there.",
 			"Speed matters here too: finish in the green and a beast is far likelier to listen. In the red, your odds are about half.",
 			"Same as before: listen, remember, play it back. This time you're on your own!"], who)
 		if not await Places.learn_attempts(SongDB.capture_id(1), who, 0.0, {"lesson": true}):
@@ -396,7 +422,8 @@ func field_move(world, grp: Dictionary) -> void:
 
 
 ## A broken bridge (or similar) fixed with a key item.
-## The washed-out footbridge: find logs along the path and lay them across the creek, one at a time.
+## The washed-out footbridge: Youngster Kit, in the cabin beside it, gives you the logs once you've had his lesson; lay
+## them across the creek, one after another.
 func _item_obstacle(world, grp: Dictionary, info: Dictionary) -> void:
 	var item: String = info["item"]
 	var need := int(info.get("need", 1))
@@ -405,22 +432,20 @@ func _item_obstacle(world, grp: Dictionary, info: Dictionary) -> void:
 	if GameState.item_count(item) <= 0:
 		if placed == 0:
 			await UI.say(["The footbridge has washed away. Only its four posts are left standing in the creek.",
-				"Logs from the trees the storm knocked down are lying all along the path. %d of them laid side by side would reach across." % need])
+				"Youngster Kit, in the log cabin just west of here, has been gathering logs from the storm trees to mend it."])
 		else:
-			await UI.say(["%d of %d logs are laid across the creek. %d more to find along the path!" % [placed, need, need - placed]])
+			await UI.say(["%d of %d logs are laid across the creek. Youngster Kit in the cabin nearby has the rest." % [placed, need]])
+		return
+	if not await UI.ask("Lay Kit's logs across the creek?"):
 		return
 	while GameState.item_count(item) > 0 and placed < need:
-		var prompt := "Lay a log across the creek?" if placed == 0 else "Lay another log across? (%d of %d so far)" % [placed, need]
-		if not await UI.ask(prompt):
-			return
 		GameState.remove_item(item)
 		placed += 1
 		GameState.set_flag(key, placed)
 		Sfx.play("smash", 0.2)
 		await world.place_bridge_log(grp, placed)
-		if placed < need:
-			await UI.say(["Thunk! %d of %d logs in place." % [placed, need] + ("" if GameState.item_count(item) > 0 else " Better find some more.")])
 	if placed < need:
+		await UI.say(["Thunk! %d of %d logs in place. Youngster Kit must have the rest." % [placed, need]])
 		return
 	GameState.set_flag(grp["flag"])
 	world.clear_obstacle(grp)
@@ -518,6 +543,11 @@ func _talk_villager(world, n: Dictionary) -> void:
 		lines.append(quest)
 	elif r < 36:
 		lines.append(WorldDB.TIPS[rng.randi_range(0, WorldDB.TIPS.size() - 1)])
+	elif r < 46 and town.has("signature"):
+		# the town's mascot and the move it teaches its own kind
+		var race := int(town["mascot"])
+		var tip: String = ChatterDB.MASCOT_MOVE[rng.randi_range(0, ChatterDB.MASCOT_MOVE.size() - 1)]
+		lines.append(tip.replace("{mascot}", RaceDB.race_name(race)).replace("{move}", MoveDB.get_move(town["signature"])["name"]).replace("{lv}", str(MoveDB.SIGNATURE_LEVEL)))
 	elif r < 62 and ChatterDB.TOWNS.has(world.map_id):
 		lines = ChatterDB.pick(ChatterDB.TOWNS[world.map_id], rng)
 	else:
@@ -531,13 +561,23 @@ func _talk_villager(world, n: Dictionary) -> void:
 
 ## What the player should do next, for the townsfolk's hints (ChatterDB.HINTS).
 func next_goal() -> String:
-	for step in [["got_egg", "egg"], ["has_starter", "hatch"], ["tutorial_done", "path"]]:
+	for step in [["got_egg", "egg"], ["has_starter", "hatch"]]:
 		if not GameState.flag(step[0]):
 			return step[1]
+	if not GameState.flag("tutorial_done"):
+		# Kit's logs, still to be laid across the footbridge
+		if GameState.flag("lesson_slingshot") and _bridge_flag() != "" and not GameState.flag(_bridge_flag()):
+			return "bridge"
+		return "path"
 	if not GameState.has_flute():
 		return "flute"
 	if not _lessons_done():
 		return "rafe"
+	# Tidewater's arena: its coaches' lessons, then Tide Captain Marina's crest (the ferry wants it)
+	if not arena_lessons_done("tidewater"):
+		return "arena"
+	if not GameState.crests.has(WorldDB.ARENAS["tidewater"]["crest"]):
+		return "marina"
 	if not GameState.flag("shell_heard") and not GameState.flag("kelp_heard"):
 		return "ferry"
 	if not (GameState.flag("shell_heard") and GameState.flag("kelp_heard")):
@@ -561,12 +601,22 @@ func _talk_trainer(world, n: Dictionary) -> void:
 					"look": n.get("look", {}), "song": song, "flute_skill": n.get("flute_skill", 0.8), "encore": true, "reward": 60})
 			return
 		await UI.say([n.get("defeat", "Good battle!") if typeof(n.get("defeat")) == TYPE_STRING else "Good battle!"], name)
+		# (a game saved before Kit kept the logs in his cabin: he hands over any the footbridge still needs)
+		if n.get("gift", {}).has("bridge_log") and logs_missing() > 0:
+			await UI.say(["Oh! You still need logs for the footbridge? Here, I've got plenty!"], name)
+			_give({"bridge_log": 1})
 		return
 	if GameState.party.is_empty():
 		await UI.say(["You don't have any beasts? Come back once you've hatched one!"], name)
 		return
+	if n.has("lesson"):
+		# a lesson can't be lost: it starts with your beasts at their best
+		GameState.heal_party()
 	if GameState.alive_party().is_empty() and GameState.shield <= 0:
 		await UI.say(["Your beasts are too tired to battle! Heal them first."], name)
+		return
+	if n.has("needs") and not GameState.flag(String(n["needs"])):
+		await UI.say([String(n.get("first", "Come back once you've had the other lesson!"))], name)
 		return
 	await UI.say(n.get("lines", ["Let's battle!"]), name)
 	var def := {"name": n.get("name", ""), "cls": n.get("cls", "Trainer"), "team": n["team"], "defeat": n.get("defeat", ""),
@@ -574,12 +624,16 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	for k in ["lesson", "reward"]:
 		if n.has(k):
 			def[k] = n[k]
+	if n.get("lesson", "") == "elements":
+		_elements_lesson(def)
 	var res := await trainer_battle(def)
 	if res != "win":
 		return
 	GameState.set_flag(n["flag"])
 	if n.has("lesson"):
 		await _lesson_done(n, name)
+		# the next teacher who can see you (Coach Ondine, right after Coach Rory) steps in
+		await world.spot_you()
 	if n.get("vanish", false):
 		world.remove_npc(n)
 	if n.get("bandit_boss", false):
@@ -598,13 +652,57 @@ func _talk_trainer(world, n: Dictionary) -> void:
 func _lesson_done(n: Dictionary, name: String) -> void:
 	GameState.heal_party()
 	await UI.say(n.get("after", []), name)
-	var gift: Dictionary = n.get("gift", {})
-	for item in gift:
-		GameState.add_item(item, int(gift[item]))
-		Sfx.play("pickup")
-		UI.toast("Received %d %s!" % [int(gift[item]), ItemDB.item_name(item) + ("s" if int(gift[item]) > 1 else "")], UIKit.GOLD)
+	_give(n.get("gift", {}))
 	if LESSON_TRAINERS.all(func(t): return GameState.flag("lesson_" + String(t["lesson"]))):
 		GameState.set_flag("tutorial_done")
+
+
+## A teacher's gift. Kit's logs: as many as the footbridge still needs.
+func _give(gift: Dictionary) -> void:
+	for item in gift:
+		var k := logs_missing() if item == "bridge_log" else int(gift[item])
+		if k <= 0:
+			continue
+		GameState.add_item(item, k)
+		Sfx.play("pickup")
+		UI.toast("Received %d %s!" % [k, ItemDB.item_name(item) + ("s" if k > 1 else "")], UIKit.GOLD)
+
+
+## A town's mascot: it teaches its town's signature move (WorldDB.TOWNS "signature", MoveDB.SIGNATURE) to a beast of
+## its own line at Lv 40 or more, and only to one of those; anyone else just gets its antics.
+func _mascot(world, n: Dictionary) -> void:
+	Sfx.play("growl")
+	var town: Dictionary = WorldDB.TOWNS.get(world.map_id, {})
+	var race := int(town.get("mascot", -1))
+	var mv: String = town.get("signature", "")
+	var name: String = n.get("name", "")
+	var kin: Array = GameState.party.filter(func(b): return RaceDB.first_form(b.race) == RaceDB.first_form(race) and not b.ghost)
+	if mv == "" or kin.is_empty():
+		await UI.say([String(ChatterDB.MASCOT[randi() % ChatterDB.MASCOT.size()]) % name])
+		return
+	var move_name: String = MoveDB.get_move(mv)["name"]
+	var ready: Array = kin.filter(func(b): return b.level >= MoveDB.SIGNATURE_LEVEL and not b.known.has(mv))
+	if ready.is_empty():
+		if kin.any(func(b): return b.known.has(mv)):
+			await UI.say(["The %s and your %s trade a knowing look. They both know %s." % [name, kin[0].nickname, move_name]])
+		else:
+			await UI.say(["The %s sniffs your %s from nose to tail, then puffs out its chest. It seems to want it stronger first." % [name, kin[0].nickname],
+				"(A %s of Lv %d or more can learn %s here.)" % [name, MoveDB.SIGNATURE_LEVEL, move_name]])
+		return
+	var b = ready[0]
+	if ready.size() > 1:
+		var c: int = await UI.choose("Which %s learns %s?" % [name, move_name], ready.map(func(x): return {"text": x.nickname, "right": "Lv %d" % x.level}))
+		if c < 0:
+			return
+		b = ready[c]
+	if not await UI.ask("The %s strikes a pose in front of your %s, then does it again, slower. It wants to teach it %s! Learn it?" % [name, b.nickname, move_name]):
+		return
+	var res: String = b.learn(mv)
+	Sfx.play("levelup")
+	var out := ["%s learned %s!" % [b.nickname, move_name]]
+	if res == "known":
+		out.append("It already uses four moves, so %s waits among its known moves: swap it in from Start → Beasts → Moves." % move_name)
+	await UI.say(out)
 
 
 func _talk_story(world, n: Dictionary) -> void:
@@ -664,8 +762,7 @@ func _talk_story(world, n: Dictionary) -> void:
 				Sfx.play("buy")
 				await UI.say(["Here, have some biscuits. Well, cakes. Close enough!", "You received 3 Honey Cakes!"], "Bizcuit")
 		"mascot":
-			Sfx.play("growl")
-			await UI.say([String(ChatterDB.MASCOT[randi() % ChatterDB.MASCOT.size()]) % n.get("name", "")])
+			await _mascot(world, n)
 		"ferry":
 			await _ferry(world)
 		"chief_shell", "chief_kelp":
@@ -746,6 +843,11 @@ func _ferry(world) -> void:
 			"Go and see your Uncle Rafe first. Then we'll talk boats."], "Captain Gull")
 		return
 	var here: String = world.map_id
+	var crest: String = WorldDB.ARENAS["tidewater"]["crest"]
+	if here == "tidewater" and not GameState.crests.has(crest):
+		await UI.say(["Ahoy! The islanders only let proven trainers ashore. Earn the %s from Tide Captain Marina at the arena first." % crest,
+			"The arena's coaches will get you ready for her. Then we'll talk boats."], "Captain Gull")
+		return
 	var dest := "shellhaven" if here == "tidewater" else "tidewater"
 	if not await UI.ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
 		return
@@ -793,7 +895,7 @@ func _culprit(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Ha! Your beasts can barely stand. Scram!"], "Smuggler Rook")
 		return
-	var res := await trainer_battle({"name": "Rook", "cls": "Smuggler", "boss": true, "team": [[17, 7], [40, 8]], "look": SMUGGLER_LOOK,
+	var res := await trainer_battle({"name": "Rook", "cls": "Smuggler", "boss": true, "team": [[21, 7], [33, 8]], "look": SMUGGLER_LOOK,
 		"defeat": "Alright, alright! I'll give the nets back. And I'll tell the chiefs everything...", "reward": 900})
 	if res == "win":
 		GameState.set_flag("culprit_beaten")
@@ -818,7 +920,7 @@ func _sheriff() -> void:
 	GameState.set_flag("met_sheriff")
 	await UI.say(["Howdy, stranger. Mind yourself in Sundown. Black Bart's gang has this town by the throat.",
 		"They raid our stores, then hole up in their hideout out on the Dune Sea road. They've barricaded the road north, too.",
-		"I'm one sheriff with one old Dustdevil. If you're half the trainer you look, go teach those varmints some manners.",
+		"I'm one sheriff with one old Galeberry. If you're half the trainer you look, go teach those varmints some manners.",
 		"Their hideout's a door in the rocks, just north of town."], "Sheriff Dalton")
 
 
@@ -844,7 +946,7 @@ func _ceo(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Hah! Your beasts are already broken. Security will see you out."], "Magnus Gearhart")
 		return
-	var res := await trainer_battle({"name": "Gearhart", "cls": "CEO", "boss": true, "team": [[53, 34], [54, 35], [55, 35], [52, 36]],
+	var res := await trainer_battle({"name": "Gearhart", "cls": "CEO", "boss": true, "team": [[44, 34], [45, 35], [46, 35], [43, 36]],
 		"look": n.get("look", {}), "defeat": "Impossible... My machines... my fortune...", "reward": 6000})
 	if res == "win":
 		GameState.set_flag("ceo_defeated")
@@ -925,7 +1027,7 @@ func _nyx(world, n: Dictionary) -> void:
 	if GameState.alive_party().is_empty():
 		await UI.say(["Come back when your beasts can stand."], "Commander Nyx")
 		return
-	var res := await trainer_battle({"name": "Nyx", "cls": "Commander", "boss": true, "team": [[3, 49, true], [18, 49, true], [29, 50, true]],
+	var res := await trainer_battle({"name": "Nyx", "cls": "Commander", "boss": true, "team": [[3, 49, true], [24, 49, true], [18, 50, true]],
 		"look": n.get("look", {}), "song": "discord", "flute_skill": 0.85, "defeat": "General... forgive me.", "reward": 5000})
 	if res == "win":
 		GameState.set_flag("nyx_defeated")
@@ -942,7 +1044,7 @@ func _finale(world, n: Dictionary) -> void:
 	await UI.say(["So the child from Cocoon Cove made it all the way to my crypt.",
 		"Every ghost beast in this place answers to me. They have no weakness. No fear. No mercy.",
 		"With them, the Legion will take every town from the coast to the jungle. Starting with you."], "General Vexmora")
-	var res := await trainer_battle({"name": "Vexmora", "cls": "General", "boss": true, "team": [[7, 54, true], [23, 54, true], [43, 55, true], [35, 56, true]],
+	var res := await trainer_battle({"name": "Vexmora", "cls": "General", "boss": true, "team": [[9, 54, true], [21, 54, true], [30, 55, true], [12, 56, true]],
 		"look": n.get("look", {}), "song": "dread", "flute_skill": 0.9, "defeat": "...The light in your beasts. It's stronger than any shadow.", "reward": 12000})
 	if res != "win":
 		return
@@ -1010,8 +1112,9 @@ func trainer_battle(def: Dictionary) -> String:
 	return res
 
 
-## Bodies of the beasts that live in packs (and only in the high-level areas). Everything else roams alone.
-const PACK_BODIES := ["quad", "insect", "bird", "fish"]
+## Bodies of the beasts that live in packs (and only in the high-level areas): herds, flocks and the eels' shoals.
+## Everything else roams alone.
+const PACK_BODIES := ["quad", "flyer", "serpent"]
 ## Wild levels at or above this can have packs.
 const PACK_MIN_LEVEL := 16
 ## A beast no stronger than your best one usually roams with more of its own kind (and stands its ground).
@@ -1037,7 +1140,7 @@ func roll_wild(map: Dictionary) -> Array:
 		var n := mini(cap, 3 if GameState.alive_party().size() >= 2 and randf() < 0.4 else 2)
 		for i in range(1, n):
 			foes.append(_roll_wild_beast(first, lv, ghost_rate))
-	elif int(lv[0]) >= PACK_MIN_LEVEL and String(RaceDB.genes(first).get("body", "")) in PACK_BODIES and randf() < 0.3:
+	elif int(lv[0]) >= PACK_MIN_LEVEL and String(lead.genes.get("body", "")) in PACK_BODIES and randf() < 0.3:
 		var n2 := mini(cap, 2 if int(lv[0]) < 26 or randf() < 0.5 else 3)
 		for i in range(1, n2):
 			foes.append(_roll_wild_beast(first if randf() < 0.7 else _roll_wild_race(races), lv, ghost_rate))
@@ -1086,6 +1189,8 @@ func wild_battle(_world, foes: Array, kind: String) -> String:
 	# (not for older saves that have caught beasts already)
 	if _lessons_done() and not GameState.flag("flute_lesson_done") and GameState.caught.size() <= 2 and foes.size() == 1 and not foes[0].ghost:
 		lesson = "flute"
+		# a lesson can't be lost: it starts with your beasts at their best
+		GameState.heal_party()
 	return await GameState.main.start_battle({"wild": true, "foes": foes, "seed": randi(), "intro": kind, "lesson": lesson,
 		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "") if lesson == "" else ""})
 

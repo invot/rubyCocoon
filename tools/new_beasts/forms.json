@@ -1,0 +1,511 @@
+{
+ "_doc": "One entry per form (line_stage). src: the .obj under the \"new beasts\" folder; up: z (stands on z, faces -y) or y (stands on y, faces +z); yaw: degrees more to turn it; of/which: the file holds a line of `of` figures side by side, this is figure `which` (0 = the smallest); body: quad, biped, flyer, serpent or blob (bake.py label()); regions: [{part, x>, x<, y>, y<, z>, z<, |z|>, |z|<, r>, r<, from}] (r: from the upright axis) in order, each giving the faces in that box to a part (horns, as first guessed, only if \"from\" names them; \"from\": only faces first guessed as one of these parts). ground: it stands in a hole, the ground this high (what is below goes).",
+ "dino_1": {
+  "src": "pack1/model_2.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "x>": 0.1, "y>": 0.4},
+   {"part": "leg_fl", "y<": 0.2, "x>": -0.15, "z<": 0},
+   {"part": "leg_fr", "y<": 0.2, "x>": -0.15, "z>": 0},
+   {"part": "leg_bl", "y<": 0.2, "x<": -0.15, "z<": 0},
+   {"part": "leg_br", "y<": 0.2, "x<": -0.15, "z>": 0},
+   {"part": "horn", "y>": 0.8, "x<": 0.05}
+  ]
+ },
+ "dino_2": {
+  "src": "pack1/model_1.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "x>": 0.3, "y>": 0.4},
+   {"part": "tail", "x<": -0.55},
+   {"part": "leg_fl", "y<": 0.22, "x>": -0.12, "z<": 0},
+   {"part": "leg_fr", "y<": 0.22, "x>": -0.12, "z>": 0},
+   {"part": "leg_bl", "y<": 0.22, "x<": -0.12, "z<": 0},
+   {"part": "leg_br", "y<": 0.22, "x<": -0.12, "z>": 0}
+  ]
+ },
+ "dino_3": {
+  "src": "pack1/model_0.obj",
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.74, "x>": -0.15},
+   {"part": "arm_l", "z<": -0.18, "y>": 0.22, "y<": 0.72, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head"]},
+   {"part": "arm_r", "z>": 0.18, "y>": 0.22, "y<": 0.72, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head"]},
+   {"part": "leg_fl", "y<": 0.28, "z<": 0, "|z|<": 0.3, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head"]},
+   {"part": "leg_fr", "y<": 0.28, "z>": 0, "|z|<": 0.3, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head"]},
+   {"part": "tail", "x<": -0.18, "y<": 0.55}
+  ]
+ },
+ "scorpion_1": {
+  "src": "pack1/model_5.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.0, "x>": 0.22, "|z|>": 0.15},
+   {"part": "arm_r", "z>": 0.0, "x>": 0.22, "|z|>": 0.15},
+   {"part": "leg_fl", "y<": 0.3, "x>": -0.1, "z<": 0, "|z|>": 0.25},
+   {"part": "leg_fr", "y<": 0.3, "x>": -0.1, "z>": 0, "|z|>": 0.25},
+   {"part": "leg_bl", "y<": 0.3, "x<": -0.1, "z<": 0, "|z|>": 0.25},
+   {"part": "leg_br", "y<": 0.3, "x<": -0.1, "z>": 0, "|z|>": 0.25},
+   {"part": "tail", "x<": -0.42},
+   {"part": "eye", "x>": 0.0, "y>": 0.55, "from": ["arm_l", "arm_r", "head", "horn"]}
+  ]
+ },
+ "scorpion_2": {
+  "src": "pack1/model_4.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.1, "y>": 0.38, "y<": 0.62, "x>": 0.25},
+   {"part": "arm_r", "z>": 0.1, "y>": 0.38, "y<": 0.62, "x>": 0.25},
+   {"part": "leg_fl", "y<": 0.25, "x>": -0.15, "z<": 0, "|z|>": 0.12},
+   {"part": "leg_fr", "y<": 0.25, "x>": -0.15, "z>": 0, "|z|>": 0.12},
+   {"part": "leg_bl", "y<": 0.25, "x<": -0.15, "z<": 0, "|z|>": 0.12},
+   {"part": "leg_br", "y<": 0.25, "x<": -0.15, "z>": 0, "|z|>": 0.12},
+   {"part": "tail", "x<": -0.5},
+   {"part": "eye", "x>": 0.2, "y>": 0.45, "y<": 0.65, "from": ["head"]},
+   {"part": "horn", "y>": 0.7}
+  ]
+ },
+ "scorpion_3": {
+  "src": "pack1/model_3.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.25, "y>": 0.42, "x>": 0.05},
+   {"part": "arm_r", "z>": 0.25, "y>": 0.42, "x>": 0.05},
+   {"part": "leg_fl", "y<": 0.2, "x>": -0.15, "z<": 0, "|z|>": 0.1, "from": ["horn", "leg_fl", "leg_fr", "leg_bl", "leg_br", "arm_l", "arm_r"]},
+   {"part": "leg_fr", "y<": 0.2, "x>": -0.15, "z>": 0, "|z|>": 0.1, "from": ["horn", "leg_fl", "leg_fr", "leg_bl", "leg_br", "arm_l", "arm_r"]},
+   {"part": "leg_bl", "y<": 0.2, "x<": -0.15, "z<": 0, "|z|>": 0.1, "from": ["horn", "leg_fl", "leg_fr", "leg_bl", "leg_br", "arm_l", "arm_r"]},
+   {"part": "leg_br", "y<": 0.2, "x<": -0.15, "z>": 0, "|z|>": 0.1, "from": ["horn", "leg_fl", "leg_fr", "leg_bl", "leg_br", "arm_l", "arm_r"]},
+   {"part": "tail", "x<": -0.25, "y>": 0.2},
+   {"part": "eye", "x>": 0.22, "y>": 0.85, "from": ["horn", "head"]}
+  ]
+ },
+ "berry_1": {
+  "src": "pack1/model_8.obj",
+  "body": "blob",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.18, "y<": 0.62},
+   {"part": "arm_r", "z>": 0.18, "y<": 0.62}
+  ]
+ },
+ "berry_2": {
+  "src": "pack1/model_7.obj",
+  "body": "blob",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.2, "y<": 0.55},
+   {"part": "arm_r", "z>": 0.2, "y<": 0.55}
+  ]
+ },
+ "berry_3": {
+  "src": "pack1/model_6.obj",
+  "body": "blob",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.38},
+   {"part": "arm_r", "z>": 0.38}
+  ]
+ },
+ "beetle_1": {
+  "src": "pack1/model_11.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "x>": 0.22, "y>": 0.1},
+   {"part": "horn", "x>": 0.3, "y>": 0.5},
+   {"part": "leg_fl", "y<": 0.12, "x>": -0.1, "z<": 0},
+   {"part": "leg_fr", "y<": 0.12, "x>": -0.1, "z>": 0},
+   {"part": "leg_bl", "y<": 0.12, "x<": -0.1, "z<": 0},
+   {"part": "leg_br", "y<": 0.12, "x<": -0.1, "z>": 0}
+  ]
+ },
+ "beetle_2": {
+  "src": "pack1/model_10.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "x>": 0.0, "y>": 0.45},
+   {"part": "horn", "x>": 0.15, "y>": 0.68},
+   {"part": "horn", "x>": 0.0, "y>": 0.55, "|z|>": 0.15},
+   {"part": "leg_fl", "y<": 0.42, "x>": -0.2, "z<": 0, "|z|>": 0.08},
+   {"part": "leg_fr", "y<": 0.42, "x>": -0.2, "z>": 0, "|z|>": 0.08},
+   {"part": "leg_bl", "y<": 0.15, "x<": -0.2, "z<": 0},
+   {"part": "leg_br", "y<": 0.15, "x<": -0.2, "z>": 0}
+  ]
+ },
+ "beetle_3": {
+  "src": "pack1/model_9.obj",
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.66, "x>": -0.15},
+   {"part": "horn", "y>": 0.84},
+   {"part": "arm_l", "z<": -0.17, "y>": 0.2, "y<": 0.68},
+   {"part": "arm_r", "z>": 0.17, "y>": 0.2, "y<": 0.68},
+   {"part": "leg_fl", "y<": 0.28, "z<": 0, "|z|<": 0.22},
+   {"part": "leg_fr", "y<": 0.28, "z>": 0, "|z|<": 0.22}
+  ]
+ },
+ "cactus_1": {
+  "src": "pack2/model_2.obj",
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.25},
+   {"part": "arm_r", "z>": 0.25},
+   {"part": "eye", "x>": 0.15, "y>": 0.6, "from": ["arm_l", "arm_r", "head"]}
+  ]
+ },
+ "cactus_2": {
+  "src": "pack2/model_1.obj",
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.25},
+   {"part": "arm_r", "z>": 0.25}
+  ]
+ },
+ "cactus_3": {
+  "src": "pack2/model_0.obj",
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.28, "y<": 0.75},
+   {"part": "arm_r", "z>": 0.28, "y<": 0.75},
+   {"part": "leg_fl", "y<": 0.2, "z<": 0, "|z|<": 0.2},
+   {"part": "leg_fr", "y<": 0.2, "z>": 0, "|z|<": 0.2},
+   {"part": "eye", "x>": 0.1, "y>": 0.68, "y<": 0.85, "from": ["head"]}
+  ]
+ },
+ "crab_1": {
+  "src": "pack2/model_5.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.25, "y>": 0.55},
+   {"part": "arm_r", "z>": 0.25, "y>": 0.55},
+   {"part": "leg_fl", "y<": 0.25, "x>": 0.0, "z<": 0, "|z|>": 0.18},
+   {"part": "leg_fr", "y<": 0.25, "x>": 0.0, "z>": 0, "|z|>": 0.18},
+   {"part": "leg_bl", "y<": 0.25, "x<": 0.0, "z<": 0, "|z|>": 0.18},
+   {"part": "leg_br", "y<": 0.25, "x<": 0.0, "z>": 0, "|z|>": 0.18},
+   {"part": "eye", "y>": 0.68, "|z|<": 0.25, "x>": 0.0, "from": ["arm_l", "arm_r", "head", "horn"]}
+  ]
+ },
+ "crab_2": {
+  "src": "pack2/model_4.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "eye", "y>": 0.75, "from": ["head"]},
+   {"part": "arm_l", "z<": -0.3, "y>": 0.35, "y<": 0.72, "x>": -0.1},
+   {"part": "arm_r", "z>": 0.3, "y>": 0.35, "y<": 0.72, "x>": -0.1},
+   {"part": "leg_fl", "y<": 0.3, "x>": -0.05, "z<": 0, "|z|>": 0.25, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]},
+   {"part": "leg_fr", "y<": 0.3, "x>": -0.05, "z>": 0, "|z|>": 0.25, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]},
+   {"part": "leg_bl", "y<": 0.3, "x<": -0.05, "z<": 0, "|z|>": 0.25, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]},
+   {"part": "leg_br", "y<": 0.3, "x<": -0.05, "z>": 0, "|z|>": 0.25, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]}
+  ]
+ },
+ "crab_3": {
+  "src": "pack2/model_3.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "eye", "y>": 0.82, "from": ["head"]},
+   {"part": "arm_l", "z<": -0.25, "y>": 0.35, "x>": 0.1},
+   {"part": "arm_r", "z>": 0.25, "y>": 0.35, "x>": 0.1},
+   {"part": "leg_fl", "y<": 0.2, "x>": -0.05, "z<": 0, "|z|>": 0.2, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]},
+   {"part": "leg_fr", "y<": 0.2, "x>": -0.05, "z>": 0, "|z|>": 0.2, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]},
+   {"part": "leg_bl", "y<": 0.2, "x<": -0.05, "z<": 0, "|z|>": 0.2, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]},
+   {"part": "leg_br", "y<": 0.2, "x<": -0.05, "z>": 0, "|z|>": 0.2, "from": ["body", "horn", "leg_fl", "leg_fr", "leg_bl", "leg_br"]}
+  ]
+ },
+ "owl_1": {
+  "src": "pack2/model_8.obj",
+  "body": "flyer",
+  "regions": [
+   {"part": "body"},
+   {"part": "wing_l", "z<": -0.25},
+   {"part": "wing_r", "z>": 0.25},
+   {"part": "leg_fl", "y<": 0.25, "z<": 0},
+   {"part": "leg_fr", "y<": 0.25, "z>": 0},
+   {"part": "horn", "x>": 0.25, "y>": 0.45, "y<": 0.72, "|z|<": 0.08},
+   {"part": "eye", "x>": 0.15, "y>": 0.6, "from": ["horn"]}
+  ]
+ },
+ "owl_2": {
+  "src": "pack2/model_7.obj",
+  "body": "flyer",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.45},
+   {"part": "wing_l", "z<": -0.25, "y>": 0.45},
+   {"part": "wing_r", "z>": 0.25, "y>": 0.45},
+   {"part": "leg_fl", "y<": 0.5, "z<": 0, "|z|<": 0.25, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head", "body"], "x>": 0.05, "y>": 0.2},
+   {"part": "leg_fr", "y<": 0.5, "z>": 0, "|z|<": 0.25, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head", "body"], "x>": 0.05, "y>": 0.2},
+   {"part": "tail", "y<": 0.28, "x<": 0.0}
+  ]
+ },
+ "owl_3": {
+  "src": "pack2/model_6.obj",
+  "body": "flyer",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.75, "|z|<": 0.2},
+   {"part": "wing_l", "z<": -0.2, "y>": 0.45},
+   {"part": "wing_r", "z>": 0.2, "y>": 0.45},
+   {"part": "leg_fl", "y<": 0.45, "z<": 0, "|z|<": 0.2, "x>": 0.0, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head"], "y>": 0.15},
+   {"part": "leg_fr", "y<": 0.45, "z>": 0, "|z|<": 0.2, "x>": 0.0, "from": ["arm_l", "arm_r", "wing_l", "wing_r", "leg_fl", "leg_fr", "leg_bl", "leg_br", "tail", "head"], "y>": 0.15},
+   {"part": "tail", "y<": 0.35, "x<": 0.0}
+  ]
+ },
+ "boar_1": {
+  "src": "pack3/model_2.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "x>": -0.05, "y>": 0.35},
+   {"part": "leg_fl", "y<": 0.26, "x>": -0.2, "z<": 0},
+   {"part": "leg_fr", "y<": 0.26, "x>": -0.2, "z>": 0},
+   {"part": "leg_bl", "y<": 0.26, "x<": -0.2, "z<": 0},
+   {"part": "leg_br", "y<": 0.26, "x<": -0.2, "z>": 0}
+  ]
+ },
+ "boar_2": {
+  "src": "pack3/model_1.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "x>": 0.0, "y>": 0.3},
+   {"part": "tail", "x<": -0.5},
+   {"part": "leg_fl", "y<": 0.25, "x>": -0.2, "z<": 0},
+   {"part": "leg_fr", "y<": 0.25, "x>": -0.2, "z>": 0},
+   {"part": "leg_bl", "y<": 0.25, "x<": -0.2, "z<": 0},
+   {"part": "leg_br", "y<": 0.25, "x<": -0.2, "z>": 0}
+  ]
+ },
+ "boar_3": {
+  "src": "pack3/model_0.obj",
+  "body": "quad",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "x>": 0.0, "y>": 0.45},
+   {"part": "tail", "x<": -0.55},
+   {"part": "leg_fl", "y<": 0.3, "x>": -0.2, "z<": 0},
+   {"part": "leg_fr", "y<": 0.3, "x>": -0.2, "z>": 0},
+   {"part": "leg_bl", "y<": 0.3, "x<": -0.2, "z<": 0},
+   {"part": "leg_br", "y<": 0.3, "x<": -0.2, "z>": 0}
+  ]
+ },
+ "bat_1": {
+  "src": "pack3/model_5.obj",
+  "body": "flyer",
+  "regions": [
+   {"part": "body"},
+   {"part": "horn", "y>": 0.68, "|z|<": 0.18},
+   {"part": "wing_l", "z<": -0.15, "y>": 0.55},
+   {"part": "wing_r", "z>": 0.15, "y>": 0.55},
+   {"part": "leg_fl", "y<": 0.18, "z<": 0},
+   {"part": "leg_fr", "y<": 0.18, "z>": 0}
+  ]
+ },
+ "bat_2": {
+  "src": "pack3/model_3.obj",
+  "body": "flyer",
+  "regions": [
+   {"part": "body"},
+   {"part": "horn", "y>": 0.65, "|z|<": 0.2},
+   {"part": "wing_l", "z<": -0.2, "y>": 0.55},
+   {"part": "wing_r", "z>": 0.2, "y>": 0.55},
+   {"part": "arm_l", "z<": -0.2, "y<": 0.5, "from": ["horn", "arm_l", "arm_r"]},
+   {"part": "arm_r", "z>": 0.2, "y<": 0.5, "from": ["horn", "arm_l", "arm_r"]},
+   {"part": "leg_fl", "y<": 0.3, "z<": 0, "|z|<": 0.15},
+   {"part": "leg_fr", "y<": 0.3, "z>": 0, "|z|<": 0.15}
+  ]
+ },
+ "bat_3": {
+  "src": "pack3/model_4.obj",
+  "body": "flyer",
+  "regions": [
+   {"part": "body"},
+   {"part": "wing_l", "z<": -0.15, "y>": 0.65},
+   {"part": "wing_r", "z>": 0.15, "y>": 0.65},
+   {"part": "horn", "y>": 0.6, "|z|<": 0.18, "from": ["horn"]},
+   {"part": "arm_l", "z<": -0.0, "y>": 0.25, "y<": 0.55, "x>": 0.15, "from": ["horn", "arm_l", "arm_r"], "|z|>": 0.15},
+   {"part": "arm_r", "z>": 0.0, "y>": 0.25, "y<": 0.55, "x>": 0.15, "from": ["horn", "arm_l", "arm_r"], "|z|>": 0.15},
+   {"part": "leg_fl", "y<": 0.15, "z<": 0},
+   {"part": "leg_fr", "y<": 0.15, "z>": 0},
+   {"part": "tail", "x<": -0.1, "y>": 0.3, "y<": 0.55, "|z|<": 0.4}
+  ]
+ },
+ "worm_1": {
+  "src": "pack3/model_8.obj",
+  "body": "serpent",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.62},
+   {"part": "deco", "y<": 0.43, "r>": 0.13, "from": ["body", "horn"]}
+  ],
+  "ground": 0.3
+ },
+ "worm_2": {
+  "src": "pack3/model_7.obj",
+  "body": "serpent",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.68},
+   {"part": "arm_l", "z<": -0.1, "y>": 0.35, "y<": 0.62},
+   {"part": "arm_r", "z>": 0.1, "y>": 0.35, "y<": 0.62},
+   {"part": "deco", "y<": 0.295, "r>": 0.125, "from": ["body", "horn", "arm_l", "arm_r"]},
+   {"part": "deco", "y<": 0.3, "from": ["horn"]}
+  ],
+  "ground": 0.215
+ },
+ "worm_3": {
+  "src": "pack3/model_6.obj",
+  "body": "serpent",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.65, "x>": 0.05},
+   {"part": "arm_l", "z<": -0.12, "y>": 0.33, "y<": 0.62, "x>": 0.05},
+   {"part": "arm_r", "z>": 0.12, "y>": 0.33, "y<": 0.62, "x>": 0.05},
+   {"part": "tail", "x<": -0.2}
+  ]
+ },
+ "tree_1": {
+  "src": "Tree/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 0,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.56},
+   {"part": "arm_l", "z<": -0.12, "y>": 0.2, "y<": 0.56},
+   {"part": "arm_r", "z>": 0.12, "y>": 0.2, "y<": 0.56},
+   {"part": "leg_fl", "y<": 0.3, "z<": 0, "|z|<": 0.12},
+   {"part": "leg_fr", "y<": 0.3, "z>": 0, "|z|<": 0.12}
+  ]
+ },
+ "tree_2": {
+  "src": "Tree/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 1,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.68},
+   {"part": "arm_l", "z<": -0.14, "y>": 0.2},
+   {"part": "arm_r", "z>": 0.14, "y>": 0.2},
+   {"part": "leg_fl", "y<": 0.42, "z<": 0, "|z|<": 0.14},
+   {"part": "leg_fr", "y<": 0.42, "z>": 0, "|z|<": 0.14}
+  ]
+ },
+ "tree_3": {
+  "src": "Tree/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 2,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.75},
+   {"part": "arm_l", "z<": -0.18, "y>": 0.1, "y<": 0.75},
+   {"part": "arm_r", "z>": 0.18, "y>": 0.1, "y<": 0.75},
+   {"part": "leg_fl", "y<": 0.48, "z<": 0, "|z|<": 0.15},
+   {"part": "leg_fr", "y<": 0.48, "z>": 0, "|z|<": 0.15}
+  ]
+ },
+ "frog_1": {
+  "src": "frog/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 0,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "tail", "x<": -0.15},
+   {"part": "leg_fl", "y<": 0.3, "z<": 0},
+   {"part": "leg_fr", "y<": 0.3, "z>": 0}
+  ]
+ },
+ "frog_2": {
+  "src": "frog/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 1,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.3},
+   {"part": "arm_r", "z>": 0.3},
+   {"part": "leg_fl", "y<": 0.22, "z<": 0, "|z|<": 0.3},
+   {"part": "leg_fr", "y<": 0.22, "z>": 0, "|z|<": 0.3}
+  ]
+ },
+ "frog_3": {
+  "src": "frog/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 2,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "arm_l", "z<": -0.3, "y<": 0.7},
+   {"part": "arm_r", "z>": 0.3, "y<": 0.7},
+   {"part": "leg_fl", "y<": 0.3, "z<": 0, "|z|<": 0.3},
+   {"part": "leg_fr", "y<": 0.3, "z>": 0, "|z|<": 0.3}
+  ]
+ },
+ "marmot_1": {
+  "src": "marmot/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 0,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.55},
+   {"part": "arm_l", "z<": -0.12, "y<": 0.55},
+   {"part": "arm_r", "z>": 0.12, "y<": 0.55},
+   {"part": "leg_fl", "y<": 0.33, "z<": 0, "|z|<": 0.12},
+   {"part": "leg_fr", "y<": 0.33, "z>": 0, "|z|<": 0.12}
+  ]
+ },
+ "marmot_2": {
+  "src": "marmot/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 1,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.62},
+   {"part": "arm_l", "z<": -0.15, "y>": 0.25, "y<": 0.62},
+   {"part": "arm_r", "z>": 0.15, "y>": 0.25, "y<": 0.62},
+   {"part": "leg_fl", "y<": 0.4, "z<": 0, "|z|<": 0.15},
+   {"part": "leg_fr", "y<": 0.4, "z>": 0, "|z|<": 0.15}
+  ]
+ },
+ "marmot_3": {
+  "src": "marmot/model_0.obj",
+  "up": "y",
+  "of": 3,
+  "which": 2,
+  "body": "biped",
+  "regions": [
+   {"part": "body"},
+   {"part": "head", "y>": 0.68},
+   {"part": "arm_l", "z<": -0.15, "y<": 0.68},
+   {"part": "arm_r", "z>": 0.15, "y<": 0.68},
+   {"part": "leg_fl", "y<": 0.38, "z<": 0, "|z|<": 0.12},
+   {"part": "leg_fr", "y<": 0.38, "z>": 0, "|z|<": 0.12}
+  ]
+ }
+}

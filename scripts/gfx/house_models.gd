@@ -6,10 +6,10 @@ extends RefCounted
 ##
 ## plan() fits a house to a plot of the map: the house is scaled to the plot (a little taller than it is wide, so its
 ## door clears the hero's head), may lean over the hedges and trees beside and behind it (never over a tile anyone can
-## walk on), and is slid and mirrored so its front door is on the plot's door tile. A porch reaches out over the street
-## in front: plan() measures its deck (and how high its posts reach), and world.gd raises those tiles so people step up
-## onto it (see porch()). world.gd keeps trees off the tiles
-## a house leans over. build() makes the node; backdrop() a larger house for the outskirts, past the map's edge.
+## walk on), and is slid and mirrored so its front door is on the plot's door tile. A porch or a stoop reaches out over
+## the street in front: plan() measures its deck (and how high a porch's posts reach), lowers it to one easy step at
+## the door's sill (MAX_STEP, see steps() and warped()), and world.gd raises those tiles so people step up onto it.
+## world.gd keeps trees off the tiles a house leans over. build() makes the node; backdrop() a larger house for the outskirts, past the map's edge.
 ## A house's local origin is the plot's centre at ground level; its front faces +z (as in voxel_buildings.gd).
 
 const VP = preload("res://scripts/gfx/voxel_props.gd")
@@ -31,6 +31,8 @@ const PLOT_HOUSES := {
 	"jungle": ["roundhouse", "rondavel", "stilt-house", "queenslander", "tiny-house", "yurt", "trullo"],
 	"town": ["hall-parlor", "mews", "storey-and-half", "cape-cod", "gambrel", "hip-dormers", "i-house", "side-hall", "gable-front", "row-cottage", "saltbox", "central-hallway", "foursquare", "dacha"],
 	"gothic": ["tower-house", "townhouse", "side-hall", "mews", "gable-front", "georgian-cottage", "saltbox", "foursquare"],
+	# Youngster Kit's cabin on the Coastal Path
+	"cabin": ["log-cabin", "single-pen", "a-frame"],
 }
 const OUTSKIRT_HOUSES := {
 	"coastal": ["colonial", "cape-cod", "saltbox", "queen-anne", "foursquare", "eaves-front", "north-shore", "l-plan", "t-plan", "gable-and-wing", "colonial-wing", "charleston-single"],
@@ -81,6 +83,7 @@ const SKINS := {
 	"gothic": [["stone_rubble", "slate_grey", "trim_white", "door_dark", "stone_step"],
 		["ashlar_grey", "slate_grey", "trim_charcoal", "door_dark", "stone_step"],
 		["clapboard_grey", "slate_grey", "trim_charcoal", "door_dark", "stone_step"]],
+	"cabin": [["log_wall", "shake_wood", "trim_cream", "door_plank_rough", "deck_wood"]],
 }
 ## Houses with a shape of their own (porches, wings, dormers, round walls, stilts, L and T plans, courtyards): picked
 ## over plain boxes.
@@ -114,10 +117,14 @@ const WARP_MAX := 1.3
 ## the pack's front doors are this tall, and the ground storey ends this far above a door's top
 const PACK_DOOR := 2.09
 const STOREY_ABOVE_DOOR := 0.4
+## A porch's deck or a stoop in front of the door is never more than one easy step up (in the world's units): a
+## deeper one is squashed down to the door's sill, its posts reaching down to meet it (see warped()).
+const MAX_STEP := 0.25
 const OUTSKIRT_SCALE := 0.74
 
 static var _meshes := {}
 static var _porches := {}
+static var _steps := {}
 static var _mats := {}
 
 
@@ -143,16 +150,24 @@ static func warp_y(y: float, g: float, r: float) -> float:
 	return y * r if y <= g else g * r + (y - g)
 
 
-## A house with its ground storey (below `g`) stretched `r` times taller, the rest lifted to sit on it (made once per
-## house and stretch).
-static func warped(key: String, r: float) -> ArrayMesh:
+## A house with its ground storey (below `g`) stretched `r` times taller, the rest lifted to sit on it, and its porch
+## deck or stoop squashed down to `step` (in its own space, before the stretch) if it stands higher: anything on the
+## deck up to its posts' tops (railings, the posts themselves) stretches to meet it, so the porch roof stays put
+## (made once per house, stretch and step).
+static func warped(key: String, r: float, step := INF) -> ArrayMesh:
 	var m := mesh(key)
-	if m == null or r <= 1.001:
+	var st := steps(key)
+	var squash: bool = not st.is_empty() and step < float(st["y"]) - 0.01
+	if m == null or (r <= 1.001 and not squash):
 		return m
-	var ck := "%s@%.2f" % [key, r]
+	var ck := "%s@%.2f@%.2f" % [key, r, step if squash else -1.0]
 	if _meshes.has(ck):
 		return _meshes[ck]
 	var g := ground_top(key)
+	var area: Rect2 = st.get("rect", Rect2()).grow(0.02)
+	var deck := float(st.get("y", 0.0))
+	var posts := maxf(float(porch(key).get("top", deck)), deck)
+	var door_z := float((m.get_meta("door") as Vector3).z)
 	var out := ArrayMesh.new()
 	for si in m.get_surface_count():
 		var arr := m.surface_get_arrays(si)
@@ -160,6 +175,8 @@ static func warped(key: String, r: float) -> ArrayMesh:
 		var ns = arr[Mesh.ARRAY_NORMAL]
 		for i in vs.size():
 			var v := vs[i]
+			if squash and v.z > door_z + 0.05 and v.y <= posts + 0.01 and area.has_point(Vector2(v.x, v.z)):
+				v.y = v.y * step / deck if v.y <= deck else step + (v.y - deck) * (posts - step) / maxf(0.01, posts - deck)
 			if v.y <= g and ns != null:
 				# the stretch tilts the normals of anything sloped in the ground storey
 				var n: Vector3 = ns[i]
@@ -245,19 +262,70 @@ static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, 
 	var out := {"key": pick["key"], "skin": skins[rng.randi_range(0, skins.size() - 1)], "scale": Vector3(sv, sy, sv),
 		"offset": offset, "mirror": pick["mirror"], "rect": rect,
 		"door_at": Vector3(door_lx, warp_y(door_v.y, g, r) * sy, front + 0.02), "door_size": Vector2(0.93 * sv, PACK_DOOR * r * sy), "warp": r}
-	# a porch: its deck, in the plot's space, how high it stands, and how high its posts reach
-	var pc := porch(String(pick["key"]))
-	if not pc.is_empty():
-		var r2: Rect2 = pc["rect"]
-		var xa := r2.position.x * sv * (-1.0 if pick["mirror"] else 1.0) + offset.x
-		var xb := r2.end.x * sv * (-1.0 if pick["mirror"] else 1.0) + offset.x
-		out["porch"] = {"rect": Rect2(minf(xa, xb), offset.z + r2.position.y * sv, absf(xb - xa), r2.size.y * sv),
-			"y": warp_y(float(pc["y"]), g, r) * sy, "top": warp_y(float(pc["top"]), g, r) * sy}
+	# a deck or stoop in front of the door: in the plot's space, how high it stands (one easy step at most, level with
+	# the door's sill), and for a porch how high its posts reach
+	var st := steps(String(pick["key"]))
+	if not st.is_empty():
+		var sill := clampf(warp_y(door_v.y - PACK_DOOR / 2.0, g, r) * sy, 0.1, MAX_STEP)
+		var deck_y := minf(warp_y(float(st["y"]), g, r) * sy, sill)
+		# the same height in the house's own space, before the stretch (see warped())
+		out["step"] = deck_y / (r * sy)
+		out["steps"] = {"rect": _plot_rect(st["rect"], sv, offset, pick["mirror"]), "y": deck_y}
+		var pc := porch(String(pick["key"]))
+		if not pc.is_empty():
+			out["porch"] = {"rect": _plot_rect(pc["rect"], sv, offset, pick["mirror"]), "y": deck_y, "top": warp_y(float(pc["top"]), g, r) * sy}
+	return out
+
+
+## A rect (x and z) in a house's own space -> the plot's, as plan() places the house.
+static func _plot_rect(r2: Rect2, sv: float, offset: Vector3, mirror: bool) -> Rect2:
+	var xa := r2.position.x * sv * (-1.0 if mirror else 1.0) + offset.x
+	var xb := r2.end.x * sv * (-1.0 if mirror else 1.0) + offset.x
+	return Rect2(minf(xa, xb), offset.z + r2.position.y * sv, absf(xb - xa), r2.size.y * sv)
+
+
+## The deck or stoop in front of a house's front door, measured from its mesh once (in its own space): the floors
+## raised off the ground that reach well out from the door (not the sills, plinths and thresholds along the wall),
+## with rect (x and z) and y (the top of the highest). {} if it has none.
+static func steps(key: String) -> Dictionary:
+	if _steps.has(key):
+		return _steps[key]
+	var out := {}
+	var m := mesh(key)
+	if m != null and m.has_meta("door"):
+		var door: Vector3 = m.get_meta("door")
+		var top := -1.0
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		for si in m.get_surface_count():
+			var arr := m.surface_get_arrays(si)
+			var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var idx = arr[Mesh.ARRAY_INDEX]
+			if idx == null or (idx as PackedInt32Array).is_empty():
+				idx = range(vs.size())
+			for t in range(0, idx.size() - 2, 3):
+				var a: Vector3 = vs[idx[t]]
+				var b: Vector3 = vs[idx[t + 1]]
+				var c: Vector3 = vs[idx[t + 2]]
+				var mid := (a + b + c) / 3.0
+				var nrm := (b - a).cross(c - a).normalized()
+				if absf(nrm.y) < 0.85 or mid.y < 0.08 or mid.y > 1.6 or mid.z < door.z + 0.05:
+					continue
+				if maxf(a.z, maxf(b.z, c.z)) < door.z + 0.45:
+					continue
+				top = maxf(top, mid.y)
+				for v in [a, b, c]:
+					lo = Vector2(minf(lo.x, v.x), minf(lo.y, v.z))
+					hi = Vector2(maxf(hi.x, v.x), maxf(hi.y, v.z))
+		if top > 0.0:
+			out = {"rect": Rect2(lo, hi - lo), "y": top}
+	_steps[key] = out
 	return out
 
 
 ## A house's porch, measured from its mesh once (in its own space): the deck in front of the door (rect: x and z; y:
-## its top) and how high its posts reach (top). {} if it has none: no deck, or no posts (front steps aren't a porch).
+## its top) and how high its posts reach (top). {} if it has none: no deck, or no posts (front steps aren't a porch;
+## see steps() for those).
 static func porch(key: String) -> Dictionary:
 	if _porches.has(key):
 		return _porches[key]
@@ -316,7 +384,7 @@ static func porch(key: String) -> Dictionary:
 static func build(p: Dictionary, locked := false) -> Node3D:
 	var node := Node3D.new()
 	var mi := MeshInstance3D.new()
-	var m := warped(String(p["key"]), float(p.get("warp", 1.0)))
+	var m := warped(String(p["key"]), float(p.get("warp", 1.0)), float(p.get("step", INF)))
 	mi.mesh = m
 	var sc: Vector3 = p["scale"]
 	if p.get("mirror", false):
@@ -343,10 +411,13 @@ static func _planters(node: Node3D, p: Dictionary) -> void:
 		_mats["planter"] = wood
 	box.material = _mats["planter"]
 	var seed := int(absf(door.x) * 100.0) + int(p["key"].hash())
-	# on the porch's deck, if the house has one
-	var floor_y := float(p.get("porch", {}).get("y", 0.0))
+	var st: Dictionary = p.get("steps", {})
 	for side in [-1.0, 1.0]:
 		var x: float = door.x + side * (ds.x / 2.0 + 0.48)
+		# on the porch's deck or the stoop, if the house has one there
+		var floor_y := 0.0
+		if not st.is_empty() and x > (st["rect"] as Rect2).position.x and x < (st["rect"] as Rect2).end.x:
+			floor_y = float(st["y"])
 		var b := MeshInstance3D.new()
 		b.mesh = box
 		b.position = Vector3(x, floor_y + 0.12, door.z + 0.16)

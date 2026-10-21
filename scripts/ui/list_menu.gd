@@ -2,7 +2,8 @@ extends "res://scripts/ui/modal.gd"
 ## Keyboard/touch list menu in a window, with a title tab above it. Emits the chosen index, or -1 when cancelled.
 ## items: Array of String or Dictionary {text, right, disabled, desc, icon}
 ## opts: anchor, width, rows, cancel, start, on_focus (Callable), dim, title_size, margin; font_size: the rows' text
-## size (UI units); bare: no box at all, just the options' text, centred and gently pulsing (e.g. a lone "New Game")
+## size (UI units); bare: no box at all: the first option is a big glowing button in the gem, pulsing, with a shine
+## sweeping across it (the title's "New Game"), and any others plain text under it
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
@@ -15,6 +16,13 @@ var desc_label: Label = null
 var _panel: PanelContainer
 var _focus := -1
 var _t := 0.0
+## the bare menu's big button and the face drawn behind its text (see _draw_hero)
+var _hero: Button
+var _hero_face: Control
+## its size in UI units, and how long the shine takes to cross it and then waits
+const HERO_SIZE := Vector2(460, 104)
+const SHINE_EVERY := 2.8
+const SHINE_CROSS := 0.9
 
 
 func setup(_title: String, _items: Array, _opts := {}) -> Control:
@@ -68,15 +76,20 @@ func _ready() -> void:
 	if bare:
 		_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var rows := int(opts.get("rows", 8))
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus = true
-	scroll.custom_minimum_size = Vector2(width, row_h * mini(rows, maxi(1, items.size())) + 2)
-	vb.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 0)
-	scroll.add_child(list)
+	if bare:
+		# nothing to scroll, and the button's glow and pulse reach past its edges (a scroll box would clip them)
+		list.add_theme_constant_override("separation", 14)
+		vb.add_child(list)
+	else:
+		var scroll := ScrollContainer.new()
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.follow_focus = true
+		scroll.custom_minimum_size = Vector2(width, row_h * mini(rows, maxi(1, items.size())) + 2)
+		vb.add_child(scroll)
+		scroll.add_child(list)
 	for i in items.size():
 		var it: Dictionary = items[i]
 		var b := Button.new()
@@ -103,16 +116,7 @@ func _ready() -> void:
 		if font_size > 0:
 			b.add_theme_font_size_override("font_size", UIKit.body_px(font_size))
 		if bare:
-			for st in ["normal", "hover", "pressed", "focus", "hover_pressed", "disabled"]:
-				b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
-			b.alignment = HORIZONTAL_ALIGNMENT_CENTER
-			b.add_theme_constant_override("outline_size", 12)
-			b.add_theme_color_override("font_outline_color", Color("#493333"))
-			for c in ["font_color", "font_focus_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-				b.add_theme_color_override(c, UIKit.LIGHT)
-			var pulse := b.create_tween().set_loops()
-			pulse.tween_property(b, "modulate:a", 0.75, 0.9).set_trans(Tween.TRANS_SINE)
-			pulse.tween_property(b, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_SINE)
+			_bare_button(b, i == 0)
 		b.pressed.connect(_pick.bind(i))
 		b.focus_entered.connect(_focused.bind(i))
 		b.mouse_entered.connect(b.grab_focus)
@@ -133,6 +137,91 @@ func _ready() -> void:
 		list.add_child(UIKit.label("(nothing here)", 20, UIKit.DIM))
 	UIKit.place(outer, opts.get("anchor", "center"), opts.get("margin", Vector2(24, 24)))
 	_grab_start.call_deferred()
+
+
+## A bare menu's option: the first is the big glowing button, the rest plain outlined text (bright when picked).
+func _bare_button(b: Button, hero: bool) -> void:
+	for st in ["normal", "hover", "pressed", "focus", "hover_pressed", "disabled"]:
+		b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.add_theme_color_override("font_outline_color", UIKit.BROWN)
+	if not hero:
+		b.custom_minimum_size.y = UIKit.row_h()
+		b.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BODY_HUGE))
+		b.add_theme_constant_override("outline_size", 10)
+		for c in ["font_color", "font_pressed_color"]:
+			b.add_theme_color_override(c, UIKit.DIM)
+		for c in ["font_focus_color", "font_hover_color", "font_hover_pressed_color"]:
+			b.add_theme_color_override(c, UIKit.LIGHT)
+		return
+	_hero = b
+	b.custom_minimum_size = HERO_SIZE
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.add_theme_constant_override("outline_size", 14)
+	b.add_theme_constant_override("shadow_offset_y", 4)
+	b.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
+	for c in ["font_color", "font_focus_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(c, UIKit.LIGHT)
+	# the face is drawn behind the button's own text
+	_hero_face = Control.new()
+	_hero_face.show_behind_parent = true
+	_hero_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hero_face.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hero_face.draw.connect(_draw_hero)
+	b.add_child(_hero_face)
+	# a slow, gentle swell
+	b.resized.connect(func(): b.pivot_offset = b.size / 2.0)
+	var pulse := b.create_tween().set_loops()
+	pulse.tween_property(b, "scale", Vector2(1.06, 1.06), 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	pulse.tween_property(b, "scale", Vector2.ONE, 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	if _hero_face != null:
+		_hero_face.queue_redraw()
+
+
+## The big button: a soft glow in the gem that breathes with the pulse, a drop shadow, a pill in the gem (light at the
+## top, deep at the bottom) with a glossy upper half, a pale border inside a dark edge, and every few seconds a band
+## of light sweeping across it. Brighter while it's the picked option.
+func _draw_hero() -> void:
+	var rect := Rect2(Vector2.ZERO, _hero_face.size)
+	var r := rect.size.y / 2.0
+	var on := _hero.has_focus() or buttons.size() == 1
+	var breath := 0.5 + 0.5 * sin(_t * TAU / 1.6)
+	var g := UIKit.ACCENT
+	# the gem at its brightest: full value at the top, deep and saturated at the bottom
+	var glow := Color.from_hsv(g.h, g.s * 0.8, 1.0)
+	for i in 7:
+		var grow := 3.0 + float(i) * 6.0 + breath * 7.0
+		var a := (0.30 if on else 0.08) * (1.0 - float(i) / 7.0) * (0.5 + 0.5 * breath)
+		_hero_face.draw_colored_polygon(UIKit.CozyBox._round_rect(rect.grow(grow), r + grow), Color(glow, a))
+	_hero_face.draw_colored_polygon(UIKit.CozyBox._round_rect(Rect2(rect.position + Vector2(0, 7), rect.size), r), Color(0, 0, 0, 0.4))
+	var pill := UIKit.CozyBox._round_rect(rect, r)
+	var top := Color.from_hsv(g.h, g.s * 0.62, 1.0) if on else g.darkened(0.1)
+	var bottom := Color.from_hsv(g.h, minf(1.0, g.s * 1.1), g.v * 0.62) if on else g.darkened(0.6)
+	var cols := PackedColorArray()
+	for q in pill:
+		cols.append(top.lerp(bottom, clampf(q.y / rect.size.y, 0.0, 1.0)))
+	_hero_face.draw_polygon(pill, cols)
+	# gloss across the top half
+	var gloss := UIKit.CozyBox._round_rect(Rect2(rect.position + Vector2(r * 0.5, 5), Vector2(rect.size.x - r, rect.size.y * 0.42)), r * 0.5)
+	_hero_face.draw_colored_polygon(gloss, Color(1, 1, 1, 0.16 if on else 0.07))
+	# the shine: a slanted band of light, cut to the pill's shape
+	var k := fposmod(_t, SHINE_EVERY) / SHINE_CROSS
+	if on and k < 1.0:
+		var x := lerpf(-rect.size.y, rect.size.x + rect.size.y * 0.2, k)
+		var band := PackedVector2Array([Vector2(x, rect.size.y), Vector2(x + rect.size.y * 0.5, 0), Vector2(x + rect.size.y * 0.9, 0), Vector2(x + rect.size.y * 0.4, rect.size.y)])
+		for part in Geometry2D.intersect_polygons(pill, band):
+			_hero_face.draw_colored_polygon(part, Color(1, 1, 1, 0.42))
+	# a dark edge round a thick pale border, so it stands out over anything behind it
+	var edge := UIKit.CozyBox._round_rect(rect.grow(2.0), r + 2.0)
+	edge.append(edge[0])
+	_hero_face.draw_polyline(edge, Color(UIKit.BROWN, 0.9), 3.0, true)
+	var rim := UIKit.CozyBox._round_rect(rect.grow(-2.5), r - 2.5)
+	rim.append(rim[0])
+	_hero_face.draw_polyline(rim, UIKit.BORDER if on else UIKit.DIM, 5.0, true)
 
 
 ## Keeps a button's text clear of its right-hand label.

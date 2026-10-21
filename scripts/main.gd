@@ -16,6 +16,7 @@ const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
+const Ring = preload("res://scripts/core/ring.gd")
 
 ## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
 ## Shows the 3D view, filling the window.
@@ -126,9 +127,11 @@ func _title() -> void:
 		items.append("New Game")
 		if not Prefs.is_mobile():
 			items.append("Quit")
-		# big enough to read across a phone; a lone "New Game" is just its text, with no box round it
-		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 60),
-			"font_size": UIKit.BODY_HUGE if items.size() > 1 else 56, "bare": items.size() == 1})
+		# big enough to read across a phone; with no save yet, "New Game" is a big glowing button with no box round it
+		# (Quit, on desktops, plain text under it)
+		var first := not items.has("Continue")
+		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 70 if first else 60),
+			"font_size": 64 if first else UIKit.BODY_HUGE, "bare": first})
 		var pick: String = items[c]
 		if pick == "Quit":
 			get_tree().quit()
@@ -140,7 +143,9 @@ func _title() -> void:
 			_title_nodes[0].visible = false
 			load_slot = await slot_manager()
 			_title_nodes[0].visible = true
-		if load_slot >= 0 and GameState.load_game(load_slot):
+		if load_slot >= 0 and GameState.slot_outdated(load_slot):
+			UI.toast("That save is from before the new beasts, so it can't be loaded. Start a new game!", UIKit.ACCENT)
+		elif load_slot >= 0 and GameState.load_game(load_slot):
 			_clear_title()
 			UI.allow_pause = true
 			var spawn = GameState.pos if GameState.pos.x >= 0 else "center"
@@ -435,8 +440,6 @@ const SPIRAL_COLORS := {"sneak": Color("#3fbf5a"), "wild": Color("#3f8fe0"), "am
 
 func start_battle(cfg: Dictionary) -> String:
 	in_battle = true
-	# the d-pad comes back for battles (the joystick is for getting about)
-	UI.controls.set_dpad_mode(true)
 	if autoplay:
 		cfg["autoplay"] = true
 	Sfx.play("encounter")
@@ -466,7 +469,6 @@ func start_battle(cfg: Dictionary) -> String:
 	world.refresh_locks()
 	Sfx.music(music_for(world.map_id))
 	in_battle = false
-	UI.controls.set_dpad_mode(false)
 	GameState.recharge_shield()
 	if result == "lose":
 		GameState.heal_party()
@@ -506,7 +508,8 @@ func _run_test() -> void:
 	GameState.set_flag("reed_flute")
 	GameState.learn_song("weaken")
 	GameState.learn_song("capture3")
-	for r in [1, 12, 24]:
+	# a Pricklet, a Clawlet and a Grubbit: fire, water and earth (none of Cocoon Cove's dino line, for --scene=mascot)
+	for r in [3, 24, 12]:
 		var b := Beasts.create(r, 12)
 		GameState.add_beast(b)
 	if scene.begins_with("world:"):
@@ -532,12 +535,14 @@ func _run_test() -> void:
 	elif scene == "battle":
 		_do_goto("route3", "south")
 		await get_tree().create_timer(1.0).timeout
-		var foes := [Beasts.create(13, 10), Beasts.create(36, 11), Beasts.create(7, 12, true)]
+		var foes := [Beasts.create(27, 10), Beasts.create(30, 11), Beasts.create(9, 12, true)]
 		if _test.get("kind", "") == "robots":
-			foes = [Beasts.create(53, 12), Beasts.create(54, 12), Beasts.create(55, 12)]
+			foes = [Beasts.create(44, 12), Beasts.create(45, 12), Beasts.create(46, 12)]
 			start_battle({"wild": false, "foes": foes, "seed": 5, "trainer": {"name": "Gearhart", "cls": "CEO", "look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}})
 		else:
 			start_battle({"wild": true, "foes": foes, "seed": 5})
+		# (--keys: pressed once the command panel is up, as for --scene=ring)
+		await _battle_keys()
 		await get_tree().create_timer(wait).timeout
 	elif scene == "ring":
 		# a trainer battle on the ring, driven by key presses once the command panel is up:
@@ -545,31 +550,26 @@ func _run_test() -> void:
 		_do_goto("route3", "south")
 		await _wait(1.0)
 		var flv := int(_test.get("foe_level", "10"))
-		var team := [Beasts.create(13, flv), Beasts.create(16, flv + 1), Beasts.create(23, flv), Beasts.create(20, flv - 1), Beasts.create(12, flv)]
+		# water beasts (the worm, earth and water, too)
+		var team := [Beasts.create(27, flv), Beasts.create(24, flv + 1), Beasts.create(21, flv), Beasts.create(27, flv - 1), Beasts.create(24, flv)]
 		if _test.get("kind", "") == "wild":
-			start_battle({"wild": true, "foes": [Beasts.create(13, 10), Beasts.create(36, 11)], "seed": 5})
+			start_battle({"wild": true, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5})
 		else:
 			start_battle({"wild": false, "foes": team, "seed": 5, "trainer": {"name": "Marina", "cls": "Swimmer", "shield": int(_test.get("foe_shield", "1")),
 				"look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}})
-		var tries := 0
-		while tries < 400 and not (UI.stack.size() > 0 and UI.stack.back().get_script() == load(PANEL_PATH)):
-			await get_tree().process_frame
-			tries += 1
-		for k in String(_test.get("keys", "")).split(",", false):
-			await _press({"a": "ui_accept", "b": "ui_cancel", "l": "ui_left", "r": "ui_right", "u": "ui_up", "d": "ui_down"}.get(k, "ui_accept"))
-			await _wait(float(_test.get("gap", "0.4")))
+		await _battle_keys()
 		await _wait(wait)
 	elif scene == "defeat":
 		# a foe vanishing in a puff of smoke, with a damage number on its partner (--at = seconds after the puff)
 		_do_goto("route3", "south")
 		await _wait(1.0)
-		start_battle({"wild": true, "foes": [Beasts.create(13, 10), Beasts.create(36, 11)], "seed": 5})
+		start_battle({"wild": true, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5})
 		await _wait(2.5)
 		var bt: Node = null
 		for c in view.get_children():
 			if c.get_script() == load(BATTLE_PATH):
 				bt = c
-		bt.msg_label.text = "Emberkit gained 27 XP. Redcoon grew to Lv 13!"
+		bt.msg_label.text = "Pricklet gained 27 XP. Grubbit grew to Lv 13!"
 		bt.foe_slots[0].hp = 0
 		bt._handle_faints()
 		bt._float_text(bt.foe_slots[1], "-27", Color("#ffe060"))
@@ -604,17 +604,17 @@ func _run_test() -> void:
 			GameState.heal_party()
 			var foes2 := []
 			for k in randi_range(1, 3):
-				foes2.append(Beasts.create(randi_range(0, 47), randi_range(9, 14), randf() < 0.3))
+				foes2.append(Beasts.create(randi_range(0, RaceDB.NORMAL_COUNT - 1), randi_range(9, 14), randf() < 0.3))
 			var r: String = await start_battle({"wild": i % 2 == 0, "foes": foes2, "autoplay": true, "trainer": {"name": "Sim", "cls": "Bot"}})
 			tally[r] = tally.get(r, 0) + 1
 			print("battle ", i, ": ", r, "  party lv ", GameState.party.map(func(x): return x.level))
 		print("SIM RESULTS ", tally)
-		# merge checks
-		var a := Beasts.create(1, 20)
-		var b2 := Beasts.create(36, 20)
+		# merge checks: final forms at their level limit (Lv 40 at rank 1), a fire one and an air one
+		var a := Beasts.create(0, 40)
+		var b2 := Beasts.create(30, 40)
 		var m := Beasts.merge(a, b2, true)
-		print("merge: ", m.nickname, " rank ", m.rank, " lv ", m.level, " el ", m.element, " moves ", m.moves, " genes ", m.genes)
-		var g := Beasts.create(5, 20, true)
+		print("merge: ", m.nickname, " rank ", m.rank, " lv ", m.level, " el ", m.element_text(), " moves ", m.moves, " genes ", m.genes)
+		var g := Beasts.create(6, 40, true)
 		print("ghost merge allowed? ", Beasts.can_merge(m, g, false), " | ", Beasts.can_merge(a, g, true))
 		print("capture chance lv5 Capture III acc1 full hp: ", GameState.capture_chance(Beasts.create(0, 5), "capture3", 1.0))
 		Engine.time_scale = 1.0
@@ -722,7 +722,7 @@ func _run_test() -> void:
 						print("  after the guard falls: locked=%s" % b.get("locked", false))
 		UI.auto = false
 	elif scene == "skytower":
-		# into the Sky Tower, a word at the ticket desk, up the stairs to the roof and away on the Thunderhawk
+		# into the Sky Tower, a word at the ticket desk, up the stairs to the roof and away on the Tempestrix
 		UI.auto = true
 		GameState.visited = ["caccoon", "tidewater"]
 		GameState.gold = 500
@@ -776,11 +776,11 @@ func _run_test() -> void:
 		GameState.crests = ["Wave Crest", "Coral Crest", "Spur Crest"]
 		GameState.learn_song("jig")
 		GameState.learn_song("lullaby")
-		GameState.add_egg(14)
+		GameState.add_egg(27)
 		for id in ["potion", "fire_bomb", "haste_tonic", "power_collar", "sheet_hymn", "silver_flute"]:
 			GameState.add_item(id, 2)
-		var m := Beasts.merge(Beasts.create(1, 20), Beasts.create(36, 20))
-		m.level = 24
+		var m := Beasts.merge(Beasts.create(0, 40), Beasts.create(30, 40))
+		m.level = 44
 		GameState.beast_slots = 4
 		GameState.add_beast(m)
 		for i in 10:
@@ -791,34 +791,28 @@ func _run_test() -> void:
 			_press("ui_down")
 			await _wait(0.12)
 		await _wait(wait)
-	elif scene == "walk8":
-		# eight-way walking: two arrows at once, then the touch joystick (needs --touch) pushed half way and all the way
-		_do_goto("caccoon", "start")
-		await _wait(1.5)
-		var p0: Vector2i = world.player_pos
-		Input.action_press("move_right")
-		Input.action_press("move_down")
-		await _wait(0.6)
-		Input.action_release("move_right")
-		Input.action_release("move_down")
-		await _wait(0.4)
-		print("keys right+down: from ", p0, " to ", world.player_pos, "  facing ", world.facing)
-		var c: Vector2 = UI.controls._stick_centre()
-		# touches arrive in window pixels; the overlay works in the stretched view
-		var to_window := Vector2(get_window().size) / get_viewport().get_visible_rect().size
-		for push in [0.5, 1.0]:
-			var at: Vector2 = c + Vector2(-1, -1).normalized() * float(UI.controls.STICK_REACH) * float(push)
-			var t := InputEventScreenTouch.new()
-			t.pressed = true
-			t.position = at * to_window
-			Input.parse_input_event(t)
-			await _wait(0.7)
-			print("stick up-left pushed ", push, ": pace ", snappedf(world.move_speed, 0.01), "  at ", world.player_pos, "  facing ", world.facing)
-			var r := InputEventScreenTouch.new()
-			r.position = at * to_window
-			Input.parse_input_event(r)
-			await _wait(0.5)
+	elif scene == "walk4":
+		# four-way walking on the grid (--touch adds the d-pad): two keys at once, a change of way mid-step, the
+		# gamepad's d-pad and stick, B to run, tap to walk and a porch's raised deck; every stop must be on a tile centre
+		await _walk4_test()
 		await _wait(wait)
+	elif scene == "coaches":
+		# the teachers stop you: a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one,
+		# and every teacher must spot them and give their lesson
+		await _coaches_test()
+	elif scene == "mascot":
+		# each town's mascot and its signature move: the move's rules, then teaching it (Lv 39: not yet; Lv 40: yes),
+		# another race, and a merge. With --plaque (rendered): reads the statue's plaque on screen instead.
+		if _test.has("plaque"):
+			_do_goto("caccoon", Vector2i(17, 12), Vector2i(0, -1))
+			await _wait(1.5)
+			world._interact()
+			for i in int(_test.get("pages", "2")):
+				await _wait(0.8)
+				_press("ui_accept")
+			await _wait(wait)
+		else:
+			await _mascot_test()
 	elif scene == "flutelesson":
 		# the first lone wild beast after Uncle Rafe's lessons: Weaken, then Capture (played by the autoplay)
 		GameState.set_flag("flute_lesson_done", false)
@@ -829,39 +823,72 @@ func _run_test() -> void:
 		UI.auto = true
 		UI.auto_flute = [{"acc": 0.8, "mistakes": 0}]
 		var before := GameState.party.size() + GameState.storage.size()
-		var res: String = await Story.wild_battle(world, [Beasts.create(21, 3)], "wild")
+		var res: String = await Story.wild_battle(world, [Beasts.create(27, 3)], "wild")
 		print("flute lesson: result ", res, "  done ", GameState.flag("flute_lesson_done"), "  beasts before ", before, " after ", GameState.party.size() + GameState.storage.size())
 		for l in UI.auto_log:
 			if l.begins_with("[menu]"):
 				print("   ", l)
 	elif scene == "tutorial":
-		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring
-		GameState.party = [Beasts.create(1, 1)]
+		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring, or
+		# Tidewater's arena coaches: team|elements (--egg=race: the hatchling's race, e.g. 12 for an earth one)
+		GameState.party = [Beasts.create(int(_test.get("egg", "0")), 1)]
+		GameState.fix_ring()
+		GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
+		if _test.get("lesson", "") == "elements":
+			GameState.set_flag("lesson_team")
 		GameState.party[0].heal_full()
 		GameState.gear["flute"] = ""
 		GameState.set_flag("tutorial_done", false)
-		_do_goto("route1", "west")
+		var spot := _teacher_spot(String(_test.get("lesson", "screen")))
+		# (Youngster Kit and the arena's coaches stop you as you come in, so their lessons begin by themselves)
+		UI.auto = _test.get("auto", "0") == "1"
+		_do_goto(spot[0], spot[1])
 		await _wait(1.5)
 		var teacher := _lesson_trainer(String(_test.get("lesson", "screen")))
-		if _test.get("auto", "0") == "1":
-			UI.auto = true
-			await Story.talk(world, teacher)
+		var begun: bool = world.busy or in_battle
+		if UI.auto:
+			while world.busy or in_battle:
+				await _wait(0.2)
+			if not begun:
+				await Story.talk(world, teacher)
 			print("lesson result: won=", GameState.flag(teacher.get("flag", "")), " level=", GameState.party[0].level, " hp=", GameState.party[0].hp, "/", GameState.party[0].max_hp())
 			for l in UI.auto_log:
 				if l.begins_with("[menu]"):
 					print("   ", l)
 		else:
-			Story.talk(world, teacher)
+			if not begun:
+				Story.talk(world, teacher)
+			await _battle_keys()
+			await _wait(wait)
 			for i in int(_test.get("presses", "6")):
 				await _wait(0.7)
 				_press("ui_accept")
 			await _wait(wait)
+	elif scene == "battlecmd":
+		# the command panel played with keys and a touch A (--stop=arc|all|move: stop there for a screenshot)
+		await _battlecmd_test()
+		await _wait(wait)
+	elif scene == "ringedit":
+		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
+		await _ringedit_test()
+		await _wait(wait)
+	elif scene == "lessons":
+		# every guided battle played by a button masher: one thing to pick on every bar and in every menu, your beasts
+		# never down, and every lesson won
+		await _lessons_test()
+	elif scene == "newbeasts":
+		# the new beasts side by side: a column per line, its stages down it (--lines=dino,owl,..., --stages=1,3,
+		# --anim=idle|walk|lie|attack (--at: a screenshot that long into the first attack), --ghost=1, --view=three|
+		# side|front, --yaw, --zoom, --centre (raise the view's centre); --merge=dino_3+owl_3,... (--seeds=1,2,3): a
+		# row per pair, with their merges)
+		await _newbeasts_test()
+		await _wait(wait)
 	elif scene == "capture":
 		UI.auto = true
 		GameState.songs = []
 		GameState.gear["flute"] = ""
 		GameState.set_flag("reed_flute", false)
-		GameState.party = [Beasts.create(1, 2)]
+		GameState.party = [Beasts.create(0, 2)]
 		await _do_goto("tidewater", "west")
 		await _wait(0.5)
 		var arena := _bld("arena")
@@ -871,9 +898,9 @@ func _run_test() -> void:
 		print("uncle: fail Weaken and give up -> done: ", await Story.uncle_lessons(), "  flute ", GameState.has_flute(), "  songs ", GameState.songs)
 		print("uncle again, pass both -> done: ", await Story.uncle_lessons(), "  songs ", GameState.songs)
 		print("arena with a flute -> allowed: ", await Story.can_enter(world, arena))
-		var weak := Beasts.create(0, 2)
-		var strong := Beasts.create(0, 3)
-		var too_big := Beasts.create(0, 6)
+		var weak := Beasts.create(6, 2)
+		var strong := Beasts.create(6, 3)
+		var too_big := Beasts.create(6, 6)
 		print("best beast Lv", GameState.best_level(), "  Capture cap ", GameState.capture_cap())
 		print("Lv2 target, 90%%, 2 mistakes: %.2f" % GameState.capture_chance(weak, "capture1", 0.9, 2))
 		print("Lv3 target (stronger than yours), 2 mistakes: %.2f   flawless: %.2f" % [GameState.capture_chance(strong, "capture1", 0.9, 2), GameState.capture_chance(strong, "capture1", 1.0, 0)])
@@ -1087,7 +1114,7 @@ func _run_test() -> void:
 		print("tapped the Beast Center building -> now in ", world.map_id)
 	elif scene == "puzzles":
 		UI.auto = true
-		# route1: the washed-out footbridge, rebuilt one log at a time
+		# route1: the washed-out footbridge, mended with the logs Youngster Kit hands over after his lesson
 		await _go("route1", "west")
 		await _wait(1.0)
 		var bridge_at := Vector2i(-1, -1)
@@ -1096,18 +1123,19 @@ func _run_test() -> void:
 				bridge_at = t
 		var bridge_grp: Dictionary = world.map["obstacles"][bridge_at]
 		await Story.field_move(world, bridge_grp)
-		var logs: Array = world.items.values().filter(func(it): return it["item"] == "bridge_log")
-		print("logs lying along the path: ", logs.size(), " ", logs.map(func(it): return it["pos"]))
-		await world._pickup(logs[0])
-		await world._pickup(logs[1])
-		UI.auto_answers = [0, 0, 0]
+		print("logs lying along the path: ", world.items.values().filter(func(it): return it["item"] == "bridge_log").size(),
+			"  logs Kit would give: ", Story.logs_missing())
+		# (an older save: two logs found along the path before Kit kept them)
+		GameState.add_item("bridge_log", 2)
+		UI.auto_answers = [0]
 		await Story.field_move(world, bridge_grp)
-		print("two logs placed: ", GameState.flags.get(bridge_grp["flag"] + "_logs", 0), "  fixed: ", GameState.flag(bridge_grp["flag"]))
-		for it in logs.slice(2):
-			await world._pickup(it)
-		UI.auto_answers = [0, 0, 0, 0]
+		print("two logs placed: ", GameState.flags.get(bridge_grp["flag"] + "_logs", 0), "  fixed: ", GameState.flag(bridge_grp["flag"]),
+			"  Kit makes up the rest: ", Story.logs_missing())
+		Story._give({"bridge_log": 5})
+		UI.auto_answers = [0]
 		await Story.field_move(world, bridge_grp)
-		print("bridge with five logs fixed: ", GameState.flag(bridge_grp["flag"]), "  tile now walkable: ", world._walkable(bridge_at))
+		print("bridge with five logs fixed: ", GameState.flag(bridge_grp["flag"]), "  tile now walkable: ", world._walkable(bridge_at),
+			"  logs left over: ", GameState.item_count("bridge_log"))
 		if _test.has("shot"):
 			world.player_pos = bridge_at + Vector2i(-2, 0)
 			world.player.position = world.tile_pos(world.player_pos)
@@ -1119,10 +1147,11 @@ func _run_test() -> void:
 		var cliff: Dictionary = world.map["obstacles"][Vector2i(15, 21)]
 		await Story.field_move(world, cliff)
 		print("cliff without wings: ", GameState.flag(cliff["flag"]))
-		GameState.party.append(Beasts.create(36, 12))
+		# a Hootlet: the owls are flyers
+		GameState.party.append(Beasts.create(30, 12))
 		UI.auto_answers = [0]
 		await Story.field_move(world, cliff)
-		print("cliff with a Zephyrling: ", GameState.flag(cliff["flag"]), "  rope walkable: ", world._walkable(Vector2i(15, 20)))
+		print("cliff with a Hootlet: ", GameState.flag(cliff["flag"]), "  rope walkable: ", world._walkable(Vector2i(15, 20)))
 		# route4: push the boulders, following the solver's moves
 		await _go("route4", "south")
 		await _wait(1.0)
@@ -1232,8 +1261,8 @@ func _run_test() -> void:
 	elif scene == "view":
 		_do_goto("caccoon", "start")
 		await get_tree().create_timer(1.0).timeout
-		var a = GameState.party[0]
-		var c := Beasts.merge(a, GameState.party[1], true)
+		# a Pyrosaur and a Tempestrix, final forms at their level limit
+		var c := Beasts.merge(Beasts.create(0, 40), Beasts.create(30, 40), true)
 		UI.show_beast(c, "A new beast is born!")
 		await get_tree().create_timer(wait).timeout
 	if _test.has("shot"):
@@ -1263,7 +1292,19 @@ func _npc(id: String) -> Dictionary:
 	return {}
 
 
-## The Coastal Path teacher who gives `lesson` (see Story.LESSON_TRAINERS).
+## Where the teacher who gives `lesson` stands: [map, spawn] (the Coastal Path, Youngster Kit's cabin, or for the
+## coaches' lessons the arena of their town).
+func _teacher_spot(lesson: String) -> Array:
+	for t in Story.ARENA_LESSONS:
+		if t["lesson"] == lesson:
+			return [MapLoader.interior_of(String(t["town"]), "arena"), "entry"]
+	for t in Story.LESSON_TRAINERS:
+		if t["lesson"] == lesson and not MapLoader.load_map("route1", {})["anchors"].has(t["anchor"]):
+			return [MapLoader.interior_of("route1", "cabin"), "entry"]
+	return ["route1", "west"]
+
+
+## The teacher who gives `lesson` (see Story.LESSON_TRAINERS and ARENA_LESSONS).
 func _lesson_trainer(lesson: String) -> Dictionary:
 	for p in world.npcs:
 		if world.npcs[p].get("lesson", "") == lesson:
@@ -1317,8 +1358,28 @@ func _flow_test() -> void:
 		"  wild beasts before the flute: ", world.wilds.size())
 	for t in Story.LESSON_TRAINERS:
 		_step("Coastal Path lesson: " + String(t["lesson"]), [])
-		await Story.talk(world, _lesson_trainer(String(t["lesson"])))
+		var spot := _teacher_spot(String(t["lesson"]))
+		if world.map_id != spot[0]:
+			await _go(spot[0], spot[1])
+			await _wait(1.0)
+		# (Youngster Kit stops you at his door; the others are talked to here: --scene=coaches walks the path)
+		if GameState.flag("lesson_" + String(t["lesson"])):
+			print(t["name"], " stopped you as you came in")
+		else:
+			await Story.talk(world, _lesson_trainer(String(t["lesson"])))
 		await _wait(0.5)
+		if t["lesson"] == "slingshot":
+			# Kit's logs, laid across the footbridge just outside his cabin
+			print("Kit's logs: ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
+			await _go("route1", "west")
+			await _wait(1.0)
+			for q in world.map["obstacles"]:
+				var bridge: Dictionary = world.map["obstacles"][q]
+				if bridge["kind"] == "broken_bridge":
+					UI.auto_answers = [0]
+					await Story.field_move(world, bridge)
+					print("footbridge mended: ", GameState.flag(bridge["flag"]), "  logs left ", GameState.item_count("bridge_log"), "  hint: ", Story.next_goal())
+					break
 	print("after the lessons: tutorial_done ", GameState.flag("tutorial_done"), "  starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level,
 		"  minor potions ", GameState.item_count("minor_potion"), "  hint: ", Story.next_goal())
 	_step("wild battle at Lv1", [])
@@ -1343,7 +1404,7 @@ func _flow_test() -> void:
 	_pending_goto = {}
 	GameState.heal_party()
 	GameState.gold = 99999
-	for r in [3, 14, 27, 40]:
+	for r in [6, 27, 15, 33]:
 		GameState.add_beast(Beasts.create(r, 20))
 	print("starting songs: ", GameState.songs)
 	await _go("route1", "west")
@@ -1390,6 +1451,24 @@ func _flow_test() -> void:
 	print("after sky tower: ", world.map_id, " at ", world.player_pos)
 	await _go("tidewater", "dock")
 	await _wait(1.5)
+	_step("ferry before the Wave Crest", [0])
+	await Story.talk(world, _npc("ferry"))
+	await _wait(1.0)
+	print("still in ", world.map_id, "  hint: ", Story.next_goal())
+	_step("arena: Coach Rory, Coach Ondine, then Tide Captain Marina", [])
+	await Places.leader_talk(_bld("arena"))
+	print("Marina before the lessons: ", UI.auto_log.back(), "  crest ", GameState.crests.has("Wave Crest"))
+	print("  the host's Challenge before the lessons: ", await Places.arena_challenge("tidewater"))
+	# walking in, Coach Rory stops you at the door, and Coach Ondine right after him
+	await _go(MapLoader.interior_of("tidewater", "arena"), "entry")
+	await _wait(1.0)
+	for l in ["team", "elements"]:
+		print("  lesson ", l, ": done ", GameState.flag("lesson_" + l))
+	print("arena lessons done: ", Story.arena_lessons_done("tidewater"), "  hint: ", Story.next_goal())
+	GameState.heal_party()
+	print("Marina: ", await Places.arena_challenge("tidewater"), "  Wave Crest ", GameState.crests.has("Wave Crest"), "  hint: ", Story.next_goal())
+	await _go("tidewater", "dock")
+	await _wait(1.5)
 	_step("ferry", [0])
 	await Story.talk(world, _npc("ferry"))
 	await _wait(2.0)
@@ -1421,7 +1500,10 @@ func _flow_test() -> void:
 	for p in world.npcs:
 		if world.npcs[p].get("kind", "") == "guardian":
 			for b in GameState.party:
+				# (and grown into the form Lv 40 gives, as levelling up would have)
 				b.level = 40
+				if RaceDB.for_level(b.race, b.level) != b.race:
+					b.evolve(RaceDB.for_level(b.race, b.level))
 				b.heal_full()
 			_step("water guardian", [])
 			await Story.talk(world, world.npcs[p])
@@ -1441,9 +1523,9 @@ func _flow_test() -> void:
 			leg = b
 	print("legendary hatched: ", leg.nickname if leg != null else "none")
 	if leg != null:
-		leg.level = 20
+		leg.level = 40
 		var other = GameState.party.filter(func(x): return x != leg)[0]
-		other.level = 20
+		other.level = 40
 		var child := Beasts.merge(leg, other)
 		print("80/20 merge: ", child.nickname, " race ", RaceDB.race_name(child.race), " el ", child.element)
 	await _go("sundown", "center")
@@ -1509,7 +1591,7 @@ func _flow_test() -> void:
 	_step("gravedigger", [])
 	await Story.talk(world, _npc("gravedigger"))
 	GameState.party = []
-	for r in [7, 18, 31, 42, 3, 22]:
+	for r in [9, 27, 18, 33, 6, 24]:
 		GameState.party.append(Beasts.create(r, 72))
 	for n3 in world.npcs.values().duplicate():
 		if n3.get("flag", "") == "tr_gravenmoor_gate":
@@ -1528,12 +1610,12 @@ func _flow_test() -> void:
 	await Story.talk(world, _npc("vexmora"))
 	print("game_cleared=", GameState.flag("game_cleared"))
 	_step("shield loss battle", [])
-	GameState.party = [Beasts.create(1, 2)]
+	GameState.party = [Beasts.create(0, 2)]
 	GameState.max_shield = 1
 	GameState.recharge_shield()
 	await _go("route10", "west")
 	await _wait(1.5)
-	var r: String = await start_battle({"wild": true, "foes": [Beasts.create(23, 40)], "seed": 3})
+	var r: String = await start_battle({"wild": true, "foes": [Beasts.create(21, 40)], "seed": 3})
 	await _wait(2.0)
 	print("hopeless battle -> ", r, "  now at ", world.map_id if world else "?", "  shield ", GameState.shield, "/", GameState.max_shield)
 	_step("save/load", [])
@@ -1546,6 +1628,878 @@ func _flow_test() -> void:
 		print("   ", l)
 	print("FLOW TEST DONE")
 	Engine.time_scale = 1.0
+
+
+## The four-way walking test (--scene=walk4): prints each check and a count of problems at the end.
+func _walk4_test() -> void:
+	_do_goto("caccoon", "start")
+	await _wait(1.5)
+	var w = world
+	var bad := [0]
+	# every frame: someone walking the grid is always on a tile's middle line across one axis or the other
+	var watch := func():
+		if not is_instance_valid(w) or not w.is_inside_tree():
+			return
+		var pos: Vector3 = w.player.position
+		if absf(fposmod(pos.x, 1.0) - 0.5) > 0.01 and absf(fposmod(pos.z, 1.0) - 0.5) > 0.01:
+			bad[0] += 1
+			print("  OFF THE GRID at ", pos)
+	get_tree().process_frame.connect(watch)
+	# open ground east of the plaza
+	var start := Vector2i(22, 10)
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	var check := func(what: String, want: Vector2i) -> void:
+		# (the world sees a key a frame after it's pressed)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		for i in 100:
+			if not w.moving:
+				break
+			await get_tree().process_frame
+		var at: Vector2i = w.player_pos
+		var centred: bool = not w.moving and (w.player.position as Vector3).is_equal_approx(w.tile_pos(at))
+		var four: bool = absi(w.facing.x) + absi(w.facing.y) == 1
+		var ok: bool = centred and four and (want.x == -999 or at == want)
+		if not ok:
+			bad[0] += 1
+		print("%s %s: at %s%s, facing %s, on the tile's centre %s" % ["ok  " if ok else "FAIL", what, at, "" if want.x == -999 or at == want else " (wanted %s)" % want, w.facing, centred])
+	# two keys pressed together: one of the four ways, never a diagonal
+	Input.action_press("move_right")
+	Input.action_press("move_down")
+	await _wait(0.45)
+	Input.action_release("move_right")
+	Input.action_release("move_down")
+	await check.call("keys right+down together", Vector2i(-999, -999))
+	var p: Vector2i = w.player_pos
+	var straight: bool = p.x == start.x or p.y == start.y
+	if not straight:
+		bad[0] += 1
+	print("%s   ... walked straight from %s to %s" % ["ok  " if straight else "FAIL", start, p])
+	# holding right, then down too: keep going right; let go of right: down
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	Input.action_press("move_right")
+	await _wait(0.25)
+	Input.action_press("move_down")
+	await _wait(0.4)
+	var mid: Vector2i = w.player_pos
+	var kept: bool = mid.y == start.y and mid.x > start.x
+	if not kept:
+		bad[0] += 1
+	print("%s right held, then down too: still going right (at %s)" % ["ok  " if kept else "FAIL", mid])
+	Input.action_release("move_right")
+	await _wait(0.3)
+	Input.action_release("move_down")
+	await check.call("let go of right, down takes over", Vector2i(-999, -999))
+	var turned: bool = w.player_pos.y > mid.y
+	if not turned:
+		bad[0] += 1
+	print("%s   ... then went down (at %s)" % ["ok  " if turned else "FAIL", w.player_pos])
+	# the briefest tap still makes one whole step
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	await _press("move_right")
+	await check.call("a one-frame tap right", start + Vector2i(1, 0))
+	# a change of way part way through a step: the step finishes first
+	start = w.player_pos
+	Input.action_press("move_up")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	Input.action_release("move_up")
+	Input.action_press("move_left")
+	await _wait(0.05)
+	Input.action_release("move_left")
+	await check.call("up, switched to left mid-step", Vector2i(-999, -999))
+	var finished: bool = w.player_pos.y == start.y - 1
+	if not finished:
+		bad[0] += 1
+	print("%s   ... the step up finished first (at %s)" % ["ok  " if finished else "FAIL", w.player_pos])
+	# the gamepad's d-pad
+	var jb := InputEventJoypadButton.new()
+	jb.button_index = JOY_BUTTON_DPAD_DOWN
+	jb.pressed = true
+	Input.parse_input_event(jb)
+	await _wait(0.3)
+	var jb2 := InputEventJoypadButton.new()
+	jb2.button_index = JOY_BUTTON_DPAD_DOWN
+	Input.parse_input_event(jb2)
+	await check.call("gamepad d-pad down", Vector2i(-999, -999))
+	# the gamepad's left stick pushed between right and down (mostly right): right only
+	p = w.player_pos
+	for ax in [[JOY_AXIS_LEFT_X, 0.8], [JOY_AXIS_LEFT_Y, 0.55]]:
+		var jm := InputEventJoypadMotion.new()
+		jm.axis = ax[0]
+		jm.axis_value = ax[1]
+		Input.parse_input_event(jm)
+	await _wait(0.4)
+	for ax in [JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y]:
+		var jm2 := InputEventJoypadMotion.new()
+		jm2.axis = ax
+		jm2.axis_value = 0.0
+		Input.parse_input_event(jm2)
+	await check.call("gamepad stick right and a little down", Vector2i(-999, -999))
+	var stick_ok: bool = w.player_pos.y == p.y and w.player_pos.x > p.x
+	if not stick_ok:
+		bad[0] += 1
+	print("%s   ... went right only (%s to %s)" % ["ok  " if stick_ok else "FAIL", p, w.player_pos])
+	# B held: a run
+	start = Vector2i(22, 10)
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	Input.action_press("run")
+	Input.action_press("move_right")
+	await _wait(0.2)
+	var pace: float = w.move_speed
+	Input.action_release("move_right")
+	Input.action_release("run")
+	await check.call("running right (pace %.1f)" % pace, Vector2i(-999, -999))
+	if pace < 7.0:
+		bad[0] += 1
+		print("FAIL   ... B held should run")
+	# the touch d-pad
+	if UI.is_touch():
+		var to_window := Vector2(get_window().size) / get_viewport().get_visible_rect().size
+		var arm: float = UI.controls.ARM
+		var right_btn: TouchScreenButton = UI.controls._buttons["right"]
+		w.player_pos = start
+		w.player.position = w.tile_pos(start)
+		var at: Vector2 = right_btn.position + Vector2(arm, arm) / 2.0
+		_touch(at * to_window, true)
+		await _wait(0.35)
+		_touch(at * to_window, false)
+		await check.call("touch d-pad: right arm", Vector2i(-999, -999))
+		# a thumb on the corner between up and right holds just one of them
+		var up_btn: TouchScreenButton = UI.controls._buttons["up"]
+		var corner: Vector2 = up_btn.position + Vector2(arm + 4.0, arm - 4.0)
+		_touch(corner * to_window, true)
+		await get_tree().process_frame
+		var both: bool = Input.is_action_pressed("move_up") and Input.is_action_pressed("move_right")
+		var one: bool = Input.is_action_pressed("move_up") or Input.is_action_pressed("move_right")
+		await _wait(0.3)
+		_touch(corner * to_window, false)
+		if both or not one:
+			bad[0] += 1
+		print("%s touch d-pad: a thumb between up and right holds one arrow (up %s, right %s)" % ["ok  " if one and not both else "FAIL",
+			Input.is_action_pressed("move_up"), Input.is_action_pressed("move_right")])
+		await check.call("   ... and walks one way", Vector2i(-999, -999))
+	# tap to walk, a few tiles away round a corner
+	w.player_pos = start
+	w.player.position = w.tile_pos(start)
+	await _wait(0.2)
+	var goal := start + Vector2i(3, 2)
+	w.tap_at(w.cam.unproject_position(w.tile_pos(goal)))
+	for i in 60:
+		await _wait(0.1)
+		if w._path.is_empty() and not w.moving:
+			break
+	await check.call("tap to walk to %s" % goal, goal)
+	# a porch's raised deck: walk up onto it and off again
+	var decks: Array = w.ground_h.keys().filter(func(t): return float(w.ground_h[t]) > 0.0 and w._walkable(t))
+	if decks.is_empty():
+		print("(no raised porch on this map)")
+	else:
+		var deck: Vector2i = decks[0]
+		await _walk_test([deck])
+		await check.call("onto a porch deck at height %.2f" % float(w.ground_h[deck]), deck)
+		var y_ok: bool = is_equal_approx(w.player.position.y, float(w.ground_h[deck]))
+		if not y_ok:
+			bad[0] += 1
+		print("%s   ... standing on the deck (y %.2f)" % ["ok  " if y_ok else "FAIL", w.player.position.y])
+		await _walk_test([deck + Vector2i(0, 2)])
+		await check.call("off the deck again", deck + Vector2i(0, 2))
+	get_tree().process_frame.disconnect(watch)
+	print("WALK TEST DONE: %d problem(s)" % bad[0])
+
+
+## A finger touching (or lifting off) the screen at `at` (window pixels).
+func _touch(at: Vector2, down: bool) -> void:
+	var t := InputEventScreenTouch.new()
+	t.pressed = down
+	t.position = at
+	Input.parse_input_event(t)
+
+
+## --scene=battlecmd: a trainer battle's command panel played with the keys and a touch A, your fire beasts on the
+## ring's fire side (top corner, middle) and an air one on its fire / air corner, and the ring last turned to the air
+## side: the battle turns it round to a side with a beast standing in its middle; one tap of A confirms once; your
+## own action, then each beast from the top, has its move and then its target confirmed (one target still has it
+## picked out, with its card and an arc; a move that hits them all shows them all); ▲ on your own bar turns the ring;
+## Move's rules (the beast in the middle can't leave it, a corner beast steps into a fallen one's place or over to
+## another side, which then faces the foe; one beast moves each round); and with everyone facing the foe down, the
+## ring turns by itself. --stop=arc|all|move stops at that moment (for --shot). Prints "BATTLE COMMANDS DONE: n".
+func _battlecmd_test() -> void:
+	Engine.time_scale = 2.0
+	_do_goto("route1", "west")
+	await _wait(1.5)
+	var bad := [0]
+	var check := func(ok: bool, what: String) -> void:
+		if not ok:
+			bad[0] += 1
+		print("%s %s" % ["ok  " if ok else "FAIL", what])
+	var stop := String(_test.get("stop", ""))
+	var fire_a := Beasts.create(0, 20)
+	var fire_b := Beasts.create(3, 20)
+	var air_c := Beasts.create(30, 20)
+	var water := Beasts.create(24, 20)
+	fire_b.moves.append("fire_spin")
+	# (sturdy, so none of them falls by chance before the test downs it)
+	for b in [fire_a, fire_b, air_c]:
+		b.base["hp"] = float(b.base["hp"]) * 4.0
+		b.hp = b.max_hp()
+	GameState.beast_slots = 4
+	GameState.party = [fire_a, fire_b, air_c, water]
+	fire_a.slot = 7
+	fire_b.slot = 0
+	air_c.slot = 1
+	water.slot = 4
+	water.hp = 0
+	GameState.storage = []
+	GameState.ring_side = 1
+	GameState.max_shield = 4
+	GameState.shield = 4
+	var foes := [Beasts.create(12, 20), Beasts.create(15, 20)]
+	start_battle({"wild": false, "foes": foes, "trainer": {"name": "Tess", "cls": "Tester", "team": []}, "seed": 7})
+	var bt: Node = null
+	var heal_foes := [true]
+	var panel := func():
+		# the next command panel, with the foes healed (so the test's battle lasts)
+		for i in 3000:
+			var top = UI.stack.back() if not UI.stack.is_empty() else null
+			if top != null and top.get_script() == load(PANEL_PATH) and not top.closed:
+				for f in foes:
+					if heal_foes[0]:
+						f.hp = f.max_hp()
+				return top
+			await get_tree().process_frame
+		return null
+	var key := func(a: String) -> void:
+		await _press(a)
+		await _wait(0.12)
+	var opt_to := func(p, id: String, move := "") -> void:
+		# ◄ ► round the focused bar to an option
+		for i in 12:
+			var o: Dictionary = p.rows[p.focus]["options"][int(p.rows[p.focus].get("sel", 0))]
+			if String(o.get("id", "")) == id and (move == "" or String(o.get("move", "")) == move):
+				return
+			await key.call("ui_right")
+	var p = await panel.call()
+	for c in view.get_children():
+		if c.get_script() == load(BATTLE_PATH):
+			bt = c
+	check.call(p != null and bt != null, "the command panel opens")
+	if p == null:
+		print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
+		return
+	check.call(bt.ally_side == 0, "the ring last faced the air side (nobody in its middle): it starts turned to the %s side" % Ring.side_element(bt.ally_side))
+	# one touch A: your slingshot, picked out on its target, but not confirmed twice
+	UI.controls._send("a", true)
+	await get_tree().process_frame
+	UI.controls._send("a", false)
+	await _wait(0.2)
+	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "one tap of A: the slingshot only goes on to its target (picking %s, your action done %s)" % [p.picking, p.rows[0].get("done", false)])
+	check.call(bt.target_cards.visible and bt._aim_from == "trainer_self" and bt._aim_to.size() == 1, "its target's card shows, and an arc runs from you to it")
+	await key.call("ui_accept")
+	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
+	# the top beast: its move, then its target (two foes)
+	await opt_to.call(p, "move")
+	await key.call("ui_accept")
+	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
+	await _wait(0.1)
+	var arcs: int = (bt.aim_mesh.mesh as ImmediateMesh).get_surface_count()
+	check.call(bt._aim_from == fire_a and bt._aim_to.size() == 1 and arcs > 0, "an arc runs from %s to its target (%d surface)" % [fire_a.nickname, arcs])
+	var first_target = bt._aim_to[0]
+	await key.call("ui_right")
+	check.call(bt._aim_to.size() == 1 and bt._aim_to[0] != first_target and bt.target_cards.sel == int(p.rows[1]["target_sel"]), "► aims at the other foe, and the arc and the framed card follow")
+	if stop == "arc":
+		return
+	await key.call("ui_accept")
+	check.call(p.rows[1].get("done", false) and p.focus == 2 and not p.rows[2].get("done", false), "A: the top beast is set, on to the middle one (the round waits)")
+	# the middle beast: Move is out (it guards you); Fire Spin hits them all
+	var shift: Dictionary = {}
+	for o in p.rows[2]["options"]:
+		if o.get("id", "") == "shift":
+			shift = o
+	check.call(not shift.is_empty() and shift.get("disabled", false), "the beast in the middle can't Move: \"%s\"" % shift.get("desc", ""))
+	await opt_to.call(p, "move", "fire_spin")
+	await key.call("ui_accept")
+	check.call(p.picking and p.rows[2].get("target_all", false) and bt.target_cards.sel == -1 and bt._aim_to.size() == 2, "Fire Spin shows both foes framed, with an arc to each, to confirm")
+	if stop == "all":
+		return
+	await key.call("ui_left")
+	check.call(bt._aim_to.size() == 2, "◄ doesn't pick one out of a move that hits them all")
+	await key.call("ui_accept")
+	check.call(p.rows[2].get("done", false) and p.focus == 3, "A: on to the bottom beast")
+	await opt_to.call(p, "move")
+	await key.call("ui_accept")
+	await key.call("ui_accept")
+	# the middle beast falls before the round is over (as if knocked out), for round two
+	fire_b.hp = 0
+	p = await panel.call()
+	check.call(p != null and bt.round_no == 2, "after the bottom beast's target, the round played out (now round %d)" % bt.round_no)
+	if p == null:
+		print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
+		return
+	fire_a.hp = fire_a.max_hp()
+	air_c.hp = air_c.max_hp()
+	# round two: Watch, then ▲ on your own bar turns the ring
+	await opt_to.call(p, "watch")
+	await key.call("ui_accept")
+	var side_was: int = bt.ally_side
+	await key.call("ui_up")
+	p = await panel.call()
+	check.call(bt.ally_side != side_was, "▲ on your own bar turns the ring (%s side now)" % Ring.side_element(bt.ally_side))
+	# and round to the fire side again: ▼ past the bottom beast
+	for i in 4:
+		if bt.ally_side == 0:
+			break
+		while p.focus < p.rows.size() - 1 and p._next_beast(p.focus, 1) > 0:
+			await key.call("ui_down")
+		await key.call("ui_down")
+		p = await panel.call()
+	check.call(bt.ally_side == 0, "▼ past the bottom beast turns it back to the fire side")
+	# Move: the air beast on the fire / air corner may step to the air side's middle, or its corner
+	var air_row := -1
+	var fire_row := -1
+	for i in p.rows.size():
+		if p.rows[i].get("beast", null) == air_c:
+			air_row = i
+		if p.rows[i].get("beast", null) == fire_a:
+			fire_row = i
+	var spots: Array = bt._shift_spots(air_c)
+	check.call(spots.has(2) and not spots.has(0), "%s may Move to %s (not the fire side's middle)" % [air_c.nickname, spots.map(func(k): return Ring.slot_name(k))])
+	check.call(bt._shift_spots(fire_a) == [0], "%s may Move into the fallen middle beast's place: %s" % [fire_a.nickname, bt._shift_spots(fire_a).map(func(k): return Ring.slot_name(k))])
+	while p.focus != air_row:
+		await key.call("ui_down" if p.focus < air_row else "ui_up")
+	await opt_to.call(p, "shift")
+	await key.call("ui_accept")
+	check.call(p.picking and String(p.rows[air_row].get("pick_kind", "")) == "slot", "Move picks a slot")
+	var first_slot: int = int(p.rows[air_row]["targets"][int(p.rows[air_row]["target_sel"])]["ref"])
+	await key.call("ui_down")
+	var second_slot: int = int(p.rows[air_row]["targets"][int(p.rows[air_row]["target_sel"])]["ref"])
+	check.call(spots.size() < 2 or first_slot != second_slot, "▼ goes on to the next slot (%s, then %s)" % [Ring.slot_name(first_slot), Ring.slot_name(second_slot)])
+	while int(p.rows[air_row]["targets"][int(p.rows[air_row]["target_sel"])]["ref"]) != 2:
+		await key.call("ui_down")
+	if stop == "move":
+		return
+	await key.call("ui_accept")
+	check.call(p.rows[air_row].get("done", false), "A: %s will Move to the air side's middle" % air_c.nickname)
+	# one beast moves each round
+	while p.focus != fire_row:
+		await key.call("ui_up" if p.focus > fire_row else "ui_down")
+	await opt_to.call(p, "shift")
+	await key.call("ui_accept")
+	check.call(not p.picking and not p.rows[fire_row].get("done", false), "a second beast can't Move the same round")
+	await opt_to.call(p, "move")
+	await key.call("ui_accept")
+	await key.call("ui_accept")
+	for i in 20:
+		if UI.stack.is_empty() or UI.stack.back() != p:
+			break
+		await key.call("ui_accept")
+	p = await panel.call()
+	check.call(air_c.slot == 2 and bt.ally_side == 1, "%s moved to the %s, and the air side faces the foe now (%s side)" % [air_c.nickname, Ring.slot_name(air_c.slot), Ring.side_element(bt.ally_side)])
+	# everyone facing the foe down: the ring turns by itself
+	UI.stack.back().close({"kind": "go"})
+	air_c.hp = 0
+	p = await panel.call()
+	check.call(p != null and bt.ally_side != 1 and Ring.side_alive(bt.ally_ring, bt.ally_side), "with everyone on the air side down, the ring turned by itself to the %s side" % Ring.side_element(bt.ally_side))
+	# Tess's Move: her middle beast falls, and her corner beast steps into its place
+	var mid_foe = bt.foe_ring.get(bt.foe_side * 2, null)
+	var corner_foe = null
+	for k in Ring.side_slots(bt.foe_side):
+		var f = bt.foe_ring.get(k, null)
+		if f != null and f != mid_foe and f.hp > 0:
+			corner_foe = f
+	check.call(mid_foe != null and corner_foe != null, "Tess's ring: %s in the middle, %s on a corner" % [mid_foe.nickname if mid_foe != null else "nobody", corner_foe.nickname if corner_foe != null else "nobody"])
+	if mid_foe != null and corner_foe != null:
+		mid_foe.hp = 0
+		heal_foes[0] = false
+		# your side braces (Defend, and you Watch), so nobody knocks the corner beast out first
+		for r in p.rows:
+			var want := "watch" if r["kind"] == "trainer" else "defend"
+			for i in (r["options"] as Array).size():
+				if String(r["options"][i].get("id", "")) == want:
+					r["sel"] = i
+			r["done"] = true
+		p.close({"kind": "go"})
+		p = await panel.call()
+		var now_mid = bt.foe_ring.get(bt.foe_side * 2, null)
+		check.call(now_mid == corner_foe and corner_foe.hp > 0 and not bt._side_open("foe"),
+			"Tess's %s moved into the middle, covering her again (middle now: %s)" % [corner_foe.nickname, now_mid.nickname if now_mid != null else "nobody"])
+	print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
+
+
+## --scene=ringedit: the ring editor (ring_editor.gd, GameState.ring_move): who may go where on the ring and in and out
+## of storage, every lit cell agreeing with the rules, and taps (as a finger would) picking a beast up and putting it
+## down. Prints each check and "RING EDIT DONE: n problem(s)".
+func _ringedit_test() -> void:
+	_do_goto("tidewater", "center")
+	await _wait(1.5)
+	var bad := [0]
+	var check := func(ok: bool, what: String) -> void:
+		if not ok:
+			bad[0] += 1
+		print("%s %s" % ["ok  " if ok else "FAIL", what])
+	# fire, water and air beasts on the ring (3 / 3), an earth and a second fire one in storage
+	var fire := Beasts.create(0, 6)
+	var water := Beasts.create(24, 6)
+	var air := Beasts.create(30, 6)
+	var earth := Beasts.create(12, 6)
+	var fire2 := Beasts.create(3, 4)
+	GameState.beast_slots = 3
+	GameState.party = [fire, water, air]
+	fire.slot = 0
+	water.slot = 4
+	air.slot = 2
+	GameState.storage = [earth, fire2]
+	GameState.ring_side = 0
+	check.call(GameState.ring_move_reason(fire, {"slot": 4}) != "", "a fire beast can't stand on the water side: \"%s\"" % GameState.ring_move_reason(fire, {"slot": 4}))
+	check.call(GameState.ring_move(fire, {"slot": 1}) == "" and fire.slot == 1, "fire to the empty fire / air corner")
+	check.call(GameState.ring_move_reason(fire, {"slot": 2}) != "", "fire can't trade places with the air side's middle: \"%s\"" % GameState.ring_move_reason(fire, {"slot": 2}))
+	check.call(GameState.ring_move_reason(air, {"slot": 1}) != "", "air can't trade places with fire on the fire / air corner, as fire can't stand on the air side: \"%s\"" % GameState.ring_move_reason(air, {"slot": 1}))
+	check.call(GameState.ring_move_reason(earth, {"slot": 6}) != "", "a full ring takes no one from storage onto an empty slot: \"%s\"" % GameState.ring_move_reason(earth, {"slot": 6}))
+	check.call(GameState.ring_move_reason(earth, {"slot": 4}) != "", "earth can't take the water side's middle")
+	check.call(GameState.ring_move(fire2, {"slot": 1}) == "" and fire2.slot == 1 and GameState.storage.has(fire) and fire.slot == -1,
+		"the stored fire beast trades places with the one on the corner")
+	check.call(GameState.ring_move_reason(earth, {"slot": 2}) != "", "earth can't swap in for the air side's beast")
+	check.call(GameState.ring_move(water, {"store": GameState.storage.size()}) == "" and GameState.storage.has(water) and GameState.party.size() == 2,
+		"water into storage's empty cell")
+	check.call(GameState.ring_move(earth, {"slot": 6}) == "" and earth.slot == 6, "now there's room: earth onto the earth side")
+	check.call(GameState.ring_move(water, {"store": 0}) == "" and GameState.storage[0] == water, "storage reorders freely")
+	GameState.ring_move(earth, {"store": GameState.storage.size()})
+	GameState.ring_move(fire2, {"store": GameState.storage.size()})
+	check.call(GameState.party.size() == 1 and GameState.ring_move_reason(air, {"store": GameState.storage.size()}) != "",
+		"the last beast stays with you: \"%s\"" % GameState.ring_move_reason(air, {"store": GameState.storage.size()}))
+	# back to fire, water and air on the ring, earth and fire2 in storage, for the screen
+	for b in [fire, water]:
+		GameState.ring_move(b, {"slot": 0 if b == fire else 4})
+	# the editor: lit cells match the rules
+	world.frozen = true
+	var ed: Node = load("res://scripts/ui/ring_editor.gd").new()
+	UI.push(ed)
+	await _wait(0.6)
+	var cell_of := func(dest: Dictionary):
+		for c in ed.cells:
+			if c.dest == dest:
+				return c
+		return null
+	var tap := func(c) -> void:
+		var at: Vector2 = (c as Control).get_global_rect().get_center()
+		var vp := get_viewport()
+		var px: Vector2 = vp.get_screen_transform() * vp.get_canvas_transform() * at
+		for down in [true, false]:
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.pressed = down
+			ev.position = px
+			ev.global_position = px
+			Input.parse_input_event(ev)
+			await get_tree().process_frame
+		await get_tree().process_frame
+	await tap.call(cell_of.call({"slot": 0}))
+	check.call(ed.picked == fire, "tapping the fire beast picks it up (picked: %s)" % (ed.picked.nickname if ed.picked != null else "none"))
+	var lit := []
+	var agree := true
+	for c in ed.cells:
+		var rule: bool = GameState.ring_move_reason(fire, c.dest) == "" and ed.beast_in(c.dest) != fire
+		if ed.can_go(c.dest) != rule:
+			agree = false
+		if ed.can_go(c.dest):
+			lit.append(c.dest)
+	check.call(agree, "the lit cells are just the ones the rules allow: %s" % [lit])
+	check.call(not ed.can_go({"slot": 4}) and not ed.can_go({"slot": 2}), "the water and air sides stay dark for a fire beast")
+	await tap.call(cell_of.call({"slot": 4}))
+	check.call(fire.slot == 0 and ed.picked == fire and ed.hint.text != "", "tapping a dark cell does nothing but say why: \"%s\"" % ed.hint.text)
+	await tap.call(cell_of.call({"slot": 7}))
+	check.call(fire.slot == 7 and ed.picked == null, "tapping a lit slot moves it there (now on the %s)" % Ring.slot_name(fire.slot))
+	await tap.call(cell_of.call({"store": 1}))
+	await tap.call(cell_of.call({"slot": 7}))
+	check.call(fire2.slot == 7 and GameState.storage.has(fire), "a stored beast tapped onto an occupied slot trades places with it")
+	await tap.call(cell_of.call({"slot": 7}))
+	await tap.call(cell_of.call({"slot": 7}))
+	check.call(ed.picked == null and fire2.slot == 7, "tapping the picked-up beast again puts it back down")
+	# for the screenshot: the air beast picked up
+	await tap.call(cell_of.call({"slot": 2}))
+	print("RING EDIT DONE: %d problem(s)" % bad[0])
+
+
+## --scene=coaches: a new trainer (a Lv 1 hatchling, no flute, no lessons) walks the Coastal Path by tapped walks from
+## Cocoon Cove to Tidewater, in and out of Youngster Kit's cabin and over his footbridge, then (with a flute) into
+## Tidewater's arena. Nobody is talked to: every teacher must stop you and give their lesson, in the path's order.
+func _coaches_test() -> void:
+	Engine.time_scale = 8.0
+	UI.auto = true
+	autoplay = true
+	GameState.party = [Beasts.create(0, 1)]
+	GameState.storage = []
+	GameState.fix_ring()
+	GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
+	GameState.gear["flute"] = ""
+	GameState.set_flag("tutorial_done", false)
+	var bad := [0]
+	var teachers: Array = Story.LESSON_TRAINERS + Story.ARENA_LESSONS
+	# every frame: a lesson that's just been given, and where you were
+	var given := []
+	var watch := func():
+		for t in teachers:
+			if GameState.flag("lesson_" + String(t["lesson"])) and not given.has(t["lesson"]):
+				given.append(t["lesson"])
+				print("  %s %s stopped you (%s, at %s)" % [t["cls"], t["name"], world.map_id, world.player_pos])
+	get_tree().process_frame.connect(watch)
+	await _go("route1", "west")
+	await _settle("route1")
+	# along the trail to Kit's door, and in: he sees you come in
+	var cabin := _bld("cabin")
+	await _walk_road([cabin["door"] + Vector2i(0, 1)])
+	world._step(Vector2i(0, -1), false)
+	await _settle(MapLoader.interior_of("route1", "cabin"))
+	await _walk_road(world.map["exits"].keys())
+	await _settle("route1")
+	# his logs, across the footbridge
+	var post := Vector2i(-999, -999)
+	for q in world.map["obstacles"]:
+		var r: Vector2i = q + Vector2i(-1, 0)
+		if world.map["obstacles"][q]["kind"] == "broken_bridge" and not world.map["obstacles"].has(r) and world._walkable(r):
+			post = r
+	await _walk_road([post])
+	world.facing = Vector2i(1, 0)
+	UI.auto_answers = [0]
+	await world._interact()
+	var mended: bool = not world.map["obstacles"].has(post + Vector2i(1, 0))
+	print("%s footbridge mended with Kit's logs" % ("ok  " if mended else "FAIL"))
+	if not mended:
+		bad[0] += 1
+	# on along the trail to Tidewater
+	await _walk_road(world.map["exits"].keys().filter(func(e): return world.map["exits"][e]["to"] == "tidewater"))
+	await _settle("tidewater")
+	var path_lessons: Array = Story.LESSON_TRAINERS.map(func(t): return t["lesson"])
+	var ok: bool = given == path_lessons and GameState.flag("tutorial_done")
+	print("%s the Coastal Path's teachers, in order: %s (wanted %s), tutorial_done %s" % ["ok  " if ok else "FAIL", given, path_lessons, GameState.flag("tutorial_done")])
+	if not ok:
+		bad[0] += 1
+	# Uncle Rafe's flute, then into the arena: Coach Rory at the door, then Coach Ondine
+	GameState.gear["flute"] = "reed_flute"
+	GameState.set_flag("reed_flute")
+	var arena := _bld("arena")
+	await _walk_road([arena["door"] + Vector2i(0, 1)])
+	world._step(Vector2i(0, -1), false)
+	await _settle(MapLoader.interior_of("tidewater", "arena"))
+	var all_lessons: Array = teachers.map(func(t): return t["lesson"])
+	ok = given == all_lessons and Story.arena_lessons_done("tidewater")
+	print("%s the arena's coaches, in order: %s (wanted %s)" % ["ok  " if ok else "FAIL", given.slice(path_lessons.size()), all_lessons.slice(path_lessons.size())])
+	if not ok:
+		bad[0] += 1
+	get_tree().process_frame.disconnect(watch)
+	print("starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level, "  hint: ", Story.next_goal())
+	print("coaches DONE: %d problem(s)" % bad[0])
+
+
+## --scene=lessons: every guided battle (the Coastal Path's teachers, Tidewater's arena coaches and the flute lesson)
+## played by a button masher (random presses of A, B and the d-pad, nothing automatic), once with just a hatchling and
+## once with a second beast beside it. Every bar and every menu must offer exactly one thing to pick, your beasts must
+## never go down, and every lesson must be won. --seed=n
+func _lessons_test() -> void:
+	Engine.time_scale = 3.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(_test.get("seed", "1"))
+	var bad := [0]
+	var teachers: Array = Story.LESSON_TRAINERS + Story.ARENA_LESSONS
+	for party in [[0], [0, 3]]:
+		for t in teachers + [{"lesson": "flute", "name": "Uncle Rafe"}]:
+			var lesson := String(t["lesson"])
+			while _transitioning or not _pending_goto.is_empty() or in_battle:
+				await _wait(0.1)
+			# a new trainer's hatchling (and a second fire beast, as if adopted from the kennel), with no lessons yet
+			GameState.party = []
+			for r in party:
+				GameState.party.append(Beasts.create(r, 1 if lesson != "flute" else 3))
+			GameState.storage = []
+			GameState.fix_ring()
+			GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
+			for l in teachers:
+				GameState.set_flag("lesson_" + String(l["lesson"]), false)
+			GameState.set_flag(String(t.get("needs", "")), true)
+			GameState.set_flag("tutorial_done", lesson == "flute")
+			GameState.set_flag("flute_lesson_done", false)
+			GameState.caught = {}
+			GameState.gear["flute"] = "reed_flute" if lesson == "flute" else ""
+			var res := [""]
+			if lesson == "flute":
+				_do_goto("route1", "west")
+				await _wait(1.5)
+				var wild := func(): res[0] = await Story.wild_battle(world, [Beasts.create(27, 3)], "wild")
+				wild.call()
+			else:
+				var spot := _teacher_spot(lesson)
+				_do_goto(spot[0], spot[1])
+				await _wait(1.5)
+				# (Youngster Kit and the arena's coaches have stopped you already)
+				if not (world.busy or in_battle):
+					Story.talk(world, _lesson_trainer(lesson))
+			var problems := {}
+			var presses := 0
+			var lowest := 999
+			for i in 6000:
+				if not in_battle and (res[0] != "" or GameState.flag("lesson_" + lesson)) and not world.busy and not UI.busy():
+					break
+				var top = UI.stack.back() if not UI.stack.is_empty() else null
+				if top != null and top.get_script() == load(PANEL_PATH):
+					for j in top.rows.size():
+						var row: Dictionary = top.rows[j]
+						var open: Array = row["options"].filter(func(o): return not o.get("disabled", false))
+						if row.get("status", "") == "" and not row.get("locked", false) and open.size() != 1:
+							problems["a bar offers %s" % [open.map(func(o): return o.get("label", ""))]] = true
+						if top.picking and j == top.focus and (row.get("targets", []) as Array).size() != 1:
+							problems["%d targets to pick from" % (row["targets"] as Array).size()] = true
+				elif top is UI.ListMenu:
+					var open2: Array = top.items.filter(func(o): return not o.get("disabled", false))
+					if open2.size() != 1:
+						problems["the %s menu offers %s" % [top.title, open2.map(func(o): return o.get("text", ""))]] = true
+				if in_battle:
+					for c in view.get_children():
+						if c.get_script() == load(BATTLE_PATH):
+							for b in c.ally_slots:
+								if b != null:
+									lowest = mini(lowest, b.hp)
+									if b.hp <= 0:
+										problems["%s went down" % b.nickname] = true
+				_press(["ui_accept", "ui_accept", "ui_accept", "ui_left", "ui_right", "ui_up", "ui_down", "ui_cancel"][rng.randi() % 8])
+				presses += 1
+				await _wait(0.12)
+			var won: bool = res[0] == "win" if lesson == "flute" else GameState.flag("lesson_" + lesson)
+			if not won:
+				problems["not won"] = true
+			bad[0] += problems.size()
+			print("%s %s's lesson (%s), %d beast(s): %d presses, lowest HP %d%s" % ["ok  " if problems.is_empty() else "FAIL", t["name"], lesson, party.size(), presses, lowest,
+				"" if problems.is_empty() else "  " + ", ".join(problems.keys())])
+	print("lessons DONE: %d problem(s)" % bad[0])
+
+
+func _newbeasts_test() -> void:
+	var Rig = load("res://scripts/gfx/beast_rig.gd")
+	var root := Node3D.new()
+	view.add_child(root)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color("#9cc3e6")
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.55
+	var we := WorldEnvironment.new()
+	we.environment = env
+	root.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, -35, 0)
+	sun.shadow_enabled = true
+	root.add_child(sun)
+	var anim := String(_test.get("anim", "idle"))
+	var ghost: bool = _test.get("ghost", "0") == "1"
+	# the cells, [column, row, label, form or [a, b, seed]]: a column per line, its stages down it; or a row per pair
+	# of parents, then a few of their merges
+	var cells := []
+	if _test.has("merge"):
+		var r := 0
+		for pair in String(_test["merge"]).split(","):
+			var a := pair.get_slice("+", 0)
+			var b := pair.get_slice("+", 1)
+			cells.append([0, r, a, a])
+			cells.append([1, r, b, b])
+			var seeds := String(_test.get("seeds", "1,2,3")).split(",")
+			for k in seeds.size():
+				cells.append([2 + k, r, "%s × %s #%s" % [a.get_slice("_", 0), b.get_slice("_", 0), seeds[k]], [a, b, int(seeds[k])]])
+			r += 1
+	else:
+		var c := 0
+		var stages := String(_test.get("stages", "1,2,3")).split(",")
+		for line in String(_test.get("lines", "dino,scorpion,berry,beetle,cactus")).split(","):
+			for k in stages.size():
+				var f := "%s_%s" % [line, stages[k]]
+				cells.append([c, k, f, f])
+			c += 1
+	var cols := 0
+	var rows := 0
+	for cell in cells:
+		cols = maxi(cols, cell[0] + 1)
+		rows = maxi(rows, cell[1] + 1)
+	# --view: three (three quarters, the default), side or front (looking it in the face)
+	var vw := String(_test.get("view", "three"))
+	var across := Vector3(1, 0, 0) if vw != "front" else Vector3(0, 0, -1)
+	var back := Vector3(0, 0, -1) if vw != "front" else Vector3(-1, 0, 0)
+	var yaw := float(_test.get("yaw", "-60" if vw == "three" else "0"))
+	var dx := 2.2
+	var dy := 1.8
+	var rigs := []
+	for cell in cells:
+		var rig: Node3D = Rig.new()
+		root.add_child(rig)
+		if cell[3] is Array:
+			rig.setup_merge(cell[3][0], cell[3][1], cell[3][2], ghost)
+		else:
+			rig.setup(cell[3], ghost)
+		var s: float = 1.0 if cell[3] is Array else [0.72, 0.86, 1.0][int(String(cell[3]).get_slice("_", 1)) - 1]
+		var at: Vector3 = across * (cell[0] * dx) + Vector3(0, -cell[1] * dy, 0) + back * (cell[1] * 0.8)
+		rig.position = at
+		rig.scale = Vector3(s, s, s)
+		rig.rotation_degrees.y = yaw
+		rig.state = "idle" if anim == "attack" else anim
+		rigs.append(rig)
+		var pad := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.75
+		cyl.bottom_radius = 0.75
+		cyl.height = 0.04
+		pad.mesh = cyl
+		var pm := StandardMaterial3D.new()
+		pm.albedo_color = Color("#8fbf6a")
+		pad.material_override = pm
+		pad.position = at - Vector3(0, 0.02, 0)
+		root.add_child(pad)
+		var lb := Label3D.new()
+		lb.text = cell[2]
+		lb.font_size = 36
+		lb.outline_size = 8
+		lb.pixel_size = 0.004
+		lb.position = at + Vector3(0, -0.22, 0) - back * 0.8
+		if vw == "front":
+			lb.rotation_degrees.y = 90.0
+		root.add_child(lb)
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	var vs := get_viewport().get_visible_rect().size
+	cam.size = maxf(rows * dy + 0.3, (cols * dx + 0.2) * vs.y / vs.x) / float(_test.get("zoom", "1"))
+	var mid: Vector3 = across * ((cols - 1) * dx / 2.0) + Vector3(0, -(rows - 1) * dy / 2.0 + 0.5, 0) + back * ((rows - 1) * 0.4)
+	mid.y += float(_test.get("centre", "0"))
+	cam.position = mid - back * 10.0 + Vector3(0, 2.0, 0)
+	cam.look_at(mid, Vector3.UP)
+	cam.current = true
+	if anim == "attack":
+		# an attack every 1.3 s, the first 0.4 s in (--at: a screenshot that long into it)
+		var tm := Timer.new()
+		tm.wait_time = 1.3
+		root.add_child(tm)
+		tm.timeout.connect(func() -> void:
+			for rig in rigs:
+				rig.attack())
+		await _wait(0.4)
+		for rig in rigs:
+			rig.attack()
+		tm.start()
+		if _test.has("at"):
+			await _wait(float(_test["at"]))
+
+
+## Tapped walks to the nearest of `goals` on this map, again after each stop (a teacher's lesson, say), until you're on
+## one or the map changes.
+func _walk_road(goals: Array) -> void:
+	var w = world
+	for i in 3000:
+		if world != w or _transitioning or not _pending_goto.is_empty():
+			return
+		if w.player_pos in goals and not w.moving:
+			return
+		if not (w.busy or w.moving or in_battle or UI.busy()) and w._path.is_empty():
+			w._walk_to(goals, Vector2i(-999, -999), false)
+		await _wait(0.1)
+	print("FAIL   couldn't walk to ", goals, " (at ", w.player_pos, ")")
+
+
+## Waits until you're on map `id` with nothing going on (its arrival and any lesson that stops you there done).
+func _settle(id: String) -> void:
+	for i in 3000:
+		if world != null and world.map_id == id and not _transitioning and _pending_goto.is_empty() and not world.busy and not in_battle and not UI.busy():
+			await _wait(0.5)
+			if not (world.busy or in_battle):
+				return
+		await _wait(0.1)
+	print("FAIL   never settled on ", id)
+
+
+## The mascot test (--scene=mascot): prints each check and a count of problems at the end.
+func _mascot_test() -> void:
+	var MoveDB = load("res://scripts/data/move_db.gd")
+	var bad := 0
+	for id in WorldDB.TOWN_ORDER:
+		var race: int = WorldDB.TOWNS[id]["mascot"]
+		var mv: String = WorldDB.TOWNS[id].get("signature", "")
+		var m: Dictionary = MoveDB.get_move(mv)
+		# (a dual line's move may be of its second element)
+		var el := RaceDB.element2(race) if String(m.get("el", "")) == RaceDB.element2(race) else RaceDB.element(race)
+		var strongest := 0
+		for p in MoveDB.POOLS[el]:
+			strongest = maxi(strongest, int(MoveDB.get_move(p).get("power", 0)))
+		var levelled: bool = RaceDB.learnset(race).any(func(e): return e[1] == mv)
+		var ok: bool = mv != "" and MoveDB.MOVES.has(mv) and m["el"] == el and m["kind"] == "attack" and int(m["power"]) > strongest and not levelled and int(MoveDB.SIGNATURE.get(mv, -1)) == RaceDB.first_form(race)
+		if not ok:
+			bad += 1
+		print("%s %-11s %-12s %-18s %s power %d (strongest %s move by levelling: %d)  %s statue" % ["ok  " if ok else "FAIL", id, RaceDB.race_name(race), m.get("name", "?"), el, int(m.get("power", 0)), el, strongest, WorldDB.statue_metal(id)])
+	UI.auto = true
+	_do_goto("caccoon", "start")
+	await _wait(1.5)
+	var mascot := _npc("mascot")
+	# (straight into the party: the mascot only teaches a beast you have with you)
+	# a Cinderex (the dino line's second form, as the Pyrosaur mascot's line)
+	var kin := Beasts.create(0, 39)
+	GameState.party.append(kin)
+	UI.auto_answers = [0]
+	await Story.talk(world, mascot)
+	var early: bool = not kin.known.has("bandit_blaze")
+	print("%s a Lv 39 %s can't learn it yet: %s" % ["ok  " if early else "FAIL", kin.nickname, UI.auto_log.back()])
+	kin.level = 40
+	UI.auto_answers = [0]
+	await Story.talk(world, mascot)
+	var learned: bool = kin.known.has("bandit_blaze")
+	print("%s at Lv 40 it learns Bandit Blaze: %s  (moves %s)" % ["ok  " if learned else "FAIL", learned, kin.moves])
+	GameState.party.erase(kin)
+	var other := Beasts.create(3, 45)
+	GameState.party.append(other)
+	UI.auto_answers = [0]
+	await Story.talk(world, mascot)
+	var refused: bool = not other.known.has("bandit_blaze")
+	print("%s a %s (another fire line) isn't taught: %s" % ["ok  " if refused else "FAIL", other.nickname, UI.auto_log.back()])
+	var child := Beasts.merge(other, kin, true)
+	var kept: bool = child.known.has("bandit_blaze") == (RaceDB.first_form(child.race) == 0)
+	print("%s a merge (%s) keeps Bandit Blaze only if it's of the dino line: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
+	for ok2 in [early, learned, refused, kept]:
+		if not ok2:
+			bad += 1
+	UI.auto = false
+	print("MASCOT TEST DONE: %d problem(s)" % bad)
+
+
+## Battle test scenes: once the command panel is up, presses --keys (a b l r u d: A, B, left, right, up, down), one
+## every --gap seconds.
+func _battle_keys() -> void:
+	if not _test.has("keys"):
+		return
+	var tries := 0
+	while tries < 1200 and not (UI.stack.size() > 0 and UI.stack.back().get_script() == load(PANEL_PATH)):
+		await get_tree().process_frame
+		tries += 1
+		# (a lesson's words come first: read on through them)
+		if tries % 30 == 0 and UI.stack.size() > 0 and UI.stack.back() is UI.DialogBox:
+			_press("ui_accept")
+	for k in String(_test.get("keys", "")).split(",", false):
+		await _press({"a": "ui_accept", "b": "ui_cancel", "l": "ui_left", "r": "ui_right", "u": "ui_up", "d": "ui_down"}.get(k, "ui_accept"))
+		await _wait(float(_test.get("gap", "0.4")))
+	# --tapcard=i: then taps target card i (as a finger would), printing who's aimed at
+	if _test.has("tapcard") and UI.stack.size() > 0:
+		var panel = UI.stack.back()
+		var cards: Control = panel.hooks.get("cards", null) if "hooks" in panel else null
+		if cards == null or not cards.visible:
+			print("tapcard: no target cards showing")
+			return
+		var at: Vector2 = cards.get_global_transform_with_canvas() * cards.card_rect(int(_test["tapcard"])).get_center()
+		for down in [true, false]:
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.pressed = down
+			ev.position = at * Vector2(get_window().size) / get_viewport().get_visible_rect().size
+			Input.parse_input_event(ev)
+			await get_tree().process_frame
+		var row: Dictionary = panel.rows[panel.focus]
+		print("tapcard %s: aiming at %s (card %d framed)" % [_test["tapcard"], row["targets"][int(row.get("target_sel", 0))]["label"], cards.sel])
 
 
 ## Walks the player (by tapped path) to one of `goals` and waits until they arrive.
@@ -1702,18 +2656,24 @@ func _beast_gallery(page: int) -> void:
 	root.add_child(sun)
 	var genes_list := []
 	if page < 4:
-		for i in range(page * 12, page * 12 + 12):
+		# the lines' forms, then the legendaries
+		for i in range(page * 12, mini(page * 12 + 12, RaceDB.NORMAL_COUNT + RaceDB.LEGENDARY.size())):
 			genes_list.append([RaceDB.race_name(i), RaceDB.genes(i)])
 	else:
+		# merges of final forms (Lv 40), some with a ghost
 		for i in 12:
-			var a := Beasts.create(i * 4, 20, i % 3 == 0)
-			var b := Beasts.create((i * 7 + 13) % 48, 20)
+			var a := Beasts.create(i * 3, 40, i % 3 == 0)
+			var b := Beasts.create((i * 7 + 13) % RaceDB.NORMAL_COUNT, 40)
 			var c := Beasts.merge(a, b, true)
 			genes_list.append([c.nickname, c.genes])
 	var t0 := Time.get_ticks_msec()
+	var Model = load("res://scripts/gfx/beast_model.gd")
 	for i in genes_list.size():
-		var mi := MeshInstance3D.new()
-		mi.mesh = VB.mesh(genes_list[i][1])
+		# (drawn as the game draws it: a new beast animated, a legendary its old model)
+		var mi: Node3D = Model.rig(genes_list[i][1], 1.2)
+		if mi == null:
+			mi = MeshInstance3D.new()
+			(mi as MeshInstance3D).mesh = VB.mesh(genes_list[i][1])
 		mi.rotation.y = -0.6
 		mi.position = Vector3((i % 4) * 2.6, 0, (i / 4) * 2.6)
 		root.add_child(mi)

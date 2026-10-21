@@ -3,3 +3,5 @@
 export/
 build/
 /psx/
+/tools/new_beasts/out/
+__pycache__/

@@ -5,12 +5,16 @@ const Beast = preload("res://scripts/core/beast.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
+const Parts = preload("res://scripts/gfx/beast_parts.gd")
 
 const GHOST_STAT_MULT := 1.25
 const PARTS := ["body", "head", "ears", "tail", "back", "pattern", "form"]
 
 
+## A beast of race_id's line at the form its level has grown into (a Lv 25 dino is its line's second form).
 static func create(race_id: int, level: int, ghost := false) -> Beast:
+	level = clampi(level, 1, 100)
+	race_id = RaceDB.for_level(race_id, level)
 	var r := RaceDB.get_race(race_id)
 	var b := Beast.new()
 	b.uid = randi()
@@ -18,9 +22,10 @@ static func create(race_id: int, level: int, ghost := false) -> Beast:
 	b.lineage = [race_id]
 	b.ghost = ghost
 	b.element = "ghost" if ghost else r["el"]
+	b.element2 = "" if ghost else String(r["el2"])
 	b.nickname = ("Umbral " + r["name"]) if ghost else r["name"]
-	b.level = clampi(level, 1, 100)
-	b.rank = maxi(1, int(ceil(b.level / 20.0)))
+	b.level = level
+	b.rank = maxi(1, int(ceil((b.level - 20) / 20.0)))
 	b.xp = Beast.xp_for_level(b.level)
 	var bs := RaceDB.base_stats(race_id)
 	for i in Beast.STAT_KEYS.size():
@@ -60,6 +65,9 @@ static func can_merge(a: Beast, b: Beast, ghost_allowed: bool) -> String:
 	## Returns "" if the pair can merge, otherwise a reason.
 	if a == b:
 		return "A beast can't merge with itself."
+	for x in [a, b]:
+		if RaceDB.stage(x.race) < 3:
+			return "%s must grow into its final form first (at Lv %d)." % [x.nickname, RaceDB.EVOLVE[-1]]
 	if not a.at_cap():
 		return "%s hasn't reached its level limit (Lv %d)." % [a.nickname, a.level_cap()]
 	if not b.at_cap():
@@ -158,7 +166,27 @@ static func merge(a: Beast, b: Beast, temple := false) -> Beast:
 		var boost := rng.randf_range(1.06, 1.16) + (0.05 if temple else 0.0)
 		c.base[s] = snappedf(v * boost, 0.1)
 
-	# appearance: each body part from one parent; colours mix
+	# appearance: parts of both parents' models put together (beast_parts.gd), painted in one parent's colours; or,
+	# with a legendary, each old gene from one parent
+	var fa := String(a.genes.get("form", ""))
+	var fb := String(b.genes.get("form", ""))
+	if RaceDB.of_form(fa) >= 0 and RaceDB.of_form(fb) >= 0:
+		var recipe := Parts.merge_recipe(fa, fb, rng.randi())
+		var frame := String(recipe["frame"])
+		var size := minf(1.6, maxf(float(a.genes.get("size", 1.0)), float(b.genes.get("size", 1.0))) * rng.randf_range(1.0, 1.06))
+		var shade := 0.0
+		if c.ghost:
+			shade = 0.85 if (a.ghost and b.ghost) else 0.62
+		c.genes = {"form": frame, "recipe": recipe, "body": RaceDB.body(RaceDB.of_form(frame)), "size": size, "shade": shade}
+	else:
+		c.genes = _mix_genes(a, b, rng, pa, pick)
+	_merge_moves(c, a, b, primary, pa, rng, temple)
+	return c
+
+
+## The old genes of a merge with a legendary: each part from one parent, the colours mixed.
+static func _mix_genes(a: Beast, b: Beast, rng: RandomNumberGenerator, pa: float, pick: Callable) -> Dictionary:
+	var c_ghost := a.ghost or b.ghost
 	var g := {}
 	for p in PARTS:
 		g[p] = a.genes.get(p, "none") if pick.call() else b.genes.get(p, "none")
@@ -173,12 +201,15 @@ static func merge(a: Beast, b: Beast, temple := false) -> Beast:
 	g["size"] = minf(1.6, maxf(float(a.genes.get("size", 1.0)), float(b.genes.get("size", 1.0))) * rng.randf_range(1.0, 1.06))
 	var sa: float = a.genes.get("shade", 0.0)
 	var sb: float = b.genes.get("shade", 0.0)
-	if c.ghost:
+	if c_ghost:
 		g["shade"] = 0.85 if (a.ghost and b.ghost) else 0.62
 	else:
 		g["shade"] = maxf(sa, sb)
-	c.genes = g
+	return g
 
+
+## A merge's moves, passives, name and health.
+static func _merge_moves(c: Beast, a: Beast, b: Beast, primary: Beast, pa: float, rng: RandomNumberGenerator, temple: bool) -> void:
 	# moves: mostly from the dominant parent, everything else remembered
 	var pool := []
 	for m in a.known + b.known:
@@ -195,8 +226,10 @@ static func merge(a: Beast, b: Beast, temple := false) -> Beast:
 			break
 		if not active.has(m):
 			active.append(m)
-	c.moves = active
-	c.known = pool
+	# a mascot's signature move stays only with a beast of the line it was taught to
+	var own := RaceDB.first_form(c.race)
+	c.moves = active.filter(func(m): return not MoveDB.is_signature(m) or int(MoveDB.SIGNATURE[m]) == own)
+	c.known = pool.filter(func(m): return not MoveDB.is_signature(m) or int(MoveDB.SIGNATURE[m]) == own)
 
 	# passives
 	var ppool := []
@@ -217,4 +250,3 @@ static func merge(a: Beast, b: Beast, temple := false) -> Beast:
 		c.nickname = "Umbral " + c.nickname.replace("Umbral ", "")
 	c.hp = c.max_hp()
 	c.mp = c.max_mp()
-	return c

@@ -2,71 +2,74 @@ extends RefCounted
 ## The world: twelve towns across the regions, the routes between them, arenas, temples and biomes.
 ## Journey: Coast -> Isle of Tides -> Desert -> Mountains & Cogsworth -> Volcano -> Jungle -> River -> Gravenmoor.
 
+const RaceDB = preload("res://scripts/data/race_db.gd")
+
 ## Town progression order (also each town's shop tier).
 const TOWN_ORDER := ["caccoon", "tidewater", "shellhaven", "kelpwick", "dustwell", "sundown",
 	"copperpick", "cogsworth", "emberfall", "vinehollow", "riverbend", "gravenmoor"]
 
 const TOWNS := {
-	"caccoon": {"name": "Cocoon Cove", "size": "hamlet", "mascot": 0, "biome": "coast",
+	"caccoon": {"name": "Cocoon Cove", "size": "hamlet", "mascot": 2, "signature": "bandit_blaze", "biome": "coast",
 		"shops": ["center", "apothecary", "home", "house", "house"],
-		"blurb": "A sleepy seaside hamlet, home of the Redcoon."},
-	"tidewater": {"name": "Tidewater", "size": "town", "mascot": 13, "biome": "coast",
+		"blurb": "A sleepy seaside hamlet, home of the Pyrosaur."},
+	"tidewater": {"name": "Tidewater", "size": "town", "mascot": 29, "signature": "tidewater_torrent", "biome": "coast",
 		"shops": ["center", "apothecary", "electronics", "beast_gear", "bookstore", "cafe", "arena", "skytower", "house", "house", "house"],
 		"blurb": "A busy harbour town. Ferries sail from here to the Isle of Tides."},
-	"shellhaven": {"name": "Shellhaven", "size": "village", "mascot": 20, "biome": "island",
+	"shellhaven": {"name": "Shellhaven", "size": "village", "mascot": 26, "signature": "pearl_cannon", "biome": "island",
 		"shops": ["center", "apothecary", "cafe", "house", "house", "house"],
 		"blurb": "A fishing village on the west shore of the Isle of Tides."},
-	"kelpwick": {"name": "Kelpwick", "size": "village", "mascot": 14, "biome": "island",
+	"kelpwick": {"name": "Kelpwick", "size": "village", "mascot": 23, "signature": "kelp_maelstrom", "biome": "island",
 		"shops": ["center", "beast_gear", "arena", "house", "house", "house"],
 		"blurb": "A village of reef-divers on the east shore of the Isle of Tides."},
-	"dustwell": {"name": "Dustwell Oasis", "size": "hamlet", "mascot": 45, "biome": "desert",
+	"dustwell": {"name": "Dustwell Oasis", "size": "hamlet", "mascot": 32, "signature": "sirocco", "biome": "desert",
 		"shops": ["center", "apothecary", "fortune", "house", "house"],
 		"blurb": "The last cool water before the open desert."},
-	"sundown": {"name": "Sundown Gulch", "size": "town", "mascot": 37, "biome": "western",
+	"sundown": {"name": "Sundown Gulch", "size": "town", "mascot": 38, "signature": "tumbleweed_twister", "biome": "western",
 		"shops": ["center", "apothecary", "trainer_gear", "cafe", "bookstore", "arena", "skytower", "house", "house", "house"],
 		"blurb": "A frontier town of saloons and dust, plagued by bandits."},
-	"copperpick": {"name": "Copperpick", "size": "village", "mascot": 32, "biome": "mountain",
+	"copperpick": {"name": "Copperpick", "size": "village", "mascot": 17, "signature": "motherlode", "biome": "mountain",
 		"shops": ["center", "apothecary", "dojo", "arena", "house", "house"],
 		"blurb": "A mining camp clinging to the mountainside."},
-	"cogsworth": {"name": "Cogsworth", "size": "city", "mascot": 34, "biome": "steampunk",
+	"cogsworth": {"name": "Cogsworth", "size": "city", "mascot": 14, "signature": "clockwork_crusher", "biome": "steampunk",
 		"shops": ["center", "apothecary", "beast_gear", "trainer_gear", "bookstore", "arena", "museum", "music_shop", "cafe", "skytower", "ceo_tower", "house", "house", "house"],
 		"blurb": "A city of brass and steam, ruled from the Gearhart Tower."},
-	"emberfall": {"name": "Emberfall", "size": "village", "mascot": 7, "biome": "hotspring",
+	"emberfall": {"name": "Emberfall", "size": "village", "mascot": 11, "signature": "caldera_burst", "biome": "hotspring",
 		"shops": ["center", "apothecary", "bookstore", "arena", "dojo", "house", "house"],
 		"blurb": "A hot-spring village in the shadow of Mount Cinder."},
-	"vinehollow": {"name": "Vinehollow", "size": "village", "mascot": 31, "biome": "jungle",
+	"vinehollow": {"name": "Vinehollow", "size": "village", "mascot": 20, "signature": "elder_grove", "biome": "jungle",
 		"shops": ["center", "apothecary", "beast_gear", "trainer_gear", "arena", "house", "house", "house"],
 		"blurb": "An ancient jungle village. Its traders sell the finest gear in the land."},
-	"riverbend": {"name": "Riverbend", "size": "town", "mascot": 21, "biome": "river",
+	"riverbend": {"name": "Riverbend", "size": "town", "mascot": 29, "signature": "riverbend_rapids", "biome": "river",
 		"shops": ["center", "apothecary", "beast_gear", "bookstore", "cafe", "music_hall", "fortune", "museum", "arena", "skytower", "house", "house", "house"],
 		"blurb": "A peaceful river town at the edge of the moors."},
-	"gravenmoor": {"name": "Gravenmoor", "size": "town", "mascot": 41, "biome": "moor",
+	"gravenmoor": {"name": "Gravenmoor", "size": "town", "mascot": 35, "signature": "moonlit_gale", "biome": "moor",
 		"shops": ["center", "apothecary", "trainer_gear", "cathedral", "house", "house", "house"],
 		"blurb": "A fog-bound town beside the old graveyard. The Umbral Legion rules here now."},
 }
 
 ## Each route connects `from` to `to` (to = "" for a dead end); `dir` is the edge of `from` it leaves by.
+## races: the first forms of the lines that live there; a wild beast is the form its level gives (RaceDB.for_level).
 const ROUTES := {
-	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [2, 4], "races": [0, 21, 38, 12, 25, 36],
+	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [2, 4], "races": [0, 27, 36, 24, 15, 30],
 		"after_flute": true, "pack": 1},
-	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [4, 7], "races": [13, 20, 24, 46, 2]},
-	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "island", "lv": [7, 10], "races": [14, 16, 17, 18]},
-	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [45, 28, 1, 41, 33]},
-	"route4": {"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [37, 8, 30, 5]},
-	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [42, 3, 27, 40, 29], "temple": "air"},
-	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [32, 34, 10, 26], "legion": true},
-	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [4, 9, 6, 7], "temple": "fire"},
-	"route8": {"name": "Summit Pass", "from": "emberfall", "to": "vinehollow", "dir": "west", "biome": "mountain", "lv": [30, 36], "races": [39, 44, 43, 35, 19], "legion": true},
-	"route9": {"name": "Jungle Trail", "from": "vinehollow", "to": "riverbend", "dir": "south", "biome": "jungle", "lv": [34, 40], "races": [31, 15, 47, 22, 11], "temple": "earth"},
-	"route10": {"name": "Moor Road", "from": "riverbend", "to": "gravenmoor", "dir": "east", "biome": "moor", "lv": [40, 46], "races": [23, 41, 9, 38], "legion": true, "ghosts": 0.2},
+	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [4, 7], "races": [24, 27, 12, 36, 9]},
+	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "island", "lv": [7, 10], "races": [21, 24, 27]},
+	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [30, 15, 3, 33, 9]},
+	"route4": {"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3]},
+	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21], "temple": "air"},
+	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [15, 12, 6, 18], "legion": true},
+	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [9, 0, 6, 3], "temple": "fire"},
+	"route8": {"name": "Summit Pass", "from": "emberfall", "to": "vinehollow", "dir": "west", "biome": "mountain", "lv": [30, 36], "races": [30, 36, 33, 18, 27], "legion": true},
+	"route9": {"name": "Jungle Trail", "from": "vinehollow", "to": "riverbend", "dir": "south", "biome": "jungle", "lv": [34, 40], "races": [18, 27, 36, 24, 0], "temple": "earth"},
+	"route10": {"name": "Moor Road", "from": "riverbend", "to": "gravenmoor", "dir": "east", "biome": "moor", "lv": [40, 46], "races": [33, 21, 6, 36], "legion": true, "ghosts": 0.2},
 }
 
 ## The four elemental temples. Each holds a guardian beast whose defeat leaves a legendary egg.
 const TEMPLES := {
-	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 48, "level": 12, "glow": "#5ac8ff", "element": "water"},
-	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 49, "level": 30, "glow": "#c8fff0", "element": "air"},
-	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 50, "level": 40, "glow": "#ff7a3a", "element": "fire"},
-	"earth": {"name": "Temple of Roots", "route": "route9", "room": "temple_earth", "guardian": 51, "level": 48, "glow": "#7ae05a", "element": "earth"},
+	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff", "element": "water"},
+	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0", "element": "air"},
+	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a", "element": "fire"},
+	"earth": {"name": "Temple of Roots", "route": "route9", "room": "temple_earth", "guardian": 42, "level": 48, "glow": "#7ae05a", "element": "earth"},
 }
 
 ## Field obstacles drawn into the maps. A beast in your party of a listed element clears them.
@@ -89,16 +92,78 @@ const FIELD_VERBS := {
 	"fire": "burned it away", "water": "washed it away", "air": "blew it away", "earth": "smashed it apart",
 }
 
-## Arena leaders. team: [race, level]. Each teaches a flute song.
+## The Coastal Path's teachers (see battle.gd LESSONS, and story.gd for how they're placed and talk). Each looks
+## across the trail where you can't slip past them (tools/check_maps.gd checks it), so they spot you and walk you
+## through one part of battling, before you have a flute; the last one sets "tutorial_done". Youngster Kit lives in
+## the log cabin by the washed-out footbridge, looking at his door, and his gift is the logs to mend it (story.gd
+## logs_missing).
+## lines: before the battle; after: once you've won; defeat: when you talk to them again; gift: items they give you.
+const LESSON_TRAINERS := [
+	{"anchor": "lesson_screen", "lesson": "screen", "name": "Tilly", "cls": "Camper", "team": [[27, 2]], "facing": Vector2i(0, 1),
+		"look": {"skin": "#f0c8a0", "hair": "#a06030", "hair_style": 1, "shirt": "#6aa84f", "pants": "#5a4a3a", "hat": "#d8b060"},
+		"lines": ["Hey hey, a new trainer! Everyone who walks the Coastal Path gets a lesson from us. It's tradition. We started it last Tuesday."],
+		"after": ["That's the battle screen! Keep heading along the trail. Fisher Dale will teach you about turns. He's very patient. He's a fisher."],
+		"defeat": "Your own bar comes first, then one for each beast. Left and right to choose, A to confirm, B to go back!"},
+	{"anchor": "lesson_turns", "lesson": "turns", "name": "Dale", "cls": "Fisher", "team": [[36, 2]], "facing": Vector2i(0, -1),
+		"look": {"skin": "#c08a60", "hair": "#303040", "shirt": "#3a6a9a", "pants": "#4a4a52", "hat": "#e8c040"},
+		"lines": ["Shh, the fish are bit... oh, a trainer! Never mind the fish. They never bite anyway. Let's talk about turns."],
+		"after": ["Patience wins battles, and Defend buys you time. Youngster Kit lives in the log cabin by the creek. He'll show you your own turn. He's VERY excited about it."],
+		"defeat": "Everyone picks first, then the faster side goes. Defend always goes first and halves the hurt."},
+	{"anchor": "lesson_slingshot", "lesson": "slingshot", "name": "Kit", "cls": "Youngster", "team": [[24, 3]], "facing": Vector2i(0, 1),
+		"look": {"skin": "#e0b088", "hair": "#5a3a20", "hair_style": 0, "shirt": "#e07a5a", "pants": "#3a4a6a"},
+		"gift": {"bridge_log": 5},
+		"lines": ["A visitor! Nobody visits! You've got a slingshot, right? EVERY trainer has a slingshot! I'll show you what yours is for!"],
+		"after": ["Want to cross the creek? I've been hauling logs from the storm trees all week. Take them!",
+			"Lay them across the old footbridge's posts, just east of my cabin. Picnicker Mae is over on the far side. Bring an appetite."],
+		"defeat": "Your own bar: Slingshot, Items, Watch... and Run from wild beasts, or Forfeit against trainers."},
+	{"anchor": "lesson_items", "lesson": "items", "name": "Mae", "cls": "Picnicker", "team": [[15, 3]], "facing": Vector2i(0, 1),
+		"gift": {"minor_potion": 3},
+		"look": {"skin": "#f8d8c0", "hair": "#e0c070", "hair_style": 1, "shirt": "#e8a0c0", "pants": "#6a5a8a"},
+		"lines": ["Is that a beast? Is it hungry? Never mind. Let's talk about the most important thing in a battle: snacks. I mean items."],
+		"after": ["Take these for the road: three Minor Potions! Ranger Holt waits just before Tidewater with the last lesson."],
+		"defeat": "Potions heal HP and Spirit Drops bring back MP. Apothecaries sell them. Picnic baskets don't. I checked."},
+	{"anchor": "lesson_ring", "lesson": "ring", "name": "Holt", "cls": "Ranger", "team": [[30, 3]], "facing": Vector2i(0, -1),
+		"look": {"skin": "#8a5a3a", "hair": "#2a1a10", "shirt": "#5a7a3a", "pants": "#4a3a2a", "hat": "#4a6a2a"},
+		"lines": ["Halt! Rangers check every new trainer before Tidewater. Relax, it's a lesson, not a test. Well. A little bit a test."],
+		"after": ["You're ready. Shields recharge after every battle, and Volt at Sparkwire Electronics can add shield points and beast slots for crystal shards.",
+			"Now go and see your uncle! Tidewater's just along the trail."],
+		"defeat": "Knock out the foe's middle beast, then hit the trainer. No shield left? That trainer loses."},
+]
+
+## Tidewater's arena coaches (battle.gd LESSONS "team" and "elements"): before you may challenge Tide Captain Marina,
+## and so before Captain Gull sails you to the Isle of Tides, Coach Rory teaches battling with a whole side of your
+## ring and Coach Ondine elemental weaknesses (her beast is weak to your side's element, see story.gd
+## _elements_lesson). They stand by the arena's entrance in Tidewater (interior_maps.gd "arena" anchors): Rory looking
+## at the door, Ondine along the entry row, so walking in you're in their sight and they stop you (world.gd spot_you).
+## needs: a lesson to have had first (until then, that coach doesn't notice you).
+const ARENA_LESSONS := [
+	{"anchor": "lesson_team", "lesson": "team", "town": "tidewater", "name": "Rory", "cls": "Coach", "team": [[27, 4], [33, 4]],
+		"facing": Vector2i(0, 1), "look": {"skin": "#c8946a", "hair": "#3a2a1a", "hair_style": 0, "shirt": "#2f6fb0", "pants": "#2a2a3a", "hat": "#f0f0f0"},
+		"lines": ["Ahoy! I'm Coach Rory. Nobody faces Tide Captain Marina without a lesson from me and one from Coach Ondine. Arena rules!",
+			"Today: fighting as a team. One beast is a pet. Three beasts is a crew!"],
+		"after": ["That's teamwork! Every beast on the side facing the foe gets a move each round, so a full side hits three times as hard.",
+			"Fill your ring's sides with beasts and you'll never fight alone. Now go and see Coach Ondine about elements."],
+		"defeat": "Up and down move between your beasts' bars. Every beast on the side facing the foe gets a move!"},
+	{"anchor": "lesson_elements", "lesson": "elements", "town": "tidewater", "needs": "lesson_team", "name": "Ondine", "cls": "Coach",
+		"team": [[36, 4]], "facing": Vector2i(-1, 0),
+		"look": {"skin": "#f0c8a0", "hair": "#30a0b0", "hair_style": 1, "shirt": "#e8e0c0", "pants": "#3a5a7a"},
+		"first": "Coach Rory's lesson comes first, sweetie. Teamwork, then elements. I don't make the rules. Rory does. Loudly.",
+		"lines": ["I'm Coach Ondine. Let's talk elements: the secret to beating beasts bigger than yours."],
+		"after": ["Remember the wheel: fire is weak to air, earth to water, water to air, and air to fire.",
+			"Tide Captain Marina's beasts are all water... and water is weak to air. Just saying! She's waiting for you in the ring."],
+		"defeat": "Look for the ★ beside a move and ★ WEAK on a target's card: that's double damage!"},
+]
+
+## Arena leaders. team: [race, level] (a line's first form: the level picks the form). Each teaches a flute song.
 const ARENAS := {
-	"tidewater": {"leader": "Marina", "title": "Tide Captain", "team": [[12, 9], [13, 9], [21, 10]], "song": "shanty", "crest": "Wave Crest", "gold": 900, "look": {"shirt": "#2f6fb0", "hair": "#203048", "hat": "#f0f0f0"}},
-	"kelpwick": {"leader": "Nerissa", "title": "Reef Warden", "team": [[14, 15], [18, 15], [16, 16]], "song": "coral", "flute": "lullaby", "crest": "Coral Crest", "gold": 1300, "look": {"shirt": "#e07a8a", "hair": "#30a0b0"}},
-	"sundown": {"leader": "Rosa", "title": "Gunslinger", "team": [[37, 21], [8, 21], [30, 22]], "song": "reel", "crest": "Spur Crest", "gold": 1800, "look": {"shirt": "#8a4a2a", "hair": "#2a1a10", "hat": "#6a4a2a"}},
-	"copperpick": {"leader": "Gorran", "title": "Mine Foreman", "team": [[32, 27], [34, 27], [10, 28]], "song": "dirge", "crest": "Ore Crest", "gold": 2400, "look": {"shirt": "#5a6070", "hair": "#806040", "hat": "#e8c040", "outfit": "coat"}},
-	"cogsworth": {"leader": "Volta", "title": "Chief Engineer", "team": [[43, 33], [3, 33], [27, 34]], "song": "anvil", "flute": "static", "crest": "Cog Crest", "gold": 3000, "look": {"shirt": "#6a4a3a", "hair": "#f0f0f0", "hat": "#c8a040", "outfit": "apron"}},
-	"emberfall": {"leader": "Brann", "title": "Forgemaster", "team": [[7, 39], [4, 39], [9, 40]], "song": "waltz", "crest": "Flame Crest", "gold": 3800, "look": {"shirt": "#8a2a1e", "hair": "#2a1a10", "outfit": "apron"}},
-	"vinehollow": {"leader": "Aeris", "title": "Jungle Huntress", "team": [[31, 45], [15, 45], [35, 46]], "song": "fanfare", "flute": "minuet", "crest": "Vine Crest", "gold": 4600, "look": {"shirt": "#4a7a3a", "hair": "#e8e0c0", "outfit": "robe"}},
-	"riverbend": {"leader": "Skye", "title": "River Ranger", "team": [[44, 51], [22, 51], [47, 52]], "song": "anthem", "crest": "River Crest", "gold": 5500, "look": {"shirt": "#3a6ab0", "hair": "#f0d070", "hat": "#3a5a3a"}},
+	"tidewater": {"leader": "Marina", "title": "Tide Captain", "team": [[24, 9], [27, 9], [21, 10]], "song": "shanty", "crest": "Wave Crest", "gold": 900, "look": {"shirt": "#2f6fb0", "hair": "#203048", "hat": "#f0f0f0"}},
+	"kelpwick": {"leader": "Nerissa", "title": "Reef Warden", "team": [[21, 15], [27, 15], [24, 16]], "song": "coral", "flute": "lullaby", "crest": "Coral Crest", "gold": 1300, "look": {"shirt": "#e07a8a", "hair": "#30a0b0"}},
+	"sundown": {"leader": "Rosa", "title": "Gunslinger", "team": [[36, 21], [3, 21], [12, 22]], "song": "reel", "crest": "Spur Crest", "gold": 1800, "look": {"shirt": "#8a4a2a", "hair": "#2a1a10", "hat": "#6a4a2a"}},
+	"copperpick": {"leader": "Gorran", "title": "Mine Foreman", "team": [[15, 27], [9, 27], [6, 28]], "song": "dirge", "crest": "Ore Crest", "gold": 2400, "look": {"shirt": "#5a6070", "hair": "#806040", "hat": "#e8c040", "outfit": "coat"}},
+	"cogsworth": {"leader": "Volta", "title": "Chief Engineer", "team": [[30, 33], [0, 33], [12, 34]], "song": "anvil", "flute": "static", "crest": "Cog Crest", "gold": 3000, "look": {"shirt": "#6a4a3a", "hair": "#f0f0f0", "hat": "#c8a040", "outfit": "apron"}},
+	"emberfall": {"leader": "Brann", "title": "Forgemaster", "team": [[9, 39], [3, 39], [0, 40]], "song": "waltz", "crest": "Flame Crest", "gold": 3800, "look": {"shirt": "#8a2a1e", "hair": "#2a1a10", "outfit": "apron"}},
+	"vinehollow": {"leader": "Aeris", "title": "Jungle Huntress", "team": [[18, 45], [24, 45], [15, 46]], "song": "fanfare", "flute": "minuet", "crest": "Vine Crest", "gold": 4600, "look": {"shirt": "#4a7a3a", "hair": "#e8e0c0", "outfit": "robe"}},
+	"riverbend": {"leader": "Skye", "title": "River Ranger", "team": [[36, 51], [27, 51], [30, 52]], "song": "anthem", "crest": "River Crest", "gold": 5500, "look": {"shirt": "#3a6ab0", "hair": "#f0d070", "hat": "#3a5a3a"}},
 }
 
 const BIOMES := {
@@ -160,13 +225,14 @@ const TIPS := [
 	"Earth beasts can shield their friends. Put one up front!",
 	"Air beasts are slippery tricksters. Fire burns right through their tricks.",
 	"Beat wild beasts and sometimes they leave an egg behind. A Beast Center can hatch it!",
-	"Once two beasts hit their level limit, a Beast Center can merge them into one stronger beast.",
+	"Once two beasts in their final form hit their level limit, a Beast Center can merge them into one stronger beast.",
+	"A beast grows up as it levels: into a new form at Lv 20, and into its last at Lv 40. Even a tiny hatchling has a lot ahead of it!",
 	"Your beasts' elemental moves work outside battle too. Vines burn, sand washes away, boulders shatter!",
 	"Crystal shards are hidden all over. Five of them buy a shield upgrade at the Tidewater electronics shop.",
 	"If all your beasts faint, enemies go after you. Your shield is all that stands between you and defeat!",
 	"You can throw items in battle too: bombs, powders, tonics. Don't forget your own turn!",
 	"The bird at the top of a Sky Tower can fly you to any town you've visited.",
-	"Raise an air beast to level 40 and it can carry you anywhere!",
+	"Raise an air beast to Lv 40, its final form, and it can carry you anywhere!",
 	"The better you play Capture, the more likely a wild beast is to join you. Play it flawlessly to win over a beast stronger than yours!",
 	"Once one of your beasts reaches your Capture level, practise the next level from the Flute page of your book.",
 	"Flute songs aren't just for charming. Some lift your team's spirits, others sap the foe's strength!",
@@ -198,6 +264,13 @@ static func town_tier(id: String) -> int:
 	if id == "vinehollow":
 		return 12
 	return maxi(0, TOWN_ORDER.find(id))
+
+
+## What a town's mascot statue is cast in: bronze along the coast and the isles, silver from the desert to the
+## mountains, gold in the far towns.
+static func statue_metal(id: String) -> String:
+	var tier := town_tier(id)
+	return "bronze" if tier < 4 else ("silver" if tier < 8 else "gold")
 
 
 static func is_town(id: String) -> bool:
@@ -299,6 +372,17 @@ static func level_near(town: String) -> Array:
 	return best
 
 
+## The forms a route's wild beasts can be at its levels: a line's first form on the early roads, its second and third
+## further on (Lv 20 and Lv 40, RaceDB.EVOLVE).
+static func route_forms(rid: String) -> Array:
+	var r: Dictionary = ROUTES[rid]
+	var out := []
+	for x in r["races"]:
+		for f in range(RaceDB.for_level(int(x), int(r["lv"][0])), RaceDB.for_level(int(x), int(r["lv"][1])) + 1):
+			out.append(f)
+	return out
+
+
 ## Wild beasts of the region near a town (used for trade boards).
 static func races_near(town: String) -> Array:
 	var out := []
@@ -306,4 +390,4 @@ static func races_near(town: String) -> Array:
 		var r: Dictionary = ROUTES[rid]
 		if r["from"] == town or r["to"] == town:
 			out += r["races"]
-	return out if not out.is_empty() else [0, 25, 38, 21]
+	return out if not out.is_empty() else [0, 15, 36, 27]

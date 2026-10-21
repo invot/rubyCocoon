@@ -45,8 +45,9 @@ static func opponent(rank: int, i: int) -> Dictionary:
 	var wants := [theme, near[0], near[1], opp, near[0], near[1], opp, near[0]]
 	for k in n:
 		var el: String = wants[k]
+		# each line's first form (the level picks the form it has grown into)
 		var pool := []
-		for r in RaceDB.NORMAL_COUNT:
+		for r in range(0, RaceDB.NORMAL_COUNT, 3):
 			if RaceDB.element(r) == el:
 				pool.append(r)
 		team.append([pool[rng.randi_range(0, pool.size() - 1)], lv + rng.randi_range(-1, 1)])

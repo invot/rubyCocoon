@@ -2,21 +2,26 @@ extends "res://scripts/ui/modal.gd"
 ## Choosing the round's commands (as in Jade Cocoon 2). Nothing of its own is drawn: it drives the move bars and the
 ## grids of the battle HUD (battle_bars.gd, ring_grid.gd).
 ##   ◄ / ►  change the chosen bar's action: your own, or the beast's move (the side's element, neutral or Defend)
-##   A       confirm it; a move aimed at someone then picks its target with ◄ / ► (a foe on the side facing you, or
-##           their trainer when the middle of that side is down) and A
+##   A       confirm it; then every move aimed at someone has its target picked, even with just one to aim at: ◄ / ►
+##           choose it (a foe on the side facing you, or their trainer when the middle of that side is down) and A
+##           confirms. A move that hits them all shows them all, for A to confirm. Move (a beast steps over to another
+##           slot) picks the slot with ▲ / ▼ (or ◄ / ►).
 ##   B       go back a step
-##   ▲ / ▼   move between the beasts; ▲ on the top beast turns the ring anticlockwise, ▼ on the bottom one clockwise
-##           (to the next side with a beast standing on it; the beasts' choices are then made afresh)
-## You choose your own action first, then the beasts'. When every standing beast has its move, the round begins. The
-## bars and the foe's tiles can be tapped too.
+##   ▲ / ▼   move between the beasts; ▲ on the top beast (or on your own bar, once your action is chosen) turns the
+##           ring anticlockwise, ▼ on the bottom one clockwise (to the next side with a beast standing on it; the
+##           beasts' choices are then made afresh)
+## You choose your own action first, then each beast's move and target, from the top. When every standing beast has
+## its move, the round begins. The bars, the grids' tiles and the target cards can be tapped too. In a lesson
+## (info.lesson) each bar has one thing to pick: ◄ ► stay on it, and the hint says why.
 ##
 ## rows (built by battle.gd) keep their state, so the panel can close for a sub-menu (items, the flute) or a turn of
 ## the ring and open again where it left off. done emits {"kind": "go"} when everything is chosen, {"kind": "rotate",
 ## "dir": -1 / 1}, or {"kind": "sub", "row": i} (the chosen option needs battle.gd's own menu).
 ## rows: [{kind: "trainer" | "beast", beast, options: [{label, target, disabled, desc, sub, move}], sel, done,
-##         target_sel, targets: [{label, ref, tile, grid}], status: "" | "down" | "empty", locked}]
-## info: {up, down, prompt}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
-##        bars, foe_grid, ally_grid (to listen for taps)}
+##         target_sel, targets: [{label, ref, tile, grid}], target_all (the move hits every target), pick_kind,
+##         status: "" | "down" | "empty", locked}]
+## info: {up, down, prompt, lesson}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
+##        bars, foe_grid, ally_grid, cards (to listen for taps)}
 
 var rows: Array = []
 var info: Dictionary = {}
@@ -24,6 +29,7 @@ var focus := 0
 var picking := false
 var targets_for: Callable
 var hooks: Dictionary = {}
+var _accept_frame := -1
 
 
 func setup(_rows: Array, _info: Dictionary, _focus: int, _targets_for: Callable, _hooks: Dictionary) -> Control:
@@ -44,6 +50,9 @@ func _ready() -> void:
 		var grid = hooks.get(g, null)
 		if grid != null:
 			grid.tile_tapped.connect(_tile_tapped.bind(g))
+	var cards = hooks.get("cards", null)
+	if cards != null:
+		cards.tapped.connect(_card_tapped)
 	_point_row()
 	_redraw()
 
@@ -57,6 +66,9 @@ func _exit_tree() -> void:
 		if grid != null:
 			for c in grid.tile_tapped.get_connections():
 				grid.tile_tapped.disconnect(c["callable"])
+	var cards = hooks.get("cards", null)
+	if cards != null and cards.tapped.is_connected(_card_tapped):
+		cards.tapped.disconnect(_card_tapped)
 
 
 func _redraw() -> void:
@@ -64,7 +76,14 @@ func _redraw() -> void:
 		(hooks["render"] as Callable).call(rows, focus, picking)
 	var text := ""
 	if picking:
-		text = "Choose a target."
+		var row: Dictionary = rows[focus]
+		match String(row.get("pick_kind", "")):
+			"slot":
+				text = "Where should %s move to? ▲ ▼ to choose, A to confirm." % String(row.get("beast").nickname if row.get("beast") != null else "it")
+			"enemies", "allies":
+				text = "It hits all of these. A to confirm, B to go back."
+			_:
+				text = "Choose a target: ◄ ► to change it, A to confirm."
 	elif focus == 0 and not rows[0].get("done", false):
 		text = String(info.get("prompt", ""))
 	_hint(text)
@@ -95,6 +114,10 @@ func on_input(ev: InputEvent) -> void:
 	elif ev.is_action_pressed("ui_down"):
 		_move(1)
 	elif ev.is_action_pressed("ui_accept") or ev.is_action_pressed("interact"):
+		# one press confirms once, even if it comes as both actions in the same frame
+		if Engine.get_process_frames() == _accept_frame:
+			return
+		_accept_frame = Engine.get_process_frames()
 		_confirm()
 	elif ev.is_action_pressed("ui_cancel"):
 		_back()
@@ -124,7 +147,7 @@ func _tile_tapped(tile: int, grid: String) -> void:
 	var ts: Array = row.get("targets", [])
 	for j in ts.size():
 		if int(ts[j].get("tile", -100)) == tile and String(ts[j].get("grid", "")) == grid:
-			if j == int(row.get("target_sel", 0)):
+			if j == int(row.get("target_sel", 0)) or row.get("target_all", false):
 				_confirm()
 			else:
 				row["target_sel"] = j
@@ -132,6 +155,22 @@ func _tile_tapped(tile: int, grid: String) -> void:
 				_point_row()
 				_redraw()
 			return
+
+
+## Tapping a target card aims at it (and confirms when it's already the one aimed at).
+func _card_tapped(j: int) -> void:
+	if closed or not picking:
+		return
+	var row: Dictionary = rows[focus]
+	if j < 0 or j >= (row.get("targets", []) as Array).size():
+		return
+	if j == int(row.get("target_sel", 0)) or row.get("target_all", false):
+		_confirm()
+		return
+	row["target_sel"] = j
+	Sfx.play("select")
+	_point_row()
+	_redraw()
 
 
 func _focus_row(i: int) -> void:
@@ -151,7 +190,7 @@ func _point_row() -> void:
 	var ref = null
 	if picking:
 		var ts: Array = row.get("targets", [])
-		ref = ts[clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1)]["ref"] if not ts.is_empty() else null
+		ref = ts[clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1)]["ref"] if not ts.is_empty() and not row.get("target_all", false) else null
 	else:
 		ref = "trainer_self" if row["kind"] == "trainer" else row.get("beast", null)
 	(hooks["point"] as Callable).call(ref)
@@ -163,6 +202,9 @@ func _cycle(dir: int) -> void:
 		return
 	if picking:
 		var ts: Array = row.get("targets", [])
+		if row.get("target_all", false):
+			Sfx.play("error")
+			return
 		if ts.size() > 1:
 			row["target_sel"] = posmod(int(row.get("target_sel", 0)) + dir, ts.size())
 			Sfx.play("select")
@@ -172,7 +214,19 @@ func _cycle(dir: int) -> void:
 	var n: int = row["options"].size()
 	if n <= 1:
 		return
-	row["sel"] = posmod(int(row.get("sel", 0)) + dir, n)
+	var sel := int(row.get("sel", 0))
+	var nxt := posmod(sel + dir, n)
+	if info.get("lesson", false):
+		# only what the lesson teaches can be picked: skip the rest (none left: the teacher says what to do)
+		var k := nxt
+		while k != sel and row["options"][k].get("disabled", false):
+			k = posmod(k + dir, n)
+		if k == sel:
+			Sfx.play("error")
+			_hint(String(row["options"][nxt].get("desc", "")))
+			return
+		nxt = k
+	row["sel"] = nxt
 	row["done"] = false
 	Sfx.play("select")
 	_redraw()
@@ -182,14 +236,18 @@ func _cycle(dir: int) -> void:
 ## the ring.
 func _move(dir: int) -> void:
 	if picking:
+		if String(rows[focus].get("pick_kind", "")) == "slot":
+			_cycle(dir)
 		return
 	if focus == 0:
-		if dir > 0 and rows[0].get("done", false):
-			var first := _next_beast(0, 1)
-			if first > 0:
-				_focus_row(first)
-			else:
-				_rotate(1)
+		if not rows[0].get("done", false):
+			return
+		var first := _next_beast(0, 1)
+		if dir > 0 and first > 0:
+			_focus_row(first)
+		else:
+			# no beast to go down to, or ▲: the ring turns (even with nobody standing on the side facing the foe)
+			_rotate(dir)
 		return
 	var nxt := _next_beast(focus, dir)
 	if nxt < 0:
@@ -238,21 +296,23 @@ func _confirm() -> void:
 		close({"kind": "sub", "row": focus, "focus": focus})
 		return
 	var kind: String = o.get("target", "none")
-	if kind in ["enemy", "ally", "ally_ko"]:
+	if kind in ["enemy", "ally", "ally_ko", "enemies", "allies", "slot"]:
 		var ts: Array = targets_for.call(row, o) if targets_for.is_valid() else []
 		if ts.is_empty():
 			Sfx.play("error")
-			_hint("There's no one to use that on right now.")
+			_hint(String(o.get("none_hint", "There's no one to use that on right now.")))
 			return
+		# a move isn't set until its target is: even with one foe to aim at it's picked out (and a move that hits them
+		# all shows them all) for A to confirm
 		row["targets"] = ts
-		row["target_sel"] = clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1)
-		if ts.size() > 1:
-			picking = true
-			Sfx.play("confirm")
-			_point_row()
-			_redraw()
-			return
-		row["target_sel"] = 0
+		row["pick_kind"] = kind
+		row["target_all"] = kind in ["enemies", "allies"]
+		row["target_sel"] = clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1) if kind != "slot" else 0
+		picking = true
+		Sfx.play("confirm")
+		_point_row()
+		_redraw()
+		return
 	else:
 		row["targets"] = []
 	row["done"] = true

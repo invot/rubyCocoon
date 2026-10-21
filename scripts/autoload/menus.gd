@@ -36,7 +36,12 @@ func eggs_menu() -> void:
 
 # ---------------------------------------------------------------- beast pickers
 func beast_item(b, reason := "") -> Dictionary:
-	var desc := "%s %s  Rank %s  HP %d/%d\n%s" % [b.element.capitalize(), Elements.ROLE.get(b.element, ""), b.rank_stars(), maxi(0, b.hp), b.max_hp(), reason if reason != "" else ("Ready to merge!" if b.at_cap() else "Lv limit %d" % b.level_cap())]
+	var limit := "Ready to merge!" if b.at_cap() else "Lv limit %d" % b.level_cap()
+	# (a beast that hasn't grown into its final form yet: the level it next grows at)
+	var grow := RaceDB.EVOLVE.filter(func(l): return l > b.level and RaceDB.stage(b.race) < 3)
+	if not b.at_cap() and not grow.is_empty():
+		limit += "  ·  grows up at Lv %d" % grow[0]
+	var desc := "%s %s  Rank %s  HP %d/%d\n%s" % [b.element.capitalize(), Elements.ROLE.get(b.element, ""), b.rank_stars(), maxi(0, b.hp), b.max_hp(), reason if reason != "" else limit]
 	return {"text": b.nickname, "right": "Lv %d" % b.level if b.hp > 0 else "fainted", "icon": PixelArt.beast_texture(b.genes),
 		"desc": desc, "disabled": reason != ""}
 
@@ -55,17 +60,26 @@ func pick_beast(title: String, list: Array, check := Callable()):
 	return list[c]
 
 
+## The messages for Beast.gain_xp's events. A beast that grew into its next form on the way is called by its old name
+## until then ("Cinderex grew to Lv 40!", "Cinderex grew into Pyrosaur!").
 func report_events(b, events: Array) -> void:
 	var lines := []
+	var evo: Array = events.filter(func(e): return e["type"] == "evolve")
+	var who: String = evo[0]["from"] if not evo.is_empty() else b.nickname
 	for e in events:
 		match e["type"]:
 			"level":
-				lines.append("%s grew to Lv %d!" % [b.nickname, e["level"]])
+				lines.append("%s grew to Lv %d!" % [who, e["level"]])
+			"evolve":
+				lines.append("%s grew into %s!" % [e["from"], e["to"]])
+				who = e["to"]
+				GameState.caught[str(b.race)] = true
+				GameState.seen[str(b.race)] = true
 			"learn":
 				var mn: String = MoveDB.get_move(e["move"])["name"]
-				lines.append(("%s learned %s!" % [b.nickname, mn]) if e["active"] else ("%s can now use %s. Swap it in from the Moves menu." % [b.nickname, mn]))
+				lines.append(("%s learned %s!" % [who, mn]) if e["active"] else ("%s can now use %s. Swap it in from the Moves menu." % [who, mn]))
 			"cap":
-				lines.append("%s reached its level limit! It's ready to merge." % b.nickname)
+				lines.append("%s reached its level limit! It's ready to merge." % who)
 	if not lines.is_empty():
 		Sfx.play("levelup")
 		await UI.say(lines)
