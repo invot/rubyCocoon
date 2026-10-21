@@ -102,17 +102,25 @@ static func givable(di: Dictionary, fi: Dictionary) -> Dictionary:
 	return out
 
 
-## Whether the donor's legs, stretched to the frame's (leg_stretch()), keep about their shape.
+## Whether the donor's legs, stretched to the frame's (leg_stretch()), keep about their shape, and are no more than
+## half as thin as the frame's (or they'd look like stilts).
 static func legs_fit(fi: Dictionary, di: Dictionary) -> bool:
+	var s := clampf(sqrt(size(fi, "body") / maxf(size(di, "body"), 0.05)), 0.6, 1.6)
 	for p in GROUPS["legs"]:
 		if fi["clo"].has(p):
 			var src := leg_from(p, di)
 			if src == "":
 				return false
 			var sy := leg_stretch(p, src, fi, di)
-			if sy < 0.5 or sy > 2.0:
+			if sy < 0.5 or sy > 2.0 or girth(di, src) * clampf(s, sy * 0.8, sy * 1.25) < 0.5 * girth(fi, p):
 				return false
 	return true
+
+
+## How thick a part is (by regions()): its larger measure across.
+static func girth(fi: Dictionary, p: String) -> float:
+	var e: Vector3 = fi["chi"][p] - fi["clo"][p]
+	return maxf(e.x, e.z)
 
 
 static func has_group(fi: Dictionary, g: String) -> bool:
@@ -494,15 +502,27 @@ static func move(p: String, src: String, fi: Dictionary, di: Dictionary) -> Arra
 	elif p.begins_with("leg_"):
 		var sy := leg_stretch(p, src, fi, di)
 		var sx := clampf(s, sy * 0.8, sy * 1.25)
-		return [src, from, Vector3(to.x, (from.y - low) * sy, to.z), Vector3(sx, sy, sx)]
+		return [src, from, Vector3(to.x, (from.y - low) * sy, to.z + apart(p, src, di, from.z, to.z, sx)),
+			Vector3(sx, sy, sx)]
 	# a little into the body, so the seam's hidden
 	var mid: Vector3 = (fi["clo"]["body"] + fi["chi"]["body"]) / 2.0
 	to = to.move_toward(mid, SINK)
+	to.z += apart(p, src, di, from.z, to.z, s)
 	var reach := from.y - low
 	if reach > 0.01 and to.y - reach * s < 0.01:
 		s = maxf((to.y - 0.01) / reach, s * 0.7)
 		to.y = maxf(to.y, 0.01 + reach * s)
 	return [src, from, to, Vector3(s, s, s)]
+
+
+## How far to the side to set the donor's part `src` on the frame's part p (at `to`, scaled by `sz` across) so it
+## doesn't reach over the middle into its pair (a crab's claws, curled in, on a narrow body): at most a little.
+static func apart(p: String, src: String, di: Dictionary, from: float, to: float, sz: float) -> float:
+	if not p.ends_with("_l") and not p.ends_with("_r"):
+		return 0.0
+	var side := -1.0 if p.ends_with("_l") else 1.0
+	var inner: float = (di["chi"][src] if side < 0.0 else di["clo"][src]).z
+	return clampf(0.02 - side * (to + (inner - from) * sz), 0.0, 0.06) * side
 
 
 ## How much the donor's leg `src` is stretched up and down to be the frame's leg p: from its foot on the ground to
