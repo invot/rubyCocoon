@@ -75,6 +75,9 @@ var _walk := 0.0
 var _lie := 0.0
 var _blink := 2.0
 
+## built beasts' pieces and joints, by recipe (cutting a merge's meshes is slow; every beast of a recipe shares them)
+static var _built := {}
+
 ## A beast of this form (as "dino_3").
 func setup(f: String, as_ghost := false) -> void:
 	_build({"frame": f}, as_ghost)
@@ -104,6 +107,37 @@ func height() -> float:
 	return _height
 
 
+## Takes up its state at once (a beast already down when a battle starts lies there from the first frame).
+func settle() -> void:
+	_walk = 1.0 if state == "walk" else 0.0
+	_lie = 1.0 if state == "lie" else 0.0
+	_pose()
+
+
+## Stands still in its state's resting pose, neither squashed nor stretched, eyes open, and stops animating (a
+## statue, a museum exhibit, an icon).
+func hold() -> void:
+	_atk = -1.0
+	_bounce = PI / 2.0
+	_flap = 0.0
+	_step = 0.0
+	_blink = 2.0
+	settle()
+	set_process(false)
+
+
+## Its bounds in its own space, its pieces as they stand now (a flyer hovering).
+func bounds() -> AABB:
+	var bb := AABB()
+	var first := true
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var xf: Transform3D = pivot.transform * skel.transform * (mi as MeshInstance3D).transform
+		var b: AABB = xf * (mi as MeshInstance3D).get_aabb()
+		bb = b if first else bb.merge(b)
+		first = false
+	return bb
+
+
 func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	for c in get_children():
 		c.queue_free()
@@ -124,11 +158,17 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	var blo: Vector3 = flo.get("body", Vector3.ZERO)
 	var bhi: Vector3 = fhi.get("body", Vector3(0.2, 0.5, 0.2))
 	_centre = Vector3((blo.x + bhi.x) / 2.0, blo.y if kind == "serpent" else (blo.y + bhi.y) / 2.0, 0.0)
-	_joint = Parts.joints(fi)
+	var key := JSON.stringify(recipe)
+	if not _built.has(key):
+		var j := Parts.joints(fi)
+		# (pieces() moves the joints of the parts it sets onto the frame)
+		var pcs := Parts.pieces(recipe, j)
+		_built[key] = {"pieces": pcs, "joints": j}
+	_joint = (_built[key]["joints"] as Dictionary).duplicate()
 	var parents: Dictionary = fi["parents"]
 	var colours := Looks.look(String(recipe.get("colours", frame)))
 	var meshes := []
-	for pc in Parts.pieces(recipe, _joint):
+	for pc in _built[key]["pieces"]:
 		var mi := MeshInstance3D.new()
 		mi.mesh = pc["mesh"]
 		meshes.append(pc["mesh"])
