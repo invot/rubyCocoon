@@ -144,6 +144,7 @@ func extra_npcs(map: Dictionary) -> Array:
 			inside.append({"kind": "story", "id": "builder", "name": "Old Hal", "pos": _at(map, "builder", Vector2i.ZERO), "look": BUILDER_LOOK, "facing": Vector2i(0, 1), "story": true})
 		if _has_anchor(map, "uncle"):
 			inside.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", Vector2i.ZERO), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
+		inside.append_array(temple_objects(map))
 		return inside
 	var plaza: Vector2i = map.get("plaza", Vector2i(map["w"] / 2, map["h"] / 2))
 	if WorldDB.TOWNS.has(id):
@@ -378,6 +379,10 @@ func can_use_exit(world, ex: Dictionary) -> bool:
 				return false
 	elif key == "cathedral" and not GameState.flag("nyx_defeated"):
 		await UI.say(["Commander Nyx blocks the way to the crypt stairs."], "Commander Nyx")
+		return false
+	elif key == "crypt_1" and not GameState.flag("guardian_ghost"):
+		await UI.say(["A wall of shadow seals the stairs down. Something in the crypt still stirs: its guardian, Nocthrax.",
+			"Win it over first. The crypt's singing stones hold its song."])
 		return false
 	return true
 
@@ -871,6 +876,10 @@ func _mascot(world, n: Dictionary) -> void:
 
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
+		"song_stone":
+			await Places.song_stone(world, n)
+		"song_tablet":
+			await Places.song_tablet(world, n)
 		"elder":
 			await _elder(world, n)
 		"builder":
@@ -1231,38 +1240,173 @@ func _finale(world, n: Dictionary) -> void:
 
 
 # ================================================================ temple guardians
+## The singing stones and the tablet in a temple's room (or Gravenmoor's crypt), on its anchors stone_0 .. stone_3 and
+## tablet. Each stone is one flute button (left, right, A, B, in their flute-game colours); the tablet sings the order
+## (Places.song_tablet), and striking them in it teaches the temple's song (Places.song_stone).
+const STONE_GLYPHS := ["<", ">", "A", "B"]
+const STONE_COLORS := [Color("#e8603a"), Color("#3f8fe0"), Color("#c8384e"), Color("#d89a28")]
+
+
+func temple_objects(map: Dictionary) -> Array:
+	var tk := WorldDB.temple_for_room(String(map.get("room_key", "")))
+	if tk == "" or not _has_anchor(map, "tablet"):
+		return []
+	var lit: bool = GameState.flag("stones_" + tk)
+	var out := []
+	for i in 4:
+		if not _has_anchor(map, "stone_%d" % i):
+			continue
+		var stone := _stone_node(i, lit)
+		out.append({"kind": "story", "id": "song_stone", "name": "", "temple": tk, "stone": i, "pos": _at(map, "stone_%d" % i, Vector2i.ZERO),
+			"scene": stone[0], "glow": stone[1], "light": stone[2], "facing": Vector2i(0, 1)})
+	var glow := Color(String(WorldDB.TEMPLES[tk]["glow"]))
+	out.append({"kind": "story", "id": "song_tablet", "name": "", "temple": tk, "pos": _at(map, "tablet", Vector2i.ZERO),
+		"scene": _tablet_node(glow), "facing": Vector2i(0, 1)})
+	return out
+
+
+## A rune stone: a six-sided pillar on a plinth with a crystal on top in its button's colour, the button's glyph
+## floating over it, and a light that wakes when it sings. Returns [node, crystal material, light].
+func _stone_node(i: int, lit: bool) -> Array:
+	var root := Node3D.new()
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color("#5c6270")
+	stone.roughness = 1.0
+	var base := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.62, 0.22, 0.62)
+	base.mesh = bm
+	base.material_override = stone
+	base.position.y = 0.11
+	root.add_child(base)
+	var pillar := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 0.15
+	cm.bottom_radius = 0.24
+	cm.height = 1.2
+	cm.radial_segments = 6
+	pillar.mesh = cm
+	pillar.material_override = stone
+	pillar.position.y = 0.82
+	root.add_child(pillar)
+	var c: Color = STONE_COLORS[i]
+	var gem := StandardMaterial3D.new()
+	gem.albedo_color = c
+	gem.emission_enabled = true
+	gem.emission = c
+	gem.emission_energy_multiplier = 1.4 if lit else 0.25
+	var crystal := MeshInstance3D.new()
+	var pm := SphereMesh.new()
+	pm.radius = 0.19
+	pm.height = 0.5
+	pm.radial_segments = 6
+	pm.rings = 3
+	crystal.mesh = pm
+	crystal.material_override = gem
+	crystal.position.y = 1.62
+	root.add_child(crystal)
+	var glyph := Label3D.new()
+	glyph.text = STONE_GLYPHS[i]
+	glyph.font = UIKit.font_body()
+	glyph.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	glyph.font_size = 56
+	glyph.outline_size = 12
+	glyph.modulate = c.lightened(0.25)
+	glyph.pixel_size = 0.008
+	glyph.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	glyph.position.y = 2.1
+	root.add_child(glyph)
+	var light := OmniLight3D.new()
+	light.light_color = c
+	light.omni_range = 3.0
+	light.light_energy = 0.6 if lit else 0.0
+	light.position.y = 1.7
+	root.add_child(light)
+	return [root, gem, light]
+
+
+## The tablet that sings the stones' order: a slanted slab carved with glowing lines.
+func _tablet_node(glow: Color) -> Node3D:
+	var root := Node3D.new()
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color("#8a8478")
+	stone.roughness = 1.0
+	var slab := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.95, 0.75, 0.14)
+	slab.mesh = bm
+	slab.material_override = stone
+	slab.position = Vector3(0, 0.62, 0)
+	slab.rotation.x = -0.45
+	root.add_child(slab)
+	var foot := MeshInstance3D.new()
+	var fm := BoxMesh.new()
+	fm.size = Vector3(0.7, 0.3, 0.4)
+	foot.mesh = fm
+	foot.material_override = stone
+	foot.position.y = 0.15
+	root.add_child(foot)
+	var lines := StandardMaterial3D.new()
+	lines.albedo_color = glow
+	lines.emission_enabled = true
+	lines.emission = glow
+	lines.emission_energy_multiplier = 1.6
+	for k in 4:
+		var l := MeshInstance3D.new()
+		var lm := BoxMesh.new()
+		lm.size = Vector3(0.12, 0.08, 0.02)
+		l.mesh = lm
+		l.material_override = lines
+		l.position = Vector3(-0.3 + k * 0.2, 0.08 * sin(k * 1.7), 0.075)
+		slab.add_child(l)
+	var note := Label3D.new()
+	note.text = "♪"
+	note.font_size = 64
+	note.outline_size = 10
+	note.modulate = glow
+	note.pixel_size = 0.008
+	note.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	note.position.y = 1.45
+	root.add_child(note)
+	return root
+
+
+
 func _guardian(world, n: Dictionary) -> void:
 	var tk: String = n["temple"]
 	var t: Dictionary = WorldDB.TEMPLES[tk]
 	var race: int = t["guardian"]
+	var song: String = t["song"]
 	if GameState.flag(n["flag"]):
 		return
+	if not GameState.knows_song(song):
+		await UI.say(["%s, guardian of the %s, sleeps on, coiled around the altar." % [RaceDB.race_name(race), t["name"]],
+			"Its eyes stay shut. The song that wakes it is still locked in the singing stones."])
+		return
 	Sfx.play("growl")
-	await UI.say(["%s, guardian of the %s, opens its eyes." % [RaceDB.race_name(race), t["name"]],
-		"Its gaze weighs you, and your beasts. Then it rises to test you!"])
+	await UI.say(["The %s stirs the air, and %s opens its eyes." % [SongDB.song_name(song), RaceDB.race_name(race)],
+		"It rises to test you! It can't be beaten, only won over: wear it down, then play the %s to it." % SongDB.song_name(song)])
 	if GameState.alive_party().is_empty():
 		await UI.say(["The guardian closes its eyes again. Your beasts are in no state to fight."])
 		return
 	var lv: int = t["level"]
-	var room: Dictionary = world.map.get("room", {})
-	var minions: Array = room.get("encounter", {}).get("races", [race, race])
-	var team := [[race, lv], [int(minions[0]), lv - 3], [int(minions[minions.size() - 1]), lv - 3]]
-	if lv < 20:
-		# the first temple's guardian brings just one helper
-		team.resize(2)
-	var res := await trainer_battle({"name": RaceDB.race_name(race), "cls": "Guardian", "team": team, "guardian": true,
-		"defeat": "", "reward": lv * 60})
-	if res != "win":
+	# (the crypt's guardian is a ghost; its helpers are the crypt's own beasts)
+	var team := [[race, lv, t.get("ghost", false)]]
+	for h in t.get("helpers", []):
+		team.append([int(h), lv - 3])
+	var foes := build_team(team)
+	if foes[0].ghost:
+		# a legendary already has a guardian's stats: no ghost's extra strength on top of them
+		for k in foes[0].base:
+			foes[0].base[k] = snappedf(float(foes[0].base[k]) / Beasts.GHOST_STAT_MULT, 0.1)
+		foes[0].heal_full()
+	var res: String = await GameState.main.start_battle({"wild": true, "foes": foes, "guardian": tk, "seed": randi(), "intro": "wild"})
+	if res != "win" or not GameState.summons.has(tk):
 		return
-	GameState.set_flag(n["flag"])
 	world.remove_npc(n)
-	GameState.add_egg(race)
 	Sfx.play("levelup")
-	await UI.flash(Color(t["glow"]), 3)
-	await UI.say(["The guardian bows its great head and dissolves into light...",
-		"Where it stood lies a radiant egg, pulsing with %s power!" % String(t["element"]),
-		"You received the %s! Take it to a Beast Center to hatch it." % GameState.egg_name(GameState.eggs.back()),
-		"A beast born from this egg is the mightiest of its element. When merged, its legacy dominates: about 80% of the child comes from it."])
+	await UI.say(["%s is yours now: a summon!" % RaceDB.race_name(race),
+		"In battle, choose Summon and play the %s: %s arrives and strikes every foe at once. Once per battle, for one shield point." % [SongDB.song_name(song), RaceDB.race_name(race)]])
 
 
 # ================================================================ battles

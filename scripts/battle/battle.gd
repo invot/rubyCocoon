@@ -21,6 +21,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
+const SummonFX = preload("res://scripts/battle/summon_fx.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const Rig = preload("res://scripts/gfx/beast_rig.gd")
@@ -64,6 +65,20 @@ var nodes := {}
 var participants := {}
 var result := ""
 var flute_used := false
+## a temple guardian battle (Story._guardian): its temple ("water", ...) and the guardian itself, which can't faint
+## (it rises again) and is only won by playing the temple's song to it (_guardian_song_flow)
+var guardian_tk := ""
+var guardian_b = null
+## you've called your one summon this battle (the Summon command)
+var summoned := false
+## a summon's camera, blended over the usual one while summon_mix > 0 (summon_cam), and a shake that dies away
+var summon_mix := 0.0
+var summon_pos := Vector3.ZERO
+var summon_look := Vector3.ZERO
+var summon_shake_amt := 0.0
+var stage_env: Environment
+var stage_sun: DirectionalLight3D
+var _stage_light := []
 var round_no := 0
 var biome: Dictionary
 var indoor := false
@@ -225,6 +240,9 @@ func setup(c: Dictionary) -> void:
 	wild = c.get("wild", true)
 	foes = c["foes"]
 	trainer = c.get("trainer", {})
+	guardian_tk = String(c.get("guardian", ""))
+	if guardian_tk != "" and not foes.is_empty():
+		guardian_b = foes[0]
 	lesson_id = String(c.get("lesson", trainer.get("lesson", "")))
 	lesson = LESSONS.get(lesson_id, {})
 	tutorial = not lesson.is_empty()
@@ -246,7 +264,7 @@ func _battle_music() -> void:
 
 ## Bosses: temple guardians, arena leaders, the CEO, the bandit boss and the Legion's commanders.
 func is_boss() -> bool:
-	return not wild and (trainer.get("boss", false) or trainer.get("guardian", false))
+	return guardian_tk != "" or (not wild and (trainer.get("boss", false) or trainer.get("guardian", false)))
 
 
 # ================================================================ stage
@@ -316,6 +334,7 @@ func _build_stage() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+	stage_env = env
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(biome["sun"]) if not dark else Color("#d8c8ff")
 	sun.light_energy = float(biome["sun_e"]) if not dark else 0.5
@@ -323,6 +342,8 @@ func _build_stage() -> void:
 	sun.shadow_blur = 1.2
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	add_child(sun)
+	stage_sun = sun
+	_stage_light = [env.ambient_light_energy, sun.light_energy]
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(cfg.get("seed", randi()))
@@ -871,6 +892,11 @@ func _usable_moves(b) -> Array:
 func _wild_pos(i: int) -> Vector3:
 	var d := _toward("foe")
 	var perp := Vector3(-d.z, 0, d.x)
+	if guardian_tk != "":
+		# the guardian at the back in the middle, its helpers in front to either side
+		if i == 0:
+			return FOE_CENTER - d * 0.7
+		return FOE_CENTER + d * 1.3 + perp * (1.7 if i == 1 else -1.7)
 	var n := mini(3, foes.size())
 	var off := (float(i) - float(n - 1) / 2.0) * 2.1
 	return FOE_CENTER + d * 0.9 + perp * off
@@ -1193,8 +1219,16 @@ func _process(delta: float) -> void:
 	if is_instance_valid(rival_rig):
 		VPer.animate(rival_rig, 0.0, 0.0)
 	if is_instance_valid(cam):
-		cam.position = _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
-		cam.look_at(_cam_look(), Vector3.UP)
+		var cp := _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
+		var cl := _cam_look()
+		if summon_mix > 0.0:
+			cp = cp.lerp(summon_pos, summon_mix)
+			cl = cl.lerp(summon_look, summon_mix)
+		if summon_shake_amt > 0.0:
+			cp += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * summon_shake_amt * 0.35
+			summon_shake_amt = maxf(0.0, summon_shake_amt - delta * 1.6)
+		cam.position = cp
+		cam.look_at(cl, Vector3.UP)
 	var aiming := not _ring_targets.is_empty()
 	arrow.modulate = Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.7, 1.0) if aiming else Color("#ffd060")
 	arrow.font_size = 96 if aiming else 64
@@ -1366,6 +1400,12 @@ func _spawn(b, side: String, slot: int) -> void:
 	holder.name = "Model"
 	root.add_child(holder)
 	var lift := 0.16
+	var big := 1.0
+	if b == guardian_b:
+		# a temple guardian towers over its helpers, and the winged ones hover
+		big = 1.7
+		if guardian_tk in ["water", "air", "fire"]:
+			lift = 0.7
 	holder.position.y = lift
 	root.rotation.y = _beast_yaw(side)
 	var ringed: bool = side == "ally" or not wild
@@ -1382,7 +1422,7 @@ func _spawn(b, side: String, slot: int) -> void:
 	nodes[b] = root
 	root.scale = Vector3(0.2, 0.2, 0.2)
 	var tw := create_tween()
-	tw.tween_property(root, "scale", Vector3.ONE * (1.15 if ringed else 1.25), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(root, "scale", Vector3.ONE * (1.15 if ringed else 1.25) * big, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var s := _st(b)
 	s["side"] = side
 	s["down"] = b.hp <= 0
@@ -1869,6 +1909,8 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 
 func msg(text: String, wait := 0.95) -> void:
 	_caption(text)
+	if OS.has_feature("editor") and GameState.main != null and "--battle-log" in OS.get_cmdline_user_args():
+		print("  | ", text)
 	var t := 0.0
 	while t < wait:
 		await get_tree().process_frame
@@ -1908,7 +1950,11 @@ func _run() -> void:
 			_spawn(foe_ring[k], "foe", k)
 		_place_ring("foe")
 	_refresh()
-	if wild:
+	if guardian_tk != "":
+		Sfx.play("growl")
+		await msg("%s, guardian of the %s, rises to test you!" % [guardian_b.nickname, String(WorldDB.TEMPLES[guardian_tk]["name"])], 1.2)
+		await msg("It can't be beaten, only won over: wear it down, then play the %s to it!" % SongDB.song_name(_guardian_song()), 1.4)
+	elif wild:
 		var names := []
 		for f in foes:
 			names.append(f.nickname)
@@ -2277,6 +2323,15 @@ func _command_phase() -> Array:
 							var keep2: Dictionary = rows[0]
 							rows = _panel_rows()
 							rows[0] = keep2
+					"summon":
+						var sact := await _summon_flow()
+						if result != "":
+							return []
+						if not sact.is_empty():
+							rows[0]["act"] = sact
+							rows[0]["done"] = true
+							rows[0]["locked"] = true
+							focus = 1
 					"run":
 						if await _try_run():
 							result = "run"
@@ -2318,6 +2373,17 @@ func _panel_rows() -> Array:
 			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Tidewater is keeping your father's."},
 		{"id": "watch", "label": "Watch", "target": "none", "desc": "Let your beasts handle this round."},
 	]
+	if not GameState.summons.is_empty():
+		# a captured temple guardian, called with its song: once per battle, for a shield point
+		var why := ""
+		if summoned:
+			why = "You've already called a summon this battle."
+		elif GameState.shield <= 0:
+			why = "Summoning costs a shield point, and you have none left."
+		elif not GameState.has_flute():
+			why = "You need your flute to play a summon's song."
+		t_opts.insert(3, {"id": "summon", "label": "Summon", "sub": true, "disabled": why != "",
+			"desc": why if why != "" else "Play a temple's song to call its guardian: it strikes every foe at once. Once per battle, for one shield point (%d left)." % GameState.shield})
 	if wild:
 		t_opts.append({"id": "run", "label": "Run", "sub": true, "desc": "Try to escape."})
 	else:
@@ -2704,6 +2770,13 @@ func _auto_commands() -> Array:
 
 func _auto_trainer_action() -> Dictionary:
 	var foes_alive := _alive(foe_slots)
+	if guardian_b != null and guardian_b.hp > 0 and guardian_b.hp_ratio() <= GUARDIAN_CAPTURE_HP and GameState.knows_song(_guardian_song()):
+		return {"type": "guardian_song", "acc": float(cfg.get("auto_song_acc", 0.85)), "prio": 9}
+	if cfg.get("auto_summon", "") != "" and not summoned and GameState.shield > 0 and not foes_alive.is_empty():
+		summoned = true
+		GameState.shield -= 1
+		_update_shield()
+		return {"type": "summon", "el": String(cfg["auto_summon"]), "acc": 0.9, "prio": 11}
 	if round_no == 1 and GameState.knows_song("weaken") and not foes_alive.is_empty():
 		return {"type": "player_song", "song": "weaken", "acc": 0.75, "prio": 9}
 	if _side_open("ally") and GameState.item_count("revival_seed") > 0:
@@ -2748,7 +2821,13 @@ func _flute_flow() -> bool:
 			continue
 		var s := SongDB.get_song(sid)
 		var why := ""
-		if s["kind"] == "charm":
+		if s["kind"] == "summon":
+			# only the guardian's own song, in its battle; the others are played with Summon
+			if sid != _guardian_song():
+				continue
+			if guardian_b.hp_ratio() > GUARDIAN_CAPTURE_HP:
+				why = "%s is still too strong to listen. Wear it down below 60%% of its HP first." % guardian_b.nickname
+		elif s["kind"] == "charm":
 			if not wild:
 				why = "You can't charm another trainer's beasts."
 			elif _charmable(sid).is_empty():
@@ -2769,6 +2848,8 @@ func _flute_flow() -> bool:
 	if c < 0:
 		return false
 	var song: String = ids[c]
+	if SongDB.is_summon(song):
+		return await _guardian_song_flow(song)
 	if SongDB.is_charm(song):
 		return await _charm_flow(song)
 	return await _effect_song_flow(song)
@@ -3334,6 +3415,10 @@ func _resolve(acts: Array) -> void:
 				await _do_rival_song(a)
 			"player_song":
 				await _apply_song(a["song"], float(a["acc"]), "ally", null)
+			"summon":
+				await _do_summon(a)
+			"guardian_song":
+				await _guardian_capture(float(a["acc"]))
 			"defend":
 				var db = a["actor"]
 				if db.hp <= 0 or not _active(db):
@@ -4009,6 +4094,212 @@ func _tick_damage(b, d: int, text: String) -> void:
 	await msg(text % b.nickname, 0.6)
 
 
+# ================================================================ temple guardians and summons
+## A guardian's HP share at or below which its temple's song can win it over.
+const GUARDIAN_CAPTURE_HP := 0.6
+
+
+## The song that captures this battle's guardian ("" outside a guardian battle).
+func _guardian_song() -> String:
+	return String(WorldDB.TEMPLES[guardian_tk]["song"]) if guardian_tk != "" else ""
+
+
+## A guardian worn down to nothing rises again: it can only be captured.
+func _guardian_rises(b) -> void:
+	b.hp = maxi(1, int(b.max_hp() * 0.3))
+	Sfx.play("growl")
+	if nodes.has(b):
+		_hit_fx(b, true)
+	_float_text(b, "RISES", Color(String(WorldDB.TEMPLES[guardian_tk]["glow"])))
+	_refresh()
+	await msg("%s won't fall! It rises again, its strength fading..." % b.nickname, 1.0)
+	if GameState.knows_song(_guardian_song()):
+		await msg("Now's your chance: play the %s!" % SongDB.song_name(_guardian_song()), 0.9)
+
+
+func _guardian_song_flow(song: String) -> bool:
+	flute_used = true
+	_point_at(guardian_b)
+	await msg("You raise your flute and play the %s to %s..." % [SongDB.song_name(song), guardian_b.nickname], 0.8)
+	var r: Dictionary = await UI.flute_ex(song, "Winning over %s  —  the cleaner you play, the surer it is" % guardian_b.nickname)
+	_battle_music()
+	var acc := float(r["acc"])
+	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	await _guardian_capture(acc)
+	if star and result == "":
+		UI.toast("Your mastery of the %s improved!" % SongDB.song_name(song), UIKit.GOLD)
+	_point_at(null)
+	return true
+
+
+## The temple's song reaches the guardian: a weakened guardian that hears it well is captured, ending the battle.
+func _guardian_capture(acc: float) -> void:
+	var t = guardian_b
+	if t == null or t.hp <= 0:
+		return
+	await _note_effect(t)
+	var chance := 0.0
+	if acc >= SongDB.FLAT_ACCURACY and t.hp_ratio() <= GUARDIAN_CAPTURE_HP:
+		chance = clampf(0.55 + acc * 0.35 + (GUARDIAN_CAPTURE_HP - t.hp_ratio()) * 0.8, 0.0, 1.0)
+	if randf() >= chance:
+		Sfx.play("fail")
+		if acc < SongDB.FLAT_ACCURACY:
+			await msg("The song falls apart, and %s roars over it!" % t.nickname, 1.1)
+		else:
+			await msg("%s shakes its head... It isn't won over yet! (%d%% chance)" % [t.nickname, int(chance * 100)], 1.2)
+		return
+	var glow := Color(String(WorldDB.TEMPLES[guardian_tk]["glow"]))
+	Sfx.play("capture")
+	await msg("The %s fills the hall. %s lowers its great head..." % [SongDB.song_name(_guardian_song()), t.nickname], 1.2)
+	if nodes.has(t):
+		var n: Node3D = nodes[t]
+		var fx := SummonFX.new()
+		add_child(fx)
+		fx.setup(self, guardian_tk, n.position, _toward("foe"), [])
+		fx._ring_burst(n.position + Vector3(0, 0.1, 0), glow, 6.0, 0.8)
+		fx._particles(n.position + Vector3(0, 1.0, 0), Color.WHITE, glow, 120, 1.2, Vector2(1.0, 4.0), 0.3,
+			{"spread": 180.0, "radius": 1.2, "gravity": Vector3(0, 3.0, 0)})
+		var tw := create_tween()
+		tw.tween_property(n, "scale", n.scale * 1.15, 0.2)
+		tw.tween_property(n, "scale", Vector3(0.02, 0.02, 0.02), 0.5).set_ease(Tween.EASE_IN)
+		tw.tween_callback(n.hide)
+		var lt := create_tween()
+		lt.tween_interval(2.0)
+		lt.tween_callback(fx.queue_free)
+	UI.flash(glow, 2)
+	await get_tree().create_timer(0.7).timeout
+	var slot := foe_slots.find(t)
+	if slot >= 0:
+		foe_slots[slot] = null
+	foes.erase(t)
+	if not GameState.summons.has(guardian_tk):
+		GameState.summons.append(guardian_tk)
+	GameState.set_flag("guardian_" + guardian_tk)
+	GameState.mark_seen(t)
+	await msg("%s is yours! You can summon it in battle now." % t.nickname, 1.2)
+	await _award_xp(t)
+	_refresh()
+	result = "win"
+
+
+## Choosing Summon: pick one of your summons, play its song, and (if it answers) it comes first this round.
+## Returns the action, {"type": "none"} if the song failed (your turn is spent), or {} if you backed out.
+func _summon_flow() -> Dictionary:
+	var ids := []
+	var items := []
+	for tk in WorldDB.TEMPLES:
+		if not GameState.summons.has(tk):
+			continue
+		var t: Dictionary = WorldDB.TEMPLES[tk]
+		var sid: String = t["song"]
+		ids.append(tk)
+		items.append({"text": RaceDB.race_name(int(t["guardian"])), "right": String(t["element"]).to_upper(),
+			"desc": "Play the %s to call it. It strikes every foe at once: hard, and harder still where its element is strong.\nOnce per battle, for one shield point." % SongDB.song_name(sid)})
+	if ids.is_empty():
+		return {}
+	var c := 0
+	if ids.size() > 1:
+		c = await UI.choose("Call which summon?", items, {"anchor": "bottom_right", "width": 460, "margin": Vector2(20, 20), "font_size": 28})
+		if c < 0:
+			return {}
+	var tk: String = ids[c]
+	var song: String = WorldDB.TEMPLES[tk]["song"]
+	var who := RaceDB.race_name(int(WorldDB.TEMPLES[tk]["guardian"]))
+	await msg("You raise your flute and play the %s..." % SongDB.song_name(song), 0.7)
+	var r: Dictionary = await UI.flute_ex(song, "Summoning %s  —  play its song through to call it" % who)
+	_battle_music()
+	var acc := float(r["acc"])
+	GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	if acc < SongDB.FLAT_ACCURACY:
+		Sfx.play("fail")
+		await msg("The song falters... %s doesn't answer." % who, 1.1)
+		return {"type": "none"}
+	summoned = true
+	GameState.shield -= 1
+	Sfx.play("shield")
+	_shield_pulse(shield_bubble)
+	_update_shield()
+	_refresh()
+	await msg("%s hears your call! (one shield point spent)" % who, 0.9)
+	return {"type": "summon", "el": tk, "acc": acc, "prio": 11}
+
+
+## The summon arrives beside the foes and strikes every one of them for about half its HP (more where its element is
+## strong, a little more for a better performance). Bosses' beasts and guardians are left standing.
+func _do_summon(a: Dictionary) -> void:
+	var tk: String = a["el"]
+	var acc := float(a.get("acc", 0.9))
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	var who := RaceDB.race_name(int(t["guardian"]))
+	var targets := _alive(foe_slots)
+	if targets.is_empty():
+		return
+	var hits := []
+	for f in targets:
+		hits.append(_target_point(f))
+	# it looms up behind the foes, facing them and you
+	var d := _toward("ally")
+	var where := FOE_CENTER + d * (3.8 if guardian_tk != "" else 2.2)
+	var fx := SummonFX.new()
+	add_child(fx)
+	fx.setup(self, tk, where, -d, hits)
+	await msg("%s answers your song!" % who, 0.4)
+	await fx.arrive()
+	var landed := [false]
+	var strike := func() -> void:
+		landed[0] = true
+	await fx.attack(strike)
+	var el: String = t["element"]
+	for f in targets:
+		if f.hp <= 0 or not _active(f):
+			continue
+		var eff := Elements.multiplier(el, _guard_el(f))
+		var dmg := maxi(1, int(f.max_hp() * 0.5 * (0.8 + 0.2 * acc) * eff * randf_range(0.95, 1.05)))
+		if is_boss() or f == guardian_b:
+			dmg = mini(dmg, f.hp - 1)
+		await _deal(null, f, {"dmg": maxi(0, dmg), "eff": eff, "crit": false, "pierce": true})
+	await fx.leave()
+
+
+## The summon's camera: pulled back and lifted so the summon at `at` and the foes are both in shot.
+func summon_cam(at: Vector3, size: float) -> void:
+	var back := (_cam_pos() - _cam_look()).normalized()
+	summon_look = FOE_CENTER.lerp(at, 0.45) + Vector3(0, 1.3 + minf(size, 7.0) * 0.14, 0)
+	summon_pos = summon_look + back * (13.5 + minf(size, 8.0) * 1.5)
+	var tw := create_tween()
+	tw.tween_property(self, "summon_mix", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
+	# a cutscene: the bars and grids step aside while it plays
+	for c in [bars, ally_grid, foe_grid]:
+		if c != null:
+			c.visible = false
+
+
+func summon_release() -> void:
+	var tw := create_tween()
+	tw.tween_property(self, "summon_mix", 0.0, 0.6).set_trans(Tween.TRANS_SINE)
+	for c in [bars, ally_grid, foe_grid]:
+		if c != null:
+			c.visible = true
+
+
+func summon_shake(amount: float) -> void:
+	summon_shake_amt = maxf(summon_shake_amt, amount)
+
+
+## Dims the stage's light to `k` of its usual (1 = back to normal).
+func summon_dim(k: float) -> void:
+	if stage_env == null or _stage_light.is_empty():
+		return
+	var tw := create_tween().set_parallel()
+	tw.tween_property(stage_env, "ambient_light_energy", float(_stage_light[0]) * k, 0.5)
+	if stage_sun != null:
+		tw.tween_property(stage_sun, "light_energy", float(_stage_light[1]) * k, 0.5)
+
+
+func summon_flash(c: Color) -> void:
+	UI.flash(c, 1)
+
+
 func _handle_faints() -> void:
 	var groups := [["ally", ally_ring.values()], ["foe", foe_ring.values() if not wild else foe_slots.duplicate()]]
 	for g in groups:
@@ -4018,6 +4309,9 @@ func _handle_faints() -> void:
 				continue
 			var s := _st(b)
 			if s["down"]:
+				continue
+			if b == guardian_b:
+				await _guardian_rises(b)
 				continue
 			if b.gear_fx("phoenix", false) and not s["phoenix"]:
 				s["phoenix"] = true
@@ -4312,6 +4606,8 @@ func _smoke_puff(pos: Vector3, size: float) -> void:
 
 
 func _float_text(b, text: String, col: Color) -> void:
+	if OS.has_feature("editor") and "--battle-log" in OS.get_cmdline_user_args():
+		print("  |   %s %s (HP %d/%d)" % [b.nickname, text, b.hp, b.max_hp()])
 	if not nodes.has(b):
 		return
 	var n: Node3D = nodes[b]

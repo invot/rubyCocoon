@@ -1390,6 +1390,9 @@ func _build_npcs() -> void:
 		elif n.has("robot_body"):
 			node = _beast_node({"model": n["robot_body"]}, 0.95)
 			node.rotation.y = -PI / 2.0
+		elif n.has("scene"):
+			# a story object that builds its own node (the temples' singing stones, Story.temple_objects)
+			node = n["scene"]
 		elif n.has("mesh"):
 			node = Node3D.new()
 			var mi := MeshInstance3D.new()

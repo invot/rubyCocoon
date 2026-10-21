@@ -1,5 +1,5 @@
 extends RefCounted
-## Flute songs. Two kinds:
+## Flute songs. Three kinds:
 ##   "effect" songs are played as the trainer's turn in any battle. They raise your beasts' stats, heal or cure
 ##            them, or lower the foes' stats and lull them into sleep, poison, confusion...
 ##            The better you play, the stronger the effect.
@@ -7,6 +7,10 @@ extends RefCounted
 ##            Capture N charms beasts up to CAPTURE_CAPS[N - 1], and only beasts no stronger than your strongest
 ##            beast, unless you play it flawlessly. When one of your beasts reaches the cap, the next level can be
 ##            practised from the Start book. The Requiem of Dusk charms ghost beasts by the same rules.
+##   "summon" songs are the temples' own songs, taught by each temple's singing stones (Places.song_stone). Played to
+##            the temple's guardian once it's worn down, the song captures it; from then on it calls the guardian
+##            into any battle (the Summon command), once per battle, for a shield point. Each starts as long as its
+##            temple's stone puzzle ("min_notes") and grows with mastery like the others.
 ## Playing: see flute_game.gd. A song is sheet music of 4 to 16 notes that you memorise and play back against the clock.
 ## Higher levels are longer, add ↑ then ↓ above the first four notes, and finally chords (A or B with a direction).
 ## Learning: Uncle Rafe in Tidewater hands over your father's flute and teaches Weaken and Capture I. Arena masters teach strong battle
@@ -65,10 +69,22 @@ const SONGS := {
 		"bpm": 128, "tier": 8, "root": 74, "from": "River Ranger Skye (Riverbend Arena)"},
 	# ---------------- charm songs (Capture is generated per level, see get_song) ----------------
 	"requiem": {"name": "Requiem of Dusk", "kind": "charm", "bpm": 100, "tier": 7, "from": "the Gravenmoor gravedigger", "root": 69, "ghost": true},
+	# ---------------- temple songs: capture the temple's guardian, then summon it (see WorldDB.TEMPLES) ----------------
+	"song_tides": {"name": "Song of Tides", "kind": "summon", "summon": "water", "target": "enemies", "min_notes": 4,
+		"bpm": 84, "tier": 2, "root": 72, "from": "the singing stones of the Temple of Tides"},
+	"song_winds": {"name": "Song of Winds", "kind": "summon", "summon": "air", "target": "enemies", "min_notes": 5,
+		"bpm": 96, "tier": 4, "root": 76, "from": "the singing stones of the Temple of Winds"},
+	"song_flame": {"name": "Song of Flame", "kind": "summon", "summon": "fire", "target": "enemies", "min_notes": 6,
+		"bpm": 104, "tier": 5, "root": 69, "from": "the singing stones of the Temple of Flame"},
+	"song_roots": {"name": "Song of Roots", "kind": "summon", "summon": "earth", "target": "enemies", "min_notes": 7,
+		"bpm": 92, "tier": 6, "root": 67, "from": "the singing stones of the Temple of Roots"},
+	"song_dusk": {"name": "Nocturne of the Crypt", "kind": "summon", "summon": "ghost", "target": "enemies", "min_notes": 8,
+		"bpm": 98, "tier": 7, "root": 66, "ghost": true, "from": "the singing stones of Gravenmoor's crypt"},
 }
 ## Display order. "capture" stands for whichever Capture level you know.
 const ORDER := ["weaken", "jig", "hymn", "chorale", "mending", "canon", "minuet", "lullaby", "sluggish", "dazzle", "venom", "static", "discord", "dread",
-	"shanty", "coral", "reel", "dirge", "anvil", "waltz", "fanfare", "anthem", "capture", "requiem"]
+	"shanty", "coral", "reel", "dirge", "anvil", "waltz", "fanfare", "anthem", "capture", "requiem",
+	"song_tides", "song_winds", "song_flame", "song_roots", "song_dusk"]
 
 ## Capture levels: Capture N charms wild beasts up to this level.
 const CAPTURE_CAPS := [5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
@@ -146,6 +162,18 @@ static func is_charm(id: String) -> bool:
 	return get_song(id)["kind"] == "charm"
 
 
+static func is_summon(id: String) -> bool:
+	return get_song(id)["kind"] == "summon"
+
+
+## The temple song that captures and summons the guardian of `temple` ("water", ..., "ghost"), or "".
+static func summon_song(temple: String) -> String:
+	for id in SONGS:
+		if String(SONGS[id].get("summon", "")) == temple:
+			return id
+	return ""
+
+
 static func shop_songs() -> Array:
 	return ORDER.filter(func(id): return SONGS.has(id) and SONGS[id].has("shop"))
 
@@ -155,6 +183,8 @@ static func tag(id: String) -> String:
 	var s := get_song(id)
 	if s["kind"] == "charm":
 		return "ghosts" if s.get("ghost", false) else "≤ Lv %d" % s["max_level"]
+	if s["kind"] == "summon":
+		return "SUMMON"
 	var bits := []
 	for k in s.get("buff", {}):
 		bits.append(STAT_SHORT.get(k, k) + "↑")
@@ -177,6 +207,8 @@ static func describe(id: String) -> String:
 		if s.get("ghost", false):
 			return "Charms a wild ghost beast, up to your Capture level. Only ghosts listen to it."
 		return "Charms a wild beast up to Lv %d, if one of your beasts is at least as strong. Play it flawlessly to charm a stronger one!" % s["max_level"]
+	if s["kind"] == "summon":
+		return "A temple's own song. Play it to the temple's guardian once it's worn down, and the guardian is yours. After that it calls the guardian into battle (Summon) to strike every foe at once: once per battle, for one shield point."
 	var who: String = {"enemies": "every foe", "enemy": "one foe", "allies": "every beast on your team", "ally": "one of your beasts"}.get(s["target"], "")
 	var parts := []
 	for k in s.get("buff", {}):
@@ -209,9 +241,10 @@ static func _progress(id: String, level: int) -> float:
 	return clampf(float(level - 1) / float(max_level(id) - 1), 0.0, 1.0)
 
 
-## How many notes a song has at a level: 4 at level 1, 16 at its top level.
+## How many notes a song has at a level: 4 at level 1 (a temple song as many as its stones sang), 16 at its top level.
 static func note_count(id: String, level: int) -> int:
-	return MIN_NOTES + int(round(_progress(id, level) * (MAX_NOTES - MIN_NOTES)))
+	var first := int(get_song(id).get("min_notes", MIN_NOTES))
+	return first + int(round(_progress(id, level) * (MAX_NOTES - first)))
 
 
 ## Which extra notes a song uses at a level: {"up", "down", "chords"}.

@@ -49,7 +49,7 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater (the sign only says there's a footbridge ahead
    and a builder's cabin by the creek). Old Hal the builder, in the cabin just west of it, is too tired to rebuild it
    himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
-   in and he gives you a beast egg (a Seashelly) to hatch at Tidewater's Beast Center. Mended, it's a plank footbridge
+   in and he gives you a beast egg (a Tadlet) to hatch at Tidewater's Beast Center. Mended, it's a plank footbridge
    with railings.
 7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).

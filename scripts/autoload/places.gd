@@ -802,6 +802,123 @@ func temple_altar(b: Dictionary) -> void:
 	await UI.say(["Your beasts are fully restored."])
 
 
+# ================================================================ singing stones
+## In each temple (and Gravenmoor's crypt) four rune stones each sing one flute button's note (Story.temple_objects).
+## The tablet by the entrance sings the temple's song while the stones light up in its order; strike the stones in
+## that order and the temple teaches you its song, the one that wakes and captures its guardian (and later summons
+## it). A wrong stone silences them all. The order is the song's own opening (SongDB "min_notes" notes long).
+var _stones_at := {}
+
+
+## The stones' order for a temple song: its opening notes (each note's first button, as a stone 0..3).
+func stone_order(song: String) -> Array:
+	var out := []
+	for note in SongDB.melody(song, 1):
+		out.append(int(note[0]) % 4)
+	return out
+
+
+func song_tablet(world, n: Dictionary) -> void:
+	var tk: String = n["temple"]
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	var song: String = t["song"]
+	if GameState.knows_song(song):
+		await UI.say(["The old tablet is quiet now. Its song, the %s, is yours." % SongDB.song_name(song)])
+		return
+	if GameState.flag("stones_" + tk):
+		await UI.say(["The stones still hum with the %s." % SongDB.song_name(song)])
+		await _learn_temple_song(tk)
+		return
+	if not GameState.flag("tablet_" + tk):
+		GameState.set_flag("tablet_" + tk)
+		await UI.say(["An old stone tablet. Its carvings show four singing stones, and beneath them a song of %d notes." % stone_order(song).size(),
+			"When you touch it, it sings. Watch which stone lights up for each note, then strike the stones in the same order."])
+	_stones_at[tk] = 0
+	await _stones_sing(world, tk, song)
+	await UI.say(["Now strike the stones in that order."])
+
+
+func song_stone(world, n: Dictionary) -> void:
+	var tk: String = n["temple"]
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	var song: String = t["song"]
+	var i: int = n["stone"]
+	_sing_stone(n, song, i)
+	if GameState.flag("stones_" + tk):
+		return
+	var order := stone_order(song)
+	var at := int(_stones_at.get(tk, 0))
+	if order[at] != i:
+		_stones_at[tk] = 0
+		await get_tree().create_timer(0.3).timeout
+		Sfx.play("fail")
+		await UI.say(["The stones fall silent. That isn't the order the tablet sang." if GameState.flag("tablet_" + tk)
+			else "The stone rings out, then falls silent. There's an old tablet by the entrance; maybe it holds the order."])
+		return
+	at += 1
+	_stones_at[tk] = at
+	if at < order.size():
+		return
+	GameState.set_flag("stones_" + tk)
+	await get_tree().create_timer(0.45).timeout
+	await _stones_sing(world, tk, song, true)
+	Sfx.play("levelup")
+	await UI.flash(Color(String(t["glow"])), 1)
+	await UI.say(["The stones ring out together, and the whole hall sings back!",
+		"The %s's song settles in your mind... Play it back on your flute to make it yours." % t["name"]])
+	await _learn_temple_song(tk)
+
+
+func _learn_temple_song(tk: String) -> void:
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	var song: String = t["song"]
+	if not GameState.has_flute():
+		await UI.say(["You'll need a flute to play it back."])
+		return
+	if await learn_attempts(song, t["name"], 0.0):
+		await UI.say(["Somewhere in the hall, the guardian stirs in its sleep. Play the %s to it once it's worn down, and it's yours." % SongDB.song_name(song)])
+
+
+## The tablet's song: each stone in the order lights up and sings its note (all left lit once the puzzle is solved).
+func _stones_sing(world, tk: String, song: String, stay_lit := false) -> void:
+	var stones := {}
+	for p in world.npcs:
+		var m: Dictionary = world.npcs[p]
+		if m.get("id", "") == "song_stone" and m.get("temple", "") == tk:
+			stones[int(m["stone"])] = m
+	for i in stone_order(song):
+		if stones.has(i):
+			_sing_stone(stones[i], song, i)
+		await get_tree().create_timer(0.55).timeout
+	if stay_lit:
+		for i in stones:
+			var m: Dictionary = stones[i]
+			(m["glow"] as StandardMaterial3D).emission_energy_multiplier = 1.4
+			(m["light"] as OmniLight3D).light_energy = 0.6
+
+
+## One stone sings its note and flares up.
+func _sing_stone(n: Dictionary, song: String, i: int) -> void:
+	var btn: int = [SongDB.BTN_LEFT, SongDB.BTN_RIGHT, SongDB.BTN_A, SongDB.BTN_B][i]
+	Sfx.flute_note(SongDB.note_freq(song, btn))
+	var gem: StandardMaterial3D = n.get("glow", null)
+	var light: OmniLight3D = n.get("light", null)
+	if gem == null or light == null:
+		return
+	var rest_e := gem.emission_energy_multiplier
+	var rest_l := light.light_energy
+	var tw := create_tween().set_parallel()
+	tw.tween_property(gem, "emission_energy_multiplier", 4.0, 0.08)
+	tw.tween_property(light, "light_energy", 2.5, 0.08)
+	tw.chain().tween_property(gem, "emission_energy_multiplier", rest_e, 0.4)
+	tw.parallel().tween_property(light, "light_energy", rest_l, 0.4)
+	var node: Node3D = n.get("node", null)
+	if node != null:
+		var bob := create_tween()
+		bob.tween_property(node, "scale", Vector3(1.08, 1.08, 1.08), 0.07)
+		bob.tween_property(node, "scale", Vector3.ONE, 0.25)
+
+
 # ================================================================ music shop
 ## Brass & Reed Music in Cogsworth: one free performance (play it back to learn it), sheet music for sale.
 func music_shop() -> void:

@@ -571,6 +571,21 @@ func _run_test() -> void:
 		# (--keys: pressed once the command panel is up, as for --scene=ring)
 		await _battle_keys()
 		await get_tree().create_timer(wait).timeout
+	elif scene == "summon":
+		# a summon's whole show on a wild trio, called on the first round (--el=fire|water|air|earth|ghost; take the
+		# --shot at --wait seconds: about 4 is its arrival, 7 its attack)
+		var el := String(_test.get("el", "fire"))
+		GameState.summons = [el]
+		GameState.max_shield = 2
+		GameState.shield = 2
+		_do_goto(String(_test.get("map", "route3")), "south")
+		await get_tree().create_timer(1.0).timeout
+		var sfoes := [Beasts.create(27, 14), Beasts.create(30, 15), Beasts.create(9, 14)]
+		start_battle({"wild": true, "foes": sfoes, "seed": 5, "autoplay": true, "auto_summon": el})
+		await get_tree().create_timer(wait).timeout
+		print("summon %s: foes' HP %s, shield %d" % [el, sfoes.map(func(f): return "%d/%d" % [f.hp, f.max_hp()]), GameState.shield])
+	elif scene == "guardian":
+		await _guardian_test(String(_test.get("temple", "water")))
 	elif scene == "ring":
 		# a trainer battle on the ring, driven by key presses once the command panel is up:
 		#   --keys=a,r,a,d,u,b...  (a = A, b = B, l / r = left / right, u / d = up / down), --kind=wild for wild beasts
@@ -1370,6 +1385,55 @@ func _wait(t: float) -> void:
 	await get_tree().create_timer(t).timeout
 
 
+## A temple from start to finish (--scene=guardian --temple=...): the tablet, the singing stones in its order,
+## learning the song, waking the guardian, the battle (autoplay) and the capture. Prints what happened.
+func _guardian_test(tk: String) -> void:
+	UI.auto = true
+	autoplay = true
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	GameState.set_flag("ritual_done")
+	await _enter_temple(tk)
+	await _wait(1.0)
+	for b in GameState.party:
+		b.level = int(_test.get("level", str(int(t["level"]) + 4)))
+		if RaceDB.for_level(b.race, b.level) != b.race:
+			b.evolve(RaceDB.for_level(b.race, b.level))
+		b.heal_full()
+	await _solve_stones(tk)
+	print("%s stones solved %s, knows %s: %s" % [tk, GameState.flag("stones_" + tk), t["song"], GameState.knows_song(String(t["song"]))])
+	var g := _npc("guardian_" + tk)
+	print("guardian found: ", not g.is_empty())
+	if not g.is_empty():
+		await Story.talk(world, g)
+	print("GUARDIAN %s: captured %s, summons %s, flag %s, now on %s, party %s" % [tk, GameState.summons.has(tk), GameState.summons,
+		GameState.flag("guardian_" + tk), GameState.map_id, GameState.party.map(func(x): return "%s L%d %d/%d" % [x.nickname, x.level, x.hp, x.max_hp()])])
+
+
+## Goes inside a temple (or down to Gravenmoor's crypt, the ghost guardian's).
+func _enter_temple(tk: String) -> void:
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	if tk == "ghost":
+		await _go("gravenmoor")
+		await _wait(1.0)
+		await _go(MapLoader.floor_id(_bld("cathedral")["interior"], 2), "entry")
+		return
+	await _go(String(t["route"]))
+	await _wait(1.0)
+	await _go(_bld("temple")["interior"], "entry")
+
+
+## Reads the tablet, then strikes the temple's stones in its order (the song is then learned in auto mode).
+func _solve_stones(tk: String) -> void:
+	var song: String = WorldDB.TEMPLES[tk]["song"]
+	await Story.talk(world, _npc("song_tablet"))
+	var stones := {}
+	for p in world.npcs:
+		if world.npcs[p].get("id", "") == "song_stone":
+			stones[int(world.npcs[p]["stone"])] = world.npcs[p]
+	for i in Places.stone_order(song):
+		await Story.talk(world, stones[i])
+
+
 func _bld(shop: String) -> Dictionary:
 	for b in world.map["buildings"]:
 		if b["shop"] == shop:
@@ -1603,6 +1667,9 @@ func _flow_test() -> void:
 	var tb := _bld("temple")
 	await _go(tb["interior"], "entry")
 	await _wait(1.5)
+	_step("temple stones", [])
+	await _solve_stones("water")
+	print("stones_water ", GameState.flag("stones_water"), " knows song_tides ", GameState.knows_song("song_tides"))
 	for p in world.npcs:
 		if world.npcs[p].get("kind", "") == "guardian":
 			for b in GameState.party:
@@ -1614,26 +1681,7 @@ func _flow_test() -> void:
 			_step("water guardian", [])
 			await Story.talk(world, world.npcs[p])
 			break
-	print("guardian_water ", GameState.flag("guardian_water"), " eggs ", GameState.eggs.map(func(e): return e["kind"]))
-	await _go(MapLoader.interior_of("kelpwick", "center"), "entry")
-	await _wait(1.0)
-	var hatch_answers := [0]
-	for e in GameState.eggs:
-		hatch_answers.append(0)
-	hatch_answers.append(3)
-	_step("hatch all", hatch_answers)
-	await Places.beast_center("kelpwick")
-	var leg = null
-	for b in GameState.all_beasts():
-		if RaceDB.is_legendary(b.race):
-			leg = b
-	print("legendary hatched: ", leg.nickname if leg != null else "none")
-	if leg != null:
-		leg.level = 40
-		var other = GameState.party.filter(func(x): return x != leg)[0]
-		other.level = 40
-		var child := Beasts.merge(leg, other)
-		print("80/20 merge: ", child.nickname, " race ", RaceDB.race_name(child.race), " el ", child.element)
+	print("guardian_water ", GameState.flag("guardian_water"), " summons ", GameState.summons, " eggs ", GameState.eggs.map(func(e): return e["kind"]))
 	await _go("sundown", "center")
 	await _wait(1.5)
 	_step("sheriff", [])

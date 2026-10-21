@@ -936,18 +936,23 @@ func _tab_flute() -> void:
 	for sid in SongDB.ordered(GameState.songs):
 		(known_ids if GameState.knows_song(sid) else unknown_ids).append(sid)
 	var charms := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] == "charm")
-	var battle := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] != "charm")
+	var temple := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] == "summon")
+	var battle := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] == "effect")
 	var hdr := ""
-	for sid in battle + charms + unknown_ids:
+	for sid in battle + charms + temple + unknown_ids:
 		var s := SongDB.get_song(sid)
 		var known := GameState.knows_song(sid)
-		var want: String = ("CHARM SONGS" if s["kind"] == "charm" else "BATTLE SONGS") if known else "NOT YET LEARNED"
+		var want: String = {"charm": "CHARM SONGS", "summon": "TEMPLE SONGS"}.get(s["kind"], "BATTLE SONGS") if known else "NOT YET LEARNED"
 		if want != hdr:
 			hdr = want
 			_add_row({"header": true, "text": hdr})
 		var ready: bool = SongDB.capture_level(sid) > 0 and GameState.next_capture_ready()
 		var is_cap: bool = SongDB.capture_level(sid) > 0
-		_add_row({"text": s["name"] if known else "? ? ?", "right": ("★ new" if ready else SongDB.tag(sid)) if known else "", "right_width": 80 if is_cap else 150,
+		var right := ("★ new" if ready else SongDB.tag(sid)) if known else ""
+		if known and s["kind"] == "summon":
+			# whether its guardian is yours yet
+			right = "SUMMON" if GameState.summons.has(String(s["summon"])) else "GUARDIAN"
+		_add_row({"text": s["name"] if known else "? ? ?", "right": right, "right_width": 80 if is_cap else 150,
 			"disabled": not known, "detail": _song_detail.bind(sid), "act": _song_act.bind(sid)})
 
 
@@ -971,7 +976,7 @@ func _song_detail(c: VBoxContainer, sid: String) -> void:
 		c.add_child(_t_label("Where to learn it: " + String(s["from"]), UIKit.DIM))
 		return
 	c.add_child(_h(s["name"]))
-	var kt := UIKit.tag("CHARM" if s["kind"] == "charm" else "BATTLE", UIKit.ACCENT)
+	var kt := UIKit.tag({"charm": "CHARM", "summon": "SUMMON"}.get(s["kind"], "BATTLE"), UIKit.ACCENT)
 	kt.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	c.add_child(kt)
 	c.add_child(_spacer())

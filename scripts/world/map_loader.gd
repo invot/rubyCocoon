@@ -621,7 +621,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				m["anchors"][anchor_names[ch]] = p
 			elif npc_roles.has(ch):
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
-				var npc := _room_npc(npc_roles[ch], b, p, rng, id, ch)
+				var npc := _room_npc(npc_roles[ch], b, p, rng, id, ch, key)
 				if not npc.is_empty():
 					m["npcs"].append(npc)
 			elif ch == "*":
@@ -769,7 +769,7 @@ static func room_facing(m: Dictionary, p: Vector2i) -> Vector2i:
 	return Vector2i(0, 1)
 
 
-static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumberGenerator, map_id: String, ch: String) -> Dictionary:
+static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumberGenerator, map_id: String, ch: String, room := "") -> Dictionary:
 	var shop: String = b["shop"]
 	match role:
 		"keeper":
@@ -791,7 +791,9 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 		"mom":
 			return {"kind": "story", "id": "mom", "name": "Mom", "pos": p, "look": {"skin": "#f0c8a0", "hair": "#8a3a20", "shirt": "#e07a5a", "pants": "#4a3a6a", "hair_style": 1}, "facing": Vector2i(0, 1)}
 		"guardian":
-			var tk: String = b.get("temple", "water")
+			var tk: String = WorldDB.temple_for_room(room)
+			if tk == "":
+				tk = b.get("temple", "water")
 			var t: Dictionary = WorldDB.TEMPLES[tk]
 			return {"kind": "guardian", "id": "guardian_" + tk, "temple": tk, "name": RaceDB.race_name(t["guardian"]), "pos": p,
 				"beast_genes": RaceDB.genes(t["guardian"]), "facing": Vector2i(0, 1), "flag": "guardian_" + tk, "big": true}

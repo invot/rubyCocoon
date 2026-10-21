@@ -64,13 +64,30 @@ const ROUTES := {
 	"route10": {"name": "Moor Road", "from": "riverbend", "to": "gravenmoor", "dir": "east", "biome": "moor", "lv": [40, 46], "races": [33, 21, 6, 36], "legion": true, "ghosts": 0.2},
 }
 
-## The four elemental temples. Each holds a guardian beast whose defeat leaves a legendary egg.
+## The four elemental temples, and Gravenmoor's crypt. Each holds a guardian beast that can't be beaten, only
+## captured: wear it down and play the temple's song (song; the singing stones in its room teach it, Places.song_stone).
+## A captured guardian becomes a summon (GameState.summons, the battle's Summon command). helpers: the beasts that
+## fight beside it (the first temple's guardian brings one).
 const TEMPLES := {
-	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff", "element": "water"},
-	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0", "element": "air"},
-	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a", "element": "fire"},
-	"earth": {"name": "Temple of Roots", "route": "route9", "room": "temple_earth", "guardian": 42, "level": 48, "glow": "#7ae05a", "element": "earth"},
+	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff",
+		"element": "water", "song": "song_tides", "helpers": [21]},
+	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
+		"element": "air", "song": "song_winds", "helpers": [33, 36]},
+	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a",
+		"element": "fire", "song": "song_flame", "helpers": [3, 6]},
+	"earth": {"name": "Temple of Roots", "route": "route9", "room": "temple_earth", "guardian": 42, "level": 48, "glow": "#7ae05a",
+		"element": "earth", "song": "song_roots", "helpers": [18, 12]},
+	"ghost": {"name": "Gravenmoor Crypt", "route": "gravenmoor", "room": "crypt_1", "guardian": 47, "level": 48, "glow": "#a56bff",
+		"element": "ghost", "song": "song_dusk", "helpers": [33, 21], "ghost": true},
 }
+
+
+## The temple whose guardian and singing stones a room holds ("water", ..., "ghost"), or "".
+static func temple_for_room(room: String) -> String:
+	for tk in TEMPLES:
+		if String(TEMPLES[tk]["room"]) == room:
+			return tk
+	return ""
 
 ## Field obstacles drawn into the maps. A beast in your party of a listed element clears them.
 const OBSTACLES := {
