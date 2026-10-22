@@ -74,5 +74,6 @@ jobs:
         run: |
           notes="Built from ${GITHUB_SHA::7}: $(git log -1 --format=%s)"
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest build/RubyCocoon-windows.zip --target "$GITHUB_SHA" --prerelease \
+          # (a full release, marked latest: GitHub's sidebar doesn't show pre-releases)
+          gh release create latest build/RubyCocoon-windows.zip --target "$GITHUB_SHA" --latest \
             --title "Latest Windows build" --notes "$notes"
