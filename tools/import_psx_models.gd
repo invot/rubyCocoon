@@ -76,6 +76,9 @@ const MODELS := {
 	"mossy_statue": [HC + "pier_stone.glb", {"tint": Color("#a8c098")}],
 	"campfire": [HF + "campfire.glb", {}],
 	"log": [HF + "log.glb", {}],
+	# ---- boats (Captain Gull's ferry at Tidewater's pier, and a rowboat)
+	"boat": [RI + "SM_TI_Wood_0_Boat_0.gltf", {"gain": 1.2}],
+	"boat_dark": [RI + "SM_TI_Wood_1_Boat_0.gltf", {"gain": 1.2}],
 }
 
 

@@ -273,6 +273,17 @@ static func log_mesh(length: int, r: float) -> ArrayMesh:
 				add.call(tri[0], nx, Color("#a8783e"))
 				add.call(tri[1], nx, Color("#dcb87e"))
 				add.call(tri[2], nx, Color("#dcb87e"))
+		# (built anticlockwise: each triangle turned round so its outside faces out, or the log draws inside out, black)
+		for t in range(0, verts.size(), 3):
+			var v1 := verts[t + 1]
+			verts[t + 1] = verts[t + 2]
+			verts[t + 2] = v1
+			var n1 := normals[t + 1]
+			normals[t + 1] = normals[t + 2]
+			normals[t + 2] = n1
+			var c1 := cols[t + 1]
+			cols[t + 1] = cols[t + 2]
+			cols[t + 2] = c1
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = verts

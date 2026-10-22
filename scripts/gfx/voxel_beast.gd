@@ -17,6 +17,8 @@ const SZ := 22
 const CZ := 11.0
 const VSIZE := 0.058
 const PSX_DIR := "res://assets/psx/beasts/"
+## the temple guardians' summon models (tools/import_summons.gd): facing +z, longest side 1
+const SUMMON_DIR := "res://assets/summons/"
 ## a form's larger measure (its height, or 0.62 of its length) at gene size 1
 const PSX_SIZE := 1.0
 
@@ -31,7 +33,9 @@ static func mesh(genes: Dictionary) -> ArrayMesh:
 		return _cache[key]
 	var m: ArrayMesh = null
 	var form := String(genes.get("form", ""))
-	if form != "" and ResourceLoader.exists(PSX_DIR + form + ".res"):
+	if form.begins_with("summon_") and ResourceLoader.exists(SUMMON_DIR + form.trim_prefix("summon_") + ".res"):
+		m = summon_mesh(form.trim_prefix("summon_"), float(genes.get("size", 1.0)))
+	elif form != "" and ResourceLoader.exists(PSX_DIR + form + ".res"):
 		m = _psx_mesh(genes, form)
 	else:
 		var g := grid(genes)
@@ -43,6 +47,31 @@ static func mesh(genes: Dictionary) -> ArrayMesh:
 ## Height of the model in world units.
 static func height(genes: Dictionary) -> float:
 	return mesh(genes).get_aabb().end.y
+
+
+# ================================================================ summon models
+## A temple guardian's summon model in beast space: turned to face +x, standing on y = 0, its larger measure (height,
+## 0.62 of its length or 0.42 of its wingspan) `size` units, keeping its own textures.
+static func summon_mesh(element: String, size := 1.0) -> ArrayMesh:
+	var base: ArrayMesh = load(SUMMON_DIR + element + ".res")
+	var bb := base.get_aabb()
+	var k := size / maxf(bb.size.y, maxf(bb.size.z * 0.62, bb.size.x * 0.42))
+	var turn := Basis(Vector3.UP, PI / 2.0)
+	var out := ArrayMesh.new()
+	for s in base.get_surface_count():
+		var arrays := base.surface_get_arrays(s)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for i in verts.size():
+			verts[i] = turn * verts[i] * k
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		if arrays[Mesh.ARRAY_NORMAL] != null:
+			var ns: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+			for i in ns.size():
+				ns[i] = turn * ns[i]
+			arrays[Mesh.ARRAY_NORMAL] = ns
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(s, base.surface_get_material(s))
+	return out
 
 
 # ================================================================ PSX models

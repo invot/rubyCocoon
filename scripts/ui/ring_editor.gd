@@ -339,6 +339,11 @@ class Cell extends Button:
 		if has_focus():
 			sb.border_color = UIKit.LIGHT if not can and not lifted else sb.border_color
 			sb.set_border_width_all(maxi(sb.border_width_top, 4))
+		if UIKit.pixel():
+			# (the Pixel style: square, hard-edged cells)
+			sb.set_corner_radius_all(0)
+			sb.anti_aliasing = false
+			sb.shadow_size = 0
 		draw_style_box(sb, r)
 		var font := UIKit.font_body()
 		var fs := UIKit.body_px(17)
@@ -350,11 +355,7 @@ class Cell extends Button:
 			var down: bool = b.hp <= 0
 			draw_texture_rect(PixelArt.beast_texture(b.genes), ir, false, Color(0.4, 0.38, 0.42, 0.8) if down else Color.WHITE)
 			if down:
-				var c := ir.get_center()
-				var s := ir.size.x * 0.3
-				for d in [Vector2(s, s), Vector2(s, -s)]:
-					draw_line(c - d, c + d, Color(0, 0, 0, 0.7), 6.0, true)
-					draw_line(c - d, c + d, UIKit.ACCENT.lightened(0.2), 3.0, true)
+				UIKit.draw_cross(self, ir.get_center(), ir.size.x * 0.4)
 			under = "Lv %d" % b.level
 		elif slot >= 0:
 			under = "/".join(Ring.slot_elements(slot).map(func(e): return String(e).capitalize()))

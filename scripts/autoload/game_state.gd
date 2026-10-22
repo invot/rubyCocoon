@@ -30,16 +30,21 @@ const SHIELD_START := 1
 var main: Node = null
 
 var player_name := "Andrew"
-## The hero as the character creator made them: "body" (a key of voxel_person.gd HERO_BODIES) and the colours of
-## their "top", "trousers", "hair" and "eyes" (with none of them, the hero as the model comes).
+## The hero as the character creator made them: "body" ("male" or "female"), "person" (their outfit, one of
+## townfolk.gd HERO_OUTFITS), "hairdo" (one of its HAIRDOS) and "pack" (one of its packs, from 1; 0 none), and the
+## colours of their "skin", "top", "trousers", "hair" and "eyes" (whatever's left out, as their body begins).
 var hero := {}
 var gold := 0
 var party: Array = []
 var storage: Array = []
 var inventory := {}
 var gear := {"flute": "", "head": "", "feet": "", "acc": ""}
+## the bait on your fishing hook (an ItemDB "bait" item), "" for none: one is used up each time something bites
+var bait := ""
 var songs: Array = []
 var song_mastery := {}
+## the temple guardians you've captured with their songs ("water", "air", "fire", "earth", "ghost"): your summons
+var summons: Array = []
 var crests: Array = []
 var flags := {}
 var visited: Array = []
@@ -129,9 +134,15 @@ func _bind(action: String, keys: Array, pads := []) -> void:
 
 # ---------------------------------------------------------------- new game
 ## How the hero is drawn (see voxel_person.gd).
+## Heroes drawn a little shorter than the rest, by name (one of the character creator's names): how tall, against 1.
+const SHORT_HEROES := {"Andrew": 0.93}
+
+
 func hero_look() -> Dictionary:
 	var look := {"face": "hero"}
 	look.merge(hero)
+	if SHORT_HEROES.has(player_name):
+		look["scale"] = SHORT_HEROES[player_name]
 	return look
 
 
@@ -150,6 +161,7 @@ func new_game(pname: String, look := {}) -> void:
 	# no flute yet: Uncle Rafe in Tidewater keeps your father's
 	gear = {"flute": "", "head": "", "feet": "", "acc": ""}
 	songs = []
+	summons = []
 	song_mastery = {}
 	crests = []
 	flags = {}
@@ -843,7 +855,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"player_name": player_name, "hero": hero, "gold": gold,
 		"party": party.map(func(b): return b.to_dict()),
 		"storage": storage.map(func(b): return b.to_dict()),
-		"inventory": inventory, "gear": gear, "songs": songs, "song_mastery": song_mastery,
+		"inventory": inventory, "gear": gear, "bait": bait, "songs": songs, "song_mastery": song_mastery, "summons": summons,
 		"crests": crests, "flags": flags, "visited": visited, "map_id": map_id,
 		"pos": [pos.x, pos.y], "facing": [facing.x, facing.y], "last_center": last_center,
 		"seen": seen, "caught": caught, "play_time": play_time, "steps": steps,
@@ -884,7 +896,9 @@ func load_game(slot := -2) -> bool:
 	for k in inv:
 		inventory[k] = int(inv[k])
 	gear = d.get("gear", gear)
+	bait = String(d.get("bait", ""))
 	songs = d.get("songs", [])
+	summons = d.get("summons", [])
 	song_mastery = {}
 	var sm: Dictionary = d.get("song_mastery", {})
 	for k in sm:

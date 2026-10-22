@@ -68,6 +68,9 @@ var _on_hands := false
 var _ground := 0.0
 var _t := 0.0
 var _bounce := 0.0
+## Held still (hold): a statue, an exhibit or an icon never moves, even once it's in the scene (Godot turns a node's
+## processing back on as it becomes ready).
+var _held := false
 var _step := 0.0
 var _flap := 0.0
 var _atk := -1.0
@@ -123,6 +126,7 @@ func hold() -> void:
 	_step = 0.0
 	_blink = 2.0
 	settle()
+	_held = true
 	set_process(false)
 
 
@@ -438,6 +442,9 @@ func _add_smoke(blo: Vector3, bhi: Vector3) -> void:
 
 
 func _process(delta: float) -> void:
+	if _held:
+		set_process(false)
+		return
 	if skel == null:
 		return
 	_t += delta

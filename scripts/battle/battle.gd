@@ -21,6 +21,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
+const SummonFX = preload("res://scripts/battle/summon_fx.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const Rig = preload("res://scripts/gfx/beast_rig.gd")
@@ -64,6 +65,20 @@ var nodes := {}
 var participants := {}
 var result := ""
 var flute_used := false
+## a temple guardian battle (Story._guardian): its temple ("water", ...) and the guardian itself, which can't faint
+## (it rises again) and is only won by playing the temple's song to it (_guardian_song_flow)
+var guardian_tk := ""
+var guardian_b = null
+## you've called your one summon this battle (the Summon command)
+var summoned := false
+## a summon's camera, blended over the usual one while summon_mix > 0 (summon_cam), and a shake that dies away
+var summon_mix := 0.0
+var summon_pos := Vector3.ZERO
+var summon_look := Vector3.ZERO
+var summon_shake_amt := 0.0
+var stage_env: Environment
+var stage_sun: DirectionalLight3D
+var _stage_light := []
 var round_no := 0
 var biome: Dictionary
 var indoor := false
@@ -188,6 +203,9 @@ var shield_bubble: MeshInstance3D
 var hud: Control
 var msg_label: Label
 var caption: PanelContainer
+## while commands are chosen: the window at the top explaining the highlighted action or move (see _show_option)
+var move_info: PanelContainer
+var _info_hint := ""
 var bars: Control
 var target_cards: Control
 var ally_grid: Control
@@ -222,6 +240,9 @@ func setup(c: Dictionary) -> void:
 	wild = c.get("wild", true)
 	foes = c["foes"]
 	trainer = c.get("trainer", {})
+	guardian_tk = String(c.get("guardian", ""))
+	if guardian_tk != "" and not foes.is_empty():
+		guardian_b = foes[0]
 	lesson_id = String(c.get("lesson", trainer.get("lesson", "")))
 	lesson = LESSONS.get(lesson_id, {})
 	tutorial = not lesson.is_empty()
@@ -243,7 +264,7 @@ func _battle_music() -> void:
 
 ## Bosses: temple guardians, arena leaders, the CEO, the bandit boss and the Legion's commanders.
 func is_boss() -> bool:
-	return not wild and (trainer.get("boss", false) or trainer.get("guardian", false))
+	return guardian_tk != "" or (not wild and (trainer.get("boss", false) or trainer.get("guardian", false)))
 
 
 # ================================================================ stage
@@ -313,6 +334,7 @@ func _build_stage() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+	stage_env = env
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(biome["sun"]) if not dark else Color("#d8c8ff")
 	sun.light_energy = float(biome["sun_e"]) if not dark else 0.5
@@ -320,12 +342,18 @@ func _build_stage() -> void:
 	sun.shadow_blur = 1.2
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	add_child(sun)
+	stage_sun = sun
+	_stage_light = [env.ambient_light_energy, sun.light_energy]
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(cfg.get("seed", randi()))
 	var sandy: bool = biome["id"] in ["desert", "mesa", "western"]
+	# a beast you've reeled in: you on a plank dock, the beach behind you, the beast out on the water
+	var fishing: bool = cfg.get("fishing", false)
 	var ground_tex: Texture2D
-	if arena:
+	if fishing:
+		ground_tex = VT.terrain("top_sand", biome.get("sand", "#ecd8a0"))
+	elif arena:
 		ground_tex = VT.terrain("top_plaza", biome["plaza"])
 	elif dark:
 		ground_tex = VT.terrain("top_plaza", "#4a4652")
@@ -338,13 +366,13 @@ func _build_stage() -> void:
 	pm.size = Vector2(70, 50)
 	ground.mesh = pm
 	ground.material_override = _tex_mat(ground_tex, Vector2(70, 50))
-	ground.position = Vector3(0, 0, -10)
+	ground.position = Vector3(0, 0, -10) if not fishing else Vector3(0, -0.6, -10)
 	add_child(ground)
 	_build_ring("ally")
 	if not wild:
 		_build_ring("foe")
-	# a low cobbled mound under the wild beasts
-	for center in ([] if not wild else [FOE_CENTER + _toward("foe") * 0.9]):
+	# a low cobbled mound under the wild beasts (not out on the water)
+	for center in ([] if not wild or fishing else [FOE_CENTER + _toward("foe") * 0.9]):
 		var k := VBld.Kit.new()
 		var col := Color(biome["path"] if not arena else biome["plaza"]) if not dark else Color("#5a5664")
 		var tex := "cobble" if not dark else "stone_dark"
@@ -365,7 +393,9 @@ func _build_stage() -> void:
 		mi.mesh = k.mesh()
 		mi.position = center
 		add_child(mi)
-	if arena:
+	if fishing:
+		_fishing_scenery(rng)
+	elif arena:
 		_arena_scenery(rng)
 	elif dark:
 		_indoor_scenery(rng)
@@ -587,6 +617,19 @@ func _dais() -> Node3D:
 static var _hex_cache := {}
 static var _gold: StandardMaterial3D = null
 static var _sigils := {}
+
+
+## Paints the ring's textures and makes its pieces ahead of the first battle (main.gd, while a map loads behind the
+## fade): painted pixel by pixel, they held the first battle's swirl still for seconds on a phone, as if it had hung.
+static func prewarm() -> void:
+	_circle_texture()
+	for k in Ring.SLOTS:
+		_sigil_texture(Ring.slot_elements(k))
+	_hex_mesh(0.78, 0.84, 0.08)
+	_hex_mesh(0.62, 0.7, 0.14)
+	_hex_mesh(0.645, 0.645, 0.04)
+	_gold_mat()
+	VT.material("stone")
 
 
 ## A six-sided prism (a squat hexagonal cylinder), cached by size.
@@ -849,6 +892,11 @@ func _usable_moves(b) -> Array:
 func _wild_pos(i: int) -> Vector3:
 	var d := _toward("foe")
 	var perp := Vector3(-d.z, 0, d.x)
+	if guardian_tk != "":
+		# the guardian at the back in the middle, its helpers in front to either side
+		if i == 0:
+			return FOE_CENTER - d * 0.7
+		return FOE_CENTER + d * 1.3 + perp * (1.7 if i == 1 else -1.7)
 	var n := mini(3, foes.size())
 	var off := (float(i) - float(n - 1) / 2.0) * 2.1
 	return FOE_CENTER + d * 0.9 + perp * off
@@ -900,6 +948,116 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		water.material_override = wm
 		water.position = Vector3(0, 0.02, -24)
 		add_child(water)
+
+
+## The fishing battle: open water from just past your ring out to a far shore of trees, your ring on a plank dock
+## running out from the beach, mooring posts along it, a few rocks in the water, and ripples round the beast you hooked.
+func _fishing_scenery(rng: RandomNumberGenerator) -> void:
+	var f := _toward("ally")
+	var side := Vector3(-f.z, 0, f.x)
+	var water_col := String(biome.get("water", "#3a90e0"))
+	# the water a little below the dock (the sandy bed sinks out of sight under it), and the beach on your side of a
+	# shoreline just behind your ring
+	var turn := -atan2(f.z, f.x) + PI / 2.0
+	var shore := ALLY_CENTER - f * 4.0
+	var water := MeshInstance3D.new()
+	var wp := PlaneMesh.new()
+	wp.size = Vector2(110, 110)
+	water.mesh = wp
+	var wm := _tex_mat(VT.terrain("water", water_col), Vector2(110, 110))
+	wm.roughness = 0.15
+	wm.metallic_specular = 0.9
+	water.material_override = wm
+	water.position = FOE_CENTER + Vector3(0, -0.15, 0)
+	add_child(water)
+	var beach := MeshInstance3D.new()
+	var bp := PlaneMesh.new()
+	bp.size = Vector2(90, 40)
+	beach.mesh = bp
+	beach.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 40))
+	beach.position = shore - f * 20.0
+	beach.rotation.y = turn
+	add_child(beach)
+	# the dock: planks across, from the beach out past your ring, with mooring posts down each side
+	var k := VBld.Kit.new()
+	var wood := Color("#9a7448")
+	var start := -4.4
+	var stop := 3.4
+	var half := 3.0
+	var t := start
+	var i := 0
+	while t < stop:
+		var c := ALLY_CENTER + f * t
+		var col := wood if i % 3 != 1 else wood.darkened(0.12)
+		var corners := [c - side * half, c + side * half, c + side * half + f * 0.28, c - side * half + f * 0.28]
+		for q in 4:
+			corners[q].y = 0.02
+		k.poly("planks", corners, Vector3.UP, col)
+		t += 0.3
+		i += 1
+	for s in [-1.0, 1.0]:
+		var d := start + 0.6
+		while d < stop:
+			var pp: Vector3 = ALLY_CENTER + f * d + side * s * (half + 0.12) + Vector3(0, 0.2, 0)
+			k.box("color", pp, Vector3(0.22, 0.7, 0.22), Color("#5a3e26"))
+			d += 2.2
+	# the dock's edge, a beam along each side
+	for s2 in [-1.0, 1.0]:
+		var a: Vector3 = ALLY_CENTER + f * start + side * s2 * half
+		var b: Vector3 = ALLY_CENTER + f * stop + side * s2 * half
+		k.poly("color", [a + Vector3(0, 0.02, 0), b + Vector3(0, 0.02, 0), b + Vector3(0, -0.35, 0), a + Vector3(0, -0.35, 0)], side * s2, Color("#6a4a2a"))
+	var dock := MeshInstance3D.new()
+	dock.mesh = k.mesh()
+	add_child(dock)
+	# rocks in the water and a far shore of trees
+	var by_asset := {}
+	var rocks: Array = biome.get("rocks", ["rock_small"])
+	for n in 6:
+		var rn: String = rocks[rng.randi_range(0, rocks.size() - 1)]
+		var s3 := VA.fit_scale(rn, -1.0, rng.randf_range(0.8, 1.5))
+		var p := FOE_CENTER + side * rng.randf_range(-11.0, 11.0) + f * rng.randf_range(2.0, 9.0)
+		if (p - FOE_CENTER).length() < 4.0:
+			p += side * 5.0
+		if not by_asset.has(rn):
+			by_asset[rn] = []
+		by_asset[rn].append(_xf(p + Vector3(0, -VA.aabb(rn).position.y * s3 - 0.25, 0), rng.randi_range(0, 3) * PI / 2.0, s3))
+	var trees: Array = biome.get("trees", [["palm", 1]])
+	for n in 26:
+		var e: Array = trees[rng.randi_range(0, trees.size() - 1)]
+		var name: String = e[0]
+		var p2 := FOE_CENTER + f * rng.randf_range(16.0, 22.0) + side * rng.randf_range(-24.0, 24.0)
+		var s4 := VA.fit_scale(name, rng.randf_range(2.6, 3.6))
+		if not by_asset.has(name):
+			by_asset[name] = []
+		by_asset[name].append(_xf(p2 + Vector3(0, -VA.aabb(name).position.y * s4, 0), rng.randi_range(0, 3) * PI / 2.0, s4))
+	for name in by_asset:
+		_multimesh(VA.mesh(name), by_asset[name])
+	# the far shore's sand under those trees
+	var far := MeshInstance3D.new()
+	var fp := PlaneMesh.new()
+	fp.size = Vector2(90, 12)
+	far.mesh = fp
+	far.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 12))
+	far.position = FOE_CENTER + f * 20.0
+	far.rotation.y = turn
+	add_child(far)
+	# ripples round the beasts out on the water
+	var rm := StandardMaterial3D.new()
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rm.albedo_color = Color(1, 1, 1, 0.55)
+	for j in mini(3, foes.size()):
+		for r in 2:
+			var ring := MeshInstance3D.new()
+			var tor := TorusMesh.new()
+			tor.inner_radius = 0.75 + r * 0.45
+			tor.outer_radius = 0.85 + r * 0.45
+			tor.rings = 28
+			tor.ring_segments = 4
+			tor.material = rm
+			ring.mesh = tor
+			ring.position = _wild_pos(j) + Vector3(0, -0.12, 0)
+			add_child(ring)
 
 
 func _arena_scenery(rng: RandomNumberGenerator) -> void:
@@ -1039,12 +1197,9 @@ func _update_shield() -> void:
 		ally_grid.shield = GameState.shield
 		ally_grid.max_shield = GameState.max_shield
 		ally_grid.queue_redraw()
-	if shield_label == null:
-		return
-	if GameState.max_shield <= 0:
+	# your own shield points are under your bar (battle_bars.gd), not over your head as well
+	if shield_label != null:
 		shield_label.text = ""
-		return
-	shield_label.text = "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield)
 	if rival_shield_label != null:
 		rival_shield_label.text = "◆".repeat(foe_shield) + "◇".repeat(maxi(0, foe_max_shield - foe_shield)) if foe_max_shield > 0 else ""
 
@@ -1064,8 +1219,16 @@ func _process(delta: float) -> void:
 	if is_instance_valid(rival_rig):
 		VPer.animate(rival_rig, 0.0, 0.0)
 	if is_instance_valid(cam):
-		cam.position = _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
-		cam.look_at(_cam_look(), Vector3.UP)
+		var cp := _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
+		var cl := _cam_look()
+		if summon_mix > 0.0:
+			cp = cp.lerp(summon_pos, summon_mix)
+			cl = cl.lerp(summon_look, summon_mix)
+		if summon_shake_amt > 0.0:
+			cp += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * summon_shake_amt * 0.35
+			summon_shake_amt = maxf(0.0, summon_shake_amt - delta * 1.6)
+		cam.position = cp
+		cam.look_at(cl, Vector3.UP)
 	var aiming := not _ring_targets.is_empty()
 	arrow.modulate = Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.7, 1.0) if aiming else Color("#ffd060")
 	arrow.font_size = 96 if aiming else 64
@@ -1237,6 +1400,12 @@ func _spawn(b, side: String, slot: int) -> void:
 	holder.name = "Model"
 	root.add_child(holder)
 	var lift := 0.16
+	var big := 1.0
+	if b == guardian_b:
+		# a temple guardian towers over its helpers, and the winged ones hover
+		big = 1.7
+		if guardian_tk in ["water", "air", "fire"]:
+			lift = 0.7
 	holder.position.y = lift
 	root.rotation.y = _beast_yaw(side)
 	var ringed: bool = side == "ally" or not wild
@@ -1253,7 +1422,7 @@ func _spawn(b, side: String, slot: int) -> void:
 	nodes[b] = root
 	root.scale = Vector3(0.2, 0.2, 0.2)
 	var tw := create_tween()
-	tw.tween_property(root, "scale", Vector3.ONE * (1.15 if ringed else 1.25), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(root, "scale", Vector3.ONE * (1.15 if ringed else 1.25) * big, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var s := _st(b)
 	s["side"] = side
 	s["down"] = b.hp <= 0
@@ -1389,8 +1558,14 @@ func _build_hud() -> void:
 	bars = BattleBars.new(k)
 	cmd_root.add_child(bars)
 	ally_grid = RingGrid.new("ally", false, k)
-	ally_grid.show_shield = true
+	# (your shield points show under your own bar instead: battle_bars.gd)
+	ally_grid.show_shield = false
 	cmd_root.add_child(ally_grid)
+	# the trainers in the middle of their grids, locking eyes across the screen: you from behind, looking up and left
+	# to the foe's grid; the rival from the front, looking down and right to yours
+	ally_grid.trainer_icon = _person_icon(GameState.hero_look(), PI + 0.5)
+	if not wild and not (trainer.get("look", {}) as Dictionary).is_empty():
+		foe_grid.trainer_icon = _person_icon(trainer["look"], 0.5)
 	var gap := 8.0 * k
 	bars.position = Vector2.ZERO
 	bars.size = bars.custom_minimum_size
@@ -1430,6 +1605,12 @@ func _build_hud() -> void:
 	target_cards = TargetCards.new()
 	hud.add_child(target_cards)
 	_place_caption()
+	# the move window, in the same place, big enough to read on a phone
+	move_info = PanelContainer.new()
+	move_info.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.94), UIKit.BORDER, 16.0, Vector4(22, 10, 22, 12), 3.0))
+	move_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	move_info.visible = false
+	hud.add_child(move_info)
 
 
 ## The battle text sits at the top, between the foe's grid and the right edge, as wide as its words need.
@@ -1450,16 +1631,177 @@ func _place_caption() -> void:
 	caption.reset_size()
 	caption.size = Vector2(w, 0)
 	if target_cards != null and target_cards.visible:
-		# centred under the text, between the foe's grid and the right edge
-		target_cards.position = Vector2(left + (room - target_cards.size.x) * 0.5, 10.0 + caption.get_combined_minimum_size().y + 4.0)
+		# centred under the text (or the move window), between the foe's grid and the right edge
+		var above := 10.0
+		if move_info != null and move_info.visible:
+			above += move_info.size.y + 6.0
+		elif caption.visible:
+			above += caption.get_combined_minimum_size().y + 4.0
+		target_cards.position = Vector2(left + (room - target_cards.size.x) * 0.5, above)
 
 
-## Shows a line of battle text (empty: hides it).
+## Shows a line of battle text (empty: hides it). While the move window is up, the line goes along its foot instead.
 func _caption(text: String) -> void:
 	if msg_label == null:
 		return
+	if _commanding and move_info != null and move_info.visible:
+		_info_hint = text
+		var foot := move_info.find_child("Foot", true, false) as Label
+		if foot != null:
+			foot.text = text
+			foot.visible = text != ""
+		text = ""
 	msg_label.text = text
 	_place_caption()
+
+
+## What each kind of move is called in the move window.
+const KIND_NAMES := {"attack": "Attack", "buff": "Boost", "debuff": "Weaken", "heal": "Heal", "revive": "Revive",
+	"cleanse": "Cleanse", "shield": "Shield", "status": "Status", "taunt": "Taunt", "special": "Special"}
+const TARGET_NAMES := {"enemy": "one foe", "enemies": "all foes", "ally": "one ally", "allies": "all allies",
+	"self": "itself", "ally_ko": "a fainted ally", "none": ""}
+
+
+## The window at the top while you choose: the highlighted move's name, element and kind, who it reaches, its MP cost
+## (against the beast's MP), power and accuracy, what it does, and any warning (recharging, short of MP, a lesson);
+## for your own actions and Defend, just what they do. Empty: hides it.
+func _show_option(row: Dictionary, o: Dictionary) -> void:
+	if move_info == null:
+		return
+	for c in move_info.get_children():
+		move_info.remove_child(c)
+		c.queue_free()
+	var status_desc := String(row.get("status_desc", "")) if row.get("status", "") != "" else ""
+	if o.is_empty() or (String(o.get("label", "")) == "" and status_desc == ""):
+		move_info.visible = false
+		_place_caption()
+		return
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 4)
+	move_info.add_child(vb)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	vb.add_child(top)
+	var b = row.get("beast", null)
+	var title := String(o.get("label", "")).replace("  ★", "")
+	var desc := String(o.get("desc", ""))
+	var note := String(o.get("note", ""))
+	if status_desc != "":
+		title = String(row.get("name", ""))
+		desc = status_desc
+	top.add_child(UIKit.header(title, UIKit.LIGHT, UIKit.HEAD_BIG))
+	if o.has("move"):
+		var mv := String(o["move"])
+		var m := MoveDB.get_move(mv)
+		top.add_child(_info_tag(UIKit.element_tag(String(m["el"]), 18)))
+		var kind := String(KIND_NAMES.get(String(m.get("kind", "")), String(m.get("kind", "")).capitalize()))
+		var reach := String(TARGET_NAMES.get(String(m.get("target", "enemy")), ""))
+		top.add_child(_info_tag(UIKit.label(kind + (" · " + reach if reach != "" else ""), UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+		var gap := Control.new()
+		gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		top.add_child(gap)
+		var cost := MoveDB.mp_cost(mv)
+		var mp_text := "No MP"
+		if cost > 0:
+			mp_text = "MP %d" % cost + (" (has %d)" % b.mp if b != null else "")
+		var short: bool = b != null and b.mp < cost
+		top.add_child(_info_tag(UIKit.label(mp_text, UIKit.BODY_BIG, UIKit.ACCENT.lightened(0.35) if short else UIKit.INK)))
+		var facts := []
+		if m.has("power"):
+			facts.append("Power %d" % m["power"])
+		if m.has("acc"):
+			facts.append("Accuracy %d" % m["acc"])
+		if int(m.get("cd", 0)) > 0:
+			facts.append("Rests %d turn%s after use" % [m["cd"], "" if int(m["cd"]) == 1 else "s"])
+		if not facts.is_empty():
+			vb.add_child(UIKit.label("   ".join(facts), UIKit.BODY_BIG, UIKit.DIM))
+		desc = String(m.get("desc", ""))
+	elif o.get("id", "") == "defend":
+		top.add_child(_info_tag(UIKit.label("Guard · itself", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+		if b != null:
+			desc = "Brace for impact: %s takes half damage until your side's next turn." % b.nickname
+	elif row.get("kind", "") == "trainer" and status_desc == "":
+		top.add_child(_info_tag(UIKit.label("Your action", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+	var d := UIKit.label(desc, UIKit.BODY_HUGE, UIKit.INK)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.add_theme_constant_override("line_spacing", -10)
+	d.custom_minimum_size.x = 620.0
+	vb.add_child(d)
+	if note != "":
+		var nl := UIKit.label(note, UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nl.custom_minimum_size.x = 620.0
+		vb.add_child(nl)
+	var foot := UIKit.label(_info_hint, UIKit.BODY_BIG, UIKit.DIM)
+	foot.name = "Foot"
+	foot.visible = _info_hint != ""
+	vb.add_child(foot)
+	move_info.visible = true
+	# along the top, clear of the foe's grid, like the battle text
+	var vw := hud.get_viewport_rect().size.x
+	var left := foe_grid.position.x + foe_grid.size.x + 12.0
+	move_info.reset_size()
+	var w := move_info.get_combined_minimum_size().x
+	move_info.position = Vector2(left + maxf(0.0, (vw - left - 16.0 - w) * 0.5), 10.0)
+	# (and once the wrapped lines know their width, no taller than they need, the target cards under it)
+	if not get_tree().process_frame.is_connected(_settle_top):
+		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
+	msg_label.text = ""
+	_place_caption()
+
+
+## The move window shrunk to its laid-out words, and the things under it placed again (a frame after it changes).
+func _settle_top() -> void:
+	if move_info != null and move_info.visible:
+		move_info.reset_size()
+	_place_caption()
+
+
+## A small full-length picture of a person for the middle of a ring grid, turned `yaw` from facing the viewer
+## (positive: towards the right of the screen; PI: their back): rendered off screen for a moment, then kept as it is.
+func _person_icon(look: Dictionary, yaw: float) -> Texture2D:
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	vp.msaa_3d = Viewport.MSAA_4X
+	vp.size = Vector2i(132, 176)
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(vp)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color.WHITE
+	env.ambient_light_energy = 0.7
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var we := WorldEnvironment.new()
+	we.environment = env
+	vp.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-35, 30, 0)
+	sun.light_energy = 1.25
+	vp.add_child(sun)
+	var rig := VPer.build(look)
+	VPer.face(rig, Vector2i(0, 1))
+	rig.rotation.y = yaw
+	vp.add_child(rig)
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = VPer.height() * 1.12
+	var at := Vector3(0, 1.6, 5.0)
+	cam.transform = Transform3D(Basis.looking_at(Vector3(0, VPer.height() * 0.52, 0) - at, Vector3.UP), at)
+	vp.add_child(cam)
+	cam.current = true
+	# a picture, not a scene: stop drawing it once it's had a moment to render
+	get_tree().create_timer(0.6).timeout.connect(func() -> void:
+		if is_instance_valid(vp):
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED)
+	return vp.get_texture()
+
+
+## A tag in the move window, centred on its line.
+func _info_tag(c: Control) -> Control:
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return c
 
 
 func _refresh() -> void:
@@ -1567,6 +1909,8 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 
 func msg(text: String, wait := 0.95) -> void:
 	_caption(text)
+	if OS.has_feature("editor") and GameState.main != null and "--battle-log" in OS.get_cmdline_user_args():
+		print("  | ", text)
 	var t := 0.0
 	while t < wait:
 		await get_tree().process_frame
@@ -1606,7 +1950,11 @@ func _run() -> void:
 			_spawn(foe_ring[k], "foe", k)
 		_place_ring("foe")
 	_refresh()
-	if wild:
+	if guardian_tk != "":
+		Sfx.play("growl")
+		await msg("%s, guardian of the %s, rises to test you!" % [guardian_b.nickname, String(WorldDB.TEMPLES[guardian_tk]["name"])], 1.2)
+		await msg("It can't be beaten, only won over: wear it down, then play the %s to it!" % SongDB.song_name(_guardian_song()), 1.4)
+	elif wild:
 		var names := []
 		for f in foes:
 			names.append(f.nickname)
@@ -1921,11 +2269,12 @@ func _command_phase() -> Array:
 			break
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "point": _point_at,
-			"bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid, "cards": target_cards})
+			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid, "cards": target_cards})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
 		_commanding = false
+		_show_option({}, {})
 		_point_at(null)
 		_hide_cards()
 		ally_grid.focus = -1
@@ -1974,6 +2323,15 @@ func _command_phase() -> Array:
 							var keep2: Dictionary = rows[0]
 							rows = _panel_rows()
 							rows[0] = keep2
+					"summon":
+						var sact := await _summon_flow()
+						if result != "":
+							return []
+						if not sact.is_empty():
+							rows[0]["act"] = sact
+							rows[0]["done"] = true
+							rows[0]["locked"] = true
+							focus = 1
 					"run":
 						if await _try_run():
 							result = "run"
@@ -2015,6 +2373,17 @@ func _panel_rows() -> Array:
 			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Tidewater is keeping your father's."},
 		{"id": "watch", "label": "Watch", "target": "none", "desc": "Let your beasts handle this round."},
 	]
+	if not GameState.summons.is_empty():
+		# a captured temple guardian, called with its song: once per battle, for a shield point
+		var why := ""
+		if summoned:
+			why = "You've already called a summon this battle."
+		elif GameState.shield <= 0:
+			why = "Summoning costs a shield point, and you have none left."
+		elif not GameState.has_flute():
+			why = "You need your flute to play a summon's song."
+		t_opts.insert(3, {"id": "summon", "label": "Summon", "sub": true, "disabled": why != "",
+			"desc": why if why != "" else "Play a temple's song to call its guardian: it strikes every foe at once. Once per battle, for one shield point (%d left)." % GameState.shield})
 	if wild:
 		t_opts.append({"id": "run", "label": "Run", "sub": true, "desc": "Try to escape."})
 	else:
@@ -2077,11 +2446,15 @@ func _move_options(b) -> Array:
 				if Elements.multiplier(m["el"], _guard_el(f)) >= 2.0:
 					star = "  ★"
 		var off: bool = cd > 0 or b.mp < cost
+		# (note: the move window's warning line)
+		var note := "Strong against a foe on the field!" if star != "" else ""
 		if cd > 0:
 			desc = "Recharging for %d more turn(s).\n" % cd + desc
+			note = "Recharging: ready again in %d turn%s." % [cd, "" if cd == 1 else "s"]
 			right = "wait %d" % cd
 		elif b.mp < cost:
 			desc = "Not enough MP! (%d of %d) Heal at a Beast Center or use a Spirit Drop.\n" % [b.mp, cost] + desc
+			note = "Not enough MP (%d of %d). Heal at a Beast Center or use a Spirit Drop." % [b.mp, cost]
 		elif cost > 0:
 			desc = "Costs %d MP (%s has %d).\n" % [cost, b.nickname, b.mp] + desc
 		if tutorial:
@@ -2089,14 +2462,19 @@ func _move_options(b) -> Array:
 			if want_b != "Fight" or mv != _tut_move(b):
 				off = true
 				desc = "%s: \"%s\"" % [_tut_who(), "Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"]]
-		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "target": m["target"], "disabled": off})
+				note = desc
+		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
 	if el == "neutral" and not b.ghost:
-		out[0]["desc"] = "%s can't use %s moves from the %s side: plain moves only.\n" % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()] + String(out[0]["desc"])
+		var plain := "%s can't use %s moves from the %s side: plain moves only." % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()]
+		out[0]["desc"] = plain + "\n" + String(out[0]["desc"])
+		if String(out[0].get("note", "")) == "":
+			out[0]["note"] = plain
 	var d := {"id": "defend", "label": "Defend", "target": "none", "right": "half damage",
 		"desc": "Brace for impact: %s takes half damage until your side's next turn." % b.nickname}
 	if tutorial and _tut_beast() != "Defend":
 		d["disabled"] = true
-		d["desc"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
+		d["note"] = "%s: \"Not now! Attack this round.\"" % _tut_who()
+		d["desc"] = String(d["note"])
 	out.append(d)
 	# Move: to another slot of the ring (see _shift_spots), in place of its move this round
 	var spots := _shift_spots(b)
@@ -2392,6 +2770,13 @@ func _auto_commands() -> Array:
 
 func _auto_trainer_action() -> Dictionary:
 	var foes_alive := _alive(foe_slots)
+	if guardian_b != null and guardian_b.hp > 0 and guardian_b.hp_ratio() <= GUARDIAN_CAPTURE_HP and GameState.knows_song(_guardian_song()):
+		return {"type": "guardian_song", "acc": float(cfg.get("auto_song_acc", 0.85)), "prio": 9}
+	if cfg.get("auto_summon", "") != "" and not summoned and GameState.shield > 0 and not foes_alive.is_empty():
+		summoned = true
+		GameState.shield -= 1
+		_update_shield()
+		return {"type": "summon", "el": String(cfg["auto_summon"]), "acc": 0.9, "prio": 11}
 	if round_no == 1 and GameState.knows_song("weaken") and not foes_alive.is_empty():
 		return {"type": "player_song", "song": "weaken", "acc": 0.75, "prio": 9}
 	if _side_open("ally") and GameState.item_count("revival_seed") > 0:
@@ -2436,7 +2821,13 @@ func _flute_flow() -> bool:
 			continue
 		var s := SongDB.get_song(sid)
 		var why := ""
-		if s["kind"] == "charm":
+		if s["kind"] == "summon":
+			# only the guardian's own song, in its battle; the others are played with Summon
+			if sid != _guardian_song():
+				continue
+			if guardian_b.hp_ratio() > GUARDIAN_CAPTURE_HP:
+				why = "%s is still too strong to listen. Wear it down below 60%% of its HP first." % guardian_b.nickname
+		elif s["kind"] == "charm":
 			if not wild:
 				why = "You can't charm another trainer's beasts."
 			elif _charmable(sid).is_empty():
@@ -2457,6 +2848,8 @@ func _flute_flow() -> bool:
 	if c < 0:
 		return false
 	var song: String = ids[c]
+	if SongDB.is_summon(song):
+		return await _guardian_song_flow(song)
 	if SongDB.is_charm(song):
 		return await _charm_flow(song)
 	return await _effect_song_flow(song)
@@ -2518,6 +2911,7 @@ func _charm_flow(song: String) -> bool:
 		# the lesson's beast joins whenever the song is played through
 		chance = 1.0
 	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	await _song_fx(PLAYER_POS, [t], true, acc < SongDB.FLAT_ACCURACY)
 	await _note_effect(t)
 	if flawless and mistakes > 0:
 		Sfx.play("fail")
@@ -2557,12 +2951,30 @@ func _charm_flow(song: String) -> bool:
 	return true
 
 
-## Applies an effect song played by `side` ("ally" = you, "foe" = the rival trainer) with accuracy `acc`.
-func _apply_song(song: String, acc: float, side: String, target) -> void:
+## Who an effect song played by `side` reaches: all foes or all allies, or one (`target`, if it can hear it, else one
+## at random).
+func _song_targets(song: String, side: String, target) -> Array:
 	var s := SongDB.get_song(song)
 	var mine: Array = ally_slots if side == "ally" else foe_slots
 	var theirs: Array = foe_slots if side == "ally" else ally_slots
-	_song_fx(PLAYER_POS if side == "ally" else RIVAL_POS, side == "ally")
+	match s["target"]:
+		"enemies":
+			return _alive(theirs)
+		"allies":
+			return _alive(mine)
+	var pool := _alive(theirs if s["target"] == "enemy" else mine)
+	if target != null and pool.has(target):
+		return [target]
+	return [pool.pick_random()] if not pool.is_empty() else []
+
+
+## Applies an effect song played by `side` ("ally" = you, "foe" = the rival trainer) with accuracy `acc`. The notes fly
+## from the flute to whoever it reaches first (unless `shown`: they already have, as the rival played).
+func _apply_song(song: String, acc: float, side: String, target, shown := false) -> void:
+	var s := SongDB.get_song(song)
+	var targets := _song_targets(song, side, target)
+	if not shown:
+		await _song_fx(PLAYER_POS if side == "ally" else RIVAL_POS, targets, side == "ally", acc < SongDB.FLAT_ACCURACY)
 	if acc < SongDB.FLAT_ACCURACY:
 		Sfx.play("fail")
 		await msg("The melody falls flat... nothing happens.", 0.9)
@@ -2572,18 +2984,6 @@ func _apply_song(song: String, acc: float, side: String, target) -> void:
 	var power := (0.6 + acc) * (1.0 + 0.06 * mastery)
 	if great:
 		await msg("A stirring performance!", 0.6)
-	var targets := []
-	match s["target"]:
-		"enemies":
-			targets = _alive(theirs)
-		"allies":
-			targets = _alive(mine)
-		_:
-			var pool := _alive(theirs if s["target"] == "enemy" else mine)
-			if target != null and pool.has(target):
-				targets = [target]
-			elif not pool.is_empty():
-				targets = [pool.pick_random()]
 	if targets.is_empty():
 		await msg("But nobody was there to hear it...", 0.7)
 		return
@@ -2625,31 +3025,65 @@ func _song_stages(changes: Dictionary, great: bool) -> Dictionary:
 	return out
 
 
-## Musical notes drifting from the player (or rival) toward the other side.
-func _song_fx(from: Vector3, toward_foes: bool) -> void:
-	var dir := 1.0 if toward_foes else -1.0
-	for i in 7:
+## Musical notes from a trainer's flute (the trainer standing at `from`) to whoever the song reaches: `to` holds beasts
+## (or points in the world). The notes are shared out among them, each looping up and over in an arc of its own and
+## landing with a twinkle; gold for your songs, violet for the rival's. A song that falls `flat` sends them out only to
+## drop short and fade. Returns as the first notes land (the rest still on their way).
+func _song_fx(from: Vector3, to: Array, mine: bool, flat := false) -> void:
+	var col := Color("#ffe080") if mine else Color("#e0a0ff")
+	var flute := from + Vector3(0, VPer.height() * 0.62, 0) + (FOE_CENTER - ALLY_CENTER).normalized() * (0.35 if mine else -0.35)
+	var ends := []
+	for x in to:
+		if x is Vector3:
+			ends.append(x)
+		elif nodes.has(x):
+			ends.append((nodes[x] as Node3D).position + Vector3(0, 0.75, 0))
+	if ends.is_empty():
+		# nobody to hear it: out over the field
+		ends.append(flute.lerp(RIVAL_POS if mine else PLAYER_POS, 0.6) + Vector3(0, 0.6, 0))
+	var count := clampi(ends.size() * 3, 6, 12)
+	var fly := 0.85
+	for i in count:
+		var end: Vector3 = ends[i % ends.size()] + Vector3(randf_range(-0.25, 0.25), randf_range(-0.15, 0.3), randf_range(-0.2, 0.2))
+		if flat:
+			end = flute.lerp(end, 0.45) + Vector3(0, -0.9, 0)
+		var dist := flute.distance_to(end)
+		# each arc bows up, and a little to one side or the other
+		var side := Vector3.UP.cross(end - flute).normalized() * randf_range(-0.9, 0.9)
+		var peak := flute.lerp(end, 0.5) + Vector3(0, 0.6 + dist * 0.22, 0) + side
 		var l := Label3D.new()
-		l.text = "♪" if i % 2 == 0 else "♫"
+		l.text = "♪" if i % 3 != 1 else "♫"
 		l.font_size = 60
 		l.outline_size = 8
-		l.modulate = Color("#ffe080") if toward_foes else Color("#e0a0ff")
-		l.pixel_size = 0.01
+		l.modulate = col
+		l.pixel_size = 0.011
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		l.no_depth_test = true
-		l.position = from + Vector3(0.3 * dir, 1.6, 0)
+		l.position = flute
+		l.scale = Vector3.ONE * 0.5
+		l.visible = false
 		add_child(l)
-		var end := from + Vector3(dir * (5.0 + i * 0.9), 1.2 + sin(i * 1.7) * 0.8, -1.0 - i * 0.2)
 		var tw := create_tween()
-		tw.tween_interval(i * 0.09)
-		tw.tween_property(l, "position", end, 1.0)
-		tw.parallel().tween_property(l, "modulate:a", 0.0, 1.0)
+		tw.tween_interval(i * 0.07)
+		tw.tween_callback(func() -> void: l.visible = true)
+		tw.tween_method(func(t: float) -> void:
+			var a := flute.lerp(peak, t)
+			var b := peak.lerp(end, t)
+			l.position = a.lerp(b, t)
+			l.scale = Vector3.ONE * (0.5 + 0.6 * sin(PI * minf(t * 1.4, 1.0)) + 0.35 * t), 0.0, 1.0, fly).set_trans(Tween.TRANS_SINE)
+		if flat:
+			tw.tween_property(l, "modulate:a", 0.0, 0.25)
+		else:
+			# the twinkle as it lands
+			tw.tween_property(l, "scale", Vector3.ONE * 1.6, 0.12)
+			tw.parallel().tween_property(l, "modulate", Color(1, 1, 1, 0), 0.18)
 		tw.tween_callback(l.queue_free)
+	await get_tree().create_timer(fly + 0.1).timeout
 
 
-## The rival trainer's flute: the song as you'd first learn it.
-func _rival_melody(sid: String) -> void:
-	_song_fx(RIVAL_POS, false)
+## The rival trainer's flute: the song as you'd first learn it, the notes flying to `targets` as they play.
+func _rival_melody(sid: String, targets: Array) -> void:
+	_song_fx(RIVAL_POS, targets, false)
 	var spb := clampf(60.0 / float(SongDB.get_song(sid)["bpm"]), 0.42, 0.7)
 	for note in SongDB.melody(sid, 1):
 		for btn in note:
@@ -2672,9 +3106,11 @@ func _do_rival_song(a: Dictionary) -> void:
 	heard_songs[sid] = true
 	var who: String = trainer.get("name", "The trainer")
 	await msg("%s raises a flute and plays the %s!" % [who, SongDB.song_name(sid)], 0.7)
-	await _rival_melody(sid)
+	# (who it reaches is settled first, so the notes go where the song does)
+	var targets := _song_targets(sid, "foe", null)
+	await _rival_melody(sid, targets)
 	var skill := clampf(float(trainer.get("flute_skill", 0.8)) * randf_range(0.9, 1.1), 0.0, 1.0)
-	await _apply_song(sid, skill, "foe", null)
+	await _apply_song(sid, skill, "foe", targets[0] if targets.size() == 1 else null, true)
 
 
 ## After a win: try to play back a song you heard the rival play. No mistakes allowed.
@@ -3022,6 +3458,12 @@ func _resolve(acts: Array) -> void:
 				await _do_rival_song(a)
 			"player_song":
 				await _apply_song(a["song"], float(a["acc"]), "ally", null)
+			"summon":
+				await _do_summon(a)
+			"guardian_song":
+				if guardian_b != null:
+					await _song_fx(PLAYER_POS, [guardian_b], true)
+				await _guardian_capture(float(a["acc"]))
 			"defend":
 				var db = a["actor"]
 				if db.hp <= 0 or not _active(db):
@@ -3697,6 +4139,215 @@ func _tick_damage(b, d: int, text: String) -> void:
 	await msg(text % b.nickname, 0.6)
 
 
+# ================================================================ temple guardians and summons
+## A guardian's HP share at or below which its temple's song can win it over.
+const GUARDIAN_CAPTURE_HP := 0.6
+
+
+## The song that captures this battle's guardian ("" outside a guardian battle).
+func _guardian_song() -> String:
+	return String(WorldDB.TEMPLES[guardian_tk]["song"]) if guardian_tk != "" else ""
+
+
+## A guardian worn down to nothing rises again: it can only be captured.
+func _guardian_rises(b) -> void:
+	b.hp = maxi(1, int(b.max_hp() * 0.3))
+	Sfx.play("growl")
+	if nodes.has(b):
+		_hit_fx(b, true)
+	_float_text(b, "RISES", Color(String(WorldDB.TEMPLES[guardian_tk]["glow"])))
+	_refresh()
+	await msg("%s won't fall! It rises again, its strength fading..." % b.nickname, 1.0)
+	if GameState.knows_song(_guardian_song()):
+		await msg("Now's your chance: play the %s!" % SongDB.song_name(_guardian_song()), 0.9)
+
+
+func _guardian_song_flow(song: String) -> bool:
+	flute_used = true
+	_point_at(guardian_b)
+	await msg("You raise your flute and play the %s to %s..." % [SongDB.song_name(song), guardian_b.nickname], 0.8)
+	var r: Dictionary = await UI.flute_ex(song, "Winning over %s  —  the cleaner you play, the surer it is" % guardian_b.nickname)
+	_battle_music()
+	var acc := float(r["acc"])
+	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	await _song_fx(PLAYER_POS, [guardian_b], true, acc < SongDB.FLAT_ACCURACY)
+	await _guardian_capture(acc)
+	if star and result == "":
+		UI.toast("Your mastery of the %s improved!" % SongDB.song_name(song), UIKit.GOLD)
+	_point_at(null)
+	return true
+
+
+## The temple's song reaches the guardian: a weakened guardian that hears it well is captured, ending the battle.
+func _guardian_capture(acc: float) -> void:
+	var t = guardian_b
+	if t == null or t.hp <= 0:
+		return
+	await _note_effect(t)
+	var chance := 0.0
+	if acc >= SongDB.FLAT_ACCURACY and t.hp_ratio() <= GUARDIAN_CAPTURE_HP:
+		chance = clampf(0.55 + acc * 0.35 + (GUARDIAN_CAPTURE_HP - t.hp_ratio()) * 0.8, 0.0, 1.0)
+	if randf() >= chance:
+		Sfx.play("fail")
+		if acc < SongDB.FLAT_ACCURACY:
+			await msg("The song falls apart, and %s roars over it!" % t.nickname, 1.1)
+		else:
+			await msg("%s shakes its head... It isn't won over yet! (%d%% chance)" % [t.nickname, int(chance * 100)], 1.2)
+		return
+	var glow := Color(String(WorldDB.TEMPLES[guardian_tk]["glow"]))
+	Sfx.play("capture")
+	await msg("The %s fills the hall. %s lowers its great head..." % [SongDB.song_name(_guardian_song()), t.nickname], 1.2)
+	if nodes.has(t):
+		var n: Node3D = nodes[t]
+		var fx := SummonFX.new()
+		add_child(fx)
+		fx.setup(self, guardian_tk, n.position, _toward("foe"), [])
+		fx._ring_burst(n.position + Vector3(0, 0.1, 0), glow, 6.0, 0.8)
+		fx._particles(n.position + Vector3(0, 1.0, 0), Color.WHITE, glow, 120, 1.2, Vector2(1.0, 4.0), 0.3,
+			{"spread": 180.0, "radius": 1.2, "gravity": Vector3(0, 3.0, 0)})
+		var tw := create_tween()
+		tw.tween_property(n, "scale", n.scale * 1.15, 0.2)
+		tw.tween_property(n, "scale", Vector3(0.02, 0.02, 0.02), 0.5).set_ease(Tween.EASE_IN)
+		tw.tween_callback(n.hide)
+		var lt := create_tween()
+		lt.tween_interval(2.0)
+		lt.tween_callback(fx.queue_free)
+	UI.flash(glow, 2)
+	await get_tree().create_timer(0.7).timeout
+	var slot := foe_slots.find(t)
+	if slot >= 0:
+		foe_slots[slot] = null
+	foes.erase(t)
+	if not GameState.summons.has(guardian_tk):
+		GameState.summons.append(guardian_tk)
+	GameState.set_flag("guardian_" + guardian_tk)
+	GameState.mark_seen(t)
+	await msg("%s is yours! You can summon it in battle now." % t.nickname, 1.2)
+	await _award_xp(t)
+	_refresh()
+	result = "win"
+
+
+## Choosing Summon: pick one of your summons, play its song, and (if it answers) it comes first this round.
+## Returns the action, {"type": "none"} if the song failed (your turn is spent), or {} if you backed out.
+func _summon_flow() -> Dictionary:
+	var ids := []
+	var items := []
+	for tk in WorldDB.TEMPLES:
+		if not GameState.summons.has(tk):
+			continue
+		var t: Dictionary = WorldDB.TEMPLES[tk]
+		var sid: String = t["song"]
+		ids.append(tk)
+		items.append({"text": RaceDB.race_name(int(t["guardian"])), "right": String(t["element"]).to_upper(),
+			"desc": "Play the %s to call it. It strikes every foe at once: hard, and harder still where its element is strong.\nOnce per battle, for one shield point." % SongDB.song_name(sid)})
+	if ids.is_empty():
+		return {}
+	var c := 0
+	if ids.size() > 1:
+		c = await UI.choose("Call which summon?", items, {"anchor": "bottom_right", "width": 460, "margin": Vector2(20, 20), "font_size": 28})
+		if c < 0:
+			return {}
+	var tk: String = ids[c]
+	var song: String = WorldDB.TEMPLES[tk]["song"]
+	var who := RaceDB.race_name(int(WorldDB.TEMPLES[tk]["guardian"]))
+	await msg("You raise your flute and play the %s..." % SongDB.song_name(song), 0.7)
+	var r: Dictionary = await UI.flute_ex(song, "Summoning %s  —  play its song through to call it" % who)
+	_battle_music()
+	var acc := float(r["acc"])
+	GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	# the song goes out to the foes the summon will strike
+	await _song_fx(PLAYER_POS, _alive(foe_slots), true, acc < SongDB.FLAT_ACCURACY)
+	if acc < SongDB.FLAT_ACCURACY:
+		Sfx.play("fail")
+		await msg("The song falters... %s doesn't answer." % who, 1.1)
+		return {"type": "none"}
+	summoned = true
+	GameState.shield -= 1
+	Sfx.play("shield")
+	_shield_pulse(shield_bubble)
+	_update_shield()
+	_refresh()
+	await msg("%s hears your call! (one shield point spent)" % who, 0.9)
+	return {"type": "summon", "el": tk, "acc": acc, "prio": 11}
+
+
+## The summon arrives beside the foes and strikes every one of them for about half its HP (more where its element is
+## strong, a little more for a better performance). Bosses' beasts and guardians are left standing.
+func _do_summon(a: Dictionary) -> void:
+	var tk: String = a["el"]
+	var acc := float(a.get("acc", 0.9))
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	var who := RaceDB.race_name(int(t["guardian"]))
+	var targets := _alive(foe_slots)
+	if targets.is_empty():
+		return
+	var hits := []
+	for f in targets:
+		hits.append(_target_point(f))
+	# it looms up behind the foes, facing them and you
+	var d := _toward("ally")
+	var where := FOE_CENTER + d * (3.8 if guardian_tk != "" else 2.2)
+	var fx := SummonFX.new()
+	add_child(fx)
+	fx.setup(self, tk, where, -d, hits)
+	await msg("%s answers your song!" % who, 0.4)
+	await fx.arrive()
+	var landed := [false]
+	var strike := func() -> void:
+		landed[0] = true
+	await fx.attack(strike)
+	var el: String = t["element"]
+	for f in targets:
+		if f.hp <= 0 or not _active(f):
+			continue
+		var eff := Elements.multiplier(el, _guard_el(f))
+		var dmg := maxi(1, int(f.max_hp() * 0.5 * (0.8 + 0.2 * acc) * eff * randf_range(0.95, 1.05)))
+		if is_boss() or f == guardian_b:
+			dmg = mini(dmg, f.hp - 1)
+		await _deal(null, f, {"dmg": maxi(0, dmg), "eff": eff, "crit": false, "pierce": true})
+	await fx.leave()
+
+
+## The summon's camera: pulled back and lifted so the summon at `at` and the foes are both in shot.
+func summon_cam(at: Vector3, size: float) -> void:
+	var back := (_cam_pos() - _cam_look()).normalized()
+	summon_look = FOE_CENTER.lerp(at, 0.45) + Vector3(0, 1.3 + minf(size, 7.0) * 0.14, 0)
+	summon_pos = summon_look + back * (13.5 + minf(size, 8.0) * 1.5)
+	var tw := create_tween()
+	tw.tween_property(self, "summon_mix", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
+	# a cutscene: the bars and grids step aside while it plays
+	for c in [bars, ally_grid, foe_grid]:
+		if c != null:
+			c.visible = false
+
+
+func summon_release() -> void:
+	var tw := create_tween()
+	tw.tween_property(self, "summon_mix", 0.0, 0.6).set_trans(Tween.TRANS_SINE)
+	for c in [bars, ally_grid, foe_grid]:
+		if c != null:
+			c.visible = true
+
+
+func summon_shake(amount: float) -> void:
+	summon_shake_amt = maxf(summon_shake_amt, amount)
+
+
+## Dims the stage's light to `k` of its usual (1 = back to normal).
+func summon_dim(k: float) -> void:
+	if stage_env == null or _stage_light.is_empty():
+		return
+	var tw := create_tween().set_parallel()
+	tw.tween_property(stage_env, "ambient_light_energy", float(_stage_light[0]) * k, 0.5)
+	if stage_sun != null:
+		tw.tween_property(stage_sun, "light_energy", float(_stage_light[1]) * k, 0.5)
+
+
+func summon_flash(c: Color) -> void:
+	UI.flash(c, 1)
+
+
 func _handle_faints() -> void:
 	var groups := [["ally", ally_ring.values()], ["foe", foe_ring.values() if not wild else foe_slots.duplicate()]]
 	for g in groups:
@@ -3706,6 +4357,9 @@ func _handle_faints() -> void:
 				continue
 			var s := _st(b)
 			if s["down"]:
+				continue
+			if b == guardian_b:
+				await _guardian_rises(b)
 				continue
 			if b.gear_fx("phoenix", false) and not s["phoenix"]:
 				s["phoenix"] = true
@@ -4000,6 +4654,8 @@ func _smoke_puff(pos: Vector3, size: float) -> void:
 
 
 func _float_text(b, text: String, col: Color) -> void:
+	if OS.has_feature("editor") and "--battle-log" in OS.get_cmdline_user_args():
+		print("  |   %s %s (HP %d/%d)" % [b.nickname, text, b.hp, b.max_hp()])
 	if not nodes.has(b):
 		return
 	var n: Node3D = nodes[b]

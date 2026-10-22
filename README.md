@@ -38,17 +38,19 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it (`world_db.gd`
    LESSON_TRAINERS, battle.gd LESSONS). Each looks straight across the trail where you can't slip past, so you always
    walk into their line of sight and they come over and stop you; you never need to talk to them first. Youngster Kit
-   faces his cabin's door and stops you as you come in. Each gives a guided battle, and so do the arena's coaches and
+   watches the trail where it reaches the creek. Each gives a guided battle, and so do the arena's coaches and
    the flute lesson (`battle.gd` LESSONS): every bar and every menu has just the one thing to pick, the one being
    taught (◄ ► stay put, and the teacher says what to do), the target and the beast to heal are chosen for you, and
    you can't lose: your beasts are healed first and always keep at least 1 HP, and nobody can run, forfeit or hit
    you. Your beast grows a level or so. Camper Tilly: the battle screen and
-   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, in his log cabin by the creek: your own turn (slingshot, Watch, Run and Forfeit).
+   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, on the trail by the creek: your own turn (slingshot, Watch, Run and Forfeit).
    Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
    striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
-6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater: Youngster Kit, the slingshot teacher, lives in
-   the log cabin just west of it and gives you the logs he's gathered once you've had his lesson. Lay them across the
-   creek.
+6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater (the sign only says there's a footbridge ahead
+   and a builder's cabin by the creek). Old Hal the builder, in the cabin just west of it, is too tired to rebuild it
+   himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
+   in and he gives you a beast egg (a Tadlet) to hatch at Tidewater's Beast Center. Mended, it's a plank footbridge
+   with railings.
 7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute.
@@ -78,7 +80,7 @@ Every road between towns narrows to one bottleneck with a puzzle, getting harder
 
 | Road | Puzzle |
 |---|---|
-| Coastal Path | A washed-out footbridge. Youngster Kit, in the log cabin beside it, hands over the five logs after his lesson; lay them across the creek. |
+| Coastal Path | A washed-out footbridge. Old Hal the builder, in the cabin beside it, lends you the logs stacked by his door; lay them across the creek, then he gives you an egg. |
 | Isle Trail | Thorny brambles. A fire beast burns them; an air beast slices them down. |
 | Dune Road | A sheer cliff with a rope ladder coiled at the top. A beast with wings flies up and drops it. |
 | Mesa Trail | A rockslide: push the boulders around until a path opens. |
@@ -93,6 +95,19 @@ Leave a push puzzle and come back to reset it; once solved, the blocks stay wher
 obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up off the main road.
 
 ## Systems
+
+- **Fishing** (`scripts/world/fishing.gd`, `scripts/ui/fishing_game.gd`). Fisher Gil fishes off the deck of his rusty
+  tin shack on Tidewater's docks. Talk to him and he offers his spare pole, leaning in the shack (take it before asking
+  and you're told stealing is bad). Come back out with it and he stops you for a first cast: something always bites,
+  the line is gentler, and he has you try again until you land it. After that, face any water and press A to cast.
+  Where the water ripples (each map's `fish_spots`, plus a few picked along its shores) something nearly always bites,
+  and quickly; anywhere else only now and then. When the float dips, tap A to strike, then reel: each tap pulls the
+  line tighter and it slackens on its own; tap it up into the bright zone and keep it there with steady taps until the
+  catch meter fills. Too fast and the line snaps, too slow and the beast slips off. Land it and it leaps out for a
+  wild battle on a plank dock with the beast out on the water (`battle.gd` _fishing_scenery). Bait (put on your hook
+  from the bag, worn until something bites) brings stronger, rarer water beasts, sooner: Wriggly Worms on the islands
+  (Shellhaven, Kelpwick), a Spinner Lure from Copperpick, Cogsworth and Emberfall, a Glow Lure from Riverbend and
+  Gravenmoor. Captain Gull's ferry is moored by the long pier, and Gil's rowboat by his shack (map `boats`).
 
 - **13 beast lines** of three forms each (`race_db.gd` LINES): Fire has the spiky dino (Embit, Cinderex, Pyrosaur),
   the cactus (Pricklet, Spinesear, Saguaroar) and the pink imp (Impkin, Scampyre, Infernook); Earth the beetle
@@ -265,7 +280,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in
   plain sight.
 - **People, eggs, signs and obstacles** are built procedurally:
-  - `voxel_person.gd` builds people from the PSX character packs, with much chunkier arms and legs (and a fuller body) than the packs gave them, a walk built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=<id>`).
+  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear a pack (`look.pack`, one of `Townfolk.packs()`); the hero picks theirs in the character creator. People talk with their hands while they speak to you (`set_talking`) and sit on a chair at a table (`set_pose`; `world.gd seat`). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk` and `--pose=sit` show the others; `--trainer=<seed>` four camo trainers; `--packs=<n> --view=0|1` the hero in four packs from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
 - The terrain is made of textured voxel blocks; water and lava sit one step lower.
@@ -285,14 +300,25 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 39 forms with live portraits and where to find them. |
 | Map | The twelve towns, with the full world map on A. |
-| Settings | Music and sound volume, text speed, the gem the menus are cut from, touch pad, key guide, fullscreen, save, credits and quit. |
+| Settings | Save (first), music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, save, credits and quit. |
 
 ## UI and audio
 
-- **Cosy PS2-style UI in one colour**: soft rounded windows with a gentle gradient, a pale border and a drop shadow
-  (`scripts/ui/cozy_box.gd`), drawn smooth at any screen scale. Every window, border, text, bar, tag and the selected
-  row's pill is a shade of one **gem** the player picks in Start → Settings → Gem: **Ruby** (the default),
-  **Sapphire**, **Emerald** or **Hematite** (slate grey). `UIKit.set_accent` derives the whole palette from the gem.
+- **Two looks**, picked in Start → Settings → Style (`UIKit.set_style`, kept as `Prefs.ui_style`):
+  - **Pixel** (the default): the 1-bit kit's crisp white frames on near-black windows, every pixel of them two UI
+    pixels (three screen pixels on a 1080p phone). Text and lines are plain white; the **gem** goes behind the white,
+    never into it: the selected row, the open tab, the chosen battle bar, the target aimed at, tags, name plates,
+    New Game and the held touch buttons are filled with it. The Start book is two of Humble Gift's paper pages, dark
+    with the gem and lined in white, each with its ornament frame and its title written into the gap atop it: the left
+    page unfolds as the book opens, and the right one slides out from behind it whenever a tab opens. The touch pad,
+    bars, battle bars, target cards, ring tiles and the key guide are drawn the same way. Its pieces are cut from the
+    two kits by `tools/build_pixel_ui.gd` into `assets/ui/pixel_ui.res`, stored as tones (fill, mid, line) that
+    `UIKit.piece` paints in any colours.
+  - **Classic**: soft rounded windows with a gentle gradient, a pale border and a drop shadow
+    (`scripts/ui/cozy_box.gd`), drawn smooth at any screen scale, every window, border, text, bar and tag a shade of
+    the gem.
+  The gem is picked in Start → Settings → Gem: **Ruby** (the default), **Sapphire**, **Emerald** or **Hematite** (slate
+  grey). `UIKit.set_accent` derives the whole palette from the gem (and the style).
 - **Fonts**: **BoldPixels** for body text, menus and dialogue; **Lunchtime Doubly So** only for headings (window and
   page titles, tabs' section headers, name plates, map names). Both are drawn on a 16-pixel grid, so every size is
   snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
@@ -303,7 +329,10 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
   domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
   the gem. While the Start book or the
-  world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book. The
+  world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book.
+  Anything that runs past one page (either of the book's pages, a long menu) gets **◄ Prev** and **Next ►** buttons
+  with "page / pages" at its foot, each turning a whole page (`scripts/ui/pager.gd`), so all of it can be reached
+  with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
 - The game starts straight into the title screen (no engine splash). With no save yet, **New Game** is a big, glowing
@@ -371,7 +400,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Buildings** are solid rectangles of one letter, for example:
   - `C` Beast Center, `X` electronics, `V` Sky Tower
   - `I` Gearhart Tower, `B` cathedral, `J` hideout, `Q` temple
-- **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with logs: Youngster Kit gives you them after his lesson) and `k` (a cliff that needs a winged beast).
+- **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with the logs stacked by Old Hal's door) and `k` (a cliff that needs a winged beast).
 - `b` is Youngster Kit's log cabin on the Coastal Path (room `kit_cabin` in `interior_maps.gd`, where an `anchors` entry puts Kit by the fire).
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too.
@@ -427,12 +456,16 @@ godot --path . -- --scene=skytower                                      # into a
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery as the game draws them (pages 0-3: the forms, then the legendaries; 4 = merges)
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
-godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run
+godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run (--style=cozy / pixel: a style)
+godot --path . -- --scene=book:map --flip=cozy --wait=1 --shot=C:/tmp/f.png   # Settings > Style changed with the book open
+godot --headless --path . --script res://tools/build_pixel_ui.gd          # cut the Pixel style's pieces from the two UI kits
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
 godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Tidewater arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
+godot --path . -- --scene=fishing --taps=4.6 --snap=10 --shot=C:/tmp/f.png  # Gil's lesson (--lesson=0: a cast at a ripple, --bait=worm_bait)
+godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a reeled-in beast's battle: the dock and the water
 godot --path . -- --scene=battlecmd --touch                             # the battle's command panel: one A is one confirm, every move's target picked (arcs, all-foe moves), ▲ turns the ring, Move (yours and a foe trainer's), the ring turning by itself ("BATTLE COMMANDS DONE: 0 problem(s)"); --stop=arc|all|move --shot=C:/tmp/b.png
 godot --path . -- --scene=ringedit --touch                              # the ring editor: who may go where on the ring and in and out of storage, lit cells, taps ("RING EDIT DONE: 0 problem(s)")
 godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")
