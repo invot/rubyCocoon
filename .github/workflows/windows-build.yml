@@ -1,0 +1,78 @@
+# Every push to main: export the game for Windows with Godot (headless, on Linux) and publish it as the "latest"
+# release's RubyCocoon-windows.zip (one portable RubyCocoon.exe: unzip and run). Also runs by hand from the Actions
+# tab ("Run workflow"). The quick checks (tools/run_tests.sh quick) run first; if they fail, nothing is published.
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# a newer push replaces a build still running
+concurrency:
+  group: windows-build
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7"
+  GODOT_RELEASE: "stable"
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # Godot and its Windows export templates, downloaded once and kept between runs
+      - name: Cache Godot
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows
+
+      - name: Download Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}
+          mkdir -p ~/godot "$templates"
+          curl -fsSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v*_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+          curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
+          unzip -q /tmp/templates.tpz -d /tmp/tpz
+          # (only the Windows templates are needed: the rest would bloat the cache)
+          cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* "$templates/"
+          ls "$templates"
+
+      # imports the project's assets (first run in a fresh checkout), then the quick checks
+      - name: Import and check
+        run: |
+          ~/godot/godot --headless --path . --import || true
+          GODOT=~/godot/godot bash tools/run_tests.sh quick
+
+      - name: Export for Windows
+        run: |
+          mkdir -p build/windows
+          ~/godot/godot --headless --path . --export-release "Windows Desktop" build/windows/RubyCocoon.exe
+          test -s build/windows/RubyCocoon.exe
+          cd build/windows && zip -q -9 ../RubyCocoon-windows.zip RubyCocoon.exe
+          ls -la ../RubyCocoon-windows.zip
+
+      # the "latest" release always holds the newest build (the one before is replaced)
+      - name: Publish as the latest build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Built from ${GITHUB_SHA::7}: $(git log -1 --format=%s)"
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest build/RubyCocoon-windows.zip --target "$GITHUB_SHA" --prerelease \
+            --title "Latest Windows build" --notes "$notes"

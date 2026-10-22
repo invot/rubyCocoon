@@ -445,6 +445,13 @@ screenshot without looking at it, `bash tools/img.sh` measures it: `diff a.png b
 `bbox x.png` (the box round whatever isn't background, or `--like=#rrggbb`), `color x.png 0.5 0.4` (the colour at a
 point) and `crop x.png out.png`; each takes `--region` and `--tol`.
 
+## Windows builds
+
+Every push to `main` builds the game for Windows on GitHub (`.github/workflows/windows-build.yml`): Godot exports it
+headless on Linux, after the quick checks, and the newest build is on the repository's Releases page as "Latest
+Windows build": `RubyCocoon-windows.zip`, one portable `RubyCocoon.exe` (unzip and run; it isn't signed, so the first
+time Windows SmartScreen asks: More info, Run anyway). A build can also be started by hand from the Actions tab.
+
 ## Project layout
 
 The downloaded art, music and sound packs aren't in the repository, only the converted assets the game uses (see
