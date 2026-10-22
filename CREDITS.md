@@ -46,9 +46,10 @@ upholstery) over a wood grain and cloth weave of our own.
 - **PSX modular house interior pack** by DissonantVoid, https://dissonantvoid.itch.io/psx-retro-interior-pack
   (kitchens, bathrooms, wardrobes, shelves, lamps, ornaments, doors, windows, wall and floor textures). Free for
   commercial use; the files may not be redistributed.
-- **Furniture pack** (six OBJ showrooms, `model_0.obj` to `model_5.obj`, with no textures), downloaded into
-  `psx/furniture/` (the beds, bunk beds, sofas, armchairs, chairs, tables, desks, nightstands, dresser, TV stand and
-  bench). Its author, source and licence still need recording here: check before release.
+- **Furniture pack** by Anker's Assets, https://ankersassets.itch.io/ (six OBJ showrooms, `model_0.obj` to
+  `model_5.obj`, with no textures, downloaded into `psx/furniture/`: the beds, bunk beds, sofas, armchairs, chairs,
+  tables, desks, nightstands, dresser, TV stand and bench). The pack's own page and licence still need recording here
+  (the author's itch.io packs are CC0, but this one isn't listed there): check before release.
 - **Retro Modular House Pack** by Elegant Crow, CC0, https://elegantcrow.itch.io/retro-modular-house-pack (wall
   sections with doors, windows and shutters: shop fronts and the landmarks).
 - **DINER**, **6TWELVE** and **Trailer Park** by Elbolilloduro, https://elbolilloduro.itch.io (shop counters, diner
