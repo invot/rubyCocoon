@@ -6,11 +6,25 @@ A low-poly, PS1-style beast-training RPG for **Godot 4.7**. You hatch your first
 
 ## Running it
 
-Open `D:\Games\RubyCaccoon\project.godot` in Godot 4.7 and press **F5**. You can also run it from a terminal:
+To just play, download the newest Windows or Android build from the [Releases page](../../releases/latest) (see
+[Windows and Android builds](#windows-and-android-builds)).
+
+To run it from the source:
+
+1. Install [Godot 4.7](https://godotengine.org/download) (the standard build; the game has no C#).
+2. Clone this repository, or download it as a zip and unpack it.
+3. In Godot's Project Manager, choose **Import**, pick the `project.godot` in the repository's folder, then press
+   **F5** to play. The first time, Godot imports all the assets before the game opens, which takes a while.
+
+Or from a terminal, in the repository's folder:
 
 ```
-"C:\Program Files\Godot\Godot_v4.7-stable_win64.exe" --path D:\Games\RubyCaccoon
+godot --path .
 ```
+
+Here and in the rest of this README, `godot` stands for your Godot 4.7 executable, for example
+`Godot_v4.7-stable_win64.exe` on Windows or `Godot_v4.7-stable_linux.x86_64` on Linux, with its folder in front if
+it isn't on your PATH.
 
 ## Controls
 
@@ -252,7 +266,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
   ```
   python tools/import_voxel_assets.py
-  "C:\Program Files\Godot\Godot_v4.7-stable_win64.exe" --headless --path . --import
+  godot --headless --path . --import
   ```
 
 - **Beasts** are the 39 untextured models of the "new beasts" folder (three to a line), painted and animated in the
