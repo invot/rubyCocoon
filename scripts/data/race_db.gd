@@ -4,8 +4,9 @@ extends RefCounted
 ## (beasts.gd). A line has one element, or two neighbouring ones on the ring: the scorpion is fire and earth, and the
 ## worm, an eel in the sea, earth and water. Race id = line × 3 + stage - 1. Each form is drawn with its own model
 ## (assets/beasts/<line>_<stage>.res, beast_rig.gd), the earlier stages smaller.
-## After the lines come the four legendary temple guardians and the Gearhart robots, in the old shape (name, element,
-## body, head, ears, tail, back, pattern, c1, c2, c3, size) and drawn with the PSX models (voxel_beast.gd).
+## After the lines come the four legendary temple guardians and the Gearhart robots, then the crypt's ghost guardian,
+## in the old shape (name, element, body, head, ears, tail, back, pattern, c1, c2, c3, size). The guardians are drawn
+## with the summon models (assets/summons, voxel_beast.gd): captured with their temple's song, they become summons.
 
 const MoveDB = preload("res://scripts/data/move_db.gd")
 
@@ -42,16 +43,19 @@ const SPECIAL := [
 	["Steam Mecha", "fire", "golem", "flat", "none", "none", "none", "plain", "#c8c8d0", "#a83a2a", "#ffcf40", 1.3],
 	["Iron Golem", "earth", "golem", "flat", "horns", "none", "spikes", "plain", "#5a6070", "#9aa0b0", "#ff9040", 1.4],
 	["Tank Walker", "earth", "quad", "flat", "antenna", "none", "shell", "plain", "#5a7a3a", "#4a4a52", "#ff4a3a", 1.3],
+	# the ghost guardian of Gravenmoor's crypt (47), always met as a ghost
+	["Nocthrax", "air", "golem", "horned", "horns", "spike", "spikes", "plain", "#1a1420", "#3a2a3a", "#ff7a2a", 1.5],
 ]
-## the PSX models the legendaries are drawn with (assets/psx/beasts/<form>.res, tools/import_psx_beasts.gd)
-const SPECIAL_FORMS := ["shark", "condor", "tiger", "mammoth"]
+## the summon models the guardians are drawn with (assets/summons/<element>.res, tools/import_summons.gd)
+const LEGENDARY_FORMS := {39: "summon_water", 40: "summon_air", 41: "summon_fire", 42: "summon_earth", 47: "summon_ghost"}
 
 const NORMAL_COUNT := 39
-const LEGENDARY := [39, 40, 41, 42]
+const LEGENDARY := [39, 40, 41, 42, 47]
 const ROBOTS := [43, 44, 45, 46]
 ## Robots are drawn with the PSX robot models (assets/psx/robots, tools/import_psx_robots.gd), facing +x like the beasts.
 const ROBOT_MODELS := {43: "robot_clockwork", 44: "robot_steam", 45: "robot_golem", 46: "robot_walker"}
-const LEGENDARY_PASSIVES := {39: ["Healing Tide", "Regenerate"], 40: ["Slippery", "Swift"], 41: ["Blaze", "Thick Hide"], 42: ["Sturdy", "Rock Skin"]}
+const LEGENDARY_PASSIVES := {39: ["Healing Tide", "Regenerate"], 40: ["Slippery", "Swift"], 41: ["Blaze", "Thick Hide"], 42: ["Sturdy", "Rock Skin"],
+	47: ["Swift", "Rock Skin"]}
 
 ## the four eggs to choose from: fire, water, earth and air
 const STARTERS := [0, 24, 12, 30]
@@ -196,12 +200,12 @@ static func genes(id: int) -> Dictionary:
 	return g
 
 
-## The model a race is drawn with: its form's ("dino_2"), a legendary's PSX model, or "" for the robots (their own
-## models).
+## The model a race is drawn with: its form's ("dino_2"), a guardian's summon model ("summon_fire"), or "" for the
+## robots (their own models).
 static func form(id: int) -> String:
 	if in_line(id):
 		return "%s_%d" % [line(id), stage(id)]
-	return SPECIAL_FORMS[id - NORMAL_COUNT] if is_legendary(id) else ""
+	return String(LEGENDARY_FORMS.get(id, ""))
 
 
 static func base_stats(id: int) -> Array:

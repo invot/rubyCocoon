@@ -36,7 +36,7 @@ const BUILDING_LETTERS := {
 	"C": "center", "A": "apothecary", "G": "beast_gear", "O": "trainer_gear", "K": "bookstore",
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",
 	"H": "house", "Z": "home", "Q": "temple", "X": "electronics", "V": "skytower", "I": "ceo_tower",
-	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin",
+	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin", "r": "uncle", "p": "fishery",
 }
 const ENTITY_CHARS := "@v^<>$*123456789P"
 const FACING := {"v": Vector2i(0, 1), "^": Vector2i(0, -1), "<": Vector2i(-1, 0), ">": Vector2i(1, 0)}
@@ -295,6 +295,44 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		if r.has("pack"):
 			m["encounter"]["pack"] = r["pack"]
 
+	# a town's catching meadow (Tidewater's): wild beasts live only inside its ring of hedges, never in the streets
+	if src.has("meadow"):
+		var md: Dictionary = src["meadow"]
+		m["encounter"] = {"races": md["races"], "lv": md["lv"], "rate": 0.11, "ghosts": 0.0, "after_flute": true, "pack": 1}
+		var mc := Vector2(float(md["center"][0]), float(md["center"][1]))
+		var area := {}
+		for y in h:
+			for x in w:
+				if Vector2(x, y).distance_to(mc) <= float(md["radius"]) and MapGen.walkable(MapGen.get_t(m, x, y)):
+					area[Vector2i(x, y)] = true
+		m["wild_area"] = area
+	# a building standing in the water (a fishery on the docks) stands on planks over it
+	var over := {}
+	for b in m["buildings"]:
+		if not b["shop"] in ["decor", "fishery"]:
+			continue
+		var wet := false
+		for y in range(int(b["y"]) - 1, int(b["y"]) + int(b["d"]) + 1):
+			for x in range(int(b["x"]) - 1, int(b["x"]) + int(b["w"]) + 1):
+				if MapGen.get_t(m, x, y) == MapGen.WATER:
+					wet = true
+		if wet:
+			if b["shop"] == "decor":
+				b["name"] = "Fishery"
+			for y in range(int(b["y"]), int(b["y"]) + int(b["d"])):
+				for x in range(int(b["x"]), int(b["x"]) + int(b["w"])):
+					over[Vector2i(x, y)] = true
+	if not over.is_empty():
+		m["over_water"] = over
+	m["fish_spots"] = _fish_spots(id, m, src.get("fish_spots", []))
+	# each spot's patch of water: FISH_AREA x FISH_AREA tiles round it, where the fish bite best
+	var areas := {}
+	for c in m["fish_spots"]:
+		for dy in range(-1, FISH_AREA - 1):
+			for dx in range(-1, FISH_AREA - 1):
+				areas[Vector2i(c.x + dx, c.y + dy)] = true
+	m["fish_areas"] = areas
+	m["boats"] = src.get("boats", [])
 	# exits along each connected edge
 	var edges := WorldDB.town_edges(id) if WorldDB.TOWNS.has(id) else WorldDB.route_edges(id)
 	for dir in edges:
@@ -318,6 +356,41 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		if a == "dock":
 			m["spawns"]["dock"] = m["anchors"][a]
 	return m
+
+
+## How many tiles across each fishing spot's patch of rippling water is.
+const FISH_AREA := 4
+
+
+## Where the water ripples and the fish bite (fishing.gd): the map's own spots, and a few more by the shore or a pier,
+## well apart (the same ones every time). Each is the middle of a FISH_AREA-square patch (see "fish_areas").
+static func _fish_spots(id: String, m: Dictionary, given: Array) -> Dictionary:
+	var out := {}
+	for g in given:
+		out[Vector2i(int(g[0]), int(g[1]))] = true
+	var cands := []
+	for y in range(1, int(m["h"]) - 1):
+		for x in range(1, int(m["w"]) - 1):
+			if MapGen.get_t(m, x, y) != MapGen.WATER:
+				continue
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var c := MapGen.get_t(m, x + d.x, y + d.y)
+				if c != MapGen.WATER and (MapGen.walkable(c) or c == MapGen.BRIDGE):
+					cands.append(Vector2i(x, y))
+					break
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (id + ":fish").hash()
+	var tries := 0
+	while out.size() < 3 + given.size() and not cands.is_empty() and tries < 60:
+		tries += 1
+		var q: Vector2i = cands[rng.randi_range(0, cands.size() - 1)]
+		var far := true
+		for o in out:
+			if Vector2(q - o).length() < 7.0:
+				far = false
+		if far:
+			out[q] = true
+	return out
 
 
 ## A trainer who plays a flute song in battle.
@@ -393,7 +466,11 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 		"hideout":
 			b["name"] = "Bandit Hideout"
 		"cabin":
-			b["name"] = "Kit's Cabin"
+			b["name"] = "Builder's Cabin"
+		"uncle":
+			b["name"] = "Uncle Rafe's House"
+		"fishery":
+			b["name"] = "Gil's Fishing Shack"
 		"temple":
 			var tk := WorldDB.ROUTES.get(map_id, {}).get("temple", "water") as String
 			b["temple"] = tk
@@ -544,7 +621,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				m["anchors"][anchor_names[ch]] = p
 			elif npc_roles.has(ch):
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
-				var npc := _room_npc(npc_roles[ch], b, p, rng, id, ch)
+				var npc := _room_npc(npc_roles[ch], b, p, rng, id, ch, key)
 				if not npc.is_empty():
 					m["npcs"].append(npc)
 			elif ch == "*":
@@ -595,13 +672,16 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				m["furniture"][Vector2i(x, y)] = "computer"
 	# people face the middle of the room, or the table they're sitting at; never a wall
 	# (staff stay facing out over their counters)
+	# (a diner's patrons sit at their tables too)
 	for n in m["npcs"]:
-		if n.get("kind", "") in ["villager", "resident"] or n.get("id", "") == "mom":
-			var table := _table_beside(m, n["pos"])
+		var table := _table_beside(m, n["pos"])
+		if n.get("kind", "") in ["villager", "resident", "patron"] or n.get("id", "") == "mom":
 			if table != Vector2i.ZERO:
+				# sitting there, on a chair (see world.gd seat)
 				n["facing"] = table
 				n["wander"] = false
-			else:
+				n["sit"] = true
+			elif n.get("kind", "") != "patron":
 				n["facing"] = room_facing(m, n["pos"])
 				# visitors and people at home walk about the room (see world.gd _roam)
 				if n.get("kind", "") in ["villager", "resident"]:
@@ -643,7 +723,7 @@ static func _default_zone(key: String, room: Dictionary) -> String:
 		return "office"
 	if key in ["dojo", "arena", "fortune"]:
 		return "wood"
-	if key in ["home", "house_a", "house_b"]:
+	if key in ["home", "house_a", "house_b", "uncle_home"]:
 		return "living"
 	return "shop"
 
@@ -689,7 +769,7 @@ static func room_facing(m: Dictionary, p: Vector2i) -> Vector2i:
 	return Vector2i(0, 1)
 
 
-static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumberGenerator, map_id: String, ch: String) -> Dictionary:
+static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumberGenerator, map_id: String, ch: String, room := "") -> Dictionary:
 	var shop: String = b["shop"]
 	match role:
 		"keeper":
@@ -711,7 +791,9 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 		"mom":
 			return {"kind": "story", "id": "mom", "name": "Mom", "pos": p, "look": {"skin": "#f0c8a0", "hair": "#8a3a20", "shirt": "#e07a5a", "pants": "#4a3a6a", "hair_style": 1}, "facing": Vector2i(0, 1)}
 		"guardian":
-			var tk: String = b.get("temple", "water")
+			var tk: String = WorldDB.temple_for_room(room)
+			if tk == "":
+				tk = b.get("temple", "water")
 			var t: Dictionary = WorldDB.TEMPLES[tk]
 			return {"kind": "guardian", "id": "guardian_" + tk, "temple": tk, "name": RaceDB.race_name(t["guardian"]), "pos": p,
 				"beast_genes": RaceDB.genes(t["guardian"]), "facing": Vector2i(0, 1), "flag": "guardian_" + tk, "big": true}

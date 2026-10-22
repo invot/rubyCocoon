@@ -251,6 +251,7 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._floors()
 	rb._walls()
 	rb._furniture()
+	rb._stalls()
 	rb._counters()
 	rb._wall_decor()
 	rb._mats_at_doors()
@@ -959,6 +960,79 @@ func _place(kind: String, group: Array) -> void:
 		l.omni_range = 2.6
 		l.position = pos + Vector3(0, top_y - 0.1, 0)
 		parent.add_child(l)
+
+
+## A bathroom with more than one toilet has stalls: a partition either side of each toilet, out from the wall it backs
+## onto, and a stall door left a little open. (One toilet: the room is small and has none.)
+func _stalls() -> void:
+	var furn: Dictionary = map.get("furniture", {})
+	var toilets := []
+	for q in furn:
+		if furn[q] == "toilet":
+			toilets.append(q)
+	if toilets.size() < 2:
+		return
+	var panel := StandardMaterial3D.new()
+	panel.albedo_color = Color("#c9ccd2")
+	panel.roughness = 0.6
+	for q: Vector2i in toilets:
+		# only alongside other toilets in the same room
+		var room := _room_of(q)
+		var n := 0
+		for o in toilets:
+			if room.has(o):
+				n += 1
+		if n < 2:
+			continue
+		var back := Vector2i.ZERO
+		for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+			if wallish(q.x + d.x, q.y + d.y):
+				back = d
+				break
+		if back == Vector2i.ZERO:
+			continue
+		var out := Vector3(-back.x, 0, -back.y)
+		var side := Vector3(out.z, 0, -out.x)
+		var wall := Vector3(q.x + 0.5, 0, q.y + 0.5) - out * (0.5 - T / 2.0)
+		var deep := 1.0 - T / 2.0
+		var pieces := []
+		for s in [-1.0, 1.0]:
+			var mi := MeshInstance3D.new()
+			var bm := BoxMesh.new()
+			bm.size = Vector3(0.05, 1.7, deep) if out.x == 0 else Vector3(deep, 1.7, 0.05)
+			bm.material = panel
+			mi.mesh = bm
+			mi.position = wall + out * deep / 2.0 + side * s * 0.47 + Vector3(0, 0.95, 0)
+			parent.add_child(mi)
+			pieces.append(mi)
+		# the door, hinged on one partition and swung a little open into the room
+		var door := MeshInstance3D.new()
+		var db := BoxMesh.new()
+		db.size = Vector3(0.84, 1.5, 0.04)
+		db.material = panel
+		door.mesh = db
+		var hinge := wall + out * deep + side * 0.47
+		var yaw := atan2(out.x, out.z) + 0.6
+		door.rotation.y = yaw
+		door.position = hinge + Basis(Vector3.UP, yaw) * Vector3(-0.42, 0, 0) + Vector3(0, 0.95, 0)
+		parent.add_child(door)
+		pieces.append(door)
+		add_prop(pieces, q, Vector2.ONE)
+
+
+## The tiles of the room `q` is in: everything reachable without crossing a wall or a doorway.
+func _room_of(q: Vector2i) -> Dictionary:
+	var seen := {q: true}
+	var stack := [q]
+	while not stack.is_empty():
+		var p: Vector2i = stack.pop_back()
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var r: Vector2i = p + d
+			if seen.has(r) or r.x < 0 or r.y < 0 or r.x >= w or r.y >= h or wallish(r.x, r.y):
+				continue
+			seen[r] = true
+			stack.append(r)
+	return seen
 
 
 ## What stands on each shop's counter, besides the till: a few things from its trade.

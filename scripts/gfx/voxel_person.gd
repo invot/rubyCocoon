@@ -1,332 +1,80 @@
 extends RefCounted
-## People, PS1/PS2 style: the hero and the townsfolk are the character packs' own models (assets/psx/people, baked by
-## tools/import_psx_people.gd with anime eyes on their faces), each on its own skeleton, posed and walked here bone
-## by bone, with chunkier arms and legs than the packs gave them.
+## People, PS1/PS2 style: the hero and the townsfolk are the "townfolk collection" kit's people (scripts/gfx/
+## townfolk.gd, baked by tools/import_townfolk.gd), all on the one skeleton, posed and walked here bone by bone:
+## walking, running, standing about, talking (set_talking) and sitting (set_pose "sit").
 ##
-## build(look) picks the person who fits a look best:
-##   look "model": that person outright (an id from people.json);
-##   face "hero": the hero, in the body the character creator gave them ("body": a key of HERO_BODIES), with the top,
-##   trousers, hair and eyes it coloured (see dress());
-##   outfit "armor": the Umbral Legion, in black tactical gear; "robe": the elders; Beast Center staff (a white
-##   "uniform" with red trim): the doctors and nurses;
-##   hair_style 1 (long hair) is a woman, other styles a man; with no hair_style the look itself decides;
-## then the closest colours of shirt, trousers, skin and hair win, with a little variety among the closest few.
-## The same look always gives the same person.
-## Rig: Person > Body (rotate for facing) > the baked person, scaled from metres. Faces +Z.
+## build(look) dresses a person for a look (see Townfolk.outfit): look "model" "tf<n>" is that person outright; face
+## "hero" is the hero in the body and colours the character creator gave them; anyone else is one of the everyday
+## townsfolk who suits the look's outfit, hair and hat, in its colours. The same look always gives the same person.
+## Rig: Person > Body (rotate for facing) > the townsperson, scaled from the kit's metres. Faces +Z.
 
-const DIR := "res://assets/psx/people/"
-## Game units per metre: a man of 1.75 m stands about 1.65 tall, taller than the doors the old chibi people used
-## (the buildings are to grow to suit).
-const SCALE := 0.94
-## Heads are drawn larger than life, a touch of anime proportion.
-const HEAD_SCALE := 1.25
-## Limbs are drawn chunkier than the packs made them, a toy-like look: how much wider each part is (see _thicken).
-const LIMBS := {"l_arm": 1.9, "r_arm": 1.9, "l_forearm": 1.8, "r_forearm": 1.8,
-	"l_thigh": 1.55, "r_thigh": 1.55, "l_shin": 1.6, "r_shin": 1.6}
-const HAND := 1.35
-const FOOT := 1.25
-## the body between the hips and the neck, a little fuller to carry the limbs
-const TORSO := 1.15
-const LEGION := ["21_police", "22_police", "25_female_police", "26_female_police"]
-const CENTER_STAFF := ["23_female_doctor", "24_female_doctor", "25_doctor", "26_doctor"]
-## The bodies the hero can have (the character creator's choice), never anyone else's.
-const HERO_BODIES := {"male": "hero", "female": "50_female"}
-## What dress() colours, by the label tools/make_hero_masks.gd gave a texel.
-const DYED := {1: "top", 2: "trousers", 3: "hair", 4: "eyes"}
+const Townfolk = preload("res://scripts/gfx/townfolk.gd")
+## Game units per kit metre: the townsfolk stand about 1.5 tall, a little shorter than the doors.
+const SCALE := 0.86
+## The kit's heads are huge (a toddler's proportions): drawn this much smaller.
+const HEAD_SCALE := 0.86
+## How far out from the sides the arms hang (the sideways part of their direction, against 1 down): clear of a
+## round tummy.
+const ARM_OUT := 0.36
+## The kit's legs against the long legs this walk was first tuned for: its distances (how far the hips dip and a
+## foot lifts) shrink to suit.
+const LEGS := 0.62
+## The kit's people all share a skeleton, so its measurements (see _rig) are worked out once.
+const RIG_ID := "townfolk"
 
-static var _list := {}
-static var _scenes := {}
 static var _rigs := {}
-static var _fat_meshes := {}
-static var _dye_src := {}
-static var _dyed := {}
 
 
-static func _people() -> Dictionary:
-	if _list.is_empty():
-		_list = JSON.parse_string(FileAccess.get_file_as_string(DIR + "people.json"))
-	return _list
-
-
-## The person (an id in people.json) a look is drawn as.
-static func model_for(look: Dictionary) -> String:
-	var people := _people()
-	if people.has(String(look.get("model", ""))):
-		return look["model"]
-	if look.get("face", "") == "hero" or look.is_empty():
-		return HERO_BODIES.get(String(look.get("body", "male")), "hero")
-	var seed := absi(str(look).hash())
-	var female: bool = int(look["hair_style"]) == 1 if look.has("hair_style") else seed % 2 == 0
-	var outfit: String = look.get("outfit", "")
-	var shirt := Color(look.get("shirt", "#808080"))
-	var pool := []
-	if outfit == "armor":
-		pool = LEGION
-	elif outfit == "uniform" and shirt.get_luminance() > 0.85 and _is_red(Color(look.get("trim", "#000000"))):
-		pool = CENTER_STAFF
-	else:
-		# robes, and white or grey hair, are the elders
-		var hair := Color(look.get("hair", "#000000"))
-		var groups := ["elder"] if outfit == "robe" or (hair.s < 0.2 and hair.v > 0.6) else ["town"]
-		for id in people:
-			if people[id]["group"] in groups and not id in HERO_BODIES.values():
-				pool.append(id)
-	# the woman's or man's version where the pool has both
-	var matched := pool.filter(func(id: String) -> bool: return bool(people[id]["female"]) == female)
-	if not matched.is_empty():
-		pool = matched
-	# closest colours first; then one of the closest few
-	var want := {"shirt": shirt, "pants": Color(look.get("pants", "#404040")), "skin": Color(look.get("skin", "#f0c8a0")),
-		"hair": Color(look.get("hair", "#2a1a10"))}
-	var weight := {"shirt": 2.0, "pants": 1.0, "skin": 1.5, "hair": 1.0}
-	var scored := []
-	for id in pool:
-		var pal: Dictionary = people[id]["palette"]
-		var d := 0.0
-		for k in want:
-			d += weight[k] * _distance(want[k], Color(pal[k]))
-		scored.append([d, id])
-	scored.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-	var pick := mini(scored.size(), 3)
-	return scored[seed % pick][1] if pick > 0 else "01"
-
-
-static func _is_red(c: Color) -> bool:
-	return c.r > 0.6 and c.g < 0.35 and c.b < 0.4
-
-
-## How different two colours look: lightness counts, and so does hue where the colours aren't grey.
-static func _distance(a: Color, b: Color) -> float:
-	var dl := a.get_luminance() - b.get_luminance()
-	var dc := Vector3(a.r - b.r, a.g - b.g, a.b - b.b)
-	return dl * dl * 2.0 + dc.length_squared()
-
-
-## Builds a rig. Children: Body (rotate for facing) > the baked person.
+## Builds a rig. Children: Body (rotate for facing) > the townsperson.
 static func build(look: Dictionary) -> Node3D:
-	var id := model_for(look)
-	if not _scenes.has(id):
-		_scenes[id] = load(DIR + id + ".scn")
-	var model: Node3D = (_scenes[id] as PackedScene).instantiate()
-	model.scale = Vector3.ONE * SCALE
 	var root := Node3D.new()
 	root.name = "Person"
 	var body := Node3D.new()
 	body.name = "Body"
 	root.add_child(body)
-	body.add_child(model)
-	root.set_meta("model", id)
-	var sk: Skeleton3D = model.get_node(model.get_meta("skeleton"))
-	root.set_meta("skeleton", sk)
-	var head := sk.find_bone(model.get_meta("bones")["head"])
-	sk.set_bone_pose_scale(head, sk.get_bone_rest(head).basis.get_scale() * HEAD_SCALE)
-	_thicken(model, sk)
-	dress(root, look)
+	_dress_body(root, look)
 	animate(root, 0.0, 0.0, 0.0)
 	return root
 
 
-## Colours a hero's top, trousers, hair and eyes as a look asks (its "top", "trousers", "hair" and "eyes"), keeping
-## the folds, weave and shading their texture has; whatever the look leaves out stays as the model has it. Again on
-## the same rig, it changes them (the character creator). Bodies without masks (everyone but the hero) are left be.
+## How much bigger or smaller than the rest a look is drawn (its "scale"; the hero's name can make it shorter, see
+## GameState.hero_look). The whole person is scaled, so the walk stays in proportion.
+static func _size(rig: Node3D, look: Dictionary) -> void:
+	rig.scale = Vector3.ONE * float(look.get("scale", 1.0))
+
+
+## Dresses a rig for a look, again on the same rig if it changes (the character creator): who they are and the
+## colours they wear.
 static func dress(rig: Node3D, look: Dictionary) -> void:
-	var id: String = rig.get_meta("model")
-	var src := _dye_source(id)
-	if src.is_empty():
-		return
-	var want := {}
-	for k in DYED.values():
-		if look.has(k):
-			want[k] = Color(look[k])
-	var model: Node3D = rig.get_node("Body").get_child(0)
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		for si in mi.mesh.get_surface_count():
-			var which := "face" if mi.mesh.surface_get_name(si) == "face" else "body"
-			if src.has(which):
-				mi.set_surface_override_material(si, _dyed_material(id, which, want))
-
-
-## A body's textures and masks, read once: for its body and its face texture, the material, the texture's texels and
-## where the labelled ones are.
-static func _dye_source(id: String) -> Dictionary:
-	if _dye_src.has(id):
-		return _dye_src[id]
-	var out := {}
-	var path := DIR + id + "_recolour.res"
-	if id in HERO_BODIES.values() and ResourceLoader.exists(path):
-		var res: Resource = load(path)
-		out["colours"] = res.get_meta("colours")
-		if not _scenes.has(id):
-			_scenes[id] = load(DIR + id + ".scn")
-		var model: Node3D = (_scenes[id] as PackedScene).instantiate()
+	var o := Townfolk.outfit(look)
+	_size(rig, look)
+	if rig.has_meta("parts") and rig.get_meta("parts") == o["parts"]:
+		var model: Node3D = rig.get_node("Body").get_child(0)
+		var mat := Townfolk.material(o["colours"])
 		for mi in model.find_children("*", "MeshInstance3D", true, false):
-			for si in mi.mesh.get_surface_count():
-				var which := "face" if mi.mesh.surface_get_name(si) == "face" else "body"
-				var mat := mi.get_surface_override_material(si) as StandardMaterial3D
-				if out.has(which) or mat == null or mat.albedo_texture == null or not res.has_meta(which):
-					continue
-				var img := mat.albedo_texture.get_image()
-				if img.is_compressed():
-					img.decompress()
-				img.clear_mipmaps()
-				img.convert(Image.FORMAT_RGBA8)
-				var mask: Image = res.get_meta(which)
-				var md := mask.get_data()
-				var at := PackedInt32Array()
-				var lab := PackedByteArray()
-				for i in md.size():
-					if md[i] > 0:
-						at.append(i * 4)
-						lab.append(md[i])
-				out[which] = {"mat": mat, "img": img, "at": at, "lab": lab}
-		model.free()
-	_dye_src[id] = out
-	return out
+			(mi as MeshInstance3D).material_override = mat
+		return
+	_dress_body(rig, look)
+	animate(rig, 0.0, 0.0, 0.0)
 
 
-## The material for one of a body's textures dyed as `want` says (made once per body and colours, a few kept).
-static func _dyed_material(id: String, which: String, want: Dictionary) -> Material:
-	var src: Dictionary = _dye_src[id][which]
-	if want.is_empty():
-		return src["mat"]
-	var key := id + "/" + which
-	for k in DYED.values():
-		key += "/" + (want[k].to_html(false) if want.has(k) else "-")
-	if _dyed.has(key):
-		return _dyed[key]
-	var ref: Dictionary = _dye_src[id]["colours"]
-	var tint := {}
-	for l in DYED:
-		var k: String = DYED[l]
-		if want.has(k):
-			var rl := Color(ref[k]).get_luminance()
-			var tl := maxf((want[k] as Color).get_luminance(), 0.02)
-			# dark hair dyed light: its darkest strands softened, or they'd show as black streaks
-			tint[l] = [want[k], rl, tl, clampf(sqrt(rl / tl), 0.45, 1.0)]
-	var img: Image = src["img"]
-	var px := img.get_data()
-	var at: PackedInt32Array = src["at"]
-	var lab: PackedByteArray = src["lab"]
-	for i in at.size():
-		var l := lab[i]
-		if not tint.has(l):
-			continue
-		var o := at[i]
-		var t: Color = tint[l][0]
-		var rl: float = tint[l][1]
-		var tl: float = tint[l][2]
-		var lum := (0.2126 * px[o] + 0.7152 * px[o + 1] + 0.0722 * px[o + 2]) / 255.0
-		# a texel as much darker or lighter than the part's own colour as it was; lighter, by whichever is less:
-		# the same proportion (a white shirt's sheen stays faint when it's dyed black) or the same share of the way
-		# on to white (dark hair's highlights don't flare when it's dyed blond)
-		var nl := tl * pow(lum / maxf(rl, 0.02), tint[l][3]) if lum < rl else tl * lum / maxf(rl, 0.02)
-		if lum > rl:
-			nl = minf(nl, tl + (1.0 - tl) * (lum - rl) / maxf(1.0 - rl, 0.02))
-		var c := Color(t.r, t.g, t.b) * (nl / tl) if nl <= tl else t.lerp(Color.WHITE, (nl - tl) / maxf(1.0 - tl, 0.02))
-		px[o] = clampi(roundi(c.r * 255.0), 0, 255)
-		px[o + 1] = clampi(roundi(c.g * 255.0), 0, 255)
-		px[o + 2] = clampi(roundi(c.b * 255.0), 0, 255)
-	var out := Image.create_from_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, px)
-	out.generate_mipmaps()
-	var mat: StandardMaterial3D = (src["mat"] as StandardMaterial3D).duplicate()
-	mat.albedo_texture = ImageTexture.create_from_image(out)
-	# the creator tries many colours: only the latest few are kept
-	if _dyed.size() >= 12:
-		_dyed.clear()
-	_dyed[key] = mat
-	return mat
-
-
-## Swaps a person's meshes for copies with chunkier arms and legs (made once per mesh, then shared).
-static func _thicken(model: Node3D, sk: Skeleton3D) -> void:
-	var map: Dictionary = model.get_meta("bones")
-	# bone index -> [the bone's far end, in its own space; how much fatter; tapered where it joins the body]
-	var fat := {}
-	for role in LIMBS:
-		var i := sk.find_bone(map[role])
-		var end := _bone_end(sk, i)
-		if end != Vector3.ZERO:
-			fat[i] = [end, LIMBS[role], role.ends_with("_arm") or role.ends_with("thigh")]
-		# the hand past each forearm and the foot past each shin, a touch bigger to match
-		if role.ends_with("forearm") or role.ends_with("shin"):
-			var tip := _far_child(sk, i)
-			var tip_end := _bone_end(sk, tip) if tip >= 0 else Vector3.ZERO
-			if tip_end != Vector3.ZERO:
-				fat[tip] = [tip_end, HAND if role.ends_with("forearm") else FOOT, false]
-	# the spine, from the hips up to (not including) the neck under the head
-	var j := sk.get_bone_parent(sk.get_bone_parent(sk.find_bone(map["head"])))
-	var hips := sk.find_bone(map["hips"])
-	while j >= 0 and j != hips:
-		var end := _bone_end(sk, j)
-		if end != Vector3.ZERO:
-			fat[j] = [end, TORSO, false]
-		j = sk.get_bone_parent(j)
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		if mi.skin == null or not mi.mesh is ArrayMesh:
-			continue
-		var key: int = mi.mesh.get_instance_id()
-		if not _fat_meshes.has(key):
-			_fat_meshes[key] = _fat_mesh(mi.mesh, mi.skin, sk, fat)
-		mi.mesh = _fat_meshes[key]
-
-
-## A copy of a skinned mesh with every vertex on a fattened bone pushed out from that bone's line, weighted by how
-## much the bone moves it (so limbs blend smoothly into the body).
-static func _fat_mesh(mesh: ArrayMesh, skin: Skin, sk: Skeleton3D, fat: Dictionary) -> ArrayMesh:
-	var out := ArrayMesh.new()
-	for s in mesh.get_surface_count():
-		var arr: Array = mesh.surface_get_arrays(s)
-		var fmt: int = mesh.surface_get_format(s)
-		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
-		var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
-		var weights: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
-		var per := 8 if fmt & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS else 4
-		if bones.size() == verts.size() * per and weights.size() == bones.size():
-			for v in verts.size():
-				var p := verts[v]
-				var push := Vector3.ZERO
-				for k in per:
-					var w := weights[v * per + k]
-					if w <= 0.0:
-						continue
-					var bind := bones[v * per + k]
-					var b := skin.get_bind_bone(bind)
-					if b < 0:
-						b = sk.find_bone(skin.get_bind_name(bind))
-					if not fat.has(b):
-						continue
-					var pose := skin.get_bind_pose(bind)
-					var q := pose * p
-					var end: Vector3 = fat[b][0]
-					var raw := q.dot(end) / end.length_squared()
-					var grow := float(fat[b][1]) - 1.0
-					# no shoulder pads: an upper arm or thigh swells only once it is clear of the body
-					if fat[b][2]:
-						grow *= smoothstep(-0.05, 0.3, raw)
-					push += w * (pose.basis.inverse() * ((q - end * clampf(raw, 0.0, 1.0)) * grow))
-				verts[v] = p + push
-			arr[Mesh.ARRAY_VERTEX] = verts
-		out.add_surface_from_arrays(mesh.surface_get_primitive_type(s), arr, [], {}, fmt & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS)
-		out.surface_set_material(s, mesh.surface_get_material(s))
-		out.surface_set_name(s, mesh.surface_get_name(s))
-	return out
-
-
-## Where a bone ends, in its own space: at its longest child (the elbow for an upper arm, the middle finger for a hand).
-static func _bone_end(sk: Skeleton3D, i: int) -> Vector3:
-	var c := _far_child(sk, i)
-	return sk.get_bone_rest(c).origin if c >= 0 else Vector3.ZERO
-
-
-static func _far_child(sk: Skeleton3D, i: int) -> int:
-	var best := -1
-	var far := 0.0
-	for c in sk.get_bone_children(i):
-		var d := sk.get_bone_rest(c).origin.length()
-		if d > far:
-			far = d
-			best = c
-	return best
+static func _dress_body(rig: Node3D, look: Dictionary) -> void:
+	var body: Node3D = rig.get_node("Body")
+	for c in body.get_children():
+		body.remove_child(c)
+		c.queue_free()
+	var o := Townfolk.outfit(look)
+	_size(rig, look)
+	var model := Townfolk.assemble(o["parts"], o["colours"])
+	model.scale = Vector3.ONE * SCALE
+	body.add_child(model)
+	rig.set_meta("model", RIG_ID)
+	rig.set_meta("person", o["person"])
+	rig.set_meta("parts", o["parts"])
+	var sk: Skeleton3D = model.get_node(model.get_meta("skeleton"))
+	rig.set_meta("skeleton", sk)
+	var head := sk.find_bone(model.get_meta("bones")["head"])
+	sk.set_bone_pose_scale(head, Vector3.ONE * HEAD_SCALE)
 
 
 ## Turns a person to look along `dir` (any of the eight ways); smooth: over a moment, as they're animated (see
@@ -339,10 +87,30 @@ static func face(rig: Node3D, dir: Vector2i, smooth := false) -> void:
 		body.rotation.y = ang
 
 
-## What posing a person's skeleton needs, worked out once per model from its rest pose, in the skeleton's own space
-## (whatever its axes and units): the side-to-side axis the limbs swing about, and for each limb bone its index, its
-## parent's rest rotation and its own; the arms also get the turn that lowers them from the pack's T or A pose to
-## hang at the sides, a little out and forward.
+## Whether a person sits ("sit": on a seat `seat` game units off the ground, its front the way they face) or stands
+## ("": standing about, or walking). They settle into it over a moment (see animate); at_once: straight away.
+static func set_pose(rig: Node3D, pose: String, seat := 0.36, at_once := false) -> void:
+	rig.set_meta("pose", pose)
+	rig.set_meta("seat", seat)
+	if at_once:
+		rig.set_meta("sit_w", 1.0 if pose == "sit" else 0.0)
+
+
+static func pose_of(rig: Node3D) -> String:
+	return String(rig.get_meta("pose", ""))
+
+
+## Whether a person is talking: gesturing as they speak, nodding along (sitting or standing).
+static func set_talking(rig: Node3D, on: bool, at_once := false) -> void:
+	rig.set_meta("talking", on)
+	if at_once:
+		rig.set_meta("talk_w", 1.0 if on else 0.0)
+
+
+## What posing a person's skeleton needs, worked out once from its rest pose, in the skeleton's own space (whatever
+## its axes and units): the side-to-side axis the limbs swing about, and for each limb bone its index, its parent's
+## rest rotation and its own; the arms also get the turn that lowers them from the kit's T pose to hang at the
+## sides, just clear of the body and a touch forward.
 static func _rig(rig: Node3D) -> Dictionary:
 	var id: String = rig.get_meta("model")
 	if _rigs.has(id):
@@ -385,12 +153,12 @@ static func _rig(rig: Node3D) -> Dictionary:
 		var a := _global_rest(sk, arm).origin
 		var dir := (_global_rest(sk, fore).origin - a).normalized()
 		var out := signf((a - hips).dot(lat))
-		# held a little further out than life, to clear the (thickened) body
-		var hang := (down + lat * out * 0.3 + fwd * 0.04).normalized()
+		info[side + "_arm"]["out"] = out
+		var hang := (down + lat * out * ARM_OUT + fwd * 0.03).normalized()
 		info[side + "_arm"]["down"] = Quaternion(dir, hang)
 	# the legs measured in the Body's space (y up, facing +z, standing on y = 0), to place the feet: where the hip and
 	# ankle are, how long the thigh and shin are and how far forward each points at rest, the foot's length; the ankle
-	# is the toe's parent (or the toe itself, if the pack's foot is one bone)
+	# is the toe's parent (or the toe itself, if the foot is one bone)
 	var to_body := model.transform
 	var chain := Transform3D.IDENTITY
 	n = sk
@@ -411,7 +179,7 @@ static func _rig(rig: Node3D) -> Dictionary:
 		info[side + "_ankle"] = bone.call(ank_i)
 		info[side + "_leg"] = {"hip": hip_p, "ankle": ank_p, "thigh": hip_p.distance_to(knee_p), "shin": knee_p.distance_to(ank_p),
 			"a0": atan2(knee_p.z - hip_p.z, hip_p.y - knee_p.y), "s0": atan2(ank_p.z - knee_p.z, knee_p.y - ank_p.y),
-			"foot": maxf(0.1, Vector2(toe_p.z - ank_p.z, toe_p.y - ank_p.y).length())}
+			"foot": maxf(0.05, Vector2(toe_p.z - ank_p.z, toe_p.y - ank_p.y).length())}
 	_rigs[id] = info
 	return info
 
@@ -441,8 +209,11 @@ static func _turn(sk: Skeleton3D, bone: Dictionary, parent: Quaternion, by: Quat
 ## pass; they twist with the stride while the chest twists back; the arms swing against the legs and trail them a
 ## little, the forearms trailing the arms; the head stays level, looking ahead. A stroll (speed about 1.7) blends into
 ## the hero's jog (4.6: leaning in, a moment in the air between steps, elbows bent and pumping) and a sprint (7.8).
-## Standing, a person breathes, shifts their weight and looks about. That runs on `t` (seconds; by default the clock,
-## offset per person so a crowd doesn't move in step), so call this every frame to see it; `t` also eases turns (face).
+## Standing, a person breathes, shifts their weight and looks about; talking (set_talking), they gesture with one
+## hand and then the other, nodding and tilting their head; sitting (set_pose), they settle onto their seat, hands on
+## their knees.
+## That runs on `t` (seconds; by default the clock, offset per person so a crowd doesn't move in step), so call this
+## every frame to see it; `t` also eases turns (face) and poses.
 ## phase: radians, a step every half turn (see phase_for); speed: game units a second, 0 standing.
 static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	if not rig.has_meta("skeleton"):
@@ -463,27 +234,33 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		body.rotation.y = yaw_to
 	else:
 		body.rotation.y = lerp_angle(body.rotation.y, yaw_to, 1.0 - exp(-dt * 18.0))
-	speed = maxf(speed, 0.0)
+	# easing into and out of talking and sitting
+	var pose := pose_of(rig)
+	var talk_w := move_toward(float(rig.get_meta("talk_w", 0.0)), 1.0 if rig.get_meta("talking", false) else 0.0, dt * 3.0)
+	var sit_w := move_toward(float(rig.get_meta("sit_w", 0.0)), 1.0 if pose == "sit" else 0.0, dt * 2.5)
+	rig.set_meta("talk_w", talk_w)
+	rig.set_meta("sit_w", sit_w)
+	speed = maxf(speed, 0.0) * (1.0 - sit_w)
 	# how much of a gait there is (0 standing), how much of it is a run, how much a sprint
 	var m := clampf(speed / 1.2, 0.0, 1.0)
 	var run := smoothstep(2.4, 4.2, speed)
 	var sprint := smoothstep(4.6, 7.8, speed)
 	var still := 1.0 - m
 	var breath := sin(t * 2.2)
-	var shift := sin(t * 0.85)
+	var shift := sin(t * 0.85) * (1.0 - talk_w * 0.5)
 	# the part of each step a foot is on the ground, how far it travels back meanwhile, and how far ahead it lands
 	var duty := lerpf(0.62, 0.36, run) - 0.06 * sprint
 	var reach := 2.0 * duty * step_length(speed) * m
 	var front := reach * lerpf(0.42, 0.34, run)
-	var lift := lerpf(0.1, 0.3, run) * m
+	var lift := lerpf(0.1, 0.3, run) * m * LEGS
 	var heel := lerpf(0.3, 0.08, run)
 	var toe_off := lerpf(0.55, 0.45, run)
 	# where the left leg is in its cycle, 0 as its heel strikes; the right leg is half a cycle on
 	var u := fposmod(phase / TAU, 1.0)
 	# knees a little bent on the move, a little more to run; standing, shifting the weight dips the hips a touch
-	var body_y := -lerpf(0.012, 0.05, run) * m - 0.008 * still * (0.5 + 0.5 * shift)
+	var body_y := (-lerpf(0.012, 0.05, run) * m - 0.008 * still * (0.5 + 0.5 * shift)) * LEGS
 	# a run leaves the ground between steps: lowest with a foot under the body, highest in the air
-	body_y += 0.045 * run * m * (0.5 - 0.5 * cos(TAU * 2.0 * (u - duty * 0.5)))
+	body_y += 0.045 * LEGS * run * m * (0.5 - 0.5 * cos(TAU * 2.0 * (u - duty * 0.5)))
 	var feet := {}
 	for side in ["l", "r"]:
 		var leg: Dictionary = r[side + "_leg"]
@@ -513,27 +290,37 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 			var long: float = (float(leg["thigh"]) + float(leg["shin"])) * 0.995
 			var dz := target.x - hip.z
 			body_y = minf(body_y, target.y + sqrt(maxf(0.0, long * long - dz * dz)) - hip.y)
-	body.position.y = body_y
+	# sitting: the hips come down onto the seat, a little back from the edge
+	var seat := float(rig.get_meta("seat", 0.36))
+	var hip_y: float = r["l_leg"]["hip"].y
+	body.position = Vector3(0, lerpf(body_y, seat + 0.03 - hip_y, sit_w), lerpf(0.0, -0.06, sit_w)).rotated(Vector3.UP, body.rotation.y)
 	# the hips twist so the leg that lands leads; they dip on the side of the leg in the air
 	var twist := -lerpf(0.11, 0.16, run) * m * cos(TAU * u)
-	var roll := lerpf(0.045, 0.025, run) * m * sin(TAU * u) + 0.03 * still * shift
+	var roll := lerpf(0.045, 0.025, run) * m * sin(TAU * u) + 0.03 * still * shift * (1.0 - sit_w)
+	# talking: one hand comes up to make a point, then the other, a few seconds each
+	var gest := t * 0.42 + float(rig.get_instance_id() % 7)
+	var hand := fposmod(floorf(gest), 2.0)
+	var beat := smoothstep(0.0, 0.25, fposmod(gest, 1.0)) * (1.0 - smoothstep(0.75, 1.0, fposmod(gest, 1.0))) * talk_w
 	var posed := {}
 	var hips: Dictionary = r["hips"]
-	var g := _turn(sk, hips, hips["parent"], Quaternion(up, twist) * Quaternion(fwd, roll))
+	var g := _turn(sk, hips, hips["parent"], Quaternion(up, twist + 0.06 * beat * (1.0 if hand == 0.0 else -1.0)) * Quaternion(fwd, roll))
 	posed[hips["i"]] = g
-	# the chest leans into the pace and twists back past straight, so the shoulders turn against the hips
-	var lean := lerpf(0.05, 0.2, run) * m + 0.06 * sprint + breath * 0.025 * still
+	# the chest leans into the pace and twists back past straight, so the shoulders turn against the hips; sitting
+	# up straight, a little forward
+	var lean := lerpf(0.06, 0.3, run) * m + 0.08 * sprint + breath * 0.025 * still + 0.08 * sit_w + 0.04 * talk_w * sin(t * 1.3)
 	var spine: Array = r["spine"]
 	var each := 1.0 / maxf(1.0, spine.size())
 	for bone in spine:
 		g = _turn(sk, bone, g, Quaternion(lat, lean * each) * Quaternion(up, -1.5 * twist * each) * Quaternion(fwd, -0.8 * roll * each))
 		posed[bone["i"]] = g
-	# the head keeps looking ahead, nodding a little behind each step
+	# the head keeps looking ahead, nodding a little behind each step; talking, it nods along and tilts
 	var head: Dictionary = r["head"]
-	var nod := 0.025 * m * sin(TAU * 2.0 * u - 1.2)
-	_turn(sk, head, g, Quaternion(up, 0.5 * twist + sin(t * 0.53) * 0.14 * still)
-		* Quaternion(lat, -0.7 * lean + nod + sin(t * 1.1) * 0.02 * still) * Quaternion(fwd, 0.2 * roll))
-	# each leg bent to reach its foot (the thigh and shin as a two-bone chain, in the Body's side view)
+	var nod := 0.025 * m * sin(TAU * 2.0 * u - 1.2) + talk_w * (0.06 * sin(t * 4.1) * sin(t * 1.7) - 0.04)
+	var look := sin(t * 0.53) * 0.14 * still * (1.0 - 0.7 * talk_w)
+	_turn(sk, head, g, Quaternion(up, 0.5 * twist + look)
+		* Quaternion(lat, -0.7 * lean + nod + sin(t * 1.1) * 0.02 * still) * Quaternion(fwd, 0.2 * roll + 0.07 * talk_w * sin(t * 0.9)))
+	# each leg bent to reach its foot (the thigh and shin as a two-bone chain, in the Body's side view); sitting, the
+	# thighs come forward along the seat and the shins hang down
 	for side in ["l", "r"]:
 		var leg: Dictionary = r[side + "_leg"]
 		var thigh: Dictionary = r[side + "_thigh"]
@@ -548,30 +335,53 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		# how far forward the thigh and the shin point, from straight down
 		var a := atan2(d.x, -d.y) + acos(clampf((lt * lt + dist * dist - ls * ls) / (2.0 * lt * dist), -1.0, 1.0))
 		var s := a - bend
+		var toe: float = feet[side][1]
+		if sit_w > 0.0:
+			# a knee a touch apart from the other, one foot a little ahead
+			var sgn := 1.0 if side == "l" else -1.0
+			a = lerpf(a, PI / 2.0 - 0.06, sit_w)
+			s = lerpf(s, 0.08 + 0.1 * sgn * sin(t * 0.3), sit_w)
+			toe = lerpf(toe, 0.0, sit_w)
 		var tg := _place_bone(sk, thigh, _posed_rot(sk, sk.get_bone_parent(thigh["i"]), posed),
 			Quaternion(lat, -(a - float(leg["a0"]))) * thigh["parent"] * thigh["local"])
 		var sg := _place_bone(sk, shin, tg, Quaternion(lat, -(s - float(leg["s0"]))) * shin["parent"] * shin["local"])
 		var ank: Dictionary = r[side + "_ankle"]
-		_place_bone(sk, ank, sg, Quaternion(lat, float(feet[side][1])) * ank["parent"] * ank["local"])
-	# arms swing against the legs, a little behind them; the forearms trail the arms; a run bends the elbows and pumps
-	var arm_amp := lerpf(0.3, 0.62, run) * m + 0.15 * sprint
-	var elbow := lerpf(0.18, 1.25, run) * m + 0.12 * still
+		_place_bone(sk, ank, sg, Quaternion(lat, toe) * ank["parent"] * ank["local"])
+	# arms swing against the legs, a little behind them, and as in life further back than forward (the swing centred a
+	# little behind the hip); walking, the forearm lifts a little as the arm comes forward; a run bends the elbows to a
+	# steady angle and swings from the shoulder less, the hands passing the hips, never reaching out in front
+	# (the kit's arms are short: they swing a little further to show)
+	var arm_amp := lerpf(0.32, 0.5, run) * m + 0.12 * sprint
+	var arm_back := lerpf(0.06, 0.2, run) * m
+	var ahead_part := lerpf(0.75, 0.6, run)
+	var elbow := lerpf(0.18, 1.35, run) * m + 0.12 * still
 	for side in ["l", "r"]:
 		var sgn := 1.0 if side == "l" else -1.0
 		# 1 at the arm's furthest forward: the left arm leads as the right heel lands
 		var ahead := -sgn * cos(TAU * (u - 0.06))
 		var trail := -sgn * cos(TAU * (u - 0.14))
 		var arm: Dictionary = r[side + "_arm"]
-		var a_swing := arm_amp * ahead + sin(t * 2.2 + sgn) * 0.03 * still
-		var ag := _turn(sk, arm, arm["parent"], Quaternion(lat, -a_swing) * arm["down"])
+		var a_swing := arm_amp * ahead * (ahead_part if ahead > 0.0 else 1.0) - arm_back + sin(t * 2.2 + sgn) * 0.03 * still
+		var bend := elbow + lerpf(0.22, 0.08, run) * m * maxf(0.0, trail)
+		var spread := 0.0
+		# sitting: hands on the knees
+		a_swing = lerpf(a_swing, 0.75, sit_w)
+		bend = lerpf(bend, 0.55, sit_w)
+		spread -= 0.12 * sit_w
+		# talking: the hand making its point comes up in front, the forearm raised, palm turning out; the other rests
+		var mine := beat if (hand == 0.0) == (side == "l") else 0.0
+		a_swing = lerpf(a_swing, 0.55 + 0.1 * sin(t * 3.3), mine)
+		bend = lerpf(bend, 1.2 + 0.25 * sin(t * 5.2), mine)
+		spread += 0.25 * mine
+		var ag := _turn(sk, arm, arm["parent"], Quaternion(fwd, float(arm["out"]) * spread) * Quaternion(lat, -a_swing) * arm["down"])
 		var fore: Dictionary = r[side + "_forearm"]
-		_turn(sk, fore, ag, Quaternion(lat, -(elbow + lerpf(0.22, 0.35, run) * m * maxf(0.0, trail))))
+		_turn(sk, fore, ag, Quaternion(lat, -bend))
 
 
 ## How far one step carries a person at `speed` (game units a second): the faster, the longer the stride (a stroll's
-## step is about 0.67, the hero's jog about 1.2, a sprint 1.7).
+## step is about 0.45, the hero's jog about 0.7, a sprint 0.95), quick little steps on the kit's short legs.
 static func step_length(speed: float) -> float:
-	return clampf(0.38 + 0.17 * speed, 0.5, 1.7)
+	return clampf(0.3 + 0.085 * speed, 0.38, 1.0)
 
 
 ## The walk's phase (radians) after going `dist` at `speed`: half a turn a step, so the feet keep pace with the ground.
@@ -594,5 +404,12 @@ static func _posed_rot(sk: Skeleton3D, i: int, posed: Dictionary) -> Quaternion:
 	return _posed_rot(sk, sk.get_bone_parent(i), posed) * sk.get_bone_rest(i).basis.orthonormalized().get_rotation_quaternion()
 
 
+## How tall a person stands (game units), to the top of the head.
 static func height() -> float:
-	return 1.78 * SCALE
+	var head_y: float = Townfolk.fit(Townfolk.BONES[Townfolk.bone_index("head")][2]).y
+	return (head_y + (Townfolk.height() - head_y) * HEAD_SCALE) * SCALE
+
+
+## How high a person holds something out in front of them (a fishing rod), game units off the ground.
+static func hand_height() -> float:
+	return (Townfolk.fit(Townfolk.BONES[Townfolk.bone_index("l_arm")][2]).y - 0.3) * SCALE

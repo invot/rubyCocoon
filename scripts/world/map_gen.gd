@@ -517,7 +517,9 @@ static func _make_trainer(map_id: String, k: int, pos: Vector2i, face: Vector2i,
 			team.append([race, rng.randi_range(int(lv[1]) + 1, int(lv[1]) + 2), false])
 		npc["name"] = WorldDB.TRAINER_NAMES[rng.randi_range(0, WorldDB.TRAINER_NAMES.size() - 1)]
 		npc["cls"] = WorldDB.TRAINER_CLASSES[rng.randi_range(0, WorldDB.TRAINER_CLASSES.size() - 1)]
+		# trainers out on the roads wear camo (see townfolk.gd outfit)
 		npc["look"] = random_look(rng)
+		npc["look"]["outfit"] = "camo"
 		var ChatterDB = load("res://scripts/data/chatter_db.gd")
 		npc["lines"] = [ChatterDB.OPENERS[rng.randi_range(0, ChatterDB.OPENERS.size() - 1)]]
 		npc["defeat"] = ChatterDB.DEFEATS[rng.randi_range(0, ChatterDB.DEFEATS.size() - 1)]

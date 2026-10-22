@@ -1,8 +1,12 @@
 extends RefCounted
-## Shared UI construction helpers and the game theme: the soft, rounded windows of a cosy PS2 RPG, all in one colour.
-## Windows are deep shades of the player's gem (Ruby, Sapphire, Emerald or Hematite; see set_accent and Prefs.accent)
-## with a gentle gradient, a pale border, round corners and a soft shadow (cozy_box.gd); text, bars, tags and the
-## selection pill are lighter and brighter shades of the same gem.
+## Shared UI construction helpers and the game theme, in one of two looks (Settings > Style, see set_style):
+## - Pixel (the default): the 1-bit kit's crisp white frames on near-black windows, with the player's gem (Ruby,
+##   Sapphire, Emerald or Hematite; see set_accent and Prefs.accent) behind the white only where something is picked
+##   out: the selected row, the open tab, buttons, tags and name plates. Text and lines are plain white. Its pieces
+##   are cut from the kits by tools/build_pixel_ui.gd and painted here (piece()).
+## - Classic: the soft, rounded windows of a cosy PS2 RPG, all in one colour. Windows are deep shades of the gem with
+##   a gentle gradient, a pale border, round corners and a soft shadow (cozy_box.gd); text, bars, tags and the
+##   selection pill are lighter and brighter shades of the same gem.
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
 ## Fonts: BoldPixels (ui/BoldPixels.ttf) for body text, menus and dialogue; Lunchtime Doubly So (ui/lunchds.ttf) only
@@ -37,6 +41,35 @@ const OLD_ACCENTS := {"red": "ruby", "blue": "sapphire", "green": "emerald", "si
 
 ## window corner radius
 const RADIUS := 16.0
+
+## The two looks (Settings > Style), and what they're called there.
+const STYLES := ["pixel", "cozy"]
+const STYLE_NAMES := {"pixel": "Pixel", "cozy": "Classic"}
+const PIXEL_UI := "res://assets/ui/pixel_ui.res"
+## the Pixel style's two colours (the 1-bit kit's own): its white and its near-black
+const PIXEL_LINE := Color("#ebede9")
+const PIXEL_FILL := Color("#090a14")
+const PIXEL_DIM := Color("#9d9fa8")
+## how many UI pixels each pixel of a piece covers (3 screen pixels on a 1080p phone)
+const PIXEL_SCALE := 2
+## For each frame piece: how far in from its edges its corners reach (piece pixels), so a window stretches only its
+## straight sides and middle.
+const PIECE_MARGIN := {"window": 16, "panel": 5, "plate": 4, "plate_small": 3, "panel_pins": 6, "panel_tall": 6}
+## The game's icon names drawn with the 1-bit kit's icons in the Pixel style: [piece, fill, line] ("fill"/"line" are
+## the style's own colours, "dim" its grey, "gem" the accent).
+const PIXEL_ICONS := {
+	"icon_star": ["star", "fill", "line"], "star": ["star", "fill", "line"],
+	"icon_star_empty": ["star", "fill", "dim_dark"], "star_empty": ["star", "fill", "dim_dark"],
+	"heart": ["heart", "fill", "line"], "heart_empty": ["heart", "fill", "dim_dark"],
+	"icon_energy": ["shield", "fill", "line"], "icon_energy_empty": ["shield", "fill", "dim_dark"],
+	"arrow_down": ["i_down", "fill", "line"], "icon_arrow": ["i_right", "fill", "line"],
+	"tab_trainer": ["i_trophy", "fill", "line"], "icon_notes": ["i_sound", "fill", "line"], "tab_bag": ["potion", "fill", "line"],
+	"icon_quill": ["i_list", "fill", "line"], "icon_map": ["i_target", "fill", "line"], "tab_settings": ["i_gear", "fill", "line"],
+}
+
+static var style := "pixel"
+static var _pieces := {}
+static var _piece_tex := {}
 
 # ---- palette: shades of the gem (see set_accent) ----
 static var accent_name := "ruby"
@@ -93,11 +126,93 @@ static func set_accent(name: String) -> void:
 	PAGE = Color.from_hsv(h, sat * 0.6, 0.12)
 	BROWN = Color.from_hsv(h, sat * 0.6, 0.08)
 	BG = BROWN
+	if pixel():
+		# white lines and text on near-black; the gem only fills what's picked out
+		INK = PIXEL_LINE
+		LIGHT = PIXEL_LINE
+		GOLD = PIXEL_LINE
+		GOLD_BRIGHT = PIXEL_LINE
+		DIM = PIXEL_DIM
+		BORDER = PIXEL_LINE
+		BORDER_INNER = Color("#3b3d4a")
+		WINDOW_TOP = Color(PIXEL_FILL, 0.95)
+		WINDOW_BOTTOM = Color(PIXEL_FILL, 0.95)
+		PAGE = PIXEL_FILL
+		BROWN = PIXEL_FILL
+		BG = PIXEL_FILL
 	TEXT = INK
 	_styles.clear()
+	_piece_tex.clear()
 	for k in _tex.keys():
 		if String(k).begins_with("gen:"):
 			_tex.erase(k)
+
+
+## Switches the look ("pixel" or "cozy"; see the top) and derives the palette for it; like set_accent, the theme and
+## any window built afterwards follow it.
+static func set_style(name: String) -> void:
+	style = name if name in STYLES else "pixel"
+	set_accent(accent_name)
+
+
+static func pixel() -> bool:
+	return style == "pixel"
+
+
+## A piece of the Pixel style (tools/build_pixel_ui.gd) painted: its fill, mid shade and lines in these colours, each
+## of its pixels `scale` x `scale` (made once per piece and colours). Without a mid colour, the mid shade is a third
+## of the way from the fill to the line. Null if there's no such piece.
+static func piece(name: String, fill: Color, line := PIXEL_LINE, mid := Color(0, 0, 0, 0), scale := PIXEL_SCALE) -> ImageTexture:
+	var key := "%s|%s|%s|%s|%d" % [name, fill.to_html(), line.to_html(), mid.to_html(), scale]
+	if _piece_tex.has(key):
+		return _piece_tex[key]
+	if _pieces.is_empty():
+		var res: Resource = load(PIXEL_UI) if ResourceLoader.exists(PIXEL_UI) else null
+		_pieces = res.get_meta("pieces") if res != null else {"": null}
+	var src: Image = _pieces.get(name, null)
+	if src == null:
+		return null
+	if mid.a <= 0.0:
+		mid = fill.lerp(line, 0.35)
+	var w := src.get_width()
+	var h := src.get_height()
+	var data := src.get_data()
+	var out := PackedByteArray()
+	out.resize(w * h * 4)
+	var cols := [fill, mid, line]
+	for i in w * h:
+		if data[i * 4 + 3] < 128:
+			continue
+		var t := data[i * 4]
+		var c: Color = cols[0 if t < 64 else (1 if t < 192 else 2)]
+		out[i * 4] = c.r8
+		out[i * 4 + 1] = c.g8
+		out[i * 4 + 2] = c.b8
+		out[i * 4 + 3] = c.a8
+	var img := Image.create_from_data(w, h, false, Image.FORMAT_RGBA8, out)
+	if scale > 1:
+		img.resize(w * scale, h * scale, Image.INTERPOLATE_NEAREST)
+	var tex := ImageTexture.create_from_image(img)
+	_piece_tex[key] = tex
+	return tex
+
+
+## A frame piece as a window style: its corners kept, its sides and middle stretched; `pad`: the content padding
+## (l, t, r, b) inside it.
+static func pixel_box(name: String, fill: Color, line := PIXEL_LINE, pad := Vector4(14, 10, 14, 10)) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = piece(name, Color(fill, 1.0), Color(line, 1.0))
+	sb.modulate_color = Color(1, 1, 1, minf(fill.a, 1.0) if fill.a > 0.0 else 1.0)
+	var m := float(int(PIECE_MARGIN.get(name, 4)) * PIXEL_SCALE)
+	sb.texture_margin_left = m
+	sb.texture_margin_top = m
+	sb.texture_margin_right = m
+	sb.texture_margin_bottom = m
+	sb.content_margin_left = pad.x
+	sb.content_margin_top = pad.y
+	sb.content_margin_right = pad.z
+	sb.content_margin_bottom = pad.w
+	return sb
 
 
 ## The display name of a gem ("ruby" -> "Ruby").
@@ -162,6 +277,10 @@ static func _font(path: String) -> Font:
 
 ## A UI texture: one of the icons drawn here (see ICONS), a flatUI icon (assets/ui/flat), or an older texture.
 static func tex(name: String) -> Texture2D:
+	if pixel() and PIXEL_ICONS.has(name):
+		var spec: Array = PIXEL_ICONS[name]
+		var pal := {"fill": PIXEL_FILL, "line": PIXEL_LINE, "dim_dark": Color("#3b3d4a"), "gem": ACCENT}
+		return piece(String(spec[0]), Color(0, 0, 0, 0) if spec[0] in ["star", "heart", "shield", "potion"] else pal[spec[1]], pal[spec[2]])
 	var key := "gen:" + name if ICONS.has(name) or name in ["window", "banner", "cursor_bar", "slot"] else name
 	if _tex.has(key):
 		return _tex[key]
@@ -177,8 +296,12 @@ static func tex(name: String) -> Texture2D:
 
 
 # ================================================================ windows
-## A rounded window in the theme's colours; `pad` is extra content padding (l, t, r, b).
-static func cozy(pad := Vector4(0, 0, 0, 0), radius := RADIUS) -> CozyBox:
+## A window in the theme's colours (Pixel: the 1-bit kit's frame; Classic: rounded); `pad` is extra content padding
+## (l, t, r, b).
+static func cozy(pad := Vector4(0, 0, 0, 0), radius := RADIUS) -> StyleBox:
+	if pixel():
+		return pixel_box("window" if radius >= RADIUS else "panel", WINDOW_BOTTOM, PIXEL_LINE,
+			Vector4(34, 32, 34, 32) + pad if radius >= RADIUS else Vector4(16, 14, 16, 14) + pad)
 	var sb := CozyBox.new()
 	sb.top = WINDOW_TOP
 	sb.bottom = WINDOW_BOTTOM
@@ -191,8 +314,30 @@ static func cozy(pad := Vector4(0, 0, 0, 0), radius := RADIUS) -> CozyBox:
 	return sb
 
 
-## A small rounded chip: `fill` inside a `edge` border (tags, key caps, name plates).
-static func chip(fill: Color, edge: Color, radius := 10.0, pad := Vector4(10, 2, 10, 2), edge_w := 2.0) -> CozyBox:
+## The 1-bit plate in these colours, for drawing straight onto a control (draw_style_box): `alpha` fades it, `scale`
+## makes its pixels bigger (a big button's edge). Kept, so it can be drawn every frame.
+static func pixel_plate(fill: Color, line := PIXEL_LINE, alpha := 1.0, scale := PIXEL_SCALE) -> StyleBoxTexture:
+	var key := "plate|%s|%s|%.2f|%d" % [fill.to_html(), line.to_html(), alpha, scale]
+	if _styles.has(key):
+		return _styles[key]
+	var sb := StyleBoxTexture.new()
+	sb.texture = piece("plate", Color(fill, 1.0), Color(line, 1.0), Color(0, 0, 0, 0), scale)
+	sb.modulate_color = Color(1, 1, 1, alpha * fill.a)
+	var m := float(int(PIECE_MARGIN["plate"]) * scale)
+	sb.texture_margin_left = m
+	sb.texture_margin_top = m
+	sb.texture_margin_right = m
+	sb.texture_margin_bottom = m
+	_styles[key] = sb
+	return sb
+
+
+## A small chip: `fill` inside a `edge` border (tags, key caps, name plates, buttons). Pixel: the 1-bit kit's plate in
+## those colours.
+static func chip(fill: Color, edge: Color, radius := 10.0, pad := Vector4(10, 2, 10, 2), edge_w := 2.0) -> StyleBox:
+	if pixel():
+		# (a little more room inside than the rounded chip gives: the plate's edge and corner ticks are square)
+		return pixel_box("plate", fill, edge if edge.a > 0.3 else BORDER_INNER, pad + Vector4(4, 2, 4, 2))
 	var sb := CozyBox.new()
 	sb.top = fill.lightened(0.12)
 	sb.bottom = fill.darkened(0.08)
@@ -213,10 +358,23 @@ static func chip(fill: Color, edge: Color, radius := 10.0, pad := Vector4(10, 2,
 ## The window styles by their old texture names, so every screen picks up the new look: `pad` is extra content
 ## padding (l, t, r, b).
 static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:
+	if pixel():
+		match name:
+			"banner":
+				return pixel_box("panel_pins", WINDOW_BOTTOM, PIXEL_LINE, Vector4(24, 12, 22, 12) + pad)
+			"nameplate", "ribbon", "ribbon_small":
+				return pixel_box("plate", ACCENT, PIXEL_LINE, Vector4(20, 6, 20, 6) + pad)
+			"frame":
+				return pixel_box("plate", WINDOW_BOTTOM, PIXEL_LINE, Vector4(10, 3, 10, 3) + pad)
+			"bar_frame":
+				return pixel_box("plate", WINDOW_BOTTOM, PIXEL_LINE, Vector4.ZERO)
+			"slot":
+				return pixel_box("panel", WINDOW_BOTTOM, PIXEL_LINE, Vector4(14, 12, 14, 12) + pad)
+		return pixel_box("window", WINDOW_BOTTOM, PIXEL_LINE, Vector4(34, 32, 34, 32) + pad)
 	match name:
 		"banner":
 			# map names and notices: an accent stripe down the left edge
-			var b := cozy(pad + Vector4(18, 2, 10, 2))
+			var b: CozyBox = cozy(pad + Vector4(18, 2, 10, 2))
 			b.stripe = ACCENT
 			return b
 		"dialogue":
@@ -238,6 +396,9 @@ static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 ## The selected row: a rounded pill in the accent, bright on the left and fading to the right, with a soft cream
 ## edge. `right` leaves room for a right-hand label.
 static func highlight(right := 0.0) -> StyleBox:
+	if pixel():
+		# the gem behind the white: the 1-bit plate filled with it
+		return pixel_box("plate", ACCENT, PIXEL_LINE, Vector4(22, 2, 12 + right, 2))
 	var sb := CozyBox.new()
 	sb.horizontal = true
 	sb.top = Color(ACCENT.lightened(0.08), 0.95)
@@ -297,12 +458,12 @@ static func make_theme() -> Theme:
 
 	var sb_bg := StyleBoxFlat.new()
 	sb_bg.bg_color = Color(BORDER_INNER, 0.5)
-	sb_bg.set_corner_radius_all(6)
+	sb_bg.set_corner_radius_all(0 if pixel() else 6)
 	sb_bg.content_margin_left = 4
 	sb_bg.content_margin_right = 4
 	var sb_grab := StyleBoxFlat.new()
-	sb_grab.bg_color = ACCENT
-	sb_grab.set_corner_radius_all(6)
+	sb_grab.bg_color = PIXEL_LINE if pixel() else ACCENT
+	sb_grab.set_corner_radius_all(0 if pixel() else 6)
 	for st in ["grabber", "grabber_highlight", "grabber_pressed"]:
 		t.set_stylebox(st, "VScrollBar", sb_grab)
 	t.set_stylebox("scroll", "VScrollBar", sb_bg)
@@ -322,6 +483,9 @@ static func make_theme() -> Theme:
 ## screen.
 static func label(text: String, size := 20, color := TEXT) -> Label:
 	var l := Label.new()
+	# (Pixel: text is white; the gem goes behind things, never into the letters)
+	if pixel() and color.is_equal_approx(ACCENT):
+		color = PIXEL_LINE
 	l.text = text
 	l.add_theme_font_override("font", font_body())
 	l.add_theme_font_size_override("font_size", body_px(BODY_HUGE if size >= BODY_HUGE else (BODY_BIG if size >= 24 else BODY_SMALL)))
@@ -332,6 +496,8 @@ static func label(text: String, size := 20, color := TEXT) -> Label:
 ## Heading text (Lunchtime Doubly So): titles, tabs, name plates, map names.
 static func header(text: String, color := INK, size := HEAD_SIZE) -> Label:
 	var l := Label.new()
+	if pixel() and color.is_equal_approx(ACCENT):
+		color = PIXEL_LINE
 	l.text = text
 	l.add_theme_font_override("font", font_head())
 	l.add_theme_font_size_override("font_size", head_px(size))
@@ -392,10 +558,13 @@ static func icon(name: String, px := 0.0) -> TextureRect:
 	return tr
 
 
-## A small tag: light text on a rounded chip in a dark shade of `col`.
+## A small tag: light text on a rounded chip in a dark shade of `col` (Pixel: on `col` itself, edged in white).
 static func tag(text: String, col: Color, size := 14) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", chip(col.darkened(0.45), col.lerp(Color.WHITE, 0.55), 9.0, Vector4(9, 0, 9, 0)))
+	if pixel():
+		p.add_theme_stylebox_override("panel", chip(col.darkened(0.15), PIXEL_LINE, 9.0, Vector4(9, 0, 9, 0)))
+	else:
+		p.add_theme_stylebox_override("panel", chip(col.darkened(0.45), col.lerp(Color.WHITE, 0.55), 9.0, Vector4(9, 0, 9, 0)))
 	var l := label(text, size, LIGHT)
 	p.add_child(l)
 	return p
@@ -476,8 +645,29 @@ static func place(c: Control, where: String, margin := Vector2(24, 24)) -> void:
 			c.offset_top = -margin.y
 
 
+## The cross over a fallen beast: one bold X, a single shape with square-cut arms (a plus turned 45 degrees), filled in
+## the gem's light shade inside a dark outline. `c`: its middle; `s`: half its width.
+static func draw_cross(ci: CanvasItem, c: Vector2, s: float) -> void:
+	var t := s * 0.3
+	var outline := _cross_shape(c, s + 2.5, t + 2.5)
+	ci.draw_colored_polygon(outline, Color(0, 0, 0, 0.75))
+	ci.draw_colored_polygon(_cross_shape(c, s, t), ACCENT.lightened(0.25))
+
+
+## An X: a plus sign with arms `s` long and `t` thick either side of the middle, turned 45 degrees.
+static func _cross_shape(c: Vector2, s: float, t: float) -> PackedVector2Array:
+	var plus := [Vector2(-t, -s), Vector2(t, -s), Vector2(t, -t), Vector2(s, -t), Vector2(s, t), Vector2(t, t),
+		Vector2(t, s), Vector2(-t, s), Vector2(-t, t), Vector2(-s, t), Vector2(-s, -t), Vector2(-t, -t)]
+	var out := PackedVector2Array()
+	for p in plus:
+		out.append(c + (p as Vector2).rotated(PI / 4.0))
+	return out
+
+
 ## A health bar's colour: a light shade of the gem while healthy, the gem when hurt, a dark shade when nearly out.
 static func hp_color(ratio: float) -> Color:
+	if pixel():
+		return PIXEL_LINE if ratio > 0.5 else (ACCENT.lerp(Color.WHITE, 0.25) if ratio > 0.2 else ACCENT)
 	if ratio > 0.5:
 		return ACCENT.lerp(Color.WHITE, 0.30)
 	if ratio > 0.2:

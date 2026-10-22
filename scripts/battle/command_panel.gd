@@ -21,6 +21,7 @@ extends "res://scripts/ui/modal.gd"
 ##         target_sel, targets: [{label, ref, tile, grid}], target_all (the move hits every target), pick_kind,
 ##         status: "" | "down" | "empty", locked}]
 ## info: {up, down, prompt, lesson}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
+##        option: Callable(row, option) (the action or move now highlighted, for battle.gd's window that explains it),
 ##        bars, foe_grid, ally_grid, cards (to listen for taps)}
 
 var rows: Array = []
@@ -74,6 +75,10 @@ func _exit_tree() -> void:
 func _redraw() -> void:
 	if hooks.has("render"):
 		(hooks["render"] as Callable).call(rows, focus, picking)
+	if hooks.has("option"):
+		var row: Dictionary = rows[focus]
+		var opts: Array = row.get("options", [])
+		(hooks["option"] as Callable).call(row, opts[clampi(int(row.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {})
 	var text := ""
 	if picking:
 		var row: Dictionary = rows[focus]

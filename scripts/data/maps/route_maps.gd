@@ -22,8 +22,8 @@ const MAPS := {
 	"route1": {
 		# a winding trail through the woods: each of the five teachers (world_db.gd LESSON_TRAINERS) looks across a
 		# stretch of it you can't slip past (check_maps.gd checks it), and the clearings of tall grass beside it are dead
-		# ends. Youngster Kit (the third) lives in the log cabin by the washed-out footbridge (interior_maps.gd
-		# "kit_cabin") and mends it with you after his lesson
+		# ends. Old Hal the builder lives in the log cabin by the washed-out footbridge (interior_maps.gd "kit_cabin"):
+		# he asks you to mend it with the logs stacked by his door (7), and gives you an egg once you have
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
@@ -35,8 +35,8 @@ const MAPS := {
 			"T+....TT,,ggg.t.ggg.,,TTTTTT~~.gg.,,.gg.t....f,,TTTTTTTT",
 			",,,,,,,,,,ggg.t.ggg.,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
 			",,,,,,,,,,..$.t.....,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
-			"t..fttttttttttttt...,,TbbbbT~~....,,.gg.t.gggtttttt....t",
-			"t...ttttttttttttt...,,,,,,,,nn,,,,,,.gg.t.ggg.ttttt6..ft",
+			"t..fttttttttttttt...,4TbbbbT~~....,,.gg.t.gggtttttt....t",
+			"t...ttttttttttttt...,,7,,,,,nn,,,,,,.gg.t.ggg.ttttt6..ft",
 			"ttttttttttttttttt...,,,,,,,,nn,,,,,,f...t.....tttttt...t",
 			"ttttttttttttttttttttttttt__+~~tttttttttttttttttttttt___t",
 			"t#tt#tt#tttt#tt#tt#tttttt___~~ttttttt#tt#tttt#tt#ttt___t",
@@ -46,10 +46,10 @@ const MAPS := {
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 		],
-		"anchors": {"2": "lesson_screen", "3": "lesson_turns", "5": "lesson_items", "6": "lesson_ring"},
+		"anchors": {"2": "lesson_screen", "3": "lesson_turns", "4": "lesson_slingshot", "5": "lesson_items", "6": "lesson_ring", "7": "logpile"},
 		"signs": [
 			"Coastal Path. West: Cocoon Cove. East: Tidewater.",
-			"The footbridge washed out in the last storm. Youngster Kit, in the cabin by the creek, has been gathering logs to mend it.",
+			"Creek Footbridge ahead, on the road to Tidewater. Builder's cabin by the creek.",
 		],
 	},
 	"route2": {
