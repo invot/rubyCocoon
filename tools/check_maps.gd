@@ -1,13 +1,15 @@
 extends SceneTree
 ## Verifies every map and every building interior:
-## exits, doors, trainers, items and people reachable; all of a town's shops present; outdoors, nothing tall (a tree
-## or a building) within HIDE_ROWS tiles south of a road or a person, where it would hide them from the camera; and no
-## way past a teacher without crossing their line of sight (see _slip_past).
+## exits, doors, trainers, items and people reachable (up and down ramps, never over a cliff: elevation.gd); all of a
+## town's shops present; outdoors, nothing tall (a tree or a building) within HIDE_ROWS tiles south of a road or a
+## person, where it would hide them from the camera (further on higher ground); buildings, doorsteps and people on
+## level ground; and no way past a teacher without crossing their line of sight (see _slip_past).
 ## Run: godot --headless --path . --script res://tools/check_maps.gd
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
+const Elev = preload("res://scripts/world/elevation.gd")
 
 ## The camera looks north from the south: a tree or a building this many tiles (or fewer) south of a road, a bridge,
 ## the plaza or someone standing about stands between them and the camera. (Trees in a map's last three rows are drawn
@@ -77,7 +79,7 @@ func _check(m: Dictionary) -> Array:
 	for f in phones:
 		var ok := false
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			ok = ok or seen.has(f + d)
+			ok = ok or seen.has(f + d) and Elev.joined(m, f + d, f)
 		if not ok:
 			problems.append("phone at %s can't be reached" % f)
 	for b in m["buildings"]:
@@ -92,7 +94,8 @@ func _check(m: Dictionary) -> Array:
 		var walled_in := true
 		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
 			var q: Vector2i = n["pos"] + d
-			if seen.has(q):
+			# (beside them on their level: nobody talks up or down a cliff)
+			if seen.has(q) and Elev.joined(m, q, n["pos"]):
 				adj = true
 				walled_in = false
 			elif MapGen.get_t(m, q.x, q.y) in [MapGen.COUNTER, MapGen.CRYSTAL, MapGen.TABLE] and seen.has(q + d):
@@ -106,12 +109,13 @@ func _check(m: Dictionary) -> Array:
 	for sh in m.get("shards", []):
 		var adj3 := false
 		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
-			if seen.has(sh["pos"] + d):
+			if seen.has(sh["pos"] + d) and Elev.joined(m, sh["pos"] + d, sh["pos"]):
 				adj3 = true
 		if not adj3:
 			problems.append("shard at %s unreachable" % sh["pos"])
 	if m["kind"] != "interior":
 		problems.append_array(_hidden(m))
+		problems.append_array(_levels(m))
 	problems.append_array(_slip_past(m))
 	var groups := {}
 	for q in m.get("obstacles", {}):
@@ -121,14 +125,14 @@ func _check(m: Dictionary) -> Array:
 		for q in groups[f]["tiles"]:
 			for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
 				var r: Vector2i = q + d
-				if seen.has(r) and not m["obstacles"].has(r):
+				if seen.has(r) and not m["obstacles"].has(r) and Elev.joined(m, r, q):
 					touch = true
 		if not touch:
 			problems.append("obstacle %s can't be reached" % groups[f]["name"])
 	for it in m["items"]:
 		var adj2 := false
 		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
-			if seen.has(it["pos"] + d):
+			if seen.has(it["pos"] + d) and Elev.joined(m, it["pos"] + d, it["pos"]):
 				adj2 = true
 		if not adj2:
 			problems.append("item at %s unreachable" % it["pos"])
@@ -152,9 +156,14 @@ func _hidden(m: Dictionary) -> Array:
 			spots[m["anchors"][a]] = a
 	var hidden := {}
 	for p in spots:
-		for dy in range(1, HIDE_ROWS + 1):
+		# (something on higher ground hides you from further away: the camera looks down about 0.64 a tile)
+		var reach := HIDE_ROWS + ceili(maxf(0.0, _highest_south(m, p, HIDE_ROWS + 6) - Elev.surface(m, p)) / 0.64)
+		for dy in range(1, reach + 1):
 			var q: Vector2i = p + Vector2i(0, dy)
 			var c := MapGen.get_t(m, q.x, q.y)
+			var rise := maxf(0.0, Elev.surface(m, q) - Elev.surface(m, p))
+			if dy > HIDE_ROWS + ceili(rise / 0.64):
+				continue
 			if q.y < m["h"] and c in TALL and not (c == MapGen.TREE and q.y >= m["h"] - 3):
 				hidden[p] = q
 				break
@@ -173,6 +182,48 @@ func _hidden(m: Dictionary) -> Array:
 	return out
 
 
+## The highest ground within `rows` tiles south of p.
+func _highest_south(m: Dictionary, p: Vector2i, rows: int) -> float:
+	var top := Elev.surface(m, p)
+	for dy in range(1, rows + 1):
+		if p.y + dy < m["h"]:
+			top = maxf(top, Elev.surface(m, p + Vector2i(0, dy)))
+	return top
+
+
+## Cliffs and ramps (elevation.gd): the heights rows read cleanly; every building on one level, with the tile in front
+## of its door on that level too (not a ramp); people, items and signs on level ground, not on a ramp.
+func _levels(m: Dictionary) -> Array:
+	var out: Array = m.get("elev_problems", []).duplicate()
+	if not Elev.has(m):
+		return out
+	for b in m["buildings"]:
+		var door: Vector2i = b["door"]
+		var lv := Elev.surface(m, door)
+		var bad := false
+		for y in range(int(b["y"]), int(b["y"]) + int(b["d"])):
+			for x in range(int(b["x"]), int(b["x"]) + int(b["w"])):
+				var q := Vector2i(x, y)
+				bad = bad or Elev.ramp_dir(m, q) != Vector2i.ZERO or not is_equal_approx(Elev.surface(m, q), lv)
+		var front := door + Vector2i(0, 1)
+		if bad:
+			out.append("%s at %s,%s stands on more than one level" % [b["name"], b["x"], b["y"]])
+		elif not Elev.joined(m, door, front) or Elev.ramp_dir(m, front) != Vector2i.ZERO:
+			out.append("%s's door at %s isn't on the level of the ground in front of it" % [b["name"], door])
+	var spots := []
+	for n in m["npcs"]:
+		spots.append(n["pos"])
+	for it in m["items"]:
+		spots.append(it["pos"])
+	spots.append_array(m["signs"].keys())
+	if m.has("payphone"):
+		spots.append(m["payphone"])
+	for p in spots:
+		if Elev.ramp_dir(m, p) != Vector2i.ZERO:
+			out.append("something stands on the ramp at %s" % p)
+	return out
+
+
 ## The teachers (WorldDB.LESSON_TRAINERS, ARENA_LESSONS) must stop you: outdoors, every way from one of the map's
 ## exits to another crosses each one's line of sight (as world.gd _check_trainer_sight sees it); indoors, they see you
 ## where you come in (world.gd spot_you).
@@ -188,7 +239,7 @@ func _slip_past(m: Dictionary) -> Array:
 		var sight := {p: true}
 		for i in range(1, int(t.get("sight", 4)) + 1):
 			var q: Vector2i = p + Vector2i(t["facing"]) * i
-			if not MapGen.walkable(MapGen.get_t(m, q.x, q.y)) or m["npcs"].any(func(n): return n["pos"] == q):
+			if not MapGen.walkable(MapGen.get_t(m, q.x, q.y)) or m["npcs"].any(func(n): return n["pos"] == q) 					or not Elev.joined(m, q - Vector2i(t["facing"]), q):
 				break
 			sight[q] = true
 		if m["kind"] == "interior":
@@ -226,7 +277,7 @@ func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 		var p: Vector2i = q.pop_front()
 		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
 			var n: Vector2i = p + d
-			if seen.has(n) or blockers.has(n):
+			if seen.has(n) or blockers.has(n) or not Elev.joined(m, p, n):
 				continue
 			var c := MapGen.get_t(m, n.x, n.y)
 			# obstacles and story gates can be cleared, so the area behind them counts as reachable

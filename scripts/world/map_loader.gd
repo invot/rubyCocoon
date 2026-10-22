@@ -4,6 +4,7 @@ extends RefCounted
 ## "cogsworth#4@3" (third floor of building 4).
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
+const Elev = preload("res://scripts/world/elevation.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const TownMaps = preload("res://scripts/data/maps/town_maps.gd")
@@ -169,6 +170,12 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	for e in ents:
 		var p: Vector2i = e[1]
 		MapGen.set_t(m, p.x, p.y, _infer_floor(m, p))
+	# cliffs and ramps (elevation.gd)
+	if src.has("heights"):
+		Elev.parse(m, src["heights"])
+	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
+	if src.has("cliffs"):
+		m["cliffs"] = src["cliffs"]
 	for p in m["pushables"]:
 		if MapGen.get_t(m, p.x, p.y) != MapGen.ICE:
 			MapGen.set_t(m, p.x, p.y, _infer_floor(m, p))
@@ -402,6 +409,9 @@ static func _add_payphone(m: Dictionary) -> void:
 				for dx in [-1, 0, 1]:
 					var q: Vector2i = p + Vector2i(dx, dy)
 					if taken.has(q) or not MapGen.walkable(MapGen.get_t(m, q.x, q.y)):
+						open = false
+					# (all round it on the same level ground: never at a cliff's edge or on a ramp)
+					elif Elev.ramp_dir(m, q) != Vector2i.ZERO or not is_equal_approx(Elev.surface(m, q), Elev.surface(m, p)):
 						open = false
 			if open:
 				best = p

@@ -181,6 +181,14 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   beasts. A step, once started, always ends in the middle of the next tile (whatever you let go of or press on the
   way), so you always stop lined up with people, doors and items. With two arrows held you keep walking the way you
   were going, else the newest arrow counts (`world.gd` _key_dir).
+- **Cliffs and ramps**: every town and road has high ground (`scripts/world/elevation.gd`). Woods and rock stand on
+  ridges along the back and sides of each map, so you're closed in there, with the roads out running through cuts in
+  them; many maps have terraces too: Cocoon Cove above its beach, Tidewater's old town over the harbour, the Dune
+  Road's escarpment (the rope ladder a flyer hangs climbs it), the Mesa Trail's canyon walls, Gravenmoor's graveyard
+  knoll. Nobody climbs or drops down a cliff, and nobody talks, picks things up or sees across one (trainers and wild
+  beasts included); ramps are walked up and down along their slope. Where a river runs over a cliff it falls as a
+  waterfall (Riverbend). Behind high ground you're never lost from sight: whatever ground stands between the camera
+  and you dissolves around your shape in a PS1-style dither (`terrain.gdshader` `hole`), as buildings in the way fade.
 - **Town mascots and their signature moves**: every town has a mascot beast roaming its square and a statue of it
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
   teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
@@ -332,6 +340,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
   stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Tempestrix on the rail.
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
+- **Cliffs** (`terrain_mesh.gd`) are faces of the crags' rock, bulging a little here and there and darker towards the
+  foot, with a ragged lip of the grass or paving above along the top; Cogsworth's are dressed-stone retaining walls.
+  A ramp is drawn in the ground of its tile, and a rope ladder lies along its slope.
 - **Inside**, walls between the camera and you fade rather than sink (`room_builder.gd` `fade`): in a cone opening from
   you towards the camera, a wall ahead of you is clear, about 70% opaque while you pass through its doorway, and solid
   once it's behind you. Walls right beside you stay solid; doors, windows and pictures fade with their wall.
@@ -473,13 +484,19 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too.
 - **Story gates** use `&`.
+- **Cliffs and ramps**: a map's `heights` rows (one character per tile, lined up with `rows`) give each tile a level,
+  `0`-`9`, one unit apiece; `^ v < >` is a ramp rising that way, and a run of them climbs evenly between the levels at
+  its two ends (give it two tiles a level; runs side by side make a wide ramp). Neighbours on different levels meet
+  at a cliff. Keep the back and sides high and the south low (the camera looks north), put every building, its
+  doorstep and everyone standing about on level ground, and keep tall things off high ground just south of a road.
+  `"cliffs": "walls"` draws a town's cliffs as stone retaining walls. Both checkers below know the levels.
 - **Shards** use `*`.
 - **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`).
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
 
-- **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
+- **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
 - **No slipping past a teacher**: `check_maps.gd` also walks every way from each of a map's exits to the others and
   flags a teacher (`world_db.gd` LESSON_TRAINERS, ARENA_LESSONS) whose line of sight (straight ahead, 4 tiles, up to
   the first wall or person) it can get past without crossing, and indoors one who doesn't see the tile you come in on.
@@ -542,7 +559,7 @@ scripts/
   core/        beast.gd (a beast instance, growing up), beasts.gd (creation, merging, legendary dominance), ring.gd (the battle ring)
   gfx/         beast_rig, beast_parts, beast_model, beast_icons, beast_toon.gdshader (the beasts), voxel_mesher (greedy mesher), voxel_beast, voxel_person, voxel_buildings, voxel_props, voxel_textures, voxel_assets
   data/        ... beast_looks (each beast line's colours)
-  world/       map_loader.gd (ASCII → map), world.gd (overworld + interiors), map_gen.gd (tile types)
+  world/       map_loader.gd (ASCII → map), world.gd (overworld + interiors), map_gen.gd (tile types), elevation.gd (levels, ramps, who can step where), terrain_mesh.gd (the ground, cliffs, water and waterfalls)
   battle/      battle.gd (ring battles, trainer turn, shields, egg drops), command_panel.gd (the stacked command rows)
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)

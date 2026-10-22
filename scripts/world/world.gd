@@ -5,6 +5,7 @@ extends Node3D
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const Terrain = preload("res://scripts/world/terrain_mesh.gd")
+const Elev = preload("res://scripts/world/elevation.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
@@ -156,12 +157,20 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 	_place_camera(true)
 
 
+## The middle of tile p, on the ground: its level or ramp (elevation.gd), and a porch's deck on top.
 func tile_pos(p: Vector2i) -> Vector3:
-	return Vector3(p.x + 0.5, float(ground_h.get(p, 0.0)), p.y + 0.5)
+	return Vector3(p.x + 0.5, _lift(p) + float(ground_h.get(p, 0.0)), p.y + 0.5)
+
+
+## How high tile p's ground stands (its level, or the middle of its ramp); off the map, the nearest tile's.
+func _lift(p: Vector2i) -> float:
+	return Elev.surface(map, p)
 
 
 ## Tiles raised off the ground, by how much: a porch's deck or a stoop (see house_models.gd steps()), stepped up onto.
 var ground_h := {}
+## the ground's materials (terrain_mesh.gd), told every frame where the see-through patch goes (_update_hole)
+var terrain_mats: Array = []
 
 
 # ================================================================ helpers
@@ -219,6 +228,20 @@ func _multimesh_one(mesh: Mesh, xforms: Array, mat: Material, shadows: bool) -> 
 
 func _xf(pos: Vector3, rot_y := 0.0, s := 1.0) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, rot_y).scaled(Vector3(s, s, s)), pos)
+
+
+## Something flat lying on tile p (a rope ladder), `lift` above the ground: along a ramp's slope, its length (local z)
+## running up it and stretched to cover it.
+func _on_slope(p: Vector2i, lift: float) -> Transform3D:
+	var d := Elev.ramp_dir(map, p)
+	if d == Vector2i.ZERO:
+		return _xf(tile_pos(p) + Vector3(0, lift, 0))
+	var rise := Elev.edge(map, p, d) - Elev.edge(map, p, -d)
+	var tilt := atan(rise)
+	# (turned to run east-west first on a ramp that climbs that way)
+	var b := Basis(Vector3.RIGHT, tilt * -d.y) if d.y != 0 else Basis(Vector3(0, 0, 1), tilt * d.x) * Basis(Vector3.UP, PI / 2.0)
+	b = b * Basis.from_scale(Vector3(1, 1, sqrt(1.0 + rise * rise)))
+	return Transform3D(b, tile_pos(p) + b.y.normalized() * lift)
 
 
 func _voxel_rot(rng: RandomNumberGenerator) -> float:
@@ -281,7 +304,7 @@ func _build_terrain() -> void:
 	var w: int = map["w"]
 	var h: int = map["h"]
 	var t := Terrain.new()
-	t.setup(w, h, map_id.hash())
+	t.setup(w, h, map_id.hash(), map)
 	var planks := []
 	var walls := []
 	var puzzle_rocks := []
@@ -294,7 +317,7 @@ func _build_terrain() -> void:
 	for y in h:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
-			var center := Vector3(x + 0.5, 0, y + 0.5)
+			var center := Vector3(x + 0.5, _lift(Vector2i(x, y)), y + 0.5)
 			var top := 0.0
 			var kind := "grass"
 			var liquid := 0
@@ -347,6 +370,11 @@ func _build_terrain() -> void:
 						craggy = true
 					elif grp.get("kind", "") == "sand":
 						kind = "sand"
+					elif grp.get("kind", "") == "rope_cliff":
+						kind = "rock"
+				MapGen.ROPE:
+					# the rope ladder up a cliff: bare rock under it
+					kind = "rock"
 			if _sandy() and kind == "grass":
 				kind = "sand"
 			var ground_top := 0.0 if c == MapGen.WALL or puzzle_rocks.has(center) else top
@@ -358,7 +386,9 @@ func _build_terrain() -> void:
 		tints.append(Color({"grass": biome["ground"], "path": biome["path"], "plaza": biome["plaza"], "sand": biome["sand"],
 			"rock": rock_hex, "bed": Color(biome["sand"]).darkened(0.35).to_html(false), "lava_bed": "#3a2a28",
 			"paving": "#9a948a", "ice": "#cfeaf6"}[layer]))
-	t.build(self, tints, Color(biome["water"]))
+	# cliff faces: the crags' rock, a little warmer, more of the local soil in it
+	t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls")
+	terrain_mats = t.materials
 	var wk := VBld.Kit.new()
 	wk.box("stone", Vector3(0, 0.8, 0), Vector3(1.0, 1.6, 1.0), Color("#b8b0a0"))
 	wk.box("stone", Vector3(0, 1.66, 0), Vector3(1.06, 0.12, 1.06), Color("#cfc7b6"))
@@ -433,7 +463,7 @@ func _build_backdrop() -> void:
 				continue
 			# just south of a road leading out at the sides, low things only too, so the road stays in plain sight
 			var south := tz >= ih or _side_road_behind(tx, tz)
-			var c := Vector3(tx + 0.5 + rng.randf_range(-0.3, 0.3), 0.0, tz + 0.5 + rng.randf_range(-0.3, 0.3))
+			var c := Vector3(tx + 0.5 + rng.randf_range(-0.3, 0.3), _lift(Vector2i(tx, tz)), tz + 0.5 + rng.randf_range(-0.3, 0.3))
 			var shadow := depth <= 1
 			if edge == MapGen.SAND:
 				# a beach running on: a palm or a rock here and there
@@ -570,7 +600,7 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 		if not clear:
 			node.free()
 			continue
-		node.position = Vector3(p.x, 0.0, p.y)
+		node.position = Vector3(p.x, _lift(Vector2i(floori(p.x), floori(p.y))), p.y)
 		# facing the town
 		if p.y < 0.0:
 			node.rotation.y = 0.0
@@ -633,7 +663,7 @@ func _build_scatter() -> void:
 	for y in h:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
-			var center := Vector3(x + 0.5, 0, y + 0.5)
+			var center := Vector3(x + 0.5, _lift(Vector2i(x, y)), y + 0.5)
 			if house_cover.has(Vector2i(x, y)):
 				# a house leans over this tree or hedge
 				continue
@@ -685,7 +715,7 @@ func _build_scatter() -> void:
 				MapGen.LAMP:
 					lamps.append(center)
 				MapGen.ROPE:
-					ladders.append(_xf(center + Vector3(0, 0.01, 0)))
+					ladders.append(_on_slope(Vector2i(x, y), 0.01))
 				MapGen.SIGN:
 					signs.append(center)
 	for i in 3:
@@ -904,7 +934,7 @@ func _reachable(start: Vector2i) -> Dictionary:
 		var q: Vector2i = stack.pop_back()
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 			var r: Vector2i = q + d
-			if not seen.has(r) and r.x >= 0 and r.y >= 0 and r.x < map["w"] and r.y < map["h"] and MapGen.walkable(MapGen.get_t(map, r.x, r.y)):
+			if not seen.has(r) and r.x >= 0 and r.y >= 0 and r.x < map["w"] and r.y < map["h"] and MapGen.walkable(MapGen.get_t(map, r.x, r.y)) 					and Elev.joined(map, q, r):
 				seen[r] = true
 				stack.append(r)
 	return seen
@@ -1020,7 +1050,7 @@ func _build_street_props() -> void:
 				mi2.mesh = ac
 				mi2.rotation.y = sx * PI / 2.0
 				var x: float = float(b["x"]) + (float(b["w"]) + 0.02 if sx > 0 else -0.02) - sx * 0.1
-				mi2.position = Vector3(x + sx * ac.get_aabb().size.z / 2.0, 1.9 + rng.randf_range(0, 2.4), float(b["y"]) + float(b["d"]) * rng.randf_range(0.3, 0.7))
+				mi2.position = Vector3(x + sx * ac.get_aabb().size.z / 2.0, _lift(b["door"]) + 1.9 + rng.randf_range(0, 2.4), float(b["y"]) + float(b["d"]) * rng.randf_range(0.3, 0.7))
 				add_child(mi2)
 
 
@@ -1032,7 +1062,8 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 	else:
 		b["locked"] = Places.door_locked(b)
 		node = VBld.build(b, style)
-	node.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, 0, float(b["y"]) + float(b["d"]) / 2.0)
+	# (a building stands on one level: its door's, see tools/check_maps.gd)
+	node.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, _lift(b["door"]), float(b["y"]) + float(b["d"]) / 2.0)
 	add_child(node)
 	return node
 
@@ -1082,7 +1113,7 @@ func _build_statue() -> void:
 	if st.is_empty():
 		return
 	var p: Vector2i = st["pos"]
-	var center := Vector3(p.x + 1.0, 0, p.y + 1.0)
+	var center := Vector3(p.x + 1.0, _lift(p), p.y + 1.0)
 	var k := VBld.Kit.new()
 	k.box("stone", Vector3(0, 0.3, 0), Vector3(1.8, 0.6, 1.8), Color("#c8c0b0"))
 	k.box("stone", Vector3(0, 0.65, 0), Vector3(1.5, 0.1, 1.5), Color("#e8c060"))
@@ -1182,6 +1213,7 @@ func _log_slot(tiles: Array, i: int) -> Array:
 
 func _lay_logs(tiles: Array, placed: int, key: String, mended := false) -> void:
 	var holder := Node3D.new()
+	holder.position.y = _lift(tiles[0])
 	add_child(holder)
 	if key != "":
 		_log_bridge_nodes[key] = holder
@@ -1291,10 +1323,11 @@ func _build_pushables() -> void:
 		pushables[p] = info
 
 
-func _push_free(q: Vector2i) -> bool:
+## True if a block can be pushed from `from` onto its neighbour `q`.
+func _push_free(q: Vector2i, from: Vector2i) -> bool:
 	if q.x < 1 or q.y < 1 or q.x >= map["w"] - 1 or q.y >= map["h"] - 1:
 		return false
-	if not MapGen.walkable(MapGen.get_t(map, q.x, q.y)):
+	if not MapGen.walkable(MapGen.get_t(map, q.x, q.y)) or not Elev.joined(map, from, q):
 		return false
 	return not (npcs.has(q) or items.has(q) or shards.has(q) or pushables.has(q) or map["exits"].has(q) or q == player_pos or _beast_at(q) != null)
 
@@ -1303,11 +1336,11 @@ func _push_free(q: Vector2i) -> bool:
 func _push(at: Vector2i, d: Vector2i) -> bool:
 	var info: Dictionary = pushables[at]
 	var dest := at + d
-	if not _push_free(dest):
+	if not _push_free(dest, at):
 		return false
 	var ice: bool = info["kind"] == "ice"
 	if ice:
-		while _push_free(dest + d):
+		while _push_free(dest + d, dest):
 			dest += d
 	pushables.erase(at)
 	pushables[dest] = info
@@ -1355,11 +1388,12 @@ func clear_obstacle(grp: Dictionary) -> void:
 		elif info["clear"] == "rope":
 			var lad := MeshInstance3D.new()
 			lad.mesh = VP.obstacle("rope_ladder")
-			lad.position = tile_pos(q) + Vector3(0, 0.01, 0)
-			lad.scale = Vector3(1, 1, 0.05)
+			lad.transform = _on_slope(q, 0.01)
+			var full := lad.scale
+			lad.scale = Vector3(full.x, full.y, full.z * 0.05)
 			add_child(lad)
 			var tw2 := create_tween()
-			tw2.tween_property(lad, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+			tw2.tween_property(lad, "scale", full, 0.5).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 # ================================================================ characters
@@ -1474,7 +1508,9 @@ func _free_tile_near(p: Vector2i) -> Vector2i:
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
 				var q := p + Vector2i(dx, dy)
-				if MapGen.walkable(MapGen.get_t(map, q.x, q.y)) and not npcs.has(q) and not map["exits"].has(q) and not doors.has(q - Vector2i(0, 1)):
+				# (on the same level, not a ramp)
+				if MapGen.walkable(MapGen.get_t(map, q.x, q.y)) and not npcs.has(q) and not map["exits"].has(q) and not doors.has(q - Vector2i(0, 1)) \
+						and Elev.ramp_dir(map, q) == Vector2i.ZERO and absf(_lift(q) - _lift(p)) < 0.01:
 					return q
 	return p
 
@@ -1576,6 +1612,11 @@ func _walkable(p: Vector2i) -> bool:
 	return true
 
 
+## True if you can step from `from` onto its neighbour `to`: free to walk on, and no cliff between (elevation.gd).
+func _can_step(from: Vector2i, to: Vector2i) -> bool:
+	return _walkable(to) and Elev.joined(map, from, to)
+
+
 func _process(delta: float) -> void:
 	_time += delta
 	for m in water_mats:
@@ -1622,9 +1663,9 @@ func _process(delta: float) -> void:
 			# keep walking without a stop between tiles when the next step is ready right away (keys or a tapped path)
 			if not moving and not busy and not frozen and not UI.busy() and _next_step():
 				move_t = minf(spill, 0.5)
-				player.position = move_from.lerp(move_to, move_t)
+				player.position = _along(move_from, move_to, move_t)
 		else:
-			player.position = move_from.lerp(move_to, move_t)
+			player.position = _along(move_from, move_to, move_t)
 			# easing into the pace (_stride is the speed the legs show)
 			_stride = move_toward(_stride, move_speed, delta * 30.0)
 	elif not busy and not frozen and not UI.busy():
@@ -1635,6 +1676,26 @@ func _process(delta: float) -> void:
 	VPer.animate(player, anim_t, _stride)
 	cam_target = player.position
 	_place_camera()
+	_update_hole()
+
+
+## The point `t` of the way from one tile's middle (a) to the next one's (b), on the ground: onto or off a ramp, along
+## its slope rather than straight across the bend at its end.
+func _along(a: Vector3, b: Vector3, t: float) -> Vector3:
+	var p := a.lerp(b, t)
+	if Elev.has(map):
+		var ta := Vector2i(floori(a.x), floori(a.z))
+		var tb := Vector2i(floori(b.x), floori(b.z))
+		if Elev.ramp_dir(map, ta) != Vector2i.ZERO or Elev.ramp_dir(map, tb) != Vector2i.ZERO:
+			p.y += Elev.height_at(map, p.x, p.z) - lerpf(_lift(ta), _lift(tb), t)
+	return p
+
+
+## Tells the ground where you are, so any high ground between the camera and you dissolves there (terrain.gdshader).
+func _update_hole() -> void:
+	var on := Vector4(player.position.x, player.position.y, player.position.z, 1.0)
+	for m in terrain_mats:
+		(m as ShaderMaterial).set_shader_parameter("hole", on)
 
 
 ## A building between the camera and you (the arena, a tall house you've walked behind) fades almost away, so you're
@@ -1711,9 +1772,10 @@ func _step(d: Vector2i, run: bool) -> bool:
 	if wb != null:
 		_bump_wild(wb)
 		return false
-	if pushables.has(target) and not _push(target, d):
+	# (a block up or down a cliff can't be reached to push)
+	if pushables.has(target) and (not Elev.joined(map, player_pos, target) or not _push(target, d)):
 		return false
-	if _walkable(target):
+	if _can_step(player_pos, target):
 		_begin_step(target, run)
 		_walk_dir = d
 		return true
@@ -1774,6 +1836,9 @@ func _check_trainer_sight(lessons_only := false) -> bool:
 		var f: Vector2i = n.get("facing", Vector2i(0, 1))
 		for i in range(1, int(n.get("sight", 4)) + 1):
 			var q: Vector2i = p + f * i
+			# nobody looks past a cliff's edge (they couldn't come over to you)
+			if not Elev.joined(map, q - f, q):
+				break
 			if q == player_pos:
 				# they stop you: a tapped walk ends here
 				_clear_path()
@@ -1830,6 +1895,9 @@ func _trainer_approach(n: Dictionary, p: Vector2i, dist: int) -> void:
 
 func _interact() -> void:
 	var t := _facing_tile()
+	# nothing up or down a cliff is in reach (but you can cast a line down into the water)
+	if not Elev.joined(map, player_pos, t) and MapGen.get_t(map, t.x, t.y) != MapGen.WATER:
+		return
 	var wb = _beast_at(t)
 	if wb != null:
 		_bump_wild(wb)
@@ -1905,7 +1973,7 @@ func _build_ripples() -> void:
 				var mi := MeshInstance3D.new()
 				mi.mesh = torus
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				mi.position = Vector3(at.x, -0.1, at.y)
+				mi.position = Vector3(at.x, _lift(q) - 0.1, at.y)
 				add_child(mi)
 				rings.append(mi)
 			ripples.append([rings, rng.randf(), rng.randf_range(0.55, 1.7)])
@@ -1921,12 +1989,12 @@ func _build_boats() -> void:
 		var s := float(bt[4]) / maxf(0.01, maxf(bb.size.x, bb.size.z))
 		mi.scale = Vector3(s, s, s)
 		var holder := Node3D.new()
-		holder.position = Vector3(float(bt[0]), 0.0, float(bt[1]))
+		holder.position = Vector3(float(bt[0]), _lift(Vector2i(floori(float(bt[0])), floori(float(bt[1])))), float(bt[1]))
 		holder.rotation.y = deg_to_rad(float(bt[2]))
 		mi.position.y = -0.3 - bb.position.y * s
 		holder.add_child(mi)
 		add_child(holder)
-		bobbers.append([holder, 0.0, 1.3 + float(bt[0]) * 0.01])
+		bobbers.append([holder, holder.position.y, 1.3 + float(bt[0]) * 0.01])
 
 
 ## The fishing line cast into water tile `t`: a red-and-white float bobbing there, and the line out to it from your
@@ -1959,7 +2027,7 @@ func fishing_line(t: Vector2i) -> Node3D:
 	fl.add_child(low)
 	fl.position = tile_pos(t) + Vector3(0, -0.08, 0)
 	holder.add_child(fl)
-	bobbers.append([fl, -0.08, 3.0])
+	bobbers.append([fl, fl.position.y, 3.0])
 	# the rod held out over the water, and the line down to the float
 	var tip := tile_pos(player_pos) + Vector3(t.x - player_pos.x, 0, t.y - player_pos.y) * 0.55 + Vector3(0, VPer.hand_height() + 0.8, 0)
 	var rod := _rod_mesh(tile_pos(player_pos) + Vector3(0, VPer.hand_height(), 0), tip)
@@ -1982,8 +2050,9 @@ func dip_line(holder: Node3D) -> void:
 			bobbers.erase(b)
 			break
 	var tw := create_tween().set_loops(4)
-	tw.tween_property(fl, "position:y", -0.3, 0.12)
-	tw.tween_property(fl, "position:y", -0.12, 0.18)
+	var water := fl.position.y + 0.08
+	tw.tween_property(fl, "position:y", water - 0.3, 0.12)
+	tw.tween_property(fl, "position:y", water - 0.12, 0.18)
 
 
 ## A thin pole from `a` to `b` (a fishing rod, or its line).
@@ -2370,6 +2439,13 @@ func _tile_under(screen: Vector2) -> Vector2i:
 	var n := cam.project_ray_normal(screen)
 	if absf(n.y) < 0.001:
 		return Vector2i(-999, -999)
+	if Elev.has(map):
+		# over cliffs and ramps: along the ray until it meets the ground
+		var p := o
+		for i in 1200:
+			p += n * 0.05
+			if p.y <= Elev.height_at(map, p.x, p.z):
+				return Vector2i(floori(p.x), floori(p.z))
 	var t := -o.y / n.y
 	var hit := o + n * t
 	return Vector2i(int(floor(hit.x)), int(floor(hit.z)))
@@ -2422,18 +2498,18 @@ func _pick(screen: Vector2) -> Dictionary:
 	var best_d := INF
 	var boxes := []
 	for p in npcs:
-		boxes.append([AABB(Vector3(p.x + 0.15, 0, p.y + 0.15), Vector3(0.7, 1.9, 0.7)), p, "npc"])
+		boxes.append([AABB(Vector3(p.x + 0.15, _lift(p), p.y + 0.15), Vector3(0.7, 1.9, 0.7)), p, "npc"])
 	for w in wilds:
 		var wp: Vector3 = (w["node"] as Node3D).position
 		boxes.append([AABB(wp - Vector3(0.4, 0, 0.4), Vector3(0.8, 1.3, 0.8)), w["pos"], "beast"])
 	for p in items:
-		boxes.append([AABB(Vector3(p.x + 0.2, 0, p.y + 0.2), Vector3(0.6, 0.7, 0.6)), p, "item"])
+		boxes.append([AABB(Vector3(p.x + 0.2, _lift(p), p.y + 0.2), Vector3(0.6, 0.7, 0.6)), p, "item"])
 	for p in shards:
-		boxes.append([AABB(Vector3(p.x + 0.2, 0, p.y + 0.2), Vector3(0.6, 0.9, 0.6)), p, "item"])
+		boxes.append([AABB(Vector3(p.x + 0.2, _lift(p), p.y + 0.2), Vector3(0.6, 0.9, 0.6)), p, "item"])
 	for b in map["buildings"]:
 		if b["shop"] == "decor":
 			continue
-		boxes.append([AABB(Vector3(float(b["x"]), 0, float(b["y"])), Vector3(float(b["w"]), float(b.get("height", 2.4)) + 1.2, float(b["d"]))), b["door"], "door"])
+		boxes.append([AABB(Vector3(float(b["x"]), _lift(b["door"]), float(b["y"])), Vector3(float(b["w"]), float(b.get("height", 2.4)) + 1.2, float(b["d"]))), b["door"], "door"])
 	for bx in boxes:
 		var hit_p = (bx[0] as AABB).intersects_ray(o, n)
 		if hit_p == null:
@@ -2469,7 +2545,9 @@ func _go_use(t: Vector2i, kind: String, run: bool) -> void:
 		spots = [t + Vector2i(0, 1)]
 	else:
 		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
-			spots.append(t + d)
+			# (not from up or down a cliff)
+			if Elev.joined(map, t + d, t):
+				spots.append(t + d)
 			# people behind a counter are reached from the other side of it
 			if _counter_like(t + d):
 				spots.append(t + d * 2)
@@ -2512,7 +2590,7 @@ func _walk_to(goals: Array, use_tile: Vector2i, run: bool) -> void:
 			break
 		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
 			var q: Vector2i = p + d
-			if prev.has(q) or not _walkable(q) or _beast_at(q) != null or (map["exits"].has(q) and not goal_set.has(q)):
+			if prev.has(q) or not _can_step(p, q) or _beast_at(q) != null or (map["exits"].has(q) and not goal_set.has(q)):
 				continue
 			prev[q] = p
 			queue.append(q)
@@ -2713,8 +2791,11 @@ func _beast_at(q: Vector2i):
 	return null
 
 
-func _wild_free(p: Vector2i, w: Dictionary) -> bool:
+## True if a wild beast could stand on p (stepping there from `from`, if given: not up or down a cliff).
+func _wild_free(p: Vector2i, w: Dictionary, from := Vector2i(-999, -999)) -> bool:
 	if p.x < 1 or p.y < 1 or p.x >= map["w"] - 1 or p.y >= map["h"] - 1 or p == player_pos:
+		return false
+	if from.x != -999 and not Elev.joined(map, from, p):
 		return false
 	var c := MapGen.get_t(map, p.x, p.y)
 	if not MapGen.walkable(c) or (interior and c != MapGen.MIST) or c == MapGen.DOOR or c == MapGen.ICE:
@@ -2758,6 +2839,10 @@ func _wild_sees(w: Dictionary) -> bool:
 
 
 func _line_clear(a: Vector2i, b: Vector2i) -> bool:
+	# not up or down a cliff, nor over a rise between (a ramp climbs at most half a level a tile)
+	var cliff := Elev.LEVEL_H * 0.6
+	if absf(_lift(a) - _lift(b)) > cliff:
+		return false
 	var steps := int(ceil(Vector2(b - a).length() * 2.0))
 	for i in range(1, steps):
 		var p := Vector2(a).lerp(Vector2(b), float(i) / float(steps)).round()
@@ -2766,6 +2851,8 @@ func _line_clear(a: Vector2i, b: Vector2i) -> bool:
 			continue
 		if MapGen.get_t(map, q.x, q.y) in SIGHT_BLOCKERS:
 			return false
+		if absf(_lift(q) - _lift(a)) > cliff and absf(_lift(q) - _lift(b)) > cliff:
+			return false
 	return true
 
 
@@ -2773,7 +2860,7 @@ func _wild_step(w: Dictionary, d: Vector2i, speed: float) -> bool:
 	w["facing"] = d
 	_face_wild(w)
 	var q: Vector2i = w["pos"] + d
-	if not _wild_free(q, w):
+	if not _wild_free(q, w, w["pos"]):
 		return false
 	w["from"] = (w["node"] as Node3D).position
 	w["to"] = tile_pos(q)
@@ -2791,7 +2878,7 @@ func _wild_step_rel(w: Dictionary, sgn: int, speed: float) -> bool:
 	var here := Vector2(player_pos - w["pos"]).length()
 	for d in FOUR_WAYS:
 		var q: Vector2i = w["pos"] + d
-		if not _wild_free(q, w) and not (sgn > 0 and q == player_pos):
+		if not _wild_free(q, w, w["pos"]) and not (sgn > 0 and q == player_pos and Elev.joined(map, w["pos"], q)):
 			continue
 		var dist := Vector2(player_pos - q).length() * float(sgn)
 		if sgn < 0 and -dist <= here - 0.01:
@@ -2819,7 +2906,7 @@ func _animate_wild(w: Dictionary, delta: float) -> void:
 			node.position = w["to"]
 			w["moving"] = false
 		else:
-			node.position = (w["from"] as Vector3).lerp(w["to"], float(w["mt"]))
+			node.position = _along(w["from"], w["to"], float(w["mt"]))
 	var hop := 0.12 if w["moving"] else 0.04
 	var spd := 9.0 if w["moving"] else 2.6
 	# new beasts step along at the pace they go (a wander, a charge, a dash away)

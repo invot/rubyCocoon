@@ -17,6 +17,7 @@ const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
+const Elev = preload("res://scripts/world/elevation.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 
@@ -1878,7 +1879,8 @@ func _walk4_test() -> void:
 	await _wait(1.5)
 	var w = world
 	var bad := [0]
-	# every frame: someone walking the grid is always on a tile's middle line across one axis or the other
+	# every frame: someone walking the grid is always on a tile's middle line across one axis or the other, with their
+	# feet on the ground (on a terrace's level, along a ramp's slope; a porch's deck is stepped up onto)
 	var watch := func():
 		if not is_instance_valid(w) or not w.is_inside_tree():
 			return
@@ -1886,6 +1888,11 @@ func _walk4_test() -> void:
 		if absf(fposmod(pos.x, 1.0) - 0.5) > 0.01 and absf(fposmod(pos.z, 1.0) - 0.5) > 0.01:
 			bad[0] += 1
 			print("  OFF THE GRID at ", pos)
+		var from := Vector2i(floori(w.move_from.x), floori(w.move_from.z))
+		var porch: bool = w.ground_h.has(Vector2i(floori(pos.x), floori(pos.z))) or w.ground_h.has(w.player_pos) or w.ground_h.has(from)
+		if not porch and absf(pos.y - Elev.height_at(w.map, pos.x, pos.z)) > 0.02:
+			bad[0] += 1
+			print("  OFF THE GROUND at %s (the ground is at %.2f)" % [pos, Elev.height_at(w.map, pos.x, pos.z)])
 	get_tree().process_frame.connect(watch)
 	# open ground east of the plaza
 	var start := Vector2i(22, 10)
@@ -2044,12 +2051,44 @@ func _walk4_test() -> void:
 		var deck: Vector2i = decks[0]
 		await _walk_test([deck])
 		await check.call("onto a porch deck at height %.2f" % float(w.ground_h[deck]), deck)
-		var y_ok: bool = is_equal_approx(w.player.position.y, float(w.ground_h[deck]))
+		var y_ok: bool = is_equal_approx(w.player.position.y, w._lift(deck) + float(w.ground_h[deck]))
 		if not y_ok:
 			bad[0] += 1
 		print("%s   ... standing on the deck (y %.2f)" % ["ok  " if y_ok else "FAIL", w.player.position.y])
 		await _walk_test([deck + Vector2i(0, 2)])
 		await check.call("off the deck again", deck + Vector2i(0, 2))
+	# cliffs and ramps: Cocoon Cove's lawn stands a level above its beach, three ramps down (town_maps.gd "heights")
+	var edge := Vector2i(20, 14)
+	w.player_pos = edge
+	w.player.position = w.tile_pos(edge)
+	await _press("move_down")
+	await check.call("down at the cliff's edge: no step", edge)
+	var beside := Vector2i(14, 13)
+	w.player_pos = beside
+	w.player.position = w.tile_pos(beside)
+	await _press("move_right")
+	await check.call("onto a ramp from its side: no step", beside)
+	var top := Vector2i(15, 12)
+	w.player_pos = top
+	w.player.position = w.tile_pos(top)
+	for i in 3:
+		await _press("move_down")
+		await check.call("down the ramp, step %d" % (i + 1), top + Vector2i(0, i + 1))
+	var low: bool = is_equal_approx(w.player.position.y, 0.0) and is_equal_approx(w.tile_pos(top).y, Elev.LEVEL_H)
+	if not low:
+		bad[0] += 1
+	print("%s   ... from the lawn (y %.2f) to the beach (y %.2f)" % ["ok  " if low else "FAIL", w.tile_pos(top).y, w.player.position.y])
+	# a tap on the beach from the lawn above walks round by a ramp
+	w.player_pos = edge
+	w.player.position = w.tile_pos(edge)
+	await _wait(0.3)
+	var sand := Vector2i(20, 16)
+	w.tap_at(w.cam.unproject_position(w.tile_pos(sand)))
+	for i in 80:
+		await _wait(0.1)
+		if w._path.is_empty() and not w.moving:
+			break
+	await check.call("tap the beach below the cliff: down a ramp to it", sand)
 	get_tree().process_frame.disconnect(watch)
 	print("WALK TEST DONE: %d problem(s)" % bad[0])
 
