@@ -7,8 +7,10 @@ extends RefCounted
 ##
 ## Rooms: the map's "zone_rows" give each tile's kind of room (see ZONES), so a kitchen gets tiles and a bedroom
 ## carpet and wallpaper; each side of a wall takes the finish of the room it faces.
-## Walls run through the middle of their tiles, a fifth of a tile thick. Each row of walls is one mesh whose vertices
-## know their tile, so the walls between the camera and the player can fade, tile by tile (see fade).
+## Walls run through the middle of their tiles, a fifth of a tile thick, one mesh to each row of them. There is no
+## front wall: the room is open towards the camera like a stage set, its floor ending in a dark edge half way across
+## the front row, where the side walls stop too. So no wall ever stands between the camera and the player, and walls
+## never fade; only tall furniture does, when the player is behind it (see fade).
 ## Furniture: tiles with the same piece next to each other make one piece; it stands with its back to the wall it
 ## touches most, pushed right up against it, and faces into the room.
 
@@ -20,8 +22,11 @@ const H := 2.8
 const DOOR_H := 1.95
 const SILL := 0.85
 const WIN_TOP := 2.07
-## the front wall (nearest the camera) is only a low kerb
-const FRONT_H := 0.3
+## how far the floor's front edge drops, below the open front of the room
+const EDGE := 0.35
+## doors you can go through are painted blue, locked ones red
+const DOOR_OPENS := Color("#3a6ed0")
+const DOOR_LOCKED := Color("#c83a3a")
 ## one texture repeat, in world units (a pack module)
 const SPAN := 2.8
 const WALLISH := [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.IDIAG_A, MapGen.IDIAG_B]
@@ -90,6 +95,8 @@ const KINDS := {
 	"booth": {"m": ["el_booth"], "fit": true, "chair": true, "tint": "#e05050"},
 	"diner_table": {"m": ["el_diner_table"], "free": true, "fit": true, "top": ["cup", "plate", "el_flowers", "cup_2", ""]},
 	"computer": {"m": ["desk_writing", "desk_sled"], "top": ["el_monitor"], "always_top": true},
+	# a red telephone on a little stand: calling Dad saves the game (see phone.gd)
+	"phone": {"m": ["nightstand"], "top": ["phone_rotary"], "always_top": true, "single": true},
 }
 
 static var _meshes := {}
@@ -127,14 +134,12 @@ static func surface(tex: String, tint: Color, extra: Dictionary = {}) -> Standar
 class Mesher:
 	var surf := {}
 	var mats := {}
-	## the centre of the wall tile being built (x, z), kept in each vertex's UV2 so the tile can fade on its own
-	var tile := Vector2(-1, -1)
 
 	## Corners in order round the quad; uv runs along u_dir and v_dir (world units) from the first corner's
 	## projection onto them; shade darkens it (vertex colour).
 	func quad(key: String, mat: Material, p: Array, n: Vector3, u_dir: Vector3, v_dir: Vector3, shade := 1.0) -> void:
 		if not surf.has(key):
-			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray(), PackedVector2Array()]
+			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray()]
 			mats[key] = mat
 		var a: Array = surf[key]
 		var tris := [p[0], p[1], p[2], p[0], p[2], p[3]]
@@ -149,12 +154,11 @@ class Mesher:
 			a[1].append(n)
 			a[2].append(Vector2((v as Vector3).dot(u_dir), (v as Vector3).dot(v_dir)))
 			a[3].append(col)
-			a[4].append(tile)
 
 	## One triangle (corners in any order), facing `n`.
 	func tri(key: String, mat: Material, p: Array, n: Vector3, u_dir: Vector3, v_dir: Vector3, shade := 1.0) -> void:
 		if not surf.has(key):
-			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray(), PackedVector2Array()]
+			surf[key] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray()]
 			mats[key] = mat
 		var a: Array = surf[key]
 		var p0: Vector3 = p[0]
@@ -167,7 +171,6 @@ class Mesher:
 			a[1].append(n)
 			a[2].append(Vector2((v as Vector3).dot(u_dir), (v as Vector3).dot(v_dir)))
 			a[3].append(col)
-			a[4].append(tile)
 
 	## An axis-aligned box's faces (no bottom), in one material.
 	func box(key: String, mat: Material, c: Vector3, s: Vector3, shade := 1.0) -> void:
@@ -196,7 +199,6 @@ class Mesher:
 			arrays[Mesh.ARRAY_NORMAL] = a[1]
 			arrays[Mesh.ARRAY_TEX_UV] = a[2]
 			arrays[Mesh.ARRAY_COLOR] = a[3]
-			arrays[Mesh.ARRAY_TEX_UV2] = a[4]
 			m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 			m.surface_set_material(m.get_surface_count() - 1, mats[key])
 		return m
@@ -218,24 +220,11 @@ var floor_mesher := Mesher.new()
 var lights: Array = []
 var pick_seed := 0
 
-## Fading walls (see fade): each wall tile's kind, "v" for a wall running away from the camera, "h" for the rest (the
-## walls you walk through on your way towards the camera or away from it), and how opaque it is now
-var wall_kind := {}
-var fade_alpha := {}
-## the doors, windows, plates and things hung on each wall tile, which fade with it
-var _attached := {}
-var _row_mi := {}
-var _row_shadow := {}
-var _row_tiles := {}
-var _row_fading := {}
-## each wall tile's opacity, one texel per tile, read by the walls' fade material
-var _fade_img: Image
-var _fade_tex: ImageTexture
-var _fade_mats := {}
-var _snap := true
-## furniture at least this tall (metres) fades too (see add_prop): {nodes, x, z (its middle), half_w, a (opacity)}
+## furniture at least this tall (metres) fades when the player is behind it (see add_prop): {nodes, x, z (its
+## middle), half_w, a (opacity)}
 const TALL := 1.2
 var _props: Array = []
+var _snap := true
 
 
 ## Builds everything into `p`. extra: textures by name to use instead of the pack's ("checker").
@@ -254,6 +243,7 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.35)
 	rb.trim = Color(str(room.get("trim", "#5a3a26")))
 	rb._floors()
+	rb._stairs()
 	rb._walls()
 	rb._furniture()
 	rb._stalls()
@@ -268,88 +258,34 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 		var mi := MeshInstance3D.new()
 		mi.mesh = (rb._row_meshers[y] as Mesher).mesh()
 		(rb.rows[y] as Node3D).add_child(mi)
-		rb._row_mi[y] = mi
-		# while the row fades (see fade), this keeps its shadow on the floor
-		var sh := MeshInstance3D.new()
-		sh.mesh = mi.mesh
-		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		sh.visible = false
-		(rb.rows[y] as Node3D).add_child(sh)
-		rb._row_shadow[y] = sh
-	rb._fade_img = Image.create(maxi(rb.w, 1), maxi(rb.h, 1), false, Image.FORMAT_R8)
-	rb._fade_img.fill(Color(1, 0, 0))
-	rb._fade_tex = ImageTexture.create_from_image(rb._fade_img)
-	for t: Vector2i in rb.wall_kind:
-		if not rb._row_tiles.has(t.y):
-			rb._row_tiles[t.y] = []
-		rb._row_tiles[t.y].append(t)
 	return rb
 
 
-# ---------------------------------------------------------------- fading walls
-## In a cone opening from the player towards the camera, a wall ahead of the player is clear, about 70% opaque while
-## they pass through it, and solid once it's behind them. Walls right beside the player, and the low front kerb,
-## stay solid. The cone: CONE_BASE tiles either side at the player, widening by CONE_SLOPE per tile ahead, its edge
-## softened over CONE_SOFT.
+# ---------------------------------------------------------------- fading furniture
+## Tall furniture between the camera and the player fades: clear once it's ahead of them (nearer the camera), solid
+## beside and behind them. The clear part: CONE_BASE tiles either side at the player, widening by CONE_SLOPE per tile
+## ahead, its edge softened over CONE_SOFT.
 const CONE_BASE := 1.1
 const CONE_SLOPE := 0.7
 const CONE_SOFT := 0.6
-const PASSING := 0.7
 const FADE_SPEED := 3.0
-const FADE_SHADER := preload("res://scripts/gfx/wall_fade.gdshader")
 
 
-## How opaque wall tile `t` should be with the player at `p`.
-func fade_target(t: Vector2i, p: Vector3) -> float:
-	if t.y >= h - 1:
-		return 1.0
-	return _cone(absf(t.x + 0.5 - p.x), t.y + 0.5 - p.z, wall_kind[t])
-
-
-## How opaque something `dx` tiles to the side of the player and `dz` ahead of them (towards the camera) should be:
-## kind "h" for a wall you walk through, "v" for one you only ever pass beside (and tall furniture).
-func _cone(dx: float, dz: float, kind: String) -> float:
-	var a := 1.0
-	if kind == "v":
-		# running away from the camera: clear once it's ahead of the player, solid beside them
-		a = clampf(1.0 - (dz - 0.4) / 0.5, 0.0, 1.0)
-	elif dz >= 0.0:
-		# ahead: clear, coming up to PASSING as the player steps into it
-		a = PASSING * clampf(1.0 - dz / 0.8, 0.0, 1.0)
-	else:
-		# passed through: solid again as the player steps clear of it
-		a = lerpf(PASSING, 1.0, clampf(-dz / 0.7, 0.0, 1.0))
+## How opaque something `dx` tiles to the side of the player and `dz` ahead of them (towards the camera) should be.
+func _cone(dx: float, dz: float) -> float:
+	var a := clampf(1.0 - (dz - 0.4) / 0.5, 0.0, 1.0)
 	var half := CONE_BASE + maxf(dz, 0.0) * CONE_SLOPE
 	return lerpf(a, 1.0, clampf((dx - half) / CONE_SOFT, 0.0, 1.0))
 
 
-## Moves every wall tile's opacity towards where the player at `p` wants it (call every frame).
+## Moves each tall piece's opacity towards where the player at `p` wants it (call every frame).
 func fade(p: Vector3, delta: float) -> void:
 	# the first call (on entering) sets them straight away
 	var step := 1.0 if _snap else delta * FADE_SPEED
 	_snap = false
-	var changed := false
-	var touched := {}
-	for t: Vector2i in wall_kind:
-		var target := fade_target(t, p)
-		var a: float = fade_alpha.get(t, 1.0)
-		if a == target:
-			continue
-		a = move_toward(a, target, step)
-		fade_alpha[t] = a
-		_fade_img.set_pixel(t.x, t.y, Color(a, 0, 0))
-		changed = true
-		touched[t.y] = true
-		for gi in _attached.get(t, []):
-			if is_instance_valid(gi):
-				(gi as GeometryInstance3D).transparency = 1.0 - a
-				(gi as GeometryInstance3D).visible = a > 0.02
-	if changed:
-		_fade_tex.update(_fade_img)
-	# tall furniture: clear ahead of the player, solid beside and behind them, like a wall they pass beside
 	for prop: Dictionary in _props:
 		var dx := maxf(0.0, absf(float(prop["x"]) - p.x) - float(prop["half_w"]))
-		var target := _cone(dx, float(prop["z"]) - p.z, "v")
+		var target := _cone(dx, float(prop["z"]) - p.z)
 		var pa: float = prop["a"]
 		if pa == target:
 			continue
@@ -359,58 +295,17 @@ func fade(p: Vector3, delta: float) -> void:
 			if is_instance_valid(gi):
 				(gi as GeometryInstance3D).transparency = 1.0 - pa
 				(gi as GeometryInstance3D).visible = pa > 0.02
-	for y in touched:
-		var fading := false
-		for t in _row_tiles.get(y, []):
-			if fade_alpha.get(t, 1.0) < 0.999:
-				fading = true
-				break
-		if fading != _row_fading.get(y, false):
-			_row_fading[y] = fading
-			_set_row_fading(y, fading)
 
 
-## A row of walls with any tile fading draws with the fade material (the rest of the time, its own, opaque). The fade
-## material is see-through, so casts no shadow: the row's shadow-only twin stands in meanwhile.
-func _set_row_fading(y: int, on: bool) -> void:
-	var mi: MeshInstance3D = _row_mi.get(y)
-	if mi == null or mi.mesh == null:
-		return
-	(_row_shadow[y] as MeshInstance3D).visible = on
-	for si in mi.mesh.get_surface_count():
-		mi.set_surface_override_material(si, _fade_mat(mi.mesh.surface_get_material(si)) if on else null)
-
-
-func _fade_mat(std: Material) -> Material:
-	if _fade_mats.has(std):
-		return _fade_mats[std]
-	var sm := ShaderMaterial.new()
-	sm.shader = FADE_SHADER
-	var bm := std as BaseMaterial3D
-	if bm != null:
-		sm.set_shader_parameter("albedo_tex", bm.albedo_texture)
-		sm.set_shader_parameter("albedo_color", bm.albedo_color)
-		sm.set_shader_parameter("uv_scale", Vector2(bm.uv1_scale.x, bm.uv1_scale.y))
-		sm.set_shader_parameter("roughness_v", bm.roughness)
-	sm.set_shader_parameter("fade_map", _fade_tex)
-	sm.set_shader_parameter("map_size", Vector2(w, h))
-	_fade_mats[std] = sm
-	return sm
-
-
-## Makes a tall piece standing on tiles `lo` .. `lo + size` (with the things on it, `nodes`) fade like the walls.
+## Makes a tall piece standing on tiles `lo` .. `lo + size` (with the things on it, `nodes`) fade (see fade).
 func add_prop(nodes: Array, lo: Vector2i, size: Vector2) -> void:
 	_props.append({"nodes": nodes, "x": lo.x + size.x / 2.0, "z": lo.y + size.y / 2.0, "half_w": size.x / 2.0 - 0.5, "a": 1.0})
 
 
-## Puts `node` on wall tile (x, y): in its row, fading with the tile.
-func _attach(x: int, y: int, node: Node3D) -> void:
+## Puts `node` on wall tile (x, y), in its row.
+func _attach(_x: int, y: int, node: Node3D) -> void:
 	_row(y)
 	(rows[y] as Node3D).add_child(node)
-	var t := Vector2i(x, y)
-	if not _attached.has(t):
-		_attached[t] = []
-	_attached[t].append(node)
 
 
 # ---------------------------------------------------------------- rooms
@@ -462,11 +357,58 @@ func wall_mat(z: String) -> Material:
 	return surface(_pick(z, "wall"), tint if z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE, textures)
 
 
+## Whether (x, y) is part of a stage room's stairwell down: open, with no floor over it.
+func _stairwell_at(x: int, y: int) -> bool:
+	return map.get("stage", false) and code(x, y) == MapGen.STAIRS_DOWN
+
+
+## Whether the point (px, pz) is over a stairwell down: in one of its tiles, or where it reaches on into the walls
+## beside it and at its end (see _stair_fit).
+func _over_well(px: float, pz: float) -> bool:
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var x: int = floori(px) + dx
+			var y: int = floori(pz) + dy
+			if not _stairwell_at(x, y):
+				continue
+			var run := _stair_run(x, y)
+			var fit := _stair_fit(x, y, run)
+			var d := Vector3(px - x - 0.5, 0, pz - y - 0.5)
+			var across := d.dot(run[3])
+			var up := d.dot(run[2])
+			if across > float(fit[0]) and across < float(fit[1]) and up > -0.5 and up < 0.5 + float(fit[2]):
+				return true
+	return false
+
+
 func _floors() -> void:
+	var edge := surface("cut", Color("#2a221e"))
 	for y in h:
 		for x in w:
 			var c := code(x, y)
 			if c in [MapGen.RING, MapGen.LAVA, MapGen.IVOID]:
+				continue
+			if y == h - 1:
+				# the open front: the floor stops half way across the row, in a dark edge (under the end of a side
+				# wall, only on the room's side of it)
+				var z0 := zone(x, y) if not c in WALLISH else zone(x, y - 1)
+				var x0 := 0.0
+				var x1 := 1.0
+				if z0 == "" and c in WALLISH:
+					if zone(x + 1, y - 1) != "":
+						z0 = zone(x + 1, y - 1)
+						x0 = 0.5
+					elif zone(x - 1, y - 1) != "":
+						z0 = zone(x - 1, y - 1)
+						x1 = 0.5
+				if z0 == "":
+					continue
+				_floor_quad(x, y, x0, 0.0, x1 - x0, 0.5, z0)
+				floor_mesher.quad("edge", edge, [Vector3(x + x0, 0, y + 0.5), Vector3(x + x1, 0, y + 0.5), Vector3(x + x1, -EDGE, y + 0.5),
+					Vector3(x + x0, -EDGE, y + 0.5)], Vector3.BACK, Vector3.RIGHT, Vector3.DOWN)
+				continue
+			if _stairwell_at(x, y):
+				# a hole in the floor: the stairs down go down into it (see world.gd _stairwell)
 				continue
 			if not c in WALLISH:
 				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y))
@@ -478,8 +420,11 @@ func _floors() -> void:
 					if zz != "":
 						_floor_tri(side[0], zz)
 				continue
-			# under a wall: each quarter takes the floor of the room beside it
+			# under a wall: each quarter takes the floor of the room beside it (none where a stairwell runs on up to
+			# the wall)
 			for q in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+				if _over_well(x + 0.5 + q.x * 0.25, y + 0.5 + q.y * 0.25):
+					continue
 				if code(x + q.x, y + q.y) in DIAGS and _diag_joins(x + q.x, y + q.y, x, y):
 					# a diagonal wall carries on from this tile's centre to its corner: the quarter is cut in two
 					var c0 := Vector3(x + 0.5, 0, y + 0.5)
@@ -561,16 +506,18 @@ func _walls() -> void:
 			var c := code(x, y)
 			if not c in WALLISH:
 				continue
-			var top := FRONT_H if y == h - 1 else H
+			if y == h - 1:
+				# no front wall: only the walls running back from it come on, to the floor's front edge
+				if wallish(x, y - 1) and not c in DIAGS:
+					_bars(x, y, 0.0, H, false, true, false, false, true, false)
+				continue
+			var top := H
 			var e := wallish(x + 1, y)
 			var wv := wallish(x - 1, y)
 			var n := wallish(x, y - 1)
 			var s := wallish(x, y + 1)
 			var horiz := e or wv or (not n and not s)
 			var vert := n or s
-			# everything built for this tile from here on fades with it
-			_row(y).tile = Vector2(x + 0.5, y + 0.5)
-			wall_kind[Vector2i(x, y)] = "v" if vert and not horiz and not c in DIAGS else "h"
 			if c in DIAGS:
 				# corner to corner across the tile, each face finished like the room it faces
 				var sides := _diag_sides(x, y)
@@ -699,15 +646,15 @@ func _skirting(m: Mesher, a: Vector3, b: Vector3, nrm: Vector3) -> void:
 	m.quad("skirting", mat, [a + off, b + off, b + off + Vector3(0, 0.11, 0), a + off + Vector3(0, 0.11, 0)], nrm, along, Vector3.DOWN)
 
 
-## A doorway: a wooden frame round the opening on both faces; a locked door shows its door, closed.
+## A doorway: a wooden frame round the opening on both faces. An opening between parts of a room is just that; a door
+## that leads out of the room (see map_loader.gd _interior) is painted blue, and a locked one red, so you can tell at a
+## glance which doors open. The front door, out to the street, is glazed, with a bright window over it.
 func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 	var m := _row(y)
 	var cx := x + 0.5
 	var cz := y + 0.5
 	var fr := surface("frame", trim)
-	var top := minf(DOOR_H, FRONT_H if y == h - 1 else DOOR_H)
-	if y == h - 1:
-		return
+	var top := DOOR_H
 	var along := Vector3.RIGHT if horiz else Vector3.BACK
 	var across := Vector3.BACK if horiz else Vector3.RIGHT
 	var c := Vector3(cx, 0, cz)
@@ -715,21 +662,15 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 		# the jambs (as deep as the wall, a little proud of it) and the head
 		m.box("frame", fr, c + along * side * 0.46 + Vector3(0, top / 2.0, 0), _axes(along, 0.09, top + 0.0, T + 0.06, horiz))
 	m.box("frame", fr, c + Vector3(0, top + 0.05, 0), _axes(along, 1.0, 0.1, T + 0.06, horiz))
+	var ex: Dictionary = map.get("exits", {}).get(Vector2i(x, y), {})
+	if not ex.is_empty() or locked:
+		var front := not ex.is_empty() and not String(ex["to"]).contains("#")
+		_door_leaf(m, c, horiz, DOOR_LOCKED if locked else DOOR_OPENS, front)
+		if front:
+			# the window over the front door, bright with the day outside
+			m.box("door_glass", _glass(), c + Vector3(0, top + 0.27, 0), _axes(along, 0.66, 0.26, T + 0.03, horiz))
+			m.box("frame", fr, c + Vector3(0, top + 0.42, 0), _axes(along, 0.78, 0.05, T + 0.05, horiz))
 	if locked:
-		var door := MeshInstance3D.new()
-		# white panelled doors at home, glazed wooden ones in shops and back rooms
-		var homely := false
-		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			if zone(x + d.x, y + d.y) in ["living", "bedroom", "bathroom", "kitchen"]:
-				homely = true
-		var dn := "door_1" if homely and not map.get("staff_doors", {}).has(Vector2i(x, y)) else "door_3"
-		door.mesh = piece(dn)
-		if door.mesh != null:
-			var bb := door.mesh.get_aabb()
-			door.scale = Vector3(0.84 / bb.size.x, (top - 0.02) / bb.size.y, 1.0)
-			door.position = c
-			door.rotation.y = 0.0 if horiz else PI / 2.0
-			_attach(x, y, door)
 		if map.get("staff_doors", {}).has(Vector2i(x, y)):
 			# a small brass plate: STAFF ONLY
 			for side in [-1.0, 1.0]:
@@ -739,17 +680,48 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 				lab.pixel_size = 0.006
 				lab.modulate = Color("#2a1a10")
 				lab.outline_size = 0
-				lab.position = c + Vector3(0, 1.45, 0) + across * side * 0.12
+				lab.position = c + Vector3(0, 1.45, 0) + across * side * 0.082
 				lab.rotation.y = (0.0 if horiz else PI / 2.0) + (0.0 if side > 0.0 else PI)
 				var plate := MeshInstance3D.new()
 				var pm := BoxMesh.new()
 				pm.size = Vector3(0.5, 0.14, 0.02)
 				plate.mesh = pm
 				plate.material_override = surface("brass", Color("#d8b050"))
-				plate.position = c + Vector3(0, 1.45, 0) + across * side * 0.11
+				plate.position = c + Vector3(0, 1.45, 0) + across * side * 0.07
 				plate.rotation.y = lab.rotation.y
 				_attach(x, y, plate)
 				_attach(x, y, lab)
+
+
+## A door, closed in its doorway: a painted leaf with two raised panels and a brass knob on each face. A front door
+## has a pane of glass in its upper half instead of a panel.
+func _door_leaf(m: Mesher, c: Vector3, horiz: bool, col: Color, glazed: bool) -> void:
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var across := Vector3.BACK if horiz else Vector3.RIGHT
+	var leaf := surface("door_paint", col)
+	var panel := surface("door_paint", col.lightened(0.16))
+	var brass := surface("brass", Color("#d8b050"))
+	var key := "door_" + col.to_html(false)
+	var hgt := DOOR_H - 0.03
+	m.box(key, leaf, c + Vector3(0, hgt / 2.0, 0), _axes(along, 0.82, hgt, 0.07, horiz))
+	for side in [-1.0, 1.0]:
+		var face: Vector3 = across * side * 0.042
+		m.box(key + "_panel", panel, c + face + Vector3(0, 0.52, 0), _axes(along, 0.56, 0.64, 0.02, horiz))
+		if glazed:
+			m.box("door_glass", _glass(), c + face + Vector3(0, 1.36, 0), _axes(along, 0.5, 0.62, 0.02, horiz))
+		else:
+			m.box(key + "_panel", panel, c + face + Vector3(0, 1.36, 0), _axes(along, 0.56, 0.68, 0.02, horiz))
+		m.box("brass", brass, c + across * side * 0.06 + along * 0.29 + Vector3(0, 0.98, 0), Vector3(0.08, 0.08, 0.08))
+
+
+## The glass of a front door and the window over it: pale, and lit as if by the day outside.
+func _glass() -> StandardMaterial3D:
+	var g := surface("door_glass", Color("#dff0ff"))
+	if not g.emission_enabled:
+		g.emission_enabled = true
+		g.emission = Color("#fff4d8")
+		g.emission_energy_multiplier = 0.8
+	return g
 
 
 ## A box's size given its length along `along`, height, and depth across.
@@ -797,9 +769,174 @@ func _window(x: int, y: int, horiz: bool) -> void:
 			cur.position = c + Vector3(0, WIN_TOP + 0.25 - cb.size.y, 0) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.08)
 			cur.rotation.y = yaw
 			_attach(x, y, cur)
-	# a radiator under the sill, now and then
-	if z in ["living", "bedroom", "office", "hall"] and rng.randf() < 0.6:
+	# a radiator under the sill, now and then (not over stairs)
+	var below := code(x + inside.x, y + inside.y)
+	if z in ["living", "bedroom", "office", "hall"] and not below in [MapGen.STAIRS_UP, MapGen.STAIRS_DOWN] \
+			and rng.randf() < 0.6:
 		_hang("radiator", x, y, inside, 0.12, 0.0)
+
+
+# ---------------------------------------------------------------- stairs
+## A house's stairs (a stage room's; a dungeon's are world.gd's stone steps): a flight up (>) or a stairwell down (<)
+## along a row of three tiles, four steps to a tile, flush with the walls beside it. A flight up climbs to the top of
+## the wall, towards the end that meets one: its treads and risers in the room's floor, its side in the room's wall
+## finish, a handrail up its open side. A stairwell down is a hole in the floor (see _floors) with the flight going
+## down in it from the top step, where you go in, and a rail along its open side and round its far end.
+func _stairs() -> void:
+	if not map.get("stage", false):
+		return
+	for y in h:
+		for x in w:
+			if code(x, y) == MapGen.STAIRS_UP:
+				_flight(x, y)
+			elif code(x, y) == MapGen.STAIRS_DOWN:
+				_well(x, y)
+
+
+## The flight that tile (x, y) is part of: [this tile's place along it counted from its foot, how many tiles long it
+## is, the way it climbs (a unit step), the way across it]. It climbs towards the end that meets a wall (with none, the
+## end further along the row or column).
+func _stair_run(x: int, y: int) -> Array:
+	var c := code(x, y)
+	var along := Vector2i(1, 0) if code(x - 1, y) == c or code(x + 1, y) == c else Vector2i(0, 1)
+	var a := Vector2i(x, y)
+	while code(a.x - along.x, a.y - along.y) == c:
+		a -= along
+	var n := 1
+	while code(a.x + along.x * n, a.y + along.y * n) == c:
+		n += 1
+	var b: Vector2i = a + along * (n - 1)
+	var up := along
+	if not wallish(b.x + along.x, b.y + along.y) and wallish(a.x - along.x, a.y - along.y):
+		up = -along
+	var i: int = (x - a.x) + (y - a.y)
+	return [i if up == along else n - 1 - i, n, Vector3(up.x, 0, up.y), Vector3(absf(up.y), 0, absf(up.x))]
+
+
+## How a tile of a flight meets the walls round it: [where it starts and ends across the flight (from the tile's
+## middle, along its `side`), how far its top end reaches on past the tile]. Against a wall it runs right up to the
+## wall's face.
+func _stair_fit(x: int, y: int, run: Array) -> Array:
+	var rise: Vector3 = run[2]
+	var side: Vector3 = run[3]
+	var reach := 0.5 - T / 2.0
+	var sd := Vector2i(int(side.x), int(side.z))
+	var u := Vector2i(int(rise.x), int(rise.z))
+	var a0 := -0.5 - (reach if wallish(x - sd.x, y - sd.y) else 0.0)
+	var a1 := 0.5 + (reach if wallish(x + sd.x, y + sd.y) else 0.0)
+	var top := reach if int(run[0]) == int(run[1]) - 1 and wallish(x + u.x, y + u.y) else 0.0
+	return [a0, a1, top]
+
+
+func _flight(x: int, y: int) -> void:
+	var run := _stair_run(x, y)
+	var place: int = run[0]
+	var n: int = run[1]
+	var rise: Vector3 = run[2]
+	var side: Vector3 = run[3]
+	var fit := _stair_fit(x, y, run)
+	var a0: float = fit[0]
+	var a1: float = fit[1]
+	var mid := side * (a0 + a1) / 2.0
+	var wide := side * (a1 - a0)
+	var z := zone(x, y)
+	var tread := floor_mat(z)
+	var body := wall_mat(z)
+	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var step_h := H / float(n * 4)
+	for j in 4:
+		var sy := (place * 4 + j + 1) * step_h
+		# the top step runs on to the wall it climbs into
+		var deep := 0.25 + (float(fit[2]) if j == 3 else 0.0)
+		var at := c + mid + rise * (-0.5 + deep / 2.0 + j * 0.25)
+		floor_mesher.box("stair_" + z, body, at + Vector3(0, (sy - 0.03) / 2.0, 0), wide + rise.abs() * deep + Vector3(0, sy - 0.03, 0))
+		floor_mesher.box("floor_" + z, tread, at + Vector3(0, sy - 0.015, 0), wide + rise.abs() * (deep + 0.02) + Vector3(0, 0.03, 0))
+		floor_mesher.box("floor_" + z, tread, c + mid + rise * (-0.5 + j * 0.25 - 0.005) + Vector3(0, sy - step_h / 2.0, 0),
+			wide + rise.abs() * 0.01 + Vector3(0, step_h, 0))
+	if place != 0:
+		return
+	# the handrail up the open side, from a newel post at the foot until it meets the top of the wall
+	var open := (a1 - 0.05) if a0 < -0.5 else (a0 + 0.05)
+	var wood := surface("frame", trim)
+	var foot := c + side * open - rise * 0.45
+	var slope := H / float(n)
+	var last := (H - 0.95) / slope
+	floor_mesher.box("frame", wood, foot + Vector3(0, 0.55, 0), Vector3(0.1, 1.1, 0.1))
+	_beam("frame", wood, foot + Vector3(0, 1.05, 0), foot + rise * last + Vector3(0, last * slope + 0.95, 0), 0.035)
+	var t := 0.25
+	while t < last:
+		var floor_y: float = (floorf(t / 0.25) + 1.0) * step_h
+		floor_mesher.box("frame", wood, foot + rise * t + Vector3(0, (floor_y + t * slope + 0.95) / 2.0, 0),
+			Vector3(0.04, t * slope + 0.95 - floor_y, 0.04))
+		t += 0.25
+
+
+func _well(x: int, y: int) -> void:
+	var run := _stair_run(x, y)
+	var place: int = run[0]
+	var n: int = run[1]
+	var rise: Vector3 = run[2]
+	var side: Vector3 = run[3]
+	var fit := _stair_fit(x, y, run)
+	var a0: float = fit[0]
+	var a1: float = fit[1]
+	var mid := side * (a0 + a1) / 2.0
+	var wide := side * (a1 - a0)
+	var top: float = fit[2]
+	var z := zone(x, y)
+	var tread := floor_mat(z)
+	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var bottom := -H - 0.2
+	for j in 4:
+		# counted from the top step down; darker the deeper
+		var s := (n - 1 - place) * 4 + (3 - j)
+		var ty := -(s + 1) * H / float(n * 4)
+		var shade := clampf(1.0 - float(s) / float(n * 4) * 1.3, 0.12, 1.0)
+		var deep := 0.25 + (top if j == 3 else 0.0)
+		var at := c + mid + rise * (-0.5 + deep / 2.0 + j * 0.25)
+		floor_mesher.box("floor_" + z, tread, at + Vector3(0, (ty + bottom) / 2.0, 0), wide + rise.abs() * deep + Vector3(0, ty - bottom, 0), shade)
+	# the wall it runs along, carried on down, and its far end (vertex shades are linear: 0.2 shows at about half)
+	var back := a0 if a0 < -0.5 else a1
+	floor_mesher.box("stair_" + z, wall_mat(z), c + side * back + rise * (top / 2.0) + Vector3(0, bottom / 2.0, 0),
+		rise.abs() * (1.0 + top) + side * 0.04 + Vector3(0, -bottom, 0), 0.2)
+	if place == 0:
+		floor_mesher.box("stair_" + z, wall_mat(z), c + mid - rise * 0.5 + Vector3(0, bottom / 2.0, 0),
+			wide + rise.abs() * 0.04 + Vector3(0, -bottom, 0), 0.16)
+	if place == n - 1:
+		# the riser from the landing (or the wall) down to the top step
+		var step := H / float(n * 4)
+		floor_mesher.box("floor_" + z if top == 0.0 else "stair_" + z, tread if top == 0.0 else wall_mat(z),
+			c + mid + rise * (0.5 + top - 0.01) + Vector3(0, -step / 2.0, 0), wide + rise.abs() * 0.02 + Vector3(0, step, 0))
+	# the rail: along the side towards the room, open at the top step, and round the far end, with a baluster every
+	# eighth of a tile so it shows against the floor
+	var wood := surface("frame", trim)
+	var open := (a1 - 0.03) if a0 < -0.5 else (a0 + 0.03)
+	if place == n - 1:
+		floor_mesher.box("frame", wood, c + side * open - rise * 0.47 + Vector3(0, 0.5, 0), Vector3(0.08, 1.0, 0.08))
+		return
+	floor_mesher.box("frame", wood, c + side * open + Vector3(0, 0.85, 0), rise.abs() + side * 0.06 + Vector3(0, 0.06, 0))
+	floor_mesher.box("frame", wood, c + side * open - rise * 0.45 + Vector3(0, 0.42, 0), Vector3(0.07, 0.85, 0.07))
+	for k in range(1, 8):
+		floor_mesher.box("frame", wood, c + side * open + rise * (-0.45 + k * 0.125) + Vector3(0, 0.41, 0), Vector3(0.04, 0.82, 0.04))
+	if place == 0:
+		var far := c - rise * 0.47
+		var other := a0 + a1 - open
+		floor_mesher.box("frame", wood, far + mid + Vector3(0, 0.85, 0), wide + rise.abs() * 0.06 + Vector3(0, 0.06, 0))
+		floor_mesher.box("frame", wood, far + side * other + Vector3(0, 0.42, 0), Vector3(0.07, 0.85, 0.07))
+		var gaps := maxi(roundi(absf(other - open) / 0.125), 1)
+		for k in range(1, gaps):
+			floor_mesher.box("frame", wood, far + side * lerpf(open, other, float(k) / gaps) + Vector3(0, 0.41, 0), Vector3(0.04, 0.82, 0.04))
+
+
+## A square bar `r` thick each way from its middle, running from `a` to `b` at any slope (a handrail).
+func _beam(key: String, mat: Material, a: Vector3, b: Vector3, r: float) -> void:
+	var dir := (b - a).normalized()
+	var u := dir.cross(Vector3.UP).normalized() * r
+	var v := u.cross(dir).normalized() * r
+	for f in [[u, v], [v, -u], [-u, -v], [-v, u]]:
+		var p: Vector3 = f[0]
+		var q: Vector3 = f[1]
+		floor_mesher.quad(key, mat, [a + p - q, b + p - q, b + p + q, a + p + q], p.normalized(), dir, q.normalized())
 
 
 # ---------------------------------------------------------------- furniture
@@ -943,6 +1080,9 @@ func _place(kind: String, group: Array) -> void:
 			t.position = pos + Basis(Vector3.UP, yaw) * off + Vector3(0, top_y, 0)
 			t.rotation.y = yaw + (rng.randf_range(-0.6, 0.6) if not k.get("always_top", false) else 0.0)
 			parent.add_child(t)
+			if kind == "phone":
+				# it shakes when it rings
+				t.add_to_group("phones")
 			pieces.append(t)
 	if k.has("with"):
 		var t2 := MeshInstance3D.new()
@@ -1206,7 +1346,7 @@ func _hang(name: String, x: int, y: int, inside: Vector2i, up: float, side: floa
 	c += Basis(Vector3.UP, yaw) * Vector3(side, 0, 0)
 	mi.position = c
 	mi.rotation.y = yaw
-	if wall_kind.has(Vector2i(x, y)):
+	if wallish(x, y):
 		_attach(x, y, mi)
 	else:
 		parent.add_child(mi)
@@ -1232,7 +1372,8 @@ func _wall_decor() -> void:
 					continue
 				var front_kind: String = furn.get(r, "")
 				var c := code(r.x, r.y)
-				if c in [MapGen.SHELF, MapGen.BOOKSHELF, MapGen.BOARD, MapGen.TERMINAL, MapGen.HEALER, MapGen.FIREPLACE, MapGen.COUNTER] \
+				if c in [MapGen.SHELF, MapGen.BOOKSHELF, MapGen.BOARD, MapGen.TERMINAL, MapGen.HEALER, MapGen.FIREPLACE, MapGen.COUNTER,
+						MapGen.STAIRS_UP, MapGen.STAIRS_DOWN] \
 						or front_kind in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "coat_stand", "bunk"]:
 					continue
 				# never two things side by side
@@ -1284,6 +1425,22 @@ func _mats_at_doors() -> void:
 				mi.scale = Vector3(minf(1.6, n * 0.8) / bb.size.x, 1.0, 0.55 / bb.size.z)
 				mi.position = Vector3(x + n / 2.0, 0.012, y - 0.2)
 				parent.add_child(mi)
+	# a front door in a side wall: its mat lies on the floor just inside, along the wall
+	for t: Vector2i in map.get("front_doors", []):
+		var mi2 := MeshInstance3D.new()
+		mi2.mesh = piece("doormat")
+		if mi2.mesh == null:
+			continue
+		var into := Vector2i(0, 1)
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1)]:
+			if not wallish(t.x + d.x, t.y + d.y) and code(t.x + d.x, t.y + d.y) != MapGen.IVOID:
+				into = d
+				break
+		var bb2 := mi2.mesh.get_aabb()
+		mi2.scale = Vector3(0.8 / bb2.size.x, 1.0, 0.55 / bb2.size.z)
+		mi2.rotation.y = atan2(float(into.x), float(into.y))
+		mi2.position = Vector3(t.x + 0.5, 0.012, t.y + 0.5) + Vector3(into.x, 0, into.y) * 0.62
+		parent.add_child(mi2)
 
 
 # ---------------------------------------------------------------- lights

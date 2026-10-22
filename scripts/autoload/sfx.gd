@@ -76,6 +76,8 @@ const SOUNDS := {
 	"door_close": [["res://sfx/05_Environment/Environment_DoorClose_001.mp3"], -11.0],
 	# made by tools/make_sfx.py: three raps on a locked front door
 	"knock": [["res://sfx/Custom/Door_Knock.wav"], -6.0],
+	# made by tools/make_sfx.py: an old bell telephone ringing (calling Dad saves the game)
+	"phone_ring": [["res://sfx/Custom/Phone_Ring.wav"], -9.0],
 	"buy": [["res://sfx/04_Pickups_Items/Pickups_Items_Coin_001.mp3", "res://sfx/Coin/Pickup_Coin.wav"], -10.0],
 	"item": [["res://sfx/04_Pickups_Items/Pickups_Items_TreasureChest_001.mp3"], -9.0],
 	"shard": [["res://sfx/04_Pickups_Items/Pickups_Items_Gem_001.mp3"], -8.0],

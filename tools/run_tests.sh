@@ -25,6 +25,7 @@ TESTS=(
 	"coaches|-- --scene=coaches --wait=0.3|coaches DONE: 0 problem"
 	"mascot|-- --scene=mascot --wait=0.3|MASCOT TEST DONE: 0 problem"
 	"maps-built|-- --scene=maps --wait=0.3|MAP TOUR DONE"
+	"phone|-- --scene=phone --wait=0.3|PHONE TEST DONE: 0 problem"
 	"temple-water|-- --scene=guardian --temple=water --wait=0.3|GUARDIAN water: captured true"
 	"temple-air|-- --scene=guardian --temple=air --wait=0.3|GUARDIAN air: captured true"
 	"temple-fire|-- --scene=guardian --temple=fire --wait=0.3|GUARDIAN fire: captured true"

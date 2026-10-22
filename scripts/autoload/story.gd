@@ -25,6 +25,7 @@ const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
+const Phone = preload("res://scripts/world/phone.gd")
 
 const ELDER_LOOK := {"skin": "#e8c0a0", "hair": "#e8e8e8", "shirt": "#6a4a8a", "pants": "#3a2a4a", "outfit": "robe"}
 const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "pants": "#3a3a2a", "hat": "#6a5a3a"}
@@ -367,6 +368,15 @@ func _lessons_done() -> bool:
 func can_use_exit(world, ex: Dictionary) -> bool:
 	if not world.interior:
 		return true
+	# the first time you go to leave home, the phone rings: Dad, calling from work (answer it, and the game's saved)
+	if world.map["building"].get("shop", "") == "home" and not GameState.flag("called_dad") and not String(ex["to"]).contains("#"):
+		if world.get_node_or_null("Ringer") != null:
+			await UI.say(["The phone's still ringing, sweetie! Go on, answer it."], "Mom")
+			return false
+		Phone.ring(world)
+		await UI.say(["Ring-ring! Ring-ring!"])
+		await UI.say(["Oh! The phone! Could you get that, sweetie? It's probably your father, calling from work."], "Mom")
+		return false
 	var key: String = world.map.get("room_key", "")
 	var going_up := String(ex["to"]).contains("@") and int(String(ex["to"]).get_slice("@", 1)) > int(world.map.get("floor_num", 1))
 	if not going_up:
@@ -898,6 +908,9 @@ func _talk_story(world, n: Dictionary) -> void:
 					"The ferry to the Isle of Tides leaves from the long pier. The islanders are funny about their fish.",
 					"Your father always said: a quick tune beats a perfect one played too late. Then he'd play it perfectly AND quickly. Show-off."][randi() % 3]], "Uncle Rafe")
 		"mom":
+			if world.get_node_or_null("Ringer") != null:
+				await UI.say(["Quick, the phone! It's ringing!"], "Mom")
+				return
 			GameState.heal_party()
 			Sfx.play("heal")
 			if GameState.flag("game_cleared"):
@@ -924,7 +937,7 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _blocker(world, n)
 		"center_guide":
 			await UI.say(["Hi, sugar! Welcome to the Beast Center. Every one in the land is built just like this one, so you'll never get lost.",
-				"Each machine has its own bay along the back wall. That big soda can in the corner? The healing machine. Slot your beasts in and they come out good as new. Free, any time!",
+				"Each machine has its own bay along the back wall. That tall glass chamber in the corner? The healing machine. Pop your beasts in and they come out good as new. Free, any time!",
 				"Next to it is the storage terminal, then Nurse Clover's counter. She hatches eggs in the incubator beside her.",
 				"The glowing altar on the end merges two beasts that have hit their level limit into one stronger beast. Very fancy. Very sparkly.",
 				"And through the side door is the kennel. Pip finds homes for beasts other trainers couldn't keep. You can adopt one, or leave one of yours.",

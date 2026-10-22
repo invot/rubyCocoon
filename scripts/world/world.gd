@@ -17,6 +17,7 @@ const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
+const Phone = preload("res://scripts/world/phone.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
@@ -77,8 +78,10 @@ var spinners: Array = []
 ## the rippling fishing spots: [ring nodes, phase] (see _build_ripples)
 var ripples: Array = []
 var bobbers: Array = []
-## Beast Center machines: "healer" / "incubator" -> {"node", "window", "slots", "dome", "pos"}
+## Beast Center machines: "healer" / "incubator" -> {"node", "glass", "slots", "light", "dome", "egg"}
 var machines := {}
+## the healing chamber's glow
+const HEAL_GLOW := Color("#7affd0")
 var _time := 0.0
 var _demo_t := 0.0
 
@@ -104,6 +107,7 @@ func build(id: String) -> void:
 		if map["kind"] == "town":
 			_build_street_props()
 		_build_statue()
+		_build_payphone()
 		_build_obstacles()
 		_build_pushables()
 		_build_ripples()
@@ -139,6 +143,9 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 			facing = Vector2i(0, 1)
 		_:
 			facing = GameState.facing if typeof(key) == TYPE_VECTOR2I else Vector2i(0, 1)
+	# through a door in a stage room's side wall: facing into the room
+	if map.get("spawn_face", {}).has(str(key)):
+		facing = map["spawn_face"][str(key)]
 	if face != Vector2i.ZERO:
 		facing = face
 	# (a game saved while walking eight ways may still face a diagonal)
@@ -1055,6 +1062,21 @@ func _decor_building(b: Dictionary, style: String) -> Node3D:
 const STATUE_METALS := {"bronze": Color("#b8783e"), "silver": Color("#c8ccd6"), "gold": Color("#e0b040")}
 
 
+## The town's red payphone by the square (map "payphone", see map_loader.gd _add_payphone), facing the camera so its
+## red face is what you see.
+func _build_payphone() -> void:
+	if not map.has("payphone"):
+		return
+	var mesh: Mesh = load("res://assets/psx/exterior/payphone.res")
+	if mesh == null:
+		push_warning("model missing: res://assets/psx/exterior/payphone.res")
+		return
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = tile_pos(map["payphone"])
+	add_child(mi)
+
+
 func _build_statue() -> void:
 	var st: Dictionary = map["statue"]
 	if st.is_empty():
@@ -1510,18 +1532,37 @@ func _place_camera(instant := false) -> void:
 	var h: float = map["h"]
 	var t := cam_target
 	if interior:
-		# follows the player round the room, but stops short of showing much beyond its walls
-		t.x = w / 2.0 if w <= 11.0 else clampf(t.x, 5.5, w - 5.5)
-		t.z = h / 2.0 if h <= 7.0 else clampf(t.z, 3.0, h - 2.0)
-		var want_r := t + CAM_OFFSET_ROOM
+		# a stage room stands still, all of it in view; elsewhere the camera follows the player round the room, but
+		# stops short of showing much beyond its walls
+		var still_w := 13.0 if map.get("stage", false) else 11.0
+		var still_h := 8.0 if map.get("stage", false) else 7.0
+		t.x = w / 2.0 if w <= still_w else clampf(t.x, 5.5, w - 5.5)
+		t.z = h / 2.0 if h <= still_h else clampf(t.z, 3.0, h - 2.0)
+		var off := CAM_OFFSET_ROOM
+		if map.get("stage", false) and w <= still_w:
+			off *= _stage_pull(w, h, t)
+		var want_r := t + off
 		cam.position = want_r if instant else cam.position.lerp(want_r, 0.15)
-		cam.look_at(cam.position - CAM_OFFSET_ROOM + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
+		cam.look_at(cam.position - off + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
 		return
 	t.x = clampf(t.x, 7.0, maxf(7.0, w - 7.0))
 	t.z = clampf(t.z, 4.0, maxf(4.0, h - 2.5))
 	var want := t + CAM_OFFSET
 	cam.position = want if instant else cam.position.lerp(want, 0.12)
 	cam.look_at(cam.position - CAM_OFFSET + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
+
+
+## How much further back than usual the camera stands so a stage room's whole width, both side walls and their doors,
+## fits across the screen (at its front edge, the widest part in view), whatever the screen's shape.
+func _stage_pull(w: float, h: float, t: Vector3) -> float:
+	var size := get_viewport().get_visible_rect().size
+	var aspect := size.x / maxf(size.y, 1.0)
+	var half := tan(deg_to_rad(cam.fov / 2.0)) * aspect
+	var dir := -CAM_OFFSET_ROOM.normalized()
+	# the front edge's distance along the view, from the target: negative, it's nearer the camera
+	var front := (Vector3(t.x, 0.0, h - 0.5) - t).dot(dir)
+	var need := (w + 1.2) / 2.0 / half - front
+	return maxf(1.0, need / CAM_OFFSET_ROOM.length())
 
 
 # ================================================================ movement
@@ -1812,6 +1853,8 @@ func _interact() -> void:
 		await _talk(n2)
 	elif map["signs"].has(t):
 		await UI.say([map["signs"][t]])
+	elif map.get("payphone", Vector2i(-1, -1)) == t:
+		await Phone.call_home(self, Phone.FEE)
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.STATUE:
 		var race: int = map["statue"]["race"]
 		var lines := ["A %s statue of %s, guardian of %s." % [WorldDB.statue_metal(map_id), RaceDB.race_name(race), map["name"]],
@@ -2941,11 +2984,11 @@ func _flat_mat(col: Color, glow := 0.0, metal := 0.0, rough := 0.8) -> StandardM
 	return m
 
 
-## The healing machine: a giant voxel soda can with a black glass window and a row of beast slots.
 # ---------------------------------------------------------------- the kennel
 ## Pen tiles in reading order (pen i shows beast i of the town's kennel) and the beasts standing in them.
 var kennel_pens: Array = []
-## The room's walls (room_builder.gd): the ones between the camera and the player fade out of the way (see its fade).
+## The room's walls and furniture (room_builder.gd): tall furniture between the camera and the player fades out of the
+## way (see its fade).
 var room_walls = null
 var _kennel_nodes: Array = []
 
@@ -2974,62 +3017,42 @@ func refresh_kennel() -> void:
 		_kennel_nodes.append(node)
 
 
+## The healing machine: a stasis chamber (tools/import_psx_stasis.gd) whose glass glows while it heals, with a little
+## lamp per party beast round its foot.
 func _build_healer(center: Vector3) -> void:
 	var root := Node3D.new()
-	root.position = center
+	# (nudged off the back wall: the chamber is a touch deeper than its tile)
+	root.position = center + Vector3(0, 0, 0.04)
 	add_child(root)
-	var k := VBld.Kit.new()
-	var red := Color("#d8283a")
-	var white := Color("#f4f4f4")
-	var silver := Color("#c8ccd4")
-	# a voxel cylinder: columns of a 0.1-unit grid inside a circle
-	var r := 0.42
-	for gx in range(-4, 5):
-		for gz in range(-4, 5):
-			var p := Vector2(gx * 0.1, gz * 0.1)
-			if p.length() > r:
-				continue
-			var cx := p.x
-			var cz := p.y
-			k.box("color", Vector3(cx, 0.06, cz), Vector3(0.1, 0.12, 0.1), silver)
-			k.box("color", Vector3(cx, 0.5, cz), Vector3(0.1, 0.76, 0.1), red)
-			# the white swoosh round the middle
-			var band := 0.92 + sin(atan2(cz, cx) * 2.0) * 0.06
-			k.box("color", Vector3(cx, band, cz), Vector3(0.1, 0.1, 0.1), white)
-			k.box("color", Vector3(cx, 1.3, cz), Vector3(0.1, 0.62, 0.1), red)
-			k.box("color", Vector3(cx, 1.66, cz), Vector3(0.1, 0.1, 0.1), silver)
-	k.box("color", Vector3(0, 1.74, 0.0), Vector3(0.36, 0.06, 0.36), silver)
-	k.box("color", Vector3(0.0, 1.79, 0.1), Vector3(0.16, 0.04, 0.08), silver.darkened(0.2))
 	var body := MeshInstance3D.new()
-	body.mesh = k.mesh()
+	body.mesh = RoomBuilder.piece("stasis_chamber")
 	root.add_child(body)
-	# the black glass window (glows while healing)
-	var win := MeshInstance3D.new()
-	var wb := BoxMesh.new()
-	wb.size = Vector3(0.5, 0.5, 0.06)
-	win.mesh = wb
-	var wm := _flat_mat(Color("#0c0c12"), 0.0, 0.6, 0.1)
-	win.material_override = wm
-	win.position = Vector3(0, 1.28, r + 0.03)
-	root.add_child(win)
-	# one slot per party beast
+	# the glass gets a material of its own, to light up
+	var glass: StandardMaterial3D = null
+	if body.mesh != null:
+		var gi: int = (body.mesh as ArrayMesh).surface_find_by_name("glass")
+		glass = body.mesh.surface_get_material(gi).duplicate()
+		body.set_surface_override_material(gi, glass)
+	# the lamps, set into the dark band round the foot (0.44 out from the middle)
 	var slots := []
 	for i in 6:
 		var s := MeshInstance3D.new()
 		var sb := BoxMesh.new()
-		sb.size = Vector3(0.09, 0.05, 0.05)
+		sb.size = Vector3(0.065, 0.05, 0.03)
 		s.mesh = sb
 		s.material_override = _flat_mat(Color("#1a1a1e"))
-		s.position = Vector3(-0.23 + i * 0.092, 0.72, r + 0.03)
+		var a := (i - 2.5) * 0.15
+		s.position = Vector3(sin(a) * 0.445, 0.215, cos(a) * 0.445)
+		s.rotation.y = a
 		root.add_child(s)
 		slots.append(s)
 	var l := OmniLight3D.new()
-	l.light_color = Color("#7affd0")
+	l.light_color = HEAL_GLOW
 	l.light_energy = 0.0
 	l.omni_range = 2.5
-	l.position = Vector3(0, 1.3, 0.7)
+	l.position = Vector3(0, 0.9, 0.8)
 	root.add_child(l)
-	machines["healer"] = {"node": root, "window": win, "slots": slots, "light": l}
+	machines["healer"] = {"node": root, "glass": glass, "slots": slots, "light": l}
 
 
 ## The incubator: a brass base with a glass dome and an egg inside.
@@ -3123,37 +3146,44 @@ func play_hatch_fx() -> void:
 	tw2.tween_property(egg, "rotation:z", 0.0, 0.07)
 
 
-## The healing animation: each party beast's slot lights up, the window glows, sparkles fly.
+## The healing animation: a lamp lights up for each party beast, then the chamber's glass glows, swelling and ebbing
+## in pulses, sparkles flying, until the beasts are well again and the glow fades away.
 func play_heal_fx(count: int) -> void:
 	if not machines.has("healer"):
 		return
 	var m: Dictionary = machines["healer"]
 	var node: Node3D = m["node"]
 	var slots: Array = m["slots"]
-	var lit := _flat_mat(Color("#7affd0"), 2.5)
+	var lit := _flat_mat(HEAL_GLOW, 2.5)
 	for i in mini(count, slots.size()):
 		(slots[i] as MeshInstance3D).material_override = lit
 		Sfx.play_tone("blip", 1.0 + i * 0.12, 4.0)
 		await get_tree().create_timer(0.22).timeout
-	var win: MeshInstance3D = m["window"]
-	var wm: StandardMaterial3D = win.material_override
-	wm.emission_enabled = true
-	wm.emission = Color("#5affc8")
+	# the glass's own glow (its hex seams) stays under the colour poured over it
+	var gm: StandardMaterial3D = m["glass"]
 	var light: OmniLight3D = m["light"]
 	Sfx.play("heal")
+	if gm != null:
+		create_tween().tween_property(gm, "emission", HEAL_GLOW, 0.35)
 	for t in 3:
-		var tw := create_tween()
-		tw.tween_property(wm, "emission_energy_multiplier", 3.0, 0.25)
-		tw.parallel().tween_property(light, "light_energy", 1.6, 0.25)
-		tw.tween_property(wm, "emission_energy_multiplier", 0.4, 0.25)
-		tw.parallel().tween_property(light, "light_energy", 0.3, 0.25)
-		_sparkles(node.position + Vector3(0, 1.3, 0.5), Color("#7affd0"), 25, 0.9, 0.25)
+		var tw := create_tween().set_trans(Tween.TRANS_SINE)
+		if gm != null:
+			tw.tween_property(gm, "emission_energy_multiplier", 1.6, 0.3)
+		tw.parallel().tween_property(light, "light_energy", 1.8, 0.3)
+		if gm != null:
+			tw.tween_property(gm, "emission_energy_multiplier", 0.6, 0.3)
+		tw.parallel().tween_property(light, "light_energy", 0.6, 0.3)
+		_sparkles(node.position + Vector3(0, 0.9, 0.45), HEAL_GLOW, 25, 0.9, 0.3)
 		await tw.finished
-	wm.emission_enabled = false
-	light.light_energy = 0.0
+	var down := create_tween().set_trans(Tween.TRANS_SINE)
+	if gm != null:
+		down.tween_property(gm, "emission", Color.BLACK, 0.6)
+		down.parallel().tween_property(gm, "emission_energy_multiplier", 1.0, 0.6)
+	down.parallel().tween_property(light, "light_energy", 0.0, 0.6)
 	for s in slots:
 		(s as MeshInstance3D).material_override = _flat_mat(Color("#1a1a1e"))
-	_sparkles(node.position + Vector3(0, 1.0, 0.4), Color("#ffffff"), 50, 1.0, 0.5)
+	_sparkles(node.position + Vector3(0, 0.9, 0.45), Color("#ffffff"), 50, 1.0, 0.5)
+	await down.finished
 
 
 # ================================================================ interiors
@@ -3362,6 +3392,9 @@ func _build_room() -> void:
 				MapGen.STAIRS_UP:
 					if open_air:
 						floors[main_floor].append(fxf)
+					if map.get("stage", false):
+						# a house's stairs are the room builder's (room_builder.gd _stairs)
+						continue
 					for i in 4:
 						var sy := (i + 1) * 0.18
 						k.box("stone", center + Vector3(0, sy / 2.0, 0.375 - i * 0.25), Vector3(1, sy, 0.25), stone)
@@ -3369,6 +3402,8 @@ func _build_room() -> void:
 				MapGen.STAIRS_DOWN:
 					if open_air:
 						floors[main_floor].append(fxf)
+					if map.get("stage", false):
+						continue
 					k.box("color", center + Vector3(0, 0.015, 0), Vector3(0.9, 0.02, 0.9), Color("#1a1420"))
 					for i in 3:
 						k.box("stone", center + Vector3(0, 0.03, -0.3 + i * 0.3), Vector3(0.9, 0.04, 0.12), stone.darkened(0.4))

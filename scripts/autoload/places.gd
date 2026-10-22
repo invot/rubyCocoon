@@ -14,6 +14,7 @@ const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
+const Phone = preload("res://scripts/world/phone.gd")
 
 const KEEPERS := {
 	"center": "Nurse Clover", "apothecary": "Apothecary Fen", "beast_gear": "Outfitter Hale",
@@ -248,9 +249,9 @@ func heal_machine(world) -> void:
 		Sfx.play("error")
 		await UI.say(["BZZT. \"NO BEASTS DETECTED. PLEASE INSERT BEASTS.\""])
 		return
-	if not await UI.ask("A big soda-can healing machine. \"FREE REFILLS!\" Put your beasts in the slots?"):
+	if not await UI.ask("A tall glass healing chamber, humming softly. \"FREE HEALING, ANY TIME!\" Put your beasts inside?"):
 		return
-	await UI.say(["You slot your beasts into the machine..."])
+	await UI.say(["You place your beasts in the chamber..."])
 	if world != null and is_instance_valid(world) and world.has_method("play_heal_fx"):
 		await world.play_heal_fx(GameState.party.size())
 	else:
@@ -1337,9 +1338,14 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 		MapGen.LOCKED:
 			if map.get("staff_doors", {}).has(t):
 				await UI.say(["A brass plate on the door: STAFF ONLY. It's locked."])
+			elif map.get("locked_text", {}).has(t):
+				await UI.say([map["locked_text"][t], "The door's locked."])
 			else:
 				await UI.say(["The door's locked."])
 		MapGen.FURN:
+			if map.get("furniture", {}).get(t, "") == "phone":
+				await Phone.call_home(world)
+				return
 			var line: String = FURNITURE_LINES.get(map.get("furniture", {}).get(t, ""), "")
 			if line != "":
 				await UI.say([line])

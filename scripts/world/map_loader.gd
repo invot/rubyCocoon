@@ -107,6 +107,20 @@ static func interior_of(map_id: String, shop: String) -> String:
 	return ""
 
 
+## The room of building `interior` you wake up in on the first morning (the one whose template says "wake").
+static func wake_room(interior: String) -> String:
+	var base := interior.get_slice("@", 0)
+	var pm := load_map(parent_of(base), {})
+	var idx := int(base.get_slice("#", 1))
+	if idx < 0 or idx >= pm["buildings"].size():
+		return base
+	var rooms := room_set(pm["buildings"][idx])
+	for i in rooms.size():
+		if InteriorMaps.ROOMS[rooms[i]].has("wake"):
+			return floor_id(base, i + 1)
+	return base
+
+
 # ================================================================ outdoor maps
 static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary:
 	var rows: Array = src["rows"]
@@ -355,7 +369,46 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	for a in m["anchors"]:
 		if a == "dock":
 			m["spawns"]["dock"] = m["anchors"][a]
+	if WorldDB.TOWNS.has(id):
+		_add_payphone(m)
 	return m
+
+
+## A red payphone a few steps from the town's square (see phone.gd), on open paving: the nearest tile to the square's
+## middle, clear of the statue, with every tile round it free to walk on (so it never blocks the way) and nothing
+## there that matters: a door, a sign, a person, an exit, a spawn.
+static func _add_payphone(m: Dictionary) -> void:
+	var mid := Vector2(m["plaza"]) + Vector2(0.0, 1.0) if not m["statue"].is_empty() else Vector2(m["plaza"])
+	var taken := {}
+	for b in m["buildings"]:
+		taken[Vector2i(b["door"])] = true
+		taken[Vector2i(b["door"]) + Vector2i(0, 1)] = true
+	for n in m["npcs"]:
+		taken[n["pos"]] = true
+	for it in m["items"]:
+		taken[it["pos"]] = true
+	for t in m["exits"].keys() + m["signs"].keys() + m["spawns"].values() + m["anchors"].values():
+		taken[t] = true
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for y in range(int(mid.y) - 6, int(mid.y) + 7):
+		for x in range(int(mid.x) - 7, int(mid.x) + 8):
+			var p := Vector2i(x, y)
+			var d := (Vector2(p) + Vector2(0.5, 0.5)).distance_to(mid)
+			if d < 2.6 or d >= best_d or not MapGen.get_t(m, x, y) in [MapGen.PLAZA, MapGen.PATH]:
+				continue
+			var open := true
+			for dy in [-1, 0, 1]:
+				for dx in [-1, 0, 1]:
+					var q: Vector2i = p + Vector2i(dx, dy)
+					if taken.has(q) or not MapGen.walkable(MapGen.get_t(m, q.x, q.y)):
+						open = false
+			if open:
+				best = p
+				best_d = d
+	if best.x >= 0:
+		MapGen.set_t(m, best.x, best.y, MapGen.STREET_PROP)
+		m["payphone"] = best
 
 
 ## How many tiles across each fishing spot's patch of rippling water is.
@@ -526,6 +579,16 @@ static func _inward(dir: String) -> Vector2i:
 	return {"north": Vector2i(0, 1), "south": Vector2i(0, -1), "west": Vector2i(1, 0), "east": Vector2i(-1, 0)}[dir]
 
 
+## The way into the room from a doorway in its wall at `t`: towards the floor beside it.
+static func _into_room(m: Dictionary, t: Vector2i) -> Vector2i:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var q: Vector2i = t + d
+		var c := MapGen.get_t(m, q.x, q.y)
+		if q.x > 0 and q.y > 0 and q.x < m["w"] - 1 and q.y < m["h"] - 1 and MapGen.walkable(c) and c != MapGen.IDOOR:
+			return d
+	return Vector2i(0, 1)
+
+
 static func _spawn_inside(m: Dictionary, tiles: Array, dir: String) -> Vector2i:
 	var mid: Vector2i = tiles[tiles.size() / 2]
 	for k in [2, 1, 0]:
@@ -540,7 +603,7 @@ static func _spawn_inside(m: Dictionary, tiles: Array, dir: String) -> Vector2i:
 static func room_set(b: Dictionary) -> Array:
 	var shop: String = b["shop"]
 	if shop == "house":
-		return ["house_a" if int(b["seed"]) % 2 == 0 else "house_b"]
+		return InteriorMaps.HOUSES[int(b["seed"]) % InteriorMaps.HOUSES.size()]
 	if shop == "temple":
 		return [WorldDB.TEMPLES[b.get("temple", "water")]["room"]]
 	return InteriorMaps.SHOP_ROOMS.get(shop, ["house_a"])
@@ -576,7 +639,10 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["room"] = room
 	m["room_key"] = key
 	m["floor_num"] = fl
-	m["floors"] = rooms.size()
+	# a stage room is one room of a building, seen whole like a stage set (no front wall, the camera still): its
+	# set's other rooms are rooms, not floors
+	m["stage"] = room.get("stage", false)
+	m["floors"] = rooms.size() if not m["stage"] else 1
 	m["biome"] = pm["biome"]
 	m["anchors"] = {}
 	m["exhibits"] = {}
@@ -597,18 +663,31 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	var ups := []
 	var downs := []
 	var item_k := 0
+	# doors through to the building's other rooms (each loaded on its own): symbol -> the room's template
+	var door_rooms: Dictionary = room.get("doors", {})
+	var links := {}
+	# what's behind each locked door, in reading order
+	var locked_texts: Array = room.get("locked", [])
+	var locked_k := 0
+	m["locked_text"] = {}
 	for y in h:
 		var row: String = rows[y]
 		for x in w:
 			var ch := row[x]
 			var p := Vector2i(x, y)
-			if InteriorMaps.FURNITURE.has(ch):
+			if door_rooms.has(ch):
+				MapGen.set_t(m, x, y, MapGen.IDOOR)
+				links[p] = door_rooms[ch]
+			elif InteriorMaps.FURNITURE.has(ch):
 				MapGen.set_t(m, x, y, MapGen.FURN)
 				m["furniture"][p] = InteriorMaps.FURNITURE[ch]
 			elif ROOM_CHARS.has(ch):
 				MapGen.set_t(m, x, y, ROOM_CHARS[ch])
 				if ch == "Z":
 					m["staff_doors"][p] = true
+				elif ch == "L" and locked_k < locked_texts.size():
+					m["locked_text"][p] = locked_texts[locked_k]
+					locked_k += 1
 				if ch == ".":
 					dots += 1
 				elif ch == ":":
@@ -686,8 +765,23 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				# visitors and people at home walk about the room (see world.gd _roam)
 				if n.get("kind", "") in ["villager", "resident"]:
 					n["roam"] = true
+	m["spawn_face"] = {}
+	m["front_doors"] = []
 	for t in mats:
 		m["exits"][t] = {"to": parent, "spawn": b["door"] + Vector2i(0, 1), "face": Vector2i(0, 1)}
+		# a front door in a side (or back) wall is a doorway in it, and you come in facing the room
+		if t.y < h - 1:
+			MapGen.set_t(m, t.x, t.y, MapGen.IDOOR)
+			m["front_doors"].append(t)
+			m["spawn_face"]["entry"] = _into_room(m, t)
+	for t in links:
+		var to := rooms.find(links[t])
+		if to < 0:
+			push_warning("%s: a door to %s, which %s doesn't have" % [key, links[t], b["shop"]])
+			continue
+		m["exits"][t] = {"to": floor_id(base, to + 1), "spawn": "from_" + key}
+		m["spawns"]["from_" + String(links[t])] = t + _into_room(m, t)
+		m["spawn_face"]["from_" + String(links[t])] = _into_room(m, t)
 	for t in ups:
 		m["exits"][t] = {"to": floor_id(base, fl + 1), "spawn": "entry", "face": Vector2i(0, 1)}
 	for t in downs:
@@ -721,9 +815,9 @@ static func _default_zone(key: String, room: Dictionary) -> String:
 		return "grand"
 	if key.begins_with("ceo") or key in ["skytower", "electronics"]:
 		return "office"
-	if key in ["dojo", "arena", "fortune"]:
+	if key in ["dojo", "arena", "arena_ring", "fortune"]:
 		return "wood"
-	if key in ["home", "house_a", "house_b", "uncle_home"]:
+	if key.begins_with("home") or key.begins_with("house") or key.begins_with("studio") or key == "uncle_home":
 		return "living"
 	return "shop"
 

@@ -3,6 +3,7 @@
   Defeat_Puff.wav  a soft smack and a puff of air: a beast vanishing in a cloud of smoke (sfx.gd "defeat")
   Faint_Thud.wav   a soft cartoon thud: one of your beasts keeling over (sfx.gd "faint")
   Door_Knock.wav   three raps on a wooden door: knocking on a locked house (sfx.gd "knock")
+  Phone_Ring.wav   one ring of an old bell telephone: the clapper rattling between two bells (sfx.gd "phone_ring")
 
 Run from the project root:  python tools/make_sfx.py
 """
@@ -103,7 +104,31 @@ def knock():
     return out
 
 
+def ring():
+    """Brrring: an old phone's clapper rattling between its two bells, twenty strikes a second, for just under a
+    second, each bell a few bright, slightly out-of-tune partials that keep ringing between strikes."""
+    n = int(RATE * 1.05)
+    out = [0.0] * n
+    bells = [(1040.0, [(1.0, 1.0), (2.76, 0.45), (5.4, 0.22)]), (1310.0, [(1.0, 1.0), (2.76, 0.4), (5.4, 0.2)])]
+    strikes = int(0.9 * 20)
+    for k in range(strikes):
+        f0, partials = bells[k % 2]
+        s0 = int(k / 20.0 * RATE)
+        amp = 0.85 + 0.15 * math.sin(k * 1.7)
+        for i in range(s0, n):
+            t = (i - s0) / RATE
+            if t > 0.35:
+                break
+            v = 0.0
+            for mul, a in partials:
+                v += a * math.sin(2.0 * math.pi * f0 * mul * t) * math.exp(-t / (0.09 / mul))
+            out[i] += v * amp * min(1.0, t / 0.0006)
+    # a little lowpass so it isn't shrill through a phone speaker
+    return lowpass(out, 5200.0)
+
+
 if __name__ == '__main__':
     write('Defeat_Puff.wav', puff())
     write('Faint_Thud.wav', thud())
     write('Door_Knock.wav', knock())
+    write('Phone_Ring.wav', ring())

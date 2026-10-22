@@ -740,8 +740,8 @@ func _tab_trainer() -> void:
 	var outdoors: bool = world != null and not world.interior
 	_add_row({"text": "Fly", "disabled": flyer == null or not outdoors, "act": _fly,
 		"detail": func(c): c.add_child(_t_label(("%s can carry you to any town you've visited." % flyer.nickname) if flyer != null else "An air beast of Lv %d or higher could carry you to any town you've visited." % Places.FLY_LEVEL))})
-	_add_row({"text": "Save", "act": _save,
-		"detail": func(c): c.add_child(_t_label(("Save into slot %d, with a snapshot of this moment." % (GameState.current_slot + 1)) if GameState.current_slot >= 0 else "Save your journey into the first empty slot. After that, every save goes back into the same slot."))})
+	# saving is calling Dad from a phone (see phone.gd)
+	_add_row({"text": "Saving", "act": _how_to_save, "detail": func(c): c.add_child(_t_label(SAVE_HELP))})
 
 
 func _fly() -> void:
@@ -750,8 +750,11 @@ func _fly() -> void:
 		close()
 
 
-func _save() -> void:
-	await GameState.main.save_with_card()
+const SAVE_HELP := "To save, call Dad from a red telephone. Saving is free: homes, Beast Centers, some shops and the arenas all have a phone you can use. Only the payphones by the town squares take coins (5 a call)."
+
+
+func _how_to_save() -> void:
+	await UI.say([SAVE_HELP])
 
 
 # ================================================================ Beasts
@@ -1169,7 +1172,6 @@ func _tab_settings() -> void:
 	right_box.add_child(_pane_title("Controls"))
 	right_box.add_child(detail_box)
 	var pct := func(v: float): return "%d%%" % int(round(v * 100))
-	_add_row({"text": "Save game", "act": _save, "detail": _controls_help.bind("Write your progress to the book.")})
 	var speeds := [["Slow", 30.0], ["Normal", 60.0], ["Fast", 120.0], ["Instant", 0.0]]
 	var cur_speed := 1
 	for i in speeds.size():
@@ -1240,7 +1242,7 @@ func _credits() -> void:
 	await UI.say([
 		"Ruby Cocoon. Thank you for playing!",
 		"PSX art: chilly_durango, Screaming Brain Studios, Foxhead, Elegant Crow and Caliber Creations; RetroGround Free by Binbun3D (CC BY 4.0); PSX Forest, Cemetery, Castle and Western Town Kits by heyheythere (CC BY 4.0). People: Characters PSX by Elbolilloduro; the hero by yugg0 (base mesh by Vinrax).",
-		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant.",
+		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; furniture by Anker's Assets (CC0); the red telephones: Antique 1930s Rotary Telephones by Mad_Lobster_Workshop; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant; the healing chamber: Stasis Chamber by KieranEdwards (CC BY 4.0).",
 		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
 		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
 		"UI: Humble Gift by Humble Pixel (@Humblepixel); 1-bit UI by BatuhanK; Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); fonts BoldPixels and Lunchtime Doubly So.",

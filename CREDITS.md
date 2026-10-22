@@ -33,8 +33,8 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
   plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
 
 ### Towns and buildings (`assets/psx/houses/`, `assets/psx/exterior/`, `assets/psx/interior/`)
-Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd`, `tools/import_psx_interior.gd` and
-`tools/import_psx_furniture.gd`.
+Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd`, `tools/import_psx_interior.gd`,
+`tools/import_psx_furniture.gd` and `tools/import_psx_phones.gd`.
 *Changes made:* models merged, centred, turned to face one way and scaled to the game's people; textures shrunk to
 128 px or less; houses re-skinned per town from the pack's own tiles; wall sections split so each building's own wall
 finish shows through; counters, booths and street furniture stretched to fit their tiles; the furniture pack's
@@ -49,6 +49,16 @@ upholstery) over a wood grain and cloth weave of our own.
 - **Furniture pack** by Anker's Assets, CC0, https://ankersassets.itch.io/ (six OBJ showrooms, `model_0.obj` to
   `model_5.obj`, with no textures, downloaded into `psx/furniture/`: the beds, bunk beds, sofas, armchairs, chairs,
   tables, desks, nightstands, dresser, TV stand and bench).
+- **Antique 1930s Rotary Telephones** by Mad_Lobster_Workshop (https://sketchfab.com/Mad_Lobster_Workshop),
+  https://sketchfab.com/3d-models/antique-1930s-rotary-telephones-c08787c11a494006afbc50a435e7c4c8, downloaded as
+  `psx/phones/antique_1930s_rotary_telephones.glb` (the red phone in homes, Beast Centers, shops, arenas and temple
+  doorways, baked by `tools/import_psx_phones.gd`). *Changes made:* the red one of the five taken, its cord left off,
+  cut from about 9,600 to 600 triangles, its texture replaced by flat colours sampled from it. The file's licence
+  says only "COPYRIGHT TO Mad_Lobster_Workshop": **check the terms before release.**
+- **Old public telephone** ("telefone publico antigo"), downloaded into `psx/phones/source/` with its textures (the
+  payphone by each town's square, on a post and hood of our own, baked by `tools/import_psx_phones.gd`). *Changes
+  made:* its cord left off, its orange painted red, cut from about 18,600 to 500 triangles, flat colours sampled from
+  its textures. It came with no credit, so it's Creative Commons.
 - **Retro Modular House Pack** by Elegant Crow, CC0, https://elegantcrow.itch.io/retro-modular-house-pack (wall
   sections with doors, windows and shutters: shop fronts and the landmarks).
 - **DINER**, **6TWELVE** and **Trailer Park** by Elbolilloduro, https://elbolilloduro.itch.io (shop counters, diner
@@ -62,6 +72,12 @@ upholstery) over a wood grain and cloth weave of our own.
 - **PSX Dungeon Boxes and Barrels Pack** by Games by McSteeg, https://mcsteeg.itch.io (crates and barrels). Free for
   commercial use; the files may not be redistributed.
 - **PSX style modular hedges** by valsekamerplant, CC0, https://valsekamerplant.itch.io/psx-style-hedges.
+- **Stasis Chamber** by KieranEdwards (https://sketchfab.com/KieranEdwards),
+  https://sketchfab.com/3d-models/stasis-chamber-0d09b5d0355d4727bd601015f394de3f, licensed under CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/) (the Beast Centers' healing machine, downloaded as
+  `psx/stasis_chamber.glb` and baked by `tools/import_psx_stasis.gd`). *Changes made:* cut from about 18,500 to
+  2,900 triangles; normal and metal maps left off; textures shrunk to 128 px; the glass made to glow while it heals;
+  a lamp per beast added round its foot.
 
 ### Beasts (`assets/psx/beasts/`, made by `tools/import_psx_beasts.gd` and `tools/make_beast_icons.gd`)
 *Changes made:* models turned, centred and scaled to one size; textures shrunk to 128 px; every model is

@@ -65,6 +65,21 @@ func _check(m: Dictionary) -> Array:
 	for e in m["exits"]:
 		if not seen.has(e):
 			problems.append("exit %s unreachable" % e)
+		# a door through to another of the building's rooms comes out at that room's door back
+		var to_spawn = m["exits"][e].get("spawn", "")
+		if typeof(to_spawn) == TYPE_STRING and String(to_spawn).begins_with("from_") \
+				and not MapLoader.load_map(m["exits"][e]["to"], {})["spawns"].has(to_spawn):
+			problems.append("door %s: %s has no door back" % [e, m["exits"][e]["to"]])
+	# a telephone (calling Dad saves the game) must be somewhere you can stand beside
+	var phones: Array = m.get("furniture", {}).keys().filter(func(f): return m["furniture"][f] == "phone")
+	if m.has("payphone"):
+		phones.append(m["payphone"])
+	for f in phones:
+		var ok := false
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			ok = ok or seen.has(f + d)
+		if not ok:
+			problems.append("phone at %s can't be reached" % f)
 	for b in m["buildings"]:
 		var front: Vector2i = b["door"] + Vector2i(0, 1)
 		if not seen.has(front):

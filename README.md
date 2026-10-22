@@ -243,17 +243,20 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Tempestrix flies you to any town you've visited, for a fee.
   - Once you own an air beast of **Lv 40+**, pick *Fly* on the Trainer page of the Start book to travel from anywhere outdoors.
 - **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door. Each machine has its own bay along the back wall.
-  - The **healing machine** is a giant soda can with a black glass window and a slot per beast. Use it yourself, any time, for free.
+  - The **healing machine** is a tall glass healing chamber with a lamp per beast round its foot; the glass glows while it heals. Use it yourself, any time, for free.
   - The **storage terminal** and the **merge altar** each have a bay of their own.
-  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (it sparkles when an egg hatches), and runs storage and the merge altar. Saving is done from the Start book.
-  - Through the side door is the **kennel**. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adopt one, or drop one of yours off for another trainer (Pip thanks you with a little gold). Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
+  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (it sparkles when an egg hatches), and runs storage and the merge altar. A red phone stands by the door, for calling Dad (see Saving).
+  - Through the door in the left wall is the **kennel**, a room of its own. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adopt one, or drop one of yours off for another trainer (Pip thanks you with a little gold). Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
   - Guide Dottie walks about the room by the entrance and explains how it all works.
   - All three wear the Beast Center uniform: a white polo with red collar and cuffs, a name badge and a diner paper hat (Pip adds a green apron).
-- **Saving**: ten save slots.
-  - A new game takes the first empty slot the first time you save; after that every save goes back into the same slot.
+- **Saving**: your dad is away up north for work, and **calling him is how you save**. Tell him how your journey's going, he cheers you on, and the game is saved; then keep playing, or stop for now (back to the title screen).
+  - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
+  - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
+  - Ten save slots. A new game takes the first empty slot the first time you save; after that every save goes back into the same slot.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
   - The title screen's **Load Game** lists the slots with their snapshots; you can load, copy or delete them there.
 - **Shops** differ per town. Small towns have a few; cities have many. Each building has a wordless sign fixed flat to its front above the door, showing what it is (houses have none).
+- **Inside**, every house and shop is a compact room seen whole, like a stage set: no front wall, the camera holding still, and the front door in a side wall. Blue doors open (a door to another room loads that room on its own); red ones are locked. Homes have no kitchens to wander into: many townsfolk live in studios, bed and sofa in one room, while others have a bedroom through a door or up a flight of stairs. Your own home has the living room downstairs, with Mom and the phone, and your bedroom upstairs. The big dungeons (temples, the hideout, Gearhart Tower, the Sky Tower and the cathedral) keep their own layouts, open at the front too.
   - Everyone who works in a shop stands behind a counter and wears their shop's uniform: a polo in the shop's colour with a contrasting collar and cuffs, short sleeves, a name badge and usually a visor (the sensei and the fortune teller wear headbands, the music hall's usher a pillbox hat).
 - **Locked doors**: about a third of houses are locked, and so is Gravenmoor Cathedral until its Legion guard is beaten. Locked doors are crimson with iron straps and a brass padlock in every town. Try one and you knock (knock-knock-knock), and whoever is inside shouts something silly through it.
 
@@ -338,13 +341,13 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 
 | Tab | What's in it |
 |---|---|
-| Trainer | Your portrait, gold, shield and shards, arena crests, trainer gear, Fly and Save. |
+| Trainer | Your portrait, gold, shield and shards, arena crests, trainer gear, Fly, and how to save (call Dad from a phone). |
 | Beasts | Your battle ring and storage (tap a beast, then where it should go: see Arranging your beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
 | Flute | Every song with its effect and mastery; press A to practise one. The Capture page shows your level and when the next one is ready to learn. Unknown songs show where to learn them. |
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 39 forms with live portraits and where to find them. |
 | Map | The twelve towns, with the full world map on A. |
-| Settings | Save (first), music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, save, credits and quit. |
+| Settings | Music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, credits and quit to title. |
 
 ## UI and audio
 
@@ -455,7 +458,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too.
 - **Story gates** use `&`.
 - **Shards** use `*`.
-- **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, and `K` is a kennel pen.
+- **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`).
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
@@ -493,7 +496,9 @@ Screenshots from a test scene (`--shot=path.png`) come out small: `--crop=x0,y0,
 path saves a JPEG instead (as for the pictures in `docs/screenshots/`, which Godot ignores). To check a
 screenshot without looking at it, `bash tools/img.sh` measures it: `diff a.png b.png` (how much changed, and where),
 `bbox x.png` (the box round whatever isn't background, or `--like=#rrggbb`), `color x.png 0.5 0.4` (the colour at a
-point) and `crop x.png out.png`; each takes `--region` and `--tol`.
+point) and `crop x.png out.png`; each takes `--region` and `--tol`. For a question only eyes can answer ("is any door
+blocked by furniture?"), `python tools/look.py x.png "question"` asks a local vision model (Qwen3-VL in Bionic or LM
+Studio; `LOOK_URL` and `LOOK_MODEL` pick the server and model) and prints its short answer.
 
 ## Windows and Android builds
 

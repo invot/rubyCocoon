@@ -7,7 +7,7 @@ const WORLD_PATH := "res://scripts/world/world.gd"
 const BATTLE_PATH := "res://scripts/battle/battle.gd"
 const PANEL_PATH := "res://scripts/battle/command_panel.gd"
 ## Resources the world's scripts preload that have to be loaded on the main thread (see _title_backdrop).
-const THREAD_SHY := ["res://scripts/gfx/terrain.gdshader", "res://scripts/gfx/water.gdshader", "res://scripts/gfx/wall_fade.gdshader"]
+const THREAD_SHY := ["res://scripts/gfx/terrain.gdshader", "res://scripts/gfx/water.gdshader"]
 ## project.godot's boot splash colour
 const SPLASH_COLOR := Color(0.184, 0.141, 0.141)
 const WorldDB = preload("res://scripts/data/world_db.gd")
@@ -15,6 +15,7 @@ const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
+const Phone = preload("res://scripts/world/phone.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
@@ -164,7 +165,7 @@ func _title() -> void:
 			UI.allow_pause = true
 			var home := MapLoader.interior_of("caccoon", "home")
 			# the first morning starts in your bedroom
-			_pending_goto = {"map": home if home != "" else "caccoon", "spawn": "wake" if home != "" else "start"}
+			_pending_goto = {"map": MapLoader.wake_room(home) if home != "" else "caccoon", "spawn": "wake" if home != "" else "start"}
 			return
 
 
@@ -295,7 +296,10 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO) -> void:
 	elif WorldDB.ROUTES.has(id):
 		var lv: Array = WorldDB.ROUTES[id]["lv"]
 		sub = "Wild beasts Lv %d-%d" % [lv[0], lv[1]]
-	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] in ["house", "uncle"]):
+	# (not for a house, nor on going through to another room of the same building)
+	var room_to_room := MapLoader.is_interior(id) and str(spawn).begins_with("from_")
+	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] in ["house", "uncle"]) \
+			and not room_to_room:
 		UI.banner(title, sub)
 	_transitioning = false
 	await Story.on_map_enter(world)
@@ -758,6 +762,45 @@ func _run_test() -> void:
 		Input.action_release("move_down")
 		await _wait(1.5)
 		print("after leaving: map ", world.map_id, " at ", world.player_pos, " facing ", world.facing)
+	elif scene == "phone":
+		# the first morning: going to leave home rings the phone, and you can't go until you've answered; Dad's call
+		# saves the game; a payphone takes 5 coins, and without them there's no call
+		UI.auto = true
+		var bad := 0
+		var home := MapLoader.interior_of("caccoon", "home")
+		_do_goto(home, "entry")
+		await _wait(1.0)
+		var out := {}
+		for t in world.map["exits"]:
+			if world.map["exits"][t]["to"] == "caccoon":
+				out = world.map["exits"][t]
+		var left: bool = await Story.can_use_exit(world, out)
+		var ringing: bool = world.get_node_or_null("Ringer") != null
+		print("leave before the call: ", left, "  ringing: ", ringing)
+		bad += int(left) + int(not ringing)
+		UI.auto_answers = [0]
+		await Phone.call_home(world)
+		var saved := GameState.current_slot >= 0 and GameState.has_save()
+		left = await Story.can_use_exit(world, out)
+		print("after Dad's call: called_dad ", GameState.flag("called_dad"), "  saved ", saved, "  slot ", GameState.current_slot, "  leave ", left)
+		bad += int(not GameState.flag("called_dad")) + int(not saved) + int(not left)
+		_do_goto("caccoon", "start")
+		await _wait(1.0)
+		print("payphone at ", world.map.get("payphone", "none"))
+		bad += int(not world.map.has("payphone"))
+		GameState.gold = 3
+		var before := GameState.gold
+		await Phone.call_home(world, Phone.FEE)
+		print("broke: gold ", before, " -> ", GameState.gold)
+		bad += int(GameState.gold != before)
+		GameState.gold = 20
+		UI.auto_answers = [0, 0]
+		await Phone.call_home(world, Phone.FEE)
+		print("paid: gold 20 -> ", GameState.gold)
+		bad += int(GameState.gold != 20 - Phone.FEE)
+		print("log: ", UI.auto_log.slice(maxi(0, UI.auto_log.size() - 6)))
+		print("PHONE TEST DONE: %d problem(s)" % bad)
+		UI.auto = false
 	elif scene == "knock":
 		# locked doors: you knock and someone shouts through it; the cathedral opens once its guard is beaten
 		UI.auto = true
@@ -1242,9 +1285,13 @@ func _run_test() -> void:
 	elif scene == "heal":
 		await _go("caccoon#0", "entry")
 		await _wait(1.0)
-		# in front of the healing machine's bay
-		world.player_pos = Vector2i(2, 2)
-		world.player.position = world.tile_pos(Vector2i(2, 2))
+		# in the healing machine's bay, to one side so it's in view
+		var at := Vector2i(2, 2)
+		if world.machines.has("healer"):
+			var hp: Vector3 = world.machines["healer"]["node"].position
+			at = Vector2i(int(hp.x) + 1, int(hp.z) + 1)
+		world.player_pos = at
+		world.player.position = world.tile_pos(at)
 		world.facing = Vector2i(0, -1)
 		load("res://scripts/gfx/voxel_person.gd").face(world.player, Vector2i(0, -1))
 		if _test.get("what", "heal") == "hatch":
