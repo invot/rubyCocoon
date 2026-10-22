@@ -447,6 +447,10 @@ point) and `crop x.png out.png`; each takes `--region` and `--tol`.
 
 ## Project layout
 
+The downloaded art, music and sound packs aren't in the repository, only the converted assets the game uses (see
+CREDITS.md for where each came from, and `licenses/` for their licence files). The `tools/` importers need their pack
+downloaded again to rebuild anything.
+
 ```
 scripts/
   data/        race_db, move_db, item_db, song_db, world_db (towns, routes, temples, obstacles, biomes), voxel_manifest

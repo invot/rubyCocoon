@@ -140,6 +140,8 @@ static func available() -> bool:
 static func mesh(key: String) -> ArrayMesh:
 	if not _meshes.has(key):
 		_meshes[key] = load(DIR + key + ".res") if ResourceLoader.exists(DIR + key + ".res") else null
+		if _meshes[key] == null:
+			push_warning("model missing: " + DIR + key + ".res")
 	return _meshes[key]
 
 

@@ -24,6 +24,7 @@ TESTS=(
 	"lessons|-- --scene=lessons --wait=0.3|lessons DONE: 0 problem"
 	"coaches|-- --scene=coaches --wait=0.3|coaches DONE: 0 problem"
 	"mascot|-- --scene=mascot --wait=0.3|MASCOT TEST DONE: 0 problem"
+	"maps-built|-- --scene=maps --wait=0.3|MAP TOUR DONE"
 	"temple-water|-- --scene=guardian --temple=water --wait=0.3|GUARDIAN water: captured true"
 	"temple-air|-- --scene=guardian --temple=air --wait=0.3|GUARDIAN air: captured true"
 	"temple-fire|-- --scene=guardian --temple=fire --wait=0.3|GUARDIAN fire: captured true"
@@ -31,6 +32,8 @@ TESTS=(
 	"temple-ghost|-- --scene=guardian --temple=ghost --wait=0.3|GUARDIAN ghost: captured true"
 )
 QUICK="scripts data maps beasts"
+## what in a test's log fails it whatever else it printed: a script error, or a model, texture or sound missing
+BAD="SCRIPT ERROR|Failed loading resource|Resource file not found|Cannot open file|asset missing|model missing"
 
 cd "$(dirname "$0")/.." || exit 2
 GODOT="${GODOT:-C:/Program Files/Godot/Godot_v4.7-stable_win64.exe}"
@@ -52,14 +55,15 @@ run_one() {
 	for try in 1 2; do
 		# shellcheck disable=SC2086
 		timeout 900 "$GODOT" --headless --path . $args > "$log" 2>&1
-		if grep -q "$pass" "$log" && ! grep -q "SCRIPT ERROR" "$log"; then
+		# (a missing model, texture or sound counts as a failure too)
+		if grep -q "$pass" "$log" && ! grep -qE "$BAD" "$log"; then
 			status="ok"
 			[ "$try" = 2 ] && detail="(passed on the second try)"
 			break
 		fi
 	done
 	if [ "$status" = "FAIL" ]; then
-		detail=$(grep -m1 -E "SCRIPT ERROR|FAIL|problem|captured false|Error" "$log" | grep -v "0 problem" | cut -c1-160)
+		detail=$(grep -m1 -E "$BAD|FAIL|problem|captured false|Error" "$log" | grep -v "0 problem" | cut -c1-160)
 		[ -z "$detail" ] && detail="didn't print \"$pass\""
 	fi
 	echo "$status|$((SECONDS - start))|$detail" > "$LOGS/$name.result"

@@ -1055,44 +1055,23 @@ func _run_test() -> void:
 			world.player_pos = p0
 			world.player.position = world.tile_pos(p0)
 		await _wait(wait)
-	elif scene == "lod":
-		# the detailed tree models next to their half-resolution versions (tools/voxel_lod.py)
-		var root := Node3D.new()
-		view.add_child(root)
-		var env := Environment.new()
-		env.background_mode = Environment.BG_COLOR
-		env.background_color = Color("#86a8cc")
-		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = Color.WHITE
-		env.ambient_light_energy = 0.5
-		var we := WorldEnvironment.new()
-		we.environment = env
-		root.add_child(we)
-		var sun := DirectionalLight3D.new()
-		sun.rotation_degrees = Vector3(-52, 28, 0)
-		sun.shadow_enabled = true
-		root.add_child(sun)
-		var x := 0.0
-		for n in String(_test.get("models", "palm,dead_tree,tree_big,tree_oak,tree_birch,tree_round_3")).split(","):
-			for lod in [false, true]:
-				var m: Mesh = load("res://assets/voxel/nature/%s%s.obj" % [n, "_lo" if lod else ""])
-				var mi := MeshInstance3D.new()
-				mi.mesh = m
-				var bb := m.get_aabb()
-				var s := 2.8 / bb.size.y
-				mi.scale = Vector3(s, s, s)
-				mi.position = Vector3(x - bb.get_center().x * s, -bb.position.y * s, -bb.get_center().z * s)
-				root.add_child(mi)
-				x += 2.6
-			x += 0.8
-		var cam := Camera3D.new()
-		root.add_child(cam)
-		cam.fov = 34
-		cam.position = Vector3(x / 2.0, 12.0, 14.0)
-		cam.fov = 70
-		cam.look_at(Vector3(x / 2.0, 1.2, 0), Vector3.UP)
-		cam.current = true
-		await _wait(wait)
+	elif scene == "maps":
+		# every town and route, and every floor of every building, built in turn (a missing model or texture prints
+		# an error, which tools/run_tests.sh counts as a failure)
+		UI.auto = true
+		Engine.time_scale = 8.0
+		var built := 0
+		for id in WorldDB.TOWNS.keys() + WorldDB.ROUTES.keys():
+			await _go(id, "start")
+			await get_tree().process_frame
+			built += 1
+			for b in world.map.get("buildings", []):
+				for f in range(1, MapLoader.room_set(b).size() + 1):
+					await _go(MapLoader.floor_id(b["interior"], f), "entry")
+					await get_tree().process_frame
+					built += 1
+		Engine.time_scale = 1.0
+		print("MAP TOUR DONE: %d maps built" % built)
 	elif scene == "perf":
 		# what the GPU has to draw on a few typical maps (run with --rendering-method mobile to match phones)
 		UI.auto = true

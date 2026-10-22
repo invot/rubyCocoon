@@ -883,7 +883,10 @@ const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "hedge_round", "ba
 func _street_mesh(name: String) -> Mesh:
 	if name == "planter":
 		return load("res://assets/psx/interior/plant_tall.res") if ResourceLoader.exists("res://assets/psx/interior/plant_tall.res") else null
-	return load(STREET_DIR + name + ".res") if ResourceLoader.exists(STREET_DIR + name + ".res") else null
+	if not ResourceLoader.exists(STREET_DIR + name + ".res"):
+		push_warning("model missing: " + STREET_DIR + name + ".res")
+		return null
+	return load(STREET_DIR + name + ".res")
 
 
 ## Tiles anyone can reach from the town's start, walking.

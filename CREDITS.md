@@ -1,9 +1,11 @@
 # Ruby Cocoon: credits
 
 Code, procedural buildings, maps and writing were made for this project.
-Third-party assets live in their original folders (`voxelassets/`, `ui/`, `music/`, `sfx/`);
-the game uses converted copies in `assets/`. **Several packs came without licence files: check
-each source's terms before releasing the game.**
+The downloaded packs themselves aren't kept in the repository (they were in `psx/`, `voxelassets/`, `ui/`,
+`music/`, `sfx/`, `new models/` and `new beasts/`): only what the game uses is, converted into `assets/`, plus the two
+fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files the packs came with are in
+`licenses/`. To rebuild an asset with its `tools/` importer, download its pack again (the sources are listed below).
+**Several packs came without licence files: check each source's terms before releasing the game.**
 
 ## PSX art (`psx/` → `assets/psx/`)
 The low-poly PS1-style world. The packs were downloaded into `psx/` (not part of the game; see

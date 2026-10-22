@@ -96,6 +96,8 @@ static var _mats := {}
 static func piece(name: String) -> Mesh:
 	if not _meshes.has(name):
 		_meshes[name] = load(DIR + name + ".res") if ResourceLoader.exists(DIR + name + ".res") else null
+		if _meshes[name] == null:
+			push_warning("model missing: " + DIR + name + ".res")
 	return _meshes[name]
 
 
