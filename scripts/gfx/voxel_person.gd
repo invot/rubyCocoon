@@ -37,10 +37,17 @@ static func build(look: Dictionary) -> Node3D:
 	return root
 
 
+## How much bigger or smaller than the rest a look is drawn (its "scale"; the hero's name can make it shorter, see
+## GameState.hero_look). The whole person is scaled, so the walk stays in proportion.
+static func _size(rig: Node3D, look: Dictionary) -> void:
+	rig.scale = Vector3.ONE * float(look.get("scale", 1.0))
+
+
 ## Dresses a rig for a look, again on the same rig if it changes (the character creator): who they are and the
 ## colours they wear.
 static func dress(rig: Node3D, look: Dictionary) -> void:
 	var o := Townfolk.outfit(look)
+	_size(rig, look)
 	if rig.has_meta("parts") and rig.get_meta("parts") == o["parts"]:
 		var model: Node3D = rig.get_node("Body").get_child(0)
 		var mat := Townfolk.material(o["colours"])
@@ -57,6 +64,7 @@ static func _dress_body(rig: Node3D, look: Dictionary) -> void:
 		body.remove_child(c)
 		c.queue_free()
 	var o := Townfolk.outfit(look)
+	_size(rig, look)
 	var model := Townfolk.assemble(o["parts"], o["colours"])
 	model.scale = Vector3.ONE * SCALE
 	body.add_child(model)

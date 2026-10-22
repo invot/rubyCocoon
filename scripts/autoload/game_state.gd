@@ -134,9 +134,15 @@ func _bind(action: String, keys: Array, pads := []) -> void:
 
 # ---------------------------------------------------------------- new game
 ## How the hero is drawn (see voxel_person.gd).
+## Heroes drawn a little shorter than the rest, by name (one of the character creator's names): how tall, against 1.
+const SHORT_HEROES := {"Andrew": 0.93}
+
+
 func hero_look() -> Dictionary:
 	var look := {"face": "hero"}
 	look.merge(hero)
+	if SHORT_HEROES.has(player_name):
+		look["scale"] = SHORT_HEROES[player_name]
 	return look
 
 

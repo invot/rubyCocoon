@@ -257,6 +257,8 @@ func _change(id: String, d: int) -> void:
 		"name":
 			pick["name"] = posmod(pick["name"] + d, _names().size())
 			Sfx.play("blip")
+			# (some names are a little shorter: see GameState.SHORT_HEROES)
+			VPer.dress(_rig, _hero_look())
 			_show()
 		"body":
 			_choose("body", posmod(pick["body"] + d, BODIES.size()))
@@ -360,6 +362,9 @@ func _build_rig() -> void:
 func _hero_look() -> Dictionary:
 	var l := {"face": "hero"}
 	l.merge(look())
+	var nm: String = _names()[pick["name"]]
+	if GameState.SHORT_HEROES.has(nm):
+		l["scale"] = GameState.SHORT_HEROES[nm]
 	return l
 
 

@@ -570,6 +570,15 @@ func _run_test() -> void:
 			start_battle({"wild": true, "foes": foes, "seed": 5})
 		# (--keys: pressed once the command panel is up, as for --scene=ring)
 		await _battle_keys()
+		# --notes=foes|foe|allies: a song's notes flying from your flute to them (take the --shot at --wait 0.5)
+		if _test.has("notes"):
+			await get_tree().create_timer(2.5).timeout
+			for c in view.get_children():
+				if c.has_method("_song_fx"):
+					var to: Array = c._alive(c.ally_slots) if _test["notes"] == "allies" else c._alive(c.foe_slots)
+					if _test["notes"] == "foe":
+						to = to.slice(0, 1)
+					c._song_fx(c.PLAYER_POS, to, true)
 		await get_tree().create_timer(wait).timeout
 	elif scene == "summon":
 		# a summon's whole show on a wild trio, called on the first round (--el=fire|water|air|earth|ghost; take the

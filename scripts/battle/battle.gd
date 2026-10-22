@@ -2911,6 +2911,7 @@ func _charm_flow(song: String) -> bool:
 		# the lesson's beast joins whenever the song is played through
 		chance = 1.0
 	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	await _song_fx(PLAYER_POS, [t], true, acc < SongDB.FLAT_ACCURACY)
 	await _note_effect(t)
 	if flawless and mistakes > 0:
 		Sfx.play("fail")
@@ -2950,12 +2951,30 @@ func _charm_flow(song: String) -> bool:
 	return true
 
 
-## Applies an effect song played by `side` ("ally" = you, "foe" = the rival trainer) with accuracy `acc`.
-func _apply_song(song: String, acc: float, side: String, target) -> void:
+## Who an effect song played by `side` reaches: all foes or all allies, or one (`target`, if it can hear it, else one
+## at random).
+func _song_targets(song: String, side: String, target) -> Array:
 	var s := SongDB.get_song(song)
 	var mine: Array = ally_slots if side == "ally" else foe_slots
 	var theirs: Array = foe_slots if side == "ally" else ally_slots
-	_song_fx(PLAYER_POS if side == "ally" else RIVAL_POS, side == "ally")
+	match s["target"]:
+		"enemies":
+			return _alive(theirs)
+		"allies":
+			return _alive(mine)
+	var pool := _alive(theirs if s["target"] == "enemy" else mine)
+	if target != null and pool.has(target):
+		return [target]
+	return [pool.pick_random()] if not pool.is_empty() else []
+
+
+## Applies an effect song played by `side` ("ally" = you, "foe" = the rival trainer) with accuracy `acc`. The notes fly
+## from the flute to whoever it reaches first (unless `shown`: they already have, as the rival played).
+func _apply_song(song: String, acc: float, side: String, target, shown := false) -> void:
+	var s := SongDB.get_song(song)
+	var targets := _song_targets(song, side, target)
+	if not shown:
+		await _song_fx(PLAYER_POS if side == "ally" else RIVAL_POS, targets, side == "ally", acc < SongDB.FLAT_ACCURACY)
 	if acc < SongDB.FLAT_ACCURACY:
 		Sfx.play("fail")
 		await msg("The melody falls flat... nothing happens.", 0.9)
@@ -2965,18 +2984,6 @@ func _apply_song(song: String, acc: float, side: String, target) -> void:
 	var power := (0.6 + acc) * (1.0 + 0.06 * mastery)
 	if great:
 		await msg("A stirring performance!", 0.6)
-	var targets := []
-	match s["target"]:
-		"enemies":
-			targets = _alive(theirs)
-		"allies":
-			targets = _alive(mine)
-		_:
-			var pool := _alive(theirs if s["target"] == "enemy" else mine)
-			if target != null and pool.has(target):
-				targets = [target]
-			elif not pool.is_empty():
-				targets = [pool.pick_random()]
 	if targets.is_empty():
 		await msg("But nobody was there to hear it...", 0.7)
 		return
@@ -3018,31 +3025,65 @@ func _song_stages(changes: Dictionary, great: bool) -> Dictionary:
 	return out
 
 
-## Musical notes drifting from the player (or rival) toward the other side.
-func _song_fx(from: Vector3, toward_foes: bool) -> void:
-	var dir := 1.0 if toward_foes else -1.0
-	for i in 7:
+## Musical notes from a trainer's flute (the trainer standing at `from`) to whoever the song reaches: `to` holds beasts
+## (or points in the world). The notes are shared out among them, each looping up and over in an arc of its own and
+## landing with a twinkle; gold for your songs, violet for the rival's. A song that falls `flat` sends them out only to
+## drop short and fade. Returns as the first notes land (the rest still on their way).
+func _song_fx(from: Vector3, to: Array, mine: bool, flat := false) -> void:
+	var col := Color("#ffe080") if mine else Color("#e0a0ff")
+	var flute := from + Vector3(0, VPer.height() * 0.62, 0) + (FOE_CENTER - ALLY_CENTER).normalized() * (0.35 if mine else -0.35)
+	var ends := []
+	for x in to:
+		if x is Vector3:
+			ends.append(x)
+		elif nodes.has(x):
+			ends.append((nodes[x] as Node3D).position + Vector3(0, 0.75, 0))
+	if ends.is_empty():
+		# nobody to hear it: out over the field
+		ends.append(flute.lerp(RIVAL_POS if mine else PLAYER_POS, 0.6) + Vector3(0, 0.6, 0))
+	var count := clampi(ends.size() * 3, 6, 12)
+	var fly := 0.85
+	for i in count:
+		var end: Vector3 = ends[i % ends.size()] + Vector3(randf_range(-0.25, 0.25), randf_range(-0.15, 0.3), randf_range(-0.2, 0.2))
+		if flat:
+			end = flute.lerp(end, 0.45) + Vector3(0, -0.9, 0)
+		var dist := flute.distance_to(end)
+		# each arc bows up, and a little to one side or the other
+		var side := Vector3.UP.cross(end - flute).normalized() * randf_range(-0.9, 0.9)
+		var peak := flute.lerp(end, 0.5) + Vector3(0, 0.6 + dist * 0.22, 0) + side
 		var l := Label3D.new()
-		l.text = "♪" if i % 2 == 0 else "♫"
+		l.text = "♪" if i % 3 != 1 else "♫"
 		l.font_size = 60
 		l.outline_size = 8
-		l.modulate = Color("#ffe080") if toward_foes else Color("#e0a0ff")
-		l.pixel_size = 0.01
+		l.modulate = col
+		l.pixel_size = 0.011
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		l.no_depth_test = true
-		l.position = from + Vector3(0.3 * dir, 1.6, 0)
+		l.position = flute
+		l.scale = Vector3.ONE * 0.5
+		l.visible = false
 		add_child(l)
-		var end := from + Vector3(dir * (5.0 + i * 0.9), 1.2 + sin(i * 1.7) * 0.8, -1.0 - i * 0.2)
 		var tw := create_tween()
-		tw.tween_interval(i * 0.09)
-		tw.tween_property(l, "position", end, 1.0)
-		tw.parallel().tween_property(l, "modulate:a", 0.0, 1.0)
+		tw.tween_interval(i * 0.07)
+		tw.tween_callback(func() -> void: l.visible = true)
+		tw.tween_method(func(t: float) -> void:
+			var a := flute.lerp(peak, t)
+			var b := peak.lerp(end, t)
+			l.position = a.lerp(b, t)
+			l.scale = Vector3.ONE * (0.5 + 0.6 * sin(PI * minf(t * 1.4, 1.0)) + 0.35 * t), 0.0, 1.0, fly).set_trans(Tween.TRANS_SINE)
+		if flat:
+			tw.tween_property(l, "modulate:a", 0.0, 0.25)
+		else:
+			# the twinkle as it lands
+			tw.tween_property(l, "scale", Vector3.ONE * 1.6, 0.12)
+			tw.parallel().tween_property(l, "modulate", Color(1, 1, 1, 0), 0.18)
 		tw.tween_callback(l.queue_free)
+	await get_tree().create_timer(fly + 0.1).timeout
 
 
-## The rival trainer's flute: the song as you'd first learn it.
-func _rival_melody(sid: String) -> void:
-	_song_fx(RIVAL_POS, false)
+## The rival trainer's flute: the song as you'd first learn it, the notes flying to `targets` as they play.
+func _rival_melody(sid: String, targets: Array) -> void:
+	_song_fx(RIVAL_POS, targets, false)
 	var spb := clampf(60.0 / float(SongDB.get_song(sid)["bpm"]), 0.42, 0.7)
 	for note in SongDB.melody(sid, 1):
 		for btn in note:
@@ -3065,9 +3106,11 @@ func _do_rival_song(a: Dictionary) -> void:
 	heard_songs[sid] = true
 	var who: String = trainer.get("name", "The trainer")
 	await msg("%s raises a flute and plays the %s!" % [who, SongDB.song_name(sid)], 0.7)
-	await _rival_melody(sid)
+	# (who it reaches is settled first, so the notes go where the song does)
+	var targets := _song_targets(sid, "foe", null)
+	await _rival_melody(sid, targets)
 	var skill := clampf(float(trainer.get("flute_skill", 0.8)) * randf_range(0.9, 1.1), 0.0, 1.0)
-	await _apply_song(sid, skill, "foe", null)
+	await _apply_song(sid, skill, "foe", targets[0] if targets.size() == 1 else null, true)
 
 
 ## After a win: try to play back a song you heard the rival play. No mistakes allowed.
@@ -3418,6 +3461,8 @@ func _resolve(acts: Array) -> void:
 			"summon":
 				await _do_summon(a)
 			"guardian_song":
+				if guardian_b != null:
+					await _song_fx(PLAYER_POS, [guardian_b], true)
 				await _guardian_capture(float(a["acc"]))
 			"defend":
 				var db = a["actor"]
@@ -4125,6 +4170,7 @@ func _guardian_song_flow(song: String) -> bool:
 	_battle_music()
 	var acc := float(r["acc"])
 	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	await _song_fx(PLAYER_POS, [guardian_b], true, acc < SongDB.FLAT_ACCURACY)
 	await _guardian_capture(acc)
 	if star and result == "":
 		UI.toast("Your mastery of the %s improved!" % SongDB.song_name(song), UIKit.GOLD)
@@ -4210,6 +4256,8 @@ func _summon_flow() -> Dictionary:
 	_battle_music()
 	var acc := float(r["acc"])
 	GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	# the song goes out to the foes the summon will strike
+	await _song_fx(PLAYER_POS, _alive(foe_slots), true, acc < SongDB.FLAT_ACCURACY)
 	if acc < SongDB.FLAT_ACCURACY:
 		Sfx.play("fail")
 		await msg("The song falters... %s doesn't answer." % who, 1.1)
