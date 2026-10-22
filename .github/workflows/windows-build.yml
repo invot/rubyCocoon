@@ -1,7 +1,8 @@
-# Every push to main: export the game for Windows with Godot (headless, on Linux) and publish it as the "latest"
-# release's RubyCocoon-windows.zip (one portable RubyCocoon.exe: unzip and run). Also runs by hand from the Actions
-# tab ("Run workflow"). The quick checks (tools/run_tests.sh quick) run first; if they fail, nothing is published.
-name: Windows build
+# Every push to main: export the game for Windows and Android with Godot (headless, on Linux) and publish them as the
+# "latest" release's RubyCocoon-windows.zip (one portable RubyCocoon.exe: unzip and run) and RubyCocoon-android.apk.
+# Also runs by hand from the Actions tab ("Run workflow"). The quick checks (tools/run_tests.sh quick) run first; if
+# they fail, nothing is published.
+name: Windows and Android build
 
 on:
   push:
@@ -27,7 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Godot and its Windows export templates, downloaded once and kept between runs
+      # Java, for signing the Android build (the runner already has the Android SDK)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Godot and its Windows and Android export templates, downloaded once and kept between runs
       - name: Cache Godot
         id: godot-cache
         uses: actions/cache@v4
@@ -35,7 +42,7 @@ jobs:
           path: |
             ~/godot
             ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows-android
 
       - name: Download Godot
         if: steps.godot-cache.outputs.cache-hit != 'true'
@@ -49,8 +56,8 @@ jobs:
           chmod +x ~/godot/godot
           curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
           unzip -q /tmp/templates.tpz -d /tmp/tpz
-          # (only the Windows templates are needed: the rest would bloat the cache)
-          cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* "$templates/"
+          # (only the Windows and Android templates are needed: the rest would bloat the cache)
+          cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* /tmp/tpz/templates/android_*.apk "$templates/"
           ls "$templates"
 
       # imports the project's assets (first run in a fresh checkout), then the quick checks
@@ -67,13 +74,40 @@ jobs:
           cd build/windows && zip -q -9 ../RubyCocoon-windows.zip RubyCocoon.exe
           ls -la ../RubyCocoon-windows.zip
 
+      # the phone app "Ruby Cacoon X" (com.rubycocoon.x, so it installs beside the original voxel app), signed with
+      # the keystore in the ANDROID_KEYSTORE_BASE64 secret (Godot's debug keystore from the computer that builds the
+      # phone copies, so a download updates the app already installed). Without that secret, only Windows is published.
+      - name: Export for Android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret, so no Android build"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/android.keystore"
+          mkdir -p ~/.config/godot build/android
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n%s\n%s\n' \
+            "export/android/android_sdk_path = \"$ANDROID_HOME\"" "export/android/java_sdk_path = \"$JAVA_HOME\"" \
+            > ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
+          sed -i -e '/^\[preset.0.options\]/,/^\[preset.1\]/{s/^package\/unique_name=.*/package\/unique_name="com.rubycocoon.x"/;s/^package\/name=.*/package\/name="Ruby Cacoon X"/}' \
+            export_presets.cfg
+          # (a debug keystore's alias and password are always these)
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/android.keystore" \
+            GODOT_ANDROID_KEYSTORE_RELEASE_USER=androiddebugkey GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=android \
+            ~/godot/godot --headless --path . --export-release "Android" build/android/RubyCocoon-android.apk
+          test -s build/android/RubyCocoon-android.apk
+          ls -la build/android/RubyCocoon-android.apk
+
       # the "latest" release always holds the newest build (the one before is replaced)
       - name: Publish as the latest build
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          files=(build/RubyCocoon-windows.zip)
+          [ -s build/android/RubyCocoon-android.apk ] && files+=(build/android/RubyCocoon-android.apk)
           notes="Built from ${GITHUB_SHA::7}: $(git log -1 --format=%s)"
           gh release delete latest --yes --cleanup-tag || true
           # (a full release, marked latest: GitHub's sidebar doesn't show pre-releases)
-          gh release create latest build/RubyCocoon-windows.zip --target "$GITHUB_SHA" --latest \
-            --title "Latest Windows build" --notes "$notes"
+          gh release create latest "${files[@]}" --target "$GITHUB_SHA" --latest \
+            --title "Latest build" --notes "$notes"

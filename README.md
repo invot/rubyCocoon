@@ -445,12 +445,18 @@ screenshot without looking at it, `bash tools/img.sh` measures it: `diff a.png b
 `bbox x.png` (the box round whatever isn't background, or `--like=#rrggbb`), `color x.png 0.5 0.4` (the colour at a
 point) and `crop x.png out.png`; each takes `--region` and `--tol`.
 
-## Windows builds
+## Windows and Android builds
 
-Every push to `main` builds the game for Windows on GitHub (`.github/workflows/windows-build.yml`): Godot exports it
-headless on Linux, after the quick checks, and the newest build is on the repository's Releases page as "Latest
-Windows build": `RubyCocoon-windows.zip`, one portable `RubyCocoon.exe` (unzip and run; it isn't signed, so the first
-time Windows SmartScreen asks: More info, Run anyway). A build can also be started by hand from the Actions tab.
+Every push to `main` builds the game for Windows and Android on GitHub (`.github/workflows/windows-build.yml`): Godot
+exports it headless on Linux, after the quick checks, and the newest build is on the repository's Releases page as
+"Latest build". A build can also be started by hand from the Actions tab.
+
+- `RubyCocoon-windows.zip`: one portable `RubyCocoon.exe` (unzip and run; it isn't signed, so the first time Windows
+  SmartScreen asks: More info, Run anyway).
+- `RubyCocoon-android.apk`: the phone app "Ruby Cacoon X" (`com.rubycocoon.x`, beside the original voxel app). It's
+  signed with the `ANDROID_KEYSTORE_BASE64` repository secret (Godot's debug keystore from the computer that builds the
+  phone copies, base64-encoded), so a download installs over a copy built there. Without the secret only Windows is
+  built.
 
 ## Project layout
 
