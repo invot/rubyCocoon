@@ -801,6 +801,28 @@ func _run_test() -> void:
 		print("log: ", UI.auto_log.slice(maxi(0, UI.auto_log.size() - 6)))
 		print("PHONE TEST DONE: %d problem(s)" % bad)
 		UI.auto = false
+	elif scene == "call":
+		# calling Dad, for a screenshot: from the phone at home, or the town square's payphone (--where=payphone),
+		# standing at --stand=x,y facing --face=dx,dy; A is pressed --presses times (4: past "Call Dad?", Yes and the
+		# dialling, to Dad's first line; the call never gets as far as saving). Dad says --name (the game's default)
+		var pay: bool = _test.get("where", "home") == "payphone"
+		await _go("caccoon" if pay else MapLoader.interior_of("caccoon", "home"), "start" if pay else "entry")
+		await _wait(1.0)
+		GameState.gold = 20
+		GameState.player_name = String(_test.get("name", "Andrew"))
+		var st := String(_test.get("stand", "14,10" if pay else "10,3")).split(",")
+		var fc := String(_test.get("face", "0,-1" if pay else "1,0")).split(",")
+		var at := Vector2i(int(st[0]), int(st[1]))
+		var f := Vector2i(int(fc[0]), int(fc[1]))
+		world.player_pos = at
+		world.player.position = world.tile_pos(at)
+		world.facing = f
+		load("res://scripts/gfx/voxel_person.gd").face(world.player, f)
+		Phone.call_home(world, Phone.FEE if pay else 0)
+		for i in int(_test.get("presses", "4")):
+			await _wait(0.7)
+			await _press("ui_accept")
+		await _wait(wait)
 	elif scene == "knock":
 		# locked doors: you knock and someone shouts through it; the cathedral opens once its guard is beaten
 		UI.auto = true
@@ -1337,6 +1359,8 @@ func _run_test() -> void:
 		# Gil's fishing: --lesson=1 (default) his lesson off the shack's deck, 0 an ordinary cast at a ripple; A is pressed
 		# --taps times a second once the float dips (--taps=0: never strike); --snap=secs saves a screenshot mid-cast
 		autoplay = true
+		# (Tidewater's first-visit welcome would stay up under the fishing)
+		GameState.set_flag("seen_tidewater")
 		_do_goto("tidewater", Vector2i(7, 33), Vector2i(0, 1))
 		await _wait(1.5)
 		# (after arriving, so the arrival doesn't start Gil's lesson by itself)
@@ -1350,8 +1374,9 @@ func _run_test() -> void:
 			GameState.add_item(String(_test["bait"]), 2)
 			GameState.bait = String(_test["bait"])
 		if _test.has("snap"):
+			var snap_to := String(_test.get("shot", "C:/tmp/fish.png"))
 			get_tree().create_timer(float(_test["snap"])).timeout.connect(func():
-				_save_shot(String(_test.get("shot", "C:/tmp/fish.png")).replace(".png", "_mid.png")))
+				_save_shot("%s_mid.%s" % [snap_to.get_basename(), snap_to.get_extension()]))
 		var rate := float(_test.get("taps", "7"))
 		var tapping := [true]
 		if rate > 0.0:

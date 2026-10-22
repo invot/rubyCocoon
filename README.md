@@ -2,7 +2,7 @@
 
 A low-poly, PS1-style beast-training RPG for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
-<img src="docs/screenshots/cove.jpg" width="800" alt="Cocoon Cove, the seaside hamlet where you start."><br><sub>Cocoon Cove, the seaside hamlet where you start.</sub>
+<img src="docs/screenshots/title.jpg" width="800" alt="The title screen, with Cocoon Cove behind it."><br><sub>The title screen, with Cocoon Cove behind it.</sub>
 
 ## Running it
 
@@ -52,6 +52,9 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 
 1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Tidewater, the next town east.
 2. Elder Rowan lets you choose one of four elemental eggs.
+
+   <img src="docs/screenshots/cove.jpg" width="640" alt="Cocoon Cove, the seaside hamlet where you start."><br><sub>Cocoon Cove, the seaside hamlet where you start.</sub>
+
 3. The Beast Center hatches it into a **level 1** beast.
 4. Scout Bram keeps the gate to the Coastal Path shut until you have a beast of your own.
 5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it (`world_db.gd`
@@ -98,6 +101,8 @@ Townsfolk and residents add a casual hint about what to do next to whatever else
 | Jungle | Vinehollow | The village sells the finest gear in the land. The shaman needs the Sun, Moon and Earth relics; the ritual raises the hidden **Temple of Roots**. |
 | River and moor | Riverbend, Gravenmoor | Gravenmoor is the Legion's town. Ghost beasts can be hatched and merged from here on. The gravedigger teaches the Requiem of Dusk. Commander Nyx guards the cathedral, and General Vexmora waits in the crypt beneath it. |
 
+<img src="docs/screenshots/worldmap.jpg" width="640" alt="The world map: the towns you've been to, and ??? for the ones you haven't reached yet."><br><sub>The world map: the towns you've been to, and ??? for the ones you haven't reached yet.</sub>
+
 Every road between towns narrows to one bottleneck with a puzzle, getting harder as you go:
 
 | Road | Puzzle |
@@ -131,7 +136,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   (Shellhaven, Kelpwick), a Spinner Lure from Copperpick, Cogsworth and Emberfall, a Glow Lure from Riverbend and
   Gravenmoor. Captain Gull's ferry is moored by the long pier, and Gil's rowboat by his shack (map `boats`).
 
-  <img src="docs/screenshots/fishing.jpg" width="640" alt="Fishing with Gil off his shack's deck in Tidewater."><br><sub>Fishing with Gil off his shack's deck in Tidewater.</sub>
+  <img src="docs/screenshots/fishing.jpg" width="640" alt="Reeling one in with Gil, off his shack's deck in Tidewater."><br><sub>Reeling one in with Gil, off his shack's deck in Tidewater.</sub>
 
 - **13 beast lines** of three forms each (`race_db.gd` LINES): Fire has the spiky dino (Embit, Cinderex, Pyrosaur),
   the cactus (Pricklet, Spinesear, Saguaroar) and the pink imp (Impkin, Scampyre, Infernook); Earth the beetle
@@ -159,6 +164,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   A guardian can't be knocked out (it rises again): weaken it and play its song to capture it. In battle the same song
   summons it, once per battle for one shield point, to hit every foe for about half their HP, more with an element
   advantage; bosses always survive it (`summon_fx.gd`).
+
+  <img src="docs/screenshots/temple.jpg" width="640" alt="Inside the Temple of Flame, on the Caldera Road."><br><sub>Inside the Temple of Flame, on the Caldera Road.</sub>
 
   <img src="docs/screenshots/summon.jpg" width="640" alt="Pyroclast answers your song: a summon arriving in battle."><br><sub>Pyroclast answers your song: a summon arriving in battle.</sub>
 
@@ -205,7 +212,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
   - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. Damage numbers use BoldPixels.
 
-  <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle: your trainer and beasts on the ring (right), the foes across the sand."><br><sub>A wild battle: your trainer and beasts on the ring (right), the foes across the sand.</sub>
+  <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand."><br><sub>A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand.</sub>
 
 - **Shield and the end of a battle**:
   - If the beast in the middle of the side facing the foe is down (or that slot is empty), its trainer can be **attacked directly**: each hit breaks one shield point. Turn your ring to a side whose middle still stands to cover yourself, or have a corner beast Move into the fallen one's place.
@@ -249,20 +256,29 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Through the door in the left wall is the **kennel**, a room of its own. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adopt one, or drop one of yours off for another trainer (Pip thanks you with a little gold). Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
   - Guide Dottie walks about the room by the entrance and explains how it all works.
   - All three wear the Beast Center uniform: a white polo with red collar and cuffs, a name badge and a diner paper hat (Pip adds a green apron).
+
+  <img src="docs/screenshots/heal.jpg" width="640" alt="Cocoon Cove's Beast Center: the healing machine glowing at the back, Nurse Clover's counter, the booths and the red phone by the door."><br><sub>Cocoon Cove's Beast Center: the healing machine glowing at the back, Nurse Clover's counter, the booths and the red phone by the door.</sub>
+
 - **Saving**: your dad is away up north for work, and **calling him is how you save**. Tell him how your journey's going, he cheers you on, and the game is saved; then keep playing, or stop for now (back to the title screen).
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
   - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
   - Ten save slots. A new game takes the first empty slot the first time you save; after that every save goes back into the same slot.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
   - The title screen's **Load Game** lists the slots with their snapshots; you can load, copy or delete them there.
+
+  <img src="docs/screenshots/call.jpg" width="640" alt="Calling Dad from the phone at home: that's how you save."><br><sub>Calling Dad from the phone at home: that's how you save.</sub>
+
 - **Shops** differ per town. Small towns have a few; cities have many. Each building has a wordless sign fixed flat to its front above the door, showing what it is (houses have none).
 - **Inside**, every house and shop is a compact room seen whole, like a stage set: no front wall, the camera holding still, and the front door in a side wall. Blue doors open (a door to another room loads that room on its own); red ones are locked. Homes have no kitchens to wander into: many townsfolk live in studios, bed and sofa in one room, while others have a bedroom through a door or up a flight of stairs. Your own home has the living room downstairs, with Mom and the phone, and your bedroom upstairs. The big dungeons (temples, the hideout, Gearhart Tower, the Sky Tower and the cathedral) keep their own layouts, open at the front too.
   - Everyone who works in a shop stands behind a counter and wears their shop's uniform: a polo in the shop's colour with a contrasting collar and cuffs, short sleeves, a name badge and usually a visor (the sensei and the fortune teller wear headbands, the music hall's usher a pillbox hat).
+
+  <img src="docs/screenshots/bedroom.jpg" width="640" alt="Upstairs at home: your bedroom, and the stairs down to the living room."><br><sub>Upstairs at home: your bedroom, and the stairs down to the living room.</sub>
+
 - **Locked doors**: about a third of houses are locked, and so is Gravenmoor Cathedral until its Legion guard is beaten. Locked doors are crimson with iron straps and a brass padlock in every town. Try one and you knock (knock-knock-knock), and whoever is inside shouts something silly through it.
 
 ## Art
 
-<img src="docs/screenshots/tidewater.jpg" width="640" alt="Tidewater from above: its houses, the arena and the Sky Tower."><br><sub>Tidewater from above: its houses, the arena and the Sky Tower.</sub>
+<img src="docs/screenshots/tidewater.jpg" width="640" alt="Tidewater from above: its houses, the arena, the Sky Tower and the docks."><br><sub>Tidewater from above: its houses, the arena, the Sky Tower and the docks.</sub>
 
 - **App icon**: the game's original Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
 - **World and props** (trees, rocks, fences and the like) are pack models converted to OBJ plus palette PNG by `tools/import_voxel_assets.py` (with `tools/vox2obj.py` for `.vox` files), kept in `assets/voxel/` and listed in `scripts/data/voxel_manifest.gd`. The packs themselves aren't in the repository; with one downloaded again, re-import with:
@@ -577,6 +593,7 @@ godot --path . -- --scene=tap                                           # tap to
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere
 godot --path . -- --scene=saves --card=1 --shot=C:/tmp/c.png            # save slots and the "Game saved!" card
+godot --path . -- --scene=call --shot=C:/tmp/c.png                       # calling Dad from the phone at home, up to his first line (--where=payphone, --presses)
 godot --path . -- --scene=heal --shot=C:/tmp/h.png                      # the Beast Center healing machine (--what=hatch for the incubator)
 godot --path . -- --scene=defeat --at=0.2 --shot=C:/tmp/d.png           # a beaten foe's puff of smoke and a damage number
 godot --path . -- --scene=hero --shot=C:/tmp/h.png                      # the hero from four sides
