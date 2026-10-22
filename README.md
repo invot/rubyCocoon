@@ -425,6 +425,26 @@ godot --headless --path . --script res://tools/check_maps.gd
 python tools/town_check.py
 ```
 
+## Tests
+
+`bash tools/run_tests.sh` runs every check and test scene headless (no windows), three at a time, and prints one
+line per test, `ok` or `FAIL` with what went wrong; full logs go to `build/test_logs/`. A failing test gets a second
+try before it counts. About three and a half minutes; `bash tools/run_tests.sh quick` runs only the fast checks
+(seconds), and naming tests (`bash tools/run_tests.sh flow ringedit`) runs just those. Exits 0 when all passed.
+- `check_scripts.gd`: every script parses and compiles.
+- `check_data.gd`: everything the data names exists: the beasts (race ids) on routes, maps, trainers, leaders,
+  coaches, temples, fishing pools and eggs; songs, moves, shop items and summon models; and everyone on every map,
+  and the hero in every outfit, hairdo and pack, can be dressed.
+- `check_maps.gd` (above) and `check_beasts.gd` (the beast lines, growing up and merging).
+- The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
+  the coaches, the mascots, and each temple from its stone puzzle to capturing its guardian.
+
+Screenshots from a test scene (`--shot=path.png`) come out small: `--crop=x0,y0,x1,y1` keeps just part of the screen
+(fractions, or pixels if any is over 1) and `--shot_w` caps the width (default 960; 0 keeps full size). To check a
+screenshot without looking at it, `bash tools/img.sh` measures it: `diff a.png b.png` (how much changed, and where),
+`bbox x.png` (the box round whatever isn't background, or `--like=#rrggbb`), `color x.png 0.5 0.4` (the colour at a
+point) and `crop x.png out.png`; each takes `--region` and `--tol`.
+
 ## Project layout
 
 ```

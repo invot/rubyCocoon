@@ -1206,7 +1206,7 @@ func _run_test() -> void:
 			world.player_pos = bridge_at + Vector2i(-2, 0)
 			world.player.position = world.tile_pos(world.player_pos)
 			await _wait(1.0)
-			get_viewport().get_texture().get_image().save_png(String(_test["shot"]).replace(".png", "_bridge.png"))
+			_save_shot(String(_test["shot"]).replace(".png", "_bridge.png"))
 		# route3: the cliff needs a beast with wings
 		await _go("route3", "south")
 		await _wait(1.0)
@@ -1321,7 +1321,7 @@ func _run_test() -> void:
 			GameState.bait = String(_test["bait"])
 		if _test.has("snap"):
 			get_tree().create_timer(float(_test["snap"])).timeout.connect(func():
-				get_viewport().get_texture().get_image().save_png(String(_test.get("shot", "C:/tmp/fish.png")).replace(".png", "_mid.png")))
+				_save_shot(String(_test.get("shot", "C:/tmp/fish.png")).replace(".png", "_mid.png")))
 		var rate := float(_test.get("taps", "7"))
 		var tapping := [true]
 		if rate > 0.0:
@@ -1382,11 +1382,31 @@ func _run_test() -> void:
 		UI.show_beast(c, "A new beast is born!")
 		await get_tree().create_timer(wait).timeout
 	if _test.has("shot"):
-		var img := get_viewport().get_texture().get_image()
-		img.save_png(_test["shot"])
-		print("screenshot saved: ", _test["shot"])
+		_save_shot(String(_test["shot"]))
 	if _test.get("quit", "1") == "1":
 		get_tree().quit()
+
+
+## Saves what's on screen to `path`, small: just the part --crop names (x0,y0,x1,y1: fractions of the screen, or
+## pixels if any is over 1), shrunk to --shot_w pixels wide at most (default 960; 0 keeps every pixel). Prints where
+## it went and its size.
+func _save_shot(path: String) -> void:
+	var img := get_viewport().get_texture().get_image()
+	if _test.has("crop"):
+		var c: Array = Array(String(_test["crop"]).split(",")).map(func(x): return float(x))
+		if c.size() == 4:
+			var px: bool = c.any(func(x): return x > 1.0)
+			var sz := Vector2(img.get_width(), img.get_height())
+			var a := Vector2(c[0], c[1]) if px else Vector2(c[0], c[1]) * sz
+			var b := Vector2(c[2], c[3]) if px else Vector2(c[2], c[3]) * sz
+			var r := Rect2i(Vector2i(a), Vector2i(b - a)).intersection(Rect2i(Vector2i.ZERO, Vector2i(sz)))
+			if r.size.x > 0 and r.size.y > 0:
+				img = img.get_region(r)
+	var max_w := int(_test.get("shot_w", "960"))
+	if max_w > 0 and img.get_width() > max_w:
+		img.resize(max_w, maxi(1, roundi(img.get_height() * float(max_w) / img.get_width())), Image.INTERPOLATE_BILINEAR)
+	img.save_png(path)
+	print("screenshot saved: %s (%dx%d)" % [path, img.get_width(), img.get_height()])
 
 
 # ---------------------------------------------------------------- automated flow test
