@@ -1,6 +1,8 @@
 # Ruby Cocoon
 
-A voxel beast-training RPG for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
+A low-poly, PS1-style beast-training RPG for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
+
+<img src="docs/screenshots/cove.jpg" width="800" alt="Cocoon Cove, the seaside hamlet where you start."><br><sub>Cocoon Cove, the seaside hamlet where you start.</sub>
 
 ## Running it
 
@@ -31,6 +33,9 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 ## The journey
 
 You start at home in **Cocoon Cove** on the coast with no beasts, no flute and no songs.
+
+<img src="docs/screenshots/maker.jpg" width="640" alt="The character creator: name, body, outfit, hairdo, pack and colours."><br><sub>The character creator: name, body, outfit, hairdo, pack and colours.</sub>
+
 1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Tidewater, the next town east.
 2. Elder Rowan lets you choose one of four elemental eggs.
 3. The Beast Center hatches it into a **level 1** beast.
@@ -46,6 +51,9 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
    fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, on the trail by the creek: your own turn (slingshot, Watch, Run and Forfeit).
    Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
    striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
+
+   <img src="docs/screenshots/coastal_path.jpg" width="640" alt="The Coastal Path, the tutorial: a winding trail with teachers waiting on it."><br><sub>The Coastal Path, the tutorial: a winding trail with teachers waiting on it.</sub>
+
 6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater (the sign only says there's a footbridge ahead
    and a builder's cabin by the creek). Old Hal the builder, in the cabin just west of it, is too tired to rebuild it
    himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
@@ -109,6 +117,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   (Shellhaven, Kelpwick), a Spinner Lure from Copperpick, Cogsworth and Emberfall, a Glow Lure from Riverbend and
   Gravenmoor. Captain Gull's ferry is moored by the long pier, and Gil's rowboat by his shack (map `boats`).
 
+  <img src="docs/screenshots/fishing.jpg" width="640" alt="Fishing with Gil off his shack's deck in Tidewater."><br><sub>Fishing with Gil off his shack's deck in Tidewater.</sub>
+
 - **13 beast lines** of three forms each (`race_db.gd` LINES): Fire has the spiky dino (Embit, Cinderex, Pyrosaur),
   the cactus (Pricklet, Spinesear, Saguaroar) and the pink imp (Impkin, Scampyre, Infernook); Earth the beetle
   (Grubbit, Shellhorn, Rhinoclad), the armoured boar (Tuskit, Bristlehog, Crystusk) and the tree (Saplet, Barkbrute,
@@ -117,6 +127,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Galeberry). Two lines are of two elements: the scorpion (Nipskit, Scorchpin, Calderak) is Fire and Earth, and the
   worm that is an eel in the sea (Wrigglet, Mudwhip, Abyssel) Earth and Water. The weaknesses are: Fire to Air, Earth
   to Water, Water to Air, and Air to Fire.
+
+  <img src="docs/screenshots/beasts.jpg" width="640" alt="Five of the lines, each in its three forms."><br><sub>Five of the lines, each in its three forms.</sub>
+
 - **Growing up**: a beast hatches as its line's first form and grows into the second at **Lv 20** and the third at
   **Lv 40** (`RaceDB.EVOLVE`, `Beast.evolve`): bigger, stronger, with the new form's name (unless it has a name of its
   own). It keeps its moves, and a line learns the same moves at every form. Wild and trainers' beasts are whatever form
@@ -127,7 +140,14 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Trainers' beasts, robots and guardians never drop eggs.
   - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
-- **Temple guardians**: each elemental temple holds a legendary guardian: Abyssion, Zephyrax, Pyroclast and Terranox. Beating it gives a **Radiant Egg** of that element.
+- **Temple guardians** are summons: each elemental temple holds a legendary guardian (Abyssion, Zephyrax, Pyroclast
+  and Terranox), and Gravenmoor's crypt holds the ghost Nocthrax. A stone puzzle in each teaches that temple's song.
+  A guardian can't be knocked out (it rises again): weaken it and play its song to capture it. In battle the same song
+  summons it, once per battle for one shield point, to hit every foe for about half their HP, more with an element
+  advantage; bosses always survive it (`summon_fx.gd`).
+
+  <img src="docs/screenshots/summon.jpg" width="640" alt="Pyroclast answers your song: a summon arriving in battle."><br><sub>Pyroclast answers your song: a summon arriving in battle.</sub>
+
 - **Merging** happens at Beast Centers, between two beasts grown into their final form and at their level limit: **Lv
   40** at rank 1, and each merge raises the limit by 20 (`Beast.level_cap`). A normal merge is 50/50. The new beast is
   put together from both parents' models (`beast_parts.gd`): one gives its frame, the other some of its parts (its
@@ -170,6 +190,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
   - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. Damage numbers use BoldPixels.
+
+  <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle: your trainer and beasts on the ring (right), the foes across the sand."><br><sub>A wild battle: your trainer and beasts on the ring (right), the foes across the sand.</sub>
+
 - **Shield and the end of a battle**:
   - If the beast in the middle of the side facing the foe is down (or that slot is empty), its trainer can be **attacked directly**: each hit breaks one shield point. Turn your ring to a side whose middle still stands to cover yourself, or have a corner beast Move into the fallen one's place.
   - A trainer battle ends only when a trainer is hit with no shield left, or someone forfeits. Wild beasts have no trainer: beat them all to win. If you're the one hit with no shield left, you wake up at the nearest Beast Center you've visited.
@@ -196,6 +219,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - The **Requiem of Dusk** follows the same rules for ghost beasts.
   - Other trainers' beasts can't be charmed.
   - The **arena masters** teach strong combined battle songs, such as Tidewater Shanty (ATK and SPD up) and River Anthem (heal, cure, SPR up).
+
+  <img src="docs/screenshots/flute.jpg" width="640" alt="A song's notes flying from your flute to its targets."><br><sub>A song's notes flying from your flute to its targets.</sub>
+
 - **Learning songs**:
   - **Brass & Reed Music** in Cogsworth: Maestro Clef plays one song from his book for free, once. Play it back from memory to learn it. He also sells sheet music, which you can practise from your bag until you get it right.
   - **Flute trainers** play their own songs in battle: four route bards, three arena masters, Commander Nyx and General Vexmora. Win, then play the song back **without a single mistake** to learn it. Bards and arena masters will battle again for an encore.
@@ -213,14 +239,16 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - A new game takes the first empty slot the first time you save; after that every save goes back into the same slot.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
   - The title screen's **Load Game** lists the slots with their snapshots; you can load, copy or delete them there.
-- **Shops** differ per town. Small towns have a few; cities have many. Each building has a wordless voxel sign fixed flat to its front above the door, showing what it is (houses have none).
+- **Shops** differ per town. Small towns have a few; cities have many. Each building has a wordless sign fixed flat to its front above the door, showing what it is (houses have none).
   - Everyone who works in a shop stands behind a counter and wears their shop's uniform: a polo in the shop's colour with a contrasting collar and cuffs, short sleeves, a name badge and usually a visor (the sensei and the fortune teller wear headbands, the music hall's usher a pillbox hat).
 - **Locked doors**: about a third of houses are locked, and so is Gravenmoor Cathedral until its Legion guard is beaten. Locked doors are crimson with iron straps and a brass padlock in every town. Try one and you knock (knock-knock-knock), and whoever is inside shouts something silly through it.
 
-## Art: voxels
+## Art
 
-- **App icon**: the game's old voxel Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
-- **World and props** come from the voxel packs in `voxelassets/`. They are converted to OBJ plus palette PNG by `tools/import_voxel_assets.py`, which uses `tools/vox2obj.py` for `.vox` files. The models are imported into `assets/voxel/` and listed in `scripts/data/voxel_manifest.gd`. To re-import:
+<img src="docs/screenshots/tidewater.jpg" width="640" alt="Tidewater from above: its houses, the arena and the Sky Tower."><br><sub>Tidewater from above: its houses, the arena and the Sky Tower.</sub>
+
+- **App icon**: the game's original Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
+- **World and props** (trees, rocks, fences and the like) are pack models converted to OBJ plus palette PNG by `tools/import_voxel_assets.py` (with `tools/vox2obj.py` for `.vox` files), kept in `assets/voxel/` and listed in `scripts/data/voxel_manifest.gd`. The packs themselves aren't in the repository; with one downloaded again, re-import with:
 
   ```
   python tools/import_voxel_assets.py
@@ -283,7 +311,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear a pack (`look.pack`, one of `Townfolk.packs()`); the hero picks theirs in the character creator. People talk with their hands while they speak to you (`set_talking`) and sit on a chair at a table (`set_pose`; `world.gd seat`). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk` and `--pose=sit` show the others; `--trainer=<seed>` four camo trainers; `--packs=<n> --view=0|1` the hero in four packs from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
-- The terrain is made of textured voxel blocks; water and lava sit one step lower.
+- The terrain is made of textured blocks, one per tile; water and lava sit one step lower.
 - Furniture uses pixel patterns from `ui/seamless patterns/`: bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables, metal terminals and woven kilim rugs with a dark border (each room gets the kilim closest to its rug colour). `tools/build_patterns.py` cuts them into `assets/textures/patterns/`.
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
@@ -291,6 +319,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 ## The Start book (menu)
 
 Press **Start** (Space) to open the travel book. Its bookmark tabs:
+
+<img src="docs/screenshots/book.jpg" width="640" alt="The Start book's Beasts tab: your battle ring and storage."><br><sub>The Start book's Beasts tab: your battle ring and storage.</sub>
 
 | Tab | What's in it |
 |---|---|
@@ -319,6 +349,9 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
     the gem.
   The gem is picked in Start → Settings → Gem: **Ruby** (the default), **Sapphire**, **Emerald** or **Hematite** (slate
   grey). `UIKit.set_accent` derives the whole palette from the gem (and the style).
+
+  <img src="docs/screenshots/gems.jpg" width="640" alt="Settings in the Pixel style with the Sapphire gem."><br><sub>Settings in the Pixel style with the Sapphire gem.</sub>
+
 - **Fonts**: **BoldPixels** for body text, menus and dialogue; **Lunchtime Doubly So** only for headings (window and
   page titles, tabs' section headers, name plates, map names). Both are drawn on a 16-pixel grid, so every size is
   snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
@@ -354,6 +387,8 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 
 ## Mobile
 
+<img src="docs/screenshots/phone.jpg" width="640" alt="On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle."><br><sub>On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle.</sub>
+
 - **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; phones are capped at a steady 60 fps.
 - The most detailed pack models (the palm, dead tree, big/oak/birch/round trees and the mountain rocks) have half-resolution `_lo.obj` versions made by `tools/voxel_lod.py` (also run by `import_voxel_assets.py`): about a quarter of the triangles, and from the game's camera they look the same. A busy town went from about 5.8 million triangles a frame to about 0.7 million. `godot --path . --rendering-method mobile -- --scene=perf --detail=1` prints what each map costs; `--scene=lod` shows the models side by side.
 - The project uses the Mobile renderer on phones and tablets, sensor-landscape orientation, ETC2/ASTC textures, and an expanding aspect, so wide phones get extra width instead of black bars.
@@ -374,7 +409,7 @@ and ffmpeg.
 
 - **Small download**: about 18 MB before the title screen. The engine and game data are gzipped and stored as
   parts under `data/` (Cloudflare Pages takes files of up to 25 MiB); a small script in `index.html` joins and unzips
-  them in the browser. Both exports leave out unused sound effects, unused voxel models and the full-size copies of
+  them in the browser. Both exports leave out unused sound effects, unused models and the full-size copies of
   models that have a `_lo` version (`tools/make_export_presets.py`).
 - **Music on demand**: the web build doesn't contain the music. Each track is a small Ogg file under `music/`
   (about 1.3 MB) that the game downloads the first time it plays it, then keeps.
@@ -440,7 +475,8 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   the coaches, the mascots, and each temple from its stone puzzle to capturing its guardian.
 
 Screenshots from a test scene (`--shot=path.png`) come out small: `--crop=x0,y0,x1,y1` keeps just part of the screen
-(fractions, or pixels if any is over 1) and `--shot_w` caps the width (default 960; 0 keeps full size). To check a
+(fractions, or pixels if any is over 1) and `--shot_w` caps the width (default 960; 0 keeps full size); a `.jpg`
+path saves a JPEG instead (as for the pictures in `docs/screenshots/`, which Godot ignores). To check a
 screenshot without looking at it, `bash tools/img.sh` measures it: `diff a.png b.png` (how much changed, and where),
 `bbox x.png` (the box round whatever isn't background, or `--like=#rrggbb`), `color x.png 0.5 0.4` (the colour at a
 point) and `crop x.png out.png`; each takes `--region` and `--tol`.
@@ -453,7 +489,7 @@ exports it headless on Linux, after the quick checks, and the newest build is on
 
 - `RubyCocoon-windows.zip`: one portable `RubyCocoon.exe` (unzip and run; it isn't signed, so the first time Windows
   SmartScreen asks: More info, Run anyway).
-- `RubyCocoon-android.apk`: the phone app "Ruby Cacoon X" (`com.rubycocoon.x`, beside the original voxel app). It's
+- `RubyCocoon-android.apk`: the phone app "Ruby Cacoon X" (`com.rubycocoon.x`, beside the original Ruby Cocoon app). It's
   signed with the `ANDROID_KEYSTORE_BASE64` repository secret (Godot's debug keystore from the computer that builds the
   phone copies, base64-encoded), so a download installs over a copy built there. Without the secret only Windows is
   built.
@@ -471,7 +507,7 @@ scripts/
   core/        beast.gd (a beast instance, growing up), beasts.gd (creation, merging, legendary dominance), ring.gd (the battle ring)
   gfx/         beast_rig, beast_parts, beast_model, beast_icons, beast_toon.gdshader (the beasts), voxel_mesher (greedy mesher), voxel_beast, voxel_person, voxel_buildings, voxel_props, voxel_textures, voxel_assets
   data/        ... beast_looks (each beast line's colours)
-  world/       map_loader.gd (ASCII → map), world.gd (voxel overworld + interiors), map_gen.gd (tile types)
+  world/       map_loader.gd (ASCII → map), world.gd (overworld + interiors), map_gen.gd (tile types)
   battle/      battle.gd (ring battles, trainer turn, shields, egg drops), command_panel.gd (the stacked command rows)
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
@@ -490,7 +526,7 @@ godot --headless --path . -- --scene=sim --n=10                          # simul
 godot --headless --path . -- --scene=flow                                # scripted run through the whole story
 godot --path . -- --scene=knock                                         # knock on locked doors (a Tidewater house, the cathedral)
 godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Tempestrix
-godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # voxel asset gallery
+godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery as the game draws them (pages 0-3: the forms, then the legendaries; 4 = merges)
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
 godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run (--style=cozy / pixel: a style)
@@ -532,5 +568,5 @@ godot --path . -- --scene=hero --shot=C:/tmp/h.png                      # the he
 See **CREDITS.md**; the same list is in the game under Start → Settings → Credits.
 - Most of the music appears to be Kevin MacLeod's (CC BY 4.0), which requires attribution.
 - The TravelBook UI licence asks for credit and a note of changes.
-- StickyBizcuit's voxel pack asks for a hidden easter egg: look for Bizcuit in Cocoon Cove.
-- Several packs (some voxel samples, the fonts, set1 and the sound effects) came without licence files. Check each source's terms before releasing the game.
+- StickyBizcuit's asset pack asks for a hidden easter egg: look for Bizcuit in Cocoon Cove.
+- Several packs (some sample models, the fonts, set1 and the sound effects) came without licence files. Check each source's terms before releasing the game.

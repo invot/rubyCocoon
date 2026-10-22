@@ -575,6 +575,10 @@ func _run_test() -> void:
 			await get_tree().create_timer(2.5).timeout
 			for c in view.get_children():
 				if c.has_method("_song_fx"):
+					# (as in a real song, the command panel and its tip are out of the way)
+					c._show_option({}, {})
+					if not UI.stack.is_empty():
+						UI.stack.back().visible = false
 					var to: Array = c._alive(c.ally_slots) if _test["notes"] == "allies" else c._alive(c.foe_slots)
 					if _test["notes"] == "foe":
 						to = to.slice(0, 1)
@@ -1384,7 +1388,11 @@ func _save_shot(path: String) -> void:
 	var max_w := int(_test.get("shot_w", "960"))
 	if max_w > 0 and img.get_width() > max_w:
 		img.resize(max_w, maxi(1, roundi(img.get_height() * float(max_w) / img.get_width())), Image.INTERPOLATE_BILINEAR)
-	img.save_png(path)
+	# (a .jpg path saves a small JPEG, as for the README's screenshots)
+	if path.get_extension().to_lower() in ["jpg", "jpeg"]:
+		img.save_jpg(path, 0.85)
+	else:
+		img.save_png(path)
 	print("screenshot saved: %s (%dx%d)" % [path, img.get_width(), img.get_height()])
 
 
