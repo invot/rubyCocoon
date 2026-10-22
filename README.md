@@ -439,6 +439,12 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
   the coaches, the mascots, and each temple from its stone puzzle to capturing its guardian.
 
+Screenshots from a test scene (`--shot=path.png`) come out small: `--crop=x0,y0,x1,y1` keeps just part of the screen
+(fractions, or pixels if any is over 1) and `--shot_w` caps the width (default 960; 0 keeps full size). To check a
+screenshot without looking at it, `bash tools/img.sh` measures it: `diff a.png b.png` (how much changed, and where),
+`bbox x.png` (the box round whatever isn't background, or `--like=#rrggbb`), `color x.png 0.5 0.4` (the colour at a
+point) and `crop x.png out.png`; each takes `--region` and `--tol`.
+
 ## Project layout
 
 ```
