@@ -33,16 +33,22 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
   plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
 
 ### Towns and buildings (`assets/psx/houses/`, `assets/psx/exterior/`, `assets/psx/interior/`)
-Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd` and `tools/import_psx_interior.gd`.
+Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd`, `tools/import_psx_interior.gd` and
+`tools/import_psx_furniture.gd`.
 *Changes made:* models merged, centred, turned to face one way and scaled to the game's people; textures shrunk to
 128 px or less; houses re-skinned per town from the pack's own tiles; wall sections split so each building's own wall
-finish shows through; counters, booths and street furniture stretched to fit their tiles.
+finish shows through; counters, booths and street furniture stretched to fit their tiles; the furniture pack's
+untextured pieces cut out of its showrooms, sized to their tiles and coloured part by part (frames, bedding,
+upholstery) over a wood grain and cloth weave of our own.
 - **PS1 House Pack - 100 Low Poly Houses, Textured Inside and Out** by najjar320,
   https://najjar320.itch.io/ps1-house-pack-100-low-poly-houses (the houses and shops). Free for commercial use; credit
   appreciated, not required; the files may not be redistributed.
 - **PSX modular house interior pack** by DissonantVoid, https://dissonantvoid.itch.io/psx-retro-interior-pack
-  (furniture, kitchens, bathrooms, beds, doors, windows, wall and floor textures). Free for commercial use; the
-  files may not be redistributed.
+  (kitchens, bathrooms, wardrobes, shelves, lamps, ornaments, doors, windows, wall and floor textures). Free for
+  commercial use; the files may not be redistributed.
+- **Furniture pack** (six OBJ showrooms, `model_0.obj` to `model_5.obj`, with no textures), downloaded into
+  `psx/furniture/` (the beds, bunk beds, sofas, armchairs, chairs, tables, desks, nightstands, dresser, TV stand and
+  bench). Its author, source and licence still need recording here: check before release.
 - **Retro Modular House Pack** by Elegant Crow, CC0, https://elegantcrow.itch.io/retro-modular-house-pack (wall
   sections with doors, windows and shutters: shop fronts and the landmarks).
 - **DINER**, **6TWELVE** and **Trailer Park** by Elbolilloduro, https://elbolilloduro.itch.io (shop counters, diner

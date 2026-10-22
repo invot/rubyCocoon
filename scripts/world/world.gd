@@ -2009,16 +2009,16 @@ func _talk(n: Dictionary) -> void:
 		VPer.set_talking(node, false)
 
 
-## How tall the chairs people sit on at tables are (to the top of the back), sized for the townsfolk.
-const CHAIR_H := 0.78
-## The seat's height, for that size of chair.
+## How tall the chairs people sit on at tables are (to the top of the back), sized for the townsfolk's short legs.
+const CHAIR_H := 0.67
+## The seat's height, for that size of chair (chair_slat's seat is about half way up).
 const CHAIR_SEAT := 0.34
 
 
 ## Sits a person down on a chair (one put under them), facing `facing`: someone at a table, the chair's back away
 ## from it.
 static func seat(node: Node3D, facing: Vector2i) -> void:
-	var mesh := RoomBuilder.piece("chair_wood")
+	var mesh := RoomBuilder.piece("chair_slat")
 	if mesh != null:
 		var bb := mesh.get_aabb()
 		var s := CHAIR_H / maxf(0.01, bb.size.y)
@@ -3508,7 +3508,7 @@ func _build_room() -> void:
 					k.box("glow", center + Vector3(0, 0.36, 0), Vector3(0.8, 0.05, 0.8), Color("#4aa8ff"))
 				MapGen.CRYSTAL:
 					# a round table under a violet cloth, the crystal ball glowing on a little stand
-					var tm: Node3D = _room_model_interior("table_round", center, Vector3(0.95, 0.78, 0.95))
+					var tm: Node3D = _room_model_interior("table_pedestal", center, Vector3(0.95, 0.78, 0.95))
 					if tm != null:
 						var cloth := StandardMaterial3D.new()
 						cloth.albedo_color = Color("#5a2a7a")

@@ -14,30 +14,21 @@ const DV := "Environments/PSX modular house interior pack. (DissonantVoid)/"
 ## pack units to game units
 const SCALE := 0.7
 
-## name: [source under DV, degrees to turn so it faces +z]. The pack's kitchen units, bathroom pieces, beds and wall
+## name: [source under DV, degrees to turn so it faces +z]. The pack's kitchen units, bathroom pieces and wall
 ## hangings face +x; everything else faces +z already.
 const PIECES := {
 	# kitchen
 	"counter": ["props/cabinetLow.glb", -90], "counter_corner": ["props/cabinetLowCorner.glb", -90],
 	"kitchen_sink": ["props/cabinetSink.glb", -90], "pantry": ["props/cabinetHigh.glb", -90],
 	"stove": ["props/oven.glb", -90], "fridge": ["props/fridge.glb", -90],
-	"table_long": ["props/table.glb", 0], "table_dining": ["props/table2.glb", 0], "table_round": ["props/table3.glb", 0],
-	"chair_wood": ["props/chair.glb", 0], "chair_plastic": ["props/chair2.glb", 0], "chair_padded": ["props/chair3.glb", 0],
-	"chair_stool": ["props/chair4.glb", 0],
 	# bathroom
 	"toilet": ["props/toilet.glb", -90], "bathtub": ["props/bathtub.glb", -90], "vanity": ["props/bathroomSink.glb", -90],
 	"basin": ["props/bathroomSink2.glb", -90], "washer": ["props/washingMachine.glb", -90],
 	"mirror": ["props/mirror.glb", -90], "mirror_wide": ["props/mirror2.glb", -90], "toilet_paper": ["props/toiletPaper.glb", 0],
-	# bedroom
-	"bed_double": ["props/bed.glb", -90], "bed_bunk": ["props/bed2.glb", -90], "bed_single": ["props/bed3.glb", -90],
-	"dresser": ["props/cabinet.glb", 0], "wardrobe": ["props/cabinetBig.glb", 0],
-	"nightstand": ["props/sideboard4.glb", 0], "teddy": ["props/teddybear.glb", 0],
-	# living
-	"sofa": ["props/couchBig.glb", 0], "sofa_2": ["props/couchBig2.glb", 0], "armchair": ["props/couchSmall.glb", 0],
-	"armchair_2": ["props/couchSmall2.glb", 0], "tv": ["props/tv.glb", 0], "sideboard": ["props/sideboard.glb", 0],
-	"sideboard_2": ["props/sideboard2.glb", 0], "cabinet_low": ["props/sideboard3.glb", 0],
-	"coffee_table": ["props/tableSmall3.glb", 0], "side_table": ["props/tableSmall.glb", 0], "desk": ["props/tableSmall2.glb", 0],
-	"bookshelf": ["props/bookshelf.glb", 0], "shelves": ["props/shelves.glb", 0], "shelves_metal": ["props/shelves2.glb", 0],
+	# bedroom (beds, nightstands and dressers come from the furniture pack: see import_psx_furniture.gd)
+	"wardrobe": ["props/cabinetBig.glb", 0], "teddy": ["props/teddybear.glb", 0],
+	# living (so do the sofas, armchairs, tables, chairs and desks)
+	"tv": ["props/tv.glb", 0], "bookshelf": ["props/bookshelf.glb", 0], "shelves": ["props/shelves.glb", 0], "shelves_metal": ["props/shelves2.glb", 0],
 	"floor_lamp": ["props/lamp.glb", 0], "table_lamp": ["props/tableLamp.glb", 0], "coat_stand": ["props/hanger2.glb", 0],
 	"plant_small": ["props/plant.glb", 0], "plant_leafy": ["props/plant2.glb", 0], "plant_tall": ["props/plant3.glb", 0],
 	"globe": ["props/globe.glb", 0], "radio": ["props/radio.glb", 0], "chessboard": ["props/chessboard.glb", 0],

@@ -2,7 +2,8 @@ extends RefCounted
 ## Builds the fixed parts of a building's interior from its map (see map_loader.gd _interior): the floors, thin walls
 ## with doorways, locked doors and windows, the furniture, the things hung on the walls and a light in each room.
 ## Everything is made of the PSX interior pack's pieces and textures (assets/psx/interior, baked by
-## tools/import_psx_interior.gd).
+## tools/import_psx_interior.gd), and the beds, seats, tables and cabinets of the furniture pack (baked and coloured by
+## tools/import_psx_furniture.gd).
 ##
 ## Rooms: the map's "zone_rows" give each tile's kind of room (see ZONES), so a kitchen gets tiles and a bedroom
 ## carpet and wallpaper; each side of a wall takes the finish of the room it faces.
@@ -45,9 +46,10 @@ const ZONES := {
 const ZONE_CHARS := {"l": "living", "b": "bedroom", "k": "kitchen", "a": "bathroom", "h": "hall", "s": "shop",
 	"o": "back", "f": "office", "g": "grand", "w": "wood", "t": "stone", "d": "diner"}
 
-## Furniture: kind: m = models to choose from (the best fit for the space is picked), free = stands in the room
-## rather than against a wall, fill = stretched along the wall to fill its tiles, y = height stretch (the pack's tables
-## are low), long = its long side goes against the wall, short = its short end does (beds: the headboard),
+## Furniture: kind: m = models to choose from (the best fit for the space is picked), same = pieces that go together
+## through a building (its chairs; its sofa and armchair, listed in matching order) are the building's own pick of
+## the list, free = stands in the room rather than against a wall, fill = stretched along the wall to fill its tiles,
+## long = its long side goes against the wall, short = its short end does (beds: the headboard),
 ## top = small things that may stand on it.
 const KINDS := {
 	"counter": {"m": ["counter"], "fill": true, "top": ["cup", "bottle", "plate_2", "milk", "apple", "el_microwave", "el_toaster", "", ""]},
@@ -59,34 +61,35 @@ const KINDS := {
 	"bathtub": {"m": ["bathtub"], "long": true},
 	"basin": {"m": ["basin", "vanity"]},
 	"washer": {"m": ["washer"]},
-	"sofa": {"m": ["sofa", "sofa_2"], "long": true},
-	"armchair": {"m": ["armchair", "armchair_2"]},
-	"tv": {"m": ["cabinet_low"], "top": ["tv"], "always_top": true},
-	"chair": {"m": ["chair_wood", "chair_padded"], "chair": true, "single": true},
-	"stool": {"m": ["chair_stool", "chair_wood"], "chair": true, "single": true},
-	"coffee_table": {"m": ["coffee_table", "table_long"], "free": true, "top": ["books", "cup", "chessboard", "el_vase", ""]},
-	"table": {"m": ["table_dining", "table_long", "table_round"], "free": true, "y": 1.45,
+	"sofa": {"m": ["sofa_love", "sofa_box", "sofa_cottage", "sofa_roll"], "long": true, "same": true},
+	"armchair": {"m": ["armchair_roll", "armchair_club", "armchair_cottage", "armchair_tub"], "same": true},
+	"tv": {"m": ["tv_stand"], "top": ["tv"], "always_top": true},
+	"chair": {"m": ["chair_spindle", "chair_ring", "chair_ladder", "chair_slat"], "chair": true, "single": true, "same": true},
+	"stool": {"m": ["chair_spindle", "chair_ring", "chair_ladder", "chair_slat"], "chair": true, "single": true, "same": true},
+	"coffee_table": {"m": ["coffee_shelf", "coffee_square"], "free": true, "top": ["books", "cup", "chessboard", "el_vase", ""]},
+	"table": {"m": ["table_trestle", "table_curve", "table_pedestal", "table_small"], "free": true,
 		"top": ["plate", "cup", "cup_2", "bottle_2", "books_2", "apple", ""]},
 	"wardrobe": {"m": ["wardrobe"]},
 	"nightstand": {"m": ["nightstand"], "top": ["table_lamp"], "always_top": true, "single": true},
 	"dresser": {"m": ["dresser"], "top": ["teddy", "books", "radio", "el_lamp", "el_photo", "el_vase"]},
-	"desk": {"m": ["desk"], "y": 1.65, "top": ["books", "pencils", "globe", "phone"]},
+	"desk": {"m": ["desk_writing", "desk_sled"], "top": ["books", "pencils", "globe", "phone"]},
 	"storage": {"m": ["shelves_metal", "shelves"], "long": true},
 	"boxes": {"m": ["box_1", "box_2", "box_3", "pallet"], "single": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
 	"floor_lamp": {"m": ["floor_lamp"], "lamp": true, "single": true},
 	"coat_stand": {"m": ["coat_stand"], "single": true},
 	"trash": {"m": ["trash_bin"], "single": true},
-	"bed": {"m": ["bed_single", "bed_double"], "short": true},
-	"bunk": {"m": ["bed_bunk"], "short": true},
+	"bed": {"m": ["bed_oak", "bed_spindle", "bed_house", "bed_iron", "bed_double_slat", "bed_double_panel", "bed_double_wave",
+		"bed_double_iron"], "short": true},
+	"bunk": {"m": ["bunk_oak", "bunk_ladder"], "short": true},
 	"plant": {"m": ["plant_small", "plant_tall", "plant_leafy", "el_tp_plants"], "single": true},
 	"bookshelf": {"m": ["bookshelf"], "long": true},
 	"shelf": {"m": ["shelves"], "long": true, "goods": true},
 	"rug": {"m": ["carpet_1", "carpet_2", "carpet_3", "carpet_4"], "free": true, "rug": true},
-	"bench": {"m": ["table_long"], "fill": true, "y": 0.9, "depth": 0.5},
+	"bench": {"m": ["bench_slats"], "fill": true},
 	"booth": {"m": ["el_booth"], "fit": true, "chair": true, "tint": "#e05050"},
 	"diner_table": {"m": ["el_diner_table"], "free": true, "fit": true, "top": ["cup", "plate", "el_flowers", "cup_2", ""]},
-	"computer": {"m": ["desk"], "y": 1.65, "top": ["el_monitor"], "always_top": true},
+	"computer": {"m": ["desk_writing", "desk_sled"], "top": ["el_monitor"], "always_top": true},
 }
 
 static var _meshes := {}
@@ -886,22 +889,20 @@ func _place(kind: String, group: Array) -> void:
 	var depth := size.y if along else size.x
 	# room up to the wall's face beyond the tiles
 	var reach := 0.5 - T / 2.0 if against else 0.0
-	var mesh := _choose(k["m"], span, depth + reach)
+	var mesh := _choose(k["m"], span, depth + reach, k.get("same", false))
 	if mesh == null:
 		return
 	var bb := mesh.get_aabb()
-	var sy := float(k.get("y", 1.0))
 	var sc := Vector3.ONE
 	if k.get("rug", false):
 		sc = Vector3(span * 0.92 / bb.size.x, 1.0, depth * 0.92 / bb.size.z)
 	elif k.get("fit", false):
 		sc = Vector3(span * 0.94 / bb.size.x, 1.0, minf(1.0, (depth + reach) * 0.94 / bb.size.z))
 	elif k.get("fill", false):
-		sc = Vector3(span * 0.98 / bb.size.x, 1.0, minf(1.0, (depth + reach) * 0.95 / bb.size.z) * float(k.get("depth", 1.0)))
+		sc = Vector3(span * 0.98 / bb.size.x, 1.0, minf(1.0, (depth + reach) * 0.95 / bb.size.z))
 	else:
 		var s := minf(1.0, minf(span * 0.96 / bb.size.x, (depth + reach) * 0.96 / bb.size.z))
 		sc = Vector3(s, s, s)
-	sc.y *= sy
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.scale = sc
@@ -1151,19 +1152,21 @@ func _counters() -> void:
 				parent.add_child(t)
 
 
-## Of the models for a kind, the one that fills the space best (ties broken by chance).
-func _choose(names: Array, span: float, depth: float) -> Mesh:
+## Of the models for a kind, the one that fills the space best. Ties go to chance, or with `same`, to the building's
+## own pick of the list (pick_seed), so its chairs match and its sofa and armchair do.
+func _choose(names: Array, span: float, depth: float, same := false) -> Mesh:
 	var best: Mesh = null
 	var best_d := INF
-	for nm in names:
-		var m := piece(nm)
+	for i in names.size():
+		var m := piece(names[i])
 		if m == null:
 			continue
 		var bb := m.get_aabb()
 		# how much it must shrink, plus how much room it leaves empty
 		var shrink := maxf(0.0, maxf(bb.size.x / span, bb.size.z / depth) - 1.0)
 		var empty := absf(span - bb.size.x) / span + absf(depth - bb.size.z) / depth * 0.5
-		var d := shrink * 3.0 + empty + rng.randf() * 0.15
+		var tie := (0.0 if posmod(i - pick_seed, names.size()) == 0 else 0.1) if same else rng.randf() * 0.15
+		var d := shrink * 3.0 + empty + tie
 		if d < best_d:
 			best_d = d
 			best = m
@@ -1230,7 +1233,7 @@ func _wall_decor() -> void:
 				var front_kind: String = furn.get(r, "")
 				var c := code(r.x, r.y)
 				if c in [MapGen.SHELF, MapGen.BOOKSHELF, MapGen.BOARD, MapGen.TERMINAL, MapGen.HEALER, MapGen.FIREPLACE, MapGen.COUNTER] \
-						or front_kind in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "dresser", "coat_stand", "bunk"]:
+						or front_kind in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "coat_stand", "bunk"]:
 					continue
 				# never two things side by side
 				if hung.has(Vector2i(x, y) + along) or hung.has(Vector2i(x, y) - along):
