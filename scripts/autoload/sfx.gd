@@ -29,7 +29,7 @@ const TRACKS := {
 	"tower": "djartmusic_the_return_of_the_8_bit_era_301292",
 	"arena": "monume_retro_arcade_game_music_547917",
 	"shop": "derp_nugget",
-	"center": "screen_saver",
+	"center": "hep_cats",
 	"house": "magic_scout_manor",
 	"silly": "farting_around",
 	"battle": "rising_tide",

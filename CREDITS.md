@@ -162,7 +162,7 @@ See `assets/voxel/CREDITS.md` for the full list. Highlights:
 Most tracks appear to be by **Kevin MacLeod (incompetech.com)**, licensed under Creative Commons
 Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/). Please confirm each one:
 Adventures in Adventureland, Ancient Rite, At Launch, Derp Nugget, Desert City, Ether Vox,
-Ethernight Club, Farting Around, Half Mystery, Industrious Ferret, Journey To Ascend,
+Ethernight Club, Farting Around, Half Mystery, Hep Cats, Industrious Ferret, Journey To Ascend,
 Magic Scout - Cottages, Magic Scout - Manor, Pleasant Porridge, Poofy Reel, Rising Tide,
 Rising Tide (faster), Screen Saver, Unanswered Questions, Wholesome, Wind of the Rainforest
 (trimmed to a 5-minute loop).

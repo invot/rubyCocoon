@@ -275,8 +275,6 @@ func reload_map() -> void:
 
 func _do_goto(id: String, spawn, face := Vector2i.ZERO) -> void:
 	_transitioning = true
-	if world != null and not world.demo:
-		Sfx.play("door")
 	await UI.fade_out(0.25)
 	_load_world(id, spawn, false, face)
 	GameState.map_id = id

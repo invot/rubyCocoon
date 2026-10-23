@@ -1045,7 +1045,6 @@ func _ferry(world) -> void:
 	var dest := "shellhaven" if here == "tidewater" else "tidewater"
 	if not await UI.ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
 		return
-	Sfx.play("door")
 	GameState.main.goto_map(dest, "dock")
 
 

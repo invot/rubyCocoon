@@ -1814,8 +1814,6 @@ func _on_step_done() -> void:
 			facing = -facing
 			VPer.face(player, facing)
 			return
-		if interior:
-			Sfx.play("door_close")
 		GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
 		return
 	if await _check_trainer_sight():
@@ -2105,7 +2103,6 @@ func _enter_building(b: Dictionary) -> void:
 		busy = was_busy
 		return
 	busy = was_busy
-	Sfx.play("door")
 	GameState.facing = Vector2i(0, -1)
 	GameState.main.goto_map(b["interior"], "entry")
 
