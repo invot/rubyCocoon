@@ -31,8 +31,8 @@ var main: Node = null
 
 var player_name := "Andrew"
 ## The hero as the character creator made them: "body" ("male" or "female"), "person" (their outfit, one of
-## townfolk.gd HERO_OUTFITS), "hairdo" (one of its HAIRDOS) and "pack" (one of its packs, from 1; 0 none), and the
-## colours of their "skin", "top", "trousers", "hair" and "eyes" (whatever's left out, as their body begins).
+## townfolk.gd HERO_OUTFITS), "hairdo" (one of its HAIRDOS), and the colours of their "skin", "top", "trousers",
+## "hair", "eyes" and "pack_colour" (their pack's; whatever's left out, as their body begins).
 var hero := {}
 var gold := 0
 var party: Array = []

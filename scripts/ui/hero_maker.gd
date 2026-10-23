@@ -1,9 +1,9 @@
 extends "res://scripts/ui/modal.gd"
-## The character creator, before a new game: the hero's name (one of their body's NAMES: no keyboard), body, outfit,
-## hairdo and pack (see townfolk.gd HERO_OUTFITS, HAIRDOS and packs), and the colours of their skin, top, trousers,
-## hair and eyes, on a turning preview. Closes with {"name", "look"} (the look for GameState.hero), or null when backed out of.
-## Keys: up and down pick a row, left and right change it, A on Start begins, B backs out. Touch: tap the arrows,
-## the swatches and Start; drag the preview to turn the hero round.
+## The character creator, before a new game: the hero's name (one of their body's NAMES: no keyboard), body, outfit
+## and hairdo (see townfolk.gd HERO_OUTFITS and HAIRDOS), and the colours of their pack, skin, top, trousers, hair
+## and eyes, on a turning preview with Confirm under it. Closes with {"name", "look"} (the look for GameState.hero), or
+## null when backed out of. Keys: up and down pick a row (Confirm the last), left and right change it, A on Confirm
+## begins, B backs out. Touch: tap the arrows, the swatches and Confirm; drag the preview to turn the hero round.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
@@ -18,10 +18,12 @@ const BODIES := ["male", "female"]
 const BODY_NAMES := {"male": "Male", "female": "Female"}
 const SWATCHES := {
 	"skin": ["#f6d8c0", "#f0c8a0", "#e0ac84", "#c68a62", "#9a6440", "#6e4428"],
-	"top": ["#b93646", "#3a6ab8", "#3a8a4a", "#d8b030", "#7a4aa8", "#2a2a30", "#e8e4dc", "#d8702a"],
-	"trousers": ["#39588a", "#222228", "#5a3e2a", "#9a8a62", "#6a6a70", "#d8d4cc", "#3e5a3a", "#8a2a2a"],
+	"top": ["#b93646", "#3a6ab8", "#3a8a4a", "#d8b030", "#7a4aa8", "#2a2a30", "#e8e4dc", "#d8702a", "#e0809e"],
+	"trousers": ["#39588a", "#222228", "#5a3e2a", "#9a8a62", "#6a6a70", "#d8d4cc", "#3e5a3a", "#8a2a2a", "#e0809e"],
 	"hair": ["#1a1410", "#3a2216", "#6a4026", "#8a3a20", "#c0602a", "#d8b060", "#c8c8d0", "#d87a9a"],
 	"eyes": ["#5a3020", "#7a5a2a", "#3a7a4a", "#3a6ab0", "#7a8a96", "#b07a20"],
+	# the pack (townfolk.gd PACK): brown to begin with
+	"pack": ["#7a4a2a", "#4a3020", "#a8865a", "#b03a3a", "#3a5a8a", "#4a6a3a", "#5a5a62", "#c8a040", "#e0809e"],
 }
 ## each body's own top to begin with: his red jacket, her white top
 const DEFAULT_TOP := {"male": 0, "female": 6}
@@ -31,10 +33,12 @@ const ROWS := ["name", "body", "outfit", "hairdo", "pack", "skin", "top", "trous
 const ROW_NAMES := {"name": "Name", "body": "Body", "outfit": "Outfit", "hairdo": "Hairdo", "pack": "Pack", "skin": "Skin",
 	"top": "Top", "trousers": "Trousers", "hair": "Hair", "eyes": "Eyes"}
 ## the rows stepped through with arrows, and the label each shows
-const STEPPED := ["name", "outfit", "hairdo", "pack"]
+const STEPPED := ["name", "outfit", "hairdo"]
 const CHIP := 40.0
+## the preview's size at least (Confirm goes under it)
+const PREVIEW := Vector2i(340, 464)
 
-var pick := {"name": 0, "body": 0, "outfit": 0, "hairdo": Townfolk.HERO_HAIRDO["male"], "pack": Townfolk.HERO_PACK,
+var pick := {"name": 0, "body": 0, "outfit": 0, "hairdo": Townfolk.HERO_HAIRDO["male"], "pack": 0,
 	"skin": DEFAULT_SKIN, "top": 0, "trousers": 0, "hair": 0, "eyes": 0}
 ## the name, outfit and hairdo last picked for each body, so switching back keeps them
 var _names_by_body := {"male": 0, "female": 0}
@@ -68,7 +72,17 @@ func _ready() -> void:
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 22)
 	add_child(hb)
-	hb.add_child(_preview())
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 8)
+	hb.add_child(left)
+	# (the preview grows to stand as tall as the panel beside it, Confirm along its foot)
+	var pv := _preview()
+	pv.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(pv)
+	# Confirm, in the gem's colour, under the hero (the last row for the keys)
+	_start = _button("Confirm", func() -> void: _finish(), Vector2(0, 48))
+	_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_child(_start)
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", -2)
 	hb.add_child(right)
@@ -85,7 +99,8 @@ func _ready() -> void:
 	gap.custom_minimum_size.y = 6
 	vb.add_child(gap)
 	for id in ROWS:
-		vb.add_child(_row(id))
+		if id != "start":
+			vb.add_child(_row(id))
 	if not UI.is_touch():
 		var hint := UIKit.label("Up / Down choose   Left / Right change", 16, UIKit.DIM)
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -100,7 +115,7 @@ func _preview() -> Control:
 	var frame := UIKit.panel()
 	var svc := SubViewportContainer.new()
 	svc.stretch = true
-	svc.custom_minimum_size = Vector2(340, 520)
+	svc.custom_minimum_size = Vector2(PREVIEW)
 	svc.mouse_filter = Control.MOUSE_FILTER_STOP
 	svc.gui_input.connect(_on_preview_input)
 	frame.add_child(svc)
@@ -108,7 +123,7 @@ func _preview() -> Control:
 	vp.own_world_3d = true
 	vp.transparent_bg = true
 	vp.msaa_3d = Viewport.MSAA_4X
-	vp.size = Vector2i(340, 520)
+	vp.size = PREVIEW
 	svc.add_child(vp)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CLEAR_COLOR
@@ -159,18 +174,13 @@ func _row(id: String) -> Control:
 	pc.gui_input.connect(func(ev: InputEvent) -> void:
 		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
 			_go(ROWS.find(id), false))
-	if id == "start":
-		_start = _button("Start your journey", func() -> void: _finish(), Vector2(0, 48))
-		_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hb.add_child(_start)
-		return pc
 	var l := UIKit.label(ROW_NAMES[id], UIKit.BODY_HUGE, UIKit.GOLD)
 	l.custom_minimum_size.x = 150
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_row_labels[id] = l
 	hb.add_child(l)
 	match id:
-		"name", "outfit", "hairdo", "pack":
+		"name", "outfit", "hairdo":
 			var lt := _button("<", func() -> void: _change(id, -1), Vector2(54, 42))
 			_arrows.append(lt)
 			hb.add_child(lt)
@@ -266,9 +276,6 @@ func _change(id: String, d: int) -> void:
 			_choose("outfit", posmod(pick["outfit"] + d, _outfits().size()))
 		"hairdo":
 			_choose("hairdo", posmod(pick["hairdo"] + d, Townfolk.HAIRDOS.size()))
-		"pack":
-			# none, then each pack
-			_choose("pack", posmod(pick["pack"] + d, Townfolk.packs().size() + 1))
 		"start":
 			pass
 		_:
@@ -303,9 +310,9 @@ func _choose(id: String, i: int) -> void:
 
 ## The look chosen so far (see GameState.hero).
 func look() -> Dictionary:
-	var out := {"body": BODIES[pick["body"]], "person": _outfits()[pick["outfit"]], "hairdo": pick["hairdo"], "pack": pick["pack"]}
+	var out := {"body": BODIES[pick["body"]], "person": _outfits()[pick["outfit"]], "hairdo": pick["hairdo"]}
 	for k in SWATCHES:
-		out[k] = SWATCHES[k][pick[k]]
+		out["pack_colour" if k == "pack" else k] = SWATCHES[k][pick[k]]
 	return out
 
 
@@ -331,10 +338,15 @@ func _show() -> void:
 	_name_label.text = _names()[pick["name"]]
 	_stepped["outfit"].text = "%d of %d" % [pick["outfit"] + 1, _outfits().size()]
 	_stepped["hairdo"].text = Townfolk.HAIRDOS[pick["hairdo"]][1]
-	_stepped["pack"].text = Townfolk.packs()[pick["pack"] - 1]["name"] if pick["pack"] > 0 else "None"
 	for a in _arrows:
 		_paint(a, false)
-	_paint(_start, ROWS[row] == "start")
+	# Confirm is always in the gem's colour, edged in white while it's the row being chosen
+	var confirm_on: bool = ROWS[row] == "start"
+	var sb := UIKit.chip(UIKit.ACCENT, UIKit.LIGHT if confirm_on else UIKit.BORDER, 12.0, Vector4(10, 2, 10, 2), 3.0 if confirm_on else 2.0)
+	for st in ["normal", "hover", "pressed", "hover_pressed"]:
+		_start.add_theme_stylebox_override(st, sb)
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		_start.add_theme_color_override(st, UIKit.LIGHT)
 	for id in _chips:
 		var bs: Array = _chips[id]
 		for i in bs.size():

@@ -169,6 +169,11 @@ func _people() -> void:
 			_dress({"face": "hero", "body": body, "person": person}, "hero %s outfit %d" % [body, person])
 	for hd in Townfolk.HAIRDOS.size():
 		_dress({"face": "hero", "hairdo": hd}, "hero hairdo %d" % hd)
-	for pk in Townfolk.packs().size() + 1:
-		_dress({"face": "hero", "pack": pk}, "hero pack %d" % pk)
+	# the one pack, always on, in the colour chosen
+	var o := Townfolk.outfit({"face": "hero", "pack_colour": "#3a5a8a"})
+	if not o["parts"].has(Townfolk.PACK) or o["colours"].get("pack") != Color("#3a5a8a"):
+		_fail("the hero isn't wearing the pack in the colour chosen")
+	for id in Townfolk.PART_FIXES:
+		if int(id) >= Townfolk.data()["parts"].size():
+			_fail("PART_FIXES names part %d, which doesn't exist" % id)
 	_dress({"outfit": "camo", "shirt": "#c84040"}, "a camo trainer")

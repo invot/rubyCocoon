@@ -49,8 +49,11 @@ const CAMO := {"green": ["#9aa060", "#5c7a48", "#3b4f33"], "brown": ["#b49a68", 
 ## the boots' colour.
 const CAMO_PARTS := ["camo_jacket", "camo_collar", "camo_belt", "camo_trousers", "camo_boots"]
 const BOOTS := "#2e2e32"
-## The hero's pack to begin with (see packs(); 0 is none).
-const HERO_PACK := 1
+## The pack everyone wears: the round backpack and its straps that person 43 wears (a part some of the kit's people
+## have as a top, its own colour slot given it by PART_FIXES), and the hero's colour for it unless they chose one.
+## (The packs the kit baked on their own, townfolk.json "packs", sat badly: straps floating off the chest.)
+const PACK := 103
+const PACK_COLOUR := "#7a4a2a"
 ## The trainers' packs' colours, one picked for each (canvas and leather).
 const TRAINER_PACK_COLOURS := ["#6a7a4a", "#7a5a3a", "#4a5a6a", "#8a6a4a", "#5a4a3a"]
 ## The top of the head, on the kit's body.
@@ -62,8 +65,18 @@ const CAP_BADGE := Vector3(0, 1.665, 0.335)
 const CAP_BADGE_TILT := -0.35
 ## The hero's outfits for each body (people in townfolk.json, worn with the hero's own hairdo and colours), the first
 ## the one they begin in.
-const HERO_OUTFITS := {"male": [0, 13, 2, 4, 10, 11, 29, 30, 35, 36, 37, 43],
-	"female": [62, 7, 8, 31, 46, 72, 73, 74, 77, 63, 66, 33]}
+const HERO_OUTFITS := {"male": [0, 13, 4, 10, 11, 29],
+	"female": [62, 7, 8, 31, 72, 74, 77, 63, 66, 33]}
+## Parts of the kit recoloured as they load (part -> how; see _fixed): "solid": its slot's colour flat, without the
+## kit's shading (the first outfit's top and shorts); [slot, lightness]: all of it in that slot (trousers whose cuffs
+## kept the kit's tan and clipped, and shorts in patches); a slot alone: all of it in that slot, its light and dark
+## kept (the pack); "laces": shoes all one colour but for their light blue laces, which take the top's.
+const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], 68: "laces", PACK: 9}
+## A head's eyes (see _fix_eyes): the paint at least this saturated is the outline (or a brow), not the iris; the
+## outline's colour; the cells the paint is laid out in to find the brows (metres).
+const EYE_LINE_S := 0.66
+const EYE_LINE := "#1e1618"
+const EYE_CELL := 0.005
 ## The hairdos: [whose hair it is (a person in townfolk.json), what the character creator calls it].
 const HAIRDOS := [[0, "Short"], [2, "Parted"], [4, "Spiky"], [5, "Fluffy"], [6, "Long"], [7, "Bob"]]
 ## Each body's hairdo to begin with.
@@ -134,8 +147,143 @@ static func skin() -> Skin:
 
 static func part_mesh(id: int) -> Mesh:
 	if not _meshes.has(id):
-		_meshes[id] = load(DIR + "parts/%s.res" % data()["parts"][id]["file"])
+		var mesh: ArrayMesh = load(DIR + "parts/%s.res" % data()["parts"][id]["file"])
+		var fix = PART_FIXES.get(id, "eyes" if data()["parts"][id]["kind"] == "head" else null)
+		_meshes[id] = mesh if fix == null else _fixed(mesh, fix)
+		return _meshes[id]
 	return _meshes[id]
+
+
+## A part recoloured as it loads (see PART_FIXES, and _fix_eyes for a head's eyes): a new mesh with the same
+## vertices, their colour slots changed. (It goes without the kit's smaller versions for far away: these are small.)
+static func _fixed(mesh: ArrayMesh, fix) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		if fix is String and fix == "eyes":
+			_fix_eyes(arrays)
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+			continue
+		var col: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		var uv2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+		if fix is Array:
+			for i in uv2.size():
+				uv2[i] = Vector2(fix[0], fix[1])
+		elif fix is int:
+			for i in uv2.size():
+				uv2[i].x = fix
+		elif fix == "solid":
+			for i in uv2.size():
+				uv2[i].y = 1.0
+		elif fix == "laces":
+			# the shoes one colour (their own slot's, the kit's average of it), the light blue laces the top's
+			var sum := Color(0, 0, 0, 0)
+			for i in col.size():
+				if int(uv2[i].x + 0.5) == 6:
+					sum += col[i]
+			var own := sum / maxf(sum.a, 1.0)
+			own.a = 1.0
+			for i in col.size():
+				var c := col[i].linear_to_srgb()
+				if c.s > 0.3 and c.h > 0.45 and c.h < 0.62:
+					uv2[i] = Vector2(4, 1.0)
+				else:
+					uv2[i] = Vector2(6, 1.0)
+					col[i] = own
+		arrays[Mesh.ARRAY_COLOR] = col
+		arrays[Mesh.ARRAY_TEX_UV2] = uv2
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return out
+
+
+## The kit paints each eye in purples, and the importer gave them all the eye colour (tools/import_townfolk.gd
+## _colour): the outline round the eye and the brow over it (the saturated purples) as well as the iris (the muted
+## ones). As a head loads, the outline (and the lashes, the reds at its corners) turns a dark brown-black, each brow
+## takes the hair colour, a shade darker, and the iris alone keeps the eye colour, its light and dark spread round the
+## colour itself. A brow is found as the importer finds it: on the front of the face, the topmost patch of paint over
+## an eye, when there are three or more, or two with a gap between them.
+static func _fix_eyes(arrays: Array) -> void:
+	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var nrm: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var col: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var uv2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var was := uv2.duplicate()
+	# each painted triangle: "iris", "line" (outline, lashes and brows to begin with) or "brow"
+	var kinds := {}
+	var cells := {}
+	for t in range(0, idx.size(), 3):
+		if int(was[idx[t]].x + 0.5) != 3:
+			continue
+		var c := col[idx[t]].linear_to_srgb()
+		kinds[t] = "iris" if c.s < EYE_LINE_S and c.h > 0.6 and c.h < 0.9 else "line"
+		var a := Vector2(v[idx[t]].x, v[idx[t]].y)
+		var b := Vector2(v[idx[t + 1]].x, v[idx[t + 1]].y)
+		var d := Vector2(v[idx[t + 2]].x, v[idx[t + 2]].y)
+		var mid := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
+		if nrm[idx[t]].z < 0.3 or mid.z < 0.15 or mid.y < 1.224 or absf(mid.x) < 0.015:
+			continue
+		# the cells it covers (and the one its middle is in, if it's too small to cover any)
+		var x0 := floori(minf(a.x, minf(b.x, d.x)) / EYE_CELL)
+		var x1 := floori(maxf(a.x, maxf(b.x, d.x)) / EYE_CELL)
+		var y0 := floori(minf(a.y, minf(b.y, d.y)) / EYE_CELL)
+		var y1 := floori(maxf(a.y, maxf(b.y, d.y)) / EYE_CELL)
+		cells[Vector2i(floori(mid.x / EYE_CELL), floori(mid.y / EYE_CELL))] = true
+		for cy in range(y0, y1 + 1):
+			for cx in range(x0, x1 + 1):
+				if Geometry2D.point_is_inside_triangle((Vector2(cx, cy) + Vector2(0.5, 0.5)) * EYE_CELL, a, b, d):
+					cells[Vector2i(cx, cy)] = true
+	# the patches of paint on each side (cells touching, corners too), and each side's brow
+	var brows := []
+	for side in [-1, 1]:
+		var patches := []
+		var seen := {}
+		for k in cells:
+			if seen.has(k) or signi(k.x * 2 + 1) != side:
+				continue
+			var box := Rect2i(k, Vector2i.ZERO)
+			var q: Array = [k]
+			seen[k] = true
+			while not q.is_empty():
+				var p: Vector2i = q.pop_back()
+				box = box.expand(p)
+				for dy in [-1, 0, 1]:
+					for dx in [-1, 0, 1]:
+						var n := p + Vector2i(dx, dy)
+						if cells.has(n) and not seen.has(n):
+							seen[n] = true
+							q.append(n)
+			patches.append(box)
+		patches.sort_custom(func(p: Rect2i, r: Rect2i) -> bool: return p.end.y > r.end.y)
+		if patches.size() >= 3 or (patches.size() == 2 and (patches[0].position.y - patches[1].end.y) * EYE_CELL > 0.01):
+			brows.append(Rect2(Vector2(patches[0].position) * EYE_CELL, Vector2(patches[0].size + Vector2i.ONE) * EYE_CELL))
+	var iris := 0.0
+	var n_iris := 0
+	for t in kinds:
+		var mid := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
+		if kinds[t] == "line" and brows.any(func(r: Rect2) -> bool: return r.grow(EYE_CELL).has_point(Vector2(mid.x, mid.y))):
+			kinds[t] = "brow"
+		elif kinds[t] == "iris":
+			for k in 3:
+				iris += was[idx[t + k]].y
+			n_iris += 3
+	var mean := iris / maxf(n_iris, 1.0)
+	var dark := Color(EYE_LINE).srgb_to_linear()
+	for t in kinds:
+		for k in 3:
+			var i := idx[t + k]
+			match kinds[t]:
+				"brow":
+					# (dark, too, for someone with no hair colour of their own)
+					uv2[i] = Vector2(2, 0.85)
+					col[i] = dark
+				"line":
+					uv2[i] = Vector2(0, 1.0)
+					col[i] = dark
+				_:
+					uv2[i] = Vector2(3, clampf(was[i].y / mean, 0.8, 1.35))
+	arrays[Mesh.ARRAY_COLOR] = col
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2
 
 
 ## A person: a Node3D (meta "skeleton", "bones", "height") holding the skeleton with each of the parts on it, all
@@ -163,7 +311,7 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 ## put on them, "colours": slot -> Color (see material)}. The same look always gives the same.
 ##   look "model" "tf<n>": that person outright;
 ##   face "hero": the hero in the outfit the character creator chose ("person", one of their body's HERO_OUTFITS),
-##   with its "hairdo" (one of HAIRDOS), its "pack" (HERO_PACK if it says none) and no hat, coloured as it chose
+##   with its "hairdo" (one of HAIRDOS), the pack (PACK, in its "pack_colour") and no hat, coloured as it chose
 ##   ("top", "trousers", "hair", "eyes", "skin");
 ##   anyone else: one of the everyday townsfolk (no costumes) who suits the look: a woman for hair_style 1 (long
 ##   hair; with no hair_style, the look decides), robes for an "outfit" "robe", long sleeves for a coat, armour or
@@ -173,7 +321,8 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 ##   trousers and boots, the camo brown for a warm "shirt" colour (reds to yellows), else green, and a pack.
 ## A look's "cap" (true) swaps their hat for the kit's baseball cap (CAP), in the "hat" colour; "glasses" false takes
 ## their glasses off.
-## A look's "pack" (1 on, one of packs(); 0 none) puts that pack on their back, in its "pack_colour" (else its own).
+## A look's "pack" (1 on; 0 none) puts the pack on their back, in its "pack_colour"; anyone else in the pack (some of
+## the kit's people wear it) has it in their top's colour.
 static func outfit(look: Dictionary) -> Dictionary:
 	var people: Array = data()["people"]
 	var seed := absi(str(look).hash())
@@ -200,10 +349,9 @@ static func outfit(look: Dictionary) -> Dictionary:
 		for id in people[HERO_FACE]["parts"]:
 			if kinds[int(id)]["kind"] == "head":
 				parts.append(id)
-		# no pack of the kit's own (their pack is the hero's choice)
+		# no pack of the kit's own: the hero's is the one pack, in the colour they chose
 		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "back")
-		if not look.has("pack"):
-			_wear_pack(parts, colours, HERO_PACK, Color(0, 0, 0, 0))
+		_wear_pack(parts, colours, Color(look.get("pack_colour", PACK_COLOUR)))
 	var names := {"skin": "skin", "hair": "hair", "eyes": "eyes", "top": "shirt", "bottom": "pants", "shoes": "shoes", "hat": "hat"}
 	if hero:
 		names["top"] = "top"
@@ -225,9 +373,11 @@ static func outfit(look: Dictionary) -> Dictionary:
 		colours["shoes"] = Color(BOOTS)
 		colours.erase("hat")
 		if not look.has("pack"):
-			_wear_pack(parts, colours, 1 + (seed / 3) % packs().size(), Color(TRAINER_PACK_COLOURS[(seed / 11) % TRAINER_PACK_COLOURS.size()]))
-	if look.has("pack"):
-		_wear_pack(parts, colours, int(look["pack"]), Color(look["pack_colour"]) if look.has("pack_colour") else Color(0, 0, 0, 0))
+			_wear_pack(parts, colours, Color(TRAINER_PACK_COLOURS[(seed / 11) % TRAINER_PACK_COLOURS.size()]))
+	if int(look.get("pack", 0)) > 0 and not hero:
+		_wear_pack(parts, colours, Color(look["pack_colour"]) if look.has("pack_colour") else Color(0, 0, 0, 0))
+	if _wears_pack(parts) and not colours.has("pack") and colours.has("top"):
+		colours["pack"] = colours["top"]
 	if not m.begins_with("tf"):
 		if not hero and not colours.has("shoes"):
 			colours["shoes"] = Color(SHOE_COLOURS[(seed / 7) % SHOE_COLOURS.size()])
@@ -246,19 +396,17 @@ static func outfit(look: Dictionary) -> Dictionary:
 	return {"person": person, "parts": parts, "colours": colours}
 
 
-## The packs to wear (townfolk.json "packs"): [{"name", "parts", "colour"}]; a look's "pack" counts from 1.
-static func packs() -> Array:
-	return data().get("packs", [])
+## Puts the pack on (if they aren't wearing it already), in `colour` (alpha 0: their top's; see outfit).
+static func _wear_pack(parts: Array, colours: Dictionary, colour: Color) -> void:
+	if not _wears_pack(parts):
+		parts.append(PACK)
+	if colour.a > 0.0:
+		colours["pack"] = colour
 
 
-## Puts pack `n` (from 1; 0 or out of range: none) on, in `colour` (alpha 0: its own).
-static func _wear_pack(parts: Array, colours: Dictionary, n: int, colour: Color) -> void:
-	if n < 1 or n > packs().size():
-		return
-	var pk: Dictionary = packs()[n - 1]
-	for id in pk["parts"]:
-		parts.append(int(id))
-	colours["pack"] = colour if colour.a > 0.0 else Color(pk["colour"])
+## Whether `parts` has the pack (their ids as townfolk.json has them, floats, or as ints).
+static func _wears_pack(parts: Array) -> bool:
+	return parts.any(func(id) -> bool: return int(id) == PACK)
 
 
 ## Whether a colour is warm: the reds, oranges, yellows and pinks (a brown camo suits them).

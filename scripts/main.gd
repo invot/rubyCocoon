@@ -2897,16 +2897,17 @@ func _hero_gallery() -> void:
 	sun.rotation_degrees = Vector3(-40, 30, 0)
 	sun.shadow_enabled = true
 	root.add_child(sun)
-	# --body=female --top=3a6ab8 --trousers=... --hair=... --eyes=...: the hero as the character creator can make them
+	# --body=female --top=3a6ab8 --trousers=... --hair=... --eyes=... --pack_colour=...: the hero as the character
+	# creator can make them
 	var look := {"face": "hero"}
-	for k in ["body", "top", "trousers", "hair", "eyes", "person", "hairdo", "pack"]:
+	for k in ["body", "top", "trousers", "hair", "eyes", "pack_colour", "person", "hairdo"]:
 		if _test.has(k):
-			look[k] = _test[k] if not k in ["person", "hairdo", "pack"] else int(_test[k])
+			look[k] = _test[k] if not k in ["person", "hairdo"] else int(_test[k])
 	if _test.has("model"):
 		look = {"model": _test["model"]}
 	# --pose=walk: side views an eighth of a stride apart (--speed: 1.7 a stroll, 4.6 the hero's jog, 7.8 a sprint);
 	# --pose=talk: four moments a second apart of someone talking; --pose=sit: sitting, from four sides;
-	# --packs=n: the hero in four of the packs from n on (from behind)
+	# --packs=1: the hero's pack in four colours (from behind)
 	var walk: bool = _test.get("pose", "") == "walk"
 	var act: String = _test.get("pose", "") if _test.get("pose", "") in ["talk", "sit"] else ""
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
@@ -2918,7 +2919,7 @@ func _hero_gallery() -> void:
 			look = MapGen.random_look(rng)
 			look["outfit"] = "camo"
 		if _test.has("packs"):
-			look["pack"] = int(_test["packs"]) + i
+			look["pack_colour"] = ["#7a4a2a", "#b03a3a", "#3a5a8a", "#4a6a3a"][i]
 		var rig: Node3D = VPer.build(look)
 		VPer.face(rig, Vector2i(1, 0) if walk else (Vector2i(0, 1) if act == "talk" else ([Vector2i(0, -1), Vector2i(-1, 0)][int(_test.get("view", "0"))] if _test.has("packs") else dirs[i])))
 		if walk:
