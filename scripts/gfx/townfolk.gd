@@ -55,6 +55,11 @@ const HERO_PACK := 1
 const TRAINER_PACK_COLOURS := ["#6a7a4a", "#7a5a3a", "#4a5a6a", "#8a6a4a", "#5a4a3a"]
 ## The top of the head, on the kit's body.
 const HEAD_TOP := 165.6
+## The kit's baseball cap (a part), for a look that asks for one ("cap"), and where a badge sits on the front of its
+## crown, just above the brim (metres, as baked: see fit), leaning back with it (radians).
+const CAP := 13
+const CAP_BADGE := Vector3(0, 1.665, 0.335)
+const CAP_BADGE_TILT := -0.35
 ## The hero's outfits for each body (people in townfolk.json, worn with the hero's own hairdo and colours), the first
 ## the one they begin in.
 const HERO_OUTFITS := {"male": [0, 13, 2, 4, 10, 11, 29, 30, 35, 36, 37, 43],
@@ -166,6 +171,8 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 ##   "hair", "skin" and "hat" (shoes and eyes picked to go with them unless it gives "shoes" or "eyes");
 ##   outfit "camo" (the trainers): the townsperson's face and hair over a camo jacket with a tall collar, camo
 ##   trousers and boots, the camo brown for a warm "shirt" colour (reds to yellows), else green, and a pack.
+## A look's "cap" (true) swaps their hat for the kit's baseball cap (CAP), in the "hat" colour; "glasses" false takes
+## their glasses off.
 ## A look's "pack" (1 on, one of packs(); 0 none) puts that pack on their back, in its "pack_colour" (else its own).
 static func outfit(look: Dictionary) -> Dictionary:
 	var people: Array = data()["people"]
@@ -230,6 +237,12 @@ static func outfit(look: Dictionary) -> Dictionary:
 		if not look.has("hat") and has_hair:
 			for h in hats:
 				parts.erase(h)
+		# a uniform's baseball cap instead of their own hat; and no glasses, for a look that says so
+		if look.get("cap", false):
+			parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "hat")
+			parts.append(CAP)
+		if not look.get("glasses", true):
+			parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "glasses")
 	return {"person": person, "parts": parts, "colours": colours}
 
 

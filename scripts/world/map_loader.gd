@@ -44,12 +44,13 @@ const FACING := {"v": Vector2i(0, 1), "^": Vector2i(0, -1), "<": Vector2i(-1, 0)
 const CLEAR_TO := {"path": MapGen.PATH, "grass": MapGen.GRASS, "sand": MapGen.SAND, "bridge": MapGen.BRIDGE, "rope": MapGen.ROPE}
 ## Everyone who works in a shop or a Beast Center wears their workplace's uniform (see voxel_person.gd): a polo with
 ## a collar, short sleeves and a name badge, and usually a visor, so staff stand out from the townsfolk.
-## Beast Center staff all share the diner's red and white, with its paper hat.
-const CENTER_UNIFORM := {"shirt": "#f4f4f4", "trim": "#d8283a", "pants": "#d8283a", "hat": "#f4f4f4", "hat_style": "soda",
-	"badge": "#ffd94a", "outfit": "uniform"}
+## Beast Center staff all share the diner's red and white: a red cap with the pawprint from the sign over the door on a
+## white panel on its front (see voxel_person.gd), and no glasses.
+const CENTER_UNIFORM := {"shirt": "#f4f4f4", "trim": "#d8283a", "pants": "#d8283a", "hat": "#d8283a", "cap": true,
+	"logo": "center", "glasses": false, "badge": "#ffd94a", "outfit": "uniform"}
 const KEEPER_LOOKS := {
 	"center": {"skin": "#f0c8a0", "hair": "#e88aa0", "hair_style": 1, "shirt": "#f4f4f4", "trim": "#d8283a", "pants": "#d8283a",
-		"hat": "#f4f4f4", "hat_style": "soda", "badge": "#ffd94a", "outfit": "uniform"},
+		"hat": "#d8283a", "cap": true, "logo": "center", "glasses": false, "badge": "#ffd94a", "outfit": "uniform"},
 	"apothecary": {"skin": "#e0b088", "hair": "#4a3a2a", "shirt": "#5a9a6a", "trim": "#f0ece0", "pants": "#3a4a3a",
 		"hat": "#3a6a4a", "hat_style": "visor", "apron": "#f0ece0", "outfit": "uniform"},
 	"beast_gear": {"skin": "#c08a60", "hair": "#2a1a10", "shirt": "#d08030", "trim": "#4a3a2a", "pants": "#4a3a2a",

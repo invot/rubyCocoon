@@ -263,7 +263,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Nurse Clover at the counter hatches eggs in the **incubator** beside her (it sparkles when an egg hatches), and runs storage and the merge altar. A red phone stands by the door, for calling Dad (see Saving).
   - Round the end of the wall, on its own wood floor, is the **kennel**, with two chairs in its front corner. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adopt one, or drop one of yours off for another trainer (Pip thanks you with a little gold). Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
   - Guide Dottie walks about the room and explains how it all works.
-  - All three wear the Beast Center uniform: a white polo with red collar and cuffs, a name badge and a diner paper hat (Pip adds a green apron).
+  - All three wear the Beast Center uniform: white on top, red below, and a red cap with the pawprint from the sign over the door on a white panel at its front. None of them wears glasses.
 
   <img src="docs/screenshots/heal.jpg" width="640" alt="Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine glowing in its bay, the storage terminal, the merge altar and the red phone."><br><sub>Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine glowing in its bay, the storage terminal, the merge altar and the red phone.</sub>
 

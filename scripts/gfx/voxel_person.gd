@@ -9,6 +9,7 @@ extends RefCounted
 ## Rig: Person > Body (rotate for facing) > the townsperson, scaled from the kit's metres. Faces +Z.
 
 const Townfolk = preload("res://scripts/gfx/townfolk.gd")
+const VProps = preload("res://scripts/gfx/voxel_props.gd")
 ## Game units per kit metre: the townsfolk stand about 1.5 tall, a little shorter than the doors.
 const SCALE := 0.86
 ## The kit's heads are huge (a toddler's proportions): drawn this much smaller.
@@ -23,6 +24,8 @@ const LEGS := 0.62
 const RIG_ID := "townfolk"
 
 static var _rigs := {}
+## Cap badges made so far (see _badge), by shop.
+static var _badges := {}
 
 
 ## Builds a rig. Children: Body (rotate for facing) > the townsperson.
@@ -75,6 +78,39 @@ static func _dress_body(rig: Node3D, look: Dictionary) -> void:
 	rig.set_meta("skeleton", sk)
 	var head := sk.find_bone(model.get_meta("bones")["head"])
 	sk.set_bone_pose_scale(head, Vector3.ONE * HEAD_SCALE)
+	# a uniform cap's badge (look "logo": a shop whose sign it shows), on the head so it nods and turns with it
+	if look.get("cap", false) and look.has("logo"):
+		var att := BoneAttachment3D.new()
+		att.bone_name = model.get_meta("bones")["head"]
+		sk.add_child(att)
+		var badge := MeshInstance3D.new()
+		badge.mesh = _badge(String(look["logo"]))
+		badge.position = Townfolk.CAP_BADGE - Townfolk.fit(Townfolk.BONES[head][2])
+		badge.rotation.x = Townfolk.CAP_BADGE_TILT
+		att.add_child(badge)
+
+
+## A cap's badge: the shop's sign icon (voxel_props.gd ICONS) on a white panel, a flat square facing +z.
+static func _badge(shop: String) -> Mesh:
+	if _badges.has(shop):
+		return _badges[shop]
+	var rows: Array = VProps.ICONS.get(shop, VProps.ICONS["center"])
+	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
+	img.fill(Color("#f4f4f4"))
+	for y in 12:
+		for x in 12:
+			var ch := String(rows[y])[x]
+			if ch != ".":
+				img.set_pixel(x, y, Color(VProps.ICON_COLORS.get(ch, "#ffffff")))
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.roughness = 0.9
+	var q := QuadMesh.new()
+	q.size = Vector2(0.24, 0.24)
+	q.material = m
+	_badges[shop] = q
+	return q
 
 
 ## Turns a person to look along `dir` (any of the eight ways); smooth: over a moment, as they're animated (see

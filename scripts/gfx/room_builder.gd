@@ -1191,7 +1191,7 @@ const COUNTER_GOODS := {
 	"cafe": ["el_coffee_maker", "el_slush", "cup", "cup_2", "plate", "el_flowers"],
 	"electronics": ["phone", "radio", "books_2", "product_2"],
 	"music_shop": ["radio", "books", "el_photo"],
-	"center": ["el_coffee", "cup", "plate_2", "el_flowers"],
+	"center": ["cup", "plate_2", "el_flowers"],
 	"beast_gear": ["product_2", "product_4", "box_3"],
 	"trainer_gear": ["product_2", "book", "box_3"],
 }
@@ -1201,8 +1201,9 @@ const COUNTER_GOODS := {
 ## facing the customers (the open side, away from the staff), cut into pieces of three to six tiles along each run of
 ## counter tiles; a run of one or two tiles (the ends of a U round a desk) is a kitchen base unit with a marble top.
 ## On top: one till by the person working there, its keys and screen turned to them (a cash register; the electronics
-## shop's terminal is a computer; the Beast Center's nurse has her coffee machine), and a few things from the trade.
-const TILL := {"electronics": "el_monitor", "center": "el_coffee"}
+## shop's terminal is a computer; the Beast Center's nurse has none: anything there hid her face), and a few things
+## from the trade.
+const TILL := {"electronics": "el_monitor", "center": ""}
 
 
 func _counters() -> void:
