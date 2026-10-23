@@ -576,8 +576,8 @@ const ROOMS := {
 		"wall": "#c89a6a", "rug": "#a85a3a", "zone": "wood", "stage": true, "anchors": {"1": "builder"},
 		"rows": [
 			"###w###w###",
-			"#R.bb.Nq.X#",
-			"#X.......F#",
+			"#R.Nb..q.X#",
+			"#X..b....F#",
 			"#....1....#",
 			"#.ctc...a.#",
 			"#.ctc.....#",

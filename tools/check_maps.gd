@@ -124,6 +124,7 @@ func _check(m: Dictionary) -> Array:
 		problems.append_array(_levels(m))
 	else:
 		problems.append_array(_windows(m))
+		problems.append_array(_beds(m))
 	problems.append_array(_slip_past(m))
 	var groups := {}
 	for q in m.get("obstacles", {}):
@@ -219,6 +220,45 @@ func _windows(m: Dictionary) -> Array:
 			lit += 1
 	if m.get("stage", false) and lit == 0:
 		out.append("%s has no wall with windows" % m.get("room_key", m["id"]))
+	return out
+
+
+## Every bed (and bunk) has a wall at its head: one along a short end of it, as RoomBuilder._place stands it. A bed
+## with none (two tiles side by side along the back wall, say) is shrunk to fit its tiles the wrong way round.
+func _beds(m: Dictionary) -> Array:
+	var out := []
+	var furn: Dictionary = m.get("furniture", {})
+	var seen := {}
+	for p in furn:
+		if seen.has(p) or not RoomBuilder.KINDS.get(furn[p], {}).get("short", false):
+			continue
+		var group := []
+		var stack := [p]
+		seen[p] = true
+		while not stack.is_empty():
+			var q: Vector2i = stack.pop_back()
+			group.append(q)
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if not seen.has(q + d) and furn.get(q + d, "") == furn[p]:
+					seen[q + d] = true
+					stack.append(q + d)
+		var lo: Vector2i = group[0]
+		var hi: Vector2i = group[0]
+		for q in group:
+			lo = Vector2i(mini(lo.x, q.x), mini(lo.y, q.y))
+			hi = Vector2i(maxi(hi.x, q.x), maxi(hi.y, q.y))
+		var size := hi - lo + Vector2i.ONE
+		var headed := false
+		for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+			# (the side's length against the piece's length away from it: a head is a short end, or any side of a square)
+			if (size.x if d.y != 0 else size.y) > (size.y if d.y != 0 else size.x):
+				continue
+			for q in group:
+				var r: Vector2i = q + d
+				if not group.has(r) and (MapGen.get_t(m, r.x, r.y) in RoomBuilder.WALLISH or r.x < 0 or r.y < 0):
+					headed = true
+		if not headed:
+			out.append("%s's %s at %s (%dx%d) has no wall at its head" % [m.get("room_key", m["id"]), furn[p], lo, size.x, size.y])
 	return out
 
 
