@@ -167,9 +167,10 @@ const MAPS := {
 		# rippling water where the fish bite, each a 4-tile-square patch (and more picked by map_loader.gd): in front of
 		# Gil's shack and his line, and by the ferry pier
 		"fish_spots": [[6, 35], [20, 31]],
-		# moored in the water: Captain Gull's ferry along the long pier (bow out to sea), and Gil's rowboat by his shack
-		# ([x, z, yaw in degrees, model, length in tiles])
-		"boats": [[27.4, 31.2, 0.0, "ferry", 4.8], [2.6, 32.0, 8.0, "boat_dark", 2.4]],
+		# moored in the water: Captain Gull's ferry off the end of the long pier, beside him, turned side-on so the camera
+		# always sees it broadside (bow out to sea, east; never bow-on, and never in front of the pier where it would hide
+		# you), and Gil's rowboat by his shack ([x, z, yaw in degrees, model, length in tiles])
+		"boats": [[28.55, 34.0, 90.0, "ferry", 4.8], [2.6, 32.0, 8.0, "boat_dark", 2.4]],
 		# the meadow east of town: wild beasts live only inside its ring of hedges (map_loader.gd "meadow"). The arena
 		# stands beyond it, in a forecourt closed off by trees and a hedge: the only way there is in at the meadow's west
 		# gate and out at its east one
