@@ -686,8 +686,8 @@ const ARENA_STONE := {"western": "#dcb890", "adobe": "#e0bc8c", "mining": "#b8b4
 
 
 ## The arena: an oval stadium of the house pack's walls (an arcade of tall windows below, small ones above, a pilaster
-## at every corner, a cornice and a parapet), open to the sky over its tiers of seats and its sand ring, with a striped
-## awning on masts over the far stands and pennants round the rim. At the front, on the door's tile, a crenellated
+## at every corner, a cornice and a parapet) under a flat roof with a low glazed skylight over the ring, and pennants
+## on masts round the rim. At the front, on the door's tile, a crenellated
 ## gatehouse with the great carved door, banners and the arena's sign, between two round turrets with pointed roofs.
 static func _pack_arena(node: Node3D, style_name: String, w: float, d: float, door_lx: float, locked: bool) -> void:
 	var stone := Color(ARENA_STONE.get(style_name, "#d8ccb4"))
@@ -734,38 +734,22 @@ static func _pack_arena(node: Node3D, style_name: String, w: float, d: float, do
 	var inner := _scaled(ring, c, 0.95)
 	_skirt(k, "stone", inner, top, 0.62, stone.darkened(0.12), c, true)
 	_band(k, "stone", _scaled(ring, c, 1.01), inner, top + 0.62, stone.lightened(0.05))
-	# the stands: four tiers stepping down to the arena wall, and the sand inside it
-	var ty := top + 0.1
-	var f := 0.95
-	for t in 4:
-		var nf := f - 0.08
-		_band(k, "stone", _scaled(ring, c, f), _scaled(ring, c, nf), ty, stone.darkened(0.04 * float(t % 2)))
-		_skirt(k, "stone", _scaled(ring, c, nf), ty - 0.42, 0.42, dark.darkened(0.06), c, true)
-		ty -= 0.42
-		f = nf
-	var floor_y := ty - 1.1
-	_skirt(k, "stone", _scaled(ring, c, f), floor_y, 1.1, dark.darkened(0.15), c, true)
-	_band(k, "ground_sand", _scaled(ring, c, f), _fill(c, n), floor_y, Color("#e8d4a0"))
-	# the white battle ring painted on the sand
-	_band(k, "color", _scaled(ring, c, 0.36), _scaled(ring, c, 0.32), floor_y + 0.01, Color("#f4f0e4"))
-	# masts round the rim, the far ones holding up a striped awning over the stands
+	# the flat roof inside the parapet, and a low glazed skylight over the ring in its middle
+	_band(k, "tin", inner, _fill(c, n), top + 0.12, Color("#6e6a64"))
+	var sky := _scaled(ring, c, 0.42)
+	_skirt(k, "stone", sky, top + 0.12, 0.3, dark, c)
+	_band(k, "stone", _scaled(ring, c, 0.46), sky, top + 0.42, stone.lightened(0.05))
+	_band(k, "color", sky, _fill(c, n), top + 0.4, Color("#9cc0d0"))
+	# masts round the rim, every other one flying a pennant
 	var i2 := 0
 	for i in n:
 		var p: Vector2 = ring[i]
 		if hidden.call(p):
 			continue
-		var far := p.y < c.y - az * 0.25
-		var mh := 1.55 if far else 1.0
-		_column(k, "color", Vector3(p.x, top + 0.62, p.y), 0.045, mh, 4, Color("#5a4a3a"))
-		if i % 2 == 0 or far:
-			_pennant(k, Vector3(p.x, top + 0.62 + mh, p.y), flags[i2 % 3])
+		_column(k, "color", Vector3(p.x, top + 0.62, p.y), 0.045, 1.0, 4, Color("#5a4a3a"))
+		if i % 2 == 0:
+			_pennant(k, Vector3(p.x, top + 1.62, p.y), flags[i2 % 3])
 			i2 += 1
-		var q: Vector2 = ring[(i + 1) % n]
-		if far and q.y < c.y - az * 0.25:
-			var pin := p.lerp(c, 0.3)
-			var qin := q.lerp(c, 0.3)
-			k.poly("color", [Vector3(p.x, top + 1.95, p.y), Vector3(q.x, top + 1.95, q.y), Vector3(qin.x, top + 1.25, qin.y), Vector3(pin.x, top + 1.25, pin.y)],
-				Vector3((c.x - p.x) * 0.2, 1.0, (c.y - p.y) * 0.2), brand if i % 2 == 0 else Color("#f6f0e0"))
 	# the gatehouse: two storeys and a crenellated top, the carved door, a window over it
 	var gc := Vector2((gx0 + gx1) / 2.0, (gz0 + gz1) / 2.0)
 	var dw := 1.3
