@@ -45,6 +45,8 @@ const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const FISHER_LOOK := {"skin": "#c08a60", "hair": "#d8d8d8", "shirt": "#e8c040", "pants": "#3a4a5a", "hat": "#e8c040", "outfit": "coat"}
 const Fishing = preload("res://scripts/world/fishing.gd")
 const UNCLE_LOOK := {"skin": "#e0b088", "hair": "#6a3a20", "shirt": "#3a7a8a", "pants": "#3a3a48", "hat": "#e8d8a0", "outfit": "coat"}
+## The Dune Ranger, keeping folk off the Dune Road while the sandstorm blows: dusty khaki and a wide hat.
+const RANGER_LOOK := {"skin": "#c89068", "hair": "#3a2a1a", "shirt": "#c8a060", "pants": "#6a5038", "hat": "#8a6a3a", "outfit": "coat"}
 
 ## Elder Rowan's four eggs (RaceDB.STARTERS), by the line's first form.
 const EGG_BLURB := {
@@ -168,9 +170,14 @@ func extra_npcs(map: Dictionary) -> Array:
 			# the logs stacked by the builder's door, until you've taken them (or mended the footbridge)
 			if _has_anchor(map, "logpile") and not GameState.flag("logs_taken") and not (_bridge_flag() != "" and GameState.flag(_bridge_flag())):
 				out.append({"kind": "story", "id": "logpile", "name": "", "pos": _at(map, "logpile", Vector2i.ZERO), "mesh": _log_pile(), "still": true, "facing": Vector2i(0, 1)})
+		"route3":
+			# a sandstorm over the whole Dune Road until the Temple of Tides is calmed (world.gd draws it): a step in, the
+			# Dune Ranger runs over and sends you back to Tidewater (sandstorm_stop)
+			if not GameState.flag("guardian_water"):
+				map["sandstorm"] = true
+				out.append({"kind": "story", "id": "ranger", "name": "Dune Ranger", "pos": map["spawns"]["south"] + Vector2i(0, -3),
+					"look": RANGER_LOOK, "facing": Vector2i(0, 1), "spots": true})
 		"tidewater", "shellhaven":
-			if id == "tidewater" and not GameState.flag("guardian_water"):
-				_close_edge(map, "north", "The Dune Road is shut: sandstorms as tall as lighthouses. Folk say they won't settle until things are calm at the Temple of Tides, out on the Isle of Tides.")
 			if _has_anchor(map, "uncle"):
 				out.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", plaza), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
 			if _has_anchor(map, "fisher"):
@@ -959,6 +966,8 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _mascot(world, n)
 		"ferry":
 			await _ferry(world)
+		"ranger":
+			await _ranger()
 		"chief_shell", "chief_kelp":
 			await _chief(world, n)
 		"culprit":
@@ -1046,6 +1055,31 @@ func _ferry(world) -> void:
 	if not await UI.ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
 		return
 	GameState.main.goto_map(dest, "dock")
+
+
+## Your first step into the Dune Road's sandstorm: the Dune Ranger spots you and jogs over (straight down the road, as
+## a trainer would; from where the ranger stands if you're not in line), then sends you back to Tidewater.
+func sandstorm_stop(world) -> void:
+	for p in world.npcs:
+		var n: Dictionary = world.npcs[p]
+		if n.get("id", "") != "ranger":
+			continue
+		var d: Vector2i = world.player_pos - p
+		world._face_npc(n, d)
+		if (d.x == 0) != (d.y == 0) and absi(d.x + d.y) > 1:
+			n["facing"] = d.sign()
+			await world._trainer_approach(n, p, absi(d.x + d.y))
+		else:
+			await talk(world, n)
+		return
+	await _ranger()
+
+
+func _ranger() -> void:
+	await UI.say(["Whoa, whoa! What are you doing out here? You're going to get blown away!",
+		"Wait for the storm to finish. You'll never get through until then!",
+		"Folk say it won't settle until things are calm at the Temple of Tides, out on the Isle of Tides. Back to town with you!"], "Dune Ranger")
+	GameState.main.goto_map("tidewater", "north", Vector2i(0, 1))
 
 
 func _chief(world, n: Dictionary) -> void:

@@ -118,6 +118,8 @@ func build(id: String) -> void:
 	_build_items()
 	_build_player()
 	_build_camera()
+	if map.get("sandstorm", false):
+		_build_sandstorm()
 	_spawn_wilds.call_deferred()
 
 
@@ -289,6 +291,12 @@ func _build_environment() -> void:
 	env.fog_light_color = Color(biome["sky_hz"])
 	env.fog_density = float(biome.get("fog", 0.0015))
 	env.fog_sky_affect = 0.0
+	if map.get("sandstorm", false):
+		# the Dune Road's sandstorm (story.gd): thick, sand-coloured air, the road fading out a few tiles off
+		env.fog_light_color = STORM_SAND
+		env.fog_density = 0.045
+		env.fog_sky_affect = 1.0
+		env.ambient_light_color = STORM_SAND
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.15
 	env.adjustment_contrast = 1.08
@@ -304,7 +312,78 @@ func _build_environment() -> void:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 30.0
 	sun.rotation_degrees = Vector3(-52, 28, 0)
+	if map.get("sandstorm", false):
+		# the sun a dull glow through the dust
+		sun.light_energy *= 0.45
+		sun.light_color = Color(biome["sun"]).lerp(STORM_SAND, 0.5)
 	add_child(sun)
+
+
+## The colour of the Dune Road's sandstorm.
+const STORM_SAND := Color("#d2a86a")
+
+
+## The sandstorm's blowing sand, carried along by the camera so it's always round you: fine grit streaming past, and
+## big soft puffs of dust rolling through.
+func _build_sandstorm() -> void:
+	for kind in ["grit", "puff"]:
+		var grit: bool = kind == "grit"
+		var p := CPUParticles3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(0.2, 0.035) if grit else Vector2(3.2, 2.2)
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		mat.vertex_color_use_as_albedo = true
+		# (the fog is the sand's own colour: through it they'd vanish)
+		mat.disable_fog = true
+		if not grit:
+			mat.albedo_texture = _puff_texture()
+		qm.material = mat
+		p.mesh = qm
+		p.amount = 420 if grit else 40
+		p.lifetime = 1.6 if grit else 4.0
+		p.preprocess = p.lifetime
+		p.local_coords = false
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		# a slab round the player, seen from the camera (13 units back), reaching off both sides of the screen
+		p.emission_box_extents = Vector3(14.0, 5.0, 6.0)
+		p.position = Vector3(-6.0, 0.0, -13.0)
+		# blowing from the west, a little downwards
+		p.direction = Vector3(1.0, -0.15, 0.0)
+		p.spread = 6.0 if grit else 12.0
+		p.gravity = Vector3.ZERO
+		p.initial_velocity_min = 11.0 if grit else 4.0
+		p.initial_velocity_max = 16.0 if grit else 6.0
+		p.scale_amount_min = 0.6
+		p.scale_amount_max = 1.5
+		# pale grit, and puffs a shade darker than the air, fading in and out
+		var col := STORM_SAND.lightened(0.55) if grit else STORM_SAND.darkened(0.25)
+		var a := 0.85 if grit else 0.3
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(col, 0.0))
+		ramp.set_color(1, Color(col, 0.0))
+		ramp.add_point(0.2, Color(col, a))
+		ramp.add_point(0.8, Color(col, a))
+		p.color_ramp = ramp
+		cam.add_child(p)
+		p.emitting = true
+
+
+## A soft round blob for the dust puffs: opaque in the middle, fading to nothing at the edge.
+func _puff_texture() -> Texture2D:
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 1))
+	g.set_color(1, Color(1, 1, 1, 0))
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(0.5, 0.0)
+	t.width = 64
+	t.height = 64
+	return t
 
 
 # ================================================================ terrain
@@ -573,6 +652,11 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 	var style: String = biome.get("style", "town")
 	var w: int = map["w"]
 	var h: int = map["h"]
+	# the roads out, even one the story has fenced off for now (story.gd _close_edge)
+	var ways_out := {}
+	for dir in map.get("openings", {}):
+		for t in map["openings"][dir]:
+			ways_out[t] = true
 	var spots := []
 	# along the north, every 9 tiles or so, a few tiles back
 	var x := rng.randi_range(2, 6)
@@ -600,12 +684,13 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 		for i in range(lo, hi + 1):
 			var et := Vector2i(clampi(i, 0, w - 1), 0) if p.y < 0.0 else Vector2i(0 if p.x < 0.0 else w - 1, clampi(i, 0, h - 1))
 			var edge := MapGen.get_t(map, et.x, et.y)
-			if edge in [MapGen.WATER, MapGen.LAVA, MapGen.BRIDGE, MapGen.SAND] or MapGen.walkable(edge):
+			if edge in [MapGen.WATER, MapGen.LAVA, MapGen.BRIDGE, MapGen.SAND] or MapGen.walkable(edge) or ways_out.has(et):
 				clear = false
 		if p.y >= 0.0:
 			for z in range(maxi(0, int(p.y - r - 10.0)), mini(h, int(p.y) + 1)):
-				var e2 := MapGen.get_t(map, 0 if p.x < 0.0 else w - 1, z)
-				if MapGen.walkable(e2) and e2 != MapGen.SAND:
+				var e2t := Vector2i(0 if p.x < 0.0 else w - 1, z)
+				var e2 := MapGen.get_t(map, e2t.x, e2t.y)
+				if MapGen.walkable(e2) and e2 != MapGen.SAND or ways_out.has(e2t):
 					clear = false
 		if not clear:
 			node.free()
@@ -1496,7 +1581,8 @@ func _build_npcs() -> void:
 		npcs[p] = n
 		if n.has("mesh") and not n.get("still", false):
 			bobbers.append([node, 0.1, 2.0])
-		if n.get("kind", "") == "trainer" and not GameState.flag(n.get("flag", "")):
+		# (and anyone else who comes over when they spot you, like the Dune Ranger: story.gd sandstorm_stop)
+		if n.get("kind", "") == "trainer" and not GameState.flag(n.get("flag", "")) or n.get("spots", false):
 			var mark := Label3D.new()
 			mark.text = "!"
 			mark.font_size = 72
@@ -1965,6 +2051,13 @@ func _on_step_done() -> void:
 			VPer.face(player, facing)
 			return
 		GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
+		return
+	if map.get("sandstorm", false):
+		# a step into the Dune Road's sandstorm is as far as you get
+		_clear_path()
+		busy = true
+		await Story.sandstorm_stop(self)
+		busy = false
 		return
 	if await _check_trainer_sight():
 		return
@@ -2852,7 +2945,8 @@ var _wild_think := 0.0
 
 
 func _spawn_wilds() -> void:
-	if demo or map.get("encounter", {}).is_empty() or player == null:
+	# (no beasts out in a sandstorm)
+	if demo or map.get("encounter", {}).is_empty() or player == null or map.get("sandstorm", false):
 		return
 	# the Coastal Path has only its teachers until you have a flute
 	if map["encounter"].get("after_flute", false) and not GameState.has_flute():
