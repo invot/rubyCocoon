@@ -23,6 +23,8 @@ const KEEPERS := {
 	"electronics": "Volt", "skytower": "Skykeeper Aria", "music_shop": "Maestro Clef",
 }
 const SHIELD_COST := 5
+## Arena masters pay twice these Beast Center offers.
+const EGG_PRICES := {"normal": 100, "ghost": 200, "legendary": 500}
 const MAX_SHIELD := 4
 const FLIGHT_COST := 120
 const FLY_LEVEL := 40
@@ -230,6 +232,7 @@ func beast_center(town: String) -> void:
 			{"text": "Beast storage", "desc": "Deposit or withdraw beasts. (%d in storage)" % GameState.storage.size()},
 			{"text": "Merge altar", "desc": "Merge two beasts in their final form, at their level limit, into one stronger beast."},
 			{"text": "Leave"},
+			{"text": "Sell eggs", "desc": "Sell spare beast eggs for gold."},
 		]
 		var c: int = await UI.choose("Beast Center", items, {"anchor": "right", "width": 340})
 		match c:
@@ -239,6 +242,8 @@ func beast_center(town: String) -> void:
 				await storage()
 			2:
 				await merge_altar(false)
+			4:
+				await sell_eggs()
 			_:
 				return
 
@@ -261,6 +266,57 @@ func heal_machine(world) -> void:
 		x.heal_full()
 	Sfx.play("levelup")
 	await UI.say(["Ding! Your beasts pop out fully healed and fizzing with energy!"])
+
+
+## Shadow eggs are Ghost; radiant eggs retain their guardian's element.
+func egg_element(egg: Dictionary) -> String:
+	if egg.get("ghost", false) or egg.get("kind", "") == "ghost":
+		return "ghost"
+	return RaceDB.element(int(egg["race"]))
+
+
+## Zero means this buyer won't buy it. Center accepts every egg; a master accepts only their element.
+func egg_offer(egg: Dictionary, town := "") -> int:
+	var price: int = EGG_PRICES.get(String(egg.get("kind", "")), EGG_PRICES["normal"])
+	if town == "":
+		return price
+	if not WorldDB.ARENAS.has(town) or egg_element(egg) != WorldDB.ARENAS[town]["element"]:
+		return 0
+	return price * 2
+
+
+func has_eggs_to_sell(town := "") -> bool:
+	return GameState.eggs.any(func(egg): return egg_offer(egg, town) > 0)
+
+
+func sell_eggs(town := "") -> void:
+	var buyer: String = KEEPERS["center"] if town == "" else WorldDB.ARENAS[town]["leader"]
+	while true:
+		var items := []
+		var indices := []
+		for i in GameState.eggs.size():
+			var egg: Dictionary = GameState.eggs[i]
+			var offer := egg_offer(egg, town)
+			if offer > 0:
+				items.append({"text": GameState.egg_name(egg), "right": "%d gold" % offer,
+					"desc": "%s offers %d gold for this egg." % [buyer, offer]})
+				indices.append(i)
+		if items.is_empty():
+			await UI.say(["You have no eggs to sell." if town == "" else "I only buy %s eggs. Bring me one and I'll pay twice the Beast Center's offer." % String(WorldDB.ARENAS[town]["element"]).capitalize()], buyer)
+			return
+		var c: int = await UI.choose("Sell which egg?  ·  %d gold" % GameState.gold, items, {"width": 460})
+		if c < 0:
+			return
+		var index: int = indices[c]
+		var egg: Dictionary = GameState.eggs[index]
+		var offer := egg_offer(egg, town)
+		var name := GameState.egg_name(egg)
+		if not await UI.ask("Sell %s for %d gold?" % [name, offer], buyer):
+			continue
+		GameState.eggs.remove_at(index)
+		GameState.gold += offer
+		Sfx.play("item")
+		await UI.say(["Sold %s for %d gold. You now have %d gold." % [name, offer, GameState.gold]], buyer)
 
 
 func hatchery() -> void:
@@ -635,9 +691,15 @@ func arena(b: Dictionary, town: String) -> void:
 				"desc": "Climb the ladder of ring trainers. Beat every trainer of a rank to open the next; each rank you clear raises your trainer level (you're Lv %d) and earns a crystal shard." % GameState.trainer_level},
 			{"text": "Leave"},
 		]
+		if has_eggs_to_sell(town):
+			items.append({"text": "Sell eggs to " + a["leader"],
+				"desc": "%s eggs only. Pays twice the Beast Center's offer." % String(a["element"]).capitalize()})
 		var c: int = await UI.choose(b["name"], items, {"anchor": "right", "width": 400})
 		if c == 2 or c < 0:
 			return
+		if c == 3:
+			await sell_eggs(town)
+			continue
 		if GameState.alive_party().is_empty():
 			await UI.say(["Your beasts need healing before they can battle!"], "Arena Host")
 			continue
@@ -777,13 +839,25 @@ func leader_talk(b: Dictionary) -> void:
 		return
 	var a: Dictionary = WorldDB.ARENAS[town]
 	var leader := "%s %s" % [a["title"], a["leader"]]
+	var challenge := -2
+	if has_eggs_to_sell(town):
+		challenge = await UI.choose(leader, [
+			{"text": "Challenge " + a["leader"]},
+			{"text": "Not now"},
+			{"text": "Sell eggs", "desc": "%s eggs only. Pays twice the Beast Center's offer." % String(a["element"]).capitalize()},
+		], {"width": 460})
+		if challenge == 2:
+			await sell_eggs(town)
+			return
+		if challenge != 0:
+			return
 	var beaten: bool = GameState.crests.has(a["crest"])
 	if beaten:
 		await _miner_pass(town)
 	elif await _lessons_first(town, leader):
 		return
 	var q := "Ready for our rematch?" if beaten else "I am %s, master of this arena. Do you challenge me for the %s?" % [leader, a["crest"]]
-	if await UI.ask(q, leader):
+	if challenge == 0 or await UI.ask(q, leader):
 		await arena_challenge(town)
 	else:
 		await UI.say(["Train well. I'll be waiting right here."], leader)

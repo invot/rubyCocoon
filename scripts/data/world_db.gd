@@ -171,16 +171,17 @@ const ARENA_LESSONS := [
 		"defeat": "Look for the ★ beside a move and ★ WEAK on a target's card: that's double damage!"},
 ]
 
-## Arena leaders. team: [race, level] (a line's first form: the level picks the form). Each teaches a flute song.
+## Arena leaders. element: eggs the master buys for twice the Beast Center offer.
+## team: [race, level] (a line's first form: the level picks the form). Each teaches a flute song.
 const ARENAS := {
-	"tidewater": {"leader": "Marina", "title": "Tide Captain", "team": [[24, 9], [27, 9], [21, 10]], "song": "shanty", "crest": "Wave Crest", "gold": 900, "look": {"shirt": "#2f6fb0", "hair": "#203048", "hat": "#f0f0f0"}},
-	"kelpwick": {"leader": "Nerissa", "title": "Reef Warden", "team": [[21, 15], [27, 15], [24, 16]], "song": "coral", "flute": "lullaby", "crest": "Coral Crest", "gold": 1300, "look": {"shirt": "#e07a8a", "hair": "#30a0b0"}},
-	"sundown": {"leader": "Rosa", "title": "Gunslinger", "team": [[36, 21], [3, 21], [12, 22]], "song": "reel", "crest": "Spur Crest", "gold": 1800, "look": {"shirt": "#8a4a2a", "hair": "#2a1a10", "hat": "#6a4a2a"}},
-	"copperpick": {"leader": "Gorran", "title": "Mine Foreman", "team": [[15, 27], [9, 27], [6, 28]], "song": "dirge", "crest": "Ore Crest", "gold": 2400, "look": {"shirt": "#5a6070", "hair": "#806040", "hat": "#e8c040", "outfit": "coat"}},
-	"cogsworth": {"leader": "Volta", "title": "Chief Engineer", "team": [[30, 33], [0, 33], [12, 34]], "song": "anvil", "flute": "static", "crest": "Cog Crest", "gold": 3000, "look": {"shirt": "#6a4a3a", "hair": "#f0f0f0", "hat": "#c8a040", "outfit": "apron"}},
-	"emberfall": {"leader": "Brann", "title": "Forgemaster", "team": [[9, 39], [3, 39], [0, 40]], "song": "waltz", "crest": "Flame Crest", "gold": 3800, "look": {"shirt": "#8a2a1e", "hair": "#2a1a10", "outfit": "apron"}},
-	"vinehollow": {"leader": "Aeris", "title": "Jungle Huntress", "team": [[18, 45], [24, 45], [15, 46]], "song": "fanfare", "flute": "minuet", "crest": "Vine Crest", "gold": 4600, "look": {"shirt": "#4a7a3a", "hair": "#e8e0c0", "outfit": "robe"}},
-	"riverbend": {"leader": "Skye", "title": "River Ranger", "team": [[36, 51], [27, 51], [30, 52]], "song": "anthem", "crest": "River Crest", "gold": 5500, "look": {"shirt": "#3a6ab0", "hair": "#f0d070", "hat": "#3a5a3a"}},
+	"tidewater": {"element": "water", "leader": "Marina", "title": "Tide Captain", "team": [[24, 9], [27, 9], [21, 10]], "song": "shanty", "crest": "Wave Crest", "gold": 900, "look": {"shirt": "#2f6fb0", "hair": "#203048", "hat": "#f0f0f0"}},
+	"kelpwick": {"element": "water", "leader": "Nerissa", "title": "Reef Warden", "team": [[21, 15], [27, 15], [24, 16]], "song": "coral", "flute": "lullaby", "crest": "Coral Crest", "gold": 1300, "look": {"shirt": "#e07a8a", "hair": "#30a0b0"}},
+	"sundown": {"element": "air", "leader": "Rosa", "title": "Gunslinger", "team": [[36, 21], [3, 21], [12, 22]], "song": "reel", "crest": "Spur Crest", "gold": 1800, "look": {"shirt": "#8a4a2a", "hair": "#2a1a10", "hat": "#6a4a2a"}},
+	"copperpick": {"element": "earth", "leader": "Gorran", "title": "Mine Foreman", "team": [[15, 27], [9, 27], [6, 28]], "song": "dirge", "crest": "Ore Crest", "gold": 2400, "look": {"shirt": "#5a6070", "hair": "#806040", "hat": "#e8c040", "outfit": "coat"}},
+	"cogsworth": {"element": "earth", "leader": "Volta", "title": "Chief Engineer", "team": [[30, 33], [0, 33], [12, 34]], "song": "anvil", "flute": "static", "crest": "Cog Crest", "gold": 3000, "look": {"shirt": "#6a4a3a", "hair": "#f0f0f0", "hat": "#c8a040", "outfit": "apron"}},
+	"emberfall": {"element": "fire", "leader": "Brann", "title": "Forgemaster", "team": [[9, 39], [3, 39], [0, 40]], "song": "waltz", "crest": "Flame Crest", "gold": 3800, "look": {"shirt": "#8a2a1e", "hair": "#2a1a10", "outfit": "apron"}},
+	"vinehollow": {"element": "earth", "leader": "Aeris", "title": "Jungle Huntress", "team": [[18, 45], [24, 45], [15, 46]], "song": "fanfare", "flute": "minuet", "crest": "Vine Crest", "gold": 4600, "look": {"shirt": "#4a7a3a", "hair": "#e8e0c0", "outfit": "robe"}},
+	"riverbend": {"element": "water", "leader": "Skye", "title": "River Ranger", "team": [[36, 51], [27, 51], [30, 52]], "song": "anthem", "crest": "River Crest", "gold": 5500, "look": {"shirt": "#3a6ab0", "hair": "#f0d070", "hat": "#3a5a3a"}},
 }
 
 const BIOMES := {

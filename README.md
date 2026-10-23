@@ -158,6 +158,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - A defeated wild beast has a **20%** chance to leave an egg at the end of the battle.
   - Trainers' beasts, robots and guardians never drop eggs.
   - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
+  - **Sell eggs** at the Beast Center: ordinary eggs fetch **100 gold**, Shadow Eggs **200**, and radiant legendary eggs **500**. Select an egg and confirm the offer to sell it.
+  - Arena hosts and masters offer to buy eggs only when you carry one matching the master's element, paying **twice the Beast Center price**. Marina, Nerissa and Skye buy Water eggs; Rosa buys Air; Gorran, Volta and Aeris buy Earth; Brann buys Fire. Shadow Eggs count as Ghost, and radiant eggs use their guardian's element. You can sell before completing the arena's lessons or challenging its master.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
 - **Temple guardians** are summons: each elemental temple holds a legendary guardian (Abyssion, Zephyrax, Pyroclast
   and Terranox), and Gravenmoor's crypt holds the ghost Nocthrax. A stone puzzle in each teaches that temple's song.
