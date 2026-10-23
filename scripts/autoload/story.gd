@@ -440,6 +440,8 @@ func field_move(world, grp: Dictionary) -> void:
 		await UI.say(["A %s blocks the way." % name, "A healthy %s beast could clear it." % need if need != "any" else "Any healthy beast could help clear it."])
 		return
 	var el: String = who.element
+	if el not in elements:
+		el = who.element2
 	var mv_name := ""
 	for mv in who.moves:
 		var m := MoveDB.get_move(mv)

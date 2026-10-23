@@ -415,7 +415,7 @@ func has_beasts() -> bool:
 ## True if some party beast of one of `elements` is awake (used for field moves).
 func party_element(elements: Array) -> Beast:
 	for b in party:
-		if b.hp > 0 and b.element in elements:
+		if b.hp > 0 and b.elements().any(func(el): return el in elements):
 			return b
 	return null
 
@@ -864,11 +864,19 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"ring_side": ring_side,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
-	var f := FileAccess.open(slot_path(slot), FileAccess.WRITE)
+	var path := slot_path(slot)
+	var temp_path := path + ".tmp"
+	var f := FileAccess.open(temp_path, FileAccess.WRITE)
 	if f == null:
 		return false
 	f.store_string(JSON.stringify(d))
+	f.flush()
+	var write_error := f.get_error()
 	f.close()
+	if write_error != OK:
+		return false
+	if DirAccess.rename_absolute(temp_path, path) != OK:
+		return false
 	if shot != null:
 		shot.save_png(slot_shot_path(slot))
 	current_slot = slot

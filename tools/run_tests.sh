@@ -16,6 +16,7 @@ TESTS=(
 	"data|--script res://tools/check_data.gd|DATA CHECK DONE: 0 problem"
 	"maps|--script res://tools/check_maps.gd|MAPS WITH PROBLEMS: 0"
 	"beasts|--script res://tools/check_beasts.gd|BEASTS CHECK DONE: 0 problem"
+	"review-fixes|--script res://tools/check_review_fixes.gd|REVIEW FIXES DONE: 0 problem"
 	"flow|-- --scene=flow --wait=0.3|FLOW TEST DONE"
 	"walk|-- --scene=walk4 --wait=0.3|WALK TEST DONE: 0 problem"
 	"walk-touch|-- --scene=walk4 --touch --wait=0.3|WALK TEST DONE: 0 problem"

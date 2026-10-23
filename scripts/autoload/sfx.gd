@@ -109,6 +109,14 @@ var _music_b: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
 var _music_kind := ""
 var _ambience_kind := ""
+var _music_tweens := {}
+
+
+func _cancel_music_tween(player: AudioStreamPlayer) -> void:
+	var tween: Tween = _music_tweens.get(player)
+	if tween != null and tween.is_valid():
+		tween.kill()
+	_music_tweens.erase(player)
 
 
 func _ready() -> void:
@@ -256,9 +264,10 @@ func music(kind: String) -> void:
 		return
 	_music_kind = kind
 	var old := _music_a if _music_a.playing else _music_b
-	var new := _music_b if old == _music_a else _music_a
 	if old.playing:
+		_cancel_music_tween(old)
 		var tw := create_tween()
+		_music_tweens[old] = tw
 		tw.tween_property(old, "volume_db", -40.0, FADE_TIME)
 		tw.tween_callback(old.stop)
 	if kind == "" or not TRACKS.has(kind):
@@ -277,10 +286,12 @@ func _fade_in_music(s: AudioStream) -> void:
 	if s == null:
 		return
 	var new := _music_b if _music_a.playing else _music_a
+	_cancel_music_tween(new)
 	new.stream = s
 	new.volume_db = -40.0
 	new.play()
 	var tw2 := create_tween()
+	_music_tweens[new] = tw2
 	tw2.tween_property(new, "volume_db", 0.0, FADE_TIME)
 
 

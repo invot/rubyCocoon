@@ -86,9 +86,11 @@ var machines := {}
 const HEAL_GLOW := Color("#7affd0")
 var _time := 0.0
 var _demo_t := 0.0
+var _hole_position := Vector3.INF
 
 
 func build(id: String) -> void:
+	_hole_position = Vector3.INF
 	map_id = id
 	ground_h = {}
 	map = MapLoader.load_map(id, GameState.flags)
@@ -902,10 +904,13 @@ func _plan_houses() -> void:
 		var pc: Dictionary = plan.get("steps", {})
 		if not pc.is_empty():
 			var pr: Rect2 = pc["rect"]
+			# A very shallow stoop can disappear when inset; never pass a negative rect to has_point.
+			var inset := minf(0.05, minf(pr.size.x, pr.size.y) * 0.5)
+			var deck := pr.grow(-inset)
 			for ty in range(floori(o.y + pr.position.y), ceili(o.y + pr.end.y)):
 				for tx in range(floori(o.x + pr.position.x), ceili(o.x + pr.end.x)):
 					var tc := Vector2(tx + 0.5, ty + 0.5) - o
-					if pr.grow(-0.05).has_point(tc) and MapGen.walkable(MapGen.get_t(map, tx, ty)):
+					if deck.has_point(tc) and MapGen.walkable(MapGen.get_t(map, tx, ty)):
 						ground_h[Vector2i(tx, ty)] = float(pc["y"])
 		var r: Rect2 = plan["rect"]
 		for ty in range(floori(o.y + r.position.y + 0.15), ceili(o.y + r.end.y - 0.15)):
@@ -1801,6 +1806,9 @@ func _along(a: Vector3, b: Vector3, t: float) -> Vector3:
 
 ## Tells the ground where you are, so any high ground between the camera and you dissolves there (terrain.gdshader).
 func _update_hole() -> void:
+	if player.position == _hole_position:
+		return
+	_hole_position = player.position
 	var on := Vector4(player.position.x, player.position.y, player.position.z, 1.0)
 	for m in terrain_mats:
 		(m as ShaderMaterial).set_shader_parameter("hole", on)
@@ -2963,10 +2971,8 @@ func _spawn_wilds() -> void:
 		return
 	var target := clampi(_wild_cands.size() / 24, 3, 7)
 	target = int(round(target * (1.0 + GameState.gear_fx("encounter"))))
-	if GameState.incense_steps > 0:
-		target = 0 if GameState.incense_kind < 0 else target + 3
 	_wild_target = target
-	for i in target:
+	for i in _effective_wild_target():
 		_spawn_wild(6.0)
 
 
@@ -3168,16 +3174,23 @@ func _animate_wild(w: Dictionary, delta: float) -> void:
 		_beast_gait(f, w["moving"], pace, hop, spd, float(w["phase"]) + 1.3 + i)
 
 
+func _effective_wild_target() -> int:
+	if GameState.incense_steps > 0:
+		return 0 if GameState.incense_kind < 0 else _wild_target + 3
+	return _wild_target
+
+
 func _update_wilds(delta: float) -> void:
 	for w in wilds:
 		_animate_wild(w, delta)
 	if busy or frozen or UI.busy() or GameState.main == null or GameState.main.in_battle:
 		return
-	if _wild_target > 0:
+	var target := _effective_wild_target()
+	if target > 0:
 		_wild_respawn -= delta
 		if _wild_respawn <= 0.0:
 			_wild_respawn = randf_range(12.0, 20.0)
-			if wilds.size() < _wild_target and not _wild_cands.is_empty():
+			if wilds.size() < target and not _wild_cands.is_empty():
 				_spawn_wild(9.0)
 	_wild_think -= delta
 	var think := _wild_think <= 0.0
