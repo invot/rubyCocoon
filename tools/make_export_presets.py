@@ -45,13 +45,7 @@ def unused_models():
     quoted = set(re.findall(r'"([A-Za-z0-9_]+)"', code))
     out = []
     for name, path in sorted(assets.items()):
-        lo = path[:-4] + '_lo.obj'
-        has_lo = os.path.exists(os.path.join(ROOT, lo))
         if name not in quoted:
-            out.append(path)
-            if has_lo:
-                out.append(lo)
-        elif has_lo:
             out.append(path)
     return len(assets), out
 

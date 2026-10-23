@@ -1,7 +1,7 @@
 extends RefCounted
-## Name -> model. PSX models come from tools/import_psx_models.gd (assets/nature, assets/props, assets/boats) and
-## tools/import_psx_robots.gd (assets/robots); the rest are the voxel models converted by
-## tools/import_voxel_assets.py.
+## Name -> model: the PSX models baked by tools/import_psx_models.gd (assets/nature, assets/props, assets/boats),
+## tools/import_psx_robots.gd (assets/robots) and tools/import_psx_ferry.gd. (Cacti and the head totem are drawn in
+## code: voxel_assets.gd PROCEDURAL.)
 
 const ASSETS := {
 	"tree_oak": "res://assets/nature/tree_oak.res",
@@ -30,9 +30,6 @@ const ASSETS := {
 	"mountain_6": "res://assets/nature/mountain_6.res",
 	"mountain_7": "res://assets/nature/mountain_7.res",
 	"mountain_8": "res://assets/nature/mountain_8.res",
-	"cactus_1": "res://assets/voxel/nature/cactus_1.obj",
-	"cactus_2": "res://assets/voxel/nature/cactus_2.obj",
-	"cactus_3": "res://assets/voxel/nature/cactus_3.obj",
 	"bush_1": "res://assets/nature/bush_1.res",
 	"bush_2": "res://assets/nature/bush_2.res",
 	"bush_3": "res://assets/nature/bush_3.res",
@@ -44,36 +41,25 @@ const ASSETS := {
 	"stone_3": "res://assets/nature/stone_3.res",
 	"stone_4": "res://assets/nature/stone_4.res",
 	"stone_5": "res://assets/nature/stone_5.res",
-	"stone_6": "res://assets/voxel/nature/stone_6.obj",
 	"barrel": "res://assets/props/barrel.res",
-	"crate": "res://assets/voxel/props/crate.obj",
 	"crates": "res://assets/props/crates.res",
 	"banner": "res://assets/props/banner.res",
 	"torch": "res://assets/props/torch.res",
 	"grave_1w": "res://assets/props/grave_1w.res",
 	"grave_2w": "res://assets/props/grave_2w.res",
 	"mossy_statue": "res://assets/props/mossy_statue.res",
-	"skeleton": "res://assets/voxel/props/skeleton.obj",
-	"door": "res://assets/voxel/props/door.obj",
 	"stone_pillar": "res://assets/props/stone_pillar.res",
 	"stone_pillar_dark": "res://assets/props/stone_pillar_dark.res",
 	"stone_wall": "res://assets/props/stone_wall.res",
-	"chimney": "res://assets/voxel/props/chimney.obj",
-	"bridge": "res://assets/voxel/props/bridge.obj",
 	"fence": "res://assets/props/fence.res",
 	"lamp": "res://assets/props/lamp.res",
 	"tomb_2": "res://assets/props/tomb_2.res",
 	"iron_fence": "res://assets/props/iron_fence.res",
-	"ghost": "res://assets/voxel/props/ghost.obj",
-	"gravedigger": "res://assets/voxel/props/gravedigger.obj",
-	"temple": "res://assets/voxel/ancient/temple.obj",
-	"head_totem": "res://assets/voxel/ancient/head_totem.obj",
 	# the Gearhart robots (tools/import_psx_robots.gd): facing +x like the beasts
 	"robot_clockwork": "res://assets/robots/robot_clockwork.res",
 	"robot_steam": "res://assets/robots/robot_steam.res",
 	"robot_golem": "res://assets/robots/robot_golem.res",
 	"robot_walker": "res://assets/robots/robot_walker.res",
-	"boat": "res://assets/psx/models/boat.res",
 	"boat_dark": "res://assets/boats/boat_dark.res",
 	# Captain Gull's ferry (tools/import_psx_ferry.gd)
 	"ferry": "res://assets/boats/ferry.res",

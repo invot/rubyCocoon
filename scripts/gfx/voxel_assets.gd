@@ -1,5 +1,5 @@
 extends RefCounted
-## Loads the converted voxel models listed in voxel_manifest.gd (see tools/import_voxel_assets.py).
+## Loads the scenery models listed in voxel_manifest.gd (baked by the tools/import_psx_*.gd importers).
 
 const Manifest = preload("res://scripts/data/voxel_manifest.gd")
 
@@ -22,7 +22,7 @@ static func names_with(prefix: String) -> Array:
 const PROCEDURAL := {"cactus_1": ["cactus", 0], "cactus_2": ["cactus", 1], "cactus_3": ["cactus", 2], "head_totem": ["totem", 0]}
 
 
-## The model's mesh with its palette material set to sharp (nearest) sampling.
+## The model's mesh (with the materials it was baked with).
 static func mesh(name: String) -> Mesh:
 	if _meshes.has(name):
 		return _meshes[name]
@@ -32,11 +32,6 @@ static func mesh(name: String) -> Mesh:
 		_meshes[name] = VP.call(p[0], p[1])
 		return _meshes[name]
 	var path: String = Manifest.ASSETS.get(name, "")
-	# the most detailed trees have a half-resolution version (tools/voxel_lod.py): a quarter of the triangles,
-	# and from the game's camera you can't tell them apart
-	var light := path.trim_suffix(".obj") + "_lo.obj"
-	if path != "" and ResourceLoader.exists(light):
-		path = light
 	if path == "" or not ResourceLoader.exists(path):
 		push_warning("voxel asset missing: " + name)
 		var bm := BoxMesh.new()
@@ -44,15 +39,6 @@ static func mesh(name: String) -> Mesh:
 		_meshes[name] = bm
 		return bm
 	var m: Mesh = _recentered(load(path))
-	# PSX models (.res) come with their own materials; the voxel OBJs get sharp palette sampling
-	for s in (m.get_surface_count() if path.ends_with(".obj") else 0):
-		var mat = m.surface_get_material(s)
-		if mat is BaseMaterial3D:
-			var nm: BaseMaterial3D = mat.duplicate()
-			nm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			nm.roughness = 1.0
-			nm.metallic_specular = 0.2
-			m.surface_set_material(s, nm)
 	_meshes[name] = m
 	return m
 

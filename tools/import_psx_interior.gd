@@ -68,7 +68,6 @@ const FITTINGS := {
 	"el_display": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Mostrator", -90, 1.0],
 	"el_booth": ["DINER (Elbolilloduro)/Models/Objects.fbx#Seat", -90, 1.05],
 	"el_diner_table": ["DINER (Elbolilloduro)/Models/Objects.fbx#Table", 0, 0.74],
-	"el_coffee": ["DINER (Elbolilloduro)/Models/Objects.fbx#Coffee_machine", 0, 0.42],
 	"el_coffee_maker": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Coffee_maker", 0, 0.42],
 	"el_monitor": ["6TWELVE (Elbolilloduro)/Models/6twelve.fbx#Monitor", 65, 0.4],
 	"el_slush": ["Gas station (Elbolilloduro)/Models/Gas_station_Props.fbx#ice_slush_machine", 0, 0.62],

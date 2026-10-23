@@ -289,10 +289,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 <img src="docs/screenshots/tidewater.jpg" width="640" alt="Tidewater from above: its houses, the arena, the Sky Tower and the docks."><br><sub>Tidewater from above: its houses, the arena, the Sky Tower and the docks.</sub>
 
 - **App icon**: the game's original Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
-- **World and props** (trees, rocks, fences and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd`. A few older ones are voxel pack models converted to OBJ plus palette PNG by `tools/import_voxel_assets.py` (with `tools/vox2obj.py` for `.vox` files), kept in `assets/voxel/`. The packs themselves aren't in the repository; with one downloaded again, re-import with:
+- **World and props** (trees, rocks, fences and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd` (cacti and the head totem are drawn in code). The packs themselves aren't in the repository; with one downloaded again into `psx/`, re-bake and then let Godot rescan, or its file index (and so the exported game) won't include new files:
 
   ```
-  python tools/import_voxel_assets.py
+  godot --headless --path . --script res://tools/import_psx_models.gd
   godot --headless --path . --import
   ```
 
@@ -434,7 +434,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 <img src="docs/screenshots/phone.jpg" width="640" alt="On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle."><br><sub>On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle.</sub>
 
 - **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; phones are capped at a steady 60 fps.
-- The most detailed pack models (the palm, dead tree, big/oak/birch/round trees and the mountain rocks) have half-resolution `_lo.obj` versions made by `tools/voxel_lod.py` (also run by `import_voxel_assets.py`): about a quarter of the triangles, and from the game's camera they look the same. A busy town went from about 5.8 million triangles a frame to about 0.7 million. `godot --path . --rendering-method mobile -- --scene=perf --detail=1` prints what each map costs; `--scene=lod` shows the models side by side.
+- Pack models over 300 triangles get levels of detail baked in by `tools/import_psx_models.gd`, so far-off trees and rocks draw fewer triangles. `godot --path . --rendering-method mobile -- --scene=perf --detail=1` prints what each map costs.
 - The project uses the Mobile renderer on phones and tablets, sensor-landscape orientation, ETC2/ASTC textures, and an expanding aspect, so wide phones get extra width instead of black bars.
 - On touch devices the d-pad, A/B and Start/Pause buttons appear automatically. They send the same input actions as the keyboard, so every screen and the flute minigame work with them. Dialogue boxes and menus stay clear of the buttons.
 - Each button answers taps a little outside its drawn edge. The arrows are silent; A and B click softly at a low pitch, with B two notes below A.
@@ -565,7 +565,7 @@ scripts/
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, make_new_beast_icons.gd, check_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_landmarks.gd, import_psx_*.gd, import_voxel_assets.py, vox2obj.py, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, voxel_lod.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, make_new_beast_icons.gd, check_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
