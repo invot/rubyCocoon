@@ -1001,12 +1001,12 @@ func _build_buildings() -> void:
 				spinners.append(c)
 
 
-## Street furniture from the packs (assets/psx/exterior) on the open ground beside the town's buildings: benches,
+## Street furniture from the packs (assets/exteriors) on the open ground beside the town's buildings: benches,
 ## bins, planters and crates outside shops, rain barrels, flower pots and hedges by houses, crates, barrels and
 ## dumpsters down the sides, air conditioners on city shop walls. Each takes a grass or plaza tile that touches a
 ## building's front or side (never the door's own row in front of it), and only if every street, door and way out of
 ## town can still be reached without it; the tile then stops being walkable.
-const STREET_DIR := "res://assets/psx/exterior/"
+const STREET_DIR := "res://assets/exteriors/"
 const STREET_FRONT_SHOP := ["bench", "bench", "trash_can", "crate", "barrel", "planter", "hydrant"]
 const STREET_FRONT_HOUSE := ["planter", "barrel", "hedge_round", "bench", "crate", "planter"]
 const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "hedge_round", "barrel"]
@@ -1014,7 +1014,7 @@ const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "hedge_round", "ba
 
 func _street_mesh(name: String) -> Mesh:
 	if name == "planter":
-		return load("res://assets/psx/interior/plant_tall.res") if ResourceLoader.exists("res://assets/psx/interior/plant_tall.res") else null
+		return load("res://assets/interiors/plant_tall.res") if ResourceLoader.exists("res://assets/interiors/plant_tall.res") else null
 	if not ResourceLoader.exists(STREET_DIR + name + ".res"):
 		push_warning("model missing: " + STREET_DIR + name + ".res")
 		return null
@@ -1193,9 +1193,9 @@ const STATUE_METALS := {"bronze": Color("#b8783e"), "silver": Color("#c8ccd6"), 
 func _build_payphone() -> void:
 	if not map.has("payphone"):
 		return
-	var mesh: Mesh = load("res://assets/psx/exterior/payphone.res")
+	var mesh: Mesh = load("res://assets/exteriors/payphone.res")
 	if mesh == null:
-		push_warning("model missing: res://assets/psx/exterior/payphone.res")
+		push_warning("model missing: res://assets/exteriors/payphone.res")
 		return
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
@@ -3540,7 +3540,7 @@ func _room_model(name: String, center: Vector3, size: Vector3) -> Node3D:
 	return mi
 
 
-## The same for a piece of the interior pack (assets/psx/interior).
+## The same for a piece of the interior pack (assets/interiors).
 func _room_model_interior(name: String, center: Vector3, size: Vector3) -> Node3D:
 	var m := RoomBuilder.piece(name)
 	if m == null:

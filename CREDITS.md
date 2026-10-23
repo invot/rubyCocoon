@@ -7,7 +7,7 @@ fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files
 `licenses/`. To rebuild an asset with its `tools/` importer, download its pack again (the sources are listed below).
 **Several packs came without licence files: check each source's terms before releasing the game.**
 
-## PSX art (`psx/` → `assets/psx/`)
+## PSX art (`psx/` → `assets/nature/`, `props/`, `boats/`, `robots/`, `houses/`, `exteriors/`, `interiors/`, `textures/surfaces/`)
 The low-poly PS1-style world. The packs were downloaded into `psx/` (not part of the game; see
 `psx/Jade Coccon index.csv`). `tools/build_psx_textures.gd` and `tools/import_psx_models.gd` make the
 copies the game uses. *Changes made to all of them:* textures shrunk to 128 px or less and, for the
@@ -38,7 +38,7 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
   million to 4,400 triangles, painted flat colours (it came with no materials). It came with no credit, so it's
   Creative Commons.
 
-### Towns and buildings (`assets/psx/houses/`, `assets/psx/exterior/`, `assets/psx/interior/`, `assets/psx/landmarks/`)
+### Towns and buildings (`assets/houses/`, `assets/exteriors/`, `assets/interiors/`, `assets/psx/landmarks/`)
 Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd`, `tools/import_psx_interior.gd`,
 `tools/import_psx_furniture.gd`, `tools/import_psx_phones.gd` and `tools/import_psx_landmarks.gd`.
 *Changes made:* models merged, centred, turned to face one way and scaled to the game's people; textures shrunk to
@@ -106,7 +106,7 @@ recoloured in the game with each beast's own colours (and its menu icon rendered
 - **PS1/PSX style alpaca & capybara models** by obliviist,
   https://obliviist.itch.io/ps1psx-style-alpaca-capybara-models.
 
-### Robots (`assets/psx/robots/`, made by `tools/import_psx_robots.gd` and `tools/make_beast_icons.gd`)
+### Robots (`assets/robots/`, made by `tools/import_psx_robots.gd` and `tools/make_beast_icons.gd`)
 *Changes made:* models merged, turned, centred and scaled to one size; the T-posed arms swung down to the sides;
 textures shrunk to 128 px; menu icons rendered from them.
 - **Retro Robots without Rig - PSX Asset** by Bricchi Games, https://bricchi-games.itch.io/retro-robots, licensed

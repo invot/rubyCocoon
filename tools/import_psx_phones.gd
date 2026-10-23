@@ -1,7 +1,7 @@
 extends SceneTree
 ## Bakes the telephones from the phone packs in psx/phones/ (see CREDITS.md): the red rotary phone that stands in
-## homes, Beast Centers, some shops, the arenas and some temple doorways (assets/psx/interior/phone_rotary.res), and
-## the red payphone on a post by each town's square (assets/psx/exterior/payphone.res):
+## homes, Beast Centers, some shops, the arenas and some temple doorways (assets/interiors/phone_rotary.res), and
+## the red payphone on a post by each town's square (assets/exteriors/payphone.res):
 ##   godot --headless --path . --script res://tools/import_psx_phones.gd
 ##
 ## Both come out low-poly and plain so they read at a glance, PS1-style: the cords left off, the meshes cut down to a
@@ -47,7 +47,7 @@ func _rotary(path: String) -> void:
 				continue
 			_add(st, p, img, func(c: Color) -> Color: return c)
 	sc.free()
-	_save(st, Transform3D(Basis().scaled(Vector3.ONE * ROTARY_SCALE), Vector3.ZERO), 700, "res://assets/psx/interior/phone_rotary.res")
+	_save(st, Transform3D(Basis().scaled(Vector3.ONE * ROTARY_SCALE), Vector3.ZERO), 700, "res://assets/interiors/phone_rotary.res")
 
 
 ## The pack's coin phone (its cord left off), its orange turned red, on a grey post under a little red hood.
@@ -85,7 +85,7 @@ func _payphone(path: String, tex: String) -> void:
 	_box(st, Vector3(0, top / 2.0 - 0.02, -depth / 2.0 - 0.06), Vector3(0.16, top + 0.04, 0.1), Color("#5a5c62"), xf.affine_inverse())
 	_box(st, Vector3(0, top + 0.05, -0.02), Vector3(box.size.x * s + 0.16, 0.08, depth + 0.22), RED, xf.affine_inverse())
 	_box(st, Vector3(0, 0.03, -depth / 2.0 - 0.06), Vector3(0.36, 0.06, 0.3), Color("#4a4c52"), xf.affine_inverse())
-	_save(st, xf, 900, "res://assets/psx/exterior/payphone.res")
+	_save(st, xf, 900, "res://assets/exteriors/payphone.res")
 
 
 ## A mesh's triangles in joined-up pieces (corners at the same spot join), each with its box, in the scene's space:

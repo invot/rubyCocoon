@@ -1,7 +1,7 @@
 extends RefCounted
 ## Builds the fixed parts of a building's interior from its map (see map_loader.gd _interior): the floors, thin walls
 ## with doorways, locked doors and windows, the furniture, the things hung on the walls and a light in each room.
-## Everything is made of the PSX interior pack's pieces and textures (assets/psx/interior, baked by
+## Everything is made of the PSX interior pack's pieces and textures (assets/interiors, baked by
 ## tools/import_psx_interior.gd), and the beds, seats, tables and cabinets of the furniture pack (baked and coloured by
 ## tools/import_psx_furniture.gd).
 ##
@@ -15,7 +15,7 @@ extends RefCounted
 ## touches most, pushed right up against it, and faces into the room.
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
-const DIR := "res://assets/psx/interior/"
+const DIR := "res://assets/interiors/"
 ## wall thickness, height, the top of a doorway, a window's sill and top
 const T := 0.2
 const H := 2.8

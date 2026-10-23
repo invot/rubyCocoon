@@ -1,6 +1,6 @@
 extends SceneTree
 ## Bakes the houses of the PS1 House Pack (psx/Environments/PS1 House Pack ... (najjar320)/glb) into
-## assets/psx/houses/<key>.res, and its 64 px texture tiles into assets/psx/houses/tiles/<tile>.res.
+## assets/houses/<key>.res, and its 64 px texture tiles into assets/houses/tiles/<tile>.res.
 ##   godot --headless --path . --script res://tools/import_psx_houses.gd [-- key1 key2 ...]
 ##
 ## Each house becomes one ArrayMesh, one surface per material, every material named for the part it dresses ("shell",
@@ -10,7 +10,7 @@ extends SceneTree
 ## Meta: "door" (Vector3, the front door's centre), "tiles" ({part: tile name} as the pack dressed it).
 
 const SRC := "Environments/PS1 House Pack — 100 Low Poly Houses, Textured Inside and Out (najjar320)/"
-const OUT := "res://assets/psx/houses/"
+const OUT := "res://assets/houses/"
 const TILES := OUT + "tiles/"
 const PARTS := ["shell", "roof", "trim", "door", "extras", "glass"]
 

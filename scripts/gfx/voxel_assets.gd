@@ -44,7 +44,7 @@ static func mesh(name: String) -> Mesh:
 		_meshes[name] = bm
 		return bm
 	var m: Mesh = _recentered(load(path))
-	# PSX models (assets/psx/models) come with their own materials; the voxel OBJs get sharp palette sampling
+	# PSX models (.res) come with their own materials; the voxel OBJs get sharp palette sampling
 	for s in (m.get_surface_count() if path.ends_with(".obj") else 0):
 		var mat = m.surface_get_material(s)
 		if mat is BaseMaterial3D:

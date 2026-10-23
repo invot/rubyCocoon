@@ -1453,7 +1453,7 @@ func _build_model(root: Node3D, b) -> void:
 		root.remove_meta("phase")
 	else:
 		if b.genes.has("model"):
-			# a robot (assets/psx/robots): faces +x like the beasts
+			# a robot (assets/robots): faces +x like the beasts
 			model = VA.instance(String(b.genes["model"]), 1.3 * float(b.genes.get("size", 1.0)))
 			height = 1.3 * float(b.genes.get("size", 1.0))
 		else:

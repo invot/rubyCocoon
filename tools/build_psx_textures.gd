@@ -1,12 +1,12 @@
 extends SceneTree
-## Builds the PSX surface textures in assets/psx/textures/ from the downloaded packs in psx/ (see CREDITS.md).
+## Builds the PSX surface textures in assets/textures/surfaces/ from the downloaded packs in psx/ (see CREDITS.md).
 ##   godot --headless --path . --script res://tools/build_psx_textures.gd
 ##
 ## Every texture is shrunk to a small size and, for "tint" ones, turned nearly grey with an even brightness, so the
 ## game can colour it per town or biome (vertex colours on buildings, biome colours on the ground) the way the voxel
 ## textures were coloured. "color" textures keep their own colours. Water and lava keep a few animation frames.
 
-const OUT := "res://assets/psx/textures/"
+const OUT := "res://assets/textures/surfaces/"
 const CD := "Environments/3D Retro Medieval-Fantasy Building Kit (chilly_durango)/Textures/"
 const RG := "Textures/RetroGround Free - [48 Retro Materials] (Binbun)/"
 const SBS := "Textures/Mini Texture Pack 2- Rooftops (Screaming Brain Studios)/SBS - Mini Texture Pack 2 - Rooftops 128x128/128x128/"

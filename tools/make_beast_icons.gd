@@ -1,6 +1,6 @@
 extends SceneTree
 ## Renders the menu icon of every PSX beast form (assets/psx/beasts/<form>.res) to assets/psx/beasts/icons/<form>.res,
-## and of every Gearhart robot (assets/psx/robots/<key>.res) to assets/psx/robots/icons/<key>.res
+## and of every Gearhart robot (assets/robots/<key>.res) to assets/robots/icons/<key>.res
 ## (an ImageTexture, so the game needs no import step):
 ## a three-quarter side view in the model's own colours, 48 x 48, with a soft dark outline. PixelArt.beast_texture
 ## recolours a beast's icon with its genes, the same way voxel_beast.gd recolours the model, so icon and model match;
@@ -12,7 +12,7 @@ extends SceneTree
 ## (the robots stand upright, and read best from nearer the front)
 const DIRS := {
 	"res://assets/psx/beasts/": ["res://assets/psx/beasts/icons/", 0.45],
-	"res://assets/psx/robots/": ["res://assets/psx/robots/icons/", 0.95],
+	"res://assets/robots/": ["res://assets/robots/icons/", 0.95],
 }
 const SIZE := 48
 ## rendered larger, then shrunk, for clean edges

@@ -1,6 +1,6 @@
 extends SceneTree
 ## Bakes the beds, sofas, armchairs, chairs, tables, desks and cabinets that furnish building interiors from the
-## furniture pack in psx/furniture/ into assets/psx/interior/ (see CREDITS.md), coloured to suit the game:
+## furniture pack in psx/furniture/ into assets/interiors/ (see CREDITS.md), coloured to suit the game:
 ##   godot --headless --path . --script res://tools/import_psx_furniture.gd [-- name ...]
 ##
 ## The pack is six OBJ showrooms (model_0.obj .. model_5.obj), every piece set out apart from the next, with no
@@ -18,7 +18,7 @@ extends SceneTree
 
 const B = preload("res://tools/psx_bake.gd")
 const SRC := "res://psx/furniture/"
-const OUT := "res://assets/psx/interior/"
+const OUT := "res://assets/interiors/"
 
 ## name: {m: the showroom (model_<m>.obj), at: where the piece stands in it (x, z, width, depth, in pack units),
 ## kind: bed, seat, chair or case (see _roles), size: [width, height, depth] in game units, col: colours by role

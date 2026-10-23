@@ -1,5 +1,6 @@
 extends SceneTree
-## Bakes the PSX models the game uses from the downloaded packs in psx/ into assets/psx/models/<name>.res.
+## Bakes the PSX models the game uses from the downloaded packs in psx/ into the file voxel_manifest.gd gives each
+## name (assets/nature, assets/props or assets/boats; anything it doesn't list goes in OUT).
 ##   godot --headless --path . --script res://tools/import_psx_models.gd
 ##
 ## Each model's meshes are merged into one mesh (one surface per material) and its textures shrunk to PSX size
@@ -7,7 +8,8 @@ extends SceneTree
 ## Textures with see-through pixels become alpha-scissor cutouts, drawn from both sides (leaves, fences, palms).
 ## The names match the ones the game already asks for (see voxel_manifest.gd); credits are in CREDITS.md.
 
-const OUT := "res://assets/psx/models/"
+const Manifest = preload("res://scripts/data/voxel_manifest.gd")
+const OUT := "res://assets/props/"
 const EC := "Nature/Retro PSX Style Tree Pack (Elegant Crow)/models/"
 const HF := "Nature/PSX Forest Free - Woodland Sampler (heyheythere)/glb/"
 const HC := "Environments/PSX Cemetery Kit Free - Churchyard Sampler (heyheythere)/glb/"
@@ -135,7 +137,9 @@ func _init() -> void:
 		scene.free()
 		if _tris(mesh) > 300:
 			mesh = _with_lods(mesh)
-		var err := ResourceSaver.save(mesh, OUT + name + ".res", ResourceSaver.FLAG_COMPRESS)
+		var to: String = Manifest.ASSETS.get(name, OUT + name + ".res")
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(to.get_base_dir()))
+		var err := ResourceSaver.save(mesh, to, ResourceSaver.FLAG_COMPRESS)
 		print("  %-16s %5d tris  %s" % [name, _tris(mesh), "ok" if err == OK else "SAVE FAILED"])
 	quit()
 

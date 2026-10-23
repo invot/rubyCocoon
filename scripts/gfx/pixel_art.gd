@@ -128,7 +128,7 @@ static func tex(img: Image) -> ImageTexture:
 # ---------------------------------------------------------------- beasts
 ## A beast's menu icon: a new beast's (a line's form, or a merge of them: _rig_icon()); the rendered icon of a
 ## legendary's PSX form (assets/psx/beasts/icons, made by tools/make_beast_icons.gd) recoloured with its genes the
-## way its model is; a robot's rendered icon (assets/psx/robots/icons) as it is; beasts without a form get the old
+## way its model is; a robot's rendered icon (assets/robots/icons) as it is; beasts without a form get the old
 ## drawn icon.
 static func beast_texture(genes: Dictionary) -> ImageTexture:
 	var key := "beast:" + JSON.stringify(genes)
@@ -136,7 +136,7 @@ static func beast_texture(genes: Dictionary) -> ImageTexture:
 		return _cache[key]
 	var form := String(genes.get("form", ""))
 	var path := "res://assets/psx/beasts/icons/%s.res" % form
-	var robot := "res://assets/psx/robots/icons/%s.res" % String(genes.get("model", ""))
+	var robot := "res://assets/robots/icons/%s.res" % String(genes.get("model", ""))
 	var t: ImageTexture
 	if BeastModel.rigged(genes):
 		t = _rig_icon(genes)

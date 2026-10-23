@@ -52,7 +52,7 @@ const LEGENDARY_FORMS := {39: "summon_water", 40: "summon_air", 41: "summon_fire
 const NORMAL_COUNT := 39
 const LEGENDARY := [39, 40, 41, 42, 47]
 const ROBOTS := [43, 44, 45, 46]
-## Robots are drawn with the PSX robot models (assets/psx/robots, tools/import_psx_robots.gd), facing +x like the beasts.
+## Robots are drawn with the PSX robot models (assets/robots, tools/import_psx_robots.gd), facing +x like the beasts.
 const ROBOT_MODELS := {43: "robot_clockwork", 44: "robot_steam", 45: "robot_golem", 46: "robot_walker"}
 const LEGENDARY_PASSIVES := {39: ["Healing Tide", "Regenerate"], 40: ["Slippery", "Swift"], 41: ["Blaze", "Thick Hide"], 42: ["Sturdy", "Rock Skin"],
 	47: ["Swift", "Rock Skin"]}

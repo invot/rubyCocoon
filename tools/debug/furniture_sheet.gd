@@ -1,5 +1,5 @@
 extends SceneTree
-## Renders furniture pieces from assets/psx/interior/ in rows, from the front and above like the game's camera, with a
+## Renders furniture pieces from assets/interiors/ in rows, from the front and above like the game's camera, with a
 ## person-sized post (1.77 tall) at the start of each row for scale. Needs a window (it renders):
 ##   godot --path . --script res://tools/debug/furniture_sheet.gd -- <out.png> name,name,... [name,name,...]
 ## Each argument after the image is a row.
@@ -28,7 +28,7 @@ func _initialize() -> void:
 		x += 0.7
 		var deepest := 0.0
 		for name in String(row).split(","):
-			var m: Mesh = load("res://assets/psx/interior/%s.res" % name)
+			var m: Mesh = load("res://assets/interiors/%s.res" % name)
 			if m == null:
 				print("missing ", name)
 				continue

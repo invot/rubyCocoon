@@ -289,7 +289,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 <img src="docs/screenshots/tidewater.jpg" width="640" alt="Tidewater from above: its houses, the arena, the Sky Tower and the docks."><br><sub>Tidewater from above: its houses, the arena, the Sky Tower and the docks.</sub>
 
 - **App icon**: the game's original Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
-- **World and props** (trees, rocks, fences and the like) are pack models converted to OBJ plus palette PNG by `tools/import_voxel_assets.py` (with `tools/vox2obj.py` for `.vox` files), kept in `assets/voxel/` and listed in `scripts/data/voxel_manifest.gd`. The packs themselves aren't in the repository; with one downloaded again, re-import with:
+- **World and props** (trees, rocks, fences and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd`. A few older ones are voxel pack models converted to OBJ plus palette PNG by `tools/import_voxel_assets.py` (with `tools/vox2obj.py` for `.vox` files), kept in `assets/voxel/`. The packs themselves aren't in the repository; with one downloaded again, re-import with:
 
   ```
   python tools/import_voxel_assets.py
@@ -319,11 +319,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
     until the game has rendered its own (`beast_icons.gd`).
 - **Gearhart robots** (`RaceDB.ROBOTS`) are PSX robots: the Clockwork Sentry with a wind-up key, the boiler-bodied
   Steam Mecha and the broad Iron Golem from Bricchi Games' Retro Robots, and the boxy Tank Walker from CokeEnthusiast's
-  Robot guy (`RaceDB.ROBOT_MODELS`). `tools/import_psx_robots.gd` bakes them into `assets/psx/robots/` (T-posed arms
+  Robot guy (`RaceDB.ROBOT_MODELS`). `tools/import_psx_robots.gd` bakes them into `assets/robots/` (T-posed arms
   swung down, turned to face +x like the beasts, 1 unit tall) with their own textures and glowing eyes and vents; they
   are listed in `voxel_manifest.gd`, and `tools/make_beast_icons.gd` renders their menu icons too.
 - **Houses and most shops** are houses from the PS1 House Pack (100 low-poly houses, `tools/import_psx_houses.gd` →
-  `assets/psx/houses/`): `house_models.gd` picks one per plot from the town style's list (weatherboard cottages on the
+  `assets/houses/`): `house_models.gd` picks one per plot from the town style's list (weatherboard cottages on the
   coast, round thatched huts and stilt houses on the islands, terracotta huts in the desert, log cabins in the
   mountains, dark timber at the hot springs, stone on the moor), re-skins it in the style's own tiles, fits it to the
   plot and lines its front door up with the map's door. A porch's deck or a stoop in front of the door is squashed down
@@ -332,7 +332,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
-- **Landmarks** are built from the wall sections of the Retro Modular House Pack (`assets/psx/exterior`: doors,
+- **Landmarks** are built from the wall sections of the Retro Modular House Pack (`assets/exteriors`: doors,
   windows and frames, laid round any outline by `HouseBuilder.span`), each with a shape of its own and its door on
   the map's door tile: the **arena** is an oval stadium (an arcade below, a parapet, open stands round a sand ring, a
   striped awning and pennants) behind a crenellated gatehouse between two turrets, in each region's stone;

@@ -419,7 +419,7 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 		node.add_child(icon)
 	else:
 		# a lamp on the wall by the door (the interior pack's sconce)
-		var lamp: Mesh = load("res://assets/psx/interior/wall_light.res") if ResourceLoader.exists("res://assets/psx/interior/wall_light.res") else null
+		var lamp: Mesh = load("res://assets/interiors/wall_light.res") if ResourceLoader.exists("res://assets/interiors/wall_light.res") else null
 		if lamp != null:
 			var mi := MeshInstance3D.new()
 			mi.mesh = lamp
@@ -1294,7 +1294,7 @@ static func _mine_entrance(node: Node3D, door_lx: float, fz: float) -> void:
 	lamp.omni_range = 3.0
 	lamp.position = Vector3(door_lx + 0.72, 2.0, fz + 0.4)
 	node.add_child(lamp)
-	var lantern: Mesh = load("res://assets/psx/interior/wall_light.res") if ResourceLoader.exists("res://assets/psx/interior/wall_light.res") else null
+	var lantern: Mesh = load("res://assets/interiors/wall_light.res") if ResourceLoader.exists("res://assets/interiors/wall_light.res") else null
 	if lantern != null:
 		var lm := MeshInstance3D.new()
 		lm.mesh = lantern

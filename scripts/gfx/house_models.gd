@@ -1,5 +1,5 @@
 extends RefCounted
-## Houses from the PS1 House Pack (assets/psx/houses, baked by tools/import_psx_houses.gd): L-plans, porches,
+## Houses from the PS1 House Pack (assets/houses, baked by tools/import_psx_houses.gd): L-plans, porches,
 ## dormers, round huts, stilt houses and terraces instead of boxes. Each town style has its own pick of houses and its
 ## own skins (the pack's tiles: weatherboard on the coast, cob and thatch on the islands, adobe in the desert, logs in
 ## the mountains, dark boarding at the hot springs, stone on the moor...), so a street reads as one place.
@@ -17,7 +17,7 @@ extends RefCounted
 
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 
-const DIR := "res://assets/psx/houses/"
+const DIR := "res://assets/houses/"
 const TILES := DIR + "tiles/"
 const LOCKED_DOOR := Color("#b3262c")
 

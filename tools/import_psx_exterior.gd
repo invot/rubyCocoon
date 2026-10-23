@@ -1,5 +1,5 @@
 extends SceneTree
-## Bakes the pieces building fronts are made of into assets/psx/exterior/ (see CREDITS.md):
+## Bakes the pieces building fronts are made of into assets/exteriors/ (see CREDITS.md):
 ##   godot --headless --path . --script res://tools/import_psx_exterior.gd
 ##
 ## From Elegant Crow's Retro Modular House Pack: wall sections (plain, with windows, with doors) and shutters. The pack paints everything from one texture sheet; each piece is split in two surfaces, "wall"
@@ -12,7 +12,7 @@ extends SceneTree
 ## crates and barrels and valsekamerplant's hedges: each sized by its height in game units.
 
 const B = preload("res://tools/psx_bake.gd")
-const OUT := "res://assets/psx/exterior/"
+const OUT := "res://assets/exteriors/"
 const EC := "Environments/Retro Modular House Pack (Elegant Crow)/retro_modular_house/"
 const HB := "Environments/PSX Building Kit Free - Modular House Sampler (heyheythere)/addons/psx_building_kit/models/"
 

@@ -1,5 +1,5 @@
 extends RefCounted
-## Houses and shops built from the PSX house pack's own wall sections (assets/psx/exterior, baked by
+## Houses and shops built from the PSX house pack's own wall sections (assets/exteriors, baked by
 ## tools/import_psx_exterior.gd): real doors, windows with frames and glass, shutters, corner posts and railings,
 ## with each building's wall finish (plaster, brick, timber, adobe, planks, stone) laid over the pack's walls in world
 ## space, so every piece of a front carries the same wall, and a pitched, hipped, flat or false-front roof from
@@ -12,7 +12,7 @@ extends RefCounted
 ## storey of rooms.
 
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
-const DIR := "res://assets/psx/exterior/"
+const DIR := "res://assets/exteriors/"
 ## a storey's height and how far the walls stand in from the footprint's edge
 const STOREY := 2.8
 const INSET := 0.1

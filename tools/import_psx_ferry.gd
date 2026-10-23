@@ -1,6 +1,6 @@
 extends SceneTree
 ## Bakes Captain Gull's ferry, moored by Tidewater's long pier, from the ferry model in psx/ferry/ (see CREDITS.md)
-## into assets/psx/models/ferry.res:
+## into assets/boats/ferry.res:
 ##   godot --headless --path . --script res://tools/import_psx_ferry.gd
 ##
 ## The model comes as 35 OBJ parts (about 1.5 million triangles) with no materials. Only the parts seen from outside
@@ -10,7 +10,7 @@ extends SceneTree
 ## stripes and dark glass. The bow points +z.
 
 const SRC := "res://psx/ferry/"
-const OUT := "res://assets/psx/models/ferry.res"
+const OUT := "res://assets/boats/ferry.res"
 ## part number: [what it is (its colour), most triangles kept]
 const PARTS := {
 	22: ["body", 3400],

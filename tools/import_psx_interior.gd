@@ -1,6 +1,6 @@
 extends SceneTree
 ## Bakes the furniture, doors, windows and wall and floor textures for building interiors from the packs in psx/
-## into assets/psx/interior/ (see CREDITS.md).
+## into assets/interiors/ (see CREDITS.md).
 ##   godot --headless --path . --script res://tools/import_psx_interior.gd [-- name ...]
 ##
 ## Every piece comes out at the game's scale (a pack unit is about 0.75 m; the game's people stand 0.94 units to the
@@ -9,7 +9,7 @@ extends SceneTree
 ## builder to tile.
 
 const B = preload("res://tools/psx_bake.gd")
-const OUT := "res://assets/psx/interior/"
+const OUT := "res://assets/interiors/"
 const DV := "Environments/PSX modular house interior pack. (DissonantVoid)/"
 ## pack units to game units
 const SCALE := 0.7

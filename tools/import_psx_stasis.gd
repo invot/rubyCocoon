@@ -1,6 +1,6 @@
 extends SceneTree
 ## Bakes the Beast Center's healing machine, the stasis chamber in psx/stasis_chamber.glb (see CREDITS.md), into
-## assets/psx/interior/stasis_chamber.res:
+## assets/interiors/stasis_chamber.res:
 ##   godot --headless --path . --script res://tools/import_psx_stasis.gd
 ##
 ## PS1-style: each part cut down to a fraction of its triangles, the normal and metal maps left off, the textures shrunk
@@ -9,7 +9,7 @@ extends SceneTree
 
 const B = preload("res://tools/psx_bake.gd")
 const SRC := "res://psx/stasis_chamber.glb"
-const OUT := "res://assets/psx/interior/stasis_chamber.res"
+const OUT := "res://assets/interiors/stasis_chamber.res"
 ## game units per pack unit: a little taller than the townsfolk (1.77)
 const SCALE := 1.05
 ## the share of each part's triangles kept: the coiled pipes and the clamps round the top are the fussiest

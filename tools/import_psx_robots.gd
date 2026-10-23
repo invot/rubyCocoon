@@ -1,5 +1,5 @@
 extends SceneTree
-## Bakes the Gearhart robots from the PSX robot packs in psx/Characters into assets/psx/robots/<key>.res.
+## Bakes the Gearhart robots from the PSX robot packs in psx/Characters into assets/robots/<key>.res.
 ##   godot --headless --path . --script res://tools/import_psx_robots.gd [-- key1 key2 ...]
 ##
 ## Each robot becomes one ArrayMesh in the game's beast space: facing +x, standing on y = 0, centred on x/z and
@@ -8,7 +8,7 @@ extends SceneTree
 ## glow map lights its eyes and vents. Which race wears which robot: RaceDB.ROBOT_MODELS. Menu icons:
 ## tools/make_beast_icons.gd. Credits: CREDITS.md.
 
-const OUT := "res://assets/psx/robots/"
+const OUT := "res://assets/robots/"
 const RR := "Characters/Retro Robots without Rig - PSX Asset (Free) (Bricchi Games)/Retro Robots/"
 const RG := "Characters/Low poly Robot guy (CokeEnthusiast)/"
 

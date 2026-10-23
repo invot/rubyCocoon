@@ -1,10 +1,10 @@
 extends RefCounted
 ## Surface textures for buildings, terrain, water and lava.
-## Most are small PSX-style textures from assets/psx/textures (built by tools/build_psx_textures.gd from the packs
+## Most are small PSX-style textures from assets/textures/surfaces (built by tools/build_psx_textures.gd from the packs
 ## credited in CREDITS.md). They are nearly grey, so buildings tint them per style with vertex colours and the ground
 ## is coloured per biome. Kinds without a PSX texture (brass, timber framing) are drawn here at 16x16.
 
-const PSX_DIR := "res://assets/psx/textures/"
+const PSX_DIR := "res://assets/textures/surfaces/"
 ## The ground layers of the terrain shader, in texture-array order.
 const GROUND_LAYERS := ["grass", "path", "plaza", "sand", "rock", "bed", "lava_bed", "paving", "ice"]
 ## Which PSX texture each ground layer uses.
