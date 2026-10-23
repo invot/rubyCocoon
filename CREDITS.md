@@ -26,15 +26,16 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
 - **PSX Cemetery Kit Free** by heyheythere - https://heyheythere.itch.io/psx-cemetery-kit-free - CC BY 4.0
   (headstones, celtic cross, tomb, gas lamp, iron gate, stone wall and pier).
 - **PSX Castle Kit Free** by heyheythere - https://heyheythere.itch.io/psx-castle-kit-free - CC BY 4.0
-  (cask, crate, banner, torch, round pillar).
+  (cask, crate, banner, torch, round pillar; a door and banners for the castle-keep
+  arena, baked to `assets/psx/landmarks/` but not used by the game at the moment).
 - **PSX Western Town Kit Free** by heyheythere - https://heyheythere.itch.io/psx-western-town-kit-free - CC BY 4.0
   (tumbleweed).
 - **PSX The Island Pack** by Caliber Creations, https://caliberuk.itch.io/psx-the-island-pack (palms, beach
   plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
 
-### Towns and buildings (`assets/psx/houses/`, `assets/psx/exterior/`, `assets/psx/interior/`)
+### Towns and buildings (`assets/psx/houses/`, `assets/psx/exterior/`, `assets/psx/interior/`, `assets/psx/landmarks/`)
 Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd`, `tools/import_psx_interior.gd`,
-`tools/import_psx_furniture.gd` and `tools/import_psx_phones.gd`.
+`tools/import_psx_furniture.gd`, `tools/import_psx_phones.gd` and `tools/import_psx_landmarks.gd`.
 *Changes made:* models merged, centred, turned to face one way and scaled to the game's people; textures shrunk to
 128 px or less; houses re-skinned per town from the pack's own tiles; wall sections split so each building's own wall
 finish shows through; counters, booths and street furniture stretched to fit their tiles; the furniture pack's
@@ -78,6 +79,15 @@ upholstery) over a wood grain and cloth weave of our own.
   `psx/stasis_chamber.glb` and baked by `tools/import_psx_stasis.gd`). *Changes made:* cut from about 18,500 to
   2,900 triangles; normal and metal maps left off; textures shrunk to 128 px; the glass made to glow while it heals;
   a lamp per beast added round its foot.
+- **FREE Castle and Fort Builder Pack** by Games by McSteeg, https://mcsteeg.itch.io/castle-and-fort-builder-pack
+  (walls, round towers, battlements, cone roofs and windows for a castle-keep arena, the rubble stone warmed to
+  sandstone; baked to `assets/psx/landmarks/` but not used by the game at the moment). Free for personal and
+  commercial games; may not be redistributed as your own.
+- **FREE PSX Alone in the Dusk** by EmaceArt (Maciej EmacArt),
+  https://emaceart.itch.io/alone-in-the-dusk-psx-environment-asset-kit (a rooftop billboard and a utility pole for the
+  electronics shop; baked to `assets/psx/landmarks/` but not used by the game at the moment). EmacEArt Asset
+  License: free for personal and commercial use, credit not required; the files may not be resold or passed on as
+  standalone files.
 
 ### Beasts (`assets/psx/beasts/`, made by `tools/import_psx_beasts.gd` and `tools/make_beast_icons.gd`)
 *Changes made:* models turned, centred and scaled to one size; textures shrunk to 128 px; every model is
