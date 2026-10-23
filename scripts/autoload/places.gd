@@ -221,7 +221,7 @@ func beast_center(town: String) -> void:
 	if WorldDB.is_town(town):
 		GameState.last_center = town
 	await UI.say(["Welcome to the Beast Center! I hatch eggs, and I look after storage and the merge altar.",
-		"Healing's self-service: the machine in the corner. Beasts looking for a new home are in the kennel next door!"], KEEPERS["center"])
+		"Healing's self-service: the machine along the back. Beasts looking for a new home are in the kennel, round the wall on the left!"], KEEPERS["center"])
 	if not GameState.eggs.is_empty() and GameState.party.is_empty():
 		await hatchery()
 	while true:

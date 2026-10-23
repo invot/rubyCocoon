@@ -43,36 +43,37 @@ const FURNITURE := {
 }
 
 const ROOMS := {
-	## Every Beast Center is the same 50s diner, one room you walk into from the side. Each machine has its own bay along
-	## the back wall: the soda-can healing machine (H), the storage terminal (M), the nurse's counter with her egg
-	## incubator (1, I) and the merge altar (A). Through the door in the left wall is the kennel (its own room). Guide
-	## Dottie (2) walks about by the booths; the red phone (@) stands by the entrance.
+	## Every Beast Center is the same 50s diner, one room you walk into from the side; bigger than the other rooms
+	## (17x9), so the camera follows you round it. On the left, on its own wood floor, is the kennel: its four pens (K)
+	## behind Kennel Keeper Pip's counter (4), and two chairs (c) in the front corner. A wall runs forward from the back
+	## between it and the diner and stops short of the front, so you walk round its end. Each machine has its own bay
+	## along the diner's back wall: the nurse's counter with her egg incubator (1, I), the soda-can healing machine (H),
+	## the storage terminal (M) and the merge altar (A); the red phone (@) stands by the entrance. Guide Dottie (2)
+	## walks about the room.
 	"center": {
 		"wall": "#eef6f2", "rug": "#d8283a", "checker": true, "stage": true,
-		"npcs": {"1": "keeper", "2": "guide", "3": "patron"}, "doors": {"!": "center_kennel"},
+		"npcs": {"1": "keeper", "2": "guide", "3": "patron", "4": "kennel"},
 		"rows": [
-			"####w###w####",
-			"#H:M:#1I#:A:#",
-			"#rrrrCCCCrrr#",
-			"!:::::::::::#",
-			"#::::::=t=:@#",
-			"#::2:3:=t=::#",
-			"#::::::::::PD",
-			"#############",
+			"##w######w###w###",
+			"#KKKK#1I#:H:M:A:#",
+			"#.4..#CCCrrrrrrr#",
+			"#CCCC#::::::::::#",
+			"#....#:::::::::@#",
+			"#....#::2:::3:::#",
+			"#c...:::::::::::#",
+			"#c...::::::::::PD",
+			"#################",
 		],
-	},
-	## The Beast Center's kennel: Pip (4) behind the counter, the pens (K) behind him.
-	"center_kennel": {
-		"wall": "#eef6f2", "rug": "#d8283a", "checker": true, "stage": true, "npcs": {"4": "kennel"},
-		"doors": {"!": "center"},
-		"rows": [
-			"####w####",
-			"#KpKpKpK#",
-			"#...4...#",
-			"#CCCCCCC#",
-			"#.......!",
-			"#p......#",
-			"#########",
+		"zones": [
+			"#################",
+			"#wwww############",
+			"#wwww############",
+			"#wwww############",
+			"#wwww############",
+			"#wwww############",
+			"#wwww############",
+			"#wwww############",
+			"#################",
 		],
 	},
 	"apothecary": {
@@ -711,7 +712,7 @@ const ROOMS := {
 ## The room(s) each building type uses, the way in first: stage rooms joined by doors and stairs, or a dungeon's
 ## floors joined by stairs.
 const SHOP_ROOMS := {
-	"center": ["center", "center_kennel"],
+	"center": ["center"],
 	"apothecary": ["apothecary"],
 	"beast_gear": ["outfitter"],
 	"trainer_gear": ["outfitter"],

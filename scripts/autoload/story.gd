@@ -937,11 +937,11 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _blocker(world, n)
 		"center_guide":
 			await UI.say(["Hi, sugar! Welcome to the Beast Center. Every one in the land is built just like this one, so you'll never get lost.",
-				"Each machine has its own bay along the back wall. That tall glass chamber in the corner? The healing machine. Pop your beasts in and they come out good as new. Free, any time!",
-				"Next to it is the storage terminal, then Nurse Clover's counter. She hatches eggs in the incubator beside her.",
+				"Each machine has its own bay along the back wall. First, Nurse Clover's counter. She hatches eggs in the incubator beside her.",
+				"That tall glass chamber next along? The healing machine. Pop your beasts in and they come out good as new. Free, any time! The storage terminal's right beside it.",
 				"The glowing altar on the end merges two beasts that have hit their level limit into one stronger beast. Very fancy. Very sparkly.",
-				"And through the side door is the kennel. Pip finds homes for beasts other trainers couldn't keep. You can adopt one, or leave one of yours.",
-				"Don't forget to save your journey in your book! Each save is kept in its own slot with a little snapshot."], "Guide Dottie")
+				"And round the end of that wall on the left is the kennel. Pip finds homes for beasts other trainers couldn't keep. You can adopt one, or leave one of yours.",
+				"And that red phone by the door? Call your dad on it any time. That's how you save your journey."], "Guide Dottie")
 		"kennel_keeper":
 			await Places.kennel(world, world.kennel_town())
 		"thunderhawk":
