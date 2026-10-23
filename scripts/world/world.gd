@@ -1647,7 +1647,7 @@ func _process(delta: float) -> void:
 	for b in bobbers:
 		if is_instance_valid(b[0]):
 			var n: Node3D = b[0]
-			n.position.y = float(b[1]) + sin(_time * float(b[2])) * 0.08
+			n.position.y = float(b[1]) + sin(_time * float(b[2])) * (float(b[3]) if b.size() > 3 else 0.08)
 	for rp in ripples:
 		# each ring spreads out and fades, one after another
 		for k in (rp[0] as Array).size():
@@ -2127,6 +2127,13 @@ func _build_ripples() -> void:
 			ripples.append([rings, rng.randf(), rng.randf_range(0.55, 1.7)])
 
 
+## How deep each boat model sits below the water, in tiles. The rowboats have no deck: any deeper and the sea would
+## show inside them, over their floor boards, so they float right on top.
+const BOAT_DEPTH := {"ferry": 0.2}
+## how far a boat rises and falls on the swell (little: a rowboat dipping any lower would take on water)
+const BOAT_BOB := 0.03
+
+
 ## Boats moored in the water (map "boats": x, z, yaw, model, length), rocking gently.
 func _build_boats() -> void:
 	for bt in map.get("boats", []):
@@ -2137,12 +2144,14 @@ func _build_boats() -> void:
 		var s := float(bt[4]) / maxf(0.01, maxf(bb.size.x, bb.size.z))
 		mi.scale = Vector3(s, s, s)
 		var holder := Node3D.new()
-		holder.position = Vector3(float(bt[0]), _lift(Vector2i(floori(float(bt[0])), floori(float(bt[1])))), float(bt[1]))
+		# on the water's surface (terrain_mesh.gd _liquid)
+		var at := Vector2i(floori(float(bt[0])), floori(float(bt[1])))
+		holder.position = Vector3(float(bt[0]), _lift(at) - 0.12, float(bt[1]))
 		holder.rotation.y = deg_to_rad(float(bt[2]))
-		mi.position.y = -0.3 - bb.position.y * s
+		mi.position.y = -float(BOAT_DEPTH.get(name, 0.0)) - bb.position.y * s
 		holder.add_child(mi)
 		add_child(holder)
-		bobbers.append([holder, holder.position.y, 1.3 + float(bt[0]) * 0.01])
+		bobbers.append([holder, holder.position.y, 1.3 + float(bt[0]) * 0.01, BOAT_BOB])
 
 
 ## The fishing line cast into water tile `t`: a red-and-white float bobbing there, and the line out to it from your

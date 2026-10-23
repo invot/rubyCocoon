@@ -39,7 +39,7 @@ const MAPS := {
 			"TT..........::::SS::::...f....f...tt",
 			"TT.*..f.....::::SS::::............tt",
 			"TT..........L:::1::3:L..f....t....TT",
-			"TT..........ff.,,..ff.............TT",
+			"TT........ff.,,....ff.............TT",
 			"TT................................TT",
 			"TT________________________________TT",
 			"TT_______________________@________TT",
@@ -51,7 +51,8 @@ const MAPS := {
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 		],
-		# a terrace above the beach, three ramps down to the sand, the woods climbing behind
+		# a terrace above the beach, three ramps down to the sand (the middle one off to one side of Elder Rowan, so you can
+		# walk round the Elder), the woods climbing behind
 		"heights": [
 			"222222222222222222222222222222222222",
 			"222222222222222211111111222222222222",
@@ -66,8 +67,8 @@ const MAPS := {
 			"221111111111111111111111111111111111",
 			"221111111111111111111111111111111111",
 			"221111111111111111111111111111111111",
-			"22111111^^11111^^1111111111^^1111111",
-			"22111111^^11111^^1111111111^^1111111",
+			"22111111^^111^^111111111111^^1111111",
+			"22111111^^111^^111111111111^^1111111",
 			"110000000000000000000000000000000011",
 			"110000000000000000000000000000000011",
 			"110000000000000000000000000000000011",
@@ -165,9 +166,9 @@ const MAPS := {
 		# rippling water where the fish bite, each a 4-tile-square patch (and more picked by map_loader.gd): in front of
 		# Gil's shack and his line, and by the ferry pier
 		"fish_spots": [[6, 35], [20, 31]],
-		# moored in the water: Captain Gull's ferry along the long pier, and Gil's rowboat by his shack
+		# moored in the water: Captain Gull's ferry along the long pier (bow out to sea), and Gil's rowboat by his shack
 		# ([x, z, yaw in degrees, model, length in tiles])
-		"boats": [[27.4, 31.2, 0.0, "boat", 4.2], [2.6, 32.0, 8.0, "boat_dark", 2.4]],
+		"boats": [[27.4, 31.2, 0.0, "ferry", 4.8], [2.6, 32.0, 8.0, "boat_dark", 2.4]],
 		# the meadow east of town: wild beasts live only inside its ring of hedges (map_loader.gd "meadow")
 		"meadow": {"center": [53, 13], "radius": 6.0, "races": [0, 27, 36, 24, 15, 30, 21], "lv": [3, 5]},
 		"signs": [

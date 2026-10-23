@@ -31,7 +31,12 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
 - **PSX Western Town Kit Free** by heyheythere - https://heyheythere.itch.io/psx-western-town-kit-free - CC BY 4.0
   (tumbleweed).
 - **PSX The Island Pack** by Caliber Creations, https://caliberuk.itch.io/psx-the-island-pack (palms, beach
-  plants, rocks). Free for games, including commercial ones; the raw files may not be redistributed.
+  plants, rocks, rowboats). Free for games, including commercial ones; the raw files may not be redistributed.
+- **Ferry**, a passenger motor boat in 35 OBJ parts downloaded into `psx/ferry/` (Captain Gull's ferry at
+  Tidewater, baked by `tools/import_psx_ferry.gd`). *Changes made:* only the outside kept (the seats and floors
+  under its roof, its roof vents, side boards, display stand and waterline ring left out), cut from about 1.5
+  million to 4,400 triangles, painted flat colours (it came with no materials). It came with no credit, so it's
+  Creative Commons.
 
 ### Towns and buildings (`assets/psx/houses/`, `assets/psx/exterior/`, `assets/psx/interior/`, `assets/psx/landmarks/`)
 Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd`, `tools/import_psx_interior.gd`,

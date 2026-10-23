@@ -75,4 +75,6 @@ const ASSETS := {
 	"robot_walker": "res://assets/psx/robots/robot_walker.res",
 	"boat": "res://assets/psx/models/boat.res",
 	"boat_dark": "res://assets/psx/models/boat_dark.res",
+	# Captain Gull's ferry (tools/import_psx_ferry.gd)
+	"ferry": "res://assets/psx/models/ferry.res",
 }

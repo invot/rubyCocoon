@@ -20,6 +20,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
+const HouseModels = preload("res://scripts/gfx/house_models.gd")
 
 ## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
 ## Shows the 3D view, filling the window.
@@ -1138,17 +1139,19 @@ func _run_test() -> void:
 		UI.auto = true
 		Engine.time_scale = 8.0
 		var built := 0
+		var porches := 0
 		for id in WorldDB.TOWNS.keys() + WorldDB.ROUTES.keys():
 			await _go(id, "start")
 			await get_tree().process_frame
 			built += 1
+			porches += _porches_out(world)
 			for b in world.map.get("buildings", []):
 				for f in range(1, MapLoader.room_set(b).size() + 1):
 					await _go(MapLoader.floor_id(b["interior"], f), "entry")
 					await get_tree().process_frame
 					built += 1
 		Engine.time_scale = 1.0
-		print("MAP TOUR DONE: %d maps built" % built)
+		print("MAP TOUR DONE: %d maps built, %d porch(es) or front steps over the street" % [built, porches])
 	elif scene == "perf":
 		# what the GPU has to draw on a few typical maps (run with --rendering-method mobile to match phones)
 		UI.auto = true
@@ -1448,6 +1451,28 @@ func _run_test() -> void:
 		_save_shot(String(_test["shot"]))
 	if _test.get("quit", "1") == "1":
 		get_tree().quit()
+
+
+## Houses on this map whose porch (its deck, its roof) or front steps stand out past the front of the plot, over the
+## path or road in front: there should be none, such a house being set back on its plot (house_models.gd plan()).
+## Prints each.
+func _porches_out(w) -> int:
+	var n := 0
+	for b in w.map.get("buildings", []):
+		var hp: Dictionary = b.get("house_plan", {})
+		if not hp.has("steps"):
+			continue
+		var reach := (hp["steps"]["rect"] as Rect2).end.y
+		if hp.has("porch"):
+			reach = maxf(reach, (hp["porch"]["rect"] as Rect2).end.y)
+		var pr := HouseModels.porch_roof(String(hp["key"]))
+		if not pr.is_empty() and hp.get("porch_roof", true):
+			reach = maxf(reach, float(hp["offset"].z) + float(pr["front"]) * float(hp["scale"].z))
+		if reach > float(b["d"]) / 2.0 + 0.01:
+			print("FAIL %s over the street: %s, the %s at %d,%d (%s) reaches %.2f past its plot" % ["porch" if hp.has("porch") else "front steps",
+				w.map_id, b["shop"], b["x"], b["y"], hp["key"], reach - float(b["d"]) / 2.0])
+			n += 1
+	return n
 
 
 ## Saves what's on screen to `path`, small: just the part --crop names (x0,y0,x1,y1: fractions of the screen, or
@@ -2070,12 +2095,12 @@ func _walk4_test() -> void:
 	w.player.position = w.tile_pos(edge)
 	await _press("move_down")
 	await check.call("down at the cliff's edge: no step", edge)
-	var beside := Vector2i(14, 13)
+	var beside := Vector2i(12, 13)
 	w.player_pos = beside
 	w.player.position = w.tile_pos(beside)
 	await _press("move_right")
 	await check.call("onto a ramp from its side: no step", beside)
-	var top := Vector2i(15, 12)
+	var top := Vector2i(14, 12)
 	w.player_pos = top
 	w.player.position = w.tile_pos(top)
 	for i in 3:

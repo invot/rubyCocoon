@@ -180,6 +180,8 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	if not (b.get("house_plan", {}) as Dictionary).is_empty():
 		var hp0: Dictionary = b["house_plan"]
 		hp0["planters"] = not (shop in COMMERCIAL or shop in SIGNED_HOUSES)
+		# (a shop's awning is its porch's roof)
+		hp0["porch_roof"] = hp0["planters"]
 		var house := HouseModels.build(hp0, locked)
 		if shop in COMMERCIAL or shop in SIGNED_HOUSES:
 			_shop_front(house, b["house_plan"], shop, st)
