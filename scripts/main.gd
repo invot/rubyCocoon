@@ -394,13 +394,13 @@ func snapshot() -> Image:
 var _slot_preview: Control = null
 
 
-## Picks one of the ten slots. `preview` shows the slot's snapshot beside the list: only when saving during play.
+## Picks one of the ten slots, with the selected save's snapshot beside the list.
 ## Returns -1 if cancelled.
-func pick_slot(title: String, only_filled := false, preview := true) -> int:
+func pick_slot(title: String, only_filled := false, preview := true, start := 0) -> int:
 	var items := _slot_items(only_filled)
-	var opts := {"anchor": "right", "width": 420, "rows": 10, "margin": Vector2(40, 0)}
+	var opts := {"anchor": "right", "width": 420, "rows": 10, "margin": Vector2(40, 0), "start": start}
 	if preview:
-		_show_slot_preview(0)
+		_show_slot_preview(start)
 		opts["on_focus"] = func(k): _show_slot_preview(k)
 	var c: int = await UI.choose(title, items, opts)
 	_hide_slot_preview()
@@ -435,17 +435,30 @@ func _show_slot_preview(i: int) -> void:
 	frame.add_theme_stylebox_override("panel", UIKit.box("slot", Vector4(4, 4, 4, 4)))
 	vb.add_child(frame)
 	var tr := TextureRect.new()
+	tr.name = "Snapshot"
 	tr.custom_minimum_size = Vector2(448, 252)
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tr.texture = GameState.slot_texture(i)
 	frame.add_child(tr)
+	if tr.texture == null:
+		var missing := UIKit.label("An empty slot." if info.is_empty() else "No screenshot for this save yet.", 20, UIKit.DIM)
+		missing.name = "MissingSnapshot"
+		missing.set_anchors_preset(Control.PRESET_FULL_RECT)
+		missing.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		missing.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		missing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tr.add_child(missing)
 	if info.is_empty():
 		vb.add_child(UIKit.label("An empty slot.", 24, UIKit.DIM))
 	else:
-		vb.add_child(UIKit.label("%s  ·  %s" % [info["name"], info["place"]], 33, UIKit.INK))
-		vb.add_child(UIKit.label("Play time %s   ·   saved %s" % [GameState.time_text(info["play_time"]), info["date"]], 20, UIKit.DIM))
-		vb.add_child(UIKit.label(", ".join((info["party"] as Array).slice(0, 6)) if not (info["party"] as Array).is_empty() else "No beasts yet", 20, UIKit.DIM))
+		for line in ["%s  ·  %s" % [info["name"], info["place"]],
+				"Play time %s   ·   saved %s" % [GameState.time_text(info["play_time"]), info["date"]],
+				", ".join((info["party"] as Array).slice(0, 6)) if not (info["party"] as Array).is_empty() else "No beasts yet"]:
+			var label := UIKit.label(line, 20, UIKit.INK)
+			label.custom_minimum_size.x = 448
+			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			vb.add_child(label)
 	UI.hud.add_child(p)
 	UIKit.place(p, "left", Vector2(40, 0))
 	_slot_preview = p
@@ -459,24 +472,26 @@ func _hide_slot_preview() -> void:
 
 ## The title screen's slot manager: load, copy or delete saves. Returns the slot to load, or -1.
 func slot_manager() -> int:
-	var last := 0
+	var last := maxi(0, GameState.latest_slot())
 	while true:
 		if not GameState.has_save():
 			return -1
-		var c: int = await UI.choose("Saved games", _slot_items(true), {"anchor": "right", "width": 420, "rows": 10, "margin": Vector2(40, 0), "start": last})
+		var c := await pick_slot("Saved games", true, true, last)
 		if c < 0:
 			return -1
 		last = c
+		_show_slot_preview(c)
 		var a: int = await UI.choose("Slot %d" % (c + 1), [
 			{"text": "Load", "desc": "Continue this journey."},
 			{"text": "Copy", "desc": "Copy this save into another slot."},
 			{"text": "Delete", "desc": "Erase this save for good."},
 			{"text": "Back"}], {"anchor": "right", "width": 300, "margin": Vector2(40, 0)})
+		_hide_slot_preview()
 		match a:
 			0:
 				return c
 			1:
-				var to := await pick_slot("Copy slot %d to..." % (c + 1), false, false)
+				var to := await pick_slot("Copy slot %d to..." % (c + 1))
 				if to >= 0 and to != c:
 					if GameState.slot_exists(to) and not await UI.ask("Slot %d already has a save. Overwrite it?" % (to + 1)):
 						continue
@@ -569,6 +584,11 @@ func _run_test() -> void:
 	GameState.new_game("Tester")
 	if scene == "intro":
 		await _opening_test()
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
+	if scene == "tidewater-arrival":
+		await load("res://tools/debug/tidewater_arrival.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
@@ -1415,6 +1435,9 @@ func _run_test() -> void:
 		await _wait(1.5)
 		UI.spiral_in(SPIRAL_COLORS[_test.get("kind", "sneak")], 1.0)
 		await _wait(wait)
+	elif scene == "saveui":
+		await _saveui_test()
+		await _wait(wait)
 	elif scene == "saves":
 		for i in GameState.SLOT_COUNT:
 			GameState.delete_slot(i)
@@ -1522,6 +1545,105 @@ func _run_test() -> void:
 		get_tree().quit()
 
 
+## Save browser regression / preview: real snapshots and fresh saves, including replacement, navigation and paging.
+## --scene=saveui --touch --slot=9 --shot=... shows the last page. --slot=8 shows a save without a legacy thumbnail.
+func _saveui_test() -> void:
+	var bad := 0
+	Prefs.touch_controls = "auto"
+	UI.controls.set_title_mode(true)
+	UI.allow_pause = false
+	UI.auto = true
+	for i in GameState.SLOT_COUNT:
+		GameState.delete_slot(i)
+	await _go("caccoon", "start")
+	await _wait(0.5)
+	bad += _saveui_check(await save_now(), "first save succeeds")
+	var original: Texture2D = GameState.slot_texture(0)
+	await _go("tidewater", "center")
+	await _wait(0.5)
+	GameState.play_time = 3725.0
+	bad += _saveui_check(await save_now(), "replacement save succeeds")
+	if DisplayServer.get_name() != "headless":
+		var latest := GameState.slot_texture(0)
+		bad += _saveui_check(latest != null and original != null, "saves persist game screenshots")
+		if latest != null and original != null:
+			bad += _saveui_check(latest.get_image().get_data() != original.get_image().get_data(), "replacement updates the screenshot")
+			var expected := snapshot()
+			bad += _saveui_check(latest.get_image().get_data() == expected.get_data(), "thumbnail matches the latest save's world")
+	bad += _saveui_check(GameState.copy_slot(0, 9), "copy succeeds")
+	if DisplayServer.get_name() != "headless":
+		bad += _saveui_check(FileAccess.get_file_as_bytes(GameState.slot_shot_path(0)) == FileAccess.get_file_as_bytes(GameState.slot_shot_path(9)), "copy preserves screenshot")
+	GameState.delete_slot(9)
+	bad += _saveui_check(not FileAccess.file_exists(GameState.slot_shot_path(9)), "delete removes screenshot")
+	UI.auto = false
+	_show_slot_preview(9)
+	bad += _saveui_check(_slot_preview.find_child("Snapshot", true, false).texture == null, "empty slot clears the previous screenshot")
+	_hide_slot_preview()
+	UI.auto = true
+	GameState.current_slot = 1
+	await _go("caccoon", "start")
+	await _wait(0.5)
+	bad += _saveui_check(await save_now(), "second journey saves separately")
+	for i in range(2, GameState.SLOT_COUNT):
+		GameState.copy_slot(1, i)
+	# A pre-thumbnail save must show an honest placeholder, never another slot's image.
+	if FileAccess.file_exists(GameState.slot_shot_path(8)):
+		DirAccess.remove_absolute(GameState.slot_shot_path(8))
+	UI.auto = false
+	slot_manager()
+	await _wait(0.3)
+	var menu = UI.stack.back()
+	menu.buttons[0].grab_focus()
+	await _wait(0.2)
+	bad += _saveui_check(_slot_preview != null, "Load Game opens a screenshot preview")
+	_press("ui_down")
+	await _wait(0.3)
+	bad += _saveui_check(menu._focus == 1, "keyboard changes the selected save")
+	if DisplayServer.get_name() != "headless":
+		var shown: Texture2D = _slot_preview.find_child("Snapshot", true, false).texture
+		bad += _saveui_check(shown != null and shown.get_image().get_data() == GameState.slot_texture(1).get_image().get_data(), "focus displays that slot's screenshot")
+	menu._pick(1)
+	await _wait(0.2)
+	bad += _saveui_check(_slot_preview != null, "load/copy/delete actions keep the selected preview")
+	UI.stack.back()._pick(3)
+	await _wait(0.3)
+	menu = UI.stack.back()
+	menu.buttons[9].grab_focus()
+	await _wait(0.3)
+	var viewport_rect := get_viewport().get_visible_rect()
+	# The headless display reports a dummy 64x64 window. Verify actual layout in the windowed runs.
+	if DisplayServer.get_name() != "headless":
+		bad += _saveui_check(viewport_rect.encloses(menu._outer.get_global_rect()), "whole menu fits inside the screen")
+		bad += _saveui_check(not menu._outer.get_global_rect().intersects(_slot_preview.get_global_rect()), "list and snapshot do not overlap")
+	bad += _saveui_check(menu._pager.visible and menu._scroll.scroll_vertical > 0, "all ten slots remain reachable with full-sized rows")
+	bad += _saveui_check(menu.buttons[9].size.y >= UIKit.row_h(), "rows honor the shared button minimum")
+	bad += _saveui_check(menu._pager._next.size.y >= UIKit.row_h(), "page buttons honor the same minimum")
+	var standard_button := Button.new()
+	standard_button.text = "OK"
+	UI.hud.add_child(standard_button)
+	bad += _saveui_check(standard_button.get_combined_minimum_size().y + 0.1 >= UIKit.row_h(), "ordinary themed buttons honor the same minimum")
+	standard_button.queue_free()
+	bad += _saveui_check(not UI.is_touch() and (not Prefs.touch_enabled() or UIKit.row_h() >= UIKit.MIN_TOUCH_HEIGHT), "hidden title controls preserve touch sizing")
+	menu.buttons[8].grab_focus()
+	await _wait(0.2)
+	bad += _saveui_check(_slot_preview.find_child("Snapshot", true, false).texture == null
+		and _slot_preview.find_child("MissingSnapshot", true, false) != null, "legacy save has a missing-screenshot placeholder")
+	var previous_scroll: int = menu._scroll.scroll_vertical
+	menu._pager._prev.pressed.emit()
+	await _wait(0.3)
+	bad += _saveui_check(menu._scroll.scroll_vertical < previous_scroll, "Prev moves back a page")
+	var selected = menu.buttons[clampi(int(_test.get("slot", "0")), 0, 9)]
+	selected.grab_focus()
+	menu._scroll.ensure_control_visible(selected)
+	await _wait(0.3)
+	print("SAVE UI TEST DONE: %d problem(s)" % bad)
+
+
+func _saveui_check(ok: bool, label: String) -> int:
+	print("ok " if ok else "FAIL ", label)
+	return 0 if ok else 1
+
+
 ## Houses on this map whose porch (its deck, its roof) or front steps stand out past the front of the plot, over the
 ## path or road in front: there should be none, such a house being set back on its plot (house_models.gd plan()).
 ## Prints each.
@@ -1576,11 +1698,19 @@ func _save_shot(path: String) -> void:
 func _opening_test() -> void:
 	if _test.get("verify", "0") == "1":
 		var bad := 0
-		for device in ["keyboard", "controller", "start", "button"]:
+		for device in ["keyboard", "controller", "start", "button", "pointer"]:
 			var film = _opening(4.0, true)
 			await get_tree().process_frame
 			if device == "button":
 				film.skip_button.pressed.emit()
+			elif device == "pointer":
+				bad += await _opening_ui_check(film)
+				var before_click: int = film._beat
+				await _opening_click(film.dialogue.text_label)
+				if film._beat != before_click + 1:
+					bad += 1
+					print("FAIL cinematic dialog tap did not continue")
+				await _opening_click(film.skip_button)
 			else:
 				var event: InputEvent
 				if device == "keyboard":
@@ -1607,12 +1737,31 @@ func _opening_test() -> void:
 			_cinematic = null
 			await get_tree().process_frame
 		var film = _opening(0.0, true)
+		var original_size := get_window().size
+		# The 2640x1080 phone captures exposed controls anchored to the wrong viewport.
+		for resolution in [Vector2i(1280, 720), Vector2i(2640, 1080)]:
+			get_window().size = resolution
+			bad += await _opening_ui_check(film)
+		get_window().size = original_size
 		for beat in film.BEATS.size() - 1:
-			film.next_button.pressed.emit()
 			await get_tree().process_frame
-		if film._scene != "spring" or film.speaker.text != "TESTER":
+			await get_tree().process_frame
+			film.next_button.pressed.emit()
+			bad += await _opening_ui_check(film)
+		if film._scene != "spring" or film.dialogue.speaker != "TESTER":
 			bad += 1
 			print("FAIL cinematic beat progression")
+		var dark_beats: Array = film.BEATS.filter(func(beat): return float(beat[0]) < film.DAWN)
+		if String(dark_beats.back()[4]) != "murder" or not String(dark_beats.back()[3]).is_empty():
+			bad += 1
+			print("FAIL murder no longer cuts straight to spring")
+		# A/Next uses the normal dialogue behavior: reveal typing first, then continue.
+		film.dialogue.text_label.visible_characters = 0
+		var last_beat: int = film._beat
+		film.next_button.pressed.emit()
+		if film._beat != last_beat or film.dialogue.text_label.visible_characters != -1:
+			bad += 1
+			print("FAIL cinematic dialogue reveal")
 		film.elapsed = film.LENGTH - 0.01
 		film.preview = false
 		film._process(0.1)
@@ -1667,6 +1816,48 @@ func _opening_test() -> void:
 	film.queue_free()
 	_cinematic = null
 	await get_tree().process_frame
+
+
+func _opening_ui_check(film: Node3D) -> int:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var bad := 0
+	var visible := get_viewport().get_visible_rect().grow(1.0)
+	var controls: Array = [film.skip_button, film.next_button, film.location.get_parent().get_parent()]
+	if is_instance_valid(film.dialogue):
+		controls.append(film.dialogue.text_label)
+		if film.dialogue.name_panel != null:
+			controls.append(film.dialogue.name_panel)
+		if film.dialogue.text_label.get_line_count() > film.dialogue.LINES_PER_PAGE:
+			bad += 1
+			print("FAIL cinematic dialogue overflows its window")
+	for control in controls:
+		if not visible.encloses(control.get_global_rect()) or control.size.x <= 0 or control.size.y <= 0:
+			bad += 1
+			print("FAIL cinematic control offscreen: ", control.get_global_rect(), " viewport ", visible)
+			if is_instance_valid(film.dialogue):
+				print("layout detail: beat=", film._beat, " window=", get_window().size, " box=", film.dialogue._box_h, " text font=", film.dialogue.text_label.get_theme_font_size("font_size"), " lines=", film.dialogue.text_label.get_line_count(), " label minimum=", film.dialogue.text_label.get_combined_minimum_size())
+				for child in film.dialogue.get_children():
+					if child is PanelContainer:
+						print("panel ", child.get_global_rect(), " min=", child.get_combined_minimum_size())
+	if film.overlay.get_parent() != UI.root:
+		bad += 1
+		print("FAIL cinematic overlay outside shared UI")
+	if not film.stage.find_children("*", "Label3D", true, false).is_empty():
+		bad += 1
+		print("FAIL floating cinematic scene text")
+	return bad
+
+
+func _opening_click(control: Control) -> void:
+	var at := control.get_global_rect().get_center()
+	for pressed in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = at
+		get_viewport().push_input(click, true)
+		await get_tree().process_frame
 
 
 ## The real tower interactions, including the locked control, rescue, reload and repeat visit.

@@ -10,27 +10,28 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const Kit = preload("res://scripts/ui/ui_kit.gd")
 const Houses = preload("res://scripts/gfx/house_models.gd")
 const Textures = preload("res://scripts/gfx/voxel_textures.gd")
+const CinematicDialog = preload("res://scripts/ui/cinematic_dialog.gd")
+const CompanyBrand = preload("res://scripts/gfx/company_brand.gd")
 const VEX_LOOK := {"skin": "#c8b0b8", "hair": "#e0e0f0", "shirt": "#1a1024", "pants": "#120c18", "hat": "#6a2a9a", "outfit": "armor"}
 const GEAR_LOOK := {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}
 const ENGINEER_LOOK := {"skin": "#bc8868", "hair": "#49332d", "shirt": "#d6ae58", "pants": "#455469", "outfit": "apron"}
-const LENGTH := 72.0
-const DAWN := 45.0
+const LENGTH := 68.0
+const MURDER := 33.5
+const DAWN := 36.0
 ## start, end, speaker, subtitle, camera shot. Subtitles advance automatically; A also advances a beat.
 const BEATS := [
 	[0.0, 3.5, "", "", "wide"],
-	[3.5, 10.0, "ENGINEER MARA", "I built transports. Not cages. I won't help you take those trainers.", "mara"],
-	[10.0, 13.5, "GENERAL VEXMORA", "Then you won't see spring.", "vex"],
-	[13.5, 17.0, "", "", "murder"],
-	[17.0, 23.5, "MAGNUS GEARHART", "I'll have the body removed. First day of spring. New trainers fill the roads.", "gear"],
-	[23.5, 30.0, "MAGNUS GEARHART", "My robots collect them. My freight lifts hide the cages.", "plan"],
-	[30.0, 37.0, "GENERAL VEXMORA", "Send them to Gravenmoor. Their bonds will teach my ghost beasts to obey.", "vex"],
-	[37.0, 43.0, "GENERAL VEXMORA", "Leave their flutes behind. Let their families keep calling.", "plan"],
-	[43.0, 45.0, "", "", "wide"],
-	[45.0, 50.0, "", "", "spring"],
-	[50.0, 56.5, "", "Out of their burrows. Off to find food, a mate... or trouble.", "beasts"],
-	[56.5, 62.0, "{player}", "Spring's here! My first beast. My own journey. I can hardly wait!", "hero"],
-	[62.0, 68.0, "MOM", "Rowan's got your egg. Uncle Rafe has Dad's flute, over in Tidewater.", "hero"],
-	[68.0, 72.0, "{player}", "Egg. Flute. Adventure. Best day of my life.", "hero"],
+	[3.5, 10.0, "MAGNUS GEARHART", "First day of spring. Beasts wake. New trainers fill the roads.", "gear"],
+	[10.0, 16.5, "MAGNUS GEARHART", "My robots collect them. My freight lifts hide the cages.", "plan"],
+	[16.5, 23.5, "GENERAL VEXMORA", "Send them to Gravenmoor. Their bonds will teach my ghost beasts to obey. Leave their flutes behind.", "vex"],
+	[23.5, 30.0, "ENGINEER MARA", "I built transports. Not cages. I won't help you take those trainers.", "mara"],
+	[30.0, 33.5, "GENERAL VEXMORA", "Then you won't see spring.", "vex"],
+	[33.5, 36.0, "", "", "murder"],
+	[36.0, 41.5, "", "", "spring"],
+	[41.5, 48.0, "", "Out of their burrows. Off to find food, a mate... or trouble.", "beasts"],
+	[48.0, 54.0, "{player}", "Spring's here! My first beast. My own journey. I can hardly wait!", "hero"],
+	[54.0, 60.0, "MOM", "Rowan's got your egg. Uncle Rafe has Dad's flute, over in Tidewater.", "hero"],
+	[60.0, 68.0, "{player}", "A whole season of adventure! Unless some gloomy weirdo's put 'ruin spring' on his to-do list. Ha! Get a hobby!", "hero"],
 ]
 
 signal finished(skipped: bool)
@@ -40,12 +41,13 @@ var running := false
 var skipped := false
 var stage: Node3D
 var camera: Camera3D
-var overlay: CanvasLayer
-var caption: Label
-var speaker: Label
+var overlay: Control
+var dialogue: Control
 var location: Label
+var location_sub: Label
 var chapter: Label
 var chapter_sub: Label
+var chapter_panel: PanelContainer
 var shade: ColorRect
 var skip_button: Button
 var next_button: Button
@@ -103,6 +105,13 @@ func handle_input(event: InputEvent) -> void:
 		skip()
 	elif event.is_action_pressed("interact"):
 		get_viewport().set_input_as_handled()
+		_next()
+
+
+func _next() -> void:
+	if is_instance_valid(dialogue):
+		dialogue._advance()
+	else:
 		advance()
 
 
@@ -130,91 +139,90 @@ func _process(delta: float) -> void:
 
 
 func _build_overlay() -> void:
-	overlay = CanvasLayer.new()
-	overlay.layer = 11
-	overlay.custom_viewport = get_tree().root
-	add_child(overlay)
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Parent to the real UI, not the SubViewport. CanvasLayer.custom_viewport changes drawing, but does not
+	# change the viewport used by descendant Control anchors (the old phone layout lost its bottom/right edges).
+	overlay = Control.new()
+	overlay.name = "CinematicUI"
+	UI.root.add_child(overlay)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var root := overlay
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.theme = Kit.make_theme()
-	overlay.add_child(root)
-	for bottom in [false, true]:
-		var bar := ColorRect.new()
-		bar.color = Color("#090a14")
-		bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE if bottom else Control.PRESET_TOP_WIDE)
-		bar.offset_top = -137 if bottom else 0
-		bar.offset_bottom = 0 if bottom else 68
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		root.add_child(bar)
-	location = _label(root, 18, Color("#a9bbc9"))
-	location.position = Vector2(32, 22)
+	var top := MarginContainer.new()
+	root.add_child(top)
+	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	top.offset_left = 24
+	top.offset_right = -24
+	top.offset_top = 20
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(row)
+	var place := Kit.banner_panel()
+	place.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(place)
+	var place_text := VBoxContainer.new()
+	place.add_child(place_text)
+	location = Kit.header("")
+	location_sub = Kit.label("", Kit.BODY_SMALL, Kit.DIM)
+	place_text.add_child(location)
+	place_text.add_child(location_sub)
+	var space := Control.new()
+	space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	space.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(space)
+	var buttons_panel := Kit.dark_panel()
+	row.add_child(buttons_panel)
+	var buttons := VBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	buttons_panel.add_child(buttons)
 	skip_button = Button.new()
 	skip_button.text = "Skip intro  ·  Esc / B"
-	skip_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	skip_button.offset_left = -295
-	skip_button.offset_right = -22
-	skip_button.offset_top = 12
-	skip_button.offset_bottom = 56
-	skip_button.add_theme_font_size_override("font_size", 20)
+	skip_button.custom_minimum_size.y = Kit.row_h()
 	skip_button.focus_mode = Control.FOCUS_NONE
 	skip_button.pressed.connect(skip)
-	root.add_child(skip_button)
-	speaker = _label(root, 19, Color("#eda177"))
-	speaker.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	speaker.offset_left = 46
-	speaker.offset_right = -200
-	speaker.offset_top = -123
-	speaker.offset_bottom = -94
-	caption = _label(root, 27, Color("#fff4df"))
-	caption.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	caption.offset_left = 46
-	caption.offset_right = -60
-	caption.offset_top = -88
-	caption.offset_bottom = -28
-	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var next := Button.new()
-	next_button = next
-	next.text = "Next  ›  A"
-	next.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	next.offset_left = -174
-	next.offset_right = -22
-	next.offset_top = -130
-	next.offset_bottom = -91
-	next.focus_mode = Control.FOCUS_NONE
-	next.add_theme_font_size_override("font_size", 18)
-	next.pressed.connect(advance)
-	root.add_child(next)
-	chapter = _label(root, 48, Color("#fff1bf"))
-	chapter.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	chapter.offset_left = -600
-	chapter.offset_right = 600
-	chapter.offset_top = -55
-	chapter.offset_bottom = 20
+	buttons.add_child(skip_button)
+	next_button = Button.new()
+	next_button.text = "Next  ·  A / Enter"
+	next_button.custom_minimum_size.y = Kit.row_h()
+	next_button.focus_mode = Control.FOCUS_NONE
+	next_button.pressed.connect(_next)
+	buttons.add_child(next_button)
+	var center := CenterContainer.new()
+	root.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chapter_panel = Kit.banner_panel(Vector2(760, 0))
+	center.add_child(chapter_panel)
+	var chapter_text := VBoxContainer.new()
+	chapter_text.add_theme_constant_override("separation", 16)
+	chapter_panel.add_child(chapter_text)
+	chapter = Kit.header("", Kit.INK, Kit.HEAD_BIG)
 	chapter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	chapter_sub = _label(root, 23, Color("#fff9ed"))
-	chapter_sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	chapter_sub.offset_left = -600
-	chapter_sub.offset_right = 600
-	chapter_sub.offset_top = 28
-	chapter_sub.offset_bottom = 65
+	chapter_text.add_child(chapter)
+	chapter_sub = Kit.label("", Kit.BODY_BIG, Kit.DIM)
 	chapter_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chapter_text.add_child(chapter_sub)
 	shade = ColorRect.new()
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(shade)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-func _label(parent: Control, size: int, colour: Color) -> Label:
-	var label := Label.new()
-	label.add_theme_font_override("font", Kit.font_body())
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", colour)
-	label.add_theme_color_override("font_outline_color", Color("#121420"))
-	label.add_theme_constant_override("outline_size", 5)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(label)
-	return label
+func _show_dialogue(beat: Array) -> void:
+	if is_instance_valid(dialogue):
+		overlay.remove_child(dialogue)
+		dialogue.queue_free()
+	dialogue = null
+	if String(beat[3]) == "":
+		return
+	dialogue = CinematicDialog.new()
+	dialogue.instant_text = preview
+	dialogue.setup([String(beat[3])], String(beat[2]).replace("{player}", GameState.player_name.to_upper()))
+	dialogue.advance_requested.connect(advance)
+	overlay.add_child(dialogue)
+	overlay.move_child(shade, overlay.get_child_count() - 1)
 
 
 func _update_scene() -> void:
@@ -310,17 +318,6 @@ func _person(key: String, look: Dictionary, pos: Vector3, face := Vector2i(0, 1)
 	return node
 
 
-func _sign(text: String, pos: Vector3, size: int, colour: String) -> void:
-	var label := Label3D.new()
-	label.text = text
-	label.position = pos
-	label.font_size = size
-	label.pixel_size = 0.008
-	label.modulate = Color(colour)
-	label.no_depth_test = false
-	stage.add_child(label)
-
-
 func _build_tower() -> void:
 	_environment(false)
 	_box(Vector3(0, -0.25, 0), Vector3(27, 0.5, 24), "#202435")
@@ -340,8 +337,11 @@ func _build_tower() -> void:
 			_box(Vector3(x, j - 1.0, z + 1.27), Vector3(1.4, 0.09, 0.02), "#48a4ba" if i % 3 else "#ca548f", true)
 	_box(Vector3(0, 1, -4.6), Vector3(6, 2, 1.4), "#353044")
 	_box(Vector3(0, 2.05, -4.6), Vector3(6.3, 0.15, 1.65), "#b18c59")
-	_sign("GEARHART INDUSTRIES", Vector3(0, 4.6, -6.8), 62, "#59cfdd")
-	_sign("FREIGHT DIVISION  /  SPRING INTAKE", Vector3(0, 3.8, -6.8), 27, "#b4bbce")
+	var company_sign := CompanyBrand.sign_node()
+	company_sign.position = Vector3(0, 4.4, -6.72)
+	stage.add_child(company_sign)
+	# The plaque is fastened to the window structure, with a visible rail behind it.
+	_box(Vector3(0, 4.4, -6.95), Vector3(10.2, 0.18, 0.25), "#374356")
 	_person("vex", VEX_LOOK, Vector3(-1.35, 0, 0), Vector2i(1, 1))
 	_person("gear", GEAR_LOOK, Vector3(2.3, 0, -2.9), Vector2i(-1, 1))
 	victim = _person("mara", ENGINEER_LOOK, Vector3(0.9, 0, 1.4), Vector2i(-1, -1))
@@ -356,7 +356,6 @@ func _build_tower() -> void:
 				_box(Vector3(x + dx, 1.5, 3 + dz), Vector3(0.08, 2.7, 0.08), "#cf506e", true)
 		for dx in [-0.65, 0, 0.65]:
 			_box(Vector3(x + dx, 1.5, 4.25), Vector3(0.04, 2.7, 0.04), "#60bdca", true)
-		_sign("EMPTY  /  AWAITING INTAKE", Vector3(x, 3.3, 4.25), 20, "#ef96ae")
 	blade = _box(Vector3(0.25, 1.05, 1.025), Vector3(0.08, 0.09, 1.9), "#e4a6ff", true)
 	blade.rotation.y = 1.1
 	blade.visible = false
@@ -436,7 +435,6 @@ func _build_spring() -> void:
 		_asset("tree_round_1", Vector3(x, 0, 14), 5.8)
 	for i in 8:
 		_box(Vector3(-3.5 + i, 3.7 - sin(i * PI / 7) * 0.5, 4.9), Vector3(0.25, 0.35, 0.02), "#e1a871" if i % 2 else "#7babc0")
-	_sign("TRAINER SEASON\nSPRING · DAY ONE", Vector3(-4.5, 1.5, 4.8), 33, "#fff2c7")
 
 
 func _camera_shot(shot: String, progress: float) -> void:
@@ -482,15 +480,14 @@ func _update_frame() -> void:
 	var beat: Array = BEATS[idx]
 	if idx != _beat:
 		_beat = idx
-		speaker.text = String(beat[2]).replace("{player}", GameState.player_name.to_upper())
-		caption.text = String(beat[3])
-		location.text = "COGSWORTH  /  BEFORE DAWN" if elapsed < DAWN else "COCOON COVE  /  SPRING, DAY ONE"
+		_show_dialogue(beat)
+		location.text = "COGSWORTH" if elapsed < DAWN else "COCOON COVE"
+		location_sub.text = "Before dawn" if elapsed < DAWN else "Spring, day one"
 		for key in people:
-			Person.set_talking(people[key], (key == "gear" and beat[2] == "MAGNUS GEARHART") or (key == "vex" and beat[2] == "GENERAL VEXMORA") or (key == "mara" and idx == 1) or (key == "hero" and beat[2] == "{player}") or (key == "mom" and beat[2] == "MOM"), true)
+			Person.set_talking(people[key], (key == "gear" and beat[2] == "MAGNUS GEARHART") or (key == "vex" and beat[2] == "GENERAL VEXMORA") or (key == "mara" and beat[2] == "ENGINEER MARA") or (key == "hero" and beat[2] == "{player}") or (key == "mom" and beat[2] == "MOM"), true)
 	var p := clampf((elapsed - float(beat[0])) / (float(beat[1]) - float(beat[0])), 0, 1)
 	_camera_shot(String(beat[4]), p)
-	chapter.visible = idx == 0 or idx == 9
-	chapter_sub.visible = chapter.visible
+	chapter_panel.visible = idx == 0 or String(beat[4]) == "spring"
 	chapter.text = "THE LAST NIGHT OF WINTER" if idx == 0 else "THE FIRST DAY OF SPRING"
 	chapter_sub.text = "Gearhart Tower · Cogsworth" if idx == 0 else "The beasts are waking. Trainer season begins."
 	# Gentle cuts, with no flashing screen on the killing blow.
@@ -499,20 +496,20 @@ func _update_frame() -> void:
 	fade = maxf(fade, clampf((elapsed - LENGTH + 0.65) / 0.65, 0, 1))
 	shade.color = Color(0.025, 0.03, 0.06, fade)
 	if _scene == "tower":
-		var strike := clampf((elapsed - 13.7) / 0.4, 0, 1)
-		var fall := smoothstep(0.0, 1.0, clampf((elapsed - 14.15) / 0.85, 0, 1))
+		var strike := clampf((elapsed - MURDER - 0.2) / 0.4, 0, 1)
+		var fall := smoothstep(0.0, 1.0, clampf((elapsed - MURDER - 0.65) / 0.85, 0, 1))
 		people["vex"].position = Vector3(-1.35, 0, 0).lerp(Vector3(-0.5, 0, 0.65), strike)
-		blade.visible = elapsed >= 13.7 and elapsed < 14.5
+		blade.visible = elapsed >= MURDER + 0.2 and elapsed < MURDER + 1.0
 		victim.rotation.z = -PI * 0.5 * fall
 		victim.position = Vector3(0.9 + fall * 0.5, fall * 0.24, 1.4 + fall * 0.3)
-		if elapsed >= 14.1 and _last_time < 14.1 and not preview:
+		if elapsed >= MURDER + 0.6 and _last_time < MURDER + 0.6 and not preview:
 			Sfx.play("miss")
 			Sfx.play("crit")
-		if elapsed >= 14.9 and _last_time < 14.9 and not preview:
+		if elapsed >= MURDER + 1.4 and _last_time < MURDER + 1.4 and not preview:
 			Sfx.play("faint")
 		for key in people:
 			# Mara remains motionless after the murder; no battle or revival cue.
-			Person.animate(people[key], 0, 0, 14.0 if key == "mara" and elapsed >= 14.15 else elapsed)
+			Person.animate(people[key], 0, 0, MURDER + 0.65 if key == "mara" and elapsed >= MURDER + 0.65 else elapsed)
 	else:
 		for key in people:
 			Person.animate(people[key], 0, 0, elapsed)

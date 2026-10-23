@@ -694,9 +694,9 @@ const MAPS := {
 			"000000000000000000000000",
 		],
 		"signs": [
-			"Caldera Road. Property of Gearhart Industries. KEEP OUT.",
+			"Caldera Road. Property of Gearheart Industries. KEEP OUT.",
 		],
-		"gate": {"flag": "ceo_defeated", "text": "A massive steam gate stamped GEARHART INDUSTRIES seals the road to Mount Cinder."},
+		"gate": {"flag": "ceo_defeated", "text": "A massive steam gate stamped GEARHEART INDUSTRIES seals the road to Mount Cinder."},
 	},
 	"route8": {
 		"rows": [

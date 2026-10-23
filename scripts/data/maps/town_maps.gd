@@ -96,7 +96,7 @@ const MAPS := {
 			"TTTrrrrtKKKKKtAAAAAttttCCCCCCtXXXXtVVVTT__TTTTTTTTTttttTTTTTTTTTTTTTTTTTTT~~",
 			"::::::::::::::::::::::::::::::::::::::::__,,,,...ttttttttTTTTTTTTTTTTTTTTT~~",
 			"::::::::::::::::::::::::::::::::::::::::__,,,,..ttg.ggggttTTTTTRRRRRRRRTTT~~",
-			"tt+..........L::::::tt::::::L.f.......f.____,,.tt.gggg.ggttTTTTRRRRRRRRTTT~~",
+			"tt+.....1....L::::::tt::::::L.f.......f.____,,.tt.gggg.ggttTTTTRRRRRRRRTTT~~",
 			"tt.f......f..:::::::tt:::::::...........___+,,ttgggg.gggg.ttTTTRRRRRRRRTTT~~",
 			"tt........@..:::::::SS:::::::...........____,,tg.gfgggg.gggtTTTRRRRRRRRTTT~~",
 			"tt...f....f..:::::::SS:3:::::FFFFFFFFFFF____,,tgggg.gfgggg.tTTLRRRRRRRRLTT~~",
@@ -163,7 +163,7 @@ const MAPS := {
 			"0000000000000000000000000000000000000000000000000000000000000000000000000000",
 			"0000000000000000000000000000000000000000000000000000000000000000000000000000",
 		],
-		"anchors": {"3": "mascot", "4": "ferry", "5": "dock", "8": "fisher"},
+		"anchors": {"1": "rafe_neighbor", "3": "mascot", "4": "ferry", "5": "dock", "8": "fisher"},
 		# rippling water where the fish bite, each a 4-tile-square patch (and more picked by map_loader.gd): in front of
 		# Gil's shack and his line, and by the ferry pier
 		"fish_spots": [[6, 35], [20, 31]],
@@ -584,7 +584,7 @@ const MAPS := {
 		],
 		"anchors": {"1": "protester", "3": "mascot"},
 		"signs": [
-			"Cogsworth. By order of Gearhart Industries: steam is rationed.",
+			"Cogsworth. By order of Gearheart Industries: steam is rationed.",
 		],
 	},
 	"emberfall": {

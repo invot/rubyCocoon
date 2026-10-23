@@ -25,6 +25,7 @@ const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+const CompanyBrand = preload("res://scripts/gfx/company_brand.gd")
 
 ## The camera sits behind and above the player, looking down at about 32 degrees outdoors and 29 indoors (lower and
 ## closer than a top-down view, so walls and buildings are seen from the front, as in the PS2 games).
@@ -3675,6 +3676,10 @@ func _build_room() -> void:
 	room_walls = null
 	if not open_air:
 		room_walls = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
+	if key == "ceo_4":
+		var company_sign := CompanyBrand.sign_node(4.2)
+		company_sign.position = Vector3(7.5, 1.8, 0.63)
+		add_child(company_sign)
 	stair_ways = RoomBuilder.stair_ways_in(map)
 	var k := VBld.Kit.new()
 	var plane := PlaneMesh.new()

@@ -723,7 +723,10 @@ func kennel_beast(town: String) -> Beast:
 ## Ten save slots, each a JSON file plus a PNG snapshot. A game remembers its slot: once it's been saved, every
 ## later save goes back into the same slot.
 func save_dir() -> String:
-	return TEST_SAVE_DIR if main != null and not main._test.is_empty() else SAVE_DIR
+	if main != null and not main._test.is_empty():
+		var test_dir := String(main._test.get("save_dir", TEST_SAVE_DIR))
+		return test_dir if test_dir.begins_with("res://build/") and not ".." in test_dir else TEST_SAVE_DIR
+	return SAVE_DIR
 
 
 func slot_path(i: int) -> String:
@@ -810,7 +813,7 @@ func slot_texture(i: int) -> Texture2D:
 	if not FileAccess.file_exists(path):
 		return null
 	var img := Image.load_from_file(path)
-	return ImageTexture.create_from_image(img) if img != null else null
+	return ImageTexture.create_from_image(img) if img != null and not img.is_empty() else null
 
 
 func copy_slot(from_i: int, to_i: int) -> bool:

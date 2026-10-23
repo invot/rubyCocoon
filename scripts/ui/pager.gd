@@ -42,7 +42,7 @@ func _button(text: String, dir: int) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(150, 52 if UI.is_touch() else 40)
+	b.custom_minimum_size = Vector2(150, UIKit.row_h())
 	var up := UIKit.chip(UIKit.WINDOW_BOTTOM, UIKit.BORDER, 12.0, Vector4(12, 2, 12, 2))
 	var held := UIKit.chip(UIKit.ACCENT, UIKit.BORDER, 12.0, Vector4(12, 2, 12, 2))
 	for st in ["normal", "hover", "focus"]:

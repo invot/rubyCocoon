@@ -46,10 +46,13 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 
 ## The journey
 
-New Game opens with a 72-second cinematic: a murder in **Gearhart Tower**, the robot kidnapping scheme, then the first
+New Game opens with a 68-second cinematic: the robot kidnapping scheme and a murder in **Gearhart Tower**, then the first
 morning of spring in **Cocoon Cove**, as beasts leave hibernation and trainer season begins. Subtitles advance
-automatically; **A / Enter** (or the **Next** button) advances a beat. **Esc / B / Start** or **Skip intro** skips the
+automatically in the game's normal dialogue windows; **A / Enter** (or **Next**) reveals the typing, then advances a beat.
+**Esc / B / Start** or **Skip intro** skips the
 whole film. Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
+The murder cuts directly to the bright spring morning, and the hero closes with an unwitting joke about anyone spoiling it.
+The mounted Gearheart Industries sign uses an original vector gear-and-split-heart logo inspired by the supplied reference.
 
 The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
 Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**.
@@ -85,7 +88,7 @@ required before confronting Vexmora.
    himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
    in and he gives you a beast egg (a Tadlet) to hatch at Tidewater's Beast Center. Mended, it's a plank footbridge
    with railings.
-7. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
+7. Talk to **Neighbor Nell**, Rafe's old friend beside Tidewater's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute.
 10. Tidewater's arena teaches you to battle properly before you may face its master (`world_db.gd` ARENA_LESSONS,
@@ -412,6 +415,12 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
   text is 32 screen pixels and dialogue 48. The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
   Dialogue is three lines to a page. Text sits at the top of every text box.
+- **Button minimums**: menu text uses 32 UI units; rows and page buttons are at least 56 units tall on desktop and
+  80 on touch devices, including the title screen while the touch pad is hidden. Long lists show fewer rows with
+  Prev / Next controls instead of shrinking buttons or running off the screen (`UIKit.row_h`, `list_menu.gd`).
+- **Save previews**: Load Game shows the selected slot's screenshot from its latest save beside the list, and keeps
+  it visible when choosing Load, Copy or Delete. Saves from before screenshots were stored show a placeholder
+  until saved again. Copying a save includes its screenshot.
 - **Phones**: a joined cross-shaped d-pad with raised arrows, for getting about (hold B to run), battles and the flute
   game alike. Each arm answers in its own quarter of the pad (a wedge from the middle out past its arrow), and only one
   arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
@@ -541,10 +550,15 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 Focused cinematic previews use the normal screenshot harness and fresh state (no player saves):
 
 ```
-godot --path . -- --scene=intro --at=26 --shot=res://docs/screenshots/intro_tower.png
-godot --path . -- --scene=intro --at=48 --shot=res://docs/screenshots/intro_spring.png
+godot --path . -- --scene=intro --at=12 --shot=res://docs/screenshots/intro_tower.png
+godot --path . -- --scene=intro --at=39 --shot=res://docs/screenshots/intro_spring.png
 godot --path . -- --scene=intro --hold=0
 godot --path . -- --scene=rescue --preview=locked --shot=res://docs/screenshots/trainer_cages.png
+godot --headless --path . -- --scene=tidewater-arrival --verify=1
+godot --path . -- --scene=tidewater-arrival --preview=talk --shot=res://build/shots/tidewater_nell.png
+godot --path . -- --scene=tidewater-arrival --preview=house --shot=res://build/shots/tidewater_rafe.png
+godot --path . -- --scene=saveui --touch --save_dir=res://build/save_ui_saves/ --shot=res://build/shots/save_ui.png
+godot --path . -- --scene=saveui --touch --slot=9 --save_dir=res://build/save_ui_saves/ --shot=res://build/shots/save_ui_last.png
 ```
 
 Screenshots from a test scene (`--shot=path.png`) come out small: `--crop=x0,y0,x1,y1` keeps just part of the screen

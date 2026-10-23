@@ -30,6 +30,10 @@ const HEAD_SIZE := 22
 const HEAD_SMALL := 21
 const HEAD_BIG := 32
 const FONT_STEP := 16.0
+## Interactive text stays larger than captions. Long menus must page instead of shrinking their buttons.
+const BUTTON_FONT_SIZE := 32
+const MIN_BUTTON_HEIGHT := 56.0
+const MIN_TOUCH_HEIGHT := 80.0
 
 ## The gem the whole interface is tinted with (Settings > Gem): every window, border, text, bar and tag is a shade
 ## of it, so the menus are one colour.
@@ -220,9 +224,19 @@ static func gem_name(name: String) -> String:
 	return String(OLD_ACCENTS.get(name, name)).capitalize()
 
 
-## How tall a menu row is: about a centimetre on a phone (48 dp or more), a little less with keys and a mouse.
+## Input capability, independent of whether the on-screen pad is currently visible (it hides on the title).
+static func touch_ui() -> bool:
+	return is_instance_valid(Prefs) and Prefs.touch_enabled()
+
+
+## How tall an interactive row is. Keep the same touch minimum on the title and while the pad steps aside.
 static func row_h() -> float:
-	return 80.0 if is_instance_valid(UI) and UI.is_touch() else 52.0
+	var floor_h := MIN_TOUCH_HEIGHT if touch_ui() else MIN_BUTTON_HEIGHT
+	return maxf(floor_h, font_body().get_height(body_px(BUTTON_FONT_SIZE)) + 16.0)
+
+
+static func _button_pad_y() -> float:
+	return maxf(2.0, (row_h() - font_body().get_height(body_px(BUTTON_FONT_SIZE))) / 2.0)
 
 
 # ================================================================ crisp pixel fonts
@@ -396,9 +410,10 @@ static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 ## The selected row: a rounded pill in the accent, bright on the left and fading to the right, with a soft cream
 ## edge. `right` leaves room for a right-hand label.
 static func highlight(right := 0.0) -> StyleBox:
+	var pad_y := _button_pad_y()
 	if pixel():
 		# the gem behind the white: the 1-bit plate filled with it
-		return pixel_box("plate", ACCENT, PIXEL_LINE, Vector4(22, 2, 12 + right, 2))
+		return pixel_box("plate", ACCENT, PIXEL_LINE, Vector4(22, pad_y, 12 + right, pad_y))
 	var sb := CozyBox.new()
 	sb.horizontal = true
 	sb.top = Color(ACCENT.lightened(0.08), 0.95)
@@ -412,8 +427,8 @@ static func highlight(right := 0.0) -> StyleBox:
 	sb.shadow_size = 3.0
 	sb.content_margin_left = 22
 	sb.content_margin_right = 12 + right
-	sb.content_margin_top = 2
-	sb.content_margin_bottom = 2
+	sb.content_margin_top = pad_y
+	sb.content_margin_bottom = pad_y
 	return sb
 
 
@@ -429,15 +444,15 @@ static func make_theme() -> Theme:
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_left = 22
 	empty.content_margin_right = 12
-	empty.content_margin_top = 2
-	empty.content_margin_bottom = 2
+	empty.content_margin_top = _button_pad_y()
+	empty.content_margin_bottom = _button_pad_y()
 	var hl := highlight()
 	for st in ["normal", "disabled"]:
 		t.set_stylebox(st, "Button", empty)
 	for st in ["hover", "focus", "pressed", "hover_pressed"]:
 		t.set_stylebox(st, "Button", hl)
 	t.set_font("font", "Button", font_body())
-	t.set_font_size("font_size", "Button", body_px(BODY_BIG))
+	t.set_font_size("font_size", "Button", body_px(BUTTON_FONT_SIZE))
 	for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
 		t.set_color(c, "Button", INK)
 	t.set_color("font_disabled_color", "Button", Color(DIM, 0.6))

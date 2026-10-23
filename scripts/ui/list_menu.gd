@@ -14,6 +14,11 @@ var opts: Dictionary = {}
 var buttons: Array = []
 var desc_label: Label = null
 var _panel: PanelContainer
+var _outer: VBoxContainer
+var _scroll: ScrollContainer
+var _pager: Control
+var _row_h := 0.0
+var _max_rows := 0
 var _focus := -1
 var _t := 0.0
 ## the bare menu's big button and the face drawn behind its text (see _draw_hero)
@@ -39,8 +44,9 @@ func setup(_title: String, _items: Array, _opts := {}) -> Control:
 
 
 func _ready() -> void:
-	var width := float(opts.get("width", 360)) * (1.25 if UI.is_touch() else 1.1) + 40.0
+	var width := float(opts.get("width", 360)) * (1.25 if UIKit.touch_ui() else 1.1) + 40.0
 	var outer := VBoxContainer.new()
+	_outer = outer
 	outer.add_theme_constant_override("separation", -2)
 	add_child(outer)
 	var title_lines := title.split("\n")
@@ -69,13 +75,16 @@ func _ready() -> void:
 		if it.has("icon") and it["icon"] != null:
 			has_icons = true
 	var row_h := UIKit.row_h() + (8.0 if has_icons else 0.0)
-	var font_size := int(opts.get("font_size", 0))
+	var font_size := int(opts.get("font_size", UIKit.BUTTON_FONT_SIZE))
+	font_size = maxi(font_size, UIKit.BUTTON_FONT_SIZE)
 	if font_size > 0:
 		row_h = maxf(row_h, font_size * 2.0)
+	_row_h = row_h
 	var bare: bool = opts.get("bare", false)
 	if bare:
 		_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var rows := int(opts.get("rows", 8))
+	_max_rows = mini(rows, maxi(1, items.size()))
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 0)
@@ -85,13 +94,15 @@ func _ready() -> void:
 		vb.add_child(list)
 	else:
 		var scroll := ScrollContainer.new()
+		_scroll = scroll
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		scroll.follow_focus = true
 		scroll.custom_minimum_size = Vector2(width, row_h * mini(rows, maxi(1, items.size())) + 2)
 		vb.add_child(scroll)
 		scroll.add_child(list)
 		# Prev / Next under a menu longer than it shows (see pager.gd)
-		vb.add_child(load("res://scripts/ui/pager.gd").new().setup(scroll))
+		_pager = load("res://scripts/ui/pager.gd").new().setup(scroll)
+		vb.add_child(_pager)
 	for i in items.size():
 		var it: Dictionary = items[i]
 		var b := Button.new()
@@ -107,6 +118,7 @@ func _ready() -> void:
 			b.add_theme_constant_override("icon_max_width", 56)
 		if it.has("right"):
 			var rl := UIKit.label(str(it["right"]), 20, UIKit.ACCENT if not b.disabled else UIKit.DIM)
+			rl.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BUTTON_FONT_SIZE))
 			rl.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 			rl.offset_left = -220
 			rl.offset_right = -12
@@ -138,7 +150,27 @@ func _ready() -> void:
 	if items.is_empty():
 		list.add_child(UIKit.label("(nothing here)", 20, UIKit.DIM))
 	UIKit.place(outer, opts.get("anchor", "center"), opts.get("margin", Vector2(24, 24)))
+	if _scroll != null:
+		get_viewport().size_changed.connect(_fit_rows)
+		_fit_rows.call_deferred()
 	_grab_start.call_deferred()
+
+
+## Fit whole, full-sized rows into the window, reserving the title, description and page buttons.
+## Reserving the pager even while hidden prevents the list from oscillating between two heights.
+func _fit_rows() -> void:
+	if _scroll == null:
+		return
+	var margin: Vector2 = opts.get("margin", Vector2(24, 24))
+	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0
+	var chrome := _outer.get_combined_minimum_size().y - _scroll.custom_minimum_size.y
+	if not _pager.visible:
+		chrome += _pager.get_combined_minimum_size().y + 4.0
+	var rows := clampi(floori((available - chrome - 2.0) / _row_h), 1, _max_rows)
+	_scroll.custom_minimum_size.y = rows * _row_h + 2.0
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused != null and _scroll.is_ancestor_of(focused):
+		_scroll.ensure_control_visible.call_deferred(focused)
 
 
 ## A bare menu's option: the first is the big glowing button, the rest plain outlined text (bright when picked).
@@ -149,7 +181,7 @@ func _bare_button(b: Button, hero: bool) -> void:
 	b.add_theme_color_override("font_outline_color", UIKit.BROWN)
 	if not hero:
 		b.custom_minimum_size.y = UIKit.row_h()
-		b.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BODY_HUGE))
+		b.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BUTTON_FONT_SIZE))
 		b.add_theme_constant_override("outline_size", 10)
 		for c in ["font_color", "font_pressed_color"]:
 			b.add_theme_color_override(c, UIKit.DIM)
@@ -274,6 +306,11 @@ func _grab_start() -> void:
 	if buttons.is_empty():
 		return
 	var s := clampi(int(opts.get("start", 0)), 0, buttons.size() - 1)
+	if buttons[s].disabled:
+		for i in buttons.size():
+			if not buttons[i].disabled:
+				s = i
+				break
 	buttons[s].grab_focus()
 	_focused(s)
 
@@ -284,6 +321,7 @@ func _focused(i: int) -> void:
 	_focus = i
 	if desc_label:
 		desc_label.text = items[i].get("desc", "")
+		_fit_rows.call_deferred()
 	if opts.has("on_focus"):
 		var cb: Callable = opts["on_focus"]
 		if cb.is_valid():

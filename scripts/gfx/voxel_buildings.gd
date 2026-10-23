@@ -185,6 +185,8 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		var house := HouseModels.build(hp0, locked)
 		if shop in COMMERCIAL or shop in SIGNED_HOUSES:
 			_shop_front(house, b["house_plan"], shop, st)
+		if shop == "uncle":
+			_rafe_flute_sign(house, b, hp0["door_at"].y + hp0["door_size"].y / 2.0 + 0.65)
 		if locked:
 			var lk := Kit.new()
 			var hp: Dictionary = b["house_plan"]
@@ -197,6 +199,8 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	var node := Node3D.new()
 	if shop in COMMERCIAL or shop not in SPECIAL or PACK_LOOKS.has(shop):
 		_pack_building(node, b, style_name, st, shop, w, d, door_lx, locked)
+		if shop == "uncle":
+			_rafe_flute_sign(node, b, 3.15)
 		return node
 	match shop:
 		"skytower":
@@ -1658,6 +1662,29 @@ static func _sign_face(shop: String, d: float) -> float:
 		"skytower":
 			return (d - 0.8) / 2.0
 	return (d - 0.3) / 2.0
+
+
+## Rafe's landmark: a large golden flute on a teal board, above the door and in front of the porch roof.
+static func _rafe_flute_sign(node: Node3D, b: Dictionary, height: float) -> void:
+	var k := Kit.new()
+	var gold := Color("#ffd15c")
+	k.box("color", Vector3.ZERO, Vector3(2.3, 0.86, 0.14), Color("#b88a38"), true)
+	k.box("color", Vector3(0, 0, 0.08), Vector3(2.14, 0.7, 0.06), Color("#245e66"), true)
+	# A straight reed flute, with a mouthpiece, binding rings and six dark finger holes.
+	k.box("color", Vector3(0, 0, 0.17), Vector3(1.82, 0.22, 0.16), gold, true)
+	k.box("color", Vector3(-0.87, 0, 0.18), Vector3(0.26, 0.3, 0.18), Color("#fff0b0"), true)
+	for x in [-0.64, 0.88]:
+		k.box("color", Vector3(x, 0, 0.18), Vector3(0.07, 0.27, 0.18), Color("#c08a30"), true)
+	for i in 6:
+		k.box("color", Vector3(-0.43 + i * 0.21, 0.01, 0.257), Vector3(0.075, 0.075, 0.02), Color("#493823"), true)
+	for x in [-0.8, 0.8]:
+		k.box("color", Vector3(x, 0.53, -0.04), Vector3(0.06, 0.32, 0.08), Color("#624b32"), true)
+	var sign := MeshInstance3D.new()
+	sign.name = "RafeFluteSign"
+	sign.mesh = k.mesh()
+	var door_x := float(b["door"].x) + 0.5 - (float(b["x"]) + float(b["w"]) / 2.0)
+	sign.position = Vector3(door_x, height, float(b["d"]) / 2.0 - 0.14)
+	node.add_child(sign)
 
 
 ## The z that puts the back of `mesh` flat against a surface at `face`.

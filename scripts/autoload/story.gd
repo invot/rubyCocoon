@@ -47,6 +47,7 @@ const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const FISHER_LOOK := {"skin": "#c08a60", "hair": "#d8d8d8", "shirt": "#e8c040", "pants": "#3a4a5a", "hat": "#e8c040", "outfit": "coat"}
 const Fishing = preload("res://scripts/world/fishing.gd")
 const UNCLE_LOOK := {"skin": "#e0b088", "hair": "#6a3a20", "shirt": "#3a7a8a", "pants": "#3a3a48", "hat": "#e8d8a0", "outfit": "coat"}
+const NEIGHBOR_LOOK := {"skin": "#c89070", "hair": "#e8e0d0", "shirt": "#d88648", "pants": "#40586a", "outfit": "apron", "hair_style": 1}
 ## The Dune Ranger, keeping folk off the Dune Road while the sandstorm blows: dusty khaki and a wide hat.
 const RANGER_LOOK := {"skin": "#c89068", "hair": "#3a2a1a", "shirt": "#c8a060", "pants": "#6a5038", "hat": "#8a6a3a", "outfit": "coat"}
 
@@ -187,6 +188,8 @@ func extra_npcs(map: Dictionary) -> Array:
 				out.append({"kind": "story", "id": "ranger", "name": "Dune Ranger", "pos": map["spawns"]["south"] + Vector2i(0, -3),
 					"look": RANGER_LOOK, "facing": Vector2i(0, 1), "spots": true})
 		"tidewater", "shellhaven":
+			if _has_anchor(map, "rafe_neighbor"):
+				out.append({"kind": "story", "id": "rafe_neighbor", "name": "Neighbor Nell", "pos": _at(map, "rafe_neighbor", plaza), "look": NEIGHBOR_LOOK, "facing": Vector2i(-1, 0), "story": true})
 			if _has_anchor(map, "uncle"):
 				out.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", plaza), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
 			if _has_anchor(map, "fisher"):
@@ -256,6 +259,8 @@ func npc_has_news(n: Dictionary) -> bool:
 			return true
 		"uncle":
 			return not _lessons_done()
+		"rafe_neighbor":
+			return not GameState.has_flute() and not GameState.flag("met_rafe_neighbor")
 		"guard":
 			return GameState.flag("has_starter") and not GameState.flag("bram_sendoff")
 		"chief_shell":
@@ -304,11 +309,6 @@ func on_map_enter(world) -> void:
 		await UI.say(["Only this season's new trainers. Gone between one watering stop and the next.",
 			"A witness saw metal footprints by a Gearhart freight wagon. Sheriff Dalton in Sundown is asking questions.",
 			"Travel with your beasts close, all right?"], "Oasis Keeper")
-	elif id == "tidewater" and not GameState.flag("seen_tidewater"):
-		GameState.set_flag("seen_tidewater")
-		await UI.say(["Tidewater! Ferries to the Isle of Tides leave from the long pier.",
-			"Uncle Rafe lives in the little house right by the west gate. He's got your father's flute!",
-			"Sparkwire Electronics is here too. You've heard they can add shield points and beast slots for crystal shards."])
 	elif id == "tidewater" and GameState.flag("got_rod") and not GameState.flag("fish_lesson") and not world.interior:
 		await fish_lesson(world)
 	elif id == "gravenmoor" and not GameState.flag("ghost_merge"):
@@ -933,6 +933,17 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _take_rod(world, n)
 		"logpile":
 			await _logpile(world, n)
+		"rafe_neighbor":
+			var lines := ["Welcome to Tidewater! You must be Rafe's family. I'm Nell, an old friend of your uncle's.",
+				"See the big golden flute sign above that door? That's Rafe's house, on the north side of this road, right by the west entrance."]
+			if not GameState.has_flute():
+				lines.append("He's been keeping your father's flute safe for you. Go on in! He's been looking forward to teaching you.")
+			elif not _lessons_done():
+				lines.append("I heard you trying out that flute! Rafe still has a song or two to teach you. Pop back in when you're ready.")
+			else:
+				lines.append("Lovely to hear a flute in that house again. Rafe's been humming all morning.")
+			await UI.say(lines, n["name"])
+			GameState.set_flag("met_rafe_neighbor")
 		"uncle":
 			if not _lessons_done():
 				await uncle_lessons()
@@ -1199,7 +1210,7 @@ func _ceo(world, n: Dictionary) -> void:
 		return
 	await UI.say(["So. You're the pest who scrapped my sentries.",
 		"Those trainers? Vexmora needs living bonds to command his ghosts. I supply the transport. Very profitable.",
-		"Do you know what's inside Mount Cinder? Fire. Endless, free fire. Bottled and sold, it will make Gearhart Industries a god.",
+		"Do you know what's inside Mount Cinder? Fire. Endless, free fire. Bottled and sold, it will make Gearheart Industries a god.",
 		"The city? Cattle. They'll pay whatever I ask for their steam.",
 		"Enough talk. My finest machines will turn your little pets into scrap!"], "Magnus Gearhart")
 	if GameState.alive_party().is_empty():

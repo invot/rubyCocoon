@@ -192,7 +192,7 @@ const HINTS := {
 		"Once that footbridge on the Coastal Path is mended, Tidewater's just a stroll away."],
 	"builder_egg": ["You mended the footbridge? Go and tell Old Hal! He's been talking about an egg he found after the storm.",
 		"Hal the builder never forgets a favour. Pop into his cabin by the creek before you head on."],
-	"flute": ["Tidewater's at the far end of the Coastal Path. Your uncle Rafe lives right by its west gate.",
+	"flute": ["Tidewater's at the far end of the Coastal Path. Look for the golden flute sign on your uncle Rafe's house by the west entrance.",
 		"I hear Rafe in Tidewater has been polishing a reed flute for years. Waiting for someone, maybe? Someone like you?",
 		"Your uncle in Tidewater is keeping your father's flute. Go and get it!"],
 	"rafe": ["Rafe's lessons are worth finishing. Weaken AND Capture! A trainer without songs is just a person with a pet.",
