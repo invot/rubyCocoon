@@ -11,7 +11,7 @@ extends "res://scripts/ui/modal.gd"
 ##           ring anticlockwise, ▼ on the bottom one clockwise (to the next side with a beast standing on it; the
 ##           beasts' choices are then made afresh)
 ## You choose your own action first, then each beast's move and target, from the top. When every standing beast has
-## its move, the round begins. The bars, the grids' tiles and the target cards can be tapped too. In a lesson
+## its move, the round begins. The bars and the grids' tiles can be tapped too. In a lesson
 ## (info.lesson) each bar has one thing to pick: ◄ ► stay on it, and the hint says why.
 ##
 ## rows (built by battle.gd) keep their state, so the panel can close for a sub-menu (items, the flute) or a turn of
@@ -22,7 +22,7 @@ extends "res://scripts/ui/modal.gd"
 ##         status: "" | "down" | "empty", locked}]
 ## info: {up, down, prompt, lesson}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
 ##        option: Callable(row, option) (the action or move now highlighted, for battle.gd's window that explains it),
-##        bars, foe_grid, ally_grid, cards (to listen for taps)}
+##        bars, foe_grid, ally_grid (to listen for taps)}
 
 var rows: Array = []
 var info: Dictionary = {}
@@ -51,9 +51,6 @@ func _ready() -> void:
 		var grid = hooks.get(g, null)
 		if grid != null:
 			grid.tile_tapped.connect(_tile_tapped.bind(g))
-	var cards = hooks.get("cards", null)
-	if cards != null:
-		cards.tapped.connect(_card_tapped)
 	_point_row()
 	_redraw()
 
@@ -65,11 +62,9 @@ func _exit_tree() -> void:
 	for g in ["foe_grid", "ally_grid"]:
 		var grid = hooks.get(g, null)
 		if grid != null:
-			for c in grid.tile_tapped.get_connections():
-				grid.tile_tapped.disconnect(c["callable"])
-	var cards = hooks.get("cards", null)
-	if cards != null and cards.tapped.is_connected(_card_tapped):
-		cards.tapped.disconnect(_card_tapped)
+			var callback := _tile_tapped.bind(g)
+			if grid.tile_tapped.is_connected(callback):
+				grid.tile_tapped.disconnect(callback)
 
 
 func _redraw() -> void:
@@ -78,18 +73,9 @@ func _redraw() -> void:
 	if hooks.has("option"):
 		var row: Dictionary = rows[focus]
 		var opts: Array = row.get("options", [])
-		(hooks["option"] as Callable).call(row, opts[clampi(int(row.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {})
+		(hooks["option"] as Callable).call(row, opts[clampi(int(row.get("sel", 0)), 0, opts.size() - 1)] if not picking and not opts.is_empty() else {})
 	var text := ""
-	if picking:
-		var row: Dictionary = rows[focus]
-		match String(row.get("pick_kind", "")):
-			"slot":
-				text = "Where should %s move to? ▲ ▼ to choose, A to confirm." % String(row.get("beast").nickname if row.get("beast") != null else "it")
-			"enemies", "allies":
-				text = "It hits all of these. A to confirm, B to go back."
-			_:
-				text = "Choose a target: ◄ ► to change it, A to confirm."
-	elif focus == 0 and not rows[0].get("done", false):
+	if not picking and focus == 0 and not rows[0].get("done", false):
 		text = String(info.get("prompt", ""))
 	_hint(text)
 
@@ -160,22 +146,6 @@ func _tile_tapped(tile: int, grid: String) -> void:
 				_point_row()
 				_redraw()
 			return
-
-
-## Tapping a target card aims at it (and confirms when it's already the one aimed at).
-func _card_tapped(j: int) -> void:
-	if closed or not picking:
-		return
-	var row: Dictionary = rows[focus]
-	if j < 0 or j >= (row.get("targets", []) as Array).size():
-		return
-	if j == int(row.get("target_sel", 0)) or row.get("target_all", false):
-		_confirm()
-		return
-	row["target_sel"] = j
-	Sfx.play("select")
-	_point_row()
-	_redraw()
 
 
 func _focus_row(i: int) -> void:
@@ -345,6 +315,9 @@ func _advance() -> void:
 
 
 func _back() -> void:
+	if info.get("target_only", false):
+		close({"kind": "cancel"})
+		return
 	if picking:
 		picking = false
 		Sfx.play("back")

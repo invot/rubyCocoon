@@ -34,7 +34,6 @@ const Ring = preload("res://scripts/core/ring.gd")
 const CommandPanel = preload("res://scripts/battle/command_panel.gd")
 const RingGrid = preload("res://scripts/battle/ring_grid.gd")
 const BattleBars = preload("res://scripts/battle/battle_bars.gd")
-const TargetCards = preload("res://scripts/battle/target_cards.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -105,7 +104,7 @@ const LESSONS := {
 			"The little grids in the corners are the rings seen from above: mine top left, yours bottom right. Each tile is a slot, with a beast's icon and a tiny health bar on it.",
 			"Beside your grid are the move bars, one for each beast: its level, the move it'll use, and underneath, its HP (its health) and MP (the energy elemental moves use).",
 			"Each round you pick your own action first, on the gold-trimmed bar, then a move for each beast. Left and right change the choice, A confirms it, B goes back.",
-			"In a lesson there's just the one thing to pick, so A it is! In a real battle, when a move could hit more than one foe, a card for each of them lines up at the top: left and right (or a tap on a card) choose your target, A confirms."],
+			"In a lesson there's just the one thing to pick, so A it is! In a real battle, left and right (or a tap on a foe's grid tile) choose your target. The arrow shows who you're aiming at. A confirms."],
 		"rounds": [
 			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch on your own bar, then the move on {beast}'s bar."],
 				"you": "Watch", "beast": "Fight"},
@@ -155,15 +154,15 @@ const LESSONS := {
 			"The arena's practice beasts will stand in your empty slots today. They're very professional. They've been bonked by the best.",
 			"After your own action, each beast's bar opens in turn. Up and down move between your beasts; left and right pick a move."],
 		"rounds": [
-			{"say": ["Pick a move for every one of your beasts. Today they all go for the same one of mine: in a real battle, the cards at the top let you aim each move."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Pick a move for every one of your beasts. Today they all go for the same one of mine: in a real battle, the arrows show who each move is aimed at."], "you": "Watch", "beast": "Fight"},
 			{"say": ["Teamwork! Two beasts on the same foe knock it out twice as fast. Finish my team!"], "you": "Watch", "beast": "Fight"},
 		]},
 	"elements": {"finish": 2, "practice": true,
 		"intro": ["Every element has a weakness: fire beasts are weak to air, earth to water, water to air, and air to fire.",
 			"Hit a beast with the element it's weak to and it takes double damage! Hit it with its own element, though, and it shrugs some off.",
-			"A ★ beside a move, and ★ WEAK on a target's card, mean it will hit hard. Only the element of the side facing the foe can be used: in a real battle, turn your ring to the side that hits hardest. Today I've turned it for you."],
+			"After a hit, a message tells you when it was extra effective or the target is resistant. Only the element of the side facing the foe can be used: turn your ring to the side that hits hardest. Today I've turned it for you."],
 		"rounds": [
-			{"say": ["My {foe} is weak to the element of your side. Pick the move with the ★ and watch it fly!"], "you": "Watch", "beast": "Fight"},
+			{"say": ["My {foe} is weak to the element of your side. Pick the elemental move and watch it fly!"], "you": "Watch", "beast": "Fight"},
 			{"say": ["Double damage! Finish it the same way. And remember: your beasts have weaknesses too."], "you": "Watch", "beast": "Fight"},
 		]},
 	"flute": {"finish": 6, "coach": "Uncle Rafe",
@@ -184,16 +183,9 @@ const DEFEND_MULT := 0.5
 var cam: Camera3D
 var arrow: Label3D
 var _arrow_target = null
-## while you pick a target: a ring of light in the gem round its feet (round each of them, for a move that hits them
-## all; the arrow over it turns the gem's colour too), the other beasts you could aim at dimmed (see _mark_target), and
-## a glowing arc from the beast choosing (or you) over to it (see _draw_arcs)
-var target_ring: MeshInstance3D
-var target_rings: Array = []
-var _ring_targets: Array = []
-var aim_mesh: MeshInstance3D
-var _aim_from = null
-var _aim_to: Array = []
-var _dimmed: Array = []
+## Target selection uses one arrow per chosen target, including moves that hit everyone.
+var target_arrows: Array = []
+var _target_refs: Array = []
 var _time := 0.0
 var player_rig: Node3D
 var rival_rig: Node3D
@@ -207,7 +199,9 @@ var caption: PanelContainer
 var move_info: PanelContainer
 var _info_hint := ""
 var bars: Control
-var target_cards: Control
+var message_icon: TextureRect
+var _speaker_icons: Dictionary = {}
+var _message_subject = null
 var ally_grid: Control
 var foe_grid: Control
 var cmd_root: Control
@@ -418,33 +412,7 @@ func _build_stage() -> void:
 	arrow.no_depth_test = true
 	arrow.visible = false
 	add_child(arrow)
-	target_ring = MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = 0.62
-	tm.outer_radius = 0.78
-	tm.rings = 24
-	tm.ring_segments = 6
-	target_ring.mesh = tm
-	var rm := StandardMaterial3D.new()
-	rm.albedo_color = Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.75, 1.0)
-	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	rm.no_depth_test = true
-	target_ring.material_override = rm
-	target_ring.visible = false
-	add_child(target_ring)
-	target_rings = [target_ring]
-	aim_mesh = MeshInstance3D.new()
-	aim_mesh.mesh = ImmediateMesh.new()
-	var am := StandardMaterial3D.new()
-	am.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	am.vertex_color_use_as_albedo = true
-	am.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	am.no_depth_test = true
-	am.cull_mode = BaseMaterial3D.CULL_DISABLED
-	am.render_priority = 10
-	aim_mesh.material_override = am
-	aim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(aim_mesh)
+	target_arrows = [arrow]
 	_build_trainers()
 
 
@@ -1229,26 +1197,21 @@ func _process(delta: float) -> void:
 			summon_shake_amt = maxf(0.0, summon_shake_amt - delta * 1.6)
 		cam.position = cp
 		cam.look_at(cl, Vector3.UP)
-	var aiming := not _ring_targets.is_empty()
-	arrow.modulate = Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.7, 1.0) if aiming else Color("#ffd060")
-	arrow.font_size = 96 if aiming else 64
-	var swell := 1.0 + 0.12 * sin(_time * TAU / 0.9)
-	while target_rings.size() < _ring_targets.size():
-		var extra := target_ring.duplicate() as MeshInstance3D
+	var aiming := not _target_refs.is_empty()
+	var refs: Array = _target_refs if aiming else ([] if _arrow_target == null else [_arrow_target])
+	while target_arrows.size() < refs.size():
+		var extra := arrow.duplicate() as Label3D
 		add_child(extra)
-		target_rings.append(extra)
-	for i in target_rings.size():
-		var tr: MeshInstance3D = target_rings[i]
-		var at = _ref_pos(_ring_targets[i]) if i < _ring_targets.size() else null
-		tr.visible = at != null
+		target_arrows.append(extra)
+	for i in target_arrows.size():
+		var marker: Label3D = target_arrows[i]
+		var ref = refs[i] if i < refs.size() else null
+		var at = _ref_pos(ref)
+		marker.visible = at != null
+		marker.modulate = UIKit.ACCENT.lightened(0.4) if aiming else UIKit.GOLD_BRIGHT
+		marker.font_size = 96 if aiming else 64
 		if at != null:
-			tr.position = Vector3(at.x, 0.06, at.z)
-			tr.scale = Vector3(swell, 0.35, swell) * (0.75 if typeof(_ring_targets[i]) == TYPE_INT else 1.0)
-	var ap = _ref_pos(_arrow_target)
-	arrow.visible = ap != null
-	if ap != null:
-		arrow.position = ap + Vector3(0, _ref_height(_arrow_target) + 0.35 + sin(_time * 6.0) * 0.08, 0)
-	_draw_arcs()
+			marker.position = at + Vector3(0, _ref_height(ref) + 0.35 + sin(_time * 6.0) * 0.08, 0)
 
 
 ## Where someone (or somewhere) aimed at stands, on the ground: a beast, a trainer ("foe_trainer"; "trainer" or
@@ -1273,124 +1236,21 @@ func _ref_height(ref) -> float:
 	return float(nodes[ref].get_meta("height")) if nodes.has(ref) else 1.0
 
 
-## Aims the arcs: from `from` (the beast choosing, or "trainer_self") to each of `to` (none: no arcs).
-func _aim(from, to: Array) -> void:
-	_aim_from = from
-	_aim_to = to
-
-
-## The aiming arcs: from the beast (or you) choosing, a glowing arch over to each target ending in an arrowhead, with a
-## white core and pulses running along it towards the target, over a dark edge so it reads against bright ground.
-func _draw_arcs() -> void:
-	var im := aim_mesh.mesh as ImmediateMesh
-	im.clear_surfaces()
-	var a = _ref_pos(_aim_from)
-	if a == null or _aim_to.is_empty() or cam == null:
-		return
-	var view := cam.global_transform.basis.z
-	var glow := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.6, 1.0)
-	var from: Vector3 = a + Vector3.UP * _ref_height(_aim_from) * 0.75
-	var began := false
-	for t in _aim_to:
-		var b = _ref_pos(t)
-		if b == null:
-			continue
-		var to: Vector3 = b + Vector3.UP * _ref_height(t) * 0.6
-		var top := (from + to) / 2.0 + Vector3.UP * (1.2 + from.distance_to(to) * 0.22)
-		if not began:
-			im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-			began = true
-		_arc_strip(im, from, top, to, 0.52, Color(0, 0, 0, 0.55), false, view)
-		_arc_strip(im, from, top, to, 0.34, glow, true, view)
-		_arc_strip(im, from, top, to, 0.1, Color(1, 1, 1, 0.9), true, view)
-	if began:
-		im.surface_end()
-
-
-## One arc as a ribbon facing the camera along the curve from p0 over c to p2 (stopping short for its arrowhead).
-func _arc_strip(im: ImmediateMesh, p0: Vector3, c: Vector3, p2: Vector3, w: float, col: Color, pulse: bool, view: Vector3) -> void:
-	const N := 32
-	const HEAD := 0.86
-	var pts := []
-	for i in N + 1:
-		var u := HEAD * float(i) / N
-		pts.append(p0 * (1.0 - u) * (1.0 - u) + c * 2.0 * (1.0 - u) * u + p2 * u * u)
-	for i in N:
-		var d: Vector3 = pts[i + 1] - pts[i]
-		var side := d.cross(view).normalized() * w * 0.5
-		var cc := col
-		if pulse:
-			# brighter pulses running from the beast to its target
-			var wave := fposmod(float(i) / N * 2.5 - _time * 1.6, 1.0)
-			cc.a = col.a * (0.82 + 0.18 * pow(wave, 3.0))
-			cc = cc.lerp(Color(1, 1, 1, cc.a), 0.55 * pow(wave, 6.0))
-		var q := [pts[i] - side, pts[i] + side, pts[i + 1] + side, pts[i + 1] - side]
-		for v in [q[0], q[1], q[2], q[0], q[2], q[3]]:
-			im.surface_set_color(cc)
-			im.surface_add_vertex(v)
-	var base: Vector3 = pts[N]
-	var side2 := (p2 - base).cross(view).normalized() * w * 2.0
-	for v in [base - side2, base + side2, p2]:
-		im.surface_set_color(Color(col, 1.0) if pulse else col)
-		im.surface_add_vertex(v)
-
-
 func _point_at(b) -> void:
 	_arrow_target = b
 
 
-## Picking a target: `ref` gets the ring of light and the cards' frame; the rest of `all` (the beasts you could aim at
-## instead) are dimmed. An Array: every one of them is aimed at (a move that hits them all). null: none.
-func _mark_target(ref, all: Array) -> void:
-	_ring_targets = ref if typeof(ref) == TYPE_ARRAY else ([] if ref == null else [ref])
-	for b in _dimmed:
-		if nodes.has(b) and is_instance_valid(nodes[b]):
-			(nodes[b].get_meta("flash") as StandardMaterial3D).albedo_color = Color(1, 1, 1, 0)
-	_dimmed = []
-	if ref == null or typeof(ref) == TYPE_ARRAY:
-		return
-	for b in all:
-		if typeof(b) != TYPE_STRING and b != ref and nodes.has(b):
-			(nodes[b].get_meta("flash") as StandardMaterial3D).albedo_color = Color(0.05, 0.03, 0.08, 0.55)
-			_dimmed.append(b)
+## Keep targeting clear of the field: just an arrow over each chosen target.
+func _show_targets(list: Array, sel: int) -> void:
+	_target_refs = []
+	for i in list.size():
+		if sel < 0 or i == sel:
+			var t = list[i]
+			_target_refs.append(t["ref"] if typeof(t) == TYPE_DICTIONARY else t)
 
 
-## The target cards for a list of targets ({ref, label} or beasts), the aimed-at one framed (see target_cards.gd).
-## `mv`: the move being aimed, so a foe weak to it is marked.
-func _show_cards(list: Array, sel: int, mv := "") -> void:
-	var cards := []
-	var refs := []
-	for t in list:
-		var ref = t["ref"] if typeof(t) == TYPE_DICTIONARY else t
-		refs.append(ref)
-		if typeof(ref) == TYPE_INT:
-			# a slot to Move to: its name, and who's there
-			var occ = ally_ring.get(ref, null)
-			cards.append({"name": Ring.slot_name(ref), "slot": true, "note": String(t.get("note", "")) if typeof(t) == TYPE_DICTIONARY else "",
-				"icon": PixelArt.beast_texture(occ.genes) if occ != null else null})
-			continue
-		if typeof(ref) == TYPE_STRING:
-			cards.append({"name": String(trainer.get("name", "Trainer")), "trainer": true, "shield": foe_shield, "max_shield": foe_max_shield,
-				"icon": UIKit.tex("tab_trainer")})
-			continue
-		var weak := false
-		if mv != "" and MoveDB.get_move(mv).get("kind", "") == "attack" and nodes.has(ref):
-			weak = Elements.multiplier(String(MoveDB.get_move(mv)["el"]), _guard_el(ref)) >= 2.0
-		cards.append({"name": ref.nickname, "lv": ref.level, "element": _guard_el(ref) if nodes.has(ref) else String(ref.element),
-			"hp": maxi(0, ref.hp), "max_hp": ref.max_hp(), "icon": PixelArt.beast_texture(ref.genes), "weak": weak})
-	target_cards.show_cards(cards, sel)
-	_place_caption()
-	if sel < 0:
-		_mark_target(refs, refs)
-	else:
-		_mark_target(refs[clampi(sel, 0, refs.size() - 1)] if not refs.is_empty() else null, refs)
-
-
-func _hide_cards() -> void:
-	if target_cards != null:
-		target_cards.hide_cards()
-	_mark_target(null, [])
-	_aim(null, [])
+func _hide_targets() -> void:
+	_target_refs = []
 
 
 ## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
@@ -1561,11 +1421,14 @@ func _build_hud() -> void:
 	# (your shield points show under your own bar instead: battle_bars.gd)
 	ally_grid.show_shield = false
 	cmd_root.add_child(ally_grid)
+	cmd_root.move_child(bars, -1) # bars draw and receive taps above the faded front column
 	# the trainers in the middle of their grids, locking eyes across the screen: you from behind, looking up and left
 	# to the foe's grid; the rival from the front, looking down and right to yours
 	ally_grid.trainer_icon = _person_icon(GameState.hero_look(), PI + 0.5)
 	if not wild and not (trainer.get("look", {}) as Dictionary).is_empty():
 		foe_grid.trainer_icon = _person_icon(trainer["look"], 0.5)
+	_speaker_icons["trainer_self"] = _person_icon(GameState.hero_look(), 0.5)
+	_speaker_icons["foe_trainer"] = foe_grid.trainer_icon if foe_grid.trainer_icon != null else _person_icon(trainer.get("look", {}), 0.5)
 	var gap := 8.0 * k
 	bars.position = Vector2.ZERO
 	bars.size = bars.custom_minimum_size
@@ -1586,73 +1449,101 @@ func _build_hud() -> void:
 		cmd_root.offset_right = -16.0
 		cmd_root.offset_top = -10.0 - block.y
 		cmd_root.offset_bottom = -10.0
-	# one line of battle text along the top, clear of the foe's grid
-	var cp := PanelContainer.new()
-	cp.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.9), Color(UIKit.BORDER, 0.7), 14.0, Vector4(18, 4, 18, 6)))
-	cp.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	cp.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	cp.offset_top = 10.0
-	cp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.add_child(cp)
-	caption = cp
+	# Both top windows use the same compact frame and padding.
+	caption = _top_panel()
+	hud.add_child(caption)
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 8)
+	caption.add_child(line)
+	message_icon = TextureRect.new()
+	message_icon.custom_minimum_size = Vector2(40, 48)
+	message_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	message_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	message_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	message_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(message_icon)
 	msg_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.INK)
 	msg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	msg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	msg_label.add_theme_constant_override("line_spacing", 0)
-	cp.add_child(msg_label)
-	cp.visible = false
-	# the target cards, under the battle text while you aim a move
-	target_cards = TargetCards.new()
-	hud.add_child(target_cards)
-	_place_caption()
-	# the move window, in the same place, big enough to read on a phone
-	move_info = PanelContainer.new()
-	move_info.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.94), UIKit.BORDER, 16.0, Vector4(22, 10, 22, 12), 3.0))
-	move_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	move_info.visible = false
+	line.add_child(msg_label)
+	move_info = _top_panel()
 	hud.add_child(move_info)
+	_place_caption()
 
 
-## The battle text sits at the top, between the foe's grid and the right edge, as wide as its words need.
+func _top_panel() -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.94), UIKit.BORDER, 14.0, Vector4(12, 8, 12, 8), 3.0))
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.visible = false
+	return panel
+
+
+## Centre on the whole screen, leaving equal space for the foe's grid on either side.
+func _top_width() -> float:
+	var edge := foe_grid.position.x + foe_grid.size.x + 12.0
+	return minf(640.0, hud.get_viewport_rect().size.x - 2.0 * edge)
+
+
+func _center_top(panel: Control) -> void:
+	panel.reset_size()
+	panel.position = Vector2(roundf((hud.get_viewport_rect().size.x - panel.size.x) * 0.5), 10.0)
+
+
+## Fit the battle message to its words and avatar, with the same inset as the move window.
 func _place_caption() -> void:
 	if caption == null:
 		return
-	var vw := hud.get_viewport_rect().size.x
-	var left := foe_grid.position.x + foe_grid.size.x + 12.0
-	var room := vw - left - 16.0
+	var icon_w := 48.0 if message_icon.visible else 0.0
 	var font := UIKit.font_body()
 	var fs := UIKit.body_px(UIKit.BODY_HUGE)
-	var w := minf(room, font.get_string_size(msg_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 44.0)
-	w = maxf(w, 160.0)
-	msg_label.custom_minimum_size = Vector2(w - 36.0, 0)
-	caption.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	caption.position = Vector2(left + (room - w) * 0.5, 10.0)
+	var w := minf(_top_width() - 24.0 - icon_w, font.get_string_size(msg_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+	msg_label.custom_minimum_size = Vector2(maxf(1.0, ceilf(w)), 0)
 	caption.visible = msg_label.text != ""
-	caption.reset_size()
-	caption.size = Vector2(w, 0)
-	if target_cards != null and target_cards.visible:
-		# centred under the text (or the move window), between the foe's grid and the right edge
-		var above := 10.0
-		if move_info != null and move_info.visible:
-			above += move_info.size.y + 6.0
-		elif caption.visible:
-			above += caption.get_combined_minimum_size().y + 4.0
-		target_cards.position = Vector2(left + (room - target_cards.size.x) * 0.5, above)
+	_center_top(caption)
+	if move_info != null and move_info.visible:
+		_center_top(move_info)
 
 
-## Shows a line of battle text (empty: hides it). While the move window is up, the line goes along its foot instead.
-func _caption(text: String) -> void:
+## Resolve named subjects first, then the current actor for short messages such as critical hits or misses.
+func _message_ref(text: String):
+	var ref = "trainer_self" if text.begins_with("You ") or text.begins_with("Your ") else _message_subject
+	var first := text.length()
+	var names := {"trainer_self": GameState.player_name}
+	if not wild:
+		names["foe_trainer"] = String(trainer.get("name", "Trainer"))
+	for b in GameState.party + foes + ally_ring.values() + foe_ring.values():
+		if b == null:
+			continue
+		names[b] = b.nickname
+	for who in names:
+		var name := String(names[who])
+		var at := text.findn(name) if name != "" else -1
+		if at >= 0 and at < first:
+			first = at
+			ref = who
+	return ref
+
+
+func _caption(text: String, subject = null) -> void:
 	if msg_label == null:
 		return
+	_info_hint = text
 	if _commanding and move_info != null and move_info.visible:
-		_info_hint = text
 		var foot := move_info.find_child("Foot", true, false) as Label
 		if foot != null:
 			foot.text = text
 			foot.visible = text != ""
 		text = ""
 	msg_label.text = text
+	var ref = subject if subject != null else _message_ref(text)
+	message_icon.texture = _speaker_icons.get(ref, null) if typeof(ref) == TYPE_STRING else (PixelArt.beast_texture(ref.genes) if ref != null else null)
+	message_icon.visible = text != "" and message_icon.texture != null
 	_place_caption()
+	# Wrapped labels update their minimum height after layout; shrink again once that has settled.
+	if not get_tree().process_frame.is_connected(_settle_top):
+		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
 
 
 ## What each kind of move is called in the move window.
@@ -1680,10 +1571,14 @@ func _show_option(row: Dictionary, o: Dictionary) -> void:
 	vb.add_theme_constant_override("separation", 4)
 	move_info.add_child(vb)
 	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 12)
+	top.add_theme_constant_override("separation", 8)
 	vb.add_child(top)
+	var content_w := _top_width() - 24.0
+	var facts_row := HBoxContainer.new()
+	facts_row.add_theme_constant_override("separation", 8)
+	vb.add_child(facts_row)
 	var b = row.get("beast", null)
-	var title := String(o.get("label", "")).replace("  ★", "")
+	var title := String(o.get("label", ""))
 	var desc := String(o.get("desc", ""))
 	var note := String(o.get("note", ""))
 	if status_desc != "":
@@ -1696,16 +1591,16 @@ func _show_option(row: Dictionary, o: Dictionary) -> void:
 		top.add_child(_info_tag(UIKit.element_tag(String(m["el"]), 18)))
 		var kind := String(KIND_NAMES.get(String(m.get("kind", "")), String(m.get("kind", "")).capitalize()))
 		var reach := String(TARGET_NAMES.get(String(m.get("target", "enemy")), ""))
-		top.add_child(_info_tag(UIKit.label(kind + (" · " + reach if reach != "" else ""), UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
+		facts_row.add_child(_info_tag(UIKit.label(kind + (" · " + reach if reach != "" else ""), UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
 		var gap := Control.new()
 		gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		top.add_child(gap)
+		facts_row.add_child(gap)
 		var cost := MoveDB.mp_cost(mv)
 		var mp_text := "No MP"
 		if cost > 0:
 			mp_text = "MP %d" % cost + (" (has %d)" % b.mp if b != null else "")
 		var short: bool = b != null and b.mp < cost
-		top.add_child(_info_tag(UIKit.label(mp_text, UIKit.BODY_BIG, UIKit.ACCENT.lightened(0.35) if short else UIKit.INK)))
+		facts_row.add_child(_info_tag(UIKit.label(mp_text, UIKit.BODY_BIG, UIKit.ACCENT.lightened(0.35) if short else UIKit.INK)))
 		var facts := []
 		if m.has("power"):
 			facts.append("Power %d" % m["power"])
@@ -1725,25 +1620,21 @@ func _show_option(row: Dictionary, o: Dictionary) -> void:
 	var d := UIKit.label(desc, UIKit.BODY_HUGE, UIKit.INK)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	d.add_theme_constant_override("line_spacing", -10)
-	d.custom_minimum_size.x = 620.0
+	d.custom_minimum_size.x = content_w
 	vb.add_child(d)
 	if note != "":
 		var nl := UIKit.label(note, UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)
 		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		nl.custom_minimum_size.x = 620.0
+		nl.custom_minimum_size.x = content_w
 		vb.add_child(nl)
 	var foot := UIKit.label(_info_hint, UIKit.BODY_BIG, UIKit.DIM)
+	foot.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	foot.custom_minimum_size.x = content_w
 	foot.name = "Foot"
 	foot.visible = _info_hint != ""
 	vb.add_child(foot)
 	move_info.visible = true
-	# along the top, clear of the foe's grid, like the battle text
-	var vw := hud.get_viewport_rect().size.x
-	var left := foe_grid.position.x + foe_grid.size.x + 12.0
-	move_info.reset_size()
-	var w := move_info.get_combined_minimum_size().x
-	move_info.position = Vector2(left + maxf(0.0, (vw - left - 16.0 - w) * 0.5), 10.0)
-	# (and once the wrapped lines know their width, no taller than they need, the target cards under it)
+	_center_top(move_info)
 	if not get_tree().process_frame.is_connected(_settle_top):
 		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
 	msg_label.text = ""
@@ -1888,27 +1779,15 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 		if not ts.is_empty():
 			var all: bool = fr.get("target_all", false)
 			var sel := -1 if all else clampi(int(fr.get("target_sel", 0)), 0, ts.size() - 1)
-			for j in ts.size():
-				if all or j == sel:
-					var g: Control = foe_grid if String(ts[j].get("grid", "")) == "foe_grid" else ally_grid
-					g.targets.append(int(ts[j].get("tile", -1)))
-			var opts: Array = fr.get("options", [])
-			var o2: Dictionary = opts[clampi(int(fr.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {}
-			_show_cards(ts, sel, String(o2.get("move", "")))
-			# the arc from the beast choosing (or you) to its target, or to each of them
-			var to := []
-			for j in ts.size():
-				if all or j == sel:
-					to.append(ts[j]["ref"])
-			_aim(fr.get("beast", null) if fr["kind"] == "beast" else "trainer_self", to)
+			_show_targets(ts, sel)
 	else:
-		_hide_cards()
+		_hide_targets()
 	ally_grid.queue_redraw()
 	foe_grid.queue_redraw()
 
 
-func msg(text: String, wait := 0.95) -> void:
-	_caption(text)
+func msg(text: String, wait := 0.95, subject = null) -> void:
+	_caption(text, subject)
 	if OS.has_feature("editor") and GameState.main != null and "--battle-log" in OS.get_cmdline_user_args():
 		print("  | ", text)
 	var t := 0.0
@@ -2269,19 +2148,21 @@ func _command_phase() -> Array:
 			break
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "point": _point_at,
-			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid, "cards": target_cards})
+			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
 		_commanding = false
 		_show_option({}, {})
 		_point_at(null)
-		_hide_cards()
+		_hide_targets()
 		ally_grid.focus = -1
 		ally_grid.target = -1
 		foe_grid.target = -1
 		ally_grid.targets = []
 		foe_grid.targets = []
+		ally_grid.queue_redraw()
+		foe_grid.queue_redraw()
 		focus = int(r.get("focus", focus))
 		match String(r.get("kind", "")):
 			"go":
@@ -2367,7 +2248,7 @@ func _panel_rows() -> Array:
 	if GameState.max_shield > 0:
 		shield = "Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield) + "   "
 	var t_opts := [
-		{"id": "slingshot", "label": "Slingshot", "target": "enemy", "desc": "Fire a stone at a foe (or at an open trainer). Small, but it never hurts to help!"},
+		{"id": "slingshot", "label": "Slingshot", "target": "enemy", "desc": "Fire a stone at a foe or an exposed trainer."},
 		{"id": "items", "label": "Items", "sub": true, "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
 		{"id": "flute", "label": "Flute", "sub": true, "disabled": not GameState.has_flute(),
 			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Tidewater is keeping your father's."},
@@ -2440,14 +2321,9 @@ func _move_options(b) -> Array:
 		if cost > 0:
 			right += "   MP %d" % cost
 		var desc := MoveDB.summary(mv)
-		var star := ""
-		if m["kind"] == "attack" and m["target"] in ["enemy", "enemies"]:
-			for f in _alive(foe_slots):
-				if Elements.multiplier(m["el"], _guard_el(f)) >= 2.0:
-					star = "  ★"
 		var off: bool = cd > 0 or b.mp < cost
 		# (note: the move window's warning line)
-		var note := "Strong against a foe on the field!" if star != "" else ""
+		var note := ""
 		if cd > 0:
 			desc = "Recharging for %d more turn(s).\n" % cd + desc
 			note = "Recharging: ready again in %d turn%s." % [cd, "" if cd == 1 else "s"]
@@ -2463,7 +2339,7 @@ func _move_options(b) -> Array:
 				off = true
 				desc = "%s: \"%s\"" % [_tut_who(), "Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"]]
 				note = desc
-		out.append({"id": "move", "move": mv, "label": String(m["name"]) + star, "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
+		out.append({"id": "move", "move": mv, "label": String(m["name"]), "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
 	if el == "neutral" and not b.ghost:
 		var plain := "%s can't use %s moves from the %s side: plain moves only." % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()]
 		out[0]["desc"] = plain + "\n" + String(out[0]["desc"])
@@ -2796,15 +2672,25 @@ func _choose_target(list: Array, title: String):
 		return null
 	if list.size() == 1 and (title == "Target" or tutorial):
 		return list[0]
-	var items := []
+	var targets := []
 	for t in list:
-		items.append({"text": t.nickname, "right": "%d%%" % int(t.hp_ratio() * 100) if t.hp > 0 else "fainted"})
-	var c: int = await UI.choose(title, items, {"anchor": "bottom_right", "width": 360, "margin": Vector2(20, 20), "font_size": 28,
-		"on_focus": func(k): _point_at(list[k]); _show_cards(list, k); _aim("trainer_self", [list[k]])})
-	_hide_cards()
-	if c < 0:
+		var ally: bool = ally_ring.values().has(t)
+		targets.append({"label": t.nickname, "ref": t, "grid": "ally_grid" if ally else "foe_grid",
+			"tile": _slot_of(ally_ring, t) if ally else (foe_slots.find(t) if wild else _slot_of(foe_ring, t))})
+	var row := {"kind": "trainer", "options": [{"label": title}], "targets": targets, "target_sel": 0}
+	var panel := CommandPanel.new()
+	panel.setup([row], {"target_only": true}, 0, Callable(), {
+		"render": func(_rows, _focus, _picking): _show_targets(targets, int(row.get("target_sel", 0))),
+		"hint": _caption, "point": _point_at, "foe_grid": foe_grid, "ally_grid": ally_grid})
+	panel.picking = true
+	UI.push(panel)
+	var choice: Dictionary = await panel.done
+	_hide_targets()
+	_point_at(null)
+	_caption("")
+	if choice.get("kind", "") != "go":
 		return null
-	return list[c]
+	return list[int(row.get("target_sel", 0))]
 
 
 func _flute_flow() -> bool:
@@ -3445,6 +3331,7 @@ func _resolve(acts: Array) -> void:
 	for a in acts:
 		if result != "":
 			return
+		_message_subject = a.get("actor", "foe_trainer" if a.get("type", "") == "rival_song" else "trainer_self")
 		match a.get("type", "none"):
 			"item":
 				await _do_item(a)
@@ -3479,12 +3366,14 @@ func _resolve(acts: Array) -> void:
 				await _do_move(b, a["move"], a["target"])
 			_:
 				continue
+		_message_subject = null
 		await _handle_faints()
 		_check_end()
 	if tutorial and _tut_finish() and result == "":
 		for f in _alive(foe_slots):
 			f.hp = 0
 			_refresh()
+		_message_subject = null
 		await _handle_faints()
 		_check_end()
 
@@ -3759,7 +3648,7 @@ func _do_move(b, mv: String, target) -> void:
 	if int(m.get("cd", 0)) > 0:
 		s["cd"][mv] = int(m["cd"]) + 1
 	_point_at(null)
-	await msg("%s used %s!" % [b.nickname, m["name"]], 0.55)
+	await msg("%s used %s!" % [b.nickname, m["name"]], 0.55, b)
 	# straight at an open trainer
 	if typeof(target) == TYPE_STRING and target == "trainer":
 		var other := "foe" if _team(b) == "ally" else "ally"
@@ -3995,13 +3884,13 @@ func _deal(a, t, r: Dictionary) -> int:
 	_float_text(t, "-%d" % dmg if dmg > 0 else "0", Color("#ffe060") if r["eff"] > 1.0 else Color("#ffffff"))
 	_refresh()
 	if r["crit"]:
-		await msg("A critical hit!", 0.55)
+		await msg("A critical hit!", 0.55, a)
 	if r["eff"] > 1.0:
-		await msg("It's super effective!", 0.6)
+		await msg("Extra effective!", 0.6, t)
 	elif r["eff"] < 1.0:
-		await msg("It's not very effective...", 0.6)
+		await msg("%s is resistant." % t.nickname, 0.6, t)
 	if absorbed > 0:
-		await msg("The shield absorbed %d damage." % absorbed, 0.55)
+		await msg("The shield absorbed %d damage." % absorbed, 0.55, t)
 	if sturdy:
 		await msg("%s endured the hit thanks to Sturdy!" % t.nickname, 0.8)
 	if t.hp > 0 and t.status == "sleep" and randf() < 0.3:

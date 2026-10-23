@@ -446,10 +446,10 @@ func merge_altar(temple: bool, keeper := "Nurse Clover") -> void:
 ## Kennel Keeper Pip: adopt a beast another trainer left behind, or leave one of yours for someone else to adopt.
 func kennel(world, town: String) -> void:
 	await UI.say(["Welcome to the kennel! Trainers leave beasts here when they can't keep them, and every one deserves a good home.",
-		"Adopt one if you like, or leave one of yours and I'll find it a kind new trainer."], "Kennel Keeper Pip")
+		"There's a small adoption fee based on level. Or leave one of yours and I'll find it a kind new trainer."], "Kennel Keeper Pip")
 	while true:
 		var c: int = await UI.choose("Kennel", [
-			{"text": "Adopt a beast", "desc": "Give one of the beasts in the pens a new home."},
+			{"text": "Adopt a beast", "desc": "Give a beast a new home. Fees start at 40 gold, plus 2 per level after Lv 1."},
 			{"text": "Drop off a beast", "desc": "Leave one of yours here for another trainer to adopt."},
 			{"text": "Leave"}], {"anchor": "right", "width": 320})
 		if c == 0:
@@ -460,13 +460,17 @@ func kennel(world, town: String) -> void:
 				var b = pens[i]["beast"]
 				if b == null:
 					continue
-				items.append({"text": b.nickname, "right": "Lv%d %s" % [b.level, b.rank_stars()], "icon": PixelArt.beast_texture(b.genes),
-					"desc": ("Yours: waiting for a new trainer." if pens[i]["yours"] else "%s beast, left here by its trainer." % b.element.capitalize())})
+				var fee: int = 0 if pens[i]["yours"] else GameState.kennel_adoption_fee(b)
+				var detail := "Yours: take it back for free." if pens[i]["yours"] else "Adoption fee: %d gold.%s" % [fee, " Not enough gold." if GameState.gold < fee else ""]
+				items.append({"text": b.nickname, "right": "Free" if fee == 0 else "%d gold" % fee, "icon": PixelArt.beast_texture(b.genes),
+					"desc": "%s: Lv %d %s, %s.\n%s" % [b.nickname, b.level, b.rank_stars(), b.element.capitalize(), detail]})
 				idx.append(i)
 			if items.is_empty():
 				await UI.say(["The pens are empty right now. New arrivals turn up all the time, so check back later!"], "Kennel Keeper Pip")
 				continue
-			var k: int = await UI.choose("Adopt which beast?", items, {"width": 460})
+			# Fit between the side controls even at the 1280x720 reference size, keeping full-sized rows and text.
+			var width := 380 if UIKit.touch_ui() else 460
+			var k: int = await UI.choose("Adopt which beast?\nYou have %d gold" % GameState.gold, items, {"width": width})
 			if k >= 0:
 				await kennel_pen(world, town, int(idx[k]))
 		elif c == 1:
@@ -482,12 +486,22 @@ func kennel_pen(world, town: String, i: int) -> void:
 		await UI.say(["An empty pen with fresh straw. A new arrival should turn up soon."])
 		return
 	var b = pens[i]["beast"]
+	var fee: int = 0 if pens[i]["yours"] else GameState.kennel_adoption_fee(b)
 	await UI.show_beast(b, b.nickname)
 	if pens[i]["yours"]:
 		if not await UI.ask("%s is waiting here for a new trainer. Take it back?" % b.nickname, "Kennel Keeper Pip"):
 			return
-	elif not await UI.ask("%s, Lv %d. Its trainer couldn't keep it. Give it a new home?" % [b.nickname, b.level], "Kennel Keeper Pip"):
-		return
+	else:
+		if GameState.gold < fee:
+			await UI.say(["The adoption fee for %s is %d gold. You have %d gold. Come back when you have enough!" % [b.nickname, fee, GameState.gold]], "Kennel Keeper Pip")
+			return
+		if not await UI.ask("Give %s, Lv %d, a new home for %d gold? You have %d gold." % [b.nickname, b.level, fee, GameState.gold], "Kennel Keeper Pip"):
+			return
+		# Check again after the confirmation before charging or changing the pen.
+		if GameState.gold < fee:
+			await UI.say(["You need %d gold to adopt %s." % [fee, b.nickname]], "Kennel Keeper Pip")
+			return
+	GameState.gold -= fee
 	pens[i]["beast"] = null
 	pens[i]["yours"] = false
 	pens[i]["since"] = GameState.play_time
@@ -750,7 +764,7 @@ func ladder() -> bool:
 					"desc": "%s.  %d beasts, %d shield point%s; favours the %s side of the ring.  Prize: %d gold%s." % [LadderDB.rank_name(r), o["team"].size(),
 						o["shield"], "" if int(o["shield"]) == 1 else "s", String(o["theme"]).capitalize(), int(o["reward"]) / (2 if beaten else 1), " (rematch)" if beaten else ""]})
 				refs.append([r, i])
-		var c: int = await UI.choose("Arena ladder  ·  %s  ·  Trainer Lv %d" % [LadderDB.rank_name(top), GameState.trainer_level], items, {"anchor": "right", "width": 480, "rows": 7})
+		var c: int = await UI.choose("Arena ladder\n%s  ·  Trainer Lv %d" % [LadderDB.rank_name(top), GameState.trainer_level], items, {"anchor": "right", "width": 480, "rows": 7})
 		if c < 0:
 			return true
 		if GameState.alive_party().is_empty():

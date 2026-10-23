@@ -162,12 +162,26 @@ func _fit_rows() -> void:
 	if _scroll == null:
 		return
 	var margin: Vector2 = opts.get("margin", Vector2(24, 24))
-	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0
+	var anchor: String = opts.get("anchor", "center")
+	UIKit.place(_outer, anchor, margin)
+	var rect := _outer.get_global_rect()
+	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x)
+	if anchor in ["bottom", "bottom_right"]:
+		reserve = maxf(reserve, UI.bottom_reserve())
+	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0 - reserve
 	var chrome := _outer.get_combined_minimum_size().y - _scroll.custom_minimum_size.y
 	if not _pager.visible:
 		chrome += _pager.get_combined_minimum_size().y + 4.0
 	var rows := clampi(floori((available - chrome - 2.0) / _row_h), 1, _max_rows)
 	_scroll.custom_minimum_size.y = rows * _row_h + 2.0
+	_outer.reset_size()
+	# Centre inside the usable height, rather than leaving the last rows/description under the touch pad.
+	if anchor in ["center", "left", "right"]:
+		_outer.offset_top = -_outer.size.y / 2.0 - reserve / 2.0
+		_outer.offset_bottom = _outer.size.y / 2.0 - reserve / 2.0
+	elif anchor in ["bottom", "bottom_right"]:
+		_outer.offset_top = -margin.y - reserve - _outer.size.y
+		_outer.offset_bottom = -margin.y - reserve
 	var focused := get_viewport().gui_get_focus_owner()
 	if focused != null and _scroll.is_ancestor_of(focused):
 		_scroll.ensure_control_visible.call_deferred(focused)

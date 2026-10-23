@@ -1759,6 +1759,7 @@ func _process(delta: float) -> void:
 	_fade_buildings(delta)
 	if interior and room_walls != null:
 		room_walls.fade(player.position, delta)
+	_update_wild_grace(delta)
 	_update_wilds(delta)
 	_note_keys()
 	if not _climb.is_empty():
@@ -2944,6 +2945,8 @@ const WILD_CHASE_SPEED := 3.6
 const WILD_FLEE_SPEED := 3.9
 ## A lone beast only runs from you when your best beast is at least this many levels above it.
 const WILD_FLEE_GAP := 8
+const WILD_BLINK_INTERVAL := 0.2
+const WILD_AWARE_STATES := ["alert", "chase", "flee", "search"]
 const MARK_SPOTTED := Color("#ffd040")
 const MARK_SCARED := Color("#4aa8ff")
 const MARK_LOST := Color("#fff4d0")
@@ -2954,6 +2957,16 @@ var _wild_cands: Array = []
 var _wild_target := 0
 var _wild_respawn := 15.0
 var _wild_think := 0.0
+
+
+## Pause the grace period with field interactions and map transitions, so all three seconds are usable.
+## GameState holds only the transient countdown, allowing it to follow the player onto another map.
+func _update_wild_grace(delta: float) -> void:
+	if GameState.wild_grace_left > 0.0 and not busy and not frozen and not UI.busy() \
+			and GameState.main != null and not GameState.main.in_battle and not GameState.main._transitioning:
+		GameState.wild_grace_left = maxf(0.0, GameState.wild_grace_left - delta)
+	var elapsed := GameState.WILD_BATTLE_GRACE - GameState.wild_grace_left
+	player.visible = GameState.wild_grace_left <= 0.0 or int(elapsed / WILD_BLINK_INTERVAL) % 2 == 0
 
 
 func _spawn_wilds() -> void:
@@ -3080,6 +3093,8 @@ func _wild_bold(w: Dictionary) -> bool:
 
 ## True if the beast can see (or hear) the player right now.
 func _wild_sees(w: Dictionary) -> bool:
+	if GameState.wild_grace_left > 0.0:
+		return false
 	if GameState.incense_steps > 0 and GameState.incense_kind < 0:
 		return false
 	var to := Vector2(player_pos - w["pos"])
@@ -3187,6 +3202,14 @@ func _effective_wild_target() -> int:
 func _update_wilds(delta: float) -> void:
 	for w in wilds:
 		_animate_wild(w, delta)
+		# A beast that spotted you before the battle must forget you too, including a pending alert or chase.
+		# Let any started step finish, then resume ordinary roaming without a detection mark.
+		if GameState.wild_grace_left > 0.0 and String(w["state"]) in WILD_AWARE_STATES:
+			w["state"] = "wander"
+			w["home"] = w["pos"]
+			w["lost"] = 0.0
+			w["t"] = randf_range(1.2, 3.4)
+			_set_mark(w, "")
 	if busy or frozen or UI.busy() or GameState.main == null or GameState.main.in_battle:
 		return
 	var target := _effective_wild_target()
@@ -3284,7 +3307,7 @@ func _bump_wild(w: Dictionary) -> void:
 
 
 func _wild_encounter(w: Dictionary, kind: String) -> void:
-	if busy:
+	if busy or GameState.wild_grace_left > 0.0:
 		return
 	busy = true
 	_set_mark(w, "")

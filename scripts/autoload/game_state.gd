@@ -26,6 +26,8 @@ const BEAST_SLOTS_START := 3
 const TRAINER_LEVEL_MAX := 10
 ## shield points every trainer starts with (Volt adds more, up to 4)
 const SHIELD_START := 1
+## Seconds of safe overworld movement after a wild battle (never saved).
+const WILD_BATTLE_GRACE := 3.0
 
 var main: Node = null
 
@@ -60,6 +62,7 @@ var play_time := 0.0
 var steps := 0
 var incense_steps := 0
 var incense_kind := 0
+var wild_grace_left := 0.0
 var lucky_battles := 0
 ## eggs waiting to hatch: [{"race": int, "kind": "fire|water|earth|air|ghost|legendary", "ghost": bool}]
 var eggs: Array = []
@@ -175,6 +178,7 @@ func new_game(pname: String, look := {}) -> void:
 	play_time = 0.0
 	steps = 0
 	incense_steps = 0
+	wild_grace_left = 0.0
 	lucky_battles = 0
 	eggs = []
 	shards = 0
@@ -670,6 +674,11 @@ func visit(map: String) -> void:
 const KENNEL_PENS := 4
 ## Seconds of play before an empty pen gets a new arrival (or a beast you dropped off finds a new trainer).
 const KENNEL_RESTOCK := 240.0
+
+
+## A modest adoption fee, rising by just two gold per level. Reclaiming your own beast is free.
+func kennel_adoption_fee(b: Beast) -> int:
+	return 40 + 2 * (maxi(1, b.level) - 1)
 
 
 ## The kennel in `town`'s Beast Center. Beasts arrive near your party's level, so adopting one is a new friend, not

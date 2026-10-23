@@ -146,7 +146,8 @@ func _draw() -> void:
 		var letter := ""
 		if not Ring.is_corner(k):
 			letter = String(Ring.slot_elements(k)[0]).substr(0, 1).to_upper()
-		_draw_tile(p, ring.get(k, null), k in fighting, k == focus, k == target or k in targets, letter)
+		var faded: bool = team == "ally" and focus == -2 and k in fighting
+		_draw_tile(p, ring.get(k, null), k in fighting and not faded, k == focus, k == target or k in targets, letter, faded)
 	if not drew_trainer:
 		_draw_trainer(centre)
 	if show_shield and max_shield > 0:
@@ -156,7 +157,8 @@ func _draw() -> void:
 
 
 ## One tile: a flattened hexagon, brighter for the side facing the foe, faded out when nobody stands on it.
-func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, letter: String) -> void:
+func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, letter: String, faded := false) -> void:
+	var opacity := 0.25 if faded else 1.0
 	var w := tile.x * 0.5
 	var h := tile.y * 0.5
 	var hex := PackedVector2Array([p + Vector2(-w, 0), p + Vector2(-w * 0.62, -h), p + Vector2(w * 0.62, -h), p + Vector2(w, 0),
@@ -164,14 +166,16 @@ func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, le
 	var used: bool = b != null
 	var fill := UIKit.ACCENT.darkened(0.25) if fighting else UIKit.WINDOW_TOP
 	fill.a = 0.95 if used else 0.35
+	fill.a *= opacity
 	var edge := UIKit.GOLD_BRIGHT if fighting else UIKit.BORDER
 	edge.a = 0.9 if used else 0.3
 	if fighting and not used:
 		edge.a = 0.55
+	edge.a *= opacity
 	draw_colored_polygon(hex, fill)
 	# a lighter top half, for a bevel
 	var top := PackedVector2Array([hex[0], hex[1], hex[2], hex[3]])
-	draw_colored_polygon(top, Color(1, 1, 1, 0.08 if used else 0.03))
+	draw_colored_polygon(top, Color(1, 1, 1, (0.08 if used else 0.03) * opacity))
 	var loop := hex.duplicate()
 	loop.append(hex[0])
 	draw_polyline(loop, edge, 2.0, true)
@@ -187,21 +191,23 @@ func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, le
 		var font := UIKit.font_body()
 		var fs := UIKit.body_px(16)
 		var ts := font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-		draw_string(font, p + Vector2(-ts.x / 2.0, ts.y * 0.3), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UIKit.DIM, 0.6))
+		draw_string(font, p + Vector2(-ts.x / 2.0, ts.y * 0.3), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(UIKit.DIM, 0.6 * opacity))
 	if b == null:
 		return
 	# the beast's icon stands on its tile, with a small HP bar along the tile's foot
 	var isz := tile.x * 0.74
 	var ir := Rect2(p - Vector2(isz * 0.5, isz * 0.86), Vector2(isz, isz))
 	var down: bool = b.hp <= 0
-	draw_texture_rect(PixelArt.beast_texture(b.genes), ir, false, Color(0.4, 0.38, 0.42, 0.75) if down else Color.WHITE)
+	var icon_color := Color(0.4, 0.38, 0.42, 0.75) if down else Color.WHITE
+	icon_color.a *= opacity
+	draw_texture_rect(PixelArt.beast_texture(b.genes), ir, false, icon_color)
 	var bw := tile.x * 0.62
 	var br := Rect2(p + Vector2(-bw * 0.5, h * 0.35), Vector2(bw, maxf(3.0, tile.y * 0.16)))
-	draw_rect(br.grow(1.0), Color(0, 0, 0, 0.6))
+	draw_rect(br.grow(1.0), Color(0, 0, 0, 0.6 * opacity))
 	if not down:
 		var ratio: float = clampf(float(b.hp) / maxf(1.0, float(b.max_hp())), 0.0, 1.0)
-		draw_rect(Rect2(br.position, Vector2(br.size.x * ratio, br.size.y)), UIKit.hp_color(ratio))
-	else:
+		draw_rect(Rect2(br.position, Vector2(br.size.x * ratio, br.size.y)), Color(UIKit.hp_color(ratio), opacity))
+	elif not faded:
 		# fallen: a bold cross over the icon
 		UIKit.draw_cross(self, ir.get_center(), isz * 0.42)
 

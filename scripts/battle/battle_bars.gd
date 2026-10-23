@@ -2,7 +2,7 @@ extends Control
 ## The move bars beside your grid in battle (as in Jade Cocoon 2): one bar for each slot of the side of your ring facing
 ## the foe, each level with its row of the grid (ring_grid.gd) and leaning with it, and your own bar.
 ##   - Your bar comes first, on its own: while you choose your action it stands level with the grid's middle row (you
-##     stand in its centre cell), trimmed in gold; your trainer level, then your action. Once you move on to your
+##     stand in its centre cell), over the faded front column, trimmed in gold; your trainer level, then your action. Once you move on to your
 ##     beasts it gives way to their bars. (Your shield points are orbs under the grid.)
 ##   - A beast's bar: its level on the left, then the move it will use (◄ ► change it while the bar is chosen). Under
 ##     it, its HP and MP. If the move costs MP, the part of the MP bar it would spend slowly flashes.
@@ -21,6 +21,8 @@ var focus := -1
 var pitch_y := 50.0
 var slant := 22.0
 var bar_w := 300.0
+## Your bar overlays the faded front column, one grid column closer to your centre tile.
+var trainer_offset := 72.0
 var pill_h := 30.0
 ## how much larger than the base sizes everything is drawn (the text too)
 var k := 1.0
@@ -32,6 +34,7 @@ func _init(_k := 1.0) -> void:
 	pitch_y *= k
 	slant *= k
 	bar_w *= k
+	trainer_offset *= k
 	pill_h *= k
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	custom_minimum_size = Vector2(bar_w + 2.0 * slant, 3.0 * pitch_y + pill_h + 16.0 * k)
@@ -52,7 +55,7 @@ func _process(delta: float) -> void:
 ## row, level with the grid's centre cell).
 func pill_rect(i: int) -> Rect2:
 	var row := 2 if i == 0 else i
-	var right := size.x - float(row - 1) * slant
+	var right := size.x - float(row - 1) * slant + (trainer_offset if i == 0 else 0.0)
 	return Rect2(right - bar_w, float(row) * pitch_y, bar_w, pill_h)
 
 
@@ -211,13 +214,23 @@ static func _fit(font: Font, text: String, fs: int, w: float) -> String:
 	return t.strip_edges() + "…"
 
 
+func _hit_rect(i: int) -> Rect2:
+	var r := pill_rect(i)
+	var pad := maxf(4.0, (UIKit.row_h() - r.size.y) * 0.5)
+	return r.grow_individual(4.0, pad, 4.0, pad)
+
+
+func _has_point(point: Vector2) -> bool:
+	return shown().any(func(i): return _hit_rect(i).has_point(point))
+
+
 func _gui_input(ev: InputEvent) -> void:
 	if not (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var p: Vector2 = (ev as InputEventMouseButton).position
 	for i: int in shown():
 		var r := pill_rect(i)
-		if r.grow(4.0).has_point(p):
+		if _hit_rect(i).has_point(p):
 			var zone := "body"
 			if p.x < r.position.x + pill_h * 2.6:
 				zone = "left"

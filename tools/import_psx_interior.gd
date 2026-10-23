@@ -131,6 +131,8 @@ func _init() -> void:
 			mesh = B.bake(scene, {"scale": float(e[2]) / hgt})
 			scene.free()
 		mesh = B.turned(mesh, float(e[1]))
+		if name == "el_display":
+			mesh = close_display_end(mesh)
 		if B.tris(mesh) > 400:
 			mesh = B.with_lods(mesh)
 		var err := ResourceSaver.save(mesh, OUT + name + ".res", ResourceSaver.FLAG_COMPRESS)
@@ -159,3 +161,39 @@ func _init() -> void:
 		var err := img.save_png(ProjectSettings.globalize_path(OUT + "tex/" + name + ".png"))
 		print("  %-16s %dx%d  %s" % [name, img.get_width(), img.get_height(), "ok" if err == OK else "SAVE FAILED"])
 	quit()
+
+
+## The 6TWELVE display has no left end, exposed towards the camera in the arena lobby.
+## Mirror its right end, including the countertop edge, keeping the wood texture and UVs.
+static func close_display_end(mesh: ArrayMesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	var bb := mesh.get_aabb()
+	for si in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(si)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for i in range(0, indices.size(), 3):
+			if absf(verts[indices[i]].x - bb.end.x) > 0.0001 \
+					or absf(verts[indices[i + 1]].x - bb.end.x) > 0.0001 \
+					or absf(verts[indices[i + 2]].x - bb.end.x) > 0.0001:
+				continue
+			# Reflection reverses winding; reverse it again to keep the new end facing out.
+			for corner in [0, 2, 1]:
+				var j: int = indices[i + corner]
+				var v := verts[j]
+				v.x = bb.position.x + bb.end.x - v.x
+				indices.append(verts.size())
+				verts.append(v)
+				normals.append(Vector3(-normals[j].x, normals[j].y, normals[j].z))
+				uv.append(uv[j])
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		# Regenerate tangents for the reflected vertices, as in B.bake().
+		arrays[Mesh.ARRAY_TANGENT] = null
+		arrays[Mesh.ARRAY_TEX_UV] = uv
+		arrays[Mesh.ARRAY_INDEX] = indices
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(si, mesh.surface_get_material(si))
+	return out

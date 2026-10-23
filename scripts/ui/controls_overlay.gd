@@ -728,6 +728,27 @@ const CLUSTERS := [["up", "down", "left", "right"], ["a", "b"], ["start", "pause
 const NO_TAP_MARGIN := 48.0
 
 
+## Bottom space a menu needs at its horizontal position, including the buttons' enlarged hit areas and a gap.
+## Central menus can use the space between the side controls; right-hand lists must stop above A/B.
+func menu_bottom_reserve(left: float, right: float) -> float:
+	if not _touch_on:
+		return 0.0
+	var reserve := 0.0
+	var height := get_viewport().get_visible_rect().size.y
+	for group in CLUSTERS:
+		if not (_buttons[group[0]] as TouchScreenButton).visible:
+			continue
+		var zone := Rect2()
+		for i in group.size():
+			var b: TouchScreenButton = _buttons[group[i]]
+			var r := Rect2(b.position, b.texture_normal.get_size())
+			zone = r if i == 0 else zone.merge(r)
+		zone = zone.grow(TOUCH_SLOP + 12.0)
+		if left < zone.end.x and right > zone.position.x:
+			reserve = maxf(reserve, height - zone.position.y)
+	return reserve
+
+
 ## True near the touch controls, so a thumb that slips off a button or lands in the middle of the d-pad doesn't
 ## also count as a tap on the world (walk there) or on dialogue.
 func covers(p: Vector2) -> bool:
