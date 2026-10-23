@@ -10,6 +10,7 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const TownMaps = preload("res://scripts/data/maps/town_maps.gd")
 const RouteMaps = preload("res://scripts/data/maps/route_maps.gd")
 const InteriorMaps = preload("res://scripts/data/maps/interior_maps.gd")
+const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 
 const TILE_CHARS := {
 	".": MapGen.GRASS, ",": MapGen.PATH, ":": MapGen.PLAZA, "g": MapGen.TALL, "T": MapGen.TREE,
@@ -796,15 +797,23 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	for t in ups:
 		m["exits"][t] = {"to": floor_id(base, fl + 1), "spawn": "entry", "face": Vector2i(0, 1)}
 	for t in downs:
-		m["exits"][t] = {"to": floor_id(base, fl - 1), "spawn": "from_above", "face": Vector2i(0, 1)}
-	# where you arrive coming back down from the floor above
+		m["exits"][t] = {"to": floor_id(base, fl - 1), "spawn": "from_above"}
+	# where you arrive coming back down from the floor above: in a house, stepping off the foot of the stairs (the only
+	# way onto them, see RoomBuilder.stair_ways_in); elsewhere beside them, facing the room
 	if not ups.is_empty():
 		var u: Vector2i = ups[0]
-		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
-			var q: Vector2i = u + d
-			if MapGen.walkable(MapGen.get_t(m, q.x, q.y)) and not ups.has(q):
-				m["spawns"]["from_above"] = q
-				break
+		var run := RoomBuilder.flight(m, u)
+		var off: Vector2i = run["foot"] - run["up"]
+		if m["stage"] and MapGen.walkable(MapGen.get_t(m, off.x, off.y)):
+			m["spawns"]["from_above"] = off
+			m["spawn_face"]["from_above"] = -run["up"]
+		else:
+			m["spawn_face"]["from_above"] = Vector2i(0, 1)
+			for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				var q: Vector2i = u + d
+				if MapGen.walkable(MapGen.get_t(m, q.x, q.y)) and not ups.has(q):
+					m["spawns"]["from_above"] = q
+					break
 	m["spawns"]["start"] = m["spawns"].get("entry", Vector2i(w / 2, h - 2))
 	# where you wake up on the first morning (your home)
 	if room.has("wake"):
@@ -894,7 +903,8 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			n["building"] = b
 			return n
 		"mom":
-			return {"kind": "story", "id": "mom", "name": "Mom", "pos": p, "look": {"skin": "#f0c8a0", "hair": "#8a3a20", "shirt": "#e07a5a", "pants": "#4a3a6a", "hair_style": 1}, "facing": Vector2i(0, 1)}
+			# the kit's long-haired, smiling woman (no hat or hood); she has your skin, hair and eyes (world.gd _build_npcs)
+			return {"kind": "story", "id": "mom", "name": "Mom", "pos": p, "look": {"model": "tf62", "skin": "#f0c8a0", "hair": "#8a3a20", "shirt": "#e07a5a", "pants": "#4a3a6a"}, "facing": Vector2i(0, 1)}
 		"guardian":
 			var tk: String = WorldDB.temple_for_room(room)
 			if tk == "":

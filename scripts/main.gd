@@ -96,7 +96,7 @@ func _process(_delta: float) -> void:
 		if world == null or (not world.busy and not UI.busy()):
 			var g := _pending_goto
 			_pending_goto = {}
-			_do_goto(g["map"], g["spawn"], g.get("face", Vector2i.ZERO))
+			_do_goto(g["map"], g["spawn"], g.get("face", Vector2i.ZERO), g.get("fade", 0.25))
 
 
 # ================================================================ title
@@ -259,9 +259,10 @@ func ambience_for(id: String) -> String:
 	return String(WorldDB.BIOME_AMBIENCE.get(WorldDB.biome_of(id)["id"], ""))
 
 
-## Queue a transition; it runs as soon as the current interaction finishes.
-func goto_map(id: String, spawn = "start", face := Vector2i.ZERO) -> void:
-	_pending_goto = {"map": id, "spawn": spawn, "face": face}
+## Queue a transition; it runs as soon as the current interaction finishes. fade: how long the screen takes to go dark
+## (and at least that long to come back; longer for the stairs, so you see yourself on them).
+func goto_map(id: String, spawn = "start", face := Vector2i.ZERO, fade := 0.25) -> void:
+	_pending_goto = {"map": id, "spawn": spawn, "face": face, "fade": fade}
 	if world != null:
 		world.frozen = true
 
@@ -273,16 +274,16 @@ func reload_map() -> void:
 	goto_map(world.map_id, world.player_pos)
 
 
-func _do_goto(id: String, spawn, face := Vector2i.ZERO) -> void:
+func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	_transitioning = true
-	await UI.fade_out(0.25)
+	await UI.fade_out(fade)
 	_load_world(id, spawn, false, face)
 	GameState.map_id = id
 	GameState.visit(id)
 	GameState.pos = world.player_pos
 	Sfx.music(music_for(id))
 	Sfx.ambience(ambience_for(id))
-	await UI.fade_in(0.3)
+	await UI.fade_in(maxf(0.3, fade))
 	var sub := ""
 	var title := WorldDB.map_name(id)
 	if MapLoader.is_interior(id):
@@ -806,6 +807,8 @@ func _run_test() -> void:
 		print("log: ", UI.auto_log.slice(maxi(0, UI.auto_log.size() - 6)))
 		print("PHONE TEST DONE: %d problem(s)" % bad)
 		UI.auto = false
+	elif scene == "doorway":
+		await _doorway_test()
 	elif scene == "call":
 		# calling Dad, for a screenshot: from the phone at home, or the town square's payphone (--where=payphone),
 		# standing at --stand=x,y facing --face=dx,dy; A is pressed --presses times (4: past "Call Dad?", Yes and the
@@ -2702,6 +2705,151 @@ func _settle(id: String) -> void:
 				return
 		await _wait(0.1)
 	print("FAIL   never settled on ", id)
+
+
+## --scene=doorway: round the house at home. Mom has your skin, hair and eyes and no hat; nobody gets onto the stairs
+## through the handrail beside them, only at their open end (up from the foot, down from beside the top step); and a
+## door stops you in front of it and swings open as the room fades, and the one you come in by swings shut behind you.
+## --shot=x.png saves x_mom.png, x_open.png (--at seconds into the front door opening) and x_shut.png (coming into your
+## bedroom).
+func _doorway_test() -> void:
+	var Townfolk = load("res://scripts/gfx/townfolk.gd")
+	var bad := 0
+	var shot := String(_test.get("shot", ""))
+	GameState.set_flag("called_dad")
+	GameState.hero = {"skin": "#9a6440", "hair": "#d8b060", "eyes": "#3a7a4a"}
+	var home := MapLoader.interior_of("caccoon", "home")
+	_do_goto(home, "entry")
+	await _settle(home)
+	var mom: Dictionary = {}
+	for p in world.npcs:
+		if world.npcs[p].get("id", "") == "mom":
+			mom = world.npcs[p]
+	var mat: ShaderMaterial = null
+	for mi in (mom["node"] as Node).find_children("*", "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).material_override is ShaderMaterial:
+			mat = (mi as MeshInstance3D).material_override
+	var same := mat != null
+	for k in ["skin", "hair", "eyes"]:
+		var c: Color = mat.get_shader_parameter(k) if mat != null else Color.BLACK
+		same = same and Color(c.r, c.g, c.b).is_equal_approx(Color(GameState.hero[k]))
+	var kinds: Array = Townfolk.data()["parts"]
+	var hatted: bool = (Townfolk.outfit(mom["look"])["parts"] as Array).any(func(id): return kinds[int(id)]["kind"] in ["hat", "hood"])
+	print("%s Mom has your skin, hair and eyes: %s; a hat or hood: %s" % ["ok  " if same and not hatted else "FAIL", same, hatted])
+	bad += int(not same) + int(hatted)
+	if shot != "":
+		_save_shot(shot.replace(".png", "_mom.png"))
+	# up the stairs (and back down them) only at their open end
+	bad += _stairs_test()
+	var up: Vector2i = world.stair_ways.keys().filter(func(t): return not (world.stair_ways[t] as Array).is_empty())[0]
+	bad += await _stair_walk_test(up, shot.replace(".png", "_up.png") if shot != "" else "")
+	bad += _stairs_test()
+	# into your bedroom: the door shuts behind you
+	var bed_door: Vector2i = world.map["exits"].keys().filter(func(t): return world.room_walls.door_leaves.has(t) and "home_bed" in MapLoader.load_map(world.map["exits"][t]["to"], {}).get("room_key", ""))[0]
+	bad += await _door_test(bed_door, shot.replace(".png", "_shut.png") if shot != "" else "", true)
+	# back out, down the stairs, and out of the front door
+	bad += await _door_test(world.map["exits"].keys().filter(func(t): return world.room_walls.door_leaves.has(t))[0])
+	var down: Vector2i = world.stair_ways.keys().filter(func(t): return not (world.stair_ways[t] as Array).is_empty())[0]
+	bad += await _stair_walk_test(down, shot.replace(".png", "_down.png") if shot != "" else "")
+	var foot_ok: bool = world.player_pos == world.map["spawns"]["from_above"] and world.facing == world.map["spawn_face"]["from_above"]
+	print("%s down the stairs: at %s facing %s, off their foot" % ["ok  " if foot_ok else "FAIL", world.player_pos, world.facing])
+	bad += int(not foot_ok)
+	bad += await _door_test(world.map["front_doors"][0], shot.replace(".png", "_open.png") if shot != "" else "")
+	print("DOORWAY TEST DONE: %d problem(s)" % bad)
+
+
+## Puts you on tile p (doorway test).
+func _stand(p: Vector2i) -> void:
+	world.player_pos = p
+	world.player.position = world.tile_pos(p)
+
+
+## Tries every way onto the room's stairs (doorway test): only their open end may be stepped onto from. Prints and
+## returns the problems.
+func _stairs_test() -> int:
+	var bad := 0
+	for t in world.stair_ways:
+		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+			var from: Vector2i = t + d
+			if world.stair_ways.has(from) or not world._walkable(from):
+				continue
+			var ok: bool = world._can_step(from, t) == (from in world.stair_ways[t])
+			if not ok:
+				print("FAIL   %s: onto the stairs at %s from %s %s" % [world.map.get("room_key", ""), t, from, "allowed" if world._can_step(from, t) else "refused"])
+				bad += 1
+	print("%s %s: the stairs only from %s" % ["ok  " if bad == 0 else "FAIL", world.map.get("room_key", ""), world.stair_ways.values().filter(func(a): return not a.is_empty())])
+	return bad
+
+
+## Takes the stairs at tile t from their open end (doorway test): you must walk on up (or down) them, the screen going
+## dark once you're on them, and on the other floor be seen walking the last of the way as it comes back. `snap`:
+## screenshots on the way (x_1.png) and arriving (x_2.png). Prints and returns the problems.
+func _stair_walk_test(t: Vector2i, snap := "") -> int:
+	var w = world
+	var to := String(w.map["exits"][t]["to"])
+	var up: bool = MapGen.get_t(w.map, t.x, t.y) == MapGen.STAIRS_UP
+	_stand(w.stair_ways[t][0])
+	var y0: float = w.player.position.y
+	w._step(t - w.player_pos, false)
+	await _wait(0.4)
+	var dy: float = w.player.position.y - y0
+	var dark: float = UI.fade_rect.color.a
+	var ok: bool = (dy > 0.2 if up else dy < -0.2) and dark > 0.1 and dark < 0.99
+	print("%s %s: %s the stairs, %+.2f after 0.4 s, the screen %d%% dark" % ["ok  " if ok else "FAIL", w.map.get("room_key", ""), "up" if up else "down", dy, roundi(dark * 100.0)])
+	if snap != "":
+		_save_shot(snap.replace(".png", "_1.png"))
+	for i in 80:
+		if world != w and world.map_id == to:
+			break
+		await _wait(0.04)
+	# coming up out of the stairwell (below the floor), or down the flight (above it)
+	var start_y: float = world.player.position.y
+	var walking: bool = not world._climb.is_empty()
+	await _wait(0.35)
+	if snap != "":
+		_save_shot(snap.replace(".png", "_2.png"))
+	await _settle(to)
+	var landed: bool = world.player.position.is_equal_approx(world.tile_pos(world.player_pos)) and world._climb.is_empty()
+	var ok2: bool = walking and (start_y < -0.5 if up else start_y > 0.5) and landed
+	print("%s %s: came %s the last of the stairs from %+.2f, and stepped off at %s" % ["ok  " if ok2 else "FAIL", world.map.get("room_key", ""), "up" if up else "down", start_y, world.player_pos])
+	return int(not ok) + int(not ok2)
+
+
+## Walks at the door at tile t from the floor beside it (doorway test): you must stop in front of it while it swings
+## open, then come out on the far side; `shut`: and the door you came in by there must stand open and swing shut.
+## `snap`: a screenshot as it opens (or, with `shut`, just after you come in). Prints and returns the problems.
+func _door_test(t: Vector2i, snap := "", shut := false) -> int:
+	var w = world
+	var from := Vector2i(-1, -1)
+	for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+		if w._walkable(t + d) and not w.map["exits"].has(t + d):
+			from = t + d
+	var to := String(w.map["exits"][t]["to"])
+	_stand(from)
+	w._step(t - from, false)
+	await _wait(float(_test.get("at", "0.25")))
+	var leaf: Node3D = w.room_walls.door_leaves[t]["node"]
+	var ok: bool = w.player_pos == from and not w.moving and absf(leaf.rotation.y) > 0.3
+	print("%s %s: stopped at %s, the door at %s %.0f degrees open" % ["ok  " if ok else "FAIL", w.map.get("room_key", w.map_id), w.player_pos, t, rad_to_deg(absf(leaf.rotation.y))])
+	if snap != "" and not shut:
+		_save_shot(snap)
+	for i in 80:
+		if world != w and world.map_id == to:
+			break
+		await _wait(0.04)
+	if shut and world.map_id == to:
+		var behind: Vector2i = world.player_pos - world.facing
+		var swing: Node3D = world.room_walls.door_leaves[behind]["node"] if world.room_walls.door_leaves.has(behind) else null
+		var open_at_first: bool = swing != null and absf(swing.rotation.y) > 0.3
+		await _wait(0.3)
+		if snap != "":
+			_save_shot(snap)
+		await _wait(0.8)
+		var shut_now: bool = swing != null and is_zero_approx(swing.rotation.y)
+		print("%s %s: came in at %s, the door behind you open %s, then shut %s" % ["ok  " if open_at_first and shut_now else "FAIL", world.map.get("room_key", ""), world.player_pos, open_at_first, shut_now])
+		ok = ok and open_at_first and shut_now
+	await _settle(to)
+	return int(not ok)
 
 
 ## The mascot test (--scene=mascot): prints each check and a count of problems at the end.

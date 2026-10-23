@@ -1,6 +1,7 @@
 extends SceneTree
 ## Verifies every map and every building interior:
-## exits, doors, trainers, items and people reachable (up and down ramps, never over a cliff: elevation.gd); all of a
+## exits, doors, trainers, items and people reachable (up and down ramps, never over a cliff: elevation.gd; onto a
+## house's stairs only at their open end: RoomBuilder.stair_ways_in); all of a
 ## town's shops present; outdoors, nothing tall (a tree or a building) within HIDE_ROWS tiles south of a road or a
 ## person, where it would hide them from the camera (further on higher ground); buildings, doorsteps and people on
 ## level ground; and no way past a teacher without crossing their line of sight (see _slip_past).
@@ -10,6 +11,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
+const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 
 ## The camera looks north from the south: a tree or a building this many tiles (or fewer) south of a road, a bridge,
 ## the plaza or someone standing about stands between them and the camera. (Trees in a map's last three rows are drawn
@@ -64,7 +66,11 @@ func _check(m: Dictionary) -> Array:
 			continue
 		if not seen.has(m["spawns"][k]):
 			problems.append("spawn %s %s unreachable" % [k, m["spawns"][k]])
+	# (a house's stairs are gone onto at their open end only, so only that tile of them need be reached)
+	var stairs := RoomBuilder.stair_ways_in(m)
 	for e in m["exits"]:
+		if stairs.has(e) and (stairs[e] as Array).is_empty():
+			continue
 		if not seen.has(e):
 			problems.append("exit %s unreachable" % e)
 		# a door through to another of the building's rooms comes out at that room's door back
@@ -307,11 +313,12 @@ func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 			blockers[n["pos"]] = true
 	for it in m["items"]:
 		blockers[it["pos"]] = true
+	var stairs := RoomBuilder.stair_ways_in(m)
 	while not q.is_empty():
 		var p: Vector2i = q.pop_front()
 		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
 			var n: Vector2i = p + d
-			if seen.has(n) or blockers.has(n) or not Elev.joined(m, p, n):
+			if seen.has(n) or blockers.has(n) or not Elev.joined(m, p, n) or (stairs.has(n) and not p in stairs[n]):
 				continue
 			var c := MapGen.get_t(m, n.x, n.y)
 			# obstacles and story gates can be cleared, so the area behind them counts as reachable

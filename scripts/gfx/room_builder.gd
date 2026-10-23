@@ -228,6 +228,9 @@ var pick_seed := 0
 const TALL := 1.2
 var _props: Array = []
 var _snap := true
+## the doors you can go through, by their tile: {"node" (the leaf, on its hinge), "yaw" (its turn when open), "past"
+## (what shows through the doorway once it's open)}; see open_door
+var door_leaves := {}
 
 
 ## Builds everything into `p`. extra: textures by name to use instead of the pack's ("checker").
@@ -317,7 +320,7 @@ func code(x: int, y: int) -> int:
 
 
 func wallish(x: int, y: int) -> bool:
-	return x >= 0 and y >= 0 and x < w and y < h and code(x, y) in WALLISH
+	return _walled(map, Vector2i(x, y))
 
 
 ## The kind of room a tile is in, or "" for walls and the outside.
@@ -668,7 +671,10 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 	var ex: Dictionary = map.get("exits", {}).get(Vector2i(x, y), {})
 	if not ex.is_empty() or locked:
 		var front := not ex.is_empty() and not String(ex["to"]).contains("#")
-		_door_leaf(m, c, horiz, DOOR_LOCKED if locked else DOOR_OPENS, front)
+		if locked:
+			_door_leaf(m, c, horiz, DOOR_LOCKED, front)
+		else:
+			_hinged_leaf(x, y, horiz, front)
 		if front:
 			# the window over the front door, bright with the day outside
 			m.box("door_glass", _glass(), c + Vector3(0, top + 0.27, 0), _axes(along, 0.66, 0.26, T + 0.03, horiz))
@@ -715,6 +721,67 @@ func _door_leaf(m: Mesher, c: Vector3, horiz: bool, col: Color, glazed: bool) ->
 		else:
 			m.box(key + "_panel", panel, c + face + Vector3(0, 1.36, 0), _axes(along, 0.56, 0.68, 0.02, horiz))
 		m.box("brass", brass, c + across * side * 0.06 + along * 0.29 + Vector3(0, 0.98, 0), Vector3(0.08, 0.08, 0.08))
+
+
+## A door you can go through, in the doorway at (x, y): its leaf on a hinge of its own, on the jamb away from its knob,
+## so it can swing open out of the room as you go through (open_door) and shut behind you as you come in (shut_door).
+## Behind it, seen once it's open: the day outside a front door, a dim room through any other.
+func _hinged_leaf(x: int, y: int, horiz: bool, front: bool) -> void:
+	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	# which side is the room? (the door swings away from it)
+	var inside := Vector2i(0, 1) if horiz else Vector2i(1, 0)
+	if zone(x + inside.x, y + inside.y) == "":
+		inside = -inside
+	var out := -Vector3(inside.x, 0, inside.y)
+	var hinge := Node3D.new()
+	hinge.position = c - along * 0.41 + out * 0.035
+	var lm := Mesher.new()
+	_door_leaf(lm, c - hinge.position, horiz, DOOR_OPENS, front)
+	var leaf := MeshInstance3D.new()
+	leaf.mesh = lm.mesh()
+	hinge.add_child(leaf)
+	_attach(x, y, hinge)
+	# the way it turns: its free edge round towards the outside, not quite flat against the wall beyond
+	var turn := 1.0 if (Basis(Vector3.UP, PI / 2.0) * along).dot(out) > 0.0 else -1.0
+	var past := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(1.2, DOOR_H + 0.2)
+	past.mesh = q
+	var pm := StandardMaterial3D.new()
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.albedo_color = Color("#f4ecd8") if front else Color("#3a2e24")
+	past.material_override = pm
+	past.position = c + out * (T / 2.0 + 0.02) + Vector3(0, DOOR_H / 2.0, 0)
+	past.rotation.y = atan2(float(inside.x), float(inside.y))
+	past.visible = false
+	_attach(x, y, past)
+	door_leaves[Vector2i(x, y)] = {"node": hinge, "yaw": turn * deg_to_rad(85.0), "past": past}
+
+
+## Swings the door at tile `t` open over `secs` (see _hinged_leaf).
+func open_door(t: Vector2i, secs := 0.35) -> void:
+	var d: Dictionary = door_leaves.get(t, {})
+	if d.is_empty():
+		return
+	(d["past"] as Node3D).visible = true
+	var hinge: Node3D = d["node"]
+	hinge.create_tween().tween_property(hinge, "rotation:y", float(d["yaw"]), secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+## The door at tile `t` (the one you've just come in by) standing open, swinging shut after `wait` over `secs`.
+func shut_door(t: Vector2i, wait := 0.15, secs := 0.4) -> void:
+	var d: Dictionary = door_leaves.get(t, {})
+	if d.is_empty():
+		return
+	var hinge: Node3D = d["node"]
+	var past: Node3D = d["past"]
+	hinge.rotation.y = float(d["yaw"])
+	past.visible = true
+	var tw := hinge.create_tween()
+	tw.tween_interval(wait)
+	tw.tween_property(hinge, "rotation:y", 0.0, secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void: past.visible = false)
 
 
 ## The glass of a front door and the window over it: pale, and lit as if by the day outside.
@@ -797,23 +864,66 @@ func _stairs() -> void:
 
 
 ## The flight that tile (x, y) is part of: [this tile's place along it counted from its foot, how many tiles long it
-## is, the way it climbs (a unit step), the way across it]. It climbs towards the end that meets a wall (with none, the
-## end further along the row or column).
+## is, the way it climbs (a unit step), the way across it] (see flight).
 func _stair_run(x: int, y: int) -> Array:
-	var c := code(x, y)
-	var along := Vector2i(1, 0) if code(x - 1, y) == c or code(x + 1, y) == c else Vector2i(0, 1)
-	var a := Vector2i(x, y)
-	while code(a.x - along.x, a.y - along.y) == c:
+	var f := flight(map, Vector2i(x, y))
+	var up: Vector2i = f["up"]
+	var foot: Vector2i = f["foot"]
+	var place := (x - foot.x) * up.x + (y - foot.y) * up.y
+	return [place, f["n"], Vector3(up.x, 0, up.y), Vector3(absi(up.y), 0, absi(up.x))]
+
+
+## The flight of stairs (or the stairwell) in map `m` that tile `t` is part of: {"foot" and "top" (its end tiles),
+## "up" (the way it climbs, a unit step), "n" (how many tiles long it is)}. It climbs towards the end that meets a wall
+## (with none, the end further along the row or column).
+static func flight(m: Dictionary, t: Vector2i) -> Dictionary:
+	var c := MapGen.get_t(m, t.x, t.y)
+	var along := Vector2i(1, 0) if MapGen.get_t(m, t.x - 1, t.y) == c or MapGen.get_t(m, t.x + 1, t.y) == c else Vector2i(0, 1)
+	var a := t
+	while MapGen.get_t(m, a.x - along.x, a.y - along.y) == c:
 		a -= along
 	var n := 1
-	while code(a.x + along.x * n, a.y + along.y * n) == c:
+	while MapGen.get_t(m, a.x + along.x * n, a.y + along.y * n) == c:
 		n += 1
 	var b: Vector2i = a + along * (n - 1)
-	var up := along
-	if not wallish(b.x + along.x, b.y + along.y) and wallish(a.x - along.x, a.y - along.y):
-		up = -along
-	var i: int = (x - a.x) + (y - a.y)
-	return [i if up == along else n - 1 - i, n, Vector3(up.x, 0, up.y), Vector3(absf(up.y), 0, absf(up.x))]
+	if not _walled(m, b + along) and _walled(m, a - along):
+		return {"foot": b, "top": a, "up": -along, "n": n}
+	return {"foot": a, "top": b, "up": along, "n": n}
+
+
+## Where a stage room's stairs can be stepped onto from: {each stair tile: the tiles beside it you can step onto it
+## from}, none for most of them. A flight up only from the tile before its foot (its handrail runs the whole of its open
+## side, a wall the other); a stairwell down only from beside its top step on its open side (the rail runs round the
+## rest), or past its top end if no wall is there. (See world.gd _can_step.)
+static func stair_ways_in(m: Dictionary) -> Dictionary:
+	var ways := {}
+	if not m.get("stage", false):
+		return ways
+	for y in m["h"]:
+		for x in m["w"]:
+			var c := MapGen.get_t(m, x, y)
+			if c != MapGen.STAIRS_UP and c != MapGen.STAIRS_DOWN:
+				continue
+			var t := Vector2i(x, y)
+			var f := flight(m, t)
+			var up: Vector2i = f["up"]
+			var across := Vector2i(absi(up.y), absi(up.x))
+			# the open side, towards the room: away from the wall it runs along (as the rail is, see _flight and _well)
+			var open := across if _walled(m, t - across) else -across
+			var from := []
+			if c == MapGen.STAIRS_UP and t == f["foot"]:
+				from.append(t - up if not _walled(m, t - up) else t + open)
+			elif c == MapGen.STAIRS_DOWN and t == f["top"]:
+				from.append(t + open)
+				if not _walled(m, t + up):
+					from.append(t + up)
+			ways[t] = from
+	return ways
+
+
+## Whether tile `t` of map `m` is a wall (or a doorway or a window in one: WALLISH).
+static func _walled(m: Dictionary, t: Vector2i) -> bool:
+	return t.x >= 0 and t.y >= 0 and t.x < m["w"] and t.y < m["h"] and MapGen.get_t(m, t.x, t.y) in WALLISH
 
 
 ## How a tile of a flight meets the walls round it: [where it starts and ends across the flight (from the tile's

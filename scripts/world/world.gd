@@ -16,7 +16,8 @@ const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
-const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
+const Townfolk = preload("res://scripts/gfx/townfolk.gd")
+const VBld =preload("res://scripts/gfx/voxel_buildings.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
@@ -155,6 +156,15 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 	VPer.face(player, facing)
 	cam_target = player.position
 	_place_camera(true)
+	# come in by a door, it swings shut behind you as the room fades in
+	if room_walls != null and typeof(key) == TYPE_STRING and (key == "entry" or String(key).begins_with("from_")):
+		for d in [-facing, Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1)]:
+			if room_walls.door_leaves.has(p + d) and map["exits"].has(p + d):
+				room_walls.shut_door(p + d)
+				break
+	# come by a house's stairs, you're seen walking the last of them
+	if typeof(key) == TYPE_STRING and key in ["entry", "from_above"]:
+		_arrive_by_stairs(key, p)
 
 
 ## The middle of tile p, on the ground: its level or ramp (elevation.gd), and a porch's deck on top.
@@ -1461,7 +1471,15 @@ func _build_npcs() -> void:
 			node = Node3D.new()
 			node.add_child(VA.instance(String(n["asset"]), float(n.get("asset_h", 1.6))))
 		else:
-			node = VPer.build(n.get("look", {}))
+			var look: Dictionary = n.get("look", {})
+			if n.get("id", "") == "mom":
+				# your mother: your skin, your hair and your eyes
+				look = look.duplicate()
+				var yours: Dictionary = Townfolk.outfit(GameState.hero_look())["colours"]
+				for k in ["skin", "hair", "eyes"]:
+					if yours.has(k):
+						look[k] = "#" + (yours[k] as Color).to_html(false)
+			node = VPer.build(look)
 			VPer.face(node, n.get("facing", Vector2i(0, 1)))
 			if n.get("sit", false):
 				seat(node, n.get("facing", Vector2i(0, 1)))
@@ -1612,9 +1630,10 @@ func _walkable(p: Vector2i) -> bool:
 	return true
 
 
-## True if you can step from `from` onto its neighbour `to`: free to walk on, and no cliff between (elevation.gd).
+## True if you can step from `from` onto its neighbour `to`: free to walk on, and no cliff between (elevation.gd); onto
+## a house's stairs only at their open end, never through the handrail or the wall beside them.
 func _can_step(from: Vector2i, to: Vector2i) -> bool:
-	return _walkable(to) and Elev.joined(map, from, to)
+	return _walkable(to) and Elev.joined(map, from, to) and (not stair_ways.has(to) or from in stair_ways[to])
 
 
 func _process(delta: float) -> void:
@@ -1650,7 +1669,10 @@ func _process(delta: float) -> void:
 		room_walls.fade(player.position, delta)
 	_update_wilds(delta)
 	_note_keys()
-	if moving:
+	if not _climb.is_empty():
+		# on the stairs (even with the room fading out round you)
+		_climb_on(delta)
+	elif moving:
 		# the legs keep pace with the ground (a step every half turn of the phase)
 		anim_t += VPer.phase_for(delta * move_speed, move_speed)
 		move_t += delta * move_speed
@@ -1670,7 +1692,7 @@ func _process(delta: float) -> void:
 			_stride = move_toward(_stride, move_speed, delta * 30.0)
 	elif not busy and not frozen and not UI.busy():
 		_read_input()
-	if not moving:
+	if not moving and _climb.is_empty():
 		# easing back to standing, then breathing and looking about
 		_stride = move_toward(_stride, 0.0, delta * 25.0)
 	VPer.animate(player, anim_t, _stride)
@@ -1768,6 +1790,12 @@ func _step(d: Vector2i, run: bool) -> bool:
 	if d == Vector2i(0, -1) and doors.has(target):
 		_enter_building(doors[target])
 		return false
+	if room_walls != null and room_walls.door_leaves.has(target) and map["exits"].has(target):
+		_through_door(target)
+		return false
+	if stair_ways.has(target) and map["exits"].has(target) and _can_step(player_pos, target):
+		_take_stairs(target)
+		return false
 	var wb = _beast_at(target)
 	if wb != null:
 		_bump_wild(wb)
@@ -1790,6 +1818,128 @@ func _begin_step(target: Vector2i, run: bool) -> void:
 	move_to = tile_pos(target)
 	player_pos = target
 	move_speed = 4.6 * (1.0 + GameState.gear_fx("speed")) * (1.7 if run else 1.0)
+
+
+## Going out by a door in the room's wall: you stop in front of it, and it swings open, away from you, as the room
+## fades out (main.gd _do_goto). Unless you can't go yet (Story.can_use_exit: the phone ringing as you go to leave
+## home), when you turn back into the room.
+func _through_door(t: Vector2i) -> void:
+	_clear_path()
+	busy = true
+	var ex: Dictionary = map["exits"][t]
+	var ok: bool = await Story.can_use_exit(self, ex)
+	if not ok:
+		busy = false
+		facing = -facing
+		VPer.face(player, facing)
+		return
+	room_walls.open_door(t)
+	# (a moment of it opening before the fade starts)
+	await get_tree().create_timer(0.12).timeout
+	busy = false
+	GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
+
+
+## How fast you go up and down a house's stairs (tiles a second; a jog on the level is 4.6), and how long the screen
+## takes to go dark as you start up or down them (and to come back on the other floor).
+const STAIR_SPEED := 2.6
+const STAIR_FADE := 0.6
+## A walk on a house's stairs (see _climb_on): {"points": where you pass, in order; "i": the last one reached;
+## "on": point index -> what to do on reaching it}.
+var _climb := {}
+
+
+## Onto a house's stairs, at their open end (stair_ways): you walk on up the flight from its foot, or down into the
+## stairwell from beside its top step and on down it, and the room starts to fade as you start up (or down) them. On
+## the other floor you're seen coming the rest of the way (_arrive_by_stairs).
+func _take_stairs(t: Vector2i) -> void:
+	_clear_path()
+	busy = true
+	var ex: Dictionary = map["exits"][t]
+	if not await Story.can_use_exit(self, ex):
+		busy = false
+		return
+	var f := RoomBuilder.flight(map, t)
+	var n: int = f["n"]
+	var go := func() -> void:
+		busy = false
+		GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO), STAIR_FADE)
+	if MapGen.get_t(map, t.x, t.y) == MapGen.STAIRS_UP:
+		# to the bottom step (the fade starts there), and on up the flight
+		_walk_stairs([tile_pos(player_pos), _on_flight(f, 0.0 if player_pos == t - f["up"] else 0.5), _on_flight(f, n - 0.5)], {1: go})
+	else:
+		# down onto the top step (the fade starts as you step down), and on down
+		_walk_stairs([tile_pos(player_pos), _on_flight(f, n - 0.5), _on_flight(f, 0.5)], {0: go})
+
+
+## Arriving at `p` from the other floor by a house's stairs (spawn key "from_above": at the foot of a flight; "entry":
+## beside the top step of a stairwell): you come down the last of the flight and step off its foot, or up out of the
+## stairwell onto the floor, as the room fades in (see _take_stairs).
+func _arrive_by_stairs(key: String, p: Vector2i) -> void:
+	for t in stair_ways:
+		var flight_up := MapGen.get_t(map, t.x, t.y) == MapGen.STAIRS_UP
+		if not p in stair_ways[t] or flight_up != (key == "from_above"):
+			continue
+		var f := RoomBuilder.flight(map, t)
+		var n: int = f["n"]
+		busy = true
+		var done := func() -> void: busy = false
+		if flight_up:
+			_walk_stairs([_on_flight(f, n - 1.0), _on_flight(f, 0.0), tile_pos(p)], {2: done})
+		else:
+			_walk_stairs([_on_flight(f, n - 1.5), _on_flight(f, n - 0.5), tile_pos(p)], {2: done})
+		return
+
+
+## The point `s` tiles along a house's stairs (RoomBuilder.flight `f`), from the bottom end of their foot, on their
+## treads: up from the floor on a flight, down below it in a stairwell (see RoomBuilder _flight and _well).
+func _on_flight(f: Dictionary, s: float) -> Vector3:
+	var foot: Vector2i = f["foot"]
+	var up: Vector2i = f["up"]
+	var n: int = f["n"]
+	var tread := RoomBuilder.H / (n * 4.0)
+	var at := Vector3(foot.x + 0.5, 0.0, foot.y + 0.5) + Vector3(up.x, 0, up.y) * (s - 0.5)
+	if MapGen.get_t(map, foot.x, foot.y) == MapGen.STAIRS_UP:
+		at.y = s * RoomBuilder.H / n + tread / 2.0 if s > 0.0 else 0.0
+	else:
+		at.y = -((n - s) * RoomBuilder.H / n + tread / 2.0)
+	return at
+
+
+## Starts a walk on the stairs through `points` (see _climb_on), doing on[i] as you reach point i.
+func _walk_stairs(points: Array, on := {}) -> void:
+	_climb = {"points": points, "i": 0, "on": on}
+	player.position = points[0]
+
+
+## A frame of a walk on the stairs: on through its points at STAIR_SPEED (counted across the ground, so the legs keep
+## pace), turning to face each new way. It ends at the last point.
+func _climb_on(delta: float) -> void:
+	var pts: Array = _climb["points"]
+	var left := delta * STAIR_SPEED
+	anim_t += VPer.phase_for(left, STAIR_SPEED)
+	_stride = move_toward(_stride, STAIR_SPEED, delta * 30.0)
+	while true:
+		var i: int = _climb["i"]
+		var act = _climb["on"].get(i)
+		if act != null:
+			_climb["on"].erase(i)
+			(act as Callable).call()
+		if i >= pts.size() - 1:
+			_climb = {}
+			return
+		var to: Vector3 = pts[i + 1] - player.position
+		var flat := Vector2(to.x, to.z).length()
+		var way := Vector2i(int(signf(to.x)) if absf(to.x) > 0.01 else 0, int(signf(to.z)) if absf(to.z) > 0.01 else 0)
+		if way != Vector2i.ZERO and way != facing:
+			facing = way
+			VPer.face(player, facing, true)
+		if left < flat:
+			player.position += to * (left / flat)
+			return
+		left -= flat
+		player.position = pts[i + 1]
+		_climb["i"] = i + 1
 
 
 func _on_step_done() -> void:
@@ -3072,8 +3222,10 @@ func _flat_mat(col: Color, glow := 0.0, metal := 0.0, rough := 0.8) -> StandardM
 ## Pen tiles in reading order (pen i shows beast i of the town's kennel) and the beasts standing in them.
 var kennel_pens: Array = []
 ## The room's walls and furniture (room_builder.gd): tall furniture between the camera and the player fades out of the
-## way (see its fade).
+## way (see its fade), and its doors swing open as you go through them (see _through_door).
 var room_walls = null
+## A house's stairs: where each of their tiles can be stepped onto from (RoomBuilder.stair_ways_in).
+var stair_ways := {}
 var _kennel_nodes: Array = []
 
 
@@ -3404,6 +3556,7 @@ func _build_room() -> void:
 	room_walls = null
 	if not open_air:
 		room_walls = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
+	stair_ways = RoomBuilder.stair_ways_in(map)
 	var k := VBld.Kit.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(1, 1)
