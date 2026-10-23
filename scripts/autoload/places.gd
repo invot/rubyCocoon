@@ -1317,7 +1317,10 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 		MapGen.CRYSTAL:
 			await UI.say(["Mist swirls inside the crystal ball... Did something just wink at you?"])
 		MapGen.BED:
-			if b.get("shop", "") == "home":
+			# (your bed is the one in the room you wake up in)
+			if b.get("shop", "") == "home" and not map.get("room", {}).has("wake"):
+				await UI.say(["Mom's bed, neatly made. Better not mess it up."])
+			elif b.get("shop", "") == "home":
 				await UI.say(["Your own bed! You lie down for a short nap..."])
 				await UI.fade_out(0.4)
 				GameState.heal_party()

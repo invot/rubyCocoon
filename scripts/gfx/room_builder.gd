@@ -24,6 +24,9 @@ const SILL := 0.85
 const WIN_TOP := 2.07
 ## how far the floor's front edge drops, below the open front of the room
 const EDGE := 0.35
+## how steeply a stage room's camera looks down at the least (world.gd CAM_OFFSET_ROOM; nearer, it looks down more):
+## what's below the floor, further behind the front edge than its depth over this, is hidden by the floor
+const VIEW_SLOPE := 4.6 / 8.2
 ## doors you can go through are painted blue, locked ones red
 const DOOR_OPENS := Color("#3a6ed0")
 const DOOR_LOCKED := Color("#c83a3a")
@@ -886,11 +889,14 @@ func _well(x: int, y: int) -> void:
 	var z := zone(x, y)
 	var tread := floor_mat(z)
 	var c := Vector3(x + 0.5, 0, y + 0.5)
-	var bottom := -H - 0.2
+	# as deep as the floor in front hides it (a shallow room, like a landing, would show the rest under its front edge)
+	var bottom := -minf(H + 0.2, EDGE + (h - 1.5 - y) * VIEW_SLOPE)
 	for j in 4:
 		# counted from the top step down; darker the deeper
 		var s := (n - 1 - place) * 4 + (3 - j)
 		var ty := -(s + 1) * H / float(n * 4)
+		if ty <= bottom:
+			continue
 		var shade := clampf(1.0 - float(s) / float(n * 4) * 1.3, 0.12, 1.0)
 		var deep := 0.25 + (top if j == 3 else 0.0)
 		var at := c + mid + rise * (-0.5 + deep / 2.0 + j * 0.25)

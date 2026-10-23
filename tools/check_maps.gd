@@ -116,6 +116,8 @@ func _check(m: Dictionary) -> Array:
 	if m["kind"] != "interior":
 		problems.append_array(_hidden(m))
 		problems.append_array(_levels(m))
+	else:
+		problems.append_array(_windows(m))
 	problems.append_array(_slip_past(m))
 	var groups := {}
 	for q in m.get("obstacles", {}):
@@ -179,6 +181,38 @@ func _hidden(m: Dictionary) -> Array:
 		road.sort()
 		out.append("road hidden behind something tall at %s" % ", ".join(road.map(func(t): return "%d,%d" % [t.x, t.y])))
 	out.append_array(people)
+	return out
+
+
+## A room's wall with a door through to another room in it (one that opens or a locked one; not the front door, out
+## to the street) has no windows; and every stage room (a house's or a shop's) has windows in at least one wall.
+func _windows(m: Dictionary) -> Array:
+	var out := []
+	var w: int = m["w"]
+	var h: int = m["h"]
+	# the back wall and the two side walls (the bottom row is the open front)
+	var walls := {"back": [], "left": [], "right": []}
+	for x in w:
+		walls["back"].append(Vector2i(x, 0))
+	for y in h - 1:
+		walls["left"].append(Vector2i(0, y))
+		walls["right"].append(Vector2i(w - 1, y))
+	var lit := 0
+	for k in walls:
+		var doors := 0
+		var windows := 0
+		for p in walls[k]:
+			var c := MapGen.get_t(m, p.x, p.y)
+			if c == MapGen.LOCKED or c == MapGen.IDOOR and not m.get("front_doors", []).has(p):
+				doors += 1
+			elif c == MapGen.IWINDOW:
+				windows += 1
+		if doors > 0 and windows > 0:
+			out.append("%s has windows in its %s wall, beside a door to another room" % [m.get("room_key", m["id"]), k])
+		elif windows > 0:
+			lit += 1
+	if m.get("stage", false) and lit == 0:
+		out.append("%s has no wall with windows" % m.get("room_key", m["id"]))
 	return out
 
 

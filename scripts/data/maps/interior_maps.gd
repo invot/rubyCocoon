@@ -3,8 +3,11 @@ extends RefCounted
 ## Most are stage rooms ("stage"): one compact room each, seen whole like a stage set, open towards the camera, the way
 ## in through a side wall (D in it, P beside it). A building of several rooms has a door in a wall for each of the
 ## others ("doors": symbol -> the room it leads to), and each room is loaded on its own; going through, you come out
-## at the door of the room you left. Stairs (> and <) lead to the next room up the set and back down. The big
-## dungeons (the temples, the hideout, the towers, the cathedral and its crypt) keep their bigger layouts.
+## at the door of the room you left. Stairs (> and <) lead to the next room up the set and back down; in a house the
+## stairs always come up into a landing (half a room deep), with that floor's rooms through doors off it. A wall with a
+## door to another room (one that opens or a locked one) has no windows, and every room has windows in at least one
+## wall (the front door's may have them too); tools/check_maps.gd checks both. The big dungeons (the temples, the
+## hideout, the towers, the cathedral and its crypt) keep their bigger layouts.
 ## Legend:
 ##   #  wall          w  wall with window   .  wooden floor   :  tiled floor   r  rug
 ##   x  arena ring    C  counter            s  goods shelf    B  bookshelf     t  table
@@ -76,10 +79,10 @@ const ROOMS := {
 		"wall": "#d8e8d0", "rug": "#4a8a5a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The restroom. It's occupied."],
 		"rows": [
-			"###w#Z#w###",
+			"#####Z#####",
 			"#sss.1.sss#",
-			"#pCCCCCCCp#",
-			"#........@#",
+			"#pCCCCCCCpw",
+			"#........@w",
 			"L..rr2rr..#",
 			"#..rrrrr.PD",
 			"###########",
@@ -89,10 +92,10 @@ const ROOMS := {
 		"wall": "#e8d8c0", "rug": "#4a6a9a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The fitting room. Someone in there is trying on a very large hat."],
 		"rows": [
-			"###w#Z#w###",
+			"#####Z#####",
 			"#ss.s1s.ss#",
-			"#CCCCCCCCC#",
-			"#.........#",
+			"#CCCCCCCCCw",
+			"#.........w",
 			"#e.e...e.e#",
 			"L.....2..PD",
 			"###########",
@@ -102,10 +105,10 @@ const ROOMS := {
 		"wall": "#c8b090", "rug": "#8a4a3a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The stockroom. Boxes of books are piled to the ceiling in there."],
 		"rows": [
-			"###w#Z#w###",
+			"#####Z#####",
 			"#BBB.1.BBB#",
-			"#pCCCCCCCp#",
-			"#.........#",
+			"#pCCCCCCCpw",
+			"#.........w",
 			"L.BB.BB.BB#",
 			"#t2..rr..PD",
 			"###########",
@@ -119,10 +122,10 @@ const ROOMS := {
 		"anchors": {"6": "lesson_team", "7": "lesson_elements"}, "doors": {"!": "arena_ring"},
 		"locked": ["The restroom. The sign says OUT OF ORDER."],
 		"rows": [
-			"###w#!#w###",
+			"#####!#####",
 			"#pC.....@=#",
-			"#1C......6#",
-			"#pC.......#",
+			"#1C......6w",
+			"#pC.......w",
 			"#.........#",
 			"L....7...PD",
 			"###########",
@@ -133,7 +136,7 @@ const ROOMS := {
 		"wall": "#c8c0b0", "rug": "#b03a3a", "stage": true, "npcs": {"3": "leader", "4": "patron", "5": "patron"},
 		"doors": {"!": "arena"},
 		"rows": [
-			"#############",
+			"####w###w####",
 			"#=::::3::::=#",
 			"#=:xxxxxxx:=#",
 			"#::x:::::x::#",
@@ -158,10 +161,10 @@ const ROOMS := {
 		"wall": "#f0d8d0", "rug": "#c07040", "stage": true, "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
 		"locked": ["The restroom. Somebody's humming in there."],
 		"rows": [
-			"###w#Z#w###",
+			"#####Z#####",
 			"#ss..1...p#",
-			"#CCCCCCCCC#",
-			"#........@#",
+			"#CCCCCCCCCw",
+			"#........@w",
 			"#ht2...ht3#",
 			"L........PD",
 			"###########",
@@ -186,10 +189,10 @@ const ROOMS := {
 		"wall": "#d0d8e0", "rug": "#3a5a8a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The restroom. A sign reads: PLEASE DO NOT FEED THE EXHIBITS."],
 		"rows": [
-			"####w#Z#w####",
+			"######Z######",
 			"#e.e.e.e.e.e#",
-			"#:::::::::::#",
-			"#pC::o:::o::#",
+			"#:::::::::::w",
+			"#pC::o:::o::w",
 			"#1C::::2::::#",
 			"#pC::e:::e:PD",
 			"L:::::::::::#",
@@ -201,10 +204,10 @@ const ROOMS := {
 		"wall": "#c0c8e8", "rug": "#8a2a3a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The restroom. There's a queue of one."],
 		"rows": [
-			"##Z#w###w####",
+			"##Z##########",
 			"#rrrrnnnrrrr#",
-			"#rrrrC1Crrrr#",
-			"#rrrrCCCrrrr#",
+			"#rrrrC1Crrrrw",
+			"#rrrrCCCrrrrw",
 			"#:===:===:::#",
 			"#:::::::2:::#",
 			"L:===:===::PD",
@@ -215,10 +218,10 @@ const ROOMS := {
 		"wall": "#d8c8a8", "rug": "#2a5a8a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The practice room. Someone in there is playing the same three notes over and over."],
 		"rows": [
-			"###w#Z#w###",
+			"#####Z#####",
 			"#BB.B1B.BB#",
-			"#CCCCCCCCC#",
-			"#........@#",
+			"#CCCCCCCCCw",
+			"#........@w",
 			"#.n..2....#",
 			"L.==.....PD",
 			"###########",
@@ -241,11 +244,11 @@ const ROOMS := {
 		"wall": "#e8d8b8", "rug": "#7a4a8a", "stage": true, "npcs": {"1": "resident", "2": "resident"},
 		"locked": ["The bathroom. Someone's in there, singing."],
 		"rows": [
-			"####w##L#w###",
+			"#######L#####",
 			"#NbbNB..V..@#",
-			"#.bb...yy...#",
+			"w.bb...yy...#",
 			"#Q.....SS..a#",
-			"#.rrr..1....#",
+			"w.rrr..1....#",
 			"#l.......2.PD",
 			"#############",
 		],
@@ -264,10 +267,10 @@ const ROOMS := {
 		"wall": "#d8e0c8", "rug": "#4a6a8a", "stage": true, "npcs": {"1": "resident"},
 		"locked": ["The kitchen. Something's simmering on the stove in there."],
 		"rows": [
-			"###w##L#w##",
+			"######L####",
 			"#Nb..V...p#",
-			"#.b.......#",
-			"#....ctc..#",
+			"w.b.......#",
+			"w....ctc..#",
 			"#a.1......#",
 			"#p.......PD",
 			"###########",
@@ -287,10 +290,10 @@ const ROOMS := {
 		"wall": "#e0d0b8", "rug": "#8a5a3a", "stage": true, "npcs": {"1": "resident", "2": "resident"},
 		"doors": {"!": "house_two_bed"}, "locked": ["The kitchen. It smells like toast."],
 		"rows": [
-			"####w#!#w#L##",
+			"######!###L##",
 			"#BB..V.....@#",
-			"#....yy.....#",
-			"#a...SS.....#",
+			"w....yy.....#",
+			"wa...SS.....#",
 			"#...rrrr..1.#",
 			"#p......2..PD",
 			"#############",
@@ -307,28 +310,39 @@ const ROOMS := {
 			"###########",
 		],
 	},
-	## A house with an upstairs: the living room, and stairs up to the bedroom.
+	## A house with an upstairs: the living room, and stairs up to the landing, which leads to the bedroom.
 	"house_up": {
 		"wall": "#e8e0d0", "rug": "#3a7a6a", "stage": true, "npcs": {"1": "resident", "2": "resident"},
 		"locked": ["The kitchen. Someone's left the radio on in there."],
 		"rows": [
-			"####w##L#w###",
+			"#######L#####",
 			"#BB..V...>>>#",
-			"#....yy.....#",
-			"#a...SS....@#",
+			"w....yy.....#",
+			"wa...SS....@#",
 			"#.....rrr...#",
 			"#p...1...2.PD",
 			"#############",
 		],
 	},
-	"house_up_bed": {
-		"wall": "#e8e0d0", "rug": "#3a7a6a", "stage": true, "zone": "bedroom",
+	## Its landing, half a room deep: the stairs come up at the right end, the bedroom's door is in the back wall and
+	## the bathroom (locked) at the left end.
+	"house_up_hall": {
+		"wall": "#e8e0d0", "rug": "#3a7a6a", "stage": true, "zone": "hall", "doors": {"!": "house_up_bed"},
 		"locked": ["The bathroom. Someone's having a very long bath."],
 		"rows": [
-			"###w#L#w###",
-			"#NbbN.<<<.#",
-			"#.bb....P.#",
-			"#Q........#",
+			"####!###L####",
+			"w.p...B..<<<#",
+			"w..........P#",
+			"#############",
+		],
+	},
+	"house_up_bed": {
+		"wall": "#e8e0d0", "rug": "#3a7a6a", "stage": true, "zone": "bedroom", "doors": {"!": "house_up_hall"},
+		"rows": [
+			"###w###w###",
+			"#NbbN....R#",
+			"#.bb......#",
+			"#Q........!",
 			"#l..rrr...#",
 			"###########",
 		],
@@ -350,11 +364,11 @@ const ROOMS := {
 		"wall": "#e0d0b0", "rug": "#4a6a9a", "stage": true, "anchors": {"1": "uncle"},
 		"locked": ["Rafe's kitchen. It smells of brass polish."],
 		"rows": [
-			"####w##L#w###",
+			"#######L#####",
 			"#NbNBB..V..@#",
-			"#.b...yy....#",
+			"w.b...yy....#",
 			"#Q...SS.1..a#",
-			"#.rrr.......#",
+			"w.rrr.......#",
 			"#l.........PD",
 			"#############",
 		],
@@ -365,26 +379,50 @@ const ROOMS := {
 		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "npcs": {"1": "mom"},
 		"locked": ["The kitchen. Mom's baking something, and you're not allowed in until it's done."],
 		"rows": [
-			"####w##L#w###",
+			"#######L#####",
 			"#BB...V..>>>#",
-			"#....yy.....#",
-			"#a...SS....@#",
+			"w....yy.....#",
+			"wa...SS....@#",
 			"#.......1...#",
 			"#lp..rrr...PD",
 			"#############",
 		],
 	},
-	## Upstairs at home: your bedroom, where you wake up (wake). Your bed is the one to nap in.
-	"home_up": {
-		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "bedroom", "wake": [3, 2],
-		"locked": ["The bathroom. The tap's dripping again.", "Mom's room. Better not go snooping."],
+	## Upstairs at home: the landing, a hallway half a room deep. The stairs come up at its right end; your bedroom is
+	## through the door at its left end, Mom's room and the bathroom (locked) off its back wall.
+	"home_hall": {
+		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "hall",
+		"doors": {"!": "home_bed", "?": "home_mom"}, "locked": ["The bathroom. The tap's dripping again."],
 		"rows": [
-			"###L#w#w###",
-			"#Nb.cE<<<.#",
-			"#.b......P#",
-			"#Q........#",
-			"L..rrr....#",
-			"#.......lp#",
+			"##!#L##?#####",
+			"wp...l...<<<#",
+			"w..........P#",
+			"#############",
+		],
+	},
+	## Your bedroom, where you wake up (wake). Your bed is the one to nap in.
+	"home_bed": {
+		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "bedroom", "wake": [3, 2], "doors": {"!": "home_hall"},
+		"rows": [
+			"###w###w###",
+			"#Nb.cE..RR#",
+			"#.b.......#",
+			"#Q........!",
+			"#..rrr....#",
+			"#p......l.#",
+			"###########",
+		],
+	},
+	## Mom's room: her double bed between two nightstands.
+	"home_mom": {
+		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "bedroom", "doors": {"!": "home_hall"},
+		"rows": [
+			"###w###w###",
+			"#RR.NbbN.Q#",
+			"#....bb...#",
+			"!.........#",
+			"#..rrrr..p#",
+			"#l.a......#",
 			"###########",
 		],
 	},
@@ -392,10 +430,10 @@ const ROOMS := {
 		"wall": "#d8dce4", "rug": "#3a6ab0", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The restroom. A note on the door: OUT OF ORDER (WE ARE FIXING IT. WE FIX THINGS)."],
 		"rows": [
-			"###w#Z#w###",
+			"#####Z#####",
 			"#ss.s1s.ss#",
-			"#CCCCCCCCC#",
-			"#.........#",
+			"#CCCCCCCCCw",
+			"#.........w",
 			"#e.e.r.e.e#",
 			"L....r.2.PD",
 			"###########",
@@ -407,10 +445,10 @@ const ROOMS := {
 		"wall": "#e4ecf4", "rug": "#3a7ac8",
 		"npcs": {"1": "keeper"},
 		"rows": [
-			"###wZ##w###",
+			"####Z######",
 			"#pC1C.>>.p#",
 			"#.CCC.....#",
-			"#.........#",
+			"w.........w",
 			"#=...r...=#",
 			"#=..rrr..=#",
 			"#p..rPr..p#",
@@ -685,7 +723,7 @@ const SHOP_ROOMS := {
 	"music_hall": ["music_hall"],
 	"music_shop": ["music_shop"],
 	"fortune": ["fortune"],
-	"home": ["home", "home_up"],
+	"home": ["home", "home_hall", "home_bed", "home_mom"],
 	"electronics": ["electronics"],
 	"skytower": ["skytower", "skytower_top"],
 	"hideout": ["hideout"],
@@ -697,4 +735,4 @@ const SHOP_ROOMS := {
 }
 
 ## The townsfolk's houses (each picks one by its seed): two studios, a house of two rooms, one with an upstairs.
-const HOUSES := [["studio_a"], ["studio_b"], ["house_two", "house_two_bed"], ["house_up", "house_up_bed"]]
+const HOUSES := [["studio_a"], ["studio_b"], ["house_two", "house_two_bed"], ["house_up", "house_up_hall", "house_up_bed"]]
