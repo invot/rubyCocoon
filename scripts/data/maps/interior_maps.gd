@@ -117,7 +117,7 @@ const ROOMS := {
 	},
 	## The arena's lobby: the receptionist (1) at her desk, a phone, and the door through to the ring. In Tidewater the
 	## arena's two coaches (6, 7: world_db.gd ARENA_LESSONS) wait here: Rory above the entrance looking down at it, Ondine
-	## along the row you come in on, looking along it. Elsewhere those tiles are plain floor.
+	## along the row you come in on. Only Rory approaches; Ondine waits to be spoken to. Elsewhere these are plain floor.
 	"arena": {
 		"wall": "#c8c0b0", "rug": "#b03a3a", "stage": true, "npcs": {"1": "keeper"},
 		"anchors": {"6": "lesson_team", "7": "lesson_elements"}, "doors": {"!": "arena_ring"},
@@ -637,14 +637,15 @@ const ROOMS := {
 	"ceo_4": {
 		"wall": "#c8a868", "rug": "#7a1a2a",
 		"npcs": {"1": "ceo"},
+		"anchors": {"2": "captive_0", "3": "captive_1", "4": "captive_2", "5": "freight_control"},
 		"rows": [
 			"####w#####w####",
 			"#B..e.....e..B#",
 			"#....CCCCC....#",
 			"#......1......#",
-			"#.............#",
+			"#..2...3...4..#",
 			"#..rrrrrrrrr..#",
-			"#..rrrrrrrrr..#",
+			"#..rrrr5rrrr..#",
 			"#.............#",
 			"#<<P..........#",
 			"###############",

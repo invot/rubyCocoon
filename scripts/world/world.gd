@@ -2080,6 +2080,8 @@ func _check_trainer_sight(lessons_only := false) -> bool:
 		var n: Dictionary = npcs[p]
 		if n.get("kind", "") != "trainer" or GameState.flag(n.get("flag", "")):
 			continue
+		if n.get("manual_only", false):
+			continue
 		if (lessons_only and not n.has("lesson")) or (n.has("needs") and not GameState.flag(String(n["needs"]))):
 			continue
 		var f: Vector2i = n.get("facing", Vector2i(0, 1))
@@ -2101,7 +2103,8 @@ func _check_trainer_sight(lessons_only := false) -> bool:
 
 
 ## The teachers don't wait for you to take a step: arriving on a map (Youngster Kit as you come through his door, the
-## Tidewater arena's coaches at its entrance), or after another teacher's lesson, any who can see you comes over.
+## Tidewater arena's Coach Rory at its entrance), or after another teacher's lesson, automatic teachers who can see
+## you come over. Manual teachers stay at their posts.
 ## Other trainers only notice you once you walk into their sight.
 func spot_you() -> void:
 	if frozen or player == null or (GameState.main != null and GameState.main.in_battle):

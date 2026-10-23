@@ -29,6 +29,7 @@ const NEWS := {
 	"winds": ["The Temple of Winds! You're further from home than I ever got at your age."],
 	"mine": ["Beat Foreman Gorran and he'll sign your Miner's Pass. He respects a good battle."],
 	"gearhart": ["Gearhart Tower? Those robots don't play fair. Beat every sentry on a floor and the stairs open."],
+	"rescue": ["Those trainers are still waiting for you. Use Gearhart's command seal at the top-floor freight control. Get them home, kiddo."],
 	"flame": ["The Temple of Flame. Bring a water beast, and a lot to drink."],
 	"jungle": ["Vinehollow's jungle! Shaman Ayo's an old friend of mine. Help her if you can."],
 	"relics": ["The three relics... They could be anywhere. Ask around. People love to tell you what they've seen."],

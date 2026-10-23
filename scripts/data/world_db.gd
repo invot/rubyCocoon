@@ -150,8 +150,8 @@ const LESSON_TRAINERS := [
 ## and so before Captain Gull sails you to the Isle of Tides, Coach Rory teaches battling with a whole side of your
 ## ring and Coach Ondine elemental weaknesses (her beast is weak to your side's element, see story.gd
 ## _elements_lesson). They wait in the lobby of Tidewater's arena (interior_maps.gd "arena" anchors): Rory above the
-## side entrance looking down at it, Ondine along the row you come in on, looking along it, so walking in you're in
-## their sight and they stop you (world.gd spot_you).
+## side entrance looking down at it. Only Rory approaches on entry; Ondine waits to be spoken to, keeping the
+## entrance's other escape tile free after Rory's lesson.
 ## needs: a lesson to have had first (until then, that coach doesn't notice you).
 const ARENA_LESSONS := [
 	{"anchor": "lesson_team", "lesson": "team", "town": "tidewater", "name": "Rory", "cls": "Coach", "team": [[27, 4], [33, 4]],
@@ -162,7 +162,7 @@ const ARENA_LESSONS := [
 			"Fill your ring's sides with beasts and you'll never fight alone. Now go and see Coach Ondine about elements."],
 		"defeat": "Up and down move between your beasts' bars. Every beast on the side facing the foe gets a move!"},
 	{"anchor": "lesson_elements", "lesson": "elements", "town": "tidewater", "needs": "lesson_team", "name": "Ondine", "cls": "Coach",
-		"team": [[36, 4]], "facing": Vector2i(1, 0),
+		"team": [[36, 4]], "facing": Vector2i(1, 0), "manual_only": true,
 		"look": {"skin": "#f0c8a0", "hair": "#30a0b0", "hair_style": 1, "shirt": "#e8e0c0", "pants": "#3a5a7a"},
 		"first": "Coach Rory's lesson comes first, sweetie. Teamwork, then elements. I don't make the rules. Rory does. Loudly.",
 		"lines": ["I'm Coach Ondine. Let's talk elements: the secret to beating beasts bigger than yours."],

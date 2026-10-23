@@ -9,6 +9,7 @@ extends Node
 ##   guardian_water                                - also opens the Dune Road to the desert
 ##   met_sheriff, bandits_cleared                  - Sundown's bandits (opens the Dune Sea)
 ##   ceo_defeated                                  - Gearhart Tower (opens Caldera Road)
+##   opening_seen, missing_trainers, trainers_freed - prologue, Dustwell reveal, tower freight-cage rescue
 ##   relic_quest, relic_sun, relic_moon, relic_earth, ritual_done   - the jungle ritual (raises the earth temple)
 ##   guardian_water/air/fire/earth                 - temple guardians beaten (legendary eggs)
 ##   ghost_merge, got_requiem, nyx_defeated, game_cleared   - Gravenmoor and the Umbral Legion
@@ -26,6 +27,7 @@ const ChatterDB = preload("res://scripts/data/chatter_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const Phone = preload("res://scripts/world/phone.gd")
+const TrainerCell = preload("res://scripts/story/trainer_cell.gd")
 
 const ELDER_LOOK := {"skin": "#e8c0a0", "hair": "#e8e8e8", "shirt": "#6a4a8a", "pants": "#3a2a4a", "outfit": "robe"}
 const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "pants": "#3a3a2a", "hat": "#6a5a3a"}
@@ -140,6 +142,13 @@ func extra_npcs(map: Dictionary) -> Array:
 	if map["kind"] == "interior":
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
 		var inside := _lesson_trainers(map)
+		if map.get("room_key", "") == "ceo_4":
+			if not GameState.flag("trainers_freed"):
+				for i in 3:
+					var cell := TrainerCell.new()
+					cell.index = i
+					inside.append({"kind": "story", "id": "captive", "name": TrainerCell.NAMES[i], "pos": _at(map, "captive_%d" % i, Vector2i(3 + i * 4, 4)), "scene": cell, "still": true, "story": true, "captive_index": i})
+			inside.append({"kind": "story", "id": "freight_control", "name": "Freight Lock Control", "pos": _at(map, "freight_control", Vector2i(7, 6)), "scene": _freight_control_node(), "still": true, "story": true})
 		# Gil's spare fishing pole, leaning in his shack until you take it
 		if _has_anchor(map, "rod") and not GameState.flag("got_rod"):
 			inside.append({"kind": "story", "id": "rod", "name": "", "pos": _at(map, "rod", Vector2i.ZERO), "mesh": _pole_mesh(), "still": true, "facing": Vector2i(0, 1)})
@@ -211,6 +220,9 @@ func extra_npcs(map: Dictionary) -> Array:
 			out.append({"kind": "story", "id": "sheriff", "name": "Sheriff Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
 		"cogsworth":
 			out.append({"kind": "story", "id": "protester", "name": "Tinker Wren", "pos": _at(map, "protester", plaza), "look": PROTESTER_LOOK, "facing": Vector2i(0, 1), "story": true})
+			if GameState.flag("trainers_freed"):
+				for i in 3:
+					out.append({"kind": "story", "id": "rescued_trainer", "name": TrainerCell.NAMES[i], "pos": _at(map, "protester", plaza) + Vector2i(-3 + i * 3, 1), "look": TrainerCell.LOOKS[i], "facing": Vector2i(0, 1), "still": true, "captive_index": i})
 		"vinehollow":
 			out.append({"kind": "story", "id": "shaman", "name": "Shaman Ayo", "pos": _at(map, "shaman", plaza), "look": SHAMAN_LOOK, "facing": Vector2i(0, 1), "story": true})
 			out.append({"kind": "story", "id": "shrine", "name": "Old Shrine", "pos": _at(map, "shrine", plaza + Vector2i(0, -2)), "asset": "head_totem", "asset_h": 1.9, "facing": Vector2i(0, 1)})
@@ -258,6 +270,8 @@ func npc_has_news(n: Dictionary) -> bool:
 			return not GameState.flag("ceo_defeated")
 		"ceo":
 			return not GameState.flag("ceo_defeated")
+		"freight_control", "captive":
+			return not GameState.flag("trainers_freed")
 		"shaman":
 			return not GameState.flag("relic_quest") or (_relic_count() == 3 and not GameState.flag("ritual_done"))
 		"gravedigger":
@@ -283,6 +297,13 @@ func on_map_enter(world) -> void:
 	world.busy = true
 	if world.interior and world.map["building"].get("shop", "") == "home" and not GameState.flag("intro_done"):
 		await _intro()
+	elif id == "dustwell" and not GameState.flag("missing_trainers"):
+		GameState.set_flag("missing_trainers")
+		await UI.say(["That noticeboard... NEW TRAINERS MISSING. Three names. Three flutes left in the sand.",
+			"Until Dustwell, your biggest worry was learning the next song. Someone out here is taking people."])
+		await UI.say(["Only this season's new trainers. Gone between one watering stop and the next.",
+			"A witness saw metal footprints by a Gearhart freight wagon. Sheriff Dalton in Sundown is asking questions.",
+			"Travel with your beasts close, all right?"], "Oasis Keeper")
 	elif id == "tidewater" and not GameState.flag("seen_tidewater"):
 		GameState.set_flag("seen_tidewater")
 		await UI.say(["Tidewater! Ferries to the Isle of Tides leave from the long pier.",
@@ -312,17 +333,10 @@ func on_map_enter(world) -> void:
 
 func _intro() -> void:
 	GameState.set_flag("intro_done")
-	await UI.say([
-		"Cocoon Cove: a sleepy seaside hamlet, where Embits nap on every sunny rooftop.",
-		"For generations, trainers from the Cove have raised beasts of fire, water, earth and air.",
-		"But lately, travellers whisper of the Umbral Legion and their ghost beasts, black as night and stronger than any element.",
-		"Today, %s is finally old enough to raise a beast of their own." % GameState.player_name,
-	])
-	await UI.say(["Good morning, sleepyhead! Today's the big day!",
-		"Elder Rowan is waiting in the plaza with a beast egg for you.",
-		"Oh, and one more thing. Your father's old reed flute... he left it with your Uncle Rafe in Tidewater, the next town east along the Coastal Path.",
-		"Rafe promised to teach you to play it once you were old enough. Well, you are now! Go and see him.",
-		"Hatch your egg first, though. The Coastal Path is no place to wander without a beast."], "Mom")
+	# This short objective survives skipping the film. The hero knows nothing about the tower.
+	await UI.say(["First day of spring, %s! The beasts are waking and trainer season is officially open!" % GameState.player_name,
+		"Elder Rowan has your first egg in the plaza. Hatch it at the Beast Center before you head out.",
+		"Then go east along the Coastal Path to Tidewater. Uncle Rafe has your dad's flute, and he's promised to teach you."], "Mom")
 
 
 ## Uncle Rafe's lessons in Tidewater: the flute, then Weaken, then Capture I. Returns true when all are done.
@@ -720,7 +734,7 @@ func _talk_villager(world, n: Dictionary) -> void:
 	elif world.map_id == "sundown" and not GameState.flag("bandits_cleared"):
 		quest = "Black Bart's gang rode through again. Took every sack of flour. And my favourite spoon. Monsters."
 	elif world.map_id == "cogsworth" and not GameState.flag("ceo_defeated"):
-		quest = "Gearhart rations our steam and walled off Mount Cinder. He even charges for whistling now!"
+		quest = "Those freight wagons aren't carrying machinery. Wren heard people calling from inside. Gearhart's sentries guard every lift."
 	if r < 10 and not town.is_empty():
 		lines.append("Welcome to %s! %s" % [town["name"], town["blurb"]])
 	elif r < 24 and quest != "":
@@ -772,6 +786,7 @@ func next_goal() -> String:
 		return "chiefs"
 	for step in [["culprit_beaten", "smuggler"], ["island_peace", "peace"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
 			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
+			["trainers_freed", "rescue"],
 			["guardian_fire", "flame"], ["relic_quest", "jungle"], ["ritual_done", "relics"], ["guardian_earth", "roots"],
 			["nyx_defeated", "gravenmoor"], ["game_cleared", "vexmora"]]:
 		if not GameState.flag(step[0]):
@@ -820,7 +835,7 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	GameState.set_flag(n["flag"])
 	if n.has("lesson"):
 		await _lesson_done(n, name)
-		# the next teacher who can see you (Coach Ondine, right after Coach Rory) steps in
+		# Any automatic teacher who can see you steps in; manual teachers wait to be spoken to.
 		await world.spot_you()
 	if n.get("vanish", false):
 		world.remove_npc(n)
@@ -895,6 +910,15 @@ func _mascot(world, n: Dictionary) -> void:
 
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
+		"freight_control":
+			await _free_trainers(world)
+		"captive":
+			var lines := ["They took us off the desert road. The robots brought us here in freight cages. Please, get us out!",
+				"The door control is on that console. Gearhart's command seal keeps it locked. Beat him and we can get out!",
+				"I only left home this spring. I was supposed to send Dad a letter. Please tell me we're going home."]
+			await UI.say([lines[int(n.get("captive_index", 0))]], n["name"])
+		"rescued_trainer":
+			await UI.say(["Wren helped us call our families. We're going home together. Thanks for giving us our first spring back."], n["name"])
 		"song_stone":
 			await Places.song_stone(world, n)
 		"song_tablet":
@@ -1148,27 +1172,33 @@ func _sheriff() -> void:
 		return
 	GameState.set_flag("met_sheriff")
 	await UI.say(["Howdy, stranger. Mind yourself in Sundown. Black Bart's gang has this town by the throat.",
-		"They raid our stores, then hole up in their hideout out on the Dune Sea road. They've barricaded the road north, too.",
+		"And new trainers are vanishing. We found Gearhart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
+		"Black Bart's gang raids our stores, then holes up out on the Dune Sea road. They've barricaded the road north, too.",
 		"I'm one sheriff with one old Galeberry. If you're half the trainer you look, go teach those varmints some manners.",
 		"Their hideout's a door in the rocks, just north of town."], "Sheriff Dalton")
 
 
 func _protester() -> void:
+	if GameState.flag("ceo_defeated") and not GameState.flag("trainers_freed"):
+		await UI.say(["You beat Gearhart? The trainers are still locked in his freight cages!", "Use the Freight Lock Control on the top floor. I'll get their families on the phone."], "Tinker Wren")
+		return
 	if GameState.flag("ceo_defeated"):
-		await UI.say(["The steam is flowing again! And the Caldera Road gate is open. You're a hero in Cogsworth!"], "Tinker Wren")
+		await UI.say(["The trainers are safe. Their families know. And the steam is flowing again!", "You gave this city its heart back."], "Tinker Wren")
 		return
 	await UI.say(["Down with Gearhart! Down with the rations!",
-		"Magnus Gearhart owns every pipe and piston in Cogsworth. He's holding the whole city hostage.",
-		"Now he's sealed the Caldera Road so he can drill into Mount Cinder and sell its fire. The volcano could blow!",
-		"He hides at the top of Gearhart Tower, behind floors full of robot sentries. Somebody has to stop him."], "Tinker Wren")
+		"His robots have been taking new trainers off the desert roads. I heard them inside the freight lift. They're still alive.",
+		"Gearhart owns every pipe and piston here. He supplies the cages; the Umbral Legion pays for the people.",
+		"Climb Gearhart Tower. Beat his robot sentries, stop him, and use the top-floor freight control to free the trainers.",
+		"He's sealed the Caldera Road too. Stop his drilling before Mount Cinder blows!"], "Tinker Wren")
 
 
 func _ceo(world, n: Dictionary) -> void:
 	if GameState.flag("ceo_defeated"):
-		await UI.say(["My beautiful drilling contracts... ruined by a child with a flute.",
-			"Fine. FINE. The council can have their steam."], "Magnus Gearhart")
+		await UI.say(["The freight control accepts my command seal now. Take your precious trainers.",
+			"Vexmora will hear about this."], "Magnus Gearhart")
 		return
 	await UI.say(["So. You're the pest who scrapped my sentries.",
+		"Those trainers? Vexmora needs living bonds to command his ghosts. I supply the transport. Very profitable.",
 		"Do you know what's inside Mount Cinder? Fire. Endless, free fire. Bottled and sold, it will make Gearhart Industries a god.",
 		"The city? Cattle. They'll pay whatever I ask for their steam.",
 		"Enough talk. My finest machines will turn your little pets into scrap!"], "Magnus Gearhart")
@@ -1182,8 +1212,62 @@ func _ceo(world, n: Dictionary) -> void:
 		GameState.shards += 2
 		Sfx.play("levelup")
 		await UI.say(["Gearhart slumps into his enormous chair. Outside, the city's steam whistles start to sing.",
+			"His command seal falls onto the desk. The Freight Lock Control can open the trainers' cages now!",
 			"The Caldera Road gate grinds open. The path to Mount Cinder and the Temple of Flame is clear!",
 			"The grateful engineers of Cogsworth hand you 2 crystal shards. (%d in your bag)" % GameState.shards])
+
+
+func _freight_control_node() -> Node3D:
+	var root := Node3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.65, 0.75, 0.55)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("#344b62")
+	mesh.material = mat
+	var base := MeshInstance3D.new()
+	base.mesh = mesh
+	base.position.y = 0.375
+	root.add_child(base)
+	var screen := MeshInstance3D.new()
+	var panel := BoxMesh.new()
+	panel.size = Vector3(0.54, 0.3, 0.04)
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = Color("#72c9c5" if GameState.flag("trainers_freed") else "#d77c9a")
+	panel.material = glow
+	screen.mesh = panel
+	screen.position = Vector3(0, 0.85, 0.2)
+	screen.rotation.x = -0.35
+	root.add_child(screen)
+	var label := Label3D.new()
+	label.text = "FREIGHT LOCK\nOPEN" if GameState.flag("trainers_freed") else "FREIGHT LOCK\nCOMMAND SEAL"
+	label.position = Vector3(0, 1.4, 0)
+	label.font_size = 26
+	label.pixel_size = 0.004
+	root.add_child(label)
+	return root
+
+
+func _free_trainers(world) -> void:
+	if GameState.flag("trainers_freed"):
+		await UI.say(["All freight cages are open. The transport orders have been cancelled."])
+		return
+	if not GameState.flag("ceo_defeated"):
+		await UI.say(["FREIGHT LOCK: COMMAND SEAL REQUIRED.", "Gearhart has the seal. You'll have to defeat him first."], "Freight Lock Control")
+		return
+	GameState.set_flag("trainers_freed")
+	GameState.set_flag("missing_trainers")
+	Sfx.play("lever")
+	for npc in world.npcs.values():
+		if npc.get("id", "") == "captive":
+			npc["node"].release()
+	await UI.say(["You press Gearhart's command seal to the console. The freight locks snap open. All three trainers step free."])
+	await UI.say(["I kept thinking nobody knew where we were. You found us.", "A general ordered this. Vexmora. The next shipment was bound for Gravenmoor."], "Trainer Lio")
+	await UI.say(["We're going home. All of us. Thank you."], "Trainer Bea")
+	await UI.say(["You cancel the remaining transport orders and send the missing-trainer register to Tinker Wren.",
+		"TRAINERS RESCUED · Lio, Bea and Orin are safe. Wren will reunite them with their families.",
+		"The trail leads to the Umbral Legion in Gravenmoor. This season belongs to trainers, not Vexmora."])
+	await GameState.main.reload_map()
 
 
 func _shaman(world) -> void:
@@ -1252,7 +1336,7 @@ func _nyx(world, n: Dictionary) -> void:
 		return
 	await UI.say(["The Legion's grunts couldn't stop you? How embarrassing for them.",
 		"General Vexmora is waking the oldest ghosts in the crypt below. Soon the Legion's army will be endless.",
-		"You won't interrupt her."], "Commander Nyx")
+		"You won't interrupt him."], "Commander Nyx")
 	if GameState.alive_party().is_empty():
 		await UI.say(["Come back when your beasts can stand."], "Commander Nyx")
 		return
@@ -1267,10 +1351,15 @@ func _nyx(world, n: Dictionary) -> void:
 func _finale(world, n: Dictionary) -> void:
 	if GameState.flag("game_cleared"):
 		return
+	if not GameState.flag("trainers_freed"):
+		await UI.say(["The trainers in Gearhart Tower are still locked in their freight cages.",
+			"Free them with the top-floor Freight Lock Control before confronting Vexmora. You won't leave them behind."])
+		return
 	if GameState.alive_party().is_empty():
 		await UI.say(["Your beasts can barely stand. Heal them first!"])
 		return
 	await UI.say(["So the child from Cocoon Cove made it all the way to my crypt.",
+		"Gearhart's shipments have stopped. So you are the one who opened my cages.",
 		"Every ghost beast in this place answers to me. They have no weakness. No fear. No mercy.",
 		"With them, the Legion will take every town from the coast to the jungle. Starting with you."], "General Vexmora")
 	var res := await trainer_battle({"name": "Vexmora", "cls": "General", "boss": true, "team": [[9, 54, true], [21, 54, true], [30, 55, true], [12, 56, true]],

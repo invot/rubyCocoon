@@ -44,6 +44,7 @@ const QUIRKY := [
 ## Town-specific characters (keyed by town id).
 const TOWNS := {
 	"caccoon": [
+		["First day of spring! The Embits woke up hungry. One tried to eat the trainer-season bunting."],
 		["The Embits nap on the rooftops here.", "I tried it once. The roof did not appreciate me."],
 		["Elder Rowan has been 'about to retire' for forty years.", "Every year he says 'just one more trainer'. That's you! Congratulations, you're his excuse."],
 		["Welcome to Cocoon Cove: population small, naps large."],
@@ -222,8 +223,10 @@ const HINTS := {
 		"North of Sundown, over the Dune Sea, lies Copperpick. And somewhere in the dunes, the Temple of Winds."],
 	"mine": ["The Mine Road out of Copperpick is closed without a Miner's Pass. Foreman Gorran signs them if you beat him at the Copperpick Arena.",
 		"Want to reach Cogsworth? You'll need a Miner's Pass. Copperpick's arena is where you earn one."],
-	"gearhart": ["Magnus Gearhart has Cogsworth under his thumb, and he's sealed the road to the volcano. Someone should climb that tower of his.",
+	"gearhart": ["Gearhart's robots are taking trainers. Climb his tower in Cogsworth and find the freight cages.",
 		"Gearhart Tower is crawling with robot sentries. Beat every one on a floor and the stairs open up."],
+	"rescue": ["Gearhart's defeated, but the trainers still need you! Use the Freight Lock Control on his tower's top floor.",
+		"The top-floor console opens the freight cages with Gearhart's command seal. Don't leave those trainers behind!"],
 	"flame": ["The Caldera Road's open now that Gearhart's beaten! The Temple of Flame waits on the way to Emberfall. Bring a water beast for the lava.",
 		"Past Cogsworth, up the Caldera Road, the Temple of Flame. Sunscreen recommended."],
 	"jungle": ["Over the Summit Pass lies Vinehollow, deep in the jungle. Their shaman's been looking for a capable trainer.",
@@ -234,7 +237,7 @@ const HINTS := {
 		"There's a temple on the Jungle Trail that wasn't there last week. You should probably go and poke it."],
 	"gravenmoor": ["Past Riverbend, the Moor Road leads to Gravenmoor, the Umbral Legion's town. Old Mort the gravedigger knows a song that soothes ghosts.",
 		"Commander Nyx guards Gravenmoor Cathedral. Bring strong, merged beasts. Ghosts have no weakness."],
-	"vexmora": ["General Vexmora waits in the crypt beneath the cathedral. This is it. Go and get her!",
+	"vexmora": ["General Vexmora waits in the crypt beneath the cathedral. This is it. Go and get him!",
 		"The Legion's general is down in the crypt. Everyone's counting on you. No pressure!"],
 	"done": ["You saved us all! Now, about that sweater I knitted you...",
 		"The whole land's talking about you. Mostly good things. One bad thing, about your hat."],

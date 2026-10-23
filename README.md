@@ -46,7 +46,16 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 
 ## The journey
 
-You start at home in **Cocoon Cove** on the coast with no beasts, no flute and no songs.
+New Game opens with a 72-second cinematic: a murder in **Gearhart Tower**, the robot kidnapping scheme, then the first
+morning of spring in **Cocoon Cove**, as beasts leave hibernation and trainer season begins. Subtitles advance
+automatically; **A / Enter** (or the **Next** button) advances a beat. **Esc / B / Start** or **Skip intro** skips the
+whole film. Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
+
+The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
+Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**.
+In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
+Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
+required before confronting Vexmora.
 
 <img src="docs/screenshots/maker.jpg" width="640" alt="The character creator: name, body, outfit, hairdo and colours, the pack's too."><br><sub>The character creator: name, body, outfit, hairdo and colours, the pack's too.</sub>
 
@@ -80,10 +89,10 @@ You start at home in **Cocoon Cove** on the coast with no beasts, no flute and n
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute.
 10. Tidewater's arena teaches you to battle properly before you may face its master (`world_db.gd` ARENA_LESSONS,
-    battle.gd LESSONS "team" and "elements"). Both coaches stand just inside the door and see you as you walk in.
+    battle.gd LESSONS "team" and "elements"). Both coaches stand just inside the door; only Rory approaches you.
     **Coach Rory** stops you first and shows you fighting with a whole side of your ring (the arena's practice beasts
-    fill your empty slots for the lesson). Then **Coach Ondine**, who doesn't notice you until you've had Rory's
-    lesson, steps in with elemental weaknesses: her beast is weak to the element of the side facing it (with your earth
+    fill your empty slots for the lesson). Then speak to **Coach Ondine** when you're ready for elemental
+    weaknesses: her beast is weak to the element of the side facing it (with your earth
     side facing, you borrow the arena's air practice team, since nothing is weak to earth). Only then can you challenge
     **Tide Captain Marina**, and Captain Gull's ferry to the Isle of Tides only takes trainers with her Wave Crest.
 11. The journey runs in one line: the Dune Road north of Tidewater stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
@@ -526,6 +535,17 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
+- `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and the one-time Dustwell reveal.
+- `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
+
+Focused cinematic previews use the normal screenshot harness and fresh state (no player saves):
+
+```
+godot --path . -- --scene=intro --at=26 --shot=res://docs/screenshots/intro_tower.png
+godot --path . -- --scene=intro --at=48 --shot=res://docs/screenshots/intro_spring.png
+godot --path . -- --scene=intro --hold=0
+godot --path . -- --scene=rescue --preview=locked --shot=res://docs/screenshots/trainer_cages.png
+```
 
 Screenshots from a test scene (`--shot=path.png`) come out small: `--crop=x0,y0,x1,y1` keeps just part of the screen
 (fractions, or pixels if any is over 1) and `--shot_w` caps the width (default 960; 0 keeps full size); a `.jpg`
@@ -598,7 +618,7 @@ godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a r
 godot --path . -- --scene=battlecmd --touch                             # the battle's command panel: one A is one confirm, every move's target picked (arcs, all-foe moves), ▲ turns the ring, Move (yours and a foe trainer's), the ring turning by itself ("BATTLE COMMANDS DONE: 0 problem(s)"); --stop=arc|all|move --shot=C:/tmp/b.png
 godot --path . -- --scene=ringedit --touch                              # the ring editor: who may go where on the ring and in and out of storage, lit cells, taps ("RING EDIT DONE: 0 problem(s)")
 godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")
-godot --headless --path . -- --scene=coaches                            # a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one: every teacher must stop them, in order ("coaches DONE: 0 problem(s)")
+godot --headless --path . -- --scene=coaches                            # Coastal Path teachers, Rory's arena approach, a clear lobby route, then speaking to Ondine ("coaches DONE: 0 problem(s)")
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
 godot --headless --path . -- --scene=mascot                             # mascots' signature moves: the rules, teaching at Lv 39 / 40, another line, a merge
 godot --headless --path . --script res://tools/check_beasts.gd           # every form's name, elements and model; growing up at Lv 20 and 40; merging only final forms ("BEASTS CHECK DONE: 0 problem(s)")

@@ -33,6 +33,7 @@ var _transitioning := false
 var _title_nodes: Array = []
 var _test := {}
 var autoplay := false
+var _cinematic: Node3D
 
 
 func _ready() -> void:
@@ -72,6 +73,12 @@ func _exit_tree() -> void:
 
 
 ## Taps (and mouse clicks) on the world walk the player there; see world.gd tap_at().
+func _input(ev: InputEvent) -> void:
+	# The film renders inside the 3D SubViewport; keyboard/controller input arrives at the main window.
+	if is_instance_valid(_cinematic):
+		_cinematic.handle_input(ev)
+
+
 func _unhandled_input(ev: InputEvent) -> void:
 	if ev is InputEventScreenTouch and ev.pressed and world != null and not in_battle and not _transitioning and not world.demo:
 		if UI.touch_blocks(ev.position) or not UI.stack.is_empty():
@@ -164,11 +171,47 @@ func _title() -> void:
 				continue
 			GameState.new_game(made["name"], made["look"])
 			_clear_title()
-			UI.allow_pause = true
-			var home := MapLoader.interior_of("caccoon", "home")
-			# the first morning starts in your bedroom
-			_pending_goto = {"map": MapLoader.wake_room(home) if home != "" else "caccoon", "spawn": "wake" if home != "" else "start"}
+			await _begin_adventure()
 			return
+
+
+## Only New Game plays the prologue; loading a save keeps its normal map transition.
+func _opening(at := 0.0, hold := false) -> Node3D:
+	_transitioning = true
+	UI.allow_pause = false
+	UI.controls.set_title_mode(true)
+	if is_instance_valid(world):
+		view.remove_child(world)
+		world.queue_free()
+		world = null
+	screen.modulate.a = 1.0
+	var film = load("res://scripts/story/opening.gd").new()
+	_cinematic = film
+	view.add_child(film)
+	film.start(at, hold)
+	return film
+
+
+func _begin_adventure() -> void:
+	var film = _opening()
+	await film.finished
+	await _finish_opening(film)
+
+
+func _finish_opening(film: Node3D) -> void:
+	await UI.fade_out(0.0)
+	var fade := film.create_tween()
+	fade.tween_property(film.shade, "color", Color(0.025, 0.03, 0.06, 1), 0.2)
+	await fade.finished
+	film.queue_free()
+	_cinematic = null
+	await get_tree().process_frame
+	GameState.set_flag("opening_seen")
+	UI.controls.set_title_mode(false)
+	UI.allow_pause = true
+	var home := MapLoader.interior_of("caccoon", "home")
+	# Ready to leave with Mom downstairs, rather than waking up in the old bedroom start.
+	await _do_goto(home if home != "" else "caccoon", "entry" if home != "" else "start")
 
 
 ## From the Start book: back to the title screen.
@@ -524,6 +567,11 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "intro":
+		await _opening_test()
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if _test.has("shield"):
 		# --shield=2/4: shield points left / in all
 		GameState.max_shield = int(String(_test["shield"]).get_slice("/", 1))
@@ -694,6 +742,27 @@ func _run_test() -> void:
 		await get_tree().create_timer(1.5).timeout
 		UI.say(["Ah, Tester! There you are. Today you become a beast trainer. Every trainer needs a partner, and I have four young beasts here."], "Elder Rowan")
 		await get_tree().create_timer(wait).timeout
+	elif scene == "arena-entry":
+		await _arena_entry_test()
+		await get_tree().create_timer(wait).timeout
+	elif scene == "egg-sales":
+		# Real sale menus, seeded with demo eggs; no player saves are loaded or written.
+		var town := String(_test.get("buyer", ""))
+		var place := "caccoon" if town == "" else town
+		for lesson in Story.ARENA_LESSONS:
+			GameState.set_flag("lesson_" + String(lesson["lesson"]))
+		UI.auto = true
+		await _go(MapLoader.interior_of(place, "center" if town == "" else "arena"), "entry")
+		await _wait(1.0)
+		UI.auto = false
+		GameState.eggs = []
+		for race in [0, 24, 12, 30, 39]:
+			GameState.add_egg(race)
+		GameState.add_egg(0, true)
+		Places.sell_eggs(town)
+		await get_tree().create_timer(wait).timeout
+	elif scene == "rescue":
+		await _rescue_test()
 	elif scene == "center":
 		_do_goto("caccoon", "center")
 		await get_tree().create_timer(1.5).timeout
@@ -1502,6 +1571,164 @@ func _save_shot(path: String) -> void:
 
 
 # ---------------------------------------------------------------- automated flow test
+## Isolated prologue playback / screenshots: --scene=intro --at=25 --hold=1 --shot=...
+## --verify=1 exercises real skip inputs and the New Game handoff; --hold=0 watches the whole film.
+func _opening_test() -> void:
+	if _test.get("verify", "0") == "1":
+		var bad := 0
+		for device in ["keyboard", "controller", "start", "button"]:
+			var film = _opening(4.0, true)
+			await get_tree().process_frame
+			if device == "button":
+				film.skip_button.pressed.emit()
+			else:
+				var event: InputEvent
+				if device == "keyboard":
+					var key := InputEventKey.new()
+					key.physical_keycode = KEY_ESCAPE
+					key.pressed = true
+					event = key
+				else:
+					var pad := InputEventJoypadButton.new()
+					pad.button_index = JOY_BUTTON_START if device == "start" else JOY_BUTTON_B
+					pad.pressed = true
+					event = pad
+				Input.parse_input_event(event)
+				await get_tree().process_frame
+				event.set("pressed", false)
+				Input.parse_input_event(event)
+			if not film.skipped or film.running:
+				bad += 1
+				print("FAIL intro skip ", device)
+			if GameState.has_flute() or not GameState.party.is_empty() or GameState.flag("missing_trainers") or GameState.visited != ["caccoon"]:
+				bad += 1
+				print("FAIL prologue changed the hero's knowledge or starting inventory")
+			film.queue_free()
+			_cinematic = null
+			await get_tree().process_frame
+		var film = _opening(0.0, true)
+		for beat in film.BEATS.size() - 1:
+			film.next_button.pressed.emit()
+			await get_tree().process_frame
+		if film._scene != "spring" or film.speaker.text != "TESTER":
+			bad += 1
+			print("FAIL cinematic beat progression")
+		film.elapsed = film.LENGTH - 0.01
+		film.preview = false
+		film._process(0.1)
+		if film.running or film.skipped:
+			bad += 1
+			print("FAIL natural cinematic completion")
+		film.queue_free()
+		_cinematic = null
+		await get_tree().process_frame
+		# Skip the actual New Game flow. Mom must still give the egg/flute objective once.
+		UI.auto = true
+		_begin_adventure()
+		await _wait(0.1)
+		_cinematic.skip()
+		while _transitioning or world == null or not GameState.flag("intro_done"):
+			await get_tree().process_frame
+		await _wait(0.3)
+		if not GameState.flag("opening_seen") or not MapLoader.is_interior(GameState.map_id) or GameState.has_flute():
+			bad += 1
+			print("FAIL intro handoff")
+		var early := " ".join(UI.auto_log)
+		if "Legion" in early or "vanishing" in early or "kidnap" in early:
+			bad += 1
+			print("FAIL early story spoiler")
+		await _go("dustwell", "start")
+		if not GameState.flag("missing_trainers"):
+			bad += 1
+			print("FAIL Dustwell reveal")
+		var count := UI.auto_log.size()
+		await Story.on_map_enter(world)
+		if UI.auto_log.size() != count:
+			bad += 1
+			print("FAIL Dustwell reveal repeated")
+		print("INTRO TEST DONE: %d problem(s)" % bad)
+		return
+	GameState.player_name = String(_test.get("name", "Andrew"))
+	var film = _opening(float(_test.get("at", "0")), _test.get("hold", "1") == "1")
+	if film.preview:
+		await _wait(float(_test.get("wait", "1.5")))
+		if _test.has("shot"):
+			_save_shot(String(_test["shot"]))
+	else:
+		await film.finished
+		print("INTRO PLAYBACK DONE: skipped=", film.skipped)
+		UI.auto = _test.get("auto_end", "0") == "1"
+		await _finish_opening(film)
+		print("INTRO HANDOFF DONE: home=", MapLoader.is_interior(GameState.map_id), " objective=", GameState.flag("intro_done"), " flute=", GameState.has_flute())
+		if _test.has("shot"):
+			await _wait(0.8)
+			_save_shot(String(_test["shot"]))
+		return
+	film.queue_free()
+	_cinematic = null
+	await get_tree().process_frame
+
+
+## The real tower interactions, including the locked control, rescue, reload and repeat visit.
+func _rescue_test() -> void:
+	UI.auto = true
+	var bad := 0
+	var tower := MapLoader.floor_id(MapLoader.interior_of("cogsworth", "ceo_tower"), 4)
+	await _go(tower, "entry")
+	var captives: Array = world.npcs.values().filter(func(n): return n.get("id", "") == "captive")
+	if captives.size() != 3 or _npc("freight_control").is_empty():
+		bad += 1
+		print("FAIL freight cages / control missing")
+	await Story.talk(world, _npc("freight_control"))
+	if GameState.flag("trainers_freed"):
+		bad += 1
+		print("FAIL rescue unlocked before Gearhart defeat")
+	await Story._finale(world, {})
+	if not "still locked" in String(UI.auto_log.back()) or GameState.flag("game_cleared"):
+		bad += 1
+		print("FAIL finale allowed before trainer rescue")
+	if _test.get("preview", "") == "locked":
+		UI.auto = false
+		world.cam_free = true
+		world.cam.position = Vector3(7.5, 6.6, 16.5)
+		world.cam.look_at(Vector3(7.5, 0.7, 4.7))
+		await _wait(1.0)
+		return
+	GameState.set_flag("ceo_defeated")
+	await Story.talk(world, _npc("freight_control"))
+	await _wait(0.9)
+	while _transitioning or not _pending_goto.is_empty():
+		await get_tree().process_frame
+	if not GameState.flag("trainers_freed") or world.npcs.values().any(func(n): return n.get("id", "") == "captive"):
+		bad += 1
+		print("FAIL rescue state / cleared cages")
+	var before := GameState.gold
+	await Story.talk(world, _npc("freight_control"))
+	if GameState.gold != before:
+		bad += 1
+		print("FAIL repeat rescue changed rewards")
+	await _go("cogsworth", "start")
+	var rescued: Array = world.npcs.values().filter(func(n): return n.get("id", "") == "rescued_trainer")
+	if rescued.size() != 3:
+		bad += 1
+		print("FAIL rescued trainers not reunited in Cogsworth")
+	for npc in rescued:
+		var at: Vector2i = npc["pos"]
+		if not MapGen.walkable(MapGen.get_t(world.map, at.x, at.y)):
+			bad += 1
+			print("FAIL rescued trainer on unwalkable tile")
+	print("RESCUE TEST DONE: %d problem(s)" % bad)
+	UI.auto = false
+	if _test.has("shot"):
+		world.cam_free = true
+		var at: Vector3 = rescued[1]["node"].position
+		world.cam.position = at + Vector3(0, 5.4, 10)
+		world.cam.look_at(at + Vector3(0, 0.6, 0))
+		await _wait(3.2)
+		UI.say(["We're going home together. Thanks for giving us our first spring back."], "Trainer Bea")
+		await _wait(1.2)
+
+
 func _wait(t: float) -> void:
 	await get_tree().create_timer(t).timeout
 
@@ -1762,9 +1989,10 @@ func _flow_test() -> void:
 	await Places.leader_talk(_bld("arena"))
 	print("Marina before the lessons: ", UI.auto_log.back(), "  crest ", GameState.crests.has("Wave Crest"))
 	print("  the host's Challenge before the lessons: ", await Places.arena_challenge("tidewater"))
-	# walking in, Coach Rory stops you at the door, and Coach Ondine right after him
+	# Rory stops you on entry. Ondine waits to be spoken to, leaving a route into the lobby.
 	await _go(MapLoader.interior_of("tidewater", "arena"), "entry")
 	await _wait(1.0)
+	await Story.talk(world, _lesson_trainer("elements"))
 	for l in ["team", "elements"]:
 		print("  lesson ", l, ": done ", GameState.flag("lesson_" + l))
 	print("arena lessons done: ", Story.arena_lessons_done("tidewater"), "  hint: ", Story.next_goal())
@@ -1855,6 +2083,9 @@ func _flow_test() -> void:
 	_step("ceo", [])
 	await Story.talk(world, _npc("ceo"))
 	print("ceo_defeated ", GameState.flag("ceo_defeated"), " shards ", GameState.shards)
+	await Story.talk(world, _npc("freight_control"))
+	await _wait(1.0)
+	print("trainers_freed ", GameState.flag("trainers_freed"))
 	await _go("vinehollow", "center")
 	await _wait(1.5)
 	_step("shaman", [])
@@ -2454,7 +2685,7 @@ func _ringedit_test() -> void:
 
 ## --scene=coaches: a new trainer (a Lv 1 hatchling, no flute, no lessons) walks the Coastal Path by tapped walks from
 ## Cocoon Cove to Tidewater, in and out of Youngster Kit's cabin and over his footbridge, then (with a flute) into
-## Tidewater's arena. Nobody is talked to: every teacher must stop you and give their lesson, in the path's order.
+## Tidewater's arena. The path teachers and Rory stop you; Ondine waits for you to speak after you walk into the lobby.
 func _coaches_test() -> void:
 	Engine.time_scale = 8.0
 	UI.auto = true
@@ -2509,13 +2740,23 @@ func _coaches_test() -> void:
 	print("%s the Coastal Path's teachers, in order: %s (wanted %s), tutorial_done %s" % ["ok  " if ok else "FAIL", given, path_lessons, GameState.flag("tutorial_done")])
 	if not ok:
 		bad[0] += 1
-	# Uncle Rafe's flute, then into the arena: Coach Rory at the door, then Coach Ondine
+	# Uncle Rafe's flute, then into the arena: only Rory approaches at the door.
 	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("reed_flute")
 	var arena := _bld("arena")
 	await _walk_road([arena["door"] + Vector2i(0, 1)])
 	world._step(Vector2i(0, -1), false)
 	await _settle(MapLoader.interior_of("tidewater", "arena"))
+	ok = GameState.flag("lesson_team") and not GameState.flag("lesson_elements")
+	print("%s only Rory's lesson runs on entry" % ("ok  " if ok else "FAIL"))
+	if not ok:
+		bad[0] += 1
+	await _walk_road([Vector2i(5, 1)])
+	ok = world.player_pos == Vector2i(5, 1) and not GameState.flag("lesson_elements")
+	print("%s can walk into lobby after Rory without leaving arena" % ("ok  " if ok else "FAIL"))
+	if not ok:
+		bad[0] += 1
+	await Story.talk(world, _lesson_trainer("elements"))
 	var all_lessons: Array = teachers.map(func(t): return t["lesson"])
 	ok = given == all_lessons and Story.arena_lessons_done("tidewater")
 	print("%s the arena's coaches, in order: %s (wanted %s)" % ["ok  " if ok else "FAIL", given.slice(path_lessons.size()), all_lessons.slice(path_lessons.size())])
@@ -2524,6 +2765,34 @@ func _coaches_test() -> void:
 	get_tree().process_frame.disconnect(watch)
 	print("starter ", GameState.party[0].nickname, " Lv", GameState.party[0].level, "  hint: ", Story.next_goal())
 	print("coaches DONE: %d problem(s)" % bad[0])
+
+
+## Focused regression and visible preview: one automatic lesson, then walk past the entrance.
+func _arena_entry_test() -> void:
+	UI.auto = true
+	autoplay = true
+	Engine.time_scale = 8.0
+	GameState.set_flag("seen_tidewater")
+	GameState.set_flag("lesson_team", false)
+	GameState.set_flag("lesson_elements", false)
+	var id := MapLoader.interior_of("tidewater", "arena")
+	await _go(id, "entry")
+	await _settle(id)
+	var only_rory := GameState.flag("lesson_team") and not GameState.flag("lesson_elements")
+	var ondine := _lesson_trainer("elements")
+	var waiting: bool = ondine["pos"] == world.map["anchors"]["lesson_elements"]
+	Engine.time_scale = 1.0
+	UI.auto = false
+	await get_tree().create_timer(0.5).timeout
+	if _test.has("shot"):
+		_save_shot(String(_test["shot"]).replace(".png", "_entry.png"))
+	UI.auto = true
+	await _walk_road([Vector2i(5, 1)])
+	var moved: bool = world.player_pos == Vector2i(5, 1) and world.map_id == id
+	var still_waiting := not GameState.flag("lesson_elements")
+	print("ARENA ENTRY: only Rory %s, Ondine at post %s, walked into lobby %s, no second ambush %s" % [only_rory, waiting, moved, still_waiting])
+	print("ARENA ENTRY DONE: %d problem(s)" % (int(not only_rory) + int(not waiting) + int(not moved) + int(not still_waiting)))
+	UI.auto = false
 
 
 ## --scene=lessons: every guided battle (the Coastal Path's teachers, Tidewater's arena coaches and the flute lesson)
