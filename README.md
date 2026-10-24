@@ -68,8 +68,10 @@ from their garden lane to **Cocoon Cove Library**, which marks the square's west
 **Librarian Quill** for a free **World Map**, then unfold it from **Start → Map**.
 Existing saves keep their map access. The town stands on a high natural cliff above a rocky shoreline, with no
 beach, pier, coastal path or route down to the water. Woodland fills the ground between the village and the irregular
-rocky coves. Two inaccessible homes sit close behind the Beast Center at its level, and an isolated shack stands
-among the trees by the cliff. The surrounding ridges follow irregular contours rather than straight terrace edges.
+rocky coves. Two inaccessible homes sit close behind the Beast Center at its level. A dirt path winds south from the
+square through the woods to an old log shack on the clifftop (`s` on the map, room `shack`); nobody lives there, but
+a trainer left their starter gear behind: a **Worn Cap**, **Old Sneakers** and a **Rope Collar** for a beast. They
+are only found there, never sold (`item_db.gd` `found`), and you put them on from the Bag. The surrounding ridges follow irregular contours rather than straight terrace edges.
 In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
@@ -543,9 +545,10 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   - `C` Beast Center, `X` electronics, `V` Sky Tower
   - `I` Gearhart Tower, `B` cathedral, `J` hideout, `Q` temple
 - **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with the logs stacked by Old Hal's door) and `k` (a cliff that needs a winged beast).
+- `s` is Cocoon Cove's cliffside shack, drawn as a log cabin (room `shack` in `interior_maps.gd`).
 - `b` is Youngster Kit's log cabin on the Coastal Path (room `kit_cabin` in `interior_maps.gd`, where an `anchors` entry puts Kit by the fire).
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
-- **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too.
+- **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too, `item:<id>` ones included.
 - **Story gates** use `&`.
 - **Cliffs and ramps**: a map's `heights` rows (one character per tile, lined up with `rows`) give each tile a level,
   `0`-`9`, one unit apiece; `^ v < >` is a ramp rising that way, and a run of them climbs evenly between the levels at
@@ -559,7 +562,8 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
   - Cocoon Cove has three homes on a raised western shelf, a ramp descending beside the library into a compact square,
     and woodland down to its irregular rocky cliffs, with no coastal path. The rocks and water below are inaccessible.
-    Two small scenery homes sit close behind the Beast Center on its level; a cliffside shack is also inaccessible.
+    Two small scenery homes sit close behind the Beast Center on its level; a woodland path leads to the cliffside
+    shack (`s`, room `shack`), whose starter gear lies on its floor as `item:<id>` anchors.
     Its `building_order` lists building origins in saved interior order; `building_looks` selects preferred house
     models and skins, and `scenery_houses` places noninteractive buildings on solid woodland footprints.
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
@@ -594,7 +598,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and the one-time Dustwell reveal.
-- `cocoon`: cliff isolation, old building identities, the home-to-library route, entering the library, receiving the
+- `cocoon`: cliff isolation, old building identities, the path to the cliff shack and its starter gear (`--preview=shack_path` or `shack` with `--shot=` for pictures), the home-to-library route, entering the library, receiving the
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
   `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.

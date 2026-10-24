@@ -15,6 +15,7 @@ extends RefCounted
 ##   C Beast Center  A apothecary  G beast outfitter  O trainer outfitter  K bookstore  R arena
 ##   Y dojo  M museum  U music hall  N fortune teller  E cafe  H house  Z your home  Q temple
 ##   X electronics  V Sky Tower  I Gearhart Tower  B cathedral  J bandit hideout  D music shop  h scenery building
+##   s Cocoon Cove's cliff shack (a log cabin, room "shack")
 ## Walkable tiles touching the map edge become exits to the neighbouring map (see world_db.gd).
 ## "heights" (optional): one more row of characters per row of the map, giving each tile its level (elevation.gd):
 ##   0-9 the ground's level there   ^ v < > a ramp rising that way, between the levels at its two ends
@@ -25,14 +26,14 @@ extends RefCounted
 
 const MAPS := {
 	"caccoon": {
-		# Individual garden homes overlook a wooded town and an inaccessible rocky coast.
-		"building_order": [[39, 16], [5, 3], [50, 17], [15, 2], [24, 4], [28, 17]],
-		"building_looks": {"1": {"house_model": "cape-cod", "house_skin": 0, "house_max_height": 4.8}, "3": {"house_model": "double-pen", "house_skin": 2, "house_max_height": 4.8}, "4": {"house_model": "gable-front", "house_skin": 3, "house_max_height": 4.8}},
+		# Individual garden homes overlook a wooded town and an inaccessible rocky coast. A dirt path leads from the
+		# square down through the woods to the old log shack on the clifftop (s, room "shack": starter gear inside).
+		"building_order": [[39, 16], [5, 3], [50, 17], [15, 2], [24, 4], [28, 17], [11, 34]],
+		"building_looks": {"1": {"house_model": "cape-cod", "house_skin": 0, "house_max_height": 4.8}, "3": {"house_model": "double-pen", "house_skin": 2, "house_max_height": 4.8}, "4": {"house_model": "gable-front", "house_skin": 3, "house_max_height": 4.8}, "6": {"house_model": "log-cabin"}},
 		"outskirt_houses": [],
 		"scenery_houses": [
 			{"name": "CenterNeighborWest", "x": 35, "y": 11, "w": 5, "d": 4, "house_model": "side-hall", "house_skin": 1},
 			{"name": "CenterNeighborEast", "x": 47, "y": 11, "w": 5, "d": 4, "house_model": "cape-cod", "house_skin": 2},
-			{"name": "CliffShack", "x": 11, "y": 34, "w": 5, "d": 4, "style": "cabin", "house_model": "log-cabin"},
 		],
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
@@ -58,23 +59,23 @@ const MAPS := {
 			"TTTTTTTTTTTTTTTTTTt,,tTTT*..::::::..TTT::::::TTT..:::::...TTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTt,,,,,,,,L:::+:::::::::::::::::::::::,,L,,,,,,,,",
 			"TTTTTTTTTTTTTTTTTTt,,,,,,,,,:::::::::::::::::::::::::::,,,,,,,,,,,",
-			"TTTTTTTTTTTTTTTTTTtttttttt..........L::::tt::::L.....@........2+tt",
-			"TTTTTTTTTTTTTTTTTTttttttttttttttttt..::::tt::::..ttttttttt......tt",
-			"TTTTTTTTTTTTTTTTTTttttttttttttttttt..::::SS::::..ttttttttttttttttt",
-			"TTTTTTTTTTTTTTTTTTttttttttttttttttt..::::SS::::..ttttttttttttttttt",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTtttttttttt.L::1:::::3:L.ttttttttttttttttT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTt..............tTTTTTTTttttttttT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTttttttttttttttttTTTTTTTTTTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTttttttttttttttttTTTTTTTTTTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTt#TTTttttttttttttttttTTTTTTTTTTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTT#t###tTttttttttttttttttTTTTTTTTTTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTT#t###t##TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTT#t#######t#TTTTTTTTTTTTTTTTTTTTTTTTTTT###",
-			"TTTTTTTTTTTTTTTTTTTTTTTT#t###~~######tTTTTTTTTTTTTTTTTTTTTTTTt###t",
-			"TTTTTTTTTTTTTTTTTTTTTTT#t##~~##~~###t###t###t##TTTTTTTTTTTTTt#####",
-			"#TTTTTTTTTTTTTTTTTTTT##t##~~~~~~~~#####t###t###tTTTTTTTTTTTt######",
-			"##tTTTTTT#t###t##TT###t##~~~~~~~~~~~#############TTTTTTTTTt####~~~",
-			"#t###t###t###t###t######~~~~~~~~~~~~~~###########t#TTTTTTt###~~~~#",
+			"TTTTTTTTTTTTTTTTTTt,,ttttt..........L::::tt::::L.....@........2+tt",
+			"TTTTTTTTTTTTTTTTTTt,,tttttttttttttt..::::tt::::..ttttttttt......tt",
+			"TTTTTTTTTTTTTTTTTTt,,tttttttttttttt..::::SS::::..ttttttttttttttttt",
+			"TTTTTTTTTTTTTTTTTTt,,tttttttttttttt..::::SS::::..ttttttttttttttttt",
+			"TTTTTTTTTTTTTTTTTTT,,TTTTtttttttttt.L::1:::::3:L.ttttttttttttttttT",
+			"TTTTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTt..............tTTTTTTTttttttttT",
+			"TTTTTTTTTTTTTTTTTT,,,TTTTTTTTTTTTTttttttttttttttttTTTTTTTTTTTTTTTT",
+			"TTTTTTTTTTTTTTTTTT,,tTTTTTTTTTTTTTttttttttttttttttTTTTTTTTTTTTTTTT",
+			"TTTTTTTTTTTTTTTTTT,,tTTTTTTTTt#TTTttttttttttttttttTTTTTTTTTTTTTTTT",
+			"TTTTTTTTTTTTTTTTTT,,tTTTTTT#t###tTttttttttttttttttTTTTTTTTTTTTTTTT",
+			"TTTTTTTTTTTTTTTTT,,,tTTTTT#t###t##TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+			"TTTTTTTTTTTsssssT,,tTTTTT#t#######t#TTTTTTTTTTTTTTTTTTTTTTTTTTT###",
+			"TTTTTTTTTTTsssssT,,tTTTT#t###~~######tTTTTTTTTTTTTTTTTTTTTTTTt###t",
+			"TTTTTTTTTTTsssssT,,tTTT#t##~~##~~###t###t###t##TTTTTTTTTTTTTt#####",
+			"#TTTTTTTTTTsssss,,,tT##t##~~~~~~~~#####t###t###tTTTTTTTTTTTt######",
+			"##tTTTTTT#t##,,,,,,###t##~~~~~~~~~~~#############TTTTTTTTTt####~~~",
+			"#t###t###t###ttttttt####~~~~~~~~~~~~~~###########t#TTTTTTt###~~~~#",
 			"####t###t##############~~~~~~~~~~~~~~~~~~~~~~~~#####TTT#t###~~~~~~",
 			"~####################~~~~~~~~~~~~~~~~~##~~~~~~~~###t###t###~~~~~~~",
 			"~~~######~~~~~~~~##~~#~~~~~~~~~~~~~~~~~~~~~~~~~#~#####t###~~~~~~~~",

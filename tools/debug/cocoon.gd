@@ -3,6 +3,7 @@ extends RefCounted
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
+const ItemDB = preload("res://scripts/data/item_db.gd")
 
 var bad := 0
 
@@ -33,13 +34,16 @@ func run(main, opts: Dictionary) -> void:
 	var home_level := Elev.surface(town, home["door"])
 	_check(home_level > Elev.surface(town, town["buildings"][0]["door"])
 		and [3, 4].all(func(i): return Elev.surface(town, town["buildings"][i]["door"]) == home_level), "the starting home and both neighboring houses share a shelf above town")
-	_check(town.get("outskirt_houses", []).is_empty() and town.get("scenery_houses", []).size() == 3, "two close background homes and the cliff shack replace distant outskirt buildings")
+	_check(town.get("outskirt_houses", []).is_empty() and town.get("scenery_houses", []).size() == 2, "two close background homes replace distant outskirt buildings")
 	for entry in town.get("scenery_houses", []):
 		var position := Vector2i(int(entry["x"]), int(entry["y"]))
 		_check(main.world.find_child(entry["name"], true, false) != null, "%s renders" % entry["name"])
 		_check(not MapGen.walkable(MapGen.get_t(town, position.x, position.y)), "%s has no accessible entrance" % entry["name"])
-		if entry["name"] != "CliffShack":
-			_check(Elev.surface(town, position) == Elev.surface(town, town["buildings"][0]["door"]), "background home stays on the Beast Center's level")
+		_check(Elev.surface(town, position) == Elev.surface(town, town["buildings"][0]["door"]), "background home stays on the Beast Center's level")
+	if await _shack(main, opts):
+		return
+	await main._go("caccoon", "start")
+	town = main.world.map
 	main.world.spawn_at(Vector2i(8, 21))
 	_check(main.world._walkable(main.world.player_pos), "a save on the old pier loads onto safe ground")
 	main.world.spawn_at("start")
@@ -94,6 +98,65 @@ func run(main, opts: Dictionary) -> void:
 		await main._wait(0.5)
 		if not UI.stack.is_empty():
 			UI.stack.back().text_label.visible_characters = -1
+	await main._wait(float(opts.get("wait", "2")))
+	if opts.has("shot"):
+		await RenderingServer.frame_post_draw
+		main._save_shot(String(opts["shot"]))
+
+
+## The cliff shack at the end of the woodland path: reached from the square, entered by its door, and its starter gear
+## picked up and put on. True when a --preview=shack_path / shack screenshot ends the scenario there.
+func _shack(main, opts: Dictionary) -> bool:
+	var town: Dictionary = main.world.map
+	var shack: Dictionary = town["buildings"][6]
+	var step: Vector2i = shack["door"] + Vector2i(0, 1)
+	_check(shack["shop"] == "shack" and shack["interior"] == "caccoon#6", "the cliff shack follows the saved buildings' interior ids")
+	_check(Elev.surface(town, step) == Elev.surface(town, shack["door"]), "the shack's doorstep is level with it")
+	main.world.spawn_at(Vector2i(24, 21))
+	for i in 3:
+		if main.world.player_pos != step:
+			await main._walk_test([step])
+	_check(main.world.player_pos == step, "the woodland path leads from the square to the shack's door")
+	main.world.facing = Vector2i(0, -1)
+	if opts.get("preview", "") == "shack_path":
+		await _shot(main, opts)
+		return true
+	await main.world._interact()
+	await main._settle(shack["interior"])
+	var room: Dictionary = main.world.map
+	_check(room.get("room_key", "") == "shack", "the shack's door opens into its room")
+	var found := {}
+	for it in room["items"]:
+		found[it["item"]] = it["pos"]
+	_check(found.has("worn_cap") and found.has("old_sneakers") and found.has("rope_collar"), "a cap, sneakers and a beast's collar lie in the shack")
+	if opts.get("preview", "") == "shack":
+		await _shot(main, opts)
+		return true
+	for id in found:
+		var pos: Vector2i = found[id]
+		for d in [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1)]:
+			if main.world._walkable(pos + d) and not main.world.items.has(pos + d):
+				await main._walk_test([pos + d])
+				if main.world.player_pos == pos + d:
+					main.world.facing = -d
+					await main.world._interact()
+					break
+		_check(GameState.item_count(id) == 1, "picked up the %s" % ItemDB.item_name(id))
+	_check(ItemDB.stock("tgear", 12, "test").filter(func(id): return id in found).is_empty()
+		and ItemDB.stock("gear", 12, "test").filter(func(id): return id in found).is_empty(), "no shop sells the shack's gear")
+	var speed := GameState.gear_fx("speed")
+	await Menus.use_bag_item("worn_cap")
+	await Menus.use_bag_item("old_sneakers")
+	_check(GameState.gear["head"] == "worn_cap" and GameState.gear["feet"] == "old_sneakers"
+		and GameState.gear_fx("speed") > speed and GameState.gear_fx("capture") > 0.0, "the cap and sneakers can be put on")
+	await main._go("caccoon", step)
+	await main._go(shack["interior"], "entry")
+	await main._settle(shack["interior"])
+	_check(main.world.items.is_empty(), "the gear stays picked up after leaving and coming back")
+	return false
+
+
+func _shot(main, opts: Dictionary) -> void:
 	await main._wait(float(opts.get("wait", "2")))
 	if opts.has("shot"):
 		await RenderingServer.frame_post_draw

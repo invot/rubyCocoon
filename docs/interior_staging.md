@@ -87,6 +87,7 @@ and shop types inherit the template changes and share the renderer's placement r
 | `fortune` | Fortune teller framed by rear plants, crystal table and open rug retained. |
 | `fishery` | Rear crates, storage and pole anchor retained; table and chair in profile. |
 | `kit_cabin` | Bed, rear fireplace/storage and side dining chairs retained; freestanding armchair faces camera. |
+| `shack` | Added later: wardrobe, bed and nightstand at the back wall, storage and crates at the sides, a side chair in profile at its table, and the three starter-gear sacks on open floor clear of the door. |
 | `skytower`, `skytower_top` | Ticket desk, side benches, stair approaches and landing retained. |
 | `hideout` | Boss focus and low tables/benches retained, with encounter positions unchanged. |
 | `ceo_1`, `ceo_2`, `ceo_3`, `ceo_4` | Reception, sentry floors and executive/captive staging retained; exhibits now face camera. Dungeon column obstacles retained. |

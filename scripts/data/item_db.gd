@@ -1,6 +1,7 @@
 extends RefCounted
 ## Items. kind: use (consumable), gear (beast equipment), tgear (trainer equipment).
 ## tier: the earliest shop tier (0-11, by town progression) that stocks the item.
+## found: never stocked by a shop, only found lying about (the starter gear in Cocoon Cove's cliff shack).
 
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
@@ -51,6 +52,7 @@ const ITEMS := {
 	"titan_tonic": {"name": "Titan Tonic", "kind": "use", "price": 1800, "tier": 10, "battle_only": true, "buff": {"atk": 1, "def": 1, "spd": 1}, "target": "allies", "desc": "Raises Attack, Defense and Speed of every beast."},
 
 	# ---------------- beast gear ----------------
+	"rope_collar": {"name": "Rope Collar", "kind": "gear", "price": 150, "tier": 0, "found": true, "mods": {"atk": 0.05}, "desc": "A plain braided collar. +5% Attack."},
 	"power_collar": {"name": "Power Collar", "kind": "gear", "price": 600, "tier": 1, "mods": {"atk": 0.10}, "desc": "+10% Attack."},
 	"stone_band": {"name": "Stone Band", "kind": "gear", "price": 600, "tier": 1, "mods": {"def": 0.12}, "desc": "+12% Defense."},
 	"swift_anklet": {"name": "Swift Anklet", "kind": "gear", "price": 600, "tier": 1, "mods": {"spd": 0.12}, "desc": "+12% Speed."},
@@ -94,6 +96,8 @@ const ITEMS := {
 	"reed_flute": {"name": "Reed Flute", "kind": "tgear", "slot": "flute", "price": 0, "tier": 99, "fx": {}, "desc": "A simple flute. Plays the songs you know."},
 	"silver_flute": {"name": "Silver Flute", "kind": "tgear", "slot": "flute", "price": 1500, "tier": 3, "fx": {"time": 0.1, "capture": 0.05}, "desc": "10% more time to play each song, +5% capture."},
 	"golden_flute": {"name": "Golden Flute", "kind": "tgear", "slot": "flute", "price": 4000, "tier": 7, "fx": {"time": 0.2, "capture": 0.1}, "desc": "20% more time to play each song, +10% capture."},
+	"worn_cap": {"name": "Worn Cap", "kind": "tgear", "slot": "head", "price": 120, "tier": 0, "found": true, "fx": {"capture": 0.03}, "desc": "A faded old trainer's cap. +3% capture chance."},
+	"old_sneakers": {"name": "Old Sneakers", "kind": "tgear", "slot": "feet", "price": 150, "tier": 0, "found": true, "fx": {"speed": 0.1}, "desc": "Scuffed but comfy. Walk 10% faster."},
 	"explorer_hat": {"name": "Explorer Hat", "kind": "tgear", "slot": "head", "price": 800, "tier": 1, "fx": {"capture": 0.05}, "desc": "+5% capture chance."},
 	"sage_hood": {"name": "Sage Hood", "kind": "tgear", "slot": "head", "price": 1500, "tier": 4, "fx": {"xp": 0.1}, "desc": "Party gains +10% experience."},
 	"hiking_boots": {"name": "Hiking Boots", "kind": "tgear", "slot": "feet", "price": 600, "tier": 1, "fx": {"speed": 0.25}, "desc": "Walk 25% faster."},
@@ -143,7 +147,7 @@ static func stock(kind: String, t: int, seed_key: String, max_count := 8) -> Arr
 	var out := []
 	for id in ITEMS:
 		var it: Dictionary = ITEMS[id]
-		if it["kind"] != kind or int(it["tier"]) > t:
+		if it["kind"] != kind or int(it["tier"]) > t or it.get("found", false):
 			continue
 		if int(it["tier"]) >= 10:
 			if t >= 12:

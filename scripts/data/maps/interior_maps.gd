@@ -592,6 +592,21 @@ const ROOMS := {
 			"###########",
 		],
 	},
+	## The old log shack on Cocoon Cove's clifftop, at the end of the woodland path: nobody lives there any more, but
+	## a trainer's starter gear was left behind (1-3: a cap, sneakers and a beast's collar, "found" items in item_db.gd).
+	"shack": {
+		"wall": "#b08a62", "rug": "#8a5a3a", "zone": "wood", "stage": true,
+		"anchors": {"1": "item:worn_cap", "2": "item:old_sneakers", "3": "item:rope_collar"},
+		"rows": [
+			"###w###w###",
+			"#RNb...F.X#",
+			"#X.b......#",
+			"#...1..2..#",
+			"#.ct......#",
+			"#l.....3.PD",
+			"###########",
+		],
+	},
 	"ceo_1": {
 		"wall": "#a8503a", "rug": "#7a2a2a",
 		"npcs": {"1": "receptionist", "2": "patron", "3": "robot", "4": "robot"},
@@ -737,6 +752,7 @@ const SHOP_ROOMS := {
 	"skytower": ["skytower", "skytower_top"],
 	"hideout": ["hideout"],
 	"cabin": ["kit_cabin"],
+	"shack": ["shack"],
 	"uncle": ["uncle_home"],
 	"fishery": ["fishery"],
 	"ceo_tower": ["ceo_1", "ceo_2", "ceo_3", "ceo_4"],

@@ -874,7 +874,7 @@ func _plan_houses() -> void:
 	var used := {}
 	for b in map["buildings"]:
 		var shop: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in VBld.SIGNED_HOUSES
-		if not b["shop"] in ["house", "home", "decor", "cabin", "uncle"] and not shop:
+		if not b["shop"] in ["house", "home", "decor", "cabin", "shack", "uncle"] and not shop:
 			continue
 		var x0: int = b["x"]
 		var y0: int = b["y"]
@@ -900,8 +900,8 @@ func _plan_houses() -> void:
 		# the house must stand only on its plot and on trees, hedges and rocks: if it would reach a path or another
 		# building (leaning sideways and back at once), plan again with less room
 		for attempt in 4:
-			# (Kit's cabin is always a log cabin, whatever the road's style)
-			plan = HouseModels.plan(b, "cabin" if b["shop"] == "cabin" else style, room, shop, used, max_h)
+			# (Kit's cabin and Cocoon Cove's cliff shack are always log cabins, whatever the road's style)
+			plan = HouseModels.plan(b, "cabin" if b["shop"] in ["cabin", "shack"] else style, room, shop, used, max_h)
 			if plan.is_empty() or _house_fits(plan["rect"], o, b):
 				break
 			room["back"] = maxf(0.0, float(room["back"]) - 1.0)
@@ -2459,7 +2459,15 @@ func _pickup(it: Dictionary) -> void:
 	node.queue_free()
 	items.erase(it["pos"])
 	Sfx.play("item")
-	await UI.say(["You found a %s!" % ItemDB.item_name(it["item"])])
+	var item_name := ItemDB.item_name(it["item"])
+	var article := "some" if item_name.ends_with("s") else ("an" if item_name.left(1).to_upper() in "AEIOU" else "a")
+	var lines := ["You found %s %s!" % [article, item_name]]
+	match ItemDB.get_item(it["item"]).get("kind", ""):
+		"tgear":
+			lines.append("Put it on from your Bag in the Start book.")
+		"gear":
+			lines.append("Give it to a beast from your Bag in the Start book.")
+	await UI.say(lines)
 
 
 func _pickup_shard(sh: Dictionary) -> void:

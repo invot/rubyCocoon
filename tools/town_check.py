@@ -21,11 +21,11 @@ WALK = set('.,:gf_=') | set('@v^<>$*123456789P')
 ENTITY = set('@v^<>$*123456789P')
 # field obstacles and story gates can be cleared, so what lies behind them counts as reachable
 CLEARABLE = set('wjdoylim|xnk&')
-BLD = 'CAGOKRYMUNEHZQXVIBJhD'
+BLD = 'CAGOKRYMUNEHZQXVIBJhDs'
 SHOP = {'C': 'center', 'A': 'apothecary', 'G': 'beast_gear', 'O': 'trainer_gear', 'K': 'bookstore', 'R': 'arena',
         'Y': 'dojo', 'M': 'museum', 'U': 'music_hall', 'N': 'fortune', 'E': 'cafe', 'H': 'house', 'Z': 'home',
         'Q': 'temple', 'X': 'electronics', 'V': 'skytower', 'I': 'ceo_tower', 'B': 'cathedral', 'J': 'hideout',
-        'h': 'decor', 'D': 'music_shop'}
+        'h': 'decor', 'D': 'music_shop', 's': 'shack'}
 # town -> building style (world_db.gd BIOMES)
 STYLE = {'caccoon': 'coastal', 'tidewater': 'coastal', 'shellhaven': 'island', 'kelpwick': 'island',
          'dustwell': 'adobe', 'sundown': 'western', 'copperpick': 'mining', 'cogsworth': 'steampunk',

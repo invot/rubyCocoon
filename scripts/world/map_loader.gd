@@ -39,6 +39,7 @@ const BUILDING_LETTERS := {
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",
 	"H": "house", "Z": "home", "Q": "temple", "X": "electronics", "V": "skytower", "I": "ceo_tower",
 	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin", "r": "uncle", "p": "fishery",
+	"s": "shack",
 }
 const ENTITY_CHARS := "@v^<>$*123456789P"
 const FACING := {"v": Vector2i(0, 1), "^": Vector2i(0, -1), "<": Vector2i(-1, 0), ">": Vector2i(1, 0)}
@@ -554,6 +555,8 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 			b["name"] = "Uncle Rafe's House"
 		"fishery":
 			b["name"] = "Gil's Fishing Shack"
+		"shack":
+			b["name"] = "Cliffside Shack"
 		"temple":
 			var tk := WorldDB.ROUTES.get(map_id, {}).get("temple", "water") as String
 			b["temple"] = tk
@@ -695,6 +698,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	var ups := []
 	var downs := []
 	var item_k := 0
+	var fixed_k := {}
 	# doors through to the building's other rooms (each loaded on its own): symbol -> the room's template
 	var door_rooms: Dictionary = room.get("doors", {})
 	var links := {}
@@ -729,7 +733,15 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				m["spawns"]["entry"] = p
 			elif anchor_names.has(ch):
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
-				m["anchors"][anchor_names[ch]] = p
+				var an: String = anchor_names[ch]
+				if an.begins_with("item:"):
+					# a fixed item lying on the floor (the starter gear in the cliff shack), as outdoors
+					var item_id := an.substr(5)
+					var k: int = fixed_k.get(item_id, 0)
+					fixed_k[item_id] = k + 1
+					m["items"].append({"pos": p, "item": item_id, "flag": "item_%s_%s_%d" % [id, item_id, k]})
+				else:
+					m["anchors"][an] = p
 			elif npc_roles.has(ch):
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
 				var npc := _room_npc(npc_roles[ch], b, p, rng, id, ch, key)
