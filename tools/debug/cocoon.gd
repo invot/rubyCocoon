@@ -33,7 +33,13 @@ func run(main, opts: Dictionary) -> void:
 	var home_level := Elev.surface(town, home["door"])
 	_check(home_level > Elev.surface(town, town["buildings"][0]["door"])
 		and [3, 4].all(func(i): return Elev.surface(town, town["buildings"][i]["door"]) == home_level), "the starting home and both neighboring houses share a shelf above town")
-	_check(town.get("outskirt_houses", []).size() == 2, "only two authored background houses remain behind the Beast Center")
+	_check(town.get("outskirt_houses", []).is_empty() and town.get("scenery_houses", []).size() == 3, "two close background homes and the cliff shack replace distant outskirt buildings")
+	for entry in town.get("scenery_houses", []):
+		var position := Vector2i(int(entry["x"]), int(entry["y"]))
+		_check(main.world.find_child(entry["name"], true, false) != null, "%s renders" % entry["name"])
+		_check(not MapGen.walkable(MapGen.get_t(town, position.x, position.y)), "%s has no accessible entrance" % entry["name"])
+		if entry["name"] != "CliffShack":
+			_check(Elev.surface(town, position) == Elev.surface(town, town["buildings"][0]["door"]), "background home stays on the Beast Center's level")
 	main.world.spawn_at(Vector2i(8, 21))
 	_check(main.world._walkable(main.world.player_pos), "a save on the old pier loads onto safe ground")
 	main.world.spawn_at("start")

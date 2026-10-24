@@ -178,7 +178,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
-	for setting in ["outskirt_houses", "outskirt_scale"]:
+	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses"]:
 		if src.has(setting):
 			m[setting] = src[setting]
 	for p in m["pushables"]:
@@ -264,6 +264,9 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		plots.sort_custom(func(a, b): return int(order.get(a["pos"], 999)) < int(order.get(b["pos"], 999)))
 	for plot in plots:
 		_add_building(m, plot["shop"], plot["pos"], plot["size"], rng, id, idx)
+		var appearance: Dictionary = src.get("building_looks", {}).get(str(idx), {})
+		for key in appearance:
+			m["buildings"].back()[key] = appearance[key]
 		idx += 1
 
 	# statue (top-left of the 2x2 block)

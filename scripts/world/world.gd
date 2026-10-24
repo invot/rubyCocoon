@@ -895,6 +895,7 @@ func _plan_houses() -> void:
 			# (never lower than a one-storey house: it's those that are wanted there)
 			max_h = maxf(4.6, CAM_LOOK_Y + (CAM_OFFSET.y - CAM_LOOK_Y) * (float(gap) + 0.5) / CAM_OFFSET.z)
 		var o := Vector2(float(x0) + float(w) / 2.0, float(y0) + float(d) / 2.0)
+		max_h = minf(max_h, float(b.get("house_max_height", INF)))
 		var plan := {}
 		# the house must stand only on its plot and on trees, hedges and rocks: if it would reach a path or another
 		# building (leaning sideways and back at once), plan again with less room
@@ -929,6 +930,23 @@ func _plan_houses() -> void:
 				var c := MapGen.get_t(map, tx, ty)
 				if c in [MapGen.TREE, MapGen.BUSH]:
 					house_cover[Vector2i(tx, ty)] = true
+	# Authored scenery uses the same fitted houses, with solid woodland footprints and no interactive doors.
+	for entry in map.get("scenery_houses", []):
+		var b: Dictionary = entry.duplicate()
+		b["door"] = Vector2i(int(b["x"]) + int(b["w"]) / 2, int(b["y"]) + int(b["d"]) - 1)
+		b["seed"] = (map_id + String(b["name"])).hash()
+		var plan := HouseModels.plan(b, b.get("style", style), {}, false)
+		if plan.is_empty():
+			continue
+		var node := HouseModels.build(plan)
+		node.name = b["name"]
+		var origin := Vector2(float(b["x"]) + float(b["w"]) / 2.0, float(b["y"]) + float(b["d"]) / 2.0)
+		node.position = Vector3(origin.x, _lift(b["door"]), origin.y)
+		add_child(node)
+		var footprint: Rect2 = plan["rect"]
+		for y in range(floori(origin.y + footprint.position.y) - 1, ceili(origin.y + footprint.end.y) + 1):
+			for x in range(floori(origin.x + footprint.position.x) - 1, ceili(origin.x + footprint.end.x) + 1):
+				house_cover[Vector2i(x, y)] = true
 
 
 ## True if a planned house (rect: local to the plot's centre o) covers only its own plot and leanable tiles.

@@ -275,6 +275,8 @@ static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, 
 			# scale it stays, how little its ground storey is stretched, and whether it has a shape of its own
 			var fill := (hi - lo) * s / w
 			var score := absf(s - PLOT_SCALE) * 2.0 + absf(1.05 - fill) * 0.8 + rng.randf() * 0.35 - (0.35 if key in CHARACTER else 0.0) 				+ maxf(0.0, stretch - 1.0) * 1.5
+			if key == b.get("house_model", ""):
+				score -= 10.0
 			# towers of three storeys and more loom over a small square; a house already on this map less welcome
 			score += maxf(0.0, bb.size.y * s * TALL - 5.6) * 0.35 + float(used.get(key, 0)) * 0.6
 			scored.append({"key": key, "s": s, "mirror": mirror, "dx": dx, "door": door, "bb": bb, "lo": lo, "hi": hi, "ahead": ahead, "sz": sz, "score": score})
@@ -289,6 +291,7 @@ static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, 
 	var r := maxf(1.0, DOOR_H / (PACK_DOOR * sy))
 	var g := ground_top(String(pick["key"]))
 	var skins: Array = SKINS.get(style, SKINS["town"])
+	var skin_index := int(b.get("house_skin", rng.randi_range(0, skins.size() - 1)))
 	# the front door on the plot's front edge, or set back behind a porch or steps so they end there
 	var front := d / 2.0 - 0.06 - float(pick["ahead"]) * sz
 	var door_v: Vector3 = pick["door"]
@@ -301,7 +304,7 @@ static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, 
 	var hole_y := warp_y(door_v.y, g, r) * sy
 	var dh := maxf(hole.y + 0.05, DOOR_H)
 	var dw := maxf(dh / DOOR_ASPECT, hole.x + 0.12)
-	var out := {"key": pick["key"], "skin": skins[rng.randi_range(0, skins.size() - 1)], "scale": Vector3(sv, sy, sz),
+	var out := {"key": pick["key"], "skin": skins[clampi(skin_index, 0, skins.size() - 1)], "scale": Vector3(sv, sy, sz),
 		"offset": offset, "mirror": pick["mirror"], "rect": rect,
 		"door_at": Vector3(door_lx, hole_y - hole.y / 2.0 + dh / 2.0, front + 0.02), "door_size": Vector2(dw, dh), "warp": r}
 	# a deck or stoop in front of the door: in the plot's space, how high it stands (one easy step at most, level with

@@ -62,12 +62,14 @@ The mounted Gearheart Industries sign uses an original vector gear-and-split-hea
 
 The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
 Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**.
-The home and two neighboring houses stand on a high shelf above Cocoon Cove's compact square. A broad ramp descends
+The home and two neighboring houses have distinct shapes, staggered plots and planted front yards on a high shelf
+above Cocoon Cove's compact square. A broad ramp descends
 from their garden lane to **Cocoon Cove Library**, which marks the square's western entrance. Speak to
 **Librarian Quill** for a free **World Map**, then unfold it from **Start → Map**.
 Existing saves keep their map access. The town stands on a high natural cliff above a rocky shoreline, with no
-beach, pier or route down to the water; a winding promenade follows rocky coves and headlands behind a low fence.
-Wooded cliffs enclose the town, with only two distant, inaccessible houses behind the Beast Center.
+beach, pier, coastal path or route down to the water. Woodland fills the ground between the village and the irregular
+rocky coves. Two inaccessible homes sit close behind the Beast Center at its level, and an isolated shack stands
+among the trees by the cliff. The surrounding ridges follow irregular contours rather than straight terrace edges.
 In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
@@ -556,9 +558,10 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
   - Cocoon Cove has three homes on a raised western shelf, a ramp descending beside the library into a compact square,
-    and a winding cliff promenade on the town's level. The rocks and water below are inaccessible. Wooded ridges replace
-    the usual outlying buildings, except for two small houses behind the Beast Center. Its `building_order` explicitly
-    lists building origins in saved interior order; `outskirt_houses` and `outskirt_scale` control background homes.
+    and woodland down to its irregular rocky cliffs, with no coastal path. The rocks and water below are inaccessible.
+    Two small scenery homes sit close behind the Beast Center on its level; a cliffside shack is also inaccessible.
+    Its `building_order` lists building origins in saved interior order; `building_looks` selects preferred house
+    models and skins, and `scenery_houses` places noninteractive buildings on solid woodland footprints.
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
 
 - **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
