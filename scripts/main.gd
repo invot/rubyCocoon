@@ -111,7 +111,7 @@ func _process(_delta: float) -> void:
 # ================================================================ title
 func _title() -> void:
 	UI.allow_pause = false
-	UI.controls.set_title_mode(true)
+	UI.controls.set_title_mode(false)
 	# the menu comes up straight away; the town behind it is built a moment later
 	_title_backdrop()
 	Sfx.music("title")
@@ -399,7 +399,7 @@ var _slot_preview: Control = null
 ## Returns -1 if cancelled.
 func pick_slot(title: String, only_filled := false, preview := true, start := 0) -> int:
 	var items := _slot_items(only_filled)
-	var opts := {"anchor": "right", "width": 420, "rows": 10, "margin": Vector2(40, 0), "start": start}
+	var opts := {"anchor": "right", "width": 420, "rows": 10, "margin": Vector2(40, 0), "start": start, "keep_anchor": true}
 	if preview:
 		_show_slot_preview(start)
 		opts["on_focus"] = func(k): _show_slot_preview(k)
@@ -772,6 +772,9 @@ func _run_test() -> void:
 		await get_tree().create_timer(wait).timeout
 	elif scene == "arena-ladder":
 		await load("res://tools/debug/arena_ladder.gd").new().run(self, _test)
+	elif scene == "mobile-menus":
+		await load("res://tools/debug/mobile_menus.gd").new().run(self, _test)
+		await _wait(wait)
 	elif scene == "kennel":
 		await load("res://tools/debug/kennel.gd").new().run(self, _test)
 	elif scene == "egg-sales":

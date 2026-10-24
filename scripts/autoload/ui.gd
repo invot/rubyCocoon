@@ -4,6 +4,7 @@ extends CanvasLayer
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ListMenu = preload("res://scripts/ui/list_menu.gd")
 const DialogBox = preload("res://scripts/ui/dialog_box.gd")
+const ConfirmPrompt = preload("res://scripts/ui/confirm_prompt.gd")
 const TextEntry = preload("res://scripts/ui/text_entry.gd")
 const BeastView = preload("res://scripts/ui/beast_view.gd")
 const FluteGame = preload("res://scripts/ui/flute_game.gd")
@@ -184,9 +185,16 @@ func choose(title: String, items: Array, opts := {}) -> int:
 
 
 func ask(question: String, speaker := "", yes := "Yes", no := "No") -> bool:
-	await say([question], speaker)
-	var r: int = await choose("", [yes, no], {"anchor": "bottom_right", "width": 200, "margin": Vector2(80, 220)})
-	return r == 0
+	if auto:
+		await say([question], speaker)
+		return await choose("", [yes, no]) == 0
+	var prompt := ConfirmPrompt.new()
+	prompt.yes_text = yes
+	prompt.no_text = no
+	prompt.confirmation_labels = {"a": yes, "b": no}
+	prompt.setup([question], speaker)
+	push(prompt)
+	return await prompt.done == 0
 
 
 func text_input(prompt: String, default := "") -> String:

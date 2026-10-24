@@ -21,6 +21,10 @@ var _row_h := 0.0
 var _max_rows := 0
 var _focus := -1
 var _t := 0.0
+var _layout_anchor := "center"
+var _layout_margin := Vector2(24, 24)
+var _held_direction := 0
+var _repeat_after := 0.0
 ## the bare menu's big button and the face drawn behind its text (see _draw_hero)
 var _hero: Button
 var _hero_face: Control
@@ -45,6 +49,12 @@ func setup(_title: String, _items: Array, _opts := {}) -> Control:
 
 func _ready() -> void:
 	var width := float(opts.get("width", 360)) * (1.25 if UIKit.touch_ui() else 1.1) + 40.0
+	_layout_anchor = opts.get("anchor", "center")
+	_layout_margin = opts.get("margin", Vector2(24, 24))
+	if UIKit.touch_ui() and not opts.get("bare", false) and not opts.get("keep_anchor", false):
+		_layout_anchor = "center"
+		_layout_margin = Vector2(24, 24)
+	width = minf(width, get_viewport_rect().size.x - 48.0)
 	var outer := VBoxContainer.new()
 	_outer = outer
 	outer.add_theme_constant_override("separation", -2)
@@ -102,6 +112,7 @@ func _ready() -> void:
 		scroll.add_child(list)
 		# Prev / Next under a menu longer than it shows (see pager.gd)
 		_pager = load("res://scripts/ui/pager.gd").new().setup(scroll)
+		_pager.enabled = not UIKit.touch_ui() or opts.get("keep_anchor", false)
 		vb.add_child(_pager)
 	for i in items.size():
 		var it: Dictionary = items[i]
@@ -149,7 +160,7 @@ func _ready() -> void:
 		vb.add_child(desc_label)
 	if items.is_empty():
 		list.add_child(UIKit.label("(nothing here)", 20, UIKit.DIM))
-	UIKit.place(outer, opts.get("anchor", "center"), opts.get("margin", Vector2(24, 24)))
+	UIKit.place(outer, _layout_anchor, _layout_margin)
 	if _scroll != null:
 		get_viewport().size_changed.connect(_fit_rows)
 		_fit_rows.call_deferred()
@@ -161,16 +172,19 @@ func _ready() -> void:
 func _fit_rows() -> void:
 	if _scroll == null:
 		return
-	var margin: Vector2 = opts.get("margin", Vector2(24, 24))
-	var anchor: String = opts.get("anchor", "center")
+	var margin := _layout_margin
+	var anchor := _layout_anchor
 	UIKit.place(_outer, anchor, margin)
 	var rect := _outer.get_global_rect()
 	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x)
+	if UIKit.touch_ui() and anchor == "center":
+		# Keep full-size choices in the middle; a little border overlap with the side pad is allowed.
+		reserve = UI.bottom_reserve()
 	if anchor in ["bottom", "bottom_right"]:
 		reserve = maxf(reserve, UI.bottom_reserve())
 	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0 - reserve
 	var chrome := _outer.get_combined_minimum_size().y - _scroll.custom_minimum_size.y
-	if not _pager.visible:
+	if _pager.enabled and not _pager.visible:
 		chrome += _pager.get_combined_minimum_size().y + 4.0
 	var rows := clampi(floori((available - chrome - 2.0) / _row_h), 1, _max_rows)
 	_scroll.custom_minimum_size.y = rows * _row_h + 2.0
@@ -228,6 +242,42 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _hero_face != null:
 		_hero_face.queue_redraw()
+	if _held_direction != 0:
+		if UI.stack.is_empty() or UI.stack.back() != self:
+			_held_direction = 0
+		else:
+			_repeat_after -= delta
+			if _repeat_after <= 0.0:
+				_step_focus(_held_direction)
+				_repeat_after = 0.14
+
+
+func _input(ev: InputEvent) -> void:
+	if closed or UI.stack.is_empty() or UI.stack.back() != self:
+		return
+	var direction := -1 if ev.is_action("ui_up") else (1 if ev.is_action("ui_down") else 0)
+	if direction == 0:
+		return
+	if ev.is_pressed():
+		_step_focus(direction)
+		if ev is InputEventAction:
+			_held_direction = direction
+			_repeat_after = 0.4
+	elif _held_direction == direction:
+		_held_direction = 0
+	get_viewport().set_input_as_handled()
+
+
+func _step_focus(direction: int) -> void:
+	if buttons.is_empty():
+		return
+	for step in range(1, buttons.size() + 1):
+		var index := posmod(maxi(_focus, 0) + step * direction, buttons.size())
+		if not buttons[index].disabled:
+			buttons[index].grab_focus()
+			if _scroll != null:
+				_scroll.ensure_control_visible.call_deferred(buttons[index])
+			return
 
 
 ## The big button: a soft glow in the gem that breathes with the pulse, a drop shadow, a pill in the gem (light at the

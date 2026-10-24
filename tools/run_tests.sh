@@ -20,6 +20,8 @@ TESTS=(
 	"egg-sales|--script res://tools/check_egg_sales.gd|EGG SALES DONE: 0 problem"
 	"kennel|--script res://tools/check_kennel.gd|KENNEL DONE: 0 problem"
 	"kennel-ui|-- --scene=kennel --touch --verify=1 --wait=0.3|KENNEL UI DONE: 0 problem"
+	"mobile-menus|-- --scene=mobile-menus --touch --verify=1 --wait=0.3|MOBILE MENUS DONE: 0 problem"
+	"desktop-menus|-- --scene=mobile-menus --verify=1 --wait=0.3|MOBILE MENUS DONE: 0 problem"
 	"intro|-- --scene=intro --verify=1|INTRO TEST DONE: 0 problem"
 	"rescue|-- --scene=rescue|RESCUE TEST DONE: 0 problem"
 	"tidewater-arrival|-- --scene=tidewater-arrival --verify=1|TIDEWATER ARRIVAL DONE: 0 problem"

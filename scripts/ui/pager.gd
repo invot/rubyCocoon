@@ -7,6 +7,8 @@ extends HBoxContainer
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
 var scroll: ScrollContainer
+## Ordinary mobile lists use d-pad focus scrolling and direct taps rather than a paging footer.
+var enabled := true
 var _prev: Button
 var _next: Button
 var _count: Label
@@ -64,7 +66,7 @@ func _update() -> void:
 	var bar := scroll.get_v_scroll_bar()
 	var page := maxf(bar.page, 1.0)
 	var room := bar.max_value - page
-	visible = room > 2.0
+	visible = enabled and room > 2.0
 	if not visible:
 		return
 	var pages := ceili(bar.max_value / page - 0.02)

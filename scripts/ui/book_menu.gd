@@ -45,9 +45,8 @@ const CREST_ICONS := {"Wave Crest": "crest_wave", "Coral Crest": "crest_coral", 
 const ARENA_ORDER := ["tidewater", "kelpwick", "sundown", "copperpick", "cogsworth", "emberfall", "vinehollow", "riverbend"]
 
 static var last_tab := 1
-## On a phone the d-pad and A/B buttons hide while the book is on top: its rows and tabs are tapped directly, and
-## Start closes it (see controls_overlay.gd).
-var hides_touch_pad := true
+## Keep the mobile pad usable alongside direct row/tab taps. Start closes the book.
+var hides_touch_pad := false
 
 var world = null
 var tab := 1
@@ -620,7 +619,7 @@ func _close_book() -> void:
 
 
 # ================================================================ small builders
-## How to use a row: tapped on a phone (the A button hides while the book is open), A with keys or a pad.
+## Rows work by direct tap or A; the d-pad remains available while the book is open.
 func _press() -> String:
 	return "Tap" if UI.is_touch() else "Press A"
 

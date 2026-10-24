@@ -120,7 +120,10 @@ func _check_layout(menu) -> void:
 			var button: TouchScreenButton = UI.controls._buttons[id]
 			if button.visible:
 				var hit := Rect2(button.position, button.texture_normal.get_size()).grow(UI.controls.TOUCH_SLOP)
-				_check(not rect.intersects(hit), "menu clears %s and its enlarged hit area" % id)
+				for row in menu.buttons:
+					var visible: Rect2 = row.get_global_rect().intersection(menu._scroll.get_global_rect())
+					if visible.has_area():
+						_check(not hit.has_point(visible.get_center()), "visible choice stays reachable beside %s" % id)
 	if menu._pager.visible:
 		_check(rect.encloses(menu._pager.get_global_rect()) and menu._pager._count.text != "", "page controls and count stay inside the menu")
 	if menu.desc_label != null:

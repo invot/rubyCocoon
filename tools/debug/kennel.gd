@@ -114,7 +114,7 @@ func _verify() -> void:
 
 func _dialogs() -> void:
 	for i in 20:
-		if UI.stack.is_empty() or not UI.stack.back() is UI.DialogBox:
+		if UI.stack.is_empty() or not UI.stack.back() is UI.DialogBox or UI.stack.back() is UI.ConfirmPrompt:
 			return
 		UI.stack.back().text_label.visible_characters = -1
 		await main._press("ui_accept")
@@ -136,12 +136,23 @@ func _layout(menu) -> void:
 		for id in UI.controls._buttons:
 			var button: TouchScreenButton = UI.controls._buttons[id]
 			if button.visible:
-				var hit := Rect2(button.position, button.texture_normal.get_size()).grow(UI.controls.TOUCH_SLOP)
-				_check(not rect.intersects(hit), "menu clears %s hit area" % id)
+				var hit: Rect2 = UI.controls.button_rect(id).grow(UI.controls.TOUCH_SLOP)
+				for row in menu.buttons:
+					var visible: Rect2 = row.get_global_rect().intersection(menu._scroll.get_global_rect())
+					if visible.has_area():
+						_check(not hit.has_point(visible.get_center()), "visible choice stays reachable beside %s" % id)
 
 
 func _choose(menu, index: int) -> void:
-	# Small touch confirmation menus may paginate Yes/No. Bring the requested row into view before tapping.
+	if menu is UI.ConfirmPrompt:
+		if index == 0:
+			while menu.idx < menu.lines.size() - 1:
+				await main._press("ui_accept")
+				await main._wait(0.05)
+		await main._wait(0.3)
+		await _tap(UI.controls.button_rect("a" if index == 0 else "b").get_center())
+		return
+	# Focus scrolling keeps the requested row visible before a direct tap.
 	menu.buttons[index].grab_focus()
 	await main._wait(0.2)
 	var hit: Rect2 = menu.buttons[index].get_global_rect().intersection(menu._scroll.get_global_rect())

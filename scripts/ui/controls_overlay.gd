@@ -82,11 +82,22 @@ func touch_visible() -> bool:
 	return _touch_on
 
 
-## The d-pad and A/B step aside while a screen that is tapped directly (the Start book) is on top.
+## Only screens explicitly requesting it (the full map or ring editor) hide the side pad.
 func _process(_delta: float) -> void:
 	if not _touch_on or _buttons.is_empty():
 		return
 	var top = UI.stack.back() if is_instance_valid(UI) and not UI.stack.is_empty() else null
+	var answers: Dictionary = top.get("confirmation_labels") if top != null and top.get("confirmation_labels") is Dictionary else {}
+	if answers != _answer_labels:
+		var changed_mode := answers.is_empty() != _answer_labels.is_empty()
+		_answer_labels = answers.duplicate()
+		if changed_mode:
+			if _answer_tween != null and _answer_tween.is_valid():
+				_answer_tween.kill()
+			_answer_tween = create_tween()
+			_answer_tween.tween_property(self, "_answer_blend", 0.0 if answers.is_empty() else 1.0, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_layout()
+	_update_answer_faces()
 	var hide: bool = top != null and top.get("hides_touch_pad") == true
 	if _buttons["a"].visible == hide:
 		for id in ["up", "down", "left", "right", "a", "b"]:
@@ -176,6 +187,13 @@ const SHADOW_ROOM := 8
 var _dpad_base: Sprite2D
 ## A, B, Start and Pause's labels: they sink a little while their button is held
 var _labels := {}
+var _answer_faces := {}
+var _answer_labels := {}
+var _answer_tween: Tween
+var _answer_blend := 0.0:
+	set(value):
+		_answer_blend = value
+		_layout()
 
 
 func _build_touch() -> void:
@@ -190,6 +208,14 @@ func _build_touch() -> void:
 		_touch_button(dir, Vector2(ARM, ARM))
 	for k in ["a", "b"]:
 		var b2 := _touch_button(k, Vector2(ROUND, ROUND))
+		# Stretch the face's middle, preserving its round ends and pixel borders.
+		var face := NinePatchRect.new()
+		face.patch_margin_left = 48
+		face.patch_margin_right = 48
+		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		face.visible = false
+		b2.add_child(face)
+		_answer_faces[k] = face
 		var l := UIKit.label(k.to_upper(), UIKit.BODY_HUGE, UIKit.LIGHT)
 		# big letters: 64 screen pixels on a 1080p phone (BoldPixels stays crisp on multiples of 16)
 		l.add_theme_font_size_override("font_size", UIKit.body_px(43))
@@ -203,6 +229,34 @@ func _build_touch() -> void:
 		b3.add_child(l2)
 		_labels[k] = l2
 	_paint_pad()
+	_layout()
+
+
+func _answer_width() -> float:
+	var width := 240.0
+	for id in _answer_labels:
+		var text := String(id).to_upper() + ": " + String(_answer_labels[id])
+		width = maxf(width, UIKit.font_body().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(32)).x + 48.0)
+	return lerpf(ROUND, width, _answer_blend)
+
+
+func _update_answer_faces() -> void:
+	if _answer_faces.is_empty():
+		return
+	for id in ["a", "b"]:
+		var button: TouchScreenButton = _buttons[id]
+		var wide := _answer_blend > 0.001
+		var face: NinePatchRect = _answer_faces[id]
+		button.self_modulate.a = 0.0 if wide else 1.0
+		face.visible = wide
+		face.texture = button.texture_pressed if button.is_pressed() else button.texture_normal
+		var label: Label = _labels[id]
+		var text: String = id.to_upper() + ": " + String(_answer_labels[id]) if _answer_blend > 0.45 and _answer_labels.has(id) else id.to_upper()
+		if label.text != text:
+			label.text = text
+		var font_size := UIKit.body_px(32 if wide else 43)
+		if label.get_theme_font_size("font_size") != font_size:
+			label.add_theme_font_size_override("font_size", font_size)
 
 
 ## A button's label: crisp pixel text (not smoothed like the faces), centred, with a soft shadow below it.
@@ -635,7 +689,7 @@ var _legend_row: Control
 var _flute_row: Control
 
 
-## The title screen shows no buttons at all: its menu is tapped (or picked with the keys).
+## Cinematics and save-browser previews can hide the pad; the ordinary title menu keeps it available.
 var title_mode := false
 
 
@@ -694,10 +748,9 @@ func _send_actions(id: String, down: bool) -> void:
 	var actions: Array = PAD_ACTIONS[id]
 	if flute_mode and FLUTE_LANES.has(id):
 		actions = [FLUTE_LANES[id]]
-	elif id == "a" and down and not UI.stack.is_empty():
-		# a menu, a dialog or the battle's command panel is on top: it takes A as either action, so one press sends just
-		# one (two would confirm twice: a whole round of moves, or two pages of a dialog, from a single tap)
-		actions = ["ui_accept"]
+	elif id in ["a", "b"] and down and not UI.stack.is_empty():
+		# A modal takes one accept/cancel event per press, without also triggering a world action or running.
+		actions = ["ui_accept" if id == "a" else "ui_cancel"]
 	for action in actions:
 		var ev := InputEventAction.new()
 		ev.action = action
@@ -715,8 +768,25 @@ func _layout() -> void:
 	_buttons["left"].position = pad + Vector2(0, ARM)
 	_buttons["right"].position = pad + Vector2(ARM * 2.0, ARM)
 	_buttons["down"].position = pad + Vector2(ARM, ARM * 2.0)
-	_buttons["a"].position = Vector2(vp.x - 28 - ROUND, vp.y - 28 - ROUND - 70)
-	_buttons["b"].position = Vector2(vp.x - 28 - ROUND - 124, vp.y - 28 - ROUND)
+	var width := _answer_width()
+	_buttons["a"].position = Vector2(vp.x - 28 - width, vp.y - 28 - ROUND - lerpf(70.0, 160.0, _answer_blend))
+	_buttons["b"].position = Vector2(vp.x - 28 - width - lerpf(124.0, 0.0, _answer_blend), vp.y - 28 - ROUND)
+	for id in ["a", "b"]:
+		if not _answer_faces.has(id):
+			continue
+		(_answer_faces[id] as NinePatchRect).size = Vector2(width, ROUND + SHADOW_ROOM)
+		(_labels[id] as Label).size.x = width
+		var button: TouchScreenButton = _buttons[id]
+		if _answer_blend > 0.001:
+			if not button.shape is ConvexPolygonShape2D:
+				button.shape = ConvexPolygonShape2D.new()
+			button.shape_centered = false
+			button.shape.points = UIKit.CozyBox._round_rect(Rect2(-Vector2.ONE * TOUCH_SLOP, Vector2(width, ROUND) + Vector2.ONE * TOUCH_SLOP * 2.0), ROUND / 2.0 + TOUCH_SLOP)
+		else:
+			if not button.shape is CircleShape2D:
+				button.shape = CircleShape2D.new()
+				button.shape.radius = ROUND / 2.0 + TOUCH_SLOP
+			button.shape_centered = true
 	_buttons["start"].position = Vector2(roundf(vp.x / 2.0) - PILL.x - 8, vp.y - 26 - PILL.y)
 	_buttons["pause"].position = Vector2(roundf(vp.x / 2.0) + 8, vp.y - 26 - PILL.y)
 
@@ -726,6 +796,15 @@ func _layout() -> void:
 const CLUSTERS := [["up", "down", "left", "right"], ["a", "b"], ["start", "pause"]]
 ## How far past a cluster's edge (beyond the buttons' own slop) a tap still belongs to the controls.
 const NO_TAP_MARGIN := 48.0
+
+
+## Current face bounds, including the animated Yes/No width.
+func button_rect(id: String) -> Rect2:
+	var button: TouchScreenButton = _buttons[id]
+	var box: Vector2 = button.texture_normal.get_size()
+	if id in ["a", "b"]:
+		box.x = _answer_width()
+	return Rect2(button.position, box)
 
 
 ## Bottom space a menu needs at its horizontal position, including the buttons' enlarged hit areas and a gap.
@@ -740,8 +819,7 @@ func menu_bottom_reserve(left: float, right: float) -> float:
 			continue
 		var zone := Rect2()
 		for i in group.size():
-			var b: TouchScreenButton = _buttons[group[i]]
-			var r := Rect2(b.position, b.texture_normal.get_size())
+			var r := button_rect(group[i])
 			zone = r if i == 0 else zone.merge(r)
 		zone = zone.grow(TOUCH_SLOP + 12.0)
 		if left < zone.end.x and right > zone.position.x:
@@ -759,8 +837,7 @@ func covers(p: Vector2) -> bool:
 			continue
 		var zone := Rect2()
 		for i in group.size():
-			var b: TouchScreenButton = _buttons[group[i]]
-			var r := Rect2(b.position, b.texture_normal.get_size())
+			var r := button_rect(group[i])
 			zone = r if i == 0 else zone.merge(r)
 		if zone.grow(TOUCH_SLOP + NO_TAP_MARGIN).has_point(p):
 			return true

@@ -417,8 +417,9 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   text is 32 screen pixels and dialogue 48. The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
   Dialogue is three lines to a page. Text sits at the top of every text box.
 - **Button minimums**: menu text uses 32 UI units; rows and page buttons are at least 56 units tall on desktop and
-  80 on touch devices, including the title screen while the touch pad is hidden. Long lists show fewer rows with
-  Prev / Next controls instead of shrinking buttons or running off the screen (`UIKit.row_h`, `list_menu.gd`).
+  80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and direct taps;
+  book pages and the save browser retain Prev / Next controls. Buttons never shrink to fit more entries
+  (`UIKit.row_h`, `list_menu.gd`).
 - **Save previews**: Load Game shows the selected slot's screenshot from its latest save beside the list, and keeps
   it visible when choosing Load, Copy or Delete. Saves from before screenshots were stored show a placeholder
   until saved again. Copying a save includes its screenshot.
@@ -426,9 +427,13 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   game alike. Each arm answers in its own quarter of the pad (a wedge from the middle out past its arrow), and only one
   arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
   domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
-  the gem. While the Start book or the
-  world map is open the d-pad and A/B step aside: rows, tabs and towns are tapped, and Start closes the book.
-  Anything that runs past one page (either of the book's pages, a long menu) gets **◄ Prev** and **Next ►** buttons
+  the gem. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
+  and Start closes the book. A little overlap with the book is allowed. The full world map and ring editor still
+  move the side controls aside for direct tapping. Yes/No questions widen A and B with an animation into
+  **A: Yes** and **B: No**: each answers directly, without a separate choice list. Long questions show **A: Next**
+  until their last page. Ordinary mobile choice lists sit toward the center, show several full-size options,
+  and scroll as Up/Down moves the selection; each visible option can also be tapped.
+  Anything that runs past one of the book's pages gets **◄ Prev** and **Next ►** buttons
   with "page / pages" at its foot, each turning a whole page (`scripts/ui/pager.gd`), so all of it can be reached
   with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
@@ -638,6 +643,7 @@ godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a r
 godot --path . -- --scene=battlecmd --touch                             # the battle's command panel: one A is one confirm, every move's target picked (arrows, all-foe moves), ▲ turns the ring, Move (yours and a foe trainer's), the ring turning by itself ("BATTLE COMMANDS DONE: 0 problem(s)"); --stop=trainer|target|all|move --shot=C:/tmp/b.png
 godot --path . -- --scene=battlecmd --stop=message --shot=C:/tmp/b.png   # compact message with beast avatar; also trainer-message, effective, resistant, long-message
 godot --path . -- --scene=ringedit --touch                              # the ring editor: who may go where on the ring and in and out of storage, lit cells, taps ("RING EDIT DONE: 0 problem(s)")
+godot --path . -- --scene=mobile-menus --touch --verify=1 --shots=res://build/shots/mobile_menu  # direct A/B answers, centered lists, scrolling and the Start book's retained controls
 godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")
 godot --headless --path . -- --scene=coaches                            # Coastal Path teachers, Rory's arena approach, a clear lobby route, then speaking to Ondine ("coaches DONE: 0 problem(s)")
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
