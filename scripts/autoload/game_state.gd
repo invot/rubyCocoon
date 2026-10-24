@@ -168,7 +168,8 @@ func new_game(pname: String, look := {}) -> void:
 	summons = []
 	song_mastery = {}
 	crests = []
-	flags = {}
+	# Missing in older saves means the map remains available, as it was before the library.
+	flags = {"world_map": false}
 	visited = ["caccoon"]
 	map_id = "caccoon"
 	pos = Vector2i(-1, -1)

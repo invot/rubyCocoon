@@ -1151,7 +1151,7 @@ func _town_detail(c: VBoxContainer, t: String) -> void:
 	var shops := []
 	for s in info["shops"]:
 		if not s in ["house", "uncle"] and not shops.has(s):
-			shops.append(String(s).replace("_", " ").capitalize())
+			shops.append("Library" if t == "caccoon" and s == "bookstore" else String(s).replace("_", " ").capitalize())
 	var sl := _t_label("Places: " + ", ".join(shops), UIKit.DIM)
 	c.add_child(sl)
 	if WorldDB.ARENAS.has(t):

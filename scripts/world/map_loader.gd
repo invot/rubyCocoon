@@ -178,6 +178,9 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
+	for setting in ["outskirt_houses", "outskirt_scale"]:
+		if src.has(setting):
+			m[setting] = src[setting]
 	for p in m["pushables"]:
 		if MapGen.get_t(m, p.x, p.y) != MapGen.ICE:
 			MapGen.set_t(m, p.x, p.y, _infer_floor(m, p))
@@ -233,6 +236,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	var hidden: Dictionary = src.get("hidden", {})
 	var seen := {}
 	var idx := 0
+	var plots := []
 	for y in h:
 		for x in w:
 			var p0 := Vector2i(x, y)
@@ -251,8 +255,16 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 					MapGen.set_t(m, c.x, c.y, MapGen.GRASS)
 				m["hidden_spot"] = minp + sz / 2
 				continue
-			_add_building(m, BUILDING_LETTERS[letter], minp, sz, rng, id, idx)
-			idx += 1
+			plots.append({"shop": BUILDING_LETTERS[letter], "pos": minp, "size": sz})
+	# Authored ordering keeps saved interior ids and seeded room layouts stable when a town is rearranged.
+	if src.has("building_order"):
+		var order := {}
+		for entry in src["building_order"]:
+			order[Vector2i(int(entry[0]), int(entry[1]))] = order.size()
+		plots.sort_custom(func(a, b): return int(order.get(a["pos"], 999)) < int(order.get(b["pos"], 999)))
+	for plot in plots:
+		_add_building(m, plot["shop"], plot["pos"], plot["size"], rng, id, idx)
+		idx += 1
 
 	# statue (top-left of the 2x2 block)
 	for y in h:
@@ -515,6 +527,9 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 		"roof": MapGen.ROOF.get(shop, "#a05a40"), "town": map_id, "seed": rng.randi(), "height": 2.6 if sz.y >= 4 else 2.2,
 		"index": idx, "interior": "%s#%d" % [map_id, idx]}
 	match shop:
+		"bookstore":
+			if map_id == "caccoon":
+				b["name"] = "Cocoon Cove Library"
 		"home":
 			b["name"] = "Your Home"
 		"arena":
@@ -614,6 +629,8 @@ static func _spawn_inside(m: Dictionary, tiles: Array, dir: String) -> Vector2i:
 ## The room template names a building uses, one per floor.
 static func room_set(b: Dictionary) -> Array:
 	var shop: String = b["shop"]
+	if shop == "bookstore" and b.get("town", "") == "caccoon":
+		return ["library"]
 	if shop == "house":
 		return InteriorMaps.HOUSES[int(b["seed"]) % InteriorMaps.HOUSES.size()]
 	if shop == "temple":

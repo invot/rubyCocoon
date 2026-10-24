@@ -366,6 +366,9 @@ func songs_menu() -> void:
 
 
 func world_map() -> void:
+	if not GameState.flags.get("world_map", true):
+		await UI.say(["Librarian Quill has a free world map for you at Cocoon Cove Library, beside the path from home to the square."])
+		return
 	if UI.auto:
 		return
 	var v = GameState.main.loaded_script(MAP_PATH).new()

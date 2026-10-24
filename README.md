@@ -62,10 +62,12 @@ The mounted Gearheart Industries sign uses an original vector gear-and-split-hea
 
 The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
 Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**.
-The home stands outside Cocoon Cove's main square, along a garden lane. **Cocoon Cove Library** marks the lane's
-entrance to the square: speak to **Librarian Quill** for a free **World Map**, then unfold it from **Start → Map**.
+The home and two neighboring houses stand on a high shelf above Cocoon Cove's compact square. A broad ramp descends
+from their garden lane to **Cocoon Cove Library**, which marks the square's western entrance. Speak to
+**Librarian Quill** for a free **World Map**, then unfold it from **Start → Map**.
 Existing saves keep their map access. The town stands on a high natural cliff above a rocky shoreline, with no
-beach, pier, ramp or route down to the water; an open promenade overlooks the cove behind a low fence.
+beach, pier or route down to the water; a winding promenade follows rocky coves and headlands behind a low fence.
+Wooded cliffs enclose the town, with only two distant, inaccessible houses behind the Beast Center.
 In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
@@ -209,7 +211,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   were going, else the newest arrow counts (`world.gd` _key_dir).
 - **Cliffs and ramps**: every town and road has high ground (`scripts/world/elevation.gd`). Woods and rock stand on
   ridges along the back and sides of each map, so you're closed in there, with the roads out running through cuts in
-  them; many maps have terraces too: Cocoon Cove above its beach, Tidewater's old town over the harbour, the Dune
+  them; many maps have terraces too: Cocoon Cove's upper neighborhood and rocky coastal bluff, Tidewater's old town over the harbour, the Dune
   Road's escarpment (the rope ladder a flyer hangs climbs it), the Mesa Trail's canyon walls, Gravenmoor's graveyard
   knoll. Nobody climbs or drops down a cliff, and nobody talks, picks things up or sees across one (trainers and wild
   beasts included); ramps are walked up and down along their slope. Where a river runs over a cliff it falls as a
@@ -553,8 +555,10 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`). A door that opens is its own leaf on a hinge (`room_builder.gd _hinged_leaf`; `world.gd _through_door` swings it open, `spawn_at` shuts the one you came in by). Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it); `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight. `world.gd _take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor. `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached. `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
-  - Cocoon Cove spreads this plan across a wider bluff: the home is west of the square, the library marks its approach,
-    and the southern cliff promenade stays on the town's level. The rocks and water below are inaccessible.
+  - Cocoon Cove has three homes on a raised western shelf, a ramp descending beside the library into a compact square,
+    and a winding cliff promenade on the town's level. The rocks and water below are inaccessible. Wooded ridges replace
+    the usual outlying buildings, except for two small houses behind the Beast Center. Its `building_order` explicitly
+    lists building origins in saved interior order; `outskirt_houses` and `outskirt_scale` control background homes.
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
 
 - **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.

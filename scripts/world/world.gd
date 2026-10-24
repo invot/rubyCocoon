@@ -665,23 +665,29 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 		for t in map["openings"][dir]:
 			ways_out[t] = true
 	var spots := []
-	# along the north, every 9 tiles or so, a few tiles back
-	var x := rng.randi_range(2, 6)
-	while x < w - 2:
-		spots.append(Vector2(x, -rng.randf_range(5.0, 7.0)))
-		x += rng.randi_range(8, 12)
-	# down the sides, beside the northern half of the town
-	for side in [-1, 1]:
-		var z := rng.randf_range(2.0, 5.0)
-		while z < h * 0.55:
-			spots.append(Vector2(-5.5 if side < 0 else w + 5.5, z))
-			z += rng.randf_range(9.0, 12.0)
+	if map.has("outskirt_houses"):
+		for entry in map["outskirt_houses"]:
+			spots.append(Vector2(float(entry[0]), float(entry[1])))
+	else:
+		# along the north, every 9 tiles or so, a few tiles back
+		var x := rng.randi_range(2, 6)
+		while x < w - 2:
+			spots.append(Vector2(x, -rng.randf_range(5.0, 7.0)))
+			x += rng.randi_range(8, 12)
+		# down the sides, beside the northern half of the town
+		for side in [-1, 1]:
+			var z := rng.randf_range(2.0, 5.0)
+			while z < h * 0.55:
+				spots.append(Vector2(-5.5 if side < 0 else w + 5.5, z))
+				z += rng.randf_range(9.0, 12.0)
 	for p in spots:
 		var made := HouseModels.backdrop(style, rng)
 		var node: Node3D = made[0]
 		if node == null:
 			continue
-		var r: float = made[1]
+		var house_scale := float(map.get("outskirt_scale", 1.0))
+		node.scale *= house_scale
+		var r: float = made[1] * house_scale
 		# not over the sea or a road out of town: every edge tile along the house's width (and a tile more) must be
 		# woodland; down the sides, nor in front of a road leading out (the camera looks north, so a house a little south
 		# of a road hides it)

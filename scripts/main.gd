@@ -592,6 +592,11 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "cocoon":
+		await load("res://tools/debug/cocoon.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "intro":
 		await _opening_test()
 		if _test.get("quit", "1") == "1":
@@ -1077,6 +1082,7 @@ func _run_test() -> void:
 		print("  bird -> ", UI.auto_log, "  now at ", world.map_id, " gold ", GameState.gold)
 		UI.auto = false
 	elif scene == "worldmap":
+		GameState.set_flag("world_map")
 		GameState.visited = ["caccoon", "tidewater", "shellhaven", "kelpwick", "dustwell"]
 		GameState.crests = ["Wave Crest", "Coral Crest"]
 		_do_goto("route3", "south")

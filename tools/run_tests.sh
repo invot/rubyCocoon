@@ -24,6 +24,8 @@ TESTS=(
 	"maker|-- --scene=maker --touch --verify=1 --wait=0.3|MAKER TEST DONE: 0 problem"
 	"desktop-menus|-- --scene=mobile-menus --verify=1 --wait=0.3|MOBILE MENUS DONE: 0 problem"
 	"intro|-- --scene=intro --verify=1|INTRO TEST DONE: 0 problem"
+	"cocoon|-- --scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/|COCOON DONE: 0 problem"
+	"cocoon-touch|-- --scene=cocoon --verify=1 --touch --save_dir=res://build/cocoon_touch_saves/|COCOON DONE: 0 problem"
 	"rescue|-- --scene=rescue|RESCUE TEST DONE: 0 problem"
 	"tidewater-arrival|-- --scene=tidewater-arrival --verify=1|TIDEWATER ARRIVAL DONE: 0 problem"
 	"flow|-- --scene=flow --wait=0.3|FLOW TEST DONE"

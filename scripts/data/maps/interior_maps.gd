@@ -104,6 +104,18 @@ const ROOMS := {
 			"###########",
 		],
 	},
+	"library": {
+		"wall": "#c8b090", "rug": "#607a88", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
+		"rows": [
+			"###w####w####",
+			"#BBB.1..BBBB#",
+			"#p.CCCCC...pw",
+			"#...........w",
+			"#ct2..rrr...#",
+			"#.....rrr..PD",
+			"#############",
+		],
+	},
 	"bookstore": {
 		"wall": "#c8b090", "rug": "#8a4a3a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The stockroom. Boxes of books are piled to the ceiling in there."],

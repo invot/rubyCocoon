@@ -61,7 +61,10 @@ func open(b: Dictionary, world) -> void:
 			await UI.say(["Boots, hats, flutes... everything a trainer needs!"], KEEPERS[shop])
 			await shop_loop(b["name"], ItemDB.stock("tgear", tier, town + ":tg", 7))
 		"bookstore":
-			await bookstore(b, town, tier)
+			if town == "caccoon":
+				await library()
+			else:
+				await bookstore(b, town, tier)
 		"arena":
 			await arena(b, town)
 		"dojo":
@@ -79,6 +82,19 @@ func open(b: Dictionary, world) -> void:
 
 
 # ================================================================ shops
+## The public library lends a permanent map, independently of egg and flute progress.
+func library() -> void:
+	if not GameState.flags.get("world_map", true):
+		await UI.say(["Heading out into the world? Take a map. Every traveler should have one."], KEEPERS["bookstore"])
+		GameState.set_flag("world_map")
+		Sfx.play("item")
+		await UI.say(["Received the World Map!", "Open Start, choose Map, then press A or tap a town to unfold it. New places fill in as you visit them."], KEEPERS["bookstore"])
+	else:
+		await UI.say(["Your map has room for a whole journey. Shall we spread it out?"], KEEPERS["bookstore"])
+		if await UI.choose("Cocoon Cove Library", ["Read world map", "Leave"]) == 0:
+			await Menus.world_map()
+
+
 func shop_loop(title: String, stock: Array) -> void:
 	while true:
 		var c: int = await UI.choose("%s   (%d gold)" % [title, GameState.gold], ["Buy", "Sell", "Leave"], {"anchor": "right", "width": 320})
