@@ -1,10 +1,10 @@
 shader_type spatial;
 // The overworld ground. Each tile has a ground layer (grass, path, plaza...) in `kind_map`; the shader looks it up
-// with a little noise so the borders between layers wander like a hand-painted map, in whole texture pixels (no
-// blending), and colours each layer per biome. Flat ground is mapped from above and slopes from the side. The same
+// with a little noise so the borders between layers wander like a hand-painted map, softly blended over a narrow
+// band, and colours each layer per biome. Flat ground is mapped from above and slopes from the side. The same
 // shader draws the cliff faces between levels (see "cliff").
 
-uniform sampler2DArray layers : source_color, filter_nearest_mipmap, repeat_enable;
+uniform sampler2DArray layers : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 // R = layer index / 255, one texel per tile, starting at `map_origin` (world x, z)
 uniform sampler2D kind_map : filter_nearest, repeat_disable;
 uniform vec2 map_origin = vec2(0.0);
@@ -14,8 +14,8 @@ uniform vec3 tints[9];
 uniform float edge_noise = 0.28;
 // texture repeats per world unit
 uniform float tex_scale = 0.5;
-// borders step in this many pixels per tile
-uniform float edge_px = 16.0;
+// how wide (in tiles) the soft blend across a border is
+uniform float edge_soft = 0.07;
 // cliff faces (terrain_mesh.gd): rock in cliff_tint, darker towards the foot (COLOR.r), with a ragged lip of the
 // ground above along the top (COLOR.g)
 uniform bool cliff = false;
@@ -88,16 +88,22 @@ void fragment() {
 			}
 		}
 	}
-	vec2 q = (floor(wpos.xz * edge_px) + 0.5) / edge_px;
+	vec2 q = wpos.xz;
 	vec2 j = vec2(vnoise(q * 1.6), vnoise(q * 1.6 + vec2(17.3, 41.9))) - 0.5;
 	j += 0.5 * (vec2(vnoise(q * 4.1 + vec2(5.1, 2.7)), vnoise(q * 4.1 + vec2(29.0, 13.0))) - 0.5);
 	int own = _layer_at(q);
 	// laid surfaces (plaza, paving, ice) keep neat edges: they barely wander, and nothing wanders onto them
 	float amp = _laid(own) ? 0.12 : 1.0;
-	int layer = _layer_at(q + j * edge_noise * 2.0 * amp);
-	if (_laid(layer) && layer != own) {
-		layer = own;
+	vec2 at = q + j * edge_noise * 2.0 * amp;
+	// four looks round the point; where they disagree (a border) their layers are blended
+	int ls[4];
+	for (int k = 0; k < 4; k++) {
+		vec2 o = vec2(k % 2 == 0 ? -1.0 : 1.0, k < 2 ? -1.0 : 1.0) * edge_soft * 0.5;
+		int l = _layer_at(at + o);
+		ls[k] = (_laid(l) && l != own) ? own : l;
 	}
+	int layer = ls[0];
+	bool border = ls[1] != layer || ls[2] != layer || ls[3] != layer;
 	vec3 n = abs(wnorm);
 	vec2 uv = n.y > 0.6 ? wpos.xz : (n.x > n.z ? vec2(wpos.z, -wpos.y) : vec2(wpos.x, -wpos.y));
 	if (cliff) {
@@ -106,6 +112,12 @@ void fragment() {
 		layer = lip ? _layer_at(wpos.xz - normalize(wnorm.xz + vec2(0.0001)) * 0.3) : rock_layer;
 		vec3 col = texture(layers, vec3(uv * tex_scale, float(layer))).rgb;
 		ALBEDO = lip ? col * tints[layer] * 0.85 : col * cliff_tint * COLOR.r;
+	} else if (border) {
+		vec3 col = vec3(0.0);
+		for (int k = 0; k < 4; k++) {
+			col += texture(layers, vec3(uv * tex_scale, float(ls[k]))).rgb * tints[ls[k]];
+		}
+		ALBEDO = col * 0.25;
 	} else {
 		vec3 col = texture(layers, vec3(uv * tex_scale, float(layer))).rgb;
 		ALBEDO = col * tints[layer];

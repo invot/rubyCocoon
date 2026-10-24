@@ -16,14 +16,17 @@ static func _cached(key: String, maker: Callable) -> ArrayMesh:
 
 
 # ---------------------------------------------------------------- cut-out cards
-## A see-through pixel texture on crossed upright cards (grass, flowers): `planes` cards turned evenly around the
-## middle, `w` wide and `h` tall, standing on y = 0.
+## A see-through painted texture on crossed upright cards (grass, flowers): `planes` cards turned evenly around the
+## middle, `w` wide and `h` tall, standing on y = 0. The small painting is enlarged with a soft filter first, so blades
+## and petals get smooth, rounded edges rather than steps.
 static func _cards(img: Image, planes: int, w: float, h: float, tint := Color.WHITE) -> ArrayMesh:
+	if img.get_width() < 64:
+		img.resize(img.get_width() * 4, img.get_height() * 4, Image.INTERPOLATE_CUBIC)
 	img.generate_mipmaps()
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = ImageTexture.create_from_image(img)
 	m.albedo_color = tint
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.alpha_scissor_threshold = 0.5
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -57,22 +60,32 @@ static func _cards(img: Image, planes: int, w: float, h: float, tint := Color.WH
 static func grass_tuft(base_hex: String, variant: int) -> ArrayMesh:
 	return _cached("tuft:%s:%d" % [base_hex, variant], func():
 		var base := Color(base_hex)
-		var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+		const S := 128
+		var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
 		# see-through pixels keep the grass colour, so the smaller mipmaps don't fade the blades to black
 		img.fill(Color(base, 0.0))
 		var rng := RandomNumberGenerator.new()
 		rng.seed = variant * 977 + base_hex.hash()
 		var shades := [base, base.lightened(0.1), base.lightened(0.2), base.darkened(0.12)]
-		for i in 26:
-			var x := rng.randf_range(2, 29)
-			var hgt := rng.randi_range(12, 31)
+		# 60 tapering blades, each a smooth curve: wide at the root, a soft point at the tip, lighter towards it
+		for i in 60:
+			var x := rng.randf_range(0.07, 0.93) * S
+			var hgt := rng.randf_range(0.38, 0.98) * S
 			var lean := rng.randf_range(-0.35, 0.35)
+			var bend := rng.randf_range(-0.12, 0.12)
 			var c: Color = shades[rng.randi_range(0, 3)]
-			for k in hgt:
-				var px := clampi(int(x + lean * k), 0, 31)
-				img.set_pixel(px, 31 - k, base.lightened(0.3) if k >= hgt - 2 else c.darkened(0.08 * (1.0 - float(k) / hgt)))
-				if k < hgt / 3:
-					img.set_pixel(clampi(px + 1, 0, 31), 31 - k, c.darkened(0.1))
+			for k in int(hgt):
+				var t := k / hgt
+				var cx := x + lean * k + bend * k * t
+				var half := lerpf(4.6, 0.6, t)
+				var col: Color = c.darkened(0.08 * (1.0 - t)).lerp(base.lightened(0.3), smoothstep(0.75, 1.0, t))
+				for px in range(floori(cx - half - 1.0), ceili(cx + half + 1.0) + 1):
+					if px < 0 or px >= S:
+						continue
+					var cover := clampf(half + 0.5 - absf(px + 0.5 - cx), 0.0, 1.0)
+					var y := S - 1 - k
+					if cover > img.get_pixel(px, y).a:
+						img.set_pixel(px, y, Color(col, cover))
 		return _cards(img, 3, 0.72, 0.62))
 
 

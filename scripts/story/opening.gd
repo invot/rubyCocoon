@@ -303,7 +303,7 @@ func _mat(colour: String, tex := "", glow := false) -> StandardMaterial3D:
 	mat.roughness = 0.85
 	if tex != "":
 		mat.albedo_texture = load(RoomBuilder.DIR + "tex/" + tex + ".png") if ResourceLoader.exists(RoomBuilder.DIR + "tex/" + tex + ".png") else null
-		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		mat.uv1_triplanar = true
 		mat.uv1_world_triplanar = true
 		mat.uv1_scale = Vector3.ONE / RoomBuilder.SPAN

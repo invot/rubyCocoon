@@ -2,7 +2,7 @@ shader_type spatial;
 render_mode cull_disabled;
 // Water and lava: a looping PSX animation (texture array frames), coloured per biome. Lava glows.
 
-uniform sampler2DArray frames : source_color, filter_nearest_mipmap, repeat_enable;
+uniform sampler2DArray frames : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float frame_count = 10.0;
 uniform float fps = 6.0;
 uniform vec4 tint : source_color = vec4(0.23, 0.56, 0.88, 1.0);

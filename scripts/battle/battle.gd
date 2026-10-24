@@ -285,7 +285,7 @@ func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null) -> void:
 func _tex_mat(t: Texture2D, uv := Vector2.ONE) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = t
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.uv1_scale = Vector3(uv.x, uv.y, 1)
 	m.roughness = 1.0
 	return m

@@ -1,7 +1,7 @@
 extends RefCounted
 ## Surface textures for buildings, terrain, water and lava.
-## Most are small PSX-style textures from assets/textures/surfaces (built by tools/build_psx_textures.gd from the packs
-## credited in CREDITS.md). They are nearly grey, so buildings tint them per style with vertex colours and the ground
+## Most are textures from assets/textures/surfaces (built by tools/build_psx_textures.gd from the packs credited in
+## CREDITS.md, then cleaned up by tools/smooth_textures.gd), sampled smoothly. They are nearly grey, so buildings tint them per style with vertex colours and the ground
 ## is coloured per biome. Kinds without a PSX texture (brass, timber framing) are drawn here at 16x16.
 
 const PSX_DIR := "res://assets/textures/surfaces/"
@@ -10,6 +10,8 @@ const GROUND_LAYERS := ["grass", "path", "plaza", "sand", "rock", "bed", "lava_b
 ## Which PSX texture each ground layer uses.
 const GROUND_SOURCE := {"grass": "ground_grass", "path": "ground_path", "plaza": "ground_plaza", "sand": "ground_sand",
 	"rock": "ground_rock", "bed": "ground_bed", "lava_bed": "ground_rock", "paving": "ground_paving", "ice": "ground_ice"}
+## The ground layers' size (tools/smooth_textures.gd leaves them smoothed at twice the packs' 128).
+const GROUND_SIZE := 256
 const WATER_FRAMES := 10
 const LAVA_FRAMES := 3
 ## The legacy terrain kinds (one texture per tile) and the PSX texture behind each.
@@ -67,7 +69,8 @@ static func ground_layers() -> Texture2DArray:
 			img = Image.create(128, 128, false, Image.FORMAT_RGBA8)
 			img.fill(Color(0.86, 0.86, 0.86))
 		img = img.duplicate()
-		img.resize(128, 128, Image.INTERPOLATE_NEAREST)
+		if img.get_size() != Vector2i(GROUND_SIZE, GROUND_SIZE):
+			img.resize(GROUND_SIZE, GROUND_SIZE, Image.INTERPOLATE_CUBIC)
 		img.generate_mipmaps()
 		imgs.append(img)
 	var arr := Texture2DArray.new()
@@ -228,8 +231,8 @@ static func terrain(kind: String, base_hex: String, lip_hex := "") -> ImageTextu
 	if psx != null:
 		# one tile's worth: the PSX ground textures span two tiles, so they're halved for per-tile use
 		var tile: Image = psx.duplicate()
-		if tile.get_width() > 64:
-			tile.resize(64, 64, Image.INTERPOLATE_LANCZOS)
+		if tile.get_width() > 128:
+			tile.resize(128, 128, Image.INTERPOLATE_LANCZOS)
 		if kind != "lava":
 			tile = _tinted(tile, base)
 		if lip_hex != "":
@@ -343,9 +346,9 @@ static func kit_material(kind: String) -> StandardMaterial3D:
 
 static func _base_material(kind: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
-	# "pat_<name>": a seamless pixel pattern from assets/textures/patterns (books, quilts, planks...)
+	# "pat_<name>": a seamless pattern from assets/textures/patterns (books, quilts, planks...)
 	m.albedo_texture = load(PATTERN_DIR + kind.substr(4) + ".png") if kind.begins_with("pat_") else texture(kind)
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if not kind.begins_with("pat_") else BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = true
 	m.roughness = 0.95

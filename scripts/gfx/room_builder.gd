@@ -168,7 +168,7 @@ static func surface(tex: String, tint: Color, extra: Dictionary = {}) -> Standar
 		t = load(DIR + "tex/" + tex + ".png")
 	m.albedo_texture = t
 	m.albedo_color = tint
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.vertex_color_use_as_albedo = true
 	m.roughness = 0.9
 	m.uv1_scale = Vector3(1.0 / SPAN, 1.0 / SPAN, 1.0) if tex != "checker" else Vector3(1.0, 1.0, 1.0)

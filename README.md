@@ -1,6 +1,6 @@
 # Ruby Cocoon
 
-A low-poly, PS1-style beast-training RPG for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
+A low-poly beast-training RPG with a smooth, cozy PS2-era look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
 <img src="docs/screenshots/title.jpg" width="800" alt="The title screen, with Cocoon Cove behind it."><br><sub>The title screen, with Cocoon Cove behind it.</sub>
 
@@ -62,6 +62,10 @@ The mounted Gearheart Industries sign uses an original vector gear-and-split-hea
 
 The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
 Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**.
+The home stands outside Cocoon Cove's main square, along a garden lane. **Cocoon Cove Library** marks the lane's
+entrance to the square: speak to **Librarian Quill** for a free **World Map**, then unfold it from **Start → Map**.
+Existing saves keep their map access. The town stands on a high natural cliff above a rocky shoreline, with no
+beach, pier, ramp or route down to the water; an open promenade overlooks the cove behind a low fence.
 In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
@@ -210,7 +214,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   knoll. Nobody climbs or drops down a cliff, and nobody talks, picks things up or sees across one (trainers and wild
   beasts included); ramps are walked up and down along their slope. Where a river runs over a cliff it falls as a
   waterfall (Riverbend). Behind high ground you're never lost from sight: whatever ground stands between the camera
-  and you dissolves around your shape in a PS1-style dither (`terrain.gdshader` `hole`), as buildings in the way fade.
+  and you dissolves around your shape in a fine dither (`terrain.gdshader` `hole`), as buildings in the way fade.
 - **Town mascots and their signature moves**: every town has a mascot beast roaming its square and a statue of it
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
   teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
@@ -321,11 +325,21 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 <img src="docs/screenshots/tidewater.jpg" width="640" alt="Tidewater from above: its houses, the arena, the Sky Tower and the docks."><br><sub>Tidewater from above: its houses, the arena, the Sky Tower and the docks.</sub>
 
+- **Look**: the world aims for the PS2 era (*Final Fantasy X*, *Jade Cocoon 2*) with a clean, soft, stylized finish:
+  low-poly shapes with smooth, painted textures and soft light, never grainy or blocky. The packs' small textures are
+  cleaned up by `scripts/gfx/smooth_texture.gd` (edge-preserving smoothing that keeps brick courses, boards and leaves
+  but drops grain and speckle, eased contrast, then enlarged with a soft filter) and sampled with linear, mipmapped,
+  anisotropic filtering. `tools/smooth_textures.gd` applies it in place to the surface, pattern and interior textures
+  and to the baked scenery, house, landmark and furniture meshes (not people, beasts, robots or summons), recording
+  each file in `tools/smoothed.json` so nothing is smoothed twice; run it after any re-bake, then `--import`. Ground
+  layers blend softly across their wandering borders (`terrain.gdshader`). Shop-sign icons stay crisp pixel art, and
+  the interface keeps its own Pixel and Classic styles.
 - **App icon**: the game's original Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
 - **World and props** (trees, rocks, fences and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd` (cacti and the head totem are drawn in code). The packs themselves aren't in the repository; with one downloaded again into `psx/`, re-bake and then let Godot rescan, or its file index (and so the exported game) won't include new files:
 
   ```
   godot --headless --path . --script res://tools/import_psx_models.gd
+  godot --headless --path . --script res://tools/smooth_textures.gd
   godot --headless --path . --import
   ```
 
@@ -389,7 +403,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
 - The terrain is made of textured blocks, one per tile; water and lava sit one step lower.
-- Furniture uses pixel patterns from `ui/seamless patterns/`: bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
+- Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
 
@@ -539,6 +553,8 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`). A door that opens is its own leaf on a hinge (`room_builder.gd _hinged_leaf`; `world.gd _through_door` swings it open, `spawn_at` shuts the one you came in by). Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it); `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight. `world.gd _take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor. `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached. `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
+  - Cocoon Cove spreads this plan across a wider bluff: the home is west of the square, the library marks its approach,
+    and the southern cliff promenade stays on the town's level. The rocks and water below are inaccessible.
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
 
 - **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
@@ -571,6 +587,9 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and the one-time Dustwell reveal.
+- `cocoon`: cliff isolation, old building identities, the home-to-library route, entering the library, receiving the
+  world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
+  `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
 - `arena-ladder`: trainer list clearance from touch controls, full-sized rows, focus navigation, pagination, direct trainer taps and A/B confirmation. Add `--matrix=1` to the scene for both styles and all four gems.
 - `kennel` / `kennel-ui`: level-based adoption fees, exact/insufficient funds, cancellation, free reclaiming, storage overflow, and the real keeper/pen menus with touch and focus navigation. Preview with `--scene=kennel --shot=res://build/shots/kennel.png` (`--preview=poor` or `empty` for those states; `--verify=1` exercises inputs).

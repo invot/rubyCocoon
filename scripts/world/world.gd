@@ -196,7 +196,7 @@ var terrain_mats: Array = []
 func _tex_mat(t: Texture2D, world_triplanar := false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = t
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.roughness = 1.0
 	if world_triplanar:
 		m.uv1_triplanar = true

@@ -42,7 +42,7 @@ static func wall_material(kind: String, col: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = VT.texture(kind)
 	m.albedo_color = col
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.uv1_triplanar = true
 	m.uv1_world_triplanar = true
 	m.uv1_triplanar_sharpness = 8.0
