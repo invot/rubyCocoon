@@ -869,14 +869,18 @@ static func _table_beside(m: Dictionary, p: Vector2i) -> Vector2i:
 
 ## True if someone at `p` looking along `d` would be staring at a wall.
 static func faces_wall(m: Dictionary, p: Vector2i, d: Vector2i) -> bool:
+	# The fourth wall is omitted: residents at the front can still face the audience.
+	if m.get("kind", "") == "interior" and p.y + d.y == int(m["h"]) - 1:
+		return false
 	return MapGen.get_t(m, p.x + d.x, p.y + d.y) in [MapGen.IWALL, MapGen.IWINDOW]
 
 
-## The way to face from `p`: towards the middle of the room, turning aside if a wall is in the way.
+## Stage residents open towards the audience; elsewhere face the room's middle. Never face a visible wall.
 static func room_facing(m: Dictionary, p: Vector2i) -> Vector2i:
 	var to := Vector2(m["w"] - 1, m["h"] - 1) / 2.0 - Vector2(p)
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
-	dirs.sort_custom(func(a, b): return Vector2(a).dot(to) > Vector2(b).dot(to))
+	if not m.get("stage", false):
+		dirs.sort_custom(func(a, b): return Vector2(a).dot(to) > Vector2(b).dot(to))
 	for d in dirs:
 		if not faces_wall(m, p, d):
 			return d
@@ -962,6 +966,6 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 				"look": {"skin": "#d0b8a8", "hair": "#20182a", "shirt": "#3a1a4a", "pants": "#18121f", "hat": "#3a3a6a", "outfit": "armor"}}
 		"vexmora":
 			return {"kind": "story", "id": "vexmora", "name": "General Vexmora", "pos": p, "facing": Vector2i(0, 1), "story": true, "gone_flag": "game_cleared",
-				"look": {"skin": "#c8b0b8", "hair": "#e0e0f0", "shirt": "#1a1024", "pants": "#120c18", "hat": "#6a2a9a", "outfit": "armor"}}
+				"look": {"skin": "#c8b0b8", "hair": "#e0e0f0", "shirt": "#1a1024", "pants": "#120c18", "hat": "#6a2a9a", "outfit": "armor", "eyes": "#a838e0"}}
 		_:
 			return _villager(p, rng)

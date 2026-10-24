@@ -786,6 +786,19 @@ func latest_slot() -> int:
 	return best
 
 
+## The slot saved longest ago (an outdated one first; -1 if none): where a new journey goes when all ten are full.
+func oldest_slot() -> int:
+	var best := -1
+	var best_t := INF
+	for i in SLOT_COUNT:
+		if slot_exists(i):
+			var t := -1.0 if slot_outdated(i) else float(slot_info(i).get("saved_at", 0.0))
+			if t < best_t:
+				best_t = t
+				best = i
+	return best
+
+
 func _read_slot(i: int) -> Dictionary:
 	if not slot_exists(i):
 		return {}

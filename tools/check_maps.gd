@@ -61,6 +61,18 @@ func _check(m: Dictionary) -> Array:
 	var problems := []
 	var start: Vector2i = m["spawns"].get("start", m["spawns"].values()[0])
 	var seen := _flood(m, start)
+	if m["kind"] == "interior":
+		# Locked rooms still need an accessible doorway, so the player can read/knock on them.
+		for y in int(m["h"]):
+			for x in int(m["w"]):
+				if MapGen.get_t(m, x, y) != MapGen.LOCKED:
+					continue
+				var reachable := false
+				for d in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
+					reachable = reachable or seen.has(Vector2i(x, y) + d)
+				# Staff-only doors can open into enclosed service areas, behind the counter.
+				if not reachable and not m.get("staff_doors", {}).has(Vector2i(x, y)):
+					problems.append("locked door at %s has no reachable approach" % Vector2i(x, y))
 	for k in m["spawns"]:
 		if m["spawns"][k].x < 0:
 			continue
@@ -125,6 +137,8 @@ func _check(m: Dictionary) -> Array:
 	else:
 		problems.append_array(_windows(m))
 		problems.append_array(_beds(m))
+		problems.append_array(_staging(m))
+		problems.append_array(_rugs(m))
 	problems.append_array(_slip_past(m))
 	var groups := {}
 	for q in m.get("obstacles", {}):
@@ -220,6 +234,64 @@ func _windows(m: Dictionary) -> Array:
 			lit += 1
 	if m.get("stage", false) and lit == 0:
 		out.append("%s has no wall with windows" % m.get("room_key", m["id"]))
+	return out
+
+
+## Every area rug has an approved rectangular footprint, with no lost rugs or covered stairwells/walls.
+func _rugs(m: Dictionary) -> Array:
+	var out := []
+	var expected := RoomBuilder.furniture_groups(m).filter(func(part): return part["kind"] == "rug").size()
+	var rugs := RoomBuilder.rug_rectangles(m)
+	if rugs.size() != expected:
+		out.append("%s: only %d of %d area rugs fit" % [m.get("room_key", m["id"]), rugs.size(), expected])
+	for rug in rugs:
+		if not rug.size in RoomBuilder.RUG_SIZES and not Vector2i(rug.size.y, rug.size.x) in RoomBuilder.RUG_SIZES:
+			out.append("area rug has an unapproved footprint: %s" % rug)
+		for y in range(rug.position.y, rug.end.y):
+			for x in range(rug.position.x, rug.end.x):
+				if MapGen.get_t(m, x, y) in RoomBuilder.RUG_BLOCKED:
+					out.append("area rug covers a wall, stair or hazard at %s" % Vector2i(x, y))
+	return out
+
+
+## End-on staging: see docs/interior_staging.md. Uses the renderer's grouping and facing decisions.
+func _staging(m: Dictionary) -> Array:
+	var out := []
+	var label: String = m.get("room_key", m["id"])
+	for part in RoomBuilder.furniture_groups(m):
+		var kind: String = part["kind"]
+		var layout := RoomBuilder.furniture_layout(m, kind, part["tiles"])
+		var lo: Vector2i = layout["lo"]
+		var size: Vector2 = layout["size"]
+		var back: Vector2i = layout["back"]
+		if kind in ["sofa", "armchair"] and back == Vector2i(0, 1):
+			out.append("%s's %s at %s turns away from the camera" % [label, kind, lo])
+		if kind == "armchair":
+			for side in [Vector2i.LEFT, Vector2i.RIGHT]:
+				var wall: Vector2i = lo + side
+				if RoomBuilder._walled(m, wall) and back != side:
+					out.append("%s's side-wall armchair at %s must face into the room" % [label, lo])
+		if not m.get("stage", false):
+			continue
+		if kind == "tv":
+			out.append("%s's TV belongs on the implied fourth wall" % label)
+		# Tall casework belongs upstage or in the side wings, never across the playing area.
+		if kind in ["bookshelf", "shelf", "wardrobe", "storage", "pantry", "fridge", "bunk"]:
+			if lo.y > 1 and lo.x > 1 and lo.x + size.x < int(m["w"]) - 1:
+				out.append("%s's %s at %s blocks the central stage; use the back or side wall" % [label, kind, lo])
+			if back == Vector2i(0, 1):
+				out.append("%s's %s at %s presents its back to the camera" % [label, kind, lo])
+		# A dining/desk chair can be in profile or face the audience; tables must be staged around that.
+		if RoomBuilder.KINDS[kind].get("chair", false) and back == Vector2i(0, 1):
+			out.append("%s's chair at %s faces away; move it to the side or behind its table" % [label, lo])
+	if m.get("stage", false):
+		for y in range(2, int(m["h"]) - 1):
+			for x in range(2, int(m["w"]) - 2):
+				if MapGen.get_t(m, x, y) in [MapGen.ORGAN, MapGen.PILLAR]:
+					out.append("%s's tall scenery at %s belongs upstage or at the sides" % [label, Vector2i(x, y)])
+		for n in m["npcs"]:
+			if n.get("sit", false) and n.get("facing", Vector2i.ZERO) == Vector2i(0, -1):
+				out.append("%s's seated patron at %s has their back to the camera" % [label, n["pos"]])
 	return out
 
 

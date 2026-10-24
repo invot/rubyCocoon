@@ -687,20 +687,10 @@ func arena(b: Dictionary, town: String) -> void:
 		return
 	var a: Dictionary = WorldDB.ARENAS[town]
 	var leader := "%s %s" % [a["title"], a["leader"]]
-	await UI.say(["Welcome to the %s! Our leader is %s." % [b["name"], leader]], "Arena Host")
+	# the host runs the ladder; the master takes challengers in person, in the hall round the end of the wall
+	await UI.say(["Welcome to the %s! I run the ladder of ring trainers. %s takes challengers in person, in the hall round the end of the wall." % [b["name"], leader]], "Arena Host")
 	while true:
-		var beaten: bool = GameState.crests.has(a["crest"])
-		var lv: int = a["team"][0][1]
-		var song := SongDB.get_song(a["song"])
-		var desc := "Rematch for prize money. Levels ~%d." % (lv + 6)
-		if not beaten:
-			desc = "Leader's beasts are around Lv %d. Prize: %s, the song %s, and %d gold." % [lv, a["crest"], song["name"], a["gold"]]
-		# (Tidewater: the coaches' lessons come first, see Story.ARENA_LESSONS)
-		var ready: bool = beaten or Story.arena_lessons_done(town)
-		if not ready:
-			desc = "First, the arena's battle lessons: Coach Rory, then Coach Ondine, just inside the door."
 		var items := [
-			{"text": ("Rematch " if beaten else "Challenge ") + leader, "disabled": not ready, "desc": desc},
 			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
 				"desc": "Climb the ladder of ring trainers. Beat every trainer of a rank to open the next; each rank you clear raises your trainer level (you're Lv %d) and earns a crystal shard." % GameState.trainer_level},
 			{"text": "Leave"},
@@ -709,21 +699,16 @@ func arena(b: Dictionary, town: String) -> void:
 			items.append({"text": "Sell eggs to " + a["leader"],
 				"desc": "%s eggs only. Pays twice the Beast Center's offer." % String(a["element"]).capitalize()})
 		var c: int = await UI.choose(b["name"], items, {"anchor": "right", "width": 400})
-		if c == 2 or c < 0:
+		if c == 1 or c < 0:
 			return
-		if c == 3:
+		if c == 2:
 			await sell_eggs(town)
 			continue
 		if GameState.alive_party().is_empty():
 			await UI.say(["Your beasts need healing before they can battle!"], "Arena Host")
 			continue
-		if c == 0:
-			var res := await arena_challenge(town)
-			if res != "win":
-				return
-		else:
-			if not await ladder():
-				return
+		if not await ladder():
+			return
 
 
 # ================================================================ arena ladder
@@ -1090,13 +1075,12 @@ func _hear_song(k: String) -> void:
 
 
 ## Play a song back until it's learned or the player gives up. Returns true if learned.
-## `need`: the power (0..1) needed to pass; 0 means just finishing it. `first_opts` go to the minigame on the first try only.
-func learn_attempts(sid: String, speaker := "", need := 0.0, first_opts := {}) -> bool:
-	var extra := first_opts
+## `need`: the power (0..1) needed to pass; 0 means just finishing it. `extra` goes to the minigame on every try (a
+## teacher's lesson: {"lesson": true, "performer": who}).
+func learn_attempts(sid: String, speaker := "", need := 0.0, extra := {}) -> bool:
 	while true:
 		var opts := {"mode": "learn", "goal": {"accuracy": need}}
 		opts.merge(extra, true)
-		extra = {}
 		var r: Dictionary = await UI.flute_ex(sid, "Play it back to learn it", opts)
 		Sfx.music(GameState.main.music_for(GameState.map_id))
 		if not r["cancelled"] and String(r.get("failed", "")) == "" and float(r["acc"]) > 0.0 and float(r["acc"]) >= need:

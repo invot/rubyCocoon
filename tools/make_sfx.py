@@ -4,6 +4,8 @@
   Faint_Thud.wav   a soft cartoon thud: one of your beasts keeling over (sfx.gd "faint")
   Door_Knock.wav   three raps on a wooden door: knocking on a locked house (sfx.gd "knock")
   Phone_Ring.wav   one ring of an old bell telephone: the clapper rattling between two bells (sfx.gd "phone_ring")
+  Dread_Hit.wav    a cinematic hit: a deep boom under a low, dissonant swell that dies away slowly (sfx.gd "dread")
+  Ghost_Rise.wav   a ghost beast taking shape: a breathy rising whoosh and a hollow, wavering wail (sfx.gd "ghost")
 
 Run from the project root:  python tools/make_sfx.py
 """
@@ -127,8 +129,48 @@ def ring():
     return lowpass(out, 5200.0)
 
 
+def dread():
+    """The intro's killing blow: no smack, no cartoon. A sub-bass boom drops away under a low cluster of detuned tones
+    (a minor second apart) that swells for a moment and then fades over a few seconds, with dark rumbling air."""
+    rnd = random.Random(31)
+    n = int(RATE * 3.6)
+    boom = thump(n, 95.0, 38.0, 0.55, 1.0)
+    out = [0.0] * n
+    for f, a in [(55.0, 0.5), (58.3, 0.45), (82.4, 0.25), (87.3, 0.22), (110.0, 0.12)]:
+        ph = rnd.uniform(0, 2 * math.pi)
+        for i in range(n):
+            t = i / RATE
+            env = min(1.0, t / 0.25) * math.exp(-t / 1.4)
+            out[i] += a * env * math.sin(2.0 * math.pi * f * t + ph + 0.3 * math.sin(2.0 * math.pi * 0.7 * t))
+    air = lowpass(lowpass([rnd.uniform(-1, 1) for _ in range(n)], 160.0), 220.0)
+    air = [x * 6.0 * min(1.0, (i / RATE) / 0.05) * math.exp(-(i / RATE) / 0.9) for i, x in enumerate(air)]
+    return lowpass([b + o + a for b, o, a in zip(boom, out, air)], 1400.0)
+
+
+def ghost():
+    """A ghost beast rising out of smoke: filtered noise sweeping up like a breath drawn in, and a hollow wail (two
+    detuned sines with a slow, uneasy vibrato) climbing a fifth, both fading out at the top."""
+    rnd = random.Random(41)
+    n = int(RATE * 1.8)
+    sweep = lowpass([rnd.uniform(-1, 1) for _ in range(n)], lambda i: 300.0 + 2400.0 * (i / n) ** 2)
+    out = []
+    ph1 = ph2 = 0.0
+    for i in range(n):
+        t = i / RATE
+        k = i / n
+        env = math.sin(math.pi * min(1.0, k * 1.15)) ** 1.5
+        f = 220.0 * (1.0 + 0.5 * k * k) * (1.0 + 0.012 * math.sin(2.0 * math.pi * 5.5 * t))
+        ph1 += 2.0 * math.pi * f / RATE
+        ph2 += 2.0 * math.pi * f * 1.009 / RATE
+        wail = (math.sin(ph1) + math.sin(ph2)) * 0.3
+        out.append(env * (wail + sweep[i] * 1.6))
+    return lowpass(out, 3000.0)
+
+
 if __name__ == '__main__':
     write('Defeat_Puff.wav', puff())
     write('Faint_Thud.wav', thud())
     write('Door_Knock.wav', knock())
     write('Phone_Ring.wav', ring())
+    write('Dread_Hit.wav', dread())
+    write('Ghost_Rise.wav', ghost())

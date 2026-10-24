@@ -1,6 +1,8 @@
 extends "res://scripts/ui/modal.gd"
-## The flute minigame: sheet music you read, then play back.
-##   1. Listen: the flute plays the song once and each note lights up on the staff. The clock waits.
+## The flute minigame: sheet music you read, then play.
+##   1. Listen (only while learning a song, or when someone else plays it): the song plays once and each note lights
+##      up on the staff. The clock waits. A song you already know (in battle, practising) skips this: the sheet is up
+##      and it's your turn straight away.
 ##   2. Study: the sheet stays up and the clock is running.
 ##   3. Play: play the notes in order; the sheet stays up the whole time, the notes you have played lit.
 ## Each staff position is a button: ← → A B from the bottom line up; higher-level songs add ↓ and ↑ above them.
@@ -8,9 +10,10 @@ extends "res://scripts/ui/modal.gd"
 ## The timer bar shrinks green → yellow → orange → red, and the colour you finish in sets the song's power
 ## (green: full, red: about half). Each wrong note breaks a heart and costs a little power; the right note then
 ## peeks out. Three wrong notes, or running out of time, and the song fails.
-## Modes: "play", "learn" (play it back to learn the song; `goal` sets the bar to pass), "demo" (someone else plays it).
-## opts: mode, goal, performer, level (default: the song's level), coach (speaker name: a step-by-step walkthrough),
-## lesson (true: the beginner's 30-second clock).
+## Modes: "play" (no listening first), "learn" (it plays once, then you play it back to learn the song; `goal` sets the
+## bar to pass), "demo" (someone else plays it).
+## opts: mode, goal, performer (who plays it while you listen), level (default: the song's level), lesson (true: a
+## teacher's lesson: the beginner's 30-second clock, and the song always plays through before your turn).
 ## done emits {"acc": 0..1, "mistakes", "cancelled", "failed": "" / "time" / "misses", "zone": 0..3}.
 
 const SongDB = preload("res://scripts/data/song_db.gd")
@@ -35,18 +38,6 @@ const LISTEN_LEAD := 0.8
 ## half a staff space, in pixels
 const STEP_PX := 20.0
 const HEAD_R := 18.0
-## The walkthrough. "when": before listening ("start") or once the song has been heard ("listened");
-## "focus": what it points at.
-const COACH := [
-	{"when": "start", "focus": "staff", "text": "This is sheet music! A song is a short row of notes. You read it from left to right."},
-	{"when": "start", "focus": "legend", "text": "Each line and space on the staff is one of your buttons. From the bottom: ← on the bottom line, → just above it, then A, then B."},
-	{"when": "start", "focus": "staff", "text": "Bigger songs add higher notes, ↑ and then ↓. The biggest have chords: two notes stacked on one stem, pressed at the same time."},
-	{"when": "start", "focus": "staff", "text": "First, just listen. The song plays once, and each note lights up as it sounds."},
-	{"when": "listened", "focus": "timer", "text": "Your turn! This bar is your time. As soon as I stop talking, it starts to shrink."},
-	{"when": "listened", "focus": "timer", "text": "Finish while it's green and the song works at full power. Yellow and orange are weaker. In the red it's only half as strong, and if the bar runs out, the song fails."},
-	{"when": "listened", "focus": "hearts", "text": "These hearts are your slips. A wrong note breaks one, and the right note peeks out to help you. Break all three and the song falls apart."},
-	{"when": "listened", "focus": "staff", "text": "Read the notes, then play them in order. The sheet stays up while you play. Ready? Go!"},
-]
 
 var song_id := "weaken"
 var mode := "play"
@@ -66,7 +57,8 @@ var mistakes := 0
 var cancelled := false
 var failed := ""
 var zone := 0
-var coach_name := ""
+## a teacher's lesson (see setup)
+var lesson := false
 var _clock := 0.0
 var _listen_t := 0.0
 var _lit := -1
@@ -78,9 +70,6 @@ var _wrong := {}
 var _peek := 0.0
 var _shake := 0.0
 var _result_t := 0.0
-var _coach_steps: Array = []
-var _coach_line := {}
-var _focus := {}
 var _panel_rect := Rect2()
 
 
@@ -94,12 +83,13 @@ func setup(_song_id: String, _subtitle := "", time_bonus := 0.0, opts := {}) -> 
 	dim = 0.45
 	level = int(opts.get("level", GameState.song_level(song_id)))
 	melody = SongDB.melody(song_id, level)
-	var base: float = SongDB.TUTORIAL_TIME if opts.get("lesson", false) or opts.get("coach", "") != "" else SongDB.BASE_TIME
+	lesson = opts.get("lesson", false)
+	var base: float = SongDB.TUTORIAL_TIME if lesson else SongDB.BASE_TIME
 	time_limit = SongDB.time_limit(melody.size(), base) * (1.0 + time_bonus)
 	_spb = clampf(60.0 / float(song.get("bpm", 90)), 0.42, 0.7)
-	coach_name = String(opts.get("coach", ""))
-	if coach_name != "":
-		_coach_steps = COACH.duplicate(true)
+	# only a song being learned (or someone else's) plays by itself; a known one is yours to play straight away
+	if mode == "play":
+		phase = "study"
 	return self
 
 
@@ -107,21 +97,11 @@ func _ready() -> void:
 	Sfx.music("")
 	if UI.controls:
 		UI.controls.set_flute_mode(true)
-	_coach("start")
 
 
 func _exit_tree() -> void:
 	if UI.controls:
 		UI.controls.set_flute_mode(false)
-
-
-## Shows the next walkthrough line for this moment, if there is one.
-func _coach(when: String) -> void:
-	if not _coach_steps.is_empty() and _coach_steps[0]["when"] == when:
-		_coach_line = _coach_steps.pop_front()
-		Sfx.play("select")
-	else:
-		_coach_line = {}
 
 
 func _process(delta: float) -> void:
@@ -134,8 +114,6 @@ func _process(delta: float) -> void:
 		if float(_wrong["t"]) <= 0.0:
 			_wrong = {}
 	queue_redraw()
-	if not _coach_line.is_empty():
-		return
 	match phase:
 		"listen":
 			_listen(delta)
@@ -167,7 +145,6 @@ func _end_listen() -> void:
 		phase = "result"
 		return
 	phase = "study"
-	_coach("listened")
 
 
 func on_input(ev: InputEvent) -> void:
@@ -184,15 +161,13 @@ func on_input(ev: InputEvent) -> void:
 		cancelled = true
 		close(_result())
 		return
-	if not _coach_line.is_empty():
-		if _confirm(ev):
-			_coach(_coach_line["when"])
-		return
 	if b < 0:
 		return
 	match phase:
 		"listen":
-			_end_listen()
+			# a lesson's song always plays through: the teacher's turn, then yours
+			if not lesson:
+				_end_listen()
 		"study":
 			phase = "play"
 			_press(b)
@@ -315,7 +290,7 @@ func _draw() -> void:
 	var w := minf(1040.0, size.x - 32.0)
 	var h := 412.0
 	var avail := size.y - UI.bottom_reserve()
-	var top := 12.0 if touch or coach_name != "" else roundf(maxf(12.0, (avail - h) / 2.0))
+	var top := 12.0 if touch else roundf(maxf(12.0, (avail - h) / 2.0))
 	_panel_rect = Rect2(roundf((size.x - w) / 2.0), top, w, h)
 	var pr := _panel_rect
 	if _shake > 0.0:
@@ -327,7 +302,6 @@ func _draw() -> void:
 	if subtitle != "":
 		draw_multiline_string(font, pr.position + Vector2(28, 76), subtitle, HORIZONTAL_ALIGNMENT_LEFT, w - 330, UIKit.body_px(22), 2, UIKit.DIM)
 	var hx := pr.end.x - 28.0 - LIVES * 40.0
-	_focus["hearts"] = Rect2(hx - 8, pr.position.y + 16, LIVES * 40.0 + 12, 52)
 	if mode == "demo":
 		draw_string(font, Vector2(pr.end.x - 300, pr.position.y + 46), "♫ %s plays" % (performer if performer != "" else "Listen"), HORIZONTAL_ALIGNMENT_RIGHT, 272, UIKit.body_px(22), UIKit.INK)
 	else:
@@ -341,14 +315,24 @@ func _draw() -> void:
 	var status := ""
 	match phase:
 		"listen":
-			status = ("%s plays..." % performer) if mode == "demo" and performer != "" else "Listen..."
-			if coach_name == "" and _coach_line.is_empty():
+			if mode == "learn":
+				status = ("%s plays it first. Listen..." % performer) if performer != "" else "Listen first..."
+			else:
+				status = ("%s plays..." % performer) if performer != "" else "Listen..."
+			if not lesson:
 				status += "   (press any note to skip)"
 		"study":
-			status = "Read the sheet, then play it! The clock is running."
+			status = "Your turn! Play the notes from left to right."
 		"play":
 			status = "Note %d of %d" % [mini(pos + 1, melody.size()), melody.size()]
-	if status != "":
+	if phase == "study":
+		# your turn: on a chip in the gem, its edge pulsing until the first note
+		var tw := font.get_string_size(status, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(22)).x + 40.0
+		var chip := Rect2(roundf(pr.get_center().x - tw / 2.0), pr.position.y + 98, roundf(tw), 40)
+		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 180.0)
+		draw_style_box(UIKit.chip(UIKit.ACCENT, UIKit.LIGHT.lerp(UIKit.BORDER_INNER, pulse), 10.0, Vector4.ZERO, 3.0), chip)
+		draw_string(font, Vector2(pr.position.x, pr.position.y + 126), status, HORIZONTAL_ALIGNMENT_CENTER, w, UIKit.body_px(22), UIKit.LIGHT)
+	elif status != "":
 		draw_string(font, Vector2(pr.position.x, pr.position.y + 126), status, HORIZONTAL_ALIGNMENT_CENTER, w, UIKit.body_px(22), UIKit.INK)
 
 	# the staff. Chords with neighbouring notes put one head beside the stem, so they get a wider slot.
@@ -373,7 +357,6 @@ func _draw() -> void:
 	draw_line(Vector2(staff_l, top_y), Vector2(staff_l, base_y), ink, 2.0)
 	draw_line(Vector2(staff_r - 7, top_y), Vector2(staff_r - 7, base_y), ink, 2.0)
 	draw_line(Vector2(staff_r - 1, top_y), Vector2(staff_r - 1, base_y), UIKit.INK, 4.0)
-	_focus["staff"] = Rect2(staff_l - 10, top_y - 56, staff_w + 20, 8.0 * STEP_PX + 90)
 	# which button each line and space is
 	var u := SongDB.unlocks(song_id, level)
 	var used := [SongDB.BTN_LEFT, SongDB.BTN_RIGHT, SongDB.BTN_A, SongDB.BTN_B]
@@ -387,7 +370,6 @@ func _draw() -> void:
 		draw_circle(lc, 12.0, BTN_COLORS[b])
 		_draw_glyph(b, lc, 12.0, UIKit.LIGHT, 16)
 	draw_line(Vector2(staff_l + legend_w, top_y), Vector2(staff_l + legend_w, base_y), Color(UIKit.INK, 0.3), 2.0)
-	_focus["legend"] = Rect2(staff_l - 8, base_y - 6.0 * STEP_PX - 16, legend_w + 12, 6.0 * STEP_PX + 32)
 
 	# the notes
 	for i in melody.size():
@@ -417,7 +399,6 @@ func _draw() -> void:
 
 	# the timer: shrinks and changes colour, no numbers
 	var bar := Rect2(staff_l, base_y + 42, staff_w, 28)
-	_focus["timer"] = bar.grow(8)
 	if mode != "demo":
 		draw_style_box(UIKit.box("bar_frame"), bar)
 		var inner := bar.grow(-6)
@@ -434,8 +415,6 @@ func _draw() -> void:
 
 	if phase == "result":
 		_draw_result(pr, font, hfont)
-	if not _coach_line.is_empty():
-		_draw_coach(pr, font, hfont)
 
 
 func _draw_result(pr: Rect2, font: Font, hfont: Font) -> void:
@@ -465,23 +444,6 @@ func _draw_result(pr: Rect2, font: Font, hfont: Font) -> void:
 	draw_style_box(UIKit.box("banner"), box)
 	draw_string(hfont, box.position + Vector2(0, 56), title, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, UIKit.head_px(32), UIKit.ACCENT)
 	draw_string(font, box.position + Vector2(0, 98), line, HORIZONTAL_ALIGNMENT_CENTER, box.size.x, UIKit.body_px(22), UIKit.INK)
-
-
-## The walkthrough line under the sheet, with a glowing frame around what it talks about.
-func _draw_coach(pr: Rect2, font: Font, hfont: Font) -> void:
-	var f: String = _coach_line.get("focus", "")
-	if _focus.has(f):
-		var pulse := 0.55 + 0.45 * sin(Time.get_ticks_msec() / 160.0)
-		draw_rect(_focus[f], Color(UIKit.ORANGE, pulse), false, 4.0)
-	var bw := minf(700.0, size.x - 32.0)
-	var box := Rect2(roundf((size.x - bw) / 2.0), pr.end.y + 10, bw, 140)
-	draw_style_box(UIKit.box("dialogue"), box)
-	draw_string(hfont, box.position + Vector2(28, 36), coach_name, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.head_px(16), UIKit.ACCENT)
-	draw_multiline_string(font, box.position + Vector2(28, 64), _coach_line["text"], HORIZONTAL_ALIGNMENT_LEFT, bw - 56, UIKit.body_px(22), 3, UIKit.INK)
-	if int(Time.get_ticks_msec() / 400) % 2 == 0:
-		var p := box.end - Vector2(40, 22)
-		draw_string(hfont, p + Vector2(-26, 2), "A", HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.head_px(16), UIKit.ACCENT)
-		draw_colored_polygon(PackedVector2Array([p + Vector2(-6, -12), p + Vector2(6, -6), p + Vector2(-6, 0)]), UIKit.ACCENT)
 
 
 ## One note (or chord) on the staff: coloured heads with the button on them, and a stem.

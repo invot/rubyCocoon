@@ -2801,7 +2801,7 @@ func _effect_song_flow(song: String) -> bool:
 				return false
 	flute_used = true
 	await msg("You raise your flute and play %s..." % s["name"], 0.6)
-	var acc: float = await UI.flute(song, "%s  —  faster and cleaner means a stronger effect" % SongDB.tag(song))
+	var acc: float = float((await UI.flute_ex(song, "%s  —  faster and cleaner means a stronger effect" % SongDB.tag(song), {"lesson": tutorial}))["acc"])
 	_battle_music()
 	if tutorial:
 		acc = maxf(acc, 0.6)
@@ -2826,7 +2826,7 @@ func _charm_flow(song: String) -> bool:
 	await msg("You raise your flute and play %s..." % SongDB.get_song(song)["name"], 0.7)
 	var sub := "Charming %s (Lv %d)  —  play it FLAWLESSLY: not a single wrong note!" % [t.nickname, t.level] if flawless \
 		else "Charming %s (Lv %d)  —  faster and cleaner means a better chance" % [t.nickname, t.level]
-	var r: Dictionary = await UI.flute_ex(song, sub, {"goal": {"no_mistakes": true}} if flawless else {})
+	var r: Dictionary = await UI.flute_ex(song, sub, {"goal": {"no_mistakes": true}} if flawless else {"lesson": tutorial})
 	var acc: float = float(r["acc"])
 	var mistakes: int = int(r["mistakes"])
 	_battle_music()
@@ -3628,11 +3628,20 @@ func _strike(b, team_hit: String) -> void:
 	Sfx.play("crit")
 	if team_hit == "ally":
 		await UI.flash(Color("#ff4040"), 1)
+	# a beaten trainer drops to one knee, catching their breath (never knocked flat: nobody gets hurt); a robot
+	# powers down, slumping forward
 	var rig: Node3D = player_rig if team_hit == "ally" else rival_rig
+	var robot := false
 	if is_instance_valid(rig):
-		var tw2 := create_tween()
-		tw2.tween_property(rig, "rotation:z", -1.4 if team_hit == "ally" else 1.4, 0.3)
-	await msg("%s was knocked off their feet!" % who, 1.2)
+		if rig.has_meta("skeleton"):
+			VPer.set_pose(rig, "kneel")
+		elif rig.get_child_count() > 0:
+			robot = true
+			var body: Node3D = rig.get_child(0)
+			var tw2 := create_tween()
+			tw2.tween_property(body, "rotation:z", -0.4, 0.6).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+			tw2.parallel().tween_property(body, "position:y", body.position.y - 0.12, 0.6)
+	await msg(("%s powers down!" if robot else "%s drops to one knee!") % who, 1.2)
 	result = "lose" if team_hit == "ally" else "win"
 
 

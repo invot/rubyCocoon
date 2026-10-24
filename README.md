@@ -46,12 +46,18 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 
 ## The journey
 
-New Game opens with a 68-second cinematic: the robot kidnapping scheme and a murder in **Gearhart Tower**, then the first
+New Game opens with a 72-second cinematic: the robot kidnapping scheme and a murder in **Gearhart Tower**, then the first
 morning of spring in **Cocoon Cove**, as beasts leave hibernation and trainer season begins. Subtitles advance
 automatically in the game's normal dialogue windows; **A / Enter** (or **Next**) reveals the typing, then advances a beat.
 **Esc / B / Start** or **Skip intro** skips the
 whole film. Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
-The murder cuts directly to the bright spring morning, and the hero closes with an unwitting joke about anyone spoiling it.
+The murder is played straight, never slapstick (`scripts/story/opening.gd`): the office lights die, Vexmora calls up
+a ghost beast that passes through Engineer Mara, Mara sinks to one knee and falls out of sight while the camera holds on
+Vexmora's face, and the last shot is Vexmora walking away from her without a glance as Gearhart backs off. No flash and
+no smack: the music stops dead, then a dread hit (`tools/make_sfx.py`). Both sets are built from the game's own pieces:
+Gearhart's office by night (wood floor, brick, moonlit windows onto the neon city, the freight cages and lift) and the
+hero's home on the first morning, Mom on the doorstep. The murder fades straight to the bright spring morning, and the
+hero closes with an unwitting joke about anyone spoiling it.
 The mounted Gearheart Industries sign uses an original vector gear-and-split-heart logo inspired by the supplied reference.
 
 The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
@@ -60,7 +66,7 @@ In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his towe
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
 
-<img src="docs/screenshots/maker.jpg" width="640" alt="The character creator: name, body, outfit, hairdo and colours, the pack's too."><br><sub>The character creator: name, body, outfit, hairdo and colours, the pack's too.</sub>
+<img src="docs/screenshots/maker.jpg" width="640" alt="The character creator's Look tab: name, body, outfit and hairdo; the Colours tab has the pack, skin, clothes, hair and eyes."><br><sub>The character creator's Look tab: name, body, outfit and hairdo; the Colours tab has the pack, skin, clothes, hair and eyes.</sub>
 
 1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Tidewater, the next town east.
 2. Elder Rowan lets you choose one of four elemental eggs.
@@ -88,9 +94,11 @@ required before confronting Vexmora.
    himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
    in and he gives you a beast egg (a Tadlet) to hatch at Tidewater's Beast Center. Mended, it's a plank footbridge
    with railings.
-7. Talk to **Neighbor Nell**, Rafe's old friend beside Tidewater's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken** (walking you through the sheet music step by step) and **Capture I**. His lessons give you 30 seconds per song.
+7. Talk to **Neighbor Nell**, Rafe's old friend beside Tidewater's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken** and **Capture I**, briefly: a couple of lines on how the sheet works, then he plays each song once and it's your turn to play it back. His lessons (and the guided battle after them) give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
-9. Arenas only take trainers with a flute.
+9. Arenas only take trainers with a flute. Each is one big room, like a Beast Center (the camera follows you round it):
+   the host at the lobby desk runs the arena ladder and nothing else; the master waits in the hall on the other side of
+   a wall that stops short of the front, and you challenge them there, in person.
 10. Tidewater's arena teaches you to battle properly before you may face its master (`world_db.gd` ARENA_LESSONS,
     battle.gd LESSONS "team" and "elements"). Both coaches stand just inside the door; only Rory approaches you.
     **Coach Rory** stops you first and shows you fighting with a whole side of your ring (the arena's practice beasts
@@ -233,7 +241,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Move**: instead of its move, a beast on the side facing the foe can step over to another slot of the ring (choose the slot with ▲ ▼, as you would a target; the arrow marks the slot). Any slot it can stand on that's empty, or holds a fainted beast (they trade places); the side it moves to then turns to face the foe. It may not leave the side facing the foe without a beast standing in its middle (so the beast guarding you stays put, but a corner beast can step into a fallen middle beast's place). One beast moves each round, last in your side's turn, so the others' moves land first. Foe trainers Move too: when the beast in the middle of the side facing you falls, one of that side's beasts steps into a slot that covers its trainer again, unless turning the ring to a side whose middle beast stands would keep more of their beasts fighting (`battle.gd` _ai_shift).
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
-  - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. Damage numbers use BoldPixels.
+  - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use BoldPixels.
 
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand."><br><sub>A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand.</sub>
 
@@ -244,12 +252,12 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Trainer level**: beating trainers earns trainer XP, and clearing a rank of the **arena ladder** raises your trainer level to at least that rank + 1. The ladder (`ladder_db.gd`) is the same at every arena: ten ranks of three or four ring trainers each; beat them all to open the next rank. Each rank cleared earns a crystal shard; beaten trainers can be fought again.
 - **Sparkwire Electronics** (Volt, Tidewater): **shield points** (5 crystal shards each, up to 4) and **beast slots** (3 shards each, up to 8). How many Volt can fit depends on your trainer level: one more slot per level, one more shield point every other level.
 - **Flute songs** are a sheet-music game.
-  - The song plays once while its notes light up on the staff. Each line and space is a button: ← → A B from the bottom up.
-  - Then the clock starts. Play the notes in order: the sheet stays up the whole time, with the notes you've played lit.
+  - Only a song you're learning plays by itself (from a teacher, sheet music, a flute trainer, or the next level of Capture): it plays once while its notes light up on the staff. A song you already know (in battle, practising) doesn't: the sheet comes up and it's your turn straight away. Each line and space is a button: ← → A B from the bottom up.
+  - The clock starts on your turn (*Your turn!* lights up over the sheet). Play the notes in order: the sheet stays up the whole time, with the notes you've played lit.
   - You have 10 seconds for four notes and 5 more for every four more (30 seconds in Uncle Rafe's lessons). The bar shrinks without numbers, going green, then yellow, orange and red. The colour you finish in sets the song's power: full in the green, about half in the red.
   - Each wrong note breaks one of three hearts and costs a little power. Lose all three, or run out of time, and the song fails.
   - Songs start at 4 notes and grow to 16 as they level up. Capture levels up through Capture I to XI; every other song levels up with mastery stars. Bigger songs add ↑, then ↓, and finally chords (A or B pressed together with a direction).
-  - Uncle Rafe walks you through it step by step on the sheet the first time.
+  - Uncle Rafe keeps it short the first time: he plays the song, then you play it back.
   - There are two kinds of song:
   - **Battle songs** work in any battle.
     - Some lift your team: Swift Jig, Battle Hymn, Iron Chorale, Mending Melody, Cleansing Canon, Mirage Minuet.
@@ -275,7 +283,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door, to the tune of "Hep Cats". It's one big room (17x9 tiles, bigger than the rest, so the camera follows you round it), the kennel on the left behind a wall that stops short of the front. Each machine has its own bay along the back wall.
   - The **healing machine** is a tall glass healing chamber with a lamp per beast round its foot; the glass glows while it heals. Use it yourself, any time, for free.
   - The **storage terminal** and the **merge altar** stand in the bays beside it.
-  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (it sparkles when an egg hatches), and runs storage and the merge altar. A red phone stands by the door, for calling Dad (see Saving).
+  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (it sparkles when an egg hatches), and runs storage and the merge altar. A red phone stands by the door, for calling Dad or Mom (see Saving).
   - Round the end of the wall, on its own wood floor, is the **kennel**, with two chairs in its front corner. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adoption costs **40 gold at Lv 1, plus 2 gold per additional level** (78 at Lv 20, 118 at Lv 40). The list and confirmation show the fee; you need enough gold to adopt. Or drop one of yours off for another trainer (Pip thanks you with a little gold); taking it back before another trainer adopts it is free. Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
   - Guide Dottie walks about the room and explains how it all works.
   - All three wear the Beast Center uniform: white on top, red below, and a red cap with the pawprint from the sign over the door on a white panel at its front. None of them wears glasses.
@@ -285,15 +293,25 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Saving**: your dad is away up north for work, and **calling him is how you save**. Tell him how your journey's going, he cheers you on, and the game is saved; then keep playing, or stop for now (back to the title screen).
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
   - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
-  - Ten save slots. A new game takes the first empty slot the first time you save; after that every save goes back into the same slot.
+  - Away from home a phone asks who to call: **Dad** (save) or **Mom** (advice; a payphone still takes its 5 coins). At home Mom's in the room, so that phone only calls Dad. Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
+  - Every phone stands on a wooden side table in the middle of its tile, out from the wall, so you stand right beside it to call.
+  - Ten save slots, one per journey: you never pick a slot when you save. A new game takes the first empty slot the first time you save, and after that every save goes back into the same slot. If all ten are full, Dad asks (A: Yes / B: No) before writing over the save made longest ago.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
   - The title screen's **Load Game** lists the slots with their snapshots; you can load, copy or delete them there.
 
   <img src="docs/screenshots/call.jpg" width="640" alt="Calling Dad from the phone at home: that's how you save."><br><sub>Calling Dad from the phone at home: that's how you save.</sub>
 
 - **Shops** differ per town. Small towns have a few; cities have many. Each building has a wordless sign fixed flat to its front above the door, showing what it is (houses have none).
-- **Inside**, every house and shop is a compact room seen whole, like a stage set: no front wall, the camera holding still, and the front door in a side wall (the Beast Centers are bigger, and there the camera follows you). Blue doors open (a door to another room loads that room on its own): you stop in front of one and it swings open, away from you, as the room fades out, and the door you come in by swings shut behind you; red ones are locked. Every room has windows in at least one wall, never in a wall with a door to another room (the front door may share theirs). Homes have no kitchens to wander into: many townsfolk live in studios, bed and sofa in one room, while others have a bedroom through a door or up a flight of stairs. Stairs always come up into a landing, a hallway half a room deep, with the floor's rooms through doors off it, and you only get onto them at their open end: up from the foot of the flight, down from beside the top step of the stairwell, never through the handrail or the wall beside them. You walk on up (or down) them as the room fades out, and on the other floor you're seen walking the last of them as it fades in. Your own home has the living room downstairs, with Mom (she has your skin, hair and eyes) and the phone; upstairs, your bedroom (where you wake up), Mom's room and the bathroom open off the landing. The big dungeons (temples, the hideout, Gearhart Tower, the Sky Tower and the cathedral) keep their own layouts, open at the front too.
+- **Inside**, every house and shop is a compact room seen whole, like a stage set: no front wall, the camera holding still, and the front door in a side wall (the Beast Centers and arenas are bigger, and there the camera follows you). Blue doors open (a door to another room loads that room on its own): you stop in front of one and it swings open, away from you, as the room fades out, and the door you come in by swings shut behind you; red ones are locked. Every room has windows in at least one wall, never in a wall with a door to another room (the front door may share theirs). Homes have no kitchens to wander into: many townsfolk live in studios, bed and sofa in one room, while others have a bedroom through a door or up a flight of stairs. Stairs always come up into a landing, a hallway half a room deep, with the floor's rooms through doors off it, and you only get onto them at their open end: up from the foot of the flight, down from beside the top step of the stairwell, never through the handrail or the wall beside them. You walk on up (or down) them as the room fades out, and on the other floor you're seen walking the last of them as it fades in. Your own home has the living room downstairs, with Mom (she has your skin, hair and eyes) and the phone; upstairs, your bedroom (where you wake up), Mom's room and the bathroom open off the landing. The big dungeons (temples, the hideout, Gearhart Tower, the Sky Tower and the cathedral) keep their own layouts, open at the front too.
   - Everyone who works in a shop stands behind a counter and wears their shop's uniform: a polo in the shop's colour with a contrasting collar and cuffs, short sleeves, a name badge and usually a visor (the sensei and the fortune teller wear headbands, the music hall's usher a pillbox hat).
+
+  Furniture follows the [interior staging rules](docs/interior_staging.md): side-wall furniture faces inward and other
+  lounge seating opens towards the camera. Walls use smooth solid finishes or subtle striped wallpaper. Floors use
+  warm wood, soft carpet or quiet tile/stone finishes. Bordered area rugs use 2x3, 3x4, 4x5 or 6x5 tile footprints
+  (either orientation), fitted around walls and stairs. TVs are
+  assumed to stand on the omitted fourth wall. Tall storage and scenery stay at the back or sides; low
+  tables and displays leave the central playing area readable. Dining chairs face their tables in profile or towards
+  the camera, and standing residents usually face the audience. Doors, stairs, phones and lesson routes stay clear.
 
   <img src="docs/screenshots/bedroom.jpg" width="640" alt="Upstairs at home: your bedroom, where you wake up. The blue door leads out to the landing."><br><sub>Upstairs at home: your bedroom, where you wake up. The blue door leads out to the landing.</sub>
 
@@ -367,11 +385,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in
   plain sight.
 - **People, eggs, signs and obstacles** are built procedurally:
-  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`) and sit on a chair at a table (`set_pose`; `world.gd seat`). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk` and `--pose=sit` show the others; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
+  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
 - The terrain is made of textured blocks, one per tile; water and lava sit one step lower.
-- Furniture uses pixel patterns from `ui/seamless patterns/`: bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables, metal terminals and woven kilim rugs with a dark border (each room gets the kilim closest to its rug colour). `tools/build_patterns.py` cuts them into `assets/textures/patterns/`.
+- Furniture uses pixel patterns from `ui/seamless patterns/`: bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
 
@@ -547,7 +565,8 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `check_data.gd`: everything the data names exists: the beasts (race ids) on routes, maps, trainers, leaders,
   coaches, temples, fishing pools and eggs; songs, moves, shop items and summon models; and everyone on every map,
   and the hero in every outfit and hairdo (and the pack, in the colour chosen), can be dressed.
-- `check_maps.gd` (above) and `check_beasts.gd` (the beast lines, growing up and merging).
+- `check_maps.gd` (above) also checks stage furniture facing, tall scenery placement and the implied TV wall;
+  `check_beasts.gd` checks the beast lines, growing up and merging.
 - The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
@@ -560,8 +579,9 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 Focused cinematic previews use the normal screenshot harness and fresh state (no player saves):
 
 ```
-godot --path . -- --scene=intro --at=12 --shot=res://docs/screenshots/intro_tower.png
-godot --path . -- --scene=intro --at=39 --shot=res://docs/screenshots/intro_spring.png
+godot --path . -- --scene=intro --at=20 --shot=res://docs/screenshots/intro_tower.png
+godot --path . -- --scene=intro --at=37 --shot=res://build/shots/intro_murder.png
+godot --path . -- --scene=intro --at=44 --shot=res://docs/screenshots/intro_spring.png
 godot --path . -- --scene=intro --hold=0
 godot --path . -- --scene=rescue --preview=locked --shot=res://docs/screenshots/trainer_cages.png
 godot --headless --path . -- --scene=tidewater-arrival --verify=1
@@ -619,6 +639,8 @@ tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beas
 
 ```
 godot --path . -- --scene=world:cogsworth --shot=C:/tmp/a.png            # screenshot any map (or world:cogsworth#10 for an interior)
+godot --path . --resolution 1920x1080 -- --scene=interiors --shots=res://build/shots/interiors  # every distinct room, fresh state
+godot --path . --resolution 2400x1080 -- --scene=interiors --touch --shots=res://build/shots/interiors_touch  # phone audit
 godot --path . -- --scene=world:reef --spawn=33,10 --flags=island_peace  # spawn at a tile with story flags set
 godot --path . -- --scene=battle --kind=robots --wait=5 --shot=C:/tmp/b.png
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --keys=r,r,r,a,a --shot=C:/tmp/t.png   # aiming a move: target arrows, with move info closed
@@ -661,9 +683,13 @@ godot --path . -- --scene=tap                                           # tap to
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere
 godot --path . -- --scene=saves --card=1 --shot=C:/tmp/c.png            # save slots and the "Game saved!" card
-godot --path . -- --scene=call --shot=C:/tmp/c.png                       # calling Dad from the phone at home, up to his first line (--where=payphone, --presses)
+godot --path . -- --scene=call --shot=C:/tmp/c.png                       # calling Dad from the phone at home, up to his first line (--where=payphone|center, --town, --presses)
+godot --path . -- --scene=call --where=center --town=tidewater --who=mom --tip=0 --level=8 --presses=5 --shot=C:/tmp/m.png   # calling Mom: her tip, then her level advice
 godot --path . -- --scene=heal --shot=C:/tmp/h.png                      # the Beast Center healing machine (--what=hatch for the incubator)
 godot --path . -- --scene=defeat --at=0.2 --shot=C:/tmp/d.png           # a beaten foe's puff of smoke and a damage number
+godot --path . -- --scene=defeat --trainer=foe --at=1.6 --shot=C:/tmp/k.png   # a beaten trainer dropping to one knee (ally: you; robot: powering down)
+godot --path . -- --scene=flute --song=weaken --mode=learn --lesson=1    # the flute game as a lesson (the teacher plays first); without --mode it's your turn straight away
+godot --path . --resolution 2400x1080 -- --touch --scene=maker --verify=1  # the character creator's two tabs: rows, keys and taps ("MAKER TEST DONE: 0 problem(s)"); --picks=tab:1,row:eyes
 godot --path . -- --scene=hero --shot=C:/tmp/h.png                      # the hero from four sides
 ```
 

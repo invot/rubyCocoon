@@ -1,7 +1,7 @@
 extends RefCounted
 ## People, PS1/PS2 style: the hero and the townsfolk are the "townfolk collection" kit's people (scripts/gfx/
 ## townfolk.gd, baked by tools/import_townfolk.gd), all on the one skeleton, posed and walked here bone by bone:
-## walking, running, standing about, talking (set_talking) and sitting (set_pose "sit").
+## walking, running, standing about, talking (set_talking), sitting (set_pose "sit") and kneeling (set_pose "kneel").
 ##
 ## build(look) dresses a person for a look (see Townfolk.outfit): look "model" "tf<n>" is that person outright; face
 ## "hero" is the hero in the body and colours the character creator gave them; anyone else is one of the everyday
@@ -22,6 +22,11 @@ const ARM_OUT := 0.36
 const LEGS := 0.62
 ## The kit's people all share a skeleton, so its measurements (see _rig) are worked out once.
 const RIG_ID := "townfolk"
+## Kneeling on one knee (a beaten trainer, set_pose "kneel"): how far forward the lowered thigh leans and the raised
+## one points (radians from straight down), and how high the lowered knee stands off the floor (game units).
+const KNEEL_DOWN := 0.15
+const KNEEL_UP := 1.5
+const KNEEL_PAD := 0.045
 
 static var _rigs := {}
 ## Cap badges made so far (see _badge), by shop.
@@ -123,13 +128,15 @@ static func face(rig: Node3D, dir: Vector2i, smooth := false) -> void:
 		body.rotation.y = ang
 
 
-## Whether a person sits ("sit": on a seat `seat` game units off the ground, its front the way they face) or stands
-## ("": standing about, or walking). They settle into it over a moment (see animate); at_once: straight away.
+## Whether a person sits ("sit": on a seat `seat` game units off the ground, its front the way they face), kneels
+## ("kneel": down on one knee, head bowed and a hand on the other knee, catching their breath: beaten, not hurt) or
+## stands ("": standing about, or walking). They settle into it over a moment (see animate); at_once: straight away.
 static func set_pose(rig: Node3D, pose: String, seat := 0.36, at_once := false) -> void:
 	rig.set_meta("pose", pose)
 	rig.set_meta("seat", seat)
 	if at_once:
 		rig.set_meta("sit_w", 1.0 if pose == "sit" else 0.0)
+		rig.set_meta("kneel_w", 1.0 if pose == "kneel" else 0.0)
 
 
 static func pose_of(rig: Node3D) -> String:
@@ -141,6 +148,12 @@ static func set_talking(rig: Node3D, on: bool, at_once := false) -> void:
 	rig.set_meta("talking", on)
 	if at_once:
 		rig.set_meta("talk_w", 1.0 if on else 0.0)
+
+
+## How far a person reaches out with their right hand, 0 (not at all) to 1 (arm straight out ahead, hand open), as
+## whoever drives them sets it from moment to moment (the intro's Vexmora calling up a ghost).
+static func set_reach(rig: Node3D, w: float) -> void:
+	rig.set_meta("reach_w", clampf(w, 0.0, 1.0))
 
 
 ## What posing a person's skeleton needs, worked out once from its rest pose, in the skeleton's own space (whatever
@@ -247,7 +260,8 @@ static func _turn(sk: Skeleton3D, bone: Dictionary, parent: Quaternion, by: Quat
 ## the hero's jog (4.6: leaning in, a moment in the air between steps, elbows bent and pumping) and a sprint (7.8).
 ## Standing, a person breathes, shifts their weight and looks about; talking (set_talking), they gesture with one
 ## hand and then the other, nodding and tilting their head; sitting (set_pose), they settle onto their seat, hands on
-## their knees.
+## their knees; kneeling, they sink onto one knee, the other foot planted ahead, a hand on that knee, head bowed and
+## shoulders heaving.
 ## That runs on `t` (seconds; by default the clock, offset per person so a crowd doesn't move in step), so call this
 ## every frame to see it; `t` also eases turns (face) and poses.
 ## phase: radians, a step every half turn (see phase_for); speed: game units a second, 0 standing.
@@ -274,9 +288,13 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	var pose := pose_of(rig)
 	var talk_w := move_toward(float(rig.get_meta("talk_w", 0.0)), 1.0 if rig.get_meta("talking", false) else 0.0, dt * 3.0)
 	var sit_w := move_toward(float(rig.get_meta("sit_w", 0.0)), 1.0 if pose == "sit" else 0.0, dt * 2.5)
+	var kneel_w := move_toward(float(rig.get_meta("kneel_w", 0.0)), 1.0 if pose == "kneel" else 0.0, dt * 1.8)
 	rig.set_meta("talk_w", talk_w)
 	rig.set_meta("sit_w", sit_w)
-	speed = maxf(speed, 0.0) * (1.0 - sit_w)
+	rig.set_meta("kneel_w", kneel_w)
+	# (sinking down eases in and out)
+	var kw := smoothstep(0.0, 1.0, kneel_w)
+	speed = maxf(speed, 0.0) * (1.0 - sit_w) * (1.0 - kneel_w)
 	# how much of a gait there is (0 standing), how much of it is a run, how much a sprint
 	var m := clampf(speed / 1.2, 0.0, 1.0)
 	var run := smoothstep(2.4, 4.2, speed)
@@ -326,13 +344,15 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 			var long: float = (float(leg["thigh"]) + float(leg["shin"])) * 0.995
 			var dz := target.x - hip.z
 			body_y = minf(body_y, target.y + sqrt(maxf(0.0, long * long - dz * dz)) - hip.y)
-	# sitting: the hips come down onto the seat, a little back from the edge
+	# sitting: the hips come down onto the seat, a little back from the edge; kneeling, down over the lowered knee
 	var seat := float(rig.get_meta("seat", 0.36))
 	var hip_y: float = r["l_leg"]["hip"].y
-	body.position = Vector3(0, lerpf(body_y, seat + 0.03 - hip_y, sit_w), lerpf(0.0, -0.06, sit_w)).rotated(Vector3.UP, body.rotation.y)
+	var kneel_hips: float = KNEEL_PAD + float(r["r_leg"]["thigh"]) * cos(KNEEL_DOWN)
+	var hips_at := lerpf(lerpf(body_y, seat + 0.03 - hip_y, sit_w), kneel_hips - hip_y, kw)
+	body.position = Vector3(0, hips_at, lerpf(0.0, -0.06, sit_w)).rotated(Vector3.UP, body.rotation.y)
 	# the hips twist so the leg that lands leads; they dip on the side of the leg in the air
 	var twist := -lerpf(0.11, 0.16, run) * m * cos(TAU * u)
-	var roll := lerpf(0.045, 0.025, run) * m * sin(TAU * u) + 0.03 * still * shift * (1.0 - sit_w)
+	var roll := lerpf(0.045, 0.025, run) * m * sin(TAU * u) + 0.03 * still * shift * (1.0 - sit_w) * (1.0 - kw)
 	# talking: one hand comes up to make a point, then the other, a few seconds each
 	var gest := t * 0.42 + float(rig.get_instance_id() % 7)
 	var hand := fposmod(floorf(gest), 2.0)
@@ -344,6 +364,8 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	# the chest leans into the pace and twists back past straight, so the shoulders turn against the hips; sitting
 	# up straight, a little forward
 	var lean := lerpf(0.06, 0.3, run) * m + 0.08 * sprint + breath * 0.025 * still + 0.08 * sit_w + 0.04 * talk_w * sin(t * 1.3)
+	# kneeling: hunched over, catching their breath
+	lean += kw * (0.4 + 0.045 * sin(t * 3.4))
 	var spine: Array = r["spine"]
 	var each := 1.0 / maxf(1.0, spine.size())
 	for bone in spine:
@@ -351,8 +373,8 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		posed[bone["i"]] = g
 	# the head keeps looking ahead, nodding a little behind each step; talking, it nods along and tilts
 	var head: Dictionary = r["head"]
-	var nod := 0.025 * m * sin(TAU * 2.0 * u - 1.2) + talk_w * (0.06 * sin(t * 4.1) * sin(t * 1.7) - 0.04)
-	var look := sin(t * 0.53) * 0.14 * still * (1.0 - 0.7 * talk_w)
+	var nod := 0.025 * m * sin(TAU * 2.0 * u - 1.2) + talk_w * (0.06 * sin(t * 4.1) * sin(t * 1.7) - 0.04) + 0.3 * kw
+	var look := sin(t * 0.53) * 0.14 * still * (1.0 - 0.7 * talk_w) * (1.0 - kw)
 	_turn(sk, head, g, Quaternion(up, 0.5 * twist + look)
 		* Quaternion(lat, -0.7 * lean + nod + sin(t * 1.1) * 0.02 * still) * Quaternion(fwd, 0.2 * roll + 0.07 * talk_w * sin(t * 0.9)))
 	# each leg bent to reach its foot (the thigh and shin as a two-bone chain, in the Body's side view); sitting, the
@@ -378,6 +400,18 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 			a = lerpf(a, PI / 2.0 - 0.06, sit_w)
 			s = lerpf(s, 0.08 + 0.1 * sgn * sin(t * 0.3), sit_w)
 			toe = lerpf(toe, 0.0, sit_w)
+		if kw > 0.0:
+			# kneeling: the right knee down, its shin back along the floor and the foot flat behind; the left thigh
+			# forward, its shin reaching down to the floor so the foot is planted ahead
+			if side == "r":
+				a = lerpf(a, KNEEL_DOWN, kw)
+				s = lerpf(s, -PI / 2.0 - 0.2, kw)
+				toe = lerpf(toe, 1.2, kw)
+			else:
+				var knee_y := kneel_hips - lt * cos(KNEEL_UP)
+				a = lerpf(a, KNEEL_UP, kw)
+				s = lerpf(s, acos(clampf((knee_y - float(leg["ankle"].y)) / ls, -1.0, 1.0)), kw)
+				toe = lerpf(toe, 0.0, kw)
 		var tg := _place_bone(sk, thigh, _posed_rot(sk, sk.get_bone_parent(thigh["i"]), posed),
 			Quaternion(lat, -(a - float(leg["a0"]))) * thigh["parent"] * thigh["local"])
 		var sg := _place_bone(sk, shin, tg, Quaternion(lat, -(s - float(leg["s0"]))) * shin["parent"] * shin["local"])
@@ -391,6 +425,7 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	var arm_back := lerpf(0.06, 0.2, run) * m
 	var ahead_part := lerpf(0.75, 0.6, run)
 	var elbow := lerpf(0.18, 1.35, run) * m + 0.12 * still
+	var arm_reach := float(rig.get_meta("reach_w", 0.0))
 	for side in ["l", "r"]:
 		var sgn := 1.0 if side == "l" else -1.0
 		# 1 at the arm's furthest forward: the left arm leads as the right heel lands
@@ -404,8 +439,16 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		a_swing = lerpf(a_swing, 0.75, sit_w)
 		bend = lerpf(bend, 0.55, sit_w)
 		spread -= 0.12 * sit_w
+		# kneeling: the left hand on the raised knee, the right hanging down beside the lowered one
+		a_swing = lerpf(a_swing, 0.95 if side == "l" else 0.25, kw)
+		bend = lerpf(bend, 0.7 if side == "l" else 0.2, kw)
+		# reaching out (set_reach): the right arm straight out ahead, a little to the side
+		if side == "r":
+			a_swing = lerpf(a_swing, 1.45, arm_reach)
+			bend = lerpf(bend, 0.08, arm_reach)
+			spread = lerpf(spread, 0.2, arm_reach)
 		# talking: the hand making its point comes up in front, the forearm raised, palm turning out; the other rests
-		var mine := beat if (hand == 0.0) == (side == "l") else 0.0
+		var mine := beat * (1.0 - kw) if (hand == 0.0) == (side == "l") else 0.0
 		a_swing = lerpf(a_swing, 0.55 + 0.1 * sin(t * 3.3), mine)
 		bend = lerpf(bend, 1.2 + 0.25 * sin(t * 5.2), mine)
 		spread += 0.25 * mine

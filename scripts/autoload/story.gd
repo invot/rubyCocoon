@@ -339,45 +339,36 @@ func _intro() -> void:
 		"Then go east along the Coastal Path to Tidewater. Uncle Rafe has your dad's flute, and he's promised to teach you."], "Mom")
 
 
-## Uncle Rafe's lessons in Tidewater: the flute, then Weaken, then Capture I. Returns true when all are done.
+## Uncle Rafe's lessons in Tidewater: the flute, then Weaken, then Capture I. Kept short: he plays each song once,
+## then you play it back (the 30-second lesson clock, see flute_game.gd). Returns true when all are done.
 func uncle_lessons() -> bool:
 	var who := "Uncle Rafe"
 	var b_key := "B" if Prefs.touch_enabled() else "B (the S key)"
+	var lesson := {"lesson": true, "performer": who}
 	if not GameState.has_flute():
 		await UI.say(["%s! Look at you, all grown up, with a beast of your own and everything!" % GameState.player_name,
-			"I suppose you're here for this. Your father's reed flute. I've kept it polished for years.",
-			"A flute is a trainer's other half. Songs can lift your beasts, trip up the foe, and even win a wild beast over."], who)
+			"Here's what you came for: your father's reed flute. Songs can lift your beasts, trip up a foe, even win a wild beast over."], who)
 		GameState.gear["flute"] = "reed_flute"
 		GameState.set_flag("reed_flute")
 		Sfx.play("capture")
 		UI.toast("Received your father's Reed Flute!", UIKit.GOLD)
 		await UI.say(["You received the Reed Flute! You can play it on your own turn in battle."])
 	if not GameState.knows_song("weaken"):
-		await UI.say(["First song: Weaken. Play it on your turn in battle and every foe drops its guard: their Defense falls.",
-			"Songs are written down as sheet music. Every note on the staff is one of your buttons: left, right, A or %s." % b_key,
-			"It works like this. The song plays once, and each note lights up on the sheet as it sounds.",
-			"Then it's your turn. Play the notes back in order. The sheet stays up, so read as you go!",
-			"Play them all in order before your time runs out. Today I'll give you plenty of time, and I'll walk you through it on the page."], who)
-		if not await Places.learn_attempts("weaken", who, 0.0, {"coach": who, "lesson": true}):
-			await UI.say(["No rush, kid. Come back whenever you want another go. I'm not going anywhere. Well, fishing. But then right back here."], who)
+		await UI.say(["First song: Weaken. It makes every foe drop its guard. Here, I'll play it for you.",
+			"Each line on the sheet is a button: left, right, A and %s, from the bottom up. When I stop, it's your turn: play the notes left to right." % b_key], who)
+		if not await Places.learn_attempts("weaken", who, 0.0, lesson):
+			await UI.say(["No rush, kid. Come back whenever you want another go."], who)
 			return false
 		await UI.say(["Ha! That's your father's knack, right there.",
-			"Out in the wild you won't get as long as I gave you today. A four-note song gives you about ten seconds, a bit more for longer songs.",
-			"The quicker you finish, the stronger the song. Green is full power. Yellow and orange are weaker, and in the red it only works about half as well.",
-			"Every wrong note takes a little off, and three of them spoil the song completely.",
-			"As you master a song it grows: longer, then higher notes, up and then down, and at last chords, where you press A or B together with a direction.",
-			"Longer songs are harder to remember, but much stronger. Practise any song from the Flute page of your book."], who)
+			"In a battle nobody plays it for you: read the sheet and go. Finish while the bar's green for full power. Three wrong notes spoil it."], who)
 	if GameState.capture_level() == 0:
-		await UI.say(["Now the important one: Capture. Play it for a wild beast and it might choose to join you.",
-			"It works on beasts up to level %d, as long as one of your own beasts is at least as strong." % SongDB.CAPTURE_CAPS[0],
-			"Play it flawlessly, without a single wrong note, and even a stronger beast might listen. Your father caught a Tempestrix that way once. Allegedly. I wasn't there.",
-			"Speed matters here too: finish in the green and a beast is far likelier to listen. In the red, your odds are about half.",
-			"Same as before: listen, remember, play it back. This time you're on your own!"], who)
-		if not await Places.learn_attempts(SongDB.capture_id(1), who, 0.0, {"lesson": true}):
+		await UI.say(["Now the important one: Capture. Play it for a wild beast and it might join you, up to level %d." % SongDB.CAPTURE_CAPS[0],
+			"Same as before: I play, then you!"], who)
+		if not await Places.learn_attempts(SongDB.capture_id(1), who, 0.0, lesson):
 			await UI.say(["Almost had it! Talk to me when you want another try."], who)
 			return false
-		await UI.say(["That's my %s! When one of your beasts outgrows Capture I, practise the next level from your book." % GameState.hero_word("nephew", "niece"),
-			"Oh, and the Tidewater Arena only lets in trainers with a flute. You've got one now. Go show Captain Marina what you can do!"], who)
+		await UI.say(["That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece"),
+			"Oh, and the Tidewater Arena only lets in trainers with a flute. Go show Captain Marina what you can do!"], who)
 	return true
 
 

@@ -9,7 +9,8 @@ extends RefCounted
 ## wall (the front door's may have them too); tools/check_maps.gd checks both. The big dungeons (the temples, the
 ## hideout, the towers, the cathedral and its crypt) keep their bigger layouts.
 ## Legend:
-##   #  wall          w  wall with window   .  wooden floor   :  tiled floor   r  rug
+##   #  wall          w  wall with window   .  wooden floor   :  tiled floor   r  area-rug placement seed
+## Area rugs are fitted nearby as 2x3, 3x4, 4x5 or 6x5 rectangles (either orientation), not stretched to the r run.
 ##   x  arena ring    C  counter            s  goods shelf    B  bookshelf     t  table
 ##   h  stool         p  potted plant       b  bed            q  fireplace     A  merge altar
 ##   G  trade board   M  storage terminal   o  pillar         e  exhibit       n  organ
@@ -26,7 +27,8 @@ extends RefCounted
 ##   furniture (see FURNITURE): k kitchen counter, i kitchen sink, v stove, f fridge, j pantry, T toilet, U bathtub,
 ##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table, R wardrobe,
 ##   N nightstand, Q dresser, E desk, F storage shelves, X boxes, m mop and bucket, l floor lamp, O coat stand,
-##   z bin, J bunk bed. A run of the same letter is one piece (two b's are a bed, a block of four a double bed).
+##   z bin, J bunk bed, & low book display. TVs (V) belong on the implied fourth wall in stage rooms.
+##   A run of the same letter is one piece (two b's are a bed, a block of four a double bed).
 ##   "zones": the kind of room each tile is in, one letter per tile like the rows (see room_builder.gd ZONES):
 ##   l living room, b bedroom, k kitchen, a bathroom, h hall, s shop floor, o back room, f office, g grand hall,
 ##   w wood panelling, t stone, d diner; any other letter (walls) takes "zone", the template's default.
@@ -39,7 +41,7 @@ const FURNITURE := {
 	"k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
 	"R": "wardrobe", "N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "X": "boxes", "m": "mop",
-	"l": "floor_lamp", "O": "coat_stand", "z": "trash", "J": "bunk", "@": "phone",
+	"&": "book_display", "l": "floor_lamp", "O": "coat_stand", "z": "trash", "J": "bunk", "@": "phone",
 }
 
 const ROOMS := {
@@ -110,51 +112,44 @@ const ROOMS := {
 			"#BBB.1.BBB#",
 			"#pCCCCCCCpw",
 			"#.........w",
-			"L.BB.BB.BB#",
+			"L.&&.&&.&&#",
 			"#t2..rr..PD",
 			"###########",
 		],
 	},
-	## The arena's lobby: the receptionist (1) at her desk, a phone, and the door through to the ring. In Tidewater the
-	## arena's two coaches (6, 7: world_db.gd ARENA_LESSONS) wait here: Rory above the entrance looking down at it, Ondine
-	## along the row you come in on. Only Rory approaches; Ondine waits to be spoken to. Elsewhere these are plain floor.
+	## Every arena is one big room, like the Beast Center (21x9: the camera follows you round it). You come in on the
+	## right, into the lobby: the host (1) at her desk in the back corner (she runs the arena ladder, never the master's
+	## challenge), a bench and the red phone. On the left, on its own marble floor, is the master's hall: the ring (x)
+	## with benches round it and the arena master (3) waiting on its far side, two fans (4, 5) watching. A wall runs
+	## forward from the back between the two and stops short of the front, so you walk round its end to reach the
+	## master. In Tidewater the arena's two coaches (6, 7: world_db.gd ARENA_LESSONS) wait in the lobby: Rory above the
+	## entrance looking down at it, Ondine along the row you come in on. Only Rory approaches; Ondine waits to be spoken
+	## to. Elsewhere these are plain floor.
 	"arena": {
-		"wall": "#c8c0b0", "rug": "#b03a3a", "stage": true, "npcs": {"1": "keeper"},
-		"anchors": {"6": "lesson_team", "7": "lesson_elements"}, "doors": {"!": "arena_ring"},
-		"locked": ["The restroom. The sign says OUT OF ORDER."],
+		"wall": "#c8c0b0", "rug": "#b03a3a", "stage": true, "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"},
+		"anchors": {"6": "lesson_team", "7": "lesson_elements"},
+		"locked": ["The changing room. Someone in there is practising a victory speech."],
 		"rows": [
-			"#####!#####",
-			"#pC.....@=#",
-			"#1C......6w",
-			"#pC.......w",
-			"#.........#",
-			"L....7...PD",
-			"###########",
-		],
-	},
-	## The arena's ring (x), benches round it, the leader (3) waiting on its far side.
-	"arena_ring": {
-		"wall": "#c8c0b0", "rug": "#b03a3a", "stage": true, "npcs": {"3": "leader", "4": "patron", "5": "patron"},
-		"doors": {"!": "arena"},
-		"rows": [
-			"####w###w####",
-			"#=::::3::::=#",
-			"#=:xxxxxxx:=#",
-			"#::x:::::x::#",
-			"!::x:::::x::#",
-			"#=:xxxxxxx:=#",
-			"#=4:::::::5=#",
-			"#############",
+			"###w#####w#######w###",
+			"#=::::3::::=#p1p.==@#",
+			"#=:xxxxxxx:=#CCC....w",
+			"#::x:::::x::#......6w",
+			"L::x:::::x::#.......#",
+			"#=:xxxxxxx:=#.......#",
+			"#=4:::::::5:........#",
+			"#:::::::::::...7...PD",
+			"#####################",
 		],
 		"zones": [
-			"#############",
-			"#wwwwwwwwwww#",
-			"#wwgggggggww#",
-			"#wwgggggggww#",
-			"#wwgggggggww#",
-			"#wwgggggggww#",
-			"#wwwwwwwwwww#",
-			"#############",
+			"#####################",
+			"#ggggggggggg#########",
+			"#ggggggggggg#########",
+			"#ggggggggggg#########",
+			"#ggggggggggg#########",
+			"#ggggggggggg#########",
+			"#ggggggggggg#########",
+			"#ggggggggggg#########",
+			"#####################",
 		],
 	},
 	## The café: the counter at the back, tables out front; the kitchen is through the STAFF ONLY door.
@@ -191,9 +186,9 @@ const ROOMS := {
 		"locked": ["The restroom. A sign reads: PLEASE DO NOT FEED THE EXHIBITS."],
 		"rows": [
 			"######Z######",
-			"#e.e.e.e.e.e#",
+			"#e.eoe.eoe.e#",
 			"#:::::::::::w",
-			"#pC::o:::o::w",
+			"#pC:::::::::w",
 			"#1C::::2::::#",
 			"#pC::e:::e:PD",
 			"L:::::::::::#",
@@ -210,7 +205,7 @@ const ROOMS := {
 			"#rrrrC1Crrrrw",
 			"#rrrrCCCrrrrw",
 			"#:===:===:::#",
-			"#:::::::2:::#",
+			"#:::::::::2:#",
 			"L:===:===::PD",
 			"#############",
 		],
@@ -220,10 +215,10 @@ const ROOMS := {
 		"locked": ["The practice room. Someone in there is playing the same three notes over and over."],
 		"rows": [
 			"#####Z#####",
-			"#BB.B1B.BB#",
+			"#nB.B1B.BB#",
 			"#CCCCCCCCCw",
 			"#........@w",
-			"#.n..2....#",
+			"#....2....#",
 			"L.==.....PD",
 			"###########",
 		],
@@ -246,9 +241,9 @@ const ROOMS := {
 		"locked": ["The bathroom. Someone's in there, singing."],
 		"rows": [
 			"#######L#####",
-			"#NbbNB..V..@#",
-			"w.bb...yy...#",
-			"#Q.....SS..a#",
+			"#NbbNB..SS.@#",
+			"w.bb........#",
+			"#Q......yy.a#",
 			"w.rrr..1....#",
 			"#l.......2.PD",
 			"#############",
@@ -269,7 +264,7 @@ const ROOMS := {
 		"locked": ["The kitchen. Something's simmering on the stove in there."],
 		"rows": [
 			"######L####",
-			"#Nb..V...p#",
+			"#Nb......p#",
 			"w.b.......#",
 			"w....ctc..#",
 			"#a.1......#",
@@ -292,9 +287,9 @@ const ROOMS := {
 		"doors": {"!": "house_two_bed"}, "locked": ["The kitchen. It smells like toast."],
 		"rows": [
 			"######!###L##",
-			"#BB..V.....@#",
-			"w....yy.....#",
-			"wa...SS.....#",
+			"#BB.SS.....@#",
+			"w...........#",
+			"wa..yy......#",
 			"#...rrrr..1.#",
 			"#p......2..PD",
 			"#############",
@@ -317,9 +312,9 @@ const ROOMS := {
 		"locked": ["The kitchen. Someone's left the radio on in there."],
 		"rows": [
 			"#######L#####",
-			"#BB..V...>>>#",
-			"w....yy.....#",
-			"wa...SS....@#",
+			"#BB.SS...>>>#",
+			"w...........#",
+			"wa..yy.....@#",
 			"#.....rrr...#",
 			"#p...1...2.PD",
 			"#############",
@@ -366,9 +361,9 @@ const ROOMS := {
 		"locked": ["Rafe's kitchen. It smells of brass polish."],
 		"rows": [
 			"#######L#####",
-			"#NbNBB..V..@#",
-			"w.b...yy....#",
-			"#Q...SS.1..a#",
+			"#NbNBB..SS.@#",
+			"w.b.........#",
+			"#Q.....1yy.a#",
 			"w.rrr.......#",
 			"#l.........PD",
 			"#############",
@@ -381,9 +376,9 @@ const ROOMS := {
 		"locked": ["The kitchen. Mom's baking something, and you're not allowed in until it's done."],
 		"rows": [
 			"#######L#####",
-			"#BB...V..>>>#",
-			"w....yy.....#",
-			"wa...SS....@#",
+			"#BB.SS...>>>#",
+			"w...........#",
+			"wa..yy.....@#",
 			"#.......1...#",
 			"#lp..rrr...PD",
 			"#############",
@@ -420,10 +415,10 @@ const ROOMS := {
 		"rows": [
 			"###w###w###",
 			"#RR.NbbN.Q#",
-			"#....bb...#",
+			"#a...bb...#",
 			"!.........#",
 			"#..rrrr..p#",
-			"#l.a......#",
+			"#l........#",
 			"###########",
 		],
 	},
@@ -718,7 +713,7 @@ const SHOP_ROOMS := {
 	"beast_gear": ["outfitter"],
 	"trainer_gear": ["outfitter"],
 	"bookstore": ["bookstore"],
-	"arena": ["arena", "arena_ring"],
+	"arena": ["arena"],
 	"cafe": ["cafe"],
 	"dojo": ["dojo"],
 	"museum": ["museum"],

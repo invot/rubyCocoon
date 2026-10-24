@@ -3929,7 +3929,8 @@ func _build_room() -> void:
 						em.mesh = VB.mesh(RaceDB.genes(race))
 						em.scale = Vector3(0.45, 0.45, 0.45)
 						ex = em
-					ex.rotation.y = -PI / 2.0
+					# Display beasts present their faces to the audience, like the rest of the set.
+					ex.rotation.y = 0.0
 					ex.position = center + Vector3(0, 0.7, 0)
 					add_child(ex)
 				MapGen.ORGAN:
@@ -3978,17 +3979,10 @@ func _build_room() -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = k.mesh()
 	add_child(mi)
-	_multimesh(plane, floors["wood"], _tex_mat(PixelArt.room_texture("floor_wood", wall_col)), false)
-	var tile_tex: Texture2D = PixelArt.room_texture("floor_tile", wall_col)
-	if room.get("checker", false):
-		tile_tex = _checker_tex()
-	if dark:
-		tile_tex = VT.terrain("top_plaza", "#5a5664")
-	elif stone_floor:
-		tile_tex = VT.terrain("top_plaza", wall_col.lerp(Color("#a8a49a"), 0.5).to_html(false))
-	_multimesh(plane, floors["tile"], _tex_mat(tile_tex), false)
+	_multimesh(plane, floors["wood"], RoomBuilder.floor_surface("floor_wood_2"), false)
+	_multimesh(plane, floors["tile"], RoomBuilder.floor_surface("checker" if diner else "floor_stone" if stone_floor else "floor_tiles"), false)
 	_multimesh(plane, floors["rug"], _tex_mat(load(VT.PATTERN_DIR + _rug_pattern(rug_col) + ".png")), false)
-	_multimesh(plane, floors["ring"], _tex_mat(VT.terrain("top_sand", "#d8c090")), false)
+	_multimesh(plane, floors["ring"], RoomBuilder.floor_surface("floor_ring"), false)
 	var lm := _tex_mat(VT.terrain("lava", "#ff6a20"))
 	lm.emission_enabled = true
 	lm.emission_texture = lm.albedo_texture

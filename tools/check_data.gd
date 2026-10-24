@@ -1,7 +1,7 @@
 extends SceneTree
 ## Checks that the game's data points at things that exist: every beast (race id) a route, map, trainer, leader,
 ## coach, temple, fishing pool, egg or signature move names; every song and move named; every item a shop sells;
-## every summon's model; and that everyone on every map (and the hero, in every outfit, hairdo and pack the
+## every summon's model; Mom's phone tips for every story step; and that everyone on every map (and the hero, in every outfit, hairdo and pack the
 ## character creator offers) can be dressed. Fast: no battles, nothing drawn. Prints only what's wrong, then
 ## "DATA CHECK DONE: <n> problem(s)".
 ## Run: godot --headless --path . --script res://tools/check_data.gd  (or tools/run_tests.sh)
@@ -14,6 +14,8 @@ const ItemDB = preload("res://scripts/data/item_db.gd")
 const LadderDB = preload("res://scripts/data/ladder_db.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const Townfolk = preload("res://scripts/gfx/townfolk.gd")
+const ChatterDB = preload("res://scripts/data/chatter_db.gd")
+const InteriorMaps = preload("res://scripts/data/maps/interior_maps.gd")
 
 var bad := 0
 
@@ -23,6 +25,7 @@ func _init() -> void:
 	_songs_moves_items()
 	_maps()
 	_people()
+	_mom()
 	print("DATA CHECK DONE: %d problem(s)" % bad)
 	quit(1 if bad > 0 else 0)
 
@@ -122,6 +125,24 @@ func _songs_moves_items() -> void:
 		for town in ItemDB.ITEMS[it].get("sold_in", []):
 			if not WorldDB.TOWNS.has(town):
 				_fail("item %s: sold in %s, which isn't a town" % [it, town])
+
+
+## Mom on the phone (phone.gd call_mom): tips for every step of the story the townsfolk hint at (a few, so they can
+## take turns), and her level advice pointing at a road, an arena master or a room with wild beasts.
+func _mom() -> void:
+	for goal in ChatterDB.HINTS:
+		var tips: Array = ChatterDB.MOM_TIPS.get(goal, [])
+		if tips.size() < 2:
+			_fail("Mom has %d tip(s) for %s" % [tips.size(), goal])
+		for t in tips:
+			if not t is Array or t.is_empty():
+				_fail("Mom's tip for %s isn't a list of lines: %s" % [goal, str(t)])
+	for goal in ChatterDB.MOM_AHEAD:
+		var to: String = ChatterDB.MOM_AHEAD[goal]
+		if not ChatterDB.HINTS.has(goal):
+			_fail("Mom's level advice for %s, which isn't a step of the story" % goal)
+		if not (WorldDB.ROUTES.has(to) or WorldDB.ARENAS.has(to) or InteriorMaps.ROOMS.get(to, {}).has("encounter")):
+			_fail("Mom's level advice for %s points at %s: no road, arena or room with wild beasts" % [goal, to])
 
 
 ## Every map with its rooms, before and after the story's big moments: encounters and trainers name real beasts,

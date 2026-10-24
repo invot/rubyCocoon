@@ -350,8 +350,9 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	await Story.on_map_enter(world)
 
 
-## Saves into the game's own slot, or the first empty one on its first save (asking which to overwrite if all ten
-## are full), with a snapshot of the world without any UI.
+## Saves into the game's own slot, or the first empty one on its first save, with a snapshot of the world without any
+## UI. A journey has just the one slot, so there's no slot to pick: if all ten are full, the save made longest ago is
+## written over, once you've said yes.
 func save_now() -> bool:
 	if world != null:
 		GameState.pos = world.player_pos
@@ -361,8 +362,10 @@ func save_now() -> bool:
 	if slot < 0:
 		slot = GameState.first_free_slot()
 	if slot < 0:
-		slot = await pick_slot("All ten slots are full. Overwrite which one?")
-		if slot < 0:
+		slot = GameState.oldest_slot()
+		var old := GameState.slot_info(slot)
+		if slot < 0 or not await UI.ask("Dad's notebook is full. Write over your oldest saved journey, %s's (%s)?"
+				% [old.get("name", "?"), GameState.time_text(float(old.get("play_time", 0.0)))]):
 			return false
 	return GameState.save_game(slot, snapshot())
 
@@ -704,15 +707,31 @@ func _run_test() -> void:
 		await _battle_keys()
 		await _wait(wait)
 	elif scene == "defeat":
-		# a foe vanishing in a puff of smoke, with a damage number on its partner (--at = seconds after the puff)
+		# a foe vanishing in a puff of smoke, with a damage number on its partner (--at = seconds after the puff);
+		# --trainer=foe|ally|robot: a trainer beaten instead, dropping to one knee (a robot powering down)
 		_do_goto("route3", "south")
 		await _wait(1.0)
-		start_battle({"wild": true, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5})
+		var beaten := String(_test.get("trainer", ""))
+		if beaten == "":
+			start_battle({"wild": true, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5})
+		else:
+			var tr := {"name": "Marina", "cls": "Swimmer", "shield": 0, "look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}
+			if beaten == "robot":
+				tr = {"name": "Unit 301", "cls": "Gearhart Sentry", "shield": 0, "robot_body": RaceDB.ROBOT_MODELS[RaceDB.ROBOTS[0]]}
+			start_battle({"wild": false, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5, "trainer": tr})
 		await _wait(2.5)
 		var bt: Node = null
 		for c in view.get_children():
 			if c.get_script() == load(BATTLE_PATH):
 				bt = c
+		if beaten != "":
+			GameState.shield = 0
+			bt._strike(null, "ally" if beaten == "ally" else "foe")
+			await _wait(float(_test.get("at", "1.5")))
+			if _test.has("shot"):
+				_save_shot(String(_test["shot"]))
+			get_tree().quit()
+			return
 		bt.msg_label.text = "Pricklet gained 27 XP. Grubbit grew to Lv 13!"
 		bt.foe_slots[0].hp = 0
 		bt._handle_faints()
@@ -724,8 +743,11 @@ func _run_test() -> void:
 		var fo := {}
 		if _test.has("level"):
 			fo["level"] = int(_test["level"])
-		if _test.has("coach"):
-			fo["coach"] = "Mom"
+		# --mode=learn (it plays first) or demo; --lesson=1: a teacher's lesson, played by Mom
+		fo["mode"] = String(_test.get("mode", "play"))
+		if _test.get("lesson", "0") == "1":
+			fo["lesson"] = true
+			fo["performer"] = "Mom"
 		UI.flute_ex(_test.get("song", "shanty"), "Test", fo)
 		if _test.has("play"):
 			await get_tree().create_timer(0.3).timeout
@@ -909,21 +931,86 @@ func _run_test() -> void:
 		print("paid: gold 20 -> ", GameState.gold)
 		bad += int(GameState.gold != 20 - Phone.FEE)
 		print("log: ", UI.auto_log.slice(maxi(0, UI.auto_log.size() - 6)))
+		# away from home you can call Mom instead (the payphone still takes its coins): a tip, and nothing is saved
+		GameState.gold = 20
+		UI.auto_log.clear()
+		UI.auto_answers = [1]
+		await Phone.call_home(world, Phone.FEE)
+		var mom_log := " | ".join(UI.auto_log)
+		print("Mom from the payphone: gold 20 -> ", GameState.gold, "  ", mom_log)
+		bad += int(GameState.gold != 20 - Phone.FEE) + int(not "Mom: " in mom_log) + int("wrote it all down" in mom_log)
+		var tips := []
+		for i in 3:
+			tips.append(" ".join(Phone.mom_tip()))
+		print("Mom's tips take turns: ", tips)
+		bad += int(tips[0] == tips[1] or tips[1] == tips[2] or tips[0] == "")
+		# what she makes of your beasts' levels: none before you have a beast; else next to the Isle Trail's (Lv 4-7)
+		GameState.party = []
+		bad += int(not Phone.level_advice(world).is_empty())
+		_do_goto("route2", "west")
+		await _wait(1.0)
+		GameState.party = [Beasts.create(24, 1)]
+		for spec in [[1, "far too strong"], [3, "a little strong"], [6, "just right"], [12, "stronger than you need"]]:
+			GameState.party[0].level = spec[0]
+			var advice := " ".join(Phone.level_advice(world))
+			print("Lv %d on %s: %s" % [spec[0], world.map_id, advice])
+			bad += int(not String(spec[1]) in advice or not "Isle Trail are Lv 4 to 7" in advice)
+		# in a town, with no wild beasts about: the arena master you're to face next (Marina, Lv 9-10)
+		_do_goto("caccoon", "start")
+		await _wait(1.0)
+		for f in ["got_egg", "has_starter", "tutorial_done"]:
+			GameState.set_flag(f)
+		GameState.gear["flute"] = "reed_flute"
+		GameState.learn_song("weaken")
+		GameState.learn_song("capture1")
+		var town_advice := " ".join(Phone.level_advice(world))
+		print("next goal ", Story.next_goal(), " in town: ", town_advice)
+		bad += int(not "Tide Captain Marina's beasts are Lv 9 to 10" in town_advice)
+		# at home Mom's in the room: the phone there only calls Dad
+		_do_goto(home, "entry")
+		await _wait(1.0)
+		UI.auto_log.clear()
+		UI.auto_answers = [1]
+		await Phone.call_home(world)
+		print("at home: ", UI.auto_log)
+		bad += int(not "A telephone. Call Dad?" in " ".join(UI.auto_log)) + int("Who will you call" in " ".join(UI.auto_log))
 		print("PHONE TEST DONE: %d problem(s)" % bad)
 		UI.auto = false
 	elif scene == "doorway":
 		await _doorway_test()
 	elif scene == "call":
-		# calling Dad, for a screenshot: from the phone at home, or the town square's payphone (--where=payphone),
-		# standing at --stand=x,y facing --face=dx,dy; A is pressed --presses times (4: past "Call Dad?", Yes and the
-		# dialling, to Dad's first line; the call never gets as far as saving). Dad says --name (the game's default)
-		var pay: bool = _test.get("where", "home") == "payphone"
-		await _go("caccoon" if pay else MapLoader.interior_of("caccoon", "home"), "start" if pay else "entry")
+		# calling Dad, for a screenshot: from the phone at home, the town square's payphone (--where=payphone) or a
+		# Beast Center's (--where=center, in --town), standing at --stand=x,y facing --face=dx,dy (by the phone if not
+		# given); A is pressed --presses times (4: past "Call Dad?", Yes and the dialling, to Dad's first line; the call
+		# never gets as far as saving). Dad says --name (the game's default). --who=mom calls Mom instead (away from
+		# home), with the story up to Tidewater's arena, a beast of --level for her advice and her --tip'th tip
+		var where := String(_test.get("where", "home"))
+		var pay := where == "payphone"
+		var town := String(_test.get("town", "caccoon"))
+		await _go(town if pay else MapLoader.interior_of(town, "center" if where == "center" else "home"), "start" if pay else "entry")
 		await _wait(1.0)
 		GameState.gold = 20
 		GameState.player_name = String(_test.get("name", "Andrew"))
-		var st := String(_test.get("stand", "14,10" if pay else "10,3")).split(",")
-		var fc := String(_test.get("face", "0,-1" if pay else "1,0")).split(",")
+		if _test.get("who", "dad") == "mom":
+			for flag in ["got_egg", "has_starter", "tutorial_done", "called_dad"]:
+				GameState.set_flag(flag)
+			GameState.gear["flute"] = "reed_flute"
+			GameState.learn_song("weaken")
+			GameState.learn_song("capture1")
+			GameState.party = [Beasts.create(24, int(_test.get("level", "6")))]
+			if _test.has("tip"):
+				Phone._tip_turn = int(_test["tip"])
+		var by := Vector2i(10, 3)
+		var toward := Vector2i(1, 0)
+		for t in world.map.get("furniture", {}):
+			if world.map["furniture"][t] == "phone":
+				for d in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					if world._walkable(t + d):
+						by = t + d
+						toward = -d
+						break
+		var st := String(_test.get("stand", "14,10" if pay else "%d,%d" % [by.x, by.y])).split(",")
+		var fc := String(_test.get("face", "0,-1" if pay else "%d,%d" % [toward.x, toward.y])).split(",")
 		var at := Vector2i(int(st[0]), int(st[1]))
 		var f := Vector2i(int(fc[0]), int(fc[1]))
 		world.player_pos = at
@@ -931,6 +1018,11 @@ func _run_test() -> void:
 		world.facing = f
 		load("res://scripts/gfx/voxel_person.gd").face(world.player, f)
 		Phone.call_home(world, Phone.FEE if pay else 0)
+		if _test.get("who", "dad") == "mom":
+			while UI.stack.is_empty():
+				await _wait(0.1)
+			await _wait(0.4)
+			await _press("ui_down")
 		for i in int(_test.get("presses", "4")):
 			await _wait(0.7)
 			await _press("ui_accept")
@@ -1238,6 +1330,8 @@ func _run_test() -> void:
 			world.player_pos = p0
 			world.player.position = world.tile_pos(p0)
 		await _wait(wait)
+	elif scene == "interiors":
+		await load("res://tools/debug/interiors.gd").new().run(self, _test)
 	elif scene == "maps":
 		# every town and route, and every floor of every building, built in turn (a missing model or texture prints
 		# an error, which tools/run_tests.sh counts as a failure)
@@ -1528,17 +1622,24 @@ func _run_test() -> void:
 		print("party: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), "  caught ", GameState.caught.size())
 		await _wait(wait)
 	elif scene == "maker":
-		# the character creator over the town; --picks=body:1,top:3,row:2 as if chosen (row: the one highlighted)
+		# the character creator over the town; --picks=body:1,top:3,tab:1,row:eyes as if chosen (tab: the one open, 0
+		# Look or 1 Colours; row: the one highlighted: tab, start or a row's id); --keys=d,d,a,r,... pressed in turn
+		# (u d l r a b), then --verify=1 checks the tabs: what each shows, the keys and taps between them
 		_do_goto("caccoon", "start")
 		await _wait(1.0)
 		var m: Control = load("res://scripts/ui/hero_maker.gd").new()
 		UI.push(m)
 		await get_tree().process_frame
 		for kv in String(_test.get("picks", "")).split(",", false):
-			if kv.get_slice(":", 0) == "row":
-				m._go(int(kv.get_slice(":", 1)), false)
-			else:
-				m._choose(kv.get_slice(":", 0), int(kv.get_slice(":", 1)))
+			match kv.get_slice(":", 0):
+				"row":
+					m._go(kv.get_slice(":", 1), false)
+				"tab":
+					m._open_tab(int(kv.get_slice(":", 1)), false)
+				_:
+					m._choose(kv.get_slice(":", 0), int(kv.get_slice(":", 1)))
+		if _test.get("verify", "0") == "1":
+			await _maker_test(m)
 		await _wait(wait)
 	elif scene == "pause":
 		_do_goto("tidewater", "center")
@@ -1602,6 +1703,18 @@ func _saveui_test() -> void:
 	bad += _saveui_check(await save_now(), "second journey saves separately")
 	for i in range(2, GameState.SLOT_COUNT):
 		GameState.copy_slot(1, i)
+	# all ten full: a new journey's first save picks no slot. Dad asks once (Yes/No), then writes over the save made
+	# longest ago; saying no saves nothing
+	var oldest := GameState.oldest_slot()
+	GameState.current_slot = -1
+	UI.auto_log.clear()
+	UI.auto_answers = [1]
+	bad += _saveui_check(not await save_now() and GameState.current_slot == -1, "full slots: saying no saves nothing")
+	UI.auto_answers = [0]
+	bad += _saveui_check(await save_now() and GameState.current_slot == oldest, "full slots: yes writes over the oldest save (slot %d)" % oldest)
+	bad += _saveui_check(UI.auto_log.filter(func(l): return String(l).begins_with("[menu] ") and not String(l).begins_with("[menu]  ")).is_empty(),
+		"full slots: no slot list to pick from: %s" % str(UI.auto_log))
+	GameState.current_slot = 1
 	# A pre-thumbnail save must show an honest placeholder, never another slot's image.
 	if FileAccess.file_exists(GameState.slot_shot_path(8)):
 		DirAccess.remove_absolute(GameState.slot_shot_path(8))
@@ -3036,9 +3149,10 @@ func _coaches_test() -> void:
 	print("%s only Rory's lesson runs on entry" % ("ok  " if ok else "FAIL"))
 	if not ok:
 		bad[0] += 1
-	await _walk_road([Vector2i(5, 1)])
-	ok = world.player_pos == Vector2i(5, 1) and not GameState.flag("lesson_elements")
-	print("%s can walk into lobby after Rory without leaving arena" % ("ok  " if ok else "FAIL"))
+	# (round the end of the wall into the master's hall, up to the ring below the master)
+	await _walk_road([Vector2i(6, 3)])
+	ok = world.player_pos == Vector2i(6, 3) and not GameState.flag("lesson_elements")
+	print("%s can walk round into the master's hall after Rory without leaving arena" % ("ok  " if ok else "FAIL"))
 	if not ok:
 		bad[0] += 1
 	await Story.talk(world, _lesson_trainer("elements"))
@@ -3072,10 +3186,10 @@ func _arena_entry_test() -> void:
 	if _test.has("shot"):
 		_save_shot(String(_test["shot"]).replace(".png", "_entry.png"))
 	UI.auto = true
-	await _walk_road([Vector2i(5, 1)])
-	var moved: bool = world.player_pos == Vector2i(5, 1) and world.map_id == id
+	await _walk_road([Vector2i(6, 3)])
+	var moved: bool = world.player_pos == Vector2i(6, 3) and world.map_id == id
 	var still_waiting := not GameState.flag("lesson_elements")
-	print("ARENA ENTRY: only Rory %s, Ondine at post %s, walked into lobby %s, no second ambush %s" % [only_rory, waiting, moved, still_waiting])
+	print("ARENA ENTRY: only Rory %s, Ondine at post %s, walked round to the master %s, no second ambush %s" % [only_rory, waiting, moved, still_waiting])
 	print("ARENA ENTRY DONE: %d problem(s)" % (int(not only_rory) + int(not waiting) + int(not moved) + int(not still_waiting)))
 	UI.auto = false
 
@@ -3553,6 +3667,67 @@ func _tap_at(at: Vector2) -> void:
 	await _wait(0.12)
 
 
+## --scene=maker --verify=1: the character creator's two tabs. Each shows only its own rows, full-sized; the keys walk
+## between them (up onto the tabs, left and right switching, A from Look's last row on to Colours) and taps open a tab
+## and pick a swatch, one change per tap; switching tabs never moves or resizes the panel, and nothing leaves the screen.
+func _maker_test(m: Control) -> void:
+	var bad := [0]
+	var check := func(ok: bool, what: String) -> void:
+		if not ok:
+			bad[0] += 1
+			print("FAIL ", what)
+	await _wait(0.3)
+	var screen_rect := get_viewport().get_visible_rect().grow(1.0)
+	var page_rect: Rect2 = m._pages[0].get_global_rect()
+	for k in m.TABS.size():
+		m._open_tab(k, false)
+		await get_tree().process_frame
+		for id in m._rows:
+			var shown: bool = (m._rows[id] as Control).is_visible_in_tree()
+			check.call(shown == (m.TABS[k]["rows"] as Array).has(id), "tab %d shows %s: %s" % [k, id, shown])
+			if shown:
+				var r: Rect2 = (m._rows[id] as Control).get_global_rect()
+				check.call(r.size.y >= UIKit.row_h() - 0.5, "row %s only %d tall" % [id, r.size.y])
+				check.call(screen_rect.encloses(r), "row %s off screen: %s" % [id, r])
+		check.call(m._pages[k].get_global_rect() == page_rect, "tab %d's page moved: %s vs %s" % [k, m._pages[k].get_global_rect(), page_rect])
+		check.call((m._tabs[k] as Control).size.y >= UIKit.row_h() - 0.5, "tab %d only %d tall" % [k, (m._tabs[k] as Control).size.y])
+	for id in m._chips:
+		for b in m._chips[id]:
+			check.call((b as Control).size.y >= (m.CHIP_TOUCH if UIKit.touch_ui() else m.CHIP) - 0.5, "%s swatch too small" % id)
+	check.call(screen_rect.encloses(m._start.get_global_rect()), "Confirm off screen")
+	# the keys
+	m._open_tab(0, false)
+	m._go("name", false)
+	await _press("ui_up")
+	check.call(m.row == "tab", "up from Name onto the tabs (got %s)" % m.row)
+	await _press("ui_right")
+	check.call(m.tab == 1 and m.row == "tab", "right on the tabs opens Colours (tab %d, row %s)" % [m.tab, m.row])
+	await _press("ui_down")
+	check.call(m.row == "pack", "down from the tabs to Pack (got %s)" % m.row)
+	await _press("ui_up")
+	await _press("ui_left")
+	check.call(m.tab == 0, "left on the tabs opens Look")
+	m._go("hairdo", false)
+	await _press("ui_accept")
+	check.call(m.tab == 1 and m.row == "pack", "A on Hairdo goes on to Colours (tab %d, row %s)" % [m.tab, m.row])
+	m._go("eyes", false)
+	await _press("ui_accept")
+	check.call(m.row == "start", "A on Eyes goes on to Confirm (got %s)" % m.row)
+	await _press("ui_down")
+	check.call(m.row == "tab", "down from Confirm round to the tabs (got %s)" % m.row)
+	# the taps: the Look tab, then the Colours tab and its third top swatch
+	await _opening_click(m._tabs[0])
+	check.call(m.tab == 0, "tapping Look opens it")
+	await _opening_click(m._tabs[1])
+	await get_tree().process_frame
+	check.call(m.tab == 1, "tapping Colours opens it")
+	var before: int = m.pick["top"]
+	await _opening_click(m._chips["top"][2])
+	check.call(m.pick["top"] == 2 and before != 2 and m.row == "top", "tapping a swatch picks it (top %d, row %s)" % [m.pick["top"], m.row])
+	m._go("pack", false)
+	print("MAKER TEST DONE: %d problem(s)" % bad[0])
+
+
 func _press(action: String) -> void:
 	var ev := InputEventAction.new()
 	ev.action = action
@@ -3642,10 +3817,11 @@ func _hero_gallery() -> void:
 	if _test.has("model"):
 		look = {"model": _test["model"]}
 	# --pose=walk: side views an eighth of a stride apart (--speed: 1.7 a stroll, 4.6 the hero's jog, 7.8 a sprint);
-	# --pose=talk: four moments a second apart of someone talking; --pose=sit: sitting, from four sides;
+	# --pose=talk: four moments a second apart of someone talking; --pose=sit: sitting, from four sides; --pose=kneel:
+	# kneeling (a beaten trainer), from four sides (--at: seconds into sinking down, else settled);
 	# --packs=1: the hero's pack in four colours (from behind)
 	var walk: bool = _test.get("pose", "") == "walk"
-	var act: String = _test.get("pose", "") if _test.get("pose", "") in ["talk", "sit"] else ""
+	var act: String = _test.get("pose", "") if _test.get("pose", "") in ["talk", "sit", "kneel"] else ""
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	for i in 4:
 		# --trainer=n: four route trainers (random looks from seed n on, in their camo)
@@ -3667,6 +3843,12 @@ func _hero_gallery() -> void:
 			var World = load("res://scripts/world/world.gd")
 			World.seat(rig, dirs[i])
 			VPer.animate(rig, 0.0, 0.0, 10.0 + i * 1.1)
+		elif act == "kneel":
+			# sinking down over --at seconds, a frame at a time as the game would
+			VPer.set_pose(rig, "kneel", 0.0, not _test.has("at"))
+			var at := float(_test.get("at", "0"))
+			for k in int(at * 30.0) + 1:
+				VPer.animate(rig, 0.0, 0.0, 10.0 + k / 30.0)
 		rig.position = Vector3(i * 1.4, 0, 0)
 		root.add_child(rig)
 	var cam := Camera3D.new()

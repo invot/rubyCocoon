@@ -58,7 +58,8 @@ func run() -> void:
 	check(gs.eggs.is_empty() and gs.gold == before + 500, "Beast Center menu sells an egg")
 	gs.party = []
 	gs.add_egg(24)
-	ui.auto_answers = [3, 0, 0, 2]
+	# (the host's menu: the ladder, Leave, then Sell eggs)
+	ui.auto_answers = [2, 0, 0, 1]
 	await places.arena({"name": "Test Arena"}, "tidewater")
 	check(gs.eggs.is_empty() and gs.gold == before + 700, "arena host sells eggs without a healthy party or completed lessons")
 	gs.add_egg(24)

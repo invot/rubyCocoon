@@ -11,11 +11,16 @@ extends RefCounted
 ## front wall: the room is open towards the camera like a stage set, its floor ending in a dark edge half way across
 ## the front row, where the side walls stop too. So no wall ever stands between the camera and the player, and walls
 ## never fade; only tall furniture does, when the player is behind it (see fade).
-## Furniture: tiles with the same piece next to each other make one piece; it stands with its back to the wall it
-## touches most, pushed right up against it, and faces into the room.
+## Furniture: adjacent matching tiles make one piece. Wall furniture faces inward; freestanding lounge seating
+## opens towards the camera (the TV lives on the omitted fourth wall). See docs/interior_staging.md.
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const DIR := "res://assets/interiors/"
+const SOFT_SURFACE = preload("res://scripts/gfx/interior_surface.gdshader")
+## Rectangular area rugs, in tile units; rotations are included when fitting a room.
+const RUG_SIZES := [Vector2i(3, 2), Vector2i(4, 3), Vector2i(5, 4), Vector2i(6, 5)]
+const RUG_BLOCKED := [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.IDIAG_A, MapGen.IDIAG_B,
+	MapGen.STAIRS_UP, MapGen.STAIRS_DOWN, MapGen.IVOID, MapGen.LAVA, MapGen.FOUNTAIN]
 ## wall thickness, height, the top of a doorway, a window's sill and top
 const T := 0.2
 const H := 2.8
@@ -75,6 +80,7 @@ const KINDS := {
 	"chair": {"m": ["chair_spindle", "chair_ring", "chair_ladder", "chair_slat"], "chair": true, "single": true, "same": true},
 	"stool": {"m": ["chair_spindle", "chair_ring", "chair_ladder", "chair_slat"], "chair": true, "single": true, "same": true},
 	"coffee_table": {"m": ["coffee_shelf", "coffee_square"], "free": true, "top": ["books", "cup", "chessboard", "el_vase", ""]},
+	"book_display": {"m": ["coffee_shelf"], "free": true, "top": ["books"], "always_top": true},
 	"table": {"m": ["table_trestle", "table_curve", "table_pedestal", "table_small"], "free": true,
 		"top": ["plate", "cup", "cup_2", "bottle_2", "books_2", "apple", ""]},
 	"wardrobe": {"m": ["wardrobe"]},
@@ -98,12 +104,49 @@ const KINDS := {
 	"booth": {"m": ["el_booth"], "fit": true, "chair": true, "tint": "#e05050"},
 	"diner_table": {"m": ["el_diner_table"], "free": true, "fit": true, "top": ["cup", "plate", "el_flowers", "cup_2", ""]},
 	"computer": {"m": ["desk_writing", "desk_sled"], "top": ["el_monitor"], "always_top": true},
-	# a red telephone on a little stand: calling Dad saves the game (see phone.gd)
-	"phone": {"m": ["nightstand"], "top": ["phone_rotary"], "always_top": true, "single": true},
+	# a red telephone on a round table filling its tile, out from the wall so you can walk right up to it: calling Dad
+	# saves the game, calling Mom gets you a hint (see phone.gd)
+	"phone": {"m": ["table_small"], "top": ["phone_rotary"], "always_top": true, "single": true, "free": true},
 }
 
 static var _meshes := {}
 static var _mats := {}
+## Smooth wall finishes replace the pack's coarse grain. Keep each material family's established colour.
+const WALL_COLOURS := {
+	"wall_paper": "#f0e4cf", "wall_paper_2": "#e9e4d6",
+	"wall_plaster": "#eee7d9", "wall_plaster_2": "#f1e7d6", "wall_plaster_3": "#d9d9d4",
+	"wall_tiles": "#e4ece9", "wall_marble": "#e7e5df", "wall_wood": "#b58b65", "wall_brick": "#a5a3aa",
+}
+static var _wall_papers := {}
+
+
+static func wall_surface(tex: String, colour: Color) -> StandardMaterial3D:
+	var key := "smooth_wall:%s:%s" % [tex, colour.to_html()]
+	if _mats.has(key):
+		return _mats[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(WALL_COLOURS.get(tex, "#eee7d9")) * colour
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.95
+	if tex in ["wall_paper", "wall_paper_2"]:
+		# A small, smoothly filtered repeating stripe, shared across every building using this paper.
+		if not _wall_papers.has(tex):
+			var gradient := Gradient.new()
+			gradient.offsets = PackedFloat32Array([0.0, 0.08, 0.12, 0.46, 0.50, 0.58, 0.62, 0.96, 1.0])
+			var stripe := Color("#e4d7c1") if tex == "wall_paper" else Color("#d7ded4")
+			gradient.colors = PackedColorArray([Color.WHITE, Color.WHITE, stripe, stripe, Color.WHITE, Color.WHITE, stripe, stripe, Color.WHITE])
+			var paper := GradientTexture2D.new()
+			paper.width = 256
+			paper.height = 16
+			paper.fill_from = Vector2.ZERO
+			paper.fill_to = Vector2.RIGHT
+			paper.gradient = gradient
+			_wall_papers[tex] = paper
+		mat.albedo_texture = _wall_papers[tex]
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		mat.uv1_scale = Vector3(1.0 / 0.8, 1.0, 1.0)
+	_mats[key] = mat
+	return mat
 
 
 static func piece(name: String) -> Mesh:
@@ -252,10 +295,10 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._stairs()
 	rb._walls()
 	rb._furniture()
+	rb._rugs()
 	rb._stalls()
 	rb._counters()
 	rb._wall_decor()
-	rb._mats_at_doors()
 	rb._lights()
 	var fm := MeshInstance3D.new()
 	fm.mesh = rb.floor_mesher.mesh()
@@ -356,11 +399,49 @@ func _pick(z: String, what: String) -> String:
 
 
 func floor_mat(z: String) -> Material:
-	return surface(_pick(z, "floor"), Color.WHITE, textures)
+	return floor_surface(_pick(z, "floor"))
+
+
+static func floor_surface(tex: String) -> ShaderMaterial:
+	var key := "soft_floor:" + tex
+	if _mats.has(key):
+		return _mats[key]
+	var finish := 0
+	var base := Color("#ba9068")
+	var accent := Color("#d0aa7b")
+	match tex:
+		"floor_wood_2":
+			base = Color("#a67b55")
+			accent = Color("#c49a6d")
+		"floor_carpet", "floor_carpet_2":
+			finish = 1
+			base = Color("#b6aaa0") if tex == "floor_carpet" else Color("#b4b9ad")
+		"floor_tiles":
+			finish = 2
+			base = Color("#ded5c3")
+			accent = Color("#c6bcaa")
+		"floor_ring":
+			finish = 1
+			base = Color("#ccb890")
+		"floor_marble", "floor_stone":
+			finish = 3
+			base = Color("#d8d3c9") if tex == "floor_marble" else Color("#a7a5a2")
+			accent = base.darkened(0.12)
+		"checker":
+			finish = 4
+			base = Color("#ece7db")
+			accent = Color("#343337")
+	var mat := ShaderMaterial.new()
+	mat.shader = SOFT_SURFACE
+	mat.set_shader_parameter("finish", finish)
+	mat.set_shader_parameter("base_colour", base)
+	mat.set_shader_parameter("accent_colour", accent)
+	_mats[key] = mat
+	return mat
 
 
 func wall_mat(z: String) -> Material:
-	return surface(_pick(z, "wall"), tint if z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE, textures)
+	return wall_surface(_pick(z, "wall"), tint if z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE)
 
 
 ## Whether (x, y) is part of a stage room's stairwell down: open, with no floor over it.
@@ -1056,8 +1137,9 @@ func _beam(key: String, mat: Material, a: Vector3, b: Vector3, r: float) -> void
 
 
 # ---------------------------------------------------------------- furniture
-func _furniture() -> void:
-	var furn: Dictionary = map.get("furniture", {})
+static func furniture_groups(m: Dictionary) -> Array:
+	var out := []
+	var furn: Dictionary = m.get("furniture", {})
 	var seen := {}
 	for p in furn:
 		if seen.has(p):
@@ -1078,12 +1160,86 @@ func _furniture() -> void:
 		if (KINDS[kind].get("fill", false) or KINDS[kind].get("single", false)) and group.size() > 1:
 			# a run of counters is a cabinet per tile; chairs, plants and lamps side by side are one each
 			for q in group:
-				_place(kind, [q])
+				out.append({"kind": kind, "tiles": [q]})
 		else:
-			_place(kind, group)
+			out.append({"kind": kind, "tiles": group})
+
+	return out
 
 
-func _place(kind: String, group: Array) -> void:
+func _furniture() -> void:
+	for part in furniture_groups(map):
+		if part["kind"] != "rug":
+			_place(part["kind"], part["tiles"])
+
+
+## Old r tiles locate an area rug; they no longer stretch a narrow carpet mesh along their bounding box.
+## Fit one of the agreed tile sizes nearby, clear of walls, stairwells, hazards and other rugs.
+static func rug_rectangles(m: Dictionary) -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	for part in furniture_groups(m):
+		if part["kind"] != "rug":
+			continue
+		var layout := furniture_layout(m, "rug", part["tiles"])
+		var old_size: Vector2 = layout["size"]
+		var old_center := Vector2(layout["lo"]) + old_size * 0.5
+		var best := Rect2i()
+		var best_score := INF
+		for preset in RUG_SIZES:
+			for size in [preset, Vector2i(preset.y, preset.x)]:
+				for y in range(1, int(m["h"]) - int(size.y)):
+					for x in range(1, int(m["w"]) - int(size.x)):
+						var rect := Rect2i(Vector2i(x, y), size)
+						var distance := (Vector2(rect.position) + Vector2(size) * 0.5).distance_squared_to(old_center)
+						var shape := (Vector2(size) - old_size).length_squared()
+						var target_area := maxi(12, (part["tiles"] as Array).size())
+						var score := distance * 1.5 + shape * 0.2 + absf(size.x * size.y - target_area) * 0.8
+						if score >= best_score or out.any(func(other): return other.intersects(rect)):
+							continue
+						var clear := true
+						for ry in range(y, y + int(size.y)):
+							for rx in range(x, x + int(size.x)):
+								if MapGen.get_t(m, rx, ry) in RUG_BLOCKED:
+									clear = false
+						if clear:
+							best = rect
+							best_score = score
+		if best.has_area():
+			out.append(best)
+	return out
+
+
+static func rug_material(colour: Color, size: Vector2) -> ShaderMaterial:
+	var key := "soft_rug:%s:%s" % [colour.to_html(), size]
+	if _mats.has(key):
+		return _mats[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = SOFT_SURFACE
+	var wool := colour.lerp(Color("#dfc9ac"), 0.55)
+	mat.set_shader_parameter("finish", 5)
+	mat.set_shader_parameter("base_colour", wool)
+	mat.set_shader_parameter("accent_colour", wool.darkened(0.24))
+	mat.set_shader_parameter("rug_size", size)
+	_mats[key] = mat
+	return mat
+
+
+func _rugs() -> void:
+	var colour := Color(str(map.get("room", {}).get("rug", "#a04040")))
+	for rect in rug_rectangles(map):
+		var rug := MeshInstance3D.new()
+		rug.name = "AreaRug"
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(rect.size)
+		rug.mesh = plane
+		rug.material_override = rug_material(colour, plane.size)
+		rug.position = Vector3(rect.position.x + rect.size.x * 0.5, 0.014, rect.position.y + rect.size.y * 0.5)
+		rug.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(rug)
+
+
+## The placement used by both rendering and the map audit, without loading any meshes.
+static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dictionary:
 	var k: Dictionary = KINDS.get(kind, {})
 	var lo := Vector2i(group[0])
 	var hi := Vector2i(group[0])
@@ -1091,7 +1247,6 @@ func _place(kind: String, group: Array) -> void:
 		lo = Vector2i(mini(lo.x, q.x), mini(lo.y, q.y))
 		hi = Vector2i(maxi(hi.x, q.x), maxi(hi.y, q.y))
 	var size := Vector2(hi.x - lo.x + 1, hi.y - lo.y + 1)
-	var center := Vector3(lo.x + size.x / 2.0, 0, lo.y + size.y / 2.0)
 	# the wall it backs onto: the side with the most wall along it
 	var back := Vector2i.ZERO
 	if not k.get("free", false):
@@ -1100,7 +1255,7 @@ func _place(kind: String, group: Array) -> void:
 			var n := 0
 			for q in group:
 				var r: Vector2i = q + d
-				if (wallish(r.x, r.y) or r.x < 0 or r.y < 0 or r.x >= w or r.y >= h) and not group.has(r):
+				if (_walled(m, r) or r.x < 0 or r.y < 0 or r.x >= int(m["w"]) or r.y >= int(m["h"])) and not group.has(r):
 					n += 1
 			# beds go head first against the wall, long things side on
 			var along_len := size.x if d.y != 0 else size.y
@@ -1114,20 +1269,16 @@ func _place(kind: String, group: Array) -> void:
 				back = d
 	# backed against a wall: pushed right up to it
 	var against := back != Vector2i.ZERO
-	if back == Vector2i.ZERO and kind in ["sofa", "armchair"]:
-		# a sofa out in the room faces the television
-		var best_d := INF
-		for q in map.get("furniture", {}):
-			if map["furniture"][q] == "tv":
-				var dv := Vector2(q - lo)
-				if dv.length() < best_d:
-					best_d = dv.length()
-					back = -Vector2i(int(signf(dv.x)), 0) if absf(dv.x) > absf(dv.y) else -Vector2i(0, int(signf(dv.y)))
+	if kind in ["sofa", "armchair"] and back.x == 0:
+		# Side-wall seats retain their inward facing; loose seats face the implied fourth-wall TV.
+		back = Vector2i(0, -1)
+		against = group.any(func(q): return _walled(m, q + back))
+
 	if k.get("chair", false):
 		# a chair faces the table beside it (its back away from it)
 		for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
 			var r: Vector2i = lo + d
-			if map.get("furniture", {}).get(r, "") in ["table", "desk", "coffee_table", "diner_table"]:
+			if m.get("furniture", {}).get(r, "") in ["table", "desk", "coffee_table", "diner_table"]:
 				back = -d
 				against = false
 				break
@@ -1137,6 +1288,18 @@ func _place(kind: String, group: Array) -> void:
 		yaw = atan2(float(-back.x), float(-back.y))
 	elif k.get("free", false) and size.y > size.x:
 		yaw = PI / 2.0
+	return {"lo": lo, "size": size, "back": back, "against": against, "yaw": yaw}
+
+
+func _place(kind: String, group: Array) -> void:
+	var k: Dictionary = KINDS.get(kind, {})
+	var layout := furniture_layout(map, kind, group)
+	var lo: Vector2i = layout["lo"]
+	var size: Vector2 = layout["size"]
+	var back: Vector2i = layout["back"]
+	var against: bool = layout["against"]
+	var yaw: float = layout["yaw"]
+	var center := Vector3(lo.x + size.x / 2.0, 0, lo.y + size.y / 2.0)
 	var along := absf(sin(yaw)) < 0.5
 	var span := size.x if along else size.y
 	var depth := size.y if along else size.x
