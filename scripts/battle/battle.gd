@@ -181,10 +181,9 @@ const LESSONS := {
 const DEFEND_MULT := 0.5
 
 var cam: Camera3D
-var arrow: Label3D
-var _arrow_target = null
-## Target selection uses one arrow per chosen target, including moves that hit everyone.
-var target_arrows: Array = []
+## The original arcing arrow connects the attacker to every selected target.
+var aim_mesh: MeshInstance3D
+var _aim_from = null
 var _target_refs: Array = []
 var _time := 0.0
 var player_rig: Node3D
@@ -199,6 +198,7 @@ var caption: PanelContainer
 var move_info: PanelContainer
 var _info_hint := ""
 var bars: Control
+var message_line: HBoxContainer
 var message_icon: TextureRect
 var _speaker_icons: Dictionary = {}
 var _message_subject = null
@@ -402,17 +402,18 @@ func _build_stage() -> void:
 	cam.position = _cam_pos()
 	cam.look_at(_cam_look(), Vector3.UP)
 	cam.current = true
-	arrow = Label3D.new()
-	arrow.text = "▼"
-	arrow.font_size = 64
-	arrow.outline_size = 12
-	arrow.modulate = Color("#ffd060")
-	arrow.pixel_size = 0.008
-	arrow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	arrow.no_depth_test = true
-	arrow.visible = false
-	add_child(arrow)
-	target_arrows = [arrow]
+	aim_mesh = MeshInstance3D.new()
+	aim_mesh.mesh = ImmediateMesh.new()
+	var am := StandardMaterial3D.new()
+	am.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	am.vertex_color_use_as_albedo = true
+	am.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	am.no_depth_test = true
+	am.cull_mode = BaseMaterial3D.CULL_DISABLED
+	am.render_priority = 10
+	aim_mesh.material_override = am
+	aim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(aim_mesh)
 	_build_trainers()
 
 
@@ -1197,21 +1198,7 @@ func _process(delta: float) -> void:
 			summon_shake_amt = maxf(0.0, summon_shake_amt - delta * 1.6)
 		cam.position = cp
 		cam.look_at(cl, Vector3.UP)
-	var aiming := not _target_refs.is_empty()
-	var refs: Array = _target_refs if aiming else ([] if _arrow_target == null else [_arrow_target])
-	while target_arrows.size() < refs.size():
-		var extra := arrow.duplicate() as Label3D
-		add_child(extra)
-		target_arrows.append(extra)
-	for i in target_arrows.size():
-		var marker: Label3D = target_arrows[i]
-		var ref = refs[i] if i < refs.size() else null
-		var at = _ref_pos(ref)
-		marker.visible = at != null
-		marker.modulate = UIKit.ACCENT.lightened(0.4) if aiming else UIKit.GOLD_BRIGHT
-		marker.font_size = 96 if aiming else 64
-		if at != null:
-			marker.position = at + Vector3(0, _ref_height(ref) + 0.35 + sin(_time * 6.0) * 0.08, 0)
+	_draw_arcs()
 
 
 ## Where someone (or somewhere) aimed at stands, on the ground: a beast, a trainer ("foe_trainer"; "trainer" or
@@ -1236,12 +1223,65 @@ func _ref_height(ref) -> float:
 	return float(nodes[ref].get_meta("height")) if nodes.has(ref) else 1.0
 
 
-func _point_at(b) -> void:
-	_arrow_target = b
+## The aiming arcs: from the beast (or you) choosing, a glowing arch over to each target ending in an arrowhead, with a
+## white core and pulses running along it towards the target, over a dark edge so it reads against bright ground.
+func _draw_arcs() -> void:
+	var im := aim_mesh.mesh as ImmediateMesh
+	im.clear_surfaces()
+	var a = _ref_pos(_aim_from)
+	if a == null or _target_refs.is_empty() or cam == null:
+		return
+	var view := cam.global_transform.basis.z
+	var glow := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.6, 1.0)
+	var from: Vector3 = a + Vector3.UP * _ref_height(_aim_from) * 0.75
+	var began := false
+	for t in _target_refs:
+		var b = _ref_pos(t)
+		if b == null:
+			continue
+		var to: Vector3 = b + Vector3.UP * _ref_height(t) * 0.6
+		var top := (from + to) / 2.0 + Vector3.UP * (1.2 + from.distance_to(to) * 0.22)
+		if not began:
+			im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+			began = true
+		_arc_strip(im, from, top, to, 0.52, Color(0, 0, 0, 0.55), false, view)
+		_arc_strip(im, from, top, to, 0.34, glow, true, view)
+		_arc_strip(im, from, top, to, 0.1, Color(1, 1, 1, 0.9), true, view)
+	if began:
+		im.surface_end()
 
 
-## Keep targeting clear of the field: just an arrow over each chosen target.
-func _show_targets(list: Array, sel: int) -> void:
+## One arc as a ribbon facing the camera along the curve from p0 over c to p2 (stopping short for its arrowhead).
+func _arc_strip(im: ImmediateMesh, p0: Vector3, c: Vector3, p2: Vector3, w: float, col: Color, pulse: bool, view: Vector3) -> void:
+	const N := 32
+	const HEAD := 0.86
+	var pts := []
+	for i in N + 1:
+		var u := HEAD * float(i) / N
+		pts.append(p0 * (1.0 - u) * (1.0 - u) + c * 2.0 * (1.0 - u) * u + p2 * u * u)
+	for i in N:
+		var d: Vector3 = pts[i + 1] - pts[i]
+		var side := d.cross(view).normalized() * w * 0.5
+		var cc := col
+		if pulse:
+			# brighter pulses running from the beast to its target
+			var wave := fposmod(float(i) / N * 2.5 - _time * 1.6, 1.0)
+			cc.a = col.a * (0.82 + 0.18 * pow(wave, 3.0))
+			cc = cc.lerp(Color(1, 1, 1, cc.a), 0.55 * pow(wave, 6.0))
+		var q := [pts[i] - side, pts[i] + side, pts[i + 1] + side, pts[i + 1] - side]
+		for v in [q[0], q[1], q[2], q[0], q[2], q[3]]:
+			im.surface_set_color(cc)
+			im.surface_add_vertex(v)
+	var base: Vector3 = pts[N]
+	var side2 := (p2 - base).cross(view).normalized() * w * 2.0
+	for v in [base - side2, base + side2, p2]:
+		im.surface_set_color(Color(col, 1.0) if pulse else col)
+		im.surface_add_vertex(v)
+
+
+## Aim the arch from the acting beast or trainer to the selected target(s).
+func _show_targets(list: Array, sel: int, source = "trainer_self") -> void:
+	_aim_from = source
 	_target_refs = []
 	for i in list.size():
 		if sel < 0 or i == sel:
@@ -1251,6 +1291,7 @@ func _show_targets(list: Array, sel: int) -> void:
 
 func _hide_targets() -> void:
 	_target_refs = []
+	_aim_from = null
 
 
 ## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
@@ -1452,21 +1493,21 @@ func _build_hud() -> void:
 	# Both top windows use the same compact frame and padding.
 	caption = _top_panel()
 	hud.add_child(caption)
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", 8)
-	caption.add_child(line)
+	message_line = HBoxContainer.new()
+	message_line.add_theme_constant_override("separation", 8)
+	caption.add_child(message_line)
 	message_icon = TextureRect.new()
 	message_icon.custom_minimum_size = Vector2(40, 48)
 	message_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	message_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	message_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	message_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	line.add_child(message_icon)
+	message_line.add_child(message_icon)
 	msg_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.INK)
 	msg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	msg_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	msg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	line.add_child(msg_label)
+	message_line.add_child(msg_label)
 	move_info = _top_panel()
 	hud.add_child(move_info)
 	_place_caption()
@@ -1539,6 +1580,8 @@ func _caption(text: String, subject = null) -> void:
 	msg_label.text = text
 	var ref = subject if subject != null else _message_ref(text)
 	message_icon.texture = _speaker_icons.get(ref, null) if typeof(ref) == TYPE_STRING else (PixelArt.beast_texture(ref.genes) if ref != null else null)
+	var player_subject: bool = ref in ["trainer_self", "trainer"] if typeof(ref) == TYPE_STRING else (ref != null and (GameState.party.has(ref) or ally_ring.values().has(ref)))
+	message_line.move_child(message_icon, -1 if player_subject else 0)
 	message_icon.visible = text != "" and message_icon.texture != null
 	_place_caption()
 	# Wrapped labels update their minimum height after layout; shrink again once that has settled.
@@ -1779,7 +1822,7 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 		if not ts.is_empty():
 			var all: bool = fr.get("target_all", false)
 			var sel := -1 if all else clampi(int(fr.get("target_sel", 0)), 0, ts.size() - 1)
-			_show_targets(ts, sel)
+			_show_targets(ts, sel, fr.get("beast", null) if fr["kind"] == "beast" else "trainer_self")
 	else:
 		_hide_targets()
 	ally_grid.queue_redraw()
@@ -2147,14 +2190,13 @@ func _command_phase() -> Array:
 		if rows[0].get("done", false) and not _rows_waiting(rows):
 			break
 		var p := CommandPanel.new()
-		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "point": _point_at,
+		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption,
 			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
 		_commanding = false
 		_show_option({}, {})
-		_point_at(null)
 		_hide_targets()
 		ally_grid.focus = -1
 		ally_grid.target = -1
@@ -2225,7 +2267,6 @@ func _command_phase() -> Array:
 						if await UI.ask("Forfeit the battle? It counts as a loss, but you keep your gold."):
 							result = "forfeit"
 							return []
-	_point_at(null)
 	_caption("")
 	_refresh()
 	return _acts_from_rows(rows)
@@ -2681,12 +2722,11 @@ func _choose_target(list: Array, title: String):
 	var panel := CommandPanel.new()
 	panel.setup([row], {"target_only": true}, 0, Callable(), {
 		"render": func(_rows, _focus, _picking): _show_targets(targets, int(row.get("target_sel", 0))),
-		"hint": _caption, "point": _point_at, "foe_grid": foe_grid, "ally_grid": ally_grid})
+		"hint": _caption, "foe_grid": foe_grid, "ally_grid": ally_grid})
 	panel.picking = true
 	UI.push(panel)
 	var choice: Dictionary = await panel.done
 	_hide_targets()
-	_point_at(null)
 	_caption("")
 	if choice.get("kind", "") != "go":
 		return null
@@ -2760,7 +2800,6 @@ func _effect_song_flow(song: String) -> bool:
 			if target == null:
 				return false
 	flute_used = true
-	_point_at(null)
 	await msg("You raise your flute and play %s..." % s["name"], 0.6)
 	var acc: float = await UI.flute(song, "%s  —  faster and cleaner means a stronger effect" % SongDB.tag(song))
 	_battle_music()
@@ -2781,7 +2820,6 @@ func _charm_flow(song: String) -> bool:
 	if t == null:
 		return false
 	flute_used = true
-	_point_at(t)
 	var flawless: bool = GameState.needs_flawless(t) and not tutorial
 	if flawless:
 		await msg("%s is stronger than any of your beasts. Only a flawless performance will reach it!" % t.nickname, 1.2)
@@ -2804,7 +2842,6 @@ func _charm_flow(song: String) -> bool:
 		await msg("%d mistake%s... %s is too strong to be charmed by anything less than perfect." % [mistakes, "" if mistakes == 1 else "s", t.nickname], 1.4)
 		if star:
 			UI.toast("Your mastery of %s improved!" % SongDB.get_song(song)["name"], UIKit.GOLD)
-		_point_at(null)
 		return true
 	if mistakes == 0 and not r.get("cancelled", false):
 		await msg("A flawless performance!", 0.6)
@@ -2833,7 +2870,6 @@ func _charm_flow(song: String) -> bool:
 			await _buff(t, {"atk": 1})
 	if star:
 		UI.toast("Your mastery of %s improved!" % SongDB.get_song(song)["name"], UIKit.GOLD)
-	_point_at(null)
 	return true
 
 
@@ -3561,7 +3597,6 @@ func _shield_pulse(bubble: MeshInstance3D = null) -> void:
 func _strike(b, team_hit: String) -> void:
 	var pos := PLAYER_POS if team_hit == "ally" else RIVAL_POS
 	var who: String = GameState.player_name if team_hit == "ally" else String(trainer.get("name", "the trainer"))
-	_point_at("trainer" if team_hit == "ally" else "foe_trainer")
 	if b != null:
 		await msg("%s charges straight at %s!" % [b.nickname, who], 0.6)
 		if nodes.has(b):
@@ -3578,7 +3613,6 @@ func _strike(b, team_hit: String) -> void:
 			tw.tween_property(n, "position", start.lerp(pos, 0.75), 0.22).set_ease(Tween.EASE_IN)
 			tw.tween_property(n, "position", start, 0.25)
 			await get_tree().create_timer(lead + 0.22).timeout
-	_point_at(null)
 	var left: int = GameState.shield if team_hit == "ally" else foe_shield
 	if left > 0:
 		if team_hit == "ally":
@@ -3647,7 +3681,6 @@ func _do_move(b, mv: String, target) -> void:
 	var m := MoveDB.get_move(mv)
 	if int(m.get("cd", 0)) > 0:
 		s["cd"][mv] = int(m["cd"]) + 1
-	_point_at(null)
 	await msg("%s used %s!" % [b.nickname, m["name"]], 0.55, b)
 	# straight at an open trainer
 	if typeof(target) == TYPE_STRING and target == "trainer":
@@ -4053,7 +4086,6 @@ func _guardian_rises(b) -> void:
 
 func _guardian_song_flow(song: String) -> bool:
 	flute_used = true
-	_point_at(guardian_b)
 	await msg("You raise your flute and play the %s to %s..." % [SongDB.song_name(song), guardian_b.nickname], 0.8)
 	var r: Dictionary = await UI.flute_ex(song, "Winning over %s  —  the cleaner you play, the surer it is" % guardian_b.nickname)
 	_battle_music()
@@ -4063,7 +4095,6 @@ func _guardian_song_flow(song: String) -> bool:
 	await _guardian_capture(acc)
 	if star and result == "":
 		UI.toast("Your mastery of the %s improved!" % SongDB.song_name(song), UIKit.GOLD)
-	_point_at(null)
 	return true
 
 
@@ -4372,7 +4403,6 @@ func _refill() -> void:
 
 
 func _finish() -> void:
-	_point_at(null)
 	GameState.ring_side = ally_side
 	match result:
 		"win":

@@ -2660,20 +2660,30 @@ func _battlecmd_test() -> void:
 	# The caption resolves the subject and uses one compact, centred frame for short and long messages.
 	bt._show_option({}, {})
 	bt._commanding = false
+	bt.ally_grid.focus = -1
+	bt.ally_grid.queue_redraw()
 	bt._caption("%s used Ember!" % fire_a.nickname, fire_a)
 	await _wait(0.12)
 	check.call(bt.message_icon.visible and bt.message_icon.texture == PixelArt.beast_texture(fire_a.genes), "move messages show the acting beast's icon")
 	check.call(absf(bt.caption.get_global_rect().get_center().x - bt.hud.get_viewport_rect().size.x * 0.5) < 1.0, "battle message is centred on the screen")
+	check.call(bt.message_icon.position.x > bt.msg_label.position.x, "player beast avatar is to the right of the report")
 	if stop == "message":
 		return
 	bt._caption("%s fires the slingshot!" % GameState.player_name)
 	check.call(bt.message_icon.visible and bt.message_icon.texture == bt._speaker_icons["trainer_self"], "trainer messages show the trainer's portrait")
+	await _wait(0.12)
+	check.call(bt.message_icon.position.x > bt.msg_label.position.x, "player trainer portrait is to the right of the report")
 	if stop == "trainer-message":
 		return
 	bt._caption("Tess plays a song!")
 	check.call(bt.message_icon.texture == bt._speaker_icons["foe_trainer"], "rival messages use the rival's portrait")
+	await _wait(0.12)
+	check.call(bt.message_icon.get_rect().end.x <= bt.msg_label.position.x, "enemy trainer portrait is to the left of the report")
+	if stop == "enemy-trainer-message":
+		return
 	await bt._deal(fire_a, foes[0], {"dmg": 1, "eff": 2.0, "crit": false, "pierce": false})
 	check.call(bt.msg_label.text == "Extra effective!" and bt.message_icon.texture == PixelArt.beast_texture(foes[0].genes), "effective hit shows a short message and the affected beast")
+	check.call(bt.message_icon.get_rect().end.x <= bt.msg_label.position.x, "enemy beast avatar is to the left of the report")
 	if stop == "effective":
 		return
 	await bt._deal(fire_a, foes[0], {"dmg": 1, "eff": 0.5, "crit": false, "pierce": false})
@@ -2711,13 +2721,14 @@ func _battlecmd_test() -> void:
 	await _tap_at(bt.bars.get_global_transform_with_canvas() * bt.bars.pill_rect(0).get_center())
 	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "the overlaid trainer bar receives taps and confirms only once")
 	await key.call("ui_cancel")
+	check.call(bt.find_children("*", "Label3D", true, false).all(func(label): return label.text != "▼"), "no floating triangle is created")
 	# one touch A: your slingshot, picked out on its target, but not confirmed twice
 	UI.controls._send("a", true)
 	await get_tree().process_frame
 	UI.controls._send("a", false)
 	await _wait(0.2)
 	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "one tap of A: the slingshot only goes on to its target (picking %s, your action done %s)" % [p.picking, p.rows[0].get("done", false)])
-	check.call(not bt.move_info.visible and bt._target_refs.size() == 1 and bt.arrow.visible, "targeting hides move info and shows an arrow")
+	check.call(not bt.move_info.visible and bt._target_refs.size() == 1 and bt._aim_from == "trainer_self" and bt.aim_mesh.mesh.get_surface_count() > 0, "targeting hides move info and draws an arch from the trainer")
 	await key.call("ui_accept")
 	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
 	# the top beast: its move, then its target (two foes)
@@ -2725,7 +2736,7 @@ func _battlecmd_test() -> void:
 	await key.call("ui_accept")
 	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
 	await _wait(0.1)
-	check.call(not bt.move_info.visible and bt._target_refs.size() == 1 and bt.arrow.visible, "a beast's target has an arrow and no move info")
+	check.call(not bt.move_info.visible and bt._target_refs.size() == 1 and bt._aim_from == fire_a and bt.aim_mesh.mesh.get_surface_count() > 0, "a beast's arch starts at that beast, with move info closed")
 	var first_target = bt._target_refs[0]
 	await key.call("ui_right")
 	check.call(bt._target_refs.size() == 1 and bt._target_refs[0] != first_target, "► moves the arrow to the other foe")
@@ -2751,7 +2762,7 @@ func _battlecmd_test() -> void:
 	check.call(not shift.is_empty() and shift.get("disabled", false), "the beast in the middle can't Move: \"%s\"" % shift.get("desc", ""))
 	await opt_to.call(p, "move", "fire_spin")
 	await key.call("ui_accept")
-	check.call(p.picking and p.rows[2].get("target_all", false) and not bt.move_info.visible and bt._target_refs.size() == 2 and bt.target_arrows.filter(func(marker): return marker.visible).size() == 2, "Fire Spin shows an arrow on each foe, with no move info")
+	check.call(p.picking and p.rows[2].get("target_all", false) and not bt.move_info.visible and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
 	if stop == "all":
 		return
 	await key.call("ui_left")
