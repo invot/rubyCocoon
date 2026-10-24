@@ -17,6 +17,7 @@ const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const Townfolk = preload("res://scripts/gfx/townfolk.gd")
+const PLAYER_GRACE_SHADER = preload("res://scripts/gfx/townfolk_grace.gdshader")
 const VBld =preload("res://scripts/gfx/voxel_buildings.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const Phone = preload("res://scripts/world/phone.gd")
@@ -48,6 +49,9 @@ var demo := false
 var interior := false
 
 var player: Node3D
+var _player_meshes: Array[Node] = []
+var _player_material: ShaderMaterial
+var _player_grace_material: ShaderMaterial
 var player_pos := Vector2i.ZERO
 var facing := Vector2i(0, 1)
 var moving := false
@@ -1659,7 +1663,12 @@ func _build_items() -> void:
 
 func _build_player() -> void:
 	player = VPer.build(GameState.hero_look())
+	_player_meshes = player.find_children("*", "MeshInstance3D", true, false)
+	_player_material = (_player_meshes[0] as MeshInstance3D).material_override
+	_player_grace_material = _player_material.duplicate()
+	_player_grace_material.shader = PLAYER_GRACE_SHADER
 	add_child(player)
+	_update_wild_grace(0.0)
 
 
 func _build_camera() -> void:
@@ -2945,7 +2954,9 @@ const WILD_CHASE_SPEED := 3.6
 const WILD_FLEE_SPEED := 3.9
 ## A lone beast only runs from you when your best beast is at least this many levels above it.
 const WILD_FLEE_GAP := 8
-const WILD_BLINK_INTERVAL := 0.2
+const WILD_PULSE_PERIOD := 0.4
+const WILD_OPACITY_MIN := 0.35
+const WILD_OPACITY_MAX := 0.8
 const WILD_AWARE_STATES := ["alert", "chase", "flee", "search"]
 const MARK_SPOTTED := Color("#ffd040")
 const MARK_SCARED := Color("#4aa8ff")
@@ -2965,8 +2976,16 @@ func _update_wild_grace(delta: float) -> void:
 	if GameState.wild_grace_left > 0.0 and not busy and not frozen and not UI.busy() \
 			and GameState.main != null and not GameState.main.in_battle and not GameState.main._transitioning:
 		GameState.wild_grace_left = maxf(0.0, GameState.wild_grace_left - delta)
-	var elapsed := GameState.WILD_BATTLE_GRACE - GameState.wild_grace_left
-	player.visible = GameState.wild_grace_left <= 0.0 or int(elapsed / WILD_BLINK_INTERVAL) % 2 == 0
+	var material := _player_material
+	if GameState.wild_grace_left > 0.0 and GameState.wild_grace_pulse:
+		var elapsed := GameState.WILD_BATTLE_GRACE - GameState.wild_grace_left
+		var pulse := (cos(elapsed * TAU / WILD_PULSE_PERIOD) + 1.0) * 0.5
+		_player_grace_material.set_shader_parameter("opacity", lerpf(WILD_OPACITY_MIN, WILD_OPACITY_MAX, pulse))
+		material = _player_grace_material
+	# Material alpha also works on Mobile and Compatibility, where GeometryInstance3D.transparency is ignored.
+	for mesh: MeshInstance3D in _player_meshes:
+		if mesh.material_override != material:
+			mesh.material_override = material
 
 
 func _spawn_wilds() -> void:

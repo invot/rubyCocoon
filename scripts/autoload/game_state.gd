@@ -63,6 +63,7 @@ var steps := 0
 var incense_steps := 0
 var incense_kind := 0
 var wild_grace_left := 0.0
+var wild_grace_pulse := false
 var lucky_battles := 0
 ## eggs waiting to hatch: [{"race": int, "kind": "fire|water|earth|air|ghost|legendary", "ghost": bool}]
 var eggs: Array = []
@@ -179,6 +180,7 @@ func new_game(pname: String, look := {}) -> void:
 	steps = 0
 	incense_steps = 0
 	wild_grace_left = 0.0
+	wild_grace_pulse = false
 	lucky_battles = 0
 	eggs = []
 	shards = 0

@@ -520,6 +520,7 @@ func start_battle(cfg: Dictionary) -> String:
 		return "run"
 	in_battle = true
 	GameState.wild_grace_left = 0.0
+	GameState.wild_grace_pulse = false
 	if autoplay:
 		cfg["autoplay"] = true
 	Sfx.battle_start()
@@ -564,6 +565,7 @@ func start_battle(cfg: Dictionary) -> String:
 	# Keep detection blocked through the fade, then grant the full field-control window only to wild battles.
 	if cfg.get("wild", false):
 		GameState.wild_grace_left = GameState.WILD_BATTLE_GRACE
+		GameState.wild_grace_pulse = result == "win"
 	in_battle = false
 	return result
 
