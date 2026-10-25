@@ -162,7 +162,7 @@ func new_game(pname: String, look := {}) -> void:
 	party = []
 	storage = []
 	inventory = {"minor_potion": 5, "remedy_herb": 2, "spirit_drop": 3}
-	# no flute yet: Uncle Rafe in Tidewater keeps your father's
+	# no flute yet: Uncle Rafe in Bellerive keeps your father's
 	gear = {"flute": "", "head": "", "feet": "", "acc": ""}
 	songs = []
 	summons = []

@@ -929,7 +929,7 @@ class FamilyTree extends Control:
 func _tab_flute() -> void:
 	if not GameState.has_flute():
 		_make_list(left_box, "Songs", right_box)
-		_add_row({"text": "No flute yet", "detail": func(c): c.add_child(_t_label("Your father's reed flute is waiting for you with Uncle Rafe in Tidewater, east along the Coastal Path. He'll teach you to play it."))})
+		_add_row({"text": "No flute yet", "detail": func(c): c.add_child(_t_label("Your father's reed flute is waiting for you with Uncle Rafe in Bellerive, east along the Coastal Path. He'll teach you to play it."))})
 		return
 	_make_list(left_box, "Songs %d / %d" % [GameState.songs.size(), SongDB.ORDER.size()], right_box)
 	# the songs you know come first (battle songs, then charms), the ones still to learn after them

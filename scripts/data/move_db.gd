@@ -89,7 +89,7 @@ const MOVES := {
 
 	# ---------------- Signature moves: taught only by a town's mascot, to its own race (see SIGNATURE) ----------------
 	"bandit_blaze": {"name": "Bandit Blaze", "el": "fire", "kind": "attack", "power": 150, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "burn", "chance": 0.3}, "desc": "Cocoon Cove's masked whirl of flame. May burn."},
-	"tidewater_torrent": {"name": "Tidewater Torrent", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"debuff": {"spd": -1}, "chance": 0.5}, "desc": "The whole harbour at once. Often lowers Speed."},
+	"tidewater_torrent": {"name": "Bellerive Torrent", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"debuff": {"spd": -1}, "chance": 0.5}, "desc": "The whole harbour at once. Often lowers Speed."},
 	"pearl_cannon": {"name": "Pearl Cannon", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"self_buff": {"def": 1}}, "desc": "Fires a polished pearl. Raises own Defense."},
 	"kelp_maelstrom": {"name": "Kelp Maelstrom", "el": "water", "kind": "attack", "power": 130, "acc": 90, "target": "enemy", "cd": 3, "fx": {"debuff": {"eva": -1}, "chance": 0.4}, "desc": "A whirl of sea and kelp. May tangle the foe."},
 	"sirocco": {"name": "Sirocco", "el": "air", "kind": "attack", "power": 115, "acc": 90, "target": "enemy", "cd": 3, "fx": {"status": "confuse", "chance": 0.3}, "desc": "The oasis's scorching desert wind. May confuse."},

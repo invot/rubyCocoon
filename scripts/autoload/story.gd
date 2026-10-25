@@ -48,6 +48,8 @@ const FISHER_LOOK := {"skin": "#c08a60", "hair": "#d8d8d8", "shirt": "#e8c040", 
 const Fishing = preload("res://scripts/world/fishing.gd")
 const UNCLE_LOOK := {"skin": "#e0b088", "hair": "#6a3a20", "shirt": "#3a7a8a", "pants": "#3a3a48", "hat": "#e8d8a0", "outfit": "coat"}
 const NEIGHBOR_LOOK := {"skin": "#c89070", "hair": "#e8e0d0", "shirt": "#d88648", "pants": "#40586a", "outfit": "apron", "hair_style": 1}
+## Miss Odile, feeding the wild beasts in Bellerive's park: a long purple dress, her hair up.
+const FEEDER_LOOK := {"skin": "#8a5a3c", "hair": "#2a1e18", "shirt": "#7a4a9a", "pants": "#5a3a78", "outfit": "robe", "hair_style": 1}
 ## The Dune Ranger, keeping folk off the Dune Road while the sandstorm blows: dusty khaki and a wide hat.
 const RANGER_LOOK := {"skin": "#c89068", "hair": "#3a2a1a", "shirt": "#c8a060", "pants": "#6a5038", "hat": "#8a6a3a", "outfit": "coat"}
 
@@ -74,12 +76,12 @@ func _has_anchor(map: Dictionary, name: String) -> bool:
 	return map.get("anchors", {}).has(name)
 
 
-## The Coastal Path's teachers and Tidewater's arena coaches (WorldDB.LESSON_TRAINERS, ARENA_LESSONS).
+## The Coastal Path's teachers and Bellerive's arena coaches (WorldDB.LESSON_TRAINERS, ARENA_LESSONS).
 const LESSON_TRAINERS = WorldDB.LESSON_TRAINERS
 const ARENA_LESSONS = WorldDB.ARENA_LESSONS
 
 
-## The teachers standing on this map's anchors (the Coastal Path, Kit's cabin, or Tidewater's arena).
+## The teachers standing on this map's anchors (the Coastal Path, Kit's cabin, or Bellerive's arena).
 func _lesson_trainers(map: Dictionary) -> Array:
 	var out := []
 	var town: String = map.get("parent", map["id"])
@@ -182,7 +184,7 @@ func extra_npcs(map: Dictionary) -> Array:
 				out.append({"kind": "story", "id": "logpile", "name": "", "pos": _at(map, "logpile", Vector2i.ZERO), "mesh": _log_pile(), "still": true, "facing": Vector2i(0, 1)})
 		"route3":
 			# a sandstorm over the whole Dune Road until the Temple of Tides is calmed (world.gd draws it): a step in, the
-			# Dune Ranger runs over and sends you back to Tidewater (sandstorm_stop)
+			# Dune Ranger runs over and sends you back to Bellerive (sandstorm_stop)
 			if not GameState.flag("guardian_water"):
 				map["sandstorm"] = true
 				out.append({"kind": "story", "id": "ranger", "name": "Dune Ranger", "pos": map["spawns"]["south"] + Vector2i(0, -3),
@@ -192,6 +194,8 @@ func extra_npcs(map: Dictionary) -> Array:
 				out.append({"kind": "story", "id": "rafe_neighbor", "name": "Neighbor Nell", "pos": _at(map, "rafe_neighbor", plaza), "look": NEIGHBOR_LOOK, "facing": Vector2i(-1, 0), "story": true})
 			if _has_anchor(map, "uncle"):
 				out.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", plaza), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
+			if _has_anchor(map, "park_feeder"):
+				out.append({"kind": "story", "id": "park_feeder", "name": "Miss Odile", "pos": _at(map, "park_feeder", plaza), "look": FEEDER_LOOK, "facing": Vector2i(0, 1)})
 			if _has_anchor(map, "fisher"):
 				out.append({"kind": "story", "id": "fisher", "name": "Fisher Gil", "pos": _at(map, "fisher", plaza), "look": FISHER_LOOK, "facing": Vector2i(0, 1), "rod": true})
 			if _has_anchor(map, "ferry"):
@@ -336,10 +340,10 @@ func _intro() -> void:
 	# This short objective survives skipping the film. The hero knows nothing about the tower.
 	await UI.say(["First day of spring, %s! The beasts are waking and trainer season is officially open!" % GameState.player_name,
 		"Elder Rowan has your first egg in the plaza. Hatch it at the Beast Center before you head out.",
-		"Then go east along the Coastal Path to Tidewater. Uncle Rafe has your dad's flute, and he's promised to teach you."], "Mom")
+		"Then go east along the Coastal Path to Bellerive. Uncle Rafe has your dad's flute, and he's promised to teach you."], "Mom")
 
 
-## Uncle Rafe's lessons in Tidewater: the flute, then Weaken, then Capture I. Kept short: he plays each song once,
+## Uncle Rafe's lessons in Bellerive: the flute, then Weaken, then Capture I. Kept short: he plays each song once,
 ## then you play it back (the 30-second lesson clock, see flute_game.gd). Returns true when all are done.
 func uncle_lessons() -> bool:
 	var who := "Uncle Rafe"
@@ -368,7 +372,7 @@ func uncle_lessons() -> bool:
 			await UI.say(["Almost had it! Talk to me when you want another try."], who)
 			return false
 		await UI.say(["That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece"),
-			"Oh, and the Tidewater Arena only lets in trainers with a flute. Go show Captain Marina what you can do!"], who)
+			"Oh, and the Bellerive Arena only lets in trainers with a flute. Go show Captain Marina what you can do!"], who)
 	return true
 
 
@@ -472,7 +476,7 @@ func field_move(world, grp: Dictionary) -> void:
 
 
 ## A broken bridge (or similar) fixed with a key item.
-## Fisher Gil, on the Tidewater pier: he offers you his spare pole, and once you've taken it, shows you how to fish.
+## Fisher Gil, on the Bellerive pier: he offers you his spare pole, and once you've taken it, shows you how to fish.
 func _fisher(world) -> void:
 	var who := "Fisher Gil"
 	if not GameState.flag("fisher_met"):
@@ -550,7 +554,7 @@ func _builder() -> void:
 	var mended: bool = bf != "" and GameState.flag(bf)
 	if mended and not GameState.flag("builder_egg"):
 		await UI.say(["You mended my footbridge? All by yourself? Well, I'll be. My knees thank you. So does my back.",
-			"A deal's a deal. Here: an egg I found washed up after the storm. Have Nurse Clover at the Beast Center in Tidewater hatch it for you."], who)
+			"A deal's a deal. Here: an egg I found washed up after the storm. Have Nurse Clover at the Beast Center in Bellerive hatch it for you."], who)
 		GameState.add_egg(BUILDER_EGG)
 		GameState.set_flag("builder_egg")
 		Sfx.play("pickup")
@@ -766,7 +770,7 @@ func next_goal() -> String:
 		return "flute"
 	if not _lessons_done():
 		return "rafe"
-	# Tidewater's arena: its coaches' lessons, then Tide Captain Marina's crest (the ferry wants it)
+	# Bellerive's arena: its coaches' lessons, then Tide Captain Marina's crest (the ferry wants it)
 	if not arena_lessons_done("tidewater"):
 		return "arena"
 	if not GameState.crests.has(WorldDB.ARENAS["tidewater"]["crest"]):
@@ -920,12 +924,19 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _builder()
 		"fisher":
 			await _fisher(world)
+		"park_feeder":
+			# the wild beasts of the park leave her be: she brings them candy corn
+			await UI.say([["Bonjour, chère! These wild beasts never lay a paw on me. Why? I feed them their favorite snack: candy corn!",
+				"A handful a day, and we're the best of friends. They come running the moment they hear the bag rustle."],
+				["Mind the beasts, chère. They only behave for me, and only because of the candy corn.",
+				"You'd best not try it yourself. They only trust the hand that's fed them since they were hatchlings."]][1 if GameState.flag("met_park_feeder") else 0], n["name"])
+			GameState.set_flag("met_park_feeder")
 		"rod":
 			await _take_rod(world, n)
 		"logpile":
 			await _logpile(world, n)
 		"rafe_neighbor":
-			var lines := ["Welcome to Tidewater! You must be Rafe's family. I'm Nell, an old friend of your uncle's.",
+			var lines := ["Welcome to Bellerive! You must be Rafe's family. I'm Nell, an old friend of your uncle's.",
 				"See the big golden flute sign above that door? That's Rafe's house, on the north side of this road, right by the west entrance."]
 			if not GameState.has_flute():
 				lines.append("He's been keeping your father's flute safe for you. Go on in! He's been looking forward to teaching you.")
@@ -961,9 +972,9 @@ func _talk_story(world, n: Dictionary) -> void:
 				GameState.set_flag("bram_sendoff")
 				await UI.say(["Hey, you hatched it! Look at that little %s. It has your nose." % GameState.party[0].nickname,
 					"The gate's open. Along the Coastal Path, the trainers will each teach you a bit of battling. Everyone who passes gets a lesson. Rules are rules. Mostly my rules.",
-					"Your uncle's waiting in Tidewater at the end of the path. Off you go, champ!"], "Scout Bram")
+					"Your uncle's waiting in Bellerive at the end of the path. Off you go, champ!"], "Scout Bram")
 			elif GameState.flag("has_starter"):
-				await UI.say(["Off you go! The Coastal Path leads east to Tidewater.",
+				await UI.say(["Off you go! The Coastal Path leads east to Bellerive.",
 					"Wild beasts roam the path once you've got a flute to play them. Creep up behind one and you'll get the jump on it. Let one sneak up behind YOU and, well... don't.",
 					"...I hide in the tall grass sometimes. It makes me harder to spot. Nobody knows. Now you know."], "Scout Bram")
 			else:
@@ -1062,7 +1073,7 @@ func _elder(_world, _n: Dictionary) -> void:
 		"Remember: fire is weak to air, earth to water, water to air, and air to fire.",
 		"You have %d of 8 arena crests. Each arena master teaches a new flute song." % GameState.crest_count(),
 		"Your beasts' elemental powers work outside battle too. Vines burn, sand washes away, boulders shatter!",
-		"Crystal shards glitter in hidden corners. Volt in Tidewater turns them into shield points and beast slots.",
+		"Crystal shards glitter in hidden corners. Volt in Bellerive turns them into shield points and beast slots.",
 		"Merge two beasts at their level limit at a Beast Center, and the child gets stronger.",
 	]
 	await UI.say([tips[randi() % tips.size()]], "Elder Rowan")
@@ -1086,7 +1097,7 @@ func _ferry(world) -> void:
 
 
 ## Your first step into the Dune Road's sandstorm: the Dune Ranger spots you and jogs over (straight down the road, as
-## a trainer would; from where the ranger stands if you're not in line), then sends you back to Tidewater.
+## a trainer would; from where the ranger stands if you're not in line), then sends you back to Bellerive.
 func sandstorm_stop(world) -> void:
 	for p in world.npcs:
 		var n: Dictionary = world.npcs[p]

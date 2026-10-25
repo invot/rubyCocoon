@@ -988,7 +988,7 @@ func _run_test() -> void:
 		# Beast Center's (--where=center, in --town), standing at --stand=x,y facing --face=dx,dy (by the phone if not
 		# given); A is pressed --presses times (4: past "Call Dad?", Yes and the dialling, to Dad's first line; the call
 		# never gets as far as saving). Dad says --name (the game's default). --who=mom calls Mom instead (away from
-		# home), with the story up to Tidewater's arena, a beast of --level for her advice and her --tip'th tip
+		# home), with the story up to Bellerive's arena, a beast of --level for her advice and her --tip'th tip
 		var where := String(_test.get("where", "home"))
 		var pay := where == "payphone"
 		var town := String(_test.get("town", "caccoon"))
@@ -1142,7 +1142,7 @@ func _run_test() -> void:
 		await _walk4_test()
 		await _wait(wait)
 	elif scene == "coaches":
-		# the teachers stop you: a new trainer walks the Coastal Path to Tidewater and into its arena talking to no one,
+		# the teachers stop you: a new trainer walks the Coastal Path to Bellerive and into its arena talking to no one,
 		# and every teacher must spot them and give their lesson
 		await _coaches_test()
 	elif scene == "mascot":
@@ -1175,7 +1175,7 @@ func _run_test() -> void:
 				print("   ", l)
 	elif scene == "tutorial":
 		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring, or
-		# Tidewater's arena coaches: team|elements (--egg=race: the hatchling's race, e.g. 12 for an earth one)
+		# Bellerive's arena coaches: team|elements (--egg=race: the hatchling's race, e.g. 12 for an earth one)
 		GameState.party = [Beasts.create(int(_test.get("egg", "0")), 1)]
 		GameState.fix_ring()
 		GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
@@ -1578,7 +1578,7 @@ func _run_test() -> void:
 		# Gil's fishing: --lesson=1 (default) his lesson off the shack's deck, 0 an ordinary cast at a ripple; A is pressed
 		# --taps times a second once the float dips (--taps=0: never strike); --snap=secs saves a screenshot mid-cast
 		autoplay = true
-		# (Tidewater's first-visit welcome would stay up under the fishing)
+		# (Bellerive's first-visit welcome would stay up under the fishing)
 		GameState.set_flag("seen_tidewater")
 		_do_goto("tidewater", Vector2i(7, 33), Vector2i(0, 1))
 		await _wait(1.5)
@@ -2236,7 +2236,7 @@ func _flow_test() -> void:
 		await Story.wild_encounter(world)
 		world.busy = false
 	print("after 7 wild battles: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), " eggs ", GameState.eggs.size())
-	print("flute before Tidewater: ", GameState.has_flute(), "  songs ", GameState.songs)
+	print("flute before Bellerive: ", GameState.has_flute(), "  songs ", GameState.songs)
 	await _go("tidewater", "west")
 	await _wait(1.5)
 	# Uncle Rafe is at home, by the west gate
@@ -3088,8 +3088,8 @@ func _ringedit_test() -> void:
 
 
 ## --scene=coaches: a new trainer (a Lv 1 hatchling, no flute, no lessons) walks the Coastal Path by tapped walks from
-## Cocoon Cove to Tidewater, in and out of Youngster Kit's cabin and over his footbridge, then (with a flute) into
-## Tidewater's arena. The path teachers and Rory stop you; Ondine waits for you to speak after you walk into the lobby.
+## Cocoon Cove to Bellerive, in and out of Youngster Kit's cabin and over his footbridge, then (with a flute) into
+## Bellerive's arena. The path teachers and Rory stop you; Ondine waits for you to speak after you walk into the lobby.
 func _coaches_test() -> void:
 	Engine.time_scale = 8.0
 	UI.auto = true
@@ -3136,7 +3136,7 @@ func _coaches_test() -> void:
 	print("%s footbridge mended with the builder's logs" % ("ok  " if mended else "FAIL"))
 	if not mended:
 		bad[0] += 1
-	# on along the trail to Tidewater
+	# on along the trail to Bellerive
 	await _walk_road(world.map["exits"].keys().filter(func(e): return world.map["exits"][e]["to"] == "tidewater"))
 	await _settle("tidewater")
 	var path_lessons: Array = Story.LESSON_TRAINERS.map(func(t): return t["lesson"])
@@ -3200,7 +3200,7 @@ func _arena_entry_test() -> void:
 	UI.auto = false
 
 
-## --scene=lessons: every guided battle (the Coastal Path's teachers, Tidewater's arena coaches and the flute lesson)
+## --scene=lessons: every guided battle (the Coastal Path's teachers, Bellerive's arena coaches and the flute lesson)
 ## played by a button masher (random presses of A, B and the d-pad, nothing automatic), once with just a hatchling and
 ## once with a second beast beside it. Every bar and every menu must offer exactly one thing to pick, your beasts must
 ## never go down, and every lesson must be won. --seed=n

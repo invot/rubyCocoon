@@ -1,6 +1,6 @@
 extends RefCounted
-## Fresh Tidewater arrival, no player saves. --scene=tidewater-arrival --verify=1
-## Window previews: --preview=arrival|talk|house --shot=res://build/shots/tidewater.png
+## Fresh Bellerive arrival, no player saves. --scene=tidewater-arrival --verify=1
+## Window previews: --preview=arrival|talk|house|odile --shot=res://build/shots/tidewater.png
 
 const Beasts = preload("res://scripts/core/beasts.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
@@ -43,6 +43,17 @@ func run(main, opts: Dictionary) -> void:
 		UI.auto_log.clear()
 		await main._go("tidewater", "west")
 		_check(UI.auto_log.is_empty() and not main._npc("rafe_neighbor").is_empty(), "return visits and existing arrival flags keep Nell and avoid popups")
+		# Miss Odile in the park, feeding its wild beasts (walked to before the flute, while none roam)
+		var odile: Dictionary = main._npc("park_feeder")
+		_check(not odile.is_empty() and main.world.map["wild_area"].has(odile["pos"]), "Miss Odile stands in the park among the wild beasts")
+		if not odile.is_empty():
+			await main._walk_test([odile["pos"] + Vector2i(0, 1)])
+			_check(main.world.player_pos == odile["pos"] + Vector2i(0, 1), "the park's paths reach her")
+			main.world.facing = Vector2i(0, -1)
+			UI.auto_log.clear()
+			await main.world._interact()
+			_check(not UI.auto_log.is_empty() and String(UI.auto_log.back()).begins_with("Miss Odile:") and "candy corn" in String(UI.auto_log.back()),
+				"she feeds them candy corn, so they never attack her")
 		GameState.gear["flute"] = "reed_flute"
 		GameState.flags.erase("met_rafe_neighbor")
 		_check(not Story.npc_has_news(main._npc("rafe_neighbor")), "players who already have the flute get no stale hint marker")
@@ -51,7 +62,19 @@ func run(main, opts: Dictionary) -> void:
 		return
 	UI.auto = false
 	var preview := String(opts.get("preview", "arrival"))
-	if preview == "house":
+	if preview == "odile":
+		var odile: Dictionary = main._npc("park_feeder")
+		await main._walk_test([odile["pos"] + Vector2i(0, 1)])
+		main.world.facing = Vector2i(0, -1)
+		VPer.face(main.world.player, main.world.facing)
+		main.world._interact()
+		await main._wait(0.8)
+		var dialog = UI.stack.back()
+		while not "candy corn" in dialog.text_label.text:
+			dialog.text_label.visible_characters = -1
+			dialog._advance()
+			dialog.text_label.visible_characters = -1
+	elif preview == "house":
 		await main._walk_test([house["door"] + Vector2i(0, 1)])
 		main.world.facing = Vector2i(0, -1)
 		VPer.face(main.world.player, main.world.facing)

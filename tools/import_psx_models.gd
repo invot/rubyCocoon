@@ -78,7 +78,7 @@ const MODELS := {
 	"mossy_statue": [HC + "pier_stone.glb", {"tint": Color("#a8c098")}],
 	"campfire": [HF + "campfire.glb", {}],
 	"log": [HF + "log.glb", {}],
-	# ---- rowboat (Gil's by his shack in Tidewater; Captain Gull's ferry is tools/import_psx_ferry.gd)
+	# ---- rowboat (Gil's by his shack in Bellerive; Captain Gull's ferry is tools/import_psx_ferry.gd)
 	"boat_dark": [RI + "SM_TI_Wood_1_Boat_0.gltf", {"gain": 1.2}],
 }
 

@@ -1,5 +1,5 @@
 extends SceneTree
-## Bakes Captain Gull's ferry, moored by Tidewater's long pier, from the ferry model in psx/ferry/ (see CREDITS.md)
+## Bakes Captain Gull's ferry, moored by Bellerive's long pier, from the ferry model in psx/ferry/ (see CREDITS.md)
 ## into assets/boats/ferry.res:
 ##   godot --headless --path . --script res://tools/import_psx_ferry.gd
 ##

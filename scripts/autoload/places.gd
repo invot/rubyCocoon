@@ -793,7 +793,7 @@ func ladder() -> bool:
 			var lines := ["You've cleared %s of the arena ladder!" % LadderDB.rank_name(r2),
 				"You're a Lv %d trainer now. Here's a crystal shard for your trouble. (%d in your bag)" % [GameState.trainer_level, GameState.shards]]
 			if GameState.slot_cap() > before_slots or GameState.shield_cap() > before_shield:
-				lines.append("Volt at Sparkwire Electronics in Tidewater can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
+				lines.append("Volt at Sparkwire Electronics in Bellerive can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
 					else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")))
 			lines.append("%s is open!" % LadderDB.rank_name(r2 + 1) if r2 < LadderDB.RANKS else "You're the ladder's Champion! Come back for a rematch any time.")
 			await UI.say(lines, host)
@@ -830,7 +830,7 @@ func arena_challenge(town: String) -> String:
 	return res
 
 
-## True (after saying so) while the arena's coaches still have lessons for you (Tidewater, see Story.ARENA_LESSONS).
+## True (after saying so) while the arena's coaches still have lessons for you (Bellerive, see Story.ARENA_LESSONS).
 func _lessons_first(town: String, leader: String) -> bool:
 	if Story.arena_lessons_done(town):
 		return false
@@ -1310,7 +1310,7 @@ const BOOK_TITLES := [
 	"\"The Twelve Towns\", a travel guide. Someone has circled Cogsworth and written 'NEVER AGAIN'.",
 	"\"Temples of the Four Winds\": Tides on the reef, Winds in the desert, Flame in the volcano, Roots in the jungle.",
 	"\"Eggs and Hatchlings\": A fresh hatchling is weak, but it grows faster than any wild beast, into a new form at Lv 20 and its last at Lv 40.",
-	"\"Song of the Sea\", a collection of Tidewater sea shanties.",
+	"\"Song of the Sea\", a collection of Bellerive sea shanties.",
 	"\"Ghost Beasts: Myth or Menace?\" by a very nervous scholar.",
 	"\"Building Worlds One Cube at a Time\" by S. Bizcuit. Someone has scribbled in the margin: NEVER GIVE UPPPPPP!!!",
 ]

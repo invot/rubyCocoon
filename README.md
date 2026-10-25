@@ -78,7 +78,7 @@ required before confronting Vexmora.
 
 <img src="docs/screenshots/maker.jpg" width="640" alt="The character creator's Look tab: name, body, outfit and hairdo; the Colours tab has the pack, skin, clothes, hair and eyes."><br><sub>The character creator's Look tab: name, body, outfit and hairdo; the Colours tab has the pack, skin, clothes, hair and eyes.</sub>
 
-1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Tidewater, the next town east.
+1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Bellerive, the next town east.
 2. Elder Rowan lets you choose one of four elemental eggs.
 
    <img src="docs/screenshots/cove.jpg" width="640" alt="Cocoon Cove, the seaside hamlet where you start."><br><sub>Cocoon Cove, the seaside hamlet where you start.</sub>
@@ -99,31 +99,31 @@ required before confronting Vexmora.
 
    <img src="docs/screenshots/coastal_path.jpg" width="640" alt="The Coastal Path, the tutorial: a winding trail with teachers waiting on it."><br><sub>The Coastal Path, the tutorial: a winding trail with teachers waiting on it.</sub>
 
-6. Mend the washed-out footbridge on the Coastal Path to reach Tidewater (the sign only says there's a footbridge ahead
+6. Mend the washed-out footbridge on the Coastal Path to reach Bellerive (the sign only says there's a footbridge ahead
    and a builder's cabin by the creek). Old Hal the builder, in the cabin just west of it, is too tired to rebuild it
    himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
-   in and he gives you a beast egg (a Tadlet) to hatch at Tidewater's Beast Center. Mended, it's a plank footbridge
+   in and he gives you a beast egg (a Tadlet) to hatch at Bellerive's Beast Center. Mended, it's a plank footbridge
    with railings.
-7. Talk to **Neighbor Nell**, Rafe's old friend beside Tidewater's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken** and **Capture I**, briefly: a couple of lines on how the sheet works, then he plays each song once and it's your turn to play it back. His lessons (and the guided battle after them) give you 30 seconds per song.
+7. Talk to **Neighbor Nell**, Rafe's old friend beside Bellerive's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken** and **Capture I**, briefly: a couple of lines on how the sheet works, then he plays each song once and it's your turn to play it back. His lessons (and the guided battle after them) give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute. Each is one big room, like a Beast Center (the camera follows you round it):
    the host at the lobby desk runs the arena ladder and nothing else; the master waits in the hall on the other side of
    a wall that stops short of the front, and you challenge them there, in person.
-10. Tidewater's arena teaches you to battle properly before you may face its master (`world_db.gd` ARENA_LESSONS,
+10. Bellerive's arena teaches you to battle properly before you may face its master (`world_db.gd` ARENA_LESSONS,
     battle.gd LESSONS "team" and "elements"). Both coaches stand just inside the door; only Rory approaches you.
     **Coach Rory** stops you first and shows you fighting with a whole side of your ring (the arena's practice beasts
     fill your empty slots for the lesson). Then speak to **Coach Ondine** when you're ready for elemental
     weaknesses: her beast is weak to the element of the side facing it (with your earth
     side facing, you borrow the arena's air practice team, since nothing is weak to earth). Only then can you challenge
     **Tide Captain Marina**, and Captain Gull's ferry to the Isle of Tides only takes trainers with her Wave Crest.
-11. The journey runs in one line: the Dune Road north of Tidewater stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
+11. The journey runs in one line: the Dune Road north of Bellerive stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
 
 Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
 `Story.next_goal()`), so what they talk about moves on as soon as you've done it.
 
 | Region | Towns | What happens |
 |---|---|---|
-| Coast | Cocoon Cove, Tidewater | Tidewater has the first arena (its coaches' lessons, then Tide Captain Marina, whose Wave Crest the ferry asks for), **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
+| Coast | Cocoon Cove, Bellerive | Bellerive, a French Quarter harbour town, has the first arena (its coaches' lessons, then Tide Captain Marina, whose Wave Crest the ferry asks for), **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
 | Isle of Tides | Shellhaven, Kelpwick | The two villages are feuding. Hear both chiefs, catch the smuggler on the Isle Trail who framed them, and they open the coral gate to the reef and the **Temple of Tides**. |
 | Desert | Dustwell Oasis, Sundown Gulch (western town) | Bandits terrorise Sundown. Talk to the Sheriff, then beat Black Bart in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
 | Mountains | Copperpick, Cogsworth (steampunk city) | CEO Magnus Gearhart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearhart Tower: each floor's robot sentries must fall before the stairs unlock. |
@@ -154,7 +154,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 ## Systems
 
 - **Fishing** (`scripts/world/fishing.gd`, `scripts/ui/fishing_game.gd`). Fisher Gil fishes off the deck of his rusty
-  tin shack on Tidewater's docks. Talk to him and he offers his spare pole, leaning in the shack (take it before asking
+  tin shack on Bellerive's docks. Talk to him and he offers his spare pole, leaning in the shack (take it before asking
   and you're told stealing is bad). Come back out with it and he stops you for a first cast: something always bites,
   the line is gentler, and he has you try again until you land it. After that, face any water and press A to cast.
   Where the water ripples (each map's `fish_spots`, plus a few picked along its shores) something nearly always bites,
@@ -166,7 +166,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   (Shellhaven, Kelpwick), a Spinner Lure from Copperpick, Cogsworth and Emberfall, a Glow Lure from Riverbend and
   Gravenmoor. Captain Gull's ferry is moored by the long pier, and Gil's rowboat by his shack (map `boats`).
 
-  <img src="docs/screenshots/fishing.jpg" width="640" alt="Reeling one in with Gil, off his shack's deck in Tidewater."><br><sub>Reeling one in with Gil, off his shack's deck in Tidewater.</sub>
+  <img src="docs/screenshots/fishing.jpg" width="640" alt="Reeling one in with Gil, off his shack's deck in Bellerive."><br><sub>Reeling one in with Gil, off his shack's deck in Bellerive.</sub>
 
 - **13 beast lines** of three forms each (`race_db.gd` LINES): Fire has the spiky dino (Embit, Cinderex, Pyrosaur),
   the cactus (Pricklet, Spinesear, Saguaroar) and the pink imp (Impkin, Scampyre, Infernook); Earth the beetle
@@ -215,7 +215,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   were going, else the newest arrow counts (`world.gd` _key_dir).
 - **Cliffs and ramps**: every town and road has high ground (`scripts/world/elevation.gd`). Woods and rock stand on
   ridges along the back and sides of each map, so you're closed in there, with the roads out running through cuts in
-  them; many maps have terraces too: Cocoon Cove's upper neighborhood and rocky coastal bluff, Tidewater's old town over the harbour, the Dune
+  them; many maps have terraces too: Cocoon Cove's upper neighborhood and rocky coastal bluff, Bellerive's stone quay over the harbour, the Dune
   Road's escarpment (the rope ladder a flyer hangs climbs it), the Mesa Trail's canyon walls, Gravenmoor's graveyard
   knoll. Nobody climbs or drops down a cliff, and nobody talks, picks things up or sees across one (trainers and wild
   beasts included); ramps are walked up and down along their slope. Where a river runs over a cliff it falls as a
@@ -225,7 +225,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
   teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
   than any move of its element learnt by levelling (`world_db.gd` TOWNS "signature", `move_db.gd` SIGNATURE, e.g. the
-  Pyrosaur's Bandit Blaze in Cocoon Cove; the frogs' Toadmiral is the mascot of both Tidewater and Riverbend, and
+  Pyrosaur's Bandit Blaze in Cocoon Cove; the frogs' Toadmiral is the mascot of both Bellerive and Riverbend, and
   teaches each town's own move). Nobody else teaches it, and a merge keeps it only for a beast of that line. The statue's plaque explains it, and townsfolk bring it up now and then (`chatter_db.gd` MASCOT_MOVE).
 - **Wild beasts** roam the routes in plain sight; there are no random encounters (the tall grass is still there).
   - Each beast sees in a cone in front of it, half as far if you're in tall grass, and hears you running nearby.
@@ -260,7 +260,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - A trainer battle ends only when a trainer is hit with no shield left, or someone forfeits. Wild beasts have no trainer: beat them all to win. If you're the one hit with no shield left, you wake up at the nearest Beast Center you've visited.
   - Every trainer starts with 1 shield point; trainers on the roads have 0 to 3, depending on their strength. The shield recharges after every battle.
 - **Trainer level**: beating trainers earns trainer XP, and clearing a rank of the **arena ladder** raises your trainer level to at least that rank + 1. The ladder (`ladder_db.gd`) is the same at every arena: ten ranks of three or four ring trainers each; beat them all to open the next rank. Each rank cleared earns a crystal shard; beaten trainers can be fought again.
-- **Sparkwire Electronics** (Volt, Tidewater): **shield points** (5 crystal shards each, up to 4) and **beast slots** (3 shards each, up to 8). How many Volt can fit depends on your trainer level: one more slot per level, one more shield point every other level.
+- **Sparkwire Electronics** (Volt, Bellerive): **shield points** (5 crystal shards each, up to 4) and **beast slots** (3 shards each, up to 8). How many Volt can fit depends on your trainer level: one more slot per level, one more shield point every other level.
 - **Flute songs** are a sheet-music game.
   - Only a song you're learning plays by itself (from a teacher, sheet music, a flute trainer, or the next level of Capture): it plays once while its notes light up on the staff. A song you already know (in battle, practising) doesn't: the sheet comes up and it's your turn straight away. Each line and space is a button: ← → A B from the bottom up.
   - The clock starts on your turn (*Your turn!* lights up over the sheet). Play the notes in order: the sheet stays up the whole time, with the notes you've played lit.
@@ -280,7 +280,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
     - When one of your beasts reaches the cap, you're told the next level is ready. You learn it by practising it on the Flute page of the Start book.
   - The **Requiem of Dusk** follows the same rules for ghost beasts.
   - Other trainers' beasts can't be charmed.
-  - The **arena masters** teach strong combined battle songs, such as Tidewater Shanty (ATK and SPD up) and River Anthem (heal, cure, SPR up).
+  - The **arena masters** teach strong combined battle songs, such as Bellerive Shanty (ATK and SPD up) and River Anthem (heal, cure, SPR up).
 
   <img src="docs/screenshots/flute.jpg" width="640" alt="A song's notes flying from your flute to its targets."><br><sub>A song's notes flying from your flute to its targets.</sub>
 
@@ -329,7 +329,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 ## Art
 
-<img src="docs/screenshots/tidewater.jpg" width="640" alt="Tidewater from above: its houses, the arena, the Sky Tower and the docks."><br><sub>Tidewater from above: its houses, the arena, the Sky Tower and the docks.</sub>
+<img src="docs/screenshots/tidewater.jpg" width="640" alt="Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay."><br><sub>Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay.</sub>
 
 - **Look**: the world aims for the PS2 era (*Final Fantasy X*, *Jade Cocoon 2*) with a clean, soft, stylized finish:
   low-poly shapes with smooth, painted textures and soft light, never grainy or blocky. The packs' small textures are
@@ -404,9 +404,25 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
   Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in
   plain sight.
+- **Bellerive** is the game's French Quarter (`world_db.gd` biome `quarter`, building style `creole`): the whole town
+  stands on a raised stone quay, its streets cobbled setts (the biome's `stone_streets` draws paths as paving) between
+  warm flagstone sidewalks and squares, paved too under its buildings, courtyards and balustrade. `creole_builder.gd`
+  builds everything there but the Beast Center's diner and Gil's tin shack: Creole townhouses of two or three storeys
+  in pastel stucco or red brick along Rue Royale, with louvred shutters and cast-iron galleries on slender posts over
+  the sidewalk (or balconies on brackets), lace railings and hanging ferns, under slate hip roofs, dormered side gables
+  or parapets; on the riverfront row, where a street runs close behind, one-storey Creole cottages and shotgun houses
+  (world.gd "low"). Shops hang a sign board from the gallery over a striped awning in their colour; the low ones wear
+  the awning and the sign on the wall. Sparkwire Electronics is a townhouse with a blue blade sign, the Sky Tower the
+  white bell tower facing the Place d'Armes (a clock, a belfry and a black slate spire, Tempestrix on its balcony),
+  and the arena a cream oval under a mansard ring, entered through a pavilion with a mansard roof, iron cresting, a
+  clock and Mardi Gras banners. The French Market's arcade on the riverfront is scenery (no door). Along the quay a
+  stone balustrade with lamps on its piers (an `F` or `L` tile with the water or lower ground just south: world.gd
+  `_on_quay`); elsewhere `F` is an iron railing. Ramps step down from the promenade to the piers, nearer the water.
+  The harbour's paddle steamer, shrimp trawler, sloops, skiff and schooner are `harbor_boats.gd`'s (a map's `boats`
+  names them like the pack's).
 - **People, eggs, signs and obstacles** are built procedurally:
   - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
-  - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Tidewater's are brick with a flat roof behind a parapet; Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
+  - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
 - The terrain is made of textured blocks, one per tile; water and lava sit one step lower.
 - Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
@@ -483,7 +499,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 - The title's menu comes up first, on the splash colour; the town behind it is built a moment later and fades in. The world and battle scripts, the travel book and the world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
-  - Tidewater plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
+  - Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
   - Desert, mountain, moor and some interiors add an ambient loop.
   - `tools/convert_audio.py` makes 128 kbps copies in `assets/audio/music/`, trimming the 59-minute rainforest track to a 5-minute loop. The originals in `music/` are untouched.
@@ -560,6 +576,12 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`). A door that opens is its own leaf on a hinge (`room_builder.gd _hinged_leaf`; `world.gd _through_door` swings it open, `spawn_at` shuts the one you came in by). Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it); `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight. `world.gd _take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor. `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached. `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
+  - Bellerive keeps the plan in a French Quarter's form: Creole townhouses along Rue Royale, the Place d'Armes (an
+    iron-railed garden round the statue) before the bell tower, a riverfront row of cottages and shops with walled
+    courtyard gardens behind them (the camera has to see over them), and the promenade on the quay. Its catching
+    ground is a fenced park between the town and the arena (`"meadow": {"rect": [...]}`: wild beasts live only in it,
+    in its long grass), where Miss Odile feeds them candy corn; the arena's forecourt is fenced off from the river, so
+    the way there is through the park.
   - Cocoon Cove has three homes on a raised western shelf, a ramp descending beside the library into a compact square,
     and woodland down to its irregular rocky cliffs, with no coastal path. The rocks and water below are inaccessible.
     Two small scenery homes sit close behind the Beast Center on its level; a woodland path leads to the cliffside
@@ -617,6 +639,7 @@ godot --path . -- --scene=rescue --preview=locked --shot=res://docs/screenshots/
 godot --headless --path . -- --scene=tidewater-arrival --verify=1
 godot --path . -- --scene=tidewater-arrival --preview=talk --shot=res://build/shots/tidewater_nell.png
 godot --path . -- --scene=tidewater-arrival --preview=house --shot=res://build/shots/tidewater_rafe.png
+godot --path . -- --scene=tidewater-arrival --preview=odile --shot=res://build/shots/bellerive_odile.png
 godot --path . -- --scene=saveui --touch --save_dir=res://build/save_ui_saves/ --shot=res://build/shots/save_ui.png
 godot --path . -- --scene=saveui --touch --slot=9 --save_dir=res://build/save_ui_saves/ --shot=res://build/shots/save_ui_last.png
 godot --path . --resolution 2400x1080 -- --scene=arena-ladder --touch --rank=10 --verify=1 --shot=res://build/shots/arena_ladder.png
@@ -676,7 +699,7 @@ godot --path . -- --scene=battle --kind=robots --wait=5 --shot=C:/tmp/b.png
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --keys=r,r,r,a,a --shot=C:/tmp/t.png   # aiming a move: target arrows, with move info closed
 godot --headless --path . -- --scene=sim --n=10                          # simulated auto battles
 godot --headless --path . -- --scene=flow                                # scripted run through the whole story
-godot --path . -- --scene=knock                                         # knock on locked doors (a Tidewater house, the cathedral)
+godot --path . -- --scene=knock                                         # knock on locked doors (a Bellerive house, the cathedral)
 godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Tempestrix
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery as the game draws them (pages 0-3: the forms, then the legendaries; 4 = merges)
@@ -689,7 +712,7 @@ godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
-godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Tidewater arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
+godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Bellerive arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
 godot --path . -- --scene=fishing --taps=4.6 --snap=10 --shot=C:/tmp/f.png  # Gil's lesson (--lesson=0: a cast at a ripple, --bait=worm_bait)
 godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a reeled-in beast's battle: the dock and the water
 godot --path . -- --scene=battlecmd --touch                             # the battle's command panel: one A is one confirm, every move's target picked (arrows, all-foe moves), ▲ turns the ring, Move (yours and a foe trainer's), the ring turning by itself ("BATTLE COMMANDS DONE: 0 problem(s)"); --stop=trainer|target|all|move --shot=C:/tmp/b.png

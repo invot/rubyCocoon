@@ -29,9 +29,9 @@ const NEWS := {
 	"path": ["The Coastal Path! I learned to battle on that path. Listen to the trainers out there. They know their stuff."],
 	"bridge": ["Mending Old Hal's footbridge? Good. Always leave a road better than you found it."],
 	"builder_egg": ["Old Hal never forgets a favour. Go and see him before you head on."],
-	"flute": ["My old reed flute's waiting for you with your uncle Rafe in Tidewater. He'll make you practise. Practise anyway."],
+	"flute": ["My old reed flute's waiting for you with your uncle Rafe in Bellerive. He'll make you practise. Practise anyway."],
 	"rafe": ["Learn every song Rafe teaches you. Weaken first, then Capture. That's how I caught my Tempestrix. Allegedly."],
-	"arena": ["Tidewater's arena! Listen to the coaches before you take on Marina. Nobody skips Rory's lesson. Nobody."],
+	"arena": ["Bellerive's arena! Listen to the coaches before you take on Marina. Nobody skips Rory's lesson. Nobody."],
 	"marina": ["Marina's tough. Her beasts are all water, so bring something airy. And don't let her splash you first."],
 	"ferry": ["The Isle of Tides! Those two villages have been squabbling since before I was born."],
 	"chiefs": ["Hear both chiefs out before you take a side. There's always more to a feud than the first story."],
@@ -161,7 +161,7 @@ static func _ahead(world) -> Array:
 	return []
 
 
-## Where you are, for Mom: "on the Coastal Path", "in the Temple of Tides", "round Tidewater".
+## Where you are, for Mom: "on the Coastal Path", "in the Temple of Tides", "round Bellerive".
 static func _place(world) -> String:
 	var m: Dictionary = world.map
 	if m.get("kind", "") == "interior":

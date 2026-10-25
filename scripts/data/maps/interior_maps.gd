@@ -134,7 +134,7 @@ const ROOMS := {
 	## challenge), a bench and the red phone. On the left, on its own marble floor, is the master's hall: the ring (x)
 	## with benches round it and the arena master (3) waiting on its far side, two fans (4, 5) watching. A wall runs
 	## forward from the back between the two and stops short of the front, so you walk round its end to reach the
-	## master. In Tidewater the arena's two coaches (6, 7: world_db.gd ARENA_LESSONS) wait in the lobby: Rory above the
+	## master. In Bellerive the arena's two coaches (6, 7: world_db.gd ARENA_LESSONS) wait in the lobby: Rory above the
 	## entrance looking down at it, Ondine along the row you come in on. Only Rory approaches; Ondine waits to be spoken
 	## to. Elsewhere these are plain floor.
 	"arena": {
@@ -355,7 +355,7 @@ const ROOMS := {
 			"###########",
 		],
 	},
-	## Fisher Gil's shack on the Tidewater docks: nets, crates, and his spare fishing pole (1) leaning by the back wall.
+	## Fisher Gil's shack on the Bellerive docks: nets, crates, and his spare fishing pole (1) leaning by the back wall.
 	"fishery": {
 		"wall": "#8a6a52", "rug": "#3a5a7a", "zone": "wood", "stage": true, "anchors": {"1": "rod"},
 		"rows": [
@@ -367,7 +367,7 @@ const ROOMS := {
 			"#########",
 		],
 	},
-	## Uncle Rafe's house in Tidewater, by the west gate: one room, where he waits (1) with your father's flute.
+	## Uncle Rafe's house in Bellerive, by the west gate: one room, where he waits (1) with your father's flute.
 	"uncle_home": {
 		"wall": "#e0d0b0", "rug": "#4a6a9a", "stage": true, "anchors": {"1": "uncle"},
 		"locked": ["Rafe's kitchen. It smells of brass polish."],

@@ -27,7 +27,7 @@ SHOP = {'C': 'center', 'A': 'apothecary', 'G': 'beast_gear', 'O': 'trainer_gear'
         'Q': 'temple', 'X': 'electronics', 'V': 'skytower', 'I': 'ceo_tower', 'B': 'cathedral', 'J': 'hideout',
         'h': 'decor', 'D': 'music_shop', 's': 'shack'}
 # town -> building style (world_db.gd BIOMES)
-STYLE = {'caccoon': 'coastal', 'tidewater': 'coastal', 'shellhaven': 'island', 'kelpwick': 'island',
+STYLE = {'caccoon': 'coastal', 'tidewater': 'creole', 'shellhaven': 'island', 'kelpwick': 'island',
          'dustwell': 'adobe', 'sundown': 'western', 'copperpick': 'mining', 'cogsworth': 'steampunk',
          'emberfall': 'hotspring', 'vinehollow': 'jungle', 'riverbend': 'town', 'gravenmoor': 'gothic'}
 ROOF = {'coastal': 'gable', 'island': 'hip', 'adobe': 'flat', 'western': 'western', 'mining': 'shed',
@@ -42,15 +42,17 @@ DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
 def load_towns():
-    """name -> (rows, heights rows or None)"""
+    """name -> (rows, heights rows or None, scenery buildings [(x, y, w, d)])"""
     src = open(SRC, encoding='utf-8').read()
     towns = {}
     for m in re.finditer(r'^\t"(\w+)": \{\n(.*?)^\t\},', src, re.S | re.M):
         body = m.group(2)
         rows = re.search(r'^\t\t"rows": \[\n(.*?)\t\t\],', body, re.S | re.M)
         hts = re.search(r'^\t\t"heights": \[\n(.*?)\t\t\],', body, re.S | re.M)
+        scen = re.search(r'^\t\t"scenery_houses": \[(.*?)\],\n', body, re.S | re.M)
+        scenery = [tuple(int(v) for v in t) for t in re.findall(r'"x": (\d+), "y": (\d+), "w": (\d+), "d": (\d+)', scen.group(1))] if scen else []
         towns[m.group(1)] = (re.findall(r'"([^"]*)"', rows.group(1)),
-                             re.findall(r'"([^"]*)"', hts.group(1)) if hts else None)
+                             re.findall(r'"([^"]*)"', hts.group(1)) if hts else None, scenery)
     return towns
 
 
@@ -146,9 +148,34 @@ def buildings(rows):
     return out
 
 
-def roof_height(style, shop, w, d, lx, lz):
+def creole_height(shop, w, d, lx, lz, low):
+    """Bellerive's buildings (creole_builder.gd): the bell tower, the arena, townhouses of two or three storeys, and
+    one-storey cottages under a steep gable (a row with a street close behind it: world.gd "low")."""
+    ax, az = abs(lx), abs(lz)
+    if shop == 'skytower':
+        if ax <= (w - 0.6) / 2 and az <= (d - 0.6) / 2:
+            return 11.6 if ax <= (w - 1.1) / 2 and az <= (d - 1.1) / 2 else 9.1
+        return 0.0
+    if shop == 'arena':
+        if ax > w / 2 or az > d / 2:
+            return 0.0
+        return 8.0 if abs(lx) <= 1.7 and lz >= d / 2 - 1.8 else 7.4
+    if low:
+        # (the same steep gable over a cottage, a shotgun's ridge or a shop's)
+        if ax > (w + 0.3) / 2 or az > d / 2 + 0.45:
+            return 0.0
+        return 3.12 + max(0.0, (d / 2 + 0.45 - az) * 1.05)
+    if ax > w / 2 or az > d / 2:
+        return 0.0
+    floors = 2 if shop in COMMERCIAL or shop == 'electronics' else 3
+    return 0.24 + floors * 2.8 + (floors - 1) * 0.12 + 1.6
+
+
+def roof_height(style, shop, w, d, lx, lz, low=False):
     """Height of a building's top at local position (lx, lz) from its centre, or 0 outside it."""
     ax, az = abs(lx), abs(lz)
+    if style == 'creole' and shop not in ('center',):
+        return creole_height(shop, w, d, lx, lz, low)
     if shop == 'center':
         return 2.32 if ax <= (w - 0.2) / 2 and az <= (d - 0.3) / 2 else 0.0
     if shop == 'arena':
@@ -241,14 +268,31 @@ def gable(d, lz, rise):
     return best
 
 
-def height_map(rows, style, lv):
+def walk_gap_behind(rows, x0, y0, bw):
+    """world.gd _walk_gap_behind: rows behind (north of) a plot to the nearest tile anyone can walk on."""
+    for k in range(1, 15):
+        y = y0 - k
+        if y < 0:
+            return 99
+        if any(rows[y][x] in WALK for x in range(x0, x0 + bw)):
+            return k - 1
+    return 99
+
+
+def height_map(rows, style, lv, scenery=()):
     """Callable (wx, wz) -> height of whatever stands there, on its level."""
     h, w = len(rows), len(rows[0])
     cells = {}
     for c, x, y, bw, bd in buildings(rows):
+        low = walk_gap_behind(rows, x, y, bw) < 12
         for yy in range(y - 1, y + bd + 1):
             for xx in range(x - 1, x + bw + 1):
-                cells.setdefault((xx, yy), []).append(('b', SHOP[c], x + bw / 2, y + bd / 2, bw, bd, lv.surface((x, y))))
+                cells.setdefault((xx, yy), []).append(('b', SHOP[c], x + bw / 2, y + bd / 2, bw, bd, lv.surface((x, y)), low))
+    for x, y, bw, bd in scenery:
+        # scenery buildings (the map's "scenery_houses"): low ones, kept to one storey and a roof
+        for yy in range(y - 1, y + bd + 1):
+            for xx in range(x - 1, x + bw + 1):
+                cells.setdefault((xx, yy), []).append(('b', 'decor' if style != 'creole' else 'house', x + bw / 2, y + bd / 2, bw, bd, lv.surface((x, y)), True))
     for y in range(h):
         for x in range(w):
             c = rows[y][x]
@@ -271,7 +315,7 @@ def height_map(rows, style, lv):
         best = 0.0
         for o in cells.get((math.floor(wx), math.floor(wz)), ()):
             if o[0] == 'b':
-                rh = roof_height(style, o[1], o[4], o[5], wx - o[2], wz - o[3])
+                rh = roof_height(style, o[1], o[4], o[5], wx - o[2], wz - o[3], o[7])
                 if rh > 0:
                     best = max(best, rh + o[6])
             elif o[0] == 't':
@@ -305,7 +349,7 @@ def hidden(at, x, y, ht, ground=0.0):
     return False
 
 
-def check(name, rows, hrows=None):
+def check(name, rows, hrows=None, scenery=()):
     h, w = len(rows), len(rows[0])
     problems = []
     bad_rows = [i for i, r in enumerate(rows) if len(r) != w]
@@ -313,7 +357,7 @@ def check(name, rows, hrows=None):
         return ['rows of different widths: %s' % bad_rows]
     style = STYLE.get(name, 'town')
     lv = Levels(w, h, hrows)
-    at = height_map(rows, style, lv)
+    at = height_map(rows, style, lv, scenery)
     blind, half = [], []
     for y in range(h):
         for x in range(w):

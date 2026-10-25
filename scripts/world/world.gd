@@ -22,6 +22,8 @@ const VBld =preload("res://scripts/gfx/voxel_buildings.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
+const Creole = preload("res://scripts/gfx/creole_builder.gd")
+const HarborBoats = preload("res://scripts/gfx/harbor_boats.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -421,11 +423,19 @@ func _build_terrain() -> void:
 			if c in [MapGen.LAMP, MapGen.SIGN]:
 				# a lamp post or a signpost stands on whatever ground is around it
 				c = MapLoader._infer_floor(map, Vector2i(x, y))
+			elif biome.get("stone_streets", false) and not map.get("over_water", {}).has(Vector2i(x, y)):
+				# a town of stone (Bellerive) is paved under its buildings, its courtyards' planting and the quay's
+				# balustrade; a fence elsewhere stands on the ground around it
+				if c in [MapGen.BUILDING, MapGen.BUSH] or (c == MapGen.FENCE and _on_quay(Vector2i(x, y))):
+					c = MapGen.PLAZA
+				elif c == MapGen.FENCE:
+					c = MapLoader._infer_floor(map, Vector2i(x, y))
 			if c == MapGen.BUILDING and map.get("over_water", {}).has(Vector2i(x, y)):
 				c = MapGen.BRIDGE
 			match c:
 				MapGen.PATH, MapGen.DOOR:
-					kind = "path"
+					# a town of stone (Bellerive) cobbles its streets
+					kind = "paving" if biome.get("stone_streets", false) else "path"
 				MapGen.PLAZA, MapGen.STATUE:
 					kind = "plaza"
 				MapGen.SAND:
@@ -481,7 +491,7 @@ func _build_terrain() -> void:
 	for layer in VT.GROUND_LAYERS:
 		tints.append(Color({"grass": biome["ground"], "path": biome["path"], "plaza": biome["plaza"], "sand": biome["sand"],
 			"rock": rock_hex, "bed": Color(biome["sand"]).darkened(0.35).to_html(false), "lava_bed": "#3a2a28",
-			"paving": "#9a948a", "ice": "#cfeaf6"}[layer]))
+			"paving": biome.get("paving", "#9a948a"), "ice": "#cfeaf6"}[layer]))
 	# cliff faces: the crags' rock, a little warmer, more of the local soil in it
 	t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls")
 	terrain_mats = t.materials
@@ -681,7 +691,7 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 				spots.append(Vector2(-5.5 if side < 0 else w + 5.5, z))
 				z += rng.randf_range(9.0, 12.0)
 	for p in spots:
-		var made := HouseModels.backdrop(style, rng)
+		var made := Creole.backdrop(rng) if style == "creole" else HouseModels.backdrop(style, rng)
 		var node: Node3D = made[0]
 		if node == null:
 			continue
@@ -743,6 +753,13 @@ func _open_ground_near(x: int, y: int, r: int) -> bool:
 			if (dx != 0 or dy != 0) and MapGen.walkable(MapGen.get_t(map, x + dx, y + dy)):
 				return true
 	return false
+
+
+## True for a tile on the edge of a quay: the water, a pier or lower ground just south of it (the balustrade's line).
+func _on_quay(p: Vector2i) -> bool:
+	var south := p + Vector2i(0, 1)
+	var c := MapGen.get_t(map, south.x, south.y)
+	return c in [MapGen.WATER, MapGen.BRIDGE] or Elev.surface(map, south) < Elev.surface(map, p) - 0.4
 
 
 func _add_asset(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
@@ -834,18 +851,36 @@ func _build_scatter() -> void:
 	_multimesh(VP.bush(Color(tuft_hex).darkened(0.12).to_html(false), 0), bushes)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
-	var fence_name := "iron_fence" if biome["id"] == "moor" else "fence"
+	var fence_name := "iron_fence" if biome["id"] in ["moor", "quarter"] else "fence"
 	var fx := []
 	var fs := VA.fit_scale(fence_name, -1.0, 1.05)
+	var quay: bool = biome["id"] == "quarter"
+	var balusters := []
+	var piers := []
 	for p in fences:
-		var horiz := MapGen.get_t(map, p.x - 1, p.y) == MapGen.FENCE or MapGen.get_t(map, p.x + 1, p.y) == MapGen.FENCE
+		var runs := [MapGen.FENCE, MapGen.LAMP] if quay else [MapGen.FENCE]
+		var horiz: bool = MapGen.get_t(map, p.x - 1, p.y) in runs or MapGen.get_t(map, p.x + 1, p.y) in runs
+		if quay and _on_quay(p):
+			# Bellerive's promenade: a stone balustrade along the quay's edge, a pier wherever a run of it ends
+			balusters.append(_xf(tile_pos(p), 0.0 if horiz else PI / 2.0))
+			for side in [-1, 1]:
+				var q: Vector2i = p + (Vector2i(side, 0) if horiz else Vector2i(0, side))
+				if not MapGen.get_t(map, q.x, q.y) in runs:
+					piers.append(_xf(tile_pos(p) + (Vector3(side * 0.5, 0, 0) if horiz else Vector3(0, 0, side * 0.5))))
+			continue
 		fx.append(_xf(tile_pos(p) - Vector3(0, VA.aabb(fence_name).position.y * fs, 0), 0.0 if horiz else PI / 2.0, fs))
 	_multimesh(VA.mesh(fence_name), fx)
+	_multimesh(Creole.balustrade(), balusters)
 	var lx := []
 	# gas lamps a head and more above the people
 	var ls := VA.fit_scale("lamp", 2.8)
 	var gloomy: bool = float(biome.get("sun_e", 1.3)) < 1.0
 	for c in lamps:
+		var at := Vector2i(floori(c.x), floori(c.z))
+		if quay and _on_quay(at):
+			# on the quay a lamp stands on a pier of the balustrade
+			piers.append(_xf(c))
+			c += Vector3(0, 0.87, 0)
 		lx.append(_xf(c, 0.0, ls))
 		if not gloomy:
 			continue
@@ -856,6 +891,7 @@ func _build_scatter() -> void:
 		l.position = c + Vector3(0, 2.6, 0)
 		add_child(l)
 	_multimesh(VA.mesh("lamp"), lx)
+	_multimesh(Creole.pier(), piers)
 	var sx := []
 	for c in signs:
 		sx.append(_xf(c))
@@ -894,6 +930,9 @@ func _plan_houses() -> void:
 			b["low"] = true
 			# (never lower than a one-storey house: it's those that are wanted there)
 			max_h = maxf(4.6, CAM_LOOK_Y + (CAM_OFFSET.y - CAM_LOOK_Y) * (float(gap) + 0.5) / CAM_OFFSET.z)
+		if style == "creole":
+			# Bellerive's buildings are its own (creole_builder.gd): only whether it's kept low matters here
+			continue
 		var o := Vector2(float(x0) + float(w) / 2.0, float(y0) + float(d) / 2.0)
 		max_h = minf(max_h, float(b.get("house_max_height", INF)))
 		var plan := {}
@@ -935,15 +974,26 @@ func _plan_houses() -> void:
 		var b: Dictionary = entry.duplicate()
 		b["door"] = Vector2i(int(b["x"]) + int(b["w"]) / 2, int(b["y"]) + int(b["d"]) - 1)
 		b["seed"] = (map_id + String(b["name"])).hash()
-		var plan := HouseModels.plan(b, b.get("style", style), {}, false)
-		if plan.is_empty():
-			continue
-		var node := HouseModels.build(plan)
+		var node: Node3D
+		var footprint: Rect2
+		if style == "creole":
+			# Bellerive's own: a low building, or the market's arcade
+			b["low"] = true
+			node = Creole.scenery(b)
+			footprint = Rect2(-float(b["w"]) / 2.0, -float(b["d"]) / 2.0, float(b["w"]), float(b["d"]))
+		else:
+			var plan := HouseModels.plan(b, b.get("style", style), {}, false)
+			if plan.is_empty():
+				continue
+			node = HouseModels.build(plan)
+			footprint = plan["rect"]
 		node.name = b["name"]
 		var origin := Vector2(float(b["x"]) + float(b["w"]) / 2.0, float(b["y"]) + float(b["d"]) / 2.0)
 		node.position = Vector3(origin.x, _lift(b["door"]), origin.y)
 		add_child(node)
-		var footprint: Rect2 = plan["rect"]
+		# it fades like any building when it comes between the camera and you (no door: "decor" to refresh_locks)
+		b["shop"] = "decor"
+		building_fades.append({"b": b, "meshes": node.find_children("*", "GeometryInstance3D", true, false), "node": node})
 		for y in range(floori(origin.y + footprint.position.y) - 1, ceili(origin.y + footprint.end.y) + 1):
 			for x in range(floori(origin.x + footprint.position.x) - 1, ceili(origin.x + footprint.end.x) + 1):
 				house_cover[Vector2i(x, y)] = true
@@ -1190,7 +1240,10 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 		node = _decor_building(b, style)
 	else:
 		b["locked"] = Places.door_locked(b)
-		node = VBld.build(b, style)
+		if style == "creole" and not b["shop"] in ["center", "fishery"]:
+			node = Creole.build(b)
+		else:
+			node = VBld.build(b, style)
 	# (a building stands on one level: its door's, see tools/check_maps.gd)
 	node.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, _lift(b["door"]), float(b["y"]) + float(b["d"]) / 2.0)
 	add_child(node)
@@ -1216,6 +1269,8 @@ func refresh_locks() -> void:
 func _decor_building(b: Dictionary, style: String) -> Node3D:
 	var bb := b.duplicate()
 	bb["shop"] = "house"
+	if style == "creole":
+		return Creole.build(bb)
 	return VBld.build(bb, style)
 
 
@@ -2138,7 +2193,7 @@ func _check_trainer_sight(lessons_only := false) -> bool:
 
 
 ## The teachers don't wait for you to take a step: arriving on a map (Youngster Kit as you come through his door, the
-## Tidewater arena's Coach Rory at its entrance), or after another teacher's lesson, automatic teachers who can see
+## Bellerive arena's Coach Rory at its entrance), or after another teacher's lesson, automatic teachers who can see
 ## you come over. Manual teachers stay at their posts.
 ## Other trainers only notice you once you walk into their sight.
 func spot_you() -> void:
@@ -2277,9 +2332,11 @@ const BOAT_BOB := 0.03
 func _build_boats() -> void:
 	for bt in map.get("boats", []):
 		var name := String(bt[3])
-		var bb := VA.aabb(name)
+		# Bellerive's own (harbor_boats.gd), or one of the PSX pack's
+		var own := HarborBoats.has(name)
 		var mi := MeshInstance3D.new()
-		mi.mesh = VA.mesh(name)
+		mi.mesh = HarborBoats.mesh(name) if own else VA.mesh(name)
+		var bb := mi.mesh.get_aabb() if own else VA.aabb(name)
 		var s := float(bt[4]) / maxf(0.01, maxf(bb.size.x, bb.size.z))
 		mi.scale = Vector3(s, s, s)
 		var holder := Node3D.new()
@@ -2287,7 +2344,8 @@ func _build_boats() -> void:
 		var at := Vector2i(floori(float(bt[0])), floori(float(bt[1])))
 		holder.position = Vector3(float(bt[0]), _lift(at) - 0.12, float(bt[1]))
 		holder.rotation.y = deg_to_rad(float(bt[2]))
-		mi.position.y = -float(BOAT_DEPTH.get(name, 0.0)) - bb.position.y * s
+		# (the harbour's own boats are drawn with their waterline at 0)
+		mi.position.y = 0.0 if own else -float(BOAT_DEPTH.get(name, 0.0)) - bb.position.y * s
 		holder.add_child(mi)
 		add_child(holder)
 		bobbers.append([holder, holder.position.y, 1.3 + float(bt[0]) * 0.01, BOAT_BOB])
@@ -2478,7 +2536,7 @@ func _pickup_shard(sh: Dictionary) -> void:
 	shards.erase(sh["pos"])
 	Sfx.play("shard")
 	await UI.say(["You found a crystal shard! (%d in your bag)" % GameState.shards,
-		"Five shards buy a shield upgrade at Sparkwire Electronics in Tidewater." if GameState.shards < 5 else "You have enough for a shield upgrade at Sparkwire Electronics in Tidewater!"])
+		"Five shards buy a shield upgrade at Sparkwire Electronics in Bellerive." if GameState.shards < 5 else "You have enough for a shield upgrade at Sparkwire Electronics in Bellerive!"])
 
 
 func _open_menu() -> void:

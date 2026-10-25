@@ -23,6 +23,8 @@ const STYLES := {
 	"jungle": {"wall": ["planks_v", "#9a7040"], "roof": ["leaf", "#5a9a3a"], "trim": "#5a3a1a", "base": "#6a4a2a", "roof_type": "hip", "stilts": true, "door": "#5a3a1a"},
 	"town": {"wall": ["timber", "#efe4cc"], "roof": ["shingle", "#a8503a"], "trim": "#5a3a26", "base": "#9a948a", "roof_type": "gable", "door": "#5a3a26"},
 	"gothic": {"wall": ["stone_dark", "#7a7a84"], "roof": ["slate", "#3a3a48"], "trim": "#4a4a52", "base": "#5a5a62", "roof_type": "steep", "door": "#3a2a3a", "window": "#b080ff"},
+	# Bellerive's French Quarter: its buildings are creole_builder.gd's; this is for what's shared (the diner, rooms)
+	"creole": {"wall": ["plaster", "#f0cc7a"], "roof": ["slate", "#56626e"], "trim": "#f6f1e6", "base": "#a8a096", "roof_type": "hip", "door": "#2f6048"},
 }
 const SHOP_ROOF := {"center": "#d84848", "arena": "#c8a030", "electronics": "#3a3a48", "apothecary": "#48a868", "bookstore": "#8050b0",
 	"cafe": "#e090a0", "dojo": "#7a4a30", "museum": "#4890a0", "music_hall": "#3a50a8", "music_shop": "#b07a30", "fortune": "#a040a0", "beast_gear": "#d08030",
@@ -47,6 +49,7 @@ const SHOP_LOOKS := {
 	"hotspring": {"floors": 2, "ground": ["wood_dark", "#7a4a32"], "upper": ["plaster", "#f2ead6"], "roof": "pagoda", "skirt": true},
 	"island": {"floors": 1, "ground": ["bamboo", "#d8b878"], "roof": "hip", "open": true},
 	"jungle": {"floors": 1, "ground": ["planks_v", "#9a7040"], "roof": "hip", "open": true},
+	"creole": {"floors": 2, "ground": ["plaster", "#f0cc7a"], "upper": ["plaster", "#f0cc7a"], "roof": "flat", "trim": "#f6f1e6", "flat_roof": "#7a7068"},
 }
 const SHOP_GROUND := 2.8
 const SHOP_UPPER := 2.9
@@ -163,7 +166,7 @@ class Kit:
 static func style_for(biome_id: String) -> String:
 	return {"coast": "coastal", "island": "island", "desert": "adobe", "western": "western", "canyon": "western",
 		"mountain": "mining", "steampunk": "steampunk", "volcano": "hotspring", "hotspring": "hotspring",
-		"jungle": "jungle", "river": "town", "moor": "gothic", "forest": "town", "meadow": "town"}.get(biome_id, "town")
+		"jungle": "jungle", "river": "town", "moor": "gothic", "forest": "town", "meadow": "town", "quarter": "creole"}.get(biome_id, "town")
 
 
 ## Builds the full node for a building dictionary (shop, w, d, height, door, x, y, seed).
@@ -1694,7 +1697,7 @@ static func _on_face(mesh: Mesh, face: float) -> float:
 
 ## Dresses a locked door: two iron straps across it and a brass padlock where the handle would be.
 ## `c` is the centre of the door's front face; `dw` and `dh` its width and height.
-## Fisher Gil's shack on the Tidewater docks: a lean-to nailed together from corrugated sheets of every rust and old grey
+## Fisher Gil's shack on the Bellerive docks: a lean-to nailed together from corrugated sheets of every rust and old grey
 ## zinc, each a little off true and a different height, a patched roof sloping to the front past its plank door, a
 ## boarded window, a stovepipe, a lifebuoy and a crate of floats. It stands on the pier's planks (map_loader.gd
 ## over_water).

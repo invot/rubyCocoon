@@ -40,7 +40,7 @@ const BEATS := [
 	[40.5, 46.0, "", "", "spring"],
 	[46.0, 52.5, "", "Out of their burrows. Off to find food, a mate... or trouble.", "beasts"],
 	[52.5, 58.5, "{player}", "Spring's here! My first beast. My own journey. I can hardly wait!", "hero"],
-	[58.5, 64.5, "MOM", "Rowan's got your egg. Uncle Rafe has Dad's flute, over in Tidewater.", "mom"],
+	[58.5, 64.5, "MOM", "Rowan's got your egg. Uncle Rafe has Dad's flute, over in Bellerive.", "mom"],
 	[64.5, 72.5, "{player}", "A whole season of adventure! Unless some gloomy weirdo's put 'ruin spring' on his to-do list. Ha! Get a hobby!", "hero"],
 ]
 ## Where everyone stands in the office: Vexmora and Mara face each other across the rug, Gearhart by his desk.

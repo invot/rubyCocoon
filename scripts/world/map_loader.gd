@@ -334,15 +334,19 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		if r.has("pack"):
 			m["encounter"]["pack"] = r["pack"]
 
-	# a town's catching meadow (Tidewater's): wild beasts live only inside its ring of hedges, never in the streets
+	# a town's catching ground (Bellerive's park): wild beasts live only inside it, never in the streets
 	if src.has("meadow"):
 		var md: Dictionary = src["meadow"]
 		m["encounter"] = {"races": md["races"], "lv": md["lv"], "rate": 0.11, "ghosts": 0.0, "after_flute": true, "pack": 1}
-		var mc := Vector2(float(md["center"][0]), float(md["center"][1]))
+		# a ring round "center" (radius tiles), or a fenced park's "rect" [x0, y0, x1, y1]
+		var mc := Vector2(float(md.get("center", [0, 0])[0]), float(md.get("center", [0, 0])[1]))
+		var mr: Array = md.get("rect", [])
 		var area := {}
 		for y in h:
 			for x in w:
-				if Vector2(x, y).distance_to(mc) <= float(md["radius"]) and MapGen.walkable(MapGen.get_t(m, x, y)):
+				var inside := Vector2(x, y).distance_to(mc) <= float(md.get("radius", 0.0)) if mr.is_empty() else \
+					(x >= int(mr[0]) and y >= int(mr[1]) and x <= int(mr[2]) and y <= int(mr[3]))
+				if inside and MapGen.walkable(MapGen.get_t(m, x, y)):
 					area[Vector2i(x, y)] = true
 		m["wild_area"] = area
 	# a building standing in the water (a fishery on the docks) stands on planks over it

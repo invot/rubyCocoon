@@ -137,7 +137,7 @@ const LESSONS := {
 			{"say": ["Good as new! Now finish it!"], "you": "Watch", "beast": "Fight"},
 		]},
 	"ring": {"level": 4, "finish": 1, "trainer": true,
-		"intro": ["Last lesson before Tidewater: the battle ring. This is how the pros fight.",
+		"intro": ["Last lesson before Bellerive: the battle ring. This is how the pros fight.",
 			"Every trainer stands in the middle of a ring of eight slots. It has a side for each element, round it in this order: Fire, Air, Water, Earth.",
 			"Only the side facing the foe fights, with that side's element or plain moves. With more beasts, you can turn your ring: up on the top beast, or down on the bottom one.",
 			"The beast in the MIDDLE of the side facing the foe guards its trainer. Knock out the foe's middle beast, and the trainer behind it is open to attack!"],
@@ -147,7 +147,7 @@ const LESSONS := {
 				"Every hit on a trainer breaks one of their shield points: the blue orbs under their grid. A trainer hit with no shield left loses the battle. I've got none today."],
 				"you": "Watch", "beast": "Fight", "target": "trainer"},
 		]},
-	# Tidewater's arena coaches (story.gd ARENA_LESSONS). practice: the arena's practice beasts fill the empty slots of
+	# Bellerive's arena coaches (story.gd ARENA_LESSONS). practice: the arena's practice beasts fill the empty slots of
 	# the side facing the foe (and the coach's "practice_side" turns your ring to that side first), see _practice_beasts
 	"team": {"finish": 2, "practice": true,
 		"intro": ["In a real battle, every beast on the side of your ring facing the foe fights: up to three at once, each with its own bar.",
@@ -906,7 +906,7 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		tufts[i % 3].append(_xf(p, rng.randi_range(0, 3) * PI / 2.0, rng.randf_range(0.9, 1.3)))
 	for i in 3:
 		_multimesh(VP.grass_tuft(biome["tuft"], i), tufts[i])
-	if biome["id"] in ["coast", "island", "river"]:
+	if biome["id"] in ["coast", "quarter", "island", "river"]:
 		var water := MeshInstance3D.new()
 		var wp := PlaneMesh.new()
 		wp.size = Vector2(80, 14)
@@ -2292,7 +2292,7 @@ func _panel_rows() -> Array:
 		{"id": "slingshot", "label": "Slingshot", "target": "enemy", "desc": "Fire a stone at a foe or an exposed trainer."},
 		{"id": "items", "label": "Items", "sub": true, "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
 		{"id": "flute", "label": "Flute", "sub": true, "disabled": not GameState.has_flute(),
-			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Tidewater is keeping your father's."},
+			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Bellerive is keeping your father's."},
 		{"id": "watch", "label": "Watch", "target": "none", "desc": "Let your beasts handle this round."},
 	]
 	if not GameState.summons.is_empty():
@@ -4470,7 +4470,7 @@ func _trainer_xp() -> void:
 		Sfx.play("levelup")
 		await msg("You're now a Lv %d trainer!" % GameState.trainer_level, 1.0)
 		if GameState.slot_cap() > before_slots or GameState.shield_cap() > before_shield:
-			await msg("Volt at Sparkwire Electronics in Tidewater can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
+			await msg("Volt at Sparkwire Electronics in Bellerive can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
 				else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")), 1.4)
 
 

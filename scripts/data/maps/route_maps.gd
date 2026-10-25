@@ -77,8 +77,8 @@ const MAPS := {
 		],
 		"anchors": {"2": "lesson_screen", "3": "lesson_turns", "4": "lesson_slingshot", "5": "lesson_items", "6": "lesson_ring", "7": "logpile"},
 		"signs": [
-			"Coastal Path. West: Cocoon Cove. East: Tidewater.",
-			"Creek Footbridge ahead, on the road to Tidewater. Builder's cabin by the creek.",
+			"Coastal Path. West: Cocoon Cove. East: Bellerive.",
+			"Creek Footbridge ahead, on the road to Bellerive. Builder's cabin by the creek.",
 		],
 	},
 	"route2": {

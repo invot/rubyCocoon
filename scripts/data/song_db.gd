@@ -13,7 +13,7 @@ extends RefCounted
 ##            temple's stone puzzle ("min_notes") and grows with mastery like the others.
 ## Playing: see flute_game.gd. A song is sheet music of 4 to 16 notes that you memorise and play back against the clock.
 ## Higher levels are longer, add ↑ then ↓ above the first four notes, and finally chords (A or B with a direction).
-## Learning: Uncle Rafe in Tidewater hands over your father's flute and teaches Weaken and Capture I. Arena masters teach strong battle
+## Learning: Uncle Rafe in Bellerive hands over your father's flute and teaches Weaken and Capture I. Arena masters teach strong battle
 ## songs. The music shop in Cogsworth plays one song for free (once) and sells sheet music. A few rival trainers
 ## play their own songs in battle; play one back without a single mistake after the battle and it's yours.
 ##
@@ -23,7 +23,7 @@ extends RefCounted
 const SONGS := {
 	# ---------------- effect songs ----------------
 	"weaken": {"name": "Weaken", "kind": "effect", "target": "enemies", "debuff": {"def": -1},
-		"bpm": 84, "tier": 0, "root": 72, "from": "Uncle Rafe in Tidewater"},
+		"bpm": 84, "tier": 0, "root": 72, "from": "Uncle Rafe in Bellerive"},
 	"jig": {"name": "Swift Jig", "kind": "effect", "target": "allies", "buff": {"spd": 1},
 		"bpm": 96, "tier": 1, "root": 76, "from": "Bard Tamsin on the Coastal Path / Cogsworth music shop", "shop": 700},
 	"hymn": {"name": "Battle Hymn", "kind": "effect", "target": "allies", "buff": {"atk": 1},
@@ -51,8 +51,8 @@ const SONGS := {
 	"dread": {"name": "Dread March", "kind": "effect", "target": "enemies", "debuff": {"atk": -1}, "status": "fear", "chance": 0.25,
 		"bpm": 96, "tier": 6, "root": 64, "from": "General Vexmora"},
 	# ---------------- arena songs: strong battle songs taught by the arena masters ----------------
-	"shanty": {"name": "Tidewater Shanty", "kind": "effect", "target": "allies", "buff": {"atk": 1, "spd": 1},
-		"bpm": 90, "tier": 1, "root": 74, "from": "Tide Captain Marina (Tidewater Arena)"},
+	"shanty": {"name": "Bellerive Shanty", "kind": "effect", "target": "allies", "buff": {"atk": 1, "spd": 1},
+		"bpm": 90, "tier": 1, "root": 74, "from": "Tide Captain Marina (Bellerive Arena)"},
 	"coral": {"name": "Coral Hymn", "kind": "effect", "target": "allies", "buff": {"def": 1}, "heal_pct": 0.15,
 		"bpm": 94, "tier": 2, "root": 71, "from": "Reef Warden Nerissa (Kelpwick Arena)"},
 	"reel": {"name": "Sundown Reel", "kind": "effect", "target": "enemies", "debuff": {"spd": -1, "acc": -1},
@@ -132,7 +132,7 @@ static func get_song(id: String) -> Dictionary:
 		var n := clampi(capture_level(id), 1, CAPTURE_CAPS.size())
 		return {"name": "Capture " + ROMAN[n - 1], "kind": "charm", "max_level": CAPTURE_CAPS[n - 1], "capture": n,
 			"bpm": 80 + n * 4, "tier": mini(8, n - 1), "root": 72 + (n % 3),
-			"from": "Uncle Rafe in Tidewater taught you Capture I. Each new level is practised from the Flute page of your book"}
+			"from": "Uncle Rafe in Bellerive taught you Capture I. Each new level is practised from the Flute page of your book"}
 	return SONGS.get(id, SONGS["weaken"])
 
 

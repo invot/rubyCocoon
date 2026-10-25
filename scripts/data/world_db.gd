@@ -12,9 +12,9 @@ const TOWNS := {
 	"caccoon": {"name": "Cocoon Cove", "size": "hamlet", "mascot": 2, "signature": "bandit_blaze", "biome": "coast",
 		"shops": ["center", "apothecary", "home", "house", "house", "bookstore"],
 		"blurb": "A spacious hamlet above a rocky cove, home of the Pyrosaur. Its library welcomes new travelers."},
-	"tidewater": {"name": "Tidewater", "size": "town", "mascot": 29, "signature": "tidewater_torrent", "biome": "coast",
+	"tidewater": {"name": "Bellerive", "size": "town", "mascot": 29, "signature": "tidewater_torrent", "biome": "quarter",
 		"shops": ["center", "apothecary", "electronics", "beast_gear", "bookstore", "cafe", "arena", "skytower", "house", "house", "house"],
-		"blurb": "A busy harbour town. Ferries sail from here to the Isle of Tides."},
+		"blurb": "A French Quarter harbour town of iron balconies and stone quays. Ferries sail from here to the Isle of Tides."},
 	"shellhaven": {"name": "Shellhaven", "size": "village", "mascot": 26, "signature": "pearl_cannon", "biome": "island",
 		"shops": ["center", "apothecary", "cafe", "house", "house", "house"],
 		"blurb": "A fishing village on the west shore of the Isle of Tides."},
@@ -136,20 +136,20 @@ const LESSON_TRAINERS := [
 		"gift": {"minor_potion": 3},
 		"look": {"skin": "#f8d8c0", "hair": "#e0c070", "hair_style": 1, "shirt": "#e8a0c0", "pants": "#6a5a8a"},
 		"lines": ["Is that a beast? Is it hungry? Never mind. Let's talk about the most important thing in a battle: snacks. I mean items."],
-		"after": ["Take these for the road: three Minor Potions! Ranger Holt waits just before Tidewater with the last lesson."],
+		"after": ["Take these for the road: three Minor Potions! Ranger Holt waits just before Bellerive with the last lesson."],
 		"defeat": "Potions heal HP and Spirit Drops bring back MP. Apothecaries sell them. Picnic baskets don't. I checked."},
 	{"anchor": "lesson_ring", "lesson": "ring", "name": "Holt", "cls": "Ranger", "team": [[30, 3]], "facing": Vector2i(0, -1),
 		"look": {"skin": "#8a5a3a", "hair": "#2a1a10", "shirt": "#5a7a3a", "pants": "#4a3a2a", "hat": "#4a6a2a"},
-		"lines": ["Halt! Rangers check every new trainer before Tidewater. Relax, it's a lesson, not a test. Well. A little bit a test."],
+		"lines": ["Halt! Rangers check every new trainer before Bellerive. Relax, it's a lesson, not a test. Well. A little bit a test."],
 		"after": ["You're ready. Shields recharge after every battle, and Volt at Sparkwire Electronics can add shield points and beast slots for crystal shards.",
-			"Now go and see your uncle! Tidewater's just along the trail."],
+			"Now go and see your uncle! Bellerive's just along the trail."],
 		"defeat": "Knock out the foe's middle beast, then hit the trainer. No shield left? That trainer loses."},
 ]
 
-## Tidewater's arena coaches (battle.gd LESSONS "team" and "elements"): before you may challenge Tide Captain Marina,
+## Bellerive's arena coaches (battle.gd LESSONS "team" and "elements"): before you may challenge Tide Captain Marina,
 ## and so before Captain Gull sails you to the Isle of Tides, Coach Rory teaches battling with a whole side of your
 ## ring and Coach Ondine elemental weaknesses (her beast is weak to your side's element, see story.gd
-## _elements_lesson). They wait in the lobby of Tidewater's arena (interior_maps.gd "arena" anchors): Rory above the
+## _elements_lesson). They wait in the lobby of Bellerive's arena (interior_maps.gd "arena" anchors): Rory above the
 ## side entrance looking down at it. Only Rory approaches on entry; Ondine waits to be spoken to, keeping the
 ## entrance's other escape tile free after Rory's lesson.
 ## needs: a lesson to have had first (until then, that coach doesn't notice you).
@@ -189,6 +189,13 @@ const BIOMES := {
 		"trees": [["palm", 3], ["tree_round_1", 2], ["tree_oak", 1], ["tree_birch", 1], ["tree_round_2", 1]], "rocks": ["beach_rock", "rock_small"],
 		"shrubs": ["shrub_1", "shrub_3", "shrub_4", "bush_1", "bush_2"], "mixed": 0.35,
 		"sky_top": "#4aa8f0", "sky_hz": "#d8f0f8", "sun": "#fff8e8", "sun_e": 1.3, "amb": 0.6, "style": "coastal", "water": "#3a90e0", "music": "coast"},
+	# Bellerive's French Quarter: the coast's sky and sea, but a town of stone: cobbled streets ("paving", stone_streets:
+	# world.gd draws its paths as setts), warm flagstone sidewalks and squares, live oaks and palms, Creole buildings.
+	"quarter": {"ground": "#78b858", "side": "#9a8a70", "sand": "#e6d6a8", "path": "#8e8a84", "plaza": "#d4bfa4", "tuft": "#5aa040",
+		"paving": "#9a948c", "stone_streets": true,
+		"trees": [["tree_oak", 3], ["palm", 2], ["tree_round_1", 1]], "rocks": ["rock_small"],
+		"shrubs": ["shrub_1", "shrub_3", "bush_1", "bush_2"], "mixed": 0.3,
+		"sky_top": "#4aa8f0", "sky_hz": "#e0eef4", "sun": "#fff4e0", "sun_e": 1.3, "amb": 0.62, "style": "creole", "water": "#3a8ad0", "music": "coast"},
 	"island": {"ground": "#6ac050", "side": "#9a7a50", "sand": "#f0e0a8", "path": "#d8b880", "plaza": "#d8ccb0", "tuft": "#4ab040",
 		"trees": [["palm", 4], ["tree_round_1", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
 		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.4, "amb": 0.62, "style": "island", "water": "#2aa8d8", "music": "island"},
@@ -247,7 +254,7 @@ const TIPS := [
 	"Once two beasts in their final form hit their level limit, a Beast Center can merge them into one stronger beast.",
 	"A beast grows up as it levels: into a new form at Lv 20, and into its last at Lv 40. Even a tiny hatchling has a lot ahead of it!",
 	"Your beasts' elemental moves work outside battle too. Vines burn, sand washes away, boulders shatter!",
-	"Crystal shards are hidden all over. Five of them buy a shield upgrade at the Tidewater electronics shop.",
+	"Crystal shards are hidden all over. Five of them buy a shield upgrade at the Bellerive electronics shop.",
 	"If all your beasts faint, enemies go after you. Your shield is all that stands between you and defeat!",
 	"You can throw items in battle too: bombs, powders, tonics. Don't forget your own turn!",
 	"The bird at the top of a Sky Tower can fly you to any town you've visited.",
@@ -274,7 +281,7 @@ const MAP_POS := {
 const ROUTE_PATHS := {
 	"reef": [Vector2(470, 470), Vector2(600, 470)],
 }
-## The ferry between Tidewater and Shellhaven (drawn on the map, travelled by boat).
+## The ferry between Bellerive and Shellhaven (drawn on the map, travelled by boat).
 const FERRY := ["tidewater", "shellhaven"]
 
 
