@@ -74,7 +74,7 @@ jobs:
           cd build/windows && zip -q -9 ../RubyCocoon-windows.zip RubyCocoon.exe
           ls -la ../RubyCocoon-windows.zip
 
-      # the phone app "Ruby Cacoon X" (com.rubycocoon.x, so it installs beside the original voxel app), signed with
+      # the phone app "Ruby Cocoon" (com.rubycocoon.x, so it installs beside the original voxel app), signed with
       # the keystore in the ANDROID_KEYSTORE_BASE64 secret (Godot's debug keystore from the computer that builds the
       # phone copies, so a download updates the app already installed). Without that secret, only Windows is published.
       - name: Export for Android
@@ -90,7 +90,7 @@ jobs:
           printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n%s\n%s\n' \
             "export/android/android_sdk_path = \"$ANDROID_HOME\"" "export/android/java_sdk_path = \"$JAVA_HOME\"" \
             > ~/.config/godot/editor_settings-${GODOT_VERSION}.tres
-          sed -i -e '/^\[preset.0.options\]/,/^\[preset.1\]/{s/^package\/unique_name=.*/package\/unique_name="com.rubycocoon.x"/;s/^package\/name=.*/package\/name="Ruby Cacoon X"/}' \
+          sed -i -e '/^\[preset.0.options\]/,/^\[preset.1\]/{s/^package\/unique_name=.*/package\/unique_name="com.rubycocoon.x"/;s/^package\/name=.*/package\/name="Ruby Cocoon"/}' \
             export_presets.cfg
           # (a debug keystore's alias and password are always these)
           GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/android.keystore" \

@@ -201,7 +201,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   **Temple of Tides**. Its road, the Coral Reef, is a jungle trail along cliffs above the sea. It crosses rivers
   falling from the high ground on railed bridges, until the old ford runs too deep to wade: a sluice lever on the
   ledge above turns the river into its old channel. Past the great falls, the trail runs down to the shore and over
-  an ornate stone bridge to the temple's isle, where Keeper Pell explains its waterworks. Inside, the hall's channel,
+  an ornate stone bridge to the temple's isle, where Keeper Pell explains its waterworks. The temple stands on its
+  stepped platform under a dome, overgrown with moss and vines (`ruin_stone.gdshader`), its way in a gatehouse at
+  the front. Inside, the hall's channel,
   its basin and its great pool hide the way on. A lever in each of the three wings drains one of them in turn: the
   west wing's lever opens the east wing, whose lever opens the gallery, whose lever drains the great pool and shows
   the stair down to the guardian's chamber. The wings are mazes of walkways between water channels, where strong water
@@ -651,7 +653,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   gives its words (`ask`, `lines`, `done`). An anchor `chest:<item>` places a treasure chest. `tools/check_maps.gd`
   checks every map both flooded and drained, and checks that no lever stands behind the water it drains.
 - **Bridges**: `"bridge_rails": true` puts rails along a map's plank bridges, and `"ornate_bridges": [[x, y, w, d]]`
-  builds a stone bridge with balustrades and lamps over those tiles (`temple_props.gd`).
+  builds a stone bridge with balustrades over those tiles (`temple_props.gd`).
 - In rooms, `_` is a pool of water, sunk in stone. A door symbol of `<` or `>` in `doors` is drawn as stairs. An
   `encounter` with `"roam": true` lets its wild beasts walk the room's floor (a temple's maze) instead of only its mist.
 - **Cliffs and ramps**: a map's `heights` rows (one character per tile, lined up with `rows`) give each tile a level,
@@ -767,7 +769,7 @@ exports it headless on Linux, after the quick checks, and the newest build is on
 
 - `RubyCocoon-windows.zip`: one portable `RubyCocoon.exe` (unzip and run; it isn't signed, so the first time Windows
   SmartScreen asks: More info, Run anyway).
-- `RubyCocoon-android.apk`: the phone app "Ruby Cacoon X" (`com.rubycocoon.x`, beside the original Ruby Cocoon app). It's
+- `RubyCocoon-android.apk`: the phone app "Ruby Cocoon" (`com.rubycocoon.x`, beside the original Ruby Cocoon app). It's
   signed with the `ANDROID_KEYSTORE_BASE64` repository secret (Godot's debug keystore from the computer that builds the
   phone copies, base64-encoded), so a download installs over a copy built there. Without the secret only Windows is
   built.

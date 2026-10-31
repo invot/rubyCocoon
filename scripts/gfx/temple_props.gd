@@ -91,9 +91,9 @@ static func open_chest(node: Node3D) -> void:
 
 
 ## An ornate stone bridge `span_len` tiles long and `wide` across, running along x (its middle at the origin, its deck at
-## y = 0): a paved deck on a low arch, balustrades of little columns under a capped rail, and a lamp post on a plinth
-## at each corner. Returns [mesh, the lamps' positions].
-static func ornate_bridge(span_len: int, wide: int) -> Array:
+## y = 0): a paved deck on a low arch, and balustrades of little columns under a capped rail, ending in a newel post
+## at each corner.
+static func ornate_bridge(span_len: int, wide: int) -> ArrayMesh:
 	var k := VBld.Kit.new()
 	var hl := span_len / 2.0
 	var hw := wide / 2.0
@@ -109,7 +109,6 @@ static func ornate_bridge(span_len: int, wide: int) -> Array:
 	for e: int in [-1, 1]:
 		k.box("color", Vector3(e * (hl - 0.15), -0.55, 0), Vector3(0.5, 0.9, wide + 0.1), pale.darkened(0.1), true)
 	# balustrades: base, columns, capped rail
-	var lamps := []
 	for s: int in [-1, 1]:
 		var z := s * (hw - 0.08)
 		k.box("color", Vector3(0, 0.07, z), Vector3(span_len + 0.2, 0.14, 0.2), pale)
@@ -122,11 +121,8 @@ static func ornate_bridge(span_len: int, wide: int) -> Array:
 			var c := Vector3(e * (hl + 0.05), 0, z)
 			k.box("color", c + Vector3(0, 0.38, 0), Vector3(0.32, 0.76, 0.32), pale)
 			k.box("color", c + Vector3(0, 0.8, 0), Vector3(0.38, 0.08, 0.38), pale.lightened(0.08))
-			k.box("tin", c + Vector3(0, 1.25, 0), Vector3(0.07, 0.9, 0.07), Color("#4a5a62"))
-			k.box("glow", c + Vector3(0, 1.78, 0), Vector3(0.2, 0.22, 0.2), Color("#bfeeff"))
-			k.box("tin", c + Vector3(0, 1.93, 0), Vector3(0.28, 0.06, 0.28), Color("#4a5a62"))
-			lamps.append(c + Vector3(0, 1.78, 0))
-	return [k.mesh(), lamps]
+			k.box("color", c + Vector3(0, 0.92, 0), Vector3(0.22, 0.16, 0.22), pale.lightened(0.04))
+	return k.mesh()
 
 
 ## Rails along a plain plank bridge's sides: posts at each tile's corner and a rope-bound rail, `span_len` tiles long,

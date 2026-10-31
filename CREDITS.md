@@ -49,8 +49,9 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
   Creative Commons.
 - **Water Temple Island**, a temple on an island in 22 OBJ parts downloaded into `psx/water_temple/` (the Temple of
   Tides, baked by `tools/import_psx_tide_temple.gd`). *Changes made:* only the temple kept (the island, its trees and
-  rocks, the sea dome, the courtyard's carved paving, the fountain's jet and the roof's fretted rim left out), cut from
-  about 80,000 to 5,900 triangles, painted flat colours (it came without materials). It came with no credit, so it's
+  rocks, the sea dome, the courtyard's carved paving, the fountain's jet, the roof's fretted rim, the grand stair and
+  the foundation below ground left out), cut from about 80,000 to 5,300 triangles, and laid with the game's own mossy
+  stone textures (it came without materials); a gatehouse and plants are added in the game. It came with no credit, so it's
   Creative Commons. A Minecraft jungle temple pack, downloaded at the same time, was used only as a layout reference.
 
 ### Towns and buildings (`assets/houses/`, `assets/exteriors/`, `assets/interiors/`)

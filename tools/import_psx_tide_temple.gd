@@ -4,11 +4,13 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/import_psx_tide_temple.gd
 ##
 ## The model comes as 22 OBJ parts with no materials: an island, its trees and rocks, a sea dome round it, and the
-## temple. Only the temple is kept: its stepped platform and grand stair, the sanctuary with its arcade, roof and
-## dome, its door and windows, and the courtyard paving and fountain. The parts hidden inside the sanctuary are left
-## out, and so are the courtyard's carved paving, its flower beds' fretwork, the fountain's jet and the roof's
-## fretted rim (about 50,000 triangles of flat detail that won't cut down; the platform's own top shows instead). Each part is cut down to PS2 size and painted a flat colour: warm sandstone, white walls, a sea-blue roof
-## and dome with gold trim. The grand stair faces +z (the front, towards the camera).
+## temple. Only the temple is kept: its stepped platform, the sanctuary with its arcade, roof and dome, its door and
+## windows, and the courtyard's flower beds. The parts hidden inside the sanctuary are left out, and so are the
+## courtyard's carved paving, its beds' fretwork, the fountain's jet and the roof's fretted rim (about 50,000 triangles
+## of flat detail that won't cut down; the platform's own top shows instead). So is the grand stair at the front (+z,
+## towards the camera): the game builds a great gatehouse there (voxel_buildings.gd), and so is the foundation below
+## the ground line. Each part is cut down to PS2 size and laid with ruin_stone.gdshader: weathered sandstone, pale
+## walls and a verdigris roof and dome, all of it mossy and hung with vines.
 
 const SRC := "res://psx/water_temple/"
 const OUT := "res://assets/houses/tide_temple.res"
@@ -19,24 +21,26 @@ const PARTS := {
 	10: ["door", 80],
 	11: ["wall", 900],
 	13: ["roof", 300],
-	15: ["runner", 300],
 	20: ["dome", 500],
 	21: ["glass", 60],
 }
-const COLOURS := {
-	"stone": Color("#e2cfa8"),
-	"step": Color("#efe0c0"),
-	"paving": Color("#d8c8a6"),
-	"wall": Color("#f4ede0"),
-	"bed": Color("#6aa8b8"),
-	"water": Color("#5ac8ff"),
-	"door": Color("#2a5a6a"),
-	"trim": Color("#d8b060"),
-	"roof": Color("#3a8ab0"),
-	"runner": Color("#c8b48c"),
-	"dome": Color("#46a6c8"),
-	"glass": Color("#9ae0f4"),
+## what: [texture, tint, moss on the tops, vines down the sides]
+const LOOKS := {
+	"stone": ["stone", Color("#d2bf98"), 0.55, 0.4],
+	"step": ["stone", Color("#dccaa4"), 0.5, 0.2],
+	"paving": ["ground_paving", Color("#cdbd98"), 0.45, 0.0],
+	"wall": ["plaster", Color("#e6dcc6"), 0.6, 0.45],
+	"bed": ["ground_grass", Color("#7a9a58"), 0.95, 0.6],
+	"door": ["wood_dark", Color("#3a4a44"), 0.2, 0.3],
+	"roof": ["slate", Color("#5aa8a0"), 0.5, 0.35],
+	"dome": ["slate", Color("#64b4aa"), 0.4, 0.3],
 }
+const GLASS := Color("#9ae0f4")
+## the ground line: the foot of the platform's lowest step (the pack's foundation and footings run on below it)
+const GROUND := -0.2
+## the grand stair at the front, cut away for the gatehouse: |x| under this, z beyond FRONT
+const STAIR_HALF := 2.6
+const FRONT := 5.0
 ## the platform's top: its upward faces above this are paving, below it the treads of its steps
 const DECK := 2.2
 ## above this the platform part is the dome's drum and the sanctuary's arcade: white walls
@@ -53,6 +57,7 @@ func _init() -> void:
 		var full: int = (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
 		arrays = _cut(arrays, int(e[1]))
 		print("  model_%-3d %-8s %6d -> %4d tris" % [part, e[0], full, (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3])
+		arrays = _trimmed(arrays)
 		for c in _painted(arrays, String(e[0])):
 			if not groups.has(c[0]):
 				groups[c[0]] = SurfaceTool.new()
@@ -65,8 +70,8 @@ func _init() -> void:
 				st.add_vertex(v[i])
 				bb = AABB(v[i], Vector3.ZERO) if first else bb.expand(v[i])
 				first = false
-	# centred on x/z, standing on y = 0
-	var off := Vector3(bb.get_center().x, bb.position.y, bb.get_center().z)
+	# centred on x/z, standing on the ground line
+	var off := Vector3(bb.get_center().x, GROUND, bb.get_center().z)
 	var mesh := ArrayMesh.new()
 	for c in groups:
 		var arrays := (groups[c] as SurfaceTool).commit_to_arrays()
@@ -140,6 +145,25 @@ func _cut(arrays: Array, most: int) -> Array:
 	return out
 
 
+## The part without what's below the ground or where the grand stair climbs the front.
+func _trimmed(arrays: Array) -> Array:
+	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var keep := PackedInt32Array()
+	for t in range(0, index.size(), 3):
+		var a := v[index[t]]
+		var b := v[index[t + 1]]
+		var c := v[index[t + 2]]
+		if maxf(a.y, maxf(b.y, c.y)) < GROUND - 0.05:
+			continue
+		var mid := (a + b + c) / 3.0
+		if absf(mid.x) < STAIR_HALF and mid.z > FRONT and mid.y < 3.2:
+			continue
+		keep.append_array([index[t], index[t + 1], index[t + 2]])
+	arrays[Mesh.ARRAY_INDEX] = keep
+	return arrays
+
+
 ## The part's triangles by colour: [[colour, vertex indices], ...]. The platform is split into its paving, the
 ## treads of its steps, its sandstone sides, and the white drum and arcade above; every other part is one colour.
 func _painted(arrays: Array, what: String) -> Array:
@@ -169,14 +193,13 @@ func _painted(arrays: Array, what: String) -> Array:
 	return out
 
 
-func _material(what: String) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = COLOURS[what]
-	m.roughness = 0.35 if what in ["glass", "water"] else 1.0
-	m.metallic_specular = 0.6 if what in ["glass", "trim", "water"] else 0.2
-	if what == "water":
-		m.emission_enabled = true
-		m.emission = COLOURS[what]
-		m.emission_energy_multiplier = 0.4
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return m
+func _material(what: String) -> Material:
+	if what == "glass":
+		var g := StandardMaterial3D.new()
+		g.albedo_color = GLASS
+		g.roughness = 0.35
+		g.metallic_specular = 0.6
+		g.cull_mode = BaseMaterial3D.CULL_DISABLED
+		return g
+	var look: Array = LOOKS[what]
+	return load("res://scripts/gfx/voxel_buildings.gd").ruin_stone(look[0], look[1], look[2], look[3])

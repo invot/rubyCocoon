@@ -556,19 +556,10 @@ func _build_bridges() -> void:
 		for y in range(y0, y0 + bd):
 			for x in range(x0, x0 + bw):
 				ornate[Vector2i(x, y)] = true
-		var built: Array = TempleProps.ornate_bridge(bw, bd)
 		var mi := MeshInstance3D.new()
-		mi.mesh = built[0]
+		mi.mesh = TempleProps.ornate_bridge(bw, bd)
 		mi.position = Vector3(x0 + bw / 2.0, _lift(Vector2i(x0, y0)) + 0.03, y0 + bd / 2.0)
 		add_child(mi)
-		# its lamps glow softly (small lights, no shadows)
-		for lp in built[1]:
-			var l := OmniLight3D.new()
-			l.light_color = Color("#bfeeff")
-			l.light_energy = 0.6
-			l.omni_range = 2.6
-			l.position = mi.position + (lp as Vector3)
-			add_child(l)
 	if not map.get("bridge_rails", false):
 		return
 	var seen := {}
