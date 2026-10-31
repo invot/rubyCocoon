@@ -4,12 +4,11 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/import_psx_tide_temple.gd
 ##
 ## The model comes as 22 OBJ parts with no materials: an island, its trees and rocks, a sea dome round it, and the
-## temple. Only the temple is kept: its stepped platform, the sanctuary with its arcade, roof and dome, its door and
-## windows, and the courtyard's flower beds. The parts hidden inside the sanctuary are left out, and so are the
-## courtyard's carved paving, its beds' fretwork, the fountain's jet and the roof's fretted rim (about 50,000 triangles
-## of flat detail that won't cut down; the platform's own top shows instead). So is the grand stair at the front (+z,
-## towards the camera): the game builds a great gatehouse there (voxel_buildings.gd), and so is the foundation below
-## the ground line. Each part is cut down to PS2 size and laid with ruin_stone.gdshader: weathered sandstone, pale
+## temple. Only the temple is kept: its stepped platform, the grand stair up the front (+z, towards the camera) to
+## its door, the sanctuary with its arcade, roof and dome, its windows, and the courtyard's flower beds. The parts
+## hidden inside the sanctuary are left out, and so are the courtyard's carved paving, its beds' fretwork, the
+## fountain's jet and the roof's fretted rim (about 50,000 triangles of flat detail that won't cut down; the
+## platform's own top shows instead), and the foundation below the ground line. Each part is cut down to PS2 size and laid with ruin_stone.gdshader: weathered sandstone, pale
 ## walls and a verdigris roof and dome, all of it mossy and hung with vines.
 
 const SRC := "res://psx/water_temple/"
@@ -21,6 +20,7 @@ const PARTS := {
 	10: ["door", 80],
 	11: ["wall", 900],
 	13: ["roof", 300],
+	15: ["stair", 300],
 	20: ["dome", 500],
 	21: ["glass", 60],
 }
@@ -31,6 +31,7 @@ const LOOKS := {
 	"paving": ["ground_paving", Color("#cdbd98"), 0.45, 0.0],
 	"wall": ["plaster", Color("#e6dcc6"), 0.6, 0.45],
 	"bed": ["ground_grass", Color("#7a9a58"), 0.95, 0.6],
+	"stair": ["stone", Color("#dccaa4"), 0.35, 0.1],
 	"door": ["wood_dark", Color("#3a4a44"), 0.2, 0.3],
 	"roof": ["slate", Color("#5aa8a0"), 0.5, 0.35],
 	"dome": ["slate", Color("#64b4aa"), 0.4, 0.3],
@@ -38,9 +39,6 @@ const LOOKS := {
 const GLASS := Color("#9ae0f4")
 ## the ground line: the foot of the platform's lowest step (the pack's foundation and footings run on below it)
 const GROUND := -0.2
-## the grand stair at the front, cut away for the gatehouse: |x| under this, z beyond FRONT
-const STAIR_HALF := 2.6
-const FRONT := 5.0
 ## the platform's top: its upward faces above this are paving, below it the treads of its steps
 const DECK := 2.2
 ## above this the platform part is the dome's drum and the sanctuary's arcade: white walls
@@ -145,7 +143,7 @@ func _cut(arrays: Array, most: int) -> Array:
 	return out
 
 
-## The part without what's below the ground or where the grand stair climbs the front.
+## The part without what's below the ground.
 func _trimmed(arrays: Array) -> Array:
 	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
@@ -155,9 +153,6 @@ func _trimmed(arrays: Array) -> Array:
 		var b := v[index[t + 1]]
 		var c := v[index[t + 2]]
 		if maxf(a.y, maxf(b.y, c.y)) < GROUND - 0.05:
-			continue
-		var mid := (a + b + c) / 3.0
-		if absf(mid.x) < STAIR_HALF and mid.z > FRONT and mid.y < 3.2:
 			continue
 		keep.append_array([index[t], index[t + 1], index[t + 2]])
 	arrays[Mesh.ARRAY_INDEX] = keep

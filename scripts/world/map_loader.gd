@@ -201,7 +201,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	m["pushables"] = {}
 	m["log_bridges"] = []
 	_keep_floods(m, src, flood)
-	for key in ["ornate_bridges", "bridge_rails"]:
+	for key in ["ornate_bridges", "bridge_rails", "tall_trees", "low_trees"]:
 		if src.has(key):
 			m[key] = src[key]
 	var rng := RandomNumberGenerator.new()

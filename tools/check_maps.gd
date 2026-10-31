@@ -215,7 +215,7 @@ func _hidden(m: Dictionary) -> Array:
 			var rise := maxf(0.0, Elev.surface(m, q) - Elev.surface(m, p))
 			if dy > HIDE_ROWS + ceili(rise / 0.64):
 				continue
-			if q.y < m["h"] and c in TALL and not (c == MapGen.TREE and q.y >= m["h"] - 3):
+			if q.y < m["h"] and c in TALL and not (c == MapGen.TREE and (q.y >= m["h"] - 3 or _low_wood(m, q))):
 				hidden[p] = q
 				break
 	var out := []
@@ -474,3 +474,11 @@ func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 				seen[n] = true
 				q.append(n)
 	return seen
+
+
+## Whether `p` is in one of the map's "low_trees" areas, whose tree tiles grow only low thickets of shrubs.
+func _low_wood(m: Dictionary, p: Vector2i) -> bool:
+	for r in m.get("low_trees", []):
+		if Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])).has_point(p):
+			return true
+	return false

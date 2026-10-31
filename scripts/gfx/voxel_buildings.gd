@@ -207,9 +207,9 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		if shop == "uncle":
 			_rafe_flute_sign(node, b, 3.15)
 		return node
-	# the Temple of Tides: a domed sea temple on a stepped platform, its grand stair at the door
+	# the Temple of Tides: a domed sea temple on a stepped platform, its grand stair climbing from the door tile
 	if shop == "temple" and b.get("temple", "") == "water":
-		_tide_temple(node, w, d)
+		_tide_temple(node, w, d, door_lx)
 		return node
 	match shop:
 		"skytower":
@@ -1189,16 +1189,16 @@ static func _pack_ceo_tower(node: Node3D, w: float, d: float, door_lx: float, lo
 
 
 ## The Temple of Tides from the water temple pack (tools/import_psx_tide_temple.gd), fitted to its plot and standing
-## on the ground, with a great gatehouse at the front where the pack's stair was, and the jungle growing over it all.
+## on the ground with its grand stair centred on the door, and the jungle growing over it all.
 const TIDE_TEMPLE := "res://assets/houses/tide_temple.res"
 const RUIN_SHADER := "res://scripts/gfx/ruin_stone.gdshader"
 static var _ruin_mats := {}
 
 
-## Jungle-covered temple stone (ruin_stone.gdshader): a surface texture tinted `tint`, `moss` (0-1) of its tops mossy
-## and `vines` (0-1) of its walls hung with vines.
-static func ruin_stone(tex: String, tint: Color, moss: float, vines: float) -> ShaderMaterial:
-	var key := "%s:%s:%.2f:%.2f" % [tex, tint.to_html(), moss, vines]
+## Jungle-covered temple stone (ruin_stone.gdshader): a surface texture tinted `tint`, `moss` (0-1) of its tops mossy,
+## `vines` (0-1) of its walls hung with vines, and the damp's green climbing `foot` up them from the model's origin.
+static func ruin_stone(tex: String, tint: Color, moss: float, vines: float, foot := 1.1) -> ShaderMaterial:
+	var key := "%s:%s:%.2f:%.2f:%.2f" % [tex, tint.to_html(), moss, vines, foot]
 	if _ruin_mats.has(key):
 		return _ruin_mats[key]
 	var m := ShaderMaterial.new()
@@ -1208,11 +1208,12 @@ static func ruin_stone(tex: String, tint: Color, moss: float, vines: float) -> S
 	m.set_shader_parameter("tint", tint)
 	m.set_shader_parameter("moss", moss)
 	m.set_shader_parameter("vines", vines)
+	m.set_shader_parameter("foot", foot)
 	_ruin_mats[key] = m
 	return m
 
 
-static func _tide_temple(node: Node3D, w: float, d: float) -> void:
+static func _tide_temple(node: Node3D, w: float, d: float, door_lx: float) -> void:
 	var mesh: Mesh = load(TIDE_TEMPLE)
 	if mesh == null:
 		return
@@ -1221,72 +1222,38 @@ static func _tide_temple(node: Node3D, w: float, d: float) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.scale = Vector3.ONE * s
+	mi.position.x = door_lx
 	node.add_child(mi)
-	# the gatehouse, in the model's own units: two pylons and a lintel round a doorway 2.3 wide and 2.6 high, its front
-	# on the plot's edge and its back sunk into the platform where the stair climbed; kept low and narrow so the
-	# sanctuary and its dome stand over it
-	var fz := (d / 2.0) / s - 0.05
-	var bz := fz - 3.6
-	var gz := (fz + bz) / 2.0
-	var gd := fz - bz
-	var ow := 2.3
-	var oh := 2.6
-	var pw := 1.3
-	var ph := 3.4
-	var px := (ow + pw) / 2.0
-	var k := Kit.new()
-	k.box("stone", Vector3(0, 0.12, gz + 0.15), Vector3(ow + pw * 2.0 + 0.6, 0.24, gd + 0.3))
-	for sx: int in [-1, 1]:
-		k.box("stone", Vector3(sx * px, ph / 2.0, gz), Vector3(pw, ph, gd))
-		k.box("stone", Vector3(sx * px, 0.35, gz + 0.08), Vector3(pw + 0.3, 0.7, gd + 0.16), Color(0.92, 0.9, 0.86))
-		# a carved band and a flame bowl on top of each pylon
-		k.box("stone", Vector3(sx * px, 2.3, fz + 0.05), Vector3(pw - 0.3, 0.2, 0.1), Color(0.85, 0.82, 0.78))
-		k.box("stone", Vector3(sx * px, ph + 0.15, fz - 0.5), Vector3(0.7, 0.24, 0.7), Color(0.95, 0.92, 0.86))
-	k.box("stone", Vector3(0, (oh + ph) / 2.0, gz), Vector3(ow, ph - oh, gd))
-	k.box("stone", Vector3(0, ph + 0.12, gz + 0.04), Vector3(ow + pw * 2.0 + 0.3, 0.26, gd + 0.16), Color(1.04, 1.02, 0.98))
-	# a stepped crown over the lintel
-	k.box("stone", Vector3(0, ph + 0.45, gz - 0.2), Vector3(ow + 0.2, 0.4, gd - 0.8))
-	# a threshold step up into the doorway
-	k.box("stone", Vector3(0, 0.3, fz - 0.2), Vector3(ow, 0.12, 0.5), Color(0.95, 0.92, 0.86))
-	var gate := MeshInstance3D.new()
-	gate.mesh = k.mesh()
-	gate.material_override = ruin_stone("stone", Color("#cbb892"), 0.5, 0.45)
-	mi.add_child(gate)
-	# the dark way in, and the tide crest glowing sea-blue on the lintel
+	# the dark inside the doorway at the top of the stair (the pack's door stands at z 1.7, from 2.9 to 4.1 up, and
+	# 3.6 wide; its front step is the model's front, z 9.04, and its ground 0.2 below the pack's zero), so the
+	# empty sanctuary behind it never shows
+	var dz := 1.45 - 9.04 + bb.end.z
 	var dk := Kit.new()
-	dk.box("color", Vector3(0, oh / 2.0, bz + 0.5), Vector3(ow, oh, 0.1), Color("#0a0c0e"))
-	dk.box("color", Vector3(0, 0.25, gz), Vector3(ow, 0.02, gd - 0.4), Color("#2a2622"))
-	for sx: int in [-1, 1]:
-		dk.box("color", Vector3(sx * (ow / 2.0 - 0.01), oh / 2.0, gz - 0.4), Vector3(0.02, oh, gd - 1.0), Color("#3a342c"))
-	dk.box("glow", Vector3(0, (oh + ph) / 2.0, fz + 0.04), Vector3(0.8, 0.44, 0.06), Color("#6ae6f0"))
-	dk.box("glow", Vector3(0, (oh + ph) / 2.0, fz + 0.08), Vector3(0.36, 0.2, 0.06), Color("#d8fbff"))
-	for sx: int in [-1, 1]:
-		dk.box("glow", Vector3(sx * px, ph + 0.3, fz - 0.5), Vector3(0.46, 0.1, 0.46), Color("#7ae8f4"))
+	dk.box("color", Vector3(0, 3.75, dz), Vector3(3.9, 1.9, 0.05), Color("#050608"))
 	var dark := MeshInstance3D.new()
 	dark.mesh = dk.mesh()
 	mi.add_child(dark)
-	var glow := OmniLight3D.new()
-	glow.light_color = Color("#8aeaf4")
-	glow.light_energy = 1.0
-	glow.omni_range = 4.0
-	glow.position = Vector3(0, (oh + ph) / 2.0 * s, fz * s + 0.5)
-	node.add_child(glow)
-	_tide_growth(node, s, fz)
+	var growth := Node3D.new()
+	growth.position.x = door_lx
+	node.add_child(growth)
+	_tide_growth(growth, s, (d / 2.0) / s)
 
 
-## The jungle taking the Temple of Tides back: shrubs and ferns round its foot and on its terraces, palms leaning
-## over its back corners, and grass on its steps. `s` is the model's scale; places are in the model's units.
+## The jungle taking the Temple of Tides back: trees crowding its sides, shrubs round its foot and on its terraces,
+## palms leaning over its back corners, and grass on its steps. `s` is the model's scale; places are in the model's units.
 static func _tide_growth(node: Node3D, s: float, fz: float) -> void:
 	# [model, height (game units), x, y, z (model units)]; the terrace stands 1.7 up, its front step 1.2
 	var plants := [
-		["bush_1", 0.9, -4.3, 0.0, fz - 0.6], ["shrub_2", 0.8, 4.4, 0.0, fz - 0.5],
-		["bush_3", 0.7, -6.2, 0.0, fz - 2.5], ["bush_2", 0.8, 6.2, 0.0, fz - 3.0],
-		["shrub_1", 0.9, -6.6, 0.0, -5.5], ["shrub_3", 0.9, 6.6, 0.0, -6.5],
+		["bush_1", 0.9, -3.4, 0.0, fz - 0.5], ["shrub_2", 0.8, 3.4, 0.0, fz - 0.5],
+		["tree_big", 5.0, -6.9, 0.0, 6.6], ["tree_oak", 5.4, 6.9, 0.0, 6.4],
+		["palm_bent", 5.2, -6.6, 0.0, 2.6], ["tree_big", 5.2, 7.0, 0.0, 2.4],
+		["bush_3", 0.8, -5.4, 0.0, fz - 0.4], ["bush_2", 0.9, 5.5, 0.0, fz - 0.6],
+		["shrub_1", 0.9, -7.6, 0.0, -5.0], ["tree_oak", 5.6, 7.4, 0.0, -6.0],
+		["tree_big", 5.4, -7.4, 0.0, -7.8],
 		["shrub_4", 0.7, -4.0, 1.7, 5.4], ["bush_2", 0.6, 4.0, 1.7, 4.8],
 		["shrub_2", 0.7, -4.0, 1.7, -6.2], ["bush_1", 0.7, 4.2, 1.7, -5.8],
 		["shrub_1", 0.6, -6.2, 1.5, -2.6], ["shrub_3", 0.6, 6.3, 1.5, -1.2],
-		["palm_bent", 4.6, -5.6, 0.0, -8.0], ["palm", 5.2, 5.8, 0.0, -8.2],
-		["tree_big", 3.6, -6.3, 0.0, -1.2],
+		["palm_bent", 6.0, -5.0, 0.0, -8.4], ["palm", 6.4, 5.4, 0.0, -8.6],
 	]
 	var grass := [[-3.4, 1.2, 7.9], [3.2, 1.2, 8.0], [-3.8, 1.7, 1.0], [3.9, 1.7, 2.6], [-2.6, 1.7, -6.8], [2.4, 1.7, -7.0]]
 	for i in grass.size():

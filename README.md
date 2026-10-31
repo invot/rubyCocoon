@@ -653,7 +653,9 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   gives its words (`ask`, `lines`, `done`). An anchor `chest:<item>` places a treasure chest. `tools/check_maps.gd`
   checks every map both flooded and drained, and checks that no lever stands behind the water it drains.
 - **Bridges**: `"bridge_rails": true` puts rails along a map's plank bridges, and `"ornate_bridges": [[x, y, w, d]]`
-  builds a stone bridge with balustrades over those tiles (`temple_props.gd`).
+  builds a stone bridge with balustrades over those tiles (`temple_props.gd`). `"tall_trees": [[x, y, w, d]]` makes
+  the trees in those areas an old wood, half as tall again with wider crowns; `"low_trees"` areas grow only thickets
+  of shrubs on their tree tiles (undergrowth south of a path, where trees would hide you).
 - In rooms, `_` is a pool of water, sunk in stone. A door symbol of `<` or `>` in `doors` is drawn as stairs. An
   `encounter` with `"roam": true` lets its wild beasts walk the room's floor (a temple's maze) instead of only its mist.
 - **Cliffs and ramps**: a map's `heights` rows (one character per tile, lined up with `rows`) give each tile a level,

@@ -558,6 +558,8 @@ func _build_bridges() -> void:
 				ornate[Vector2i(x, y)] = true
 		var mi := MeshInstance3D.new()
 		mi.mesh = TempleProps.ornate_bridge(bw, bd)
+		# pale cut stone, the temple's own, with a little moss on its rails and none climbing from the water
+		mi.material_override = VBld.ruin_stone("stone", Color("#f2ead8"), 0.15, 0.0, -10.0)
 		mi.position = Vector3(x0 + bw / 2.0, _lift(Vector2i(x0, y0)) + 0.03, y0 + bd / 2.0)
 		add_child(mi)
 	if not map.get("bridge_rails", false):
@@ -953,6 +955,14 @@ func _build_scatter() -> void:
 	var rocks: Array = biome["rocks"]
 	var shrubs: Array = biome["shrubs"]
 	var hedge_lines := _hedge_lines()
+	# old woods (the map's "tall_trees" areas, [x, y, w, d]) whose trees stand half as tall again, with wider crowns,
+	# and undergrowth ("low_trees") where the trees are only thickets of shrubs, so you're seen over them
+	var tall_woods := []
+	for r in map.get("tall_trees", []):
+		tall_woods.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
+	var low_woods := []
+	for r in map.get("low_trees", []):
+		low_woods.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
 	for y in h:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
@@ -969,21 +979,27 @@ func _build_scatter() -> void:
 				MapGen.TREE:
 					# a mixed wood (the coast's): some of it thickets of different shrubs in place of trees
 					var mix := float(biome.get("mixed", 0.0))
-					if mix > 0.0 and y < h - 3 and rng.randf() < mix:
+					var low := low_woods.any(func(r: Rect2i) -> bool: return r.has_point(Vector2i(x, y)))
+					if low or (mix > 0.0 and y < h - 3 and rng.randf() < mix):
 						for k in rng.randi_range(2, 3):
 							var tn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
-							var s4 := VA.fit_scale(tn, rng.randf_range(0.45, 0.70))
+							var s4 := VA.fit_scale(tn, rng.randf_range(0.35, 0.5) if low else rng.randf_range(0.45, 0.70))
 							s4 = minf(s4, VA.fit_scale(tn, -1.0, 1.10))
 							_add_plant(by_asset, tn + SHADOWLESS, _xf(center + Vector3(rng.randf_range(-0.35, 0.35), -VA.aabb(tn).position.y * s4, rng.randf_range(-0.35, 0.35)), _voxel_rot(rng), s4))
 						continue
 					var name := _pick_weighted(trees, rng)
 					var hgt := rng.randf_range(2.2, 3.1) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
+					var old := tall_woods.any(func(r: Rect2i) -> bool: return r.has_point(Vector2i(x, y)))
+					if old:
+						hgt = rng.randf_range(4.2, 5.6)
 					if y >= h - 3:
 						name = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						hgt = rng.randf_range(0.7, 1.0)
 					var bb := VA.aabb(name)
 					var s := VA.fit_scale(name, hgt)
 					var canopy_limit := 2.0 if _open_ground_near(x, y, 1) else 2.4
+					if old:
+						canopy_limit = 3.4
 					if maxf(bb.size.x, bb.size.z) * s > canopy_limit:
 						s = canopy_limit / maxf(bb.size.x, bb.size.z)
 					# deep in a wood, a tree's shadow only falls on other trees: only trees near open ground cast one
