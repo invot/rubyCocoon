@@ -58,7 +58,7 @@ COMMON = ['music/*', 'ui/Complete_UI_Book_Styles_Pack_Free_v1.0/*', 'ui/DEMO_Fan
 WEB_HEAD = ('<meta name="apple-mobile-web-app-capable" content="yes">'
             '<meta name="mobile-web-app-capable" content="yes">'
             '<meta name="apple-mobile-web-app-title" content="Ruby Cocoon">'
-            '<meta name="theme-color" content="#2f2424">'
+            '<meta name="theme-color" content="#03041a">'
             '<link rel="manifest" href="manifest.webmanifest">')
 
 HEADER = '''[preset.%(i)d]

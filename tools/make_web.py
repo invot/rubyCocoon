@@ -134,7 +134,7 @@ def icons():
     sq.save(os.path.join(OUT, 'icon-512.png'))
     manifest = {
         'name': 'Ruby Cocoon', 'short_name': 'Ruby Cocoon', 'start_url': './index.html', 'scope': './',
-        'display': 'fullscreen', 'orientation': 'landscape', 'background_color': '#2f2424', 'theme_color': '#2f2424',
+        'display': 'fullscreen', 'orientation': 'landscape', 'background_color': '#03041a', 'theme_color': '#03041a',
         'icons': [{'src': 'icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
                   {'src': 'icon-512.png', 'sizes': '512x512', 'type': 'image/png'}],
     }

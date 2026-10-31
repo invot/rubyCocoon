@@ -139,21 +139,32 @@ func _draw() -> void:
 		var r: Dictionary = WorldDB.ROUTES[rid]
 		var locked: bool = r.has("locked_flag") and not GameState.flag(r["locked_flag"])
 		var col := Color(1, 1, 1, 0.55) if not locked else Color(1, 1, 1, 0.18)
+		if here == rid:
+			col = UIKit.GOLD_BRIGHT
 		for i in pts.size() - 1:
 			_dashed(pts[i], pts[i + 1], col, 4.0 if here == rid else 3.0)
-	# towns, with an arena's crest badge, and their names (??? until you've been)
-	for i in _order.size():
-		var tid: String = _order[i]
+	# towns, with an arena's crest badge
+	for tid in _order:
 		var p := _to_screen(WorldDB.MAP_POS[tid])
 		var rad := _radius(tid)
-		var visited: bool = GameState.visited.has(tid)
 		draw_circle(p, rad + 3, UIKit.BORDER)
-		draw_circle(p, rad, UIKit.ACCENT if visited else UIKit.BORDER_INNER)
+		draw_circle(p, rad, UIKit.ACCENT if GameState.visited.has(tid) else UIKit.BORDER_INNER)
 		var arena: Dictionary = WorldDB.ARENAS.get(tid, {})
 		if not arena.is_empty():
 			var won: bool = GameState.crests.has(arena["crest"])
 			draw_circle(p + Vector2(rad, -rad), 7, UIKit.BORDER)
 			draw_circle(p + Vector2(rad, -rad), 5, UIKit.GOLD_BRIGHT if won else UIKit.BORDER_INNER)
+	# you: a pin on your town, or halfway along your route
+	if WorldDB.MAP_POS.has(here):
+		_pin(_to_screen(WorldDB.MAP_POS[here]) - Vector2(0, _radius(here) - 2))
+	elif WorldDB.ROUTES.has(here):
+		_pin(_middle(_route_points(here)))
+	# their names over everything (??? until you've been), and the cursor
+	for i in _order.size():
+		var tid: String = _order[i]
+		var p := _to_screen(WorldDB.MAP_POS[tid])
+		var rad := _radius(tid)
+		var visited: bool = GameState.visited.has(tid)
 		var label: String = WorldDB.TOWNS[tid]["name"] if visited else "???"
 		var base := (p + Vector2(-120, rad + 6 + font.get_ascent(fs))).round()
 		if paper.a > 0.0:
@@ -161,11 +172,6 @@ func _draw() -> void:
 		draw_string(font, base, label, HORIZONTAL_ALIGNMENT_CENTER, 240, fs, UIKit.INK if visited else UIKit.DIM)
 		if i == _focus:
 			draw_arc(p, rad + 8 + sin(_t * 5.0) * 2.0, 0, TAU, 32, UIKit.LIGHT, 2.0)
-	# you: a pin on your town, or halfway along your route
-	if WorldDB.MAP_POS.has(here):
-		_pin(_to_screen(WorldDB.MAP_POS[here]) - Vector2(0, _radius(here) - 2))
-	elif WorldDB.ROUTES.has(here):
-		_pin(_middle(_route_points(here)))
 
 
 func _pin(tip: Vector2) -> void:

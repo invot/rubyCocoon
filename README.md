@@ -2,7 +2,7 @@
 
 A low-poly beast-training RPG with a smooth, cozy PS2-era look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
-<img src="docs/screenshots/title.jpg" width="800" alt="The title screen, with Cocoon Cove behind it."><br><sub>The title screen, with Cocoon Cove behind it.</sub>
+<img src="docs/screenshots/title.jpg" width="800" alt="The title screen: a dragon against the full moon, beasts on the grass below."><br><sub>The title screen: a dragon against the full moon, beasts on the grass below.</sub>
 
 ## Running it
 
@@ -65,7 +65,7 @@ Mom gives the egg and flute objective even if the film was skipped. The first mi
 The home and two neighboring houses have distinct shapes, staggered plots and planted front yards on a high shelf
 above Cocoon Cove's compact square. A broad ramp descends
 from their garden lane to **Cocoon Cove Library**, which marks the square's western entrance. Speak to
-**Librarian Quill** for a free **World Map**, then unfold it from **Start → Map**.
+**Librarian Quill** for a free **World Map**, then open it from **Start → Map**.
 Existing saves keep their map access. The town stands on a high natural cliff above a rocky shoreline, with no
 beach, pier, coastal path or route down to the water. Woodland fills the ground between the village and the irregular
 rocky coves. Two inaccessible homes sit close behind the Beast Center at its level. A dirt path winds south from the
@@ -131,7 +131,7 @@ Townsfolk and residents add a casual hint about what to do next to whatever else
 | Jungle | Vinehollow | The village sells the finest gear in the land. The shaman needs the Sun, Moon and Earth relics; the ritual raises the hidden **Temple of Roots**. |
 | River and moor | Riverbend, Gravenmoor | Gravenmoor is the Legion's town. Ghost beasts can be hatched and merged from here on. The gravedigger teaches the Requiem of Dusk. Commander Nyx guards the cathedral, and General Vexmora waits in the crypt beneath it. |
 
-<img src="docs/screenshots/worldmap.jpg" width="640" alt="The world map: the towns you've been to, and ??? for the ones you haven't reached yet."><br><sub>The world map: the towns you've been to, and ??? for the ones you haven't reached yet.</sub>
+<img src="docs/screenshots/worldmap.jpg" width="640" alt="The world map on the Start book's Map page: the towns you've been to, ??? for the ones you haven't reached yet, and a pin where you are."><br><sub>The world map on the Start book's Map page: the towns you've been to, ??? for the ones you haven't reached yet, and a pin where you are.</sub>
 
 Every road between towns narrows to one bottleneck with a puzzle, getting harder as you go:
 
@@ -291,7 +291,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Flute trainers** play their own songs in battle: four route bards, three arena masters, Commander Nyx and General Vexmora. Win, then play the song back **without a single mistake** to learn it. Bards and arena masters will battle again for an encore.
 - **Fast travel**:
   - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Tempestrix flies you to any town you've visited, for a fee.
-  - Once you own an air beast of **Lv 40+**, pick *Fly* on the Trainer page of the Start book to travel from anywhere outdoors.
+  - Once you own an air beast of **Lv 40+** (in your ring, not storage), pick a town you've visited on the Start book's Map page and choose **Fly here** (or press A) to travel there from anywhere outdoors. It asks first: A: Yes flies, B: No stays.
 - **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door, to the tune of "Hep Cats". It's one big room (17x9 tiles, bigger than the rest, so the camera follows you round it), the kennel on the left behind a wall that stops short of the front. Each machine has its own bay along the back wall.
   - The **healing machine** is a tall glass healing chamber with a lamp per beast round its foot; the glass glows while it heals. Use it yourself, any time, for free.
   - The **storage terminal** and the **merge altar** stand in the bays beside it.
@@ -342,14 +342,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   each file in `tools/smoothed.json` so nothing is smoothed twice; run it after any re-bake, then `--import`. Ground
   layers blend softly across their wandering borders (`terrain.gdshader`). Shop-sign icons stay crisp pixel art, and
   the interface keeps its own Pixel and Classic styles.
-- **App icon and boot splash**: painted like PS2 box art from the game's own models. The icon is the water summon
-  rising as a ghost in a dusk sky over a dark hill, where a ruby glows on the crest; the boot splash is the fire summon
-  spreading its wings over a ruby glow, the lines' first forms floating round it in glass bubbles, over the gold
-  RUBY COCOON logo (the heading font with a ruby stroke). `tools/make_key_art.gd` renders the summons, beasts and
-  shrub, and `tools/key_art.py` does the painting. `python tools/make_icon.py` writes Android's adaptive icon layers
-  (background, foreground and the spirit's silhouette for themed icons, laid out over the whole 108 dp) to
-  `assets/icon/`, plus `icon.png` for the window; `python tools/make_splash.py` writes `assets/icon/boot_splash.png`,
-  which covers the screen (a 20:9 phone loses its top and bottom tenth, so the logo and the dragon keep clear of them).
+- **App icon and boot splash**: the icon is painted like PS2 box art from the game's own models: the water summon
+  rising as a ghost in a dusk sky over a dark hill, where a ruby glows on the crest. `tools/make_key_art.gd` renders
+  the summon and a shrub and `tools/key_art.py` does the painting; `python tools/make_icon.py` writes Android's
+  adaptive icon layers (background, foreground and the spirit's silhouette for themed icons, laid out over the whole
+  108 dp) to `assets/icon/`, plus `icon.png` for the window. The boot splash is a still of the title screen's scene
+  (`godot --path . --script res://tools/make_splash.gd` writes `assets/icon/boot_splash.png`, 2560 x 1080): it covers
+  the screen as the title's camera keeps its height, so from 16:9 to 21:9 the game opens on just what the title shows.
 - **Nature** uses the supplied **Environment Pack - Stylized Nature**, **Environment Pack - Grass**, and
   **Environment Pack - Stylized Rock** collections. Rounded and blocky canopies, upright and bent palms, leafy and
   berry shrubs, and broad stone outcrops share the existing chunked scenery batches and automatic mesh LODs.
@@ -469,12 +468,12 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 
 | Tab | What's in it |
 |---|---|
-| Trainer | Your portrait, gold, shield and shards, arena crests, trainer gear, Fly, and how to save (call Dad from a phone). |
-| Beasts | Your battle ring and storage (tap a beast, then where it should go: see Arranging your beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
+| Trainer | Your portrait, gold, shield and shards, arena crests and trainer gear. |
+| Beasts | Your battle ring and storage (the ring fills the facing page; tap its row to arrange it, then a beast and where it should go: see Arranging your beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
 | Flute | Every song with its effect and mastery; press A to practise one. The Capture page shows your level and when the next one is ready to learn. Unknown songs show where to learn them. |
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 39 forms with live portraits and where to find them. |
-| Map | The twelve towns, with the full world map on A. |
+| Map | The world map across the left page: the twelve towns and the roads between them, ??? for towns you haven't reached, and a pin where you are (on a road, halfway along it). Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
 | Settings | Music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, credits and quit to title. |
 
 ## UI and audio
@@ -502,10 +501,10 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
   text is 32 screen pixels and dialogue 48. The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
   Dialogue is three lines to a page. Text sits at the top of every text box.
-- **Button minimums**: menu text uses 32 UI units; rows and page buttons are at least 56 units tall on desktop and
-  80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and direct taps;
-  book pages and the save browser retain Prev / Next controls. Buttons never shrink to fit more entries
-  (`UIKit.row_h`, `list_menu.gd`).
+- **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
+  tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
+  direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
+  more entries (`UIKit.row_h`, `list_menu.gd`).
 - **Save previews**: Load Game shows the selected slot's screenshot from its latest save beside the list, and keeps
   it visible when choosing Load, Copy or Delete. Saves from before screenshots were stored show a placeholder
   until saved again. Copying a save includes its screenshot.
@@ -514,22 +513,31 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
   domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
   the gem. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
-  and Start closes the book. A little overlap with the book is allowed. The full world map and ring editor still
-  move the side controls aside for direct tapping. Yes/No questions widen A and B with an animation into
+  and Start closes the book. A little overlap with the book is allowed; the Map page spreads its towns clear of the
+  d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions widen A and B with an animation into
   **A: Yes** and **B: No**: each answers directly, without a separate choice list. Long questions show **A: Next**
   until their last page. Ordinary mobile choice lists sit toward the center, show several full-size options,
   and scroll as Up/Down moves the selection; each visible option can also be tapped.
-  Anything that runs past one of the book's pages gets **◄ Prev** and **Next ►** buttons
-  with "page / pages" at its foot, each turning a whole page (`scripts/ui/pager.gd`), so all of it can be reached
-  with taps alone. The
+  Anything that runs past one of the book's pages gets a scroll bar beside it with an **▲** button at its top and a
+  **▼** button at its foot (`scripts/ui/scroll_rail.gd`): a tap scrolls half a page in whole rows, holding keeps it
+  gliding, a tap on the bar above or below its thumb scrolls a page, and the thumb can be dragged; an arrow greys out
+  at its end. So all of it can be reached with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
-- The boot splash shows while the engine loads, then the game goes straight into the title screen. With no save yet, **New Game** is a big, glowing
+- The game opens straight on the title screen: while the engine loads, the boot splash is a still of the title's scene,
+  which then comes alive with the menu over it. With no save yet, **New Game** is a big, glowing
   pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
   and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
   it).
-- The title's menu comes up first, on the splash colour; the town behind it is built a moment later and fades in. The world and battle scripts, the travel book and the world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
+- The title is its own small 3D scene (`scripts/gfx/title_stage.gd`, built in about 0.2 s): a moonlit night over dark
+  grass, the fire summon beating its wings far off against the full moon (drawn small in its own viewport as a
+  silhouette, then blurred and half hidden by drifting mist: `title_dragon.gdshader`, `title_haze.gdshader`), the
+  lines' first forms on the grass either side of the menu in their idle animations, and RUBY COCOON in extruded gold
+  with a shimmer sweeping across it (`gold_shimmer.gdshader`). The camera keeps the frame's height, so a wider phone
+  shows more at the sides. Load Game and the character creator hide the logo, and on phones too the menu stays under
+  it rather than over it. The world and battle scripts and the travel book with its world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
+  - The title screen plays *Nerves*.
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
   - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
@@ -658,7 +666,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
   `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
-- `arena-ladder`: trainer list clearance from touch controls, full-sized rows, focus navigation, pagination, direct trainer taps and A/B confirmation. Add `--matrix=1` to the scene for both styles and all four gems.
+- `arena-ladder`: trainer list clearance from touch controls, full-sized rows, focus navigation, scroll buttons, direct trainer taps and A/B confirmation. Add `--matrix=1` to the scene for both styles and all four gems.
 - `kennel` / `kennel-ui`: level-based adoption fees, exact/insufficient funds, cancellation, free reclaiming, storage overflow, and the real keeper/pen menus with touch and focus navigation. Preview with `--scene=kennel --shot=res://build/shots/kennel.png` (`--preview=poor` or `empty` for those states; `--verify=1` exercises inputs).
 - `wild-grace`: wild battle return protection, smooth opacity bounds, sight and hearing, existing chases, contact, expiry, map changes, and trainer battle exclusion. Add `--shot=res://build/shots/wild_grace.png` for low, middle and high pulse opacity and the fully opaque player after expiry, or `--preview=pulse` to replay the effect in a game window.
 
@@ -719,7 +727,7 @@ scripts/
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, make_new_beast_icons.gd, check_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_key_art.gd, key_art.py, make_icon.py, make_splash.py, make_web.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, make_new_beast_icons.gd, check_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_key_art.gd, key_art.py, make_icon.py, make_splash.gd, make_web.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
@@ -744,7 +752,7 @@ godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # tr
 godot --path . -- --scene=book:map --flip=cozy --wait=1 --shot=C:/tmp/f.png   # Settings > Style changed with the book open
 godot --headless --path . --script res://tools/build_pixel_ui.gd          # cut the Pixel style's pieces from the two UI kits
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
-godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings)
+godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings); --flyer=1 adds an air beast that can fly, --visited=caccoon,tidewater sets the towns you've been to, --no_map=1 is before the library's map, --next=N taps a scroll bar's down arrow N times
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
 godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
 godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Bellerive arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
@@ -753,7 +761,7 @@ godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a r
 godot --path . -- --scene=battlecmd --touch                             # the battle's command panel: one A is one confirm, every move's target picked (arrows, all-foe moves), ▲ turns the ring, Move (yours and a foe trainer's), the ring turning by itself ("BATTLE COMMANDS DONE: 0 problem(s)"); --stop=trainer|target|all|move --shot=C:/tmp/b.png
 godot --path . -- --scene=battlecmd --stop=message --shot=C:/tmp/b.png   # compact message with beast avatar; also trainer-message, effective, resistant, long-message
 godot --path . -- --scene=ringedit --touch                              # the ring editor: who may go where on the ring and in and out of storage, lit cells, taps ("RING EDIT DONE: 0 problem(s)")
-godot --path . -- --scene=mobile-menus --touch --verify=1 --shots=res://build/shots/mobile_menu  # direct A/B answers, centered lists, scrolling and the Start book's retained controls
+godot --path . -- --scene=mobile-menus --touch --verify=1 --shots=res://build/shots/mobile_menu  # direct A/B answers, centered lists, scrolling, the Start book's retained controls and scroll buttons, and its Map page: tapping towns and flying (Yes / No)
 godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")
 godot --headless --path . -- --scene=coaches                            # Coastal Path teachers, Rory's arena approach, a clear lobby route, then speaking to Ondine ("coaches DONE: 0 problem(s)")
 godot --headless --path . -- --scene=flutelesson                        # the guided Weaken-then-Capture of the first wild beast after the flute
@@ -768,6 +776,7 @@ godot --path . -- --scene=marks --shot=C:/tmp/k.png                     # the !,
 godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a ring battle driven by keys (a b l r u d); --kind=wild, --foe_level, --foe_shield
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
+godot --path . -- --scene=title --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # the title (--saves=0: a first launch; --keys pressed once the menu is up: d,a opens Load Game)
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --headless --path . -- --scene=building-fade                      # every town's building materials fade on blocked sightlines and restore when clear; --town=tidewater narrows the audit
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere

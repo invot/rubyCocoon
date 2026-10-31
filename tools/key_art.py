@@ -1,17 +1,15 @@
-"""Shared pieces for the app icon (make_icon.py) and the boot splash (make_splash.py): rendering the game's beasts and
-summons with tools/make_key_art.gd, and the 2D finishing they get in the PS2-era box-art style: gradients, soft glows,
-glints, glass bubbles, silhouettes and the gold-on-ruby logo in the game's heading font."""
+"""Shared pieces for the app icon (make_icon.py): rendering the game's models with tools/make_key_art.gd, and the 2D
+finishing they get in the PS2-era box-art style: gradients, soft glows, glints, clouds, light rays and silhouettes."""
 import math
 import os
 import random
 import subprocess
 import tempfile
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 GODOT = os.environ.get('GODOT', r'C:\Program Files\Godot\Godot_v4.7-stable_win64.exe')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HEAD = os.path.join(ROOT, 'ui', 'lunchds.ttf')
 
 
 def render(names):
@@ -88,20 +86,10 @@ def tint(im, color):
     return out
 
 
-def shadow_of(im, blur, color='#000000', alpha=0.6):
-    """im's shape blurred and coloured, on a canvas grown by the returned padding on every side."""
-    pad = blur * 3
-    a = Image.new('L', (im.width + pad * 2, im.height + pad * 2), 0)
-    a.paste(im.getchannel('A'), (pad, pad))
-    a = a.filter(ImageFilter.GaussianBlur(blur)).point(lambda v: int(v * alpha))
-    out = Image.new('RGBA', a.size, hexc(color))
-    out.putalpha(a)
-    return out, pad
-
-
-def outer_glow(base, im, pos, blur, color, alpha):
-    g, pad = shadow_of(im, blur, color, alpha)
-    base.alpha_composite(g, (pos[0] - pad, pos[1] - pad))
+def _filled(mask, rgba):
+    lay = Image.new('RGBA', mask.size, rgba)
+    lay.putalpha(mask)
+    return lay
 
 
 def sparkle(base, x, y, s, color='#ffffff', alpha=255):
@@ -133,121 +121,6 @@ def dust(base, n, box, seed, colors=('#ffffff',), smin=1.0, smax=4.0, amax=180):
         d.ellipse((x - r, y - r, x + r, y + r), fill=hexc(rng.choice(colors), int(rng.uniform(40, amax))))
     base.alpha_composite(lay.filter(ImageFilter.GaussianBlur(1.2)))
     base.alpha_composite(lay)
-
-
-def vignette(base, strength=0.55, color='#000000'):
-    w, h = base.size
-    m = ImageChops.invert(radial_mask(int(w * 1.25), int(h * 1.45), 0.9))
-    x0, y0 = (m.width - w) // 2, (m.height - h) // 2
-    lay = Image.new('RGBA', (w, h), hexc(color))
-    lay.putalpha(m.crop((x0, y0, x0 + w, y0 + h)).point(lambda v: int(v * strength)))
-    base.alpha_composite(lay)
-
-
-def circle_mask(d, ss=4):
-    m = Image.new('L', (d * ss, d * ss), 0)
-    ImageDraw.Draw(m).ellipse((0, 0, d * ss - 1, d * ss - 1), fill=255)
-    return m.resize((d, d), Image.LANCZOS)
-
-
-def bubble(d, content=None, tint_c='#9fd8ff', fill_frac=0.74, blur=0):
-    """A glassy bubble d across holding a beast: a faint fill, the beast, a thin iridescent rim, a crescent highlight
-    with a glint, and a soft bounce of light along the bottom."""
-    out = Image.new('RGBA', (d, d), (0, 0, 0, 0))
-    disc = circle_mask(d)
-    fill = Image.new('RGBA', (d, d), hexc(tint_c))
-    fill.putalpha(ImageChops.multiply(radial_mask(d, d, 0.6).point(lambda v: int(26 + (255 - v) * 0.12)), disc))
-    out.alpha_composite(fill)
-    if content is not None:
-        c = fit(content, int(d * fill_frac), int(d * fill_frac))
-        inner = Image.new('RGBA', (d, d), (0, 0, 0, 0))
-        inner.alpha_composite(c, ((d - c.width) // 2, int(d * 0.52 - c.height / 2)))
-        inner.putalpha(ImageChops.multiply(inner.getchannel('A'), disc))
-        out.alpha_composite(inner)
-    rim = ImageChops.invert(radial_mask(d, d, 1.0)).point(lambda v: int(255 * max(0.0, (v / 255 - 0.9) / 0.1) ** 2.0))
-    rim = ImageChops.multiply(rim, disc)
-    for col, dx, dy in (('#ffb0e8', -0.02, 0.03), ('#a8fff0', 0.03, -0.02), ('#ffffff', 0, 0)):
-        lay = Image.new('RGBA', (d, d), hexc(col))
-        a = ImageChops.offset(rim, int(dx * d), int(dy * d)).point(lambda v: int(v * (0.4 if col == '#ffffff' else 0.3)))
-        lay.putalpha(ImageChops.multiply(a, disc))
-        out.alpha_composite(lay)
-    hl = Image.new('L', (d * 2, d * 2), 0)
-    hd = ImageDraw.Draw(hl)
-    hd.ellipse((d * 0.30, d * 0.18, d * 1.05, d * 0.62), fill=210)
-    hd.ellipse((d * 0.42, d * 0.30, d * 1.15, d * 0.78), fill=0)
-    hl = hl.rotate(28, center=(d * 0.7, d * 0.5)).resize((d, d), Image.LANCZOS).filter(ImageFilter.GaussianBlur(d / 70))
-    lay = Image.new('RGBA', (d, d), (255, 255, 255, 255))
-    lay.putalpha(ImageChops.multiply(hl, disc))
-    out.alpha_composite(lay)
-    sparkle(out, d * 0.27, d * 0.24, max(4, int(d * 0.07)), alpha=230)
-    bl = Image.new('L', (d, d), 0)
-    ImageDraw.Draw(bl).ellipse((d * 0.22, d * 0.80, d * 0.78, d * 0.97), fill=90)
-    lay = Image.new('RGBA', (d, d), hexc('#ffd0e0'))
-    lay.putalpha(ImageChops.multiply(bl.filter(ImageFilter.GaussianBlur(d / 30)), disc))
-    out.alpha_composite(lay)
-    return out.filter(ImageFilter.GaussianBlur(blur)) if blur else out
-
-
-def dilate(mask, r):
-    """A mask grown by about r, with rounded corners."""
-    return mask.filter(ImageFilter.GaussianBlur(r)).point(lambda v: 255 if v > 30 else 0).filter(ImageFilter.GaussianBlur(1))
-
-
-def logo(width, glow_c='#ff5030', glow_a=0.0):
-    """RUBY COCOON in the heading font as a PS2-era logo, `width` pixels wide: gold with a dark horizon band across its
-    middle, bevelled, inside a ruby stroke, extruded downwards, with glints and a drop shadow (and a coloured glow if
-    glow_a > 0). Drawn at about twice the size and scaled down."""
-    f = ImageFont.truetype(HEAD, 300)
-    text = 'RUBY COCOON'
-    bb = ImageDraw.Draw(Image.new('L', (8, 8))).textbbox((0, 0), text, font=f, stroke_width=5)
-    pad = 120
-    w, h = bb[2] - bb[0] + pad * 2, bb[3] - bb[1] + pad * 2 + 40
-    tm = Image.new('L', (w, h), 0)
-    ImageDraw.Draw(tm).text((pad - bb[0], pad - bb[1]), text, font=f, fill=255, stroke_width=5, stroke_fill=255)
-    tm = tm.filter(ImageFilter.GaussianBlur(1.2))
-    tb = tm.getbbox()
-    th = tb[3] - tb[1]
-    dark, ruby, line = dilate(tm, 20), dilate(tm, 14), dilate(tm, 5)
-    out = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    depth = 26
-    for k in range(depth, 0, -1):
-        t = k / depth
-        lay = Image.new('RGBA', (w, h), (int(70 - 48 * t), int(8 - 4 * t), int(18 - 10 * t), 255))
-        lay.putalpha(ImageChops.offset(dark, 0, k))
-        out.alpha_composite(lay)
-    out.alpha_composite(_filled(dark, hexc('#1c0508')))
-    rl = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    rl.paste(vgrad(w, th + 40, [(0, '#ff6070'), (0.5, '#d01836'), (1, '#6a0618')]), (0, tb[1] - 20))
-    rl.putalpha(ruby)
-    out.alpha_composite(rl)
-    out.alpha_composite(_filled(line, hexc('#2a0a0c')))
-    gl = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    gl.paste(vgrad(w, th, [(0, '#fffbe6'), (0.36, '#ffe070'), (0.5, '#c06a14'), (0.53, '#e89422'), (0.8, '#ffd458'),
-                           (1, '#fff2b0')]), (0, tb[1]))
-    gl.putalpha(tm)
-    out.alpha_composite(gl)
-    # bevel: light along the upper-left edges, shade along the lower-right
-    soft = tm.filter(ImageFilter.GaussianBlur(5))
-    hi = ImageChops.subtract(soft, ImageChops.offset(soft, 4, 5)).point(lambda v: min(255, v * 3))
-    lo = ImageChops.subtract(soft, ImageChops.offset(soft, -4, -5)).point(lambda v: min(255, v * 2))
-    out.alpha_composite(_filled(ImageChops.multiply(hi, tm), (255, 255, 240, 255)))
-    out.alpha_composite(_filled(ImageChops.multiply(lo, tm), (110, 40, 0, 255)))
-    sparkle(out, tb[0] + th * 0.25, tb[1] + th * 0.12, int(th * 0.22))
-    sparkle(out, tb[0] + (tb[2] - tb[0]) * 0.71, tb[1] + th * 0.1, int(th * 0.16), alpha=235)
-    sh, sp = shadow_of(out, 22, '#000000', 0.55)
-    full = Image.new('RGBA', (w + sp * 2, h + sp * 2), (0, 0, 0, 0))
-    if glow_a > 0:
-        g, gp = shadow_of(out, 60, glow_c, glow_a)
-        full.alpha_composite(g, (sp - gp, sp - gp))
-    full.alpha_composite(sh, (0, 18))
-    full.alpha_composite(out, (sp, sp))
-    return fit(full.crop(full.getchannel('A').getbbox()), w=width)
-
-
-def _filled(mask, rgba):
-    lay = Image.new('RGBA', mask.size, rgba)
-    lay.putalpha(mask)
-    return lay
 
 
 def silhouette_rim(im, color, rim='#ff9a50', rim_a=0.8, px=4):

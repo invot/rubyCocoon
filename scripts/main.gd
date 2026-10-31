@@ -9,7 +9,7 @@ const PANEL_PATH := "res://scripts/battle/command_panel.gd"
 ## Resources the world's scripts preload that have to be loaded on the main thread (see _title_backdrop).
 const THREAD_SHY := ["res://scripts/gfx/terrain.gdshader", "res://scripts/gfx/water.gdshader"]
 ## project.godot's boot splash colour
-const SPLASH_COLOR := Color(0.184, 0.141, 0.141)
+const SPLASH_COLOR := Color(0.012, 0.016, 0.098)
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -225,7 +225,7 @@ func _clear_title() -> void:
 
 
 # ================================================================ maps
-## Behind the title's menu (which has its own picture, title_art.gd): puts away the world of a game left for the title,
+## Behind the title's menu (which has its own scene, title_stage.gd): puts away the world of a game left for the title,
 ## loads the world's scripts in the background, then the battle scripts and the travel book too.
 func _title_backdrop() -> void:
 	if is_instance_valid(world):
