@@ -88,7 +88,8 @@ func run(main, opts: Dictionary) -> void:
 		UI.auto = false
 		Menus.world_map()
 		await main._wait(0.3)
-		_check(not UI.stack.is_empty() and UI.stack.back().get_script().resource_path.ends_with("world_map_view.gd"), "older saves without a map flag retain map access")
+		_check(not UI.stack.is_empty() and UI.stack.back().get_script().resource_path.ends_with("book_menu.gd")
+			and is_instance_valid(UI.stack.back().map_view), "older saves without a map flag retain map access")
 		await main._press("ui_cancel")
 		await main._wait(0.25)
 		print("COCOON DONE: %d problem(s)" % bad)

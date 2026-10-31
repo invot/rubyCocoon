@@ -369,6 +369,20 @@ static func chip(fill: Color, edge: Color, radius := 10.0, pad := Vector4(10, 2,
 	return sb
 
 
+## A button standing on its own (not a list row): a dark plate edged in white that fills with the gem while held,
+## its text white (dim once it's disabled).
+static func plate_button(b: Button, pad := Vector4(12, 2, 12, 2)) -> void:
+	var up := chip(WINDOW_BOTTOM, BORDER, 12.0, pad)
+	var held := chip(ACCENT, BORDER, 12.0, pad)
+	for st in ["normal", "hover", "focus", "disabled"]:
+		b.add_theme_stylebox_override(st, up)
+	for st in ["pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, held)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, LIGHT)
+	b.add_theme_color_override("font_disabled_color", Color(DIM, 0.45))
+
+
 ## The window styles by their old texture names, so every screen picks up the new look: `pad` is extra content
 ## padding (l, t, r, b).
 static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:

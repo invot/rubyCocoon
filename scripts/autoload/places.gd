@@ -88,7 +88,7 @@ func library() -> void:
 		await UI.say(["Heading out into the world? Take a map. Every traveler should have one."], KEEPERS["bookstore"])
 		GameState.set_flag("world_map")
 		Sfx.play("item")
-		await UI.say(["Received the World Map!", "Open Start, choose Map, then press A or tap a town to unfold it. New places fill in as you visit them."], KEEPERS["bookstore"])
+		await UI.say(["Received the World Map!", "Open Start and choose Map to see it, with you marked on it. New places fill in as you visit them."], KEEPERS["bookstore"])
 	else:
 		await UI.say(["Your map has room for a whole journey. Shall we spread it out?"], KEEPERS["bookstore"])
 		if await UI.choose("Cocoon Cove Library", ["Read world map", "Leave"]) == 0:
@@ -605,13 +605,17 @@ func fly_menu(here: String, cost: int, who: String) -> bool:
 	var c: int = await UI.choose("Fly to...   (%d gold)" % GameState.gold if cost > 0 else "Fly to...", items, {"width": 460})
 	if c < 0:
 		return false
+	await fly_to(dests[c], cost)
+	return true
+
+
+## The flight itself (for `cost` gold): from a Sky Tower's roof, or on your own air beast from the Start book's map.
+func fly_to(dest: String, cost := 0) -> void:
 	GameState.gold -= cost
 	Sfx.play("fly")
 	await UI.flash(Color("#e8f8ff"), 2)
-	var dest: String = dests[c]
 	GameState.main.goto_map(dest, "skytower")
 	UI.toast("Flying to %s..." % WorldDB.map_name(dest), UIKit.GOLD)
-	return true
 
 
 # ================================================================ electronics

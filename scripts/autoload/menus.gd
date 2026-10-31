@@ -8,10 +8,9 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
-## The travel book and the world map aren't preloaded (they'd slow the start): main.gd loads them in the background
-## once the title is up, and they're fetched when first opened.
+## The travel book (the world map is its Map tab) isn't preloaded (it'd slow the start): main.gd loads it in the
+## background once the title is up, and it's fetched when first opened.
 const BOOK_PATH := "res://scripts/ui/book_menu.gd"
-const MAP_PATH := "res://scripts/ui/world_map_view.gd"
 
 
 ## The Start menu: the travel book.
@@ -365,16 +364,12 @@ func songs_menu() -> void:
 	await UI.choose("Songs (%d of %d)" % [GameState.songs.size(), SongDB.ORDER.size()], items, {"width": 520})
 
 
+## The world map is the Start book's Map tab.
 func world_map() -> void:
 	if not GameState.flags.get("world_map", true):
 		await UI.say(["Librarian Quill has a free world map for you at Cocoon Cove Library, beside the path from home to the square."])
 		return
-	if UI.auto:
-		return
-	var v = GameState.main.loaded_script(MAP_PATH).new()
-	v.setup(GameState.map_id)
-	UI.push(v)
-	await v.done
+	await pause_menu(GameState.main.world if GameState.main else null, "map")
 
 
 func bestiary() -> void:

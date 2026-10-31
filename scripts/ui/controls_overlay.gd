@@ -815,30 +815,27 @@ func menu_bottom_reserve(left: float, right: float) -> float:
 	var reserve := 0.0
 	var height := get_viewport().get_visible_rect().size.y
 	for group in CLUSTERS:
-		if not (_buttons[group[0]] as TouchScreenButton).visible:
-			continue
-		var zone := Rect2()
-		for i in group.size():
-			var r := button_rect(group[i])
-			zone = r if i == 0 else zone.merge(r)
-		zone = zone.grow(TOUCH_SLOP + 12.0)
-		if left < zone.end.x and right > zone.position.x:
+		var zone := cluster_zone(group, TOUCH_SLOP + 12.0)
+		if zone.has_area() and left < zone.end.x and right > zone.position.x:
 			reserve = maxf(reserve, height - zone.position.y)
 	return reserve
+
+
+## A cluster's buttons' faces together, grown by `grow`; empty while the touch pad (or that cluster) is hidden.
+func cluster_zone(group: Array, grow: float) -> Rect2:
+	if not _touch_on or not (_buttons[group[0]] as TouchScreenButton).visible:
+		return Rect2()
+	var zone := Rect2()
+	for i in group.size():
+		var r := button_rect(group[i])
+		zone = r if i == 0 else zone.merge(r)
+	return zone.grow(grow)
 
 
 ## True near the touch controls, so a thumb that slips off a button or lands in the middle of the d-pad doesn't
 ## also count as a tap on the world (walk there) or on dialogue.
 func covers(p: Vector2) -> bool:
-	if not _touch_on:
-		return false
 	for group in CLUSTERS:
-		if not (_buttons[group[0]] as TouchScreenButton).visible:
-			continue
-		var zone := Rect2()
-		for i in group.size():
-			var r := button_rect(group[i])
-			zone = r if i == 0 else zone.merge(r)
-		if zone.grow(TOUCH_SLOP + NO_TAP_MARGIN).has_point(p):
+		if cluster_zone(group, TOUCH_SLOP + NO_TAP_MARGIN).has_point(p):
 			return true
 	return false

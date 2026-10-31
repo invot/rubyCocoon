@@ -146,7 +146,7 @@ const MAPS := {
 	"tidewater": {
 		# Bellerive, the French Quarter by the sea. The whole town stands on a raised stone quay above the harbour: cobbled
 		# streets (",") between flagstone sidewalks (":"), Creole townhouses with iron galleries along Rue Royale, the
-		# Place d'Armes (an iron-fenced garden square round the mascot's statue) before the Sky Tower's bell tower, walled
+		# Place d'Armes (an open flower garden round the mascot's statue) before the Sky Tower's bell tower, walled
 		# courtyards behind the riverfront row, and the promenade along the quay with its stone balustrade and lamps ("F" and
 		# "L" beside the water: world.gd). Ramps step down from the promenade to the piers, nearer the water. The road north
 		# to the Dune Road leaves past the park.
@@ -156,26 +156,27 @@ const MAPS := {
 		"building_order": [[26, 3], [2, 4], [7, 4], [13, 4], [33, 4], [21, 4], [64, 8], [3, 20], [8, 20], [14, 20], [20, 20], [4, 30]],
 		# the French Market's arcade on the riverfront (scenery: no door), on hedge tiles nobody walks on
 		"scenery_houses": [{"name": "FrenchMarket", "x": 26, "y": 20, "w": 13, "d": 3, "kind": "market"}],
+		# Low hedges frame the Dune Road approach without canopies hiding the two-tile path.
 		"rows": [
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT__TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT__TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTCCCCCCTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
-			"TTrrrrTKKKKKTAAAAATTTVVVTTCCCCCCTXXXXTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
-			"TTrrrrTKKKKKTAAAAATTTVVVTTCCCCCCTXXXXTTT,,FFFFFFFFFFFFFFFFFFFFFTTTTTTTTTTT~~",
-			"TTrrrrTKKKKKTAAAAATTTVVVTTCCCCCCTXXXXTTT,,FTTTTTTTTTTTTTTTTTTTFTTTTTTTTTTT~~",
+			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTtt__ttTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
+			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTtt__ttTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
+			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTtt,,ttTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
+			"TTTTTTTTTTTTTTTTTTTTTTTTTTCCCCCCTTTTTTtt,,ttTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
+			"TTrrrrTKKKKKTAAAAATTTVVVTTCCCCCCTXXXXTtt,,ttTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT~~",
+			"TTrrrrTKKKKKTAAAAATTTVVVTTCCCCCCTXXXXTtt,,FFFFFFFFFFFFFFFFFFFFFTTTTTTTTTTT~~",
+			"TTrrrrTKKKKKTAAAAATTTVVVTTCCCCCCTXXXXTtt,,FtTTTTTTTTTTTTTTTTTTFTTTTTTTTTTT~~",
 			"::::::::::::::::::::::::::::::::::::::::,,FTTTTTTTTTTTTTTTTTTTFTTTTTTTTTTT~~",
 			",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,::::::::::::::::::::FTRRRRRRRRTT~~",
-			"tt+:::::1:::::::::::::::::::::::::::::::,,+:fggggggf:fggggggf:FTRRRRRRRRTT~~",
-			"tt::::::::::LFFFFFFF:FF:FFFFFFFL::::::::,,F:gggggggg:gggggggg:FTRRRRRRRRTT~~",
-			"tt::::::::@::Fffffff:tt:f3ffffF:::::::::,,F:gggggggg:gggggggg:FTRRRRRRRRTT~~",
-			"tt:::::::::::::::::::SS:::::::::::::::::,,F:fggggggf:fggggggf:FLRRRRRRRRLT~~",
-			"tt:::::::::::FfffffffSSfffffffF:::::::::,,::::::6:::::::::::::::::::::::tt~~",
-			"tt::::::::::LFFFFFFFF::FFFFFFFFL::::::::,,F:fggggggf:fggggggf:F:::::::::tt~~",
-			"tt,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,F:gggggggg:gggggggg:F:::::::::tt~~",
-			"ttFFFFFFFFFF::FFFFFFFFFFFFFFFFFFFFFFFFFF,,F:gggggggg:gggggggg:F:::::::::tt~~",
-			"tttttttttttt::tttttttttttttttttttttttttt,,F:gggggggg:gggggggg:FFFFFFFFFFFF~~",
-			"tttttttttttt::tttttttttttttttttttttttttt,,F:fggggggf:fggggggf:Fttttttttttt~~",
+			"tt+:::::1:::::::::::::::::::::::::::::::,,+:fgggggg:::ggggggf:FTRRRRRRRRTT~~",
+			"tt::::::::::L::::::::tt::::::::L::::::::,,F:ggggggg:::ggggggg:FTRRRRRRRRTT~~",
+			"tt::::::::@:::ffffff:tt:f3ffff::::::::::,,F:ggggggg:::ggggggg:FTRRRRRRRRTT~~",
+			"tt:::::::::::::::::::SS:::::::::::::::::,,::::::::::::::::::::FLRRRRRRRRLT~~",
+			"tt::::::::::::fffffffSSfffffff::::::::::,,::::::6:::::::::::::::::::::::tt~~",
+			"tt::::::::::L::::::::::::::::::L::::::::,,::::::::::::::::::::::::::::::tt~~",
+			"tt,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,F:ggggggg:::ggggggg:::::::::::tt~~",
+			"tt:ttttttttttttttttttttttttttttttttttttt,,F:ggggggg:::ggggggg:F:::::::::tt~~",
+			"tttttttttttt::tttttttttttttttttttttttttt,,F:ggggggg:::ggggggg:FFFFFFFFFFFF~~",
+			"tttttttttttt::tttttttttttttttttttttttttt,,F:fgggggg:::ggggggf:Fttttttttttt~~",
 			"tttttttttttt::tttttttttttttttttttttttttt,,F:::::::::::::::::::Fttttttttttt~~",
 			"tttHHHHtHHHH::GGGGGtEEEEEttttttttttttttt,,FfffffffffffffffffffFttttttttttt~~",
 			"tttHHHHtHHHH::GGGGGtEEEEEttttttttttttttt,,FFFFFFFFF:::FFFFFFFFFttttttttttt~~",

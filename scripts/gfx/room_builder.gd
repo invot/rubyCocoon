@@ -104,9 +104,11 @@ const KINDS := {
 	"booth": {"m": ["el_booth"], "fit": true, "chair": true, "tint": "#e05050"},
 	"diner_table": {"m": ["el_diner_table"], "free": true, "fit": true, "top": ["cup", "plate", "el_flowers", "cup_2", ""]},
 	"computer": {"m": ["desk_writing", "desk_sled"], "top": ["el_monitor"], "always_top": true},
-	# a red telephone on a round table filling its tile, out from the wall so you can walk right up to it: calling Dad
-	# saves the game, calling Mom gets you a hint (see phone.gd)
-	"phone": {"m": ["table_small"], "top": ["phone_rotary"], "always_top": true, "single": true, "free": true},
+	# a red telephone, on a white placemat on a little chest of drawers (tools/make_side_table.gd), out from the wall so
+	# you can walk right up to it: calling Dad saves the game, calling Mom gets you a hint (see phone.gd).
+	# top_scale = how much bigger than the pack's size what stands on it is; mat = the colour of a mat under it
+	"phone": {"m": ["side_table"], "top": ["phone_rotary"], "always_top": true, "single": true, "free": true,
+		"top_scale": 1.3, "mat": "#f6f3ec"},
 }
 
 static var _meshes := {}
@@ -1209,6 +1211,17 @@ static func rug_rectangles(m: Dictionary) -> Array[Rect2i]:
 	return out
 
 
+## A soft, untextured colour (a placemat), shared by everything of that colour.
+static func plain_material(colour: Color) -> StandardMaterial3D:
+	var key := "plain:%s" % colour.to_html()
+	if not _mats.has(key):
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = colour
+		mat.roughness = 1.0
+		_mats[key] = mat
+	return _mats[key]
+
+
 static func rug_material(colour: Color, size: Vector2) -> ShaderMaterial:
 	var key := "soft_rug:%s:%s" % [colour.to_html(), size]
 	if _mats.has(key):
@@ -1356,7 +1369,23 @@ func _place(kind: String, group: Array) -> void:
 				continue
 			var spread := Vector3(bb.size.x * sc.x * 0.3, 0, bb.size.z * sc.z * 0.25)
 			var off := Vector3(rng.randf_range(-1, 1) * spread.x, 0, rng.randf_range(-1, 1) * spread.z) if not k.get("always_top", false) else Vector3.ZERO
-			t.position = pos + Basis(Vector3.UP, yaw) * off + Vector3(0, top_y, 0)
+			t.scale = Vector3.ONE * float(k.get("top_scale", 1.0))
+			var lift := 0.0
+			if k.has("mat"):
+				# a thin mat under it, a little bigger than it all round but never past the table's edges
+				var foot := t.mesh.get_aabb().size * t.scale
+				var mat := MeshInstance3D.new()
+				var mb := BoxMesh.new()
+				mb.size = Vector3(minf(foot.x + 0.1, bb.size.x * sc.x - 0.08), 0.008, minf(foot.z + 0.08, bb.size.z * sc.z - 0.06))
+				mat.mesh = mb
+				mat.material_override = plain_material(Color(k["mat"]))
+				mat.position = pos + Basis(Vector3.UP, yaw) * off + Vector3(0, top_y + 0.004, 0)
+				mat.rotation.y = yaw
+				mat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				parent.add_child(mat)
+				pieces.append(mat)
+				lift = 0.008
+			t.position = pos + Basis(Vector3.UP, yaw) * off + Vector3(0, top_y + lift, 0)
 			t.rotation.y = yaw + (rng.randf_range(-0.6, 0.6) if not k.get("always_top", false) else 0.0)
 			parent.add_child(t)
 			if kind == "phone":

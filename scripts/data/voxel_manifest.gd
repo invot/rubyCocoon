@@ -4,6 +4,14 @@ extends RefCounted
 ## code: voxel_assets.gd PROCEDURAL.)
 
 const ASSETS := {
+	"tree_cypress": "res://assets/nature/tree_cypress.res",
+	"tree_cypress_slim": "res://assets/nature/tree_cypress_slim.res",
+	"tree_dome": "res://assets/nature/tree_dome.res",
+	"palm_bent": "res://assets/nature/palm_bent.res",
+	"grass_leaf_0": "res://assets/nature/grass_leaf_0.res",
+	"grass_leaf_1": "res://assets/nature/grass_leaf_1.res",
+	"grass_leaf_2": "res://assets/nature/grass_leaf_2.res",
+
 	"tree_oak": "res://assets/nature/tree_oak.res",
 	"tree_big": "res://assets/nature/tree_big.res",
 	"tree_birch": "res://assets/nature/tree_birch.res",

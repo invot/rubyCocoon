@@ -186,7 +186,7 @@ const ARENAS := {
 
 const BIOMES := {
 	"coast": {"ground": "#7cc05a", "side": "#9a7a50", "sand": "#ecd8a0", "path": "#c8a878", "plaza": "#c8c0b0", "tuft": "#5aa040",
-		"trees": [["palm", 3], ["tree_round_1", 2], ["tree_oak", 1], ["tree_birch", 1], ["tree_round_2", 1]], "rocks": ["beach_rock", "rock_small"],
+		"trees": [["palm", 2], ["palm_bent", 1], ["tree_dome", 2], ["tree_oak", 2], ["tree_birch", 1], ["tree_round_2", 1], ["tree_cypress", 1]], "rocks": ["beach_rock", "rock_small"],
 		"shrubs": ["shrub_1", "shrub_3", "shrub_4", "bush_1", "bush_2"], "mixed": 0.35,
 		"sky_top": "#4aa8f0", "sky_hz": "#d8f0f8", "sun": "#fff8e8", "sun_e": 1.3, "amb": 0.6, "style": "coastal", "water": "#3a90e0", "music": "coast"},
 	# Bellerive's French Quarter: the coast's sky and sea, but a town of stone: cobbled streets ("paving", stone_streets:
@@ -197,7 +197,7 @@ const BIOMES := {
 		"shrubs": ["shrub_1", "shrub_3", "bush_1", "bush_2"], "mixed": 0.3,
 		"sky_top": "#4aa8f0", "sky_hz": "#e0eef4", "sun": "#fff4e0", "sun_e": 1.3, "amb": 0.62, "style": "creole", "water": "#3a8ad0", "music": "coast"},
 	"island": {"ground": "#6ac050", "side": "#9a7a50", "sand": "#f0e0a8", "path": "#d8b880", "plaza": "#d8ccb0", "tuft": "#4ab040",
-		"trees": [["palm", 4], ["tree_round_1", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
+		"trees": [["palm", 3], ["palm_bent", 2], ["tree_dome", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
 		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.4, "amb": 0.62, "style": "island", "water": "#2aa8d8", "music": "island"},
 	"desert": {"ground": "#e2c890", "side": "#b8945a", "sand": "#ecd8a0", "path": "#c8a070", "plaza": "#d8c098", "tuft": "#b8a050",
 		"trees": [["cactus_1", 2], ["cactus_2", 2], ["cactus_3", 1]], "rocks": ["field_rock", "bones_1", "bones_2", "stone_2"], "shrubs": ["bush_1", "bush_2"],
@@ -209,7 +209,7 @@ const BIOMES := {
 		"trees": [["cactus_1", 2], ["dead_tree", 1]], "rocks": ["mountain_3", "mountain_6", "field_rock"], "shrubs": ["bush_2"],
 		"sky_top": "#5aa0e0", "sky_hz": "#f8d0a8", "sun": "#ffe0b8", "sun_e": 1.45, "amb": 0.58, "style": "western", "water": "#3a9ad8", "music": "western"},
 	"mountain": {"ground": "#8a9a6a", "side": "#6a6058", "sand": "#b8b0a0", "path": "#9a8a70", "plaza": "#a8a49a", "tuft": "#6a8a4a",
-		"trees": [["tree_pine", 3], ["tree_birch", 1]], "rocks": ["mountain_0", "mountain_2", "mountain_5", "rock_big"], "shrubs": ["shrub_3", "bush_3"],
+		"trees": [["tree_pine", 3], ["tree_birch", 1], ["tree_cypress", 1], ["tree_cypress_slim", 1]], "rocks": ["mountain_0", "mountain_2", "mountain_5", "rock_big"], "shrubs": ["shrub_3", "bush_3"],
 		"sky_top": "#6ab0f0", "sky_hz": "#e8f4f8", "sun": "#ffffff", "sun_e": 1.3, "amb": 0.6, "style": "mining", "water": "#3a8ad0", "music": "mountain"},
 	"steampunk": {"ground": "#7a7a72", "side": "#5a5a58", "sand": "#a89a80", "path": "#6a6a68", "plaza": "#8a847a", "tuft": "#5a7a40",
 		"trees": [["tree_round_2", 1]], "rocks": ["crates", "barrel"], "shrubs": ["shrub_1"],

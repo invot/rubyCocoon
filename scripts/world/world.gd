@@ -420,18 +420,7 @@ func _build_terrain() -> void:
 			var kind := "grass"
 			var liquid := 0
 			var craggy := false
-			if c in [MapGen.LAMP, MapGen.SIGN]:
-				# a lamp post or a signpost stands on whatever ground is around it
-				c = MapLoader._infer_floor(map, Vector2i(x, y))
-			elif biome.get("stone_streets", false) and not map.get("over_water", {}).has(Vector2i(x, y)):
-				# a town of stone (Bellerive) is paved under its buildings, its courtyards' planting and the quay's
-				# balustrade; a fence elsewhere stands on the ground around it
-				if c in [MapGen.BUILDING, MapGen.BUSH] or (c == MapGen.FENCE and _on_quay(Vector2i(x, y))):
-					c = MapGen.PLAZA
-				elif c == MapGen.FENCE:
-					c = MapLoader._infer_floor(map, Vector2i(x, y))
-			if c == MapGen.BUILDING and map.get("over_water", {}).has(Vector2i(x, y)):
-				c = MapGen.BRIDGE
+			c = _ground_tile(Vector2i(x, y))
 			match c:
 				MapGen.PATH, MapGen.DOOR:
 					# a town of stone (Bellerive) cobbles its streets
@@ -453,9 +442,9 @@ func _build_terrain() -> void:
 					kind = "lava_bed"
 					liquid = 2
 				MapGen.ROCK:
-					top = rng.randf_range(0.9, 1.5)
+					# Rock silhouettes come from grounded pack meshes, never single-tile terrain peaks.
+					top = 0.0
 					kind = "rock"
-					craggy = true
 					if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).has_point(Vector2i(x, y)):
 						# a maze wall: a squared-off stone block on flat ground, so the maze reads clearly
 						top = 1.0
@@ -568,7 +557,8 @@ func _build_backdrop() -> void:
 			if MapGen.walkable(edge) and edge != MapGen.SAND:
 				continue
 			# just south of a road leading out at the sides, low things only too, so the road stays in plain sight
-			var south := tz >= ih or _side_road_behind(tx, tz)
+			# Continue low planted borders as low planting, including beside a road out of town.
+			var south := tz >= ih or _side_road_behind(tx, tz) or edge == MapGen.BUSH
 			var c := Vector3(tx + 0.5 + rng.randf_range(-0.3, 0.3), _lift(Vector2i(tx, tz)), tz + 0.5 + rng.randf_range(-0.3, 0.3))
 			var shadow := depth <= 1
 			if edge == MapGen.SAND:
@@ -602,8 +592,23 @@ func _build_backdrop() -> void:
 				_ring_tree(by_asset, trees, c, rng, 2.0 if mixed > 0.0 else 2.4, 4.0, shadow)
 			elif (depth <= 2 or (mixed > 0.0 and depth <= 6)) and rng.randf() < 0.5 + mixed:
 				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.2)
+	# A trunk can stand beside the road while its canopy reaches across it. Check the
+	# transformed mesh bounds, including off-centre palms, rather than just its tile.
+	var roads := _backdrop_roads()
 	for name in by_asset:
-		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
+		var bounds := VA.aabb(String(name).trim_suffix(SHADOWLESS))
+		var clear := []
+		for xf: Transform3D in by_asset[name]:
+			var box: AABB = xf * bounds
+			var footprint := Rect2(Vector2(box.position.x, box.position.z), Vector2(box.size.x, box.size.z))
+			var overlaps := false
+			for road: Rect2 in roads:
+				if footprint.intersects(road):
+					overlaps = true
+					break
+			if not overlaps:
+				clear.append(xf)
+		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), clear, null, not String(name).ends_with(SHADOWLESS))
 	# hills on the horizon
 	var hills := ["mountain_0", "mountain_2", "mountain_4", "mountain_6", "mountain_8"]
 	var hx := -20.0
@@ -636,13 +641,31 @@ func _side_road_behind(tx: int, tz: int) -> bool:
 	return false
 
 
+## Keep the complete visible continuation of each exit clear, with a small shoulder.
+func _backdrop_roads() -> Array[Rect2]:
+	var roads: Array[Rect2] = []
+	var w: int = map["w"]
+	var h: int = map["h"]
+	for dir in map.get("openings", {}):
+		for p: Vector2i in map["openings"][dir]:
+			var road := Rect2()
+			match String(dir):
+				"north": road = Rect2(p.x, -RING, 1, RING)
+				"south": road = Rect2(p.x, h, 1, RING)
+				"west": road = Rect2(-RING, p.y, RING, 1)
+				"east": road = Rect2(w, p.y, RING, 1)
+			if road.has_area():
+				roads.append(road.grow(0.35))
+	return roads
+
+
 func _ring_tree(by_asset: Dictionary, trees: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float, shadow: bool) -> void:
 	if trees.is_empty():
 		return
 	var name := _pick_weighted(trees, rng)
 	var bb := VA.aabb(name)
 	var sc := VA.fit_scale(name, rng.randf_range(lo, hi))
-	_add_asset(by_asset, name if shadow else name + SHADOWLESS, _xf(c - Vector3(0, bb.position.y * sc, 0), rng.randf() * TAU, sc))
+	_add_plant(by_asset, name if shadow else name + SHADOWLESS, _xf(c - Vector3(0, bb.position.y * sc, 0), rng.randf() * TAU, sc))
 
 
 func _ring_shrub(by_asset: Dictionary, shrubs: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
@@ -650,7 +673,7 @@ func _ring_shrub(by_asset: Dictionary, shrubs: Array, c: Vector3, rng: RandomNum
 		return
 	var name: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 	var sc := VA.fit_scale(name, rng.randf_range(lo, hi))
-	_add_asset(by_asset, name + SHADOWLESS, _xf(c - Vector3(0, VA.aabb(name).position.y * sc, 0), rng.randf() * TAU, sc))
+	_add_plant(by_asset, name + SHADOWLESS, _xf(c - Vector3(0, VA.aabb(name).position.y * sc, 0), rng.randf() * TAU, sc))
 
 
 func _ring_rock(by_asset: Dictionary, rocks: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
@@ -762,10 +785,71 @@ func _on_quay(p: Vector2i) -> bool:
 	return c in [MapGen.WATER, MapGen.BRIDGE] or Elev.surface(map, south) < Elev.surface(map, p) - 0.4
 
 
+## The ground actually drawn under a tile; planted beds retain soil/grass, even in a stone town.
+func _ground_tile(p: Vector2i) -> int:
+	var c := MapGen.get_t(map, p.x, p.y)
+	if c in [MapGen.LAMP, MapGen.SIGN]:
+		return MapLoader._infer_floor(map, p)
+	if c == MapGen.BUILDING and map.get("over_water", {}).has(p):
+		return MapGen.BRIDGE
+	if biome.get("stone_streets", false):
+		if c == MapGen.BUILDING or (c == MapGen.FENCE and _on_quay(p)):
+			return MapGen.PLAZA
+		if c == MapGen.FENCE:
+			return MapLoader._infer_floor(map, p)
+	return c
+
+
+## Test full foliage bounds, so an offset or rotated canopy cannot spill onto paving.
+func _plant_on_paving(bounds: AABB, xf: Transform3D) -> bool:
+	var box := xf * bounds
+	for y in range(maxi(0, floori(box.position.z)), mini(map["h"], ceili(box.end.z))):
+		for x in range(maxi(0, floori(box.position.x)), mini(map["w"], ceili(box.end.x))):
+			if _ground_tile(Vector2i(x, y)) in [MapGen.PATH, MapGen.PLAZA, MapGen.DOOR, MapGen.STATUE]:
+				return true
+	return false
+
+
+func _plants_off_paving(mesh: Mesh, placements: Array) -> Array:
+	var clear := []
+	if mesh == null:
+		return clear
+	var bounds := mesh.get_aabb()
+	for xf: Transform3D in placements:
+		if not _plant_on_paving(bounds, xf):
+			clear.append(xf)
+	return clear
+
+
+func _add_plant(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
+	if not _plant_on_paving(VA.aabb(name.trim_suffix(SHADOWLESS)), xf):
+		_add_asset(by_asset, name, xf)
+
+
 func _add_asset(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
 	if not by_asset.has(name):
 		by_asset[name] = []
 	by_asset[name].append(xf)
+
+
+## Shrubs frame planted beds in single-tile lines. Keep the map's solid footprint: thinning a tutorial
+## barrier into walkable lawn would let players skirt its teacher or story gate.
+func _hedge_lines() -> Dictionary:
+	var edge := {}
+	for y in map["h"]:
+		for x in map["w"]:
+			if MapGen.get_t(map, x, y) != MapGen.BUSH:
+				continue
+			for d in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+				if MapGen.get_t(map, x + d.x, y + d.y) != MapGen.BUSH:
+					edge[Vector2i(x, y)] = true
+					break
+	# Narrow two-tile strips can have both edges next to one another; keep just one line there.
+	var outline := edge.duplicate()
+	for p: Vector2i in outline:
+		if outline.has(p + Vector2i.LEFT) and outline.has(p + Vector2i.UP) and outline.has(p + Vector2i(-1, -1)):
+			edge.erase(p)
+	return edge
 
 
 func _build_scatter() -> void:
@@ -773,11 +857,9 @@ func _build_scatter() -> void:
 	var h: int = map["h"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = map_id.hash() + 7
-	var tuft_hex: String = biome["tuft"]
 	var tufts := [[], [], []]
 	var flowers := [[], []]
 	var by_asset := {}
-	var bushes := []
 	var fences := []
 	var lamps := []
 	var signs := []
@@ -785,6 +867,7 @@ func _build_scatter() -> void:
 	var trees: Array = biome["trees"]
 	var rocks: Array = biome["rocks"]
 	var shrubs: Array = biome["shrubs"]
+	var hedge_lines := _hedge_lines()
 	for y in h:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
@@ -804,8 +887,9 @@ func _build_scatter() -> void:
 					if mix > 0.0 and y < h - 3 and rng.randf() < mix:
 						for k in rng.randi_range(2, 3):
 							var tn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
-							var s4 := VA.fit_scale(tn, rng.randf_range(0.55, 1.25))
-							_add_asset(by_asset, tn + SHADOWLESS, _xf(center + Vector3(rng.randf_range(-0.35, 0.35), -VA.aabb(tn).position.y * s4, rng.randf_range(-0.35, 0.35)), _voxel_rot(rng), s4))
+							var s4 := VA.fit_scale(tn, rng.randf_range(0.45, 0.70))
+							s4 = minf(s4, VA.fit_scale(tn, -1.0, 1.10))
+							_add_plant(by_asset, tn + SHADOWLESS, _xf(center + Vector3(rng.randf_range(-0.35, 0.35), -VA.aabb(tn).position.y * s4, rng.randf_range(-0.35, 0.35)), _voxel_rot(rng), s4))
 						continue
 					var name := _pick_weighted(trees, rng)
 					var hgt := rng.randf_range(2.2, 3.1) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
@@ -814,18 +898,25 @@ func _build_scatter() -> void:
 						hgt = rng.randf_range(0.7, 1.0)
 					var bb := VA.aabb(name)
 					var s := VA.fit_scale(name, hgt)
-					if maxf(bb.size.x, bb.size.z) * s > 2.4:
-						s = 2.4 / maxf(bb.size.x, bb.size.z)
+					var canopy_limit := 2.0 if _open_ground_near(x, y, 1) else 2.4
+					if maxf(bb.size.x, bb.size.z) * s > canopy_limit:
+						s = canopy_limit / maxf(bb.size.x, bb.size.z)
 					# deep in a wood, a tree's shadow only falls on other trees: only trees near open ground cast one
 					var key := name if _open_ground_near(x, y, 2) else name + SHADOWLESS
-					_add_asset(by_asset, key, _xf(center + Vector3(rng.randf_range(-0.1, 0.1), -bb.position.y * s, rng.randf_range(-0.1, 0.1)), _voxel_rot(rng), s))
+					_add_plant(by_asset, key, _xf(center + Vector3(rng.randf_range(-0.1, 0.1), -bb.position.y * s, rng.randf_range(-0.1, 0.1)), _voxel_rot(rng), s))
 				MapGen.BUSH:
-					bushes.append(_xf(center, _voxel_rot(rng), rng.randf_range(0.8, 1.1)))
+					if not hedge_lines.has(Vector2i(x, y)):
+						continue
+					# A low continuous boundary, with several silhouettes rather than repeated green balls.
+					var bn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
+					var bs := VA.fit_scale(bn, -1.0, rng.randf_range(0.86, 1.06))
+					bs = minf(bs, 0.68 / maxf(0.001, VA.aabb(bn).size.y))
+					_add_plant(by_asset, bn, _xf(center + Vector3(rng.randf_range(-0.06, 0.06), 0, rng.randf_range(-0.06, 0.06)), rng.randf() * TAU, bs))
 				MapGen.ROCK:
-					if rng.randf() < 0.35 and not (map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).has_point(Vector2i(x, y))):
+					if not (map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).has_point(Vector2i(x, y))):
 						var rn: String = rocks[rng.randi_range(0, rocks.size() - 1)]
-						var top: float = rock_tops.get(Vector2i(x, y), 1.0)
-						var s2 := VA.fit_scale(rn, -1.0, rng.randf_range(0.7, 1.0))
+						var top := -0.035
+						var s2 := VA.fit_scale(rn, -1.0, rng.randf_range(0.88, 1.14))
 						_add_asset(by_asset, rn, _xf(center + Vector3(0, top - VA.aabb(rn).position.y * s2, 0), _voxel_rot(rng), s2))
 				MapGen.GRASS:
 					# town lawns: a patch of flowers here and there (only to look at; you can walk through them)
@@ -834,7 +925,7 @@ func _build_scatter() -> void:
 					elif rng.randf() < 0.05 and not shrubs.is_empty():
 						var sn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						var s3 := VA.fit_scale(sn, rng.randf_range(0.35, 0.6))
-						_add_asset(by_asset, sn, _xf(center + Vector3(rng.randf_range(-0.3, 0.3), -VA.aabb(sn).position.y * s3, rng.randf_range(-0.3, 0.3)), _voxel_rot(rng), s3))
+						_add_plant(by_asset, sn, _xf(center + Vector3(rng.randf_range(-0.3, 0.3), -VA.aabb(sn).position.y * s3, rng.randf_range(-0.3, 0.3)), _voxel_rot(rng), s3))
 				MapGen.FENCE:
 					fences.append(Vector2i(x, y))
 				MapGen.LAMP:
@@ -845,16 +936,16 @@ func _build_scatter() -> void:
 					signs.append(center)
 	for i in 3:
 		# grass tufts are too small to need shadows
-		_multimesh(VP.grass_tuft(tuft_hex, i), tufts[i], null, false)
+		_multimesh(VA.mesh("grass_leaf_%d" % i), _plants_off_paving(VA.mesh("grass_leaf_%d" % i), tufts[i]), null, false)
 	for i in 2:
-		_multimesh(VP.flowers(i), flowers[i], null, false)
-	_multimesh(VP.bush(Color(tuft_hex).darkened(0.12).to_html(false), 0), bushes)
+		_multimesh(VP.flowers(i), _plants_off_paving(VP.flowers(i), flowers[i]), null, false)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	var fence_name := "iron_fence" if biome["id"] in ["moor", "quarter"] else "fence"
 	var fx := []
 	var fs := VA.fit_scale(fence_name, -1.0, 1.05)
 	var quay: bool = biome["id"] == "quarter"
+	var garden_fences := {}
 	var balusters := []
 	var piers := []
 	for p in fences:
@@ -868,8 +959,21 @@ func _build_scatter() -> void:
 				if not MapGen.get_t(map, q.x, q.y) in runs:
 					piers.append(_xf(tile_pos(p) + (Vector3(side * 0.5, 0, 0) if horiz else Vector3(0, 0, side * 0.5))))
 			continue
+		if quay:
+			var mask := 0
+			var dirs := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
+			for i in 4:
+				var q: Vector2i = p + dirs[i]
+				if MapGen.get_t(map, q.x, q.y) in runs:
+					mask |= 1 << i
+			if not garden_fences.has(mask):
+				garden_fences[mask] = []
+			garden_fences[mask].append(_xf(tile_pos(p)))
+			continue
 		fx.append(_xf(tile_pos(p) - Vector3(0, VA.aabb(fence_name).position.y * fs, 0), 0.0 if horiz else PI / 2.0, fs))
 	_multimesh(VA.mesh(fence_name), fx)
+	for mask in garden_fences:
+		_multimesh(Creole.garden_fence(mask), garden_fences[mask])
 	_multimesh(Creole.balustrade(), balusters)
 	var lx := []
 	# gas lamps a head and more above the people
@@ -1186,6 +1290,8 @@ func _build_street_props() -> void:
 			taken[t] = true
 			var list: Array = STREET_SIDE if c[2] == "side" else (STREET_FRONT_SHOP if commercial else STREET_FRONT_HOUSE)
 			var name: String = list[rng.randi_range(0, list.size() - 1)]
+			if name == "planter" and was == MapGen.PLAZA:
+				name = "barrel"
 			if name == "hydrant" and not city:
 				name = "trash_can"
 			if c[2] == "side" and commercial and city and rng.randf() < 0.3:
@@ -1263,6 +1369,9 @@ func refresh_locks() -> void:
 		var node := _building_node(b, style)
 		f["node"] = node
 		f["meshes"] = node.find_children("*", "GeometryInstance3D", true, false)
+		f.erase("box")
+		f.erase("fade_materials")
+		f["opacity"] = 1.0
 
 
 ## Scenery houses nobody lives in: built like every other house in the town's style.
@@ -1920,10 +2029,52 @@ func _fade_buildings(delta: float) -> void:
 			f["box"] = _fade_box(f["meshes"])
 		var box: AABB = f["box"]
 		var occl: bool = box.size != Vector3.ZERO and (box.intersects_segment(from, head) or box.intersects_segment(from, middle))
-		var target := 0.93 if occl else 0.0
+		var target := 0.07 if occl else 1.0
+		var opacity: float = f.get("opacity", 1.0)
+		if opacity == target:
+			continue
+		opacity = move_toward(opacity, target, delta * 3.0)
+		f["opacity"] = opacity
+		_set_building_opacity(f, opacity)
+
+
+## Instance transparency is ignored on Mobile and Compatibility. Copy materials only when a building first fades;
+## never alter the shared house/texture cache. Restore the original opaque pipeline once the sightline clears.
+func _set_building_opacity(f: Dictionary, opacity: float) -> void:
+	if not f.has("fade_materials"):
+		var copies := {}
+		var bindings := []
 		for gi in f["meshes"]:
-			if is_instance_valid(gi) and gi.transparency != target:
-				gi.transparency = move_toward(gi.transparency, target, delta * 3.0)
+			if not gi is MeshInstance3D or gi.mesh == null:
+				continue
+			for surface in gi.mesh.get_surface_count():
+				var original: Material = gi.get_active_material(surface)
+				if not original is BaseMaterial3D:
+					continue
+				if not copies.has(original):
+					var faded := original.duplicate() as BaseMaterial3D
+					faded.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					copies[original] = faded
+				bindings.append({"mesh": gi, "surface": surface, "original": original,
+					"override": gi.get_surface_override_material(surface), "faded": copies[original]})
+		# Keep material_override precedence (notably signs) while fading each mesh's active surface materials.
+		var overrides := {}
+		for binding in bindings:
+			var mesh: MeshInstance3D = binding["mesh"]
+			if mesh.material_override != null:
+				overrides[mesh] = mesh.material_override
+		f["fade_materials"] = {"copies": copies, "bindings": bindings, "overrides": overrides}
+	var cache: Dictionary = f["fade_materials"]
+	for original: BaseMaterial3D in cache["copies"]:
+		var faded: BaseMaterial3D = cache["copies"][original]
+		var colour := original.albedo_color
+		colour.a *= opacity
+		faded.albedo_color = colour
+	for mesh: MeshInstance3D in cache["overrides"]:
+		mesh.material_override = cache["overrides"][mesh] if opacity == 1.0 else null
+	for binding in cache["bindings"]:
+		var mesh: MeshInstance3D = binding["mesh"]
+		mesh.set_surface_override_material(binding["surface"], binding["override"] if opacity == 1.0 else binding["faded"])
 
 
 ## The bounds of a building's meshes, in the world, trimmed a little so brushing past a corner doesn't fade it.

@@ -65,14 +65,15 @@ func _verify_menu() -> void:
 	_check(menu._focus == 1, "direction input selects the next trainer")
 	menu.buttons[0].grab_focus()
 	await main._wait(0.15)
-	if menu._pager.visible:
-		_check(menu._pager._next.size.y >= UIKit.row_h(), "page buttons keep the shared minimum height")
-		await _tap(menu._pager._next.get_global_rect().get_center())
+	if menu._rail.active:
+		_check(menu._rail._down.size.y >= UIKit.row_h(), "scroll buttons keep the shared minimum height")
+		await _tap(menu._rail._down.get_global_rect().get_center())
 		await main._wait(0.25)
-		_check(menu._scroll.scroll_vertical > 0, "direct Next tap pages the trainer list")
-		await _tap(menu._pager._prev.get_global_rect().get_center())
-		await main._wait(0.25)
-		_check(menu._scroll.scroll_vertical == 0, "direct Prev tap returns to the first page")
+		_check(menu._scroll.scroll_vertical > 0, "a direct tap on the down arrow scrolls the trainer list")
+		while menu._scroll.scroll_vertical > 0 and not menu._rail._up.disabled:
+			await _tap(menu._rail._up.get_global_rect().get_center())
+			await main._wait(0.25)
+		_check(menu._scroll.scroll_vertical == 0, "direct taps on the up arrow return to the top")
 	menu.buttons.back().grab_focus()
 	await main._wait(0.2)
 	_check(menu._scroll.get_global_rect().intersects(menu.buttons.back().get_global_rect()), "focus navigation reaches the final trainer")
@@ -124,8 +125,8 @@ func _check_layout(menu) -> void:
 					var visible: Rect2 = row.get_global_rect().intersection(menu._scroll.get_global_rect())
 					if visible.has_area():
 						_check(not hit.has_point(visible.get_center()), "visible choice stays reachable beside %s" % id)
-	if menu._pager.visible:
-		_check(rect.encloses(menu._pager.get_global_rect()) and menu._pager._count.text != "", "page controls and count stay inside the menu")
+	if menu._rail.active:
+		_check(rect.encloses(menu._rail.get_global_rect()), "scroll buttons stay inside the menu")
 	if menu.desc_label != null:
 		_check(rect.encloses(menu.desc_label.get_global_rect()), "trainer details stay inside the menu")
 

@@ -8,9 +8,9 @@ const FADE_TIME := 0.8
 
 ## Music keys -> track files. world_db.gd / main.gd decide which key plays where.
 const TRACKS := {
-	"title": "journey_to_ascend",
+	"title": "nerves",
 	"ending": "journey_to_ascend",
-	"home": "wholesome",
+	"home": "pennsylvania_rose",
 	"coast": "adventures_in_adventureland",
 	"island": "poofy_reel",
 	"desert": "howling_hound_music_retro_egyptian_theme_187380",

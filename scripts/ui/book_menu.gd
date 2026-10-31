@@ -18,7 +18,8 @@ const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const RingView = preload("res://scripts/ui/ring_view.gd")
-const Pager = preload("res://scripts/ui/pager.gd")
+const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
+const WorldMap = preload("res://scripts/ui/world_map.gd")
 const RingEditor = preload("res://scripts/ui/ring_editor.gd")
 
 const TABS := [
@@ -33,8 +34,9 @@ const TABS := [
 ## the tab strip's height, and the gap between the tabs and the window
 const TAB_H := 64.0
 const TAB_GAP := 6.0
-## the left (list) pane's share of the window
+## the left (list) pane's share of the window; the Map tab's left page is the map itself, so it takes more
 const LEFT_SHARE := 0.46
+const MAP_SHARE := 0.64
 ## Pixel style: the gap between the two pages, and how far in from a page's edge its ornament frame runs (in the
 ## kit's pixels: see _draw_frame)
 const PAGE_GAP := 12.0
@@ -63,12 +65,17 @@ var _slide: Tween
 var tab_strip: HBoxContainer
 var left_box: VBoxContainer
 var right_box: VBoxContainer
+## the right pane's scroller, and (Classic) the column it and its scroll buttons stand in
+var right_scroll: ScrollContainer
+var right_col: HBoxContainer
 var list_box: VBoxContainer
 var list_scroll: ScrollContainer
 var detail_box: VBoxContainer
 var rows: Array = []
 var row_buttons: Array = []
 var focus_row := 0
+## the Map tab's world map (world_map.gd)
+var map_view: Control
 var _t := 0.0
 var _keep_row := -1
 
@@ -151,20 +158,16 @@ func _build() -> void:
 	divider.add_theme_stylebox_override("separator", line)
 	panes.add_child(divider)
 	# the detail pane scrolls, so a tall page (a beast's skills and family tree on a phone) never pushes the window
-	# off the screen
-	var right_scroll := ScrollContainer.new()
-	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_scroll.size_flags_stretch_ratio = 1.0 - LEFT_SHARE
-	# with Prev / Next under it once it runs past a page (see pager.gd)
-	var right_col := VBoxContainer.new()
+	# off the screen, with up / down buttons beside it once it runs past a page (see scroll_rail.gd)
+	right_col = HBoxContainer.new()
+	right_col.add_theme_constant_override("separation", 6)
 	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_col.size_flags_stretch_ratio = 1.0 - LEFT_SHARE
 	right_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panes.add_child(right_col)
+	right_scroll = _scroller()
 	right_col.add_child(right_scroll)
-	right_col.add_child(Pager.new().setup(right_scroll))
+	right_col.add_child(ScrollRail.new().setup(right_scroll))
 	right_box = VBoxContainer.new()
 	right_box.add_theme_constant_override("separation", 8)
 	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -177,6 +180,7 @@ func _build() -> void:
 ## Pixel style: the two pages. The right one is drawn first, so it slides out from behind the left.
 func _build_pages() -> void:
 	window = null
+	right_col = null
 	pages = Control.new()
 	pages.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	book.add_child(pages)
@@ -188,20 +192,28 @@ func _build_pages() -> void:
 	left_box.add_theme_constant_override("separation", 8)
 	left_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	left_page.add_child(left_box)
-	var right_col := VBoxContainer.new()
-	right_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right_page.add_child(right_col)
-	var right_scroll := ScrollContainer.new()
-	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_col.add_child(right_scroll)
-	right_col.add_child(Pager.new().setup(right_scroll))
+	var col := HBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right_page.add_child(col)
+	right_scroll = _scroller()
+	col.add_child(right_scroll)
+	col.add_child(ScrollRail.new().setup(right_scroll))
 	right_box = VBoxContainer.new()
 	right_box.add_theme_constant_override("separation", 8)
 	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right_scroll.add_child(right_box)
+
+
+## A pane's scroller: up and down only, filling the room beside its scroll buttons.
+func _scroller() -> ScrollContainer:
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	return sc
 
 
 ## A page: the kit's paper, dark with the gem and edged in white, with its ornament frame drawn over it.
@@ -353,7 +365,7 @@ func _layout() -> void:
 	if pages != null and is_instance_valid(pages):
 		pages.position = Vector2(0, TAB_H + TAB_GAP)
 		pages.size = Vector2(w, book.size.y - TAB_H - TAB_GAP)
-		var lw := roundf((w - PAGE_GAP) * LEFT_SHARE)
+		var lw := roundf((w - PAGE_GAP) * _left_share())
 		left_page.position = Vector2.ZERO
 		left_page.size = Vector2(lw, pages.size.y)
 		left_page.pivot_offset = left_page.size / 2.0
@@ -363,6 +375,12 @@ func _layout() -> void:
 		return
 	window.position = Vector2(0, TAB_H + TAB_GAP)
 	window.size = Vector2(w, book.size.y - TAB_H - TAB_GAP)
+	left_box.size_flags_stretch_ratio = _left_share()
+	right_col.size_flags_stretch_ratio = 1.0 - _left_share()
+
+
+func _left_share() -> float:
+	return MAP_SHARE if TABS[tab]["id"] == "map" else LEFT_SHARE
 
 
 ## A new highlight colour (from the Settings tab): the open tab is redrawn in it. A new style: the book is built
@@ -437,6 +455,9 @@ func _open_tab(i: int) -> void:
 	row_buttons = []
 	list_box = null
 	detail_box = null
+	map_view = null
+	right_scroll.scroll_vertical = 0
+	_layout()
 	match TABS[tab]["id"]:
 		"trainer":
 			_tab_trainer()
@@ -467,16 +488,20 @@ func _clear(c: Control) -> void:
 ## Puts a title, a scrolling list and (optionally) a detail area in the chosen panes.
 func _make_list(on: VBoxContainer, title: String, detail_on: VBoxContainer = null) -> void:
 	on.add_child(_pane_title(title))
-	list_scroll = ScrollContainer.new()
-	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# with up / down buttons beside it once it runs past a page (see scroll_rail.gd)
+	var side := HBoxContainer.new()
+	side.add_theme_constant_override("separation", 6)
+	side.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	on.add_child(side)
+	list_scroll = _scroller()
 	list_scroll.follow_focus = true
-	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	on.add_child(list_scroll)
+	side.add_child(list_scroll)
 	list_box = VBoxContainer.new()
 	list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list_box.add_theme_constant_override("separation", 0)
 	list_scroll.add_child(list_box)
-	on.add_child(Pager.new().setup(list_scroll))
+	side.add_child(ScrollRail.new().setup(list_scroll))
 	detail_box = detail_on
 
 
@@ -529,6 +554,10 @@ func _add_row(row: Dictionary) -> void:
 
 
 func _focus_first() -> void:
+	if is_instance_valid(map_view):
+		map_view.grab_focus()
+		mode = "list"
+		return
 	if row_buttons.is_empty():
 		mode = "tabs"
 		return
@@ -546,6 +575,8 @@ func _row_focused(i: int) -> void:
 	var row: Dictionary = rows[i]
 	if detail_box != null and row.has("detail"):
 		_clear(detail_box)
+		if detail_box == right_box:
+			right_scroll.scroll_vertical = 0
 		(row["detail"] as Callable).call(detail_box)
 		if left_page != null:
 			_retitle()
@@ -735,25 +766,6 @@ func _tab_trainer() -> void:
 		_add_row({"text": SLOT_SHORT[slot], "right": ItemDB.item_name(id) if id != "" else "—", "right_width": 190,
 			"act": func(): await Menus.equip_trainer_slot(slot),
 			"detail": func(c): c.add_child(_t_label(ItemDB.get_item(id).get("desc", "Nothing equipped.") if id != "" else "Nothing equipped. %s to equip trainer gear." % _press()))})
-	var flyer = Places.own_flyer()
-	var outdoors: bool = world != null and not world.interior
-	_add_row({"text": "Fly", "disabled": flyer == null or not outdoors, "act": _fly,
-		"detail": func(c): c.add_child(_t_label(("%s can carry you to any town you've visited." % flyer.nickname) if flyer != null else "An air beast of Lv %d or higher could carry you to any town you've visited." % Places.FLY_LEVEL))})
-	# saving is calling Dad from a phone (see phone.gd)
-	_add_row({"text": "Saving", "act": _how_to_save, "detail": func(c): c.add_child(_t_label(SAVE_HELP))})
-
-
-func _fly() -> void:
-	var flyer = Places.own_flyer()
-	if flyer != null and await Places.fly_menu(world.map_id, 0, flyer.nickname):
-		close()
-
-
-const SAVE_HELP := "To save, call Dad from a red telephone. Saving is free: homes, Beast Centers, some shops and the arenas all have a phone you can use. Only the payphones by the town squares take coins (5 a call)."
-
-
-func _how_to_save() -> void:
-	await UI.say([SAVE_HELP])
 
 
 # ================================================================ Beasts
@@ -776,18 +788,17 @@ func _tab_beasts() -> void:
 		right_box.add_child(_t_label("You don't have any beasts yet.", UIKit.DIM))
 
 
-## Your battle ring: who stands where, and the rules.
+## Your battle ring: who stands where. It fills the page, so it never needs scrolling.
 func _ring_detail(c: VBoxContainer) -> void:
 	c.add_child(_h("Battle ring"))
-	var rv := RingView.new(300.0)
-	rv.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var rv := RingView.new(160.0)
+	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rv.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	rv.shield = GameState.shield
 	rv.max_shield = GameState.max_shield
 	rv.set_ring(GameState.ring(), GameState.ring_side)
 	rv.facing = 0.0
 	c.add_child(rv)
-	c.add_child(_t_label("You stand in the middle; the side facing the foe fights (outlined). Each side takes its own element, each corner either of its two, or a dual beast of both. Turn the ring in battle with ▲ / ▼ past your top or bottom beast.", UIKit.DIM))
-	c.add_child(_t_label("%s to arrange your beasts: move them round the ring, or in and out of storage (%d there)." % [_press(), GameState.storage.size()], UIKit.ACCENT))
 
 
 ## Arranging your beasts round the ring and in storage (ring_editor.gd).
@@ -1127,40 +1138,99 @@ func _race_detail(c: VBoxContainer, i: int) -> void:
 
 
 # ================================================================ Map
+## The world map across the left page, with you marked on it; the town picked on it (by tap or the d-pad) is
+## described on the right. Once an air beast of yours can carry you (Places.own_flyer), you can fly from here to any
+## town you've visited.
 func _tab_map() -> void:
-	_make_list(left_box, "The Realm", right_box)
-	for t in WorldDB.TOWN_ORDER:
-		var been: bool = GameState.visited.has(t)
-		var here: bool = GameState.map_id.get_slice("#", 0) == t
-		_add_row({"text": WorldDB.map_name(t) if been else "? ? ?", "right": "here" if here else "",
-			"act": func(): await Menus.world_map(), "detail": _town_detail.bind(t)})
+	left_box.add_child(_pane_title("The Realm"))
+	if not GameState.flags.get("world_map", true):
+		left_box.add_child(_t_label("You don't have a map yet. Librarian Quill has a free one for you at Cocoon Cove Library, beside the path from home to the square.", UIKit.DIM))
+		return
+	map_view = WorldMap.new().setup(GameState.map_id)
+	map_view.paper = _page_fill() if UIKit.pixel() else UIKit.WINDOW_BOTTOM
+	map_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	map_view.focused.connect(_town_focused)
+	map_view.activated.connect(_fly_to)
+	map_view.focus_entered.connect(func() -> void: mode = "list")
+	left_box.add_child(map_view)
+	detail_box = right_box
+	_town_focused(map_view.town())
+
+
+func _town_focused(t: String) -> void:
+	_clear(right_box)
+	right_scroll.scroll_vertical = 0
+	_town_detail(right_box, t)
+	if left_page != null:
+		_retitle()
 
 
 func _town_detail(c: VBoxContainer, t: String) -> void:
 	var info: Dictionary = WorldDB.TOWNS[t]
+	var here: bool = map_view.here == t
 	if not GameState.visited.has(t):
 		c.add_child(_h("Unexplored"))
 		c.add_child(_t_label("You haven't been here yet. Keep following the roads!", UIKit.DIM))
 		return
 	c.add_child(_h(info["name"]))
-	c.add_child(_t_label(String(info["size"]).capitalize(), UIKit.DIM))
+	if here:
+		c.add_child(_t_label("You are here.", UIKit.ACCENT))
+	elif WorldDB.ROUTES.has(map_view.here):
+		var r: Dictionary = WorldDB.ROUTES[map_view.here]
+		if t in [r["from"], r["to"]]:
+			c.add_child(_t_label("You're on the %s, which leads here." % r["name"], UIKit.ACCENT))
+	var flyer = Places.own_flyer()
+	if flyer != null and not here:
+		# (kept near the top, where it's in view without scrolling)
+		if _can_fly():
+			var fly := Button.new()
+			fly.text = "Fly here"
+			fly.focus_mode = Control.FOCUS_NONE
+			UIKit.plate_button(fly)
+			fly.custom_minimum_size = Vector2(220, UIKit.row_h())
+			fly.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			fly.pressed.connect(_fly_to.bind(t))
+			c.add_child(fly)
+			c.add_child(_t_label("%s can carry you here.%s" % [flyer.nickname, "" if UI.is_touch() else " Press A to fly."], UIKit.DIM))
+		else:
+			c.add_child(_t_label("Step outside, and %s can fly you here." % flyer.nickname, UIKit.DIM))
 	c.add_child(_spacer())
+	c.add_child(_t_label("%s  ·  Mascot: %s" % [String(info["size"]).capitalize(), RaceDB.race_name(info["mascot"])], UIKit.DIM))
 	c.add_child(_t_label(info["blurb"]))
-	c.add_child(_spacer())
-	c.add_child(_t_label("Mascot: %s" % RaceDB.race_name(info["mascot"])))
+	var roads := []
+	for rid in WorldDB.ROUTES:
+		if t in [WorldDB.ROUTES[rid]["from"], WorldDB.ROUTES[rid]["to"]]:
+			roads.append(WorldDB.ROUTES[rid]["name"])
+	c.add_child(_t_label("Roads: " + ", ".join(roads), UIKit.DIM))
 	var shops := []
 	for s in info["shops"]:
 		if not s in ["house", "uncle"] and not shops.has(s):
 			shops.append("Library" if t == "caccoon" and s == "bookstore" else String(s).replace("_", " ").capitalize())
-	var sl := _t_label("Places: " + ", ".join(shops), UIKit.DIM)
-	c.add_child(sl)
+	c.add_child(_t_label("Places: " + ", ".join(shops), UIKit.DIM))
 	if WorldDB.ARENAS.has(t):
 		var a: Dictionary = WorldDB.ARENAS[t]
 		var won: bool = GameState.crests.has(a["crest"])
 		c.add_child(_row_of([UIKit.icon(CREST_ICONS.get(a["crest"], "crest_empty") if won else "crest_empty"),
-			_w("%s %s\n%s" % [a["title"], a["leader"], "Crest won!" if won else "Not yet challenged"])]))
-	c.add_child(_spacer())
-	c.add_child(_t_label("%s to open the full map." % _press(), UIKit.ACCENT))
+			_w("%s %s
+%s" % [a["title"], a["leader"], "Crest won!" if won else "Not yet challenged"])]))
+
+
+## Flying needs open sky: not from indoors.
+func _can_fly() -> bool:
+	return world != null and not world.interior
+
+
+## A visited town picked on the map (A, or Fly here): your air beast flies you there, once you say yes.
+func _fly_to(t: String) -> void:
+	var flyer = Places.own_flyer()
+	if flyer == null or not _can_fly() or t == map_view.here or not GameState.visited.has(t):
+		if flyer != null:
+			Sfx.play("error")
+		return
+	if not await UI.ask("Fly to %s with %s?" % [WorldDB.map_name(t), flyer.nickname]):
+		return
+	await Places.fly_to(t)
+	close()
 
 
 # ================================================================ Settings

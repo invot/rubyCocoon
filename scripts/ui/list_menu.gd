@@ -16,7 +16,7 @@ var desc_label: Label = null
 var _panel: PanelContainer
 var _outer: VBoxContainer
 var _scroll: ScrollContainer
-var _pager: Control
+var _rail: Control
 var _row_h := 0.0
 var _max_rows := 0
 var _focus := -1
@@ -107,13 +107,18 @@ func _ready() -> void:
 		_scroll = scroll
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		scroll.follow_focus = true
-		scroll.custom_minimum_size = Vector2(width, row_h * mini(rows, maxi(1, items.size())) + 2)
-		vb.add_child(scroll)
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.custom_minimum_size = Vector2(0, row_h * mini(rows, maxi(1, items.size())) + 2)
+		# up / down buttons beside a menu longer than it shows, taking their room from the rows (see scroll_rail.gd)
+		var side := HBoxContainer.new()
+		side.add_theme_constant_override("separation", 6)
+		side.custom_minimum_size.x = width
+		vb.add_child(side)
+		side.add_child(scroll)
 		scroll.add_child(list)
-		# Prev / Next under a menu longer than it shows (see pager.gd)
-		_pager = load("res://scripts/ui/pager.gd").new().setup(scroll)
-		_pager.enabled = not UIKit.touch_ui() or opts.get("keep_anchor", false)
-		vb.add_child(_pager)
+		_rail = load("res://scripts/ui/scroll_rail.gd").new().setup(scroll)
+		_rail.enabled = not UIKit.touch_ui() or opts.get("keep_anchor", false)
+		side.add_child(_rail)
 	for i in items.size():
 		var it: Dictionary = items[i]
 		var b := Button.new()
@@ -167,8 +172,7 @@ func _ready() -> void:
 	_grab_start.call_deferred()
 
 
-## Fit whole, full-sized rows into the window, reserving the title, description and page buttons.
-## Reserving the pager even while hidden prevents the list from oscillating between two heights.
+## Fit whole, full-sized rows into the window, reserving the title and description.
 func _fit_rows() -> void:
 	if _scroll == null:
 		return
@@ -183,9 +187,7 @@ func _fit_rows() -> void:
 	if anchor in ["bottom", "bottom_right"]:
 		reserve = maxf(reserve, UI.bottom_reserve())
 	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0 - reserve
-	var chrome := _outer.get_combined_minimum_size().y - _scroll.custom_minimum_size.y
-	if _pager.enabled and not _pager.visible:
-		chrome += _pager.get_combined_minimum_size().y + 4.0
+	var chrome := _outer.get_combined_minimum_size().y - _scroll.get_parent_control().get_combined_minimum_size().y
 	var rows := clampi(floori((available - chrome - 2.0) / _row_h), 1, _max_rows)
 	_scroll.custom_minimum_size.y = rows * _row_h + 2.0
 	_outer.reset_size()

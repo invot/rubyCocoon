@@ -317,7 +317,7 @@ const MOM_TIPS := {
 		["One of the trainers you freed called me! They saw you open the freight cages.", "They wanted you to know that if you ever need MP back in a hurry, apothecaries sell Spirit Drops, and cafés make Mint Tea."]],
 	"jungle": [["I was watching TV, and the news said Vinehollow, over the Summit Pass, sells the finest gear in the land. And their shaman's looking for a capable trainer."],
 		["Grandma wants you to know that on the Summit Pass, the ice blocks slide until they hit something. Think before you push!"],
-		["A hiker on the Caldera Road called me. He said he saw you come out of the Temple of Flame with its guardian!", "He wanted you to know that once you have an air beast of Lv 40, you can Fly from anywhere outdoors. It's on the Trainer page of your Start book."]],
+		["A hiker on the Caldera Road called me. He said he saw you come out of the Temple of Flame with its guardian!", "He wanted you to know that once you have an air beast of Lv 40, you can fly from anywhere outdoors. Just pick a town on the Map in your Start book."]],
 	"relics": [["Grandma wants you to know that the Sun Relic is hidden in Vinehollow itself, the Moon Relic is on the Summit Pass, and the Earth Relic is on the Jungle Trail."],
 		["I was watching TV, and the news said the ritual in Vinehollow needs all three relics on the old shrine. Then something big is meant to happen!"],
 		["Shaman Ayo called me. She said she saw you take on her quest without blinking.", "She wanted you to know that if you ever lose track, she'll tell you which relics are still out there."]],

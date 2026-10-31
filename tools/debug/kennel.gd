@@ -64,10 +64,10 @@ func _verify() -> void:
 	await main._press("ui_down")
 	await main._wait(0.15)
 	_check(menu._focus == 1 and menu.desc_label.text.contains("78 gold"), "direction input shows the selected beast's level fee")
-	if menu._pager.visible:
-		await _tap(menu._pager._next.get_global_rect().get_center())
+	if menu._rail.active:
+		await _tap(menu._rail._down.get_global_rect().get_center())
 		await main._wait(0.2)
-		_check(menu._scroll.scroll_vertical > 0, "Next tap reaches the remaining pens")
+		_check(menu._scroll.scroll_vertical > 0, "a tap on the down arrow reaches the remaining pens")
 	menu.buttons.back().grab_focus()
 	await main._wait(0.2)
 	_check(menu.desc_label.text.contains("A Very Long Beast Nickname"), "long nickname remains readable in details")
@@ -130,8 +130,8 @@ func _layout(menu) -> void:
 	_check(rect.encloses(menu.desc_label.get_global_rect()), "details stay inside menu")
 	for button in menu.buttons:
 		_check(button.size.y >= UIKit.row_h(), "rows retain shared minimum size")
-	if menu._pager.visible:
-		_check(rect.encloses(menu._pager.get_global_rect()), "page controls stay visible")
+	if menu._rail.active:
+		_check(rect.encloses(menu._rail.get_global_rect()), "scroll buttons stay visible")
 	if UI.is_touch():
 		for id in UI.controls._buttons:
 			var button: TouchScreenButton = UI.controls._buttons[id]

@@ -22,6 +22,7 @@ const Elev = preload("res://scripts/world/elevation.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
+const TitleStage = preload("res://scripts/gfx/title_stage.gd")
 
 ## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
 ## Shows the 3D view, filling the window.
@@ -39,7 +40,7 @@ var _cinematic: Node3D
 
 func _ready() -> void:
 	GameState.main = self
-	# the same colour as the boot splash, behind the title until its town has been built
+	# the same colour as the boot splash, wherever nothing is drawn yet
 	RenderingServer.set_default_clear_color(SPLASH_COLOR)
 	if Prefs.is_mobile():
 		# a steady 60 fps: chasing a 120-144 Hz screen makes uneven frames and heats the phone until it throttles
@@ -112,24 +113,13 @@ func _process(_delta: float) -> void:
 func _title() -> void:
 	UI.allow_pause = false
 	UI.controls.set_title_mode(false)
-	# the menu comes up straight away; the town behind it is built a moment later
+	# the menu comes up over the title's own scene in the 3D view (the boot splash is a moment of it)
 	_title_backdrop()
 	Sfx.music("title")
 	Sfx.ambience("")
-	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.offset_top = 70
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 6)
-	UI.hud.add_child(box)
-	var t := UIKit.shadow_label("RUBY COCOON", 64, UIKit.GOLD_BRIGHT)
-	t.add_theme_font_size_override("font_size", UIKit.head_px(96))
-	t.add_theme_constant_override("outline_size", 18)
-	t.add_theme_color_override("font_outline_color", Color("#493333"))
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(t)
-	_title_nodes = [box]
+	var stage := TitleStage.new()
+	view.add_child(stage)
+	_title_nodes = [stage]
 	while true:
 		var items := []
 		# (--saves=0: a test run shows the title as a first launch would)
@@ -140,10 +130,10 @@ func _title() -> void:
 		if not Prefs.is_mobile():
 			items.append("Quit")
 		# big enough to read across a phone; with no save yet, "New Game" is a big glowing button with no box round it
-		# (Quit, on desktops, plain text under it)
+		# (Quit, on desktops, plain text under it); on phones too it stays under the logo rather than over it
 		var first := not items.has("Continue")
 		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 70 if first else 60),
-			"font_size": 64 if first else UIKit.BODY_HUGE, "bare": first})
+			"font_size": 64 if first else UIKit.BODY_HUGE, "bare": first, "keep_anchor": true})
 		var pick: String = items[c]
 		if pick == "Quit":
 			get_tree().quit()
@@ -152,9 +142,9 @@ func _title() -> void:
 		if pick == "Continue":
 			load_slot = GameState.latest_slot()
 		elif pick == "Load Game":
-			_title_nodes[0].visible = false
+			stage.logo.visible = false
 			load_slot = await slot_manager()
-			_title_nodes[0].visible = true
+			stage.logo.visible = true
 		if load_slot >= 0 and GameState.slot_outdated(load_slot):
 			UI.toast("That save is from before the new beasts, so it can't be loaded. Start a new game!", UIKit.ACCENT)
 		elif load_slot >= 0 and GameState.load_game(load_slot):
@@ -165,9 +155,9 @@ func _title() -> void:
 			return
 		if pick == "New Game":
 			# who you are: a name, a body and your colours
-			_title_nodes[0].visible = false
+			stage.logo.visible = false
 			var made = await UI.make_hero()
-			_title_nodes[0].visible = true
+			stage.logo.visible = true
 			if made == null:
 				continue
 			GameState.new_game(made["name"], made["look"])
@@ -235,10 +225,14 @@ func _clear_title() -> void:
 
 
 # ================================================================ maps
-## Behind the title's menu: loads the world's scripts in the background, builds the town and fades it in (unless a game
-## has started meanwhile), then loads the battle scripts, the travel book and the world map in the background too.
+## Behind the title's menu (which has its own picture, title_art.gd): puts away the world of a game left for the title,
+## loads the world's scripts in the background, then the battle scripts and the travel book too.
 func _title_backdrop() -> void:
-	screen.modulate.a = 0.0
+	if is_instance_valid(world):
+		if world.get_parent():
+			world.get_parent().remove_child(world)
+		world.queue_free()
+		world = null
 	# shaders can't be loaded off the main thread: load the ones the world's scripts preload first
 	for sh in THREAD_SHY:
 		load(sh)
@@ -247,11 +241,7 @@ func _title_backdrop() -> void:
 	await get_tree().process_frame
 	while ResourceLoader.load_threaded_get_status(WORLD_PATH) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
 		await get_tree().process_frame
-	if not _title_nodes.is_empty() and _pending_goto.is_empty():
-		_load_world("caccoon", "start", true)
-		await get_tree().process_frame
-	create_tween().tween_property(screen, "modulate:a", 1.0, 0.8)
-	for path in [BATTLE_PATH, Menus.BOOK_PATH, Menus.MAP_PATH]:
+	for path in [BATTLE_PATH, Menus.BOOK_PATH]:
 		ResourceLoader.load_threaded_request(path)
 
 
@@ -1118,16 +1108,23 @@ func _run_test() -> void:
 		GameState.add_beast(m)
 		for i in 10:
 			GameState.seen[str(i * 3)] = true
+		GameState.set_flag("world_map", _test.get("no_map", "0") != "1")
+		# --flyer=1: an air beast strong enough to carry you (the Map page's Fly); --visited=a,b: the towns you've been to
+		if _test.get("flyer", "0") == "1":
+			GameState.beast_slots += 1
+			GameState.add_beast(Beasts.create(32, 42))
+		if _test.has("visited"):
+			GameState.visited = Array(String(_test["visited"]).split(","))
 		Menus.pause_menu(world, scene.get_slice(":", 1))
 		await _wait(0.6)
 		for i in int(_test.get("downs", "0")):
 			_press("ui_down")
 			await _wait(0.12)
-		# --next=N: the left page's Next pressed N times (pager.gd)
+		# --next=N: the first scroll rail's down arrow pressed N times (scroll_rail.gd)
 		for i in int(_test.get("next", "0")):
-			for pg in get_tree().root.find_children("*", "HBoxContainer", true, false):
-				if pg.get_script() != null and String(pg.get_script().resource_path).ends_with("pager.gd") and pg.visible:
-					pg._next.pressed.emit()
+			for rail in get_tree().root.find_children("*", "VBoxContainer", true, false):
+				if rail.get_script() != null and String(rail.get_script().resource_path).ends_with("scroll_rail.gd") and rail.active:
+					rail.step(1)
 					break
 			await _wait(0.4)
 		if _test.has("flip"):
@@ -1257,6 +1254,8 @@ func _run_test() -> void:
 		UI.auto_flute = [0.95]
 		print("practised next level: ", await Places.practice_next_capture(), "  songs ", GameState.songs, "  cap ", GameState.capture_cap())
 		print("Lv6 target now: '", GameState.song_can_charm(GameState.capture_song(), too_big), "'  needs flawless: ", GameState.needs_flawless(too_big))
+	elif scene == "building-fade":
+		await load("res://tools/debug/building_fade.gd").new().run(self, _test)
 	elif scene == "wild-grace":
 		await load("res://tools/debug/wild_grace.gd").new().run(self, _test)
 	elif scene == "wilds":
@@ -1654,6 +1653,9 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "title":
 		_title()
+		# --keys: pressed once the menu is up (with a save, d,a opens Load Game; without, a opens the character creator)
+		await _wait(1.0)
+		await _test_keys()
 		await get_tree().create_timer(wait).timeout
 	elif scene == "view":
 		_do_goto("caccoon", "start")
@@ -1750,9 +1752,9 @@ func _saveui_test() -> void:
 	if DisplayServer.get_name() != "headless":
 		bad += _saveui_check(viewport_rect.encloses(menu._outer.get_global_rect()), "whole menu fits inside the screen")
 		bad += _saveui_check(not menu._outer.get_global_rect().intersects(_slot_preview.get_global_rect()), "list and snapshot do not overlap")
-	bad += _saveui_check(menu._pager.visible and menu._scroll.scroll_vertical > 0, "all ten slots remain reachable with full-sized rows")
+	bad += _saveui_check(menu._rail.active and menu._scroll.scroll_vertical > 0, "all ten slots remain reachable with full-sized rows")
 	bad += _saveui_check(menu.buttons[9].size.y >= UIKit.row_h(), "rows honor the shared button minimum")
-	bad += _saveui_check(menu._pager._next.size.y >= UIKit.row_h(), "page buttons honor the same minimum")
+	bad += _saveui_check(menu._rail._down.size.y >= UIKit.row_h() and menu._rail._up.size.y >= UIKit.row_h(), "scroll buttons honor the same minimum")
 	var standard_button := Button.new()
 	standard_button.text = "OK"
 	UI.hud.add_child(standard_button)
@@ -1764,9 +1766,9 @@ func _saveui_test() -> void:
 	bad += _saveui_check(_slot_preview.find_child("Snapshot", true, false).texture == null
 		and _slot_preview.find_child("MissingSnapshot", true, false) != null, "legacy save has a missing-screenshot placeholder")
 	var previous_scroll: int = menu._scroll.scroll_vertical
-	menu._pager._prev.pressed.emit()
+	menu._rail.step(-1)
 	await _wait(0.3)
-	bad += _saveui_check(menu._scroll.scroll_vertical < previous_scroll, "Prev moves back a page")
+	bad += _saveui_check(menu._scroll.scroll_vertical < previous_scroll, "the up arrow scrolls back")
 	var selected = menu.buttons[clampi(int(_test.get("slot", "0")), 0, 9)]
 	selected.grab_focus()
 	menu._scroll.ensure_control_visible(selected)
@@ -3630,6 +3632,11 @@ func _battle_keys() -> void:
 		# (a lesson's words come first: read on through them)
 		if tries % 30 == 0 and UI.stack.size() > 0 and UI.stack.back() is UI.DialogBox:
 			_press("ui_accept")
+	await _test_keys()
+
+
+## Presses --keys one after another (a, b, l, r, u, d), --gap seconds apart (0.4 to begin with).
+func _test_keys() -> void:
 	for k in String(_test.get("keys", "")).split(",", false):
 		await _press({"a": "ui_accept", "b": "ui_cancel", "l": "ui_left", "r": "ui_right", "u": "ui_up", "d": "ui_down"}.get(k, "ui_accept"))
 		await _wait(float(_test.get("gap", "0.4")))

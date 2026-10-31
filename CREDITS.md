@@ -7,6 +7,15 @@ fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files
 `licenses/`. To rebuild an asset with its `tools/` importer, download its pack again (the sources are listed below).
 **Several packs came without licence files: check each source's terms before releasing the game.**
 
+## Supplied stylized environment collections
+
+- **Environment Pack - Stylized Nature**, **Environment Pack - Grass**, and **Environment Pack - Stylized Rock**,
+  supplied by the user as three ZIP archives. No author, source URL or license document was included in those
+  archives; no license or creator is inferred. See `licenses/supplied_environment_packs.md` for the provenance record.
+  `tools/prepare_stylized_nature.py` extracts selected showcase objects; `tools/import_stylized_nature.gd` preserves
+  their normals/UVs, centers and normalizes them, bakes their textures, and generates LODs. Some yellow foliage is
+  recolored green. Grass uses the pack's simpler solid-blade clumps. The shared texture smoothing pass supplies the game's soft finish. Original downloads are untouched.
+
 ## PSX art (`psx/` → `assets/nature/`, `props/`, `boats/`, `robots/`, `houses/`, `exteriors/`, `interiors/`, `textures/surfaces/`)
 The low-poly PS1-style world. The packs were downloaded into `psx/` (not part of the game; see
 `psx/Jade Coccon index.csv`). `tools/build_psx_textures.gd` and `tools/import_psx_models.gd` make the
@@ -164,11 +173,16 @@ The voxel models were all replaced by the PSX ones above and removed. They came 
   included, check the authors' terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)
+*Pennsylvania Rose* by **Kevin MacLeod** (album *Scoring: Aspiring*, 2007, per the supplied MP3's metadata)
+is Cocoon Cove's town theme. User-supplied source: `Pennsylvania Rose.mp3`; game copy:
+`assets/audio/music/pennsylvania_rose.mp3` (128 kbps, 44.1 kHz). No licence accompanied this file;
+its licence still needs recording.
+
 Most tracks appear to be by **Kevin MacLeod (incompetech.com)**, licensed under Creative Commons
 Attribution 4.0 (http://creativecommons.org/licenses/by/4.0/). Please confirm each one:
 Adventures in Adventureland, Ancient Rite, At Launch, Derp Nugget, Desert City, Ether Vox,
 Ethernight Club, Farting Around, Half Mystery, Hep Cats, Industrious Ferret, Journey To Ascend,
-Magic Scout - Cottages, Magic Scout - Manor, Pleasant Porridge, Poofy Reel, Rising Tide,
+Magic Scout - Cottages, Magic Scout - Manor, Nerves (the title screen), Pleasant Porridge, Poofy Reel, Rising Tide,
 Rising Tide (faster), Screen Saver, Unanswered Questions, Wholesome, Wind of the Rainforest
 (trimmed to a 5-minute loop).
 

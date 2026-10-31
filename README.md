@@ -221,6 +221,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   beasts included); ramps are walked up and down along their slope. Where a river runs over a cliff it falls as a
   waterfall (Riverbend). Behind high ground you're never lost from sight: whatever ground stands between the camera
   and you dissolves around your shape in a fine dither (`terrain.gdshader` `hole`), as buildings in the way fade.
+  Building fades use isolated material opacity on all renderers, including Mobile and Compatibility, and restore
+  their original materials when the camera's sightline clears.
 - **Town mascots and their signature moves**: every town has a mascot beast roaming its square and a statue of it
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
   teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
@@ -304,7 +306,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
   - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
   - Away from home a phone asks who to call: **Dad** (save) or **Mom** (advice; a payphone still takes its 5 coins). At home Mom's in the room, so that phone only calls Dad. Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
-  - Every phone stands on a wooden side table in the middle of its tile, out from the wall, so you stand right beside it to call.
+  - Every phone stands on a white placemat on a boxy little chest of three drawers (`side_table`, baked by `tools/make_side_table.gd`) in the middle of its tile, out from the wall, so you stand right beside it to call.
   - Ten save slots, one per journey: you never pick a slot when you save. A new game takes the first empty slot the first time you save, and after that every save goes back into the same slot. If all ten are full, Dad asks (A: Yes / B: No) before writing over the save made longest ago.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
   - The title screen's **Load Game** lists the slots with their snapshots; you can load, copy or delete them there.
@@ -340,11 +342,37 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   each file in `tools/smoothed.json` so nothing is smoothed twice; run it after any re-bake, then `--import`. Ground
   layers blend softly across their wandering borders (`terrain.gdshader`). Shop-sign icons stay crisp pixel art, and
   the interface keeps its own Pixel and Classic styles.
-- **App icon**: the game's original Redcoon, from before the 13 lines (with a cuter, icon-only face: big shiny eyes, a muzzle and pink ears) on a floating meadow island over a green valley. `python tools/make_icon.py` renders it with `tools/make_icon.gd` and writes Android's adaptive icon layers (background, foreground and a monochrome silhouette for themed icons) to `assets/icon/`, plus `icon.png` for the window.
-- **World and props** (trees, rocks, fences and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd` (cacti and the head totem are drawn in code). The packs themselves aren't in the repository; with one downloaded again into `psx/`, re-bake and then let Godot rescan, or its file index (and so the exported game) won't include new files:
+- **App icon and boot splash**: painted like PS2 box art from the game's own models. The icon is the water summon
+  rising as a ghost in a dusk sky over a dark hill, where a ruby glows on the crest; the boot splash is the fire summon
+  spreading its wings over a ruby glow, the lines' first forms floating round it in glass bubbles, over the gold
+  RUBY COCOON logo (the heading font with a ruby stroke). `tools/make_key_art.gd` renders the summons, beasts and
+  shrub, and `tools/key_art.py` does the painting. `python tools/make_icon.py` writes Android's adaptive icon layers
+  (background, foreground and the spirit's silhouette for themed icons, laid out over the whole 108 dp) to
+  `assets/icon/`, plus `icon.png` for the window; `python tools/make_splash.py` writes `assets/icon/boot_splash.png`,
+  which covers the screen (a 20:9 phone loses its top and bottom tenth, so the logo and the dragon keep clear of them).
+- **Nature** uses the supplied **Environment Pack - Stylized Nature**, **Environment Pack - Grass**, and
+  **Environment Pack - Stylized Rock** collections. Rounded and blocky canopies, upright and bent palms, leafy and
+  berry shrubs, and broad stone outcrops share the existing chunked scenery batches and automatic mesh LODs.
+  Blocking shrubs stay low and vary in silhouette, size and rotation. Broad thickets draw as single-tile-wide
+  hedge borders around their planted ground, with no filled 2x2 bush blocks; their established solid footprints
+  keep tutorial and story routes intact. Tall grass uses three solid, low-poly blade clumps from the grass pack
+  (353, 118 and 43 triangles), replacing the fine, densely cut foliage. Rock tiles draw grounded stone meshes on
+  level ground; they no longer form terrain pyramids or support balancing boulders. Movement and puzzle tiles
+  retain their existing rules. To rebuild from the three original ZIP files:
+
+  ```
+  python tools/prepare_stylized_nature.py "path/to/zip directory"
+  godot --headless --path . --script res://tools/import_stylized_nature.gd
+  godot --headless --path . --script res://tools/smooth_textures.gd
+  godot --headless --path . --import
+  ```
+
+- **Other world props** (fences, campfires and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd` (cacti and the head totem are drawn in code). The packs themselves aren't in the repository; with one downloaded again into `psx/`, re-bake and then let Godot rescan, or its file index (and so the exported game) won't include new files:
 
   ```
   godot --headless --path . --script res://tools/import_psx_models.gd
+  # When rebuilding all legacy packs, restore the stylized nature bake prepared above:
+  godot --headless --path . --script res://tools/import_stylized_nature.gd
   godot --headless --path . --script res://tools/smooth_textures.gd
   godot --headless --path . --import
   ```
@@ -393,7 +421,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
   stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Tempestrix on the rail.
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
-- **Cliffs** (`terrain_mesh.gd`) are faces of the crags' rock, bulging a little here and there and darker towards the
+- **Cliffs** (`terrain_mesh.gd`) are faces of the terrain's rock, bulging a little here and there and darker towards the
   foot, with a ragged lip of the grass or paving above along the top; Cogsworth's are dressed-stone retaining walls.
   A ramp is drawn in the ground of its tile, and a rope ladder lies along its slope.
 - **Inside**, walls between the camera and you fade rather than sink (`room_builder.gd` `fade`): in a cone opening from
@@ -403,13 +431,17 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   north and sides, only shrubs and rocks to the south (between the camera and the map), the sea running on past
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
   Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in
-  plain sight.
+  plain sight. Low hedge borders continue as low planting beyond the map edge; Bellerive's Dune Road approach
+  has low hedges on both sides to keep its narrow exit visible. Backdrop scenery checks its full transformed
+  mesh bounds against the continuing exit roads, so wide canopies cannot overhang them.
 - **Bellerive** is the game's French Quarter (`world_db.gd` biome `quarter`, building style `creole`): the whole town
   stands on a raised stone quay, its streets cobbled setts (the biome's `stone_streets` draws paths as paving) between
-  warm flagstone sidewalks and squares, paved too under its buildings, courtyards and balustrade. `creole_builder.gd`
+  warm flagstone sidewalks and squares, paved too under its buildings and balustrade. Planted hedge beds retain
+  grass ground. Trees, shrubs, flowers and grass tufts keep their full foliage bounds off streets and sidewalks.
+  `creole_builder.gd`
   builds everything there but the Beast Center's diner and Gil's tin shack: Creole townhouses of two or three storeys
-  in pastel stucco or red brick along Rue Royale, with louvred shutters and cast-iron galleries on slender posts over
-  the sidewalk (or balconies on brackets), lace railings and hanging ferns, under slate hip roofs, dormered side gables
+  in pastel stucco or red brick along Rue Royale, with louvred shutters and cast-iron galleries on slender posts recessed within
+  their plots, clear of paths (or balconies on brackets), lace railings and hanging ferns, under slate hip roofs, dormered side gables
   or parapets; on the riverfront row, where a street runs close behind, one-storey Creole cottages and shotgun houses
   (world.gd "low"). Shops hang a sign board from the gallery over a striped awning in their colour; the low ones wear
   the awning and the sign on the wall. Sparkwire Electronics is a townhouse with a blue blade sign, the Sky Tower the
@@ -417,7 +449,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   and the arena a cream oval under a mansard ring, entered through a pavilion with a mansard roof, iron cresting, a
   clock and Mardi Gras banners. The French Market's arcade on the riverfront is scenery (no door). Along the quay a
   stone balustrade with lamps on its piers (an `F` or `L` tile with the water or lower ground just south: world.gd
-  `_on_quay`); elsewhere `F` is an iron railing. Ramps step down from the promenade to the piers, nearer the water.
+  `_on_quay`); elsewhere `F` is a low iron railing with connected corners and junctions. Ramps step down from the promenade to the piers, nearer the water.
   The harbour's paddle steamer, shrimp trawler, sloops, skiff and schooner are `harbor_boats.gd`'s (a map's `boats`
   names them like the pack's).
 - **People, eggs, signs and obstacles** are built procedurally:
@@ -492,14 +524,14 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
-- The game starts straight into the title screen (no engine splash). With no save yet, **New Game** is a big, glowing
+- The boot splash shows while the engine loads, then the game goes straight into the title screen. With no save yet, **New Game** is a big, glowing
   pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
   and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
   it).
 - The title's menu comes up first, on the splash colour; the town behind it is built a moment later and fades in. The world and battle scripts, the travel book and the world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
-  - Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
+  - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
   - Desert, mountain, moor and some interiors add an ambient loop.
   - `tools/convert_audio.py` makes 128 kbps copies in `assets/audio/music/`, trimming the 59-minute rainforest track to a 5-minute loop. The originals in `music/` are untouched.
@@ -577,7 +609,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
   - Bellerive keeps the plan in a French Quarter's form: Creole townhouses along Rue Royale, the Place d'Armes (an
-    iron-railed garden round the statue) before the bell tower, a riverfront row of cottages and shops with walled
+    open flower garden round the statue) before the bell tower, a riverfront row of cottages and shops with walled
     courtyard gardens behind them (the camera has to see over them), and the promenade on the quay. Its catching
     ground is a fenced park between the town and the arena (`"meadow": {"rect": [...]}`: wild beasts live only in it,
     in its long grass), where Miss Odile feeds them candy corn; the arena's forecourt is fenced off from the river, so
@@ -611,6 +643,8 @@ line per test, `ok` or `FAIL` with what went wrong; full logs go to `build/test_
 try before it counts. About three and a half minutes; `bash tools/run_tests.sh quick` runs only the fast checks
 (seconds), and naming tests (`bash tools/run_tests.sh flow ringedit`) runs just those. Exits 0 when all passed.
 - `check_scripts.gd`: every script parses and compiles.
+- `check_nature.gd` (`bash tools/run_tests.sh nature`): single-tile hedge borders on every outdoor map, unchanged
+  planted-ground collision, and the solid-blade grass meshes' triangle budgets.
 - `check_data.gd`: everything the data names exists: the beasts (race ids) on routes, maps, trainers, leaders,
   coaches, temples, fishing pools and eggs; songs, moves, shop items and summon models; and everyone on every map,
   and the hero in every outfit and hairdo (and the pack, in the colour chosen), can be dressed.
@@ -685,7 +719,7 @@ scripts/
   ui/          book_menu (Start book), list menu, dialog box, beast card, flute minigame, controls overlay (key guide / touch pad), pause
   data/        ... chatter_db (what townsfolk, residents, trainers and mascots say)
   autoload/    GameState (save data), Sfx (music + effects), Prefs (settings), UI, Story (quests), Places (shops, centers, music shop, Sky Towers), Menus
-tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, make_new_beast_icons.gd, check_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_icon.py, make_web.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
+tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beasts.gd, make_new_beast_icons.gd, check_beasts.gd, import_psx_beasts.gd, import_psx_robots.gd, make_beast_icons.gd, import_psx_houses.gd, import_psx_*.gd, build_ui_assets.py, build_patterns.py, convert_audio.py, make_sfx.py, make_key_art.gd, key_art.py, make_icon.py, make_splash.py, make_web.py, town_check.py, make_export_presets.py, check_maps.gd, debug/
 ```
 
 ## Developer test modes
@@ -703,6 +737,7 @@ godot --path . -- --scene=knock                                         # knock 
 godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Tempestrix
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery as the game draws them (pages 0-3: the forms, then the legendaries; 4 = merges)
+godot --headless --path . --script res://tools/check_tidewater_layout.gd  # galleries clear of paths; solid arena entrance shoulders
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
 godot --path . -- --scene=world:tidewater --overview=13 --focus=34,21 --shot=C:/tmp/a.png   # one spot (a tile), 13 up
 godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run (--style=cozy / pixel: a style)
@@ -734,6 +769,7 @@ godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a rin
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
+godot --headless --path . -- --scene=building-fade                      # every town's building materials fade on blocked sightlines and restore when clear; --town=tidewater narrows the audit
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere
 godot --path . -- --scene=saves --card=1 --shot=C:/tmp/c.png            # save slots and the "Game saved!" card
 godot --path . -- --scene=call --shot=C:/tmp/c.png                       # calling Dad from the phone at home, up to his first line (--where=payphone|center, --town, --presses)

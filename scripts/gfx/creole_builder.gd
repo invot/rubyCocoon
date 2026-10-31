@@ -3,7 +3,7 @@ extends RefCounted
 ## diner and Gil's tin shack is built here, of the house pack's wall sections (assets/exteriors, as house_builder.gd)
 ## and VBld.Kit boxes:
 ##   townhouses (the north row, with nothing to walk on behind them): two or three storeys of pastel stucco or red
-##   brick, tall windows with louvred shutters, and an iron gallery on posts over the sidewalk (or a balcony on
+##   brick, tall windows with louvred shutters, and an iron gallery on posts recessed within the plot (or a balcony on
 ##   brackets) with lace railings and hanging ferns, under a slate hip roof, a side gable with dormers, or a cornice
 ##   and parapet. Shops have a shop front, a striped awning in the shop's colour and a sign board hanging from the
 ##   gallery, so they read as shops from across the street.
@@ -39,9 +39,9 @@ const MARDI_GRAS := [Color("#6a3a98"), Color("#2e8a4a"), Color("#e8b830")]
 
 const S := HouseBuilder.STOREY
 const PLINTH := 0.24
-## how far a gallery reaches out over the sidewalk: its posts stand at the far edge of the sidewalk tile, half a tile
-## from anyone walking along it, and on the tiles' edges across it, so nobody walks into one
+## Gallery depth, reserved inside the building plot so posts and decks never occupy a path.
 const GALLERY := 1.04
+const GALLERY_SETBACK := GALLERY + 0.2
 const DOORS := ["door_3", "door_5", "door_6", "door_8"]
 const TALL_WINDOWS := ["win_1", "win_3"]
 
@@ -65,7 +65,11 @@ static func build(b: Dictionary) -> Node3D:
 			if b.get("low", false):
 				b["height"] = _cottage(node, b, w, d, door_lx, locked, rng)
 			else:
-				b["height"] = _townhouse(node, b, w, d, door_lx, locked, rng)
+				# Reserve the gallery within the plot, including its roof, posts and signs.
+				var house := Node3D.new()
+				house.position.z = -GALLERY_SETBACK / 2.0
+				node.add_child(house)
+				b["height"] = _townhouse(house, b, w, d - GALLERY_SETBACK, door_lx, locked, rng)
 	return node
 
 
@@ -176,7 +180,7 @@ static func _townhouse(node: Node3D, b: Dictionary, w: float, d: float, door_lx:
 			_fern(k, Vector3(fx, dy + S - (0.65 if i == decks.size() - 1 else 0.45), zf + GALLERY - 0.3))
 			fx += 2.0
 	if kind == "gallery":
-		# iron posts from the sidewalk to the roof, on the tiles' edges, and a light roof over the top floor
+		# iron posts within the recessed frontage, and a light roof over the top floor
 		for t in int(round(w)) + 1:
 			var px := -w / 2.0 + float(t) + (0.05 if t == 0 else (-0.05 if t == int(round(w)) else 0.0))
 			_iron_post(k, Vector3(px, 0.0, zf + GALLERY - 0.05), top + 0.02)
@@ -281,7 +285,7 @@ static func _shop_window(hb, k: VBld.Kit, a: float, b: float, y: float, zf: floa
 	k.box("color", Vector3((a + b) / 2.0, y + 0.2, zf + 0.04), Vector3(span * 0.7, 0.34, 0.06), brand.darkened(0.2))
 
 
-## The floor of a gallery or balcony over the sidewalk: boards on a beam, with a fascia along the front.
+## The floor of a recessed gallery or balcony: boards on a beam, with a fascia along the front.
 static func _deck(k: VBld.Kit, w: float, zf: float, y: float, gallery: bool) -> void:
 	k.box("planks", Vector3(0, y + 0.06, zf + GALLERY / 2.0), Vector3(w + (0.06 if gallery else -0.1), 0.12, GALLERY), Color("#8a6a4a"))
 	k.box("color", Vector3(0, y - 0.04, zf + GALLERY - 0.04), Vector3(w + (0.08 if gallery else -0.08), 0.14, 0.08), IRON)
@@ -777,8 +781,7 @@ static func _arena(node: Node3D, w: float, d: float, door_lx: float, locked: boo
 	for i in n:
 		var a: Vector2 = ring[i]
 		var b: Vector2 = ring[(i + 1) % n]
-		if hidden.call((a + b) / 2.0):
-			continue
+		# Keep the oval closed behind the pavilion: a crossing panel also fills its shoulder.
 		hb.span("win_1", a, b, y0, mat, c)
 		hb.span("win_small_1", a, b, y0 + S, mat, c)
 	for p in ring:
@@ -937,3 +940,26 @@ static func pier() -> ArrayMesh:
 	k.box("stone", Vector3(0, 0.83, 0), Vector3(0.42, 0.08, 0.42), stone.lightened(0.06))
 	_meshes["pier"] = k.mesh()
 	return _meshes["pier"]
+
+
+## Low garden ironwork with arms meeting at the tile centre, including corners and junctions.
+## Bits follow left, right, north, south; cached meshes share the town's gallery detailing.
+static func garden_fence(mask: int) -> ArrayMesh:
+	var key := "garden_fence:%d" % mask
+	if _meshes.has(key):
+		return _meshes[key]
+	var k := VBld.Kit.new()
+	var arms := mask
+	# Carry a straight run to the edge of its final tile beside a gate.
+	if arms == 0 or arms == 1 or arms == 2:
+		arms = 3
+	elif arms == 4 or arms == 8:
+		arms = 12
+	var dirs := [Vector3.LEFT, Vector3.RIGHT, Vector3.FORWARD, Vector3.BACK]
+	k.box("color", Vector3(0, 0.43, 0), Vector3(0.08, 0.86, 0.08), IRON)
+	k.box("color", Vector3(0, 0.86, 0), Vector3(0.12, 0.06, 0.12), IRON)
+	for i in 4:
+		if arms & (1 << i):
+			_railing(k, Vector3.ZERO, dirs[i] * 0.5, 0.8)
+	_meshes[key] = k.mesh()
+	return _meshes[key]
