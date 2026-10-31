@@ -1,9 +1,7 @@
 extends RefCounted
-## Renderer-independent building occlusion. --scene=building-fade [--town=tidewater]
+## Building base visibility, deferred construction and renderer-independent arrival fades.
 const WorldDB = preload("res://scripts/data/world_db.gd")
-const MapGen = preload("res://scripts/world/map_gen.gd")
 var bad := 0
-
 
 func run(main, opts: Dictionary) -> void:
 	UI.auto = true
@@ -11,78 +9,56 @@ func run(main, opts: Dictionary) -> void:
 	for town in towns:
 		await main._go(town, "start")
 		var world = main.world
+		# This rendering/navigation audit must not enter an unrelated trainer lesson.
+		for npc in world.npcs.values():
+			if npc.get("kind", "") == "trainer":
+				npc["manual_only"] = true
 		world.set_process(false)
-		var found := false
-		for f in world.building_fades:
-			var box: AABB = world._fade_box(f["meshes"])
-			for y in range(maxi(0, floori(box.position.z) - 12), mini(world.map["h"], ceili(box.end.z))):
-				for x in range(maxi(0, floori(box.position.x)), mini(world.map["w"], ceili(box.end.x))):
-					var tile := Vector2i(x, y)
-					if not MapGen.walkable(MapGen.get_t(world.map, x, y)) or world.doors.has(tile):
-						continue
-					world.spawn_at(tile)
-					if world.player_pos != tile:
-						continue
-					world.cam.position = world.player.position + world.CAM_OFFSET
-					world.cam.look_at(world.player.position + Vector3(0, world.CAM_LOOK_Y, 0))
-					world._fade_buildings(1.0)
-					if f.get("opacity", 1.0) > 0.08:
-						continue
-					found = true
-					var cache: Dictionary = f["fade_materials"]
-					_check(not cache["bindings"].is_empty(), "%s: occluding %s at %s has fading surfaces" % [town, f["b"]["name"], tile])
-					for binding in cache["bindings"]:
-						var mat: BaseMaterial3D = binding["mesh"].get_active_material(binding["surface"])
-						_check(mat == binding["faded"] and mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA
-							and is_equal_approx(mat.albedo_color.a, binding["original"].albedo_color.a * 0.07), "surface opacity works without instance transparency")
-					# Move into the clear: fade back through the actual occlusion update.
-					world.player.position = box.end + Vector3(10, 0, 10)
-					world.cam.position = world.player.position + world.CAM_OFFSET
-					world._fade_buildings(1.0)
-					_check(f["opacity"] == 1.0, "clearing the building restores opacity")
-					for binding in cache["bindings"]:
-						_check(binding["mesh"].get_active_material(binding["surface"]) == binding["original"], "original material restored without changing shared assets")
-					break
-				if found:
-					break
-			if found:
-				break
-		if found:
-			_check(true, "%s: a real walkable tile behind a building was checked" % town)
-		# Some layouts deliberately leave no path behind their buildings. Still exercise each town's real materials
-		# with a controlled sightline through the building, including buildings that share cached source materials.
 		var tested := 0
+		var longest_load_us := 0
 		for f in world.building_fades:
-			var box: AABB = world._fade_box(f["meshes"])
-			if box.size == Vector3.ZERO:
-				continue
-			world.player.position = Vector3(box.get_center().x, box.position.y, box.position.z - 1.5)
-			world.cam.position = Vector3(box.get_center().x, box.get_center().y, box.end.z + 2.0)
+			var b: Dictionary = f["b"]
+			var base := Vector3(float(b["x"]) + float(b["w"]) / 2.0, world._lift(b["door"]), float(b["y"]) + float(b["d"]) / 2.0)
+			# Aim well north: even a tall southern roof must not cause its building to load.
+			world.cam.position = base + Vector3(0, 7, -30)
+			world.cam.look_at(base + Vector3(0, 0, -41))
 			world._fade_buildings(1.0)
-			_check(f.get("opacity", 1.0) < 0.08, "%s: %s fades on a blocked sightline" % [town, f["b"]["name"]])
-			_check(not f.get("fade_materials", {}).get("bindings", []).is_empty(), "building has material opacity bindings")
-			var originals := {}
+			_check(not world._building_base_visible(b) and not is_instance_valid(f["node"]), "%s: %s stays unloaded with its base off-screen" % [town, b["name"]])
+			world.cam.position = base + world.CAM_OFFSET
+			world.cam.look_at(base + Vector3(0, world.CAM_LOOK_Y, 0))
+			for attempt in world.building_fades.size():
+				var began := Time.get_ticks_usec()
+				world._fade_buildings(0.0)
+				longest_load_us = maxi(longest_load_us, Time.get_ticks_usec() - began)
+				if is_instance_valid(f["node"]):
+					break
+			world._fade_buildings(0.1)
+			_check(is_instance_valid(f["node"]) and is_equal_approx(f["opacity"], 0.3), "visible base constructs the building and starts its fade")
 			for binding in f.get("fade_materials", {}).get("bindings", []):
-				var original: BaseMaterial3D = binding["original"]
-				originals[original] = original.albedo_color
 				var mat: BaseMaterial3D = binding["mesh"].get_active_material(binding["surface"])
-				_check(mat == binding["faded"] and mat != original and mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA
-					and is_equal_approx(mat.albedo_color.a, original.albedo_color.a * 0.07), "surface receives an isolated fade material")
-			world.player.position = box.end + Vector3(10, 0, 10)
-			world.cam.position = world.player.position + world.CAM_OFFSET
+				_check(mat == binding["faded"] and mat != binding["original"] and is_equal_approx(mat.albedo_color.a, binding["original"].albedo_color.a * 0.3), "isolated fade works on all renderers")
 			world._fade_buildings(1.0)
-			_check(f["opacity"] == 1.0, "clearing the building restores opacity")
+			_check(f["opacity"] == 1.0, "arrival finishes opaque")
 			for binding in f.get("fade_materials", {}).get("bindings", []):
-				_check(binding["mesh"].get_active_material(binding["surface"]) == binding["original"]
-					and binding["original"].albedo_color == originals[binding["original"]], "original material restored without changing shared assets")
+				_check(binding["mesh"].get_active_material(binding["surface"]) == binding["original"], "opaque materials restored")
 			tested += 1
-		_check(tested > 0, "%s: audited %d buildings" % [town, tested])
+		_check(tested > 0, "%s: audited %d buildings (slowest visibility update %.1f ms)" % [town, tested, longest_load_us / 1000.0])
+		if town == "tidewater":
+			world.set_process(true)
+			world.spawn_at(Vector2i(12, 15))
+			# Actual whole-tile walking down the reopened lane and onto the western pier.
+			for goals in [[Vector2i(12, 16)], [Vector2i(12, 19)], [Vector2i(12, 23), Vector2i(13, 23)], [Vector2i(10, 24)], [Vector2i(10, 28)]]:
+				await main._walk_test(goals)
+				_check(world.player_pos in goals, "western dock waypoint %s reached" % str(goals))
+			_check(world.player_pos == Vector2i(10, 28), "square-to-western-dock route is walkable")
+			world.spawn_at(Vector2i(12, 18) if opts.get("preview", "") == "lane" else Vector2i(10, 33))
+			await main._wait(0.5)
+	UI.auto = false
 	print("BUILDING FADE DONE: %d problem(s)" % bad)
-
 
 func _check(ok: bool, label: String) -> void:
 	if not ok:
 		bad += 1
 		print("FAIL ", label)
-	elif not label.begins_with("surface") and not label.begins_with("original"):
+	elif "audited" in label or "dock" in label:
 		print("ok   ", label)

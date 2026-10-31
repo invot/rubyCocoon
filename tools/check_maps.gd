@@ -120,7 +120,10 @@ func _check(m: Dictionary) -> Array:
 				adj = true
 		var staff: bool = n.get("kind", "") == "keeper" or n.get("id", "") in ["center_guide", "kennel_keeper", "receptionist"]
 		# (staff who walk about the room, like the Beast Center's guide, are meant to be walked up to)
-		if m["kind"] == "interior" and staff and not walled_in and not n.get("roam", false):
+		# The Sky Tower ticket desk is intentionally a straight counter with open ends.
+		var at: Vector2i = n["pos"]
+		var open_desk: bool = m.get("room_key", "") == "skytower" and MapGen.get_t(m, at.x, at.y + 1) == MapGen.COUNTER
+		if m["kind"] == "interior" and staff and not walled_in and not n.get("roam", false) and not open_desk:
 			problems.append("%s at %s can be walked up to; staff belong behind a counter" % [n.get("name", "keeper"), n["pos"]])
 		if not adj:
 			problems.append("%s at %s unreachable" % [n.get("kind", "npc"), n["pos"]])

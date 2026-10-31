@@ -367,6 +367,19 @@ const ROOMS := {
 			"#########",
 		],
 	},
+	## Spare beast equipment in the shack at the eastern end of Bellerive's promenade.
+	"harbour_shack": {
+		"wall": "#8a6a52", "rug": "#3a5a7a", "zone": "wood", "stage": true,
+		"anchors": {"1": "item:rope_collar", "2": "item:cloth_band", "3": "item:twine_anklet"},
+		"rows": [
+			"####w####",
+			"#X.F...X#",
+			"#.1.2.3.#",
+			"#th.....#",
+			"#......PD",
+			"#########",
+		],
+	},
 	## Uncle Rafe's house in Bellerive, by the west gate: one room, where he waits (1) with your father's flute.
 	"uncle_home": {
 		"wall": "#e0d0b0", "rug": "#4a6a9a", "stage": true, "anchors": {"1": "uncle"},
@@ -450,30 +463,30 @@ const ROOMS := {
 	## The Sky Tower: Skykeeper Aria's ticket desk and the stairs in the lobby, and up top an open-air platform
 	## ("open": railings instead of walls, sky all round) where the Tempestrix waits to fly you away.
 	"skytower": {
-		"wall": "#e4ecf4", "rug": "#3a7ac8",
+		"wall": "#e4ecf4", "rug": "#3a7ac8", "stair_flights": true,
 		"npcs": {"1": "keeper"},
 		"rows": [
 			"####Z######",
-			"#pC1C.>>.p#",
-			"#.CCC.....#",
-			"w.........w",
+			"#.1....>>>#",
+			"#CCC......#",
+			"wp........w",
 			"#=...r...=#",
 			"#=..rrr..=#",
-			"#p..rPr..p#",
-			"#####DD####",
+			"#p..rrr..PD",
+			"###########",
 		],
 	},
 	"skytower_top": {
-		"wall": "#c8b088", "rug": "#3a7ac8", "open": true,
+		"wall": "#c8b088", "rug": "#3a7ac8", "open": true, "stair_flights": true,
 		"npcs": {"1": "thunderhawk"},
 		"rows": [
 			"###########",
-			"#p.......p#",
-			"#....1....#",
+			"#p.....<<<#",
+			"#....1...P#",
 			"#.........#",
 			"#.........#",
 			"#.........#",
-			"#<P....==.#",
+			"#......==.#",
 			"###########",
 		],
 	},

@@ -1724,14 +1724,25 @@ static func _rust_shack(w: float, d: float, door_lx: float) -> Node3D:
 			i += 1
 			if mid > gap.x and mid < gap.y:
 				continue
-			var top: float = height_at.call(fixed if along_x else mid) + rng.randf_range(-0.12, 0.06)
+			var top: float = height_at.call(fixed if along_x else mid) + 0.04
 			var bottom := rng.randf_range(0.0, 0.08)
 			var col: Color = rusts[rng.randi_range(0, rusts.size() - 1)]
 			# every other sheet lapped a little proud of the last
 			var o := out * (0.03 if i % 2 == 0 else 0.0)
 			var c := Vector3(mid, (top + bottom) / 2.0, fixed + o) if along_x else Vector3(fixed + o, (top + bottom) / 2.0, mid)
-			var size := Vector3(sw + 0.04, top - bottom, 0.05) if along_x else Vector3(0.05, top - bottom, sw + 0.04)
-			k.box("tin", c, size, col)
+			# Close each sheet against the same sloped plane as the roof.
+			var half := (sw + 0.04) / 2.0
+			var z0 := mid - half
+			var z1 := mid + half
+			var pts: Array
+			var normal: Vector3
+			if along_x:
+				pts = [Vector3(mid - half, bottom, c.z), Vector3(mid + half, bottom, c.z), Vector3(mid + half, top, c.z), Vector3(mid - half, top, c.z)]
+				normal = Vector3(0, 0, out)
+			else:
+				pts = [Vector3(c.x, bottom, z0), Vector3(c.x, bottom, z1), Vector3(c.x, height_at.call(z1) + 0.04, z1), Vector3(c.x, height_at.call(z0) + 0.04, z0)]
+				normal = Vector3(out, 0, 0)
+			k.poly("tin", pts, normal, col)
 			# a rust run down from a nail, now and then
 			if rng.randf() < 0.45:
 				var sx := rng.randf_range(-sw * 0.35, sw * 0.35)
@@ -1756,10 +1767,10 @@ static func _rust_shack(w: float, d: float, door_lx: float) -> Node3D:
 	for i in 4:
 		var x0 := roof_x + i * strip - 0.03
 		var x1 := x0 + strip + 0.06
-		var lift := 0.02 * (i % 2)
+		var lift := 0.04
 		var col2: Color = rusts[rng.randi_range(0, rusts.size() - 1)]
-		var pts := [Vector3(x0, back_h + 0.08 + lift, -hd - 0.3), Vector3(x1, back_h + 0.08 + lift, -hd - 0.3),
-			Vector3(x1, front_h - 0.05 + lift, hd + 0.5), Vector3(x0, front_h - 0.05 + lift, hd + 0.5)]
+		var pts := [Vector3(x0, height_at.call(-hd - 0.3) + lift, -hd - 0.3), Vector3(x1, height_at.call(-hd - 0.3) + lift, -hd - 0.3),
+			Vector3(x1, height_at.call(hd + 0.5) + lift, hd + 0.5), Vector3(x0, height_at.call(hd + 0.5) + lift, hd + 0.5)]
 		var n: Vector3 = (pts[1] - pts[0]).cross(pts[3] - pts[0]).normalized()
 		if n.y < 0.0:
 			n = -n

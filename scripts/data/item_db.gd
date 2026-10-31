@@ -1,7 +1,7 @@
 extends RefCounted
 ## Items. kind: use (consumable), gear (beast equipment), tgear (trainer equipment).
 ## tier: the earliest shop tier (0-11, by town progression) that stocks the item.
-## found: never stocked by a shop, only found lying about (the starter gear in Cocoon Cove's cliff shack).
+## found: never stocked by a shop, only found lying about (starter gear in the cliff and harbour shacks).
 
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
@@ -53,6 +53,8 @@ const ITEMS := {
 
 	# ---------------- beast gear ----------------
 	"rope_collar": {"name": "Rope Collar", "kind": "gear", "price": 150, "tier": 0, "found": true, "mods": {"atk": 0.05}, "desc": "A plain braided collar. +5% Attack."},
+	"cloth_band": {"name": "Cloth Band", "kind": "gear", "price": 150, "tier": 0, "found": true, "mods": {"def": 0.05}, "desc": "A soft starter band. +5% Defense."},
+	"twine_anklet": {"name": "Twine Anklet", "kind": "gear", "price": 150, "tier": 0, "found": true, "mods": {"spd": 0.05}, "desc": "A light braided anklet. +5% Speed."},
 	"power_collar": {"name": "Power Collar", "kind": "gear", "price": 600, "tier": 1, "mods": {"atk": 0.10}, "desc": "+10% Attack."},
 	"stone_band": {"name": "Stone Band", "kind": "gear", "price": 600, "tier": 1, "mods": {"def": 0.12}, "desc": "+12% Defense."},
 	"swift_anklet": {"name": "Swift Anklet", "kind": "gear", "price": 600, "tier": 1, "mods": {"spd": 0.12}, "desc": "+12% Speed."},

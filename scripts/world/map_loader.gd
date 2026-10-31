@@ -179,7 +179,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
-	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses"]:
+	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props"]:
 		if src.has(setting):
 			m[setting] = src[setting]
 	for p in m["pushables"]:
@@ -299,7 +299,16 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		var ch: String = e[0]
 		var p: Vector2i = e[1]
 		if ch == "@":
-			m["npcs"].append(_villager(p, rng))
+			var villager := _villager(p, rng)
+			# Resolve placement after generating the look, preserving seeded identities when someone moves.
+			var placement: Dictionary = src.get("villager_placements", {}).get("%d,%d" % [p.x, p.y], {})
+			if placement.has("pos"):
+				villager["pos"] = Vector2i(int(placement["pos"][0]), int(placement["pos"][1]))
+			if placement.has("facing"):
+				villager["facing"] = Vector2i(int(placement["facing"][0]), int(placement["facing"][1]))
+			if placement.has("wander"):
+				villager["wander"] = bool(placement["wander"])
+			m["npcs"].append(villager)
 		elif FACING.has(ch):
 			trainers.append([p, FACING[ch]])
 		elif ch == "$":
@@ -641,6 +650,8 @@ static func room_set(b: Dictionary) -> Array:
 	var shop: String = b["shop"]
 	if shop == "bookstore" and b.get("town", "") == "caccoon":
 		return ["library"]
+	if b.has("rooms"):
+		return b["rooms"]
 	if shop == "house":
 		return InteriorMaps.HOUSES[int(b["seed"]) % InteriorMaps.HOUSES.size()]
 	if shop == "temple":
@@ -681,6 +692,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	# a stage room is one room of a building, seen whole like a stage set (no front wall, the camera still): its
 	# set's other rooms are rooms, not floors
 	m["stage"] = room.get("stage", false)
+	m["stair_flights"] = room.get("stair_flights", false)
 	m["floors"] = rooms.size() if not m["stage"] else 1
 	m["biome"] = pm["biome"]
 	m["anchors"] = {}
@@ -840,7 +852,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		var u: Vector2i = ups[0]
 		var run := RoomBuilder.flight(m, u)
 		var off: Vector2i = run["foot"] - run["up"]
-		if m["stage"] and MapGen.walkable(MapGen.get_t(m, off.x, off.y)):
+		if RoomBuilder.has_flights(m) and MapGen.walkable(MapGen.get_t(m, off.x, off.y)):
 			m["spawns"]["from_above"] = off
 			m["spawn_face"]["from_above"] = -run["up"]
 		else:

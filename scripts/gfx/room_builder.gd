@@ -293,6 +293,13 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	# the template's wall colour tints the wall textures a little
 	rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.35)
 	rb.trim = Color(str(room.get("trim", "#5a3a26")))
+	if room.get("open", false):
+		# Open decks keep their existing floor and railings; only add the shared stairwell.
+		rb._stairs()
+		var stairs := MeshInstance3D.new()
+		stairs.mesh = rb.floor_mesher.mesh()
+		p.add_child(stairs)
+		return rb
 	rb._floors()
 	rb._stairs()
 	rb._walls()
@@ -448,7 +455,7 @@ func wall_mat(z: String) -> Material:
 
 ## Whether (x, y) is part of a stage room's stairwell down: open, with no floor over it.
 func _stairwell_at(x: int, y: int) -> bool:
-	return map.get("stage", false) and code(x, y) == MapGen.STAIRS_DOWN
+	return has_flights(map) and code(x, y) == MapGen.STAIRS_DOWN
 
 
 ## Whether the point (px, pz) is over a stairwell down: in one of its tiles, or where it reaches on into the walls
@@ -935,8 +942,12 @@ func _window(x: int, y: int, horiz: bool) -> void:
 ## the wall, towards the end that meets one: its treads and risers in the room's floor, its side in the room's wall
 ## finish, a handrail up its open side. A stairwell down is a hole in the floor (see _floors) with the flight going
 ## down in it from the top step, where you go in, and a rail along its open side and round its far end.
+static func has_flights(m: Dictionary) -> bool:
+	return m.get("stage", false) or m.get("stair_flights", false)
+
+
 func _stairs() -> void:
-	if not map.get("stage", false):
+	if not has_flights(map):
 		return
 	for y in h:
 		for x in w:
@@ -980,7 +991,7 @@ static func flight(m: Dictionary, t: Vector2i) -> Dictionary:
 ## rest), or past its top end if no wall is there. (See world.gd _can_step.)
 static func stair_ways_in(m: Dictionary) -> Dictionary:
 	var ways := {}
-	if not m.get("stage", false):
+	if not has_flights(m):
 		return ways
 	for y in m["h"]:
 		for x in m["w"]:

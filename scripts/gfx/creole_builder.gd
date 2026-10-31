@@ -961,5 +961,29 @@ static func garden_fence(mask: int) -> ArrayMesh:
 	for i in 4:
 		if arms & (1 << i):
 			_railing(k, Vector3.ZERO, dirs[i] * 0.5, 0.8)
+			if (mask & (1 << i)) == 0:
+				var end: Vector3 = dirs[i] * 0.5
+				k.box("color", end + Vector3(0, 0.43, 0), Vector3(0.12, 0.86, 0.12), IRON)
+				k.box("color", end + Vector3(0, 0.88, 0), Vector3(0.17, 0.08, 0.17), IRON)
+	_meshes[key] = k.mesh()
+	return _meshes[key]
+
+
+## One north-rising quay stair tile. Four shallow treads cover the movement slope;
+## stone parapets follow the exposed sides, meeting the promenade's stone piers.
+static func quay_stair(drop: float, left: bool, right: bool) -> ArrayMesh:
+	var key := "quay_stair:%s:%s:%s" % [drop, left, right]
+	if _meshes.has(key):
+		return _meshes[key]
+	var k := VBld.Kit.new()
+	var stone := Color("#ddd2bc")
+	for step in 4:
+		var top := drop * (1.0 - step / 4.0) + 0.01
+		var z := -0.5 + (step + 0.5) / 4.0
+		k.box("stone", Vector3(0, top / 2.0, z), Vector3(1.0, top, 0.25), stone)
+		for side in [-1, 1]:
+			if (side == -1 and left) or (side == 1 and right):
+				k.box("stone", Vector3(side * 0.46, top + 0.33, z), Vector3(0.18, 0.66, 0.25), stone.darkened(0.08))
+				k.box("stone", Vector3(side * 0.46, top + 0.70, z), Vector3(0.23, 0.08, 0.25), stone.lightened(0.06))
 	_meshes[key] = k.mesh()
 	return _meshes[key]

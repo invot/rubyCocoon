@@ -56,8 +56,8 @@ const MAPS := {
 			"TTTTTTTTTTTTTTTTTTt,,tTTTTTTKKKKKKTTTTTCCCCCCTTTTTAAAAATTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTt,,tTTTTTTKKKKKKTTTTTCCCCCCTTTTTAAAAATTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTt,,tTTTTTTKKKKKKTTTTTCCCCCCTTTTTAAAAATTTTTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTt,,tTTT*..::::::..TTT::::::TTT..:::::...TTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTt,,,,,,,,L:::+:::::::::::::::::::::::,,L,,,,,,,,",
+			"TTTTTTTTTTTTTTTTTTt,,tTTT*..:+::::..TTT::::::TTT..:::::...TTTTTTTT",
+			"TTTTTTTTTTTTTTTTTTt,,,,,,,,L:::::::::::::::::::::::::::,,L,,,,,,,,",
 			"TTTTTTTTTTTTTTTTTTt,,,,,,,,,:::::::::::::::::::::::::::,,,,,,,,,,,",
 			"TTTTTTTTTTTTTTTTTTt,,ttttt..........L::::tt::::L.....@........2+tt",
 			"TTTTTTTTTTTTTTTTTTt,,tttttttttttttt..::::tt::::..ttttttttt......tt",
@@ -148,13 +148,16 @@ const MAPS := {
 		# streets (",") between flagstone sidewalks (":"), Creole townhouses with iron galleries along Rue Royale, the
 		# Place d'Armes (an open flower garden round the mascot's statue) before the Sky Tower's bell tower, walled
 		# courtyards behind the riverfront row, and the promenade along the quay with its stone balustrade and lamps ("F" and
-		# "L" beside the water: world.gd). Ramps step down from the promenade to the piers, nearer the water. The road north
+		# "L" beside the water: world.gd). Stone stairs south of the balustrade descend to a continuous two-tile boardwalk. The road north
 		# to the Dune Road leaves past the park.
 		"cliffs": "walls",
 		# interiors are "tidewater#index" in saved games: keep the old reading order (center, Rafe, bookstore, apothecary,
 		# electronics, Sky Tower, arena, house, house, outfitter, café, Gil's shack)
-		"building_order": [[26, 3], [2, 4], [7, 4], [13, 4], [33, 4], [21, 4], [64, 8], [3, 20], [8, 20], [14, 20], [20, 20], [4, 30]],
+		"building_looks": {"12": {"name": "Harbour Equipment Shack", "rooms": ["harbour_shack"]}},
+		"building_order": [[26, 3], [2, 4], [7, 4], [13, 4], [33, 4], [21, 4], [64, 8], [3, 20], [8, 20], [14, 20], [20, 20], [4, 33], [69, 33]],
 		# the French Market's arcade on the riverfront (scenery: no door), on hedge tiles nobody walks on
+		# Keep the villager's original seeded identity, but station him on grass beside the market, clear of the road.
+		"villager_placements": {"35,24": {"pos": [39, 22], "facing": [0, 1], "wander": false}},
 		"scenery_houses": [{"name": "FrenchMarket", "x": 26, "y": 20, "w": 13, "d": 3, "kind": "market"}],
 		# Low hedges frame the Dune Road approach without canopies hiding the two-tile path.
 		"rows": [
@@ -174,24 +177,28 @@ const MAPS := {
 			"tt::::::::::::fffffffSSfffffff::::::::::,,::::::6:::::::::::::::::::::::tt~~",
 			"tt::::::::::L::::::::::::::::::L::::::::,,::::::::::::::::::::::::::::::tt~~",
 			"tt,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,F:ggggggg:::ggggggg:::::::::::tt~~",
-			"tt:ttttttttttttttttttttttttttttttttttttt,,F:ggggggg:::ggggggg:F:::::::::tt~~",
+			"tt:ttttttttt::tttttttttttttttttttttttttt,,F:ggggggg:::ggggggg:F:::::::::tt~~",
 			"tttttttttttt::tttttttttttttttttttttttttt,,F:ggggggg:::ggggggg:FFFFFFFFFFFF~~",
-			"tttttttttttt::tttttttttttttttttttttttttt,,F:fgggggg:::ggggggf:Fttttttttttt~~",
-			"tttttttttttt::tttttttttttttttttttttttttt,,F:::::::::::::::::::Fttttttttttt~~",
-			"tttHHHHtHHHH::GGGGGtEEEEEttttttttttttttt,,FfffffffffffffffffffFttttttttttt~~",
-			"tttHHHHtHHHH::GGGGGtEEEEEttttttttttttttt,,FFFFFFFFF:::FFFFFFFFFttttttttttt~~",
-			"tttHHHHtHHHH::GGGGGtEEEEEttttttttttttttt,,:::::::::::::@::::::::::::::::::~~",
-			"tt::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::~~",
-			"tt,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,~~",
-			"tt::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::~~",
-			"ttFFFLFFFF::FFFFFLFFFFF:::FFFLFFFFFLFFFFFLFF::FLFFFFFLFFFFFL::FFFLFFFFFLFF~~",
-			"~~~~~~~~~~=====================~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~~~~~~~~~~",
-			"~~~~~~~~~~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~~~~~~~~~~",
-			"~~~~~~~~~~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~~~~~~~~~~",
-			"~~~~ppppp~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~========~~~~~~~~~~",
-			"~~~~ppppp~==~~~~~~~~~~~=5=~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~~~~~~~~~~",
-			"~~~~ppppp~==~~~~~~~~~~~==4~~~~~~~~~~~~~~~~======~~~~~~~~~~~~==~~~~~~~~~~~~~~",
-			"~~~~=8======~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~",
+			"tttttttttttt::tttttttttttttttttttttttttt,,F:fgggggg:::ggggggf:FttttttttttF~~",
+			"tttttttttttt::tttttttttttttttttttttttttt,,F:::::::::::::::::::FttttttttttF~~",
+			"tttHHHHtHHHH::GGGGGtEEEEEtttttttttttttt.,,FfffffffffffffffffffFttttttttttF~~",
+			"tttHHHHtHHHH::GGGGGtEEEEEtttttttttttttt.,,FFFFFFFFF:::FFFFFFFFFttttttttttF~~",
+			"tttHHHHtHHHH::GGGGGtEEEEEtttttttttttttt.,,:::::::::::::@:::::::::::::ttttF~~",
+			"tt:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::F~~",
+			"tt,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,@,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,F~~",
+			"tt:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::F~~",
+			"ttFFFLFFFF::FFFFFLFFFFF:::FFFLFFFFFLFFFFFLFF::FLFFFFFLFFFFFL::FFFLFFFFFFFF~~",
+			"~~========::===========:::==================::==============::============~~",
+			"~~========::===========:::==================::==============::============~~",
+			"~~========================================================================~~",
+			"~~~~~~~~~~===========================================================~~~~~~~",
+			"~~~~~~~~~~==~~~~~~~~~~~=5=~~~~~~~~~~~~~~~~~~==~~~~~~~~~~========~~~==~~~~~~~",
+			"~~~~~~~~~~==~~~~~~~~~~~==4~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~==~~~~~~~",
+			"~~~~ppppp~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~==ppppp~~",
+			"~~~~ppppp~==~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~~~~~~~~==ppppp~~",
+			"~~~~ppppp~==~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~~~~~~~~==ppppp~~",
+			"~~~~=8======~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~~~~~~~~=======~~",
+			"~~~~========~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~=======~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 		],
@@ -213,16 +220,20 @@ const MAPS := {
 			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
 			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
 			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
-			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
-			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
-			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
-			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
-			"2211111111111111111111111111111111111111111111111111111111111111111111111200",
+			"2211111111111111111111111111111111111111111111111111111111111111111111111100",
+			"2211111111111111111111111111111111111111111111111111111111111111111111111100",
+			"2211111111111111111111111111111111111111111111111111111111111111111111111100",
+			"2211111111111111111111111111111111111111111111111111111111111111111111111100",
+			"2211111111111111111111111111111111111111111111111111111111111111111111111100",
 			"2211111111111111111111111111111111111111111111111111111111111111111111111100",
 			"1111111111111111111111111111111111111111111111111111111111111111111111111100",
 			"1111111111111111111111111111111111111111111111111111111111111111111111111100",
-			"1111111111^^11111111111^^^111111111111111111^^11111111111111^^11111111111100",
-			"1111111111^^11111111111^^^111111111111111111^^11111111111111^^11111111111100",
+			"1111111111111111111111111111111111111111111111111111111111111111111111111100",
+			"1111111111111111111111111111111111111111111111111111111111111111111111111100",
+			"0000000000^^00000000000^^^000000000000000000^^00000000000000^^00000000000000",
+			"0000000000^^00000000000^^^000000000000000000^^00000000000000^^00000000000000",
+			"0000000000000000000000000000000000000000000000000000000000000000000000000000",
+			"0000000000000000000000000000000000000000000000000000000000000000000000000000",
 			"0000000000000000000000000000000000000000000000000000000000000000000000000000",
 			"0000000000000000000000000000000000000000000000000000000000000000000000000000",
 			"0000000000000000000000000000000000000000000000000000000000000000000000000000",
@@ -236,14 +247,19 @@ const MAPS := {
 		"anchors": {"1": "rafe_neighbor", "3": "mascot", "4": "ferry", "5": "dock", "6": "park_feeder", "8": "fisher"},
 		# rippling water where the fish bite, each a 4-tile-square patch (and more picked by map_loader.gd): in front of
 		# Gil's shack and his line, by the ferry pier, and out in the harbour
-		"fish_spots": [[6, 35], [20, 31], [36, 31], [53, 34]],
+		"fish_spots": [[6, 38], [20, 31], [36, 31], [53, 34]],
 		# moored in the harbour, every one side-on to the camera and beside its pier, never between a walkway and the camera:
 		# Captain Gull's ferry off the end of the long pier, Gil's rowboat by his shack, a paddle steamer along the landing
-		# east of the steamboat pier, a shrimp trawler and two sloops at the marina, a skiff off the landing's west end and a
+		# east of the steamboat pier, a shrimp trawler and a sloop at the marina, and a
 		# schooner under sail out in the bay ([x, z, yaw in degrees, model, length in tiles]; harbor_boats.gd draws the new ones)
-		"boats": [[28.55, 34.0, 90.0, "ferry", 4.8], [2.6, 32.0, 8.0, "boat_dark", 2.4], [52.0, 29.7, 90.0, "steamboat", 8.6],
-			[64.3, 28.3, 90.0, "trawler", 3.6], [58.2, 28.3, 270.0, "sloop", 2.8], [67.9, 30.0, 90.0, "sloop", 2.8],
-			[40.2, 32.5, 270.0, "skiff", 2.0], [69.0, 34.0, 80.0, "schooner", 4.6]],
+		# Authored dock cargo: x, y, shared street-prop mesh, stack count. Two clear walking rows remain south of it.
+		"street_props": [[5, 27, "crate", 2], [6, 27, "crate_open", 1], [16, 27, "crate", 1],
+			[17, 27, "crate", 2], [30, 27, "crate_open", 1], [31, 27, "crate", 1], [37, 27, "crate", 2],
+			[38, 27, "crate", 1], [49, 27, "crate", 2], [50, 27, "crate_open", 1],
+			[55, 27, "crate", 1], [64, 27, "crate", 2], [65, 27, "crate", 1], [70, 27, "crate_open", 1]],
+		"boats": [[28.55, 34.0, 90.0, "ferry", 4.8], [2.6, 35.0, 8.0, "boat_dark", 2.4], [51.4, 33.5, 90.0, "steamboat", 8.6],
+			[64.3, 33.6, 90.0, "trawler", 3.6], [75.9, 34.0, 90.0, "sloop", 2.8],
+			[83.0, 33.0, 80.0, "schooner", 4.6]],
 		# the park (Jardin des Bêtes) between the town and the arena: wild beasts live only inside its iron fence, in the long
 		# grass of its beds (map_loader.gd "meadow", here a rectangle). The arena stands beyond it, in a forecourt fenced off
 		# from the river: the only way there is in at the park's west or south gate and out at its east one

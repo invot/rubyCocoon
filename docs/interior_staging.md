@@ -38,7 +38,8 @@ The rules below translate those principles into cardinal tile movement, small ro
 6. **Leave a playing area and entrances.** Keep at least a tile-wide connected route between entrances, room doors,
    stair approaches and essential interactions. Respect NPC occupancy, counters and the existing movement rules.
    Leave service staff enclosed behind their counters, patrons reachable, phone stands approachable and stair
-   landings clear. Existing map checks remain authoritative for reachability and tutorial sightlines.
+   landings clear. The Sky Tower ticket desk is a straight counter with open ends; keep Aria behind its front
+   row and the red staff door clear. Existing map checks remain authoritative for reachability and tutorial sightlines.
 7. **Open people towards the audience.** Standing residents prefer south, or a side if a visible wall prevents it.
    Seated patrons face their table. Keep story characters' authored facing, automatic lessons and roaming intact.
    Talking and movement can still turn people naturally.

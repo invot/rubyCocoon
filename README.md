@@ -71,7 +71,8 @@ beach, pier, coastal path or route down to the water. Woodland fills the ground 
 rocky coves. Two inaccessible homes sit close behind the Beast Center at its level. A dirt path winds south from the
 square through the woods to an old log shack on the clifftop (`s` on the map, room `shack`); nobody lives there, but
 a trainer left their starter gear behind: a **Worn Cap**, **Old Sneakers** and a **Rope Collar** for a beast. They
-are only found there, never sold (`item_db.gd` `found`), and you put them on from the Bag. The surrounding ridges follow irregular contours rather than straight terrace edges.
+are never sold (`item_db.gd` `found`), and you put them on from the Bag. The cap and sneakers are only found there;
+the Rope Collar can also be found in Bellerive's harbour equipment shack. The surrounding ridges follow irregular contours rather than straight terrace edges.
 In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
@@ -220,9 +221,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   knoll. Nobody climbs or drops down a cliff, and nobody talks, picks things up or sees across one (trainers and wild
   beasts included); ramps are walked up and down along their slope. Where a river runs over a cliff it falls as a
   waterfall (Riverbend). Behind high ground you're never lost from sight: whatever ground stands between the camera
-  and you dissolves around your shape in a fine dither (`terrain.gdshader` `hole`), as buildings in the way fade.
-  Building fades use isolated material opacity on all renderers, including Mobile and Compatibility, and restore
-  their original materials when the camera's sightline clears.
+  and you dissolves around your shape in a fine dither (`terrain.gdshader` `hole`), while buildings stay unloaded until their ground footprint
+  reaches the screen.
+  They fade in as their base comes into view and unload when it leaves. Arrival fades use isolated material opacity
+  on all renderers, including Mobile and Compatibility, then restore their original opaque materials.
 - **Town mascots and their signature moves**: every town has a mascot beast roaming its square and a statue of it
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
   teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
@@ -525,7 +527,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
 - The game opens straight on the title screen: while the engine loads, the boot splash is a still of the title's scene,
-  which then comes alive with the menu over it. With no save yet, **New Game** is a big, glowing
+  which then comes alive: the dragon rises into view before the menu appears. With no save yet, **New Game** is a big, glowing
   pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
   and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
   it).
@@ -536,7 +538,8 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   with no lit surface details (`title_dragon.gdshader`, `title_haze.gdshader`).
   RUBY COCOON shimmers in extruded gold (`gold_shimmer.gdshader`). The camera keeps the frame's height, so a wider phone
   shows more at the sides. Load Game and the character creator hide the logo, and on phones too the menu stays under
-  it rather than over it. The world and battle scripts and the travel book with its world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
+  it rather than over it. The world and battle scripts and the travel book with its world map (the slowest scripts to compile) aren't preloaded: they start loading in the background after the dragon has risen and the
+  menu has rendered (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - The title screen plays *Nerves*.
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
@@ -614,7 +617,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   doorstep and everyone standing about on level ground, and keep tall things off high ground just south of a road.
   `"cliffs": "walls"` draws a town's cliffs as stone retaining walls. Both checkers below know the levels.
 - **Shards** use `*`.
-- **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`). A door that opens is its own leaf on a hinge (`room_builder.gd _hinged_leaf`; `world.gd _through_door` swings it open, `spawn_at` shuts the one you came in by). Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it); `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight. `world.gd _take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor. `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached. `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
+- **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`). A door that opens is its own leaf on a hinge (`room_builder.gd _hinged_leaf`; `world.gd _through_door` swings it open, `spawn_at` shuts the one you came in by). Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it); Sky Tower lobbies have a visible side-wall entrance like home; lobbies and open-air decks use the same three-tile stair flights and recessed stairwells as home (`stair_flights` in their room templates). `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight. `world.gd _take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor. `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached. `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
 
 - **Towns** follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
   - Bellerive keeps the plan in a French Quarter's form: Creole townhouses along Rue Royale, the Place d'Armes (an
@@ -622,7 +625,14 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
     courtyard gardens behind them (the camera has to see over them), and the promenade on the quay. Its catching
     ground is a fenced park between the town and the arena (`"meadow": {"rect": [...]}`: wild beasts live only in it,
     in its long grass), where Miss Odile feeds them candy corn; the arena's forecourt is fenced off from the river, so
-    the way there is through the park.
+    the way there is through the park. The waterfront has a continuous boardwalk at least two tiles deep, flush against the stone retaining wall,
+    with stone stairs and matching side parapets starting south of the quay balustrade. Lamps sit within continuous
+    wall sections, garden fences end in capped posts, and the eastern shoreline is fenced below the arena.
+    Crates and open boxes sit against the retaining wall, leaving two clear dock rows and the stairs accessible.
+    The steamboat pier runs straight south, two tiles wide, without a crosswise landing.
+    Boat berths leave clearance from docks and one another, including paddle wheels and sail booms. The eastern dock ends at a second fishing shack standing over the water,
+    with a Rope Collar, Cloth Band and Twine Anklet (starter beast gear, each giving a 5% stat bonus) to collect inside.
+    Gil's original shack and fishing lesson sit at the west end, with his berth extended south to keep the boardwalk clear.
   - Cocoon Cove has three homes on a raised western shelf, a ramp descending beside the library into a compact square,
     and woodland down to its irregular rocky cliffs, with no coastal path. The rocks and water below are inaccessible.
     Two small scenery homes sit close behind the Beast Center on its level; a woodland path leads to the cliffside
@@ -662,7 +672,10 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
+- `title-startup` / `title-startup-touch`: dragon entrance before the menu, ignored early confirmation, keyboard
+  focus, tapping New Game once and returning with B, using isolated save paths.
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and the one-time Dustwell reveal.
+- `waterfront`: relocated library sign taps, all four dock stair flights, entering the over-water equipment shack, collecting starter beast gear and persistence on re-entry.
 - `cocoon`: cliff isolation, old building identities, the path to the cliff shack and its starter gear (`--preview=shack_path` or `shack` with `--shot=` for pictures), the home-to-library route, entering the library, receiving the
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
   `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.
@@ -779,7 +792,7 @@ godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
 godot --path . -- --scene=title --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # the title (--at=2 freezes the ascent; --saves=0: a first launch; --keys pressed once the menu is up: d,a opens Load Game)
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
-godot --headless --path . -- --scene=building-fade                      # every town's building materials fade on blocked sightlines and restore when clear; --town=tidewater narrows the audit
+godot --headless --path . -- --scene=building-fade                      # buildings load when their base reaches the screen and fade in; also walks the western dock lane; --town=tidewater narrows the audit
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere
 godot --path . -- --scene=saves --card=1 --shot=C:/tmp/c.png            # save slots and the "Game saved!" card
 godot --path . -- --scene=call --shot=C:/tmp/c.png                       # calling Dad from the phone at home, up to his first line (--where=payphone|center, --town, --presses)

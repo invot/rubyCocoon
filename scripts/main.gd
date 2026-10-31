@@ -114,12 +114,15 @@ func _title() -> void:
 	UI.allow_pause = false
 	UI.controls.set_title_mode(false)
 	# the menu comes up over the title's own scene in the 3D view (the boot splash is a moment of it)
-	_title_backdrop()
+	_clear_title_world()
 	Sfx.music("title")
 	Sfx.ambience("")
 	var stage := TitleStage.new()
 	view.add_child(stage)
 	_title_nodes = [stage]
+	# Let the dragon finish its entrance before accepting title choices.
+	await stage.arrived
+	_title_backdrop()
 	while true:
 		var items := []
 		# (--saves=0: a test run shows the title as a first launch would)
@@ -225,14 +228,19 @@ func _clear_title() -> void:
 
 
 # ================================================================ maps
-## Behind the title's menu (which has its own scene, title_stage.gd): puts away the world of a game left for the title,
-## loads the world's scripts in the background, then the battle scripts and the travel book too.
-func _title_backdrop() -> void:
+## Put away the world before starting the title tableau.
+func _clear_title_world() -> void:
 	if is_instance_valid(world):
 		if world.get_parent():
 			world.get_parent().remove_child(world)
 		world.queue_free()
 		world = null
+
+
+## After the dragon entrance and the first menu draw, load world, battle and book scripts in the background.
+func _title_backdrop() -> void:
+	# Finish drawing the title and its menu before touching shared loader dependencies.
+	await RenderingServer.frame_post_draw
 	# shaders can't be loaded off the main thread: load the ones the world's scripts preload first
 	for sh in THREAD_SHY:
 		load(sh)
@@ -582,6 +590,11 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "waterfront":
+		await load("res://tools/debug/waterfront.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "cocoon":
 		await load("res://tools/debug/cocoon.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -1059,11 +1072,39 @@ func _run_test() -> void:
 		print("  desk -> ", UI.auto_log)
 		UI.auto_log.clear()
 		var stairs: Vector2i = world.map["exits"].keys().filter(func(t): return "@2" in String(world.map["exits"][t]["to"]))[0]
-		world.player_pos = stairs + Vector2i(0, 1)
+		var lobby: String = world.map_id
+		var roof: String = world.map["exits"][stairs]["to"]
+		# The front door is a visible hinged side-wall door, usable in both directions.
+		var front: Vector2i = world.map["front_doors"][0]
+		var outside: String = world.map["parent"]
+		world.player_pos = front + Vector2i(-1, 0)
 		world.player.position = world.tile_pos(world.player_pos)
-		world._step(Vector2i(0, -1), false)
+		world._step(Vector2i(1, 0), false)
 		await _wait(2.0)
+		assert(world.map_id == outside, "Sky Tower front door must exit to town")
+		await world._enter_building(world.doors[world.player_pos + Vector2i(0, -1)])
+		await _wait(1.2)
+		assert(world.map_id == lobby, "Sky Tower front door must allow re-entry")
+		print("SKY TOWER DOOR DONE: exit, re-entry")
+		var foot: Vector2i = world.stair_ways[stairs][0]
+		world.player_pos = foot
+		world.player.position = world.tile_pos(foot)
+		world._step(stairs - foot, false)
+		await _wait(2.0)
+		assert(world.map_id == roof, "Sky Tower stairs must reach the roof")
 		print("upstairs: ", world.map_id, " at ", world.player_pos, " npcs ", world.npcs.values().map(func(n): return n.get("name", "")))
+		# Walk down through the shared stairwell, then back up before taking the flight.
+		var down: Vector2i = world.stair_ways.keys().filter(func(t): return not world.stair_ways[t].is_empty())[0]
+		var landing: Vector2i = world.stair_ways[down][0]
+		world.player_pos = landing
+		world.player.position = world.tile_pos(landing)
+		world._step(down - landing, false)
+		await _wait(2.0)
+		assert(world.map_id == lobby and world.player_pos == foot, "Sky Tower descent must return to the foot of the stairs")
+		world._step(stairs - foot, false)
+		await _wait(2.0)
+		assert(world.map_id == roof, "Sky Tower stairs must remain usable after descending")
+		print("SKY TOWER STAIRS DONE: ascent, descent, ascent")
 		UI.auto_answers = [0]
 		for p in world.npcs:
 			if world.npcs[p].get("id", "") == "thunderhawk":
@@ -1653,10 +1694,15 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "title":
 		_title()
+		if _test.get("verify", "0") == "1":
+			await load("res://tools/debug/title_startup.gd").new().run(self)
 		if _test.has("at"):
 			_title_nodes[0].freeze(float(_test["at"]))
 		# --keys: pressed once the menu is up (with a save, d,a opens Load Game; without, a opens the character creator)
-		await _wait(1.0)
+		if not _test.has("at") or float(_test["at"]) >= 4.2:
+			while UI.stack.is_empty():
+				await get_tree().process_frame
+		await _wait(0.2)
 		await _test_keys()
 		await get_tree().create_timer(wait).timeout
 	elif scene == "view":

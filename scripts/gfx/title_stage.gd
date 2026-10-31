@@ -3,6 +3,8 @@ extends Node3D
 ## with slow wingbeats, drifting motes and the gold logo.
 ## The camera keeps its height on wide phones. make_splash.gd captures its opening frame.
 
+signal arrived
+
 const SUMMON := "res://assets/summons/fire.res"
 const FONT := preload("res://ui/lunchds.ttf")
 const FOV := 30.0
@@ -17,6 +19,7 @@ const NEAR_LAYER := 1
 ## the logo (hidden while Load Game or the character creator is open)
 var logo: Node3D
 var _t := 0.0
+var _arrived := false
 var _dragon: MeshInstance3D
 var _mats: Array[ShaderMaterial] = []
 var _dragon_card: MeshInstance3D
@@ -46,6 +49,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_apply()
+	if not _arrived and _t >= 4.2:
+		_arrived = true
+		arrived.emit()
 
 
 ## Stops at time `at` for a reproducible title / boot splash frame.
@@ -53,6 +59,10 @@ func freeze(at: float) -> void:
 	_t = at
 	set_process(false)
 	_apply()
+	# Finished-ascent previews can open the menu; early previews keep it hidden.
+	if not _arrived and _t >= 4.2:
+		_arrived = true
+		arrived.emit()
 
 
 func _apply() -> void:

@@ -484,6 +484,22 @@ func _build_terrain() -> void:
 	# cliff faces: the crags' rock, a little warmer, more of the local soil in it
 	t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls")
 	terrain_mats = t.materials
+	if biome["id"] == "quarter":
+		var flights := {}
+		for y in h:
+			for x in w:
+				var p := Vector2i(x, y)
+				if Elev.ramp_dir(map, p) != Vector2i.UP:
+					continue
+				var left := Elev.ramp_dir(map, p + Vector2i.LEFT) != Vector2i.UP
+				var right := Elev.ramp_dir(map, p + Vector2i.RIGHT) != Vector2i.UP
+				var drop := Elev.edge(map, p, Vector2i.UP) - Elev.edge(map, p, Vector2i.DOWN)
+				var mesh := Creole.quay_stair(drop, left, right)
+				if not flights.has(mesh):
+					flights[mesh] = []
+				flights[mesh].append(_xf(Vector3(x + 0.5, Elev.edge(map, p, Vector2i.DOWN), y + 0.5)))
+		for mesh in flights:
+			_multimesh(mesh, flights[mesh])
 	var wk := VBld.Kit.new()
 	wk.box("stone", Vector3(0, 0.8, 0), Vector3(1.0, 1.6, 1.0), Color("#b8b0a0"))
 	wk.box("stone", Vector3(0, 1.66, 0), Vector3(1.06, 0.12, 1.06), Color("#cfc7b6"))
@@ -974,7 +990,6 @@ func _build_scatter() -> void:
 	_multimesh(VA.mesh(fence_name), fx)
 	for mask in garden_fences:
 		_multimesh(Creole.garden_fence(mask), garden_fences[mask])
-	_multimesh(Creole.balustrade(), balusters)
 	var lx := []
 	# gas lamps a head and more above the people
 	var ls := VA.fit_scale("lamp", 2.8)
@@ -982,7 +997,8 @@ func _build_scatter() -> void:
 	for c in lamps:
 		var at := Vector2i(floori(c.x), floori(c.z))
 		if quay and _on_quay(at):
-			# on the quay a lamp stands on a pier of the balustrade
+			# The wall continues beneath each lamp; its pier alone leaves a tile-wide gap.
+			balusters.append(_xf(c))
 			piers.append(_xf(c))
 			c += Vector3(0, 0.87, 0)
 		lx.append(_xf(c, 0.0, ls))
@@ -995,10 +1011,11 @@ func _build_scatter() -> void:
 		l.position = c + Vector3(0, 2.6, 0)
 		add_child(l)
 	_multimesh(VA.mesh("lamp"), lx)
+	_multimesh(Creole.balustrade(), balusters)
 	_multimesh(Creole.pier(), piers)
 	var sx := []
 	for c in signs:
-		sx.append(_xf(c))
+		sx.append(_xf(_sign_pos(Vector2i(floori(c.x), floori(c.z)))))
 	_multimesh(VP.signpost(), sx)
 	_multimesh(VP.obstacle("rope_ladder"), ladders, null, false)
 
@@ -1078,26 +1095,19 @@ func _plan_houses() -> void:
 		var b: Dictionary = entry.duplicate()
 		b["door"] = Vector2i(int(b["x"]) + int(b["w"]) / 2, int(b["y"]) + int(b["d"]) - 1)
 		b["seed"] = (map_id + String(b["name"])).hash()
-		var node: Node3D
 		var footprint: Rect2
+		var plan := {}
 		if style == "creole":
-			# Bellerive's own: a low building, or the market's arcade
 			b["low"] = true
-			node = Creole.scenery(b)
 			footprint = Rect2(-float(b["w"]) / 2.0, -float(b["d"]) / 2.0, float(b["w"]), float(b["d"]))
 		else:
-			var plan := HouseModels.plan(b, b.get("style", style), {}, false)
+			plan = HouseModels.plan(b, b.get("style", style), {}, false)
 			if plan.is_empty():
 				continue
-			node = HouseModels.build(plan)
 			footprint = plan["rect"]
-		node.name = b["name"]
 		var origin := Vector2(float(b["x"]) + float(b["w"]) / 2.0, float(b["y"]) + float(b["d"]) / 2.0)
-		node.position = Vector3(origin.x, _lift(b["door"]), origin.y)
-		add_child(node)
-		# it fades like any building when it comes between the camera and you (no door: "decor" to refresh_locks)
 		b["shop"] = "decor"
-		building_fades.append({"b": b, "meshes": node.find_children("*", "GeometryInstance3D", true, false), "node": node})
+		building_fades.append({"b": b, "scenery": true, "plan": plan, "node": null, "meshes": [], "opacity": 0.0})
 		for y in range(floori(origin.y + footprint.position.y) - 1, ceili(origin.y + footprint.end.y) + 1):
 			for x in range(floori(origin.x + footprint.position.x) - 1, ceili(origin.x + footprint.end.x) + 1):
 				house_cover[Vector2i(x, y)] = true
@@ -1176,17 +1186,30 @@ func _build_buildings() -> void:
 			doors[b["door"]] = b
 		if b["shop"] in VBld.COMMERCIAL:
 			b["height"] = VBld.shop_height(style)
-		var node := _building_node(b, style)
-		var meshes := []
-		for c in node.find_children("*", "GeometryInstance3D", true, false):
-			meshes.append(c)
-		building_fades.append({"b": b, "meshes": meshes, "node": node})
-		# (a new beast hovers on its own)
-		if b["shop"] == "skytower" and node.has_node("Bird") and not node.get_node("Bird") is BeastRig:
-			bobbers.append([node.get_node("Bird"), (node.get_node("Bird") as Node3D).position.y, 1.3])
-		for c in node.get_children():
-			if c.has_meta("spin"):
-				spinners.append(c)
+		building_fades.append({"b": b, "node": null, "meshes": [], "opacity": 0.0})
+
+
+func _load_building(f: Dictionary) -> void:
+	var b: Dictionary = f["b"]
+	var style: String = biome.get("style", "town")
+	var node: Node3D
+	if f.get("scenery", false):
+		node = Creole.scenery(b) if style == "creole" else HouseModels.build(f["plan"])
+		node.name = b["name"]
+		node.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, _lift(b["door"]), float(b["y"]) + float(b["d"]) / 2.0)
+		add_child(node)
+	else:
+		node = _building_node(b, style)
+	f["node"] = node
+	f["meshes"] = node.find_children("*", "GeometryInstance3D", true, false)
+	f["opacity"] = 0.0
+	_set_building_opacity(f, 0.0)
+	if b["shop"] == "skytower" and node.has_node("Bird") and not node.get_node("Bird") is BeastRig:
+		bobbers.append([node.get_node("Bird"), (node.get_node("Bird") as Node3D).position.y, 1.3])
+	for c in node.get_children():
+		if c.has_meta("spin"):
+			spinners.append(c)
+
 
 
 ## Street furniture from the packs (assets/exteriors) on the open ground beside the town's buildings: benches,
@@ -1247,6 +1270,15 @@ func _build_street_props() -> void:
 	for q in keep:
 		taken[q] = true
 	var placed := []
+	# Authored cargo shares the street furniture meshes, collision and wall-facing placement.
+	for entry in map.get("street_props", []):
+		var t := Vector2i(int(entry[0]), int(entry[1]))
+		if taken.has(t) or not MapGen.walkable(MapGen.get_t(map, t.x, t.y)):
+			continue
+		MapGen.set_t(map, t.x, t.y, MapGen.STREET_PROP)
+		taken[t] = true
+		placed.append([t, Vector2i.DOWN, String(entry[2]), int(entry[3])])
+	before = _reachable(start)
 	for b in map["buildings"]:
 		if b["shop"] in ["decor", "hideout", "temple"]:
 			continue
@@ -1315,7 +1347,7 @@ func _build_street_props() -> void:
 		mi.position = tile_pos(t) - Vector3(face.x, 0, face.y) * maxf(0.0, 0.5 - bb.size.z * fit / 2.0 - 0.05)
 		add_child(mi)
 		# a second crate on top now and then
-		if e[2] in ["crate", "crate_open"] and rng.randf() < 0.4:
+		if e[2] in ["crate", "crate_open"] and (int(e[3]) > 1 if e.size() > 3 else rng.randf() < 0.4):
 			var top := MeshInstance3D.new()
 			top.mesh = _street_mesh("crate")
 			top.scale = mi.scale * 0.85
@@ -1365,11 +1397,12 @@ func refresh_locks() -> void:
 		var b: Dictionary = f["b"]
 		if b["shop"] == "decor" or Places.door_locked(b) == bool(b.get("locked", false)):
 			continue
+		if not is_instance_valid(f["node"]):
+			continue
 		(f["node"] as Node3D).queue_free()
 		var node := _building_node(b, style)
 		f["node"] = node
 		f["meshes"] = node.find_children("*", "GeometryInstance3D", true, false)
-		f.erase("box")
 		f.erase("fade_materials")
 		f["opacity"] = 1.0
 
@@ -1949,11 +1982,11 @@ func _process(delta: float) -> void:
 		_demo_t += delta
 		cam_target = Vector3(map["w"] / 2.0 + sin(_demo_t * 0.15) * 6.0, 0, map["h"] / 2.0 + 2.0)
 		_place_camera()
+		_fade_buildings(delta)
 		return
 	if player == null:
 		return
 	_animate_npcs(delta)
-	_fade_buildings(delta)
 	if interior and room_walls != null:
 		room_walls.fade(player.position, delta)
 	_update_wild_grace(delta)
@@ -1988,6 +2021,7 @@ func _process(delta: float) -> void:
 	VPer.animate(player, anim_t, _stride)
 	cam_target = player.position
 	_place_camera()
+	_fade_buildings(delta)
 	_update_hole()
 
 
@@ -2013,33 +2047,53 @@ func _update_hole() -> void:
 		(m as ShaderMaterial).set_shader_parameter("hole", on)
 
 
-## A building between the camera and you (the arena, a tall house you've walked behind) fades almost away, so you're
-## never lost from sight: whenever the line from the camera to your head or your middle passes through its bounds.
-func _fade_buildings(delta: float) -> void:
-	if cam == null:
+## Buildings enter the scene only when their ground footprint reaches the viewport.
+## Testing the base prevents tall roofs south of the player appearing before their street does.
+func _building_base_visible(b: Dictionary) -> bool:
+	var y := _lift(b["door"])
+	var x0 := float(b["x"])
+	var z0 := float(b["y"])
+	var x1 := x0 + float(b["w"])
+	var z1 := z0 + float(b["d"])
+	var polygon := PackedVector2Array()
+	for p in [Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1)]:
+		if cam.is_position_behind(p):
+			return false
+		polygon.append(cam.unproject_position(p))
+	var size := get_viewport().get_visible_rect().size
+	return not Geometry2D.intersect_polygons(polygon, PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)])).is_empty()
+
+
+func _fade_buildings(delta: float, load_limit := 1) -> void:
+	if cam == null or interior:
 		return
-	var from := cam.global_position
-	# (stopping a step short of you: an awning or a porch over the street right where you stand isn't in the way)
-	var head := player.position + Vector3(0, VPer.height() * 0.95, 0)
-	head += (from - head).normalized() * 1.1
-	var middle := player.position + Vector3(0, VPer.height() * 0.5, 0)
-	middle += (from - middle).normalized() * 1.1
+	var loaded := 0
 	for f in building_fades:
-		if not f.has("box"):
-			f["box"] = _fade_box(f["meshes"])
-		var box: AABB = f["box"]
-		var occl: bool = box.size != Vector3.ZERO and (box.intersects_segment(from, head) or box.intersects_segment(from, middle))
-		var target := 0.07 if occl else 1.0
-		var opacity: float = f.get("opacity", 1.0)
-		if opacity == target:
+		if not _building_base_visible(f["b"]):
+			if is_instance_valid(f["node"]):
+				var node: Node3D = f["node"]
+				spinners = spinners.filter(func(n): return is_instance_valid(n) and not node.is_ancestor_of(n))
+				bobbers = bobbers.filter(func(b): return is_instance_valid(b[0]) and not node.is_ancestor_of(b[0]))
+				node.queue_free()
+				f["node"] = null
+				f["meshes"] = []
+				f.erase("fade_materials")
+				f["opacity"] = 0.0
 			continue
-		opacity = move_toward(opacity, target, delta * 3.0)
-		f["opacity"] = opacity
-		_set_building_opacity(f, opacity)
+		if not is_instance_valid(f["node"]):
+			# Spread newly visible construction over frames, including wide phone views.
+			if loaded >= load_limit:
+				continue
+			_load_building(f)
+			loaded += 1
+		var opacity: float = move_toward(f["opacity"], 1.0, delta * 3.0)
+		if opacity != f["opacity"]:
+			f["opacity"] = opacity
+			_set_building_opacity(f, opacity)
 
 
-## Instance transparency is ignored on Mobile and Compatibility. Copy materials only when a building first fades;
-## never alter the shared house/texture cache. Restore the original opaque pipeline once the sightline clears.
+## Instance transparency is ignored on Mobile and Compatibility. Use isolated materials during arrival;
+## never alter the shared house/texture cache. Restore the original opaque pipeline when the fade finishes.
 func _set_building_opacity(f: Dictionary, opacity: float) -> void:
 	if not f.has("fade_materials"):
 		var copies := {}
@@ -2075,21 +2129,6 @@ func _set_building_opacity(f: Dictionary, opacity: float) -> void:
 	for binding in cache["bindings"]:
 		var mesh: MeshInstance3D = binding["mesh"]
 		mesh.set_surface_override_material(binding["surface"], binding["override"] if opacity == 1.0 else binding["faded"])
-
-
-## The bounds of a building's meshes, in the world, trimmed a little so brushing past a corner doesn't fade it.
-func _fade_box(meshes: Array) -> AABB:
-	var box := AABB()
-	var any := false
-	for gi in meshes:
-		if not is_instance_valid(gi) or not gi is VisualInstance3D or not (gi as Node3D).is_inside_tree():
-			continue
-		var bb: AABB = (gi as Node3D).global_transform * (gi as VisualInstance3D).get_aabb()
-		box = bb if not any else box.merge(bb)
-		any = true
-	if not any:
-		return AABB()
-	return box.grow(-0.15)
 
 
 func _read_input() -> void:
@@ -3009,6 +3048,9 @@ func _pick(screen: Vector2) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	var boxes := []
+	for p in map["signs"]:
+		# Test the visible board before the facade behind it, so a wall-side sign can be tapped.
+		boxes.append([AABB(_sign_pos(p) + Vector3(-0.45, 0, -0.12), Vector3(0.9, 1.0, 0.24)), p, "thing"])
 	for p in npcs:
 		boxes.append([AABB(Vector3(p.x + 0.15, _lift(p), p.y + 0.15), Vector3(0.7, 1.9, 0.7)), p, "npc"])
 	for w in wilds:
@@ -3031,6 +3073,14 @@ func _pick(screen: Vector2) -> Dictionary:
 			best_d = d
 			best = {"tile": bx[1], "kind": bx[2]}
 	return best
+
+
+## Keep the rendered sign and its tap bounds together beside a building's front wall.
+func _sign_pos(p: Vector2i) -> Vector3:
+	var at := tile_pos(p)
+	if MapGen.get_t(map, p.x, p.y - 1) == MapGen.BUILDING:
+		at.z = p.y + 0.12
+	return at
 
 
 func _building_at(t: Vector2i) -> Dictionary:
@@ -3957,7 +4007,7 @@ func _build_room() -> void:
 	add_child(sun)
 	# floors, walls, doors, windows, furniture and a light per room (an open-air roof keeps its deck and railings)
 	room_walls = null
-	if not open_air:
+	if not open_air or RoomBuilder.has_flights(map):
 		room_walls = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
 	if key == "ceo_4":
 		var company_sign := CompanyBrand.sign_node(4.2)
@@ -4036,7 +4086,7 @@ func _build_room() -> void:
 				MapGen.STAIRS_UP:
 					if open_air:
 						floors[main_floor].append(fxf)
-					if map.get("stage", false):
+					if RoomBuilder.has_flights(map):
 						# a house's stairs are the room builder's (room_builder.gd _stairs)
 						continue
 					for i in 4:
@@ -4044,6 +4094,8 @@ func _build_room() -> void:
 						k.box("stone", center + Vector3(0, sy / 2.0, 0.375 - i * 0.25), Vector3(1, sy, 0.25), stone)
 					continue
 				MapGen.STAIRS_DOWN:
+					if RoomBuilder.has_flights(map):
+						continue
 					if open_air:
 						floors[main_floor].append(fxf)
 					if map.get("stage", false):
