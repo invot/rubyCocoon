@@ -2,7 +2,7 @@
 
 A low-poly beast-training RPG with a smooth, cozy PS2-era look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
-<img src="docs/screenshots/title.jpg" width="800" alt="The title screen: a dragon against the full moon, beasts on the grass below."><br><sub>The title screen: a dragon against the full moon, beasts on the grass below.</sub>
+<img src="docs/screenshots/title.jpg" width="800" alt="The title screen: a shadow dragon rising against a rose-tinted moon over red ground."><br><sub>The title screen: a shadow dragon rising against a rose-tinted moon over red ground.</sub>
 
 ## Running it
 
@@ -529,11 +529,12 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
   and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
   it).
-- The title is its own small 3D scene (`scripts/gfx/title_stage.gd`, built in about 0.2 s): a moonlit night over dark
-  grass, the fire summon beating its wings far off against the full moon (drawn small in its own viewport as a
-  silhouette, then blurred and half hidden by drifting mist: `title_dragon.gdshader`, `title_haze.gdshader`), the
-  lines' first forms on the grass either side of the menu in their idle animations, and RUBY COCOON in extruded gold
-  with a shimmer sweeping across it (`gold_shimmer.gdshader`). The camera keeps the frame's height, so a wider phone
+- The title is its own small 3D scene (`scripts/gfx/title_stage.gd`): a moonlit night over red ground,
+  with no other creatures, trees or grass tufts. A large fire summon rises from below the screen over 4.2 seconds,
+  then hovers against a rose-tinted full moon and red halo. The halo continues onto the red ground as a soft
+  moonlight reflection, fading toward the foreground (`title_ground_glow.gdshader`). Its slow wingbeat reads as a flat black shadow,
+  with no lit surface details (`title_dragon.gdshader`, `title_haze.gdshader`).
+  RUBY COCOON shimmers in extruded gold (`gold_shimmer.gdshader`). The camera keeps the frame's height, so a wider phone
   shows more at the sides. Load Game and the character creator hide the logo, and on phones too the menu stays under
   it rather than over it. The world and battle scripts and the travel book with its world map (the slowest scripts to compile) aren't preloaded: they load in the background while the menu is up (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
@@ -776,7 +777,7 @@ godot --path . -- --scene=marks --shot=C:/tmp/k.png                     # the !,
 godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a ring battle driven by keys (a b l r u d); --kind=wild, --foe_level, --foe_shield
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
-godot --path . -- --scene=title --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # the title (--saves=0: a first launch; --keys pressed once the menu is up: d,a opens Load Game)
+godot --path . -- --scene=title --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # the title (--at=2 freezes the ascent; --saves=0: a first launch; --keys pressed once the menu is up: d,a opens Load Game)
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --headless --path . -- --scene=building-fade                      # every town's building materials fade on blocked sightlines and restore when clear; --town=tidewater narrows the audit
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere

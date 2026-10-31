@@ -1,7 +1,6 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled;
-// The title's dragon (the fire summon) as a silhouette against the moon, beating its wings: near black, with a thin
-// moonlit rim. Everything further than `root` from the middle (x = 0) is a wing, swung about a hinge at (root, hinge_y)
+// The title's dragon (the fire summon) as a silhouette against the moon, beating its wings: a uniform flat shadow. Everything further than `root` from the middle (x = 0) is a wing, swung about a hinge at (root, hinge_y)
 // and bending more towards its tip, so it curls as it beats. The summon's texture only cuts its outline. `t`: the time,
 // from the script.
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap;
@@ -13,8 +12,7 @@ uniform float beat = 0.55; // beats per second
 uniform float lift = 0.35; // radians up at the top of the stroke
 uniform float drop = 0.6; // radians down at the bottom
 uniform float t = 0.0;
-uniform vec4 body : source_color = vec4(0.025, 0.03, 0.06, 1.0);
-uniform vec4 rim : source_color = vec4(0.7, 0.78, 1.0, 1.0);
+
 
 void vertex() {
 	float d = abs(VERTEX.x) - root;
@@ -39,6 +37,6 @@ void fragment() {
 	if (texture(albedo_tex, UV).a < scissor) {
 		discard;
 	}
-	float edge = pow(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 3.0);
-	ALBEDO = mix(body.rgb, rim.rgb, edge * 0.35);
+	// Uniform black removes every surface highlight: only the outline and eyes read.
+	ALBEDO = vec3(0.003, 0.002, 0.006);
 }

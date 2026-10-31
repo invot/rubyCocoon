@@ -5,7 +5,7 @@ shader_type spatial;
 uniform float lo = 0.0;
 uniform float hi = 1.0;
 uniform float t = 0.0;
-uniform float period = 3.5;
+uniform float period = 5.0;
 uniform float left = -2.0;
 uniform float right = 2.0;
 
@@ -34,9 +34,9 @@ void fragment() {
 	float span = right - left;
 	float at = left - 0.6 + fract(t / period) * (span + 1.2) * 1.6;
 	float band = 1.0 - smoothstep(0.0, 0.22, abs(local.x + (local.y - lo) * 0.5 - at));
-	ALBEDO = c + vec3(1.0, 0.95, 0.8) * band * 0.6;
+	ALBEDO = c + vec3(1.0, 0.95, 0.8) * band * 0.35;
 	METALLIC = 0.75;
-	ROUGHNESS = 0.28;
-	SPECULAR = 0.8;
-	EMISSION = c * 0.18 + vec3(1.0, 0.9, 0.7) * band * 0.9;
+	ROUGHNESS = 0.5;
+	SPECULAR = 0.5;
+	EMISSION = c * 0.18 + vec3(1.0, 0.9, 0.7) * band * 0.45;
 }

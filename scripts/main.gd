@@ -1653,6 +1653,8 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "title":
 		_title()
+		if _test.has("at"):
+			_title_nodes[0].freeze(float(_test["at"]))
 		# --keys: pressed once the menu is up (with a save, d,a opens Load Game; without, a opens the character creator)
 		await _wait(1.0)
 		await _test_keys()

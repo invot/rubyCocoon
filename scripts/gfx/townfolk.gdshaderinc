@@ -47,7 +47,10 @@ void vertex() {
 	else if (slot == 6) want = shoes;
 	else if (slot == 7) want = hat;
 	else if (slot == 9) want = pack;
-	col = mix(COLOR.rgb, shade(want.rgb, UV2.y), want.a);
+	// Iris highlights brighten the chosen hue instead of mixing in white, which
+	// washes out these small patches under the character preview's lighting.
+	vec3 tinted = slot == 3 ? want.rgb * clamp(UV2.y, 0.8, 1.15) : shade(want.rgb, UV2.y);
+	col = mix(COLOR.rgb, tinted, want.a);
 	rest = CUSTOM0.xyz;
 	light = UV2.y;
 	camo_on = (slot == 4 || slot == 5) ? camo : 0.0;

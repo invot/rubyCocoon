@@ -1,43 +1,27 @@
 extends Node3D
-## The title screen (main.gd _title), live in the 3D view: a moonlit night over dark grass, a dragon (the fire summon)
-## beating its wings far off against the full moon, a blurred silhouette half hidden by drifting mist, the lines' first
-## forms gathered on the grass below in their idle animations, and RUBY COCOON in extruded gold with a shimmer sweeping
-## across it. tools/make_splash.gd renders a moment of it as the boot splash, so the boot splash gives way to the title
-## without a jump. The camera keeps the frame's height, so a wider screen shows more at the sides while the logo, the
-## moon and the room for the menu between the two groups of beasts keep their places.
+## A moonlit title tableau: a flat shadow dragon rises into a rose-tinted moon,
+## with slow wingbeats, drifting motes and the gold logo.
+## The camera keeps its height on wide phones. make_splash.gd captures its opening frame.
 
-const Model = preload("res://scripts/gfx/beast_model.gd")
-const VP = preload("res://scripts/gfx/voxel_props.gd")
 const SUMMON := "res://assets/summons/fire.res"
 const FONT := preload("res://ui/lunchds.ttf")
-## the beasts: form, where it stands (flyers hover), its turn from facing the camera (towards the middle) and size
-const BEASTS := [
-	["crab_1", Vector3(-4.3, 0, 1.4), 0.45, 0.95], ["cactus_1", Vector3(-3.1, 0, 2.3), 0.35, 0.85],
-	["tree_1", Vector3(-2.7, 0, 0.2), 0.3, 0.85], ["bat_1", Vector3(-3.0, 1.9, 1.0), 0.4, 0.85],
-	["frog_1", Vector3(4.3, 0, 1.4), -0.45, 0.95], ["berry_1", Vector3(3.1, 0, 2.3), -0.35, 0.85],
-	["marmot_1", Vector3(2.7, 0, 0.2), -0.3, 0.85], ["owl_1", Vector3(3.0, 2.0, 1.0), -0.4, 0.85],
-]
-## the distant treeline: model, x, z, height
-const TREES := [
-	["tree_pine", -19.0, -27.0, 5.0], ["tree_round_1", -14.5, -29.0, 4.2], ["tree_pine", -10.5, -26.5, 4.4],
-	["tree_round_1", -6.5, -29.5, 3.6], ["tree_pine", 6.5, -29.0, 4.6], ["tree_round_1", 10.5, -26.5, 4.2],
-	["tree_pine", 14.5, -28.0, 5.2], ["tree_round_1", 19.0, -26.5, 4.0],
-]
 const FOV := 30.0
 const CAMERA := Vector3(0, 2.2, 12.0)
 const LOOK := Vector3(0, 2.4, 0)
 ## where the moon sits on the screen (a fraction of its height down from the top), the dragon in front of it
 const MOON_AT := 0.37
-## render layers, so each group gets its own light: the beasts, the grass and the logo; the far treeline
+const MOON_SIZE := 23.0
+## Separate the ground and logo lighting from the unlit dragon and sky.
 const NEAR_LAYER := 1
-const FAR_LAYER := 2
 
 ## the logo (hidden while Load Game or the character creator is open)
 var logo: Node3D
 var _t := 0.0
 var _dragon: MeshInstance3D
 var _mats: Array[ShaderMaterial] = []
-var _rigs: Array = []
+var _dragon_card: MeshInstance3D
+var _dragon_rest := Vector3.ZERO
+var _moon_at := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -54,8 +38,6 @@ func _ready() -> void:
 	_moon(CAMERA + ray * ((CAMERA.z + 28.0) / -ray.z))
 	_dragon_up(CAMERA + ray * ((CAMERA.z + 12.0) / -ray.z))
 	_ground()
-	for b in BEASTS:
-		_beast(b[0], b[1], b[2], b[3])
 	_logo()
 	_motes()
 	_apply()
@@ -66,11 +48,9 @@ func _process(delta: float) -> void:
 	_apply()
 
 
-## Stops at time `at`, every beast standing still in its rest pose (the boot splash's moment).
+## Stops at time `at` for a reproducible title / boot splash frame.
 func freeze(at: float) -> void:
 	_t = at
-	for r in _rigs:
-		r.hold()
 	set_process(false)
 	_apply()
 
@@ -81,6 +61,9 @@ func _apply() -> void:
 	# the body rises as the wings beat down (the downstroke is the first 0.4 of a beat, see title_dragon.gdshader)
 	var ph := fposmod(_t * 0.55, 1.0)
 	_dragon.position.y = 0.025 * sin(ph / 0.4 * PI) if ph < 0.4 else -0.012 * sin((ph - 0.4) / 0.6 * PI)
+	# A single eased ascent, then hover; never snap back below the screen.
+	var rise := smoothstep(0.0, 4.2, _t)
+	_dragon_card.position = _dragon_rest + Vector3.DOWN * (1.0 - rise) * 12.0
 	logo.rotation = Vector3(-0.2 + sin(_t * 0.7) * 0.03, sin(_t * 0.45) * 0.12, 0)
 
 
@@ -97,7 +80,7 @@ func _environment() -> void:
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.03
 	env.glow_hdr_threshold = 1.0
-	# the far grass and trees melt into the night
+	# the distant red ground melts into the night
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_color = Color(0.07, 0.09, 0.18)
@@ -132,27 +115,28 @@ func _light(col: Color, energy: float, rot: Vector3, mask: int) -> void:
 
 
 func _lights() -> void:
-	# a soft warm light from in front so the beasts keep their colours, and the moon behind rimming everything
+	# a soft warm light from in front for the ground and gold logo, and the moon behind them
 	_light(Color("#ffe6cc"), 0.85, Vector3(-35, -28, 0), NEAR_LAYER)
-	_light(Color("#b8ccff"), 1.6, Vector3(-24, 172, 0), NEAR_LAYER | FAR_LAYER)
+	_light(Color("#b8ccff"), 1.6, Vector3(-24, 172, 0), NEAR_LAYER)
 
 
 func _moon(at: Vector3) -> void:
 	var mi := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(16, 16)
+	q.size = Vector2.ONE * MOON_SIZE
 	mi.mesh = q
 	var m := ShaderMaterial.new()
 	m.shader = load("res://scripts/gfx/title_moon.gdshader")
 	mi.material_override = m
 	mi.position = at
+	_moon_at = at
 	add_child(mi)
 
 
-## The dragon renders small in its own world and comes back as a blurred, misty card in front of the moon.
+## Render the existing summon as a sharp unlit cutout in front of the moon.
 func _dragon_up(at: Vector3) -> void:
 	var vp := SubViewport.new()
-	vp.size = Vector2i(640, 480)
+	vp.size = Vector2i(960, 720)
 	vp.own_world_3d = true
 	vp.transparent_bg = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -164,7 +148,7 @@ func _dragon_up(at: Vector3) -> void:
 	_dragon = MeshInstance3D.new()
 	_dragon.mesh = mesh
 	_dragon.material_override = m
-	_dragon.rotation.y = -0.3
+	_dragon.rotation.y = 0.0
 	# (the wings beat past the mesh's resting bounds)
 	_dragon.extra_cull_margin = 1.0
 	vp.add_child(_dragon)
@@ -176,12 +160,13 @@ func _dragon_up(at: Vector3) -> void:
 	cam.current = true
 	var card := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(9.0, 6.75)
+	q.size = Vector2(12.6, 9.45)
 	card.mesh = q
 	var h := _shader("title_haze")
 	h.set_shader_parameter("view_tex", vp.get_texture())
-	h.set_shader_parameter("texel", Vector2(1.0 / vp.size.x, 1.0 / vp.size.y))
 	card.material_override = h
+	_dragon_card = card
+	_dragon_rest = at
 	card.position = at
 	add_child(card)
 
@@ -193,80 +178,27 @@ func _ground() -> void:
 	g.mesh = p
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = load("res://assets/textures/surfaces/ground_grass.png")
-	m.albedo_color = Color("#1c3022")
+	m.albedo_color = Color(0.28, 0.025, 0.04)
 	m.uv1_scale = Vector3(18, 12, 1)
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.roughness = 1.0
-	# (no sheen: with the moon behind it, the grass would shine like frost)
+	# The broad moonlight wash below supplies the sheen, without sharp white specular highlights.
 	m.metallic_specular = 0.0
 	g.material_override = m
 	g.position = Vector3(0, 0, -12)
 	g.layers = NEAR_LAYER
 	add_child(g)
-	# tufts of grass about the field, two kinds, one draw each, kept off the beasts' feet
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 11
-	for v in 2:
-		var spots: Array[Vector3] = []
-		while spots.size() < 26:
-			var at := Vector3(rng.randf_range(-9.0, 9.0), 0, rng.randf_range(-6.0, 3.5))
-			if BEASTS.all(func(b): return Vector2(b[1].x - at.x, b[1].z - at.z).length() > 1.0):
-				spots.append(at)
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = VP.grass_tuft("#16301c", v)
-		mm.instance_count = spots.size()
-		for i in spots.size():
-			var k := rng.randf_range(0.6, 1.0)
-			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(k, k, k)), spots[i]))
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		var tm := (mm.mesh.surface_get_material(0) as StandardMaterial3D).duplicate() as StandardMaterial3D
-		tm.metallic_specular = 0.0
-		mmi.material_override = tm
-		mmi.layers = NEAR_LAYER
-		add_child(mmi)
-	for tr in TREES:
-		var mi := MeshInstance3D.new()
-		mi.mesh = load("res://assets/nature/%s.res" % tr[0])
-		var k: float = tr[3] / mi.mesh.get_aabb().size.y
-		mi.scale = Vector3(k, k, k)
-		mi.position = Vector3(tr[1], 0, tr[2])
-		mi.layers = FAR_LAYER
-		add_child(mi)
-
-
-func _beast(form: String, at: Vector3, turn: float, size: float) -> void:
-	var r: Node3D = Model.rig({"form": form}, size)
-	r.rotation.y = -PI / 2.0 + turn
-	r.position = at
-	add_child(r)
-	_rigs.append(r)
-	add_child(_blob(Vector3(at.x, 0.02, at.z), 0.55 * size, 0.5 if at.y < 0.1 else 0.25))
-
-
-## A soft dark disc lying on the ground.
-func _blob(at: Vector3, radius: float, alpha: float) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(radius * 2.0, radius * 1.2)
-	q.orientation = PlaneMesh.FACE_Y
-	mi.mesh = q
-	var g := Gradient.new()
-	g.set_color(0, Color(0, 0, 0, alpha))
-	g.set_color(1, Color(0, 0, 0, 0))
-	var tex := GradientTexture2D.new()
-	tex.gradient = g
-	tex.fill = GradientTexture2D.FILL_RADIAL
-	tex.fill_from = Vector2(0.5, 0.5)
-	tex.fill_to = Vector2(1.0, 0.5)
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = tex
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mi.material_override = m
-	mi.position = at
-	return mi
+	var glow := MeshInstance3D.new()
+	glow.mesh = p
+	var shine := ShaderMaterial.new()
+	shine.shader = load("res://scripts/gfx/title_ground_glow.gdshader")
+	shine.set_shader_parameter("moon_at", _moon_at)
+	shine.set_shader_parameter("moon_size", MOON_SIZE)
+	shine.set_shader_parameter("ground_tex", m.albedo_texture)
+	glow.material_override = shine
+	glow.position.y = 0.005
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	g.add_child(glow)
 
 
 ## RUBY COCOON in the heading font: extruded gold letters, with a ruby rim and a dark edge round them on flat plates

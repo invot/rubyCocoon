@@ -1,14 +1,14 @@
 extends SceneTree
 ## Makes the boot splash (assets/icon/boot_splash.png; project.godot application/boot_splash): a moment of the title
-## screen's scene (scripts/gfx/title_stage.gd), the beasts standing in their rest poses and the dragon's wings raised.
+## screen's scene (scripts/gfx/title_stage.gd), just before the shadow dragon rises from below.
 ## It is 2560 x 1080 and covers the screen (stretch mode Cover) the way the title's camera keeps its height, so from 16:9
 ## to 21:9 the boot splash shows just what the title will. Prints how long the scene took to build.
 ## Run (needs a window, not --headless):  godot --path . --script res://tools/make_splash.gd
 
 const TitleStage = preload("res://scripts/gfx/title_stage.gd")
 const OUT := "res://assets/icon/boot_splash.png"
-## the moment: a quarter of the way through a wingbeat's recovery, the wings rising
-const AT := 1.25
+## Match the live title's opening frame, before its single ascent.
+const AT := 0.0
 
 
 func _init() -> void:
