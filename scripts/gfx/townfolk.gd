@@ -352,6 +352,9 @@ static func outfit(look: Dictionary) -> Dictionary:
 		# no pack of the kit's own: the hero's is the one pack, in the colour they chose
 		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "back")
 		_wear_pack(parts, colours, Color(look.get("pack_colour", PACK_COLOUR)))
+	if look.get("outfit", "") == "swim":
+		# Bare feet and a sleeveless swim top/trunks, using the existing skinned kit.
+		parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["back", "hat"])
 	var names := {"skin": "skin", "hair": "hair", "eyes": "eyes", "top": "shirt", "bottom": "pants", "shoes": "shoes", "hat": "hat"}
 	if hero:
 		names["top"] = "top"

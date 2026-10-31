@@ -125,7 +125,7 @@ Townsfolk and residents add a casual hint about what to do next to whatever else
 | Region | Towns | What happens |
 |---|---|---|
 | Coast | Cocoon Cove, Bellerive | Bellerive, a French Quarter harbour town, has the first arena (its coaches' lessons, then Tide Captain Marina, whose Wave Crest the ferry asks for), **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
-| Isle of Tides | Shellhaven, Kelpwick | The two villages are feuding. Hear both chiefs, catch the smuggler on the Isle Trail who framed them, and they open the coral gate to the reef and the **Temple of Tides**. |
+| Isle of Tides | Shellhaven (resort), Kelpwick (village) | Shellhaven's tourists keep carrying pieces of the **Temple of Tides** home as souvenirs, so Kelpwick's villagers stand across the way to the reef. The resort thinks the village quaint but backwards; the village thinks the resort is exploiting the island. They step aside only for a trainer who proves they're no tourist: beat Reef Warden Nerissa in Kelpwick's great hut. |
 | Desert | Dustwell Oasis, Sundown Gulch (western town) | Bandits terrorise Sundown. Talk to the Sheriff, then beat Black Bart in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
 | Mountains | Copperpick, Cogsworth (steampunk city) | CEO Magnus Gearhart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearhart Tower: each floor's robot sentries must fall before the stairs unlock. |
 | Volcano | Emberfall | The **Temple of Flame** sits on the Caldera Road. |
@@ -197,6 +197,17 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   A guardian can't be knocked out (it rises again): weaken it and play its song to capture it. In battle the same song
   summons it, once per battle for one shield point, to hit every foe for about half their HP, more with an element
   advantage; bosses always survive it (`summon_fx.gd`).
+- **Temples are several rooms** (`WorldDB.TEMPLES` `rooms`, the first room being the way in). The first is the
+  **Temple of Tides**. Its road, the Coral Reef, is a jungle trail along cliffs above the sea. It crosses rivers
+  falling from the high ground on railed bridges, until the old ford runs too deep to wade: a sluice lever on the
+  ledge above turns the river into its old channel. Past the great falls, the trail runs down to the shore and over
+  an ornate stone bridge to the temple's isle, where Keeper Pell explains its waterworks. Inside, the hall's channel,
+  its basin and its great pool hide the way on. A lever in each of the three wings drains one of them in turn: the
+  west wing's lever opens the east wing, whose lever opens the gallery, whose lever drains the great pool and shows
+  the stair down to the guardian's chamber. The wings are mazes of walkways between water channels, where strong water
+  beasts prowl in plain sight and chests hold treasure. Temple rooms are built as ancient stone (`room_builder.gd`
+  `ancient`): ashlar walls, plinths and cornices with a glowing inlay, pilasters with flame sconces, and open stone
+  portals instead of doors.
 
   <img src="docs/screenshots/temple.jpg" width="640" alt="Inside the Temple of Flame, on the Caldera Road."><br><sub>Inside the Temple of Flame, on the Caldera Road.</sub>
 
@@ -238,7 +249,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Walk into one from behind before it spots you: a **sneak attack** (green spiral, it loses its first turn). Meet one face to face: a normal battle (blue spiral). Let one catch you from behind: an **ambush** (red spiral, you lose your first turn).
   - After any wild battle, you receive **three seconds of protection** during field control. Wild beasts cannot see or hear you, drop any chase, and cannot start another encounter, even on contact. After a **victory**, your character smoothly pulses between 35% and 80% opacity until protection ends, then returns to full opacity. Escaping or losing (including the return to the Beast Center) keeps the character fully opaque. Trainer battles grant neither protection nor an opacity pulse. Menus, interactions and map transitions pause the countdown and opacity pulse.
   - Groups grow slowly through the game (`Story.pack_cap`): beasts roam alone on the early roads (always on the Coastal Path), in pairs from wild Lv 7, and in threes only from Lv 16. Within that, a beast no stronger than your best one usually (70%) roams with more of its own kind, and the pack stands its ground; on roads with wild Lv 16+, stronger four-legged beasts, flyers and serpents sometimes run in packs too.
-  - Each road's trainers are stronger than any wild beast on it. The early levels climb slowly: Coastal Path Lv 2-4, Isle Trail 4-7, Coral Reef 7-10, the Temple of Tides 8-11 (its guardian Lv 12, with one helper), Dune Road 10-13.
+  - Each road's trainers are stronger than any wild beast on it. The early levels climb slowly: Coastal Path Lv 2-4, Isle Trail 4-7, Coral Reef 7-10, the Temple of Tides' maze wings 10-12 (its guardian Lv 12, with one helper), Dune Road 10-13. Arena masters on that stretch: Marina Lv 9-10, then Nerissa Lv 10-11, who opens the reef.
 - **Levelling** is slower than before: about twice as many wins per level.
 - **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. MP comes back only from healing (the Beast Center machine, Mom, your bed) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
 - **The battle ring** (as in Jade Cocoon 2, `scripts/core/ring.gd`): every trainer stands in the middle of a ring of 8 slots.
@@ -306,11 +317,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 - **Saving**: your dad is away up north for work, and **calling him is how you save**. Tell him how your journey's going, he cheers you on, and the game is saved; then keep playing, or stop for now (back to the title screen).
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
+  - In Beast Centers, shops and arena lobbies, phones sit on the attendant's counter or display case; house phones stay on their own tables.
   - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
   - Away from home a phone asks who to call: **Dad** (save) or **Mom** (advice; a payphone still takes its 5 coins). At home Mom's in the room, so that phone only calls Dad. Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
   - Every phone stands on a white placemat on a boxy little chest of three drawers (`side_table`, baked by `tools/make_side_table.gd`) in the middle of its tile, out from the wall, so you stand right beside it to call.
   - Ten save slots, one per journey: you never pick a slot when you save. A new game takes the first empty slot the first time you save, and after that every save goes back into the same slot. If all ten are full, Dad asks (A: Yes / B: No) before writing over the save made longest ago.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
+  - Dad asks whether you want to save first (**A: Yes / B: No**). After saving, or if you decline, he asks whether you want to continue playing: **A: Yes** returns to your journey; **B: No** returns to the title screen.
   - The title screen's **Load Game** lists the slots with their snapshots; you can load, copy or delete them there.
 
   <img src="docs/screenshots/call.jpg" width="640" alt="Calling Dad from the phone at home: that's how you save."><br><sub>Calling Dad from the phone at home: that's how you save.</sub>
@@ -414,6 +427,24 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
+- **Isle of Tides**: Kelpwick is a modest reef-diving village of round timber buildings with centered doors,
+  layered golden dried-grass roofs and larger round wooden interiors (its store and arena). There is no Beast Center: the
+  arena is the great hut, a wide oval of taller walls under a high thatch, and keeps the village's healing machine in its
+  back corner; flights and lost battles bring you back in front of it. Its general store sells essentials and basic beast gear at 30% below normal
+  prices. Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
+  La Perla Restaurant, Pearl Coast Boutique (40% above normal prices), and Hotel Mariposa, whose lobby connects to
+  a guest suite; a 150-gold stay restores the party. The broad beach has pastel umbrellas and occupied chaise lounges,
+  with clear aisles and both beach ramps retained. The island's towns, trail and reef share dense tropical palms.
+  Shellhaven's marina sits entirely west of the town and beach, reached by the original western pier, with
+  three long berth fingers and an open, dock-free beachfront. Captain Gull uses the same ferry as Bellerive; private berths hold a white flybridge motor yacht,
+  a varnished pleasure launch and a furled-sail yacht, with water separating their hulls from the walking decks.
+  The beach slopes smoothly into clear shallows, with soft wave crests washing toward the sand. Trainers can
+  walk one tile into water no more than 5 cm (about two inches) deep, with light pitter-patter footsteps;
+  the next, deeper tile stays blocked for walking, running and tap navigation.
+  Every interior entrance is in a visible side wall, including temples, the hideout, Gearhart Tower and the cathedral.
+  Kelpwick's buildings were renumbered when its Center went (older saves inside them are moved, game_state.gd
+  _kelpwick_hut_rooms). The shared procedural wood finish needs no baked textures.
+  Run `bash tools/run_tests.sh island-towns island-towns-touch` for entrance, pricing, suite, A/B and beach-aisle checks.
 - **Landmarks** are built from the wall sections of the Retro Modular House Pack (`assets/exteriors`: doors,
   windows and frames, laid round any outline by `HouseBuilder.span`), each with a shape of its own and its door on
   the map's door tile: the **arena** is an oval stadium (an arcade below, a parapet, open stands round a sand ring, a
@@ -542,7 +573,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   menu has rendered (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - The title screen plays *Nerves*.
-  - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Smuggler Rook, Black Bart, Gearhart, Nyx and Vexmora.
+  - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Black Bart, Gearhart, Nyx and Vexmora.
   - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
   - Desert, mountain, moor and some interiors add an ambient loop.
@@ -605,11 +636,24 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   - `C` Beast Center, `X` electronics, `V` Sky Tower
   - `I` Gearhart Tower, `B` cathedral, `J` hideout, `Q` temple
 - **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with the logs stacked by Old Hal's door) and `k` (a cliff that needs a winged beast).
+- `a` is walkable shallow water. A map's `shoreline: [west_x, slope_start_z, east_x, offshore_end_z]` supplies
+  the smooth sandy profile shared by terrain, character grounding and touch picking; only the authored shallow
+  row is walkable. Ordinary `~` water remains blocked.
 - `s` is Cocoon Cove's cliffside shack, drawn as a log cabin (room `shack` in `interior_maps.gd`).
 - `b` is Youngster Kit's log cabin on the Coastal Path (room `kit_cabin` in `interior_maps.gd`, where an `anchors` entry puts Kit by the fire).
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too, `item:<id>` ones included.
 - **Story gates** use `&`.
+- **Floods and levers**: a map's (or a room's) `floods` give a character for each stretch of water that a lever drains
+  (`{"flag", "wet", "dry"}`; with `"rises": true`, a dry channel that fills instead). The character stands for its
+  `wet` tile until the flag is set, then for its `dry` one: ground, floor, or a way on, such as stairs that are also in
+  the room's `doors`. An anchor `lever:<flag>` places the lever that sets the flag, and the map's `levers[flag]`
+  gives its words (`ask`, `lines`, `done`). An anchor `chest:<item>` places a treasure chest. `tools/check_maps.gd`
+  checks every map both flooded and drained, and checks that no lever stands behind the water it drains.
+- **Bridges**: `"bridge_rails": true` puts rails along a map's plank bridges, and `"ornate_bridges": [[x, y, w, d]]`
+  builds a stone bridge with balustrades and lamps over those tiles (`temple_props.gd`).
+- In rooms, `_` is a pool of water, sunk in stone. A door symbol of `<` or `>` in `doors` is drawn as stairs. An
+  `encounter` with `"roam": true` lets its wild beasts walk the room's floor (a temple's maze) instead of only its mist.
 - **Cliffs and ramps**: a map's `heights` rows (one character per tile, lined up with `rows`) give each tile a level,
   `0`-`9`, one unit apiece; `^ v < >` is a ramp rising that way, and a run of them climbs evenly between the levels at
   its two ends (give it two tiles a level; runs side by side make a wide ramp). Neighbours on different levels meet
@@ -675,7 +719,12 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `title-startup` / `title-startup-touch`: dragon entrance before the menu, ignored early confirmation, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and the one-time Dustwell reveal.
+- `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
+- `phone-save` / `phone-save-touch`: Dad's save and continue Yes/No prompts, declined saves, one answer per press, and returning to the title. Preview with `--scene=phone-save --save_dir=res://build/phone_save_preview/ --shot=res://build/shots/dad.png` (captures both prompts; add `--touch` for touch inputs).
 - `waterfront`: relocated library sign taps, all four dock stair flights, entering the over-water equipment shack, collecting starter beast gear and persistence on re-entry.
+- `shellhaven-marina` / `shellhaven-marina-touch`: western ramp access, walking all marina fingers, an open beachfront,
+  the straight middle pier, ferry arrival placement, the shared ferry model and scale, shallow wading and its
+  walking/running/tap limits, wet footfall playback, and old-save position compatibility.
 - `cocoon`: cliff isolation, old building identities, the path to the cliff shack and its starter gear (`--preview=shack_path` or `shack` with `--shot=` for pictures), the home-to-library route, entering the library, receiving the
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
   `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.

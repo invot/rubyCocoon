@@ -27,6 +27,9 @@ const HarborBoats = preload("res://scripts/gfx/harbor_boats.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
+const TempleProps = preload("res://scripts/gfx/temple_props.gd")
+const WaterShader = preload("res://scripts/gfx/water.gdshader")
+const Shoreline = preload("res://scripts/world/shoreline.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const CompanyBrand = preload("res://scripts/gfx/company_brand.gd")
 
@@ -101,7 +104,9 @@ func build(id: String) -> void:
 	map_id = id
 	ground_h = {}
 	map = MapLoader.load_map(id, GameState.flags)
-	biome = map["biome"]
+	biome = map["biome"].duplicate(true)
+	if map_id.get_slice("#", 0) in ["kelpwick", "shellhaven"]:
+		biome["style"] = "roundwood" if map_id.begins_with("kelpwick") else "resort"
 	interior = map["kind"] == "interior"
 	for n in Story.extra_npcs(map):
 		map["npcs"].append(n)
@@ -111,6 +116,7 @@ func build(id: String) -> void:
 	else:
 		_build_environment()
 		_build_terrain()
+		_plan_round_huts()
 		_plan_houses()
 		_build_scatter()
 		_build_backdrop()
@@ -123,6 +129,8 @@ func build(id: String) -> void:
 		_build_pushables()
 		_build_ripples()
 		_build_boats()
+		if map_id == "shellhaven":
+			load("res://scripts/gfx/island_buildings.gd").beach(self)
 	_build_npcs()
 	_build_items()
 	_build_player()
@@ -180,7 +188,7 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 
 ## The middle of tile p, on the ground: its level or ramp (elevation.gd), and a porch's deck on top.
 func tile_pos(p: Vector2i) -> Vector3:
-	return Vector3(p.x + 0.5, _lift(p) + float(ground_h.get(p, 0.0)), p.y + 0.5)
+	return Vector3(p.x + 0.5, _lift(p) + float(ground_h.get(p, 0.0)) + Shoreline.bottom(map, p.x + 0.5, p.y + 0.5), p.y + 0.5)
 
 
 ## How high tile p's ground stands (its level, or the middle of its ramp); off the map, the nearest tile's.
@@ -410,6 +418,11 @@ func _build_terrain() -> void:
 	for tiles in map.get("log_bridges", []):
 		for q in tiles:
 			log_tiles[q] = true
+	# an ornate stone bridge is built whole (_build_bridges), not of planks
+	for r in map.get("ornate_bridges", []):
+		for y in range(int(r[1]), int(r[1]) + int(r[3])):
+			for x in range(int(r[0]), int(r[0]) + int(r[2])):
+				log_tiles[Vector2i(x, y)] = true
 	var rng := RandomNumberGenerator.new()
 	rng.seed = map_id.hash()
 	for y in h:
@@ -429,6 +442,9 @@ func _build_terrain() -> void:
 					kind = "plaza"
 				MapGen.SAND:
 					kind = "sand"
+				MapGen.SHALLOWS:
+					kind = "sand"
+					liquid = 1
 				MapGen.ICE:
 					kind = "ice"
 				MapGen.WATER, MapGen.BRIDGE:
@@ -472,6 +488,10 @@ func _build_terrain() -> void:
 					kind = "rock"
 			if _sandy() and kind == "grass":
 				kind = "sand"
+			if Shoreline.contains(map, x + 0.5, y + 0.5):
+				kind = "sand"
+				if Shoreline.bottom(map, x + 0.5, y + 1.0) < Shoreline.WATER_Y:
+					liquid = 1
 			var ground_top := 0.0 if c == MapGen.WALL or puzzle_rocks.has(center) else top
 			t.set_tile(x, y, kind, ground_top, craggy and ground_top > 0.0 or c == MapGen.OBSTACLE and kind == "rock", liquid)
 	# the crags take on a little of the local soil: grey on the coast, ochre in the desert, near black by the volcano
@@ -521,6 +541,64 @@ func _build_terrain() -> void:
 	pm.vertex_color_use_as_albedo = false
 	pm.albedo_color = Color("#a8784a")
 	_multimesh(pb, planks, pm, true)
+	_build_bridges()
+
+
+## The map's ornate stone bridges ("ornate_bridges": [x, y, width, depth] each, running east-west), and, on a map with
+## "bridge_rails", rails along both sides of each plank bridge (a run of bridge tiles across water).
+func _build_bridges() -> void:
+	var ornate := {}
+	for r in map.get("ornate_bridges", []):
+		var x0 := int(r[0])
+		var y0 := int(r[1])
+		var bw := int(r[2])
+		var bd := int(r[3])
+		for y in range(y0, y0 + bd):
+			for x in range(x0, x0 + bw):
+				ornate[Vector2i(x, y)] = true
+		var built: Array = TempleProps.ornate_bridge(bw, bd)
+		var mi := MeshInstance3D.new()
+		mi.mesh = built[0]
+		mi.position = Vector3(x0 + bw / 2.0, _lift(Vector2i(x0, y0)) + 0.03, y0 + bd / 2.0)
+		add_child(mi)
+		# its lamps glow softly (small lights, no shadows)
+		for lp in built[1]:
+			var l := OmniLight3D.new()
+			l.light_color = Color("#bfeeff")
+			l.light_energy = 0.6
+			l.omni_range = 2.6
+			l.position = mi.position + (lp as Vector3)
+			add_child(l)
+	if not map.get("bridge_rails", false):
+		return
+	var seen := {}
+	for y in map["h"]:
+		for x in map["w"]:
+			var p0 := Vector2i(x, y)
+			if seen.has(p0) or ornate.has(p0) or MapGen.get_t(map, x, y) != MapGen.BRIDGE:
+				continue
+			var lo := p0
+			var hi := p0
+			var q := [p0]
+			seen[p0] = true
+			while not q.is_empty():
+				var c: Vector2i = q.pop_back()
+				lo = Vector2i(mini(lo.x, c.x), mini(lo.y, c.y))
+				hi = Vector2i(maxi(hi.x, c.x), maxi(hi.y, c.y))
+				for d in FOUR_WAYS:
+					var nb: Vector2i = c + d
+					if not seen.has(nb) and not ornate.has(nb) and MapGen.get_t(map, nb.x, nb.y) == MapGen.BRIDGE:
+						seen[nb] = true
+						q.append(nb)
+			# it runs across the water: east-west when the water lies north and south of it
+			var along_x := MapGen.get_t(map, lo.x, lo.y - 1) in [MapGen.WATER, MapGen.OBSTACLE]
+			var span := hi - lo + Vector2i.ONE
+			var mi2 := MeshInstance3D.new()
+			mi2.mesh = TempleProps.bridge_rails(span.x if along_x else span.y, span.y if along_x else span.x)
+			mi2.position = Vector3(lo.x + span.x / 2.0, _lift(lo) + 0.08, lo.y + span.y / 2.0)
+			if not along_x:
+				mi2.rotation.y = PI / 2.0
+			add_child(mi2)
 
 
 # ================================================================ backdrop
@@ -1024,6 +1102,35 @@ func _build_scatter() -> void:
 ## Plans every house (and scenery building) as a house from the PSX pack (house_models.gd), before the trees go in:
 ## a house may lean a little over the hedges and trees beside its plot and further over the wood behind it, so its
 ## L-plan, porch or wing has room, but never over a tile anyone can walk on. Those tiles stay clear of trees.
+func _plan_round_huts() -> void:
+	if biome.get("style", "") != "roundwood":
+		return
+	for b in map["buildings"]:
+		var w := float(b["w"])
+		var d := float(b["d"])
+		var dx := float(b["door"].x) + 0.5 - float(b["x"]) - w / 2.0
+		var face := d / 2.0 - 0.16
+		var origin := Vector2(float(b["x"]) + w / 2.0, float(b["y"]) + d / 2.0)
+		var radius := minf(maxf(2.15, w * 0.45), (float(b["door"].y) + 0.84) / 2.0)
+		var footprint := Rect2(dx - radius, face - radius * 2.0, radius * 2.0, radius * 2.0)
+		while not _house_fits(footprint, origin, b) and radius > 1.4:
+			radius -= 0.1
+			footprint = Rect2(dx - radius, face - radius * 2.0, radius * 2.0, radius * 2.0)
+		b["hut_radius"] = radius
+		# the arena is the village's great hut: an oval as wide as its whole plot
+		if b["shop"] == "arena":
+			var rx := maxf(radius, w / 2.0 - 0.15)
+			footprint = Rect2(dx - rx, face - radius * 2.0, rx * 2.0, radius * 2.0)
+			while not _house_fits(footprint, origin, b) and rx > radius:
+				rx -= 0.1
+				footprint = Rect2(dx - rx, face - radius * 2.0, rx * 2.0, radius * 2.0)
+			b["hut_rx"] = maxf(rx, radius)
+		for y in range(floori(origin.y + footprint.position.y), ceili(origin.y + footprint.end.y)):
+			for x in range(floori(origin.x + footprint.position.x), ceili(origin.x + footprint.end.x)):
+				if MapGen.get_t(map, x, y) in [MapGen.TREE, MapGen.BUSH]:
+					house_cover[Vector2i(x, y)] = true
+
+
 func _plan_houses() -> void:
 	if not HouseModels.available():
 		return
@@ -1051,6 +1158,8 @@ func _plan_houses() -> void:
 			b["low"] = true
 			# (never lower than a one-storey house: it's those that are wanted there)
 			max_h = maxf(4.6, CAM_LOOK_Y + (CAM_OFFSET.y - CAM_LOOK_Y) * (float(gap) + 0.5) / CAM_OFFSET.z)
+		if style in ["roundwood", "resort"]:
+			continue
 		if style == "creole":
 			# Bellerive's buildings are its own (creole_builder.gd): only whether it's kept low matters here
 			continue
@@ -1488,6 +1597,9 @@ func _build_obstacles() -> void:
 		add_child(mi)
 		obstacle_nodes[p] = mi
 	_build_log_bridges()
+	# a crowd gate is people standing in the way (Story places them), not a barrier
+	if map.get("gate", {}).get("crowd", false):
+		return
 	for p in map.get("gate_tiles", []):
 		var g := MeshInstance3D.new()
 		g.mesh = VP.obstacle("gate")
@@ -1765,7 +1877,8 @@ func _build_npcs() -> void:
 		if n.has("gone_flag") and GameState.flag(n["gone_flag"]):
 			continue
 		var p: Vector2i = n["pos"]
-		if n.get("kind", "") not in ["trainer", "guardian"] and (not MapGen.walkable(MapGen.get_t(map, p.x, p.y)) or npcs.has(p)):
+		# (someone "blocking" stands right on the shut gate tile they guard, like Kelpwick's villagers)
+		if n.get("kind", "") not in ["trainer", "guardian"] and not n.get("blocking", false) and (not MapGen.walkable(MapGen.get_t(map, p.x, p.y)) or npcs.has(p)):
 			p = _free_tile_near(p)
 			n["pos"] = p
 		var node: Node3D
@@ -2029,6 +2142,8 @@ func _process(delta: float) -> void:
 ## its slope rather than straight across the bend at its end.
 func _along(a: Vector3, b: Vector3, t: float) -> Vector3:
 	var p := a.lerp(b, t)
+	if map.has("shoreline"):
+		p.y += Shoreline.bottom(map, p.x, p.z) - lerpf(Shoreline.bottom(map, a.x, a.z), Shoreline.bottom(map, b.x, b.z), t)
 	if Elev.has(map):
 		var ta := Vector2i(floori(a.x), floori(a.z))
 		var tb := Vector2i(floori(b.x), floori(b.z))
@@ -2320,7 +2435,8 @@ func _on_step_done() -> void:
 	GameState.steps += 1
 	_check_puzzle_solved()
 	var under := MapGen.get_t(map, player_pos.x, player_pos.y)
-	Sfx.play("step_grass" if under in [MapGen.GRASS, MapGen.TALL, MapGen.FLOWERS, MapGen.SAND, MapGen.MIST] else "step_stone", 0.12)
+	var wet_step := Shoreline.step_sound(map, player_pos)
+	Sfx.play(wet_step if wet_step != "" else ("step_grass" if under in [MapGen.GRASS, MapGen.TALL, MapGen.FLOWERS, MapGen.SAND, MapGen.MIST] else "step_stone"), 0.12)
 	if GameState.incense_steps > 0:
 		GameState.incense_steps -= 1
 		if GameState.incense_steps == 0:
@@ -2447,6 +2563,8 @@ func _interact() -> void:
 		await _pickup_shard(shards[t])
 	elif map.get("obstacles", {}).has(t):
 		await Story.field_move(self, map["obstacles"][t])
+	elif map.get("counter_phone", Vector2i(-1, -1)) == t:
+		await Phone.call_home(self)
 	elif _counter_like(t) and _across_counter(t) != Vector2i(-999, -999):
 		var n2: Dictionary = npcs[_across_counter(t)]
 		_face_npc(n2, -facing)
@@ -2995,7 +3113,7 @@ func _tile_under(screen: Vector2) -> Vector2i:
 		var p := o
 		for i in 1200:
 			p += n * 0.05
-			if p.y <= Elev.height_at(map, p.x, p.z):
+			if p.y <= Elev.height_at(map, p.x, p.z) + Shoreline.bottom(map, p.x, p.z):
 				return Vector2i(floori(p.x), floori(p.z))
 	var t := -o.y / n.y
 	var hit := o + n * t
@@ -3051,6 +3169,10 @@ func _pick(screen: Vector2) -> Dictionary:
 	for p in map["signs"]:
 		# Test the visible board before the facade behind it, so a wall-side sign can be tapped.
 		boxes.append([AABB(_sign_pos(p) + Vector3(-0.45, 0, -0.12), Vector3(0.9, 1.0, 0.24)), p, "thing"])
+	if map.has("counter_phone"):
+		var p: Vector2i = map["counter_phone"]
+		# Pick the raised handset itself rather than the floor or attendant behind it.
+		boxes.append([AABB(tile_pos(p) + Vector3(-0.4, 1.0, -0.35), Vector3(0.8, 0.5, 0.7)), p, "thing"])
 	for p in npcs:
 		boxes.append([AABB(Vector3(p.x + 0.15, _lift(p), p.y + 0.15), Vector3(0.7, 1.9, 0.7)), p, "npc"])
 	for w in wilds:
@@ -3290,17 +3412,26 @@ func _spawn_wilds() -> void:
 	for y in map["h"]:
 		for x in map["w"]:
 			var c := MapGen.get_t(map, x, y)
-			if (interior and c == MapGen.MIST) or (not interior and c in [MapGen.TALL, MapGen.GRASS, MapGen.SAND, MapGen.FLOWERS]):
+			if (interior and (c == MapGen.MIST or _roams_floor(c))) or (not interior and c in [MapGen.TALL, MapGen.GRASS, MapGen.SAND, MapGen.FLOWERS]):
 				if map.has("wild_area") and not map["wild_area"].has(Vector2i(x, y)):
 					continue
 				_wild_cands.append(Vector2i(x, y))
 	if _wild_cands.is_empty():
 		return
 	var target := clampi(_wild_cands.size() / 24, 3, 7)
+	# (a temple's maze: a few, prowling its narrow walkways)
+	if map["encounter"].get("roam", false):
+		target = clampi(_wild_cands.size() / 40, 2, 4)
 	target = int(round(target * (1.0 + GameState.gear_fx("encounter"))))
 	_wild_target = target
 	for i in _effective_wild_target():
 		_spawn_wild(6.0)
+
+
+## True if wild beasts can walk on a room's floor tile `c`: in a temple's maze ("roam"), the walkways between its
+## channels, not just the mist.
+func _roams_floor(c: int) -> bool:
+	return map.get("encounter", {}).get("roam", false) and c in [MapGen.ITILE, MapGen.IFLOOR]
 
 
 func _spawn_wild(min_dist: float) -> void:
@@ -3381,7 +3512,7 @@ func _wild_free(p: Vector2i, w: Dictionary, from := Vector2i(-999, -999)) -> boo
 	if from.x != -999 and not Elev.joined(map, from, p):
 		return false
 	var c := MapGen.get_t(map, p.x, p.y)
-	if not MapGen.walkable(c) or (interior and c != MapGen.MIST) or c == MapGen.DOOR or c == MapGen.ICE:
+	if not MapGen.walkable(c) or (interior and c != MapGen.MIST and not _roams_floor(c)) or c == MapGen.DOOR or c == MapGen.ICE:
 		return false
 	# wild beasts keep out of the push puzzles, and in a town keep to its meadow
 	if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).grow(1).has_point(p):
@@ -4028,6 +4159,7 @@ func _build_room() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(b["seed"])
 	var mist := []
+	var pools := []
 	var dk := Color("#5a3a26")
 	var lw := Color("#a8784a")
 	var stone := Color("#b8b0a0") if not dark else Color("#6a6670")
@@ -4082,6 +4214,9 @@ func _build_room() -> void:
 					continue
 				MapGen.LAVA:
 					floors["lava"].append(_xf(center + Vector3(0, -0.05, 0)))
+					continue
+				MapGen.WATER:
+					pools.append(Vector2i(x, y))
 					continue
 				MapGen.STAIRS_UP:
 					if open_air:
@@ -4207,6 +4342,9 @@ func _build_room() -> void:
 				MapGen.PILLAR:
 					# the castle kit's round stone pillar, floor to ceiling (fading like the walls when it's in the way)
 					var pil := _room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.7, 2.85, 0.7))
+					# (in an ancient temple, of its own pale stone)
+					if pil != null and room_walls != null and room_walls.ancient:
+						_paint(pil, room_walls.stone.lightened(0.08))
 					if pil != null and room_walls != null:
 						room_walls.add_prop([pil], Vector2i(x, y), Vector2.ONE)
 				MapGen.EXHIBIT:
@@ -4285,3 +4423,70 @@ func _build_room() -> void:
 	var mm := _multimesh(VP.mist(), mist, null, false)
 	if mm:
 		bobbers.append([mm, 0.05, 1.1])
+	_build_pools(pools)
+
+
+## Paints every mesh under `node` one smooth colour.
+func _paint(node: Node, col: Color) -> void:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = col
+	m.roughness = 0.95
+	for mi in node.find_children("*", "MeshInstance3D", true, false) + ([node] if node is MeshInstance3D else []):
+		(mi as MeshInstance3D).material_override = m
+
+
+## A room's pools of water (a temple's channels and basins): sunk below the floor in stone, a pale curb round the
+## edge, and the animated water of the outdoors on top.
+const POOL_DEPTH := 0.55
+const POOL_SURFACE := -0.14
+
+
+func _build_pools(pools: Array) -> void:
+	if pools.is_empty():
+		return
+	var wet := {}
+	for p in pools:
+		wet[p] = true
+	var k := VBld.Kit.new()
+	var verts := PackedVector3Array()
+	# smooth pale stone, no grain (the temple's sandstone)
+	var curb := RoomBuilder.SANDSTONE.lightened(0.12)
+	for p: Vector2i in pools:
+		var c := Vector3(p.x + 0.5, 0, p.y + 0.5)
+		k.box("color", c + Vector3(0, -POOL_DEPTH - 0.03, 0), Vector3(1.0, 0.06, 1.0), Color("#2f5866"))
+		for d in FOUR_WAYS:
+			if wet.has(p + d):
+				continue
+			var out := Vector3(d.x, 0, d.y)
+			var along := Vector3(absf(d.y), 0, absf(d.x))
+			k.box("color", c + out * 0.47 + Vector3(0, -POOL_DEPTH / 2.0, 0), Vector3(0.06, POOL_DEPTH, 0.06) + along * 0.94, curb.darkened(0.3))
+			k.box("color", c + out * 0.46 + Vector3(0, 0.04, 0), Vector3(0.12, 0.08, 0.12) + along * 0.98, curb)
+		var y := POOL_SURFACE
+		verts.append_array([Vector3(p.x, y, p.y), Vector3(p.x + 1, y, p.y), Vector3(p.x + 1, y, p.y + 1),
+			Vector3(p.x, y, p.y), Vector3(p.x + 1, y, p.y + 1), Vector3(p.x, y, p.y + 1)])
+	var basin := MeshInstance3D.new()
+	basin.mesh = k.mesh()
+	add_child(basin)
+	var normals := PackedVector3Array()
+	normals.resize(verts.size())
+	normals.fill(Vector3.UP)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var wm := ArrayMesh.new()
+	wm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mat := ShaderMaterial.new()
+	mat.shader = WaterShader
+	mat.set_shader_parameter("frames", VT.frames("water"))
+	mat.set_shader_parameter("frame_count", float(VT.WATER_FRAMES))
+	mat.set_shader_parameter("fps", 6.0)
+	mat.set_shader_parameter("tint", Color("#2aa0d0"))
+	mat.set_shader_parameter("opacity", 0.84)
+	mat.set_shader_parameter("glow", 0.0)
+	mat.set_shader_parameter("drift", Vector2(0.0, 0.03))
+	var water := MeshInstance3D.new()
+	water.mesh = wm
+	water.material_override = mat
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(water)

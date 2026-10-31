@@ -17,7 +17,7 @@ from collections import deque
 SRC = 'scripts/data/maps/town_maps.gd'
 CAM = (9.6, 11.2)          # world.gd CAM_OFFSET (up, south)
 FEET, WAIST = 0.2, 0.7     # heights tested on each tile
-WALK = set('.,:gf_=') | set('@v^<>$*123456789P')
+WALK = set('.,:gf_=a') | set('@v^<>$*123456789P')
 ENTITY = set('@v^<>$*123456789P')
 # field obstacles and story gates can be cleared, so what lies behind them counts as reachable
 CLEARABLE = set('wjdoylim|xnk&')

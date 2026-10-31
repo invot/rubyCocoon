@@ -19,13 +19,16 @@ const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const HIDE_ROWS := 3
 const TALL := [MapGen.TREE, MapGen.BUILDING, MapGen.DOOR]
 const ROADS := [MapGen.PATH, MapGen.PLAZA, MapGen.BRIDGE]
+## The story's way-openers, all done: every map is checked as it is at the start and with these set.
+const CLEARED := {"has_starter": true, "island_peace": true, "bandits_cleared": true, "ceo_defeated": true, "ritual_done": true,
+	"sluice_reef": true, "tides_lever_1": true, "tides_lever_2": true, "tides_lever_3": true}
 
 
 func _init() -> void:
 	var ids := WorldDB.TOWNS.keys() + WorldDB.ROUTES.keys()
 	var bad := 0
 	var rooms := 0
-	var cleared := {"has_starter": true, "island_peace": true, "bandits_cleared": true, "ceo_defeated": true, "ritual_done": true}
+	var cleared := CLEARED
 	for flags in [{}, cleared]:
 		for id in ids:
 			var m := MapLoader.load_map(id, flags)
@@ -62,6 +65,12 @@ func _check(m: Dictionary) -> Array:
 	var start: Vector2i = m["spawns"].get("start", m["spawns"].values()[0])
 	var seen := _flood(m, start)
 	if m["kind"] == "interior":
+		for door in m.get("front_doors", []):
+			if door.x != 0 and door.x != int(m["w"]) - 1:
+				problems.append("entrance must be in a visible side wall: %s" % door)
+		for door in m["exits"]:
+			if door.y == int(m["h"]) - 1:
+				problems.append("entrance on the missing front wall: %s" % door)
 		# Locked rooms still need an accessible doorway, so the player can read/knock on them.
 		for y in int(m["h"]):
 			for x in int(m["w"]):
@@ -85,15 +94,19 @@ func _check(m: Dictionary) -> Array:
 			continue
 		if not seen.has(e):
 			problems.append("exit %s unreachable" % e)
-		# a door through to another of the building's rooms comes out at that room's door back
+		# a door through to another of the building's rooms comes out at that room's door back (a way back that a
+		# drained pool opens counts)
 		var to_spawn = m["exits"][e].get("spawn", "")
 		if typeof(to_spawn) == TYPE_STRING and String(to_spawn).begins_with("from_") \
-				and not MapLoader.load_map(m["exits"][e]["to"], {})["spawns"].has(to_spawn):
+				and not MapLoader.load_map(m["exits"][e]["to"], {})["spawns"].has(to_spawn) \
+				and not MapLoader.load_map(m["exits"][e]["to"], CLEARED)["spawns"].has(to_spawn):
 			problems.append("door %s: %s has no door back" % [e, m["exits"][e]["to"]])
 	# a telephone (calling Dad saves the game) must be somewhere you can stand beside
 	var phones: Array = m.get("furniture", {}).keys().filter(func(f): return m["furniture"][f] == "phone")
 	if m.has("payphone"):
 		phones.append(m["payphone"])
+	if m.has("counter_phone"):
+		phones.append(m["counter_phone"])
 	for f in phones:
 		var ok := false
 		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
@@ -155,6 +168,18 @@ func _check(m: Dictionary) -> Array:
 					touch = true
 		if not touch:
 			problems.append("obstacle %s can't be reached" % groups[f]["name"])
+	# levers and treasure chests (Story.extra_npcs): each in reach, and no lever behind the water it drains
+	for lv in m.get("levers", []):
+		var own := {}
+		for q in m.get("flood_wet", {}):
+			if m["flood_wet"][q] == lv["flag"]:
+				own[q] = true
+		var dry_way := _flood(m, start, own) if not own.is_empty() else seen
+		if not _beside(m, dry_way, lv["pos"]):
+			problems.append("lever %s at %s can't be reached without crossing its own water" % [lv["flag"], lv["pos"]])
+	for ch in m.get("chests", []):
+		if not _beside(m, seen, ch["pos"]):
+			problems.append("chest at %s unreachable" % ch["pos"])
 	for it in m["items"]:
 		var adj2 := false
 		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
@@ -418,6 +443,14 @@ func _slip_past(m: Dictionary) -> Array:
 	return out
 
 
+## True if one of the tiles beside p, on its level, is in `seen`.
+func _beside(m: Dictionary, seen: Dictionary, p: Vector2i) -> bool:
+	for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+		if seen.has(p + d) and Elev.joined(m, p + d, p):
+			return true
+	return false
+
+
 ## The tiles you can reach from start (avoid: tiles to keep off as well as the people and items).
 func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 	var seen := {start: true}
@@ -426,7 +459,7 @@ func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 	for n in m["npcs"]:
 		if not n.get("vanish", false):
 			blockers[n["pos"]] = true
-	for it in m["items"]:
+	for it in m["items"] + m.get("levers", []) + m.get("chests", []):
 		blockers[it["pos"]] = true
 	var stairs := RoomBuilder.stair_ways_in(m)
 	while not q.is_empty():
@@ -436,8 +469,8 @@ func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 			if seen.has(n) or blockers.has(n) or not Elev.joined(m, p, n) or (stairs.has(n) and not p in stairs[n]):
 				continue
 			var c := MapGen.get_t(m, n.x, n.y)
-			# obstacles and story gates can be cleared, so the area behind them counts as reachable
-			if MapGen.walkable(c) or c == MapGen.OBSTACLE or c == MapGen.GATE:
+			# obstacles and story gates can be cleared, and floods drained, so the area behind them counts as reachable
+			if MapGen.walkable(c) or c == MapGen.OBSTACLE or c == MapGen.GATE or m.get("flood_wet", {}).has(n):
 				seen[n] = true
 				q.append(n)
 	return seen

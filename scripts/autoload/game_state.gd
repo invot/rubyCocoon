@@ -169,7 +169,7 @@ func new_game(pname: String, look := {}) -> void:
 	song_mastery = {}
 	crests = []
 	# Missing in older saves means the map remains available, as it was before the library.
-	flags = {"world_map": false}
+	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true}
 	visited = ["caccoon"]
 	map_id = "caccoon"
 	pos = Vector2i(-1, -1)
@@ -912,6 +912,20 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 
 
 ## Loads a slot (default: this game's slot, else the most recent save).
+## Kelpwick's Beast Center (its building #1) was folded into the great arena hut, so the village's later buildings each
+## moved down one: a game saved in one of them before that comes back in the same room (from the old Center, in front
+## of the hut). Saves made since carry the "kelpwick_hut" flag.
+func _kelpwick_hut_rooms() -> void:
+	if map_id.begins_with("kelpwick#") and not flags.has("kelpwick_hut"):
+		var old := int(map_id.get_slice("#", 1).get_slice("@", 0))
+		if old == 1:
+			map_id = "kelpwick"
+			pos = Vector2i(-1, -1)
+		elif old > 1:
+			map_id = "kelpwick#%d" % (old - 1)
+	flags["kelpwick_hut"] = true
+
+
 func load_game(slot := -2) -> bool:
 	if slot == -2:
 		slot = current_slot if current_slot >= 0 else latest_slot()
@@ -945,8 +959,13 @@ func load_game(slot := -2) -> bool:
 	map_id = d.get("map_id", "caccoon")
 	var p: Array = d.get("pos", [-1, -1])
 	pos = Vector2i(int(p[0]), int(p[1]))
+	# The marina adds sea west of the old map. Keep existing saves on their original town/beach tile.
+	if map_id == "shellhaven" and pos.x >= 0 and not flags.has("shellhaven_west_marina"):
+		pos.x += WorldDB.SHELLHAVEN_WEST_PADDING
+	flags["shellhaven_west_marina"] = true
 	var fc: Array = d.get("facing", [0, 1])
 	facing = Vector2i(int(fc[0]), int(fc[1]))
+	_kelpwick_hut_rooms()
 	last_center = d.get("last_center", "caccoon")
 	seen = d.get("seen", {})
 	caught = d.get("caught", {})

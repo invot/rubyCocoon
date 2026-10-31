@@ -41,6 +41,24 @@ func open(b: Dictionary, world) -> void:
 	var town: String = b.get("town", world.map_id)
 	var tier := _tier(town)
 	var shop: String = b["shop"]
+	if b.get("hotel", false):
+		if await UI.ask("Stay the night for 150 gold?", "Hotel Mariposa"):
+			if GameState.gold < 150:
+				await UI.say(["A suite costs 150 gold. The Beast Center is always happy to help travelers too."])
+			else:
+				GameState.gold -= 150
+				GameState.heal_party()
+				Sfx.play("heal")
+				await UI.say(["You wake to the sound of the surf. Your beasts are fully rested!"])
+		return
+	if town == "kelpwick" and shop == "beast_gear":
+		await UI.say(["Just the essentials here. We keep our prices low for the village."], "Outfitter Hale")
+		await shop_loop(b["name"], ["minor_potion", "potion", "remedy_herb", "worm_bait"] + ItemDB.stock("gear", 1, town + ":basic", 4), 0.7)
+		return
+	if town == "shellhaven" and shop == "apothecary":
+		await UI.say(["Welcome to Pearl Coast Boutique. Fine travel goods, selected for our resort guests."], "Apothecary Fen")
+		await shop_loop(b["name"], apothecary_stock(tier, town) + ItemDB.stock("tgear", tier, town + ":boutique", 5), 1.4)
+		return
 	match shop:
 		"center":
 			await beast_center(town)
@@ -52,7 +70,7 @@ func open(b: Dictionary, world) -> void:
 		"skytower":
 			await skytower_desk()
 		"cafe":
-			await UI.say(["Welcome to the café! Our snacks give beasts a boost in battle."], KEEPERS[shop])
+			await UI.say(["Welcome to La Perla. Enjoy our chef's island tasting menu with a view of the sea." if town == "shellhaven" else "Welcome! Our snacks give beasts a boost in battle."], KEEPERS[shop])
 			await shop_loop(b["name"], ["spicy_bun", "mint_tea", "honey_cake"])
 		"beast_gear":
 			await UI.say(["Gear for your beasts! Some pieces even teach them new tricks."], KEEPERS[shop])
@@ -95,24 +113,24 @@ func library() -> void:
 			await Menus.world_map()
 
 
-func shop_loop(title: String, stock: Array) -> void:
+func shop_loop(title: String, stock: Array, price_scale := 1.0) -> void:
 	while true:
 		var c: int = await UI.choose("%s   (%d gold)" % [title, GameState.gold], ["Buy", "Sell", "Leave"], {"anchor": "right", "width": 320})
 		if c == 0:
-			await _buy(stock)
+			await _buy(stock, price_scale)
 		elif c == 1:
 			await _sell()
 		else:
 			return
 
 
-func _buy(stock: Array) -> void:
+func _buy(stock: Array, price_scale := 1.0) -> void:
 	var last := 0
 	while true:
 		var items := []
 		for id in stock:
 			var it := ItemDB.get_item(id)
-			var p := GameState.price(int(it["price"]))
+			var p := GameState.price(int(round(int(it["price"]) * price_scale)))
 			var have := GameState.item_count(id)
 			var desc: String = it.get("desc", "")
 			if it["kind"] in ["gear", "tgear"]:
@@ -125,7 +143,7 @@ func _buy(stock: Array) -> void:
 			return
 		last = c
 		var id2: String = stock[c]
-		var price := GameState.price(int(ItemDB.get_item(id2)["price"]))
+		var price := GameState.price(int(round(int(ItemDB.get_item(id2)["price"]) * price_scale)))
 		if GameState.gold < price:
 			Sfx.play("error")
 			continue
@@ -598,9 +616,10 @@ func fly_menu(here: String, cost: int, who: String) -> bool:
 		return false
 	var items := []
 	for t in dests:
-		var tower: bool = WorldDB.TOWNS[t]["shops"].has("skytower")
+		var shops: Array = WorldDB.TOWNS[t]["shops"]
+		var lands := "Lands at the Sky Tower." if shops.has("skytower") else ("Lands near the Beast Center." if shops.has("center") else "Lands by the arena.")
 		items.append({"text": WorldDB.map_name(t), "right": ("%d g" % cost) if cost > 0 else "",
-			"desc": ("Lands at the Sky Tower." if tower else "Lands near the Beast Center.") + "\n" + String(WorldDB.TOWNS[t]["blurb"]),
+			"desc": lands + "\n" + String(WorldDB.TOWNS[t]["blurb"]),
 			"disabled": GameState.gold < cost})
 	var c: int = await UI.choose("Fly to...   (%d gold)" % GameState.gold if cost > 0 else "Fly to...", items, {"width": 460})
 	if c < 0:
@@ -708,7 +727,12 @@ func arena(b: Dictionary, town: String) -> void:
 	var a: Dictionary = WorldDB.ARENAS[town]
 	var leader := "%s %s" % [a["title"], a["leader"]]
 	# the host runs the ladder; the master takes challengers in person, in the hall round the end of the wall
-	await UI.say(["Welcome to the %s! I run the ladder of ring trainers. %s takes challengers in person, in the hall round the end of the wall." % [b["name"], leader]], "Arena Host")
+	if not WorldDB.TOWNS.get(town, {}).get("shops", ["center"]).has("center"):
+		# Kelpwick's great hut is its arena and its Beast Center both
+		await UI.say(["Welcome to the great hut! I run the ladder of ring trainers. %s takes challengers by the ring." % leader,
+			"The restoring machine in the corner is free for any trainer. We're not a resort: nobody here charges for a rest."], "Arena Host")
+	else:
+		await UI.say(["Welcome to the %s! I run the ladder of ring trainers. %s takes challengers in person, in the hall round the end of the wall." % [b["name"], leader]], "Arena Host")
 	while true:
 		var items := [
 			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
@@ -811,14 +835,15 @@ func arena_challenge(town: String) -> String:
 	var beaten: bool = GameState.crests.has(a["crest"])
 	var song := SongDB.get_song(a["song"])
 	if GameState.alive_party().is_empty():
-		await UI.say(["Your beasts can barely stand. Heal them at the Beast Center first!"], leader)
+		var healer := "the Beast Center" if WorldDB.TOWNS.get(town, {}).get("shops", ["center"]).has("center") else "the machine in the corner"
+		await UI.say(["Your beasts can barely stand. Heal them at %s first!" % healer], leader)
 		return "skip"
 	if not beaten and await _lessons_first(town, leader):
 		return "skip"
 	var team := []
 	for t in a["team"]:
 		team.append([t[0], int(t[1]) + (6 if beaten else 0), false])
-	await UI.say(["So you're the trainer from Cocoon Cove. Show me your bond with your beasts!" if not beaten else "Back for more? Let's go!"], leader)
+	await UI.say([String(a.get("intro", "So you're the trainer from Cocoon Cove. Show me your bond with your beasts!")) if not beaten else "Back for more? Let's go!"], leader)
 	var res := await Story.trainer_battle({"name": a["leader"], "cls": a["title"], "team": team, "arena": true, "look": a.get("look", {}),
 		"song": a.get("flute", ""), "flute_skill": 0.85, "encore": a.has("flute"), "boss": true,
 		"reward": int(a["gold"]) if not beaten else int(a["gold"]) / 2, "defeat": "Splendid! You've earned my respect."})
@@ -830,6 +855,8 @@ func arena_challenge(town: String) -> String:
 			"\"Take this song as well: the %s. %s\"" % [song["name"], SongDB.describe(a["song"])]], leader)
 		UI.toast("Learned the song: %s!" % song["name"], UIKit.GOLD)
 		await _miner_pass(town)
+		if town == "kelpwick":
+			await Story.reef_opened(leader)
 		await Story.on_crest()
 	return res
 

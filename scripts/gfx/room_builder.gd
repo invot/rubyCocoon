@@ -20,7 +20,7 @@ const SOFT_SURFACE = preload("res://scripts/gfx/interior_surface.gdshader")
 ## Rectangular area rugs, in tile units; rotations are included when fitting a room.
 const RUG_SIZES := [Vector2i(3, 2), Vector2i(4, 3), Vector2i(5, 4), Vector2i(6, 5)]
 const RUG_BLOCKED := [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.IDIAG_A, MapGen.IDIAG_B,
-	MapGen.STAIRS_UP, MapGen.STAIRS_DOWN, MapGen.IVOID, MapGen.LAVA, MapGen.FOUNTAIN]
+	MapGen.STAIRS_UP, MapGen.STAIRS_DOWN, MapGen.IVOID, MapGen.LAVA, MapGen.FOUNTAIN, MapGen.WATER]
 ## wall thickness, height, the top of a doorway, a window's sill and top
 const T := 0.2
 const H := 2.8
@@ -120,9 +120,21 @@ const WALL_COLOURS := {
 	"wall_tiles": "#e4ece9", "wall_marble": "#e7e5df", "wall_wood": "#b58b65", "wall_brick": "#a5a3aa",
 }
 static var _wall_papers := {}
+## An ancient room (a temple's: "ancient" in its template, or any room whose key starts "temple"): smooth ashlar walls
+## of the temple's stone, a heavy plinth and cornice instead of skirting, carved pilasters with flame sconces, stone
+## portals instead of painted doors, worn stone flags underfoot and the warm light of the flames.
+const SANDSTONE := Color("#cdb896")
+const FLAME := Color("#ffb04a")
+## the stone courses' height, and a pilaster every this many tiles along a wall
+const COURSE := 0.7
+const PILASTER_EVERY := 3
 
 
-static func wall_surface(tex: String, colour: Color) -> StandardMaterial3D:
+static func wall_surface(tex: String, colour: Color) -> Material:
+	if tex == "ashlar":
+		return _ashlar(colour)
+	if tex == "kelpwood":
+		return load("res://scripts/gfx/island_buildings.gd").wood_material()
 	var key := "smooth_wall:%s:%s" % [tex, colour.to_html()]
 	if _mats.has(key):
 		return _mats[key]
@@ -147,6 +159,33 @@ static func wall_surface(tex: String, colour: Color) -> StandardMaterial3D:
 		mat.albedo_texture = _wall_papers[tex]
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		mat.uv1_scale = Vector3(1.0 / 0.8, 1.0, 1.0)
+	_mats[key] = mat
+	return mat
+
+
+## Smooth cut stone in `colour`, laid in courses: a faint soft joint every COURSE up the wall, nothing coarser.
+static func _ashlar(colour: Color) -> Material:
+	var key := "ashlar:" + colour.to_html()
+	if _mats.has(key):
+		return _mats[key]
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.05, 0.12, 0.88, 0.95, 1.0])
+	var joint := Color(0.86, 0.84, 0.8)
+	var lit := Color(1.0, 0.99, 0.97)
+	gradient.colors = PackedColorArray([joint, Color.WHITE, lit, Color.WHITE, Color.WHITE, joint])
+	var courses := GradientTexture2D.new()
+	courses.width = 8
+	courses.height = 64
+	courses.fill_from = Vector2.ZERO
+	courses.fill_to = Vector2.DOWN
+	courses.gradient = gradient
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	mat.albedo_texture = courses
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.95
+	mat.uv1_scale = Vector3(1.0, 1.0 / COURSE, 1.0)
 	_mats[key] = mat
 	return mat
 
@@ -261,6 +300,9 @@ var tint := Color.WHITE
 var textures := {}
 var default_zone := "shop"
 var trim := Color("#5a3a26")
+var ancient := false
+## an ancient room's stone (SANDSTONE, touched by the template's wall colour)
+var stone := SANDSTONE
 ## per row of walls: a node, and the mesher its walls go into
 var rows := {}
 var _row_meshers := {}
@@ -293,6 +335,8 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	# the template's wall colour tints the wall textures a little
 	rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.35)
 	rb.trim = Color(str(room.get("trim", "#5a3a26")))
+	rb.ancient = room.get("ancient", String(m.get("room_key", "")).begins_with("temple"))
+	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
 	if room.get("open", false):
 		# Open decks keep their existing floor and railings; only add the shared stairwell.
 		rb._stairs()
@@ -308,6 +352,8 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._stalls()
 	rb._counters()
 	rb._wall_decor()
+	if rb.ancient:
+		rb._pilasters()
 	rb._lights()
 	var fm := MeshInstance3D.new()
 	fm.mesh = rb.floor_mesher.mesh()
@@ -400,6 +446,8 @@ func zone_side(x: int, y: int, d: Vector2i, half: Vector2i) -> String:
 
 ## This building's pick of a zone's textures: the template's own choice, else one of the zone's, by the building.
 func _pick(z: String, what: String) -> String:
+	if map.get("parent", "") == "kelpwick" and what == "wall":
+		return "kelpwood"
 	var own: String = map.get("room", {}).get(what + "_tex", {}).get(z, "")
 	if own != "":
 		return own
@@ -408,7 +456,7 @@ func _pick(z: String, what: String) -> String:
 
 
 func floor_mat(z: String) -> Material:
-	return floor_surface(_pick(z, "floor"))
+	return floor_surface("floor_ancient" if ancient else _pick(z, "floor"))
 
 
 static func floor_surface(tex: String) -> ShaderMaterial:
@@ -432,6 +480,10 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 		"floor_ring":
 			finish = 1
 			base = Color("#ccb890")
+		"floor_ancient":
+			finish = 3
+			base = Color("#b9a98a")
+			accent = Color("#a39274")
 		"floor_marble", "floor_stone":
 			finish = 3
 			base = Color("#d8d3c9") if tex == "floor_marble" else Color("#a7a5a2")
@@ -450,6 +502,8 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 
 
 func wall_mat(z: String) -> Material:
+	if ancient:
+		return wall_surface("ashlar", stone)
 	return wall_surface(_pick(z, "wall"), tint if z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE)
 
 
@@ -482,7 +536,8 @@ func _floors() -> void:
 	for y in h:
 		for x in w:
 			var c := code(x, y)
-			if c in [MapGen.RING, MapGen.LAVA, MapGen.IVOID]:
+			# (a pool of water is sunk below the floor: world.gd _build_room)
+			if c in [MapGen.RING, MapGen.LAVA, MapGen.IVOID, MapGen.WATER]:
 				continue
 			if y == h - 1:
 				# the open front: the floor stops half way across the row, in a dark edge (under the end of a side
@@ -736,16 +791,134 @@ func _face(m: Mesher, z: String, p: Array, nrm: Vector3, along: Vector3) -> void
 
 
 func _skirting(m: Mesher, a: Vector3, b: Vector3, nrm: Vector3) -> void:
+	if ancient:
+		_plinth(m, a, b, nrm)
+		return
 	var off := nrm * 0.015
 	var mat := surface("skirting", trim)
 	var along := (b - a).normalized()
 	m.quad("skirting", mat, [a + off, b + off, b + off + Vector3(0, 0.11, 0), a + off + Vector3(0, 0.11, 0)], nrm, along, Vector3.DOWN)
 
 
+## An ancient wall's foot and head along a face from a to b: a plinth of darker stone, stepped out from the wall,
+## and a cornice under the top with a thin glowing inlay of the temple's colour.
+func _plinth(m: Mesher, a: Vector3, b: Vector3, nrm: Vector3) -> void:
+	var foot := surface("plinth", stone.darkened(0.22))
+	var head := surface("cornice", stone.lightened(0.06))
+	var along := (b - a).normalized()
+	for band in [[0.0, 0.34, 0.07, foot], [0.38, 0.42, 0.035, foot], [H - 0.42, H - 0.3, 0.06, head], [H - 0.3, H - 0.22, 0.09, head]]:
+		var off: Vector3 = nrm * float(band[2])
+		var y0: float = band[0]
+		var y1: float = band[1]
+		var mat: Material = band[3]
+		m.quad("plinth" if mat == foot else "cornice", mat, [a + off + Vector3(0, y0, 0), b + off + Vector3(0, y0, 0), b + off + Vector3(0, y1, 0),
+			a + off + Vector3(0, y1, 0)], nrm, along, Vector3.DOWN)
+		m.quad("plinth" if mat == foot else "cornice", mat, [a + Vector3(0, y1, 0), b + Vector3(0, y1, 0), b + off + Vector3(0, y1, 0),
+			a + off + Vector3(0, y1, 0)], Vector3.UP, along, nrm)
+		m.quad("plinth" if mat == foot else "cornice", mat, [a + Vector3(0, y0, 0), b + Vector3(0, y0, 0), b + off + Vector3(0, y0, 0),
+			a + off + Vector3(0, y0, 0)], Vector3.DOWN, along, nrm)
+	var inlay := surface("inlay", _inlay_colour())
+	inlay.emission_enabled = true
+	inlay.emission = _inlay_colour()
+	inlay.emission_energy_multiplier = 0.6
+	var io := nrm * 0.065
+	m.quad("inlay", inlay, [a + io + Vector3(0, H - 0.38, 0), b + io + Vector3(0, H - 0.38, 0), b + io + Vector3(0, H - 0.35, 0),
+		a + io + Vector3(0, H - 0.35, 0)], nrm, along, Vector3.DOWN)
+
+
+## The glow of a temple's inlays: its guardian's colour (the template's rug colour), brightened.
+func _inlay_colour() -> Color:
+	return Color(str(map.get("room", {}).get("rug", "#5ac8ff"))).lightened(0.35)
+
+
+## Carved pilasters along an ancient room's walls, every PILASTER_EVERY tiles, each with a flame in a bronze sconce
+## on every other one; none beside a doorway or a window.
+func _pilasters() -> void:
+	var col := surface("pilaster", stone.lightened(0.04))
+	var cap := surface("pilaster_cap", stone.darkened(0.1))
+	var bronze := surface("brass", Color("#b08840"))
+	var flame := surface("flame", FLAME)
+	flame.emission_enabled = true
+	flame.emission = FLAME
+	flame.emission_energy_multiplier = 2.4
+	flame.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var k := 0
+	for y in range(1, h - 1):
+		for x in range(1, w - 1):
+			if code(x, y) in WALLISH or code(x, y) == MapGen.IVOID:
+				continue
+			for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]:
+				var wx: int = x + d.x
+				var wy: int = y + d.y
+				if code(wx, wy) != MapGen.IWALL:
+					continue
+				var along_i := Vector2i(1, 0) if d.y != 0 else Vector2i(0, 1)
+				var step := x if d.y != 0 else y
+				if step % PILASTER_EVERY != 1:
+					continue
+				var near_door := false
+				for o in [-1, 1]:
+					var q: Vector2i = Vector2i(wx, wy) + along_i * o
+					near_door = near_door or code(q.x, q.y) in [MapGen.IDOOR, MapGen.LOCKED, MapGen.IWINDOW]
+				if near_door:
+					continue
+				var m := _row(wy)
+				var face := Vector3(x + 0.5, 0, y + 0.5) - Vector3(d.x, 0, d.y) * (0.5 - T / 2.0)
+				var out := -Vector3(d.x, 0, d.y)
+				var wide := Vector3(along_i.x, 0, along_i.y)
+				var size := wide * 0.42 + out.abs() * 0.24 + Vector3(0, H - 0.6, 0)
+				m.box("pilaster", col, face + out * 0.12 + Vector3(0, (H - 0.6) / 2.0 + 0.3, 0), size + Vector3.ONE * 0.0)
+				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, H - 0.36, 0), wide * 0.56 + out.abs() * 0.3 + Vector3(0, 0.12, 0))
+				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, 0.36, 0), wide * 0.54 + out.abs() * 0.3 + Vector3(0, 0.1, 0))
+				k += 1
+				if k % 2 == 0:
+					continue
+				# a bronze bowl on a bracket, a flame in it
+				m.box("brass", bronze, face + out * 0.34 + Vector3(0, 1.62, 0), wide * 0.08 + out.abs() * 0.22 + Vector3(0, 0.05, 0))
+				m.box("brass", bronze, face + out * 0.46 + Vector3(0, 1.7, 0), wide * 0.24 + out.abs() * 0.24 + Vector3(0, 0.1, 0))
+				m.box("flame", flame, face + out * 0.46 + Vector3(0, 1.84, 0), wide * 0.14 + out.abs() * 0.14 + Vector3(0, 0.2, 0))
+				m.box("flame", flame, face + out * 0.46 + Vector3(0, 1.98, 0), wide * 0.07 + out.abs() * 0.07 + Vector3(0, 0.12, 0))
+
+
+## An ancient room's doorway: a stone portal, massive jambs and a lintel with the temple's glowing inlay, the dark
+## passage beyond (or, out to the open air, the bright day). No door: you walk straight through.
+func _portal(x: int, y: int, horiz: bool) -> void:
+	var m := _row(y)
+	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var dark := surface("portal_jamb", stone.darkened(0.12))
+	var lintel := surface("portal_lintel", stone.lightened(0.05))
+	for side in [-1.0, 1.0]:
+		m.box("portal_jamb", dark, c + along * side * 0.47 + Vector3(0, DOOR_H / 2.0, 0), _axes(along, 0.2, DOOR_H, T + 0.24, horiz))
+		m.box("portal_jamb", dark, c + along * side * 0.47 + Vector3(0, 0.15, 0), _axes(along, 0.3, 0.3, T + 0.34, horiz))
+	m.box("portal_lintel", lintel, c + Vector3(0, DOOR_H + 0.14, 0), _axes(along, 1.34, 0.28, T + 0.3, horiz))
+	m.box("portal_lintel", lintel, c + Vector3(0, DOOR_H + 0.34, 0), _axes(along, 1.06, 0.12, T + 0.22, horiz))
+	var inlay := surface("inlay", _inlay_colour())
+	inlay.emission_enabled = true
+	inlay.emission = _inlay_colour()
+	inlay.emission_energy_multiplier = 0.9
+	m.box("inlay", inlay, c + Vector3(0, DOOR_H + 0.14, 0), _axes(along, 0.5, 0.06, T + 0.32, horiz))
+	var ex: Dictionary = map.get("exits", {}).get(Vector2i(x, y), {})
+	var outdoors := not ex.is_empty() and not String(ex["to"]).contains("#")
+	var past := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = _axes(along, 0.74, DOOR_H, 0.04, horiz)
+	past.mesh = bm
+	var pm := StandardMaterial3D.new()
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.albedo_color = Color("#f4ecd8") if outdoors else Color("#14100c")
+	past.material_override = pm
+	past.position = c + Vector3(0, DOOR_H / 2.0, 0)
+	_attach(x, y, past)
+
+
 ## A doorway: a wooden frame round the opening on both faces. An opening between parts of a room is just that; a door
 ## that leads out of the room (see map_loader.gd _interior) is painted blue, and a locked one red, so you can tell at a
 ## glance which doors open. The front door, out to the street, is glazed, with a bright window over it.
 func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
+	if ancient and not locked:
+		_portal(x, y, horiz)
+		return
 	var m := _row(y)
 	var cx := x + 0.5
 	var cz := y + 0.5
@@ -1517,6 +1690,12 @@ const COUNTER_GOODS := {
 ## shop's terminal is a computer; the Beast Center's nurse has none: anything there hid her face), and a few things
 ## from the trade.
 const TILL := {"electronics": "el_monitor", "center": ""}
+## How high things stand on the counters: the display counter's glass worktop (its model also has a small raised
+## block up to 1.0, so its bounding box is no guide), and the single base unit, which is scaled to 1.0 tall.
+const DISPLAY_TOP := 0.795
+const BASE_UNIT_TOP := 1.0
+## Where along the display counter model (x, in its own units) that raised block stands: nothing is set down on it.
+const DISPLAY_BLOCK := Vector2(0.41, 1.07)
 
 
 func _counters() -> void:
@@ -1568,6 +1747,9 @@ func _counters() -> void:
 					var len := (run.size() - at) / (k - pi)
 					pieces.append([at, len])
 					at += len
+			var along := Vector3(step.x, 0, step.y)
+			# each display counter's raised block, as [its middle, half its length] along the run
+			var blocks := []
 			for pc in pieces:
 				var a: int = pc[0]
 				var n: int = pc[1]
@@ -1579,6 +1761,9 @@ func _counters() -> void:
 				mi.rotation.y = yaw
 				mi.position = c
 				parent.add_child(mi)
+				var mid := c + Basis(Vector3.UP, yaw) * Vector3((DISPLAY_BLOCK.x + DISPLAY_BLOCK.y) / 2.0 * mi.scale.x, 0, 0)
+				blocks.append([mid.dot(along), (DISPLAY_BLOCK.y - DISPLAY_BLOCK.x) / 2.0 * mi.scale.x])
+			var ends := Vector2(Vector3(run[0].x + 0.5, 0, run[0].y + 0.5).dot(along), Vector3(run[-1].x + 0.5, 0, run[-1].y + 0.5).dot(along))
 			if pieces.is_empty():
 				var sb := short_piece.get_aabb()
 				for q in run:
@@ -1588,7 +1773,12 @@ func _counters() -> void:
 					mi2.rotation.y = yaw
 					mi2.position = Vector3(q.x + 0.5, 0, q.y + 0.5)
 					parent.add_child(mi2)
+			var top := DISPLAY_TOP if not pieces.is_empty() else BASE_UNIT_TOP
 			for q in run:
+				if map.get("counter_phone", Vector2i(-1, -1)) == q:
+					var spot := Vector3(q.x + 0.5, 0, q.y + 0.5)
+					_counter_phone(spot + along * _off_block(spot.dot(along), 0.28, blocks, ends), yaw, top)
+					continue
 				var item := ""
 				var mine := false
 				if not till_done and q.distance_to(keeper) < 1.5:
@@ -1602,14 +1792,63 @@ func _counters() -> void:
 				var t := MeshInstance3D.new()
 				t.mesh = piece(item)
 				var back := Basis(Vector3.UP, yaw)
+				var half := maxf(t.mesh.get_aabb().size.x, t.mesh.get_aabb().size.z) / 2.0
 				if mine:
-					# by the keeper, at the back edge of the counter, its front (keys, screen) turned to them
-					t.position = Vector3(q.x + 0.5, 1.0, q.y + 0.5) + back * Vector3(0, 0, -0.2)
+					# by the keeper, at the back edge of the counter, its front (keys, screen) turned to them; slid along
+					# past the counter's raised block if it would stand in it
+					t.position = Vector3(q.x + 0.5, top, q.y + 0.5) + back * Vector3(0, 0, -0.2)
+					t.position += along * _off_block(t.position.dot(along), half, blocks, ends)
 					t.rotation.y = yaw + PI
 				else:
-					t.position = Vector3(q.x + 0.5, 1.0, q.y + 0.5) + back * Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.15, 0.05))
+					t.position = Vector3(q.x + 0.5, top, q.y + 0.5) + back * Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.15, 0.05))
 					t.rotation.y = yaw + rng.randf_range(-0.5, 0.5)
+					# goods never stand in the raised block
+					if _off_block(t.position.dot(along), half, blocks, ends) != 0.0:
+						t.free()
+						continue
 				parent.add_child(t)
+
+
+## How far along a counter run something `half` wide at `at` must slide to clear the display counters' raised blocks
+## ([middle, half length] along the run), staying between the run's end tiles (`ends`); 0 if it's already clear.
+static func _off_block(at: float, half: float, blocks: Array, ends: Vector2) -> float:
+	for blk in blocks:
+		var gap := half + float(blk[1]) + 0.03
+		var d := at - float(blk[0])
+		if absf(d) >= gap:
+			continue
+		var lo := minf(ends.x, ends.y)
+		var hi := maxf(ends.x, ends.y)
+		# out the nearer side, unless that runs off the end of the counter
+		var push := (gap - d) if d >= 0.0 else (-gap - d)
+		if at + push < lo or at + push > hi:
+			push = (-gap - d) if d >= 0.0 else (gap - d)
+		return push
+	return 0.0
+
+
+## The red telephone on a counter (the room's "counter_phone"), on a white mat like the one on its usual table and
+## turned to the customers. It shakes with the others when it rings.
+func _counter_phone(at: Vector3, yaw: float, top: float) -> void:
+	var t := MeshInstance3D.new()
+	t.mesh = piece("phone_rotary")
+	if t.mesh == null:
+		return
+	t.scale = Vector3.ONE * float(KINDS["phone"].get("top_scale", 1.0))
+	var foot := t.mesh.get_aabb().size * t.scale
+	var mat := MeshInstance3D.new()
+	var mb := BoxMesh.new()
+	mb.size = Vector3(foot.x + 0.1, 0.008, foot.z + 0.08)
+	mat.mesh = mb
+	mat.material_override = plain_material(Color(KINDS["phone"]["mat"]))
+	mat.position = Vector3(at.x, top + 0.004, at.z)
+	mat.rotation.y = yaw
+	mat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mat)
+	t.position = Vector3(at.x, top + 0.008, at.z)
+	t.rotation.y = yaw
+	t.add_to_group("phones")
+	parent.add_child(t)
 
 
 ## Of the models for a kind, the one that fills the space best. Ties go to chance, or with `same`, to the building's
@@ -1796,7 +2035,7 @@ func _lights() -> void:
 			for i in nx:
 				for j in nz:
 					var l := OmniLight3D.new()
-					l.light_color = Color(ZONES.get(z, ZONES["shop"])["light"])
+					l.light_color = Color(ZONES.get(z, ZONES["shop"])["light"]) if not ancient else Color("#ffc890")
 					l.light_energy = 0.7
 					l.omni_range = maxf(size.x / nx, size.y / nz) * 0.9 + 2.0
 					l.position = Vector3(lo.x + size.x * (i + 0.5) / nx, 2.4, lo.y + size.y * (j + 0.5) / nz)

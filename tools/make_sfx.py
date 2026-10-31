@@ -6,14 +6,17 @@
   Phone_Ring.wav   one ring of an old bell telephone: the clapper rattling between two bells (sfx.gd "phone_ring")
   Dread_Hit.wav    a cinematic hit: a deep boom under a low, dissonant swell that dies away slowly (sfx.gd "dread")
   Ghost_Rise.wav   a ghost beast taking shape: a breathy rising whoosh and a hollow, wavering wail (sfx.gd "ghost")
+  Shallow_Step_1/2.wav  light pitter-patter footsteps in a few centimetres of water (sfx.gd "step_water")
 
 Run from the project root:  python tools/make_sfx.py
+To rebuild only shallow footfalls: python tools/make_sfx.py --shore-only
 """
 import math
 import os
 import random
 import struct
 import wave
+import sys
 
 RATE = 22050
 DST = 'sfx/Custom'
@@ -167,10 +170,34 @@ def ghost():
     return lowpass(out, 3000.0)
 
 
-if __name__ == '__main__':
+def shallow_step(seed):
+    """A light wet footfall: soft contact, fine spray, and two tiny settling droplets."""
+    rnd = random.Random(seed)
+    n = int(RATE * 0.20)
+    noise = lowpass([rnd.uniform(-1, 1) for _ in range(n)], 3400.0)
+    contact = thump(n, 260.0, 140.0, 0.018, 0.23)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        spray = noise[i] * (1.0 - math.exp(-t / 0.003)) * math.exp(-t / 0.032) * 0.65
+        drops = 0.0
+        for at, hz in [(0.045, 1250.0), (0.083, 930.0)]:
+            d = t - at
+            if d >= 0:
+                drops += math.sin(2 * math.pi * hz * d * math.exp(-d * 7)) * math.exp(-d / 0.012) * 0.11
+        out.append(contact[i] + spray + drops)
+    return out
+
+
+if __name__ == '__main__' and '--shore-only' in sys.argv:
+    write('Shallow_Step_1.wav', shallow_step(41))
+    write('Shallow_Step_2.wav', shallow_step(67))
+elif __name__ == '__main__':
     write('Defeat_Puff.wav', puff())
     write('Faint_Thud.wav', thud())
     write('Door_Knock.wav', knock())
     write('Phone_Ring.wav', ring())
     write('Dread_Hit.wav', dread())
     write('Ghost_Rise.wav', ghost())
+    write('Shallow_Step_1.wav', shallow_step(41))
+    write('Shallow_Step_2.wav', shallow_step(67))

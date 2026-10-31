@@ -21,10 +21,12 @@ enum { GRASS, PATH, TALL, TREE, WATER, ROCK, FLOWERS, BUILDING, DOOR, FENCE, PLA
 	STREET_PROP,
 	# a wall cutting across a room's corner at 45 degrees: "/" runs from the tile's bottom-left to its top-right corner,
 	# "\\" from its top-left to its bottom-right (see room_builder.gd)
-	IDIAG_A, IDIAG_B }
+	IDIAG_A, IDIAG_B,
+	# A shallow sandy shore: only a few centimetres of water, never a swimming tile.
+	SHALLOWS }
 
 const WALKABLE := [GRASS, PATH, TALL, FLOWERS, PLAZA, SAND, BRIDGE, IFLOOR, ITILE, RUG, RING, MAT, STAIRS_UP, STAIRS_DOWN, MIST, ICE, ROPE,
-	IDOOR]
+	IDOOR, SHALLOWS]
 ## Tiles where wild beasts can appear.
 const ENCOUNTER_TILES := [TALL, MIST]
 

@@ -92,6 +92,7 @@ const SOUNDS := {
 	"tick": [["res://sfx/06_Feedback/Feedback_CountdownTick_001.mp3"], -12.0],
 	"step_grass": [["res://sfx/02_Player_Actions/Player_Actions_FootstepGrass_001.mp3"], -24.0],
 	"step_stone": [["res://sfx/02_Player_Actions/Player_Actions_FootstepStone_001.mp3"], -24.0],
+	"step_water": [["res://sfx/Custom/Shallow_Step_1.wav", "res://sfx/Custom/Shallow_Step_2.wav"], -19.0],
 	"jump": [["res://sfx/02_Player_Actions/Player_Actions_Jump_001.mp3"], -12.0],
 }
 

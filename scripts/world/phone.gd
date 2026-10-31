@@ -1,6 +1,6 @@
 extends RefCounted
 ## The telephone. Your dad is away working, and calling him is how the game is saved: you tell him how your journey
-## is going, he cheers you on, and the game saves; then you can play on, or stop for now (back to the title screen).
+## is going, he cheers you on, and asks whether to save; then whether to play on, or return to the title screen.
 ## Away from home you can call Mom instead: she passes on a tip about what to do next (ChatterDB.MOM_TIPS) and says
 ## whether your beasts are strong enough for where you are (level_advice). At home she's in the room, so the phone
 ## there only calls Dad.
@@ -35,8 +35,7 @@ const NEWS := {
 	"marina": ["Marina's tough. Her beasts are all water, so bring something airy. And don't let her splash you first."],
 	"ferry": ["The Isle of Tides! Those two villages have been squabbling since before I was born."],
 	"chiefs": ["Hear both chiefs out before you take a side. There's always more to a feud than the first story."],
-	"smuggler": ["Someone's stirring up trouble on the island? Keep your eyes open on the Isle Trail."],
-	"peace": ["You found who did it? Go and tell the chiefs! You'll be the most popular kid on the island."],
+	"warden": ["Prove you're no tourist? Ha! Beat that Reef Warden and show them how a Cocoon Cove trainer treats a temple."],
 	"temple": ["The Temple of Tides, out on the reef... Be careful in there, kiddo."],
 	"desert": ["The desert's no picnic. Carry water, and watch out for bandits around Sundown."],
 	"bandits": ["Black Bart's gang? The sheriff could use a hand. Just... be careful, all right?"],
@@ -194,13 +193,13 @@ static func answer(world) -> void:
 	await _save()
 
 
-## Saves, then: play on, or stop for now (back to the title screen)?
+## Dad asks before saving, then asks whether to keep playing, even if you declined the save.
 static func _save() -> void:
 	GameState.set_flag("called_dad")
-	if not await GameState.main.save_with_card():
-		return
-	var c: int = await UI.choose("Dad wrote it all down. Your journey is saved.", ["Keep playing", "Stop for now"], {"cancel": false})
-	if c == 1:
+	if await UI.ask("Would you like me to save your journey?", "Dad"):
+		if not await GameState.main.save_with_card():
+			return
+	if not await UI.ask("Do you want to continue playing?", "Dad"):
 		await UI.say(["\"Talk soon, kiddo.\" Click."])
 		GameState.main.back_to_title()
 

@@ -5,7 +5,8 @@ extends Node
 ##   intro_done, got_egg, has_starter            - the first egg and the first hatch (opens the Coastal Path)
 ##   lesson_screen/turns/slingshot/items/ring, tutorial_done   - the Coastal Path's teachers
 ##   flute_lesson_done                             - the guided capture of your first wild beast after the flute
-##   shell_heard, kelp_heard, culprit_beaten, island_peace   - the Isle of Tides feud (opens the reef)
+##   shell_heard, kelp_heard, island_peace         - the Isle of Tides: Kelpwick shut the reef against Shellhaven's
+##                                                   souvenir-hunting tourists; beating Nerissa opens it (island_peace)
 ##   guardian_water                                - also opens the Dune Road to the desert
 ##   met_sheriff, bandits_cleared                  - Sundown's bandits (opens the Dune Sea)
 ##   ceo_defeated                                  - Gearhart Tower (opens Caldera Road)
@@ -34,7 +35,15 @@ const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "
 const CAPTAIN_LOOK := {"skin": "#d8a880", "hair": "#e8e8e8", "shirt": "#2a3a6a", "pants": "#2a2a3a", "hat": "#1a1a2a", "outfit": "coat"}
 const CHIEF_SHELL_LOOK := {"skin": "#c89070", "hair": "#2a1a10", "shirt": "#e0a040", "pants": "#6a4a2a", "outfit": "robe"}
 const CHIEF_KELP_LOOK := {"skin": "#a87050", "hair": "#d8d8d8", "shirt": "#30a0a0", "pants": "#2a4a4a", "outfit": "robe", "hair_style": 1}
-const SMUGGLER_LOOK := {"skin": "#d8b090", "hair": "#1a1a1a", "shirt": "#3a3a3a", "pants": "#2a2a2a", "hat": "#8a2a2a"}
+## Kelpwick villagers standing shoulder to shoulder across the reef path (the map's crowd gate) until Nerissa is beaten.
+const REEF_CROWD := [
+	{"name": "Villager Tamsin", "look": {"skin": "#a87050", "hair": "#2a1a10", "shirt": "#30a0a0", "pants": "#3a3020", "outfit": "apron", "hair_style": 1}},
+	{"name": "Villager Oren", "look": {"skin": "#8a5a3c", "hair": "#1a1410", "shirt": "#e07a5a", "pants": "#2a4a4a", "hat": "#d8c080"}},
+	{"name": "Villager Kai", "look": {"skin": "#c08a60", "hair": "#3a2a1a", "shirt": "#e8c040", "pants": "#2a3a4a"}},
+	{"name": "Villager Ula", "look": {"skin": "#9a6440", "hair": "#d8d8d8", "shirt": "#5a9a5a", "pants": "#4a3a2a", "outfit": "robe", "hair_style": 1}},
+]
+## A Shellhaven resort guest on the Isle Trail, showing off a shell prised from the Temple of Tides.
+const TOURIST_LOOK := {"skin": "#f0c8a8", "hair": "#d8a040", "shirt": "#f07aa0", "pants": "#f0e0b0", "hat": "#f4e8c0", "hair_style": 1}
 const SHERIFF_LOOK := {"skin": "#d8a880", "hair": "#6a4a2a", "shirt": "#a07040", "pants": "#3a3048", "hat": "#4a3020", "outfit": "coat"}
 const PROTESTER_LOOK := {"skin": "#f0c8a0", "hair": "#c86a30", "shirt": "#6a6a5a", "pants": "#3a3a3a", "outfit": "apron"}
 const SHAMAN_LOOK := {"skin": "#a8704a", "hair": "#e8e0d0", "shirt": "#3a8a4a", "pants": "#6a4a2a", "hat": "#d8b040", "outfit": "robe"}
@@ -51,6 +60,9 @@ const NEIGHBOR_LOOK := {"skin": "#c89070", "hair": "#e8e0d0", "shirt": "#d88648"
 ## Miss Odile, feeding the wild beasts in Bellerive's park: a long purple dress, her hair up.
 const FEEDER_LOOK := {"skin": "#8a5a3c", "hair": "#2a1e18", "shirt": "#7a4a9a", "pants": "#5a3a78", "outfit": "robe", "hair_style": 1}
 ## The Dune Ranger, keeping folk off the Dune Road while the sandstorm blows: dusty khaki and a wide hat.
+## Keeper Pell, who tends the Temple of Tides' isle and knows its old waterworks
+const KEEPER_LOOK := {"skin": "#b07850", "hair": "#e0e0e0", "shirt": "#3a8ab0", "pants": "#e8dcc0", "hat": "#e8dcc0", "outfit": "robe"}
+const TempleProps = preload("res://scripts/gfx/temple_props.gd")
 const RANGER_LOOK := {"skin": "#c89068", "hair": "#3a2a1a", "shirt": "#c8a060", "pants": "#6a5038", "hat": "#8a6a3a", "outfit": "coat"}
 
 ## Elder Rowan's four eggs (RaceDB.STARTERS), by the line's first form.
@@ -160,8 +172,10 @@ func extra_npcs(map: Dictionary) -> Array:
 		if _has_anchor(map, "uncle"):
 			inside.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", Vector2i.ZERO), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
 		inside.append_array(temple_objects(map))
+		inside.append_array(fixtures(map))
 		return inside
 	var plaza: Vector2i = map.get("plaza", Vector2i(map["w"] / 2, map["h"] / 2))
+	out.append_array(fixtures(map))
 	if WorldDB.TOWNS.has(id):
 		var race: int = WorldDB.TOWNS[id]["mascot"]
 		var p := _at(map, "mascot", plaza + Vector2i(3, 3))
@@ -202,8 +216,17 @@ func extra_npcs(map: Dictionary) -> Array:
 				out.append({"kind": "story", "id": "ferry", "name": "Captain Gull", "pos": _at(map, "ferry", plaza), "look": CAPTAIN_LOOK, "facing": Vector2i(0, 1)})
 			if id == "shellhaven":
 				out.append({"kind": "story", "id": "chief_shell", "name": "Chief Marlo", "pos": _at(map, "chief", plaza), "look": CHIEF_SHELL_LOOK, "facing": Vector2i(0, 1), "story": true})
+		"reef":
+			if _has_anchor(map, "tide_keeper"):
+				out.append({"kind": "story", "id": "tide_keeper", "name": "Keeper Pell", "pos": _at(map, "tide_keeper", plaza), "look": KEEPER_LOOK,
+					"facing": Vector2i(-1, 0), "story": true})
 		"kelpwick":
 			out.append({"kind": "story", "id": "chief_kelp", "name": "Chief Coralie", "pos": _at(map, "chief", plaza), "look": CHIEF_KELP_LOOK, "facing": Vector2i(0, 1), "story": true})
+			# villagers block the reef path, one on each gate tile (the gate tiles are gone once it opens)
+			var gate_tiles: Array = map.get("gate_tiles", [])
+			for i in gate_tiles.size():
+				var who: Dictionary = REEF_CROWD[i % REEF_CROWD.size()]
+				out.append({"kind": "story", "id": "reef_crowd", "name": who["name"], "pos": gate_tiles[i], "look": who["look"], "facing": Vector2i(-1, 0), "still": true, "blocking": true})
 		"route6":
 			if _has_anchor(map, "inspector") and not GameState.flag("mine_pass_ok"):
 				out.append({"kind": "story", "id": "inspector", "name": "Inspector Grubb", "pos": _at(map, "inspector", plaza), "story": true, "facing": Vector2i(-1, 0),
@@ -221,8 +244,8 @@ func extra_npcs(map: Dictionary) -> Array:
 					"lines": ["No one reaches Gravenmoor. General Vexmora's orders.", "Turn back, or join the shadows!"],
 					"defeat": "The General... will not be pleased..."})
 		"route2":
-			if GameState.flag("shell_heard") and GameState.flag("kelp_heard") and not GameState.flag("culprit_beaten"):
-				out.append({"kind": "story", "id": "culprit", "name": "Smuggler Rook", "pos": _at(map, "culprit", plaza), "look": SMUGGLER_LOOK, "facing": Vector2i(0, 1), "story": true})
+			if _has_anchor(map, "tourist"):
+				out.append({"kind": "story", "id": "tourist", "name": "Tourist Gwen", "pos": _at(map, "tourist", plaza), "look": TOURIST_LOOK, "facing": Vector2i(0, 1)})
 		"sundown":
 			out.append({"kind": "story", "id": "sheriff", "name": "Sheriff Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
 		"cogsworth":
@@ -268,11 +291,9 @@ func npc_has_news(n: Dictionary) -> bool:
 		"guard":
 			return GameState.flag("has_starter") and not GameState.flag("bram_sendoff")
 		"chief_shell":
-			return not GameState.flag("shell_heard") or (GameState.flag("culprit_beaten") and not GameState.flag("island_peace"))
+			return not GameState.flag("shell_heard") and not GameState.flag("island_peace")
 		"chief_kelp":
-			return not GameState.flag("kelp_heard") or (GameState.flag("culprit_beaten") and not GameState.flag("island_peace"))
-		"culprit":
-			return true
+			return (not GameState.flag("kelp_heard") and not GameState.flag("island_peace")) or _reef_earned()
 		"sheriff":
 			return not GameState.flag("met_sheriff") or (GameState.flag("bandits_cleared") and not GameState.flag("sheriff_thanks"))
 		"protester":
@@ -281,6 +302,8 @@ func npc_has_news(n: Dictionary) -> bool:
 			return not GameState.flag("ceo_defeated")
 		"freight_control", "captive":
 			return not GameState.flag("trainers_freed")
+		"tide_keeper":
+			return not GameState.flag("met_tide_keeper")
 		"shaman":
 			return not GameState.flag("relic_quest") or (_relic_count() == 3 and not GameState.flag("ritual_done"))
 		"gravedigger":
@@ -322,7 +345,7 @@ func on_map_enter(world) -> void:
 			"From now on, defeated ghost beasts may leave Shadow Eggs, and ghost beasts can be merged at any Beast Center."])
 	elif id == "reef" and not GameState.flag("seen_reef"):
 		GameState.set_flag("seen_reef")
-		await UI.say(["The coral wall has parted. Far across the reef, the Temple of Tides rises from the waves."])
+		await UI.say(["Past Kelpwick's villagers at last. Far across the reef, the Temple of Tides rises from the waves."])
 	elif id == "route9" and GameState.flag("ritual_done") and not GameState.flag("seen_roots"):
 		GameState.set_flag("seen_roots")
 		await UI.say(["The ground still hums from the ritual. The Temple of Roots now stands where there were only vines."])
@@ -723,9 +746,9 @@ func _talk_villager(world, n: Dictionary) -> void:
 	var r := rng.randi_range(0, 99)
 	var quest := ""
 	if world.map_id == "shellhaven" and not GameState.flag("island_peace"):
-		quest = "Those Kelpwick folk stole our fishing nets! Everyone knows it. My cousin's neighbour's goat saw it."
+		quest = "Have you seen Kelpwick? Darling little huts! Shame they've walled off the temple. I wanted a carving for my mantelpiece."
 	elif world.map_id == "kelpwick" and not GameState.flag("island_peace"):
-		quest = "Someone from Shellhaven poured ink all over our reef. The fish are wearing tiny frowns!"
+		quest = "Resort folk carried off the temple's shell lamps as souvenirs. Now the tide comes in crooked."
 	elif world.map_id == "sundown" and not GameState.flag("bandits_cleared"):
 		quest = "Black Bart's gang rode through again. Took every sack of flour. And my favourite spoon. Monsters."
 	elif world.map_id == "cogsworth" and not GameState.flag("ceo_defeated"):
@@ -777,9 +800,10 @@ func next_goal() -> String:
 		return "marina"
 	if not GameState.flag("shell_heard") and not GameState.flag("kelp_heard"):
 		return "ferry"
-	if not (GameState.flag("shell_heard") and GameState.flag("kelp_heard")):
+	# Kelpwick's side of the story, then Reef Warden Nerissa, whose win gets the villagers off the reef path
+	if not GameState.flag("kelp_heard") and not GameState.flag("island_peace"):
 		return "chiefs"
-	for step in [["culprit_beaten", "smuggler"], ["island_peace", "peace"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
+	for step in [["island_peace", "warden"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
 			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
 			["trainers_freed", "rescue"],
 			["guardian_fire", "flame"], ["relic_quest", "jungle"], ["ritual_done", "relics"], ["guardian_earth", "roots"],
@@ -914,6 +938,12 @@ func _talk_story(world, n: Dictionary) -> void:
 			await UI.say([lines[int(n.get("captive_index", 0))]], n["name"])
 		"rescued_trainer":
 			await UI.say(["Wren helped us call our families. We're going home together. Thanks for giving us our first spring back."], n["name"])
+		"lever":
+			await _lever(world, n)
+		"chest":
+			await _chest(n)
+		"tide_keeper":
+			await _tide_keeper()
 		"song_stone":
 			await Places.song_stone(world, n)
 		"song_tablet":
@@ -987,7 +1017,7 @@ func _talk_story(world, n: Dictionary) -> void:
 				"That tall glass chamber next along? The healing machine. Pop your beasts in and they come out good as new. Free, any time! The storage terminal's right beside it.",
 				"The glowing altar on the end merges two beasts that have hit their level limit into one stronger beast. Very fancy. Very sparkly.",
 				"And round the end of that wall on the left is the kennel. Pip finds homes for beasts other trainers couldn't keep. You can adopt one, or leave one of yours.",
-				"And that red phone by the door? Call your dad on it any time. That's how you save your journey."], "Guide Dottie")
+				"And that red phone on the nurse's counter? Call your dad on it any time. That's how you save your journey."], "Guide Dottie")
 		"kennel_keeper":
 			await Places.kennel(world, world.kennel_town())
 		"thunderhawk":
@@ -1009,8 +1039,10 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _ranger()
 		"chief_shell", "chief_kelp":
 			await _chief(world, n)
-		"culprit":
-			await _culprit(world, n)
+		"tourist":
+			await _tourist(n)
+		"reef_crowd":
+			await _reef_crowd(n)
 		"sheriff":
 			await _sheriff()
 		"protester":
@@ -1121,53 +1153,82 @@ func _ranger() -> void:
 	GameState.main.goto_map("tidewater", "north", Vector2i(0, 1))
 
 
-func _chief(world, n: Dictionary) -> void:
-	var shell: bool = n["id"] == "chief_shell"
+## The Isle of Tides: Shellhaven's resort guests have been carrying bits of the Temple of Tides home as souvenirs, so
+## Kelpwick's villagers stand across the way to the reef. Shellhaven thinks the village quaint but backwards; Kelpwick
+## thinks the resort is selling off the island. The villagers step aside only to a trainer who beats Reef Warden Nerissa
+## in its great hut (reef_opened), proving they're no tourist.
+func _chief(_world, n: Dictionary) -> void:
 	var nm: String = n["name"]
-	if GameState.flag("island_peace"):
-		await UI.say(["Shellhaven and Kelpwick are one island again, thanks to you.",
-			"The coral gate east of Kelpwick stays open. The Temple of Tides awaits beyond the reef."], nm)
-		return
-	if GameState.flag("culprit_beaten"):
-		await UI.say(["Smuggler Rook confessed everything? The nets, the ink... it was him all along?",
-			"We fought each other for nothing. I'll send word to the other chief at once.",
-			"...",
-			"It's done. Our villages will open the coral gate together. Go east of Kelpwick, across the reef, to the Temple of Tides."], nm)
-		GameState.set_flag("island_peace")
-		Sfx.play("levelup")
-		UI.toast("The coral gate to the reef has opened!", UIKit.GOLD)
-		await GameState.main.reload_map()
-		return
-	if shell:
+	if n["id"] == "chief_shell":
+		if GameState.flag("island_peace"):
+			await UI.say(["Kelpwick's let the reef path open again? Splendid! I'll have the brochures reprinted.",
+				"Coralie says guests may look but not take. Honestly, they're only pebbles... but very well. Look, don't take."], nm)
+			return
+		if GameState.flag("shell_heard"):
+			await UI.say(["Kelpwick still standing guard over their reef? Chief Coralie's east along the Isle Trail.",
+				"Do be patient with her. They're simple folk. They don't get much sophisticated company."], nm)
+			return
 		GameState.set_flag("shell_heard")
-		await UI.say(["A trainer from the mainland? Hmph. Listen well.",
-			"Somebody from Kelpwick has been stealing our fishing nets. Three times this month!",
-			"Until they return them, the old coral gate to the reef stays shut. The temple can rot for all I care."], nm)
-	else:
-		GameState.set_flag("kelp_heard")
-		await UI.say(["You came from Shellhaven, didn't you? I can smell the fish.",
-			"Someone from that village poured squid ink all over our reef. Our coral is dying!",
-			"Only both chiefs together can open the coral gate to the Temple of Tides. And I'll never work with Marlo."], nm)
-	if GameState.flag("shell_heard") and GameState.flag("kelp_heard"):
-		await UI.say(["Both villages blame each other... but neither seems to have done it.",
-			"Maybe someone on the Isle Trail between the villages knows more."])
+		await UI.say(["Welcome to Shellhaven, the jewel of the Isle of Tides! Do try La Perla. The chef trained on the mainland.",
+			"You'll want the Temple of Tides, of course. Every guest does. And those Kelpwick villagers are standing in the road to stop anyone reaching it!",
+			"Quaint people, bless them. Grass huts, fish on sticks. But backwards. That temple could be the finest attraction on the coast.",
+			"So a few guests took home a carved stone or two. Little keepsakes! Hardly a crime.",
+			"Go east along the Isle Trail and talk some sense into Chief Coralie, would you?"], nm)
+		return
+	if GameState.flag("island_peace"):
+		await UI.say(["Nerissa told me how you battled. You fight for your beasts, not for keepsakes.",
+			"Our folk on the reef path will let you by. Go gently in the Temple of Tides. Take nothing but its song."], nm)
+		return
+	if _reef_earned():
+		await reef_opened(nm)
+		return
+	if GameState.flag("kelp_heard"):
+		await UI.say(["Nerissa waits by the ring in the great hut. Beat her, and our folk will let you through to the reef.",
+			"A tourist would have given up and gone back for cocktails by now."], nm)
+		return
+	GameState.set_flag("kelp_heard")
+	await UI.say(["Another visitor from the resort? Let me guess. You've come for the Temple of Tides.",
+		"Shellhaven's guests climb all over it. They chip the carvings and prise shells off the altar to take home as souvenirs.",
+		"The temple keeps the tides in balance. With every stone they take, the sea grows angrier. So now we stand across the path ourselves.",
+		"They call us quaint. Backwards. Meanwhile they line our beaches with deck chairs and sell the view by the night.",
+		"If you want through, prove you're a trainer and not a tourist. Beat Reef Warden Nerissa in our great hut, the big one on the high street."], nm)
+
+
+## True once you hold Nerissa's crest but the villagers still block the reef path (a game saved before beating her opened it).
+func _reef_earned() -> bool:
+	return GameState.crests.has(WorldDB.ARENAS["kelpwick"]["crest"]) and not GameState.flag("island_peace")
+
+
+## You beat Reef Warden Nerissa: no tourist battles like that, so Kelpwick's villagers let you through to the reef (the
+## town map clears them when it's next loaded, as you leave the great hut).
+func reef_opened(who: String) -> void:
+	if GameState.flag("island_peace"):
+		return
+	await UI.say(["No tourist battles like that. You trust your beasts, and they trust you.",
+		"I'll tell Coralie, and our folk on the reef path will let you by. Go gently in the Temple of Tides."], who)
+	GameState.set_flag("island_peace")
+	Sfx.play("levelup")
+	UI.toast("The way to the reef is open!", UIKit.GOLD)
+	if GameState.main.world != null and GameState.main.world.map_id == "kelpwick":
 		await GameState.main.reload_map()
 
 
-func _culprit(world, n: Dictionary) -> void:
-	await UI.say(["Eh? What're you staring at? These nets? Never seen 'em before.",
-		"...Fine! Yes, I nicked the nets, and I inked the reef too. While those fools fight, nobody's watching the temple treasure!",
-		"You'll never prove it. Not if I sink your beasts first!"], "Smuggler Rook")
-	if GameState.alive_party().is_empty():
-		await UI.say(["Ha! Your beasts can barely stand. Scram!"], "Smuggler Rook")
+## Tourist Gwen on the Isle Trail, with a shell prised off the temple's altar (until Kelpwick makes her give it back).
+func _reef_crowd(n: Dictionary) -> void:
+	if _reef_earned():
+		await reef_opened(n["name"])
 		return
-	var res := await trainer_battle({"name": "Rook", "cls": "Smuggler", "boss": true, "team": [[21, 7], [33, 8]], "look": SMUGGLER_LOOK,
-		"defeat": "Alright, alright! I'll give the nets back. And I'll tell the chiefs everything...", "reward": 900})
-	if res == "win":
-		GameState.set_flag("culprit_beaten")
-		world.remove_npc(n)
-		await UI.say(["Smuggler Rook drops the stolen nets and slinks off to confess to the chiefs.",
-			"Tell either chief what happened!"])
+	await UI.say(["Sorry, the reef path's closed. Too many tourists have been carrying the Temple of Tides home in their pockets.",
+		"Beat Reef Warden Nerissa in the great hut and prove you're no tourist. Then we'll let you by."], n["name"])
+
+
+func _tourist(n: Dictionary) -> void:
+	if GameState.flag("island_peace"):
+		await UI.say(["Kelpwick made me give my shell back! Honestly.", "...The altar did look happier with it, I suppose."], n["name"])
+		return
+	await UI.say(["Isn't the Temple of Tides divine? I got in before those villagers started standing in the road.",
+		"Look: a genuine temple shell! It was stuck to an altar, but it came right off.",
+		"What? Everybody takes one. It's practically a gift shop."], n["name"])
 
 
 func _sheriff() -> void:
@@ -1387,6 +1448,70 @@ func _finale(world, n: Dictionary) -> void:
 	await UI.say(["★ THE END ★", "Thank you for playing Ruby Cocoon!",
 		"Your journey continues: hatch every egg, master every song, and merge the ultimate team."])
 	await GameState.main.reload_map()
+
+
+# ================================================================ levers, chests and the temple keeper
+## A map's levers and treasure chests (map_loader.gd _fixture), as story objects.
+func fixtures(map: Dictionary) -> Array:
+	var out := []
+	for lv in map.get("levers", []):
+		out.append({"kind": "story", "id": "lever", "name": "", "pos": lv["pos"], "lever": lv["flag"], "info": lv["info"],
+			"scene": TempleProps.lever(GameState.flag(lv["flag"])), "still": true, "facing": Vector2i(0, 1)})
+	for ch in map.get("chests", []):
+		out.append({"kind": "story", "id": "chest", "name": "", "pos": ch["pos"], "item": ch["item"], "chest": ch["flag"],
+			"scene": TempleProps.chest(GameState.flag(ch["flag"])), "still": true, "facing": Vector2i(0, 1)})
+	return out
+
+
+## Pulls a lever (once: it locks): its flag drains the floods it works, here or in another room (map_loader.gd).
+func _lever(world, n: Dictionary) -> void:
+	var info: Dictionary = n.get("info", {})
+	var flag: String = n["lever"]
+	if GameState.flag(flag):
+		await UI.say([String(info.get("done", "The lever is locked in place."))])
+		return
+	if not await UI.ask(String(info.get("ask", "An old lever. Pull it?"))):
+		return
+	Sfx.play("lever")
+	await TempleProps.pull(n["node"])
+	GameState.set_flag(flag)
+	await UI.say(info.get("lines", ["Somewhere, water rushes away."]))
+	# the water here drains (or fills) at once
+	if flag in world.map.get("flood_flags", []):
+		await GameState.main.reload_map()
+
+
+## Opens a treasure chest (each once).
+func _chest(n: Dictionary) -> void:
+	if GameState.flag(n["chest"]):
+		await UI.say(["The chest is empty."])
+		return
+	GameState.set_flag(n["chest"])
+	await TempleProps.open_chest(n["node"])
+	GameState.add_item(n["item"])
+	Sfx.play("item")
+	var item_name := ItemDB.item_name(n["item"])
+	var article := "some" if item_name.ends_with("s") else ("an" if item_name.left(1).to_upper() in "AEIOU" else "a")
+	await UI.say(["You opened the chest. Inside: %s %s!" % [article, item_name]])
+
+
+## Keeper Pell, outside the Temple of Tides: how its halls drain, and what prowls them.
+func _tide_keeper() -> void:
+	var nm := "Keeper Pell"
+	if GameState.flag("guardian_water"):
+		await UI.say(["The sea's calm again, and the winds off the desert with it. You did that.",
+			"The temple's halls will keep. Come back whenever you like."], nm)
+		return
+	GameState.set_flag("met_tide_keeper")
+	if GameState.flag("tides_lever_3"):
+		await UI.say(["The great pool's drained! The stair down to the guardian's chamber is open.",
+			"Read the tablet down there before you wake it. The stones' song is the only thing it heeds."], nm)
+		return
+	await UI.say(["You came over the falls? Then you've a keen eye for old waterworks. You'll need it in there.",
+		"The Temple of Tides floods its own halls. The guardian's chamber lies under the great pool by the door.",
+		"The old priests drained it with three levers, one in each of the temple's wings. Pull them all."], nm)
+	await UI.say(["Mind the wings, though. Strong water beasts swim those channels, and you'll see them coming.",
+		"An air beast on the side that faces them helps. And the priests left treasure lying about. Keep an eye out."], nm)
 
 
 # ================================================================ temple guardians

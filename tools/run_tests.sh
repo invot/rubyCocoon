@@ -12,6 +12,10 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"shellhaven-marina|-- --scene=shellhaven-marina --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"
+	"shellhaven-marina-touch|-- --scene=shellhaven-marina --touch --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"
+	"island-towns|-- --scene=island-towns --wait=0.3|ISLAND TOWNS DONE: 0 problem"
+	"island-towns-touch|-- --scene=island-towns --touch --wait=0.3|ISLAND TOWNS DONE: 0 problem"
 	"scripts|--script res://tools/check_scripts.gd|SCRIPTS CHECK DONE: 0 of"
 	"data|--script res://tools/check_data.gd|DATA CHECK DONE: 0 problem"
 	"maps|--script res://tools/check_maps.gd|MAPS WITH PROBLEMS: 0"
@@ -32,7 +36,7 @@ TESTS=(
 	"cocoon-touch|-- --scene=cocoon --verify=1 --touch --save_dir=res://build/cocoon_touch_saves/|COCOON DONE: 0 problem"
 	"rescue|-- --scene=rescue|RESCUE TEST DONE: 0 problem"
 	"tidewater-arrival|-- --scene=tidewater-arrival --verify=1|TIDEWATER ARRIVAL DONE: 0 problem"
-	"flow|-- --scene=flow --wait=0.3|FLOW TEST DONE"
+	"flow|-- --scene=flow --save_dir=res://build/flow_test_saves/ --wait=0.3|FLOW TEST DONE"
 	"walk|-- --scene=walk4 --wait=0.3|WALK TEST DONE: 0 problem"
 	"walk-touch|-- --scene=walk4 --touch --wait=0.3|WALK TEST DONE: 0 problem"
 	"battlecmd|-- --scene=battlecmd --touch --wait=0.3|BATTLE COMMANDS DONE: 0 problem"
@@ -48,6 +52,10 @@ TESTS=(
 	"tidewater-layout|--script res://tools/check_tidewater_layout.gd|TIDEWATER LAYOUT DONE: 0 problem"
 	"maps-built|-- --scene=maps --wait=0.3|MAP TOUR DONE: .*, 0 porch"
 	"phone|-- --scene=phone --wait=0.3|PHONE TEST DONE: 0 problem"
+	"counter-phones|-- --scene=counter-phones --wait=0.3|COUNTER PHONES DONE: 0 problem"
+	"counter-phones-touch|-- --scene=counter-phones --touch --wait=0.3|COUNTER PHONES DONE: 0 problem"
+	"phone-save|-- --scene=phone-save --save_dir=res://build/phone_save_tests/ --wait=0.3|PHONE SAVE DONE: 0 problem"
+	"phone-save-touch|-- --scene=phone-save --touch --save_dir=res://build/phone_save_touch_tests/ --wait=0.3|PHONE SAVE DONE: 0 problem"
 	"save-ui|-- --scene=saveui --save_dir=res://build/save_ui_saves/ --wait=0.3|SAVE UI TEST DONE: 0 problem"
 	"save-ui-touch|-- --scene=saveui --touch --save_dir=res://build/save_ui_touch_saves/ --wait=0.3|SAVE UI TEST DONE: 0 problem"
 	"doorway|-- --scene=doorway --wait=0.3|DOORWAY TEST DONE: 0 problem"

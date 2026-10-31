@@ -4,6 +4,9 @@ extends RefCounted
 
 const RaceDB = preload("res://scripts/data/race_db.gd")
 
+## Added sea west of Shellhaven's original town; also used to retain old saved positions and beach staging.
+const SHELLHAVEN_WEST_PADDING := 18
+
 ## Town progression order (also each town's shop tier).
 const TOWN_ORDER := ["caccoon", "tidewater", "shellhaven", "kelpwick", "dustwell", "sundown",
 	"copperpick", "cogsworth", "emberfall", "vinehollow", "riverbend", "gravenmoor"]
@@ -17,10 +20,10 @@ const TOWNS := {
 		"blurb": "A French Quarter harbour town of iron balconies and stone quays. Ferries sail from here to the Isle of Tides."},
 	"shellhaven": {"name": "Shellhaven", "size": "village", "mascot": 26, "signature": "pearl_cannon", "biome": "island",
 		"shops": ["center", "apothecary", "cafe", "house", "house", "house"],
-		"blurb": "A fishing village on the west shore of the Isle of Tides."},
+		"blurb": "A pastel mission-style resort on the west shore, with a grand hotel and a sunlit beach."},
 	"kelpwick": {"name": "Kelpwick", "size": "village", "mascot": 23, "signature": "kelp_maelstrom", "biome": "island",
-		"shops": ["center", "beast_gear", "arena", "house", "house", "house"],
-		"blurb": "A village of reef-divers on the east shore of the Isle of Tides."},
+		"shops": ["arena", "beast_gear", "house", "house", "house"],
+		"blurb": "A modest village of round wooden homes and thrifty reef-divers, sheltered by tropical jungle. Its great hut is arena and healer both."},
 	"dustwell": {"name": "Dustwell Oasis", "size": "hamlet", "mascot": 32, "signature": "sirocco", "biome": "desert",
 		"shops": ["center", "apothecary", "fortune", "house", "house"],
 		"blurb": "The last cool water before the open desert."},
@@ -53,7 +56,7 @@ const ROUTES := {
 	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [2, 4], "races": [0, 27, 36, 24, 15, 30],
 		"after_flute": true, "pack": 1},
 	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [4, 7], "races": [24, 27, 12, 36, 9]},
-	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "island", "lv": [7, 10], "races": [21, 24, 27]},
+	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "reef", "lv": [7, 10], "races": [21, 24, 27]},
 	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [30, 15, 3, 33, 9]},
 	"route4": {"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3]},
 	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21], "temple": "air"},
@@ -67,10 +70,13 @@ const ROUTES := {
 ## The four elemental temples, and Gravenmoor's crypt. Each holds a guardian beast that can't be beaten, only
 ## captured: wear it down and play the temple's song (song; the singing stones in its room teach it, Places.song_stone).
 ## A captured guardian becomes a summon (GameState.summons, the battle's Summon command). helpers: the beasts that
-## fight beside it (the first temple's guardian brings one).
+## fight beside it (the first temple's guardian brings one). rooms: a temple of several rooms, the way in first (else
+## just its one room): its maze wings, where strong beasts of its element prowl and treasure chests wait, hold the
+## levers that drain the water hiding the way down to the guardian's own chamber (interior_maps.gd).
 const TEMPLES := {
 	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff",
-		"element": "water", "song": "song_tides", "helpers": [21]},
+		"element": "water", "song": "song_tides", "helpers": [21],
+		"rooms": ["temple_tides_hall", "temple_water", "temple_tides_west", "temple_tides_east", "temple_tides_gallery"]},
 	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
 		"element": "air", "song": "song_winds", "helpers": [33, 36]},
 	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a",
@@ -175,7 +181,10 @@ const ARENA_LESSONS := [
 ## team: [race, level] (a line's first form: the level picks the form). Each teaches a flute song.
 const ARENAS := {
 	"tidewater": {"element": "water", "leader": "Marina", "title": "Tide Captain", "team": [[24, 9], [27, 9], [21, 10]], "song": "shanty", "crest": "Wave Crest", "gold": 900, "look": {"shirt": "#2f6fb0", "hair": "#203048", "hat": "#f0f0f0"}},
-	"kelpwick": {"element": "water", "leader": "Nerissa", "title": "Reef Warden", "team": [[21, 15], [27, 15], [24, 16]], "song": "coral", "flute": "lullaby", "crest": "Coral Crest", "gold": 1300, "look": {"shirt": "#e07a8a", "hair": "#30a0b0"}},
+	## Nerissa guards the way to the reef (beating her gets the villagers off the reef path, Story.reef_opened), so her beasts are only a
+	## step above Marina's, close to the Coral Reef's. "intro": what a master says before your first challenge.
+	"kelpwick": {"element": "water", "leader": "Nerissa", "title": "Reef Warden", "team": [[21, 10], [27, 10], [24, 11]], "song": "coral", "flute": "lullaby", "crest": "Coral Crest", "gold": 1300, "look": {"shirt": "#e07a8a", "hair": "#30a0b0"},
+		"intro": "So you want the reef too? Every tourist does. Show me you're a trainer, not a sightseer!"},
 	"sundown": {"element": "air", "leader": "Rosa", "title": "Gunslinger", "team": [[36, 21], [3, 21], [12, 22]], "song": "reel", "crest": "Spur Crest", "gold": 1800, "look": {"shirt": "#8a4a2a", "hair": "#2a1a10", "hat": "#6a4a2a"}},
 	"copperpick": {"element": "earth", "leader": "Gorran", "title": "Mine Foreman", "team": [[15, 27], [9, 27], [6, 28]], "song": "dirge", "crest": "Ore Crest", "gold": 2400, "look": {"shirt": "#5a6070", "hair": "#806040", "hat": "#e8c040", "outfit": "coat"}},
 	"cogsworth": {"element": "earth", "leader": "Volta", "title": "Chief Engineer", "team": [[30, 33], [0, 33], [12, 34]], "song": "anvil", "flute": "static", "crest": "Cog Crest", "gold": 3000, "look": {"shirt": "#6a4a3a", "hair": "#f0f0f0", "hat": "#c8a040", "outfit": "apron"}},
@@ -196,8 +205,8 @@ const BIOMES := {
 		"trees": [["tree_oak", 3], ["palm", 2], ["tree_round_1", 1]], "rocks": ["rock_small"],
 		"shrubs": ["shrub_1", "shrub_3", "bush_1", "bush_2"], "mixed": 0.3,
 		"sky_top": "#4aa8f0", "sky_hz": "#e0eef4", "sun": "#fff4e0", "sun_e": 1.3, "amb": 0.62, "style": "creole", "water": "#3a8ad0", "music": "coast"},
-	"island": {"ground": "#6ac050", "side": "#9a7a50", "sand": "#f0e0a8", "path": "#d8b880", "plaza": "#d8ccb0", "tuft": "#4ab040",
-		"trees": [["palm", 3], ["palm_bent", 2], ["tree_dome", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
+	"island": {"ground": "#479c50", "side": "#9a7a50", "sand": "#f0e0a8", "path": "#d8b880", "plaza": "#d8ccb0", "tuft": "#4ab040",
+		"trees": [["palm", 5], ["palm_bent", 4], ["tree_big", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
 		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.4, "amb": 0.62, "style": "island", "water": "#2aa8d8", "music": "island"},
 	"desert": {"ground": "#e2c890", "side": "#b8945a", "sand": "#ecd8a0", "path": "#c8a070", "plaza": "#d8c098", "tuft": "#b8a050",
 		"trees": [["cactus_1", 2], ["cactus_2", 2], ["cactus_3", 1]], "rocks": ["field_rock", "bones_1", "bones_2", "stone_2"], "shrubs": ["bush_1", "bush_2"],
@@ -220,6 +229,11 @@ const BIOMES := {
 	"hotspring": {"ground": "#6a8a5a", "side": "#5a4a40", "sand": "#a89a80", "path": "#8a7a68", "plaza": "#9a948a", "tuft": "#5a8a4a",
 		"trees": [["tree_pine", 2], ["dead_tree", 1]], "rocks": ["mountain_7", "rock_big"], "shrubs": ["shrub_3"],
 		"sky_top": "#8a8aa8", "sky_hz": "#f0c8a8", "sun": "#ffd8b0", "sun_e": 1.25, "amb": 0.55, "style": "hotspring", "water": "#6ac8d8", "music": "hotspring"},
+	# the Coral Reef: a jungle of tall trees and palms on the cliffs above the sea, rivers falling through it
+	"reef": {"ground": "#4aa64a", "side": "#8a6a46", "sand": "#f0e0a8", "path": "#c8a674", "plaza": "#d8ccb0", "tuft": "#4ab040",
+		"trees": [["tree_big", 4], ["palm", 3], ["palm_bent", 2], ["tree_oak", 1]], "rocks": ["mossy_statue", "beach_rock", "rock_big"],
+		"shrubs": ["shrub_2", "shrub_4", "shrub_1"],
+		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.35, "amb": 0.6, "style": "island", "water": "#2aa8d8", "music": "island"},
 	"jungle": {"ground": "#3f8a3a", "side": "#5a4028", "sand": "#a89060", "path": "#8a7048", "plaza": "#8a8a70", "tuft": "#3aa03a",
 		"trees": [["tree_big", 3], ["tree_oak", 2], ["palm", 1]], "rocks": ["mossy_statue", "rock_big"], "shrubs": ["shrub_2", "shrub_4", "shrub_1"],
 		"sky_top": "#5aa0c8", "sky_hz": "#d8f0d0", "sun": "#fff4d0", "sun_e": 1.2, "amb": 0.55, "style": "jungle", "water": "#3a9a9a", "music": "jungle"},

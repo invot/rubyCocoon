@@ -15,6 +15,7 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const TerrainShader = preload("res://scripts/gfx/terrain.gdshader")
 const WaterShader = preload("res://scripts/gfx/water.gdshader")
+const Shoreline = preload("res://scripts/world/shoreline.gd")
 
 const CHUNK := 16
 const MARGIN := 16
@@ -94,6 +95,8 @@ func _plane(i: int, u: float, v: float) -> float:
 func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 	var own := _i(tx, tz)
 	var base := _plane(own, (gx - 2 * tx) / 2.0, (gz - 2 * tz) / 2.0)
+	if Shoreline.contains(elev_map, gx * 0.5, gz * 0.5):
+		return base + Shoreline.bottom(elev_map, gx * 0.5, gz * 0.5)
 	# a ramp is one smooth slope
 	if ramp[own] != 0:
 		return base
@@ -376,6 +379,10 @@ func _liquid(parent: Node3D, kind: int, col: Color) -> void:
 	mat.set_shader_parameter("opacity", 1.0 if lava else 0.84)
 	mat.set_shader_parameter("glow", 1.4 if lava else 0.0)
 	mat.set_shader_parameter("drift", Vector2(0.01, 0.02) if lava else Vector2(0.0, 0.03))
+	if not lava and elev_map.has("shoreline"):
+		var r: Array = elev_map["shoreline"]
+		mat.set_shader_parameter("shore", Vector4(r[0], r[1], r[2], r[3]))
+		mat.set_shader_parameter("shore_levels", Vector3(Shoreline.WATER_Y, Shoreline.WADE_FLOOR, Shoreline.DEEP_FLOOR))
 	var mi := MeshInstance3D.new()
 	mi.mesh = m
 	mi.material_override = mat

@@ -13,6 +13,7 @@ const InteriorMaps = preload("res://scripts/data/maps/interior_maps.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 
 const TILE_CHARS := {
+	"a": MapGen.SHALLOWS,
 	".": MapGen.GRASS, ",": MapGen.PATH, ":": MapGen.PLAZA, "g": MapGen.TALL, "T": MapGen.TREE,
 	"t": MapGen.BUSH, "~": MapGen.WATER, "=": MapGen.BRIDGE, "#": MapGen.ROCK, "W": MapGen.WALL,
 	"f": MapGen.FLOWERS, "F": MapGen.FENCE, "_": MapGen.SAND, "L": MapGen.LAMP, "%": MapGen.LAVA,
@@ -28,7 +29,7 @@ const ROOM_CHARS := {
 	"=": MapGen.BENCH, "~": MapGen.FOUNTAIN, "Y": MapGen.CRYSTAL, "D": MapGen.MAT, "%": MapGen.LAVA,
 	">": MapGen.STAIRS_UP, "<": MapGen.STAIRS_DOWN, "g": MapGen.MIST, "H": MapGen.HEALER, "I": MapGen.INCUBATOR,
 	"K": MapGen.KENNEL, "d": MapGen.IDOOR, "L": MapGen.LOCKED, "Z": MapGen.LOCKED, " ": MapGen.IVOID,
-	"/": MapGen.IDIAG_A, "\\": MapGen.IDIAG_B,
+	"/": MapGen.IDIAG_A, "\\": MapGen.IDIAG_B, "_": MapGen.WATER,
 }
 ## Tiles drawn as furniture (see room_builder.gd KINDS): the furniture letters of interior_maps.gd plus the older
 ## room tiles that are furniture too.
@@ -125,9 +126,66 @@ static func wake_room(interior: String) -> String:
 	return base
 
 
+# ================================================================ floods, levers and chests
+## A map's (or a room's) "floods": tiles of water that drain when a lever's flag is set, or dry channels that fill.
+##   "floods": {char: {"flag": flag, "wet": char, "dry": char, "rises": false}}
+## Each flood character in the rows stands for its "wet" character (water: "~" outdoors, "_" in a room) until the flag
+## is set, then for its "dry" one (ground, floor, or a way on, like stairs); with "rises" it's the other way round.
+## Returns {"rows": the rows as they are now, "wet": the tiles under water now that will drain}.
+static func _flooded(src: Dictionary, flags: Dictionary) -> Dictionary:
+	var floods: Dictionary = src.get("floods", {})
+	if floods.is_empty():
+		return {"rows": src["rows"], "wet": {}}
+	var out := []
+	var wet := {}
+	for y in src["rows"].size():
+		var row := String(src["rows"][y])
+		for ch in floods:
+			var f: Dictionary = floods[ch]
+			var rises: bool = f.get("rises", false)
+			var under: bool = bool(flags.get(f["flag"], false)) == rises
+			if under and not rises:
+				var at := row.find(ch)
+				while at >= 0:
+					wet[Vector2i(at, y)] = f["flag"]
+					at = row.find(ch, at + 1)
+			row = row.replace(ch, String(f["wet"]) if under else String(f["dry"]))
+		out.append(row)
+	return {"rows": out, "wet": wet}
+
+
+## Remembers a map's floods for the checks (tools/check_maps.gd) and the levers that work them.
+static func _keep_floods(m: Dictionary, src: Dictionary, flood: Dictionary) -> void:
+	m["flood_wet"] = flood["wet"]
+	m["flood_flags"] = []
+	for ch in src.get("floods", {}):
+		var f: String = src["floods"][ch]["flag"]
+		if not f in m["flood_flags"]:
+			m["flood_flags"].append(f)
+	m["lever_info"] = src.get("levers", {})
+	m["levers"] = []
+	m["chests"] = []
+
+
+## An anchor that places a fixture rather than marking a spot (Story.extra_npcs builds them):
+##   "lever:<flag>"   a lever that sets the flag (its words: the map's "levers"[flag]), draining or filling floods
+##   "chest:<item>"   a treasure chest holding the item, opened once (its own flag)
+## Returns true if it was one.
+static func _fixture(m: Dictionary, an: String, p: Vector2i, id: String) -> bool:
+	if an.begins_with("lever:"):
+		var flag := an.substr(6)
+		m["levers"].append({"pos": p, "flag": flag, "info": m.get("lever_info", {}).get(flag, {})})
+		return true
+	if an.begins_with("chest:"):
+		m["chests"].append({"pos": p, "item": an.substr(6), "flag": "chest_%s_%d" % [id, m["chests"].size()]})
+		return true
+	return false
+
+
 # ================================================================ outdoor maps
 static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary:
-	var rows: Array = src["rows"]
+	var flood := _flooded(src, flags)
+	var rows: Array = flood["rows"]
 	var h := rows.size()
 	var w := 0
 	for r in rows:
@@ -142,6 +200,10 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	m["gate_tiles"] = []
 	m["pushables"] = {}
 	m["log_bridges"] = []
+	_keep_floods(m, src, flood)
+	for key in ["ornate_bridges", "bridge_rails"]:
+		if src.has(key):
+			m[key] = src[key]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = id.hash()
 	var letters := {}
@@ -179,7 +241,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
-	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props"]:
+	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props", "shoreline"]:
 		if src.has(setting):
 			m[setting] = src[setting]
 	for p in m["pushables"]:
@@ -269,6 +331,11 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		for key in appearance:
 			m["buildings"].back()[key] = appearance[key]
 		idx += 1
+	# a town without a Beast Center (Kelpwick) heals in its arena: you arrive, fly in and come round in front of it
+	if not m.has("center_front"):
+		for b in m["buildings"]:
+			if b["shop"] == "arena":
+				m["center_front"] = b["door"] + Vector2i(0, 1)
 
 	# statue (top-left of the 2x2 block)
 	for y in h:
@@ -327,6 +394,8 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 				var k: int = fixed_k.get(item_id, 0)
 				fixed_k[item_id] = k + 1
 				m["items"].append({"pos": p, "item": item_id, "flag": "item_%s_%s_%d" % [id, item_id, k]})
+			elif _fixture(m, an, p, id):
+				pass
 			else:
 				m["anchors"][an] = p
 	if WorldDB.ROUTES.has(id):
@@ -648,6 +717,10 @@ static func _spawn_inside(m: Dictionary, tiles: Array, dir: String) -> Vector2i:
 ## The room template names a building uses, one per floor.
 static func room_set(b: Dictionary) -> Array:
 	var shop: String = b["shop"]
+	if b.get("town", "") == "kelpwick" and shop == "house":
+		return ["studio_a"]
+	if b.get("hotel", false):
+		return ["hotel_lobby", "hotel_suite"]
 	if shop == "bookstore" and b.get("town", "") == "caccoon":
 		return ["library"]
 	if b.has("rooms"):
@@ -655,7 +728,8 @@ static func room_set(b: Dictionary) -> Array:
 	if shop == "house":
 		return InteriorMaps.HOUSES[int(b["seed"]) % InteriorMaps.HOUSES.size()]
 	if shop == "temple":
-		return [WorldDB.TEMPLES[b.get("temple", "water")]["room"]]
+		var t: Dictionary = WorldDB.TEMPLES[b.get("temple", "water")]
+		return t.get("rooms", [t["room"]])
 	return InteriorMaps.SHOP_ROOMS.get(shop, ["house_a"])
 
 
@@ -678,11 +752,22 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	var b: Dictionary = pm["buildings"][idx]
 	var rooms := room_set(b)
 	var key: String = rooms[clampi(fl - 1, 0, rooms.size() - 1)]
-	var room: Dictionary = InteriorMaps.ROOMS[key]
-	var rows: Array = room["rows"]
+	var room: Dictionary
+	if key.begins_with("hotel_"):
+		room = InteriorMaps.HOTEL_ROOMS[key]
+	elif parent == "kelpwick":
+		room = InteriorMaps.kelpwick_room(key)
+	else:
+		room = InteriorMaps.ROOMS[key]
+	if parent == "shellhaven" and key in ["cafe", "apothecary"]:
+		room = room.duplicate(true)
+		room["floor_tex"] = {"shop": "floor_marble"}
+	var flood := _flooded(room, flags)
+	var rows: Array = flood["rows"]
 	var h := rows.size()
 	var w := String(rows[0]).length()
 	var m := MapGen._new_map(id, "interior", w, h)
+	_keep_floods(m, room, flood)
 	m["name"] = b["name"]
 	m["building"] = b
 	m["parent"] = parent
@@ -700,6 +785,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["shards"] = []
 	m["furniture"] = {}
 	m["staff_doors"] = {}
+	# a red telephone standing on the counter instead of on its own table (room "counter_phone": [x, y])
+	if room.has("counter_phone"):
+		m["counter_phone"] = Vector2i(int(room["counter_phone"][0]), int(room["counter_phone"][1]))
 	m["zone_rows"] = room.get("zones", [])
 	m["zone_default"] = room.get("zone", _default_zone(key, room))
 	var dots := 0
@@ -728,7 +816,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			var ch := row[x]
 			var p := Vector2i(x, y)
 			if door_rooms.has(ch):
-				MapGen.set_t(m, x, y, MapGen.IDOOR)
+				# (a flight of stairs can lead to another room too: down out of a drained pool, say)
+				MapGen.set_t(m, x, y, MapGen.STAIRS_DOWN if ch == "<" else (MapGen.STAIRS_UP if ch == ">" else MapGen.IDOOR))
 				links[p] = door_rooms[ch]
 			elif InteriorMaps.FURNITURE.has(ch):
 				MapGen.set_t(m, x, y, MapGen.FURN)
@@ -756,6 +845,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 					var k: int = fixed_k.get(item_id, 0)
 					fixed_k[item_id] = k + 1
 					m["items"].append({"pos": p, "item": item_id, "flag": "item_%s_%s_%d" % [id, item_id, k]})
+				elif _fixture(m, an, p, id):
+					pass
 				else:
 					m["anchors"][an] = p
 			elif npc_roles.has(ch):
@@ -777,6 +868,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				exhibit_k += 1
 			elif ch == "D":
 				mats.append(p)
+			elif door_rooms.has(ch):
+				pass
 			elif ch == ">":
 				ups.append(p)
 			elif ch == "<":
@@ -870,6 +963,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	if room.has("encounter"):
 		var enc: Dictionary = room["encounter"]
 		m["encounter"] = {"races": enc.get("races", []), "lv": enc["lv"], "rate": 0.13, "ghosts": 1.0 if enc.get("ghost", false) else 0.0}
+		# a temple's maze: its beasts prowl the corridors in plain sight (world.gd _spawn_wilds), not in mist
+		if enc.get("roam", false):
+			m["encounter"]["roam"] = true
 	return m
 
 

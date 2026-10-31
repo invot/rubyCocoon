@@ -50,17 +50,18 @@ const ROOMS := {
 	## behind Kennel Keeper Pip's counter (4), and two chairs (c) in the front corner. A wall runs forward from the back
 	## between it and the diner and stops short of the front, so you walk round its end. Each machine has its own bay
 	## along the diner's back wall: the nurse's counter with her egg incubator (1, I), the soda-can healing machine (H),
-	## the storage terminal (M) and the merge altar (A); the red phone (@) stands by the entrance. Guide Dottie (2)
+	## the storage terminal (M) and the merge altar (A); the red phone stands on the nurse's counter. Guide Dottie (2)
 	## walks about the room.
 	"center": {
 		"wall": "#eef6f2", "rug": "#d8283a", "checker": true, "stage": true,
 		"npcs": {"1": "keeper", "2": "guide", "3": "patron", "4": "kennel"},
+		"counter_phone": [8, 2],
 		"rows": [
 			"##w######w###w###",
 			"#KKKK#1I#:H:M:A:#",
 			"#.4..#CCCrrrrrrr#",
 			"#CCCC#::::::::::#",
-			"#....#:::::::::@#",
+			"#....#::::::::::#",
 			"#....#::2:::3:::#",
 			"#c...:::::::::::#",
 			"#c...::::::::::PD",
@@ -81,11 +82,12 @@ const ROOMS := {
 	"apothecary": {
 		"wall": "#d8e8d0", "rug": "#4a8a5a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The restroom. It's occupied."],
+		"counter_phone": [6, 2],
 		"rows": [
 			"#####Z#####",
 			"#sss.1.sss#",
 			"#pCCCCCCCpw",
-			"#........@w",
+			"#.........w",
 			"L..rr2rr..#",
 			"#..rrrrr.PD",
 			"###########",
@@ -131,7 +133,7 @@ const ROOMS := {
 	},
 	## Every arena is one big room, like the Beast Center (21x9: the camera follows you round it). You come in on the
 	## right, into the lobby: the host (1) at her desk in the back corner (she runs the arena ladder, never the master's
-	## challenge), a bench and the red phone. On the left, on its own marble floor, is the master's hall: the ring (x)
+	## challenge), a bench and the red phone on the host's counter. On the left, on its own marble floor, is the master's hall: the ring (x)
 	## with benches round it and the arena master (3) waiting on its far side, two fans (4, 5) watching. A wall runs
 	## forward from the back between the two and stops short of the front, so you walk round its end to reach the
 	## master. In Bellerive the arena's two coaches (6, 7: world_db.gd ARENA_LESSONS) wait in the lobby: Rory above the
@@ -141,9 +143,10 @@ const ROOMS := {
 		"wall": "#c8c0b0", "rug": "#b03a3a", "stage": true, "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"},
 		"anchors": {"6": "lesson_team", "7": "lesson_elements"},
 		"locked": ["The changing room. Someone in there is practising a victory speech."],
+		"counter_phone": [15, 2],
 		"rows": [
 			"###w#####w#######w###",
-			"#=::::3::::=#p1p.==@#",
+			"#=::::3::::=#p1p.==.#",
 			"#=:xxxxxxx:=#CCC....w",
 			"#::x:::::x::#......6w",
 			"L::x:::::x::#.......#",
@@ -168,11 +171,12 @@ const ROOMS := {
 	"cafe": {
 		"wall": "#f0d8d0", "rug": "#c07040", "stage": true, "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
 		"locked": ["The restroom. Somebody's humming in there."],
+		"counter_phone": [6, 2],
 		"rows": [
 			"#####Z#####",
 			"#ss..1...p#",
 			"#CCCCCCCCCw",
-			"#........@w",
+			"#.........w",
 			"#ht2...ht3#",
 			"L........PD",
 			"###########",
@@ -225,11 +229,12 @@ const ROOMS := {
 	"music_shop": {
 		"wall": "#d8c8a8", "rug": "#2a5a8a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The practice room. Someone in there is playing the same three notes over and over."],
+		"counter_phone": [6, 2],
 		"rows": [
 			"#####Z#####",
 			"#nB.B1B.BB#",
 			"#CCCCCCCCCw",
-			"#........@w",
+			"#.........w",
 			"#....2....#",
 			"L.==.....PD",
 			"###########",
@@ -490,25 +495,133 @@ const ROOMS := {
 			"###########",
 		],
 	},
+	# The Temple of Tides (WorldDB.TEMPLES "water"): a hall, three wings and the guardian's chamber below. The hall's
+	# east channel (;) drains with the west wing's lever, the basin before the gallery's door (+) with the east wing's,
+	# and the great pool (?) with the gallery's, showing the stairs down (!) to the chamber. In the wings, walkways run
+	# between water channels (_), strong water beasts prowl them in plain sight ("roam"), and chests hold treasure.
+	"temple_tides_hall": {
+		"wall": "#8ab8d8", "rug": "#2a6aa8",
+		"doors": {"[": "temple_tides_west", "]": "temple_tides_east", "^": "temple_tides_gallery", "<": "temple_water"},
+		"floods": {";": {"flag": "tides_lever_1", "wet": "_", "dry": ":"}, "+": {"flag": "tides_lever_2", "wet": "_", "dry": ":"},
+			"?": {"flag": "tides_lever_3", "wet": "_", "dry": ":"}, "!": {"flag": "tides_lever_3", "wet": "_", "dry": "<"}},
+		"rows": [
+			"##########^##########",
+			"#:::::::+++++:::;;::#",
+			"#___::::+++++:::;;::#",
+			"#___::o:::::o:::;;::#",
+			"#___::::::::::::;;::#",
+			"#::::?????????::;;::#",
+			"#::::?????????::;;::#",
+			"[::::????!????::;;::]",
+			"#::::?????????::;;::#",
+			"#::::?????????::;;::#",
+			"#___::::::::::::;;::#",
+			"#___::o:::::o:::;;::#",
+			"#___::::::::::::;;::#",
+			"DP::::::::::::::;;::#",
+			"#####################",
+		],
+	},
+	"temple_tides_west": {
+		"wall": "#8ab8d8", "rug": "#2a6aa8",
+		"doors": {"]": "temple_tides_hall"},
+		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
+		"anchors": {"5": "lever:tides_lever_1", "6": "chest:tide_pendant", "7": "chest:potion"},
+		"levers": {"tides_lever_1": {"ask": "A heavy bronze lever, cold and wet. Pull it?",
+			"lines": ["Deep in the walls, a gate grinds open. Far off, water roars away down a drain.",
+				"Something has drained, back in the entrance hall."],
+			"done": "The lever is locked down. Water still gurgles somewhere below."}},
+		"rows": [
+			"#######################",
+			"#5_:::::::::_:_:::::::#",
+			"#:_:_:_____:_:_:_____:#",
+			"#:_:::_:::::_:::_:::_:#",
+			"#:_:___:___:_____:_:_:#",
+			"#:_:::_:::::::::::_:::#",
+			"#:___:_________:___:_:#",
+			"#:::::_:::::::::::::_:]",
+			"#______:_:___:_:_____:#",
+			"#:::::_:_:::::_:::::::#",
+			"#:___:_:_______:_____:#",
+			"#:_:::_:_:::::_:::_:::#",
+			"#:_:___:_:___:_____:_:#",
+			"#6_:::::::_7::::::::_:#",
+			"#######################",
+		],
+	},
+	"temple_tides_east": {
+		"wall": "#8ab8d8", "rug": "#2a6aa8",
+		"doors": {"[": "temple_tides_hall"},
+		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
+		"anchors": {"5": "lever:tides_lever_2", "6": "chest:tide_charm", "7": "chest:revival_seed"},
+		"levers": {"tides_lever_2": {"ask": "Another bronze lever, carved with waves. Pull it?",
+			"lines": ["A deep rumble shakes the floor, and water drains away somewhere close by.",
+				"The basin before the hall's north door must be empty now."],
+			"done": "The lever is locked down."}},
+		"rows": [
+			"#######################",
+			"#5_:::::_6::::::::::::#",
+			"#:___:_:_________:___:#",
+			"#:::::_:_:::_:::::::::#",
+			"#______:_:_:_:_____:__#",
+			"#:::::_:::_:_:::_7_:::#",
+			"#____:_____:___:_:_:_:#",
+			"[:::_:::::_:::::_:_:::#",
+			"#:_:_:_:_____:___:___:#",
+			"#:_:::_:::::::::::::_:#",
+			"#:___:_:_______:_____:#",
+			"#:::_:_:::::::_:_:::_:#",
+			"#:_:_____:_:_:_:_:_:_:#",
+			"#:_:::::::::_:_:::::::#",
+			"#######################",
+		],
+	},
+	"temple_tides_gallery": {
+		"wall": "#8ab8d8", "rug": "#2a6aa8",
+		"doors": {"]": "temple_tides_hall"},
+		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
+		"anchors": {"5": "lever:tides_lever_3", "6": "chest:spirit_tonic"},
+		"levers": {"tides_lever_3": {"ask": "The last bronze lever, crowned with a coral wave. Pull it?",
+			"lines": ["The whole temple shudders. Back in the entrance hall, the great pool drains away with a roar.",
+				"Where the water was, a stair must lead down into the dark."],
+			"done": "The lever is locked down. The way to the inner chamber is open."}},
+		"rows": [
+			"#####################",
+			"#5::::_:::::_:::::::#",
+			"#____:_:_:_:_:_____:#",
+			"#:::::_:_:_:_:_:::::#",
+			"#:_____:_:_:___:_:_:#",
+			"#:_6_:::_:_:::::_:::#",
+			"#:_:_:_:_:_______:__#",
+			"#:_:_:::_:::_:::_:::]",
+			"#:_:___:___:_:___:_:#",
+			"#:_:::::::::_:::::_:#",
+			"#:_______:___:_:_:_:#",
+			"#:::::::::::::::_:::#",
+			"#####################",
+		],
+	},
+	# the guardian's inner chamber, down the stairs out of the hall's drained pool, the way back up through the door in
+	# its west wall (no one else is down here)
 	"temple_water": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
-		"npcs": {"1": "guardian", "2": "patron"},
-		"encounter": {"lv": [8, 11], "races": [21, 24, 27]},
+		"npcs": {"1": "guardian"},
+		"doors": {"[": "temple_tides_hall"},
 		"anchors": {"3": "stone_0", "4": "stone_1", "5": "stone_2", "6": "stone_3", "7": "tablet"},
 		"rows": [
-			"#####w#####w#####",
-			"#o~~~o..A..o~~~o#",
-			"#.~~~...1...~~~.#",
+			"#################",
+			"#o___o..A..o___o#",
+			"#.___...1...___.#",
 			"#..3..4.:.5..6..#",
-			"#o.ggg.....ggg.o#",
-			"#..ggg..r..ggg..#",
+			"#o.___.....___.o#",
+			"#..___..r..___..#",
 			"#o.....rrr.....o#",
-			"#..~~..rrr..~~..#",
-			"#o.~~..rrr..~~.o#",
+			"#..__..rrr..__..#",
+			"#o.__..rrr..__.o#",
 			"#......rrr......#",
-			"#.2..7.rrr....*.#",
-			"#......rPr......#",
-			"#######DDD#######",
+			"#....7.rPr....*.#",
+			"[...............#",
+			"#################",
 		],
 	},
 	"temple_air": {
@@ -528,8 +641,8 @@ const ROOMS := {
 			"#..ggg.rrr.ggg..#",
 			"#o.....rrr.....o#",
 			"#.*....rrr......#",
-			"#....7.rPr.....@#",
-			"#######DDD#######",
+			"DP...7.rrr.....@#",
+			"#################",
 		],
 	},
 	"temple_fire": {
@@ -549,8 +662,8 @@ const ROOMS := {
 			"#o%%...rrr...%%o#",
 			"#......rrr......#",
 			"#.....*rrr......#",
-			"#....7.rPr.....@#",
-			"#######DDD#######",
+			"DP...7.rrr.....@#",
+			"#################",
 		],
 	},
 	"temple_earth": {
@@ -570,8 +683,8 @@ const ROOMS := {
 			"#o.....rrr.....o#",
 			"#......rrr......#",
 			"#.*....rrr....p.#",
-			"#....7.rPr.....@#",
-			"#######DDD#######",
+			"DP...7.rrr.....@#",
+			"#################",
 		],
 	},
 	"hideout": {
@@ -586,8 +699,8 @@ const ROOMS := {
 			"#.............#",
 			"#=====.....3..#",
 			"#..h.......*..#",
-			"#.....rPr.....#",
-			"######DDD######",
+			"DP....rrr.....#",
+			"###############",
 		],
 	},
 	## Old Hal the builder's log cabin by the Coastal Path's washed-out footbridge: Hal (1, story.gd _builder) is too
@@ -633,8 +746,8 @@ const ROOMS := {
 			"#.......e..e..L",
 			"#.2...........#",
 			"#.............#",
-			"#......P......#",
-			"######DDD######",
+			"DP............#",
+			"###############",
 		],
 	},
 	"ceo_2": {
@@ -701,8 +814,8 @@ const ROOMS := {
 			"#......rrr......#",
 			"#.===..rrr..===.#",
 			"#o.....rrr.....o#",
-			"#......rPr......#",
-			"#######DDD#######",
+			"DP.....rrr......#",
+			"#################",
 		],
 	},
 	"crypt_1": {
@@ -774,3 +887,94 @@ const SHOP_ROOMS := {
 
 ## The townsfolk's houses (each picks one by its seed): two studios, a house of two rooms, one with an upstairs.
 const HOUSES := [["studio_a"], ["studio_b"], ["house_two", "house_two_bed"], ["house_up", "house_up_hall", "house_up_bed"]]
+
+## Rounded timber stage rooms on the Isle of Tides. The entrance stays in the visible eastern side wall.
+static func kelpwick_room(key: String) -> Dictionary:
+	return KELPWICK_ROOMS.get(key, ROOMS[key])
+
+const KELPWICK_ROOMS := {
+	"studio_a": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "resident"},
+		"rows": [
+			"   ###w###   ",
+			"  /Nbb..SR\\  ",
+			" /..bb.....\\ ",
+			"#...........#",
+			"#......yy...#",
+			"#..@.......PD",
+			"#.....1.....#",
+			"#...........#",
+			" \\........./ ",
+			"  \\......./  ",
+			"   #######   ",
+		],
+	},
+	"outfitter": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "2": "patron"},
+		"counter_phone": [7, 2],
+		"rows": [
+			"   ###w###   ",
+			"  /.s.1.s.\\  ",
+			" /CCCCCCCCC\\ ",
+			"#...........#",
+			"#...........#",
+			"#..........PD",
+			"#.....2.....#",
+			"#...........#",
+			" \\........./ ",
+			"  \\......./  ",
+			"   #######   ",
+		],
+	},
+	## Kelpwick has no Beast Center: its great hut keeps the village's healing machine (H) in the back corner, with the red
+	## telephone on the host's counter beside it ("counter_phone": its counter tile) so nothing stands in the machine's way.
+	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "anchors": {"6": "lesson_team", "7": "lesson_elements"},
+		"counter_phone": [17, 2],
+		"rows": [
+			"   #######w#######   ",
+			"  /............1..\\  ",
+			" /CCCCCCCCCCCCCCCCC\\ ",
+			"#.....3............H#",
+			"#..xxxxxxxx.........#",
+			"#..x......x.........#",
+			"#..x......x........PD",
+			"#..x......x......6..#",
+			"#..xxxxxxxx.........#",
+			"#..4......5......7..#",
+			" \\................./ ",
+			"  \\.............../  ",
+			"   ###############   ",
+		],
+	},
+}
+
+## A hotel lobby and guest suite share the normal room-door system.
+const HOTEL_ROOMS := {
+	"hotel_lobby": {
+		"stage": true, "zone": "hall", "wall": "#f4d5bd", "rug": "#7aa9a0",
+		"npcs": {"1": "keeper", "2": "patron"},
+		"doors": {"d": "hotel_suite"}, "locked": ["The hotel kitchen. Staff only."],
+		"counter_phone": [6, 2],
+		"rows": [
+			"#####Z#####",
+			"#p...1...p#",
+			"#CCCCCCCCCw",
+			"#.........w",
+			"d..2......#",
+			"#SS..yy..PD",
+			"###########",
+		],
+		"floor_tex": {"hall": "floor_marble"},
+	},
+	"hotel_suite": {
+		"stage": true, "zone": "bedroom", "wall": "#b8d9d3", "rug": "#d4b38b",
+		"doors": {"d": "hotel_lobby"}, "locked": ["Your suite's private bathroom."],
+		"rows": [
+			"######L######",
+			"#NbbN..SS..@w",
+			"#.bb........w",
+			"#...........#",
+			"dP....yy....#",
+			"#...........#",
+			"#############",
+		],
+	},
+}

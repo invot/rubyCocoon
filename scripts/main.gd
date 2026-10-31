@@ -590,6 +590,18 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "shellhaven-marina":
+		await load("res://tools/debug/shellhaven_marina.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "island-towns":
+		await load("res://tools/debug/island_towns.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "island-story":
+		await load("res://tools/debug/island_story.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "waterfront":
 		await load("res://tools/debug/waterfront.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -902,11 +914,18 @@ func _run_test() -> void:
 		Input.action_release("move_down")
 		await _wait(1.5)
 		print("after leaving: map ", world.map_id, " at ", world.player_pos, " facing ", world.facing)
+	elif scene == "phone-save":
+		await _go(MapLoader.interior_of("caccoon", "home"), "entry")
+		await _wait(0.6)
+		await load("res://tools/debug/phone_save.gd").new().run(self)
 	elif scene == "phone":
 		# the first morning: going to leave home rings the phone, and you can't go until you've answered; Dad's call
 		# saves the game; a payphone takes 5 coins, and without them there's no call
 		UI.auto = true
 		var bad := 0
+		_test["save_dir"] = "res://build/phone_test_saves/"
+		for i in GameState.SLOT_COUNT:
+			GameState.delete_slot(i)
 		var home := MapLoader.interior_of("caccoon", "home")
 		_do_goto(home, "entry")
 		await _wait(1.0)
@@ -918,7 +937,7 @@ func _run_test() -> void:
 		var ringing: bool = world.get_node_or_null("Ringer") != null
 		print("leave before the call: ", left, "  ringing: ", ringing)
 		bad += int(left) + int(not ringing)
-		UI.auto_answers = [0]
+		UI.auto_answers = [0, 0]
 		await Phone.call_home(world)
 		var saved := GameState.current_slot >= 0 and GameState.has_save()
 		left = await Story.can_use_exit(world, out)
@@ -934,11 +953,19 @@ func _run_test() -> void:
 		print("broke: gold ", before, " -> ", GameState.gold)
 		bad += int(GameState.gold != before)
 		GameState.gold = 20
-		UI.auto_answers = [0, 0]
+		UI.auto_answers = [0, 0, 0]
 		await Phone.call_home(world, Phone.FEE)
 		print("paid: gold 20 -> ", GameState.gold)
 		bad += int(GameState.gold != 20 - Phone.FEE)
 		print("log: ", UI.auto_log.slice(maxi(0, UI.auto_log.size() - 6)))
+		# Declining Dad's save leaves the existing journey untouched, then still asks whether to continue.
+		var save_before := FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot))
+		UI.auto_log.clear()
+		UI.auto_answers = [0, 1, 0]
+		await Phone.call_home(world)
+		bad += int(FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot)) != save_before)
+		bad += int(not "Dad: Would you like me to save your journey?" in UI.auto_log)
+		bad += int(not "Dad: Do you want to continue playing?" in UI.auto_log)
 		# away from home you can call Mom instead (the payphone still takes its coins): a tip, and nothing is saved
 		GameState.gold = 20
 		UI.auto_log.clear()
@@ -1010,13 +1037,15 @@ func _run_test() -> void:
 				Phone._tip_turn = int(_test["tip"])
 		var by := Vector2i(10, 3)
 		var toward := Vector2i(1, 0)
-		for t in world.map.get("furniture", {}):
-			if world.map["furniture"][t] == "phone":
-				for d in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-					if world._walkable(t + d):
-						by = t + d
-						toward = -d
-						break
+		var phones: Array = world.map.get("furniture", {}).keys().filter(func(t): return world.map["furniture"][t] == "phone")
+		if world.map.has("counter_phone"):
+			phones.append(world.map["counter_phone"])
+		for t in phones:
+			for d in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if world._walkable(t + d):
+					by = t + d
+					toward = -d
+					break
 		var st := String(_test.get("stand", "14,10" if pay else "%d,%d" % [by.x, by.y])).split(",")
 		var fc := String(_test.get("face", "0,-1" if pay else "%d,%d" % [toward.x, toward.y])).split(",")
 		var at := Vector2i(int(st[0]), int(st[1]))
@@ -1378,6 +1407,8 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "interiors":
 		await load("res://tools/debug/interiors.gd").new().run(self, _test)
+	elif scene == "counter-phones":
+		await load("res://tools/debug/counter_phones.gd").new().run(self, _test)
 	elif scene == "maps":
 		# every town and route, and every floor of every building, built in turn (a missing model or texture prints
 		# an error, which tools/run_tests.sh counts as a failure)
@@ -1386,13 +1417,15 @@ func _run_test() -> void:
 		var built := 0
 		var porches := 0
 		for id in WorldDB.TOWNS.keys() + WorldDB.ROUTES.keys():
-			await _go(id, "start")
+			_load_world(id, "start")
+			world.frozen = true
 			await get_tree().process_frame
 			built += 1
 			porches += _porches_out(world)
 			for b in world.map.get("buildings", []):
 				for f in range(1, MapLoader.room_set(b).size() + 1):
-					await _go(MapLoader.floor_id(b["interior"], f), "entry")
+					_load_world(MapLoader.floor_id(b["interior"], f), "entry")
+					world.frozen = true
 					await get_tree().process_frame
 					built += 1
 		Engine.time_scale = 1.0
@@ -2144,6 +2177,31 @@ func _enter_temple(tk: String) -> void:
 	await _go(String(t["route"]))
 	await _wait(1.0)
 	await _go(_bld("temple")["interior"], "entry")
+	await _down_to_guardian(tk)
+
+
+## In a temple of several rooms (WorldDB.TEMPLES "rooms"), pulls the lever in each wing (draining the way on), then
+## goes down to the guardian's chamber. Prints what it did.
+func _down_to_guardian(tk: String) -> void:
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	if not t.has("rooms"):
+		return
+	var rooms: Array = t["rooms"]
+	var base: String = MapLoader.parent_of(world.map_id) + "#" + world.map_id.get_slice("#", 1).get_slice("@", 0)
+	for i in range(1, rooms.size()):
+		await _go(MapLoader.floor_id(base, i + 1), "from_" + String(rooms[0]))
+		await _wait(0.5)
+		for p in world.npcs.keys():
+			var n: Dictionary = world.npcs.get(p, {})
+			if n.get("id", "") in ["lever", "chest"]:
+				if n["id"] == "lever":
+					UI.auto_answers.append(0)
+				await Story.talk(world, n)
+		print("temple room %s: levers %s" % [rooms[i], world.map.get("levers", []).map(func(l): return "%s %s" % [l["flag"], GameState.flag(l["flag"])])])
+	var at := rooms.find(t["room"])
+	await _go(MapLoader.floor_id(base, at + 1), "from_" + String(rooms[0]))
+	await _wait(0.5)
+	print("down in %s: guardian here %s" % [t["room"], not _npc("guardian_" + tk).is_empty()])
 
 
 ## Reads the tablet, then strikes the temple's stones in its order (the song is then learned in auto mode).
@@ -2387,23 +2445,26 @@ func _flow_test() -> void:
 	print("kelpwick gate tiles: ", world.map["gate_tiles"].size())
 	_step("chief kelp", [])
 	await Story.talk(world, _npc("chief_kelp"))
+	print("kelp_heard ", GameState.flag("kelp_heard"), "  hint: ", Story.next_goal())
 	await _go("route2", "west")
 	await _wait(1.5)
-	_step("culprit", [])
-	print("culprit present: ", not _npc("culprit").is_empty())
-	await Story.talk(world, _npc("culprit"))
-	print("culprit_beaten ", GameState.flag("culprit_beaten"))
+	print("tourist on the Isle Trail: ", not _npc("tourist").is_empty())
+	# no Beast Center in Kelpwick: Reef Warden Nerissa, in the great hut, gets the villagers off the reef path
+	print("kelpwick has a center: ", MapLoader.load_map("kelpwick", GameState.flags)["buildings"].any(func(b): return b["shop"] == "center"))
+	await _go(MapLoader.interior_of("kelpwick", "arena"), "entry")
+	await _wait(1.0)
+	GameState.heal_party()
+	_step("nerissa", [])
+	print("Nerissa: ", await Places.arena_challenge("kelpwick"), "  Coral Crest ", GameState.crests.has("Coral Crest"))
 	await _go("kelpwick", "center")
 	await _wait(1.5)
-	_step("chief kelp peace", [])
-	await Story.talk(world, _npc("chief_kelp"))
-	await _wait(1.5)
-	print("island_peace ", GameState.flag("island_peace"), " gate tiles now ", world.map["gate_tiles"].size())
+	print("island_peace ", GameState.flag("island_peace"), " gate tiles now ", world.map["gate_tiles"].size(), "  hint: ", Story.next_goal())
 	await _go("reef", "west")
 	await _wait(1.5)
 	var tb := _bld("temple")
 	await _go(tb["interior"], "entry")
 	await _wait(1.5)
+	await _down_to_guardian("water")
 	_step("temple stones", [])
 	await _solve_stones("water")
 	print("stones_water ", GameState.flag("stones_water"), " knows song_tides ", GameState.knows_song("song_tides"))

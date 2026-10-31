@@ -171,6 +171,8 @@ static func style_for(biome_id: String) -> String:
 
 ## Builds the full node for a building dictionary (shop, w, d, height, door, x, y, seed).
 static func build(b: Dictionary, style_name: String) -> Node3D:
+	if style_name in ["roundwood", "resort"]:
+		return load("res://scripts/gfx/island_buildings.gd").build(b, style_name)
 	var st: Dictionary = STYLES.get(style_name, STYLES["town"])
 	var shop: String = b["shop"]
 	var w: float = b["w"]
@@ -204,6 +206,10 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		_pack_building(node, b, style_name, st, shop, w, d, door_lx, locked)
 		if shop == "uncle":
 			_rafe_flute_sign(node, b, 3.15)
+		return node
+	# the Temple of Tides: a domed sea temple on a stepped platform, its grand stair at the door
+	if shop == "temple" and b.get("temple", "") == "water":
+		_tide_temple(node, w, d)
 		return node
 	match shop:
 		"skytower":
@@ -1185,6 +1191,23 @@ static func _pack_ceo_tower(node: Node3D, w: float, d: float, door_lx: float, lo
 ## Gravenmoor Cathedral: a dark stone nave of the house pack's walls (two storeys of tall windows down its sides, the
 ## great door at the front under a round rose window that glows violet) under a steep slate roof, and two square towers
 ## at the front corners, three storeys of small windows each, with pyramid spires.
+## The Temple of Tides from the water temple pack (tools/import_psx_tide_temple.gd), fitted to its plot: the stair
+## at the front (+z), standing on the ground.
+const TIDE_TEMPLE := "res://assets/houses/tide_temple.res"
+
+
+static func _tide_temple(node: Node3D, w: float, d: float) -> void:
+	var mesh: Mesh = load(TIDE_TEMPLE)
+	if mesh == null:
+		return
+	var size := mesh.get_aabb().size
+	var s := minf(w / size.x, d / size.z)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.scale = Vector3.ONE * s
+	node.add_child(mi)
+
+
 static func _pack_cathedral(node: Node3D, w: float, d: float, door_lx: float, locked: bool) -> void:
 	var stone := Color("#6a6a74")
 	var mat: Material = HouseBuilder.wall_material("stone_dark", stone)

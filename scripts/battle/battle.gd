@@ -906,7 +906,7 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		tufts[i % 3].append(_xf(p, rng.randi_range(0, 3) * PI / 2.0, rng.randf_range(0.9, 1.3)))
 	for i in 3:
 		_multimesh(VP.grass_tuft(biome["tuft"], i), tufts[i])
-	if biome["id"] in ["coast", "quarter", "island", "river"]:
+	if biome["id"] in ["coast", "quarter", "island", "river", "reef"]:
 		var water := MeshInstance3D.new()
 		var wp := PlaneMesh.new()
 		wp.size = Vector2(80, 14)

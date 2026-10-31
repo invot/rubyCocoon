@@ -1,6 +1,7 @@
 # Ruby Cocoon: credits
 
 Code, procedural buildings, maps and writing were made for this project.
+The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
 The downloaded packs themselves aren't kept in the repository (they were in `psx/`, `voxelassets/`, `ui/`,
 `music/`, `sfx/`, `new models/` and `new beasts/`): only what the game uses is, converted into `assets/`, plus the two
 fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files the packs came with are in
@@ -46,6 +47,11 @@ desaturated or recoloured; each model's meshes merged into one, with automatic l
   under its roof, its roof vents, side boards, display stand and waterline ring left out), cut from about 1.5
   million to 4,400 triangles, painted flat colours (it came with no materials). It came with no credit, so it's
   Creative Commons.
+- **Water Temple Island**, a temple on an island in 22 OBJ parts downloaded into `psx/water_temple/` (the Temple of
+  Tides, baked by `tools/import_psx_tide_temple.gd`). *Changes made:* only the temple kept (the island, its trees and
+  rocks, the sea dome, the courtyard's carved paving, the fountain's jet and the roof's fretted rim left out), cut from
+  about 80,000 to 5,900 triangles, painted flat colours (it came without materials). It came with no credit, so it's
+  Creative Commons. A Minecraft jungle temple pack, downloaded at the same time, was used only as a layout reference.
 
 ### Towns and buildings (`assets/houses/`, `assets/exteriors/`, `assets/interiors/`)
 Made by `tools/import_psx_houses.gd`, `tools/import_psx_exterior.gd`, `tools/import_psx_interior.gd`,
