@@ -13,6 +13,8 @@ var _ui_mode: int
 func _ready() -> void:
 	if not OS.has_feature("web"):
 		return
+	if not bool(JavaScriptBridge.eval("typeof window.rubyFullscreen !== 'undefined'", true)):
+		return
 	_browser = JavaScriptBridge.get_interface("rubyFullscreen")
 	if _browser == null:
 		return

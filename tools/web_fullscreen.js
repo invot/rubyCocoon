@@ -3,6 +3,8 @@
     const mobile = navigator.userAgentData?.mobile === true ||
         /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(navigator.userAgent) ||
         (/Macintosh|MacIntel/i.test(navigator.userAgent + navigator.platform) && navigator.maxTouchPoints > 1);
+    // Shared with Prefs: touchscreen laptops remain desktop browsers.
+    window.rubyMobileBrowser = mobile;
     if (!mobile) return;
 
     const root = document.documentElement;

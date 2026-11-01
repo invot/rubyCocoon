@@ -45,7 +45,9 @@ test('mobile starts blocked, resumes in fullscreen, pauses on browser exit and r
     assert.equal(b.requests(), 2);
 });
 test('desktop and a touch-capable Windows desktop get no mobile shell', () => {
-    assert.equal(browser({ua:'Windows NT Chrome', touch:10}).window.rubyFullscreen, undefined);
+    const b = browser({ua:'Windows NT Chrome', touch:10});
+    assert.equal(b.window.rubyFullscreen, undefined);
+    assert.equal(b.window.rubyMobileBrowser, false);
 });
 test('iPad desktop agent gets the mobile shell', () => {
     assert.ok(browser({ua:'Macintosh Safari',platform:'MacIntel',touch:5}).window.rubyFullscreen);

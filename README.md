@@ -40,6 +40,9 @@ it isn't on your PATH.
 
 On desktop, a key guide slides up along the bottom of the screen while the Start book is open, and hides again
 during play. On phones and tablets the on-screen buttons take its place. You can switch either off in **Start → Settings**.
+Desktop browsers always use the keyboard guide instead of the touch pad, even on touchscreen computers. The guide
+also appears on the web title menu, character creator and Load Game screen. Web builds have no Quit application
+button; **Quit to title** in Settings still returns to the title menu. Mobile browser and Android controls are unchanged.
 
 Tap (or click) anywhere in the world to walk there; double-tap to run. Tap a person, a door, a sign, an item or a
 wild beast to walk up to it and use it; if you're already next to it, you use it straight away.

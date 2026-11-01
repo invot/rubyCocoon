@@ -11,6 +11,7 @@ var text_speed := 60.0
 var touch_controls := "auto"
 var show_key_legend := true
 var fullscreen := false
+var _browser_mobile: Variant = null
 ## the gem the menus are tinted with: one of UIKit.ACCENTS ("ruby", "sapphire", "emerald", "hematite")
 var accent := "ruby"
 ## how the menus look: "pixel" (the 1-bit frames and the paper book) or "cozy" (the rounded windows); see UIKit.STYLES
@@ -72,10 +73,22 @@ func set_value(key: String, value) -> void:
 
 ## True on phones and tablets (including mobile web browsers).
 func is_mobile() -> bool:
+	if OS.has_feature("web"):
+		if _browser_mobile == null:
+			_browser_mobile = JavaScriptBridge.eval("window.rubyMobileBrowser", true)
+		if _browser_mobile != null:
+			return bool(_browser_mobile)
 	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios") or "--touch" in OS.get_cmdline_user_args()
 
 
+func is_desktop_web() -> bool:
+	return OS.has_feature("web") and not is_mobile()
+
+
 func touch_enabled() -> bool:
+	# Desktop web always uses the key guide, including touchscreen laptops and old saved pad settings.
+	if is_desktop_web():
+		return false
 	match touch_controls:
 		"on":
 			return true

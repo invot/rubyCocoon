@@ -181,6 +181,8 @@ func _fit_rows() -> void:
 	UIKit.place(_outer, anchor, margin)
 	var rect := _outer.get_global_rect()
 	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x)
+	if Prefs.is_desktop_web():
+		reserve = maxf(reserve, UI.bottom_reserve())
 	if UIKit.touch_ui() and anchor == "center":
 		# Keep full-size choices in the middle; a little border overlap with the side pad is allowed.
 		reserve = UI.bottom_reserve()

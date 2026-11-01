@@ -114,6 +114,7 @@ func _process(_delta: float) -> void:
 func _title() -> void:
 	UI.allow_pause = false
 	UI.controls.set_title_mode(false)
+	UI.controls.show_title_legend(Prefs.is_desktop_web())
 	# the menu comes up over the title's own scene in the 3D view (the boot splash is a moment of it)
 	_clear_title_world()
 	Sfx.music("title")
@@ -131,7 +132,7 @@ func _title() -> void:
 			items.append("Continue")
 			items.append("Load Game")
 		items.append("New Game")
-		if not Prefs.is_mobile():
+		if not Prefs.is_mobile() and not OS.has_feature("web"):
 			items.append("Quit")
 		# big enough to read across a phone; with no save yet, "New Game" is a big glowing button with no box round it
 		# (Quit, on desktops, plain text under it); on phones too it stays under the logo rather than over it
@@ -221,6 +222,7 @@ func back_to_title() -> void:
 
 func _clear_title() -> void:
 	_hide_slot_preview()
+	UI.controls.show_title_legend(false)
 	UI.controls.set_title_mode(false)
 	for n in _title_nodes:
 		if is_instance_valid(n):

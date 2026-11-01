@@ -21,8 +21,9 @@ const PAD_ACTIONS := {
 }
 
 var legend: Control
-## The desktop key legend only slides up while the Start book is open.
+## The key guide appears with the Start book, and also throughout the desktop web title flow.
 var _legend_up := false
+var _title_legend_up := false
 var touch_root: Node2D
 var _buttons := {}
 var _touch_on := false
@@ -47,13 +48,13 @@ func refresh() -> void:
 		_recolour()
 	_touch_on = Prefs.touch_enabled() and not title_mode
 	touch_root.visible = _touch_on
-	legend.visible = not _touch_on and Prefs.show_key_legend
+	legend.visible = not _touch_on and (Prefs.show_key_legend or Prefs.is_desktop_web())
 	_place_legend(true)
 	_layout()
 
 
 func legend_visible() -> bool:
-	return legend != null and legend.visible and _legend_up
+	return legend != null and legend.visible and (_legend_up or _title_legend_up)
 
 
 ## Slides the key legend up into view (or back down out of sight).
@@ -64,10 +65,18 @@ func show_legend(on: bool) -> void:
 	_place_legend(false)
 
 
+## The web title flow and the Start book own their visibility independently.
+func show_title_legend(on: bool) -> void:
+	if on == _title_legend_up:
+		return
+	_title_legend_up = on
+	_place_legend(false)
+
+
 func _place_legend(instant: bool) -> void:
 	if legend == null:
 		return
-	var top := -LEGEND_H if _legend_up else 0.0
+	var top := -LEGEND_H if _legend_up or _title_legend_up else 0.0
 	if instant:
 		legend.offset_top = top
 		legend.offset_bottom = top + LEGEND_H
