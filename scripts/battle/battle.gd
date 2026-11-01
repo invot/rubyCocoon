@@ -188,6 +188,7 @@ var _target_refs: Array = []
 var _time := 0.0
 var player_rig: Node3D
 var rival_rig: Node3D
+var _acting_ref = null
 var shield_label: Label3D
 var shield_bubble: MeshInstance3D
 
@@ -1258,6 +1259,40 @@ func _ref_height(ref) -> float:
 	return float(nodes[ref].get_meta("height")) if nodes.has(ref) else 1.0
 
 
+## Command selection and action outlines belong to the HUD.
+func _select_hud_actor(ref) -> void:
+	ally_grid.focus = -1
+	foe_grid.focus = -1
+	if ref != null:
+		var grid: Control = foe_grid if (typeof(ref) == TYPE_STRING and ref == "foe_trainer") or foe_slots.has(ref) or foe_ring.values().has(ref) else ally_grid
+		grid.focus = _hud_actor_tile(ref, grid == ally_grid)
+	ally_grid.queue_redraw()
+	foe_grid.queue_redraw()
+
+
+func _hud_actor_tile(ref, ally: bool) -> int:
+	if typeof(ref) == TYPE_STRING:
+		return -2
+	return _slot_of(ally_ring, ref) if ally else (foe_slots.find(ref) if wild else _slot_of(foe_ring, ref))
+
+
+func _set_acting(ref) -> void:
+	_acting_ref = ref
+	_select_hud_actor(null)
+	_update_acting_hud()
+
+
+func _update_acting_hud() -> void:
+	ally_grid.acting = -1
+	foe_grid.acting = -1
+	if _acting_ref != null:
+		var ally: bool = _acting_ref != "foe_trainer" if typeof(_acting_ref) == TYPE_STRING else ally_ring.values().has(_acting_ref)
+		var grid: Control = ally_grid if ally else foe_grid
+		grid.acting = _hud_actor_tile(_acting_ref, ally)
+	ally_grid.queue_redraw()
+	foe_grid.queue_redraw()
+
+
 ## The aiming arcs: from the beast (or you) choosing, a glowing arch over to each target ending in an arrowhead, with a
 ## white core and pulses running along it towards the target, over a dark edge so it reads against bright ground.
 func _draw_arcs() -> void:
@@ -1317,6 +1352,7 @@ func _arc_strip(im: ImmediateMesh, p0: Vector3, c: Vector3, p2: Vector3, w: floa
 ## Aim the arch from the acting beast or trainer to the selected target(s).
 func _show_targets(list: Array, sel: int, source = "trainer_self") -> void:
 	_aim_from = source
+	_select_hud_actor(source)
 	_target_refs = []
 	for i in list.size():
 		if sel < 0 or i == sel:
@@ -1497,7 +1533,7 @@ func _build_hud() -> void:
 	# (your shield points show under your own bar instead: battle_bars.gd)
 	ally_grid.show_shield = false
 	cmd_root.add_child(ally_grid)
-	cmd_root.move_child(bars, -1) # bars draw and receive taps above the faded front column
+	cmd_root.move_child(bars, -1) # bars draw beside the ring and receive taps above the stage
 	# the trainers in the middle of their grids, locking eyes across the screen: you from behind, looking up and left
 	# to the foe's grid; the rival from the front, looking down and right to yours
 	ally_grid.trainer_icon = _person_icon(GameState.hero_look(), PI + 0.5)
@@ -1788,6 +1824,7 @@ func _refresh() -> void:
 	if bars != null and not _commanding:
 		bars.set_rows(_idle_rows(), -1)
 	_update_shield()
+	_update_acting_hud()
 
 
 ## The bars out of the command phase: the names of the beasts facing the foe (and yours, which only shows while you
@@ -1844,10 +1881,7 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 		out.append(row)
 	bars.set_rows(out, focus)
 	var fr: Dictionary = rows[focus]
-	# your own turn lights your centre cell, a beast's its tile
-	ally_grid.focus = -2 if fr["kind"] == "trainer" else -1
-	if fr["kind"] == "beast" and focus >= 1:
-		ally_grid.focus = Ring.side_slots(ally_side)[focus - 1]
+	_select_hud_actor(fr.get("beast", null) if fr["kind"] == "beast" else "trainer_self")
 	ally_grid.target = -1
 	foe_grid.target = -1
 	ally_grid.targets = []
@@ -1995,6 +2029,8 @@ func _run() -> void:
 		_check_end()
 		await _check_exposed()
 		_refresh()
+	_select_hud_actor(null)
+	_set_acting(null)
 	await _finish()
 	finished.emit(result)
 
@@ -2221,6 +2257,7 @@ func _command_phase() -> Array:
 	var focus := 0
 	while true:
 		if result != "":
+			_select_hud_actor(null)
 			return []
 		if rows[0].get("done", false) and not _rows_waiting(rows):
 			break
@@ -2233,7 +2270,6 @@ func _command_phase() -> Array:
 		_commanding = false
 		_show_option({}, {})
 		_hide_targets()
-		ally_grid.focus = -1
 		ally_grid.target = -1
 		foe_grid.target = -1
 		ally_grid.targets = []
@@ -2245,6 +2281,7 @@ func _command_phase() -> Array:
 			"go":
 				break
 			"rotate":
+				_select_hud_actor(null)
 				var ns := Ring.next_side(ally_ring, ally_side, int(r["dir"]))
 				if ns != ally_side:
 					await _turn_ring("ally", ns)
@@ -2303,6 +2340,7 @@ func _command_phase() -> Array:
 							result = "forfeit"
 							return []
 	_caption("")
+	_select_hud_actor(null)
 	_refresh()
 	return _acts_from_rows(rows)
 
@@ -2809,11 +2847,15 @@ func _flute_flow() -> bool:
 	if c < 0:
 		return false
 	var song: String = ids[c]
+	var played: bool
 	if SongDB.is_summon(song):
-		return await _guardian_song_flow(song)
-	if SongDB.is_charm(song):
-		return await _charm_flow(song)
-	return await _effect_song_flow(song)
+		played = await _guardian_song_flow(song)
+	elif SongDB.is_charm(song):
+		played = await _charm_flow(song)
+	else:
+		played = await _effect_song_flow(song)
+	_set_acting(null)
+	return played
 
 
 func _charmable(song: String) -> Array:
@@ -2835,6 +2877,7 @@ func _effect_song_flow(song: String) -> bool:
 			if target == null:
 				return false
 	flute_used = true
+	_set_acting("trainer_self")
 	await msg("You raise your flute and play %s..." % s["name"], 0.6)
 	var acc: float = float((await UI.flute_ex(song, "%s  —  faster and cleaner means a stronger effect" % SongDB.tag(song), {"lesson": tutorial}))["acc"])
 	_battle_music()
@@ -2858,6 +2901,7 @@ func _charm_flow(song: String) -> bool:
 	var flawless: bool = GameState.needs_flawless(t) and not tutorial
 	if flawless:
 		await msg("%s is stronger than any of your beasts. Only a flawless performance will reach it!" % t.nickname, 1.2)
+	_set_acting("trainer_self")
 	await msg("You raise your flute and play %s..." % SongDB.get_song(song)["name"], 0.7)
 	var sub := "Charming %s (Lv %d)  —  play it FLAWLESSLY: not a single wrong note!" % [t.nickname, t.level] if flawless \
 		else "Charming %s (Lv %d)  —  faster and cleaner means a better chance" % [t.nickname, t.level]
@@ -3191,11 +3235,14 @@ func _try_run() -> bool:
 	var chance := clampf(0.55 + (mine - theirs) / maxf(1.0, mine + theirs), 0.3, 0.95)
 	if _side_open("ally"):
 		chance = 0.5
+	_set_acting("trainer_self")
 	if randf() < chance:
 		Sfx.play("back")
 		await msg("You got away safely!")
+		_set_acting(null)
 		return true
 	await msg("Couldn't get away!")
+	_set_acting(null)
 	return false
 
 
@@ -3390,6 +3437,7 @@ func _eff_stat(b, s: String) -> float:
 
 
 func _resolve(acts: Array) -> void:
+	_select_hud_actor(null)
 	for a in acts:
 		var actor = a.get("actor", null)
 		a["spd"] = (_eff_stat(actor, "spd") if actor != null else 1000.0) * randf_range(0.9, 1.1)
@@ -3402,7 +3450,13 @@ func _resolve(acts: Array) -> void:
 	for a in acts:
 		if result != "":
 			return
+		# Skip inactive beasts before outlining their HUD icons, and clear before faint/end reports.
+		if a.get("type", "") in ["move", "defend"] and (a["actor"].hp <= 0 or not _active(a["actor"])):
+			continue
+		if a.get("type", "none") in ["none", "flute"]:
+			continue
 		_message_subject = a.get("actor", "foe_trainer" if a.get("type", "") == "rival_song" else "trainer_self")
+		_set_acting(_message_subject)
 		match a.get("type", "none"):
 			"item":
 				await _do_item(a)
@@ -3424,19 +3478,16 @@ func _resolve(acts: Array) -> void:
 				await _guardian_capture(float(a["acc"]))
 			"defend":
 				var db = a["actor"]
-				if db.hp <= 0 or not _active(db):
-					continue
 				_st(db)["defend"] = true
 				Sfx.play("shield")
 				_refresh()
 				await msg("%s braces itself!" % db.nickname, 0.55)
 			"move":
 				var b = a["actor"]
-				if b.hp <= 0 or not _active(b):
-					continue
 				await _do_move(b, a["move"], a["target"])
 			_:
-				continue
+				pass
+		_set_acting(null)
 		_message_subject = null
 		await _handle_faints()
 		_check_end()
@@ -4130,6 +4181,7 @@ func _guardian_rises(b) -> void:
 
 func _guardian_song_flow(song: String) -> bool:
 	flute_used = true
+	_set_acting("trainer_self")
 	await msg("You raise your flute and play the %s to %s..." % [SongDB.song_name(song), guardian_b.nickname], 0.8)
 	var r: Dictionary = await UI.flute_ex(song, "Winning over %s  —  the cleaner you play, the surer it is" % guardian_b.nickname)
 	_battle_music()
@@ -4215,6 +4267,7 @@ func _summon_flow() -> Dictionary:
 	var tk: String = ids[c]
 	var song: String = WorldDB.TEMPLES[tk]["song"]
 	var who := RaceDB.race_name(int(WorldDB.TEMPLES[tk]["guardian"]))
+	_set_acting("trainer_self")
 	await msg("You raise your flute and play the %s..." % SongDB.song_name(song), 0.7)
 	var r: Dictionary = await UI.flute_ex(song, "Summoning %s  —  play its song through to call it" % who)
 	_battle_music()
@@ -4225,6 +4278,7 @@ func _summon_flow() -> Dictionary:
 	if acc < SongDB.FLAT_ACCURACY:
 		Sfx.play("fail")
 		await msg("The song falters... %s doesn't answer." % who, 1.1)
+		_set_acting(null)
 		return {"type": "none"}
 	summoned = true
 	GameState.shield -= 1
@@ -4233,6 +4287,7 @@ func _summon_flow() -> Dictionary:
 	_update_shield()
 	_refresh()
 	await msg("%s hears your call! (one shield point spent)" % who, 0.9)
+	_set_acting(null)
 	return {"type": "summon", "el": tk, "acc": acc, "prio": 11}
 
 

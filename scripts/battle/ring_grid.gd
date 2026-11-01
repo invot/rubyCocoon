@@ -42,6 +42,8 @@ var trainer_icon: Texture2D = null
 ## the tile of the beast you're choosing for (a slot, or a line index for the wild pack), -2 for the trainer (while
 ## you choose your own action), or -1
 var focus := -1
+## The actor currently performing an action: a slot/line index, -2 for the trainer, or -1.
+var acting := -1
 ## the tile being aimed at: a slot / line index, -2 for the trainer, or -1; targets: more of them (a move that hits
 ## them all, or a slot a beast could Move to)
 var target := -1
@@ -50,6 +52,7 @@ var targets: Array = []
 ## turning: the border's cells are drawn this many steps round from their places (eased back to 0)
 var _turn := 0.0
 var _time := 0.0
+var _icon_masks: Dictionary = {}
 
 signal tile_tapped(index: int)
 
@@ -71,7 +74,7 @@ func top_pad() -> float:
 
 func _process(delta: float) -> void:
 	_time += delta
-	if focus != -1 or target != -1 or not targets.is_empty() or open:
+	if focus != -1 or acting != -1 or target != -1 or not targets.is_empty() or open:
 		queue_redraw()
 
 
@@ -128,7 +131,7 @@ func _draw() -> void:
 	if wild:
 		for i in 3:
 			var b = line[i] if i < line.size() else null
-			_draw_tile(line_pos(i), b, true, i == focus, i == target or i in targets, "")
+			_draw_tile(line_pos(i), b, true, i == focus or i == acting, i == target or i in targets, "")
 		return
 	var fighting := Ring.side_slots(side)
 	# back to front: the top row first, so icons overlap the row above them
@@ -146,8 +149,8 @@ func _draw() -> void:
 		var letter := ""
 		if not Ring.is_corner(k):
 			letter = String(Ring.slot_elements(k)[0]).substr(0, 1).to_upper()
-		var faded: bool = team == "ally" and focus == -2 and k in fighting
-		_draw_tile(p, ring.get(k, null), k in fighting and not faded, k == focus, k == target or k in targets, letter, faded)
+		# Health stays readable while the trainer chooses, too: their bar sits beside the ring.
+		_draw_tile(p, ring.get(k, null), k in fighting, k == focus or k == acting, k == target or k in targets, letter)
 	if not drew_trainer:
 		_draw_trainer(centre)
 	if show_shield and max_shield > 0:
@@ -181,7 +184,7 @@ func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, le
 	draw_polyline(loop, edge, 2.0, true)
 	if focused or targeted:
 		var pulse := 0.55 + 0.45 * sin(_time * 7.0)
-		var ring_col := UIKit.LIGHT if focused else Color("#ffe08a")
+		var ring_col := UIKit.ACCENT if focused else Color("#ffe08a")
 		ring_col.a = pulse
 		var big := PackedVector2Array()
 		for v in loop:
@@ -200,7 +203,10 @@ func _draw_tile(p: Vector2, b, fighting: bool, focused: bool, targeted: bool, le
 	var down: bool = b.hp <= 0
 	var icon_color := Color(0.4, 0.38, 0.42, 0.75) if down else Color.WHITE
 	icon_color.a *= opacity
-	draw_texture_rect(PixelArt.beast_texture(b.genes), ir, false, icon_color)
+	var icon := PixelArt.beast_texture(b.genes)
+	if focused:
+		_draw_icon_outline(icon, ir)
+	draw_texture_rect(icon, ir, false, icon_color)
 	var bw := tile.x * 0.62
 	var br := Rect2(p + Vector2(-bw * 0.5, h * 0.35), Vector2(bw, maxf(3.0, tile.y * 0.16)))
 	draw_rect(br.grow(1.0), Color(0, 0, 0, 0.6 * opacity))
@@ -227,8 +233,8 @@ func _draw_trainer(p: Vector2) -> void:
 	var loop := pts.duplicate()
 	loop.append(pts[0])
 	draw_polyline(loop, Color(UIKit.BORDER, 0.7), 2.0, true)
-	if target == -2 or -2 in targets or focus == -2:
-		var pulse := Color("#ffe08a") if target == -2 or -2 in targets else UIKit.LIGHT
+	if target == -2 or -2 in targets or focus == -2 or acting == -2:
+		var pulse := Color("#ffe08a") if target == -2 or -2 in targets else UIKit.ACCENT
 		pulse.a = 0.55 + 0.45 * sin(_time * 7.0)
 		var big := PackedVector2Array()
 		for v in loop:
@@ -239,15 +245,41 @@ func _draw_trainer(p: Vector2) -> void:
 		var ih := tile.x * 1.05
 		var isz := Vector2(ih * float(trainer_icon.get_width()) / maxf(1.0, float(trainer_icon.get_height())), ih)
 		var r := Rect2(p - Vector2(isz.x * 0.5, isz.y - h * 0.45), isz)
+		if focus == -2 or acting == -2:
+			_draw_icon_outline(trainer_icon, r)
 		for d in [Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(0, -1.5), Vector2(0, 1.5)]:
 			draw_texture_rect(trainer_icon, Rect2(r.position + d, r.size), false, Color(0, 0, 0, 0.75))
 		draw_texture_rect(trainer_icon, r, false)
 		return
 	# a little person: head and shoulders
 	var col := UIKit.LIGHT
-	draw_circle(p + Vector2(0, -h * 1.25), h * 0.42, col)
+	var head := p + Vector2(0, -h * 1.25)
 	var body := PackedVector2Array([p + Vector2(-w * 0.32, h * 0.1), p + Vector2(-w * 0.2, -h * 0.8), p + Vector2(w * 0.2, -h * 0.8), p + Vector2(w * 0.32, h * 0.1)])
+	if focus == -2 or acting == -2:
+		var width := roundf(3.0 * tile.x / 64.0)
+		draw_circle(head, h * 0.42 + width, UIKit.ACCENT)
+		var outline := body.duplicate()
+		outline.append(body[0])
+		draw_polyline(outline, UIKit.ACCENT, width * 2.0, true)
+	draw_circle(head, h * 0.42, col)
 	draw_colored_polygon(body, col)
+
+
+## A solid gem outline around the selected HUD portrait, keeping its original colors and white tile frame.
+## Tiny alpha masks are cached for this grid's lifetime and tinted when drawn, so runtime gem changes are instant.
+func _draw_icon_outline(icon: Texture2D, r: Rect2) -> void:
+	if not _icon_masks.has(icon):
+		var source := icon.get_image()
+		source.convert(Image.FORMAT_RGBA8)
+		var pixels := source.get_data()
+		for i in range(0, pixels.size(), 4):
+			pixels[i] = 255
+			pixels[i + 1] = 255
+			pixels[i + 2] = 255
+		_icon_masks[icon] = ImageTexture.create_from_image(Image.create_from_data(source.get_width(), source.get_height(), false, Image.FORMAT_RGBA8, pixels))
+	var width := roundf(3.0 * tile.x / 64.0)
+	for d in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN, Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		draw_texture_rect(_icon_masks[icon], Rect2(r.position + d * width, r.size), false, UIKit.ACCENT)
 
 
 ## A row of shield orbs: filled blue for each point left, hollow for each one broken.

@@ -23,6 +23,7 @@ const Fishing = preload("res://scripts/world/fishing.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const Creole = preload("res://scripts/gfx/creole_builder.gd")
+const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
 const HarborBoats = preload("res://scripts/gfx/harbor_boats.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
@@ -119,6 +120,9 @@ func build(id: String, cooperative := false) -> void:
 	biome = map["biome"].duplicate(true)
 	if map_id.get_slice("#", 0) in ["kelpwick", "shellhaven"]:
 		biome["style"] = "roundwood" if map_id.begins_with("kelpwick") else "resort"
+	elif map.has("style"):
+		# a town of its own look among its biome's (Dustwell's western main street: frontier_builder.gd)
+		biome["style"] = map["style"]
 	interior = map["kind"] == "interior"
 	for n in Story.extra_npcs(map):
 		map["npcs"].append(n)
@@ -699,6 +703,9 @@ func _build_backdrop() -> void:
 				elif rng.randf() < 0.2:
 					_ring_shrub(by_asset, shrubs, c, rng, 0.5, 0.9)
 				continue
+			# the desert's canyon walls stand behind the first row or two (_backdrop_cliffs)
+			if biome.has("cliffs") and depth > 2:
+				continue
 			# a wood: thick near the map, a little thinner deep in (the fog takes over there); a mixed one has gaps
 			# filled with shrubs
 			var mixed := float(biome.get("mixed", 0.0))
@@ -706,6 +713,7 @@ func _build_backdrop() -> void:
 				_ring_tree(by_asset, trees, c, rng, 2.0 if mixed > 0.0 else 2.4, 4.0, shadow)
 			elif (depth <= 2 or (mixed > 0.0 and depth <= 6)) and rng.randf() < 0.5 + mixed:
 				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.2)
+	_backdrop_cliffs(by_asset, rng)
 	# A trunk can stand beside the road while its canopy reaches across it. Check the
 	# transformed mesh bounds, including off-centre palms, rather than just its tile.
 	var roads := _backdrop_roads()
@@ -773,6 +781,130 @@ func _backdrop_roads() -> Array[Rect2]:
 	return roads
 
 
+## The desert's sandstone cliffs (biome "cliffs", tools/import_western.gd): the wooded bands along a map's back and
+## sides (two tiles deep, clear of its last three rows) become a canyon wall of cliff pieces laid lengthwise along the
+## edge, no taller than the cacti they replace, and rock tiles become boulders of the same stone (kept low where a path
+## lies just north). Returns the tiles they stand on.
+func _cliff_bands(by_asset: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var cover := {}
+	var names: Array = biome.get("cliffs", [])
+	if names.is_empty():
+		return cover
+	var w: int = map["w"]
+	var h: int = map["h"]
+	# [first tile, the step along the band, the tiles across it, the band's length]
+	var bands := [[Vector2i(0, 0), Vector2i(1, 0), [Vector2i(0, 0), Vector2i(0, 1)], w],
+		[Vector2i(0, 2), Vector2i(0, 1), [Vector2i(0, 0), Vector2i(1, 0)], h - 5],
+		[Vector2i(w - 1, 2), Vector2i(0, 1), [Vector2i(0, 0), Vector2i(-1, 0)], h - 5]]
+	for band in bands:
+		var along: Vector2i = band[1]
+		var across: Array = band[2]
+		var i := 0
+		while i < int(band[3]):
+			var want := rng.randi_range(3, 4)
+			var run := 0
+			while i + run < int(band[3]) and run < want and _cliff_row(band[0] + along * (i + run), across):
+				run += 1
+			if run < 2:
+				i += maxi(run, 1)
+				continue
+			var first: Vector2i = band[0] + along * i
+			var lift := INF
+			for k in run:
+				for o: Vector2i in across:
+					var t: Vector2i = first + along * k + o
+					cover[t] = true
+					lift = minf(lift, _lift(t))
+			# centred on the run, reaching a little past the map's edge
+			var c := Vector2(first.x + run / 2.0, 0.6) if along.x != 0 else Vector2(0.7 if first.x == 0 else w - 0.7, first.y + run / 2.0)
+			_cliff_piece(by_asset, names, Vector3(c.x, lift, c.y), along.x != 0, run - 0.05, 2.5, rng.randf_range(2.5, 3.3), rng, true)
+			i += run
+	# boulders on rock tiles: one stone over each 2x2 block of them, else one to a tile
+	var claimed := {}
+	for y in h:
+		for x in w:
+			var t := Vector2i(x, y)
+			if claimed.has(t) or cover.has(t) or MapGen.get_t(map, x, y) != MapGen.ROCK or house_cover.has(t):
+				continue
+			if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).has_point(t):
+				continue
+			var block := [t, t + Vector2i(1, 0), t + Vector2i(0, 1), t + Vector2i(1, 1)]
+			var big := true
+			for q: Vector2i in block:
+				if claimed.has(q) or cover.has(q) or MapGen.get_t(map, q.x, q.y) != MapGen.ROCK or absf(_lift(q) - _lift(t)) > 0.01:
+					big = false
+			var size := 2 if big else 1
+			# kept low where a path lies just north of it (the camera looks over it) and along the south edge
+			var low := y >= h - 3
+			for dy in range(1, 4):
+				for dx in range(-1, size + 1):
+					if MapGen.walkable(MapGen.get_t(map, x + dx, y - dy)):
+						low = true
+			for q in (block if big else [t]):
+				claimed[q] = true
+				cover[q] = true
+			var hgt := rng.randf_range(0.9, 1.15) if low else (rng.randf_range(1.6, 2.1) if big else rng.randf_range(1.1, 1.4))
+			_cliff_piece(by_asset, names, Vector3(x + size / 2.0, _lift(t), y + size / 2.0), rng.randf() < 0.5, size + 0.15, size + 0.1, hgt, rng, true)
+	return cover
+
+
+## True if every tile across the band at `t` is woodland or rock nobody walks on (and no house leans over it).
+func _cliff_row(t: Vector2i, across: Array) -> bool:
+	for o: Vector2i in across:
+		var q := t + o
+		if not MapGen.get_t(map, q.x, q.y) in [MapGen.TREE, MapGen.ROCK] or house_cover.has(q):
+			return false
+	return true
+
+
+## Canyon walls past the map's back and sides (never the south, between the camera and the map), clear of the roads.
+func _backdrop_cliffs(by_asset: Dictionary, rng: RandomNumberGenerator) -> void:
+	var names: Array = biome.get("cliffs", [])
+	if names.is_empty():
+		return
+	var w: int = map["w"]
+	var h: int = map["h"]
+	var roads := _backdrop_roads()
+	var spots := []
+	var x := -RING + 2.0
+	while x < w + RING - 2.0:
+		var l := rng.randf_range(6.0, 9.0)
+		spots.append([Vector3(x + l / 2.0, 0.0, -rng.randf_range(3.6, 5.0)), true, l])
+		x += l - 0.5
+	for side in [-1, 1]:
+		var z := -2.0
+		while z < h - 6.0:
+			var l := rng.randf_range(6.0, 9.0)
+			spots.append([Vector3(-rng.randf_range(3.6, 5.0) if side < 0 else w + rng.randf_range(3.6, 5.0), 0.0, z + l / 2.0), false, l])
+			z += l - 0.5
+	for s in spots:
+		var p: Vector3 = s[0]
+		var l: float = s[2]
+		var foot := Rect2(p.x - l / 2.0, p.z - 2.6, l, 5.2) if s[1] else Rect2(p.x - 2.6, p.z - l / 2.0, 5.2, l)
+		var clear := true
+		for r: Rect2 in roads:
+			if r.grow(1.0).intersects(foot):
+				clear = false
+		if not clear:
+			continue
+		p.y = _lift(Vector2i(clampi(int(p.x), 0, w - 1), clampi(int(p.z), 0, h - 1)))
+		_cliff_piece(by_asset, names, p, s[1], l, 5.0, rng.randf_range(4.2, 6.0), rng, false)
+
+
+## One cliff piece standing at `c` (its foot's centre), its long side along x (or z), `long` by at most `deep`, `tall`.
+func _cliff_piece(by_asset: Dictionary, names: Array, c: Vector3, along_x: bool, long: float, deep: float, tall: float, rng: RandomNumberGenerator, shadow: bool) -> void:
+	var name: String = names[rng.randi_range(0, names.size() - 1)]
+	var bb := VA.aabb(name)
+	var model_long_x := bb.size.x >= bb.size.z
+	var yaw := (0.0 if model_long_x == along_x else PI / 2.0) + (PI if rng.randf() < 0.5 else 0.0)
+	var sl := long / maxf(bb.size.x, bb.size.z)
+	var ss := minf(sl, deep / maxf(0.01, minf(bb.size.x, bb.size.z)))
+	var sy := tall / maxf(0.01, bb.size.y)
+	var sc := Vector3(sl, sy, ss) if model_long_x else Vector3(ss, sy, sl)
+	var basis := Basis(Vector3.UP, yaw).scaled_local(sc)
+	_add_asset(by_asset, name if shadow else name + SHADOWLESS, Transform3D(basis, c + Vector3(0, -bb.position.y * sy - 0.05, 0)))
+
+
 func _ring_tree(by_asset: Dictionary, trees: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float, shadow: bool) -> void:
 	if trees.is_empty():
 		return
@@ -829,7 +961,7 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 				z += rng.randf_range(9.0, 12.0)
 	for p in spots:
 		await _build_checkpoint()
-		var made := Creole.backdrop(rng) if style == "creole" else HouseModels.backdrop(style, rng)
+		var made := Creole.backdrop(rng) if style == "creole" else (Frontier.backdrop(rng) if style == "frontier" else HouseModels.backdrop(style, rng))
 		var node: Node3D = made[0]
 		if node == null:
 			continue
@@ -983,6 +1115,8 @@ func _build_scatter() -> void:
 	var rocks: Array = biome["rocks"]
 	var shrubs: Array = biome["shrubs"]
 	var hedge_lines := _hedge_lines()
+	# the desert's canyon walls and boulders, where it has cliffs (no cactus or rock of the usual kind under them)
+	var cliff_cover := _cliff_bands(by_asset, rng)
 	# old woods (the map's "tall_trees" areas, [x, y, w, d]) whose trees stand half as tall again, with wider crowns,
 	# and undergrowth ("low_trees") where the trees are only thickets of shrubs, so you're seen over them
 	var tall_woods := []
@@ -996,8 +1130,8 @@ func _build_scatter() -> void:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
 			var center := Vector3(x + 0.5, _lift(Vector2i(x, y)), y + 0.5)
-			if house_cover.has(Vector2i(x, y)):
-				# a house leans over this tree or hedge
+			if house_cover.has(Vector2i(x, y)) or cliff_cover.has(Vector2i(x, y)):
+				# a house leans over this tree or hedge, or a cliff stands there
 				continue
 			match c:
 				MapGen.TALL:
@@ -1198,8 +1332,9 @@ func _plan_houses() -> void:
 			max_h = maxf(4.6, CAM_LOOK_Y + (CAM_OFFSET.y - CAM_LOOK_Y) * (float(gap) + 0.5) / CAM_OFFSET.z)
 		if style in ["roundwood", "resort"]:
 			continue
-		if style == "creole":
-			# Bellerive's buildings are its own (creole_builder.gd): only whether it's kept low matters here
+		if style == "creole" or style == "frontier" and Frontier.handles(b["shop"]):
+			# Bellerive's and Dustwell's buildings are their own (creole_builder.gd, frontier_builder.gd): only whether
+			# it's kept low matters here
 			continue
 		var o := Vector2(float(x0) + float(w) / 2.0, float(y0) + float(d) / 2.0)
 		max_h = minf(max_h, float(b.get("house_max_height", INF)))
@@ -1370,6 +1505,8 @@ const STREET_DIR := "res://assets/exteriors/"
 const STREET_FRONT_SHOP := ["bench", "bench", "trash_can", "crate", "barrel", "planter", "hydrant"]
 const STREET_FRONT_HOUSE := ["planter", "barrel", "hedge_round", "bench", "crate", "planter"]
 const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "hedge_round", "barrel"]
+## authored street furniture longer than a tile: how many tiles east from its own it takes (Dustwell's wagon and trough)
+const STREET_WIDE := {"wagon": 2, "water_trough": 2}
 
 
 func _street_mesh(name: String) -> Mesh:
@@ -1422,10 +1559,17 @@ func _build_street_props() -> void:
 	# Authored cargo shares the street furniture meshes, collision and wall-facing placement.
 	for entry in map.get("street_props", []):
 		var t := Vector2i(int(entry[0]), int(entry[1]))
-		if taken.has(t) or not MapGen.walkable(MapGen.get_t(map, t.x, t.y)):
+		var span := int(STREET_WIDE.get(String(entry[2]), 1))
+		var free := true
+		for i in span:
+			var q := t + Vector2i(i, 0)
+			if taken.has(q) or not MapGen.walkable(MapGen.get_t(map, q.x, q.y)):
+				free = false
+		if not free:
 			continue
-		MapGen.set_t(map, t.x, t.y, MapGen.STREET_PROP)
-		taken[t] = true
+		for i in span:
+			MapGen.set_t(map, t.x + i, t.y, MapGen.STREET_PROP)
+			taken[t + Vector2i(i, 0)] = true
 		placed.append([t, Vector2i.DOWN, String(entry[2]), int(entry[3])])
 	before = _reachable(start)
 	for b in map["buildings"]:
@@ -1502,9 +1646,15 @@ func _build_street_props() -> void:
 		var bb := mesh.get_aabb()
 		# its back to the building, a little away from the wall
 		mi.rotation.y = atan2(float(face.x), float(face.y)) + (rng.randf_range(-0.25, 0.25) if e[2] in ["barrel", "crate", "crate_open", "keg", "planter"] else 0.0)
-		var fit := minf(1.0, 0.92 / maxf(bb.size.x, bb.size.z))
+		var span := int(STREET_WIDE.get(String(e[2]), 1))
+		var fit := minf(1.0, (0.92 + span - 1) / maxf(bb.size.x, bb.size.z))
 		mi.scale = Vector3.ONE * fit
-		mi.position = tile_pos(t) - Vector3(face.x, 0, face.y) * maxf(0.0, 0.5 - bb.size.z * fit / 2.0 - 0.05)
+		mi.position = tile_pos(t) - Vector3(face.x, 0, face.y) * maxf(0.0, 0.5 - (minf(bb.size.x, bb.size.z) if span > 1 else bb.size.z) * fit / 2.0 - 0.05)
+		if span > 1:
+			# lengthwise along its tiles
+			mi.position.x += (span - 1) / 2.0
+			if bb.size.z > bb.size.x:
+				mi.rotation.y += PI / 2.0
 		add_child(mi)
 		# a second crate on top now and then
 		if e[2] in ["crate", "crate_open"] and (int(e[3]) > 1 if e.size() > 3 else rng.randf() < 0.4):
@@ -1569,6 +1719,10 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 		b["locked"] = Places.door_locked(b)
 		if style == "creole" and not b["shop"] in ["center", "fishery"]:
 			node = Creole.build(b)
+		elif style == "frontier" and Frontier.handles(b["shop"]):
+			node = Frontier.build(b)
+		elif style == "frontier":
+			node = VBld.build(b, "western")
 		else:
 			node = VBld.build(b, style)
 	# (a building stands on one level: its door's, see tools/check_maps.gd)
@@ -1602,6 +1756,8 @@ func _decor_building(b: Dictionary, style: String) -> Node3D:
 	bb["shop"] = "house"
 	if style == "creole":
 		return Creole.build(bb)
+	if style == "frontier":
+		return Frontier.build(b.merged({"shop": "decor"}))
 	return VBld.build(bb, style)
 
 

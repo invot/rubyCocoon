@@ -45,6 +45,8 @@ TESTS=(
 	"walk|-- --scene=walk4 --wait=0.3|WALK TEST DONE: 0 problem"
 	"walk-touch|-- --scene=walk4 --touch --wait=0.3|WALK TEST DONE: 0 problem"
 	"battlecmd|-- --scene=battlecmd --touch --wait=0.3|BATTLE COMMANDS DONE: 0 problem"
+	"battle-focus|-- --scene=battle-focus --wait=0.3 --save_dir=res://build/battle_focus_saves/|BATTLE FOCUS DONE: 0 problem"
+	"battle-focus-touch|-- --scene=battle-focus --touch --wait=0.3 --save_dir=res://build/battle_focus_saves/|BATTLE FOCUS DONE: 0 problem"
 	"ringedit|-- --scene=ringedit --touch --wait=0.3|RING EDIT DONE: 0 problem"
 	"lessons|-- --scene=lessons --wait=0.3|lessons DONE: 0 problem"
 	"coaches|-- --scene=coaches --wait=0.3|coaches DONE: 0 problem"

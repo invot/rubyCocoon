@@ -1333,6 +1333,8 @@ func _run_test() -> void:
 		# the command panel played with keys and a touch A (--stop=trainer|target|all|move: stop there for a screenshot)
 		await _battlecmd_test()
 		await _wait(wait)
+	elif scene == "battle-focus":
+		await load("res://tools/debug/battle_focus.gd").new().run(self)
 	elif scene == "ringedit":
 		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
 		await _ringedit_test()
@@ -3092,9 +3094,10 @@ func _battlecmd_test() -> void:
 		return
 	check.call(bt.ally_side == 0, "the ring last faced the air side (nobody in its middle): it starts turned to the %s side" % Ring.side_element(bt.ally_side))
 	check.call(bt.ally_grid.focus == -2 and bt.bars.shown() == [0], "only the trainer is focused during their action")
-	var trainer_gap: float = bt.ally_grid.position.x + bt.ally_grid.tile_center(-2).x - bt.ally_grid.tile.x * 0.5 - bt.bars.pill_rect(0).end.x
-	var beast_gap: float = bt.ally_grid.position.x + bt.ally_grid.tile_center(0).x - bt.ally_grid.tile.x * 0.5 - bt.bars.pill_rect(2).end.x
-	check.call(is_equal_approx(trainer_gap, beast_gap), "trainer and beast bars have equal spacing from their grid tiles")
+	var middle_left: float = bt.ally_grid.position.x + bt.ally_grid.tile_center(0).x - bt.ally_grid.tile.x * 0.5
+	check.call(bt.bars._hit_rect(0).end.x < middle_left, "trainer bar and its tap area leave the middle beast and its health clear")
+	if String(_test.get("scene", "")) == "battle-focus":
+		return # this focused fixture starts at command selection; battlecmd covers the caption and picker checks below
 	# The caption resolves the subject and uses one compact, centred frame for short and long messages.
 	bt._show_option({}, {})
 	bt._commanding = false
@@ -3157,7 +3160,7 @@ func _battlecmd_test() -> void:
 	if stop == "trainer":
 		return
 	await _tap_at(bt.bars.get_global_transform_with_canvas() * bt.bars.pill_rect(0).get_center())
-	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "the overlaid trainer bar receives taps and confirms only once")
+	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "the trainer bar beside the ring receives taps and confirms only once")
 	await key.call("ui_cancel")
 	check.call(bt.find_children("*", "Label3D", true, false).all(func(label): return label.text != "▼"), "no floating triangle is created")
 	# one touch A: your slingshot, picked out on its target, but not confirmed twice
