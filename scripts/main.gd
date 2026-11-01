@@ -33,6 +33,9 @@ var in_battle := false
 var _pending_goto: Dictionary = {}
 var _transitioning := false
 var _title_nodes: Array = []
+var _title_intro: Node3D
+var _title_skip_held := false
+var _title_touches := {}
 var _test := {}
 var autoplay := false
 var _cinematic: Node3D
@@ -78,6 +81,8 @@ func _exit_tree() -> void:
 
 ## Taps (and mouse clicks) on the world walk the player there; see world.gd tap_at().
 func _input(ev: InputEvent) -> void:
+	if _title_intro_input(ev):
+		return
 	# The film renders inside the 3D SubViewport; keyboard/controller input arrives at the main window.
 	if is_instance_valid(_cinematic):
 		_cinematic.handle_input(ev)
@@ -104,6 +109,8 @@ func to_view(p: Vector2) -> Vector2:
 
 
 func _process(_delta: float) -> void:
+	if _title_skip_held and _title_touches.is_empty() and not Input.is_action_pressed("ui_accept") and not Input.is_action_pressed("interact") and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_title_skip_held = false
 	if not _pending_goto.is_empty() and not _transitioning and not in_battle:
 		if world == null or (not world.busy and not UI.busy()):
 			var g := _pending_goto
@@ -112,20 +119,54 @@ func _process(_delta: float) -> void:
 
 
 # ================================================================ title
+## Consume the whole skip gesture, including its release, echoes and emulated mouse events.
+func _title_intro_input(ev: InputEvent) -> bool:
+	if not is_instance_valid(_title_intro) and not _title_skip_held:
+		return false
+	var skip := false
+	if ev is InputEventScreenTouch:
+		if ev.pressed:
+			_title_touches[ev.index] = true
+		else:
+			_title_touches.erase(ev.index)
+		skip = ev.pressed
+	elif ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+		skip = ev.pressed
+	elif ev.is_action("ui_accept") or ev.is_action("interact"):
+		skip = ev.is_pressed() and not ev.is_echo()
+	else:
+		return false
+	get_viewport().set_input_as_handled()
+	if skip and is_instance_valid(_title_intro):
+		_title_skip_held = true
+		_title_intro.skip_ascent()
+	return true
+
+
 func _title() -> void:
 	UI.allow_pause = false
 	UI.controls.set_title_mode(false)
 	UI.controls.show_title_legend(Prefs.is_desktop_web())
-	# No splash or 3D entrance: choices are usable on the first menu frame.
 	_clear_title_world()
-	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	screen.hide()
 	Sfx.music("title")
 	Sfx.ambience("")
+	# Render only the entrance in 3D; A or a tap ends it without choosing a menu item.
+	var intro = load("res://scripts/gfx/title_stage.gd").new()
+	_title_intro = intro
+	_title_nodes = [intro]
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	screen.show()
+	view.add_child(intro)
+	_title_backdrop()
+	await intro.arrived
+	_title_intro = null
+	view.remove_child(intro)
+	intro.queue_free()
+	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	screen.hide()
 	var stage := TitleBackdrop.new()
 	UI.hud.add_child(stage)
 	_title_nodes = [stage]
-	_title_backdrop()
 	while true:
 		var items := []
 		# (--saves=0: a test run shows the title as a first launch would)
@@ -1786,6 +1827,9 @@ func _run_test() -> void:
 		_title()
 		if _test.get("verify", "0") == "1":
 			await load("res://tools/debug/title_startup.gd").new().run(self)
+		# --hold=1: pause the ascent for manual skip checks in a real window.
+		if _test.get("hold", "0") == "1" and is_instance_valid(_title_intro):
+			_title_intro.freeze(float(_test.get("at", "1.8")))
 		# --keys: pressed once the menu is up (with a save, d,a opens Load Game; without, a opens the character creator)
 		while UI.stack.is_empty():
 			await get_tree().process_frame
@@ -2058,10 +2102,15 @@ func _opening_test() -> void:
 		if "Legion" in early or "vanishing" in early or "kidnap" in early:
 			bad += 1
 			print("FAIL early story spoiler")
+		# Dustwell tells its news through posters and townsfolk: arriving sets the flag without a speech
+		var before := UI.auto_log.size()
 		await _go("dustwell", "start")
 		if not GameState.flag("missing_trainers"):
 			bad += 1
 			print("FAIL Dustwell reveal")
+		if UI.auto_log.size() != before:
+			bad += 1
+			print("FAIL Dustwell arrival speech: ", UI.auto_log.slice(before))
 		var count := UI.auto_log.size()
 		await Story.on_map_enter(world)
 		if UI.auto_log.size() != count:

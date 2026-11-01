@@ -5,6 +5,7 @@ extends Node3D
 
 signal arrived
 
+const ASCENT_TIME := 4.2
 const SUMMON := "res://assets/summons/fire.res"
 const FONT := preload("res://ui/lunchds.ttf")
 const FOV := 30.0
@@ -49,7 +50,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_apply()
-	if not _arrived and _t >= 4.2:
+	if not _arrived and _t >= ASCENT_TIME:
 		_arrived = true
 		arrived.emit()
 
@@ -60,9 +61,19 @@ func freeze(at: float) -> void:
 	set_process(false)
 	_apply()
 	# Finished-ascent previews can open the menu; early previews keep it hidden.
-	if not _arrived and _t >= 4.2:
+	if not _arrived and _t >= ASCENT_TIME:
 		_arrived = true
 		arrived.emit()
+
+
+## Finish the entrance through the same signal as its natural ending.
+func skip_ascent() -> void:
+	if _arrived:
+		return
+	_t = maxf(_t, ASCENT_TIME)
+	_apply()
+	_arrived = true
+	arrived.emit()
 
 
 func _apply() -> void:
@@ -72,7 +83,7 @@ func _apply() -> void:
 	var ph := fposmod(_t * 0.55, 1.0)
 	_dragon.position.y = 0.025 * sin(ph / 0.4 * PI) if ph < 0.4 else -0.012 * sin((ph - 0.4) / 0.6 * PI)
 	# A single eased ascent, then hover; never snap back below the screen.
-	var rise := smoothstep(0.0, 4.2, _t)
+	var rise := smoothstep(0.0, ASCENT_TIME, _t)
 	_dragon_card.position = _dragon_rest + Vector3.DOWN * (1.0 - rise) * 12.0
 	logo.rotation = Vector3(-0.2 + sin(_t * 0.7) * 0.03, sin(_t * 0.45) * 0.12, 0)
 

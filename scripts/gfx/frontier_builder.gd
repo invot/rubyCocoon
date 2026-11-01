@@ -211,7 +211,7 @@ static func _facade(node: Node3D, w: float, d: float, rng: RandomNumberGenerator
 		ridge = _false_front(node, k, w, zf, top, front, paint, o)
 	# lanterns either side of the door
 	for sx in [-1.0, 1.0]:
-		var lx := door_lx + sx * 1.0
+		var lx: float = door_lx + sx * 1.0
 		if lx > x0 + 0.1 and lx < x1 - 0.1:
 			k.box("color", Vector3(lx, PLINTH + 2.0, zf + 0.06), Vector3(0.08, 0.08, 0.12), IRON)
 			k.box("glow", Vector3(lx, PLINTH + 1.86, zf + 0.14), Vector3(0.15, 0.22, 0.15), Color("#ffd890"))

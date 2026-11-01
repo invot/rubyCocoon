@@ -182,6 +182,37 @@ const ROOMS := {
 			"###########",
 		],
 	},
+	## Dustwell's Oasis Saloon (a cafe: the barkeep sells the same snacks, Places.shop): the bar along the back with
+	## kegs and bottles behind it, tables and stools for the regulars, a locked back room where the card game goes on.
+	"saloon": {
+		"wall": "#c47a4e", "rug": "#8a2a2a", "stage": true, "zone": "wood", "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
+		"locked": ["The back room. Somebody in there is shuffling cards, very slowly, and humming."],
+		"counter_phone": [8, 2],
+		"rows": [
+			"######Z######",
+			"#XX..1...sss#",
+			"#CCCCCCCCCCCw",
+			"#...........w",
+			"#ht2..ht..ht#",
+			"#.....htt3..#",
+			"L..........PD",
+			"#############",
+		],
+	},
+	## Dustwell Jail: Deputy Rusk (1) behind the front desk, the two cells' doors shut behind him (they're empty, and
+	## staff only).
+	"jail": {
+		"wall": "#e2c48a", "rug": "#7a3a2a", "stage": true, "zone": "wood", "npcs": {"1": "deputy"},
+		"rows": [
+			"###Z###Z###",
+			"#F...1...O#",
+			"#CCCCCCCCCw",
+			"#.........w",
+			"#ht.......#",
+			"#ht......PD",
+			"###########",
+		],
+	},
 	## The dojo: a mat floor, the sensei (1) behind his desk; the locker room is locked.
 	"dojo": {
 		"wall": "#e0d0b0", "rug": "#c8b070", "stage": true, "npcs": {"1": "keeper", "2": "patron", "3": "patron"},

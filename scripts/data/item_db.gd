@@ -94,6 +94,7 @@ const ITEMS := {
 		"desc": "It shines in the deep like a little moon. The rarest water beasts rise to it."},
 	"bridge_log": {"name": "Log", "kind": "key", "price": 0, "tier": 99, "desc": "A sturdy log from a tree the storm knocked down. Five of them would bridge the creek on the Coastal Path."},
 	"bridge_planks": {"name": "Bridge Planks", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of sturdy planks, just right for patching a footbridge."},
+	"card_ledger": {"name": "Card Ledger", "kind": "key", "price": 0, "tier": 99, "desc": "Barkeep Dusty's record of the Oasis Saloon's card games. Slim's name is on every hand, all night long, the night the trainers vanished: he couldn't have taken them."},
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
 	"reed_flute": {"name": "Reed Flute", "kind": "tgear", "slot": "flute", "price": 0, "tier": 99, "fx": {}, "desc": "A simple flute. Plays the songs you know."},
 	"silver_flute": {"name": "Silver Flute", "kind": "tgear", "slot": "flute", "price": 1500, "tier": 3, "fx": {"time": 0.1, "capture": 0.05}, "desc": "10% more time to play each song, +5% capture."},

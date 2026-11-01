@@ -10,7 +10,8 @@ extends Node
 ##   guardian_water                                - also opens the Dune Road to the desert
 ##   met_sheriff, bandits_cleared                  - Sundown's bandits (opens the Dune Sea)
 ##   ceo_defeated                                  - Gearhart Tower (opens Caldera Road)
-##   opening_seen, missing_trainers, trainers_freed - prologue, Dustwell reveal, tower freight-cage rescue
+##   opening_seen, missing_trainers, trainers_freed - prologue, Dustwell's missing posters (seen on arriving), tower
+##   freight-cage rescue
 ##   relic_quest, relic_sun, relic_moon, relic_earth, ritual_done   - the jungle ritual (raises the earth temple)
 ##   guardian_water/air/fire/earth                 - temple guardians beaten (legendary eggs)
 ##   ghost_merge, got_requiem, nyx_defeated, game_cleared   - Gravenmoor and the Umbral Legion
@@ -29,6 +30,7 @@ const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const TrainerCell = preload("res://scripts/story/trainer_cell.gd")
+const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
 
 const ELDER_LOOK := {"skin": "#e8c0a0", "hair": "#e8e8e8", "shirt": "#6a4a8a", "pants": "#3a2a4a", "outfit": "robe"}
 const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "pants": "#3a3a2a", "hat": "#6a5a3a"}
@@ -246,6 +248,23 @@ func extra_npcs(map: Dictionary) -> Array:
 		"route2":
 			if _has_anchor(map, "tourist"):
 				out.append({"kind": "story", "id": "tourist", "name": "Tourist Gwen", "pos": _at(map, "tourist", plaza), "look": TOURIST_LOOK, "facing": Vector2i(0, 1)})
+		"dustwell":
+			# missing posters about town, and a friend of each missing trainer, searching
+			var home := GameState.flag("trainers_freed")
+			for i in 5:
+				if _has_anchor(map, "poster_%d" % i):
+					var who := i if i < 3 else -1
+					out.append({"kind": "story", "id": "poster", "name": "", "pos": _at(map, "poster_%d" % i, plaza), "poster": who,
+						"scene": Frontier.poster_board(who, home), "still": true, "facing": Vector2i(0, 1)})
+			# Slim, the jail's escaped prisoner: hiding behind the wagon once the deputy has asked you to find him
+			if _has_anchor(map, "convict") and GameState.flag("convict_asked"):
+				out.append({"kind": "story", "id": "convict", "name": "Slim", "pos": _at(map, "convict", plaza), "look": SLIM_LOOK,
+					"facing": Vector2i(0, 1) if GameState.flag("slim_cleared") else Vector2i(-1, 0), "story": true})
+			for i in SEARCHERS.size():
+				if _has_anchor(map, "searcher_%d" % i):
+					var sr: Dictionary = SEARCHERS[i]
+					out.append({"kind": "story", "id": "searcher", "searcher": i, "name": sr["name"], "pos": _at(map, "searcher_%d" % i, plaza),
+						"look": sr["look"], "facing": sr["facing"], "story": true})
 		"sundown":
 			out.append({"kind": "story", "id": "sheriff", "name": "Sheriff Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
 		"cogsworth":
@@ -296,6 +315,14 @@ func npc_has_news(n: Dictionary) -> bool:
 			return (not GameState.flag("kelp_heard") and not GameState.flag("island_peace")) or _reef_earned()
 		"sheriff":
 			return not GameState.flag("met_sheriff") or (GameState.flag("bandits_cleared") and not GameState.flag("sheriff_thanks"))
+		"deputy":
+			return deputy_waiting()
+		"convict":
+			return not GameState.flag("convict_found") or GameState.flag("slim_cleared") and not GameState.flag("slim_thanks")
+		"searcher":
+			# until you've heard them out (and again once their friend is home)
+			var heard := "searcher_%d%s" % [int(n.get("searcher", 0)), "_home" if GameState.flag("trainers_freed") else ""]
+			return not GameState.flag(heard)
 		"protester":
 			return not GameState.flag("ceo_defeated")
 		"ceo":
@@ -330,12 +357,8 @@ func on_map_enter(world) -> void:
 	if world.interior and world.map["building"].get("shop", "") == "home" and not GameState.flag("intro_done"):
 		await _intro()
 	elif id == "dustwell" and not GameState.flag("missing_trainers"):
+		# nobody explains it: the posters on every post say it, and the friends searching the town tell the rest
 		GameState.set_flag("missing_trainers")
-		await UI.say(["That noticeboard... NEW TRAINERS MISSING. Three names. Three flutes left in the sand.",
-			"Until Dustwell, your biggest worry was learning the next song. Someone out here is taking people."])
-		await UI.say(["Only this season's new trainers. Gone between one watering stop and the next.",
-			"A witness saw metal footprints by a Gearhart freight wagon. Sheriff Dalton in Sundown is asking questions.",
-			"Travel with your beasts close, all right?"], "Oasis Keeper")
 	elif id == "tidewater" and GameState.flag("got_rod") and not GameState.flag("fish_lesson") and not world.interior:
 		await fish_lesson(world)
 	elif id == "gravenmoor" and not GameState.flag("ghost_merge"):
@@ -749,6 +772,8 @@ func _talk_villager(world, n: Dictionary) -> void:
 		quest = "Have you seen Kelpwick? Darling little huts! Shame they've walled off the temple. I wanted a carving for my mantelpiece."
 	elif world.map_id == "kelpwick" and not GameState.flag("island_peace"):
 		quest = "Resort folk carried off the temple's shell lamps as souvenirs. Now the tide comes in crooked."
+	elif world.map_id == "dustwell" and not GameState.flag("trainers_freed"):
+		quest = "Seen the posters? Three new trainers, gone off the roads. Folks here won't let their kids past the trough."
 	elif world.map_id == "sundown" and not GameState.flag("bandits_cleared"):
 		quest = "Black Bart's gang rode through again. Took every sack of flour. And my favourite spoon. Monsters."
 	elif world.map_id == "cogsworth" and not GameState.flag("ceo_defeated"):
@@ -938,6 +963,14 @@ func _talk_story(world, n: Dictionary) -> void:
 			await UI.say([lines[int(n.get("captive_index", 0))]], n["name"])
 		"rescued_trainer":
 			await UI.say(["Wren helped us call our families. We're going home together. Thanks for giving us our first spring back."], n["name"])
+		"poster":
+			await _poster(n)
+		"searcher":
+			await _searcher(n)
+		"deputy":
+			await _deputy()
+		"convict":
+			await _slim(n)
 		"lever":
 			await _lever(world, n)
 		"chest":
@@ -1452,6 +1485,164 @@ func _finale(world, n: Dictionary) -> void:
 
 # ================================================================ levers, chests and the temple keeper
 ## A map's levers and treasure chests (map_loader.gd _fixture), as story objects.
+# ================================================================ Dustwell's missing trainers
+## Friends of the three missing trainers (TrainerCell.NAMES, in the same order), searching Dustwell: who they are, and
+## what they say before you've met the sheriff, after, and once their friend is home.
+const SEARCHERS := [
+	{"name": "Kip", "facing": Vector2i(-1, 0), "look": {"skin": "#e8b890", "hair": "#d89a3a", "shirt": "#e8604a", "pants": "#3a4a6a", "hat": "#3a6a8a", "pack": true},
+		"lines": ["Have you seen Lio? Blue pack, messy hair, can't whistle to save his life.",
+			"We set out from home together this spring. We were meant to meet here at the trough. He never came.",
+			"Somebody found his flute in the sand on the Dune Road. He'd never leave it. Never."],
+		"home": ["Lio's home! He says a trainer opened his cage with their own two hands.", "...That was you? I owe you a sarsaparilla. Several."]},
+	{"name": "Junie", "facing": Vector2i(0, 1), "look": {"skin": "#a8704a", "hair": "#2a1a14", "hair_style": 1, "body": "female", "shirt": "#f0a8c0", "pants": "#5a4a6a", "pack": true},
+		"lines": ["I'm putting up posters for Bea. One more and I'll have papered the whole town.",
+			"A wagon driver saw metal footprints round a Gearhart freight wagon out on the road. Metal! What walks on metal feet?"],
+		"home": ["Bea wrote! She's home, and she says she's never going near a freight wagon again.", "I'm taking the posters down. Well. I'm leaving one up. For luck."]},
+	{"name": "Tamsin", "facing": Vector2i(0, 1), "look": {"skin": "#f0c8a0", "hair": "#8a3a20", "hair_style": 1, "body": "female", "shirt": "#f2c14e", "pants": "#3a5a4a", "hat": "#c86a3a", "pack": true},
+		"lines": ["Orin wrote to me every week. Then nothing.",
+			"Sheriff Dalton in Sundown Gulch is asking questions. If you're heading north, would you tell him about Orin? Please?"],
+		"sheriff": ["Did the sheriff say anything? ...Bandits on the Mesa Trail, he thinks. I hope that's all it is."],
+		"home": ["Orin's letter came this morning. Four pages! Three of them are about you."]},
+]
+## What each poster says (the trainers in TrainerCell.NAMES order; the last is the sheriff's notice of all three).
+const POSTERS := [
+	"MISSING: TRAINER LIO. Blue pack, brand-new flute, hair like a bird's nest. Last seen on the Dune Road.",
+	"MISSING: TRAINER BEA. Mustard jacket, red braid. Last seen filling her canteen at the oasis.",
+	"MISSING: TRAINER ORIN. Purple shirt, quiet, always writing letters. Last seen on the Mesa Trail.",
+	"THREE NEW TRAINERS MISSING: LIO, BEA AND ORIN. Their flutes were found in the sand. Travel with your beasts close.",
+]
+
+
+## Reads a missing poster (once the trainers are home, someone has written across it).
+func _poster(n: Dictionary) -> void:
+	var who := int(n.get("poster", -1))
+	var lines := [POSTERS[who] if who >= 0 else POSTERS[3]]
+	if GameState.flag("trainers_freed"):
+		lines.append("Someone has painted FOUND across it in big green letters, and underneath: Home safe. Thank you!")
+	else:
+		lines.append("Any news, tell Sheriff Dalton in Sundown Gulch.")
+	await UI.say(lines)
+
+
+## A friend of a missing trainer, searching Dustwell.
+func _searcher(n: Dictionary) -> void:
+	var i := int(n.get("searcher", 0))
+	var sr: Dictionary = SEARCHERS[i]
+	var lines: Array = sr["lines"]
+	if GameState.flag("trainers_freed"):
+		lines = sr["home"]
+		GameState.set_flag("searcher_%d_home" % i)
+	elif GameState.flag("met_sheriff") and sr.has("sheriff"):
+		lines = sr["sheriff"]
+	GameState.set_flag("searcher_%d" % i)
+	await UI.say(lines, n["name"])
+
+
+# ---------------------------------------------------------------- the deputy and the escaped prisoner
+## Deputy Rusk locked up Slim, a drifter, for the missing trainers (a trainer's flute turned up in his saddlebag), and
+## Slim walked out of an open cell. The deputy asks you to catch him (convict_asked); Slim, hiding behind the wagon on the
+## dune shelf, swears he was framed and was at the saloon's card table all that night (convict_found); Barkeep Dusty's
+## card ledger proves it (the key item card_ledger); shown to the deputy, it clears Slim (slim_cleared), and the deputy
+## asks you to help find the missing trainers and whoever really took them (deputy_partner): Sheriff Dalton first.
+const SLIM_LOOK := {"skin": "#c89070", "hair": "#3a2a20", "shirt": "#8a9a5a", "pants": "#5a4a3a", "hat": "#7a5a3a", "outfit": "coat"}
+const DEPUTY := "Deputy Rusk"
+
+
+## Whether the deputy has something new to say (or to ask).
+func deputy_waiting() -> bool:
+	if GameState.flag("trainers_freed"):
+		return false
+	if not GameState.flag("convict_asked"):
+		return true
+	if GameState.item_count("card_ledger") > 0 and not GameState.flag("slim_cleared"):
+		return true
+	return GameState.flag("slim_cleared") and not GameState.flag("deputy_partner")
+
+
+## Deputy Rusk, minding Dustwell Jail (one empty cell more than he'd like).
+func _deputy() -> void:
+	if GameState.flag("trainers_freed"):
+		await UI.say(["Gearhart, eh? Locking up trainers in freight cages.", "I've got a cell with his name on it. Literally. I painted it on. Spelled it wrong, but the thought's there."], DEPUTY)
+		return
+	if not GameState.flag("convict_asked"):
+		await UI.say(["Oh! A visitor! Nobody visits the jail. Except prisoners. And they don't visit so much as... stay.",
+			"Well, they're meant to stay. I had one! Slim. Caught him red-handed with a missing trainer's flute in his saddlebag.",
+			"Then I went for a sarsaparilla and I may have left the cell door open. A little. All the way."], DEPUTY)
+		if await UI.ask("Help Deputy Rusk catch his escaped prisoner?", DEPUTY):
+			GameState.set_flag("convict_asked")
+			await UI.say(["You will? Hot diggity! Slim can't have got far. He walks slow. He's got the bow legs.",
+				"Tall fella, green coat, hat. Sort of hat-shaped hat. Check round town, partner!"], DEPUTY)
+		else:
+			await UI.say(["Aw. Well, if you change your mind, I'll be right here. Guarding the cells. Very carefully, from now on."], DEPUTY)
+		return
+	if GameState.item_count("card_ledger") > 0 and not GameState.flag("slim_cleared"):
+		await UI.say(["You show Deputy Rusk the card ledger from the Oasis Saloon.",
+			"Let's see... Slim, Slim, Slim... Slim lost a hand, Slim lost his boots, Slim lost his hat... all night long.",
+			"The same night that trainer vanished out on the Dune Road. So Slim was... and the trainer was... and the flute was...",
+			"...Huh. HUH. Somebody put that flute in Slim's saddlebag so I'd lock him up and quit looking!"], DEPUTY)
+		GameState.remove_item("card_ledger")
+		GameState.set_flag("slim_cleared")
+		await UI.say(["Dang it. I'll tell Slim he's a free man. And I'll buy him a new hat. And boots.",
+			"But that means whoever really took those trainers is still out there, laughing at me. With their metal feet."], DEPUTY)
+		await _deputy_partner()
+		return
+	if GameState.flag("slim_cleared") and not GameState.flag("deputy_partner"):
+		await _deputy_partner()
+		return
+	if GameState.flag("deputy_partner"):
+		await UI.say(["Sheriff Dalton's up in Sundown Gulch, north up the Mesa Trail. Tell him what we found, partner.",
+			"I'll hold the fort here. And the cells. Somebody has to. I've locked them. I've checked twice."], DEPUTY)
+		return
+	if GameState.flag("convict_found"):
+		await UI.say(["You found Slim? And he says he didn't do it? Well, they all say that. Mostly. Unless there's proof.",
+			"Proof's a real fine thing. I'd look at proof all day, if somebody brought me some."], DEPUTY)
+	else:
+		await UI.say(["Any sign of Slim? Green coat, hat. Bow legs. Looks guilty. Well, looked guilty. Looks like a fella, mostly."], DEPUTY)
+
+
+## The deputy asks you to help him find the missing trainers and whoever really took them.
+func _deputy_partner() -> void:
+	if not await UI.ask("Help Deputy Rusk find the missing trainers and the real culprit?", DEPUTY):
+		await UI.say(["Fair enough. It's a big job. Bigger than me, probably. Most jobs are. Come back if you change your mind."], DEPUTY)
+		return
+	GameState.set_flag("deputy_partner")
+	GameState.gold += 300
+	Sfx.play("item")
+	await UI.say(["Partners! Here: the reward that was on Slim's head. Feels wrong keeping it now. 300 gold.",
+		"Slim saw a big freight wagon roll through the night the trainers went, metal footprints all round it.",
+		"Sheriff Dalton in Sundown Gulch is asking questions up north. Take him what we know. I'll keep watch here."], DEPUTY)
+
+
+## Slim: hiding from the deputy (framed, he says), then a free man.
+func _slim(n: Dictionary) -> void:
+	if GameState.flag("slim_cleared"):
+		GameState.set_flag("slim_thanks")
+		await UI.say(["Free as a tumbleweed! Thank you, partner. Rusk gave me my hat back.", "...It's his hat. But it's the thought."], n["name"])
+		return
+	if GameState.item_count("card_ledger") > 0:
+		await UI.say(["You got Dusty's ledger? Go show Rusk, quick, before he trips over his own badge and locks himself up."], n["name"])
+		return
+	GameState.set_flag("convict_found")
+	await UI.say(["Whoa, whoa! Don't holler for the deputy! I never took nobody!",
+		"Somebody stuffed a trainer's flute in my saddlebag while I slept, and Rusk found it. Some luck.",
+		"The night that trainer went missing, I was at Dusty's card table in the saloon till sunup. Lost my boots. Lost my hat.",
+		"Dusty writes down every hand in his ledger. Ask him! It'll say I was there all night."], n["name"])
+	await UI.say(["And another thing: that night a big freight wagon rolled through, clank, clank. Metal footprints all round it, come morning."], n["name"])
+
+
+## At the saloon: once Slim has told you about the card game, Barkeep Dusty hands over the ledger that clears him.
+func card_ledger() -> void:
+	if not GameState.flag("convict_found") or GameState.flag("slim_cleared") or GameState.item_count("card_ledger") > 0:
+		await UI.say(["And if you hear word of those missing trainers, you tell the sheriff, y'hear?"], "Barkeep Dusty")
+		return
+	await UI.say(["Slim? Rusk's prisoner? He was at my card table the whole night those trainers went missing. Lost every hand, too.",
+		"It's all in my ledger. Here, take it to Rusk. That boy couldn't find his own hat if he was wearing it."], "Barkeep Dusty")
+	GameState.add_item("card_ledger")
+	Sfx.play("item")
+	await UI.say(["You received the Card Ledger!"])
+
+
+
 func fixtures(map: Dictionary) -> Array:
 	var out := []
 	for lv in map.get("levers", []):

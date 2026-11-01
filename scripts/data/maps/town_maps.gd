@@ -423,7 +423,7 @@ const MAPS := {
 	"dustwell": {
 		# An old western main street (frontier_builder.gd): false-fronted stores, the saloon, the diner Beast Center
 		# and the jail in a row along Main Street, the oasis pool west of the square, missing-trainer posters about
-		# town (Story: poster_0..4) and friends of the three missing trainers looking for them (searcher_0..2).
+		# town (Story: poster_0..3), friends of the missing trainers looking for them (searcher_0..2), and Slim (convict).
 		"style": "frontier",
 		# keeps the saved interiors of the first town (Center, two houses, apothecary, fortune teller) where they were
 		"building_order": [[25, 2], [2, 2], [8, 2], [38, 2], [43, 2], [14, 2], [32, 2]],
@@ -440,20 +440,20 @@ const MAPS := {
 			"TTHHHHHTAAAAATEEEEEEET,,TCCCCCCTHHHHHTNNNNTHHHHHTT",
 			"TTHHHHHTAAAAATEEEEEEET,,TCCCCCCTHHHHHTNNNNTHHHHHTT",
 			"TTHHHHHtAAAAAtEEEEEEEt,,tCCCCCCtHHHHHtNNNNtHHHHHTT",
-			"TT,,,,,5,,,,,,,,,,,,,,,,,,,,,,,6,,,,,,,,,,7,,,,,TT",
+			"TT,,,,,5,,,,,,,,,,,,,,,,,,,,,,,6,,,,,,,,,,,,,,,,TT",
 			"TT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TT",
-			"TT................L::::::::L....................TT",
-			"TT...____.........::8:::::::.......4............TT",
+			"TT................L:::tt:::L....................TT",
+			"TT...____.........::8:tt::::.......4............TT",
 			"TT.._~~~~_........::::SS::::....................TT",
 			"TT._~~~~~~_.......::::SS3:::....................TT",
-			"TT._~~~~~~_....2..::::::::::..........T.....T...TT",
-			"TT.._~~~~_........L::::::::L....................TT",
+			"TT._~~~~~~_....2..::::::::::.....____.f.....f...TT",
+			"TT.._~~~~_........L::::::::L.....____...........TT",
 			"TT...____.............,,................f.......TT",
 			"TT....................,,.....f..................TT",
 			"TT...........@........,,........................TT",
-			"TT..........T.........,,........................TT",
-			"TT........f...........,,.1...............@...*..TT",
-			"TT..............T....9,,........................TT",
+			"TT..........f.........,,................7.......TT",
+			"TT......__f_..........,,.1..........@........*..TT",
+			"TT......____....f....9,,........................TT",
 			"TT....................,,+.......................TT",
 			"TTTTTTTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTT",
@@ -487,7 +487,7 @@ const MAPS := {
 			"00000000000000000000000000000000000000000000000000",
 		],
 		"anchors": {"1": "searcher_0", "2": "searcher_1", "3": "mascot", "4": "searcher_2", "5": "poster_0", "6": "poster_1",
-			"7": "poster_2", "8": "poster_3", "9": "poster_4"},
+			"7": "convict", "8": "poster_2", "9": "poster_3"},
 		"signs": [
 			"Dustwell Oasis. Fill your canteens!",
 		],

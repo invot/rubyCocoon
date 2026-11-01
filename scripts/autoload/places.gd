@@ -70,7 +70,12 @@ func open(b: Dictionary, world) -> void:
 		"skytower":
 			await skytower_desk()
 		"cafe":
-			await UI.say(["Welcome to La Perla. Enjoy our chef's island tasting menu with a view of the sea." if town == "shellhaven" else "Welcome! Our snacks give beasts a boost in battle."], KEEPERS[shop])
+			if b.get("frontier", "") == "saloon":
+				# Dustwell's saloon: the same snacks over a bar (and Slim's alibi: Story.deputy_quest)
+				await UI.say(["Howdy, partner! Sit a spell. Sarsaparilla for you, snacks for your beasts."], "Barkeep Dusty")
+				await Story.card_ledger()
+			else:
+				await UI.say(["Welcome to La Perla. Enjoy our chef's island tasting menu with a view of the sea." if town == "shellhaven" else "Welcome! Our snacks give beasts a boost in battle."], KEEPERS[shop])
 			await shop_loop(b["name"], ["spicy_bun", "mint_tea", "honey_cake"])
 		"beast_gear":
 			await UI.say(["Gear for your beasts! Some pieces even teach them new tricks."], KEEPERS[shop])

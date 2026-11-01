@@ -28,7 +28,7 @@ SHOP = {'C': 'center', 'A': 'apothecary', 'G': 'beast_gear', 'O': 'trainer_gear'
         'h': 'decor', 'D': 'music_shop', 's': 'shack'}
 # town -> building style (world_db.gd BIOMES)
 STYLE = {'caccoon': 'coastal', 'tidewater': 'creole', 'shellhaven': 'island', 'kelpwick': 'island',
-         'dustwell': 'adobe', 'sundown': 'western', 'copperpick': 'mining', 'cogsworth': 'steampunk',
+         'dustwell': 'frontier', 'sundown': 'western', 'copperpick': 'mining', 'cogsworth': 'steampunk',
          'emberfall': 'hotspring', 'vinehollow': 'jungle', 'riverbend': 'town', 'gravenmoor': 'gothic'}
 ROOF = {'coastal': 'gable', 'island': 'hip', 'adobe': 'flat', 'western': 'western', 'mining': 'shed',
         'steampunk': 'gable', 'hotspring': 'pagoda', 'jungle': 'hip', 'town': 'gable', 'gothic': 'steep'}
@@ -172,11 +172,29 @@ def creole_height(shop, w, d, lx, lz, low):
     return 0.24 + floors * 2.8 + (floors - 1) * 0.12 + 1.6
 
 
+def frontier_height(shop, w, d, lx, lz):
+    """Dustwell's main street (frontier_builder.gd): each building stands back PORCH behind a porch roof (the saloon's
+    balcony and its railing) within its plot; stores and the saloon of five tiles or more have a flat above, under a
+    false front; houses may have two storeys under a tin gable; the Beast Center is the diner with a false front."""
+    ax, az = abs(lx), abs(lz)
+    if ax > w / 2 or az > d / 2:
+        return 0.0
+    if lz > d / 2 - 1.15:
+        return 3.95 if shop == 'cafe' else 2.95
+    if shop == 'center':
+        return 4.6
+    if shop in COMMERCIAL:
+        return 7.2 if w >= 5 else 4.3
+    return 6.8
+
+
 def roof_height(style, shop, w, d, lx, lz, low=False):
     """Height of a building's top at local position (lx, lz) from its centre, or 0 outside it."""
     ax, az = abs(lx), abs(lz)
     if style == 'creole' and shop not in ('center',):
         return creole_height(shop, w, d, lx, lz, low)
+    if style == 'frontier' and shop in COMMERCIAL | {'center', 'house', 'home', 'decor'}:
+        return frontier_height(shop, w, d, lx, lz)
     if shop == 'center':
         return 2.32 if ax <= (w - 0.2) / 2 and az <= (d - 0.3) / 2 else 0.0
     if shop == 'arena':

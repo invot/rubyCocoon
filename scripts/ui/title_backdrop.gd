@@ -1,5 +1,5 @@
 extends Control
-## The start menu has no 3D scene or entrance animation. Keep the world viewport asleep until play begins.
+## The lightweight menu shown after the dragon entrance. Keep the world viewport asleep until play begins.
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 var logo: Control
 

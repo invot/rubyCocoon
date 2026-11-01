@@ -1061,6 +1061,10 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			n["kind"] = "resident"
 			n["building"] = b
 			return n
+		"deputy":
+			# Dustwell Jail's deputy, in the sheriff's colours (Story._deputy)
+			return {"kind": "story", "id": "deputy", "name": "Deputy Rusk", "pos": p, "facing": Vector2i(0, 1), "story": true,
+				"look": {"skin": "#d8a880", "hair": "#6a4a2a", "shirt": "#c89a5a", "pants": "#4a3a2a", "hat": "#5a3a22", "outfit": "coat"}}
 		"mom":
 			# the kit's long-haired, smiling woman (no hat or hood); she has your skin, hair and eyes (world.gd _build_npcs)
 			return {"kind": "story", "id": "mom", "name": "Mom", "pos": p, "look": {"model": "tf62", "skin": "#f0c8a0", "hair": "#8a3a20", "shirt": "#e07a5a", "pants": "#4a3a6a"}, "facing": Vector2i(0, 1)}

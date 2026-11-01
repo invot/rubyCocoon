@@ -1204,8 +1204,10 @@ func _town_detail(c: VBoxContainer, t: String) -> void:
 	c.add_child(_t_label("Roads: " + ", ".join(roads), UIKit.DIM))
 	var shops := []
 	for s in info["shops"]:
-		if not s in ["house", "uncle"] and not shops.has(s):
-			shops.append("Library" if t == "caccoon" and s == "bookstore" else String(s).replace("_", " ").capitalize())
+		var place: String = info.get("place_names", {}).get(s, "Library" if t == "caccoon" and s == "bookstore" else String(s).replace("_", " ").capitalize())
+		if not s in ["house", "uncle"] and not shops.has(place):
+			shops.append(place)
+	shops.append_array(info.get("landmarks", []))
 	c.add_child(_t_label("Places: " + ", ".join(shops), UIKit.DIM))
 	if WorldDB.ARENAS.has(t):
 		var a: Dictionary = WorldDB.ARENAS[t]
