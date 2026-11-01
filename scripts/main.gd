@@ -40,6 +40,7 @@ var _cinematic: Node3D
 
 func _ready() -> void:
 	GameState.main = self
+	add_child(load("res://scripts/core/web_fullscreen.gd").new())
 	# the same colour as the boot splash, wherever nothing is drawn yet
 	RenderingServer.set_default_clear_color(SPLASH_COLOR)
 	if Prefs.is_mobile():

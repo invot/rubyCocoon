@@ -1,8 +1,9 @@
-# Every push to main: export the game for Windows and Android with Godot (headless, on Linux) and publish them as the
+# Every push to main: export the game for Windows, Android and Web with Godot (headless, on Linux), and publish
+# Web to Cloudflare Pages when its repository secrets are configured. Publish the native downloads as the
 # "latest" release's RubyCocoon-windows.zip (one portable RubyCocoon.exe: unzip and run) and RubyCocoon-android.apk.
 # Also runs by hand from the Actions tab ("Run workflow"). The quick checks (tools/run_tests.sh quick) run first; if
 # they fail, nothing is published.
-name: Windows and Android build
+name: Windows, Android and Web build
 
 on:
   push:
@@ -42,7 +43,7 @@ jobs:
           path: |
             ~/godot
             ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows-android
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows-android-web
 
       - name: Download Godot
         if: steps.godot-cache.outputs.cache-hit != 'true'
@@ -56,8 +57,7 @@ jobs:
           chmod +x ~/godot/godot
           curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
           unzip -q /tmp/templates.tpz -d /tmp/tpz
-          # (only the Windows and Android templates are needed: the rest would bloat the cache)
-          cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* /tmp/tpz/templates/android_*.apk "$templates/"
+          cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* /tmp/tpz/templates/android_*.apk /tmp/tpz/templates/web_nothreads_*.zip "$templates/"
           ls "$templates"
 
       # imports the project's assets (first run in a fresh checkout), then the quick checks
@@ -65,6 +65,29 @@ jobs:
         run: |
           ~/godot/godot --headless --path . --import || true
           GODOT=~/godot/godot bash tools/run_tests.sh quick
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build Web
+        run: |
+          python -m pip install Pillow==11.3.0
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          GODOT=~/godot/godot python tools/make_web.py
+          node --test tools/tests/web_fullscreen.test.cjs
+
+      - name: Keep Web package
+        uses: actions/upload-artifact@v4
+        with:
+          name: RubyCocoon-web
+          path: build/web/
+          if-no-files-found: error
 
       - name: Export for Windows
         run: |
@@ -111,3 +134,24 @@ jobs:
           # (a full release, marked latest: GitHub's sidebar doesn't show pre-releases)
           gh release create latest "${files[@]}" --target "$GITHUB_SHA" --latest \
             --title "Latest build" --notes "$notes"
+
+      - name: Check Cloudflare credentials
+        id: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to deploy Web. The Web artifact is available for download."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy Web to Cloudflare Pages
+        if: steps.cloudflare.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy build/web --project-name=rubycoccon --branch=main

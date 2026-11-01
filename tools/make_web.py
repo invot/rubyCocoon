@@ -12,7 +12,7 @@
 
 Needs Godot's web export templates and ffmpeg on PATH. Run from the project root:  python tools/make_web.py
 Then upload build/web/ (Cloudflare dashboard > Workers & Pages > Create > Pages > Upload assets), or run
-  npx wrangler pages deploy build/web --project-name ruby-cocoon
+  npx wrangler pages deploy build/web --project-name rubycoccon
 """
 import gzip
 import hashlib
@@ -23,7 +23,7 @@ import subprocess
 
 from PIL import Image
 
-GODOT = r'C:\Program Files\Godot\Godot_v4.7-stable_win64.exe'
+GODOT = os.environ.get('GODOT', r'C:\Program Files\Godot\Godot_v4.7-stable_win64.exe' if os.name == 'nt' else 'godot')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT = os.path.join(ROOT, 'build', 'web_export')
 OUT = os.path.join(ROOT, 'build', 'web')
@@ -151,7 +151,11 @@ def main():
         if f not in PACKED:
             shutil.copy(os.path.join(EXPORT, f), os.path.join(OUT, f))
     html = open(os.path.join(OUT, 'index.html'), encoding='utf-8').read()
-    html = html.replace('<script src="index.js"></script>', SHIM % json.dumps(packed) + '\t\t<script src="index.js"></script>', 1)
+    shutil.copy(os.path.join(ROOT, 'tools', 'web_fullscreen.js'), OUT)
+    for font in ('BoldPixels.ttf', 'lunchds.ttf'):
+        shutil.copy(os.path.join(ROOT, 'ui', font), OUT)
+    html = html.replace('<script src="index.js"></script>', SHIM % json.dumps(packed) +
+                        '<script src="web_fullscreen.js"></script>\n\t\t<script src="index.js"></script>', 1)
     assert 'realFetch' in html, 'could not add the loader script to index.html'
     open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(html)
     music()

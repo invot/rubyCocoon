@@ -605,6 +605,12 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 
 ## Web version (iPhone and any browser)
 
+On mobile browsers, a **Play fullscreen** button appears before play. Leaving fullscreen pauses the game and
+silences audio until **Resume fullscreen** is tapped. The fullscreen icon at the top right toggles fullscreen.
+Detection uses browser user-agent information (including iPads using a desktop agent), never viewport size.
+Installed home-screen apps already run without browser chrome. Browsers without the fullscreen API offer
+**Play in browser**, with an iPhone home-screen installation hint.
+
 `python tools/make_web.py` builds a version that runs in the browser into `build/web/`, ready to host on Cloudflare
 Pages. It needs Godot's web export templates (`web_nothreads_*.zip` in `%APPDATA%\Godot\export_templates\4.7.stable\`)
 and ffmpeg.
@@ -621,14 +627,36 @@ and ffmpeg.
   drop in the `build/web` folder. Or from a terminal (Node.js, after `npx wrangler login`):
 
   ```
-  npx wrangler pages deploy build/web --project-name ruby-cocoon
+  npx wrangler pages deploy build/web --project-name rubycoccon
   ```
 
-  The site is then at `https://ruby-cocoon.pages.dev` (or whatever you named it). `_headers` caches the data parts
+  The site is then at [rubycoccon.pages.dev](https://rubycoccon.pages.dev). `_headers` caches the data parts
   forever (their names change whenever the game does) and the music for a week.
 - **On an iPhone**: open the site in Safari, then Share > Add to Home Screen. It gets the app icon and opens full
   screen, in landscape.
 - To try it locally: `python -m http.server 8060 --directory build/web`, then open http://localhost:8060.
+
+### Automatic web deployment and authentication
+
+The existing [build workflow](.github/workflows/windows-build.yml) builds Windows, Android and Web on every push
+to `main`, or when run manually. After the checks and builds succeed it deploys `build/web/` to
+[rubycoccon.pages.dev](https://rubycoccon.pages.dev). The Web package is also saved as the `RubyCocoon-web`
+Actions artifact. Manual runs from other branches do not deploy production.
+
+Set these under the GitHub repository's **Settings → Secrets and variables → Actions → New repository secret**:
+
+- `CLOUDFLARE_API_TOKEN`: create a Cloudflare custom API token with **Account → Cloudflare Pages → Edit**,
+  restricted to the account that owns `rubycoccon`.
+- `CLOUDFLARE_ACCOUNT_ID`: that account's **Account ID**, from the Cloudflare dashboard; an App ID or Pages
+  project ID is not a substitute. The deploy command identifies the project by its name, `rubycoccon`.
+
+Keep token values in GitHub secrets. No browser login is needed in CI. Without both secrets, the workflow
+keeps building and saving the web artifact and reports a deployment-skipped warning. After adding them,
+run the workflow on `main`. Ensure the existing Pages project's production branch is `main`.
+See [Cloudflare's CI authentication guide](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/).
+
+For local builds, `GODOT` can override the Godot executable (`GODOT=/path/to/godot python tools/make_web.py`).
+Run `node --test tools/tests/web_fullscreen.test.cjs` for the browser-shell regression checks.
 
 ## Editing the maps
 
