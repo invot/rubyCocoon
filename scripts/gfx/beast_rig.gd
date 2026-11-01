@@ -80,6 +80,10 @@ var _blink := 2.0
 
 ## built beasts' pieces and joints, by recipe (cutting a merge's meshes is slow; every beast of a recipe shares them)
 static var _built := {}
+## Geometry measurements are identical for every instance of a recipe, including ghosts and portraits.
+## Cache the small result, never the vertex arrays returned by the renderer.
+static var _measurements := {}
+const RECIPE_CACHE_LIMIT := 96
 
 ## A beast of this form (as "dino_3").
 func setup(f: String, as_ghost := false) -> void:
@@ -164,6 +168,10 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	_centre = Vector3((blo.x + bhi.x) / 2.0, blo.y if kind == "serpent" else (blo.y + bhi.y) / 2.0, 0.0)
 	var key := JSON.stringify(recipe)
 	if not _built.has(key):
+		if _built.size() >= RECIPE_CACHE_LIMIT:
+			var oldest: String = _built.keys()[0]
+			_built.erase(oldest)
+			_measurements.erase(oldest)
 		var j := Parts.joints(fi)
 		# (pieces() moves the joints of the parts it sets onto the frame)
 		var pcs := Parts.pieces(recipe, j)
@@ -209,7 +217,19 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	for m in meshes:
 		top = maxf(top, (m as Mesh).get_aabb().end.y)
 	_height = top
-	_measure(meshes, fi, blo, bhi)
+	if _measurements.has(key):
+		var measures: Dictionary = _measurements[key]
+		_feet = measures["feet"].duplicate(true)
+		_swing = measures["swing"].duplicate(true)
+		_fold = measures["fold"].duplicate()
+		_on_hands = measures["on_hands"]
+		_drop = measures["drop"]
+		_ground = measures["ground"]
+		_height = measures["height"]
+	else:
+		_measure(meshes, fi, blo, bhi)
+		_measurements[key] = {"feet": _feet.duplicate(true), "swing": _swing.duplicate(true),
+			"fold": _fold.duplicate(), "on_hands": _on_hands, "drop": _drop, "ground": _ground, "height": _height}
 	if ghost:
 		_add_smoke(blo, bhi)
 	_t = randf() * 10.0

@@ -34,7 +34,7 @@ func run(main, opts: Dictionary) -> void:
 	var directory := String(opts.get("shots", "res://build/shots/counter_phones"))
 	DirAccess.make_dir_recursive_absolute(directory)
 	for key in representatives:
-		main._load_world(representatives[key], "entry")
+		await main._load_world(representatives[key], "entry")
 		var world = main.world
 		for n in world.map["npcs"]:
 			n["roam"] = false
@@ -43,14 +43,16 @@ func run(main, opts: Dictionary) -> void:
 		# Walk the real route from the entrance to the customer side.
 		await main._walk_test([phone + Vector2i(0, 2)])
 		await main._wait(0.5)
-		await RenderingServer.frame_post_draw
-		main._save_shot(directory + "/" + key + ".png")
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			main._save_shot(directory + "/" + key + ".png")
 		await main._walk_test([phone + Vector2i.DOWN])
 		check(world.player_pos == phone + Vector2i.DOWN, "customer approach: " + key)
 		world.facing = Vector2i.UP
 		load("res://scripts/gfx/voxel_person.gd").face(world.player, world.facing)
 		await main._wait(0.5)
-		await RenderingServer.frame_post_draw
+		if DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
 		UI.auto_log.clear()
 		UI.auto_answers = [-1]
 		await main._press("interact")

@@ -12,6 +12,11 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"performance|-- --scene=stalls --save_dir=res://build/performance_test_saves/|PERFORMANCE AUDIT DONE: 0 problem"
+	"hero-maker|-- --scene=creator --save_dir=res://build/creator_test_saves/|HERO MAKER DONE: 0 problem"
+	"hero-maker-touch|-- --scene=creator --touch --save_dir=res://build/creator_touch_test_saves/|HERO MAKER DONE: 0 problem"
+	"house-measurements|--script res://tools/bake_house_measurements.gd -- --verify|HOUSE MEASUREMENTS DONE: 0 problem"
+	"battle-art|--script res://tools/bake_battle_art.gd -- --verify|BATTLE ART DONE: 0 problem"
 	"shellhaven-marina|-- --scene=shellhaven-marina --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"
 	"shellhaven-marina-touch|-- --scene=shellhaven-marina --touch --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"
 	"island-towns|-- --scene=island-towns --wait=0.3|ISLAND TOWNS DONE: 0 problem"
@@ -60,6 +65,7 @@ TESTS=(
 	"save-ui-touch|-- --scene=saveui --touch --save_dir=res://build/save_ui_touch_saves/ --wait=0.3|SAVE UI TEST DONE: 0 problem"
 	"doorway|-- --scene=doorway --wait=0.3|DOORWAY TEST DONE: 0 problem"
 	"temple-water|-- --scene=guardian --temple=water --wait=0.3|GUARDIAN water: captured true"
+	"tides-walk|-- --scene=tides-walk|TIDES WALK DONE: 0 problem"
 	"temple-air|-- --scene=guardian --temple=air --wait=0.3|GUARDIAN air: captured true"
 	"temple-fire|-- --scene=guardian --temple=fire --wait=0.3|GUARDIAN fire: captured true"
 	"temple-earth|-- --scene=guardian --temple=earth --wait=0.3|GUARDIAN earth: captured true"

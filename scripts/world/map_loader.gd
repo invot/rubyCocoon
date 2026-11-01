@@ -30,6 +30,9 @@ const ROOM_CHARS := {
 	">": MapGen.STAIRS_UP, "<": MapGen.STAIRS_DOWN, "g": MapGen.MIST, "H": MapGen.HEALER, "I": MapGen.INCUBATOR,
 	"K": MapGen.KENNEL, "d": MapGen.IDOOR, "L": MapGen.LOCKED, "Z": MapGen.LOCKED, " ": MapGen.IVOID,
 	"/": MapGen.IDIAG_A, "\\": MapGen.IDIAG_B, "_": MapGen.WATER,
+	# an open doorway onto a balcony: drawn open (room_builder.gd _balcony_door), but walled for walking, so it leads
+	# nowhere
+	"!": MapGen.IWINDOW,
 }
 ## Tiles drawn as furniture (see room_builder.gd KINDS): the furniture letters of interior_maps.gd plus the older
 ## room tiles that are furniture too.
@@ -329,6 +332,11 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		_add_building(m, plot["shop"], plot["pos"], plot["size"], rng, id, idx)
 		var appearance: Dictionary = src.get("building_looks", {}).get(str(idx), {})
 		for key in appearance:
+			if key == "door":
+				# an entrance placed along the front rather than in its middle (the long hotel's, at its east end)
+				var was: Vector2i = m["buildings"].back()["door"]
+				MapGen.set_t(m, was.x, was.y, MapGen.BUILDING)
+				MapGen.set_t(m, appearance["door"].x, appearance["door"].y, MapGen.DOOR)
 			m["buildings"].back()[key] = appearance[key]
 		idx += 1
 	# a town without a Beast Center (Kelpwick) heals in its arena: you arrive, fly in and come round in front of it
@@ -720,7 +728,7 @@ static func room_set(b: Dictionary) -> Array:
 	if b.get("town", "") == "kelpwick" and shop == "house":
 		return ["studio_a"]
 	if b.get("hotel", false):
-		return ["hotel_lobby", "hotel_suite"]
+		return ["hotel_lobby", "hotel_suite", "hotel_room"]
 	if shop == "bookstore" and b.get("town", "") == "caccoon":
 		return ["library"]
 	if b.has("rooms"):
@@ -785,6 +793,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["shards"] = []
 	m["furniture"] = {}
 	m["staff_doors"] = {}
+	m["balcony_doors"] = {}
 	# a red telephone standing on the counter instead of on its own table (room "counter_phone": [x, y])
 	if room.has("counter_phone"):
 		m["counter_phone"] = Vector2i(int(room["counter_phone"][0]), int(room["counter_phone"][1]))
@@ -826,6 +835,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				MapGen.set_t(m, x, y, ROOM_CHARS[ch])
 				if ch == "Z":
 					m["staff_doors"][p] = true
+				elif ch == "!":
+					m["balcony_doors"][p] = true
 				elif ch == "L" and locked_k < locked_texts.size():
 					m["locked_text"][p] = locked_texts[locked_k]
 					locked_k += 1

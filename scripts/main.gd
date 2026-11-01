@@ -22,7 +22,7 @@ const Elev = preload("res://scripts/world/elevation.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
-const TitleStage = preload("res://scripts/gfx/title_stage.gd")
+const TitleBackdrop = preload("res://scripts/ui/title_backdrop.gd")
 
 ## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
 ## Shows the 3D view, filling the window.
@@ -36,6 +36,7 @@ var _title_nodes: Array = []
 var _test := {}
 var autoplay := false
 var _cinematic: Node3D
+var _loaded_scripts := {}
 
 
 func _ready() -> void:
@@ -115,15 +116,15 @@ func _title() -> void:
 	UI.allow_pause = false
 	UI.controls.set_title_mode(false)
 	UI.controls.show_title_legend(Prefs.is_desktop_web())
-	# the menu comes up over the title's own scene in the 3D view (the boot splash is a moment of it)
+	# No splash or 3D entrance: choices are usable on the first menu frame.
 	_clear_title_world()
+	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	screen.hide()
 	Sfx.music("title")
 	Sfx.ambience("")
-	var stage := TitleStage.new()
-	view.add_child(stage)
+	var stage := TitleBackdrop.new()
+	UI.hud.add_child(stage)
 	_title_nodes = [stage]
-	# Let the dragon finish its entrance before accepting title choices.
-	await stage.arrived
 	_title_backdrop()
 	while true:
 		var items := []
@@ -228,10 +229,12 @@ func _clear_title() -> void:
 		if is_instance_valid(n):
 			n.queue_free()
 	_title_nodes = []
+	screen.show()
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 
 # ================================================================ maps
-## Put away the world before starting the title tableau.
+## Put away the world before starting the 2D start menu.
 func _clear_title_world() -> void:
 	if is_instance_valid(world):
 		if world.get_parent():
@@ -240,20 +243,19 @@ func _clear_title_world() -> void:
 		world = null
 
 
-## After the dragon entrance and the first menu draw, load world, battle and book scripts in the background.
+## After the first menu draw, load world, battle, creator and book scripts in the background.
 func _title_backdrop() -> void:
-	# Finish drawing the title and its menu before touching shared loader dependencies.
-	await RenderingServer.frame_post_draw
+	# Headless verification has no render signal. The real menu gets a complete draw before work starts.
+	if DisplayServer.get_name() == "headless":
+		await get_tree().process_frame
+	else:
+		await RenderingServer.frame_post_draw
 	# shaders can't be loaded off the main thread: load the ones the world's scripts preload first
 	for sh in THREAD_SHY:
 		load(sh)
-	ResourceLoader.load_threaded_request(WORLD_PATH)
-	# a frame at least, so the menu is up first
-	await get_tree().process_frame
-	while ResourceLoader.load_threaded_get_status(WORLD_PATH) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-		await get_tree().process_frame
-	for path in [BATTLE_PATH, Menus.BOOK_PATH]:
-		ResourceLoader.load_threaded_request(path)
+	# Retrieve each completed request as well: leaving requests unclaimed retains resources until exit.
+	for path in [WORLD_PATH, "res://scripts/ui/hero_maker.gd", BATTLE_PATH, Menus.BOOK_PATH]:
+		await wait_for_script(path)
 
 
 ## A script loaded in the background (see _title_backdrop), or loaded now if it wasn't asked for or isn't done yet.
@@ -261,12 +263,28 @@ var _battle_warm := false
 
 
 func loaded_script(path: String) -> GDScript:
+	if _loaded_scripts.has(path):
+		return _loaded_scripts[path]
 	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
 		var got = ResourceLoader.load_threaded_get(path)
 		# (a background load that failed: load it here instead of leaving nothing to build with)
 		if got is GDScript:
+			_loaded_scripts[path] = got
 			return got
-	return load(path)
+	var script: GDScript = load(path)
+	_loaded_scripts[path] = script
+	return script
+
+
+## A threaded get blocks if called too soon. Yield until it finishes so loading keeps drawing and accepting input.
+func wait_for_script(path: String) -> GDScript:
+	if _loaded_scripts.has(path):
+		return _loaded_scripts[path]
+	if ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		ResourceLoader.load_threaded_request(path)
+	while ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		await get_tree().process_frame
+	return loaded_script(path)
 
 
 func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> void:
@@ -275,18 +293,33 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 			world.get_parent().remove_child(world)
 		world.queue_free()
 		world = null
-	world = loaded_script(WORLD_PATH).new()
+	# These shader dependencies must be created on the main thread before requesting the world script.
+	for sh in THREAD_SHY:
+		load(sh)
+	var script := await wait_for_script(WORLD_PATH)
+	world = script.new()
 	world.demo = demo
 	view.add_child(world)
-	world.build(id)
+	await world.build(id, true)
 	if demo:
 		world.player.visible = false
 	else:
 		world.spawn_at(spawn, face)
+		await world._spawn_wilds()
 		# the first battle's ring, ready before anyone meets a beast (behind this load's fade)
 		if not _battle_warm:
 			_battle_warm = true
-			loaded_script(BATTLE_PATH).prewarm()
+			var battle_script := await wait_for_script(BATTLE_PATH)
+			battle_script.prewarm()
+		await Sfx.prewarm_field()
+	# Prepare the arrival view behind the fade, one building per frame.
+	if not demo and not world.interior:
+		for i in world.building_fades.size():
+			world._fade_buildings(0.0)
+			await get_tree().process_frame
+			if world.visible_buildings_ready():
+				break
+	world.set_process(true)
 
 
 func music_for(id: String) -> String:
@@ -323,7 +356,12 @@ func reload_map() -> void:
 func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	_transitioning = true
 	await UI.fade_out(fade)
-	_load_world(id, spawn, false, face)
+	var loading := UIKit.label("Loading...", UIKit.BUTTON_FONT_SIZE, UIKit.LIGHT)
+	UI.root.add_child(loading)
+	UIKit.place(loading, "center")
+	await get_tree().process_frame
+	await _load_world(id, spawn, false, face)
+	loading.queue_free()
 	GameState.map_id = id
 	GameState.visit(id)
 	GameState.pos = world.player_pos
@@ -539,7 +577,8 @@ func start_battle(cfg: Dictionary) -> String:
 	var t0 := Time.get_ticks_msec()
 	if world.get_parent() == view:
 		view.remove_child(world)
-	var b = loaded_script(BATTLE_PATH).new()
+	var battle_script := await wait_for_script(BATTLE_PATH)
+	var b = battle_script.new()
 	cfg["map"] = GameState.map_id
 	b.setup(cfg)
 	view.add_child(b)
@@ -593,6 +632,15 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "creator":
+		await load("res://tools/debug/hero_maker.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
+	if scene == "stalls":
+		await load("res://tools/debug/performance.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "shellhaven-marina":
 		await load("res://tools/debug/shellhaven_marina.gd").new().run(self, _test)
 		get_tree().quit()
@@ -650,7 +698,7 @@ func _run_test() -> void:
 		if _test.has("flags"):
 			for f in String(_test["flags"]).split("+"):
 				GameState.set_flag(f)
-		_do_goto(id, sp)
+		await _do_goto(id, sp)
 		if _test.has("overview"):
 			# look down on the whole map from high above its south edge (--overview=1, or =height); --focus=x,y looks at
 			# that tile instead, from `height` above and south of it
@@ -669,7 +717,7 @@ func _run_test() -> void:
 			world.cam.look_at(Vector3(at.x, 0, at.y), Vector3.UP)
 		await get_tree().create_timer(wait).timeout
 	elif scene == "battle":
-		_do_goto("route3", "south")
+		await _do_goto("route3", "south")
 		await get_tree().create_timer(1.0).timeout
 		var foes := [Beasts.create(27, 10), Beasts.create(30, 11), Beasts.create(9, 12, true)]
 		if _test.get("kind", "") == "fishing":
@@ -703,7 +751,7 @@ func _run_test() -> void:
 		GameState.summons = [el]
 		GameState.max_shield = 2
 		GameState.shield = 2
-		_do_goto(String(_test.get("map", "route3")), "south")
+		await _do_goto(String(_test.get("map", "route3")), "south")
 		await get_tree().create_timer(1.0).timeout
 		var sfoes := [Beasts.create(27, 14), Beasts.create(30, 15), Beasts.create(9, 14)]
 		start_battle({"wild": true, "foes": sfoes, "seed": 5, "autoplay": true, "auto_summon": el})
@@ -711,10 +759,12 @@ func _run_test() -> void:
 		print("summon %s: foes' HP %s, shield %d" % [el, sfoes.map(func(f): return "%d/%d" % [f.hp, f.max_hp()]), GameState.shield])
 	elif scene == "guardian":
 		await _guardian_test(String(_test.get("temple", "water")))
+	elif scene == "tides-walk":
+		await _tides_walk_test()
 	elif scene == "ring":
 		# a trainer battle on the ring, driven by key presses once the command panel is up:
 		#   --keys=a,r,a,d,u,b...  (a = A, b = B, l / r = left / right, u / d = up / down), --kind=wild for wild beasts
-		_do_goto("route3", "south")
+		await _do_goto("route3", "south")
 		await _wait(1.0)
 		var flv := int(_test.get("foe_level", "10"))
 		# --down=1: your first beast has fainted (its tile crossed out)
@@ -732,7 +782,7 @@ func _run_test() -> void:
 	elif scene == "defeat":
 		# a foe vanishing in a puff of smoke, with a damage number on its partner (--at = seconds after the puff);
 		# --trainer=foe|ally|robot: a trainer beaten instead, dropping to one knee (a robot powering down)
-		_do_goto("route3", "south")
+		await _do_goto("route3", "south")
 		await _wait(1.0)
 		var beaten := String(_test.get("trainer", ""))
 		if beaten == "":
@@ -761,7 +811,7 @@ func _run_test() -> void:
 		bt._float_text(bt.foe_slots[1], "-27", Color("#ffe060"))
 		await _wait(float(_test.get("at", "0.2")))
 	elif scene == "flute":
-		_do_goto("route1", "south")
+		await _do_goto("route1", "south")
 		await get_tree().create_timer(1.0).timeout
 		var fo := {}
 		if _test.has("level"):
@@ -786,7 +836,7 @@ func _run_test() -> void:
 		await get_tree().create_timer(wait).timeout
 	elif scene == "sim":
 		Engine.time_scale = 40.0
-		_do_goto("route5", "south")
+		await _do_goto("route5", "south")
 		await get_tree().create_timer(1.0).timeout
 		var tally := {}
 		for i in int(_test.get("n", "6")):
@@ -810,7 +860,7 @@ func _run_test() -> void:
 	elif scene == "flow":
 		await _flow_test()
 	elif scene == "dialog":
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await get_tree().create_timer(1.5).timeout
 		UI.say(["Ah, Tester! There you are. Today you become a beast trainer. Every trainer needs a partner, and I have four young beasts here."], "Elder Rowan")
 		await get_tree().create_timer(wait).timeout
@@ -843,14 +893,14 @@ func _run_test() -> void:
 	elif scene == "rescue":
 		await _rescue_test()
 	elif scene == "center":
-		_do_goto("caccoon", "center")
+		await _do_goto("caccoon", "center")
 		await get_tree().create_timer(1.5).timeout
 		Places.storage()
 		await get_tree().create_timer(0.3).timeout
 		Menus.pick_beast("Withdraw which beast?", GameState.party)
 		await get_tree().create_timer(wait).timeout
 	elif scene == "input":
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await _wait(1.5)
 		var start_pos: Vector2i = world.player_pos
 		Input.action_press("move_right")
@@ -893,7 +943,7 @@ func _run_test() -> void:
 		await _wait(0.3)
 		print("walked to ", world.player_pos)
 	elif scene == "doors":
-		_do_goto("caccoon", "center")
+		await _do_goto("caccoon", "center")
 		await _wait(1.5)
 		print("outside at ", world.player_pos, " facing ", world.facing, " map ", world.map_id)
 		Input.action_press("move_up")
@@ -930,7 +980,7 @@ func _run_test() -> void:
 		for i in GameState.SLOT_COUNT:
 			GameState.delete_slot(i)
 		var home := MapLoader.interior_of("caccoon", "home")
-		_do_goto(home, "entry")
+		await _do_goto(home, "entry")
 		await _wait(1.0)
 		var out := {}
 		for t in world.map["exits"]:
@@ -946,7 +996,7 @@ func _run_test() -> void:
 		left = await Story.can_use_exit(world, out)
 		print("after Dad's call: called_dad ", GameState.flag("called_dad"), "  saved ", saved, "  slot ", GameState.current_slot, "  leave ", left)
 		bad += int(not GameState.flag("called_dad")) + int(not saved) + int(not left)
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await _wait(1.0)
 		print("payphone at ", world.map.get("payphone", "none"))
 		bad += int(not world.map.has("payphone"))
@@ -985,7 +1035,7 @@ func _run_test() -> void:
 		# what she makes of your beasts' levels: none before you have a beast; else next to the Isle Trail's (Lv 4-7)
 		GameState.party = []
 		bad += int(not Phone.level_advice(world).is_empty())
-		_do_goto("route2", "west")
+		await _do_goto("route2", "west")
 		await _wait(1.0)
 		GameState.party = [Beasts.create(24, 1)]
 		for spec in [[1, "far too strong"], [3, "a little strong"], [6, "just right"], [12, "stronger than you need"]]:
@@ -994,7 +1044,7 @@ func _run_test() -> void:
 			print("Lv %d on %s: %s" % [spec[0], world.map_id, advice])
 			bad += int(not String(spec[1]) in advice or not "Isle Trail are Lv 4 to 7" in advice)
 		# in a town, with no wild beasts about: the arena master you're to face next (Marina, Lv 9-10)
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await _wait(1.0)
 		for f in ["got_egg", "has_starter", "tutorial_done"]:
 			GameState.set_flag(f)
@@ -1005,7 +1055,7 @@ func _run_test() -> void:
 		print("next goal ", Story.next_goal(), " in town: ", town_advice)
 		bad += int(not "Tide Captain Marina's beasts are Lv 9 to 10" in town_advice)
 		# at home Mom's in the room: the phone there only calls Dad
-		_do_goto(home, "entry")
+		await _do_goto(home, "entry")
 		await _wait(1.0)
 		UI.auto_log.clear()
 		UI.auto_answers = [1]
@@ -1071,7 +1121,7 @@ func _run_test() -> void:
 		# locked doors: you knock and someone shouts through it; the cathedral opens once its guard is beaten
 		UI.auto = true
 		for spec in [["tidewater", "house"], ["gravenmoor", "cathedral"]]:
-			_do_goto(spec[0], "start")
+			await _do_goto(spec[0], "start")
 			await _wait(1.0)
 			for b in world.map["buildings"]:
 				if b["shop"] != spec[1]:
@@ -1093,7 +1143,7 @@ func _run_test() -> void:
 		UI.auto = true
 		GameState.visited = ["caccoon", "tidewater"]
 		GameState.gold = 500
-		_do_goto("tidewater", "skytower")
+		await _do_goto("tidewater", "skytower")
 		await _wait(1.0)
 		await world._enter_building(world.doors[world.player_pos + Vector2i(0, -1)])
 		await _wait(1.2)
@@ -1148,7 +1198,7 @@ func _run_test() -> void:
 		GameState.set_flag("world_map")
 		GameState.visited = ["caccoon", "tidewater", "shellhaven", "kelpwick", "dustwell"]
 		GameState.crests = ["Wave Crest", "Coral Crest"]
-		_do_goto("route3", "south")
+		await _do_goto("route3", "south")
 		await _wait(1.5)
 		Menus.world_map()
 		await _wait(wait)
@@ -1163,7 +1213,7 @@ func _run_test() -> void:
 		await _gallery(parts[1], int(parts[2]) if parts.size() > 2 else 0)
 		await _wait(wait)
 	elif scene.begins_with("book"):
-		_do_goto(_test.get("map", "tidewater"), "center")
+		await _do_goto(_test.get("map", "tidewater"), "center")
 		await _wait(1.5)
 		GameState.gold = 4321
 		GameState.max_shield = 2
@@ -1219,7 +1269,7 @@ func _run_test() -> void:
 		# each town's mascot and its signature move: the move's rules, then teaching it (Lv 39: not yet; Lv 40: yes),
 		# another race, and a merge. With --plaque (rendered): reads the statue's plaque on screen instead.
 		if _test.has("plaque"):
-			_do_goto("caccoon", Vector2i(17, 12), Vector2i(0, -1))
+			await _do_goto("caccoon", Vector2i(17, 12), Vector2i(0, -1))
 			await _wait(1.5)
 			world._interact()
 			for i in int(_test.get("pages", "2")):
@@ -1233,7 +1283,7 @@ func _run_test() -> void:
 		GameState.set_flag("flute_lesson_done", false)
 		# a new trainer's: just the starter caught so far
 		GameState.caught = {}
-		_do_goto("route1", "west")
+		await _do_goto("route1", "west")
 		await _wait(1.5)
 		UI.auto = true
 		UI.auto_flute = [{"acc": 0.8, "mistakes": 0}]
@@ -1257,7 +1307,7 @@ func _run_test() -> void:
 		var spot := _teacher_spot(String(_test.get("lesson", "screen")))
 		# (Youngster Kit and the arena's coaches stop you as you come in, so their lessons begin by themselves)
 		UI.auto = _test.get("auto", "0") == "1"
-		_do_goto(spot[0], spot[1])
+		await _do_goto(spot[0], spot[1])
 		await _wait(1.5)
 		var teacher := _lesson_trainer(String(_test.get("lesson", "screen")))
 		var begun: bool = world.busy or in_battle
@@ -1334,7 +1384,7 @@ func _run_test() -> void:
 	elif scene == "wilds":
 		autoplay = true
 		UI.auto = true
-		_do_goto("route1", "west")
+		await _do_goto("route1", "west")
 		await _wait(2.0)
 		print("wild beasts on route1: ", world.wilds.size(), " target ", world._wild_target, " ", world.wilds.map(func(w): return "%s x%d L%d %s" % [w["beasts"][0].nickname, w["beasts"].size(), w["beasts"][0].level, w["pos"]]))
 		# 1. creep up behind one and walk into it
@@ -1379,7 +1429,7 @@ func _run_test() -> void:
 			print("(no room in front of beast 2)")
 		# 3. a weak beast flees (back on the route first: the last fight may have sent you to a Beast Center)
 		GameState.heal_party()
-		_do_goto("route1", "west")
+		await _do_goto("route1", "west")
 		await _wait(2.0)
 		for b in GameState.party:
 			b.level = 30
@@ -1394,7 +1444,7 @@ func _run_test() -> void:
 					await _wait(0.1)
 				print("weak beast state: ", w2["state"], " mark '", w2["mark"].text, "' colour ", w2["mark"].modulate.to_html(false), " moved to ", w2["pos"])
 	elif scene == "marks":
-		_do_goto("route1", "west")
+		await _do_goto("route1", "west")
 		await _wait(2.0)
 		var near: Array = world.wilds.duplicate()
 		near.sort_custom(func(a, b): return Vector2(a["pos"] - world.player_pos).length() < Vector2(b["pos"] - world.player_pos).length())
@@ -1420,14 +1470,14 @@ func _run_test() -> void:
 		var built := 0
 		var porches := 0
 		for id in WorldDB.TOWNS.keys() + WorldDB.ROUTES.keys():
-			_load_world(id, "start")
+			await _load_world(id, "start")
 			world.frozen = true
 			await get_tree().process_frame
 			built += 1
 			porches += _porches_out(world)
 			for b in world.map.get("buildings", []):
 				for f in range(1, MapLoader.room_set(b).size() + 1):
-					_load_world(MapLoader.floor_id(b["interior"], f), "entry")
+					await _load_world(MapLoader.floor_id(b["interior"], f), "entry")
 					world.frozen = true
 					await get_tree().process_frame
 					built += 1
@@ -1460,7 +1510,7 @@ func _run_test() -> void:
 		# taps on or near the on-screen controls never walk you anywhere; taps on open ground do
 		Prefs.touch_controls = "on"
 		UI.controls.refresh()
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await _wait(1.5)
 		var oc = UI.controls
 		var vp := get_viewport().get_visible_rect().size
@@ -1481,7 +1531,7 @@ func _run_test() -> void:
 			await _wait(1.4)
 			print("tap %s at %s: covered %s, walked %s" % [spot[0], spot[1], oc.covers(spot[1]), world.player_pos != from])
 	elif scene == "tap":
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await _wait(1.5)
 		var from: Vector2i = world.player_pos
 		var dest: Vector2i = from + Vector2i(4, -2)
@@ -1614,16 +1664,16 @@ func _run_test() -> void:
 			world.play_heal_fx(3)
 		await _wait(wait)
 	elif scene == "slots":
-		_do_goto("tidewater", "center")
+		await _do_goto("tidewater", "center")
 		await _wait(1.5)
 		GameState.play_time = 5025.0
 		await save_now()
 		GameState.copy_slot(GameState.current_slot, 3)
-		_load_world("caccoon", "start", true)
+		await _load_world("caccoon", "start", true)
 		slot_manager()
 		await _wait(wait)
 	elif scene == "spiral":
-		_do_goto("route1", "west")
+		await _do_goto("route1", "west")
 		await _wait(1.5)
 		UI.spiral_in(SPIRAL_COLORS[_test.get("kind", "sneak")], 1.0)
 		await _wait(wait)
@@ -1633,7 +1683,7 @@ func _run_test() -> void:
 	elif scene == "saves":
 		for i in GameState.SLOT_COUNT:
 			GameState.delete_slot(i)
-		_do_goto("tidewater", "center")
+		await _do_goto("tidewater", "center")
 		await _wait(1.5)
 		print("first save ok: ", await save_now(), " slot ", GameState.current_slot)
 		GameState.play_time = 3725.0
@@ -1656,7 +1706,7 @@ func _run_test() -> void:
 		autoplay = true
 		# (Bellerive's first-visit welcome would stay up under the fishing)
 		GameState.set_flag("seen_tidewater")
-		_do_goto("tidewater", Vector2i(7, 33), Vector2i(0, 1))
+		await _do_goto("tidewater", Vector2i(7, 33), Vector2i(0, 1))
 		await _wait(1.5)
 		# (after arriving, so the arrival doesn't start Gil's lesson by itself)
 		GameState.set_flag("fisher_met")
@@ -1707,7 +1757,7 @@ func _run_test() -> void:
 		# the character creator over the town; --picks=body:1,top:3,tab:1,row:eyes as if chosen (tab: the one open, 0
 		# Look or 1 Colours; row: the one highlighted: tab, start or a row's id); --keys=d,d,a,r,... pressed in turn
 		# (u d l r a b), then --verify=1 checks the tabs: what each shows, the keys and taps between them
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await _wait(1.0)
 		var m: Control = load("res://scripts/ui/hero_maker.gd").new()
 		UI.push(m)
@@ -1724,25 +1774,24 @@ func _run_test() -> void:
 			await _maker_test(m)
 		await _wait(wait)
 	elif scene == "pause":
-		_do_goto("tidewater", "center")
+		await _do_goto("tidewater", "center")
 		await _wait(1.5)
 		UI.push(UI.PauseOverlay.new())
 		await _wait(wait)
 	elif scene == "title":
+		if _test.get("fixture", "0") == "1":
+			GameState.save_game(0)
 		_title()
 		if _test.get("verify", "0") == "1":
 			await load("res://tools/debug/title_startup.gd").new().run(self)
-		if _test.has("at"):
-			_title_nodes[0].freeze(float(_test["at"]))
 		# --keys: pressed once the menu is up (with a save, d,a opens Load Game; without, a opens the character creator)
-		if not _test.has("at") or float(_test["at"]) >= 4.2:
-			while UI.stack.is_empty():
-				await get_tree().process_frame
+		while UI.stack.is_empty():
+			await get_tree().process_frame
 		await _wait(0.2)
 		await _test_keys()
 		await get_tree().create_timer(wait).timeout
 	elif scene == "view":
-		_do_goto("caccoon", "start")
+		await _do_goto("caccoon", "start")
 		await get_tree().create_timer(1.0).timeout
 		# a Pyrosaur and a Tempestrix, final forms at their level limit
 		var c := Beasts.merge(Beasts.create(0, 40), Beasts.create(30, 40), true)
@@ -1973,9 +2022,9 @@ func _opening_test() -> void:
 			bad += 1
 			print("FAIL cinematic beat progression")
 		var dark_beats: Array = film.BEATS.filter(func(beat): return float(beat[0]) < film.DAWN)
-		if String(dark_beats.back()[4]) != "murder" or not String(dark_beats.back()[3]).is_empty():
+		if String(dark_beats.back()[4]) != "cages" or not String(dark_beats.back()[3]).is_empty():
 			bad += 1
-			print("FAIL murder no longer cuts straight to spring")
+			print("FAIL cage reveal no longer cuts straight to spring")
 		# A/Next uses the normal dialogue behavior: reveal typing first, then continue.
 		film.dialogue.text_label.visible_characters = 0
 		var last_beat: int = film._beat
@@ -2167,6 +2216,94 @@ func _guardian_test(tk: String) -> void:
 		await Story.talk(world, g)
 	print("GUARDIAN %s: captured %s, summons %s, flag %s, now on %s, party %s" % [tk, GameState.summons.has(tk), GameState.summons,
 		GameState.flag("guardian_" + tk), GameState.map_id, GameState.party.map(func(x): return "%s L%d %d/%d" % [x.nickname, x.level, x.hp, x.max_hp()])])
+
+
+## --scene=tides-walk: the Temple of Tides played on foot, by walking and pressing A: from the hall's front door through
+## each wing's doorway, to its lever (pulled with A, Yes), and back into the hall, checking at each step that the way on
+## opens (with the wings' beasts kept away). --shots=dir saves the hall after each lever. Prints a count of problems at the end.
+func _tides_walk_test() -> void:
+	var bad := 0
+	var shots := String(_test.get("shots", ""))
+	# (talk plays itself; no beasts prowl the wings, by the repelling incense: this is about the ways through)
+	UI.auto = true
+	autoplay = true
+	GameState.incense_steps = 99999
+	GameState.incense_kind = -1
+	GameState.set_flag("ritual_done")
+	await _go("reef")
+	await _wait(1.0)
+	var hall := String(_bld("temple")["interior"])
+	await _go(hall, "entry")
+	await _settle(hall)
+	# each step: the hall's door to the wing, and the flood its lever drains in the hall
+	for step in [["temple_tides_west", "tides_lever_1"], ["temple_tides_east", "tides_lever_2"], ["temple_tides_gallery", "tides_lever_3"]]:
+		var door := Vector2i(-1, -1)
+		for t in world.map["exits"]:
+			if String(MapLoader.load_map(String(world.map["exits"][t]["to"]), {}).get("room_key", "")) == step[0]:
+				door = t
+		var wing := String(world.map["exits"].get(door, {}).get("to", ""))
+		for tries in 10:
+			if world.map_id != hall:
+				break
+			await _walk_test([door])
+			await _wait(1.0)
+		await _settle(wing)
+		var in_wing: bool = world.map_id == wing and wing != ""
+		print("%s into %s (door %s): now on %s at %s" % ["ok  " if in_wing else "FAIL", step[0], door, world.map_id, world.player_pos])
+		if not in_wing:
+			bad += 1
+			break
+		# walk up to the lever, face it and press A, answering Yes
+		var lever: Vector2i = world.map["levers"][0]["pos"]
+		var spots := [lever + Vector2i(0, 1), lever + Vector2i(1, 0), lever + Vector2i(-1, 0), lever + Vector2i(0, -1)]
+		for tries in 10:
+			if world.player_pos in spots:
+				break
+			await _walk_test(spots)
+			await _wait(1.0)
+		var off: Vector2i = lever - world.player_pos
+		var by: bool = absi(off.x) + absi(off.y) == 1
+		if by:
+			world.facing = lever - world.player_pos
+			load("res://scripts/gfx/voxel_person.gd").face(world.player, world.facing)
+		UI.auto_answers.append(0)
+		await _press("interact")
+		await _wait(0.5)
+		for i in 300:
+			if not (world.busy or UI.busy()):
+				break
+			await _wait(0.1)
+		var pulled := GameState.flag(step[1])
+		print("%s %s lever: beside it %s (at %s), pulled %s" % ["ok  " if pulled else "FAIL", step[0], by, world.player_pos, pulled])
+		bad += int(not pulled)
+		# back to the hall by the way you came in
+		var back := Vector2i(-1, -1)
+		for t in world.map["exits"]:
+			back = t
+		# (a prowling beast may stand in a channel walkway for a while: try again once it moves on)
+		for tries in 10:
+			if world.map_id != wing:
+				break
+			await _walk_test([back])
+			await _wait(1.0)
+		await _settle(hall)
+		var home: bool = world.map_id == hall
+		print("%s back in the hall: on %s at %s" % ["ok  " if home else "FAIL", world.map_id, world.player_pos])
+		bad += int(not home)
+		if shots != "":
+			_save_shot(shots.path_join("hall_%s.png" % step[1]))
+	# down the stair in the drained pool to the guardian
+	var stair := Vector2i(-1, -1)
+	for t in world.map["exits"]:
+		if String(MapLoader.load_map(String(world.map["exits"][t]["to"]), {}).get("room_key", "")) == "temple_water":
+			stair = t
+	await _walk_test([stair])
+	var room := String(world.map["exits"].get(stair, {}).get("to", ""))
+	await _settle(room)
+	var down: bool = room != "" and world.map_id == room
+	print("%s down to the guardian's chamber: on %s" % ["ok  " if down else "FAIL", world.map_id])
+	bad += int(not down)
+	print("TIDES WALK DONE: %d problem(s)" % bad)
 
 
 ## Goes inside a temple (or down to Gravenmoor's crypt, the ghost guardian's).
@@ -2593,7 +2730,7 @@ func _flow_test() -> void:
 
 ## The four-way walking test (--scene=walk4): prints each check and a count of problems at the end.
 func _walk4_test() -> void:
-	_do_goto("caccoon", "start")
+	await _do_goto("tidewater", "center")
 	await _wait(1.5)
 	var w = world
 	var bad := [0]
@@ -2612,8 +2749,30 @@ func _walk4_test() -> void:
 			bad[0] += 1
 			print("  OFF THE GROUND at %s (the ground is at %.2f)" % [pos, Elev.height_at(w.map, pos.x, pos.z)])
 	get_tree().process_frame.connect(watch)
-	# open ground east of the plaza
-	var start := Vector2i(22, 10)
+	# Find an open patch in the current town layout. Buildings and terraces have moved since the original test.
+	var start := Vector2i(-1, -1)
+	for y in range(2, int(w.map["h"]) - 5):
+		for x in range(2, int(w.map["w"]) - 8):
+			var p := Vector2i(x, y)
+			var clear := true
+			for dy in range(-2, 4):
+				for dx in range(0, 8):
+					if (dy < 0 and dx != 1) or (dy > 0 and dx > 4):
+						continue
+					var q := p + Vector2i(dx, dy)
+					if not w._walkable(q) or not is_equal_approx(w._lift(q), w._lift(p)) or w.map["exits"].has(q):
+						clear = false
+			if clear:
+				start = p
+				break
+		if start.x >= 0:
+			break
+	if start.x < 0:
+		print("FAIL no open patch for four-way movement test")
+		get_tree().process_frame.disconnect(watch)
+		print("WALK TEST DONE: 1 problem(s)")
+		return
+	var origin := start
 	w.player_pos = start
 	w.player.position = w.tile_pos(start)
 	var check := func(what: String, want: Vector2i) -> void:
@@ -2711,7 +2870,7 @@ func _walk4_test() -> void:
 		bad[0] += 1
 	print("%s   ... went right only (%s to %s)" % ["ok  " if stick_ok else "FAIL", p, w.player_pos])
 	# B held: a run
-	start = Vector2i(22, 10)
+	start = origin
 	w.player_pos = start
 	w.player.position = w.tile_pos(start)
 	Input.action_press("run")
@@ -2736,6 +2895,8 @@ func _walk4_test() -> void:
 		await _wait(0.35)
 		_touch(at * to_window, false)
 		await check.call("touch d-pad: right arm", Vector2i(-999, -999))
+		w.player_pos = start + Vector2i.RIGHT
+		w.player.position = w.tile_pos(w.player_pos)
 		# a thumb on the corner between up and right holds just one of them
 		var up_btn: TouchScreenButton = UI.controls._buttons["up"]
 		var corner: Vector2 = up_btn.position + Vector2(arm + 4.0, arm - 4.0)
@@ -2775,38 +2936,77 @@ func _walk4_test() -> void:
 		print("%s   ... standing on the deck (y %.2f)" % ["ok  " if y_ok else "FAIL", w.player.position.y])
 		await _walk_test([deck + Vector2i(0, 2)])
 		await check.call("off the deck again", deck + Vector2i(0, 2))
-	# cliffs and ramps: Cocoon Cove's lawn stands a level above its beach, three ramps down (town_maps.gd "heights")
-	var edge := Vector2i(20, 14)
+	# Use the authored cliffs and ramps, rather than coordinates from the former beach layout.
+	var reachable: Dictionary = w._reachable(w.map["spawns"]["start"])
+	var edge := Vector2i(-1, -1)
+	var cliff_dir := Vector2i.ZERO
+	var top := Vector2i(-1, -1)
+	var downhill := Vector2i.ZERO
+	var ramp_steps := 0
+	var beside := Vector2i(-1, -1)
+	var side_dir := Vector2i.ZERO
+	for terrain_tile: Vector2i in reachable:
+		if not w._walkable(terrain_tile):
+			continue
+		for d: Vector2i in w.FOUR_WAYS:
+			var q := terrain_tile + d
+			if edge.x < 0 and reachable.has(q) and w._walkable(q) and w._lift(terrain_tile) > w._lift(q) and not Elev.joined(w.map, terrain_tile, q):
+				edge = terrain_tile
+				cliff_dir = d
+		var up := Elev.ramp_dir(w.map, terrain_tile)
+		if top.x >= 0 or up == Vector2i.ZERO or Elev.ramp_dir(w.map, terrain_tile + up) != Vector2i.ZERO or not w._walkable(terrain_tile + up):
+			continue
+		var count := 1
+		while Elev.ramp_dir(w.map, terrain_tile - up * count) == up:
+			count += 1
+		if not w._walkable(terrain_tile - up * count):
+			continue
+		var side := Vector2i(-up.y, up.x)
+		for sign_n in [-1, 1]:
+			var at: Vector2i = terrain_tile + side * sign_n
+			if not w._walkable(at) or w._can_step(at, terrain_tile):
+				continue
+			top = terrain_tile + up
+			downhill = -up
+			ramp_steps = count + 1
+			beside = at
+			side_dir = -side * sign_n
+			break
+	if edge.x < 0 or top.x < 0:
+		print("FAIL no accessible cliff/ramp fixture in the town")
+		bad[0] += 1
+		get_tree().process_frame.disconnect(watch)
+		print("WALK TEST DONE: %d problem(s)" % bad[0])
+		return
+	var actions := {Vector2i.UP: "move_up", Vector2i.DOWN: "move_down", Vector2i.LEFT: "move_left", Vector2i.RIGHT: "move_right"}
 	w.player_pos = edge
 	w.player.position = w.tile_pos(edge)
-	await _press("move_down")
-	await check.call("down at the cliff's edge: no step", edge)
-	var beside := Vector2i(12, 13)
+	await _press(actions[cliff_dir])
+	await check.call("at the cliff's edge: no step", edge)
 	w.player_pos = beside
 	w.player.position = w.tile_pos(beside)
-	await _press("move_right")
+	await _press(actions[side_dir])
 	await check.call("onto a ramp from its side: no step", beside)
-	var top := Vector2i(14, 12)
 	w.player_pos = top
 	w.player.position = w.tile_pos(top)
-	for i in 3:
-		await _press("move_down")
-		await check.call("down the ramp, step %d" % (i + 1), top + Vector2i(0, i + 1))
-	var low: bool = is_equal_approx(w.player.position.y, 0.0) and is_equal_approx(w.tile_pos(top).y, Elev.LEVEL_H)
+	for i in ramp_steps:
+		await _press(actions[downhill])
+		await check.call("down the ramp, step %d" % (i + 1), top + downhill * (i + 1))
+	var low: bool = w.player.position.y < w.tile_pos(top).y and w.player.position.is_equal_approx(w.tile_pos(top + downhill * ramp_steps))
 	if not low:
 		bad[0] += 1
-	print("%s   ... from the lawn (y %.2f) to the beach (y %.2f)" % ["ok  " if low else "FAIL", w.tile_pos(top).y, w.player.position.y])
-	# a tap on the beach from the lawn above walks round by a ramp
+	print("%s   ... from the upper path (y %.2f) to the lower path (y %.2f)" % ["ok  " if low else "FAIL", w.tile_pos(top).y, w.player.position.y])
+	# A tap below a cliff walks round by the actual ramps.
 	w.player_pos = edge
 	w.player.position = w.tile_pos(edge)
 	await _wait(0.3)
-	var sand := Vector2i(20, 16)
+	var sand := edge + cliff_dir
 	w.tap_at(w.cam.unproject_position(w.tile_pos(sand)))
 	for i in 80:
 		await _wait(0.1)
 		if w._path.is_empty() and not w.moving:
 			break
-	await check.call("tap the beach below the cliff: down a ramp to it", sand)
+	await check.call("tap below the cliff: down a ramp to it", sand)
 	get_tree().process_frame.disconnect(watch)
 	print("WALK TEST DONE: %d problem(s)" % bad[0])
 
@@ -2829,7 +3029,7 @@ func _touch(at: Vector2, down: bool) -> void:
 ## ring turns by itself. --stop=trainer|target|all|move stops at that moment (for --shot). Prints "BATTLE COMMANDS DONE: n".
 func _battlecmd_test() -> void:
 	Engine.time_scale = 2.0
-	_do_goto("route1", "west")
+	await _do_goto("route1", "west")
 	await _wait(1.5)
 	var bad := [0]
 	var check := func(ok: bool, what: String) -> void:
@@ -3111,7 +3311,7 @@ func _battlecmd_test() -> void:
 ## of storage, every lit cell agreeing with the rules, and taps (as a finger would) picking a beast up and putting it
 ## down. Prints each check and "RING EDIT DONE: n problem(s)".
 func _ringedit_test() -> void:
-	_do_goto("tidewater", "center")
+	await _do_goto("tidewater", "center")
 	await _wait(1.5)
 	var bad := [0]
 	var check := func(ok: bool, what: String) -> void:
@@ -3346,12 +3546,16 @@ func _lessons_test() -> void:
 			var res := [""]
 			if lesson == "flute":
 				_do_goto("route1", "west")
+				while _transitioning:
+					await get_tree().process_frame
 				await _wait(1.5)
 				var wild := func(): res[0] = await Story.wild_battle(world, [Beasts.create(27, 3)], "wild")
 				wild.call()
 			else:
 				var spot := _teacher_spot(lesson)
 				_do_goto(spot[0], spot[1])
+				while _transitioning:
+					await get_tree().process_frame
 				await _wait(1.5)
 				# (Youngster Kit and the arena's coaches have stopped you already)
 				if not (world.busy or in_battle):
@@ -3547,7 +3751,7 @@ func _doorway_test() -> void:
 	GameState.set_flag("called_dad")
 	GameState.hero = {"skin": "#9a6440", "hair": "#d8b060", "eyes": "#3a7a4a"}
 	var home := MapLoader.interior_of("caccoon", "home")
-	_do_goto(home, "entry")
+	await _do_goto(home, "entry")
 	await _settle(home)
 	var mom: Dictionary = {}
 	for p in world.npcs:
@@ -3699,7 +3903,7 @@ func _mascot_test() -> void:
 			bad += 1
 		print("%s %-11s %-12s %-18s %s power %d (strongest %s move by levelling: %d)  %s statue" % ["ok  " if ok else "FAIL", id, RaceDB.race_name(race), m.get("name", "?"), el, int(m.get("power", 0)), el, strongest, WorldDB.statue_metal(id)])
 	UI.auto = true
-	_do_goto("caccoon", "start")
+	await _do_goto("caccoon", "start")
 	await _wait(1.5)
 	var mascot := _npc("mascot")
 	# (straight into the party: the mascot only teaches a beast you have with you)
@@ -3841,13 +4045,13 @@ func _maker_test(m: Control) -> void:
 	await _press("ui_down")
 	check.call(m.row == "tab", "down from Confirm round to the tabs (got %s)" % m.row)
 	# the taps: the Look tab, then the Colours tab and its third top swatch
-	await _opening_click(m._tabs[0])
+	await _tap_at(m._tabs[0].get_global_rect().get_center())
 	check.call(m.tab == 0, "tapping Look opens it")
-	await _opening_click(m._tabs[1])
+	await _tap_at(m._tabs[1].get_global_rect().get_center())
 	await get_tree().process_frame
 	check.call(m.tab == 1, "tapping Colours opens it")
 	var before: int = m.pick["top"]
-	await _opening_click(m._chips["top"][2])
+	await _tap_at(m._chips["top"][2].get_global_rect().get_center())
 	check.call(m.pick["top"] == 2 and before != 2 and m.row == "top", "tapping a swatch picks it (top %d, row %s)" % [m.pick["top"], m.row])
 	m._go("pack", false)
 	print("MAKER TEST DONE: %d problem(s)" % bad[0])

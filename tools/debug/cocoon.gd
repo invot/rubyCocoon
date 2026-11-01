@@ -37,9 +37,18 @@ func run(main, opts: Dictionary) -> void:
 	_check(town.get("outskirt_houses", []).is_empty() and town.get("scenery_houses", []).size() == 2, "two close background homes replace distant outskirt buildings")
 	for entry in town.get("scenery_houses", []):
 		var position := Vector2i(int(entry["x"]), int(entry["y"]))
+		# Scenery shares the streamed building path: inspect it with its footprint in view.
+		var aim := Vector3(position.x + float(entry["w"]) / 2.0, main.world._lift(position), position.y + float(entry["d"]) / 2.0)
+		main.world.cam.position = aim + main.world.CAM_OFFSET
+		main.world.cam.look_at(aim + Vector3(0, main.world.CAM_LOOK_Y, 0))
+		for attempt in main.world.building_fades.size():
+			main.world._fade_buildings(0.0)
+			if main.world.find_child(entry["name"], true, false) != null:
+				break
 		_check(main.world.find_child(entry["name"], true, false) != null, "%s renders" % entry["name"])
 		_check(not MapGen.walkable(MapGen.get_t(town, position.x, position.y)), "%s has no accessible entrance" % entry["name"])
 		_check(Elev.surface(town, position) == Elev.surface(town, town["buildings"][0]["door"]), "background home stays on the Beast Center's level")
+	main.world._place_camera(true)
 	if await _shack(main, opts):
 		return
 	await main._go("caccoon", "start")

@@ -146,7 +146,7 @@ func _hash(a: int, b: int) -> float:
 
 ## Builds the ground, the cliffs, water and lava under `parent`. tints: one colour per VT.GROUND_LAYERS entry;
 ## cliff_col: the rock of the cliff faces; stone_walls: dressed stone (the "paving" layer) instead, straight up.
-func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#8a8478"), stone_walls := false) -> void:
+func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#8a8478"), stone_walls := false, cooperative := false) -> void:
 	walls = stone_walls
 	var mat := ShaderMaterial.new()
 	mat.shader = TerrainShader
@@ -175,10 +175,14 @@ func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#
 	var x1 := w + MARGIN
 	var z1 := h + MARGIN
 	var cz := z0
+	var slice := Time.get_ticks_usec()
 	while cz < z1:
 		var cx := x0
 		while cx < x1:
 			_chunk(parent, mat, cliff_mat, cx, cz, mini(cx + CHUNK, x1), mini(cz + CHUNK, z1), x1, z1)
+			if cooperative and Time.get_ticks_usec() - slice >= 6000:
+				await parent.get_tree().process_frame
+				slice = Time.get_ticks_usec()
 			cx += CHUNK
 		cz += CHUNK
 	_liquid(parent, 1, water_col)

@@ -2,7 +2,7 @@
 
 A low-poly beast-training RPG with a smooth, cozy PS2-era look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
-<img src="docs/screenshots/title.jpg" width="800" alt="The title screen: a shadow dragon rising against a rose-tinted moon over red ground."><br><sub>The title screen: a shadow dragon rising against a rose-tinted moon over red ground.</sub>
+<img src="docs/screenshots/title.jpg" width="800" alt="The start menu, available immediately without a splash or entrance animation."><br><sub>The start menu opens immediately, without a splash or entrance animation.</sub>
 
 ## Running it
 
@@ -49,17 +49,18 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 
 ## The journey
 
-New Game opens with a 72-second cinematic: the robot kidnapping scheme and a murder in **Gearhart Tower**, then the first
-morning of spring in **Cocoon Cove**, as beasts leave hibernation and trainer season begins. Subtitles advance
+New Game opens with a 72-second cinematic: Magnus Gearhart's kidnapping scheme revealed in **Gearhart Tower**, then the
+first morning of spring in **Cocoon Cove**, as beasts leave hibernation and trainer season begins. Subtitles advance
 automatically in the game's normal dialogue windows; **A / Enter** (or **Next**) reveals the typing, then advances a beat.
 **Esc / B / Start** or **Skip intro** skips the
 whole film. Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
-The murder is played straight, never slapstick (`scripts/story/opening.gd`): the office lights die, Vexmora calls up
-a ghost beast that passes through Engineer Mara, Mara sinks to one knee and falls out of sight while the camera holds on
-Vexmora's face, and the last shot is Vexmora walking away from her without a glance as Gearhart backs off. No flash and
-no smack: the music stops dead, then a dread hit (`tools/make_sfx.py`). Both sets are built from the game's own pieces:
-Gearhart's office by night (wood floor, brick, moonlit windows onto the neon city, the freight cages and lift) and the
-hero's home on the first morning, Mom on the doorstep. The murder fades straight to the bright spring morning, and the
+The reveal is played straight (`scripts/story/opening.gd`): Gearhart gives his staff a cheerful briefing about new
+robots and "freight" for a friend in Gravenmoor, sends them home, then walks alone to a steel door in his office wall.
+As he steps through, the music stops dead and a dread hit sounds (`tools/make_sfx.py`): the room behind is lined with
+neon cages full of trainers (Lio, Bea and Orin among them, as the hero later finds them), and at its far end a bank of
+glass canisters holds their beasts. Both sets are built from the game's own pieces: Gearhart's office by night (wood
+floor, brick, moonlit windows onto the neon city, crates and the freight lift) with its freight room, and the
+hero's home on the first morning, Mom on the doorstep. The cage reveal fades straight to the bright spring morning, and the
 hero closes with an unwitting joke about anyone spoiling it.
 The mounted Gearheart Industries sign uses an original vector gear-and-split-heart logo inspired by the supplied reference.
 
@@ -211,8 +212,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   west wing's lever opens the east wing, whose lever opens the gallery, whose lever drains the great pool and shows
   the stair down to the guardian's chamber. The wings are mazes of walkways between water channels, where strong water
   beasts prowl in plain sight and chests hold treasure. Temple rooms are built as ancient stone (`room_builder.gd`
-  `ancient`): ashlar walls, plinths and cornices with a glowing inlay, pilasters with flame sconces, and open stone
-  portals instead of doors.
+  `ancient`): ashlar walls, plinths and cornices with a glowing inlay, pilasters against the walls (spaced out from the
+  middle of each wall in mirrored pairs, flame sconces on every other one), and open stone portals instead of doors.
+  `--scene=tides-walk` plays the temple on foot, doorway to lever to doorway, down to the guardian.
 
   <img src="docs/screenshots/temple.jpg" width="640" alt="Inside the Temple of Flame, on the Caldera Road."><br><sub>Inside the Temple of Flame, on the Caldera Road.</sub>
 
@@ -362,13 +364,12 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   each file in `tools/smoothed.json` so nothing is smoothed twice; run it after any re-bake, then `--import`. Ground
   layers blend softly across their wandering borders (`terrain.gdshader`). Shop-sign icons stay crisp pixel art, and
   the interface keeps its own Pixel and Classic styles.
-- **App icon and boot splash**: the icon is painted like PS2 box art from the game's own models: the water summon
+- **App icon**: the icon is painted like PS2 box art from the game's own models: the water summon
   rising as a ghost in a dusk sky over a dark hill, where a ruby glows on the crest. `tools/make_key_art.gd` renders
   the summon and a shrub and `tools/key_art.py` does the painting; `python tools/make_icon.py` writes Android's
   adaptive icon layers (background, foreground and the spirit's silhouette for themed icons, laid out over the whole
-  108 dp) to `assets/icon/`, plus `icon.png` for the window. The boot splash is a still of the title screen's scene
-  (`godot --path . --script res://tools/make_splash.gd` writes `assets/icon/boot_splash.png`, 2560 x 1080): it covers
-  the screen as the title's camera keeps its height, so from 16:9 to 21:9 the game opens on just what the title shows.
+  108 dp) to `assets/icon/`, plus `icon.png` for the window. The boot splash image is disabled. The old tableau and
+  `tools/make_splash.gd` remain available for artwork tooling, but are not loaded by the start menu.
 - **Nature** uses the supplied **Environment Pack - Stylized Nature**, **Environment Pack - Grass**, and
   **Environment Pack - Stylized Rock** collections. Rounded and blocky canopies, upright and bent palms, leafy and
   berry shrubs, and broad stone outcrops share the existing chunked scenery batches and automatic mesh LODs.
@@ -437,9 +438,15 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   arena is the great hut, a wide oval of taller walls under a high thatch, and keeps the village's healing machine in its
   back corner; flights and lost battles bring you back in front of it. Its general store sells essentials and basic beast gear at 30% below normal
   prices. Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
-  La Perla Restaurant, Pearl Coast Boutique (40% above normal prices), and Hotel Mariposa, whose lobby connects to
-  a guest suite; a 150-gold stay restores the party. The broad beach has pastel umbrellas and occupied chaise lounges,
-  with clear aisles and both beach ramps retained. The island's towns, trail and reef share dense tropical palms.
+  La Perla Restaurant, Pearl Coast Boutique (40% above normal prices), and Hotel Mariposa (`island_buildings.gd`). Its
+  fronts have round-arched windows in white surrounds with louvred shutters, iron rejas below and French doors on
+  railed Juliet balconies above, a painted base, lanterns and bougainvillea. The hotel is a long building on the quay
+  behind the marina's docks: a three-storey entrance block (a tiled HOTEL sign over its arcade, its door placed by
+  `building_looks` "door") facing a paved forecourt, and a two-storey west wing; an arcade runs along its ground floor
+  and every room above has a balcony set back inside the plot. Its lobby leads to two guest rooms, each with open
+  doorways onto those balconies (`"!"` in a room template: drawn open, but walled, so they lead nowhere); a 150-gold
+  stay restores the party. The broad beach has striped umbrellas standing in the sand over occupied chaise lounges,
+  towels, and palms spaced along the foot of the cliff, with clear aisles and both beach ramps retained. The island's towns, trail and reef share dense tropical palms.
   Shellhaven's marina sits entirely west of the town and beach, reached by the original western pier, with
   three long berth fingers and an open, dock-free beachfront. Captain Gull uses the same ferry as Bellerive; private berths hold a white flybridge motor yacht,
   a varnished pleasure launch and a furled-sail yacht, with water separating their hulls from the walking decks.
@@ -562,20 +569,17 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   at its end. So all of it can be reached with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
-- The game opens straight on the title screen: while the engine loads, the boot splash is a still of the title's scene,
-  which then comes alive: the dragon rises into view before the menu appears. With no save yet, **New Game** is a big, glowing
+- The game opens straight on the **New Game / Continue / Load Game** menu, with no splash or entrance delay.
+  Continue and Load Game appear when a compatible save exists. With no save yet, **New Game** is a big, glowing
   pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
   and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
   it).
-- The title is its own small 3D scene (`scripts/gfx/title_stage.gd`): a moonlit night over red ground,
-  with no other creatures, trees or grass tufts. A large fire summon rises from below the screen over 4.2 seconds,
-  then hovers against a rose-tinted full moon and red halo. The halo continues onto the red ground as a soft
-  moonlight reflection, fading toward the foreground (`title_ground_glow.gdshader`). Its slow wingbeat reads as a flat black shadow,
-  with no lit surface details (`title_dragon.gdshader`, `title_haze.gdshader`).
-  RUBY COCOON shimmers in extruded gold (`gold_shimmer.gdshader`). The camera keeps the frame's height, so a wider phone
-  shows more at the sides. Load Game and the character creator hide the logo, and on phones too the menu stays under
-  it rather than over it. The world and battle scripts and the travel book with its world map (the slowest scripts to compile) aren't preloaded: they start loading in the background after the dragon has risen and the
-  menu has rendered (`main.gd` _title_backdrop, `loaded_script`). The touch pad's faces, painted pixel by pixel (a second or more on a phone), are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem, so later launches load them straight away (`controls_overlay.gd`).
+- The start menu uses a lightweight 2D heading and the shared theme (`scripts/ui/title_backdrop.gd`). Its world
+  viewport is disabled, including while Load Game or the character creator is open; only the creator's own preview
+  renders in 3D. World, creator, battle and book scripts load in the background after the menu's first draw.
+  Transitions wait for those requests without blocking the main thread (`main.gd` _title_backdrop, wait_for_script).
+  The touch pad's faces are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem,
+  so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - The title screen plays *Nerves*.
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Black Bart, Gearhart, Nyx and Vexmora.
@@ -594,6 +598,19 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 <img src="docs/screenshots/phone.jpg" width="640" alt="On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle."><br><sub>On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle.</sub>
 
 - **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; phones are capped at a steady 60 fps.
+- **Stalls and loading**: map construction yields between terrain chunks, scenery rows, house plans and NPCs, with
+  a 6 ms CPU work budget between checkpoints. A transition shows **Loading...** and prepares its first visible
+  buildings before fading in. Eight hidden buildings can remain cached for walking back; off-screen buildings stay
+  invisible and stop processing. Stationary cameras reuse visibility results. Street-prop placement proves local
+  connectivity where possible, retaining the full-map check for chokepoints. House geometry measurements are baked
+  by `tools/bake_house_measurements.gd` after house imports; `-- --verify` checks them against the source meshes.
+- **Repeated work**: beast animation measurements are shared by recipe, with a bounded cache. The creator updates
+  changed choices and reuses its swatch styles. Battle ring glyphs and encounter sweeps are baked by
+  `tools/bake_battle_art.gd` (`-- --verify` checks exact image/audio data), so the first encounter does not paint or
+  synthesize them. These are UI graphics and generated audio, not new world textures. Footstep/encounter sounds
+  warm during loading, and the music cache retains three recent tracks while active crossfades keep their streams.
+  Battles use the world's two shadow splits and 30-unit range; live portraits use the world's 2x MSAA.
+  See [the performance audit](docs/performance.md) for measurements and remaining limits.
 - Pack models over 300 triangles get levels of detail baked in by `tools/import_psx_models.gd`, so far-off trees and rocks draw fewer triangles. `godot --path . --rendering-method mobile -- --scene=perf --detail=1` prints what each map costs.
 - The project uses the Mobile renderer on phones and tablets, sensor-landscape orientation, ETC2/ASTC textures, and an expanding aspect, so wide phones get extra width instead of black bars.
 - On touch devices the d-pad, A/B and Start/Pause buttons appear automatically. They send the same input actions as the keyboard, so every screen and the flute minigame work with them. Dialogue boxes and menus stay clear of the buttons.
@@ -751,8 +768,14 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
-- `title-startup` / `title-startup-touch`: dragon entrance before the menu, ignored early confirmation, keyboard
+- `title-startup` / `title-startup-touch`: immediately available choices, no background 3D rendering, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
+- `hero-maker` / `hero-maker-touch`: actual name/body navigation, outfit and hair arrows, every color row's swatches,
+  preview updates, and cancellation. `--scene=creator --shots=res://build/shots/creator` captures both tabs.
+- `performance`: cold/repeated creator and beast timings, map loading frame gaps, a bounded building cache, and
+  cached animation measurements. `--scene=stalls --report=res://build/performance.json` writes the timing report;
+  optionally pass `--baseline=res://build/performance/baseline.json` to compare collision-grid hashes.
+- `house-measurements` / `battle-art`: baked geometry measurements and exact generated ring/audio assets.
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and the one-time Dustwell reveal.
 - `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
 - `phone-save` / `phone-save-touch`: Dad's save and continue Yes/No prompts, declined saves, one answer per press, and returning to the title. Preview with `--scene=phone-save --save_dir=res://build/phone_save_preview/ --shot=res://build/shots/dad.png` (captures both prompts; add `--touch` for touch inputs).
@@ -772,7 +795,7 @@ Focused cinematic previews use the normal screenshot harness and fresh state (no
 
 ```
 godot --path . -- --scene=intro --at=20 --shot=res://docs/screenshots/intro_tower.png
-godot --path . -- --scene=intro --at=37 --shot=res://build/shots/intro_murder.png
+godot --path . -- --scene=intro --at=30 --shot=res://build/shots/intro_cages.png
 godot --path . -- --scene=intro --at=44 --shot=res://docs/screenshots/intro_spring.png
 godot --path . -- --scene=intro --hold=0
 godot --path . -- --scene=rescue --preview=locked --shot=res://docs/screenshots/trainer_cages.png
@@ -874,7 +897,7 @@ godot --path . -- --scene=marks --shot=C:/tmp/k.png                     # the !,
 godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a ring battle driven by keys (a b l r u d); --kind=wild, --foe_level, --foe_shield
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
-godot --path . -- --scene=title --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # the title (--at=2 freezes the ascent; --saves=0: a first launch; --keys pressed once the menu is up: d,a opens Load Game)
+godot --path . -- --scene=title --fixture=1 --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # title with a fresh test save; d,a opens Load Game (--saves=0: first-launch menu)
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --headless --path . -- --scene=building-fade                      # buildings load when their base reaches the screen and fade in; also walks the western dock lane; --town=tidewater narrows the audit
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere

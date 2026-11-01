@@ -23,7 +23,7 @@ func run(main, opts: Dictionary) -> void:
 			world.cam.position = base + Vector3(0, 7, -30)
 			world.cam.look_at(base + Vector3(0, 0, -41))
 			world._fade_buildings(1.0)
-			_check(not world._building_base_visible(b) and not is_instance_valid(f["node"]), "%s: %s stays unloaded with its base off-screen" % [town, b["name"]])
+			_check(not world._building_base_visible(b) and (not is_instance_valid(f["node"]) or not f["node"].visible), "%s: %s stays hidden with its base off-screen" % [town, b["name"]])
 			world.cam.position = base + world.CAM_OFFSET
 			world.cam.look_at(base + Vector3(0, world.CAM_LOOK_Y, 0))
 			for attempt in world.building_fades.size():
@@ -41,6 +41,14 @@ func run(main, opts: Dictionary) -> void:
 			_check(f["opacity"] == 1.0, "arrival finishes opaque")
 			for binding in f.get("fade_materials", {}).get("bindings", []):
 				_check(binding["mesh"].get_active_material(binding["surface"]) == binding["original"], "opaque materials restored")
+			var cached_id: int = f["node"].get_instance_id()
+			world.cam.position = base + Vector3(0, 7, -30)
+			world.cam.look_at(base + Vector3(0, 0, -41))
+			world._fade_buildings(1.0)
+			world.cam.position = base + world.CAM_OFFSET
+			world.cam.look_at(base + Vector3(0, world.CAM_LOOK_Y, 0))
+			world._fade_buildings(0.1)
+			_check(is_instance_valid(f["node"]) and f["node"].get_instance_id() == cached_id, "walking back reuses the cached building")
 			tested += 1
 		_check(tested > 0, "%s: audited %d buildings (slowest visibility update %.1f ms)" % [town, tested, longest_load_us / 1000.0])
 		if town == "tidewater":

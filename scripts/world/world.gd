@@ -97,9 +97,21 @@ const HEAL_GLOW := Color("#7affd0")
 var _time := 0.0
 var _demo_t := 0.0
 var _hole_position := Vector3.INF
+## Construction can yield during a transition; ordinary play must never process a half-built map.
+var _cooperative_build := false
+var _build_slice := 0
+const BUILD_SLICE_US := 6000
+## Keep a small number of hidden buildings ready for walking back, bounded independently of map size.
+const HIDDEN_BUILDING_CACHE := 8
+var _building_tick := 0
+var _building_camera := Transform3D()
+var _building_view_size := Vector2.ZERO
 
 
-func build(id: String) -> void:
+func build(id: String, cooperative := false) -> void:
+	set_process(false)
+	_cooperative_build = cooperative
+	_build_slice = Time.get_ticks_usec()
 	_hole_position = Vector3.INF
 	map_id = id
 	ground_h = {}
@@ -115,14 +127,19 @@ func build(id: String) -> void:
 		refresh_kennel()
 	else:
 		_build_environment()
-		_build_terrain()
-		_plan_round_huts()
-		_plan_houses()
-		_build_scatter()
-		_build_backdrop()
+		await _build_terrain()
+		await _build_checkpoint()
+		await _plan_round_huts()
+		await _plan_houses()
+		await _build_checkpoint()
+		await _build_scatter()
+		await _build_checkpoint()
+		await _build_backdrop()
+		await _build_checkpoint()
 		_build_buildings()
 		if map["kind"] == "town":
-			_build_street_props()
+			await _build_street_props()
+		await _build_checkpoint()
 		_build_statue()
 		_build_payphone()
 		_build_obstacles()
@@ -131,13 +148,22 @@ func build(id: String) -> void:
 		_build_boats()
 		if map_id == "shellhaven":
 			load("res://scripts/gfx/island_buildings.gd").beach(self)
-	_build_npcs()
+	await _build_npcs()
 	_build_items()
 	_build_player()
 	_build_camera()
 	if map.get("sandstorm", false):
 		_build_sandstorm()
-	_spawn_wilds.call_deferred()
+	if not cooperative:
+		_spawn_wilds.call_deferred()
+		set_process(true)
+
+
+## Share the main thread with rendering and UI on single-threaded web exports too.
+func _build_checkpoint() -> void:
+	if _cooperative_build and Time.get_ticks_usec() - _build_slice >= BUILD_SLICE_US:
+		await get_tree().process_frame
+		_build_slice = Time.get_ticks_usec()
 
 
 func spawn_at(key, face := Vector2i.ZERO) -> void:
@@ -301,7 +327,7 @@ func _build_environment() -> void:
 	env.glow_enabled = true
 	env.glow_intensity = 0.55
 	env.glow_hdr_threshold = 0.9
-	env.ssao_enabled = true
+	env.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"
 	env.ssao_radius = 0.8
 	env.ssao_intensity = 1.6
 	env.fog_enabled = true
@@ -502,7 +528,7 @@ func _build_terrain() -> void:
 			"rock": rock_hex, "bed": Color(biome["sand"]).darkened(0.35).to_html(false), "lava_bed": "#3a2a28",
 			"paving": biome.get("paving", "#9a948a"), "ice": "#cfeaf6"}[layer]))
 	# cliff faces: the crags' rock, a little warmer, more of the local soil in it
-	t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls")
+	await t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls", _cooperative_build)
 	terrain_mats = t.materials
 	if biome["id"] == "quarter":
 		var flights := {}
@@ -627,10 +653,11 @@ func _build_backdrop() -> void:
 	var by_asset := {}
 	var taken := {}
 	if map["kind"] == "town":
-		_outskirt_houses(rng, taken)
+		await _outskirt_houses(rng, taken)
 	var iw := int(w)
 	var ih := int(h)
 	for tz in range(-RING, ih + RING):
+		await _build_checkpoint()
 		for tx in range(-RING, iw + RING):
 			if tx >= 0 and tz >= 0 and tx < iw and tz < ih:
 				continue
@@ -801,6 +828,7 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 				spots.append(Vector2(-5.5 if side < 0 else w + 5.5, z))
 				z += rng.randf_range(9.0, 12.0)
 	for p in spots:
+		await _build_checkpoint()
 		var made := Creole.backdrop(rng) if style == "creole" else HouseModels.backdrop(style, rng)
 		var node: Node3D = made[0]
 		if node == null:
@@ -964,6 +992,7 @@ func _build_scatter() -> void:
 	for r in map.get("low_trees", []):
 		low_woods.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
 	for y in h:
+		await _build_checkpoint()
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
 			var center := Vector3(x + 0.5, _lift(Vector2i(x, y)), y + 0.5)
@@ -1113,6 +1142,7 @@ func _plan_round_huts() -> void:
 	if biome.get("style", "") != "roundwood":
 		return
 	for b in map["buildings"]:
+		await _build_checkpoint()
 		var w := float(b["w"])
 		var d := float(b["d"])
 		var dx := float(b["door"].x) + 0.5 - float(b["x"]) - w / 2.0
@@ -1144,6 +1174,7 @@ func _plan_houses() -> void:
 	var style: String = biome.get("style", "town")
 	var used := {}
 	for b in map["buildings"]:
+		await _build_checkpoint()
 		var shop: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in VBld.SIGNED_HOUSES
 		if not b["shop"] in ["house", "home", "decor", "cabin", "shack", "uncle"] and not shop:
 			continue
@@ -1306,6 +1337,8 @@ func _build_buildings() -> void:
 
 
 func _load_building(f: Dictionary) -> void:
+	if is_instance_valid(f["node"]):
+		return
 	var b: Dictionary = f["b"]
 	var style: String = biome.get("style", "town")
 	var node: Node3D
@@ -1398,6 +1431,7 @@ func _build_street_props() -> void:
 	for b in map["buildings"]:
 		if b["shop"] in ["decor", "hideout", "temple"]:
 			continue
+		await _build_checkpoint()
 		var commercial: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in ["center", "electronics", "arena", "museum", "music_hall", "dojo"]
 		var bx: int = b["x"]
 		var by: int = b["y"]
@@ -1415,6 +1449,7 @@ func _build_street_props() -> void:
 			cands.append([Vector2i(bx + bw, y), Vector2i(1, 0), "side"])
 		var n_front := 0
 		for c in cands:
+			await _build_checkpoint()
 			var t: Vector2i = c[0]
 			if taken.has(t) or not MapGen.get_t(map, t.x, t.y) in [MapGen.GRASS, MapGen.PLAZA, MapGen.SAND]:
 				continue
@@ -1425,12 +1460,21 @@ func _build_street_props() -> void:
 			# would it cut anything off?
 			var was := MapGen.get_t(map, t.x, t.y)
 			MapGen.set_t(map, t.x, t.y, MapGen.STREET_PROP)
-			var after := _reachable(start)
-			var ok := after.size() == before.size() - 1 if before.has(t) else after.size() == before.size()
-			for q in keep:
-				if not after.has(q):
-					ok = false
-					break
+			# Most props sit beside a wall: their neighbours still join within the surrounding 3x3 square.
+			# Proving that locally avoids a full-map flood fill for every barrel, with the exact old fallback
+			# for a possible chokepoint. Keep the same RNG calls, collision and placement decisions.
+			var after: Dictionary
+			var ok := t != start and _prop_neighbours_join(t, before)
+			if ok:
+				after = before
+				after.erase(t)
+			else:
+				after = _reachable(start)
+				ok = after.size() == before.size() - 1 if before.has(t) else after.size() == before.size()
+				for q in keep:
+					if not after.has(q):
+						ok = false
+						break
 			if not ok:
 				MapGen.set_t(map, t.x, t.y, was)
 				continue
@@ -1488,6 +1532,35 @@ func _build_street_props() -> void:
 
 
 ## Builds and places one building; a locked door gets painted differently.
+## Removing t cannot split the reachable area if all of its connected neighbours still join without it.
+## Only claim the cheap proof inside a 3x3 patch; narrow passages use the full flood fill above.
+func _prop_neighbours_join(t: Vector2i, reachable: Dictionary) -> bool:
+	if not reachable.has(t):
+		return true
+	var neighbours: Array[Vector2i] = []
+	for d in FOUR_WAYS:
+		var q: Vector2i = t + d
+		if reachable.has(q) and Elev.joined(map, t, q):
+			neighbours.append(q)
+	if neighbours.size() <= 1:
+		return true
+	var seen := {neighbours[0]: true}
+	var pending: Array[Vector2i] = [neighbours[0]]
+	while not pending.is_empty():
+		var p: Vector2i = pending.pop_back()
+		for d in FOUR_WAYS:
+			var q: Vector2i = p + d
+			if q == t or absi(q.x - t.x) > 1 or absi(q.y - t.y) > 1 or seen.has(q):
+				continue
+			if reachable.has(q) and Elev.joined(map, p, q):
+				seen[q] = true
+				pending.append(q)
+	for q in neighbours:
+		if not seen.has(q):
+			return false
+	return true
+
+
 func _building_node(b: Dictionary, style: String) -> Node3D:
 	var node: Node3D
 	if b["shop"] == "decor":
@@ -1875,6 +1948,7 @@ func _beast_gait(body: Node3D, moving: bool, pace: float, hop: float, spd: float
 
 func _build_npcs() -> void:
 	for n in map["npcs"]:
+		await _build_checkpoint()
 		if n.get("hidden", false):
 			continue
 		if n.get("kind", "") == "trainer" and n.get("vanish", false) and GameState.flag(n.get("flag", "")):
@@ -2084,10 +2158,10 @@ func _process(delta: float) -> void:
 		if m is BaseMaterial3D:
 			m.uv1_offset = Vector3(sin(_time * 0.5) * 0.04, _time * 0.025, 0)
 	for sp in spinners:
-		if is_instance_valid(sp):
+		if is_instance_valid(sp) and sp.is_visible_in_tree():
 			sp.rotation.y = _time * 1.4
 	for b in bobbers:
-		if is_instance_valid(b[0]):
+		if is_instance_valid(b[0]) and b[0].is_visible_in_tree():
 			var n: Node3D = b[0]
 			n.position.y = float(b[1]) + sin(_time * float(b[2])) * (float(b[3]) if b.size() > 3 else 0.08)
 	for rp in ripples:
@@ -2190,17 +2264,22 @@ func _fade_buildings(delta: float, load_limit := 1) -> void:
 	if cam == null or interior:
 		return
 	var loaded := 0
+	_building_tick += 1
+	var view_size := get_viewport().get_visible_rect().size
+	var camera_changed := not cam.global_transform.is_equal_approx(_building_camera) or view_size != _building_view_size
+	_building_camera = cam.global_transform
+	_building_view_size = view_size
+	var hidden := []
 	for f in building_fades:
-		if not _building_base_visible(f["b"]):
+		if camera_changed or not f.has("base_visible"):
+			f["base_visible"] = _building_base_visible(f["b"])
+		if not f["base_visible"]:
 			if is_instance_valid(f["node"]):
 				var node: Node3D = f["node"]
-				spinners = spinners.filter(func(n): return is_instance_valid(n) and not node.is_ancestor_of(n))
-				bobbers = bobbers.filter(func(b): return is_instance_valid(b[0]) and not node.is_ancestor_of(b[0]))
-				node.queue_free()
-				f["node"] = null
-				f["meshes"] = []
-				f.erase("fade_materials")
+				node.hide()
+				node.process_mode = Node.PROCESS_MODE_DISABLED
 				f["opacity"] = 0.0
+				hidden.append(f)
 			continue
 		if not is_instance_valid(f["node"]):
 			# Spread newly visible construction over frames, including wide phone views.
@@ -2208,10 +2287,32 @@ func _fade_buildings(delta: float, load_limit := 1) -> void:
 				continue
 			_load_building(f)
 			loaded += 1
+		var node: Node3D = f["node"]
+		node.show()
+		node.process_mode = Node.PROCESS_MODE_INHERIT
+		f["last_seen"] = _building_tick
 		var opacity: float = move_toward(f["opacity"], 1.0, delta * 3.0)
 		if opacity != f["opacity"]:
 			f["opacity"] = opacity
 			_set_building_opacity(f, opacity)
+	if hidden.size() > HIDDEN_BUILDING_CACHE:
+		hidden.sort_custom(func(a, b): return int(a.get("last_seen", 0)) < int(b.get("last_seen", 0)))
+		for i in hidden.size() - HIDDEN_BUILDING_CACHE:
+			var f: Dictionary = hidden[i]
+			var node: Node3D = f["node"]
+			spinners = spinners.filter(func(n): return is_instance_valid(n) and not node.is_ancestor_of(n))
+			bobbers = bobbers.filter(func(b): return is_instance_valid(b[0]) and not node.is_ancestor_of(b[0]))
+			node.queue_free()
+			f["node"] = null
+			f["meshes"] = []
+			f.erase("fade_materials")
+
+
+func visible_buildings_ready() -> bool:
+	for f in building_fades:
+		if f.get("base_visible", false) and not is_instance_valid(f["node"]):
+			return false
+	return true
 
 
 ## Instance transparency is ignored on Mobile and Compatibility. Use isolated materials during arrival;
@@ -3433,6 +3534,7 @@ func _spawn_wilds() -> void:
 	_wild_target = target
 	for i in _effective_wild_target():
 		_spawn_wild(6.0)
+		await _build_checkpoint()
 
 
 ## True if wild beasts can walk on a room's floor tile `c`: in a temple's maze ("roam"), the walkways between its
@@ -4130,7 +4232,7 @@ func _build_room() -> void:
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
 	env.glow_hdr_threshold = 1.15
-	env.ssao_enabled = true
+	env.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"
 	env.ssao_intensity = 1.8
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.15
@@ -4348,9 +4450,15 @@ func _build_room() -> void:
 					k.box("tin", center + Vector3(0, 0.75, -0.1), Vector3(0.8, 1.5, 0.6), Color("#8a96a8"))
 				MapGen.PILLAR:
 					# the castle kit's round stone pillar, floor to ceiling (fading like the walls when it's in the way)
-					var pil := _room_model("stone_pillar_dark" if dark else "stone_pillar", center, Vector3(0.7, 2.85, 0.7))
-					# (in an ancient temple, of its own pale stone)
-					if pil != null and room_walls != null and room_walls.ancient:
+					# (in an ancient temple, of its own pale stone and engaged: set back against the wall beside it)
+					var ancient: bool = room_walls != null and room_walls.ancient
+					var at := center
+					if ancient:
+						for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]:
+							if MapGen.get_t(map, x + d.x, y + d.y) == MapGen.IWALL:
+								at += Vector3(d.x, 0, d.y) * 0.5
+					var pil := _room_model("stone_pillar_dark" if dark else "stone_pillar", at, Vector3(0.7, 2.85, 0.7))
+					if pil != null and ancient:
 						_paint(pil, room_walls.stone.lightened(0.08))
 					if pil != null and room_walls != null:
 						room_walls.add_prop([pil], Vector2i(x, y), Vector2.ONE)

@@ -288,6 +288,8 @@ func _step_focus(direction: int) -> void:
 ## top, deep at the bottom) with a glossy upper half, a pale border inside a dark edge, and every few seconds a band
 ## of light sweeping across it. Brighter while it's the picked option.
 func _draw_hero() -> void:
+	if _hero_face.size.x <= 0.0 or _hero_face.size.y <= 0.0:
+		return
 	if UIKit.pixel():
 		_draw_hero_pixel()
 		return

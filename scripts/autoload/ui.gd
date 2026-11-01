@@ -214,7 +214,8 @@ func make_hero():
 	if auto:
 		await get_tree().process_frame
 		return {"name": "Andrew", "look": {}}
-	var m: Control = load("res://scripts/ui/hero_maker.gd").new()
+	var script: GDScript = await GameState.main.wait_for_script("res://scripts/ui/hero_maker.gd")
+	var m: Control = script.new()
 	push(m)
 	return await m.done
 

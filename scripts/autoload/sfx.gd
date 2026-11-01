@@ -5,6 +5,8 @@ extends Node
 const RATE := 22050
 const MUSIC_DIR := "res://assets/audio/music/"
 const FADE_TIME := 0.8
+const BATTLE_TONES := [[196, 0.8, "square", -17, 600], [392, 0.8, "square", -23, 1200], [784, 0.3, "tri", -16, 0]]
+const BATTLE_AUDIO := "res://assets/audio/battle/"
 
 ## Music keys -> track files. world_db.gd / main.gd decide which key plays where.
 const TRACKS := {
@@ -78,7 +80,7 @@ const SOUNDS := {
 	"knock": [["res://sfx/Custom/Door_Knock.wav"], -6.0],
 	# made by tools/make_sfx.py: an old bell telephone ringing (calling Dad saves the game)
 	"phone_ring": [["res://sfx/Custom/Phone_Ring.wav"], -9.0],
-	# made by tools/make_sfx.py for the intro's murder: a ghost beast rising, and the killing blow (a dread hit, no smack)
+	# made by tools/make_sfx.py: a ghost beast rising, and a dread hit (the intro's cage reveal)
 	"ghost": [["res://sfx/Custom/Ghost_Rise.wav"], -9.0],
 	"dread": [["res://sfx/Custom/Dread_Hit.wav"], -4.0],
 	"buy": [["res://sfx/04_Pickups_Items/Pickups_Items_Coin_001.mp3", "res://sfx/Coin/Pickup_Coin.wav"], -10.0],
@@ -108,6 +110,8 @@ var _players: Array = []
 var _next := 0
 var _cache := {}
 var _streams := {}
+var _music_cache: Array[String] = []
+const MUSIC_CACHE_LIMIT := 3
 var _music_a: AudioStreamPlayer
 var _music_b: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
@@ -154,6 +158,12 @@ func set_volumes(music_v: float, sfx_v: float) -> void:
 
 
 func _load(path: String) -> AudioStream:
+	if path.begins_with(MUSIC_DIR):
+		_music_cache.erase(path)
+		_music_cache.append(path)
+		while _music_cache.size() > MUSIC_CACHE_LIMIT:
+			# Players retain their own streams during crossfades; evicting a cache entry cannot cut one off.
+			_streams.erase(_music_cache.pop_front())
 	if _streams.has(path):
 		return _streams[path]
 	var s: AudioStream = load(path) if ResourceLoader.exists(path) else null
@@ -225,9 +235,44 @@ func flute_note(freq: float) -> void:
 ## so it sounds unlike a trainer spotting you.
 func battle_start() -> void:
 	play("encounter")
-	tone(196, 0.8, "square", -17, 600)
-	tone(392, 0.8, "square", -23, 1200)
-	tone(784, 0.3, "tri", -16, 0)
+	for spec in BATTLE_TONES:
+		_play_stream(_battle_tone(spec), float(spec[3]))
+
+
+func _battle_tone(spec: Array) -> AudioStream:
+	var key := "battle:%d" % int(spec[0])
+	if not _cache.has(key):
+		var path := BATTLE_AUDIO + "sweep_%d.res" % int(spec[0])
+		_cache[key] = load(path) if ResourceLoader.exists(path) else _make(float(spec[0]), float(spec[1]), String(spec[2]), float(spec[4]))
+	return _cache[key]
+
+
+## Walking and the first encounter must not load a random footstep variant or synthesize sweeps mid-frame.
+## Called behind a map transition's fade; only these small, frequently used effects are retained.
+func prewarm_field() -> void:
+	var slice := Time.get_ticks_usec()
+	for name in ["step_grass", "step_stone", "step_water", "notify", "encounter"]:
+		for path in SOUNDS.get(name, [[]])[0]:
+			_load(path)
+			if Time.get_ticks_usec() - slice >= 6000:
+				await get_tree().process_frame
+				slice = Time.get_ticks_usec()
+	for spec in BATTLE_TONES:
+		_battle_tone(spec)
+
+
+func bake_battle_tones(verify := false) -> int:
+	DirAccess.make_dir_recursive_absolute(BATTLE_AUDIO)
+	var bad := 0
+	for spec in BATTLE_TONES:
+		var generated := _make(float(spec[0]), float(spec[1]), String(spec[2]), float(spec[4]))
+		var path := BATTLE_AUDIO + "sweep_%d.res" % int(spec[0])
+		if verify:
+			var baked: AudioStreamWAV = load(path) if ResourceLoader.exists(path) else null
+			bad += int(baked == null or baked.data != generated.data or baked.mix_rate != generated.mix_rate)
+		else:
+			bad += int(ResourceSaver.save(generated, path, ResourceSaver.FLAG_COMPRESS) != OK)
+	return bad
 
 
 ## Plays a named effect. `pitch_jitter` varies the pitch a little so repeats don't sound robotic.

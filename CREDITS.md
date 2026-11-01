@@ -2,6 +2,10 @@
 
 Code, procedural buildings, maps and writing were made for this project.
 The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
+The pre-baked battle ring graphics (`assets/ui/battle/`) and encounter sweeps (`assets/audio/battle/`) are generated
+from the project's existing battle and sound code by `tools/bake_battle_art.gd`. House measurements
+(`assets/houses/measurements.res`) are geometry metadata derived from the credited house models below; their meshes
+and textures are unchanged.
 The downloaded packs themselves aren't kept in the repository (they were in `psx/`, `voxelassets/`, `ui/`,
 `music/`, `sfx/`, `new models/` and `new beasts/`): only what the game uses is, converted into `assets/`, plus the two
 fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files the packs came with are in

@@ -42,7 +42,7 @@ DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
 def load_towns():
-    """name -> (rows, heights rows or None, scenery buildings [(x, y, w, d)])"""
+    """name -> (rows, heights rows or None, scenery buildings [(x, y, w, d)], doors placed off-centre [(x, y)])"""
     src = open(SRC, encoding='utf-8').read()
     towns = {}
     for m in re.finditer(r'^\t"(\w+)": \{\n(.*?)^\t\},', src, re.S | re.M):
@@ -51,8 +51,9 @@ def load_towns():
         hts = re.search(r'^\t\t"heights": \[\n(.*?)\t\t\],', body, re.S | re.M)
         scen = re.search(r'^\t\t"scenery_houses": \[(.*?)\],\n', body, re.S | re.M)
         scenery = [tuple(int(v) for v in t) for t in re.findall(r'"x": (\d+), "y": (\d+), "w": (\d+), "d": (\d+)', scen.group(1))] if scen else []
+        doors = [(int(x), int(y)) for x, y in re.findall(r'"door": Vector2i\((\d+), (\d+)\)', body)]
         towns[m.group(1)] = (re.findall(r'"([^"]*)"', rows.group(1)),
-                             re.findall(r'"([^"]*)"', hts.group(1)) if hts else None, scenery)
+                             re.findall(r'"([^"]*)"', hts.group(1)) if hts else None, scenery, doors)
     return towns
 
 
@@ -349,7 +350,7 @@ def hidden(at, x, y, ht, ground=0.0):
     return False
 
 
-def check(name, rows, hrows=None, scenery=()):
+def check(name, rows, hrows=None, scenery=(), doors=()):
     h, w = len(rows), len(rows[0])
     problems = []
     bad_rows = [i for i, r in enumerate(rows) if len(r) != w]
@@ -377,7 +378,9 @@ def check(name, rows, hrows=None, scenery=()):
     keys = []
     for c, x, y, bw, bd in buildings(rows):
         if c != 'h':
-            keys.append(('door %s' % SHOP[c], (x + bw // 2, y + bd)))
+            # building_looks can place a door along the front (map_loader.gd); it opens onto the tile below it
+            door = next(((dx, dy + 1) for dx, dy in doors if x <= dx < x + bw and dy == y + bd - 1), (x + bw // 2, y + bd))
+            keys.append(('door %s' % SHOP[c], door))
     for y in range(h):
         for x in range(w):
             if rows[y][x] in ENTITY:

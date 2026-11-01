@@ -21,6 +21,8 @@ var stripe_w := 6.0
 
 
 func _draw(ci: RID, rect: Rect2) -> void:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
 	var r := minf(radius, minf(rect.size.x, rect.size.y) / 2.0)
 	# shadow: a few rounded layers, each a little larger and fainter
 	if shadow.a > 0.0 and shadow_size > 0.0:
@@ -72,5 +74,11 @@ static func _round_rect(rect: Rect2, r: float) -> PackedVector2Array:
 	for k in 4:
 		for i in seg + 1:
 			var a: float = starts[k] + PI * 0.5 * float(i) / seg
-			pts.append(centres[k] + Vector2(cos(a), sin(a)) * r)
+			var point: Vector2 = centres[k] + Vector2(cos(a), sin(a)) * r
+			# A pill's corner centres share an edge. Avoid duplicate vertices at that collapsed edge,
+			# which can fail triangulation every redraw while the button breathes.
+			if pts.is_empty() or not pts[-1].is_equal_approx(point):
+				pts.append(point)
+	if pts.size() > 1 and pts[-1].is_equal_approx(pts[0]):
+		pts.remove_at(pts.size() - 1)
 	return pts

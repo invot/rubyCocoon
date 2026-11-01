@@ -23,7 +23,7 @@ func setup(genes: Dictionary, px := 280, person := {}) -> SubViewportContainer:
 	var vp := SubViewport.new()
 	vp.own_world_3d = true
 	vp.transparent_bg = true
-	vp.msaa_3d = Viewport.MSAA_4X
+	vp.msaa_3d = Viewport.MSAA_2X
 	vp.size = Vector2i(px, px)
 	add_child(vp)
 	var env := Environment.new()

@@ -316,7 +316,7 @@ func _build_stage() -> void:
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
 	env.glow_hdr_threshold = 0.9
-	env.ssao_enabled = true
+	env.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"
 	env.ssao_intensity = 1.5
 	env.fog_enabled = not dark
 	env.fog_light_color = Color(biome["sky_hz"])
@@ -334,6 +334,8 @@ func _build_stage() -> void:
 	sun.light_energy = float(biome["sun_e"]) if not dark else 0.5
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.2
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_max_distance = 30.0
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	add_child(sun)
 	stage_sun = sun
@@ -586,6 +588,8 @@ func _dais() -> Node3D:
 static var _hex_cache := {}
 static var _gold: StandardMaterial3D = null
 static var _sigils := {}
+const RING_ART := "res://assets/ui/battle/"
+static var _baking_art := false
 
 
 ## Paints the ring's textures and makes its pieces ahead of the first battle (main.gd, while a map loads behind the
@@ -599,6 +603,31 @@ static func prewarm() -> void:
 	_hex_mesh(0.645, 0.645, 0.04)
 	_gold_mat()
 	VT.material("stone")
+
+
+## tools/bake_battle_art.gd preserves the exact generated artwork, including mipmaps, as compressed resources.
+static func bake_art(verify := false) -> int:
+	_baking_art = true
+	_circle_tex = null
+	_sigils.clear()
+	DirAccess.make_dir_recursive_absolute(RING_ART)
+	var bad := _baked_texture(_circle_texture(), RING_ART + "circle.res", verify)
+	for k in Ring.SLOTS:
+		var els := Ring.slot_elements(k)
+		bad += _baked_texture(_sigil_texture(els), RING_ART + _sigil_name(els), verify)
+	_baking_art = false
+	return bad
+
+
+static func _baked_texture(texture: Texture2D, path: String, verify: bool) -> int:
+	if verify:
+		var baked: Texture2D = load(path) if ResourceLoader.exists(path) else null
+		return int(baked == null or baked.get_image().get_data() != texture.get_image().get_data())
+	return int(ResourceSaver.save(texture, path, ResourceSaver.FLAG_COMPRESS) != OK)
+
+
+static func _sigil_name(els: Array) -> String:
+	return "sigil_" + "_".join(els) + ".res"
 
 
 ## A six-sided prism (a squat hexagonal cylinder), cached by size.
@@ -633,6 +662,9 @@ static func _gold_mat() -> StandardMaterial3D:
 static func _sigil_texture(els: Array) -> ImageTexture:
 	var key := ",".join(els)
 	if _sigils.has(key):
+		return _sigils[key]
+	if not _baking_art and ResourceLoader.exists(RING_ART + _sigil_name(els)):
+		_sigils[key] = load(RING_ART + _sigil_name(els))
 		return _sigils[key]
 	var n := 128
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
@@ -710,6 +742,9 @@ static var _circle_tex: ImageTexture = null
 ## in soft white (the material tints and lights it).
 static func _circle_texture() -> ImageTexture:
 	if _circle_tex != null:
+		return _circle_tex
+	if not _baking_art and ResourceLoader.exists(RING_ART + "circle.res"):
+		_circle_tex = load(RING_ART + "circle.res")
 		return _circle_tex
 	var n := 384
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)

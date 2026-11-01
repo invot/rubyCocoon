@@ -33,7 +33,7 @@ func run(main, opts: Dictionary) -> void:
 			push_error("No built instance of interior template " + key)
 			continue
 		# Build the real map and spawn without on-enter story events (Rory's lesson, bosses).
-		main._load_world(representatives[key], "entry")
+		await main._load_world(representatives[key], "entry")
 		main.world.frozen = true
 		for n in main.world.map["npcs"]:
 			n["roam"] = false

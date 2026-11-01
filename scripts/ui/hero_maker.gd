@@ -75,6 +75,10 @@ var _t := 0.0
 var _yaw := -0.35
 var _drag := false
 var _still := 0.0
+## Navigation changes only a few visual states. Reuse swatch/style resources instead of rebuilding every row.
+var _shown := {}
+var _painted_buttons := {}
+var _swatch_styles := {}
 
 
 func _init() -> void:
@@ -176,7 +180,7 @@ func _preview() -> Control:
 	var vp := SubViewport.new()
 	vp.own_world_3d = true
 	vp.transparent_bg = true
-	vp.msaa_3d = Viewport.MSAA_4X
+	vp.msaa_3d = Viewport.MSAA_2X
 	vp.size = PREVIEW
 	svc.add_child(vp)
 	var env := Environment.new()
@@ -404,7 +408,7 @@ func _choose(id: String, i: int) -> void:
 		pick["outfit"] = _outfit_by_body[now]
 		pick["hairdo"] = _hairdo_by_body[now]
 		pick["body"] = i
-		_build_rig()
+		VPer.dress(_rig, _hero_look())
 	else:
 		pick[id] = i
 		VPer.dress(_rig, _hero_look())
@@ -439,9 +443,12 @@ func _show() -> void:
 	if _name_label == null:
 		return
 	for id in _row_labels:
-		(_row_labels[id] as Label).add_theme_color_override("font_color", UIKit.LIGHT if row == id else UIKit.DIM)
+		if _shown.get("row", "") != row:
+			(_row_labels[id] as Label).add_theme_color_override("font_color", UIKit.LIGHT if row == id else UIKit.DIM)
 	# the tabs: the open one filled with the gem, edged in white while the tab strip is the row being chosen
 	for k in _tabs.size():
+		if _shown.get("tab", -1) == tab and (_shown.get("row", "") == "tab") == (row == "tab"):
+			continue
 		var open := k == tab
 		var tb: Button = _tabs[k]
 		var edge := UIKit.LIGHT if open and row == "tab" else (UIKit.BORDER if open else UIKit.BORDER_INNER)
@@ -454,29 +461,42 @@ func _show() -> void:
 	_stepped["outfit"].text = "%d of %d" % [pick["outfit"] + 1, _outfits().size()]
 	_stepped["hairdo"].text = Townfolk.HAIRDOS[pick["hairdo"]][1]
 	for a in _arrows:
-		_paint(a, false)
+		if not _painted_buttons.has(a):
+			_paint(a, false)
+			_painted_buttons[a] = true
 	# Confirm is always in the gem's colour, edged in white while it's the row being chosen
 	var confirm_on: bool = row == "start"
-	var csb := UIKit.chip(UIKit.ACCENT, UIKit.LIGHT if confirm_on else UIKit.BORDER, 12.0, Vector4(10, 2, 10, 2), 3.0 if confirm_on else 2.0)
-	for st in ["normal", "hover", "pressed", "hover_pressed"]:
-		_start.add_theme_stylebox_override(st, csb)
-	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		_start.add_theme_color_override(st, UIKit.LIGHT)
+	if not _shown.has("row") or (_shown["row"] == "start") != confirm_on:
+		var csb := UIKit.chip(UIKit.ACCENT, UIKit.LIGHT if confirm_on else UIKit.BORDER, 12.0, Vector4(10, 2, 10, 2), 3.0 if confirm_on else 2.0)
+		for st in ["normal", "hover", "pressed", "hover_pressed"]:
+			_start.add_theme_stylebox_override(st, csb)
+		for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+			_start.add_theme_color_override(st, UIKit.LIGHT)
 	var chip := _chip_size()
 	for id in _chips:
+		if _shown.get(id, -1) == pick[id]:
+			continue
 		var bs: Array = _chips[id]
 		for i in bs.size():
+			if _shown.has(id) and i != pick[id] and i != _shown[id]:
+				continue
 			var on: bool = pick[id] == i
 			var b: Button = bs[i]
 			if id == "body":
 				_paint(b, on)
 				continue
 			# a swatch: the colour itself, ringed in white when it's the one chosen
-			var sw := UIKit.chip(Color(SWATCHES[id][i]), UIKit.LIGHT if on else Color(0, 0, 0, 0.55), 10.0, Vector4.ZERO, 4.0 if on else 2.0)
+			var key := "%s:%d:%s" % [id, i, on]
+			if not _swatch_styles.has(key):
+				_swatch_styles[key] = UIKit.chip(Color(SWATCHES[id][i]), UIKit.LIGHT if on else Color(0, 0, 0, 0.55), 10.0, Vector4.ZERO, 4.0 if on else 2.0)
+			var sw: StyleBox = _swatch_styles[key]
 			for st in ["normal", "hover", "pressed", "hover_pressed"]:
 				b.add_theme_stylebox_override(st, sw)
 			b.scale = Vector2.ONE * (1.12 if on else 1.0)
 			b.pivot_offset = Vector2(chip, chip) / 2.0
+	_shown = pick.duplicate()
+	_shown["row"] = row
+	_shown["tab"] = tab
 
 
 func _build_rig() -> void:

@@ -147,6 +147,30 @@ static var _porch_roofs := {}
 static var _steps := {}
 static var _mats := {}
 static var _tile_cols := {}
+## Tiny baked geometry measurements let planning compare house shapes without loading unused house meshes.
+const MEASUREMENTS := DIR + "measurements.res"
+static var _measurements_loaded := false
+static var _shapes := {}
+
+
+static func _load_measurements() -> void:
+	if _measurements_loaded:
+		return
+	_measurements_loaded = true
+	if ResourceLoader.exists(MEASUREMENTS):
+		var data: Resource = load(MEASUREMENTS)
+		_shapes = data.get_meta("shapes", {})
+		_steps = data.get_meta("steps", {})
+		_porches = data.get_meta("porches", {})
+		_porch_roofs = data.get_meta("porch_roofs", {})
+
+
+static func shape(key: String) -> Dictionary:
+	_load_measurements()
+	if not _shapes.has(key):
+		var m := mesh(key)
+		_shapes[key] = {"bounds": m.get_aabb(), "door": m.get_meta("door")} if m != null and m.has_meta("door") else {}
+	return _shapes[key]
 
 
 static func available() -> bool:
@@ -163,8 +187,7 @@ static func mesh(key: String) -> ArrayMesh:
 
 ## Where the ground storey ends in a house's own space (a little above its front door).
 static func ground_top(key: String) -> float:
-	var m := mesh(key)
-	var door: Vector3 = m.get_meta("door") if m != null and m.has_meta("door") else Vector3(0, PACK_DOOR / 2.0, 0)
+	var door: Vector3 = shape(key).get("door", Vector3(0, PACK_DOOR / 2.0, 0))
 	return door.y + PACK_DOOR / 2.0 + STOREY_ABOVE_DOOR
 
 
@@ -238,11 +261,11 @@ static func plan(b: Dictionary, style: String, room: Dictionary, shop := false, 
 	if shop:
 		keys.append_array(SHOP_HOUSES.get(style, []))
 	for key in keys:
-		var m := mesh(key)
-		if m == null or not m.has_meta("door"):
+		var info := shape(key)
+		if info.is_empty():
 			continue
-		var bb := m.get_aabb()
-		var door: Vector3 = m.get_meta("door")
+		var bb: AABB = info["bounds"]
+		var door: Vector3 = info["door"]
 		# a house with a porch or front steps stands back by their depth, its door that far inside the plot
 		var ahead := front_depth(key)
 		var behind := door.z - bb.position.z + ahead
@@ -334,6 +357,7 @@ static func _plot_rect(r2: Rect2, sc: Vector2, offset: Vector3, mirror: bool) ->
 ## raised off the ground that reach well out from the door (not the sills, plinths and thresholds along the wall),
 ## with rect (x and z) and y (the top of the highest). {} if it has none.
 static func steps(key: String) -> Dictionary:
+	_load_measurements()
 	if _steps.has(key):
 		return _steps[key]
 	var out := {}
@@ -373,6 +397,7 @@ static func steps(key: String) -> Dictionary:
 ## its top) and how high its posts reach (top). {} if it has none: no deck, or no posts (front steps aren't a porch;
 ## see steps() for those).
 static func porch(key: String) -> Dictionary:
+	_load_measurements()
 	if _porches.has(key):
 		return _porches[key]
 	var out := {}
@@ -436,7 +461,7 @@ static func front_depth(key: String) -> float:
 	var pr := porch_roof(key)
 	if not pr.is_empty():
 		front = maxf(front, float(pr["front"]))
-	return maxf(0.0, front - float((mesh(key).get_meta("door") as Vector3).z))
+	return maxf(0.0, front - float((shape(key)["door"] as Vector3).z))
 
 
 ## The roof a porch needs when the pack left its posts bare (measured once, in the house's own space): a beam along
@@ -445,6 +470,7 @@ static func front_depth(key: String) -> float:
 ## deck's front edge; top: the posts' tops; rise} or {} for a house with no porch, or a porch already under a roof (the
 ## pack's own, or the storey above it).
 static func porch_roof(key: String) -> Dictionary:
+	_load_measurements()
 	if _porch_roofs.has(key):
 		return _porch_roofs[key]
 	var out := {}

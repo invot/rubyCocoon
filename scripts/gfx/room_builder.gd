@@ -27,6 +27,8 @@ const H := 2.8
 const DOOR_H := 1.95
 const SILL := 0.85
 const WIN_TOP := 2.07
+## the head of an open doorway onto a balcony
+const BALCONY_H := 2.2
 ## how far the floor's front edge drops, below the open front of the room
 const EDGE := 0.35
 ## how steeply a stage room's camera looks down at the least (world.gd CAM_OFFSET_ROOM; nearer, it looks down more):
@@ -301,6 +303,8 @@ var textures := {}
 var default_zone := "shop"
 var trim := Color("#5a3a26")
 var ancient := false
+## a Spanish mission's finish (the template's "mission"): see _mission_decor
+var mission := false
 ## an ancient room's stone (SANDSTONE, touched by the template's wall colour)
 var stone := SANDSTONE
 ## per row of walls: a node, and the mesher its walls go into
@@ -335,6 +339,7 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	# the template's wall colour tints the wall textures a little
 	rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.35)
 	rb.trim = Color(str(room.get("trim", "#5a3a26")))
+	rb.mission = room.get("mission", false)
 	rb.ancient = room.get("ancient", String(m.get("room_key", "")).begins_with("temple"))
 	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
 	if room.get("open", false):
@@ -352,6 +357,8 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._stalls()
 	rb._counters()
 	rb._wall_decor()
+	if rb.mission:
+		rb._mission_decor()
 	if rb.ancient:
 		rb._pilasters()
 	rb._lights()
@@ -484,6 +491,11 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 			finish = 3
 			base = Color("#b9a98a")
 			accent = Color("#a39274")
+		"floor_terracotta":
+			# a mission's glazed terracotta tiles
+			finish = 2
+			base = Color("#c7754f")
+			accent = Color("#a9603f")
 		"floor_marble", "floor_stone":
 			finish = 3
 			base = Color("#d8d3c9") if tex == "floor_marble" else Color("#a7a5a2")
@@ -689,7 +701,10 @@ func _walls() -> void:
 				MapGen.IWALL:
 					_bars(x, y, 0.0, top, horiz, vert, e, wv, n, s)
 				MapGen.IWINDOW:
-					if top < H:
+					if map.get("balcony_doors", {}).has(Vector2i(x, y)):
+						_bars(x, y, BALCONY_H, top, horiz, vert, e, wv, n, s)
+						_balcony_door(x, y, horiz)
+					elif top < H:
 						_bars(x, y, 0.0, top, horiz, vert, e, wv, n, s)
 					else:
 						_bars(x, y, 0.0, SILL, horiz, vert, e, wv, n, s)
@@ -831,8 +846,8 @@ func _inlay_colour() -> Color:
 	return Color(str(map.get("room", {}).get("rug", "#5ac8ff"))).lightened(0.35)
 
 
-## Carved pilasters along an ancient room's walls, every PILASTER_EVERY tiles, each with a flame in a bronze sconce
-## on every other one; none beside a doorway or a window.
+## Carved pilasters along an ancient room's walls, every PILASTER_EVERY tiles out from the middle of each wall, each
+## with a flame in a bronze sconce on every other one; none beside a doorway or a window, and always in mirrored pairs.
 func _pilasters() -> void:
 	var col := surface("pilaster", stone.lightened(0.04))
 	var cap := surface("pilaster_cap", stone.darkened(0.1))
@@ -842,7 +857,6 @@ func _pilasters() -> void:
 	flame.emission = FLAME
 	flame.emission_energy_multiplier = 2.4
 	flame.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	var k := 0
 	for y in range(1, h - 1):
 		for x in range(1, w - 1):
 			if code(x, y) in WALLISH or code(x, y) == MapGen.IVOID:
@@ -853,31 +867,46 @@ func _pilasters() -> void:
 				if code(wx, wy) != MapGen.IWALL:
 					continue
 				var along_i := Vector2i(1, 0) if d.y != 0 else Vector2i(0, 1)
-				var step := x if d.y != 0 else y
-				if step % PILASTER_EVERY != 1:
+				# spaced out from the middle of the wall, so each wall's run is symmetrical
+				var span := w if d.y != 0 else h
+				var off2 := absi(2 * (x if d.y != 0 else y) - (span - 1))
+				if off2 % (2 * PILASTER_EVERY) != (span - 1) % 2 * PILASTER_EVERY:
 					continue
-				var near_door := false
-				for o in [-1, 1]:
-					var q: Vector2i = Vector2i(wx, wy) + along_i * o
-					near_door = near_door or code(q.x, q.y) in [MapGen.IDOOR, MapGen.LOCKED, MapGen.IWINDOW]
-				if near_door:
+				# none beside an opening or where a round pillar stands against the wall, here or at its mirror image across
+				# the room (so they go in pairs)
+				if not _pilaster_fits(wx, wy, along_i) or not _pilaster_fits(w - 1 - wx, wy, along_i):
+					continue
+				if code(x, y) == MapGen.PILLAR or code(w - 1 - x, y) == MapGen.PILLAR:
 					continue
 				var m := _row(wy)
-				var face := Vector3(x + 0.5, 0, y + 0.5) - Vector3(d.x, 0, d.y) * (0.5 - T / 2.0)
+				# the wall's face (walls stand T thick in the middle of their tile), the pilaster built out from it, standing
+				# on the floor on a square base, its capital under the cornice
+				var face := Vector3(x + 0.5, 0, y + 0.5) + Vector3(d.x, 0, d.y) * (1.0 - T / 2.0)
 				var out := -Vector3(d.x, 0, d.y)
 				var wide := Vector3(along_i.x, 0, along_i.y)
-				var size := wide * 0.42 + out.abs() * 0.24 + Vector3(0, H - 0.6, 0)
-				m.box("pilaster", col, face + out * 0.12 + Vector3(0, (H - 0.6) / 2.0 + 0.3, 0), size + Vector3.ONE * 0.0)
+				m.box("pilaster", col, face + out * 0.12 + Vector3(0, (H - 0.3) / 2.0, 0), wide * 0.42 + out.abs() * 0.24 + Vector3(0, H - 0.3, 0))
 				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, H - 0.36, 0), wide * 0.56 + out.abs() * 0.3 + Vector3(0, 0.12, 0))
-				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, 0.36, 0), wide * 0.54 + out.abs() * 0.3 + Vector3(0, 0.1, 0))
-				k += 1
-				if k % 2 == 0:
+				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, 0.2, 0), wide * 0.54 + out.abs() * 0.3 + Vector3(0, 0.4, 0))
+				# (every other one out from the middle, the same either side)
+				if off2 / PILASTER_EVERY / 2 % 2 == 1:
 					continue
 				# a bronze bowl on a bracket, a flame in it
 				m.box("brass", bronze, face + out * 0.34 + Vector3(0, 1.62, 0), wide * 0.08 + out.abs() * 0.22 + Vector3(0, 0.05, 0))
 				m.box("brass", bronze, face + out * 0.46 + Vector3(0, 1.7, 0), wide * 0.24 + out.abs() * 0.24 + Vector3(0, 0.1, 0))
 				m.box("flame", flame, face + out * 0.46 + Vector3(0, 1.84, 0), wide * 0.14 + out.abs() * 0.14 + Vector3(0, 0.2, 0))
 				m.box("flame", flame, face + out * 0.46 + Vector3(0, 1.98, 0), wide * 0.07 + out.abs() * 0.07 + Vector3(0, 0.12, 0))
+
+
+## Whether wall tile (wx, wy) can carry a pilaster: plain wall, with no doorway or window either side of it along the
+## wall.
+func _pilaster_fits(wx: int, wy: int, along_i: Vector2i) -> bool:
+	if code(wx, wy) != MapGen.IWALL:
+		return false
+	for o in [-1, 1]:
+		var q: Vector2i = Vector2i(wx, wy) + along_i * o
+		if code(q.x, q.y) in [MapGen.IDOOR, MapGen.LOCKED, MapGen.IWINDOW]:
+			return false
+	return true
 
 
 ## An ancient room's doorway: a stone portal, massive jambs and a lintel with the temple's glowing inlay, the dark
@@ -964,6 +993,8 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 				_attach(x, y, plate)
 				_attach(x, y, lab)
 
+	if mission and (ex.is_empty() or String(ex["to"]).contains("#")):
+		_mission_door_arch(x, y, horiz)
 
 ## A door, closed in its doorway: a painted leaf with two raised panels and a brass knob on each face. A front door
 ## has a pane of glass in its upper half instead of a panel.
@@ -1107,6 +1138,273 @@ func _window(x: int, y: int, horiz: bool) -> void:
 	if z in ["living", "bedroom", "office", "hall"] and not below in [MapGen.STAIRS_UP, MapGen.STAIRS_DOWN] \
 			and rng.randf() < 0.6:
 		_hang("radiator", x, y, inside, 0.12, 0.0)
+
+
+## An open doorway onto a balcony (map_loader.gd "!"), seen from the room: no leaf, a frame round the opening and sheer
+## curtains drawn back either side; beyond it a tiled balcony floor, an iron railing and the sea under the sky, closed
+## in at the sides and above so nothing past the room shows. You can't walk out: the tile stays wall.
+func _balcony_door(x: int, y: int, horiz: bool) -> void:
+	var m := _row(y)
+	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var inside := Vector2i(0, 1) if horiz else Vector2i(1, 0)
+	if zone(x + inside.x, y + inside.y) == "":
+		inside = -inside
+	var z := zone(x + inside.x, y + inside.y)
+	var into := Vector3(inside.x, 0, inside.y)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var yaw := atan2(float(inside.x), float(inside.y))
+	var fr := surface("frame", trim)
+	for side in [-1.0, 1.0]:
+		m.box("frame", fr, c + along * side * 0.46 + Vector3(0, BALCONY_H / 2.0, 0), _axes(along, 0.09, BALCONY_H, T + 0.06, horiz))
+	m.box("frame", fr, c + Vector3(0, BALCONY_H + 0.05, 0), _axes(along, 1.0, 0.1, T + 0.06, horiz))
+	m.box("frame", fr, c + Vector3(0, 0.02, 0), _axes(along, 0.86, 0.04, T + 0.02, horiz))
+	# the balcony: its floor, its side walls and a ceiling, all in the room's wall finish but the tiles
+	var out := -into
+	var deep := 0.8
+	var mid := c + out * (T / 2.0 + deep / 2.0)
+	m.box("balcony_tile", surface("balcony_tile", Color("#d49a72")), mid + Vector3(0, 0.03, 0), _axes(along, 1.0, 0.06, deep, horiz))
+	var wall := wall_mat(z)
+	# (kept low, just over the doorway's head, so none of it shows above the back wall from the camera)
+	var roof := BALCONY_H + 0.1
+	for side in [-1.0, 1.0]:
+		m.box("balcony_wall_" + z, wall, mid + along * side * 0.5 + Vector3(0, roof / 2.0, 0), _axes(along, 0.06, roof, deep, horiz))
+	m.box("balcony_wall_" + z, wall, mid + Vector3(0, roof - 0.05, 0), _axes(along, 1.06, 0.1, deep, horiz))
+	# an iron railing along its edge
+	var iron := surface("iron", Color("#2d2622"))
+	var rail := c + out * (T / 2.0 + deep - 0.12)
+	m.box("iron", iron, rail + Vector3(0, 0.92, 0), _axes(along, 0.94, 0.05, 0.05, horiz))
+	m.box("iron", iron, rail + Vector3(0, 0.12, 0), _axes(along, 0.94, 0.035, 0.035, horiz))
+	for i in 9:
+		m.box("iron", iron, rail + along * (-0.42 + 0.105 * float(i)) + Vector3(0, 0.5, 0), _axes(along, 0.025, 0.86, 0.025, horiz))
+	# the sea and the sky beyond, glowing like a window's
+	for part in [[0.0, 0.8, Color("#4fb3dc"), Color("#3a9cc8")], [0.8, BALCONY_H + 0.05, Color("#d4ecff"), Color("#bcdcff")]]:
+		var view := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.94, float(part[1]) - float(part[0]))
+		view.mesh = q
+		var vm := StandardMaterial3D.new()
+		vm.albedo_color = part[2]
+		vm.emission_enabled = true
+		vm.emission = part[3]
+		vm.emission_energy_multiplier = 0.9
+		view.material_override = vm
+		view.position = c + out * (T / 2.0 + deep - 0.02) + Vector3(0, (float(part[0]) + float(part[1])) / 2.0, 0)
+		view.rotation.y = yaw
+		_attach(x, y, view)
+	# sheer curtains tied back either side of the opening on a rod, on the room side
+	var drape := surface("drape", Color("#f3ead8"))
+	var rod := c + into * (T / 2.0 + 0.08)
+	m.box("iron", iron, rod + Vector3(0, BALCONY_H + 0.16, 0), _axes(along, 1.5, 0.04, 0.04, horiz))
+	for side in [-1.0, 1.0]:
+		var at: Vector3 = rod + along * side * 0.62
+		m.box("drape", drape, at + Vector3(0, BALCONY_H / 2.0 + 0.08, 0), _axes(along, 0.22, BALCONY_H + 0.14, 0.06, horiz))
+		m.box("drape", drape, at - along * side * 0.04 + Vector3(0, 1.0, 0), _axes(along, 0.3, 0.07, 0.1, horiz))
+	if mission:
+		_mission_balcony_arch(x, y, horiz, into, z)
+
+
+# ---------------------------------------------------------------- a Spanish mission's finish (Hotel Mariposa)
+const MISSION_WOOD := Color("#4a2c1a")
+const MISSION_IRON := Color("#2d2622")
+const DADO_TOP := 0.8
+const DESK_TOP := 1.02
+
+
+## Glazed blue-and-white azulejo tiles with ochre rings, for a mission room's dado: drawn once, soft-edged like the
+## rest of the painted textures, four tiles to a metre.
+static func azulejo_material() -> StandardMaterial3D:
+	if _mats.has("azulejo"):
+		return _mats["azulejo"]
+	var n := 64
+	var img := Image.create(n, n, false, Image.FORMAT_RGB8)
+	var base := Color("#f4efe3")
+	var blue := Color("#2c5c9c")
+	var ochre := Color("#d9a441")
+	var grout := Color("#d8d0c0")
+	for py in n:
+		for px in n:
+			var u := (px + 0.5) / n - 0.5
+			var v := (py + 0.5) / n - 0.5
+			var col := base
+			var ring := absf(absf(u) + absf(v) - 0.28)
+			var dot := Vector2(u, v).length()
+			var corner := Vector2(0.5 - absf(u), 0.5 - absf(v)).length()
+			var ink := maxf(1.0 - smoothstep(0.02, 0.045, ring), 1.0 - smoothstep(0.07, 0.1, dot))
+			ink = maxf(ink, (1.0 - smoothstep(0.17, 0.2, corner)) * 0.85)
+			col = col.lerp(blue, ink)
+			col = col.lerp(ochre, 1.0 - smoothstep(0.015, 0.035, absf(corner - 0.25)))
+			col = col.lerp(grout, smoothstep(0.465, 0.5, maxf(absf(u), absf(v))))
+			img.set_pixel(px, py, col)
+	img.generate_mipmaps()
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.vertex_color_use_as_albedo = true
+	m.uv1_scale = Vector3(4.0, 4.0, 1.0)
+	m.roughness = 0.35
+	_mats["azulejo"] = m
+	return m
+
+
+## A candle flame or lamp: a warm colour that glows.
+static func flame_material() -> StandardMaterial3D:
+	if _mats.has("mission_flame"):
+		return _mats["mission_flame"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color("#ffe3a0")
+	m.emission_enabled = true
+	m.emission = Color("#ffc96a")
+	m.emission_energy_multiplier = 1.6
+	_mats["mission_flame"] = m
+	return m
+
+
+## A box `length` long along `along` (x or z), `height` high and `depth` deep across it.
+func _along_box(m: Mesher, key: String, mat: Material, c: Vector3, along: Vector3, length: float, height: float, depth: float) -> void:
+	m.box(key, mat, c, Vector3(length, height, depth) if absf(along.x) > 0.5 else Vector3(depth, height, length))
+
+
+## A flat band round a half circle on a wall face, from radius r0 to r1 round `c` (r0 0: a filled half disc).
+func _arch_band(m: Mesher, key: String, mat: Material, c: Vector3, along: Vector3, nrm: Vector3, r0: float, r1: float) -> void:
+	for i in 12:
+		var a0 := PI * float(i) / 12.0
+		var a1 := PI * float(i + 1) / 12.0
+		var d0 := along * cos(a0) + Vector3.UP * sin(a0)
+		var d1 := along * cos(a1) + Vector3.UP * sin(a1)
+		if r0 <= 0.0:
+			m.tri(key, mat, [c, c + d0 * r1, c + d1 * r1], nrm, along, Vector3.UP)
+		else:
+			m.quad(key, mat, [c + d0 * r0, c + d1 * r0, c + d1 * r1, c + d0 * r1], nrm, along, Vector3.UP)
+
+
+## A round arch over a doorway on both faces of its wall: a dark carved band with a painted-tile tympanum inside it.
+func _mission_door_arch(x: int, y: int, horiz: bool) -> void:
+	var m := _row(y)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var across := Vector3.BACK if horiz else Vector3.RIGHT
+	var wood := surface("mission_wood", MISSION_WOOD)
+	for side in [-1.0, 1.0]:
+		var c: Vector3 = Vector3(x + 0.5, DOOR_H + 0.1, y + 0.5) + across * side * (T / 2.0 + 0.012)
+		_arch_band(m, "azulejo", azulejo_material(), c, along, across * side, 0.0, 0.42)
+		_arch_band(m, "mission_wood", wood, c + across * side * 0.006, along, across * side, 0.42, 0.52)
+
+
+## The round head of a balcony's open doorway, on the room side: the wall filling the corners over the arch, and a
+## dark carved band round it.
+func _mission_balcony_arch(x: int, y: int, horiz: bool, into: Vector3, z: String) -> void:
+	var m := _row(y)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var r := 0.46
+	var c := Vector3(x + 0.5, BALCONY_H - r, y + 0.5) + into * (T / 2.0 + 0.04)
+	var wall := wall_mat(z)
+	for i in 12:
+		var a0 := PI * float(i) / 12.0
+		var a1 := PI * float(i + 1) / 12.0
+		var p0 := c + (along * cos(a0) + Vector3.UP * sin(a0)) * r
+		var p1 := c + (along * cos(a1) + Vector3.UP * sin(a1)) * r
+		m.quad("arch_fill_" + z, wall, [p0, p1, Vector3(p1.x, c.y + r, p1.z), Vector3(p0.x, c.y + r, p0.z)], into, along, Vector3.UP)
+	_arch_band(m, "mission_wood", surface("mission_wood", MISSION_WOOD), c + into * 0.006, along, into, r - 0.02, r + 0.06)
+
+
+## A Spanish mission's walls: a dado of glazed azulejo tiles round the room under a dark wooden rail, a carved crown
+## along the top, and wrought-iron candle sconces along the side walls.
+func _mission_decor() -> void:
+	var tiles := azulejo_material()
+	var wood := surface("mission_wood", MISSION_WOOD)
+	var iron := surface("iron", MISSION_IRON)
+	var balconies: Dictionary = map.get("balcony_doors", {})
+	for y in h - 1:
+		var m := _row(y)
+		for x in w:
+			if not code(x, y) in [MapGen.IWALL, MapGen.IWINDOW]:
+				continue
+			# over a balcony's open doorway only the crown carries on
+			var open := balconies.has(Vector2i(x, y))
+			for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				if zone(x + d.x, y + d.y) == "":
+					continue
+				var nrm := Vector3(d.x, 0, d.y)
+				var along := Vector3(absi(d.y), 0, absi(d.x))
+				var lo := -0.5
+				var hi := 0.5
+				# carried on round an inside corner to the wall it meets
+				for end in [-1, 1]:
+					var q: Vector2i = Vector2i(x, y) + Vector2i(int(along.x), int(along.z)) * end
+					if code(q.x, q.y) == MapGen.IWALL and zone(q.x + d.x, q.y + d.y) == "":
+						if end < 0:
+							lo -= 0.5 - T / 2.0 - 0.012
+						else:
+							hi += 0.5 - T / 2.0 - 0.012
+				var base := Vector3(x + 0.5, 0, y + 0.5) + nrm * (T / 2.0 + 0.012)
+				var a := base + along * lo
+				var b := base + along * hi
+				var mid := base + along * (lo + hi) / 2.0
+				if not open:
+					m.quad("azulejo", tiles, [a + Vector3.UP * 0.1, b + Vector3.UP * 0.1, b + Vector3.UP * DADO_TOP, a + Vector3.UP * DADO_TOP], nrm, along, Vector3.UP)
+					_along_box(m, "mission_wood", wood, mid + Vector3.UP * DADO_TOP, along, hi - lo, 0.06, 0.05)
+				_along_box(m, "mission_wood", wood, mid + Vector3.UP * (H - 0.07), along, hi - lo, 0.12, 0.07)
+				_along_box(m, "mission_wood", wood, mid + Vector3.UP * (H - 0.2), along, hi - lo, 0.03, 0.04)
+				# a sconce on every third tile of a side wall
+				if d.x != 0 and code(x, y) == MapGen.IWALL and y % 3 == 1:
+					var s := base + Vector3.UP * 1.75
+					_along_box(m, "iron", iron, s, along, 0.1, 0.26, 0.03)
+					m.box("iron", iron, s + nrm * 0.1 + Vector3.UP * 0.02, Vector3(0.12, 0.03, 0.12))
+					m.box("iron", iron, s + nrm * 0.06 - Vector3.UP * 0.06, Vector3.ONE * 0.04)
+					m.box("mission_flame", flame_material(), s + nrm * 0.1 + Vector3.UP * 0.1, Vector3(0.05, 0.13, 0.05))
+
+
+## A mission lobby's reception desk in place of a shop's counters: panelled dark wood under a marble top, the
+## counter's red phone, a brass bell and the guest book, and a board of room keys on the wall behind the clerk.
+func _reception_desk() -> void:
+	var wood := surface("mission_wood", MISSION_WOOD)
+	var panel := surface("mission_panel", MISSION_WOOD.lightened(0.12))
+	var marble := surface("marble_top", Color("#efe8dc"))
+	var brass := surface("brass", Color("#d8b050"))
+	var phone_at: Vector2i = map.get("counter_phone", Vector2i(-1, -1))
+	var tiles := []
+	for y in h:
+		for x in w:
+			if code(x, y) == MapGen.COUNTER:
+				tiles.append(Vector2i(x, y))
+	if tiles.is_empty():
+		return
+	var bell_done := false
+	for q in tiles:
+		var m := _row(q.y)
+		var c := Vector3(q.x + 0.5, 0, q.y + 0.5)
+		var face := Vector2i(0, 1)
+		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0)]:
+			if MapGen.walkable(code(q.x + d.x, q.y + d.y)):
+				face = d
+				break
+		var out := Vector3(face.x, 0, face.y)
+		var along := Vector3(absi(face.y), 0, absi(face.x))
+		_along_box(m, "mission_wood", wood, c + Vector3.UP * (DESK_TOP - 0.03) / 2.0, along, 1.0, DESK_TOP - 0.03, 0.8)
+		_along_box(m, "mission_panel", panel, c + out * 0.41 + Vector3.UP * 0.5, along, 0.7, 0.55, 0.02)
+		_along_box(m, "mission_wood", wood, c + out * 0.42 + Vector3.UP * 0.06, along, 1.0, 0.12, 0.04)
+		_along_box(m, "marble_top", marble, c + Vector3.UP * (DESK_TOP - 0.025), along, 1.0, 0.05, 0.9)
+		if q == phone_at:
+			_counter_phone(c, atan2(float(face.x), float(face.y)), DESK_TOP)
+		elif not bell_done and q.x >= w / 2 - 2:
+			bell_done = true
+			var bell := MeshInstance3D.new()
+			var sm := SphereMesh.new()
+			sm.radius = 0.07
+			sm.height = 0.07
+			sm.is_hemisphere = true
+			bell.mesh = sm
+			bell.material_override = brass
+			bell.position = c + out * 0.15 + Vector3.UP * DESK_TOP
+			parent.add_child(bell)
+			# the guest book, open
+			for s in [-1.0, 1.0]:
+				_along_box(m, "page", surface("page", Color("#f6f0e0")), c + along * (0.35 + s * 0.09) + Vector3.UP * (DESK_TOP + 0.015), along, 0.17, 0.02, 0.24)
+	# the key board behind the clerk, on the back wall
+	var board := Vector3(3.5, 1.55, 0.5 + T / 2.0 + 0.03)
+	_row(0).box("mission_wood", wood, board, Vector3(1.4, 0.7, 0.05))
+	for i in 5:
+		for j in 2:
+			_row(0).box("brass", brass, board + Vector3(-0.5 + 0.25 * i, 0.15 - 0.3 * j, 0.04), Vector3(0.05, 0.1, 0.02))
 
 
 # ---------------------------------------------------------------- stairs
@@ -1699,6 +1997,9 @@ const DISPLAY_BLOCK := Vector2(0.41, 1.07)
 
 
 func _counters() -> void:
+	if mission:
+		_reception_desk()
+		return
 	var shop: String = map.get("building", {}).get("shop", "")
 	var goods: Array = COUNTER_GOODS.get(shop, ["product_1", "books", "cup"])
 	var keeper := Vector2i(-99, -99)
