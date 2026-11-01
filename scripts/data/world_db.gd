@@ -193,10 +193,6 @@ const ARENAS := {
 	"riverbend": {"element": "water", "leader": "Skye", "title": "River Ranger", "team": [[36, 51], [27, 51], [30, 52]], "song": "anthem", "crest": "River Crest", "gold": 5500, "look": {"shirt": "#3a6ab0", "hair": "#f0d070", "hat": "#3a5a3a"}},
 }
 
-## The sandstone cliff pieces that wall in the desert's roads and towns and stand on their rock tiles (world.gd
-## _cliff_bands; a biome's "cliffs").
-const DESERT_CLIFFS := ["desert_cliff_0", "desert_cliff_1", "desert_cliff_2", "desert_cliff_3", "desert_cliff_4", "desert_cliff_5", "desert_cliff_6"]
-
 const BIOMES := {
 	"coast": {"ground": "#7cc05a", "side": "#9a7a50", "sand": "#ecd8a0", "path": "#c8a878", "plaza": "#c8c0b0", "tuft": "#5aa040",
 		"trees": [["palm", 2], ["palm_bent", 1], ["tree_dome", 2], ["tree_oak", 2], ["tree_birch", 1], ["tree_round_2", 1], ["tree_cypress", 1]], "rocks": ["beach_rock", "rock_small"],
@@ -212,15 +208,20 @@ const BIOMES := {
 	"island": {"ground": "#479c50", "side": "#9a7a50", "sand": "#f0e0a8", "path": "#d8b880", "plaza": "#d8ccb0", "tuft": "#4ab040",
 		"trees": [["palm", 5], ["palm_bent", 4], ["tree_big", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
 		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.4, "amb": 0.62, "style": "island", "water": "#2aa8d8", "music": "island"},
+	# the desert lands: "boulders" stand where other lands grow woods and hedges (world.gd), only "cacti" of the tree
+	# tiles keep a cactus, and no scrub grows in the open
 	"desert": {"ground": "#e2c890", "side": "#b8945a", "sand": "#ecd8a0", "path": "#c8a070", "plaza": "#d8c098", "tuft": "#b8a050",
 		"trees": [["cactus_1", 2], ["cactus_2", 2], ["cactus_3", 1]], "rocks": ["field_rock", "bones_1", "bones_2", "stone_2"], "shrubs": ["bush_1", "bush_2"],
-		"sky_top": "#5aa8e8", "sky_hz": "#f8e8c8", "sun": "#fff0d0", "sun_e": 1.5, "amb": 0.62, "style": "adobe", "water": "#3a9ad8", "music": "desert", "cliffs": DESERT_CLIFFS},
+		"boulders": ["mountain_1", "mountain_4", "mountain_5", "mountain_7", "rock_big"], "cacti": 0.06,
+		"sky_top": "#5aa8e8", "sky_hz": "#f8e8c8", "sun": "#fff0d0", "sun_e": 1.5, "amb": 0.62, "style": "adobe", "water": "#3a9ad8", "music": "desert"},
 	"western": {"ground": "#d8b880", "side": "#a8804a", "sand": "#e2c890", "path": "#b89060", "plaza": "#c8a878", "tuft": "#a89848",
 		"trees": [["cactus_2", 2], ["cactus_1", 1], ["dead_tree", 1]], "rocks": ["field_rock", "bones_3", "stone_4"], "shrubs": ["bush_3", "bush_1"],
+		"boulders": ["mountain_1", "mountain_4", "mountain_5", "mountain_7", "rock_big"], "cacti": 0.06,
 		"sky_top": "#5aa0e0", "sky_hz": "#f8dcb0", "sun": "#ffe8c0", "sun_e": 1.45, "amb": 0.6, "style": "western", "water": "#3a9ad8", "music": "western"},
 	"mesa": {"ground": "#d8946a", "side": "#a85a3a", "sand": "#e2b080", "path": "#c8906a", "plaza": "#c8a080", "tuft": "#a8984a",
 		"trees": [["cactus_1", 2], ["dead_tree", 1]], "rocks": ["mountain_3", "mountain_6", "field_rock"], "shrubs": ["bush_2"],
-		"sky_top": "#5aa0e0", "sky_hz": "#f8d0a8", "sun": "#ffe0b8", "sun_e": 1.45, "amb": 0.58, "style": "western", "water": "#3a9ad8", "music": "western", "cliffs": DESERT_CLIFFS},
+		"boulders": ["mountain_1", "mountain_4", "mountain_5", "mountain_7", "rock_big"], "cacti": 0.05,
+		"sky_top": "#5aa0e0", "sky_hz": "#f8d0a8", "sun": "#ffe0b8", "sun_e": 1.45, "amb": 0.58, "style": "western", "water": "#3a9ad8", "music": "western"},
 	"mountain": {"ground": "#8a9a6a", "side": "#6a6058", "sand": "#b8b0a0", "path": "#9a8a70", "plaza": "#a8a49a", "tuft": "#6a8a4a",
 		"trees": [["tree_pine", 3], ["tree_birch", 1], ["tree_cypress", 1], ["tree_cypress_slim", 1]], "rocks": ["mountain_0", "mountain_2", "mountain_5", "rock_big"], "shrubs": ["shrub_3", "bush_3"],
 		"sky_top": "#6ab0f0", "sky_hz": "#e8f4f8", "sun": "#ffffff", "sun_e": 1.3, "amb": 0.6, "style": "mining", "water": "#3a8ad0", "music": "mountain"},

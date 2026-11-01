@@ -1518,7 +1518,7 @@ func _poster(n: Dictionary) -> void:
 	var who := int(n.get("poster", -1))
 	var lines := [POSTERS[who] if who >= 0 else POSTERS[3]]
 	if GameState.flag("trainers_freed"):
-		lines.append("Someone has painted FOUND across it in big green letters, and underneath: Home safe. Thank you!")
+		lines.push_front("Someone has painted FOUND across this poster in big green letters, and underneath: Home safe. Thank you!")
 	else:
 		lines.append("Any news, tell Sheriff Dalton in Sundown Gulch.")
 	await UI.say(lines)

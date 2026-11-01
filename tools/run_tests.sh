@@ -60,6 +60,7 @@ TESTS=(
 	"arena-ladder|-- --scene=arena-ladder --touch --verify=1 --wait=0.3|ARENA LADDER DONE: 0 problem"
 	"mascot|-- --scene=mascot --wait=0.3|MASCOT TEST DONE: 0 problem"
 	"waterfront|-- --scene=waterfront --wait=0.3|WATERFRONT DONE: 0 problem"
+	"dustwell|-- --scene=dustwell --wait=0.3|DUSTWELL DONE: 0 problem"
 	"tidewater-layout|--script res://tools/check_tidewater_layout.gd|TIDEWATER LAYOUT DONE: 0 problem"
 	"maps-built|-- --scene=maps --wait=0.3|MAP TOUR DONE: .*, 0 porch"
 	"phone|-- --scene=phone --wait=0.3|PHONE TEST DONE: 0 problem"

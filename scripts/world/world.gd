@@ -686,6 +686,10 @@ func _build_backdrop() -> void:
 				elif rng.randf() < 0.12 and not south:
 					_ring_tree(by_asset, trees, c, rng, 2.4, 3.4, shadow)
 				continue
+			if biome.has("boulders"):
+				# the desert: boulders and the odd cactus, low rocks only to the south
+				_ring_desert(by_asset, c, rng, depth, south, shadow)
+				continue
 			if south:
 				# between the camera and the map: low things only
 				if depth > 9:
@@ -703,9 +707,6 @@ func _build_backdrop() -> void:
 				elif rng.randf() < 0.2:
 					_ring_shrub(by_asset, shrubs, c, rng, 0.5, 0.9)
 				continue
-			# the desert's canyon walls stand behind the first row or two (_backdrop_cliffs)
-			if biome.has("cliffs") and depth > 2:
-				continue
 			# a wood: thick near the map, a little thinner deep in (the fog takes over there); a mixed one has gaps
 			# filled with shrubs
 			var mixed := float(biome.get("mixed", 0.0))
@@ -713,7 +714,6 @@ func _build_backdrop() -> void:
 				_ring_tree(by_asset, trees, c, rng, 2.0 if mixed > 0.0 else 2.4, 4.0, shadow)
 			elif (depth <= 2 or (mixed > 0.0 and depth <= 6)) and rng.randf() < 0.5 + mixed:
 				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.2)
-	_backdrop_cliffs(by_asset, rng)
 	# A trunk can stand beside the road while its canopy reaches across it. Check the
 	# transformed mesh bounds, including off-centre palms, rather than just its tile.
 	var roads := _backdrop_roads()
@@ -781,130 +781,6 @@ func _backdrop_roads() -> Array[Rect2]:
 	return roads
 
 
-## The desert's sandstone cliffs (biome "cliffs", tools/import_western.gd): the wooded bands along a map's back and
-## sides (two tiles deep, clear of its last three rows) become a canyon wall of cliff pieces laid lengthwise along the
-## edge, no taller than the cacti they replace, and rock tiles become boulders of the same stone (kept low where a path
-## lies just north). Returns the tiles they stand on.
-func _cliff_bands(by_asset: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
-	var cover := {}
-	var names: Array = biome.get("cliffs", [])
-	if names.is_empty():
-		return cover
-	var w: int = map["w"]
-	var h: int = map["h"]
-	# [first tile, the step along the band, the tiles across it, the band's length]
-	var bands := [[Vector2i(0, 0), Vector2i(1, 0), [Vector2i(0, 0), Vector2i(0, 1)], w],
-		[Vector2i(0, 2), Vector2i(0, 1), [Vector2i(0, 0), Vector2i(1, 0)], h - 5],
-		[Vector2i(w - 1, 2), Vector2i(0, 1), [Vector2i(0, 0), Vector2i(-1, 0)], h - 5]]
-	for band in bands:
-		var along: Vector2i = band[1]
-		var across: Array = band[2]
-		var i := 0
-		while i < int(band[3]):
-			var want := rng.randi_range(3, 4)
-			var run := 0
-			while i + run < int(band[3]) and run < want and _cliff_row(band[0] + along * (i + run), across):
-				run += 1
-			if run < 2:
-				i += maxi(run, 1)
-				continue
-			var first: Vector2i = band[0] + along * i
-			var lift := INF
-			for k in run:
-				for o: Vector2i in across:
-					var t: Vector2i = first + along * k + o
-					cover[t] = true
-					lift = minf(lift, _lift(t))
-			# centred on the run, reaching a little past the map's edge
-			var c := Vector2(first.x + run / 2.0, 0.6) if along.x != 0 else Vector2(0.7 if first.x == 0 else w - 0.7, first.y + run / 2.0)
-			_cliff_piece(by_asset, names, Vector3(c.x, lift, c.y), along.x != 0, run - 0.05, 2.5, rng.randf_range(2.5, 3.3), rng, true)
-			i += run
-	# boulders on rock tiles: one stone over each 2x2 block of them, else one to a tile
-	var claimed := {}
-	for y in h:
-		for x in w:
-			var t := Vector2i(x, y)
-			if claimed.has(t) or cover.has(t) or MapGen.get_t(map, x, y) != MapGen.ROCK or house_cover.has(t):
-				continue
-			if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).has_point(t):
-				continue
-			var block := [t, t + Vector2i(1, 0), t + Vector2i(0, 1), t + Vector2i(1, 1)]
-			var big := true
-			for q: Vector2i in block:
-				if claimed.has(q) or cover.has(q) or MapGen.get_t(map, q.x, q.y) != MapGen.ROCK or absf(_lift(q) - _lift(t)) > 0.01:
-					big = false
-			var size := 2 if big else 1
-			# kept low where a path lies just north of it (the camera looks over it) and along the south edge
-			var low := y >= h - 3
-			for dy in range(1, 4):
-				for dx in range(-1, size + 1):
-					if MapGen.walkable(MapGen.get_t(map, x + dx, y - dy)):
-						low = true
-			for q in (block if big else [t]):
-				claimed[q] = true
-				cover[q] = true
-			var hgt := rng.randf_range(0.9, 1.15) if low else (rng.randf_range(1.6, 2.1) if big else rng.randf_range(1.1, 1.4))
-			_cliff_piece(by_asset, names, Vector3(x + size / 2.0, _lift(t), y + size / 2.0), rng.randf() < 0.5, size + 0.15, size + 0.1, hgt, rng, true)
-	return cover
-
-
-## True if every tile across the band at `t` is woodland or rock nobody walks on (and no house leans over it).
-func _cliff_row(t: Vector2i, across: Array) -> bool:
-	for o: Vector2i in across:
-		var q := t + o
-		if not MapGen.get_t(map, q.x, q.y) in [MapGen.TREE, MapGen.ROCK] or house_cover.has(q):
-			return false
-	return true
-
-
-## Canyon walls past the map's back and sides (never the south, between the camera and the map), clear of the roads.
-func _backdrop_cliffs(by_asset: Dictionary, rng: RandomNumberGenerator) -> void:
-	var names: Array = biome.get("cliffs", [])
-	if names.is_empty():
-		return
-	var w: int = map["w"]
-	var h: int = map["h"]
-	var roads := _backdrop_roads()
-	var spots := []
-	var x := -RING + 2.0
-	while x < w + RING - 2.0:
-		var l := rng.randf_range(6.0, 9.0)
-		spots.append([Vector3(x + l / 2.0, 0.0, -rng.randf_range(3.6, 5.0)), true, l])
-		x += l - 0.5
-	for side in [-1, 1]:
-		var z := -2.0
-		while z < h - 6.0:
-			var l := rng.randf_range(6.0, 9.0)
-			spots.append([Vector3(-rng.randf_range(3.6, 5.0) if side < 0 else w + rng.randf_range(3.6, 5.0), 0.0, z + l / 2.0), false, l])
-			z += l - 0.5
-	for s in spots:
-		var p: Vector3 = s[0]
-		var l: float = s[2]
-		var foot := Rect2(p.x - l / 2.0, p.z - 2.6, l, 5.2) if s[1] else Rect2(p.x - 2.6, p.z - l / 2.0, 5.2, l)
-		var clear := true
-		for r: Rect2 in roads:
-			if r.grow(1.0).intersects(foot):
-				clear = false
-		if not clear:
-			continue
-		p.y = _lift(Vector2i(clampi(int(p.x), 0, w - 1), clampi(int(p.z), 0, h - 1)))
-		_cliff_piece(by_asset, names, p, s[1], l, 5.0, rng.randf_range(4.2, 6.0), rng, false)
-
-
-## One cliff piece standing at `c` (its foot's centre), its long side along x (or z), `long` by at most `deep`, `tall`.
-func _cliff_piece(by_asset: Dictionary, names: Array, c: Vector3, along_x: bool, long: float, deep: float, tall: float, rng: RandomNumberGenerator, shadow: bool) -> void:
-	var name: String = names[rng.randi_range(0, names.size() - 1)]
-	var bb := VA.aabb(name)
-	var model_long_x := bb.size.x >= bb.size.z
-	var yaw := (0.0 if model_long_x == along_x else PI / 2.0) + (PI if rng.randf() < 0.5 else 0.0)
-	var sl := long / maxf(bb.size.x, bb.size.z)
-	var ss := minf(sl, deep / maxf(0.01, minf(bb.size.x, bb.size.z)))
-	var sy := tall / maxf(0.01, bb.size.y)
-	var sc := Vector3(sl, sy, ss) if model_long_x else Vector3(ss, sy, sl)
-	var basis := Basis(Vector3.UP, yaw).scaled_local(sc)
-	_add_asset(by_asset, name if shadow else name + SHADOWLESS, Transform3D(basis, c + Vector3(0, -bb.position.y * sy - 0.05, 0)))
-
-
 func _ring_tree(by_asset: Dictionary, trees: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float, shadow: bool) -> void:
 	if trees.is_empty():
 		return
@@ -920,6 +796,38 @@ func _ring_shrub(by_asset: Dictionary, shrubs: Array, c: Vector3, rng: RandomNum
 	var name: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 	var sc := VA.fit_scale(name, rng.randf_range(lo, hi))
 	_add_plant(by_asset, name + SHADOWLESS, _xf(c - Vector3(0, VA.aabb(name).position.y * sc, 0), rng.randf() * TAU, sc))
+
+
+## The desert's ring: tumbled boulders, bigger further out, a cactus here and there; to the south, low rocks only.
+func _ring_desert(by_asset: Dictionary, c: Vector3, rng: RandomNumberGenerator, depth: int, south: bool, shadow: bool) -> void:
+	if south:
+		if depth <= 6 and rng.randf() < 0.12:
+			_low_rock(by_asset, c, rng)
+		return
+	var roll := rng.randf()
+	var rocky := 0.6 if depth <= 4 else 0.4
+	if roll < rocky:
+		_boulder(by_asset, c, rng, 1.2 + depth * 0.08, 1.6 + depth * 0.15, shadow)
+	elif roll < rocky + 0.015:
+		_ring_tree(by_asset, biome["trees"], c, rng, 2.0, 3.0, shadow)
+
+
+## A boulder from the biome's "boulders", lo..hi tiles across, sitting on the ground at c.
+func _boulder(by_asset: Dictionary, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float, shadow: bool) -> void:
+	var boulders: Array = biome["boulders"]
+	var name: String = boulders[rng.randi_range(0, boulders.size() - 1)]
+	var sc := VA.fit_scale(name, -1.0, rng.randf_range(lo, hi))
+	_add_asset(by_asset, name if shadow else name + SHADOWLESS, _xf(c - Vector3(0, VA.aabb(name).position.y * sc + 0.05, 0), rng.randf() * TAU, sc))
+
+
+## A low rock (at most knee high) for the desert's southern edge and its rock lines, so you're seen over it.
+const LOW_ROCKS := ["mountain_0", "mountain_2", "mountain_5", "mountain_8"]
+
+
+func _low_rock(by_asset: Dictionary, c: Vector3, rng: RandomNumberGenerator) -> void:
+	var name: String = LOW_ROCKS[rng.randi_range(0, LOW_ROCKS.size() - 1)]
+	var sc := minf(VA.fit_scale(name, -1.0, rng.randf_range(0.95, 1.15)), VA.fit_scale(name, 0.75))
+	_add_asset(by_asset, name + SHADOWLESS, _xf(c - Vector3(0, VA.aabb(name).position.y * sc + 0.03, 0), rng.randf() * TAU, sc))
 
 
 func _ring_rock(by_asset: Dictionary, rocks: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
@@ -1115,8 +1023,6 @@ func _build_scatter() -> void:
 	var rocks: Array = biome["rocks"]
 	var shrubs: Array = biome["shrubs"]
 	var hedge_lines := _hedge_lines()
-	# the desert's canyon walls and boulders, where it has cliffs (no cactus or rock of the usual kind under them)
-	var cliff_cover := _cliff_bands(by_asset, rng)
 	# old woods (the map's "tall_trees" areas, [x, y, w, d]) whose trees stand half as tall again, with wider crowns,
 	# and undergrowth ("low_trees") where the trees are only thickets of shrubs, so you're seen over them
 	var tall_woods := []
@@ -1130,8 +1036,8 @@ func _build_scatter() -> void:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
 			var center := Vector3(x + 0.5, _lift(Vector2i(x, y)), y + 0.5)
-			if house_cover.has(Vector2i(x, y)) or cliff_cover.has(Vector2i(x, y)):
-				# a house leans over this tree or hedge, or a cliff stands there
+			if house_cover.has(Vector2i(x, y)):
+				# a house leans over this tree or hedge
 				continue
 			match c:
 				MapGen.TALL:
@@ -1140,6 +1046,16 @@ func _build_scatter() -> void:
 				MapGen.FLOWERS:
 					flowers[rng.randi_range(0, 1)].append(_xf(center, _voxel_rot(rng)))
 				MapGen.TREE:
+					if biome.has("boulders"):
+						# the desert's walls are rock: boulders (low ones in the last rows), only now and then a cactus
+						if y >= h - 3:
+							# a broken line, not a carpet of rubble
+							if rng.randf() < 0.4:
+								_low_rock(by_asset, center + Vector3(rng.randf_range(-0.25, 0.25), 0, rng.randf_range(-0.25, 0.25)), rng)
+							continue
+						if rng.randf() >= float(biome.get("cacti", 0.0)):
+							_boulder(by_asset, center + Vector3(rng.randf_range(-0.1, 0.1), 0, rng.randf_range(-0.1, 0.1)), rng, 1.05, 1.35, _open_ground_near(x, y, 2))
+							continue
 					# a mixed wood (the coast's): some of it thickets of different shrubs in place of trees
 					var mix := float(biome.get("mixed", 0.0))
 					var low := low_woods.any(func(r: Rect2i) -> bool: return r.has_point(Vector2i(x, y)))
@@ -1171,6 +1087,9 @@ func _build_scatter() -> void:
 				MapGen.BUSH:
 					if not hedge_lines.has(Vector2i(x, y)):
 						continue
+					if biome.has("boulders"):
+						_low_rock(by_asset, center, rng)
+						continue
 					# A low continuous boundary, with several silhouettes rather than repeated green balls.
 					var bn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 					var bs := VA.fit_scale(bn, -1.0, rng.randf_range(0.86, 1.06))
@@ -1186,7 +1105,7 @@ func _build_scatter() -> void:
 					# town lawns: a patch of flowers here and there (only to look at; you can walk through them)
 					if map["kind"] == "town" and rng.randf() < 0.07 and not _sandy():
 						flowers[rng.randi_range(0, 1)].append(_xf(center + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2)), _voxel_rot(rng), rng.randf_range(0.6, 0.9)))
-					elif rng.randf() < 0.05 and not shrubs.is_empty():
+					elif rng.randf() < 0.05 and not shrubs.is_empty() and not biome.has("boulders"):
 						var sn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						var s3 := VA.fit_scale(sn, rng.randf_range(0.35, 0.6))
 						_add_plant(by_asset, sn, _xf(center + Vector3(rng.randf_range(-0.3, 0.3), -VA.aabb(sn).position.y * s3, rng.randf_range(-0.3, 0.3)), _voxel_rot(rng), s3))

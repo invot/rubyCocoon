@@ -1,22 +1,17 @@
 extends SceneTree
-## Bakes Dustwell Oasis's western pieces from two downloaded packs (see CREDITS.md):
+## Bakes Dustwell Oasis's street furniture from a downloaded pack (see CREDITS.md):
 ##   godot --headless --path . --script res://tools/import_western.gd -- "path/to/unzipped packs"
 ## then tools/smooth_textures.gd and --import, as for any baked scenery.
 ##
-## The folder holds each pack unzipped into its own folder:
-##   cliffs/     Stylized Desert Cliffs Asset Pack.zip: seven sandstone cliff pieces sharing one painted texture,
-##               baked as they come into assets/nature/desert_cliff_<n>.res (world.gd lines the desert's map edges
-##               and its rock tiles with them: biome "cliffs").
+## The folder holds the pack unzipped into its own folder:
 ##   lpwestern/  Low Poly Western.zip: untextured models; its covered wagon and water trough become street furniture
 ##               (assets/exteriors/wagon.res, water_trough.res), painted here by part in flat, bright colours like the
 ##               rest of the town: a red wagon on yellow wheels, a wooden trough holding water.
 ## Every piece comes out in game units, centred on x/z and standing on y = 0.
 
 const Bake = preload("res://tools/import_psx_models.gd")
-const NATURE := "res://assets/nature/"
 const STREET := "res://assets/exteriors/"
-## pack centimetres to game units (the cliffs); the wagon and trough are sized to the street instead
-const UNIT := 0.01
+## the wagon's and the trough's lengths on the street
 const WAGON_LONG := 2.1
 const TROUGH_LONG := 1.7
 
@@ -26,48 +21,15 @@ var _baker
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.is_empty():
-		push_error("usage: -- <folder holding cliffs/ and lpwestern/>")
+		push_error("usage: -- <folder holding lpwestern/>")
 		quit(1)
 		return
 	var root: String = args[0]
 	_baker = Bake.new()
-	_cliffs(root.path_join("cliffs/collection"))
 	_wagon(root.path_join("lpwestern/collection/model_3.obj"))
 	_trough(root.path_join("lpwestern/collection/model_4.obj"))
 	_baker.free()
 	quit()
-
-
-# ---------------------------------------------------------------- cliffs
-func _cliffs(dir: String) -> void:
-	var img := Image.load_from_file(dir.path_join("4_new_Albedo.png"))
-	if img == null:
-		push_error("no cliff texture in " + dir)
-		return
-	img.convert(Image.FORMAT_RGB8)
-	img.resize(512, 512, Image.INTERPOLATE_LANCZOS)
-	img.generate_mipmaps()
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = ImageTexture.create_from_image(img)
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	mat.roughness = 0.95
-	for n in 7:
-		var obj := _read(dir.path_join("model_%d.obj" % n))
-		if obj.is_empty():
-			continue
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var off := _foot(obj)
-		for c in obj["corners"]:
-			var uv: Vector2 = obj["uv"][c[1]] if c[1] >= 0 else Vector2.ZERO
-			st.set_uv(Vector2(uv.x, 1.0 - uv.y))
-			if c[2] >= 0:
-				st.set_normal(obj["n"][c[2]])
-			st.add_vertex((obj["v"][c[0]] - off) * UNIT)
-		st.set_material(mat)
-		st.index()
-		var mesh: ArrayMesh = _baker._with_lods(st.commit())
-		_save(mesh, NATURE + "desert_cliff_%d.res" % n)
 
 
 # ---------------------------------------------------------------- street furniture

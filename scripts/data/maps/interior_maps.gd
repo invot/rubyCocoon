@@ -202,7 +202,7 @@ const ROOMS := {
 	## Dustwell Jail: Deputy Rusk (1) behind the front desk, the two cells' doors shut behind him (they're empty, and
 	## staff only).
 	"jail": {
-		"wall": "#e2c48a", "rug": "#7a3a2a", "stage": true, "zone": "wood", "npcs": {"1": "deputy"},
+		"wall": "#e2c48a", "rug": "#7a3a2a", "stage": true, "zone": "back", "npcs": {"1": "deputy"},
 		"rows": [
 			"###Z###Z###",
 			"#F...1...O#",

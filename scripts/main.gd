@@ -694,6 +694,10 @@ func _run_test() -> void:
 		await load("res://tools/debug/island_story.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "dustwell":
+		await load("res://tools/debug/dustwell.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "waterfront":
 		await load("res://tools/debug/waterfront.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":

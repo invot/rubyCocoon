@@ -65,7 +65,14 @@ hero closes with an unwitting joke about anyone spoiling it.
 The mounted Gearheart Industries sign uses an original vector gear-and-split-heart logo inspired by the supplied reference.
 
 The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
-Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**.
+Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**:
+nobody explains it on arrival; missing posters on the porch posts and notice boards, and Kip, Junie and Tamsin, friends
+of Lio, Bea and Orin searching the town, tell it (`story.gd` SEARCHERS, POSTERS). In the jail, dopey **Deputy Rusk**
+asks you to catch Slim, the prisoner who walked out of his open cell; Slim, hiding behind the wagon on the dune shelf,
+was framed with a trainer's flute in his saddlebag, and Barkeep Dusty's **Card Ledger** (a key item) proves he spent
+that night at the saloon's card table. Shown the ledger, the deputy clears Slim and asks you to help find the missing
+trainers and the real culprit, pointing you to Sheriff Dalton in Sundown (flags `convict_asked`, `convict_found`,
+`slim_cleared`, `deputy_partner`).
 The home and two neighboring houses have distinct shapes, staggered plots and planted front yards on a high shelf
 above Cocoon Cove's compact square. A broad ramp descends
 from their garden lane to **Cocoon Cove Library**, which marks the square's western entrance. Speak to
@@ -130,7 +137,7 @@ Townsfolk and residents add a casual hint about what to do next to whatever else
 |---|---|---|
 | Coast | Cocoon Cove, Bellerive | Bellerive, a French Quarter harbour town, has the first arena (its coaches' lessons, then Tide Captain Marina, whose Wave Crest the ferry asks for), **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
 | Isle of Tides | Shellhaven (resort), Kelpwick (village) | Shellhaven's tourists keep carrying pieces of the **Temple of Tides** home as souvenirs, so Kelpwick's villagers stand across the way to the reef. The resort thinks the village quaint but backwards; the village thinks the resort is exploiting the island. They step aside only for a trainer who proves they're no tourist: beat Reef Warden Nerissa in Kelpwick's great hut. |
-| Desert | Dustwell Oasis, Sundown Gulch (western town) | Bandits terrorise Sundown. Talk to the Sheriff, then beat Black Bart in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
+| Desert | Dustwell Oasis (old western main street), Sundown Gulch (western town) | Bandits terrorise Sundown. Talk to the Sheriff, then beat Black Bart in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
 | Mountains | Copperpick, Cogsworth (steampunk city) | CEO Magnus Gearhart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearhart Tower: each floor's robot sentries must fall before the stairs unlock. |
 | Volcano | Emberfall | The **Temple of Flame** sits on the Caldera Road. |
 | Jungle | Vinehollow | The village sells the finest gear in the land. The shaman needs the Sun, Moon and Earth relics; the ritual raises the hidden **Temple of Roots**. |
@@ -476,8 +483,30 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   coasts, roads leading on through exits, and around towns a few larger houses of the town's style among the trees.
   Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in
   plain sight. Low hedge borders continue as low planting beyond the map edge; Bellerive's Dune Road approach
-  has low hedges on both sides to keep its narrow exit visible. Backdrop scenery checks its full transformed
-  mesh bounds against the continuing exit roads, so wide canopies cannot overhang them.
+  has low hedges on both sides to keep its narrow exit visible. The desert lands (biomes with `"boulders"` in
+  `world_db.gd`: Dune Road, Mesa Trail, Dune Sea, Dustwell and Sundown) are walled by rock instead of plants:
+  boulders on tree tiles and in the ring, broken lines of low rocks on hedge tiles, in the last three rows and to
+  the south, no scrub in the open, and only `"cacti"` of the tree tiles (a few percent) keeping a cactus; their
+  edges step up as terrain cliffs (Dustwell's and the Dune Road's and Dune Sea's outer edges two levels).
+  Backdrop scenery checks its full transformed mesh bounds against the continuing exit roads, so wide canopies cannot overhang them.
+- **Dustwell Oasis** is an old western main street (map `"style": "frontier"`, `frontier_builder.gd`), after the
+  western packs in CREDITS.md: plank-sided buildings painted red, orange, yellow and pink with cream trim, each set back
+  behind a plank boardwalk under a porch roof on posts, all inside its plot (no porch over a path; the roof rests on
+  the posts' tops). Stores wear tall false fronts (stepped, arched or flat) with their icon on a sign board and porch
+  roofs striped in their colour; houses tin gable roofs. The **Oasis Saloon** (a cafe inside: room `saloon`) has two
+  storeys, a balcony across its front, batwing doors and SALOON on its false front; **Dustwell Jail** (room `jail`) has
+  barred windows, a sheriff's star and JAIL. The Beast Center is the diner every town has, fronted by a red western
+  false front over its door, a striped porch roof and a checkerboard skirt. Missing posters hang on the porch posts;
+  the readable ones are notice boards about town. Water troughs, a wagon, barrels and crates line the street.
+- **Dustwell's wagon and water troughs** come from the Low Poly Western pack, painted by part. To rebuild them from
+  the download, unzip it into a folder `lpwestern/` and run:
+
+  ```
+  godot --headless --path . --script res://tools/import_western.gd -- "path/to/unzipped packs"
+  godot --headless --path . --script res://tools/smooth_textures.gd
+  godot --headless --path . --import
+  ```
+
 - **Bellerive** is the game's French Quarter (`world_db.gd` biome `quarter`, building style `creole`): the whole town
   stands on a raised stone quay, its streets cobbled setts (the biome's `stone_streets` draws paths as paving) between
   warm flagstone sidewalks and squares, paved too under its buildings and balustrade. Planted hedge beds retain
@@ -498,7 +527,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   names them like the pack's).
 - **People, eggs, signs and obstacles** are built procedurally:
   - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
-  - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Dustwell's adobe with beam ends; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
+  - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
 - The terrain is made of textured blocks, one per tile; water and lava sit one step lower.
 - Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
@@ -712,6 +741,10 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   at a cliff. Keep the back and sides high and the south low (the camera looks north), put every building, its
   doorstep and everyone standing about on level ground, and keep tall things off high ground just south of a road.
   `"cliffs": "walls"` draws a town's cliffs as stone retaining walls. Both checkers below know the levels.
+- **A town's own look**: `"style"` builds a town's buildings in a style of its own, whatever its biome's (Dustwell's
+  `"frontier"`, `frontier_builder.gd`). Its `building_looks` can set a building's `"paint"` (red, orange, yellow, pink,
+  coral, gold, rose) and `"frontier"` (`"saloon"`, `"jail"`). Authored `street_props` may be the two-tile `wagon` or
+  `water_trough`.
 - **Shards** use `*`.
 - **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`). A door that opens is its own leaf on a hinge (`room_builder.gd _hinged_leaf`; `world.gd _through_door` swings it open, `spawn_at` shuts the one you came in by). Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it); Sky Tower lobbies have a visible side-wall entrance like home; lobbies and open-air decks use the same three-tile stair flights and recessed stairwells as home (`stair_flights` in their room templates). `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight. `world.gd _take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor. `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached. `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
 
@@ -737,7 +770,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
     models and skins, and `scenery_houses` places noninteractive buildings on solid woodland footprints.
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
 
-- **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
+- **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, or low rocks in the desert, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
 - **No slipping past a teacher**: `check_maps.gd` also walks every way from each of a map's exits to the others and
   flags a teacher (`world_db.gd` LESSON_TRAINERS, ARENA_LESSONS) whose line of sight (straight ahead, 4 tiles, up to
   the first wall or person) it can get past without crossing, and indoors one who doesn't see the tile you come in on.
@@ -776,7 +809,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   cached animation measurements. `--scene=stalls --report=res://build/performance.json` writes the timing report;
   optionally pass `--baseline=res://build/performance/baseline.json` to compare collision-grid hashes.
 - `house-measurements` / `battle-art`: baked geometry measurements and exact generated ring/audio assets.
-- `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and the one-time Dustwell reveal.
+- `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and Dustwell setting its news flag on arrival without a speech.
 - `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
 - `phone-save` / `phone-save-touch`: Dad's save and continue Yes/No prompts, declined saves, one answer per press, and returning to the title. Preview with `--scene=phone-save --save_dir=res://build/phone_save_preview/ --shot=res://build/shots/dad.png` (captures both prompts; add `--touch` for touch inputs).
 - `waterfront`: relocated library sign taps, all four dock stair flights, entering the over-water equipment shack, collecting starter beast gear and persistence on re-entry.

@@ -21,6 +21,18 @@ fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files
   their normals/UVs, centers and normalizes them, bakes their textures, and generates LODs. Some yellow foliage is
   recolored green. Grass uses the pack's simpler solid-blade clumps. The shared texture smoothing pass supplies the game's soft finish. Original downloads are untouched.
 
+## Western packs (Dustwell Oasis and the desert roads)
+
+- **Stylized Desert Cliffs Asset Pack**, **Low Poly Western**, **Western Pack: Hand Painted House Set (Low Poly)**,
+  **Western Town Buildings LowPoly Package**, **Western Saloon** and **Western Diorama - Low Poly**, supplied by the user
+  as six ZIP archives of OBJ and PNG files. None names an author or a licence, so (the user's rule) they are recorded
+  as Creative Commons; see `licenses/supplied_environment_packs.md`.
+- `tools/import_western.gd` bakes the covered wagon and water trough of Low Poly Western, painted by part, into
+  `assets/exteriors/wagon.res` and `water_trough.res`. The cliff pack was tried and dropped (the desert keeps the
+  terrain's own cliffs). The other packs were the reference for Dustwell's
+  buildings (false fronts, boardwalk porches, the saloon's balcony and batwing doors, the barred jail), which
+  `scripts/gfx/frontier_builder.gd` builds from the game's own wall pieces. Original downloads are untouched.
+
 ## PSX art (`psx/` → `assets/nature/`, `props/`, `boats/`, `robots/`, `houses/`, `exteriors/`, `interiors/`, `textures/surfaces/`)
 The low-poly PS1-style world. The packs were downloaded into `psx/` (not part of the game; see
 `psx/Jade Coccon index.csv`). `tools/build_psx_textures.gd` and `tools/import_psx_models.gd` make the
