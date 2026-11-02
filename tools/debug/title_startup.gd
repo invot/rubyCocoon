@@ -36,10 +36,11 @@ func run(main) -> void:
 	if main._test.get("fixture", "0") == "1":
 		_check(menu.buttons.any(func(b): return b.text == "Load Game"), "Load Game remains available with a test save")
 	if menu.buttons.size() > 1:
+		var before: int = menu._focus
 		await main._press("ui_down")
-		_check(menu._focus == 1, "keyboard moves focus")
+		_check(menu._focus == posmod(before + 1, menu.buttons.size()), "keyboard moves focus to the next choice")
 		await main._press("ui_up")
-		_check(menu._focus == 0, "keyboard returns to the first choice")
+		_check(menu._focus == before, "keyboard returns to the previous choice")
 	if main._test.has("shot"):
 		main._save_shot(String(main._test["shot"]))
 	for button in menu.buttons:
