@@ -270,6 +270,9 @@ func _draw_trainer(p: Vector2) -> void:
 func _draw_icon_outline(icon: Texture2D, r: Rect2) -> void:
 	if not _icon_masks.has(icon):
 		var source := icon.get_image()
+		if source == null:
+			# no pixels to read (the headless test renderer): the portrait goes without its outline
+			return
 		source.convert(Image.FORMAT_RGBA8)
 		var pixels := source.get_data()
 		for i in range(0, pixels.size(), 4):

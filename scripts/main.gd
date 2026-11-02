@@ -2,7 +2,7 @@ extends Node
 ## Game root: owns the 3D view, the title screen, map transitions and battles.
 
 ## The world and battle scripts (with everything they preload) are the slowest part of starting up, so they aren't
-## preloaded: the title screen shows its menu first and loads them in the background (see _title_backdrop).
+## preloaded: the title screen appears first and loads them in the background (see _title_backdrop).
 const WORLD_PATH := "res://scripts/world/world.gd"
 const BATTLE_PATH := "res://scripts/battle/battle.gd"
 const PANEL_PATH := "res://scripts/battle/command_panel.gd"
@@ -284,9 +284,9 @@ func _clear_title_world() -> void:
 		world = null
 
 
-## After the first menu draw, load world, battle, creator and book scripts in the background.
+## After the first title draw, load world, battle, creator and book scripts in the background.
 func _title_backdrop() -> void:
-	# Headless verification has no render signal. The real menu gets a complete draw before work starts.
+	# Headless verification has no render signal. The real title gets a complete draw before work starts.
 	if DisplayServer.get_name() == "headless":
 		await get_tree().process_frame
 	else:

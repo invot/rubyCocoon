@@ -29,6 +29,7 @@ func run(root, opts: Dictionary) -> void:
 			Menus.pause_menu(main.world, "beasts")
 		"title":
 			main._title()
+			main._title_intro.skip_ascent()
 		_:
 			_ask()
 	await main._wait(0.4)

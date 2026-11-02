@@ -2,7 +2,7 @@
 
 A low-poly beast-training RPG with a smooth, cozy PS2-era look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, charm wild beasts with your flute, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
-<img src="docs/screenshots/title.jpg" width="800" alt="The start menu, available immediately without a splash or entrance animation."><br><sub>The start menu opens immediately, without a splash or entrance animation.</sub>
+<img src="docs/screenshots/title.jpg" width="800" alt="The start menu after the skippable dragon entrance."><br><sub>Press A / Enter or tap during the dragon entrance to open the start menu immediately.</sub>
 
 ## Running it
 
@@ -598,14 +598,17 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   at its end. So all of it can be reached with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
-- The game opens straight on the **New Game / Continue / Load Game** menu, with no splash or entrance delay.
+- A moonlit dragon rises for 4.2 seconds before the **New Game / Continue / Load Game** menu. **A / Enter**, gamepad
+  **A**, or a tap/click anywhere skips the ascent and opens the menu immediately. The skip press never selects a
+  menu item; release it before confirming a choice. The mobile controls remain available during the entrance.
   Continue and Load Game appear when a compatible save exists. With no save yet, **New Game** is a big, glowing
   pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
   and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
   it).
 - The start menu uses a lightweight 2D heading and the shared theme (`scripts/ui/title_backdrop.gd`). Its world
   viewport is disabled, including while Load Game or the character creator is open; only the creator's own preview
-  renders in 3D. World, creator, battle and book scripts load in the background after the menu's first draw.
+  renders in 3D. The dragon scene (`scripts/gfx/title_stage.gd`) is released when the entrance ends. World, creator,
+  battle and book scripts load in the background after the entrance's first draw.
   Transitions wait for those requests without blocking the main thread (`main.gd` _title_backdrop, wait_for_script).
   The touch pad's faces are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem,
   so later launches load them straight away (`controls_overlay.gd`).
@@ -801,7 +804,9 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
-- `title-startup` / `title-startup-touch`: immediately available choices, no background 3D rendering, keyboard
+- `title-startup` / `title-startup-touch`, plus `title-startup-gamepad`, `title-startup-mouse`,
+  `title-startup-touch-a` and `title-startup-natural`: skip the dragon with A, gamepad A, a click, a screen tap or the
+  on-screen A button, or let it finish. Check one confirmation per press, no menu background 3D rendering, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
 - `hero-maker` / `hero-maker-touch`: actual name/body navigation, outfit and hair arrows, every color row's swatches,
   preview updates, and cancellation. `--scene=creator --shots=res://build/shots/creator` captures both tabs.
@@ -932,6 +937,7 @@ godot --path . -- --scene=ring --keys=a,a,d,d,d --shot=C:/tmp/r.png      # a rin
 godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   # the battle spiral (sneak / wild / ambush)
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
 godot --path . -- --scene=title --fixture=1 --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # title with a fresh test save; d,a opens Load Game (--saves=0: first-launch menu)
+godot --path . -- --scene=title --hold=1 --quit=0 --save_dir=res://build/title_skip_preview/   # hold the rising dragon; press A or tap to check skipping
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --headless --path . -- --scene=building-fade                      # buildings load when their base reaches the screen and fade in; also walks the western dock lane; --town=tidewater narrows the audit
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere

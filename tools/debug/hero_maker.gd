@@ -6,7 +6,19 @@ func run(main, opts: Dictionary) -> void:
 	if opts.has("shots"):
 		DirAccess.make_dir_recursive_absolute(String(opts["shots"]))
 	main._title()
+	# A skips the dragon's entrance straight to the menu, as a player would
 	await main._wait(0.2)
+	for down in [true, false]:
+		var press := InputEventAction.new()
+		press.action = "ui_accept"
+		press.pressed = down
+		Input.parse_input_event(press)
+		await main.get_tree().process_frame
+	await main.get_tree().process_frame
+	_check(not UI.stack.is_empty(), "A skips the entrance to the title menu")
+	if UI.stack.is_empty():
+		print("HERO MAKER DONE: %d problem(s)" % bad)
+		return
 	var menu = UI.stack.back()
 	var index := 0
 	for i in menu.items.size():
