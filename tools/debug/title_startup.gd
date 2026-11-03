@@ -4,6 +4,8 @@ var bad := 0
 
 func run(main) -> void:
 	_check(is_instance_valid(main._title_intro) and UI.stack.is_empty(), "dragon entrance precedes the menu")
+	var stage = main._title_intro
+	_check(not stage._arrived and stage._t < stage.ASCENT_TIME and stage._dragon_card.position.y < stage._dragon_rest.y, "unskipped entrance starts with the dragon below its final position")
 	var mode: String = main._test.get("skip", "touch" if Prefs.is_mobile() else "key")
 	if mode != "none":
 		main._title_intro.freeze(1.8)
@@ -29,8 +31,14 @@ func run(main) -> void:
 		return
 	await main._wait(0.3)
 	_check(not main._title_skip_held, "skip input is released before the next confirmation")
-	_check(main.view.render_target_update_mode == SubViewport.UPDATE_DISABLED, "menu does not render a 3D background")
-	_check(not is_instance_valid(main._title_intro), "dragon entrance is put away")
+	_check(main.view.render_target_update_mode == SubViewport.UPDATE_ALWAYS and main.screen.visible, "menu keeps the 3D background visible")
+	_check(not is_instance_valid(main._title_intro), "ascent no longer intercepts menu input")
+	_check(is_instance_valid(stage) and main._title_nodes[0] == stage and stage.get_parent() == main.view, "menu retains the original title tableau")
+	_check(stage._arrived and stage._t >= stage.ASCENT_TIME and stage._dragon_card.position.is_equal_approx(stage._dragon_rest), "dragon reaches its natural resting position")
+	_check(stage.logo is Node3D and stage.logo.is_visible_in_tree(), "original 3D Ruby Cocoon title stays visible")
+	var before_time: float = stage._t
+	await main._wait(0.1)
+	_check(stage._t > before_time, "dragon hover and title animation continue after the ascent")
 	var menu = UI.stack.back()
 	_check(menu.get_script() == UI.ListMenu and UI.stack.size() == 1, "entrance ends at the New Game / Load Game menu")
 	if main._test.get("fixture", "0") == "1":
@@ -50,10 +58,11 @@ func run(main) -> void:
 	await main._wait(0.3)
 	_check(not UI.stack.is_empty() and UI.stack.back().get_script().resource_path == "res://scripts/ui/hero_maker.gd" and is_instance_valid(main._title_nodes[0]), "one tap opens the character creator once")
 	_check(UI.stack.size() == 1, "the title tap does not confirm the character creator")
-	_check(main.view.render_target_update_mode == SubViewport.UPDATE_DISABLED, "only the creator preview renders in 3D")
+	_check(is_instance_valid(stage) and not stage.logo.visible, "creator hides only the title lettering, retaining the background")
 	await main._press("ui_cancel")
 	await main._wait(0.3)
 	_check(not UI.stack.is_empty() and UI.stack.back().get_script() == UI.ListMenu, "B returns to the title")
+	_check(is_instance_valid(stage) and stage.logo.is_visible_in_tree(), "returning restores the original 3D title")
 	print("TITLE STARTUP DONE: %d problem(s)" % bad)
 
 

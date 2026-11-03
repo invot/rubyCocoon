@@ -22,7 +22,6 @@ const Elev = preload("res://scripts/world/elevation.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
-const TitleBackdrop = preload("res://scripts/ui/title_backdrop.gd")
 
 ## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
 ## Shows the 3D view, filling the window.
@@ -150,23 +149,16 @@ func _title() -> void:
 	_clear_title_world()
 	Sfx.music("title")
 	Sfx.ambience("")
-	# Render only the entrance in 3D; A or a tap ends it without choosing a menu item.
-	var intro = load("res://scripts/gfx/title_stage.gd").new()
-	_title_intro = intro
-	_title_nodes = [intro]
+	# Keep the same tableau after the ascent; skipping advances it without choosing a menu item.
+	var stage = load("res://scripts/gfx/title_stage.gd").new()
+	_title_intro = stage
+	_title_nodes = [stage]
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	screen.show()
-	view.add_child(intro)
+	view.add_child(stage)
 	_title_backdrop()
-	await intro.arrived
+	await stage.arrived
 	_title_intro = null
-	view.remove_child(intro)
-	intro.queue_free()
-	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	screen.hide()
-	var stage := TitleBackdrop.new()
-	UI.hud.add_child(stage)
-	_title_nodes = [stage]
 	while true:
 		var items := []
 		# (--saves=0: a test run shows the title as a first launch would)
@@ -275,7 +267,7 @@ func _clear_title() -> void:
 
 
 # ================================================================ maps
-## Put away the world before starting the 2D start menu.
+## Put away the world before starting the title tableau.
 func _clear_title_world() -> void:
 	if is_instance_valid(world):
 		if world.get_parent():

@@ -72,6 +72,7 @@ func skip_ascent() -> void:
 		return
 	_t = maxf(_t, ASCENT_TIME)
 	_apply()
+	set_process(true)
 	_arrived = true
 	arrived.emit()
 

@@ -605,9 +605,10 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
   and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
   it).
-- The start menu uses a lightweight 2D heading and the shared theme (`scripts/ui/title_backdrop.gd`). Its world
-  viewport is disabled, including while Load Game or the character creator is open; only the creator's own preview
-  renders in 3D. The dragon scene (`scripts/gfx/title_stage.gd`) is released when the entrance ends. World, creator,
+- The start menu appears over the same 3D tableau (`scripts/gfx/title_stage.gd`): the fully raised dragon, moon,
+  drifting motes and gold **Ruby Cocoon** lettering remain visible. Skipping advances the ascent to its natural
+  ending, then the dragon's hover, wingbeats and title animation continue as usual. Load Game and the character
+  creator hide the lettering while retaining the background. World, creator,
   battle and book scripts load in the background after the entrance's first draw.
   Transitions wait for those requests without blocking the main thread (`main.gd` _title_backdrop, wait_for_script).
   The touch pad's faces are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem,
@@ -806,7 +807,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   guardian.
 - `title-startup` / `title-startup-touch`, plus `title-startup-gamepad`, `title-startup-mouse`,
   `title-startup-touch-a` and `title-startup-natural`: skip the dragon with A, gamepad A, a click, a screen tap or the
-  on-screen A button, or let it finish. Check one confirmation per press, no menu background 3D rendering, keyboard
+  on-screen A button, or let it finish. Check one confirmation per press, the retained 3D tableau and title, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
 - `hero-maker` / `hero-maker-touch`: actual name/body navigation, outfit and hair arrows, every color row's swatches,
   preview updates, and cancellation. `--scene=creator --shots=res://build/shots/creator` captures both tabs.
