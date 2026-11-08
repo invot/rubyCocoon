@@ -5,6 +5,7 @@ extends RefCounted
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
+const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const TownMaps = preload("res://scripts/data/maps/town_maps.gd")
@@ -168,11 +169,14 @@ static func _keep_floods(m: Dictionary, src: Dictionary, flood: Dictionary) -> v
 	m["lever_info"] = src.get("levers", {})
 	m["levers"] = []
 	m["chests"] = []
+	m["switches"] = []
 
 
 ## An anchor that places a fixture rather than marking a spot (Story.extra_npcs builds them):
 ##   "lever:<flag>"   a lever that sets the flag (its words: the map's "levers"[flag]), draining or filling floods
-##   "chest:<item>"   a treasure chest holding the item, opened once (its own flag)
+##   "chest:<item>"   a treasure chest holding the item, opened once (its own flag); "chest:<item>@<flag>" lies hidden
+##                    until the flag is set (under water that drains)
+##   "switch:<n>"     lever n of the room's "puzzle" (tide_puzzles.gd)
 ## Returns true if it was one.
 static func _fixture(m: Dictionary, an: String, p: Vector2i, id: String) -> bool:
 	if an.begins_with("lever:"):
@@ -180,7 +184,11 @@ static func _fixture(m: Dictionary, an: String, p: Vector2i, id: String) -> bool
 		m["levers"].append({"pos": p, "flag": flag, "info": m.get("lever_info", {}).get(flag, {})})
 		return true
 	if an.begins_with("chest:"):
-		m["chests"].append({"pos": p, "item": an.substr(6), "flag": "chest_%s_%d" % [id, m["chests"].size()]})
+		m["chests"].append({"pos": p, "item": an.substr(6).get_slice("@", 0), "hidden_until": an.substr(6).get_slice("@", 1),
+			"flag": "chest_%s_%d" % [id, m["chests"].size()]})
+		return true
+	if an.begins_with("switch:"):
+		m["switches"].append({"pos": p, "index": int(an.substr(7))})
 		return true
 	return false
 
@@ -707,7 +715,8 @@ static func _into_room(m: Dictionary, t: Vector2i) -> Vector2i:
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		var q: Vector2i = t + d
 		var c := MapGen.get_t(m, q.x, q.y)
-		if q.x > 0 and q.y > 0 and q.x < m["w"] - 1 and q.y < m["h"] - 1 and MapGen.walkable(c) and c != MapGen.IDOOR:
+		# (a door can open onto water that later drains)
+		if q.x > 0 and q.y > 0 and q.x < m["w"] - 1 and q.y < m["h"] - 1 and (MapGen.walkable(c) or m.get("flood_wet", {}).has(q)) and c != MapGen.IDOOR:
 			return d
 	return Vector2i(0, 1)
 
@@ -772,10 +781,34 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		room["floor_tex"] = {"shop": "floor_marble"}
 	var flood := _flooded(room, flags)
 	var rows: Array = flood["rows"]
+	# (a water puzzle's falls: tide_puzzles.gd)
+	var puzzle: String = room.get("puzzle", "")
+	var placed: Dictionary = TidePuzzles.place(puzzle, rows, flags) if puzzle != "" else {"rows": rows, "spots": {}}
+	rows = placed["rows"]
 	var h := rows.size()
 	var w := String(rows[0]).length()
 	var m := MapGen._new_map(id, "interior", w, h)
 	_keep_floods(m, room, flood)
+	m["puzzle"] = puzzle
+	m["fall_spots"] = placed["spots"]
+	# (the maze's falls drop through lattices; the checks see past a fall, which the levers can shift)
+	m["lattices"] = {}
+	for q: Vector2i in placed["spots"]:
+		m["flood_wet"][q] = TidePuzzles.PUZZLES[puzzle]["flag"]
+		if puzzle == "maze":
+			m["lattices"][q] = true
+	m["stone_doors"] = {}
+	m["basins"] = {}
+	for y in h:
+		var raw := String(room["rows"][y])
+		for x in w:
+			if raw[x] in room.get("stone_doors", []):
+				m["stone_doors"][Vector2i(x, y)] = true
+			# (the basins at the foot of a water puzzle's falls: not walked in, full or dry)
+			if raw[x] == "_" and puzzle != "":
+				m["basins"][Vector2i(x, y)] = true
+	if room.has("heights"):
+		Elev.parse(m, room["heights"], float(room.get("level_h", Elev.LEVEL_H)), int(room.get("top_level", 0)))
 	m["name"] = b["name"]
 	m["building"] = b
 	m["parent"] = parent
@@ -966,7 +999,11 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				if MapGen.walkable(MapGen.get_t(m, q.x, q.y)) and not ups.has(q):
 					m["spawns"]["from_above"] = q
 					break
-	m["spawns"]["start"] = m["spawns"].get("entry", Vector2i(w / 2, h - 2))
+	# (a room of pools and walkways: you start at its door)
+	var front_spot := Vector2i(w / 2, h - 2)
+	if room.has("water_levels") and not links.is_empty():
+		front_spot = m["spawns"].get("from_" + String(links.values()[0]), front_spot)
+	m["spawns"]["start"] = m["spawns"].get("entry", front_spot)
 	# where you wake up on the first morning (your home)
 	if room.has("wake"):
 		m["spawns"]["wake"] = Vector2i(room["wake"][0], room["wake"][1])

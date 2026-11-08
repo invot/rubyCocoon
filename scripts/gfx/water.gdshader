@@ -8,6 +8,10 @@ uniform float fps = 6.0;
 uniform vec4 tint : source_color = vec4(0.23, 0.56, 0.88, 1.0);
 uniform float opacity = 0.82;
 uniform float glow = 0.0;
+uniform float spec = 0.7;
+// a falling sheet: its pattern drawn out this many times down the fall, and how white its froth is
+uniform float fall_stretch = 1.0;
+uniform float froth = 0.3;
 // texture repeats per world unit
 uniform float tex_scale = 0.5;
 uniform vec2 drift = vec2(0.0, 0.03);
@@ -26,7 +30,7 @@ void vertex() {
 void fragment() {
 	float f = mod(floor(TIME * fps), frame_count);
 	// a waterfall's sheet (terrain_mesh.gd) runs down, quickly
-	vec2 uv = abs(wnorm.y) > 0.5 ? wpos.xz * tex_scale + drift * TIME : vec2(wpos.x + wpos.z, wpos.y) * tex_scale + vec2(0.0, 1.2) * TIME;
+	vec2 uv = abs(wnorm.y) > 0.5 ? wpos.xz * tex_scale + drift * TIME : vec2(wpos.x + wpos.z, wpos.y / fall_stretch) * tex_scale + vec2(0.0, 1.2 / fall_stretch) * TIME;
 	vec3 c = texture(frames, vec3(uv, f)).rgb;
 	vec3 col = glow > 0.0 ? c : tint.rgb * (0.62 + 0.55 * c);
 	float alpha = opacity;
@@ -50,11 +54,12 @@ void fragment() {
 	}
 	// falling water froths white
 	if (abs(wnorm.y) <= 0.5 && glow == 0.0) {
-		col = mix(col, vec3(0.92, 0.96, 1.0), 0.3 * c.r);
+		col = mix(col, vec3(0.92, 0.96, 1.0), froth * c.r);
 	}
 	ALBEDO = col;
 	EMISSION = col * glow;
-	ALPHA = alpha;
+	// (multiplied in, so a fading prop's transparency still shows: ALPHA starts as 1 - transparency)
+	ALPHA *= alpha;
 	ROUGHNESS = 0.18;
-	SPECULAR = 0.7;
+	SPECULAR = spec;
 }

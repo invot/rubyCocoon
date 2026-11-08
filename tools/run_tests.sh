@@ -25,6 +25,7 @@ TESTS=(
 	"data|--script res://tools/check_data.gd|DATA CHECK DONE: 0 problem"
 	"maps|--script res://tools/check_maps.gd|MAPS WITH PROBLEMS: 0"
 	"beasts|--script res://tools/check_beasts.gd|BEASTS CHECK DONE: 0 problem"
+	"beast-growth|-- --scene=growth --save_dir=res://build/growth_test_saves/|BEAST GROWTH DONE: 0 problem"
 	"nature|--script res://tools/check_nature.gd|HEDGE/GRASS CHECK DONE: 0 problem"
 	"plant-paving|--script res://tools/check_plant_paving.gd|PLANT PAVING DONE: 0 problem"
 	"review-fixes|--script res://tools/check_review_fixes.gd|REVIEW FIXES DONE: 0 problem"
@@ -85,7 +86,7 @@ BAD="SCRIPT ERROR|Failed loading resource|Resource file not found|Cannot open fi
 cd "$(dirname "$0")/.." || exit 2
 GODOT="${GODOT:-C:/Program Files/Godot/Godot_v4.7-stable_win64.exe}"
 JOBS="${JOBS:-3}"
-LOGS="build/test_logs"
+LOGS="${TEST_LOG_DIR:-build/test_logs}"
 mkdir -p "$LOGS"
 rm -f "$LOGS"/*.log "$LOGS"/*.result
 

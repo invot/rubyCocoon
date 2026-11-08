@@ -23,6 +23,7 @@ const SongDB = preload("res://scripts/data/song_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
+const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
@@ -975,6 +976,11 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _lever(world, n)
 		"chest":
 			await _chest(n)
+		"tide_switch":
+			await _tide_switch(world, n)
+		"tide_tablet":
+			await UI.say(["Worn carvings: three streams, and four levers beneath them. Pull one and the streams change places.",
+				"Below them, a line of old writing: \"Only when the four agree does the water rest.\""])
 		"tide_keeper":
 			await _tide_keeper()
 		"song_stone":
@@ -1112,15 +1118,17 @@ func _elder(_world, _n: Dictionary) -> void:
 			var items := []
 			for r in RaceDB.STARTERS:
 				var el := RaceDB.element(r)
-				items.append({"text": "%s Egg" % el.capitalize(), "right": el.to_upper(), "desc": EGG_BLURB[r]})
+				var egg := {"race": r, "kind": el}
+				items.append({"text": GameState.egg_name(egg), "right": el.to_upper(),
+					"icon": GameState.EggLooks.icon(egg), "desc": EGG_BLURB[r]})
 			var c: int = await UI.choose("Choose your egg", items, {"cancel": false, "width": 520, "dim": 0.4})
 			var race: int = RaceDB.STARTERS[c]
-			if await UI.ask("Will you take the %s Egg?" % RaceDB.element(race).capitalize(), "Elder Rowan"):
+			if await UI.ask("Will you take the %s?" % GameState.egg_name({"race": race}), "Elder Rowan"):
 				pick = race
 		GameState.add_egg(pick)
 		GameState.set_flag("got_egg")
 		Sfx.play("capture")
-		await UI.say(["You received the %s Egg!" % RaceDB.element(pick).capitalize()])
+		await UI.say(["You received the %s!" % GameState.egg_name(GameState.eggs.back())])
 		await UI.say(["Take it to the Beast Center, right across the road from this square: the blue building with the red-and-white striped awning and a red paw print over the door. Nurse Clover will help it hatch.",
 			"A fresh hatchling starts at level 1, so be gentle with it at first. Win battles and it will grow strong.",
 			"Defeated wild beasts sometimes leave an egg behind, about one time in five. Collect them and hatch them too!",
@@ -1649,8 +1657,18 @@ func fixtures(map: Dictionary) -> Array:
 		out.append({"kind": "story", "id": "lever", "name": "", "pos": lv["pos"], "lever": lv["flag"], "info": lv["info"],
 			"scene": TempleProps.lever(GameState.flag(lv["flag"])), "still": true, "facing": Vector2i(0, 1)})
 	for ch in map.get("chests", []):
-		out.append({"kind": "story", "id": "chest", "name": "", "pos": ch["pos"], "item": ch["item"], "chest": ch["flag"],
-			"scene": TempleProps.chest(GameState.flag(ch["flag"])), "still": true, "facing": Vector2i(0, 1)})
+		var scene := TempleProps.chest(GameState.flag(ch["flag"]))
+		# (a treasure under the water shows as it drains)
+		scene.visible = ch["hidden_until"] == "" or GameState.flag(ch["hidden_until"])
+		out.append({"kind": "story", "id": "chest", "name": "", "pos": ch["pos"], "item": ch["item"], "chest": ch["flag"], "hidden_until": ch["hidden_until"],
+			"scene": scene, "still": true, "facing": Vector2i(0, 1)})
+	for sw in map.get("switches", []):
+		out.append({"kind": "story", "id": "tide_switch", "name": "", "pos": sw["pos"], "index": sw["index"],
+			"scene": TempleProps.red_lever(GameState.flag(TidePuzzles.lever_flag(String(map["puzzle"]), sw["index"])),
+				0.3 if MapGen.get_t(map, sw["pos"].x, sw["pos"].y - 1) == MapGen.IWALL else 0.0), "still": true, "facing": Vector2i(0, 1)})
+	if _has_anchor(map, "tide_tablet"):
+		out.append({"kind": "story", "id": "tide_tablet", "name": "", "pos": _at(map, "tide_tablet", Vector2i.ZERO),
+			"scene": _tablet_node(Color(String(WorldDB.TEMPLES["water"]["glow"]))), "still": true, "facing": Vector2i(0, 1)})
 	return out
 
 
@@ -1672,8 +1690,43 @@ func _lever(world, n: Dictionary) -> void:
 		await GameState.main.reload_map()
 
 
+## One of a water puzzle's levers (tide_puzzles.gd), thrown either way until the puzzle is solved.
+func _tide_switch(world, n: Dictionary) -> void:
+	var id: String = world.map["puzzle"]
+	if TidePuzzles.solved(id, GameState.flags):
+		await UI.say(["The lever is locked in place. The water has gone."])
+		return
+	var flag := TidePuzzles.lever_flag(id, n["index"])
+	var down := not GameState.flag(flag)
+	GameState.flags[flag] = down
+	Sfx.play("lever")
+	await TempleProps.throw_lever(n["node"], down)
+	if TidePuzzles.is_solution(id, GameState.flags):
+		await _tide_solved(world, id)
+		return
+	world.tide.show_running(TidePuzzles.running(id, GameState.flags))
+	world.refresh_tide()
+
+
+## A water puzzle solved: the chime, every fall stops, the room drains and what it hid comes to light.
+func _tide_solved(world, id: String) -> void:
+	GameState.set_flag(TidePuzzles.PUZZLES[id]["flag"])
+	Sfx.secret_chime()
+	world.tide.show_running([])
+	for p in world.npcs:
+		var m: Dictionary = world.npcs[p]
+		if m.get("id", "") == "chest" and m.get("hidden_until", "") != "" and m.has("node"):
+			(m["node"] as Node3D).visible = true
+	await world.tide.drain()
+	world.refresh_tide()
+	await UI.say(["Deep in the walls, a sluice grinds open. The water drains away!",
+		"The water in the great hall must have dropped too."])
+
+
 ## Opens a treasure chest (each once).
 func _chest(n: Dictionary) -> void:
+	if n.get("hidden_until", "") != "" and not GameState.flag(n["hidden_until"]):
+		return
 	if GameState.flag(n["chest"]):
 		await UI.say(["The chest is empty."])
 		return
@@ -1694,14 +1747,14 @@ func _tide_keeper() -> void:
 			"The temple's halls will keep. Come back whenever you like."], nm)
 		return
 	GameState.set_flag("met_tide_keeper")
-	if GameState.flag("tides_lever_3"):
-		await UI.say(["The great pool's drained! The stair down to the guardian's chamber is open.",
-			"Read the tablet down there before you wake it. The stones' song is the only thing it heeds."], nm)
+	if GameState.flag("tides_maze_solved"):
+		await UI.say(["The great hall's drained! The way down to the stone door is open.",
+			"Read the tablet past it. The stones' song is the only thing the guardian heeds, and it opens the last door too."], nm)
 		return
 	await UI.say(["You came over the falls? Then you've a keen eye for old waterworks. You'll need it in there.",
-		"The Temple of Tides floods its own halls. The guardian's chamber lies under the great pool by the door.",
-		"The old priests drained it with three levers, one in each of the temple's wings. Pull them all."], nm)
-	await UI.say(["Mind the wings, though. Strong water beasts swim those channels, and you'll see them coming.",
+		"The Temple of Tides floods its own great hall. The guardian's chamber lies at the bottom, under the water.",
+		"The old priests lowered it from two chambers off the hall, with levers that shift the falling water. Set them right and it drains."], nm)
+	await UI.say(["Mind those chambers, though. Strong water beasts swim there, and you'll see them coming.",
 		"An air beast on the side that faces them helps. And the priests left treasure lying about. Keep an eye out."], nm)
 
 

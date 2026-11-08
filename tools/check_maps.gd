@@ -21,7 +21,7 @@ const TALL := [MapGen.TREE, MapGen.BUILDING, MapGen.DOOR]
 const ROADS := [MapGen.PATH, MapGen.PLAZA, MapGen.BRIDGE]
 ## The story's way-openers, all done: every map is checked as it is at the start and with these set.
 const CLEARED := {"has_starter": true, "island_peace": true, "bandits_cleared": true, "ceo_defeated": true, "ritual_done": true,
-	"sluice_reef": true, "tides_lever_1": true, "tides_lever_2": true, "tides_lever_3": true}
+	"sluice_reef": true, "tides_falls_solved": true, "tides_maze_solved": true, "tides_song_door": true}
 
 
 func _init() -> void:
@@ -85,7 +85,8 @@ func _check(m: Dictionary) -> Array:
 	for k in m["spawns"]:
 		if m["spawns"][k].x < 0:
 			continue
-		if not seen.has(m["spawns"][k]):
+		# (one under a flood is checked with the floods drained)
+		if not seen.has(m["spawns"][k]) and not m.get("flood_wet", {}).has(m["spawns"][k]):
 			problems.append("spawn %s %s unreachable" % [k, m["spawns"][k]])
 	# (a house's stairs are gone onto at their open end only, so only that tile of them need be reached)
 	var stairs := RoomBuilder.stair_ways_in(m)

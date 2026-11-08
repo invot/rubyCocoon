@@ -17,8 +17,9 @@ const DIRS := [Vector2i.ZERO, Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), 
 
 ## Reads `rows` (the map's "heights") into m["elev"]: per tile, the height of its low edge and its high edge (the
 ## same for flat ground) and its ramp direction. Problems (a ramp with no level at an end, rows of the wrong size)
-## go into m["elev_problems"] for tools/check_maps.gd.
-static func parse(m: Dictionary, rows: Array) -> void:
+## go into m["elev_problems"] for tools/check_maps.gd. A room can set its own level height (level_h) and which digit is
+## floor level y = 0 (top), so the rest sink below it.
+static func parse(m: Dictionary, rows: Array, level_h := LEVEL_H, top := 0) -> void:
 	var w: int = m["w"]
 	var h: int = m["h"]
 	var problems := []
@@ -45,7 +46,7 @@ static func parse(m: Dictionary, rows: Array) -> void:
 	for i in w * h:
 		var ch: String = chars[i]
 		if not RAMPS.has(ch):
-			lo[i] = int(ch) * LEVEL_H
+			lo[i] = (int(ch) - top) * level_h
 			hi[i] = lo[i]
 	var at := func(p: Vector2i) -> String:
 		return chars[p.x + p.y * w] if p.x >= 0 and p.y >= 0 and p.x < w and p.y < h else ""
@@ -64,8 +65,8 @@ static func parse(m: Dictionary, rows: Array) -> void:
 		var high_ch: String = at.call(run[-1] + r)
 		if not low_ch.is_valid_int() or not high_ch.is_valid_int():
 			problems.append("ramp at %s needs a level at both ends" % start)
-		var a := int(low_ch) * LEVEL_H if low_ch.is_valid_int() else 0.0
-		var b := int(high_ch) * LEVEL_H if high_ch.is_valid_int() else a + LEVEL_H
+		var a := (int(low_ch) - top) * level_h if low_ch.is_valid_int() else 0.0
+		var b := (int(high_ch) - top) * level_h if high_ch.is_valid_int() else a + level_h
 		for k in run.size():
 			var j: int = run[k].x + run[k].y * w
 			lo[j] = lerpf(a, b, float(k) / run.size())

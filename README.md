@@ -194,12 +194,20 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Growing up**: a beast hatches as its line's first form and grows into the second at **Lv 20** and the third at
   **Lv 40** (`RaceDB.EVOLVE`, `Beast.evolve`): bigger, stronger, with the new form's name (unless it has a name of its
   own). It keeps its moves, and a line learns the same moves at every form. Wild and trainers' beasts are whatever form
-  their level gives.
+  their level gives. Battle XP is applied after the fighting ends. Each beast gets a short level-up celebration
+  and a longer before-and-after evolution reveal, one beast at a time. Every level-up and evolution fully restores HP and MP.
 - **Element roles**: Fire are offensive tanks, Water are healers, Earth are defenders, and Air handle status and evasion.
 - **Eggs**:
   - A defeated wild beast has a **20%** chance to leave an egg at the end of the battle.
   - Trainers' beasts, robots and guardians never drop eggs.
   - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
+  - Eggs name the beast inside (for example **Embit Egg**), with the element beside the starter choices.
+    Every species has its own shell colors, markings and silhouette; Shadow and Radiant variants keep the species' design.
+  - Every hatch plays a cinematic in a textured, misty chamber: the Sci-Fi platform holds the egg, and the TCM Core
+    lowers above it. Its three tongs close against the shell and glow while a central light shines down from the
+    core's underside. The glowing egg disappears in a whiteout with a hatch sound, then the light fades to reveal
+    the beast. The TARDIS room's roundel walls, arches and ceiling surround the platform; its central console,
+    time column and props are removed. Cool key light, warm wall lighting and depth/height fog set the mood.
   - **Sell eggs** at the Beast Center: ordinary eggs fetch **100 gold**, Shadow Eggs **200**, and radiant legendary eggs **500**. Select an egg and confirm the offer to sell it.
   - Arena hosts and masters offer to buy eggs only when you carry one matching the master's element, paying **twice the Beast Center price**. Marina, Nerissa and Skye buy Water eggs; Rosa buys Air; Gorran, Volta and Aeris buy Earth; Brann buys Fire. Shadow Eggs count as Ghost, and radiant eggs use their guardian's element. You can sell before completing the arena's lessons or challenging its master.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
@@ -214,14 +222,24 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   ledge above turns the river into its old channel. Past the great falls, the trail runs down to the shore and over
   an ornate stone bridge to the temple's isle, where Keeper Pell explains its waterworks. The temple stands on its
   stepped platform under a dome, overgrown with moss and vines (`ruin_stone.gdshader`), its way in a gatehouse at
-  the front. Inside, the hall's channel,
-  its basin and its great pool hide the way on. A lever in each of the three wings drains one of them in turn: the
-  west wing's lever opens the east wing, whose lever opens the gallery, whose lever drains the great pool and shows
-  the stair down to the guardian's chamber. The wings are mazes of walkways between water channels, where strong water
-  beasts prowl in plain sight and chests hold treasure. Temple rooms are built as ancient stone (`room_builder.gd`
+  the front. Inside is one long descent. You come in from the west onto a raised walkway along the back of a great
+  hall, the water just below it. The first door, in the back wall, is open; further east the walkway steps down into the
+  water. That door, on the room's east side, opens onto a single path along its back wall. Three waterfalls run
+  down that wall into basins and across the path into the pool at the front of the room, with four red levers against
+  the wall between them. All three are running when you arrive; each pull stops one, starts one or does both, by a fixed
+  rule (`scripts/data/tide_puzzles.gd`), and the falls only stop when all four stand in the right pattern: a chime
+  sounds, the pool drains and a treasure comes to light on its floor, with two flights of steps down to it. Back in the hall the water has dropped a level, so you can go down the first stairs to the second
+  door: a maze of walkways over a pool, where three waterfalls drop from the ceiling through metal lattices and block
+  them. Each of its four levers moves a fall from one lattice to another, opening one way and closing another, and the
+  right pattern stops them all, with the same chime, drained pool and treasure. That empties the hall, and the last
+  stairs lead down to a stone door in an aqua-blue frame in the east wall. Behind it the singing stones teach the
+  temple's song, and learning it on your flute sinks a second stone door into the floor: beyond is an octagonal chamber
+  of water, with a path to the island in its middle where the guardian waits. The two puzzle rooms are where strong
+  water beasts prowl in plain sight. Temple rooms are built as ancient stone (`room_builder.gd`
   `ancient`): ashlar walls, plinths and cornices with a glowing inlay, pilasters against the walls (spaced out from the
   middle of each wall in mirrored pairs, flame sconces on every other one), and open stone portals instead of doors.
-  `--scene=tides-walk` plays the temple on foot, doorway to lever to doorway, down to the guardian.
+  `--scene=tides-walk` plays the temple on foot, from the front door to the guardian's island, in a solving order
+  (`--shots=dir` saves each stage, as you'd see it and from high above).
 
   <img src="docs/screenshots/temple.jpg" width="640" alt="Inside the Temple of Flame, on the Caldera Road."><br><sub>Inside the Temple of Flame, on the Caldera Road.</sub>
 
@@ -263,9 +281,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Walk into one from behind before it spots you: a **sneak attack** (green spiral, it loses its first turn). Meet one face to face: a normal battle (blue spiral). Let one catch you from behind: an **ambush** (red spiral, you lose your first turn).
   - After any wild battle, you receive **three seconds of protection** during field control. Wild beasts cannot see or hear you, drop any chase, and cannot start another encounter, even on contact. After a **victory**, your character smoothly pulses between 35% and 80% opacity until protection ends, then returns to full opacity. Escaping or losing (including the return to the Beast Center) keeps the character fully opaque. Trainer battles grant neither protection nor an opacity pulse. Menus, interactions and map transitions pause the countdown and opacity pulse.
   - Groups grow slowly through the game (`Story.pack_cap`): beasts roam alone on the early roads (always on the Coastal Path), in pairs from wild Lv 7, and in threes only from Lv 16. Within that, a beast no stronger than your best one usually (70%) roams with more of its own kind, and the pack stands its ground; on roads with wild Lv 16+, stronger four-legged beasts, flyers and serpents sometimes run in packs too.
-  - Each road's trainers are stronger than any wild beast on it. The early levels climb slowly: Coastal Path Lv 2-4, Isle Trail 4-7, Coral Reef 7-10, the Temple of Tides' maze wings 10-12 (its guardian Lv 12, with one helper), Dune Road 10-13. Arena masters on that stretch: Marina Lv 9-10, then Nerissa Lv 10-11, who opens the reef.
+  - Each road's trainers are stronger than any wild beast on it. The early levels climb slowly: Coastal Path Lv 2-4, Isle Trail 4-7, Coral Reef 7-10, the Temple of Tides' puzzle rooms 10-12 (its guardian Lv 12, with one helper), Dune Road 10-13. Arena masters on that stretch: Marina Lv 9-10, then Nerissa Lv 10-11, who opens the reef.
 - **Levelling** is slower than before: about twice as many wins per level.
-- **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. MP comes back only from healing (the Beast Center machine, Mom, your bed) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
+- **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. Every level-up and evolution fully restores HP and MP. MP also comes back from healing (the Beast Center machine, Mom, your bed) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
 - **The battle ring** (as in Jade Cocoon 2, `scripts/core/ring.gd`): every trainer stands in the middle of a ring of 8 slots.
   - The ring has a side per element, in this order round it: **Fire, Air, Water, Earth**. A side's middle slot holds a beast of that element; the **corner** between two sides holds a beast of either element, or a dual beast of both.
   - You carry as many beasts as you have **beast slots** wired up: 3 to start, up to 8. New beasts take a free slot they may stand in, joining the side most of your team stands on.
@@ -322,7 +340,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door, to the tune of "Hep Cats". It's one big room (17x9 tiles, bigger than the rest, so the camera follows you round it), the kennel on the left behind a wall that stops short of the front. Each machine has its own bay along the back wall.
   - The **healing machine** is a tall glass healing chamber with a lamp per beast round its foot; the glass glows while it heals. Use it yourself, any time, for free.
   - The **storage terminal** and the **merge altar** stand in the bays beside it.
-  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (it sparkles when an egg hatches), and runs storage and the merge altar. A red phone stands by the door, for calling Dad or Mom (see Saving).
+  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (with the stone-claw hatch cinematic), and runs storage and the merge altar. A red phone stands by the door, for calling Dad or Mom (see Saving).
   - Round the end of the wall, on its own wood floor, is the **kennel**, with two chairs in its front corner. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adoption costs **40 gold at Lv 1, plus 2 gold per additional level** (78 at Lv 20, 118 at Lv 40). The list and confirmation show the fee; you need enough gold to adopt. Or drop one of yours off for another trainer (Pip thanks you with a little gold); taking it back before another trainer adopts it is free. Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
   - Guide Dottie walks about the room and explains how it all works.
   - All three wear the Beast Center uniform: white on top, red below, and a red cap with the pawprint from the sign over the door on a white panel at its front. None of them wears glasses.
@@ -727,6 +745,14 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too, `item:<id>` ones included.
 - **Story gates** use `&`.
+- **Rooms of several levels** (the Temple of Tides): a room's `heights` rows work as outdoors (`elevation.gd`), with
+  `level_h` the height of a level and `top_level` the digit that is floor level, so the rest sink below it. Ramps are
+  drawn as flights of steps and the drops between levels as stone faces (`room_builder.gd _levels`), and walls and doors
+  reach down to the floor beside them. `water_levels` (`[[flag, y], ...]`) sets the water: it stands at the first `y`
+  whose flag isn't set, drawn by `tide_water.gd`; `floods` decides which tiles are under it. `stone_doors` lists door
+  characters drawn as engraved stone doors in an aqua frame, which sink into the floor to open. `puzzle` names a water
+  puzzle in `scripts/data/tide_puzzles.gd`, whose letters in `rows` are its falls' spots and whose levers are anchors
+  `switch:<n>`. An anchor `chest:<item>@<flag>` lies hidden until the flag is set.
 - **Floods and levers**: a map's (or a room's) `floods` give a character for each stretch of water that a lever drains
   (`{"flag", "wet", "dry"}`; with `"rises": true`, a dry channel that fills instead). The character stands for its
   `wet` tile until the flag is set, then for its `dry` one: ground, floor, or a way on, such as stairs that are also in
@@ -794,6 +820,18 @@ python tools/town_check.py
 line per test, `ok` or `FAIL` with what went wrong; full logs go to `build/test_logs/`. A failing test gets a second
 try before it counts. About three and a half minutes; `bash tools/run_tests.sh quick` runs only the fast checks
 (seconds), and naming tests (`bash tools/run_tests.sh flow ringedit`) runs just those. Exits 0 when all passed.
+- `beast-growth`: species egg names and unique shells, all three TCM tong tips against every shell shape,
+  textured hatchery surfaces, scene geometry budget, downlight and fog, every hatch including storage overflow,
+  queued battle XP, full HP/MP restoration, sequential rewards and both evolution thresholds. Add `--verify_ui=1` to
+  `--scene=growth` in a rendered window to check real taps, focus, confirmations, pause and sequential films.
+  `--scene=growth --preview=hatch` (or `evolve`, `level`, `starters`) previews the scene or starter choice;
+  `--race=0 --at=4.2 --shot=res://build/shots/hatch.png` holds a cinematic frame for inspection.
+  Add `--perf=1` to a held preview to print frame timing and draw/primitive counts on the renderer being tested.
+  Rebuild the hatchery art with `python tools/prepare_hatchery.py "path/to/downloads"`,
+  `godot --headless --path . --script res://tools/import_hatchery.gd`,
+  `godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/interiors/hatch_`,
+  then `godot --headless --path . --import`. `--audit` on the importer and
+  `tools/debug/hatchery_parts.gd -- core` (or `platform`, `room`) produce source-part inspection sheets.
 - `check_scripts.gd`: every script parses and compiles.
 - `check_nature.gd` (`bash tools/run_tests.sh nature`): single-tile hedge borders on every outdoor map, unchanged
   planted-ground collision, and the solid-blade grass meshes' triangle budgets.

@@ -72,7 +72,7 @@ func max_hp() -> int:
 	return stat("hp")
 
 
-## MP pays for elemental attacks. It grows with Spirit and level, and only comes back from healing and MP items.
+## MP pays for elemental attacks. Healing, MP items and growing a level restore it.
 func max_mp() -> int:
 	return 8 + stat("spr") / 2 + level / 2
 
@@ -177,17 +177,17 @@ func gain_xp(amount: int) -> Array:
 		return events
 	xp += amount
 	while level < level_cap() and xp >= xp_for_level(level + 1):
-		var old_max := max_hp()
-		var old_mp := max_mp()
 		level += 1
-		hp = mini(max_hp(), hp + (max_hp() - old_max)) if hp > 0 else hp
-		mp = mini(max_mp(), mp + (max_mp() - old_mp))
-		events.append({"type": "level", "level": level})
+		hp = max_hp()
+		mp = max_mp()
+		events.append({"type": "level", "level": level, "look": growth_look()})
 		var nf := RaceDB.for_level(race, level)
 		if nf != race:
 			var was := nickname
+			var before := growth_look()
 			evolve(nf)
-			events.append({"type": "evolve", "from": was, "to": nickname})
+			events.append({"type": "evolve", "from": was, "to": nickname,
+				"before": before, "after": growth_look()})
 		for mv in _learnset_at(level):
 			var res := learn(mv)
 			if res != "":
@@ -204,7 +204,6 @@ func evolve(nf: int) -> void:
 	var old := race
 	var ob := RaceDB.base_stats(old)
 	var nb := RaceDB.base_stats(nf)
-	var old_max := max_hp()
 	for i in STAT_KEYS.size():
 		var k: String = STAT_KEYS[i]
 		base[k] = snappedf(float(base.get(k, 50.0)) * nb[i] / maxf(ob[i], 1.0), 0.1)
@@ -216,8 +215,14 @@ func evolve(nf: int) -> void:
 		nickname = nickname.replace(oname, RaceDB.race_name(nf))
 	lineage = lineage.map(func(r): return nf if int(r) == old else int(r))
 	race = nf
-	if hp > 0:
-		hp = mini(max_hp(), hp + (max_hp() - old_max))
+	hp = max_hp()
+	mp = max_mp()
+
+
+## Small immutable presentation snapshot: rewards may cross both evolution thresholds at once.
+func growth_look() -> Dictionary:
+	return {"genes": genes.duplicate(true), "name": nickname, "race": race, "level": level,
+		"hp": max_hp(), "mp": max_mp()}
 
 
 func xp_progress() -> float:

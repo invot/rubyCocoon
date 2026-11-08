@@ -227,6 +227,15 @@ func tone(freq: float, dur := 0.25, wave := "sine", vol := -8.0, slide := 0.0, v
 	_play_stream(_cache[key], vol)
 
 
+## A secret unlocked: a rising bell arpeggio over a held low note (a water puzzle solved).
+func secret_chime() -> void:
+	tone(261.63, 1.4, "sine", -11.0)
+	for freq: float in [523.25, 659.25, 880.0, 987.77, 1318.51, 1760.0]:
+		tone(freq, 0.7, "sine", -7.0)
+		tone(freq * 2.0, 0.35, "sine", -16.0)
+		await get_tree().create_timer(0.13).timeout
+
+
 func flute_note(freq: float) -> void:
 	tone(freq, 0.42, "flute", -4.0, 0.0, 0.012)
 

@@ -15,6 +15,7 @@ extends RefCounted
 ## opens towards the camera (the TV lives on the omitted fourth wall). See docs/interior_staging.md.
 
 const MapGen = preload("res://scripts/world/map_gen.gd")
+const Elev = preload("res://scripts/world/elevation.gd")
 const DIR := "res://assets/interiors/"
 const SOFT_SURFACE = preload("res://scripts/gfx/interior_surface.gdshader")
 ## Rectangular area rugs, in tile units; rotations are included when fitting a room.
@@ -322,6 +323,8 @@ var _snap := true
 ## the doors you can go through, by their tile: {"node" (the leaf, on its hinge), "yaw" (its turn when open), "past"
 ## (what shows through the doorway once it's open)}; see open_door
 var door_leaves := {}
+## the lowest floor in the room, found once (see _lowest)
+var _low_y := INF
 
 
 ## Builds everything into `p`. extra: textures by name to use instead of the pack's ("checker").
@@ -350,6 +353,7 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 		p.add_child(stairs)
 		return rb
 	rb._floors()
+	rb._levels()
 	rb._stairs()
 	rb._walls()
 	rb._furniture()
@@ -549,7 +553,10 @@ func _floors() -> void:
 		for x in w:
 			var c := code(x, y)
 			# (a pool of water is sunk below the floor: world.gd _build_room)
-			if c in [MapGen.RING, MapGen.LAVA, MapGen.IVOID, MapGen.WATER]:
+			# (in a room of several levels there's a floor under its water: tide_water.gd draws the water)
+			if c in [MapGen.RING, MapGen.LAVA, MapGen.IVOID] or (c == MapGen.WATER and not Elev.has(map)):
+				continue
+			if _sunk_detail(x, y):
 				continue
 			if y == h - 1:
 				# the open front: the floor stops half way across the row, in a dark edge (under the end of a side
@@ -566,22 +573,23 @@ func _floors() -> void:
 						x1 = 0.5
 				if z0 == "":
 					continue
-				_floor_quad(x, y, x0, 0.0, x1 - x0, 0.5, z0)
-				floor_mesher.quad("edge", edge, [Vector3(x + x0, 0, y + 0.5), Vector3(x + x1, 0, y + 0.5), Vector3(x + x1, -EDGE, y + 0.5),
-					Vector3(x + x0, -EDGE, y + 0.5)], Vector3.BACK, Vector3.RIGHT, Vector3.DOWN)
+				var front := Elev.surface(map, Vector2i(x, y))
+				_floor_quad(x, y, x0, 0.0, x1 - x0, 0.5, z0, front)
+				floor_mesher.quad("edge", edge, [Vector3(x + x0, front, y + 0.5), Vector3(x + x1, front, y + 0.5), Vector3(x + x1, _lowest() - EDGE, y + 0.5),
+					Vector3(x + x0, _lowest() - EDGE, y + 0.5)], Vector3.BACK, Vector3.RIGHT, Vector3.DOWN)
 				continue
 			if _stairwell_at(x, y):
 				# a hole in the floor: the stairs down go down into it (see world.gd _stairwell)
 				continue
 			if not c in WALLISH:
-				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y))
+				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y), Elev.surface(map, Vector2i(x, y)))
 				continue
 			if c in DIAGS:
 				# each half of the tile takes the floor of the room on its side of the diagonal
 				for side in _diag_sides(x, y):
 					var zz: String = side[1]
 					if zz != "":
-						_floor_tri(side[0], zz)
+						_floor_tri(side[0], zz, _foot(x, y))
 				continue
 			# under a wall: each quarter takes the floor of the room beside it (none where a stairwell runs on up to
 			# the wall)
@@ -599,25 +607,141 @@ func _floors() -> void:
 					if zb != "":
 						_floor_tri([c0, c0 + Vector3(0, 0, q.y * 0.5), k], zb)
 					continue
-				var z := zone(x + q.x, y)
+				var from := Vector2i(x + q.x, y)
+				var z := zone(from.x, from.y)
 				if z == "":
-					z = zone(x, y + q.y)
+					from = Vector2i(x, y + q.y)
+					z = zone(from.x, from.y)
 				if z == "":
-					z = zone(x + q.x, y + q.y)
+					from = Vector2i(x + q.x, y + q.y)
+					z = zone(from.x, from.y)
 				if z == "":
 					continue
-				_floor_quad(x, y, 0.0 if q.x < 0 else 0.5, 0.0 if q.y < 0 else 0.5, 0.5, 0.5, z)
+				_floor_quad(x, y, 0.0 if q.x < 0 else 0.5, 0.0 if q.y < 0 else 0.5, 0.5, 0.5, z, Elev.surface(map, from))
 
 
-func _floor_quad(x: int, y: int, ox: float, oz: float, sx: float, sz: float, z: String) -> void:
+func _floor_quad(x: int, y: int, ox: float, oz: float, sx: float, sz: float, z: String, lv := 0.0) -> void:
 	var x0 := x + ox
 	var z0 := y + oz
-	floor_mesher.quad("floor_" + z, floor_mat(z), [Vector3(x0, 0, z0), Vector3(x0 + sx, 0, z0), Vector3(x0 + sx, 0, z0 + sz),
-		Vector3(x0, 0, z0 + sz)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+	floor_mesher.quad("floor_" + z, floor_mat(z), [Vector3(x0, lv, z0), Vector3(x0 + sx, lv, z0), Vector3(x0 + sx, lv, z0 + sz),
+		Vector3(x0, lv, z0 + sz)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
 
 
-func _floor_tri(pts: Array, z: String) -> void:
-	floor_mesher.tri("floor_" + z, floor_mat(z), pts, Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+func _floor_tri(pts: Array, z: String, lv := 0.0) -> void:
+	var up := Vector3(0, lv, 0)
+	floor_mesher.tri("floor_" + z, floor_mat(z), pts.map(func(q: Vector3) -> Vector3: return q + up), Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+
+
+# ---------------------------------------------------------------- rooms of several levels (a room's "heights")
+## True for a tile _levels draws itself, not _floors: a flight of steps, or a metal lattice.
+func _sunk_detail(x: int, y: int) -> bool:
+	var p := Vector2i(x, y)
+	return Elev.ramp_dir(map, p) != Vector2i.ZERO or map.get("lattices", {}).has(p)
+
+
+## The lowest floor in the room.
+func _lowest() -> float:
+	if _low_y == INF:
+		_low_y = 0.0
+		for y in h:
+			for x in w:
+				_low_y = minf(_low_y, Elev.plane(map, Vector2i(x, y), 0.5, 0.5))
+	return _low_y if Elev.has(map) else 0.0
+
+
+## How far down the wall in tile (x, y) has to reach: the lowest floor next to it.
+func _foot(x: int, y: int) -> float:
+	if not Elev.has(map):
+		return 0.0
+	var foot := Elev.surface(map, Vector2i(x, y))
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var q := Vector2i(x + dx, y + dy)
+			if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h or code(q.x, q.y) in WALLISH or code(q.x, q.y) == MapGen.IVOID:
+				continue
+			var low := Elev.surface(map, q)
+			if Elev.ramp_dir(map, q) != Vector2i.ZERO:
+				low = minf(Elev.edge(map, q, Elev.ramp_dir(map, q)), Elev.edge(map, q, -Elev.ramp_dir(map, q)))
+			foot = minf(foot, low)
+	return foot
+
+
+## Where a room's levels meet: the stone faces of each drop with a pale coping along its top, flights of steps on its
+## ramps, and metal lattices.
+func _levels() -> void:
+	if not Elev.has(map):
+		return
+	var face := surface("drop", stone.darkened(0.2))
+	var coping := surface("coping", stone.lightened(0.14))
+	var tread := surface("tread", stone.lightened(0.04))
+	var iron := surface("lattice", Color("#6f7f86"))
+	var rim := surface("lattice_rim", Color("#b08840"))
+	for y in h:
+		for x in w:
+			var p := Vector2i(x, y)
+			if code(x, y) in WALLISH or code(x, y) == MapGen.IVOID:
+				continue
+			var c := Vector3(x + 0.5, 0, y + 0.5)
+			if Elev.ramp_dir(map, p) != Vector2i.ZERO:
+				_steps(p, c, tread)
+				continue
+			if map.get("lattices", {}).has(p):
+				_lattice(p, c, iron, rim)
+				continue
+			var top := Elev.surface(map, p)
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var q: Vector2i = p + d
+				if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h or code(q.x, q.y) in WALLISH or code(q.x, q.y) == MapGen.IVOID:
+					continue
+				# (a lattice is open underneath, so the walkway it joins shows its end)
+				var open_under: bool = map.get("lattices", {}).has(q)
+				var low := _lowest() if open_under else Elev.edge(map, q, -d)
+				if low >= top - 0.01:
+					continue
+				var out := Vector3(d.x, 0, d.y)
+				var along := Vector3(absf(d.y), 0, absf(d.x))
+				# (carried on to the face of a wall it runs into)
+				var a := c + out * 0.5 - along * (0.5 + _into_wall(p, q, -Vector2i(along.x, along.z)))
+				var b := c + out * 0.5 + along * (0.5 + _into_wall(p, q, Vector2i(along.x, along.z)))
+				floor_mesher.quad("drop", face, [a + Vector3(0, low, 0), b + Vector3(0, low, 0), b + Vector3(0, top, 0), a + Vector3(0, top, 0)], out, along, Vector3.DOWN)
+				if not open_under:
+					floor_mesher.box("coping", coping, c + out * 0.47 + Vector3(0, top + 0.02, 0), Vector3(0.1, 0.05, 0.1) + along * 0.96)
+
+
+## How far a drop between tiles p and q runs on past their side `s`: to the wall's face if both have a wall there.
+func _into_wall(p: Vector2i, q: Vector2i, s: Vector2i) -> float:
+	return 0.4 if code(p.x + s.x, p.y + s.y) in WALLISH and code(q.x + s.x, q.y + s.y) in WALLISH else 0.0
+
+
+## A ramp's flight of steps, solid down to the floor below it, reaching back to the wall on either side.
+func _steps(p: Vector2i, c: Vector3, tread: Material) -> void:
+	var d := Elev.ramp_dir(map, p)
+	var up := Vector3(d.x, 0, d.y)
+	var across := Vector2i(absi(d.y), absi(d.x))
+	var side := Vector3(across.x, 0, across.y)
+	var lo := Elev.edge(map, p, -d)
+	var hi := Elev.edge(map, p, d)
+	var a := 0.5 + (0.4 if code(p.x - across.x, p.y - across.y) in WALLISH else 0.0)
+	var b := 0.5 + (0.4 if code(p.x + across.x, p.y + across.y) in WALLISH else 0.0)
+	var n := 4
+	for i in n:
+		var t := lerpf(lo, hi, float(i + 1) / n)
+		var at := c + up * (-0.5 + (i + 0.5) / n) + side * (b - a) / 2.0
+		var height := t - _lowest()
+		floor_mesher.box("tread", tread, at + Vector3(0, _lowest() + height / 2.0, 0), up.abs() * (1.0 / n) + side * (a + b) + Vector3(0, height, 0))
+
+
+## A metal lattice in a walkway: a brass rim and crossed iron bars, the water showing through.
+func _lattice(p: Vector2i, c: Vector3, iron: Material, rim: Material) -> void:
+	var y := Elev.surface(map, p) - 0.03
+	_floor_quad(p.x, p.y, 0.0, 0.0, 1.0, 1.0, zone(p.x, p.y), _lowest())
+	for s in [-1.0, 1.0]:
+		floor_mesher.box("lattice_rim", rim, c + Vector3(s * 0.45, y, 0), Vector3(0.1, 0.06, 1.0))
+		floor_mesher.box("lattice_rim", rim, c + Vector3(0, y, s * 0.45), Vector3(1.0, 0.06, 0.1))
+	for i in 5:
+		var o := -0.32 + i * 0.16
+		floor_mesher.box("lattice", iron, c + Vector3(o, y - 0.005, 0), Vector3(0.05, 0.05, 0.84))
+		floor_mesher.box("lattice", iron, c + Vector3(0, y - 0.005, o), Vector3(0.84, 0.05, 0.05))
 
 
 ## A diagonal tile's two halves: [[three corners], the room's kind on that side]. "/" (IDIAG_A) splits the tile from
@@ -672,7 +796,7 @@ func _walls() -> void:
 			if y == h - 1:
 				# no front wall: only the walls running back from it come on, to the floor's front edge
 				if wallish(x, y - 1) and not c in DIAGS:
-					_bars(x, y, 0.0, H, false, true, false, false, true, false)
+					_bars(x, y, _foot(x, y), H, false, true, false, false, true, false)
 				continue
 			var top := H
 			var e := wallish(x + 1, y)
@@ -686,7 +810,7 @@ func _walls() -> void:
 				var sides := _diag_sides(x, y)
 				var p0 := Vector2(x, y + 1) if c == MapGen.IDIAG_A else Vector2(x, y)
 				var p1 := Vector2(x + 1, y) if c == MapGen.IDIAG_A else Vector2(x + 1, y + 1)
-				_slant(y, p0, p1, 0.0, top, sides[0][1], sides[1][1], c)
+				_slant(y, p0, p1, _foot(x, y), top, sides[0][1], sides[1][1], c)
 				continue
 			if c == MapGen.IWALL:
 				# a diagonal wall next door, corner to corner: carry it on to this tile's centre
@@ -696,10 +820,10 @@ func _walls() -> void:
 					if code(dx, dy) in DIAGS and _diag_joins(dx, dy, x, y):
 						var sides2 := _diag_sides(dx, dy)
 						var ctr := Vector2(x + 0.5, y + 0.5)
-						_slant(y, ctr, ctr + Vector2(q.x, q.y) * 0.5, 0.0, top, sides2[0][1], sides2[1][1], code(dx, dy))
+						_slant(y, ctr, ctr + Vector2(q.x, q.y) * 0.5, _foot(x, y), top, sides2[0][1], sides2[1][1], code(dx, dy))
 			match c:
 				MapGen.IWALL:
-					_bars(x, y, 0.0, top, horiz, vert, e, wv, n, s)
+					_bars(x, y, _foot(x, y), top, horiz, vert, e, wv, n, s)
 				MapGen.IWINDOW:
 					if map.get("balcony_doors", {}).has(Vector2i(x, y)):
 						_bars(x, y, BALCONY_H, top, horiz, vert, e, wv, n, s)
@@ -712,7 +836,7 @@ func _walls() -> void:
 						_window(x, y, horiz)
 				MapGen.IDOOR, MapGen.LOCKED:
 					if top > DOOR_H:
-						_bars(x, y, DOOR_H, top, horiz, vert, e, wv, n, s)
+						_bars(x, y, DOOR_H + Elev.surface(map, Vector2i(x, y)), top, horiz, vert, e, wv, n, s)
 					_doorway(x, y, horiz, c == MapGen.LOCKED)
 
 
@@ -734,7 +858,7 @@ func _bars(x: int, y: int, y0: float, y1: float, horiz: bool, vert: bool, e: boo
 				var za := zone_side(x, y, dir, half[2])
 				_face(m, za, [Vector3(half[0], y0, zf), Vector3(half[1], y0, zf), Vector3(half[1], y1, zf), Vector3(half[0], y1, zf)], nrm, Vector3.RIGHT)
 				if y0 < 0.01:
-					_skirting(m, Vector3(half[0], 0, zf), Vector3(half[1], 0, zf), nrm)
+					_skirting(m, Vector3(half[0], y0, zf), Vector3(half[1], y0, zf), nrm)
 		if not vert:
 			if not wv:
 				_face(m, zone_side(x, y, Vector2i(-1, 0), Vector2i(0, -1)), [Vector3(xa, y0, cz - T / 2.0), Vector3(xa, y0, cz + T / 2.0),
@@ -755,7 +879,7 @@ func _bars(x: int, y: int, y0: float, y1: float, horiz: bool, vert: bool, e: boo
 				var zz := zone_side(x, y, dir, half[2])
 				_face(m, zz, [Vector3(xf, y0, half[0]), Vector3(xf, y0, half[1]), Vector3(xf, y1, half[1]), Vector3(xf, y1, half[0])], nrm, Vector3.BACK)
 				if y0 < 0.01:
-					_skirting(m, Vector3(xf, 0, half[0]), Vector3(xf, 0, half[1]), nrm)
+					_skirting(m, Vector3(xf, y0, half[0]), Vector3(xf, y0, half[1]), nrm)
 		if not horiz:
 			if not n:
 				_face(m, zone_side(x, y, Vector2i(0, -1), Vector2i(-1, 0)), [Vector3(cx - T / 2.0, y0, za0), Vector3(cx + T / 2.0, y0, za0),
@@ -821,7 +945,9 @@ func _plinth(m: Mesher, a: Vector3, b: Vector3, nrm: Vector3) -> void:
 	var foot := surface("plinth", stone.darkened(0.22))
 	var head := surface("cornice", stone.lightened(0.06))
 	var along := (b - a).normalized()
-	for band in [[0.0, 0.34, 0.07, foot], [0.38, 0.42, 0.035, foot], [H - 0.42, H - 0.3, 0.06, head], [H - 0.3, H - 0.22, 0.09, head]]:
+	# (a wall reaching down below the floor keeps its cornice under the top)
+	var drop := -a.y
+	for band in [[0.0, 0.34, 0.07, foot], [0.38, 0.42, 0.035, foot], [H - 0.42 + drop, H - 0.3 + drop, 0.06, head], [H - 0.3 + drop, H - 0.22 + drop, 0.09, head]]:
 		var off: Vector3 = nrm * float(band[2])
 		var y0: float = band[0]
 		var y1: float = band[1]
@@ -837,8 +963,8 @@ func _plinth(m: Mesher, a: Vector3, b: Vector3, nrm: Vector3) -> void:
 	inlay.emission = _inlay_colour()
 	inlay.emission_energy_multiplier = 0.6
 	var io := nrm * 0.065
-	m.quad("inlay", inlay, [a + io + Vector3(0, H - 0.38, 0), b + io + Vector3(0, H - 0.38, 0), b + io + Vector3(0, H - 0.35, 0),
-		a + io + Vector3(0, H - 0.35, 0)], nrm, along, Vector3.DOWN)
+	m.quad("inlay", inlay, [a + io + Vector3(0, H - 0.38 + drop, 0), b + io + Vector3(0, H - 0.38 + drop, 0), b + io + Vector3(0, H - 0.35 + drop, 0),
+		a + io + Vector3(0, H - 0.35 + drop, 0)], nrm, along, Vector3.DOWN)
 
 
 ## The glow of a temple's inlays: its guardian's colour (the template's rug colour), brightened.
@@ -857,6 +983,11 @@ func _pilasters() -> void:
 	flame.emission = FLAME
 	flame.emission_energy_multiplier = 2.4
 	flame.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# (a back wall with waterfalls down it has its pilasters behind the levers between them)
+	var lever_posts := {}
+	if not map.get("fall_spots", {}).is_empty() and map.get("lattices", {}).is_empty():
+		for sw in map.get("switches", []):
+			lever_posts[sw["pos"]] = true
 	for y in range(1, h - 1):
 		for x in range(1, w - 1):
 			if code(x, y) in WALLISH or code(x, y) == MapGen.IVOID:
@@ -870,7 +1001,10 @@ func _pilasters() -> void:
 				# spaced out from the middle of the wall, so each wall's run is symmetrical
 				var span := w if d.y != 0 else h
 				var off2 := absi(2 * (x if d.y != 0 else y) - (span - 1))
-				if off2 % (2 * PILASTER_EVERY) != (span - 1) % 2 * PILASTER_EVERY:
+				var stands: bool = off2 % (2 * PILASTER_EVERY) == (span - 1) % 2 * PILASTER_EVERY
+				if d.y != 0 and not lever_posts.is_empty():
+					stands = lever_posts.has(Vector2i(x, y))
+				if not stands:
 					continue
 				# none beside an opening or where a round pillar stands against the wall, here or at its mirror image across
 				# the room (so they go in pairs)
@@ -884,9 +1018,10 @@ func _pilasters() -> void:
 				var face := Vector3(x + 0.5, 0, y + 0.5) + Vector3(d.x, 0, d.y) * (1.0 - T / 2.0)
 				var out := -Vector3(d.x, 0, d.y)
 				var wide := Vector3(along_i.x, 0, along_i.y)
-				m.box("pilaster", col, face + out * 0.12 + Vector3(0, (H - 0.3) / 2.0, 0), wide * 0.42 + out.abs() * 0.24 + Vector3(0, H - 0.3, 0))
+				var low := _foot(x, y)
+				m.box("pilaster", col, face + out * 0.12 + Vector3(0, (H - 0.3 + low) / 2.0, 0), wide * 0.42 + out.abs() * 0.24 + Vector3(0, H - 0.3 - low, 0))
 				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, H - 0.36, 0), wide * 0.56 + out.abs() * 0.3 + Vector3(0, 0.12, 0))
-				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, 0.2, 0), wide * 0.54 + out.abs() * 0.3 + Vector3(0, 0.4, 0))
+				m.box("pilaster_cap", cap, face + out * 0.15 + Vector3(0, low + 0.2, 0), wide * 0.54 + out.abs() * 0.3 + Vector3(0, 0.4, 0))
 				# (every other one out from the middle, the same either side)
 				if off2 / PILASTER_EVERY / 2 % 2 == 1:
 					continue
@@ -913,7 +1048,7 @@ func _pilaster_fits(wx: int, wy: int, along_i: Vector2i) -> bool:
 ## passage beyond (or, out to the open air, the bright day). No door: you walk straight through.
 func _portal(x: int, y: int, horiz: bool) -> void:
 	var m := _row(y)
-	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5)
 	var along := Vector3.RIGHT if horiz else Vector3.BACK
 	var dark := surface("portal_jamb", stone.darkened(0.12))
 	var lintel := surface("portal_lintel", stone.lightened(0.05))
@@ -941,10 +1076,74 @@ func _portal(x: int, y: int, horiz: bool) -> void:
 	_attach(x, y, past)
 
 
+## A great stone door in an aqua-blue frame, engraved with waves round a glowing gem. It sinks into the floor to open
+## (door_leaves "lift", see open_door), and locked it just stays shut.
+func _stone_door(x: int, y: int, horiz: bool) -> void:
+	var m := _row(y)
+	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var across := Vector3.BACK if horiz else Vector3.RIGHT
+	var frame := surface("stone_door_frame", Color("#4fc4d6"))
+	frame.emission_enabled = true
+	frame.emission = Color("#4fc4d6")
+	frame.emission_energy_multiplier = 0.45
+	for side in [-1.0, 1.0]:
+		m.box("stone_door_frame", frame, c + along * side * 0.5 + Vector3(0, DOOR_H / 2.0, 0), _axes(along, 0.16, DOOR_H, T + 0.3, horiz))
+	m.box("stone_door_frame", frame, c + Vector3(0, DOOR_H + 0.08, 0), _axes(along, 1.16, 0.18, T + 0.3, horiz))
+	var past := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = _axes(along, 0.84, DOOR_H, 0.04, horiz)
+	past.mesh = bm
+	var pm := StandardMaterial3D.new()
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.albedo_color = Color("#101820")
+	past.material_override = pm
+	past.position = c + Vector3(0, DOOR_H / 2.0, 0)
+	past.visible = false
+	_attach(x, y, past)
+	var leaf := Node3D.new()
+	leaf.position = c
+	var lm := Mesher.new()
+	var slab := surface("stone_door_slab", stone.darkened(0.08))
+	var cut := surface("stone_door_cut", stone.darkened(0.42))
+	var pale := surface("stone_door_pale", stone.lightened(0.1))
+	lm.box("stone_door_slab", slab, Vector3(0, DOOR_H / 2.0, 0), _axes(along, 0.86, DOOR_H, T + 0.1, horiz))
+	# engraved on both faces
+	for face_side in [-1.0, 1.0]:
+		var o: Vector3 = across * face_side * (T / 2.0 + 0.055)
+		for r in [0.0, 1.0]:
+			var inset: float = 0.08 + r * 0.1
+			for s in [-1.0, 1.0]:
+				lm.box("stone_door_cut", cut, o + along * s * (0.43 - inset) + Vector3(0, DOOR_H / 2.0, 0), _axes(along, 0.03, DOOR_H - inset * 2.0, 0.012, horiz))
+				lm.box("stone_door_cut", cut, o + Vector3(0, DOOR_H / 2.0 + s * (DOOR_H / 2.0 - inset), 0), _axes(along, 0.86 - inset * 2.0, 0.03, 0.012, horiz))
+		# rows of little waves
+		for row in 4:
+			var wy: float = 0.42 + row * 0.36
+			if row == 2:
+				continue
+			for k in 4:
+				var wx: float = -0.21 + k * 0.14
+				lm.box("stone_door_pale", pale, o + along * wx + Vector3(0, wy, 0), _axes(along, 0.1, 0.03, 0.014, horiz))
+				lm.box("stone_door_pale", pale, o + along * (wx + 0.05) + Vector3(0, wy + 0.05, 0), _axes(along, 0.05, 0.03, 0.014, horiz))
+		var gem := surface("stone_door_gem", Color("#7fe8f4"))
+		gem.emission_enabled = true
+		gem.emission = Color("#7fe8f4")
+		gem.emission_energy_multiplier = 1.4
+		lm.box("stone_door_gem", gem, o + Vector3(0, 1.14, 0), _axes(along, 0.2, 0.2, 0.03, horiz))
+	var mi := MeshInstance3D.new()
+	mi.mesh = lm.mesh()
+	leaf.add_child(mi)
+	_attach(x, y, leaf)
+	door_leaves[Vector2i(x, y)] = {"node": leaf, "yaw": 0.0, "past": past, "lift": -DOOR_H - 0.1, "base": c.y}
+
+
 ## A doorway: a wooden frame round the opening on both faces. An opening between parts of a room is just that; a door
 ## that leads out of the room (see map_loader.gd _interior) is painted blue, and a locked one red, so you can tell at a
 ## glance which doors open. The front door, out to the street, is glazed, with a bright window over it.
 func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
+	if map.get("stone_doors", {}).has(Vector2i(x, y)):
+		_stone_door(x, y, horiz)
+		return
 	if ancient and not locked:
 		_portal(x, y, horiz)
 		return
@@ -1060,6 +1259,9 @@ func open_door(t: Vector2i, secs := 0.35) -> void:
 		return
 	(d["past"] as Node3D).visible = true
 	var hinge: Node3D = d["node"]
+	if d.has("lift"):
+		hinge.create_tween().tween_property(hinge, "position:y", float(d["base"]) + float(d["lift"]), maxf(secs, 0.9)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		return
 	hinge.create_tween().tween_property(hinge, "rotation:y", float(d["yaw"]), secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
@@ -1070,11 +1272,16 @@ func shut_door(t: Vector2i, wait := 0.15, secs := 0.4) -> void:
 		return
 	var hinge: Node3D = d["node"]
 	var past: Node3D = d["past"]
-	hinge.rotation.y = float(d["yaw"])
 	past.visible = true
 	var tw := hinge.create_tween()
-	tw.tween_interval(wait)
-	tw.tween_property(hinge, "rotation:y", 0.0, secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	if d.has("lift"):
+		hinge.position.y = float(d["base"]) + float(d["lift"])
+		tw.tween_interval(wait)
+		tw.tween_property(hinge, "position:y", float(d["base"]), secs + 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	else:
+		hinge.rotation.y = float(d["yaw"])
+		tw.tween_interval(wait)
+		tw.tween_property(hinge, "rotation:y", 0.0, secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func() -> void: past.visible = false)
 
 

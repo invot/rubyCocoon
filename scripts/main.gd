@@ -16,6 +16,7 @@ const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
+const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
@@ -665,6 +666,10 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "growth":
+		await load("res://tools/debug/beast_growth.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "creator":
 		await load("res://tools/debug/hero_maker.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -2257,6 +2262,7 @@ func _guardian_test(tk: String) -> void:
 		b.heal_full()
 	await _solve_stones(tk)
 	print("%s stones solved %s, knows %s: %s" % [tk, GameState.flag("stones_" + tk), t["song"], GameState.knows_song(String(t["song"]))])
+	await _on_to_guardian(tk)
 	var g := _npc("guardian_" + tk)
 	print("guardian found: ", not g.is_empty())
 	if not g.is_empty():
@@ -2265,92 +2271,219 @@ func _guardian_test(tk: String) -> void:
 		GameState.flag("guardian_" + tk), GameState.map_id, GameState.party.map(func(x): return "%s L%d %d/%d" % [x.nickname, x.level, x.hp, x.max_hp()])])
 
 
-## --scene=tides-walk: the Temple of Tides played on foot, by walking and pressing A: from the hall's front door through
-## each wing's doorway, to its lever (pulled with A, Yes), and back into the hall, checking at each step that the way on
-## opens (with the wings' beasts kept away). --shots=dir saves the hall after each lever. Prints a count of problems at the end.
+## --scene=tides-walk: the Temple of Tides played on foot, by walking and pressing the interact button: out of the hall
+## into each puzzle room, each lever thrown in a solving order, down the steps to the treasure and out again, down the
+## hall as its water falls, the song, the door it opens, and the path to the guardian. (No beasts prowl meanwhile, by the
+## repelling incense: this is about the ways through.) --shots=dir saves each stage. Prints a count of problems at the end.
 func _tides_walk_test() -> void:
 	var bad := 0
-	var shots := String(_test.get("shots", ""))
-	# (talk plays itself; no beasts prowl the wings, by the repelling incense: this is about the ways through)
 	UI.auto = true
 	autoplay = true
 	GameState.incense_steps = 99999
 	GameState.incense_kind = -1
+	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("ritual_done")
 	await _go("reef")
 	await _wait(1.0)
 	var hall := String(_bld("temple")["interior"])
 	await _go(hall, "entry")
 	await _settle(hall)
-	# each step: the hall's door to the wing, and the flood its lever drains in the hall
-	for step in [["temple_tides_west", "tides_lever_1"], ["temple_tides_east", "tides_lever_2"], ["temple_tides_gallery", "tides_lever_3"]]:
-		var door := Vector2i(-1, -1)
-		for t in world.map["exits"]:
-			if String(MapLoader.load_map(String(world.map["exits"][t]["to"]), {}).get("room_key", "")) == step[0]:
-				door = t
-		var wing := String(world.map["exits"].get(door, {}).get("to", ""))
-		for tries in 10:
-			if world.map_id != hall:
-				break
-			await _walk_test([door])
-			await _wait(1.0)
-		await _settle(wing)
-		var in_wing: bool = world.map_id == wing and wing != ""
-		print("%s into %s (door %s): now on %s at %s" % ["ok  " if in_wing else "FAIL", step[0], door, world.map_id, world.player_pos])
-		if not in_wing:
-			bad += 1
-			break
-		# walk up to the lever, face it and press A, answering Yes
-		var lever: Vector2i = world.map["levers"][0]["pos"]
-		var spots := [lever + Vector2i(0, 1), lever + Vector2i(1, 0), lever + Vector2i(-1, 0), lever + Vector2i(0, -1)]
-		for tries in 10:
-			if world.player_pos in spots:
-				break
-			await _walk_test(spots)
-			await _wait(1.0)
-		var off: Vector2i = lever - world.player_pos
-		var by: bool = absi(off.x) + absi(off.y) == 1
-		if by:
-			world.facing = lever - world.player_pos
-			load("res://scripts/gfx/voxel_person.gd").face(world.player, world.facing)
-		UI.auto_answers.append(0)
-		await _press("interact")
-		await _wait(0.5)
-		for i in 300:
-			if not (world.busy or UI.busy()):
-				break
-			await _wait(0.1)
-		var pulled := GameState.flag(step[1])
-		print("%s %s lever: beside it %s (at %s), pulled %s" % ["ok  " if pulled else "FAIL", step[0], by, world.player_pos, pulled])
-		bad += int(not pulled)
-		# back to the hall by the way you came in
-		var back := Vector2i(-1, -1)
-		for t in world.map["exits"]:
-			back = t
-		# (a prowling beast may stand in a channel walkway for a while: try again once it moves on)
-		for tries in 10:
-			if world.map_id != wing:
-				break
-			await _walk_test([back])
-			await _wait(1.0)
-		await _settle(hall)
-		var home: bool = world.map_id == hall
-		print("%s back in the hall: on %s at %s" % ["ok  " if home else "FAIL", world.map_id, world.player_pos])
-		bad += int(not home)
-		if shots != "":
-			_save_shot(shots.path_join("hall_%s.png" % step[1]))
-	# down the stair in the drained pool to the guardian
-	var stair := Vector2i(-1, -1)
-	for t in world.map["exits"]:
-		if String(MapLoader.load_map(String(world.map["exits"][t]["to"]), {}).get("room_key", "")) == "temple_water":
-			stair = t
-	await _walk_test([stair])
-	var room := String(world.map["exits"].get(stair, {}).get("to", ""))
-	await _settle(room)
-	var down: bool = room != "" and world.map_id == room
-	print("%s down to the guardian's chamber: on %s" % ["ok  " if down else "FAIL", world.map_id])
-	bad += int(not down)
+	await _tides_shot("1_hall_flooded")
+	# only the first door can be reached while the hall is flooded
+	bad += _tides_check("hall flooded: falls room door reachable, maze door not", _tides_reach(hall, "temple_tides_falls") and not _tides_reach(hall, "temple_tides_maze") and not _tides_reach(hall, "temple_tides_song"))
+	bad += _tides_check("every pull of the first room's levers stops one fall, starts one, or both", _tides_table_ok())
+	bad += await _tides_room(hall, "temple_tides_falls", "falls", [0, 1, 2, 3, 2], "tides_falls_solved", "tide_pendant", "2")
+	await _tides_shot("3_hall_lowered")
+	bad += _tides_check("hall lowered: maze door reachable, song door not", _tides_reach(hall, "temple_tides_maze") and not _tides_reach(hall, "temple_tides_song"))
+	bad += await _tides_room(hall, "temple_tides_maze", "maze", [0, 1, 2, 3, 1], "tides_maze_solved", "tide_charm", "4")
+	await _tides_shot("5_hall_drained")
+	bad += _tides_check("hall drained: song door reachable", _tides_reach(hall, "temple_tides_song"))
+	var song := await _tides_door(hall, "temple_tides_song")
+	bad += _tides_check("into the song room", world.map_id == song)
+	await _tides_shot("6_song_room_locked")
+	await _solve_stones("water")
+	await _wait(2.5)
+	bad += _tides_check("the song opened the stone door", GameState.flag("tides_song_door") and _tides_reach(song, "temple_water"))
+	await _tides_shot("7_song_room_open")
+	var last := await _tides_door(song, "temple_water")
+	bad += _tides_check("into the octagon", world.map_id == last)
+	await _tides_shot("8_octagon")
+	await _tides_walk_beside(_npc("guardian_water")["pos"])
+	bad += _tides_check("beside the guardian on its platform", (world.player_pos - _npc("guardian_water")["pos"] as Vector2i).length_squared() == 1)
+	await _tides_shot("9_guardian")
 	print("TIDES WALK DONE: %d problem(s)" % bad)
+
+
+func _tides_table_ok() -> bool:
+	var table: Array = TidePuzzles.PUZZLES["falls"]["running"]
+	var bits := func(v: int) -> int: return (v & 1) + (v >> 1 & 1) + (v >> 2 & 1)
+	for a in table.size():
+		for b in TidePuzzles.LEVERS:
+			var now: int = table[a]
+			var then: int = table[a ^ (1 << b)]
+			if now == then or bits.call(now & ~then) > 1 or bits.call(then & ~now) > 1:
+				return false
+	return true
+
+
+func _tides_check(what: String, ok: bool) -> int:
+	print("%s %s" % ["ok  " if ok else "FAIL", what])
+	return int(not ok)
+
+
+## With --shots: the view you'd see, and the whole room from high above it.
+func _tides_shot(n: String) -> void:
+	if not _test.has("shots"):
+		return
+	var dir := String(_test["shots"])
+	_save_shot(dir.path_join("tides_%s.png" % n))
+	var mw: float = world.map["w"]
+	var mh: float = world.map["h"]
+	var hgt := maxf(mw, mh) * 0.72
+	world.cam_free = true
+	world.cam.position = Vector3(mw / 2.0, hgt, mh * 0.5 + mh * 0.55 + hgt * 0.45)
+	world.cam.look_at(Vector3(mw / 2.0, 0, mh * 0.5), Vector3.UP)
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	_save_shot(dir.path_join("tides_%s_whole.png" % n))
+	world.cam_free = false
+	world._place_camera(true)
+
+
+## The door tile in the room leading to room `key` (Vector2i(-1, -1) if there's none yet).
+func _tides_door_tile(key: String) -> Vector2i:
+	for t: Vector2i in world.map["exits"]:
+		if String(MapLoader.load_map(String(world.map["exits"][t]["to"]), {}).get("room_key", "")) == key:
+			return t
+	return Vector2i(-1, -1)
+
+
+## Whether you can walk from where you stand to the door to room `key` right now.
+func _tides_reach(_room: String, key: String) -> bool:
+	var door := _tides_door_tile(key)
+	if door.x < 0:
+		return false
+	var seen := {world.player_pos: true}
+	var q := [world.player_pos]
+	while not q.is_empty():
+		var p: Vector2i = q.pop_front()
+		if p == door:
+			return true
+		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+			var n: Vector2i = p + d
+			if not seen.has(n) and world._can_step(p, n) and not world.npcs.has(n):
+				seen[n] = true
+				q.append(n)
+	return false
+
+
+func _tides_door(room: String, key: String) -> String:
+	var door := _tides_door_tile(key)
+	var to := String(world.map["exits"][door]["to"])
+	await _tides_go_to(door, to)
+	await _settle(to)
+	return to if world.map_id == to else room
+
+
+## Walks to a door, going through it when you're in front of it.
+func _tides_go_to(door: Vector2i, to: String) -> void:
+	var before: Vector2i = door + Vector2i(0, 1) if world._walkable(door + Vector2i(0, 1)) else (door + Vector2i(1, 0) if world._walkable(door + Vector2i(1, 0)) else door + Vector2i(-1, 0))
+	await _walk_test([before])
+	await _wait(0.2)
+	world._step(door - world.player_pos, false)
+	for i in 60:
+		if world.map_id == to:
+			break
+		await _wait(0.1)
+
+
+## Walks to a tile beside `p` (not over water) and turns to face it.
+func _tides_walk_beside(p: Vector2i) -> void:
+	await _walk_test([p + Vector2i(0, 1), p + Vector2i(1, 0), p + Vector2i(-1, 0), p + Vector2i(0, -1)])
+	var off: Vector2i = p - world.player_pos
+	if absi(off.x) + absi(off.y) == 1:
+		world.facing = off
+		load("res://scripts/gfx/voxel_person.gd").face(world.player, off)
+	await _wait(0.2)
+
+
+func _tides_press() -> void:
+	await _press("interact")
+	await _wait(0.5)
+	for i in 300:
+		if not (world.busy or UI.busy()):
+			break
+		await _wait(0.1)
+
+
+## A puzzle room: through its door from the hall, each lever in `order` (the solving one), the treasure, and back.
+func _tides_room(hall: String, key: String, id: String, order: Array, flag: String, item: String, shot: String) -> int:
+	var bad := 0
+	var room := await _tides_door(hall, key)
+	bad += _tides_check("into %s" % key, world.map_id == room and room != hall)
+	await _tides_shot(shot + "a_%s_start" % id)
+	var levers := {}
+	for sw in world.map["switches"]:
+		levers[int(sw["index"])] = sw["pos"]
+	var k := 0
+	for i: int in order:
+		k += 1
+		var lever_at: Vector2i = levers[i]
+		var thrown := GameState.flag(TidePuzzles.lever_flag(id, i))
+		if k == 1:
+			# (the first by a tap on it, as on a phone: you walk over and it's thrown)
+			world._walk_to([lever_at + Vector2i(0, 1), lever_at + Vector2i(1, 0), lever_at + Vector2i(-1, 0), lever_at + Vector2i(0, -1)], lever_at, false)
+			for j in 200:
+				if GameState.flag(TidePuzzles.lever_flag(id, i)) != thrown and not (world.busy or UI.busy()):
+					break
+				await _wait(0.1)
+			bad += _tides_check("%s lever %d thrown by a tap" % [id, i], GameState.flag(TidePuzzles.lever_flag(id, i)) != thrown)
+		else:
+			await _tides_walk_beside(lever_at)
+		var beside: bool = (world.player_pos - lever_at).length_squared() == 1
+		var last: bool = k == order.size()
+		if k == 1:
+			pass
+		elif last:
+			# (a moment of the drain itself)
+			await _press("interact")
+			await _wait(1.3)
+			await _tides_shot(shot + "c_%s_draining" % id)
+			for j in 300:
+				if not (world.busy or UI.busy()):
+					break
+				await _wait(0.1)
+		else:
+			await _tides_press()
+			# (once the falls have finished changing)
+			if k == 2:
+				await _wait(0.8)
+				await _tides_shot(shot + "b_%s_midway" % id)
+			elif k == order.size() - 1:
+				await _wait(0.8)
+				await _tides_shot(shot + "b2_%s_nearly" % id)
+		bad += _tides_check("%s lever %d (step %d): beside it %s, running now %s" % [id, i, k, beside, TidePuzzles.running(id, GameState.flags)], beside)
+	await _wait(0.5)
+	bad += _tides_check("%s solved" % id, GameState.flag(flag))
+	await _tides_shot(shot + "d_%s_drained" % id)
+	var had := int(GameState.inventory.get(item, 0))
+	var chest: Dictionary = {}
+	for p in world.npcs:
+		if world.npcs[p].get("id", "") == "chest" and world.npcs[p].get("hidden_until", "") == flag:
+			chest = world.npcs[p]
+	await _tides_walk_beside(chest["pos"])
+	var at_chest: Vector2i = world.player_pos
+	for tries in 3:
+		if GameState.flag(String(chest["chest"])):
+			break
+		await _tides_press()
+	bad += _tides_check("%s treasure opened on the drained pool's floor, from %s" % [id, at_chest], int(GameState.inventory.get(item, 0)) > had or GameState.gear.values().has(item))
+	# and back out up the steps to the door
+	var back: Vector2i = _tides_door_tile("temple_tides_hall")
+	await _tides_go_to(back, hall)
+	await _settle(hall)
+	bad += _tides_check("%s: out of the pool and back to the hall" % id, world.map_id == hall)
+	return bad
 
 
 ## Goes inside a temple (or down to Gravenmoor's crypt, the ghost guardian's).
@@ -2367,28 +2500,26 @@ func _enter_temple(tk: String) -> void:
 	await _down_to_guardian(tk)
 
 
-## In a temple of several rooms (WorldDB.TEMPLES "rooms"), pulls the lever in each wing (draining the way on), then
-## goes down to the guardian's chamber. Prints what it did.
+## In the Temple of Tides, with its water drained (--scene=tides-walk plays that part), goes to the room with its stones.
 func _down_to_guardian(tk: String) -> void:
 	var t: Dictionary = WorldDB.TEMPLES[tk]
-	if not t.has("rooms"):
+	if not t.has("song_room"):
 		return
+	GameState.set_flag("tides_falls_solved")
+	GameState.set_flag("tides_maze_solved")
 	var rooms: Array = t["rooms"]
 	var base: String = MapLoader.parent_of(world.map_id) + "#" + world.map_id.get_slice("#", 1).get_slice("@", 0)
-	for i in range(1, rooms.size()):
-		await _go(MapLoader.floor_id(base, i + 1), "from_" + String(rooms[0]))
-		await _wait(0.5)
-		for p in world.npcs.keys():
-			var n: Dictionary = world.npcs.get(p, {})
-			if n.get("id", "") in ["lever", "chest"]:
-				if n["id"] == "lever":
-					UI.auto_answers.append(0)
-				await Story.talk(world, n)
-		print("temple room %s: levers %s" % [rooms[i], world.map.get("levers", []).map(func(l): return "%s %s" % [l["flag"], GameState.flag(l["flag"])])])
-	var at := rooms.find(t["room"])
-	await _go(MapLoader.floor_id(base, at + 1), "from_" + String(rooms[0]))
+	await _go(MapLoader.floor_id(base, rooms.find(t["song_room"]) + 1), "from_" + String(rooms[0]))
 	await _wait(0.5)
-	print("down in %s: guardian here %s" % [t["room"], not _npc("guardian_" + tk).is_empty()])
+
+
+## In a temple whose stones have a room of their own: on through the door the song opened, to the guardian.
+func _on_to_guardian(tk: String) -> void:
+	var t: Dictionary = WorldDB.TEMPLES[tk]
+	if not t.has("song_room"):
+		return
+	await _go(MapLoader.floor_id(world.map_id.get_slice("@", 0), (t["rooms"] as Array).find(t["room"]) + 1), "from_" + String(t["song_room"]))
+	await _wait(1.0)
 
 
 ## Reads the tablet, then strikes the temple's stones in its order (the song is then learned in auto mode).
@@ -2654,6 +2785,7 @@ func _flow_test() -> void:
 	await _down_to_guardian("water")
 	_step("temple stones", [])
 	await _solve_stones("water")
+	await _on_to_guardian("water")
 	print("stones_water ", GameState.flag("stones_water"), " knows song_tides ", GameState.knows_song("song_tides"))
 	for p in world.npcs:
 		if world.npcs[p].get("kind", "") == "guardian":

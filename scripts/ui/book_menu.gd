@@ -810,6 +810,12 @@ func _arrange_ring() -> void:
 
 func _egg_detail(c: VBoxContainer, e: Dictionary) -> void:
 	c.add_child(_h(GameState.egg_name(e)))
+	var shell := TextureRect.new()
+	shell.texture = GameState.EggLooks.icon(e)
+	shell.custom_minimum_size = Vector2(144, 144)
+	shell.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shell.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	c.add_child(shell)
 	c.add_child(_t_label("Something stirs inside... Any Beast Center can hatch it. Hatchlings start at Lv 1."))
 
 

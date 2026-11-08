@@ -30,6 +30,7 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const TempleProps = preload("res://scripts/gfx/temple_props.gd")
 const WaterShader = preload("res://scripts/gfx/water.gdshader")
+const TideWater = preload("res://scripts/gfx/tide_water.gd")
 const Shoreline = preload("res://scripts/world/shoreline.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const CompanyBrand = preload("res://scripts/gfx/company_brand.gd")
@@ -226,6 +227,8 @@ func _lift(p: Vector2i) -> float:
 	return Elev.surface(map, p)
 
 
+## a Temple of Tides room's water and falls (tide_water.gd), or null
+var tide: Node3D = null
 ## Tiles raised off the ground, by how much: a porch's deck or a stoop (see house_models.gd steps()), stepped up onto.
 var ground_h := {}
 ## the ground's materials (terrain_mesh.gd), told every frame where the see-through patch goes (_update_hole)
@@ -2768,6 +2771,10 @@ func _interact() -> void:
 		await UI.say(lines)
 	elif interior and MapGen.get_t(map, t.x, t.y) in PROP_CODES:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
+	elif map.get("fall_spots", {}).has(t) and MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
+		await UI.say(["The water pounds down here. There's no walking through it."])
+	elif map.get("basins", {}).has(t):
+		pass
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
 		await Fishing.cast(self, t)
 	busy = false
@@ -4613,7 +4620,26 @@ func _build_room() -> void:
 	var mm := _multimesh(VP.mist(), mist, null, false)
 	if mm:
 		bobbers.append([mm, 0.05, 1.1])
-	_build_pools(pools)
+	if not Elev.has(map):
+		_build_pools(pools)
+	elif room.has("water_levels"):
+		tide = TideWater.new()
+		add_child(tide)
+		tide.build(map, _pool_water_mat(), GameState.flags, room_walls)
+
+
+## The room's floods or falls changed under you (a water puzzle): brings its tiles and ways out up to date, without
+## reloading it, and any wild beast caught under a new fall is gone.
+func refresh_tide() -> void:
+	var fresh := MapLoader.load_map(map_id, GameState.flags)
+	map["grid"] = fresh["grid"]
+	map["exits"] = fresh["exits"]
+	map["spawns"] = fresh["spawns"]
+	map["spawn_face"] = fresh["spawn_face"]
+	map["flood_wet"] = fresh["flood_wet"]
+	for w in wilds.duplicate():
+		if not _walkable(w["pos"]):
+			_remove_wild(w)
 
 
 ## Paints every mesh under `node` one smooth colour.
@@ -4666,6 +4692,15 @@ func _build_pools(pools: Array) -> void:
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	var wm := ArrayMesh.new()
 	wm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var water := MeshInstance3D.new()
+	water.mesh = wm
+	water.material_override = _pool_water_mat()
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(water)
+
+
+## The animated water of a room's pools.
+func _pool_water_mat() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = WaterShader
 	mat.set_shader_parameter("frames", VT.frames("water"))
@@ -4675,8 +4710,4 @@ func _build_pools(pools: Array) -> void:
 	mat.set_shader_parameter("opacity", 0.84)
 	mat.set_shader_parameter("glow", 0.0)
 	mat.set_shader_parameter("drift", Vector2(0.0, 0.03))
-	var water := MeshInstance3D.new()
-	water.mesh = wm
-	water.material_override = mat
-	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(water)
+	return mat

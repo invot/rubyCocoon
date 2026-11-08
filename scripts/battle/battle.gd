@@ -82,6 +82,8 @@ var round_no := 0
 var biome: Dictionary
 var indoor := false
 var drops: Array = []
+## XP is credited for each defeated foe, then applied and presented once the fighting has ended.
+var pending_xp := {}
 ## songs the rival trainer played this battle (song id -> true); you may try to learn them afterwards
 var heard_songs := {}
 var rival_song_count := 0
@@ -1450,8 +1452,7 @@ func _rig(b) -> Node3D:
 	return r if is_instance_valid(r) else null
 
 
-## A beast that grew into its next form mid-battle (an "evolve" event of Beast.gain_xp) takes on its new model, in a
-## flash of light.
+## Refresh the battle's model after its end-of-battle evolution reveal.
 func _remodel(b) -> void:
 	if not nodes.has(b):
 		return
@@ -4439,12 +4440,21 @@ func _award_xp(foe) -> void:
 		var share := 1.0 if participants.has(b) else 0.5
 		var amt := int(base * share * (1.0 + float(b.gear_fx("xp", 0.0)) + GameState.gear_fx("xp")))
 		if lesson.has("level"):
-			amt = maxi(0, b.xp_for_level(int(lesson["level"])) - b.xp)
+			amt = maxi(0, b.xp_for_level(int(lesson["level"])) - b.xp - int(pending_xp.get(b, 0)))
 			if amt == 0:
 				continue
 		if b.level <= 3:
 			amt = maxi(amt, 4)
 		if b.at_cap():
+			continue
+		pending_xp[b] = int(pending_xp.get(b, 0)) + amt
+
+
+## Resolve each beast in party order. Growth cannot heal or change a model in the middle of a round.
+func _finish_growth() -> void:
+	for b in GameState.party:
+		var amt := int(pending_xp.get(b, 0))
+		if amt <= 0:
 			continue
 		# (called by its old name until it grows into its next form: "Cinderex grew to Lv 40!", "Cinderex grew into
 		# Pyrosaur!")
@@ -4459,17 +4469,14 @@ func _award_xp(foe) -> void:
 		for e in events:
 			match e["type"]:
 				"level":
-					Sfx.play("levelup")
+					await UI.beast_cinematic("level", e["look"])
 					_refresh()
-					await msg("%s grew to Lv %d!" % [who, e["level"]], 0.8)
 				"evolve":
-					# grown into its line's next form: its new model, in a flash
+					await UI.beast_cinematic("evolve", e["before"], e["after"])
 					_remodel(b)
-					Sfx.play("merge")
 					who = e["to"]
-					GameState.caught[str(b.race)] = true
-					GameState.seen[str(b.race)] = true
-					await msg("%s grew into %s!" % [e["from"], e["to"]], 1.4)
+					GameState.caught[str(e["after"]["race"])] = true
+					GameState.seen[str(e["after"]["race"])] = true
 				"learn":
 					var mn: String = MoveDB.get_move(e["move"])["name"]
 					if e["active"]:
@@ -4483,6 +4490,7 @@ func _award_xp(foe) -> void:
 			Sfx.play("notify")
 			await msg("%s reached Lv %d! You can now practise %s from the Flute page of your book." % [b.nickname, b.level,
 				SongDB.get_song(SongDB.capture_id(GameState.capture_level() + 1))["name"]], 1.8)
+	pending_xp.clear()
 
 
 ## Wild beasts beyond the first three step up as others fall. (Ring battles have no bench: everyone is on the ring.)
@@ -4532,6 +4540,7 @@ func _finish() -> void:
 			await msg("You were carried to the nearest Beast Center.", 1.2)
 		"forfeit":
 			await msg("You forfeited the battle.", 0.9)
+	await _finish_growth()
 	if result != "lose":
 		for d in drops:
 			GameState.add_egg(int(d["race"]), bool(d["ghost"]))

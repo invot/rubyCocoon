@@ -5,6 +5,7 @@ const Beast = preload("res://scripts/core/beast.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
+const EggLooks = preload("res://scripts/data/egg_looks.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
@@ -469,12 +470,7 @@ func add_egg(race: int, ghost := false) -> void:
 
 
 func egg_name(e: Dictionary) -> String:
-	match String(e["kind"]):
-		"legendary":
-			return "Radiant %s Egg" % RaceDB.element(int(e["race"])).capitalize()
-		"ghost":
-			return "Shadow Egg"
-	return "%s Egg" % String(e["kind"]).capitalize()
+	return EggLooks.name_for(e)
 
 
 ## Hatches egg `i` into a level-1 beast and adds it to the party/storage.
@@ -955,6 +951,12 @@ func load_game(slot := -2) -> bool:
 		song_mastery[k] = int(sm[k])
 	crests = d.get("crests", [])
 	flags = d.get("flags", {})
+	# (saves from before the Temple of Tides was rebuilt: its old levers, and a song or guardian already won)
+	if flags.get("tides_lever_3", false) or flags.get("guardian_water", false):
+		flags["tides_falls_solved"] = true
+		flags["tides_maze_solved"] = true
+	if songs.has("song_tides") or flags.get("guardian_water", false):
+		flags["tides_song_door"] = true
 	visited = d.get("visited", ["caccoon"])
 	map_id = d.get("map_id", "caccoon")
 	var p: Array = d.get("pos", [-1, -1])

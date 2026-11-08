@@ -29,7 +29,8 @@ func eggs_menu() -> void:
 		return
 	var items := []
 	for e in GameState.eggs:
-		items.append({"text": GameState.egg_name(e), "right": String(e["kind"]).to_upper(), "desc": "Take it to any Beast Center to hatch it. Hatchlings start at Lv 1."})
+		items.append({"text": GameState.egg_name(e), "right": String(e["kind"]).to_upper(),
+			"icon": GameState.EggLooks.icon(e), "desc": "Take it to any Beast Center to hatch it. Hatchlings start at Lv 1."})
 	await UI.choose("Eggs (%d)" % GameState.eggs.size(), items, {"width": 460})
 
 

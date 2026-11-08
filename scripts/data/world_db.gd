@@ -71,12 +71,12 @@ const ROUTES := {
 ## captured: wear it down and play the temple's song (song; the singing stones in its room teach it, Places.song_stone).
 ## A captured guardian becomes a summon (GameState.summons, the battle's Summon command). helpers: the beasts that
 ## fight beside it (the first temple's guardian brings one). rooms: a temple of several rooms, the way in first (else
-## just its one room): its maze wings, where strong beasts of its element prowl and treasure chests wait, hold the
-## levers that drain the water hiding the way down to the guardian's own chamber (interior_maps.gd).
+## just its one room): its puzzle rooms, where strong beasts of its element prowl and treasure waits, drain the water
+## hiding the way down (interior_maps.gd). song_room: where its stones are, if not in the guardian's own room.
 const TEMPLES := {
 	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff",
 		"element": "water", "song": "song_tides", "helpers": [21],
-		"rooms": ["temple_tides_hall", "temple_water", "temple_tides_west", "temple_tides_east", "temple_tides_gallery"]},
+		"song_room": "temple_tides_song", "rooms": ["temple_tides_hall", "temple_water", "temple_tides_falls", "temple_tides_maze", "temple_tides_song"]},
 	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
 		"element": "air", "song": "song_winds", "helpers": [33, 36]},
 	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a",
@@ -91,7 +91,7 @@ const TEMPLES := {
 ## The temple whose guardian and singing stones a room holds ("water", ..., "ghost"), or "".
 static func temple_for_room(room: String) -> String:
 	for tk in TEMPLES:
-		if String(TEMPLES[tk]["room"]) == room:
+		if String(TEMPLES[tk]["room"]) == room or String(TEMPLES[tk].get("song_room", "")) == room:
 			return tk
 	return ""
 

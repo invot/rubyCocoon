@@ -230,6 +230,24 @@ func show_beast(b, heading := "") -> void:
 	await v.done
 
 
+## Loaded on demand so hatch/growth models do not delay the title screen.
+func beast_cinematic(kind: String, before: Dictionary, after := {}, egg := {}) -> void:
+	if auto:
+		auto_log.append("[cinematic] %s %s" % [kind, after.get("name", before.get("name", ""))])
+		await get_tree().process_frame
+		return
+	var film = load("res://scripts/ui/beast_cinematic.gd").new().setup(kind, before, after, egg)
+	var world_view: SubViewport = GameState.main.view if GameState.main != null else null
+	var previous_update := SubViewport.UPDATE_ALWAYS
+	if is_instance_valid(world_view):
+		previous_update = world_view.render_target_update_mode
+		world_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	push(film)
+	await film.done
+	if is_instance_valid(world_view):
+		world_view.render_target_update_mode = previous_update
+
+
 ## The "Game saved!" card with the slot's snapshot.
 func show_save_card(slot: int) -> void:
 	if auto:

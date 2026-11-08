@@ -92,7 +92,9 @@ and shop types inherit the template changes and share the renderer's placement r
 | `skytower`, `skytower_top` | Ticket desk, side benches, stair approaches and landing retained. |
 | `hideout` | Boss focus and low tables/benches retained, with encounter positions unchanged. |
 | `ceo_1`, `ceo_2`, `ceo_3`, `ceo_4` | Reception, sentry floors and executive/captive staging retained; exhibits now face camera. Dungeon column obstacles retained. |
-| `temple_water`, `temple_air`, `temple_fire`, `temple_earth` | Guardian focus, side columns, song-stone groups and clear central approach retained. |
+| `temple_air`, `temple_fire`, `temple_earth` | Guardian focus, side columns, song-stone groups and clear central approach retained. |
+| `temple_tides_hall`, `temple_tides_falls`, `temple_tides_maze` | Walkways kept clear of anything tall; the first puzzle room's falls run down its back wall, and the maze's fade when you walk behind them. |
+| `temple_tides_song`, `temple_water` | Stones in a row with a clear way to the back door; the octagon's path runs straight to the guardian's island. |
 | `cathedral`, `crypt_1`, `crypt_2` | Altar focus, low pews and dungeon/encounter geometry retained. |
 
 ## Repeatable verification

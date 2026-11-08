@@ -169,6 +169,20 @@ the skeletons itself.
   staff and Umbral Legion). Free for commercial use; the files may not be re-uploaded.
 - **Male Character | PSX / PS1** by yugg0, https://yugg0.itch.io/male (the hero), on a base mesh by Vinrax.
 
+## Hatchery cinematic (`assets/interiors/hatch_*`)
+
+- **Sci-Fi Platforms** — user-supplied `Sci-Fi Platforms.zip`: the lower platform, with its source UVs and texture.
+- **TCM Core (Virlance)** — user-supplied `TCM Core (Virlance).zip`: the overhead core and its three articulated tongs.
+- **War Doctor's TARDIS Interior (Old)** — user-supplied `War Doctor's TARDIS Interior (Old).zip`: the chamber's
+  roundel walls, structural arches, ceiling, entrance and floor. The central console, time column and loose props
+  are omitted.
+
+*Changes made:* selected geometry centred and scaled, source material bindings rebuilt (the archives contain no
+MTL files), missing UVs supplied for metal parts, meshes simplified, textures filtered through the game's smoothing
+pipeline, and lights, fog, the central downlight and the tong animation added. `tools/prepare_hatchery.py` and
+`tools/import_hatchery.gd` reproduce the bake. Author/source-page and licence metadata were not included in these
+archives; see `licenses/hatchery_assets.md` for the provenance record and outstanding attribution fields.
+
 ## Voxel art (`voxelassets/`; no longer in the game)
 The voxel models were all replaced by the PSX ones above and removed. They came from, among others:
 - **StickyBizcuit**: village/dungeon pack. The required easter egg is the hidden NPC "Bizcuit" in the

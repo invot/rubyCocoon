@@ -15,9 +15,13 @@ const MESH_DIRS := ["res://assets/nature/", "res://assets/props/", "res://assets
 
 var record := {}
 var done_textures := {}
+var only_prefix := ""
 
 
 func _init() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--only="):
+			only_prefix = arg.trim_prefix("--only=")
 	if FileAccess.file_exists(RECORD):
 		record = JSON.parse_string(FileAccess.get_file_as_string(RECORD))
 	var count := 0
@@ -37,6 +41,8 @@ func _init() -> void:
 
 
 func _fresh(path: String) -> bool:
+	if only_prefix != "" and not path.begins_with(only_prefix):
+		return false
 	return record.get(path, "") != FileAccess.get_md5(path)
 
 

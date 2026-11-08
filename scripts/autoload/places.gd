@@ -373,21 +373,16 @@ func hatchery() -> void:
 					desc = "Cold to the touch. Shadows swirl beneath the shell."
 				_:
 					desc = "A %s egg. It's warm and wobbly." % String(e["kind"])
-			items.append({"text": GameState.egg_name(e), "right": String(e["kind"]).to_upper(), "desc": desc})
+			items.append({"text": GameState.egg_name(e), "right": String(e["kind"]).to_upper(),
+				"icon": GameState.EggLooks.icon(e), "desc": desc})
 		var c: int = await UI.choose("Hatch which egg?", items, {"width": 460})
 		if c < 0:
 			return
-		await UI.say(["Nurse Clover sets the egg in the incubator and twists the big brass dial...", "Whirrr... ding!", "Crack! It's hatching!"])
-		Sfx.play("hatch")
-		var w = GameState.main.world if GameState.main != null else null
-		if w != null and is_instance_valid(w):
-			w.play_hatch_fx()
-		await get_tree().create_timer(0.6).timeout
-		await UI.flash(Color("#fff4c0"), 1)
+		var egg: Dictionary = GameState.eggs[c].duplicate(true)
 		var b := GameState.hatch(c)
 		var first := not GameState.flag("has_starter")
 		GameState.set_flag("has_starter")
-		await UI.show_beast(b, "%s hatched!" % b.nickname)
+		await UI.beast_cinematic("hatch", b.growth_look(), {}, egg)
 		var lines := ["%s hatched from the egg! It's Lv 1, so train it up with care." % b.nickname]
 		if first:
 			lines.append("Your very first beast! Scout Bram is waiting by the east gate. He'll show you how battles work before you head out.")
@@ -1003,6 +998,23 @@ func _learn_temple_song(tk: String) -> void:
 		return
 	if await learn_attempts(song, t["name"], 0.0):
 		await UI.say(["Somewhere in the hall, the guardian stirs in its sleep. Play the %s to it once it's worn down, and it's yours." % SongDB.song_name(song)])
+		await _open_song_door(tk)
+
+
+## In a temple with a song room of its own, learning the song opens the stone door to the guardian.
+func _open_song_door(tk: String) -> void:
+	if not WorldDB.TEMPLES[tk].has("song_room") or GameState.flag("tides_song_door"):
+		return
+	GameState.set_flag("tides_song_door")
+	var world = GameState.main.world
+	world.refresh_tide()
+	if world.room_walls == null:
+		return
+	Sfx.secret_chime()
+	for p in world.room_walls.door_leaves:
+		world.room_walls.open_door(p, 1.6)
+	await get_tree().create_timer(1.8).timeout
+	await UI.say(["With a long, low grinding, the great stone door sinks into the floor. The way to the guardian is open."])
 
 
 ## The tablet's song: each stone in the order lights up and sings its note (all left lit once the puzzle is solved).

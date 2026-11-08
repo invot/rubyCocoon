@@ -8,32 +8,39 @@ const STONE := Color("#b8b0a0")
 const BRONZE := Color("#c89a48")
 const WOOD := Color("#8a5a32")
 const GOLD := Color("#e8c050")
+const LEVER_RED := Color("#d03a30")
 
 
 ## A lever on a stone block: its bronze arm leans back (north) until pulled, then forward. The arm is the "Arm" node,
-## pivoting on its hinge, for Story to swing (pull()).
-static func lever(pulled: bool) -> Node3D:
+## pivoting on its hinge, for Story to swing (pull()). `back` sets it that far north of its tile's middle (against a wall).
+static func lever(pulled: bool, block := STONE, rod := BRONZE, knob := Color("#3a8ab0"), back := 0.0) -> Node3D:
 	var root := Node3D.new()
 	var k := VBld.Kit.new()
-	k.box("color", Vector3(0, 0.22, 0), Vector3(0.62, 0.44, 0.5), STONE)
-	k.box("color", Vector3(0, 0.47, 0), Vector3(0.7, 0.06, 0.58), STONE.lightened(0.12))
+	k.box("color", Vector3(0, 0.22, 0), Vector3(0.62, 0.44, 0.5), block)
+	k.box("color", Vector3(0, 0.47, 0), Vector3(0.7, 0.06, 0.58), block.lightened(0.12))
 	# the slot the arm swings in
 	k.box("color", Vector3(0, 0.505, 0), Vector3(0.12, 0.02, 0.42), Color("#2a2622"))
 	var base := MeshInstance3D.new()
 	base.mesh = k.mesh()
+	base.position.z = -back
 	root.add_child(base)
 	var arm := Node3D.new()
 	arm.name = "Arm"
-	arm.position = Vector3(0, 0.5, 0)
+	arm.position = Vector3(0, 0.5, -back)
 	var a := VBld.Kit.new()
-	a.box("tin", Vector3(0, 0.36, 0), Vector3(0.08, 0.72, 0.08), BRONZE)
-	a.box("color", Vector3(0, 0.76, 0), Vector3(0.18, 0.16, 0.18), Color("#3a8ab0"))
+	a.box("tin", Vector3(0, 0.36, 0), Vector3(0.08, 0.72, 0.08), rod)
+	a.box("color", Vector3(0, 0.76, 0), Vector3(0.18, 0.16, 0.18), knob)
 	var am := MeshInstance3D.new()
 	am.mesh = a.mesh()
 	arm.add_child(am)
 	arm.rotation.x = arm_angle(pulled)
 	root.add_child(arm)
 	return root
+
+
+## A water puzzle's lever: a brown block, a red arm.
+static func red_lever(pulled: bool, back := 0.0) -> Node3D:
+	return lever(pulled, WOOD, LEVER_RED, LEVER_RED.lightened(0.2), back)
 
 
 ## The arm's lean: back (north, -z) before it's pulled, forward after.
@@ -48,6 +55,16 @@ static func pull(node: Node3D) -> void:
 		return
 	var tw := node.create_tween()
 	tw.tween_property(arm, "rotation:x", arm_angle(true), 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await tw.finished
+
+
+## Swings a lever's arm to `pulled` or back (a water puzzle's levers go both ways).
+static func throw_lever(node: Node3D, pulled: bool) -> void:
+	var arm: Node3D = node.get_node_or_null("Arm")
+	if arm == null:
+		return
+	var tw := node.create_tween()
+	tw.tween_property(arm, "rotation:x", arm_angle(pulled), 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await tw.finished
 
 
