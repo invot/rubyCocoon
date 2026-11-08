@@ -321,7 +321,7 @@ const TALL := 1.2
 var _props: Array = []
 var _snap := true
 ## the doors you can go through, by their tile: {"node" (the leaf, on its hinge), "yaw" (its turn when open), "past"
-## (what shows through the doorway once it's open)}; see open_door
+## (what shows through the doorway once it's open; a front door has none)}; see open_door
 var door_leaves := {}
 ## the lowest floor in the room, found once (see _lowest)
 var _low_y := INF
@@ -1044,8 +1044,8 @@ func _pilaster_fits(wx: int, wy: int, along_i: Vector2i) -> bool:
 	return true
 
 
-## An ancient room's doorway: a stone portal, massive jambs and a lintel with the temple's glowing inlay, the dark
-## passage beyond (or, out to the open air, the bright day). No door: you walk straight through.
+## An ancient room's doorway: a stone portal, massive jambs and a lintel with the temple's glowing inlay, and the dark
+## passage beyond (out to the open air it's left empty). No door: you walk straight through.
 func _portal(x: int, y: int, horiz: bool) -> void:
 	var m := _row(y)
 	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5)
@@ -1063,14 +1063,15 @@ func _portal(x: int, y: int, horiz: bool) -> void:
 	inlay.emission_energy_multiplier = 0.9
 	m.box("inlay", inlay, c + Vector3(0, DOOR_H + 0.14, 0), _axes(along, 0.5, 0.06, T + 0.32, horiz))
 	var ex: Dictionary = map.get("exits", {}).get(Vector2i(x, y), {})
-	var outdoors := not ex.is_empty() and not String(ex["to"]).contains("#")
+	if not ex.is_empty() and not String(ex["to"]).contains("#"):
+		return
 	var past := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = _axes(along, 0.74, DOOR_H, 0.04, horiz)
 	past.mesh = bm
 	var pm := StandardMaterial3D.new()
 	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pm.albedo_color = Color("#f4ecd8") if outdoors else Color("#14100c")
+	pm.albedo_color = Color("#14100c")
 	past.material_override = pm
 	past.position = c + Vector3(0, DOOR_H / 2.0, 0)
 	_attach(x, y, past)
@@ -1218,7 +1219,7 @@ func _door_leaf(m: Mesher, c: Vector3, horiz: bool, col: Color, glazed: bool) ->
 
 ## A door you can go through, in the doorway at (x, y): its leaf on a hinge of its own, on the jamb away from its knob,
 ## so it can swing open out of the room as you go through (open_door) and shut behind you as you come in (shut_door).
-## Behind it, seen once it's open: the day outside a front door, a dim room through any other.
+## Behind it, seen once it's open: a dim room, unless it's a front door, whose doorway is left empty.
 func _hinged_leaf(x: int, y: int, horiz: bool, front: bool) -> void:
 	var c := Vector3(x + 0.5, 0, y + 0.5)
 	var along := Vector3.RIGHT if horiz else Vector3.BACK
@@ -1237,19 +1238,23 @@ func _hinged_leaf(x: int, y: int, horiz: bool, front: bool) -> void:
 	_attach(x, y, hinge)
 	# the way it turns: its free edge round towards the outside, not quite flat against the wall beyond
 	var turn := 1.0 if (Basis(Vector3.UP, PI / 2.0) * along).dot(out) > 0.0 else -1.0
+	var door := {"node": hinge, "yaw": turn * deg_to_rad(85.0)}
+	door_leaves[Vector2i(x, y)] = door
+	if front:
+		return
 	var past := MeshInstance3D.new()
 	var q := QuadMesh.new()
 	q.size = Vector2(1.2, DOOR_H + 0.2)
 	past.mesh = q
 	var pm := StandardMaterial3D.new()
 	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pm.albedo_color = Color("#f4ecd8") if front else Color("#3a2e24")
+	pm.albedo_color = Color("#3a2e24")
 	past.material_override = pm
 	past.position = c + out * (T / 2.0 + 0.02) + Vector3(0, DOOR_H / 2.0, 0)
 	past.rotation.y = atan2(float(inside.x), float(inside.y))
 	past.visible = false
 	_attach(x, y, past)
-	door_leaves[Vector2i(x, y)] = {"node": hinge, "yaw": turn * deg_to_rad(85.0), "past": past}
+	door["past"] = past
 
 
 ## Swings the door at tile `t` open over `secs` (see _hinged_leaf).
@@ -1257,7 +1262,8 @@ func open_door(t: Vector2i, secs := 0.35) -> void:
 	var d: Dictionary = door_leaves.get(t, {})
 	if d.is_empty():
 		return
-	(d["past"] as Node3D).visible = true
+	if d.has("past"):
+		(d["past"] as Node3D).visible = true
 	var hinge: Node3D = d["node"]
 	if d.has("lift"):
 		hinge.create_tween().tween_property(hinge, "position:y", float(d["base"]) + float(d["lift"]), maxf(secs, 0.9)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -1271,8 +1277,9 @@ func shut_door(t: Vector2i, wait := 0.15, secs := 0.4) -> void:
 	if d.is_empty():
 		return
 	var hinge: Node3D = d["node"]
-	var past: Node3D = d["past"]
-	past.visible = true
+	var past: Node3D = d.get("past")
+	if past != null:
+		past.visible = true
 	var tw := hinge.create_tween()
 	if d.has("lift"):
 		hinge.position.y = float(d["base"]) + float(d["lift"])
@@ -1282,7 +1289,8 @@ func shut_door(t: Vector2i, wait := 0.15, secs := 0.4) -> void:
 		hinge.rotation.y = float(d["yaw"])
 		tw.tween_interval(wait)
 		tw.tween_property(hinge, "rotation:y", 0.0, secs).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func() -> void: past.visible = false)
+	if past != null:
+		tw.tween_callback(func() -> void: past.visible = false)
 
 
 ## The glass of a front door and the window over it: pale, and lit as if by the day outside.

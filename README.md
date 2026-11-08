@@ -669,9 +669,12 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 <img src="docs/screenshots/phone.jpg" width="640" alt="On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle."><br><sub>On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle.</sub>
 
 - **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; phones are capped at a steady 60 fps.
-- **Stalls and loading**: map construction yields between terrain chunks, scenery rows, house plans and NPCs, with
-  a 6 ms CPU work budget between checkpoints. A transition shows **Loading...** and prepares its first visible
-  buildings before fading in. Eight hidden buildings can remain cached for walking back; off-screen buildings stay
+- **Stalls and loading**: a transition shows no loading message. The next map is built behind the black fade,
+  yielding between terrain chunks, scenery rows, house plans and NPCs after 50 ms of work (12 ms on the web, which
+  mixes its music on the same thread). The 3D view is switched off until the map is finished, and its first draw also
+  happens while the screen is still black. The ground meshes of the last three outdoor maps are remembered, so walking
+  back out of a house doesn't generate the street again. The first visible buildings are ready before the fade-in.
+  Eight hidden buildings can remain cached for walking back; off-screen buildings stay
   invisible and stop processing. Stationary cameras reuse visibility results. Street-prop placement proves local
   connectivity where possible, retaining the full-map check for chokepoints. House geometry measurements are baked
   by `tools/bake_house_measurements.gd` after house imports; `-- --verify` checks them against the source meshes.
@@ -876,6 +879,9 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `performance`: cold/repeated creator and beast timings, map loading frame gaps, a bounded building cache, and
   cached animation measurements. `--scene=stalls --report=res://build/performance.json` writes the timing report;
   optionally pass `--baseline=res://build/performance/baseline.json` to compare collision-grid hashes.
+- `transitions`: walks a route of towns, roads and rooms through the real transition, timing how long each stays black
+  and failing if a loading message appears. `--scene=transitions --report=res://build/transitions.json` writes the
+  timings; run it in a window for VSync-capped figures.
 - `house-measurements` / `battle-art`: baked geometry measurements and exact generated ring/audio assets.
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and Dustwell setting its news flag on arrival without a speech.
 - `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
