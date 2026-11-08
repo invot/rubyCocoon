@@ -23,6 +23,7 @@ TESTS=(
 	"island-towns-touch|-- --scene=island-towns --touch --wait=0.3|ISLAND TOWNS DONE: 0 problem"
 	"scripts|--script res://tools/check_scripts.gd|SCRIPTS CHECK DONE: 0 of"
 	"data|--script res://tools/check_data.gd|DATA CHECK DONE: 0 problem"
+	"audio|--script res://tools/check_audio.gd|AUDIO CHECK DONE: 0 problem"
 	"maps|--script res://tools/check_maps.gd|MAPS WITH PROBLEMS: 0"
 	"beasts|--script res://tools/check_beasts.gd|BEASTS CHECK DONE: 0 problem"
 	"beast-growth|-- --scene=growth --save_dir=res://build/growth_test_saves/|BEAST GROWTH DONE: 0 problem"

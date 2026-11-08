@@ -197,6 +197,8 @@ const LOGGIA := 1.0
 const ARCH_SPRING := 1.7
 ## the hotel's three-storey entrance block, at the east end of its long plot
 const HOTEL_ENTRY_W := 7.0
+## how far the hotel's west wing stands back from the entrance block's front, behind its terrace
+const HOTEL_WING_SETBACK := 1.0
 ## Palms along the beach below the cliff, as columns east of the western sea (clear of both ramps).
 const CLIFF_PALMS := [7, 15, 21, 33, 39]
 
@@ -417,12 +419,17 @@ static func _arch_span(k: VB.Kit, a: float, e: float, y0: float, spring: float, 
 
 ## An iron balcony railing along x from `a` to `e`, `z` deep, on a floor at `y`.
 static func _rail(k: VB.Kit, a: float, e: float, y: float, z: float) -> void:
-	VB._beam(k, "color", Vector3(a, y + 0.95, z), Vector3(e, y + 0.95, z), 0.05, IRON)
-	VB._beam(k, "color", Vector3(a, y + 0.12, z), Vector3(e, y + 0.12, z), 0.035, IRON)
-	var count := maxi(2, int(round((e - a) / 0.1)))
+	_rail_between(k, Vector3(a, y, z), Vector3(e, y, z))
+
+
+## An iron railing in a straight line between two points on a floor.
+static func _rail_between(k: VB.Kit, from: Vector3, to: Vector3) -> void:
+	VB._beam(k, "color", from + Vector3.UP * 0.95, to + Vector3.UP * 0.95, 0.05, IRON)
+	VB._beam(k, "color", from + Vector3.UP * 0.12, to + Vector3.UP * 0.12, 0.035, IRON)
+	var count := maxi(2, int(round(from.distance_to(to) / 0.1)))
 	for i in range(1, count):
-		var x := a + (e - a) * float(i) / float(count)
-		VB._beam(k, "color", Vector3(x, y + 0.02, z), Vector3(x, y + 0.95, z), 0.025, IRON)
+		var at := from.lerp(to, float(i) / float(count))
+		VB._beam(k, "color", at + Vector3.UP * 0.02, at + Vector3.UP * 0.95, 0.025, IRON)
 
 
 ## Two storeys of pastel stucco: round-arched windows behind iron rejas below (wide shop windows on the shops), French
@@ -494,7 +501,7 @@ static func _villa(k: VB.Kit, hb: HB, b: Dictionary, w: float, d: float, dx: flo
 
 ## Hotel Mariposa, a long resort hotel on the quay behind the marina: a three-storey entrance block at its east end, on
 ## the forecourt, with a tiled HOTEL sign over its middle arch and the mission bell gable on its roof, and a two-storey
-## west wing running on behind the docks. Returns the entrance block's wall height.
+## west wing running on behind the docks, set back behind a railed terrace. Returns the entrance block's wall height.
 static func _hotel(node: Node3D, b: Dictionary, w: float, d: float, dx: float, wall: Material) -> float:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(b["seed"])
@@ -510,13 +517,16 @@ static func _hotel(node: Node3D, b: Dictionary, w: float, d: float, dx: float, w
 	return top
 
 
-## One block of the hotel, `w` wide and `levels` storeys, centred at `cx`: an arcade along the ground floor (a terrace
-## with a railing on the wing, out over the water), and above it a balcony for every room, set back into the plot
+## One block of the hotel, `w` wide and `levels` storeys, centred at `cx`: an arcade along the ground floor (the wing's
+## opens onto a railed terrace at the plot's front, above the water), and above it a balcony for every room, set back into the plot
 ## between the piers behind iron railings, with arches again along the top floor under the eaves. `west_cover` storeys
 ## of its west side are hidden by the wing, so their windows are left out. Returns its wall height.
-static func _hotel_block(node: Node3D, cx: float, w: float, d: float, levels: int, entry: bool, west_cover: int, wall: Material, paint: Color, rng: RandomNumberGenerator) -> float:
+static func _hotel_block(node: Node3D, cx: float, w: float, plot_d: float, levels: int, entry: bool, west_cover: int, wall: Material, paint: Color, rng: RandomNumberGenerator) -> float:
+	# the wing's back wall stays put and its front comes in, leaving its terrace on the plot's front tiles
+	var setback := 0.0 if entry else HOTEL_WING_SETBACK
+	var d := plot_d - setback
 	var block := Node3D.new()
-	block.position.x = cx
+	block.position = Vector3(cx, 0.0, -setback / 2.0)
 	node.add_child(block)
 	var k := VB.Kit.new()
 	var hb := HB.new()
@@ -545,6 +555,13 @@ static func _hotel_block(node: Node3D, cx: float, w: float, d: float, levels: in
 	# (the kit's faces are shaded a touch darker than the walls' own material)
 	var face := colour.lightened(0.06)
 	k.box("stone", Vector3(0, 0.03, cz), Vector3(w - 0.16, 0.06, deep), Color("#c98a64"))
+	if setback > 0.0:
+		# the arcade's paving carried out to an iron railing along the front and round the west end
+		var rail_z := zf + setback - 0.1
+		var west := -w / 2.0 + 0.2
+		k.box("stone", Vector3(0, 0.03, zf + setback / 2.0), Vector3(w - 0.16, 0.06, setback), Color("#c98a64"))
+		_rail_between(k, Vector3(west, 0.0, rail_z), Vector3(w / 2.0 - 0.2, 0.0, rail_z))
+		_rail_between(k, Vector3(west, 0.0, zf), Vector3(west, 0.0, rail_z))
 	for level in levels:
 		var y0 := float(level) * STOREY
 		var last := level == levels - 1
@@ -571,8 +588,6 @@ static func _hotel_block(node: Node3D, cx: float, w: float, d: float, levels: in
 			if level == 0:
 				if not entry or i != bays / 2:
 					_window(k, Vector3(mid, 0.6, zr), t, front, 0.7, 1.45, "reja", paint, 0.0, rng)
-				if not entry:
-					_rail(k, a, e, 0.0, zf - 0.1)
 				# a lantern hanging in each bay of the arcade
 				VB._beam(k, "color", Vector3(mid, STOREY - 0.2, cz), Vector3(mid, 2.4, cz), 0.02, IRON)
 				k.box("color", Vector3(mid, 2.4, cz), Vector3(0.18, 0.05, 0.18), IRON)

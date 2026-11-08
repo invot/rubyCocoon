@@ -1300,6 +1300,9 @@ func fortune() -> void:
 ## Whether a building's door is locked: about a third of the houses, and the cathedral until its guard is beaten.
 ## Locked doors are painted a colour of their own (voxel_buildings.gd); all you can do is knock.
 func door_locked(b: Dictionary) -> bool:
+	# Hotel Mariposa stands on a house plot, but it's a business: always open, whatever its seed rolls.
+	if b.get("hotel", false):
+		return false
 	match b["shop"]:
 		"house":
 			return house_locked(b)

@@ -369,6 +369,8 @@ func ambience_for(id: String) -> String:
 	if MapLoader.is_interior(id):
 		var m := MapLoader.load_map(id, GameState.flags)
 		return String(WorldDB.ROOM_AMBIENCE.get(m.get("building", {}).get("shop", ""), ""))
+	if WorldDB.MAP_AMBIENCE.has(id):
+		return String(WorldDB.MAP_AMBIENCE[id])
 	return String(WorldDB.BIOME_AMBIENCE.get(WorldDB.biome_of(id)["id"], ""))
 
 

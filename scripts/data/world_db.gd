@@ -401,8 +401,9 @@ const ROOM_MUSIC := {
 	"cafe": "silly", "music_shop": "silly", "fortune": "silly",
 }
 ## Ambient loops layered under the music.
+const MAP_AMBIENCE := {"shellhaven": "surf", "route1": "forest"}
 const BIOME_AMBIENCE := {"desert": "wind", "mesa": "wind", "mountain": "wind", "moor": "ghostly"}
-const ROOM_AMBIENCE := {"cathedral": "ghostly", "ceo_tower": "machines"}
+const ROOM_AMBIENCE := {"cathedral": "cathedral", "ceo_tower": "machines"}
 
 
 ## The wild level range around a town (for trade boards etc.)

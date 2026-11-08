@@ -1,6 +1,7 @@
 extends Node
 ## Music, ambience and sound effects. Music tracks are the game-ready copies in assets/audio/music
-## (made from music/ by tools/convert_audio.py); effects come from sfx/. Flute notes are synthesised.
+## (made from music/ by tools/convert_audio.py); effects come from sfx/ and assets/audio/sfx/.
+## Flute notes are synthesised.
 
 const RATE := 22050
 const MUSIC_DIR := "res://assets/audio/music/"
@@ -41,27 +42,29 @@ const TRACKS := {
 	"boss": "rising_tide_faster",
 }
 
-## Effect keys -> one or more files (a random one plays). Volume in dB.
+## Effect keys -> one or more files (a random one plays). Volume in dB; an empty spec disables a cue.
 const SOUNDS := {
 	"blip": [["res://sfx/Select/Blip_Select3.wav"], -22.0],
 	"select": [["res://sfx/01_UI_Menu/UI_Menu_Hover_001.mp3"], -12.0],
-	"confirm": [["res://sfx/01_UI_Menu/UI_Menu_Confirm_001.mp3"], -9.0],
+	"confirm": [["res://assets/audio/sfx/menu_confirm.ogg"], -10.0],
 	"back": [["res://sfx/01_UI_Menu/UI_Menu_Click_001.mp3"], -10.0],
-	"error": [["res://sfx/01_UI_Menu/UI_Menu_Error_001.mp3"], -9.0],
-	"page": [["res://sfx/UI Samples/UI_Guitar_Percussion_Select_1.wav", "res://sfx/UI Samples/UI_Guitar_Percussion_Select_2.wav"], -10.0],
-	"toggle": [["res://sfx/UI Samples/UI_SteelDrum_Toggle_1.wav"], -10.0],
+	"error": [["res://assets/audio/sfx/menu_unavailable.ogg"], -12.0],
+	"page": [["res://assets/audio/sfx/book_page.ogg"], -10.0],
+	"open": [["res://assets/audio/sfx/arrange_open.ogg"], -10.0],
+	"pickup": [["res://assets/audio/sfx/pickup_kalimba.ogg"], -10.0],
+	"toggle": [["res://assets/audio/sfx/toggle_click.ogg"], -10.0],
 	"notify": [["res://sfx/06_Feedback/Feedback_Notification_001.mp3"], -10.0],
-	"talk": [["res://sfx/UI Samples/UI_WahTube_Select.wav"], -16.0],
-	"hit": [["res://sfx/03_Combat/Combat_Punch_001.mp3", "res://sfx/Hit/Hit_Hurt.wav", "res://sfx/Hit/Hit_Hurt3.wav", "res://sfx/Hit/Hit_Hurt5.wav"], -8.0],
+	"talk": [["res://assets/audio/sfx/dialogue_pop.ogg"], -12.0],
+	"hit": [["res://assets/audio/sfx/body_hit.ogg"], -8.0],
 	"metal_hit": [["res://sfx/BitCrushHits/MetalicHit_Crush_Impact_01.wav", "res://sfx/BitCrushHits/MetalicHit_Crush_Impact_03.wav", "res://sfx/BitCrushHits/MetalicHit_Crush_Impact_05.wav"], -10.0],
-	"crit": [["res://sfx/03_Combat/Combat_CriticalHit_001.mp3"], -6.0],
-	"miss": [["res://sfx/03_Combat/Combat_SwordSwing_001.mp3"], -10.0],
+	"crit": [["res://assets/audio/sfx/critical_hit.ogg"], -6.0],
+	"miss": [["res://assets/audio/sfx/attack_miss.ogg"], -10.0],
 	"shield": [["res://sfx/03_Combat/Combat_ShieldBlock_001.mp3"], -6.0],
 	"slingshot": [["res://sfx/02_Player_Actions/Player_Actions_Dash_001.mp3"], -10.0],
 	"explosion": [["res://sfx/Explosion/Explosion3.wav", "res://sfx/Explosion/Explosion6.wav"], -11.0],
 	"fire": [["res://sfx/10_Magic_Abilities/Magic_Abilities_FireSpell_001.mp3"], -9.0],
 	"ice": [["res://sfx/10_Magic_Abilities/Magic_Abilities_IceSpell_001.mp3"], -9.0],
-	"heal": [["res://sfx/10_Magic_Abilities/Magic_Abilities_HealSpell_001.mp3"], -9.0],
+	"heal": [["res://assets/audio/sfx/heal_plucks.ogg"], -13.0],
 	"buff": [["res://sfx/PowerUp/Powerup3.wav", "res://sfx/PowerUp/Powerup7.wav"], -13.0],
 	"debuff": [["res://sfx/10_Magic_Abilities/Magic_Abilities_IceSpell_001.mp3"], -13.0],
 	# made by tools/make_sfx.py: a soft thud when your beast keels over, a smack and a puff of smoke when a foe goes
@@ -71,9 +74,9 @@ const SOUNDS := {
 	"levelup": [["res://sfx/06_Feedback/Feedback_LevelUp_001.mp3"], -8.0],
 	"capture": [["res://sfx/06_Feedback/Feedback_Achievement_001.mp3"], -8.0],
 	"victory": [["res://sfx/06_Feedback/Feedback_Victory_001.mp3"], -7.0],
-	"fail": [["res://sfx/UI Samples/UI_SteelDrum_Error_1.wav"], -9.0],
+	"fail": [["res://assets/audio/sfx/failed_attempt.ogg"], -12.0],
 	"encounter": [["res://sfx/07_Transitions/Transitions_WhooshIn_001.mp3"], -7.0],
-	"stinger": [["res://sfx/BitCrushHits/Crushed Stingers/Retro_Thriller_CinematicStinger.wav"], -8.0],
+	"stinger": [["res://assets/audio/sfx/boss_dread.ogg", "res://assets/audio/sfx/boss_brass.ogg"], -8.0],
 	"door": [["res://sfx/05_Environment/Environment_DoorOpen_001.mp3"], -10.0],
 	"door_close": [["res://sfx/05_Environment/Environment_DoorClose_001.mp3"], -11.0],
 	# made by tools/make_sfx.py: three raps on a locked front door
@@ -83,14 +86,14 @@ const SOUNDS := {
 	# made by tools/make_sfx.py: a ghost beast rising, and a dread hit (the intro's cage reveal)
 	"ghost": [["res://sfx/Custom/Ghost_Rise.wav"], -9.0],
 	"dread": [["res://sfx/Custom/Dread_Hit.wav"], -4.0],
-	"buy": [["res://sfx/04_Pickups_Items/Pickups_Items_Coin_001.mp3", "res://sfx/Coin/Pickup_Coin.wav"], -10.0],
+	"buy": [["res://assets/audio/sfx/payment_coin.ogg"], -14.0],
 	"item": [["res://sfx/04_Pickups_Items/Pickups_Items_TreasureChest_001.mp3"], -9.0],
 	"shard": [["res://sfx/04_Pickups_Items/Pickups_Items_Gem_001.mp3"], -8.0],
-	"merge": [["res://sfx/07_Transitions/Transitions_Teleport_001.mp3"], -7.0],
-	"hatch": [["res://sfx/05_Environment/Environment_CrateBreak_001.mp3"], -8.0],
+	"merge": [["res://assets/audio/sfx/energy_flow.ogg"], -10.0],
+	"hatch": [["res://assets/audio/sfx/hatch_chirp.ogg"], -10.0],
 	"fly": [["res://sfx/07_Transitions/Transitions_WhooshOut_001.mp3"], -7.0],
 	"smash": [["res://sfx/BitCrushHits/ConcreteHit_Crush_Impact_01.wav", "res://sfx/BitCrushHits/ConcreteHit_Crush_Impact_02.wav"], -9.0],
-	"lever": [["res://sfx/05_Environment/Environment_LeverPull_001.mp3"], -9.0],
+	"lever": [["res://assets/audio/sfx/mechanism_latch.ogg"], -13.0],
 	"tick": [["res://sfx/06_Feedback/Feedback_CountdownTick_001.mp3"], -12.0],
 	"step_grass": [["res://sfx/02_Player_Actions/Player_Actions_FootstepGrass_001.mp3"], -24.0],
 	"step_stone": [["res://sfx/02_Player_Actions/Player_Actions_FootstepStone_001.mp3"], -24.0],
@@ -102,9 +105,13 @@ const SOUNDS := {
 const AMBIENCE := {
 	"wind": "res://sfx/08_Ambient_Loops/Ambient_Loops_Wind_001.mp3",
 	"rain": "res://sfx/08_Ambient_Loops/Ambient_Loops_Rain_001.mp3",
-	"ghostly": "res://sfx/RetroTextures/Ambient Loop Textures/Ambience_WindVoice_Hybrid_Texture_Loop.wav",
-	"machines": "res://sfx/RetroTextures/Ambient Loop Textures/Ambience_ShipInterior_Diegetic_Texture_Loop.wav",
+	"ghostly": "res://assets/audio/sfx/haunted_spell.ogg",
+	"cathedral": "res://assets/audio/sfx/haunted_forest.ogg",
+	"machines": "res://assets/audio/sfx/machine_room.ogg",
+	"surf": "res://assets/audio/sfx/shellhaven_surf.ogg",
+	"forest": "res://assets/audio/sfx/coastal_path_nature.ogg",
 }
+const AMBIENCE_VOLUMES := {"surf": -18.0, "forest": -20.0, "machines": -18.0, "ghostly": -20.0, "cathedral": -20.0}
 
 var _players: Array = []
 var _next := 0
@@ -117,6 +124,7 @@ var _music_b: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
 var _music_kind := ""
 var _ambience_kind := ""
+var _ambience_tween: Tween
 var _music_tweens := {}
 
 
@@ -405,15 +413,20 @@ func current_music() -> String:
 func ambience(kind: String) -> void:
 	if kind == _ambience_kind:
 		return
+	# A quick return outdoors must cancel the indoor fade's pending stop callback.
+	if _ambience_tween != null and _ambience_tween.is_valid():
+		_ambience_tween.kill()
 	_ambience_kind = kind
 	if kind == "" or not AMBIENCE.has(kind):
-		var tw := create_tween()
-		tw.tween_property(_ambience, "volume_db", -40.0, FADE_TIME)
-		tw.tween_callback(_ambience.stop)
+		_ambience_tween = create_tween()
+		_ambience_tween.tween_property(_ambience, "volume_db", -40.0, FADE_TIME)
+		_ambience_tween.tween_callback(_ambience.stop)
 		return
 	var s := _load(AMBIENCE[kind])
 	if s is AudioStreamMP3:
 		(s as AudioStreamMP3).loop = true
+	elif s is AudioStreamOggVorbis:
+		(s as AudioStreamOggVorbis).loop = true
 	elif s is AudioStreamWAV:
 		var w := s as AudioStreamWAV
 		if w.loop_mode == AudioStreamWAV.LOOP_DISABLED:
@@ -423,5 +436,5 @@ func ambience(kind: String) -> void:
 	_ambience.stream = s
 	_ambience.volume_db = -40.0
 	_ambience.play()
-	var tw2 := create_tween()
-	tw2.tween_property(_ambience, "volume_db", -14.0, FADE_TIME)
+	_ambience_tween = create_tween()
+	_ambience_tween.tween_property(_ambience, "volume_db", float(AMBIENCE_VOLUMES.get(kind, -14.0)), FADE_TIME)

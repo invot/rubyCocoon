@@ -57,6 +57,24 @@ func run(game, opts: Dictionary) -> void:
 	await Places.open(boutique, main.world)
 	check(GameState.gold == 1000 - expected, "boutique charges its displayed premium price")
 	var hotel: Dictionary = resort["buildings"].filter(func(b): return b.get("hotel", false))[0]
+	check(not Places.door_locked(hotel), "hotel is open for business, never a locked house")
+	var doorstep: Vector2i = hotel["door"] + Vector2i.DOWN
+	await main._go("shellhaven", doorstep)
+	if opts.has("shot") and DisplayServer.get_name() != "headless":
+		await main._wait(1.0)
+		main._save_shot(String(opts["shot"]).replace(".png", "_door.png"))
+	await load("res://tools/debug/waterfront.gd").new()._tap(main, hotel["door"])
+	await main._settle(hotel["interior"])
+	check(main.world.map_id == hotel["interior"], "tap enters the hotel through its street door")
+	if main.world.map_id == hotel["interior"]:
+		if opts.has("shot") and DisplayServer.get_name() != "headless":
+			main._save_shot(String(opts["shot"]).replace(".png", "_lobby.png"))
+		await main._walk_test([main.world.map["front_doors"][0]])
+		await main._settle("shellhaven")
+		check(main.world.map_id == "shellhaven" and main.world.player_pos == doorstep, "leaving the lobby returns to the hotel's doorstep")
+		main.world._step(Vector2i.UP, false)
+		await main._settle(hotel["interior"])
+		check(main.world.map_id == hotel["interior"], "walking up into the hotel door enters it")
 	print("HOTEL INTERIOR ", hotel["interior"])
 	await main._go(hotel["interior"], "entry")
 	print("[island] lobby ready")

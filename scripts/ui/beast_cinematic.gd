@@ -97,9 +97,10 @@ func _ready() -> void:
 	_lamp = OmniLight3D.new()
 	_lamp.position = Vector3(0, 2.4, 0)
 	_lamp.omni_range = 5.0
-	_lamp.light_color = Color("#d6f8ff")
+	_lamp.light_color = HatcheryStage.INNER_LIGHT
+	_lamp.light_cull_mask = 1
 	_stage.add_child(_lamp)
-	var spark := _material(Color("#d1efff"))
+	var spark := _material(Color("#fff1d6"))
 	spark.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	for i in 24:
 		var sphere := SphereMesh.new()
@@ -211,7 +212,7 @@ func _update(t: float) -> void:
 	var hatch := kind == "hatch"
 	var level := kind == "level"
 	var reveal_at := 5.65 if hatch else (0.45 if level else 3.8)
-	var glow_start := 4.1 if hatch else 1.4
+	var glow_start := 4.5 if hatch else 1.4
 	var revealed := t >= reveal_at
 	_set.animate(t, hatch, revealed)
 	_subject.visible = not revealed
@@ -241,8 +242,10 @@ func _update(t: float) -> void:
 	_detail.text = ("HP %d  /  MP %d · Fully restored" % [after.hp, after.mp]) if revealed and not hatch else ("A new friend awakens" if revealed else ("" if level else "The shell stirs..." if t > 4.0 and hatch else ""))
 	# Gentle dolly, generous framing at both 16:9 and 20:9; no aspect-dependent art stretching.
 	var zoom := smoothstep(0.0, duration, t)
-	_cam.position = Vector3(5.0 - zoom * 0.4, 3.9 - zoom * 0.15, 8.0 - zoom * 0.65)
-	_cam.look_at(Vector3(0, 2.3, 0))
+	# A hatch frames the egg and the core above it, then moves in on the beast while the screen is fully white.
+	var near := smoothstep(5.5, 5.75, t) if hatch else 1.0
+	_cam.position = Vector3(1.5 - zoom * 0.9, 2.5 - zoom * 0.25 - near * 0.3, 11.3 - zoom * 1.5 - near * 2.3)
+	_cam.look_at(Vector3(0, lerpf(2.75, 2.15, near), 0))
 	if level:
 		_reveal.position.y = 1.07 + sin(clampf((t - reveal_at) / 0.65, 0, 1) * PI) * 0.20
 		_ring.visible = false

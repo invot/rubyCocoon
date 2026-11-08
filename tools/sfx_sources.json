@@ -1,0 +1,248 @@
+[
+  {
+    "key": "page",
+    "file": "book_page.ogg",
+    "source": "Cinematic Sound Design - Paper Foley/Encyclopedia Glossy Page Turn Muted.wav",
+    "source_sha256": "0746668350526caa62127530fa43dead246ab423a0996f4cc87774d1fed3f61d",
+    "gain_db": 16.4,
+    "approval": "User approved the page turn, arrangement opening, and pickup previews on 2026-11-08."
+  },
+  {
+    "key": "open",
+    "file": "arrange_open.ogg",
+    "source": "Epic Stock Media - Fantasy Game 2 - Sound Kit for Enchanted Realms/CLOTHFlp_Action Inventory Open Flip Cloth Canvas Bag Slide Light 02_ESM_FG2.wav",
+    "source_sha256": "9aa9086db3fe2113844df95ada8a1aadabcc2ee9e4d754ee400558e75a06eb34",
+    "gain_db": -2.0,
+    "approval": "User approved the page turn, arrangement opening, and pickup previews on 2026-11-08."
+  },
+  {
+    "key": "pickup",
+    "file": "pickup_kalimba.ogg",
+    "source": "CB_Sounddesign - Applicable Sounds - Organic UI and Building Games SFX/UIMisc_Kalimba 3 Up_CB Sounddesign_APPlicable Sounds.wav",
+    "source_sha256": "0298f3405836720e064d1ff486f58fa032b03009d6f9e55e668b84e759dca360",
+    "gain_db": 0.0,
+    "approval": "User approved the page turn, arrangement opening, and pickup previews on 2026-11-08."
+  },
+  {
+    "key": "heal",
+    "file": "heal_plucks.ogg",
+    "source": "Cinematic Sound Design - User Interface/Interface Plucks Happy.wav",
+    "source_sha256": "a6866b6e04580d6f4007c59514a5530c7699f785beb27b2eda6a2b4579478ded",
+    "gain_db": 0.3,
+    "approval": "User approved the shorter healing, coin payment, and mechanism latch previews on 2026-11-08."
+  },
+  {
+    "key": "buy",
+    "file": "payment_coin.ogg",
+    "source": "Cinematic Sound Design - Hybrid Game & UI Elements/Foley Coin Flip Single Fast.wav",
+    "source_sha256": "f6f56101e8711c22dfbb81583f4dfc78fa9c7a1b6003f82e0d3881e93774ad85",
+    "gain_db": 0.1,
+    "approval": "User approved the shorter healing, coin payment, and mechanism latch previews on 2026-11-08."
+  },
+  {
+    "key": "lever",
+    "file": "mechanism_latch.ogg",
+    "source": "Epic Stock Media - HD Lock And Mechanism Sound Design Kit/MECHLtch_Click Deep Mechanism Latch Button Nearfield Thunk 02_ESM_HDLM.wav",
+    "source_sha256": "5f356988a83acf9f320e72ad31f08a80668f9bf0474658fb50f76d5cc3b8ca10",
+    "gain_db": -2.0,
+    "approval": "User approved the shorter healing, coin payment, and mechanism latch previews on 2026-11-08."
+  },
+  {
+    "key": "merge",
+    "file": "energy_flow.ogg",
+    "source": "Alexander Kopeikin - Emotion and Magic/magic, energy flow, astonishment-001.wav",
+    "source_sha256": "e0a7a0696eb5fe494ea45ee4e18e5930b93faac6fc46e41994531f0ed0e4338e",
+    "gain_db": 3.2,
+    "edit_filters": [
+      "atrim=start=0.58:duration=3.4",
+      "asetpts=PTS-STARTPTS",
+      "afade=t=in:d=0.005",
+      "afade=t=out:st=3.0:d=0.4"
+    ],
+    "approval": "User approved the energy-flow magic and physical-hit excerpts on 2026-11-08."
+  },
+  {
+    "key": "hit",
+    "file": "body_hit.ogg",
+    "source": "344 Audio - Cinematic Fight Vol. 1/FGHTImpt_4 x Punch, Body 02_344 Audio_Cinematic Fight Vol 1.wav",
+    "source_sha256": "606f7d8bdca261f6fee6a30e19fc8a760c469e599dc0747ecb272a24d4821a31",
+    "gain_db": -2.0,
+    "edit_filters": [
+      "atrim=start=0:duration=0.6",
+      "asetpts=PTS-STARTPTS",
+      "afade=t=in:d=0.005",
+      "afade=t=out:st=0.57:d=0.03"
+    ],
+    "approval": "User approved the energy-flow magic and physical-hit excerpts on 2026-11-08."
+  },
+  {
+    "key": "miss",
+    "file": "attack_miss.ogg",
+    "source": "Cinematic Sound Design - Ultra Transitions & Impacts/Woosh Sweep Slide Infographics Basic.wav",
+    "source_sha256": "c4e52e70037d52909874ad89d07720c72a24923a54bacb8892f742f2f5660fb5",
+    "gain_db": -2.9,
+    "approval": "User approved the miss, confirmation, and unavailable-action sounds on 2026-11-08."
+  },
+  {
+    "key": "confirm",
+    "file": "menu_confirm.ogg",
+    "source": "Cinematic Sound Design - Interface & Infographics/Interface Accept Glassy Snap.wav",
+    "source_sha256": "7c4337c429b72efa3731e2fb970f32e87ca39a6dd62adce1a6779f9e809a3444",
+    "gain_db": 6.1,
+    "approval": "User approved the miss, confirmation, and unavailable-action sounds on 2026-11-08."
+  },
+  {
+    "key": "error",
+    "file": "menu_unavailable.ogg",
+    "source": "Cinematic Sound Design - UI Interaction Elements/Deny Muted.wav",
+    "source_sha256": "619233bd4af5cc3d329a0e69e50836923175d986f8a4742c1f36f9bd5f174e5f",
+    "gain_db": 2.5,
+    "approval": "User approved the miss, confirmation, and unavailable-action sounds on 2026-11-08."
+  },
+  {
+    "key": "surf",
+    "kind": "ambience",
+    "file": "shellhaven_surf.ogg",
+    "source": "Just Sound Effects - Rocky Coast of Norway/WATRWave_Soft Waves Cliffs_JSE_RCoN_Stereo.wav",
+    "source_sha256": "a02f2786fc4ca34cdd4ebb130c0860f6650fff036bf5d55cbb185cdad9de32b8",
+    "gain_db": 6.3,
+    "edit_filters": [
+      "atrim=start=5:duration=13,asetpts=PTS-STARTPTS,asplit[body0][head0];[body0]atrim=start=1,asetpts=PTS-STARTPTS[body];[head0]atrim=end=1,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=1:c1=tri:c2=tri"
+    ],
+    "approval": "User approved Shellhaven surf, Coastal Path nature, and machine-room ambience on 2026-11-08."
+  },
+  {
+    "key": "forest",
+    "kind": "ambience",
+    "file": "coastal_path_nature.ogg",
+    "source": "344 Audio - East Coast America Vol. 1/AMBSubn_Ambience, Forest Crickets, Birds, Connecticut 02_344 Audio_East Coast America.wav",
+    "source_sha256": "d227b21d2df0f329acd490ad1c4ecaddfef4e19f295880a40116a60112da147f",
+    "gain_db": 19.6,
+    "edit_filters": [
+      "atrim=start=5:duration=13,asetpts=PTS-STARTPTS,asplit[body0][head0];[body0]atrim=start=1,asetpts=PTS-STARTPTS[body];[head0]atrim=end=1,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=1:c1=tri:c2=tri"
+    ],
+    "approval": "User approved Shellhaven surf, Coastal Path nature, and machine-room ambience on 2026-11-08."
+  },
+  {
+    "key": "machines",
+    "kind": "ambience",
+    "file": "machine_room.ogg",
+    "source": "Cinematic Sound Design - Sci-Fi Drones/Roomtone Space Ship Interior Muted.wav",
+    "source_sha256": "e411e41ebefcf418622ce5e8d0ca4a5397a70d5e02784a086cc3559038365582",
+    "gain_db": 9.1,
+    "edit_filters": [
+      "atrim=start=5:duration=13,asetpts=PTS-STARTPTS,asplit[body0][head0];[body0]atrim=start=1,asetpts=PTS-STARTPTS[body];[head0]atrim=end=1,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=1:c1=tri:c2=tri"
+    ],
+    "approval": "User approved Shellhaven surf, Coastal Path nature, and machine-room ambience on 2026-11-08."
+  },
+  {
+    "key": "crit",
+    "file": "critical_hit.ogg",
+    "source": "sfx/05_Environment/Environment_CrateBreak_001.mp3",
+    "source_root": "project",
+    "source_sha256": "a77c2bf01ea40d2fa828c7b114ddf2000340968dfd579b9a7bf8296582b5b1f0",
+    "gain_db": -3.83,
+    "edit_filters": [
+      "atrim=start=0:duration=0.22,asetpts=PTS-STARTPTS,afade=t=in:d=0.002,afade=t=out:st=0.03:d=0.19"
+    ],
+    "approval": "User approved critical hit, hatch chirp, toggle click, dialogue pop and failed-attempt cues on 2026-11-08."
+  },
+  {
+    "key": "hatch",
+    "file": "hatch_chirp.ogg",
+    "source": "CB_Sounddesign - Applicable Sounds - Organic UI and Building Games SFX/TOONMisc_Bird Flutes 3_CB Sounddesign_APPlicable Sounds.wav",
+    "source_root": "pack",
+    "source_sha256": "09819c4bea625cc01384c847043dff4b6d8d4ca34fe9e9de3b3b48700af999dd",
+    "gain_db": 0.0,
+    "edit_filters": [
+      "anull"
+    ],
+    "approval": "User approved critical hit, hatch chirp, toggle click, dialogue pop and failed-attempt cues on 2026-11-08."
+  },
+  {
+    "key": "toggle",
+    "file": "toggle_click.ogg",
+    "source": "InMotionAudio - USA Hotel/MECHClik_USALightSwitch_On05_InMotionAudio_USAHotel.wav",
+    "source_root": "pack",
+    "source_sha256": "3d51ab42afb54d024ded5128a84aa102075398b270b67df8f71ecb0cfe9bd0a8",
+    "gain_db": -0.858,
+    "edit_filters": [
+      "anull"
+    ],
+    "approval": "User approved critical hit, hatch chirp, toggle click, dialogue pop and failed-attempt cues on 2026-11-08."
+  },
+  {
+    "key": "talk",
+    "file": "dialogue_pop.ogg",
+    "source": "Cinematic Sound Design - Interface & Infographics/Interface Pop High Short.wav",
+    "source_root": "pack",
+    "source_sha256": "8ac9cb88514baf7b59031e1eacf9a1866daa2470f6b72fefdb75df2871032546",
+    "gain_db": -11.265,
+    "edit_filters": [
+      "atrim=start=0:duration=0.075,asetpts=PTS-STARTPTS,afade=t=in:d=0.002,afade=t=out:st=0.045:d=0.03"
+    ],
+    "approval": "User approved critical hit, hatch chirp, toggle click, dialogue pop and failed-attempt cues on 2026-11-08."
+  },
+  {
+    "key": "fail",
+    "file": "failed_attempt.ogg",
+    "source": "Cinematic Sound Design - UI Interaction Elements/Deny Muted.wav",
+    "source_root": "pack",
+    "source_sha256": "619233bd4af5cc3d329a0e69e50836923175d986f8a4742c1f36f9bd5f174e5f",
+    "gain_db": 2.527,
+    "edit_filters": [
+      "anull"
+    ],
+    "approval": "User approved critical hit, hatch chirp, toggle click, dialogue pop and failed-attempt cues on 2026-11-08."
+  },
+  {
+    "key": "stinger",
+    "file": "boss_dread.ogg",
+    "source": "sfx/Custom/Dread_Hit.wav",
+    "source_root": "project",
+    "source_sha256": "849dd43c1f915ecfdeda9a64f622931a27101cab61f6b9b8dcbb57fcd4b6966e",
+    "gain_db": -1.588,
+    "edit_filters": [
+      "atrim=start=0:duration=0.7,asetpts=PTS-STARTPTS,afade=t=in:d=0.003,afade=t=out:st=0.4:d=0.3"
+    ],
+    "approval": "User approved both boss variations and both haunted ambient loops on 2026-11-08."
+  },
+  {
+    "key": "stinger",
+    "file": "boss_brass.ogg",
+    "source": "Jake Fielding - Cinematic Horn Braams/DSGNBram____Cinematic Horn Braam, Epic, Cinematic, Dark, Instrument, Huge-32.wav",
+    "source_root": "pack",
+    "source_sha256": "326d9d8b42e07332fcfe79c5f8eb273597c4c097c757281e86246f8ad291baec",
+    "gain_db": 9.058,
+    "edit_filters": [
+      "atrim=start=0.15:duration=0.8,asetpts=PTS-STARTPTS,afade=t=in:d=0.005,afade=t=out:st=0.5:d=0.3"
+    ],
+    "approval": "User approved both boss variations and both haunted ambient loops on 2026-11-08."
+  },
+  {
+    "key": "ghostly",
+    "file": "haunted_spell.ogg",
+    "source": "344 Audio - Ghostly Presences Vol. 1/AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav",
+    "source_root": "pack",
+    "source_sha256": "334d76d13e0791c4a50f8aa7cc571a617a81f2514f335e546d87857045374b55",
+    "gain_db": -6.0,
+    "edit_filters": [
+      "atrim=start=5:duration=13,asetpts=PTS-STARTPTS,asplit[body0][head0];[body0]atrim=start=1,asetpts=PTS-STARTPTS[body];[head0]atrim=end=1,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=1:c1=tri:c2=tri"
+    ],
+    "approval": "User approved both boss variations and both haunted ambient loops on 2026-11-08.",
+    "kind": "ambience"
+  },
+  {
+    "key": "cathedral",
+    "file": "haunted_forest.ogg",
+    "source": "Epic Stock Media - Strange Game Ambient Loops 3/DSGNSynth_Dark Loop Mystic Forest Tonal Steady Synth_ESM_SGA3.wav",
+    "source_root": "pack",
+    "source_sha256": "c374c5b2896c9ee3ea6383108f15c8a379b93e29d3c24f4e85542aaf7a41a450",
+    "gain_db": -5.0,
+    "edit_filters": [
+      "atrim=start=5:duration=13,asetpts=PTS-STARTPTS,asplit[body0][head0];[body0]atrim=start=1,asetpts=PTS-STARTPTS[body];[head0]atrim=end=1,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=1:c1=tri:c2=tri"
+    ],
+    "approval": "User approved both boss variations and both haunted ambient loops on 2026-11-08.",
+    "kind": "ambience"
+  }
+]

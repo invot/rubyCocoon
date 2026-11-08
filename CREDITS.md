@@ -173,13 +173,13 @@ the skeletons itself.
 
 - **Sci-Fi Platforms** — user-supplied `Sci-Fi Platforms.zip`: the lower platform, with its source UVs and texture.
 - **TCM Core (Virlance)** — user-supplied `TCM Core (Virlance).zip`: the overhead core and its three articulated tongs.
-- **War Doctor's TARDIS Interior (Old)** — user-supplied `War Doctor's TARDIS Interior (Old).zip`: the chamber's
-  roundel walls, structural arches, ceiling, entrance and floor. The central console, time column and loose props
-  are omitted.
+
+The stone vault, lanterns and the core's column of metal and wires are original to this project, built and painted
+by `tools/hatchery_chamber.gd`.
 
 *Changes made:* selected geometry centred and scaled, source material bindings rebuilt (the archives contain no
-MTL files), missing UVs supplied for metal parts, meshes simplified, textures filtered through the game's smoothing
-pipeline, and lights, fog, the central downlight and the tong animation added. `tools/prepare_hatchery.py` and
+MTL files), the core recoloured to bronze and the platform to stone and brass, meshes simplified, textures filtered
+through the game's smoothing pipeline, and lights, fog, the core's inner light and the tong animation added. `tools/prepare_hatchery.py` and
 `tools/import_hatchery.gd` reproduce the bake. Author/source-page and licence metadata were not included in these
 archives; see `licenses/hatchery_assets.md` for the provenance record and outstanding attribution fields.
 
@@ -232,3 +232,46 @@ From Pixabay (Pixabay Content License):
 Menu, combat, pickup, environment, feedback, transition, creature and magic effects, plus the
 BitCrushHits, Coin, Explosion, Hit, Jump, PowerUp, Select, Shoot, RetroTextures and UI Samples packs.
 Sources and licences were not included with the files: check them before release.
+
+### Sonniss GDC 2026 (`assets/audio/sfx/`)
+
+- **Cinematic Sound Design — Paper Foley**: *Encyclopedia Glossy Page Turn Muted* (book and battle page turns).
+- **Epic Stock Media — Fantasy Game 2 — Sound Kit for Enchanted Realms**: *Action Inventory Open Flip Cloth
+  Canvas Bag Slide Light 02* (opening beast arrangement).
+- **CB Sounddesign — APPlicable Sounds**: *Kalimba 3 Up* (gifts, ring placement and attaching bait).
+- **Cinematic Sound Design — User Interface**: *Interface Plucks Happy* (healing).
+- **Cinematic Sound Design — Hybrid Game & UI Elements**: *Foley Coin Flip Single Fast* (payments).
+- **Epic Stock Media — HD Lock And Mechanism Sound Design Kit**: *Click Deep Mechanism Latch Button Nearfield
+  Thunk 02* (puzzle levers and the hatchery mechanism).
+- **Alexander Kopeikin — Emotion and Magic**: *magic, energy flow, astonishment-001* (merging/evolution,
+  shrine ritual and departing summons; 3.4-second excerpt).
+- **344 Audio — Cinematic Fight Vol. 1**: *4 x Punch, Body 02* (ordinary battle impacts; first punch, 0.6 seconds).
+- **Cinematic Sound Design — Ultra Transitions & Impacts**: *Woosh Sweep Slide Infographics Basic* (missed attacks).
+- **Cinematic Sound Design — Interface & Infographics**: *Interface Accept Glassy Snap* (menu confirmations),
+  *Interface Pop High Short* (0.075-second dialogue syllable, with the game's per-speaker pitch variation).
+- **Cinematic Sound Design — UI Interaction Elements**: *Deny Muted* (unavailable or invalid actions, and failed
+  capture, flute and fishing attempts).
+- **Just Sound Effects — Rocky Coast of Norway**: *Soft Waves Cliffs* (Shellhaven surf).
+- **344 Audio — East Coast America Vol. 1**: *Forest Crickets, Birds, Connecticut 02* (Coastal Path nature).
+- **Cinematic Sound Design — Sci-Fi Drones**: *Roomtone Space Ship Interior Muted* (Gearhart Tower and intro).
+- **CB Sounddesign — APPlicable Sounds**: *Bird Flutes 3* (egg reveal).
+- **InMotionAudio — USA Hotel**: *USALightSwitch On05* (settings toggles and pause opening).
+- **Jake Fielding — Cinematic Horn Braams**: *Huge-32* (0.8-second boss-encounter variation).
+- **344 Audio — Ghostly Presences Vol. 1**: *Evil Spell Ambience* (moor exteriors).
+- **Epic Stock Media — Strange Game Ambient Loops 3**: *Dark Loop Mystic Forest Tonal Steady Synth*
+  (cathedral interiors).
+
+User-supplied Sonniss.com GDC 2026 Game Audio Bundle, under the
+[Sonniss GDC bundle licence](https://sonniss.com/gdc-bundle-license/).
+*Changes made:* gain adjusted and converted to 44.1 kHz stereo Ogg Vorbis. Approved excerpts, edge fades and
+the five ambient loops' one-second crossfades are recorded in the conversion manifest.
+See `licenses/sonniss_gdc2026.md` and `tools/sfx_sources.json` for provenance and conversion details.
+
+### Existing game audio reused (`assets/audio/sfx/`)
+
+*Environment_CrateBreak_001.mp3*, formerly the hatch reveal, now supplies the approved 0.22-second
+critical-hit excerpt, with a fast decay and gain adjustment. Its original source and licence remain part of the
+unidentified existing SFX collection above; this recording did not come from the Sonniss bundle.
+
+*Dread_Hit.wav*, generated by the game's `tools/make_sfx.py`, supplies a second boss-encounter variation:
+a 0.7-second excerpt with a shortened tail. The complete intro dread hit remains unchanged.

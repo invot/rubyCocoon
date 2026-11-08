@@ -6,6 +6,7 @@ const EggLooks = preload("res://scripts/data/egg_looks.gd")
 const Film = preload("res://scripts/ui/beast_cinematic.gd")
 const Fixture = preload("res://tools/debug/growth_battle_fixture.gd")
 const HatcheryStage = preload("res://scripts/gfx/hatchery_stage.gd")
+const EggModel = preload("res://scripts/gfx/egg_model.gd")
 var bad := 0
 
 
@@ -121,9 +122,17 @@ func _check_hatchery(main) -> void:
 		for i in 3:
 			var tip: Vector3 = stage.joints[i].to_global(stage.contact_points[i])
 			var h := tip.y - stage.DECK_Y
-			var shell_r := 0.52 * width * (1.0 - h / 1.38 * 0.22) * sqrt(maxf(0, 1.0 - pow((h - 0.69) / 0.69, 2)))
+			var shell_r := EggModel.radius_at(h, width)
 			touching = touching and absf(Vector2(tip.x, tip.z).length() - shell_r) < 0.035 and h > 0.5 and h < 1.0
 		check(touching, "all three actual TCM tong tips touch the %s shell" % EggLooks.name_for(egg))
+	var plain := true
+	for joint in stage.joints:
+		for mi in joint.find_children("*", "MeshInstance3D", true, false):
+			plain = plain and mi.layers == stage.TONG_LAYER and mi.material_override == null
+			for surface in mi.mesh.get_surface_count():
+				plain = plain and not mi.mesh.surface_get_material(surface).emission_enabled
+	check(plain and (stage.spotlight.light_cull_mask & stage.TONG_LAYER) == 0,
+		"tongs stay plain metal: they never emit and the core's inner light leaves them out")
 	check((-stage.spotlight.global_basis.z).dot(Vector3.DOWN) > 0.999 and stage.spotlight.light_energy > 0 \
 		and is_zero_approx(stage.spotlight.global_position.x) and is_zero_approx(stage.spotlight.global_position.z),
 		"central core light shines down onto the egg")

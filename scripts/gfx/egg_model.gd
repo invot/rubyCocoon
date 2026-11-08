@@ -1,6 +1,16 @@
 extends RefCounted
 ## Rounded painted shells with species-specific silhouettes; no voxel filtering or generated disk assets.
 const Looks = preload("res://scripts/data/egg_looks.gd")
+const RADIUS := 0.52
+const HEIGHT := 1.06
+## How much narrower the shell's crown is than its base.
+const TAPER := 0.22
+
+
+## The shell's radius at a height above its base, for anything that has to touch it (the hatchery's tongs).
+static func radius_at(height: float, width: float) -> float:
+	var half := HEIGHT * 0.5
+	return RADIUS * width * (1.0 - height / HEIGHT * TAPER) * sqrt(maxf(0.0, 1.0 - pow((height - half) / half, 2)))
 
 
 static func build(egg: Dictionary) -> Node3D:
@@ -11,15 +21,15 @@ static func build(egg: Dictionary) -> Node3D:
 	shell.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	shell.roughness = 0.48
 	var mesh := SphereMesh.new()
-	mesh.radius = 0.52
-	mesh.height = 1.38
+	mesh.radius = RADIUS
+	mesh.height = HEIGHT
 	mesh.radial_segments = 48
 	mesh.rings = 24
 	# A narrow crown and generous lower half make a true egg silhouette.
 	var arrays := mesh.get_mesh_arrays()
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	for i in verts.size():
-		var taper := 1.0 - (verts[i].y / 1.38 + 0.5) * 0.22
+		var taper := 1.0 - (verts[i].y / HEIGHT + 0.5) * TAPER
 		verts[i].x *= taper * float(d.width)
 		verts[i].z *= taper * float(d.width)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -28,7 +38,7 @@ static func build(egg: Dictionary) -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = rounded
 	mi.material_override = shell
-	mi.position.y = 0.69
+	mi.position.y = HEIGHT * 0.5
 	root.add_child(mi)
 	var mark := StandardMaterial3D.new()
 	mark.albedo_color = d.mark
@@ -48,7 +58,7 @@ static func build(egg: Dictionary) -> Node3D:
 		part.rings = 8
 		crown.mesh = part
 		crown.material_override = mark
-		crown.position = Vector3(cos(a) * 0.20, 1.24, sin(a) * 0.20)
+		crown.position = Vector3(cos(a) * 0.20, HEIGHT * 0.9, sin(a) * 0.20)
 		crown.rotation = Vector3(sin(a) * 0.5, a, cos(a) * -0.5)
 		if d.crown in ["leaves", "feathers", "fin", "plates"]:
 			crown.scale = Vector3(1.7, 1.0, 0.30)

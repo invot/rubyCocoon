@@ -203,11 +203,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
   - Eggs name the beast inside (for example **Embit Egg**), with the element beside the starter choices.
     Every species has its own shell colors, markings and silhouette; Shadow and Radiant variants keep the species' design.
-  - Every hatch plays a cinematic in a textured, misty chamber: the Sci-Fi platform holds the egg, and the TCM Core
-    lowers above it. Its three tongs close against the shell and glow while a central light shines down from the
-    core's underside. The glowing egg disappears in a whiteout with a hatch sound, then the light fades to reveal
-    the beast. The TARDIS room's roundel walls, arches and ceiling surround the platform; its central console,
-    time column and props are removed. Cool key light, warm wall lighting and depth/height fog set the mood.
+  - Every hatch plays a cinematic in the hatching vault, a dark stone chamber shaped like the inside of a great
+    cocoon, with curved ribs, a stepped plinth and a horseshoe of lanterns open to the camera. The platform holds the
+    egg, and the TCM Core lowers above it, hanging from a column of metal and bundled wires that runs up out of frame.
+    Its three bronze tongs close against the shell and stay plain metal throughout: they never glow or change colour.
+    A warm light inside the core shines down onto the egg. The glowing egg disappears in a whiteout with a hatch
+    sound, then the light fades to reveal the beast. Pale light from the oculus, ground mist, drifting dust and
+    depth fog set the mood.
   - **Sell eggs** at the Beast Center: ordinary eggs fetch **100 gold**, Shadow Eggs **200**, and radiant legendary eggs **500**. Select an egg and confirm the offer to sell it.
   - Arena hosts and masters offer to buy eggs only when you carry one matching the master's element, paying **twice the Beast Center price**. Marina, Nerissa and Skye buy Water eggs; Rosa buys Air; Gorran, Volta and Aeris buy Earth; Brann buys Fire. Shadow Eggs count as Ghost, and radiant eggs use their guardian's element. You can sell before completing the arena's lessons or challenging its master.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
@@ -340,7 +342,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door, to the tune of "Hep Cats". It's one big room (17x9 tiles, bigger than the rest, so the camera follows you round it), the kennel on the left behind a wall that stops short of the front. Each machine has its own bay along the back wall.
   - The **healing machine** is a tall glass healing chamber with a lamp per beast round its foot; the glass glows while it heals. Use it yourself, any time, for free.
   - The **storage terminal** and the **merge altar** stand in the bays beside it.
-  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (with the stone-claw hatch cinematic), and runs storage and the merge altar. A red phone stands by the door, for calling Dad or Mom (see Saving).
+  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (with the hatch cinematic), and runs storage and the merge altar. A red phone stands by the door, for calling Dad or Mom (see Saving).
   - Round the end of the wall, on its own wood floor, is the **kennel**, with two chairs in its front corner. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adoption costs **40 gold at Lv 1, plus 2 gold per additional level** (78 at Lv 20, 118 at Lv 40). The list and confirmation show the fee; you need enough gold to adopt. Or drop one of yours off for another trainer (Pip thanks you with a little gold); taking it back before another trainer adopts it is free. Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
   - Guide Dottie walks about the room and explains how it all works.
   - All three wear the Beast Center uniform: white on top, red below, and a red cap with the pawprint from the sign over the door on a white panel at its front. None of them wears glasses.
@@ -467,7 +469,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   fronts have round-arched windows in white surrounds with louvred shutters, iron rejas below and French doors on
   railed Juliet balconies above, a painted base, lanterns and bougainvillea. The hotel is a long building on the quay
   behind the marina's docks: a three-storey entrance block (a tiled HOTEL sign over its arcade, its door placed by
-  `building_looks` "door") facing a paved forecourt, and a two-storey west wing; an arcade runs along its ground floor
+  `building_looks` "door") facing a paved forecourt, and a two-storey west wing set back one tile behind a railed terrace; an arcade runs along its ground floor
   and every room above has a balcony set back inside the plot. Its lobby leads to two guest rooms, each with open
   doorways onto those balconies (`"!"` in a room template: drawn open, but walled, so they lead nowhere); a 150-gold
   stay restores the party. The broad beach has striped umbrellas standing in the sand over occupied chaise lounges,
@@ -636,13 +638,28 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Black Bart, Gearhart, Nyx and Vexmora.
   - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
-  - Desert, mountain, moor and some interiors add an ambient loop.
+  - Desert, mountain, moor and some interiors add an ambient loop. Shellhaven adds quiet surf; the Coastal Path
+    adds birds and insects. Gearhart Tower and the intro use the approved machine-room ambience. Moor exteriors
+    use an evil-spell texture; the cathedral uses a mystic-forest drone. The five new recordings are 12-second
+    Ogg loops with a one-second crossfade at the join. Outdoor loops fade out indoors.
   - `tools/convert_audio.py` makes 128 kbps copies in `assets/audio/music/`, trimming the 59-minute rainforest track to a 5-minute loop. The originals in `music/` are untouched.
-- **Sound effects** from `sfx/` cover:
+- **Sound effects** from `sfx/` and `assets/audio/sfx/` cover:
   - menus, the book's page turns, dialogue voices (pitched per speaker) and footsteps
   - hits (metal clangs for robots), the slingshot, bombs and the shield
   - pickups, doors, hatching, merging, flights, field moves, level-ups and the victory jingle
   - `tools/make_sfx.py` synthesises the game's own: the smack-and-puff when a foe is beaten and the soft thud when one of yours faints, and the knock on a locked door (`sfx/Custom/`)
+  - Approved Sonniss GDC 2026 recordings add a paper page turn, a cloth opening for arranging beasts, a kalimba
+    cue for gifts, ring placement and attaching bait, short healing plucks, coin payments, a mechanism latch,
+    an energy-flow excerpt for merging/evolution, shrine rituals and departing summons, a physical battle hit,
+    an attack-miss sweep, menu confirmations and unavailable-action feedback, plus the five ambient loops above.
+    Egg reveals use a short bird-flute chirp; critical hits use a 0.22-second edit of the old crate-breaking hatch
+    sound. Small mechanical clicks cover toggles, quiet pop syllables follow dialogue, and the muted rejection
+    also covers unsuccessful capture, flute and fishing attempts. The hatchery's earlier mechanism sound remains.
+    Boss encounters randomly choose a short dread hit or a cinematic brass hit.
+    These are 44.1 kHz Ogg Vorbis copies, with the source WAVs
+    untouched. Rebuild with `python tools/convert_audio.py --sfx-pack "C:/path/to/Sonniss.com-GDC2026-GameAudioBundle"`,
+    then `godot --headless --path . --import`. Source hashes and approved gain adjustments are in
+    `tools/sfx_sources.json`; provenance is in `licenses/sonniss_gdc2026.md`.
 
 ## Mobile
 
@@ -816,22 +833,26 @@ python tools/town_check.py
 
 ## Tests
 
+`bash tools/run_tests.sh audio` checks sound resources, ambient routing, playback past an Ogg loop boundary,
+and rapid indoor/outdoor transitions, without reading or writing player saves.
+
 `bash tools/run_tests.sh` runs every check and test scene headless (no windows), three at a time, and prints one
 line per test, `ok` or `FAIL` with what went wrong; full logs go to `build/test_logs/`. A failing test gets a second
 try before it counts. About three and a half minutes; `bash tools/run_tests.sh quick` runs only the fast checks
 (seconds), and naming tests (`bash tools/run_tests.sh flow ringedit`) runs just those. Exits 0 when all passed.
 - `beast-growth`: species egg names and unique shells, all three TCM tong tips against every shell shape,
-  textured hatchery surfaces, scene geometry budget, downlight and fog, every hatch including storage overflow,
+  textured hatchery surfaces, scene geometry budget, downlight, plain unlit tongs and fog, every hatch including storage overflow,
   queued battle XP, full HP/MP restoration, sequential rewards and both evolution thresholds. Add `--verify_ui=1` to
   `--scene=growth` in a rendered window to check real taps, focus, confirmations, pause and sequential films.
   `--scene=growth --preview=hatch` (or `evolve`, `level`, `starters`) previews the scene or starter choice;
   `--race=0 --at=4.2 --shot=res://build/shots/hatch.png` holds a cinematic frame for inspection.
   Add `--perf=1` to a held preview to print frame timing and draw/primitive counts on the renderer being tested.
-  Rebuild the hatchery art with `python tools/prepare_hatchery.py "path/to/downloads"`,
+  Rebuild the hatchery art (the procedural vault and column are in `tools/hatchery_chamber.gd`) with
+  `python tools/prepare_hatchery.py "path/to/downloads"`,
   `godot --headless --path . --script res://tools/import_hatchery.gd`,
   `godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/interiors/hatch_`,
   then `godot --headless --path . --import`. `--audit` on the importer and
-  `tools/debug/hatchery_parts.gd -- core` (or `platform`, `room`) produce source-part inspection sheets.
+  `tools/debug/hatchery_parts.gd -- core` (or `platform`) produce source-part inspection sheets.
 - `check_scripts.gd`: every script parses and compiles.
 - `check_nature.gd` (`bash tools/run_tests.sh nature`): single-tile hedge borders on every outdoor map, unchanged
   planted-ground collision, and the solid-blade grass meshes' triangle budgets.

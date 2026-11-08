@@ -1,11 +1,15 @@
 extends SceneTree
-## Bakes the user-supplied hatchery OBJ packs, retaining their UVs and rebuilding missing material bindings.
-## Extract the three original archives to psx/hatchery/{core,platform,room}/ first; originals stay untouched.
-## --audit writes isolated parts to build/hatch_assets/ for the visual part audit.
+## Bakes the hatchery: the painted stone vault (tools/hatchery_chamber.gd) and the user-supplied platform and core OBJ
+## packs, whose materials are rebuilt and repainted. Extract the two original archives to psx/hatchery/{core,platform}/
+## first; originals stay untouched. --audit writes isolated parts to build/hatch_assets/ for the visual part audit;
+## --conduit rebakes only the wire column, --room the column and vault, and --tongs only the tongs.
+const Chamber = preload("res://tools/hatchery_chamber.gd")
 const SRC := "res://psx/hatchery/"
 const AUDIT := "res://build/hatch_assets/meshes/"
 const OUT := "res://assets/interiors/"
-const ROOM_PARTS := [0, 16, 39, 43, 61, 62, 63, 65, 66, 67, 68, 69, 82, 83, 84, 95, 96, 97]
+const BRONZE := [Color("#3a2f24"), Color("#8a7358"), Color("#dcc7a2")]
+const STONE := [Color("#40414b"), Color("#94939c"), Color("#e3dfd6")]
+const BRASS := [Color("#4d3b22"), Color("#a07f4a"), Color("#e6cd92")]
 var textures := {}
 
 
@@ -15,14 +19,12 @@ func _init() -> void:
 		quit()
 		return
 	DirAccess.make_dir_recursive_absolute(AUDIT)
-	for group in ["core", "platform", "room"]:
+	for group in ["core", "platform"]:
 		for file in DirAccess.get_files_at(SRC + group):
 			if not file.ends_with(".obj"):
 				continue
 			var id := int(file.get_basename().trim_prefix("model_"))
-			if group == "room" and not id in [0, 16, 39, 43, 61, 62, 63, 65, 66, 67, 68, 69, 77, 78, 82, 83, 84, 94, 95, 96, 97, 103]:
-				continue
-			var mesh := read_obj(SRC + group + "/" + file, group == "room")
+			var mesh := read_obj(SRC + group + "/" + file)
 			var mat := material(group, id)
 			mesh.surface_set_material(0, mat)
 			ResourceSaver.save(mesh, AUDIT + "%s_%d.res" % [group, id], ResourceSaver.FLAG_COMPRESS)
@@ -35,24 +37,11 @@ func bake() -> void:
 	if "--tongs" in OS.get_cmdline_user_args():
 		bake_tongs()
 		return
-	var room := ArrayMesh.new()
-	var groups := {}
-	for id in ROOM_PARTS:
-		var mesh := read_obj(SRC + "room/model_%d.obj" % id, true)
-		# The roundel frames and diffusers contain nested, nearly coplanar faces. Generic LOD reduction seals
-		# their interior apertures, so retain those two low-draw-call layers and simplify the other architecture.
-		var arrays := mesh.surface_get_arrays(0) if id in [95, 96] else reduce(mesh.surface_get_arrays(0), 9000 if id == 61 else 2500)
-		var mat := material("room", id)
-		var key := mat.resource_name
-		if not groups.has(key):
-			groups[key] = [SurfaceTool.new(), mat]
-			groups[key][0].begin(Mesh.PRIMITIVE_TRIANGLES)
-		append(groups[key][0], arrays, func(p): return (p - Vector3(0, 8.705, 0)) * 0.05)
-	for entry in groups.values():
-		entry[0].index()
-		room.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, entry[0].commit_to_arrays())
-		room.surface_set_material(room.get_surface_count() - 1, entry[1])
-	save_mesh(room, "hatch_room")
+	save_mesh(Chamber.conduit(), "hatch_conduit")
+	if "--conduit" in OS.get_cmdline_user_args():
+		return
+	save_mesh(Chamber.build(), "hatch_room")
+	ResourceSaver.save(Chamber.mist(), OUT + "hatch_mist.res", ResourceSaver.FLAG_COMPRESS)
 	if "--room" in OS.get_cmdline_user_args():
 		return
 	var platform := read_obj(SRC + "platform/model_0.obj")
@@ -69,8 +58,6 @@ func bake() -> void:
 	for id in [2, 3, 4]:
 		var mesh := read_obj(SRC + "core/model_%d.obj" % id)
 		var arrays := reduce(mesh.surface_get_arrays(0), 4000 if id == 2 else 6000)
-		if id != 2:
-			arrays = metal_uv(arrays)
 		core.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		core.surface_set_material(core.get_surface_count() - 1, material("core", id))
 	save_mesh(core, "hatch_core")
@@ -99,7 +86,7 @@ func bake_tongs() -> void:
 					nearest = k
 			return nearest == i, basis.inverse())
 		arm.index()
-		var arrays := metal_uv(reduce(arm.commit_to_arrays(), 9000))
+		var arrays := reduce(arm.commit_to_arrays(), 9000)
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		mesh.surface_set_material(0, material("core", 1))
@@ -171,66 +158,58 @@ func reduce(arrays: Array, budget: int) -> Array:
 	return result
 
 
-func metal_uv(arrays: Array) -> Array:
-	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var uv := PackedVector2Array()
-	for p in v:
-		uv.append(Vector2(atan2(p.z, p.x) / TAU, p.y * 1.3))
-	arrays[Mesh.ARRAY_TEX_UV] = uv
-	return arrays
-
-
 func material(group: String, part: int) -> StandardMaterial3D:
 	var audit := "--audit" in OS.get_cmdline_user_args()
+	var mat := StandardMaterial3D.new()
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = 0.72
+	if group == "core" and part != 2 and not audit:
+		# The frame and tongs have no usable UVs; projecting the cast metal avoids the old seams and diamond plate.
+		mat.resource_name = "cast_bronze"
+		mat.albedo_texture = Chamber.metal()
+		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3.ONE * 1.5
+		mat.roughness = 0.55
+		mat.metallic = 0.12
+		return mat
 	var tex := "Material_10_baseColor.png"
 	if group == "platform":
 		tex = "Material_Prop_SciFi_Platform_%s.png" % ["One", "Two", "Three", "Three"][mini(part, 3)]
-	elif group == "room":
-		tex = "Walls.tga.png"
-		if part in [62, 63, 65, 66, 67, 68]:
-			tex = "Floor.tga.png"
-		elif part in [43, 77, 82, 83, 84]:
-			tex = "Ceiling.tga.png"
-		elif part in [0, 69, 97]:
-			tex = "Entrance.tga.png"
-		elif part in [16, 39, 61, 78, 94, 103]:
-			tex = "seamless_metal.png"
-		elif part == 96 and not audit:
-			tex = "Swirled-Ice-Texture.png"
-		if part in [62, 63]:
-			tex = "Belt.tga.png"
-	if group == "core" and part != 2 and not audit:
-		tex = "seamless_metal.png"
 	var path := SRC + group + "/" + tex
-	if group == "core" and tex == "seamless_metal.png":
-		path = SRC + "room/" + tex
 	if not textures.has(path):
 		var img := Image.load_from_file(ProjectSettings.globalize_path(path))
+		img.convert(Image.FORMAT_RGBA8)
 		var ratio := minf(1.0, 512.0 / maxf(img.get_width(), img.get_height()))
 		img.resize(maxi(1, roundi(img.get_width() * ratio)), maxi(1, roundi(img.get_height() * ratio)), Image.INTERPOLATE_LANCZOS)
+		if not audit:
+			repaint(img, group)
 		img.generate_mipmaps()
 		textures[path] = ImageTexture.create_from_image(img)
-	var mat := StandardMaterial3D.new()
 	mat.resource_name = tex
 	mat.albedo_texture = textures[path]
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	mat.roughness = 0.72
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	if not audit:
-		mat.roughness = 0.8 if group == "platform" else 0.65
-		mat.metallic = 0.22 if group == "core" else 0.08
-		if group == "room":
-			mat.albedo_color = Color("#789193") if part in [16, 39, 43, 61] else Color("#b6b4a2")
-			if part == 96:
-				mat.albedo_color = Color("#a7c9b1")
-				mat.emission_enabled = true
-				mat.emission_texture = mat.albedo_texture
-				mat.emission = Color("#8bad99")
-				mat.emission_energy_multiplier = 0.45
+		mat.roughness = 0.82 if group == "platform" else 0.6
+		mat.metallic = 0.12 if group == "core" else 0.0
 	return mat
 
 
-func read_obj(path: String, z_up := false) -> ArrayMesh:
+## Keeps the source atlas's panels and shading but replaces its colours: the core becomes warm bronze; the platform
+## becomes pale stone, with its saturated green and violet trim turned to brass.
+func repaint(img: Image, group: String) -> void:
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			var l := clampf(c.get_luminance() * 1.4, 0.0, 1.0)
+			var out := ramp(l, BRONZE) if group == "core" else ramp(l, STONE).lerp(ramp(l, BRASS), smoothstep(0.22, 0.5, c.s))
+			img.set_pixel(x, y, Color(out.r, out.g, out.b, c.a))
+
+
+func ramp(l: float, stops: Array) -> Color:
+	return stops[0].lerp(stops[1], l * 2.0) if l < 0.5 else stops[1].lerp(stops[2], l * 2.0 - 1.0)
+
+
+func read_obj(path: String) -> ArrayMesh:
 	var pos := PackedVector3Array()
 	var norms := PackedVector3Array()
 	var uv := PackedVector2Array()
@@ -244,8 +223,6 @@ func read_obj(path: String, z_up := false) -> ArrayMesh:
 			continue
 		if p[0] in ["v", "vn"]:
 			var v := Vector3(float(p[1]), float(p[2]), float(p[3]))
-			if z_up:
-				v = Vector3(v.x, v.z, -v.y)
 			if p[0] == "v":
 				pos.append(v)
 			else:
