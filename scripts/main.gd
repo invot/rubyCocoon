@@ -1,7 +1,3 @@
-if scene == "terrain-compare":#__PROF
-		await load("res://build/transition_check/compare.gd").new().run(self, _test)#__PROF
-		get_tree().quit()#__PROF
-		return#__PROF
 extends Node
 ## Game root: owns the 3D view, the title screen, map transitions and battles.
 

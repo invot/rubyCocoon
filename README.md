@@ -388,7 +388,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   but drops grain and speckle, eased contrast, then enlarged with a soft filter) and sampled with linear, mipmapped,
   anisotropic filtering. `tools/smooth_textures.gd` applies it in place to the surface, pattern and interior textures
   and to the baked scenery, house, landmark and furniture meshes (not people, beasts, robots or summons), recording
-  each file in `tools/smoothed.json` so nothing is smoothed twice; run it after any re-bake, then `--import`. Ground
+  each file in `tools/smoothed.json` so nothing is smoothed twice; run it after any re-bake, then `--import`. Baked
+  resources are saved with lossless compression; `tools/smooth_textures.gd -- --compress-only` repacks older,
+  already-smoothed resources without filtering them again. Ground
   layers blend softly across their wandering borders (`terrain.gdshader`). Shop-sign icons stay crisp pixel art, and
   the interface keeps its own Pixel and Classic styles.
 - **App icon**: the icon is painted like PS2 box art from the game's own models: the water summon

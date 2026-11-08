@@ -13,6 +13,7 @@
 
 TESTS=(
 	"performance|-- --scene=stalls --save_dir=res://build/performance_test_saves/|PERFORMANCE AUDIT DONE: 0 problem"
+	"transitions|-- --scene=transitions --passes=1 --save_dir=res://build/transition_test_saves/|TRANSITIONS DONE: 0 problem"
 	"hero-maker|-- --scene=creator --save_dir=res://build/creator_test_saves/|HERO MAKER DONE: 0 problem"
 	"hero-maker-touch|-- --scene=creator --touch --save_dir=res://build/creator_touch_test_saves/|HERO MAKER DONE: 0 problem"
 	"house-measurements|--script res://tools/bake_house_measurements.gd -- --verify|HOUSE MEASUREMENTS DONE: 0 problem"

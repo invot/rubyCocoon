@@ -6,6 +6,7 @@ extends SceneTree
 ##   godot --headless --path . --import
 ## Run it after re-baking any of those assets. tools/smoothed.json remembers each file as it was left, so a file is
 ## only smoothed again once a bake has replaced it.
+## -- --compress-only losslessly repacks already-smoothed resources without smoothing their textures again.
 
 const Smooth = preload("res://scripts/gfx/smooth_texture.gd")
 const RECORD := "res://tools/smoothed.json"
@@ -16,28 +17,39 @@ const MESH_DIRS := ["res://assets/nature/", "res://assets/props/", "res://assets
 var record := {}
 var done_textures := {}
 var only_prefix := ""
+var compress_only := false
+var failures := 0
 
 
 func _init() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--only="):
 			only_prefix = arg.trim_prefix("--only=")
+		elif arg == "--compress-only":
+			compress_only = true
 	if FileAccess.file_exists(RECORD):
 		record = JSON.parse_string(FileAccess.get_file_as_string(RECORD))
 	var count := 0
-	for dir in PNG_DIRS:
-		for f in DirAccess.get_files_at(dir):
-			if f.get_extension() == "png" and _png(dir + f):
-				count += 1
+	if not compress_only:
+		for dir in PNG_DIRS:
+			for f in DirAccess.get_files_at(dir):
+				if f.get_extension() == "png" and _png(dir + f):
+					count += 1
 	for dir in MESH_DIRS:
 		for f in DirAccess.get_files_at(dir):
-			if f.get_extension() == "res" and _resource(dir + f):
+			if f.get_extension() != "res":
+				continue
+			var changed := _compress_resource(dir + f) if compress_only else _resource(dir + f)
+			if changed:
 				count += 1
 	var out := FileAccess.open(RECORD, FileAccess.WRITE)
 	out.store_string(JSON.stringify(record, "\t", true))
 	out.close()
-	print("SMOOTH TEXTURES DONE: %d files smoothed, %d textures" % [count, done_textures.size()])
-	quit()
+	if compress_only:
+		print("COMPRESS RESOURCES DONE: %d files compressed, %d problem(s)" % [count, failures])
+	else:
+		print("SMOOTH TEXTURES DONE: %d files smoothed, %d textures" % [count, done_textures.size()])
+	quit(1 if failures > 0 else 0)
 
 
 func _fresh(path: String) -> bool:
@@ -77,7 +89,33 @@ func _resource(path: String) -> bool:
 			_material(res.surface_get_material(si))
 	else:
 		return false
-	ResourceSaver.save(res, path)
+	return _save_resource(res, path)
+
+
+func _compress_resource(path: String) -> bool:
+	if only_prefix != "" and not path.begins_with(only_prefix):
+		return false
+	# Only repack resources whose smoothing record is current. A re-baked file still needs the normal pass.
+	if not record.has(path) or _fresh(path):
+		return false
+	var file := FileAccess.open(path, FileAccess.READ)
+	var header := file.get_buffer(4).get_string_from_ascii()
+	file.close()
+	if header != "RSRC":
+		return false
+	var res = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+	if res == null:
+		failures += 1
+		return false
+	return _save_resource(res, path)
+
+
+func _save_resource(res: Resource, path: String) -> bool:
+	var err := ResourceSaver.save(res, path, ResourceSaver.FLAG_COMPRESS)
+	if err != OK:
+		failures += 1
+		push_error("Could not save %s: %s" % [path, error_string(err)])
+		return false
 	record[path] = FileAccess.get_md5(path)
 	return true
 

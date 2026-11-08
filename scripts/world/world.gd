@@ -1,4 +1,3 @@
-set_meta('terrain_mesh', t); set_meta('terrain_tints', tints)#__PROF
 extends Node3D
 ## The voxel overworld: block terrain, voxel trees/props from the asset pack, procedural voxel
 ## buildings, people and beasts. Also renders building interiors (map kind "interior").
