@@ -248,7 +248,8 @@ Sources and licences were not included with the files: check them before release
 - **344 Audio — Cinematic Fight Vol. 1**: *4 x Punch, Body 02* (ordinary battle impacts; first punch, 0.6 seconds).
 - **Cinematic Sound Design — Ultra Transitions & Impacts**: *Woosh Sweep Slide Infographics Basic* (missed attacks).
 - **Cinematic Sound Design — Interface & Infographics**: *Interface Accept Glassy Snap* (menu confirmations),
-  *Interface Pop High Short* (0.075-second dialogue syllable, with the game's per-speaker pitch variation).
+  *Interface Pop High Short* (0.075-second dialogue syllable, with the game's per-speaker pitch variation
+  plus the approved three-semitone lift).
 - **Cinematic Sound Design — UI Interaction Elements**: *Deny Muted* (unavailable or invalid actions, and failed
   capture, flute and fishing attempts).
 - **Just Sound Effects — Rocky Coast of Norway**: *Soft Waves Cliffs* (Shellhaven surf).

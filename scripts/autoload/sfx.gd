@@ -6,6 +6,7 @@ extends Node
 const RATE := 22050
 const MUSIC_DIR := "res://assets/audio/music/"
 const FADE_TIME := 0.8
+const DIALOGUE_PITCH := 1.189207115 # Three semitones: 2^(3/12), on top of each speaker's voice.
 const BATTLE_TONES := [[196, 0.8, "square", -17, 600], [392, 0.8, "square", -23, 1200], [784, 0.3, "tri", -16, 0]]
 const BATTLE_AUDIO := "res://assets/audio/battle/"
 
@@ -321,7 +322,8 @@ func play_pitched(name: String, pitch: float) -> void:
 	if spec.is_empty():
 		return
 	var files: Array = spec[0]
-	_play_stream(_load(files[randi() % files.size()]), float(spec[1]), pitch * randf_range(0.97, 1.03))
+	var base_pitch := pitch * (DIALOGUE_PITCH if name == "talk" else 1.0)
+	_play_stream(_load(files[randi() % files.size()]), float(spec[1]), base_pitch * randf_range(0.97, 1.03))
 
 
 # ---------------------------------------------------------------- music & ambience

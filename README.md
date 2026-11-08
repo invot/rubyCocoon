@@ -642,7 +642,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
     adds birds and insects. Gearhart Tower and the intro use the approved machine-room ambience. Moor exteriors
     use an evil-spell texture; the cathedral uses a mystic-forest drone. The five new recordings are 12-second
     Ogg loops with a one-second crossfade at the join. Outdoor loops fade out indoors.
-  - `tools/convert_audio.py` makes 128 kbps copies in `assets/audio/music/`, trimming the 59-minute rainforest track to a 5-minute loop. The originals in `music/` are untouched.
+  - `tools/convert_audio.py` makes 128 kbps copies of the tracks registered in `Sfx.TRACKS` in `assets/audio/music/`, trimming the 59-minute rainforest track to a 5-minute loop. The originals in `music/` are untouched.
 - **Sound effects** from `sfx/` and `assets/audio/sfx/` cover:
   - menus, the book's page turns, dialogue voices (pitched per speaker) and footsteps
   - hits (metal clangs for robots), the slingshot, bombs and the shield
@@ -653,7 +653,8 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
     an energy-flow excerpt for merging/evolution, shrine rituals and departing summons, a physical battle hit,
     an attack-miss sweep, menu confirmations and unavailable-action feedback, plus the five ambient loops above.
     Egg reveals use a short bird-flute chirp; critical hits use a 0.22-second edit of the old crate-breaking hatch
-    sound. Small mechanical clicks cover toggles, quiet pop syllables follow dialogue, and the muted rejection
+    sound. Small mechanical clicks cover toggles, quiet pop syllables follow dialogue three semitones higher
+    while preserving each speaker's voice, and the muted rejection
     also covers unsuccessful capture, flute and fishing attempts. The hatchery's earlier mechanism sound remains.
     Boss encounters randomly choose a short dread hit or a cinematic brass hit.
     These are 44.1 kHz Ogg Vorbis copies, with the source WAVs

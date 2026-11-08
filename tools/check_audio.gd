@@ -41,6 +41,11 @@ func _run() -> void:
 		var player: AudioStreamPlayer = sfx._players[next_player]
 		_check(sfx._next != next_player and player.playing and player.stream is AudioStreamOggVorbis
 			and player.bus == "SFX", "%s reaches a live SFX player" % key)
+		if key == "talk":
+			var expected := 0.8 * pow(2.0, 3.0 / 12.0)
+			_check(player.pitch_scale >= expected * 0.97 - 0.00001
+				and player.pitch_scale <= expected * 1.03 + 0.00001,
+				"dialogue adds three semitones while preserving speaker pitch and jitter")
 	var main = load("res://scripts/main.gd").new()
 	_check(main.ambience_for("shellhaven") == "surf", "Shellhaven routes to surf")
 	_check(main.ambience_for("route1") == "forest", "Coastal Path routes to nature")

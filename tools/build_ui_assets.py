@@ -19,6 +19,19 @@ DOBO = UI + '/DEMO_Fantasy_RPG_UI_doboui'
 SET1 = UI + '/set1'
 OUT = 'assets/ui'
 
+# Legacy textures still available to the current UI. Keep the source-pack recipes below,
+# but do not ship their unused buttons, book pages and gamepad art after rebuilding.
+KEEP_TEXTURES = {
+    'arrow_down', 'banner', 'bar_frame', 'card', 'cursor', 'dialogue', 'frame',
+    'crest_cog', 'crest_coral', 'crest_empty', 'crest_flame', 'crest_ore',
+    'crest_river', 'crest_spur', 'crest_vine', 'crest_wave',
+    'heart', 'heart_empty', 'icon_arrow', 'icon_coin', 'icon_energy',
+    'icon_energy_empty', 'icon_map', 'icon_notes', 'icon_quill', 'icon_star',
+    'icon_star_empty', 'marker', 'nameplate', 'pad_y', 'point', 'ribbon',
+    'ribbon_small', 'separator', 'slot', 'star', 'star_empty', 'tab_bag',
+    'tab_beasts', 'tab_settings', 'tab_trainer', 'textfield',
+}
+
 # ---- the warm storybook palette (sampled from the TravelBook) ----
 P = {
     'outline': '#493333', 'ink': '#2f2424',
@@ -51,6 +64,8 @@ def scale(im, k):
 
 
 def save(name, im, k, margins=None, note=''):
+    if name not in KEEP_TEXTURES:
+        return
     os.makedirs(OUT, exist_ok=True)
     big = scale(im, k)
     big.save(os.path.join(OUT, name + '.png'))

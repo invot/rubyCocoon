@@ -1,3 +1,4 @@
+set_meta('terrain_mesh', t); set_meta('terrain_tints', tints)#__PROF
 extends Node3D
 ## The voxel overworld: block terrain, voxel trees/props from the asset pack, procedural voxel
 ## buildings, people and beasts. Also renders building interiors (map kind "interior").
@@ -102,7 +103,9 @@ var _hole_position := Vector3.INF
 ## Construction can yield during a transition; ordinary play must never process a half-built map.
 var _cooperative_build := false
 var _build_slice := 0
-const BUILD_SLICE_US := 6000
+## How long to work between frames while building a map behind the black screen. There's nothing on view to keep smooth,
+## and every frame given up is time spent staring at black. (On the web, music is mixed on this thread: stay under a frame.)
+var _build_slice_us := 12000 if OS.has_feature("web") else 50000
 ## Keep a small number of hidden buildings ready for walking back, bounded independently of map size.
 const HIDDEN_BUILDING_CACHE := 8
 var _building_tick := 0
@@ -166,9 +169,19 @@ func build(id: String, cooperative := false) -> void:
 
 ## Share the main thread with rendering and UI on single-threaded web exports too.
 func _build_checkpoint() -> void:
-	if _cooperative_build and Time.get_ticks_usec() - _build_slice >= BUILD_SLICE_US:
+	if _cooperative_build and Time.get_ticks_usec() - _build_slice >= _build_slice_us:
 		await get_tree().process_frame
 		_build_slice = Time.get_ticks_usec()
+
+
+## Build the buildings the arrival camera can see, while the screen is still dark.
+func prepare_arrival_view() -> void:
+	_build_slice = Time.get_ticks_usec()
+	for i in building_fades.size():
+		_fade_buildings(0.0)
+		if visible_buildings_ready():
+			break
+		await _build_checkpoint()
 
 
 func spawn_at(key, face := Vector2i.ZERO) -> void:
@@ -535,7 +548,7 @@ func _build_terrain() -> void:
 			"rock": rock_hex, "bed": Color(biome["sand"]).darkened(0.35).to_html(false), "lava_bed": "#3a2a28",
 			"paving": biome.get("paving", "#9a948a"), "ice": "#cfeaf6"}[layer]))
 	# cliff faces: the crags' rock, a little warmer, more of the local soil in it
-	await t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls", _cooperative_build)
+	await t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls", _build_slice_us if _cooperative_build else 0)
 	terrain_mats = t.materials
 	if biome["id"] == "quarter":
 		var flights := {}

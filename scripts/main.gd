@@ -1,3 +1,7 @@
+if scene == "terrain-compare":#__PROF
+		await load("res://build/transition_check/compare.gd").new().run(self, _test)#__PROF
+		get_tree().quit()#__PROF
+		return#__PROF
 extends Node
 ## Game root: owns the 3D view, the title screen, map transitions and battles.
 
@@ -346,19 +350,22 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 			var battle_script := await wait_for_script(BATTLE_PATH)
 			battle_script.prewarm()
 		await Sfx.prewarm_field()
-	# Prepare the arrival view behind the fade, one building per frame.
+	# Prepare the arrival view behind the fade.
 	if not demo and not world.interior:
-		for i in world.building_fades.size():
-			world._fade_buildings(0.0)
-			await get_tree().process_frame
-			if world.visible_buildings_ready():
-				break
+		await world.prepare_arrival_view()
 	world.set_process(true)
+
+
+## A room's map data: the one standing there if it's that room, without parsing its whole town again.
+func _room_map(id: String) -> Dictionary:
+	if world != null and is_instance_valid(world) and world.map_id == id:
+		return world.map
+	return MapLoader.load_map(id, GameState.flags)
 
 
 func music_for(id: String) -> String:
 	if MapLoader.is_interior(id):
-		var m := MapLoader.load_map(id, GameState.flags)
+		var m := _room_map(id)
 		return String(WorldDB.ROOM_MUSIC.get(m.get("building", {}).get("shop", ""), "shop"))
 	if WorldDB.MAP_MUSIC.has(id):
 		return WorldDB.MAP_MUSIC[id]
@@ -367,7 +374,7 @@ func music_for(id: String) -> String:
 
 func ambience_for(id: String) -> String:
 	if MapLoader.is_interior(id):
-		var m := MapLoader.load_map(id, GameState.flags)
+		var m := _room_map(id)
 		return String(WorldDB.ROOM_AMBIENCE.get(m.get("building", {}).get("shop", ""), ""))
 	if WorldDB.MAP_AMBIENCE.has(id):
 		return String(WorldDB.MAP_AMBIENCE[id])
@@ -392,12 +399,14 @@ func reload_map() -> void:
 func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	_transitioning = true
 	await UI.fade_out(fade)
-	var loading := UIKit.label("Loading...", UIKit.BUTTON_FONT_SIZE, UIKit.LIGHT)
-	UI.root.add_child(loading)
-	UIKit.place(loading, "center")
-	await get_tree().process_frame
+	# Nothing's on view: drawing a half-built map each frame would only slow the building of it.
+	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	await _load_world(id, spawn, false, face)
-	loading.queue_free()
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# Draw the finished map while it's still dark, so any first-draw hitch doesn't cut into the fade (a long frame's
+	# delta would jump the tween); the second frame is the one that pays for that delta.
+	await get_tree().process_frame
+	await get_tree().process_frame
 	GameState.map_id = id
 	GameState.visit(id)
 	GameState.pos = world.player_pos
@@ -679,6 +688,10 @@ func _run_test() -> void:
 		return
 	if scene == "stalls":
 		await load("res://tools/debug/performance.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "transitions":
+		await load("res://tools/debug/transitions.gd").new().run(self, _test)
 		get_tree().quit()
 		return
 	if scene == "shellhaven-marina":

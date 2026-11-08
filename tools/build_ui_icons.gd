@@ -9,7 +9,6 @@ const SIZE := 24
 ## name: index in the kit's (sorted) file list. None of the brand logos in the kit are used.
 const PICK := {
 	"tab_trainer": 8, "icon_notes": 35, "tab_bag": 7, "icon_quill": 15, "icon_map": 43, "tab_settings": 70,
-	"icon_save": 0, "icon_home": 82, "icon_lock": 60, "icon_close": 75, "icon_info": 45, "icon_question": 47,
 }
 
 

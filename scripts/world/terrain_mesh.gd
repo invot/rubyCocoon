@@ -44,6 +44,12 @@ var materials: Array[ShaderMaterial] = []
 ## cliffs drawn as straight dressed-stone walls instead of rock (see build)
 var walls := false
 
+## The ground meshes of the last few maps, so that stepping out of a house or back along a road puts the same ground
+## down again instead of generating it. Keyed by everything the shape depends on, so a changed map is built afresh.
+const REMEMBERED_SHAPES := 3
+static var _shapes := {}
+static var _shape_order: Array[String] = []
+
 
 func setup(width: int, depth: int, map_seed: int, m: Dictionary = {}) -> void:
 	w = width
@@ -100,12 +106,14 @@ func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 	# a ramp is one smooth slope
 	if ramp[own] != 0:
 		return base
-	var xs := [(gx - 1) / 2] if gx % 2 != 0 else [gx / 2 - 1, gx / 2]
-	var zs := [(gz - 1) / 2] if gz % 2 != 0 else [gz / 2 - 1, gz / 2]
+	var x0 := (gx - 1) / 2 if gx % 2 != 0 else gx / 2 - 1
+	var x1 := x0 if gx % 2 != 0 else gx / 2
+	var z0 := (gz - 1) / 2 if gz % 2 != 0 else gz / 2 - 1
+	var z1 := z0 if gz % 2 != 0 else gz / 2
 	var best := INF
 	var craggy := false
-	for nx in xs:
-		for nz in zs:
+	for nx in range(x0, x1 + 1):
+		for nz in range(z0, z1 + 1):
 			var i := _i(nx, nz)
 			# only flat ground on the same level is drawn as one with this tile
 			if ramp[i] != 0 or absf(base_lo[i] - base_lo[own]) > 0.01:
@@ -129,11 +137,15 @@ func _grid(tx: int, tz: int, cache: Dictionary) -> PackedVector3Array:
 	if cache.has(k):
 		return cache[k]
 	var g := PackedVector3Array()
+	g.resize(9)
+	# Flat ground at height 0, nearly all of any map: _vertex_y always answers its own level, whatever its neighbours do.
+	var own := _i(tx, tz)
+	var level := ramp[own] == 0 and height[own] == 0.0 and not elev_map.has("shoreline")
 	for j in 3:
 		for i in 3:
 			var gx := tx * 2 + i
 			var gz := tz * 2 + j
-			g.append(Vector3(gx * 0.5, _vertex_y(tx, tz, gx, gz), gz * 0.5))
+			g[i + j * 3] = Vector3(gx * 0.5, base_lo[own] if level else _vertex_y(tx, tz, gx, gz), gz * 0.5)
 	cache[k] = g
 	return g
 
@@ -146,7 +158,8 @@ func _hash(a: int, b: int) -> float:
 
 ## Builds the ground, the cliffs, water and lava under `parent`. tints: one colour per VT.GROUND_LAYERS entry;
 ## cliff_col: the rock of the cliff faces; stone_walls: dressed stone (the "paving" layer) instead, straight up.
-func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#8a8478"), stone_walls := false, cooperative := false) -> void:
+## slice_us: yield a frame after this long generating (0 = never).
+func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#8a8478"), stone_walls := false, slice_us := 0) -> void:
 	walls = stone_walls
 	var mat := ShaderMaterial.new()
 	mat.shader = TerrainShader
@@ -170,6 +183,24 @@ func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#
 	cliff_mat.set_shader_parameter("cliff_tint", Vector3(cl.r, cl.g, cl.b) / TEX_LEVEL)
 	cliff_mat.set_shader_parameter("rock_layer", VT.GROUND_LAYERS.find("paving" if walls else "rock"))
 	materials = [mat, cliff_mat]
+	var shape: Dictionary = await _shape(parent, slice_us)
+	for chunk: Array in shape["chunks"]:
+		_place(parent, chunk[0], mat)
+		if chunk[1] != null:
+			_place(parent, chunk[1], cliff_mat)
+	_liquid(parent, shape["water"], 1, water_col)
+	_liquid(parent, shape["lava"], 2, Color("#ff6a20"))
+
+
+## This map's ground meshes: remembered from a recent visit if the ground hasn't changed since, else generated.
+func _shape(parent: Node3D, slice_us: int) -> Dictionary:
+	var key := str([w, h, seed, walls, hash(layer), hash(height), hash(rough), hash(liquid), hash(base_lo), hash(base_hi),
+		hash(ramp), hash(elev_map.get("shoreline", []))])
+	if _shapes.has(key):
+		_shape_order.erase(key)
+		_shape_order.append(key)
+		return _shapes[key]
+	var chunks := []
 	var x0 := -MARGIN
 	var z0 := -MARGIN
 	var x1 := w + MARGIN
@@ -179,73 +210,98 @@ func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#
 	while cz < z1:
 		var cx := x0
 		while cx < x1:
-			_chunk(parent, mat, cliff_mat, cx, cz, mini(cx + CHUNK, x1), mini(cz + CHUNK, z1), x1, z1)
-			if cooperative and Time.get_ticks_usec() - slice >= 6000:
+			chunks.append(_chunk(cx, cz, mini(cx + CHUNK, x1), mini(cz + CHUNK, z1), x1, z1))
+			if slice_us > 0 and Time.get_ticks_usec() - slice >= slice_us:
 				await parent.get_tree().process_frame
 				slice = Time.get_ticks_usec()
 			cx += CHUNK
 		cz += CHUNK
-	_liquid(parent, 1, water_col)
-	_liquid(parent, 2, Color("#ff6a20"))
+	var shape := {"chunks": chunks, "water": _liquid_mesh(1), "lava": _liquid_mesh(2)}
+	_shapes[key] = shape
+	_shape_order.append(key)
+	while _shape_order.size() > REMEMBERED_SHAPES:
+		_shapes.erase(_shape_order.pop_front())
+	return shape
 
 
-## The ground of tiles tx0..tx1, tz0..tz1, and the cliff faces along their east and south edges (up to the last
+func _place(parent: Node3D, mesh: ArrayMesh, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	parent.add_child(mi)
+
+
+## A triangle list as a mesh. Much quicker than SurfaceTool, one vertex at a time, for a whole map's ground.
+static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, colors := PackedColorArray()) -> ArrayMesh:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	if not colors.is_empty():
+		arrays[Mesh.ARRAY_COLOR] = colors
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return m
+
+
+## [the ground of tiles tx0..tx1, tz0..tz1, the cliff faces along their east and south edges or null] (up to the last
 ## tile drawn at all, x_end and z_end).
-func _chunk(parent: Node3D, mat: Material, cliff_mat: Material, tx0: int, tz0: int, tx1: int, tz1: int, x_end: int, z_end: int) -> void:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var faces := SurfaceTool.new()
-	faces.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var any_face := false
+func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, x_end: int, z_end: int) -> Array:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	# (each tile is eight triangles)
+	verts.resize((tx1 - tx0) * (tz1 - tz0) * 24)
+	normals.resize(verts.size())
+	var at := 0
+	var face_verts := PackedVector3Array()
+	var face_normals := PackedVector3Array()
+	var face_colors := PackedColorArray()
 	var cache := {}
 	for tz in range(tz0, tz1):
 		for tx in range(tx0, tx1):
 			var g := _grid(tx, tz, cache)
 			for j in 2:
 				for i in 2:
-					var p := [g[i + j * 3], g[i + 1 + j * 3], g[i + 1 + (j + 1) * 3], g[i + (j + 1) * 3]]
+					var o := i + j * 3
 					# alternate the diagonal so slopes don't all crease the same way
 					if (tx * 2 + i + tz * 2 + j) % 2 == 0:
-						_tri(st, p[0], p[1], p[2])
-						_tri(st, p[0], p[2], p[3])
+						_tri(verts, normals, at, g[o], g[o + 1], g[o + 4])
+						_tri(verts, normals, at + 3, g[o], g[o + 4], g[o + 3])
 					else:
-						_tri(st, p[0], p[1], p[3])
-						_tri(st, p[1], p[2], p[3])
+						_tri(verts, normals, at, g[o], g[o + 1], g[o + 3])
+						_tri(verts, normals, at + 3, g[o + 1], g[o + 4], g[o + 3])
+					at += 6
 			# east edge: this tile's right column against the next tile's left one; south edge: bottom row against top
 			# (under a waterfall the rock stays smooth, behind the falling water)
 			var wet := liquid[_i(tx, tz)] != 0
 			if tx + 1 < x_end:
 				var e := _grid(tx + 1, tz, cache)
-				var flat := walls or wet and liquid[_i(tx + 1, tz)] != 0
-				any_face = _face(faces, [g[2], g[5], g[8]], [e[0], e[3], e[6]], Vector3(1, 0, 0), flat) or any_face
+				if _edges_part(g[2], g[5], g[8], e[0], e[3], e[6]):
+					var flat := walls or wet and liquid[_i(tx + 1, tz)] != 0
+					_face(face_verts, face_normals, face_colors, [g[2], g[5], g[8]], [e[0], e[3], e[6]], Vector3(1, 0, 0), flat)
 			if tz + 1 < z_end:
 				var s := _grid(tx, tz + 1, cache)
-				var flat2 := walls or wet and liquid[_i(tx, tz + 1)] != 0
-				any_face = _face(faces, [g[6], g[7], g[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2) or any_face
-	var mi := MeshInstance3D.new()
-	mi.mesh = st.commit()
-	mi.material_override = mat
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	parent.add_child(mi)
-	if any_face:
-		var fm := MeshInstance3D.new()
-		fm.mesh = faces.commit()
-		fm.material_override = cliff_mat
-		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		parent.add_child(fm)
+				if _edges_part(g[6], g[7], g[8], s[0], s[1], s[2]):
+					var flat2 := walls or wet and liquid[_i(tx, tz + 1)] != 0
+					_face(face_verts, face_normals, face_colors, [g[6], g[7], g[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2)
+	return [_triangles(verts, normals), null if face_verts.is_empty() else _triangles(face_verts, face_normals, face_colors)]
+
+
+## Whether two tiles' shared edge, three points on each side, comes apart enough to need a rock face between them.
+func _edges_part(a0: Vector3, a1: Vector3, a2: Vector3, b0: Vector3, b1: Vector3, b2: Vector3) -> bool:
+	return absf(a0.y - b0.y) >= 0.02 or absf(a1.y - b1.y) >= 0.02 or absf(a2.y - b2.y) >= 0.02
 
 
 ## The rock face where one tile's edge (vertices a, along it) stands above or below its neighbour's (b, the same
 ## points), toward_b pointing from the first tile to the second. Cut into columns a quarter tile apart and rows about
-## FACE_ROW tall; the inner vertices bulge out a little unless `flat`. Returns false if the edges meet (no face).
-func _face(st: SurfaceTool, a: Array, b: Array, toward_b: Vector3, flat := false) -> bool:
+## FACE_ROW tall; the inner vertices bulge out a little unless `flat`.
+func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray, a: Array, b: Array, toward_b: Vector3, flat := false) -> void:
 	var diff := 0.0
 	var most := 0.0
 	for k in 3:
 		diff += a[k].y - b[k].y
 		most = maxf(most, absf(a[k].y - b[k].y))
-	if most < 0.02:
-		return false
 	# the face looks out over the lower side
 	var high := a if diff > 0.0 else b
 	var low := b if diff > 0.0 else a
@@ -286,13 +342,12 @@ func _face(st: SurfaceTool, a: Array, b: Array, toward_b: Vector3, flat := false
 			var p01: Vector3 = grid[k][r + 1]
 			var ca := Color(shade_a, lip_a, 0)
 			var cb := Color(shade_b, 0, 0)
-			_face_tri(st, out, [p00, p10, p11], [ca, ca, cb])
-			_face_tri(st, out, [p00, p11, p01], [ca, cb, cb])
-	return true
+			_face_tri(fv, fn, fc, out, [p00, p10, p11], [ca, ca, cb])
+			_face_tri(fv, fn, fc, out, [p00, p11, p01], [ca, cb, cb])
 
 
 ## One flat-shaded triangle of a cliff face, wound to face `out`; COLOR carries its shading (r) and lip (g).
-func _face_tri(st: SurfaceTool, out: Vector3, p: Array, c: Array) -> void:
+func _face_tri(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray, out: Vector3, p: Array, c: Array) -> void:
 	var n: Vector3 = (p[2] - p[0]).cross(p[1] - p[0])
 	if n.length_squared() < 0.000001:
 		return
@@ -301,28 +356,31 @@ func _face_tri(st: SurfaceTool, out: Vector3, p: Array, c: Array) -> void:
 		p = [p[0], p[2], p[1]]
 		c = [c[0], c[2], c[1]]
 		n = -n
-	st.set_normal(n)
 	for k in 3:
-		st.set_color(c[k])
-		st.add_vertex(p[k])
+		fv.append(p[k])
+		fn.append(n)
+		fc.append(c[k])
 
 
-## One flat-shaded triangle (low-poly facets), wound to face up.
-func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+## One flat-shaded triangle (low-poly facets), wound to face up, written at index `at`.
+func _tri(verts: PackedVector3Array, normals: PackedVector3Array, at: int, a: Vector3, b: Vector3, c: Vector3) -> void:
 	var n := (c - a).cross(b - a).normalized()
 	if n.y < 0.0:
 		var t := b
 		b = c
 		c = t
 		n = -n
-	st.set_normal(n)
-	st.add_vertex(a)
-	st.add_vertex(b)
-	st.add_vertex(c)
+	verts[at] = a
+	verts[at + 1] = b
+	verts[at + 2] = c
+	normals[at] = n
+	normals[at + 1] = n
+	normals[at + 2] = n
 
 
-## The water (kind 1) or lava (kind 2) surface: one quad per tile on its level, carried on past the map's edge too.
-func _liquid(parent: Node3D, kind: int, col: Color) -> void:
+## The water (kind 1) or lava (kind 2) surface as a mesh, or null: one quad per tile on its level, carried on past the
+## map's edge too.
+func _liquid_mesh(kind: int) -> ArrayMesh:
 	var y0 := -0.12 if kind == 1 else -0.16
 	var verts := PackedVector3Array()
 	for tz in range(-MARGIN, h + MARGIN):
@@ -337,7 +395,7 @@ func _liquid(parent: Node3D, kind: int, col: Color) -> void:
 			var d := Vector3(tx, y, tz + 1)
 			verts.append_array([a, b, c, a, c, d])
 	if verts.is_empty():
-		return
+		return null
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
 	normals.fill(Vector3.UP)
@@ -367,12 +425,12 @@ func _liquid(parent: Node3D, kind: int, col: Color) -> void:
 				verts.append_array([q[0], q[1], q[2], q[0], q[2], q[3]])
 				for k in 6:
 					normals.append(out)
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	var m := ArrayMesh.new()
-	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return _triangles(verts, normals)
+
+
+func _liquid(parent: Node3D, mesh: ArrayMesh, kind: int, col: Color) -> void:
+	if mesh == null:
+		return
 	var mat := ShaderMaterial.new()
 	mat.shader = WaterShader
 	var lava := kind == 2
@@ -388,7 +446,7 @@ func _liquid(parent: Node3D, kind: int, col: Color) -> void:
 		mat.set_shader_parameter("shore", Vector4(r[0], r[1], r[2], r[3]))
 		mat.set_shader_parameter("shore_levels", Vector3(Shoreline.WATER_Y, Shoreline.WADE_FLOOR, Shoreline.DEEP_FLOOR))
 	var mi := MeshInstance3D.new()
-	mi.mesh = m
+	mi.mesh = mesh
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)

@@ -1,4 +1,4 @@
-"""Makes game-ready copies of the music in music/ (128 kbps, long tracks trimmed to a loop).
+"""Makes game-ready copies of music registered in Sfx.TRACKS (128 kbps, long tracks trimmed to a loop).
 
 The originals in music/ are left untouched; the game plays the copies in assets/audio/music/.
 Needs ffmpeg on PATH.  Run from the project root:  python tools/convert_audio.py
@@ -30,6 +30,19 @@ def duration(path):
     return float(out or 0)
 
 
+def music_tracks():
+    # Read the game's registry rather than maintaining a second list of track names.
+    root = Path(__file__).resolve().parent.parent
+    source = (root / 'scripts/autoload/sfx.gd').read_text(encoding='utf-8')
+    block = re.search(r'^const TRACKS := \{(.*?)^\}', source, re.MULTILINE | re.DOTALL)
+    if block is None:
+        raise ValueError('Cannot find Sfx.TRACKS; refusing to convert unregistered music')
+    tracks = set(re.findall(r'^\s*"[^"]+":\s*"([^"]+)"', block[1], re.MULTILINE))
+    if not tracks:
+        raise ValueError('Sfx.TRACKS has no track names')
+    return tracks
+
+
 def convert_effects(pack):
     root = Path(__file__).resolve().parent.parent
     manifest = json.loads((root / 'tools/sfx_sources.json').read_text(encoding='utf-8'))
@@ -57,8 +70,9 @@ def main():
         convert_effects(args.sfx_pack)
         return
     os.makedirs(DST, exist_ok=True)
+    tracks = music_tracks()
     for f in sorted(os.listdir(SRC)):
-        if not f.lower().endswith('.mp3'):
+        if not f.lower().endswith('.mp3') or slug(f) not in tracks:
             continue
         src = os.path.join(SRC, f)
         dst = os.path.join(DST, slug(f) + '.mp3')
