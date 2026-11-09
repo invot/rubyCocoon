@@ -323,6 +323,7 @@ func wait_for_script(path: String) -> GDScript:
 
 func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> void:
 	if world != null:
+		world.keep_shaders()
 		if world.get_parent():
 			world.get_parent().remove_child(world)
 		world.queue_free()

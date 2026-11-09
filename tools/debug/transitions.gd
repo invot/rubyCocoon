@@ -4,6 +4,7 @@ extends RefCounted
 ## which is what a player gets; headless runs measure CPU work only.
 ##   --passes=2  how many times to walk the route (the first is cold, later ones reuse caches)
 ##   --shot=path  the arrival view of the last step, and <path>_black.<ext> from the middle of its black hold
+##   --battles=2  then fight this many battles, reporting the longest frame of each (Compatibility stalls on first draw)
 const Beasts = preload("res://scripts/core/beasts.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 
@@ -55,6 +56,16 @@ func run(main, opts: Dictionary) -> void:
 			}
 			print("[transition] %s %s" % [key, JSON.stringify(report[key])])
 			await tree.create_timer(0.15).timeout
+	for b in int(opts.get("battles", "0")):
+		main.autoplay = true
+		var now := Time.get_ticks_usec()
+		_trace = {"began": now, "last": now, "frames": 0, "gap": 0, "black_began": -1, "black_ended": -1}
+		await main.start_battle({"wild": true, "foes": [Beasts.create(27, 3)], "seed": 5})
+		var key := "battle_%d" % (b + 1)
+		report[key] = {"total_ms": snappedf((Time.get_ticks_usec() - now) / 1000.0, 0.1), "largest_gap_ms": snappedf(int(_trace["gap"]) / 1000.0, 0.1)}
+		print("[transition] %s %s" % [key, JSON.stringify(report[key])])
+		main.autoplay = false
+		await tree.create_timer(0.15).timeout
 	tree.process_frame.disconnect(_sample)
 	if shot != "":
 		await _main._wait(0.6)

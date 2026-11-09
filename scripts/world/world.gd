@@ -173,6 +173,15 @@ func _build_checkpoint() -> void:
 		_build_slice = Time.get_ticks_usec()
 
 
+## Before this map goes (VT.keep_shaders). Buildings' see-through copies are on no mesh once they've faded in.
+func keep_shaders() -> void:
+	var extra := []
+	for f in building_fades:
+		if f.has("fade_materials"):
+			extra.append_array(f["fade_materials"]["copies"].values())
+	VT.keep_shaders(self, extra)
+
+
 ## Build the buildings the arrival camera can see, while the screen is still dark.
 func prepare_arrival_view() -> void:
 	_build_slice = Time.get_ticks_usec()

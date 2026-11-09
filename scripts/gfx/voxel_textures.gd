@@ -22,6 +22,61 @@ const TERRAIN_SOURCE := {"top_grass": "ground_grass", "top_path": "ground_path",
 static var _cache := {}
 static var _mats := {}
 static var _images := {}
+## One material of each kind drawn so far (see keep_shaders).
+static var _kept_kinds := {}
+
+
+## Compatibility, the web build's renderer, compiles a kind of material the first time something draws with it, a stall
+## of seconds, and forgets the result along with the last material of that kind. Holding on to one of each means a kind
+## only ever compiles once. The hold is bounded by how many kinds the game has, and keeps those few materials' textures
+## loaded, so the other renderers, which cache their pipelines and gain nothing from this, skip it.
+static func keep_shaders(root: Node, extra: Array = []) -> void:
+	if RenderingServer.get_current_rendering_method() in ["forward_plus", "mobile"]:
+		return
+	var seen := {}
+	for material: Material in extra:
+		_keep_kind(material, seen)
+	for node in root.find_children("*", "GeometryInstance3D", true, false):
+		_keep_kind(node.material_override, seen)
+		_keep_kind(node.material_overlay, seen)
+		var mesh: Mesh = null
+		if node is MeshInstance3D:
+			mesh = node.mesh
+		elif node is MultiMeshInstance3D and node.multimesh != null:
+			mesh = node.multimesh.mesh
+		if mesh == null:
+			continue
+		for surface in mesh.get_surface_count():
+			_keep_kind(mesh.surface_get_material(surface), seen)
+			if node is MeshInstance3D:
+				_keep_kind(node.get_surface_override_material(surface), seen)
+
+
+static func _keep_kind(material: Material, seen: Dictionary) -> void:
+	if material == null or seen.has(material):
+		return
+	seen[material] = true
+	if material is BaseMaterial3D:
+		var kind := _kind_of(material)
+		if not _kept_kinds.has(kind):
+			_kept_kinds[kind] = material
+
+
+## Everything about a material that decides which shader it compiles to.
+static func _kind_of(m: BaseMaterial3D) -> String:
+	var flags := 0
+	for i in BaseMaterial3D.FLAG_MAX:
+		flags |= int(m.get_flag(i)) << i
+	var features := 0
+	for i in BaseMaterial3D.FEATURE_MAX:
+		features |= int(m.get_feature(i)) << i
+	var textures := 0
+	for i in BaseMaterial3D.TEXTURE_MAX:
+		textures |= int(m.get_texture(i) != null) << i
+	return str([m.get_class(), m.transparency, m.alpha_antialiasing_mode, m.blend_mode, m.cull_mode, m.depth_draw_mode,
+		m.shading_mode, m.diffuse_mode, m.specular_mode, m.texture_filter, m.billboard_mode, m.distance_fade_mode,
+		m.proximity_fade_enabled, m.grow, m.detail_uv_layer, m.detail_blend_mode, m.emission_operator,
+		m.heightmap_deep_parallax, flags, features, textures])
 
 
 ## A PSX texture's image (uncompressed, no mipmaps), or null if there is none for `name`.
