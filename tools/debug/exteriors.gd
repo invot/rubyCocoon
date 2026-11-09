@@ -305,7 +305,7 @@ func _enclosed(space: PhysicsDirectSpaceState3D, p: Vector3) -> bool:
 ## and jambs, from the sill up), and how far it stands out from the wall either side of it. A few places on the leaf
 ## are tried, so a knob, a padlock's straps or a glazed panel don't hide it.
 func _door(space: PhysicsDirectSpaceState3D, world, b: Dictionary, body: Dictionary, label: String) -> void:
-	var floor_y: float = world._lift(b["door"])
+	var floor_y: float = world._lift(b["door"]) + float(b.get("door_sill", 0.0))
 	var dx := float(b["door"].x) + 0.5
 	var front := float(b["y"]) + float(b["d"]) + 3.0
 	var back := float(b["y"]) - 1.0

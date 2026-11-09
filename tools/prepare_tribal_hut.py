@@ -24,6 +24,16 @@ def prepare(archive: Path) -> None:
     data = {"v": [], "uv": [], "n": [], "roof": []}
     for face in faces:
         points = [vertices[corner[0]] for corner in face]
+        # Remove the hanging red garnish, including its small leaves/stems, beside the door.
+        if all(42 < p[0] < 95 and 198 < p[2] < 225 and -58 < p[1] < 58 for p in points):
+            continue
+        # The loose leaf cards around the hut's base belong on the ground, not on the raised walls.
+        # Their UV island is the green patch at the left of the colour atlas.
+        uv_points = [uvs[corner[1]] for corner in face]
+        uv_x = sum(uv[0] for uv in uv_points) / 3
+        uv_y = 1.0 - sum(uv[1] for uv in uv_points) / 3
+        if uv_x < 0.15 and 0.20 < uv_y < 0.51:
+            continue
         # Replace the source fabric panel, including its painted lintel, with a sealed wood door.
         if (max(p[2] for p in points) - min(p[2] for p in points) < 0.01
                 and abs(points[0][2] - 196.27645) < 0.1

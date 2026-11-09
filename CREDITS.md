@@ -8,9 +8,9 @@ Code, procedural buildings, maps and writing were made for this project.
 The procedural exterior windows (`scripts/gfx/cartoon_windows.gd`) use the supplied **Stylized Cartoon Windows**
 by Canino3d and **Windows Pack** by Midox as visual references. Both identify CC BY 4.0 in their GLB metadata;
 no meshes or textures from either pack are redistributed. See [window reference provenance](licenses/window_references.md).
-Kelpwick's procedural stilt huts use the user-supplied **Low poly stylized tribal tropical hut** screenshot
-and ZIP as an architectural reference (plaster infill, broad timber framing, blue fabric and conical thatch).
-No mesh or texture from that archive is redistributed; the hut geometry and finishes are generated in code.
+Kelpwick's stilt huts are adapted from the user-supplied **Low poly stylized tribal tropical hut** archive:
+its mesh and painted wood, plaster, windows and thatch, with pastel plaster, solid wooden doors, stilts and stairs.
+See [source details and conversion notes](licenses/tribal_hut.md).
 The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
 The pre-baked battle ring graphics (`assets/ui/battle/`) and encounter sweeps (`assets/audio/battle/`) are generated
 from the project's existing battle and sound code by `tools/bake_battle_art.gd`. House measurements

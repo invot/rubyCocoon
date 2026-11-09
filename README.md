@@ -476,7 +476,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
 - **Isle of Tides**: Kelpwick is a modest reef-diving village of round, timber-framed pastel plaster huts on wooden stilts,
-  with centered blue-and-cream fabric doors, six-tread entry stairs and broad, softly golden thatched roofs and larger round wooden interiors (its store and arena). There is no Beast Center: the
+  with centered solid wood doors, six-tread entry stairs and broad, painted golden thatched roofs and larger round wooden interiors (its store and arena). There is no Beast Center: the
   arena is the great hut, a wide oval of taller walls under a high thatch, and keeps the village's healing machine in its
   back corner; flights and lost battles bring you back in front of it. Its general store sells essentials and basic beast gear at 30% below normal
   prices. Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
@@ -497,12 +497,23 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   the next, deeper tile stays blocked for walking, running and tap navigation.
   Every interior entrance is in a visible side wall, including temples, the hideout, Gearhart Tower and the cathedral.
   Kelpwick's buildings were renumbered when its Center went (older saves inside them are moved, game_state.gd
-  _kelpwick_hut_rooms). The shared procedural interior wood and the huts' painted timber and straw finishes need no baked textures.
+  _kelpwick_hut_rooms). The interiors retain their shared procedural wood finish. Kelpwick's exteriors use the supplied
+  **Low poly stylized tribal tropical hut** mesh, painted timber, blue windows and straw fringe; only the plaster is recoloured.
+  The source cloth panel is replaced by a solid wooden door; the platform and stairs use the same painted wood.
+  Hanging red decorations and attached leaf cards are removed. Small ground bushes flank the huts with the stair approaches clear.
   The hero walks up the hut stairs before entering; the original street approaches and room identities are retained.
   Run `bash tools/run_tests.sh island-towns island-towns-touch` for entrance, pricing, suite, A/B and beach-aisle checks.
   Run `bash tools/run_tests.sh kelpwick-huts kelpwick-huts-touch` to walk/tap into each raised hut and return to its stair foot.
   For a windowed preview and captures, use `-- --scene=island-towns --huts=1 --shot=build/shots/huts.png --quit=0`
   (add `--touch` for the phone layout); the focused scenario uses fresh state and never reads player saves.
+  Rebuild the supplied huts with:
+
+  ```text
+  python tools/prepare_tribal_hut.py "path/to/Low poly stylized tribal tropical hut.zip"
+  godot --headless --path . --script res://tools/import_tribal_hut.gd
+  godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/exteriors/tribal_hut
+  godot --headless --path . --import
+  ```
 - **Exterior windows** use `scripts/gfx/cartoon_windows.gd`: broad bevelled surrounds, bowed caps on tall windows,
   deep sills with brackets, thick pane divisions and painted blue glass with bold glints, inspired by the supplied
   window packs listed in `licenses/window_references.md`. House surrounds keep their town's trim colour; shops keep

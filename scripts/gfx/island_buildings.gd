@@ -90,6 +90,7 @@ static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: 
 	finish.set_shader_parameter("paint", paint)
 	mi.set_surface_override_material(0, finish)
 	node.add_child(mi)
+	b["door_sill"] = HUT_LIFT
 	# An opaque inner shell sits behind the source's straw fringe and closes the roof from every view.
 	var liner := VB._loop(center, rx * 1.12, r * 1.12, 32)
 	VB._spire(k, "color", liner, HUT_LIFT + 1.8, center, 1.72, Color("#bc954f"))
@@ -106,9 +107,32 @@ static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: 
 		VB._column(k, "planks", Vector3(dx + side * 0.62, 0, face + 0.26), 0.09, HUT_LIFT, 6, HUT_TIMBER)
 	# The asset's cloth panel is removed at bake time. A solid timber leaf seals its place.
 	var locked: bool = b.get("locked", false)
-	k.box("color" if locked else "planks", Vector3(dx, HUT_LIFT + 0.92, face - 0.015), Vector3(0.92, 1.84, 0.07), VB.LOCKED_DOOR if locked else HUT_TIMBER, true)
+	var door_kit := VB.Kit.new()
+	door_kit.box("color" if locked else "planks", Vector3(dx, HUT_LIFT + 0.92, face - 0.015), Vector3(0.92, 1.84, 0.07), VB.LOCKED_DOOR if locked else HUT_TIMBER, true)
+	var leaf := MeshInstance3D.new()
+	leaf.name = "SolidWoodDoor"
+	leaf.mesh = door_kit.mesh()
+	if not locked:
+		leaf.material_override = timber_material()
+	node.add_child(leaf)
 	k.box("color", Vector3(dx + 0.29, HUT_LIFT + 0.86, face + 0.035), Vector3(0.065, 0.13, 0.05), Color("#d6b46b"))
 	k.box("color", Vector3(dx, HUT_LIFT + 2.09, face - 0.02), Vector3(0.92, 0.50, 0.08), paint, true)
+	# Low ground planting sits outside the stair's 1.44-wide landing and walking approach.
+	var bush_mesh: Mesh = VA.mesh("shrub_1")
+	var bush_scale := VA.fit_scale("shrub_1", 0.36, 0.62)
+	var planting := MultiMesh.new()
+	planting.transform_format = MultiMesh.TRANSFORM_3D
+	planting.mesh = bush_mesh
+	planting.instance_count = 2
+	for i in 2:
+		var side := -1.0 if i == 0 else 1.0
+		var at := Vector3(dx + side * maxf(1.32, rx * 0.78), -bush_mesh.get_aabb().position.y * bush_scale, face + 0.14)
+		planting.set_instance_transform(i, Transform3D(Basis(Vector3.UP, side * 0.6).scaled(Vector3.ONE * bush_scale), at))
+	var garden := MultiMeshInstance3D.new()
+	garden.name = "GroundBushes"
+	garden.multimesh = planting
+	garden.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.add_child(garden)
 	return HUT_LIFT + 3.70
 
 static func build(b: Dictionary, style: String) -> Node3D:
