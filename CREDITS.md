@@ -1,5 +1,9 @@
 # Ruby Cocoon: credits
 
+**Cocoon Cove layout proposals:** *Towns* and *WholeHouseFBX* by
+[loafbrr](https://sketchfab.com/loafbrr), CC BY 4.0. Extracted scenery meshes, LODs,
+resized and smoothed textures. See [source links and licence](licenses/pirate_cove.md).
+
 Code, procedural buildings, maps and writing were made for this project.
 The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
 The pre-baked battle ring graphics (`assets/ui/battle/`) and encounter sweeps (`assets/audio/battle/`) are generated
@@ -183,6 +187,12 @@ through the game's smoothing pipeline, and lights, fog, the core's inner light a
 `tools/import_hatchery.gd` reproduce the bake. Author/source-page and licence metadata were not included in these
 archives; see `licenses/hatchery_assets.md` for the provenance record and outstanding attribution fields.
 
+The merge cinematic's chamber (`assets/interiors/hatch_roundels.res`) uses the walls and ceiling of
+*War Doctor's TARDIS Interior (Old)*, with its floor, glass, console, struts, cables and doorway removed. Its plaster is
+the Beast Centers', its flagstones continue the hatch's, and its bottle-bottom glass is painted by the bake.
+That archive also included no author, source page or licence. The film's TCM Cores are simplified, white-and-steel
+repaints of the hatch's.
+
 ## Voxel art (`voxelassets/`; no longer in the game)
 The voxel models were all replaced by the PSX ones above and removed. They came from, among others:
 - **StickyBizcuit**: village/dungeon pack. The required easter egg is the hidden NPC "Bizcuit" in the
@@ -261,6 +271,11 @@ Sources and licences were not included with the files: check them before release
 - **344 Audio — Ghostly Presences Vol. 1**: *Evil Spell Ambience* (moor exteriors).
 - **Epic Stock Media — Strange Game Ambient Loops 3**: *Dark Loop Mystic Forest Tonal Steady Synth*
   (cathedral interiors).
+- **Alexander Kopeikin — Emotion and Magic**: *magic, energy flow, astral travel-015* (merge cinematic swell; 4.2-second excerpt).
+- **Epic Stock Media — Elemental Mutation Whooshes and Impacts**: *Impact Electric Tonal Deep Movement Motion Hiss
+  Glitch 01* (merge cinematic, beasts vanishing; 2.4-second excerpt).
+- **Epic Stock Media — Fantasy Game 2 — Sound Kit for Enchanted Realms**: *Magic Light Spell Enchantment Potion Effect
+  Tonal Bright 03* (merge cinematic reveal; 3-second excerpt).
 
 User-supplied Sonniss.com GDC 2026 Game Audio Bundle, under the
 [Sonniss GDC bundle licence](https://sonniss.com/gdc-bundle-license/).

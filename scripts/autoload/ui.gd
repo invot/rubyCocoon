@@ -236,7 +236,11 @@ func beast_cinematic(kind: String, before: Dictionary, after := {}, egg := {}) -
 		auto_log.append("[cinematic] %s %s" % [kind, after.get("name", before.get("name", ""))])
 		await get_tree().process_frame
 		return
-	var film = load("res://scripts/ui/beast_cinematic.gd").new().setup(kind, before, after, egg)
+	await play_film(load("res://scripts/ui/beast_cinematic.gd").new().setup(kind, before, after, egg))
+
+
+## Shows a full-screen film and waits for it to end. The hidden world stops rendering until then.
+func play_film(film) -> void:
 	var world_view: SubViewport = GameState.main.view if GameState.main != null else null
 	var previous_update := SubViewport.UPDATE_ALWAYS
 	if is_instance_valid(world_view):

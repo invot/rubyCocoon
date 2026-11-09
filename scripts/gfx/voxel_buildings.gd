@@ -171,6 +171,8 @@ static func style_for(biome_id: String) -> String:
 
 ## Builds the full node for a building dictionary (shop, w, d, height, door, x, y, seed).
 static func build(b: Dictionary, style_name: String) -> Node3D:
+	if style_name == "pirate_cove":
+		return load("res://scripts/gfx/cove_buildings.gd").build(b)
 	if style_name in ["roundwood", "resort"]:
 		return load("res://scripts/gfx/island_buildings.gd").build(b, style_name)
 	var st: Dictionary = STYLES.get(style_name, STYLES["town"])
@@ -499,8 +501,9 @@ static func _shop_front(node: Node3D, plan: Dictionary, shop: String, st: Dictio
 		drop = 0.0
 		depth = maxf(depth, (pc["rect"] as Rect2).end.y - front)
 	# over the door; over a porch, the whole of it
-	var x0 := door.x - 1.25
-	var x1 := door.x + 1.25
+	var awning_half := float(plan.get("awning_width",2.5))/2.0
+	var x0 := door.x - awning_half
+	var x1 := door.x + awning_half
 	if not pc.is_empty():
 		x0 = (pc["rect"] as Rect2).position.x
 		x1 = (pc["rect"] as Rect2).end.x

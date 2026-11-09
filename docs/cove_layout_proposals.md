@@ -1,0 +1,133 @@
+# Cocoon Cove: modern pirate cove
+
+**Option A is implemented**, with the apothecary on the eastern bluff and a much
+shorter pier entered only from the right. Its only buildings are wooden shacks:
+the neighbor (`hut_3`) and Old Gear Shack (`hut_1`) at the far end. The plaster
+neighbor (`house_2`) has moved to the western garden on land. The apothecary keeps
+the kit's plaster building (`house_3`) and green shopfront. Existing interiors and
+saved building identities move with their roles.
+
+The playable map uses the existing cardinal tile movement, elevation, streamed scenery,
+terrain, input and story systems. Its 54x44 footprint is smaller than the previous
+66x49 map. All seven saved interior identities, room contents, starter items and story
+gates are retained. Invalid old saved positions recover through the normal safe spawn.
+Original art-study tools remain available for design history; the playable map in
+`town_maps.gd` and `cove_buildings.gd` is authoritative.
+
+## Common direction
+
+- Compact, welcoming seaside settlement: timber cottages, pale plaster, clay roofs,
+  opaque blue-green windows, warm lamps, planters, and stone stairways.
+- Seaside cliffs with the player's home on a high overlook; winding approaches lead
+  to a small square on solid land. The library and diner-like Beast Center face it.
+- Only wooden shacks stand over the water. The apothecary and plaster homes stand on
+  land. The single right-hand stair reaches a short pier ending at the gear shack,
+  with no second shore connection, ships, boats or rafts. The shack keeps its existing
+  exploration role.
+- Preserve all seven enterable buildings and two scenery homes. Existing interior
+  identity order remains Center, home, apothecary, house, house, library, gear shack.
+  Those saved identities remain fixed even though their origins move.
+- Rowan and the mascot stay in the square. Bram remains the only way onto the Coastal
+  Path until the first beast; the library map gift and shack items keep their rules.
+
+## A: Lantern Horseshoe
+
+The most compact arrangement. The home has its own high western garden; two small
+scenery cottages occupy the rear shelf. A stair descends beside the library to the
+square. The apothecary occupies the eastern bluff. The plaster neighbor's home sits
+in the western garden. Right-hand stairs descend to one short boardwalk past a wooden
+neighbor's shack, ending at the wooden gear shack's platform. It has 77 walkable deck
+tiles instead of 169. There is no loop, long southern arm or onward route beyond it.
+
+Crates and barrels dress the dock edges, gardens and shop sides. `prop_clearance`
+rectangles reserve the through-lanes, stairs, square crossings and doorway approaches.
+The authored-prop path uses the shared local connectivity proof and full-flood
+fallback, rejecting any decoration that disconnects a formerly reachable tile.
+
+Doors use `HouseModels._front_door`, `DOOR_H` (1.8), `DOOR_ASPECT`, and the existing
+door tiles and brass knob. The library's canopy is the door width plus a small margin;
+the other towns keep their existing shopfront widths. Dock planks have quiet painted
+seams and low rails with pilings, built once into shared meshes.
+
+## Original alternative B: Switchback Village
+
+The strongest vertical journey. Home overlooks an intermediate residential terrace;
+two turns and separate stair flights lead past a neighbor to the square below. The
+waterfront extends east into a compact dock district with the apothecary and second
+enterable neighbor. The old shack sits on the lower western headland; two scenery
+cottages fill the rear of the main village.
+
+Best for a more adventurous descent and distinct neighborhoods. Longer home-to-square
+travel and camera sightlines will need particular attention during tile-map work.
+
+## Original alternative C: Tidecup Lagoon
+
+The most sheltered waterfront. A high home and rear scenery cottages overlook the
+inland square; the old shack anchors a rocky western arm. A longer connected dock
+walk carries the two neighboring homes and apothecary around an open water courtyard.
+Both dock ends reconnect to land.
+
+Best for the hidden-cove feeling in the reference, with more emphasis on water and
+dock wandering. Keep the inland square as the main social space.
+
+## Exterior corrections
+
+The WholeHouseFBX geometry is retained but its noisy orange texture is replaced by
+the kit's simpler plaster, timber, and clay finishes. Its front door, original window
+apertures on three sides, and attic ends have physical opaque closures.
+
+The other eight buildings receive closed doors, opaque glazing, infill behind exposed
+walls, and gable closures where needed. Huts are turned so their entrances face the
+same direction as the other houses. Shopfront openings become framed, opaque display
+windows. Windows have colored glass and reflection marks, without showing interiors.
+Repairs are baked into each mesh; they do not depend on hiding interior geometry at
+one camera angle. `check_cove_exteriors.gd` checks 42 source-aperture rays, opaque
+materials, and grounding across all nine building meshes.
+
+## Reproduce
+
+Resolve the local Godot 4.7 executable as described in the README. Supply the folder
+containing the original `towns.glb` and `wholehousefbx.glb` downloads:
+
+```text
+godot --headless --path . --script res://tools/prepare_cove_proposals.gd -- --source=C:/path/to/downloads
+godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/exteriors/cove_
+godot --headless --path . --import
+godot --headless --path . --script res://tools/bake_cove_measurements.gd
+```
+
+Run the quick checks and the exterior scenario, then render the studies:
+
+```text
+bash tools/run_tests.sh quick
+bash tools/run_tests.sh cove-exteriors
+bash tools/run_tests.sh cocoon cocoon-touch
+python tools/town_check.py
+godot --path . -- --scene=cocoon --preview=overview --shot=res://build/shots/cove_game_overview.png
+godot --path . -- --scene=cocoon --preview=square --shot=res://build/shots/cove_game_square.png
+godot --path . --resolution 2400x1080 -- --scene=cocoon --touch --preview=docks --shot=res://build/shots/cove_game_touch.png
+```
+
+Original isolated art studies (not used as runtime maps):
+
+```text
+godot --path . --script res://tools/cove_proposals.gd -- --layout=a --shot=res://build/shots/cove_a.png
+godot --path . --script res://tools/cove_proposals.gd -- --layout=b --shot=res://build/shots/cove_b.png
+godot --path . --script res://tools/cove_proposals.gd -- --layout=c --shot=res://build/shots/cove_c.png
+godot --path . --script res://tools/cove_proposals.gd -- --layout=gallery --shot=res://build/shots/cove_asset_gallery.png
+godot --path . --script res://tools/cove_proposals.gd -- --layout=gallery --model=whole_house --shot=res://build/shots/cove_whole_after.png
+```
+
+`--view=square`, `--view=home`, `--view=harbour`, or `--view=apothecary` gives a closer art view;
+`--hold=1` keeps the study window open. These tools do not load or modify saves.
+
+The source ZIP lacks its OBJ material libraries and a licence statement, so the
+derived assets use the self-contained, attributed GLBs instead. See
+[asset provenance](../licenses/pirate_cove.md). Original downloads are untouched.
+
+`bake_cove_measurements.gd` exports the renderer's fitted plot bounds for the Python
+sightline checker. Re-run it after changing plots or fitting rules. The `cocoon`
+scenario checks the short shack-only dock, cargo placement, clear walking lanes,
+the two-tile right-hand entrance, standard doors, old interior
+ids, old-position recovery, the route to the shack, item collection, and the library
+gift. Its touch mode enters the shack and library through actual world taps.

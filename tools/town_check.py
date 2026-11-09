@@ -10,8 +10,10 @@ It also checks that every door, exit and person can be reached, up and down ramp
 Run from the project root:  python tools/town_check.py [town ...]
 """
 import math
+import json
 import re
 import sys
+from pathlib import Path
 from collections import deque
 
 SRC = 'scripts/data/maps/town_maps.gd'
@@ -27,7 +29,7 @@ SHOP = {'C': 'center', 'A': 'apothecary', 'G': 'beast_gear', 'O': 'trainer_gear'
         'Q': 'temple', 'X': 'electronics', 'V': 'skytower', 'I': 'ceo_tower', 'B': 'cathedral', 'J': 'hideout',
         'h': 'decor', 'D': 'music_shop', 's': 'shack'}
 # town -> building style (world_db.gd BIOMES)
-STYLE = {'caccoon': 'coastal', 'tidewater': 'creole', 'shellhaven': 'island', 'kelpwick': 'island',
+STYLE = {'caccoon': 'pirate_cove', 'tidewater': 'creole', 'shellhaven': 'island', 'kelpwick': 'island',
          'dustwell': 'frontier', 'sundown': 'western', 'copperpick': 'mining', 'cogsworth': 'steampunk',
          'emberfall': 'hotspring', 'vinehollow': 'jungle', 'riverbend': 'town', 'gravenmoor': 'gothic'}
 ROOF = {'coastal': 'gable', 'island': 'hip', 'adobe': 'flat', 'western': 'western', 'mining': 'shed',
@@ -302,6 +304,7 @@ def height_map(rows, style, lv, scenery=()):
     """Callable (wx, wz) -> height of whatever stands there, on its level."""
     h, w = len(rows), len(rows[0])
     cells = {}
+    cove_bounds = json.loads(Path('assets/exteriors/cove_layout_bounds.json').read_text()) if style == 'pirate_cove' else {}
     for c, x, y, bw, bd in buildings(rows):
         low = walk_gap_behind(rows, x, y, bw) < 12
         for yy in range(y - 1, y + bd + 1):
@@ -334,7 +337,17 @@ def height_map(rows, style, lv, scenery=()):
         best = 0.0
         for o in cells.get((math.floor(wx), math.floor(wz)), ()):
             if o[0] == 'b':
-                rh = roof_height(style, o[1], o[4], o[5], wx - o[2], wz - o[3], o[7])
+                if style == 'pirate_cove':
+                    key = f'{int(o[2]-o[4]/2)},{int(o[3]-o[5]/2)}'
+                    measured = cove_bounds[key]
+                    if measured['plot'] != [o[4], o[5]]:
+                        raise ValueError('Re-bake the cove layout bounds for ' + key)
+                    rx, rz, rw, rd = measured['rect']
+                    # Roof overhangs and awnings are open underneath at the door.
+                    front = min(rz + rd, o[5] / 2 - 0.1)
+                    rh = measured['height'] if rx <= wx-o[2] <= rx+rw and rz <= wz-o[3] <= front else 0.0
+                else:
+                    rh = roof_height(style, o[1], o[4], o[5], wx - o[2], wz - o[3], o[7])
                 if rh > 0:
                     best = max(best, rh + o[6])
             elif o[0] == 't':

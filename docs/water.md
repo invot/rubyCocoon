@@ -1,0 +1,66 @@
+# Water rendering
+
+The shared `scripts/gfx/water.gdshader` draws clear shallows over the actual terrain and assets, with depth absorption
+into the biome's blue, small crossing swells, finer surface ripples, moving caustic light and contact foam. Beach wash
+travels towards the sand. Rocks that break the surface get a foam edge; fully submerged rocks remain visible without
+a surface foam ring. These are visual waves, not a fluid or buoyancy simulation.
+
+`scripts/world/terrain_mesh.gd` deepens open-water beds according to distance from land. Narrow streams stay shallow.
+It continues the adjacent water level beneath raised bridges, docks and over-water buildings, copying the elevation
+arrays so movement heights stay intact. A backdrop plane sits below the deepest bed instead of clipping through it.
+
+`scripts/world/shoreline.gd` and the shader share the curved beach profile. The shallow shelf still stops at five
+centimetres and only the authored `a` tiles are walkable. The offshore floor reaches -1.65. Beach stones reuse the
+existing scenery pack and batches, stand beyond the wading row and cast no extra shadows.
+
+## Tuning
+
+- `tint`: the existing per-biome water colour; the shader derives its deep colour from it.
+- `wave_height`: default 0.045 world units. Waves flatten on the wading shelf. The mesh's extra cull margin covers
+  the displaced surface. Pool and waterfall materials can reduce this parameter for quieter water.
+- `spec`: default 0.4; the temple's moving pool keeps its existing zero-specular override.
+- `opacity`: maximum opacity, 0.96 outdoors; shallow-water opacity comes from actual depth.
+- `absorption_strength`: default 1.35; battle scenery uses 2.7 to keep its shallow sandy stage blue from above.
+- `shore` / `shore_levels`: supplied from the map's existing shoreline rectangle and shared shoreline constants.
+
+No new textures or third-party code are required. Horizontal water uses one depth lookup and analytic animation,
+with no screen-colour/refraction copy, extra camera, compute simulation or per-frame CPU updates. Existing texture
+frames still animate waterfalls and lava. Depth reconstruction accounts for the different Vulkan/OpenGL ranges.
+Contact foam uses the opaque depth buffer: fully transparent props do not contribute an intersection.
+Fishing battles use the same shader over their sandy bed, and distant battle scenery uses a fixed depth tint where
+there is no modelled bed. Both battle water meshes have one-unit subdivisions for the small swells.
+
+The visual direction is the clear sand, depth colour and shoreline foam in the supplied reference. Research examples:
+[Emilje's Godot 4 water shader](https://github.com/emilje/godot-water-shader) demonstrates Gerstner waves, depth fading
+and intersection foam. This implementation stays inside the game's existing terrain/material pipeline.
+[Godot's depth reconstruction documentation](https://docs.godotengine.org/en/stable/tutorials/shaders/advanced_postprocessing.html)
+explains the renderer-specific projection conversion used here.
+
+## Checks and captures
+
+`godot` below means the local Godot 4.7 executable. All preview state stays under `build/`.
+
+```sh
+bash tools/run_tests.sh quick
+godot --headless --path . --script res://tools/check_water.gd
+bash tools/run_tests.sh shellhaven-marina shellhaven-marina-touch temple-water tides-walk
+godot --headless --path . --script res://tools/check_maps.gd
+python tools/town_check.py
+```
+
+The focused check protects unchanged walking elevations, separate river levels, submerged dock beds and the entire
+beach's five-centimetre wading limit. The marina scenarios exercise real directional/tap navigation and deep-water
+blocking; the temple scenarios cover waterfalls, drains and progression.
+
+Windowed preview, with steady-frame timing and two captures at different animation times:
+
+```sh
+godot --path . --resolution 1920x1080 --script res://tools/water_preview.gd -- --scene=world:shellhaven --overview=15 --focus=43,24 --quit=0 --wait=2 --shot_w=0 --shot=res://build/shots/water/beach_desktop.png --save_dir=res://build/water_saves/
+godot --path . --rendering-method mobile --resolution 2400x1080 --script res://tools/water_preview.gd -- --scene=world:shellhaven --spawn=43,23 --touch --quit=0 --wait=2 --shot_w=0 --shot=res://build/shots/water/beach_touch.png --save_dir=res://build/water_saves/
+godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 --resolution 1920x1080 --script res://tools/water_preview.gd -- --scene=world:shellhaven --overview=15 --focus=43,24 --quit=0 --wait=2 --shot_w=0 --shot=res://build/shots/water/beach_compatibility.png --save_dir=res://build/water_saves/
+```
+
+Add `--hold=1` after `--` to keep the window open. For other views, use `--scene=world:tidewater --spawn=28,31`
+for the harbour, `--scene=world:reef#0` for the temple pool, or the ordinary screenshot harness's
+`--scene=battle --kind=fishing` for a reeled-in encounter. A desktop run with the Mobile renderer
+checks that renderer's appearance; it does not establish performance on an actual phone.

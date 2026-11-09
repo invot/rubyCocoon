@@ -13,6 +13,7 @@ extends RefCounted
 
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
+const MapGen = preload("res://scripts/world/map_gen.gd")
 const TerrainShader = preload("res://scripts/gfx/terrain.gdshader")
 const WaterShader = preload("res://scripts/gfx/water.gdshader")
 const Shoreline = preload("res://scripts/world/shoreline.gd")
@@ -32,6 +33,8 @@ var height := PackedFloat32Array()
 var rough := PackedByteArray()
 ## per tile: 0 = dry, 1 = water surface, 2 = lava surface
 var liquid := PackedByteArray()
+## Visual bed depth only. Collision and elevation continue to use the authored tiles.
+var water_bed := PackedFloat32Array()
 var seed := 0
 ## the map, for its levels and ramps (elevation.gd); flat without them
 var elev_map := {}
@@ -118,7 +121,7 @@ func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 			# only flat ground on the same level is drawn as one with this tile
 			if ramp[i] != 0 or absf(base_lo[i] - base_lo[own]) > 0.01:
 				continue
-			var v := height[i]
+			var v := water_bed[i] if not water_bed.is_empty() and liquid[i] == 1 and height[i] < -0.05 else height[i]
 			if absf(v) < absf(best):
 				best = v
 			if rough[i] == 1:
@@ -200,6 +203,8 @@ func _shape(parent: Node3D, slice_us: int) -> Dictionary:
 		_shape_order.erase(key)
 		_shape_order.append(key)
 		return _shapes[key]
+	_lower_dock_beds()
+	_prepare_water_bed()
 	var chunks := []
 	var x0 := -MARGIN
 	var z0 := -MARGIN
@@ -222,6 +227,77 @@ func _shape(parent: Node3D, slice_us: int) -> Dictionary:
 	while _shape_order.size() > REMEMBERED_SHAPES:
 		_shapes.erase(_shape_order.pop_front())
 	return shape
+
+
+## A raised walking deck is not a raised body of water. Continue the neighbouring water under dock/bridge tiles.
+## Copy the elevation arrays before editing: the map's movement heights and the planks keep their authored level.
+func _lower_dock_beds() -> void:
+	if not elev_map.has("grid"):
+		return
+	base_lo = base_lo.duplicate()
+	base_hi = base_hi.duplicate()
+	ramp = ramp.duplicate()
+	var seen := PackedByteArray()
+	seen.resize(w * h)
+	var queue := PackedInt32Array()
+	for z in h:
+		for x in w:
+			var i := x + z * w
+			if liquid[i] == 1 and not _over_water_deck(Vector2i(x, z)):
+				seen[i] = 1
+				queue.append(i)
+	var cursor := 0
+	while cursor < queue.size():
+		var i := queue[cursor]
+		cursor += 1
+		var p := Vector2i(i % w, i / w)
+		for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var q: Vector2i = p + d
+			if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h:
+				continue
+			var j := q.x + q.y * w
+			if seen[j] == 0 and liquid[j] == 1 and _over_water_deck(q):
+				seen[j] = 1
+				base_lo[j] = (base_lo[i] + base_hi[i]) * 0.5
+				base_hi[j] = base_lo[j]
+				ramp[j] = 0
+				queue.append(j)
+
+
+func _over_water_deck(p: Vector2i) -> bool:
+	return MapGen.get_t(elev_map, p.x, p.y) == MapGen.BRIDGE or elev_map.get("over_water", {}).has(p)
+
+
+## One flood fill at mesh creation, never per frame. Narrow streams stay shallow; open water gets a deeper bed.
+## Using the same vertex smoothing as land keeps natural sloping banks, including around isolated rock tiles.
+func _prepare_water_bed() -> void:
+	water_bed = height.duplicate()
+	var distance := PackedInt32Array()
+	distance.resize(w * h)
+	distance.fill(w + h)
+	var queue := PackedInt32Array()
+	for z in h:
+		for x in w:
+			var i := x + z * w
+			if liquid[i] != 1:
+				distance[i] = 0
+				queue.append(i)
+	var cursor := 0
+	while cursor < queue.size():
+		var i := queue[cursor]
+		cursor += 1
+		var p := Vector2i(i % w, i / w)
+		for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var q: Vector2i = p + d
+			if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h:
+				continue
+			var j := q.x + q.y * w
+			if distance[j] > distance[i] + 1:
+				distance[j] = distance[i] + 1
+				queue.append(j)
+	for i in w * h:
+		if liquid[i] == 1 and height[i] < -0.05:
+			water_bed[i] -= smoothstep(1.0, 6.0, float(distance[i])) * 1.8
 
 
 func _place(parent: Node3D, mesh: ArrayMesh, mat: Material) -> void:
@@ -258,6 +334,7 @@ func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, x_end: int, z_end: int) -> A
 	var face_normals := PackedVector3Array()
 	var face_colors := PackedColorArray()
 	var cache := {}
+	var shore_normals := {}
 	for tz in range(tz0, tz1):
 		for tx in range(tx0, tx1):
 			var g := _grid(tx, tz, cache)
@@ -271,6 +348,18 @@ func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, x_end: int, z_end: int) -> A
 					else:
 						_tri(verts, normals, at, g[o], g[o + 1], g[o + 3])
 						_tri(verts, normals, at + 3, g[o + 1], g[o + 4], g[o + 3])
+					# A sandy slope needs continuous lighting as well as continuous heights.
+					# Facet normals otherwise leave straight bands through the transparent water.
+					if elev_map.has("shoreline"):
+						for k in 6:
+							var v := verts[at + k]
+							if Shoreline.contains(elev_map, v.x, v.z):
+								var key := Vector2(v.x, v.z)
+								if not shore_normals.has(key):
+									var dx := Shoreline.bottom(elev_map, v.x - 0.05, v.z) - Shoreline.bottom(elev_map, v.x + 0.05, v.z)
+									var dz := Shoreline.bottom(elev_map, v.x, v.z - 0.05) - Shoreline.bottom(elev_map, v.x, v.z + 0.05)
+									shore_normals[key] = Vector3(dx, 0.1, dz).normalized()
+								normals[at + k] = shore_normals[key]
 					at += 6
 			# east edge: this tile's right column against the next tile's left one; south edge: bottom row against top
 			# (under a waterfall the rock stays smooth, behind the falling water)
@@ -438,7 +527,7 @@ func _liquid(parent: Node3D, mesh: ArrayMesh, kind: int, col: Color) -> void:
 	mat.set_shader_parameter("frame_count", float(VT.LAVA_FRAMES if lava else VT.WATER_FRAMES))
 	mat.set_shader_parameter("fps", 2.0 if lava else 6.0)
 	mat.set_shader_parameter("tint", col)
-	mat.set_shader_parameter("opacity", 1.0 if lava else 0.84)
+	mat.set_shader_parameter("opacity", 1.0 if lava else 0.96)
 	mat.set_shader_parameter("glow", 1.4 if lava else 0.0)
 	mat.set_shader_parameter("drift", Vector2(0.01, 0.02) if lava else Vector2(0.0, 0.03))
 	if not lava and elev_map.has("shoreline"):
@@ -449,4 +538,5 @@ func _liquid(parent: Node3D, mesh: ArrayMesh, kind: int, col: Color) -> void:
 	mi.mesh = mesh
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = 0.1
 	parent.add_child(mi)

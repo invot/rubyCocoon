@@ -102,7 +102,7 @@ func _ready() -> void:
 	_layout()
 	resized.connect(_layout)
 	_refresh()
-	(cells[GameState.ring_side * 2] as Control).grab_focus.call_deferred()
+	(cells[GameState.starting_ring_side() * 2] as Control).grab_focus.call_deferred()
 
 
 ## The window fills most of the screen, so the cells are big enough to tap.
@@ -139,7 +139,7 @@ func _ring_geometry() -> Array:
 ## The ring's cells round the trainer, the side facing the foe at the top (as in the book's ring diagram).
 func _place_ring() -> void:
 	var g := _ring_geometry()
-	var mid := GameState.ring_side * 2
+	var mid := GameState.starting_ring_side() * 2
 	for k in Ring.SLOTS:
 		var a := float(k - mid) * TAU / 8.0
 		var p: Vector2 = g[0] + Vector2(sin(a), -cos(a)) * float(g[1])
@@ -167,7 +167,7 @@ func _draw_ring() -> void:
 	var you := "You"
 	var ys := font.get_string_size(you, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
 	ring_area.draw_string(font, c + Vector2(-ys.x / 2.0, h * 2.6), you, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.DIM)
-	var word := "▲  Your %s side faces the foe  ▲" % Ring.side_element(GameState.ring_side).capitalize()
+	var word := "▲  Your %s side faces the foe  ▲" % Ring.side_element(GameState.starting_ring_side()).capitalize()
 	var ws := font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(20))
 	ring_area.draw_string(font, Vector2((ring_area.size.x - ws.x) / 2.0, 22.0), word, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(20), UIKit.GOLD)
 

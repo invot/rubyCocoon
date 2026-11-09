@@ -216,6 +216,23 @@ static func side_alive(ring: Dictionary, side: int) -> bool:
 	return false
 
 
+## A menu starting side is occupied even when its beasts have fainted.
+static func side_occupied(ring: Dictionary, side: int) -> bool:
+	for k in side_slots(side):
+		if ring.get(k, null) != null:
+			return true
+	return false
+
+
+## The next starting side with any beast in its three slots; skip fully empty sides.
+static func next_occupied_side(ring: Dictionary, side: int, dir: int) -> int:
+	for i in range(1, 4):
+		var s := posmod(side + dir * i, 4)
+		if side_occupied(ring, s):
+			return s
+	return side
+
+
 ## The next side round from `side` in direction `dir` (-1 or 1) with a beast standing on it, or `side` if none.
 static func next_side(ring: Dictionary, side: int, dir: int) -> int:
 	for i in range(1, 4):

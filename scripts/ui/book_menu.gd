@@ -4,7 +4,8 @@ extends "res://scripts/ui/modal.gd"
 ## the Humble Gift kit's two paper pages, dark with the gem and lined in white: they unfold as the book opens, the
 ## right one slides out from behind the left whenever a tab opens, and the page titles write themselves in.
 ## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
-## Controls: ←/→ switch tabs, ↑/↓ choose, A to act, S (back) returns to the tabs / closes, Start closes.
+## Controls: ←/→ switch tabs (on the ring row, turn the starting side), ↑/↓ choose, A to act,
+## S (back) returns to the tabs / closes, Start closes.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Bar = preload("res://scripts/ui/bar.gd")
@@ -17,10 +18,10 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Ring = preload("res://scripts/core/ring.gd")
-const RingView = preload("res://scripts/ui/ring_view.gd")
 const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 const WorldMap = preload("res://scripts/ui/world_map.gd")
 const RingEditor = preload("res://scripts/ui/ring_editor.gd")
+const RingStartPicker = preload("res://scripts/ui/ring_start_picker.gd")
 
 const TABS := [
 	{"id": "trainer", "name": "Trainer", "icon": "tab_trainer"},
@@ -78,6 +79,7 @@ var focus_row := 0
 var map_view: Control
 var _t := 0.0
 var _keep_row := -1
+var ring_start_picker: Control
 
 
 func setup(_world, start_tab := "") -> Control:
@@ -773,8 +775,9 @@ func _tab_beasts() -> void:
 	GameState.fix_ring()
 	_make_list(left_box, "Beasts %d / %d" % [GameState.party.size(), GameState.party_max()], right_box)
 	if not GameState.party.is_empty():
-		_add_row({"text": "Battle ring & storage", "right": "%s side" % Ring.side_element(GameState.ring_side).capitalize(), "right_width": 150,
+		_add_row({"text": "Battle ring & storage",
 			"act": _arrange_ring, "detail": _ring_detail})
+		(row_buttons[0] as Control).gui_input.connect(_ring_start_input)
 	var ordered: Array = GameState.party.duplicate()
 	ordered.sort_custom(func(x, y): return int(x.slot) < int(y.slot))
 	for b in ordered:
@@ -791,14 +794,14 @@ func _tab_beasts() -> void:
 ## Your battle ring: who stands where. It fills the page, so it never needs scrolling.
 func _ring_detail(c: VBoxContainer) -> void:
 	c.add_child(_h("Battle ring"))
-	var rv := RingView.new(160.0)
-	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rv.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	rv.shield = GameState.shield
-	rv.max_shield = GameState.max_shield
-	rv.set_ring(GameState.ring(), GameState.ring_side)
-	rv.facing = 0.0
-	c.add_child(rv)
+	ring_start_picker = RingStartPicker.new()
+	ring_start_picker.return_focus = row_buttons[0]
+	c.add_child(ring_start_picker)
+
+
+func _ring_start_input(event: InputEvent) -> void:
+	if is_instance_valid(ring_start_picker) and ring_start_picker.is_inside_tree():
+		ring_start_picker.handle_input(event)
 
 
 ## Arranging your beasts round the ring and in storage (ring_editor.gd).

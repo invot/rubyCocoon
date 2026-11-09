@@ -8,6 +8,7 @@ const SEG := 72
 const RIBS := 18
 ## Width of the three blocks in one repeat of the course texture, per surface.
 const FLOOR_TILE := 5.4
+const FLOOR_RING := 1.5
 const WALL_TILE := 6.6
 ## Repeats of those three blocks around the base. One count from floor to top keeps every joint on the same radial line.
 const PLINTH_RUNS := 6.0
@@ -61,8 +62,8 @@ static func build() -> ArrayMesh:
 	_lathe(wall, shell, Vector3.ZERO, SEG, WALL_TILE)
 	var ground := Geo.new()
 	var rings := [Vector2(12.2, 0.0)]
-	while rings.back().x - 1.5 > 3.85:
-		rings.append(Vector2(rings.back().x - 1.5, 0.0))
+	while rings.back().x - FLOOR_RING > 3.85:
+		rings.append(Vector2(rings.back().x - FLOOR_RING, 0.0))
 	rings.append(Vector2(3.85, 0.0))
 	_lathe(ground, rings.slice(0, rings.size() - 1), Vector3.ZERO, SEG, FLOOR_TILE)
 	# The ring against the plinth shares its joints, so they run unbroken from the floor up over every step.
@@ -97,6 +98,19 @@ static func build() -> ArrayMesh:
 	glow.emission_energy_multiplier = 1.0
 	bulbs.add_to(mesh, glow)
 	return mesh
+
+
+## More rings of the vault's flagstones, from its edge out to `reach`, for a room wider than the vault.
+static func floor_beyond(reach: float) -> Geo:
+	var rings := []
+	var radius: float = SHELL.back().x
+	while radius < reach:
+		rings.push_front(Vector2(radius, 0.0))
+		radius += FLOOR_RING
+	rings.push_front(Vector2(radius, 0.0))
+	var ground := Geo.new()
+	_lathe(ground, rings, Vector3.ZERO, SEG, FLOOR_TILE)
+	return ground
 
 
 ## The column the core hangs from, in the core's own units: a metal tube banded with clamps, wrapped in a bundle of

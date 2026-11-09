@@ -13,6 +13,8 @@ extends Node3D
 signal finished(result: String)
 
 const Beasts = preload("res://scripts/core/beasts.gd")
+const OutdoorLight = preload("res://scripts/gfx/outdoor_light.gd")
+const WaterShader = preload("res://scripts/gfx/water.gdshader")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
@@ -312,34 +314,39 @@ func _build_stage() -> void:
 		env.background_mode = Environment.BG_SKY
 		env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(biome["sky_top"]).lerp(Color(biome["ground"]), 0.4) if not dark else Color("#a898c8")
-	env.ambient_light_energy = float(biome["amb"]) + 0.1 if not dark else 0.45
+	env.ambient_light_color = OutdoorLight.ambient_color(biome, 0.4) if not dark else Color("#a898c8")
+	env.ambient_light_energy = OutdoorLight.ambient_energy(biome) + 0.1 if not dark else 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_white = 2.2
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
 	env.glow_hdr_threshold = 0.9
+	if not dark:
+		OutdoorLight.grade(env)
 	env.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"
 	env.ssao_intensity = 1.5
 	env.fog_enabled = not dark
 	env.fog_light_color = Color(biome["sky_hz"])
 	env.fog_density = float(biome.get("fog", 0.004))
 	env.fog_sky_affect = 0.0
-	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.15
-	env.adjustment_contrast = 1.08
+	if dark:
+		env.adjustment_enabled = true
+		env.adjustment_saturation = 1.15
+		env.adjustment_contrast = 1.08
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	stage_env = env
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(biome["sun"]) if not dark else Color("#d8c8ff")
-	sun.light_energy = float(biome["sun_e"]) if not dark else 0.5
+	sun.light_energy = OutdoorLight.sun_energy(biome) if not dark else 0.5
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.2
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 30.0
 	sun.rotation_degrees = Vector3(-50, 30, 0)
+	if not dark:
+		OutdoorLight.aim(sun)
 	add_child(sun)
 	stage_sun = sun
 	_stage_light = [env.ambient_light_energy, sun.light_energy]
@@ -948,11 +955,12 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		var water := MeshInstance3D.new()
 		var wp := PlaneMesh.new()
 		wp.size = Vector2(80, 14)
+		wp.subdivide_width = 79
+		wp.subdivide_depth = 13
 		water.mesh = wp
-		var wm := _tex_mat(VT.terrain("water", biome["water"]), Vector2(80, 14))
-		wm.roughness = 0.15
-		wm.metallic_specular = 0.9
-		water.material_override = wm
+		water.material_override = _clear_water(Color(biome["water"]), 1.5)
+		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		water.extra_cull_margin = 0.1
 		water.position = Vector3(0, 0.02, -24)
 		add_child(water)
 
@@ -970,11 +978,12 @@ func _fishing_scenery(rng: RandomNumberGenerator) -> void:
 	var water := MeshInstance3D.new()
 	var wp := PlaneMesh.new()
 	wp.size = Vector2(110, 110)
+	wp.subdivide_width = 109
+	wp.subdivide_depth = 109
 	water.mesh = wp
-	var wm := _tex_mat(VT.terrain("water", water_col), Vector2(110, 110))
-	wm.roughness = 0.15
-	wm.metallic_specular = 0.9
-	water.material_override = wm
+	water.material_override = _clear_water(Color(water_col))
+	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	water.extra_cull_margin = 0.1
 	water.position = FOE_CENTER + Vector3(0, -0.15, 0)
 	add_child(water)
 	var beach := MeshInstance3D.new()
@@ -1065,6 +1074,19 @@ func _fishing_scenery(rng: RandomNumberGenerator) -> void:
 			ring.mesh = tor
 			ring.position = _wild_pos(j) + Vector3(0, -0.12, 0)
 			add_child(ring)
+
+
+## The same clear, animated water as the world. Only the far background strip lacks a physical bed.
+func _clear_water(col: Color, backdrop := 0.0) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = WaterShader
+	mat.set_shader_parameter("frames", VT.frames("water"))
+	mat.set_shader_parameter("tint", col)
+	mat.set_shader_parameter("opacity", 0.96)
+	# The battle's sandy stage is shallow throughout; a stronger tint keeps it reading as water from above.
+	mat.set_shader_parameter("absorption_strength", 2.7)
+	mat.set_shader_parameter("backdrop_depth", backdrop)
+	return mat
 
 
 func _arena_scenery(rng: RandomNumberGenerator) -> void:
@@ -1914,11 +1936,12 @@ func msg(text: String, wait := 0.95, subject = null) -> void:
 # ================================================================ main loop
 func _run() -> void:
 	await get_tree().process_frame
-	# your ring, turned to the side you last fought with if the beast in its middle is standing, else round to the
-	# nearest side whose middle beast is (see Ring.covered_side)
+	# Use the book's preferred opening side, with the same middle-beast protection as before. Guided lessons keep
+	# their existing facing so a menu preference cannot change the action they teach.
 	GameState.fix_ring()
 	ally_ring = GameState.ring()
-	ally_side = Ring.covered_side(ally_ring, GameState.ring_side)
+	var opening_side := GameState.ring_side if tutorial else GameState.starting_ring_side()
+	ally_side = Ring.covered_side(ally_ring, opening_side)
 	if tutorial and lesson.get("practice", false):
 		_practice_beasts()
 	if not wild:
@@ -1982,8 +2005,8 @@ func _run() -> void:
 	for b in _alive(ally_slots):
 		go.append(b.nickname)
 	_refresh()
-	if ally_side != GameState.ring_side and not tutorial:
-		await msg("Nobody stands in the middle of your %s side, so you turn your ring round." % Ring.side_element(GameState.ring_side).capitalize(), 1.0)
+	if ally_side != opening_side and not tutorial:
+		await msg("Nobody stands in the middle of your %s side, so you turn your ring round." % Ring.side_element(opening_side).capitalize(), 1.0)
 	if not go.is_empty():
 		await msg("Your %s side faces the foe. Go, %s!" % [Ring.side_element(ally_side).capitalize(), ", ".join(go)], 0.9)
 	await _start_passives()

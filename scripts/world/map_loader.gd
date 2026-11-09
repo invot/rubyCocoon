@@ -252,7 +252,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
-	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props", "shoreline", "style"]:
+	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props", "prop_clearance", "shoreline", "style"]:
 		if src.has(setting):
 			m[setting] = src[setting]
 	for p in m["pushables"]:
@@ -446,7 +446,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# a building standing in the water (a fishery on the docks) stands on planks over it
 	var over := {}
 	for b in m["buildings"]:
-		if not b["shop"] in ["decor", "fishery"]:
+		if not b["shop"] in ["decor", "fishery"] and not b.get("over_water", false):
 			continue
 		var wet := false
 		for y in range(int(b["y"]) - 1, int(b["y"]) + int(b["d"]) + 1):

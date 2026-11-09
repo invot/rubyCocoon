@@ -6,6 +6,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const Terrain = preload("res://scripts/world/terrain_mesh.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
+const OutdoorLight = preload("res://scripts/gfx/outdoor_light.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
@@ -22,6 +23,7 @@ const VBld =preload("res://scripts/gfx/voxel_buildings.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
+const CoveBuildings = preload("res://scripts/gfx/cove_buildings.gd")
 const Creole = preload("res://scripts/gfx/creole_builder.gd")
 const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
 const HarborBoats = preload("res://scripts/gfx/harbor_boats.gd")
@@ -58,6 +60,7 @@ var interior := false
 var player: Node3D
 var _player_meshes: Array[Node] = []
 var _player_material: ShaderMaterial
+var _player_shadow: ContactShadow
 var _player_grace_material: ShaderMaterial
 var player_pos := Vector2i.ZERO
 var facing := Vector2i(0, 1)
@@ -348,13 +351,9 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(biome["sky_top"]).lerp(Color(biome["ground"]), 0.35)
-	env.ambient_light_energy = biome["amb"]
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_white = 2.2
-	env.glow_enabled = true
-	env.glow_intensity = 0.55
-	env.glow_hdr_threshold = 0.9
+	env.ambient_light_color = OutdoorLight.ambient_color(biome)
+	env.ambient_light_energy = OutdoorLight.ambient_energy(biome)
+	OutdoorLight.grade(env)
 	env.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"
 	env.ssao_radius = 0.8
 	env.ssao_intensity = 1.6
@@ -368,21 +367,16 @@ func _build_environment() -> void:
 		env.fog_density = 0.045
 		env.fog_sky_affect = 1.0
 		env.ambient_light_color = STORM_SAND
-	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.15
-	env.adjustment_contrast = 1.08
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(biome["sun"])
-	sun.light_energy = biome["sun_e"]
-	sun.shadow_enabled = true
-	sun.shadow_blur = 1.2
+	sun.light_energy = OutdoorLight.sun_energy(biome)
+	OutdoorLight.aim(sun)
 	# two shadow splits over what the camera can actually see (four splits out to 45 drew every tree five times)
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 30.0
-	sun.rotation_degrees = Vector3(-52, 28, 0)
 	if map.get("sandstorm", false):
 		# the sun a dull glow through the dust
 		sun.light_energy *= 0.45
@@ -558,7 +552,7 @@ func _build_terrain() -> void:
 	# cliff faces: the crags' rock, a little warmer, more of the local soil in it
 	await t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls", _build_slice_us if _cooperative_build else 0)
 	terrain_mats = t.materials
-	if biome["id"] == "quarter":
+	if biome["id"] == "quarter" or biome.get("style", "") == "pirate_cove":
 		var flights := {}
 		for y in h:
 			for x in w:
@@ -594,7 +588,12 @@ func _build_terrain() -> void:
 	var pm: StandardMaterial3D = VT.material("planks").duplicate()
 	pm.vertex_color_use_as_albedo = false
 	pm.albedo_color = Color("#a8784a")
+	if biome.get("style", "") == "pirate_cove":
+		pm.albedo_texture = null
+		pm.albedo_color = Color("#ad875c")
 	_multimesh(pb, planks, pm, true)
+	if biome.get("style", "") == "pirate_cove":
+		add_child(CoveBuildings.docks(map))
 	_build_bridges()
 
 
@@ -671,9 +670,9 @@ func _build_backdrop() -> void:
 	var layer := "top_sand" if _sandy() else "top_grass"
 	var gm := _tex_mat(VT.terrain(layer, String(biome["sand"] if _sandy() else biome["ground"])), true)
 	ground.material_override = gm
-	# below the water and lava beds (the terrain itself carries on MARGIN tiles past the edge): any higher and it
-	# covers every sea and river on the map
-	ground.position = Vector3(w / 2.0, -0.7, h / 2.0)
+	# Below even the deeper offshore beds; otherwise this grass plane cuts across the transparent shallows.
+	# The terrain itself carries on MARGIN tiles past the edge.
+	ground.position = Vector3(w / 2.0, -4.0, h / 2.0)
 	add_child(ground)
 	var trees: Array = biome["trees"]
 	var shrubs: Array = biome["shrubs"]
@@ -969,7 +968,7 @@ func _ground_tile(p: Vector2i) -> int:
 	var c := MapGen.get_t(map, p.x, p.y)
 	if c in [MapGen.LAMP, MapGen.SIGN]:
 		return MapLoader._infer_floor(map, p)
-	if c == MapGen.BUILDING and map.get("over_water", {}).has(p):
+	if c in [MapGen.BUILDING, MapGen.DOOR] and map.get("over_water", {}).has(p):
 		return MapGen.BRIDGE
 	if biome.get("stone_streets", false):
 		if c == MapGen.BUILDING or (c == MapGen.FENCE and _on_quay(p)):
@@ -1009,6 +1008,30 @@ func _add_asset(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
 	if not by_asset.has(name):
 		by_asset[name] = []
 	by_asset[name].append(xf)
+
+
+## Small native beach rocks, some submerged. Stay beyond the wading row and clear of both ends of the beach.
+## They share the scenery batches; no new collision, shadow casters, or per-frame nodes.
+func _shore_rocks(by_asset: Dictionary) -> void:
+	if not map.has("shoreline"):
+		return
+	var r: Array = map["shoreline"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_id.hash() + 815
+	var x := float(r[0]) + 4.0
+	while x < float(r[2]) - 3.0:
+		var z := float(r[3]) - rng.randf_range(0.6, 1.7)
+		var p := Vector2i(floori(x), floori(z))
+		if MapGen.get_t(map, p.x, p.y) == MapGen.WATER:
+			var name := "beach_rock" if rng.randf() > 0.4 else "rock_small"
+			var sc := VA.fit_scale(name, -1.0, rng.randf_range(0.7, 1.5))
+			var yaw := rng.randf() * TAU
+			var size := VA.aabb(name).size * sc
+			var half_depth := (absf(sin(yaw)) * size.x + absf(cos(yaw)) * size.z) * 0.5
+			z = maxf(z, ceilf(float(r[3]) - 2.5) + half_depth + 0.08)
+			var y := _lift(Vector2i(floori(x), floori(z))) + Shoreline.bottom(map, x, z)
+			_add_asset(by_asset, name + SHADOWLESS, _xf(Vector3(x, y - 0.04, z), yaw, sc))
+		x += rng.randf_range(3.5, 5.5)
 
 
 ## Shrubs frame planted beds in single-tile lines. Keep the map's solid footprint: thinning a tutorial
@@ -1146,6 +1169,7 @@ func _build_scatter() -> void:
 		_multimesh(VA.mesh("grass_leaf_%d" % i), _plants_off_paving(VA.mesh("grass_leaf_%d" % i), tufts[i]), null, false)
 	for i in 2:
 		_multimesh(VP.flowers(i), _plants_off_paving(VP.flowers(i), flowers[i]), null, false)
+	_shore_rocks(by_asset)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	var fence_name := "iron_fence" if biome["id"] in ["moor", "quarter"] else "fence"
@@ -1252,6 +1276,10 @@ func _plan_houses() -> void:
 	var used := {}
 	for b in map["buildings"]:
 		await _build_checkpoint()
+		if style == "pirate_cove":
+			b["cove_plan"] = CoveBuildings.plan(b)
+			b["height"] = b["cove_plan"]["height"]
+			continue
 		var shop: bool = b["shop"] in VBld.COMMERCIAL or b["shop"] in VBld.SIGNED_HOUSES
 		if not b["shop"] in ["house", "home", "decor", "cabin", "shack", "uncle"] and not shop:
 			continue
@@ -1285,7 +1313,7 @@ func _plan_houses() -> void:
 		# the house must stand only on its plot and on trees, hedges and rocks: if it would reach a path or another
 		# building (leaning sideways and back at once), plan again with less room
 		for attempt in 4:
-			# (Kit's cabin and Cocoon Cove's cliff shack are always log cabins, whatever the road's style)
+			# Road cabins use the log-cabin kit; Cocoon Cove uses its own supplied kit above.
 			plan = HouseModels.plan(b, "cabin" if b["shop"] in ["cabin", "shack"] else style, room, shop, used, max_h)
 			if plan.is_empty() or _house_fits(plan["rect"], o, b):
 				break
@@ -1322,7 +1350,10 @@ func _plan_houses() -> void:
 		b["seed"] = (map_id + String(b["name"])).hash()
 		var footprint: Rect2
 		var plan := {}
-		if style == "creole":
+		if style == "pirate_cove":
+			b["cove_plan"] = CoveBuildings.plan(b)
+			footprint = b["cove_plan"]["rect"]
+		elif style == "creole":
 			b["low"] = true
 			footprint = Rect2(-float(b["w"]) / 2.0, -float(b["d"]) / 2.0, float(b["w"]), float(b["d"]))
 		else:
@@ -1409,7 +1440,7 @@ func _build_buildings() -> void:
 	for b in map["buildings"]:
 		if b["shop"] != "decor":
 			doors[b["door"]] = b
-		if b["shop"] in VBld.COMMERCIAL:
+		if b["shop"] in VBld.COMMERCIAL and style != "pirate_cove":
 			b["height"] = VBld.shop_height(style)
 		building_fades.append({"b": b, "node": null, "meshes": [], "opacity": 0.0})
 
@@ -1421,7 +1452,7 @@ func _load_building(f: Dictionary) -> void:
 	var style: String = biome.get("style", "town")
 	var node: Node3D
 	if f.get("scenery", false):
-		node = Creole.scenery(b) if style == "creole" else HouseModels.build(f["plan"])
+		node = CoveBuildings.build(b) if style == "pirate_cove" else (Creole.scenery(b) if style == "creole" else HouseModels.build(f["plan"]))
 		node.name = b["name"]
 		node.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, _lift(b["door"]), float(b["y"]) + float(b["d"]) / 2.0)
 		add_child(node)
@@ -1498,6 +1529,11 @@ func _build_street_props() -> void:
 	var taken := {}
 	for q in keep:
 		taken[q] = true
+	# Authored clear lanes protect walking width as well as basic reachability.
+	for clear in map.get("prop_clearance", []):
+		for y in range(int(clear[1]), int(clear[1])+int(clear[3])):
+			for x in range(int(clear[0]), int(clear[0])+int(clear[2])):
+				taken[Vector2i(x,y)] = true
 	var placed := []
 	# Authored cargo shares the street furniture meshes, collision and wall-facing placement.
 	for entry in map.get("street_props", []):
@@ -1510,9 +1546,26 @@ func _build_street_props() -> void:
 				free = false
 		if not free:
 			continue
+		var previous := []
+		var removed := 0
 		for i in span:
-			MapGen.set_t(map, t.x + i, t.y, MapGen.STREET_PROP)
-			taken[t + Vector2i(i, 0)] = true
+			var q := t+Vector2i(i,0)
+			previous.append(MapGen.get_t(map,q.x,q.y))
+			removed += 1 if before.has(q) else 0
+			MapGen.set_t(map,q.x,q.y,MapGen.STREET_PROP)
+		# Use the procedural furniture's local proof, with its full-flood fallback.
+		# Cargo must not cut off a route or leave a formerly reachable floor island.
+		if span == 1 and t != start and _prop_neighbours_join(t,before):
+			before.erase(t)
+		else:
+			var after := _reachable(start)
+			if after.size() != before.size()-removed or not keep.all(func(q): return after.has(q)):
+				for i in span:
+					MapGen.set_t(map,t.x+i,t.y,previous[i])
+				continue
+			before = after
+		for i in span:
+			taken[t+Vector2i(i,0)] = true
 		placed.append([t, Vector2i.DOWN, String(entry[2]), int(entry[3])])
 	before = _reachable(start)
 	for b in map["buildings"]:
@@ -1588,7 +1641,7 @@ func _build_street_props() -> void:
 		mi.mesh = mesh
 		var bb := mesh.get_aabb()
 		# its back to the building, a little away from the wall
-		mi.rotation.y = atan2(float(face.x), float(face.y)) + (rng.randf_range(-0.25, 0.25) if e[2] in ["barrel", "crate", "crate_open", "keg", "planter"] else 0.0)
+		mi.rotation.y = atan2(float(face.x), float(face.y)) + (rng.randf_range(-0.25, 0.25) if e[2] in ["barrel", "crate", "crate_open", "keg", "planter", "cove_crate", "cove_barrel"] else 0.0)
 		var span := int(STREET_WIDE.get(String(e[2]), 1))
 		var fit := minf(1.0, (0.92 + span - 1) / maxf(bb.size.x, bb.size.z))
 		mi.scale = Vector3.ONE * fit
@@ -1600,9 +1653,9 @@ func _build_street_props() -> void:
 				mi.rotation.y += PI / 2.0
 		add_child(mi)
 		# a second crate on top now and then
-		if e[2] in ["crate", "crate_open"] and (int(e[3]) > 1 if e.size() > 3 else rng.randf() < 0.4):
+		if e[2] in ["crate", "crate_open", "cove_crate"] and (int(e[3]) > 1 if e.size() > 3 else rng.randf() < 0.4):
 			var top := MeshInstance3D.new()
-			top.mesh = _street_mesh("crate")
+			top.mesh = _street_mesh("cove_crate" if e[2] == "cove_crate" else "crate")
 			top.scale = mi.scale * 0.85
 			top.rotation.y = mi.rotation.y + rng.randf_range(-0.6, 0.6)
 			top.position = mi.position + Vector3(0, bb.size.y * fit, 0)
@@ -2033,6 +2086,29 @@ func _beast_node(genes: Dictionary, scale := 1.0) -> Node3D:
 	return root
 
 
+## How far the soft shade under someone's feet spreads (contact_shadow.gd), for a person and a full-sized beast.
+const PERSON_SHADOW := 0.62
+const BEAST_SHADOW := 0.85
+
+
+## Puts soft shade on the ground under `to`, `at` from its feet. Outdoors only (and on roofs open to the sky): rooms
+## have their own lamps and shadows.
+func _ground_shadow(to: Node3D, radius: float, at := Vector3.ZERO) -> ContactShadow:
+	if interior and not map["room"].get("open", false):
+		return null
+	var s := ContactShadow.new(radius)
+	to.add_child(s)
+	s.position = at + Vector3(0, ContactShadow.LIFT, 0)
+	_lay_ground_shadow(s)
+	return s
+
+
+## Lays a shadow on the tile it's over: flat, or along a ramp's slope.
+func _lay_ground_shadow(s: ContactShadow) -> void:
+	var at := s.global_position
+	s.lay(_on_slope(Vector2i(floori(at.x), floori(at.z)), 0.0).basis)
+
+
 ## Moves a beast of _beast_node(): a new beast walks (at `pace`, beast_rig.gd) or stands about, and only while it's
 ## near enough to see (frozen as it was beyond); an old model hops (`hop` high, `spd` hops a second) or bobs.
 func _beast_gait(body: Node3D, moving: bool, pace: float, hop: float, spd: float, phase: float) -> void:
@@ -2100,6 +2176,9 @@ func _build_npcs() -> void:
 				body.add_child(_rod_mesh(tip, Vector3(0.24, -0.1, 2.1), 0.008, Color("#e8e8e8")))
 		node.position = tile_pos(p)
 		add_child(node)
+		if not (n.has("scene") or n.has("mesh") or n.has("asset")):
+			var beast: bool = n.get("beast_genes", null) != null or n.has("robot_body")
+			n["ground_shadow"] = _ground_shadow(node, BEAST_SHADOW * (1.7 if n.get("big", false) else 1.0) if beast else PERSON_SHADOW)
 		n["node"] = node
 		n["home"] = p
 		npcs[p] = n
@@ -2182,6 +2261,7 @@ func _build_player() -> void:
 	_player_grace_material = _player_material.duplicate()
 	_player_grace_material.shader = PLAYER_GRACE_SHADER
 	add_child(player)
+	_player_shadow = _ground_shadow(player, PERSON_SHADOW)
 	_update_wild_grace(0.0)
 
 
@@ -2337,6 +2417,8 @@ func _update_hole() -> void:
 	if player.position == _hole_position:
 		return
 	_hole_position = player.position
+	if _player_shadow != null:
+		_lay_ground_shadow(_player_shadow)
 	var on := Vector4(player.position.x, player.position.y, player.position.z, 1.0)
 	for m in terrain_mats:
 		(m as ShaderMaterial).set_shader_parameter("hole", on)
@@ -3097,6 +3179,8 @@ func _animate_npcs(delta: float) -> void:
 			VPer.animate(node, float(n.get("phase", 0.0)), n["gait"])
 	for n in arrived:
 		n.erase("walking")
+		if n.get("ground_shadow") != null:
+			_lay_ground_shadow(n["ground_shadow"])
 		if (n["node"] as Node3D).position.distance_squared_to(player.position) >= 300.0:
 			n["gait"] = 0.0
 			VPer.animate(n["node"], 0.0, 0.0)
@@ -3695,6 +3779,11 @@ func _make_wild_node(w: Dictionary) -> void:
 	add_child(root)
 	w["node"] = root
 	_face_wild(w)
+	if not interior:
+		# (on the root, not the beasts: an old model hops, and its shade stays on the ground)
+		w["shadows"] = [_ground_shadow(root, BEAST_SHADOW * 0.72)]
+		for f in followers:
+			w["shadows"].append(_ground_shadow(root, BEAST_SHADOW * 0.62, (f as Node3D).position))
 
 
 func _face_wild(w: Dictionary) -> void:
@@ -3835,6 +3924,8 @@ func _animate_wild(w: Dictionary, delta: float) -> void:
 			w["moving"] = false
 		else:
 			node.position = _along(w["from"], w["to"], float(w["mt"]))
+		for s in w.get("shadows", []):
+			_lay_ground_shadow(s)
 	var hop := 0.12 if w["moving"] else 0.04
 	var spd := 9.0 if w["moving"] else 2.6
 	# new beasts step along at the pace they go (a wander, a charge, a dash away)
@@ -4321,7 +4412,7 @@ func _build_room() -> void:
 		env.background_mode = Environment.BG_SKY
 		env.sky = sky
 		env.ambient_light_color = Color(biome["sky_top"]).lerp(Color("#fff0dc"), 0.5)
-		env.ambient_light_energy = biome["amb"]
+		env.ambient_light_energy = OutdoorLight.ambient_energy(biome)
 		# haze only on the town far below, not on the platform
 		env.fog_enabled = true
 		env.fog_mode = Environment.FOG_MODE_DEPTH
@@ -4339,14 +4430,18 @@ func _build_room() -> void:
 	env.ssao_intensity = 1.8
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.15
+	if open_air:
+		OutdoorLight.grade(env)
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color("#ffe8c8") if not open_air else Color(biome["sun"])
-	sun.light_energy = (0.45 if not dark else 0.15) if not open_air else float(biome["sun_e"])
+	sun.light_energy = (0.45 if not dark else 0.15) if not open_air else OutdoorLight.sun_energy(biome)
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-60, 20, 0)
+	if open_air:
+		OutdoorLight.aim(sun)
 	add_child(sun)
 	# floors, walls, doors, windows, furniture and a light per room (an open-air roof keeps its deck and railings)
 	room_walls = null

@@ -80,6 +80,8 @@ var trainer_xp := 0
 var ladder := {}
 ## the side of your ring that faced the foe when your last battle ended (see ring.gd)
 var ring_side := 0
+## The opening side chosen in the book; -1 keeps the last-used behavior of existing saves until a side is chosen.
+var preferred_ring_side := -1
 ## the save slot this game lives in (-1 until it's first saved)
 var current_slot := -1
 
@@ -195,6 +197,7 @@ func new_game(pname: String, look := {}) -> void:
 	trainer_xp = 0
 	ladder = {}
 	ring_side = 0
+	preferred_ring_side = -1
 	current_slot = -1
 
 
@@ -258,6 +261,26 @@ func ring() -> Dictionary:
 		if b.slot >= 0:
 			out[b.slot] = b
 	return out
+
+
+## The preferred opening side, or the last-used side before the player chooses one. If its beasts have since
+## moved away, show the next occupied side. Battle still applies Ring.covered_side's guard protection.
+func starting_ring_side() -> int:
+	if preferred_ring_side < 0:
+		return posmod(ring_side, 4)
+	var side := posmod(preferred_ring_side, 4)
+	var placed := ring()
+	return side if Ring.side_occupied(placed, side) else Ring.next_occupied_side(placed, side, 1)
+
+
+## One menu rotation, including occupied corners and fainted beasts. Does not change the last battle's facing.
+func turn_starting_ring(dir: int) -> bool:
+	var side := starting_ring_side()
+	var next := Ring.next_occupied_side(ring(), side, -1 if dir < 0 else 1)
+	if next == side:
+		return false
+	preferred_ring_side = next
+	return true
 
 
 ## The best free ring slot a beast may stand in, or -1.
@@ -886,6 +909,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"eggs": eggs, "shards": shards, "shards_spent": shards_spent, "max_shield": max_shield,
 		"beast_slots": beast_slots, "trainer_level": trainer_level, "trainer_xp": trainer_xp, "ladder": ladder,
 		"ring_side": ring_side,
+		"preferred_ring_side": preferred_ring_side,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var path := slot_path(slot)
@@ -983,6 +1007,7 @@ func load_game(slot := -2) -> bool:
 	trainer_level = int(d.get("trainer_level", 1))
 	trainer_xp = int(d.get("trainer_xp", 0))
 	ring_side = int(d.get("ring_side", 0))
+	preferred_ring_side = clampi(int(d.get("preferred_ring_side", -1)), -1, 3)
 	ladder = {}
 	var ld: Dictionary = d.get("ladder", {})
 	for k in ld:

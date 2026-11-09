@@ -5,11 +5,19 @@ var bad := 0
 func run(main, opts: Dictionary) -> void:
 	UI.auto = true
 	GameState.set_flag("intro_done")
-	await main._go("caccoon", Vector2i(29, 21))
-	await _tap(main, Vector2i(29, 20))
+	await main._go("caccoon", "start")
+	var library: Dictionary = main.world.map["buildings"].filter(func(b): return b["shop"]=="bookstore")[0]
+	var sign := Vector2i.ZERO
+	for tile in main.world.map["signs"]:
+		if String(main.world.map["signs"][tile]).begins_with("Cocoon Cove Library."):
+			sign = tile
+			break
+	main.world.spawn_at(sign+Vector2i.DOWN)
+	await _tap(main,sign)
 	_check(UI.auto_log.any(func(line): return "Cocoon Cove Library. Free world maps" in String(line)), "tap reads the relocated library sign")
-	await main._walk_test([Vector2i(31, 20)])
-	_check(main.world.player_pos == Vector2i(31, 20), "library doorstep is clear")
+	var doorstep: Vector2i = library["door"]+Vector2i.DOWN
+	await main._walk_test([doorstep])
+	_check(main.world.player_pos == doorstep, "library doorstep is clear")
 	await main._go("tidewater", Vector2i(10, 25))
 	for entry in main.world.map.get("street_props", []):
 		var t := Vector2i(int(entry[0]), int(entry[1]))

@@ -812,7 +812,7 @@ const ROOMS := {
 			"###########",
 		],
 	},
-	## The old log shack on Cocoon Cove's clifftop, at the end of the woodland path: nobody lives there any more, but
+	## The Old Gear Shack at the end of Cocoon Cove's dock: nobody lives there any more, but
 	## a trainer's starter gear was left behind (1-3: a cap, sneakers and a beast's collar, "found" items in item_db.gd).
 	"shack": {
 		"wall": "#b08a62", "rug": "#8a5a3a", "zone": "wood", "stage": true,

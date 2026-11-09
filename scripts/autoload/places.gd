@@ -456,8 +456,6 @@ func merge_altar(temple: bool, keeper := "Nurse Clover") -> void:
 	var rank: int = maxi(a.rank, b.rank) + 1
 	if not await UI.ask("Merge %s and %s into one Rank %d beast? This can't be undone." % [a.nickname, b.nickname, rank], keeper):
 		return
-	Sfx.play("merge")
-	await UI.flash(Color("#ffe8a0"), 4)
 	var child := Beasts.merge(a, b, temple)
 	GameState.replace_beast(a, child)
 	GameState.remove_beast(b)
@@ -467,6 +465,7 @@ func merge_altar(temple: bool, keeper := "Nurse Clover") -> void:
 		GameState.party.append(child)
 	GameState.fix_ring()
 	GameState.caught[str(child.race)] = true
+	await GameState.main.trigger_merge_cinematic(a.growth_look(), b.growth_look(), child.growth_look())
 	await UI.show_beast(child, "A new beast is born: %s!" % child.nickname)
 	var lines := ["%s and %s became %s! It is now Rank %d with a level limit of %d." % [a.nickname, b.nickname, child.nickname, child.rank, child.level_cap()]]
 	if Beasts.dominance(a, b) != 0.5:

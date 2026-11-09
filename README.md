@@ -73,14 +73,15 @@ was framed with a trainer's flute in his saddlebag, and Barkeep Dusty's **Card L
 that night at the saloon's card table. Shown the ledger, the deputy clears Slim and asks you to help find the missing
 trainers and the real culprit, pointing you to Sheriff Dalton in Sundown (flags `convict_asked`, `convict_found`,
 `slim_cleared`, `deputy_partner`).
-The home and two neighboring houses have distinct shapes, staggered plots and planted front yards on a high shelf
-above Cocoon Cove's compact square. A broad ramp descends
-from their garden lane to **Cocoon Cove Library**, which marks the square's western entrance. Speak to
+Your home overlooks **Cocoon Cove** from a high western garden, with two small scenery homes on a rear cliff shelf.
+A broad stair descends beside **Cocoon Cove Library**, at the compact square's western entrance. Speak to
 **Librarian Quill** for a free **World Map**, then open it from **Start → Map**.
-Existing saves keep their map access. The town stands on a high natural cliff above a rocky shoreline, with no
-beach, pier, coastal path or route down to the water. Woodland fills the ground between the village and the irregular
-rocky coves. Two inaccessible homes sit close behind the Beast Center at its level. A dirt path winds south from the
-square through the woods to an old log shack on the clifftop (`s` on the map, room `shack`); nobody lives there, but
+Existing saves keep their map access and all seven buildings keep their saved interior identities. The town is a
+modern pirate cove: warm timber, pale plaster, clay roofs, planted gardens, and seaside cliffs. The diner-like Beast
+Center faces the square and the apothecary stands on land to the east. The only dock entrance is down the right-hand
+stairs. A short pier holds a wooden neighbor's shack and ends at the **Old Gear Shack**; the plaster neighbor's home
+stands in a garden on land. Crates and barrels sit on spare edge tiles, leaving the walking lanes and doors clear.
+The gear shack (`s` on the map, room `shack`) has no second shore entrance, ships or boats. Nobody lives there, but
 a trainer left their starter gear behind: a **Worn Cap**, **Old Sneakers** and a **Rope Collar** for a beast. They
 are never sold (`item_db.gd` `found`), and you put them on from the Bag. The cap and sneakers are only found there;
 the Rope Collar can also be found in Bellerive's harbour equipment shack. The surrounding ridges follow irregular contours rather than straight terrace edges.
@@ -203,13 +204,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
   - Eggs name the beast inside (for example **Embit Egg**), with the element beside the starter choices.
     Every species has its own shell colors, markings and silhouette; Shadow and Radiant variants keep the species' design.
-  - Every hatch plays a cinematic in the hatching vault, a dark stone chamber shaped like the inside of a great
-    cocoon, with curved ribs, a stepped plinth and a horseshoe of lanterns open to the camera. The platform holds the
-    egg, and the TCM Core lowers above it, hanging from a column of metal and bundled wires that runs up out of frame.
-    Its three bronze tongs close against the shell and stay plain metal throughout: they never glow or change colour.
-    A warm light inside the core shines down onto the egg. The glowing egg disappears in a whiteout with a hatch
-    sound, then the light fades to reveal the beast. Pale light from the oculus, ground mist, drifting dust and
-    depth fog set the mood.
+  - Every hatch plays a cinematic in the same dark, misty roundel chamber as the merge film, with a stepped plinth
+    in the middle. The platform holds the egg, and the TCM Core lowers above it, hanging from a column of metal and
+    bundled wires that runs up out of frame. Its three steel tongs close against the shell and stay plain metal
+    throughout: they never glow or change colour. A warm light inside the core shines down onto the egg. The glowing
+    egg disappears in a whiteout with a hatch sound, then the light fades to reveal the beast. Ground mist, drifting
+    dust and depth fog set the mood. Evolutions and level rewards play in the hatching vault, a dark stone chamber
+    shaped like the inside of a great cocoon, with curved ribs, a stepped plinth and a horseshoe of lanterns.
   - **Sell eggs** at the Beast Center: ordinary eggs fetch **100 gold**, Shadow Eggs **200**, and radiant legendary eggs **500**. Select an egg and confirm the offer to sell it.
   - Arena hosts and masters offer to buy eggs only when you carry one matching the master's element, paying **twice the Beast Center price**. Marina, Nerissa and Skye buy Water eggs; Rosa buys Air; Gorran, Volta and Aeris buy Earth; Brann buys Fire. Shadow Eggs count as Ghost, and radiant eggs use their guardian's element. You can sell before completing the arena's lessons or challenging its master.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
@@ -254,6 +255,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   legendary parent dominates at **80/20** and keeps its race. Ghost merging unlocks in Gravenmoor.
 - **Ghost beasts** aren't beasts of their own: they're the same beasts in black and purple, glowing faintly and
   wrapped in smoke.
+  - Every merge plays a cinematic (`scenes/MergeCinematic.tscn`) in a dark, misty chamber behind the Beast Center: plaster
+    walls set with glowing aqua bottle-bottom glass, a stone floor and three stepped platforms. The parents stand on two
+    in the background, each in a pool of light from a hanging white-and-steel TCM Core, and the centre one is empty. The parents rise into their own
+    light and fade, and only then does a column of light come down from the core over the centre platform. When it lands, a white wash reveals the merged beast, with the light now on it. The camera holds
+    still until then, and circles the new beast very slowly to show its form.
   - Beasts of neighbouring elements on the ring (Fire–Air, Air–Water, Water–Earth, Earth–Fire) merge into a **dual beast** of both elements. Opposite elements (Fire–Water, Air–Earth) can't merge.
 - **Everyone moves one of the four ways** on the tile grid, a whole tile at a time: you, strolling townsfolk and wild
   beasts. A step, once started, always ends in the middle of the next tile (whatever you let go of or press on the
@@ -289,13 +295,14 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **The battle ring** (as in Jade Cocoon 2, `scripts/core/ring.gd`): every trainer stands in the middle of a ring of 8 slots.
   - The ring has a side per element, in this order round it: **Fire, Air, Water, Earth**. A side's middle slot holds a beast of that element; the **corner** between two sides holds a beast of either element, or a dual beast of both.
   - You carry as many beasts as you have **beast slots** wired up: 3 to start, up to 8. New beasts take a free slot they may stand in, joining the side most of your team stands on.
+  - **Starting side** (**Start → Beasts → Battle ring & storage**): the ring preview has a left and right arrow beside **Starting side**, with the selected element on the line below. Tap an arrow, or use Left/Right while the ring row is selected, to rotate to the next side with a beast in any of its three slots. Fully empty sides are skipped; fainted beasts still occupy their slots. A on the row opens arrangement as before. The preference is kept with your normal phone save and survives turns made during battle. Until you choose a side, existing saves keep using the last battle's facing.
   - **Arranging your beasts** (`ring_editor.gd`, **Start → Beasts → Battle ring & storage**, anywhere outside battle): your ring's eight slots round you, the side facing the foe at the top, and your storage as a grid beside it. Tap a beast (or move to it with the d-pad and press A) to pick it up: only the cells it may go to light up, the rest darken. A slot it can stand on, trading places with whoever is there if they can stand on its old one; a stored beast, swapping with it; or storage's empty cell. A stored beast only takes an empty slot while your ring has room, and one beast always stays with you (`GameState.ring_move_reason` has the rules). Tap it again (or B) to put it back down. Beast Centers' storage terminals still heal a beast you deposit; the book doesn't.
 - **Battles** (`battle.gd`, `command_panel.gd`, `battle_bars.gd`, `ring_grid.gd`): one side of each ring faces the foe, and only its three beasts fight, using **that side's element** or plain (neutral) moves. A dual beast in a corner uses whichever of its elements faces the foe.
   - The camera looks over your shoulder: you stand at the bottom right, the foe at the top left. Every slot is an ornate hexagonal pad with a glowing sigil of its element(s); the side facing the foe glows brighter.
   - The HUD is kept to JC2's: the foe's ring as a slanted 3x3 grid at the top left (a wild pack: a line of three tiles), yours at the bottom right, and a compact message box centred at the top. Battle messages show an icon of the beast or trainer they describe, on the left for enemies and on the right for your side; the message and move-info windows share the same padding and frame. Each grid tile is a slot: a beast's icon (with a small HP bar) stands on it, a fainted beast's icon is crossed out, and empty slots are faded. The trainer stands on the middle tile; the foe's shield points are blue orbs under its grid.
   - Beside your grid are the **move bars**, one per beast on the side facing the foe, level with its row: its level, then the move it will use, with its HP and MP underneath. If the move costs MP, the part of the MP bar it would spend slowly flashes. Your own bar comes first, on its own: while you choose your action your grid's centre cell glows and all beast icons and health indicators stay readable. Your bar sits beside the ring, level with the middle beast's bar, trimmed in gold and showing your trainer level and action; once you move on, the beasts' bars take its place. Your shield points are blue orbs under your bar. The trainer or beast whose move and target you are choosing has an outline in your chosen gem color around their HUD icon and tile. While either side performs an action, the same outline marks the acting HUD icon and tile; it clears before the next action.
   - Each round you choose your own action first, then each beast's move from the top: ◄ ► change it, A confirms, and then **every move aimed at someone has its target picked**, even with just one foe (◄ ► and A: a foe on the side facing you, or their trainer when that side's middle beast is down); a move that hits them all shows them all to confirm. A move isn't set until its target is, and the round only begins once every beast facing the foe is set. B goes back. One press of A is one confirm (on a phone, too). ▲ ▼ move between your beasts; **▲ on the top beast (or on your own bar, once your action is chosen) turns the ring (and the grid) anticlockwise, ▼ on the bottom one clockwise**, to the next side with a beast standing on it.
-  - **The ring turns by itself** when a battle starts to a side with a beast standing in its middle (the side you last faced if it has one, else the nearest), and at the start of your turn when everyone on the side facing the foe is down. The bars, the grids and the battle text are drawn large (1.4x on desktops, 1.5x on phones). Phones (`--touch`): the bars and your grid stand centred just above START and PAUSE, clear of the d-pad and A and B; bars and the foe's tiles can be tapped.
+  - **The ring turns by itself** when a battle starts to a side with a beast standing in its middle (your chosen starting side if its middle stands, else the nearest; without a choice, the side you last faced), and at the start of your turn when everyone on the side facing the foe is down. Guided lessons keep their teaching formation. The bars, the grids and the battle text are drawn large (1.4x on desktops, 1.5x on phones). Phones (`--touch`): the bars and your grid stand centred just above START and PAUSE, clear of the d-pad and A and B; bars and the foe's tiles can be tapped.
   - **Choosing a target** (for every attack, the slingshot and items): the move-info window closes and an arcing arrow connects the attacker to the chosen target. A move that hits everyone draws an arch to each of them. There is no bobbing triangle over anyone's head. There are no target cards or weakness stars. ◄ ► (keys or d-pad) change the target; a tap on a grid tile aims at it (a second tap confirms), and A confirms. B returns to move selection and restores move info. After an elemental hit, a short message says when it was extra effective or the target is resistant.
   - **Move**: instead of its move, a beast on the side facing the foe can step over to another slot of the ring (choose the slot with ▲ ▼, as you would a target; the arrow marks the slot). Any slot it can stand on that's empty, or holds a fainted beast (they trade places); the side it moves to then turns to face the foe. It may not leave the side facing the foe without a beast standing in its middle (so the beast guarding you stays put, but a corner beast can step into a fallen middle beast's place). One beast moves each round, last in your side's turn, so the others' moves land first. Foe trainers Move too: when the beast in the middle of the side facing you falls, one of that side's beasts steps into a slot that covers its trainer again, unless turning the ring to a side whose middle beast stands would keep more of their beasts fighting (`battle.gd` _ai_shift).
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
@@ -383,7 +390,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 <img src="docs/screenshots/tidewater.jpg" width="640" alt="Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay."><br><sub>Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay.</sub>
 
 - **Look**: the world aims for the PS2 era (*Final Fantasy X*, *Jade Cocoon 2*) with a clean, soft, stylized finish:
-  low-poly shapes with smooth, painted textures and soft light, never grainy or blocky. The packs' small textures are
+  low-poly shapes with smooth, painted textures and soft light, never grainy or blocky. Outdoors, `scripts/gfx/outdoor_light.gd`
+  keeps a gentle sun low in the south-east, so shadows fall beside things rather than hidden behind them and fronts
+  still catch the light, and grades the world, open-air roofs and battles alike for contrast and rich colour without
+  blowing out; people and beasts also stand on a soft patch of shade (`scripts/gfx/contact_shadow.gdshader`). The packs' small textures are
   cleaned up by `scripts/gfx/smooth_texture.gd` (edge-preserving smoothing that keeps brick courses, boards and leaves
   but drops grain and speckle, eased contrast, then enlarged with a soft filter) and sampled with linear, mipmapped,
   anisotropic filtering. `tools/smooth_textures.gd` applies it in place to the surface, pattern and interior textures
@@ -551,7 +561,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
-- The terrain is made of textured blocks, one per tile; water and lava sit one step lower.
+- The terrain is a textured height field with softly blended ground layers. Water has transparent sand/rock shallows,
+  turquoise-to-blue depth colour, continuous small swells, moving underwater light patterns and foam at mesh
+  intersections. Beaches have a gently curved sandy profile and washing crests; a few native rocks sit beyond the
+  walkable wading row. Open water's bed slopes deeper offshore, while water beneath raised docks stays at the
+  surrounding sea or river level. The shared `water.gdshader` uses one depth-texture sample and works in Forward+,
+  Mobile and Compatibility; it retains the existing animated lava and falling-water sheets. See
+  [water rendering and previews](docs/water.md) for tuning and verification commands.
 - Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
@@ -565,7 +581,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Tab | What's in it |
 |---|---|
 | Trainer | Your portrait, gold, shield and shards, arena crests and trainer gear. |
-| Beasts | Your battle ring and storage (the ring fills the facing page; tap its row to arrange it, then a beast and where it should go: see Arranging your beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
+| Beasts | Your battle ring and storage (choose its starting side with the arrows beside the two-line heading above the ring; Left/Right on its row also turns it, skipping fully empty sides; tap the row or press A to arrange beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
 | Flute | Every song with its effect and mastery; press A to practise one. The Capture page shows your level and when the next one is ready to learn. Unknown songs show where to learn them. |
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 39 forms with live portraits and where to find them. |
@@ -654,6 +670,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
     cue for gifts, ring placement and attaching bait, short healing plucks, coin payments, a mechanism latch,
     an energy-flow excerpt for merging/evolution, shrine rituals and departing summons, a physical battle hit,
     an attack-miss sweep, menu confirmations and unavailable-action feedback, plus the five ambient loops above.
+    The merge cinematic has its own swell, crackle and reveal cues.
     Egg reveals use a short bird-flute chirp; critical hits use a 0.22-second edit of the old crate-breaking hatch
     sound. Small mechanical clicks cover toggles, quiet pop syllables follow dialogue three semitones higher
     while preserving each speaker's voice, and the muted rejection
@@ -668,7 +685,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 
 <img src="docs/screenshots/phone.jpg" width="640" alt="On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle."><br><sub>On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle.</sub>
 
-- **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; phones are capped at a steady 60 fps.
+- **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; the patch of shade under each character is one small shared quad with no lighting or texture; phones are capped at a steady 60 fps.
 - **Stalls and loading**: a transition shows no loading message. The next map is built behind the black fade,
   yielding between terrain chunks, scenery rows, house plans and NPCs after 50 ms of work (12 ms on the web, which
   mixes its music on the same thread). The 3D view is switched off until the map is finished, and its first draw also
@@ -763,7 +780,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - `a` is walkable shallow water. A map's `shoreline: [west_x, slope_start_z, east_x, offshore_end_z]` supplies
   the smooth sandy profile shared by terrain, character grounding and touch picking; only the authored shallow
   row is walkable. Ordinary `~` water remains blocked.
-- `s` is Cocoon Cove's cliffside shack, drawn as a log cabin (room `shack` in `interior_maps.gd`).
+- `s` is Cocoon Cove's Old Gear Shack, at the end of the dock (room `shack` in `interior_maps.gd`).
 - `b` is Youngster Kit's log cabin on the Coastal Path (room `kit_cabin` in `interior_maps.gd`, where an `anchors` entry puts Kit by the fire).
 - **Push puzzles**: `u` is a boulder (moves one tile), `e` an ice block (slides), `c` an icy floor. An anchor named `puzzle_exit` marks the tile that counts as solved; `puzzle_area` draws the maze walls plain.
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag); `inspector`, `warden` and `sentinel` place the road blockers. Room templates can have `anchors` too, `item:<id>` ones included.
@@ -815,12 +832,16 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
     Boat berths leave clearance from docks and one another, including paddle wheels and sail booms. The eastern dock ends at a second fishing shack standing over the water,
     with a Rope Collar, Cloth Band and Twine Anklet (starter beast gear, each giving a 5% stat bonus) to collect inside.
     Gil's original shack and fishing lesson sit at the west end, with his berth extended south to keep the boardwalk clear.
-  - Cocoon Cove has three homes on a raised western shelf, a ramp descending beside the library into a compact square,
-    and woodland down to its irregular rocky cliffs, with no coastal path. The rocks and water below are inaccessible.
-    Two small scenery homes sit close behind the Beast Center on its level; a woodland path leads to the cliffside
-    shack (`s`, room `shack`), whose starter gear lies on its floor as `item:<id>` anchors.
+  - Cocoon Cove uses the supplied, repaired pirate-cove kit (`cove_buildings.gd`): home on the high western shelf,
+    two scenery homes on the rear shelf, library and Beast Center at the land square, and the apothecary on the eastern
+    bluff. The plaster neighbor's home stands in the western garden. Only the right-hand stairs reach the short dock,
+    whose only buildings are wooden shacks: one neighbor and the gear shack (`s`, room `shack`) at the far end.
+    Crates and barrels occupy spare edge tiles; `prop_clearance` rectangles reserve walking lanes, stairs and door
+    approaches for both authored and procedural furniture. Its starter gear remains as `item:<id>` anchors. Standard full-size doors
+    come from `HouseModels`; the library's awning covers only its door. All source exterior openings are sealed.
     Its `building_order` lists building origins in saved interior order; `building_looks` selects preferred house
-    models and skins, and `scenery_houses` places noninteractive buildings on solid woodland footprints.
+    models and skins (or `cove_model` for the pirate kit), and `scenery_houses` places noninteractive buildings on
+    solid woodland footprints. After changing its plots, run `tools/bake_cove_measurements.gd` before the Python checker.
   - The camera looks down from the south, so a roof, a tower or a tree hides whatever is just north of it. `python tools/town_check.py` traces the camera's line of sight to every walkable tile (with each building's real roof shape) and reports any tile where the path or the player would be hidden, plus any door, exit or person you can't reach.
 
 - **Nothing tall between a road and the camera**: `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, or low rocks in the desert, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.
@@ -848,18 +869,21 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 (seconds), and naming tests (`bash tools/run_tests.sh flow ringedit`) runs just those. Exits 0 when all passed.
 - `beast-growth`: species egg names and unique shells, all three TCM tong tips against every shell shape,
   textured hatchery surfaces, scene geometry budget, downlight, plain unlit tongs and fog, every hatch including storage overflow,
-  queued battle XP, full HP/MP restoration, sequential rewards and both evolution thresholds. Add `--verify_ui=1` to
+  queued battle XP, full HP/MP restoration, sequential rewards, both evolution thresholds, and the merge film's timing, input and pause. Add `--verify_ui=1` to
   `--scene=growth` in a rendered window to check real taps, focus, confirmations, pause and sequential films.
   `--scene=growth --preview=hatch` (or `evolve`, `level`, `starters`) previews the scene or starter choice;
   `--race=0 --at=4.2 --shot=res://build/shots/hatch.png` holds a cinematic frame for inspection.
+  `--preview=merge` plays the merge film (`--race`, `--other` and `--ghost=1` pick the parents): `--at` and `--shot`
+  hold one instant, and `--shots=path` saves a frame at each beat.
   Add `--perf=1` to a held preview to print frame timing and draw/primitive counts on the renderer being tested.
   Rebuild the hatchery art (the procedural vault and column are in `tools/hatchery_chamber.gd`) with
   `python tools/prepare_hatchery.py "path/to/downloads"`,
-  `godot --headless --path . --script res://tools/import_hatchery.gd`,
+  `godot --headless --path . --script res://tools/import_hatchery.gd` (add `-- --roundels` to bake only the merge film's chamber),
   `godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/interiors/hatch_`,
   then `godot --headless --path . --import`. `--audit` on the importer and
   `tools/debug/hatchery_parts.gd -- core` (or `platform`) produce source-part inspection sheets.
 - `check_scripts.gd`: every script parses and compiles.
+- `ring-start` / `ring-start-touch`: starting-side arrows and the two-line heading, empty-side skipping in both directions, occupied corners and fainted beasts, focus/gamepad/tap input, empty/full parties, scrolling, isolated save compatibility and persistence across battle completion. `--battle=1` also opens a real battle on the chosen side. `--scene=ring-start --matrix=1 --shots=res://build/shots/ring_start --save_dir=res://build/ring_start_preview/` checks runtime changes through both styles and all four gems and captures each combination; add `--touch` for the phone layout.
 - `check_nature.gd` (`bash tools/run_tests.sh nature`): single-tile hedge borders on every outdoor map, unchanged
   planted-ground collision, and the solid-blade grass meshes' triangle budgets.
 - `check_data.gd`: everything the data names exists: the beasts (race ids) on routes, maps, trainers, leaders,
@@ -890,7 +914,9 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `shellhaven-marina` / `shellhaven-marina-touch`: western ramp access, walking all marina fingers, an open beachfront,
   the straight middle pier, ferry arrival placement, the shared ferry model and scale, shallow wading and its
   walking/running/tap limits, wet footfall playback, and old-save position compatibility.
-- `cocoon`: cliff isolation, old building identities, the path to the cliff shack and its starter gear (`--preview=shack_path` or `shack` with `--shot=` for pictures), the home-to-library route, entering the library, receiving the
+- `cocoon`: compact pirate-cove layout, saved building identities, single right-hand dock access, shared door sizes,
+  the path to the gear shack and its starter gear (`--preview=shack_path` or `shack`), the home-to-library route,
+  entering the library (real door taps on touch), receiving the
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
   `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
@@ -959,6 +985,10 @@ tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beas
 ```
 
 ## Developer test modes
+
+Cocoon Cove implements the selected pirate-cove layout. See [the design and original layout studies](docs/cove_layout_proposals.md)
+for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|home|docks|gear|apothecary`
+captures focused views with `--shot=`; add `--touch` for the phone controls.
 
 ```
 godot --path . -- --scene=world:cogsworth --shot=C:/tmp/a.png            # screenshot any map (or world:cogsworth#10 for an interior)

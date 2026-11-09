@@ -14,7 +14,7 @@ const TOWN_ORDER := ["caccoon", "tidewater", "shellhaven", "kelpwick", "dustwell
 const TOWNS := {
 	"caccoon": {"name": "Cocoon Cove", "size": "hamlet", "mascot": 2, "signature": "bandit_blaze", "biome": "coast",
 		"shops": ["center", "apothecary", "home", "house", "house", "bookstore"],
-		"blurb": "A spacious hamlet above a rocky cove, home of the Pyrosaur. Its library welcomes new travelers."},
+		"blurb": "A cozy pirate cove of cliff homes and timber docks, home of the Pyrosaur. Its library welcomes new travelers."},
 	"tidewater": {"name": "Bellerive", "size": "town", "mascot": 29, "signature": "tidewater_torrent", "biome": "quarter",
 		"shops": ["center", "apothecary", "electronics", "beast_gear", "bookstore", "cafe", "arena", "skytower", "house", "house", "house"],
 		"blurb": "A French Quarter harbour town of iron balconies and stone quays. Ferries sail from here to the Isle of Tides."},

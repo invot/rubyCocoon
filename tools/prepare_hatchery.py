@@ -10,6 +10,7 @@ import zipfile
 PACKS = {
     "core": "TCM Core (Virlance).zip",
     "platform": "Sci-Fi Platforms.zip",
+    "room": "War Doctor's TARDIS Interior (Old).zip",
 }
 
 

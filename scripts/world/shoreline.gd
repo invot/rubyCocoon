@@ -3,7 +3,7 @@ extends RefCounted
 const WATER_Y := -0.12
 const MAX_WADE_DEPTH := 0.05
 const WADE_FLOOR := WATER_Y - MAX_WADE_DEPTH
-const DEEP_FLOOR := -0.42
+const DEEP_FLOOR := -1.65
 
 static func contains(m: Dictionary, x: float, z: float) -> bool:
 	if not m.has("shoreline"):
@@ -17,7 +17,8 @@ static func bottom(m: Dictionary, x: float, z: float) -> float:
 	var r: Array = m["shoreline"]
 	var wade_end := float(r[3]) - 2.5
 	if z <= wade_end:
-		return WADE_FLOOR * smoothstep(float(r[1]), wade_end, z)
+		var curve := (sin(x * 0.42) + sin(x * 0.93) * 0.35) * 0.3
+		return WADE_FLOOR * smoothstep(float(r[1]) + curve, wade_end, z)
 	return lerpf(WADE_FLOOR, DEEP_FLOOR, smoothstep(wade_end, float(r[3]), z))
 
 static func step_sound(m: Dictionary, tile: Vector2i) -> String:

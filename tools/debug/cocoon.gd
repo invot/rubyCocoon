@@ -1,5 +1,5 @@
 extends RefCounted
-## Cliff-town regression and library preview, using fresh state and the real world/UI.
+## Pirate-cove layout, dock access, saved identities, starter gear and library gift.
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
@@ -22,18 +22,67 @@ func run(main, opts: Dictionary) -> void:
 	var open_town := MapLoader.load_map("caccoon", {})
 	_check(town["exits"].is_empty() and open_town["exits"].size() == 2
 		and open_town["exits"].values().all(func(e): return e["to"] == "route1"), "Bram closes the only exit until the first beast, with no shore route")
-	var forbidden := false
-	var lower_walkable := false
+	_check(town.get("style", "") == "pirate_cove" and town["w"]*town["h"] < 66*49, "the supplied-kit cove is smaller than the former map")
+	_check(town.get("boats",[]).is_empty(), "the cove has docks without ships or boats")
+	var apothecary: Dictionary = town["buildings"][2]
+	_check(not apothecary.get("over_water",false) and Elev.surface(town,apothecary["door"]) == 3.0
+		and apothecary["cove_model"] == "house_3", "the apothecary is a plaster shop on the eastern land")
+	_check([3,6].all(func(i): return town["buildings"][i].get("over_water",false) and String(town["buildings"][i]["cove_model"]).begins_with("hut_")), "only wooden shacks stand on the dock")
+	_check(not town["buildings"][4].get("over_water",false)
+		and Elev.surface(town,town["buildings"][4]["door"]) == 3.0, "the plaster neighbor's home stands on land")
+	var deck_tiles := 0
 	for y in town["h"]:
 		for x in town["w"]:
-			var code := MapGen.get_t(town, x, y)
-			forbidden = forbidden or code in [MapGen.SAND, MapGen.BRIDGE]
-			lower_walkable = lower_walkable or (MapGen.walkable(code) and Elev.surface(town, Vector2i(x, y)) < 3.0)
-	_check(not forbidden and not lower_walkable, "no beach, pier or walkable ground below the bluff")
+			deck_tiles += 1 if MapGen.get_t(town,x,y) == MapGen.BRIDGE else 0
+	_check(deck_tiles<100,"the dock is less than half its former 169 walkable deck tiles")
+	var cargo := 0
+	var missing_cargo := []
+	for entry in town.get("street_props",[]):
+		if MapGen.get_t(town,int(entry[0]),int(entry[1])) == MapGen.STREET_PROP:
+			cargo += 1
+		else:
+			missing_cargo.append(Vector2i(int(entry[0]),int(entry[1])))
+	_check(cargo==town.get("street_props",[]).size() and cargo>=10,"all authored crates and barrels render on their spare edge tiles; missing %s" % str(missing_cargo))
+	var blocked_lanes := []
+	for clear in town.get("prop_clearance",[]):
+		for y in range(int(clear[1]),int(clear[1])+int(clear[3])):
+			for x in range(int(clear[0]),int(clear[0])+int(clear[2])):
+				if MapGen.get_t(town,x,y) == MapGen.STREET_PROP:
+					blocked_lanes.append(Vector2i(x,y))
+	_check(blocked_lanes.is_empty(),"walking lanes, stairs and doorway approaches contain no furniture: %s" % str(blocked_lanes))
+	var accesses := []
+	for y in town["h"]:
+		for x in town["w"]:
+			var p := Vector2i(x,y)
+			if not MapGen.walkable(MapGen.get_t(town,x,y)) or Elev.surface(town,p)>0.01:
+				continue
+			for delta in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+				var q: Vector2i = p+delta
+				if MapGen.walkable(MapGen.get_t(town,q.x,q.y)) and Elev.surface(town,q)>0.01 and Elev.joined(town,p,q):
+					accesses.append(q)
+	_check(accesses.size()==2 and accesses.all(func(p): return p.x in [44,45] and p.y==33), "only the two-tile right-hand stairs connect land to the dock")
+	var reachable: Dictionary = main.world._reachable(town["spawns"]["start"])
+	var trapped := []
+	for y in town["h"]:
+		for x in town["w"]:
+			if MapGen.walkable(MapGen.get_t(town,x,y)) and not reachable.has(Vector2i(x,y)):
+				trapped.append(Vector2i(x,y))
+	_check(trapped.is_empty(), "every walkable tile connects to town; no isolated old-save positions: %s" % str(trapped))
+	var models = load("res://scripts/gfx/house_models.gd")
+	var cove = load("res://scripts/gfx/cove_buildings.gd")
+	for building in town["buildings"]:
+		var node: Node3D = cove.build(building)
+		var standard := false
+		for inst in node.find_children("*","MeshInstance3D",true,false):
+			standard = standard or (inst.mesh is QuadMesh and is_equal_approx(inst.mesh.size.y,models.DOOR_H)
+				and is_equal_approx(inst.mesh.size.x,models.DOOR_H/models.DOOR_ASPECT))
+		_check(standard, "%s uses the other towns' full-size door" % building["name"])
+		node.free()
 	var home: Dictionary = town["buildings"][1]
 	var home_level := Elev.surface(town, home["door"])
 	_check(home_level > Elev.surface(town, town["buildings"][0]["door"])
-		and [3, 4].all(func(i): return Elev.surface(town, town["buildings"][i]["door"]) == home_level), "the starting home and both neighboring houses share a shelf above town")
+		and Elev.surface(town,town["buildings"][3]["door"]) == 0.0
+		and Elev.surface(town,town["buildings"][4]["door"]) == 3.0, "home overlooks the land village and short shack dock")
 	_check(town.get("outskirt_houses", []).is_empty() and town.get("scenery_houses", []).size() == 2, "two close background homes replace distant outskirt buildings")
 	for entry in town.get("scenery_houses", []):
 		var position := Vector2i(int(entry["x"]), int(entry["y"]))
@@ -47,20 +96,23 @@ func run(main, opts: Dictionary) -> void:
 				break
 		_check(main.world.find_child(entry["name"], true, false) != null, "%s renders" % entry["name"])
 		_check(not MapGen.walkable(MapGen.get_t(town, position.x, position.y)), "%s has no accessible entrance" % entry["name"])
-		_check(Elev.surface(town, position) == Elev.surface(town, town["buildings"][0]["door"]), "background home stays on the Beast Center's level")
+		_check(Elev.surface(town, position) > Elev.surface(town, town["buildings"][0]["door"]), "the scenery homes occupy the rear cliff shelf")
 	main.world._place_camera(true)
+	if await _preview(main,opts):
+		return
 	if await _shack(main, opts):
 		return
 	await main._go("caccoon", "start")
 	town = main.world.map
-	main.world.spawn_at(Vector2i(8, 21))
-	_check(main.world._walkable(main.world.player_pos), "a save on the old pier loads onto safe ground")
+	for legacy in [Vector2i(8,21),Vector2i(65,48),Vector2i(40,17),Vector2i(19,5)]:
+		main.world.spawn_at(legacy)
+		_check(main.world._walkable(main.world.player_pos), "old saved position %s recovers onto safe ground" % legacy)
 	main.world.spawn_at("start")
 	var b: Dictionary = town["buildings"][5]
 	await main._walk_test([b["door"] + Vector2i(0, 1)])
 	_check(main.world.player_pos == b["door"] + Vector2i(0, 1), "the home lane reaches the library at the square entrance")
 	main.world.facing = Vector2i(0, -1)
-	await main.world._interact()
+	await _enter(main,b)
 	await main._settle(library)
 	_check(main.world.map.get("room_key", "") == "library", "front door enters the public reading room")
 	await main._walk_test([Vector2i(5, 3)])
@@ -114,24 +166,24 @@ func run(main, opts: Dictionary) -> void:
 		main._save_shot(String(opts["shot"]))
 
 
-## The cliff shack at the end of the woodland path: reached from the square, entered by its door, and its starter gear
+## The gear shack at the far end of the dock: reached from the square, entered by its door, and its starter gear
 ## picked up and put on. True when a --preview=shack_path / shack screenshot ends the scenario there.
 func _shack(main, opts: Dictionary) -> bool:
 	var town: Dictionary = main.world.map
 	var shack: Dictionary = town["buildings"][6]
 	var step: Vector2i = shack["door"] + Vector2i(0, 1)
-	_check(shack["shop"] == "shack" and shack["interior"] == "caccoon#6", "the cliff shack follows the saved buildings' interior ids")
+	_check(shack["shop"] == "shack" and shack["interior"] == "caccoon#6", "the gear shack follows the saved buildings' interior ids")
 	_check(Elev.surface(town, step) == Elev.surface(town, shack["door"]), "the shack's doorstep is level with it")
 	main.world.spawn_at(Vector2i(24, 21))
 	for i in 3:
 		if main.world.player_pos != step:
 			await main._walk_test([step])
-	_check(main.world.player_pos == step, "the woodland path leads from the square to the shack's door")
+	_check(main.world.player_pos == step, "the right-hand stairs and simple dock lead to the gear shack's door")
 	main.world.facing = Vector2i(0, -1)
 	if opts.get("preview", "") == "shack_path":
 		await _shot(main, opts)
 		return true
-	await main.world._interact()
+	await _enter(main,shack)
 	await main._settle(shack["interior"])
 	var room: Dictionary = main.world.map
 	_check(room.get("room_key", "") == "shack", "the shack's door opens into its room")
@@ -164,6 +216,35 @@ func _shack(main, opts: Dictionary) -> bool:
 	await main._settle(shack["interior"])
 	_check(main.world.items.is_empty(), "the gear stays picked up after leaving and coming back")
 	return false
+
+
+func _enter(main, building: Dictionary) -> void:
+	if UI.is_touch():
+		await main._wait(0.35)
+		var pixel: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(building["door"])+Vector3(0,0.9,0))
+		var at: Vector2 = pixel*main.get_viewport().get_visible_rect().size/Vector2(main.view.size)
+		await main._tap_at(at)
+	else:
+		await main.world._interact()
+
+
+func _preview(main, opts: Dictionary) -> bool:
+	var name: String = opts.get("preview","")
+	var spots := {"square":Vector2i(27,22),"home":Vector2i(9,10),"docks":Vector2i(40,38),"gear":main.world.map["buildings"][6]["door"]+Vector2i.DOWN,"apothecary":Vector2i(47,22)}
+	if name != "overview" and not spots.has(name):
+		return false
+	if name == "overview":
+		main.world.cam_free = true
+		main.world.cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+		main.world.cam.size = 43
+		main.world.cam.position = Vector3(27,41,67)
+		main.world.cam.look_at(Vector3(27,1,22))
+		UI.hud.hide()
+	else:
+		main.world.spawn_at(spots[name])
+		main.world.facing = Vector2i.UP
+	await _shot(main,opts)
+	return true
 
 
 func _shot(main, opts: Dictionary) -> void:

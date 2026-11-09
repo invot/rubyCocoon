@@ -2,7 +2,7 @@ extends Node3D
 ## The hatching vault: a baked stone cocoon (tools/hatchery_chamber.gd) around the egg platform, with the articulated
 ## TCM Core descending from the dark. All geometry is baked and smoothed ahead of time. The three real tongs close
 ## against each species' shell, not a fixed ring, and stay plain metal; the only light from the mechanism is a warm
-## shaft shining down from inside it.
+## shaft shining down from inside it. The hatch and merge films move all this into the roundel chamber (use_roundels).
 const EggLooks = preload("res://scripts/data/egg_looks.gd")
 const EggModel = preload("res://scripts/gfx/egg_model.gd")
 const DIR := "res://assets/interiors/hatch_"
@@ -21,6 +21,12 @@ const LANTERN_GLOW := Color("#ffc58a")
 const LANTERNS: Array[Vector2] = [Vector2(4.44, 1.19), Vector2(-4.44, 1.19), Vector2(3.98, -2.30), Vector2(-3.98, -2.30),
 	Vector2(1.19, -4.44), Vector2(-1.19, -4.44)]
 const LANTERN_TOP := 1.64
+const ROUNDEL_GLOOM := Color("#04080b")
+const ROUNDEL_MIST := Color("#3f6670")
+const ROUNDEL_FLOOR_PAINT := Color("#c8cbd2")
+const ROUNDEL_FOG := 0.03
+const HOUSE_LIGHTS_DIM := 0.09
+const HOUSE_LIGHTS_FULL := 0.24
 static var _meshes := {}
 static var _tong_data: Array = []
 static var _halo_texture: GradientTexture2D
@@ -39,9 +45,11 @@ var _emitter_halo: StandardMaterial3D
 var _lantern_halo: StandardMaterial3D
 var _lantern_glow: StandardMaterial3D
 var _dust: ShaderMaterial
+var _lantern_halos: Array[Node3D] = []
 
 
-func build() -> void:
+## `steel` paints the core in the roundel chamber's white and steel.
+func build(steel := false) -> void:
 	_environment()
 	var room := _mesh(self, "room")
 	for si in room.mesh.get_surface_count():
@@ -54,8 +62,137 @@ func build() -> void:
 	_build_air()
 	_lantern_halo = _halo_material(LANTERN_GLOW)
 	for at in LANTERNS:
-		_halo(self, Vector3(at.x, LANTERN_TOP, at.y), 2.3, _lantern_halo)
-	_build_core()
+		_lantern_halos.append(_halo(self, Vector3(at.x, LANTERN_TOP, at.y), 2.3, _lantern_halo))
+	_build_core(steel)
+
+
+## Moves the scene into the roundel-walled chamber, a dark, misty room behind the Beast Center, lit by its aqua glass.
+## The vault's stone floor and plinth stay, so every platform keeps its steps, and the floor is carried on to the walls.
+## The vault's walls and lanterns go.
+func use_roundels() -> void:
+	get_node("Room").visible = false
+	get_node("OculusShaft").visible = false
+	for halo in _lantern_halos:
+		halo.visible = false
+	for side in [1, 2]:
+		get_node("LanternWarmth%d" % side).visible = false
+	var cloud: Texture2D = load(DIR + "mist.res")
+	for child in get_children():
+		if child.name.begins_with("Mist"):
+			child.material_override.set_shader_parameter("tint", ROUNDEL_MIST)
+	# Low banks gathered at the foot of the back wall, leaving the windows above them clear.
+	_mist(QuadMesh.new(), Vector2(22, 3.4), Vector3(0, 1.3, -10.2), Vector3.ZERO, cloud,
+		{"tiling": 1.6, "opacity": 0.3, "outer": 0.5, "inner": 0.1, "tint": ROUNDEL_MIST})
+	_mist(QuadMesh.new(), Vector2(20, 2.4), Vector3(0, 0.8, -8.6), Vector3.ZERO, cloud,
+		{"tiling": 1.3, "opacity": 0.26, "outer": 0.5, "inner": 0.1, "tint": ROUNDEL_MIST, "drift": Vector2(-0.016, 0.005)})
+	environment.background_color = ROUNDEL_GLOOM
+	environment.ambient_light_color = Color("#9cc7cc")
+	environment.fog_light_color = Color("#12303a")
+	environment.fog_density = ROUNDEL_FOG
+	environment.glow_intensity = 0.45
+	get_node("OculusKey").spot_angle = 20.0
+	# The default bias stripes the platform's rim with shadow acne on the Compatibility renderer.
+	get_node("OculusKey").shadow_bias = 0.15
+	get_node("OculusKey").shadow_normal_bias = 2.5
+	get_node("FrontFill").light_energy = 0.4
+	set_house_lights(1.0)
+	var room := _mesh(self, "roundels")
+	for si in room.mesh.get_surface_count():
+		if room.mesh.surface_get_material(si).resource_name == "roundel_floor":
+			room.set_surface_override_material(si, _vault_paint("vault_floor", ROUNDEL_FLOOR_PAINT))
+	add_child(_vault_piece("vault_floor", ROUNDEL_FLOOR_PAINT))
+	add_child(_vault_piece("vault_plinth", Color.WHITE))
+
+
+## Quietens the walls for a film whose camera looks straight at them: `glass` scales the windows' glow and `mist` the haze
+## in front of them.
+func hush_walls(glass: float, mist: float) -> void:
+	var room: MeshInstance3D = get_node("Roundels")
+	for si in room.mesh.get_surface_count():
+		if room.mesh.surface_get_material(si).resource_name == "roundel_panel":
+			var dimmed: StandardMaterial3D = room.mesh.surface_get_material(si).duplicate()
+			dimmed.emission_energy_multiplier *= glass
+			dimmed.albedo_color *= Color(glass, glass, glass)
+			room.set_surface_override_material(si, dimmed)
+	for child in get_children():
+		if child.name.begins_with("Mist"):
+			var layer: ShaderMaterial = child.material_override
+			layer.set_shader_parameter("opacity", float(layer.get_shader_parameter("opacity")) * mist)
+
+
+## Grows the whole vault for a film that needs a wider view than the hatch's. A light's range ignores its node's scale,
+## so each one is stretched to match.
+func enlarge(factor: float) -> void:
+	scale = Vector3.ONE * factor
+	for light in find_children("*", "OmniLight3D", true, false):
+		light.omni_range *= factor
+	for light in find_children("*", "SpotLight3D", true, false):
+		light.spot_range *= factor
+
+
+## How brightly the roundel chamber's ceiling lights are on, from 0 to 1.
+func set_house_lights(amount: float) -> void:
+	environment.ambient_light_energy = lerpf(HOUSE_LIGHTS_DIM, HOUSE_LIGHTS_FULL, amount)
+
+
+## Stands a smaller copy of the centre's plinth and platform on the vault floor, at (x, z) = `at`.
+func add_back_platform(at: Vector2, size: float) -> void:
+	var holder := Node3D.new()
+	holder.name = "BackPlatform%d" % get_child_count()
+	holder.position = Vector3(at.x, 0, at.y)
+	holder.scale = Vector3.ONE * size
+	add_child(holder)
+	holder.add_child(_vault_piece("vault_plinth", Color.WHITE))
+	var top := _mesh(holder, "platform")
+	top.rotation.y = PI * 0.25
+	top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Hangs another TCM Core from the vault, unlit and with its tongs open, in the white-and-steel bake whose wires keep
+## their colours. `at` is where its body hangs.
+func add_hanging_core(at: Vector3, size: float) -> void:
+	var tongs: Array[Node3D] = []
+	var hanging := _core_frame(tongs, "steel_")
+	hanging.name = "HangingCore%d" % get_child_count()
+	hanging.position = at
+	hanging.scale *= size
+	for joint in tongs:
+		joint.rotation.x = -0.15
+	for part in hanging.find_children("*", "MeshInstance3D", true, false):
+		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Gives full-detail core parts the steel paint of their simplified copies, for a film that sees them up close.
+func _paint_steel(frame: Node3D) -> void:
+	for part: MeshInstance3D in frame.find_children("*", "MeshInstance3D", true, false):
+		var paint: Mesh = load(String(part.mesh.resource_path).replace(DIR, DIR + "steel_"))
+		for si in part.mesh.get_surface_count():
+			part.set_surface_override_material(si, paint.surface_get_material(si))
+
+
+## One surface of the stone vault as its own piece, freshly painted.
+func _vault_piece(surface: String, paint: Color) -> MeshInstance3D:
+	var room: Mesh = _meshes["room"]
+	var mesh := ArrayMesh.new()
+	for si in room.get_surface_count():
+		if room.surface_get_material(si).resource_name == surface:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, room.surface_get_arrays(si))
+			mesh.surface_set_material(0, _vault_paint(surface, paint))
+	var piece := MeshInstance3D.new()
+	piece.mesh = mesh
+	piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return piece
+
+
+func _vault_paint(surface: String, paint: Color) -> StandardMaterial3D:
+	var room: Mesh = _meshes["room"]
+	for si in room.get_surface_count():
+		if room.surface_get_material(si).resource_name == surface:
+			var material: StandardMaterial3D = room.surface_get_material(si).duplicate()
+			material.albedo_color = paint
+			material.roughness = 0.45
+			return material
+	return null
 
 
 func _build_air() -> void:
@@ -108,16 +245,18 @@ func _build_air() -> void:
 	add_child(dust)
 
 
-func _build_core() -> void:
-	core = Node3D.new()
-	core.name = "TCMCore"
-	core.scale = Vector3.ONE * CORE_SCALE
+## The core's body, its conduit and three tongs, without any of its lights. Each tong's joint is added to `tongs`.
+## `bake` picks a set of the meshes: "" for the full-detail bronze, "steel_" for the merge film's simplified background copies.
+func _core_frame(tongs: Array[Node3D], bake := "") -> Node3D:
+	var frame := Node3D.new()
+	frame.name = "TCMCore"
+	frame.scale = Vector3.ONE * CORE_SCALE
 	# Puts the odd tong behind the egg, so the two in front frame the shell instead of crossing it.
-	core.rotation.y = PI
-	add_child(core)
-	_mesh(core, "core")
+	frame.rotation.y = PI
+	add_child(frame)
+	_mesh(frame, bake + "core")
 	# Metal and bundled wires rise from the core's crown past the top of the frame, so it hangs from the vault.
-	_mesh(core, "conduit")
+	_mesh(frame, bake + "conduit")
 	if _tong_data.is_empty():
 		_tong_data = JSON.parse_string(FileAccess.get_file_as_string(DIR + "tongs.json"))
 	for i in 3:
@@ -126,11 +265,19 @@ func _build_core() -> void:
 		arm.name = "Tong%d" % (i + 1)
 		arm.position = Vector3(entry.pivot[0], entry.pivot[1], entry.pivot[2])
 		arm.rotation.y = float(entry.angle)
-		core.add_child(arm)
+		frame.add_child(arm)
 		var joint := Node3D.new()
 		arm.add_child(joint)
-		_mesh(joint, "tong_%d" % i).layers = TONG_LAYER
-		joints.append(joint)
+		_mesh(joint, bake + "tong_%d" % i).layers = TONG_LAYER
+		tongs.append(joint)
+	return frame
+
+
+func _build_core(steel: bool) -> void:
+	core = _core_frame(joints)
+	if steel:
+		_paint_steel(core)
+	for entry in _tong_data:
 		contact_points.append(Vector3(entry.tip[0], entry.tip[1], entry.tip[2]))
 		closed_angles.append(0.4)
 	emitter_material = StandardMaterial3D.new()
@@ -182,7 +329,7 @@ func _mesh(parent: Node3D, key: String) -> MeshInstance3D:
 	mi.name = key.capitalize()
 	mi.mesh = _meshes[key]
 	# Only the close-up subject and mechanism need to cast shadows. The chamber uses its textured shading.
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if key in ["room", "conduit"] else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if key in ["room", "conduit", "roundels"] else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(mi)
 	return mi
 
@@ -239,7 +386,7 @@ func _halo_material(tint: Color) -> StandardMaterial3D:
 	return material
 
 
-func _halo(parent: Node3D, pos: Vector3, size: float, material: Material) -> void:
+func _halo(parent: Node3D, pos: Vector3, size: float, material: Material) -> MeshInstance3D:
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE * size
 	var halo := MeshInstance3D.new()
@@ -248,6 +395,7 @@ func _halo(parent: Node3D, pos: Vector3, size: float, material: Material) -> voi
 	halo.material_override = material
 	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(halo)
+	return halo
 
 
 func _environment() -> void:

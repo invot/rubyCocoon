@@ -8,6 +8,9 @@ const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const EggModel = preload("res://scripts/gfx/egg_model.gd")
 const EggLooks = preload("res://scripts/data/egg_looks.gd")
 const HatcheryStage = preload("res://scripts/gfx/hatchery_stage.gd")
+## This camera looks straight at the roundel chamber's walls, so they are kept down to leave the egg as the focus.
+const HATCH_GLASS := 0.5
+const HATCH_MIST := 1.8
 
 var kind := "hatch"
 var before := {}
@@ -77,10 +80,10 @@ func _ready() -> void:
 	_glow.emission_enabled = true
 	_glow.emission = Color.WHITE
 	_glow.emission_energy_multiplier = 2.0
-	_subject = EggModel.build(egg) if kind == "hatch" else _beast(before)
+	_subject = EggModel.build(egg) if kind == "hatch" else stage_beast(before)
 	_stage.add_child(_subject)
 	_subject.position.y = 1.07
-	_reveal = _beast(after)
+	_reveal = stage_beast(after)
 	_stage.add_child(_reveal)
 	_reveal.position.y = 1.07
 	_reveal.visible = false
@@ -165,10 +168,15 @@ func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, mat: 
 func _build_stage() -> void:
 	_set = HatcheryStage.new()
 	_stage.add_child(_set)
-	_set.build()
+	if kind == "hatch":
+		_set.build(true)
+		_set.use_roundels()
+		_set.hush_walls(HATCH_GLASS, HATCH_MIST)
+	else:
+		_set.build()
 
 
-func _beast(look: Dictionary) -> Node3D:
+static func stage_beast(look: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	var genes: Dictionary = look.genes
 	var model: Node3D

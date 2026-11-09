@@ -223,6 +223,16 @@ func _opening(at := 0.0, hold := false) -> Node3D:
 	return film
 
 
+## The merge altar's film. Returns once it has ended, so the new beast's reveal screen follows straight after.
+## Loaded on demand so its models do not delay the title screen.
+func trigger_merge_cinematic(first: Dictionary, second: Dictionary, merged: Dictionary) -> void:
+	if UI.auto:
+		UI.auto_log.append("[cinematic] merge %s" % merged.name)
+		await get_tree().process_frame
+		return
+	await UI.play_film(load("res://scenes/MergeCinematic.tscn").instantiate().setup(first, second, merged))
+
+
 func _begin_adventure() -> void:
 	var film = _opening()
 	await film.finished
@@ -926,6 +936,8 @@ func _run_test() -> void:
 	elif scene == "mobile-menus":
 		await load("res://tools/debug/mobile_menus.gd").new().run(self, _test)
 		await _wait(wait)
+	elif scene == "ring-start":
+		await load("res://tools/debug/ring_start.gd").new().run(self, _test)
 	elif scene == "kennel":
 		await load("res://tools/debug/kennel.gd").new().run(self, _test)
 	elif scene == "egg-sales":

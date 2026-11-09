@@ -23,6 +23,8 @@ func run(main, opts: Dictionary) -> void:
 		return
 	UI.auto = true
 	await _check_hatchery(main)
+	await _check_merge_altar()
+	await _check_merge_film(main)
 	var signatures := {}
 	for race in EggLooks.SHELLS:
 		var egg := {"race": race}
@@ -144,6 +146,200 @@ func _check_hatchery(main) -> void:
 	check(clear and not stage.beam.visible, "core retracts and switches off the shaft before the beast reveal")
 	stage.queue_free()
 	await main.get_tree().process_frame
+	var look := Beasts.create(0, 1).growth_look()
+	var hatch_film = Film.new().setup("hatch", look, look, {"race": 0})
+	var evolve_film = Film.new().setup("evolve", look, look)
+	main.add_child(hatch_film)
+	main.add_child(evolve_film)
+	await main.get_tree().process_frame
+	check(hatch_film._set.get_node("Roundels").visible and not hatch_film._set.get_node("Room").visible, "a hatch plays in the roundel chamber")
+	var hatch_core: MeshInstance3D = hatch_film._set.core.get_child(0)
+	check(hatch_core.get_surface_override_material(0).resource_name.begins_with("steel") and not String(hatch_core.mesh.resource_path).contains("steel_"), "its core keeps full detail, in the chamber's steel paint")
+	check(not evolve_film._set.has_node("Roundels") and evolve_film._set.get_node("Room").visible, "an evolution stays in the stone vault")
+	hatch_film.queue_free()
+	evolve_film.queue_free()
+	await main.get_tree().process_frame
+
+
+func _check_merge_altar() -> void:
+	GameState.party = [Beasts.create(0, 40), Beasts.create(30, 40)]
+	GameState.storage = []
+	UI.auto_answers = [0, 0, 0]
+	UI.auto_log.clear()
+	await Places.merge_altar(false)
+	check(GameState.party.size() == 1 and GameState.party[0].rank == 2, "the merge altar leaves one Rank 2 beast")
+	check(UI.auto_log.filter(func(s): return String(s).begins_with("[cinematic] merge")).size() == 1, "a merge plays its cinematic once")
+	GameState.party = []
+
+
+## The real film, timed through its own animations: what happens when, and that input can't disturb it.
+func _check_merge_film(main) -> void:
+	UI.auto = false
+	var a := Beasts.create(0, 40)
+	var b := Beasts.create(30, 40)
+	var child := Beasts.merge(a, b, true)
+	var original_update: int = main.view.render_target_update_mode
+	var finished := [false]
+	var play := func():
+		await main.trigger_merge_cinematic(a.growth_look(), b.growth_look(), child.growth_look())
+		finished[0] = true
+	play.call()
+	var film = UI.stack.back()
+	check(film is Node2D and film.scene_file_path == "res://scenes/MergeCinematic.tscn", "merging opens MergeCinematic.tscn with a Node2D root")
+	check(main.view.render_target_update_mode == SubViewport.UPDATE_DISABLED, "the merge film avoids rendering the hidden world")
+	var stage: Node = film.get_node("Viewport3D/Stage")
+	var light: Node3D = stage.get_node("LightCylinder")
+	var rig: Node3D = stage.get_node("CameraRig")
+	var camera: Camera3D = rig.get_node("Camera")
+	var one = stage.get_node("Beast1")
+	var two = stage.get_node("Beast2")
+	var reveal = stage.get_node("MergedBeast")
+	var fill: Sprite2D = film.get_node("ScreenFill")
+	var beam: AnimationPlayer = film.get_node("BeamPlayer")
+	check(camera.projection == Camera3D.PROJECTION_ORTHOGONAL and is_equal_approx(camera.size, 14.0), "camera is orthographic at zoom 0.5")
+	var back_count: int = stage.find_children("BackPlatform*", "Node3D", true, false).size()
+	var core_count: int = stage.find_children("HangingCore*", "Node3D", true, false).size()
+	check(back_count == 2 and core_count == 3, "the parents stand on two background platforms and a core hangs over each of the three platforms (%d, %d)" % [back_count, core_count])
+	check(is_equal_approx(reveal.position.y, -2.0) and one.position.z < reveal.position.z - 8.0 and two.position.z < reveal.position.z - 8.0, "the child's deck is at Y=-2, with the parents far behind it")
+	var back_deck: float = film.CENTER_Y - HatcheryStage.DECK_Y * film.STAGE_SCALE * (1.0 - film.BACK_SIZE)
+	check(absf(one.position.y - back_deck) < 0.01 and absf(two.position.y - back_deck) < 0.01, "the parents stand on their platforms' decks")
+	var room: Node = film._hatchery.get_node("Roundels")
+	check(room.visible and not film._hatchery.get_node("Room").visible and film._hatchery.environment.fog_enabled, "the film takes place in the misty roundel chamber")
+	var plinths := [[Vector3.ZERO, 3.85]]
+	for parent in [one, two]:
+		plinths.append([film._hatchery.to_local(parent.position), 3.85 * film.BACK_SIZE])
+	var wall_gap := INF
+	for si in room.mesh.get_surface_count():
+		if room.mesh.surface_get_material(si).resource_name in ["roundel_wall", "roundel_panel"]:
+			for v: Vector3 in room.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]:
+				for entry in plinths:
+					wall_gap = minf(wall_gap, Vector2(v.x, v.z).distance_to(Vector2(entry[0].x, entry[0].z)) - entry[1])
+	check(wall_gap > 0.2, "all three platforms stand clear of the walls (%.2f units to spare)" % wall_gap)
+	check(room.get_aabb().position.y >= -0.05, "the chamber's floor is level with the stage")
+	var floor_reach := 0.0
+	var wall_reach := 0.0
+	for si in room.mesh.get_surface_count():
+		var surface: String = room.mesh.surface_get_material(si).resource_name
+		for v: Vector3 in room.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]:
+			if surface == "roundel_floor":
+				floor_reach = maxf(floor_reach, Vector2(v.x, v.z).length())
+			elif surface == "roundel_wall":
+				wall_reach = maxf(wall_reach, Vector2(v.x, v.z).length())
+	check(floor_reach * cos(PI / 72.0) > wall_reach, "the stone floor reaches every wall (%.1f, walls at %.1f)" % [floor_reach, wall_reach])
+	var wall_face := INF
+	var pane_face := INF
+	for si in room.mesh.get_surface_count():
+		var surface: String = room.mesh.surface_get_material(si).resource_name
+		if surface in ["roundel_wall", "roundel_panel"]:
+			var arrays: Array = room.mesh.surface_get_arrays(si)
+			for i in arrays[Mesh.ARRAY_VERTEX].size():
+				if arrays[Mesh.ARRAY_NORMAL][i].dot(Vector3.LEFT) > 0.99:
+					if surface == "roundel_wall":
+						wall_face = minf(wall_face, arrays[Mesh.ARRAY_VERTEX][i].x)
+					else:
+						pane_face = minf(pane_face, arrays[Mesh.ARRAY_VERTEX][i].x)
+	check(pane_face - wall_face > 0.4, "the glass sits at the back of deep holes in the wall (%.2f deep)" % (pane_face - wall_face))
+	var tongs_plain: bool = stage.get_children().filter(func(n): return n is Light3D).all(func(n): return (n.light_cull_mask & 2) == 0)
+	check(tongs_plain, "the film's lights leave the tongs plain metal")
+	var sounds: Array = ["SwellSound", "VanishSound", "RevealSound"].map(func(n): return film.get_node(n))
+	check(sounds.all(func(s): return s.stream != null and s.bus == &"SFX"), "all three merge sounds load on the SFX bus")
+	check(sounds[0].playing and one.opacity == 1.0 and not reveal.visible, "the swell starts with both parents visible and the child hidden")
+	await main._press("ui_accept")
+	await main._press("ui_cancel")
+	await main._tap_at(Vector2(640, 360))
+	check(UI.stack.back() == film and not film.closed, "A, B and a tap cannot skip or leak through the merge film")
+	await main._press("pause")
+	var held: float = film.elapsed
+	var held_y: float = light.position.y
+	await main._wait(0.2)
+	check(main.get_tree().paused and is_equal_approx(film.elapsed, held) and is_equal_approx(light.position.y, held_y), "Pause freezes the merge film")
+	await main._press("pause")
+	await main._wait(0.05)
+	check(not main.get_tree().paused and film.elapsed > held, "Pause resumes the merge film")
+	var early := false
+	var beam_early := false
+	var beam_from_claw := true
+	var lit_before_fade := false
+	var highest := -2.0
+	var peak := 0.0
+	var fall_at := -1.0
+	var fade_at := -1.0
+	var fade_y := 0.0
+	var gone_at := -1.0
+	var vanish_sound := false
+	var land_at := -1.0
+	var land_y := 99.0
+	var reveal_sound := false
+	var wash := 0.0
+	var wash_at := -1.0
+	var clear_at := -1.0
+	var opaque_at := -1.0
+	var dimmest := 1.0
+	var last_room_light := 0.0
+	var moved_early := false
+	var orbit := 0.0
+	var off_centre := 0.0
+	while is_instance_valid(film) and not film.closed:
+		await main.get_tree().process_frame
+		if not is_instance_valid(film) or film.closed:
+			break
+		var t: float = film.elapsed
+		var y: float = light.position.y
+		peak = maxf(peak, y)
+		orbit = rig.rotation.y
+		dimmest = minf(dimmest, film.room_light)
+		last_room_light = film.room_light
+		off_centre = maxf(off_centre, absf(camera.unproject_position(reveal.global_position).x - camera.get_viewport().size.x * 0.5))
+		if fall_at < 0 and beam.current_animation == "fall":
+			fall_at = t
+		if fall_at < 0 and y < 4.95 and (one.opacity < 1.0 or two.opacity < 1.0):
+			early = true
+		highest = maxf(highest, one.position.y)
+		if fade_at < 0 and one.opacity < 1.0:
+			lit_before_fade = film.parent_light > 0.95 and one.glow > 0.25
+			fade_at = t
+			fade_y = y
+			vanish_sound = sounds[1].playing
+		if gone_at < 0 and one.opacity <= 0.0 and two.opacity <= 0.0:
+			gone_at = t
+		if gone_at < 0 and light.visible:
+			beam_early = true
+		if light.visible and y < film.CLAW_Y:
+			# The film may have laid out its shaft a frame before the animation last moved the light.
+			film._update_light()
+			var shaft: Node3D = film._shaft
+			beam_from_claw = beam_from_claw and absf(y + shaft.position.y + shaft.scale.y * 0.5 - film.CLAW_Y) < 0.06
+		if land_at < 0 and (reveal.opacity > 0.0 or fill.modulate.a > 0.0):
+			land_at = t
+			land_y = y
+			reveal_sound = sounds[2].playing
+		if land_at < 0 and (not is_zero_approx(orbit) or not is_zero_approx(camera.position.x)):
+			moved_early = true
+		if fill.modulate.a > wash:
+			wash = fill.modulate.a
+			wash_at = t
+		if clear_at < 0 and wash > 0.9 and fill.modulate.a <= 0.0:
+			clear_at = t
+		if opaque_at < 0 and reveal.opacity >= 1.0:
+			opaque_at = t
+	check(absf(peak - 10.0) < 0.05 and absf(fall_at - 3.0) < 0.1, "the light reaches Y=10 at 3 s and only then falls (%.2f at %.2f s)" % [peak, fall_at])
+	check(not early and fade_y >= 4.95 and fade_y < 5.6 and vanish_sound, "the parents vanish, with their sound, when the light reaches Y=5 (Y=%.2f)" % fade_y)
+	check(not beam_early, "the centre's beam stays dark until both parents have gone")
+	check(beam_from_claw, "the centre's beam hangs from the core above it all the way down")
+	check(lit_before_fade, "the parents light up before they start to fade")
+	check(highest > -1.0, "the parents rise into the light as they fade")
+	check(absf(gone_at - fade_at - 1.0) < 0.1, "the parents fade over one second (%.2f s)" % (gone_at - fade_at))
+	check(absf(land_at - 5.0) < 0.12 and absf(land_y + 2.0) < 0.05 and reveal_sound, "the reveal and its sound wait for the light to land at Y=-2 (Y=%.2f at %.2f s)" % [land_y, land_at])
+	check(wash > 0.97 and absf(wash_at - land_at - 0.5) < 0.1 and absf(clear_at - land_at - 1.0) < 0.1, "the white wash takes 0.5 s in and 0.5 s out")
+	check(absf(opaque_at - land_at - 1.5) < 0.1, "the child fades in over 1.5 seconds (%.2f s)" % (opaque_at - land_at))
+	check(dimmest < 0.2 and last_room_light > 0.99, "the room dims for the column of light and is bright again for the reveal")
+	check(not moved_early, "the camera holds still until the child appears")
+	check(orbit > 0.15 and orbit <= 0.27, "the camera then circles slightly around the child (%.2f rad)" % orbit)
+	check(off_centre < 2.0, "the child stays centred while the camera circles it (%.1f px off)" % off_centre)
+	await main._wait(0.05)
+	check(finished[0] and UI.stack.is_empty(), "the merge film ends itself and returns cleanly")
+	check(main.view.render_target_update_mode == original_update, "the merge film restores the world's viewport updates")
+	UI.auto = true
 
 
 func _starter_menu(main) -> void:
@@ -284,6 +480,8 @@ func _preview(main, opts: Dictionary, mode: String) -> void:
 		for i in int(opts.get("downs", "0")):
 			await main._press("ui_down")
 		await main._wait(0.3)
+	elif mode == "merge":
+		await _merge_preview(main, opts)
 	else:
 		var race := int(opts.get("race", "0"))
 		var b := Beasts.create(race, 1 if mode == "hatch" else (19 if mode == "evolve" else 4), opts.get("ghost", "0") == "1")
@@ -313,15 +511,43 @@ func _preview(main, opts: Dictionary, mode: String) -> void:
 				await film.done
 		await main._wait(0.5)
 		if opts.get("perf", "0") == "1" and opts.has("at"):
-			var samples := PackedFloat64Array()
-			for i in 120:
-				await main.get_tree().process_frame
-				samples.append(main.get_process_delta_time() * 1000)
-			samples.sort()
-			print("HATCHERY PERF: median %.2f ms, p95 %.2f ms, %d draws, %d primitives" % [samples[60], samples[114],
-				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
+			await _print_perf(main)
 	if opts.has("shot"):
 		await RenderingServer.frame_post_draw
 		main._save_shot(String(opts.shot))
 	if opts.get("quit", "1") == "0":
 		await main.get_tree().create_timer(3600).timeout
+
+
+## --race and --other pick the parents. --at holds one instant (for --shot); --shots=path saves a frame at each beat.
+func _merge_preview(main, opts: Dictionary) -> void:
+	var a := Beasts.create(int(opts.get("race", "0")), 40, opts.get("ghost", "0") == "1")
+	var b := Beasts.create(int(opts.get("other", "30")), 40)
+	var child := Beasts.merge(a, b, true)
+	main.trigger_merge_cinematic(a.growth_look(), b.growth_look(), child.growth_look())
+	var film = UI.stack.back()
+	if opts.has("at"):
+		while film.elapsed < float(opts.at):
+			await main.get_tree().process_frame
+		main.get_tree().paused = true
+		if opts.get("perf", "0") == "1":
+			await _print_perf(main)
+		return
+	if opts.has("shots"):
+		var times := [0.5, 1.7, 2.3, 3.0, 4.4, 5.3, 5.5, 5.9, 6.8, 9.7]
+		for i in times.size():
+			while film.elapsed < float(times[i]):
+				await main.get_tree().process_frame
+			await RenderingServer.frame_post_draw
+			main._save_shot(String(opts.shots) + "_%d.png" % i)
+	await film.done
+
+
+func _print_perf(main) -> void:
+	var samples := PackedFloat64Array()
+	for i in 120:
+		await main.get_tree().process_frame
+		samples.append(main.get_process_delta_time() * 1000)
+	samples.sort()
+	print("HATCHERY PERF: median %.2f ms, p95 %.2f ms, %d draws, %d primitives" % [samples[60], samples[114],
+		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])

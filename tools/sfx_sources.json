@@ -245,5 +245,41 @@
     ],
     "approval": "User approved both boss variations and both haunted ambient loops on 2026-11-08.",
     "kind": "ambience"
+  },
+  {
+    "key": "merge_swell",
+    "file": "merge_swell.ogg",
+    "source": "Alexander Kopeikin - Emotion and Magic/magic, energy flow, astral travel-015.wav",
+    "source_root": "pack",
+    "source_sha256": "5fb913d984e53e3ca9f2e386a06ce056770666a7fee41c4ee78fa39163ab2151",
+    "gain_db": -2.0,
+    "edit_filters": [
+      "atrim=start=10:duration=4.2,asetpts=PTS-STARTPTS,afade=t=in:d=2.8,afade=t=out:st=3.2:d=1.0"
+    ],
+    "approval": "User approved the merge cinematic's swell, vanish and reveal on 2026-11-08."
+  },
+  {
+    "key": "merge_vanish",
+    "file": "merge_vanish.ogg",
+    "source": "Epic Stock Media - Elemental Mutation Whooshes and Impacts/ELECMisc_Impact Electric Tonal Deep Movement Motion Hiss Glitch 01_ESM_EMWI.wav",
+    "source_root": "pack",
+    "source_sha256": "0335965a164090995413897e71b87f04501d519222873a4301e928bf8940de38",
+    "gain_db": -6.0,
+    "edit_filters": [
+      "atrim=start=0:duration=2.4,asetpts=PTS-STARTPTS,afade=t=in:d=0.02,afade=t=out:st=1.9:d=0.5"
+    ],
+    "approval": "User approved the merge cinematic's swell, vanish and reveal on 2026-11-08."
+  },
+  {
+    "key": "merge_reveal",
+    "file": "merge_reveal.ogg",
+    "source": "Epic Stock Media - Fantasy Game 2 - Sound Kit for Enchanted Realms/MAGAngl_Magic Light Spell Enchantment Potion Effect Tonal Bright 03_ESM_FG2.wav",
+    "source_root": "pack",
+    "source_sha256": "66fd5c33f2b5e221dce96ba2e24a172683c8c696621d8567ef895627d981d869",
+    "gain_db": -1.0,
+    "edit_filters": [
+      "atrim=start=0:duration=3.0,asetpts=PTS-STARTPTS,afade=t=out:st=2.6:d=0.4"
+    ],
+    "approval": "User approved the merge cinematic's swell, vanish and reveal on 2026-11-08."
   }
 ]
