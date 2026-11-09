@@ -187,9 +187,9 @@ through the game's smoothing pipeline, and lights, fog, the core's inner light a
 `tools/import_hatchery.gd` reproduce the bake. Author/source-page and licence metadata were not included in these
 archives; see `licenses/hatchery_assets.md` for the provenance record and outstanding attribution fields.
 
-The merge cinematic's chamber (`assets/interiors/hatch_roundels.res`) uses the walls and ceiling of
-*War Doctor's TARDIS Interior (Old)*, with its floor, glass, console, struts, cables and doorway removed. Its plaster is
-the Beast Centers', its flagstones continue the hatch's, and its bottle-bottom glass is painted by the bake.
+The merge cinematic's chamber (`assets/interiors/hatch_roundels.res`) uses the walls, ceiling and ceiling cables of
+*War Doctor's TARDIS Interior (Old)*, with its floor, glass, console, struts and doorway removed. Its plaster is
+the Beast Centers', its flagstones continue the hatch's, and its bottle-bottom glass and corner columns are made by the bake.
 That archive also included no author, source page or licence. The film's TCM Cores are simplified, white-and-steel
 repaints of the hatch's.
 

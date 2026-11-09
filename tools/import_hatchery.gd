@@ -13,10 +13,12 @@ const STONE := [Color("#40414b"), Color("#94939c"), Color("#e3dfd6")]
 const BRASS := [Color("#4d3b22"), Color("#a07f4a"), Color("#e6cd92")]
 const STEEL_PAINT := [Color("#3a424b"), Color("#9ea9b3"), Color("#dfe5ea")]
 const WHITE_STEEL_PAINT := [Color("#59626b"), Color("#c7ced4"), Color("#f4f6f8")]
-## The merge chamber's shell, from the source's walls and ceiling. Its floor, console and rotor, the struts and cables
-## around them and the doorway are left out.
+## The merge chamber's shell, from the source's walls and ceiling, and the cables draped across that ceiling. Its floor,
+## console and rotor, the struts and the doorway are left out.
 const ROUNDEL_WALLS := [95]
 const ROUNDEL_CEILING := [82, 83, 84]
+const ROUNDEL_WIRES := 43
+const WIRE_COLOR := Color("#14191c")
 ## The source's windows. Only their positions are used.
 const ROUNDEL_WINDOWS := 96
 const WINDOW_RADIUS := 0.775
@@ -49,6 +51,10 @@ const ROUNDEL_SOURCE_FLOOR := -10.495
 const ROUNDEL_SCALE := 0.0575
 ## Walls nearer the camera than this are always behind it, so they are not baked.
 const ROUNDEL_FRONT := 4.5
+## The columns stand in the corners where the walls meet, up to the top of the walls.
+const COLUMN_TOP := 7.6
+const COLUMN_COLOR := Color("#f7f8f4")
+const COLUMN_LOOK := 12.0
 var textures := {}
 
 
@@ -118,6 +124,8 @@ func bake_roundels() -> void:
 	add_shell(room, wall, facets, "roundel_wall")
 	add_shell(room, shell_triangles(ROUNDEL_CEILING, place), {}, "roundel_ceiling")
 	add_panes(room, world_triangles(reduce(read_obj(SRC + "room/model_%d.obj" % ROUNDEL_WINDOWS).surface_get_arrays(0), 16000), place), facets)
+	add_columns(room, facets)
+	add_wires(room, turn, place)
 	var stone := StandardMaterial3D.new()
 	stone.resource_name = "roundel_floor"
 	Chamber.floor_beyond(ROUNDEL_FLOOR_REACH).add_to(room, stone)
@@ -201,23 +209,41 @@ func wall_facets(tris: PackedVector3Array) -> Dictionary:
 			continue
 		var key := facet_key(n)
 		if not facets.has(key):
-			facets[key] = {"normal": n, "low": INF, "high": -INF, "face": -INF}
+			facets[key] = {"normal": Vector3.ZERO, "low": INF, "high": -INF, "planes": {}}
 		var facet: Dictionary = facets[key]
 		var along := n.cross(Vector3.UP).normalized()
 		for at in 3:
 			facet.low = minf(facet.low, tris[t + at].dot(along))
 			facet.high = maxf(facet.high, tris[t + at].dot(along))
-			facet.face = maxf(facet.face, tris[t + at].dot(n))
+		var area := (tris[t + 1] - tris[t]).cross(tris[t + 2] - tris[t]).length()
+		var plane := snappedf(tris[t].dot(n), 0.05)
+		facet.normal += n * area
+		facet.planes[plane] = facet.planes.get(plane, 0.0) + area
+	# The face is the plane with the most wall in it: a stretch also holds slivers of trim that stand proud of it.
+	for facet: Dictionary in facets.values():
+		facet.normal = Vector3(facet.normal.x, 0.0, facet.normal.z).normalized()
+		var most := 0.0
+		for plane: float in facet.planes:
+			if facet.planes[plane] > most:
+				most = facet.planes[plane]
+				facet.face = plane
 	return facets
 
 
-## The main stretch of wall that faces most nearly along `direction`.
-func facing_facet(direction: Vector3, facets: Dictionary) -> Dictionary:
+## The main stretches of wall, in order around the room.
+func main_facets(facets: Dictionary) -> Array:
+	var main := facets.values().filter(func(facet: Dictionary) -> bool: return facet.planes[facet.face] > 5.0)
+	main.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return atan2(a.normal.z, a.normal.x) < atan2(b.normal.z, b.normal.x))
+	return main
+
+
+## The main stretch of wall that a point outside the room lies furthest behind, which is the one it belongs to.
+func wall_behind(p: Vector3, facets: Dictionary) -> Dictionary:
 	var best := {}
-	var closest := -INF
-	for facet: Dictionary in facets.values():
-		if facet.high - facet.low > 2.0 and facet.normal.dot(direction) > closest:
-			closest = facet.normal.dot(direction)
+	var furthest := -INF
+	for facet: Dictionary in main_facets(facets):
+		if facet.face - p.dot(facet.normal) > furthest:
+			furthest = facet.face - p.dot(facet.normal)
 			best = facet
 	return best
 
@@ -237,8 +263,66 @@ func wall_shade(p: Vector3, n: Vector3, facets: Dictionary) -> Color:
 func recess_shade(p: Vector3, facets: Dictionary) -> Color:
 	if facets.is_empty():
 		return RECESS_DEEP
-	var facet := facing_facet(Vector3(-p.x, 0.0, -p.z).normalized(), facets)
+	var facet := wall_behind(p, facets)
 	return RECESS_RIM.lerp(RECESS_DEEP, smoothstep(0.0, PANE_DEPTH, facet.face - p.dot(facet.normal)))
+
+
+## A stone column in each corner where two walls meet that the camera can see, shaded the way the walls are.
+func add_columns(room: ArrayMesh, facets: Dictionary) -> void:
+	var main := main_facets(facets)
+	var spots := []
+	for i in main.size():
+		var a: Vector3 = main[i].normal
+		var b: Vector3 = main[(i + 1) % main.size()].normal
+		var turn := a.x * b.z - a.z * b.x
+		var spot := Vector2(main[i].face * b.z - main[(i + 1) % main.size()].face * a.z, main[(i + 1) % main.size()].face * a.x - main[i].face * b.x) / turn
+		if spot.y < ROUNDEL_FRONT + 1.0:
+			spots.append(spot)
+	var column := Chamber.columns(spots, COLUMN_TOP)
+	# Only the part of each column inside the room is kept: the rest would show through the windows beside the corner.
+	var inside := func(p: Vector3) -> bool: return main.all(func(facet: Dictionary) -> bool: return p.dot(facet.normal) > facet.face - 0.01)
+	var kept := PackedInt32Array()
+	for t in range(0, column.idx.size(), 3):
+		if inside.call(column.v[column.idx[t]]) or inside.call(column.v[column.idx[t + 1]]) or inside.call(column.v[column.idx[t + 2]]):
+			kept.append_array(column.idx.slice(t, t + 3))
+	column.idx = kept
+	var shades := PackedColorArray()
+	var each := column.v.size() / spots.size()
+	for i in column.v.size():
+		# Palest where it faces the camera's side of the room and dark at its edges, so it reads as round in the mist.
+		var spot: Vector2 = spots[i / each]
+		var toward := Vector3(-spot.x, 0.0, COLUMN_LOOK - spot.y).normalized()
+		var facing := lerpf(0.35, 1.25, pow(clampf(column.n[i].dot(toward), 0.0, 1.0), 1.4))
+		var upward := lerpf(1.0, 0.35, smoothstep(0.8, WALL_TOP, column.v[i].y))
+		var foot := lerpf(0.6, 1.0, smoothstep(0.0, 0.7, column.v[i].y))
+		var shade := facing * upward * foot
+		shades.append(Color(shade * 0.95, shade, shade, 1.0))
+	var mat := StandardMaterial3D.new()
+	mat.resource_name = "roundel_column"
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.albedo_texture = load(OUT + "tex/wall_plaster.png")
+	mat.albedo_color = COLUMN_COLOR
+	mat.vertex_color_use_as_albedo = true
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3.ONE * 0.28
+	mat.roughness = 0.75
+	column.add_to(room, mat, shades)
+
+
+## The cables draped across the source's ceiling, whole, with their own smooth normals.
+func add_wires(room: ArrayMesh, turn: Basis, place: Callable) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	append(st, read_obj(SRC + "room/model_%d.obj" % ROUNDEL_WIRES).surface_get_arrays(0), place, Callable(), turn)
+	st.index()
+	room.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays())
+	var mat := StandardMaterial3D.new()
+	mat.resource_name = "roundel_wires"
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.albedo_color = WIRE_COLOR
+	mat.roughness = 0.5
+	mat.metallic = 0.2
+	room.surface_set_material(room.get_surface_count() - 1, mat)
 
 
 ## A disc of bottle-bottom glass at the back of each window, its pattern turned at random. It stops where a window is cut
@@ -339,13 +423,9 @@ func place_pane(tris: PackedVector3Array, faces: Array, facets: Dictionary) -> A
 	var box := AABB(tris[faces[0]], Vector3.ZERO)
 	for t: int in faces:
 		box = box.expand(tris[t]).expand(tris[t + 1]).expand(tris[t + 2])
-	var mid := box.get_center()
-	var inward := Vector3(-mid.x, 0.0, -mid.z).normalized()
-	var facing := Vector3.ZERO
-	for t: int in faces:
-		var face := (tris[t + 1] - tris[t]).cross(tris[t + 2] - tris[t])
-		facing += face if face.dot(inward) > 0.0 else -face
-	var into := Vector3(facing.x, 0.0, facing.z).normalized()
+	# The glass always lies flat against its wall. Measuring its faces instead would tilt every window a corner cuts short.
+	var wall := wall_behind(box.get_center(), facets)
+	var into: Vector3 = wall.normal
 	var across := into.cross(Vector3.UP).normalized()
 	var flat := PackedVector2Array()
 	for t: int in faces:
@@ -356,8 +436,7 @@ func place_pane(tris: PackedVector3Array, faces: Array, facets: Dictionary) -> A
 	for p in flat:
 		box2 = box2.expand(p)
 	box2 = box2.grow(0.02)
-	var face: float = facing_facet(into, facets).face
-	return [across * centre.x + Vector3.UP * centre.y + into * (face - PANE_DEPTH), into, box2.position - centre, box2.end - centre]
+	return [across * centre.x + Vector3.UP * centre.y + into * (wall.face - PANE_DEPTH), into, box2.position - centre, box2.end - centre]
 
 
 ## The middle of a window, even one cut off by the floor, the ceiling or a corner: a cut window is widest along its cut.

@@ -256,7 +256,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Ghost beasts** aren't beasts of their own: they're the same beasts in black and purple, glowing faintly and
   wrapped in smoke.
   - Every merge plays a cinematic (`scenes/MergeCinematic.tscn`) in a dark, misty chamber behind the Beast Center: plaster
-    walls set with glowing aqua bottle-bottom glass, a stone floor and three stepped platforms. The parents stand on two
+    walls set with glowing aqua bottle-bottom glass, columns where the walls meet, cables draped across the ceiling, a stone floor and three stepped platforms. The parents stand on two
     in the background, each in a pool of light from a hanging white-and-steel TCM Core, and the centre one is empty. The parents rise into their own
     light and fade, and only then does a column of light come down from the core over the centre platform. When it lands, a white wash reveals the merged beast, with the light now on it. The camera holds
     still until then, and circles the new beast very slowly to show its form.

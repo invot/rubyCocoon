@@ -43,13 +43,15 @@ class Geo:
 		idx.append(c if flip else b)
 		idx.append(b if flip else c)
 
-	func add_to(mesh: ArrayMesh, mat: Material) -> void:
+	func add_to(mesh: ArrayMesh, mat: Material, colors := PackedColorArray()) -> void:
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = v
 		arrays[Mesh.ARRAY_NORMAL] = n
 		arrays[Mesh.ARRAY_TEX_UV] = uv
 		arrays[Mesh.ARRAY_INDEX] = idx
+		if not colors.is_empty():
+			arrays[Mesh.ARRAY_COLOR] = colors
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, mat)
 
@@ -111,6 +113,28 @@ static func floor_beyond(reach: float) -> Geo:
 	var ground := Geo.new()
 	_lathe(ground, rings, Vector3.ZERO, SEG, FLOOR_TILE)
 	return ground
+
+
+## A column standing on each (x, z) of `spots`, from the floor up to `top`: a stepped base, a slim shaft of stacked drums
+## and a flared capital.
+static func columns(spots: Array, top: float) -> Geo:
+	const DRUMS := 5
+	var shaft_top := top - 0.62
+	var outline := [Vector2(0.86, 0.0), Vector2(0.86, 0.16), Vector2(0.76, 0.24), Vector2(0.74, 0.36), Vector2(0.6, 0.48)]
+	for i in DRUMS:
+		var low := lerpf(0.48, shaft_top, float(i) / DRUMS)
+		var high := lerpf(0.48, shaft_top, float(i + 1) / DRUMS)
+		outline.append(Vector2(0.6, low + 0.04))
+		outline.append(Vector2(0.6, high - 0.04))
+		outline.append(Vector2(0.56, high))
+	outline.append(Vector2(0.7, shaft_top + 0.12))
+	outline.append(Vector2(0.7, shaft_top + 0.2))
+	outline.append(Vector2(0.9, shaft_top + 0.42))
+	outline.append(Vector2(0.9, top))
+	var g := Geo.new()
+	for spot: Vector2 in spots:
+		_lathe(g, outline, Vector3(spot.x, 0.0, spot.y), 28, 3.0)
+	return g
 
 
 ## The column the core hangs from, in the core's own units: a metal tube banded with clamps, wrapped in a bundle of

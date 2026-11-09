@@ -10,6 +10,14 @@ const EggModel = preload("res://scripts/gfx/egg_model.gd")
 var bad := 0
 
 
+## Holds the real mouse back during a scripted tap-through: moved between a tap's press and release, it would pull the
+## press off its button, and a hover would take the focus from the row being tested.
+class PointerShield extends Node:
+	func _input(event: InputEvent) -> void:
+		if event is InputEventMouseMotion:
+			get_viewport().set_input_as_handled()
+
+
 func check(ok: bool, label: String) -> void:
 	print("ok " if ok else "FAIL ", label)
 	if not ok:
@@ -210,7 +218,7 @@ func _check_merge_film(main) -> void:
 		plinths.append([film._hatchery.to_local(parent.position), 3.85 * film.BACK_SIZE])
 	var wall_gap := INF
 	for si in room.mesh.get_surface_count():
-		if room.mesh.surface_get_material(si).resource_name in ["roundel_wall", "roundel_panel"]:
+		if room.mesh.surface_get_material(si).resource_name in ["roundel_wall", "roundel_panel", "roundel_column"]:
 			for v: Vector3 in room.mesh.surface_get_arrays(si)[Mesh.ARRAY_VERTEX]:
 				for entry in plinths:
 					wall_gap = minf(wall_gap, Vector2(v.x, v.z).distance_to(Vector2(entry[0].x, entry[0].z)) - entry[1])
@@ -226,19 +234,36 @@ func _check_merge_film(main) -> void:
 			elif surface == "roundel_wall":
 				wall_reach = maxf(wall_reach, Vector2(v.x, v.z).length())
 	check(floor_reach * cos(PI / 72.0) > wall_reach, "the stone floor reaches every wall (%.1f, walls at %.1f)" % [floor_reach, wall_reach])
-	var wall_face := INF
-	var pane_face := INF
-	for si in room.mesh.get_surface_count():
-		var surface: String = room.mesh.surface_get_material(si).resource_name
-		if surface in ["roundel_wall", "roundel_panel"]:
-			var arrays: Array = room.mesh.surface_get_arrays(si)
-			for i in arrays[Mesh.ARRAY_VERTEX].size():
-				if arrays[Mesh.ARRAY_NORMAL][i].dot(Vector3.LEFT) > 0.99:
-					if surface == "roundel_wall":
-						wall_face = minf(wall_face, arrays[Mesh.ARRAY_VERTEX][i].x)
-					else:
-						pane_face = minf(pane_face, arrays[Mesh.ARRAY_VERTEX][i].x)
-	check(pane_face - wall_face > 0.4, "the glass sits at the back of deep holes in the wall (%.2f deep)" % (pane_face - wall_face))
+	var walls := _room_walls(room.mesh)
+	var shallowest := INF
+	var crooked := 0.0
+	var pane_arrays := _roundel_surface(room.mesh, "roundel_panel")
+	for i in pane_arrays[Mesh.ARRAY_VERTEX].size():
+		var behind := -INF
+		var off_wall := PI
+		for wall: Array in walls:
+			behind = maxf(behind, wall[1] - pane_arrays[Mesh.ARRAY_VERTEX][i].dot(wall[0]))
+			off_wall = minf(off_wall, pane_arrays[Mesh.ARRAY_NORMAL][i].angle_to(wall[0]))
+		shallowest = minf(shallowest, behind)
+		crooked = maxf(crooked, off_wall)
+	check(walls.size() == 5, "the chamber shows its five flat walls (%d)" % walls.size())
+	check(shallowest > 0.4, "all the glass sits at the back of deep holes, behind the walls (%.2f deep at the shallowest)" % shallowest)
+	check(rad_to_deg(crooked) < 2.0, "all the glass lies flat against its wall (%.1f degrees off at the worst)" % rad_to_deg(crooked))
+	var column_verts: PackedVector3Array = _roundel_surface(room.mesh, "roundel_column")[Mesh.ARRAY_VERTEX]
+	var bare_corners := 0
+	for i in walls.size() - 1:
+		var here: Array = walls[i]
+		var next: Array = walls[i + 1]
+		var turn: float = here[0].x * next[0].z - here[0].z * next[0].x
+		var corner: Vector2 = Vector2(here[1] * next[0].z - next[1] * here[0].z, next[1] * here[0].x - here[1] * next[0].x) / turn
+		if corner.y < 5.5 and not Array(column_verts).any(func(v: Vector3) -> bool: return Vector2(v.x, v.z).distance_to(corner) < 1.0):
+			bare_corners += 1
+	check(bare_corners == 0, "a column stands in every corner where the walls meet (%d bare)" % bare_corners)
+	var wire_verts: PackedVector3Array = _roundel_surface(room.mesh, "roundel_wires")[Mesh.ARRAY_VERTEX]
+	var wire_top := -INF
+	for v in wire_verts:
+		wire_top = maxf(wire_top, v.y)
+	check(wire_verts.size() > 3000 and wire_top > 11.0, "the original cables are draped across the ceiling (%d vertices, up to %.1f)" % [wire_verts.size(), wire_top])
 	var tongs_plain: bool = stage.get_children().filter(func(n): return n is Light3D).all(func(n): return (n.light_cull_mask & 2) == 0)
 	check(tongs_plain, "the film's lights leave the tongs plain metal")
 	var sounds: Array = ["SwellSound", "VanishSound", "RevealSound"].map(func(n): return film.get_node(n))
@@ -352,7 +377,44 @@ func _starter_menu(main) -> void:
 	await main._wait(0.25)
 
 
+## One surface of the roundel chamber.
+func _roundel_surface(mesh: Mesh, surface: String) -> Array:
+	for si in mesh.get_surface_count():
+		if mesh.surface_get_material(si).resource_name == surface:
+			return mesh.surface_get_arrays(si)
+	return []
+
+
+## The chamber's flat walls in order around the room, as [direction into the room, distance along it].
+func _room_walls(mesh: Mesh) -> Array:
+	var arrays := _roundel_surface(mesh, "roundel_wall")
+	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var found := {}
+	for t in range(0, idx.size(), 3):
+		var nor := n[idx[t]]
+		if absf(nor.y) > 0.5:
+			continue
+		var plane := Vector4i(roundi(nor.x * 20.0), 0, roundi(nor.z * 20.0), roundi(v[idx[t]].dot(nor) * 20.0))
+		if not found.has(plane):
+			found[plane] = [Vector3.ZERO, 0.0, 0.0]
+		var area := (v[idx[t + 1]] - v[idx[t]]).cross(v[idx[t + 2]] - v[idx[t]]).length()
+		found[plane][0] += nor * area
+		found[plane][1] += v[idx[t]].dot(nor) * area
+		found[plane][2] += area
+	var walls := []
+	for entry: Array in found.values():
+		if entry[2] > 10.0:
+			walls.append([Vector3(entry[0].x, 0.0, entry[0].z).normalized(), entry[1] / entry[2]])
+	walls.sort_custom(func(a: Array, b: Array) -> bool: return atan2(a[0].z, a[0].x) < atan2(b[0].z, b[0].x))
+	return walls
+
+
 func _verify_ui(main) -> void:
+	var shield := PointerShield.new()
+	shield.process_mode = Node.PROCESS_MODE_ALWAYS
+	main.add_child(shield)
 	UI.auto = false
 	GameState.eggs = []
 	GameState.set_flag("got_egg", false)
@@ -464,6 +526,7 @@ func _verify_ui(main) -> void:
 	check(finished[0] and seen == ["level:Embit", "evolve:Cinderex", "level:Hootlet"],
 		"rendered reward queue shows each beast and each evolution once, in order: %s" % str(seen))
 	battle.queue_free()
+	shield.queue_free()
 
 
 func _preview(main, opts: Dictionary, mode: String) -> void:
