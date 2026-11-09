@@ -1362,14 +1362,10 @@ func _plan_round_huts() -> void:
 			radius -= 0.1
 			footprint = Rect2(dx - radius, face - radius * 2.0, radius * 2.0, radius * 2.0)
 		b["hut_radius"] = radius
-		# the arena is the village's great hut: an oval as wide as its whole plot
+		# The supplied arena is fitted at one horizontal scale around its existing door.
 		if b["shop"] == "arena":
-			var rx := maxf(radius, w / 2.0 - 0.15)
-			footprint = Rect2(dx - rx, face - radius * 2.0, rx * 2.0, radius * 2.0)
-			while not _house_fits(footprint, origin, b) and rx > radius:
-				rx -= 0.1
-				footprint = Rect2(dx - rx, face - radius * 2.0, rx * 2.0, radius * 2.0)
-			b["hut_rx"] = maxf(rx, radius)
+			footprint = load("res://scripts/gfx/island_buildings.gd").arena_footprint(b)
+
 		for y in range(floori(origin.y + footprint.position.y), ceili(origin.y + footprint.end.y)):
 			for x in range(floori(origin.x + footprint.position.x), ceili(origin.x + footprint.end.x)):
 				if MapGen.get_t(map, x, y) in [MapGen.TREE, MapGen.BUSH]:

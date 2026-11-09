@@ -98,6 +98,11 @@ static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: 
 	VB._ledge(k, "planks", deck, VB._fill(center, 24), center, HUT_LIFT - 0.15, 0.15, HUT_TIMBER)
 	for angle in [PI / 6.0, PI / 2.0, 5.0 * PI / 6.0, 7.0 * PI / 6.0, 3.0 * PI / 2.0, 11.0 * PI / 6.0]:
 		VB._column(k, "planks", Vector3(center.x + sin(angle) * rx * 0.92, 0, center.y + cos(angle) * r * 0.92), 0.14, HUT_LIFT, 6, HUT_TIMBER)
+	_hut_entry(node, k, b, dx, face, paint)
+	_hut_garden(node, dx, face, rx)
+	return HUT_LIFT + 3.70
+
+static func _hut_entry(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: float, paint: Color, lintel := true) -> void:
 	k.box("planks", Vector3(dx, HUT_LIFT - 0.075, face + 0.12), Vector3(1.44, 0.15, 0.42), HUT_TIMBER, true)
 	for step in 6:
 		var h := HUT_LIFT * float(step + 1) / 6.0
@@ -116,7 +121,10 @@ static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: 
 		leaf.material_override = timber_material()
 	node.add_child(leaf)
 	k.box("color", Vector3(dx + 0.29, HUT_LIFT + 0.86, face + 0.035), Vector3(0.065, 0.13, 0.05), Color("#d6b46b"))
-	k.box("color", Vector3(dx, HUT_LIFT + 2.09, face - 0.02), Vector3(0.92, 0.50, 0.08), paint, true)
+	if lintel:
+		k.box("color", Vector3(dx, HUT_LIFT + 2.09, face - 0.02), Vector3(0.92, 0.50, 0.08), paint, true)
+
+static func _hut_garden(node: Node3D, dx: float, face: float, span: float) -> void:
 	# Low ground planting sits outside the stair's 1.44-wide landing and walking approach.
 	var bush_mesh: Mesh = VA.mesh("shrub_1")
 	var bush_scale := VA.fit_scale("shrub_1", 0.36, 0.62)
@@ -126,14 +134,77 @@ static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: 
 	planting.instance_count = 2
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0
-		var at := Vector3(dx + side * maxf(1.32, rx * 0.78), -bush_mesh.get_aabb().position.y * bush_scale, face + 0.14)
+		var at := Vector3(dx + side * maxf(1.32, span * 0.78), -bush_mesh.get_aabb().position.y * bush_scale, face + 0.14)
 		planting.set_instance_transform(i, Transform3D(Basis(Vector3.UP, side * 0.6).scaled(Vector3.ONE * bush_scale), at))
 	var garden := MultiMeshInstance3D.new()
 	garden.name = "GroundBushes"
 	garden.multimesh = planting
 	garden.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.add_child(garden)
-	return HUT_LIFT + 3.70
+
+## The supplied arena keeps one horizontal scale, rather than stretching into an oval.
+const ARENA_SCALE := 4.60
+const ARENA_SOURCE_DOOR_X := -0.0185
+const ARENA_SOURCE_DOOR_Z := 0.385
+static var _arena_mesh: ArrayMesh
+
+static func arena_footprint(b: Dictionary) -> Rect2:
+	var w := float(b["w"])
+	var d := float(b["d"])
+	var dx := float(b["door"].x) + 0.5 - float(b["x"]) - w / 2.0
+	var face := d / 2.0 - HUT_FACE_INSET
+	return Rect2(dx + (-0.516 - ARENA_SOURCE_DOOR_X) * ARENA_SCALE, face + (-0.516 - ARENA_SOURCE_DOOR_Z) * ARENA_SCALE, 1.032 * ARENA_SCALE, 1.038 * ARENA_SCALE)
+
+static func _arena_fitted() -> ArrayMesh:
+	if _arena_mesh != null:
+		return _arena_mesh
+	var source: ArrayMesh = load("res://assets/exteriors/kelpwick_arena.res")
+	_arena_mesh = ArrayMesh.new()
+	for surface in source.get_surface_count():
+		var arrays := source.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		for i in vertices.size():
+			var p := vertices[i]
+			var y_scale := ARENA_SCALE
+			var y := 1.84 + (p.y + 0.044) * y_scale
+			if p.y < -0.174:
+				y_scale = HUT_LIFT / 0.066
+				y = (p.y + 0.24) * y_scale - HUT_LIFT
+			elif p.y < -0.044:
+				y_scale = 1.84 / 0.130
+				y = (p.y + 0.174) * y_scale
+			var x := (p.x - ARENA_SOURCE_DOOR_X) * ARENA_SCALE
+			var z := (p.z - ARENA_SOURCE_DOOR_Z) * ARENA_SCALE
+			var ax := absf(p.x - ARENA_SOURCE_DOOR_X)
+			if p.z > 0.30 and ax < 0.20:
+				var fitted := ax / 0.068 * 0.46 if ax <= 0.068 else lerpf(0.46, 0.20 * ARENA_SCALE, (ax - 0.068) / 0.132)
+				x = lerpf(x, signf(x) * fitted, smoothstep(0.30, 0.37, p.z))
+				if p.y <= -0.174 and p.z > ARENA_SOURCE_DOOR_Z:
+					z = minf(z, 0.25)
+			vertices[i] = Vector3(x, y, z)
+			normals[i] = Vector3(normals[i].x / ARENA_SCALE, normals[i].y / y_scale, normals[i].z / ARENA_SCALE).normalized()
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		_arena_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_arena_mesh.surface_set_material(surface, source.surface_get_material(surface))
+	return _arena_mesh
+
+static func _arena(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: float) -> float:
+	var mi := MeshInstance3D.new()
+	mi.name = "SuppliedArena"
+	mi.mesh = _arena_fitted()
+	mi.position = Vector3(dx, HUT_LIFT, face)
+	node.add_child(mi)
+	b["door_sill"] = HUT_LIFT
+	var center := Vector2(dx - ARENA_SOURCE_DOOR_X * ARENA_SCALE, face - ARENA_SOURCE_DOOR_Z * ARENA_SCALE)
+	# A concealed ceiling closes the room below the model's open-air roof terrace.
+	var inner := VB._loop(center, 0.30 * ARENA_SCALE, 0.30 * ARENA_SCALE, 32)
+	VB._skirt(k, "color", inner, HUT_LIFT, 2.38, Color("#dfbd8d"), center)
+	VB._band(k, "planks", inner, VB._fill(center, 32), HUT_LIFT + 2.38, HUT_TIMBER)
+	_hut_entry(node, k, b, dx, face, Color("#dfbd8d"), false)
+	_hut_garden(node, dx, face, 2.10)
+	return mi.mesh.get_aabb().end.y + HUT_LIFT
 
 static func build(b: Dictionary, style: String) -> Node3D:
 	var node := Node3D.new()
@@ -148,7 +219,9 @@ static func build(b: Dictionary, style: String) -> Node3D:
 	var great := wood and shop == "arena"
 	var face := d / 2.0 - (HUT_FACE_INSET if wood else 0.16)
 	var top: float
-	if wood:
+	if great:
+		top = _arena(node, k, b, dx, face)
+	elif wood:
 		top = _stilt_hut(node, k, b, dx, face)
 	else:
 		var wall := _stucco(int(b["seed"]))
@@ -171,8 +244,8 @@ static func build(b: Dictionary, style: String) -> Node3D:
 	if shop != "house":
 		var plaque := MeshInstance3D.new()
 		plaque.mesh = VP.icon(shop)
-		plaque.position = Vector3(dx, HUT_LIFT + (2.65 if great else 2.25) if wood else 3.5, face + (0.46 if wood else 0.12))
-		plaque.scale = Vector3.ONE * (0.975 if wood else 0.65)
+		plaque.position = Vector3(dx, HUT_LIFT + (2.32 if great else 2.25) if wood else 3.5, face + (0.18 if great else (0.46 if wood else 0.12)))
+		plaque.scale = Vector3.ONE * (0.75 if great else (0.975 if wood else 0.65))
 		node.add_child(plaque)
 	return node
 

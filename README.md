@@ -476,8 +476,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
 - **Isle of Tides**: Kelpwick is a modest reef-diving village of round, timber-framed pastel plaster huts on wooden stilts,
-  with centered solid wood doors, six-tread entry stairs and broad, painted golden thatched roofs and larger round wooden interiors (its store and arena). There is no Beast Center: the
-  arena is the great hut, a wide oval of taller walls under a high thatch, and keeps the village's healing machine in its
+  with centered solid wood doors, six-tread entry stairs and broad, painted golden thatched roofs. The store has a round wooden interior. There is no Beast Center: the
+  arena uses the supplied **Stylized House** model at one horizontal scale, with a matching wooden door and its TV antenna removed. Its rectangular wooden hall keeps the village's healing machine in its
   back corner; flights and lost battles bring you back in front of it. Its general store sells essentials and basic beast gear at 30% below normal
   prices. Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
   La Perla Restaurant, Pearl Coast Boutique (40% above normal prices), and Hotel Mariposa (`island_buildings.gd`). Its
@@ -503,7 +503,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Hanging red decorations and attached leaf cards are removed. Small ground bushes flank the huts with the stair approaches clear.
   The hero walks up the hut stairs before entering; the original street approaches and room identities are retained.
   Run `bash tools/run_tests.sh island-towns island-towns-touch` for entrance, pricing, suite, A/B and beach-aisle checks.
-  Run `bash tools/run_tests.sh kelpwick-huts kelpwick-huts-touch` to walk/tap into each raised hut and return to its stair foot.
+  Run `bash tools/run_tests.sh kelpwick-huts kelpwick-huts-touch` to walk/tap into each raised hut, verify the rectangular arena's phone/healer/Nerissa approaches, and return to each stair foot.
   For a windowed preview and captures, use `-- --scene=island-towns --huts=1 --shot=build/shots/huts.png --quit=0`
   (add `--touch` for the phone layout); the focused scenario uses fresh state and never reads player saves.
   Rebuild the supplied huts with:
@@ -512,6 +512,15 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   python tools/prepare_tribal_hut.py "path/to/Low poly stylized tribal tropical hut.zip"
   godot --headless --path . --script res://tools/import_tribal_hut.gd
   godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/exteriors/tribal_hut
+  godot --headless --path . --import
+  ```
+
+  Rebuild Kelpwick's supplied arena (its original model is kept untouched):
+
+  ```text
+  python tools/prepare_kelpwick_arena.py "path/to/stylized_house.glb"
+  godot --headless --path . --script res://tools/import_kelpwick_arena.gd
+  godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/exteriors/kelpwick_arena
   godot --headless --path . --import
   ```
 - **Exterior windows** use `scripts/gfx/cartoon_windows.gd`: broad bevelled surrounds, bowed caps on tall windows,

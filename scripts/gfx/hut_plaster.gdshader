@@ -7,6 +7,10 @@ void fragment() {
 	// Cut only the source's leaf/chilli cards; plaster, timber and painted windows remain closed.
 	if (sampled.a < 0.5) { discard; }
 	vec3 original = sampled.rgb;
+	// A few tiny green marks are painted into the source's timber after its leaf meshes are removed.
+	if (original.g > original.r * 1.2 && original.g > original.b * 1.2) {
+		original = texture(atlas, vec2(0.93, 0.43)).rgb;
+	}
 	bool region = (UV.x > 0.625 && UV.x < 0.866 && UV.y > 0.28 && UV.y < 0.855)
 		|| (UV.x < 0.23 && UV.y > 0.68 && UV.y < 0.96);
 	// Preserve the source's blue painted windows and brown timber within the plaster islands.

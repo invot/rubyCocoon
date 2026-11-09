@@ -982,7 +982,7 @@ const SHOP_ROOMS := {
 ## The townsfolk's houses (each picks one by its seed): two studios, a house of two rooms, one with an upstairs.
 const HOUSES := [["studio_a"], ["studio_b"], ["house_two", "house_two_bed"], ["house_up", "house_up_hall", "house_up_bed"]]
 
-## Rounded timber stage rooms on the Isle of Tides. The entrance stays in the visible eastern side wall.
+## Timber stage rooms on the Isle of Tides: round homes/store, rectangular arena. Entrances stay in the visible eastern side wall.
 static func kelpwick_room(key: String) -> Dictionary:
 	return KELPWICK_ROOMS.get(key, ROOMS[key])
 
@@ -1023,9 +1023,9 @@ const KELPWICK_ROOMS := {
 	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "anchors": {"6": "lesson_team", "7": "lesson_elements"},
 		"counter_phone": [17, 2],
 		"rows": [
-			"   #######w#######   ",
-			"  /............1..\\  ",
-			" /CCCCCCCCCCCCCCCCC\\ ",
+			"##########w##########",
+			"#..............1....#",
+			"#CCCCCCCCCCCCCCCCCCC#",
 			"#.....3............H#",
 			"#..xxxxxxxx.........#",
 			"#..x......x.........#",
@@ -1033,9 +1033,9 @@ const KELPWICK_ROOMS := {
 			"#..x......x......6..#",
 			"#..xxxxxxxx.........#",
 			"#..4......5......7..#",
-			" \\................./ ",
-			"  \\.............../  ",
-			"   ###############   ",
+			"#...................#",
+			"#...................#",
+			"#####################",
 		],
 	},
 }

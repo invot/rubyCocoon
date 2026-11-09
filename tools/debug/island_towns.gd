@@ -132,12 +132,16 @@ func _huts(opts: Dictionary) -> void:
 	GameState.set_flag("reed_flute")
 	var town := ML.load_map("kelpwick", GameState.flags)
 	for b in town["buildings"]:
+		if opts.get("arena", "0") == "1" and b["shop"] != "arena":
+			continue
 		if Places.door_locked(b):
 			continue
 		await main._go("kelpwick", b["door"] + Vector2i.DOWN)
 		await main._wait(0.65)
 		var outside = main.world
 		var base: float = outside._lift(b["door"])
+		if opts.has("shot") and b["shop"] == "arena" and DisplayServer.get_name() != "headless":
+			main._save_shot(String(opts["shot"]).replace(".png", "_arena_exterior.png"))
 		if UI.is_touch():
 			var at: Vector2 = outside.cam.unproject_position(outside.tile_pos(b["door"]) + Vector3(0, 1.6, 0))
 			# Screen-touch events enter in window pixels; Godot applies the viewport stretch once.
@@ -150,9 +154,19 @@ func _huts(opts: Dictionary) -> void:
 				await main.get_tree().process_frame
 		else:
 			await main._press("move_up")
-		await main._wait(0.12)
-		check(outside.busy and not outside._climb.is_empty(), "%s starts a single stair climb" % b["interior"])
-		check(outside.player.position.y > base, "%s climbs above the street" % b["interior"])
+		var began: bool = outside.busy and not outside._climb.is_empty()
+		var climbed := false
+		# Wait for actual motion rather than one timer tick: a screenshot's first-draw hitch can
+		# resume the timer before the world's movement callback has run for that frame.
+		for attempt in 20:
+			if outside.player.position.y > base + 0.01:
+				climbed = true
+				break
+			if main.world != outside:
+				break
+			await main._wait(0.02)
+		check(began or climbed, "%s starts a single stair climb" % b["interior"])
+		check(climbed, "%s climbs above the street" % b["interior"])
 		if opts.has("shot") and b["shop"] == "house" and DisplayServer.get_name() != "headless":
 			main._save_shot(String(opts["shot"]).replace(".png", "_stairs_%d.png" % int(b["index"])))
 		# Bound the wait so a broken entrance reports a failure promptly.
@@ -163,6 +177,31 @@ func _huts(opts: Dictionary) -> void:
 		check(main.world.map_id == b["interior"], "%s enters through its raised doorway" % b["interior"])
 		if main.world.map_id != b["interior"]:
 			continue
+		if b["shop"] == "arena":
+			var rows: Array = main.world.map["room"]["rows"]
+			check(rows.all(func(row): return not "/" in String(row) and not "\\" in String(row) and not " " in String(row)), "arena hall has rectangular walls")
+			check(main.world.machines.has("healer"), "rectangular arena retains the healer")
+			var phone: Vector2i = main.world.map["counter_phone"]
+			await main._walk_test([phone + Vector2i.DOWN])
+			check(main.world.player_pos == phone + Vector2i.DOWN, "arena counter phone is reachable")
+			if main.world.machines.has("healer"):
+				var machine: Vector3 = main.world.machines["healer"]["node"].position
+				var approach := Vector2i(floori(machine.x), floori(machine.z)) + Vector2i.DOWN
+				await main._walk_test([approach])
+				check(main.world.player_pos == approach, "arena healing machine is reachable")
+			for tile in main.world.npcs:
+				if main.world.npcs[tile].get("kind", "") == "leader":
+					await main._walk_test([tile + Vector2i.DOWN])
+					check(main.world.player_pos == tile + Vector2i.DOWN, "Nerissa remains reachable")
+					break
+			if opts.has("shot") and DisplayServer.get_name() != "headless":
+				main._save_shot(String(opts["shot"]).replace(".png", "_arena_gameplay.png"))
+				main.world.cam_free = true
+				main.world.cam.position = Vector3(10.5, 18, 23)
+				main.world.cam.look_at(Vector3(10.5, 0, 6), Vector3.UP)
+				await main._wait(0.6)
+				main._save_shot(String(opts["shot"]).replace(".png", "_arena_interior.png"))
+				main.world.cam_free = false
 		var exit: Vector2i = main.world.map["front_doors"][0]
 		await main._walk_test([exit])
 		for attempt in 100:

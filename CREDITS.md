@@ -11,6 +11,10 @@ no meshes or textures from either pack are redistributed. See [window reference 
 Kelpwick's stilt huts are adapted from the user-supplied **Low poly stylized tribal tropical hut** archive:
 its mesh and painted wood, plaster, windows and thatch, with pastel plaster, solid wooden doors, stilts and stairs.
 See [source details and conversion notes](licenses/tribal_hut.md).
+Kelpwick's arena uses **Stylized House** by [Kesenkai](https://sketchfab.com/kesenkai),
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), supplied as `stylized_house.glb`.
+The TV antenna and original door are removed; the model is fitted to its plot and given the huts' solid wood door.
+See [source and conversion details](licenses/kelpwick_arena.md).
 The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
 The pre-baked battle ring graphics (`assets/ui/battle/`) and encounter sweeps (`assets/audio/battle/`) are generated
 from the project's existing battle and sound code by `tools/bake_battle_art.gd`. House measurements
