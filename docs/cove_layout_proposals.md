@@ -37,7 +37,7 @@ scenery cottages occupy the rear shelf. A stair descends beside the library to t
 square. The apothecary occupies the eastern bluff. The plaster neighbor's home sits
 in the western garden. Right-hand stairs descend to one short boardwalk past a wooden
 neighbor's shack, ending at the wooden gear shack's platform. It has 77 walkable deck
-tiles instead of 169. There is no loop, long southern arm or onward route beyond it.
+tiles before cargo instead of 169. There is no loop, long southern arm or onward route beyond it.
 
 Crates and barrels dress the dock edges, gardens and shop sides. `prop_clearance`
 rectangles reserve the through-lanes, stairs, square crossings and doorway approaches.

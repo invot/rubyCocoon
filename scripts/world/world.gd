@@ -1642,6 +1642,9 @@ func _build_street_props() -> void:
 		var bb := mesh.get_aabb()
 		# its back to the building, a little away from the wall
 		mi.rotation.y = atan2(float(face.x), float(face.y)) + (rng.randf_range(-0.25, 0.25) if e[2] in ["barrel", "crate", "crate_open", "keg", "planter", "cove_crate", "cove_barrel"] else 0.0)
+		if e[2] in ["cove_crate","cove_barrel"]:
+			# Cargo stays square to its spare tile, without corners overhanging a clear lane.
+			mi.rotation.y = 0.0
 		var span := int(STREET_WIDE.get(String(e[2]), 1))
 		var fit := minf(1.0, (0.92 + span - 1) / maxf(bb.size.x, bb.size.z))
 		mi.scale = Vector3.ONE * fit
@@ -1658,6 +1661,8 @@ func _build_street_props() -> void:
 			top.mesh = _street_mesh("cove_crate" if e[2] == "cove_crate" else "crate")
 			top.scale = mi.scale * 0.85
 			top.rotation.y = mi.rotation.y + rng.randf_range(-0.6, 0.6)
+			if e[2] == "cove_crate":
+				top.rotation.y = 0.0
 			top.position = mi.position + Vector3(0, bb.size.y * fit, 0)
 			add_child(top)
 	# air conditioners on the side walls of shops in bigger towns
