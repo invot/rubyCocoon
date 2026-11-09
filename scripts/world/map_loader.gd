@@ -249,6 +249,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# cliffs and ramps (elevation.gd)
 	if src.has("heights"):
 		Elev.parse(m, src["heights"])
+		_cut_ledges(m)
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
@@ -497,6 +498,20 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	return m
 
 
+## Nobody stands on a diagonal cliff's tile (elevation.gd): open ground there becomes a LEDGE, its own ground kept in
+## m["ledges"] for drawing. (Trees, hedges and rocks keep their kind and stand on the high half.)
+static func _cut_ledges(m: Dictionary) -> void:
+	var ledges := {}
+	for y in int(m["h"]):
+		for x in int(m["w"]):
+			var p := Vector2i(x, y)
+			var t := MapGen.get_t(m, x, y)
+			if Elev.diagonal(m, p) != 0 and MapGen.walkable(t):
+				ledges[p] = t
+				MapGen.set_t(m, x, y, MapGen.LEDGE)
+	m["ledges"] = ledges
+
+
 ## A red payphone a few steps from the town's square (see phone.gd), on open paving: the nearest tile to the square's
 ## middle, clear of the statue, with every tile round it free to walk on (so it never blocks the way) and nothing
 ## there that matters: a door, a sign, a person, an exit, a spawn.
@@ -550,7 +565,8 @@ static func _fish_spots(id: String, m: Dictionary, given: Array) -> Dictionary:
 	var cands := []
 	for y in range(1, int(m["h"]) - 1):
 		for x in range(1, int(m["w"]) - 1):
-			if MapGen.get_t(m, x, y) != MapGen.WATER:
+			# (not the sea in a diagonal cliff's tile: half of it is land)
+			if MapGen.get_t(m, x, y) != MapGen.WATER or Elev.diagonal(m, Vector2i(x, y)) != 0:
 				continue
 			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 				var c := MapGen.get_t(m, x + d.x, y + d.y)

@@ -5,6 +5,12 @@
 resized and smoothed textures. See [source links and licence](licenses/pirate_cove.md).
 
 Code, procedural buildings, maps and writing were made for this project.
+The procedural exterior windows (`scripts/gfx/cartoon_windows.gd`) use the supplied **Stylized Cartoon Windows**
+by Canino3d and **Windows Pack** by Midox as visual references. Both identify CC BY 4.0 in their GLB metadata;
+no meshes or textures from either pack are redistributed. See [window reference provenance](licenses/window_references.md).
+Kelpwick's procedural stilt huts use the user-supplied **Low poly stylized tribal tropical hut** screenshot
+and ZIP as an architectural reference (plaster infill, broad timber framing, blue fabric and conical thatch).
+No mesh or texture from that archive is redistributed; the hut geometry and finishes are generated in code.
 The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
 The pre-baked battle ring graphics (`assets/ui/battle/`) and encounter sweeps (`assets/audio/battle/`) are generated
 from the project's existing battle and sound code by `tools/bake_battle_art.gd`. House measurements
@@ -36,6 +42,25 @@ fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files
   terrain's own cliffs). The other packs were the reference for Dustwell's
   buildings (false fronts, boardwalk porches, the saloon's balcony and batwing doors, the barred jail), which
   `scripts/gfx/frontier_builder.gd` builds from the game's own wall pieces. Original downloads are untouched.
+
+## Cliff textures (`assets/textures/surfaces/cliff_*.png`)
+
+The cliffs themselves are the terrain's own, built from the maps' heights (`scripts/world/terrain_mesh.gd`); these
+packs only gave their rock its texture. `tools/import_cliffs.gd` crops a stretch of rock face from each pack's
+colour texture, turns it grey (the game colours it per biome, `WorldDB.CLIFF_LOOKS`), makes it tile seamlessly and
+bakes it at 512 px or less; `tools/smooth_textures.gd` then softens it. No meshes are used. Original downloads are
+untouched.
+- **Sandstone | Cliff** by YadroGames (https://sketchfab.com/erroratten), licensed under CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/), in two versions:
+  https://sketchfab.com/3d-models/sandstone-cliff-f525eb2600e34f78b6e2811d678ce246 (`cliff_rock.png`, the warm
+  fluted rock of the coast, rivers and jungle) and
+  https://sketchfab.com/3d-models/sandstone-cliff-49722e53941c46339b0cfd74bfcb5669 (`cliff_sandstone.png`, the
+  desert, western and mesa cliffs).
+- **Stylized Cliff-Faces**, supplied by the user as a ZIP of OBJ and PNG files (`cliff_slate.png`, from
+  `CliffFaces_Set01_Diffuse.png`: the mountain, volcano, hot spring, moor and steampunk cliffs). It came with no
+  credit, so it's Creative Commons; see `licenses/supplied_environment_packs.md`.
+- Looked at and not used: **[Free] Layered Cliffs** by SimplePolygon (CC BY 4.0), **Cliff_Stylized** by acipa1234
+  (CC BY-SA 4.0) and **Modular cliff** (supplied as a ZIP, no credit).
 
 ## PSX art (`psx/` → `assets/nature/`, `props/`, `boats/`, `robots/`, `houses/`, `exteriors/`, `interiors/`, `textures/surfaces/`)
 The low-poly PS1-style world. The packs were downloaded into `psx/` (not part of the game; see

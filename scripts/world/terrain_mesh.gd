@@ -6,9 +6,14 @@ extends RefCounted
 ## 0 for ground, below 0 for river beds and lava, above 0 for rocks. An edge or corner takes whichever height of the
 ## tiles sharing it on the same level is closest to 0. So walkable ground stays flat where people stand, river beds
 ## slope down from their banks, and rocky tiles rise into faceted crags from the edge of the ground around them.
-## Where neighbouring tiles' edges don't meet (a cliff between two levels, the side of a ramp), a rock face fills the
-## gap, bulging out a little here and there, with a lip of the ground above along its top (or, in a town that wants
-## them, a straight stone retaining wall). Where a river runs over a cliff, it falls down it as a sheet of water.
+## A diagonal cliff's tile (elevation.gd "/" and "\") is two halves, each drawn on its own level from its own vertices,
+## with the ground (and water) of the tiles along its sides.
+## Where neighbouring tiles' edges don't meet (a cliff between two levels, the side of a ramp, a diagonal), a cliff face
+## fills the gap, after the cosy island cliffs of life-sim games: the ground above rolls over its top in a rounded lip,
+## and below it the rock stands in upright, rounded flutes, coloured and textured by the biome's look
+## (WorldDB.CLIFF_LOOKS), darker towards its foot. Faces meeting at a corner share their end, mitred, so the lip and the
+## rock run on round it unbroken. In a town that wants them, the cliffs are straight stone retaining walls instead.
+## Where a river runs over a cliff, it falls down it as a sheet of water, in front of smooth rock.
 ## The ground carries on MARGIN tiles past the map's edge (copying the edge tiles), so there is no drop-off.
 
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
@@ -22,8 +27,29 @@ const CHUNK := 16
 const MARGIN := 16
 ## sRGB grey the ground textures average out at, in linear terms: dividing it out keeps each biome colour as authored.
 const TEX_LEVEL := 0.71
-## A cliff face is cut into rows about this tall, so it can bulge.
-const FACE_ROW := 0.45
+## A cliff face is cut into rows about this tall...
+const FACE_ROW := 0.5
+## ...and into this many columns per unit along it (a flute is two or three columns across).
+const FACE_COLS := 8.0
+## How far a cliff's flutes stand out from it at most (times the look's "flutes"), at a whole level's drop.
+const FLUTE := 0.13
+## The lip of ground rolling over a cliff's top, at a whole level's drop: its profile, (out, down) from the edge.
+const LIP := [Vector2(0.0, 0.0), Vector2(0.065, -0.022), Vector2(0.11, -0.075), Vector2(0.115, -0.135), Vector2(0.08, -0.19)]
+## the rock's top, tucked in under the lip, this far below the ground at a whole level's drop
+const LIP_DEPTH := 0.22
+const SIDES := [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
+## the sides a diagonal tile's halves run along: [its high half's, its low half's]
+const HALF_SIDES := {
+	Elev.DIAG_NW: [[Vector2i(0, -1), Vector2i(-1, 0)], [Vector2i(0, 1), Vector2i(1, 0)]],
+	Elev.DIAG_SE: [[Vector2i(0, 1), Vector2i(1, 0)], [Vector2i(0, -1), Vector2i(-1, 0)]],
+	Elev.DIAG_NE: [[Vector2i(0, -1), Vector2i(1, 0)], [Vector2i(0, 1), Vector2i(-1, 0)]],
+	Elev.DIAG_SW: [[Vector2i(0, 1), Vector2i(-1, 0)], [Vector2i(0, -1), Vector2i(1, 0)]]}
+## a diagonal tile's corners, [its high half's, its low half's], round the tile in the order its water is drawn
+const HALF_CORNERS := {
+	Elev.DIAG_NW: [[Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)], [Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]],
+	Elev.DIAG_SE: [[Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)], [Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)]],
+	Elev.DIAG_NE: [[Vector2(0, 0), Vector2(1, 0), Vector2(1, 1)], [Vector2(0, 0), Vector2(1, 1), Vector2(0, 1)]],
+	Elev.DIAG_SW: [[Vector2(0, 0), Vector2(1, 1), Vector2(0, 1)], [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1)]]}
 
 var w := 0
 var h := 0
@@ -38,14 +64,21 @@ var water_bed := PackedFloat32Array()
 var seed := 0
 ## the map, for its levels and ramps (elevation.gd); flat without them
 var elev_map := {}
-## per tile (from elevation.gd): the height of its low edge and its high edge, and its ramp direction (0 = flat)
+## per tile (from elevation.gd): the height of its low edge and its high edge, and its ramp direction (0 = flat) or
+## which half of a diagonal is the high one
 var base_lo := PackedFloat32Array()
 var base_hi := PackedFloat32Array()
 var ramp := PackedByteArray()
+## each diagonal tile's halves, by tile index: [high, low], each {"level", "top", "liquid", "layer"}
+var halves := {}
 ## the ground's and the cliffs' materials, for the see-through patch (world.gd _update_hole)
 var materials: Array[ShaderMaterial] = []
 ## cliffs drawn as straight dressed-stone walls instead of rock (see build)
 var walls := false
+## how deeply the cliffs are fluted (the look's "flutes")
+var flutes := 1.0
+## tile vertices worked out so far while generating (see _grid, _half_grid)
+var _grids := {}
 
 ## The ground meshes of the last few maps, so that stepping out of a house or back along a road puts the same ground
 ## down again instead of generating it. Keyed by everything the shape depends on, so a changed map is built afresh.
@@ -85,18 +118,17 @@ func _i(x: int, y: int) -> int:
 	return clampi(x, 0, w - 1) + clampi(y, 0, h - 1) * w
 
 
+## Tile (tx, tz)'s diagonal (Elev.DIAG_NW...), or 0; only tiles on the map are cut.
+func _diag(tx: int, tz: int) -> int:
+	if tx < 0 or tz < 0 or tx >= w or tz >= h:
+		return 0
+	var code := int(ramp[tx + tz * w])
+	return code if code >= Elev.DIAG_NW else 0
+
+
 ## The height of tile i's ground (before its own rise or dip) at (u, v) across it: flat, or a ramp's slope.
 func _plane(i: int, u: float, v: float) -> float:
-	match ramp[i]:
-		1:
-			return lerpf(base_lo[i], base_hi[i], 1.0 - v)
-		2:
-			return lerpf(base_lo[i], base_hi[i], v)
-		3:
-			return lerpf(base_lo[i], base_hi[i], 1.0 - u)
-		4:
-			return lerpf(base_lo[i], base_hi[i], u)
-	return base_lo[i]
+	return Elev._plane_of(base_lo[i], base_hi[i], ramp[i], u, v)
 
 
 ## Height of tile (tx, tz) at grid vertex (gx, gz), in half tiles (gx from 2 * tx to 2 * tx + 2): odd = the tile's
@@ -121,7 +153,7 @@ func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 			# only flat ground on the same level is drawn as one with this tile
 			if ramp[i] != 0 or absf(base_lo[i] - base_lo[own]) > 0.01:
 				continue
-			var v := water_bed[i] if not water_bed.is_empty() and liquid[i] == 1 and height[i] < -0.05 else height[i]
+			var v := _top(i)
 			if absf(v) < absf(best):
 				best = v
 			if rough[i] == 1:
@@ -134,11 +166,16 @@ func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 	return base + best
 
 
-## Tile (tx, tz)'s nine vertices, row by row from its north-west corner (cached).
-func _grid(tx: int, tz: int, cache: Dictionary) -> PackedVector3Array:
-	var k := Vector2i(tx, tz)
-	if cache.has(k):
-		return cache[k]
+## Tile i's own height above its base: its bed, under water.
+func _top(i: int) -> float:
+	return water_bed[i] if not water_bed.is_empty() and liquid[i] == 1 and height[i] < -0.05 else height[i]
+
+
+## Tile (tx, tz)'s nine vertices, row by row from its north-west corner (remembered while generating).
+func _grid(tx: int, tz: int) -> PackedVector3Array:
+	var k := Vector3i(tx, tz, 0)
+	if _grids.has(k):
+		return _grids[k]
 	var g := PackedVector3Array()
 	g.resize(9)
 	# Flat ground at height 0, nearly all of any map: _vertex_y always answers its own level, whatever its neighbours do.
@@ -149,8 +186,81 @@ func _grid(tx: int, tz: int, cache: Dictionary) -> PackedVector3Array:
 			var gx := tx * 2 + i
 			var gz := tz * 2 + j
 			g[i + j * 3] = Vector3(gx * 0.5, base_lo[own] if level else _vertex_y(tx, tz, gx, gz), gz * 0.5)
-	cache[k] = g
+	_grids[k] = g
 	return g
+
+
+## Half `k` of diagonal tile (tx, tz) (0 the high one, 1 the low): nine vertices, as if it were a whole tile on its level
+## (only those on its own side of the diagonal are drawn).
+func _half_grid(tx: int, tz: int, k: int) -> PackedVector3Array:
+	var key := Vector3i(tx, tz, k + 1)
+	if _grids.has(key):
+		return _grids[key]
+	var half: Dictionary = halves[_i(tx, tz)][k]
+	var g := PackedVector3Array()
+	g.resize(9)
+	for j in 3:
+		for i in 3:
+			var gx := tx * 2 + i
+			var gz := tz * 2 + j
+			g[i + j * 3] = Vector3(gx * 0.5, _half_vertex_y(tx, tz, gx, gz, half), gz * 0.5)
+	_grids[key] = g
+	return g
+
+
+## As _vertex_y, for a vertex of a diagonal tile's half: flat ground on the half's level meets it there.
+func _half_vertex_y(tx: int, tz: int, gx: int, gz: int, half: Dictionary) -> float:
+	var level: float = half["level"]
+	var best: float = half["top"]
+	var x0 := (gx - 1) / 2 if gx % 2 != 0 else gx / 2 - 1
+	var x1 := x0 if gx % 2 != 0 else gx / 2
+	var z0 := (gz - 1) / 2 if gz % 2 != 0 else gz / 2 - 1
+	var z1 := z0 if gz % 2 != 0 else gz / 2
+	for nx in range(x0, x1 + 1):
+		for nz in range(z0, z1 + 1):
+			var i := _i(nx, nz)
+			if (nx == tx and nz == tz) or ramp[i] != 0 or absf(base_lo[i] - level) > 0.01:
+				continue
+			var v := _top(i)
+			if absf(v) < absf(best):
+				best = v
+	if best < -0.05:
+		best += (_hash(gx, gz) - 0.5) * 0.06
+	return level + best
+
+
+## Tile (tx, tz)'s vertices along its side d: its own, or those of the half of a diagonal running along that side.
+func _side(tx: int, tz: int, d: Vector2i) -> PackedVector3Array:
+	var code := _diag(tx, tz)
+	if code == 0:
+		return _grid(tx, tz)
+	return _half_grid(tx, tz, 0 if Elev.on_high_half(code, 0.5 + d.x * 0.5, 0.5 + d.y * 0.5) else 1)
+
+
+## Each diagonal's halves: on its two levels, each with the ground of the tiles along its sides where those agree (the
+## path below a cut corner, the sea round a headland), else the tile's own.
+func _prepare_halves() -> void:
+	halves = {}
+	for z in h:
+		for x in w:
+			var code := _diag(x, z)
+			if code == 0:
+				continue
+			var i := x + z * w
+			var pair := []
+			for k in 2:
+				var s: Array = HALF_SIDES[code][k]
+				var a := _i(x + s[0].x, z + s[0].y)
+				var b := _i(x + s[1].x, z + s[1].y)
+				var half := {"level": base_hi[i] if k == 0 else base_lo[i], "layer": layer[i], "liquid": liquid[i],
+					"top": _top(i) if liquid[i] != 0 else 0.0}
+				if layer[a] == layer[b]:
+					half["layer"] = layer[a]
+				if liquid[a] == liquid[b] and liquid[a] != liquid[i]:
+					half["liquid"] = liquid[a]
+					half["top"] = maxf(_top(a), _top(b)) if liquid[a] != 0 else 0.0
+				pair.append(half)
+			halves[i] = pair
 
 
 func _hash(a: int, b: int) -> float:
@@ -160,17 +270,27 @@ func _hash(a: int, b: int) -> float:
 
 
 ## Builds the ground, the cliffs, water and lava under `parent`. tints: one colour per VT.GROUND_LAYERS entry;
-## cliff_col: the rock of the cliff faces; stone_walls: dressed stone (the "paving" layer) instead, straight up.
+## look: the cliffs' (WorldDB.CLIFF_LOOKS); stone_walls: dressed stone (the "paving" layer) instead, straight up.
 ## slice_us: yield a frame after this long generating (0 = never).
-func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#8a8478"), stone_walls := false, slice_us := 0) -> void:
+func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, stone_walls := false, slice_us := 0) -> void:
 	walls = stone_walls
+	flutes = float(look.get("flutes", 1.0))
+	_lower_dock_beds()
+	_prepare_water_bed()
+	_prepare_halves()
 	var mat := ShaderMaterial.new()
 	mat.shader = TerrainShader
 	mat.set_shader_parameter("layers", VT.ground_layers())
-	var kinds := Image.create(w + MARGIN * 2, h + MARGIN * 2, false, Image.FORMAT_R8)
+	# per tile: its ground layer, and for a diagonal its low half's layer and which half is high (terrain.gdshader)
+	var kinds := Image.create(w + MARGIN * 2, h + MARGIN * 2, false, Image.FORMAT_RGB8)
 	for y in kinds.get_height():
 		for x in kinds.get_width():
-			kinds.set_pixel(x, y, Color(layer[_i(x - MARGIN, y - MARGIN)] / 255.0, 0, 0))
+			var i := _i(x - MARGIN, y - MARGIN)
+			var code := _diag(x - MARGIN, y - MARGIN)
+			if code != 0:
+				kinds.set_pixel(x, y, Color(halves[i][0]["layer"] / 255.0, halves[i][1]["layer"] / 255.0, code / 255.0))
+			else:
+				kinds.set_pixel(x, y, Color(layer[i] / 255.0, layer[i] / 255.0, 0))
 	mat.set_shader_parameter("kind_map", ImageTexture.create_from_image(kinds))
 	mat.set_shader_parameter("map_origin", Vector2(-MARGIN, -MARGIN))
 	mat.set_shader_parameter("map_size", Vector2(kinds.get_width(), kinds.get_height()))
@@ -182,9 +302,17 @@ func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#
 	mat.set_shader_parameter("tints", lin)
 	var cliff_mat: ShaderMaterial = mat.duplicate()
 	cliff_mat.set_shader_parameter("cliff", true)
-	var cl := cliff_col.srgb_to_linear()
-	cliff_mat.set_shader_parameter("cliff_tint", Vector3(cl.r, cl.g, cl.b) / TEX_LEVEL)
 	cliff_mat.set_shader_parameter("rock_layer", VT.GROUND_LAYERS.find("paving" if walls else "rock"))
+	var cl := Color(look.get("tint", "#a08a70")).srgb_to_linear()
+	cliff_mat.set_shader_parameter("cliff_tint", Vector3(cl.r, cl.g, cl.b) / TEX_LEVEL)
+	if not walls:
+		cliff_mat.set_shader_parameter("cliff_tex", VT.texture("cliff_" + String(look.get("tex", "rock"))))
+		cliff_mat.set_shader_parameter("cliff_textured", true)
+		cliff_mat.set_shader_parameter("cliff_scale", Vector2(look.get("scale", [0.5, 0.5])[0], look.get("scale", [0.5, 0.5])[1]))
+		for key in ["band", "moss"]:
+			if look.has(key):
+				var bc := Color(look[key][0]).srgb_to_linear()
+				cliff_mat.set_shader_parameter("cliff_" + key, Vector4(bc.r, bc.g, bc.b, float(look[key][1])))
 	materials = [mat, cliff_mat]
 	var shape: Dictionary = await _shape(parent, slice_us)
 	for chunk: Array in shape["chunks"]:
@@ -197,30 +325,31 @@ func build(parent: Node3D, tints: Array, water_col: Color, cliff_col := Color("#
 
 ## This map's ground meshes: remembered from a recent visit if the ground hasn't changed since, else generated.
 func _shape(parent: Node3D, slice_us: int) -> Dictionary:
-	var key := str([w, h, seed, walls, hash(layer), hash(height), hash(rough), hash(liquid), hash(base_lo), hash(base_hi),
+	var key := str([w, h, seed, walls, flutes, hash(layer), hash(height), hash(rough), hash(liquid), hash(base_lo), hash(base_hi),
 		hash(ramp), hash(elev_map.get("shoreline", []))])
 	if _shapes.has(key):
 		_shape_order.erase(key)
 		_shape_order.append(key)
 		return _shapes[key]
-	_lower_dock_beds()
-	_prepare_water_bed()
-	var chunks := []
+	_grids = {}
 	var x0 := -MARGIN
 	var z0 := -MARGIN
 	var x1 := w + MARGIN
 	var z1 := h + MARGIN
+	var slice := [Time.get_ticks_usec()]
+	var faces: Dictionary = await _faces(parent, slice_us, slice)
+	var chunks := []
 	var cz := z0
-	var slice := Time.get_ticks_usec()
 	while cz < z1:
 		var cx := x0
 		while cx < x1:
-			chunks.append(_chunk(cx, cz, mini(cx + CHUNK, x1), mini(cz + CHUNK, z1), x1, z1))
-			if slice_us > 0 and Time.get_ticks_usec() - slice >= slice_us:
+			chunks.append(_chunk(cx, cz, mini(cx + CHUNK, x1), mini(cz + CHUNK, z1), faces.get(Vector2i(cx, cz), [])))
+			if slice_us > 0 and Time.get_ticks_usec() - slice[0] >= slice_us:
 				await parent.get_tree().process_frame
-				slice = Time.get_ticks_usec()
+				slice[0] = Time.get_ticks_usec()
 			cx += CHUNK
 		cz += CHUNK
+	_grids = {}
 	var shape := {"chunks": chunks, "water": _liquid_mesh(1), "lava": _liquid_mesh(2)}
 	_shapes[key] = shape
 	_shape_order.append(key)
@@ -268,7 +397,8 @@ func _over_water_deck(p: Vector2i) -> bool:
 	return MapGen.get_t(elev_map, p.x, p.y) == MapGen.BRIDGE or elev_map.get("over_water", {}).has(p)
 
 
-## One flood fill at mesh creation, never per frame. Narrow streams stay shallow; open water gets a deeper bed.
+## One flood fill at mesh creation, never per frame. Narrow streams stay shallow; open water gets a deeper bed, and so
+## does water at the foot of a cliff: only a bank on the water's own level (a beach, a low shore) shelves.
 ## Using the same vertex smoothing as land keeps natural sloping banks, including around isolated rock tiles.
 func _prepare_water_bed() -> void:
 	water_bed = height.duplicate()
@@ -279,7 +409,7 @@ func _prepare_water_bed() -> void:
 	for z in h:
 		for x in w:
 			var i := x + z * w
-			if liquid[i] != 1:
+			if liquid[i] != 1 and not _cliff_over_water(x, z):
 				distance[i] = 0
 				queue.append(i)
 	var cursor := 0
@@ -292,12 +422,30 @@ func _prepare_water_bed() -> void:
 			if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h:
 				continue
 			var j := q.x + q.y * w
-			if distance[j] > distance[i] + 1:
+			# (out across the water only: a cliff's own land behind it doesn't make its foot shallow)
+			if liquid[j] == 1 and distance[j] > distance[i] + 1:
 				distance[j] = distance[i] + 1
 				queue.append(j)
 	for i in w * h:
 		if liquid[i] == 1 and height[i] < -0.05:
 			water_bed[i] -= smoothstep(1.0, 6.0, float(distance[i])) * 1.8
+
+
+## Whether dry tile (x, z) stands over water as a cliff: every water tile beside it is half a level or more below it.
+## (A diagonal's land is its high half: its low half is the water at its foot.)
+func _cliff_over_water(x: int, z: int) -> bool:
+	var i := x + z * w
+	var top: float = base_hi[i] if _diag(x, z) != 0 else base_lo[i]
+	var wet := false
+	for d in SIDES:
+		var q: Vector2i = Vector2i(x, z) + d
+		if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h or liquid[q.x + q.y * w] != 1:
+			continue
+		wet = true
+		var j: int = q.x + q.y * w
+		if top - (base_lo[j] + base_hi[j]) * 0.5 < 0.5:
+			return false
+	return wet
 
 
 func _place(parent: Node3D, mesh: ArrayMesh, mat: Material) -> void:
@@ -321,60 +469,151 @@ static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, c
 	return m
 
 
-## [the ground of tiles tx0..tx1, tz0..tz1, the cliff faces along their east and south edges or null] (up to the last
-## tile drawn at all, x_end and z_end).
-func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, x_end: int, z_end: int) -> Array:
+## Every cliff face of the map (and past its edges), by the chunk whose tile it runs along: the face along each tile's
+## east and south side where the ground parts, and along each diagonal. Then where faces meet with the same top, both
+## ends are given one direction to stand out in (their mitre), so they join.
+func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
+	var out := {}
+	var ends := {}
+	var all := []
+	var x_end := w + MARGIN
+	var z_end := h + MARGIN
+	for tz in range(-MARGIN, z_end):
+		for tx in range(-MARGIN, x_end):
+			var found := []
+			var code := _diag(tx, tz)
+			if code != 0:
+				var line := [2, 4, 6] if code in [Elev.DIAG_NW, Elev.DIAG_SE] else [0, 4, 8]
+				var hg := _half_grid(tx, tz, 0)
+				var lg := _half_grid(tx, tz, 1)
+				var hs := Elev.high_spot(code) - Vector2(0.5, 0.5)
+				found.append(_segment([hg[line[0]], hg[line[1]], hg[line[2]]], [lg[line[0]], lg[line[1]], lg[line[2]]],
+					-Vector3(hs.x, 0, hs.y).normalized(), false))
+			# east side: this tile's right column against the next tile's left one; south side: bottom row against top
+			# (under a waterfall the rock stays smooth, behind the falling water)
+			if tx + 1 < x_end:
+				var g := _side(tx, tz, Vector2i.RIGHT)
+				var e := _side(tx + 1, tz, Vector2i.LEFT)
+				if _edges_part(g[2], g[5], g[8], e[0], e[3], e[6]):
+					var flat := walls or _wet(tx, tz, Vector2i.RIGHT) and _wet(tx + 1, tz, Vector2i.LEFT)
+					found.append(_segment([g[2], g[5], g[8]], [e[0], e[3], e[6]], Vector3(1, 0, 0), flat))
+			if tz + 1 < z_end:
+				var g2 := _side(tx, tz, Vector2i.DOWN)
+				var s := _side(tx, tz + 1, Vector2i.UP)
+				if _edges_part(g2[6], g2[7], g2[8], s[0], s[1], s[2]):
+					var flat2 := walls or _wet(tx, tz, Vector2i.DOWN) and _wet(tx, tz + 1, Vector2i.UP)
+					found.append(_segment([g2[6], g2[7], g2[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2))
+			if found.is_empty():
+				continue
+			var ck := Vector2i(-MARGIN + floori(float(tx + MARGIN) / CHUNK) * CHUNK, -MARGIN + floori(float(tz + MARGIN) / CHUNK) * CHUNK)
+			if not out.has(ck):
+				out[ck] = []
+			for f: Dictionary in found:
+				out[ck].append(f)
+				all.append(f)
+				for k in [0, 2]:
+					var key := _end_key(f["top"][k])
+					ends[key] = ends.get(key, Vector3.ZERO) + (f["out"] as Vector3)
+		if slice_us > 0 and Time.get_ticks_usec() - slice[0] >= slice_us:
+			await parent.get_tree().process_frame
+			slice[0] = Time.get_ticks_usec()
+	for f: Dictionary in all:
+		var dirs := []
+		for k in [0, 2]:
+			var m: Vector3 = ends[_end_key(f["top"][k])]
+			var o: Vector3 = f["out"]
+			m = m.normalized() if m.length() > 0.2 else o
+			# so that standing out by d along the mitre is d out from this face, as from the face it meets
+			dirs.append(m / maxf(0.5, m.dot(o)))
+		f["ends"] = dirs
+	return out
+
+
+## Where a face's top ends, to find the faces meeting it there.
+static func _end_key(p: Vector3) -> Vector3i:
+	return Vector3i(roundi(p.x * 4.0), roundi(p.y * 16.0), roundi(p.z * 4.0))
+
+
+## Whether tile (tx, tz)'s ground along its side d is under water (or lava).
+func _wet(tx: int, tz: int, d: Vector2i) -> bool:
+	var code := _diag(tx, tz)
+	if code != 0:
+		return int(halves[_i(tx, tz)][0 if Elev.on_high_half(code, 0.5 + d.x * 0.5, 0.5 + d.y * 0.5) else 1]["liquid"]) != 0
+	return liquid[_i(tx, tz)] != 0
+
+
+## A cliff face where one side's edge (vertices a, along it) stands above or below the other's (b, the same points),
+## toward_b pointing from the first side to the second: {"top": the high side's three points, "foot": the low side's
+## heights there, "out": the way the face looks (over the low side), "flat"}.
+static func _segment(a: Array, b: Array, toward_b: Vector3, flat: bool) -> Dictionary:
+	var diff := 0.0
+	for k in 3:
+		diff += a[k].y - b[k].y
+	var high := a if diff > 0.0 else b
+	var low := b if diff > 0.0 else a
+	return {"top": high, "foot": [low[0].y, low[1].y, low[2].y], "out": toward_b if diff > 0.0 else -toward_b, "flat": flat}
+
+
+## [the ground of tiles tx0..tx1, tz0..tz1, the cliff faces running along them (`faces`) or null]
+func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, faces: Array) -> Array:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	# (each tile is eight triangles)
 	verts.resize((tx1 - tx0) * (tz1 - tz0) * 24)
 	normals.resize(verts.size())
 	var at := 0
-	var face_verts := PackedVector3Array()
-	var face_normals := PackedVector3Array()
-	var face_colors := PackedColorArray()
-	var cache := {}
 	var shore_normals := {}
 	for tz in range(tz0, tz1):
 		for tx in range(tx0, tx1):
-			var g := _grid(tx, tz, cache)
+			var code := _diag(tx, tz)
+			var g := _grid(tx, tz) if code == 0 else _half_grid(tx, tz, 0)
+			var lg := g if code == 0 else _half_grid(tx, tz, 1)
 			for j in 2:
 				for i in 2:
 					var o := i + j * 3
-					# alternate the diagonal so slopes don't all crease the same way
-					if (tx * 2 + i + tz * 2 + j) % 2 == 0:
-						_tri(verts, normals, at, g[o], g[o + 1], g[o + 4])
-						_tri(verts, normals, at + 3, g[o], g[o + 4], g[o + 3])
-					else:
-						_tri(verts, normals, at, g[o], g[o + 1], g[o + 3])
-						_tri(verts, normals, at + 3, g[o + 1], g[o + 4], g[o + 3])
+					# alternate the diagonal so slopes don't all crease the same way (and a diagonal cliff's line is
+					# always a crease: it runs through the corners and the middle)
+					var tris := [[o, o + 1, o + 4], [o, o + 4, o + 3]] if (tx * 2 + i + tz * 2 + j) % 2 == 0 else [[o, o + 1, o + 3], [o + 1, o + 4, o + 3]]
+					for t: Array in tris:
+						var src := g
+						if code != 0:
+							# the half the triangle's middle is on
+							var cu := float(t[0] % 3 + t[1] % 3 + t[2] % 3) / 6.0
+							var cv := float(t[0] / 3 + t[1] / 3 + t[2] / 3) / 6.0
+							src = g if Elev.on_high_half(code, cu, cv) else lg
+						_tri(verts, normals, at, src[t[0]], src[t[1]], src[t[2]])
+						at += 3
 					# A sandy slope needs continuous lighting as well as continuous heights.
 					# Facet normals otherwise leave straight bands through the transparent water.
 					if elev_map.has("shoreline"):
 						for k in 6:
-							var v := verts[at + k]
+							var v := verts[at - 6 + k]
 							if Shoreline.contains(elev_map, v.x, v.z):
 								var key := Vector2(v.x, v.z)
 								if not shore_normals.has(key):
 									var dx := Shoreline.bottom(elev_map, v.x - 0.05, v.z) - Shoreline.bottom(elev_map, v.x + 0.05, v.z)
 									var dz := Shoreline.bottom(elev_map, v.x, v.z - 0.05) - Shoreline.bottom(elev_map, v.x, v.z + 0.05)
 									shore_normals[key] = Vector3(dx, 0.1, dz).normalized()
-								normals[at + k] = shore_normals[key]
-					at += 6
-			# east edge: this tile's right column against the next tile's left one; south edge: bottom row against top
-			# (under a waterfall the rock stays smooth, behind the falling water)
-			var wet := liquid[_i(tx, tz)] != 0
-			if tx + 1 < x_end:
-				var e := _grid(tx + 1, tz, cache)
-				if _edges_part(g[2], g[5], g[8], e[0], e[3], e[6]):
-					var flat := walls or wet and liquid[_i(tx + 1, tz)] != 0
-					_face(face_verts, face_normals, face_colors, [g[2], g[5], g[8]], [e[0], e[3], e[6]], Vector3(1, 0, 0), flat)
-			if tz + 1 < z_end:
-				var s := _grid(tx, tz + 1, cache)
-				if _edges_part(g[6], g[7], g[8], s[0], s[1], s[2]):
-					var flat2 := walls or wet and liquid[_i(tx, tz + 1)] != 0
-					_face(face_verts, face_normals, face_colors, [g[6], g[7], g[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2)
-	return [_triangles(verts, normals), null if face_verts.is_empty() else _triangles(face_verts, face_normals, face_colors)]
+								normals[at - 6 + k] = shore_normals[key]
+	if faces.is_empty():
+		return [_triangles(verts, normals), null]
+	var fv := PackedVector3Array()
+	var fn := PackedVector3Array()
+	var fc := PackedColorArray()
+	var fu := PackedVector2Array()
+	var fi := PackedInt32Array()
+	for f: Dictionary in faces:
+		_face(fv, fn, fc, fu, fi, f)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = fv
+	arrays[Mesh.ARRAY_NORMAL] = fn
+	arrays[Mesh.ARRAY_COLOR] = fc
+	arrays[Mesh.ARRAY_TEX_UV] = fu
+	arrays[Mesh.ARRAY_INDEX] = fi
+	var fm := ArrayMesh.new()
+	fm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return [_triangles(verts, normals), fm]
 
 
 ## Whether two tiles' shared edge, three points on each side, comes apart enough to need a rock face between them.
@@ -382,73 +621,140 @@ func _edges_part(a0: Vector3, a1: Vector3, a2: Vector3, b0: Vector3, b1: Vector3
 	return absf(a0.y - b0.y) >= 0.02 or absf(a1.y - b1.y) >= 0.02 or absf(a2.y - b2.y) >= 0.02
 
 
-## The rock face where one tile's edge (vertices a, along it) stands above or below its neighbour's (b, the same
-## points), toward_b pointing from the first tile to the second. Cut into columns a quarter tile apart and rows about
-## FACE_ROW tall; the inner vertices bulge out a little unless `flat`.
-func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray, a: Array, b: Array, toward_b: Vector3, flat := false) -> void:
-	var diff := 0.0
+## One cliff face (see _faces): columns FACE_COLS to the unit along its top edge, each standing out a little in upright
+## rounded flutes (grooves where two meet, and at its ends) and running down in rows to the ground below; over it the
+## lip of the ground above. The ends stand out along their mitres, by the same amounts as the face they meet.
+## COLOR: r how far down the rock (0 at its top, 1 at its foot), g 1 on the lip, b and a the way the face looks (x and z,
+## from 0..1); UV: along the cliff and down from its top, in units.
+func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray, fu: PackedVector2Array, fi: PackedInt32Array, f: Dictionary) -> void:
+	var top: Array = f["top"]
+	var foot: Array = f["foot"]
+	var out: Vector3 = f["out"]
+	var flat: bool = f["flat"]
+	var length := Vector2(top[2].x - top[0].x, top[2].z - top[0].z).length()
+	var n := maxi(3, roundi(length * FACE_COLS) + 1)
+	var along := Vector2(out.z, -out.x)
 	var most := 0.0
 	for k in 3:
-		diff += a[k].y - b[k].y
-		most = maxf(most, absf(a[k].y - b[k].y))
-	# the face looks out over the lower side
-	var high := a if diff > 0.0 else b
-	var low := b if diff > 0.0 else a
-	var out := toward_b if diff > 0.0 else -toward_b
-	var cols := []
-	for k in 5:
-		var s := k / 2.0
-		var i0 := mini(int(s), 1)
-		var f := s - i0
-		var top: Vector3 = (high[i0] as Vector3).lerp(high[i0 + 1], f)
-		var foot: float = lerpf(low[i0].y, low[i0 + 1].y, f)
-		cols.append([top, minf(foot, top.y)])
+		most = maxf(most, top[k].y - foot[k])
 	var rows := clampi(ceili(most / FACE_ROW), 1, 10)
-	var grid := []
-	for k in 5:
-		var top: Vector3 = cols[k][0]
-		var drop: float = top.y - float(cols[k][1])
-		var bulge_k := clampf(drop / 0.6, 0.0, 1.0)
-		var col := []
+	# the grooves between the flutes: at both ends, and one or two in between
+	var seed_k := int(round(top[0].x * 4.0)) * 31 + int(round(top[0].z * 4.0)) * 17
+	var grooves := [0.0]
+	var inner := 2 if length < 1.2 else 3
+	for g in inner:
+		grooves.append((g + 1.0 + (_hash(seed_k, 11 + g) - 0.5) * 0.45) / (inner + 1.0))
+	grooves.append(1.0)
+	var cols := []
+	for k in n:
+		var u := float(k) / (n - 1)
+		var s := u * 2.0
+		var i0 := mini(int(s), 1)
+		var p: Vector3 = (top[i0] as Vector3).lerp(top[i0 + 1], s - i0)
+		var ft: float = minf(lerpf(foot[i0], foot[i0 + 1], s - i0), p.y)
+		var dir: Vector3 = f["ends"][0] if k == 0 else (f["ends"][1] if k == n - 1 else out)
+		var bump := 0.0
+		for g in grooves.size() - 1:
+			if u >= grooves[g] and u <= grooves[g + 1]:
+				var t: float = (u - grooves[g]) / maxf(0.001, grooves[g + 1] - grooves[g])
+				bump = pow(sin(PI * t), 0.7) * (0.65 + 0.7 * _hash(seed_k + g, 5))
+		cols.append({"p": p, "foot": ft, "dir": dir, "bump": bump, "end": k == 0 or k == n - 1})
+	# the lip: rows of LIP's profile, then one more where the rock's top tucks in under it
+	if not flat:
+		var lip_base := fv.size()
+		for c: Dictionary in cols:
+			var drop: float = c["p"].y - c["foot"]
+			var lk := clampf(drop / 0.8, 0.25, 1.0)
+			var rag := 1.0 if c["end"] else 0.85 + 0.3 * _hash(int(round(c["p"].x * 24.0)), int(round(c["p"].z * 24.0)))
+			var dir: Vector3 = c["dir"]
+			var dir_n := Vector3(dir.x, 0, dir.z).normalized()
+			for r in LIP.size() + 1:
+				var pt: Vector3 = c["p"]
+				var nrm := Vector3.UP
+				if r < LIP.size():
+					var l: Vector2 = LIP[r]
+					pt += dir * l.x * lk * rag + Vector3(0, l.y * lk * (rag if r == LIP.size() - 1 else 1.0), 0)
+					if r > 0:
+						var prev: Vector2 = LIP[r - 1]
+						var nxt: Vector2 = LIP[mini(r + 1, LIP.size() - 1)] if r + 1 < LIP.size() else Vector2(0.0, -0.24)
+						var tng := nxt - prev
+						nrm = (dir_n * -tng.y + Vector3.UP * tng.x).normalized()
+				else:
+					pt = _rock_point(c, 0, rows, lk)
+					nrm = -Vector3.UP * 0.4 + dir_n * 0.6
+				fv.append(pt)
+				fn.append(nrm.normalized())
+				fc.append(Color(0.0, 1.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
+				fu.append(Vector2(c["p"].x * along.x + c["p"].z * along.y, c["p"].y - pt.y))
+		_grid_tris(fi, lip_base, n, LIP.size() + 1, fv, out)
+	# the rock
+	var base := fv.size()
+	for c: Dictionary in cols:
+		var drop: float = c["p"].y - c["foot"]
+		var lk := clampf(drop / 0.8, 0.25, 1.0)
 		for r in rows + 1:
-			var p := top
-			p.y = lerpf(top.y, float(cols[k][1]), float(r) / rows)
-			if r > 0 and r < rows and k > 0 and k < 4 and not flat:
-				var hx := int(round(top.x * 4.0)) * 31 + r * 7
-				var hz := int(round(top.z * 4.0)) * 17 + r * 13
-				p += out * (0.04 + _hash(hx, hz) * 0.15) * bulge_k
-				p.y += (_hash(hz, hx) - 0.5) * 0.12 * bulge_k
-			col.append(p)
-		grid.append(col)
-	for k in 4:
-		for r in rows:
-			var shade_a := lerpf(1.0, 0.6, float(r) / rows)
-			var shade_b := lerpf(1.0, 0.6, float(r + 1) / rows)
-			var lip_a := 1.0 if r == 0 else 0.0
-			var p00: Vector3 = grid[k][r]
-			var p10: Vector3 = grid[k + 1][r]
-			var p11: Vector3 = grid[k + 1][r + 1]
-			var p01: Vector3 = grid[k][r + 1]
-			var ca := Color(shade_a, lip_a, 0)
-			var cb := Color(shade_b, 0, 0)
-			_face_tri(fv, fn, fc, out, [p00, p10, p11], [ca, ca, cb])
-			_face_tri(fv, fn, fc, out, [p00, p11, p01], [ca, cb, cb])
+			var pt := _rock_point(c, r, rows, lk) if not flat else Vector3(c["p"].x, lerpf(c["p"].y, c["foot"], float(r) / rows), c["p"].z)
+			fv.append(pt)
+			fn.append(out)
+			fc.append(Color(float(r) / rows, 0.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
+			fu.append(Vector2(c["p"].x * along.x + c["p"].z * along.y, c["p"].y - pt.y))
+	_grid_tris(fi, base, n, rows + 1, fv, out)
+	# smooth normals across the rock, from its neighbours in the grid, so the flutes look rounded
+	if not flat:
+		for k in n:
+			for r in rows + 1:
+				var i := base + k * (rows + 1) + r
+				var a := fv[base + mini(k + 1, n - 1) * (rows + 1) + r] - fv[base + maxi(k - 1, 0) * (rows + 1) + r]
+				var b := fv[base + k * (rows + 1) + mini(r + 1, rows)] - fv[base + k * (rows + 1) + maxi(r - 1, 0)]
+				var nrm := b.cross(a).normalized()
+				if nrm.dot(out) < 0.0:
+					nrm = -nrm
+				fn[i] = nrm if nrm.length_squared() > 0.5 else out
+				# a face's ends lean the way of their mitre, as the face they meet does: no seam between them
+				if k == 0 or k == n - 1:
+					var dir: Vector3 = cols[k]["dir"]
+					fn[i] = Vector3(dir.x, 0, dir.z).normalized()
 
 
-## One flat-shaded triangle of a cliff face, wound to face `out`; COLOR carries its shading (r) and lip (g).
-func _face_tri(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray, out: Vector3, p: Array, c: Array) -> void:
-	var n: Vector3 = (p[2] - p[0]).cross(p[1] - p[0])
-	if n.length_squared() < 0.000001:
-		return
-	n = n.normalized()
-	if n.dot(out) < 0.0:
-		p = [p[0], p[2], p[1]]
-		c = [c[0], c[2], c[1]]
-		n = -n
-	for k in 3:
-		fv.append(p[k])
-		fn.append(n)
-		fc.append(c[k])
+## Column c of a face's rock at row r of `rows` (0 its top, under the lip): out along the column's direction by its
+## flute, fullest a little below the middle, with a touch of unevenness inside the face. lk: how big the lip is.
+func _rock_point(c: Dictionary, r: int, rows: int, lk: float) -> Vector3:
+	var p: Vector3 = c["p"]
+	var drop: float = p.y - c["foot"]
+	var top_y := p.y - minf(LIP_DEPTH * lk, drop * 0.45)
+	var t := float(r) / rows
+	var y := lerpf(top_y, c["foot"] - 0.04, t)
+	var k := clampf(drop / 0.6, 0.0, 1.0) * flutes
+	var d: float = FLUTE * k * (0.18 + c["bump"]) * (0.6 + 0.4 * sin(PI * minf(1.0, t * 1.4)))
+	if not c["end"] and r > 0 and r < rows:
+		d += (_hash(int(round(p.x * 24.0)) + r * 7, int(round(p.z * 24.0)) + r * 13) - 0.5) * 0.03 * k
+	var at: Vector3 = p + (c["dir"] as Vector3) * d
+	at.y = y
+	return at
+
+
+## Two triangles for each cell of a grid of `n` columns of `rows` vertices from index `base`, wound to face `out`.
+static func _grid_tris(fi: PackedInt32Array, base: int, n: int, rows: int, fv: PackedVector3Array, out: Vector3) -> void:
+	# which way round: test the first cell that isn't flat
+	var flip := false
+	for k in n - 1:
+		var a := fv[base + k * rows]
+		var b := fv[base + (k + 1) * rows]
+		var c := fv[base + (k + 1) * rows + 1]
+		var nrm := (c - a).cross(b - a)
+		if nrm.length_squared() > 0.000001:
+			flip = nrm.dot(out) < 0.0
+			break
+	for k in n - 1:
+		for r in rows - 1:
+			var i00 := base + k * rows + r
+			var i10 := base + (k + 1) * rows + r
+			var i11 := i10 + 1
+			var i01 := i00 + 1
+			if flip:
+				fi.append_array([i00, i11, i10, i00, i01, i11])
+			else:
+				fi.append_array([i00, i10, i11, i00, i11, i01])
 
 
 ## One flat-shaded triangle (low-poly facets), wound to face up, written at index `at`.
@@ -467,16 +773,25 @@ func _tri(verts: PackedVector3Array, normals: PackedVector3Array, at: int, a: Ve
 	normals[at + 2] = n
 
 
-## The water (kind 1) or lava (kind 2) surface as a mesh, or null: one quad per tile on its level, carried on past the
-## map's edge too.
+## The water (kind 1) or lava (kind 2) surface as a mesh, or null: one quad per tile on its level (a triangle on either
+## half of a diagonal that's under it), carried on past the map's edge too.
 func _liquid_mesh(kind: int) -> ArrayMesh:
 	var y0 := -0.12 if kind == 1 else -0.16
 	var verts := PackedVector3Array()
 	for tz in range(-MARGIN, h + MARGIN):
 		for tx in range(-MARGIN, w + MARGIN):
-			if liquid[_i(tx, tz)] != kind:
-				continue
 			var i := _i(tx, tz)
+			var code := _diag(tx, tz)
+			if code != 0:
+				for k in 2:
+					if int(halves[i][k]["liquid"]) != kind:
+						continue
+					var hy: float = y0 + float(halves[i][k]["level"])
+					for c: Vector2 in HALF_CORNERS[code][k]:
+						verts.append(Vector3(tx + c.x, hy, tz + c.y))
+				continue
+			if liquid[i] != kind:
+				continue
 			var y := y0 + (base_lo[i] + base_hi[i]) / 2.0
 			var a := Vector3(tx, y, tz)
 			var b := Vector3(tx + 1, y, tz)
@@ -493,11 +808,11 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 	for tz in range(-MARGIN, h + MARGIN):
 		for tx in range(-MARGIN, w + MARGIN):
 			var i := _i(tx, tz)
-			if liquid[i] != kind:
+			if liquid[i] != kind or _diag(tx, tz) != 0:
 				continue
 			for d in [Vector2i(1, 0), Vector2i(0, 1)]:
 				var j := _i(tx + d.x, tz + d.y)
-				if tx + d.x >= w + MARGIN or tz + d.y >= h + MARGIN or liquid[j] != kind:
+				if tx + d.x >= w + MARGIN or tz + d.y >= h + MARGIN or liquid[j] != kind or _diag(tx + d.x, tz + d.y) != 0:
 					continue
 				var ya := y0 + (base_lo[i] + base_hi[i]) / 2.0
 				var yb := y0 + (base_lo[j] + base_hi[j]) / 2.0

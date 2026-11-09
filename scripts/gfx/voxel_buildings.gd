@@ -9,6 +9,7 @@ const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const HouseBuilder = preload("res://scripts/gfx/house_builder.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
+const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 
 const SHADE := {Vector3(0, 1, 0): 1.0, Vector3(0, -1, 0): 0.6, Vector3(1, 0, 0): 0.86, Vector3(-1, 0, 0): 0.86, Vector3(0, 0, 1): 0.95, Vector3(0, 0, -1): 0.78}
 
@@ -713,6 +714,7 @@ static func _pack_arena(node: Node3D, style_name: String, w: float, d: float, do
 	var mat: Material = HouseBuilder.wall_material("stone", stone)
 	var k := Kit.new()
 	var hb = HouseBuilder.new()
+	hb.stone_windows = true
 	hb.node = node
 	hb.w = w
 	hb.d = d
@@ -1840,6 +1842,12 @@ static func _rust_shack(w: float, d: float, door_lx: float) -> Node3D:
 				k.box("color", streak, Vector3(0.06, 0.7, 0.01) if along_x else Vector3(0.01, 0.7, 0.06), col.darkened(0.35))
 	var door_gap := Vector2(door_lx - 0.55, door_lx + 0.55)
 	sheets.call(true, hd, -hw, hw, 1.0, door_gap)
+	# a dark sheet just behind the doorway closes what the door leaves open of the skipped sheets (above it and beside it)
+	var bz := hd - 0.015
+	var bx0 := maxf(-hw, door_lx - 1.0)
+	var bx1 := minf(hw, door_lx + 1.0)
+	var btop: float = height_at.call(bz) + 0.04
+	k.poly("tin", [Vector3(bx0, 0.0, bz), Vector3(bx1, 0.0, bz), Vector3(bx1, btop, bz), Vector3(bx0, btop, bz)], Vector3.BACK, rusts[6])
 	sheets.call(true, -hd, -hw, hw, -1.0, Vector2(99, 99))
 	sheets.call(false, -hw, -hd, hd, -1.0, Vector2(99, 99))
 	sheets.call(false, hw, -hd, hd, 1.0, Vector2(99, 99))
@@ -1904,14 +1912,7 @@ static func _door_lock(k: Kit, c: Vector3, dw: float, dh: float) -> void:
 
 
 static func _window(k: Kit, p: Vector3, n: Vector3, trim: Color, glass: Color) -> void:
-	var out := n * 0.04
-	if n.z != 0:
-		k.box("color", p + out, Vector3(0.62, 0.62, 0.06), trim)
-		k.box("glow", p + out * 2.0, Vector3(0.46, 0.46, 0.04), glass)
-		k.box("color", p + out * 2.5, Vector3(0.06, 0.46, 0.04), trim)
-	else:
-		k.box("color", p + out, Vector3(0.06, 0.62, 0.62), trim)
-		k.box("glow", p + out * 2.0, Vector3(0.04, 0.46, 0.46), glass)
+	Windows.paint(k, p, n, 0.55, 0.7, trim, glass.darkened(0.18))
 
 
 static func _gear(k: Kit, c: Vector3, r: float, col: Color) -> void:
@@ -1946,11 +1947,16 @@ static func _gable(k: Kit, w: float, d: float, top: float, slope: float, ov: flo
 		_slope(k, tex, [Vector3(-hw, y0, hd * sz), Vector3(hw, y0, hd * sz), Vector3(hw, ridge, 0), Vector3(-hw, ridge, 0)], col if sz > 0 else col.darkened(0.06), Vector3.RIGHT)
 		# the eaves' edge, so the roof has some thickness from below
 		k.box("color", Vector3(0, y0 - 0.03, hd * sz), Vector3(hw * 2.0, 0.07, 0.07), trim)
-	# gable ends: the wall carries on up into the triangle under the roof
+	# gable ends: the wall carries on up to the roof's underside, and the front and back walls rise to meet the slopes,
+	# so the space under the roof is closed (no wedge between the walls and the eaves to see in through)
 	var gw := (w - 0.2) / 2.0
 	var gd := (d - 0.3) / 2.0
+	var yg := y0 + (hd - gd) * slope
 	for sx in [-1.0, 1.0]:
-		k.poly(wall_tex, [Vector3(gw * sx, top, -gd), Vector3(gw * sx, top, gd), Vector3(gw * sx, ridge - 0.04, 0)], Vector3(sx, 0, 0), wall_col)
+		k.poly(wall_tex, [Vector3(gw * sx, top, -gd), Vector3(gw * sx, top, gd), Vector3(gw * sx, yg, gd), Vector3(gw * sx, yg, -gd)], Vector3(sx, 0, 0), wall_col)
+		k.poly(wall_tex, [Vector3(gw * sx, yg, -gd), Vector3(gw * sx, yg, gd), Vector3(gw * sx, ridge, 0)], Vector3(sx, 0, 0), wall_col)
+	for sz in [-1.0, 1.0]:
+		k.poly(wall_tex, [Vector3(-gw, top, gd * sz), Vector3(gw, top, gd * sz), Vector3(gw, yg, gd * sz), Vector3(-gw, yg, gd * sz)], Vector3(0, 0, sz), wall_col)
 	k.box(tex, Vector3(0, ridge + 0.02, 0), Vector3(hw * 2.0 + 0.04, 0.09, 0.18), col.darkened(0.22))
 	return ridge
 

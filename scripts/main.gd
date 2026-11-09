@@ -707,7 +707,8 @@ func _run_test() -> void:
 		return
 	if scene == "island-towns":
 		await load("res://tools/debug/island_towns.gd").new().run(self, _test)
-		get_tree().quit()
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
 		return
 	if scene == "island-story":
 		await load("res://tools/debug/island_story.gd").new().run(self, _test)
@@ -1447,6 +1448,8 @@ func _run_test() -> void:
 		print("Lv6 target now: '", GameState.song_can_charm(GameState.capture_song(), too_big), "'  needs flawless: ", GameState.needs_flawless(too_big))
 	elif scene == "building-fade":
 		await load("res://tools/debug/building_fade.gd").new().run(self, _test)
+	elif scene == "exteriors":
+		await load("res://tools/debug/exteriors.gd").new().run(self, _test)
 	elif scene == "wild-grace":
 		await load("res://tools/debug/wild_grace.gd").new().run(self, _test)
 	elif scene == "wilds":

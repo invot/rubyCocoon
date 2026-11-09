@@ -5,7 +5,8 @@ shader_type spatial;
 // shader draws the cliff faces between levels (see "cliff").
 
 uniform sampler2DArray layers : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
-// R = layer index / 255, one texel per tile, starting at `map_origin` (world x, z)
+// R = layer index / 255, one texel per tile, starting at `map_origin` (world x, z). On a diagonal cliff's tile
+// (elevation.gd "/" or a backslash), B is its code (5-8: which half is high), R its high half's layer and G its low half's.
 uniform sampler2D kind_map : filter_nearest, repeat_disable;
 uniform vec2 map_origin = vec2(0.0);
 uniform vec2 map_size = vec2(1.0);
@@ -16,21 +17,33 @@ uniform float edge_noise = 0.28;
 uniform float tex_scale = 0.5;
 // how wide (in tiles) the soft blend across a border is
 uniform float edge_soft = 0.07;
-// cliff faces (terrain_mesh.gd): rock in cliff_tint, darker towards the foot (COLOR.r), with a ragged lip of the
-// ground above along the top (COLOR.g)
+// cliff faces (terrain_mesh.gd): the biome's rock (WorldDB.CLIFF_LOOKS) in cliff_tint, darker towards the foot
+// (COLOR.r: 0 at the rock's top, 1 at its foot), under a rounded lip of the ground above (COLOR.g; COLOR.ba the way
+// the face looks). UV runs along the cliff and down from its top, in units. Retaining walls (no cliff_tex) are the
+// rock_layer ground texture instead.
 uniform bool cliff = false;
 uniform vec3 cliff_tint = vec3(1.0);
 uniform int rock_layer = 4;
+uniform bool cliff_textured = false;
+uniform sampler2D cliff_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+// texture repeats per unit along the cliff and down it
+uniform vec2 cliff_scale = vec2(0.5);
+// strata: rgb a second (linear) colour laid in level bands, a how strongly
+uniform vec4 cliff_band = vec4(0.0);
+// moss: rgb its (linear) colour, a how much of the rock's upper part it covers
+uniform vec4 cliff_moss = vec4(0.0);
 // the see-through patch (world.gd): xyz the player's feet, w 1 while it's on. Ground higher than their feet that
 // stands between the camera and them dissolves in a dither over their shape, so high ground never hides them.
 uniform vec4 hole = vec4(0.0);
 
 varying vec3 wpos;
 varying vec3 wnorm;
+varying vec2 cuv;
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	cuv = UV;
 }
 
 float hash(vec2 p) {
@@ -50,7 +63,15 @@ float vnoise(vec2 p) {
 
 int _layer_at(vec2 p) {
 	ivec2 t = clamp(ivec2(floor(p - map_origin)), ivec2(0), ivec2(map_size) - 1);
-	return int(texelFetch(kind_map, t, 0).r * 255.0 + 0.5);
+	vec4 k = texelFetch(kind_map, t, 0);
+	int code = int(k.b * 255.0 + 0.5);
+	if (code >= 5) {
+		// a diagonal: the half p is on (map_origin is whole tiles, so p's fraction is its place in the tile)
+		vec2 f = p - floor(p);
+		bool high = code == 5 ? f.x + f.y <= 1.0 : (code == 6 ? f.x + f.y >= 1.0 : (code == 7 ? f.x >= f.y : f.x <= f.y));
+		return int((high ? k.r : k.g) * 255.0 + 0.5);
+	}
+	return int(k.r * 255.0 + 0.5);
 }
 
 // plaza, paving, ice (see VT.GROUND_LAYERS)
@@ -100,18 +121,43 @@ void fragment() {
 	for (int k = 0; k < 4; k++) {
 		vec2 o = vec2(k % 2 == 0 ? -1.0 : 1.0, k < 2 ? -1.0 : 1.0) * edge_soft * 0.5;
 		int l = _layer_at(at + o);
-		ls[k] = (_laid(l) && l != own) ? own : l;
+		// (and a river or sea bed never wanders up onto the bank above it)
+		ls[k] = ((_laid(l) || l == 5 || l == 6) && l != own) ? own : l;
 	}
 	int layer = ls[0];
 	bool border = ls[1] != layer || ls[2] != layer || ls[3] != layer;
 	vec3 n = abs(wnorm);
 	vec2 uv = n.y > 0.6 ? wpos.xz : (n.x > n.z ? vec2(wpos.z, -wpos.y) : vec2(wpos.x, -wpos.y));
 	if (cliff) {
-		// the lip: the ground above, just back from the edge, hanging a ragged strip over the rock
-		bool lip = COLOR.g > 0.72 + 0.22 * vnoise(vec2(dot(wpos.xz, vec2(1.0)) * 7.0, wpos.y * 3.0));
-		layer = lip ? _layer_at(wpos.xz - normalize(wnorm.xz + vec2(0.0001)) * 0.3) : rock_layer;
-		vec3 col = texture(layers, vec3(uv * tex_scale, float(layer))).rgb;
-		ALBEDO = lip ? col * tints[layer] * 0.85 : col * cliff_tint * COLOR.r;
+		vec2 face = COLOR.ba * 2.0 - 1.0;
+		if (COLOR.g > 0.5) {
+			// the lip: the ground just back from the edge, mapped from above as it is, rolling over the top
+			int l = _layer_at(wpos.xz - face * 0.4);
+			vec3 col = texture(layers, vec3(wpos.xz * tex_scale, float(l))).rgb * tints[l];
+			// its underside, turned away from the sky, a little darker
+			ALBEDO = col * mix(0.72, 1.0, clamp(wnorm.y * 1.5 + 0.5, 0.0, 1.0));
+		} else if (cliff_textured) {
+			float down = COLOR.r;
+			vec3 rock = texture(cliff_tex, vec2(cuv.x, cuv.y) * cliff_scale).rgb;
+			// faint upright streaks between the texture's own
+			rock *= 0.92 + 0.16 * vnoise(vec2(cuv.x * 5.0, wpos.y * 0.6));
+			vec3 tint = cliff_tint;
+			if (cliff_band.a > 0.0) {
+				float b = sin(wpos.y * 6.2832 / 0.55 + vnoise(vec2(cuv.x * 0.8, wpos.y * 0.5)) * 2.5);
+				tint = mix(tint, cliff_band.rgb / 0.71, cliff_band.a * smoothstep(0.35, 0.8, b));
+			}
+			vec3 col = rock * tint;
+			if (cliff_moss.a > 0.0) {
+				float m = smoothstep(0.45, 0.7, vnoise(cuv * vec2(2.4, 3.2) + vec2(wpos.y * 0.3, 0.0)) + (0.5 - down) * 0.6 * cliff_moss.a);
+				col = mix(col, cliff_moss.rgb * (0.85 + 0.3 * vnoise(cuv * 9.0)), m * cliff_moss.a);
+			}
+			// in the lip's shadow at the top, and darker towards the foot
+			float shade = mix(1.0, 0.62, smoothstep(0.0, 1.0, down)) * mix(0.78, 1.0, smoothstep(0.0, 0.18, cuv.y));
+			ALBEDO = col * shade;
+		} else {
+			vec3 col = texture(layers, vec3(uv * tex_scale, float(rock_layer))).rgb;
+			ALBEDO = col * cliff_tint * mix(1.0, 0.6, COLOR.r);
+		}
 	} else if (border) {
 		vec3 col = vec3(0.0);
 		for (int k = 0; k < 4; k++) {

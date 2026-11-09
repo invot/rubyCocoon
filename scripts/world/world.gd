@@ -257,6 +257,8 @@ var tide: Node3D = null
 var ground_h := {}
 ## the ground's materials (terrain_mesh.gd), told every frame where the see-through patch goes (_update_hole)
 var terrain_mats: Array = []
+## the cliffs' look (WorldDB.CLIFF_LOOKS, as the terrain was built with it), for the rocks at their feet
+var cliff_look := {}
 
 
 # ================================================================ helpers
@@ -549,9 +551,15 @@ func _build_terrain() -> void:
 		tints.append(Color({"grass": biome["ground"], "path": biome["path"], "plaza": biome["plaza"], "sand": biome["sand"],
 			"rock": rock_hex, "bed": Color(biome["sand"]).darkened(0.35).to_html(false), "lava_bed": "#3a2a28",
 			"paving": biome.get("paving", "#9a948a"), "ice": "#cfeaf6"}[layer]))
-	# cliff faces: the crags' rock, a little warmer, more of the local soil in it
-	await t.build(self, tints, Color(biome["water"]), Color(rock_hex).lerp(Color(biome["side"]), 0.3), map.get("cliffs", "") == "walls", _build_slice_us if _cooperative_build else 0)
+	# cliff faces: the biome's look; a town's stone retaining walls in the crags' rock, a little warmer, more of the
+	# local soil in it
+	var stone_walls: bool = map.get("cliffs", "") == "walls"
+	var look: Dictionary = WorldDB.CLIFF_LOOKS.get(biome["id"], WorldDB.CLIFF_LOOKS["coast"]).duplicate()
+	if stone_walls:
+		look["tint"] = Color(rock_hex).lerp(Color(biome["side"]), 0.3).to_html(false)
+	await t.build(self, tints, Color(biome["water"]), look, stone_walls, _build_slice_us if _cooperative_build else 0)
 	terrain_mats = t.materials
+	cliff_look = look
 	if biome["id"] == "quarter" or biome.get("style", "") == "pirate_cove":
 		var flights := {}
 		for y in h:
@@ -807,9 +815,13 @@ func _backdrop_roads() -> Array[Rect2]:
 func _ring_tree(by_asset: Dictionary, trees: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float, shadow: bool) -> void:
 	if trees.is_empty():
 		return
+	# a thin wood (the volcano's) is thin past the edge too
+	if biome.has("woods") and rng.randf() >= float(biome["woods"]) * 1.5:
+		return
 	var name := _pick_weighted(trees, rng)
 	var bb := VA.aabb(name)
-	var sc := VA.fit_scale(name, rng.randf_range(lo, hi))
+	# a stump stays stump-sized
+	var sc := VA.fit_scale(name, rng.randf_range(lo, hi) if name != "stump" else rng.randf_range(0.45, 0.7))
 	_add_plant(by_asset, name if shadow else name + SHADOWLESS, _xf(c - Vector3(0, bb.position.y * sc, 0), rng.randf() * TAU, sc))
 
 
@@ -966,6 +978,8 @@ func _on_quay(p: Vector2i) -> bool:
 ## The ground actually drawn under a tile; planted beds retain soil/grass, even in a stone town.
 func _ground_tile(p: Vector2i) -> int:
 	var c := MapGen.get_t(map, p.x, p.y)
+	if c == MapGen.LEDGE:
+		return map["ledges"][p]
 	if c in [MapGen.LAMP, MapGen.SIGN]:
 		return MapLoader._infer_floor(map, p)
 	if c in [MapGen.BUILDING, MapGen.DOOR] and map.get("over_water", {}).has(p):
@@ -1007,7 +1021,24 @@ func _add_plant(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
 func _add_asset(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
 	if not by_asset.has(name):
 		by_asset[name] = []
+	xf.origin = _off_cliff_edge(xf.origin)
 	by_asset[name].append(xf)
+
+
+## Something set down on a diagonal cliff's tile (elevation.gd) stands on its high half, a little back from the edge.
+func _off_cliff_edge(o: Vector3) -> Vector3:
+	var p := Vector2i(floori(o.x), floori(o.z))
+	var code := Elev.diagonal(map, p)
+	if code == 0:
+		return o
+	var mid := Vector2(p.x + 0.5, p.y + 0.5)
+	# the way from the diagonal (through the tile's middle) towards the high corner
+	var up := (Elev.high_spot(code) - Vector2(0.5, 0.5)).normalized()
+	var at := Vector2(o.x, o.z)
+	var s := (at - mid).dot(up)
+	if s < 0.22:
+		at += up * (0.22 - s)
+	return Vector3(at.x, o.y, at.y)
 
 
 ## Small native beach rocks, some submerged. Stay beyond the wading row and clear of both ends of the beach.
@@ -1032,6 +1063,76 @@ func _shore_rocks(by_asset: Dictionary) -> void:
 			var y := _lift(Vector2i(floori(x), floori(z))) + Shoreline.bottom(map, x, z)
 			_add_asset(by_asset, name + SHADOWLESS, _xf(Vector3(x, y - 0.04, z), yaw, sc))
 		x += rng.randf_range(3.5, 5.5)
+
+
+## Now and then a rock stands in the deep water at the foot of a cliff, half against it, in the cliff's own rock
+## (its texture and colour, CLIFF_LOOKS): rounded boulders breaking the surface. Clear of boats, docks and fishing spots.
+const CLIFF_ROCKS := ["rock_big", "beach_rock"]
+const CLIFF_ROCK_SHARE := 0.14
+
+
+func _cliff_rocks() -> void:
+	if cliff_look.is_empty() or not Elev.has(map):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_id.hash() + 2311
+	var clear := {}
+	for b in map.get("boats", []):
+		var r := ceili(float(b[4]) / 2.0) + 2
+		for y in range(floori(b[1]) - r, floori(b[1]) + r + 1):
+			for x in range(floori(b[0]) - r, floori(b[0]) + r + 1):
+				clear[Vector2i(x, y)] = true
+	var by_name := {}
+	for y in map["h"]:
+		for x in map["w"]:
+			var p := Vector2i(x, y)
+			if MapGen.get_t(map, x, y) != MapGen.WATER or Elev.diagonal(map, p) != 0 or clear.has(p) \
+					or map.get("fish_spots", {}).has(p) or map.get("over_water", {}).has(p) or Shoreline.contains(map, x + 0.5, y + 0.5):
+				continue
+			var toward := Vector2i.ZERO
+			for d in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+				var q: Vector2i = p + d
+				var c := MapGen.get_t(map, q.x, q.y)
+				# (water with a bridge, a dock or a shallow beside it is a way through: no rocks there)
+				if c in [MapGen.BRIDGE, MapGen.SHALLOWS] or map.get("over_water", {}).has(q):
+					toward = Vector2i(-99, -99)
+					break
+				if c in [MapGen.WATER, MapGen.LAVA]:
+					continue
+				if _lift(q) - _lift(p) >= 0.5:
+					toward = d
+			if toward == Vector2i.ZERO or toward.x == -99 or rng.randf() >= CLIFF_ROCK_SHARE:
+				continue
+			var name: String = CLIFF_ROCKS[rng.randi_range(0, CLIFF_ROCKS.size() - 1)]
+			# about a tile across, standing a little out of the water and reaching well down into it
+			var bb := VA.aabb(name)
+			var sc := VA.fit_scale(name, -1.0, rng.randf_range(0.9, 1.35))
+			var rise := rng.randf_range(0.15, 0.45)
+			var tall := maxf(bb.size.y * sc, rise + 0.8)
+			var side := Vector2(toward.y, -toward.x) * rng.randf_range(-0.25, 0.25)
+			var at := Vector2(x + 0.5, y + 0.5) + Vector2(toward) * rng.randf_range(0.12, 0.3) + side
+			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, tall / maxf(bb.size.y, 0.001), sc))
+			if not by_name.has(name):
+				by_name[name] = []
+			by_name[name].append(Transform3D(basis, Vector3(at.x, _lift(p) + rise - tall - bb.position.y * tall / maxf(bb.size.y, 0.001), at.y)))
+	if by_name.is_empty():
+		return
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = VT.texture("cliff_" + String(cliff_look.get("tex", "rock")))
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.uv1_triplanar = true
+	var sc2: Array = cliff_look.get("scale", [0.5, 0.5])
+	mat.uv1_scale = Vector3(sc2[0], sc2[1], sc2[0])
+	# the texture averages Terrain.TEX_LEVEL grey: lift the tint by as much, as the cliff does. A rock's top takes the
+	# full sun a cliff's face never does, so it is darkened and deepened a little to come out the cliff's colour.
+	var tint := Color(cliff_look.get("tint", "#a08a70")).srgb_to_linear()
+	var lin := Vector3(tint.r, tint.g, tint.b) / Terrain.TEX_LEVEL
+	lin = Vector3(pow(minf(lin.x, 1.0), 1.3), pow(minf(lin.y, 1.0), 1.3), pow(minf(lin.z, 1.0), 1.3)) * 0.75
+	mat.albedo_color = Color(lin.x, lin.y, lin.z).linear_to_srgb()
+	mat.roughness = 1.0
+	for name in by_name:
+		# (no shadows: they stand in deep water, where a shadow barely shows)
+		_multimesh(VA.mesh(name), by_name[name], mat, false)
 
 
 ## Shrubs frame planted beds in single-tile lines. Keep the map's solid footprint: thinning a tutorial
@@ -1113,10 +1214,15 @@ func _build_scatter() -> void:
 							s4 = minf(s4, VA.fit_scale(tn, -1.0, 1.10))
 							_add_plant(by_asset, tn + SHADOWLESS, _xf(center + Vector3(rng.randf_range(-0.35, 0.35), -VA.aabb(tn).position.y * s4, rng.randf_range(-0.35, 0.35)), _voxel_rot(rng), s4))
 						continue
+					# a thin wood (the volcano's): most of its tiles bare ground
+					if biome.has("woods") and rng.randf() >= float(biome["woods"]):
+						continue
 					var name := _pick_weighted(trees, rng)
 					var hgt := rng.randf_range(2.2, 3.1) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
+					if name == "stump":
+						hgt = rng.randf_range(0.45, 0.7)
 					var old := tall_woods.any(func(r: Rect2i) -> bool: return r.has_point(Vector2i(x, y)))
-					if old:
+					if old and name != "stump":
 						hgt = rng.randf_range(4.2, 5.6)
 					if y >= h - 3:
 						name = shrubs[rng.randi_range(0, shrubs.size() - 1)]
@@ -1170,6 +1276,7 @@ func _build_scatter() -> void:
 	for i in 2:
 		_multimesh(VP.flowers(i), _plants_off_paving(VP.flowers(i), flowers[i]), null, false)
 	_shore_rocks(by_asset)
+	_cliff_rocks()
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	var fence_name := "iron_fence" if biome["id"] in ["moor", "quarter"] else "fence"
@@ -1247,7 +1354,7 @@ func _plan_round_huts() -> void:
 		var w := float(b["w"])
 		var d := float(b["d"])
 		var dx := float(b["door"].x) + 0.5 - float(b["x"]) - w / 2.0
-		var face := d / 2.0 - 0.16
+		var face: float = d / 2.0 - load("res://scripts/gfx/island_buildings.gd").HUT_FACE_INSET
 		var origin := Vector2(float(b["x"]) + w / 2.0, float(b["y"]) + d / 2.0)
 		var radius := minf(maxf(2.15, w * 0.45), (float(b["door"].y) + 0.84) / 2.0)
 		var footprint := Rect2(dx - radius, face - radius * 2.0, radius * 2.0, radius * 2.0)
@@ -3064,6 +3171,13 @@ func _enter_building(b: Dictionary) -> void:
 	if not await Story.can_enter(self, b):
 		busy = was_busy
 		return
+	if biome.get("style", "") == "roundwood":
+		_clear_path()
+		var stairs: Array = load("res://scripts/gfx/island_buildings.gd").hut_stairs(b, _lift(b["door"]))
+		stairs[0] = player.position
+		_walk_stairs(stairs)
+		while not _climb.is_empty():
+			await get_tree().process_frame
 	busy = was_busy
 	GameState.facing = Vector2i(0, -1)
 	GameState.main.goto_map(b["interior"], "entry")

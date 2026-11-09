@@ -12,6 +12,7 @@ extends RefCounted
 ## storey of rooms.
 
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
+const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 const DIR := "res://assets/exteriors/"
 ## a storey's height and how far the walls stand in from the footprint's edge
 const STOREY := 2.8
@@ -25,12 +26,15 @@ static var _meshes := {}
 static var _wall_mats := {}
 
 
-static func piece(name: String) -> Mesh:
-	if not _meshes.has(name):
-		_meshes[name] = load(DIR + name + ".res") if ResourceLoader.exists(DIR + name + ".res") else null
-		if _meshes[name] == null:
+static func piece(name: String, stone := false, tint := Color("#eee1bf")) -> Mesh:
+	var key := name + (":stone:" + tint.to_html() if stone and name.begins_with("win_") else "")
+	if not _meshes.has(key):
+		_meshes[key] = load(DIR + name + ".res") if ResourceLoader.exists(DIR + name + ".res") else null
+		if _meshes[key] != null and name.begins_with("win_"):
+			_meshes[key] = Windows.dress(_meshes[key], ["trim"], false, tint, stone)
+		if _meshes[key] == null:
 			push_warning("model missing: " + DIR + name + ".res")
-	return _meshes[name]
+	return _meshes[key]
 
 
 ## A wall finish: one of the game's PSX surface textures, tinted, mapped in world space so it runs on unbroken across
@@ -59,6 +63,7 @@ var rng := RandomNumberGenerator.new()
 var walls: Array = []
 var wall_mat: Material
 var upper_mat: Material
+var stone_windows := false
 var _mm := {}
 
 
@@ -66,7 +71,7 @@ var _mm := {}
 ## piece's centre along that wall (x for front and back, z for the sides), `width` the span it fills, `y0` its foot.
 ## `mat` is the wall finish laid over its "wall" surface.
 func place(name: String, side: Vector2i, along: float, width: float, y0: float, mat: Material, natural := 0.0) -> void:
-	var m := piece(name)
+	var m := _wall_piece(name, mat)
 	if m == null:
 		return
 	var pw := m.get_aabb().size.x
@@ -85,7 +90,7 @@ func place(name: String, side: Vector2i, along: float, width: float, y0: float, 
 ## `centre`, `h` tall from `y0` (a storey, or less). Round towers, curved shop fronts and the arena's oval are built
 ## of these: neighbouring pieces meet at their outer corners, so a ring of them closes without gaps.
 func span(name: String, a: Vector2, b: Vector2, y0: float, mat: Material, centre := Vector2.ZERO, h := STOREY) -> void:
-	var m := piece(name)
+	var m := _wall_piece(name, mat)
 	if m == null:
 		return
 	var along := b - a
@@ -95,6 +100,13 @@ func span(name: String, a: Vector2, b: Vector2, y0: float, mat: Material, centre
 		n = -n
 	var basis := Basis(Vector3.UP, atan2(n.x, n.y)).scaled_local(Vector3(along.length() / m.get_aabb().size.x, h / 3.0, 1.0))
 	_add(m, Transform3D(basis, Vector3(mid.x - n.x * THICK, y0, mid.y - n.y * THICK)), mat)
+
+
+func _wall_piece(name: String, mat: Material) -> Mesh:
+	var tint := Color("#eee1bf")
+	if stone_windows and mat is StandardMaterial3D:
+		tint = (mat as StandardMaterial3D).albedo_color.lightened(0.08)
+	return piece(name, stone_windows, tint)
 
 
 func _add(m: Mesh, xf: Transform3D, mat: Material) -> void:

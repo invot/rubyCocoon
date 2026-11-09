@@ -16,6 +16,7 @@ extends RefCounted
 ## A house's local origin is the plot's centre at ground level; its front faces +z (as in voxel_buildings.gd).
 
 const VP = preload("res://scripts/gfx/voxel_props.gd")
+const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 
 const DIR := "res://assets/houses/"
 const TILES := DIR + "tiles/"
@@ -132,6 +133,12 @@ const MAX_STEP := 0.25
 ## it's made any smaller (so a porch house still fits a plot of three rows).
 const DEPTH_MIN := 0.85
 const OUTSKIRT_SCALE := 0.74
+
+## Pack houses whose ground floor stands open to the street: the mews' carriage front shows its rooms right through to
+## the back wall. dressed() closes it at the façade (_close_front(): x0, x1, y0, y1 of the opening and the façade's z,
+## in the house's own space) with a wall in the house's shell and a glazed bay either side of the door, so no room shows
+## from outside (AGENTS.md, "Building exteriors and scale"; tools/debug/exteriors.gd checks it).
+const OPEN_FRONTS := {"mews": [-1.8, 1.81, 0.26, 2.42, 3.46]}
 
 ## A porch roof (porch_roof()): the beam along the posts' tops, how thick the roof on it is, how far it reaches past
 ## the outermost posts, and the most it rises from the beam to the wall behind.
@@ -580,7 +587,7 @@ static func dressed(key: String, keep_door := false, roofed := true) -> ArrayMes
 		return _dressed[ck]
 	var m := mesh(key)
 	var pr := porch_roof(key) if roofed else {}
-	if m == null or not m.has_meta("door") or (keep_door and pr.is_empty()):
+	if m == null or not m.has_meta("door"):
 		_dressed[ck] = m
 		return m
 	var door: Vector3 = m.get_meta("door")
@@ -599,8 +606,11 @@ static func dressed(key: String, keep_door := false, roofed := true) -> ArrayMes
 		out.surface_set_material(out.get_surface_count() - 1, mat)
 	if not pr.is_empty():
 		_add_porch_roof(out, pr, mats)
+	if OPEN_FRONTS.has(key):
+		_close_front(out, OPEN_FRONTS[key], mats)
 	for k in m.get_meta_list():
 		out.set_meta(k, m.get_meta(k))
+	out = Windows.dress(out, ["glass"], false, Color.WHITE)
 	_dressed[ck] = out
 	return out
 
@@ -675,6 +685,42 @@ static func _add_porch_roof(out: ArrayMesh, pr: Dictionary, mats: Dictionary) ->
 		arr[Mesh.ARRAY_TEX_UV] = PackedVector2Array(part[1][2])
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 		out.surface_set_name(out.get_surface_count() - 1, "porch_" + String(part[0]))
+		out.surface_set_material(out.get_surface_count() - 1, mats[part[0]])
+
+
+## An open ground floor closed (see OPEN_FRONTS): a wall in the shell's tiles just inside the façade across the whole
+## opening (behind the front door build() puts there), and on it a pane of the house's glass either side of the door,
+## clear of the door's frame, from about the hero's waist to a little under the opening's head.
+static func _close_front(out: ArrayMesh, f: Array, mats: Dictionary) -> void:
+	var x0 := float(f[0])
+	var x1 := float(f[1])
+	var y0 := float(f[2])
+	var y1 := float(f[3])
+	var z := float(f[4]) - 0.06
+	var shell := [[], [], []]
+	var glass := [[], [], []]
+	# (the pack's shell tiles repeat every two metres, v running down)
+	_quad(shell, [Vector3(x0, y0, z), Vector3(x1, y0, z), Vector3(x1, y1, z), Vector3(x0, y1, z)], Vector3.BACK,
+		[Vector2(x0, -y0), Vector2(x1, -y0), Vector2(x1, -y1), Vector2(x0, -y1)], 0.5)
+	for side in [-1.0, 1.0]:
+		var inner: float = side * 0.95
+		var outer: float = (x1 if side > 0.0 else x0) - side * 0.17
+		if absf(outer) - absf(inner) < 0.3:
+			continue
+		var a := minf(inner, outer)
+		var b := maxf(inner, outer)
+		_quad(glass, [Vector3(a, y0 + 0.75, z + 0.02), Vector3(b, y0 + 0.75, z + 0.02), Vector3(b, y1 - 0.2, z + 0.02), Vector3(a, y1 - 0.2, z + 0.02)],
+			Vector3.BACK, [Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO], 1.0)
+	for part in [["shell", shell], ["glass", glass]]:
+		if not mats.has(part[0]) or (part[1][0] as Array).is_empty():
+			continue
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = PackedVector3Array(part[1][0])
+		arr[Mesh.ARRAY_NORMAL] = PackedVector3Array(part[1][1])
+		arr[Mesh.ARRAY_TEX_UV] = PackedVector2Array(part[1][2])
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		out.surface_set_name(out.get_surface_count() - 1, "closure_" + String(part[0]))
 		out.surface_set_material(out.get_surface_count() - 1, mats[part[0]])
 
 
@@ -841,6 +887,13 @@ static func _skin(mi: MeshInstance3D, m: ArrayMesh, skin: Array, locked: bool) -
 	for s in m.get_surface_count():
 		var base := m.surface_get_material(s) as StandardMaterial3D
 		var role := String(base.resource_name)
+		if role == "window_frame":
+			var frame_key := "window_frame:" + String(skin[2])
+			if not _mats.has(frame_key):
+				var frame_mat: StandardMaterial3D = base.duplicate()
+				frame_mat.albedo_color = _tile_colour(String(skin[2]))
+				_mats[frame_key] = frame_mat
+			mi.set_surface_override_material(s, _mats[frame_key])
 		if not parts.has(role):
 			continue
 		mi.set_surface_override_material(s, _part_mat(base, role, String(parts[role]), locked))

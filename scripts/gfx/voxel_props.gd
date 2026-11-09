@@ -321,15 +321,36 @@ static func relic(kind: String) -> ArrayMesh:
 
 static func signpost() -> ArrayMesh:
 	return _cached("signpost", func():
-		var g := VM.Grid.new(12, 16, 4)
+		# Finer strokes keep the board's original size while making its writing look like words.
+		var g := VM.Grid.new(48, 64, 18)
 		var wood := g.add_color(Color("#8a6038"))
 		var board := g.add_color(Color("#b88a58"))
-		var ink := g.add_color(Color("#4a3020"))
-		g.box(5, 0, 1, 6, 12, 2, wood)
-		g.box(0, 8, 2, 11, 14, 3, board)
-		g.box(2, 12, 3, 9, 12, 3, ink)
-		g.box(2, 10, 3, 7, 10, 3, ink)
-		return VM.build(g, VS))
+		var ink := g.add_color(Color("#38251b"))
+		g.box(20, 0, 4, 27, 51, 11, wood)
+		g.box(0, 32, 8, 47, 59, 15, board)
+		var glyphs := [
+			["110", "101", "110", "100", "101"],
+			["101", "111", "101", "100", "110"],
+			["111", "001", "011", "100", "111"],
+			["010", "101", "111", "101", "001"],
+			["111", "100", "110", "001", "110"],
+			["101", "101", "011", "001", "110"],
+		]
+		var lines := ["013 4251", "24510 3", "402 13"]
+		for line in lines.size():
+			var words: String = lines[line]
+			var left := (48 - (words.length() * 4 - 1)) / 2
+			for i in words.length():
+				if words[i] == " ":
+					continue
+				var glyph: Array = glyphs[int(words[i])]
+				for y in 5:
+					for x in 3:
+						if glyph[y][x] == "1":
+							# Just ahead of the wood, so the paint never fights with the board's face.
+							g.set_v(left + i * 4 + x, 54 - line * 8 - y, 16, ink)
+							g.shapes.back().paints = false
+		return VM.build(g, VS / 4.0, Vector3(24, 0, 8)))
 
 
 static func mist() -> ArrayMesh:

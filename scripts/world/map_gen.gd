@@ -23,7 +23,10 @@ enum { GRASS, PATH, TALL, TREE, WATER, ROCK, FLOWERS, BUILDING, DOOR, FENCE, PLA
 	# "\\" from its top-left to its bottom-right (see room_builder.gd)
 	IDIAG_A, IDIAG_B,
 	# A shallow sandy shore: only a few centimetres of water, never a swimming tile.
-	SHALLOWS }
+	SHALLOWS,
+	# open ground cut through by a diagonal cliff (elevation.gd "/" and "\"): nobody stands there. The map's "ledges"
+	# remember what the ground was, for drawing it (world.gd _ground_tile).
+	LEDGE }
 
 const WALKABLE := [GRASS, PATH, TALL, FLOWERS, PLAZA, SAND, BRIDGE, IFLOOR, ITILE, RUG, RING, MAT, STAIRS_UP, STAIRS_DOWN, MIST, ICE, ROPE,
 	IDOOR, SHALLOWS]

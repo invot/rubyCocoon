@@ -373,7 +373,8 @@ func _highest_south(m: Dictionary, p: Vector2i, rows: int) -> float:
 
 
 ## Cliffs and ramps (elevation.gd): the heights rows read cleanly; every building on one level, with the tile in front
-## of its door on that level too (not a ramp); people, items and signs on level ground, not on a ramp.
+## of its door on that level too (not a ramp); people, items and signs on level ground, not on a ramp or a diagonal
+## cliff's tile.
 func _levels(m: Dictionary) -> Array:
 	var out: Array = m.get("elev_problems", []).duplicate()
 	if not Elev.has(m):
@@ -385,7 +386,7 @@ func _levels(m: Dictionary) -> Array:
 		for y in range(int(b["y"]), int(b["y"]) + int(b["d"])):
 			for x in range(int(b["x"]), int(b["x"]) + int(b["w"])):
 				var q := Vector2i(x, y)
-				bad = bad or Elev.ramp_dir(m, q) != Vector2i.ZERO or not is_equal_approx(Elev.surface(m, q), lv)
+				bad = bad or Elev.ramp_dir(m, q) != Vector2i.ZERO or Elev.diagonal(m, q) != 0 or not is_equal_approx(Elev.surface(m, q), lv)
 		var front := door + Vector2i(0, 1)
 		if bad:
 			out.append("%s at %s,%s stands on more than one level" % [b["name"], b["x"], b["y"]])
@@ -402,6 +403,8 @@ func _levels(m: Dictionary) -> Array:
 	for p in spots:
 		if Elev.ramp_dir(m, p) != Vector2i.ZERO:
 			out.append("something stands on the ramp at %s" % p)
+		if Elev.diagonal(m, p) != 0:
+			out.append("something stands on the diagonal cliff at %s" % p)
 	return out
 
 

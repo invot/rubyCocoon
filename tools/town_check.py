@@ -55,11 +55,14 @@ def load_towns():
         scenery = [tuple(int(v) for v in t) for t in re.findall(r'"x": (\d+), "y": (\d+), "w": (\d+), "d": (\d+)', scen.group(1))] if scen else []
         doors = [(int(x), int(y)) for x, y in re.findall(r'"door": Vector2i\((\d+), (\d+)\)', body)]
         towns[m.group(1)] = (re.findall(r'"([^"]*)"', rows.group(1)),
-                             re.findall(r'"([^"]*)"', hts.group(1)) if hts else None, scenery, doors)
+                             [r.replace('\\\\', '\\') for r in re.findall(r'"([^"]*)"', hts.group(1))] if hts else None,
+                             scenery, doors)
     return towns
 
 
 RAMPS = {'^': (0, -1), 'v': (0, 1), '<': (-1, 0), '>': (1, 0)}
+# a diagonal cliff ("/" or "\\"): the sides each of its two halves runs along
+HALVES = {'/': (((0, -1), (-1, 0)), ((0, 1), (1, 0))), '\\': (((0, -1), (1, 0)), ((0, 1), (-1, 0)))}
 
 
 class Levels:
@@ -68,6 +71,8 @@ class Levels:
     def __init__(self, w, h, hrows):
         self.w, self.h = w, h
         self.lo, self.hi, self.dir = {}, {}, {}
+        # diagonal cliffs: tile -> (its high half's sides, its low half's sides)
+        self.diag = {}
 
         def ch(x, y):
             if not (0 <= x < w and 0 <= y < h):
@@ -99,16 +104,46 @@ class Levels:
                     self.lo[t] = a + (b - a) * k / len(run)
                     self.hi[t] = a + (b - a) * (k + 1) / len(run)
                     self.dir[t] = r
+        # each half of a diagonal on the level of the ground along its sides (elevation.gd _diagonals)
+        todo = [(x, y) for y in range(h) for x in range(w) if ch(x, y) in HALVES]
+        for n in range(4):
+            waiting = []
+            for p in todo:
+                sets = ([], [])
+                unknown = False
+                for k in (0, 1):
+                    for d in HALVES[ch(*p)][k]:
+                        q = (p[0] + d[0], p[1] + d[1])
+                        if not (0 <= q[0] < w and 0 <= q[1] < h):
+                            continue
+                        if ch(*q) in HALVES and q not in self.diag:
+                            unknown = True
+                            continue
+                        sets[k].append(self.edge(q, (-d[0], -d[1])))
+                if (unknown and n < 3) or not sets[0] or not sets[1]:
+                    waiting.append(p)
+                    continue
+                high = 0 if min(sets[0]) > max(sets[1]) else 1
+                self.hi[p] = min(sets[high])
+                self.lo[p] = min(max(sets[1 - high]), self.hi[p])
+                self.diag[p] = (HALVES[ch(*p)][high], HALVES[ch(*p)][1 - high])
+            todo = waiting
+        for p in todo:
+            self.lo[p] = self.hi[p] = 0.0
 
     def _c(self, p):
         return (min(max(p[0], 0), self.w - 1), min(max(p[1], 0), self.h - 1))
 
     def surface(self, p):
         p = self._c(p)
+        if p in self.diag:
+            return self.hi[p]
         return (self.lo[p] + self.hi[p]) / 2
 
     def edge(self, p, d):
         p = self._c(p)
+        if p in self.diag:
+            return self.hi[p] if d in self.diag[p][0] else self.lo[p]
         r = self.dir.get(p)
         if r is None:
             return self.lo[p]
@@ -121,6 +156,9 @@ class Levels:
     def joined(self, a, b):
         d = (b[0] - a[0], b[1] - a[1])
         ca, cb = self._c(a), self._c(b)
+        # nobody steps onto or off a diagonal cliff's tile
+        if ca in self.diag or cb in self.diag:
+            return False
         ra, rb = self.dir.get(ca), self.dir.get(cb)
 
         def across(r):
@@ -393,7 +431,7 @@ def check(name, rows, hrows=None, scenery=(), doors=()):
     blind, half = [], []
     for y in range(h):
         for x in range(w):
-            if rows[y][x] not in WALK:
+            if rows[y][x] not in WALK or (x, y) in lv.diag:
                 continue
             g = lv.surface((x, y))
             if hidden(at, x, y, WAIST + g, g):

@@ -45,7 +45,10 @@ The authored-prop path uses the shared local connectivity proof and full-flood
 fallback, rejecting any decoration that disconnects a formerly reachable tile.
 
 Doors use `HouseModels._front_door`, `DOOR_H` (1.8), `DOOR_ASPECT`, and the existing
-door tiles and brass knob. The library's canopy is the door width plus a small margin;
+door tiles and brass knob. Fitted to their plots the kit houses came out with doorways as low as
+1.1 units, under the hero's 1.44: `cove_buildings.gd` `warped()` stretches each one's ground storey
+until its doorway is `DOOR_H` and cuts away the kit's own door slab, so the door lies on the wall.
+The library's canopy is the door width plus a small margin;
 the other towns keep their existing shopfront widths. Dock planks have quiet painted
 seams and low rails with pilings, built once into shared meshes.
 

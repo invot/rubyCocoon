@@ -270,8 +270,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   them; many maps have terraces too: Cocoon Cove's upper neighborhood and rocky coastal bluff, Bellerive's stone quay over the harbour, the Dune
   Road's escarpment (the rope ladder a flyer hangs climbs it), the Mesa Trail's canyon walls, Gravenmoor's graveyard
   knoll. Nobody climbs or drops down a cliff, and nobody talks, picks things up or sees across one (trainers and wild
-  beasts included); ramps are walked up and down along their slope. Where a river runs over a cliff it falls as a
-  waterfall (Riverbend). Behind high ground you're never lost from sight: whatever ground stands between the camera
+  beasts included); ramps are walked up and down along their slope. Cliffs seldom turn a square corner: most corners
+  are cut by a diagonal cliff across one tile, and nobody (you, beasts or townsfolk) can stand on a tile with a
+  diagonal cliff in it, high half or low. Where a cliff drops into the sea or a river the water at its foot is deep,
+  never wading shallows, with now and then a rock of the cliff's own stone standing in it. Where a river runs over a
+  cliff it falls as a waterfall (Riverbend). Behind high ground you're never lost from sight: whatever ground stands between the camera
   and you dissolves around your shape in a fine dither (`terrain.gdshader` `hole`), while buildings stay unloaded until their ground footprint
   reaches the screen.
   They fade in as their base comes into view and unload when it leaves. Arrival fades use isolated material opacity
@@ -472,8 +475,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
-- **Isle of Tides**: Kelpwick is a modest reef-diving village of round timber buildings with centered doors,
-  layered golden dried-grass roofs and larger round wooden interiors (its store and arena). There is no Beast Center: the
+- **Isle of Tides**: Kelpwick is a modest reef-diving village of round, timber-framed pastel plaster huts on wooden stilts,
+  with centered blue-and-cream fabric doors, six-tread entry stairs and broad, softly golden thatched roofs and larger round wooden interiors (its store and arena). There is no Beast Center: the
   arena is the great hut, a wide oval of taller walls under a high thatch, and keeps the village's healing machine in its
   back corner; flights and lost battles bring you back in front of it. Its general store sells essentials and basic beast gear at 30% below normal
   prices. Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
@@ -494,8 +497,20 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   the next, deeper tile stays blocked for walking, running and tap navigation.
   Every interior entrance is in a visible side wall, including temples, the hideout, Gearhart Tower and the cathedral.
   Kelpwick's buildings were renumbered when its Center went (older saves inside them are moved, game_state.gd
-  _kelpwick_hut_rooms). The shared procedural wood finish needs no baked textures.
+  _kelpwick_hut_rooms). The shared procedural interior wood and the huts' painted timber and straw finishes need no baked textures.
+  The hero walks up the hut stairs before entering; the original street approaches and room identities are retained.
   Run `bash tools/run_tests.sh island-towns island-towns-touch` for entrance, pricing, suite, A/B and beach-aisle checks.
+  Run `bash tools/run_tests.sh kelpwick-huts kelpwick-huts-touch` to walk/tap into each raised hut and return to its stair foot.
+  For a windowed preview and captures, use `-- --scene=island-towns --huts=1 --shot=build/shots/huts.png --quit=0`
+  (add `--touch` for the phone layout); the focused scenario uses fresh state and never reads player saves.
+- **Exterior windows** use `scripts/gfx/cartoon_windows.gd`: broad bevelled surrounds, bowed caps on tall windows,
+  deep sills with brackets, thick pane divisions and painted blue glass with bold glints, inspired by the supplied
+  window packs listed in `licenses/window_references.md`. House surrounds keep their town's trim colour; shops keep
+  their display bays, shutters, awnings and signs. Stone arenas, including Bellerive's, instead have round masonry
+  arches with wedge stones, a large keystone, stone mullions and stone sills coloured from their walls. Kelpwick's
+  open bamboo windows have heavier timber frames; Shellhaven keeps its Spanish windows. The dressing is cached
+  with the existing house and wall meshes, preserving their openings, door anchors and fading. It adds no textures
+  or transparent materials; the source packs and baked house files are unchanged.
 - **Landmarks** are built from the wall sections of the Retro Modular House Pack (`assets/exteriors`: doors,
   windows and frames, laid round any outline by `HouseBuilder.span`), each with a shape of its own and its door on
   the map's door tile: the **arena** is an oval stadium (an arcade below, a parapet, open stands round a sand ring, a
@@ -504,8 +519,14 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
   stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Tempestrix on the rail.
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
-- **Cliffs** (`terrain_mesh.gd`) are faces of the terrain's rock, bulging a little here and there and darker towards the
-  foot, with a ragged lip of the grass or paving above along the top; Cogsworth's are dressed-stone retaining walls.
+- **Cliffs** (`terrain_mesh.gd`) are simply the step between two levels of the terrain, drawn in a soft cartoon style:
+  a rounded lip of the grass, sand or paving above rolls over the top, and below it the face is fluted into upright
+  ribs and grooves, a little ragged, darker towards the foot and in the lip's shadow. Faces meeting at a corner share a
+  mitred edge, so straight runs, diagonals and corners join without seams. Each biome has its own rock
+  (`WorldDB.CLIFF_LOOKS`): warm orange-tan fluted rock on the coast, rivers and islands (mossy in the jungle and on
+  the reef), banded sandstone in the desert, the west and the mesa, grey slate in the mountains and at the hot springs,
+  dark basalt at the volcano and purple-grey stone on the moor; Cogsworth's are dressed-stone retaining walls. The rock
+  is a greyed texture from the cliff packs in CREDITS.md, baked by `tools/import_cliffs.gd` and coloured per biome.
   A ramp is drawn in the ground of its tile, and a rope ladder lies along its slope.
 - **Inside**, walls between the camera and you fade rather than sink (`room_builder.gd` `fade`): in a cone opening from
   you towards the camera, a wall ahead of you is clear, about 70% opaque while you pass through its doorway, and solid
@@ -561,11 +582,15 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
+  - Readable wooden notice boards carry three rows of dark mock lettering, raised just off the wood so it stays
+    visible from the gameplay camera. Interacting with a board still opens its full text.
 - The terrain is a textured height field with softly blended ground layers. Water has transparent sand/rock shallows,
   turquoise-to-blue depth colour, continuous small swells, moving underwater light patterns and foam at mesh
   intersections. Beaches have a gently curved sandy profile and washing crests; a few native rocks sit beyond the
   walkable wading row. Open water's bed slopes deeper offshore, while water beneath raised docks stays at the
-  surrounding sea or river level. The shared `water.gdshader` uses one depth-texture sample and works in Forward+,
+  surrounding sea or river level. Water against a cliff is deep from the cliff's foot (only beaches and banks at the
+  water's level count as shore), and a few rocks in the cliff's stone and colour stand in it (`world.gd`
+  `_cliff_rocks`), never beside a bridge, dock, ford or boat. The shared `water.gdshader` uses one depth-texture sample and works in Forward+,
   Mobile and Compatibility; it retains the existing animated lava and falling-water sheets. See
   [water rendering and previews](docs/water.md) for tuning and verification commands.
 - Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
@@ -808,9 +833,22 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Cliffs and ramps**: a map's `heights` rows (one character per tile, lined up with `rows`) give each tile a level,
   `0`-`9`, one unit apiece; `^ v < >` is a ramp rising that way, and a run of them climbs evenly between the levels at
   its two ends (give it two tiles a level; runs side by side make a wide ramp). Neighbours on different levels meet
-  at a cliff. Keep the back and sides high and the south low (the camera looks north), put every building, its
-  doorstep and everyone standing about on level ground, and keep tall things off high ground just south of a road.
-  `"cliffs": "walls"` draws a town's cliffs as stone retaining walls. Both checkers below know the levels.
+  at a cliff. `/` and a backslash (written `\\` in the GDScript strings) are diagonal cliffs across their tile: each
+  half takes the level of the neighbours along its two sides, which must agree, and one half must be higher. A tile
+  with a diagonal is out of bounds to everyone; walkable ground there becomes `MapGen.LEDGE` (its first type kept in
+  `m["ledges"]` for the ground's look), and scenery on it moves onto the high half. Keep the back and sides high and
+  the south low (the camera looks north), put every building, its doorstep and everyone standing about on level
+  ground, and keep tall things off high ground just south of a road. `"cliffs": "walls"` draws a town's cliffs as
+  stone retaining walls. Both checkers below know the levels and the diagonals.
+- **Cutting corners**: `godot --headless --path . --script res://tools/cliff_corners.gd [-- --write] [map ids]` cuts the
+  square corners of the maps' cliffs into diagonals (outer corners first, then inner ones). It reports each corner it
+  leaves square and why (a doorstep, someone standing there, a shore, bridge or ramp beside it, or the only way
+  through) and never cuts a corner that would shut anywhere off. Without `--write` it only reports. Run it after
+  drawing new high ground, then both checkers.
+- **Cliff rock** per biome is `WorldDB.CLIFF_LOOKS`: `tex` (`rock`, `sandstone` or `slate`, the greyed textures
+  `tools/import_cliffs.gd` bakes from the cliff packs), `tint`, `scale` (repeats per unit along and down the face),
+  `flutes` (how deep the ribs are), and optionally `band` (strata in a second colour) and `moss` (a green over the
+  upper face). A biome's `"woods"` is the share of its wood tiles that grow a tree (the volcano's thin dead wood).
 - **A town's own look**: `"style"` builds a town's buildings in a style of its own, whatever its biome's (Dustwell's
   `"frontier"`, `frontier_builder.gd`). Its `building_looks` can set a building's `"paint"` (red, orange, yellow, pink,
   coral, gold, rose) and `"frontier"` (`"saloon"`, `"jail"`). Authored `street_props` may be the two-tile `wagon` or
@@ -839,7 +877,9 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
     whose only buildings are wooden shacks: one neighbor and the gear shack (`s`, room `shack`) at the far end.
     Crates and barrels occupy spare edge tiles; `prop_clearance` rectangles reserve walking lanes, stairs and door
     approaches for both authored and procedural furniture. Its starter gear remains as `item:<id>` anchors. Standard full-size doors
-    come from `HouseModels`; the library's awning covers only its door. All source exterior openings are sealed.
+    come from `HouseModels`; the library's awning covers only its door. Each kit house's ground storey is stretched until its
+    doorway takes that 1.8-unit door (clearly taller than the hero), and the kit's own door slab is cut away so the door
+    lies on the wall. All source exterior openings are sealed.
     Its `building_order` lists building origins in saved interior order; `building_looks` selects preferred house
     models and skins (or `cove_model` for the pirate kit), and `scenery_houses` places noninteractive buildings on
     solid woodland footprints. After changing its plots, run `tools/bake_cove_measurements.gd` before the Python checker.
@@ -908,6 +948,12 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   and failing if a loading message appears. `--scene=transitions --report=res://build/transitions.json` writes the
   timings; run it in a window for VSync-capped figures.
 - `house-measurements` / `battle-art`: baked geometry measurements and exact generated ring/audio assets.
+- `exteriors` (`--scene=exteriors`, `tools/debug/exteriors.gd`): every town building and scenery house, built as the
+  world builds it, seen from outside (AGENTS.md "Building exteriors and scale"). From each point a building encloses,
+  lines towards wherever the gameplay camera can be must meet an opaque face of the building turned towards it (no
+  holes, open doorways, missing panes or culled faces show the inside), and every front door is at least 1.7 tall (the
+  hero is 1.44) with its leaf no more than 0.12 in front of the wall beside it. `--town=` narrows it, `--verbose=1`
+  prints every building's measurements.
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and Dustwell setting its news flag on arrival without a speech.
 - `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
 - `phone-save` / `phone-save-touch`: Dad's save and continue Yes/No prompts, declined saves, one answer per press, and returning to the title. Preview with `--scene=phone-save --save_dir=res://build/phone_save_preview/ --shot=res://build/shots/dad.png` (captures both prompts; add `--touch` for touch inputs).
@@ -1040,6 +1086,7 @@ godot --path . -- --scene=title --fixture=1 --keys=d,a --save_dir=res://build/ti
 godot --path . -- --scene=title --hold=1 --quit=0 --save_dir=res://build/title_skip_preview/   # hold the rising dragon; press A or tap to check skipping
 godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
 godot --headless --path . -- --scene=building-fade                      # buildings load when their base reaches the screen and fade in; also walks the western dock lane; --town=tidewater narrows the audit
+godot --headless --path . -- --scene=exteriors --town=caccoon --verbose=1  # no building shows its inside from outside; full-size front doors set on their walls
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere
 godot --path . -- --scene=saves --card=1 --shot=C:/tmp/c.png            # save slots and the "Game saved!" card
 godot --path . -- --scene=call --shot=C:/tmp/c.png                       # calling Dad from the phone at home, up to his first line (--where=payphone|center, --town, --presses)

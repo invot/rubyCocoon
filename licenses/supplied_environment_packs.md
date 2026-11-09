@@ -14,6 +14,12 @@ that name no author or licence:
 - Western Pack_ Hand Painted House Set (Low Poly).zip, Western Town Buildings LowPoly _ Package.zip, Western Saloon.zip
   and Western Diorama - Low Poly.zip: reference only for the town's buildings; nothing from them is in the game.
 
+Imported on 2026-11-09 for the cliffs (tools/import_cliffs.gd), Creative Commons by the same rule:
+
+- Stylized Cliff-Faces.zip (a strip of collection/CliffFaces_Set01_Diffuse.png, greyed and made seamless, is
+  assets/textures/surfaces/cliff_slate.png; the OBJ models and normal map are not used)
+- Modular cliff.zip: looked at and not used.
+
 The archives contain OBJ and PNG files only. They provide no author, source URL, license text or redistribution terms.
 This file records provenance, not a grant of rights. Confirm the original source terms before public distribution.
 Original archives remain unchanged outside the repository; extracted inputs and intermediate geometry stay in build/.

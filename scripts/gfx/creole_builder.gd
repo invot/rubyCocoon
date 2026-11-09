@@ -608,10 +608,16 @@ static func _shotgun_roof(k: VBld.Kit, w: float, d: float, top: float, shift: fl
 	for sx in [-1.0, 1.0]:
 		VBld._slope(k, "tin", [Vector3(sx * hw, y0, zb), Vector3(sx * hw, y0, ze), Vector3(0, ridge, ze), Vector3(0, ridge, zb)], Color("#8c969a") if sx > 0 else Color("#808a8e"), Vector3.BACK)
 		k.box("color", Vector3(sx * hw, y0 - 0.03, (zb + ze) / 2.0), Vector3(0.07, 0.07, ze - zb), TRIM)
-	# the gable ends: front (over the porch) and back
+	# the gable ends: front (over the porch) and back, up to the slopes' undersides; the side walls rise to meet the
+	# slopes too, so the space under the roof is closed (no wedge under the eaves to see in through)
 	var gw := (w - 0.2) / 2.0
+	var yg := y0 + (hw - gw) * 0.85
 	for z in [ze - 0.04, zb + 0.15]:
-		k.poly("planks", [Vector3(-gw, top, z), Vector3(gw, top, z), Vector3(0, ridge - 0.04, z)], Vector3.BACK if z > shift else Vector3.FORWARD, paint.lightened(0.08))
+		var gn := Vector3.BACK if z > shift else Vector3.FORWARD
+		k.poly("planks", [Vector3(-gw, top, z), Vector3(gw, top, z), Vector3(gw, yg, z), Vector3(-gw, yg, z)], gn, paint.lightened(0.08))
+		k.poly("planks", [Vector3(-gw, yg, z), Vector3(gw, yg, z), Vector3(0, ridge, z)], gn, paint.lightened(0.08))
+	for sx in [-1.0, 1.0]:
+		k.poly("planks", [Vector3(sx * gw, top, zb + 0.15), Vector3(sx * gw, top, ze - 0.04), Vector3(sx * gw, yg, ze - 0.04), Vector3(sx * gw, yg, zb + 0.15)], Vector3(sx, 0, 0), paint)
 	k.box("glow", Vector3(0, top + rise * 0.4, ze - 0.02), Vector3(0.36, 0.3, 0.03), Color("#cfe4ee"))
 	k.box("color", Vector3(0, top + rise * 0.4, ze - 0.01), Vector3(0.44, 0.04, 0.03), shutter)
 	k.box("tin", Vector3(0, ridge + 0.02, (zb + ze) / 2.0), Vector3(0.14, 0.08, ze - zb + 0.04), Color("#6a7478"))
@@ -760,6 +766,7 @@ static func _arena(node: Node3D, w: float, d: float, door_lx: float, locked: boo
 	var mat: Material = HouseBuilder.wall_material("plaster", stone)
 	var k := VBld.Kit.new()
 	var hb = HouseBuilder.new()
+	hb.stone_windows = true
 	hb.node = node
 	hb.w = w
 	hb.d = d

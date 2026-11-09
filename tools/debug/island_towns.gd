@@ -30,6 +30,11 @@ func run(game, opts: Dictionary) -> void:
 	UI.auto = true
 	GameState.set_flag("intro_done")
 	GameState.set_flag("island_peace")
+	if opts.get("huts", "0") == "1":
+		await _huts(opts)
+		UI.auto = false
+		print("ISLAND TOWNS DONE: %d problem(s)" % bad)
+		return
 	var town := ML.load_map("kelpwick", GameState.flags)
 	var home: Dictionary = town["buildings"].filter(func(b): return b["shop"] == "house")[0]
 	await main._go("kelpwick", home["door"] + Vector2i.DOWN)
@@ -118,3 +123,64 @@ func run(game, opts: Dictionary) -> void:
 	check(main.world.player_pos == Vector2i(26 + west_pad, 22), "beach aisle stays open")
 	UI.auto = false
 	print("ISLAND TOWNS DONE: %d problem(s)" % bad)
+
+
+## Focused stilt-hut regression / preview: --scene=island-towns --huts=1 [--touch] [--shot=...].
+func _huts(opts: Dictionary) -> void:
+	main.get_window().title = "Ruby Cocoon - Kelpwick huts"
+	GameState.gear["flute"] = "reed_flute"
+	GameState.set_flag("reed_flute")
+	var town := ML.load_map("kelpwick", GameState.flags)
+	for b in town["buildings"]:
+		if Places.door_locked(b):
+			continue
+		await main._go("kelpwick", b["door"] + Vector2i.DOWN)
+		await main._wait(0.65)
+		var outside = main.world
+		var base: float = outside._lift(b["door"])
+		if UI.is_touch():
+			var at: Vector2 = outside.cam.unproject_position(outside.tile_pos(b["door"]) + Vector3(0, 1.6, 0))
+			at *= main.get_viewport().get_visible_rect().size / Vector2(main.view.size)
+			for down in [true, false]:
+				var event := InputEventScreenTouch.new()
+				event.index = 0
+				event.pressed = down
+				event.position = at
+				Input.parse_input_event(event)
+				await main.get_tree().process_frame
+		else:
+			await main._press("move_up")
+		await main._wait(0.12)
+		check(outside.busy and not outside._climb.is_empty(), "%s starts a single stair climb" % b["interior"])
+		check(outside.player.position.y > base, "%s climbs above the street" % b["interior"])
+		if opts.has("shot") and b["shop"] == "house" and DisplayServer.get_name() != "headless":
+			main._save_shot(String(opts["shot"]).replace(".png", "_stairs_%d.png" % int(b["index"])))
+		# Bound the wait so a broken entrance reports a failure promptly.
+		for attempt in 100:
+			if main.world.map_id == b["interior"] and not main._transitioning:
+				break
+			await main._wait(0.1)
+		check(main.world.map_id == b["interior"], "%s enters through its raised doorway" % b["interior"])
+		if main.world.map_id != b["interior"]:
+			continue
+		var exit: Vector2i = main.world.map["front_doors"][0]
+		await main._walk_test([exit])
+		for attempt in 100:
+			if main.world.map_id == "kelpwick" and not main._transitioning:
+				break
+			await main._wait(0.1)
+		check(main.world.map_id == "kelpwick" and main.world.player_pos == b["door"] + Vector2i.DOWN, "%s returns to the foot of its stairs" % b["interior"])
+	await main._go("kelpwick", Vector2i(7, 9))
+	if opts.has("shot") and DisplayServer.get_name() != "headless":
+		await main._wait(1.0)
+		main._save_shot(String(opts["shot"]).replace(".png", "_gameplay.png"))
+		main.world.cam_free = true
+		main.world.cam.position = Vector3(20.5, 27, 32)
+		main.world.cam.look_at(Vector3(20.5, 3, 3), Vector3.UP)
+		await main._wait(1.0)
+		main._save_shot(String(opts["shot"]).replace(".png", "_village.png"))
+		main.world.cam.position = Vector3(7.5, 13.5, 16)
+		main.world.cam.look_at(Vector3(7.5, 3.5, 3), Vector3.UP)
+		await main._wait(1.0)
+		main._save_shot(String(opts["shot"]))
+	main.world.cam_free = false

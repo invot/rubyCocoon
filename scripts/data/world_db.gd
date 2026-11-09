@@ -193,6 +193,30 @@ const ARENAS := {
 	"riverbend": {"element": "water", "leader": "Skye", "title": "River Ranger", "team": [[36, 51], [27, 51], [30, 52]], "song": "anthem", "crest": "River Crest", "gold": 5500, "look": {"shirt": "#3a6ab0", "hair": "#f0d070", "hat": "#3a5a3a"}},
 }
 
+## Each biome's cliffs (terrain_mesh.gd, terrain.gdshader), after the warm, rounded island cliffs of life-sim games:
+## "tex" the face's texture (assets/textures/surfaces/cliff_<tex>.png, baked by tools/import_cliffs.gd from the cliff
+## packs in CREDITS.md: "rock" upright grooves, "sandstone" broken blocks, "slate" weathered slabs), "tint" its colour,
+## "scale" its repeats per unit along and down the cliff, "flutes" how deeply it stands in upright rounded columns (1 =
+## the usual), "band" strata laid along it ([colour, strength]) and "moss" on its upper part ([colour, amount]). The
+## ground above rolls over the top as a lip of whatever it is (grass, sand...). A town's "cliffs": "walls" are stone
+## retaining walls instead.
+const CLIFF_LOOKS := {
+	"coast": {"tex": "rock", "tint": "#d8975c", "scale": [0.45, 0.45], "flutes": 1.0},
+	"quarter": {"tex": "rock", "tint": "#cfa27a", "scale": [0.45, 0.45], "flutes": 0.9},
+	"island": {"tex": "rock", "tint": "#dc9054", "scale": [0.45, 0.45], "flutes": 1.0},
+	"reef": {"tex": "rock", "tint": "#cc8a56", "scale": [0.45, 0.45], "flutes": 1.0, "moss": ["#7aa848", 0.35]},
+	"river": {"tex": "rock", "tint": "#c69264", "scale": [0.45, 0.45], "flutes": 1.0, "moss": ["#7a9a48", 0.2]},
+	"jungle": {"tex": "rock", "tint": "#a27650", "scale": [0.45, 0.45], "flutes": 1.1, "moss": ["#5e9a38", 0.7]},
+	"desert": {"tex": "sandstone", "tint": "#e2ad6c", "scale": [0.4, 0.4], "flutes": 0.8, "band": ["#f0cc94", 0.35]},
+	"western": {"tex": "sandstone", "tint": "#d48c54", "scale": [0.4, 0.4], "flutes": 0.8, "band": ["#e8b07a", 0.4]},
+	"mesa": {"tex": "sandstone", "tint": "#c66c44", "scale": [0.4, 0.4], "flutes": 0.9, "band": ["#e6a272", 0.6]},
+	"mountain": {"tex": "slate", "tint": "#a29a8e", "scale": [0.3, 0.8], "flutes": 1.1, "moss": ["#7a8a52", 0.2]},
+	"steampunk": {"tex": "slate", "tint": "#8e8a84", "scale": [0.3, 0.8], "flutes": 1.0},
+	"volcano": {"tex": "slate", "tint": "#56483f", "scale": [0.18, 0.35], "flutes": 1.5},
+	"hotspring": {"tex": "slate", "tint": "#a08c7a", "scale": [0.3, 0.8], "flutes": 1.1, "moss": ["#6e8a50", 0.25]},
+	"moor": {"tex": "slate", "tint": "#686070", "scale": [0.3, 0.8], "flutes": 1.1, "moss": ["#4e5e44", 0.35]},
+}
+
 const BIOMES := {
 	"coast": {"ground": "#7cc05a", "side": "#9a7a50", "sand": "#ecd8a0", "path": "#c8a878", "plaza": "#c8c0b0", "tuft": "#5aa040",
 		"trees": [["palm", 2], ["palm_bent", 1], ["tree_dome", 2], ["tree_oak", 2], ["tree_birch", 1], ["tree_round_2", 1], ["tree_cypress", 1]], "rocks": ["beach_rock", "rock_small"],
@@ -228,7 +252,8 @@ const BIOMES := {
 	"steampunk": {"ground": "#7a7a72", "side": "#5a5a58", "sand": "#a89a80", "path": "#6a6a68", "plaza": "#8a847a", "tuft": "#5a7a40",
 		"trees": [["tree_round_2", 1]], "rocks": ["crates", "barrel"], "shrubs": ["shrub_1"],
 		"sky_top": "#8a9ab0", "sky_hz": "#e0d0b8", "sun": "#ffe8c8", "sun_e": 1.2, "amb": 0.55, "style": "steampunk", "water": "#4a7a9a", "music": "steampunk"},
-	"volcano": {"ground": "#5a4a44", "side": "#3a2e2a", "sand": "#7a6a5a", "path": "#6a5a50", "plaza": "#6a5e58", "tuft": "#6a6a3a",
+	# the volcano: a thin dead wood ("woods": the share of its wood tiles with a tree) over its canyon's cliffs
+	"volcano": {"ground": "#5a4a44", "side": "#3a2e2a", "woods": 0.3, "sand": "#7a6a5a", "path": "#6a5a50", "plaza": "#6a5e58", "tuft": "#6a6a3a",
 		"trees": [["dead_tree", 2], ["stump", 1]], "rocks": ["mountain_1", "mountain_8", "stone_5"], "shrubs": ["stone_5", "stone_3"],
 		"sky_top": "#a05a48", "sky_hz": "#f0b080", "sun": "#ffc090", "sun_e": 1.2, "amb": 0.5, "style": "hotspring", "water": "#ff6a20", "lava": true, "music": "volcano"},
 	"hotspring": {"ground": "#6a8a5a", "side": "#5a4a40", "sand": "#a89a80", "path": "#8a7a68", "plaza": "#9a948a", "tuft": "#5a8a4a",
