@@ -1,5 +1,5 @@
 extends RefCounted
-## Island architecture uses the shared wall sections and roof mesher, kept inside each existing plot.
+## Kelpwick adapts the supplied tropical hut; Shellhaven retains its shared wall sections and roof mesher.
 const VB = preload("res://scripts/gfx/voxel_buildings.gd")
 const HB = preload("res://scripts/gfx/house_builder.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
@@ -11,7 +11,6 @@ const PASTELS := ["#f1b8ae", "#f3d995", "#b5d9c8", "#c9bce1", "#aed4e2"]
 const HUT_LIFT := 0.84
 const HUT_FACE_INSET := 0.70
 const HUT_TIMBER := Color("#98683f")
-const HUT_STRAW := Color("#d9b46d")
 # Pink, orange, dusty red, clay brown, lavender and sky blue.
 const HUT_PASTELS := ["#e8b4c2", "#eac09a", "#dca39a", "#bf9d88", "#c4b0db", "#aed0e2"]
 const HUT_PAINT_ORDER := [2, 0, 1, 4, 5]
@@ -75,7 +74,7 @@ static func _asset_hut(rx: float, r: float) -> ArrayMesh:
 	_hut_meshes[key] = mesh
 	return mesh
 
-static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: float, great: bool) -> float:
+static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: float) -> float:
 	var r := float(b.get("hut_radius", minf(float(b["w"]) / 2.0 - 0.12, float(b["d"]) / 2.0 - 0.12)))
 	var rx := maxf(r, float(b.get("hut_rx", r)))
 	var paint_index: int = HUT_PAINT_ORDER[int(b.get("index", 0)) % HUT_PAINT_ORDER.size()]
@@ -91,9 +90,10 @@ static func _stilt_hut(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: 
 	mi.set_surface_override_material(0, finish)
 	node.add_child(mi)
 	b["door_sill"] = HUT_LIFT
-	# An opaque inner shell sits behind the source's straw fringe and closes the roof from every view.
-	var liner := VB._loop(center, rx * 1.12, r * 1.12, 32)
-	VB._spire(k, "color", liner, HUT_LIFT + 1.8, center, 1.72, Color("#bc954f"))
+	# Seal the room within its walls. A flat ceiling avoids a second roof cutting through the plaster.
+	var ceiling := VB._loop(center, rx * 0.97, r * 0.97, 32)
+	VB._skirt(k, "color", ceiling, HUT_LIFT, 2.30, paint, center)
+	VB._band(k, "planks", ceiling, VB._fill(center, 32), HUT_LIFT + 2.30, HUT_TIMBER)
 	var deck := VB._loop(center, rx + 0.10, r + 0.10, 24)
 	VB._ledge(k, "planks", deck, VB._fill(center, 24), center, HUT_LIFT - 0.15, 0.15, HUT_TIMBER)
 	for angle in [PI / 6.0, PI / 2.0, 5.0 * PI / 6.0, 7.0 * PI / 6.0, 3.0 * PI / 2.0, 11.0 * PI / 6.0]:
@@ -149,7 +149,7 @@ static func build(b: Dictionary, style: String) -> Node3D:
 	var face := d / 2.0 - (HUT_FACE_INSET if wood else 0.16)
 	var top: float
 	if wood:
-		top = _stilt_hut(node, k, b, dx, face, great)
+		top = _stilt_hut(node, k, b, dx, face)
 	else:
 		var wall := _stucco(int(b["seed"]))
 		top = _hotel(node, b, w, d, dx, wall) if b.get("hotel", false) else _villa(k, hb, b, w, d, dx, wall)

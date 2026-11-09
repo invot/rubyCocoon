@@ -25,7 +25,7 @@ def prepare(archive: Path) -> None:
     for face in faces:
         points = [vertices[corner[0]] for corner in face]
         # Remove the hanging red garnish, including its small leaves/stems, beside the door.
-        if all(42 < p[0] < 95 and 198 < p[2] < 225 and -58 < p[1] < 58 for p in points):
+        if all(35 < p[0] < 110 and 180 < p[2] < 230 and -80 < p[1] < 100 for p in points):
             continue
         # The loose leaf cards around the hut's base belong on the ground, not on the raised walls.
         # Their UV island is the green patch at the left of the colour atlas.

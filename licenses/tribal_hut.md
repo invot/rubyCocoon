@@ -8,8 +8,8 @@ references point to MTL files that are not included.
 The game uses the complete `model_1.obj`; `model_0.obj` omits a roof sector. Conversion removes degenerate
 triangles and the cloth entrance panel, rebuilds the materials from the supplied colour and inverse-alpha maps,
 and fits the model to Kelpwick's existing plots. Plaster is recoloured at runtime. Solid wood doors, timber
-platforms, stilts and stairs use the supplied wood finish. A concealed opaque roof lining seals the hut behind
-the decorative straw fringe. Hanging red garnish and all loose leaf cards are removed; the village uses its existing
+platforms, stilts and stairs use the supplied wood finish. A flat ceiling inside the walls seals the interior;
+the supplied thatch is the only visible roof. Hanging red garnish and all loose leaf cards are removed; the village uses its existing
 small bush models as ground planting instead. Textures are resized, smoothed once through the shared pipeline, and sampled with
 linear mipmapped anisotropic filtering. The optional bump and normal maps are not used.
 
