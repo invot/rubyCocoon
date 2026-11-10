@@ -10,7 +10,20 @@ const STUCCO := {
 	"sage": Color("#b4cb9c"), "rose": Color("#d8adb8"),
 	"butter": Color("#ead398"), "lavender": Color("#c7b9d9"),
 }
+## The plaster's finish: painted stucco with soft trowel sweeps (cove_stucco.gdshader), one material per paint.
+const StuccoShader = preload("res://scripts/gfx/cove_stucco.gdshader")
 static var _stucco_materials := {}
+## The roofs' finish: courses of clay tiles (cove_roof.gdshader) over the kit's flat roof reds, one material per
+## palette (or per plain clay colour).
+const RoofShader = preload("res://scripts/gfx/cove_roof.gdshader")
+const ROOF_CLAY := Color("#bb704d")
+static var _roof_materials := {}
+## The kit's own painted timber, which the windows' frames and sills match (the kit's "Cove painted wood").
+const TIMBER := Color("#89684b")
+## The panes: sea glass, softer than the other towns' bright blue, so they sit quietly in the plaster.
+const GLASS := Color("#7fa9ad")
+## The shops' awnings: clay canvas and cream, the colours of the roofs and plaster, rather than each shop's brand.
+const AWNING := [Color("#c9714a"), Color("#f3e5c6")]
 const DOORS := {
 	"whole_house": Vector3(-0.03,1.12,3.60), "house_1": Vector3(0,1.02,3.61),
 	"house_2": Vector3(-1.40,0.95,1.56), "house_3": Vector3(-0.246,0.95,2.89),
@@ -111,7 +124,7 @@ static func warped(key: String, scale: float) -> Mesh:
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arr)
 		out.surface_set_name(out.get_surface_count()-1,m.surface_get_name(si))
 		out.surface_set_material(out.get_surface_count()-1,m.surface_get_material(si))
-	var dressed := Windows.dress(out, [], true, Color("#c49a64") if key.begins_with("hut") else Color("#f1dfb7"))
+	var dressed := Windows.dress(out, [], true, Color("#c49a64") if key.begins_with("hut") else TIMBER, false, GLASS)
 	_meshes[ck] = dressed
 	return dressed
 
@@ -147,16 +160,17 @@ static func build(b: Dictionary) -> Node3D:
 	# clay roof, window surrounds or blue/red door.
 	var paint: String = b.get("cove_stucco", "butter")
 	if not _stucco_materials.has(paint):
-		var material := StandardMaterial3D.new()
+		var material := ShaderMaterial.new()
 		material.resource_name = "Cove stucco: " + paint
-		material.albedo_color = STUCCO.get(paint, STUCCO["butter"])
-		material.roughness = 0.88
-		material.metallic_specular = 0.14
+		material.shader = StuccoShader
+		material.set_shader_parameter("paint", STUCCO.get(paint, STUCCO["butter"]))
 		_stucco_materials[paint] = material
 	for surface in inst.mesh.get_surface_count():
 		var material: Material = inst.mesh.surface_get_material(surface)
 		if material != null and material.resource_name == "cove_stucco":
 			inst.set_surface_override_material(surface, _stucco_materials[paint])
+		elif _roof(material):
+			inst.set_surface_override_material(surface, _roof_material(material))
 	inst.scale = Vector3.ONE*float(p["scale"])
 	inst.position = p["offset"]
 	node.add_child(inst)
@@ -182,8 +196,31 @@ static func build(b: Dictionary) -> Node3D:
 		# Reuse the game's striped shop fronts, colors and pixel sign icons.
 		if shop == "bookstore":
 			p["awning_width"] = p["door_size"].x+0.35
+		p["awning_a"] = AWNING[0]
+		p["awning_b"] = AWNING[1]
 		builders._shop_front(node,p,shop,builders.STYLES["coastal"])
 	return node
+
+
+## Whether a kit material is a roof's: the palette its roof reds come from, or the plain clay of the larger houses.
+static func _roof(material: Material) -> bool:
+	var m := material as StandardMaterial3D
+	if m == null or m.resource_name != "":
+		return false
+	return m.albedo_texture != null or m.albedo_color.is_equal_approx(ROOF_CLAY)
+
+
+static func _roof_material(source: StandardMaterial3D) -> ShaderMaterial:
+	var key: Variant = source.albedo_texture if source.albedo_texture != null else source.albedo_color
+	if not _roof_materials.has(key):
+		var material := ShaderMaterial.new()
+		material.resource_name = "Cove roof tiles"
+		material.shader = RoofShader
+		material.set_shader_parameter("use_atlas", source.albedo_texture != null)
+		if source.albedo_texture != null:
+			material.set_shader_parameter("atlas", source.albedo_texture)
+		_roof_materials[key] = material
+	return _roof_materials[key]
 
 
 ## A low, flush wood porch under the old town's shared striped shop awning.

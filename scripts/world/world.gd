@@ -79,6 +79,7 @@ var busy := false
 var frozen := false
 
 var npcs := {}
+var _door_speakers := {}
 var items := {}
 var shards := {}
 var doors := {}
@@ -123,6 +124,7 @@ func build(id: String, cooperative := false) -> void:
 	_hole_position = Vector3.INF
 	map_id = id
 	ground_h = {}
+	_lifts = PackedByteArray()
 	map = MapLoader.load_map(id, GameState.flags)
 	biome = map["biome"].duplicate(true)
 	if map_id.get_slice("#", 0) in ["kelpwick", "shellhaven"]:
@@ -247,9 +249,48 @@ func tile_pos(p: Vector2i) -> Vector3:
 	return Vector3(p.x + 0.5, _lift(p) + float(ground_h.get(p, 0.0)) + Shoreline.bottom(map, p.x + 0.5, p.y + 0.5), p.y + 0.5)
 
 
-## How high tile p's ground stands (its level, or the middle of its ramp); off the map, the nearest tile's.
+## How high tile p's ground stands (its level, or the middle of its ramp, and the grass pillow on it); off the map,
+## the nearest tile's.
 func _lift(p: Vector2i) -> float:
-	return Elev.surface(map, p)
+	return Elev.surface(map, p) + _grass_lift(p)
+
+
+## How far tile p's ground stands above its level: Terrain.LIFT on the grass (the turf is a pillow on the ground), 0 on
+## paths, sand, paving and ramps. (`_lifts`: per tile, from _build_terrain.)
+var _lifts := PackedByteArray()
+func _grass_lift(p: Vector2i) -> float:
+	if _lifts.is_empty():
+		return 0.0
+	return Terrain.LIFT if _lifts[clampi(p.x, 0, int(map["w"]) - 1) + clampi(p.y, 0, int(map["h"]) - 1) * int(map["w"])] == 1 else 0.0
+
+
+## Whether open grass tile (x, y) lies in one of the lawn's lush patches: darker grass with tufts of long grass
+## sprouting from it (only to look at: you walk through them as over any grass). Patches a few tiles across, about a
+## sixth of the grass, placed by the map's own noise so they're the same on every visit.
+func _lush(x: int, y: int) -> bool:
+	if MapGen.get_t(map, x, y) != MapGen.GRASS:
+		return false
+	var s := map_id.hash()
+	return _patch_noise(x / 3.4, y / 3.4, s) * 0.7 + _patch_noise(x / 1.3 + 9.0, y / 1.3 + 4.0, s) * 0.3 > 0.64
+
+
+func _patch_noise(x: float, y: float, s: int) -> float:
+	var ix := floori(x)
+	var iy := floori(y)
+	var fx := x - ix
+	var fy := y - iy
+	fx = fx * fx * (3.0 - 2.0 * fx)
+	fy = fy * fy * (3.0 - 2.0 * fy)
+	var at := func(a: int, b: int) -> float: return float(((a * 73856093) ^ (b * 19349663) ^ s) & 0xffff) / 65535.0
+	return lerpf(lerpf(at.call(ix, iy), at.call(ix + 1, iy), fx), lerpf(at.call(ix, iy + 1), at.call(ix + 1, iy + 1), fx), fy)
+
+
+## Whether tile (x, y) lies in the shade of a tree or hedge beside it: its grass is the darker kind.
+func _shaded(x: int, y: int) -> bool:
+	for d in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+		if MapGen.get_t(map, x + d.x, y + d.y) in [MapGen.TREE, MapGen.BUSH]:
+			return true
+	return false
 
 
 ## a Temple of Tides room's water and falls (tide_water.gd), or null
@@ -476,6 +517,8 @@ func _build_terrain() -> void:
 				log_tiles[Vector2i(x, y)] = true
 	var rng := RandomNumberGenerator.new()
 	rng.seed = map_id.hash()
+	var lifts := PackedByteArray()
+	lifts.resize(w * h)
 	for y in h:
 		for x in w:
 			var c := MapGen.get_t(map, x, y)
@@ -537,31 +580,46 @@ func _build_terrain() -> void:
 				MapGen.ROPE:
 					# the rope ladder up a cliff: bare rock under it
 					kind = "rock"
-			if _sandy() and kind == "grass":
+			# the darker grass: the tall grass, under and round the trees and hedges, and the lawn's lush patches
+			if kind == "grass" and (c in [MapGen.TALL, MapGen.TREE, MapGen.BUSH] or _shaded(x, y) or _lush(x, y)):
+				kind = "grass_dark"
+			if _sandy() and kind in VT.GRASS_LAYERS:
 				kind = "sand"
 			if Shoreline.contains(map, x + 0.5, y + 0.5):
 				kind = "sand"
 				if Shoreline.bottom(map, x + 0.5, y + 1.0) < Shoreline.WATER_Y:
 					liquid = 1
 			var ground_top := 0.0 if c == MapGen.WALL or puzzle_rocks.has(center) else top
-			t.set_tile(x, y, kind, ground_top, craggy and ground_top > 0.0 or c == MapGen.OBSTACLE and kind == "rock", liquid)
+			# the grass is a pillow Terrain.LIFT above its level (terrain_mesh.gd), and so is the doorstep of a house
+			# standing on it (its door tile, a slab at the house's height); ramps lie on the level itself
+			var lift := (kind in VT.GRASS_LAYERS or (c == MapGen.DOOR and kind == "path" and not _sandy())) \
+				and Elev.ramp_dir(map, Vector2i(x, y)) == Vector2i.ZERO and Elev.diagonal(map, Vector2i(x, y)) == 0
+			lifts[x + y * w] = 1 if lift else 0
+			# (a building's ground rises with its lawn, but holds a firm plinth edge against lower ground, not turf)
+			t.set_tile(x, y, kind, ground_top, craggy and ground_top > 0.0 or c == MapGen.OBSTACLE and kind == "rock", liquid, lift,
+				MapGen.get_t(map, x, y) == MapGen.BUILDING)
+	_lifts = lifts
 	# the crags take on a little of the local soil: grey on the coast, ochre in the desert, near black by the volcano
 	var rock_hex := Color("#8a8478").lerp(Color(biome["side"]).lightened(0.15), 0.55).to_html(false) if biome["id"] != "volcano" else "#4a3e3a"
 	var tints := []
 	for layer in VT.GROUND_LAYERS:
 		tints.append(Color({"grass": biome["ground"], "path": biome["path"], "plaza": biome["plaza"], "sand": biome["sand"],
 			"rock": rock_hex, "bed": Color(biome["sand"]).darkened(0.35).to_html(false), "lava_bed": "#3a2a28",
-			"paving": biome.get("paving", "#9a948a"), "ice": "#cfeaf6"}[layer]))
+			"paving": biome.get("paving", "#9a948a"), "ice": "#cfeaf6",
+			"grass_dark": Color(biome["ground"]).darkened(0.3).lerp(Color("#1e5a3a"), 0.2).to_html(false)}[layer]))
 	# cliff faces: the biome's look; a town's stone retaining walls in the crags' rock, a little warmer, more of the
 	# local soil in it
 	var stone_walls: bool = map.get("cliffs", "") == "walls"
 	var look: Dictionary = WorldDB.CLIFF_LOOKS.get(biome["id"], WorldDB.CLIFF_LOOKS["coast"]).duplicate()
+	# the soil under the turf's edges: the biome's own, in shadow
+	look["soil"] = Color(biome["side"]).darkened(0.3).to_html(false)
 	if stone_walls:
 		look["tint"] = Color(rock_hex).lerp(Color(biome["side"]), 0.3).to_html(false)
 	await t.build(self, tints, Color(biome["water"]), look, stone_walls, _build_slice_us if _cooperative_build else 0)
 	terrain_mats = t.materials
 	cliff_look = look
-	if biome["id"] == "quarter" or biome.get("style", "") == "pirate_cove":
+	# (Bellerive's quay climbs by stone stairs; Cocoon Cove's shelves by gentle earth slopes, the ramps' own ground)
+	if biome["id"] == "quarter":
 		var flights := {}
 		for y in h:
 			for x in w:
@@ -688,6 +746,8 @@ func _build_backdrop() -> void:
 	var rocks: Array = biome["rocks"]
 	var by_asset := {}
 	var taken := {}
+	# where the ring's trees stand: none beside another (see _tree_near)
+	var stood := {}
 	if map["kind"] == "town":
 		await _outskirt_houses(rng, taken)
 	var iw := int(w)
@@ -739,13 +799,14 @@ func _build_backdrop() -> void:
 				elif rng.randf() < 0.2:
 					_ring_shrub(by_asset, shrubs, c, rng, 0.5, 0.9)
 				continue
-			# a wood: thick near the map, a little thinner deep in (the fog takes over there); a mixed one has gaps
-			# filled with shrubs
+			# a wood, never crowded: no tree beside another near the map (a tile apart at least, their crowns clear of
+			# one another), a little closer deep in where the fog takes over; bushes grow in the gaps under them
 			var mixed := float(biome.get("mixed", 0.0))
-			if rng.randf() < (0.8 if depth <= 6 else 0.6) * (1.0 - mixed * 0.7):
-				_ring_tree(by_asset, trees, c, rng, 2.0 if mixed > 0.0 else 2.4, 4.0, shadow)
-			elif (depth <= 2 or (mixed > 0.0 and depth <= 6)) and rng.randf() < 0.5 + mixed:
-				_ring_shrub(by_asset, shrubs, c, rng, 0.6, 1.2)
+			if rng.randf() < (0.8 if depth <= 6 else 0.7) * (1.0 - mixed * 0.7) and not _tree_near(stood, tx, tz, depth <= 5):
+				stood[Vector2i(tx, tz)] = true
+				_ring_tree(by_asset, trees, c, rng, 2.0 if mixed > 0.0 else 2.4, 4.2, shadow)
+			elif rng.randf() < (0.5 + mixed if depth <= 6 else 0.3):
+				_ring_shrub(by_asset, shrubs, c, rng, 0.5, 1.2)
 	# A trunk can stand beside the road while its canopy reaches across it. Check the
 	# transformed mesh bounds, including off-centre palms, rather than just its tile.
 	var roads := _backdrop_roads()
@@ -823,7 +884,36 @@ func _ring_tree(by_asset: Dictionary, trees: Array, c: Vector3, rng: RandomNumbe
 	var bb := VA.aabb(name)
 	# a stump stays stump-sized
 	var sc := VA.fit_scale(name, rng.randf_range(lo, hi) if name != "stump" else rng.randf_range(0.45, 0.7))
-	_add_plant(by_asset, name if shadow else name + SHADOWLESS, _xf(c - Vector3(0, bb.position.y * sc, 0), rng.randf() * TAU, sc))
+	_add_plant(by_asset, name if shadow else name + SHADOWLESS, _tree_xf(c - Vector3(0, bb.position.y * sc, 0), rng.randf() * TAU, sc, rng.randf_range(0.86, 1.16)))
+
+
+## A tree's place: turned any way, `s` tall for its model and `girth` times as wide for that height, so trees of one
+## kind still differ in build.
+func _tree_xf(pos: Vector3, rot_y: float, s: float, girth: float) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, rot_y).scaled(Vector3(s * girth, s, s * girth)), pos)
+
+
+## Whether a tree already stands on a tile beside (x, y) in `stood` (tile -> anything): the four beside it, and with
+## `corners` the four diagonal ones too. Woods are planted so this is never true: trees keep a tile between them.
+func _tree_near(stood: Dictionary, x: int, y: int, corners := true) -> bool:
+	for d in [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]:
+		if stood.has(Vector2i(x, y) + d):
+			return true
+	if corners:
+		for d in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+			if stood.has(Vector2i(x, y) + d):
+				return true
+	return false
+
+
+## A low bush under the trees on wooded tile (x, y), where no tree stands: always along the wood's edge (so it still
+## reads as a wall nobody walks through), now and then deeper in. Small, clear of the trunks, casting no shadow.
+func _under_bush(by_asset: Dictionary, shrubs: Array, x: int, y: int, center: Vector3, rng: RandomNumberGenerator) -> void:
+	if shrubs.is_empty() or (not _open_ground_near(x, y, 1) and rng.randf() >= 0.4):
+		return
+	var name: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
+	var s := minf(VA.fit_scale(name, rng.randf_range(0.42, 0.78)), VA.fit_scale(name, -1.0, 1.05))
+	_add_plant(by_asset, name + SHADOWLESS, _xf(center + Vector3(rng.randf_range(-0.18, 0.18), -VA.aabb(name).position.y * s, rng.randf_range(-0.18, 0.18)), rng.randf() * TAU, s))
 
 
 func _ring_shrub(by_asset: Dictionary, shrubs: Array, c: Vector3, rng: RandomNumberGenerator, lo: float, hi: float) -> void:
@@ -1100,7 +1190,7 @@ func _cliff_rocks() -> void:
 					break
 				if c in [MapGen.WATER, MapGen.LAVA]:
 					continue
-				if _lift(q) - _lift(p) >= 0.5:
+				if Elev.surface(map, q) - Elev.surface(map, p) >= 0.5:
 					toward = d
 			if toward == Vector2i.ZERO or toward.x == -99 or rng.randf() >= CLIFF_ROCK_SHARE:
 				continue
@@ -1172,6 +1262,8 @@ func _build_scatter() -> void:
 	var rocks: Array = biome["rocks"]
 	var shrubs: Array = biome["shrubs"]
 	var hedge_lines := _hedge_lines()
+	# where trees stand (tile -> [kind, height]): never beside one another, and no two near each other alike
+	var stood := {}
 	# old woods (the map's "tall_trees" areas, [x, y, w, d]) whose trees stand half as tall again, with wider crowns,
 	# and undergrowth ("low_trees") where the trees are only thickets of shrubs, so you're seen over them
 	var tall_woods := []
@@ -1218,26 +1310,48 @@ func _build_scatter() -> void:
 					# a thin wood (the volcano's): most of its tiles bare ground
 					if biome.has("woods") and rng.randf() >= float(biome["woods"]):
 						continue
-					var name := _pick_weighted(trees, rng)
-					var hgt := rng.randf_range(2.2, 3.1) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
-					if name == "stump":
-						hgt = rng.randf_range(0.45, 0.7)
+					var low_row := y >= h - 3
+					# never crowded: no tree stands beside another (a tile between them, their crowns clear of one
+					# another); the tiles between hold low bushes under them
+					if not low_row and not shrubs.is_empty() and (_tree_near(stood, x, y) or rng.randf() < 0.12):
+						_under_bush(by_asset, shrubs, x, y, center, rng)
+						continue
 					var old := tall_woods.any(func(r: Rect2i) -> bool: return r.has_point(Vector2i(x, y)))
-					if old and name != "stump":
-						hgt = rng.randf_range(4.2, 5.6)
-					if y >= h - 3:
+					# no two trees near one another alike: another kind where the wood has one, and another height
+					var name := ""
+					var hgt := 0.0
+					for attempt in 6:
+						name = _pick_weighted(trees, rng)
+						hgt = rng.randf_range(2.0, 3.3) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
+						if name == "stump":
+							hgt = rng.randf_range(0.45, 0.7)
+						elif old:
+							hgt = rng.randf_range(4.0, 5.8)
+						var alike := false
+						for dy in range(-2, 3):
+							for dx in range(-2, 3):
+								var other: Array = stood.get(Vector2i(x + dx, y + dy), [])
+								if not other.is_empty() and (other[0] == name and attempt < 3 or absf(float(other[1]) - hgt) < 0.3):
+									alike = true
+						if not alike:
+							break
+					if low_row:
 						name = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						hgt = rng.randf_range(0.7, 1.0)
+					else:
+						stood[Vector2i(x, y)] = [name, hgt]
 					var bb := VA.aabb(name)
 					var s := VA.fit_scale(name, hgt)
+					# (and its build: slender or broad for its height)
+					var girth := 1.0 if low_row else rng.randf_range(0.86, 1.16)
 					var canopy_limit := 2.0 if _open_ground_near(x, y, 1) else 2.4
 					if old:
 						canopy_limit = 3.4
-					if maxf(bb.size.x, bb.size.z) * s > canopy_limit:
-						s = canopy_limit / maxf(bb.size.x, bb.size.z)
+					if maxf(bb.size.x, bb.size.z) * s * girth > canopy_limit:
+						s = canopy_limit / (maxf(bb.size.x, bb.size.z) * girth)
 					# deep in a wood, a tree's shadow only falls on other trees: only trees near open ground cast one
 					var key := name if _open_ground_near(x, y, 2) else name + SHADOWLESS
-					_add_plant(by_asset, key, _xf(center + Vector3(rng.randf_range(-0.1, 0.1), -bb.position.y * s, rng.randf_range(-0.1, 0.1)), _voxel_rot(rng), s))
+					_add_plant(by_asset, key, _tree_xf(center + Vector3(rng.randf_range(-0.14, 0.14), -bb.position.y * s, rng.randf_range(-0.14, 0.14)), rng.randf() * TAU, s, girth))
 				MapGen.BUSH:
 					if not hedge_lines.has(Vector2i(x, y)):
 						continue
@@ -1256,8 +1370,13 @@ func _build_scatter() -> void:
 						var s2 := VA.fit_scale(rn, -1.0, rng.randf_range(0.88, 1.14))
 						_add_asset(by_asset, rn, _xf(center + Vector3(0, top - VA.aabb(rn).position.y * s2, 0), _voxel_rot(rng), s2))
 				MapGen.GRASS:
+					if _lush(x, y) and not _sandy():
+						# a lush patch: tufts of long grass sprouting from the darker ground, lower and thinner than
+						# the tall grass beasts hide in
+						for k in rng.randi_range(1, 2):
+							tufts[rng.randi_range(1, 2)].append(_xf(center + Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3)), rng.randf() * TAU, rng.randf_range(0.5, 0.78)))
 					# town lawns: a patch of flowers here and there (only to look at; you can walk through them)
-					if map["kind"] == "town" and rng.randf() < 0.07 and not _sandy():
+					elif map["kind"] == "town" and rng.randf() < float(map.get("flower_share", 0.07)) and not _sandy():
 						flowers[rng.randi_range(0, 1)].append(_xf(center + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2)), _voxel_rot(rng), rng.randf_range(0.6, 0.9)))
 					elif rng.randf() < 0.05 and not shrubs.is_empty() and not biome.has("boulders"):
 						var sn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
@@ -1280,9 +1399,8 @@ func _build_scatter() -> void:
 	_cliff_rocks()
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
+	var FenceModels = load("res://scripts/gfx/fence_models.gd")
 	var fence_name := "iron_fence" if biome["id"] in ["moor", "quarter"] else "fence"
-	var fx := []
-	var fs := VA.fit_scale(fence_name, -1.0, 1.05)
 	var quay: bool = biome["id"] == "quarter"
 	var garden_fences := {}
 	var balusters := []
@@ -1298,21 +1416,19 @@ func _build_scatter() -> void:
 				if not MapGen.get_t(map, q.x, q.y) in runs:
 					piers.append(_xf(tile_pos(p) + (Vector3(side * 0.5, 0, 0) if horiz else Vector3(0, 0, side * 0.5))))
 			continue
-		if quay:
-			var mask := 0
-			var dirs := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
-			for i in 4:
-				var q: Vector2i = p + dirs[i]
-				if MapGen.get_t(map, q.x, q.y) in runs:
-					mask |= 1 << i
-			if not garden_fences.has(mask):
-				garden_fences[mask] = []
-			garden_fences[mask].append(_xf(tile_pos(p)))
-			continue
-		fx.append(_xf(tile_pos(p) - Vector3(0, VA.aabb(fence_name).position.y * fs, 0), 0.0 if horiz else PI / 2.0, fs))
-	_multimesh(VA.mesh(fence_name), fx)
-	for mask in garden_fences:
-		_multimesh(Creole.garden_fence(mask), garden_fences[mask])
+		var style: String = map.get("fence_styles", {}).get(p, fence_name)
+		var mask := 0
+		var dirs := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
+		for i in 4:
+			var q: Vector2i = p + dirs[i]
+			if MapGen.get_t(map, q.x, q.y) in runs:
+				mask |= 1 << i
+		var key := "%s:%d" % [style, mask]
+		if not garden_fences.has(key):
+			garden_fences[key] = {"style": style, "mask": mask, "transforms": []}
+		garden_fences[key]["transforms"].append(_xf(tile_pos(p)))
+	for entry in garden_fences.values():
+		_multimesh(FenceModels.tile(entry["style"], entry["mask"]), entry["transforms"], null, false)
 	var lx := []
 	# gas lamps a head and more above the people
 	var ls := VA.fit_scale("lamp", 2.8)
@@ -1328,12 +1444,13 @@ func _build_scatter() -> void:
 		if not gloomy:
 			continue
 		var l := OmniLight3D.new()
+		l.name = "StreetLampLight_%d_%d" % [at.x, at.y]
 		l.light_color = Color("#ffd090")
 		l.light_energy = 0.7
 		l.omni_range = 4.0
-		l.position = c + Vector3(0, 2.6, 0)
+		l.position = c + Vector3(0, 2.89 * ls, 0)
 		add_child(l)
-	_multimesh(VA.mesh("lamp"), lx)
+	_multimesh(VA.street_lamp(gloomy), lx)
 	_multimesh(Creole.balustrade(), balusters)
 	_multimesh(Creole.pier(), piers)
 	var sx := []
@@ -2326,7 +2443,7 @@ func _free_tile_near(p: Vector2i) -> Vector2i:
 				var q := p + Vector2i(dx, dy)
 				# (on the same level, not a ramp)
 				if MapGen.walkable(MapGen.get_t(map, q.x, q.y)) and not npcs.has(q) and not map["exits"].has(q) and not doors.has(q - Vector2i(0, 1)) \
-						and Elev.ramp_dir(map, q) == Vector2i.ZERO and absf(_lift(q) - _lift(p)) < 0.01:
+						and Elev.ramp_dir(map, q) == Vector2i.ZERO and absf(Elev.surface(map, q) - Elev.surface(map, p)) < 0.01:
 					return q
 	return p
 
@@ -2511,13 +2628,18 @@ func _process(delta: float) -> void:
 ## its slope rather than straight across the bend at its end.
 func _along(a: Vector3, b: Vector3, t: float) -> Vector3:
 	var p := a.lerp(b, t)
+	var ta := Vector2i(floori(a.x), floori(a.z))
+	var tb := Vector2i(floori(b.x), floori(b.z))
+	# the grass pillow is stepped up onto (or down off) at the tiles' edge, not slid up to
+	var la := _grass_lift(ta)
+	var lb := _grass_lift(tb)
+	if la != lb:
+		p.y += lerpf(la, lb, smoothstep(0.4, 0.6, t)) - lerpf(la, lb, t)
 	if map.has("shoreline"):
 		p.y += Shoreline.bottom(map, p.x, p.z) - lerpf(Shoreline.bottom(map, a.x, a.z), Shoreline.bottom(map, b.x, b.z), t)
 	if Elev.has(map):
-		var ta := Vector2i(floori(a.x), floori(a.z))
-		var tb := Vector2i(floori(b.x), floori(b.z))
 		if Elev.ramp_dir(map, ta) != Vector2i.ZERO or Elev.ramp_dir(map, tb) != Vector2i.ZERO:
-			p.y += Elev.height_at(map, p.x, p.z) - lerpf(_lift(ta), _lift(tb), t)
+			p.y += Elev.height_at(map, p.x, p.z) - lerpf(Elev.surface(map, ta), Elev.surface(map, tb), t)
 	return p
 
 
@@ -3162,7 +3284,7 @@ func _enter_building(b: Dictionary) -> void:
 	var was_busy := busy
 	busy = true
 	if Places.door_locked(b):
-		await Places.knock(b)
+		await Places.knock(b, self)
 		busy = was_busy
 		return
 	if not await Story.can_enter(self, b):
@@ -3180,8 +3302,32 @@ func _enter_building(b: Dictionary) -> void:
 	GameState.main.goto_map(b["interior"], "entry")
 
 
+## A stable source for someone speaking through a closed door. Match fitted exteriors to their actual leaf;
+## stage-room doors share RoomBuilder's height. Markers belong to the world and are reused between knocks.
+func door_speaker(tile: Vector2i) -> Node3D:
+	if _door_speakers.has(tile):
+		return _door_speakers[tile]
+	var source := Node3D.new()
+	source.name = "DoorVoice_%d_%d" % [tile.x, tile.y]
+	source.position = tile_pos(tile)
+	var height := RoomBuilder.DOOR_H if interior else 2.3
+	if doors.has(tile):
+		var b: Dictionary = doors[tile]
+		var plan: Dictionary = b.get("cove_plan", b.get("house_plan", {}))
+		if not plan.is_empty():
+			var centre: Vector3 = plan["door_at"]
+			height = plan["door_size"].y
+			source.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, _lift(tile), float(b["y"]) + float(b["d"]) / 2.0) + centre - Vector3(0, height / 2.0, 0)
+		else:
+			source.position.z += 0.45
+	source.set_meta("speech_bounds", AABB(Vector3(-0.45, 0, 0), Vector3(0.9, height, 0)))
+	add_child(source)
+	_door_speakers[tile] = source
+	return source
+
+
 ## Talking with someone (Story.talk): they gesture as they speak (see VPer.set_talking), then stop.
-## Named world dialogue only attaches to actual people, never fixtures or voices behind a door.
+## Named world dialogue attaches to people; through-door replies explicitly use door_speaker().
 func speaker_node(speaker: String) -> Node3D:
 	if speaker == "":
 		return null
@@ -3532,7 +3678,7 @@ func _tile_under(screen: Vector2) -> Vector2i:
 		var p := o
 		for i in 1200:
 			p += n * 0.05
-			if p.y <= Elev.height_at(map, p.x, p.z) + Shoreline.bottom(map, p.x, p.z):
+			if p.y <= Elev.height_at(map, p.x, p.z) + Shoreline.bottom(map, p.x, p.z) + _grass_lift(Vector2i(floori(p.x), floori(p.z))):
 				return Vector2i(floori(p.x), floori(p.z))
 	var t := -o.y / n.y
 	var hit := o + n * t
@@ -3981,7 +4127,7 @@ func _wild_sees(w: Dictionary) -> bool:
 func _line_clear(a: Vector2i, b: Vector2i) -> bool:
 	# not up or down a cliff, nor over a rise between (a ramp climbs at most half a level a tile)
 	var cliff := Elev.LEVEL_H * 0.6
-	if absf(_lift(a) - _lift(b)) > cliff:
+	if absf(Elev.surface(map, a) - Elev.surface(map, b)) > cliff:
 		return false
 	var steps := int(ceil(Vector2(b - a).length() * 2.0))
 	for i in range(1, steps):
@@ -3991,7 +4137,7 @@ func _line_clear(a: Vector2i, b: Vector2i) -> bool:
 			continue
 		if MapGen.get_t(map, q.x, q.y) in SIGHT_BLOCKERS:
 			return false
-		if absf(_lift(q) - _lift(a)) > cliff and absf(_lift(q) - _lift(b)) > cliff:
+		if absf(Elev.surface(map, q) - Elev.surface(map, a)) > cliff and absf(Elev.surface(map, q) - Elev.surface(map, b)) > cliff:
 			return false
 	return true
 

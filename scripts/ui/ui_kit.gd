@@ -10,8 +10,8 @@ extends RefCounted
 ## - The pack's divider separates sections (HSeparator, divider()) and flanks banner text (flanked()).
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
-## Fonts: League Spartan (ui/LeagueSpartan.ttf, a variable font) for everything: body text, menus and dialogue at a
-## light weight, headings (titles, tabs, name plates, map names) at semi-bold.
+## Fonts: League Spartan Regular for body text, menu actions, dialogue and damage; Lunchtime Doubly So for names
+## and headings, with League Spartan as the accent/symbol fallback.
 
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -20,9 +20,8 @@ const DividerBox = preload("res://scripts/ui/divider_box.gd")
 
 const UI_DIR := "res://assets/ui/"
 const FONT_FILE := "res://ui/LeagueSpartan.ttf"
-## the weights it is set in: Regular for body text, SemiBold for headings
+## the sans body face uses the variable font's Regular weight
 const BODY_WEIGHT := 400
-const HEAD_WEIGHT := 600
 const BODY_SMALL := 21
 const BODY_BIG := 21
 ## dialogue text: three lines fill the box
@@ -213,7 +212,11 @@ static func font_body() -> Font:
 
 
 static func font_head() -> Font:
-	return _font(HEAD_WEIGHT)
+	if not _fonts.has("head"):
+		var font: FontFile = load("res://ui/lunchds.ttf")
+		font.fallbacks = [_font(BODY_WEIGHT), ThemeDB.fallback_font]
+		_fonts["head"] = font
+	return _fonts["head"]
 
 
 ## League Spartan at `weight`: one smooth face of the variable font (symbols it lacks come from Godot's default).
@@ -432,7 +435,7 @@ static func label(text: String, size := 20, color := TEXT) -> Label:
 	return l
 
 
-## Heading text (League Spartan SemiBold): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
+## Heading text (Lunchtime Doubly So): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
 ## white or the raw gem passed in by a caller is taken as "the heading colour".
 static func header(text: String, color := HEAD, size := HEAD_SIZE) -> Label:
 	var l := Label.new()

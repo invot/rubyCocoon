@@ -5,6 +5,11 @@
 resized and smoothed textures. See [source links and licence](licenses/pirate_cove.md).
 
 Code, procedural buildings, maps and writing were made for this project.
+The supplied fences replace the former PSX fence meshes and Bellerive's procedural garden ironwork:
+**Low Poly wood fence on grass** by cattleya (CC BY 4.0), **Iron Fence** by BaseCubeRo
+(CC BY-NC-SA 4.0), and the supplied **Low Poly stone fence on grass** archive (no creator or license included).
+Display lawns were removed, reusable sections fitted to tiles, and textures smoothed.
+See [source details, embedded licenses and conversion notes](licenses/supplied_fences.md).
 The procedural exterior windows (`scripts/gfx/cartoon_windows.gd`) use the supplied **Stylized Cartoon Windows**
 by Canino3d and **Windows Pack** by Midox as visual references. Both identify CC BY 4.0 in their GLB metadata;
 no meshes or textures from either pack are redistributed. See [window reference provenance](licenses/window_references.md).
@@ -16,6 +21,9 @@ Kelpwick's arena uses **Stylized House** by [Kesenkai](https://sketchfab.com/kes
 The TV antenna and original door are removed; the model is fitted to its plot and given the huts' solid wood door.
 See [source and conversion details](licenses/kelpwick_arena.md).
 The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
+The battle mural textures (`assets/battle/backdrops/`) are rendered derivatives of the regional scenery already
+credited below, baked by `tools/bake_battle_backdrops.gd` and passed through the shared smoothing pipeline.
+See [battle backdrop provenance](licenses/battle_backdrops.md). The translucent yellow targeting arrow is original procedural geometry.
 The pre-baked battle ring graphics (`assets/ui/battle/`) and encounter sweeps (`assets/audio/battle/`) are generated
 from the project's existing battle and sound code by `tools/bake_battle_art.gd`. House measurements
 (`assets/houses/measurements.res`) are geometry metadata derived from the credited house models below; their meshes

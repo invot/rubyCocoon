@@ -39,8 +39,38 @@ static func mesh(name: String) -> Mesh:
 		_meshes[name] = bm
 		return bm
 	var m: Mesh = _recentered(load(path))
+	if FOLIAGE.any(func(prefix: String) -> bool: return name.begins_with(prefix)):
+		_leafy(m)
 	_meshes[name] = m
 	return m
+
+
+## The plants: their leaves wear the painted leaf texture, each plant a shade of its own (foliage.gdshader).
+const FOLIAGE := ["tree_", "palm", "shrub_", "bush_", "grass_leaf_"]
+const FoliageShader = preload("res://scripts/gfx/foliage.gdshader")
+const LEAVES := "res://assets/textures/surfaces/foliage.png"
+static var _two_sided: Shader = null
+
+
+## Swap a plant's palette materials for the foliage shader, keeping each one's palette and whether it shows both sides.
+static func _leafy(m: Mesh) -> void:
+	if not ResourceLoader.exists(LEAVES):
+		return
+	for si in m.get_surface_count():
+		var src := m.surface_get_material(si) as BaseMaterial3D
+		if src == null or src.albedo_texture == null or src.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			continue
+		var mat := ShaderMaterial.new()
+		mat.resource_name = "foliage"
+		mat.shader = FoliageShader
+		if src.cull_mode == BaseMaterial3D.CULL_DISABLED:
+			if _two_sided == null:
+				_two_sided = Shader.new()
+				_two_sided.code = FoliageShader.code.replace("render_mode cull_back;", "render_mode cull_disabled;")
+			mat.shader = _two_sided
+		mat.set_shader_parameter("atlas", src.albedo_texture)
+		mat.set_shader_parameter("leaves", load(LEAVES))
+		m.surface_set_material(si, mat)
 
 
 ## Many pack models sit far from their origin. Re-centre them: X/Z centred, standing on y = 0.
@@ -64,6 +94,49 @@ static func _recentered(m: Mesh) -> Mesh:
 
 static func aabb(name: String) -> AABB:
 	return mesh(name).get_aabb()
+
+
+## The pack lamp's glass has its own atlas swatch. Split those existing triangles so the panes glow,
+## leaving the ironwork dark. Shared by every lit street lamp; no new geometry, textures or shadow casters.
+static func street_lamp(lit: bool) -> Mesh:
+	if not lit:
+		return mesh("lamp")
+	if _meshes.has("lamp_lit"):
+		return _meshes["lamp_lit"]
+	var source := mesh("lamp")
+	var out := ArrayMesh.new()
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color("#ffe2a0")
+	glass.emission_enabled = true
+	glass.emission = Color("#ffd090")
+	glass.emission_energy_multiplier = 2.0
+	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	for surface in source.get_surface_count():
+		var arrays := source.surface_get_arrays(surface)
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var iron := PackedInt32Array()
+		var panes := PackedInt32Array()
+		for i in range(0, indices.size(), 3):
+			var pane := true
+			for j in 3:
+				pane = pane and uv[indices[i + j]].x > 0.788 and uv[indices[i + j]].x < 0.794
+			for j in 3:
+				if pane:
+					panes.append(indices[i + j])
+				else:
+					iron.append(indices[i + j])
+		for part in [iron, panes]:
+			if part.is_empty():
+				continue
+			arrays[Mesh.ARRAY_INDEX] = part
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var si := out.get_surface_count() - 1
+			out.surface_set_name(si, "lit_glass" if part == panes else "iron")
+			out.surface_set_material(si, glass if part == panes else source.surface_get_material(surface))
+	_meshes["lamp_lit"] = out
+	return out
 
 
 ## Uniform scale that makes the model `height` tall, or `width` wide (largest of X/Z).

@@ -117,8 +117,12 @@ func run(root, opts: Dictionary) -> void:
 		await main._wait(0.1)
 		dialog = UI.stack.back()
 		dialog.text_label.visible_characters = -1
-		_check(not dialog._anchored and dialog._tail.is_empty(), "narration/phone/off-screen voice stays stationary: " + name)
-		_check_layout(dialog, "stationary")
+		_check(not dialog._anchored and dialog._tail.is_empty(), "text/phone/off-screen voice stays stationary: " + name)
+		_check(dialog.bubble_mode == (name != ""), "only named speech gets a white bubble: " + name)
+		if name != "":
+			_check_layout(dialog, "stationary")
+		else:
+			_check(dialog.bubble == null and dialog.text_label.get_theme_color("font_color") == UIKit.INK, "written text uses a dark window with white text")
 		await _shot(opts, "stationary" if name == "" else name.to_lower().replace(" ", "_"))
 		dialog.close()
 	# Real indoor counter dialogue, followed by runtime palette changes on an already open bubble.

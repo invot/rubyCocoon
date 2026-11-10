@@ -725,6 +725,11 @@ func _run_test() -> void:
 		await load("res://tools/debug/dustwell.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "gravenmoor":
+		await load("res://tools/debug/gravenmoor.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "waterfront":
 		await load("res://tools/debug/waterfront.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -732,6 +737,11 @@ func _run_test() -> void:
 		return
 	if scene == "door-voices":
 		await load("res://tools/debug/door_voices.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
+	if scene == "fences":
+		await load("res://tools/debug/fences.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
@@ -2969,9 +2979,15 @@ func _walk4_test() -> void:
 			print("  OFF THE GRID at ", pos)
 		var from := Vector2i(floori(w.move_from.x), floori(w.move_from.z))
 		var porch: bool = w.ground_h.has(Vector2i(floori(pos.x), floori(pos.z))) or w.ground_h.has(w.player_pos) or w.ground_h.has(from)
-		if not porch and absf(pos.y - Elev.height_at(w.map, pos.x, pos.z)) > 0.02:
+		# (stepping between the grass pillow and a path, their feet are at one height or the other, or between)
+		var to := Vector2i(floori(w.move_to.x), floori(w.move_to.z))
+		var ground := Elev.height_at(w.map, pos.x, pos.z)
+		var lifts := [w._grass_lift(Vector2i(floori(pos.x), floori(pos.z))), w._grass_lift(from), w._grass_lift(to)]
+		var lo: float = ground + lifts.min()
+		var hi: float = ground + lifts.max()
+		if not porch and (pos.y < lo - 0.02 or pos.y > hi + 0.02):
 			bad[0] += 1
-			print("  OFF THE GROUND at %s (the ground is at %.2f)" % [pos, Elev.height_at(w.map, pos.x, pos.z)])
+			print("  OFF THE GROUND at %s (the ground is at %.2f)" % [pos, ground])
 	get_tree().process_frame.connect(watch)
 	# Find an open patch in the current town layout. Buildings and terraces have moved since the original test.
 	var start := Vector2i(-1, -1)
@@ -3282,7 +3298,11 @@ func _battlecmd_test() -> void:
 	GameState.max_shield = 4
 	GameState.shield = 4
 	var foes := [Beasts.create(12, 20), Beasts.create(15, 20)]
-	start_battle({"wild": false, "foes": foes, "trainer": {"name": "Tess", "cls": "Tester", "team": []}, "seed": 7})
+	if _test.has("stage_map"):
+		GameState.map_id = String(_test["stage_map"])
+	start_battle({"wild": _test.get("wild", "0") == "1", "foes": foes,
+		"arena": _test.get("arena", "0") == "1", "fishing": _test.get("fishing", "0") == "1",
+		"trainer": {"name": "Tess", "cls": "Tester", "team": []}, "seed": 7})
 	var bt: Node = null
 	var heal_foes := [true]
 	var panel := func():
@@ -3315,20 +3335,19 @@ func _battlecmd_test() -> void:
 		print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
 		return
 	check.call(bt.ally_side == 0, "the ring last faced the air side (nobody in its middle): it starts turned to the %s side" % Ring.side_element(bt.ally_side))
-	check.call(bt.ally_grid.focus == -2 and bt.bars.shown() == [0], "only the trainer is focused during their action")
-	var middle_left: float = bt.ally_grid.position.x + bt.ally_grid.tile_center(0).x - bt.ally_grid.tile.x * 0.5
-	check.call(bt.bars._hit_rect(0).end.x < middle_left, "trainer bar and its tap area leave the middle beast and its health clear")
+	check.call(bt._selected_refs == ["trainer_self"] and bt.floating.actor == "trainer_self", "only the trainer is outlined while choosing their action")
+	check.call(bt.floating.action_rect.size.y >= UIKit.row_h(), "floating action respects the input target minimum")
+	check.call(bt.pads["ally"][2].get_meta("sigil").albedo_color.r < 0.5, "empty 3D pads stay visibly dim")
 	if String(_test.get("scene", "")) in ["battle-focus", "battle-redirect"]:
 		return # this focused fixture starts at command selection; battlecmd covers the caption and picker checks below
 	# The top bar resolves the subject: your side's icon in the right slot, the other side's in the left, the unused
 	# slot keeping its space; centred, clear of the foe's grid, wrapping long messages.
 	var tb = UI.top_bar
 	check.call(tb.visible and tb.battle and tb.left_icon.visible and tb.right_icon.visible, "the top bar stays up through the battle with both icon slots")
-	check.call(not bt.move_info.visible or bt.move_info.get_global_rect().position.y >= tb.get_global_rect().end.y, "the move window hangs under the top bar")
+	check.call(bt.floating.menu_rect.position.y >= tb.get_global_rect().end.y, "the floating menu leaves the top bar clear")
 	bt._show_option({}, {})
 	bt._commanding = false
-	bt.ally_grid.focus = -1
-	bt.ally_grid.queue_redraw()
+	bt._select_hud_actor(null)
 	bt._caption("%s used Ember!" % fire_a.nickname, fire_a)
 	await _wait(0.12)
 	check.call(tb.right_icon.texture == PixelArt.beast_texture(fire_a.genes) and tb.left_icon.texture == null, "move messages show the acting beast's icon (your side: on the right)")
@@ -3367,9 +3386,9 @@ func _battlecmd_test() -> void:
 	check.call(tb.size.x > short_w, "the bar grows with its text")
 	bt._caption("%s recovered 999 HP and is ready to fight again, standing tall on the sand!" % foes[0].nickname, foes[0])
 	await _wait(0.12)
-	var grid_end: float = bt.foe_grid.get_global_rect().end.x
-	check.call(tb.size.x <= bt._bar_width() + 1.0 and tb.get_global_rect().position.x >= grid_end and tb.get_global_rect().encloses(tb.label.get_global_rect()),
-		"long messages wrap inside the bar, clear of the foe's grid")
+	var safe_left: float = UIKit.safe_rect(bt.hud).position.x
+	check.call(tb.size.x <= bt._bar_width() + 1.0 and tb.get_global_rect().position.x >= safe_left and tb.get_global_rect().encloses(tb.label.get_global_rect()),
+		"long messages wrap inside the safe top bar")
 	check.call(tb.label.get_line_count() >= 2, "a long message wraps onto a second line")
 	if stop == "long-message":
 		return
@@ -3378,15 +3397,16 @@ func _battlecmd_test() -> void:
 	var choose := func(): picked.append(await bt._choose_target(foes, "Target"))
 	choose.call()
 	await _wait(0.12)
-	check.call(UI.stack.back() != p and bt._target_refs.size() == 1 and not bt.move_info.visible, "item and song targets use arrows without a HUD box")
+	check.call(UI.stack.back() != p and bt._target_refs.size() == 1 and not bt.floating.menu_rect.has_area(), "item and song targets use arrows without a HUD box")
 	await key.call("ui_cancel")
 	check.call(picked == [null] and UI.stack.back() == p, "B cancels the item or song target picker")
 	picked.clear()
 	choose.call()
 	await _wait(0.12)
 	await key.call("ui_right")
-	var item_tile: int = bt._slot_of(bt.foe_ring, foes[1])
-	await _tap_at(bt.foe_grid.get_global_transform_with_canvas() * bt.foe_grid.tile_center(item_tile))
+	await _tap_at(bt.screen_anchor(foes[1], 0.5))
+	check.call(picked.is_empty(), "a first tap on the selected 3D target only aims")
+	await _tap_at(bt.screen_anchor(foes[1], 0.5))
 	check.call(picked == [foes[1]] and UI.stack.back() == p, "item target supports keyboard navigation and tap confirmation")
 	bt._caption("")
 	bt._commanding = true
@@ -3394,8 +3414,8 @@ func _battlecmd_test() -> void:
 	p._redraw()
 	if stop == "trainer":
 		return
-	await _tap_at(bt.bars.get_global_transform_with_canvas() * bt.bars.pill_rect(0).get_center())
-	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "the trainer bar beside the ring receives taps and confirms only once")
+	await _tap_at(bt.floating.action_rect.get_center())
+	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "the anchored trainer menu receives taps and confirms only once")
 	await key.call("ui_cancel")
 	check.call(bt.find_children("*", "Label3D", true, false).all(func(label): return label.text != "▼"), "no floating triangle is created")
 	# one touch A: your slingshot, picked out on its target, but not confirmed twice
@@ -3404,7 +3424,7 @@ func _battlecmd_test() -> void:
 	UI.controls._send("a", false)
 	await _wait(0.2)
 	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "one tap of A: the slingshot only goes on to its target (picking %s, your action done %s)" % [p.picking, p.rows[0].get("done", false)])
-	check.call(not bt.move_info.visible and bt._target_refs.size() == 1 and bt._aim_from == "trainer_self" and bt.aim_mesh.mesh.get_surface_count() > 0, "targeting hides move info and draws an arch from the trainer")
+	check.call(not bt.floating.menu_rect.has_area() and bt._target_refs.size() == 1 and bt._aim_from == "trainer_self" and bt.aim_mesh.mesh.get_surface_count() > 0, "targeting hides move info and draws an arch from the trainer")
 	await key.call("ui_accept")
 	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
 	# the top beast: its move, then its target (two foes)
@@ -3412,22 +3432,22 @@ func _battlecmd_test() -> void:
 	await key.call("ui_accept")
 	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
 	await _wait(0.1)
-	check.call(not bt.move_info.visible and bt._target_refs.size() == 1 and bt._aim_from == fire_a and bt.aim_mesh.mesh.get_surface_count() > 0, "a beast's arch starts at that beast, with move info closed")
+	check.call(not bt.floating.menu_rect.has_area() and bt._target_refs.size() == 1 and bt._aim_from == fire_a and bt.aim_mesh.mesh.get_surface_count() > 0, "a beast's arch starts at that beast, with move info closed")
 	var first_target = bt._target_refs[0]
 	await key.call("ui_right")
 	check.call(bt._target_refs.size() == 1 and bt._target_refs[0] != first_target, "► moves the arrow to the other foe")
 	if stop in ["target", "arc"]:
 		return
 	await key.call("ui_cancel")
-	check.call(not p.picking and bt.move_info.visible and bt._target_refs.is_empty(), "B returns to move info and clears target arrows")
+	check.call(not p.picking and bt.floating.menu_rect.has_area() and bt._target_refs.is_empty(), "B returns to move info and clears target arrows")
 	await key.call("ui_accept")
 	var row: Dictionary = p.rows[p.focus]
 	var other := posmod(int(row["target_sel"]) + 1, row["targets"].size())
-	var target_tile: int = int(row["targets"][other]["tile"])
-	var at: Vector2 = bt.foe_grid.get_global_transform_with_canvas() * bt.foe_grid.tile_center(target_tile)
+	var target_ref = row["targets"][other]["ref"]
+	var at: Vector2 = bt.screen_anchor(target_ref, 0.5)
 	await _tap_at(at)
-	check.call(p.picking and int(row["target_sel"]) == other, "tap another foe tile aims without confirming")
-	await _tap_at(at)
+	check.call(p.picking and int(row["target_sel"]) == other, "tap another 3D foe aims without confirming")
+	await _tap_at(bt.screen_anchor(target_ref, 0.5))
 	check.call(p.focus == 2 and row.get("done", false), "second tap confirms that target once")
 	check.call(p.rows[1].get("done", false) and p.focus == 2 and not p.rows[2].get("done", false), "A: the top beast is set, on to the middle one (the round waits)")
 	# the middle beast: Move is out (it guards you); Fire Spin hits them all
@@ -3438,7 +3458,7 @@ func _battlecmd_test() -> void:
 	check.call(not shift.is_empty() and shift.get("disabled", false), "the beast in the middle can't Move: \"%s\"" % shift.get("desc", ""))
 	await opt_to.call(p, "move", "fire_spin")
 	await key.call("ui_accept")
-	check.call(p.picking and p.rows[2].get("target_all", false) and not bt.move_info.visible and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
+	check.call(p.picking and p.rows[2].get("target_all", false) and not bt.floating.menu_rect.has_area() and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
 	if stop == "all":
 		return
 	await key.call("ui_left")
@@ -3497,7 +3517,9 @@ func _battlecmd_test() -> void:
 		await key.call("ui_down")
 	if stop == "move":
 		return
-	await key.call("ui_accept")
+	await _tap_at(bt.screen_anchor(2, 0.0))
+	check.call(p.picking and not p.rows[air_row].get("done", false), "first tap on a legal 3D pad only aims")
+	await _tap_at(bt.screen_anchor(2, 0.0))
 	check.call(p.rows[air_row].get("done", false), "A: %s will Move to the air side's middle" % air_c.nickname)
 	# one beast moves each round
 	while p.focus != fire_row:
@@ -3514,6 +3536,7 @@ func _battlecmd_test() -> void:
 		await key.call("ui_accept")
 	p = await panel.call()
 	check.call(air_c.slot == 2 and bt.ally_side == 1, "%s moved to the %s, and the air side faces the foe now (%s side)" % [air_c.nickname, Ring.slot_name(air_c.slot), Ring.side_element(bt.ally_side)])
+	check.call(bt.pads["ally"][1].get_meta("sigil").albedo_color.r < 0.5, "Move dims the pad the beast left empty")
 	# everyone facing the foe down: the ring turns by itself
 	UI.stack.back().close({"kind": "go"})
 	air_c.hp = 0

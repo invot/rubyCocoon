@@ -166,7 +166,7 @@ const ARENA_LESSONS := [
 			"Today: fighting as a team. One beast is a pet. Three beasts is a crew!"],
 		"after": ["That's teamwork! Every beast on the side facing the foe gets a move each round, so a full side hits three times as hard.",
 			"Fill your ring's sides with beasts and you'll never fight alone. Now go and see Coach Ondine about elements."],
-		"defeat": "Up and down move between your beasts' bars. Every beast on the side facing the foe gets a move!"},
+		"defeat": "Up and down move between your beasts. Every beast on the side facing the foe gets a move!"},
 	{"anchor": "lesson_elements", "lesson": "elements", "town": "tidewater", "needs": "lesson_team", "name": "Ondine", "cls": "Coach",
 		"team": [[36, 4]], "facing": Vector2i(1, 0), "manual_only": true,
 		"look": {"skin": "#f0c8a0", "hair": "#30a0b0", "hair_style": 1, "shirt": "#e8e0c0", "pants": "#3a5a7a"},

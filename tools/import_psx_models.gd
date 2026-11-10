@@ -62,8 +62,7 @@ const MODELS := {
 	"bones_2": [HW + "tumbleweed.glb", {"tint": Color("#e8d8b0")}],
 	"bones_3": [HW + "tumbleweed.glb", {"tint": Color("#c8a878")}],
 	# ---- props
-	"fence": [HF + "fence.glb", {}],
-	"iron_fence": [HC + "gate_wicket.glb", {}],
+	# Supplied fences are baked separately by tools/import_fences.gd.
 	"lamp": [HC + "lamp_post.glb", {}],
 	"barrel": [HK + "cask.glb", {}],
 	"crates": [HK + "crate_castle.glb", {}],

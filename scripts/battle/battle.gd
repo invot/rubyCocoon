@@ -2,8 +2,8 @@ extends Node3D
 ## Turn-based ring battle (as in Jade Cocoon 2). Each trainer stands in the middle of a ring of eight slots (ring.gd):
 ## a side per element, with corners between. One side faces the foe: its three beasts fight, using only that side's
 ## element (and plain, neutral moves). At the start of each turn a trainer may turn the ring to another side with a
-## beast standing on it. You choose your own action, then a move for each of your three beasts (command_panel.gd, on
-## the move bars beside your grid); then the two sides take their turns, the faster side first (its beasts' speed and
+## beast standing on it. You choose your own action, then a move for each of your three beasts (command_panel.gd,
+## in the floating menu beside the outlined 3D actor); then the two sides take their turns, the faster side first (its beasts' speed and
 ## its trainer's level). The foe's choices are never shown: they happen on its turn.
 ## If a side's middle beast is down (or its middle slot is empty), its trainer can be attacked directly: each hit
 ## breaks a shield point, and a hit with no shield left loses the battle. A trainer battle ends only that way, or
@@ -34,8 +34,10 @@ const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const CommandPanel = preload("res://scripts/battle/command_panel.gd")
-const RingGrid = preload("res://scripts/battle/ring_grid.gd")
-const BattleBars = preload("res://scripts/battle/battle_bars.gd")
+const FloatingHUD = preload("res://scripts/battle/floating_hud.gd")
+const Outline = preload("res://scripts/battle/selection_outline.gdshader")
+const TargetArrow = preload("res://scripts/battle/target_arrow.gd")
+const Backdrop = preload("res://scripts/battle/backdrop.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -78,6 +80,7 @@ var summon_pos := Vector3.ZERO
 var summon_look := Vector3.ZERO
 var summon_shake_amt := 0.0
 var stage_env: Environment
+var surround: MeshInstance3D
 var stage_sun: DirectionalLight3D
 var _stage_light := []
 var round_no := 0
@@ -105,12 +108,12 @@ const LESSONS := {
 	"screen": {"level": 2, "finish": 2,
 		"intro": ["Ooh, a brand-new trainer! I'll show you around a battle. It's less scary than it looks. Mostly.",
 			"That's you at the bottom right, in the middle of your battle ring. I'm up at the top left, in mine.",
-			"The little grids in the corners are the rings seen from above: mine top left, yours bottom right. Each tile is a slot, with a beast's icon and a tiny health bar on it.",
-			"Beside your grid are the move bars, one for each beast: its level, the move it'll use, and underneath, its HP (its health) and MP (the energy elemental moves use).",
-			"Each round you pick your own action first, on the gold-trimmed bar, then a move for each beast. Left and right change the choice, A confirms it, B goes back.",
-			"In a lesson there's just the one thing to pick, so A it is! In a real battle, left and right (or a tap on a foe's grid tile) choose your target. The arrow shows who you're aiming at. A confirms."],
+			"The glowing pads are your ring's slots. Empty pads stay dim, and fainted beasts lie down on theirs.",
+			"The gem outline shows whose action you're choosing. Their menu floats beside them, with HP for health and MP for elemental moves. The flashing part is the move's cost.",
+			"Each round you pick your own action first, beside your trainer, then a move for each beast. Left and right change the choice, A confirms it, B goes back.",
+			"In a lesson there's just the one thing to pick, so A it is! In a real battle, left and right aim at a foe. Or tap a foe once to aim and again to confirm. The arrow shows your target. A confirms too."],
 		"rounds": [
-			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch on your own bar, then the move on {beast}'s bar."],
+			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch beside your trainer, then the move beside {beast}."],
 				"you": "Watch", "beast": "Fight"},
 			{"say": ["Nice hit! The number that popped up is the damage it did. Once more to finish my {foe}!"], "you": "Watch", "beast": "Fight"},
 		]},
@@ -119,12 +122,12 @@ const LESSONS := {
 			"The side with the faster beasts goes first, and a higher trainer level helps too. I'll let you go first today. The fish can wait."],
 		"rounds": [
 			{"say": ["Uh oh, my {foe} is winding up something big!", "When a big hit is coming, Defend: a defending beast takes half damage until your side's next turn, and Defend always goes first.",
-				"Watch on your own bar, then Defend on {beast}'s."], "you": "Watch", "beast": "Defend"},
+				"Watch beside your trainer, then Defend beside {beast}."], "you": "Watch", "beast": "Defend"},
 			{"say": ["Barely a scratch! Now strike back.", "Elemental moves cost MP, but plain moves are free, so you can always fight."], "you": "Watch", "beast": "Fight"},
 			{"say": ["Once more, with feeling!"], "you": "Watch", "beast": "Fight"},
 		]},
 	"slingshot": {"level": 3, "finish": 2,
-		"intro": ["You're not just a spectator, you know! You get a turn too: your own bar comes first.",
+		"intro": ["You're not just a spectator, you know! You get a turn too: you choose your own action first.",
 			"Slingshot flings a pebble at a foe. Watch lets your beasts handle it. Items patch someone up. Once you have a flute, you can play songs.",
 			"Run gets you out of a wild battle. Against a trainer it's Forfeit: it counts as a loss, but nobody holds a grudge. Except my cousin."],
 		"rounds": [
@@ -135,7 +138,7 @@ const LESSONS := {
 		"intro": ["Picnic rule number one: never battle hungry. Rule number two: always, ALWAYS pack potions."],
 		"rounds": [
 			{"say": ["Warm-up round! You Watch, {beast} Fights."], "you": "Watch", "beast": "Fight"},
-			{"say": ["Ouch, {beast} got nipped! Open Items on your own bar and give it a Minor Potion.",
+			{"say": ["Ouch, {beast} got nipped! Open Items beside your trainer and give it a Minor Potion.",
 				"Potions heal HP, Spirit Drops bring back MP, and there are cures, bombs and tonics too. The apothecary in every town sells them."],
 				"you": "Items", "beast": "Fight"},
 			{"say": ["Good as new! Now finish it!"], "you": "Watch", "beast": "Fight"},
@@ -148,15 +151,15 @@ const LESSONS := {
 		"rounds": [
 			{"say": ["My {foe} is guarding me. Take it down!"], "you": "Watch", "beast": "Fight"},
 			{"say": ["My middle beast is down, so I'm wide open! Have {beast} attack me directly. Go on, I can take it.",
-				"Every hit on a trainer breaks one of their shield points: the blue orbs under their grid. A trainer hit with no shield left loses the battle. I've got none today."],
+				"Every hit on a trainer breaks one of their shield points: the orbs beside them when you aim at them or land a hit. A trainer hit with no shield left loses the battle. I've got none today."],
 				"you": "Watch", "beast": "Fight", "target": "trainer"},
 		]},
 	# Bellerive's arena coaches (story.gd ARENA_LESSONS). practice: the arena's practice beasts fill the empty slots of
 	# the side facing the foe (and the coach's "practice_side" turns your ring to that side first), see _practice_beasts
 	"team": {"finish": 2, "practice": true,
-		"intro": ["In a real battle, every beast on the side of your ring facing the foe fights: up to three at once, each with its own bar.",
+		"intro": ["In a real battle, every beast on the side of your ring facing the foe fights: up to three at once, each choosing its own move.",
 			"The arena's practice beasts will stand in your empty slots today. They're very professional. They've been bonked by the best.",
-			"After your own action, each beast's bar opens in turn. Up and down move between your beasts; left and right pick a move."],
+			"After your own action, each beast's menu opens in turn. Up and down move between your beasts; left and right pick a move."],
 		"rounds": [
 			{"say": ["Pick a move for every one of your beasts. Today they all go for the same one of mine: in a real battle, the arrows show who each move is aimed at."], "you": "Watch", "beast": "Fight"},
 			{"say": ["Teamwork! Two beasts on the same foe knock it out twice as fast. Finish my team!"], "you": "Watch", "beast": "Fight"},
@@ -173,7 +176,7 @@ const LESSONS := {
 		"narration": "A wild {foe}! Uncle Rafe's advice comes back to you...",
 		"intro": ["\"A wild beast's your chance to put that flute to work. Songs change how a fight goes. Weaken, for one, makes a foe drop its guard so your beasts hit harder.\""],
 		"rounds": [
-			{"say": ["\"Open Flute on your own bar and play Weaken at it. Your beast can Fight in the meantime.\""],
+			{"say": ["\"Open Flute beside your trainer and play Weaken at it. Your beast can Fight in the meantime.\""],
 				"you": "Flute", "song": "weaken", "beast": "Fight"},
 			{"say": ["\"See it flinch? Weakened and worn down, a beast listens much better. So does one that's asleep or out of sorts.\"",
 				"\"Now play Capture, and it might just join you! Have {beast} Defend, so you don't knock it out first.\""],
@@ -187,28 +190,31 @@ const DEFEND_MULT := 0.5
 var cam: Camera3D
 ## The original arcing arrow connects the attacker to every selected target.
 var aim_mesh: MeshInstance3D
+var _aim_geometry: Array = []
 var _aim_from = null
 var _target_refs: Array = []
 var _time := 0.0
 var player_rig: Node3D
 var rival_rig: Node3D
 var _acting_ref = null
-var shield_label: Label3D
 var shield_bubble: MeshInstance3D
 
 var hud: Control
-## while commands are chosen: the window under the top bar explaining the highlighted action or move (see
-## _show_option). The battle's messages are in the top bar (UI.top_bar, see _caption).
-var move_info: PanelContainer
-var bars: Control
+## Anchored choices and brief health changes; battle messages use UI.top_bar.
+var floating: Control
+var _selected_refs: Array = []
+var _outline: ShaderMaterial
+var _outline_overlays := {}
+var _hp_seen := {}
+var _shield_orbs := {}
+var _shield_until := {"ally": 0.0, "foe": 0.0}
+var _camera_focus := Vector3.ZERO
+var _focus_weight := 0.0
 var _speaker_icons: Dictionary = {}
 var _message_subject = null
-## whose command bar has the focus while commands are chosen (its prompt shows in the top bar)
+## whose action has the focus while commands are chosen (its prompt shows in the top bar)
 var _prompt_ref = null
-var ally_grid: Control
-var foe_grid: Control
-var cmd_root: Control
-## true while the command panel owns the bars
+## true while the command controller is choosing actions
 var _commanding := false
 ## the command panel's rows this round (see _panel_rows)
 var _rows_now: Array = []
@@ -226,7 +232,6 @@ var foe_max_shield := 0
 var ring_psi := {"ally": 0.0, "foe": 0.0}
 var ring_root := {}
 var pads := {"ally": {}, "foe": {}}
-var rival_shield_label: Label3D
 var rival_bubble: MeshInstance3D
 ## whether each trainer was open to attack at the last check (for the announcements)
 var _open_was := {"ally": false, "foe": false}
@@ -280,6 +285,8 @@ func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null) -> void:
 		mm.set_instance_transform(i, xforms[i])
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
+	# Perimeter scenery is batched and receives light without adding shadow-map work.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if mat:
 		mi.material_override = mat
 	add_child(mi)
@@ -367,11 +374,14 @@ func _build_stage() -> void:
 		ground_tex = VT.terrain("top_grass", biome["ground"])
 	var ground := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(70, 50)
+	pm.size = Vector2(80, 80)
 	ground.mesh = pm
-	ground.material_override = _tex_mat(ground_tex, Vector2(70, 50))
-	ground.position = Vector3(0, 0, -10) if not fishing else Vector3(0, -0.6, -10)
+	ground.material_override = _tex_mat(ground_tex, Vector2(80, 80))
+	ground.position = Vector3(0, 0, 1.5) if not fishing else Vector3(0, -0.6, -10)
 	add_child(ground)
+	if not dark:
+		surround = Backdrop.build(biome, ground_tex)
+		add_child(surround)
 	_build_ring("ally")
 	if not wild:
 		_build_ring("foe")
@@ -413,15 +423,9 @@ func _build_stage() -> void:
 	cam.look_at(_cam_look(), Vector3.UP)
 	cam.current = true
 	aim_mesh = MeshInstance3D.new()
-	aim_mesh.mesh = ImmediateMesh.new()
-	var am := StandardMaterial3D.new()
-	am.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	am.vertex_color_use_as_albedo = true
-	am.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	am.no_depth_test = true
-	am.cull_mode = BaseMaterial3D.CULL_DISABLED
-	am.render_priority = 10
-	aim_mesh.material_override = am
+	aim_mesh.mesh = ArrayMesh.new()
+	aim_mesh.material_override = TargetArrow.material()
+	aim_mesh.visible = false
 	aim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(aim_mesh)
 	_build_trainers()
@@ -466,7 +470,7 @@ func _center(team: String) -> Vector3:
 
 
 ## The ring's turn that puts `side`'s middle slot towards the foe. Slot k sits at angle psi - k * 45 deg, so the slots
-## run anticlockwise seen from above (as on the grids in the HUD): a side's top slot stands at its front right.
+## run anticlockwise seen from above: a side's top slot stands at its front right.
 func _psi_for(team: String, side: int) -> float:
 	return _facing(team) + deg_to_rad(90.0 * side)
 
@@ -804,7 +808,10 @@ func _light_pads(team: String) -> void:
 	for k in pads[team]:
 		var pad: Node3D = pads[team][k]
 		var m: StandardMaterial3D = pad.get_meta("sigil")
-		m.emission_energy_multiplier = 1.5 if k in on else 0.3
+		var ring: Dictionary = ally_ring if team == "ally" else foe_ring
+		var occupied: bool = ring.get(k, null) != null
+		m.emission_energy_multiplier = (1.5 if k in on else 0.3) if occupied else 0.06
+		m.albedo_color = Color.WHITE if occupied else Color(0.32, 0.32, 0.32)
 
 
 ## Puts every beast of a ring on its pad (after the ring turns), facing the foe.
@@ -827,15 +834,10 @@ func _turn_ring(team: String, side: int) -> void:
 	var from := float(ring_psi[team])
 	var to := _psi_for(team, side)
 	to = from + wrapf(to - from, -PI, PI)
-	var was := ally_side if team == "ally" else foe_side
 	if team == "ally":
 		ally_side = side
 	else:
 		foe_side = side
-	var grid: Control = ally_grid if team == "ally" else foe_grid
-	if grid != null and not (team == "foe" and wild):
-		grid.side = side
-		grid.animate_turn(was)
 	Sfx.play("page")
 	var tw := create_tween()
 	tw.tween_method(func(v: float): ring_psi[team] = v; _place_ring(team), from, to, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
@@ -935,16 +937,18 @@ func _wild_pos(i: int) -> Vector3:
 func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 	var trees: Array = biome["trees"]
 	var by_asset := {}
-	for i in 22:
+	for i in 6:
 		var e: Array = trees[rng.randi_range(0, trees.size() - 1)]
 		var name: String = e[0]
-		var x := rng.randf_range(-18, 18)
-		var z := rng.randf_range(-16, -6.5)
-		var s := VA.fit_scale(name, rng.randf_range(2.4, 3.4))
+		var angle := PI + PI * (i + 0.5) / 6.0
+		var radius := rng.randf_range(10.5, 11.5)
+		var x := cos(angle) * radius
+		var z := 1.5 + sin(angle) * radius
+		var s := VA.fit_scale(name, rng.randf_range(2.2, 3.0))
 		if not by_asset.has(name):
 			by_asset[name] = []
 		by_asset[name].append(_xf(Vector3(x, -VA.aabb(name).position.y * s, z), rng.randi_range(0, 3) * PI / 2.0, s))
-	for i in 7:
+	for i in 4:
 		var rocks: Array = biome["rocks"]
 		var rn: String = rocks[rng.randi_range(0, rocks.size() - 1)]
 		var s2 := VA.fit_scale(rn, -1.0, rng.randf_range(0.9, 1.6))
@@ -1054,25 +1058,17 @@ func _fishing_scenery(rng: RandomNumberGenerator) -> void:
 			by_asset[rn] = []
 		by_asset[rn].append(_xf(p + Vector3(0, -VA.aabb(rn).position.y * s3 - 0.25, 0), rng.randi_range(0, 3) * PI / 2.0, s3))
 	var trees: Array = biome.get("trees", [["palm", 1]])
-	for n in 26:
+	for n in 4:
 		var e: Array = trees[rng.randi_range(0, trees.size() - 1)]
 		var name: String = e[0]
-		var p2 := FOE_CENTER + f * rng.randf_range(16.0, 22.0) + side * rng.randf_range(-24.0, 24.0)
-		var s4 := VA.fit_scale(name, rng.randf_range(2.6, 3.6))
+		var angle := PI + PI * (n + 0.5) / 4.0
+		var p2 := Vector3(cos(angle) * 11.5, 0, 1.5 + sin(angle) * 11.5)
+		var s4 := VA.fit_scale(name, rng.randf_range(2.2, 3.0))
 		if not by_asset.has(name):
 			by_asset[name] = []
 		by_asset[name].append(_xf(p2 + Vector3(0, -VA.aabb(name).position.y * s4, 0), rng.randi_range(0, 3) * PI / 2.0, s4))
 	for name in by_asset:
 		_multimesh(VA.mesh(name), by_asset[name])
-	# the far shore's sand under those trees
-	var far := MeshInstance3D.new()
-	var fp := PlaneMesh.new()
-	fp.size = Vector2(90, 12)
-	far.mesh = fp
-	far.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 12))
-	far.position = FOE_CENTER + f * 20.0
-	far.rotation.y = turn
-	add_child(far)
 	# ripples round the beasts out on the water
 	var rm := StandardMaterial3D.new()
 	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1112,28 +1108,16 @@ func _arena_scenery(rng: RandomNumberGenerator) -> void:
 	var ps := VA.fit_scale("stone_pillar", 4.2)
 	var bs := VA.fit_scale("banner", 3.0)
 	var ts := VA.fit_scale("torch", 1.6)
-	for i in 9:
-		var x := -12.0 + i * 3.0
-		xs.append(_xf(Vector3(x, -VA.aabb("stone_pillar").position.y * ps, -8.0), 0.0, ps))
-		bx.append(_xf(Vector3(x + 1.5, -VA.aabb("banner").position.y * bs, -8.2), 0.0, bs))
+	for i in 6:
+		var angle := PI + PI * (i + 0.5) / 6.0
+		var at := Vector3(cos(angle) * 11.5, 0, 1.5 + sin(angle) * 11.5)
+		xs.append(_xf(at + Vector3.UP * (-VA.aabb("stone_pillar").position.y * ps), angle, ps))
+		bx.append(_xf(at + Vector3(cos(angle + 0.1), 0, sin(angle + 0.1)) * 0.7 + Vector3.UP * (-VA.aabb("banner").position.y * bs), angle, bs))
 		if i % 2 == 0:
-			tx.append(_xf(Vector3(x, -VA.aabb("torch").position.y * ts, -6.8), 0.0, ts))
-			var l := OmniLight3D.new()
-			l.light_color = Color("#ffb060")
-			l.light_energy = 0.9
-			l.omni_range = 4.0
-			l.position = Vector3(x, 1.8, -6.6)
-			add_child(l)
+			tx.append(_xf(at * Vector3(0.94, 1, 0.94) + Vector3.UP * (-VA.aabb("torch").position.y * ts), angle, ts))
 	_multimesh(VA.mesh("stone_pillar"), xs)
 	_multimesh(VA.mesh("banner"), bx)
 	_multimesh(VA.mesh("torch"), tx)
-	var k := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(40, 2.2, 1.2)
-	k.mesh = bm
-	k.material_override = VT.material("brick")
-	k.position = Vector3(0, 1.1, -9.5)
-	add_child(k)
 
 
 func _indoor_scenery(rng: RandomNumberGenerator) -> void:
@@ -1146,13 +1130,19 @@ func _indoor_scenery(rng: RandomNumberGenerator) -> void:
 		var b: Dictionary = m.get("building", {})
 		if b.has("glow"):
 			glow = Color(b["glow"])
-	var wall := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(44, 7, 1)
-	wall.mesh = bm
-	wall.material_override = VT.material("stone_dark")
-	wall.position = Vector3(0, 3.5, -9.5)
-	add_child(wall)
+	# A sealed stage room: the battle camera stays within these walls and below the ceiling.
+	var wall_mat := VT.material("stone_dark")
+	for part in [[Vector3(48, 12, 1), Vector3(0, 6, -22)], [Vector3(48, 12, 1), Vector3(0, 6, 25)],
+		[Vector3(1, 12, 48), Vector3(-24, 6, 1.5)], [Vector3(1, 12, 48), Vector3(24, 6, 1.5)],
+		[Vector3(48, 1, 48), Vector3(0, 12, 1.5)]]:
+		var wall := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = part[0]
+		wall.mesh = mesh
+		wall.material_override = wall_mat
+		wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		wall.position = part[1]
+		add_child(wall)
 	var px := []
 	var ps := VA.fit_scale("stone_pillar_dark", 5.0)
 	for i in 7:
@@ -1180,14 +1170,7 @@ func _build_trainers() -> void:
 	var f := _toward("ally")
 	player_rig.rotation.y = atan2(f.x, f.z)
 	add_child(player_rig)
-	shield_label = Label3D.new()
-	shield_label.font_size = 52
-	shield_label.outline_size = 10
-	shield_label.pixel_size = 0.008
-	shield_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	shield_label.modulate = Color("#7af0ff")
-	shield_label.position = PLAYER_POS + Vector3(0, 2.25, 0)
-	add_child(shield_label)
+	_build_shield_orbs("ally")
 	shield_bubble = MeshInstance3D.new()
 	var sp := SphereMesh.new()
 	sp.radius = 0.95
@@ -1212,22 +1195,14 @@ func _build_trainers() -> void:
 		rival_rig = Node3D.new()
 		rival_rig.add_child(VA.instance(String(trainer["robot_body"]), 1.9))
 		rival_rig.rotation.y = atan2(-g.x, -g.z)
-	elif not look.is_empty():
+	else:
 		rival_rig = VPer.build(look)
 		VPer.face(rival_rig, Vector2i(0, 1))
 		rival_rig.rotation.y = atan2(g.x, g.z) - 0.25
 	if rival_rig:
 		rival_rig.position = RIVAL_POS + Vector3(0, 0.1, 0)
 		add_child(rival_rig)
-	# the rival's shield: pips above their head and a bubble that flashes when it takes a hit
-	rival_shield_label = Label3D.new()
-	rival_shield_label.font_size = 52
-	rival_shield_label.outline_size = 10
-	rival_shield_label.pixel_size = 0.008
-	rival_shield_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	rival_shield_label.modulate = Color("#ffc890")
-	rival_shield_label.position = RIVAL_POS + Vector3(0, 2.3, 0)
-	add_child(rival_shield_label)
+	_build_shield_orbs("foe")
 	rival_bubble = MeshInstance3D.new()
 	rival_bubble.mesh = shield_bubble.mesh
 	var rbm: StandardMaterial3D = (shield_bubble.material_override as StandardMaterial3D).duplicate()
@@ -1238,19 +1213,51 @@ func _build_trainers() -> void:
 
 
 func _update_shield() -> void:
-	if ally_grid != null:
-		ally_grid.shield = GameState.shield
-		ally_grid.max_shield = GameState.max_shield
-		ally_grid.queue_redraw()
-	# your own shield points are under your bar (battle_bars.gd), not over your head as well
-	if shield_label != null:
-		shield_label.text = ""
-	if rival_shield_label != null:
-		rival_shield_label.text = "◆".repeat(foe_shield) + "◇".repeat(maxi(0, foe_max_shield - foe_shield)) if foe_max_shield > 0 else ""
+	for team in _shield_orbs:
+		var targeted := _target_refs.has("trainer_self") or _target_refs.has("trainer") if team == "ally" else _target_refs.has("foe_trainer")
+		var show: bool = targeted or _time < float(_shield_until[team])
+		var count: int = GameState.shield if team == "ally" else foe_shield
+		var origin: Vector3 = PLAYER_POS if team == "ally" else RIVAL_POS
+		# The tag takes the roomier side of the screen; shield orbs use the other side of the trainer.
+		var orb_side := -1.0 if cam.unproject_position(origin).x < cam.get_viewport().get_visible_rect().size.x * 0.5 else 1.0
+		var incoming = _ref_pos(_aim_from)
+		if targeted and incoming != null:
+			orb_side = 1.0 if cam.unproject_position(incoming).x >= cam.unproject_position(origin).x else -1.0
+		for i in _shield_orbs[team].size():
+			var orb: MeshInstance3D = _shield_orbs[team][i]
+			orb.visible = show
+			orb.position = origin + Vector3.UP * (1.25 + i * 0.27) + cam.global_basis.x * 0.8 * orb_side
+			var mat: StandardMaterial3D = orb.material_override
+			mat.albedo_color = UIKit.ACCENT if i < count else UIKit.DARK
+			mat.emission = UIKit.ACCENT if i < count else UIKit.DIM * 0.2
+
+
+func _build_shield_orbs(team: String) -> void:
+	var list := []
+	var count: int = GameState.max_shield if team == "ally" else _trainer_shield()
+	for i in count:
+		var orb := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.11
+		sphere.height = 0.22
+		sphere.radial_segments = 12
+		sphere.rings = 6
+		orb.mesh = sphere
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.emission_enabled = true
+		orb.material_override = mat
+		orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		orb.visible = false
+		add_child(orb)
+		list.append(orb)
+	_shield_orbs[team] = list
 
 
 func _process(delta: float) -> void:
 	_time += delta
+	if _outline != null:
+		_outline.set_shader_parameter("gem", UIKit.ACCENT)
 	for b in nodes:
 		var n: Node3D = nodes[b]
 		if is_instance_valid(n) and n.has_meta("phase"):
@@ -1264,6 +1271,19 @@ func _process(delta: float) -> void:
 	if is_instance_valid(cam):
 		var cp := _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
 		var cl := _cam_look()
+		var focus := Vector3.ZERO
+		var n := 0
+		for ref in _selected_refs:
+			var at = _ref_pos(ref)
+			if at != null:
+				focus += at + Vector3.UP * _ref_height(ref) * 0.65
+				n += 1
+		_focus_weight = move_toward(_focus_weight, 0.55 if n > 0 else 0.0, delta * 1.6)
+		if n > 0:
+			_camera_focus = _camera_focus.lerp(focus / n, 1.0 - exp(-delta * 5.0))
+		var shift := (_camera_focus - cl) * _focus_weight
+		cp += shift * 0.6
+		cl += shift
 		if summon_mix > 0.0:
 			cp = cp.lerp(summon_pos, summon_mix)
 			cl = cl.lerp(summon_look, summon_mix)
@@ -1272,6 +1292,12 @@ func _process(delta: float) -> void:
 			summon_shake_amt = maxf(0.0, summon_shake_amt - delta * 1.6)
 		cam.position = cp
 		cam.look_at(cl, Vector3.UP)
+	_update_shield()
+	if floating != null:
+		for b in nodes:
+			if _hp_seen.has(b) and _hp_seen[b] != b.hp:
+				floating.hp_changed(b)
+			_hp_seen[b] = b.hp
 	_draw_arcs()
 
 
@@ -1294,113 +1320,122 @@ func _ref_height(ref) -> float:
 		return 0.2
 	if typeof(ref) == TYPE_STRING:
 		return 1.65
-	return float(nodes[ref].get_meta("height")) if nodes.has(ref) else 1.0
+	if nodes.has(ref):
+		var node: Node3D = nodes[ref]
+		return float(node.get_meta("height")) * node.scale.y * (0.45 if _st(ref)["down"] else 1.0)
+	return 1.0
 
 
-## Command selection and action outlines belong to the HUD.
+## The outline uses a separate hull pass: hit flashes keep their original material and timing.
 func _select_hud_actor(ref) -> void:
-	ally_grid.focus = -1
-	foe_grid.focus = -1
-	if ref != null:
-		var grid: Control = foe_grid if (typeof(ref) == TYPE_STRING and ref == "foe_trainer") or foe_slots.has(ref) or foe_ring.values().has(ref) else ally_grid
-		grid.focus = _hud_actor_tile(ref, grid == ally_grid)
-	ally_grid.queue_redraw()
-	foe_grid.queue_redraw()
+	_select_actors([] if ref == null else [ref])
 
 
-func _hud_actor_tile(ref, ally: bool) -> int:
-	if typeof(ref) == TYPE_STRING:
-		return -2
-	return _slot_of(ally_ring, ref) if ally else (foe_slots.find(ref) if wild else _slot_of(foe_ring, ref))
+func _select_actors(refs: Array) -> void:
+	if refs == _selected_refs:
+		if _outline != null:
+			_outline.set_shader_parameter("gem", UIKit.ACCENT)
+		return
+	for mesh in _outline_overlays:
+		if is_instance_valid(mesh):
+			mesh.material_overlay = _outline_overlays[mesh]
+	_outline_overlays.clear()
+	for b in nodes:
+		if nodes[b].has_meta("flash"):
+			(nodes[b].get_meta("flash") as Material).next_pass = null
+	_selected_refs = refs.duplicate()
+	if _outline == null:
+		_outline = ShaderMaterial.new()
+		_outline.shader = Outline
+	_outline.set_shader_parameter("gem", UIKit.ACCENT)
+	for ref in refs:
+		if typeof(ref) == TYPE_OBJECT and nodes.has(ref):
+			(nodes[ref].get_meta("flash") as Material).next_pass = _outline
+		elif typeof(ref) in [TYPE_STRING, TYPE_INT]:
+			var root: Node3D
+			if typeof(ref) == TYPE_INT:
+				root = pads["ally"].get(ref, null)
+			else:
+				root = rival_rig if ref == "foe_trainer" else player_rig
+			if root != null:
+				for mesh in root.find_children("*", "MeshInstance3D", true, false):
+					_outline_overlays[mesh] = mesh.material_overlay
+					mesh.material_overlay = _outline
 
 
 func _set_acting(ref) -> void:
 	_acting_ref = ref
+	_hide_targets()
 	_select_hud_actor(null)
-	_update_acting_hud()
+	if floating != null:
+		floating.clear_choice()
 
 
-func _update_acting_hud() -> void:
-	ally_grid.acting = -1
-	foe_grid.acting = -1
-	if _acting_ref != null:
-		var ally: bool = _acting_ref != "foe_trainer" if typeof(_acting_ref) == TYPE_STRING else ally_ring.values().has(_acting_ref)
-		var grid: Control = ally_grid if ally else foe_grid
-		grid.acting = _hud_actor_tile(_acting_ref, ally)
-	ally_grid.queue_redraw()
-	foe_grid.queue_redraw()
+## Logical UI coordinates, accounting for the full-resolution 3D SubViewport.
+func screen_anchor(ref, fraction := 1.0) -> Vector2:
+	var at = _ref_pos(ref)
+	if at == null:
+		return Vector2.ZERO
+	return cam.unproject_position(at + Vector3.UP * _ref_height(ref) * fraction) * hud.get_viewport_rect().size / cam.get_viewport().get_visible_rect().size
 
 
-## The aiming arcs: from the beast (or you) choosing, a glowing arch over to each target ending in an arrowhead, with a
-## white core and pulses running along it towards the target, over a dark edge so it reads against bright ground.
-func _draw_arcs() -> void:
-	var im := aim_mesh.mesh as ImmediateMesh
-	im.clear_surfaces()
-	var a = _ref_pos(_aim_from)
-	if a == null or _target_refs.is_empty() or cam == null:
-		return
-	var view := cam.global_transform.basis.z
-	var glow := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.6, 1.0)
-	var from: Vector3 = a + Vector3.UP * _ref_height(_aim_from) * 0.75
-	var began := false
-	for t in _target_refs:
-		var b = _ref_pos(t)
-		if b == null:
+## Pick the nearest visible silhouette with a generous touch footprint; only legal row targets are considered.
+func pick_ref(at: Vector2, refs: Array):
+	var best = null
+	var nearest := INF
+	for ref in refs:
+		if _ref_pos(ref) == null:
 			continue
-		var to: Vector3 = b + Vector3.UP * _ref_height(t) * 0.6
-		var top := (from + to) / 2.0 + Vector3.UP * (1.2 + from.distance_to(to) * 0.22)
-		if not began:
-			im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-			began = true
-		_arc_strip(im, from, top, to, 0.52, Color(0, 0, 0, 0.55), false, view)
-		_arc_strip(im, from, top, to, 0.34, glow, true, view)
-		_arc_strip(im, from, top, to, 0.1, Color(1, 1, 1, 0.9), true, view)
-	if began:
-		im.surface_end()
+		var head := screen_anchor(ref)
+		var foot := screen_anchor(ref, 0.0)
+		var center := head.lerp(foot, 0.5)
+		var radius := maxf(40.0 if UIKit.touch_ui() else 28.0, head.distance_to(foot) * 0.55)
+		var distance := at.distance_to(center)
+		if distance < radius and distance < nearest:
+			nearest = distance
+			best = ref
+	return best
 
 
-## One arc as a ribbon facing the camera along the curve from p0 over c to p2 (stopping short for its arrowhead).
-func _arc_strip(im: ImmediateMesh, p0: Vector3, c: Vector3, p2: Vector3, w: float, col: Color, pulse: bool, view: Vector3) -> void:
-	const N := 32
-	const HEAD := 0.86
-	var pts := []
-	for i in N + 1:
-		var u := HEAD * float(i) / N
-		pts.append(p0 * (1.0 - u) * (1.0 - u) + c * 2.0 * (1.0 - u) * u + p2 * u * u)
-	for i in N:
-		var d: Vector3 = pts[i + 1] - pts[i]
-		var side := d.cross(view).normalized() * w * 0.5
-		var cc := col
-		if pulse:
-			# brighter pulses running from the beast to its target
-			var wave := fposmod(float(i) / N * 2.5 - _time * 1.6, 1.0)
-			cc.a = col.a * (0.82 + 0.18 * pow(wave, 3.0))
-			cc = cc.lerp(Color(1, 1, 1, cc.a), 0.55 * pow(wave, 6.0))
-		var q := [pts[i] - side, pts[i] + side, pts[i + 1] + side, pts[i + 1] - side]
-		for v in [q[0], q[1], q[2], q[0], q[2], q[3]]:
-			im.surface_set_color(cc)
-			im.surface_add_vertex(v)
-	var base: Vector3 = pts[N]
-	var side2 := (p2 - base).cross(view).normalized() * w * 2.0
-	for v in [base - side2, base + side2, p2]:
-		im.surface_set_color(Color(col, 1.0) if pulse else col)
-		im.surface_add_vertex(v)
+## Translucent yellow 3D arrows. Geometry changes only when its endpoints move; camera motion never rebuilds a ribbon.
+func _draw_arcs() -> void:
+	var origin = _ref_pos(_aim_from)
+	if origin == null or _target_refs.is_empty():
+		aim_mesh.visible = false
+		_aim_geometry.clear()
+		return
+	var from: Vector3 = origin + Vector3.UP * _ref_height(_aim_from) * 0.75
+	var ends := []
+	for ref in _target_refs:
+		var at = _ref_pos(ref)
+		if at != null:
+			ends.append(at + Vector3.UP * (_ref_height(ref) + 0.14))
+	var geometry: Array = [from] + ends
+	if geometry != _aim_geometry:
+		_aim_geometry = geometry
+		aim_mesh.mesh = TargetArrow.build(from, ends)
+	aim_mesh.visible = not ends.is_empty()
 
 
 ## Aim the arch from the acting beast or trainer to the selected target(s).
 func _show_targets(list: Array, sel: int, source = "trainer_self") -> void:
 	_aim_from = source
-	_select_hud_actor(source)
 	_target_refs = []
 	for i in list.size():
 		if sel < 0 or i == sel:
 			var t = list[i]
 			_target_refs.append(t["ref"] if typeof(t) == TYPE_DICTIONARY else t)
+	_select_actors(_target_refs)
+	if floating != null:
+		floating.clear_choice()
+	_update_shield()
 
 
 func _hide_targets() -> void:
 	_target_refs = []
 	_aim_from = null
+	_select_hud_actor(null)
+	_update_shield()
 
 
 ## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
@@ -1430,6 +1465,7 @@ func _spawn(b, side: String, slot: int) -> void:
 	_build_model(root, b)
 	add_child(root)
 	nodes[b] = root
+	_hp_seen[b] = b.hp
 	root.scale = Vector3(0.2, 0.2, 0.2)
 	var tw := create_tween()
 	tw.tween_property(root, "scale", Vector3.ONE * (1.15 if ringed else 1.25) * big, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -1545,91 +1581,23 @@ func _st(b) -> Dictionary:
 
 
 # ================================================================ HUD
-## The HUD is kept to what JC2 shows: the foe's grid at the top left, your grid at the bottom right with the move bars
-## beside it, and one slim line of battle text at the top.
+## The scene has no fixed ring grids or move bars; a single menu follows the current chooser.
 func _build_hud() -> void:
 	hud = Control.new()
-	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	UI.hud.add_child(hud)
-	var touch: bool = UI.is_touch()
-	# big enough to read across a phone held at arm's length
-	var k := 1.5 if touch else 1.4
-	# the foe's grid, top left (a wild pack: a line of three)
-	foe_grid = RingGrid.new("foe", wild, k * 0.9)
-	foe_grid.show_shield = not wild
-	foe_grid.position = Vector2(12, 8)
-	hud.add_child(foe_grid)
-	# your bars and grid, bottom right (on a phone, over START and PAUSE)
-	cmd_root = Control.new()
-	cmd_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.add_child(cmd_root)
-	bars = BattleBars.new(k)
-	cmd_root.add_child(bars)
-	ally_grid = RingGrid.new("ally", false, k)
-	# (your shield points show under your own bar instead: battle_bars.gd)
-	ally_grid.show_shield = false
-	cmd_root.add_child(ally_grid)
-	cmd_root.move_child(bars, -1) # bars draw beside the ring and receive taps above the stage
-	# the trainers in the middle of their grids, locking eyes across the screen: you from behind, looking up and left
-	# to the foe's grid; the rival from the front, looking down and right to yours
-	ally_grid.trainer_icon = _person_icon(GameState.hero_look(), PI + 0.5)
-	if not wild and not (trainer.get("look", {}) as Dictionary).is_empty():
-		foe_grid.trainer_icon = _person_icon(trainer["look"], 0.5)
+	floating = FloatingHUD.new()
+	floating.battle = self
+	hud.add_child(floating)
 	_speaker_icons["trainer_self"] = _person_icon(GameState.hero_look(), 0.5)
-	_speaker_icons["foe_trainer"] = foe_grid.trainer_icon if foe_grid.trainer_icon != null else _person_icon(trainer.get("look", {}), 0.5)
-	var gap := 8.0 * k
-	bars.position = Vector2.ZERO
-	bars.size = bars.custom_minimum_size
-	ally_grid.position = Vector2(bars.size.x + gap - 4.0 * k - 2.0 * ally_grid.slant, bars.pitch_y + bars.pill_h * 0.5 - ally_grid.top_pad())
-	ally_grid.size = ally_grid.custom_minimum_size
-	var block := Vector2(ally_grid.position.x + ally_grid.size.x, maxf(bars.size.y, ally_grid.position.y + ally_grid.size.y))
-	cmd_root.size = block
-	if touch:
-		# phones: the bars and the grid stand centred just above START and PAUSE, clear of the d-pad and of A and B
-		cmd_root.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-		cmd_root.offset_left = -roundf(block.x / 2.0)
-		cmd_root.offset_right = cmd_root.offset_left + block.x
-		cmd_root.offset_top = -78.0 - block.y
-		cmd_root.offset_bottom = cmd_root.offset_top + block.y
-	else:
-		cmd_root.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		cmd_root.offset_left = -16.0 - block.x
-		cmd_root.offset_right = -16.0
-		cmd_root.offset_top = -10.0 - block.y
-		cmd_root.offset_bottom = -10.0
-	# The messages go in the shared top bar, there for the whole battle (until the HUD goes); the move window hangs
-	# under it.
+	_speaker_icons["foe_trainer"] = _person_icon(trainer.get("look", {}), 0.5)
 	UI.top_bar.begin_battle()
 	hud.tree_exiting.connect(UI.top_bar.end_battle)
-	UI.top_bar.resized.connect(_settle_top)
-	move_info = _top_panel()
-	hud.add_child(move_info)
 
 
-func _top_panel() -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UIKit.chip(Color(UIKit.WINDOW_TOP, 0.94), UIKit.BORDER, 14.0, Vector4(12, 8, 12, 8), 3.0))
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.visible = false
-	return panel
-
-
-## Centre on the whole screen, leaving equal space for the foe's grid on either side (the move window).
-func _top_width() -> float:
-	return minf(640.0, _bar_width())
-
-
-## The widest the top bar may be: centred, clear of the foe's grid on either side.
 func _bar_width() -> float:
-	var edge := foe_grid.position.x + foe_grid.size.x + 12.0
-	return hud.get_viewport_rect().size.x - 2.0 * edge
-
-
-## The move window, centred under the top bar.
-func _center_top(panel: Control) -> void:
-	panel.reset_size()
-	panel.position = Vector2(roundf((hud.get_viewport_rect().size.x - panel.size.x) * 0.5), roundf(UI.top_bar.bottom() + 6.0))
+	return minf(860.0, UIKit.safe_rect(hud).size.x - 32.0)
 
 
 ## Resolve named subjects first, then the current actor for short messages such as critical hits or misses.
@@ -1669,99 +1637,21 @@ func _caption(text: String, subject = null) -> void:
 	UI.top_bar.say_battle(text, icon, player_subject, _bar_width())
 
 
-## What each kind of move is called in the move window.
-const KIND_NAMES := {"attack": "Attack", "buff": "Boost", "debuff": "Weaken", "heal": "Heal", "revive": "Revive",
-	"cleanse": "Cleanse", "shield": "Shield", "status": "Status", "taunt": "Taunt", "special": "Special"}
-const TARGET_NAMES := {"enemy": "one foe", "enemies": "all foes", "ally": "one ally", "allies": "all allies",
-	"self": "itself", "ally_ko": "a fainted ally", "none": ""}
-
-
-## The window at the top while you choose: the highlighted move's name, element and kind, who it reaches, its MP cost
-## (against the beast's MP), power and accuracy, what it does, and any warning (recharging, short of MP, a lesson);
-## for your own actions and Defend, just what they do. Empty: hides it.
+## Details belong to the same anchored choice. Warnings and teaching hints use the shared top bar.
 func _show_option(row: Dictionary, o: Dictionary) -> void:
-	if move_info == null:
+	if floating == null:
 		return
-	for c in move_info.get_children():
-		move_info.remove_child(c)
-		c.queue_free()
-	var status_desc := String(row.get("status_desc", "")) if row.get("status", "") != "" else ""
-	if o.is_empty() or (String(o.get("label", "")) == "" and status_desc == ""):
-		move_info.visible = false
+	if o.is_empty():
+		floating.clear_choice()
 		return
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 4)
-	move_info.add_child(vb)
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
-	vb.add_child(top)
-	var content_w := _top_width() - 24.0
-	var facts_row := HBoxContainer.new()
-	facts_row.add_theme_constant_override("separation", 8)
-	vb.add_child(facts_row)
-	var b = row.get("beast", null)
-	var title := String(o.get("label", ""))
-	var desc := String(o.get("desc", ""))
+	var ref = "trainer_self" if row.get("kind", "") == "trainer" else row.get("beast", null)
+	floating.choose(ref, row, o)
 	var note := String(o.get("note", ""))
-	if status_desc != "":
-		title = String(row.get("name", ""))
-		desc = status_desc
-	top.add_child(UIKit.header(title, UIKit.LIGHT, UIKit.HEAD_BIG))
-	if o.has("move"):
-		var mv := String(o["move"])
-		var m := MoveDB.get_move(mv)
-		top.add_child(_info_tag(UIKit.element_tag(String(m["el"]), 18)))
-		var kind := String(KIND_NAMES.get(String(m.get("kind", "")), String(m.get("kind", "")).capitalize()))
-		var reach := String(TARGET_NAMES.get(String(m.get("target", "enemy")), ""))
-		facts_row.add_child(_info_tag(UIKit.label(kind + (" · " + reach if reach != "" else ""), UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
-		var gap := Control.new()
-		gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		facts_row.add_child(gap)
-		var cost := MoveDB.mp_cost(mv)
-		var mp_text := "No MP"
-		if cost > 0:
-			mp_text = "MP %d" % cost + (" (has %d)" % b.mp if b != null else "")
-		var short: bool = b != null and b.mp < cost
-		facts_row.add_child(_info_tag(UIKit.label(mp_text, UIKit.BODY_BIG, UIKit.ACCENT.lightened(0.35) if short else UIKit.INK)))
-		var facts := []
-		if m.has("power"):
-			facts.append("Power %d" % m["power"])
-		if m.has("acc"):
-			facts.append("Accuracy %d" % m["acc"])
-		if int(m.get("cd", 0)) > 0:
-			facts.append("Rests %d turn%s after use" % [m["cd"], "" if int(m["cd"]) == 1 else "s"])
-		if not facts.is_empty():
-			vb.add_child(UIKit.label("   ".join(facts), UIKit.BODY_BIG, UIKit.DIM))
-		desc = String(m.get("desc", ""))
-	elif o.get("id", "") == "defend":
-		top.add_child(_info_tag(UIKit.label("Guard · itself", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
-		if b != null:
-			desc = "Brace for impact: %s takes half damage until your side's next turn." % b.nickname
-	elif row.get("kind", "") == "trainer" and status_desc == "":
-		top.add_child(_info_tag(UIKit.label("Your action", UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)))
-	var d := UIKit.label(desc, UIKit.BODY_HUGE, UIKit.INK)
-	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	d.add_theme_constant_override("line_spacing", -10)
-	d.custom_minimum_size.x = content_w
-	vb.add_child(d)
 	if note != "":
-		var nl := UIKit.label(note, UIKit.BODY_BIG, UIKit.GOLD_BRIGHT)
-		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		nl.custom_minimum_size.x = content_w
-		vb.add_child(nl)
-	move_info.visible = true
-	_center_top(move_info)
-	if not get_tree().process_frame.is_connected(_settle_top):
-		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
+		_caption(note, ref)
 
 
-## The move window shrunk to its laid-out words and placed under the top bar again (a frame after either changes).
-func _settle_top() -> void:
-	if move_info != null and is_instance_valid(move_info) and move_info.visible:
-		_center_top(move_info)
-
-
-## A small full-length picture of a person for the middle of a ring grid, turned `yaw` from facing the viewer
+## A small full-length picture for the shared top bar, turned `yaw` from facing the viewer
 ## (positive: towards the right of the screen; PI: their back): rendered off screen for a moment, then kept as it is.
 func _person_icon(look: Dictionary, yaw: float) -> Texture2D:
 	var vp := SubViewport.new()
@@ -1803,100 +1693,24 @@ func _person_icon(look: Dictionary, yaw: float) -> Texture2D:
 
 
 ## A tag in the move window, centred on its line.
-func _info_tag(c: Control) -> Control:
-	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	return c
-
-
 func _refresh() -> void:
-	if ally_grid != null:
-		ally_grid.set_ring(ally_ring, ally_side)
-		ally_grid.open = _side_open("ally")
-	if foe_grid != null:
-		if wild:
-			foe_grid.set_line(foe_slots)
-		else:
-			foe_grid.set_ring(foe_ring, foe_side)
-			foe_grid.shield = foe_shield
-			foe_grid.max_shield = foe_max_shield
-			foe_grid.open = _side_open("foe")
-	if bars != null and not _commanding:
-		bars.set_rows(_idle_rows(), -1)
+	for team in ring_root:
+		_light_pads(team)
 	_update_shield()
-	_update_acting_hud()
+	if floating != null:
+		floating.queue_redraw()
 
 
-## The bars out of the command phase: the names of the beasts facing the foe (and yours, which only shows while you
-## choose your action).
-func _idle_rows() -> Array:
-	var out := [{"kind": "trainer", "lv": GameState.trainer_level, "text": GameState.player_name, "shield": GameState.shield, "max_shield": GameState.max_shield}]
-	for b in ally_slots:
-		out.append(_beast_bar(b, "" if b == null else b.nickname))
-	return out
-
-
-func _beast_bar(b, text: String) -> Dictionary:
-	if b == null:
-		return {"kind": "beast", "status": "empty", "text": "—"}
-	return {"kind": "beast", "lv": b.level, "text": text if b.hp > 0 else "Fainted", "status": "" if b.hp > 0 else "down",
-		"hp": maxi(0, b.hp), "max_hp": b.max_hp(), "mp": b.mp, "max_mp": b.max_mp()}
-
-
-## How many of a bar's options ◄ ► move between (in a lesson, only the ones that can be picked: see command_panel.gd).
-func _choices(opts: Array) -> int:
-	return opts.filter(func(o): return not o.get("disabled", false)).size() if tutorial else opts.size()
-
-
-## The command panel's view of its rows: the bars, the chosen beast's tile and the target being aimed at.
+## The command controller's view: only the chooser, or the targets and their arcing arrows.
 func _render_rows(rows: Array, focus: int, picking: bool) -> void:
-	if focus >= 0 and focus < rows.size():
-		_prompt_ref = "trainer_self" if rows[focus]["kind"] == "trainer" else rows[focus].get("beast", null)
-	var out := []
-	for i in rows.size():
-		var r: Dictionary = rows[i]
-		var opts: Array = r.get("options", [])
-		var o: Dictionary = opts[clampi(int(r.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {}
-		var text := String(o.get("label", ""))
-		if r.has("act"):
-			var act: Dictionary = r["act"]
-			if act.get("type", "") == "item":
-				text = ItemDB.item_name(String(act["item"]))
-		var targets: Array = r.get("targets", [])
-		if (picking and i == focus) or (r.get("done", false) and not targets.is_empty()):
-			var t: Dictionary = targets[clampi(int(r.get("target_sel", 0)), 0, targets.size() - 1)] if not targets.is_empty() else {}
-			if r.get("target_all", false):
-				text += " → all"
-			elif not t.is_empty():
-				text += " → " + String(t["label"])
-		if r["kind"] == "trainer":
-			out.append({"kind": "trainer", "lv": GameState.trainer_level, "text": text, "arrows": not r.get("locked", false) and _choices(opts) > 1 and not picking,
-				"done": r.get("done", false), "disabled": o.get("disabled", false), "shield": GameState.shield, "max_shield": GameState.max_shield})
-			continue
-		var bb = r.get("beast", null)
-		var row := _beast_bar(bb, text)
-		if row.get("status", "") == "":
-			row["arrows"] = _choices(opts) > 1 and not picking
-			row["done"] = r.get("done", false)
-			row["disabled"] = o.get("disabled", false)
-			row["cost"] = MoveDB.mp_cost(String(o["move"])) if o.has("move") else 0
-		out.append(row)
-	bars.set_rows(out, focus)
-	var fr: Dictionary = rows[focus]
-	_select_hud_actor(fr.get("beast", null) if fr["kind"] == "beast" else "trainer_self")
-	ally_grid.target = -1
-	foe_grid.target = -1
-	ally_grid.targets = []
-	foe_grid.targets = []
+	var row: Dictionary = rows[focus]
+	_prompt_ref = "trainer_self" if row["kind"] == "trainer" else row.get("beast", null)
 	if picking:
-		var ts: Array = fr.get("targets", [])
-		if not ts.is_empty():
-			var all: bool = fr.get("target_all", false)
-			var sel := -1 if all else clampi(int(fr.get("target_sel", 0)), 0, ts.size() - 1)
-			_show_targets(ts, sel, fr.get("beast", null) if fr["kind"] == "beast" else "trainer_self")
+		var ts: Array = row.get("targets", [])
+		_show_targets(ts, -1 if row.get("target_all", false) else int(row.get("target_sel", 0)), _prompt_ref)
 	else:
 		_hide_targets()
-	ally_grid.queue_redraw()
-	foe_grid.queue_redraw()
+		_select_hud_actor(_prompt_ref)
 
 
 func msg(text: String, wait := 0.95, subject = null) -> void:
@@ -2084,7 +1898,7 @@ func _tut_who() -> String:
 
 func _tut_say(lines: Array) -> void:
 	if not lines.is_empty():
-		await UI.say(lines.map(func(l): return _tut_fill(String(l))), _tut_who())
+		await UI.say(lines.map(func(l): return _tut_fill(String(l))), _tut_who(), null, rival_rig if not lesson.has("coach") else null)
 
 
 ## A lesson line with {beast} (your beast) and {foe} (theirs) filled in.
@@ -2265,19 +2079,13 @@ func _command_phase() -> Array:
 			break
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption,
-			"option": _show_option, "bars": bars, "foe_grid": foe_grid, "ally_grid": ally_grid})
+			"option": _show_option, "stage": self, "floating": floating})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
 		_commanding = false
 		_show_option({}, {})
 		_hide_targets()
-		ally_grid.target = -1
-		foe_grid.target = -1
-		ally_grid.targets = []
-		foe_grid.targets = []
-		ally_grid.queue_redraw()
-		foe_grid.queue_redraw()
 		focus = int(r.get("focus", focus))
 		match String(r.get("kind", "")):
 			"go":
@@ -2616,16 +2424,16 @@ func _panel_info() -> Dictionary:
 		"prompt": "What will you do, %s?" % GameState.player_name, "lesson": tutorial}
 
 
-## Who a row's option can be aimed at: [{label, ref, tile, grid}] (tile: where it stands on its grid). An open rival
+## Who a row's option can be aimed at: [{label, ref}]. An open rival
 ## trainer is a target too.
 func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
 	var out := []
 	match String(opt.get("target", "none")):
 		"enemy":
 			for b in _alive(foe_slots):
-				out.append({"label": b.nickname, "ref": b, "grid": "foe_grid", "tile": foe_slots.find(b) if wild else _slot_of(foe_ring, b)})
+				out.append({"label": b.nickname, "ref": b})
 			if _side_open("foe"):
-				out.append({"label": String(trainer.get("name", "the trainer")), "ref": "foe_trainer", "grid": "foe_grid", "tile": -2})
+				out.append({"label": String(trainer.get("name", "the trainer")), "ref": "foe_trainer"})
 			# start on the foe facing this beast's own row
 			var mine = row.get("beast", null)
 			var i := ally_slots.find(mine)
@@ -2633,16 +2441,16 @@ func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
 				row["target_sel"] = _alive(foe_slots).find(foe_slots[i])
 		"ally":
 			for b in _alive(ally_slots):
-				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": _slot_of(ally_ring, b)})
+				out.append({"label": b.nickname, "ref": b})
 		"ally_ko":
 			for b in GameState.party.filter(func(x): return x.hp <= 0 and x.slot >= 0):
-				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": int(b.slot)})
+				out.append({"label": b.nickname, "ref": b})
 		"enemies":
 			for b in _alive(foe_slots):
-				out.append({"label": b.nickname, "ref": b, "grid": "foe_grid", "tile": foe_slots.find(b) if wild else _slot_of(foe_ring, b)})
+				out.append({"label": b.nickname, "ref": b})
 		"allies":
 			for b in _alive(ally_slots):
-				out.append({"label": b.nickname, "ref": b, "grid": "ally_grid", "tile": _slot_of(ally_ring, b)})
+				out.append({"label": b.nickname, "ref": b})
 		"slot":
 			# the slots it can Move to (one beast moves each round)
 			for r2 in _rows_now:
@@ -2650,7 +2458,7 @@ func _row_targets(row: Dictionary, opt: Dictionary) -> Array:
 					return []
 			for k in _shift_spots(row.get("beast", null)):
 				var o = ally_ring.get(k, null)
-				out.append({"label": Ring.slot_name(k), "ref": k, "grid": "ally_grid", "tile": k,
+				out.append({"label": Ring.slot_name(k), "ref": k,
 					"note": "Empty" if o == null else "%s (down) trades places" % o.nickname})
 	if tutorial and out.size() > 1 and String(opt.get("target", "")) in ["enemy", "ally", "ally_ko"]:
 		# a lesson aims at one: the trainer when that's the lesson, else the teacher's first beast (or your first one)
@@ -2790,18 +2598,17 @@ func _choose_target(list: Array, title: String):
 		return list[0]
 	var targets := []
 	for t in list:
-		var ally: bool = ally_ring.values().has(t)
-		targets.append({"label": t.nickname, "ref": t, "grid": "ally_grid" if ally else "foe_grid",
-			"tile": _slot_of(ally_ring, t) if ally else (foe_slots.find(t) if wild else _slot_of(foe_ring, t))})
+		targets.append({"label": t.nickname, "ref": t})
 	var row := {"kind": "trainer", "options": [{"label": title}], "targets": targets, "target_sel": 0}
 	var panel := CommandPanel.new()
 	panel.setup([row], {"target_only": true}, 0, Callable(), {
 		"render": func(_rows, _focus, _picking): _show_targets(targets, int(row.get("target_sel", 0))),
-		"hint": _caption, "foe_grid": foe_grid, "ally_grid": ally_grid})
+		"hint": _caption, "stage": self, "floating": floating})
 	panel.picking = true
 	UI.push(panel)
 	var choice: Dictionary = await panel.done
 	_hide_targets()
+	_show_option({}, {})
 	_caption("")
 	if choice.get("kind", "") != "go":
 		return null
@@ -3679,6 +3486,8 @@ func _shield_pulse(bubble: MeshInstance3D = null) -> void:
 		bubble = shield_bubble
 	if bubble == null:
 		return
+	_shield_until["ally" if bubble == shield_bubble else "foe"] = _time + 1.0
+	_update_shield()
 	var m: StandardMaterial3D = bubble.material_override
 	var tw := create_tween()
 	tw.tween_property(m, "albedo_color:a", 0.45, 0.12)
@@ -3706,6 +3515,7 @@ func _strike(b, team_hit: String) -> void:
 			tw.tween_property(n, "position", start.lerp(pos, 0.75), 0.22).set_ease(Tween.EASE_IN)
 			tw.tween_property(n, "position", start, 0.25)
 			await get_tree().create_timer(lead + 0.22).timeout
+	_shield_until[team_hit] = _time + 1.0
 	var left: int = GameState.shield if team_hit == "ally" else foe_shield
 	if left > 0:
 		if team_hit == "ally":
@@ -4337,18 +4147,14 @@ func summon_cam(at: Vector3, size: float) -> void:
 	summon_pos = summon_look + back * (13.5 + minf(size, 8.0) * 1.5)
 	var tw := create_tween()
 	tw.tween_property(self, "summon_mix", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
-	# a cutscene: the bars and grids step aside while it plays
-	for c in [bars, ally_grid, foe_grid]:
-		if c != null:
-			c.visible = false
+	# Summons own the frame; even brief HP tags wait until the cinematic ends.
+	floating.visible = false
 
 
 func summon_release() -> void:
 	var tw := create_tween()
 	tw.tween_property(self, "summon_mix", 0.0, 0.6).set_trans(Tween.TRANS_SINE)
-	for c in [bars, ally_grid, foe_grid]:
-		if c != null:
-			c.visible = true
+	floating.visible = true
 
 
 func summon_shake(amount: float) -> void:
@@ -4391,12 +4197,12 @@ func _handle_faints() -> void:
 				continue
 			s["down"] = true
 			var beaten_foe: bool = team == "foe"
-			# a beaten foe vanishes with a smack in a puff of smoke; your own beast keels over on its pad
+			# Ring beasts on either side remain lying on their pads. Only defeated wild beasts leave the field.
 			Sfx.play("defeat" if beaten_foe else "faint")
 			if nodes.has(b):
 				var n: Node3D = nodes[b]
 				var tw := create_tween()
-				if beaten_foe:
+				if beaten_foe and wild:
 					var h := float(n.get_meta("height"))
 					_smoke_puff(n.position + Vector3(0, h * 0.45, 0), clampf(h, 0.8, 2.4))
 					tw.tween_property(n, "scale", n.scale * 1.15, 0.06)

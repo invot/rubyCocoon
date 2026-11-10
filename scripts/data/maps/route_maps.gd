@@ -4,6 +4,7 @@ extends RefCounted
 ##   .  grass/ground  ,  dirt path     :  paved stone   g  tall grass (wild beasts!)
 ##   T  tree          t  bush/hedge    ~  water         =  bridge / pier
 ##   #  rock/cliff    W  stone wall    f  flowers       F  fence
+##   z  supplied wood fence          q  supplied stone fence
 ##   _  sand          L  lamp post     %  lava          S  mascot statue (2x2)
 ##   +  signpost (text from "signs", top-to-bottom)    $  hidden item    *  crystal shard
 ##   @  villager      v ^ < >  trainer facing that way   P  player start
@@ -39,14 +40,14 @@ const MAPS := {
 			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.TTTTTT.TTTTTTT.ggggg*T",
 			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.,,,,,,,,,,,,,,.ggggg.T",
 			"Tggg.TTT,,...f.....f,,TTTTTT~~.gg.,,,,,,,,,,,,,,.ggggg.T",
-			"Tggg.2TT,,ggg.3.ggg.,,..TTTT~~.gg.,,....tttttt,,f......T",
+			"Tggg.2TT,,ggg.3.ggg.,,..TTTT~~.gg.,,....zzzzzt,,f......T",
 			"T+....TT,,ggg.t.ggg.,,TTTTTT~~.gg.,,.gg.t....f,,TTTTTTTT",
 			",,,,,,,,,,ggg.t.ggg.,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
 			",,,,,,,,,,..$.t.....,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
-			"t..fttttttttttttt...,4TbbbbT~~....,,.gg.t.gggtttttt....t",
+			"t..fzzzzztttttttt...,4TbbbbT~~....,,.gg.t.gggtttttt....t",
 			"t...ttttttttttttt...,,7,,,,,nn,,,,,,.gg.t.ggg.ttttt6..ft",
 			"ttttttttttttttttt...,,,,,,,,nn,,,,,,f...t.....tttttt...t",
-			"ttttttttttttttttttttttttt__+~~tttttttttttttttttttttt___t",
+			"tttttttttttttttttzzzzzttt__+~~tttttttttttttttttttttt___t",
 			"t#tt#tt#tttt#tt#tt#tttttt___~~ttttttt#tt#tttt#tt#ttt___t",
 			"t#~t#t#~t#~t#~t#t#~tt#ttt___~~#tttttt#t#~t#~t#~t#t#~___t",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
@@ -103,7 +104,7 @@ const MAPS := {
 			"TTggggggggg.....f....tT....t.....TT........t.ggggggg..TT",
 			"TT.ggggggg.......................TT...........ggggg.$.TT",
 			"TT..ggggg........................TT...................TT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+			"TTzzzzzTTTTTTTzzzzzTTTTTTTzzzzzTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 		],
 		# the east of the isle stands higher, up a ramp past the brambles
@@ -591,7 +592,7 @@ const MAPS := {
 			"TTggggg.,,,,,,,,,,,,,,..#g.f##...#.,,,,,,,####,,,,.gggTT",
 			"TT.ggg......................##............####......ggTT",
 			"TT..........................##............####.......gTT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+			"TTzzzzzTTTTTTTzzzzzTTTTTTTTTTTzzzzzTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 		],
 		# rock ridges either side of the passes; a ledge up from the road in the north-west
@@ -755,7 +756,7 @@ const MAPS := {
 			"tt.......t..T...TT..,,,,,,,,,,,,,#######........#.....TT",
 			"TT..7............................#######............$.TT",
 			"TT.......................^.......#######..............TT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+			"TTzzzzzTTTTTTTzzzzzTTTTTTTzzzzzTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 		],
 		# a ledge with a crystal shard on it, up a ramp from the path
@@ -839,7 +840,7 @@ const MAPS := {
 			"TT..gggT...,,.........TT",
 			"TT.ggggg...,,..<......TT",
 			"TT..ggg....,,.........TT",
-			"TTTTTTTTTTT,,TTTTTTTTTTT",
+			"TTzzzzzTTTT,,TzzzzzTTTTT",
 			"TTTTTTTTTTT,,TTTTTTTTTTT",
 		],
 		# the temple's plateau above the jungle, up past the warden
@@ -922,7 +923,7 @@ const MAPS := {
 			"TT..gggggT.........##..........TT.......T...##.gggggggTT",
 			"TT.$..g............##...^...................##..ggggg.TT",
 			"TT.................##.......................##....g...TT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+			"TTzzzzzTTTTTTTzzzzzTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 		],
 		# the moor rises past the first ridge: up through the fog

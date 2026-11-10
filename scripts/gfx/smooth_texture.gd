@@ -17,6 +17,22 @@ const PASSES := 3
 const CALM := 0.22
 
 
+## Rendered panorama artwork is already clean and antialiased. Ease it at a modest working size, retaining its
+## native aspect and export size; the small pack-texture grain-removal pass would unnecessarily flatten its colours.
+static func soften_backdrop(src: Image) -> Image:
+	var img: Image = src.duplicate()
+	if img.is_compressed():
+		img.decompress()
+	img.clear_mipmaps()
+	img.convert(Image.FORMAT_RGBA8)
+	var original := img.get_size()
+	img.resize(512, 256, Image.INTERPOLATE_LANCZOS)
+	img = _image(_bilateral(_floats(img), 512, 256, 1, EDGE * 1.5), 512, 256)
+	img.resize(original.x, original.y, Image.INTERPOLATE_CUBIC)
+	img.generate_mipmaps()
+	return img
+
+
 ## A smoothed, enlarged copy of `src` (with mipmaps). Textures repeat, so the smoothing wraps round the edges.
 static func soften(src: Image) -> Image:
 	var img: Image = src.duplicate()

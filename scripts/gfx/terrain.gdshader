@@ -7,10 +7,13 @@ shader_type spatial;
 uniform sampler2DArray layers : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 // R = layer index / 255, one texel per tile, starting at `map_origin` (world x, z). On a diagonal cliff's tile
 // (elevation.gd "/" or a backslash), B is its code (5-8: which half is high), R its high half's layer and G its low half's.
+// On a tile with cut or filled corners (terrain_mesh.gd _prepare_corners: the grass's corners chamfered where a path
+// bends round them, a path's corners filled where it bends inside the grass), B is 16 + the corners' bits (NW 1, NE 2,
+// SE 4, SW 8) and G the layer in those corners.
 uniform sampler2D kind_map : filter_nearest, repeat_disable;
 uniform vec2 map_origin = vec2(0.0);
 uniform vec2 map_size = vec2(1.0);
-uniform vec3 tints[9];
+uniform vec3 tints[10];
 // how far (in tiles) a border may wander
 uniform float edge_noise = 0.28;
 // texture repeats per world unit
@@ -18,8 +21,9 @@ uniform float tex_scale = 0.5;
 // how wide (in tiles) the soft blend across a border is
 uniform float edge_soft = 0.07;
 // cliff faces (terrain_mesh.gd): the biome's rock (WorldDB.CLIFF_LOOKS) in cliff_tint, darker towards the foot
-// (COLOR.r: 0 at the rock's top, 1 at its foot), under a rounded lip of the ground above (COLOR.g; COLOR.ba the way
-// the face looks). UV runs along the cliff and down from its top, in units. Retaining walls (no cliff_tex) are the
+// (COLOR.r: 0 at the rock's top, 1 at its foot), under a rounded lip of the ground above (COLOR.g 1; COLOR.ba the way
+// the face looks). The turf's edges (COLOR.g 0.5) show the soil under the grass, and lay a shadow on the ground at
+// their foot (COLOR.g 0.2: COLOR.r 1 at the foot, 0 where it fades out). UV runs along the cliff and down from its top, in units. Retaining walls (no cliff_tex) are the
 // rock_layer ground texture instead.
 uniform bool cliff = false;
 uniform vec3 cliff_tint = vec3(1.0);
@@ -32,6 +36,8 @@ uniform vec2 cliff_scale = vec2(0.5);
 uniform vec4 cliff_band = vec4(0.0);
 // moss: rgb its (linear) colour, a how much of the rock's upper part it covers
 uniform vec4 cliff_moss = vec4(0.0);
+// the soil under the grass's edge (linear), where its turf stands above a path (terrain_mesh.gd _face)
+uniform vec3 turf_soil = vec3(0.16, 0.1, 0.06);
 // the see-through patch (world.gd): xyz the player's feet, w 1 while it's on. Ground higher than their feet that
 // stands between the camera and them dissolves in a dither over their shape, so high ground never hides them.
 uniform vec4 hole = vec4(0.0);
@@ -65,6 +71,14 @@ int _layer_at(vec2 p) {
 	ivec2 t = clamp(ivec2(floor(p - map_origin)), ivec2(0), ivec2(map_size) - 1);
 	vec4 k = texelFetch(kind_map, t, 0);
 	int code = int(k.b * 255.0 + 0.5);
+	if (code >= 16) {
+		// corners cut or filled: the corner triangles out to the middles of the tile's sides take the other layer
+		int mask = code - 16;
+		vec2 f = p - floor(p);
+		bool corner = ((mask & 1) != 0 && f.x + f.y < 0.5) || ((mask & 2) != 0 && 1.0 - f.x + f.y < 0.5)
+			|| ((mask & 4) != 0 && 2.0 - f.x - f.y < 0.5) || ((mask & 8) != 0 && f.x + 1.0 - f.y < 0.5);
+		return int((corner ? k.g : k.r) * 255.0 + 0.5);
+	}
 	if (code >= 5) {
 		// a diagonal: the half p is on (map_origin is whole tiles, so p's fraction is its place in the tile)
 		vec2 f = p - floor(p);
@@ -77,6 +91,17 @@ int _layer_at(vec2 p) {
 // plaza, paving, ice (see VT.GROUND_LAYERS)
 bool _laid(int l) {
 	return l == 2 || l == 7 || l == 8;
+}
+
+// grass, dark grass (VT.GRASS_LAYERS): the turf, a pillow above the ground with a crisp edge round it
+bool _grassy(int l) {
+	return l == 0 || l == 9;
+}
+
+// lighter and darker patches across the grass: sunny, slightly yellower stretches and deeper, cooler ones
+vec3 _mottle(vec2 q) {
+	float m = vnoise(q * 0.21 + vec2(7.0, 3.0)) * 0.65 + vnoise(q * 0.8 + vec2(2.0, 11.0)) * 0.35;
+	return mix(vec3(0.85, 0.9, 0.9), vec3(1.15, 1.12, 0.92), smoothstep(0.22, 0.78, m));
 }
 
 // 4x4 ordered dither threshold at a screen pixel
@@ -121,21 +146,32 @@ void fragment() {
 	for (int k = 0; k < 4; k++) {
 		vec2 o = vec2(k % 2 == 0 ? -1.0 : 1.0, k < 2 ? -1.0 : 1.0) * edge_soft * 0.5;
 		int l = _layer_at(at + o);
-		// (and a river or sea bed never wanders up onto the bank above it)
-		ls[k] = ((_laid(l) || l == 5 || l == 6) && l != own) ? own : l;
+		// (and a river or sea bed never wanders up onto the bank above it; the turf's edge is where its pillow steps
+		// down, so grass and the ground below it never wander over one another)
+		ls[k] = ((_laid(l) || l == 5 || l == 6 || _grassy(l) != _grassy(own)) && l != own) ? own : l;
 	}
 	int layer = ls[0];
 	bool border = ls[1] != layer || ls[2] != layer || ls[3] != layer;
 	vec3 n = abs(wnorm);
 	vec2 uv = n.y > 0.6 ? wpos.xz : (n.x > n.z ? vec2(wpos.z, -wpos.y) : vec2(wpos.x, -wpos.y));
-	if (cliff) {
+	if (cliff && COLOR.g > 0.1 && COLOR.g < 0.25) {
+		// the turf's shadow on the ground at its foot: the ground as it is, darker towards the turf
+		vec3 col = texture(layers, vec3(uv * tex_scale, float(own))).rgb * tints[own];
+		ALBEDO = col * mix(1.0, 0.62, smoothstep(0.0, 1.0, COLOR.r));
+	} else if (cliff) {
 		vec2 face = COLOR.ba * 2.0 - 1.0;
 		if (COLOR.g > 0.5) {
 			// the lip: the ground just back from the edge, mapped from above as it is, rolling over the top
 			int l = _layer_at(wpos.xz - face * 0.4);
 			vec3 col = texture(layers, vec3(wpos.xz * tex_scale, float(l))).rgb * tints[l];
+			if (_grassy(l)) {
+				col *= _mottle(wpos.xz);
+			}
 			// its underside, turned away from the sky, a little darker
 			ALBEDO = col * mix(0.72, 1.0, clamp(wnorm.y * 1.5 + 0.5, 0.0, 1.0));
+		} else if (COLOR.g > 0.25) {
+			// the soil under the turf's edge: darker in under the lip, a little uneven
+			ALBEDO = turf_soil * (0.8 + 0.3 * vnoise(vec2(cuv.x * 6.0, wpos.y * 4.0))) * mix(0.7, 1.0, COLOR.r);
 		} else if (cliff_textured) {
 			float down = COLOR.r;
 			vec3 rock = texture(cliff_tex, vec2(cuv.x, cuv.y) * cliff_scale).rgb;
@@ -158,15 +194,30 @@ void fragment() {
 			vec3 col = texture(layers, vec3(uv * tex_scale, float(rock_layer))).rgb;
 			ALBEDO = col * cliff_tint * mix(1.0, 0.6, COLOR.r);
 		}
-	} else if (border) {
-		vec3 col = vec3(0.0);
-		for (int k = 0; k < 4; k++) {
-			col += texture(layers, vec3(uv * tex_scale, float(ls[k]))).rgb * tints[ls[k]];
-		}
-		ALBEDO = col * 0.25;
 	} else {
-		vec3 col = texture(layers, vec3(uv * tex_scale, float(layer))).rgb;
-		ALBEDO = col * tints[layer];
+		vec3 col;
+		if (border) {
+			col = vec3(0.0);
+			for (int k = 0; k < 4; k++) {
+				col += texture(layers, vec3(uv * tex_scale, float(ls[k]))).rgb * tints[ls[k]];
+			}
+			col *= 0.25;
+		} else {
+			col = texture(layers, vec3(uv * tex_scale, float(layer))).rgb * tints[layer];
+		}
+		if (_grassy(own)) {
+			// the darker grass (round the trees and hedges, where the long grass grows) melts into the lawn over
+			// half a tile rather than along a line
+			float dark = 0.0;
+			for (int k = 0; k < 4; k++) {
+				vec2 o = vec2(k % 2 == 0 ? -1.0 : 1.0, k < 2 ? -1.0 : 1.0) * 0.26;
+				int l = _layer_at(at + o);
+				dark += (l == 9 || (!_grassy(l) && own == 9)) ? 0.25 : 0.0;
+			}
+			col = texture(layers, vec3(uv * tex_scale, 0.0)).rgb * mix(tints[0], tints[9], smoothstep(0.0, 1.0, dark));
+			col *= _mottle(q);
+		}
+		ALBEDO = col;
 	}
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.2;

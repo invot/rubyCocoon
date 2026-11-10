@@ -18,6 +18,7 @@ const TILE_CHARS := {
 	".": MapGen.GRASS, ",": MapGen.PATH, ":": MapGen.PLAZA, "g": MapGen.TALL, "T": MapGen.TREE,
 	"t": MapGen.BUSH, "~": MapGen.WATER, "=": MapGen.BRIDGE, "#": MapGen.ROCK, "W": MapGen.WALL,
 	"f": MapGen.FLOWERS, "F": MapGen.FENCE, "_": MapGen.SAND, "L": MapGen.LAMP, "%": MapGen.LAVA,
+	"z": MapGen.FENCE, "q": MapGen.FENCE, # supplied wood and stone yard boundaries
 	"S": MapGen.STATUE, "+": MapGen.SIGN, "c": MapGen.ICE,
 }
 ## Blocks you can push around: "u" a boulder (moves one tile), "e" an ice block (slides until it hits something).
@@ -211,6 +212,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	m["gate_tiles"] = []
 	m["pushables"] = {}
 	m["log_bridges"] = []
+	m["fence_styles"] = {}
 	_keep_floods(m, src, flood)
 	for key in ["ornate_bridges", "bridge_rails", "tall_trees", "low_trees"]:
 		if src.has(key):
@@ -227,6 +229,8 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 			var p := Vector2i(x, y)
 			if TILE_CHARS.has(ch):
 				MapGen.set_t(m, x, y, TILE_CHARS[ch])
+				if ch in ["z", "q"]:
+					m["fence_styles"][p] = "fence" if ch == "z" else "stone_fence"
 			elif BUILDING_LETTERS.has(ch):
 				letters[p] = ch
 				MapGen.set_t(m, x, y, MapGen.BUILDING)

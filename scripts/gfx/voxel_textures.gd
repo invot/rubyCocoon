@@ -6,10 +6,14 @@ extends RefCounted
 
 const PSX_DIR := "res://assets/textures/surfaces/"
 ## The ground layers of the terrain shader, in texture-array order.
-const GROUND_LAYERS := ["grass", "path", "plaza", "sand", "rock", "bed", "lava_bed", "paving", "ice"]
+const GROUND_LAYERS := ["grass", "path", "plaza", "sand", "rock", "bed", "lava_bed", "paving", "ice", "grass_dark"]
+## The layers that are grass: a pillow of turf above the ground (terrain_mesh.gd LIFT), darker in "grass_dark" (the
+## tall grass, and round the trees and hedges).
+const GRASS_LAYERS := ["grass", "grass_dark"]
 ## Which PSX texture each ground layer uses.
 const GROUND_SOURCE := {"grass": "ground_grass", "path": "ground_path", "plaza": "ground_plaza", "sand": "ground_sand",
-	"rock": "ground_rock", "bed": "ground_bed", "lava_bed": "ground_rock", "paving": "ground_paving", "ice": "ground_ice"}
+	"rock": "ground_rock", "bed": "ground_bed", "lava_bed": "ground_rock", "paving": "ground_paving", "ice": "ground_ice",
+	"grass_dark": "ground_grass"}
 ## The ground layers' size (tools/smooth_textures.gd leaves them smoothed at twice the packs' 128).
 const GROUND_SIZE := 256
 const WATER_FRAMES := 10

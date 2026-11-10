@@ -1,5 +1,5 @@
 extends "res://scripts/ui/modal.gd"
-## Typewriter speech anchored to a speaker, or stationary at bottom centre without one.
+## Named speech uses a white bubble; written text and system prompts use the shared dark window.
 ## CinematicDialog keeps the legacy dark window by disabling bubble_mode.
 ## Text sits at the top of the box (not vertically centred), three big lines at a time: longer lines are split into pages.
 
@@ -38,6 +38,8 @@ var _gem := ""
 var _last_head_screen := Vector2.INF
 var _had_anchor := false
 var _tail_below := false
+var _door_anchor := false
+var _door_bottom := Vector2.ZERO
 
 
 func setup(_lines: Array, _speaker := "", _portrait: Texture2D = null, _speaker_node: Node3D = null) -> Control:
@@ -45,6 +47,7 @@ func setup(_lines: Array, _speaker := "", _portrait: Texture2D = null, _speaker_
 	speaker = _speaker
 	portrait = _portrait
 	speaker_node = _speaker_node
+	bubble_mode = speaker != ""
 	# every speaker gets their own voice pitch
 	_voice = 0.8 + float(absi(speaker.hash()) % 9) * 0.06 if speaker != "" else 1.0
 	return self
@@ -160,8 +163,22 @@ func _project_head() -> bool:
 		return false
 	var view := speaker_node.get_viewport()
 	var camera := view.get_camera_3d()
+	if camera == null:
+		return false
+	_door_anchor = speaker_node.has_meta("speech_bounds")
+	if _door_anchor:
+		var bounds: AABB = speaker_node.get_meta("speech_bounds")
+		var centre := bounds.get_center()
+		var top := speaker_node.to_global(Vector3(centre.x, bounds.end.y, centre.z))
+		var bottom := speaker_node.to_global(Vector3(centre.x, bounds.position.y, centre.z))
+		if camera.is_position_behind(top) or camera.is_position_behind(bottom):
+			return false
+		var scale := get_viewport_rect().size / view.get_visible_rect().size
+		_head_screen = _snap(camera.unproject_position(top) * scale)
+		_door_bottom = _snap(camera.unproject_position(bottom) * scale)
+		return get_viewport_rect().has_point(_head_screen) or get_viewport_rect().has_point(_door_bottom)
 	var head := speaker_node.to_global(_head_local)
-	if camera == null or camera.is_position_behind(head):
+	if camera.is_position_behind(head):
 		return false
 	_head_screen = camera.unproject_position(head) * get_viewport_rect().size / view.get_visible_rect().size
 	_head_screen = _snap(_head_screen)
@@ -187,10 +204,18 @@ func _layout_bubble() -> void:
 		_box_h = maxf(_box_h, 168.0)
 	var room := Rect2(safe.position + Vector2(0, plate_h), safe.size - Vector2(0, plate_h))
 	_anchored = _project_head()
-	_below = _anchored and _head_screen.y - HEAD_GAP - _box_h < room.position.y
+	if _anchored and _door_anchor and UI.top_bar != null and UI.top_bar.visible:
+		# A place-name notice may still be showing just after the player knocks indoors.
+		var top := maxf(room.position.y, UI.top_bar.get_global_rect().end.y + plate_h + 8.0)
+		room.size.y -= top - room.position.y
+		room.position.y = top
+	var gap := CHEVRON_H + 6.0 if _door_anchor else HEAD_GAP
+	_below = _anchored and _head_screen.y - gap - _box_h < room.position.y
+	if _anchored and _door_anchor and _below:
+		_head_screen = _door_bottom
 	var at := Vector2(safe.get_center().x - width / 2.0, safe.end.y - _bottom_gap() - _box_h)
 	if _anchored:
-		at = Vector2(_head_screen.x - width / 2.0, _head_screen.y + HEAD_GAP if _below else _head_screen.y - HEAD_GAP - _box_h)
+		at = Vector2(_head_screen.x - width / 2.0, _head_screen.y + gap if _below else _head_screen.y - gap - _box_h)
 	at.x = clampf(at.x, room.position.x, room.end.x - width)
 	at.y = clampf(at.y, room.position.y, room.end.y - _box_h)
 	var rect := Rect2(at, Vector2(width, _box_h))
@@ -304,7 +329,8 @@ func _process(delta: float) -> void:
 		text_label.visible_characters = mini(total, int(shown))
 		if text_label.visible_characters - _last_blip >= 4:
 			_last_blip = text_label.visible_characters
-			Sfx.play_pitched("talk", _voice)
+			if speaker != "":
+				Sfx.play_pitched("talk", _voice)
 		more.visible = false
 	else:
 		_blink += delta

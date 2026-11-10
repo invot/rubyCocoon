@@ -7,6 +7,7 @@ const Houses = preload("res://scripts/gfx/house_models.gd")
 const Walls = preload("res://scripts/gfx/house_builder.gd")
 const Interiors = preload("res://scripts/data/maps/interior_maps.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
+const UIKit = preload("res://scripts/ui/ui_kit.gd")
 var bad := 0
 
 func run(main, opts: Dictionary) -> void:
@@ -63,6 +64,7 @@ func run(main, opts: Dictionary) -> void:
 	print("DOOR VOICES DONE: %d problem(s)" % bad)
 	if opts.has("verify"):
 		await _input_preview(main,opts)
+		await _edge_checks(main, opts)
 
 func _input_preview(main, opts: Dictionary) -> void:
 	await main._go("caccoon", "start")
@@ -79,6 +81,7 @@ func _input_preview(main, opts: Dictionary) -> void:
 	await main._wait(1.2)
 	_check(not UI.stack.is_empty() and main.world.map_id == "caccoon", "the red door answers a real input and keeps the player outdoors")
 	if not UI.stack.is_empty():
+		_check(UI.stack.back()._anchored and UI.stack.back().speaker_node.has_meta("speech_bounds"), "the voice is anchored to the actual door")
 		UI.stack.back().text_label.visible_characters = -1
 	await main._wait(float(opts.get("wait","1")))
 	if opts.has("shot"):
@@ -97,6 +100,59 @@ func _input_preview(main, opts: Dictionary) -> void:
 			await main._wait(0.3)
 		_check(UI.stack.is_empty(), "the final page closes without knocking again")
 		print("DOOR INPUT DONE: %d problem(s)" % bad)
+
+
+func _edge_checks(main, opts: Dictionary) -> void:
+	var b: Dictionary = main.world.map["buildings"][4]
+	var source: Node3D = main.world.door_speaker(b["door"])
+	var camera: Camera3D = main.world.cam
+	main.world.cam_free = true
+	var original := camera.global_transform
+	var bounds: AABB = source.get_meta("speech_bounds")
+	var top := source.global_position + Vector3(0, bounds.end.y, 0)
+	for edge in ["top", "bottom", "left", "right"]:
+		camera.global_transform = original
+		var fraction := Vector2(0.5, 0.04) if edge == "top" else Vector2(0.5, 0.88)
+		if edge in ["left", "right"]:
+			fraction = Vector2(0.04 if edge == "left" else 0.96, 0.5)
+		var current := camera.unproject_position(top)
+		var depth := -camera.to_local(top).z
+		camera.global_position += camera.project_position(current, depth) - camera.project_position(Vector2(main.view.size) * fraction, depth)
+		Places.knock(b, main.world)
+		await main._wait(1.1)
+		var dialog = UI.stack.back()
+		dialog.text_label.visible_characters = -1
+		var footprint: Rect2 = dialog._bubble_rect.merge(dialog.name_panel.get_global_rect())
+		_check(dialog.bubble_mode and dialog._anchored and not dialog._tail.is_empty(), edge + ": door reply keeps its white bubble and pointer")
+		_check(dialog._below == (edge == "top"), edge + ": pointer uses the bottom/top of the door to fit the viewport")
+		_check(UIKit.safe_rect(dialog).encloses(footprint), edge + ": whole bubble and name plate stay in the safe area")
+		if UI.is_touch():
+			for group in UI.controls.CLUSTERS:
+				_check(not footprint.intersects(UI.controls.cluster_zone(group, UI.controls.TOUCH_SLOP + UI.controls.NO_TAP_MARGIN)), edge + ": door reply stays clear of touch controls")
+		if opts.has("shot") and DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			main._save_shot(String(opts["shot"]).get_basename() + "_" + edge + ".png")
+		dialog.close()
+		await main._wait(0.2)
+	camera.global_transform = original
+	# An indoor reply also has a source, rather than becoming disembodied narration.
+	UI.auto = true
+	await main._go("caccoon#1", "entry")
+	UI.auto = false
+	for tile in main.world.map.get("locked_text", {}):
+		Places.prop(MapGen.LOCKED, main.world.map, main.world, tile)
+		await main._wait(1.1)
+		var dialog = UI.stack.back()
+		_check(dialog.bubble_mode and dialog._anchored and dialog.speaker_node.has_meta("speech_bounds"), "indoor locked door replies point to their door")
+		var footprint: Rect2 = dialog._bubble_rect.merge(dialog.name_panel.get_global_rect())
+		_check(not UI.top_bar.visible or not footprint.intersects(UI.top_bar.get_global_rect()), "the indoor door's name plate stays clear of arrival notices")
+		dialog.text_label.visible_characters = -1
+		if opts.has("shot") and DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+			main._save_shot(String(opts["shot"]).get_basename() + "_indoors.png")
+		dialog.close()
+		break
+	print("DOOR BUBBLES DONE: %d problem(s)" % bad)
 
 func _confirm(main) -> void:
 	if UI.is_touch():

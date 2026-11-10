@@ -1,28 +1,27 @@
 extends "res://scripts/ui/modal.gd"
-## Choosing the round's commands (as in Jade Cocoon 2). Nothing of its own is drawn: it drives the move bars and the
-## grids of the battle HUD (battle_bars.gd, ring_grid.gd).
-##   ◄ / ►  change the chosen bar's action: your own, or the beast's move (the side's element, neutral or Defend)
+## Round commands drive the anchored 3D selection and floating_hud.gd. The rules stay independent of presentation.
+##   ◄ / ►  change the chosen actor's action: your own, or the beast's move (the side's element, neutral or Defend)
 ##   A       confirm it; then every move aimed at someone has its target picked, even with just one to aim at: ◄ / ►
 ##           choose it (a foe on the side facing you, or their trainer when the middle of that side is down) and A
 ##           confirms. A move that hits them all shows them all, for A to confirm. Move (a beast steps over to another
 ##           slot) picks the slot with ▲ / ▼ (or ◄ / ►).
 ##   B       go back a step
-##   ▲ / ▼   move between the beasts; ▲ on the top beast (or on your own bar, once your action is chosen) turns the
+##   ▲ / ▼   move between the beasts; ▲ on the top beast (or on your trainer, once your action is chosen) turns the
 ##           ring anticlockwise, ▼ on the bottom one clockwise (to the next side with a beast standing on it; the
 ##           beasts' choices are then made afresh)
 ## You choose your own action first, then each beast's move and target, from the top. When every standing beast has
-## its move, the round begins. The bars and the grids' tiles can be tapped too. In a lesson
-## (info.lesson) each bar has one thing to pick: ◄ ► stay on it, and the hint says why.
+## its move, the round begins. The floating controls and 3D beasts can be tapped too. In a lesson
+## (info.lesson) each actor has one thing to pick: ◄ ► stay on it, and the hint says why.
 ##
 ## rows (built by battle.gd) keep their state, so the panel can close for a sub-menu (items, the flute) or a turn of
 ## the ring and open again where it left off. done emits {"kind": "go"} when everything is chosen, {"kind": "rotate",
 ## "dir": -1 / 1}, or {"kind": "sub", "row": i} (the chosen option needs battle.gd's own menu).
 ## rows: [{kind: "trainer" | "beast", beast, options: [{label, target, disabled, desc, sub, move}], sel, done,
-##         target_sel, targets: [{label, ref, tile, grid}], target_all (the move hits every target), pick_kind,
+##         target_sel, targets: [{label, ref}], target_all (the move hits every target), pick_kind,
 ##         status: "" | "down" | "empty", locked}]
 ## info: {up, down, prompt, lesson}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
 ##        option: Callable(row, option) (the action or move now highlighted, for battle.gd's window that explains it),
-##        bars, foe_grid, ally_grid (to listen for taps)}
+##        stage, floating (3D picking and anchored tap targets)}
 
 var rows: Array = []
 var info: Dictionary = {}
@@ -31,6 +30,7 @@ var picking := false
 var targets_for: Callable
 var hooks: Dictionary = {}
 var _accept_frame := -1
+var _tapped_ref = null
 
 
 func setup(_rows: Array, _info: Dictionary, _focus: int, _targets_for: Callable, _hooks: Dictionary) -> Control:
@@ -44,27 +44,53 @@ func setup(_rows: Array, _info: Dictionary, _focus: int, _targets_for: Callable,
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bars = hooks.get("bars", null)
-	if bars != null:
-		bars.tapped.connect(_bar_tapped)
-	for g in ["foe_grid", "ally_grid"]:
-		var grid = hooks.get(g, null)
-		if grid != null:
-			grid.tile_tapped.connect(_tile_tapped.bind(g))
 	_point_row()
 	_redraw()
 
 
-func _exit_tree() -> void:
-	var bars = hooks.get("bars", null)
-	if bars != null and bars.tapped.is_connected(_bar_tapped):
-		bars.tapped.disconnect(_bar_tapped)
-	for g in ["foe_grid", "ally_grid"]:
-		var grid = hooks.get(g, null)
-		if grid != null:
-			var callback := _tile_tapped.bind(g)
-			if grid.tile_tapped.is_connected(callback):
-				grid.tile_tapped.disconnect(callback)
+## Raw presses are handled once; discard the mirrored mouse/touch event. Touch clusters own their enlarged zones.
+func _input(ev: InputEvent) -> void:
+	if closed or UI.stack.is_empty() or UI.stack.back() != self or ev.device == InputEvent.DEVICE_ID_EMULATION:
+		return
+	var at: Vector2
+	if ev is InputEventScreenTouch and ev.pressed:
+		at = ev.position
+	elif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+		at = ev.position
+	else:
+		return
+	if UI.touch_blocks(at):
+		return
+	get_viewport().set_input_as_handled()
+	var floating = hooks.get("floating", null)
+	var zone: String = floating.hit_menu(at) if floating != null else ""
+	if zone != "":
+		if zone != "consume":
+			_bar_tapped(focus, zone)
+		return
+	var stage = hooks.get("stage", null)
+	if stage == null:
+		return
+	if picking:
+		var targets: Array = rows[focus].get("targets", [])
+		var refs := targets.map(func(t): return t["ref"])
+		var ref = stage.pick_ref(at, refs)
+		if ref == null:
+			return
+		var j := refs.find(ref)
+		if is_same(_tapped_ref, ref) and (j == int(rows[focus].get("target_sel", 0)) or rows[focus].get("target_all", false)):
+			_confirm()
+		else:
+			_tapped_ref = ref
+			rows[focus]["target_sel"] = j
+			Sfx.play("select")
+			_point_row()
+			_redraw()
+	else:
+		var refs := rows.map(func(r): return "trainer_self" if r["kind"] == "trainer" else r.get("beast", null))
+		var ref = stage.pick_ref(at, refs)
+		if ref != null:
+			_focus_row(refs.find(ref))
 
 
 func _redraw() -> void:
@@ -77,6 +103,15 @@ func _redraw() -> void:
 	var text := ""
 	if not picking and focus == 0 and not rows[0].get("done", false):
 		text = String(info.get("prompt", ""))
+	var current: Dictionary = rows[focus]
+	var options: Array = current.get("options", [])
+	if not picking and not options.is_empty():
+		var opt: Dictionary = options[int(current.get("sel", 0))]
+		text = String(opt.get("note", ""))
+		if text == "":
+			text = String(opt.get("desc", text)).replace("\n", " ")
+	if picking:
+		text = "▲ ▼ Choose a pad · A: Move · B: Back" if current.get("pick_kind", "") == "slot" else "◄ ► Aim · A: Confirm · B: Back"
 	_hint(text)
 
 
@@ -85,7 +120,7 @@ func _hint(text: String) -> void:
 		(hooks["hint"] as Callable).call(text)
 
 
-## The beasts' bars open once your own action is chosen.
+## The beasts' choices open once your own action is chosen.
 func _row_enabled(i: int) -> bool:
 	return i == 0 or rows[0].get("done", false)
 
@@ -130,24 +165,6 @@ func _bar_tapped(i: int, zone: String) -> void:
 			_confirm()
 
 
-## Tapping a foe's tile while picking a target aims at it (and confirms when it's already the one aimed at).
-func _tile_tapped(tile: int, grid: String) -> void:
-	if closed or not picking:
-		return
-	var row: Dictionary = rows[focus]
-	var ts: Array = row.get("targets", [])
-	for j in ts.size():
-		if int(ts[j].get("tile", -100)) == tile and String(ts[j].get("grid", "")) == grid:
-			if j == int(row.get("target_sel", 0)) or row.get("target_all", false):
-				_confirm()
-			else:
-				row["target_sel"] = j
-				Sfx.play("select")
-				_point_row()
-				_redraw()
-			return
-
-
 func _focus_row(i: int) -> void:
 	if i == focus or not _row_enabled(i):
 		return
@@ -172,6 +189,7 @@ func _point_row() -> void:
 
 
 func _cycle(dir: int) -> void:
+	_tapped_ref = null
 	var row: Dictionary = rows[focus]
 	if row.get("status", "") != "" or row.get("locked", false) or not _row_enabled(focus):
 		return
@@ -284,6 +302,7 @@ func _confirm() -> void:
 		row["target_all"] = kind in ["enemies", "allies"]
 		row["target_sel"] = clampi(int(row.get("target_sel", 0)), 0, ts.size() - 1) if kind != "slot" else 0
 		picking = true
+		_tapped_ref = null
 		Sfx.play("confirm")
 		_point_row()
 		_redraw()

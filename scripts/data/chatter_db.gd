@@ -102,6 +102,18 @@ const TOWNS := {
 	],
 }
 
+## Gravenmoor's weather and occupation, noticed by the people living in it.
+const GRAVENMOOR_FOG := [
+	["When did this fog roll into town? I've had the lamps lit since breakfast.", "If you're looking for Old Mort, he's over in the graveyard. He never seems to mind it."],
+	["I can barely see the next lamp. I'm following their glow all the way home."],
+	["I thought that shape in the fog was my neighbour. Then it floated through the fence.", "Old Mort knows what to do with ghosts. I'd ask him before going out on the moor."],
+	["I used to hear the Beast Center's bell from here. Now I listen for Legion boots before I open my door."],
+]
+const GRAVENMOOR_PEACE := [
+	["Still can't see the next lamp, but at least I can walk home without worrying about the Legion."],
+	["That ghost's back at my fence. I think it likes the lamplight.", "I'll ask Old Mort what to feed it."],
+]
+
 ## Residents in houses.
 const RESIDENTS := [
 	["Oh! A visitor! Quick, everyone act natural!", "...I live alone. I panicked."],

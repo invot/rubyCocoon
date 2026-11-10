@@ -60,6 +60,7 @@ const ASSETS := {
 	"stone_pillar_dark": "res://assets/props/stone_pillar_dark.res",
 	"stone_wall": "res://assets/props/stone_wall.res",
 	"fence": "res://assets/props/fence.res",
+	"stone_fence": "res://assets/props/stone_fence.res",
 	"lamp": "res://assets/props/lamp.res",
 	"tomb_2": "res://assets/props/tomb_2.res",
 	"iron_fence": "res://assets/props/iron_fence.res",

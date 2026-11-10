@@ -10,7 +10,7 @@ extends SceneTree
 
 const Smooth = preload("res://scripts/gfx/smooth_texture.gd")
 const RECORD := "res://tools/smoothed.json"
-const PNG_DIRS := ["res://assets/textures/surfaces/", "res://assets/textures/patterns/", "res://assets/interiors/tex/"]
+const PNG_DIRS := ["res://assets/textures/surfaces/", "res://assets/textures/patterns/", "res://assets/interiors/tex/", "res://assets/battle/backdrops/"]
 const MESH_DIRS := ["res://assets/nature/", "res://assets/props/", "res://assets/boats/", "res://assets/houses/tiles/",
 	"res://assets/houses/", "res://assets/exteriors/", "res://assets/interiors/"]
 
@@ -64,7 +64,7 @@ func _png(path: String) -> bool:
 	var img := Image.load_from_file(ProjectSettings.globalize_path(path))
 	if img == null:
 		return false
-	var out := Smooth.soften(img)
+	var out := Smooth.soften_backdrop(img) if path.begins_with("res://assets/battle/backdrops/") else Smooth.soften(img)
 	out.clear_mipmaps()
 	out.save_png(ProjectSettings.globalize_path(path))
 	# the game samples them with mipmaps now

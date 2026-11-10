@@ -295,7 +295,10 @@ func _enclosed(space: PhysicsDirectSpaceState3D, p: Vector3) -> bool:
 		var n: Vector3 = d.normalized()
 		var across := n.cross(Vector3.UP).normalized() if absf(n.y) < 0.5 else Vector3.RIGHT
 		var up := Vector3.UP if absf(n.y) < 0.5 else Vector3.BACK
-		for o in [Vector3.ZERO, across * 0.2, -across * 0.2, up * 0.25, -up * 0.25]:
+		# (a railing's balusters stand a tenth apart and its rails run level: lines 0.2 apart, or one above another,
+		# can all meet it. The lines 0.07 to the side slip between its bars, so a railed balcony isn't walled in.)
+		for o in [Vector3.ZERO, across * 0.2, -across * 0.2, up * 0.25, -up * 0.25, across * 0.07, -across * 0.07,
+				up * 0.25 + across * 0.07, up * 0.25 - across * 0.07]:
 			if _ray(space, p + o, p + o + n * 12.0, ALL).is_empty():
 				return false
 	return true

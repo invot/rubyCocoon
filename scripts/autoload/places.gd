@@ -276,8 +276,12 @@ func bookstore(b: Dictionary, town: String, tier: int) -> void:
 func beast_center(town: String) -> void:
 	if WorldDB.is_town(town):
 		GameState.last_center = town
-	await Story.say(["Welcome to the Beast Center! I hatch eggs, and I look after storage and the merge altar.",
-		"Healing's self-service: the machine along the back. Beasts looking for a new home are in the kennel, round the wall on the left!"], KEEPERS["center"])
+	var greeting := ["Welcome to the Beast Center! I hatch eggs, and I look after storage and the merge altar.",
+		"Healing's self-service: the machine along the back. Beasts looking for a new home are in the kennel, round the wall on the left!"]
+	if town == "gravenmoor" and GameState.flag("ghost_merge"):
+		greeting = ["Come in out of that fog! If a defeated ghost leaves a Shadow Egg, bring it to me. I can hatch it for you.",
+			"I can merge ghost beasts now, too. So can the other Beast Centers. Old Mort in the graveyard can teach you their capture song."] + greeting
+	await Story.say(greeting, KEEPERS["center"])
 	if not GameState.eggs.is_empty() and GameState.party.is_empty():
 		await hatchery()
 	while true:
@@ -871,7 +875,7 @@ func arena_challenge(town: String) -> String:
 		await _miner_pass(town)
 		if town == "kelpwick":
 			await Story.reef_opened(leader)
-		await Story.on_crest()
+		await Story.on_crest(leader)
 	return res
 
 
@@ -1331,13 +1335,14 @@ func house_locked(b: Dictionary) -> bool:
 
 
 ## Knocking on a locked door: three raps, then whoever's inside shouts something through it.
-func knock(b: Dictionary) -> void:
+func knock(b: Dictionary, world = null) -> void:
 	Sfx.play("knock")
 	await get_tree().create_timer(0.85).timeout
 	var cathedral: bool = b["shop"] == "cathedral"
 	var identity := String(b.get("interior", ""))
 	var lines: Array = ChatterDB.DOOR_VOICES.get(identity, ChatterDB.LOCKED_DOOR[absi(int(b.get("seed",0))) % ChatterDB.LOCKED_DOOR.size()])
-	await UI.say(ChatterDB.fill(lines, GameState.player_name), "Legion Grunt" if cathedral else "Muffled Voice")
+	var source: Node3D = world.door_speaker(b["door"]) if is_instance_valid(world) else null
+	await UI.say(ChatterDB.fill(lines, GameState.player_name), "Legion Grunt" if cathedral else "Muffled Voice", null, source)
 	if cathedral:
 		await Story.say(["The cathedral doors are barred from the inside."])
 
@@ -1492,7 +1497,7 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 				await get_tree().create_timer(0.85).timeout
 				var room := String(map.get("room_key", ""))
 				var voices: Dictionary = ChatterDB.STAFF_DOOR_VOICES if map.get("staff_doors", {}).has(t) else ChatterDB.ROOM_DOOR_VOICES
-				await UI.say([voices.get(room, "Shh! I'm trying to remember why I came in here.")], "Muffled Voice")
+				await UI.say([voices.get(room, "Shh! I'm trying to remember why I came in here.")], "Muffled Voice", null, world.door_speaker(t))
 		MapGen.FURN:
 			if map.get("furniture", {}).get(t, "") == "phone":
 				await Phone.call_home(world)

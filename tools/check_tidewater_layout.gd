@@ -112,7 +112,9 @@ func _waterfront() -> void:
 		if not ("item:" + id) in room["room"]["anchors"].values():
 			_fail("missing gear pickup: " + id)
 	var cove := MapLoader.load_map("caccoon", {})
-	if not cove["signs"].has(Vector2i(29, 20)) or cove["signs"].has(Vector2i(31, 21)):
+	var library: Dictionary = cove["buildings"].filter(func(b): return b["shop"] == "bookstore")[0]
+	var beside := Vector2i(int(library["x"]) - 1, int(library["y"]) + int(library["d"]))
+	if not cove["signs"].has(beside) or cove["signs"].has(library["door"] + Vector2i.DOWN):
 		_fail("library sign must be beside the facade, clear of the doorway")
 
 

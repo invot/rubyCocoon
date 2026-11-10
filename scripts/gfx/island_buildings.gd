@@ -356,7 +356,8 @@ static func _window(k: VB.Kit, p: Vector3, t: Vector3, n: Vector3, w: float, h: 
 	_trace(k, "plaster", _outline(p + n * 0.05, t, w + 0.14, spring), 0.12, TRIM)
 	_wbox(k, "plaster", p + n * 0.07 + up * (h + 0.06), t, 0.15, 0.2, 0.1, TRIM)
 	if kind != "juliet":
-		_wbox(k, "plaster", p + n * 0.07 - up * 0.04, t, w + 0.3, 0.08, 0.14, TRIM)
+		# (the sill is let a hair into the wall, so its back never lies exactly in the wall's face)
+		_wbox(k, "plaster", p + n * 0.065 - up * 0.04, t, w + 0.3, 0.08, 0.15, TRIM)
 	var leaf := minf(r * 0.9, room - r - 0.16)
 	if leaf >= 0.17:
 		_shutters(k, p, t, n, r, leaf, spring + r * 0.4, paint)

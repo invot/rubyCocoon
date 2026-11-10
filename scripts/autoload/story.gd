@@ -367,18 +367,13 @@ func on_map_enter(world) -> void:
 		await fish_lesson(world)
 	elif id == "gravenmoor" and not GameState.flag("ghost_merge"):
 		GameState.set_flag("ghost_merge")
-		await say(["A cold fog rolls over Gravenmoor. Black Legion banners hang from every rooftop.",
-			"Here, where the shadows gather, ghost beasts can be bonded with at last.",
-			"From now on, defeated ghost beasts may leave Shadow Eggs, and ghost beasts can be merged at any Beast Center."])
+		# The fog and lit lamps establish the mood. Mort and Clover explain ghost beasts when spoken to.
 	elif id == "reef" and not GameState.flag("seen_reef"):
 		GameState.set_flag("seen_reef")
-		await say(["Past Kelpwick's villagers at last. Far across the reef, the Temple of Tides rises from the waves."])
 	elif id == "route9" and GameState.flag("ritual_done") and not GameState.flag("seen_roots"):
 		GameState.set_flag("seen_roots")
-		await say(["The ground still hums from the ritual. The Temple of Roots now stands where there were only vines."])
 	elif id == "route10" and not GameState.flag("seen_moor"):
 		GameState.set_flag("seen_moor")
-		await say(["The Moor Road. Ghost beasts drift through the fog... They have no weakness at all."])
 	world.busy = false
 	world.refresh_npc_marks()
 	# a teacher who can see you where you've arrived stops you straight away
@@ -784,7 +779,10 @@ func _talk_villager(world, n: Dictionary) -> void:
 		quest = "Black Bart's gang rode through again. Took every sack of flour. And my favourite spoon. Monsters."
 	elif world.map_id == "cogsworth" and not GameState.flag("ceo_defeated"):
 		quest = "Those freight wagons aren't carrying machinery. Wren heard people calling from inside. Gearhart's sentries guard every lift."
-	if r < 10 and not town.is_empty():
+	if world.map_id == "gravenmoor":
+		var pool: Array = ChatterDB.GRAVENMOOR_PEACE if GameState.flag("game_cleared") else ChatterDB.GRAVENMOOR_FOG
+		lines = ChatterDB.pick(pool, rng)
+	elif r < 10 and not town.is_empty():
 		lines.append("Welcome to %s! %s" % [town["name"], town["blurb"]])
 	elif r < 24 and quest != "":
 		lines.append(quest)
@@ -1435,6 +1433,10 @@ func _relic(world, n: Dictionary) -> void:
 
 
 func _gravedigger() -> void:
+	if GameState.flag("game_cleared") and GameState.flag("got_requiem"):
+		await say(["Hear that? No marching boots. Just the wind and my old friends.",
+			"I'll play them the Requiem tonight. For once, nobody's making them fight."], "Old Mort")
+		return
 	if GameState.flag("got_requiem"):
 		await say(["The ghosts aren't wicked, you know. Just lost. The Legion drags them up from the crypt and twists them.",
 			"Vexmora's down there now, beneath the cathedral. Commander Nyx guards the stairs."], "Old Mort")
@@ -1443,6 +1445,7 @@ func _gravedigger() -> void:
 	GameState.learn_song("requiem")
 	Sfx.play("levelup")
 	await say(["A living trainer, in Gravenmoor? Hah. Haven't seen one of those in a while.",
+		"Mind the ghosts in that fog. No element has an advantage against them.",
 		"Those ghost beasts out on the moor won't listen to your ordinary songs. But this one... this one they remember.",
 		"It's the Requiem of Dusk. My mother taught it to me. Play it for a ghost beast, and it may follow you home.",
 		"Same rules as your Capture song, mind: no stronger than your Capture level, and only perfection reaches the really tough ones."], "Old Mort")
@@ -2072,17 +2075,17 @@ func wild_encounter(world) -> void:
 
 
 ## Called by arenas when a crest is won.
-func on_crest() -> void:
+func on_crest(speaker: String) -> void:
 	var c := GameState.crest_count()
 	if c == 3:
-		await say(["News from the road: soldiers in black armour have been seen in the mountains near Copperpick.",
-			"Trainers say their ghost beasts shrug off every element."])
+		await say(["I've heard from trainers near Copperpick. Soldiers in black armour are patrolling the mountains.",
+			"They say their ghost beasts shrug off every element. Be careful out there."], speaker)
 	elif c == 6:
-		await say(["A traveller whispers: the Umbral Legion has taken Gravenmoor, east of Riverbend.",
-			"They say their General is digging beneath the old cathedral."])
+		await say(["A traveller told me the Umbral Legion has taken Gravenmoor, east of Riverbend.",
+			"Their General is digging beneath the old cathedral. I don't like the sound of that."], speaker)
 	elif c == 8:
-		await say(["With eight crests, you are the strongest trainer the land has seen in an age.",
-			"Gravenmoor lies east along the Moor Road. The Legion is waiting."])
+		await say(["Eight crests! I haven't met a trainer like you in years.",
+			"If you're going after the Legion, take the Moor Road east to Gravenmoor."], speaker)
 
 
 ## World conversations explicitly pass their named NPC. Phone/narration callers keep using UI directly.

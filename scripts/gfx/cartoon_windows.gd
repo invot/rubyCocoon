@@ -176,10 +176,12 @@ static func openings(mesh: Mesh, roles: Array, cove := false) -> Array:
 
 
 ## Add all surrounds as two surfaces in the existing mesh, retaining its wall infill, anchors and fading behaviour.
-static func dress(mesh: ArrayMesh, roles: Array, cove := false, trim := Color("#eee1bf"), stone := false) -> ArrayMesh:
+static func dress(mesh: ArrayMesh, roles: Array, cove := false, trim := Color("#eee1bf"), stone := false, glass_colour := Color("#498caa")) -> ArrayMesh:
 	var windows := openings(mesh, roles, cove)
 	if windows.is_empty():
 		return mesh
+	for window in windows:
+		window["glass"] = glass_colour
 	var out := ArrayMesh.new()
 	for si in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(si) as StandardMaterial3D
@@ -197,16 +199,16 @@ static func dress(mesh: ArrayMesh, roles: Array, cove := false, trim := Color("#
 	for key in mesh.get_meta_list():
 		out.set_meta(key, mesh.get_meta(key))
 	var frame := Shape.new()
-	var glass := Shape.new()
+	var panes := Shape.new()
 	for window in windows:
 		# The old glass stood slightly proud of its wall; the replacement's solid back meets that wall.
 		window["p"] -= window["n"] * (0.07 if cove else 0.025)
 		if stone:
-			_stone(frame, glass, window, trim)
+			_stone(frame, panes, window, trim)
 		else:
-			_draw(frame, glass, window, trim)
+			_draw(frame, panes, window, trim)
 	frame.surface(out, "window_frame")
-	glass.surface(out, "window_glass")
+	panes.surface(out, "window_glass")
 	return out
 
 

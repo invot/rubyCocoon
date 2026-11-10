@@ -102,7 +102,7 @@ required before confronting Vexmora.
    LESSON_TRAINERS, battle.gd LESSONS). Each looks straight across the trail where you can't slip past, so you always
    walk into their line of sight and they come over and stop you; you never need to talk to them first. Youngster Kit
    watches the trail where it reaches the creek. Each gives a guided battle, and so do the arena's coaches and
-   the flute lesson (`battle.gd` LESSONS): every bar and every menu has just the one thing to pick, the one being
+   the flute lesson (`battle.gd` LESSONS): every floating choice and every menu has just the one thing to pick, the one being
    taught (◄ ► stay put, and the teacher says what to do), the target and the beast to heal are chosen for you, and
    you can't lose: your beasts are healed first and always keep at least 1 HP, and nobody can run, forfeit or hit
    you. Your beast grows a level or so. Camper Tilly: the battle screen and
@@ -133,6 +133,9 @@ required before confronting Vexmora.
 
 Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
 `Story.next_goal()`), so what they talk about moves on as soon as you've done it.
+Let the place and its people tell the story: avoid descriptive arrival popups. Gravenmoor's fog and glowing street
+lamps set its mood; locals react to the weather and the Legion, Old Mort teaches ghost capture, and Nurse Clover
+explains Shadow Eggs and ghost merging. Arriving still unlocks ghost eggs and merging, without interrupting movement.
 
 | Region | Towns | What happens |
 |---|---|---|
@@ -300,20 +303,23 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - You carry as many beasts as you have **beast slots** wired up: 3 to start, up to 8. New beasts take a free slot they may stand in, joining the side most of your team stands on.
   - **Starting side** (**Start → Beasts → Battle ring & storage**): the ring preview has a left and right arrow beside **Starting side**, with the selected element on the line below. Tap an arrow, or use Left/Right while the ring row is selected, to rotate to the next side with a beast in any of its three slots. Fully empty sides are skipped; fainted beasts still occupy their slots. A on the row opens arrangement as before. The preference is kept with your normal phone save and survives turns made during battle. Until you choose a side, existing saves keep using the last battle's facing.
   - **Arranging your beasts** (`ring_editor.gd`, **Start → Beasts → Battle ring & storage**, anywhere outside battle): your ring's eight slots round you, the side facing the foe at the top, and your storage as a grid beside it. Tap a beast (or move to it with the d-pad and press A) to pick it up: only the cells it may go to light up, the rest darken. A slot it can stand on, trading places with whoever is there if they can stand on its old one; a stored beast, swapping with it; or storage's empty cell. A stored beast only takes an empty slot while your ring has room, and one beast always stays with you (`GameState.ring_move_reason` has the rules). Tap it again (or B) to put it back down. Beast Centers' storage terminals still heal a beast you deposit; the book doesn't.
-- **Battles** (`battle.gd`, `command_panel.gd`, `battle_bars.gd`, `ring_grid.gd`): one side of each ring faces the foe, and only its three beasts fight, using **that side's element** or plain (neutral) moves. A dual beast in a corner uses whichever of its elements faces the foe.
+- **Battles** (`battle.gd`, `command_panel.gd`, `floating_hud.gd`): one side of each ring faces the foe, and only its three beasts fight, using **that side's element** or plain (neutral) moves. A dual beast in a corner uses whichever of its elements faces the foe.
   - The camera looks over your shoulder: you stand at the bottom right, the foe at the top left. Every slot is an ornate hexagonal pad with a glowing sigil of its element(s); the side facing the foe glows brighter.
-  - The HUD is kept to JC2's: the foe's ring as a slanted 3x3 grid at the top left (a wild pack: a line of three tiles), yours at the bottom right, and a compact message box centred at the top. Battle messages show an icon of the beast or trainer they describe, on the left for enemies and on the right for your side; the message and move-info windows share the same padding and frame. Each grid tile is a slot: a beast's icon (with a small HP bar) stands on it, a fainted beast's icon is crossed out, and empty slots are faded. The trainer stands on the middle tile; the foe's shield points are blue orbs under its grid.
-  - Beside your grid are the **move bars**, one per beast on the side facing the foe, level with its row: its level, then the move it will use, with its HP and MP underneath. If the move costs MP, the part of the MP bar it would spend slowly flashes. Your own bar comes first, on its own: while you choose your action your grid's centre cell glows and all beast icons and health indicators stay readable. Your bar sits beside the ring, level with the middle beast's bar, trimmed in gold and showing your trainer level and action; once you move on, the beasts' bars take its place. Your shield points are blue orbs under your bar. The trainer or beast whose move and target you are choosing has an outline in your chosen gem color around their HUD icon and tile. While either side performs an action, the same outline marks the acting HUD icon and tile; it clears before the next action.
-  - Each round you choose your own action first, then each beast's move from the top: ◄ ► change it, A confirms, and then **every move aimed at someone has its target picked**, even with just one foe (◄ ► and A: a foe on the side facing you, or their trainer when that side's middle beast is down); a move that hits them all shows them all to confirm. A move isn't set until its target is, and the round only begins once every beast facing the foe is set. B goes back. One press of A is one confirm (on a phone, too). ▲ ▼ move between your beasts; **▲ on the top beast (or on your own bar, once your action is chosen) turns the ring (and the grid) anticlockwise, ▼ on the bottom one clockwise**, to the next side with a beast standing on it.
-  - **The ring turns by itself** when a battle starts to a side with a beast standing in its middle (your chosen starting side if its middle stands, else the nearest; without a choice, the side you last faced), and at the start of your turn when everyone on the side facing the foe is down. Guided lessons keep their teaching formation. The bars, the grids and the battle text are drawn large (1.4x on desktops, 1.5x on phones). Phones (`--touch`): the bars and your grid stand centred just above START and PAUSE, clear of the d-pad and A and B; bars and the foe's tiles can be tapped.
-  - **Choosing a target** (for every attack, the slingshot and items): the move-info window closes and an arcing arrow connects the attacker to the chosen target. A move that hits everyone draws an arch to each of them. There is no bobbing triangle over anyone's head. There are no target cards or weakness stars. ◄ ► (keys or d-pad) change the target; a tap on a grid tile aims at it (a second tap confirms), and A confirms. B returns to move selection and restores move info. After an elemental hit, a short message says when it was extra effective or the target is resistant.
+  - **Cinematic HUD**: there are no fixed foe/ally grids, move bars or shield panels. The 3D trainer or beast choosing an action gets an outline in the selected gem, and the camera gently frames them. One small bordered, blurred dark menu floats beside them on the side with more room: ◄ ► change the current action and **A confirms**. A beast's menu includes HP, MP and a flashing preview of the MP it would spend. Names use Lunchtime Doubly So; action labels and numbers use League Spartan. Short explanations and warnings use the shared top-centre bar.
+  - Each round you choose your own action first, then each beast's move from the top. Every aimed move has a separate target confirmation, even with one foe; a move that hits everyone shows all its targets. B goes back. One press or tap confirms once. **▲ ▼ move between your beasts; ▲ past the top (or from your trainer after choosing their action) turns the 3D ring anticlockwise, ▼ past the bottom clockwise**, to the next side with a standing beast. You can also tap an available 3D ally to choose their move.
+  - **The ring turns by itself** at the start of battle to a side with a standing middle beast (the preferred starting side if covered, otherwise the nearest; without a preference, the last facing), and when everyone on the facing side falls. Guided lessons keep their teaching formation and restricted choices. Fainted beasts on either trainer's ring remain lying on their pads; empty pads stay dim. Turning is shown by the actual ring and beasts moving.
+  - **Targeting**: the move menu closes, a translucent yellow 3D arrow arcs from the actor to the target, and the chosen target gets the gem outline and a small HP tag. The arrow has a closed round shaft and solid arrowhead, with translucent depth-tested faces; it stays yellow in every gem. HP tags sit away from the incoming arrow and keep nearby faces clear. All-target moves draw one arrow to each target and outline/tag every target. ◄ ► aim; **tap a 3D beast once to aim, then again to confirm**; A also confirms. B restores the chooser's menu. Move uses ▲ ▼ or a tap on a legal 3D pad. Item and song targeting use the same controls. Guided battles retain their automatic target restrictions.
+  - **During actions** all choice/target tags disappear. A beast whose HP changes gets an HP tag for about a second, then it fades; this includes healing, recoil and status damage. Shield orbs appear beside a trainer only while targeted or for about a second after a hit. Battle messages and damage numbers retain their existing presentation.
+  - **Touch**: each floating action and ◄/► button is at least 80 logical units tall (56 on desktop). The menu stays in the safe area, above Start/Pause and outside the d-pad and A/B clusters' enlarged exclusion zones. If its natural position collides, it shifts and the pointer stretches to the original 3D anchor. Keyboard, gamepad and direct taps share the command controller; taps cannot pass into world movement.
+  - **Surroundings**: outdoor, fishing and arena battles sit inside one continuous textured surround, with a curved foot blended into the stage's own floor. Most trees, rocks and distant scenery are artwork on that surface, hiding the ground/sky edge. Each of the 14 biome palettes has its own repeating mural, baked from the game's existing regional assets; only a handful of nearby trees/rocks (or arena pillars and banners) remain 3D. Indoor battles retain their enclosed walls and ceiling. The mural uses mipmapped anisotropic filtering and adds no shadow casters. There is no runtime artwork generation.
+
   - **Move**: instead of its move, a beast on the side facing the foe can step over to another slot of the ring (choose the slot with ▲ ▼, as you would a target; the arrow marks the slot). Any slot it can stand on that's empty, or holds a fainted beast (they trade places); the side it moves to then turns to face the foe. It may not leave the side facing the foe without a beast standing in its middle (so the beast guarding you stays put, but a corner beast can step into a fallen middle beast's place). One beast moves each round, last in your side's turn, so the others' moves land first. Foe trainers Move too: when the beast in the middle of the side facing you falls, one of that side's beasts steps into a slot that covers its trainer again, unless turning the ring to a side whose middle beast stands would keep more of their beasts fighting (`battle.gd` _ai_shift).
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - **A target that falls first** (`ring.gd` `retarget`, `battle.gd` `_retarget`; the same rule for your beasts, your slingshot and items, and the foe's AI): when an action's turn comes and its target is down or has left the side facing the attacker, it goes to another beast standing on that side instead, the nearest slot first (a tie goes to the one facing the attacker's own row). With nobody standing there, an attack or the slingshot is turned on their trainer, who is open because that side's middle is down or empty; anything else, and any attack on a wild pack, is dropped without a message. A move that hits everyone just leaves the fallen out. A heal, boost or care item meant for an ally that has fallen goes to the standing ally with the least of its HP left; a revive is never passed on. MP is spent (and an item used up) only when the action has someone to land on. Lessons never turn a blow on a trainer by themselves.
   - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
-  - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use League Spartan.
+  - Winning plays *Android Sock Hop*. A beaten wild foe vanishes in a puff of smoke; fainted beasts on either trainer's ring lie on their pads. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use League Spartan.
 
-  <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand."><br><sub>A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand.</sub>
+  <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: the translucent yellow arrow and gem outline aim at the 3D target, with a small HP tag."><br><sub>A wild battle in a desert clearing: the translucent yellow arrow and gem outline aim at the 3D target, with a small HP tag.</sub>
 
 - **Shield and the end of a battle**:
   - If the beast in the middle of the side facing the foe is down (or that slot is empty), its trainer can be **attacked directly**: each hit breaks one shield point. Turn your ring to a side whose middle still stands to cover yourself, or have a corner beast Move into the fallen one's place.
@@ -421,7 +427,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   keep tutorial and story routes intact. Tall grass uses three solid, low-poly blade clumps from the grass pack
   (353, 118 and 43 triangles), replacing the fine, densely cut foliage. Rock tiles draw grounded stone meshes on
   level ground; they no longer form terrain pyramids or support balancing boulders. Movement and puzzle tiles
-  retain their existing rules. To rebuild from the three original ZIP files:
+  retain their existing rules. Trees, bushes and grass tufts wear a painted leaf texture (`foliage.gdshader`, given
+  to every plant by `voxel_assets.gd`; `tools/build_foliage_texture.py` paints `foliage.png`), sunlit on top and
+  deeper underneath, and each plant takes a shade of its own from where it stands, so neighbours never match. Woods
+  are never crowded: no tree stands on a tile beside another's, in the map or the ring past its edge, and the tiles
+  between hold low bushes (always along a wood's edge, so it still reads as a wall). Trees near one another differ in
+  kind where the biome has more than one, in height and in build. Wooded tiles keep their collision.
+  To rebuild from the three original ZIP files:
 
   ```
   python tools/prepare_stylized_nature.py "path/to/zip directory"
@@ -430,7 +442,25 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   godot --headless --path . --import
   ```
 
-- **Other world props** (fences, campfires and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd` (cacti and the head totem are drawn in code). The packs themselves aren't in the repository; with one downloaded again into `psx/`, re-bake and then let Godot rescan, or its file index (and so the exported game) won't include new files:
+- **Fences** use the supplied iron, wooden picket and stone models, with their display lawns removed.
+  Low wood fences mark nature-route boundaries; wood and stone enclose front lawns and planted back gardens
+  around rural houses, with two-tile gates aligned to their doors. City-center houses and over-water shacks
+  retain their compact street and dock frontages. Bellerive's park and Gravenmoor's cemetery use the supplied
+  ironwork; the quay's stone balustrades remain. `scripts/gfx/fence_models.gd` joins sections at corners and
+  junctions through the existing scenery batches. Fences keep their painted shading and normal lighting but
+  neither cast nor receive shadow maps, avoiding dark patches on the thin rails and pickets.
+  Outdoor map letters `z` and `q` explicitly select wood and
+  stone; `F` selects the biome's usual wood or iron fence. Saved building order is retained when houses are set
+  back inside their gardens. See [asset provenance and licenses](licenses/supplied_fences.md). To rebuild:
+
+  ```
+  python tools/prepare_fences.py "path/to/download directory"
+  godot --headless --path . --script res://tools/import_fences.gd
+  godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/props/
+  godot --headless --path . --import
+  ```
+
+- **Other world props** (campfires and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd` (cacti and the head totem are drawn in code). The packs themselves aren't in the repository; with one downloaded again into `psx/`, re-bake and then let Godot rescan, or its file index (and so the exported game) won't include new files:
 
   ```
   godot --headless --path . --script res://tools/import_psx_models.gd
@@ -541,6 +571,15 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
   stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Tempestrix on the rail.
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
+- **Grass** is a pillow laid on the ground (`terrain_mesh.gd` `LIFT`, `TURF`): it stands a little above paths, sand
+  and paving, and rolls over its own edge in a soft, slightly wavy muffin top with the soil tucked in under it and a
+  faint shadow at its foot, so paths and dirt read as lower. Where a path bends, the grass's corner is chamfered
+  (and a path's inside corner filled), so stairs of path tiles run as straight diagonals. At a cliff only grass rolls
+  over the top; a path or sand meets the rock in a sharp edge. The lawn has sunnier and deeper stretches
+  (`terrain.gdshader` `_mottle`) and a darker grass (`grass_dark`) that melts into it over half a tile: under and
+  round the trees and hedges nobody can pass, under the tall grass, and in lush patches a few tiles across
+  (`world.gd` `_lush`) where low tufts of long grass sprout that you walk straight through. People and props stand
+  on the pillow (`world.gd` `_grass_lift`).
 - **Cliffs** (`terrain_mesh.gd`) are simply the step between two levels of the terrain, drawn in a soft cartoon style:
   a rounded lip of the grass, sand or paving above rolls over the top, and below it the face is fluted into upright
   ribs and grooves, a little ragged, darker towards the foot and in the lip's shadow. Faces meeting at a corner share a
@@ -672,17 +711,19 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
     The bubble projects the stable head position every frame and snaps to whole screen pixels; idle animation
     doesn't shake it. It leaves a clear gap around the face, above or below it. Near the top edge it sits below the
     head, with the chevron on top. The bubble and name plate stay inside the safe area and clear of the touch clusters, and the chevron slides along the edge toward the
-    speaker. Signs, narration, phone calls, hidden speakers and off-screen voices use a stationary bottom-centre
-    bubble without a chevron. Yes/No still binds A directly to Yes and B to No, with widened touch buttons.
+    speaker. White bubbles are only for speech. Phone calls, hidden speakers and off-screen voices use a stationary
+    bottom-centre bubble without a chevron. Written signs, descriptions and system prompts use the shared dark
+    window with white text, without speech sounds. Prefer visible changes and contextual NPC speech to narration;
+    keep written explanations only where they help the player act. Yes/No still binds A directly to Yes and B to No,
+    with widened touch buttons.
+    Someone speaking through a closed door gets a white bubble anchored to that door: above its top when there is
+    room, or below its bottom near the top edge of the screen. The entire bubble and name plate stay in the safe
+    area and clear of touch controls. This applies to locked outdoor doors and indoor room/staff doors.
     Cinematics retain their own dark dialogue presentation.
 
   <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts**: **League Spartan** (`ui/LeagueSpartan.ttf`, a clean geometric variable font with accents) for all the
-  interface: Regular for body text, menus, dialogue and damage numbers (`UIKit.font_body`), SemiBold for headings
-  (window and page titles, tabs' section headers, name plates, map names; `UIKit.font_head`). The 3D title logo and painted
-  shop and town signs in the world keep **Lunchtime Doubly So** (`ui/lunchds.ttf`). The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
-  Dialogue is three lines to a page. Text sits at the top of every text box.
+- **Fonts**: **League Spartan Regular** (`ui/LeagueSpartan.ttf`, a clean sans with accents) for body text, menu actions, dialogue and damage numbers (`UIKit.font_body`). **Lunchtime Doubly So** (`ui/lunchds.ttf`) for names and headings (`UIKit.font_head`), with League Spartan as its fallback for accents and missing symbols. The 3D title logo and painted shop/town signs also use Lunchtime. Use `UIKit.body_px` / `head_px`; never shrink text to fit. The desktop window opens at 1920x1080 for the same 1.5x scale as phones. Dialogue stays top-aligned, three lines per page.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
   direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
@@ -947,6 +988,11 @@ python tools/town_check.py
 
 ## Tests
 
+`bash tools/run_tests.sh fences fences-touch` checks the supplied sections, wood and stone collision,
+two-tile yard gates and preserved Cove interior ids. For gameplay-camera captures, use
+`--scene=fences --preview=wood|stone|iron|graveyard|nature|cove --shot=res://build/shots/fences.png --shot_w=0`;
+add `--touch` and `--resolution 2400x1080` for a landscape phone view. Test saves stay under `build/`.
+
 `bash tools/run_tests.sh audio` checks sound resources, ambient routing, playback past an Ogg loop boundary,
 and rapid indoor/outdoor transitions, without reading or writing player saves.
 
@@ -1003,12 +1049,20 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and Dustwell setting its news flag on arrival without a speech.
 - `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
 - `phone-save` / `phone-save-touch`: Dad's save and continue Yes/No prompts, declined saves, one answer per press, and returning to the title. Preview with `--scene=phone-save --save_dir=res://build/phone_save_preview/ --shot=res://build/shots/dad.png` (captures both prompts; add `--touch` for touch inputs).
+- `door-voices` / `door-voices-touch`: permanent door replies, real knocking/confirmation input, and white speech
+  bubbles pointing to outdoor and indoor doors. Checks the top, bottom and side edges for safe-area and touch-control
+  clearance. `--scene=door-voices --verify=1 --shot=res://build/shots/door_voice.png` captures those placements.
 - `speech` / `speech-touch`: real NPCs at the top and bottom edges and beside the d-pad, indoor counter staff,
   three-page speech, idle stability, real movement, off-screen/hidden/freed speakers, all four gems, direct A/B
   answers and tap/gamepad/keyboard advancement without world movement. Capture with
   `--scene=speech --shots=res://build/shots/speech --shot_w=0 --save_dir=res://build/speech_preview/`;
   use `--resolution 1920x1080` for desktop or `--resolution 2400x1080 -- --scene=speech --touch` for the phone layout.
 - `waterfront`: relocated library sign taps, all four dock stair flights, entering the over-water equipment shack, collecting starter beast gear and persistence on re-entry.
+- `gravenmoor` / `gravenmoor-touch`: silent arrivals and retained progression flags, contextual local speech before
+  and after the Legion, Mort's song, Clover's ghost-egg guidance, glowing lamp panes, and written notices in dark
+  windows through all four gems, using real interaction and confirmation input. Capture with
+  `--scene=gravenmoor --shots=res://build/shots/gravenmoor --shot_w=0 --save_dir=res://build/gravenmoor_preview/`;
+  add `--touch` at 2400x1080 for the phone layout, or `--preview=arrival|talk|notice --quit=0` to hold a state.
 - `shellhaven-marina` / `shellhaven-marina-touch`: western ramp access, walking all marina fingers, an open beachfront,
   the straight middle pier, ferry arrival placement, the shared ferry model and scale, shallow wading and its
   walking/running/tap limits, wet footfall playback, and old-save position compatibility.
@@ -1084,7 +1138,7 @@ tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beas
 
 ## Developer test modes
 
-Cocoon Cove implements the selected pirate-cove layout, with a cottage library, textured brown timber, 2.6-unit ground storeys (3.1 at the apothecary) and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
+Cocoon Cove implements the selected pirate-cove layout, with a cottage library, textured brown timber, painted stucco (`cove_stucco.gdshader`), clay tile roofs laid in courses along the eaves (`cove_roof.gdshader`), 2.6-unit ground storeys (3.1 at the apothecary) and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
 for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|library|neighbor|home|docks|gear|apothecary|apothecary-wide`
 captures focused views with `--shot=`; add `--touch` for the phone controls.
 
@@ -1118,7 +1172,22 @@ godot --path . -- --scene=battlecmd --touch                             # the ba
 godot --path . -- --scene=battle-redirect --shots=res://build/shots/battle_redirect --save_dir=res://build/battle_redirect_saves/ # two beasts aim at one foe and the first knocks it out: the second goes to the next foe, then the trainer, then is dropped; heals, revives and items too ("BATTLE REDIRECT DONE: 0 problem(s)")
 godot --path . -- --scene=battlecmd --stop=message --shot=C:/tmp/b.png   # compact message with beast avatar; also trainer-message, effective, resistant, long-message
 godot --path . --resolution 2400x1080 -- --scene=top-bar --touch --gem=sapphire --shots=res://build/shots/top_bar --save_dir=res://build/top_bar_test_saves/ # the top bar's notices: quick pickups merging, gold adding up, a place name queued behind them, a long line wrapping, then hidden ("TOP BAR DONE: 0 problem(s)")
-godot --path . --resolution 2400x1080 -- --scene=battle-focus --touch --shots=res://build/shots/battle_focus --save_dir=res://build/battle_focus_saves/ # relocated trainer bar, HUD outlines for selection and actions on both teams; --preview=trainer|beast|target|acting-trainer|acting-beast|acting-foe|acting-rival captures one state
+godot --headless --path . --script res://tools/check_battle_visuals.gd # closed arrow geometry, complete mural surfaces and mipmapped artwork for every biome
+
+godot --path . --rendering-method gl_compatibility --script res://tools/bake_battle_backdrops.gd # offline mural rebuild; -- --biome=coast rebuilds one region
+
+godot --headless --path . --import
+
+godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/battle/backdrops/
+
+godot --headless --path . --import # reimport the smoothed, mipmapped murals; the smoothing record prevents double passes
+
+godot --path . --resolution 1920x1080 -- --scene=battle-focus --shots=res://build/shots/cinematic_desktop --shot_w=0 --save_dir=res://build/cinematic_test_saves/ # 3D selection/targeting, gamepad A, HP tags, shields, long labels, four gems
+
+godot --path . --resolution 2400x1080 -- --scene=battle-focus --touch --shots=res://build/shots/cinematic_touch --shot_w=0 --save_dir=res://build/cinematic_test_saves/ # actual touch menu/3D taps and cluster exclusion; --preview=trainer|beast|cost|target|hit|shield|action
+
+godot --path . -- --scene=battle-focus --wild=1 --save_dir=res://build/cinematic_wild_saves/ # wild pack and a resolved action; --stage_map=route3 (desert), --arena=1, or --stage_map=reef#temple_water for enclosed scenery previews
+
 godot --path . -- --scene=ringedit --touch                              # the ring editor: who may go where on the ring and in and out of storage, lit cells, taps ("RING EDIT DONE: 0 problem(s)")
 godot --path . -- --scene=mobile-menus --touch --verify=1 --shots=res://build/shots/mobile_menu  # direct A/B answers, centered lists, scrolling, the Start book's retained controls and scroll buttons, and its Map page: tapping towns and flying (Yes / No)
 godot --headless --path . -- --scene=lessons                            # every guided battle played by a button masher, with one beast and with two: one thing to pick on every bar and menu, nobody down, all won ("lessons DONE: 0 problem(s)")

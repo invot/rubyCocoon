@@ -8,10 +8,16 @@ extends RefCounted
 ## slope down from their banks, and rocky tiles rise into faceted crags from the edge of the ground around them.
 ## A diagonal cliff's tile (elevation.gd "/" and "\") is two halves, each drawn on its own level from its own vertices,
 ## with the ground (and water) of the tiles along its sides.
+## The grass is a pillow laid on the ground: its tiles stand LIFT above their level, and where they meet a path, sand or
+## paving on the same level the turf rolls over the edge in a muffin top (TURF) with the soil tucked in under it, in a
+## crisp line round the tile (the shader's wandering borders stop there). A convex corner of the grass is chamfered
+## off to the middles of its sides, and a path's corner inside the grass filled the same way, so paths bend round the
+## grass instead of stepping (_prepare_corners): a path laid as a stair of tiles runs as a straight diagonal.
 ## Where neighbouring tiles' edges don't meet (a cliff between two levels, the side of a ramp, a diagonal), a cliff face
 ## fills the gap, after the cosy island cliffs of life-sim games: the ground above rolls over its top in a rounded lip,
 ## and below it the rock stands in upright, rounded flutes, coloured and textured by the biome's look
-## (WorldDB.CLIFF_LOOKS), darker towards its foot. Faces meeting at a corner share their end, mitred, so the lip and the
+## (WorldDB.CLIFF_LOOKS), darker towards its foot. Only grass rolls over a cliff's top: a path or sand at the edge
+## meets the rock in a sharp edge. Faces meeting at a corner share their end, mitred, so the lip and the
 ## rock run on round it unbroken. In a town that wants them, the cliffs are straight stone retaining walls instead.
 ## Where a river runs over a cliff, it falls down it as a sheet of water, in front of smooth rock.
 ## The ground carries on MARGIN tiles past the map's edge (copying the edge tiles), so there is no drop-off.
@@ -37,6 +43,22 @@ const FLUTE := 0.13
 const LIP := [Vector2(0.0, 0.0), Vector2(0.065, -0.022), Vector2(0.11, -0.075), Vector2(0.115, -0.135), Vector2(0.08, -0.19)]
 ## the rock's top, tucked in under the lip, this far below the ground at a whole level's drop
 const LIP_DEPTH := 0.22
+## The grass stands this much above its level: a pillow on the ground, with paths, sand and paving at the level itself.
+const LIFT := 0.1
+## The turf's edge over lower ground at its level: its muffin top, (out, down) from the edge; under it the soil tucks in.
+## How far it reaches out waves along the edge (TURF_WAVE: the least and most of this profile's reach), so the grass's
+## outline is organic rather than ruled.
+const TURF := [Vector2(0.0, 0.0), Vector2(0.045, -0.01), Vector2(0.08, -0.03), Vector2(0.095, -0.058), Vector2(0.085, -0.082)]
+const TURF_WAVE := Vector2(0.5, 1.9)
+## The shadow the turf's edge throws on the ground at its foot: a skirt lying on the ground this far out, dark at the
+## foot and fading away (terrain.gdshader).
+const TURF_SHADOW := 0.3
+## A tile's corners (bits of `corners`), and which way each lies.
+const NW := 1
+const NE := 2
+const SE := 4
+const SW := 8
+const CORNER_DIRS := {NW: Vector2i(-1, -1), NE: Vector2i(1, -1), SE: Vector2i(1, 1), SW: Vector2i(-1, 1)}
 const SIDES := [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
 ## the sides a diagonal tile's halves run along: [its high half's, its low half's]
 const HALF_SIDES := {
@@ -59,6 +81,14 @@ var height := PackedFloat32Array()
 var rough := PackedByteArray()
 ## per tile: 0 = dry, 1 = water surface, 2 = lava surface
 var liquid := PackedByteArray()
+## per tile: 1 where the ground stands LIFT above its level (the grass, and a doorstep on a building's grass)
+var lifted := PackedByteArray()
+## per tile: 1 under a building: its ground is lifted with the lawn it stands on, but holds a firm edge (a plinth
+## rather than rolling turf), and no corner of it is cut
+var firm := PackedByteArray()
+## per tile: its cut (grass) or filled (path) corners, NW | NE | SE | SW, and the layer those corners show
+var corners := PackedByteArray()
+var corner_layer := PackedByteArray()
 ## Visual bed depth only. Collision and elevation continue to use the authored tiles.
 var water_bed := PackedFloat32Array()
 var seed := 0
@@ -104,14 +134,36 @@ func setup(width: int, depth: int, map_seed: int, m: Dictionary = {}) -> void:
 	height.resize(w * h)
 	rough.resize(w * h)
 	liquid.resize(w * h)
+	lifted.resize(w * h)
+	firm.resize(w * h)
+	corners.resize(w * h)
+	corner_layer.resize(w * h)
 
 
-func set_tile(x: int, y: int, layer_name: String, top: float, is_rough := false, liquid_kind := 0) -> void:
+## Tile (x, y)'s ground: its layer (VT.GROUND_LAYERS), its own height above its level, whether it's craggy rock and
+## what liquid lies on it; `lift` stands it LIFT above its level (the grass, see LIFT).
+func set_tile(x: int, y: int, layer_name: String, top: float, is_rough := false, liquid_kind := 0, lift := false, is_firm := false) -> void:
 	var i := x + y * w
 	layer[i] = maxi(0, VT.GROUND_LAYERS.find(layer_name))
 	height[i] = top
 	rough[i] = 1 if is_rough else 0
 	liquid[i] = liquid_kind
+	lifted[i] = 1 if lift else 0
+	firm[i] = 1 if is_firm else 0
+
+
+## Whether ground layer l is grass (lifted turf with a rolling edge, rather than a doorstep's sharp one).
+static func grassy_layer(l: int) -> bool:
+	return VT.GROUND_LAYERS[l] in VT.GRASS_LAYERS
+
+
+func _grassy(i: int) -> bool:
+	return grassy_layer(layer[i]) and firm[i] == 0
+
+
+## How far above its level tile p's ground stands: LIFT on the grass. (The lift the world gives people and props.)
+func lift_at(p: Vector2i) -> float:
+	return LIFT if lifted[_i(p.x, p.y)] == 1 else 0.0
 
 
 func _i(x: int, y: int) -> int:
@@ -150,8 +202,9 @@ func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 	for nx in range(x0, x1 + 1):
 		for nz in range(z0, z1 + 1):
 			var i := _i(nx, nz)
-			# only flat ground on the same level is drawn as one with this tile
-			if ramp[i] != 0 or absf(base_lo[i] - base_lo[own]) > 0.01:
+			# only flat ground on the same level is drawn as one with this tile (and the grass pillow only with other
+			# grass: beside lower ground it keeps its height to the edge, and steps down there)
+			if ramp[i] != 0 or absf(base_lo[i] - base_lo[own]) > 0.01 or (lifted[own] == 1 and lifted[i] == 0):
 				continue
 			var v := _top(i)
 			if absf(v) < absf(best):
@@ -163,7 +216,7 @@ func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 		best += (_hash(gx, gz) - 0.4) * 0.35
 	elif best < -0.05:
 		best += (_hash(gx, gz) - 0.5) * 0.06
-	return base + best
+	return base + best + (LIFT if lifted[own] == 1 else 0.0)
 
 
 ## Tile i's own height above its base: its bed, under water.
@@ -185,7 +238,7 @@ func _grid(tx: int, tz: int) -> PackedVector3Array:
 		for i in 3:
 			var gx := tx * 2 + i
 			var gz := tz * 2 + j
-			g[i + j * 3] = Vector3(gx * 0.5, base_lo[own] if level else _vertex_y(tx, tz, gx, gz), gz * 0.5)
+			g[i + j * 3] = Vector3(gx * 0.5, base_lo[own] + (LIFT if lifted[own] == 1 else 0.0) if level else _vertex_y(tx, tz, gx, gz), gz * 0.5)
 	_grids[k] = g
 	return g
 
@@ -212,6 +265,7 @@ func _half_grid(tx: int, tz: int, k: int) -> PackedVector3Array:
 func _half_vertex_y(tx: int, tz: int, gx: int, gz: int, half: Dictionary) -> float:
 	var level: float = half["level"]
 	var best: float = half["top"]
+	var up: int = half["lifted"]
 	var x0 := (gx - 1) / 2 if gx % 2 != 0 else gx / 2 - 1
 	var x1 := x0 if gx % 2 != 0 else gx / 2
 	var z0 := (gz - 1) / 2 if gz % 2 != 0 else gz / 2 - 1
@@ -219,14 +273,14 @@ func _half_vertex_y(tx: int, tz: int, gx: int, gz: int, half: Dictionary) -> flo
 	for nx in range(x0, x1 + 1):
 		for nz in range(z0, z1 + 1):
 			var i := _i(nx, nz)
-			if (nx == tx and nz == tz) or ramp[i] != 0 or absf(base_lo[i] - level) > 0.01:
+			if (nx == tx and nz == tz) or ramp[i] != 0 or absf(base_lo[i] - level) > 0.01 or (up == 1 and lifted[i] == 0):
 				continue
 			var v := _top(i)
 			if absf(v) < absf(best):
 				best = v
 	if best < -0.05:
 		best += (_hash(gx, gz) - 0.5) * 0.06
-	return level + best
+	return level + best + (LIFT if up == 1 else 0.0)
 
 
 ## Tile (tx, tz)'s vertices along its side d: its own, or those of the half of a diagonal running along that side.
@@ -253,7 +307,7 @@ func _prepare_halves() -> void:
 				var a := _i(x + s[0].x, z + s[0].y)
 				var b := _i(x + s[1].x, z + s[1].y)
 				var half := {"level": base_hi[i] if k == 0 else base_lo[i], "layer": layer[i], "liquid": liquid[i],
-					"top": _top(i) if liquid[i] != 0 else 0.0}
+					"top": _top(i) if liquid[i] != 0 else 0.0, "lifted": 1 if lifted[a] == 1 and lifted[b] == 1 else 0}
 				if layer[a] == layer[b]:
 					half["layer"] = layer[a]
 				if liquid[a] == liquid[b] and liquid[a] != liquid[i]:
@@ -261,6 +315,74 @@ func _prepare_halves() -> void:
 					half["top"] = maxf(_top(a), _top(b)) if liquid[a] != 0 else 0.0
 				pair.append(half)
 			halves[i] = pair
+
+
+## Whether tile q is flat ground on tile i's level (no ramp or diagonal, no bed or crag), dry.
+func _flat_level(q: Vector2i, i: int) -> bool:
+	var j := _i(q.x, q.y)
+	return ramp[j] == 0 and height[j] == 0.0 and liquid[j] == 0 and absf(base_lo[j] - base_lo[i]) < 0.01
+
+
+## The tiles' cut and filled corners. A grass tile's corner between two lower tiles (a path bending round it) is
+## chamfered off to the middles of its two sides, at the lower ground's level; a path's corner between three grass
+## tiles (bending inside them) is filled with grass the same way. Paths then bend in gentle octagons rather than
+## steps, and a diagonal stair of path tiles runs as one straight diagonal. (The halves of a diagonal cliff's tile
+## aren't touched, nor laid surfaces: a plaza's corners stay square.)
+func _prepare_corners() -> void:
+	corners.fill(0)
+	var path_layers := [VT.GROUND_LAYERS.find("path"), VT.GROUND_LAYERS.find("sand")]
+	for z in h:
+		for x in w:
+			var i := x + z * w
+			corner_layer[i] = layer[i]
+			if ramp[i] != 0 or liquid[i] != 0 or height[i] != 0.0:
+				continue
+			var mask := 0
+			for bit: int in CORNER_DIRS:
+				var d: Vector2i = CORNER_DIRS[bit]
+				var a := Vector2i(x + d.x, z)
+				var b := Vector2i(x, z + d.y)
+				var c := Vector2i(x + d.x, z + d.y)
+				if not _flat_level(a, i) or not _flat_level(b, i):
+					continue
+				var ia := _i(a.x, a.y)
+				var ib := _i(b.x, b.y)
+				if lifted[i] == 1:
+					if _grassy(i) and lifted[ia] == 0 and lifted[ib] == 0:
+						mask |= bit
+						corner_layer[i] = layer[ia]
+				elif layer[i] in path_layers and _flat_level(c, i):
+					var ic := _i(c.x, c.y)
+					if lifted[ia] == 1 and lifted[ib] == 1 and lifted[ic] == 1 and _grassy(ia) and _grassy(ib) and _grassy(ic):
+						mask |= bit
+						corner_layer[i] = layer[ia]
+			corners[i] = mask
+
+
+## The height of tile i's corner triangle where it's cut or filled: the lower ground's level, or the grass's lift.
+func _corner_y(i: int) -> float:
+	return base_lo[i] + (0.0 if lifted[i] == 1 else LIFT)
+
+
+## A smooth wave along the ground, 0..1, continuous everywhere (so faces meeting at a corner agree): value noise at
+## about a cycle a unit, with a finer ripple.
+func _wave(p: Vector3) -> float:
+	var v := _vnoise(p.x * 1.1, p.z * 1.1) * 0.7 + _vnoise(p.x * 2.9 + 7.3, p.z * 2.9 + 2.1) * 0.3
+	return clampf(v, 0.0, 1.0)
+
+
+func _vnoise(x: float, y: float) -> float:
+	var ix := floori(x)
+	var iy := floori(y)
+	var fx := x - ix
+	var fy := y - iy
+	fx = fx * fx * (3.0 - 2.0 * fx)
+	fy = fy * fy * (3.0 - 2.0 * fy)
+	var a := _hash(ix, iy)
+	var b := _hash(ix + 1, iy)
+	var c := _hash(ix, iy + 1)
+	var d := _hash(ix + 1, iy + 1)
+	return lerpf(lerpf(a, b, fx), lerpf(c, d, fx), fy)
 
 
 func _hash(a: int, b: int) -> float:
@@ -278,6 +400,7 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 	_lower_dock_beds()
 	_prepare_water_bed()
 	_prepare_halves()
+	_prepare_corners()
 	var mat := ShaderMaterial.new()
 	mat.shader = TerrainShader
 	mat.set_shader_parameter("layers", VT.ground_layers())
@@ -289,6 +412,8 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 			var code := _diag(x - MARGIN, y - MARGIN)
 			if code != 0:
 				kinds.set_pixel(x, y, Color(halves[i][0]["layer"] / 255.0, halves[i][1]["layer"] / 255.0, code / 255.0))
+			elif corners[i] != 0 and x >= MARGIN and y >= MARGIN and x < w + MARGIN and y < h + MARGIN:
+				kinds.set_pixel(x, y, Color(layer[i] / 255.0, corner_layer[i] / 255.0, (16 + corners[i]) / 255.0))
 			else:
 				kinds.set_pixel(x, y, Color(layer[i] / 255.0, layer[i] / 255.0, 0))
 	mat.set_shader_parameter("kind_map", ImageTexture.create_from_image(kinds))
@@ -300,6 +425,8 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 		var l: Color = (c as Color).srgb_to_linear()
 		lin.append(Vector3(l.r, l.g, l.b) / TEX_LEVEL)
 	mat.set_shader_parameter("tints", lin)
+	var soil := Color(look.get("soil", "#6a4a30")).srgb_to_linear()
+	mat.set_shader_parameter("turf_soil", Vector3(soil.r, soil.g, soil.b))
 	var cliff_mat: ShaderMaterial = mat.duplicate()
 	cliff_mat.set_shader_parameter("cliff", true)
 	cliff_mat.set_shader_parameter("rock_layer", VT.GROUND_LAYERS.find("paving" if walls else "rock"))
@@ -325,8 +452,8 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 
 ## This map's ground meshes: remembered from a recent visit if the ground hasn't changed since, else generated.
 func _shape(parent: Node3D, slice_us: int) -> Dictionary:
-	var key := str([w, h, seed, walls, flutes, hash(layer), hash(height), hash(rough), hash(liquid), hash(base_lo), hash(base_hi),
-		hash(ramp), hash(elev_map.get("shoreline", []))])
+	var key := str([w, h, seed, walls, flutes, hash(layer), hash(height), hash(rough), hash(liquid), hash(lifted), hash(firm), hash(base_lo),
+		hash(base_hi), hash(ramp), hash(elev_map.get("shoreline", []))])
 	if _shapes.has(key):
 		_shape_order.erase(key)
 		_shape_order.append(key)
@@ -494,15 +621,29 @@ func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 			if tx + 1 < x_end:
 				var g := _side(tx, tz, Vector2i.RIGHT)
 				var e := _side(tx + 1, tz, Vector2i.LEFT)
-				if _edges_part(g[2], g[5], g[8], e[0], e[3], e[6]):
-					var flat := walls or _wet(tx, tz, Vector2i.RIGHT) and _wet(tx + 1, tz, Vector2i.LEFT)
-					found.append(_segment([g[2], g[5], g[8]], [e[0], e[3], e[6]], Vector3(1, 0, 0), flat))
+				var flat := walls or _wet(tx, tz, Vector2i.RIGHT) and _wet(tx + 1, tz, Vector2i.LEFT)
+				_side_faces(found, [g[2], g[5], g[8]], [e[0], e[3], e[6]], Vector3(1, 0, 0), flat,
+					_side_info(tx, tz, Vector2i.RIGHT, [NE, SE]), _side_info(tx + 1, tz, Vector2i.LEFT, [NW, SW]))
 			if tz + 1 < z_end:
 				var g2 := _side(tx, tz, Vector2i.DOWN)
 				var s := _side(tx, tz + 1, Vector2i.UP)
-				if _edges_part(g2[6], g2[7], g2[8], s[0], s[1], s[2]):
-					var flat2 := walls or _wet(tx, tz, Vector2i.DOWN) and _wet(tx, tz + 1, Vector2i.UP)
-					found.append(_segment([g2[6], g2[7], g2[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2))
+				var flat2 := walls or _wet(tx, tz, Vector2i.DOWN) and _wet(tx, tz + 1, Vector2i.UP)
+				_side_faces(found, [g2[6], g2[7], g2[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2,
+					_side_info(tx, tz, Vector2i.DOWN, [SW, SE]), _side_info(tx, tz + 1, Vector2i.UP, [NW, NE]))
+			# the chamfers of cut and filled corners: the turf's edge runs from the middle of one side to the other's
+			if code == 0 and tx >= 0 and tz >= 0 and tx < w and tz < h and corners[tx + tz * w] != 0:
+				var i := tx + tz * w
+				var hi_y := base_lo[i] + LIFT
+				for bit: int in CORNER_DIRS:
+					if corners[i] & bit == 0:
+						continue
+					var d: Vector2i = CORNER_DIRS[bit]
+					var m1 := Vector3(tx + 0.5 + 0.5 * d.x, hi_y, tz + 0.5)
+					var m2 := Vector3(tx + 0.5, hi_y, tz + 0.5 + 0.5 * d.y)
+					var mid := (m1 + m2) * 0.5
+					var face_out := Vector3(d.x, 0, d.y).normalized() * (1.0 if lifted[i] == 1 else -1.0)
+					found.append(_segment([m1, mid, m2], [Vector3(m1.x, base_lo[i], m1.z), Vector3(mid.x, base_lo[i], mid.z),
+						Vector3(m2.x, base_lo[i], m2.z)], face_out, false, true, true))
 			if found.is_empty():
 				continue
 			var ck := Vector2i(-MARGIN + floori(float(tx + MARGIN) / CHUNK) * CHUNK, -MARGIN + floori(float(tz + MARGIN) / CHUNK) * CHUNK)
@@ -529,6 +670,47 @@ func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 	return out
 
 
+## Tile (tx, tz)'s side d, as the faces along it see it: for each half of the side (`bits`: the tile's corner at that
+## half's end), whether that corner is cut or filled, the corner triangle's height then, and whether the ground along
+## that half is turf (rolls over its edge) or a sharp edge.
+func _side_info(tx: int, tz: int, d: Vector2i, bits: Array) -> Array:
+	var i := _i(tx, tz)
+	var code := _diag(tx, tz)
+	var grassy := _grassy(i)
+	if code != 0:
+		grassy = grassy_layer(int(halves[i][0 if Elev.on_high_half(code, 0.5 + d.x * 0.5, 0.5 + d.y * 0.5) else 1]["layer"]))
+	var on_map := code == 0 and tx >= 0 and tz >= 0 and tx < w and tz < h
+	var out := []
+	for b: int in bits:
+		var cut := on_map and corners[i] & b != 0
+		out.append({"cut": cut, "y": _corner_y(i) if cut else 0.0, "turf": (lifted[i] == 0) if cut else grassy})
+	return out
+
+
+## The faces along one side between two tiles: one for the whole side where neither tile's corners there are cut or
+## filled, else one for each half of it whose ground parts (ga, ea: the two sides' three points along it).
+func _side_faces(found: Array, ga: Array, ea: Array, toward: Vector3, flat: bool, ia: Array, ib: Array) -> void:
+	if not (ia[0]["cut"] or ia[1]["cut"] or ib[0]["cut"] or ib[1]["cut"]):
+		if _edges_part(ga[0], ga[1], ga[2], ea[0], ea[1], ea[2]):
+			found.append(_segment(ga, ea, toward, flat, ia[0]["turf"], ib[0]["turf"]))
+		return
+	for hf in 2:
+		var a := _half_pts(ga, hf, ia[hf])
+		var b := _half_pts(ea, hf, ib[hf])
+		if _edges_part(a[0], a[1], a[2], b[0], b[1], b[2]):
+			found.append(_segment(a, b, toward, flat, ia[hf]["turf"], ib[hf]["turf"]))
+
+
+## Half `hf` of a side's three points as three of its own (at a cut or filled corner, at the corner triangle's height).
+static func _half_pts(pts: Array, hf: int, info: Dictionary) -> Array:
+	var p0: Vector3 = pts[hf]
+	var p1: Vector3 = pts[hf + 1]
+	if info["cut"]:
+		p0.y = info["y"]
+		p1.y = info["y"]
+	return [p0, (p0 + p1) * 0.5, p1]
+
+
 ## Where a face's top ends, to find the faces meeting it there.
 static func _end_key(p: Vector3) -> Vector3i:
 	return Vector3i(roundi(p.x * 4.0), roundi(p.y * 16.0), roundi(p.z * 4.0))
@@ -544,14 +726,16 @@ func _wet(tx: int, tz: int, d: Vector2i) -> bool:
 
 ## A cliff face where one side's edge (vertices a, along it) stands above or below the other's (b, the same points),
 ## toward_b pointing from the first side to the second: {"top": the high side's three points, "foot": the low side's
-## heights there, "out": the way the face looks (over the low side), "flat"}.
-static func _segment(a: Array, b: Array, toward_b: Vector3, flat: bool) -> Dictionary:
+## heights there, "out": the way the face looks (over the low side), "flat", "turf": whether the high side is grass
+## (turf_a, turf_b: whether each side is)}.
+static func _segment(a: Array, b: Array, toward_b: Vector3, flat: bool, turf_a := true, turf_b := true) -> Dictionary:
 	var diff := 0.0
 	for k in 3:
 		diff += a[k].y - b[k].y
 	var high := a if diff > 0.0 else b
 	var low := b if diff > 0.0 else a
-	return {"top": high, "foot": [low[0].y, low[1].y, low[2].y], "out": toward_b if diff > 0.0 else -toward_b, "flat": flat}
+	return {"top": high, "foot": [low[0].y, low[1].y, low[2].y], "out": toward_b if diff > 0.0 else -toward_b, "flat": flat,
+		"turf": turf_a if diff > 0.0 else turf_b}
 
 
 ## [the ground of tiles tx0..tx1, tz0..tz1, the cliff faces running along them (`faces`) or null]
@@ -568,9 +752,25 @@ func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, faces: Array) -> Array:
 			var code := _diag(tx, tz)
 			var g := _grid(tx, tz) if code == 0 else _half_grid(tx, tz, 0)
 			var lg := g if code == 0 else _half_grid(tx, tz, 1)
+			var own := _i(tx, tz)
+			var mask := int(corners[own]) if code == 0 and tx >= 0 and tz >= 0 and tx < w and tz < h else 0
 			for j in 2:
 				for i in 2:
 					var o := i + j * 3
+					var q := i + j * 2
+					if mask & [NW, NE, SW, SE][q] != 0:
+						# a cut or filled corner: its triangle out to the middles of the sides at the other ground's
+						# height, the rest of this quarter at the tile's own
+						var cy := _corner_y(own)
+						var c0: Vector3 = g[[o, o + 1, o + 3, o + 4][q]]
+						var ma: Vector3 = g[[o + 1, o, o, o + 1][q]]
+						var mb: Vector3 = g[[o + 3, o + 4, o + 4, o + 3][q]]
+						var ctr: Vector3 = g[[o + 4, o + 3, o + 1, o][q]]
+						_tri(verts, normals, at, Vector3(c0.x, cy, c0.z), Vector3(ma.x, cy, ma.z), Vector3(mb.x, cy, mb.z))
+						at += 3
+						_tri(verts, normals, at, ma, ctr, mb)
+						at += 3
+						continue
 					# alternate the diagonal so slopes don't all crease the same way (and a diagonal cliff's line is
 					# always a crease: it runs through the corners and the middle)
 					var tris := [[o, o + 1, o + 4], [o, o + 4, o + 3]] if (tx * 2 + i + tz * 2 + j) % 2 == 0 else [[o, o + 1, o + 3], [o + 1, o + 4, o + 3]]
@@ -631,6 +831,7 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 	var foot: Array = f["foot"]
 	var out: Vector3 = f["out"]
 	var flat: bool = f["flat"]
+	var turf: bool = f.get("turf", true)
 	var length := Vector2(top[2].x - top[0].x, top[2].z - top[0].z).length()
 	var n := maxi(3, roundi(length * FACE_COLS) + 1)
 	var along := Vector2(out.z, -out.x)
@@ -658,9 +859,50 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 			if u >= grooves[g] and u <= grooves[g + 1]:
 				var t: float = (u - grooves[g]) / maxf(0.001, grooves[g + 1] - grooves[g])
 				bump = pow(sin(PI * t), 0.7) * (0.65 + 0.7 * _hash(seed_k + g, 5))
-		cols.append({"p": p, "foot": ft, "dir": dir, "bump": bump, "end": k == 0 or k == n - 1})
-	# the lip: rows of LIP's profile, then one more where the rock's top tucks in under it
-	if not flat:
+		cols.append({"p": p, "foot": ft, "dir": dir, "bump": bump, "end": k == 0 or k == n - 1, "turf": turf})
+	# the turf's edge over a path at its level: its muffin top (TURF), then the soil under it tucking in to the foot
+	if turf and most <= LIFT + 0.03:
+		var turf_base := fv.size()
+		var prof := TURF.size() + 4
+		for c: Dictionary in cols:
+			var drop: float = c["p"].y - c["foot"]
+			# how far this bit of the edge reaches out: a wave along it, with a little raggedness column to column
+			var reach: float = lerpf(TURF_WAVE.x, TURF_WAVE.y, _wave(c["p"]))
+			if not c["end"]:
+				reach *= 0.94 + 0.12 * _hash(int(round(c["p"].x * 24.0)), int(round(c["p"].z * 24.0)))
+			var dir: Vector3 = c["dir"]
+			var dir_n := Vector3(dir.x, 0, dir.z).normalized()
+			var pts: Array[Vector2] = []
+			for l: Vector2 in TURF:
+				pts.append(Vector2(l.x * reach, l.y))
+			# the soil under it, tucking in to the foot
+			pts.append(Vector2(0.02 + 0.03 * reach, -maxf(drop - 0.012, 0.04)))
+			pts.append(Vector2(0.02, -(drop + 0.03)))
+			# its shadow, a skirt lying on the ground from the foot out past the overhang
+			var skirt := 0.012 - drop
+			pts.append(Vector2(0.025, skirt))
+			pts.append(Vector2(0.06 + TURF_SHADOW * (0.6 + 0.4 * _wave(c["p"] + Vector3(3.0, 0, 5.0))), skirt))
+			for r in prof:
+				var l: Vector2 = pts[r]
+				var pt: Vector3 = c["p"] + dir * l.x + Vector3(0, l.y, 0)
+				var nrm := Vector3.UP
+				if r > 0 and r < TURF.size() + 2:
+					var tng: Vector2 = pts[mini(r + 1, TURF.size() + 1)] - pts[r - 1]
+					nrm = (dir_n * -tng.y + Vector3.UP * tng.x).normalized()
+				fv.append(pt)
+				fn.append(nrm)
+				if r >= TURF.size() + 2:
+					# the skirt: r 1 at the foot, 0 at its outer edge
+					fc.append(Color(1.0 if r == TURF.size() + 2 else 0.0, 0.2, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
+				else:
+					var soil := r >= TURF.size()
+					fc.append(Color(float(r - TURF.size()) if soil else 0.0, 0.5 if soil else 1.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
+				fu.append(Vector2(c["p"].x * along.x + c["p"].z * along.y, c["p"].y - pt.y))
+		_grid_tris(fi, turf_base, n, prof, fv, out)
+		return
+	# the lip: rows of LIP's profile, then one more where the rock's top tucks in under it (only grass rolls over the
+	# edge: a path or sand at a cliff's edge meets the rock in a sharp edge)
+	if not flat and turf:
 		var lip_base := fv.size()
 		for c: Dictionary in cols:
 			var drop: float = c["p"].y - c["foot"]
@@ -721,7 +963,7 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 func _rock_point(c: Dictionary, r: int, rows: int, lk: float) -> Vector3:
 	var p: Vector3 = c["p"]
 	var drop: float = p.y - c["foot"]
-	var top_y := p.y - minf(LIP_DEPTH * lk, drop * 0.45)
+	var top_y := p.y - minf(LIP_DEPTH * lk, drop * 0.45) if c["turf"] else p.y
 	var t := float(r) / rows
 	var y := lerpf(top_y, c["foot"] - 0.04, t)
 	var k := clampf(drop / 0.6, 0.0, 1.0) * flutes

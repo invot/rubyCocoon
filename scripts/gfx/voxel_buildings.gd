@@ -509,19 +509,23 @@ static func _shop_front(node: Node3D, plan: Dictionary, shop: String, st: Dictio
 	if not pc.is_empty():
 		x0 = (pc["rect"] as Rect2).position.x
 		x1 = (pc["rect"] as Rect2).end.x
+	# its stripes: the shop's brand colour and cream, unless the plan names the awning's own pair (Cocoon Cove's clay
+	# canvas, cove_buildings.gd)
+	var stripe_a: Color = plan.get("awning_a", brand)
+	var stripe_b: Color = plan.get("awning_b", Color("#f4f0e4"))
 	var x := x0
 	var i := 0
 	while x < x1 - 0.01:
 		var x2 := minf(x + 0.42, x1)
 		k.poly("color", [Vector3(x, ay, front), Vector3(x2, ay, front), Vector3(x2, ay - drop, front + depth), Vector3(x, ay - drop, front + depth)],
-			Vector3(0, 0.95, 0.3), brand if i % 2 == 0 else Color("#f4f0e4"))
+			Vector3(0, 0.95, 0.3), stripe_a if i % 2 == 0 else stripe_b)
 		x = x2
 		i += 1
 	# the valance along its front edge (over a porch, a trim along the edge instead, so the posts meet it)
 	if pc.is_empty():
-		k.box("color", Vector3((x0 + x1) / 2.0, ay - drop - 0.07, front + depth + 0.01), Vector3(x1 - x0, 0.14, 0.03), brand.darkened(0.15))
+		k.box("color", Vector3((x0 + x1) / 2.0, ay - drop - 0.07, front + depth + 0.01), Vector3(x1 - x0, 0.14, 0.03), stripe_a.darkened(0.15))
 	else:
-		k.box("color", Vector3((x0 + x1) / 2.0, ay + 0.03, front + depth), Vector3(x1 - x0, 0.06, 0.05), brand.darkened(0.15))
+		k.box("color", Vector3((x0 + x1) / 2.0, ay + 0.03, front + depth), Vector3(x1 - x0, 0.06, 0.05), stripe_a.darkened(0.15))
 
 	# the sign board, on the wall above the awning (over a porch, at the porch's end: standing on the awning's front
 	# edge, so the awning can sit high on the posts)
