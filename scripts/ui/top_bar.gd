@@ -300,17 +300,7 @@ func _natural(l: Label) -> float:
 
 ## The part of the screen clear of notches and rounded corners (UI units).
 func _safe_rect() -> Rect2:
-	var full := get_viewport_rect()
-	if not OS.has_feature("mobile"):
-		return full
-	var sa := DisplayServer.get_display_safe_area()
-	var win := Vector2(DisplayServer.window_get_size())
-	if sa.size.x <= 0 or win.x <= 0.0:
-		return full
-	var k := full.size / win
-	var r := Rect2(Vector2(sa.position - DisplayServer.window_get_position()) * k, Vector2(sa.size) * k)
-	var clip := full.intersection(r)
-	return clip if clip.size.x > 0.0 and clip.size.y > 0.0 else full
+	return UIKit.safe_rect(self)
 
 
 func _shown_y() -> float:

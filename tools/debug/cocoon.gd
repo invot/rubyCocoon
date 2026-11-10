@@ -72,7 +72,7 @@ func run(main, opts: Dictionary) -> void:
 	var cove = load("res://scripts/gfx/cove_buildings.gd")
 	for building in town["buildings"]:
 		var fit: Dictionary = cove.plan(building)
-		_check(is_equal_approx(cove._height(fit["key"], cove.FLOORS[fit["key"]][0], fit["scale"]), 2.6), "%s has a person-scale ground storey" % building["name"])
+		_check(is_equal_approx(cove._height(fit["key"], cove.FLOORS[fit["key"]][0], fit["scale"]), cove.ground_storey(fit["key"])), "%s has a person-scale ground storey" % building["name"])
 		var node: Node3D = cove.build(building)
 		var standard := false
 		for inst in node.find_children("*","MeshInstance3D",true,false):
@@ -103,6 +103,12 @@ func run(main, opts: Dictionary) -> void:
 	main.world._place_camera(true)
 	if await _preview(main,opts):
 		return
+	main.world.spawn_at(apothecary["door"]+Vector2i.DOWN)
+	main.world.facing = Vector2i.UP
+	await _enter(main,apothecary)
+	await main._settle(apothecary["interior"])
+	_check(main.world.map_id == apothecary["interior"] and main.world.map.get("room_key", "") == "apothecary", "the visible apothecary front door enters its original shop")
+	await main._go("caccoon", "start")
 	if await _shack(main, opts):
 		return
 	await main._go("caccoon", "start")
@@ -224,7 +230,12 @@ func _shack(main, opts: Dictionary) -> bool:
 func _enter(main, building: Dictionary) -> void:
 	if UI.is_touch():
 		await main._wait(0.35)
-		var pixel: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(building["door"])+Vector3(0,0.9,0))
+		var aim: Vector3 = main.world.tile_pos(building["door"])+Vector3(0,0.9,0)
+		if building.has("cove_plan"):
+			# Tap the visible leaf, including a shop set back behind its porch.
+			var origin := Vector3(building["x"]+building["w"]/2.0,main.world._lift(building["door"]),building["y"]+building["d"]/2.0)
+			aim = origin+building["cove_plan"]["door_at"]
+		var pixel: Vector2 = main.world.cam.unproject_position(aim)
 		var at: Vector2 = pixel*main.get_viewport().get_visible_rect().size/Vector2(main.view.size)
 		await main._tap_at(at)
 	else:
@@ -235,7 +246,7 @@ func _preview(main, opts: Dictionary) -> bool:
 	var name: String = opts.get("preview","")
 	if opts.has("window_title"):
 		main.get_window().title = String(opts["window_title"])
-	var spots := {"square":Vector2i(27,22),"library":Vector2i(22,21),"neighbor":Vector2i(8,21),"home":Vector2i(9,10),"docks":Vector2i(40,38),"gear":main.world.map["buildings"][6]["door"]+Vector2i.DOWN,"apothecary":Vector2i(47,22)}
+	var spots := {"square":Vector2i(27,22),"library":Vector2i(22,21),"neighbor":Vector2i(8,21),"home":Vector2i(9,10),"docks":Vector2i(40,38),"gear":main.world.map["buildings"][6]["door"]+Vector2i.DOWN,"apothecary":Vector2i(47,22),"apothecary-wide":Vector2i(47,22)}
 	if name != "overview" and not spots.has(name):
 		return false
 	if name == "overview":
@@ -248,6 +259,14 @@ func _preview(main, opts: Dictionary) -> bool:
 	else:
 		main.world.spawn_at(spots[name])
 		main.world.facing = Vector2i.UP
+		if name == "apothecary-wide":
+			# The normal following view crops the roof. Keep its angle, but
+			# frame the whole facade for the rooftop-room regression capture.
+			main.world.cam_free = true
+			var aim: Vector3 = main.world.tile_pos(main.world.map["buildings"][2]["door"])+Vector3(0,2.0,-1.3)
+			var target := aim+Vector3(0,main.world.CAM_LOOK_Y,0)
+			main.world.cam.position = target+(main.world.CAM_OFFSET-Vector3(0,main.world.CAM_LOOK_Y,0))*1.28
+			main.world.cam.look_at(target)
 	await _shot(main,opts)
 	return true
 

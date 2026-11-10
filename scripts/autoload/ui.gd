@@ -153,7 +153,7 @@ func clear_all() -> void:
 
 
 # ---------------------------------------------------------------- awaitable helpers
-func say(lines, speaker := "", portrait: Texture2D = null) -> void:
+func say(lines, speaker := "", portrait: Texture2D = null, speaker_node: Node3D = null) -> void:
 	if typeof(lines) == TYPE_STRING:
 		lines = [lines]
 	if lines.is_empty():
@@ -163,7 +163,7 @@ func say(lines, speaker := "", portrait: Texture2D = null) -> void:
 		await get_tree().process_frame
 		return
 	var d := DialogBox.new()
-	d.setup(lines, speaker, portrait)
+	d.setup(lines, speaker, portrait, speaker_node)
 	push(d)
 	await d.done
 
@@ -183,7 +183,7 @@ func choose(title: String, items: Array, opts := {}) -> int:
 	return int(r)
 
 
-func ask(question: String, speaker := "", yes := "Yes", no := "No") -> bool:
+func ask(question: String, speaker := "", yes := "Yes", no := "No", speaker_node: Node3D = null) -> bool:
 	if auto:
 		await say([question], speaker)
 		return await choose("", [yes, no]) == 0
@@ -191,7 +191,7 @@ func ask(question: String, speaker := "", yes := "Yes", no := "No") -> bool:
 	prompt.yes_text = yes
 	prompt.no_text = no
 	prompt.confirmation_labels = {"a": yes, "b": no}
-	prompt.setup([question], speaker)
+	prompt.setup([question], speaker, null, speaker_node)
 	push(prompt)
 	return await prompt.done == 0
 

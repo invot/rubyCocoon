@@ -311,7 +311,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - **A target that falls first** (`ring.gd` `retarget`, `battle.gd` `_retarget`; the same rule for your beasts, your slingshot and items, and the foe's AI): when an action's turn comes and its target is down or has left the side facing the attacker, it goes to another beast standing on that side instead, the nearest slot first (a tie goes to the one facing the attacker's own row). With nobody standing there, an attack or the slingshot is turned on their trainer, who is open because that side's middle is down or empty; anything else, and any attack on a wild pack, is dropped without a message. A move that hits everyone just leaves the fallen out. A heal, boost or care item meant for an ally that has fallen goes to the standing ally with the least of its HP left; a revive is never passed on. MP is spent (and an item used up) only when the action has someone to land on. Lessons never turn a blow on a trainer by themselves.
   - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
-  - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use Nunito.
+  - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use League Spartan.
 
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand."><br><sub>A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand.</sub>
 
@@ -653,15 +653,35 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
     `ui_style` value is ignored.
   - The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at the top centre: place names on
     entering a town, road or building, pickups, gold and battle messages. It is the same dark blurred box, a little
-    darker (78%), outlined in white with its sides leaning in towards the bottom.
-  - Speech bubbles stay white with dark text.
+    darker (78%), outlined in white with its sides leaning in towards the bottom: [left icon] divider, text, divider
+    [right icon]. It stays inside the safe area and grows with its text up to 860 UI units, then wraps.
+    - Outside battle it is hidden until there is something to say, then slides in, holds about 2.5 seconds and slides
+      out. Messages queue; the same pickup or gold arriving while one shows or waits merges into it ("Potion x3",
+      "+120 gold"). These always have a left icon (the item's glyph, a coin, a map pin or crest, a note for songs)
+      and never a right one. `UI.toast(text, icon, key)`, `UI.pickup`, `UI.gold` and `UI.place_name` post to it;
+      story gifts ("Received the Miner's Pass!") use it too rather than a line of dialogue.
+    - In battle it is always shown with the battle's messages: the icon of whoever acts is on the left for the
+      opposing side and on the right for yours, and the empty slot keeps its space so the text doesn't jump. Notices
+      posted during a battle wait for it to end.
+  - **Speech bubbles** (`dialog_box.gd`) are the one bright exception: rectangular white paper with gently rounded
+    corners, subtle shading, a soft shadow and a seamless pointer. Dark body text stays top-aligned, at most three
+    lines per page, with the existing advance arrow and typewriter reveal; short pages use a shorter bubble. The
+    speaker's name sits in white on a small top-left plate filled with the selected gem, using the shared heading
+    font. World conversations pass the actual NPC to
+    `UI.say(lines, name, portrait, speaker_node)` or `UI.ask(question, name, yes, no, speaker_node)`.
+    The bubble projects the stable head position every frame and snaps to whole screen pixels; idle animation
+    doesn't shake it. It leaves a clear gap around the face, above or below it. Near the top edge it sits below the
+    head, with the chevron on top. The bubble and name plate stay inside the safe area and clear of the touch clusters, and the chevron slides along the edge toward the
+    speaker. Signs, narration, phone calls, hidden speakers and off-screen voices use a stationary bottom-centre
+    bubble without a chevron. Yes/No still binds A directly to Yes and B to No, with widened touch buttons.
+    Cinematics retain their own dark dialogue presentation.
 
   <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts**: **Nunito** (bold, a clean rounded sans with accents) for body text, menus, dialogue and damage numbers;
-  **Lunchtime Doubly So** only for headings (window and page titles, tabs' section headers, name plates, map names).
-  The heading font is drawn on a 16-pixel grid, so its sizes are snapped to whole screen pixels (`UIKit.head_px`);
-  body text is smooth at any size (`UIKit.body_px`). The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
+- **Fonts**: **League Spartan** (`ui/LeagueSpartan.ttf`, a clean geometric variable font with accents) for all the
+  interface: Regular for body text, menus, dialogue and damage numbers (`UIKit.font_body`), SemiBold for headings
+  (window and page titles, tabs' section headers, name plates, map names; `UIKit.font_head`). The 3D title logo and painted
+  shop and town signs in the world keep **Lunchtime Doubly So** (`ui/lunchds.ttf`). The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
   Dialogue is three lines to a page. Text sits at the top of every text box.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
@@ -983,6 +1003,11 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and Dustwell setting its news flag on arrival without a speech.
 - `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
 - `phone-save` / `phone-save-touch`: Dad's save and continue Yes/No prompts, declined saves, one answer per press, and returning to the title. Preview with `--scene=phone-save --save_dir=res://build/phone_save_preview/ --shot=res://build/shots/dad.png` (captures both prompts; add `--touch` for touch inputs).
+- `speech` / `speech-touch`: real NPCs at the top and bottom edges and beside the d-pad, indoor counter staff,
+  three-page speech, idle stability, real movement, off-screen/hidden/freed speakers, all four gems, direct A/B
+  answers and tap/gamepad/keyboard advancement without world movement. Capture with
+  `--scene=speech --shots=res://build/shots/speech --shot_w=0 --save_dir=res://build/speech_preview/`;
+  use `--resolution 1920x1080` for desktop or `--resolution 2400x1080 -- --scene=speech --touch` for the phone layout.
 - `waterfront`: relocated library sign taps, all four dock stair flights, entering the over-water equipment shack, collecting starter beast gear and persistence on re-entry.
 - `shellhaven-marina` / `shellhaven-marina-touch`: western ramp access, walking all marina fingers, an open beachfront,
   the straight middle pier, ferry arrival placement, the shared ferry model and scale, shallow wading and its
@@ -1059,8 +1084,8 @@ tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beas
 
 ## Developer test modes
 
-Cocoon Cove implements the selected pirate-cove layout, with a cottage library, textured brown timber, 2.6-unit ground storeys and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
-for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|library|neighbor|home|docks|gear|apothecary`
+Cocoon Cove implements the selected pirate-cove layout, with a cottage library, textured brown timber, 2.6-unit ground storeys (3.1 at the apothecary) and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
+for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|library|neighbor|home|docks|gear|apothecary|apothecary-wide`
 captures focused views with `--shot=`; add `--touch` for the phone controls.
 
 ```
@@ -1092,6 +1117,7 @@ godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a r
 godot --path . -- --scene=battlecmd --touch                             # the battle's command panel: one A is one confirm, every move's target picked (arrows, all-foe moves), ▲ turns the ring, Move (yours and a foe trainer's), the ring turning by itself ("BATTLE COMMANDS DONE: 0 problem(s)"); --stop=trainer|target|all|move --shot=C:/tmp/b.png
 godot --path . -- --scene=battle-redirect --shots=res://build/shots/battle_redirect --save_dir=res://build/battle_redirect_saves/ # two beasts aim at one foe and the first knocks it out: the second goes to the next foe, then the trainer, then is dropped; heals, revives and items too ("BATTLE REDIRECT DONE: 0 problem(s)")
 godot --path . -- --scene=battlecmd --stop=message --shot=C:/tmp/b.png   # compact message with beast avatar; also trainer-message, effective, resistant, long-message
+godot --path . --resolution 2400x1080 -- --scene=top-bar --touch --gem=sapphire --shots=res://build/shots/top_bar --save_dir=res://build/top_bar_test_saves/ # the top bar's notices: quick pickups merging, gold adding up, a place name queued behind them, a long line wrapping, then hidden ("TOP BAR DONE: 0 problem(s)")
 godot --path . --resolution 2400x1080 -- --scene=battle-focus --touch --shots=res://build/shots/battle_focus --save_dir=res://build/battle_focus_saves/ # relocated trainer bar, HUD outlines for selection and actions on both teams; --preview=trainer|beast|target|acting-trainer|acting-beast|acting-foe|acting-rival captures one state
 godot --path . -- --scene=ringedit --touch                              # the ring editor: who may go where on the ring and in and out of storage, lit cells, taps ("RING EDIT DONE: 0 problem(s)")
 godot --path . -- --scene=mobile-menus --touch --verify=1 --shots=res://build/shots/mobile_menu  # direct A/B answers, centered lists, scrolling, the Start book's retained controls and scroll buttons, and its Map page: tapping towns and flying (Yes / No)

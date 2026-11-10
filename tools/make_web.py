@@ -152,7 +152,7 @@ def main():
             shutil.copy(os.path.join(EXPORT, f), os.path.join(OUT, f))
     html = open(os.path.join(OUT, 'index.html'), encoding='utf-8').read()
     shutil.copy(os.path.join(ROOT, 'tools', 'web_fullscreen.js'), OUT)
-    for font in ('Nunito.ttf', 'lunchds.ttf'):
+    for font in ('LeagueSpartan.ttf',):
         shutil.copy(os.path.join(ROOT, 'ui', font), OUT)
     html = html.replace('<script src="index.js"></script>', SHIM % json.dumps(packed) +
                         '<script src="web_fullscreen.js"></script>\n\t\t<script src="index.js"></script>', 1)

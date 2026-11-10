@@ -1091,7 +1091,7 @@ func _credits() -> void:
 		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; furniture by Anker's Assets (CC0); the red telephones: Antique 1930s Rotary Telephones by Mad_Lobster_Workshop; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant; the healing chamber: Stasis Chamber by KieranEdwards (CC BY 4.0).",
 		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
 		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
-		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); UI borders by Kenney (kenney.nl); fonts Nunito and Lunchtime Doubly So.",
+		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); UI borders by Kenney (kenney.nl); font League Spartan.",
 		"Music: Kevin MacLeod (incompetech.com), CC BY 4.0; plus DJARTMUSIC, Howling Hound Music and Monume (Pixabay).",
 		"Sound effects: the packs in the sfx folder. Full list in CREDITS.md.",
 	], "Credits")

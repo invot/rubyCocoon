@@ -4,8 +4,14 @@
 shorter pier entered only from the right. Its only buildings are wooden shacks:
 the neighbor (`hut_3`) and Old Gear Shack (`hut_1`) at the far end. The plaster
 neighbor (`house_2`) has moved to the western garden on land. The apothecary keeps
-the kit's plaster building (`house_3`) and green shopfront. Existing interiors and
-saved building identities move with their roles.
+the kit's plaster building (`house_3`) and green shop sign. Its small rooftop room
+and upper door are removed, leaving two main storeys and a sealed clay roof. A
+3.1-unit ground storey exposes the front door. The kit's wraparound canopy is cut
+away and replaced by the old town's shared green-and-white striped shop awning,
+over a brown wood porch with its sign above the front beam. The building stands
+1.2 units farther back so the porch fits inside its plot. The street lamp stands
+east of the entrance sightline. Existing interiors and saved building identities
+move with their roles.
 
 The playable map uses the existing cardinal tile movement, elevation, streamed scenery,
 terrain, input and story systems. Its 54x44 footprint is smaller than the previous
@@ -51,7 +57,7 @@ Doors use `HouseModels._front_door`, `DOOR_H` (1.8), `DOOR_ASPECT`, and the exis
 door tiles and brass knob. Blue paint marks usable doors; crimson marks doors with a
 permanent resident's knock reply. Fitted to their plots the kit houses came out with doorways as low as
 1.1 units, under the hero's 1.44: `cove_buildings.gd` `warped()` fits the doorway to
-`DOOR_H`, the ground storey to 2.6 units and upper storeys to at least 2.45 units.
+`DOOR_H`, the ground storey to 2.6 units (3.1 at the apothecary) and upper storeys to at least 2.45 units.
 Roofs retain their proportions. The kit's own door slab is cut away so the new leaf lies on the wall.
 The library uses the kit's `house_2` cottage instead of `house_4`'s converted loading bays,
 with its original entry tile, reading room and map gift retained.

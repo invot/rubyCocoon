@@ -1,4 +1,5 @@
 extends Node3D
+const TrainerCell = preload("res://scripts/story/trainer_cell.gd")
 ## The voxel overworld: block terrain, voxel trees/props from the asset pack, procedural voxel
 ## buildings, people and beasts. Also renders building interiors (map kind "interior").
 
@@ -3180,6 +3181,22 @@ func _enter_building(b: Dictionary) -> void:
 
 
 ## Talking with someone (Story.talk): they gesture as they speak (see VPer.set_talking), then stop.
+## Named world dialogue only attaches to actual people, never fixtures or voices behind a door.
+func speaker_node(speaker: String) -> Node3D:
+	if speaker == "":
+		return null
+	for npc in npcs.values():
+		var node: Node3D = npc.get("node", null)
+		var matches := String(npc.get("name", "")) == speaker
+		if npc.get("kind", "") == "keeper":
+			matches = matches or speaker in Places.keeper_names(npc["building"])
+		if matches and is_instance_valid(node) and node.has_meta("skeleton"):
+			return node
+		if matches and node is TrainerCell:
+			return node.person
+	return null
+
+
 func _talk(n: Dictionary) -> void:
 	var node: Node3D = n.get("node", null)
 	var person: bool = node != null and node.has_meta("skeleton")

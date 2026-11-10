@@ -10,8 +10,8 @@ extends RefCounted
 ## - The pack's divider separates sections (HSeparator, divider()) and flanks banner text (flanked()).
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
-## Fonts: Nunito (ui/Nunito.ttf) for body text, menus and dialogue; Lunchtime Doubly So (ui/lunchds.ttf) only for
-## headings (titles, tabs, name plates, map names).
+## Fonts: League Spartan (ui/LeagueSpartan.ttf, a variable font) for everything: body text, menus and dialogue at a
+## light weight, headings (titles, tabs, name plates, map names) at semi-bold.
 
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -19,12 +19,10 @@ const FrameBox = preload("res://scripts/ui/frame_box.gd")
 const DividerBox = preload("res://scripts/ui/divider_box.gd")
 
 const UI_DIR := "res://assets/ui/"
-const BODY_FONT := "res://ui/Nunito.ttf"
-## Nunito is a variable font: the weight body text is set in
-const BODY_WEIGHT := 700
-const HEAD_FONT := "res://ui/lunchds.ttf"
-## The heading font is drawn on a 16-pixels-per-em grid: sizes that are multiples of 16 on the real screen keep every
-## stroke on whole pixels (see _crisp). Body text is a smooth sans and needs no snapping.
+const FONT_FILE := "res://ui/LeagueSpartan.ttf"
+## the weights it is set in: Regular for body text, SemiBold for headings
+const BODY_WEIGHT := 400
+const HEAD_WEIGHT := 600
 const BODY_SMALL := 21
 const BODY_BIG := 21
 ## dialogue text: three lines fill the box
@@ -32,7 +30,6 @@ const BODY_HUGE := 32
 const HEAD_SIZE := 22
 const HEAD_SMALL := 21
 const HEAD_BIG := 32
-const FONT_STEP := 16.0
 ## Interactive text stays larger than captions. Long menus must page instead of shrinking their buttons.
 const BUTTON_FONT_SIZE := 32
 const MIN_BUTTON_HEIGHT := 56.0
@@ -88,6 +85,50 @@ static var _fonts := {}
 static var screen_scale := 1.0
 static var _tex := {}
 static var _styles := {}
+
+
+## Speech is the bright exception: softly shaded white paper and a gem-coloured name plate.
+static func speech_box(plate := false) -> StyleBox:
+	var style: StyleBox = StyleBoxFlat.new() if plate else StyleBoxEmpty.new()
+	if plate:
+		style.bg_color = ACCENT
+		style.set_corner_radius_all(10)
+		style.shadow_color = Color(DARK, 0.18)
+		style.shadow_size = 5
+		style.shadow_offset = Vector2(0, 3)
+	style.content_margin_left = 16.0 if plate else 26.0
+	style.content_margin_right = style.content_margin_left
+	style.content_margin_top = 5.0 if plate else 18.0
+	style.content_margin_bottom = 5.0 if plate else 30.0
+	return style
+
+
+## A single, antialiased paper/pointer silhouette; no screen reads or renderer-specific effects.
+static func speech_surface() -> ColorRect:
+	var paper := ColorRect.new()
+	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var material := ShaderMaterial.new()
+	material.shader = load("res://scripts/ui/speech.gdshader")
+	material.set_shader_parameter("paper_top", INK)
+	material.set_shader_parameter("paper_bottom", INK.lerp(DARK, 0.065))
+	material.set_shader_parameter("shade", Color(DARK, 0.22))
+	paper.material = material
+	return paper
+
+
+## Device safe area in logical UI coordinates (the same conversion for HUD notices and speech).
+static func safe_rect(control: Control) -> Rect2:
+	var full := control.get_viewport_rect()
+	if not OS.has_feature("mobile"):
+		return full
+	var sa := DisplayServer.get_display_safe_area()
+	var win := Vector2(DisplayServer.window_get_size())
+	if sa.size.x <= 0 or win.x <= 0.0:
+		return full
+	var k := full.size / win
+	var r := Rect2(Vector2(sa.position - DisplayServer.window_get_position()) * k, Vector2(sa.size) * k)
+	var clip := full.intersection(r)
+	return clip if clip.has_area() else full
 
 
 ## Switches the gem (one of ACCENTS, or an older colour name) and derives the tints from it; the theme and any window
@@ -156,56 +197,43 @@ static func _sync_frames() -> void:
 	FrameBox.unit = maxf(1.0, roundf(LINE_W * screen_scale)) / screen_scale
 
 
-static func _crisp(target: float, step: float) -> int:
-	var k := maxi(1, int(round(target * screen_scale / step)))
-	return maxi(1, int(round(k * step / screen_scale)))
-
-
 ## Body text's size (a smooth font: any size is sharp).
 static func body_px(size: float) -> int:
 	return maxi(1, int(round(size)))
 
 
-## The heading size closest to `size` that lands on whole screen pixels.
+## A heading's size.
 static func head_px(size: float) -> int:
-	return _crisp(size, FONT_STEP)
+	return maxi(1, int(round(size)))
 
 
 # ================================================================ resources
 static func font_body() -> Font:
-	return _font(BODY_FONT)
+	return _font(BODY_WEIGHT)
 
 
 static func font_head() -> Font:
-	return _font(HEAD_FONT)
+	return _font(HEAD_WEIGHT)
 
 
-static func _font(path: String) -> Font:
-	if _fonts.has(path):
-		return _fonts[path]
-	var f: FontFile = load(path)
+## League Spartan at `weight`: one smooth face of the variable font (symbols it lacks come from Godot's default).
+static func _font(weight: int) -> Font:
+	if _fonts.has(weight):
+		return _fonts[weight]
+	var f: FontFile = load(FONT_FILE)
 	if f == null:
 		return ThemeDB.fallback_font
 	f.generate_mipmaps = false
 	f.multichannel_signed_distance_field = false
-	if path == BODY_FONT:
-		# a smooth sans, at the weight that reads over a blurred scene
-		f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
-		f.hinting = TextServer.HINTING_LIGHT
-		f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-		f.fallbacks = [ThemeDB.fallback_font]
-		var fv := FontVariation.new()
-		fv.base_font = f
-		fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): BODY_WEIGHT}
-		_fonts[path] = fv
-		return fv
-	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	f.hinting = TextServer.HINTING_NONE
+	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	f.hinting = TextServer.HINTING_LIGHT
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	# Lunchtime has no arrows, stars or accents: those come from the body font, then Godot's default
-	f.fallbacks = [_font(BODY_FONT), ThemeDB.fallback_font]
-	_fonts[path] = f
-	return f
+	f.fallbacks = [ThemeDB.fallback_font]
+	var fv := FontVariation.new()
+	fv.base_font = f
+	fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+	_fonts[weight] = fv
+	return fv
 
 
 ## A UI texture: one of the icons drawn here (see ICONS), a flatUI icon (assets/ui/flat), or an older texture.
@@ -394,7 +422,7 @@ static func make_theme() -> Theme:
 
 
 # ================================================================ widgets
-## Body text (Nunito): small (<24), big (24-31) or huge (32+, dialogue).
+## Body text (League Spartan Regular): small (<24), big (24-31) or huge (32+, dialogue).
 static func label(text: String, size := 20, color := TEXT) -> Label:
 	var l := Label.new()
 	l.text = text
@@ -404,7 +432,7 @@ static func label(text: String, size := 20, color := TEXT) -> Label:
 	return l
 
 
-## Heading text (Lunchtime Doubly So): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
+## Heading text (League Spartan SemiBold): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
 ## white or the raw gem passed in by a caller is taken as "the heading colour".
 static func header(text: String, color := HEAD, size := HEAD_SIZE) -> Label:
 	var l := Label.new()

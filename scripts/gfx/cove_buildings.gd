@@ -25,6 +25,9 @@ const FLOORS := {
 	"hut_1": [3.14], "hut_3": [3.14], "hut_4": [3.2],
 }
 const GROUND_STOREY := 2.6
+const APOTHECARY_STOREY := 3.1
+const APOTHECARY_SETBACK := 1.2
+const APOTHECARY_PORCH_WIDTH := 4.0
 const UPPER_STOREY := 2.45
 ## The kit's own closed door is a slab and frame standing out from its wall (up to 0.25 of its metres): everything in
 ## its doorway in front of the wall (within DOOR_CUT across, up to a little over the doorway) is cut away, so the
@@ -42,16 +45,23 @@ static func plan(b: Dictionary) -> Dictionary:
 	var door: Vector3 = DOORS[key]
 	var w := float(b["w"])
 	var d := float(b["d"])
+	var setback := APOTHECARY_SETBACK if b.get("shop", "") == "apothecary" else 0.0
 	var dx := float(b.get("cove_door_dx",float(b["door"].x)+0.5-float(b["x"])-w/2.0))
 	var scale := minf((w/2.0+dx-0.12)/(door.x-bb.position.x),(w/2.0-dx-0.12)/(bb.end.x-door.x))
-	scale = minf(scale,(d-0.2)/(door.z-bb.position.z))
+	scale = minf(scale,(d-0.2-setback)/(door.z-bb.position.z))
 	scale = minf(scale,float(b.get("cove_max_height",4.8))/bb.size.y)
-	var offset := Vector3(dx-door.x*scale,-bb.position.y*scale,d/2.0-0.12-door.z*scale)
-	return {"key":key,"scale":scale,"offset":offset,
+	var offset := Vector3(dx-door.x*scale,-bb.position.y*scale,d/2.0-0.12-setback-door.z*scale)
+	var out := {"key":key,"scale":scale,"offset":offset,
 		"height":_height(key,bb.end.y,scale),
 		"rect":Rect2(Vector2(bb.position.x*scale+offset.x,bb.position.z*scale+offset.z),Vector2(bb.size.x,bb.size.z)*scale),
 		"door_at":Vector3(offset.x+door.x*scale,Houses.DOOR_H/2.0,offset.z+door.z*scale),
 		"door_size":Vector2(Houses.DOOR_H/Houses.DOOR_ASPECT,Houses.DOOR_H)}
+	if setback > 0.0:
+		var front := d/2.0-0.12-setback
+		var deck := Rect2(dx-APOTHECARY_PORCH_WIDTH/2.0,front-0.12,APOTHECARY_PORCH_WIDTH,setback+0.12)
+		out["porch"] = {"rect":deck,"top":2.7,"y":0.02}
+		out["rect"] = (out["rect"] as Rect2).merge(deck)
+	return out
 
 
 ## Map the doorway, wall tops and upper floors independently; roof proportions stay intact.
@@ -62,12 +72,16 @@ static func _height(key: String, y: float, scale: float) -> float:
 		return y/source*target
 	for i in FLOORS[key].size():
 		var next_source := float(FLOORS[key][i])
-		var next_target := GROUND_STOREY if i == 0 else target+maxf(UPPER_STOREY,(next_source-source)*scale)
+		var next_target := ground_storey(key) if i == 0 else target+maxf(UPPER_STOREY,(next_source-source)*scale)
 		if y <= next_source:
 			return lerpf(target,next_target,(y-source)/(next_source-source))
 		source = next_source
 		target = next_target
 	return target+(y-source)*scale
+
+
+static func ground_storey(key: String) -> float:
+	return APOTHECARY_STOREY if key == "house_3" else GROUND_STOREY
 
 
 ## Remove the source door slab and fit the closed building once per plot scale.
@@ -148,6 +162,8 @@ static func build(b: Dictionary) -> Node3D:
 	node.add_child(inst)
 	var shop: String = b["shop"]
 	var builders = load("res://scripts/gfx/voxel_buildings.gd")
+	if p.has("porch"):
+		_porch(node,p)
 	# Use exactly the same 1.8-unit door, frame, texture and brass knob as the
 	# other towns, set on the wall over the kit's sealed infill (its own door slab cut away: warped()).
 	var at: Vector3 = p["door_at"]
@@ -168,6 +184,26 @@ static func build(b: Dictionary) -> Node3D:
 			p["awning_width"] = p["door_size"].x+0.35
 		builders._shop_front(node,p,shop,builders.STYLES["coastal"])
 	return node
+
+
+## A low, flush wood porch under the old town's shared striped shop awning.
+## Both the deck and its posts stay inside the plot reserved by plan().
+static func _porch(node: Node3D, p: Dictionary) -> void:
+	var builders = load("res://scripts/gfx/voxel_buildings.gd")
+	var kit = builders.Kit.new()
+	var pc: Dictionary = p["porch"]
+	var rect: Rect2 = pc["rect"]
+	var center := rect.get_center()
+	var height := float(pc["top"])
+	var wood := Color("#89684b")
+	kit.box("planks",Vector3(center.x,0.01,center.y),Vector3(rect.size.x,0.02,rect.size.y),wood)
+	for x in [rect.position.x+0.06,rect.end.x-0.06]:
+		kit.box("planks",Vector3(x,height/2.0,rect.end.y-0.06),Vector3(0.12,height,0.12),wood)
+	for z in [p["door_at"].z-0.03,rect.end.y-0.06]:
+		kit.box("planks",Vector3(center.x,height-0.05,z),Vector3(rect.size.x+0.12,0.14,0.22),wood)
+	var inst := MeshInstance3D.new()
+	inst.mesh = kit.mesh()
+	node.add_child(inst)
 
 
 static func docks(map: Dictionary) -> Node3D:

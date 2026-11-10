@@ -15,6 +15,12 @@ func _init() -> void:
 			continue
 		if mesh.get_aabb().position.y < -0.001:
 			_fail(key+" extends below ground")
+		if key == "house_3" and mesh.get_aabb().end.y > 5.25:
+			_fail("the apothecary still has rooftop-room geometry")
+		if key == "house_3":
+			# Allow the closed door's frame and knob beyond the 2.89 wall face.
+			if mesh.get_aabb().end.z > 3.20 or mesh.get_aabb().size.x > 7.41:
+				_fail("the apothecary still has its original wraparound canopy")
 		for si in mesh.get_surface_count():
 			var material := mesh.surface_get_material(si) as BaseMaterial3D
 			if material == null or material.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or material.albedo_color.a < 0.999:
@@ -53,7 +59,7 @@ func _samples(key: String) -> Array:
 			result.append([p,Vector3.BACK])
 	elif key == "house_3":
 		result.append([Vector3(-0.24,0.7,2.83),Vector3.BACK])
-		result.append([Vector3(-2.0,6.0,-0.04),Vector3.BACK])
+		result.append([Vector3(0,5.15,-1.0),Vector3.UP])
 		for y in [1.30,4.22]:
 			result.append([Vector3(-2.2,y,2.83),Vector3.BACK])
 			for z in [-1.35,1.05]:

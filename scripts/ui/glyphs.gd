@@ -1,7 +1,7 @@
 extends RefCounted
 ## Small pixel icons for short notices (the top bar, top_bar.gd): what kind of item was found, gold, a map pin for
 ## places, a note for songs, and a mark for anything else. Each is a 12 x 12 bitmap ("#" white line, "+" the gem,
-## "o" a light shade of the gem, "." clear) made once per gem, so it scales by whole screen pixels (12 x 4 UI units).
+## "o" a light shade of the gem, "." clear; the coin is gold in every gem) made once per gem, so it scales by whole screen pixels (12 x 4 UI units).
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
@@ -45,6 +45,9 @@ const GLYPHS := {
 		"#++++##++++#", "#++++++++++#", ".#+++##+++#.", "..#++##++#..", "...######...", "............"],
 }
 
+## glyphs drawn in their own colours rather than the gem's ("+" and "o"): gold is always gold
+const OWN_COLORS := {"coin": [Color(0.91, 0.69, 0.19), Color(1.0, 0.89, 0.52)]}
+
 static var _cache := {}
 
 
@@ -59,6 +62,9 @@ static func tex(name: String) -> Texture2D:
 	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	var cols := {"#": UIKit.LIGHT, "+": UIKit.ACCENT, "o": UIKit.GOLD_BRIGHT}
+	if OWN_COLORS.has(name):
+		cols["+"] = OWN_COLORS[name][0]
+		cols["o"] = OWN_COLORS[name][1]
 	for y in mini(SIZE, rows.size()):
 		var r: String = rows[y]
 		for x in mini(SIZE, r.length()):

@@ -686,6 +686,11 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "speech":
+		await load("res://tools/debug/speech.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "growth":
 		await load("res://tools/debug/beast_growth.gd").new().run(self, _test)
 		get_tree().quit()
@@ -1407,6 +1412,9 @@ func _run_test() -> void:
 		# the command panel played with keys and a touch A (--stop=trainer|target|all|move: stop there for a screenshot)
 		await _battlecmd_test()
 		await _wait(wait)
+	elif scene == "top-bar":
+		# the top bar's notices outside battle: pickups merging, gold, a place name, a long line (--shots=)
+		await load("res://tools/debug/top_bar_notices.gd").new().run(self)
 	elif scene == "battle-focus":
 		await load("res://tools/debug/battle_focus.gd").new().run(self)
 	elif scene == "battle-redirect":

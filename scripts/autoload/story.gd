@@ -33,6 +33,9 @@ const Phone = preload("res://scripts/world/phone.gd")
 const TrainerCell = preload("res://scripts/story/trainer_cell.gd")
 const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
 
+## The actual person being addressed (residents and counter staff can use a generic name plate).
+var _dialogue_npc: Dictionary = {}
+
 const ELDER_LOOK := {"skin": "#e8c0a0", "hair": "#e8e8e8", "shirt": "#6a4a8a", "pants": "#3a2a4a", "outfit": "robe"}
 const GUARD_LOOK := {"skin": "#d8a880", "hair": "#3a2a1a", "shirt": "#4a7a4a", "pants": "#3a3a2a", "hat": "#6a5a3a"}
 const CAPTAIN_LOOK := {"skin": "#d8a880", "hair": "#e8e8e8", "shirt": "#2a3a6a", "pants": "#2a2a3a", "hat": "#1a1a2a", "outfit": "coat"}
@@ -364,18 +367,18 @@ func on_map_enter(world) -> void:
 		await fish_lesson(world)
 	elif id == "gravenmoor" and not GameState.flag("ghost_merge"):
 		GameState.set_flag("ghost_merge")
-		await UI.say(["A cold fog rolls over Gravenmoor. Black Legion banners hang from every rooftop.",
+		await say(["A cold fog rolls over Gravenmoor. Black Legion banners hang from every rooftop.",
 			"Here, where the shadows gather, ghost beasts can be bonded with at last.",
 			"From now on, defeated ghost beasts may leave Shadow Eggs, and ghost beasts can be merged at any Beast Center."])
 	elif id == "reef" and not GameState.flag("seen_reef"):
 		GameState.set_flag("seen_reef")
-		await UI.say(["Past Kelpwick's villagers at last. Far across the reef, the Temple of Tides rises from the waves."])
+		await say(["Past Kelpwick's villagers at last. Far across the reef, the Temple of Tides rises from the waves."])
 	elif id == "route9" and GameState.flag("ritual_done") and not GameState.flag("seen_roots"):
 		GameState.set_flag("seen_roots")
-		await UI.say(["The ground still hums from the ritual. The Temple of Roots now stands where there were only vines."])
+		await say(["The ground still hums from the ritual. The Temple of Roots now stands where there were only vines."])
 	elif id == "route10" and not GameState.flag("seen_moor"):
 		GameState.set_flag("seen_moor")
-		await UI.say(["The Moor Road. Ghost beasts drift through the fog... They have no weakness at all."])
+		await say(["The Moor Road. Ghost beasts drift through the fog... They have no weakness at all."])
 	world.busy = false
 	world.refresh_npc_marks()
 	# a teacher who can see you where you've arrived stops you straight away
@@ -385,7 +388,7 @@ func on_map_enter(world) -> void:
 func _intro() -> void:
 	GameState.set_flag("intro_done")
 	# This short objective survives skipping the film. The hero knows nothing about the tower.
-	await UI.say(["First day of spring, %s! The beasts are waking and trainer season is officially open!" % GameState.player_name,
+	await say(["First day of spring, %s! The beasts are waking and trainer season is officially open!" % GameState.player_name,
 		"Elder Rowan has your first egg in the plaza. Hatch it at the Beast Center before you head out.",
 		"Then go east along the Coastal Path to Bellerive. Uncle Rafe has your dad's flute, and he's promised to teach you."], "Mom")
 
@@ -397,28 +400,28 @@ func uncle_lessons() -> bool:
 	var b_key := "B" if Prefs.touch_enabled() else "B (the S key)"
 	var lesson := {"lesson": true, "performer": who}
 	if not GameState.has_flute():
-		await UI.say(["%s! Look at you, all grown up, with a beast of your own and everything!" % GameState.player_name,
+		await say(["%s! Look at you, all grown up, with a beast of your own and everything!" % GameState.player_name,
 			"Here's what you came for: your father's reed flute. Songs can lift your beasts, trip up a foe, even win a wild beast over."], who)
 		GameState.gear["flute"] = "reed_flute"
 		GameState.set_flag("reed_flute")
 		Sfx.play("capture")
-		UI.toast("Received your father's Reed Flute!", "item:reed_flute")
-		await UI.say(["You received the Reed Flute! You can play it on your own turn in battle."])
+		UI.toast("Received the Reed Flute!", "item:reed_flute")
+		await say(["You can play it on your own turn in battle."], who)
 	if not GameState.knows_song("weaken"):
-		await UI.say(["First song: Weaken. It makes every foe drop its guard. Here, I'll play it for you.",
+		await say(["First song: Weaken. It makes every foe drop its guard. Here, I'll play it for you.",
 			"Each line on the sheet is a button: left, right, A and %s, from the bottom up. When I stop, it's your turn: play the notes left to right." % b_key], who)
 		if not await Places.learn_attempts("weaken", who, 0.0, lesson):
-			await UI.say(["No rush, kid. Come back whenever you want another go."], who)
+			await say(["No rush, kid. Come back whenever you want another go."], who)
 			return false
-		await UI.say(["Ha! That's your father's knack, right there.",
+		await say(["Ha! That's your father's knack, right there.",
 			"In a battle nobody plays it for you: read the sheet and go. Finish while the bar's green for full power. Three wrong notes spoil it."], who)
 	if GameState.capture_level() == 0:
-		await UI.say(["Now the important one: Capture. Play it for a wild beast and it might join you, up to level %d." % SongDB.CAPTURE_CAPS[0],
+		await say(["Now the important one: Capture. Play it for a wild beast and it might join you, up to level %d." % SongDB.CAPTURE_CAPS[0],
 			"Same as before: I play, then you!"], who)
 		if not await Places.learn_attempts(SongDB.capture_id(1), who, 0.0, lesson):
-			await UI.say(["Almost had it! Talk to me when you want another try."], who)
+			await say(["Almost had it! Talk to me when you want another try."], who)
 			return false
-		await UI.say(["That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece"),
+		await say(["That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece"),
 			"Oh, and the Bellerive Arena only lets in trainers with a flute. Go show Captain Marina what you can do!"], who)
 	return true
 
@@ -434,11 +437,11 @@ func can_use_exit(world, ex: Dictionary) -> bool:
 	# the first time you go to leave home, the phone rings: Dad, calling from work (answer it, and the game's saved)
 	if world.map["building"].get("shop", "") == "home" and not GameState.flag("called_dad") and not String(ex["to"]).contains("#"):
 		if world.get_node_or_null("Ringer") != null:
-			await UI.say(["The phone's still ringing, sweetie! Go on, answer it."], "Mom")
+			await say(["The phone's still ringing, sweetie! Go on, answer it."], "Mom")
 			return false
 		Phone.ring(world)
-		await UI.say(["Ring-ring! Ring-ring!"])
-		await UI.say(["Oh! The phone! Could you get that, sweetie? It's probably your father, calling from work."], "Mom")
+		await say(["Ring-ring! Ring-ring!"])
+		await say(["Oh! The phone! Could you get that, sweetie? It's probably your father, calling from work."], "Mom")
 		return false
 	var key: String = world.map.get("room_key", "")
 	var going_up := String(ex["to"]).contains("@") and int(String(ex["to"]).get_slice("@", 1)) > int(world.map.get("floor_num", 1))
@@ -448,13 +451,13 @@ func can_use_exit(world, ex: Dictionary) -> bool:
 		for p in world.npcs:
 			var n: Dictionary = world.npcs[p]
 			if n.has("robot_body") and not GameState.flag(n.get("flag", "")):
-				await UI.say(["A Gearhart Sentry's red eye swivels towards you. \"STAIRWELL LOCKED. DEFEAT ALL SENTRIES ON THIS FLOOR.\""])
+				await say(["A Gearhart Sentry's red eye swivels towards you. \"STAIRWELL LOCKED. DEFEAT ALL SENTRIES ON THIS FLOOR.\""])
 				return false
 	elif key == "cathedral" and not GameState.flag("nyx_defeated"):
-		await UI.say(["Commander Nyx blocks the way to the crypt stairs."], "Commander Nyx")
+		await say(["Commander Nyx blocks the way to the crypt stairs."], "Commander Nyx")
 		return false
 	elif key == "crypt_1" and not GameState.flag("guardian_ghost"):
-		await UI.say(["A wall of shadow seals the stairs down. Something in the crypt still stirs: its guardian, Nocthrax.",
+		await say(["A wall of shadow seals the stairs down. Something in the crypt still stirs: its guardian, Nocthrax.",
 			"Win it over first. The crypt's singing stones hold its song."])
 		return false
 	return true
@@ -464,12 +467,12 @@ func can_enter(world, b: Dictionary) -> bool:
 	match b["shop"]:
 		"arena":
 			if not GameState.has_flute():
-				await UI.say(["Hold it! Arena rules: every challenger brings a flute. Songs are half the battle in here!",
+				await say(["Hold it! Arena rules: every challenger brings a flute. Songs are half the battle in here!",
 					"No flute, no entry. Come back when you've got one."], "Arena Doorman")
 				return false
 		"hideout":
 			if not GameState.flag("met_sheriff"):
-				await UI.say(["A crude wooden door in the rock. Rough voices and laughter echo from inside...",
+				await say(["A crude wooden door in the rock. Rough voices and laughter echo from inside...",
 					"Maybe you should talk to someone in Sundown Gulch before barging in."])
 				return false
 	return true
@@ -493,7 +496,7 @@ func field_move(world, grp: Dictionary) -> void:
 		for e in elements:
 			els.append(e)
 		var need := " or ".join(els) if els.size() < 4 else "any"
-		await UI.say(["A %s blocks the way." % name, "A healthy %s beast could clear it." % need if need != "any" else "Any healthy beast could help clear it."])
+		await say(["A %s blocks the way." % name, "A healthy %s beast could clear it." % need if need != "any" else "Any healthy beast could help clear it."])
 		return
 	var el: String = who.element
 	if el not in elements:
@@ -506,7 +509,7 @@ func field_move(world, grp: Dictionary) -> void:
 			break
 	if mv_name == "":
 		mv_name = {"fire": "a burst of flame", "water": "a jet of water", "earth": "a mighty tackle", "air": "a gust of wind"}.get(el, "its power")
-	if not await UI.ask("A %s blocks the way. Should %s use %s?" % [name, who.nickname, mv_name]):
+	if not await ask("A %s blocks the way. Should %s use %s?" % [name, who.nickname, mv_name]):
 		return
 	Sfx.play({"fire": "fire", "water": "ice", "earth": "smash", "air": "fly"}.get(el, "smash"))
 	await UI.flash(Color({"fire": "#ff9a50", "water": "#80c8ff", "earth": "#c8a070", "air": "#e0fff0"}.get(el, "#ffffff")), 1)
@@ -519,7 +522,7 @@ func field_move(world, grp: Dictionary) -> void:
 		verb = "toppled a tree across the ravine to make a bridge"
 	elif grp["kind"] == "driftwood" and el == "water":
 		verb = "washed it out to sea"
-	await UI.say(["%s used %s and %s!" % [who.nickname, mv_name, verb]])
+	await say(["%s used %s and %s!" % [who.nickname, mv_name, verb]])
 
 
 ## A broken bridge (or similar) fixed with a key item.
@@ -528,7 +531,7 @@ func _fisher(world) -> void:
 	var who := "Fisher Gil"
 	if not GameState.flag("fisher_met"):
 		GameState.set_flag("fisher_met")
-		await UI.say(["Ahoy! Gil's the name. Been fishing off this pier since before there was a pier.",
+		await say(["Ahoy! Gil's the name. Been fishing off this pier since before there was a pier.",
 			"Water beasts live all round the docks. Hook one, reel it in, and it'll come out fighting. Catch it, if you've a flute!",
 			"Fancy a go? There's a spare pole in my shack, right there on the planks. Go on in and take it."], who)
 		return
@@ -536,9 +539,9 @@ func _fisher(world) -> void:
 		await fish_lesson(world)
 		return
 	if not GameState.flag("got_rod"):
-		await UI.say(["The spare pole's in my shack, just along the planks. Help yourself!"], who)
+		await say(["The spare pole's in my shack, just along the planks. Help yourself!"], who)
 		return
-	await UI.say([["They bite best where the water ripples. Cast anywhere else and you'll mostly catch your breath.",
+	await say([["They bite best where the water ripples. Cast anywhere else and you'll mostly catch your breath.",
 		"No bait? They'll still bite. But put some worms on your hook and the bigger ones come up. The island folk sell them.",
 		"Further on, they sell fancy lures. Shiny ones bring up beasts I've only heard about in songs."][randi() % 3]], who)
 
@@ -546,22 +549,21 @@ func _fisher(world) -> void:
 ## Gil's spare pole in his shack: yours once you've asked him, and taking it without asking is stealing.
 func _take_rod(world, n: Dictionary) -> void:
 	if not GameState.flag("fisher_met"):
-		await UI.say(["A fishing pole, leaning in the corner. It isn't yours.",
+		await say(["A fishing pole, leaning in the corner. It isn't yours.",
 			"Taking somebody's things without asking is stealing, and stealing is bad! Whoever owns it is probably fishing off the pier outside."])
 		return
 	GameState.set_flag("got_rod")
 	GameState.add_item("fishing_rod")
-	Sfx.play("item")
 	world.remove_npc(n)
-	UI.toast("Received the Fishing Pole!", "item:fishing_rod")
-	await UI.say(["You took Gil's spare fishing pole. He'll want to see you use it!"])
+	UI.pickup("fishing_rod")
+	await say(["You took Gil's spare fishing pole. He'll want to see you use it!"])
 
 
 ## Out of the shack with his pole: Gil stops you and shows you how to fish, off the deck in front of it (something
 ## always bites, the line is gentler, and you can't lose it for good: he has you try again).
 func fish_lesson(world) -> void:
 	var who := "Fisher Gil"
-	await UI.say(["Hold on there! Before you go dropping that line just anywhere, let me show you how it's done.",
+	await say(["Hold on there! Before you go dropping that line just anywhere, let me show you how it's done.",
 		"See the water rippling? That's where they're feeding. Face the water, press A, and your line's in."], who)
 	var t: Vector2i = world.player_pos + world.facing
 	if MapGen.get_t(world.map, t.x, t.y) != MapGen.WATER:
@@ -576,11 +578,11 @@ func fish_lesson(world) -> void:
 			break
 		if res == "":
 			return
-		await UI.say([{"cancelled": "Patience! Don't reel in before it bites. Let's go again.",
+		await say([{"cancelled": "Patience! Don't reel in before it bites. Let's go again.",
 			"too_fast": "Too eager! Steady taps, not a frenzy. Again!",
 			"too_slow": "Faster than that, or it wriggles free. Again!"}.get(res, "Ah, it got away! Happens to the best of us. Again!")], who)
 	GameState.set_flag("fish_lesson")
-	await UI.say(["Not bad at all for a first catch!",
+	await say(["Not bad at all for a first catch!",
 		"You can fish in any water you can reach, but the ripples are where they bite. And put some bait on your hook: it stays on till something bites, and the better the bait, the bigger the beast."], who)
 
 
@@ -600,7 +602,7 @@ func _builder() -> void:
 	var bf := _bridge_flag()
 	var mended: bool = bf != "" and GameState.flag(bf)
 	if mended and not GameState.flag("builder_egg"):
-		await UI.say(["You mended my footbridge? All by yourself? Well, I'll be. My knees thank you. So does my back.",
+		await say(["You mended my footbridge? All by yourself? Well, I'll be. My knees thank you. So does my back.",
 			"A deal's a deal. Here: an egg I found washed up after the storm. Have Nurse Clover at the Beast Center in Bellerive hatch it for you."], who)
 		GameState.add_egg(BUILDER_EGG)
 		GameState.set_flag("builder_egg")
@@ -608,14 +610,14 @@ func _builder() -> void:
 		UI.toast("Received a beast egg!", GameState.EggLooks.icon(GameState.eggs.back()) if not GameState.eggs.is_empty() else "notice")
 		return
 	if mended:
-		await UI.say(["Look after that egg! And mind the footbridge. It wobbles. It's meant to. Probably."], who)
+		await say(["Look after that egg! And mind the footbridge. It wobbles. It's meant to. Probably."], who)
 		return
 	if GameState.flag("builder_asked"):
-		await UI.say(["The logs are stacked right outside my door. Lay them across the old posts in the creek and come back.",
+		await say(["The logs are stacked right outside my door. Lay them across the old posts in the creek and come back.",
 			"I'd do it myself, but I've done my sitting down for the day, and I'm not stopping now."], who)
 		return
 	GameState.set_flag("builder_asked")
-	await UI.say(["Oh! A visitor. I'm Hal, the builder round here. Built that footbridge myself, forty years ago.",
+	await say(["Oh! A visitor. I'm Hal, the builder round here. Built that footbridge myself, forty years ago.",
 		"Then the storm took it. I've hauled the logs back from the storm trees, but these old bones are too tired to build it again.",
 		"Tell you what: the logs are stacked by my door. Lay them across the old posts in the creek, and I'll give you a beast egg I found."], who)
 
@@ -623,12 +625,12 @@ func _builder() -> void:
 ## The stack of logs by the builder's door: his to lend, once he's asked you to mend the footbridge.
 func _logpile(world, n: Dictionary) -> void:
 	if not GameState.flag("builder_asked"):
-		await UI.say(["A neat stack of logs, fresh from the storm trees. They must belong to whoever lives in the cabin."])
+		await say(["A neat stack of logs, fresh from the storm trees. They must belong to whoever lives in the cabin."])
 		return
 	GameState.set_flag("logs_taken")
 	_give({"bridge_log": 5})
 	world.remove_npc(n)
-	await UI.say(["You heave the logs onto your shoulder. Oof. Now, to the old footbridge's posts in the creek."])
+	await say(["You heave the logs onto your shoulder. Oof. Now, to the old footbridge's posts in the creek."])
 
 
 ## The logs stacked by the builder's door, as seen in the world: three side by side, two on them, one on top, lying
@@ -670,12 +672,12 @@ func _item_obstacle(world, grp: Dictionary, info: Dictionary) -> void:
 	var placed := int(GameState.flags.get(key, 0))
 	if GameState.item_count(item) <= 0:
 		if placed == 0:
-			await UI.say(["The footbridge has washed away. Only its four posts are left standing in the creek.",
+			await say(["The footbridge has washed away. Only its four posts are left standing in the creek.",
 				"Whoever lives in the log cabin just west of here might know something about it."])
 		else:
-			await UI.say(["%d of %d logs are laid across the creek. The rest are by the builder's door." % [placed, need]])
+			await say(["%d of %d logs are laid across the creek. The rest are by the builder's door." % [placed, need]])
 		return
-	if not await UI.ask("Lay the builder's logs across the creek?"):
+	if not await ask("Lay the builder's logs across the creek?"):
 		return
 	while GameState.item_count(item) > 0 and placed < need:
 		GameState.remove_item(item)
@@ -684,30 +686,30 @@ func _item_obstacle(world, grp: Dictionary, info: Dictionary) -> void:
 		Sfx.play("smash", 0.2)
 		await world.place_bridge_log(grp, placed)
 	if placed < need:
-		await UI.say(["Thunk! %d of %d logs in place. The rest must still be by the builder's door." % [placed, need]])
+		await say(["Thunk! %d of %d logs in place. The rest must still be by the builder's door." % [placed, need]])
 		return
 	GameState.set_flag(grp["flag"])
 	world.clear_obstacle(grp)
 	world.finish_footbridge(grp)
 	Sfx.play("levelup")
-	await UI.say(["The last log rolls snugly into place. The footbridge is finished!", "It wobbles a bit. Don't jump on it. Old Hal will want to hear about this!"])
+	await say(["The last log rolls snugly into place. The footbridge is finished!", "It wobbles a bit. Don't jump on it. Old Hal will want to hear about this!"])
 
 
 ## A cliff with a rope at the top: a beast with wings flies up and drops it down.
 func _flyer_obstacle(world, grp: Dictionary) -> void:
 	var who = GameState.party_flyer()
 	if who == null:
-		await UI.say(["A sheer cliff, far too steep to climb. A rope ladder is coiled at the very top.",
+		await say(["A sheer cliff, far too steep to climb. A rope ladder is coiled at the very top.",
 			"If only something with wings could fly up there and drop it down..."])
 		return
-	if not await UI.ask("A rope ladder is coiled at the top of the cliff. Should %s fly up and drop it down?" % who.nickname):
+	if not await ask("A rope ladder is coiled at the top of the cliff. Should %s fly up and drop it down?" % who.nickname):
 		return
 	Sfx.play("fly")
 	await UI.flash(Color("#e0fff0"), 1)
 	GameState.set_flag(grp["flag"])
 	world.clear_obstacle(grp)
 	Sfx.play("levelup")
-	await UI.say(["%s flaps up the cliff, tugs the rope free with its beak and lets it tumble down. Clatter!" % who.nickname,
+	await say(["%s flaps up the cliff, tugs the rope free with its beak and lets it tumble down. Clatter!" % who.nickname,
 		"The rope ladder hangs all the way to the bottom. Up you go!"])
 
 
@@ -716,33 +718,35 @@ func _blocker(world, n: Dictionary) -> void:
 	match n["id"]:
 		"inspector":
 			if GameState.item_count("miner_pass") > 0:
-				await UI.say(["A Miner's Pass, signed by Foreman Gorran himself! Everything's in order.",
+				await say(["A Miner's Pass, signed by Foreman Gorran himself! Everything's in order.",
 					"Mind the drills, keep left of the carts, and don't lick the copper. On you go!"], n["name"])
 				GameState.set_flag("mine_pass_ok")
 				world.remove_npc(n)
 				Sfx.play("door")
 				return
-			await UI.say(["Halt! This is a Copperpick Mining Co. checkpoint. Nobody passes without a Miner's Pass.",
+			await say(["Halt! This is a Copperpick Mining Co. checkpoint. Nobody passes without a Miner's Pass.",
 				"Want one? Foreman Gorran hands them out. He runs the arena back in Copperpick.",
 				"Beat him there and he might just sign one for you. He respects a strong trainer. And a firm handshake."], n["name"])
 		"warden", "sentinel":
 			var warden: bool = n["id"] == "warden"
 			if GameState.alive_party().is_empty():
-				await UI.say(["Your beasts can hardly stand. Heal them first."], n["name"])
+				await say(["Your beasts can hardly stand. Heal them first."], n["name"])
 				return
-			await UI.say(n["lines"], n["name"])
+			await say(n["lines"], n["name"])
 			var res := await trainer_battle({"name": n["name"].get_slice(" ", 1), "cls": n["name"].get_slice(" ", 0), "team": n["team"], "boss": true,
 				"look": n.get("look", {}), "defeat": n["defeat"], "reward": 2400 if warden else 3600})
 			if res != "win":
 				return
 			GameState.set_flag(n["flag"])
 			world.remove_npc(n)
-			await UI.say([("The Warden steps aside and bows. The way into the deep jungle is open." if warden else
+			await say([("The Warden steps aside and bows. The way into the deep jungle is open." if warden else
 				"The sentinel dissolves into black smoke. The road to Gravenmoor is open.")])
 
 
 # ================================================================ conversations
 func talk(world, n: Dictionary) -> void:
+	var previous := _dialogue_npc
+	_dialogue_npc = n
 	match n.get("kind", ""):
 		"keeper":
 			await Places.open(n["building"], world)
@@ -760,6 +764,7 @@ func talk(world, n: Dictionary) -> void:
 			await _talk_story(world, n)
 	if is_instance_valid(world):
 		world.refresh_npc_marks()
+	_dialogue_npc = previous
 
 
 func _talk_villager(world, n: Dictionary) -> void:
@@ -798,7 +803,7 @@ func _talk_villager(world, n: Dictionary) -> void:
 	var hints: Array = ChatterDB.HINTS.get(next_goal(), [])
 	if not hints.is_empty():
 		lines = lines + [hints[rng.randi_range(0, hints.size() - 1)]]
-	await UI.say(ChatterDB.fill(lines, GameState.player_name), n.get("name", ""))
+	await say(ChatterDB.fill(lines, GameState.player_name), n.get("name", ""))
 
 
 ## What the player should do next, for the townsfolk's hints (ChatterDB.HINTS).
@@ -844,29 +849,29 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	var song: String = n.get("song", "")
 	if GameState.flag(n.get("flag", "")):
 		if song != "" and n.get("encore", false) and not GameState.knows_song(song) and not GameState.alive_party().is_empty():
-			if await UI.ask("Back for an encore? Battle me again and I'll play the %s for you!" % SongDB.song_name(song), name):
+			if await ask("Back for an encore? Battle me again and I'll play the %s for you!" % SongDB.song_name(song), name):
 				await trainer_battle({"name": n.get("name", ""), "cls": n.get("cls", "Trainer"), "team": n["team"], "defeat": "What an encore!",
 					"look": n.get("look", {}), "song": song, "flute_skill": n.get("flute_skill", 0.8), "encore": true, "reward": 60})
 			return
-		await UI.say([n.get("defeat", "Good battle!") if typeof(n.get("defeat")) == TYPE_STRING else "Good battle!"], name)
+		await say([n.get("defeat", "Good battle!") if typeof(n.get("defeat")) == TYPE_STRING else "Good battle!"], name)
 		# (a game saved before Kit kept the logs in his cabin: he hands over any the footbridge still needs)
 		if n.get("gift", {}).has("bridge_log") and logs_missing() > 0:
-			await UI.say(["Oh! You still need logs for the footbridge? Here, I've got plenty!"], name)
+			await say(["Oh! You still need logs for the footbridge? Here, I've got plenty!"], name)
 			_give({"bridge_log": 1})
 		return
 	if GameState.party.is_empty():
-		await UI.say(["You don't have any beasts? Come back once you've hatched one!"], name)
+		await say(["You don't have any beasts? Come back once you've hatched one!"], name)
 		return
 	if n.has("lesson"):
 		# a lesson can't be lost: it starts with your beasts at their best
 		GameState.heal_party()
 	if GameState.alive_party().is_empty() and GameState.shield <= 0:
-		await UI.say(["Your beasts are too tired to battle! Heal them first."], name)
+		await say(["Your beasts are too tired to battle! Heal them first."], name)
 		return
 	if n.has("needs") and not GameState.flag(String(n["needs"])):
-		await UI.say([String(n.get("first", "Come back once you've had the other lesson!"))], name)
+		await say([String(n.get("first", "Come back once you've had the other lesson!"))], name)
 		return
-	await UI.say(n.get("lines", ["Let's battle!"]), name)
+	await say(n.get("lines", ["Let's battle!"]), name)
 	var def := {"name": n.get("name", ""), "cls": n.get("cls", "Trainer"), "team": n["team"], "defeat": n.get("defeat", ""),
 		"look": n.get("look", {}), "robot_body": n.get("robot_body", ""), "song": song, "boss": n.get("bandit_boss", false), "flute_skill": n.get("flute_skill", 0.8), "encore": n.get("encore", false)}
 	for k in ["lesson", "reward"]:
@@ -887,11 +892,11 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	if n.get("bandit_boss", false):
 		GameState.set_flag("bandits_cleared")
 		Sfx.play("levelup")
-		await UI.say(["\"Alright, alright! We're leavin'! The Dune Sea road's all yours!\"",
+		await say(["\"Alright, alright! We're leavin'! The Dune Sea road's all yours!\"",
 			"Black Bart and his gang scatter into the desert. The barricade on the Dune Sea road has been torn down!"])
 	elif n.get("legion", false) and not GameState.flag("met_legion"):
 		GameState.set_flag("met_legion")
-		await UI.say(["So the rumours are true... The Umbral Legion is here, with beasts twisted into shadow.",
+		await say(["So the rumours are true... The Umbral Legion is here, with beasts twisted into shadow.",
 			"Those ghost beasts had no weakness at all. You'll need strong, merged beasts to stand against them."])
 
 
@@ -899,7 +904,7 @@ func _talk_trainer(world, n: Dictionary) -> void:
 ## lessons are over.
 func _lesson_done(n: Dictionary, name: String) -> void:
 	GameState.heal_party()
-	await UI.say(n.get("after", []), name)
+	await say(n.get("after", []), name)
 	_give(n.get("gift", {}))
 	if LESSON_TRAINERS.all(func(t): return GameState.flag("lesson_" + String(t["lesson"]))):
 		GameState.set_flag("tutorial_done")
@@ -925,15 +930,15 @@ func _mascot(world, n: Dictionary) -> void:
 	var name: String = n.get("name", "")
 	var kin: Array = GameState.party.filter(func(b): return RaceDB.first_form(b.race) == RaceDB.first_form(race) and not b.ghost)
 	if mv == "" or kin.is_empty():
-		await UI.say([String(ChatterDB.MASCOT[randi() % ChatterDB.MASCOT.size()]) % name])
+		await say([String(ChatterDB.MASCOT[randi() % ChatterDB.MASCOT.size()]) % name])
 		return
 	var move_name: String = MoveDB.get_move(mv)["name"]
 	var ready: Array = kin.filter(func(b): return b.level >= MoveDB.SIGNATURE_LEVEL and not b.known.has(mv))
 	if ready.is_empty():
 		if kin.any(func(b): return b.known.has(mv)):
-			await UI.say(["The %s and your %s trade a knowing look. They both know %s." % [name, kin[0].nickname, move_name]])
+			await say(["The %s and your %s trade a knowing look. They both know %s." % [name, kin[0].nickname, move_name]])
 		else:
-			await UI.say(["The %s sniffs your %s from nose to tail, then puffs out its chest. It seems to want it stronger first." % [name, kin[0].nickname],
+			await say(["The %s sniffs your %s from nose to tail, then puffs out its chest. It seems to want it stronger first." % [name, kin[0].nickname],
 				"(A %s of Lv %d or more can learn %s here.)" % [name, MoveDB.SIGNATURE_LEVEL, move_name]])
 		return
 	var b = ready[0]
@@ -942,14 +947,14 @@ func _mascot(world, n: Dictionary) -> void:
 		if c < 0:
 			return
 		b = ready[c]
-	if not await UI.ask("The %s strikes a pose in front of your %s, then does it again, slower. It wants to teach it %s! Learn it?" % [name, b.nickname, move_name]):
+	if not await ask("The %s strikes a pose in front of your %s, then does it again, slower. It wants to teach it %s! Learn it?" % [name, b.nickname, move_name]):
 		return
 	var res: String = b.learn(mv)
 	Sfx.play("levelup")
 	var out := ["%s learned %s!" % [b.nickname, move_name]]
 	if res == "known":
 		out.append("It already uses four moves, so %s waits among its known moves: swap it in from Start → Beasts → Moves." % move_name)
-	await UI.say(out)
+	await say(out)
 
 
 func _talk_story(world, n: Dictionary) -> void:
@@ -960,9 +965,9 @@ func _talk_story(world, n: Dictionary) -> void:
 			var lines := ["They took us off the desert road. The robots brought us here in freight cages. Please, get us out!",
 				"The door control is on that console. Gearhart's command seal keeps it locked. Beat him and we can get out!",
 				"I only left home this spring. I was supposed to send Dad a letter. Please tell me we're going home."]
-			await UI.say([lines[int(n.get("captive_index", 0))]], n["name"])
+			await say([lines[int(n.get("captive_index", 0))]], n["name"])
 		"rescued_trainer":
-			await UI.say(["Wren helped us call our families. We're going home together. Thanks for giving us our first spring back."], n["name"])
+			await say(["Wren helped us call our families. We're going home together. Thanks for giving us our first spring back."], n["name"])
 		"poster":
 			await _poster(n)
 		"searcher":
@@ -978,7 +983,7 @@ func _talk_story(world, n: Dictionary) -> void:
 		"tide_switch":
 			await _tide_switch(world, n)
 		"tide_tablet":
-			await UI.say(["Worn carvings: three streams, and four levers beneath them. Pull one and the streams change places.",
+			await say(["Worn carvings: three streams, and four levers beneath them. Pull one and the streams change places.",
 				"Below them, a line of old writing: \"Only when the four agree does the water rest.\""])
 		"tide_keeper":
 			await _tide_keeper()
@@ -994,7 +999,7 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _fisher(world)
 		"park_feeder":
 			# the wild beasts of the park leave her be: she brings them candy corn
-			await UI.say([["Bonjour, chère! These wild beasts never lay a paw on me. Why? I feed them their favorite snack: candy corn!",
+			await say([["Bonjour, chère! These wild beasts never lay a paw on me. Why? I feed them their favorite snack: candy corn!",
 				"A handful a day, and we're the best of friends. They come running the moment they hear the bag rustle."],
 				["Mind the beasts, chère. They only behave for me, and only because of the candy corn.",
 				"You'd best not try it yourself. They only trust the hand that's fed them since they were hatchlings."]][1 if GameState.flag("met_park_feeder") else 0], n["name"])
@@ -1012,45 +1017,45 @@ func _talk_story(world, n: Dictionary) -> void:
 				lines.append("I heard you trying out that flute! Rafe still has a song or two to teach you. Pop back in when you're ready.")
 			else:
 				lines.append("Lovely to hear a flute in that house again. Rafe's been humming all morning.")
-			await UI.say(lines, n["name"])
+			await say(lines, n["name"])
 			GameState.set_flag("met_rafe_neighbor")
 		"uncle":
 			if not _lessons_done():
 				await uncle_lessons()
 			else:
-				await UI.say([["Practise, practise, practise! A song you can play half asleep is a song that wins battles.",
+				await say([["Practise, practise, practise! A song you can play half asleep is a song that wins battles.",
 					"The ferry to the Isle of Tides leaves from the long pier. The islanders are funny about their fish.",
 					"Your father always said: a quick tune beats a perfect one played too late. Then he'd play it perfectly AND quickly. Show-off."][randi() % 3]], "Uncle Rafe")
 		"mom":
 			if world.get_node_or_null("Ringer") != null:
-				await UI.say(["Quick, the phone! It's ringing!"], "Mom")
+				await say(["Quick, the phone! It's ringing!"], "Mom")
 				return
 			GameState.heal_party()
 			Sfx.play("heal")
 			if GameState.flag("game_cleared"):
-				await UI.say(["My little hero! The whole Cove is talking about you.", "I healed your beasts. Go on, the world is waiting!"], "Mom")
+				await say(["My little hero! The whole Cove is talking about you.", "I healed your beasts. Go on, the world is waiting!"], "Mom")
 			elif GameState.flag("has_starter"):
-				await UI.say(["You look tired! Let me take care of your beasts.", "...There. Good as new! Come home any time."], "Mom")
+				await say(["You look tired! Let me take care of your beasts.", "...There. Good as new! Come home any time."], "Mom")
 			elif GameState.flag("got_egg"):
-				await UI.say(["What a lovely egg! Take it to the Beast Center by the square, the one with the red-and-white awning and the paw print over the door. Nurse Clover can hatch it."], "Mom")
+				await say(["What a lovely egg! Take it to the Beast Center by the square, the one with the red-and-white awning and the paw print over the door. Nurse Clover can hatch it."], "Mom")
 			else:
-				await UI.say(["Elder Rowan is waiting for you in the plaza.", "I'm so proud of you, %s." % GameState.player_name], "Mom")
+				await say(["Elder Rowan is waiting for you in the plaza.", "I'm so proud of you, %s." % GameState.player_name], "Mom")
 		"guard":
 			if GameState.flag("has_starter") and not GameState.flag("tutorial_done"):
 				GameState.set_flag("bram_sendoff")
-				await UI.say(["Hey, you hatched it! Look at that little %s. It has your nose." % GameState.party[0].nickname,
+				await say(["Hey, you hatched it! Look at that little %s. It has your nose." % GameState.party[0].nickname,
 					"The gate's open. Along the Coastal Path, the trainers will each teach you a bit of battling. Everyone who passes gets a lesson. Rules are rules. Mostly my rules.",
 					"Your uncle's waiting in Bellerive at the end of the path. Off you go, champ!"], "Scout Bram")
 			elif GameState.flag("has_starter"):
-				await UI.say(["Off you go! The Coastal Path leads east to Bellerive.",
+				await say(["Off you go! The Coastal Path leads east to Bellerive.",
 					"Wild beasts roam the path once you've got a flute to play them. Creep up behind one and you'll get the jump on it. Let one sneak up behind YOU and, well... don't.",
 					"...I hide in the tall grass sometimes. It makes me harder to spot. Nobody knows. Now you know."], "Scout Bram")
 			else:
-				await UI.say(["Whoa there! Wild beasts roam the Coastal Path. Also bees. Mostly beasts.", "I can't let you through without a beast of your own. Go see Elder Rowan in the plaza!"], "Scout Bram")
+				await say(["Whoa there! Wild beasts roam the Coastal Path. Also bees. Mostly beasts.", "I can't let you through without a beast of your own. Go see Elder Rowan in the plaza!"], "Scout Bram")
 		"inspector", "warden", "sentinel":
 			await _blocker(world, n)
 		"center_guide":
-			await UI.say(["Hi, sugar! Welcome to the Beast Center. Every one in the land is built just like this one, so you'll never get lost.",
+			await say(["Hi, sugar! Welcome to the Beast Center. Every one in the land is built just like this one, so you'll never get lost.",
 				"Each machine has its own bay along the back wall. First, Nurse Clover's counter. She hatches eggs in the incubator beside her.",
 				"That tall glass chamber next along? The healing machine. Pop your beasts in and they come out good as new. Free, any time! The storage terminal's right beside it.",
 				"The glowing altar on the end merges two beasts that have hit their level limit into one stronger beast. Very fancy. Very sparkly.",
@@ -1061,14 +1066,14 @@ func _talk_story(world, n: Dictionary) -> void:
 		"thunderhawk":
 			await Places.skytower(n["building"])
 		"bizcuit":
-			await UI.say(["Oh! You found my hiding spot. I'm Bizcuit. Sticky Bizcuit, if you're being formal.",
+			await say(["Oh! You found my hiding spot. I'm Bizcuit. Sticky Bizcuit, if you're being formal.",
 				"I carve little worlds out of cubes: trees, fences, lamp posts, the odd market stall...",
 				"Whatever you're making, believe in yourself like I believe in you. NEVER GIVE UPPPPPP!"], "Bizcuit")
 			if not GameState.flag("bizcuit_gift"):
 				GameState.set_flag("bizcuit_gift")
 				GameState.add_item("honey_cake", 3)
-				Sfx.play("buy")
-				await UI.say(["Here, have some biscuits. Well, cakes. Close enough!", "You received 3 Honey Cakes!"], "Bizcuit")
+				UI.pickup("honey_cake", 3, "buy")
+				await say(["Here, have some biscuits. Well, cakes. Close enough!"], "Bizcuit")
 		"mascot":
 			await _mascot(world, n)
 		"ferry":
@@ -1087,9 +1092,9 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _protester()
 		"receptionist":
 			if GameState.flag("ceo_defeated"):
-				await UI.say(["Mr. Gearhart has... stepped down. The new council meets on the top floor every Tuesday."], "Receptionist")
+				await say(["Mr. Gearhart has... stepped down. The new council meets on the top floor every Tuesday."], "Receptionist")
 			else:
-				await UI.say(["Welcome to Gearhart Tower. Mr. Gearhart is not taking visitors.",
+				await say(["Welcome to Gearhart Tower. Mr. Gearhart is not taking visitors.",
 					"...You want to see him anyway? The sentries on each floor will have something to say about that."], "Receptionist")
 		"ceo":
 			await _ceo(world, n)
@@ -1109,7 +1114,7 @@ func _talk_story(world, n: Dictionary) -> void:
 
 func _elder(_world, _n: Dictionary) -> void:
 	if not GameState.flag("got_egg"):
-		await UI.say(["Ah, %s! There you are. Today you become a beast trainer." % GameState.player_name,
+		await say(["Ah, %s! There you are. Today you become a beast trainer." % GameState.player_name,
 			"Every trainer starts the same way: with an egg, and a promise to care for what hatches.",
 			"I have four eggs here, one of each element. Choose carefully, but know that any of them can become great."], "Elder Rowan")
 		var pick := -1
@@ -1122,24 +1127,24 @@ func _elder(_world, _n: Dictionary) -> void:
 					"icon": GameState.EggLooks.icon(egg), "desc": EGG_BLURB[r]})
 			var c: int = await UI.choose("Choose your egg", items, {"cancel": false, "width": 520, "dim": 0.4})
 			var race: int = RaceDB.STARTERS[c]
-			if await UI.ask("Will you take the %s?" % GameState.egg_name({"race": race}), "Elder Rowan"):
+			if await ask("Will you take the %s?" % GameState.egg_name({"race": race}), "Elder Rowan"):
 				pick = race
 		GameState.add_egg(pick)
 		GameState.set_flag("got_egg")
 		Sfx.play("capture")
-		await UI.say(["You received the %s!" % GameState.egg_name(GameState.eggs.back())])
-		await UI.say(["Take it to the Beast Center, right across the road from this square: the blue building with the red-and-white striped awning and a red paw print over the door. Nurse Clover will help it hatch.",
+		UI.toast("Received the %s!" % GameState.egg_name(GameState.eggs.back()), GameState.EggLooks.icon(GameState.eggs.back()), "egg")
+		await say(["Take it to the Beast Center, right across the road from this square: the blue building with the red-and-white striped awning and a red paw print over the door. Nurse Clover will help it hatch.",
 			"A fresh hatchling starts at level 1, so be gentle with it at first. Win battles and it will grow strong.",
 			"Defeated wild beasts sometimes leave an egg behind, about one time in five. Collect them and hatch them too!",
 			"Remember the elements: fire is weak to air, earth to water, water to air, and air to fire.",
 			"And %s... beware the Umbral Legion. Their ghost beasts have no weakness." % GameState.player_name], "Elder Rowan")
 		return
 	if not GameState.flag("has_starter"):
-		await UI.say(["Your egg won't hatch in your pocket! The Beast Center is right across the road from this square.",
+		await say(["Your egg won't hatch in your pocket! The Beast Center is right across the road from this square.",
 			"Look for the red-and-white striped awning and the red paw print over the door. Nurse Clover is inside."], "Elder Rowan")
 		return
 	if GameState.flag("game_cleared"):
-		await UI.say(["The ghost beasts are free, and the Legion is gone. You did it, %s." % GameState.player_name], "Elder Rowan")
+		await say(["The ghost beasts are free, and the Legion is gone. You did it, %s." % GameState.player_name], "Elder Rowan")
 		return
 	var tips := [
 		"Remember: fire is weak to air, earth to water, water to air, and air to fire.",
@@ -1148,22 +1153,22 @@ func _elder(_world, _n: Dictionary) -> void:
 		"Crystal shards glitter in hidden corners. Volt in Bellerive turns them into shield points and beast slots.",
 		"Merge two beasts at their level limit at a Beast Center, and the child gets stronger.",
 	]
-	await UI.say([tips[randi() % tips.size()]], "Elder Rowan")
+	await say([tips[randi() % tips.size()]], "Elder Rowan")
 
 
 func _ferry(world) -> void:
 	if not _lessons_done():
-		await UI.say(["Ahoy! The Isle of Tides is no place for a trainer without a flute.",
+		await say(["Ahoy! The Isle of Tides is no place for a trainer without a flute.",
 			"Go and see your Uncle Rafe first. Then we'll talk boats."], "Captain Gull")
 		return
 	var here: String = world.map_id
 	var crest: String = WorldDB.ARENAS["tidewater"]["crest"]
 	if here == "tidewater" and not GameState.crests.has(crest):
-		await UI.say(["Ahoy! The islanders only let proven trainers ashore. Earn the %s from Tide Captain Marina at the arena first." % crest,
+		await say(["Ahoy! The islanders only let proven trainers ashore. Earn the %s from Tide Captain Marina at the arena first." % crest,
 			"The arena's coaches will get you ready for her. Then we'll talk boats."], "Captain Gull")
 		return
 	var dest := "shellhaven" if here == "tidewater" else "tidewater"
-	if not await UI.ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
+	if not await ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
 		return
 	GameState.main.goto_map(dest, "dock")
 
@@ -1187,7 +1192,7 @@ func sandstorm_stop(world) -> void:
 
 
 func _ranger() -> void:
-	await UI.say(["Whoa, whoa! What are you doing out here? You're going to get blown away!",
+	await say(["Whoa, whoa! What are you doing out here? You're going to get blown away!",
 		"Wait for the storm to finish. You'll never get through until then!",
 		"Folk say it won't settle until things are calm at the Temple of Tides, out on the Isle of Tides. Back to town with you!"], "Dune Ranger")
 	GameState.main.goto_map("tidewater", "north", Vector2i(0, 1))
@@ -1201,33 +1206,33 @@ func _chief(_world, n: Dictionary) -> void:
 	var nm: String = n["name"]
 	if n["id"] == "chief_shell":
 		if GameState.flag("island_peace"):
-			await UI.say(["Kelpwick's let the reef path open again? Splendid! I'll have the brochures reprinted.",
+			await say(["Kelpwick's let the reef path open again? Splendid! I'll have the brochures reprinted.",
 				"Coralie says guests may look but not take. Honestly, they're only pebbles... but very well. Look, don't take."], nm)
 			return
 		if GameState.flag("shell_heard"):
-			await UI.say(["Kelpwick still standing guard over their reef? Chief Coralie's east along the Isle Trail.",
+			await say(["Kelpwick still standing guard over their reef? Chief Coralie's east along the Isle Trail.",
 				"Do be patient with her. They're simple folk. They don't get much sophisticated company."], nm)
 			return
 		GameState.set_flag("shell_heard")
-		await UI.say(["Welcome to Shellhaven, the jewel of the Isle of Tides! Do try La Perla. The chef trained on the mainland.",
+		await say(["Welcome to Shellhaven, the jewel of the Isle of Tides! Do try La Perla. The chef trained on the mainland.",
 			"You'll want the Temple of Tides, of course. Every guest does. And those Kelpwick villagers are standing in the road to stop anyone reaching it!",
 			"Quaint people, bless them. Grass huts, fish on sticks. But backwards. That temple could be the finest attraction on the coast.",
 			"So a few guests took home a carved stone or two. Little keepsakes! Hardly a crime.",
 			"Go east along the Isle Trail and talk some sense into Chief Coralie, would you?"], nm)
 		return
 	if GameState.flag("island_peace"):
-		await UI.say(["Nerissa told me how you battled. You fight for your beasts, not for keepsakes.",
+		await say(["Nerissa told me how you battled. You fight for your beasts, not for keepsakes.",
 			"Our folk on the reef path will let you by. Go gently in the Temple of Tides. Take nothing but its song."], nm)
 		return
 	if _reef_earned():
 		await reef_opened(nm)
 		return
 	if GameState.flag("kelp_heard"):
-		await UI.say(["Nerissa waits by the ring in the great hut. Beat her, and our folk will let you through to the reef.",
+		await say(["Nerissa waits by the ring in the great hut. Beat her, and our folk will let you through to the reef.",
 			"A tourist would have given up and gone back for cocktails by now."], nm)
 		return
 	GameState.set_flag("kelp_heard")
-	await UI.say(["Another visitor from the resort? Let me guess. You've come for the Temple of Tides.",
+	await say(["Another visitor from the resort? Let me guess. You've come for the Temple of Tides.",
 		"Shellhaven's guests climb all over it. They chip the carvings and prise shells off the altar to take home as souvenirs.",
 		"The temple keeps the tides in balance. With every stone they take, the sea grows angrier. So now we stand across the path ourselves.",
 		"They call us quaint. Backwards. Meanwhile they line our beaches with deck chairs and sell the view by the night.",
@@ -1244,7 +1249,7 @@ func _reef_earned() -> bool:
 func reef_opened(who: String) -> void:
 	if GameState.flag("island_peace"):
 		return
-	await UI.say(["No tourist battles like that. You trust your beasts, and they trust you.",
+	await say(["No tourist battles like that. You trust your beasts, and they trust you.",
 		"I'll tell Coralie, and our folk on the reef path will let you by. Go gently in the Temple of Tides."], who)
 	GameState.set_flag("island_peace")
 	Sfx.play("levelup")
@@ -1258,15 +1263,15 @@ func _reef_crowd(n: Dictionary) -> void:
 	if _reef_earned():
 		await reef_opened(n["name"])
 		return
-	await UI.say(["Sorry, the reef path's closed. Too many tourists have been carrying the Temple of Tides home in their pockets.",
+	await say(["Sorry, the reef path's closed. Too many tourists have been carrying the Temple of Tides home in their pockets.",
 		"Beat Reef Warden Nerissa in the great hut and prove you're no tourist. Then we'll let you by."], n["name"])
 
 
 func _tourist(n: Dictionary) -> void:
 	if GameState.flag("island_peace"):
-		await UI.say(["Kelpwick made me give my shell back! Honestly.", "...The altar did look happier with it, I suppose."], n["name"])
+		await say(["Kelpwick made me give my shell back! Honestly.", "...The altar did look happier with it, I suppose."], n["name"])
 		return
-	await UI.say(["Isn't the Temple of Tides divine? I got in before those villagers started standing in the road.",
+	await say(["Isn't the Temple of Tides divine? I got in before those villagers started standing in the road.",
 		"Look: a genuine temple shell! It was stuck to an altar, but it came right off.",
 		"What? Everybody takes one. It's practically a gift shop."], n["name"])
 
@@ -1278,14 +1283,14 @@ func _sheriff() -> void:
 			GameState.gold += 2500
 			GameState.add_item("revival_seed", 2)
 			Sfx.play("buy")
-			await UI.say(["You ran Black Bart's gang out of the desert? Well, I'll be!",
+			await say(["You ran Black Bart's gang out of the desert? Well, I'll be!",
 				"Here's the bounty: 2500 gold and a couple of Revival Seeds. Sundown owes you one, partner.",
 				"The road north through the Dune Sea is open again. They say an old temple to the winds stands out there."], "Sheriff Dalton")
 		else:
-			await UI.say(["Quiet as a church on Monday, ever since you cleaned up this town."], "Sheriff Dalton")
+			await say(["Quiet as a church on Monday, ever since you cleaned up this town."], "Sheriff Dalton")
 		return
 	GameState.set_flag("met_sheriff")
-	await UI.say(["Howdy, stranger. Mind yourself in Sundown. Black Bart's gang has this town by the throat.",
+	await say(["Howdy, stranger. Mind yourself in Sundown. Black Bart's gang has this town by the throat.",
 		"And new trainers are vanishing. We found Gearhart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
 		"Black Bart's gang raids our stores, then holes up out on the Dune Sea road. They've barricaded the road north, too.",
 		"I'm one sheriff with one old Galeberry. If you're half the trainer you look, go teach those varmints some manners.",
@@ -1294,12 +1299,12 @@ func _sheriff() -> void:
 
 func _protester() -> void:
 	if GameState.flag("ceo_defeated") and not GameState.flag("trainers_freed"):
-		await UI.say(["You beat Gearhart? The trainers are still locked in his freight cages!", "Use the Freight Lock Control on the top floor. I'll get their families on the phone."], "Tinker Wren")
+		await say(["You beat Gearhart? The trainers are still locked in his freight cages!", "Use the Freight Lock Control on the top floor. I'll get their families on the phone."], "Tinker Wren")
 		return
 	if GameState.flag("ceo_defeated"):
-		await UI.say(["The trainers are safe. Their families know. And the steam is flowing again!", "You gave this city its heart back."], "Tinker Wren")
+		await say(["The trainers are safe. Their families know. And the steam is flowing again!", "You gave this city its heart back."], "Tinker Wren")
 		return
-	await UI.say(["Down with Gearhart! Down with the rations!",
+	await say(["Down with Gearhart! Down with the rations!",
 		"His robots have been taking new trainers off the desert roads. I heard them inside the freight lift. They're still alive.",
 		"Gearhart owns every pipe and piston here. He supplies the cages; the Umbral Legion pays for the people.",
 		"Climb Gearhart Tower. Beat his robot sentries, stop him, and use the top-floor freight control to free the trainers.",
@@ -1308,16 +1313,16 @@ func _protester() -> void:
 
 func _ceo(world, n: Dictionary) -> void:
 	if GameState.flag("ceo_defeated"):
-		await UI.say(["The freight control accepts my command seal now. Take your precious trainers.",
+		await say(["The freight control accepts my command seal now. Take your precious trainers.",
 			"Vexmora will hear about this."], "Magnus Gearhart")
 		return
-	await UI.say(["So. You're the pest who scrapped my sentries.",
+	await say(["So. You're the pest who scrapped my sentries.",
 		"Those trainers? Vexmora needs living bonds to command his ghosts. I supply the transport. Very profitable.",
 		"Do you know what's inside Mount Cinder? Fire. Endless, free fire. Bottled and sold, it will make Gearheart Industries a god.",
 		"The city? Cattle. They'll pay whatever I ask for their steam.",
 		"Enough talk. My finest machines will turn your little pets into scrap!"], "Magnus Gearhart")
 	if GameState.alive_party().is_empty():
-		await UI.say(["Hah! Your beasts are already broken. Security will see you out."], "Magnus Gearhart")
+		await say(["Hah! Your beasts are already broken. Security will see you out."], "Magnus Gearhart")
 		return
 	var res := await trainer_battle({"name": "Gearhart", "cls": "CEO", "boss": true, "team": [[44, 34], [45, 35], [46, 35], [43, 36]],
 		"look": n.get("look", {}), "defeat": "Impossible... My machines... my fortune...", "reward": 6000})
@@ -1325,7 +1330,7 @@ func _ceo(world, n: Dictionary) -> void:
 		GameState.set_flag("ceo_defeated")
 		GameState.shards += 2
 		Sfx.play("levelup")
-		await UI.say(["Gearhart slumps into his enormous chair. Outside, the city's steam whistles start to sing.",
+		await say(["Gearhart slumps into his enormous chair. Outside, the city's steam whistles start to sing.",
 			"His command seal falls onto the desk. The Freight Lock Control can open the trainers' cages now!",
 			"The Caldera Road gate grinds open. The path to Mount Cinder and the Temple of Flame is clear!",
 			"The grateful engineers of Cogsworth hand you 2 crystal shards. (%d in your bag)" % GameState.shards])
@@ -1364,10 +1369,10 @@ func _freight_control_node() -> Node3D:
 
 func _free_trainers(world) -> void:
 	if GameState.flag("trainers_freed"):
-		await UI.say(["All freight cages are open. The transport orders have been cancelled."])
+		await say(["All freight cages are open. The transport orders have been cancelled."])
 		return
 	if not GameState.flag("ceo_defeated"):
-		await UI.say(["FREIGHT LOCK: COMMAND SEAL REQUIRED.", "Gearhart has the seal. You'll have to defeat him first."], "Freight Lock Control")
+		await say(["FREIGHT LOCK: COMMAND SEAL REQUIRED.", "Gearhart has the seal. You'll have to defeat him first."], "Freight Lock Control")
 		return
 	GameState.set_flag("trainers_freed")
 	GameState.set_flag("missing_trainers")
@@ -1375,10 +1380,10 @@ func _free_trainers(world) -> void:
 	for npc in world.npcs.values():
 		if npc.get("id", "") == "captive":
 			npc["node"].release()
-	await UI.say(["You press Gearhart's command seal to the console. The freight locks snap open. All three trainers step free."])
-	await UI.say(["I kept thinking nobody knew where we were. You found us.", "A general ordered this. Vexmora. The next shipment was bound for Gravenmoor."], "Trainer Lio")
-	await UI.say(["We're going home. All of us. Thank you."], "Trainer Bea")
-	await UI.say(["You cancel the remaining transport orders and send the missing-trainer register to Tinker Wren.",
+	await say(["You press Gearhart's command seal to the console. The freight locks snap open. All three trainers step free."])
+	await say(["I kept thinking nobody knew where we were. You found us.", "A general ordered this. Vexmora. The next shipment was bound for Gravenmoor."], "Trainer Lio")
+	await say(["We're going home. All of us. Thank you."], "Trainer Bea")
+	await say(["You cancel the remaining transport orders and send the missing-trainer register to Tinker Wren.",
 		"TRAINERS RESCUED · Lio, Bea and Orin are safe. Wren will reunite them with their families.",
 		"The trail leads to the Umbral Legion in Gravenmoor. This season belongs to trainers, not Vexmora."])
 	await GameState.main.reload_map()
@@ -1386,12 +1391,12 @@ func _free_trainers(world) -> void:
 
 func _shaman(world) -> void:
 	if GameState.flag("ritual_done"):
-		await UI.say(["The Temple of Roots has woken. Its guardian waits deep inside, on the Jungle Trail.",
+		await say(["The Temple of Roots has woken. Its guardian waits deep inside, on the Jungle Trail.",
 			"Only those the jungle trusts may face it. You have earned that trust."], "Shaman Ayo")
 		return
 	if not GameState.flag("relic_quest"):
 		GameState.set_flag("relic_quest")
-		await UI.say(["The jungle has been restless since the strangers in black came through.",
+		await say(["The jungle has been restless since the strangers in black came through.",
 			"Long ago, our people sealed the Temple of Roots beneath the earth. Only the ritual of the three relics can raise it.",
 			"The Sun Relic was hidden here in Vinehollow. The Moon Relic rests on the Summit Pass. The Earth Relic lies on the Jungle Trail.",
 			"Bring all three to the old shrine in our village, and we will perform the ritual."], "Shaman Ayo")
@@ -1399,24 +1404,24 @@ func _shaman(world) -> void:
 		return
 	var n := _relic_count()
 	if n < 3:
-		await UI.say(["You have found %d of the three relics. Keep searching: the Sun here in Vinehollow, the Moon on Summit Pass, the Earth on the Jungle Trail." % n], "Shaman Ayo")
+		await say(["You have found %d of the three relics. Keep searching: the Sun here in Vinehollow, the Moon on Summit Pass, the Earth on the Jungle Trail." % n], "Shaman Ayo")
 	else:
-		await UI.say(["All three relics! Place them on the old shrine, and the ritual can begin."], "Shaman Ayo")
+		await say(["All three relics! Place them on the old shrine, and the ritual can begin."], "Shaman Ayo")
 
 
 func _shrine(world) -> void:
 	if GameState.flag("ritual_done"):
-		await UI.say(["The three relics glow softly on the old shrine."])
+		await say(["The three relics glow softly on the old shrine."])
 		return
 	if _relic_count() < 3:
-		await UI.say(["An ancient shrine carved with a sun, a moon and a mountain. Three hollows wait for something."])
+		await say(["An ancient shrine carved with a sun, a moon and a mountain. Three hollows wait for something."])
 		return
-	await UI.say(["You place the Sun, Moon and Earth relics into the hollows of the shrine.",
+	await say(["You place the Sun, Moon and Earth relics into the hollows of the shrine.",
 		"Shaman Ayo begins to chant. The drums of Vinehollow answer..."])
 	Sfx.play("merge")
 	await UI.flash(Color("#a0ff90"), 4)
 	GameState.set_flag("ritual_done")
-	await UI.say(["The ground shakes! Far to the south, something vast pushes up through the jungle.",
+	await say(["The ground shakes! Far to the south, something vast pushes up through the jungle.",
 		"The Temple of Roots has risen on the Jungle Trail!"])
 	Sfx.play("levelup")
 
@@ -1426,53 +1431,52 @@ func _relic(world, n: Dictionary) -> void:
 	GameState.set_flag("relic_" + k)
 	world.remove_npc(n)
 	Sfx.play("capture")
-	await UI.say(["You found the %s! (%d of 3)" % [n["name"], _relic_count()]])
+	UI.toast("Found the %s! (%d of 3)" % [n["name"], _relic_count()], "notice")
 
 
 func _gravedigger() -> void:
 	if GameState.flag("got_requiem"):
-		await UI.say(["The ghosts aren't wicked, you know. Just lost. The Legion drags them up from the crypt and twists them.",
+		await say(["The ghosts aren't wicked, you know. Just lost. The Legion drags them up from the crypt and twists them.",
 			"Vexmora's down there now, beneath the cathedral. Commander Nyx guards the stairs."], "Old Mort")
 		return
 	GameState.set_flag("got_requiem")
 	GameState.learn_song("requiem")
 	Sfx.play("levelup")
-	await UI.say(["A living trainer, in Gravenmoor? Hah. Haven't seen one of those in a while.",
+	await say(["A living trainer, in Gravenmoor? Hah. Haven't seen one of those in a while.",
 		"Those ghost beasts out on the moor won't listen to your ordinary songs. But this one... this one they remember.",
 		"It's the Requiem of Dusk. My mother taught it to me. Play it for a ghost beast, and it may follow you home.",
 		"Same rules as your Capture song, mind: no stronger than your Capture level, and only perfection reaches the really tough ones."], "Old Mort")
 	UI.toast("Learned the song: Requiem of Dusk!", "note")
-	await UI.say(["You learned the Requiem of Dusk! It's the only song that charms ghost beasts."])
 
 
 func _nyx(world, n: Dictionary) -> void:
 	if GameState.flag("nyx_defeated"):
 		return
-	await UI.say(["The Legion's grunts couldn't stop you? How embarrassing for them.",
+	await say(["The Legion's grunts couldn't stop you? How embarrassing for them.",
 		"General Vexmora is waking the oldest ghosts in the crypt below. Soon the Legion's army will be endless.",
 		"You won't interrupt him."], "Commander Nyx")
 	if GameState.alive_party().is_empty():
-		await UI.say(["Come back when your beasts can stand."], "Commander Nyx")
+		await say(["Come back when your beasts can stand."], "Commander Nyx")
 		return
 	var res := await trainer_battle({"name": "Nyx", "cls": "Commander", "boss": true, "team": [[3, 49, true], [24, 49, true], [18, 50, true]],
 		"look": n.get("look", {}), "song": "discord", "flute_skill": 0.85, "defeat": "General... forgive me.", "reward": 5000})
 	if res == "win":
 		GameState.set_flag("nyx_defeated")
 		world.remove_npc(n)
-		await UI.say(["Commander Nyx vanishes in a swirl of shadow. The stairs to the crypt are open."])
+		await say(["Commander Nyx vanishes in a swirl of shadow. The stairs to the crypt are open."])
 
 
 func _finale(world, n: Dictionary) -> void:
 	if GameState.flag("game_cleared"):
 		return
 	if not GameState.flag("trainers_freed"):
-		await UI.say(["The trainers in Gearhart Tower are still locked in their freight cages.",
+		await say(["The trainers in Gearhart Tower are still locked in their freight cages.",
 			"Free them with the top-floor Freight Lock Control before confronting Vexmora. You won't leave them behind."])
 		return
 	if GameState.alive_party().is_empty():
-		await UI.say(["Your beasts can barely stand. Heal them first!"])
+		await say(["Your beasts can barely stand. Heal them first!"])
 		return
-	await UI.say(["So the child from Cocoon Cove made it all the way to my crypt.",
+	await say(["So the child from Cocoon Cove made it all the way to my crypt.",
 		"Gearhart's shipments have stopped. So you are the one who opened my cages.",
 		"Every ghost beast in this place answers to me. They have no weakness. No fear. No mercy.",
 		"With them, the Legion will take every town from the coast to the jungle. Starting with you."], "General Vexmora")
@@ -1483,9 +1487,9 @@ func _finale(world, n: Dictionary) -> void:
 	GameState.set_flag("game_cleared")
 	world.remove_npc(n)
 	Sfx.music("ending")
-	await UI.say(["General Vexmora's shadows unravel. The Umbral Legion's banners fall all across Gravenmoor.",
+	await say(["General Vexmora's shadows unravel. The Umbral Legion's banners fall all across Gravenmoor.",
 		"Freed from the Legion's command, the ghost beasts drift quietly up into the moonlight."])
-	await UI.say(["★ THE END ★", "Thank you for playing Ruby Cocoon!",
+	await say(["★ THE END ★", "Thank you for playing Ruby Cocoon!",
 		"Your journey continues: hatch every egg, master every song, and merge the ultimate team."])
 	await GameState.main.reload_map()
 
@@ -1528,7 +1532,7 @@ func _poster(n: Dictionary) -> void:
 		lines.push_front("Someone has painted FOUND across this poster in big green letters, and underneath: Home safe. Thank you!")
 	else:
 		lines.append("Any news, tell Sheriff Dalton in Sundown Gulch.")
-	await UI.say(lines)
+	await say(lines)
 
 
 ## A friend of a missing trainer, searching Dustwell.
@@ -1542,7 +1546,7 @@ func _searcher(n: Dictionary) -> void:
 	elif GameState.flag("met_sheriff") and sr.has("sheriff"):
 		lines = sr["sheriff"]
 	GameState.set_flag("searcher_%d" % i)
-	await UI.say(lines, n["name"])
+	await say(lines, n["name"])
 
 
 # ---------------------------------------------------------------- the deputy and the escaped prisoner
@@ -1569,27 +1573,27 @@ func deputy_waiting() -> bool:
 ## Deputy Rusk, minding Dustwell Jail (one empty cell more than he'd like).
 func _deputy() -> void:
 	if GameState.flag("trainers_freed"):
-		await UI.say(["Gearhart, eh? Locking up trainers in freight cages.", "I've got a cell with his name on it. Literally. I painted it on. Spelled it wrong, but the thought's there."], DEPUTY)
+		await say(["Gearhart, eh? Locking up trainers in freight cages.", "I've got a cell with his name on it. Literally. I painted it on. Spelled it wrong, but the thought's there."], DEPUTY)
 		return
 	if not GameState.flag("convict_asked"):
-		await UI.say(["Oh! A visitor! Nobody visits the jail. Except prisoners. And they don't visit so much as... stay.",
+		await say(["Oh! A visitor! Nobody visits the jail. Except prisoners. And they don't visit so much as... stay.",
 			"Well, they're meant to stay. I had one! Slim. Caught him red-handed with a missing trainer's flute in his saddlebag.",
 			"Then I went for a sarsaparilla and I may have left the cell door open. A little. All the way."], DEPUTY)
-		if await UI.ask("Help Deputy Rusk catch his escaped prisoner?", DEPUTY):
+		if await ask("Help Deputy Rusk catch his escaped prisoner?", DEPUTY):
 			GameState.set_flag("convict_asked")
-			await UI.say(["You will? Hot diggity! Slim can't have got far. He walks slow. He's got the bow legs.",
+			await say(["You will? Hot diggity! Slim can't have got far. He walks slow. He's got the bow legs.",
 				"Tall fella, green coat, hat. Sort of hat-shaped hat. Check round town, partner!"], DEPUTY)
 		else:
-			await UI.say(["Aw. Well, if you change your mind, I'll be right here. Guarding the cells. Very carefully, from now on."], DEPUTY)
+			await say(["Aw. Well, if you change your mind, I'll be right here. Guarding the cells. Very carefully, from now on."], DEPUTY)
 		return
 	if GameState.item_count("card_ledger") > 0 and not GameState.flag("slim_cleared"):
-		await UI.say(["You show Deputy Rusk the card ledger from the Oasis Saloon.",
+		await say(["You show Deputy Rusk the card ledger from the Oasis Saloon.",
 			"Let's see... Slim, Slim, Slim... Slim lost a hand, Slim lost his boots, Slim lost his hat... all night long.",
 			"The same night that trainer vanished out on the Dune Road. So Slim was... and the trainer was... and the flute was...",
 			"...Huh. HUH. Somebody put that flute in Slim's saddlebag so I'd lock him up and quit looking!"], DEPUTY)
 		GameState.remove_item("card_ledger")
 		GameState.set_flag("slim_cleared")
-		await UI.say(["Dang it. I'll tell Slim he's a free man. And I'll buy him a new hat. And boots.",
+		await say(["Dang it. I'll tell Slim he's a free man. And I'll buy him a new hat. And boots.",
 			"But that means whoever really took those trainers is still out there, laughing at me. With their metal feet."], DEPUTY)
 		await _deputy_partner()
 		return
@@ -1597,25 +1601,25 @@ func _deputy() -> void:
 		await _deputy_partner()
 		return
 	if GameState.flag("deputy_partner"):
-		await UI.say(["Sheriff Dalton's up in Sundown Gulch, north up the Mesa Trail. Tell him what we found, partner.",
+		await say(["Sheriff Dalton's up in Sundown Gulch, north up the Mesa Trail. Tell him what we found, partner.",
 			"I'll hold the fort here. And the cells. Somebody has to. I've locked them. I've checked twice."], DEPUTY)
 		return
 	if GameState.flag("convict_found"):
-		await UI.say(["You found Slim? And he says he didn't do it? Well, they all say that. Mostly. Unless there's proof.",
+		await say(["You found Slim? And he says he didn't do it? Well, they all say that. Mostly. Unless there's proof.",
 			"Proof's a real fine thing. I'd look at proof all day, if somebody brought me some."], DEPUTY)
 	else:
-		await UI.say(["Any sign of Slim? Green coat, hat. Bow legs. Looks guilty. Well, looked guilty. Looks like a fella, mostly."], DEPUTY)
+		await say(["Any sign of Slim? Green coat, hat. Bow legs. Looks guilty. Well, looked guilty. Looks like a fella, mostly."], DEPUTY)
 
 
 ## The deputy asks you to help him find the missing trainers and whoever really took them.
 func _deputy_partner() -> void:
-	if not await UI.ask("Help Deputy Rusk find the missing trainers and the real culprit?", DEPUTY):
-		await UI.say(["Fair enough. It's a big job. Bigger than me, probably. Most jobs are. Come back if you change your mind."], DEPUTY)
+	if not await ask("Help Deputy Rusk find the missing trainers and the real culprit?", DEPUTY):
+		await say(["Fair enough. It's a big job. Bigger than me, probably. Most jobs are. Come back if you change your mind."], DEPUTY)
 		return
 	GameState.set_flag("deputy_partner")
 	GameState.gold += 300
 	Sfx.play("item")
-	await UI.say(["Partners! Here: the reward that was on Slim's head. Feels wrong keeping it now. 300 gold.",
+	await say(["Partners! Here: the reward that was on Slim's head. Feels wrong keeping it now. 300 gold.",
 		"Slim saw a big freight wagon roll through the night the trainers went, metal footprints all round it.",
 		"Sheriff Dalton in Sundown Gulch is asking questions up north. Take him what we know. I'll keep watch here."], DEPUTY)
 
@@ -1624,29 +1628,28 @@ func _deputy_partner() -> void:
 func _slim(n: Dictionary) -> void:
 	if GameState.flag("slim_cleared"):
 		GameState.set_flag("slim_thanks")
-		await UI.say(["Free as a tumbleweed! Thank you, partner. Rusk gave me my hat back.", "...It's his hat. But it's the thought."], n["name"])
+		await say(["Free as a tumbleweed! Thank you, partner. Rusk gave me my hat back.", "...It's his hat. But it's the thought."], n["name"])
 		return
 	if GameState.item_count("card_ledger") > 0:
-		await UI.say(["You got Dusty's ledger? Go show Rusk, quick, before he trips over his own badge and locks himself up."], n["name"])
+		await say(["You got Dusty's ledger? Go show Rusk, quick, before he trips over his own badge and locks himself up."], n["name"])
 		return
 	GameState.set_flag("convict_found")
-	await UI.say(["Whoa, whoa! Don't holler for the deputy! I never took nobody!",
+	await say(["Whoa, whoa! Don't holler for the deputy! I never took nobody!",
 		"Somebody stuffed a trainer's flute in my saddlebag while I slept, and Rusk found it. Some luck.",
 		"The night that trainer went missing, I was at Dusty's card table in the saloon till sunup. Lost my boots. Lost my hat.",
 		"Dusty writes down every hand in his ledger. Ask him! It'll say I was there all night."], n["name"])
-	await UI.say(["And another thing: that night a big freight wagon rolled through, clank, clank. Metal footprints all round it, come morning."], n["name"])
+	await say(["And another thing: that night a big freight wagon rolled through, clank, clank. Metal footprints all round it, come morning."], n["name"])
 
 
 ## At the saloon: once Slim has told you about the card game, Barkeep Dusty hands over the ledger that clears him.
 func card_ledger() -> void:
 	if not GameState.flag("convict_found") or GameState.flag("slim_cleared") or GameState.item_count("card_ledger") > 0:
-		await UI.say(["And if you hear word of those missing trainers, you tell the sheriff, y'hear?"], "Barkeep Dusty")
+		await say(["And if you hear word of those missing trainers, you tell the sheriff, y'hear?"], "Barkeep Dusty")
 		return
-	await UI.say(["Slim? Rusk's prisoner? He was at my card table the whole night those trainers went missing. Lost every hand, too.",
+	await say(["Slim? Rusk's prisoner? He was at my card table the whole night those trainers went missing. Lost every hand, too.",
 		"It's all in my ledger. Here, take it to Rusk. That boy couldn't find his own hat if he was wearing it."], "Barkeep Dusty")
 	GameState.add_item("card_ledger")
-	Sfx.play("item")
-	await UI.say(["You received the Card Ledger!"])
+	UI.pickup("card_ledger")
 
 
 
@@ -1676,14 +1679,14 @@ func _lever(world, n: Dictionary) -> void:
 	var info: Dictionary = n.get("info", {})
 	var flag: String = n["lever"]
 	if GameState.flag(flag):
-		await UI.say([String(info.get("done", "The lever is locked in place."))])
+		await say([String(info.get("done", "The lever is locked in place."))])
 		return
-	if not await UI.ask(String(info.get("ask", "An old lever. Pull it?"))):
+	if not await ask(String(info.get("ask", "An old lever. Pull it?"))):
 		return
 	Sfx.play("lever")
 	await TempleProps.pull(n["node"])
 	GameState.set_flag(flag)
-	await UI.say(info.get("lines", ["Somewhere, water rushes away."]))
+	await say(info.get("lines", ["Somewhere, water rushes away."]))
 	# the water here drains (or fills) at once
 	if flag in world.map.get("flood_flags", []):
 		await GameState.main.reload_map()
@@ -1693,7 +1696,7 @@ func _lever(world, n: Dictionary) -> void:
 func _tide_switch(world, n: Dictionary) -> void:
 	var id: String = world.map["puzzle"]
 	if TidePuzzles.solved(id, GameState.flags):
-		await UI.say(["The lever is locked in place. The water has gone."])
+		await say(["The lever is locked in place. The water has gone."])
 		return
 	var flag := TidePuzzles.lever_flag(id, n["index"])
 	var down := not GameState.flag(flag)
@@ -1718,7 +1721,7 @@ func _tide_solved(world, id: String) -> void:
 			(m["node"] as Node3D).visible = true
 	await world.tide.drain()
 	world.refresh_tide()
-	await UI.say(["Deep in the walls, a sluice grinds open. The water drains away!",
+	await say(["Deep in the walls, a sluice grinds open. The water drains away!",
 		"The water in the great hall must have dropped too."])
 
 
@@ -1727,7 +1730,7 @@ func _chest(n: Dictionary) -> void:
 	if n.get("hidden_until", "") != "" and not GameState.flag(n["hidden_until"]):
 		return
 	if GameState.flag(n["chest"]):
-		await UI.say(["The chest is empty."])
+		await say(["The chest is empty."])
 		return
 	GameState.set_flag(n["chest"])
 	await TempleProps.open_chest(n["node"])
@@ -1735,25 +1738,25 @@ func _chest(n: Dictionary) -> void:
 	Sfx.play("item")
 	var item_name := ItemDB.item_name(n["item"])
 	var article := "some" if item_name.ends_with("s") else ("an" if item_name.left(1).to_upper() in "AEIOU" else "a")
-	await UI.say(["You opened the chest. Inside: %s %s!" % [article, item_name]])
+	await say(["You opened the chest. Inside: %s %s!" % [article, item_name]])
 
 
 ## Keeper Pell, outside the Temple of Tides: how its halls drain, and what prowls them.
 func _tide_keeper() -> void:
 	var nm := "Keeper Pell"
 	if GameState.flag("guardian_water"):
-		await UI.say(["The sea's calm again, and the winds off the desert with it. You did that.",
+		await say(["The sea's calm again, and the winds off the desert with it. You did that.",
 			"The temple's halls will keep. Come back whenever you like."], nm)
 		return
 	GameState.set_flag("met_tide_keeper")
 	if GameState.flag("tides_maze_solved"):
-		await UI.say(["The great hall's drained! The way down to the stone door is open.",
+		await say(["The great hall's drained! The way down to the stone door is open.",
 			"Read the tablet past it. The stones' song is the only thing the guardian heeds, and it opens the last door too."], nm)
 		return
-	await UI.say(["You came over the falls? Then you've a keen eye for old waterworks. You'll need it in there.",
+	await say(["You came over the falls? Then you've a keen eye for old waterworks. You'll need it in there.",
 		"The Temple of Tides floods its own great hall. The guardian's chamber lies at the bottom, under the water.",
 		"The old priests lowered it from two chambers off the hall, with levers that shift the falling water. Set them right and it drains."], nm)
-	await UI.say(["Mind those chambers, though. Strong water beasts swim there, and you'll see them coming.",
+	await say(["Mind those chambers, though. Strong water beasts swim there, and you'll see them coming.",
 		"An air beast on the side that faces them helps. And the priests left treasure lying about. Keep an eye out."], nm)
 
 
@@ -1897,14 +1900,14 @@ func _guardian(world, n: Dictionary) -> void:
 	if GameState.flag(n["flag"]):
 		return
 	if not GameState.knows_song(song):
-		await UI.say(["%s, guardian of the %s, sleeps on, coiled around the altar." % [RaceDB.race_name(race), t["name"]],
+		await say(["%s, guardian of the %s, sleeps on, coiled around the altar." % [RaceDB.race_name(race), t["name"]],
 			"Its eyes stay shut. The song that wakes it is still locked in the singing stones."])
 		return
 	Sfx.play("growl")
-	await UI.say(["The %s stirs the air, and %s opens its eyes." % [SongDB.song_name(song), RaceDB.race_name(race)],
+	await say(["The %s stirs the air, and %s opens its eyes." % [SongDB.song_name(song), RaceDB.race_name(race)],
 		"It rises to test you! It can't be beaten, only won over: wear it down, then play the %s to it." % SongDB.song_name(song)])
 	if GameState.alive_party().is_empty():
-		await UI.say(["The guardian closes its eyes again. Your beasts are in no state to fight."])
+		await say(["The guardian closes its eyes again. Your beasts are in no state to fight."])
 		return
 	var lv: int = t["level"]
 	# (the crypt's guardian is a ghost; its helpers are the crypt's own beasts)
@@ -1922,7 +1925,7 @@ func _guardian(world, n: Dictionary) -> void:
 		return
 	world.remove_npc(n)
 	Sfx.play("levelup")
-	await UI.say(["%s is yours now: a summon!" % RaceDB.race_name(race),
+	await say(["%s is yours now: a summon!" % RaceDB.race_name(race),
 		"In battle, choose Summon and play the %s: %s arrives and strikes every foe at once. Once per battle, for one shield point." % [SongDB.song_name(song), RaceDB.race_name(race)]])
 
 
@@ -2072,11 +2075,42 @@ func wild_encounter(world) -> void:
 func on_crest() -> void:
 	var c := GameState.crest_count()
 	if c == 3:
-		await UI.say(["News from the road: soldiers in black armour have been seen in the mountains near Copperpick.",
+		await say(["News from the road: soldiers in black armour have been seen in the mountains near Copperpick.",
 			"Trainers say their ghost beasts shrug off every element."])
 	elif c == 6:
-		await UI.say(["A traveller whispers: the Umbral Legion has taken Gravenmoor, east of Riverbend.",
+		await say(["A traveller whispers: the Umbral Legion has taken Gravenmoor, east of Riverbend.",
 			"They say their General is digging beneath the old cathedral."])
 	elif c == 8:
-		await UI.say(["With eight crests, you are the strongest trainer the land has seen in an age.",
+		await say(["With eight crests, you are the strongest trainer the land has seen in an age.",
 			"Gravenmoor lies east along the Moor Road. The Legion is waiting."])
+
+
+## World conversations explicitly pass their named NPC. Phone/narration callers keep using UI directly.
+func say(lines, speaker := "", portrait: Texture2D = null) -> void:
+	await UI.say(lines, speaker, portrait, _speaker_node(speaker))
+
+
+func ask(question: String, speaker := "", yes := "Yes", no := "No") -> bool:
+	return await UI.ask(question, speaker, yes, no, _speaker_node(speaker))
+
+
+func _speaker_node(speaker: String) -> Node3D:
+	if speaker == "":
+		return null
+	if not _dialogue_npc.is_empty():
+		var names := [String(_dialogue_npc.get("name", ""))]
+		match _dialogue_npc.get("kind", ""):
+			"keeper":
+				names.append_array(Places.keeper_names(_dialogue_npc["building"]))
+			"resident":
+				names.append("Resident")
+		if speaker in names:
+			var node: Node3D = _dialogue_npc.get("node", null)
+			if is_instance_valid(node) and node.has_meta("skeleton"):
+				return node
+			if node is TrainerCell:
+				return node.person
+	var main = GameState.main
+	if not is_instance_valid(main) or not is_instance_valid(main.world):
+		return null
+	return main.world.speaker_node(speaker)

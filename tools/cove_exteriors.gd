@@ -44,11 +44,11 @@ func finish(mesh: ArrayMesh, key: String) -> ArrayMesh:
 		_door(Vector3(-1.40,0.94,1.56),Vector2(1.06,1.90))
 		_window(Vector3(0.617,1.30,1.535),Vector2(1.17,0.81))
 	elif key == "house_3":
-		mesh = _town_materials(mesh)
+		mesh = _town_materials(_apothecary_shell(mesh))
 		_box(Vector3(0,2.56,0),Vector3(6.86,5.12,5.62),PLASTER)
-		_box(Vector3(-1.75,6.065,-1.145),Vector3(2.39,1.87,2.19),PLASTER)
+		# A solid, shallow clay cap replaces the rooftop room and its doorway.
+		_box(Vector3(0,5.12,0),Vector3(7.40,0.14,5.96),ROOF)
 		_door(Vector3(-0.246,0.94,2.89),Vector2(1.06,1.90))
-		_door(Vector3(-1.994,6.07,0.005),Vector2(1.06,1.90))
 		for y in [1.463,4.388]:
 			_window(Vector3(-1.983,y,2.87),Vector2(1.17,0.81))
 			for z in [-1.11,1.279]:
@@ -87,6 +87,58 @@ func finish(mesh: ArrayMesh, key: String) -> ArrayMesh:
 		# The kit's hut doors face -Z; the game's street-facing doors face +Z.
 		mesh = Bake.turned(mesh,180)
 	return mesh
+
+
+## Cut the rooftop room and the kit's wraparound canopy away in the mesh.
+## Keep the original main walls and trim; the solid infill and roof cap added
+## by finish() seal the cuts. The old town's shared porch supplies the awning.
+func _apothecary_shell(source: ArrayMesh) -> ArrayMesh:
+	var planes := [Plane(Vector3.UP,5.12),Plane(Vector3.RIGHT,3.62),Plane(Vector3.LEFT,3.62),
+		Plane(Vector3.BACK,2.89),Plane(Vector3.FORWARD,2.89)]
+	var out := ArrayMesh.new()
+	for surface in source.get_surface_count():
+		var arrays := source.surface_get_arrays(surface)
+		var vs: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var ns: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var ids: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var count := 0
+		for i in range(0,ids.size(),3):
+			var mid := (uv[ids[i]]+uv[ids[i+1]]+uv[ids[i+2]])/3.0
+			var y := (vs[ids[i]].y+vs[ids[i+1]].y+vs[ids[i+2]].y)/3.0
+			# The atlas's clay swatches on the middle storey's projecting roof.
+			if mid.x < 0.5 and mid.y > 0.20 and mid.y < 0.64 and y < 3.3:
+				continue
+			var polygon := []
+			for j in 3:
+				var v := ids[i+j]
+				polygon.append([vs[v],ns[v],uv[v]])
+			for plane: Plane in planes:
+				var clipped := []
+				for j in polygon.size():
+					var a: Array = polygon[j]
+					var b: Array = polygon[(j+1)%polygon.size()]
+					var da := plane.distance_to(a[0])
+					var db := plane.distance_to(b[0])
+					if da <= 0.0:
+						clipped.append(a)
+					if (da <= 0.0) != (db <= 0.0):
+						var t := da/(da-db)
+						clipped.append([a[0].lerp(b[0],t),a[1].lerp(b[1],t).normalized(),a[2].lerp(b[2],t)])
+				polygon = clipped
+			for j in range(1,polygon.size()-1):
+				for v in [polygon[0],polygon[j],polygon[j+1]]:
+					tool.set_normal(v[1])
+					tool.set_uv(v[2])
+					tool.add_vertex(v[0])
+					count += 1
+		if count > 0:
+			tool.set_material(source.surface_get_material(surface))
+			tool.index()
+			tool.commit(out)
+	return out
 
 
 func _material(color: Color) -> StandardMaterial3D:

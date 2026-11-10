@@ -5,6 +5,7 @@ var instant_text := false
 
 
 func _ready() -> void:
+	bubble_mode = false
 	super()
 	# Only the actual window takes taps; the film's Skip / Next buttons remain reachable above it.
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
