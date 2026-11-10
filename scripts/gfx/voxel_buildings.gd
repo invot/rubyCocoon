@@ -56,7 +56,8 @@ const SHOP_GROUND := 2.8
 const SHOP_UPPER := 2.9
 ## Locked doors (b["locked"]) are crimson in every town, with iron straps and a brass padlock, so you can tell them
 ## from the doors you can open. No style's ordinary door is red.
-const LOCKED_DOOR := Color("#b3262c")
+const LOCKED_DOOR := HouseModels.LOCKED_DOOR
+const OPEN_DOOR := HouseModels.OPEN_DOOR
 
 
 static var _mesh_cache := {}
@@ -1522,7 +1523,7 @@ static func _shop(k: Kit, w: float, d: float, st: Dictionary, look: Dictionary, 
 					k.box("color", Vector3(gx2, wy + 0.62 + rng.randf() * 0.1, front + 0.1), Vector3(0.16, 0.2, 0.04), Color.from_hsv(rng.randf(), 0.55, 0.8))
 	# the door
 	k.box("color", Vector3(door_lx, wy + 0.7, front + 0.04), Vector3(0.86, 1.4, 0.08), dark)
-	k.box("planks_v", Vector3(door_lx, wy + 0.64, front + 0.07), Vector3(0.64, 1.26, 0.06), Color(st["door"]))
+	k.box("planks_v", Vector3(door_lx, wy + 0.64, front + 0.07), Vector3(0.64, 1.26, 0.06), OPEN_DOOR)
 	k.box("glow", Vector3(door_lx, wy + 0.95, front + 0.1), Vector3(0.36, 0.4, 0.03), Color("#ffe9b8"))
 	k.box("color", Vector3(door_lx + 0.21, wy + 0.62, front + 0.12), Vector3(0.06, 0.06, 0.04), Color("#e8c060"))
 	# sign board (the shop's icon hangs on it) and a striped awning
@@ -1657,7 +1658,7 @@ static func _house(k: Kit, w: float, d: float, H: float, st: Dictionary, shop: S
 	k.box("color", Vector3(0, wy + H - 0.06, wd / 2.0 + 0.02), Vector3(ww + 0.1, 0.12, 0.08), trim)
 	# door
 	k.box("color", Vector3(door_lx, wy + 0.65, wd / 2.0 + 0.04), Vector3(0.82, 1.32, 0.08), trim)
-	k.box("planks_v", Vector3(door_lx, wy + 0.6, wd / 2.0 + 0.07), Vector3(0.62, 1.2, 0.06), LOCKED_DOOR if locked else Color(st["door"]))
+	k.box("planks_v", Vector3(door_lx, wy + 0.6, wd / 2.0 + 0.07), Vector3(0.62, 1.2, 0.06), LOCKED_DOOR if locked else OPEN_DOOR)
 	if locked:
 		_door_lock(k, Vector3(door_lx, wy + 0.6, wd / 2.0 + 0.1), 0.62, 1.2)
 	else:
@@ -1855,7 +1856,7 @@ static func _rust_shack(w: float, d: float, door_lx: float) -> Node3D:
 	var dark := Color("#4a3424")
 	k.box("color", Vector3(door_lx, 1.0, hd + 0.02), Vector3(1.04, 2.0, 0.04), dark)
 	for i in 4:
-		k.box("planks", Vector3(door_lx - 0.33 + i * 0.22, 0.95, hd + 0.05), Vector3(0.2, 1.84 - (i % 2) * 0.05, 0.04), Color("#8a6a48").darkened(0.08 * i))
+		k.box("planks", Vector3(door_lx - 0.33 + i * 0.22, 0.95, hd + 0.05), Vector3(0.2, 1.84 - (i % 2) * 0.05, 0.04), OPEN_DOOR.darkened(0.04 * i))
 	k.box("color", Vector3(door_lx, 1.45, hd + 0.08), Vector3(0.9, 0.08, 0.03), dark)
 	k.box("color", Vector3(door_lx, 0.45, hd + 0.08), Vector3(0.9, 0.08, 0.03), dark)
 	k.box("color", Vector3(door_lx + 0.32, 1.0, hd + 0.1), Vector3(0.06, 0.06, 0.04), Color("#2a2a2e"))

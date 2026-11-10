@@ -55,20 +55,9 @@ func _draw() -> void:
 		var p := cell_center(k)
 		var r := Rect2(p - Vector2(cell, cell) / 2.0, Vector2(cell, cell))
 		var on_side := active_side >= 0 and k in Ring.side_slots(active_side)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(UIKit.WINDOW_TOP, 0.9) if not on_side else Color(UIKit.ACCENT.darkened(0.35), 0.95)
-		sb.border_color = UIKit.ACCENT.lightened(0.25) if on_side else Color(UIKit.BORDER, 0.45)
-		if k == highlight:
-			sb.border_color = UIKit.LIGHT
-		sb.set_border_width_all(3 if on_side or k == highlight else 2)
-		sb.set_corner_radius_all(int(cell * (0.22 if not Ring.is_corner(k) else 0.45)))
-		sb.anti_aliasing = true
-		if UIKit.pixel():
-			# the 1-bit plate: the gem behind the white on the side facing the foe
-			draw_style_box(UIKit.pixel_plate(UIKit.ACCENT.darkened(0.2) if on_side else UIKit.PIXEL_FILL,
-				UIKit.PIXEL_LINE if on_side or k == highlight else UIKit.PIXEL_DIM, 0.95), r)
-		else:
-			draw_style_box(sb, r)
+		# a bordered tile: filled with the gem on the side facing the foe, framed in white where it's picked out
+		draw_style_box(UIKit.tile_box(Color(UIKit.ACCENT.darkened(0.3), 0.9) if on_side else Color(0, 0, 0, 0.55),
+			Color.WHITE if k == highlight else (UIKit.BORDER_DIM if on_side else Color(UIKit.BORDER, 0.55))), r)
 		var b = ring.get(k, null)
 		if b != null:
 			var tex := PixelArt.beast_texture(b.genes)

@@ -24,10 +24,12 @@ Apply these rules throughout the repository. The user's explicit instructions ta
 ## Interface style
 
 - Build screens with the shared `UIKit`, existing window components, and the travel book's established structure. Keep spacing, frames, icons, bars, and feedback consistent with nearby screens.
-- Support both **Pixel** and **Classic**, all four gems (**Ruby**, **Sapphire**, **Emerald**, **Hematite**), and runtime changes to those settings. Pixel and Ruby remain the defaults unless the request changes them. Derive colors from `UIKit`; avoid hardcoded palettes in individual screens.
-- In Pixel style, retain crisp white text and frames on near-black windows. The gem belongs behind the white in selections, tabs, buttons, tags, and name plates; it must not tint away the white linework. Keep pixel art sharp and aligned to whole screen pixels.
-- In Classic style, retain the soft rounded windows, gentle gradients, pale borders, shadows, and shades of the selected gem. Do not mix unrelated visual styles into either theme.
-- Use **BoldPixels** for body text, menu entries, and dialogue; use **Lunchtime Doubly So** only for headings, titles, tabs' section headers, name plates, and map names. Use `UIKit.body_px` / `head_px` for crisp sizing. Keep dialogue to three lines per page and text aligned at the top of its box.
+- There is one interface style. Every window, the top-centre HUD and the touch controls are a near-black box at 60% with the scene behind it blurred (the shared `scripts/ui/blur.gdshader`), framed by a thin white ornamental border from Kenney's Fantasy UI Borders (`scripts/ui/frame_box.gd`). Use the window, border, row and slot builders in `UIKit`; do not add other window styles. Speech bubbles are the exception: white with dark text.
+- Support all four gems (**Ruby**, **Sapphire**, **Emerald**, **Hematite**) and runtime changes to the gem; Ruby is the default. The gem is only a faint tint in the windows' black, the headings, bars and filled (selected) slots. Borders and body text stay white; never tint the border or lighten red into pink. Derive colors from `UIKit`; avoid hardcoded palettes in individual screens.
+- States: selected or focused is a white frame with corner marks; primary or pressed is solid white with dark text; disabled is dim text with no frame. Keep borders scaled in whole screen-pixel steps so the linework stays sharp.
+- Short messages (place names on entering a town, road or building, pickups, gold, battle messages) go in the top-centre HUD (`UI.top_bar`); nothing slides in at the top left.
+- The blur must work on the Mobile and Compatibility renderers; where it costs too much, `UIKit.set_blur(false)` gives a plain box at higher opacity.
+- Use **Nunito** for body text, menu entries, dialogue and damage numbers; use **Lunchtime Doubly So** only for headings, titles, tabs' section headers, name plates, and map names (it has no accents, so those stay accent-free). Use `UIKit.body_px` / `head_px` for sizing. Keep dialogue to three lines per page and text aligned at the top of its box.
 - Keep battle bars, grids, targets, and battle text large. On touch layouts, keep commands and the player's grid above Start/Pause and clear of the side controls; retain direct tapping of bars and target tiles.
 
 ## Art and animation consistency

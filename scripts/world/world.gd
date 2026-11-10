@@ -1354,7 +1354,7 @@ func _plan_round_huts() -> void:
 		var w := float(b["w"])
 		var d := float(b["d"])
 		var dx := float(b["door"].x) + 0.5 - float(b["x"]) - w / 2.0
-		var face: float = d / 2.0 - load("res://scripts/gfx/island_buildings.gd").HUT_FACE_INSET
+		var face: float = d / 2.0 - load("res://scripts/gfx/island_buildings.gd").hut_face_inset(b)
 		var origin := Vector2(float(b["x"]) + w / 2.0, float(b["y"]) + d / 2.0)
 		var radius := minf(maxf(2.15, w * 0.45), (float(b["door"].y) + 0.84) / 2.0)
 		var footprint := Rect2(dx - radius, face - radius * 2.0, radius * 2.0, radius * 2.0)
@@ -2141,7 +2141,7 @@ func _check_puzzle_solved() -> void:
 		arr.append([q.x, q.y, pushables[q]["kind"]])
 	GameState.set_flag("pushed_" + map_id, arr)
 	Sfx.play("levelup")
-	UI.toast("You cleared a way through!", UIKit.ACCENT)
+	UI.toast("You cleared a way through!", "pin")
 
 
 ## Removes an obstacle group after a beast clears it.
@@ -2837,7 +2837,7 @@ func _on_step_done() -> void:
 	if GameState.incense_steps > 0:
 		GameState.incense_steps -= 1
 		if GameState.incense_steps == 0:
-			UI.toast("The incense wore off.")
+			UI.toast("The incense wore off.", "pouch")
 	if map["exits"].has(player_pos):
 		var ex: Dictionary = map["exits"][player_pos]
 		busy = true
@@ -2955,9 +2955,9 @@ func _interact() -> void:
 	elif doors.has(t):
 		await _enter_building(doors[t])
 	elif items.has(t):
-		await _pickup(items[t])
+		_pickup(items[t])
 	elif shards.has(t):
-		await _pickup_shard(shards[t])
+		_pickup_shard(shards[t])
 	elif map.get("obstacles", {}).has(t):
 		await Story.field_move(self, map["obstacles"][t])
 	elif map.get("counter_phone", Vector2i(-1, -1)) == t:
@@ -3226,22 +3226,14 @@ func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 	VPer.face(node, n["facing"], smooth)
 
 
+## An item lying about: into the bag, with its sound and its name in the top bar (no dialogue, so you walk on).
 func _pickup(it: Dictionary) -> void:
 	GameState.set_flag(it["flag"])
 	GameState.add_item(it["item"])
 	var node: Node3D = it["node"]
 	node.queue_free()
 	items.erase(it["pos"])
-	Sfx.play("item")
-	var item_name := ItemDB.item_name(it["item"])
-	var article := "some" if item_name.ends_with("s") else ("an" if item_name.left(1).to_upper() in "AEIOU" else "a")
-	var lines := ["You found %s %s!" % [article, item_name]]
-	match ItemDB.get_item(it["item"]).get("kind", ""):
-		"tgear":
-			lines.append("Put it on from your Bag in the Start book.")
-		"gear":
-			lines.append("Give it to a beast from your Bag in the Start book.")
-	await UI.say(lines)
+	UI.pickup(it["item"])
 
 
 func _pickup_shard(sh: Dictionary) -> void:
@@ -3251,8 +3243,8 @@ func _pickup_shard(sh: Dictionary) -> void:
 	node.queue_free()
 	shards.erase(sh["pos"])
 	Sfx.play("shard")
-	await UI.say(["You found a crystal shard! (%d in your bag)" % GameState.shards,
-		"Five shards buy a shield upgrade at Sparkwire Electronics in Bellerive." if GameState.shards < 5 else "You have enough for a shield upgrade at Sparkwire Electronics in Bellerive!"])
+	UI.top_bar.post("Crystal Shard", UI.Glyphs.tex("shard"), {"key": "shard", "sub": ("%d in your bag. Five buy a shield upgrade at Sparkwire Electronics in Bellerive." % GameState.shards) if GameState.shards < 5
+		else "Enough for a shield upgrade at Sparkwire Electronics in Bellerive!"})
 
 
 func _open_menu() -> void:
@@ -3878,9 +3870,8 @@ func _make_wild_node(w: Dictionary) -> void:
 		followers.append(f)
 	w["followers"] = followers
 	var mark := Label3D.new()
-	mark.font = load("res://ui/BoldPixels.ttf")
+	mark.font = UIKit.font_body()
 	mark.font_size = 64
-	mark.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mark.outline_size = 12
 	mark.outline_modulate = Color("#2a1a1a")
 	mark.pixel_size = 0.01

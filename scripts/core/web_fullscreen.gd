@@ -47,5 +47,5 @@ func _on_browser_state(args: Array) -> void:
 
 func _theme() -> void:
 	# Prefs emits after UIKit's UI listener, so these are the current shared colours.
-	_browser.theme(Prefs.ui_style, "#" + UIKit.ACCENT.to_html(), "#" + UIKit.WINDOW_TOP.to_html(),
+	_browser.theme("#" + UIKit.ACCENT.to_html(), "#" + UIKit.WINDOW_TOP.to_html(),
 		"#" + UIKit.WINDOW_BOTTOM.to_html(), "#" + UIKit.BORDER.to_html(), "#" + UIKit.INK.to_html())

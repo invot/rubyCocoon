@@ -19,11 +19,10 @@ func run(root, opts: Dictionary) -> void:
 	await main._go(MapLoader.interior_of("tidewater", "arena"), "entry")
 	UI.auto = false
 	if opts.get("verify", "0") == "1":
-		var styles: Array = UIKit.STYLES if opts.get("matrix", "0") == "1" else [UIKit.style]
+		var styles: Array = ["dark"]
 		var gems: Array = UIKit.ACCENT_ORDER if opts.get("matrix", "0") == "1" else [UIKit.accent_name]
 		for style in styles:
 			for gem in gems:
-				UIKit.set_style(style)
 				UIKit.set_accent(gem)
 				UI.root.theme = UIKit.make_theme()
 				UI.controls.refresh()

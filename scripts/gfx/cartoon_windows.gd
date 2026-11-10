@@ -95,6 +95,9 @@ static func openings(mesh: Mesh, roles: Array, cove := false) -> Array:
 		var mat := mesh.surface_get_material(si) as StandardMaterial3D
 		if mat == null:
 			continue
+		# Blue-painted wood is a door, not one of the Cove kit's glass panes.
+		if cove and mat.resource_name == "door":
+			continue
 		var col := mat.albedo_color
 		var is_glass := col.b > col.r + 0.08 and col.g > col.r + 0.07 and col.r < 0.6
 		if not (is_glass if cove else String(mat.resource_name) in roles):

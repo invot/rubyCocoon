@@ -36,8 +36,8 @@ const EDGE := 0.35
 ## what's below the floor, further behind the front edge than its depth over this, is hidden by the floor
 const VIEW_SLOPE := 4.6 / 8.2
 ## doors you can go through are painted blue, locked ones red
-const DOOR_OPENS := Color("#3a6ed0")
-const DOOR_LOCKED := Color("#c83a3a")
+const DOOR_OPENS := preload("res://scripts/gfx/house_models.gd").OPEN_DOOR
+const DOOR_LOCKED := preload("res://scripts/gfx/house_models.gd").LOCKED_DOOR
 ## one texture repeat, in world units (a pack module)
 const SPAN := 2.8
 const WALLISH := [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.IDIAG_A, MapGen.IDIAG_B]

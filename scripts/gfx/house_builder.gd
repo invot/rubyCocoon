@@ -13,6 +13,7 @@ extends RefCounted
 
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
+const Houses = preload("res://scripts/gfx/house_models.gd")
 const DIR := "res://assets/exteriors/"
 ## a storey's height and how far the walls stand in from the footprint's edge
 const STOREY := 2.8
@@ -30,11 +31,41 @@ static func piece(name: String, stone := false, tint := Color("#eee1bf")) -> Mes
 	var key := name + (":stone:" + tint.to_html() if stone and name.begins_with("win_") else "")
 	if not _meshes.has(key):
 		_meshes[key] = load(DIR + name + ".res") if ResourceLoader.exists(DIR + name + ".res") else null
+		if _meshes[key] != null and name.begins_with("door_"):
+			_meshes[key] = _paint_door(_meshes[key], name == "door_1")
 		if _meshes[key] != null and name.begins_with("win_"):
 			_meshes[key] = Windows.dress(_meshes[key], ["trim"], false, tint, stone)
 		if _meshes[key] == null:
 			push_warning("model missing: " + DIR + name + ".res")
 	return _meshes[key]
+
+
+## The pack's leaf swatches occupy the lower-right of its shared atlas. Split
+## those faces from the wall/trim, keeping the original frames and glazing.
+static func _paint_door(source: Mesh, locked: bool) -> Mesh:
+	var out := ArrayMesh.new()
+	for s in source.get_surface_count():
+		var arrays := source.surface_get_arrays(s)
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		if indices.is_empty():
+			indices = PackedInt32Array(range((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()))
+		var leaf := PackedInt32Array()
+		var rest := PackedInt32Array()
+		for t in range(0, indices.size(), 3):
+			var mid := (uv[indices[t]] + uv[indices[t+1]] + uv[indices[t+2]]) / 3.0
+			if source.surface_get_name(s) == "trim" and mid.x >= 0.5 and mid.y >= 0.5:
+				leaf.append_array([indices[t], indices[t+1], indices[t+2]])
+			else:
+				rest.append_array([indices[t], indices[t+1], indices[t+2]])
+		for part in [[rest, source.surface_get_name(s), source.surface_get_material(s)], [leaf, "door", Houses.door_material(locked)]]:
+			if (part[0] as PackedInt32Array).is_empty():
+				continue
+			arrays[Mesh.ARRAY_INDEX] = part[0]
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			out.surface_set_name(out.get_surface_count()-1, part[1])
+			out.surface_set_material(out.get_surface_count()-1, part[2])
+	return out
 
 
 ## A wall finish: one of the game's PSX surface textures, tinted, mapped in world space so it runs on unbroken across

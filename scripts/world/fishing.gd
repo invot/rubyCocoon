@@ -61,7 +61,7 @@ static func cast(world, tile: Vector2i, lesson := false, coach := "") -> String:
 	if res in ["landed", "missed", "too_fast", "too_slow"] and GameState.bait != "":
 		GameState.remove_item(GameState.bait)
 		if GameState.item_count(GameState.bait) <= 0:
-			UI.toast("That was your last %s." % ItemDB.item_name(GameState.bait))
+			UI.toast("That was your last %s." % ItemDB.item_name(GameState.bait), "item:" + GameState.bait)
 			GameState.bait = ""
 	match res:
 		"nothing":

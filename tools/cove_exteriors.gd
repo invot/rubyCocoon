@@ -5,11 +5,11 @@ extends RefCounted
 
 const Bake = preload("res://tools/psx_bake.gd")
 const PLASTER := Color("dfd0ae")
-const TIMBER := Color("b18b55")
+const TIMBER := Color("89684b")
 const ROOF := Color("bb704d")
 const GLASS := Color("42666b")
-const DOOR := Color("967246")
-const FRAME := Color("bc9965")
+const DOOR := preload("res://scripts/gfx/house_models.gd").OPEN_DOOR
+const FRAME := Color("967555")
 const GLEAM := Color("a1bcb4")
 const BRASS := Color("c8ad6c")
 
@@ -18,6 +18,8 @@ var parts := {}
 
 func finish(mesh: ArrayMesh, key: String) -> ArrayMesh:
 	parts.clear()
+	if key in ["crate", "barrel"]:
+		return _prop_materials(mesh)
 	if key == "whole_house":
 		mesh = _whole_materials(mesh)
 		_box(Vector3(0,3.77,0.04),Vector3(9.96,7.54,6.94),PLASTER)
@@ -31,15 +33,18 @@ func finish(mesh: ArrayMesh, key: String) -> ArrayMesh:
 		for z in [-0.36,2.20]:
 			_window(Vector3(-5.09,5.62,z),Vector2(1.90,1.40),-90)
 	elif key == "house_1":
+		mesh = _town_materials(mesh)
 		_box(Vector3(0,1.54,0),Vector3(8.96,3.08,7.08),PLASTER)
 		_door(Vector3(0,1.0,3.61),Vector2(2.42,2.04))
 		for x in [-2.766,2.765]:
 			_window(Vector3(x,1.765,3.61),Vector2(1.16,0.81))
 	elif key == "house_2":
+		mesh = _town_materials(mesh)
 		_box(Vector3(0,1.36,0),Vector3(4.27,2.72,2.96),PLASTER)
 		_door(Vector3(-1.40,0.94,1.56),Vector2(1.06,1.90))
 		_window(Vector3(0.617,1.30,1.535),Vector2(1.17,0.81))
 	elif key == "house_3":
+		mesh = _town_materials(mesh)
 		_box(Vector3(0,2.56,0),Vector3(6.86,5.12,5.62),PLASTER)
 		_box(Vector3(-1.75,6.065,-1.145),Vector3(2.39,1.87,2.19),PLASTER)
 		_door(Vector3(-0.246,0.94,2.89),Vector2(1.06,1.90))
@@ -50,12 +55,14 @@ func finish(mesh: ArrayMesh, key: String) -> ArrayMesh:
 				_window(Vector3(3.50,y,z),Vector2(1.17,0.81),90)
 				_window(Vector3(-3.50,y,z),Vector2(1.17,0.81),-90)
 	elif key == "house_4":
+		mesh = _town_materials(mesh)
 		_box(Vector3(0,2.56,0),Vector3(8.07,5.12,5.99),PLASTER)
 		_door(Vector3(-2.81,0.94,3.14),Vector2(1.06,1.90))
 		# Former open loading bays become opaque, framed shopfront glazing.
 		for x in [-0.03,2.41]:
 			_window(Vector3(x,2.05,3.15),Vector2(2.44,4.12))
 	elif key.begins_with("hut_"):
+		mesh = _town_materials(mesh, true)
 		var doors := {"hut_1":Vector3(1.1905,1.10,-2.18),"hut_2":Vector3(-0.1035,1.125,-3.54),
 			"hut_3":Vector3(-1.1435,1.10,-2.07),"hut_4":Vector3(-0.9475,1.08,-4.28)}
 		_door(doors[key],Vector2(1.10,2.20),180)
@@ -88,7 +95,82 @@ func _material(color: Color) -> StandardMaterial3D:
 	material.roughness = 0.88
 	material.metallic_specular = 0.14
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	if color in [TIMBER, FRAME, DOOR]:
+		material.resource_name = "Cove painted wood"
+		material.albedo_texture = load("res://assets/textures/surfaces/planks.png")
+		material.uv1_triplanar = true
+		material.uv1_world_triplanar = true
+		material.uv1_scale = Vector3.ONE/2.0
+	if color == DOOR:
+		material.resource_name = "door"
+	elif color == PLASTER:
+		material.resource_name = "cove_stucco"
 	return material
+
+
+## Towns' bottom atlas row is timber (orange, red-orange, pale and dark wood).
+## Give just those triangles a brown board texture; retain plaster, glass and clay.
+func _town_materials(source: ArrayMesh, timber_roof := false) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for si in source.get_surface_count():
+		var material: BaseMaterial3D = source.surface_get_material(si)
+		var image: Image = material.albedo_texture.get_image() if material.albedo_texture != null else null
+		var arrays := source.surface_get_arrays(si)
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var wood := PackedInt32Array()
+		var stucco := PackedInt32Array()
+		var rest := PackedInt32Array()
+		for i in range(0,indices.size(),3):
+			var mid := (uv[indices[i]]+uv[indices[i+1]]+uv[indices[i+2]])/3.0
+			var color := material.albedo_color
+			if image != null:
+				color *= image.get_pixel(clampi(int(mid.x*image.get_width()),0,image.get_width()-1),clampi(int(mid.y*image.get_height()),0,image.get_height()-1))
+			# The huts' broad roof boards have their own orange swatch, unlike
+			# the houses' clay tiles. Those boards are brown timber as well.
+			if mid.y >= 0.64 or (timber_roof and color.h < 0.15 and color.s > 0.35):
+				wood.append_array([indices[i],indices[i+1],indices[i+2]])
+			elif not timber_roof and mid.y < 0.20 and mid.x < 0.44:
+				stucco.append_array([indices[i],indices[i+1],indices[i+2]])
+			else:
+				rest.append_array([indices[i],indices[i+1],indices[i+2]])
+		for part in [[rest,source.surface_get_material(si)],[wood,_material(TIMBER)],[stucco,_material(PLASTER)]]:
+			if (part[0] as PackedInt32Array).is_empty():
+				continue
+			arrays[Mesh.ARRAY_INDEX] = part[0]
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+			out.surface_set_material(out.get_surface_count()-1,part[1])
+	return out
+
+
+## Reuse the buildings' brown board finish on cargo wood. Neutral metal hoop
+## and nail faces retain their original material and texture.
+func _prop_materials(source: ArrayMesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for surface in source.get_surface_count():
+		var material: BaseMaterial3D = source.surface_get_material(surface)
+		var image: Image = material.albedo_texture.get_image() if material.albedo_texture != null else null
+		var arrays := source.surface_get_arrays(surface)
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var wood := PackedInt32Array()
+		var metal := PackedInt32Array()
+		for i in range(0,indices.size(),3):
+			var mid := (uv[indices[i]]+uv[indices[i+1]]+uv[indices[i+2]])/3.0
+			var color := material.albedo_color
+			if image != null:
+				color *= image.get_pixel(clampi(int(mid.x*image.get_width()),0,image.get_width()-1),clampi(int(mid.y*image.get_height()),0,image.get_height()-1))
+			if color.h < 0.16 and color.s > 0.22:
+				wood.append_array([indices[i],indices[i+1],indices[i+2]])
+			else:
+				metal.append_array([indices[i],indices[i+1],indices[i+2]])
+		for part in [[wood,_material(TIMBER)],[metal,material]]:
+			if (part[0] as PackedInt32Array).is_empty():
+				continue
+			arrays[Mesh.ARRAY_INDEX] = part[0]
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+			out.surface_set_material(out.get_surface_count()-1,part[1])
+	return out
 
 
 func _part(color: Color) -> SurfaceTool:
@@ -171,6 +253,6 @@ func _whole_materials(source: ArrayMesh) -> ArrayMesh:
 	var out := ArrayMesh.new()
 	for role in by_role:
 		var tool: SurfaceTool = by_role[role]
-		tool.set_material(_material({"roof":ROOF,"timber":Color("97754d"),"plaster":Color("e8dfc8")}[role]))
+		tool.set_material(_material({"roof":ROOF,"timber":TIMBER,"plaster":PLASTER}[role]))
 		tool.commit(out)
 	return out

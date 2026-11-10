@@ -137,7 +137,7 @@ func beast_options(b) -> void:
 			4:
 				GameState.party.erase(b)
 				GameState.party.insert(0, b)
-				UI.toast("%s moved to the front." % b.nickname)
+				UI.toast("%s moved to the front." % b.nickname, b)
 			_:
 				return
 
@@ -197,7 +197,7 @@ func equip_beast(b) -> void:
 	b.equip = id2
 	b.hp = clampi(b.hp + (b.max_hp() - old_max), 0 if b.hp <= 0 else 1, b.max_hp())
 	Sfx.play("select")
-	UI.toast("%s equipped %s." % [b.nickname, ItemDB.item_name(id2)] if id2 != "" else "Unequipped.")
+	UI.toast("%s equipped %s." % [b.nickname, ItemDB.item_name(id2)] if id2 != "" else "Unequipped.", "item:" + id2 if id2 != "" else b)
 
 
 func use_item_on(b) -> void:
@@ -289,7 +289,7 @@ func use_bag_item(id2: String) -> void:
 				GameState.remove_item(id2)
 				b2.equip = id2
 				b2.hp = mini(b2.hp, b2.max_hp())
-				UI.toast("%s equipped %s." % [b2.nickname, it2["name"]])
+				UI.toast("%s equipped %s." % [b2.nickname, it2["name"]], "item:" + id2)
 		"sheet":
 			await Places.play_sheet(id2)
 		"bait":
@@ -297,11 +297,11 @@ func use_bag_item(id2: String) -> void:
 				await UI.say(["You'll need a fishing pole to use bait."])
 			elif GameState.bait == id2:
 				GameState.bait = ""
-				UI.toast("You took the %s off your hook." % it2["name"])
+				UI.toast("You took the %s off your hook." % it2["name"], "item:" + id2)
 			else:
 				GameState.bait = id2
 				Sfx.play("pickup")
-				UI.toast("%s on your hook! It stays on until something bites." % it2["name"])
+				UI.toast("%s on your hook! It stays on until something bites." % it2["name"], "item:" + id2)
 		"tgear":
 			var slot: String = it2["slot"]
 			if GameState.gear[slot] != "" and GameState.gear[slot] != "reed_flute":
@@ -309,7 +309,7 @@ func use_bag_item(id2: String) -> void:
 			GameState.remove_item(id2)
 			GameState.gear[slot] = id2
 			Sfx.play("confirm")
-			UI.toast("Equipped %s." % it2["name"])
+			UI.toast("Equipped %s." % it2["name"], "item:" + id2)
 		"tome":
 			await UI.say(["Tomes are read at a bookstore, where the librarian helps your beast learn the move."])
 

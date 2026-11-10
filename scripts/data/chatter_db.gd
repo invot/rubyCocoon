@@ -117,7 +117,68 @@ const RESIDENTS := [
 	["You can stay for tea! I only have hot water and good intentions, though."],
 ]
 
-## Shouted through a locked front door when you knock.
+## Permanent residents behind the red exterior doors, keyed by saved building
+## identity so revisiting or rearranging a town never changes who answers.
+const DOOR_VOICES := {
+	"caccoon#4": ["Shh! I'm teaching a crab to knock. It keeps applauding itself."],
+	"tidewater#7": ["I'm baking a cake shaped like the ferry!", "It won't fit through the door. Neither will the captain."],
+	"shellhaven#5": ["I ordered a sea view, but the sea keeps looking back. I'm closing the curtains!"],
+	"dustwell#1": ["Can't open up! I'm sorting sand into indoor sand and outdoor sand."],
+	"dustwell#6": ["My cactus needs a hug. I've made a terrible mistake."],
+	"sundown#5": ["Quiet! My boots are in a staring contest. The left one's about to blink."],
+	"sundown#10": ["I'm practising my dramatic entrance. Come back when I've learnt the exit."],
+	"cogsworth#3": ["I built an automatic door opener!", "Unfortunately, it's on the other side of the door."],
+	"cogsworth#6": ["My clockwork kettle learned to whistle. Now it wants a flute solo."],
+	"vinehollow#6": ["I'm hiding from my houseplant. I promised it a bigger pot and it heard me."],
+	"gravenmoor#0": ["The Umbral Legion is rehearsing its evil laugh!", "No, Trevor, that's a hiccup. From the top!"],
+}
+
+## Indoor red doors keep a reply tied to the room and its purpose, too. Puzzle
+## stone doors use their existing inscriptions rather than these painted doors.
+const ROOM_DOOR_VOICES := {
+	"apothecary": "One moment! The soap says to lather, rinse, repeat. It never says when to stop!",
+	"outfitter": "This hat fits perfectly! Now I just need a door that fits the hat.",
+	"bookstore": "I'm alphabetising the dust jackets. The dust is refusing to cooperate.",
+	"arena": "And the winner is... me! Sorry, still practising. Please clap through the door.",
+	"cafe": "I ordered a small coffee. I'm waiting to become small enough to drink it.",
+	"saloon": "I've shuffled so slowly I think these cards have learned patience.",
+	"dojo": "These socks are training on their own. One just earned a black belt.",
+	"museum": "The sign said don't feed the exhibits. Nobody said the exhibits couldn't feed ME!",
+	"music_hall": "I'm warming up my voice. The mirror has asked for an encore.",
+	"music_shop": "Three notes down! Only every other note in music left to learn.",
+	"studio_a": "I'm singing a duet with the drain. It's got a lovely gurgle.",
+	"studio_b": "My soup's too shy to simmer while anyone's watching.",
+	"house_two": "I dropped my toast butter-side up. Nobody move! We're making history.",
+	"house_up": "The radio said to turn up the beet. Now there's a vegetable on the table.",
+	"house_up_hall": "I was going to get out of the bath, but my rubber duck called a meeting.",
+	"uncle_home": "I polished the kettle with flute polish. Now it only boils in tune.",
+	"home": "The biscuits are cooling! Stop knocking, you'll make them nervous.",
+	"home_hall": "I'm teaching the dripping tap a rhythm. It's got excellent timing.",
+	"electronics": "I'm fixing the hand dryer. It keeps applauding before I'm finished.",
+	"hotel_lobby": "Room service! Wait... I'm in the kitchen. Why am I announcing myself?",
+	"hotel_suite": "I'm folding the towels into beasts. One of them wants its own room.",
+	"ceo_1": "This meeting could have been a note. The note could have been a nap.",
+	"ceo_2": "I'm filing the files about filing. Please file your complaint under 'files'.",
+	"ceo_3": "I labelled every spare cog. Now none of them will turn without a name badge.",
+}
+const STAFF_DOOR_VOICES := {
+	"apothecary": "I'm counting remedies. Every time I sneeze, I have to start over!",
+	"outfitter": "Staff only! Unless you're a coat hanger. We're terribly short of coat hangers.",
+	"bookstore": "I'm repairing a book about glue. It's become rather attached to me.",
+	"arena": "I'm polishing the trophies. My reflection just challenged me to a rematch.",
+	"cafe": "I'm teaching the spoons to stir themselves. So far they've formed a band.",
+	"dojo": "The training dummy is on its lunch break. It brought a wooden sandwich.",
+	"museum": "I'm dating a fossil. Not like THAT! I'm finding out how old it is!",
+	"music_hall": "The curtain's stuck. We're calling it a very long intermission.",
+	"music_shop": "I'm tuning a triangle. It's a surprisingly complicated instrument.",
+	"electronics": "The spare parts have gone missing. I suspect they're building something.",
+	"saloon": "I'm cleaning the glasses. This one keeps saying it can see perfectly well!",
+	"jail": "I'm checking the bars. One of them is a very convincing breadstick.",
+	"skytower": "I'm ironing the windsock. The wind keeps putting the wrinkles back.",
+	"cathedral": "I'm dusting the cobwebs. The spiders say it's their day off.",
+}
+
+## Fallback for new authored houses; the shipped red doors each have their own voice above.
 const LOCKED_DOOR := [
 	["Can't come to the door! I'm three notes into Capture XI and my fingers are SWEATING."],
 	["Nobody's home!", "...This is a recording. Beep."],

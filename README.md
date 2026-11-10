@@ -77,7 +77,7 @@ Your home overlooks **Cocoon Cove** from a high western garden, with two small s
 A broad stair descends beside **Cocoon Cove Library**, at the compact square's western entrance. Speak to
 **Librarian Quill** for a free **World Map**, then open it from **Start → Map**.
 Existing saves keep their map access and all seven buildings keep their saved interior identities. The town is a
-modern pirate cove: warm timber, pale plaster, clay roofs, planted gardens, and seaside cliffs. The diner-like Beast
+modern pirate cove: textured brown timber, varied pastel stucco, orange clay roofs, planted gardens, and seaside cliffs. Crates and barrel staves use the same brown wood finish, with metal barrel hoops. The diner-like Beast
 Center faces the square and the apothecary stands on land to the east. The only dock entrance is down the right-hand
 stairs. A short pier holds a wooden neighbor's shack and ends at the **Old Gear Shack**; the plaster neighbor's home
 stands in a garden on land. Crates and barrels sit on spare edge tiles, leaving the walking lanes and doors clear.
@@ -309,8 +309,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Choosing a target** (for every attack, the slingshot and items): the move-info window closes and an arcing arrow connects the attacker to the chosen target. A move that hits everyone draws an arch to each of them. There is no bobbing triangle over anyone's head. There are no target cards or weakness stars. ◄ ► (keys or d-pad) change the target; a tap on a grid tile aims at it (a second tap confirms), and A confirms. B returns to move selection and restores move info. After an elemental hit, a short message says when it was extra effective or the target is resistant.
   - **Move**: instead of its move, a beast on the side facing the foe can step over to another slot of the ring (choose the slot with ▲ ▼, as you would a target; the arrow marks the slot). Any slot it can stand on that's empty, or holds a fainted beast (they trade places); the side it moves to then turns to face the foe. It may not leave the side facing the foe without a beast standing in its middle (so the beast guarding you stays put, but a corner beast can step into a fallen middle beast's place). One beast moves each round, last in your side's turn, so the others' moves land first. Foe trainers Move too: when the beast in the middle of the side facing you falls, one of that side's beasts steps into a slot that covers its trainer again, unless turning the ring to a side whose middle beast stands would keep more of their beasts fighting (`battle.gd` _ai_shift).
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
+  - **A target that falls first** (`ring.gd` `retarget`, `battle.gd` `_retarget`; the same rule for your beasts, your slingshot and items, and the foe's AI): when an action's turn comes and its target is down or has left the side facing the attacker, it goes to another beast standing on that side instead, the nearest slot first (a tie goes to the one facing the attacker's own row). With nobody standing there, an attack or the slingshot is turned on their trainer, who is open because that side's middle is down or empty; anything else, and any attack on a wild pack, is dropped without a message. A move that hits everyone just leaves the fallen out. A heal, boost or care item meant for an ally that has fallen goes to the standing ally with the least of its HP left; a revive is never passed on. MP is spent (and an item used up) only when the action has someone to land on. Lessons never turn a blow on a trainer by themselves.
   - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
-  - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use BoldPixels.
+  - Winning plays *Android Sock Hop*. A beaten foe vanishes in a puff of smoke; your own fainted beasts lie on their pads. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use Nunito.
 
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand."><br><sub>A wild battle, picking Bite's target: your trainer and beasts on the ring (right), the foes across the sand.</sub>
 
@@ -386,7 +387,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
   <img src="docs/screenshots/bedroom.jpg" width="640" alt="Upstairs at home: your bedroom, where you wake up. The blue door leads out to the landing."><br><sub>Upstairs at home: your bedroom, where you wake up. The blue door leads out to the landing.</sub>
 
-- **Locked doors**: about a third of houses are locked, and so is Gravenmoor Cathedral until its Legion guard is beaten. Locked doors are crimson with iron straps and a brass padlock in every town. Try one and you knock (knock-knock-knock), and whoever is inside shouts something silly through it.
+- **Doors**: blue doors open; red doors answer a knock. The same paint applies to every town's exteriors and indoor wooden doors. About a third of houses are locked, and so is Gravenmoor Cathedral until its Legion guard is beaten. Their crimson doors retain iron straps and a brass padlock. Each red exterior door has its own permanent, silly reply, tied to the building's saved identity; indoor red doors have replies about their rooms. Puzzle stone doors retain their inscriptions and unlock rules.
 
 ## Art
 
@@ -405,7 +406,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   resources are saved with lossless compression; `tools/smooth_textures.gd -- --compress-only` repacks older,
   already-smoothed resources without filtering them again. Ground
   layers blend softly across their wandering borders (`terrain.gdshader`). Shop-sign icons stay crisp pixel art, and
-  the interface keeps its own Pixel and Classic styles.
+  the interface keeps its own look (see UI and audio).
 - **App icon**: the icon is painted like PS2 box art from the game's own models: the water summon
   rising as a ghost in a dusk sky over a dark hill, where a ruby glows on the crest. `tools/make_key_art.gd` renders
   the summon and a shrub and `tools/key_art.py` does the painting; `python tools/make_icon.py` writes Android's
@@ -476,10 +477,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
   The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
 - **Isle of Tides**: Kelpwick is a modest reef-diving village of round, timber-framed pastel plaster huts on wooden stilts,
-  with centered solid wood doors, six-tread entry stairs and broad, painted golden thatched roofs. The store has a round wooden interior. There is no Beast Center: the
-  arena uses the supplied **Stylized House** model at one horizontal scale, with a matching wooden door and its TV antenna removed. Its rectangular wooden hall keeps the village's healing machine in its
+  with centered solid blue-painted wood doors, six-tread entry stairs and broad, painted golden thatched roofs. The store has a round wooden interior. There is no Beast Center: the
+  arena uses the supplied **Stylized House** model at one horizontal scale on a 7x6 plot, with a matching wooden door and its TV antenna removed. The healing hut is 25% wider and deeper than its initial model fit, with its stairs centered on the original approach. Its rectangular wooden hall keeps the village's healing machine in its
   back corner; flights and lost battles bring you back in front of it. Its general store sells essentials and basic beast gear at 30% below normal
-  prices. Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
+  prices. Shellhaven's Beast Center occupies an 8x5 plot on the high street, with its established entrance at (40, 5).
+  Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
   La Perla Restaurant, Pearl Coast Boutique (40% above normal prices), and Hotel Mariposa (`island_buildings.gd`). Its
   fronts have round-arched windows in white surrounds with louvred shutters, iron rejas below and French doors on
   railed Juliet balconies above, a painted base, lanterns and bougainvillea. The hotel is a long building on the quay
@@ -499,7 +501,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Kelpwick's buildings were renumbered when its Center went (older saves inside them are moved, game_state.gd
   _kelpwick_hut_rooms). The interiors retain their shared procedural wood finish. Kelpwick's exteriors use the supplied
   **Low poly stylized tribal tropical hut** mesh, painted timber, blue windows and straw fringe; only the plaster is recoloured.
-  The source cloth panel is replaced by a solid wooden door; the platform and stairs use the same painted wood.
+  The source cloth panel is replaced by a solid blue-painted wooden door; the platform and stairs use painted brown wood.
   Hanging red decorations and attached leaf cards are removed. Small ground bushes flank the huts with the stair approaches clear.
   The hero walks up the hut stairs before entering; the original street approaches and room identities are retained.
   Run `bash tools/run_tests.sh island-towns island-towns-touch` for entrance, pricing, suite, A/B and beach-aisle checks.
@@ -631,32 +633,35 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
 | Bestiary | All 39 forms with live portraits and where to find them. |
 | Map | The world map across the left page: the twelve towns and the roads between them, ??? for towns you haven't reached, and a pin where you are (on a road, halfway along it). Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
-| Settings | Music and sound volume, text speed, the gem the menus are cut from, the style (Pixel or Classic), touch pad, key guide, fullscreen, credits and quit to title. |
+| Settings | Music and sound volume, text speed, the gem the menus are tinted with, touch pad, key guide, fullscreen, credits and quit to title. |
 
 ## UI and audio
 
-- **Two looks**, picked in Start → Settings → Style (`UIKit.set_style`, kept as `Prefs.ui_style`):
-  - **Pixel** (the default): the 1-bit kit's crisp white frames on near-black windows, every pixel of them two UI
-    pixels (three screen pixels on a 1080p phone). Text and lines are plain white; the **gem** goes behind the white,
-    never into it: the selected row, the open tab, the chosen battle bar, the target aimed at, tags, name plates,
-    New Game and the held touch buttons are filled with it. The Start book is two of Humble Gift's paper pages, dark
-    with the gem and lined in white, each with its ornament frame and its title written into the gap atop it: the left
-    page unfolds as the book opens, and the right one slides out from behind it whenever a tab opens. The touch pad,
-    bars, battle bars, ring tiles and the key guide are drawn the same way. Its pieces are cut from the
-    two kits by `tools/build_pixel_ui.gd` into `assets/ui/pixel_ui.res`, stored as tones (fill, mid, line) that
-    `UIKit.piece` paints in any colours.
-  - **Classic**: soft rounded windows with a gentle gradient, a pale border and a drop shadow
-    (`scripts/ui/cozy_box.gd`), drawn smooth at any screen scale, every window, border, text, bar and tag a shade of
-    the gem.
-  The gem is picked in Start → Settings → Gem: **Ruby** (the default), **Sapphire**, **Emerald** or **Hematite** (slate
-  grey). `UIKit.set_accent` derives the whole palette from the gem (and the style).
+- **One look** (`scripts/ui/frame_box.gd`, built through `scripts/ui/ui_kit.gd`): every window is a near-black box at
+  60% with the scene behind it blurred, framed by a thin white ornamental border from Kenney's Fantasy UI Borders
+  (`assets/ui/kenney/`). One border for windows, one for rows and buttons, one for item slots, and the pack's divider
+  between sections and either side of banner text. Borders are nine-patches scaled in whole screen-pixel steps, so the
+  linework stays sharp. The blur is one shared screen-reading shader (`scripts/ui/blur.gdshader`) that reads the
+  screen copy's mipmaps, so it runs on the Mobile and the web's Compatibility renderer; `UIKit.set_blur(false)` falls
+  back to a plain box at 80%.
+  - Selected or focused: a white frame with corner marks round the row. Primary or pressed: solid white with dark
+    text. Disabled: dim text, no frame. Item slots: square bordered tiles with the count beneath, the selected one
+    filled with the gem.
+  - The gem is picked in Start → Settings → Gem: **Ruby** (the default), **Sapphire**, **Emerald** or **Hematite** (slate
+    grey). It goes into the windows' black as a faint tint, the headings, the bars and filled slots; borders and body
+    text stay white. `UIKit.set_accent` derives the palette. The old Pixel / Classic style setting is gone, and a saved
+    `ui_style` value is ignored.
+  - The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at the top centre: place names on
+    entering a town, road or building, pickups, gold and battle messages. It is the same dark blurred box, a little
+    darker (78%), outlined in white with its sides leaning in towards the bottom.
+  - Speech bubbles stay white with dark text.
 
-  <img src="docs/screenshots/gems.jpg" width="640" alt="Settings in the Pixel style with the Sapphire gem."><br><sub>Settings in the Pixel style with the Sapphire gem.</sub>
+  <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts**: **BoldPixels** for body text, menus and dialogue; **Lunchtime Doubly So** only for headings (window and
-  page titles, tabs' section headers, name plates, map names). Both are drawn on a 16-pixel grid, so every size is
-  snapped to one where their pixels land on whole screen pixels (`UIKit.body_px` / `head_px`): on a 1080p screen body
-  text is 32 screen pixels and dialogue 48. The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
+- **Fonts**: **Nunito** (bold, a clean rounded sans with accents) for body text, menus, dialogue and damage numbers;
+  **Lunchtime Doubly So** only for headings (window and page titles, tabs' section headers, name plates, map names).
+  The heading font is drawn on a 16-pixel grid, so its sizes are snapped to whole screen pixels (`UIKit.head_px`);
+  body text is smooth at any size (`UIKit.body_px`). The desktop window opens at 1920x1080 for the same 1.5x scale as phones.
   Dialogue is three lines to a page. Text sits at the top of every text box.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
@@ -668,8 +673,9 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 - **Phones**: a joined cross-shaped d-pad with raised arrows, for getting about (hold B to run), battles and the flute
   game alike. Each arm answers in its own quarter of the pad (a wedge from the middle out past its arrow), and only one
   arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
-  domed A and B buttons that sink when pressed (BoldPixels letters), and Start / Pause pills, all tinted with
-  the gem. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
+  round A and B buttons and Start / Pause pills. They are the windows' look: the blurred scene under the near-black,
+  outlined in white with white arrows and letters; a held button (or arm of the d-pad) fills solid white with a dark
+  letter or arrow. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
   and Start closes the book. A little overlap with the book is allowed; the Map page spreads its towns clear of the
   d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions widen A and B with an animation into
   **A: Yes** and **B: No**: each answers directly, without a separate choice list. Long questions show **A: Next**
@@ -944,7 +950,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   then `godot --headless --path . --import`. `--audit` on the importer and
   `tools/debug/hatchery_parts.gd -- core` (or `platform`) produce source-part inspection sheets.
 - `check_scripts.gd`: every script parses and compiles.
-- `ring-start` / `ring-start-touch`: starting-side arrows and the two-line heading, empty-side skipping in both directions, occupied corners and fainted beasts, focus/gamepad/tap input, empty/full parties, scrolling, isolated save compatibility and persistence across battle completion. `--battle=1` also opens a real battle on the chosen side. `--scene=ring-start --matrix=1 --shots=res://build/shots/ring_start --save_dir=res://build/ring_start_preview/` checks runtime changes through both styles and all four gems and captures each combination; add `--touch` for the phone layout.
+- `ring-start` / `ring-start-touch`: starting-side arrows and the two-line heading, empty-side skipping in both directions, occupied corners and fainted beasts, focus/gamepad/tap input, empty/full parties, scrolling, isolated save compatibility and persistence across battle completion. `--battle=1` also opens a real battle on the chosen side. `--scene=ring-start --matrix=1 --shots=res://build/shots/ring_start --save_dir=res://build/ring_start_preview/` checks runtime changes through all four gems and captures each combination; add `--touch` for the phone layout.
 - `check_nature.gd` (`bash tools/run_tests.sh nature`): single-tile hedge borders on every outdoor map, unchanged
   planted-ground collision, and the solid-blade grass meshes' triangle budgets.
 - `check_data.gd`: everything the data names exists: the beasts (race ids) on routes, maps, trainers, leaders,
@@ -987,7 +993,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
   `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
-- `arena-ladder`: trainer list clearance from touch controls, full-sized rows, focus navigation, scroll buttons, direct trainer taps and A/B confirmation. Add `--matrix=1` to the scene for both styles and all four gems.
+- `arena-ladder`: trainer list clearance from touch controls, full-sized rows, focus navigation, scroll buttons, direct trainer taps and A/B confirmation. Add `--matrix=1` to the scene for all four gems.
 - `kennel` / `kennel-ui`: level-based adoption fees, exact/insufficient funds, cancellation, free reclaiming, storage overflow, and the real keeper/pen menus with touch and focus navigation. Preview with `--scene=kennel --shot=res://build/shots/kennel.png` (`--preview=poor` or `empty` for those states; `--verify=1` exercises inputs).
 - `wild-grace`: wild battle return protection, smooth opacity bounds, sight and hearing, existing chases, contact, expiry, map changes, and trainer battle exclusion. Add `--shot=res://build/shots/wild_grace.png` for low, middle and high pulse opacity and the fully opaque player after expiry, or `--preview=pulse` to replay the effect in a game window.
 
@@ -1053,8 +1059,8 @@ tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beas
 
 ## Developer test modes
 
-Cocoon Cove implements the selected pirate-cove layout. See [the design and original layout studies](docs/cove_layout_proposals.md)
-for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|home|docks|gear|apothecary`
+Cocoon Cove implements the selected pirate-cove layout, with a cottage library, textured brown timber, 2.6-unit ground storeys and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
+for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|library|neighbor|home|docks|gear|apothecary`
 captures focused views with `--shot=`; add `--touch` for the phone controls.
 
 ```
@@ -1067,15 +1073,15 @@ godot --path . --resolution 2400x1080 -- --touch --scene=battle --keys=r,r,r,a,a
 godot --headless --path . -- --scene=sim --n=10                          # simulated auto battles
 godot --headless --path . -- --scene=flow                                # scripted run through the whole story
 godot --path . -- --scene=knock                                         # knock on locked doors (a Bellerive house, the cathedral)
+godot --path . -- --scene=door-voices --preview=1 --shot=res://build/shots/cove_red_door.png # permanent voices and red/blue paint; add --touch for a phone preview
 godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Tempestrix
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery as the game draws them (pages 0-3: the forms, then the legendaries; 4 = merges)
 godot --headless --path . --script res://tools/check_tidewater_layout.gd  # galleries clear of paths; solid arena entrance shoulders
 godot --path . -- --scene=world:tidewater --overview=1 --shot=C:/tmp/o.png   # a whole map from high above
 godot --path . -- --scene=world:tidewater --overview=13 --focus=34,21 --shot=C:/tmp/a.png   # one spot (a tile), 13 up
-godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run (--style=cozy / pixel: a style)
+godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run
 godot --path . -- --scene=book:map --flip=cozy --wait=1 --shot=C:/tmp/f.png   # Settings > Style changed with the book open
-godot --headless --path . --script res://tools/build_pixel_ui.gd          # cut the Pixel style's pieces from the two UI kits
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
 godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings); --flyer=1 adds an air beast that can fly, --visited=caccoon,tidewater sets the towns you've been to, --no_map=1 is before the library's map, --next=N taps a scroll bar's down arrow N times
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
@@ -1084,6 +1090,7 @@ godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Be
 godot --path . -- --scene=fishing --taps=4.6 --snap=10 --shot=C:/tmp/f.png  # Gil's lesson (--lesson=0: a cast at a ripple, --bait=worm_bait)
 godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a reeled-in beast's battle: the dock and the water
 godot --path . -- --scene=battlecmd --touch                             # the battle's command panel: one A is one confirm, every move's target picked (arrows, all-foe moves), ▲ turns the ring, Move (yours and a foe trainer's), the ring turning by itself ("BATTLE COMMANDS DONE: 0 problem(s)"); --stop=trainer|target|all|move --shot=C:/tmp/b.png
+godot --path . -- --scene=battle-redirect --shots=res://build/shots/battle_redirect --save_dir=res://build/battle_redirect_saves/ # two beasts aim at one foe and the first knocks it out: the second goes to the next foe, then the trainer, then is dropped; heals, revives and items too ("BATTLE REDIRECT DONE: 0 problem(s)")
 godot --path . -- --scene=battlecmd --stop=message --shot=C:/tmp/b.png   # compact message with beast avatar; also trainer-message, effective, resistant, long-message
 godot --path . --resolution 2400x1080 -- --scene=battle-focus --touch --shots=res://build/shots/battle_focus --save_dir=res://build/battle_focus_saves/ # relocated trainer bar, HUD outlines for selection and actions on both teams; --preview=trainer|beast|target|acting-trainer|acting-beast|acting-foe|acting-rival captures one state
 godot --path . -- --scene=ringedit --touch                              # the ring editor: who may go where on the ring and in and out of storage, lit cells, taps ("RING EDIT DONE: 0 problem(s)")

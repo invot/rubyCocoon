@@ -2,7 +2,7 @@ extends SceneTree
 ## Extract the user-supplied Towns kit through the existing scenery bake pipeline.
 ## godot --headless --path . --script res://tools/prepare_cove_proposals.gd -- --source=C:/path/to/downloads
 ## Then run tools/smooth_textures.gd -- --only=res://assets/exteriors/cove_ and --import.
-## These assets are for layout proposals; the playable town does not reference them yet.
+## The playable Cove and the original layout studies share these repaired assets.
 
 const Bake = preload("res://tools/psx_bake.gd")
 const Exterior = preload("res://tools/cove_exteriors.gd")
@@ -43,7 +43,7 @@ func _init() -> void:
 			continue
 		var mesh := Bake.bake(scene, {"max_tex": 256, "scale": 0.01 if key == "whole_house" else 1.0})
 		scene.free()
-		if key == "whole_house" or key.begins_with("house_") or key.begins_with("hut_"):
+		if key in ["whole_house", "crate", "barrel"] or key.begins_with("house_") or key.begins_with("hut_"):
 			mesh = Exterior.new().finish(mesh,key)
 		if Bake.tris(mesh) > 300:
 			mesh = Bake.with_lods(mesh)

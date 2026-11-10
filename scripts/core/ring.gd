@@ -13,6 +13,9 @@ extends RefCounted
 
 const ORDER := ["fire", "air", "water", "earth"]
 const SLOTS := 8
+## what retarget() answers besides a row: the trainer behind the rows, or nobody
+const TRAINER := -2
+const NO_TARGET := -1
 
 
 static func side_element(side: int) -> String:
@@ -231,6 +234,57 @@ static func next_occupied_side(ring: Dictionary, side: int, dir: int) -> int:
 		if side_occupied(ring, s):
 			return s
 	return side
+
+
+## ---------------------------------------------------------------- who an action may land on
+## The rules below are shared by your commands, the foe's AI and the resolver (battle.gd). `rows` are the three
+## beasts of the side facing the attacker, top to bottom (null for an empty slot); a wild pack's line works the same.
+
+## True if a beast can be aimed at: it is there and still standing.
+static func standing(b) -> bool:
+	return b != null and b.hp > 0
+
+
+## True if the trainer behind `rows` can be attacked directly: the side's middle beast is down, or its slot empty.
+static func middle_open(rows: Array) -> bool:
+	return rows.size() < 2 or not standing(rows[1])
+
+
+## Where an action aimed at row `wanted` lands by the time it happens: that row if its beast still stands, else the
+## nearest row with a standing beast (ties: the row nearer the attacker's own row `from_row`, then the upper one),
+## else TRAINER when there is one to hit (`has_trainer`) and the middle is open, else NO_TARGET (the action is
+## dropped). `wanted` is TRAINER for an action aimed at the trainer (kept while the middle is open), or NO_TARGET when
+## its target has left these rows; both then start from the attacker's row. `from_row` is -1 for a trainer's action.
+static func retarget(rows: Array, wanted: int, from_row: int, has_trainer: bool) -> int:
+	var open := has_trainer and middle_open(rows)
+	if wanted == TRAINER and open:
+		return TRAINER
+	if wanted >= 0 and wanted < rows.size() and standing(rows[wanted]):
+		return wanted
+	var near := from_row if from_row >= 0 else 1
+	var origin := wanted if wanted >= 0 and wanted < rows.size() else near
+	var best := NO_TARGET
+	var best_score := 0
+	for i in rows.size():
+		if not standing(rows[i]):
+			continue
+		var score := absi(i - origin) * 100 + absi(i - near) * 10 + i
+		if best == NO_TARGET or score < best_score:
+			best = i
+			best_score = score
+	if best != NO_TARGET:
+		return best
+	return TRAINER if open else NO_TARGET
+
+
+## The standing beast of `rows` with the least of its HP left (where a heal or boost aimed at a fallen ally goes), or
+## null with nobody standing.
+static func weakest(rows: Array):
+	var best = null
+	for b in rows:
+		if standing(b) and (best == null or b.hp_ratio() < best.hp_ratio()):
+			best = b
+	return best
 
 
 ## The next side round from `side` in direction `dir` (-1 or 1) with a beast standing on it, or `side` if none.

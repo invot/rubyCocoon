@@ -78,45 +78,18 @@ func _draw() -> void:
 			fade = 0.6
 		elif status == "empty":
 			fade = 0.3
-		# the pill (yours: a gold rim, and a gold line inside it)
-		var fill := UIKit.ACCENT.darkened(0.1) if on else UIKit.WINDOW_TOP
-		fill.a = 0.95 * fade if not on else 0.97
-		if UIKit.pixel():
-			# the 1-bit plate: the gem behind the white for the bar being chosen
-			draw_style_box(UIKit.pixel_plate(UIKit.ACCENT if on else UIKit.PIXEL_FILL, UIKit.PIXEL_LINE if on or you else UIKit.PIXEL_DIM, 0.97 if on else 0.95 * fade), r)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = fill
-		sb.set_corner_radius_all(int(pill_h * 0.5))
-		sb.border_color = Color(UIKit.GOLD_BRIGHT, 0.95) if you else Color(UIKit.BORDER, (0.95 if on else 0.55) * fade)
-		sb.set_border_width_all(3 if you else 2)
-		sb.anti_aliasing = true
-		sb.shadow_color = Color(0, 0, 0, 0.35 * fade)
-		sb.shadow_size = 3
-		sb.shadow_offset = Vector2(0, 2)
-		if not UIKit.pixel():
-			draw_style_box(sb, r)
-		if you and not UIKit.pixel():
-			var inner := StyleBoxFlat.new()
-			inner.draw_center = false
-			inner.set_corner_radius_all(int(pill_h * 0.5) - 3)
-			inner.border_color = Color(UIKit.GOLD_BRIGHT, 0.35)
-			inner.set_border_width_all(1)
-			inner.anti_aliasing = true
-			draw_style_box(inner, r.grow(-4.0))
-		# the level, in a cap on the left (yours: a gold cap)
+		# the bar: the blurred dark box; the one being chosen is framed in white, the rest in the gem
+		draw_style_box(UIKit.row_box(Color(0, 0, 0, 0), Color.WHITE if on else UIKit.BORDER_DIM, 1.0 if on else (0.9 if you else 0.7) * fade, true), r)
+		# the level, in a cap on the left (yours: a solid white cap)
 		var cap := Rect2(r.position + Vector2(3, 3), Vector2(pill_h * 1.9, pill_h - 6))
-		var cb := StyleBoxFlat.new()
-		cb.bg_color = UIKit.GOLD_BRIGHT if you else Color(UIKit.WINDOW_BOTTOM, 0.95 * fade)
-		cb.set_corner_radius_all(int((pill_h - 6) * 0.5))
-		cb.anti_aliasing = true
-		if UIKit.pixel():
-			draw_style_box(UIKit.pixel_plate(UIKit.PIXEL_LINE if you else UIKit.PIXEL_FILL, UIKit.PIXEL_LINE, fade), cap.grow(1.0))
+		if you:
+			draw_style_box(UIKit.row_box(Color.WHITE, Color.WHITE, fade), cap)
 		else:
-			draw_style_box(cb, cap)
+			draw_style_box(UIKit.row_box(Color(0, 0, 0, 0.4), UIKit.BORDER, fade), cap)
 		if status != "empty":
 			var lv := "Lv%d" % int(row.get("lv", 1))
 			var ls := font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, small)
-			draw_string(font, cap.get_center() + Vector2(-ls.x * 0.5, ls.y * 0.32), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, small, UIKit.WINDOW_BOTTOM if you else Color(UIKit.GOLD_BRIGHT, fade))
+			draw_string(font, cap.get_center() + Vector2(-ls.x * 0.5, ls.y * 0.32), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, small, UIKit.DARK if you else Color(UIKit.GOLD_BRIGHT, fade))
 		# the move / action, between the arrows
 		var x0 := cap.end.x + 8.0
 		var x1 := r.end.x - 12.0

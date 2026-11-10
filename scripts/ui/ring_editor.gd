@@ -322,29 +322,20 @@ class Cell extends Button:
 		var lifted: bool = editor.picked != null and editor.picked == b
 		var can: bool = editor.can_go(dest)
 		var pulse := 0.5 + 0.5 * sin(editor._time * TAU / 0.9)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(UIKit.ACCENT.darkened(0.35), 0.95) if facing else Color(UIKit.WINDOW_TOP, 0.95)
-		sb.set_corner_radius_all(int(size.x * (0.45 if slot >= 0 and Ring.is_corner(slot) else 0.18)))
-		sb.anti_aliasing = true
-		sb.border_color = Color(UIKit.BORDER, 0.45)
-		sb.set_border_width_all(2)
+		# a bordered tile: filled with the gem on the side facing the foe; framed in white where it's focused, in
+		# light gem where the lifted beast is, and pulsing where it can go
+		var edge := Color(UIKit.BORDER, 0.55)
 		if can:
-			sb.border_color = UIKit.ACCENT.lightened(0.3).lerp(UIKit.LIGHT, pulse)
-			sb.set_border_width_all(5)
-			sb.shadow_color = Color(UIKit.ACCENT.lightened(0.2), 0.35 + 0.35 * pulse)
-			sb.shadow_size = int(6 + 6 * pulse)
+			edge = UIKit.ACCENT.lightened(0.3).lerp(UIKit.LIGHT, pulse)
+			for g in 2:
+				draw_rect(r.grow(3.0 + g * 4.0 + pulse * 2.0), Color(UIKit.ACCENT.lightened(0.2), (0.55 - g * 0.25) * (0.5 + 0.5 * pulse)), false, 2.0)
 		if lifted:
-			sb.border_color = UIKit.GOLD_BRIGHT
-			sb.set_border_width_all(5)
+			edge = UIKit.GOLD_BRIGHT
+		if has_focus() and not can and not lifted:
+			edge = UIKit.LIGHT
+		draw_style_box(UIKit.tile_box(Color(UIKit.ACCENT.darkened(0.3), 0.9) if facing else Color(0, 0, 0, 0.55), edge), r)
 		if has_focus():
-			sb.border_color = UIKit.LIGHT if not can and not lifted else sb.border_color
-			sb.set_border_width_all(maxi(sb.border_width_top, 4))
-		if UIKit.pixel():
-			# (the Pixel style: square, hard-edged cells)
-			sb.set_corner_radius_all(0)
-			sb.anti_aliasing = false
-			sb.shadow_size = 0
-		draw_style_box(sb, r)
+			draw_rect(r.grow(-5.0), Color(UIKit.LIGHT, 0.8), false, 2.0)
 		var font := UIKit.font_body()
 		var fs := UIKit.body_px(17)
 		var under := ""
@@ -372,8 +363,4 @@ class Cell extends Button:
 			draw_string(font, Vector2((size.x - us.x) / 2.0, size.y - 6.0), under, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.GOLD if facing else UIKit.DIM)
 		if editor.picked != null and not can and not lifted:
 			# somewhere it can't go
-			var dark := sb.duplicate() as StyleBoxFlat
-			dark.bg_color = Color(0, 0, 0, 0.55)
-			dark.set_border_width_all(0)
-			dark.shadow_size = 0
-			draw_style_box(dark, r)
+			draw_rect(r, Color(0, 0, 0, 0.55))

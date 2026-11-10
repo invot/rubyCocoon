@@ -17,29 +17,27 @@
     let callback, bypass = false, entered = fullscreen(), pending = false;
     const style = document.createElement('style');
     style.textContent = `
-        @font-face {font-family:RCBody;src:url('BoldPixels.ttf')}
+        @font-face {font-family:RCBody;src:url('Nunito.ttf');font-weight:200 1000}
         @font-face {font-family:RCHead;src:url('lunchds.ttf')}
         #rc-fullscreen {--unit:max(1px, min(100vh / 720, 100vw / 1280));--gem:#d6304f;
-            --top:#090a14;--bottom:#090a14;--line:#ebede9;--ink:#ebede9;color:var(--ink);font-family:RCBody,sans-serif}
+            --top:#0009;--bottom:#0009;--line:#df5d75;--ink:#fff;color:var(--ink);font-family:RCBody,sans-serif;font-weight:700}
         #rc-fullscreen [hidden] {display:none !important}
         #rc-fullscreen button {font:inherit;font-size:calc(32 * var(--unit));color:var(--ink);
             min-height:calc(80 * var(--unit));border:calc(2 * var(--unit)) solid var(--line);
-            background:var(--gem);padding:calc(12 * var(--unit)) calc(24 * var(--unit));touch-action:manipulation;cursor:pointer}
+            background:#0009;padding:calc(12 * var(--unit)) calc(24 * var(--unit));touch-action:manipulation;cursor:pointer}
         #rc-fullscreen button:focus-visible {outline:4px solid var(--ink);outline-offset:4px}
-        #rc-fullscreen button:active {filter:brightness(1.35);transform:translateY(2px)}
+        #rc-fullscreen button:active {background:#fff;color:#101216;border-color:#fff}
         #rc-fullscreen button:disabled {opacity:.6;cursor:wait}
         #rc-fullscreen .gate {position:fixed;inset:0;z-index:2147483645;background:#03041aeb;
             display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));box-sizing:border-box}
         #rc-fullscreen .card {max-width:calc(720 * var(--unit));max-height:90dvh;overflow:auto;
             padding:calc(32 * var(--unit));border:calc(3 * var(--unit)) solid var(--line);
-            background:linear-gradient(var(--top),var(--bottom));text-align:center}
-        #rc-fullscreen h1 {font:calc(40 * var(--unit)) RCHead,sans-serif;margin:0 0 calc(20 * var(--unit))}
+            background:var(--top);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);text-align:center}
+        #rc-fullscreen h1 {font:calc(40 * var(--unit)) RCHead,sans-serif;color:var(--line);margin:0 0 calc(20 * var(--unit))}
         #rc-fullscreen p {font-size:calc(32 * var(--unit));line-height:1.2;margin:0 0 calc(24 * var(--unit))}
         #rc-fullscreen .toggle {position:fixed;z-index:2147483646;top:max(12px,env(safe-area-inset-top));
             right:max(12px,env(safe-area-inset-right));width:calc(80 * var(--unit));padding:calc(16 * var(--unit))}
         #rc-fullscreen svg {width:100%;height:calc(40 * var(--unit));display:block;pointer-events:none}
-        #rc-fullscreen[data-style=cozy] button,#rc-fullscreen[data-style=cozy] .card {
-            border-radius:calc(16 * var(--unit));box-shadow:0 6px 20px #0006}
     `;
     document.head.append(style);
     const shell = document.createElement('div');
@@ -103,8 +101,7 @@
     }
     window.rubyFullscreen = {
         connectGame(fn) { callback = fn; update(); },
-        theme(name, gem, top, bottom, line, ink) {
-            shell.dataset.style = name;
+        theme(gem, top, bottom, line, ink) {
             for (const [key, value] of Object.entries({gem, top, bottom, line, ink})) shell.style.setProperty('--' + key, value);
         },
     };

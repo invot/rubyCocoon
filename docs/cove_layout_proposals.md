@@ -16,8 +16,11 @@ Original art-study tools remain available for design history; the playable map i
 
 ## Common direction
 
-- Compact, welcoming seaside settlement: timber cottages, pale plaster, clay roofs,
+- Compact, welcoming seaside settlement: brown timber cottages, pastel stucco, orange clay roofs,
   opaque blue-green windows, warm lamps, planters, and stone stairways.
+- Stucco colors are fixed by building: sky-blue home, coral Beast Center, sage
+  apothecary, rose garden neighbor, buttery-yellow library and lavender rear cottage.
+  Crates and barrel staves share the buildings' brown board texture; barrel hoops stay metal.
 - Seaside cliffs with the player's home on a high overlook; winding approaches lead
   to a small square on solid land. The library and diner-like Beast Center face it.
 - Only wooden shacks stand over the water. The apothecary and plaster homes stand on
@@ -45,9 +48,13 @@ The authored-prop path uses the shared local connectivity proof and full-flood
 fallback, rejecting any decoration that disconnects a formerly reachable tile.
 
 Doors use `HouseModels._front_door`, `DOOR_H` (1.8), `DOOR_ASPECT`, and the existing
-door tiles and brass knob. Fitted to their plots the kit houses came out with doorways as low as
-1.1 units, under the hero's 1.44: `cove_buildings.gd` `warped()` stretches each one's ground storey
-until its doorway is `DOOR_H` and cuts away the kit's own door slab, so the door lies on the wall.
+door tiles and brass knob. Blue paint marks usable doors; crimson marks doors with a
+permanent resident's knock reply. Fitted to their plots the kit houses came out with doorways as low as
+1.1 units, under the hero's 1.44: `cove_buildings.gd` `warped()` fits the doorway to
+`DOOR_H`, the ground storey to 2.6 units and upper storeys to at least 2.45 units.
+Roofs retain their proportions. The kit's own door slab is cut away so the new leaf lies on the wall.
+The library uses the kit's `house_2` cottage instead of `house_4`'s converted loading bays,
+with its original entry tile, reading room and map gift retained.
 The library's canopy is the door width plus a small margin;
 the other towns keep their existing shopfront widths. Dock planks have quiet painted
 seams and low rails with pilings, built once into shared meshes.
@@ -76,7 +83,9 @@ dock wandering. Keep the inland square as the main social space.
 ## Exterior corrections
 
 The WholeHouseFBX geometry is retained but its noisy orange texture is replaced by
-the kit's simpler plaster, timber, and clay finishes. Its front door, original window
+the kit's simpler plaster, timber, and clay finishes. All kit buildings replace the
+orange timber atlas swatches with brown, smoothly filtered board textures, including
+the physical wood infill and frames. Clay roofs retain their terracotta finish. Its front door, original window
 apertures on three sides, and attic ends have physical opaque closures.
 
 The other eight buildings receive closed doors, opaque glazing, infill behind exposed
@@ -105,6 +114,7 @@ Run the quick checks and the exterior scenario, then render the studies:
 bash tools/run_tests.sh quick
 bash tools/run_tests.sh cove-exteriors
 bash tools/run_tests.sh cocoon cocoon-touch
+bash tools/run_tests.sh door-voices door-voices-touch exteriors
 python tools/town_check.py
 godot --path . -- --scene=cocoon --preview=overview --shot=res://build/shots/cove_game_overview.png
 godot --path . -- --scene=cocoon --preview=square --shot=res://build/shots/cove_game_square.png

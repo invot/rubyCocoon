@@ -10,14 +10,19 @@ const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const PASTELS := ["#f1b8ae", "#f3d995", "#b5d9c8", "#c9bce1", "#aed4e2"]
 const HUT_LIFT := 0.84
 const HUT_FACE_INSET := 0.70
+const ARENA_FACE_INSET := 0.81
 const HUT_TIMBER := Color("#98683f")
 # Pink, orange, dusty red, clay brown, lavender and sky blue.
 const HUT_PASTELS := ["#e8b4c2", "#eac09a", "#dca39a", "#bf9d88", "#c4b0db", "#aed0e2"]
 const HUT_PAINT_ORDER := [2, 0, 1, 4, 5]
+
+static func hut_face_inset(b: Dictionary) -> float:
+	return ARENA_FACE_INSET if b.get("shop", "") == "arena" else HUT_FACE_INSET
+
 ## Shared with the entrance animation; the flight ends at the original street tile's centre.
 static func hut_stairs(b: Dictionary, ground: float) -> Array:
 	var x := float(b["door"].x) + 0.5
-	var face := float(b["y"]) + float(b["d"]) - HUT_FACE_INSET
+	var face := float(b["y"]) + float(b["d"]) - hut_face_inset(b)
 	var points := [Vector3(x, ground, float(b["door"].y) + 1.5)]
 	for step in 6:
 		points.append(Vector3(x, ground + HUT_LIFT * float(step + 1) / 6.0, face + 1.125 - float(step) * 0.15))
@@ -113,12 +118,11 @@ static func _hut_entry(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: 
 	# The asset's cloth panel is removed at bake time. A solid timber leaf seals its place.
 	var locked: bool = b.get("locked", false)
 	var door_kit := VB.Kit.new()
-	door_kit.box("color" if locked else "planks", Vector3(dx, HUT_LIFT + 0.92, face - 0.015), Vector3(0.92, 1.84, 0.07), VB.LOCKED_DOOR if locked else HUT_TIMBER, true)
+	door_kit.box("planks_v", Vector3(dx, HUT_LIFT + 0.92, face - 0.015), Vector3(0.92, 1.84, 0.07), VB.LOCKED_DOOR if locked else VB.OPEN_DOOR, true)
 	var leaf := MeshInstance3D.new()
 	leaf.name = "SolidWoodDoor"
 	leaf.mesh = door_kit.mesh()
-	if not locked:
-		leaf.material_override = timber_material()
+	leaf.material_override = preload("res://scripts/gfx/house_models.gd").door_material(locked)
 	node.add_child(leaf)
 	k.box("color", Vector3(dx + 0.29, HUT_LIFT + 0.86, face + 0.035), Vector3(0.065, 0.13, 0.05), Color("#d6b46b"))
 	if lintel:
@@ -143,7 +147,7 @@ static func _hut_garden(node: Node3D, dx: float, face: float, span: float) -> vo
 	node.add_child(garden)
 
 ## The supplied arena keeps one horizontal scale, rather than stretching into an oval.
-const ARENA_SCALE := 4.60
+const ARENA_SCALE := 5.75
 const ARENA_SOURCE_DOOR_X := -0.0185
 const ARENA_SOURCE_DOOR_Z := 0.385
 static var _arena_mesh: ArrayMesh
@@ -152,7 +156,7 @@ static func arena_footprint(b: Dictionary) -> Rect2:
 	var w := float(b["w"])
 	var d := float(b["d"])
 	var dx := float(b["door"].x) + 0.5 - float(b["x"]) - w / 2.0
-	var face := d / 2.0 - HUT_FACE_INSET
+	var face := d / 2.0 - hut_face_inset(b)
 	return Rect2(dx + (-0.516 - ARENA_SOURCE_DOOR_X) * ARENA_SCALE, face + (-0.516 - ARENA_SOURCE_DOOR_Z) * ARENA_SCALE, 1.032 * ARENA_SCALE, 1.038 * ARENA_SCALE)
 
 static func _arena_fitted() -> ArrayMesh:
@@ -203,7 +207,7 @@ static func _arena(node: Node3D, k: VB.Kit, b: Dictionary, dx: float, face: floa
 	VB._skirt(k, "color", inner, HUT_LIFT, 2.38, Color("#dfbd8d"), center)
 	VB._band(k, "planks", inner, VB._fill(center, 32), HUT_LIFT + 2.38, HUT_TIMBER)
 	_hut_entry(node, k, b, dx, face, Color("#dfbd8d"), false)
-	_hut_garden(node, dx, face, 2.10)
+	_hut_garden(node, dx, face, ARENA_SCALE * 0.50)
 	return mi.mesh.get_aabb().end.y + HUT_LIFT
 
 static func build(b: Dictionary, style: String) -> Node3D:
@@ -217,7 +221,7 @@ static func build(b: Dictionary, style: String) -> Node3D:
 	var shop := String(b["shop"])
 	var wood := style == "roundwood"
 	var great := wood and shop == "arena"
-	var face := d / 2.0 - (HUT_FACE_INSET if wood else 0.16)
+	var face := d / 2.0 - (hut_face_inset(b) if wood else 0.16)
 	var top: float
 	if great:
 		top = _arena(node, k, b, dx, face)
@@ -226,6 +230,9 @@ static func build(b: Dictionary, style: String) -> Node3D:
 	else:
 		var wall := _stucco(int(b["seed"]))
 		top = _hotel(node, b, w, d, dx, wall) if b.get("hotel", false) else _villa(k, hb, b, w, d, dx, wall)
+		if shop == "center":
+			# An inner stucco shell seals the enlarged façade's wall-section corner joins.
+			k.box("color", Vector3(0, top / 2.0, 0), Vector3(w - 0.42, top, d - 0.42), (wall as StandardMaterial3D).albedo_color, true)
 		if shop in ["apothecary", "cafe", "center"]:
 			var brand := Color("#439d93") if shop == "apothecary" else Color("#bd757b")
 			for stripe in 8:
@@ -244,7 +251,9 @@ static func build(b: Dictionary, style: String) -> Node3D:
 	if shop != "house":
 		var plaque := MeshInstance3D.new()
 		plaque.mesh = VP.icon(shop)
-		plaque.position = Vector3(dx, HUT_LIFT + (2.32 if great else 2.25) if wood else 3.5, face + (0.18 if great else (0.46 if wood else 0.12)))
+		# The arena sign follows its roof lip as the supplied model grows.
+		var sign_z := face + (ARENA_SCALE * 0.07 if great else (0.46 if wood else 0.12))
+		plaque.position = Vector3(dx, HUT_LIFT + (2.32 if great else 2.25) if wood else 3.5, sign_z)
 		plaque.scale = Vector3.ONE * (0.75 if great else (0.975 if wood else 0.65))
 		node.add_child(plaque)
 	return node
@@ -522,7 +531,7 @@ static func _villa(k: VB.Kit, hb: HB, b: Dictionary, w: float, d: float, dx: flo
 	hb.w = w
 	hb.d = d
 	for level in 2:
-		hb.storey(float(level) * STOREY, wall, "door_3" if level == 0 else "", dx, {}, false, false)
+		hb.storey(float(level) * STOREY, wall, ("door_1" if b.get("locked", false) else "door_3") if level == 0 else "", dx, {}, false, false)
 	var zf := d / 2.0 - HB.INSET
 	var edge := w / 2.0 - HB.INSET
 	var t := Vector3.RIGHT

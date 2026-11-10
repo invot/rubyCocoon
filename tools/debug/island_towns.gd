@@ -54,6 +54,26 @@ func run(game, opts: Dictionary) -> void:
 	await Places.open(store, main.world)
 	check(GameState.gold == 979 and GameState.item_count("minor_potion") == had + 1, "basic store displays and charges its 21-gold price")
 	var resort := ML.load_map("shellhaven", GameState.flags)
+	var center: Dictionary = resort["buildings"].filter(func(b): return b["shop"] == "center")[0]
+	var center_front: Vector2i = center["door"] + Vector2i.DOWN
+	await main._go("shellhaven", center_front)
+	if opts.has("center_shot") and DisplayServer.get_name() != "headless":
+		await main._wait(3.2)
+		var path := String(opts["center_shot"])
+		main._save_shot(path)
+		main.world.cam_free = true
+		main.world.cam.position = Vector3(40, 18.5, 18)
+		main.world.cam.look_at(Vector3(40, 1, 2.7), Vector3.UP)
+		await main._wait(0.5)
+		main._save_shot(path.replace(".png", "_overview.png"))
+		main.world.cam_free = false
+	await load("res://tools/debug/waterfront.gd").new()._tap(main, center["door"])
+	await main._settle(center["interior"])
+	check(main.world.map_id == center["interior"], "tap enters the enlarged Beast Center")
+	if main.world.map_id == center["interior"]:
+		await main._walk_test([main.world.map["front_doors"][0]])
+		await main._settle("shellhaven")
+		check(main.world.player_pos == center_front, "Beast Center returns to its original doorstep")
 	var boutique: Dictionary = resort["buildings"].filter(func(b): return b["shop"] == "apothecary")[0]
 	GameState.gold = 1000
 	var first: String = Places.apothecary_stock(2, "shellhaven")[0]
@@ -142,6 +162,13 @@ func _huts(opts: Dictionary) -> void:
 		var base: float = outside._lift(b["door"])
 		if opts.has("shot") and b["shop"] == "arena" and DisplayServer.get_name() != "headless":
 			main._save_shot(String(opts["shot"]).replace(".png", "_arena_exterior.png"))
+			outside.cam_free = true
+			outside.cam.position = Vector3(21.5, 15.5, 17)
+			outside.cam.look_at(Vector3(21.5, 2.6, 3.5), Vector3.UP)
+			await main._wait(0.5)
+			main._save_shot(String(opts["shot"]).replace(".png", "_arena_overview.png"))
+			outside.cam_free = false
+			await main._wait(0.4)
 		if UI.is_touch():
 			var at: Vector2 = outside.cam.unproject_position(outside.tile_pos(b["door"]) + Vector3(0, 1.6, 0))
 			# Screen-touch events enter in window pixels; Godot applies the viewport stretch once.

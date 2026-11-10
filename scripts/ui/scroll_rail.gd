@@ -188,14 +188,9 @@ func _draw_track() -> void:
 		return
 	var t := _thumb()
 	var mid := roundf(_track.size.x / 2.0)
-	if UIKit.pixel():
-		# a white hairline in the kit's pixels, and the thumb a plate with the gem behind the white
-		var s := float(UIKit.PIXEL_SCALE)
-		_track.draw_rect(Rect2(mid - s / 2.0, 0, s, _track.size.y), UIKit.PIXEL_DIM)
-		_track.draw_style_box(UIKit.pixel_box("plate", UIKit.ACCENT, UIKit.PIXEL_LINE, Vector4.ZERO), t)
-		return
-	_track.draw_rect(Rect2(mid - 2.0, 0, 4.0, _track.size.y), Color(UIKit.BORDER_INNER, 0.8))
-	_track.draw_style_box(UIKit.chip(UIKit.ACCENT, UIKit.BORDER, t.size.x / 2.0, Vector4.ZERO), t)
+	# a faint hairline, and the thumb a bordered plate filled with the gem
+	_track.draw_rect(Rect2(mid - 1.0, 0, 2.0, _track.size.y), UIKit.BORDER_INNER)
+	_track.draw_style_box(UIKit.row_box(UIKit.ACCENT, UIKit.BORDER), t)
 
 
 ## The bar: a tap above or below the thumb scrolls a page that way; the thumb itself can be dragged.
@@ -233,15 +228,6 @@ class Arrow extends Button:
 	func _draw() -> void:
 		var col := UIKit.LIGHT if not disabled else Color(UIKit.DIM, 0.4)
 		var c := (size / 2.0).round()
-		if UIKit.pixel():
-			# stepped in the kit's pixels, so its edges stay crisp
-			var s := float(UIKit.PIXEL_SCALE)
-			var rows := 6
-			var top := c.y - rows * s / 2.0
-			for i in rows:
-				var half := s * (0.5 + i)
-				draw_rect(Rect2(c.x - half, top + (i if dir < 0 else rows - 1 - i) * s, half * 2.0, s), col)
-			return
 		var w := 13.0
 		var h := 8.0 * dir
 		var pts := PackedVector2Array([c + Vector2(-w, h), c + Vector2(w, h), c + Vector2(0, -h)])

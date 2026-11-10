@@ -1,5 +1,5 @@
 extends CanvasLayer
-## UI manager: a stack of modal screens plus HUD helpers (toasts, banners, fades).
+## UI manager: a stack of modal screens plus HUD helpers (the top bar's notices, fades).
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ListMenu = preload("res://scripts/ui/list_menu.gd")
@@ -11,13 +11,18 @@ const FluteGame = preload("res://scripts/ui/flute_game.gd")
 const ControlsOverlay = preload("res://scripts/ui/controls_overlay.gd")
 const PauseOverlay = preload("res://scripts/ui/pause_overlay.gd")
 const SaveCard = preload("res://scripts/ui/save_card.gd")
+const TopBar = preload("res://scripts/ui/top_bar.gd")
+const Glyphs = preload("res://scripts/ui/glyphs.gd")
+const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
+const ItemDB = preload("res://scripts/data/item_db.gd")
 
 var root: Control
 var hud: Control
 var modal_layer: Control
 var fade_rect: ColorRect
 var spiral_rect: ColorRect
-var toast_box: VBoxContainer
+## the strip at the top centre for notices and battle messages (top_bar.gd)
+var top_bar: TopBar
 var stack: Array = []
 var controls: CanvasLayer
 ## false on the title screen (no pausing there)
@@ -36,7 +41,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	UIKit.set_screen_scale(Vector2(DisplayServer.window_get_size()))
 	UIKit.set_accent(Prefs.accent)
-	UIKit.set_style(Prefs.ui_style)
+	UIKit.set_blur(not "--no_blur" in OS.get_cmdline_user_args())
 	get_tree().root.size_changed.connect(_on_window_resized)
 	Prefs.changed.connect(_on_prefs_changed)
 	root = Control.new()
@@ -53,12 +58,8 @@ func _ready() -> void:
 	modal_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	modal_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(modal_layer)
-	toast_box = VBoxContainer.new()
-	toast_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	toast_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	toast_box.offset_top = 20
-	toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(toast_box)
+	top_bar = TopBar.new()
+	root.add_child(top_bar)
 	spiral_rect = ColorRect.new()
 	spiral_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	spiral_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -76,17 +77,15 @@ func _ready() -> void:
 	add_child(controls)
 
 
-## Pixel fonts are sized for the screen's scale; when it changes, the theme follows (new text picks it up).
+## Heading sizes and the border's line width follow the screen's scale; when it changes, so does the theme.
 func _on_window_resized() -> void:
 	if UIKit.set_screen_scale(Vector2(DisplayServer.window_get_size())):
 		root.theme = UIKit.make_theme()
 
 
-## A new highlight colour or style: the theme is rebuilt (screens built afterwards pick it up; the open book redraws
-## itself, or is built again in the new style).
+## A new gem: the theme is rebuilt (screens built afterwards pick it up; the open book redraws itself).
 func _on_prefs_changed() -> void:
-	if Prefs.accent != UIKit.accent_name or Prefs.ui_style != UIKit.style:
-		UIKit.style = Prefs.ui_style if Prefs.ui_style in UIKit.STYLES else "pixel"
+	if Prefs.accent != UIKit.accent_name:
 		UIKit.set_accent(Prefs.accent)
 		root.theme = UIKit.make_theme()
 
@@ -289,37 +288,62 @@ func flute_ex(song_id: String, subtitle := "", opts := {}) -> Dictionary:
 
 
 # ---------------------------------------------------------------- HUD bits
-func toast(text: String, col := UIKit.INK) -> void:
-	if col == Color.WHITE or col == UIKit.GOLD_BRIGHT:
-		col = UIKit.INK
-	var p := UIKit.banner_panel()
-	# notices use the dialogue text size
-	var l := UIKit.label(text, UIKit.BODY_HUGE, col)
-	p.add_child(l)
-	p.modulate.a = 0.0
-	toast_box.add_child(p)
-	var tw := p.create_tween()
-	tw.tween_property(p, "modulate:a", 1.0, 0.2)
-	tw.tween_interval(2.2)
-	tw.tween_property(p, "modulate:a", 0.0, 0.4)
-	tw.tween_callback(p.queue_free)
+## A short notice in the top bar (it waits its turn, and for a battle to end). `icon`: a glyph name (glyphs.gd), a UI
+## texture name (UIKit.tex), a texture, a beast or an item id prefixed "item:"; anything else gets the notice mark.
+## `key`: notices with the same key merge into one ("Bought Potion x3").
+func toast(text: String, icon: Variant = "notice", key := "") -> void:
+	if auto:
+		auto_log.append("[toast] " + text)
+	top_bar.post(text, icon_texture(icon), {"key": key})
 
 
+## An item collected: its name and glyph in the top bar, with its sound. More of the same while it shows (or waits)
+## add up ("Potion x3").
+func pickup(id: String, count := 1, sound := "item") -> void:
+	Sfx.play(sound)
+	var name := ItemDB.item_name(id)
+	if auto:
+		auto_log.append("[pickup] %s x%d" % [name, count])
+	var sub := ""
+	match String(ItemDB.get_item(id).get("kind", "")):
+		"tgear":
+			sub = "Put it on from your Bag in the Start book."
+		"gear":
+			sub = "Give it to a beast from your Bag in the Start book."
+	top_bar.post(name, Glyphs.item(id), {"key": "item:" + id, "count": count, "sub": sub})
+
+
+## Gold received: "+120 gold" by a coin (amounts close together add up).
+func gold(amount: int) -> void:
+	top_bar.post("", Glyphs.tex("coin"), {"key": "gold", "count": amount, "fmt": "+%d gold"})
+
+
+## A place's name on entering it, in the heading font: `icon` is its crest or a map pin.
+func place_name(title: String, sub := "", icon: Texture2D = null) -> void:
+	top_bar.post(title, icon if icon != null else Glyphs.tex("pin"), {"sub": sub, "heading": true, "key": "place", "replace": true})
+
+
+## (older name) a place's name.
 func banner(title: String, sub := "") -> void:
-	var p := UIKit.banner_panel(Vector2(360, 0))
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", -2)
-	p.add_child(vb)
-	vb.add_child(UIKit.header(title, UIKit.ACCENT))
-	if sub != "":
-		vb.add_child(UIKit.label(sub, 20, UIKit.DIM))
-	hud.add_child(p)
-	p.position = Vector2(-420, 30)
-	var tw := p.create_tween()
-	tw.tween_property(p, "position:x", 30.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(2.4)
-	tw.tween_property(p, "position:x", -460.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tw.tween_callback(p.queue_free)
+	place_name(title, sub)
+
+
+## The texture a notice's icon stands for (see toast).
+func icon_texture(icon: Variant) -> Texture2D:
+	if icon is Texture2D:
+		return icon
+	if typeof(icon) == TYPE_OBJECT and icon != null and "genes" in icon:
+		return PixelArt.beast_texture(icon.genes)
+	if typeof(icon) in [TYPE_STRING, TYPE_STRING_NAME]:
+		var s := String(icon)
+		if s.begins_with("item:"):
+			return Glyphs.item(s.substr(5))
+		if Glyphs.GLYPHS.has(s):
+			return Glyphs.tex(s)
+		var t := UIKit.tex(s)
+		if t != null:
+			return t
+	return Glyphs.tex("notice")
 
 
 func fade_out(t := 0.3, col := Color.BLACK) -> void:

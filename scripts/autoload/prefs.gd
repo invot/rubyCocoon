@@ -14,8 +14,6 @@ var fullscreen := false
 var _browser_mobile: Variant = null
 ## the gem the menus are tinted with: one of UIKit.ACCENTS ("ruby", "sapphire", "emerald", "hematite")
 var accent := "ruby"
-## how the menus look: "pixel" (the 1-bit frames and the paper book) or "cozy" (the rounded windows); see UIKit.STYLES
-var ui_style := "pixel"
 
 signal changed
 
@@ -37,7 +35,7 @@ func load_prefs() -> void:
 	show_key_legend = bool(c.get_value("controls", "key_legend", show_key_legend))
 	fullscreen = bool(c.get_value("video", "fullscreen", fullscreen))
 	accent = String(c.get_value("ui", "accent", accent))
-	ui_style = String(c.get_value("ui", "style", ui_style))
+	# (an old "style" value, Pixel or Classic, is ignored: there is one look now)
 	# the old highlight colours became gems
 	accent = {"red": "ruby", "blue": "sapphire", "green": "emerald", "silver": "hematite", "purple": "ruby"}.get(accent, accent)
 
@@ -51,7 +49,6 @@ func save_prefs() -> void:
 	c.set_value("controls", "key_legend", show_key_legend)
 	c.set_value("video", "fullscreen", fullscreen)
 	c.set_value("ui", "accent", accent)
-	c.set_value("ui", "style", ui_style)
 	c.save(PATH)
 
 

@@ -186,7 +186,7 @@ func _title() -> void:
 			load_slot = await slot_manager()
 			stage.logo.visible = true
 		if load_slot >= 0 and GameState.slot_outdated(load_slot):
-			UI.toast("That save is from before the new beasts, so it can't be loaded. Start a new game!", UIKit.ACCENT)
+			UI.toast("That save is from before the new beasts, so it can't be loaded. Start a new game!")
 		elif load_slot >= 0 and GameState.load_game(load_slot):
 			_clear_title()
 			UI.allow_pause = true
@@ -436,7 +436,10 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	var room_to_room := MapLoader.is_interior(id) and str(spawn).begins_with("from_")
 	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] in ["house", "uncle"]) \
 			and not room_to_room:
-		UI.banner(title, sub)
+		# a town with an arena shows its crest; anywhere else, a map pin
+		var arena: Dictionary = WorldDB.ARENAS.get(id, {}) if not MapLoader.is_interior(id) else {}
+		var crest: Texture2D = UIKit.tex("crest_" + String(arena["crest"]).get_slice(" ", 0).to_lower()) if arena.has("crest") else null
+		UI.place_name(title, sub, crest)
 	_transitioning = false
 	await Story.on_map_enter(world)
 
@@ -469,7 +472,7 @@ func save_with_card() -> bool:
 		await UI.show_save_card(GameState.current_slot)
 	else:
 		Sfx.play("error")
-		UI.toast("The game was not saved.", UIKit.ACCENT)
+		UI.toast("The game was not saved.")
 	return ok
 
 
@@ -655,7 +658,7 @@ func start_battle(cfg: Dictionary) -> String:
 		var town := WorldDB.nearest_center(world.map_id, GameState.visited)
 		GameState.last_center = town
 		goto_map(town, "center")
-		UI.toast("You lost half your gold...", UIKit.ACCENT)
+		UI.toast("You lost half your gold...", "coin")
 	await UI.fade_in(0.3)
 	# Keep detection blocked through the fade, then grant the full field-control window only to wild battles.
 	if cfg.get("wild", false):
@@ -677,9 +680,8 @@ func _parse_test_args() -> void:
 func _run_test() -> void:
 	var scene: String = _test["scene"]
 	var wait := float(_test.get("wait", "3"))
-	if _test.has("gem") or _test.has("style"):
-		# try a gem or a style (--style=pixel / cozy) for this run only (the player's saved settings are left alone)
-		UIKit.style = String(_test.get("style", UIKit.style))
+	if _test.has("gem"):
+		# try a gem for this run only (the player's saved settings are left alone)
 		UIKit.set_accent(String(_test.get("gem", UIKit.accent_name)))
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
@@ -720,6 +722,11 @@ func _run_test() -> void:
 		return
 	if scene == "waterfront":
 		await load("res://tools/debug/waterfront.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
+	if scene == "door-voices":
+		await load("res://tools/debug/door_voices.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
@@ -870,7 +877,7 @@ func _run_test() -> void:
 				_save_shot(String(_test["shot"]))
 			get_tree().quit()
 			return
-		bt.msg_label.text = "Pricklet gained 27 XP. Grubbit grew to Lv 13!"
+		bt._caption("Pricklet gained 27 XP. Grubbit grew to Lv 13!")
 		bt.foe_slots[0].hp = 0
 		bt._handle_faints()
 		bt._float_text(bt.foe_slots[1], "-27", Color("#ffe060"))
@@ -1318,9 +1325,9 @@ func _run_test() -> void:
 					break
 			await _wait(0.4)
 		if _test.has("flip"):
-			# --flip=cozy / pixel: Settings > Style changed with the book open (not saved)
+			# --flip=sapphire: Settings > Gem changed with the book open (not saved)
 			await _wait(1.0)
-			Prefs.ui_style = String(_test["flip"])
+			Prefs.accent = String(_test["flip"])
 			Prefs.changed.emit()
 		await _wait(wait)
 	elif scene == "walk4":
@@ -1402,6 +1409,9 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "battle-focus":
 		await load("res://tools/debug/battle_focus.gd").new().run(self)
+	elif scene == "battle-redirect":
+		# actions aimed at a foe that has fallen are passed on to the next one, then the trainer (--shots=)
+		await load("res://tools/debug/battle_redirect.gd").new().run(self)
 	elif scene == "ringedit":
 		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
 		await _ringedit_test()
@@ -3300,46 +3310,59 @@ func _battlecmd_test() -> void:
 	check.call(bt.ally_grid.focus == -2 and bt.bars.shown() == [0], "only the trainer is focused during their action")
 	var middle_left: float = bt.ally_grid.position.x + bt.ally_grid.tile_center(0).x - bt.ally_grid.tile.x * 0.5
 	check.call(bt.bars._hit_rect(0).end.x < middle_left, "trainer bar and its tap area leave the middle beast and its health clear")
-	if String(_test.get("scene", "")) == "battle-focus":
+	if String(_test.get("scene", "")) in ["battle-focus", "battle-redirect"]:
 		return # this focused fixture starts at command selection; battlecmd covers the caption and picker checks below
-	# The caption resolves the subject and uses one compact, centred frame for short and long messages.
+	# The top bar resolves the subject: your side's icon in the right slot, the other side's in the left, the unused
+	# slot keeping its space; centred, clear of the foe's grid, wrapping long messages.
+	var tb = UI.top_bar
+	check.call(tb.visible and tb.battle and tb.left_icon.visible and tb.right_icon.visible, "the top bar stays up through the battle with both icon slots")
+	check.call(not bt.move_info.visible or bt.move_info.get_global_rect().position.y >= tb.get_global_rect().end.y, "the move window hangs under the top bar")
 	bt._show_option({}, {})
 	bt._commanding = false
 	bt.ally_grid.focus = -1
 	bt.ally_grid.queue_redraw()
 	bt._caption("%s used Ember!" % fire_a.nickname, fire_a)
 	await _wait(0.12)
-	check.call(bt.message_icon.visible and bt.message_icon.texture == PixelArt.beast_texture(fire_a.genes), "move messages show the acting beast's icon")
-	check.call(absf(bt.caption.get_global_rect().get_center().x - bt.hud.get_viewport_rect().size.x * 0.5) < 1.0, "battle message is centred on the screen")
-	check.call(bt.message_icon.position.x > bt.msg_label.position.x, "player beast avatar is to the right of the report")
+	check.call(tb.right_icon.texture == PixelArt.beast_texture(fire_a.genes) and tb.left_icon.texture == null, "move messages show the acting beast's icon (your side: on the right)")
+	check.call(absf(tb.get_global_rect().get_center().x - bt.hud.get_viewport_rect().size.x * 0.5) < 1.0, "battle message is centred on the screen")
+	check.call(tb.right_icon.position.x > tb.label.get_parent().position.x, "player beast avatar is to the right of the report")
+	var text_x: float = tb.label.get_global_rect().position.x
 	if stop == "message":
 		return
 	bt._caption("%s fires the slingshot!" % GameState.player_name)
-	check.call(bt.message_icon.visible and bt.message_icon.texture == bt._speaker_icons["trainer_self"], "trainer messages show the trainer's portrait")
+	check.call(tb.right_icon.texture == bt._speaker_icons["trainer_self"], "trainer messages show the trainer's portrait")
 	await _wait(0.12)
-	check.call(bt.message_icon.position.x > bt.msg_label.position.x, "player trainer portrait is to the right of the report")
 	if stop == "trainer-message":
 		return
 	bt._caption("Tess plays a song!")
-	check.call(bt.message_icon.texture == bt._speaker_icons["foe_trainer"], "rival messages use the rival's portrait")
+	check.call(tb.left_icon.texture == bt._speaker_icons["foe_trainer"] and tb.right_icon.texture == null, "rival messages use the rival's portrait, on the left")
 	await _wait(0.12)
-	check.call(bt.message_icon.get_rect().end.x <= bt.msg_label.position.x, "enemy trainer portrait is to the left of the report")
+	check.call(tb.left_icon.get_global_rect().end.x <= tb.label.get_global_rect().position.x, "enemy trainer portrait is to the left of the report")
 	if stop == "enemy-trainer-message":
 		return
 	await bt._deal(fire_a, foes[0], {"dmg": 1, "eff": 2.0, "crit": false, "pierce": false})
-	check.call(bt.msg_label.text == "Extra effective!" and bt.message_icon.texture == PixelArt.beast_texture(foes[0].genes), "effective hit shows a short message and the affected beast")
-	check.call(bt.message_icon.get_rect().end.x <= bt.msg_label.position.x, "enemy beast avatar is to the left of the report")
+	check.call(tb.label.text == "Extra effective!" and tb.left_icon.texture == PixelArt.beast_texture(foes[0].genes), "effective hit shows a short message and the affected beast")
+	check.call(tb.left_icon.get_global_rect().end.x <= tb.label.get_global_rect().position.x, "enemy beast avatar is to the left of the report")
 	if stop == "effective":
 		return
 	await bt._deal(fire_a, foes[0], {"dmg": 1, "eff": 0.5, "crit": false, "pierce": false})
-	check.call(bt.msg_label.text == "%s is resistant." % foes[0].nickname, "resisted hit names its target")
+	check.call(tb.label.text == "%s is resistant." % foes[0].nickname, "resisted hit names its target")
 	if stop == "resistant":
 		return
 	await bt._deal(fire_a, foes[0], {"dmg": 1, "eff": 1.0, "crit": false, "pierce": false})
-	check.call(bt.msg_label.text == "%s is resistant." % foes[0].nickname, "neutral damage adds no effectiveness message")
-	bt._caption("%s recovered 999 HP and is ready to fight again!" % foes[0].nickname, foes[0])
+	check.call(tb.label.text == "%s is resistant." % foes[0].nickname, "neutral damage adds no effectiveness message")
+	bt._caption("Ember!")
 	await _wait(0.12)
-	check.call(bt.caption.size.x <= bt._top_width() + 12.0 and bt.caption.get_global_rect().encloses(bt.msg_label.get_global_rect()), "long messages wrap inside the compact frame")
+	var short_w: float = tb.size.x
+	bt._caption("%s used Ember!" % fire_a.nickname, fire_a)
+	await _wait(0.12)
+	check.call(tb.size.x > short_w, "the bar grows with its text")
+	bt._caption("%s recovered 999 HP and is ready to fight again, standing tall on the sand!" % foes[0].nickname, foes[0])
+	await _wait(0.12)
+	var grid_end: float = bt.foe_grid.get_global_rect().end.x
+	check.call(tb.size.x <= bt._bar_width() + 1.0 and tb.get_global_rect().position.x >= grid_end and tb.get_global_rect().encloses(tb.label.get_global_rect()),
+		"long messages wrap inside the bar, clear of the foe's grid")
+	check.call(tb.label.get_line_count() >= 2, "a long message wraps onto a second line")
 	if stop == "long-message":
 		return
 	# Items and songs use the same arrow-only picker, including cancellation and direct grid taps.
@@ -3347,7 +3370,7 @@ func _battlecmd_test() -> void:
 	var choose := func(): picked.append(await bt._choose_target(foes, "Target"))
 	choose.call()
 	await _wait(0.12)
-	check.call(UI.stack.back() != p and bt._target_refs.size() == 1 and not bt.caption.visible, "item and song targets use arrows without a HUD box")
+	check.call(UI.stack.back() != p and bt._target_refs.size() == 1 and not bt.move_info.visible, "item and song targets use arrows without a HUD box")
 	await key.call("ui_cancel")
 	check.call(picked == [null] and UI.stack.back() == p, "B cancels the item or song target picker")
 	picked.clear()

@@ -197,16 +197,14 @@ var shield_label: Label3D
 var shield_bubble: MeshInstance3D
 
 var hud: Control
-var msg_label: Label
-var caption: PanelContainer
-## while commands are chosen: the window at the top explaining the highlighted action or move (see _show_option)
+## while commands are chosen: the window under the top bar explaining the highlighted action or move (see
+## _show_option). The battle's messages are in the top bar (UI.top_bar, see _caption).
 var move_info: PanelContainer
-var _info_hint := ""
 var bars: Control
-var message_line: HBoxContainer
-var message_icon: TextureRect
 var _speaker_icons: Dictionary = {}
 var _message_subject = null
+## whose command bar has the focus while commands are chosen (its prompt shows in the top bar)
+var _prompt_ref = null
 var ally_grid: Control
 var foe_grid: Control
 var cmd_root: Control
@@ -867,8 +865,26 @@ func _sync_slots() -> void:
 func _side_open(team: String) -> bool:
 	if team == "foe" and wild:
 		return false
-	var mid = (ally_slots if team == "ally" else foe_slots)[1]
-	return mid == null or mid.hp <= 0
+	return Ring.middle_open(ally_slots if team == "ally" else foe_slots)
+
+
+## Who an action aimed at `target` (a beast of `team_hit`, "trainer", or null) lands on now that its turn has come
+## (Ring.retarget): the target if it still stands on the side facing the attacker, else the nearest standing beast
+## there, else "trainer" when `can_strike` and that side's middle is open, else null: the action is dropped.
+## `from` is the beast acting (null for a trainer). Lessons never turn a blow on a trainer by themselves.
+func _retarget(target, team_hit: String, from = null, can_strike := true):
+	var rows: Array = ally_slots if team_hit == "ally" else foe_slots
+	var wanted := Ring.NO_TARGET
+	if typeof(target) == TYPE_STRING:
+		wanted = Ring.TRAINER
+	elif target != null:
+		wanted = rows.find(target)
+	var has_trainer := can_strike and not (team_hit == "foe" and wild) and (not tutorial or wanted == Ring.TRAINER)
+	var from_row: int = _mine(from).find(from) if from != null else -1
+	var k := Ring.retarget(rows, wanted, from_row, has_trainer)
+	if k == Ring.TRAINER:
+		return "trainer"
+	return rows[k] if k >= 0 else null
 
 
 func _team(b) -> String:
@@ -1235,8 +1251,6 @@ func _update_shield() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	if caption != null:
-		caption.visible = msg_label.text != ""
 	for b in nodes:
 		var n: Node3D = nodes[b]
 		if is_instance_valid(n) and n.has_meta("phase"):
@@ -1584,27 +1598,13 @@ func _build_hud() -> void:
 		cmd_root.offset_right = -16.0
 		cmd_root.offset_top = -10.0 - block.y
 		cmd_root.offset_bottom = -10.0
-	# Both top windows use the same compact frame and padding.
-	caption = _top_panel()
-	hud.add_child(caption)
-	message_line = HBoxContainer.new()
-	message_line.add_theme_constant_override("separation", 8)
-	caption.add_child(message_line)
-	message_icon = TextureRect.new()
-	message_icon.custom_minimum_size = Vector2(40, 48)
-	message_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	message_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	message_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	message_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	message_line.add_child(message_icon)
-	msg_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.INK)
-	msg_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	msg_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	msg_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	message_line.add_child(msg_label)
+	# The messages go in the shared top bar, there for the whole battle (until the HUD goes); the move window hangs
+	# under it.
+	UI.top_bar.begin_battle()
+	hud.tree_exiting.connect(UI.top_bar.end_battle)
+	UI.top_bar.resized.connect(_settle_top)
 	move_info = _top_panel()
 	hud.add_child(move_info)
-	_place_caption()
 
 
 func _top_panel() -> PanelContainer:
@@ -1615,30 +1615,21 @@ func _top_panel() -> PanelContainer:
 	return panel
 
 
-## Centre on the whole screen, leaving equal space for the foe's grid on either side.
+## Centre on the whole screen, leaving equal space for the foe's grid on either side (the move window).
 func _top_width() -> float:
+	return minf(640.0, _bar_width())
+
+
+## The widest the top bar may be: centred, clear of the foe's grid on either side.
+func _bar_width() -> float:
 	var edge := foe_grid.position.x + foe_grid.size.x + 12.0
-	return minf(640.0, hud.get_viewport_rect().size.x - 2.0 * edge)
+	return hud.get_viewport_rect().size.x - 2.0 * edge
 
 
+## The move window, centred under the top bar.
 func _center_top(panel: Control) -> void:
 	panel.reset_size()
-	panel.position = Vector2(roundf((hud.get_viewport_rect().size.x - panel.size.x) * 0.5), 10.0)
-
-
-## Fit the battle message to its words and avatar, with the same inset as the move window.
-func _place_caption() -> void:
-	if caption == null:
-		return
-	var icon_w := 48.0 if message_icon.visible else 0.0
-	var font := UIKit.font_body()
-	var fs := UIKit.body_px(UIKit.BODY_HUGE)
-	var w := minf(_top_width() - 24.0 - icon_w, font.get_string_size(msg_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
-	msg_label.custom_minimum_size = Vector2(maxf(1.0, ceilf(w)), 0)
-	caption.visible = msg_label.text != ""
-	_center_top(caption)
-	if move_info != null and move_info.visible:
-		_center_top(move_info)
+	panel.position = Vector2(roundf((hud.get_viewport_rect().size.x - panel.size.x) * 0.5), roundf(UI.top_bar.bottom() + 6.0))
 
 
 ## Resolve named subjects first, then the current actor for short messages such as critical hits or misses.
@@ -1661,26 +1652,21 @@ func _message_ref(text: String):
 	return ref
 
 
+## A battle message in the top bar, with the icon of whoever it's about (`subject`, else found in the text): on the
+## left for the opposing side, on the right for yours. No text keeps the last message, except while commands are
+## chosen, when the focused bar's prompt shows ("What will Grubbit do?").
 func _caption(text: String, subject = null) -> void:
-	if msg_label == null:
+	if hud == null or UI.top_bar == null:
 		return
-	_info_hint = text
-	if _commanding and move_info != null and move_info.visible:
-		var foot := move_info.find_child("Foot", true, false) as Label
-		if foot != null:
-			foot.text = text
-			foot.visible = text != ""
-		text = ""
-	msg_label.text = text
+	if text == "":
+		if not _commanding or _prompt_ref == null:
+			return
+		subject = _prompt_ref
+		text = ("What will you do, %s?" % GameState.player_name) if typeof(subject) == TYPE_STRING else ("What will %s do?" % subject.nickname)
 	var ref = subject if subject != null else _message_ref(text)
-	message_icon.texture = _speaker_icons.get(ref, null) if typeof(ref) == TYPE_STRING else (PixelArt.beast_texture(ref.genes) if ref != null else null)
+	var icon: Texture2D = _speaker_icons.get(ref, null) if typeof(ref) == TYPE_STRING else (PixelArt.beast_texture(ref.genes) if ref != null else null)
 	var player_subject: bool = ref in ["trainer_self", "trainer"] if typeof(ref) == TYPE_STRING else (ref != null and (GameState.party.has(ref) or ally_ring.values().has(ref)))
-	message_line.move_child(message_icon, -1 if player_subject else 0)
-	message_icon.visible = text != "" and message_icon.texture != null
-	_place_caption()
-	# Wrapped labels update their minimum height after layout; shrink again once that has settled.
-	if not get_tree().process_frame.is_connected(_settle_top):
-		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
+	UI.top_bar.say_battle(text, icon, player_subject, _bar_width())
 
 
 ## What each kind of move is called in the move window.
@@ -1702,7 +1688,6 @@ func _show_option(row: Dictionary, o: Dictionary) -> void:
 	var status_desc := String(row.get("status_desc", "")) if row.get("status", "") != "" else ""
 	if o.is_empty() or (String(o.get("label", "")) == "" and status_desc == ""):
 		move_info.visible = false
-		_place_caption()
 		return
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 4)
@@ -1764,25 +1749,16 @@ func _show_option(row: Dictionary, o: Dictionary) -> void:
 		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		nl.custom_minimum_size.x = content_w
 		vb.add_child(nl)
-	var foot := UIKit.label(_info_hint, UIKit.BODY_BIG, UIKit.DIM)
-	foot.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	foot.custom_minimum_size.x = content_w
-	foot.name = "Foot"
-	foot.visible = _info_hint != ""
-	vb.add_child(foot)
 	move_info.visible = true
 	_center_top(move_info)
 	if not get_tree().process_frame.is_connected(_settle_top):
 		get_tree().process_frame.connect(_settle_top, CONNECT_ONE_SHOT)
-	msg_label.text = ""
-	_place_caption()
 
 
-## The move window shrunk to its laid-out words, and the things under it placed again (a frame after it changes).
+## The move window shrunk to its laid-out words and placed under the top bar again (a frame after either changes).
 func _settle_top() -> void:
-	if move_info != null and move_info.visible:
-		move_info.reset_size()
-	_place_caption()
+	if move_info != null and is_instance_valid(move_info) and move_info.visible:
+		_center_top(move_info)
 
 
 ## A small full-length picture of a person for the middle of a ring grid, turned `yaw` from facing the viewer
@@ -1873,6 +1849,8 @@ func _choices(opts: Array) -> int:
 
 ## The command panel's view of its rows: the bars, the chosen beast's tile and the target being aimed at.
 func _render_rows(rows: Array, focus: int, picking: bool) -> void:
+	if focus >= 0 and focus < rows.size():
+		_prompt_ref = "trainer_self" if rows[focus]["kind"] == "trainer" else rows[focus].get("beast", null)
 	var out := []
 	for i in rows.size():
 		var r: Dictionary = rows[i]
@@ -2215,7 +2193,7 @@ func _all_active() -> Array:
 
 
 func _alive(slots: Array) -> Array:
-	return slots.filter(func(b): return b != null and b.hp > 0)
+	return slots.filter(Ring.standing)
 
 
 func _active(b) -> bool:
@@ -2910,7 +2888,7 @@ func _effect_song_flow(song: String) -> bool:
 	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
 	await _apply_song(song, acc, "ally", target)
 	if star:
-		UI.toast("Your mastery of %s improved! It grew to %d notes." % [s["name"], SongDB.note_count(song, GameState.song_level(song))], UIKit.GOLD)
+		await msg("Your mastery of %s improved! It grew to %d notes." % [s["name"], SongDB.note_count(song, GameState.song_level(song))], 1.2)
 	return true
 
 
@@ -2944,7 +2922,7 @@ func _charm_flow(song: String) -> bool:
 		Sfx.play("fail")
 		await msg("%d mistake%s... %s is too strong to be charmed by anything less than perfect." % [mistakes, "" if mistakes == 1 else "s", t.nickname], 1.4)
 		if star:
-			UI.toast("Your mastery of %s improved!" % SongDB.get_song(song)["name"], UIKit.GOLD)
+			await msg("Your mastery of %s improved!" % SongDB.get_song(song)["name"], 1.0)
 		return true
 	if mistakes == 0 and not r.get("cancelled", false):
 		await msg("A flawless performance!", 0.6)
@@ -2972,7 +2950,7 @@ func _charm_flow(song: String) -> bool:
 		if randf() < 0.3:
 			await _buff(t, {"atk": 1})
 	if star:
-		UI.toast("Your mastery of %s improved!" % SongDB.get_song(song)["name"], UIKit.GOLD)
+		await msg("Your mastery of %s improved!" % SongDB.get_song(song)["name"], 1.0)
 	return true
 
 
@@ -3155,7 +3133,6 @@ func _learn_heard_song(sid: String) -> void:
 	if not r["cancelled"] and int(r["mistakes"]) == 0:
 		GameState.learn_song(sid)
 		Sfx.play("levelup")
-		UI.toast("Learned the song: %s!" % name, UIKit.GOLD)
 		await msg("Note-perfect! You learned the %s!" % name, 1.2)
 	else:
 		Sfx.play("fail")
@@ -3571,18 +3548,16 @@ func _target_point(b) -> Vector3:
 
 
 func _do_slingshot(a: Dictionary) -> void:
-	var t = a["target"]
-	if typeof(t) == TYPE_STRING and t == "trainer" and _side_open("foe"):
+	# a foe that fell before the stone flies: the nearest one standing, then their open trainer, else nothing
+	var t = _retarget(a["target"], "foe")
+	if t == null:
+		return
+	if typeof(t) == TYPE_STRING:
 		await msg("%s fires the slingshot at %s!" % [GameState.player_name, trainer.get("name", "the trainer")], 0.5)
 		Sfx.play("slingshot")
 		await _trainer_throw(RIVAL_POS + Vector3(0, 1.2, 0), Color("#8a847a"))
 		await _strike(null, "foe")
 		return
-	if typeof(t) == TYPE_STRING or t == null or t.hp <= 0 or not foe_slots.has(t):
-		var alive := _alive(foe_slots)
-		if alive.is_empty():
-			return
-		t = alive.pick_random()
 	await msg("%s fires the slingshot at %s!" % [GameState.player_name, t.nickname], 0.5)
 	Sfx.play("slingshot")
 	await _trainer_throw(_target_point(t), Color("#8a847a"))
@@ -3602,7 +3577,7 @@ func _do_slingshot(a: Dictionary) -> void:
 func _do_item(a: Dictionary) -> void:
 	var id: String = a["item"]
 	var it := ItemDB.get_item(id)
-	if not GameState.remove_item(id):
+	if GameState.item_count(id) <= 0:
 		await msg("But you've run out of %s!" % it["name"])
 		return
 	var kind := _item_target_kind(it)
@@ -3613,15 +3588,23 @@ func _do_item(a: Dictionary) -> void:
 		"enemies":
 			targets = _alive(foe_slots)
 		"enemy":
-			var t0 = a["target"]
-			if t0 == null or t0.hp <= 0 or not foe_slots.has(t0):
-				var alive := _alive(foe_slots)
-				if not alive.is_empty():
-					t0 = alive.pick_random()
+			# thrown at a foe that has fallen since: the nearest one standing (an item is never thrown at a trainer)
+			var t0 = _retarget(a["target"], "foe", null, false)
 			if t0 != null:
 				targets = [t0]
-		_:
+		"ally_ko":
+			# a revive is never passed on to someone else
 			targets = [a["target"]]
+		_:
+			# care meant for an ally that has fallen since goes to the weakest beast standing
+			var t1 = a["target"]
+			if t1 == null or t1.hp <= 0:
+				t1 = Ring.weakest(ally_slots)
+			if t1 != null:
+				targets = [t1]
+	# with nobody left to use it on, the item stays in the bag and the action is dropped
+	if targets.is_empty() or not GameState.remove_item(id):
+		return
 	var who: String = "everyone" if kind in ["allies", "enemies"] else (targets[0].nickname if not targets.is_empty() and targets[0] != null else "nobody")
 	await msg("%s used a %s%s." % [GameState.player_name, it["name"], "" if who == "nobody" else " on %s" % who], 0.7)
 	if kind in ["enemy", "enemies"]:
@@ -3790,29 +3773,29 @@ func _do_move(b, mv: String, target) -> void:
 				_refresh()
 				return
 	var cost := MoveDB.mp_cost(mv)
-	if cost > 0:
-		if b.mp < cost:
-			await msg("%s doesn't have enough MP for %s!" % [b.nickname, MoveDB.get_move(mv)["name"]], 0.7)
-			mv = "tackle"
-		else:
-			b.mp -= cost
-			_refresh()
+	var wanted_name := String(MoveDB.get_move(mv)["name"])
+	var short: bool = cost > 0 and b.mp < cost
+	if short:
+		mv = "tackle"
 	var m := MoveDB.get_move(mv)
+	# who it lands on now (a target that fell is passed on, see _targets_for); with nobody left the move is dropped
+	# without a word, and without costing its MP
+	var targets := _targets_for(b, m, target)
+	if targets.is_empty():
+		return
+	if short:
+		await msg("%s doesn't have enough MP for %s!" % [b.nickname, wanted_name], 0.7)
+	elif cost > 0:
+		b.mp -= cost
+		_refresh()
 	if int(m.get("cd", 0)) > 0:
 		s["cd"][mv] = int(m["cd"]) + 1
 	await msg("%s used %s!" % [b.nickname, m["name"]], 0.55, b)
 	# straight at an open trainer
-	if typeof(target) == TYPE_STRING and target == "trainer":
-		var other := "foe" if _team(b) == "ally" else "ally"
-		if m["kind"] == "attack" and _side_open(other):
-			await _strike(b, other)
-			return
-		target = null
-	await _lunge(b, m["kind"] == "attack")
-	var targets := _targets_for(b, m, target)
-	if targets.is_empty():
-		await msg("But there was no target...", 0.6)
+	if typeof(targets[0]) == TYPE_STRING:
+		await _strike(b, "foe" if _team(b) == "ally" else "ally")
 		return
+	await _lunge(b, m["kind"] == "attack")
 	for t in targets:
 		if result != "" or b.hp <= 0:
 			return
@@ -3827,29 +3810,24 @@ func _targets_for(b, m: Dictionary, target) -> Array:
 		"self":
 			return [b]
 		"enemy":
-			var t = target if typeof(target) != TYPE_STRING else null
-			if not fx.get("pierce", false):
+			# a target that is down or gone: the nearest foe standing, then (for an attack) their open trainer
+			var t = _retarget(target, "foe" if _team(b) == "ally" else "ally", b, m["kind"] == "attack")
+			if t == null:
+				return []
+			if typeof(t) != TYPE_STRING and not fx.get("pierce", false):
 				for x in _alive(theirs):
 					if int(_st(x)["taunt"]) > 0:
 						t = x
 						break
-			if t == null or t.hp <= 0 or not theirs.has(t):
-				var alive := _alive(theirs)
-				if alive.is_empty():
-					return []
-				t = alive.pick_random()
 			return [t]
 		"enemies":
 			return _alive(theirs)
 		"ally":
+			# a heal or boost for an ally that fell goes to the weakest one standing
 			var t2 = target
 			if t2 == null or t2.hp <= 0 or not mine.has(t2):
-				var alive2 := _alive(mine)
-				if alive2.is_empty():
-					return []
-				alive2.sort_custom(func(x, y): return x.hp_ratio() < y.hp_ratio())
-				t2 = alive2[0]
-			return [t2]
+				t2 = Ring.weakest(mine)
+			return [t2] if t2 != null else []
 		"allies":
 			return _alive(mine)
 		"ally_ko":
@@ -4214,7 +4192,7 @@ func _guardian_song_flow(song: String) -> bool:
 	await _song_fx(PLAYER_POS, [guardian_b], true, acc < SongDB.FLAT_ACCURACY)
 	await _guardian_capture(acc)
 	if star and result == "":
-		UI.toast("Your mastery of the %s improved!" % SongDB.song_name(song), UIKit.GOLD)
+		await msg("Your mastery of the %s improved!" % SongDB.song_name(song), 1.0)
 	return true
 
 
@@ -4711,9 +4689,8 @@ func _float_text(b, text: String, col: Color) -> void:
 	var n: Node3D = nodes[b]
 	var l := Label3D.new()
 	l.text = text
-	# damage and healing numbers in the chunky pixel font
+	# damage and healing numbers in the body font
 	l.font = UIKit.font_body()
-	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	l.font_size = 64
 	l.outline_size = 14
 	l.modulate = col

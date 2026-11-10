@@ -71,6 +71,8 @@ func run(main, opts: Dictionary) -> void:
 	var models = load("res://scripts/gfx/house_models.gd")
 	var cove = load("res://scripts/gfx/cove_buildings.gd")
 	for building in town["buildings"]:
+		var fit: Dictionary = cove.plan(building)
+		_check(is_equal_approx(cove._height(fit["key"], cove.FLOORS[fit["key"]][0], fit["scale"]), 2.6), "%s has a person-scale ground storey" % building["name"])
 		var node: Node3D = cove.build(building)
 		var standard := false
 		for inst in node.find_children("*","MeshInstance3D",true,false):
@@ -78,6 +80,7 @@ func run(main, opts: Dictionary) -> void:
 				and is_equal_approx(inst.mesh.size.x,models.DOOR_H/models.DOOR_ASPECT))
 		_check(standard, "%s uses the other towns' full-size door" % building["name"])
 		node.free()
+	_check(town["buildings"][5]["cove_model"] == "house_2", "the library is a reading cottage, without loading bays")
 	var home: Dictionary = town["buildings"][1]
 	var home_level := Elev.surface(town, home["door"])
 	_check(home_level > Elev.surface(town, town["buildings"][0]["door"])
@@ -230,7 +233,9 @@ func _enter(main, building: Dictionary) -> void:
 
 func _preview(main, opts: Dictionary) -> bool:
 	var name: String = opts.get("preview","")
-	var spots := {"square":Vector2i(27,22),"home":Vector2i(9,10),"docks":Vector2i(40,38),"gear":main.world.map["buildings"][6]["door"]+Vector2i.DOWN,"apothecary":Vector2i(47,22)}
+	if opts.has("window_title"):
+		main.get_window().title = String(opts["window_title"])
+	var spots := {"square":Vector2i(27,22),"library":Vector2i(22,21),"neighbor":Vector2i(8,21),"home":Vector2i(9,10),"docks":Vector2i(40,38),"gear":main.world.map["buildings"][6]["door"]+Vector2i.DOWN,"apothecary":Vector2i(47,22)}
 	if name != "overview" and not spots.has(name):
 		return false
 	if name == "overview":

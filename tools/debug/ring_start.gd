@@ -29,9 +29,8 @@ func run(root: Node, opts: Dictionary) -> void:
 	book._open_tab(1)
 	await main._wait(0.3)
 	if opts.get("matrix", "0") == "1":
-		for style in UIKit.STYLES:
+		for style in ["dark"]:
 			for gem in UIKit.ACCENT_ORDER:
-				Prefs.ui_style = style
 				Prefs.accent = gem
 				Prefs.apply() # Runtime change only; never save the player's settings.
 				await main._wait(0.3)

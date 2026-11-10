@@ -155,7 +155,7 @@ func _buy(stock: Array, price_scale := 1.0) -> void:
 		GameState.gold -= price
 		GameState.add_item(id2)
 		Sfx.play("buy")
-		UI.toast("Bought %s!" % ItemDB.item_name(id2))
+		UI.toast("Bought %s" % ItemDB.item_name(id2), "item:" + id2, "bought:" + id2)
 
 
 func _sell() -> void:
@@ -178,6 +178,7 @@ func _sell() -> void:
 		GameState.remove_item(id2)
 		GameState.gold += int(ItemDB.get_item(id2)["price"]) / 2
 		Sfx.play("buy")
+		UI.gold(int(ItemDB.get_item(id2)["price"]) / 2)
 
 
 ## The fishing bait sold in a town (ItemDB "sold_in"): worms on the islands, lures further on.
@@ -408,7 +409,7 @@ func storage() -> void:
 				b.slot = -1
 				b.heal_full()
 				GameState.storage.append(b)
-				UI.toast("%s was stored." % b.nickname)
+				UI.toast("%s was stored." % b.nickname, b)
 		elif c == 1:
 			if GameState.party.size() >= GameState.party_max():
 				await UI.say(["Your party is full. Volt at Sparkwire Electronics can wire up more beast slots as your trainer level grows."])
@@ -425,7 +426,7 @@ func storage() -> void:
 				GameState.storage.erase(b2)
 				b2.slot = k
 				GameState.party.append(b2)
-				UI.toast("%s joined your party (%s)." % [b2.nickname, Ring.slot_name(k)])
+				UI.toast("%s joined your party (%s)." % [b2.nickname, Ring.slot_name(k)], b2)
 		else:
 			return
 
@@ -633,7 +634,7 @@ func fly_to(dest: String, cost := 0) -> void:
 	Sfx.play("fly")
 	await UI.flash(Color("#e8f8ff"), 2)
 	GameState.main.goto_map(dest, "skytower")
-	UI.toast("Flying to %s..." % WorldDB.map_name(dest), UIKit.GOLD)
+	UI.toast("Flying to %s..." % WorldDB.map_name(dest), "pin")
 
 
 # ================================================================ electronics
@@ -852,7 +853,7 @@ func arena_challenge(town: String) -> String:
 		Sfx.play("capture")
 		await UI.say(["%s hands you the %s!" % [a["leader"], a["crest"]],
 			"\"Take this song as well: the %s. %s\"" % [song["name"], SongDB.describe(a["song"])]], leader)
-		UI.toast("Learned the song: %s!" % song["name"], UIKit.GOLD)
+		UI.toast("Learned the song: %s!" % song["name"], "note")
 		await _miner_pass(town)
 		if town == "kelpwick":
 			await Story.reef_opened(leader)
@@ -1150,7 +1151,7 @@ func learn_attempts(sid: String, speaker := "", need := 0.0, extra := {}) -> boo
 			GameState.learn_song(sid)
 			GameState.add_mastery(sid, 1)
 			Sfx.play("levelup")
-			UI.toast("Learned the song: %s!" % SongDB.song_name(sid), UIKit.GOLD)
+			UI.toast("Learned the song: %s!" % SongDB.song_name(sid), "note")
 			await UI.say(["Bravo! You learned the %s!" % SongDB.song_name(sid), SongDB.describe(sid)], speaker)
 			return true
 		var why: String = {"time": "Out of time!", "misses": "Too many wrong notes!"}.get(String(r.get("failed", "")), "Not quite.")
@@ -1316,20 +1317,14 @@ func house_locked(b: Dictionary) -> bool:
 	return rng.randf() < 0.3
 
 
-var _last_knock := -1
-
-
 ## Knocking on a locked door: three raps, then whoever's inside shouts something through it.
 func knock(b: Dictionary) -> void:
 	Sfx.play("knock")
 	await get_tree().create_timer(0.85).timeout
 	var cathedral: bool = b["shop"] == "cathedral"
-	var lines: Array = ChatterDB.CATHEDRAL_DOOR if cathedral else ChatterDB.LOCKED_DOOR
-	var i := randi() % lines.size()
-	if i == _last_knock:
-		i = (i + 1) % lines.size()
-	_last_knock = i
-	await UI.say(ChatterDB.fill(lines[i], GameState.player_name), "Legion Grunt" if cathedral else "Muffled Voice")
+	var identity := String(b.get("interior", ""))
+	var lines: Array = ChatterDB.DOOR_VOICES.get(identity, ChatterDB.LOCKED_DOOR[absi(int(b.get("seed",0))) % ChatterDB.LOCKED_DOOR.size()])
+	await UI.say(ChatterDB.fill(lines, GameState.player_name), "Legion Grunt" if cathedral else "Muffled Voice")
 	if cathedral:
 		await UI.say(["The cathedral doors are barred from the inside."])
 
@@ -1477,12 +1472,14 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 		MapGen.COUNTER, MapGen.TABLE:
 			pass
 		MapGen.LOCKED:
-			if map.get("staff_doors", {}).has(t):
-				await UI.say(["A brass plate on the door: STAFF ONLY. It's locked."])
-			elif map.get("locked_text", {}).has(t):
-				await UI.say([map["locked_text"][t], "The door's locked."])
+			if map.get("stone_doors", {}).has(t):
+				await UI.say([map.get("locked_text", {}).get(t, "The stone door won't budge.")])
 			else:
-				await UI.say(["The door's locked."])
+				Sfx.play("knock")
+				await get_tree().create_timer(0.85).timeout
+				var room := String(map.get("room_key", ""))
+				var voices: Dictionary = ChatterDB.STAFF_DOOR_VOICES if map.get("staff_doors", {}).has(t) else ChatterDB.ROOM_DOOR_VOICES
+				await UI.say([voices.get(room, "Shh! I'm trying to remember why I came in here.")], "Muffled Voice")
 		MapGen.FURN:
 			if map.get("furniture", {}).get(t, "") == "phone":
 				await Phone.call_home(world)

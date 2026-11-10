@@ -1,7 +1,8 @@
 extends CanvasLayer
 ## On-screen controls.
 ##  Desktop: a strip along the bottom showing which keys do what.
-##  Mobile:  a d-pad bottom-left, A and B bottom-right, Start and Pause bottom-centre.
+##  Mobile:  a d-pad bottom-left, A and B bottom-right, Start and Pause bottom-centre. Like every window they are the
+##           blurred near-black box (blur.gdshader) with white linework; pressed, a button fills solid white.
 ## Touch buttons send the same input actions as the keyboard, so every screen works with them.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -36,7 +37,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_legend()
 	_build_touch()
-	_gem = UIKit.accent_name + UIKit.style
+	_gem = UIKit.accent_name
 	get_viewport().size_changed.connect(_layout)
 	if is_instance_valid(Prefs):
 		Prefs.changed.connect(refresh)
@@ -44,7 +45,7 @@ func _ready() -> void:
 
 
 func refresh() -> void:
-	if _gem != UIKit.accent_name + UIKit.style:
+	if _gem != UIKit.accent_name:
 		_recolour()
 	_touch_on = Prefs.touch_enabled() and not title_mode
 	touch_root.visible = _touch_on
@@ -118,33 +119,36 @@ func _process(_delta: float) -> void:
 				_send(id, false)
 			b.process_mode = Node.PROCESS_MODE_DISABLED if hide else Node.PROCESS_MODE_INHERIT
 		_dpad_base.visible = not hide
+		for k in ["dpad", "a", "b"]:
+			(_backdrops[k] as CanvasItem).visible = not hide
 
 
 ## Redraws the legend strip, key caps and pad faces in the current gem.
 func _recolour() -> void:
-	_gem = UIKit.accent_name + UIKit.style
+	_gem = UIKit.accent_name
 	legend.add_theme_stylebox_override("panel", _legend_style())
 	for row in [_legend_row, _flute_row]:
 		for item in row.get_children():
 			var cap: PanelContainer = item.get_child(0)
 			cap.add_theme_stylebox_override("panel", UIKit.box("frame", Vector4(2, -5, 2, -5)))
+	_shade_backdrops()
 	_paint_pad()
 
 
+## The pad's backdrops take the windows' near-black (faintly tinted with the gem) at the windows' opacity, or, with the
+## blur off, a plain box a little more opaque.
+func _shade_backdrops() -> void:
+	var fb = UIKit.FrameBox
+	var on: bool = fb.blur_on
+	_backdrop_material.set_shader_parameter("shade", Color(fb.shade, fb.FILL_ALPHA if on else 1.0))
+	for k in _backdrops:
+		(_backdrops[k] as CanvasItem).self_modulate.a = 1.0 if on else fb.PLAIN_ALPHA
+
+
 # ---------------------------------------------------------------- desktop key legend
-func _legend_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(UIKit.WINDOW_BOTTOM, 0.94)
-	sb.border_color = UIKit.BORDER
-	sb.border_width_top = 2
-	# (Pixel: square, a crisp white line along its top)
-	sb.corner_radius_top_left = 0 if UIKit.pixel() else 22
-	sb.corner_radius_top_right = 0 if UIKit.pixel() else 22
-	sb.corner_detail = 8
-	sb.anti_aliasing = true
-	sb.content_margin_left = 16
-	sb.content_margin_right = 16
-	return sb
+func _legend_style() -> StyleBox:
+	# the blurred dark box, like every window
+	return UIKit.plate(UIKit.BORDER, Vector4(16, 0, 16, 0))
 
 
 func _build_legend() -> void:
@@ -194,6 +198,9 @@ const SHADOW_ROOM := 8
 ## menus and the flute game all use it. Each arm answers touches in its own quarter of the pad (a wedge from the middle
 ## out past its arrow, see _arm_shape), so a thumb only ever holds one of the four ways.
 var _dpad_base: Sprite2D
+## the blurred, darkened scene behind each face (the d-pad's cross, A, B, Start and Pause), drawn under it
+var _backdrops := {}
+var _backdrop_material: ShaderMaterial
 ## A, B, Start and Pause's labels: they sink a little while their button is held
 var _labels := {}
 var _answer_faces := {}
@@ -212,6 +219,27 @@ func _build_touch() -> void:
 	add_child(touch_root)
 	_dpad_base = Sprite2D.new()
 	_dpad_base.centered = false
+	_backdrop_material = ShaderMaterial.new()
+	_backdrop_material.shader = load(UIKit.FrameBox.SHADER)
+	var dpad_back := Sprite2D.new()
+	dpad_back.centered = false
+	dpad_back.material = _backdrop_material
+	touch_root.add_child(dpad_back)
+	_backdrops["dpad"] = dpad_back
+	for k in ["a", "b", "start", "pause"]:
+		# a nine-patch, so A and B's backdrops widen with them for Yes / No
+		var back := NinePatchRect.new()
+		back.material = _backdrop_material
+		back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if k in ["a", "b"]:
+			back.patch_margin_left = 48
+			back.patch_margin_right = 48
+		else:
+			back.patch_margin_left = int(PILL.y / 2.0)
+			back.patch_margin_right = int(PILL.y / 2.0)
+		touch_root.add_child(back)
+		_backdrops[k] = back
+	_shade_backdrops()
 	touch_root.add_child(_dpad_base)
 	for dir in ["up", "down", "left", "right"]:
 		_touch_button(dir, Vector2(ARM, ARM))
@@ -226,7 +254,7 @@ func _build_touch() -> void:
 		b2.add_child(face)
 		_answer_faces[k] = face
 		var l := UIKit.label(k.to_upper(), UIKit.BODY_HUGE, UIKit.LIGHT)
-		# big letters: 64 screen pixels on a 1080p phone (BoldPixels stays crisp on multiples of 16)
+		# big letters: 64 screen pixels on a 1080p phone
 		l.add_theme_font_size_override("font_size", UIKit.body_px(43))
 		_style_cap_label(l, Vector2(ROUND, ROUND))
 		b2.add_child(l)
@@ -283,15 +311,19 @@ func _style_cap_label(l: Label, box: Vector2) -> void:
 ## in user:// for each gem, so the game doesn't wait for them and later launches just load them. Bump PAD_STYLE when
 ## their look changes, so the kept ones are painted afresh.
 const PAD_CACHE := "user://touch_pad/"
-const PAD_STYLE := 5
-const FACES := ["dpad", "up", "down", "left", "right", "a", "a_pressed", "b", "b_pressed", "pill", "pill_pressed"]
+const PAD_STYLE := 6
+const FACES := ["dpad", "up", "down", "left", "right", "a", "a_pressed", "b", "b_pressed", "pill", "pill_pressed",
+	"dpad_mark", "round_mark", "pill_mark"]
+## the faces' white linework, and their drop shadow outside the shape
+const RIM := 3.0
+const SHADOW_A := 0.30
 
 
 ## (Re)draws every face in the current gem: kept ones straight away, else on a worker thread (until they're ready the
 ## buttons work, unpainted).
 func _paint_pad() -> void:
 	for k in _labels:
-		(_labels[k] as Label).add_theme_color_override("font_shadow_color", Color(UIKit.BROWN, 0.85))
+		(_labels[k] as Label).add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
 	var key := _pad_key()
 	var faces := _kept_faces(key)
 	if not faces.is_empty():
@@ -302,7 +334,7 @@ func _paint_pad() -> void:
 
 ## Where this gem's faces are kept: its name, and its colours, the sizes and PAD_STYLE, so any change paints afresh.
 static func _pad_key() -> String:
-	return "%s_%x" % [UIKit.accent_name, hash([PAD_STYLE, UIKit.style, UIKit.ACCENT.to_html(), UIKit.BORDER.to_html(), UIKit.BROWN.to_html(), ARM, ROUND, PILL])]
+	return "%s_%x" % [UIKit.accent_name, hash([PAD_STYLE, UIKit.ACCENT.to_html(), UIKit.BORDER.to_html(), UIKit.BROWN.to_html(), ARM, ROUND, PILL])]
 
 
 static func _kept_faces(key: String) -> Dictionary:
@@ -320,20 +352,26 @@ static func _kept_faces(key: String) -> Dictionary:
 
 ## On a worker thread: paints every face, keeps them, and hands them to the main thread.
 func _paint_faces(key: String) -> void:
-	var faces := {}
-	if UIKit.pixel():
-		faces = _pixel_faces()
-	else:
-		faces = {"dpad": _dpad_face(), "pill": _pill_face(false), "pill_pressed": _pill_face(true)}
-		for dir in ["up", "down", "left", "right"]:
-			faces[dir] = _arm_pressed(dir)
-		for k in ["a", "b"]:
-			faces[k] = _dome_face(k, false)
-			faces[k + "_pressed"] = _dome_face(k, true)
+	var faces := {"dpad": _dpad_face(), "pill": _pill_face(false), "pill_pressed": _pill_face(true),
+		"dpad_mark": _mark(int(ARM * 3.0), int(ARM * 3.0), _sd_cross),
+		"round_mark": _mark(int(ROUND), int(ROUND), _sd_round),
+		"pill_mark": _mark(int(PILL.x), int(PILL.y), _sd_pill)}
+	for dir in ["up", "down", "left", "right"]:
+		faces[dir] = _arm_pressed(dir)
+	for k in ["a", "b"]:
+		faces[k] = _dome_face(k, false)
+		faces[k + "_pressed"] = _dome_face(k, true)
 	DirAccess.make_dir_recursive_absolute(PAD_CACHE + key)
 	for f in faces:
 		(faces[f] as Image).save_png(PAD_CACHE + key + "/" + f + ".png")
-	_faces_painted.call_deferred(key, faces)
+	# (through a weak reference: the game may have closed, freeing the overlay, while they were painted)
+	Callable(get_script(), "_deliver_faces").call_deferred(weakref(self), key, faces)
+
+
+static func _deliver_faces(me: WeakRef, key: String, faces: Dictionary) -> void:
+	var overlay = me.get_ref()
+	if overlay != null:
+		overlay._faces_painted(key, faces)
 
 
 func _faces_painted(key: String, faces: Dictionary) -> void:
@@ -345,9 +383,16 @@ func _faces_painted(key: String, faces: Dictionary) -> void:
 
 
 func _show_faces(faces: Dictionary) -> void:
-	# (the Pixel style's faces are hard-edged pixels, kept crisp; the Classic ones are smooth)
-	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if UIKit.pixel() else CanvasItem.TEXTURE_FILTER_LINEAR
+	# (the faces are smooth shapes)
+	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_dpad_base.texture = ImageTexture.create_from_image(faces["dpad"])
+	(_backdrops["dpad"] as Sprite2D).texture = ImageTexture.create_from_image(faces["dpad_mark"])
+	var round_mark := ImageTexture.create_from_image(faces["round_mark"])
+	var pill_mark := ImageTexture.create_from_image(faces["pill_mark"])
+	for k in ["a", "b"]:
+		(_backdrops[k] as NinePatchRect).texture = round_mark
+	for k in ["start", "pause"]:
+		(_backdrops[k] as NinePatchRect).texture = pill_mark
 	for dir in ["up", "down", "left", "right"]:
 		var b: TouchScreenButton = _buttons[dir]
 		b.texture_normal = _blank(Vector2i(int(ARM), int(ARM)))
@@ -394,67 +439,67 @@ static func _sd_arrow(p: Vector2, dir: String) -> float:
 	return d - 1.5
 
 
-## The plate colour of the d-pad and pills (a deep shade of the gem), from the top (t = 0) to the bottom (t = 1).
-static func _plate(t: float) -> Color:
-	var g := UIKit.ACCENT
-	return Color.from_hsv(g.h, g.s * 0.55, 0.40).lerp(Color.from_hsv(g.h, g.s * 0.62, 0.17), t)
-
-
-## Shades a pixel near a face's edge: lit along the top, shadowed along the bottom (`n` points outwards).
-static func _bevel(col: Color, d: float, n: Vector2, width := 7.0) -> Color:
-	if d < 0.0 or d > width:
-		return col
-	var k := 1.0 - d / width
-	var f := n.dot(Vector2(-0.3, -1.0).normalized())
-	return col.lerp(Color.WHITE, 0.30 * f * k) if f > 0.0 else col.lerp(Color.BLACK, -0.40 * f * k)
-
-
 static func _cover(d: float) -> float:
 	return clampf(d + 0.5, 0.0, 1.0)
 
 
-## The whole cross: a soft shadow, the rim, a top-lit gradient with bevelled edges, a dimple in the middle and pale
-## raised arrows.
-static func _dpad_face() -> Image:
-	var n := int(ARM * 3.0)
-	var img := Image.create(n, n + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
-	var rim := UIKit.BORDER
-	var centre := Vector2(ARM * 1.5, ARM * 1.5)
-	var arrow_col := Color.from_hsv(UIKit.ACCENT.h, UIKit.ACCENT.s * 0.12, 0.96)
-	for y in img.get_height():
-		for x in n:
-			var p := Vector2(x + 0.5, y + 0.5)
-			var sh := _sd_cross(p - Vector2(0, 6))
-			var col := Color(0, 0, 0, clampf((sh + 4.0) / 8.0, 0.0, 1.0) * 0.38)
-			var d := _sd_cross(p)
-			var a := _cover(d)
+static func _sd_round(p: Vector2) -> float:
+	return ROUND / 2.0 - 2.0 - p.distance_to(Vector2.ONE * ROUND / 2.0)
+
+
+static func _sd_pill(p: Vector2) -> float:
+	return _sd_box(p, Rect2(Vector2.ZERO, PILL).grow(-1), PILL.y / 2.0 - 1.0)
+
+
+## A backdrop's marker: the shape (`sd`, a signed distance, positive inside) in the blur shader's magenta, soft-edged.
+static func _mark(w: int, h: int, sd: Callable) -> Image:
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 0, 1, 0))
+	for y in h:
+		for x in w:
+			var a := _cover(float(sd.call(Vector2(x + 0.5, y + 0.5))))
 			if a > 0.0:
-				var g := Vector2(_sd_cross(p + Vector2(1, 0)) - _sd_cross(p - Vector2(1, 0)), _sd_cross(p + Vector2(0, 1)) - _sd_cross(p - Vector2(0, 1)))
-				var outward := -g.normalized() if g.length() > 0.001 else Vector2.ZERO
-				var body := _plate(p.y / n)
-				body = _bevel(body, d - 2.5, outward)
-				# the dimple in the middle: a shallow bowl, dark at the top and lit at the bottom
-				var dc := p.distance_to(centre)
-				if dc < 24.0:
-					var bowl := (p - centre) / 24.0
-					body = body.lerp(Color.BLACK, 0.18).lerp(Color.WHITE, clampf(bowl.y, 0.0, 1.0) * 0.12)
-				elif dc < 26.0:
-					body = body.lerp(Color.WHITE, 0.10)
-				for dir in ["up", "down", "left", "right"]:
-					var ash := _sd_arrow(p - Vector2(0, 2), dir)
-					if ash > -1.0:
-						body = body.lerp(Color.BLACK, _cover(ash) * 0.35)
-					var ad := _sd_arrow(p, dir)
-					if ad > -1.0:
-						body = body.lerp(arrow_col, _cover(ad))
-				if d < 2.5:
-					body = rim.lerp(rim.darkened(0.45), p.y / n)
-				col = col.blend(Color(body, 0.94 * a))
-			img.set_pixel(x, y, col)
+				img.set_pixel(x, y, Color(1, 0, 1, a))
 	return img
 
 
-## A pressed arm: its part of the cross sinks into shadow and its arrow lights up in the gem.
+## A face's pixel `d` inside its edge (signed distance): a soft shadow outside the shape (`sh`: the distance to the
+## shape moved down), the white rim along the edge, and `inner` within it.
+static func _line_px(d: float, sh: float, inner: Color) -> Color:
+	var col := Color(0, 0, 0, 0)
+	if d < 0.5:
+		col = Color(0, 0, 0, clampf((sh + 4.0) / 8.0, 0.0, 1.0) * SHADOW_A * (1.0 - _cover(d)))
+	var a := _cover(d)
+	if a > 0.0:
+		var px := inner.blend(Color(UIKit.BORDER, _cover(RIM - d)))
+		col = col.blend(Color(px, px.a * a))
+	return col
+
+
+## The whole cross: a white rim round its edge, a faint ring in the middle and white arrows. The blurred backdrop
+## behind it (dpad_mark) is its body.
+static func _dpad_face() -> Image:
+	var n := int(ARM * 3.0)
+	var img := Image.create(n, n + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
+	var centre := Vector2(ARM * 1.5, ARM * 1.5)
+	for y in img.get_height():
+		for x in n:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var d := _sd_cross(p)
+			var inner := Color(1, 1, 1, 0)
+			if d > 0.0:
+				var dc := absf(p.distance_to(centre) - 20.0)
+				if dc < 1.5:
+					inner = Color(UIKit.BORDER, 0.45 * _cover(1.5 - dc))
+				for dir in ["up", "down", "left", "right"]:
+					var ad := _sd_arrow(p, dir)
+					if ad > -1.0:
+						inner = inner.blend(Color(UIKit.BORDER, _cover(ad)))
+			img.set_pixel(x, y, _line_px(d, _sd_cross(p - Vector2(0, 5)), inner))
+	return img
+
+
+## A pressed arm: its part of the cross fills solid white and its arrow turns dark.
 static func _arm_pressed(dir: String) -> Image:
 	var off: Vector2 = {"up": Vector2(ARM, 0), "down": Vector2(ARM, ARM * 2.0), "left": Vector2(0, ARM), "right": Vector2(ARM * 2.0, ARM)}[dir]
 	var n := int(ARM)
@@ -463,187 +508,45 @@ static func _arm_pressed(dir: String) -> Image:
 		for x in n:
 			var p := off + Vector2(x + 0.5, y + 0.5)
 			var d := _sd_cross(p)
-			var col := Color(0, 0, 0, 0)
+			var col := Color(1, 1, 1, 0)
 			if d > -0.5:
-				col = Color(0, 0, 0, 0.30 * _cover(d - 2.5))
+				col = Color(UIKit.BORDER, _cover(d))
 				var ad := _sd_arrow(p, dir)
 				if ad > -1.0:
-					col = col.blend(Color(UIKit.ACCENT.lightened(0.25), _cover(ad)))
+					col = col.blend(Color(UIKit.DARK, _cover(ad) * col.a))
 			img.set_pixel(x, y, col)
 	return img
 
 
-## A or B: a round, domed button in the gem (B a deeper shade) with a pale rim, a top-lit bevel, a glossy highlight
-## and a shadow below; pressed, it sinks onto its shadow and darkens.
-static func _dome_face(which: String, pressed: bool) -> Image:
+## A or B: a round button outlined in white over its blurred backdrop; pressed, it fills solid white (its letter turns
+## dark, see _send).
+static func _dome_face(_which: String, pressed: bool) -> Image:
 	var w := int(ROUND)
 	var img := Image.create(w, w + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
 	var r := ROUND / 2.0 - 2.0
-	var c := Vector2(ROUND / 2.0, ROUND / 2.0 + (3.0 if pressed else 0.0))
-	var sc := Vector2(ROUND / 2.0, ROUND / 2.0 + (4.0 if pressed else 7.0))
-	var g := UIKit.ACCENT
-	var top := g.lightened(0.22) if which == "a" else g.darkened(0.12)
-	var bottom := g.darkened(0.40) if which == "a" else g.darkened(0.62)
-	if pressed:
-		top = top.darkened(0.2)
-		bottom = bottom.darkened(0.15)
+	var c := Vector2(ROUND / 2.0, ROUND / 2.0)
+	var sc := c + Vector2(0, 5)
+	var inner := Color(UIKit.BORDER, 1.0) if pressed else Color(1, 1, 1, 0)
 	for y in img.get_height():
 		for x in w:
 			var p := Vector2(x + 0.5, y + 0.5)
-			var col := Color(0, 0, 0, clampf((r - p.distance_to(sc) + 3.0) / 6.0, 0.0, 1.0) * 0.40)
-			var d := r - p.distance_to(c)
-			var a := _cover(d)
-			if a > 0.0:
-				var t := clampf((p.y - (c.y - r)) / (2.0 * r), 0.0, 1.0)
-				var body := top.lerp(bottom, t)
-				body = _bevel(body, d - 3.0, (p - c).normalized(), 9.0)
-				# a glossy highlight across the top of the dome
-				var hd := ((p - (c + Vector2(-0.12 * r, -0.50 * r))) / Vector2(0.55 * r, 0.26 * r)).length()
-				if hd < 1.0:
-					body = body.lerp(Color.WHITE, (1.0 - hd) * (0.12 if pressed else 0.32))
-				if d < 3.0:
-					body = UIKit.BORDER.lerp(UIKit.BORDER.darkened(0.45), t)
-				col = col.blend(Color(body, 0.94 * a))
-			img.set_pixel(x, y, col)
+			img.set_pixel(x, y, _line_px(r - p.distance_to(c), r - p.distance_to(sc), inner))
 	return img
 
 
-## Start / Pause: a small pill plate in the d-pad's colours, raised on a shadow.
+## Start / Pause: a small pill outlined in white over its blurred backdrop; pressed, solid white.
 static func _pill_face(pressed: bool) -> Image:
 	var sz := Vector2i(int(PILL.x), int(PILL.y) + SHADOW_ROOM)
 	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
-	var rect := Rect2(Vector2(0, 2.0 if pressed else 0.0), PILL).grow(-1)
-	var shadow := Rect2(Vector2(0, 3.0 if pressed else 6.0), PILL).grow(-1)
+	var rect := Rect2(Vector2.ZERO, PILL).grow(-1)
+	var shadow := Rect2(Vector2(0, 5), PILL).grow(-1)
 	var rad := PILL.y / 2.0 - 1.0
+	var inner := Color(UIKit.BORDER, 1.0) if pressed else Color(1, 1, 1, 0)
 	for y in sz.y:
 		for x in sz.x:
 			var p := Vector2(x + 0.5, y + 0.5)
-			var col := Color(0, 0, 0, clampf((_sd_box(p, shadow, rad) + 3.0) / 6.0, 0.0, 1.0) * 0.38)
-			var d := _sd_box(p, rect, rad)
-			var a := _cover(d)
-			if a > 0.0:
-				var t := clampf((p.y - rect.position.y) / rect.size.y, 0.0, 1.0)
-				var body := _plate(t)
-				if pressed:
-					body = body.lerp(UIKit.ACCENT, 0.45)
-				var gr := Vector2(_sd_box(p + Vector2(1, 0), rect, rad) - _sd_box(p - Vector2(1, 0), rect, rad),
-					_sd_box(p + Vector2(0, 1), rect, rad) - _sd_box(p - Vector2(0, 1), rect, rad))
-				body = _bevel(body, d - 2.5, -gr.normalized() if gr.length() > 0.001 else Vector2.ZERO, 6.0)
-				if d < 2.5:
-					body = UIKit.BORDER.lerp(UIKit.BORDER.darkened(0.45), t)
-				col = col.blend(Color(body, 0.94 * a))
-			img.set_pixel(x, y, col)
+			img.set_pixel(x, y, _line_px(_sd_box(p, rect, rad), _sd_box(p, shadow, rad), inner))
 	return img
-
-
-# ---- the Pixel style's faces
-## The 1-bit kit's way: painted at half size with hard edges, then doubled, so each of their pixels is two UI pixels
-## like the rest of the Pixel interface. Near-black with a white edge and white arrows, a hard shadow below; the gem
-## goes behind the white: on A and B, and wherever a button is held.
-static func _pixel_faces() -> Dictionary:
-	var faces := {"dpad": _px_dpad(), "pill": _px_pill(false), "pill_pressed": _px_pill(true)}
-	for dir in ARMS:
-		faces[dir] = _px_arm(dir)
-	for k in ["a", "b"]:
-		faces[k] = _px_dome(k, false)
-		faces[k + "_pressed"] = _px_dome(k, true)
-	return faces
-
-
-static func _px_double(img: Image) -> Image:
-	img.resize(img.get_width() * 2, img.get_height() * 2, Image.INTERPOLATE_NEAREST)
-	return img
-
-
-## The cross: near-black, edged in white, white arrows, a white ring in the middle.
-static func _px_dpad() -> Image:
-	var n := int(ARM * 1.5)
-	var img := Image.create(n, n + SHADOW_ROOM / 2, false, Image.FORMAT_RGBA8)
-	var c := Vector2(n, n) / 2.0
-	for y in img.get_height():
-		for x in n:
-			var p := Vector2(x + 0.5, y + 0.5)
-			var d := _sd_cross(p * 2.0) / 2.0
-			var col := Color(0, 0, 0, 0)
-			if d <= 0.0 and _sd_cross((p - Vector2(0, 3)) * 2.0) > 0.0:
-				col = Color(0, 0, 0, 0.4)
-			elif d > 0.0:
-				col = Color(UIKit.PIXEL_FILL, 0.94)
-				var dc := p.distance_to(c)
-				if d < 1.0 or (dc > 7.0 and dc < 8.0):
-					col = UIKit.PIXEL_LINE
-				for dir in ARMS:
-					if _sd_arrow(p * 2.0, dir) > 0.0:
-						col = UIKit.PIXEL_LINE
-			img.set_pixel(x, y, col)
-	return _px_double(img)
-
-
-## A held arm: its part of the cross filled with the gem, behind its white edge and arrow.
-static func _px_arm(dir: String) -> Image:
-	var off: Vector2 = {"up": Vector2(ARM, 0), "down": Vector2(ARM, ARM * 2.0), "left": Vector2(0, ARM), "right": Vector2(ARM * 2.0, ARM)}[dir]
-	var n := int(ARM / 2.0)
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	for y in n:
-		for x in n:
-			var p := off / 2.0 + Vector2(x + 0.5, y + 0.5)
-			var d := _sd_cross(p * 2.0) / 2.0
-			var col := Color(0, 0, 0, 0)
-			if d > 0.0:
-				col = UIKit.PIXEL_LINE if d < 1.0 or _sd_arrow(p * 2.0, dir) > 0.0 else UIKit.ACCENT
-			img.set_pixel(x, y, col)
-	return _px_double(img)
-
-
-## A or B: a disc of the gem (B a deeper shade) with a white rim and the kit's little shine; held, it sinks onto its
-## shadow and darkens.
-static func _px_dome(which: String, pressed: bool) -> Image:
-	var w := int(ROUND / 2.0)
-	var img := Image.create(w, w + SHADOW_ROOM / 2, false, Image.FORMAT_RGBA8)
-	var r := w / 2.0 - 0.5
-	var c := Vector2(w / 2.0, w / 2.0 + (1.0 if pressed else 0.0))
-	var sc := Vector2(w / 2.0, w / 2.0 + (1.0 if pressed else 3.0))
-	var fill := UIKit.ACCENT if which == "a" else UIKit.ACCENT.darkened(0.35)
-	if pressed:
-		fill = fill.darkened(0.3)
-	for y in img.get_height():
-		for x in w:
-			var p := Vector2(x + 0.5, y + 0.5)
-			var dist := p.distance_to(c)
-			var col := Color(0, 0, 0, 0)
-			if dist >= r and p.distance_to(sc) < r:
-				col = Color(0, 0, 0, 0.4)
-			elif dist < r:
-				col = UIKit.PIXEL_LINE if dist > r - 1.5 else fill
-				# the shine: a short white stroke up in the top left, as on the kit's round icons
-				var q := p - c
-				if q.x < -r * 0.25 and q.y < -r * 0.25 and absf(q.x - q.y * 0.0 + q.y + r * 0.95) < 0.8 and q.length() > r * 0.55 and q.length() < r * 0.8:
-					col = UIKit.PIXEL_LINE
-			img.set_pixel(x, y, col)
-	return _px_double(img)
-
-
-## Start / Pause: the 1-bit plate, near-black (held: the gem) inside a white edge, its corners nicked, on a hard shadow.
-static func _px_pill(pressed: bool) -> Image:
-	var sz := Vector2i(int(PILL.x / 2.0), int(PILL.y / 2.0) + SHADOW_ROOM / 2)
-	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
-	var rect := Rect2(Vector2(0, 1.0 if pressed else 0.0), PILL / 2.0)
-	var shadow := Rect2(Vector2(0, 1.0 if pressed else 3.0), PILL / 2.0)
-	for y in sz.y:
-		for x in sz.x:
-			var p := Vector2(x + 0.5, y + 0.5)
-			var d := _sd_box(p, rect, 2.0)
-			var col := Color(0, 0, 0, 0)
-			if d <= 0.0 and _sd_box(p, shadow, 2.0) > 0.0:
-				col = Color(0, 0, 0, 0.4)
-			elif d > 0.0:
-				col = UIKit.PIXEL_LINE if d < 1.0 else (UIKit.ACCENT if pressed else Color(UIKit.PIXEL_FILL, 0.94))
-				# the kit's tick in the top left corner
-				var q := p - rect.position
-				if (q.x > 2.0 and q.x < 3.0 and q.y > 2.0 and q.y < 4.0) or (q.x > 2.0 and q.x < 4.0 and q.y > 2.0 and q.y < 3.0):
-					col = UIKit.PIXEL_LINE
-			img.set_pixel(x, y, col)
-	return _px_double(img)
 
 
 static func _blank(sz: Vector2i) -> ImageTexture:
@@ -747,7 +650,10 @@ func _send(id: String, down: bool) -> void:
 					_send_actions(other, true)
 					break
 	if _labels.has(id):
-		(_labels[id] as Label).position.y = (3.0 if id in ["a", "b"] else 2.0) if down else 0.0
+		# pressed: dark letters on the solid white face
+		var l: Label = _labels[id]
+		l.add_theme_color_override("font_color", UIKit.DARK if down else UIKit.LIGHT)
+		l.add_theme_constant_override("shadow_offset_y", 0 if down else 3)
 	if down and PAD_PITCH.has(id) and not flute_mode:
 		Sfx.play_tone("blip", PAD_PITCH[id], PAD_VOL)
 	_send_actions(id, down)
@@ -773,6 +679,7 @@ func _layout() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	var pad := Vector2(28, vp.y - 28 - ARM * 3.0)
 	_dpad_base.position = pad
+	(_backdrops["dpad"] as Sprite2D).position = pad
 	_buttons["up"].position = pad + Vector2(ARM, 0)
 	_buttons["left"].position = pad + Vector2(0, ARM)
 	_buttons["right"].position = pad + Vector2(ARM * 2.0, ARM)
@@ -790,7 +697,7 @@ func _layout() -> void:
 			if not button.shape is ConvexPolygonShape2D:
 				button.shape = ConvexPolygonShape2D.new()
 			button.shape_centered = false
-			button.shape.points = UIKit.CozyBox._round_rect(Rect2(-Vector2.ONE * TOUCH_SLOP, Vector2(width, ROUND) + Vector2.ONE * TOUCH_SLOP * 2.0), ROUND / 2.0 + TOUCH_SLOP)
+			button.shape.points = UIKit.round_rect(Rect2(-Vector2.ONE * TOUCH_SLOP, Vector2(width, ROUND) + Vector2.ONE * TOUCH_SLOP * 2.0), ROUND / 2.0 + TOUCH_SLOP)
 		else:
 			if not button.shape is CircleShape2D:
 				button.shape = CircleShape2D.new()
@@ -798,6 +705,10 @@ func _layout() -> void:
 			button.shape_centered = true
 	_buttons["start"].position = Vector2(roundf(vp.x / 2.0) - PILL.x - 8, vp.y - 26 - PILL.y)
 	_buttons["pause"].position = Vector2(roundf(vp.x / 2.0) + 8, vp.y - 26 - PILL.y)
+	for id in ["a", "b", "start", "pause"]:
+		var back: NinePatchRect = _backdrops[id]
+		back.position = (_buttons[id] as TouchScreenButton).position
+		back.size = Vector2(width, ROUND) if id in ["a", "b"] else PILL
 
 
 ## The button clusters, each one no-tap zone: the whole d-pad (its middle and the corners between the arrows too),

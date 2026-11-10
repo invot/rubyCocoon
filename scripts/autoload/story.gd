@@ -402,7 +402,7 @@ func uncle_lessons() -> bool:
 		GameState.gear["flute"] = "reed_flute"
 		GameState.set_flag("reed_flute")
 		Sfx.play("capture")
-		UI.toast("Received your father's Reed Flute!", UIKit.GOLD)
+		UI.toast("Received your father's Reed Flute!", "item:reed_flute")
 		await UI.say(["You received the Reed Flute! You can play it on your own turn in battle."])
 	if not GameState.knows_song("weaken"):
 		await UI.say(["First song: Weaken. It makes every foe drop its guard. Here, I'll play it for you.",
@@ -553,7 +553,7 @@ func _take_rod(world, n: Dictionary) -> void:
 	GameState.add_item("fishing_rod")
 	Sfx.play("item")
 	world.remove_npc(n)
-	UI.toast("Received the Fishing Pole!", UIKit.GOLD)
+	UI.toast("Received the Fishing Pole!", "item:fishing_rod")
 	await UI.say(["You took Gil's spare fishing pole. He'll want to see you use it!"])
 
 
@@ -605,7 +605,7 @@ func _builder() -> void:
 		GameState.add_egg(BUILDER_EGG)
 		GameState.set_flag("builder_egg")
 		Sfx.play("pickup")
-		UI.toast("Received a beast egg!", UIKit.GOLD)
+		UI.toast("Received a beast egg!", GameState.EggLooks.icon(GameState.eggs.back()) if not GameState.eggs.is_empty() else "notice")
 		return
 	if mended:
 		await UI.say(["Look after that egg! And mind the footbridge. It wobbles. It's meant to. Probably."], who)
@@ -912,8 +912,7 @@ func _give(gift: Dictionary) -> void:
 		if k <= 0:
 			continue
 		GameState.add_item(item, k)
-		Sfx.play("pickup")
-		UI.toast("Received %d %s!" % [k, ItemDB.item_name(item) + ("s" if k > 1 else "")], UIKit.GOLD)
+		UI.pickup(item, k, "pickup")
 
 
 ## A town's mascot: it teaches its town's signature move (WorldDB.TOWNS "signature", MoveDB.SIGNATURE) to a beast of
@@ -1249,7 +1248,7 @@ func reef_opened(who: String) -> void:
 		"I'll tell Coralie, and our folk on the reef path will let you by. Go gently in the Temple of Tides."], who)
 	GameState.set_flag("island_peace")
 	Sfx.play("levelup")
-	UI.toast("The way to the reef is open!", UIKit.GOLD)
+	UI.toast("The way to the reef is open!", "pin")
 	if GameState.main.world != null and GameState.main.world.map_id == "kelpwick":
 		await GameState.main.reload_map()
 
@@ -1442,7 +1441,7 @@ func _gravedigger() -> void:
 		"Those ghost beasts out on the moor won't listen to your ordinary songs. But this one... this one they remember.",
 		"It's the Requiem of Dusk. My mother taught it to me. Play it for a ghost beast, and it may follow you home.",
 		"Same rules as your Capture song, mind: no stronger than your Capture level, and only perfection reaches the really tough ones."], "Old Mort")
-	UI.toast("Learned the song: Requiem of Dusk!", UIKit.GOLD)
+	UI.toast("Learned the song: Requiem of Dusk!", "note")
 	await UI.say(["You learned the Requiem of Dusk! It's the only song that charms ghost beasts."])
 
 
@@ -1827,7 +1826,6 @@ func _stone_node(i: int, lit: bool) -> Array:
 	var glyph := Label3D.new()
 	glyph.text = STONE_GLYPHS[i]
 	glyph.font = UIKit.font_body()
-	glyph.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	glyph.font_size = 56
 	glyph.outline_size = 12
 	glyph.modulate = c.lightened(0.25)

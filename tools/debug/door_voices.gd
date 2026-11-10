@@ -1,0 +1,111 @@
+extends RefCounted
+## Red/blue paint across shared renderers and permanent voices at every red door.
+const Maps = preload("res://scripts/world/map_loader.gd")
+const WorldDB = preload("res://scripts/data/world_db.gd")
+const Chatter = preload("res://scripts/data/chatter_db.gd")
+const Houses = preload("res://scripts/gfx/house_models.gd")
+const Walls = preload("res://scripts/gfx/house_builder.gd")
+const Interiors = preload("res://scripts/data/maps/interior_maps.gd")
+const MapGen = preload("res://scripts/world/map_gen.gd")
+var bad := 0
+
+func run(main, opts: Dictionary) -> void:
+	UI.auto = true
+	if opts.has("preview"):
+		await _input_preview(main,opts)
+		return
+	for i in range(1,9):
+		var mesh: Mesh = Walls.piece("door_%d" % i)
+		var painted := false
+		for s in mesh.get_surface_count():
+			if mesh.surface_get_name(s) == "door":
+				painted = true
+				_check(mesh.surface_get_material(s).albedo_color == (Houses.LOCKED_DOOR if i == 1 else Houses.OPEN_DOOR), "wall-section door %d has the correct paint" % i)
+		_check(painted, "wall-section door %d contains a painted leaf" % i)
+	var seen := {}
+	var red := []
+	for town in WorldDB.TOWN_ORDER:
+		var map: Dictionary = Maps.load_map(town,{})
+		for b in map["buildings"]:
+			if not Places.door_locked(b):
+				continue
+			var identity := String(b["interior"])
+			_check(Chatter.DOOR_VOICES.has(identity), identity+" has an authored voice")
+			var lines: Array = Chatter.DOOR_VOICES.get(identity,[])
+			_check(not lines.is_empty() and not seen.has(str(lines)), identity+" has a distinct reply")
+			seen[str(lines)] = true
+			red.append(b)
+	for b in red:
+		UI.auto_log.clear()
+		await Places.knock(b)
+		var first := UI.auto_log.duplicate()
+		var moved: Dictionary = b.duplicate()
+		moved["door"] += Vector2i(3,2)
+		moved["seed"] = 1
+		UI.auto_log.clear()
+		await Places.knock(moved)
+		_check(first == UI.auto_log and not first.is_empty(), String(b["interior"])+" keeps its resident after another knock or a layout change")
+	for key in Interiors.ROOMS:
+		var room: Dictionary = Interiors.ROOMS[key]
+		var rows: String = "".join(room.get("rows",[]))
+		if "L" in rows and not room.has("stone_doors"):
+			_check(Chatter.ROOM_DOOR_VOICES.has(key), key+" has an indoor knock reply")
+		if "Z" in rows:
+			_check(Chatter.STAFF_DOOR_VOICES.has(key), key+" has a staff knock reply")
+	# Exercise the actual red indoor door through the normal interaction path.
+	await main._go("caccoon#1", "entry")
+	var room: Dictionary = main.world.map
+	for tile in room.get("locked_text",{}):
+		UI.auto_log.clear()
+		await Places.prop(MapGen.LOCKED,room,main.world,tile)
+		_check(UI.auto_log.any(func(line): return Chatter.ROOM_DOOR_VOICES["home"] in String(line)), "the indoor red kitchen door answers through the normal interaction")
+		break
+	print("DOOR VOICES DONE: %d problem(s)" % bad)
+	if opts.has("verify"):
+		await _input_preview(main,opts)
+
+func _input_preview(main, opts: Dictionary) -> void:
+	await main._go("caccoon", "start")
+	var b: Dictionary = main.world.map["buildings"][4]
+	main.world.spawn_at(b["door"]+Vector2i.DOWN)
+	main.world.facing = Vector2i.UP
+	UI.auto = false
+	await main._wait(0.4)
+	if UI.is_touch():
+		var pixel: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(b["door"])+Vector3(0,0.9,0))
+		await main._tap_at(pixel*main.get_viewport().get_visible_rect().size/Vector2(main.view.size))
+	else:
+		await main._press("interact")
+	await main._wait(1.2)
+	_check(not UI.stack.is_empty() and main.world.map_id == "caccoon", "the red door answers a real input and keeps the player outdoors")
+	if not UI.stack.is_empty():
+		UI.stack.back().text_label.visible_characters = -1
+	await main._wait(float(opts.get("wait","1")))
+	if opts.has("shot"):
+		main._save_shot(String(opts["shot"]))
+	if opts.has("verify"):
+		var dialog = UI.stack.back()
+		var pages: int = dialog.lines.size()
+		await _confirm(main)
+		await main._wait(0.3)
+		_check(UI.stack.is_empty() if pages == 1 else is_instance_valid(dialog) and dialog.idx == 1, "one confirmation advances exactly one dialogue page")
+		for i in range(1,pages):
+			if UI.stack.is_empty():
+				break
+			UI.stack.back().text_label.visible_characters = -1
+			await _confirm(main)
+			await main._wait(0.3)
+		_check(UI.stack.is_empty(), "the final page closes without knocking again")
+		print("DOOR INPUT DONE: %d problem(s)" % bad)
+
+func _confirm(main) -> void:
+	if UI.is_touch():
+		var button = UI.controls._buttons["a"]
+		await main._tap_at(button.get_global_transform_with_canvas()*Vector2(UI.controls.ROUND/2.0,UI.controls.ROUND/2.0))
+	else:
+		await main._press("ui_accept")
+
+func _check(ok: bool, label: String) -> void:
+	print("ok   " if ok else "FAIL ",label)
+	if not ok:
+		bad += 1

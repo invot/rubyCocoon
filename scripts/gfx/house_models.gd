@@ -21,6 +21,19 @@ const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 const DIR := "res://assets/houses/"
 const TILES := DIR + "tiles/"
 const LOCKED_DOOR := Color("#b3262c")
+const OPEN_DOOR := Color("#3a6ed0")
+
+## Shared door paint, independent of a town's timber or shop palette.
+static func door_material(locked: bool) -> StandardMaterial3D:
+	var key := "door_paint:%s" % locked
+	if not _mats.has(key):
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = LOCKED_DOOR if locked else OPEN_DOOR
+		mat.albedo_texture = load("res://assets/textures/surfaces/planks_v.png")
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		mat.roughness = 0.9
+		_mats[key] = mat
+	return _mats[key]
 
 ## The houses each style builds on its plots (small ones: a plot is 4 or 5 tiles wide) and, larger, on its outskirts.
 ## plan() steers away from the tall narrow ones (townhouse, tower house) unless the style is all towers.
@@ -901,13 +914,12 @@ static func _skin(mi: MeshInstance3D, m: ArrayMesh, skin: Array, locked: bool) -
 
 ## A part of a house in one of the pack's tiles (made once per part, tile and lock).
 static func _part_mat(base: StandardMaterial3D, role: String, tile: String, locked: bool) -> StandardMaterial3D:
+	if role == "door":
+		return door_material(locked)
 	var key := "%s:%s:%s" % [role, tile, "locked" if locked and role == "door" else ""]
 	if not _mats.has(key):
 		var mat: StandardMaterial3D = base.duplicate()
 		if ResourceLoader.exists(TILES + tile + ".res"):
 			mat.albedo_texture = load(TILES + tile + ".res")
-		if locked and role == "door":
-			mat.albedo_texture = load(TILES + "door_dark.res") if ResourceLoader.exists(TILES + "door_dark.res") else mat.albedo_texture
-			mat.albedo_color = LOCKED_DOOR.lightened(0.35)
 		_mats[key] = mat
 	return _mats[key]

@@ -467,7 +467,7 @@ func _show() -> void:
 	# Confirm is always in the gem's colour, edged in white while it's the row being chosen
 	var confirm_on: bool = row == "start"
 	if not _shown.has("row") or (_shown["row"] == "start") != confirm_on:
-		var csb := UIKit.chip(UIKit.ACCENT, UIKit.LIGHT if confirm_on else UIKit.BORDER, 12.0, Vector4(10, 2, 10, 2), 3.0 if confirm_on else 2.0)
+		var csb := UIKit.chip(UIKit.ACCENT, UIKit.LIGHT if confirm_on else UIKit.BORDER_DIM, 12.0, Vector4(10, 2, 10, 2), 3.0 if confirm_on else 2.0)
 		for st in ["normal", "hover", "pressed", "hover_pressed"]:
 			_start.add_theme_stylebox_override(st, csb)
 		for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:

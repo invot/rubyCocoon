@@ -237,16 +237,13 @@ The voxel models were all replaced by the PSX ones above and removed. They came 
   ribbons, buttons, toggles, arrows, icons).
 - **set1 / set2** pixel UI sheet (bars, stars, crests): author not included with the files.
   *Changes made:* crest gems recoloured per arena.
-- **Humble Gift - v1.3** by Humble Pixel (@Humblepixel), https://humblepixel.itch.io: the Start book's pages, their
-  ornament frames, arrows and buttons in the Pixel style. Free for commercial use and may be modified; the asset files
-  may not be redistributed or resold; credit appreciated, not required. *Changes made:* pieces cut out by
-  `tools/build_pixel_ui.gd` into `assets/ui/pixel_ui.res` and turned to tones, so the game paints them dark in the
-  player's gem with white lines.
-- **1-bit UI** by BatuhanK (`ui/1-bit_UI_byBatuhanK.png`): the Pixel style's windows, plates, bars, stars, hearts,
-  shields and round icons. *Changes made:* cut out by `tools/build_pixel_ui.gd` into `assets/ui/pixel_ui.res`, the
-  near-black fill painted in the player's gem where something is picked out.
-- Fonts: **BoldPixels** (body text, menus, dialogue) and **Lunchtime Doubly So** (headings); licence files not
-  included, check the authors' terms.
+- **Fantasy UI Borders** by Kenney (https://kenney.nl), CC0 (`licenses/Kenney Fantasy UI Borders - License.txt`):
+  every window's, row's and item slot's border and the section divider (`assets/ui/kenney/`: panel-border-010, -008,
+  -001 and divider-003, the pack's white line art). *Changes made:* none to the files; `scripts/ui/frame_box.gd` draws
+  them as nine-patches over the blurred box.
+- Fonts: **Nunito** by Vernon Adams, Cyreal and Jacques Le Bailly (body text, menus, dialogue, damage numbers), SIL
+  Open Font License (`licenses/Nunito - OFL.txt`); **Lunchtime Doubly So** (headings); licence file not included,
+  check the author's terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)
 *Pennsylvania Rose* by **Kevin MacLeod** (album *Scoring: Aspiring*, 2007, per the supplied MP3's metadata)
