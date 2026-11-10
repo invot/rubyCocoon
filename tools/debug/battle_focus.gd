@@ -53,7 +53,9 @@ func run(main: Node) -> void:
 		return
 	await tap.call(battle.floating.action_rect.get_center())
 	check.call(panel.picking and panel.focus == 0 and not panel.rows[0].get("done", false), "a menu tap confirms only the move")
-	check.call(battle.floating.actor == null and battle._selected_refs == battle._target_refs, "targeting moves the outline to the target and hides the choice")
+	check.call(battle.floating.aiming and battle.floating.actor == "trainer_self" and battle._selected_refs == battle._target_refs, "targeting moves the outline to the target and keeps the one bar on the chooser")
+	check.call(String(battle.floating.option.get("label", "")).contains("►"), "the bar names the target after the action")
+	layout.call("target")
 	# A controller press and release, through the actual input map.
 	for down in [true, false]:
 		var joy := InputEventJoypadButton.new()
@@ -66,6 +68,8 @@ func run(main: Node) -> void:
 	var beast = panel.rows[panel.focus]["beast"]
 	check.call(battle._selected_refs == [beast] and battle.nodes[beast].get_meta("flash").next_pass == battle._outline, "chooser has a gem hull without replacing its hit flash")
 	layout.call("beast")
+	check.call(not battle.floating.aiming and battle.floating.menu_rect.grow(battle.floating.GAP + 24.0).intersects(battle.floating.model_rect(beast)), "control is pinned beside its beast")
+	check.call(battle.floating._others(beast).all(func(r: Rect2): return not battle.floating.menu_rect.intersects(r)), "beast control rests clear of the other creatures")
 	if main._test.get("profile_hud", "0") == "1":
 		var started := Time.get_ticks_usec()
 		for frame in 60:
@@ -173,7 +177,9 @@ func run(main: Node) -> void:
 	await main.get_tree().process_frame
 	check.call(battle._shield_orbs["foe"].all(func(orb): return orb.visible), "targeted trainer shows shield orbs")
 	battle.floating.layout()
-	var shield_tag: Rect2 = battle.floating.tag_rects.get("foe_trainer", Rect2())
+	battle._aim_control({"targets": [{"ref": "foe_trainer"}]})
+	battle.floating.layout()
+	var shield_tag: Rect2 = battle.floating.menu_rect
 	for orb in battle._shield_orbs["foe"]:
 		var at: Vector2 = battle.cam.unproject_position(orb.position) * battle.hud.get_viewport_rect().size / battle.cam.get_viewport().get_visible_rect().size
 		check.call(not shield_tag.grow(6.0).has_point(at), "trainer tag leaves the shield orbs visible")

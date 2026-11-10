@@ -1434,6 +1434,8 @@ func _show_targets(list: Array, sel: int, source = "trainer_self") -> void:
 func _hide_targets() -> void:
 	_target_refs = []
 	_aim_from = null
+	if floating != null and floating.aiming:
+		floating.clear_choice()
 	_select_hud_actor(null)
 	_update_shield()
 
@@ -1637,12 +1639,45 @@ func _caption(text: String, subject = null) -> void:
 	UI.top_bar.say_battle(text, icon, player_subject, _bar_width())
 
 
-## Details belong to the same anchored choice. Warnings and teaching hints use the shared top bar.
+## While aiming, the chooser's bar stays where it is and names the target after the action ("Bite > Tadlet"):
+## left and right change the target and A confirms.
+func _aim_control(row: Dictionary) -> void:
+	if floating == null or _target_refs.is_empty() or _aim_from == null:
+		return
+	var options: Array = row.get("options", [])
+	var shown: Dictionary = (options[clampi(int(row.get("sel", 0)), 0, options.size() - 1)] as Dictionary).duplicate() if not options.is_empty() else {}
+	shown["label"] = "%s ► %s" % [String(shown.get("label", "")), "All" if _target_refs.size() > 1 else floating._name(_target_refs[0])]
+	shown.erase("disabled")
+	floating.choose(_aim_from, row, shown, true)
+
+
+func _status_text(ref) -> String:
+	if typeof(ref) == TYPE_OBJECT:
+		return "%s  HP %d / %d" % [ref.nickname, maxi(0, ref.hp), ref.max_hp()]
+	return floating._name(ref)
+
+
+## The top bar's words for the command being chosen: what the action does (the panel's own hint, `text`); while
+## aiming, the action, who it is aimed at with their HP, and what it does.
+func _command_info(row: Dictionary, _o: Dictionary, picking: bool, text: String) -> String:
+	if not picking or String(row.get("pick_kind", "")) == "slot" or _target_refs.is_empty():
+		return text
+	var options: Array = row.get("options", [])
+	if options.is_empty():
+		return text
+	var chosen: Dictionary = options[clampi(int(row.get("sel", 0)), 0, options.size() - 1)]
+	var what := MoveDB.summary(String(chosen["move"])) if chosen.has("move") else String(chosen.get("desc", ""))
+	var aim := "%s  ►  %s" % [String(chosen.get("label", "")), ",   ".join(_target_refs.map(_status_text))]
+	return aim if what == "" else aim + "\n" + what.replace("\n", "  ")
+
+
+## The control is pinned to the chooser. Its explanation, warnings and teaching hints use the shared top bar.
 func _show_option(row: Dictionary, o: Dictionary) -> void:
 	if floating == null:
 		return
 	if o.is_empty():
-		floating.clear_choice()
+		if not floating.aiming:
+			floating.clear_choice()
 		return
 	var ref = "trainer_self" if row.get("kind", "") == "trainer" else row.get("beast", null)
 	floating.choose(ref, row, o)
@@ -1708,6 +1743,7 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 	if picking:
 		var ts: Array = row.get("targets", [])
 		_show_targets(ts, -1 if row.get("target_all", false) else int(row.get("target_sel", 0)), _prompt_ref)
+		_aim_control(row)
 	else:
 		_hide_targets()
 		_select_hud_actor(_prompt_ref)
@@ -2078,7 +2114,7 @@ func _command_phase() -> Array:
 		if rows[0].get("done", false) and not _rows_waiting(rows):
 			break
 		var p := CommandPanel.new()
-		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption,
+		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "info": _command_info,
 			"option": _show_option, "stage": self, "floating": floating})
 		_commanding = true
 		UI.push(p)
@@ -2602,8 +2638,10 @@ func _choose_target(list: Array, title: String):
 	var row := {"kind": "trainer", "options": [{"label": title}], "targets": targets, "target_sel": 0}
 	var panel := CommandPanel.new()
 	panel.setup([row], {"target_only": true}, 0, Callable(), {
-		"render": func(_rows, _focus, _picking): _show_targets(targets, int(row.get("target_sel", 0))),
-		"hint": _caption, "stage": self, "floating": floating})
+		"render": func(_rows, _focus, _picking):
+			_show_targets(targets, int(row.get("target_sel", 0)))
+			_aim_control(row),
+		"hint": _caption, "info": _command_info, "stage": self, "floating": floating})
 	panel.picking = true
 	UI.push(panel)
 	var choice: Dictionary = await panel.done

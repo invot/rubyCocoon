@@ -20,7 +20,8 @@ extends "res://scripts/ui/modal.gd"
 ##         target_sel, targets: [{label, ref}], target_all (the move hits every target), pick_kind,
 ##         status: "" | "down" | "empty", locked}]
 ## info: {up, down, prompt, lesson}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
-##        option: Callable(row, option) (the action or move now highlighted, for battle.gd's window that explains it),
+##        option: Callable(row, option) (the action or move now highlighted, for battle.gd's pinned control),
+##        info: Callable(row, option, picking, text) -> String (the top bar's explanation, built from the hint `text`),
 ##        stage, floating (3D picking and anchored tap targets)}
 
 var rows: Array = []
@@ -112,6 +113,8 @@ func _redraw() -> void:
 			text = String(opt.get("desc", text)).replace("\n", " ")
 	if picking:
 		text = "▲ ▼ Choose a pad · A: Move · B: Back" if current.get("pick_kind", "") == "slot" else "◄ ► Aim · A: Confirm · B: Back"
+	if hooks.has("info"):
+		text = (hooks["info"] as Callable).call(current, options[clampi(int(current.get("sel", 0)), 0, options.size() - 1)] if not picking and not options.is_empty() else {}, picking, text)
 	_hint(text)
 
 
