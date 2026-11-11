@@ -498,7 +498,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   grain following the length of each board.
   Outdoor map letters `z` and `q` explicitly select wood and
   stone; `F` selects the biome's usual wood or iron fence. Saved building order is retained when houses are set
-  back inside their gardens. See [asset provenance and licenses](licenses/supplied_fences.md). To rebuild:
+  back inside their gardens. Riverbend's stone fence stops a tile short of the waterfall, leaving its left bank clear.
+  See [asset provenance and licenses](licenses/supplied_fences.md). To rebuild:
 
   ```
   python tools/prepare_fences.py "path/to/download directory"

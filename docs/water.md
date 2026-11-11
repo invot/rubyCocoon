@@ -38,6 +38,14 @@ No new textures or third-party code are required. Horizontal water uses one dept
 with no screen-colour/refraction copy, extra camera, compute simulation or per-frame CPU updates. Existing texture
 frames still animate lava. Waterfalls use the same palette and depth-based opacity as horizontal water,
 with subtle vertical stream lines pulsing downward instead of honeycomb cells. Temple falls inherit their pool's tint.
+The randomly spaced stream lines undulate, break and fade as they descend at 1.2 world units per second (before
+the temple's stretch adjustment). Natural falls have a narrow white crest on a joined, level lip; the river's swell
+eases to zero at that lip and the falling face shares its boundary, closing the former gap. Only the cliff face behind a fall
+gets a slight blue tint and lightness lift; neighbouring dry rock keeps its regional finish.
+The natural fall is recessed 0.16 units from the cliff edge, with its backing rock another 0.06 units behind it.
+Shared visual corner offsets shape both the bed and banks into the shallow channel; navigation heights stay intact.
+The outer banks remain forward of the channel and return slightly over its corners so the crest ends tuck under
+the dirt. Riverbend's left stone fence ends a tile short of the fall, with low planting keeping the cliff edge blocked.
 Depth reconstruction accounts for the different Vulkan/OpenGL ranges.
 Contact foam uses the opaque depth buffer: fully transparent props do not contribute an intersection.
 Fishing battles use the same shader over their sandy bed, and distant battle scenery uses a fixed depth tint where

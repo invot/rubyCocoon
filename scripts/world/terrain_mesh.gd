@@ -39,6 +39,10 @@ const FACE_ROW := 0.5
 const FACE_COLS := 8.0
 ## How far a cliff's flutes stand out from it at most (times the look's "flutes"), at a whole level's drop.
 const FLUTE := 0.13
+## A fall sits inside a shallow cut in the cliff; the rock stays just behind its clear sheet.
+const FALL_SETBACK := 0.16
+const FALL_ROCK_SETBACK := 0.22
+const FALL_LIP := 0.04
 ## The lip of ground rolling over a cliff's top, at a whole level's drop: its profile, (out, down) from the edge.
 const LIP := [Vector2(0.0, 0.0), Vector2(0.065, -0.022), Vector2(0.11, -0.075), Vector2(0.115, -0.135), Vector2(0.08, -0.19)]
 ## the rock's top, tucked in under the lip, this far below the ground at a whole level's drop
@@ -109,6 +113,10 @@ var walls := false
 var flutes := 1.0
 ## tile vertices worked out so far while generating (see _grid, _half_grid)
 var _grids := {}
+var _fall_offsets := {}
+var _fall_water_offsets := {}
+var _fall_sides := {}
+var _fall_ends := {}
 
 ## The ground meshes of the last few maps, so that stepping out of a house or back along a road puts the same ground
 ## down again instead of generating it. Keyed by everything the shape depends on, so a changed map is built afresh.
@@ -239,6 +247,7 @@ func _grid(tx: int, tz: int) -> PackedVector3Array:
 			var gx := tx * 2 + i
 			var gz := tz * 2 + j
 			g[i + j * 3] = Vector3(gx * 0.5, base_lo[own] + (LIFT if lifted[own] == 1 else 0.0) if level else _vertex_y(tx, tz, gx, gz), gz * 0.5)
+			g[i + j * 3] += _fall_offsets.get(Vector2i(gx, gz), Vector3.ZERO)
 	_grids[k] = g
 	return g
 
@@ -401,6 +410,7 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 	_prepare_water_bed()
 	_prepare_halves()
 	_prepare_corners()
+	_prepare_fall_offsets()
 	var mat := ShaderMaterial.new()
 	mat.shader = TerrainShader
 	mat.set_shader_parameter("layers", VT.ground_layers())
@@ -584,7 +594,7 @@ func _place(parent: Node3D, mesh: ArrayMesh, mat: Material) -> void:
 
 
 ## A triangle list as a mesh. Much quicker than SurfaceTool, one vertex at a time, for a whole map's ground.
-static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, colors := PackedColorArray(), uvs := PackedVector2Array()) -> ArrayMesh:
+static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, colors := PackedColorArray(), uvs := PackedVector2Array(), uv2 := PackedVector2Array()) -> ArrayMesh:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -593,6 +603,8 @@ static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, c
 		arrays[Mesh.ARRAY_COLOR] = colors
 	if not uvs.is_empty():
 		arrays[Mesh.ARRAY_TEX_UV] = uvs
+	if not uv2.is_empty():
+		arrays[Mesh.ARRAY_TEX_UV2] = uv2
 	var m := ArrayMesh.new()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return m
@@ -1023,11 +1035,78 @@ func _tri(verts: PackedVector3Array, normals: PackedVector3Array, at: int, a: Ve
 	normals[at + 2] = n
 
 
-## The water (kind 1) or lava (kind 2) surface as a mesh, or null: one quad per tile on its level (a triangle on either
-## half of a diagonal that's under it), carried on past the map's edge too.
+## Shared corner offsets carve the channel into both levels and their banks, keeping the bed and cliff sealed.
+func _prepare_fall_offsets() -> void:
+	_fall_offsets = {}
+	_fall_sides = {}
+	var ends := {}
+	var bank_insets := {}
+	for z in range(-MARGIN, h + MARGIN):
+		for x in range(-MARGIN, w + MARGIN):
+			var i := _i(x, z)
+			if liquid[i] != 1 or _diag(x, z) != 0:
+				continue
+			for d in [Vector2i.RIGHT, Vector2i.DOWN]:
+				if x + d.x >= w + MARGIN or z + d.y >= h + MARGIN or _diag(x + d.x, z + d.y) != 0:
+					continue
+				var j := _i(x + d.x, z + d.y)
+				var difference := (base_lo[i] + base_hi[i] - base_lo[j] - base_hi[j]) * 0.5
+				if liquid[j] != 1 or absf(difference) < 0.05:
+					continue
+				var out := Vector3(d.x, 0, d.y) * signf(difference)
+				var high := Vector2i(x, z) if difference > 0.0 else Vector2i(x + d.x, z + d.y)
+				var side: Vector2i = d if difference > 0.0 else -d
+				if not _fall_sides.has(high):
+					_fall_sides[high] = []
+				_fall_sides[high].append(side)
+				for k in 3:
+					var key := Vector2i(x * 2 + 2, z * 2 + k) if d.x == 1 else Vector2i(x * 2 + k, z * 2 + 2)
+					var offset: Vector3 = _fall_offsets.get(key, Vector3.ZERO)
+					if out.x != 0.0:
+						offset.x = -out.x * FALL_ROCK_SETBACK
+					if out.z != 0.0:
+						offset.z = -out.z * FALL_ROCK_SETBACK
+					_fall_offsets[key] = offset
+					if k != 1:
+						ends[key] = int(ends.get(key, 0)) + 1
+						var along := Vector3(0, 0, 1) if d.x == 1 else Vector3(1, 0, 0)
+						bank_insets[key] = along * (0.12 if k == 0 else -0.12)
+	_fall_water_offsets = _fall_offsets.duplicate()
+	_fall_ends = {}
+	for key in ends:
+		if ends[key] == 1:
+			_fall_ends[key] = true
+			# Keep the outer bank proud of the recessed channel. It covers the crest's ends like a real cut bank.
+			_fall_offsets[key] = bank_insets[key]
+
+
+func _water_corner(x: int, z: int, gx: int, gz: int, y: float) -> Vector3:
+	var offset: Vector3 = _fall_water_offsets.get(Vector2i(gx, gz), Vector3.ZERO)
+	var point := Vector3(gx * 0.5, y, gz * 0.5) + offset * (FALL_SETBACK / FALL_ROCK_SETBACK)
+	if offset == Vector3.ZERO:
+		return point
+	# Leave exactly the lip's width for the joining strip on the high side; the lower pool reaches the sheet.
+	for d: Vector2i in _fall_sides.get(Vector2i(x, z), []):
+		if (d.x < 0 and gx != x * 2) or (d.x > 0 and gx != x * 2 + 2) or (d.y < 0 and gz != z * 2) or (d.y > 0 and gz != z * 2 + 2):
+			continue
+		point -= Vector3(d.x, 0, d.y) * FALL_LIP
+	return point
+
+
+func _water_rim_uv(x: int, z: int, point: Vector3) -> Vector2:
+	var distance := INF
+	for d: Vector2i in _fall_sides.get(Vector2i(x, z), []):
+		var out := Vector3(d.x, 0, d.y)
+		var edge := Vector3(x + 0.5, point.y, z + 0.5) + out * (0.5 - FALL_SETBACK)
+		distance = minf(distance, maxf(0.0, (edge - point).dot(out)))
+	return Vector2(1, distance) if is_finite(distance) else Vector2.ZERO
+
+
+## The water (kind 1) or lava (kind 2) surface, with a joined lip at every natural fall.
 func _liquid_mesh(kind: int) -> ArrayMesh:
 	var y0 := -0.12 if kind == 1 else -0.16
 	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()
 	for tz in range(-MARGIN, h + MARGIN):
 		for tx in range(-MARGIN, w + MARGIN):
 			var i := _i(tx, tz)
@@ -1039,6 +1118,7 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 					var hy: float = y0 + float(halves[i][k]["level"])
 					for c: Vector2 in HALF_CORNERS[code][k]:
 						verts.append(Vector3(tx + c.x, hy, tz + c.y))
+						uvs.append(Vector2.ZERO)
 				continue
 			if liquid[i] != kind:
 				continue
@@ -1047,15 +1127,25 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 			var b := Vector3(tx + 1, y, tz)
 			var c := Vector3(tx + 1, y, tz + 1)
 			var d := Vector3(tx, y, tz + 1)
+			if kind == 1:
+				a = _water_corner(tx, tz, tx * 2, tz * 2, y)
+				b = _water_corner(tx, tz, tx * 2 + 2, tz * 2, y)
+				c = _water_corner(tx, tz, tx * 2 + 2, tz * 2 + 2, y)
+				d = _water_corner(tx, tz, tx * 2, tz * 2 + 2, y)
 			verts.append_array([a, b, c, a, c, d])
+			var ua := _water_rim_uv(tx, tz, a) if kind == 1 else Vector2.ZERO
+			var ub := _water_rim_uv(tx, tz, b) if kind == 1 else Vector2.ZERO
+			var uc := _water_rim_uv(tx, tz, c) if kind == 1 else Vector2.ZERO
+			var ud := _water_rim_uv(tx, tz, d) if kind == 1 else Vector2.ZERO
+			uvs.append_array([ua, ub, uc, ua, uc, ud])
 	if verts.is_empty():
 		return null
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
 	normals.fill(Vector3.UP)
-	var uvs := PackedVector2Array()
-	uvs.resize(verts.size())
-	uvs.fill(Vector2.ZERO)
+	var uv2 := PackedVector2Array()
+	uv2.resize(verts.size())
+	uv2.fill(Vector2.ZERO)
 	# waterfalls: where the surface steps down to the next tile's, a sheet of it falls from one to the other, just out
 	# from the rock behind
 	for tz in range(-MARGIN, h + MARGIN):
@@ -1074,17 +1164,26 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 				var out := Vector3(d.x, 0, d.y) * (1.0 if ya > yb else -1.0)
 				var e0 := Vector3(tx + 1, 0, tz) if d.x == 1 else Vector3(tx, 0, tz + 1)
 				var e1 := Vector3(tx + 1, 0, tz + 1)
-				var bank0 := e0
-				var bank1 := e1
-				e0 += out * 0.04
-				e1 += out * 0.04
+				if kind == 1:
+					e0 += (_fall_water_offsets.get(Vector2i(roundi(e0.x * 2), roundi(e0.z * 2)), Vector3.ZERO) as Vector3) * (FALL_SETBACK / FALL_ROCK_SETBACK)
+					e1 += (_fall_water_offsets.get(Vector2i(roundi(e1.x * 2), roundi(e1.z * 2)), Vector3.ZERO) as Vector3) * (FALL_SETBACK / FALL_ROCK_SETBACK)
+				else:
+					e0 += out * 0.04
+					e1 += out * 0.04
+				var bank0 := e0 - out * FALL_LIP
+				var bank1 := e1 - out * FALL_LIP
+				var key0 := Vector2i(tx * 2 + 2, tz * 2) if d.x == 1 else Vector2i(tx * 2, tz * 2 + 2)
+				var key1 := Vector2i(tx * 2 + 2, tz * 2 + 2)
+				var crest_ends := Vector2(e0.x + e0.z + 0.08 if _fall_ends.has(key0) else -100000.0,
+					e1.x + e1.z - 0.08 if _fall_ends.has(key1) else 100000.0)
 				var top := maxf(ya, yb)
 				var foot := minf(ya, yb)
 				var q := [e0 + Vector3(0, top, 0), e1 + Vector3(0, top, 0), e1 + Vector3(0, foot, 0), e0 + Vector3(0, foot, 0)]
 				verts.append_array([q[0], q[1], q[2], q[0], q[2], q[3]])
-				uvs.append_array([Vector2(1, 0), Vector2(1, 0), Vector2(1, top - foot), Vector2(1, 0), Vector2(1, top - foot), Vector2(1, top - foot)])
+				uvs.append_array([Vector2(2, 0), Vector2(2, 0), Vector2(2, top - foot), Vector2(2, 0), Vector2(2, top - foot), Vector2(2, top - foot)])
 				for k in 6:
 					normals.append(out)
+					uv2.append(crest_ends)
 				if kind == 1:
 					# Close the 4 cm stand-off from the rock with a crest lip. All three faces share the swell.
 					var a := bank0 + Vector3.UP * top
@@ -1092,8 +1191,9 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 					verts.append_array([a, b, q[1], a, q[1], q[0]])
 					for k in 6:
 						normals.append(Vector3.UP)
-						uvs.append(Vector2(1, 0))
-	return _triangles(verts, normals, PackedColorArray(), uvs)
+						uvs.append(Vector2(2, 0))
+						uv2.append(crest_ends)
+	return _triangles(verts, normals, PackedColorArray(), uvs, uv2)
 
 
 func _liquid(parent: Node3D, mesh: ArrayMesh, kind: int, col: Color) -> void:

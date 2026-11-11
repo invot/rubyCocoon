@@ -138,6 +138,8 @@ func _flat(parent: Node3D, x0: float, x1: float, z0: float, z1: float, y: float,
 func _fall_water(water: ShaderMaterial, opacity: float, drift: Vector2) -> ShaderMaterial:
 	var mat: ShaderMaterial = water.duplicate()
 	mat.set_shader_parameter("opacity", opacity)
+	mat.set_shader_parameter("fall_swell", true)
+	mat.set_shader_parameter("fall_rim", true)
 	mat.set_shader_parameter("drift", drift)
 	return mat
 
@@ -228,6 +230,7 @@ func _build_wall_fall(p: Vector2i, water: ShaderMaterial, on: bool) -> void:
 func _ribbon(parent: Node3D, profile: Array[Vector2], half: float, mat: Material) -> void:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
 	for i in profile.size() - 1:
 		var a := profile[i]
 		var b := profile[i + 1]
@@ -236,10 +239,12 @@ func _ribbon(parent: Node3D, profile: Array[Vector2], half: float, mat: Material
 		for v: Vector3 in quad:
 			verts.append(v)
 			normals.append(n)
+			uvs.append(Vector2(2.0, profile[0].y - v.y))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	var am := ArrayMesh.new()
 	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var mi := MeshInstance3D.new()

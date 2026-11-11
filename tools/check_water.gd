@@ -28,6 +28,7 @@ func _initialize() -> void:
 	check(is_zero_approx(t.base_lo[1]) and is_zero_approx(t.base_lo[2]), "sea stays below a raised dock and over-water building")
 	check(is_equal_approx(t.base_lo[11], 3.0) and is_equal_approx(t.base_lo[12], 3.0), "a separate high river keeps its own level")
 	check(t._vertex_y(1, 0, 2, 1) < -0.1, "the bed below the dock is submerged")
+	_check_fall_join()
 	var beach := {"shoreline": [23, 21, 60, 26]}
 	for x in range(23, 60):
 		var depth := Shoreline.WATER_Y - Shoreline.bottom(beach, x + 0.5, 23.5)
@@ -44,6 +45,8 @@ func _initialize() -> void:
 		var real := MapLoader.load_map(id, {})
 		var before = real["grid"].duplicate()
 		var pads := Shoreline.lily_pads(real)
+		if id == "riverbend":
+			check(MapGen.get_t(real, 7, 15) == MapGen.BUSH, "Riverbend's stone fence ends before the waterfall's low planted bank")
 		check(real["grid"] == before, "%s: decoration leaves navigation intact" % id)
 		check(pads == Shoreline.lily_pads(real), "%s: stable clusters on reload" % id)
 		if id in ["caccoon", "tidewater", "shellhaven", "kelpwick", "route1", "route2", "reef"]:
@@ -60,6 +63,41 @@ func _initialize() -> void:
 	check(pad_count > 0, "freshwater maps have lily pad clusters")
 	print("WATER CHECK DONE: %d problem(s)" % bad)
 	quit(1 if bad > 0 else 0)
+
+
+func _check_fall_join() -> void:
+	var levels := PackedFloat32Array([1, 1, 0, 0])
+	var directions := PackedByteArray([0, 0, 0, 0])
+	var m := {"w": 2, "h": 2, "grid": PackedByteArray([MapGen.WATER, MapGen.WATER, MapGen.WATER, MapGen.WATER]),
+		"elev": {"lo": levels, "hi": levels.duplicate(), "dir": directions}}
+	var t := Terrain.new()
+	t.setup(2, 2, 42, m)
+	for z in 2:
+		for x in 2:
+			t.set_tile(x, z, "bed", -0.42, false, 1)
+	t._prepare_water_bed()
+	t._prepare_fall_offsets()
+	var arrays := t._liquid_mesh(1).surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var checked_top := false
+	var checked_foot := false
+	for i in verts.size():
+		if normals[i].z < 0.99 or not is_equal_approx(verts[i].x, 1.0):
+			continue
+		check(verts[i].z < 1.0, "falling sheet is recessed behind the cliff's original edge")
+		var connected := false
+		for j in verts.size():
+			if normals[j].y > 0.99 and verts[i].is_equal_approx(verts[j]):
+				connected = true
+				break
+		check(connected, "fall's top and foot share vertices with horizontal water")
+		checked_top = checked_top or is_zero_approx(uvs[i].y)
+		checked_foot = checked_foot or uvs[i].y > 0.9
+	check(checked_top and checked_foot, "join audit covered both ends of the fall")
+	check(t._grid(0, 0)[8].z < 1.0 - Terrain.FALL_SETBACK, "backing rock stays behind the recessed water")
+	check(m["elev"]["lo"] == PackedFloat32Array([1, 1, 0, 0]), "recessing the channel leaves gameplay heights intact")
 
 func check(ok: bool, label: String) -> void:
 	if not ok:

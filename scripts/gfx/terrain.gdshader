@@ -219,6 +219,10 @@ void fragment() {
 		}
 		ALBEDO = col;
 	}
+	// The original cliff texture stays visible through the fall, with just a cool wet lift on that face.
+	if (cliff && COLOR.g > 0.04 && COLOR.g < 0.1) {
+		ALBEDO = mix(ALBEDO * 1.08, vec3(0.16, 0.32, 0.46), 0.12);
+	}
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.2;
 }

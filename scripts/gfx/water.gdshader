@@ -29,6 +29,7 @@ uniform vec3 shore_levels = vec3(-0.12, -0.17, -1.65);
 varying vec3 wpos;
 varying vec3 wnorm;
 varying vec2 flow_uv;
+varying vec2 crest_ends;
 
 // A connected network of rounded, irregular light cells. The sites move independently and the domain bends,
 // so the honeycomb breathes and reshapes instead of sliding a fixed grid across the surface.
@@ -78,10 +79,15 @@ void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	flow_uv = UV;
+	crest_ends = UV2;
 	float swell = 0.0;
 	if (glow == 0.0 && (abs(wnorm.y) > 0.5 || fall_swell)) {
 		float calm = on_beach(wpos.xz) ? smoothstep(0.04, 0.4, shore_levels.x - beach_bottom(wpos.xz)) : 1.0;
 		swell = water_swell(wpos.xz, TIME) * wave_height * calm;
+		if (fall_rim && flow_uv.x > 0.5) {
+			// Hold the lip level; ease the approaching river's swell into it without opening a seam.
+			swell *= smoothstep(0.055, 0.4, flow_uv.y);
+		}
 		VERTEX.y += swell;
 		wpos.y += swell;
 	}
@@ -114,18 +120,27 @@ void fragment() {
 		vec3 c = texture(frames, vec3(uv, f)).rgb;
 		col = c;
 	} else if (abs(wnorm.y) <= 0.5) {
-		// Quiet vertical stream lines, with a slow downward pulse. No honeycomb or noisy texture frames on a fall.
+		// Randomly spaced stream lines, carried downward with wavering, intermittent breaks.
 		float side = wpos.x + wpos.z;
 		float stretch = clamp(fall_stretch, 1.0, 1.8);
-		float down = (wpos.y + TIME * 0.5) / stretch;
-		float bend = sin(down * 2.8 + side * 1.7) * 0.35 + sin(down * 5.1 - side * 2.0) * 0.12;
-		float lane = sin(side * 13.0 + bend);
-		float aa = max(fwidth(lane), 0.015);
-		float lines = 1.0 - smoothstep(0.045, 0.11 + aa, abs(lane));
-		float travel = smoothstep(-0.25, 0.5, sin(down * 4.0 + sin(side * 7.0))
-			+ 0.35 * sin(down * 7.3 - side * 4.0));
+		float down = (wpos.y + TIME * 1.2) / stretch;
+		float across = side * 5.0;
+		float aa = max(fwidth(across), 0.008);
+		float lines = 0.0;
+		for (int i = -1; i <= 1; i++) {
+			float lane = floor(across) + float(i);
+			float seed = fract(sin(lane * 127.1 + 23.7) * 43758.5453);
+			float phase = seed * 6.283185;
+			float centre = lane + 0.15 + seed * 0.7;
+			float bend = sin(down * 2.8 + phase) * 0.12 + sin(down * 5.1 - phase) * 0.04;
+			float width = mix(0.025, 0.055, fract(seed * 13.7));
+			float stripe = 1.0 - smoothstep(width, width + aa, abs(across - centre - bend));
+			float breaks = smoothstep(-0.25, 0.5, sin(down * mix(3.0, 5.0, seed) + phase)
+				+ 0.35 * sin(down * 7.3 - phase));
+			lines = max(lines, stripe * breaks);
+		}
 		col = water_colour(absorption);
-		col = mix(col, vec3(0.88, 0.98, 0.94), lines * travel * (0.42 + froth * 0.08));
+		col = mix(col, vec3(0.88, 0.98, 0.94), lines * (0.42 + froth * 0.08));
 		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(wnorm + vec3(0.0, 0.65, 0.0)), 0.0)).xyz);
 		emission = 0.04;
 	} else {
@@ -173,9 +188,13 @@ void fragment() {
 		alpha = max(alpha, foam * 0.92);
 		emission = 0.04;
 	}
-	// The narrow crest belongs to the joined rim, so it follows the same vertices through every swell.
-	if (glow == 0.0 && fall_rim && flow_uv.x > 0.5) {
+	// The narrow white crest belongs to the joined, level rim.
+	if (glow == 0.0 && fall_rim && flow_uv.x > 1.5) {
 		float crest = 1.0 - smoothstep(0.015, 0.055, flow_uv.y);
+		if (crest_ends.y > crest_ends.x) {
+			float along = wpos.x + wpos.z;
+			crest *= smoothstep(0.0, 0.06, min(along - crest_ends.x, crest_ends.y - along));
+		}
 		col = mix(col, vec3(0.96, 0.99, 1.0), crest);
 		alpha = max(alpha, crest * 0.9);
 	}

@@ -898,7 +898,7 @@ const MAPS := {
 			"TT.f....~~.f..@.:::::::SS::3::::.f.....f.......tt",
 			"TT......~~......L::::::::::::::L...............TT",
 			"TT,,....~~.............,,...................,,.TT",
-			"TT,qqqqq~~FFFFFFFFFFFFF,,FFFFFFFFFFFFFFFFFFF,,FTT",
+			"TT,qqqqt~~FFFFFFFFFFFFF,,FFFFFFFFFFFFFFFFFFF,,FTT",
 			"TT,qtttt~~ttttttttttttt,,ttttttttttttttttttt,,tTT",
 			"TT,qtttt~~ttttttttttttt,,ttttttttttttttttttt,,tTT",
 			"TT,qHHHH~~ttttttttttttt,,ttttttttttttttttttt,,tTT",
