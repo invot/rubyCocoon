@@ -56,6 +56,16 @@ static func bounds(r: Rig) -> AABB:
 	return r.bounds()
 
 
+## A courier mount leans into flight while its face and its seated rider stay upright.
+static func pose_mounted(model: Node3D) -> void:
+	if model is Rig:
+		(model as Rig).mount()
+
+
+static func mounted_seat(model: Node3D) -> Vector3:
+	return (model as Rig).mount_seat() if model is Rig else model.global_position
+
+
 ## A rig cast as a statue: every piece in one material, holding still in its first pose.
 static func cast(r: Rig, mat: Material) -> void:
 	r.hold()

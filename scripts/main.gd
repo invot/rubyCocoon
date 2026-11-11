@@ -692,6 +692,16 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "sky-courier":
+		await load("res://tools/debug/sky_courier.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
+	if scene == "bag-limit":
+		await load("res://tools/debug/bag_limit.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "video-settings":
 		await load("res://tools/debug/video_settings.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -1154,14 +1164,17 @@ func _run_test() -> void:
 		var town_advice := " ".join(Phone.level_advice(world))
 		print("next goal ", Story.next_goal(), " in town: ", town_advice)
 		bad += int(not "Tide Captain Marina's beasts are Lv 9 to 10" in town_advice)
-		# at home Mom's in the room: the phone there only calls Dad
+		# Every phone, including home, offers the company as the third contact.
 		await _do_goto(home, "entry")
 		await _wait(1.0)
 		UI.auto_log.clear()
-		UI.auto_answers = [1]
+		UI.auto_answers = [2, 0]
+		var call_gold := GameState.gold
 		await Phone.call_home(world)
 		print("at home: ", UI.auto_log)
-		bad += int(not "A telephone. Call Dad?" in " ".join(UI.auto_log)) + int("Who will you call" in " ".join(UI.auto_log))
+		bad += int(not "Who will you call" in " ".join(UI.auto_log))
+		bad += int(GameState.courier_request.get("service", -1) != 0 or GameState.gold != call_gold)
+		GameState.courier_request = {}
 		print("PHONE TEST DONE: %d problem(s)" % bad)
 		UI.auto = false
 	elif scene == "doorway":
@@ -1446,6 +1459,22 @@ func _run_test() -> void:
 	elif scene == "battle-poses":
 		# the beasts' battle poses through the battle camera: a cast's cuts, Defend and a block, hits, a heal, a faint
 		await load("res://tools/debug/battle_poses.gd").new().run(self)
+	elif scene == "beat-click":
+		# by ear and eye on a device: the battle track (--music=boss for the faster one) with the percussion up and the
+		# beat cue spinning; press A along with the beat and it shows how far off the presses land on average (set
+		# Sfx.BEAT_LATENCY from it); B ends it
+		Sfx.music(String(_test.get("music", "battle")))
+		Sfx.percussion("full")
+		var cue = load("res://scripts/battle/beat_cue.gd").new()
+		cue.practice = true
+		UI.push(cue)
+		var offsets: Array = await cue.done
+		print("BEAT CLICK: %d presses: %s" % [offsets.size(), offsets.map(func(o): return int(round(float(o) * 1000.0)))])
+		Sfx.percussion("off")
+	elif scene == "beat-attack":
+		# the trainer weapons' beat attack: injected presses for 1 to 10 hits and misses, a real A press, the plain
+		# throw, boomerang, bat, a blow at an open trainer, a boss's rolled chain (--shots=: the cue)
+		await load("res://tools/debug/beat_attack.gd").new().run(self)
 	elif scene == "ringedit":
 		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
 		await _ringedit_test()
@@ -1683,6 +1712,8 @@ func _run_test() -> void:
 				break
 		await _wait(1.0)
 		print("tapped the Beast Center building -> now in ", world.map_id)
+	elif scene == "weapon-walk":
+		await load("res://tools/debug/weapon_walk.gd").new().run(self, _test)
 	elif scene == "puzzles":
 		UI.auto = true
 		# route1: the washed-out footbridge, mended with the logs Youngster Kit hands over after his lesson
@@ -4567,6 +4598,9 @@ func _hero_gallery() -> void:
 	# --packs=1: the hero's pack in four colours (from behind)
 	var walk: bool = _test.get("pose", "") == "walk"
 	var act: String = _test.get("pose", "") if _test.get("pose", "") in ["talk", "sit", "kneel"] else ""
+	# --pose=ready --weapon=slingshot|boomerang|bat: a trainer's weapon held ready, from four sides; --pose=throw|
+	# boomerang|catch|swing: four moments of its use (--at=a,b,c,d seconds in), from three-quarters front (--view=side)
+	var weapon_pose: String = _test.get("pose", "") if _test.get("pose", "") in ["ready", "throw", "boomerang", "catch", "swing"] else ""
 	var dirs := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
 	for i in 4:
 		# --trainer=n: four route trainers (random looks from seed n on, in their camo)
@@ -4594,6 +4628,17 @@ func _hero_gallery() -> void:
 			var at := float(_test.get("at", "0"))
 			for k in int(at * 30.0) + 1:
 				VPer.animate(rig, 0.0, 0.0, 10.0 + k / 30.0)
+		elif weapon_pose != "":
+			var kind: String = {"throw": "slingshot", "boomerang": "boomerang", "catch": "boomerang", "swing": "bat"}.get(weapon_pose, String(_test.get("weapon", "slingshot")))
+			VPer.set_ready(rig, kind, true)
+			if weapon_pose == "ready":
+				VPer.animate(rig, 0.0, 0.0, 10.0)
+			else:
+				VPer.face(rig, Vector2i(1, 0) if _test.get("view", "") == "side" else Vector2i(1, 1))
+				var ats := String(_test.get("at", "0.0,0.07,0.15,0.25")).split(",")
+				VPer.set_action(rig, weapon_pose, 10.0)
+				VPer.animate(rig, 0.0, 0.0, 10.0)
+				VPer.animate(rig, 0.0, 0.0, 10.0 + float(ats[mini(i, ats.size() - 1)]))
 		rig.position = Vector3(i * 1.4, 0, 0)
 		root.add_child(rig)
 	var cam := Camera3D.new()

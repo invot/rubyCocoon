@@ -1,9 +1,9 @@
 extends RefCounted
 ## The telephone. Your dad is away working, and calling him is how the game is saved: you tell him how your journey
 ## is going, he cheers you on, and asks whether to save; then whether to play on, or return to the title screen.
-## Away from home you can call Mom instead: she passes on a tip about what to do next (ChatterDB.MOM_TIPS) and says
-## whether your beasts are strong enough for where you are (level_advice). At home she's in the room, so the phone
-## there only calls Dad.
+## You can also call Mom: she passes on a tip about what to do next (ChatterDB.MOM_TIPS) and says
+## whether your beasts are strong enough for where you are (level_advice). Every phone also reaches the Sky Tower
+## company, which sends a courier ride, pickup or delivery.
 ## Saving never costs anything: the red phones in homes, Beast Centers, some shops, the arenas and some temple
 ## doorways are free to use. Only a payphone in the street takes FEE coins for the call, and without them there's no
 ## call (a phone indoors is free).
@@ -66,16 +66,15 @@ static func call_home(world, fee := 0) -> void:
 		return
 	var who := 0
 	var what := "A payphone. A call costs %d coins." % fee if fee > 0 else "A telephone."
-	if _at_home(world):
-		if not await UI.ask("A telephone. Call Dad?"):
-			return
-	else:
-		who = await UI.choose(what + " Who will you call?", ["Call Dad (save)", "Call Mom (advice)"])
-		if who < 0:
-			return
+	who = await UI.choose(what + " Who will you call?", ["Call Dad (save)", "Call Mom (advice)", "Sky Tower company"])
+	if who < 0:
+		return
 	if fee > 0:
 		GameState.gold -= fee
 		Sfx.play("buy")
+	if who == 2:
+		await call_tower()
+		return
 	if who == 1:
 		await call_mom(world)
 		return
@@ -243,3 +242,24 @@ class Ringer extends Node:
 		var on := fmod(_t, 2.6) < 1.0
 		for p in get_tree().get_nodes_in_group("phones"):
 			(p as Node3D).rotation.z = sin(_t * 60.0) * 0.07 if on else 0.0
+
+
+## Every phone reaches the same company; a completed request replaces the last one atomically.
+static func call_tower() -> void:
+	const Courier = preload("res://scripts/core/sky_courier.gd")
+	Sfx.play("phone_ring")
+	var choice := await UI.choose("Sky Tower company", [
+		{"text": "Ride", "desc": "A visited town, at twice the tower fare."},
+		{"text": "Pick up items", "desc": "Store up to 12 stacks from your bag for 20 gold."},
+		{"text": "Deliver items", "desc": "Choose up to 12 locker stacks. Delivery is free."},
+		{"text": "Deliver and ride", "desc": "Your delivery first, then a ride at twice the tower fare."}])
+	if choice < 0:
+		return
+	var items: Dictionary = {}
+	if choice in [2, 3]:
+		items = await load("res://scripts/ui/locker_screen.gd").open("order")
+		if items.is_empty():
+			await UI.say(["No items selected. Your previous request hasn't changed."], Courier.KEEPER)
+			return
+	if Courier.order(choice, items):
+		await UI.say(["We'll find you under open sky in about thirty seconds. This replaces any earlier request."], Courier.KEEPER)

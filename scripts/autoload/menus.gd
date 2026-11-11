@@ -188,11 +188,11 @@ func equip_beast(b) -> void:
 	var c: int = await UI.choose("Equip %s with..." % b.nickname, items, {"width": 480})
 	if c < 0:
 		return
-	if b.equip != "":
-		GameState.add_item(b.equip)
 	var id2: String = ids[c]
 	if id2 != "":
 		GameState.remove_item(id2)
+	if b.equip != "":
+		GameState.receive_item(b.equip)
 	var old_max: int = b.max_hp()
 	b.equip = id2
 	b.hp = clampi(b.hp + (b.max_hp() - old_max), 0 if b.hp <= 0 else 1, b.max_hp())
@@ -284,9 +284,9 @@ func use_bag_item(id2: String) -> void:
 		"gear":
 			var b2 = await pick_beast("Equip %s on..." % it2["name"], GameState.party)
 			if b2 != null:
-				if b2.equip != "":
-					GameState.add_item(b2.equip)
 				GameState.remove_item(id2)
+				if b2.equip != "":
+					GameState.receive_item(b2.equip)
 				b2.equip = id2
 				b2.hp = mini(b2.hp, b2.max_hp())
 				UI.toast("%s equipped %s." % [b2.nickname, it2["name"]], "item:" + id2)
@@ -304,9 +304,9 @@ func use_bag_item(id2: String) -> void:
 				UI.toast("%s on your hook! It stays on until something bites." % it2["name"], "item:" + id2)
 		"tgear":
 			var slot: String = it2["slot"]
-			if GameState.gear[slot] != "" and GameState.gear[slot] != "reed_flute":
-				GameState.add_item(GameState.gear[slot])
 			GameState.remove_item(id2)
+			if GameState.gear[slot] != "" and GameState.gear[slot] != "reed_flute":
+				GameState.receive_item(GameState.gear[slot])
 			GameState.gear[slot] = id2
 			Sfx.play("confirm")
 			UI.toast("Equipped %s." % it2["name"], "item:" + id2)
@@ -341,11 +341,11 @@ func equip_trainer_slot(slot2: String) -> void:
 	if c2 < 0:
 		return
 	var old: String = GameState.gear[slot2]
-	if old != "" and old != "reed_flute":
-		GameState.add_item(old)
 	var nid: String = ids[c2]
 	if nid != "" and nid != "reed_flute":
 		GameState.remove_item(nid)
+	if old != "" and old != "reed_flute":
+		GameState.receive_item(old)
 	GameState.gear[slot2] = nid
 	Sfx.play("confirm")
 

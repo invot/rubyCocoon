@@ -54,6 +54,8 @@ func _ready() -> void:
 	if UIKit.touch_ui() and not opts.get("bare", false) and not opts.get("keep_anchor", false):
 		_layout_anchor = "center"
 		_layout_margin = Vector2(24, 24)
+	if opts.get("embedded", false):
+		width = float(opts.get("width", 420))
 	width = minf(width, get_viewport_rect().size.x - 48.0)
 	var outer := VBoxContainer.new()
 	_outer = outer
@@ -149,7 +151,8 @@ func _ready() -> void:
 			_bare_button(b, i == 0)
 		b.pressed.connect(_pick.bind(i))
 		b.focus_entered.connect(_focused.bind(i))
-		b.mouse_entered.connect(b.grab_focus)
+		if not opts.get("embedded", false):
+			b.mouse_entered.connect(b.grab_focus)
 		list.add_child(b)
 		buttons.append(b)
 	var has_desc := false
@@ -165,6 +168,9 @@ func _ready() -> void:
 		vb.add_child(desc_label)
 	if items.is_empty():
 		list.add_child(UIKit.label("(nothing here)", 20, UIKit.DIM))
+	if opts.get("embedded", false):
+		outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		return
 	UIKit.place(outer, _layout_anchor, _layout_margin)
 	if _scroll != null:
 		get_viewport().size_changed.connect(_fit_rows)
@@ -357,6 +363,9 @@ func _pick(i: int) -> void:
 		Sfx.play("error")
 		return
 	Sfx.play("confirm")
+	if opts.has("on_pick"):
+		opts["on_pick"].call(i)
+		return
 	close(i)
 
 

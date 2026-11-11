@@ -4,6 +4,7 @@ extends Node
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const LadderDB = preload("res://scripts/data/ladder_db.gd")
+const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -166,8 +167,11 @@ func _buy(stock: Array, price_scale := 1.0) -> void:
 		if GameState.gold < price:
 			Sfx.play("error")
 			continue
+		if GameState.add_item(id2) > 0:
+			UI.toast("Your bag is full.")
+			Sfx.play("error")
+			continue
 		GameState.gold -= price
-		GameState.add_item(id2)
 		Sfx.play("buy")
 		UI.toast("Bought %s" % ItemDB.item_name(id2), "item:" + id2, "bought:" + id2)
 
@@ -606,9 +610,18 @@ func kennel_drop_off(world, town: String) -> void:
 ## The Sky Tower: climb to the platform where a great bird flies you to any town you've visited.
 ## Skykeeper Aria's ticket desk in the Sky Tower's lobby.
 func skytower_desk() -> void:
-	await Story.say(["Welcome to the Sky Tower! The Tempestrix is waiting on the roof. Take the stairs up and climb aboard.",
-		"He'll carry you to any town you've visited, %d gold a flight." % FLIGHT_COST,
-		"Raise an air beast of your own to Lv %d, and it'll be strong enough to carry you itself!" % FLY_LEVEL], KEEPERS["skytower"])
+	while true:
+		var choice := await UI.choose("Sky Tower", ["Flight information", "Store items (free)", "Leave"])
+		if choice < 0 or choice == 2:
+			return
+		if choice == 1:
+			await load("res://scripts/ui/locker_screen.gd").open()
+		else:
+			await Story.say(["The Tempestrix is waiting on the roof. He'll carry you to any town you've visited for %d gold." % FLIGHT_COST,
+				"All our towers share one free locker: 48 stacks, up to nine of an item per stack.",
+				"Call our company from any phone for a courier ride, pickup or delivery.",
+				"Raise an air beast of your own to Lv %d, and it'll carry you itself!" % FLY_LEVEL], KEEPERS["skytower"])
+
 
 
 ## The Tempestrix on the Sky Tower's roof flies you to any town you've visited.
@@ -834,6 +847,7 @@ func ladder() -> bool:
 			Sfx.play("levelup")
 			var before_slots := GameState.slot_cap()
 			var before_shield := GameState.shield_cap()
+			var before_level := GameState.trainer_level
 			GameState.reach_trainer_level(r2 + 1)
 			GameState.shards += 1
 			var lines := ["You've cleared %s of the arena ladder!" % LadderDB.rank_name(r2),
@@ -843,6 +857,10 @@ func ladder() -> bool:
 					else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")))
 			lines.append("%s is open!" % LadderDB.rank_name(r2 + 1) if r2 < LadderDB.RANKS else "You're the ladder's Champion! Come back for a rematch any time.")
 			await Story.say(lines, host)
+			# (what the new level means for your weapons' beat attack)
+			var beat_line := BeatChain.level_line(before_level, GameState.trainer_level)
+			if beat_line != "":
+				UI.toast(beat_line, "item:slingshot")
 	return true
 
 
@@ -891,7 +909,7 @@ func _lessons_first(town: String, leader: String) -> bool:
 func _miner_pass(town: String) -> void:
 	if town != "copperpick" or GameState.item_count("miner_pass") > 0 or GameState.flag("mine_pass_ok"):
 		return
-	GameState.add_item("miner_pass")
+	GameState.receive_item("miner_pass")
 	UI.pickup("miner_pass")
 	await Story.say(["\"And here, take this: a Miner's Pass with my signature on it. Inspector Grubb will let you through the Mine Road checkpoint.\""], "Mine Foreman Gorran")
 
@@ -1224,7 +1242,7 @@ func museum() -> void:
 		var key := "museum_%d" % r[0]
 		if n >= int(r[0]) and not GameState.flag(key):
 			GameState.set_flag(key)
-			GameState.add_item(r[1], int(r[2]))
+			GameState.receive_item(r[1], int(r[2]))
 			Sfx.play("buy")
 			await Story.say(["For recording %d beasts, please accept %d × %s!" % [r[0], r[2], ItemDB.item_name(r[1])]], KEEPERS["museum"])
 	await Menus.bestiary()
@@ -1356,7 +1374,7 @@ func house(b: Dictionary, resident_seed := 0) -> void:
 	if rng.randf() < 0.4 and not GameState.flag(key):
 		GameState.set_flag(key)
 		var gift: String = ["potion", "remedy_herb", "revival_seed", "honey_cake"][rng.randi_range(0, 3)]
-		GameState.add_item(gift)
+		GameState.receive_item(gift)
 		Sfx.play("buy")
 		await Story.say(["Here, take this for your travels: a %s!" % ItemDB.item_name(gift)], "Resident")
 

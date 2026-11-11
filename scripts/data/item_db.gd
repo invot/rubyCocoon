@@ -96,6 +96,19 @@ const ITEMS := {
 	"bridge_planks": {"name": "Bridge Planks", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of sturdy planks, just right for patching a footbridge."},
 	"card_ledger": {"name": "Card Ledger", "kind": "key", "price": 0, "tier": 99, "desc": "Barkeep Dusty's record of the Oasis Saloon's card games. Slim's name is on every hand, all night long, the night the trainers vanished: he couldn't have taken them."},
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
+	## trainer weapons: key items your own battle action lists (battle.gd _weapon_options), never sold or used up.
+	## weapon: target ("enemy": one foe, or an open trainer; "enemies": every foe on the side facing you), power (each
+	## hit's damage against the slingshot's), anim (the trainer's pose: voxel_person.gd set_action), order (in the bar).
+	## How many hits a turn lands goes by trainer level and the beat (scripts/core/beat_chain.gd).
+	"slingshot": {"name": "Slingshot", "kind": "key", "price": 0, "tier": 99,
+		"weapon": {"target": "enemy", "power": 1.0, "anim": "throw", "order": 0},
+		"desc": "Every trainer has one. Fires a stone at one foe, or at a trainer left open."},
+	"boomerang": {"name": "Boomerang", "kind": "key", "price": 0, "tier": 99,
+		"weapon": {"target": "enemies", "power": 0.6, "anim": "boomerang", "order": 1},
+		"desc": "Carved from Kelpwick driftwood. Sweeps every foe on the side facing you and comes back to your hand, hitting each a little softer."},
+	"bat": {"name": "Bat", "kind": "key", "price": 0, "tier": 99,
+		"weapon": {"target": "enemy", "power": 1.6, "anim": "swing", "order": 2},
+		"desc": "Black Bart's hickory bat, left behind in a hurry. You run up to one foe and swing: the hardest hit of the three."},
 	"reed_flute": {"name": "Reed Flute", "kind": "tgear", "slot": "flute", "price": 0, "tier": 99, "fx": {}, "desc": "A simple flute. Plays the songs you know."},
 	"silver_flute": {"name": "Silver Flute", "kind": "tgear", "slot": "flute", "price": 1500, "tier": 3, "fx": {"time": 0.1, "capture": 0.05}, "desc": "10% more time to play each song, +5% capture."},
 	"golden_flute": {"name": "Golden Flute", "kind": "tgear", "slot": "flute", "price": 4000, "tier": 7, "fx": {"time": 0.2, "capture": 0.1}, "desc": "20% more time to play each song, +10% capture."},
@@ -113,6 +126,13 @@ const ITEMS := {
 }
 
 const SLOT_NAMES := {"flute": "Flute", "head": "Head", "feet": "Feet", "acc": "Accessory"}
+## the trainer weapons, in the order your battle bar lists them
+const WEAPONS := ["slingshot", "boomerang", "bat"]
+
+
+## A weapon's battle data (see "weapon" above), or {} for anything else.
+static func weapon(id: String) -> Dictionary:
+	return ITEMS.get(id, {}).get("weapon", {})
 
 
 static func get_item(id: String) -> Dictionary:

@@ -43,8 +43,26 @@ const TRACKS := {
 	"boss": "rising_tide_faster",
 }
 
+## The beat of the battle tracks (track file -> beats a minute, and where the first beat falls, in seconds into the
+## file), measured from the decoded audio; both hold their tempo the whole way through. The beat attack
+## (scripts/core/beat_chain.gd) keeps time with it through beat_now(), and a percussion layer plays along (percussion).
+## A track without an entry has no steady beat: a beat attack over it keeps time with a fixed click (CLICK_BPM).
+const TEMPOS := {
+	"rising_tide": {"bpm": 106.0, "first": 0.012},
+	"rising_tide_faster": {"bpm": 122.0, "first": 0.014},
+}
+const CLICK_BPM := 100.0
+## Output delay (seconds) the audio driver doesn't report, by platform, to be set by ear on the device with
+## --scene=beat-click (the percussion's ticks against the music's beat).
+const BEAT_LATENCY := {"web": 0.0, "android": 0.0}
+## the percussion layer's volume (dB, on the Music bus): quietly under the whole battle, and full for a beat attack
+const PERC_DB := {"bed": -24.0, "full": -5.0}
+## a beat that drifts further than this from the music (seconds) is put back in step
+const PERC_DRIFT := 0.025
+
 ## Effect keys -> one or more files (a random one plays). Volume in dB; an empty spec disables a cue.
 const SOUNDS := {
+	"bird_cry": [["res://assets/audio/sfx/hatch_chirp.ogg"], -7.0],
 	"blip": [["res://sfx/Select/Blip_Select3.wav"], -22.0],
 	"select": [["res://sfx/01_UI_Menu/UI_Menu_Hover_001.mp3"], -12.0],
 	"confirm": [["res://assets/audio/sfx/menu_confirm.ogg"], -10.0],
@@ -127,6 +145,22 @@ var _music_kind := ""
 var _ambience_kind := ""
 var _ambience_tween: Tween
 var _music_tweens := {}
+## the player of the current track and its file (for the beat), and when it started
+var _music_now: AudioStreamPlayer
+var _music_track := ""
+var _music_start_usec := 0
+## the beat clock: whole beats added each time the track loops (so the count keeps growing on whole beats), the last
+## raw count read, and the fixed click used over a track with no steady beat
+var _beat_base := 0.0
+var _beat_last := 0.0
+var _click_on := false
+var _click_start_usec := 0
+## the percussion layer: its player, the bar loop in it ("click" or a track), "off" / "bed" / "full", and its fade
+var _perc: AudioStreamPlayer
+var _perc_key := ""
+var _perc_mode := "off"
+var _perc_tween: Tween
+var _perc_start_usec := 0
 
 
 func _cancel_music_tween(player: AudioStreamPlayer) -> void:
@@ -151,7 +185,8 @@ func _ready() -> void:
 	_music_a = AudioStreamPlayer.new()
 	_music_b = AudioStreamPlayer.new()
 	_ambience = AudioStreamPlayer.new()
-	for p in [_music_a, _music_b, _ambience]:
+	_perc = AudioStreamPlayer.new()
+	for p in [_music_a, _music_b, _ambience, _perc]:
 		p.bus = "Music"
 		add_child(p)
 	_ambience.bus = "SFX"
@@ -282,15 +317,211 @@ func prewarm_field() -> void:
 func bake_battle_tones(verify := false) -> int:
 	DirAccess.make_dir_recursive_absolute(BATTLE_AUDIO)
 	var bad := 0
+	var made := {}
 	for spec in BATTLE_TONES:
-		var generated := _make(float(spec[0]), float(spec[1]), String(spec[2]), float(spec[4]))
-		var path := BATTLE_AUDIO + "sweep_%d.res" % int(spec[0])
+		made[BATTLE_AUDIO + "sweep_%d.res" % int(spec[0])] = _make(float(spec[0]), float(spec[1]), String(spec[2]), float(spec[4]))
+	# the percussion layer's bars: one per timed track, and the fixed click
+	for key in _perc_keys():
+		made[_perc_path(key)] = _percussion_bar(_perc_bpm(key))
+	for path in made:
+		var generated: AudioStreamWAV = made[path]
 		if verify:
 			var baked: AudioStreamWAV = load(path) if ResourceLoader.exists(path) else null
-			bad += int(baked == null or baked.data != generated.data or baked.mix_rate != generated.mix_rate)
+			bad += int(baked == null or baked.data != generated.data or baked.mix_rate != generated.mix_rate
+				or baked.loop_mode != generated.loop_mode or baked.loop_end != generated.loop_end)
 		else:
 			bad += int(ResourceSaver.save(generated, path, ResourceSaver.FLAG_COMPRESS) != OK)
 	return bad
+
+
+# ---------------------------------------------------------------- the beat (battle tracks) and the percussion layer
+static func _perc_keys() -> Array:
+	return TEMPOS.keys() + ["click"]
+
+
+static func _perc_bpm(key: String) -> float:
+	return float(TEMPOS[key]["bpm"]) if TEMPOS.has(key) else CLICK_BPM
+
+
+static func _perc_path(key: String) -> String:
+	return BATTLE_AUDIO + "beat_%s.res" % key
+
+
+## One bar (four beats) of the percussion layer at `bpm`, looping: a woodblock tock on each beat (the first lower and
+## louder) with a soft shaker between. Each tock starts right on its sample, so the loop's beats are exact.
+func _percussion_bar(bpm: float) -> AudioStreamWAV:
+	var beat := 60.0 / bpm
+	var n := int(round(4.0 * beat * RATE))
+	var buf := PackedFloat32Array()
+	buf.resize(n)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1606
+	for b in 4:
+		var start := int(round(b * beat * RATE))
+		var f := 980.0 if b == 0 else 1320.0
+		var amp := 1.0 if b == 0 else 0.72
+		for i in int(0.12 * RATE):
+			if start + i >= n:
+				break
+			var t := float(i) / RATE
+			var s := sin(TAU * f * t) * exp(-t / 0.016) + 0.45 * sin(TAU * 210.0 * t) * exp(-t / 0.03)
+			s += rng.randf_range(-1.0, 1.0) * exp(-t / 0.0015) * 0.5
+			buf[start + i] += s * amp * 0.55
+		# the shaker on the "and": high-passed noise, rising quickly and dying away
+		var mid := int(round((b + 0.5) * beat * RATE))
+		var prev := 0.0
+		for i in int(0.07 * RATE):
+			if mid + i >= n:
+				break
+			var t := float(i) / RATE
+			var x := rng.randf_range(-1.0, 1.0)
+			var hp := x - prev
+			prev = x
+			buf[mid + i] += hp * clampf(t / 0.004, 0.0, 1.0) * exp(-t / 0.022) * 0.16
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	for i in n:
+		data.encode_s16(i * 2, int(clampf(buf[i], -1.0, 1.0) * 32767))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = RATE
+	w.stereo = false
+	w.data = data
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_begin = 0
+	w.loop_end = n
+	return w
+
+
+func _perc_stream(key: String) -> AudioStream:
+	var cache_key := "perc:" + key
+	if not _cache.has(cache_key):
+		var path := _perc_path(key)
+		_cache[cache_key] = load(path) if ResourceLoader.exists(path) else _percussion_bar(_perc_bpm(key))
+	return _cache[cache_key]
+
+
+func _extra_latency() -> float:
+	if OS.has_feature("web"):
+		return float(BEAT_LATENCY["web"])
+	if OS.has_feature("android"):
+		return float(BEAT_LATENCY["android"])
+	return 0.0
+
+
+## Where the current track's player is, in seconds into the file (as mixed, not yet heard), or -1 when nothing plays.
+## The web's sample playback may not report it: then it's counted from when the track started.
+func _music_pos() -> float:
+	var p := _music_now
+	if p == null or not p.playing or not TEMPOS.has(_music_track):
+		return -1.0
+	var pos := p.get_playback_position()
+	var wall := float(Time.get_ticks_usec() - _music_start_usec) / 1e6
+	if pos <= 0.0 and wall > 0.3:
+		var length := p.stream.get_length() if p.stream != null else 0.0
+		return fposmod(wall, length) if length > 0.0 else wall
+	return pos
+
+
+## True while a battle track with a steady beat is playing (see TEMPOS).
+func has_tempo() -> bool:
+	return _music_pos() >= 0.0
+
+
+## Seconds between beats: the current track's, or the fixed click's.
+func beat_period() -> float:
+	if not _click_on and TEMPOS.has(_music_track):
+		return 60.0 / float(TEMPOS[_music_track]["bpm"])
+	return 60.0 / CLICK_BPM
+
+
+## The beat as you hear it now: beats since the current track's first beat (or since the click started), allowing for
+## the audio output's delay. It only ever grows, and stays on whole beats when the track loops. NAN when there's no
+## beat to keep (no timed track and no click: see beat_begin).
+func beat_now() -> float:
+	var lag := AudioServer.get_output_latency() + _extra_latency()
+	if _click_on:
+		return (float(Time.get_ticks_usec() - _click_start_usec) / 1e6 - lag) / beat_period()
+	var pos := _music_pos()
+	if pos < 0.0:
+		return NAN
+	var spec: Dictionary = TEMPOS[_music_track]
+	var heard := pos + AudioServer.get_time_since_last_mix() - lag
+	var raw := (heard - float(spec["first"])) * float(spec["bpm"]) / 60.0
+	if raw < _beat_last - 2.0:
+		# the track looped: carry on counting from the next whole beat
+		_beat_base = ceilf(_beat_base + _beat_last) + 1.0
+	_beat_last = raw
+	return _beat_base + raw
+
+
+## A beat attack starts keeping time: with the battle track's beat, or, over a track without a steady one (or none
+## yet: the web still fetching it), a fixed click that the percussion layer plays out.
+func beat_begin() -> void:
+	_click_on = not has_tempo()
+	if _click_on:
+		_click_start_usec = Time.get_ticks_usec()
+
+
+func beat_end() -> void:
+	_click_on = false
+
+
+## The percussion layer: "bed" plays it quietly in step with a timed battle track, "full" brings it up for a beat
+## attack (also over the fixed click), "off" fades it out.
+func percussion(mode: String) -> void:
+	if mode == _perc_mode:
+		return
+	_perc_mode = mode
+	if _perc_tween != null and _perc_tween.is_valid():
+		_perc_tween.kill()
+	_perc_tween = create_tween()
+	if mode == "off":
+		_perc_tween.tween_property(_perc, "volume_db", -60.0, 0.4)
+		_perc_tween.tween_callback(_perc.stop)
+	else:
+		if not _perc.playing:
+			_perc.volume_db = -60.0
+		_perc_tween.tween_property(_perc, "volume_db", float(PERC_DB.get(mode, PERC_DB["bed"])), 0.25 if mode == "full" else 0.8)
+
+
+func _process(_delta: float) -> void:
+	if TEMPOS.has(_music_track) and not _click_on:
+		beat_now()
+	if _perc_mode != "off":
+		_sync_percussion()
+
+
+## Keeps the percussion bar in step with the beat: started where the bar should be, and moved back in step if it has
+## drifted (the track looping off a bar line, a hitch). Nothing to follow: it stops.
+func _sync_percussion() -> void:
+	var key := ""
+	var at := 0.0
+	if _click_on:
+		key = "click"
+		at = float(Time.get_ticks_usec() - _click_start_usec) / 1e6
+	elif _music_pos() >= 0.0:
+		key = _music_track
+		at = _music_pos() - float(TEMPOS[key]["first"])
+	if key == "":
+		if _perc.playing:
+			_perc.stop()
+		return
+	var bar := 4.0 * beat_period()
+	var want := fposmod(at, bar)
+	if key != _perc_key or not _perc.playing:
+		_perc_key = key
+		_perc.stream = _perc_stream(key)
+		_perc.play(want)
+		_perc_start_usec = Time.get_ticks_usec()
+		return
+	var now := _perc.get_playback_position()
+	if now <= 0.0 and Time.get_ticks_usec() - _perc_start_usec > 300000:
+		# (a player that can't report where it is: trust where it started)
+		return
+	var off := fposmod(now - want + bar * 0.5, bar) - bar * 0.5
+	if absf(off) > PERC_DRIFT:
+		_perc.seek(want)
 
 
 ## Plays a named effect. `pitch_jitter` varies the pitch a little so repeats don't sound robotic.
@@ -338,6 +569,8 @@ func music(kind: String) -> void:
 		_music_tweens[old] = tw
 		tw.tween_property(old, "volume_db", -40.0, FADE_TIME)
 		tw.tween_callback(old.stop)
+	_music_now = null
+	_music_track = ""
 	if kind == "" or not TRACKS.has(kind):
 		return
 	var track := String(TRACKS[kind])
@@ -347,10 +580,10 @@ func music(kind: String) -> void:
 	var s := _load(MUSIC_DIR + track + ".mp3")
 	if s is AudioStreamMP3:
 		(s as AudioStreamMP3).loop = true
-	_fade_in_music(s)
+	_fade_in_music(s, track)
 
 
-func _fade_in_music(s: AudioStream) -> void:
+func _fade_in_music(s: AudioStream, track := "") -> void:
 	if s == null:
 		return
 	var new := _music_b if _music_a.playing else _music_a
@@ -358,6 +591,12 @@ func _fade_in_music(s: AudioStream) -> void:
 	new.stream = s
 	new.volume_db = -40.0
 	new.play()
+	# the beat clock follows the new track from its start
+	_music_now = new
+	_music_track = track
+	_music_start_usec = Time.get_ticks_usec()
+	_beat_base = 0.0
+	_beat_last = 0.0
 	var tw2 := create_tween()
 	_music_tweens[new] = tw2
 	tw2.tween_property(new, "volume_db", 0.0, FADE_TIME)
@@ -372,7 +611,7 @@ var _web_loading := ""
 func _web_music(track: String) -> void:
 	var key := "web:" + track
 	if _streams.has(key):
-		_fade_in_music(_streams[key])
+		_fade_in_music(_streams[key], track)
 		return
 	if _web_loading != "":
 		# another track is still downloading; _on_web_music picks up whatever is wanted when it's done
@@ -401,11 +640,11 @@ func _on_web_music(result: int, code: int, _headers: PackedStringArray, body: Pa
 	if wanted == "":
 		return
 	if wanted == track:
-		_fade_in_music(_streams.get("web:" + track, null))
+		_fade_in_music(_streams.get("web:" + track, null), track)
 	elif not _streams.has("web:" + wanted):
 		_web_music(wanted)
 	else:
-		_fade_in_music(_streams["web:" + wanted])
+		_fade_in_music(_streams["web:" + wanted], wanted)
 
 
 func current_music() -> String:

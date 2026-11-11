@@ -38,7 +38,10 @@ const FLOORS := {
 	"hut_1": [3.14], "hut_3": [3.14], "hut_4": [3.2],
 }
 const GROUND_STOREY := 2.6
-const APOTHECARY_STOREY := 3.1
+## The shops' taller ground storey: the apothecary's (house_3) and the Beast Center's (house_1), whose sign board over
+## the awning (voxel_buildings.gd _shop_front, up to about 2.7) must sit on the wall under the eaves, not in the roof.
+const SHOP_STOREY := 3.1
+const SHOP_STOREY_MODELS := ["house_3", "house_1"]
 const APOTHECARY_SETBACK := 1.2
 const APOTHECARY_PORCH_WIDTH := 4.0
 const UPPER_STOREY := 2.45
@@ -94,7 +97,7 @@ static func _height(key: String, y: float, scale: float) -> float:
 
 
 static func ground_storey(key: String) -> float:
-	return APOTHECARY_STOREY if key == "house_3" else GROUND_STOREY
+	return SHOP_STOREY if key in SHOP_STOREY_MODELS else GROUND_STOREY
 
 
 ## Remove the source door slab and fit the closed building once per plot scale.

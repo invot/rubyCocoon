@@ -548,7 +548,7 @@ func _take_rod(world, n: Dictionary) -> void:
 			"Taking somebody's things without asking is stealing, and stealing is bad! Whoever owns it is probably fishing off the pier outside."])
 		return
 	GameState.set_flag("got_rod")
-	GameState.add_item("fishing_rod")
+	GameState.receive_item("fishing_rod")
 	world.remove_npc(n)
 	UI.pickup("fishing_rod")
 	await say(["You took Gil's spare fishing pole. He'll want to see you use it!"])
@@ -914,7 +914,7 @@ func _give(gift: Dictionary) -> void:
 		var k := logs_missing() if item == "bridge_log" else int(gift[item])
 		if k <= 0:
 			continue
-		GameState.add_item(item, k)
+		GameState.receive_item(item, k)
 		UI.pickup(item, k, "pickup")
 
 
@@ -1069,7 +1069,7 @@ func _talk_story(world, n: Dictionary) -> void:
 				"Whatever you're making, believe in yourself like I believe in you. NEVER GIVE UPPPPPP!"], "Bizcuit")
 			if not GameState.flag("bizcuit_gift"):
 				GameState.set_flag("bizcuit_gift")
-				GameState.add_item("honey_cake", 3)
+				GameState.receive_item("honey_cake", 3)
 				UI.pickup("honey_cake", 3, "buy")
 				await say(["Here, have some biscuits. Well, cakes. Close enough!"], "Bizcuit")
 		"mascot":
@@ -1219,6 +1219,16 @@ func _chief(_world, n: Dictionary) -> void:
 			"Go east along the Isle Trail and talk some sense into Chief Coralie, would you?"], nm)
 		return
 	if GameState.flag("island_peace"):
+		if GameState.item_count("boomerang") <= 0:
+			# her thanks for standing up for the temple: a Kelpwick boomerang (a trainer weapon, item_db.gd WEAPONS)
+			await say(["Nerissa told me how you battled. You fight for your beasts, not for keepsakes.",
+				"Take this, with Kelpwick's thanks. Our children learn to throw these before they can swim.",
+				"Driftwood, carved here. Fling it at a crowd of foes and it sweeps through them all, then comes home to your hand."], nm)
+			GameState.receive_item("boomerang")
+			Sfx.play("capture")
+			UI.toast("Received the Boomerang!", "item:boomerang")
+			await say(["Go gently in the Temple of Tides. Take nothing but its song."], nm)
+			return
 		await say(["Nerissa told me how you battled. You fight for your beasts, not for keepsakes.",
 			"Our folk on the reef path will let you by. Go gently in the Temple of Tides. Take nothing but its song."], nm)
 		return
@@ -1279,12 +1289,20 @@ func _sheriff() -> void:
 		if not GameState.flag("sheriff_thanks"):
 			GameState.set_flag("sheriff_thanks")
 			GameState.gold += 2500
-			GameState.add_item("revival_seed", 2)
+			GameState.receive_item("revival_seed", 2)
 			Sfx.play("buy")
 			await say(["You ran Black Bart's gang out of the desert? Well, I'll be!",
 				"Here's the bounty: 2500 gold and a couple of Revival Seeds. Sundown owes you one, partner.",
 				"The road north through the Dune Sea is open again. They say an old temple to the winds stands out there."], "Sheriff Dalton")
-		else:
+		if GameState.item_count("bat") <= 0:
+			# Black Bart's own bat (a trainer weapon, item_db.gd WEAPONS), with the bounty or, for a game saved before,
+			# the next time you call by
+			await say(["And this. Bart dropped his hickory bat when he lit out of that hideout.",
+				"Reckon it's yours now, partner. It swings mean: walk right up and let 'em have it."], "Sheriff Dalton")
+			GameState.receive_item("bat")
+			Sfx.play("capture")
+			UI.toast("Received the Bat!", "item:bat")
+		elif GameState.flag("sheriff_thanks"):
 			await say(["Quiet as a church on Monday, ever since you cleaned up this town."], "Sheriff Dalton")
 		return
 	GameState.set_flag("met_sheriff")
@@ -1652,7 +1670,7 @@ func card_ledger() -> void:
 		return
 	await say(["Slim? Rusk's prisoner? He was at my card table the whole night those trainers went missing. Lost every hand, too.",
 		"It's all in my ledger. Here, take it to Rusk. That boy couldn't find his own hat if he was wearing it."], "Barkeep Dusty")
-	GameState.add_item("card_ledger")
+	GameState.receive_item("card_ledger")
 	UI.pickup("card_ledger")
 
 
@@ -1738,7 +1756,7 @@ func _chest(n: Dictionary) -> void:
 		return
 	GameState.set_flag(n["chest"])
 	await TempleProps.open_chest(n["node"])
-	GameState.add_item(n["item"])
+	GameState.receive_item(n["item"])
 	Sfx.play("item")
 	var item_name := ItemDB.item_name(n["item"])
 	var article := "some" if item_name.ends_with("s") else ("an" if item_name.left(1).to_upper() in "AEIOU" else "a")

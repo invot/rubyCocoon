@@ -44,7 +44,8 @@ DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
 def load_towns():
-    """name -> (rows, heights rows or None, scenery buildings [(x, y, w, d)], doors placed off-centre [(x, y)])"""
+    """name -> (rows, heights rows or None, scenery buildings [(x, y, w, d)], doors placed off-centre [(x, y)],
+    "low_trees" areas [(x, y, w, d)], whose tree tiles are only low thickets of shrubs)"""
     src = open(SRC, encoding='utf-8').read()
     towns = {}
     for m in re.finditer(r'^\t"(\w+)": \{\n(.*?)^\t\},', src, re.S | re.M):
@@ -54,9 +55,11 @@ def load_towns():
         scen = re.search(r'^\t\t"scenery_houses": \[(.*?)\],\n', body, re.S | re.M)
         scenery = [tuple(int(v) for v in t) for t in re.findall(r'"x": (\d+), "y": (\d+), "w": (\d+), "d": (\d+)', scen.group(1))] if scen else []
         doors = [(int(x), int(y)) for x, y in re.findall(r'"door": Vector2i\((\d+), (\d+)\)', body)]
+        low = re.search(r'^\t\t"low_trees": \[(.*?)\],\n', body, re.M)
+        low = [tuple(int(v) for v in t) for t in re.findall(r'\[(\d+), (\d+), (\d+), (\d+)\]', low.group(1))] if low else []
         towns[m.group(1)] = (re.findall(r'"([^"]*)"', rows.group(1)),
                              [r.replace('\\\\', '\\') for r in re.findall(r'"([^"]*)"', hts.group(1))] if hts else None,
-                             scenery, doors)
+                             scenery, doors, low)
     return towns
 
 
@@ -338,8 +341,9 @@ def walk_gap_behind(rows, x0, y0, bw):
     return 99
 
 
-def height_map(rows, style, lv, scenery=()):
-    """Callable (wx, wz) -> height of whatever stands there, on its level."""
+def height_map(rows, style, lv, scenery=(), low_woods=()):
+    """Callable (wx, wz) -> height of whatever stands there, on its level. Trees in a "low_trees" area are only
+    thickets of shrubs (world.gd), as low as a hedge, so they hide nobody."""
     h, w = len(rows), len(rows[0])
     cells = {}
     cove_bounds = json.loads(Path('assets/exteriors/cove_layout_bounds.json').read_text()) if style == 'pirate_cove' else {}
@@ -357,7 +361,7 @@ def height_map(rows, style, lv, scenery=()):
         for x in range(w):
             c = rows[y][x]
             base = lv.surface((x, y))
-            if c == 'T' and y < h - 3:
+            if c == 'T' and y < h - 3 and not any(lx <= x < lx + lw and ly <= y < ly + ld for lx, ly, lw, ld in low_woods):
                 for yy in (y - 1, y, y + 1):
                     for xx in (x - 1, x, x + 1):
                         cells.setdefault((xx, yy), []).append(('t', x + 0.5, y + 0.5, base))
@@ -419,7 +423,7 @@ def hidden(at, x, y, ht, ground=0.0):
     return False
 
 
-def check(name, rows, hrows=None, scenery=(), doors=()):
+def check(name, rows, hrows=None, scenery=(), doors=(), low=()):
     h, w = len(rows), len(rows[0])
     problems = []
     bad_rows = [i for i, r in enumerate(rows) if len(r) != w]
@@ -427,7 +431,7 @@ def check(name, rows, hrows=None, scenery=(), doors=()):
         return ['rows of different widths: %s' % bad_rows]
     style = STYLE.get(name, 'town')
     lv = Levels(w, h, hrows)
-    at = height_map(rows, style, lv, scenery)
+    at = height_map(rows, style, lv, scenery, low)
     blind, half = [], []
     for y in range(h):
         for x in range(w):

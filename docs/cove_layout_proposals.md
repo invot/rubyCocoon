@@ -27,8 +27,11 @@ Original art-study tools remain available for design history; the playable map i
 - Stucco colors are fixed by building: sky-blue home, coral Beast Center, sage
   apothecary, rose garden neighbor, buttery-yellow library and lavender rear cottage.
   Crates and barrel staves share the buildings' brown board texture; barrel hoops stay metal.
-- Seaside cliffs with the player's home on a high overlook; winding approaches lead
-  to a small square on solid land. The library and diner-like Beast Center face it.
+- A low town in a cove ringed by tall cliffs (north, west, and east above the road out);
+  the player's home and the scenery cottages stand on one gentle terrace a step above
+  the square, joined to it by short three-tile ramps. The library and diner-like Beast
+  Center face the square. Every house has a path to its door; the camera's blind strips
+  behind tall buildings are shrub thickets, never lawn that can't be walked on.
 - Only wooden shacks stand over the water. The apothecary and plaster homes stand on
   land. The single right-hand stair reaches a short pier ending at the gear shack,
   with no second shore connection, ships, boats or rafts. The shack keeps its existing
@@ -59,8 +62,11 @@ permanent resident's knock reply. Fitted to their plots the kit houses came out 
 1.1 units, under the hero's 1.44: `cove_buildings.gd` `warped()` fits the doorway to
 `DOOR_H`, the ground storey to 2.6 units (3.1 at the apothecary) and upper storeys to at least 2.45 units.
 Roofs retain their proportions. The kit's own door slab is cut away so the new leaf lies on the wall.
-The library uses the kit's `house_2` cottage instead of `house_4`'s converted loading bays,
-with its original entry tile, reading room and map gift retained.
+The library uses the kit's two-storey `whole_house` (its door in the middle with a window
+either side) instead of `house_4`'s converted loading bays or the smaller `house_2` cottage
+it used before, with its reading room and map gift retained. The Beast Center shares the
+apothecary's 3.1-unit ground storey so the sign over its awning sits under the eaves. The
+pier neighbor's shack has a lived-in fisher's cabin inside (`cove_dock_shack`).
 The library's canopy is the door width plus a small margin;
 the other towns keep their existing shopfront widths. Dock planks have quiet painted
 seams and low rails with pilings, built once into shared meshes.

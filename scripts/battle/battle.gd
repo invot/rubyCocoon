@@ -43,6 +43,8 @@ const BattleCamera = preload("res://scripts/battle/battle_camera.gd")
 const StageLighting = preload("res://scripts/battle/stage_lighting.gd")
 const StageDressing = preload("res://scripts/battle/stage_dressing.gd")
 const SceneryVisibility = preload("res://scripts/battle/scenery_visibility.gd")
+const BeatChain = preload("res://scripts/core/beat_chain.gd")
+const BeatCue = preload("res://scripts/battle/beat_cue.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -137,7 +139,8 @@ const LESSONS := {
 			"Run gets you out of a wild battle. Against a trainer it's Forfeit: it counts as a loss, but nobody holds a grudge. Except my cousin."],
 		"rounds": [
 			{"say": ["Fire your slingshot at my {foe}! On your side's turn your own action goes first, before your beasts move."], "you": "Slingshot", "beast": "Fight"},
-			{"say": ["Pew! Again, both of you together!"], "you": "Slingshot", "beast": "Fight"},
+			{"say": ["Pew! Again, both of you together!",
+				"Seasoned trainers fire in time with the battle music and land a whole string of hits. You'll get there!"], "you": "Slingshot", "beast": "Fight"},
 		]},
 	"items": {"level": 4, "finish": 3,
 		"intro": ["Picnic rule number one: never battle hungry. Rule number two: always, ALWAYS pack potions."],
@@ -271,6 +274,13 @@ func _ready() -> void:
 
 func _battle_music() -> void:
 	Sfx.music("boss" if is_boss() else "battle")
+	# the percussion layer plays along quietly, louder for a beat attack (_weapon_chain)
+	Sfx.percussion("bed")
+
+
+func _exit_tree() -> void:
+	Sfx.percussion("off")
+	Sfx.beat_end()
 
 
 ## Bosses: temple guardians, arena leaders, the CEO, the bandit boss and the Legion's commanders.
@@ -1272,10 +1282,14 @@ func _process(delta: float) -> void:
 			var m: Node3D = n.get_node_or_null("Model")
 			if m:
 				m.position.y = float(n.get_meta("lift")) + absf(sin(_time * 2.4 + float(n.get_meta("phase")))) * 0.05
-	if is_instance_valid(player_rig):
-		VPer.animate(player_rig, 0.0, 0.0)
-	if is_instance_valid(rival_rig):
-		VPer.animate(rival_rig, 0.0, 0.0)
+	# trainers stand about, or run (with the bat: _run_to)
+	for rig in [player_rig, rival_rig]:
+		if not is_instance_valid(rig):
+			continue
+		var gait: Array = _gaits.get(rig, [0.0, 0.0])
+		if float(gait[0]) > 0.0:
+			gait[1] = float(gait[1]) + VPer.phase_for(delta * float(gait[0]), float(gait[0]))
+		VPer.animate(rig, float(gait[1]), float(gait[0]))
 	if is_instance_valid(cam):
 		if camera_director != null:
 			camera_director.step(delta)
@@ -2321,13 +2335,13 @@ func _panel_rows() -> Array:
 	var shield := ""
 	if GameState.max_shield > 0:
 		shield = "Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield) + "   "
-	var t_opts := [
-		{"id": "slingshot", "label": "Slingshot", "target": "enemy", "desc": "Fire a stone at a foe or an exposed trainer."},
+	var t_opts := _weapon_options()
+	t_opts.append_array([
 		{"id": "items", "label": "Items", "sub": true, "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
 		{"id": "flute", "label": "Flute", "sub": true, "disabled": not GameState.has_flute(),
 			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Bellerive is keeping your father's."},
 		{"id": "watch", "label": "Watch", "target": "none", "desc": "Let your beasts handle this round."},
-	]
+	])
 	if not GameState.summons.is_empty():
 		# a captured temple guardian, called with its song: once per battle, for a shield point
 		var why := ""
@@ -2337,7 +2351,7 @@ func _panel_rows() -> Array:
 			why = "Summoning costs a shield point, and you have none left."
 		elif not GameState.has_flute():
 			why = "You need your flute to play a summon's song."
-		t_opts.insert(3, {"id": "summon", "label": "Summon", "sub": true, "disabled": why != "",
+		t_opts.insert(t_opts.size() - 1, {"id": "summon", "label": "Summon", "sub": true, "disabled": why != "",
 			"desc": why if why != "" else "Play a temple's song to call its guardian: it strikes every foe at once. Once per battle, for one shield point (%d left)." % GameState.shield})
 	if wild:
 		t_opts.append({"id": "run", "label": "Run", "sub": true, "desc": "Try to escape."})
@@ -2378,6 +2392,22 @@ func _panel_rows() -> Array:
 		rows.append(row)
 	_rows_now = rows
 	return rows
+
+
+## Your weapons for the trainer's bar (item_db.gd WEAPONS, the ones you own): the slingshot, then the boomerang and the
+## bat once you have them. From trainer Lv 4 each one chains hits to the beat (scripts/core/beat_chain.gd).
+func _weapon_options() -> Array:
+	var out := []
+	var most := BeatChain.max_hits(GameState.trainer_level)
+	for id in GameState.weapons():
+		var w := ItemDB.weapon(id)
+		var desc: String = {"slingshot": "Fire a stone at a foe or an exposed trainer.",
+			"boomerang": "Sweep every foe on the side facing you, a little softer on each; it comes back to your hand.",
+			"bat": "Run up to a foe and swing: the hardest hit of the three."}.get(id, "")
+		if most > 0 and not tutorial:
+			desc += " Press A on the beat: up to %d hits." % most
+		out.append({"id": "weapon", "weapon": id, "label": ItemDB.item_name(id), "target": w.get("target", "enemy"), "desc": desc})
+	return out
 
 
 ## A beast's choices this round: its moves of the element it fights with and neutral ones, then Defend.
@@ -2637,8 +2667,8 @@ func _acts_from_rows(rows: Array) -> Array:
 	else:
 		var o: Dictionary = r0["options"][int(r0["sel"])]
 		match String(o["id"]):
-			"slingshot":
-				acts.append({"type": "slingshot", "target": _row_ref(r0), "prio": 9})
+			"weapon":
+				acts.append({"type": "weapon", "weapon": String(o["weapon"]), "target": _row_ref(r0), "prio": 9})
 			_:
 				acts.append({"type": "none"})
 	for i in range(1, rows.size()):
@@ -2686,10 +2716,10 @@ func _auto_commands() -> Array:
 		var f0 = _alive(foe_slots)[0] if not _alive(foe_slots).is_empty() else null
 		match _tut_you():
 			"Slingshot":
-				acts.append({"type": "slingshot", "target": f0, "prio": 9})
+				acts.append({"type": "weapon", "weapon": "slingshot", "target": f0, "prio": 9})
 			"Items":
 				if GameState.item_count("minor_potion") == 0:
-					GameState.add_item("minor_potion")
+					GameState.receive_item("minor_potion")
 				if b0 != null:
 					acts.append({"type": "item", "item": "minor_potion", "target": b0, "prio": 9})
 			"Flute":
@@ -2733,12 +2763,14 @@ func _auto_trainer_action() -> Dictionary:
 		var kos := GameState.party.filter(func(x): return x.hp <= 0 and x.slot >= 0)
 		if not kos.is_empty():
 			return {"type": "item", "item": "revival_seed", "target": kos[0], "prio": 9}
+	# (test runs pick a weapon with --weapon; else the hardest hitter you own)
+	var weapon: String = cfg.get("auto_weapon", GameState.weapons().back())
 	if _side_open("foe"):
-		return {"type": "slingshot", "target": "trainer", "prio": 9}
+		return {"type": "weapon", "weapon": weapon, "target": "trainer", "prio": 9}
 	if foes_alive.is_empty():
 		return {}
 	foes_alive.sort_custom(func(x, y): return x.hp_ratio() < y.hp_ratio())
-	return {"type": "slingshot", "target": foes_alive[0], "prio": 9}
+	return {"type": "weapon", "weapon": weapon, "target": foes_alive[0], "prio": 9}
 
 
 func _choose_target(list: Array, title: String):
@@ -3135,7 +3167,7 @@ func _choose_item() -> Dictionary:
 	var keys := GameState.inventory.keys()
 	keys.sort_custom(func(a, b): return ItemDB.item_name(a) < ItemDB.item_name(b))
 	if tutorial and GameState.item_count("minor_potion") == 0:
-		GameState.add_item("minor_potion")
+		GameState.receive_item("minor_potion")
 		keys = GameState.inventory.keys()
 	for id in keys:
 		var it := ItemDB.get_item(id)
@@ -3227,8 +3259,12 @@ func _ai_actions() -> Array:
 	for b in foe_slots:
 		if b != null and b.hp > 0 and b != mover:
 			out.append(_ai_choose(b))
-	if _rival_wants_song():
+	var song_now := _rival_wants_song()
+	if song_now:
 		out.append({"type": "rival_song", "song": String(trainer["song"]), "prio": 4})
+	var weapon := _rival_weapon_action(song_now)
+	if not weapon.is_empty():
+		out.append(weapon)
 	return out
 
 
@@ -3416,13 +3452,15 @@ func _resolve(acts: Array) -> void:
 			continue
 		if a.get("type", "none") in ["none", "flute"]:
 			continue
-		_message_subject = a.get("actor", "foe_trainer" if a.get("type", "") == "rival_song" else "trainer_self")
+		_message_subject = a.get("actor", "foe_trainer" if a.get("type", "") in ["rival_song", "rival_weapon"] else "trainer_self")
 		_set_acting(_message_subject)
 		match a.get("type", "none"):
 			"item":
 				await _do_item(a)
-			"slingshot":
-				await _do_slingshot(a)
+			"weapon", "slingshot":
+				await _do_weapon(a)
+			"rival_weapon":
+				await _do_rival_weapon(a)
 			"strike_trainer":
 				await _strike(a.get("actor", null), "ally")
 			"shift":
@@ -3510,33 +3548,398 @@ func _target_point(b) -> Vector3:
 	return Vector3(3, 1, -2)
 
 
-func _do_slingshot(a: Dictionary) -> void:
-	# a foe that fell before the stone flies: the nearest one standing, then their open trainer, else nothing
-	var t = _retarget(a["target"], "foe")
-	if t == null:
+# ================================================================ weapons and the beat attack
+## How long a stone flies; how fast a trainer runs with the bat (game units a second).
+const STONE_FLIGHT := 0.26
+const BAT_RUN := 6.5
+## the weapon throws and swings still on their way (a chain waits for them to land), and what a chain has dealt
+var _flights := 0
+var _weapon_dealt := 0
+var _weapon_missed := []
+## the last beat attack, for tests: {grades, landed, dealt, most, easy}
+var last_chain := {}
+## trainers on the move (running up with the bat): rig -> [pace, the stride's phase]
+var _gaits := {}
+
+
+## Your weapon (a: {weapon, target}; item_db.gd WEAPONS). Below trainer Lv 4 (and in lessons) one plain throw, as
+## the slingshot always was: its accuracy roll, its damage times the weapon's power. From Lv 4 a beat attack: a cue
+## spins above the target and each press of A on the beat lands one more hit (scripts/core/beat_chain.gd). At a
+## trainer who's open it's one blow either way: a shield point. A foe that fell before your turn: the nearest one
+## standing, then their open trainer, else nothing (the boomerang: every foe standing on the side facing you).
+func _do_weapon(a: Dictionary) -> void:
+	var id := String(a.get("weapon", "slingshot"))
+	var targets := []
+	var at_trainer := false
+	if String(ItemDB.weapon(id).get("target", "enemy")) == "enemies":
+		targets = _alive(foe_slots)
+		at_trainer = targets.is_empty() and _side_open("foe") and not tutorial
+	else:
+		var t = _retarget(a.get("target", null), "foe")
+		if t == null:
+			return
+		if typeof(t) == TYPE_STRING:
+			at_trainer = true
+		else:
+			targets = [t]
+	if targets.is_empty() and not at_trainer:
 		return
-	if typeof(t) == TYPE_STRING:
-		await msg("%s fires the slingshot at %s!" % [GameState.player_name, trainer.get("name", "the trainer")], 0.5)
-		Sfx.play("slingshot")
-		_camera_shot("follow", "trainer_self", "foe_trainer")
-		await _trainer_throw(RIVAL_POS + Vector3(0, 1.2, 0), Color("#8a847a"))
-		await _strike(null, "foe")
+	var aimed: String = String(trainer.get("name", "the trainer")) if at_trainer else (targets[0].nickname if targets.size() == 1 else "")
+	await msg(_weapon_line(GameState.player_name, id, aimed), 0.5)
+	VPer.set_ready(player_rig, id)
+	if at_trainer:
+		await _weapon_blow(player_rig, id, "foe")
+	elif BeatChain.max_hits(GameState.trainer_level) <= 0 or tutorial:
+		await _weapon_plain(player_rig, id, targets)
+	else:
+		await _weapon_chain(id, targets)
+	VPer.set_ready(player_rig, "")
+
+
+## "Andrew fires the slingshot at Tadlet!" (`aimed` "": the boomerang at every foe)
+func _weapon_line(who: String, id: String, aimed: String) -> String:
+	match id:
+		"boomerang":
+			return "%s throws the boomerang%s!" % [who, " at %s" % aimed if aimed != "" else ""]
+		"bat":
+			return "%s runs at %s with the bat!" % [who, aimed if aimed != "" else "the foe"]
+	return "%s fires the slingshot at %s!" % [who, aimed if aimed != "" else "the foe"]
+
+
+## A weapon at a trainer who's open: one blow, a shield point (or the battle). `team_hit`: whose trainer.
+func _weapon_blow(rig: Node3D, id: String, team_hit: String) -> void:
+	var at := RIVAL_POS if team_hit == "foe" else PLAYER_POS
+	var ref := "foe_trainer" if team_hit == "foe" else "trainer_self"
+	_camera_shot("follow", "trainer_self" if team_hit == "foe" else "foe_trainer", ref)
+	var home := rig.position
+	if id == "bat":
+		await _run_to(rig, at + (rig.position - at).normalized() * 1.1, at)
+	await _weapon_hit(rig, id, [ref], 1.0, false, true)
+	await _strike(null, team_hit)
+	if id == "bat" and result == "":
+		await _run_to(rig, home, at, true)
+
+
+## One plain throw (or swing) at each target, as below trainer Lv 4: each rolls to hit.
+func _weapon_plain(rig: Node3D, id: String, targets: Array) -> void:
+	var home := rig.position
+	_weapon_missed = []
+	if id == "bat":
+		await _run_to(rig, _front_of(targets[0], rig), _target_point(targets[0]))
+	_camera_shot("follow", "trainer_self" if rig == player_rig else "foe_trainer", targets[targets.size() / 2])
+	await _weapon_hit(rig, id, targets, 1.0, false, true)
+	if not _weapon_missed.is_empty() and _weapon_missed.size() == targets.size():
+		await msg("%s missed %s!" % ["The stone" if id == "slingshot" else "The " + ItemDB.item_name(id).to_lower(),
+			targets[0].nickname if targets.size() == 1 else "everyone"], 0.6)
+	elif id == "slingshot" and targets[0].hp > 0 and _weapon_missed.is_empty() and randf() < 0.1:
+		await _inflict(targets[0], "stun")
+	if id == "bat":
+		await _run_to(rig, home, _target_point(targets[0]), true)
+
+
+## Your beat attack: the cue spins above the target and every press of A on the beat throws (or swings) once more, up
+## to as many hits as your trainer level allows (BeatChain.max_hits). The first time (and on the first road) the
+## timing is easier, and the top bar says how. The percussion layer comes up meanwhile.
+func _weapon_chain(id: String, targets: Array) -> void:
+	var most := BeatChain.max_hits(GameState.trainer_level)
+	var guided := not GameState.flag("beat_taught")
+	var easy := guided or String(cfg.get("map", "")) == "route1"
+	var home := player_rig.position
+	_weapon_dealt = 0
+	_weapon_missed = []
+	if id == "bat":
+		await _run_to(player_rig, _front_of(targets[0], player_rig), _target_point(targets[0]))
+	Sfx.beat_begin()
+	Sfx.percussion("full")
+	_camera_shot("beat", "trainer_self", targets[targets.size() / 2])
+	_caption("Press A just as the spinning notch reaches the top of the ring! Up to %d hits." % most if guided
+		else "Press A on the beat: up to %d hits!" % most, "trainer_self")
+	var landed := []
+	var cue := BeatCue.new()
+	cue.most = most
+	cue.easy = easy
+	cue.anchor = _cue_point.bind(targets)
+	cue.hit.connect(func(i: int, g: String) -> void:
+		var crit := i == most - 1 and g != "weak"
+		landed.append(g)
+		_weapon_hit(player_rig, id, targets, float(BeatChain.GRADE_MULT[g]) * (BeatChain.CRIT_MULT if crit else 1.0), crit, false, cue))
+	var grades: Array = []
+	if (UI.auto or cfg.get("autoplay", false)) and UI.auto_beats.is_empty():
+		# simulated battles play a rolled chain, without the cue
+		var rng := RandomNumberGenerator.new()
+		rng.seed = int(cfg.get("seed", 0)) * 31 + round_no
+		var hits := BeatChain.roll(0.7, most, rng)
+		for i in hits.size():
+			cue.hit.emit(i, String(hits[i]["grade"]))
+			await get_tree().create_timer(0.2).timeout
+		cue.free()
+	else:
+		if UI.auto or not UI.auto_beats.is_empty():
+			cue.injected = UI.auto_beats.pop_front() if not UI.auto_beats.is_empty() else []
+		UI.push(cue)
+		grades = await cue.done
+	while _flights > 0:
+		await get_tree().process_frame
+	Sfx.percussion("bed")
+	Sfx.beat_end()
+	GameState.set_flag("beat_taught")
+	last_chain = {"grades": grades, "landed": landed, "dealt": _weapon_dealt, "most": most, "easy": easy}
+	UI.auto_log.append("[beat] %s %s -> %s, %d damage" % [id, grades, landed, _weapon_dealt])
+	_camera_shot("return")
+	var n := landed.size()
+	var text := ""
+	if n == most and not landed.has("weak"):
+		text = "A full chain of %d! The last hit was critical." % n
+	elif landed == ["weak"]:
+		text = "Off the beat: just a glancing blow."
+	elif n > 0:
+		text = "%d hit%s on the beat!" % [n, "" if n == 1 else "s"]
+	if text != "":
+		await msg(text, 0.8)
+	if id == "slingshot" and n > 1 and targets[0].hp > 0 and randf() < 0.1:
+		await _inflict(targets[0], "stun")
+	if id == "bat":
+		await _run_to(player_rig, home, _target_point(targets[0]), true)
+
+
+## A foe trainer's weapon (a boss's: _ai_actions): at your beasts only, never at you. Their hits are rolled from their
+## strength (BeatChain.roll) rather than played, a beat apart; below trainer Lv 4, one plain throw.
+func _do_rival_weapon(a: Dictionary) -> void:
+	if not is_instance_valid(rival_rig) or not rival_rig.has_meta("skeleton"):
 		return
-	await msg("%s fires the slingshot at %s!" % [GameState.player_name, t.nickname], 0.5)
-	Sfx.play("slingshot")
-	_camera_shot("follow", "trainer_self", t)
-	await _trainer_throw(_target_point(t), Color("#8a847a"))
+	var id := String(a.get("weapon", "slingshot"))
+	var targets := _alive(ally_slots)
+	if targets.is_empty():
+		return
+	if String(ItemDB.weapon(id).get("target", "enemy")) != "enemies":
+		targets.sort_custom(func(x, y): return x.hp_ratio() < y.hp_ratio())
+		targets = [targets[0]]
+	var who := String(trainer.get("name", "The trainer"))
+	await msg(_weapon_line(who, id, targets[0].nickname if targets.size() == 1 else "").replace("the slingshot", "a slingshot")
+		.replace("the boomerang", "a boomerang").replace("the bat", "a bat"), 0.5)
+	VPer.set_ready(rival_rig, id)
+	var lv := _foe_trainer_level()
+	var most := BeatChain.max_hits(lv)
+	if most <= 0:
+		await _weapon_plain(rival_rig, id, targets)
+	else:
+		var home := rival_rig.position
+		if id == "bat":
+			await _run_to(rival_rig, _front_of(targets[0], rival_rig), _target_point(targets[0]))
+		_camera_shot("follow", "foe_trainer", targets[targets.size() / 2])
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var hits := BeatChain.roll(float(lv - 1) / float(GameState.TRAINER_LEVEL_MAX - 1), most, rng)
+		_weapon_dealt = 0
+		for h in hits:
+			_weapon_hit(rival_rig, id, targets, float(h["mult"]), bool(h["crit"]), false)
+			await get_tree().create_timer(0.5).timeout
+		while _flights > 0:
+			await get_tree().process_frame
+		if hits.size() > 1:
+			await msg("%d hits!" % hits.size(), 0.6)
+		if id == "bat":
+			await _run_to(rival_rig, home, _target_point(targets[0]), true)
+	VPer.set_ready(rival_rig, "")
+
+
+## The rival's weapon this round, if any: bosses and arena masters only (not in lessons, not a robot), now and then,
+## never while they play a song. Their weapon goes with the region (trainer "weapon", else their beasts' level).
+func _rival_weapon_action(song_now: bool) -> Dictionary:
+	if wild or tutorial or song_now or not is_boss() or not is_instance_valid(rival_rig) or not rival_rig.has_meta("skeleton"):
+		return {}
+	if randf() >= 0.35 or _alive(ally_slots).is_empty():
+		return {}
+	var top := 0
+	for f in foes:
+		top = maxi(top, int(f.level))
+	var id := String(trainer.get("weapon", "slingshot" if top < 11 else ("boomerang" if top < 15 else "bat")))
+	return {"type": "rival_weapon", "weapon": id, "prio": 9}
+
+
+## Where a beat cue goes: above the target's head (the middle of several), on the screen the cue is drawn on. It sits
+## high enough that the damage numbers (_float_text) rise beneath it and fade before they reach its pips.
+func _cue_point(targets: Array) -> Vector2:
+	var top := Vector3.ZERO
+	var n := 0
+	for t in targets:
+		if nodes.has(t) and is_instance_valid(nodes[t]):
+			var nd: Node3D = nodes[t]
+			top += nd.position + Vector3.UP * (float(nd.get_meta("height")) * nd.scale.y + 1.1)
+			n += 1
+	var screen := UI.root.get_viewport_rect().size
+	if n == 0 or not is_instance_valid(cam) or cam.is_position_behind(top / n):
+		return screen * Vector2(0.5, 0.35)
+	var k: Vector2 = screen / cam.get_viewport().get_visible_rect().size
+	return cam.unproject_position(top / n) * k - Vector2(0, BeatCue.RADIUS + 16.0)
+
+
+## Where a trainer stands to swing a bat at a beast: just in front of it, on the trainer's side.
+func _front_of(t, rig: Node3D) -> Vector3:
+	var at: Vector3 = nodes[t].position if nodes.has(t) else FOE_CENTER
+	var away := rig.position - at
+	away.y = 0.0
+	var reach := 0.75 + float(nodes[t].get_meta("height")) * 0.35 if nodes.has(t) else 1.0
+	return Vector3(at.x, rig.position.y, at.z) + away.normalized() * reach
+
+
+## A trainer runs to `dest`, then turns to face `look` (back home: `home` turns them to face the other ring again).
+func _run_to(rig: Node3D, dest: Vector3, look: Vector3, home := false) -> void:
+	var d := dest - rig.position
+	d.y = 0.0
+	var dist := d.length()
+	if dist > 0.05:
+		rig.rotation.y = atan2(d.x, d.z)
+		_gaits[rig] = [BAT_RUN, float(_gaits.get(rig, [0.0, 0.0])[1])]
+		var tw := create_tween()
+		tw.tween_property(rig, "position", Vector3(dest.x, rig.position.y, dest.z), dist / BAT_RUN)
+		await tw.finished
+		_gaits[rig] = [0.0, float(_gaits[rig][1])]
+	var f := _toward("ally" if rig == player_rig else "foe") if home else (look - rig.position)
+	var yaw := atan2(f.x, f.z) - (0.25 if home and rig == rival_rig else 0.0)
+	var turn := create_tween()
+	turn.tween_property(rig, "rotation:y", rig.rotation.y + angle_difference(rig.rotation.y, yaw), 0.15)
+	await turn.finished
+
+
+## One use of a weapon by `rig` at `targets` (beasts, or a trainer's ref): the throw, swing or fling, the stone or the
+## boomerang on its way, and each hit as it lands (`mult`: of a plain throw's damage; `plain`: rolls to hit, with its
+## messages). Not awaited in a chain, so the next press can follow: _flights counts what's still on its way. A chain's
+## cue ends early once everyone it aims at is down.
+func _weapon_hit(rig: Node3D, id: String, targets: Array, mult: float, crit: bool, plain := false, cue = null) -> void:
+	var live := targets.filter(func(t): return typeof(t) == TYPE_STRING or (t != null and t.hp > 0))
+	if live.is_empty():
+		return
+	_flights += 1
+	match id:
+		"bat":
+			VPer.set_action(rig, "swing")
+			Sfx.play("slingshot", 0.15)
+			await get_tree().create_timer(VPer.ACTION_HIT["swing"]).timeout
+			await _weapon_land(id, live[0], mult, crit, plain)
+		"boomerang":
+			VPer.set_action(rig, "boomerang")
+			await get_tree().create_timer(VPer.ACTION_HIT["boomerang"]).timeout
+			VPer.show_weapon(rig, false)
+			Sfx.play("fly", 0.1)
+			await _boomerang_flight(rig, live, mult, crit, plain)
+			VPer.show_weapon(rig, true)
+			VPer.set_action(rig, "catch")
+		_:
+			VPer.set_action(rig, "throw")
+			await get_tree().create_timer(VPer.ACTION_HIT["throw"]).timeout
+			Sfx.play("slingshot", 0.1)
+			await _stone_flight(VPer.weapon_point(rig), _weapon_aim(live[0]))
+			await _weapon_land(id, live[0], mult, crit, plain)
+	_flights -= 1
+	if cue != null and is_instance_valid(cue) and targets.all(func(t): return typeof(t) != TYPE_STRING and (t == null or t.hp <= 0)):
+		cue.finish()
+
+
+## Where a weapon aims on someone: a beast's middle, or a trainer's chest.
+func _weapon_aim(ref) -> Vector3:
+	if typeof(ref) == TYPE_STRING:
+		return (RIVAL_POS if ref == "foe_trainer" else PLAYER_POS) + Vector3(0, 1.1, 0)
+	return _target_point(ref)
+
+
+## A hit landing on a beast (a trainer's blow is _strike's): its damage, quietly in a chain; a plain throw rolls to
+## hit first, as the slingshot always did. A beast out of sight (vanished) is always missed.
+func _weapon_land(id: String, t, mult: float, crit: bool, plain: bool) -> void:
+	if typeof(t) == TYPE_STRING or t == null or t.hp <= 0:
+		return
 	var acc := 0.9 / _acc_mult(int(_st(t)["stages"]["eva"]))
-	if not tutorial and (_st(t)["vanish"] or randf() > acc):
+	if _st(t)["vanish"] or (plain and not tutorial and randf() > acc):
 		Sfx.play("miss")
 		_float_text(t, "Miss", Color.WHITE)
-		await msg("The stone whizzed past %s!" % t.nickname, 0.6)
+		_weapon_missed.append(t)
 		return
-	var dmg := int((3.0 + 3.0 * GameState.crest_count() + t.max_hp() * 0.05) * randf_range(0.85, 1.15))
-	dmg = maxi(1, dmg)
-	await _deal(null, t, {"dmg": dmg, "eff": 1.0, "crit": false, "pierce": false})
-	if t.hp > 0 and randf() < 0.1:
-		await _inflict(t, "stun")
+	var tier := GameState.crest_count() if _team(t) == "foe" else _foe_trainer_level() - 1
+	var power := float(ItemDB.weapon(id).get("power", 1.0))
+	var dmg := maxi(1, int(round((3.0 + 3.0 * tier + t.max_hp() * 0.05) * randf_range(0.85, 1.15) * power * mult)))
+	_weapon_dealt += dmg
+	if plain:
+		await _deal(null, t, {"dmg": dmg, "eff": 1.0, "crit": crit, "pierce": false})
+	else:
+		_deal(null, t, {"dmg": dmg, "eff": 1.0, "crit": crit, "pierce": false}, true)
+
+
+## A stone from the slingshot: a quick, low arc.
+func _stone_flight(from: Vector3, to: Vector3) -> void:
+	var stone := MeshInstance3D.new()
+	stone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var sm := SphereMesh.new()
+	sm.radius = 0.07
+	sm.height = 0.13
+	sm.radial_segments = 8
+	sm.rings = 4
+	stone.mesh = sm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color("#8a847a")
+	stone.material_override = m
+	stone.position = from
+	add_child(stone)
+	var mid := (from + to) / 2.0 + Vector3(0, 0.5, 0)
+	var tw := create_tween()
+	tw.tween_property(stone, "position", mid, STONE_FLIGHT * 0.5).set_ease(Tween.EASE_OUT)
+	tw.tween_property(stone, "position", to, STONE_FLIGHT * 0.5).set_ease(Tween.EASE_IN)
+	await tw.finished
+	stone.queue_free()
+
+
+## The boomerang: out in a curve through each target in turn (each hit as it passes) and back to the thrower's hand,
+## spinning, within a beat.
+func _boomerang_flight(rig: Node3D, targets: Array, mult: float, crit: bool, plain: bool) -> void:
+	var bm := Node3D.new()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("#d9a066")
+	for s in [-1.0, 1.0]:
+		var arm := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.3, 0.04, 0.08)
+		arm.mesh = box
+		arm.material_override = mat
+		arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		arm.rotation.y = s * 0.85
+		arm.position = Vector3(s * 0.1, 0, -0.06)
+		bm.add_child(arm)
+	var start := VPer.weapon_point(rig)
+	bm.position = start
+	add_child(bm)
+	var points := [start]
+	for t in targets:
+		points.append(_weapon_aim(t))
+	var back := rig.global_position + Vector3.UP * VPer.hand_height() * 1.2
+	var trip := clampf(Sfx.beat_period() * 0.8, 0.4, 0.62)
+	var out_part := 0.55
+	var side := _right() * (1.2 if rig == player_rig else -1.2)
+	var hit_at := []
+	for i in targets.size():
+		hit_at.append(out_part * float(i + 1) / float(targets.size()))
+	var t0 := 0.0
+	var next := 0
+	while t0 < trip:
+		await get_tree().process_frame
+		t0 += get_process_delta_time()
+		var u := clampf(t0 / trip, 0.0, 1.0)
+		var p: Vector3
+		if u < out_part:
+			var k := u / out_part * float(points.size() - 1)
+			var j := mini(int(k), points.size() - 2)
+			p = (points[j] as Vector3).lerp(points[j + 1], smoothstep(0.0, 1.0, k - j))
+		else:
+			var k2 := (u - out_part) / (1.0 - out_part)
+			p = (points.back() as Vector3).lerp(VPer.weapon_point(rig) if rig.is_inside_tree() else back, smoothstep(0.0, 1.0, k2))
+			p += side * sin(PI * k2) * 0.8
+		bm.position = p
+		bm.rotation.y += get_process_delta_time() * 26.0
+		while next < hit_at.size() and u >= float(hit_at[next]):
+			await _weapon_land("boomerang", targets[next], mult, crit, plain)
+			next += 1
+	while next < targets.size():
+		await _weapon_land("boomerang", targets[next], mult, crit, plain)
+		next += 1
+	bm.queue_free()
 
 
 func _do_item(a: Dictionary) -> void:
@@ -3976,11 +4379,12 @@ func _calc_damage(a, t, m: Dictionary) -> Dictionary:
 	return {"dmg": maxi(1, int(dmg)), "eff": eff, "crit": crit, "pierce": m.get("fx", {}).get("pierce", false)}
 
 
-## `a` is the attacker beast, or null for the trainer's slingshot and bombs.
-func _deal(a, t, r: Dictionary) -> int:
+## `a` is the attacker beast, or null for a trainer's weapon and bombs. quiet: one hit of a beat attack's chain, which
+## goes on without stopping: no messages (and no waiting), and the camera keeps its shot.
+func _deal(a, t, r: Dictionary, quiet := false) -> int:
 	# The summon owns its wide shot through all hits; regular attacks hold on their actual retargeted victim.
 	# (a cast's cut to where it lands already holds on it)
-	if (floating == null or floating.visible) and not _impact_on(t):
+	if (floating == null or floating.visible) and not _impact_on(t) and not quiet:
 		_camera_shot("reaction", t)
 	var s := _st(t)
 	var dmg: int = r["dmg"]
@@ -4012,6 +4416,11 @@ func _deal(a, t, r: Dictionary) -> int:
 	_hit_fx(t, r["crit"] or r["eff"] > 1.0, float(dmg) / maxf(float(t.max_hp()), 1.0) * 4.0, blocked)
 	_float_text(t, "-%d" % dmg if dmg > 0 else "0", Color("#ffe060") if r["eff"] > 1.0 else Color("#ffffff"))
 	_refresh()
+	if quiet:
+		if t.hp > 0 and t.status == "sleep" and randf() < 0.3:
+			t.status = ""
+			_refresh()
+		return dmg
 	if r["crit"]:
 		await msg("A critical hit!", 0.55, a)
 	if r["eff"] > 1.0:
@@ -4509,6 +4918,7 @@ func _refill() -> void:
 
 func _finish() -> void:
 	GameState.ring_side = ally_side
+	Sfx.percussion("off")
 	match result:
 		"win":
 			_camera_shot("victory")
@@ -4570,6 +4980,9 @@ func _trainer_xp() -> void:
 	if gained > 0:
 		Sfx.play("levelup")
 		await msg("You're now a Lv %d trainer!" % GameState.trainer_level, 1.0)
+		var beat_line := BeatChain.level_line(GameState.trainer_level - gained, GameState.trainer_level)
+		if beat_line != "":
+			await msg(beat_line, 1.6)
 		if GameState.slot_cap() > before_slots or GameState.shield_cap() > before_shield:
 			await msg("Volt at Sparkwire Electronics in Bellerive can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
 				else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")), 1.4)

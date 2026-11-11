@@ -12,6 +12,7 @@ const MapLoader = preload("res://scripts/world/map_loader.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
+const WeaponObstacles = preload("res://scripts/core/weapon_obstacles.gd")
 
 ## The camera looks north from the south: a tree or a building this many tiles (or fewer) south of a road, a bridge,
 ## the plaza or someone standing about stands between them and the camera. (Trees in a map's last three rows are drawn
@@ -28,7 +29,10 @@ func _init() -> void:
 	var ids := WorldDB.TOWNS.keys() + WorldDB.ROUTES.keys()
 	var bad := 0
 	var rooms := 0
-	var cleared := CLEARED
+	var cleared := CLEARED.duplicate()
+	for id in WorldDB.ROUTES:
+		for o in MapLoader.load_map(id, {}).get("weapon_obstacles", []):
+			cleared[o["flag"]] = true
 	for flags in [{}, cleared]:
 		for id in ids:
 			var m := MapLoader.load_map(id, flags)
@@ -64,6 +68,7 @@ func _check(m: Dictionary) -> Array:
 	var problems := []
 	var start: Vector2i = m["spawns"].get("start", m["spawns"].values()[0])
 	var seen := _flood(m, start)
+	problems.append_array(_weapon_check(m, start))
 	if m["kind"] == "interior":
 		for door in m.get("front_doors", []):
 			if door.x != 0 and door.x != int(m["w"]) - 1:
@@ -478,6 +483,58 @@ func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 				seen[n] = true
 				q.append(n)
 	return seen
+
+
+## Weapon locks are never necessary for doors, exits, existing items, teachers or other story objects.
+func _weapon_check(m: Dictionary, start: Vector2i) -> Array:
+	var out := []
+	var fixtures: Array = m.get("weapon_obstacles", [])
+	if fixtures.is_empty():
+		return out
+	if m["kind"] != "route":
+		out.append("weapon obstacles belong only on roads")
+	var blocked := {}
+	var ids := {}
+	for i in fixtures.size():
+		for j in range(i + 1, fixtures.size()):
+			if WeaponObstacles.distance_between(fixtures[i], fixtures[j]) < WeaponObstacles.MIN_SPACING:
+				out.append("weapon obstacles %s and %s need at least %d tiles between their interaction areas" % [fixtures[i]["id"], fixtures[j]["id"], WeaponObstacles.MIN_SPACING])
+	for o in fixtures:
+		if ids.has(o["id"]):
+			out.append("duplicate weapon obstacle id: " + o["id"])
+		ids[o["id"]] = true
+		if not WeaponObstacles.TYPES.has(o["type"]):
+			out.append("unknown weapon obstacle type: " + o["type"])
+		if o["type"] == "switches" and o["targets"].size() not in [2, 3]:
+			out.append("boomerang needs two or three switches")
+		for p in o["targets"]:
+			if o["weapon"] != "bat" or not o["solved"]:
+				blocked[p] = true
+		if not o["solved"]:
+			for p in o.get("blocks", []):
+				blocked[p] = true
+	var seen := _flood(m, start, blocked)
+	for o in fixtures:
+		var from: Vector2i = o["use_from"]
+		if not seen.has(from):
+			out.append("weapon firing tile unreachable: " + o["id"])
+		if not o["solved"]:
+			var d: Vector2i = o["targets"][0] - from
+			if not WeaponObstacles.can_use(m, o, from, Vector2i(signi(d.x), signi(d.y))):
+				out.append("weapon fixture has no clear cardinal shot: " + o["id"])
+	for p in m["exits"].keys() + m["spawns"].values():
+		if p.x >= 0 and not seen.has(p):
+			out.append("weapon obstacle blocks a required exit/spawn at %s" % p)
+	for b in m["buildings"]:
+		if not seen.has(b["door"] + Vector2i.DOWN):
+			out.append("weapon obstacle blocks a building entrance")
+	for n in m["npcs"] + m["items"] + m.get("chests", []):
+		if String(n.get("flag", "")).begins_with("weapon_"):
+			continue
+		var p: Vector2i = n["pos"]
+		if not [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT].any(func(d): return seen.has(p + d) and Elev.joined(m, p + d, p)):
+			out.append("weapon obstacle blocks an existing interaction at %s" % p)
+	return out
 
 
 ## Whether `p` is in one of the map's "low_trees" areas, whose tree tiles grow only low thickets of shrubs.

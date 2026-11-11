@@ -5,7 +5,7 @@ signal shot_changed(name: String)
 const MIN_SHOT_TIME := 0.5
 const DURATIONS := {"opening": 1.1, "home": -1.0, "choose": -1.0, "attacker": 0.7,
 	"follow": 0.6, "reaction": 0.65, "return": 0.4, "summon": -1.0,
-	"capture": 1.2, "knockout": 0.8, "victory": -1.0, "cast": -1.0, "impact": 1.3}
+	"capture": 1.2, "knockout": 0.8, "victory": -1.0, "cast": -1.0, "impact": 1.3, "beat": -1.0}
 ## A cast's shots are cuts, in and out: on the caster as it gathers and lets go its glow (held until the cut to where
 ## it lands, or "return" for a cast on itself), then on where it lands.
 const CUTS := ["cast", "impact"]
@@ -149,6 +149,14 @@ func _pose() -> void:
 			_goal_position += shift * 0.65
 			_goal_look += shift
 			_goal_fov = 30.0
+		"beat":
+			# a beat attack (battle.gd _weapon_chain): held on the target, the thrower still in view, with room above it
+			# for the cue; until the chain ends and "return" is asked for
+			var focus := _point(target).lerp(_point(source), 0.3)
+			var shift := (focus - center) * 0.65
+			_goal_position += shift * 0.6
+			_goal_look += shift + Vector3.UP * 0.25
+			_goal_fov = 31.0
 		"cast", "impact":
 			# close on one beast (or a side's) from in front of it, three-quarters on from the camera's side of the
 			# stage: the caster gathering its glow and letting it go, then where it lands as it arrives

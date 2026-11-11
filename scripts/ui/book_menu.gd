@@ -16,6 +16,7 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Ring = preload("res://scripts/core/ring.gd")
+const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 const WorldMap = preload("res://scripts/ui/world_map.gd")
 const RingEditor = preload("res://scripts/ui/ring_editor.gd")
@@ -337,6 +338,39 @@ func _add_row(row: Dictionary) -> void:
 		b.add_theme_stylebox_override("disabled", empty)
 		for st in ["hover", "focus", "pressed", "hover_pressed"]:
 			b.add_theme_stylebox_override(st, hl)
+	if row.has("item_slot"):
+		# One square item slot per stack, with a readable action label beside it.
+		b.custom_minimum_size.y = maxf(96, UIKit.row_h())
+		var pad := StyleBoxEmpty.new()
+		pad.content_margin_left = 112
+		b.add_theme_stylebox_override("normal", pad)
+		var highlight := UIKit.highlight()
+		highlight.content_margin_left = 112
+		for state in ["focus", "hover"]:
+			b.add_theme_stylebox_override(state, highlight)
+		for state in ["pressed", "hover_pressed"]:
+			b.add_theme_stylebox_override(state, UIKit.solid(Vector4(112, 0, 0, 0)))
+		var slot := Panel.new()
+		slot.position = Vector2(8, 4)
+		slot.size = Vector2(88, 88)
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_theme_stylebox_override("panel", UIKit.slot_box())
+		b.add_child(slot)
+		b.focus_entered.connect(func(): slot.add_theme_stylebox_override("panel", UIKit.slot_box(true)))
+		b.focus_exited.connect(func(): slot.add_theme_stylebox_override("panel", UIKit.slot_box()))
+		var icon := TextureRect.new()
+		icon.texture = UI.Glyphs.item(row["item_slot"])
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.position = Vector2(24, 8)
+		icon.size = Vector2(40, 40)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(icon)
+		var count := UIKit.label("x%d" % int(row["stack_count"]), 32)
+		count.position = Vector2(0, 48)
+		count.size = Vector2(88, 36)
+		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(count)
 	var idx := rows.size()
 	b.pressed.connect(_activate.bind(idx))
 	b.focus_entered.connect(_row_focused.bind(idx))
@@ -829,13 +863,15 @@ func _capture_detail(c: VBoxContainer, sid: String) -> void:
 
 # ================================================================ Bag
 func _tab_bag() -> void:
-	_make_list(left_box, "Bag  ·  %d gold" % GameState.gold, right_box)
+	_make_list(left_box, "Bag  %d/24  ·  %d gold" % [GameState.stacks_used(GameState.inventory), GameState.gold], right_box)
 	var groups := [["CARE", func(it): return it["kind"] == "use" and not it.get("battle_only", false)],
 		["BATTLE ITEMS", func(it): return it["kind"] == "use" and it.get("battle_only", false)],
+		["WEAPONS", func(it): return it.has("weapon")],
 		["BEAST GEAR", func(it): return it["kind"] == "gear"],
 		["TRAINER GEAR", func(it): return it["kind"] == "tgear"],
 		["SHEET MUSIC", func(it): return it["kind"] == "sheet"],
-		["FISHING", func(it): return it["kind"] == "bait" or it.get("name", "") == "Fishing Pole"],
+		["FISHING", func(it): return it["kind"] == "bait"],
+		["KEY ITEMS", func(it): return it["kind"] == "key" and not it.has("weapon")],
 		["TOMES", func(it): return it["kind"] == "tome"]]
 	var ids := GameState.inventory.keys()
 	ids.sort_custom(func(a, b): return ItemDB.item_name(a) < ItemDB.item_name(b))
@@ -850,8 +886,12 @@ func _tab_bag() -> void:
 				_add_row({"header": true, "text": g[0]})
 				first = false
 			any = true
-			_add_row({"text": it["name"] + ("  (on your hook)" if GameState.bait == id else ""), "right": "x%d" % GameState.item_count(id), "right_width": 60,
-				"act": func(): await Menus.use_bag_item(id), "detail": _item_detail.bind(id)})
+			var remaining: int = GameState.item_count(id)
+			while remaining > 0:
+				var amount := remaining if GameState.bag_exempt(id) else mini(remaining, GameState.ITEM_STACK_SIZE)
+				_add_row({"text": it["name"] + ("  (on your hook)" if GameState.bait == id else ""), "stack_count": amount, "item_slot": id,
+					"act": func(): await Menus.use_bag_item(id), "detail": _item_detail.bind(id)})
+				remaining -= amount
 	if not any:
 		right_box.add_child(_t_label("Your bag is empty. Shops and hidden sacks will fill it up!", UIKit.DIM))
 
@@ -875,6 +915,10 @@ func _item_detail(c: VBoxContainer, id: String) -> void:
 			how = ("%s to take it off your hook." if GameState.bait == id else "%s to put it on your hook.") % _press()
 		"key":
 			how = "Bait on your hook: %s." % (ItemDB.item_name(GameState.bait) if GameState.bait != "" else "none")
+	if it.has("weapon"):
+		var most := BeatChain.max_hits(GameState.trainer_level)
+		how = "Pick it on your own turn in battle. " + ("Press A on the beat: up to %d hits." % most if most > 0
+			else "From trainer Lv %d you'll land more hits in time with the music." % BeatChain.UNLOCK_LEVEL)
 	if it.get("battle_only", false):
 		how = "Use it on your own turn in battle."
 	c.add_child(_t_label(how, UIKit.ACCENT))

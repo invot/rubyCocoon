@@ -230,7 +230,7 @@ class Arrow extends Button:
 		var c := (size / 2.0).round()
 		var w := 13.0
 		var h := 8.0 * dir
-		var pts := PackedVector2Array([c + Vector2(-w, h), c + Vector2(w, h), c + Vector2(0, -h)])
+		var pts := PackedVector2Array([c + Vector2(-w, -h), c + Vector2(w, -h), c + Vector2(0, h)])
 		draw_colored_polygon(pts, col)
 		pts.append(pts[0])
 		draw_polyline(pts, col, 1.0, true)

@@ -6,6 +6,7 @@ extends RefCounted
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
+const WeaponObstacles = preload("res://scripts/core/weapon_obstacles.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const TownMaps = preload("res://scripts/data/maps/town_maps.gd")
@@ -499,6 +500,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 			m["spawns"]["dock"] = m["anchors"][a]
 	if WorldDB.TOWNS.has(id):
 		_add_payphone(m)
+	WeaponObstacles.place(m, src.get("weapon_obstacles", []), flags)
 	return m
 
 

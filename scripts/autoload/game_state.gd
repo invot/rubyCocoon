@@ -41,6 +41,18 @@ var gold := 0
 var party: Array = []
 var storage: Array = []
 var inventory := {}
+## Shared Sky Tower locker and a single reserved courier order.
+var locker: Dictionary:
+	get:
+		return tower_inventory
+	set(value):
+		tower_inventory = value
+var courier_request: Dictionary = {}
+var courier_left := 30.0
+const BAG_STACKS := 24
+const ITEM_STACK_SIZE := 9
+const TOWER_STACKS := 48
+var tower_inventory := {}
 var gear := {"flute": "", "head": "", "feet": "", "acc": ""}
 ## the bait on your fishing hook (an ItemDB "bait" item), "" for none: one is used up each time something bites
 var bait := ""
@@ -164,7 +176,12 @@ func new_game(pname: String, look := {}) -> void:
 	gold = 300
 	party = []
 	storage = []
-	inventory = {"minor_potion": 5, "remedy_herb": 2, "spirit_drop": 3}
+	tower_inventory = {}
+	locker = {}
+	courier_request = {}
+	courier_left = 30.0
+	# every trainer has a slingshot (a key item, item_db.gd WEAPONS); the boomerang and the bat come later
+	inventory = {"minor_potion": 5, "remedy_herb": 2, "spirit_drop": 3, "slingshot": 1}
 	# no flute yet: Uncle Rafe in Bellerive keeps your father's
 	gear = {"flute": "", "head": "", "feet": "", "acc": ""}
 	songs = []
@@ -516,8 +533,74 @@ func item_count(id: String) -> int:
 	return int(inventory.get(id, 0))
 
 
-func add_item(id: String, n := 1) -> void:
-	inventory[id] = item_count(id) + n
+func bag_exempt(id: String) -> bool:
+	var it := ItemDB.get_item(id)
+	return it.has("weapon") or it.get("kind", "") in ["key", "sheet", "egg"]
+
+
+func stacks_used(contents: Dictionary) -> int:
+	var used := 0
+	for id in contents:
+		if not bag_exempt(id):
+			used += ceili(float(maxi(0, int(contents[id]))) / ITEM_STACK_SIZE)
+	return used
+
+
+func item_room(id: String, contents = null, limit := BAG_STACKS) -> int:
+	if contents == null:
+		contents = inventory
+	if bag_exempt(id):
+		return 2147483647
+	var count := maxi(0, int(contents.get(id, 0)))
+	var partial := (ITEM_STACK_SIZE - count % ITEM_STACK_SIZE) % ITEM_STACK_SIZE
+	return partial + maxi(0, limit - stacks_used(contents)) * ITEM_STACK_SIZE
+
+
+## Returns how many did not fit; callers decide whether to leave them or store them.
+func add_item(id: String, n := 1) -> int:
+	var accepted := mini(maxi(0, n), item_room(id))
+	if accepted > 0:
+		inventory[id] = item_count(id) + accepted
+		if id in ItemDB.WEAPONS:
+			set_flag("seen_weapon_" + id)
+	return maxi(0, n) - accepted
+
+
+## Ownership covers older saves; the flag remembers a weapon even if it later leaves the bag.
+func weapon_seen(id: String) -> bool:
+	return item_count(id) > 0 or flag("seen_weapon_" + id)
+
+
+## Forced deliveries can exceed storage capacity, so gifts and equipment are never lost.
+func receive_item(id: String, n := 1) -> void:
+	var overflow := add_item(id, n)
+	if overflow > 0:
+		tower_inventory[id] = int(tower_inventory.get(id, 0)) + overflow
+		UI.toast("%s x%d sent to tower storage." % [ItemDB.item_name(id), overflow], "item:" + id)
+
+
+func migrate_bag() -> void:
+	var old := inventory.duplicate()
+	inventory.clear()
+	for id in old:
+		var overflow := add_item(id, int(old[id]))
+		if overflow > 0:
+			tower_inventory[id] = int(tower_inventory.get(id, 0)) + overflow
+
+
+func transfer_item(id: String, n: int, to_tower: bool) -> int:
+	var source: Dictionary = inventory if to_tower else tower_inventory
+	var dest: Dictionary = tower_inventory if to_tower else inventory
+	var available := int(source.get(id, 0))
+	if not to_tower:
+		available -= int(courier_request.get("items", {}).get(id, 0))
+	var moved := mini(maxi(0, n), mini(maxi(0, available), item_room(id, dest, TOWER_STACKS if to_tower else BAG_STACKS)))
+	if moved > 0:
+		source[id] -= moved
+		if int(source[id]) == 0:
+			source.erase(id)
+		dest[id] = int(dest.get(id, 0)) + moved
+	return moved
 
 
 func remove_item(id: String, n := 1) -> bool:
@@ -545,6 +628,12 @@ func price(base_price: int) -> int:
 # ---------------------------------------------------------------- songs & capture
 func has_flute() -> bool:
 	return String(gear.get("flute", "")) != ""
+
+
+## The trainer weapons you own, in the battle bar's order (always the slingshot at least).
+func weapons() -> Array:
+	var out := ItemDB.WEAPONS.filter(func(id): return item_count(id) > 0)
+	return out if not out.is_empty() else ["slingshot"]
 
 
 
@@ -902,7 +991,8 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"player_name": player_name, "hero": hero, "gold": gold,
 		"party": party.map(func(b): return b.to_dict()),
 		"storage": storage.map(func(b): return b.to_dict()),
-		"inventory": inventory, "gear": gear, "bait": bait, "songs": songs, "song_mastery": song_mastery, "summons": summons,
+		"locker": locker, "courier_request": courier_request, "courier_left": courier_left,
+		"inventory": inventory, "tower_inventory": tower_inventory, "gear": gear, "bait": bait, "songs": songs, "song_mastery": song_mastery, "summons": summons,
 		"crests": crests, "flags": flags, "visited": visited, "map_id": map_id,
 		"pos": [pos.x, pos.y], "facing": [facing.x, facing.y], "last_center": last_center,
 		"seen": seen, "caught": caught, "play_time": play_time, "steps": steps,
@@ -965,6 +1055,17 @@ func load_game(slot := -2) -> bool:
 	var inv: Dictionary = d.get("inventory", {})
 	for k in inv:
 		inventory[k] = int(inv[k])
+	locker = {}
+	var saved_locker: Dictionary = d.get("locker", d.get("tower_inventory", {}))
+	for id in saved_locker:
+		var count := int(saved_locker[id])
+		if count > 0:
+			locker[String(id)] = count
+	migrate_bag()
+	courier_request = d.get("courier_request", {}).duplicate(true)
+	courier_left = clampf(float(d.get("courier_left", 30.0)), 0.0, 30.0)
+	# every trainer has a slingshot: saves from before it was a key item get theirs
+	inventory["slingshot"] = 1
 	gear = d.get("gear", gear)
 	bait = String(d.get("bait", ""))
 	songs = d.get("songs", [])

@@ -61,6 +61,9 @@ var ghost := false
 var pace := 1.0
 ## braced (Defend): it eases into the stance and holds it while this is true
 var guard := false
+## Only the courier's owl uses this pose; ordinary beasts keep their existing rig and animations.
+var mounted := false
+var _mount_seat := Vector3.ZERO
 
 var pivot: Node3D
 var skel: Skeleton3D
@@ -122,6 +125,7 @@ static var _built := {}
 ## Geometry measurements are identical for every instance of a recipe, including ghosts and portraits.
 ## Cache the small result, never the vertex arrays returned by the renderer.
 static var _measurements := {}
+static var _mount_meshes: Array[ArrayMesh] = []
 const RECIPE_CACHE_LIMIT := 96
 
 ## A beast of this form (as "dino_3").
@@ -137,6 +141,65 @@ func setup_merge(a: String, b: String, seed_n: int, as_ghost := false) -> void:
 ## A merged beast from its recipe (as Parts.merge_recipe() gives it, and its genes keep it).
 func setup_recipe(recipe: Dictionary, as_ghost := false) -> void:
 	_build(recipe, as_ghost)
+
+
+func mount() -> void:
+	if mounted or form != "owl_3":
+		return
+	mounted = true
+	var fi := Parts.info(form)
+	var lo: Vector3 = fi["lo"]["body"]
+	var hi: Vector3 = fi["hi"]["body"]
+	var neck := Vector3(_centre.x, lerpf(lo.y, hi.y, 0.58), 0)
+	_mount_seat = Vector3(lerpf(lo.x, hi.x, 0.25), lerpf(lo.y, hi.y, 0.78), 0)
+	var head := PARTS.find("head")
+	# This model's painted face is part of the body mesh; its original head bone owns only the ear tufts.
+	# Rebind the upper face to a neck joint, blending through the neck so the mesh stays sealed.
+	var old_head: Vector3 = _joint["head"]
+	_joint["head"] = neck
+	_rest[head] = neck - _centre
+	skel.set_bone_rest(head, Transform3D(Basis(), _rest[head]))
+	for i in PARTS.size():
+		if skel.get_bone_parent(i) == head:
+			_rest[i] += old_head - neck
+			skel.set_bone_rest(i, Transform3D(Basis(), _rest[i]))
+	var skin := skel.create_skin_from_rest_transforms()
+	var index := 0
+	for child in skel.get_children():
+		if not child is MeshInstance3D:
+			continue
+		var mi := child as MeshInstance3D
+		if index >= _mount_meshes.size():
+			var mesh := ArrayMesh.new()
+			for surface in mi.mesh.get_surface_count():
+				var arrays := mi.mesh.surface_get_arrays(surface)
+				var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+				var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+				var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+				for v in vertices.size():
+					if bones[v * 4] != 0:
+						continue
+					var blend := smoothstep(neck.y - 0.06, neck.y + 0.07, vertices[v].y)
+					bones[v * 4] = 0
+					bones[v * 4 + 1] = head
+					weights[v * 4] = 1.0 - blend
+					weights[v * 4 + 1] = blend
+					weights[v * 4 + 2] = 0.0
+					weights[v * 4 + 3] = 0.0
+				arrays[Mesh.ARRAY_BONES] = bones
+				arrays[Mesh.ARRAY_WEIGHTS] = weights
+				mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			_mount_meshes.append(mesh)
+		mi.mesh = _mount_meshes[index]
+		mi.skin = skin
+		index += 1
+	_pose()
+
+
+## A point on the posed back, in world space. The rider follows the bob without inheriting the body's pitch.
+func mount_seat() -> Vector3:
+	var body := skel.get_bone_global_pose(0)
+	return skel.to_global(body * (_mount_seat - _centre))
 
 
 ## Starts an attack (its blow lands HIT_AT of the way through: the hit signal).
@@ -1022,6 +1085,9 @@ func _pose() -> void:
 		rot["body"].x += 0.2 * ko
 		rot["head"].z -= 0.25 * ko
 		rot["head"].x += 0.2 * ko
+	if mounted:
+		rot["body"].z = -PI / 4.0
+		rot["head"].z = PI / 4.0
 	pivot.position = Vector3(0.0, lift - _ground, 0.0)
 	var wide := 1.0 / sqrt(sy)
 	pivot.scale = Vector3(wide * sx, sy / sqrt(sx), wide)

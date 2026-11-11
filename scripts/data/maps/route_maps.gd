@@ -9,6 +9,7 @@ extends RefCounted
 ##   +  signpost (text from "signs", top-to-bottom)    $  hidden item    *  crystal shard
 ##   @  villager      v ^ < >  trainer facing that way   P  player start
 ##   1-9 named spots used by the story (see "anchors")
+## "weapon_obstacles": optional named weapon fixtures, firing tiles, targets, blocks, effects and chest rewards.
 ## Field obstacles (cleared with a beast's elemental power, see world_db.gd OBSTACLES):
 ##   w driftwood  j vines  d sand drift  o boulder  y dust storm  l lava  i ice  | ravine  x barricade  m fog
 ##   &  story gate (opens when "gate.flag" is set)
@@ -36,12 +37,12 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-			"T.t.fTTTTT...TTTTTTTTTTTTTTT~~...fTTTTTT5TTTTTTT.......T",
-			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.TTTTTT.TTTTTTT.ggggg*T",
-			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.,,,,,,,,,,,,,,.ggggg.T",
-			"Tggg.TTT,,...f.....f,,TTTTTT~~.gg.,,,,,,,,,,,,,,.ggggg.T",
-			"Tggg.2TT,,ggg.3.ggg.,,..TTTT~~.gg.,,....zzzzzt,,f......T",
-			"T+....TT,,ggg.t.ggg.,,TTTTTT~~.gg.,,.gg.t....f,,TTTTTTTT",
+			"T.t.fTTTTT...TTTTTTTTTTTTTTT~~...fTTTTTT5TTTTTTT..z....T",
+			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.TTTTTT.TTTTTTT.z.zgg*T",
+			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.,,,,,,,,,,,,,,....gg.T",
+			"Tggg.TTT,,.~~~.....f,,TTTTTT~~.gg.,,,,,,,,,,,,,,....gg.T",
+			"Tggg.2TT,,g.g.3.ggg.,,..TTTT~~.gg.,,....zzzzzt,,f......T",
+			"T+....TT,,g.g.t.ggg.,,TTTTTT~~.gg.,,.gg.t....f,,TTTTTTTT",
 			",,,,,,,,,,ggg.t.ggg.,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
 			",,,,,,,,,,..$.t.....,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
 			"t..fzzzzztttttttt...,4TbbbbT~~....,,.gg.t.gggtttttt....t",
@@ -83,12 +84,18 @@ const MAPS := {
 			"Coastal Path. West: Cocoon Cove. East: Bellerive.",
 			"Creek Footbridge ahead, on the road to Bellerive. Builder's cabin by the creek.",
 		],
+		"weapon_obstacles": [
+			{"id": "glade_stump", "type": "stump", "targets": [Vector2i(50, 4)], "use_from": Vector2i(50, 5),
+				"blocks": [Vector2i(50, 4)], "reward": {"pos": Vector2i(50, 3), "item": "revival_seed"}},
+			{"id": "creek_switches", "type": "switches", "targets": [Vector2i(11, 5), Vector2i(12, 5), Vector2i(13, 5)],
+				"use_from": Vector2i(10, 5), "effect": "chest", "reward": {"pos": Vector2i(11, 7), "item": "spirit_drop"}},
+		],
 	},
 	"route2": {
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~TTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~TTTTTTTTTTTTTTTTTTTTTTTT",
-			"TTt.f.....T.........___________.TTT.....t....T.......fTT",
+			"TTt.f....tT.........___________.TTT.....t....T.......fTT",
 			"TT..............v...____6______..TT..............fT...TT",
 			"TT..*........t.....T_____,,____.tTT.....f....v........TT",
 			"TTT...f..................,,....ggTTgT.................TT",
@@ -111,10 +118,10 @@ const MAPS := {
 		"heights": [
 			"22111111112111111110000000000000113222222222232222222233",
 			"2/1111111111111111100000000000001122222222222222222222\\3",
-			"11/000000\\1/00000000000000000000\\12/11111111\\2/111111\\22",
-			"11000000000000000000000000000000012111111111111111111122",
-			"11000000000000000000000000000000012111111111111111111122",
-			"21\\00000000000000000000000000000012111111111111111111/22",
+			"11/00000111/00000000000000000000\\12/11111111\\2/111111\\22",
+			"11000000111000000000000000000000012111111111111111111122",
+			"11000000111000000000000000000000012111111111111111111122",
+			"21\\000000^0000000000000000000000012111111111111111111/22",
 			"21/00000000000000000000000000000012111111111111111111223",
 			"11000000000000000000000000000000012111111111111111111\\22",
 			"110000000000000000000000000000000121111111111111111111\\2",
@@ -134,6 +141,10 @@ const MAPS := {
 		"signs": [
 			"Isle Trail. West: Shellhaven. East: Kelpwick.",
 			"Thorny brambles choke the trail. A beast that breathes fire, or one quick enough to slice the wind, could clear them.",
+		],
+		"weapon_obstacles": [
+			{"id": "ledge_bell", "type": "bell", "targets": [Vector2i(9, 3)], "use_from": Vector2i(9, 6),
+				"effect": "ladder", "blocks": [Vector2i(9, 5)], "reward": {"pos": Vector2i(8, 4), "item": "revival_seed"}},
 		],
 	},
 	"reef": {
@@ -231,9 +242,9 @@ const MAPS := {
 			"TTTTTTTTT,,TTTTTTTTTTTTT",
 			"TT.....#.,,..t...##..TTT",
 			"TT.#t.f..,,...........TT",
-			"TT.......,,.......f..#TT",
-			"TT.#..#..,,...........TT",
-			"TT..T.T..,,..ggg......TT",
+			"TT...~zzz,,.......f..#TT",
+			"TT.#..z.z,,...........TT",
+			"TT..T.z.z,,..ggg......TT",
 			"TT.......,,.ggggg.....TT",
 			"TT.....f.,,ggggggg..T.TT",
 			"TT.*.....,,.ggggg...TTTT",
@@ -335,6 +346,10 @@ const MAPS := {
 			"A sheer cliff. A rope ladder is coiled at the top, far out of reach. A beast with wings could fly up and drop it down.",
 			"Dune Road. North: Dustwell Oasis.",
 		],
+		"weapon_obstacles": [
+			{"id": "oasis_target", "type": "bullseye", "targets": [Vector2i(5, 3)], "use_from": Vector2i(5, 5),
+				"effect": "gate", "blocks": [Vector2i(7, 6)], "reward": {"pos": Vector2i(7, 5), "item": "remedy_herb"}},
+		],
 	},
 	"route4": {
 		"rows": [
@@ -346,9 +361,9 @@ const MAPS := {
 			"TT###.......,,gggg.###TT",
 			"TT###...T...,,ggg..###TT",
 			"TT###..f.T..,,.gff.###TT",
-			"TT####fT..#.,,.....###TT",
+			"TT####fz..#.,,.....###TT",
 			"TT###.......,,.....###TT",
-			"TT###...,,,,,,.....###TT",
+			"TT###..z,,,,,,.....###TT",
 			"TT###T..,,,,,......###TT",
 			"TT###...,,....#..*.###TT",
 			"TT###...,,.........###TT",
@@ -447,6 +462,10 @@ const MAPS := {
 		"signs": [
 			"Rockslide! Push the boulders to clear a way north. (Stuck? Leave the trail and come back, and they'll be back where they started.)",
 			"Mesa Trail. North: Sundown Gulch.",
+		],
+		"weapon_obstacles": [
+			{"id": "mesa_rock", "type": "cracked_rock", "targets": [Vector2i(7, 9)], "use_from": Vector2i(8, 9),
+				"blocks": [Vector2i(7, 9)], "reward": {"pos": Vector2i(6, 9), "item": "spirit_drop"}},
 		],
 	},
 	"route5": {

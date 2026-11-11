@@ -28,6 +28,40 @@ const KNEEL_DOWN := 0.15
 const KNEEL_UP := 1.5
 const KNEEL_PAD := 0.045
 
+## A trainer's weapon in battle (item_db.gd WEAPONS): held ready between hits (set_ready), and used (set_action).
+## Poses give each arm [how far it's raised forward, the elbow's bend, how far out to the side] (radians, as the walk
+## swings them), the chest's turn (+ to the person's left), how low the hips sink, and which way the weapon points from
+## the hand (in the person's own space: +x their left, +y up, +z ahead). The slingshot is in the left hand, the
+## boomerang and the bat in the right.
+const READY := {
+	"slingshot": {"l": Vector3(1.45, 0.1, 0.08), "r": Vector3(1.3, 2.0, -0.3), "twist": 0.12, "crouch": 0.0,
+		"dir": Vector3(0.0, 1.0, 0.25)},
+	"boomerang": {"l": Vector3(0.35, 0.35, 0.05), "r": Vector3(1.55, 1.9, 0.6), "twist": -0.25, "crouch": 0.01,
+		"dir": Vector3(-0.2, 1.0, -0.2)},
+	"bat": {"l": Vector3(1.15, 1.6, -0.45), "r": Vector3(1.3, 1.9, 0.25), "twist": -0.45, "crouch": 0.03,
+		"dir": Vector3(-0.25, 0.8, -0.5)},
+}
+## A use's keys: [seconds in, the pose then (what it leaves out, and null, is the ready pose)].
+const ACTIONS := {
+	# the slingshot: the band let go, the right hand snapping forward, then drawing back again
+	"throw": [[0.0, null], [0.05, {"r": Vector3(1.4, 0.3, 0.0), "twist": 0.18}], [0.14, {"r": Vector3(1.4, 0.4, 0.0), "twist": 0.18}],
+		[0.34, null]],
+	# the boomerang: drawn further back, then flung side-arm with the chest turning through
+	"boomerang": [[0.0, null], [0.07, {"r": Vector3(1.5, 2.2, 0.85), "twist": -0.45}], [0.16, {"r": Vector3(1.45, 0.3, -0.3), "twist": 0.4}],
+		[0.24, {"r": Vector3(1.2, 0.5, -0.35), "twist": 0.35}], [0.42, null]],
+	# and caught again, the hand reaching up for it
+	"catch": [[0.0, null], [0.08, {"r": Vector3(1.75, 0.6, 0.3), "twist": 0.0}], [0.16, {"r": Vector3(1.7, 0.8, 0.3), "twist": 0.0}],
+		[0.3, null]],
+	# the bat: loaded back, swept round level in front (meeting the target as it points ahead), and followed through
+	"swing": [[0.0, null], [0.07, {"twist": -0.65, "dir": Vector3(-0.6, 0.6, -0.5)}],
+		[0.13, {"l": Vector3(1.35, 0.5, 0.2), "r": Vector3(1.35, 0.6, -0.2), "twist": 0.2, "crouch": 0.05, "dir": Vector3(-0.1, 0.1, 1.0)}],
+		[0.19, {"l": Vector3(1.35, 0.45, 0.35), "r": Vector3(1.35, 0.55, -0.4), "twist": 0.75, "crouch": 0.04, "dir": Vector3(0.45, 0.05, 0.9)}],
+		[0.28, {"l": Vector3(1.3, 0.7, 0.4), "r": Vector3(1.2, 0.8, -0.45), "twist": 0.85, "dir": Vector3(0.95, 0.2, -0.1)}],
+		[0.46, null]],
+}
+## When in a use the stone or boomerang leaves the hand, or the bat meets the target (seconds in).
+const ACTION_HIT := {"throw": 0.05, "boomerang": 0.15, "catch": 0.0, "swing": 0.13}
+
 static var _rigs := {}
 ## Cap badges made so far (see _badge), by shop.
 static var _badges := {}
@@ -154,6 +188,171 @@ static func set_talking(rig: Node3D, on: bool, at_once := false) -> void:
 ## whoever drives them sets it from moment to moment (the intro's Vexmora calling up a ghost).
 static func set_reach(rig: Node3D, w: float) -> void:
 	rig.set_meta("reach_w", clampf(w, 0.0, 1.0))
+
+
+## A trainer takes up a weapon and holds it ready ("slingshot", "boomerang" or "bat"; "" puts it away), settling into
+## the stance over a moment (see READY); at_once: straight away.
+static func set_ready(rig: Node3D, weapon: String, at_once := false) -> void:
+	rig.set_meta("ready", weapon)
+	if weapon != "":
+		rig.set_meta("ready_kind", weapon)
+		_hold(rig, weapon)
+	if at_once:
+		rig.set_meta("ready_w", 1.0 if weapon != "" else 0.0)
+
+
+## A trainer uses their weapon once (see ACTIONS: "throw", "boomerang", "catch", "swing"), starting now on the clock
+## animate runs on (or at `start` on it).
+static func set_action(rig: Node3D, kind: String, start := -1.0) -> void:
+	rig.set_meta("act", kind)
+	rig.set_meta("act_t", clock(rig) if start < 0.0 else start)
+
+
+## Shows or hides the weapon in the hand (a boomerang in flight isn't in it).
+static func show_weapon(rig: Node3D, on: bool) -> void:
+	var prop: Node3D = (rig.get_meta("weapon_prop") if rig.has_meta("weapon_prop") else null)
+	if prop != null and is_instance_valid(prop):
+		prop.set_meta("shown", on)
+
+
+## Where the weapon in the hand is now (its grip), in world space; the rig's own position if it holds none.
+static func weapon_point(rig: Node3D) -> Vector3:
+	var prop: Node3D = (rig.get_meta("weapon_prop") if rig.has_meta("weapon_prop") else null)
+	if prop != null and is_instance_valid(prop) and prop.is_inside_tree():
+		return prop.global_position
+	return rig.global_position + Vector3.UP * hand_height()
+
+
+## The clock a person's animation runs on when animate isn't given one (offset per person).
+static func clock(rig: Node3D) -> float:
+	return Time.get_ticks_msec() / 1000.0 + float(rig.get_instance_id() % 1000) * 0.61
+
+
+## The weapon a person holds, made the first time (a slingshot's fork, a boomerang, a bat), on the skeleton; animate
+## puts it in the hand each frame.
+static func _hold(rig: Node3D, weapon: String) -> void:
+	var old: Node3D = (rig.get_meta("weapon_prop") if rig.has_meta("weapon_prop") else null)
+	if old != null and is_instance_valid(old):
+		if String(old.get_meta("kind", "")) == weapon:
+			return
+		old.queue_free()
+	var sk: Skeleton3D = (rig.get_meta("skeleton") if rig.has_meta("skeleton") else null)
+	if sk == null:
+		return
+	var prop := Node3D.new()
+	prop.name = "Weapon"
+	prop.set_meta("kind", weapon)
+	prop.set_meta("shown", true)
+	prop.visible = false
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("#b9824e") if weapon != "boomerang" else Color("#d9a066")
+	wood.roughness = 0.75
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color("#5a3a22") if weapon != "boomerang" else Color("#2f86b4")
+	dark.roughness = 0.8
+	# (the kit's skeleton is in its own metres; the person is drawn SCALE of that)
+	var add := func(mesh: Mesh, mat: Material, xf: Transform3D) -> void:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = mat
+		mi.transform = xf
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		prop.add_child(mi)
+	match weapon:
+		"bat":
+			var cyl := CylinderMesh.new()
+			cyl.top_radius = 0.055
+			cyl.bottom_radius = 0.026
+			cyl.height = 0.78
+			cyl.radial_segments = 10
+			cyl.rings = 1
+			add.call(cyl, wood, Transform3D(Basis.IDENTITY, Vector3(0, 0.33, 0)))
+			var knob := CylinderMesh.new()
+			knob.top_radius = 0.034
+			knob.bottom_radius = 0.034
+			knob.height = 0.03
+			knob.radial_segments = 10
+			add.call(knob, dark, Transform3D(Basis.IDENTITY, Vector3(0, -0.07, 0)))
+			var grip := CylinderMesh.new()
+			grip.top_radius = 0.03
+			grip.bottom_radius = 0.03
+			grip.height = 0.16
+			grip.radial_segments = 10
+			add.call(grip, dark, Transform3D(Basis.IDENTITY, Vector3(0, 0.02, 0)))
+		"boomerang":
+			var arm := BoxMesh.new()
+			arm.size = Vector3(0.07, 0.3, 0.022)
+			for s in [-1.0, 1.0]:
+				var b := Basis(Vector3.BACK, s * 0.85)
+				add.call(arm, wood, Transform3D(b, b * Vector3(0, 0.13, 0)))
+			var band := BoxMesh.new()
+			band.size = Vector3(0.075, 0.05, 0.026)
+			add.call(band, dark, Transform3D(Basis.IDENTITY, Vector3(0, 0.02, 0)))
+		_:
+			var stick := BoxMesh.new()
+			stick.size = Vector3(0.035, 0.16, 0.035)
+			add.call(stick, wood, Transform3D(Basis.IDENTITY, Vector3(0, 0.04, 0)))
+			for s in [-1.0, 1.0]:
+				var b := Basis(Vector3.BACK, s * 0.5)
+				add.call(stick, wood, Transform3D(b.scaled(Vector3(1, 0.75, 1)), Vector3(s * 0.04, 0.17, 0)))
+			var bandm := BoxMesh.new()
+			bandm.size = Vector3(0.15, 0.012, 0.012)
+			add.call(bandm, dark, Transform3D(Basis.IDENTITY, Vector3(0, 0.22, 0)))
+	sk.add_child(prop)
+	rig.set_meta("weapon_prop", prop)
+
+
+## The weapon pose now (see READY, ACTIONS): {w (how much of it), l, r, twist, crouch, dir}, or {} for none.
+static func _weapon_pose(rig: Node3D, t: float, ready_w: float) -> Dictionary:
+	var kind := String(rig.get_meta("ready_kind", ""))
+	var act := String(rig.get_meta("act", ""))
+	var at := t - float(rig.get_meta("act_t", -100.0))
+	var keys: Array = ACTIONS.get(act, [])
+	var acting := not keys.is_empty() and at >= 0.0 and at < float(keys.back()[0])
+	if (ready_w <= 0.0 and not acting) or not READY.has(kind):
+		return {}
+	var base: Dictionary = READY[kind]
+	var pose := base.duplicate()
+	pose["w"] = ready_w
+	if acting:
+		var i := 0
+		while i < keys.size() - 2 and at >= float(keys[i + 1][0]):
+			i += 1
+		var a: Dictionary = base.merged(keys[i][1] if keys[i][1] != null else {}, true)
+		var b: Dictionary = base.merged(keys[i + 1][1] if keys[i + 1][1] != null else {}, true)
+		var u := smoothstep(0.0, 1.0, clampf((at - float(keys[i][0])) / maxf(0.001, float(keys[i + 1][0]) - float(keys[i][0])), 0.0, 1.0))
+		for k in ["l", "r", "dir"]:
+			pose[k] = (a[k] as Vector3).lerp(b[k], u)
+		for k in ["twist", "crouch"]:
+			pose[k] = lerpf(float(a[k]), float(b[k]), u)
+		# (a use without the stance blends in from the person's own arms, and back)
+		var end := float(keys.back()[0])
+		pose["w"] = maxf(ready_w, minf(smoothstep(0.0, 0.05, at), 1.0 - smoothstep(end - 0.1, end, at)))
+	return pose
+
+
+## Puts the weapon in its hand, pointing the way the pose says.
+static func _place_weapon(rig: Node3D, sk: Skeleton3D, r: Dictionary, pose: Dictionary) -> void:
+	var prop: Node3D = (rig.get_meta("weapon_prop") if rig.has_meta("weapon_prop") else null)
+	if prop == null or not is_instance_valid(prop):
+		return
+	prop.visible = not pose.is_empty() and float(pose["w"]) > 0.5 and bool(prop.get_meta("shown", true))
+	if not prop.visible:
+		return
+	var left := String(prop.get_meta("kind")) == "slingshot"
+	var hand_i := sk.find_bone("l_hand" if left else "r_hand")
+	if hand_i < 0:
+		return
+	var hand := sk.get_bone_global_pose(hand_i).origin
+	var fore := sk.get_bone_global_pose(sk.get_bone_parent(hand_i)).origin
+	var lat: Vector3 = r["lat"]
+	var up: Vector3 = r["up"]
+	var fwd: Vector3 = r["fwd"]
+	var d: Vector3 = pose["dir"]
+	var y := (lat * d.x + up * d.y + fwd * d.z).normalized()
+	var z := (fwd - y * fwd.dot(y))
+	z = z.normalized() if z.length() > 0.05 else lat
+	prop.transform = Transform3D(Basis(y.cross(z), y, z), hand + (hand - fore).normalized() * 0.04)
 
 
 ## What posing a person's skeleton needs, worked out once from its rest pose, in the skeleton's own space (whatever
@@ -294,6 +493,11 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	rig.set_meta("kneel_w", kneel_w)
 	# (sinking down eases in and out)
 	var kw := smoothstep(0.0, 1.0, kneel_w)
+	# a weapon held ready (a battle), and its use: over the arms, the chest's turn and the knees
+	var ready_w := move_toward(float(rig.get_meta("ready_w", 0.0)), 1.0 if String(rig.get_meta("ready", "")) != "" else 0.0, dt * 5.0)
+	rig.set_meta("ready_w", ready_w)
+	var wpose := _weapon_pose(rig, t, smoothstep(0.0, 1.0, ready_w)) if rig.has_meta("ready_kind") else {}
+	var ww := float(wpose.get("w", 0.0)) * (1.0 - kw) * (1.0 - sit_w)
 	speed = maxf(speed, 0.0) * (1.0 - sit_w) * (1.0 - kneel_w)
 	# how much of a gait there is (0 standing), how much of it is a run, how much a sprint
 	var m := clampf(speed / 1.2, 0.0, 1.0)
@@ -315,6 +519,7 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	var body_y := (-lerpf(0.012, 0.05, run) * m - 0.008 * still * (0.5 + 0.5 * shift)) * LEGS
 	# a run leaves the ground between steps: lowest with a foot under the body, highest in the air
 	body_y += 0.045 * LEGS * run * m * (0.5 - 0.5 * cos(TAU * 2.0 * (u - duty * 0.5)))
+	body_y -= float(wpose.get("crouch", 0.0)) * ww * LEGS
 	var feet := {}
 	for side in ["l", "r"]:
 		var leg: Dictionary = r[side + "_leg"]
@@ -368,8 +573,9 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	lean += kw * (0.4 + 0.045 * sin(t * 3.4))
 	var spine: Array = r["spine"]
 	var each := 1.0 / maxf(1.0, spine.size())
+	var chest_turn := float(wpose.get("twist", 0.0)) * ww
 	for bone in spine:
-		g = _turn(sk, bone, g, Quaternion(lat, lean * each) * Quaternion(up, -1.5 * twist * each) * Quaternion(fwd, -0.8 * roll * each))
+		g = _turn(sk, bone, g, Quaternion(lat, lean * each) * Quaternion(up, (chest_turn - 1.5 * twist) * each) * Quaternion(fwd, -0.8 * roll * each))
 		posed[bone["i"]] = g
 	# the head keeps looking ahead, nodding a little behind each step; talking, it nods along and tilts
 	var head: Dictionary = r["head"]
@@ -452,9 +658,17 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		a_swing = lerpf(a_swing, 0.55 + 0.1 * sin(t * 3.3), mine)
 		bend = lerpf(bend, 1.2 + 0.25 * sin(t * 5.2), mine)
 		spread += 0.25 * mine
+		# holding and using a weapon
+		if ww > 0.0:
+			var aim: Vector3 = wpose[side]
+			a_swing = lerpf(a_swing, aim.x, ww)
+			bend = lerpf(bend, aim.y, ww)
+			spread = lerpf(spread, aim.z, ww)
 		var ag := _turn(sk, arm, arm["parent"], Quaternion(fwd, float(arm["out"]) * spread) * Quaternion(lat, -a_swing) * arm["down"])
 		var fore: Dictionary = r[side + "_forearm"]
 		_turn(sk, fore, ag, Quaternion(lat, -bend))
+	if rig.has_meta("weapon_prop"):
+		_place_weapon(rig, sk, r, wpose if ww > 0.5 else {})
 
 
 ## How far one step carries a person at `speed` (game units a second): the faster, the longer the stride (a stroll's

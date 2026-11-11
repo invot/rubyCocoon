@@ -25,11 +25,11 @@ func run(main, opts: Dictionary) -> void:
 	_check(town.get("style", "") == "pirate_cove" and town["w"]*town["h"] < 66*49, "the supplied-kit cove is smaller than the former map")
 	_check(town.get("boats",[]).is_empty(), "the cove has docks without ships or boats")
 	var apothecary: Dictionary = town["buildings"][2]
-	_check(not apothecary.get("over_water",false) and Elev.surface(town,apothecary["door"]) == 3.0
+	_check(not apothecary.get("over_water",false) and Elev.surface(town,apothecary["door"]) == 1.0
 		and apothecary["cove_model"] == "house_3", "the apothecary is a plaster shop on the eastern land")
 	_check([3,6].all(func(i): return town["buildings"][i].get("over_water",false) and String(town["buildings"][i]["cove_model"]).begins_with("hut_")), "only wooden shacks stand on the dock")
 	_check(not town["buildings"][4].get("over_water",false)
-		and Elev.surface(town,town["buildings"][4]["door"]) == 3.0, "the plaster neighbor's home stands on land")
+		and Elev.surface(town,town["buildings"][4]["door"]) == 1.0, "the plaster neighbor's home stands on land")
 	var deck_tiles := 0
 	for y in town["h"]:
 		for x in town["w"]:
@@ -60,7 +60,7 @@ func run(main, opts: Dictionary) -> void:
 				var q: Vector2i = p+delta
 				if MapGen.walkable(MapGen.get_t(town,q.x,q.y)) and Elev.surface(town,q)>0.01 and Elev.joined(town,p,q):
 					accesses.append(q)
-	_check(accesses.size()==2 and accesses.all(func(p): return p.x in [44,45] and p.y==33), "only the two-tile right-hand stairs connect land to the dock")
+	_check(accesses.size()==2 and accesses.all(func(p): return p.x in [44,45] and p.y==30), "only the two-tile right-hand stairs connect land to the dock")
 	var reachable: Dictionary = main.world._reachable(town["spawns"]["start"])
 	var trapped := []
 	for y in town["h"]:
@@ -80,12 +80,20 @@ func run(main, opts: Dictionary) -> void:
 				and is_equal_approx(inst.mesh.size.x,models.DOOR_H/models.DOOR_ASPECT))
 		_check(standard, "%s uses the other towns' full-size door" % building["name"])
 		node.free()
-	_check(town["buildings"][5]["cove_model"] == "house_2", "the library is a reading cottage, without loading bays")
+	var library_b: Dictionary = town["buildings"][5]
+	_check(library_b["cove_model"] == "whole_house" and int(library_b["w"]) % 2 == 1
+		and library_b["door"].x == int(library_b["x"]) + int(library_b["w"]) / 2,
+		"the library is the kit's two-storey house, its door in the middle with a window either side, without loading bays")
+	var cottage_area := 5.27 * 3.74
+	var library_rect: Rect2 = cove.plan(library_b)["rect"]
+	_check(library_rect.get_area() > cottage_area * 1.3, "the library is larger than the old reading cottage")
+	_check(MapLoader.room_set(town["buildings"][3]) == ["cove_dock_shack"], "the pier neighbor's home is a wooden shack inside")
+	_cove_ground(town)
 	var home: Dictionary = town["buildings"][1]
 	var home_level := Elev.surface(town, home["door"])
 	_check(home_level > Elev.surface(town, town["buildings"][0]["door"])
 		and Elev.surface(town,town["buildings"][3]["door"]) == 0.0
-		and Elev.surface(town,town["buildings"][4]["door"]) == 3.0, "home overlooks the land village and short shack dock")
+		and Elev.surface(town,town["buildings"][4]["door"]) == 1.0, "home overlooks the land village and short shack dock")
 	_check(town.get("outskirt_houses", []).is_empty() and town.get("scenery_houses", []).size() == 2, "two close background homes replace distant outskirt buildings")
 	for entry in town.get("scenery_houses", []):
 		var position := Vector2i(int(entry["x"]), int(entry["y"]))
@@ -99,6 +107,9 @@ func run(main, opts: Dictionary) -> void:
 				break
 		_check(main.world.find_child(entry["name"], true, false) != null, "%s renders" % entry["name"])
 		_check(not MapGen.walkable(MapGen.get_t(town, position.x, position.y)), "%s has no accessible entrance" % entry["name"])
+		var doorway := Vector2i(floori(float(entry["x"]) + float(entry["w"]) / 2.0 + float(entry.get("cove_door_dx", 0.0))), int(entry["y"]) + int(entry["d"]) - 1)
+		_check(main.world._ground_tile(doorway) == MapGen.DOOR and not MapGen.walkable(MapGen.get_t(town, doorway.x, doorway.y)),
+			"%s's path runs right up to its door" % entry["name"])
 		_check(Elev.surface(town, position) > Elev.surface(town, town["buildings"][0]["door"]), "the scenery homes occupy the rear cliff shelf")
 	main.world._place_camera(true)
 	if await _preview(main,opts):
@@ -276,6 +287,53 @@ func _shot(main, opts: Dictionary) -> void:
 	if opts.has("shot"):
 		await RenderingServer.frame_post_draw
 		main._save_shot(String(opts["shot"]))
+
+
+## The ground the user asked for (2026-11-10): no lawn that looks open but can't be walked on, gentle levels and short
+## ramps, a tall rim of cliffs round the cove (on the east above the road, not water), and a path to every door.
+func _cove_ground(town: Dictionary) -> void:
+	var solid_lawn := []
+	for y in town["h"]:
+		for x in town["w"]:
+			var p := Vector2i(x, y)
+			# a hedge is drawn only along its edges (world.gd _hedge_lines): its inside would look like lawn
+			if MapGen.get_t(town, x, y) == MapGen.BUSH and [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN].all(
+					func(d): return MapGen.get_t(town, x + d.x, y + d.y) == MapGen.BUSH):
+				solid_lawn.append(p)
+			if MapGen.get_t(town, x, y) == MapGen.BUSH and MapGen.get_t(town, x + 1, y) == MapGen.BUSH 					and MapGen.get_t(town, x, y + 1) == MapGen.BUSH and MapGen.get_t(town, x + 1, y + 1) == MapGen.BUSH:
+				solid_lawn.append(p)
+	_check(solid_lawn.is_empty(), "no hedge is thick enough to leave dark lawn nobody can walk on: %s" % str(solid_lawn))
+	var long_ramps := []
+	var steps := {}
+	for y in town["h"]:
+		for x in town["w"]:
+			var p := Vector2i(x, y)
+			var d := Elev.ramp_dir(town, p)
+			if d == Vector2i.ZERO or Elev.ramp_dir(town, p - d) == d:
+				continue
+			var n := 0
+			while Elev.ramp_dir(town, p + d * n) == d:
+				n += 1
+			if n > 3:
+				long_ramps.append(p)
+			steps[roundi(absf(Elev.surface(town, p + d * n) - Elev.surface(town, p - d)))] = true
+	_check(long_ramps.is_empty() and steps.keys().all(func(k): return k == 1), "every ramp climbs one level in at most three tiles: %s" % str(long_ramps))
+	var road := Elev.surface(town, Vector2i(47, 21))
+	var rim := [Vector2i(52, 8), Vector2i(52, 18), Vector2i(1, 10), Vector2i(1, 24), Vector2i(26, 1)]
+	_check(rim.all(func(p): return Elev.surface(town, p) - road >= 4.0 and MapGen.get_t(town, p.x, p.y) != MapGen.WATER),
+		"a tall cliff rings the cove, on the east above the road instead of water")
+	var pathless := []
+	var doors := []
+	for b in town["buildings"]:
+		doors.append(b["door"])
+	for entry in town.get("scenery_houses", []):
+		var dx := float(entry.get("cove_door_dx", 0.0))
+		doors.append(Vector2i(floori(float(entry["x"]) + float(entry["w"]) / 2.0 + dx), int(entry["y"]) + int(entry["d"]) - 1))
+	for door in doors:
+		var step: Vector2i = door + Vector2i.DOWN
+		if not MapGen.get_t(town, step.x, step.y) in [MapGen.PATH, MapGen.PLAZA, MapGen.BRIDGE]:
+			pathless.append(door)
+	_check(pathless.is_empty(), "a path leads up to every house's door: %s" % str(pathless))
 
 
 func _check(ok: bool, label: String) -> void:

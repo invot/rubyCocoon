@@ -22,6 +22,8 @@ const Townfolk = preload("res://scripts/gfx/townfolk.gd")
 const PLAYER_GRACE_SHADER = preload("res://scripts/gfx/townfolk_grace.gdshader")
 const VBld =preload("res://scripts/gfx/voxel_buildings.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
+const WeaponObstacles = preload("res://scripts/world/weapon_obstacles.gd")
+const Courier = preload("res://scripts/core/sky_courier.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const CoveBuildings = preload("res://scripts/gfx/cove_buildings.gd")
@@ -77,6 +79,8 @@ var cam: Camera3D
 var cam_target := Vector3.ZERO
 var busy := false
 var frozen := false
+var courier_bird: Node3D
+var courier_employee: Node3D
 
 var npcs := {}
 var _door_speakers := {}
@@ -84,6 +88,7 @@ var items := {}
 var shards := {}
 var doors := {}
 var obstacle_nodes := {}
+var weapon_obstacles: Node3D
 ## push-puzzle blocks: tile -> {"kind": "boulder" / "ice", "node"}
 var pushables := {}
 var rock_tops := {}
@@ -156,6 +161,9 @@ func build(id: String, cooperative := false) -> void:
 		_build_statue()
 		_build_payphone()
 		_build_obstacles()
+		weapon_obstacles = WeaponObstacles.new()
+		add_child(weapon_obstacles)
+		weapon_obstacles.build(self)
 		_build_pushables()
 		_build_ripples()
 		_build_boats()
@@ -575,7 +583,7 @@ func _build_terrain() -> void:
 						craggy = true
 					elif grp.get("kind", "") == "sand":
 						kind = "sand"
-					elif grp.get("kind", "") == "rope_cliff":
+					elif grp.get("kind", "") == "rope_cliff" or map.get("weapon_obstacles", []).any(func(o): return o.get("effect", "") == "ladder" and Vector2i(x, y) in o.get("blocks", [])):
 						kind = "rock"
 				MapGen.ROPE:
 					# the rope ladder up a cliff: bare rock under it
@@ -1075,12 +1083,30 @@ func _ground_tile(p: Vector2i) -> int:
 		return MapLoader._infer_floor(map, p)
 	if c in [MapGen.BUILDING, MapGen.DOOR] and map.get("over_water", {}).has(p):
 		return MapGen.BRIDGE
+	if _scenery_doorway(p):
+		return MapGen.DOOR
 	if biome.get("stone_streets", false):
 		if c == MapGen.BUILDING or (c == MapGen.FENCE and _on_quay(p)):
 			return MapGen.PLAZA
 		if c == MapGen.FENCE:
 			return MapLoader._infer_floor(map, p)
 	return c
+
+
+## Whether p is the doorway of a scenery home (the map's "scenery_houses": no door you can open) that a path leads up
+## to: its ground is drawn as a doorstep like an enterable building's door tile, so the path runs right up to the door.
+## (Only the ground: the tile stays solid woodland under the house.)
+func _scenery_doorway(p: Vector2i) -> bool:
+	if not MapGen.get_t(map, p.x, p.y + 1) in [MapGen.PATH, MapGen.PLAZA]:
+		return false
+	for entry in map.get("scenery_houses", []):
+		if entry.has("kind"):
+			continue  # a market arcade or the like has no door
+		var door := Vector2i(floori(float(entry["x"]) + float(entry["w"]) / 2.0 + float(entry.get("cove_door_dx", 0.0))),
+			int(entry["y"]) + int(entry["d"]) - 1)
+		if door == p:
+			return true
+	return false
 
 
 ## Test full foliage bounds, so an offset or rotated canopy cannot spill onto paving.
@@ -1587,7 +1613,9 @@ func _plan_houses() -> void:
 		building_fades.append({"b": b, "scenery": true, "plan": plan, "node": null, "meshes": [], "opacity": 0.0})
 		for y in range(floori(origin.y + footprint.position.y) - 1, ceili(origin.y + footprint.end.y) + 1):
 			for x in range(floori(origin.x + footprint.position.x) - 1, ceili(origin.x + footprint.end.x) + 1):
-				house_cover[Vector2i(x, y)] = true
+				# (a garden fence round it stays: it's solid, so it must show)
+				if MapGen.get_t(map, x, y) != MapGen.FENCE:
+					house_cover[Vector2i(x, y)] = true
 
 
 ## True if a planned house (rect: local to the plot's centre o) covers only its own plot and leanable tiles.
@@ -2451,8 +2479,12 @@ func _free_tile_near(p: Vector2i) -> Vector2i:
 
 func _build_items() -> void:
 	for it in map["items"]:
+		var swap = GameState.flags.get("bag_swap:" + String(it["flag"]), null)
 		if GameState.flag(it["flag"]):
-			continue
+			if swap == null:
+				continue
+			it["item"] = swap["item"]
+			it["count"] = int(swap["count"])
 		var mi := MeshInstance3D.new()
 		mi.mesh = VP.sack() if it["item"] != "bridge_log" else VP.log_mesh(15, 2.8)
 		mi.position = tile_pos(it["pos"])
@@ -2560,6 +2592,9 @@ func _can_step(from: Vector2i, to: Vector2i) -> bool:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if is_instance_valid(courier_employee) and is_instance_valid(courier_bird):
+		courier_employee.position = BeastModel.mounted_seat(courier_bird) - Vector3(0, 0.36, 0)
+		VPer.animate(courier_employee, 0.0, 0.0)
 	for m in water_mats:
 		if m is BaseMaterial3D:
 			m.uv1_offset = Vector3(sin(_time * 0.5) * 0.04, _time * 0.025, 0)
@@ -2586,6 +2621,7 @@ func _process(delta: float) -> void:
 		return
 	if player == null:
 		return
+	_courier_tick(delta)
 	_animate_npcs(delta)
 	if interior and room_walls != null:
 		room_walls.fade(player.position, delta)
@@ -2605,6 +2641,7 @@ func _process(delta: float) -> void:
 			player.position = tile_pos(player_pos)
 			moving = false
 			_on_step_done()
+			_courier_tick(0.0)
 			# keep walking without a stop between tiles when the next step is ready right away (keys or a tapped path)
 			if not moving and not busy and not frozen and not UI.busy() and _next_step():
 				move_t = minf(spill, 0.5)
@@ -3063,6 +3100,14 @@ func _trainer_approach(n: Dictionary, p: Vector2i, dist: int) -> void:
 
 
 func _interact() -> void:
+	if weapon_obstacles != null:
+		var fixture: Dictionary = weapon_obstacles.from_facing()
+		if not fixture.is_empty():
+			busy = true
+			_clear_path()
+			await weapon_obstacles.use(fixture)
+			busy = false
+			return
 	var t := _facing_tile()
 	# nothing up or down a cliff is in reach (but you can cast a line down into the water)
 	if not Elev.joined(map, player_pos, t) and MapGen.get_t(map, t.x, t.y) != MapGen.WATER:
@@ -3079,7 +3124,7 @@ func _interact() -> void:
 	elif doors.has(t):
 		await _enter_building(doors[t])
 	elif items.has(t):
-		_pickup(items[t])
+		await _pickup(items[t])
 	elif shards.has(t):
 		_pickup_shard(shards[t])
 	elif map.get("obstacles", {}).has(t):
@@ -3392,12 +3437,43 @@ func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 
 ## An item lying about: into the bag, with its sound and its name in the top bar (no dialogue, so you walk on).
 func _pickup(it: Dictionary) -> void:
+	var incoming: String = it["item"]
+	var quantity := int(it.get("count", 1))
+	if GameState.item_room(incoming) < quantity:
+		if not await UI.ask("Your bag is full. Swap a stack for %s?" % ItemDB.item_name(incoming)):
+			return
+		var stacks := []
+		var choices := []
+		for id in GameState.inventory:
+			if GameState.bag_exempt(id):
+				continue
+			var count: int = GameState.item_count(id)
+			while count > 0:
+				var amount := mini(count, GameState.ITEM_STACK_SIZE)
+				stacks.append({"id": id, "count": amount})
+				choices.append("Leave %s x%d" % [ItemDB.item_name(id), amount])
+				count -= amount
+		var c: int = await UI.choose("Swap out a stack", choices)
+		if c < 0:
+			return
+		var swap: Dictionary = stacks[c]
+		if not await UI.ask("Leave %s x%d here for %s?" % [ItemDB.item_name(swap["id"]), swap["count"], ItemDB.item_name(incoming)]):
+			return
+		GameState.remove_item(swap["id"], int(swap["count"]))
+		GameState.add_item(incoming, quantity)
+		GameState.set_flag(it["flag"])
+		GameState.flags["bag_swap:" + String(it["flag"])] = {"item": swap["id"], "count": swap["count"]}
+		it["item"] = swap["id"]
+		it["count"] = swap["count"]
+		UI.pickup(incoming, quantity)
+		return
+	GameState.add_item(incoming, quantity)
 	GameState.set_flag(it["flag"])
-	GameState.add_item(it["item"])
+	GameState.flags.erase("bag_swap:" + String(it["flag"]))
 	var node: Node3D = it["node"]
 	node.queue_free()
 	items.erase(it["pos"])
-	UI.pickup(it["item"])
+	UI.pickup(incoming, quantity)
 
 
 func _pickup_shard(sh: Dictionary) -> void:
@@ -3688,6 +3764,8 @@ func _tile_under(screen: Vector2) -> Vector2i:
 
 ## Is there something to use on this tile? Returns "npc", "beast", "door", "item", "thing" or "".
 func _usable(t: Vector2i) -> String:
+	if map.get("weapon_targets", {}).has(t):
+		return "weapon"
 	if npcs.has(t):
 		return "npc"
 	if _beast_at(t) != null:
@@ -3732,6 +3810,8 @@ func _pick(screen: Vector2) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	var boxes := []
+	for p in map.get("weapon_targets", {}):
+		boxes.append([AABB(tile_pos(p) + Vector3(-0.5, 0, -0.5), Vector3(1.0, 1.8, 1.0)), p, "weapon"])
 	for p in map["signs"]:
 		# Test the visible board before the facade behind it, so a wall-side sign can be tapped.
 		boxes.append([AABB(_sign_pos(p) + Vector3(-0.45, 0, -0.12), Vector3(0.9, 1.0, 0.24)), p, "thing"])
@@ -3791,7 +3871,9 @@ func _go_use(t: Vector2i, kind: String, run: bool) -> void:
 				t = p
 				kind = "npc"
 	var spots := []
-	if kind == "door":
+	if kind == "weapon":
+		spots = [weapon_obstacles.approach(map["weapon_targets"][t])]
+	elif kind == "door":
 		spots = [t + Vector2i(0, 1)]
 	else:
 		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
@@ -3809,7 +3891,10 @@ func _go_use(t: Vector2i, kind: String, run: bool) -> void:
 
 func _use_from_here(t: Vector2i, kind: String) -> void:
 	var d := t - player_pos
-	if absi(d.x) + absi(d.y) == 2:
+	if kind == "weapon":
+		var target: Vector2i = map["weapon_targets"][t]["targets"][0]
+		d = Vector2i(signi(target.x - player_pos.x), signi(target.y - player_pos.y))
+	elif absi(d.x) + absi(d.y) == 2:
 		d /= 2
 	facing = d
 	VPer.face(player, facing)
@@ -5097,3 +5182,83 @@ func _pool_water_mat() -> ShaderMaterial:
 	mat.set_shader_parameter("glow", 0.0)
 	mat.set_shader_parameter("drift", Vector2(0.0, 0.03))
 	return mat
+
+
+# ================================================================ bird courier
+## Only ordinary open-air towns and roads qualify; temple/dungeon maps never do.
+func courier_open_sky() -> bool:
+	return not interior and map.get("kind", "") in ["town", "route"]
+
+func courier_landing_tile() -> Vector2i:
+	for direction in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+		var q: Vector2i = player_pos + direction
+		if not _can_step(player_pos, q) or map["exits"].has(q) or stair_ways.has(q) or Elev.ramp_dir(map, q) != Vector2i.ZERO:
+			continue
+		if absf(Elev.surface(map, q) - Elev.surface(map, player_pos)) > 0.01:
+			continue
+		var occupied := false
+		for w in wilds:
+			var from: Vector3 = w.get("from", Vector3.INF)
+			if w["pos"] == q or (w.get("moving", false) and Vector2i(floori(from.x), floori(from.z)) == q):
+				occupied = true
+		if not occupied:
+			return q
+	return Vector2i(-1, -1)
+
+func _courier_tick(delta: float) -> void:
+	if GameState.courier_request.is_empty() or not courier_open_sky() or busy or frozen or UI.busy() or not _climb.is_empty():
+		return
+	if GameState.main == null or GameState.main.in_battle:
+		return
+	GameState.courier_left = maxf(0.0, GameState.courier_left - delta)
+	if GameState.courier_left > 0.0 or moving:
+		return
+	var tile := courier_landing_tile()
+	if tile.x >= 0:
+		_courier_arrive(tile)
+
+func _courier_arrive(tile: Vector2i) -> void:
+	busy = true
+	frozen = true
+	_clear_path()
+	courier_bird = BeastModel.rig(RaceDB.genes(RaceDB.of_form("owl_3")), 1.9)
+	add_child(courier_bird)
+	BeastModel.pose_mounted(courier_bird)
+	var land := tile_pos(tile)
+	courier_bird.position = land + Vector3(5, 8, -4)
+	courier_employee = VPer.build({"model": "tf62", "shirt": "#3a6ad8", "pants": "#303848", "hat": "#3a6ad8"})
+	add_child(courier_employee)
+	VPer.set_pose(courier_employee, "sit", 0.36, true)
+	_courier_face(Vector2i(-1, 1))
+	courier_employee.position = BeastModel.mounted_seat(courier_bird) - Vector3(0, 0.36, 0)
+	Sfx.play("bird_cry")
+	Sfx.play("fly")
+	var swoop := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	swoop.tween_property(courier_bird, "position", land, 1.3)
+	await swoop.finished
+	_courier_face(player_pos - tile)
+	var flying := await Courier.visit(self, courier_employee)
+	if is_instance_valid(courier_bird):
+		await courier_takeoff()
+	busy = false
+	frozen = flying
+
+## Shared by the visitor's departure and a booked flight, which then uses Places.fly_to.
+func courier_takeoff() -> void:
+	if not is_instance_valid(courier_bird):
+		return
+	_courier_face(Vector2i(-1, -1))
+	Sfx.play("fly")
+	var leave := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	leave.tween_property(courier_bird, "position", courier_bird.position + Vector3(-5, 8, -4), 1.1)
+	await leave.finished
+	courier_bird.queue_free()
+	courier_employee.queue_free()
+	courier_bird = null
+	courier_employee = null
+
+
+## Beast meshes face +X; people face +Z. Convert the same world direction for both.
+func _courier_face(direction: Vector2i) -> void:
+	courier_bird.rotation.y = atan2(-float(direction.y), float(direction.x))
+	VPer.face(courier_employee, direction)

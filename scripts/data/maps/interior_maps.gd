@@ -812,6 +812,21 @@ const ROOMS := {
 			"###########",
 		],
 	},
+	## The wooden neighbor's shack on Cocoon Cove's pier, a lived-in fisher's cabin: weathered wood walls and a plank
+	## floor, the bed and its nightstand against the back wall beside the storage rack and the hearth, crates stacked in
+	## the corners and by the side wall, a small table between two stools, a rag rug, and the neighbor (1).
+	"cove_dock_shack": {
+		"wall": "#8a6a52", "rug": "#5a4a3c", "zone": "wood", "stage": true, "npcs": {"1": "resident"},
+		"rows": [
+			"###w###w###",
+			"#NbF..q.XO#",
+			"#.b......X#",
+			"#....1r...#",
+			"#.hth.r...#",
+			"#X.......PD",
+			"###########",
+		],
+	},
 	## The Old Gear Shack at the end of Cocoon Cove's dock: nobody lives there any more, but
 	## a trainer's starter gear was left behind (1-3: a cap, sneakers and a beast's collar, "found" items in item_db.gd).
 	"shack": {

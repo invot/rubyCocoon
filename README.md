@@ -31,7 +31,7 @@ it isn't on your PATH.
 | Action | Keyboard | Gamepad | Touch (phones and tablets) |
 |---|---|---|---|
 | Move (one of the four ways, a whole tile at a time) | Arrow keys (with two held, you keep going the way you were walking, else the newest one counts) | D-pad or left stick (the way it's pushed further) | D-pad, bottom left (one arrow at a time) |
-| Action: talk, confirm, use a beast on an obstacle | A (or Enter) | A | A, bottom right |
+| Action: talk, confirm, use a beast or weapon on an obstacle | A (or Enter) | A | A, bottom right |
 | Back; hold to run | S (or Esc) | B | B, bottom right |
 | Start: the travel book menu | Space | Start | START, bottom centre |
 | Pause | Shift | Back / Select | PAUSE, bottom centre |
@@ -44,7 +44,7 @@ Desktop browsers always use the keyboard guide instead of the touch pad, even on
 also appears on the web title menu, character creator and Load Game screen. Web builds have no Quit application
 button; **Quit to title** in Settings still returns to the title menu. Mobile browser and Android controls are unchanged.
 
-Tap (or click) anywhere in the world to walk there; double-tap to run. Tap a person, a door, a sign, an item or a
+Tap (or click) anywhere in the world to walk there; double-tap to run. Tap a person, a door, a sign, an item, a weapon obstacle or a
 wild beast to walk up to it and use it; if you're already next to it, you use it straight away.
 
 ## The journey
@@ -73,18 +73,22 @@ was framed with a trainer's flute in his saddlebag, and Barkeep Dusty's **Card L
 that night at the saloon's card table. Shown the ledger, the deputy clears Slim and asks you to help find the missing
 trainers and the real culprit, pointing you to Sheriff Dalton in Sundown (flags `convict_asked`, `convict_found`,
 `slim_cleared`, `deputy_partner`).
-Your home overlooks **Cocoon Cove** from a high western garden, with two small scenery homes on a rear cliff shelf.
-A broad stair descends beside **Cocoon Cove Library**, at the compact square's western entrance. Speak to
+**Cocoon Cove** lies low in a cove ringed by tall cliffs, on the north, the west and the east above the road out. Your
+home stands in a western garden on a gentle terrace one step above the town, with two small scenery homes at the back of
+it; a garden path runs along the terrace and short three-tile ramps lead down. The one by home comes out beside
+**Cocoon Cove Library**, a two-storey house at the compact square's western entrance. Speak to
 **Librarian Quill** for a free **World Map**, then open it from **Start → Map**.
 Existing saves keep their map access and all seven buildings keep their saved interior identities. The town is a
 modern pirate cove: textured brown timber, varied pastel stucco, orange clay roofs, planted gardens, and seaside cliffs. Crates and barrel staves use the same brown wood finish, with metal barrel hoops. The diner-like Beast
 Center faces the square and the apothecary stands on land to the east. The only dock entrance is down the right-hand
-stairs. A short pier holds a wooden neighbor's shack and ends at the **Old Gear Shack**; the plaster neighbor's home
-stands in a garden on land. Crates and barrels sit on spare edge tiles, leaving the walking lanes and doors clear.
+stairs. A short pier holds a wooden neighbor's shack (a lived-in fisher's cabin inside, room `cove_dock_shack`) and ends
+at the **Old Gear Shack**; the plaster neighbor's home stands in a garden on land. Every house has a path to its door.
+Crates and barrels sit on spare edge tiles, leaving the walking lanes and doors clear; the strips behind the buildings,
+where the camera can't see anyone, are thickets of shrubs rather than lawn.
 The gear shack (`s` on the map, room `shack`) has no second shore entrance, ships or boats. Nobody lives there, but
 a trainer left their starter gear behind: a **Worn Cap**, **Old Sneakers** and a **Rope Collar** for a beast. They
 are never sold (`item_db.gd` `found`), and you put them on from the Bag. The cap and sneakers are only found there;
-the Rope Collar can also be found in Bellerive's harbour equipment shack. The surrounding ridges follow irregular contours rather than straight terrace edges.
+the Rope Collar can also be found in Bellerive's harbour equipment shack.
 In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
@@ -168,6 +172,14 @@ Leave a push puzzle and come back to reset it; once solved, the blocks stay wher
 obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up off the main road.
 
 ## Systems
+
+- **Weapon field obstacles**: face a target or barrier and press A, or tap it to walk to its firing spot.
+  An owned weapon is used automatically with one short animation; there is no aiming game or confirmation menu.
+  Slingshot bullseyes and bells release ladders, gates or treasure. A boomerang strikes an entire line of switches
+  in one throw and returns; the bat breaks cracked rocks and split stumps. Without the weapon, the description
+  names it only after you have seen it. These fixtures are optional road detours, never required story gates.
+  Early Coastal Path rewards need the later boomerang or bat, so there is a reason to come back.
+  Solves and collected chests have separate permanent flags, retained by ordinary phone saves.
 
 - **Fishing** (`scripts/world/fishing.gd`, `scripts/ui/fishing_game.gd`). Fisher Gil fishes off the deck of his rusty
   tin shack on Bellerive's docks. Talk to him and he offers his spare pole, leaning in the shack (take it before asking
@@ -270,7 +282,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   were going, else the newest arrow counts (`world.gd` _key_dir).
 - **Cliffs and ramps**: every town and road has high ground (`scripts/world/elevation.gd`). Woods and rock stand on
   ridges along the back and sides of each map, so you're closed in there, with the roads out running through cuts in
-  them; many maps have terraces too: Cocoon Cove's upper neighborhood and rocky coastal bluff, Bellerive's stone quay over the harbour, the Dune
+  them; many maps have terraces too: Cocoon Cove's garden terrace under its rim of tall cliffs, Bellerive's stone quay over the harbour, the Dune
   Road's escarpment (the rope ladder a flyer hangs climbs it), the Mesa Trail's canyon walls, Gravenmoor's graveyard
   knoll. Nobody climbs or drops down a cliff, and nobody talks, picks things up or sees across one (trainers and wild
   beasts included); ramps are walked up and down along their slope. Cliffs seldom turn a square corner: most corners
@@ -319,11 +331,20 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Move**: instead of its move, a beast on the side facing the foe can step over to another slot of the ring (choose the slot with ▲ ▼, as you would a target; the arrow marks the slot). Any slot it can stand on that's empty, or holds a fainted beast (they trade places); the side it moves to then turns to face the foe. It may not leave the side facing the foe without a beast standing in its middle (so the beast guarding you stays put, but a corner beast can step into a fallen middle beast's place). One beast moves each round, last in your side's turn, so the others' moves land first. Foe trainers Move too: when the beast in the middle of the side facing you falls, one of that side's beasts steps into a slot that covers its trainer again, unless turning the ring to a side whose middle beast stands would keep more of their beasts fighting (`battle.gd` _ai_shift).
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - **A target that falls first** (`ring.gd` `retarget`, `battle.gd` `_retarget`; the same rule for your beasts, your slingshot and items, and the foe's AI): when an action's turn comes and its target is down or has left the side facing the attacker, it goes to another beast standing on that side instead, the nearest slot first (a tie goes to the one facing the attacker's own row). With nobody standing there, an attack or the slingshot is turned on their trainer, who is open because that side's middle is down or empty; anything else, and any attack on a wild pack, is dropped without a message. A move that hits everyone just leaves the fallen out. A heal, boost or care item meant for an ally that has fallen goes to the standing ally with the least of its HP left; a revive is never passed on. MP is spent (and an item used up) only when the action has someone to land on. Lessons never turn a blow on a trainer by themselves.
-  - Your actions: **slingshot**, **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
+  - Your actions: a **weapon** (the slingshot, later the boomerang and the bat: see **Weapons and the beat attack** below), **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
   - A plain attack lunges at its target. Any other move is cast: the camera cuts to the caster as its element's glow (white for a plain move) gathers and it lets go, then cuts to where it lands as the glow streaks in, a burst there (rising motes for a heal or a boost) with the target's hit pose and number on the same frame. A beast that Defends holds a braced stance until its side's next turn; a defended or resisted hit is blocked, and other hits knock a beast back as hard as they were (`battle_camera.gd` "cast" / "impact", `battle.gd` `_cast`).
   - Winning plays *Android Sock Hop*. A beaten wild foe vanishes in a puff of smoke; fainted beasts on either trainer's ring lie on their pads, slumped with their eyes shut. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use League Spartan.
 
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: the translucent yellow arrow and gem outline aim at the 3D target, with a small HP tag."><br><sub>A wild battle in a desert clearing: the translucent yellow arrow and gem outline aim at the 3D target, with a small HP tag.</sub>
+
+- **Weapons and the beat attack** (`item_db.gd` WEAPONS, `scripts/core/beat_chain.gd`, `scripts/battle/beat_cue.gd`, `battle.gd` _do_weapon):
+  - Your trainer's bar lists the weapons you own; you pick one each turn. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit, on one foe you run up to: Sheriff Dalton hands over Black Bart's with the Sundown bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
+  - Below trainer Lv 4 a weapon makes one plain throw (or swing) with its accuracy roll, as the slingshot always did. From **trainer Lv 4** it's a **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
+  - Each press is graded by how far it is from the beat: **Perfect** (0.06 s), **Good** (0.13 s) or **Miss**, shown beside the ring, and the grade sets that hit's damage (half a plain throw for Perfect, 0.3 for Good). A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit, so the turn is never wasted. Land every hit your level allows and the last one is critical. Your first beat attack is guided, with wider windows (0.10 / 0.20 s), as they always are on the Coastal Path. Reaching Lv 4 (and each level that adds a hit) says so.
+  - At a trainer who's open, a weapon is one blow whatever your level: it breaks a shield point.
+  - Your trainer takes the weapon up and uses it once per hit (`voxel_person.gd` set_ready, set_action): a stone from the slingshot, the boomerang flung side-arm (it curves through each target and is caught again), or the bat swung level after running up to the target. The camera holds a "beat" shot on the target meanwhile, and the hits land without messages until the chain is done.
+  - Foe trainers don't play it. Only bosses and arena masters use a weapon (about one round in three, never while they play a song, and only at your beasts), with their hits rolled from their trainer level (`BeatChain.roll`). Their weapon follows the region: the slingshot, then the boomerang (their beasts Lv 11+) and the bat (Lv 15+).
+  - The beat comes from the music: `Sfx.TEMPOS` gives each battle track's tempo and first beat, measured from the decoded audio (*Rising Tide* 106 BPM, *Rising Tide (faster)* 122 BPM; both hold their tempo all the way through). `Sfx.beat_now()` is the beat as you hear it, allowing for the audio driver's output latency, plus `Sfx.BEAT_LATENCY` for the web and Android (set by ear with `--scene=beat-click`). A track with no steady beat (or none yet, while the web still fetches it) gets a fixed 100 BPM click instead. A **percussion layer** (a woodblock on each beat, a shaker between; one-bar loops baked into `assets/audio/battle/` by `tools/bake_battle_art.gd`) plays quietly in step with the battle music and comes up for a beat attack.
 
 - **Shield and the end of a battle**:
   - If the beast in the middle of the side facing the foe is down (or that slot is empty), its trainer can be **attacked directly**: each hit breaks one shield point. Turn your ring to a side whose middle still stands to cover yourself, or have a corner beast Move into the fallen one's place.
@@ -374,7 +395,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
   - In Beast Centers, shops and arena lobbies, phones sit on the attendant's counter or display case; house phones stay on their own tables.
   - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
-  - Away from home a phone asks who to call: **Dad** (save) or **Mom** (advice; a payphone still takes its 5 coins). At home Mom's in the room, so that phone only calls Dad. Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
+  - Every phone asks who to call: **Dad** (save), **Mom** (advice), or the **Sky Tower company** (courier; a payphone still takes its 5 coins). Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
   - Every phone stands on a white placemat on a boxy little chest of three drawers (`side_table`, baked by `tools/make_side_table.gd`) in the middle of its tile, out from the wall, so you stand right beside it to call.
   - Ten save slots, one per journey: you never pick a slot when you save. A new game takes the first empty slot the first time you save, and after that every save goes back into the same slot. If all ten are full, Dad asks (A: Yes / B: No) before writing over the save made longest ago.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
@@ -657,7 +678,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   The harbour's paddle steamer, shrimp trawler, sloops, skiff and schooner are `harbor_boats.gd`'s (a map's `boats`
   names them like the pack's).
 - **People, eggs, signs and obstacles** are built procedurally:
-  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
+  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--pose=ready --weapon=slingshot|boomerang|bat` a trainer's weapon held ready, and `--pose=throw|boomerang|catch|swing --at=0,0.07,0.15,0.25` four moments of using it; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
   - Readable wooden notice boards carry three rows of dark mock lettering, raised just off the wood so it stays
@@ -686,10 +707,60 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Trainer | Your portrait, gold, shield and shards, arena crests and trainer gear. |
 | Beasts | Your battle ring and storage (choose its starting side with the arrows beside the two-line heading above the ring; Left/Right on its row also turns it, skipping fully empty sides; tap the row or press A to arrange beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
 | Flute | Every song with its effect and mastery; press A to practise one. The Capture page shows your level and when the next one is ready to learn. Unknown songs show where to learn them. |
-| Bag | Items grouped as care, battle items, beast gear, trainer gear, sheet music and tomes. |
+| Bag | Items grouped as care, battle items, weapons, beast gear, trainer gear, sheet music, fishing, key items and tomes. Each stack has its own bordered item slot; the heading shows stacks used, such as **18/24**. |
 | Bestiary | All 39 forms with live portraits and where to find them. |
 | Map | The world map across the left page: the twelve towns and the roads between them, ??? for towns you haven't reached, and a pin where you are (on a road, halfway along it). Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
 | Settings | 3D resolution, graphics quality, music and sound volume, text speed, interface color, touch pad, key guide, fullscreen, credits and quit to title. |
+
+The bag holds **24 stacks of up to 9** of the same item; a tenth starts another stack.
+Key items, weapons, eggs and sheet music are exempt. Inventory remains item kind → count;
+capacity is the sum of `ceil(count / 9)` for non-exempt kinds. `GameState.add_item` returns
+how many could not fit. A full-bag world pickup offers to swap one stack or leave it;
+the outgoing stack remains at that location, including across saves. Shops refuse purchases
+that do not fit without charging gold. Rewards, story gifts and returned equipment send
+overflow to shared **tower storage**, with a top-bar notice. Visit a Sky Tower desk to
+deposit or withdraw items. Manual deposits respect its **48-stack**
+limit; automatic overflow may exceed it so no items are lost. Loading an old save moves
+excess bag items there once, even beyond the storage limit.
+
+### Sky Tower locker and bird courier
+
+Every Sky Tower lobby's ticket desk offers **Store items**, free. All towers share
+one **48-stack locker**, using the bag's nine-item stacks and exemptions. The Bag
+and Locker lists sit side by side with counts and shared scroll rails; **A** or a
+row tap moves **one item**. Each separate A press moves the next item from the
+selected stack until it is empty; its displayed count decreases with each press.
+Left/Right changes lists, and B or **Done** closes the screen. Emptying the source
+keeps the transfer direction; it never starts withdrawing items automatically. Important key items stay in the bag. `GameState.locker`
+and `tower_inventory` refer to the same dictionary, including automatic bag overflow.
+
+Call the **Sky Tower company** from any phone for **Ride**, **Pick up items**,
+**Deliver items**, or **Deliver and ride**. A payphone charges its normal five coins.
+Select up to **12 stacks** from the locker during a delivery call. Completing a
+new request replaces the old one; cancelling the call keeps the old one. Selected
+items remain reserved in the locker until handed over. The pending request and its
+remaining timer are saved with Dad's normal phone save.
+
+The Tempestrix arrives after about **30 seconds outdoors and in control**. The
+clock pauses indoors, in menus, dialogue and battles. It waits for a completed step
+and a free, level adjacent tile; temples, dungeons and interiors never qualify.
+The bird cries and swoops down while movement is frozen. The employee stays seated
+on its back, facing the same way as the bird, and speaks from there. The mount's body
+leans forward 45 degrees with its head level; the rider follows its back while staying upright.
+
+A **ride** goes to a visited town for **twice the tower fare** (240 gold).
+A **pickup** stores up to 12 stacks for **20 gold**, charged only for a successful
+nonempty pickup. **Delivery is free** beyond the call: if the bag is full, send bag
+stacks back to storage or confirm dropping them, then move delivered stacks into
+the freed space. Anything unclaimed stays in the locker. **Deliver and ride** hands
+over the delivery first, then offers travel. Insufficient gold cancels paid service
+without blocking delivery. Pickup and ride are separate services.
+
+Verify with `bash tools/run_tests.sh sky-courier sky-courier-touch phone bag-limit`.
+The courier scenario uses isolated saves and a shortened arrival timer. For real
+window captures, use `--scene=sky-courier --shots=res://build/shots/courier_desktop
+--save_dir=res://build/courier_saves/` (plus `--resolution 2400x1080` before `--` and
+`--touch` after it for the phone layout).
 
 ## UI and audio
 
@@ -784,6 +855,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 - **Music**:
   - The title screen plays *Nerves*.
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Black Bart, Gearhart, Nyx and Vexmora.
+    Both keep a beat for the weapons' beat attack (`Sfx.TEMPOS`, 106 and 122 BPM), with a quiet percussion layer playing along that comes up during one.
   - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
   - Desert, mountain, moor and some interiors add an ambient loop. Shellhaven adds quiet surf; the Coastal Path
@@ -793,7 +865,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
   - `tools/convert_audio.py` makes 128 kbps copies of the tracks registered in `Sfx.TRACKS` in `assets/audio/music/`, trimming the 59-minute rainforest track to a 5-minute loop. The originals in `music/` are untouched.
 - **Sound effects** from `sfx/` and `assets/audio/sfx/` cover:
   - menus, the book's page turns, dialogue voices (pitched per speaker) and footsteps
-  - hits (metal clangs for robots), the slingshot, bombs and the shield
+  - hits (metal clangs for robots), the weapons (the slingshot's whoosh, the boomerang's flight), bombs and the shield
   - pickups, doors, hatching, merging, flights, field moves, level-ups and the victory jingle
   - `tools/make_sfx.py` synthesises the game's own: the smack-and-puff when a foe is beaten and the soft thud when one of yours faints, and the knock on a locked door (`sfx/Custom/`)
   - Approved Sonniss GDC 2026 recordings add a paper page turn, a cloth opening for arranging beasts, a kalimba
@@ -919,6 +991,16 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - **Buildings** are solid rectangles of one letter, for example:
   - `C` Beast Center, `X` electronics, `V` Sky Tower
   - `I` Gearhart Tower, `B` cathedral, `J` hideout, `Q` temple
+- **Weapon fixtures** use each road's `weapon_obstacles` list, rather than a tile letter. Every entry has a
+  stable `id`, a `type` (`bullseye`, `bell`, `switches`, `cracked_rock`, `stump`), cardinal ordered `targets`, and
+  a reachable default tap approach (`use_from`). A also works from another clear cardinal approach
+  within seven tiles (one tile for the bat). Optional `blocks` retain their original floors when cleared; `effect` is `ladder`
+  (an authored ramp becomes a rope ladder), `gate`, or `chest` (a suspended chest falls). `reward` gives a chest's
+  `pos` and `item`. Keep firing lanes clear of trees, rocks, buildings and intervening terrain. Ranged weapons can
+  cross water and shoot up to a visible ledge; a bat still needs an adjacent target on joined ground. Never rename
+  an existing fixture's `id`: saves use `weapon_<map>_<id>` and a separate `_chest` flag. Keep rewards off the story route.
+  Leave at least **12 tiles** between different fixtures' interaction areas (targets, barriers, rewards and firing
+  tiles); the map checker enforces this spacing in both locked and solved layouts.
 - **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with the logs stacked by Old Hal's door) and `k` (a cliff that needs a winged beast).
 - `a` is walkable shallow water. A map's `shoreline: [west_x, slope_start_z, east_x, offshore_end_z]` supplies
   the smooth sandy profile shared by terrain, character grounding and touch picking; only the authored shallow
@@ -989,10 +1071,15 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
     Boat berths leave clearance from docks and one another, including paddle wheels and sail booms. The eastern dock ends at a second fishing shack standing over the water,
     with a Rope Collar, Cloth Band and Twine Anklet (starter beast gear, each giving a 5% stat bonus) to collect inside.
     Gil's original shack and fishing lesson sit at the west end, with his berth extended south to keep the boardwalk clear.
-  - Cocoon Cove uses the supplied, repaired pirate-cove kit (`cove_buildings.gd`): home on the high western shelf,
-    two scenery homes on the rear shelf, library and Beast Center at the land square, and the apothecary on the eastern
-    bluff. The plaster neighbor's home stands in the western garden. Only the right-hand stairs reach the short dock,
-    whose only buildings are wooden shacks: one neighbor and the gear shack (`s`, room `shack`) at the far end.
+  - Cocoon Cove uses the supplied, repaired pirate-cove kit (`cove_buildings.gd`). Its levels are gentle: the sea and
+    dock 0, the town 1, one terrace 2, and every ramp three tiles long; a rim of tall cliffs (level 6) closes the north,
+    the west and the east above the road out. Home and the two scenery homes stand on the terrace, the library (the
+    kit's two-storey `whole_house`, door in the middle) and Beast Center at the land square, and the apothecary to the
+    east. The plaster neighbor's home stands in the western garden. Only the right-hand stairs reach the short dock,
+    whose only buildings are wooden shacks: one neighbor (room `cove_dock_shack`) and the gear shack (`s`, room
+    `shack`) at the far end. A path leads to every door, the scenery homes' included. Where the camera can't see
+    anyone (the strips behind tall buildings), the ground is a `low_trees` thicket, never hedge-filled lawn: a hedge
+    (`t`) is drawn only along its edges, so a thick one would look like lawn you can't walk on.
     Crates and barrels occupy spare edge tiles; `prop_clearance` rectangles reserve walking lanes, stairs and door
     approaches for both authored and procedural furniture. Its starter gear remains as `item:<id>` anchors. Standard full-size doors
     come from `HouseModels`; the library's awning covers only its door. Each kit house's ground storey is stretched until its
@@ -1018,6 +1105,28 @@ python tools/town_check.py
 ```
 
 ## Tests
+
+Bag capacity regression and previews: `bash tools/run_tests.sh bag-limit bag-limit-touch`.
+Use `--scene=bag-limit --shots=res://build/shots/bag --shot_w=0
+--save_dir=res://build/bag_preview/` at 1920x1080, or 2400x1080 with `--touch`.
+The scenario checks stack boundaries, exemptions, lossless migration, refused purchases,
+persistent swaps, focus, tapping, scrolling and empty lists, then captures all four gems.
+
+- `beat-attack` (`--scene=beat-attack`, `tools/debug/beat_attack.gd`): the beat attack's rules on their own (hits by
+  trainer level, grading windows, weak first hit, critical finish, foes' rolled chains, the baked percussion bars),
+  then chains in a real trainer battle with presses injected at set offsets from each beat (1 to 4 hits, misses
+  part-way, an early press, every beat let go, 6 and 10 hits at Lv 7 and 10, the guided and first-road windows), one
+  real press of A through the input path, the plain throw below Lv 4, the boomerang and the bat, a blow at an open
+  trainer and a boss's rolled chain. Add `--shots=res://build/shots/beat/attack` in a window for the cue spinning in
+  and a hit. Headless, the dummy audio driver plays music at its own pace, so only a window checks the beat against
+  the clock; audio latency on the web and Android is checked by ear and eye with `--scene=beat-click` on the device.
+- `weapon-slingshot`, `weapon-boomerang`, `weapon-bat` and `weapon-touch`: road walks, unknown/known weapon hints,
+  facing and blocked shots, automatic use, returning boomerangs, released ladders/gates, one-time treasure and
+  isolated save/load persistence. Run `bash tools/run_tests.sh weapon-slingshot weapon-boomerang weapon-bat`.
+  Windowed desktop captures: `godot --path . --resolution 1920x1080 -- --scene=weapon-walk
+  --shots=res://build/shots/weapon_desktop --shot_w=0 --save_dir=res://build/weapon_preview/`.
+  Repeat at `--resolution 2400x1080` with `--touch` and separate capture/save directories to exercise actual taps.
+
 
 `bash tools/run_tests.sh fences fences-touch` checks the supplied sections, wood and stone collision,
 two-tile yard gates and preserved Cove interior ids. For gameplay-camera captures, use
@@ -1107,6 +1216,8 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   the straight middle pier, ferry arrival placement, the shared ferry model and scale, shallow wading and its
   walking/running/tap limits, wet footfall playback, and old-save position compatibility.
 - `cocoon`: compact pirate-cove layout, saved building identities, single right-hand dock access, shared door sizes,
+  no thick hedges, one-level ramps of at most three tiles, the tall rim of cliffs, a path to every door, the two-storey
+  library with its door in the middle, the pier neighbor's shack room,
   the path to the gear shack and its starter gear (`--preview=shack_path` or `shack`), the home-to-library route,
   entering the library (real door taps on touch), receiving the
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
@@ -1178,7 +1289,7 @@ tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beas
 
 ## Developer test modes
 
-Cocoon Cove implements the selected pirate-cove layout, with a cottage library, textured brown timber, painted stucco (`cove_stucco.gdshader`), clay tile roofs laid in courses along the eaves (`cove_roof.gdshader`), 2.6-unit ground storeys (3.1 at the apothecary) and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
+Cocoon Cove implements the selected pirate-cove layout, with a two-storey library, textured brown timber, painted stucco (`cove_stucco.gdshader`), clay tile roofs laid in courses along the eaves (`cove_roof.gdshader`), 2.6-unit ground storeys (3.1 at the apothecary and the Beast Center, so the sign over each awning sits on the wall under the eaves) and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
 for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|library|neighbor|home|docks|gear|apothecary|apothecary-wide`
 captures focused views with `--shot=`; add `--touch` for the phone controls.
 
@@ -1243,6 +1354,8 @@ godot --headless --path . -- --scene=mascot                             # mascot
 godot --headless --path . --script res://tools/check_beasts.gd           # every form's name, elements and model; growing up at Lv 20 and 40; merging only final forms ("BEASTS CHECK DONE: 0 problem(s)")
 godot --path . -- --scene=newbeasts --lines=dino,owl --shot=C:/tmp/n.png  # the beasts side by side, a column per line (--stages=1,3, --anim=idle|walk|lie|attack|cast|defend|block|hit|heavy|faint (--wait=0 --at=s: the shot that far into it), --ghost=1, --view=three|side|front, --zoom, --merge=dino_3+owl_3 --seeds=1,2,3)
 godot --path . --resolution 1920x1080 -- --scene=newbeasts --anim=cycle --page=all --shots=res://build/shots/poses --shot_w=0  # every line's three forms (--page=0..2, five lines a page), then ghosts of every body and merges, through every battle pose, named over them; saves <page>_<pose>.png at each pose's telling moment (--quit=0 loops one page)
+godot --path . --resolution 1920x1080 -- --scene=beat-attack --shots=res://build/shots/beat/attack --save_dir=res://build/beat_attack_saves/ # the weapons' beat attack: injected presses, a real A press, boomerang, bat, a boss's rolled chain ("BEAT ATTACK DONE: 0 problem(s)"); add --resolution 2400x1080 --touch for the phone layout
+godot --path . -- --scene=beat-click                                     # press A along with the battle track's beat (--music=boss: the faster one): the average offset, to set Sfx.BEAT_LATENCY on a device; B ends it
 godot --path . --resolution 1920x1080 -- --scene=battle-poses --shots=res://build/shots/battle_poses --shot_w=0 --save_dir=res://build/battle_poses_saves/ # the poses in a real battle through its camera: a cast's two cuts and its extra-effective hit, Defend and a block, a hit, a heal, a faint ("BATTLE POSES DONE: 0 problem(s)"); --old=1 the legendaries' and robots' models; add --resolution 2400x1080 --touch for the phone layout
 godot --path . -- --scene=mascot --plaque=1 --pages=2 --shot=C:/tmp/q.png   # read Cocoon Cove's statue plaque
 godot --headless --path . -- --scene=capture                            # Capture rules, Uncle Rafe's lessons and the arena's flute rule

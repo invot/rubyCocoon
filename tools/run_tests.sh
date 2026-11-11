@@ -12,6 +12,14 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"weapon-slingshot|-- --scene=weapon-walk --weapon=slingshot --save_dir=res://build/weapon_slingshot_saves/|WEAPON WALK DONE: 0 problem"
+	"weapon-boomerang|-- --scene=weapon-walk --weapon=boomerang --save_dir=res://build/weapon_boomerang_saves/|WEAPON WALK DONE: 0 problem"
+	"weapon-bat|-- --scene=weapon-walk --weapon=bat --save_dir=res://build/weapon_bat_saves/|WEAPON WALK DONE: 0 problem"
+	"weapon-touch|--resolution 2400x1080 -- --scene=weapon-walk --touch --save_dir=res://build/weapon_touch_saves/|WEAPON WALK DONE: 0 problem"
+	"sky-courier|-- --scene=sky-courier --save_dir=res://build/courier_test_saves/|SKY COURIER DONE: 0 problem"
+	"sky-courier-touch|--resolution 2400x1080 -- --scene=sky-courier --touch --save_dir=res://build/courier_touch_test_saves/|SKY COURIER DONE: 0 problem"
+	"bag-limit|-- --scene=bag-limit --save_dir=res://build/bag_limit_tests/|BAG LIMIT DONE: 0 problem"
+	"bag-limit-touch|--resolution 2400x1080 -- --scene=bag-limit --touch --save_dir=res://build/bag_limit_touch_tests/|BAG LIMIT DONE: 0 problem"
 	"video-settings|-- --scene=video-settings --prefs_path=res://build/video_settings_test/settings.cfg --save_dir=res://build/video_settings_saves/|VIDEO SETTINGS DONE: 0 problem"
 	"video-settings-touch|--resolution 2400x1080 -- --scene=video-settings --touch --prefs_path=res://build/video_settings_touch_test/settings.cfg --save_dir=res://build/video_settings_touch_saves/|VIDEO SETTINGS DONE: 0 problem"
 	"performance|-- --scene=stalls --save_dir=res://build/performance_test_saves/|PERFORMANCE AUDIT DONE: 0 problem"
@@ -72,6 +80,7 @@ TESTS=(
 	"tutorial-ring|-- --scene=tutorial --lesson=ring --auto=1 --save_dir=res://build/cinematic_lesson_saves/|lesson result: won=true"
 	"battle-redirect|-- --scene=battle-redirect --wait=0.3 --save_dir=res://build/battle_redirect_saves/|BATTLE REDIRECT DONE: 0 problem"
 	"battle-poses|-- --scene=battle-poses --wait=0 --save_dir=res://build/battle_poses_saves/|BATTLE POSES DONE: 0 problem"
+	"beat-attack|-- --scene=beat-attack --save_dir=res://build/beat_attack_saves/|BEAT ATTACK DONE: 0 problem"
 	"ringedit|-- --scene=ringedit --touch --wait=0.3|RING EDIT DONE: 0 problem"
 	"ring-start|-- --scene=ring-start --battle=1 --save_dir=res://build/ring_start_test_saves/ --wait=0.3|RING START DONE: 0 problem"
 	"ring-start-touch|-- --scene=ring-start --touch --battle=1 --save_dir=res://build/ring_start_touch_test_saves/ --wait=0.3|RING START DONE: 0 problem"

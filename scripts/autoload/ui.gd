@@ -34,6 +34,9 @@ var auto_answers: Array = []
 var auto_log: Array = []
 ## test mode: queued flute results ({"acc", "mistakes"} or a float accuracy)
 var auto_flute: Array = []
+## test mode: queued beat attacks (battle/beat_cue.gd), each the presses to make: every beat's offset in seconds from
+## it, or null to let it go by. With none queued, test battles roll their chains.
+var auto_beats: Array = []
 
 
 func _ready() -> void:
