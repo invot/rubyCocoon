@@ -12,6 +12,8 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"mechanic-lessons|-- --scene=mechanic-lessons --save_dir=res://build/mechanic_lesson_saves/|MECHANIC LESSONS DONE: 0 problem"
+	"mechanic-lessons-touch|--resolution 2400x1080 -- --scene=mechanic-lessons --touch --save_dir=res://build/mechanic_lesson_touch_saves/|MECHANIC LESSONS DONE: 0 problem"
 	"item-icons|-- --scene=item-icons --prefs_path=res://build/item_icon_test/settings.cfg --save_dir=res://build/item_icon_test_saves/|ITEM ICONS DONE: 0 problem"
 	"item-icons-touch|--resolution 2400x1080 -- --scene=item-icons --touch --prefs_path=res://build/item_icon_touch_test/settings.cfg --save_dir=res://build/item_icon_touch_test_saves/|ITEM ICONS DONE: 0 problem"
 	"controllers|-- --scene=controllers --prefs_path=res://build/controller_test/settings.cfg --save_dir=res://build/controller_test_saves/|CONTROLLERS DONE: 0 problem"

@@ -249,6 +249,14 @@ func _press_a() -> void:
 
 
 func _plain_and_trainer() -> void:
+	# Reaching Lv 4 alone does not bypass Lucille's unlock.
+	GameState.trainer_level = 4
+	GameState.set_flag("dance_lesson_done", false)
+	_heal_all()
+	_battle.last_chain = {}
+	await _battle._do_weapon({"type": "weapon", "weapon": "slingshot", "target": _foes()[0]})
+	_check(_battle.last_chain.is_empty(), "Lv 4 before the dance lesson still uses a plain weapon attack")
+	GameState.set_flag("dance_lesson_done")
 	# below trainer Lv 4: one plain throw, no cue
 	GameState.trainer_level = 3
 	_heal_all()

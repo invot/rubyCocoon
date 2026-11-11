@@ -3,6 +3,9 @@ extends RefCounted
 const MoveDB = preload("res://scripts/data/move_db.gd")
 
 const TIPS := {
+	"retarget": "If an attack's target falls before it lands, it aims at another standing foe. With none left, it can hit an exposed trainer. A heal goes to the ally with the least HP left; a revive stays on its chosen beast.",
+	"passives": "Beasts' passive abilities and worn equipment work automatically. You don't spend a turn activating them. The Beasts page in your Start book explains each beast's abilities and gear.",
+	"accuracy": "Some moves can miss. Accuracy is the move's hit chance; evasion makes a target harder to hit. A miss still spends the move's MP, so check its description before committing.",
 	"shift": "Move uses a beast's turn to change its ring slot. Pick a lit pad with up/down or tap it, then A. You can swap with a fainted beast, but must keep your middle guarded. Only one beast can Move each round.",
 	"cooldown": "Some moves need time to recharge. Their menu shows how many turns remain. Pick another move while you wait; plain attacks cost no MP.",
 	"support": "Some moves help your own beasts. Choose the move, then aim at an ally and confirm with A. Healing restores HP; a revive brings back a fainted beast.",
@@ -27,6 +30,8 @@ static func topics(option: Dictionary) -> Array:
 		return out
 	var m := MoveDB.get_move(option["move"])
 	var fx: Dictionary = m.get("fx", {})
+	if int(m.get("acc", 100)) < 100:
+		out.append("accuracy")
 	if int(m.get("cd", 0)) > 0:
 		out.append("cooldown")
 	if m.get("target", "") in ["ally", "allies", "ally_ko"]:

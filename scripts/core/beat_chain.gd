@@ -4,8 +4,8 @@ extends RefCounted
 ## more. Sfx keeps the beat (Sfx.beat_now); battle.gd plays the throws and deals the damage. Foe trainers don't play
 ## it: their hits are rolled from their strength (roll).
 ##
-## - Below trainer Lv UNLOCK_LEVEL a weapon makes one plain throw, as the slingshot always did.
-## - From there the chain grows with trainer level (HITS): 3 hits at Lv 4, one more each level, all 10 at Lv 10.
+## - Lucille's dance-studio lesson unlocks chains, from trainer Lv UNLOCK_LEVEL. Before it: one plain throw.
+## - Once taught, the chain grows with trainer level (HITS): 3 hits at Lv 4, one more each level, all 10 at Lv 10.
 ## - Each press is graded by its distance from the beat: Perfect, Good or Miss. The grade sets that hit's damage.
 ## - A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit.
 ## - Landing every hit the level allows makes the last one critical.

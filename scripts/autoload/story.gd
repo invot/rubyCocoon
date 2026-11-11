@@ -163,6 +163,8 @@ func extra_npcs(map: Dictionary) -> Array:
 	if map["kind"] == "interior":
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
 		var inside := _lesson_trainers(map)
+		if _has_anchor(map, "dance_instructor"):
+			inside.append({"kind": "story", "id": "dance_instructor", "name": "Instructor Lucille", "pos": _at(map, "dance_instructor", Vector2i.ZERO), "look": NEIGHBOR_LOOK, "facing": Vector2i(0, 1), "story": true})
 		if map.get("room_key", "") == "ceo_4":
 			if not GameState.flag("trainers_freed"):
 				for i in 3:
@@ -182,6 +184,10 @@ func extra_npcs(map: Dictionary) -> Array:
 		return inside
 	var plaza: Vector2i = map.get("plaza", Vector2i(map["w"] / 2, map["h"] / 2))
 	out.append_array(fixtures(map))
+	for obstacle in map.get("weapon_obstacles", []):
+		if not obstacle["solved"] and obstacle.has("coach_pos"):
+			out.append({"kind": "story", "id": "weapon_guide", "name": "Ranger Wren", "pos": obstacle["coach_pos"], "look": RANGER_LOOK,
+				"facing": Vector2i(0, 1), "story": true, "weapon_fixture": obstacle})
 	if WorldDB.TOWNS.has(id):
 		var race: int = WorldDB.TOWNS[id]["mascot"]
 		var p := _at(map, "mascot", plaza + Vector2i(3, 3))
@@ -223,7 +229,13 @@ func extra_npcs(map: Dictionary) -> Array:
 			if id == "shellhaven":
 				out.append({"kind": "story", "id": "chief_shell", "name": "Chief Marlo", "pos": _at(map, "chief", plaza), "look": CHIEF_SHELL_LOOK, "facing": Vector2i(0, 1), "story": true})
 		"reef":
-			if _has_anchor(map, "tide_keeper"):
+			if GameState.summons.has("water") and not GameState.flag("lesson_summon"):
+				out.append({"kind": "trainer", "id": "summon_coach", "name": "Ondine", "cls": "Coach", "pos": _at(map, "tide_keeper", plaza),
+					"look": ARENA_LESSONS[1]["look"], "facing": Vector2i(0, 1), "story": true, "manual_only": true, "vanish": true,
+					"lesson": "summon", "flag": "lesson_summon", "team": [[12, 10], [15, 10]], "reward": 0,
+					"lines": ["You won Abyssion's trust! Before you head on, let me show you how to call the water dragon."],
+					"after": ["Abyssion will answer that same song in your other battles. One call, one shield point. Safe travels!"]})
+			if _has_anchor(map, "tide_keeper") and not GameState.summons.has("water"):
 				out.append({"kind": "story", "id": "tide_keeper", "name": "Keeper Pell", "pos": _at(map, "tide_keeper", plaza), "look": KEEPER_LOOK,
 					"facing": Vector2i(-1, 0), "story": true})
 		"kelpwick":
@@ -253,6 +265,9 @@ func extra_npcs(map: Dictionary) -> Array:
 			if _has_anchor(map, "tourist"):
 				out.append({"kind": "story", "id": "tourist", "name": "Tourist Gwen", "pos": _at(map, "tourist", plaza), "look": TOURIST_LOOK, "facing": Vector2i(0, 1)})
 		"dustwell":
+			if not GameState.flag("dance_shoes_returned"):
+				out.append({"kind": "story", "id": "dance_blocker", "name": "Dancer Jasper", "pos": Vector2i(22, 2), "look": UNCLE_LOOK,
+					"facing": Vector2i(0, 1), "story": true, "sit": true, "seat_height": 0.05, "visual_offset": Vector3(0.5, 0, 0), "blocks": [Vector2i(22, 2), Vector2i(23, 2)]})
 			# missing posters about town, and a friend of each missing trainer, searching
 			var home := GameState.flag("trainers_freed")
 			for i in 5:
@@ -303,6 +318,12 @@ func _close_edge(map: Dictionary, dir: String, text: String) -> void:
 
 func npc_has_news(n: Dictionary) -> bool:
 	match n.get("id", ""):
+		"dance_instructor":
+			return not GameState.flag("dance_lesson_done")
+		"dance_blocker":
+			return not GameState.flag("dance_shoes_returned")
+		"weapon_guide":
+			return not GameState.flag(n["weapon_fixture"]["flag"])
 		"elder":
 			return not GameState.flag("got_egg")
 		"inspector", "warden", "sentinel":
@@ -346,6 +367,63 @@ func npc_has_news(n: Dictionary) -> bool:
 	return false
 
 
+## The person beside the mechanism names its weapon even before the player owns one.
+func weapon_guide(n: Dictionary) -> void:
+	var o: Dictionary = n["weapon_fixture"]
+	var weapon: String = o["weapon"]
+	var name := ItemDB.item_name(weapon)
+	var mechanism: String = {
+		"bullseye": "Hit that bullseye with a Slingshot to open the gate.",
+		"bell": "Ring that bell with a Slingshot to release the rope ladder.",
+		"switches": "A Boomerang hits that whole line of switches in one throw, dropping the treasure chest.",
+		"cracked_rock": "A Bat can break that cracked rock and clear the way to the treasure.",
+		"stump": "A Bat can smash that split stump and clear the way to the treasure.",
+	}.get(o["type"], "A weapon can open the way here.")
+	var owned := GameState.item_count(weapon) > 0
+	var status := "You've got the %s already. You're ready to try!" % name if owned else "You don't have a %s yet." % name
+	if not owned:
+		status += {"boomerang": " Chief Coralie in Kelpwick gives one to trainers who open the reef path.",
+			"bat": " Sheriff Dalton in Sundown gives one with Black Bart's bounty."}.get(weapon, "")
+	await say([mechanism, status, "Face the target from clear ground and press A, or tap it to walk to the right spot and use it. No rhythm timing is needed here. Come back if you need the weapon first."], n["name"])
+	GameState.set_flag(o["flag"] + "_explained")
+
+
+func field_guide_on_step(world) -> bool:
+	for n in world.npcs.values():
+		if n.get("id", "") != "weapon_guide":
+			continue
+		var o: Dictionary = n["weapon_fixture"]
+		if world.player_pos == o["use_from"] and not GameState.flag(o["flag"] + "_explained"):
+			world._clear_path()
+			world.busy = true
+			await talk(world, n)
+			world.busy = false
+			return true
+	return false
+
+
+func _dance_lesson(world, n: Dictionary) -> void:
+	if GameState.flag("dance_lesson_done"):
+		await say(["You've got the rhythm! Pick a weapon in battle, then press A on consecutive beats. Fill every pip for a critical finish.",
+			"Jasper's shoes are yours to return. He's waiting by the north road." if not GameState.flag("dance_shoes_returned") else "Keep dancing, wherever the road takes you!"], n["name"])
+		return
+	if GameState.trainer_level < 4:
+		await say(["You're too weak to dance! Come back at trainer level 4.", "Win trainer battles or clear arena ranks to raise your trainer level. Then I'll teach you rhythm attacks."], n["name"])
+		return
+	await say(["Now you're strong enough to dance!", "Jasper wants his shoes back? Show me you can keep a beat and I'll hand them over. My beasts will help us practise."], n["name"])
+	GameState.heal_party()
+	var won := await trainer_battle({"name": "Lucille", "cls": "Instructor", "look": n["look"], "team": [[12, 10]], "lesson": "rhythm", "reward": 0})
+	if won != "win":
+		return
+	GameState.set_flag("dance_lesson_done")
+	if not GameState.flag("dance_shoes_returned"):
+		GameState.receive_item("dance_shoes")
+	GameState.heal_party()
+	await say(["You've passed! From now on, your weapons can chain hits to the battle music.",
+		"Keep that beat with you on the road!" if GameState.flag("dance_shoes_returned") else "Here are Jasper's dance shoes. Give them back to him by the north road, and he'll let you through."], n["name"])
+	world.refresh_npc_marks()
+
+
 func _relic_count() -> int:
 	var n := 0
 	for k in RELICS:
@@ -379,6 +457,11 @@ func on_map_enter(world) -> void:
 		GameState.set_flag("seen_roots")
 	elif id == "route10" and not GameState.flag("seen_moor"):
 		GameState.set_flag("seen_moor")
+	if id == "reef":
+		for n in world.npcs.values():
+			if n.get("id", "") == "summon_coach":
+				await talk(world, n)
+				break
 	world.busy = false
 	world.refresh_npc_marks()
 	# a teacher who can see you where you've arrived stops you straight away
@@ -432,6 +515,14 @@ func _lessons_done() -> bool:
 
 ## Called before an exit (map edge, door mat or stairs) is used. Returning false cancels the step.
 func can_use_exit(world, ex: Dictionary) -> bool:
+	if world.map_id == "dustwell" and ex["to"] == "route4" and not GameState.flag("dance_shoes_returned"):
+		var blocker := {}
+		for n in world.npcs.values():
+			if n.get("id", "") == "dance_blocker":
+				blocker = n
+		if not blocker.is_empty():
+			await talk(world, blocker)
+		return GameState.flag("dance_shoes_returned")
 	if not world.interior:
 		return true
 	# the first time you go to leave home, the phone rings: Dad, calling from work (answer it, and the game's saved)
@@ -837,6 +928,8 @@ func next_goal() -> String:
 	# Kelpwick's side of the story, then Reef Warden Nerissa, whose win gets the villagers off the reef path
 	if not GameState.flag("kelp_heard") and not GameState.flag("island_peace"):
 		return "chiefs"
+	if GameState.flag("guardian_water") and not GameState.flag("dance_shoes_returned") and not GameState.flag("met_sheriff"):
+		return "dance_shoes" if GameState.flag("dance_lesson_done") else "dance"
 	for step in [["island_peace", "warden"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
 			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
 			["trainers_freed", "rescue"],
@@ -868,6 +961,8 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	if n.has("lesson"):
 		# a lesson can't be lost: it starts with your beasts at their best
 		GameState.heal_party()
+		if n["lesson"] == "summon":
+			GameState.shield = maxi(1, GameState.shield)
 	if GameState.alive_party().is_empty() and GameState.shield <= 0:
 		await say(["Your beasts are too tired to battle! Heal them first."], name)
 		return
@@ -962,6 +1057,21 @@ func _mascot(world, n: Dictionary) -> void:
 
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
+		"dance_instructor":
+			await _dance_lesson(world, n)
+		"dance_blocker":
+			if GameState.flag("dance_lesson_done"):
+				await say(["My dance shoes! Lucille finally let them go? You must have some rhythm!", "Thank you. I'll get out of your way. Sundown Gulch is north, along the Mesa Trail."], n["name"])
+				GameState.set_flag("dance_shoes_returned")
+				GameState.remove_item("dance_shoes")
+				world.remove_npc(n)
+			else:
+				GameState.set_flag("dance_shoes_asked")
+				await say(["I'm not moving without my dance shoes. Instructor Lucille borrowed them, and now she won't give them back!",
+					"Her dance studio is at the west end of Main Street, under the DANCE sign. Show her you can keep a beat and ask for my shoes.",
+					"She only teaches trainers of level 4 or higher. Win trainer battles or clear arena ranks if you need practice."], n["name"])
+		"weapon_guide":
+			await weapon_guide(n)
 		"freight_control":
 			await _free_trainers(world)
 		"captive":
@@ -2127,6 +2237,8 @@ func _speaker_node(speaker: String) -> Node3D:
 		return null
 	if not _dialogue_npc.is_empty():
 		var names := [String(_dialogue_npc.get("name", ""))]
+		if _dialogue_npc.has("cls"):
+			names.append(("%s %s" % [_dialogue_npc["cls"], _dialogue_npc.get("name", "")]).strip_edges())
 		match _dialogue_npc.get("kind", ""):
 			"keeper":
 				names.append_array(Places.keeper_names(_dialogue_npc["building"]))

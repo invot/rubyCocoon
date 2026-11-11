@@ -96,6 +96,7 @@ const ITEMS := {
 	"bridge_planks": {"name": "Bridge Planks", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of sturdy planks, just right for patching a footbridge."},
 	"card_ledger": {"name": "Card Ledger", "kind": "key", "price": 0, "tier": 99, "desc": "Barkeep Dusty's record of the Oasis Saloon's card games. Slim's name is on every hand, all night long, the night the trainers vanished: he couldn't have taken them."},
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
+	"dance_shoes": {"name": "Jasper's Dance Shoes", "kind": "key", "price": 0, "tier": 99, "desc": "Earned from Instructor Lucille. Return them to Jasper by Dustwell's north road."},
 	## trainer weapons: key items your own battle action lists (battle.gd _weapon_options), never sold or used up.
 	## weapon: target ("enemy": one foe, or an open trainer; "enemies": every foe on the side facing you), power (each
 	## hit's damage against the slingshot's), anim (the trainer's pose: voxel_person.gd set_action), order (in the bar).

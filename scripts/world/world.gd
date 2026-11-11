@@ -83,6 +83,8 @@ var courier_bird: Node3D
 var courier_employee: Node3D
 
 var npcs := {}
+## Additional occupied tiles share one actor and one interaction; visual placement can sit between tiles.
+var npc_footprints := {}
 var _door_speakers := {}
 var items := {}
 var shards := {}
@@ -2499,13 +2501,15 @@ func _build_npcs() -> void:
 			VPer.face(node, n.get("facing", Vector2i(0, 1)))
 			if n.get("sit", false):
 				seat(node, n.get("facing", Vector2i(0, 1)))
+				if n.has("seat_height"):
+					VPer.set_pose(node, "sit", float(n["seat_height"]))
 			if n.get("rod", false):
 				# someone fishing: a rod held out in front, its line down into the water
 				var body: Node3D = node.get_node("Body")
 				var tip := Vector3(0.2, VPer.hand_height() + 0.8, 1.35)
 				body.add_child(_rod_mesh(Vector3(0.2, VPer.hand_height(), 0.25), tip))
 				body.add_child(_rod_mesh(tip, Vector3(0.24, -0.1, 2.1), 0.008, Color("#e8e8e8")))
-		node.position = tile_pos(p)
+		node.position = tile_pos(p) + n.get("visual_offset", Vector3.ZERO)
 		add_child(node)
 		if not (n.has("scene") or n.has("mesh") or n.has("asset")):
 			var beast: bool = n.get("beast_genes", null) != null or n.has("robot_body")
@@ -2513,6 +2517,8 @@ func _build_npcs() -> void:
 		n["node"] = node
 		n["home"] = p
 		npcs[p] = n
+		for occupied in n.get("blocks", []):
+			npc_footprints[occupied] = p
 		if n.has("mesh") and not n.get("still", false):
 			bobbers.append([node, 0.1, 2.0])
 		# (and anyone else who comes over when they spot you, like the Dune Ranger: story.gd sandstorm_stop)
@@ -2652,6 +2658,8 @@ func _stage_pull(w: float, h: float, t: Vector3) -> float:
 
 # ================================================================ movement
 func _walkable(p: Vector2i) -> bool:
+	if npc_footprints.has(p):
+		return false
 	if p.x < 0 or p.y < 0 or p.x >= map["w"] or p.y >= map["h"]:
 		return false
 	if not MapGen.walkable(MapGen.get_t(map, p.x, p.y)):
@@ -3120,6 +3128,8 @@ func _on_step_done() -> void:
 		return
 	if await _check_trainer_sight():
 		return
+	if await Story.field_guide_on_step(self):
+		return
 
 
 ## A trainer who can see you (straight ahead, up to their sight) comes over and battles. lessons_only: just the
@@ -3209,6 +3219,7 @@ func _interact() -> void:
 	# nothing up or down a cliff is in reach (but you can cast a line down into the water)
 	if not Elev.joined(map, player_pos, t) and MapGen.get_t(map, t.x, t.y) != MapGen.WATER:
 		return
+	t = npc_footprints.get(t, t)
 	var wb = _beast_at(t)
 	if wb != null:
 		_bump_wild(wb)
@@ -3711,6 +3722,8 @@ func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
 
 
 func remove_npc(n: Dictionary) -> void:
+	for occupied in n.get("blocks", []):
+		npc_footprints.erase(occupied)
 	var node: Node3D = n.get("node", null)
 	if node:
 		var tw := create_tween()
@@ -3856,6 +3869,8 @@ func _tile_under(screen: Vector2) -> Vector2i:
 
 ## Is there something to use on this tile? Returns "npc", "beast", "door", "item", "thing" or "".
 func _usable(t: Vector2i) -> String:
+	if npc_footprints.has(t):
+		return "npc"
 	if map.get("weapon_targets", {}).has(t):
 		return "weapon"
 	if npcs.has(t):
@@ -3912,7 +3927,8 @@ func _pick(screen: Vector2) -> Dictionary:
 		# Pick the raised handset itself rather than the floor or attendant behind it.
 		boxes.append([AABB(tile_pos(p) + Vector3(-0.4, 1.0, -0.35), Vector3(0.8, 0.5, 0.7)), p, "thing"])
 	for p in npcs:
-		boxes.append([AABB(Vector3(p.x + 0.15, _lift(p), p.y + 0.15), Vector3(0.7, 1.9, 0.7)), p, "npc"])
+		var offset: Vector3 = npcs[p].get("visual_offset", Vector3.ZERO)
+		boxes.append([AABB(Vector3(p.x + 0.15, _lift(p), p.y + 0.15) + offset, Vector3(0.7, 1.9, 0.7)), p, "npc"])
 	for w in wilds:
 		var wp: Vector3 = (w["node"] as Node3D).position
 		boxes.append([AABB(wp - Vector3(0.4, 0, 0.4), Vector3(0.8, 1.3, 0.8)), w["pos"], "beast"])
@@ -3956,6 +3972,7 @@ func _building_at(t: Vector2i) -> Dictionary:
 
 ## Walk next to `t` and use it (doors are walked into; wild beasts are bumped into).
 func _go_use(t: Vector2i, kind: String, run: bool) -> void:
+	t = npc_footprints.get(t, t)
 	# the kennel's pens are behind Pip's counter: tapping one goes to ask Pip
 	if interior and MapGen.get_t(map, t.x, t.y) == MapGen.KENNEL:
 		for p in npcs:

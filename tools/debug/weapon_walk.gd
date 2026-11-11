@@ -58,7 +58,7 @@ func exercise(id: String, source: Dictionary) -> void:
 	var approach := from
 	var side := Vector2i(facing.y, facing.x)
 	for d in [side, -side, -facing, facing]:
-		if MG.walkable(MG.get_t(map, from.x + d.x, from.y + d.y)) and Elev.joined(map, from, from + d):
+		if from + d != source.get("coach_pos", Vector2i(-1, -1)) and MG.walkable(MG.get_t(map, from.x + d.x, from.y + d.y)) and Elev.joined(map, from, from + d):
 			approach = from + d
 			break
 	GameState.flags.erase(source["flag"])
@@ -97,7 +97,7 @@ func exercise(id: String, source: Dictionary) -> void:
 	UI.auto_log.clear()
 	await world._interact()
 	check(not GameState.flag(o["flag"]), "missing weapon leaves the mechanism locked")
-	check(not str(UI.auto_log).to_lower().contains(weapon), "unknown weapon is not named")
+	check(str(UI.auto_log).to_lower().contains(weapon), "the guide identifies the required weapon")
 	GameState.add_item(weapon)
 	GameState.remove_item(weapon)
 	UI.auto_log.clear()
@@ -137,6 +137,7 @@ func exercise(id: String, source: Dictionary) -> void:
 		if GameState.flag(o["flag"]) and not world.busy:
 			break
 	check(GameState.flag(o["flag"]) and not world.busy, "one input solves " + source["id"])
+	check(not world.npcs.values().any(func(n): return n.get("id", "") == "weapon_guide" and n["weapon_fixture"]["id"] == o["id"]), "guide leaves after a successful use")
 	check(world.player_pos == from and not world.moving, "input ends on the firing tile")
 	check(GameState.item_count(weapon) == 1, "weapon is not consumed")
 	for p in o.get("blocks", []):
@@ -163,6 +164,7 @@ func exercise(id: String, source: Dictionary) -> void:
 	await main._go(id, from)
 	quiet_world()
 	check(not main.world.map["weapon_targets"].has(target), "solved state survives map re-entry")
+	check(not main.world.npcs.values().any(func(n): return n.get("id", "") == "weapon_guide" and n["weapon_fixture"]["id"] == o["id"]), "completed guide is not loaded again")
 	for p in o.get("blocks", []):
 		check(MG.walkable(MG.get_t(main.world.map, p.x, p.y)), "released floor survives re-entry")
 	check(GameState.flag(o["flag"] + "_chest"), "collected chest survives re-entry")

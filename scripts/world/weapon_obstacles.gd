@@ -85,9 +85,14 @@ func approach(o: Dictionary) -> Vector2i:
 func use(o: Dictionary) -> void:
 	if not Rules.can_use(world.map, o, world.player_pos, world.facing):
 		return
+	if not GameState.flag(o["flag"] + "_explained"):
+		for n in world.npcs.values():
+			if n.get("id", "") == "weapon_guide" and n["weapon_fixture"]["id"] == o["id"]:
+				await Story.talk(world, n)
+				return
 	var weapon: String = o["weapon"]
 	if GameState.item_count(weapon) <= 0:
-		await UI.say([Rules.hint(o, GameState.weapon_seen(weapon))])
+		await UI.say([Rules.hint(o, true)])
 		return
 	Person.set_ready(world.player, weapon, true)
 	Person.set_action(world.player, ItemDB.weapon(weapon)["anim"])
@@ -126,6 +131,9 @@ func use(o: Dictionary) -> void:
 		projectile.queue_free()
 	GameState.set_flag(o["flag"])
 	Rules.solve(world.map, o)
+	for n in world.npcs.values():
+		if n.get("id", "") == "weapon_guide" and n["weapon_fixture"]["id"] == o["id"]:
+			world.remove_npc(n)
 	for p in o.get("blocks", []):
 		if barriers.has(p):
 			var gate: Node3D = barriers[p]

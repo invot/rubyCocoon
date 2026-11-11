@@ -1084,6 +1084,11 @@ func load_game(slot := -2) -> bool:
 	if songs.has("song_tides") or flags.get("guardian_water", false):
 		flags["tides_song_door"] = true
 	visited = d.get("visited", ["caccoon"])
+	# Keep previously earned rhythm attacks and an already-passed north road on older journeys.
+	if not flags.has("dance_lesson_done") and flag("beat_taught"):
+		set_flag("dance_lesson_done")
+	if not flags.has("dance_shoes_returned") and (visited.has("sundown") or flag("met_sheriff")):
+		set_flag("dance_shoes_returned")
 	map_id = d.get("map_id", "caccoon")
 	var p: Array = d.get("pos", [-1, -1])
 	pos = Vector2i(int(p[0]), int(p[1]))

@@ -175,6 +175,21 @@ required before confronting Vexmora.
     side facing, you borrow the arena's air practice team, since nothing is weak to earth). Only then can you challenge
     **Tide Captain Marina**, and Captain Gull's ferry to the Isle of Tides only takes trainers with her Wave Crest.
 11. The journey runs in one line: the Dune Road north of Bellerive stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
+12. When you leave the Temple of Tides with **Abyssion**, **Coach Ondine** appears outside and gives a protected
+    practice battle: choose **Summon**, play the Song of Tides and see the water dragon strike the opposing team.
+    A failed song can be tried again without spending a shield. The coach leaves after the lesson and stays gone.
+13. In **Dustwell Oasis**, **Dancer Jasper** sits in the centre of the single, two-tile-wide north road, blocking
+    both tiles until you return his shoes. **Instructor Lucille** has them at the **Dustwell Dance Studio**, under
+    the DANCE sign at the west end of Main Street (the existing `dustwell#1` building identity). Below **trainer
+    level 4**, she calls you too weak to dance and explains how to raise your trainer level. At level 4 or above,
+    pass her safe rhythm practice and guided weapon battle to unlock rhythm attacks and receive Jasper's shoes.
+    Return them to open the Mesa Trail toward Sundown. Talking to Lucille first works too.
+
+New battle mechanics are explained when used, rather than all at the start. With more than three beasts in your
+party, the next ordinary battle requires you to turn the ring once before confirming beast moves. Later options
+give brief first-use lessons for Move, recharging moves, ally and group targets, status, stat changes, recoil/drain,
+protective moves and the new weapons. The existing move descriptions supply each move's precise effect. Lesson
+completion is saved through normal phone calls. See [tutorial coverage](docs/tutorials.md).
 
 Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
 `Story.next_goal()`), so what they talk about moves on as soon as you've done it.
@@ -218,7 +233,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   An owned weapon is used automatically with one short animation; there is no aiming game or confirmation menu.
   Slingshot bullseyes and bells release ladders, gates or treasure. A boomerang strikes an entire line of switches
   in one throw and returns; the bat breaks cracked rocks and split stumps. Without the weapon, the description
-  names it only after you have seen it. These fixtures are optional road detours, never required story gates.
+  names the required weapon. A ranger beside each unsolved fixture explains its mechanism, the controls, whether
+  you own the right weapon and where to get a missing one. They greet you at the firing spot, can also be spoken to
+  directly, and leave once you solve it; solved guides are not loaded again. These fixtures are optional road
+  detours, never required story gates.
   Early Coastal Path rewards need the later boomerang or bat, so there is a reason to come back.
   Solves and collected chests have separate permanent flags, retained by ordinary phone saves.
 
@@ -380,8 +398,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 - **Weapons and the beat attack** (`item_db.gd` WEAPONS, `scripts/core/beat_chain.gd`, `scripts/battle/beat_cue.gd`, `battle.gd` _do_weapon):
   - Your trainer's bar lists the weapons you own; you pick one each turn. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit, on one foe you run up to: Sheriff Dalton hands over Black Bart's with the Sundown bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
-  - Below trainer Lv 4 a weapon makes one plain throw (or swing) with its accuracy roll, as the slingshot always did. From **trainer Lv 4** it's a **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
-  - Each press is graded by how far it is from the beat: **Perfect** (0.06 s), **Good** (0.13 s) or **Miss**, shown beside the ring, and the grade sets that hit's damage (half a plain throw for Perfect, 0.3 for Good). A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit, so the turn is never wasted. Land every hit your level allows and the last one is critical. Your first beat attack is guided, with wider windows (0.10 / 0.20 s), as they always are on the Coastal Path. Reaching Lv 4 (and each level that adds a hit) says so.
+  - Until you pass **Instructor Lucille's lesson** at Dustwell's dance studio, a weapon makes one plain throw (or swing) with its accuracy roll. She teaches trainers of **Lv 4 or above**, beginning with one safe beat that repeats until you land it, then a protected weapon battle. Passing unlocks the **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
+  - Each press is graded by how far it is from the beat: **Perfect** (0.06 s), **Good** (0.13 s) or **Miss**, shown beside the ring, and the grade sets that hit's damage (half a plain throw for Perfect, 0.3 for Good). A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit, so the turn is never wasted. Land every hit your level allows and the last one is critical. Your first beat attack has wider windows (0.10 / 0.20 s), as they always do on the Coastal Path. Reaching Lv 4 points you to Lucille; later levels that add a hit say so. Older saves retain rhythm attacks already learned and access to a north road already passed.
   - At a trainer who's open, a weapon is one blow whatever your level: it breaks a shield point.
   - Your trainer takes the weapon up and uses it once per hit (`voxel_person.gd` set_ready, set_action): a stone from the slingshot, the boomerang flung side-arm (it curves through each target and is caught again), or the bat swung level after running up to the target. The camera holds a "beat" shot on the target meanwhile, and the hits land without messages until the chain is done.
   - Foe trainers don't play it. Only bosses and arena masters use a weapon (about one round in three, never while they play a song, and only at your beasts), with their hits rolled from their trainer level (`BeatChain.roll`). Their weapon follows the region: the slingshot, then the boomerang (their beasts Lv 11+) and the bat (Lv 15+).

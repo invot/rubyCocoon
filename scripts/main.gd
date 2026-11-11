@@ -815,6 +815,13 @@ func _run_test() -> void:
 	GameState.set_flag("has_starter")
 	GameState.set_flag("tutorial_done")
 	GameState.set_flag("flute_lesson_done")
+	# Existing previews start after the new lessons. --scene=mechanic-lessons resets each flag it exercises.
+	GameState.set_flag("dance_lesson_done")
+	GameState.set_flag("dance_shoes_returned")
+	GameState.set_flag("ring_rotation_taught")
+	GameState.set_flag("lesson_summon")
+	for topic in preload("res://scripts/core/battle_tutorials.gd").TIPS:
+		GameState.set_flag("battle_tip_" + String(topic))
 	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("reed_flute")
 	GameState.learn_song("weaken")
@@ -1741,6 +1748,8 @@ func _run_test() -> void:
 		print("tapped the Beast Center building -> now in ", world.map_id)
 	elif scene == "weapon-walk":
 		await load("res://tools/debug/weapon_walk.gd").new().run(self, _test)
+	elif scene == "mechanic-lessons":
+		await load("res://tools/debug/mechanic_lessons.gd").new().run(self, _test)
 	elif scene == "puzzles":
 		UI.auto = true
 		# route1: the washed-out footbridge, mended with the logs Youngster Kit hands over after his lesson

@@ -129,12 +129,12 @@ const LESSONS := {
 			{"say": ["There it is! A better performance makes the summon stronger. Save that shield point for when you need it.", "Now Watch and let your beasts finish our practice battle."], "you": "Watch", "beast": "Fight"},
 		]},
 	"screen": {"level": 2, "finish": 2,
-		"intro": ["Ooh, a brand-new trainer! I'll show you around a battle. It's less scary than it looks. Mostly.",
-			"That's you at the bottom right, in the middle of your battle ring. I'm up at the top left, in mine.",
-			"The glowing pads are your ring's slots. Empty pads stay dim, and fainted beasts lie down on theirs.",
-			"The outline shows who is choosing. Their menu floats beside them: HP is health, MP powers elemental moves. Flashing MP shows the cost.",
-			"Each round you pick your own action first, beside your trainer, then a move for each beast. Left and right change the choice, A confirms it, B goes back.",
-			"In a lesson there's just the one thing to pick, so A it is! In a real battle, left and right aim at a foe. Or tap a foe once to aim and again to confirm. The arrow shows your target. A confirms too."],
+		"intro": ["Let's learn a battle together! You're in the near ring; I'm in the far one.",
+			"Lit pads show the side that fights. Empty pads stay dim; fainted beasts lie down.",
+			"An outline shows who is choosing. HP is health; MP powers elemental attacks. Flashing MP is the cost.",
+			"Pick your own action first, then each beast's. Left/right changes a choice, A chooses it, B goes back.",
+			"Then aim left/right and A confirms. With touch, tap a foe to aim and tap it again to confirm.",
+			"Lessons give you one choice at a time. Let's try it!"],
 		"rounds": [
 			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch beside your trainer, then the move beside {beast}."],
 				"you": "Watch", "beast": "Fight"},
@@ -1802,6 +1802,8 @@ func _status_text(ref) -> String:
 ## The top bar's words for the command being chosen: what the action does (the panel's own hint, `text`); while
 ## aiming, the action, who it is aimed at with their HP, and what it does.
 func _command_info(row: Dictionary, _o: Dictionary, picking: bool, text: String) -> String:
+	if rotation_lesson and row.get("kind", "") == "beast":
+		return "Try turning: up past the top beast, or down past the bottom. Use the on-screen d-pad too."
 	if not picking or String(row.get("pick_kind", "")) == "slot" or _target_refs.is_empty():
 		return text
 	var options: Array = row.get("options", [])
@@ -2286,7 +2288,7 @@ func _command_phase() -> Array:
 					if rotation_lesson:
 						GameState.set_flag("ring_rotation_taught")
 						rotation_lesson = false
-						await UI.say(["That's it! Turning costs no turn. Choose moves for this side now. Keep a standing beast in the middle to guard you."])
+						await _battle_lesson_say(["That's it! Turning costs no turn. Choose moves for this side now. Keep a standing beast in the middle to guard you."])
 					# a new side: its beasts choose afresh
 					var keep: Dictionary = rows[0]
 					rows = _panel_rows()
@@ -2634,21 +2636,38 @@ func _panel_info() -> Dictionary:
 
 ## Teach at the first usable opportunity, including journeys saved before these lessons existed.
 func _new_battle_lessons() -> void:
+	if _alive(foe_slots).size() > 1:
+		await _teach_topics(["retarget"])
+	if _all_active().any(func(b): return not b.passives.is_empty() or not b.equip.is_empty()):
+		await _teach_topics(["passives"])
 	if not GameState.flag("ring_rotation_taught") and GameState.party.size() > 3 and Ring.next_side(ally_ring, ally_side, 1) != ally_side:
 		rotation_lesson = true
-		await UI.say(["You have more than three beasts now. Only the three facing the foe can fight; turn the ring to bring the others forward.",
-			"Choose your trainer's action first. Then press up past the top beast, or down past the bottom one. You can also tap the ▲ / ▼ beside their bar.",
+		await _battle_lesson_say(["You have more than three beasts now. Only the three facing the foe can fight; turn the ring to bring the others forward.",
+			"Choose your trainer's action first. Then press up past the top beast, or down past the bottom one. Use the on-screen d-pad on touch screens.",
 			"Try a turn before choosing your beasts' moves. Turning is free, but the new side must choose its moves again."])
 
 
 func _teach_option(option: Dictionary) -> void:
 	if tutorial:
 		return
-	for topic in BattleTutorials.topics(option):
+	await _teach_topics(BattleTutorials.topics(option))
+
+
+func _teach_topics(topics: Array) -> void:
+	for topic in topics:
 		var flag := "battle_tip_" + String(topic)
 		if not GameState.flag(flag):
-			await UI.say([BattleTutorials.TIPS[topic]])
+			await _battle_lesson_say([BattleTutorials.TIPS[topic]])
 			GameState.set_flag(flag)
+
+
+## Opposing trainers coach through their own anchored speech bubbles; wild encounters use a system window.
+func _battle_lesson_say(lines: Array) -> void:
+	if not wild and is_instance_valid(rival_rig):
+		var who := ("%s %s" % [trainer.get("cls", ""), trainer.get("name", "Trainer")]).strip_edges()
+		await UI.say(lines, who, null, rival_rig)
+	else:
+		await UI.say(lines)
 
 
 ## One safe, repeatable hit before real rhythm attacks. Nothing takes damage or spends a turn here.
@@ -2663,7 +2682,7 @@ func _rhythm_lesson() -> void:
 		var cue := BeatCue.new()
 		cue.most = 1
 		cue.easy = true
-		cue.anchor = func(): return get_viewport().get_visible_rect().size * Vector2(0.5, 0.4)
+		cue.anchor = func(): return UI.root.get_viewport_rect().size * Vector2(0.5, 0.4)
 		if UI.auto or cfg.get("autoplay", false):
 			cue.injected = [0.0]
 		UI.push(cue)
@@ -5062,7 +5081,7 @@ func _trainer_xp() -> void:
 		await msg("You're now a Lv %d trainer!" % GameState.trainer_level, 1.0)
 		var beat_line := BeatChain.level_line(GameState.trainer_level - gained, GameState.trainer_level)
 		if beat_line != "":
-			await msg(beat_line, 1.6)
+			await msg(beat_line if GameState.flag("dance_lesson_done") or GameState.trainer_level == 4 else "Once you learn rhythm attacks from Lucille in Dustwell, your weapons can chain up to %d hits." % BeatChain.max_hits(GameState.trainer_level), 1.6)
 		if GameState.slot_cap() > before_slots or GameState.shield_cap() > before_shield:
 			await msg("Volt at Sparkwire Electronics in Bellerive can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
 				else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")), 1.4)

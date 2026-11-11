@@ -286,7 +286,7 @@ func _confirm() -> void:
 		return
 	var row: Dictionary = rows[focus]
 	if info.get("rotation_lesson", false) and focus > 0:
-		_hint("Try turning the ring first: up past the top beast, or down past the bottom. You can tap the ▲ / ▼ too.")
+		_hint("Try turning the ring first: press up past the top beast, or down past the bottom. The on-screen d-pad works too.")
 		return
 	if not _row_enabled(focus):
 		return

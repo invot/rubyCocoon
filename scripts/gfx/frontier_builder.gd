@@ -64,6 +64,9 @@ static func build(b: Dictionary) -> Node3D:
 		"jail":
 			o.merge({"floors": 1, "front": "flat", "words": "JAIL", "star": true, "ground": "barred", "door": "door_2", "plinth": "stone"})
 			b["height"] = _facade(node, w, d, rng, o)
+		"studio":
+			o.merge({"floors": 1, "front": "flat", "words": "DANCE", "ground": "wide", "awning": Color(VBld.SHOP_ROOF.get(shop, "#c84040"))})
+			b["height"] = _facade(node, w, d, rng, o)
 		"house", "home", "decor":
 			o.merge({"floors": 2 if w >= 5 and rng.randf() < 0.5 else 1, "front": "gable", "ground": "house", "upper": "house"})
 			b["height"] = _facade(node, w, d, rng, o)

@@ -254,6 +254,8 @@ const MASCOT := [
 ## Casual hints about what to do next, by Story.next_goal(): townsfolk add one to whatever else they say, so what they
 ## talk about moves on as soon as you've done it.
 const HINTS := {
+	"dance": ["Jasper won't leave Dustwell's north road without his shoes. Instructor Lucille has them at the DANCE studio, at the west end of Main Street. She teaches rhythm attacks from trainer level 4."],
+	"dance_shoes": ["Lucille gave you Jasper's shoes? Take them to him by Dustwell's north road so you can reach Sundown."],
 	"egg": ["Elder Rowan's waiting in the plaza with a beast egg for you. She's been polishing it all morning. It's very shiny now.",
 		"Big day, huh? Go and see Elder Rowan in the plaza. She's got something round and important for you.",
 		"I'd hurry to the plaza if I were you. Last time Elder Rowan waited, she knitted a whole sweater. For a Pyrosaur."],
@@ -322,6 +324,12 @@ const HINTS := {
 ## a call, taking turns. Each is something she saw on the TV news, something Grandma wants you to know, or a call from
 ## someone who saw you do something you've already done, with advice for the road ahead. Each tip is its lines.
 const MOM_TIPS := {
+	"dance": [["Grandma wants you to know that Instructor Lucille teaches rhythm attacks at Dustwell's dance studio. Reach trainer level 4, then show her you can keep a beat to get Jasper's shoes back."],
+		["I saw Dustwell's dance studio on the TV news. It's at the west end of Main Street, under the DANCE sign."],
+		["Grandma says Lucille only teaches trainers of level 4 or more. Trainer battles and arena ranks will get you there."]],
+	"dance_shoes": [["Grandma wants you to know that Jasper is still waiting by Dustwell's north road. Return his dance shoes and he'll let you through."],
+		["Grandma says borrowed shoes should always go back to their owner. Jasper's by the road to Sundown."],
+		["Grandma wants to know if Jasper's got his shoes yet. Take them to Dustwell's north road before you head on."]],
 	"egg": [["I was watching TV, and the news said trainer season starts today! Elder Rowan's giving out eggs in the plaza. That's you, sweetie. Go and see her!"],
 		["Grandma wants you to know that every egg is different. Fire beasts hit hard, water beasts heal, earth beasts protect and air beasts play tricks.", "Pick the one that feels like you."],
 		["Scout Bram called me. He said he saw you set off from home this morning, all grown up!", "He wanted you to know that if you ever want to get through his gate, you'll need a beast of your own. Elder Rowan has an egg for you."]],
@@ -408,7 +416,7 @@ const MOM_TIPS := {
 ## a room with wild beasts (InteriorMaps.ROOMS). Nothing before the flute: the Coastal Path has only its teachers.
 const MOM_AHEAD := {
 	"rafe": "route1", "arena": "tidewater", "marina": "tidewater", "ferry": "route2", "chiefs": "route2", "warden": "kelpwick",
-	"temple": "reef", "desert": "route3", "bandits": "route4", "winds": "route5", "mine": "copperpick",
+	"temple": "reef", "desert": "route3", "dance": "route3", "dance_shoes": "route4", "bandits": "route4", "winds": "route5", "mine": "copperpick",
 	"gearhart": "route6", "rescue": "route6", "flame": "route7", "jungle": "route8", "relics": "route9", "roots": "route9",
 	"gravenmoor": "route10", "vexmora": "crypt_1",
 }

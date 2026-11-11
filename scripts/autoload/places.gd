@@ -55,7 +55,7 @@ func open(b: Dictionary, world) -> void:
 	var town: String = b.get("town", world.map_id)
 	var tier := _tier(town)
 	var shop: String = b["shop"]
-	if b.get("hotel", false) or b.get("public", false):
+	if b.get("hotel", false):
 		if await Story.ask("Stay the night for 150 gold?", "Hotel Mariposa"):
 			if GameState.gold < 150:
 				await Story.say(["A suite costs 150 gold. The Beast Center is always happy to help travelers too."])
@@ -1336,7 +1336,7 @@ func fortune() -> void:
 ## Locked doors are painted a colour of their own (voxel_buildings.gd); all you can do is knock.
 func door_locked(b: Dictionary) -> bool:
 	# Hotel Mariposa stands on a house plot, but it's a business: always open, whatever its seed rolls.
-	if b.get("hotel", false):
+	if b.get("hotel", false) or b.get("public", false):
 		return false
 	match b["shop"]:
 		"house":
