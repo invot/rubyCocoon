@@ -19,7 +19,7 @@ func _run() -> void:
 			return
 	await create_timer(3.0).timeout
 	if game._test.get("lilies", "0") == "1":
-		var pads := preload("res://scripts/world/shoreline.gd").lily_pads(game.world.map)
+		var pads := preload("res://scripts/world/shoreline.gd").lily_pads(game.world.map, game.world._ground_mesh.ground_y)
 		if pads.is_empty():
 			push_error("Water preview found no lily pads")
 			quit(1)

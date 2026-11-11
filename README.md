@@ -69,23 +69,41 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 
 ## The journey
 
-New Game opens with a 72-second cinematic: Magnus Gearhart's kidnapping scheme revealed in **Gearhart Tower**, then the
-first morning of spring in **Cocoon Cove**, as beasts leave hibernation and trainer season begins. Subtitles advance
-automatically in the game's normal dialogue windows; **A / Enter** (or **Next**) reveals the typing, then advances a beat.
-**Esc / B / Start** or **Skip intro** skips the
-whole film. Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
+New Game opens with an 80-second cinematic: Magnus Gearhart's kidnapping scheme revealed in **Gearhart Tower**, then the
+first morning of spring on the **Coastal Path** and at home in **Cocoon Cove**, as beasts leave hibernation and
+trainer season begins. Everything is told by people talking: there is no narration and no title card. Lines advance
+automatically, in the game's white speech bubbles over whoever is speaking (a voice from off screen, like Mom calling
+up the stairs, gets the stationary bottom-centre bubble). **A / Enter** (or a tap on the dialogue) reveals the typing,
+then advances a beat, and so does a tap of **B**. **Holding B** (or Esc, or Start) for a second skips the whole film.
+The top-centre HUD names those controls over the scene's place for the first four seconds of each scene
+(`Enter: Next  ·  Hold Esc: Skip`, or `A: Next  ·  Hold B: Skip` on a pad or phone), then slides away; hold B and it
+comes back to say keep holding, a thin bar filling under it. On a phone only the pad's A and B show during the film,
+looking as they always do: nothing can move, so the d-pad, Start and Pause step aside (`controls_overlay.gd`
+`set_film_mode`). Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
 The reveal is played straight (`scripts/story/opening.gd`): Gearhart gives his staff a cheerful briefing about new
 robots and "freight" for a friend in Gravenmoor, sends them home, then walks alone to a steel door in his office wall.
-As he steps through, the music stops dead and a dread hit sounds (`tools/make_sfx.py`): the room behind is lined with
-neon cages full of trainers (Lio, Bea and Orin among them, as the hero later finds them), and at its far end a bank of
-glass canisters holds their beasts. Both sets are built from the game's own pieces: Gearhart's office by night (wood
-floor, brick, moonlit windows onto the neon city, crates and the freight lift) with its freight room, and the
-hero's home on the first morning, Mom on the doorstep. The cage reveal fades straight to the bright spring morning, and the
-hero closes with an unwitting joke about anyone spoiling it.
+As he steps through, the music stops dead and a dread hit sounds (`tools/make_sfx.py`): behind it is a freight
+warehouse under hard white hanging lamps, rusted iron cages down its aisle full of trainers (Lio, Bea and Orin among
+them, as the hero later finds them), and at its far end their beasts in smaller cages on pallets. Gearhart's office
+by night is built from the game's own pieces: wood floor and a red rug, brick and dark panelling under timber beams,
+hanging lamps, three brass gears turning on the west wall, his new robots on lit plinths before the moonlit windows
+onto the neon city, the company sign over his desk, a drafting table, crates and the freight lift. The warehouse is a
+concrete shed with a steel truss roof, a band of factory windows high in each long wall and a roller door (modelled
+on a low-poly warehouse supplied as a reference), filled with the game's own crates, barrels, racks, boxes and
+pallets beside shipping containers; its cages are the **Rustbound Iron Cage** model (`tools/import_iron_cage.gd`,
+`assets/props/iron_cage.res`). The spring scenes use the real places as sets (`main.gd` `build_set`): an open lawn and
+broad trail shoulder inside the Coastal Path's western bend at dawn, where the wild beasts live (there are none in
+towns), a Grubbit trundling out of the tall grass while Scout Bram and Camper Tilly talk with room around them.
+The spring cameras face inland toward the woods, keeping the route entrance and map boundaries out of view;
+then the hero's own bedroom, the sun
+slanting through its windows, Mom calling up the stairs. The cage reveal fades straight to the bright spring morning,
+and the hero closes with an unwitting joke about anyone spoiling it as the camera settles into the view the game
+opens on.
 The mounted Gearheart Industries sign uses an original vector gear-and-split-heart logo inspired by the supplied reference.
 
-The hero knows nothing about the scheme. You start at home in **Cocoon Cove** with no beasts, no flute and no songs.
-Mom gives the egg and flute objective even if the film was skipped. The first missing-trainer news is in **Dustwell Oasis**:
+The hero knows nothing about the scheme. You start in your own bedroom, upstairs at home in **Cocoon Cove**, with no
+beasts, no flute and no songs. Mom calls you down, and gives the egg and flute objective in the living room, even if
+the film was skipped (flags `woke_up`, `intro_done`). The first missing-trainer news is in **Dustwell Oasis**:
 nobody explains it on arrival; missing posters on the porch posts and notice boards, and Kip, Junie and Tamsin, friends
 of Lio, Bea and Orin searching the town, tell it (`story.gd` SEARCHERS, POSTERS). In the jail, dopey **Deputy Rusk**
 asks you to catch Slim, the prisoner who walked out of his open cell; Slim, hiding behind the wagon on the dune shelf,
@@ -141,6 +159,8 @@ required before confronting Vexmora.
    himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
    in and he gives you a beast egg (a Tadlet) to hatch at Bellerive's Beast Center. Mended, it's a plank footbridge
    with railings.
+   A small, continuous beach below the western trail has a low grassy approach and Shellhaven's smooth sand and
+   shallow-water profile, without enclosing cliff walls, sunbathers, parasols or other resort dressing.
 7. Talk to **Neighbor Nell**, Rafe's old friend beside Bellerive's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken** and **Capture I**, briefly: a couple of lines on how the sheet works, then he plays each song once and it's your turn to play it back. His lessons (and the guided battle after them) give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute. Each is one big room, like a Beast Center (the camera follows you round it):
@@ -492,7 +512,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   around rural houses, with two-tile gates aligned to their doors. City-center houses and over-water shacks
   retain their compact street and dock frontages. Bellerive's park and Gravenmoor's cemetery use the supplied
   ironwork; the quay's stone balustrades remain. `scripts/gfx/fence_models.gd` joins sections at corners and
-  junctions through the existing scenery batches. Fences keep their painted shading and normal lighting but
+  junctions through the existing scenery batches: stone walls join at their full size (the through run reaches across
+  the turned arms, which stop at its faces), the picket fence with half-length sections that put a post at the corner,
+  and every end that meets nothing, including where a run reaches a cliff's edge, is closed with its own face, so no
+  fence shows its inside. A run carries on only between tiles whose ground meets level. Fences keep their painted shading and normal lighting but
   neither cast nor receive shadow maps, avoiding dark patches on the thin rails and pickets.
   Wood shares the Kelpwick huts' painted timber texture, with varied crops on each picket and rail and
   grain following the length of each board.
@@ -717,7 +740,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   while lava keeps its animated texture. See
   [water rendering and previews](docs/water.md) for tuning and verification commands.
   Small notched lily pads float in sparse clusters along grassy freshwater banks, clear of crossings and fishing
-  spots. They never appear in coastal regions or near sandy beaches or wading shelves.
+  spots. Each leaf floats whole: its rim is kept over open water, clear of the sloping bank (checked against the built
+  ground's height, `terrain_mesh.gd ground_y`), nudged toward the channel's middle or made smaller, or left out. They never appear in coastal regions or near sandy beaches or wading shelves.
 - Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
@@ -1247,7 +1271,10 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   holes, open doorways, missing panes or culled faces show the inside), and every front door is at least 1.7 tall (the
   hero is 1.44) with its leaf no more than 0.12 in front of the wall beside it. `--town=` narrows it, `--verbose=1`
   prints every building's measurements.
-- `intro`: keyboard/controller skipping, New Game handoff, untouched starter state, and Dustwell setting its news flag on arrival without a speech.
+- `intro` / `intro-touch`: holding Esc / B / Start to skip (the HUD saying to keep holding while its bar fills; a tap of B turns the page instead), the controls in the top-centre HUD for four seconds as a scene begins, every line a speech bubble on one page with no narration, the phone pad showing only a plain A and B, the New Game handoff to the bedroom and Mom's plan downstairs, untouched starter state, and Dustwell setting its news flag on arrival without a speech.
+- `coastal-path` / `coastal-path-touch`: walking to and across the continuous beach, screen taps in the shallows,
+  the wading limit, returning to the trail, and no beach waterfalls or beachgoers. Windowed preview:
+  `--scene=coastal-path --shot=res://build/shots/coastal_beach.png --save_dir=res://build/coastal_preview_saves/`.
 - `counter-phones`: every service phone sits on a counter; walks to each distinct layout and checks interact and handset taps. Captures go to `build/shots/counter_phones` (`--shots=...` overrides it); add `--touch` for the phone layout. Uses fresh state and cancels calls without saving.
 - `phone-save` / `phone-save-touch`: Dad's save and continue Yes/No prompts, declined saves, one answer per press, and returning to the title. Preview with `--scene=phone-save --save_dir=res://build/phone_save_preview/ --shot=res://build/shots/dad.png` (captures both prompts; add `--touch` for touch inputs).
 - `door-voices` / `door-voices-touch`: permanent door replies, real knocking/confirmation input, and white speech
@@ -1284,7 +1311,8 @@ Focused cinematic previews use the normal screenshot harness and fresh state (no
 ```
 godot --path . -- --scene=intro --at=20 --shot=res://docs/screenshots/intro_tower.png
 godot --path . -- --scene=intro --at=30 --shot=res://build/shots/intro_cages.png
-godot --path . -- --scene=intro --at=44 --shot=res://docs/screenshots/intro_spring.png
+godot --path . -- --scene=intro --at=46 --shot=res://docs/screenshots/intro_spring.png
+godot --path . -- --scene=intro --at=63 --shot=res://build/shots/intro_bedroom.png
 godot --path . -- --scene=intro --hold=0
 godot --path . -- --scene=rescue --preview=locked --shot=res://docs/screenshots/trainer_cages.png
 godot --headless --path . -- --scene=tidewater-arrival --verify=1

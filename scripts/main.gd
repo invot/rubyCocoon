@@ -225,6 +225,21 @@ func _opening(at := 0.0, hold := false) -> Node3D:
 	return film
 
 
+## A map built as a film set (the prologue's spring scenes): the real place, with nobody playing in it. The film
+## drives its camera and decides who stands where; the world only keeps its water and scenery moving.
+func build_set(id: String, parent: Node) -> Node3D:
+	for sh in THREAD_SHY:
+		load(sh)
+	var script := await wait_for_script(WORLD_PATH)
+	var set_world: Node3D = script.new()
+	set_world.demo = true
+	set_world.cam_free = true
+	parent.add_child(set_world)
+	await set_world.build(id, true)
+	set_world.set_process(true)
+	return set_world
+
+
 ## The merge altar's film. Returns once it has ended, so the new beast's reveal screen follows straight after.
 ## Loaded on demand so its models do not delay the title screen.
 func trigger_merge_cinematic(first: Dictionary, second: Dictionary, merged: Dictionary) -> void:
@@ -253,8 +268,8 @@ func _finish_opening(film: Node3D) -> void:
 	UI.controls.set_title_mode(false)
 	UI.allow_pause = true
 	var home := MapLoader.interior_of("caccoon", "home")
-	# Ready to leave with Mom downstairs, rather than waking up in the old bedroom start.
-	await _do_goto(home if home != "" else "caccoon", "entry" if home != "" else "start")
+	# The first morning starts up in your own bedroom, where the film leaves you; Mom is downstairs.
+	await _do_goto(MapLoader.wake_room(home) if home != "" else "caccoon", "wake" if home != "" else "start")
 
 
 ## From the Start book: back to the title screen.
@@ -1533,6 +1548,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/building_fade.gd").new().run(self, _test)
 	elif scene == "exteriors":
 		await load("res://tools/debug/exteriors.gd").new().run(self, _test)
+	elif scene == "coastal-path":
+		await load("res://tools/debug/coastal_path.gd").new().run(self, _test)
 	elif scene == "wild-grace":
 		await load("res://tools/debug/wild_grace.gd").new().run(self, _test)
 	elif scene == "wilds":
@@ -2127,19 +2144,17 @@ func _save_shot(path: String) -> void:
 func _opening_test() -> void:
 	if _test.get("verify", "0") == "1":
 		var bad := 0
-		for device in ["keyboard", "controller", "start", "button", "pointer"]:
+		for device in ["keyboard", "controller", "start", "pointer"]:
 			var film = _opening(4.0, true)
 			await get_tree().process_frame
-			if device == "button":
-				film.skip_button.pressed.emit()
-			elif device == "pointer":
+			if device == "pointer":
 				bad += await _opening_ui_check(film)
 				var before_click: int = film._beat
 				await _opening_click(film.dialogue.text_label)
 				if film._beat != before_click + 1:
 					bad += 1
 					print("FAIL cinematic dialog tap did not continue")
-				await _opening_click(film.skip_button)
+				film.skip()
 			else:
 				var event: InputEvent
 				if device == "keyboard":
@@ -2152,8 +2167,26 @@ func _opening_test() -> void:
 					pad.button_index = JOY_BUTTON_START if device == "start" else JOY_BUTTON_B
 					pad.pressed = true
 					event = pad
+				if device != "start":
+					# a tap of B (or Esc) turns the page like A; it never skips
+					var before_tap: int = film._beat
+					Input.parse_input_event(event)
+					await get_tree().process_frame
+					event.set("pressed", false)
+					Input.parse_input_event(event)
+					await get_tree().process_frame
+					await get_tree().process_frame
+					if film.skipped or film._beat != before_tap + 1:
+						bad += 1
+						print("FAIL a tap of B should turn the page: ", device)
+					event.set("pressed", true)
+				# held, it skips the film, the top-centre HUD saying to keep holding while the bar under it fills
 				Input.parse_input_event(event)
-				await get_tree().process_frame
+				await _wait(film.SKIP_HOLD * 0.6)
+				if film.skipped or not film.skip_track.visible or not "holding" in UI.top_bar.current_text():
+					bad += 1
+					print("FAIL intro hold to skip: ", device, " skipped=", film.skipped, " hud=", UI.top_bar.current_text())
+				await _wait(film.SKIP_HOLD * 0.4 + 0.3)
 				event.set("pressed", false)
 				Input.parse_input_event(event)
 			if not film.skipped or film.running:
@@ -2166,6 +2199,15 @@ func _opening_test() -> void:
 			_cinematic = null
 			await get_tree().process_frame
 		var film = _opening(0.0, true)
+		# The controls are named in the top-centre HUD as a scene begins, and it puts itself away again.
+		await _wait(0.6)
+		if not "Skip" in UI.top_bar.current_text() or not "Next" in UI.top_bar.current_text():
+			bad += 1
+			print("FAIL film controls missing from the top-centre HUD: ", UI.top_bar.current_text())
+		await _wait(film.HUD_HOLD + 0.6)
+		if UI.top_bar.current_text() != "":
+			bad += 1
+			print("FAIL film HUD still up after its four seconds: ", UI.top_bar.current_text())
 		var original_size := get_window().size
 		# The 2640x1080 phone captures exposed controls anchored to the wrong viewport.
 		for resolution in [Vector2i(1280, 720), Vector2i(2640, 1080)]:
@@ -2175,9 +2217,9 @@ func _opening_test() -> void:
 		for beat in film.BEATS.size() - 1:
 			await get_tree().process_frame
 			await get_tree().process_frame
-			film.next_button.pressed.emit()
+			film._next()
 			bad += await _opening_ui_check(film)
-		if film._scene != "spring" or film.dialogue.speaker != "TESTER":
+		if film._scene != "room" or film.dialogue.speaker != GameState.player_name or not film.dialogue.bubble_mode:
 			bad += 1
 			print("FAIL cinematic beat progression")
 		var dark_beats: Array = film.BEATS.filter(func(beat): return float(beat[0]) < film.DAWN)
@@ -2187,7 +2229,7 @@ func _opening_test() -> void:
 		# A/Next uses the normal dialogue behavior: reveal typing first, then continue.
 		film.dialogue.text_label.visible_characters = 0
 		var last_beat: int = film._beat
-		film.next_button.pressed.emit()
+		film._next()
 		if film._beat != last_beat or film.dialogue.text_label.visible_characters != -1:
 			bad += 1
 			print("FAIL cinematic dialogue reveal")
@@ -2205,12 +2247,19 @@ func _opening_test() -> void:
 		_begin_adventure()
 		await _wait(0.1)
 		_cinematic.skip()
-		while _transitioning or world == null or not GameState.flag("intro_done"):
+		while _transitioning or world == null or not GameState.flag("woke_up"):
 			await get_tree().process_frame
 		await _wait(0.3)
-		if not GameState.flag("opening_seen") or not MapLoader.is_interior(GameState.map_id) or GameState.has_flute():
+		# The game starts up in the hero's own bedroom; Mom's plan for the day waits downstairs.
+		var first_home := MapLoader.interior_of("caccoon", "home")
+		if not GameState.flag("opening_seen") or GameState.map_id != MapLoader.wake_room(first_home) or GameState.has_flute() 				or world.player_pos != world.map["spawns"]["wake"] or GameState.flag("intro_done"):
 			bad += 1
-			print("FAIL intro handoff")
+			print("FAIL intro handoff: ", GameState.map_id, " at ", world.player_pos)
+		await _go(first_home, "entry")
+		await _wait(0.3)
+		if not GameState.flag("intro_done"):
+			bad += 1
+			print("FAIL Mom's first-morning plan downstairs")
 		var early := " ".join(UI.auto_log)
 		if "Legion" in early or "vanishing" in early or "kidnap" in early:
 			bad += 1
@@ -2234,6 +2283,9 @@ func _opening_test() -> void:
 	GameState.player_name = String(_test.get("name", "Andrew"))
 	var film = _opening(float(_test.get("at", "0")), _test.get("hold", "1") == "1")
 	if film.preview:
+		# (the real places take a moment to build as sets)
+		while film.loading:
+			await get_tree().process_frame
 		await _wait(float(_test.get("wait", "1.5")))
 		if _test.has("shot"):
 			_save_shot(String(_test["shot"]))
@@ -2241,10 +2293,16 @@ func _opening_test() -> void:
 		await film.finished
 		print("INTRO PLAYBACK DONE: skipped=", film.skipped)
 		UI.auto = _test.get("auto_end", "0") == "1"
-		await _finish_opening(film)
-		print("INTRO HANDOFF DONE: home=", MapLoader.is_interior(GameState.map_id), " objective=", GameState.flag("intro_done"), " flute=", GameState.has_flute())
+		if UI.auto:
+			await _finish_opening(film)
+		else:
+			# Mom's call up the stairs waits for A: the shot is taken with it standing
+			_finish_opening(film)
+			while not GameState.flag("woke_up"):
+				await get_tree().process_frame
+		print("INTRO HANDOFF DONE: home=", MapLoader.is_interior(GameState.map_id), " room=", GameState.map_id, " objective=", GameState.flag("intro_done"), " flute=", GameState.has_flute())
 		if _test.has("shot"):
-			await _wait(0.8)
+			await _wait(1.6)
 			_save_shot(String(_test["shot"]))
 		return
 	film.queue_free()
@@ -2253,15 +2311,37 @@ func _opening_test() -> void:
 
 
 func _opening_ui_check(film: Node3D) -> int:
+	while film.loading:
+		await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var bad := 0
 	var visible := get_viewport().get_visible_rect().grow(1.0)
-	var controls: Array = [film.skip_button, film.next_button, film.location.get_parent().get_parent()]
+	var controls: Array = []
+	if UI.is_touch():
+		# only A and B on a phone, looking as they always do: nothing can move in a film
+		var pad: Dictionary = UI.controls._buttons
+		var plain: bool = UI.controls._labels["a"].text == "A" and UI.controls._labels["b"].text == "B" and UI.controls.button_rect("a").size.x == UI.controls.ROUND
+		if pad["up"].visible or pad["start"].visible or not pad["a"].visible or not pad["b"].visible or not plain:
+			bad += 1
+			print("FAIL film touch pad: d-pad ", pad["up"].visible, " A ", pad["a"].visible, " label ", UI.controls._labels["a"].text)
+	if film.dialogue == null and String(film.BEATS[film._beat][3]) != "":
+		bad += 1
+		print("FAIL cinematic line missing at beat ", film._beat)
+	if is_instance_valid(film.dialogue) and not film.dialogue.bubble_mode:
+		bad += 1
+		print("FAIL the film has narration: everything is said by someone")
 	if is_instance_valid(film.dialogue):
 		controls.append(film.dialogue.text_label)
 		if film.dialogue.name_panel != null:
 			controls.append(film.dialogue.name_panel)
+		# spoken lines are speech bubbles; only narration takes the dark window
+		if film.dialogue.bubble_mode != (film.dialogue.speaker != ""):
+			bad += 1
+			print("FAIL cinematic speech is not in a bubble: ", film.dialogue.speaker)
+		if film.dialogue.lines.size() > 1:
+			bad += 1
+			print("FAIL cinematic line needs more than one page: ", film.dialogue.lines)
 		if film.dialogue.text_label.get_line_count() > film.dialogue.LINES_PER_PAGE:
 			bad += 1
 			print("FAIL cinematic dialogue overflows its window")
@@ -2277,7 +2357,9 @@ func _opening_ui_check(film: Node3D) -> int:
 	if film.overlay.get_parent() != UI.root:
 		bad += 1
 		print("FAIL cinematic overlay outside shared UI")
-	if not film.stage.find_children("*", "Label3D", true, false).is_empty():
+	# (the real places it films keep their own painted signs; the film adds no text of its own to a scene)
+	var floating: Array = film.stage.find_children("*", "Label3D", true, false).filter(func(l): return not is_instance_valid(film.set_world) or not film.set_world.is_ancestor_of(l))
+	if not floating.is_empty():
 		bad += 1
 		print("FAIL floating cinematic scene text")
 	return bad

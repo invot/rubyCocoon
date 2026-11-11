@@ -111,11 +111,12 @@ func _slot() -> TextureRect:
 # ---------------------------------------------------------------- outside battle
 ## Queues a message. opts: sub (a dim second line), heading (the gem heading colour: place names), key (messages with the same
 ## key merge, adding their counts; with replace, the newer one takes the older one's place), count, fmt (with a count:
-## "%d" is replaced by it; without: " x<count>" is added past 1), smooth (a smooth icon rather than pixel art).
+## "%d" is replaced by it; without: " x<count>" is added past 1), smooth (a smooth icon rather than pixel art), hold
+## (seconds it stays up instead of HOLD: a film's controls at the start of each scene).
 func post(text: String, icon: Texture2D, opts := {}) -> void:
 	var m := {"text": text, "icon": icon, "sub": String(opts.get("sub", "")), "heading": bool(opts.get("heading", false)),
 		"key": String(opts.get("key", "")), "count": int(opts.get("count", 1)), "fmt": String(opts.get("fmt", "")),
-		"smooth": bool(opts.get("smooth", false)), "replace": bool(opts.get("replace", false))}
+		"smooth": bool(opts.get("smooth", false)), "replace": bool(opts.get("replace", false)), "hold": float(opts.get("hold", HOLD))}
 	if m["key"] != "":
 		if not _msg.is_empty() and _msg["key"] == m["key"]:
 			_merge(_msg, m)
@@ -319,7 +320,7 @@ func _process(delta: float) -> void:
 					_phase = "hold"
 			"hold":
 				_hold += delta
-				if _hold >= HOLD:
+				if _hold >= float(_msg.get("hold", HOLD)):
 					_phase = "out"
 			"out":
 				_slide = move_toward(_slide, 0.0, delta / SLIDE)

@@ -33,7 +33,10 @@ const MAPS := {
 		# a winding trail through the woods: each of the five teachers (world_db.gd LESSON_TRAINERS) looks across a
 		# stretch of it you can't slip past (check_maps.gd checks it), and the clearings of tall grass beside it are dead
 		# ends. Old Hal the builder lives in the log cabin by the washed-out footbridge (interior_maps.gd "kit_cabin"):
-		# he asks you to mend it with the logs stacked by his door (7), and gives you an egg once you have
+		# he asks you to mend it with the logs stacked by his door (7), and gives you an egg once you have.
+		# A roomy lawn inside the western trail bend stages the spring film. Below the first stretch of trail,
+		# one quiet beach opens onto the sea, with a low grassy approach and no resort dressing or enclosing walls.
+		"shoreline": [0, 14, 23, 20],
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
@@ -41,18 +44,18 @@ const MAPS := {
 			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.TTTTTT.TTTTTTT.z.zgg*T",
 			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.,,,,,,,,,,,,,,....gg.T",
 			"Tggg.TTT,,.~~~.....f,,TTTTTT~~.gg.,,,,,,,,,,,,,,....gg.T",
-			"Tggg.2TT,,g.g.3.ggg.,,..TTTT~~.gg.,,....zzzzzt,,f......T",
-			"T.+...TT,,g.g.t.ggg.,,TTTTTT~~.gg.,,.gg.t....f,,TTTTTTTT",
-			",,,,,,,,,,ggg.t.ggg.,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
-			",,,,,,,,,,..$.t.....,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
-			"t..fzzzzztttttttt...,4TbbbbT~~....,,.gg.t.gggtttttt....t",
-			"t...ttttttttttttt...,,7,,,,,nn,,,,,,.gg.t.ggg.ttttt6..ft",
-			"ttttttttttttttttt...,,,,,,,,nn,,,,,,f...t.....tttttt...t",
-			"tttttttttttttttttzzzzzttt__+~~tttttttttttttttttttttt___t",
-			"t#tt#tt#tttt#tt#tt#tttttt___~~ttttttt#tt#tttt#tt#ttt___t",
-			"t#~t#t#~t#~t#~t#t#~tt#ttt___~~#tttttt#t#~t#~t#~t#t#~___t",
-			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
-			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+			"Tggg.2TT,,g.g.3.gg..,,..TTTT~~.gg.,,....zzzzzt,,f......T",
+			"T.+...TT,,g.g.t...,,,,TTTTTT~~.gg.,,.gg.t....f,,TTTTTTTT",
+			",,,,,,,,,,ggg.t..,,,,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
+			",,,,,,,,,,..$.t...,,,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
+			"t..fzzzzzt..ttttt...,4TbbbbT~~....,,.gg.t.gggtttttt....t",
+			"t...tttttt..ttttt...,,7,,,,,nn,,,,,,.gg.t.ggg.ttttt6..ft",
+			"tttttttttt______t...,,,,,,,,nn,,,,,,f...t.....tttttt...t",
+			"tttttttt________tzzzzzttt__+~~tttttttttttttttttttttt___t",
+			"t#tt#tt____________tttttt___~~ttttttt#tt#tttt#tt#ttt___t",
+			"t#~t#t#____________tt#ttt___~~#tttttt#t#~t#~t#~t#t#~___t",
+			"~~~~~~~~__________~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+			"~~~~~~~~aaaaaaaaaa~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 		],

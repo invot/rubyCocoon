@@ -307,6 +307,8 @@ var tide: Node3D = null
 var ground_h := {}
 ## the ground's materials (terrain_mesh.gd), told every frame where the see-through patch goes (_update_hole)
 var terrain_mats: Array = []
+## the built ground (terrain_mesh.gd), kept so scenery can ask its exact height (ground_y)
+var _ground_mesh: Terrain = null
 ## the cliffs' look (WorldDB.CLIFF_LOOKS, as the terrain was built with it), for the rocks at their feet
 var cliff_look := {}
 
@@ -593,7 +595,10 @@ func _build_terrain() -> void:
 				kind = "grass_dark"
 			if _sandy() and kind in VT.GRASS_LAYERS:
 				kind = "sand"
-			if Shoreline.contains(map, x + 0.5, y + 0.5):
+			# The beach rectangle also spans its rocky headlands. Only low sand and sea receive the wash;
+			# treating a raised rock as water makes a spurious waterfall off its top.
+			if Shoreline.contains(map, x + 0.5, y + 0.5) and c in [MapGen.SAND, MapGen.SHALLOWS, MapGen.WATER] \
+					and is_zero_approx(Elev.surface(map, Vector2i(x, y))):
 				kind = "sand"
 				if Shoreline.bottom(map, x + 0.5, y + 1.0) < Shoreline.WATER_Y:
 					liquid = 1
@@ -625,6 +630,7 @@ func _build_terrain() -> void:
 		look["tint"] = Color(rock_hex).lerp(Color(biome["side"]), 0.3).to_html(false)
 	await t.build(self, tints, Color(biome["water"]), look, stone_walls, _build_slice_us if _cooperative_build else 0)
 	terrain_mats = t.materials
+	_ground_mesh = t
 	cliff_look = look
 	# (Bellerive's quay climbs by stone stairs; Cocoon Cove's shelves by gentle earth slopes, the ramps' own ground)
 	if biome["id"] == "quarter":
@@ -1423,7 +1429,7 @@ func _build_scatter() -> void:
 		_multimesh(VP.flowers(i), _plants_off_paving(VP.flowers(i), flowers[i]), null, false)
 	_shore_rocks(by_asset)
 	_cliff_rocks()
-	var pads := Shoreline.lily_pads(map)
+	var pads := Shoreline.lily_pads(map, _ground_mesh.ground_y if _ground_mesh else Callable())
 	if not pads.is_empty():
 		_multimesh(VP.lily_pad(), pads, null, false)
 	for name in by_asset:
@@ -1450,7 +1456,8 @@ func _build_scatter() -> void:
 		var dirs := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 		for i in 4:
 			var q: Vector2i = p + dirs[i]
-			if MapGen.get_t(map, q.x, q.y) in runs:
+			# a run carries on only where the ground meets level; at a cliff's edge it ends, closed, on each side
+			if MapGen.get_t(map, q.x, q.y) in runs and absf(Elev.edge(map, p, dirs[i]) - Elev.edge(map, q, -dirs[i])) < 0.01:
 				mask |= 1 << i
 		var key := "%s:%d" % [style, mask]
 		if not garden_fences.has(key):

@@ -50,7 +50,7 @@ func _ready() -> void:
 func refresh() -> void:
 	if _gem != UIKit.accent_name:
 		_recolour()
-	var next_touch := Prefs.touch_enabled() and not title_mode
+	var next_touch := Prefs.touch_enabled() and (not title_mode or film_mode)
 	if _touch_on and not next_touch:
 		# A controller connected while a thumb was down: release the pad's actions before hiding it.
 		for id in PAD_ACTIONS:
@@ -135,6 +135,7 @@ func _process(_delta: float) -> void:
 		return
 	var top = UI.stack.back() if is_instance_valid(UI) and not UI.stack.is_empty() else null
 	var answers: Dictionary = top.get("confirmation_labels") if top != null and top.get("confirmation_labels") is Dictionary else {}
+	var film := film_mode
 	if answers != _answer_labels:
 		var changed_mode := answers.is_empty() != _answer_labels.is_empty()
 		_answer_labels = answers.duplicate()
@@ -146,18 +147,27 @@ func _process(_delta: float) -> void:
 		_layout()
 	_update_answer_faces()
 	var hide: bool = top != null and top.get("hides_touch_pad") == true
-	if _buttons["a"].visible == hide:
-		for id in ["up", "down", "left", "right", "a", "b"]:
-			var b: TouchScreenButton = _buttons[id]
-			b.visible = not hide
-			# hidden touch buttons still catch touches: switch them off while they're stepped aside (letting go of
-			# anything held, as their own release would never come)
-			if hide and b.is_pressed():
-				_send(id, false)
-			b.process_mode = Node.PROCESS_MODE_DISABLED if hide else Node.PROCESS_MODE_INHERIT
-		_dpad_base.visible = not hide
-		for k in ["dpad", "a", "b"]:
-			(_backdrops[k] as CanvasItem).visible = not hide
+	_show_group(ARMS, ["dpad"], not hide and not film)
+	_show_group(["a", "b"], ["a", "b"], not hide)
+	_show_group(["start", "pause"], ["start", "pause"], not film)
+
+
+## Shows or steps aside one cluster of the pad with its backdrops.
+func _show_group(ids: Array, backs: Array, on: bool) -> void:
+	if (_buttons[ids[0]] as TouchScreenButton).visible == on:
+		return
+	for id in ids:
+		var b: TouchScreenButton = _buttons[id]
+		b.visible = on
+		# hidden touch buttons still catch touches: switch them off while they're stepped aside (letting go of
+		# anything held, as their own release would never come)
+		if not on and b.is_pressed():
+			_send(id, false)
+		b.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
+	for k in backs:
+		(_backdrops[k] as CanvasItem).visible = on
+	if "up" in ids:
+		_dpad_base.visible = on
 
 
 ## Redraws the legend strip, key caps and pad faces in the current gem.
@@ -646,6 +656,18 @@ func set_title_mode(on: bool) -> void:
 	if on == title_mode:
 		return
 	title_mode = on
+	refresh()
+
+
+## A film that takes input (the prologue) keeps only A and B, looking as they always do: nothing can move, and there
+## is no book or pause to open, so the d-pad, Start and Pause step aside until it ends.
+var film_mode := false
+
+
+func set_film_mode(on: bool) -> void:
+	if on == film_mode:
+		return
+	film_mode = on
 	refresh()
 
 

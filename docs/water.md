@@ -12,6 +12,8 @@ The cell network is analytic and antialiased, with a soft halo; it shares the ex
 
 Freshwater biomes (river, jungle and moor) allow sparse clusters of rounded, notched lily pads on level grassy banks.
 Coastal regions, sand and wading shelves are excluded, as are crossings, dock edges, fishing spots and nearby boats.
+Every leaf floats whole, never cut by a bank: `Shoreline.lily_floats` keeps the tiles under it water on its own level
+and the built ground under its rim below the surface, nudging the leaf toward open water or shrinking it, else leaving it out.
 The leaves reuse the cached prop mesh and chunked scenery batches, cast no shadows, and ride the same shader swells
 as the water. They add no collision or CPU animation and never change navigation, elevations or saves.
 
@@ -44,8 +46,14 @@ eases to zero at that lip and the falling face shares its boundary, closing the 
 gets a slight blue tint and lightness lift; neighbouring dry rock keeps its regional finish.
 The natural fall is recessed 0.16 units from the cliff edge, with its backing rock another 0.06 units behind it.
 Shared visual corner offsets shape both the bed and banks into the shallow channel; navigation heights stay intact.
-The outer banks remain forward of the channel and return slightly over its corners so the crest ends tuck under
-the dirt. Riverbend's left stone fence ends a tile short of the fall, with low planting keeping the cliff edge blocked.
+The channel's end corners recede with the rest of the backing rock, so the notch runs straight across and the banks'
+cliffs bevel back to it. At those corners a bank's cliff mitres only with other cliffs, and the channel's low grass
+edge keeps its own line without a shadow skirt, so neither leans out over the fall as a dirt spike. The backing rock
+runs 0.08 units on into each bank behind the bank's cliff, so no crack opens between them. The falling sheet is as
+wide as the river shows above it: it starts 0.3 units in from each bank (`FALL_SIDE_INSET`), where the bed has sloped
+down into the water, and the rock beside it keeps the banks' dry finish rather than the smoothed, tinted rock behind
+the sheet. There the upper water stops just behind the rock's edge, so its contact foam draws no white line along it.
+Riverbend's left stone fence ends a tile short of the fall, with low planting keeping the cliff edge blocked.
 Both Riverbend banks retain the upper level through the crest's row and drop together at the fall, so neither
 edge of the falling sheet stands beside an early drop in the land.
 Depth reconstruction accounts for the different Vulkan/OpenGL ranges.

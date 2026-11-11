@@ -43,6 +43,8 @@ const FLUTE := 0.13
 const FALL_SETBACK := 0.16
 const FALL_ROCK_SETBACK := 0.22
 const FALL_LIP := 0.04
+const CREST_TUCK := 0.08
+const FALL_SIDE_INSET := 0.3
 ## The lip of ground rolling over a cliff's top, at a whole level's drop: its profile, (out, down) from the edge.
 const LIP := [Vector2(0.0, 0.0), Vector2(0.065, -0.022), Vector2(0.11, -0.075), Vector2(0.115, -0.135), Vector2(0.08, -0.19)]
 ## the rock's top, tucked in under the lip, this far below the ground at a whole level's drop
@@ -616,6 +618,7 @@ static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, c
 func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 	var out := {}
 	var ends := {}
+	var tall_ends := {}
 	var all := []
 	var x_end := w + MARGIN
 	var z_end := h + MARGIN
@@ -668,22 +671,69 @@ func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 			for f: Dictionary in found:
 				out[ck].append(f)
 				all.append(f)
+				if f.get("waterfall", false):
+					f["chunk"] = ck
+				var tall := _face_drop(f) > LIFT + 0.03
 				for k in [0, 2]:
 					var key := _end_key(f["top"][k])
 					ends[key] = ends.get(key, Vector3.ZERO) + (f["out"] as Vector3)
+					if tall:
+						tall_ends[key] = tall_ends.get(key, Vector3.ZERO) + (f["out"] as Vector3)
 		if slice_us > 0 and Time.get_ticks_usec() - slice[0] >= slice_us:
 			await parent.get_tree().process_frame
 			slice[0] = Time.get_ticks_usec()
+	# A waterfall crest's corners, where the banks' cliffs meet the channel's low grass edge.
+	var crest_corners := {}
+	for key: Vector2i in _fall_ends:
+		var p: Vector3 = Vector3(key.x * 0.5, 0, key.y * 0.5) + (_fall_offsets.get(key, Vector3.ZERO) as Vector3)
+		crest_corners[Vector2i(roundi(p.x * 4.0), roundi(p.z * 4.0))] = true
 	for f: Dictionary in all:
 		var dirs := []
+		var o: Vector3 = f["out"]
+		var low := _face_drop(f) <= LIFT + 0.03
+		var cliff_ends := [false, false]
 		for k in [0, 2]:
-			var m: Vector3 = ends[_end_key(f["top"][k])]
-			var o: Vector3 = f["out"]
+			var key := _end_key(f["top"][k])
+			var m: Vector3 = ends[key]
+			# At a crest corner the bank's cliff joins only other cliffs, and the channel's grass edge keeps to its own
+			# line, so neither leans out over the falling water in a spike.
+			if crest_corners.has(Vector2i(key.x, key.z)) and tall_ends.has(key):
+				m = o if low else (tall_ends[key] as Vector3)
+				cliff_ends[0 if k == 0 else 1] = low
 			m = m.normalized() if m.length() > 0.2 else o
 			# so that standing out by d along the mitre is d out from this face, as from the face it meets
 			dirs.append(m / maxf(0.5, m.dot(o)))
 		f["ends"] = dirs
+		f["cliff_ends"] = cliff_ends
+		# the rock behind the falling water runs on a little into each bank, behind the bank's own cliff, so no
+		# crack opens between them
+		if f.get("waterfall", false):
+			for k in [0, 2]:
+				var p: Vector3 = f["top"][k]
+				var key := _end_key(p)
+				if not crest_corners.has(Vector2i(key.x, key.z)):
+					continue
+				var away: Vector3 = p - (f["top"][1] as Vector3)
+				away.y = 0.0
+				if away.length() < 0.01:
+					continue
+				var q := p + away.normalized() * CREST_TUCK
+				var ft: float = f["foot"][k]
+				out[f["chunk"]].append({"top": [p, (p + q) * 0.5, q], "foot": [ft, ft, ft], "out": o, "flat": true,
+					"turf": false, "waterfall": false, "ends": [o, o], "cliff_ends": [false, false]})
+				# no falling water covers the rock this close to the bank (see _liquid_mesh)
+				var bare: Array = f.get("bare_ends", [0.0, 0.0])
+				bare[0 if k == 0 else 1] = FALL_SIDE_INSET
+				f["bare_ends"] = bare
 	return out
+
+
+## How far a face drops at its deepest point.
+static func _face_drop(f: Dictionary) -> float:
+	var most := 0.0
+	for k in 3:
+		most = maxf(most, (f["top"][k] as Vector3).y - float(f["foot"][k]))
+	return most
 
 
 ## Tile (tx, tz)'s side d, as the faces along it see it: for each half of the side (`bits`: the tile's corner at that
@@ -879,7 +929,12 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 			if u >= grooves[g] and u <= grooves[g + 1]:
 				var t: float = (u - grooves[g]) / maxf(0.001, grooves[g + 1] - grooves[g])
 				bump = pow(sin(PI * t), 0.7) * (0.65 + 0.7 * _hash(seed_k + g, 5))
-		cols.append({"p": p, "foot": ft, "dir": dir, "bump": bump, "end": k == 0 or k == n - 1, "turf": turf})
+		var at_cliff: bool = (k == 0 and f.get("cliff_ends", [false, false])[0]) or (k == n - 1 and f.get("cliff_ends", [false, false])[1])
+		# behind the falling water (not where the channel's banks leave the rock bare beside it) the rock is smoothed
+		var bare: Array = f.get("bare_ends", [0.0, 0.0])
+		var sheet: bool = f.get("waterfall", false) and u * length >= float(bare[0]) - 0.001 and (1.0 - u) * length >= float(bare[1]) - 0.001
+		cols.append({"p": p, "foot": ft, "dir": dir, "bump": bump, "end": k == 0 or k == n - 1, "turf": turf, "cliff": at_cliff,
+			"sheet": sheet})
 	# the turf's edge over a path at its level: its muffin top (TURF), then the soil under it tucking in to the foot
 	if turf and most <= LIFT + 0.03:
 		var turf_base := fv.size()
@@ -890,6 +945,10 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 			var reach: float = lerpf(TURF_WAVE.x, TURF_WAVE.y, _wave(c["p"]))
 			if not c["end"]:
 				reach *= 0.94 + 0.12 * _hash(int(round(c["p"].x * 24.0)), int(round(c["p"].z * 24.0)))
+			# at a waterfall crest's corner, roll over no further than the bank cliff's lip, with no shadow out over the drop
+			var at_cliff: bool = c["cliff"]
+			if at_cliff:
+				reach = minf(reach, LIP[3].x / TURF[3].x)
 			var dir: Vector3 = c["dir"]
 			var dir_n := Vector3(dir.x, 0, dir.z).normalized()
 			var pts: Array[Vector2] = []
@@ -901,7 +960,7 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 			# its shadow, a skirt lying on the ground from the foot out past the overhang
 			var skirt := 0.012 - drop
 			pts.append(Vector2(0.025, skirt))
-			pts.append(Vector2(0.06 + TURF_SHADOW * (0.6 + 0.4 * _wave(c["p"] + Vector3(3.0, 0, 5.0))), skirt))
+			pts.append(Vector2(0.03 if at_cliff else 0.06 + TURF_SHADOW * (0.6 + 0.4 * _wave(c["p"] + Vector3(3.0, 0, 5.0))), skirt))
 			for r in prof:
 				var l: Vector2 = pts[r]
 				var pt: Vector3 = c["p"] + dir * l.x + Vector3(0, l.y, 0)
@@ -958,7 +1017,7 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 			var pt := _rock_point(c, r, rows, lk) if not flat else Vector3(c["p"].x, lerpf(c["p"].y, c["foot"], float(r) / rows), c["p"].z)
 			fv.append(pt)
 			fn.append(out)
-			fc.append(Color(float(r) / rows, 0.08 if f.get("waterfall", false) else 0.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
+			fc.append(Color(float(r) / rows, 0.08 if c["sheet"] else 0.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
 			fu.append(Vector2(c["p"].x * along.x + c["p"].z * along.y, c["p"].y - pt.y))
 	_grid_tris(fi, base, n, rows + 1, fv, out)
 	# smooth normals across the rock, from its neighbours in the grid, so the flutes look rounded
@@ -1040,7 +1099,6 @@ func _prepare_fall_offsets() -> void:
 	_fall_offsets = {}
 	_fall_sides = {}
 	var ends := {}
-	var bank_insets := {}
 	for z in range(-MARGIN, h + MARGIN):
 		for x in range(-MARGIN, w + MARGIN):
 			var i := _i(x, z)
@@ -1069,15 +1127,13 @@ func _prepare_fall_offsets() -> void:
 					_fall_offsets[key] = offset
 					if k != 1:
 						ends[key] = int(ends.get(key, 0)) + 1
-						var along := Vector3(0, 0, 1) if d.x == 1 else Vector3(1, 0, 0)
-						bank_insets[key] = along * (0.12 if k == 0 else -0.12)
 	_fall_water_offsets = _fall_offsets.duplicate()
 	_fall_ends = {}
 	for key in ends:
 		if ends[key] == 1:
+			# The channel's end corners recede with the rest of the rock, so the notch runs straight across and the
+			# banks bevel back to it (pulling them into the channel left a dirt spike at each end of the crest).
 			_fall_ends[key] = true
-			# Keep the outer bank proud of the recessed channel. It covers the crest's ends like a real cut bank.
-			_fall_offsets[key] = bank_insets[key]
 
 
 func _water_corner(x: int, z: int, gx: int, gz: int, y: float) -> Vector3:
@@ -1089,7 +1145,12 @@ func _water_corner(x: int, z: int, gx: int, gz: int, y: float) -> Vector3:
 	for d: Vector2i in _fall_sides.get(Vector2i(x, z), []):
 		if (d.x < 0 and gx != x * 2) or (d.x > 0 and gx != x * 2 + 2) or (d.y < 0 and gz != z * 2) or (d.y > 0 and gz != z * 2 + 2):
 			continue
-		point -= Vector3(d.x, 0, d.y) * FALL_LIP
+		if _fall_ends.has(Vector2i(gx, gz)):
+			# beside the sheet the bank rises out of the water: stop just behind the rock's edge, so no sliver of
+			# water stands in front of the rock (its contact foam drew a white line there)
+			point = Vector3(gx * 0.5, y, gz * 0.5) + offset - Vector3(d.x, 0, d.y) * 0.02
+		else:
+			point -= Vector3(d.x, 0, d.y) * FALL_LIP
 	return point
 
 
@@ -1170,10 +1231,25 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 				else:
 					e0 += out * 0.04
 					e1 += out * 0.04
-				var bank0 := e0 - out * FALL_LIP
-				var bank1 := e1 - out * FALL_LIP
 				var key0 := Vector2i(tx * 2 + 2, tz * 2) if d.x == 1 else Vector2i(tx * 2, tz * 2 + 2)
 				var key1 := Vector2i(tx * 2 + 2, tz * 2 + 2)
+				# At the channel's sides the bed slopes up out of the water, so the falling sheet starts where the
+				# river above shows as water, no wider.
+				if kind == 1:
+					var along := Vector3(0, 0, 1) if d.x == 1 else Vector3(1, 0, 0)
+					if _fall_ends.has(key0):
+						e0 += along * FALL_SIDE_INSET
+					if _fall_ends.has(key1):
+						e1 -= along * FALL_SIDE_INSET
+				var bank0 := e0 - out * FALL_LIP
+				var bank1 := e1 - out * FALL_LIP
+				if kind == 1:
+					# the joining strip starts on the upper water's own edge, which steps back behind the rock at the ends
+					var hi := Vector2i(tx, tz) if ya > yb else Vector2i(tx + d.x, tz + d.y)
+					var w0 := _water_corner(hi.x, hi.y, key0.x, key0.y, 0.0)
+					var w1 := _water_corner(hi.x, hi.y, key1.x, key1.y, 0.0)
+					bank0 = w0.lerp(w1, FALL_SIDE_INSET if _fall_ends.has(key0) else 0.0)
+					bank1 = w1.lerp(w0, FALL_SIDE_INSET if _fall_ends.has(key1) else 0.0)
 				var crest_ends := Vector2(e0.x + e0.z + 0.08 if _fall_ends.has(key0) else -100000.0,
 					e1.x + e1.z - 0.08 if _fall_ends.has(key1) else 100000.0)
 				var top := maxf(ya, yb)
@@ -1223,3 +1299,33 @@ func _liquid(parent: Node3D, mesh: ArrayMesh, kind: int, col: Color) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.extra_cull_margin = 0.1
 	parent.add_child(mi)
+
+
+## The ground's height at (x, z), on the same triangles the mesh draws (for placing things on or over it after the
+## build: lily pads keep their whole leaf over open water). INF on a diagonal or cut-corner tile, off the map, or by a
+## waterfall, where the simple grid doesn't describe the ground; callers treat that as dry.
+func ground_y(x: float, z: float) -> float:
+	var tx := floori(x)
+	var tz := floori(z)
+	if tx < 0 or tz < 0 or tx >= w or tz >= h or _diag(tx, tz) != 0 or corners[_i(tx, tz)] != 0:
+		return INF
+	var fx := (x - tx) * 2.0
+	var fz := (z - tz) * 2.0
+	var i := mini(int(fx), 1)
+	var j := mini(int(fz), 1)
+	var u := fx - i
+	var v := fz - j
+	for gx in [tx * 2 + i, tx * 2 + i + 1]:
+		for gz in [tz * 2 + j, tz * 2 + j + 1]:
+			if _fall_offsets.has(Vector2i(gx, gz)):
+				return INF
+	var g := _grid(tx, tz)
+	var o := i + j * 3
+	var a := g[o].y
+	var b := g[o + 1].y
+	var c := g[o + 3].y
+	var d := g[o + 4].y
+	# the same alternating crease as _chunk
+	if (tx * 2 + i + tz * 2 + j) % 2 == 0:
+		return a + u * (b - a) + v * (d - b) if u >= v else a + v * (c - a) + u * (d - c)
+	return a + u * (b - a) + v * (c - a) if u + v <= 1.0 else d + (1.0 - u) * (c - d) + (1.0 - v) * (b - d)

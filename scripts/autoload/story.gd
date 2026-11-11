@@ -359,7 +359,12 @@ func on_map_enter(world) -> void:
 	var id: String = world.map_id
 	world.busy = true
 	if world.interior and world.map["building"].get("shop", "") == "home" and not GameState.flag("intro_done"):
-		await _intro()
+		# the first morning: you wake up in your bedroom, and Mom has the day's plan downstairs
+		if world.map.get("room_key", "") == "home":
+			await _intro()
+		elif not GameState.flag("woke_up"):
+			GameState.set_flag("woke_up")
+			await say(["%s! Come on down before you go!" % GameState.player_name], "Mom")
 	elif id == "dustwell" and not GameState.flag("missing_trainers"):
 		# nobody explains it: the posters on every post say it, and the friends searching the town tell the rest
 		GameState.set_flag("missing_trainers")

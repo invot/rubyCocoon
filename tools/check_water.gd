@@ -58,6 +58,8 @@ func _initialize() -> void:
 		for xf: Transform3D in pads:
 			var tile := Vector2i(floori(xf.origin.x), floori(xf.origin.z))
 			check(MapGen.get_t(real, tile.x, tile.y) == MapGen.WATER, "%s: pads stay on blocked water" % id)
+			check(Shoreline.lily_floats(real, tile, Vector2(xf.origin.x, xf.origin.z), xf.basis.get_scale().x),
+				"%s: the pad at %s floats whole, clear of the bank" % [id, xf.origin])
 			for dz in range(-2, 3):
 				for dx in range(-2, 3):
 					check(MapGen.get_t(real, tile.x + dx, tile.y + dz) not in [MapGen.SAND, MapGen.SHALLOWS], "%s: no pads near beaches" % id)

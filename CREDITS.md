@@ -138,6 +138,18 @@ upholstery) over a wood grain and cloth weave of our own.
 - **Furniture pack** by Anker's Assets, CC0, https://ankersassets.itch.io/ (six OBJ showrooms, `model_0.obj` to
   `model_5.obj`, with no textures, downloaded into `psx/furniture/`: the beds, bunk beds, sofas, armchairs, chairs,
   tables, desks, nightstands, dresser, TV stand and bench).
+- **Rustbound Iron Cage** by Ar3Designer (https://sketchfab.com/Ar3Designer), licensed under
+  [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/),
+  https://sketchfab.com/3d-models/rustbound-iron-cage-fcc2a26b6d8e49ed96c1909fec32dade, supplied as
+  `psx/iron_cage/rustbound_iron_cage.glb` (the cages in the prologue's freight warehouse, baked by
+  `tools/import_iron_cage.gd` into `assets/props/iron_cage.res`). *Changes made:* its base and 36 bars merged into
+  one mesh; only the colour texture kept, at 512 px and smoothed for the game's painted look (no normal or metal
+  maps); tinted darker in the film.
+- **warehouse FREE LOW-POLY FOR GAMES** by dasy444 (https://sketchfab.com/dasy444), Sketchfab Standard licence,
+  https://sketchfab.com/3d-models/warehouse-free-low-poly-for-games-32eeb06ebf8a45db85ea5f98b26f33de: used only as
+  a visual reference for the prologue's freight warehouse (its shape, truss roof, window bands and containers),
+  which is built in `scripts/story/opening.gd` from the game's own pieces. None of its meshes or textures are in
+  the game.
 - **Antique 1930s Rotary Telephones** by Mad_Lobster_Workshop (https://sketchfab.com/Mad_Lobster_Workshop),
   https://sketchfab.com/3d-models/antique-1930s-rotary-telephones-c08787c11a494006afbc50a435e7c4c8, downloaded as
   `psx/phones/antique_1930s_rotary_telephones.glb` (the red phone in homes, Beast Centers, shops, arenas and temple

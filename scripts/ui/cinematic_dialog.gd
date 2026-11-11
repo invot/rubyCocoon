@@ -1,19 +1,40 @@
 extends "res://scripts/ui/dialog_box.gd"
-## The normal dialogue window, with the film owning the beat instead of the modal stack.
+## A film's dialogue, with the film owning the beat instead of the modal stack. Spoken lines use the game's white
+## speech bubble, anchored to whoever speaks (a voice from off screen gets the stationary bottom-centre bubble);
+## narration, with no speaker, uses the shared dark window. A tap anywhere on it turns the page, as in the game.
 signal advance_requested
 var instant_text := false
+## the dark window, when this is narration
+var _window: PanelContainer
 
 
 func _ready() -> void:
-	bubble_mode = false
 	super()
-	# Only the actual window takes taps; the film's Skip / Next buttons remain reachable above it.
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if bubble_mode:
+		return
 	for child in get_children():
 		if child is PanelContainer:
-			child.gui_input.connect(_panel_input)
+			_window = child
 			child.minimum_size_changed.connect(_queue_fit)
 	text_label.minimum_size_changed.connect(_queue_fit)
+	if UI.is_touch():
+		# Only A and B show in a film: the window runs along the bottom from the left edge up to them.
+		var zone: Rect2 = UI.controls.cluster_zone(["a", "b"], UI.controls.TOUCH_SLOP + 12.0)
+		_window.offset_left = UIKit.safe_rect(self).position.x + 48.0
+		_window.offset_right = -(get_viewport_rect().size.x - zone.position.x) if zone.has_area() else -48.0
+		_fit_window()
+
+
+## Nothing sits along the bottom edge in a film on a phone (no Start or Pause), so its dialogue goes right down.
+func _bottom_gap() -> float:
+	return 0.0 if UI.is_touch() else super()
+
+
+func _place_more(bob: float) -> void:
+	if bubble_mode or _window == null:
+		super(bob)
+	else:
+		more.position = _window.position + _window.size - Vector2(64, 44 - bob)
 
 
 func _show_line() -> void:
@@ -29,7 +50,8 @@ func _paginate() -> void:
 
 
 func _queue_fit() -> void:
-	_fit_window.call_deferred()
+	if not bubble_mode:
+		_fit_window.call_deferred()
 
 
 func _fit_window() -> void:
@@ -55,13 +77,3 @@ func _advance() -> void:
 		_show_line()
 	else:
 		advance_requested.emit()
-
-
-func _panel_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_advance()
-		accept_event()
-
-
-func _gui_input(_event: InputEvent) -> void:
-	pass
