@@ -4,6 +4,7 @@ extends Node
 ## The world and battle scripts (with everything they preload) are the slowest part of starting up, so they aren't
 ## preloaded: the title screen appears first and loads them in the background (see _title_backdrop).
 const WORLD_PATH := "res://scripts/world/world.gd"
+const BuildEdition = preload("res://scripts/core/build_edition.gd")
 const BATTLE_PATH := "res://scripts/battle/battle.gd"
 const PANEL_PATH := "res://scripts/battle/command_panel.gd"
 ## Resources the world's scripts preload that have to be loaded on the main thread (see _title_backdrop).
@@ -408,6 +409,9 @@ func ambience_for(id: String) -> String:
 ## Queue a transition; it runs as soon as the current interaction finishes. fade: how long the screen takes to go dark
 ## (and at least that long to come back; longer for the stairs, so you see yourself on them).
 func goto_map(id: String, spawn = "start", face := Vector2i.ZERO, fade := 0.25) -> void:
+	if not BuildEdition.allows_map(id):
+		UI.toast("Continue exploring the demo. The road beyond Dustwell opens in the full game.")
+		return
 	_pending_goto = {"map": id, "spawn": spawn, "face": face, "fade": fade}
 	if world != null:
 		world.frozen = true
@@ -421,6 +425,8 @@ func reload_map() -> void:
 
 
 func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
+	if not BuildEdition.allows_map(id):
+		return
 	_transitioning = true
 	await UI.fade_out(fade)
 	# Nothing's on view: drawing a half-built map each frame would only slow the building of it.
@@ -688,6 +694,8 @@ func start_battle(cfg: Dictionary) -> String:
 # ================================================================ test / screenshot harness
 ## Usage: godot --path . -- --scene=world:caccoon --shot=C:/tmp/a.png --wait=3
 func _parse_test_args() -> void:
+	if OS.has_feature("demo"):
+		return
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--") and "=" in a:
 			var kv: PackedStringArray = a.substr(2).split("=", true, 1)

@@ -15,6 +15,7 @@ Then upload build/web/ (Cloudflare dashboard > Workers & Pages > Create > Pages 
   npx wrangler pages deploy build/web --project-name rubycoccon
 """
 import gzip
+import argparse
 import hashlib
 import json
 import os
@@ -91,10 +92,10 @@ HEADERS = '''/data/*
 '''
 
 
-def export():
+def export(demo=False):
     shutil.rmtree(EXPORT, ignore_errors=True)
     os.makedirs(EXPORT)
-    subprocess.run([GODOT, '--headless', '--path', ROOT, '--export-release', 'Web', os.path.join(EXPORT, 'index.html')], check=True)
+    subprocess.run([GODOT, '--headless', '--path', ROOT, '--export-release', 'Web Demo' if demo else 'Web', os.path.join(EXPORT, 'index.html')], check=True)
 
 
 def pack(name, packed):
@@ -127,13 +128,13 @@ def music():
     print('music       %d tracks, %.1f MB (each downloaded only when the game first plays it)' % (len(os.listdir(MUSIC_CACHE)), total / 1e6))
 
 
-def icons():
+def icons(demo=False):
     sq = Image.open(os.path.join(ROOT, 'assets', 'icon', 'icon_square.png')).convert('RGB')
     sq.resize((180, 180), Image.LANCZOS).save(os.path.join(OUT, 'index.apple-touch-icon.png'))
     sq.resize((192, 192), Image.LANCZOS).save(os.path.join(OUT, 'icon-192.png'))
     sq.save(os.path.join(OUT, 'icon-512.png'))
     manifest = {
-        'name': 'Ruby Cocoon', 'short_name': 'Ruby Cocoon', 'start_url': './index.html', 'scope': './',
+        'name': 'Ruby Cocoon Demo' if demo else 'Ruby Cocoon', 'short_name': 'Ruby Cocoon', 'start_url': './index.html', 'scope': './',
         'display': 'fullscreen', 'orientation': 'landscape', 'background_color': '#03041a', 'theme_color': '#03041a',
         'icons': [{'src': 'icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
                   {'src': 'icon-512.png', 'sizes': '512x512', 'type': 'image/png'}],
@@ -142,7 +143,14 @@ def icons():
 
 
 def main():
-    export()
+    global EXPORT, OUT
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--demo', action='store_true', help='Build the Dustwell demo into build/web_demo/')
+    args = parser.parse_args()
+    if args.demo:
+        EXPORT = os.path.join(ROOT, 'build', 'web_demo_export')
+        OUT = os.path.join(ROOT, 'build', 'web_demo')
+    export(args.demo)
     shutil.rmtree(OUT, ignore_errors=True)
     os.makedirs(os.path.join(OUT, 'data'))
     packed = {}
@@ -151,6 +159,8 @@ def main():
         if f not in PACKED:
             shutil.copy(os.path.join(EXPORT, f), os.path.join(OUT, f))
     html = open(os.path.join(OUT, 'index.html'), encoding='utf-8').read()
+    if args.demo:
+        html = html.replace('<title>Ruby Cocoon</title>', '<title>Ruby Cocoon Demo</title>')
     shutil.copy(os.path.join(ROOT, 'tools', 'web_fullscreen.js'), OUT)
     for font in ('LeagueSpartan.ttf',):
         shutil.copy(os.path.join(ROOT, 'ui', font), OUT)
@@ -159,7 +169,7 @@ def main():
     assert 'realFetch' in html, 'could not add the loader script to index.html'
     open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(html)
     music()
-    icons()
+    icons(args.demo)
     open(os.path.join(OUT, '_headers'), 'w', encoding='utf-8').write(HEADERS)
     biggest = max(os.path.getsize(os.path.join(dp, f)) for dp, dn, fn in os.walk(OUT) for f in fn)
     assert biggest <= 25 * 1024 * 1024, 'a file is over Cloudflare Pages\' 25 MiB limit'

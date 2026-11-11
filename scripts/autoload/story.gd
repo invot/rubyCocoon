@@ -17,6 +17,7 @@ extends Node
 ##   ghost_merge, got_requiem, nyx_defeated, game_cleared   - Gravenmoor and the Umbral Legion
 
 const Beasts = preload("res://scripts/core/beasts.gd")
+const BuildEdition = preload("res://scripts/core/build_edition.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
@@ -265,7 +266,7 @@ func extra_npcs(map: Dictionary) -> Array:
 			if _has_anchor(map, "tourist"):
 				out.append({"kind": "story", "id": "tourist", "name": "Tourist Gwen", "pos": _at(map, "tourist", plaza), "look": TOURIST_LOOK, "facing": Vector2i(0, 1)})
 		"dustwell":
-			if not GameState.flag("dance_shoes_returned"):
+			if BuildEdition.is_demo() or not GameState.flag("dance_shoes_returned"):
 				out.append({"kind": "story", "id": "dance_blocker", "name": "Dancer Jasper", "pos": Vector2i(22, 2), "look": UNCLE_LOOK,
 					"facing": Vector2i(0, 1), "story": true, "sit": true, "seat_height": 0.05, "visual_offset": Vector3(0.5, 0, 0), "blocks": [Vector2i(22, 2), Vector2i(23, 2)]})
 			# missing posters about town, and a friend of each missing trainer, searching
@@ -402,25 +403,32 @@ func field_guide_on_step(world) -> bool:
 	return false
 
 
+func _dance_road_lines() -> Array:
+	if BuildEdition.is_demo():
+		return ["Oh, this is just the demo! I don't have Jasper's dance slippers in this version.",
+			"In the full game, I'll give you his slippers after the lesson. Return them to Jasper and he'll open the road beyond Dustwell.",
+			"For now, keep exploring, training and fighting beasts. Your rhythm attacks are yours to keep!"]
+	return ["Jasper's shoes are yours to return. He's waiting by the north road." if not GameState.flag("dance_shoes_returned") else "Keep dancing, wherever the road takes you!"]
+
+
 func _dance_lesson(world, n: Dictionary) -> void:
 	if GameState.flag("dance_lesson_done"):
-		await say(["You've got the rhythm! Pick a weapon in battle, then press A on consecutive beats. Fill every pip for a critical finish.",
-			"Jasper's shoes are yours to return. He's waiting by the north road." if not GameState.flag("dance_shoes_returned") else "Keep dancing, wherever the road takes you!"], n["name"])
+		await say(["You've got the rhythm! Pick a weapon in battle, then press A on consecutive beats. Fill every pip for a critical finish."] + _dance_road_lines(), n["name"])
 		return
 	if GameState.trainer_level < 4:
 		await say(["You're too weak to dance! Come back at trainer level 4.", "Win trainer battles or clear arena ranks to raise your trainer level. Then I'll teach you rhythm attacks."], n["name"])
 		return
-	await say(["Now you're strong enough to dance!", "Jasper wants his shoes back? Show me you can keep a beat and I'll hand them over. My beasts will help us practise."], n["name"])
+	await say(["Now you're strong enough to dance!", "My beasts will help us practise. Show me you can keep a beat!" if BuildEdition.is_demo() else "Jasper wants his shoes back? Show me you can keep a beat and I'll hand them over. My beasts will help us practise."], n["name"])
 	GameState.heal_party()
 	var won := await trainer_battle({"name": "Lucille", "cls": "Instructor", "look": n["look"], "team": [[12, 10]], "lesson": "rhythm", "reward": 0})
 	if won != "win":
 		return
 	GameState.set_flag("dance_lesson_done")
-	if not GameState.flag("dance_shoes_returned"):
+	if not BuildEdition.is_demo() and not GameState.flag("dance_shoes_returned"):
 		GameState.receive_item("dance_shoes")
 	GameState.heal_party()
-	await say(["You've passed! From now on, your weapons can chain hits to the battle music.",
-		"Keep that beat with you on the road!" if GameState.flag("dance_shoes_returned") else "Here are Jasper's dance shoes. Give them back to him by the north road, and he'll let you through."], n["name"])
+	var ending := _dance_road_lines() if BuildEdition.is_demo() else ["Keep that beat with you on the road!" if GameState.flag("dance_shoes_returned") else "Here are Jasper's dance shoes. Give them back to him by the north road, and he'll let you through."]
+	await say(["You've passed! From now on, your weapons can chain hits to the battle music."] + ending, n["name"])
 	world.refresh_npc_marks()
 
 
@@ -515,6 +523,9 @@ func _lessons_done() -> bool:
 
 ## Called before an exit (map edge, door mat or stairs) is used. Returning false cancels the step.
 func can_use_exit(world, ex: Dictionary) -> bool:
+	if not BuildEdition.allows_map(ex["to"]):
+		await say(["The demo's journey ends at Dustwell. You can keep exploring and battling in the places you've reached."])
+		return false
 	if world.map_id == "dustwell" and ex["to"] == "route4" and not GameState.flag("dance_shoes_returned"):
 		var blocker := {}
 		for n in world.npcs.values():
@@ -902,6 +913,8 @@ func _talk_villager(world, n: Dictionary) -> void:
 
 ## What the player should do next, for the townsfolk's hints (ChatterDB.HINTS).
 func next_goal() -> String:
+	if BuildEdition.is_demo() and GameState.flag("dance_lesson_done"):
+		return "demo_freeplay"
 	for step in [["got_egg", "egg"], ["has_starter", "hatch"]]:
 		if not GameState.flag(step[0]):
 			return step[1]
@@ -929,6 +942,8 @@ func next_goal() -> String:
 	if not GameState.flag("kelp_heard") and not GameState.flag("island_peace"):
 		return "chiefs"
 	if GameState.flag("guardian_water") and not GameState.flag("dance_shoes_returned") and not GameState.flag("met_sheriff"):
+		if BuildEdition.is_demo():
+			return "demo_freeplay" if GameState.flag("dance_lesson_done") else "demo_dance"
 		return "dance_shoes" if GameState.flag("dance_lesson_done") else "dance"
 	for step in [["island_peace", "warden"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
 			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
@@ -1060,7 +1075,12 @@ func _talk_story(world, n: Dictionary) -> void:
 		"dance_instructor":
 			await _dance_lesson(world, n)
 		"dance_blocker":
-			if GameState.flag("dance_lesson_done"):
+			if BuildEdition.is_demo():
+				GameState.set_flag("dance_shoes_asked")
+				await say(["I'm staying right here until I get my dance slippers! Lucille can't give them back in the demo.",
+					"In the full game, finish her rhythm lesson and bring me my slippers to open the road beyond Dustwell.",
+					"You can still learn rhythm attacks at her DANCE studio and keep exploring and battling here."], n["name"])
+			elif GameState.flag("dance_lesson_done"):
 				await say(["My dance shoes! Lucille finally let them go? You must have some rhythm!", "Thank you. I'll get out of your way. Sundown Gulch is north, along the Mesa Trail."], n["name"])
 				GameState.set_flag("dance_shoes_returned")
 				GameState.remove_item("dance_shoes")

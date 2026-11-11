@@ -2,6 +2,7 @@ extends Node
 ## Everything about the current save: party, inventory, flags, progress.
 
 const Beast = preload("res://scripts/core/beast.gd")
+const BuildEdition = preload("res://scripts/core/build_edition.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -847,7 +848,7 @@ func save_dir() -> String:
 	if main != null and not main._test.is_empty():
 		var test_dir := String(main._test.get("save_dir", TEST_SAVE_DIR))
 		return test_dir if test_dir.begins_with("res://build/") and not ".." in test_dir else TEST_SAVE_DIR
-	return SAVE_DIR
+	return "user://demo_saves/" if BuildEdition.is_demo() else SAVE_DIR
 
 
 func slot_path(i: int) -> String:
@@ -1100,6 +1101,15 @@ func load_game(slot := -2) -> bool:
 	facing = Vector2i(int(fc[0]), int(fc[1]))
 	_kelpwick_hut_rooms()
 	last_center = d.get("last_center", "caccoon")
+	if BuildEdition.is_demo():
+		flags.erase("dance_shoes_returned")
+		inventory.erase("dance_shoes")
+		visited = visited.filter(func(id): return BuildEdition.allows_map(String(id)))
+		if not BuildEdition.allows_map(map_id):
+			map_id = "dustwell"
+			pos = Vector2i(-1, -1)
+		if not BuildEdition.allows_map(last_center):
+			last_center = "caccoon"
 	seen = d.get("seen", {})
 	caught = d.get("caught", {})
 	play_time = float(d.get("play_time", 0.0))

@@ -5,6 +5,7 @@ const FluteGame = preload("res://scripts/ui/flute_game.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const ML = preload("res://scripts/world/map_loader.gd")
 const MG = preload("res://scripts/world/map_gen.gd")
+const BuildEdition = preload("res://scripts/core/build_edition.gd")
 var main
 var opts: Dictionary
 var bad := 0
@@ -109,13 +110,22 @@ func drive(done: Array) -> void:
 				top.text_label.visible_characters = -1
 				if top.speaker == "Instructor Lucille":
 					await shot("instructor")
+					if top.text_label.text.contains("just the demo"):
+						await shot("demo_slippers")
+					if top.text_label.text.contains("In the full game"):
+						await shot("demo_full_game")
+				if top.speaker == "Dancer Jasper":
+					await shot("demo_jasper")
 				if top.speaker == "Coach Ondine":
 					await shot("summon_trainer")
 				if top.speaker == "Tester Tess":
 					await shot("ring_coach")
 				if top.speaker == "Ranger Wren":
 					await shot("field_guide")
-			await main._press("ui_accept")
+			if top is UI.DialogBox and UI.is_touch():
+				await main._tap_at(top.text_label.get_global_rect().get_center())
+			else:
+				await main._press("ui_accept")
 		await main._wait(0.025)
 	check(done[0], "lesson finishes through the real input path")
 
@@ -164,6 +174,9 @@ func dance() -> void:
 	await drive(done)
 	main.world.busy = false
 	check(practice_missed and practice_landed, "a missed practice beat retries until a real hit lands")
+	if BuildEdition.is_demo():
+		await demo_boundary()
+		return
 	check(GameState.flag("dance_lesson_done") and GameState.item_count("dance_shoes") == 1, "level 4 lesson unlocks rhythm and awards shoes")
 	check(GameState.save_game(9), "save the completed lesson before returning shoes")
 	GameState.set_flag("dance_lesson_done", false)
@@ -178,6 +191,50 @@ func dance() -> void:
 	await main._go("dustwell", Vector2i(23, 3))
 	check(npc("dance_blocker").is_empty(), "Jasper is not loaded after returning shoes")
 	await shot("road_open")
+
+
+func demo_boundary() -> void:
+	check(GameState.flag("dance_lesson_done") and GameState.item_count("dance_shoes") == 0, "demo lesson unlocks rhythm without slippers")
+	check(GameState.save_game(9), "save completed demo lesson")
+	GameState.set_flag("dance_lesson_done", false)
+	check(GameState.load_game(9) and GameState.flag("dance_lesson_done"), "demo save restores rhythm")
+	UI.auto = true
+	GameState.set_flag("guardian_water")
+	check(Story.next_goal() == "demo_freeplay", "hints lead to continued play instead of unavailable shoes")
+	await main._go("dustwell", Vector2i(23, 3))
+	main.world.frozen = true
+	UI.auto = false
+	var done := [false]
+	var talk := func():
+		await Story.talk(main.world, npc("dance_blocker"))
+		done[0] = true
+	talk.call()
+	await drive(done)
+	UI.auto = true
+	check(not GameState.flag("dance_shoes_returned") and not npc("dance_blocker").is_empty(), "Jasper stays after talking")
+	check(not main.world._walkable(Vector2i(22, 2)) and not main.world._walkable(Vector2i(23, 2)), "both road tiles stay blocked after lesson")
+	check(not await Story.can_use_exit(main.world, {"to": "route4"}), "exit cannot pass the demo boundary")
+	GameState.set_flag("dance_shoes_returned")
+	GameState.add_item("dance_shoes")
+	check(not await Story.can_use_exit(main.world, {"to": "route4"}), "stale flags and injected shoes cannot open the road")
+	main.world.frozen = false
+	main.goto_map("sundown", "start")
+	check(main._pending_goto.is_empty() and not main.world.frozen, "direct travel is refused without freezing play")
+	await main._go("sundown")
+	check(main.world.map_id == "dustwell", "transition guard refuses later towns")
+	for id in Story.WorldDB.TOWN_ORDER:
+		check(BuildEdition.allows_map(id + "#0") == (Story.WorldDB.TOWN_ORDER.find(id) <= 4), "demo town and interior boundary: " + id)
+	GameState.map_id = "sundown"
+	GameState.last_center = "sundown"
+	GameState.visited.append("sundown")
+	check(GameState.save_game(9) and GameState.load_game(9), "load isolated contaminated demo state")
+	check(GameState.map_id == "dustwell" and GameState.last_center == "caccoon" and not GameState.visited.has("sundown"), "out-of-demo saved destinations reset safely")
+	check(not GameState.flag("dance_shoes_returned") and GameState.item_count("dance_shoes") == 0, "demo load removes stale road unlocks")
+	await main._go("dustwell", Vector2i(23, 3))
+	check(not npc("dance_blocker").is_empty(), "Jasper persists after reload")
+	await main._go("route3", "start")
+	check(main.world.map_id == "route3" and not main.world.wilds.is_empty(), "backtracking and wild beasts remain available")
+	await shot("demo_freeplay")
 
 
 func summon() -> void:

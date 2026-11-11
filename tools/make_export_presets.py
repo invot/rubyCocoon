@@ -68,7 +68,7 @@ platform="%(name)s"
 runnable=true
 advanced_options=false
 dedicated_server=false
-custom_features=""
+custom_features="%(features)s"
 export_filter="all_resources"
 include_filter="assets/ui/ui_manifest.json"
 exclude_filter="%(exclude)s"
@@ -158,9 +158,19 @@ def main():
     used, sfx = unused_sfx()
     n_models, models = unused_models()
     common = COMMON + sfx + models
-    out = HEADER % {'i': 0, 'name': 'Android', 'exclude': ', '.join(common), 'path': 'build/android/RubyCocoon-debug.apk'} + ANDROID
+    out = HEADER % {'i': 0, 'name': 'Android', 'features': '', 'exclude': ', '.join(common), 'path': 'build/android/RubyCocoon-debug.apk'} + ANDROID
     out += '\n' + HEADER % {'i': 1, 'name': 'Web', 'exclude': ', '.join(common + ['assets/audio/music/*']),
-                           'path': 'build/web/index.html'} + WEB % {'head': WEB_HEAD.replace('"', '\\"')}
+                           'features': '', 'path': 'build/web/index.html'} + WEB % {'head': WEB_HEAD.replace('"', '\\"')}
+    # Preserve the hand-configured Windows preset when regenerating the shared exports.
+    preset_path = os.path.join(ROOT, 'export_presets.cfg')
+    existing = open(preset_path, encoding='utf-8').read() if os.path.exists(preset_path) else ''
+    windows = re.search(r'\[preset\.(\d+)\]\s*name="Windows Desktop".*?(?=\n\[preset\.\d+\]|\Z)', existing, re.S)
+    demo_index = 2
+    if windows:
+        out += '\n' + windows.group().replace('[preset.' + windows[1], '[preset.2').rstrip() + '\n'
+        demo_index = 3
+    out += '\n' + (HEADER % {'i': demo_index, 'name': 'Web', 'features': 'demo', 'exclude': ', '.join(common + ['assets/audio/music/*']),
+                            'path': 'build/web_demo/index.html'}).replace('name="Web"', 'name="Web Demo"') + WEB % {'head': WEB_HEAD.replace('"', '\\"')}
     with open(os.path.join(ROOT, 'export_presets.cfg'), 'w', encoding='utf-8') as f:
         f.write(out)
     print('export_presets.cfg written: %d sfx used (%d left out), %d of %d model files left out'

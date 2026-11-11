@@ -1,14 +1,19 @@
-# Every push to main: export the game for Windows, Android and Web with Godot (headless, on Linux), and publish
-# Web to Cloudflare Pages when its repository secrets are configured. Publish the native downloads as the
-# "latest" release's RubyCocoon-windows.zip (one portable RubyCocoon.exe: unzip and run) and RubyCocoon-android.apk.
+# Every push to main/master builds a separate public demo (the demo Pages alias).
+# Full-game builds remain available; publishing production Pages and the native "latest" release requires
+# the manual publish_full input on main. The demo reuses the existing Cloudflare repository secrets.
 # Also runs by hand from the Actions tab ("Run workflow"). The quick checks (tools/run_tests.sh quick) run first; if
 # they fail, nothing is published.
 name: Windows, Android and Web build
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
+    inputs:
+      publish_full:
+        description: Publish the full game to production Pages and the latest native release
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -124,6 +129,7 @@ jobs:
 
       # the "latest" release always holds the newest build (the one before is replaced)
       - name: Publish as the latest build
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_full && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -149,9 +155,81 @@ jobs:
           fi
 
       - name: Deploy Web to Cloudflare Pages
-        if: steps.cloudflare.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        if: steps.cloudflare.outputs.ready == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish_full && github.ref == 'refs/heads/main'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy build/web --project-name=rubycoccon --branch=main
+
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Cache Godot
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows-android-web
+      - name: Download Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
+          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}
+          mkdir -p ~/godot "$templates"
+          curl -fsSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v*_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+          curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
+          unzip -q /tmp/templates.tpz -d /tmp/tpz
+          cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* /tmp/tpz/templates/android_*.apk /tmp/tpz/templates/web_nothreads_*.zip "$templates/"
+      - name: Import and check demo progression
+        run: |
+          ~/godot/godot --headless --path . --import || true
+          GODOT=~/godot/godot bash tools/run_tests.sh quick
+          GODOT=~/godot/godot bash tools/run_tests.sh demo demo-touch
+      - name: Build Web demo
+        run: |
+          python -m pip install Pillow==11.3.0
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          GODOT=~/godot/godot python tools/make_web.py --demo
+          node --test tools/tests/web_fullscreen.test.cjs
+      - name: Keep Web demo package
+        uses: actions/upload-artifact@v4
+        with:
+          name: RubyCocoon-web-demo
+          path: build/web_demo/
+          if-no-files-found: error
+      - name: Check Cloudflare credentials
+        id: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Set the existing CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets to publish the demo."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy demo to Cloudflare Pages
+        if: steps.cloudflare.outputs.ready == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy build/web_demo --project-name=rubycoccon --branch=demo

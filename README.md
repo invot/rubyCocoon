@@ -1109,10 +1109,32 @@ and ffmpeg.
 
 ### Automatic web deployment and authentication
 
-The existing [build workflow](.github/workflows/windows-build.yml) builds Windows, Android and Web on every push
-to `main`, or when run manually. After the checks and builds succeed it deploys `build/web/` to
-[rubycoccon.pages.dev](https://rubycoccon.pages.dev). The Web package is also saved as the `RubyCocoon-web`
-Actions artifact. Manual runs from other branches do not deploy production.
+The [build workflow](.github/workflows/windows-build.yml) runs on every push to `main` (the current default
+branch) or `master`, and can also run manually. A separate demo job checks progression and builds `build/web_demo/`
+with the **Web Demo** preset's baked-in `demo` feature. It deploys to the existing `rubycoccon` Pages project with
+`--branch=demo`, updating [demo.rubycoccon.pages.dev](https://demo.rubycoccon.pages.dev). It reuses the same Cloudflare
+secrets as the full build. The demo and full Web packages are separate Actions artifacts (`RubyCocoon-web-demo`
+and `RubyCocoon-web`). A failed demo check or export prevents that demo deployment.
+
+Full-game production Pages and the native `latest` release are published **only** by manually running the workflow
+on `main` with **publish_full** checked (off by default). Ordinary pushes publish only the demo. This does not remove
+older full-game deployments or downloads already published. Manual runs from other branches save artifacts without
+deploying either public site.
+
+Build locally with `python tools/make_web.py --demo`; the normal command still builds the full Web game into
+`build/web/`. To upload the demo manually using the existing Cloudflare login:
+
+```sh
+npx wrangler pages deploy build/web_demo --project-name=rubycoccon --branch=demo
+```
+
+The demo includes Cocoon Cove, Bellerive, Shellhaven, Kelpwick, Dustwell Oasis, their interiors and the roads/reef
+between them. Lucille still teaches the full rhythm lesson at trainer Lv 4. She explains that Jasper's slippers
+are available in the full game and awards no shoes in the demo. Jasper stays on both north-road tiles; travel to
+Mesa Trail or any later town is refused even with a stale quest flag. Players can keep backtracking, training,
+capturing, merging and battling without a time limit. Contextual hints explain this continued play.
+Demo saves use `user://demo_saves/`, separate from full-game saves, with no automatic import from them. The exported
+demo ignores development scenario arguments. For editor previews, add `--demo` after Godot's `--` separator.
 
 Set these under the GitHub repository's **Settings → Secrets and variables → Actions → New repository secret**:
 
@@ -1123,7 +1145,7 @@ Set these under the GitHub repository's **Settings → Secrets and variables →
 
 Keep token values in GitHub secrets. No browser login is needed in CI. Without both secrets, the workflow
 keeps building and saving the web artifact and reports a deployment-skipped warning. After adding them,
-run the workflow on `main`. Ensure the existing Pages project's production branch is `main`.
+run the workflow on `main` with **publish_full** left unchecked to publish the demo. Keep the existing Pages project's production branch as `main` so `demo` remains a preview alias.
 See [Cloudflare's CI authentication guide](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/).
 
 For local builds, `GODOT` can override the Godot executable (`GODOT=/path/to/godot python tools/make_web.py`).
@@ -1251,6 +1273,16 @@ python tools/town_check.py
 ```
 
 ## Tests
+
+`bash tools/run_tests.sh demo demo-touch mechanic-lessons` checks the demo boundary and the unchanged full-game
+lesson, including real rhythm input, missing slippers, Jasper's two blocked road tiles, direct travel restrictions,
+isolated save/reload, contextual hints, backtracking and remaining wild beasts. Capture the demo with:
+
+```sh
+godot --path . --resolution 1920x1080 -- --demo --scene=mechanic-lessons --part=dance --shots=res://build/shots/demo_desktop --shot_w=0 --save_dir=res://build/demo_preview/
+```
+
+Repeat at `2400x1080` with `--touch` and separate capture/save directories for phone layout and actual taps.
 
 `bash tools/run_tests.sh controllers controllers-touch video-settings video-settings-touch walk walk-touch`
 checks controller layout detection, nonzero device IDs, connect/disconnect fallback, eight stick directions, deadzone,
@@ -1417,9 +1449,10 @@ Studio; `LOOK_URL` and `LOOK_MODEL` pick the server and model) and prints its sh
 
 ## Windows and Android builds
 
-Every push to `main` builds the game for Windows and Android on GitHub (`.github/workflows/windows-build.yml`): Godot
-exports it headless on Linux, after the quick checks, and the newest build is on the repository's Releases page as
-"Latest build". A build can also be started by hand from the Actions tab.
+Every push to `main` or `master` builds the full game for Windows and Android on GitHub
+(`.github/workflows/windows-build.yml`), alongside the separate public Web demo. Godot exports headless on Linux
+after the quick checks. To publish the full native downloads as "Latest build", run the workflow manually on `main`
+and check **publish_full**. That choice also publishes the full Web game to production Pages.
 
 - `RubyCocoon-windows.zip`: one portable `RubyCocoon.exe` (unzip and run; it isn't signed, so the first time Windows
   SmartScreen asks: More info, Run anyway).
