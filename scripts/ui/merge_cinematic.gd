@@ -203,16 +203,18 @@ func _land() -> void:
 	$RevealSound.play()
 
 
-## The 3D view renders at the window's real resolution; everything drawn over it is in UI units.
+## Only the 3D picture uses the selected resolution; the overlay stays in full-resolution UI units.
 func _fit_to_screen() -> void:
 	var window := get_window().size
 	var screen := get_viewport_rect().size
-	if window == _window and screen == _screen:
+	var rendered := Prefs.render_size(window)
+	if window == _window and screen == _screen and _view.size == rendered:
 		return
 	_window = window
 	_screen = screen
-	_view.size = window
-	_picture.scale = screen / Vector2(window)
+	_view.size = rendered
+	_picture.texture_filter = Prefs.render_filter(window)
+	_picture.scale = screen / Vector2(rendered)
 	_fill.scale = screen / _fill.texture.get_size()
 	_overlay.size = screen
 

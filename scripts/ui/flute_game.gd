@@ -480,7 +480,7 @@ func _side_by_side(note: Array) -> bool:
 func _draw_glyph(b: int, c: Vector2, s: float, col: Color, font_px := 16) -> void:
 	if b == SongDB.BTN_A or b == SongDB.BTN_B:
 		var dy := 11.0 if font_px >= 32 else 6.0
-		draw_string(UIKit.font_head(), Vector2(c.x - 30, roundf(c.y + dy)), "A" if b == SongDB.BTN_A else "B", HORIZONTAL_ALIGNMENT_CENTER, 60, UIKit.head_px(font_px), col)
+		draw_string(UIKit.font_body(), Vector2(c.x - 30, roundf(c.y + dy)), "A" if b == SongDB.BTN_A else "B", HORIZONTAL_ALIGNMENT_CENTER, 60, UIKit.body_px(font_px), col)
 		return
 	var ang := 0.0
 	match b:

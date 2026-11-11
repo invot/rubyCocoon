@@ -42,6 +42,7 @@ const Backdrop = preload("res://scripts/battle/backdrop.gd")
 const BattleCamera = preload("res://scripts/battle/battle_camera.gd")
 const StageLighting = preload("res://scripts/battle/stage_lighting.gd")
 const StageDressing = preload("res://scripts/battle/stage_dressing.gd")
+const SceneryVisibility = preload("res://scripts/battle/scenery_visibility.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -193,6 +194,7 @@ const DEFEND_MULT := 0.5
 
 var cam: Camera3D
 var camera_director: RefCounted
+var scenery_visibility: RefCounted
 ## The original arcing arrow connects the attacker to every selected target.
 var aim_mesh: MeshInstance3D
 var _aim_geometry: Array = []
@@ -258,6 +260,7 @@ func setup(c: Dictionary) -> void:
 
 
 func _ready() -> void:
+	scenery_visibility = SceneryVisibility.new(self)
 	_build_stage()
 	_build_hud()
 	camera_director = BattleCamera.new(self)
@@ -296,15 +299,12 @@ func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null) -> void:
 	if mat:
 		mi.material_override = mat
 	add_child(mi)
+	if scenery_visibility != null:
+		scenery_visibility.register(mi, xforms)
 
 
-func _tex_mat(t: Texture2D, uv := Vector2.ONE) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = t
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	m.uv1_scale = Vector3(uv.x, uv.y, 1)
-	m.roughness = 1.0
-	return m
+func _tex_mat(t: Texture2D, uv := Vector2.ONE) -> ShaderMaterial:
+	return StageLighting.ground_material(t, uv, biome)
 
 
 func _build_stage() -> void:
@@ -1157,10 +1157,10 @@ func _indoor_scenery(rng: RandomNumberGenerator) -> void:
 		wall.position = part[1]
 		add_child(wall)
 	var px := []
-	var ps := VA.fit_scale("stone_pillar_dark", 5.0)
+	var ps := VA.fit_scale("stone_pillar", 5.0)
 	for i in 7:
-		px.append(_xf(Vector3(-13.5 + i * 4.5, -VA.aabb("stone_pillar_dark").position.y * ps, -8.2), 0.0, ps))
-	_multimesh(VA.mesh("stone_pillar_dark"), px)
+		px.append(_xf(Vector3(-13.5 + i * 4.5, -VA.aabb("stone_pillar").position.y * ps, -8.2), 0.0, ps))
+	_multimesh(VA.mesh("stone_pillar"), px)
 	var fill := OmniLight3D.new()
 	fill.light_color = glow.lerp(Color.WHITE, 0.2)
 	fill.light_energy = 0.55
@@ -1279,6 +1279,8 @@ func _process(delta: float) -> void:
 	if is_instance_valid(cam):
 		if camera_director != null:
 			camera_director.step(delta)
+		if scenery_visibility != null:
+			scenery_visibility.step(delta)
 		_sync_front_cam()
 	_update_shield()
 	_draw_arcs()
@@ -3011,6 +3013,7 @@ func _song_fx(from: Vector3, to: Array, mine: bool, flat := false) -> void:
 		var side := Vector3.UP.cross(end - flute).normalized() * randf_range(-0.9, 0.9)
 		var peak := flute.lerp(end, 0.5) + Vector3(0, 0.6 + dist * 0.22, 0) + side
 		var l := Label3D.new()
+		l.font = UIKit.font_body()
 		l.text = "♪" if i % 3 != 1 else "♫"
 		l.font_size = 60
 		l.outline_size = 8
@@ -3102,6 +3105,7 @@ func _note_effect(t) -> void:
 	var base: Vector3 = nodes[t].position
 	for i in 6:
 		var l := Label3D.new()
+		l.font = UIKit.font_body()
 		l.text = "♪" if i % 2 == 0 else "♫"
 		l.font_size = 56
 		l.outline_size = 8

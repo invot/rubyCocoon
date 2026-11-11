@@ -70,13 +70,13 @@ static func _room_corners(battle: Node3D, batches: Dictionary) -> void:
 			var inward := (Vector3(0, 0, 1.5) - at).normalized()
 			var yaw := atan2(inward.x, inward.z)
 			# A column spans each wall junction up to the ceiling; lower props break up the floor/wall join.
-			_place(batches, "stone_pillar_dark", at, 11.4, yaw)
+			_place(batches, "stone_pillar", at, 11.4, yaw)
 			_place(batches, "crates" if office else "mossy_statue", at + inward * 2.3, 2.7, yaw)
 			_place(batches, "barrel" if office else "stone_pillar", at + inward * 3.0 + Vector3(inward.z, 0, -inward.x) * 1.6, 1.6, yaw)
-			_place(batches, "torch", at + inward * 1.5 + Vector3.UP * 2.4, 1.4, yaw)
+			_place(batches, "torch", at + inward * 1.5, 2.8, yaw)
 			var practical := OmniLight3D.new()
 			practical.name = "CornerAccent"
-			practical.position = at + inward * 2.0 + Vector3.UP * 3.5
+			practical.position = at + inward * 2.0 + Vector3.UP * 2.7
 			practical.light_color = glow.lerp(Color("#ffbd79"), 0.55)
 			practical.light_energy = 0.9
 			practical.omni_range = 9.0

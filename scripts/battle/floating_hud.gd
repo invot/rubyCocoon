@@ -46,13 +46,19 @@ const AIM_W := 11.0
 const AIM_H := 13.0
 const AIM_GAP := 7.0
 ## While you choose: every beast's HP and MP above its head (no border), and your shield orbs in a white box.
-const MINI_W := 66.0
+const MINI_W := 52.0
+## The plates' bold labels ("HP 63", "SHIELD"), and the space between a label and its gauge or orbs.
+const LABEL_PX := 13
+const LABEL_GAP := 7.0
+const ORB_GAP := 4.0
 const MINI_HP_H := 6.0
 const MINI_MP_H := 5.0
 const ORB_R := 6.5
 const SHIELD_COLOR := Color("#3fc8e6")
 ## The readout plates: as dark as the top-centre bar, and the room inside their line.
-const PLATE_ALPHA := 0.78
+const PLATE_ALPHA := 0.66
+## How far beyond its content a plate fades out on each side.
+const PLATE_FADE := 14.0
 const PLATE_PAD := 5.0
 ## The ▲ / ▼ (or, where up / down leads nowhere, a short rounded line) above and below the chooser's bar.
 const NAV_GAP := 7.0
@@ -427,29 +433,42 @@ func _draw() -> void:
 func _draw_readouts() -> void:
 	if not (typeof(actor) == TYPE_STRING and actor == "trainer_self"):
 		return
+	var font := UIKit.font_bold()
+	var px := UIKit.body_px(LABEL_PX)
+	var line_h := font.get_height(px)
 	for b in battle.nodes:
 		if typeof(b) != TYPE_OBJECT or b.hp <= 0 or tag_rects.has(b) or battle._ref_pos(b) == null:
 			continue
-		var size := Vector2(MINI_W, PLATE_PAD * 2.0 + MINI_HP_H + MINI_MP_H + 2.0)
-		var plate := _plate_above(b, size)
-		var inner := _plate(plate)
-		var hp := Rect2(inner.position, Vector2(inner.size.x, MINI_HP_H))
-		_well(hp, clampf(float(b.hp) / maxf(1.0, b.max_hp()), 0.0, 1.0), UIKit.hp_color(clampf(float(b.hp) / maxf(1.0, b.max_hp()), 0.0, 1.0)))
-		var mp := Rect2(hp.position + Vector2(0, MINI_HP_H + 2.0), Vector2(inner.size.x, MINI_MP_H))
-		_well(mp, clampf(float(b.mp) / maxf(1.0, b.max_mp()), 0.0, 1.0), MP_COLOR)
+		# bold "HP 63" over "MP 31" on the left, each beside its gauge
+		var lines := ["HP %d" % maxi(0, b.hp), "MP %d" % b.mp]
+		var text_w := maxf(font.get_string_size(lines[0], HORIZONTAL_ALIGNMENT_LEFT, -1, px).x, font.get_string_size(lines[1], HORIZONTAL_ALIGNMENT_LEFT, -1, px).x)
+		var size := Vector2(PLATE_PAD * 2.0 + text_w + LABEL_GAP + MINI_W, PLATE_PAD * 2.0 + line_h * 2.0)
+		var inner := _plate(_plate_above(b, size))
+		var ratios := [clampf(float(b.hp) / maxf(1.0, b.max_hp()), 0.0, 1.0), clampf(float(b.mp) / maxf(1.0, b.max_mp()), 0.0, 1.0)]
+		for i in 2:
+			var row_y := inner.position.y + line_h * i
+			draw_string(font, _snap(Vector2(inner.position.x, row_y + font.get_ascent(px))), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, px, UIKit.INK)
+			var gauge := Rect2(_snap(Vector2(inner.position.x + text_w + LABEL_GAP, row_y + (line_h - MINI_HP_H) * 0.5)), Vector2(MINI_W, MINI_HP_H))
+			_well(gauge, ratios[i], UIKit.hp_color(ratios[i]) if i == 0 else MP_COLOR)
 	_shield_plate("trainer_self", int(GameState.shield), int(GameState.max_shield))
 	if not battle.wild:
 		_shield_plate("foe_trainer", int(battle.foe_shield), int(battle.foe_max_shield))
 
 
+## A trainer's shield points: a bold "SHIELD" label, then an orb for each point (hollow once spent).
 func _shield_plate(ref, left: int, most: int) -> void:
 	if most <= 0 or battle._ref_pos(ref) == null:
 		return
-	var step := ORB_R * 2.0 + 4.0
-	var size := Vector2(most * step - 4.0 + PLATE_PAD * 2.0 + 4.0, ORB_R * 2.0 + PLATE_PAD * 2.0)
+	var font := UIKit.font_bold()
+	var px := UIKit.body_px(LABEL_PX)
+	var label_w := font.get_string_size("SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var orbs_w := most * ORB_R * 2.0 + (most - 1) * ORB_GAP
+	var size := Vector2(PLATE_PAD * 2.0 + label_w + LABEL_GAP + orbs_w, PLATE_PAD * 2.0 + maxf(ORB_R * 2.0, font.get_height(px)))
 	var inner := _plate(_plate_above(ref, size))
+	var mid_y := inner.get_center().y
+	draw_string(font, _snap(Vector2(inner.position.x, mid_y - font.get_height(px) * 0.5 + font.get_ascent(px))), "SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, px, UIKit.INK)
 	for i in most:
-		var c := inner.position + Vector2(ORB_R + i * step, inner.size.y * 0.5)
+		var c := Vector2(inner.position.x + label_w + LABEL_GAP + ORB_R + i * (ORB_R * 2.0 + ORB_GAP), mid_y)
 		if i < left:
 			draw_circle(c, ORB_R, SHIELD_COLOR.darkened(0.25))
 			draw_circle(c, ORB_R - 1.5, SHIELD_COLOR)
@@ -468,13 +487,29 @@ func _plate_above(ref, size: Vector2) -> Rect2:
 	return Rect2(_snap(at), size)
 
 
-## A small plate like the top-centre bar: the windows' near-black (faintly tinted with the gem) in a thin white line.
-## Returns the room inside it.
+## A small plate: the windows' near-black (faintly tinted with the gem) with no frame, fading out towards both sides
+## (over PLATE_FADE beyond `rect`, so the content stays on solid ground), and a thin white line along its bottom that
+## fades the same way. Returns the room inside `rect`.
 func _plate(rect: Rect2) -> Rect2:
-	draw_rect(rect, Color(FrameBox.shade, PLATE_ALPHA))
-	var line := FrameBox.unit
-	draw_rect(rect.grow(-line * 0.5), UIKit.BORDER, false, line)
+	var outer := rect.grow_individual(PLATE_FADE, 0, PLATE_FADE, 0)
+	var dark := Color(FrameBox.shade, PLATE_ALPHA)
+	_fade_band(Rect2(outer.position, outer.size), [0.0, PLATE_FADE, outer.size.x - PLATE_FADE, outer.size.x], dark)
+	var line := FrameBox.unit * 0.75
+	var w := outer.size.x
+	_fade_band(Rect2(Vector2(outer.position.x, outer.end.y - line), Vector2(w, line)), [0.0, w * 0.3, w * 0.7, w], UIKit.BORDER)
 	return rect.grow(-PLATE_PAD)
+
+
+## A horizontal band in `col`, clear at both ends and full between stops[1] and stops[2] (offsets from its left).
+func _fade_band(r: Rect2, stops: Array, col: Color) -> void:
+	var alphas := [0.0, col.a, col.a, 0.0]
+	for i in 3:
+		var x0: float = r.position.x + float(stops[i])
+		var x1: float = r.position.x + float(stops[i + 1])
+		var c0 := Color(col, alphas[i])
+		var c1 := Color(col, alphas[i + 1])
+		draw_polygon(PackedVector2Array([Vector2(x0, r.position.y), Vector2(x1, r.position.y), Vector2(x1, r.end.y), Vector2(x0, r.end.y)]),
+			PackedColorArray([c0, c1, c1, c0]))
 
 
 ## A gauge on a dark plate: a faint well with a coloured fill.

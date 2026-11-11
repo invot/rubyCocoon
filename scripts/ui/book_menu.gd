@@ -116,6 +116,7 @@ func _build() -> void:
 		m.expand_icon = false
 		m.add_theme_constant_override("icon_max_width", 36)
 		m.text = TABS[i]["name"]
+		m.add_theme_font_override("font", UIKit.font_head())
 		m.add_theme_font_size_override("font_size", UIKit.head_px(UIKit.HEAD_SMALL))
 		m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		m.custom_minimum_size.y = TAB_H
@@ -315,9 +316,14 @@ func _add_row(row: Dictionary) -> void:
 		b.expand_icon = false
 		b.add_theme_constant_override("icon_max_width", 44)
 	if row.has("right"):
-		var rl := UIKit.label(str(row["right"]), 20, UIKit.GOLD)
+		# Adjustable values share their action label's size, including every Settings row.
+		var value_size := UIKit.BUTTON_FONT_SIZE if row.has("adjust") else int(row.get("right_font", 20))
+		var rl := UIKit.label(str(row["right"]), value_size, UIKit.GOLD)
+		var value_width := UIKit.font_body().get_string_size(rl.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			rl.get_theme_font_size("font_size")).x
+		var right_width := maxf(float(row.get("right_width", 110)), value_width + 8.0)
 		rl.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-		rl.offset_left = -220
+		rl.offset_left = -right_width - 8.0
 		rl.offset_right = -8
 		rl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		rl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -325,8 +331,8 @@ func _add_row(row: Dictionary) -> void:
 		b.add_child(rl)
 		var empty := StyleBoxEmpty.new()
 		empty.content_margin_left = 22
-		empty.content_margin_right = 12 + float(row.get("right_width", 110))
-		var hl := UIKit.highlight(float(row.get("right_width", 110)))
+		empty.content_margin_right = 12 + right_width
+		var hl := UIKit.highlight(right_width)
 		b.add_theme_stylebox_override("normal", empty)
 		b.add_theme_stylebox_override("disabled", empty)
 		for st in ["hover", "focus", "pressed", "hover_pressed"]:
@@ -1024,6 +1030,16 @@ func _tab_settings() -> void:
 	right_box.add_child(_pane_title("Controls"))
 	right_box.add_child(detail_box)
 	var pct := func(v: float): return "%d%%" % int(round(v * 100))
+	var ri: int = Prefs.RESOLUTIONS.find(Prefs.render_height)
+	_add_row({"text": "Resolution", "right": "◄ %dp ►" % Prefs.render_height, "right_width": 210, "right_font": UIKit.BUTTON_FONT_SIZE,
+		"adjust": func(d): Prefs.set_value("render_height", Prefs.RESOLUTIONS[posmod(ri + d, Prefs.RESOLUTIONS.size())]),
+		"act": func(): Prefs.set_value("render_height", Prefs.RESOLUTIONS[posmod(ri + 1, Prefs.RESOLUTIONS.size())]),
+		"detail": _controls_help.bind("3D resolution: 540p, 720p, 1080p or 1440p. Lower is faster, with crisp pixels. Menus stay sharp. %s." % _adjust_hint())})
+	var qi: int = Prefs.QUALITY_ORDER.find(Prefs.graphics_quality)
+	_add_row({"text": "Graphics", "right": "◄ %s ►" % Prefs.graphics_quality.capitalize(), "right_width": 210, "right_font": UIKit.BUTTON_FONT_SIZE,
+		"adjust": func(d): Prefs.set_value("graphics_quality", Prefs.QUALITY_ORDER[posmod(qi + d, Prefs.QUALITY_ORDER.size())]),
+		"act": func(): Prefs.set_value("graphics_quality", Prefs.QUALITY_ORDER[posmod(qi + 1, Prefs.QUALITY_ORDER.size())]),
+		"detail": _controls_help.bind("Min: no dynamic shadows, glow or anti-aliasing. Mid: soft shadows, glow and 2x anti-aliasing. Max: 4x anti-aliasing and supported ambient occlusion. Works at any resolution.")})
 	var speeds := [["Slow", 30.0], ["Normal", 60.0], ["Fast", 120.0], ["Instant", 0.0]]
 	var cur_speed := 1
 	for i in speeds.size():
@@ -1043,10 +1059,10 @@ func _tab_settings() -> void:
 		"detail": _controls_help.bind("How fast dialogue appears.")})
 	var gems: Array = UIKit.ACCENT_ORDER
 	var gi := maxi(0, gems.find(UIKit.accent_name))
-	_add_row({"text": "Gem", "right": "◄ %s ►" % UIKit.gem_name(gems[gi]), "right_width": 150,
+	_add_row({"text": "Color", "right": "◄ %s ►" % UIKit.gem_name(gems[gi]), "right_width": 150,
 		"adjust": func(d): Prefs.set_value("accent", gems[posmod(gi + d, gems.size())]),
 		"act": func(): Prefs.set_value("accent", gems[posmod(gi + 1, gems.size())]),
-		"detail": _controls_help.bind("The gem that tints the borders, headings and bars: Ruby, Sapphire, Emerald or Hematite.")})
+		"detail": _controls_help.bind("The color used for window tints, headings and bars: Ruby, Sapphire, Emerald or Hematite.")})
 	var touch_opts := ["auto", "on", "off"]
 	var ti := maxi(0, touch_opts.find(Prefs.touch_controls))
 	_add_row({"text": "Touch pad", "right": "◄ %s ►" % String(touch_opts[ti]).capitalize(), "right_width": 150,

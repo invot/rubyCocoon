@@ -7,6 +7,7 @@ const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const Backdrop = preload("res://scripts/battle/backdrop.gd")
 const Director = preload("res://scripts/battle/battle_camera.gd")
+const Visibility = preload("res://scripts/battle/scenery_visibility.gd")
 var bad := 0
 
 
@@ -91,6 +92,8 @@ func run(main: Node) -> void:
 				"window": str(main.get_window().size), "platform": OS.get_name()}
 			print("BATTLE FRAME TIME ", label, " ", JSON.stringify(report[label]))
 		await _verify(main, battle, label, shots)
+		if main._test.get("hold", "0") == "1":
+			return # --quit=0 keeps this isolated reverse-angle view open for inspection.
 		# HUDs live in UI.hud rather than under the stage, just as normal _finish() cleans them up.
 		battle.hud.queue_free()
 		main.view.remove_child(battle)
@@ -131,6 +134,15 @@ func _verify(main: Node, battle: Node3D, label: String, shots: String) -> void:
 			if mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
 				print("scenery shadow: ", mesh.get_path())
 	_check(shadows == 0, label + " scenery adds no shadow casters")
+	_visibility_probe(battle, label)
+	if main._test.get("survey", "0") == "1":
+		battle._commanding = false
+		battle._set_acting(null)
+		battle.camera_director.play("victory")
+		await main._wait(0.65)
+		await _capture(main, prefix + "_victory.png" if prefix != "" else "")
+		await _survey(main, battle, label, prefix)
+		return
 	var director = battle.camera_director
 	var seen := []
 	var listener := func(name): seen.append(name)
@@ -157,6 +169,11 @@ func _verify(main: Node, battle: Node3D, label: String, shots: String) -> void:
 	battle.summon_release()
 	await main._wait(0.6)
 	_check(director.shortest_gap >= Director.MIN_SHOT_TIME - 0.001, label + " never changes shots twice within half a second")
+	await _survey(main, battle, label, prefix)
+	director.shot_changed.disconnect(listener)
+
+
+func _survey(main: Node, battle: Node3D, label: String, prefix: String) -> void:
 	# Inspect all four sides, including the normally unseen side behind the shoulder camera.
 	# Freeze only this fixture's director; these survey views are not extra gameplay shots.
 	battle.set_process(false)
@@ -168,6 +185,9 @@ func _verify(main: Node, battle: Node3D, label: String, shots: String) -> void:
 		battle.cam.position = Vector3(cos(turn) * 18.0, 7.5, 1.5 + sin(turn) * 18.0)
 		battle.cam.fov = 40.0
 		battle.cam.look_at(battle._cam_look(), Vector3.UP)
+		battle.scenery_visibility.update()
+		if battle.indoor and not battle.cfg.get("arena", false) and angle == 3:
+			_check(battle.scenery_visibility.hidden_count > 0, label + " foreground columns are hidden from the reverse angle")
 		battle._sync_front_cam()
 		await main._wait(0.08)
 		battle.floating.layout()
@@ -179,4 +199,31 @@ func _verify(main: Node, battle: Node3D, label: String, shots: String) -> void:
 				var zone: Rect2 = UI.controls.cluster_zone(group, UI.controls.TOUCH_SLOP + UI.controls.NO_TAP_MARGIN)
 				_check(not rect.intersects(zone), label + " survey keeps touch clusters clear")
 		await _capture(main, prefix + "_angle%d.png" % angle if prefix != "" else "")
-	director.shot_changed.disconnect(listener)
+
+
+func _visibility_probe(battle: Node3D, label: String) -> void:
+	var original: Transform3D = battle.cam.global_transform
+	var probe := MultiMeshInstance3D.new()
+	probe.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	# Exercise the actual cached column geometry on every renderer.
+	mm.mesh = battle.VA.mesh("stone_pillar")
+	var size: float = battle.VA.fit_scale("stone_pillar", 8.0)
+	var basis := Basis.IDENTITY.scaled(Vector3.ONE * size)
+	mm.instance_count = 2
+	var transforms := [Transform3D(basis, original.origin.lerp(battle.PLAYER_POS + Vector3.UP, 0.5)), Transform3D(basis, Vector3(-40, 0, -40))]
+	for i in transforms.size():
+		mm.set_instance_transform(i, transforms[i])
+	probe.multimesh = mm
+	battle.add_child(probe)
+	var visibility := Visibility.new(battle)
+	visibility.register(probe, transforms)
+	visibility.update()
+	_check(mm.visible_instance_count == 1, label + " hides the blocking instance while retaining its batch sibling (%d visible)" % mm.visible_instance_count)
+	battle.cam.global_position = battle.PLAYER_POS + Vector3(0, 8, -24)
+	battle.cam.look_at(battle.PLAYER_POS + Vector3.UP, Vector3.UP)
+	visibility.update()
+	_check(mm.visible_instance_count == 2, label + " restores scenery when the camera clears it (%d visible)" % mm.visible_instance_count)
+	battle.cam.global_transform = original
+	probe.free()

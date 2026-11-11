@@ -36,7 +36,7 @@ const PLINTH := 0.18
 const PORCH := 1.15
 const POST_TOP := 2.45
 const FALSE_FRONT := 1.3
-const WORDS_FONT := preload("res://ui/lunchds.ttf")
+const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
 
 ## Whether this style builds that building (the others are voxel_buildings.gd's, in the western style).
@@ -338,11 +338,11 @@ static func _false_front(node: Node3D, k: VBld.Kit, w: float, zf: float, top: fl
 	return peak
 
 
-## Big painted letters on a sign board (the heading font, which has no accents: plain names only).
+## Big painted letters on a sign board, in the shared semibold heading font.
 static func _words(node: Node3D, text: String, p: Vector3, col: Color) -> void:
 	var l := Label3D.new()
 	l.text = text
-	l.font = WORDS_FONT
+	l.font = UIKit.font_head()
 	l.font_size = 64
 	l.pixel_size = 0.0068
 	l.outline_size = 0
@@ -408,7 +408,7 @@ static func poster_board(who: int, found: bool) -> Node3D:
 	node.add_child(mi)
 	var l := Label3D.new()
 	l.text = "FOUND" if found else "MISSING"
-	l.font = WORDS_FONT
+	l.font = UIKit.font_head()
 	l.font_size = 64
 	l.pixel_size = 0.0034
 	l.outline_size = 0

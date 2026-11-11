@@ -162,12 +162,19 @@ func _pose() -> void:
 			var spread := 0.0
 			for ref in refs:
 				spread = maxf(spread, (_point(ref) - focus).length())
-			var facing: Vector3 = battle._toward(battle._team(refs[0])) if typeof(refs[0]) == TYPE_OBJECT else -battle._toward("ally")
+			var team: String = battle._team(refs[0]) if typeof(refs[0]) == TYPE_OBJECT else "foe"
+			var facing: Vector3 = battle._toward(team)
+			# (from the side it stands on, out from its ring's middle, so the beasts beside it stand behind it; one in
+			# the middle, or a whole side, from the camera's side of the stage)
+			var across := Vector3(-facing.z, 0.0, facing.x)
+			var ring_mid: Vector3 = battle.ALLY_CENTER if team == "ally" else battle.FOE_CENTER
+			var out := (focus - ring_mid).dot(across)
+			var sgn := signf(out) if absf(out) > 0.4 else signf(-battle._right().dot(across))
 			var turn := deg_to_rad(50.0 if shot == "cast" else 35.0)
-			var view: Vector3 = facing * cos(turn) - battle._right() * sin(turn)
+			var view: Vector3 = facing * cos(turn) + across * sin(turn) * sgn
 			var dist := clampf(tall * 2.4 + 3.4, 4.5, 9.0) + spread * 1.8
 			_goal_look = focus
-			_goal_position = focus + view * dist + Vector3.UP * dist * 0.3
+			_goal_position = focus + view * dist + Vector3.UP * dist * (0.3 if shot == "cast" else 0.4)
 			_goal_fov = 30.0
 		"summon":
 			_goal_position = battle.summon_pos

@@ -243,8 +243,8 @@ func bottom() -> float:
 
 # ---------------------------------------------------------------- layout
 func _set_text(main: String, sub: String, heading: bool) -> void:
-	# every line is League Spartan; a heading (a place name) differs only in its gem colour
-	label.add_theme_font_override("font", UIKit.font_body())
+	# Place names use the same semibold heading weight as the rest of the interface.
+	label.add_theme_font_override("font", UIKit.font_head() if heading else UIKit.font_body())
 	label.add_theme_font_size_override("font_size", UIKit.body_px(TEXT_SIZE))
 	label.add_theme_color_override("font_color", UIKit.HEAD if heading else UIKit.INK)
 	label.text = main

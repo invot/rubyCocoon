@@ -1357,6 +1357,7 @@ func _freight_control_node() -> Node3D:
 	screen.rotation.x = -0.35
 	root.add_child(screen)
 	var label := Label3D.new()
+	label.font = UIKit.font_body()
 	label.text = "FREIGHT LOCK\nOPEN" if GameState.flag("trainers_freed") else "FREIGHT LOCK\nCOMMAND SEAL"
 	label.position = Vector3(0, 1.4, 0)
 	label.font_size = 26
@@ -1883,6 +1884,7 @@ func _tablet_node(glow: Color) -> Node3D:
 		l.position = Vector3(-0.3 + k * 0.2, 0.08 * sin(k * 1.7), 0.075)
 		slab.add_child(l)
 	var note := Label3D.new()
+	note.font = UIKit.font_body()
 	note.text = "♪"
 	note.font_size = 64
 	note.outline_size = 10

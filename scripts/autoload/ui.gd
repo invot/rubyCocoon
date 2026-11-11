@@ -318,7 +318,7 @@ func gold(amount: int) -> void:
 	top_bar.post("", Glyphs.tex("coin"), {"key": "gold", "count": amount, "fmt": "+%d gold"})
 
 
-## A place's name on entering it, in League Spartan like the bar's other lines but in the gem heading colour: `icon` is
+## A place's name on entering it, in League Spartan Semibold and the gem heading colour: `icon` is
 ## its crest or a map pin.
 func place_name(title: String, sub := "", icon: Texture2D = null) -> void:
 	top_bar.post(title, icon if icon != null else Glyphs.tex("pin"), {"sub": sub, "heading": true, "key": "place", "replace": true})

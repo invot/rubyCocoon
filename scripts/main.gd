@@ -24,7 +24,7 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
 
-## The 3D world renders at the window's full resolution, smoothed by 2x MSAA; the UI is drawn on top.
+## The 3D scene uses the chosen resolution and quality; the UI is drawn on top at full resolution.
 ## Shows the 3D view, filling the window.
 var screen: TextureRect
 var view: SubViewport
@@ -66,6 +66,7 @@ func _ready() -> void:
 	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(screen)
 	get_window().size_changed.connect(_fit_view)
+	Prefs.changed.connect(_fit_view)
 	_fit_view()
 	_parse_test_args()
 	if _test.has("scene"):
@@ -95,12 +96,13 @@ func _unhandled_input(ev: InputEvent) -> void:
 		world.tap_at(to_view(ev.position))
 
 
-## Sizes the 3D view to the window, pixel for pixel.
+## Resolution is a 3D height, independent of window size; wide phones gain width, preserving the camera's aspect.
 func _fit_view() -> void:
 	var win := get_window().size
 	if win.y < 1:
 		return
-	view.size = win
+	view.size = Prefs.render_size(win)
+	screen.texture_filter = Prefs.render_filter(win)
 
 
 ## A point on the screen (in UI units) -> the same point in the 3D view.
@@ -680,12 +682,21 @@ func _parse_test_args() -> void:
 func _run_test() -> void:
 	var scene: String = _test["scene"]
 	var wait := float(_test.get("wait", "3"))
+	if _test.has("render_height") or _test.has("graphics_quality"):
+		Prefs.render_height = int(_test.get("render_height", str(Prefs.render_height)))
+		Prefs.graphics_quality = String(_test.get("graphics_quality", Prefs.graphics_quality))
+		Prefs.apply()
 	if _test.has("gem"):
 		# try a gem for this run only (the player's saved settings are left alone)
 		UIKit.set_accent(String(_test.get("gem", UIKit.accent_name)))
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "video-settings":
+		await load("res://tools/debug/video_settings.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "speech":
 		await load("res://tools/debug/speech.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -3966,6 +3977,7 @@ func _newbeasts_test() -> void:
 		pad.position = at - Vector3(0, 0.02, 0)
 		root.add_child(pad)
 		var lb := Label3D.new()
+		lb.font = UIKit.font_body()
 		lb.text = cell[2]
 		lb.font_size = 36
 		lb.outline_size = 8
@@ -4503,6 +4515,7 @@ func _gallery(cat: String, page := 0) -> void:
 		mi.position += Vector3((i % cols) * 3.2, 0, (i / cols) * 3.4)
 		root.add_child(mi)
 		var l := Label3D.new()
+		l.font = UIKit.font_body()
 		l.text = n
 		l.font_size = 40
 		l.pixel_size = 0.008
@@ -4635,6 +4648,7 @@ func _beast_gallery(page: int) -> void:
 		mi.position = Vector3((i % 4) * 2.6, 0, (i / 4) * 2.6)
 		root.add_child(mi)
 		var l := Label3D.new()
+		l.font = UIKit.font_body()
 		l.text = genes_list[i][0]
 		l.font_size = 36
 		l.pixel_size = 0.008

@@ -1176,6 +1176,7 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 			# a small brass plate: STAFF ONLY
 			for side in [-1.0, 1.0]:
 				var lab := Label3D.new()
+				lab.font = load("res://scripts/ui/ui_kit.gd").font_body()
 				lab.text = "STAFF ONLY"
 				lab.font_size = 14
 				lab.pixel_size = 0.006

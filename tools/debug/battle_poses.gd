@@ -1,12 +1,12 @@
 extends RefCounted
 ## --scene=battle-poses: the beasts' battle poses in a real battle, through the battle's own camera (beast_rig.gd,
 ## beast_model.gd, battle.gd _cast, battle_camera.gd "cast" / "impact"):
-##   1. a cast that's extra effective: the cut to the caster gathering its glow, letting it go, the cut to the foe it
+##   1. a cast that's extra effective (water on earth): the cut to the caster gathering its glow, letting it go, the cut to the foe it
 ##      lands on (a heavy hit, its number with it)
 ##   2. Defend held, then a plain attack (a lunge) blocked by it
 ##   3. a plain attack landing as an ordinary hit
 ##   4. a heal cast on an ally (its glow landing as rising motes)
-##   5. a foe knocked out (the knockout shot, the faint)
+##   5. an ally knocked out and left lying on its pad (the knockout shot, the faint)
 ## Prints what each step saw and "BATTLE POSES DONE: n problem(s)". --shots=dir saves <dir>/<step>.png (use
 ## --shot_w=0 for full size); --old=1 fields the old models (a legendary casting, robots for foes) for their tweened
 ## poses; --save_dir= keeps the test's saves apart.
@@ -31,8 +31,8 @@ func run(main: Node) -> void:
 	var old: bool = main._test.get("old", "0") == "1"
 	await main._do_goto("route1", "west")
 	await main._wait(1.0)
-	# your side: a fire caster (a legendary's old model, with --old), a water healer, and a plain fighter
-	var caster = Beasts.create(41 if old else 2, 30)
+	# your side: a water caster (a legendary's old model, with --old), a water healer, and a plain earth fighter
+	var caster = Beasts.create(39 if old else 26, 30)
 	var healer = Beasts.create(29, 30)
 	var fighter = Beasts.create(17, 30)
 	for b in [caster, healer, fighter]:
@@ -41,18 +41,18 @@ func run(main: Node) -> void:
 		b.mp = b.max_mp()
 	GameState.beast_slots = 4
 	GameState.party = [caster, healer, fighter]
-	# (the air-water side: slots 1, 2 and 3, the healer in the middle; slots hold only their elements)
-	caster.slot = 1
-	healer.slot = 2
-	fighter.slot = 3
+	# (the water side: slots 3, 4 and 5, the healer in the middle; a slot holds only its elements)
+	caster.slot = 3
+	healer.slot = 4
+	fighter.slot = 5
 	GameState.storage = []
-	GameState.ring_side = 1
+	GameState.ring_side = 2
 	GameState.preferred_ring_side = -1
 	GameState.max_shield = 2
 	GameState.shield = 2
-	# the foe's: an air beast (fire is extra effective on it) and a water one that defends (robots, with --old)
-	var flyer = Beasts.create(44 if old else 31, 30)
-	var guard = Beasts.create(45 if old else 25, 30)
+	# the foe's: an earth beast (water is extra effective on it) and a flyer that defends (robots, with --old)
+	var flyer = Beasts.create(44 if old else 19, 30)
+	var guard = Beasts.create(45 if old else 31, 30)
 	for f in [flyer, guard]:
 		f.base["hp"] = float(f.base["hp"]) * 3.0
 		f.hp = f.max_hp()
@@ -77,11 +77,11 @@ func run(main: Node) -> void:
 	var cd: RefCounted = _battle.camera_director
 	if main._test.get("verbose", "0") == "1":
 		cd.shot_changed.connect(func(n: String) -> void: print("  shot: %s %.2f" % [n, cd.clock]))
-	print("field: ", _battle.ally_slots.map(func(b): return b.nickname if b != null else "-"), " vs ", _battle.foe_slots.map(func(b): return b.nickname if b != null else "-"), "  caster slot ", caster.slot, " ", caster.elements(), " party ", GameState.party.size(), " cap ", GameState.slot_cap())
+	print("field: ", _battle.ally_slots.map(func(b): return b.nickname if b != null else "-"), " vs ", _battle.foe_slots.map(func(b): return b.nickname if b != null else "-"),  "")
 
 	# 1. a cast, extra effective
 	var hp0: int = flyer.hp
-	var seen := await _round([{"type": "move", "actor": caster, "move": "ember", "target": flyer, "prio": 5}], [
+	var seen := await _round([{"type": "move", "actor": caster, "move": "water_jet", "target": flyer, "prio": 5}], [
 		["cast", func() -> bool: return _battle._casting, 0.45],
 		["release", func() -> bool: return _battle._casting, Rig.CAST_TIME * Rig.RELEASE_AT + 0.1],
 		["impact", func() -> bool: return cd.shot == "impact", 0.24]])
@@ -91,10 +91,11 @@ func run(main: Node) -> void:
 
 	# 2. Defend held, then a blocked lunge
 	var r: Node3D = _battle._model(guard)
+	var guard_hp: int = guard.hp
 	seen = await _round([{"type": "defend", "actor": guard, "prio": 7},
 		{"type": "move", "actor": fighter, "move": "tackle", "target": guard, "prio": 0}], [
 		["defend", func() -> bool: return "braces" in UI.top_bar.current_text(), 0.5],
-		["block", func() -> bool: return cd.shot == "follow", Rig.ATTACK_TIME * Rig.HIT_AT + 0.08]])
+		["block", func() -> bool: return guard.hp < guard_hp, 0.06]])
 	if r is Rig:
 		_check((r as Rig).guard, "a defending beast holds its braced stance")
 	else:
@@ -104,8 +105,9 @@ func run(main: Node) -> void:
 		_check(not (r as Rig).guard, "its stance ends with Defend")
 
 	# 3. an ordinary hit
+	var flyer_hp: int = flyer.hp
 	seen = await _round([{"type": "move", "actor": fighter, "move": "tackle", "target": flyer, "prio": 0}], [
-		["hit", func() -> bool: return cd.shot == "follow", Rig.ATTACK_TIME * Rig.HIT_AT + 0.06]])
+		["hit", func() -> bool: return flyer.hp < flyer_hp, 0.04]])
 
 	# 4. a heal cast on an ally
 	fighter.hp = fighter.max_hp() / 2
@@ -115,15 +117,15 @@ func run(main: Node) -> void:
 		["heal", func() -> bool: return cd.shot == "impact", 0.3]])
 	_check(fighter.hp > fighter.max_hp() / 2, "the heal lands on the ally")
 
-	# 5. a knockout
-	guard.hp = 1
+	# 5. a knockout: one of yours, lying on its pad (a wild foe would vanish in smoke)
+	fighter.hp = 1
 	_battle._refresh()
-	seen = await _round([{"type": "move", "actor": fighter, "move": "tackle", "target": guard, "prio": 0}], [
+	seen = await _round([{"type": "move", "actor": flyer, "move": "tackle", "target": fighter, "prio": 0}], [
 		["faint", func() -> bool: return cd.shot == "knockout", 0.75]])
-	_check(guard.hp <= 0, "the foe is knocked out")
-	var gr = _battle._rig(guard)
-	if gr != null:
-		_check(gr.state == "lie" and gr._out, "a fainted beast lies down knocked out")
+	_check(fighter.hp <= 0, "your beast is knocked out")
+	var fr = _battle._rig(fighter)
+	if fr != null:
+		_check(fr.state == "lie" and fr._out, "a fainted beast lies down knocked out")
 	print("BATTLE POSES DONE: %d problem(s)" % _bad)
 
 

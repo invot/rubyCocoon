@@ -1,7 +1,9 @@
 extends Node
-## Player settings (volume, text speed, controls, highlight colour), saved to user://settings.cfg.
+## Player settings, saved independently of the game's save slots.
 
 const PATH := "user://settings.cfg"
+const RESOLUTIONS := [540, 720, 1080, 1440]
+const QUALITY_ORDER := ["min", "mid", "max"]
 
 var music_volume := 0.8
 var sfx_volume := 0.9
@@ -11,6 +13,9 @@ var text_speed := 60.0
 var touch_controls := "auto"
 var show_key_legend := true
 var fullscreen := false
+## Internal 3D height; width follows the window's aspect. The UI keeps its full resolution.
+var render_height := 1080
+var graphics_quality := "mid"
 var _browser_mobile: Variant = null
 ## the gem the menus are tinted with: one of UIKit.ACCENTS ("ruby", "sapphire", "emerald", "hematite")
 var accent := "ruby"
@@ -22,11 +27,20 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	load_prefs()
 	apply()
+	add_child(load("res://scripts/gfx/render_quality.gd").new())
+
+
+## Explicit override for isolated settings tests; ordinary play always uses PATH.
+func prefs_path() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--prefs_path=res://build/"):
+			return arg.trim_prefix("--prefs_path=")
+	return PATH
 
 
 func load_prefs() -> void:
 	var c := ConfigFile.new()
-	if c.load(PATH) != OK:
+	if c.load(prefs_path()) != OK:
 		return
 	music_volume = float(c.get_value("audio", "music", music_volume))
 	sfx_volume = float(c.get_value("audio", "sfx", sfx_volume))
@@ -34,6 +48,9 @@ func load_prefs() -> void:
 	touch_controls = String(c.get_value("controls", "touch", touch_controls))
 	show_key_legend = bool(c.get_value("controls", "key_legend", show_key_legend))
 	fullscreen = bool(c.get_value("video", "fullscreen", fullscreen))
+	render_height = int(c.get_value("video", "render_height", 1080))
+	graphics_quality = String(c.get_value("video", "graphics_quality", "mid"))
+	_validate_video()
 	accent = String(c.get_value("ui", "accent", accent))
 	# (an old "style" value, Pixel or Classic, is ignored: there is one look now)
 	# the old highlight colours became gems
@@ -48,11 +65,15 @@ func save_prefs() -> void:
 	c.set_value("controls", "touch", touch_controls)
 	c.set_value("controls", "key_legend", show_key_legend)
 	c.set_value("video", "fullscreen", fullscreen)
+	c.set_value("video", "render_height", render_height)
+	c.set_value("video", "graphics_quality", graphics_quality)
 	c.set_value("ui", "accent", accent)
-	c.save(PATH)
+	DirAccess.make_dir_recursive_absolute(prefs_path().get_base_dir())
+	c.save(prefs_path())
 
 
 func apply() -> void:
+	_validate_video()
 	if is_instance_valid(Sfx):
 		Sfx.set_volumes(music_volume, sfx_volume)
 	if not is_mobile() and DisplayServer.get_name() != "headless":
@@ -60,6 +81,23 @@ func apply() -> void:
 		if DisplayServer.window_get_mode() != want and (fullscreen or DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN):
 			DisplayServer.window_set_mode(want)
 	changed.emit()
+
+
+func _validate_video() -> void:
+	if not render_height in RESOLUTIONS:
+		render_height = 1080
+	if not graphics_quality in QUALITY_ORDER:
+		graphics_quality = "mid"
+
+
+func render_size(window_size: Vector2i) -> Vector2i:
+	var height := maxi(1, window_size.y)
+	return Vector2i(maxi(2, roundi(float(window_size.x) * render_height / height)), render_height)
+
+
+## Nearest when enlarging pixels; linear only when reducing a higher-resolution image.
+func render_filter(window_size: Vector2i) -> int:
+	return CanvasItem.TEXTURE_FILTER_NEAREST if render_height <= window_size.y else CanvasItem.TEXTURE_FILTER_LINEAR
 
 
 func set_value(key: String, value) -> void:

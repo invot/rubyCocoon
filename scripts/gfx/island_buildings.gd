@@ -6,6 +6,7 @@ const VP = preload("res://scripts/gfx/voxel_props.gd")
 const MG = preload("res://scripts/world/map_gen.gd")
 const PERSON = preload("res://scripts/gfx/voxel_person.gd")
 const WORLD = preload("res://scripts/data/world_db.gd")
+const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const PASTELS := ["#f1b8ae", "#f3d995", "#b5d9c8", "#c9bce1", "#aed4e2"]
 const HUT_LIFT := 0.84
@@ -707,7 +708,7 @@ static func _hotel_block(node: Node3D, cx: float, w: float, plot_d: float, level
 			k.box("color", Vector3(sx * 0.52, 2.58, zf + 0.05), Vector3(0.04, 0.36, 0.03), Color("#2f5f9e"))
 		var title := Label3D.new()
 		title.text = "HOTEL"
-		title.font = preload("res://ui/lunchds.ttf")
+		title.font = UIKit.font_head()
 		title.font_size = 48
 		title.pixel_size = 0.0055
 		title.outline_size = 0

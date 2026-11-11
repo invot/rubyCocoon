@@ -28,6 +28,7 @@ func _ready() -> void:
 	for x in [-0.22, 0, 0.22]:
 		_piece(Vector3(x, 0.9, 0.44), Vector3(0.025, 1.7, 0.025), "#89bdcf")
 	var sign := Label3D.new()
+	sign.font = load("res://scripts/ui/ui_kit.gd").font_body()
 	sign.text = "FREIGHT %02d" % (index + 1)
 	sign.position = Vector3(0, 1.98, 0)
 	sign.font_size = 24

@@ -10,8 +10,8 @@ extends RefCounted
 ## - The pack's divider separates sections (HSeparator, divider()) and flanks banner text (flanked()).
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
-## Fonts: League Spartan Regular for body text, menu actions, dialogue and damage; Lunchtime Doubly So for names
-## and headings, with League Spartan as the accent/symbol fallback.
+## Fonts: League Spartan throughout, Regular for body text, menu actions, dialogue and damage, Semibold for
+## names and headings. Missing symbols use Godot's fallback.
 
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -20,8 +20,9 @@ const DividerBox = preload("res://scripts/ui/divider_box.gd")
 
 const UI_DIR := "res://assets/ui/"
 const FONT_FILE := "res://ui/LeagueSpartan.ttf"
-## the sans body face uses the variable font's Regular weight
+## Shared League Spartan weights; keep ordinary text light and headings semibold.
 const BODY_WEIGHT := 400
+const HEAD_WEIGHT := 600
 const BODY_SMALL := 21
 const BODY_BIG := 21
 ## dialogue text: three lines fill the box
@@ -34,7 +35,7 @@ const BUTTON_FONT_SIZE := 32
 const MIN_BUTTON_HEIGHT := 56.0
 const MIN_TOUCH_HEIGHT := 80.0
 
-## The gem the interface is tinted with (Settings > Gem): the windows' black, headings, bars and filled slots.
+## The gem the interface is tinted with (Settings > Color): the windows' black, headings, bars and filled slots.
 const ACCENTS := {"ruby": Color("#d21f2c"), "sapphire": Color("#3a6ad8"), "emerald": Color("#26a468"),
 	"hematite": Color("#6f7d90")}
 const ACCENT_ORDER := ["ruby", "sapphire", "emerald", "hematite"]
@@ -212,14 +213,15 @@ static func font_body() -> Font:
 
 
 static func font_head() -> Font:
-	if not _fonts.has("head"):
-		var font: FontFile = load("res://ui/lunchds.ttf")
-		font.fallbacks = [_font(BODY_WEIGHT), ThemeDB.fallback_font]
-		_fonts["head"] = font
-	return _fonts["head"]
+	return _font(HEAD_WEIGHT)
 
 
-## League Spartan at `weight`: one smooth face of the variable font (symbols it lacks come from Godot's default).
+## Compatibility alias for numeric labels: ordinary text uses the shared Regular weight.
+static func font_bold() -> Font:
+	return font_body()
+
+
+## League Spartan at `weight` (symbols it lacks come from Godot's default).
 static func _font(weight: int) -> Font:
 	if _fonts.has(weight):
 		return _fonts[weight]
@@ -435,7 +437,7 @@ static func label(text: String, size := 20, color := TEXT) -> Label:
 	return l
 
 
-## Heading text (Lunchtime Doubly So): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
+## Heading text (League Spartan Semibold): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
 ## white or the raw gem passed in by a caller is taken as "the heading colour".
 static func header(text: String, color := HEAD, size := HEAD_SIZE) -> Label:
 	var l := Label.new()

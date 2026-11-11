@@ -20,6 +20,7 @@ static func build(biome: Dictionary, ground: Texture2D) -> MeshInstance3D:
 	mat.set_shader_parameter("panorama", load(DIR + String(biome["id"]) + ".png"))
 	mat.set_shader_parameter("ground_texture", ground)
 	mat.set_shader_parameter("paint_tint", StageLighting.backdrop_tint(biome))
+	mat.set_shader_parameter("edge_tint", StageLighting.edge_tint(biome))
 	wall.material_override = mat
 	return wall
 

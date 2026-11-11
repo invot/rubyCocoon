@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back, shadows_disabled;
+#include "res://scripts/battle/stage_floor.gdshaderinc"
 
 uniform sampler2D panorama : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D ground_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -17,7 +18,7 @@ void fragment() {
 	// Above it the baked artwork supplies its own lighting. Neither the ground edge nor a vertical join is exposed.
 	vec3 floor_color = texture(ground_texture, vec2(world_position.x, world_position.z - 1.5)).rgb;
 	float painted = smoothstep(0.1, 1.65, world_position.y);
-	ALBEDO = floor_color * (1.0 - painted);
-	EMISSION = scenery * paint_tint.rgb * painted * 0.72;
+	ALBEDO = stage_floor_color(floor_color, world_position) * (1.0 - painted);
+	EMISSION = scenery * paint_tint.rgb * painted * 0.55;
 	ROUGHNESS = 1.0;
 }

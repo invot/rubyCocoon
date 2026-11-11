@@ -1,6 +1,7 @@
 extends RefCounted
 ## Battle-only warm key / cool fill. The overworld keeps its shared daylight unchanged.
 const OutdoorLight = preload("res://scripts/gfx/outdoor_light.gd")
+const Ground = preload("res://scripts/battle/stage_ground.gdshader")
 
 
 static func apply(env: Environment, key: DirectionalLight3D, biome: Dictionary, indoor: bool) -> DirectionalLight3D:
@@ -16,6 +17,8 @@ static func apply(env: Environment, key: DirectionalLight3D, biome: Dictionary, 
 	env.glow_enabled = true
 	env.glow_intensity = 0.22
 	env.glow_hdr_threshold = 1.5
+	env.fog_light_color = cool.lerp(Color(biome["ground"]), 0.2).darkened(0.1)
+	env.fog_density = float(biome.get("fog", 0.004)) * 0.65
 	key.light_color = Color(biome["sun"]).lerp(Color("#ffd0a0"), 0.35)
 	key.light_energy = 0.65 if indoor else OutdoorLight.sun_energy(biome) * 0.68
 	key.light_specular = 0.25
@@ -33,3 +36,16 @@ static func apply(env: Environment, key: DirectionalLight3D, biome: Dictionary, 
 
 static func backdrop_tint(biome: Dictionary) -> Color:
 	return Color(biome["sun"]).lerp(Color("#9aa6dd"), 0.4)
+
+
+static func edge_tint(biome: Dictionary) -> Color:
+	return Color(biome["sky_top"]).lerp(Color("#b6b0e0"), 0.65)
+
+
+static func ground_material(texture: Texture2D, tiling: Vector2, biome: Dictionary) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = Ground
+	mat.set_shader_parameter("ground_texture", texture)
+	mat.set_shader_parameter("tiling", tiling)
+	mat.set_shader_parameter("edge_tint", edge_tint(biome))
+	return mat

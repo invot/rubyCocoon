@@ -2413,6 +2413,7 @@ func _build_npcs() -> void:
 		# (and anyone else who comes over when they spot you, like the Dune Ranger: story.gd sandstorm_stop)
 		if n.get("kind", "") == "trainer" and not GameState.flag(n.get("flag", "")) or n.get("spots", false):
 			var mark := Label3D.new()
+			mark.font = UIKit.font_body()
 			mark.text = "!"
 			mark.font_size = 72
 			mark.modulate = Color("#ffd040") if not n.get("legion", false) else Color("#c080ff")

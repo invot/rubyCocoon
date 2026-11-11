@@ -12,6 +12,8 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"video-settings|-- --scene=video-settings --prefs_path=res://build/video_settings_test/settings.cfg --save_dir=res://build/video_settings_saves/|VIDEO SETTINGS DONE: 0 problem"
+	"video-settings-touch|--resolution 2400x1080 -- --scene=video-settings --touch --prefs_path=res://build/video_settings_touch_test/settings.cfg --save_dir=res://build/video_settings_touch_saves/|VIDEO SETTINGS DONE: 0 problem"
 	"performance|-- --scene=stalls --save_dir=res://build/performance_test_saves/|PERFORMANCE AUDIT DONE: 0 problem"
 	"transitions|-- --scene=transitions --passes=1 --save_dir=res://build/transition_test_saves/|TRANSITIONS DONE: 0 problem"
 	"hero-maker|-- --scene=creator --save_dir=res://build/creator_test_saves/|HERO MAKER DONE: 0 problem"
@@ -69,6 +71,7 @@ TESTS=(
 	"battle-focus-wild|-- --scene=battle-focus --wild=1 --wait=0.3 --save_dir=res://build/cinematic_wild_saves/|BATTLE FOCUS DONE: 0 problem"
 	"tutorial-ring|-- --scene=tutorial --lesson=ring --auto=1 --save_dir=res://build/cinematic_lesson_saves/|lesson result: won=true"
 	"battle-redirect|-- --scene=battle-redirect --wait=0.3 --save_dir=res://build/battle_redirect_saves/|BATTLE REDIRECT DONE: 0 problem"
+	"battle-poses|-- --scene=battle-poses --wait=0 --save_dir=res://build/battle_poses_saves/|BATTLE POSES DONE: 0 problem"
 	"ringedit|-- --scene=ringedit --touch --wait=0.3|RING EDIT DONE: 0 problem"
 	"ring-start|-- --scene=ring-start --battle=1 --save_dir=res://build/ring_start_test_saves/ --wait=0.3|RING START DONE: 0 problem"
 	"ring-start-touch|-- --scene=ring-start --touch --battle=1 --save_dir=res://build/ring_start_touch_test_saves/ --wait=0.3|RING START DONE: 0 problem"

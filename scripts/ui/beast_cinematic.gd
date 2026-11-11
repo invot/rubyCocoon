@@ -21,6 +21,7 @@ var duration := 8.6
 ## Preview harness can hold a particular instant without changing the real timing.
 var preview_time := -1.0
 var _vp: SubViewport
+var _screen: TextureRect
 var _stage: Node3D
 var _ring: Node3D
 var _subject: Node3D
@@ -63,6 +64,7 @@ func _ready() -> void:
 	_vp.handle_input_locally = false
 	add_child(_vp)
 	var screen := TextureRect.new()
+	_screen = screen
 	screen.texture = _vp.get_texture()
 	screen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -206,7 +208,8 @@ static func stage_beast(look: Dictionary) -> Node3D:
 func _process(delta: float) -> void:
 	if _vp == null:
 		return
-	_vp.size = get_window().size
+	_vp.size = Prefs.render_size(get_window().size)
+	_screen.texture_filter = Prefs.render_filter(get_window().size)
 	if preview_time >= 0:
 		_update(preview_time)
 		return

@@ -250,9 +250,9 @@ The voxel models were all replaced by the PSX ones above and removed. They came 
   every window's, row's and item slot's border and the section divider (`assets/ui/kenney/`: panel-border-010, -008,
   -001 and divider-003, the pack's white line art). *Changes made:* none to the files; `scripts/ui/frame_box.gd` draws
   them as nine-patches over the blurred box.
-- Fonts: **League Spartan** by The League Spartan Project Authors (all interface text), from Google Fonts under the
-  SIL Open Font License (`licenses/League Spartan - OFL.txt`), unchanged;
-  **Lunchtime Doubly So** (the 3D title logo and painted signs); licence file not included, check the author's terms.
+- Fonts: **League Spartan** by The League Spartan Project Authors (interface text and painted signs), from Google
+  Fonts under the SIL Open Font License (`licenses/League Spartan - OFL.txt`), unchanged;
+  **Lunchtime Doubly So** (the original 3D intro/title logo); licence file not included, check the author's terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)
 *Pennsylvania Rose* by **Kevin MacLeod** (album *Scoring: Aspiring*, 2007, per the supplied MP3's metadata)

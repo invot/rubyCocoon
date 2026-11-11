@@ -1,8 +1,8 @@
 extends Node3D
 ## The glow a beast gathers as it casts an elemental move (beast_rig.gd cast(); beast_model.gd pose_cast() for the old
 ## models): a bright core in the element's colour swelling at its mouth, hands or horns, with sparks drawn in to it,
-## then flaring and bursting outward as it lets go. Unshaded and additive, casting no shadow, hidden between casts; a
-## beast builds its glows on its first cast and reuses them.
+## then flaring and bursting outward as it lets go. Unshaded (its halo additive), casting no shadow,
+## hidden between casts; a beast builds its glows on its first cast and reuses them.
 
 ## the core's radius at its fullest, in its parent's units (a beast's larger measure is 1)
 const CORE := 0.07
@@ -19,11 +19,12 @@ var _colour := Color.WHITE
 var _tw: Tween
 
 
-static func _material(billboard: bool) -> StandardMaterial3D:
+## (unshaded; added to what's behind it (a halo), or laid over it, so its colour still reads against a bright day)
+static func _material(billboard: bool, add := false) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if add else BaseMaterial3D.BLEND_MODE_MIX
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.vertex_color_use_as_albedo = true
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
@@ -65,7 +66,7 @@ func _ready() -> void:
 	var q := QuadMesh.new()
 	q.size = Vector2.ONE * CORE * 6.0
 	_halo.mesh = q
-	_halo_mat = _material(true)
+	_halo_mat = _material(true, true)
 	_halo.material_override = _halo_mat
 	_halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_halo)
@@ -125,7 +126,7 @@ func gather(k: float) -> void:
 func release() -> void:
 	_ready()
 	_sparks.emitting = false
-	burst(get_parent(), global_position, _colour, global_basis.get_scale().x)
+	burst(get_parent(), global_position, _colour, global_basis.get_scale().x, false, false)
 	if _tw != null:
 		_tw.kill()
 	_tw = create_tween().set_parallel()
@@ -146,16 +147,16 @@ func clear() -> void:
 
 
 ## A one-off burst of sparks in `col` at `at` (world space) under `parent`, `size` times the usual (a beast's scale):
-## a cast letting go, and an elemental hit landing (soft: rising motes for a heal or a boost).
-static func burst(parent: Node, at: Vector3, col: Color, size := 1.0, soft := false) -> void:
+## a cast letting go, and an elemental hit landing, with a flash (soft: rising motes for a heal or a boost).
+static func burst(parent: Node, at: Vector3, col: Color, size := 1.0, soft := false, flash_it := true) -> void:
 	if parent == null or not parent.is_inside_tree():
 		return
 	var p := CPUParticles3D.new()
 	var sq := QuadMesh.new()
-	sq.size = Vector2.ONE * CORE * (1.6 if soft else 1.3)
+	sq.size = Vector2.ONE * CORE * (1.6 if soft else 1.8)
 	sq.material = _material(true)
 	p.mesh = sq
-	p.amount = 18 if soft else 22
+	p.amount = 18 if soft else 28
 	p.one_shot = true
 	p.explosiveness = 0.55 if soft else 0.95
 	p.lifetime = 0.8 if soft else 0.42
@@ -186,3 +187,25 @@ static func burst(parent: Node, at: Vector3, col: Color, size := 1.0, soft := fa
 	p.scale = Vector3.ONE * size
 	p.emitting = true
 	p.get_tree().create_timer(p.lifetime + 0.3).timeout.connect(p.queue_free)
+	if soft or not flash_it:
+		return
+	# a hit: a flash swelling out from where it lands and fading
+	var flash := MeshInstance3D.new()
+	var sp := SphereMesh.new()
+	sp.radius = CORE * 3.0
+	sp.height = CORE * 6.0
+	sp.radial_segments = 16
+	sp.rings = 8
+	flash.mesh = sp
+	var fm := _material(false)
+	fm.vertex_color_use_as_albedo = false
+	fm.albedo_color = Color(col.lerp(Color.WHITE, 0.35), 0.6)
+	flash.material_override = fm
+	flash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(flash)
+	flash.global_position = at
+	flash.scale = Vector3.ONE * size * 0.25
+	var tw := flash.create_tween().set_parallel()
+	tw.tween_property(flash, "scale", Vector3.ONE * size * 0.8, 0.18).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(fm, "albedo_color:a", 0.0, 0.2).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(flash.queue_free)
