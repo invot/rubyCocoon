@@ -124,6 +124,7 @@ func run(host, args: Dictionary) -> void:
 		var guide = book.detail_box.get_child(book.detail_box.get_child_count() - 1)
 		_check((guide.find_child("ControllerArt", true, false) != null) == (Prefs.effective_input() == "controller"), "controller artwork appears only for Controller input")
 		_check(not UI.controls.legend_visible(), "book has no bottom key strip for any input")
+		_check(not _guide_text(guide).to_lower().contains("flute"), "Settings guide omits flute controls for every input")
 	Prefs.set_value("input_mode", "controller")
 	await main._wait(0.2)
 	for i in [2, 3, 4, 5]:
@@ -241,6 +242,15 @@ func _preview() -> void:
 		book.row_buttons[input_row].grab_focus()
 		await main._wait(0.2)
 		await _shot("input_" + mode)
+	if opts.get("layout_matrix", "0") == "1":
+		Prefs.input_mode = "controller"
+		for layout in ["xbox-one", "xbox-series-x", "xbox-360", "ps5", "ps4", "ps3", "switch-pro", "joy-cons", "wii-u-pro", "wii-classic", "stadia"]:
+			Controllers.layout = layout
+			Prefs.apply()
+			await main._wait(0.2)
+			book.row_buttons[input_row].grab_focus()
+			await main._wait(0.2)
+			await _shot("layout_" + layout)
 	Prefs.input_mode = "controller"
 	Prefs.apply()
 	await main._wait(0.2)
@@ -305,3 +315,10 @@ func _check(ok: bool, what: String) -> void:
 	if not ok:
 		bad += 1
 	print(("ok   " if ok else "FAIL ") + what)
+
+
+func _guide_text(node: Node) -> String:
+	var out: String = node.text if node is Label else ""
+	for child in node.get_children():
+		out += " " + _guide_text(child)
+	return out

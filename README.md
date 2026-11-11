@@ -48,7 +48,9 @@ button; **Quit to title** in Settings still returns to the title menu.
 USB and Bluetooth gamepads use Godot's automatic controller mappings, without a mapping screen. Connect or pair the
 controller with your device, then play. The last controller used supplies the left stick. The full-width Start book
 keeps two equal pages. Settings shows the matching **Controllercons duotone** illustration and fixed button guide
-on the right page, without a bottom controller window. The title screen shows no controller illustration.
+on the right page, without a bottom controller window. The controller is centred between labels above and below it,
+with leader lines ending on the mapped buttons (both d-pad and left stick for Move). Flute controls are omitted
+from this Settings guide for every input type. The title screen shows no controller illustration.
 Layouts include Xbox, PlayStation, Switch/Joy-Cons,
 Wii Classic/U Pro and Stadia layouts, with Xbox as the fallback for unidentified pads. Confirm is the bottom face button
 (Xbox A, PlayStation Cross, Nintendo B); Back/run is the right face button (B, Circle, Nintendo A).
