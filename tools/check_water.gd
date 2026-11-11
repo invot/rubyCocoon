@@ -47,6 +47,9 @@ func _initialize() -> void:
 		var pads := Shoreline.lily_pads(real)
 		if id == "riverbend":
 			check(MapGen.get_t(real, 7, 15) == MapGen.BUSH, "Riverbend's stone fence ends before the waterfall's low planted bank")
+			for x in [7, 8, 9, 10]:
+				check(is_equal_approx(Shoreline.Elev.surface(real, Vector2i(x, 15)), 1.0), "both banks enclose Riverbend's waterfall crest")
+				check(is_zero_approx(Shoreline.Elev.surface(real, Vector2i(x, 16))), "both banks reach Riverbend's waterfall foot")
 		check(real["grid"] == before, "%s: decoration leaves navigation intact" % id)
 		check(pads == Shoreline.lily_pads(real), "%s: stable clusters on reload" % id)
 		if id in ["caccoon", "tidewater", "shellhaven", "kelpwick", "route1", "route2", "reef"]:

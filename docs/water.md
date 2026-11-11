@@ -46,6 +46,8 @@ The natural fall is recessed 0.16 units from the cliff edge, with its backing ro
 Shared visual corner offsets shape both the bed and banks into the shallow channel; navigation heights stay intact.
 The outer banks remain forward of the channel and return slightly over its corners so the crest ends tuck under
 the dirt. Riverbend's left stone fence ends a tile short of the fall, with low planting keeping the cliff edge blocked.
+Both Riverbend banks retain the upper level through the crest's row and drop together at the fall, so neither
+edge of the falling sheet stands beside an early drop in the land.
 Depth reconstruction accounts for the different Vulkan/OpenGL ranges.
 Contact foam uses the opaque depth buffer: fully transparent props do not contribute an intersection.
 Fishing battles use the same shader over their sandy bed, and distant battle scenery uses a fixed depth tint where
