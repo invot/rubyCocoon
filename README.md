@@ -26,6 +26,60 @@ Here and in the rest of this README, `godot` stands for your Godot 4.7 executabl
 `Godot_v4.7-stable_win64.exe` on Windows or `Godot_v4.7-stable_linux.x86_64` on Linux, with its folder in front if
 it isn't on your PATH.
 
+## System requirements
+
+These are **provisional requirements for playing Ruby Cocoon**, not for developing it in the editor. OS and
+graphics support follow [Godot 4.7's exported-project requirements](https://docs.godotengine.org/en/4.7/about/system_requirements.html#exported-godot-project)
+and the current export settings. Hardware and free-space figures are estimates pending testing on lower-end PCs,
+Macs and Android devices; they are not a guarantee of 60 fps. Existing [performance measurements](docs/performance.md)
+come from a desktop Windows PC.
+
+### Windows
+
+| Component | Minimum (estimated) | Recommended (estimated) |
+|---|---|---|
+| OS | Windows 10, 64-bit | Windows 11, 64-bit |
+| Processor | Intel Core i3-6100 / AMD Ryzen 3 1200 or equivalent; x86-64 with SSE4.2 | Intel Core i5-8400 / AMD Ryzen 5 2600 or better |
+| Memory | 4 GB RAM | 8 GB RAM |
+| Graphics | Intel HD Graphics 620 or equivalent, with full Vulkan 1.0 support and current drivers | NVIDIA GeForce GTX 1050 / AMD Radeon RX 560 or better, with 2 GB VRAM |
+| Free storage | 1 GB | 2 GB on an SSD, including room for updates |
+| Starting settings | 720p, Graphics **Min**; try 540p if needed | 1080p, Graphics **Mid** |
+
+The downloadable Windows build is **x86-64 only**. Desktop play uses the Forward+ renderer by default.
+
+### macOS
+
+| Component | Minimum (estimated) | Recommended (estimated) |
+|---|---|---|
+| OS | macOS 13 Ventura | macOS 13 or newer |
+| Processor | Apple M1, or a quad-core Intel Core i5 with compatible graphics | Apple M2 or newer |
+| Memory | 8 GB RAM / unified memory | 16 GB unified memory |
+| Graphics | Apple M1 integrated GPU, or an Intel Mac GPU with Metal 3 support | Apple M2 integrated GPU or better |
+| Free storage | 1 GB | 2 GB on an SSD, including room for updates |
+| Starting settings | 720p, Graphics **Min** | 1080p, Graphics **Mid** |
+
+There is currently **no packaged macOS release or macOS export preset**. These estimates apply to running from
+source with Godot 4.7 (see [Running it](#running-it)); macOS compatibility and performance still need verification.
+
+### Android
+
+| Component | Minimum (estimated) | Recommended (estimated) |
+|---|---|---|
+| OS | Android 9.0 | Android 11 or newer |
+| Processor | Snapdragon 660 or equivalent, with a 64-bit ARM CPU and OS | Snapdragon 865 or better, or an equivalent chipset |
+| Memory | 4 GB RAM | 6 GB RAM or more |
+| Graphics | Adreno 512 or equivalent, with full Vulkan 1.0 support | Adreno 650 or better, with working Vulkan drivers |
+| Free storage | 1 GB | 2 GB, including room for installation and updates |
+| Starting settings | 540p, Graphics **Min** | 720p, Graphics **Mid**; try 1080p on faster devices |
+
+The APK is **ARM64 (`arm64-v8a`) only**; 32-bit Android and x86 Android devices are not included. It uses the
+Mobile renderer and landscape touch controls. Android version alone does not establish Vulkan compatibility.
+
+Change **Resolution** and **Graphics** in **Start → Settings**. The game's defaults are 1080p / Mid, so lower-end
+devices should start with the settings above. Storage estimates cover the installed game and working space,
+not the source checkout, Godot editor or asset-import cache. Browser play has separate requirements under
+[Web version](#web-version-iphone-and-any-browser).
+
 ## Controls
 
 | Action | Keyboard | Gamepad | Touch (phones and tablets) |
