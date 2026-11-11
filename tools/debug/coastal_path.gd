@@ -4,6 +4,7 @@ const MG = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const Shore = preload("res://scripts/world/shoreline.gd")
 const ML = preload("res://scripts/world/map_loader.gd")
+const VT = preload("res://scripts/gfx/voxel_textures.gd")
 var bad := 0
 
 func check(ok: bool, message: String) -> void:
@@ -19,8 +20,36 @@ func run(main, opts: Dictionary) -> void:
 	for lesson in ["screen", "turns", "slingshot", "items", "ring"]:
 		GameState.set_flag("lesson_" + lesson)
 	await main._go("route1", Vector2i(10, 9))
+	# Let the real arrival fade release input before sending the first movement press in a windowed run.
+	await main._wait(0.8)
 	var world = main.world
 	var map: Dictionary = world.map
+	var terrain = world._ground_mesh
+	var verge_ok := true
+	var pillow_ok := true
+	for z in int(map["h"]):
+		for x in int(map["w"]):
+			var i: int = x + z * int(map["w"])
+			if terrain.grassy_layer(terrain.layer[i]) and world._beach_verge(x, z):
+				verge_ok = verge_ok and VT.GROUND_LAYERS[terrain.layer[i]] == "grass"
+				if terrain.lifted[i] == 1:
+					pillow_ok = pillow_ok and is_equal_approx(terrain._vertex_y(x, z, x * 2 + 1, z * 2 + 1), Elev.surface(map, Vector2i(x, z)) + terrain.LIFT)
+	check(verge_ok, "no dark grass beside beach sand")
+	check(pillow_ok, "beach verge retains its raised grass pillow")
+	check(terrain.corners[9 + 12 * int(map["w"])] & terrain.SE != 0, "sand corner uses the same chamfer as a path")
+	var rocks_ok := true
+	for z in int(map["h"]):
+		for x in int(map["w"]):
+			if MG.get_t(map, x, z) != MG.ROCK or not world._beach_verge(x, z):
+				continue
+			var tile := Vector2i(x, z)
+			rocks_ok = rocks_ok and world._ground_tile(tile) == MG.GRASS
+			for name in world.biome["rocks"]:
+				var xf: Transform3D = world._beach_rock_transform(name, tile, 2.0, 0.7)
+				var box: AABB = xf * world.VA.aabb(name)
+				rocks_ok = rocks_ok and box.position.x > x and box.end.x < x + 1.0 and box.position.z > z and box.end.z < z + 1.0
+				rocks_ok = rocks_ok and is_equal_approx(box.position.y, world.tile_pos(tile).y - 0.025)
+	check(rocks_ok, "beach-edge rocks fit entirely on grass with grounded bases")
 	# Keep random encounters and roaming NPCs out of this navigation fixture.
 	world._wild_target = 0
 	for wild in world.wilds.duplicate():
@@ -31,6 +60,10 @@ func run(main, opts: Dictionary) -> void:
 		await main._press("move_down")
 		await main._wait(0.4)
 		check(world.player_pos == Vector2i(10, z), "grassy approach and beach reach %s" % Vector2i(10, z))
+		if z == 10:
+			await main._press("move_left")
+			await main._wait(0.4)
+			check(world.player_pos == Vector2i(10, 10), "movement cannot enter the bush beside the beach approach")
 	var depth: float = Shore.WATER_Y - world.player.position.y
 	check(depth > 0.0 and depth <= Shore.MAX_WADE_DEPTH + 0.001, "five-centimetre wading shelf")
 	await main._press("move_down")

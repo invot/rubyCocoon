@@ -128,6 +128,13 @@ static func contains(m: Dictionary, x: float, z: float) -> bool:
 static func bottom(m: Dictionary, x: float, z: float) -> float:
 	if not contains(m, x, z):
 		return 0.0
+	# The profile lowers sand and water, never the grassy verge or a rock headland inside its rectangle.
+	# Keeping dry ground at its own height preserves the same raised turf edge used beside paths.
+	if m.has("grid"):
+		var tx := clampi(floori(x), 0, int(m["w"]) - 1)
+		var tz := clampi(floori(z), 0, int(m["h"]) - 1)
+		if MapGen.get_t(m, tx, tz) not in [MapGen.SAND, MapGen.SHALLOWS, MapGen.WATER]:
+			return 0.0
 	var r: Array = m["shoreline"]
 	var wade_end := float(r[3]) - 2.5
 	if z <= wade_end:

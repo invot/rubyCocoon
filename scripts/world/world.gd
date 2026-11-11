@@ -301,6 +301,17 @@ func _shaded(x: int, y: int) -> bool:
 	return false
 
 
+## A bright lawn buffer keeps the dark woodland layer and its blending clear of beach sand.
+func _beach_verge(x: int, y: int) -> bool:
+	if not map.has("shoreline"):
+		return false
+	for dz in range(-2, 3):
+		for dx in range(-2, 3):
+			if MapGen.get_t(map, x + dx, y + dz) in [MapGen.SAND, MapGen.SHALLOWS]:
+				return true
+	return false
+
+
 ## a Temple of Tides room's water and falls (tide_water.gd), or null
 var tide: Node3D = null
 ## Tiles raised off the ground, by how much: a porch's deck or a stoop (see house_models.gd steps()), stepped up onto.
@@ -593,6 +604,8 @@ func _build_terrain() -> void:
 			# the darker grass: the tall grass, under and round the trees and hedges, and the lawn's lush patches
 			if kind == "grass" and (c in [MapGen.TALL, MapGen.TREE, MapGen.BUSH] or _shaded(x, y) or _lush(x, y)):
 				kind = "grass_dark"
+			if kind == "grass_dark" and _beach_verge(x, y):
+				kind = "grass"
 			if _sandy() and kind in VT.GRASS_LAYERS:
 				kind = "sand"
 			# The beach rectangle also spans its rocky headlands. Only low sand and sea receive the wash;
@@ -1083,6 +1096,10 @@ func _on_quay(p: Vector2i) -> bool:
 ## The ground actually drawn under a tile; planted beds retain soil/grass, even in a stone town.
 func _ground_tile(p: Vector2i) -> int:
 	var c := MapGen.get_t(map, p.x, p.y)
+	# A beach-edge rock sits in the lawn; it must not bring a separate bare rock pad into the sand transition.
+	# Its authored rock tile continues to block movement.
+	if c == MapGen.ROCK and _beach_verge(p.x, p.y) and not map.has("puzzle_area"):
+		return MapGen.GRASS
 	if c == MapGen.LEDGE:
 		return map["ledges"][p]
 	if c in [MapGen.LAMP, MapGen.SIGN]:
@@ -1137,8 +1154,37 @@ func _plants_off_paving(mesh: Mesh, placements: Array) -> Array:
 
 
 func _add_plant(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
-	if not _plant_on_paving(VA.aabb(name.trim_suffix(SHADOWLESS)), xf):
+	var asset := name.trim_suffix(SHADOWLESS)
+	var bounds := VA.aabb(asset)
+	if asset.begins_with("shrub_") or asset.begins_with("bush_"):
+		# Bushes belong to solid planted ground. A decorative bush on lawn otherwise looks solid but lets
+		# the hero walk straight through it; an overhanging hedge creates the same mismatch at a path edge.
+		xf.origin = _off_cliff_edge(xf.origin)
+		var tile := Vector2i(floori(xf.origin.x), floori(xf.origin.z))
+		if MapGen.walkable(MapGen.get_t(map, tile.x, tile.y)):
+			return
+		if _plant_on_walkable(bounds, xf):
+			# Keep the bush visible on its blocking tile, fitting its full rotated foliage inside that tile.
+			var box := xf * bounds
+			var fit := minf(1.0, 0.9 / maxf(box.size.x, box.size.z))
+			xf.basis = xf.basis.scaled(Vector3(fit, 1.0, fit))
+			box = xf * bounds
+			xf.origin.x += tile.x + 0.5 - box.get_center().x
+			xf.origin.z += tile.y + 0.5 - box.get_center().z
+		if _plant_on_walkable(bounds, xf):
+			return
+	if not _plant_on_paving(bounds, xf):
 		_add_asset(by_asset, name, xf)
+
+
+## Solid foliage must not occupy any of the traversable ground types, including unpaved grass and sand.
+func _plant_on_walkable(bounds: AABB, xf: Transform3D) -> bool:
+	var box := xf * bounds
+	for y in range(maxi(0, floori(box.position.z)), mini(map["h"], ceili(box.end.z))):
+		for x in range(maxi(0, floori(box.position.x)), mini(map["w"], ceili(box.end.x))):
+			if MapGen.walkable(MapGen.get_t(map, x, y)):
+				return true
+	return false
 
 
 func _add_asset(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
@@ -1146,6 +1192,26 @@ func _add_asset(by_asset: Dictionary, name: String, xf: Transform3D) -> void:
 		by_asset[name] = []
 	xf.origin = _off_cliff_edge(xf.origin)
 	by_asset[name].append(xf)
+
+
+## Fit a beach-edge rock wholly on its own grassy tile, and anchor its actual mesh base to the drawn ground.
+func _beach_rock_transform(name: String, tile: Vector2i, scale: float, yaw: float) -> Transform3D:
+	var bounds := VA.aabb(name)
+	var xf := _xf(tile_pos(tile), yaw, scale)
+	var box := xf * bounds
+	# A chamfered grass corner leaves the middle diamond intact; keep the complete rock inside it.
+	var cut := _ground_mesh.corners[tile.x + tile.y * int(map["w"])] != 0
+	var fit := minf(1.0, (0.45 if cut else 0.9) / maxf(box.size.x, box.size.z))
+	xf.basis = xf.basis.scaled(Vector3.ONE * fit)
+	box = xf * bounds
+	xf.origin.x += tile.x + 0.5 - box.get_center().x
+	xf.origin.z += tile.y + 0.5 - box.get_center().z
+	box = xf * bounds
+	var ground := _ground_mesh.ground_y(tile.x + 0.5, tile.y + 0.5)
+	if not is_finite(ground):
+		ground = tile_pos(tile).y
+	xf.origin.y += ground - 0.025 - box.position.y
+	return xf
 
 
 ## Something set down on a diagonal cliff's tile (elevation.gd) stands on its high half, a little back from the edge.
@@ -1400,7 +1466,9 @@ func _build_scatter() -> void:
 						var rn: String = rocks[rng.randi_range(0, rocks.size() - 1)]
 						var top := -0.035
 						var s2 := VA.fit_scale(rn, -1.0, rng.randf_range(0.88, 1.14))
-						_add_asset(by_asset, rn, _xf(center + Vector3(0, top - VA.aabb(rn).position.y * s2, 0), _voxel_rot(rng), s2))
+						var yaw := _voxel_rot(rng)
+						var xf := _beach_rock_transform(rn, Vector2i(x, y), s2, yaw) if _beach_verge(x, y) else _xf(center + Vector3(0, top - VA.aabb(rn).position.y * s2, 0), yaw, s2)
+						_add_asset(by_asset, rn, xf)
 				MapGen.GRASS:
 					if _lush(x, y) and not _sandy():
 						# a lush patch: tufts of long grass sprouting from the darker ground, lower and thinner than
@@ -1410,10 +1478,9 @@ func _build_scatter() -> void:
 					# town lawns: a patch of flowers here and there (only to look at; you can walk through them)
 					elif map["kind"] == "town" and rng.randf() < float(map.get("flower_share", 0.07)) and not _sandy():
 						flowers[rng.randi_range(0, 1)].append(_xf(center + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2)), _voxel_rot(rng), rng.randf_range(0.6, 0.9)))
-					elif rng.randf() < 0.05 and not shrubs.is_empty() and not biome.has("boulders"):
-						var sn: String = shrubs[rng.randi_range(0, shrubs.size() - 1)]
-						var s3 := VA.fit_scale(sn, rng.randf_range(0.35, 0.6))
-						_add_plant(by_asset, sn, _xf(center + Vector3(rng.randf_range(-0.3, 0.3), -VA.aabb(sn).position.y * s3, rng.randf_range(-0.3, 0.3)), _voxel_rot(rng), s3))
+					elif rng.randf() < 0.05 and not biome.has("boulders"):
+						# Open lawn gets soft grass, never a walk-through shrub.
+						tufts[2].append(_xf(center + Vector3(rng.randf_range(-0.25, 0.25), 0, rng.randf_range(-0.25, 0.25)), _voxel_rot(rng), rng.randf_range(0.5, 0.7)))
 				MapGen.FENCE:
 					fences.append(Vector2i(x, y))
 				MapGen.LAMP:

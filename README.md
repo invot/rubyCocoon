@@ -161,6 +161,7 @@ required before confronting Vexmora.
    with railings.
    A small, continuous beach below the western trail has a low grassy approach and Shellhaven's smooth sand and
    shallow-water profile, without enclosing cliff walls, sunbathers, parasols or other resort dressing.
+   It ends west of the creek; the river remains impassable until Hal's footbridge is repaired.
 7. Talk to **Neighbor Nell**, Rafe's old friend beside Bellerive's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken** and **Capture I**, briefly: a couple of lines on how the sheet works, then he plays each song once and it's your turn to play it back. His lessons (and the guided battle after them) give you 30 seconds per song.
 8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then Capture (it always joins if you play the song through).
 9. Arenas only take trainers with a flute. Each is one big room, like a Beast Center (the camera follows you round it):
@@ -489,7 +490,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   berry shrubs, and broad stone outcrops share the existing chunked scenery batches and automatic mesh LODs.
   Blocking shrubs stay low and vary in silhouette, size and rotation. Broad thickets draw as single-tile-wide
   hedge borders around their planted ground, with no filled 2x2 bush blocks; their established solid footprints
-  keep tutorial and story routes intact. Tall grass uses three solid, low-poly blade clumps from the grass pack
+  keep tutorial and story routes intact. Bushes only occupy blocked ground, and their full foliage stays clear of
+  walkable tiles; open lawns get grass tufts instead of decorative walk-through shrubs. Tall grass uses three solid, low-poly blade clumps from the grass pack
   (353, 118 and 43 triangles), replacing the fine, densely cut foliage. Rock tiles draw grounded stone meshes on
   level ground; they no longer form terrain pyramids or support balancing boulders. Movement and puzzle tiles
   retain their existing rules. Trees, bushes and grass tufts wear a painted leaf texture (`foliage.gdshader`, given
@@ -663,6 +665,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   round the trees and hedges nobody can pass, under the tall grass, and in lush patches a few tiles across
   (`world.gd` `_lush`) where low tufts of long grass sprout that you walk straight through. People and props stand
   on the pillow (`world.gd` `_grass_lift`).
+  Beach verges keep the same rounded pillow and cut corners as paths, with bright grass in a two-tile buffer
+  beside the sand; the shoreline slope only lowers sand and water, never the grassy rim.
+  Rocks along that rim stand wholly in the grass, fitted inside their blocked tile and grounded by their mesh base;
+  they do not create separate bare pads or overhang the lower sand.
 - **Cliffs** (`terrain_mesh.gd`) are simply the step between two levels of the terrain, drawn in a soft cartoon style:
   a rounded lip of the grass, sand or paving above rolls over the top, and below it the face is fluted into upright
   ribs and grooves, a little ragged, darker towards the foot and in the lip's shadow. Faces meeting at a corner share a

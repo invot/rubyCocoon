@@ -29,6 +29,18 @@ func _initialize() -> void:
 	check(is_equal_approx(t.base_lo[11], 3.0) and is_equal_approx(t.base_lo[12], 3.0), "a separate high river keeps its own level")
 	check(t._vertex_y(1, 0, 2, 1) < -0.1, "the bed below the dock is submerged")
 	_check_fall_join()
+	# A shoreline rectangle can include a grassy bank; the profile must leave that bank raised and dry.
+	var verge := MapGen._new_map("beach_verge", "route", 4, 4)
+	verge["shoreline"] = [0, 0, 4, 6]
+	MapGen.set_t(verge, 1, 1, MapGen.BUSH)
+	check(is_zero_approx(Shoreline.bottom(verge, 1.5, 1.5)), "shore profile never sinks a planted grass bank")
+	var rim := Terrain.new()
+	rim.setup(4, 4, 42, verge)
+	for z in 4:
+		for x in 4:
+			rim.set_tile(x, z, "sand", 0.0)
+	rim.set_tile(1, 1, "grass", 0.0, false, 0, true)
+	check(is_equal_approx(rim._vertex_y(1, 1, 3, 3), Terrain.LIFT), "shore profile preserves the turf pillow height")
 	var beach := {"shoreline": [23, 21, 60, 26]}
 	for x in range(23, 60):
 		var depth := Shoreline.WATER_Y - Shoreline.bottom(beach, x + 0.5, 23.5)

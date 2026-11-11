@@ -198,7 +198,9 @@ func _plane(i: int, u: float, v: float) -> float:
 func _vertex_y(tx: int, tz: int, gx: int, gz: int) -> float:
 	var own := _i(tx, tz)
 	var base := _plane(own, (gx - 2 * tx) / 2.0, (gz - 2 * tz) / 2.0)
-	if Shoreline.contains(elev_map, gx * 0.5, gz * 0.5):
+	if lifted[own] == 0 and layer[own] in [VT.GROUND_LAYERS.find("sand"), VT.GROUND_LAYERS.find("bed")] \
+			and is_zero_approx(base_lo[own]) and is_zero_approx(base_hi[own]) \
+			and Shoreline.contains(elev_map, gx * 0.5, gz * 0.5):
 		return base + Shoreline.bottom(elev_map, gx * 0.5, gz * 0.5)
 	# a ramp is one smooth slope
 	if ramp[own] != 0:
@@ -855,7 +857,7 @@ func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, faces: Array) -> Array:
 						at += 3
 					# A sandy slope needs continuous lighting as well as continuous heights.
 					# Facet normals otherwise leave straight bands through the transparent water.
-					if elev_map.has("shoreline"):
+					if elev_map.has("shoreline") and lifted[own] == 0 and layer[own] in [VT.GROUND_LAYERS.find("sand"), VT.GROUND_LAYERS.find("bed")]:
 						for k in 6:
 							var v := verts[at - 6 + k]
 							if Shoreline.contains(elev_map, v.x, v.z):
@@ -936,7 +938,8 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 		cols.append({"p": p, "foot": ft, "dir": dir, "bump": bump, "end": k == 0 or k == n - 1, "turf": turf, "cliff": at_cliff,
 			"sheet": sheet})
 	# the turf's edge over a path at its level: its muffin top (TURF), then the soil under it tucking in to the foot
-	if turf and most <= LIFT + 0.03:
+	var turf_drop := LIFT + (absf(Shoreline.WADE_FLOOR) if elev_map.has("shoreline") else 0.0) + 0.03
+	if turf and most <= turf_drop:
 		var turf_base := fv.size()
 		var prof := TURF.size() + 4
 		for c: Dictionary in cols:
