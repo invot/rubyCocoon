@@ -138,7 +138,6 @@ func _flat(parent: Node3D, x0: float, x1: float, z0: float, z1: float, y: float,
 func _fall_water(water: ShaderMaterial, opacity: float, drift: Vector2) -> ShaderMaterial:
 	var mat: ShaderMaterial = water.duplicate()
 	mat.set_shader_parameter("opacity", opacity)
-	mat.set_shader_parameter("tint", Color("#62c4ec"))
 	mat.set_shader_parameter("drift", drift)
 	return mat
 
@@ -285,7 +284,6 @@ func _build_fall(p: Vector2i, water: ShaderMaterial, on: bool) -> void:
 	column.mesh = cyl
 	var mat: ShaderMaterial = water.duplicate()
 	mat.set_shader_parameter("opacity", 0.72)
-	mat.set_shader_parameter("tint", Color("#62c4ec"))
 	column.material_override = mat
 	column.position.y = -(top - bottom) / 2.0
 	column.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

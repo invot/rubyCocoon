@@ -1423,6 +1423,9 @@ func _build_scatter() -> void:
 		_multimesh(VP.flowers(i), _plants_off_paving(VP.flowers(i), flowers[i]), null, false)
 	_shore_rocks(by_asset)
 	_cliff_rocks()
+	var pads := Shoreline.lily_pads(map)
+	if not pads.is_empty():
+		_multimesh(VP.lily_pad(), pads, null, false)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	var FenceModels = load("res://scripts/gfx/fence_models.gd")

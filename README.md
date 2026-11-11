@@ -580,7 +580,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   stay restores the party. The broad beach has striped umbrellas standing in the sand over occupied chaise lounges,
   towels, and palms spaced along the foot of the cliff, with clear aisles and both beach ramps retained. The island's towns, trail and reef share dense tropical palms.
   Shellhaven's marina sits entirely west of the town and beach, reached by the original western pier, with
-  three long berth fingers and an open, dock-free beachfront. Captain Gull uses the same ferry as Bellerive; private berths hold a white flybridge motor yacht,
+  three long berth fingers and an open, dock-free beachfront. Two-tile stone walks connect the marina landing
+  to the high street and square, with branches down both beach ramps onto the sand. Captain Gull uses the same ferry as Bellerive; private berths hold a white flybridge motor yacht,
   a varnished pleasure launch and a furled-sail yacht, with water separating their hulls from the walking decks.
   The beach slopes smoothly into clear shallows, with soft wave crests washing toward the sand. Trainers can
   walk one tile into water no more than 5 cm (about two inches) deep, with light pitter-patter footsteps;
@@ -704,14 +705,18 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Readable wooden notice boards carry three rows of dark mock lettering, raised just off the wood so it stays
     visible from the gameplay camera. Interacting with a board still opens its full text.
 - The terrain is a textured height field with softly blended ground layers. Water has transparent sand/rock shallows,
-  turquoise-to-blue depth colour, continuous small swells, moving underwater light patterns and foam at mesh
-  intersections. Beaches have a gently curved sandy profile and washing crests; a few native rocks sit beyond the
+  turquoise-to-blue depth colour, continuous small swells, a faint honeycomb of light that slowly reshapes and drifts
+  with the flow, and foam at mesh intersections. Beaches have a gently curved sandy profile and washing crests;
+  a few native rocks sit beyond the
   walkable wading row. Open water's bed slopes deeper offshore, while water beneath raised docks stays at the
   surrounding sea or river level. Water against a cliff is deep from the cliff's foot (only beaches and banks at the
   water's level count as shore), and a few rocks in the cliff's stone and colour stand in it (`world.gd`
   `_cliff_rocks`), never beside a bridge, dock, ford or boat. The shared `water.gdshader` uses one depth-texture sample and works in Forward+,
-  Mobile and Compatibility; it retains the existing animated lava and falling-water sheets. See
+  Mobile and Compatibility; waterfalls share its palette and depth-based transparency, with subtle vertical flow lines,
+  while lava keeps its animated texture. See
   [water rendering and previews](docs/water.md) for tuning and verification commands.
+  Small notched lily pads float in sparse clusters along grassy freshwater banks, clear of crossings and fishing
+  spots. They never appear in coastal regions or near sandy beaches or wading shelves.
 - Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
@@ -1036,6 +1041,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   an existing fixture's `id`: saves use `weapon_<map>_<id>` and a separate `_chest` flag. Keep rewards off the story route.
   Leave at least **12 tiles** between different fixtures' interaction areas (targets, barriers, rewards and firing
   tiles); the map checker enforces this spacing in both locked and solved layouts.
+- **Signs** (`+`) belong on verges beside paths, never on paths, paved walking lanes, bridges or door approaches. Keep them readable and reachable from adjacent level ground. The map checker checks their inferred ground and interaction approach.
 - **Obstacles** use `w j d o y l i | x m`, plus `n` (a washed-out footbridge, mended with the logs stacked by Old Hal's door) and `k` (a cliff that needs a winged beast).
 - `a` is walkable shallow water. A map's `shoreline: [west_x, slope_start_z, east_x, offshore_end_z]` supplies
   the smooth sandy profile shared by terrain, character grounding and touch picking; only the authored shallow

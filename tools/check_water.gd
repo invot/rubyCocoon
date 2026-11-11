@@ -3,6 +3,7 @@ extends SceneTree
 const Terrain = preload("res://scripts/world/terrain_mesh.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Shoreline = preload("res://scripts/world/shoreline.gd")
+const MapLoader = preload("res://scripts/world/map_loader.gd")
 var bad := 0
 
 func _initialize() -> void:
@@ -37,6 +38,26 @@ func _initialize() -> void:
 			var y := Shoreline.bottom(beach, x + 0.5, z)
 			check(y <= last + 0.001, "the beach slopes continuously out to sea")
 			last = y
+	# Audit actual authored maps: freshwater decoration must never spread onto beaches or change gameplay tiles.
+	var pad_count := 0
+	for id in MapGen.WorldDB.TOWNS.keys() + MapGen.WorldDB.ROUTES.keys():
+		var real := MapLoader.load_map(id, {})
+		var before = real["grid"].duplicate()
+		var pads := Shoreline.lily_pads(real)
+		check(real["grid"] == before, "%s: decoration leaves navigation intact" % id)
+		check(pads == Shoreline.lily_pads(real), "%s: stable clusters on reload" % id)
+		if id in ["caccoon", "tidewater", "shellhaven", "kelpwick", "route1", "route2", "reef"]:
+			check(pads.is_empty(), "%s: no lily pads in coastal water" % id)
+		pad_count += pads.size()
+		for xf: Transform3D in pads:
+			var tile := Vector2i(floori(xf.origin.x), floori(xf.origin.z))
+			check(MapGen.get_t(real, tile.x, tile.y) == MapGen.WATER, "%s: pads stay on blocked water" % id)
+			for dz in range(-2, 3):
+				for dx in range(-2, 3):
+					check(MapGen.get_t(real, tile.x + dx, tile.y + dz) not in [MapGen.SAND, MapGen.SHALLOWS], "%s: no pads near beaches" % id)
+		if not pads.is_empty():
+			print("LILY PADS %s: %d, first=%s" % [id, pads.size(), pads[0].origin])
+	check(pad_count > 0, "freshwater maps have lily pad clusters")
 	print("WATER CHECK DONE: %d problem(s)" % bad)
 	quit(1 if bad > 0 else 0)
 

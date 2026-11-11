@@ -23,6 +23,21 @@ func run(main, opts: Dictionary) -> void:
 			open_beach = open_beach and MG.get_t(main.world.map, x, y) in [MG.WATER, MG.SHALLOWS]
 	check(open_beach, "beach opens directly onto the sea with no docks in front")
 	check(MG.get_t(main.world.map, 3, 17) == MG.WATER and MG.get_t(main.world.map, 3, 21) == MG.WATER, "middle pier has no hook around the large yacht")
+	# Walk the paved town route, including both sides of each two-tile ramp after scenery is placed.
+	for x in [28, 29]:
+		for tile in [Vector2i(x, 7), Vector2i(x, 12), Vector2i(21, 12), Vector2i(x, 12), Vector2i(x, 18)]:
+			await main._walk_test([tile])
+			check(main.world.player_pos == tile, "high street, marina and western beach route reaches %s" % tile)
+	for x in [45, 46]:
+		for tile in [Vector2i(28, 12), Vector2i(x, 12), Vector2i(x, 18)]:
+			await main._walk_test([tile])
+			check(main.world.player_pos == tile, "square and eastern beach route reaches %s" % tile)
+	for x in [28, 29, 45, 46]:
+		await main._walk_test([Vector2i(x, 14)])
+		for y in range(15, 19):
+			await main._press("move_down")
+			await main._wait(0.4)
+			check(main.world.player_pos == Vector2i(x, y), "straight beach ramp input reaches (%d, %d)" % [x, y])
 	for tile in [Vector2i(44, 14), Vector2i(28, 12), Vector2i(21, 12), Vector2i(18, 24), Vector2i(4, 24), Vector2i(18, 24), Vector2i(18, 16), Vector2i(3, 16), Vector2i(18, 16), Vector2i(18, 8), Vector2i(8, 8)]:
 		await main._walk_test([tile])
 		check(main.world.player_pos == tile, "marina walkway reaches %s" % tile)

@@ -5,6 +5,16 @@ into the biome's blue, small crossing swells, finer surface ripples, moving caus
 travels towards the sand. Rocks that break the surface get a foam edge; fully submerged rocks remain visible without
 a surface foam ring. These are visual waves, not a fluid or buoyancy simulation.
 
+The light pattern is a faint, connected honeycomb of large irregular cells, rather than separate white strokes.
+Its edges gently reshape and drift with `drift` (world units per second): downstream along the north-to-south rivers,
+and north towards the sand at the south-facing beach. Both deformation and travel are deliberately slow.
+The cell network is analytic and antialiased, with a soft halo; it shares the existing depth lookup.
+
+Freshwater biomes (river, jungle and moor) allow sparse clusters of rounded, notched lily pads on level grassy banks.
+Coastal regions, sand and wading shelves are excluded, as are crossings, dock edges, fishing spots and nearby boats.
+The leaves reuse the cached prop mesh and chunked scenery batches, cast no shadows, and ride the same shader swells
+as the water. They add no collision or CPU animation and never change navigation, elevations or saves.
+
 `scripts/world/terrain_mesh.gd` deepens open-water beds according to distance from land. Narrow streams stay shallow.
 It continues the adjacent water level beneath raised bridges, docks and over-water buildings, copying the elevation
 arrays so movement heights stay intact. A backdrop plane sits below the deepest bed instead of clipping through it.
@@ -22,10 +32,13 @@ existing scenery pack and batches, stand beyond the wading row and cast no extra
 - `opacity`: maximum opacity, 0.96 outdoors; shallow-water opacity comes from actual depth.
 - `absorption_strength`: default 1.35; battle scenery uses 2.7 to keep its shallow sandy stage blue from above.
 - `shore` / `shore_levels`: supplied from the map's existing shoreline rectangle and shared shoreline constants.
+- `drift`: the horizontal light pattern's flow direction and speed (normally 0.03 world units per second).
 
 No new textures or third-party code are required. Horizontal water uses one depth lookup and analytic animation,
 with no screen-colour/refraction copy, extra camera, compute simulation or per-frame CPU updates. Existing texture
-frames still animate waterfalls and lava. Depth reconstruction accounts for the different Vulkan/OpenGL ranges.
+frames still animate lava. Waterfalls use the same palette and depth-based opacity as horizontal water,
+with subtle vertical stream lines pulsing downward instead of honeycomb cells. Temple falls inherit their pool's tint.
+Depth reconstruction accounts for the different Vulkan/OpenGL ranges.
 Contact foam uses the opaque depth buffer: fully transparent props do not contribute an intersection.
 Fishing battles use the same shader over their sandy bed, and distant battle scenery uses a fixed depth tint where
 there is no modelled bed. Both battle water meshes have one-unit subdivisions for the small swells.
@@ -64,3 +77,8 @@ Add `--hold=1` after `--` to keep the window open. For other views, use `--scene
 for the harbour, `--scene=world:reef#0` for the temple pool, or the ordinary screenshot harness's
 `--scene=battle --kind=fishing` for a reeled-in encounter. A desktop run with the Mobile renderer
 checks that renderer's appearance; it does not establish performance on an actual phone.
+
+For a lily-pad view through the real gameplay camera, use the windowed preview with
+`--scene=world:riverbend --lilies=1 --quit=0 --shot=res://build/shots/water/lilies.png`.
+The focused water check also audits every outdoor map for deterministic placement, unchanged navigation tiles,
+and the exclusion of coastal water, beaches and wading shelves.

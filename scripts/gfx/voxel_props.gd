@@ -57,6 +57,46 @@ static func _cards(img: Image, planes: int, w: float, h: float, tint := Color.WH
 
 
 # ---------------------------------------------------------------- plants
+## A softly domed floating leaf: rounded rim, open notch and quiet painted veins, all one cached mesh.
+static func lily_pad() -> ArrayMesh:
+	return _cached("lily_pad", func():
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var centre := Vector3(0.035, 0.038, 0.0)
+		var leaf := Color("#6b963f")
+		var rim := Color("#4e7838")
+		var points: Array[Vector3] = []
+		for i in 41:
+			var angle := lerpf(0.24, TAU - 0.24, float(i) / 40.0)
+			var radius := 0.45 * (1.0 + 0.025 * sin(angle * 3.0))
+			points.append(Vector3(cos(angle) * radius, 0.012, sin(angle) * radius * 0.92))
+		var triangle := func(a: Vector3, b: Vector3, c: Vector3, ca: Color, cb: Color, cc: Color):
+			for v in [[a, ca], [b, cb], [c, cc]]:
+				st.set_normal(Vector3.UP)
+				st.set_color((v[1] as Color).srgb_to_linear())
+				st.add_vertex(v[0])
+		for i in 40:
+			var a := points[i]
+			var b := points[i + 1]
+			triangle.call(centre, a, b, leaf.lightened(0.12), leaf, leaf)
+			triangle.call(a, a - Vector3.UP * 0.022, b, rim, rim, rim)
+			triangle.call(b, a - Vector3.UP * 0.022, b - Vector3.UP * 0.022, rim, rim, rim)
+		for end in [points[0], points[-1]]:
+			triangle.call(centre, end, end - Vector3.UP * 0.022, rim, rim, rim)
+			triangle.call(centre, end - Vector3.UP * 0.022, centre - Vector3.UP * 0.022, rim, rim, rim)
+		for angle in [0.65, 1.7, 2.8, 3.9, 5.1, 5.65]:
+			var along := Vector3(cos(angle), 0.0, sin(angle) * 0.92)
+			var across := Vector3(-sin(angle), 0.0, cos(angle)) * 0.004
+			var start := centre + along * 0.03 + Vector3.UP * 0.006
+			var tip := centre.lerp(Vector3(along.x * 0.45, 0.012, along.z * 0.45), 0.82) + Vector3.UP * 0.006
+			triangle.call(start - across, start + across, tip, leaf.lightened(0.18), leaf.lightened(0.18), leaf.lightened(0.05))
+		var mesh := st.commit()
+		var mat := ShaderMaterial.new()
+		mat.shader = preload("res://scripts/gfx/lily_pad.gdshader")
+		mesh.surface_set_material(0, mat)
+		return mesh)
+
+
 static func grass_tuft(base_hex: String, variant: int) -> ArrayMesh:
 	return _cached("tuft:%s:%d" % [base_hex, variant], func():
 		var base := Color(base_hex)

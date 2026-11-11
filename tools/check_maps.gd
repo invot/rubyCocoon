@@ -69,6 +69,17 @@ func _check(m: Dictionary) -> Array:
 	var start: Vector2i = m["spawns"].get("start", m["spawns"].values()[0])
 	var seen := _flood(m, start)
 	problems.append_array(_weapon_check(m, start))
+	for p in m.get("signs", {}):
+		# Gate descriptions share this dictionary; only signposts occupy a sign tile.
+		if MapGen.get_t(m, p.x, p.y) != MapGen.SIGN:
+			continue
+		if MapLoader._infer_floor(m, p) in ROADS:
+			problems.append("sign at %s stands on a path; move it onto a verge" % p)
+		if not _beside(m, seen, p):
+			problems.append("sign at %s has no reachable level approach" % p)
+		for b in m["buildings"]:
+			if p == b["door"] + Vector2i.DOWN:
+				problems.append("sign at %s blocks the door of %s" % [p, b["name"]])
 	if m["kind"] == "interior":
 		for door in m.get("front_doors", []):
 			if door.x != 0 and door.x != int(m["w"]) - 1:

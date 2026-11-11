@@ -18,6 +18,22 @@ func _run() -> void:
 			quit(1)
 			return
 	await create_timer(3.0).timeout
+	if game._test.get("lilies", "0") == "1":
+		var pads := preload("res://scripts/world/shoreline.gd").lily_pads(game.world.map)
+		if pads.is_empty():
+			push_error("Water preview found no lily pads")
+			quit(1)
+			return
+		var at: Vector3 = pads[0].origin
+		var tile := Vector2i(floori(at.x), floori(at.z))
+		for offset in [Vector2i(0, 2), Vector2i(-1, 2), Vector2i(1, 2), Vector2i(-2, 1), Vector2i(2, 1)]:
+			if game.world._walkable(tile + offset):
+				game.world.spawn_at(tile + offset, Vector2i.UP)
+				game.world.frozen = true
+				break
+		await create_timer(0.5).timeout
+		if game._test.has("shot"):
+			game._save_shot(String(game._test["shot"]))
 	var frames: Array[float] = []
 	var last := Time.get_ticks_usec()
 	for i in 180:

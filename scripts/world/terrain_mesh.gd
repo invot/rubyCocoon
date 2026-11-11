@@ -584,13 +584,15 @@ func _place(parent: Node3D, mesh: ArrayMesh, mat: Material) -> void:
 
 
 ## A triangle list as a mesh. Much quicker than SurfaceTool, one vertex at a time, for a whole map's ground.
-static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, colors := PackedColorArray()) -> ArrayMesh:
+static func _triangles(verts: PackedVector3Array, normals: PackedVector3Array, colors := PackedColorArray(), uvs := PackedVector2Array()) -> ArrayMesh:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	if not colors.is_empty():
 		arrays[Mesh.ARRAY_COLOR] = colors
+	if not uvs.is_empty():
+		arrays[Mesh.ARRAY_TEX_UV] = uvs
 	var m := ArrayMesh.new()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return m
@@ -623,13 +625,15 @@ func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 				var e := _side(tx + 1, tz, Vector2i.LEFT)
 				var flat := walls or _wet(tx, tz, Vector2i.RIGHT) and _wet(tx + 1, tz, Vector2i.LEFT)
 				_side_faces(found, [g[2], g[5], g[8]], [e[0], e[3], e[6]], Vector3(1, 0, 0), flat,
-					_side_info(tx, tz, Vector2i.RIGHT, [NE, SE]), _side_info(tx + 1, tz, Vector2i.LEFT, [NW, SW]))
+					_side_info(tx, tz, Vector2i.RIGHT, [NE, SE]), _side_info(tx + 1, tz, Vector2i.LEFT, [NW, SW]),
+					code == 0 and _diag(tx + 1, tz) == 0 and liquid[_i(tx, tz)] == 1 and liquid[_i(tx + 1, tz)] == 1)
 			if tz + 1 < z_end:
 				var g2 := _side(tx, tz, Vector2i.DOWN)
 				var s := _side(tx, tz + 1, Vector2i.UP)
 				var flat2 := walls or _wet(tx, tz, Vector2i.DOWN) and _wet(tx, tz + 1, Vector2i.UP)
 				_side_faces(found, [g2[6], g2[7], g2[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2,
-					_side_info(tx, tz, Vector2i.DOWN, [SW, SE]), _side_info(tx, tz + 1, Vector2i.UP, [NW, NE]))
+					_side_info(tx, tz, Vector2i.DOWN, [SW, SE]), _side_info(tx, tz + 1, Vector2i.UP, [NW, NE]),
+					code == 0 and _diag(tx, tz + 1) == 0 and liquid[_i(tx, tz)] == 1 and liquid[_i(tx, tz + 1)] == 1)
 			# the chamfers of cut and filled corners: the turf's edge runs from the middle of one side to the other's
 			if code == 0 and tx >= 0 and tz >= 0 and tx < w and tz < h and corners[tx + tz * w] != 0:
 				var i := tx + tz * w
@@ -689,16 +693,20 @@ func _side_info(tx: int, tz: int, d: Vector2i, bits: Array) -> Array:
 
 ## The faces along one side between two tiles: one for the whole side where neither tile's corners there are cut or
 ## filled, else one for each half of it whose ground parts (ga, ea: the two sides' three points along it).
-func _side_faces(found: Array, ga: Array, ea: Array, toward: Vector3, flat: bool, ia: Array, ib: Array) -> void:
+func _side_faces(found: Array, ga: Array, ea: Array, toward: Vector3, flat: bool, ia: Array, ib: Array, waterfall := false) -> void:
 	if not (ia[0]["cut"] or ia[1]["cut"] or ib[0]["cut"] or ib[1]["cut"]):
 		if _edges_part(ga[0], ga[1], ga[2], ea[0], ea[1], ea[2]):
-			found.append(_segment(ga, ea, toward, flat, ia[0]["turf"], ib[0]["turf"]))
+			var face := _segment(ga, ea, toward, flat, ia[0]["turf"], ib[0]["turf"])
+			face["waterfall"] = waterfall
+			found.append(face)
 		return
 	for hf in 2:
 		var a := _half_pts(ga, hf, ia[hf])
 		var b := _half_pts(ea, hf, ib[hf])
 		if _edges_part(a[0], a[1], a[2], b[0], b[1], b[2]):
-			found.append(_segment(a, b, toward, flat, ia[hf]["turf"], ib[hf]["turf"]))
+			var face := _segment(a, b, toward, flat, ia[hf]["turf"], ib[hf]["turf"])
+			face["waterfall"] = waterfall
+			found.append(face)
 
 
 ## Half `hf` of a side's three points as three of its own (at a cut or filled corner, at the corner triangle's height).
@@ -938,7 +946,7 @@ func _face(fv: PackedVector3Array, fn: PackedVector3Array, fc: PackedColorArray,
 			var pt := _rock_point(c, r, rows, lk) if not flat else Vector3(c["p"].x, lerpf(c["p"].y, c["foot"], float(r) / rows), c["p"].z)
 			fv.append(pt)
 			fn.append(out)
-			fc.append(Color(float(r) / rows, 0.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
+			fc.append(Color(float(r) / rows, 0.08 if f.get("waterfall", false) else 0.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
 			fu.append(Vector2(c["p"].x * along.x + c["p"].z * along.y, c["p"].y - pt.y))
 	_grid_tris(fi, base, n, rows + 1, fv, out)
 	# smooth normals across the rock, from its neighbours in the grid, so the flutes look rounded
@@ -1045,6 +1053,9 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
 	normals.fill(Vector3.UP)
+	var uvs := PackedVector2Array()
+	uvs.resize(verts.size())
+	uvs.fill(Vector2.ZERO)
 	# waterfalls: where the surface steps down to the next tile's, a sheet of it falls from one to the other, just out
 	# from the rock behind
 	for tz in range(-MARGIN, h + MARGIN):
@@ -1063,15 +1074,26 @@ func _liquid_mesh(kind: int) -> ArrayMesh:
 				var out := Vector3(d.x, 0, d.y) * (1.0 if ya > yb else -1.0)
 				var e0 := Vector3(tx + 1, 0, tz) if d.x == 1 else Vector3(tx, 0, tz + 1)
 				var e1 := Vector3(tx + 1, 0, tz + 1)
+				var bank0 := e0
+				var bank1 := e1
 				e0 += out * 0.04
 				e1 += out * 0.04
 				var top := maxf(ya, yb)
 				var foot := minf(ya, yb)
 				var q := [e0 + Vector3(0, top, 0), e1 + Vector3(0, top, 0), e1 + Vector3(0, foot, 0), e0 + Vector3(0, foot, 0)]
 				verts.append_array([q[0], q[1], q[2], q[0], q[2], q[3]])
+				uvs.append_array([Vector2(1, 0), Vector2(1, 0), Vector2(1, top - foot), Vector2(1, 0), Vector2(1, top - foot), Vector2(1, top - foot)])
 				for k in 6:
 					normals.append(out)
-	return _triangles(verts, normals)
+				if kind == 1:
+					# Close the 4 cm stand-off from the rock with a crest lip. All three faces share the swell.
+					var a := bank0 + Vector3.UP * top
+					var b := bank1 + Vector3.UP * top
+					verts.append_array([a, b, q[1], a, q[1], q[0]])
+					for k in 6:
+						normals.append(Vector3.UP)
+						uvs.append(Vector2(1, 0))
+	return _triangles(verts, normals, PackedColorArray(), uvs)
 
 
 func _liquid(parent: Node3D, mesh: ArrayMesh, kind: int, col: Color) -> void:
@@ -1086,8 +1108,12 @@ func _liquid(parent: Node3D, mesh: ArrayMesh, kind: int, col: Color) -> void:
 	mat.set_shader_parameter("tint", col)
 	mat.set_shader_parameter("opacity", 1.0 if lava else 0.96)
 	mat.set_shader_parameter("glow", 1.4 if lava else 0.0)
+	mat.set_shader_parameter("fall_swell", not lava)
+	mat.set_shader_parameter("fall_rim", not lava)
 	mat.set_shader_parameter("drift", Vector2(0.01, 0.02) if lava else Vector2(0.0, 0.03))
 	if not lava and elev_map.has("shoreline"):
+		# This beach faces south: the wash and its quiet light pattern travel north towards the sand.
+		mat.set_shader_parameter("drift", Vector2(0.0, -0.03))
 		var r: Array = elev_map["shoreline"]
 		mat.set_shader_parameter("shore", Vector4(r[0], r[1], r[2], r[3]))
 		mat.set_shader_parameter("shore_levels", Vector3(Shoreline.WATER_Y, Shoreline.WADE_FLOOR, Shoreline.DEEP_FLOOR))
