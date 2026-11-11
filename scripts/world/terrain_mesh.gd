@@ -320,12 +320,16 @@ func _prepare_halves() -> void:
 				var a := _i(x + s[0].x, z + s[0].y)
 				var b := _i(x + s[1].x, z + s[1].y)
 				var half := {"level": base_hi[i] if k == 0 else base_lo[i], "layer": layer[i], "liquid": liquid[i],
-					"top": _top(i) if liquid[i] != 0 else 0.0, "lifted": 1 if lifted[a] == 1 and lifted[b] == 1 else 0}
+					"top": _top(i) if liquid[i] != 0 else 0.0, "lifted": 0}
 				if layer[a] == layer[b]:
 					half["layer"] = layer[a]
 				if liquid[a] == liquid[b] and liquid[a] != liquid[i]:
 					half["liquid"] = liquid[a]
 					half["top"] = maxf(_top(a), _top(b)) if liquid[a] != 0 else 0.0
+				# Match the resolved surface, not the neighbours' whole-tile lift flags: diagonals have no
+				# whole-tile lift, and a grass/path junction can still leave this half covered in grass.
+				# Both levels need their pillow, including the triangle tucked into the cliff's foot.
+				half["lifted"] = 1 if grassy_layer(int(half["layer"])) and half["liquid"] == 0 else 0
 				pair.append(half)
 			halves[i] = pair
 
@@ -634,7 +638,8 @@ func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 				var lg := _half_grid(tx, tz, 1)
 				var hs := Elev.high_spot(code) - Vector2(0.5, 0.5)
 				found.append(_segment([hg[line[0]], hg[line[1]], hg[line[2]]], [lg[line[0]], lg[line[1]], lg[line[2]]],
-					-Vector3(hs.x, 0, hs.y).normalized(), false))
+					-Vector3(hs.x, 0, hs.y).normalized(), false,
+					grassy_layer(int(halves[_i(tx, tz)][0]["layer"])), grassy_layer(int(halves[_i(tx, tz)][1]["layer"]))))
 			# east side: this tile's right column against the next tile's left one; south side: bottom row against top
 			# (under a waterfall the rock stays smooth, behind the falling water)
 			if tx + 1 < x_end:

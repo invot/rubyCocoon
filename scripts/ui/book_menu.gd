@@ -959,8 +959,8 @@ func _item_detail(c: VBoxContainer, id: String) -> void:
 			how = "Bait on your hook: %s." % (ItemDB.item_name(GameState.bait) if GameState.bait != "" else "none")
 	if it.has("weapon"):
 		var most := BeatChain.max_hits(GameState.trainer_level)
-		how = "Pick it on your own turn in battle. " + ("Press A on the beat: up to %d hits." % most if most > 0
-			else "From trainer Lv %d you'll land more hits in time with the music." % BeatChain.UNLOCK_LEVEL)
+		how = "Pick it on your own turn in battle. " + ("Press A on the beat: up to %d hits." % most if most > 0 and GameState.flag("dance_lesson_done")
+			else "Learn rhythm attacks at Dustwell Oasis's dance studio from trainer Lv %d." % BeatChain.UNLOCK_LEVEL)
 	if it.get("battle_only", false):
 		how = "Use it on your own turn in battle."
 	c.add_child(_t_label(how, UIKit.ACCENT))

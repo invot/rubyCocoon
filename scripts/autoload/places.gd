@@ -55,7 +55,7 @@ func open(b: Dictionary, world) -> void:
 	var town: String = b.get("town", world.map_id)
 	var tier := _tier(town)
 	var shop: String = b["shop"]
-	if b.get("hotel", false):
+	if b.get("hotel", false) or b.get("public", false):
 		if await Story.ask("Stay the night for 150 gold?", "Hotel Mariposa"):
 			if GameState.gold < 150:
 				await Story.say(["A suite costs 150 gold. The Beast Center is always happy to help travelers too."])

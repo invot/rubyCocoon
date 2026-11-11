@@ -667,10 +667,12 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   on the pillow (`world.gd` `_grass_lift`).
   Beach verges keep the same rounded pillow and cut corners as paths, with bright grass in a two-tile buffer
   beside the sand; the shoreline slope only lowers sand and water, never the grassy rim.
+  Each grass-covered half of a diagonal cliff keeps the same pillow height as the adjoining lawn, above and
+  below the cliff, including where another diagonal or a path meets it.
   Rocks along that rim stand wholly in the grass, fitted inside their blocked tile and grounded by their mesh base;
   they do not create separate bare pads or overhang the lower sand.
 - **Cliffs** (`terrain_mesh.gd`) are simply the step between two levels of the terrain, drawn in a soft cartoon style:
-  a rounded lip of the grass, sand or paving above rolls over the top, and below it the face is fluted into upright
+  a rounded lip of the grass above rolls over the top, and below it the face is fluted into upright
   ribs and grooves, a little ragged, darker towards the foot and in the lip's shadow. Faces meeting at a corner share a
   mitred edge, so straight runs, diagonals and corners join without seams. Each biome has its own rock
   (`WorldDB.CLIFF_LOOKS`): warm orange-tan fluted rock on the coast, rivers and islands (mossy in the jungle and on
@@ -1250,6 +1252,8 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `ring-start` / `ring-start-touch`: starting-side arrows and the two-line heading, empty-side skipping in both directions, occupied corners and fainted beasts, focus/gamepad/tap input, empty/full parties, scrolling, isolated save compatibility and persistence across battle completion. `--battle=1` also opens a real battle on the chosen side. `--scene=ring-start --matrix=1 --shots=res://build/shots/ring_start --save_dir=res://build/ring_start_preview/` checks runtime changes through all four gems and captures each combination; add `--touch` for the phone layout.
 - `check_nature.gd` (`bash tools/run_tests.sh nature`): single-tile hedge borders on every outdoor map, unchanged
   planted-ground collision, and the solid-blade grass meshes' triangle budgets.
+- `check_terrain.gd` (`bash tools/run_tests.sh terrain`): raised grass on both halves of all four diagonal cliff
+  directions, lawn joins beside paths and other diagonals, and surface-appropriate lips for grass, sand, path and beds.
 - `check_data.gd`: everything the data names exists: the beasts (race ids) on routes, maps, trainers, leaders,
   coaches, temples, fishing pools and eggs; songs, moves, shop items and summon models; and everyone on every map,
   and the hero in every outfit and hairdo (and the pack, in the colour chosen), can be dressed.

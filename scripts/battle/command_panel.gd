@@ -32,6 +32,7 @@ var targets_for: Callable
 var hooks: Dictionary = {}
 var _accept_frame := -1
 var _tapped_ref = null
+var _teaching := false
 
 
 func setup(_rows: Array, _info: Dictionary, _focus: int, _targets_for: Callable, _hooks: Dictionary) -> Control:
@@ -130,7 +131,7 @@ func _row_enabled(i: int) -> bool:
 
 # ---------------------------------------------------------------- input
 func on_input(ev: InputEvent) -> void:
-	if ev.is_echo() and not (ev.is_action("ui_left") or ev.is_action("ui_right")):
+	if _teaching or (ev.is_echo() and not (ev.is_action("ui_left") or ev.is_action("ui_right"))):
 		return
 	if not ev.is_pressed():
 		return
@@ -281,7 +282,12 @@ func _rotate(dir: int) -> void:
 
 
 func _confirm() -> void:
+	if _teaching:
+		return
 	var row: Dictionary = rows[focus]
+	if info.get("rotation_lesson", false) and focus > 0:
+		_hint("Try turning the ring first: up past the top beast, or down past the bottom. You can tap the ▲ / ▼ too.")
+		return
 	if not _row_enabled(focus):
 		return
 	if row.get("status", "") != "" or row.get("locked", false):
@@ -298,6 +304,12 @@ func _confirm() -> void:
 		Sfx.play("confirm")
 		_advance()
 		return
+	if hooks.has("teach"):
+		_teaching = true
+		await (hooks["teach"] as Callable).call(o)
+		_teaching = false
+		if closed:
+			return
 	if o.get("sub", false):
 		Sfx.play("confirm")
 		close({"kind": "sub", "row": focus, "focus": focus})

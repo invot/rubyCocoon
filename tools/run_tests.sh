@@ -45,6 +45,7 @@ TESTS=(
 	"data|--script res://tools/check_data.gd|DATA CHECK DONE: 0 problem"
 	"audio|--script res://tools/check_audio.gd|AUDIO CHECK DONE: 0 problem"
 	"maps|--script res://tools/check_maps.gd|MAPS WITH PROBLEMS: 0"
+	"terrain|--script res://tools/check_terrain.gd|TERRAIN CHECK DONE: 0 problem"
 	"beasts|--script res://tools/check_beasts.gd|BEASTS CHECK DONE: 0 problem"
 	"beast-growth|-- --scene=growth --save_dir=res://build/growth_test_saves/|BEAST GROWTH DONE: 0 problem"
 	"nature|--script res://tools/check_nature.gd|HEDGE/GRASS CHECK DONE: 0 problem"

@@ -41,7 +41,7 @@ static func level_line(before: int, after: int) -> String:
 	if now <= was:
 		return ""
 	if was == 0:
-		return "Your aim's sharper now! In battle, pick a weapon and press A on the beat to land up to %d hits in a row." % now
+		return "Trainer Lv 4! You're ready for rhythm lessons at Dustwell Oasis's dance studio."
 	return "Your weapons now land up to %d hits on the beat." % now
 
 

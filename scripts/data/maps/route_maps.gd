@@ -88,10 +88,10 @@ const MAPS := {
 			"Creek Footbridge ahead, on the road to Bellerive. Builder's cabin by the creek.",
 		],
 		"weapon_obstacles": [
-			{"id": "glade_stump", "type": "stump", "targets": [Vector2i(50, 4)], "use_from": Vector2i(50, 5),
+			{"id": "glade_stump", "type": "stump", "targets": [Vector2i(50, 4)], "use_from": Vector2i(50, 5), "coach_pos": Vector2i(51, 5),
 				"blocks": [Vector2i(50, 4)], "reward": {"pos": Vector2i(50, 3), "item": "revival_seed"}},
 			{"id": "creek_switches", "type": "switches", "targets": [Vector2i(11, 5), Vector2i(12, 5), Vector2i(13, 5)],
-				"use_from": Vector2i(10, 5), "effect": "chest", "reward": {"pos": Vector2i(11, 7), "item": "spirit_drop"}},
+				"use_from": Vector2i(10, 5), "coach_pos": Vector2i(10, 6), "effect": "chest", "reward": {"pos": Vector2i(11, 7), "item": "spirit_drop"}},
 		],
 	},
 	"route2": {
@@ -146,7 +146,7 @@ const MAPS := {
 			"Thorny brambles choke the trail. A beast that breathes fire, or one quick enough to slice the wind, could clear them.",
 		],
 		"weapon_obstacles": [
-			{"id": "ledge_bell", "type": "bell", "targets": [Vector2i(9, 3)], "use_from": Vector2i(9, 6),
+			{"id": "ledge_bell", "type": "bell", "targets": [Vector2i(9, 3)], "use_from": Vector2i(9, 6), "coach_pos": Vector2i(10, 6),
 				"effect": "ladder", "blocks": [Vector2i(9, 5)], "reward": {"pos": Vector2i(8, 4), "item": "revival_seed"}},
 		],
 	},
@@ -350,7 +350,7 @@ const MAPS := {
 			"Dune Road. North: Dustwell Oasis.",
 		],
 		"weapon_obstacles": [
-			{"id": "oasis_target", "type": "bullseye", "targets": [Vector2i(5, 3)], "use_from": Vector2i(5, 5),
+			{"id": "oasis_target", "type": "bullseye", "targets": [Vector2i(5, 3)], "use_from": Vector2i(5, 5), "coach_pos": Vector2i(4, 5),
 				"effect": "gate", "blocks": [Vector2i(7, 6)], "reward": {"pos": Vector2i(7, 5), "item": "remedy_herb"}},
 		],
 	},
@@ -467,7 +467,7 @@ const MAPS := {
 			"Mesa Trail. North: Sundown Gulch.",
 		],
 		"weapon_obstacles": [
-			{"id": "mesa_rock", "type": "cracked_rock", "targets": [Vector2i(7, 9)], "use_from": Vector2i(8, 9),
+			{"id": "mesa_rock", "type": "cracked_rock", "targets": [Vector2i(7, 9)], "use_from": Vector2i(8, 9), "coach_pos": Vector2i(8, 8),
 				"blocks": [Vector2i(7, 9)], "reward": {"pos": Vector2i(6, 9), "item": "spirit_drop"}},
 		],
 	},

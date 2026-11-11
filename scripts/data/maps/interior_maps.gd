@@ -260,6 +260,20 @@ const ROOMS := {
 			"#############",
 		],
 	},
+	"dance_studio": {
+		"wall": "#dfbd8d", "stage": true, "anchors": {"1": "dance_instructor"},
+		"rows": [
+			"###w###w#####",
+			"#...........#",
+			"#.....1.....w",
+			"#...........w",
+			"#...........#",
+			"#...........#",
+			"#...........#",
+			"#..........PD",
+			"#############",
+		],
+	},
 	"music_shop": {
 		"wall": "#d8c8a8", "rug": "#2a5a8a", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"locked": ["The practice room. Someone in there is playing the same three notes over and over."],

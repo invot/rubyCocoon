@@ -45,6 +45,7 @@ const StageDressing = preload("res://scripts/battle/stage_dressing.gd")
 const SceneryVisibility = preload("res://scripts/battle/scenery_visibility.gd")
 const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const BeatCue = preload("res://scripts/battle/beat_cue.gd")
+const BattleTutorials = preload("res://scripts/core/battle_tutorials.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -104,6 +105,7 @@ var rival_song_count := 0
 var tutorial := false
 var lesson_id := ""
 var lesson: Dictionary = {}
+var rotation_lesson := false
 ## The guided battles: the Coastal Path's five teachers, met before you have a flute (Story.LESSON_TRAINERS), and your
 ## first lone wild beast after Uncle Rafe's lessons ("flute"). intro: what the teacher says before the first round
 ## (narration: a line before that, with no speaker; coach: who's speaking, if not the trainer). rounds: in turn (the
@@ -112,11 +114,25 @@ var lesson: Dictionary = {}
 ## "trainer" sends it at the trainer). finish: the round the foe's beast goes down (0 never). trainer: the battle
 ## ends by striking the trainer rather than when their beasts are down. level: the level your beast reaches.
 const LESSONS := {
+	"rhythm": {"finish": 2,
+		"intro": ["Dancing and weapon attacks share a secret: timing. We'll practise safely, then try your slingshot to the music."],
+		"rounds": [
+			{"say": ["Choose Slingshot, then its target. When the ring appears, press A on each beat as the notch meets the top mark. Your beasts will Defend."], "you": "Slingshot", "beast": "Defend"},
+			{"say": ["Once more! Good and Perfect hits count. A miss ends the chain, but your earlier hits still land."], "you": "Slingshot", "beast": "Fight"},
+		]},
+	"summon": {"finish": 2,
+		"intro": ["Abyssion answers your flute now. Let's try calling the water dragon together!",
+			"Choose Summon beside your trainer, then play Abyssion's song. It strikes every foe at once.",
+			"A summon costs one shield point and can answer only once per battle. I'll lend you a practice shield today."],
+		"rounds": [
+			{"say": ["Choose Summon, then play the song through. Your beasts will Defend while you practise."], "you": "Summon", "beast": "Defend"},
+			{"say": ["There it is! A better performance makes the summon stronger. Save that shield point for when you need it.", "Now Watch and let your beasts finish our practice battle."], "you": "Watch", "beast": "Fight"},
+		]},
 	"screen": {"level": 2, "finish": 2,
 		"intro": ["Ooh, a brand-new trainer! I'll show you around a battle. It's less scary than it looks. Mostly.",
 			"That's you at the bottom right, in the middle of your battle ring. I'm up at the top left, in mine.",
 			"The glowing pads are your ring's slots. Empty pads stay dim, and fainted beasts lie down on theirs.",
-			"The gem outline shows whose action you're choosing. Their menu floats beside them, with HP for health and MP for elemental moves. The flashing part is the move's cost.",
+			"The outline shows who is choosing. Their menu floats beside them: HP is health, MP powers elemental moves. Flashing MP shows the cost.",
 			"Each round you pick your own action first, beside your trainer, then a move for each beast. Left and right change the choice, A confirms it, B goes back.",
 			"In a lesson there's just the one thing to pick, so A it is! In a real battle, left and right aim at a foe. Or tap a foe once to aim and again to confirm. The arrow shows your target. A confirms too."],
 		"rounds": [
@@ -1970,6 +1986,8 @@ func _run() -> void:
 		if lesson.has("narration"):
 			await UI.say([_tut_fill(lesson["narration"])])
 		await _tut_say(lesson.get("intro", []))
+		if lesson_id == "rhythm":
+			await _rhythm_lesson()
 	while result == "":
 		round_no += 1
 		for b in ally_slots:
@@ -2228,7 +2246,13 @@ func _command_phase() -> Array:
 		if ns != ally_side:
 			await msg("Everyone on your %s side is down! You turn your ring to the %s side." % [Ring.side_element(ally_side).capitalize(), Ring.side_element(ns).capitalize()], 1.0)
 			await _turn_ring("ally", ns)
+	if not tutorial:
+		await _new_battle_lessons()
 	if cfg.get("autoplay", false) or UI.auto:
+		if rotation_lesson:
+			await _turn_ring("ally", Ring.next_side(ally_ring, ally_side, 1))
+			GameState.set_flag("ring_rotation_taught")
+			rotation_lesson = false
 		return await _auto_commands()
 	flute_used = false
 	if tutorial:
@@ -2243,7 +2267,7 @@ func _command_phase() -> Array:
 			break
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "info": _command_info,
-			"option": _show_option, "stage": self, "floating": floating})
+			"option": _show_option, "teach": _teach_option, "stage": self, "floating": floating})
 		_commanding = true
 		UI.push(p)
 		var r: Dictionary = await p.done
@@ -2259,6 +2283,10 @@ func _command_phase() -> Array:
 				var ns := Ring.next_side(ally_ring, ally_side, int(r["dir"]))
 				if ns != ally_side:
 					await _turn_ring("ally", ns)
+					if rotation_lesson:
+						GameState.set_flag("ring_rotation_taught")
+						rotation_lesson = false
+						await UI.say(["That's it! Turning costs no turn. Choose moves for this side now. Keep a standing beast in the middle to guard you."])
 					# a new side: its beasts choose afresh
 					var keep: Dictionary = rows[0]
 					rows = _panel_rows()
@@ -2404,7 +2432,7 @@ func _weapon_options() -> Array:
 		var desc: String = {"slingshot": "Fire a stone at a foe or an exposed trainer.",
 			"boomerang": "Sweep every foe on the side facing you, a little softer on each; it comes back to your hand.",
 			"bat": "Run up to a foe and swing: the hardest hit of the three."}.get(id, "")
-		if most > 0 and not tutorial:
+		if most > 0 and (GameState.flag("dance_lesson_done") or lesson_id == "rhythm"):
 			desc += " Press A on the beat: up to %d hits." % most
 		out.append({"id": "weapon", "weapon": id, "label": ItemDB.item_name(id), "target": w.get("target", "enemy"), "desc": desc})
 	return out
@@ -2601,7 +2629,52 @@ func _panel_info() -> Dictionary:
 	var down := Ring.next_side(ally_ring, ally_side, 1)
 	return {"up": Ring.side_element(up).capitalize() if up != ally_side and not tutorial else "",
 		"down": Ring.side_element(down).capitalize() if down != ally_side and not tutorial else "",
-		"prompt": "What will you do, %s?" % GameState.player_name, "lesson": tutorial}
+		"prompt": "What will you do, %s?" % GameState.player_name, "lesson": tutorial, "rotation_lesson": rotation_lesson}
+
+
+## Teach at the first usable opportunity, including journeys saved before these lessons existed.
+func _new_battle_lessons() -> void:
+	if not GameState.flag("ring_rotation_taught") and GameState.party.size() > 3 and Ring.next_side(ally_ring, ally_side, 1) != ally_side:
+		rotation_lesson = true
+		await UI.say(["You have more than three beasts now. Only the three facing the foe can fight; turn the ring to bring the others forward.",
+			"Choose your trainer's action first. Then press up past the top beast, or down past the bottom one. You can also tap the ▲ / ▼ beside their bar.",
+			"Try a turn before choosing your beasts' moves. Turning is free, but the new side must choose its moves again."])
+
+
+func _teach_option(option: Dictionary) -> void:
+	if tutorial:
+		return
+	for topic in BattleTutorials.topics(option):
+		var flag := "battle_tip_" + String(topic)
+		if not GameState.flag(flag):
+			await UI.say([BattleTutorials.TIPS[topic]])
+			GameState.set_flag(flag)
+
+
+## One safe, repeatable hit before real rhythm attacks. Nothing takes damage or spends a turn here.
+func _rhythm_lesson() -> void:
+	await _tut_say(["First, a practice beat; nobody attacks while you learn.",
+		"Watch the white ring. Press A, or tap the ring, as the spinning notch meets the mark at the top. Listen for the beat."])
+	Sfx.beat_begin()
+	Sfx.percussion("full")
+	var learned := false
+	while not learned:
+		_caption("Practice: press A or tap the ring when the notch reaches the top.", "trainer_self")
+		var cue := BeatCue.new()
+		cue.most = 1
+		cue.easy = true
+		cue.anchor = func(): return get_viewport().get_visible_rect().size * Vector2(0.5, 0.4)
+		if UI.auto or cfg.get("autoplay", false):
+			cue.injected = [0.0]
+		UI.push(cue)
+		var grades: Array = await cue.done
+		learned = grades.has("good") or grades.has("perfect")
+		if not learned:
+			await _tut_say(["Let's try again. Wait for the notch to reach the top, then press A once. Each full circle is one beat."])
+	Sfx.percussion("bed")
+	Sfx.beat_end()
+	await _tut_say(["That's the beat! In battle, keep pressing once on each beat to fill the pips. A miss ends the chain; hits already landed still count.",
+		"Fill every pip and the last hit is critical. Your level sets the number of hits. Now choose a weapon when you're ready to try it."])
 
 
 ## Who a row's option can be aimed at: [{label, ref}]. An open rival
@@ -2722,6 +2795,8 @@ func _auto_commands() -> Array:
 					GameState.receive_item("minor_potion")
 				if b0 != null:
 					acts.append({"type": "item", "item": "minor_potion", "target": b0, "prio": 9})
+			"Summon":
+				acts.append(await _summon_flow())
 			"Flute":
 				if String(_tut_round().get("song", "")) == "weaken":
 					acts.append({"type": "player_song", "song": "weaken", "acc": 0.75, "prio": 9})
@@ -3589,7 +3664,7 @@ func _do_weapon(a: Dictionary) -> void:
 	VPer.set_ready(player_rig, id)
 	if at_trainer:
 		await _weapon_blow(player_rig, id, "foe")
-	elif BeatChain.max_hits(GameState.trainer_level) <= 0 or tutorial:
+	elif BeatChain.max_hits(GameState.trainer_level) <= 0 or (tutorial and lesson_id != "rhythm") or (not tutorial and not GameState.flag("dance_lesson_done")):
 		await _weapon_plain(player_rig, id, targets)
 	else:
 		await _weapon_chain(id, targets)
@@ -4661,6 +4736,8 @@ func _summon_flow() -> Dictionary:
 	var ids := []
 	var items := []
 	for tk in WorldDB.TEMPLES:
+		if lesson_id == "summon" and tk != "water":
+			continue
 		if not GameState.summons.has(tk):
 			continue
 		var t: Dictionary = WorldDB.TEMPLES[tk]
@@ -4680,7 +4757,7 @@ func _summon_flow() -> Dictionary:
 	var who := RaceDB.race_name(int(WorldDB.TEMPLES[tk]["guardian"]))
 	_set_acting("trainer_self")
 	await msg("You raise your flute and play the %s..." % SongDB.song_name(song), 0.7)
-	var r: Dictionary = await UI.flute_ex(song, "Summoning %s  —  play its song through to call it" % who)
+	var r: Dictionary = await UI.flute_ex(song, "Summoning %s  —  play its song through to call it" % who, {"lesson": tutorial})
 	_battle_music()
 	var acc := float(r["acc"])
 	GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
@@ -4690,6 +4767,9 @@ func _summon_flow() -> Dictionary:
 		Sfx.play("fail")
 		await msg("The song falters... %s doesn't answer." % who, 1.1)
 		_set_acting(null)
+		if lesson_id == "summon":
+			await _tut_say(["No shield spent. Let's try that song again; play the notes in order before the bar runs out."])
+			return await _summon_flow()
 		return {"type": "none"}
 	summoned = true
 	GameState.shield -= 1

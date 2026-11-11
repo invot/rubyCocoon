@@ -450,7 +450,7 @@ const MAPS := {
 		"style": "frontier",
 		# keeps the saved interiors of the first town (Center, two houses, apothecary, fortune teller) where they were
 		"building_order": [[25, 2], [2, 2], [8, 2], [38, 2], [43, 2], [14, 2], [32, 2]],
-		"building_looks": {"1": {"paint": "pink"}, "2": {"paint": "orange"}, "3": {"paint": "rose"}, "4": {"paint": "gold"},
+		"building_looks": {"1": {"name": "Dustwell Dance Studio", "rooms": ["dance_studio"], "public": true, "frontier": "studio", "words": "DANCE", "paint": "pink"}, "2": {"paint": "orange"}, "3": {"paint": "rose"}, "4": {"paint": "gold"},
 			"5": {"name": "Oasis Saloon", "rooms": ["saloon"], "frontier": "saloon", "paint": "red"},
 			"6": {"name": "Dustwell Jail", "rooms": ["jail"], "frontier": "jail", "paint": "yellow"}},
 		# water troughs by the saloon, a wagon on the dune shelf, barrels and crates
