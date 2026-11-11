@@ -1,8 +1,8 @@
 extends PanelContainer
 ## The top bar: the one place at the top centre of the screen for short messages, owned by the UI autoload (UI.top_bar).
 ## A dark box like every window (the blurred scene under the windows' near-black, framed in white), its sides tapered
-## in a little towards the bottom: [left icon] divider · text · divider [right icon]. It sits inside the device's safe
-## area and grows with its text up to a maximum width, then wraps.
+## in a little towards the bottom, hanging from the top edge of the screen with no top border: [left icon] text [right icon], with no divider ornaments inside it. It sits inside
+## the device's safe area and grows with its text up to a maximum width, then wraps.
 ## - Outside battle it is hidden until there is something to say (UI.toast, UI.pickup, UI.place_name): it slides
 ##   down, holds for HOLD seconds and slides away, one message after another. Messages with the same key merge into the
 ##   one showing or waiting ("Potion x3"). These always have a left icon and never a right one.
@@ -18,17 +18,16 @@ const HOLD := 2.5
 const SLIDE := 0.25
 ## the icon slots (UI units): a 12-pixel glyph at 3 units a pixel
 const ICON := 36.0
-## the text: body (notices, battle messages), heading (place names) and the dim second line
+## the text, all in League Spartan: the main line (notices, battle messages and place names) and the dim second line
 const TEXT_SIZE := 24
-const HEAD_TEXT := 22
 const SUB_SIZE := 18
-## gap under the safe area's top edge
-const TOP := 8.0
+## gap under the safe area's top edge: none, the bar hangs from the top of the screen (its box reaches up past any
+## safe-area inset to the screen's edge, and has no top border)
+const TOP := 0.0
 ## widest outside battle (UI units), and the space kept free at either side of the screen
 const MAX_W := 860.0
 const SIDE := 24.0
-## each divider's length, and the strip's inner padding at its ends and top/bottom
-const DIVIDER_W := 30.0
+## the strip's inner padding at its ends and top/bottom
 const PAD_X := 34.0
 const PAD_Y := 8.0
 const GAP := 10.0
@@ -42,8 +41,6 @@ var label: Label
 var sub_label: Label
 var left_icon: TextureRect
 var right_icon: TextureRect
-var _left_div: Panel
-var _right_div: Panel
 var _row: HBoxContainer
 
 var _queue: Array = []
@@ -75,8 +72,6 @@ func _init() -> void:
 	add_child(_row)
 	left_icon = _slot()
 	_row.add_child(left_icon)
-	_left_div = UIKit.divider(DIVIDER_W, "right")
-	_row.add_child(_left_div)
 	var texts := VBoxContainer.new()
 	texts.add_theme_constant_override("separation", 0)
 	texts.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -93,8 +88,6 @@ func _init() -> void:
 	sub_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub_label.visible = false
 	texts.add_child(sub_label)
-	_right_div = UIKit.divider(DIVIDER_W, "left")
-	_row.add_child(_right_div)
 	right_icon = _slot()
 	_row.add_child(right_icon)
 	visible = false
@@ -116,7 +109,7 @@ func _slot() -> TextureRect:
 
 
 # ---------------------------------------------------------------- outside battle
-## Queues a message. opts: sub (a dim second line), heading (the heading font: place names), key (messages with the same
+## Queues a message. opts: sub (a dim second line), heading (the gem heading colour: place names), key (messages with the same
 ## key merge, adding their counts; with replace, the newer one takes the older one's place), count, fmt (with a count:
 ## "%d" is replaced by it; without: " x<count>" is added past 1), smooth (a smooth icon rather than pixel art).
 func post(text: String, icon: Texture2D, opts := {}) -> void:
@@ -250,8 +243,9 @@ func bottom() -> float:
 
 # ---------------------------------------------------------------- layout
 func _set_text(main: String, sub: String, heading: bool) -> void:
-	label.add_theme_font_override("font", UIKit.font_head() if heading else UIKit.font_body())
-	label.add_theme_font_size_override("font_size", UIKit.head_px(HEAD_TEXT) if heading else UIKit.body_px(TEXT_SIZE))
+	# every line is League Spartan; a heading (a place name) differs only in its gem colour
+	label.add_theme_font_override("font", UIKit.font_body())
+	label.add_theme_font_size_override("font_size", UIKit.body_px(TEXT_SIZE))
 	label.add_theme_color_override("font_color", UIKit.HEAD if heading else UIKit.INK)
 	label.text = main
 	sub_label.add_theme_font_override("font", UIKit.font_body())
@@ -259,10 +253,6 @@ func _set_text(main: String, sub: String, heading: bool) -> void:
 	sub_label.add_theme_color_override("font_color", UIKit.DIM)
 	sub_label.text = sub
 	sub_label.visible = sub != ""
-	for d in [_left_div, _right_div]:
-		var sb = d.get_theme_stylebox("panel")
-		if sb != null and "line" in sb:
-			sb.line = UIKit.BORDER
 
 
 func _max_w() -> float:
@@ -275,7 +265,7 @@ func _max_w() -> float:
 ## Fits the text to its words, up to the widest the bar may be (then it wraps).
 func _fit(max_w: float) -> void:
 	var slots := ICON * (2.0 if right_icon.visible else 1.0)
-	var fixed := PAD_X * 2.0 + slots + DIVIDER_W * 2.0 + GAP * (4.0 if right_icon.visible else 3.0)
+	var fixed := PAD_X * 2.0 + slots + GAP * (2.0 if right_icon.visible else 1.0)
 	var room := maxf(80.0, max_w - fixed)
 	var w := minf(room, maxf(_natural(label), _natural(sub_label) if sub_label.visible else 0.0))
 	label.custom_minimum_size.x = ceilf(w)
@@ -349,16 +339,18 @@ func _draw() -> void:
 	if r.size.x <= 0.0 or r.size.y <= 0.0:
 		return
 	var t := minf(TAPER, r.size.x * 0.2)
-	var pts := PackedVector2Array([Vector2(0, 0), Vector2(r.size.x, 0), Vector2(r.size.x - t, r.size.y), Vector2(t, r.size.y)])
+	# (the box starts at the screen's top edge, above the safe area's inset if there is one)
+	var up := -maxf(0.0, _shown_y())
+	var pts := PackedVector2Array([Vector2(0, up), Vector2(r.size.x, up), Vector2(r.size.x - t, r.size.y), Vector2(t, r.size.y)])
 	var uvs := PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
 	var blurred := FrameBox.blur_on and material != null
 	if blurred:
 		draw_colored_polygon(pts, Color.WHITE, uvs, _marker)
 	draw_colored_polygon(pts, Color(FrameBox.shade, SHADE_ALPHA if blurred else maxf(SHADE_ALPHA, FrameBox.PLAIN_ALPHA)))
-	# the outline, drawn just inside the shape on whole screen pixels
+	# the outline, drawn just inside the shape on whole screen pixels: the two sides and the bottom, no top edge
 	var w := FrameBox.unit
 	var h := w / 2.0
-	var k := t / r.size.y
-	var line := PackedVector2Array([Vector2(h, h), Vector2(r.size.x - h, h), Vector2(r.size.x - t - h + k * h, r.size.y - h),
-		Vector2(t + h - k * h, r.size.y - h), Vector2(h, h)])
+	var k := t / (r.size.y - up)
+	var line := PackedVector2Array([Vector2(h, up), Vector2(t + h - k * h, r.size.y - h),
+		Vector2(r.size.x - t - h + k * h, r.size.y - h), Vector2(r.size.x - h, up)])
 	draw_polyline(line, UIKit.BORDER, w, true)

@@ -26,6 +26,7 @@ const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const SummonFX = preload("res://scripts/battle/summon_fx.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
+const CastGlow = preload("res://scripts/gfx/cast_glow.gd")
 const Rig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
@@ -38,6 +39,9 @@ const FloatingHUD = preload("res://scripts/battle/floating_hud.gd")
 const Outline = preload("res://scripts/battle/selection_outline.gdshader")
 const TargetArrow = preload("res://scripts/battle/target_arrow.gd")
 const Backdrop = preload("res://scripts/battle/backdrop.gd")
+const BattleCamera = preload("res://scripts/battle/battle_camera.gd")
+const StageLighting = preload("res://scripts/battle/stage_lighting.gd")
+const StageDressing = preload("res://scripts/battle/stage_dressing.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -74,14 +78,14 @@ var guardian_tk := ""
 var guardian_b = null
 ## you've called your one summon this battle (the Summon command)
 var summoned := false
-## a summon's camera, blended over the usual one while summon_mix > 0 (summon_cam), and a shake that dies away
-var summon_mix := 0.0
+## The director's wide summon composition, and a shake that dies away.
 var summon_pos := Vector3.ZERO
 var summon_look := Vector3.ZERO
 var summon_shake_amt := 0.0
 var stage_env: Environment
 var surround: MeshInstance3D
 var stage_sun: DirectionalLight3D
+var stage_rim: DirectionalLight3D
 var _stage_light := []
 var round_no := 0
 var biome: Dictionary
@@ -188,6 +192,7 @@ const LESSONS := {
 const DEFEND_MULT := 0.5
 
 var cam: Camera3D
+var camera_director: RefCounted
 ## The original arcing arrow connects the attacker to every selected target.
 var aim_mesh: MeshInstance3D
 var _aim_geometry: Array = []
@@ -203,13 +208,12 @@ var hud: Control
 ## Anchored choices and brief health changes; battle messages use UI.top_bar.
 var floating: Control
 var _selected_refs: Array = []
-var _outline: ShaderMaterial
+## hull outlines of selected ring pads, by slot
+var _outline_mats := {}
 var _outline_overlays := {}
 var _hp_seen := {}
 var _shield_orbs := {}
 var _shield_until := {"ally": 0.0, "foe": 0.0}
-var _camera_focus := Vector3.ZERO
-var _focus_weight := 0.0
 var _speaker_icons: Dictionary = {}
 var _message_subject = null
 ## whose action has the focus while commands are chosen (its prompt shows in the top bar)
@@ -256,6 +260,8 @@ func setup(c: Dictionary) -> void:
 func _ready() -> void:
 	_build_stage()
 	_build_hud()
+	camera_director = BattleCamera.new(self)
+	camera_director.play("opening")
 	_battle_music()
 	_run.call_deferred()
 
@@ -352,9 +358,11 @@ func _build_stage() -> void:
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	if not dark:
 		OutdoorLight.aim(sun)
+	stage_rim = StageLighting.apply(env, sun, biome, dark)
+	add_child(stage_rim)
 	add_child(sun)
 	stage_sun = sun
-	_stage_light = [env.ambient_light_energy, sun.light_energy]
+	_stage_light = [env.ambient_light_energy, sun.light_energy, stage_rim.light_energy]
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(cfg.get("seed", randi()))
@@ -415,6 +423,7 @@ func _build_stage() -> void:
 		_indoor_scenery(rng)
 	else:
 		_outdoor_scenery(rng)
+	StageDressing.build(self, rng)
 
 	cam = Camera3D.new()
 	cam.fov = CAM_FOV
@@ -428,6 +437,9 @@ func _build_stage() -> void:
 	aim_mesh.visible = false
 	aim_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(aim_mesh)
+	# Only the fighters cast shadows; even the dock, rings and wild mound are scenery.
+	for geometry in find_children("*", "GeometryInstance3D", true, false):
+		geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_build_trainers()
 
 
@@ -981,7 +993,8 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		water.material_override = _clear_water(Color(biome["water"]), 1.5)
 		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		water.extra_cull_margin = 0.1
-		water.position = Vector3(0, 0.02, -24)
+		# The entire wave stays above the flat stage. Otherwise orbit views expose clipped blue triangles.
+		water.position = Vector3(0, 0.08, -24)
 		add_child(water)
 
 
@@ -1147,16 +1160,10 @@ func _indoor_scenery(rng: RandomNumberGenerator) -> void:
 	var ps := VA.fit_scale("stone_pillar_dark", 5.0)
 	for i in 7:
 		px.append(_xf(Vector3(-13.5 + i * 4.5, -VA.aabb("stone_pillar_dark").position.y * ps, -8.2), 0.0, ps))
-		var l := OmniLight3D.new()
-		l.light_color = glow
-		l.light_energy = 1.1
-		l.omni_range = 5.0
-		l.position = Vector3(-11.25 + i * 4.5, 2.4, -7.6)
-		add_child(l)
 	_multimesh(VA.mesh("stone_pillar_dark"), px)
 	var fill := OmniLight3D.new()
-	fill.light_color = glow.lerp(Color.WHITE, 0.6)
-	fill.light_energy = 1.4
+	fill.light_color = glow.lerp(Color.WHITE, 0.2)
+	fill.light_energy = 0.55
 	fill.omni_range = 14.0
 	fill.position = Vector3(0, 5, 3)
 	add_child(fill)
@@ -1172,6 +1179,7 @@ func _build_trainers() -> void:
 	add_child(player_rig)
 	_build_shield_orbs("ally")
 	shield_bubble = MeshInstance3D.new()
+	shield_bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var sp := SphereMesh.new()
 	sp.radius = 0.95
 	sp.height = 1.9
@@ -1204,6 +1212,7 @@ func _build_trainers() -> void:
 		add_child(rival_rig)
 	_build_shield_orbs("foe")
 	rival_bubble = MeshInstance3D.new()
+	rival_bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rival_bubble.mesh = shield_bubble.mesh
 	var rbm: StandardMaterial3D = (shield_bubble.material_override as StandardMaterial3D).duplicate()
 	rbm.albedo_color = Color(1.0, 0.75, 0.45, 0.0)
@@ -1256,8 +1265,7 @@ func _build_shield_orbs(team: String) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	if _outline != null:
-		_outline.set_shader_parameter("gem", UIKit.ACCENT)
+	_recolor_outlines()
 	for b in nodes:
 		var n: Node3D = nodes[b]
 		if is_instance_valid(n) and n.has_meta("phase"):
@@ -1269,35 +1277,10 @@ func _process(delta: float) -> void:
 	if is_instance_valid(rival_rig):
 		VPer.animate(rival_rig, 0.0, 0.0)
 	if is_instance_valid(cam):
-		var cp := _cam_pos() + Vector3(sin(_time * 0.21) * 0.25, sin(_time * 0.17) * 0.06, 0)
-		var cl := _cam_look()
-		var focus := Vector3.ZERO
-		var n := 0
-		for ref in _selected_refs:
-			var at = _ref_pos(ref)
-			if at != null:
-				focus += at + Vector3.UP * _ref_height(ref) * 0.65
-				n += 1
-		_focus_weight = move_toward(_focus_weight, 0.55 if n > 0 else 0.0, delta * 1.6)
-		if n > 0:
-			_camera_focus = _camera_focus.lerp(focus / n, 1.0 - exp(-delta * 5.0))
-		var shift := (_camera_focus - cl) * _focus_weight
-		cp += shift * 0.6
-		cl += shift
-		if summon_mix > 0.0:
-			cp = cp.lerp(summon_pos, summon_mix)
-			cl = cl.lerp(summon_look, summon_mix)
-		if summon_shake_amt > 0.0:
-			cp += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * summon_shake_amt * 0.35
-			summon_shake_amt = maxf(0.0, summon_shake_amt - delta * 1.6)
-		cam.position = cp
-		cam.look_at(cl, Vector3.UP)
+		if camera_director != null:
+			camera_director.step(delta)
+		_sync_front_cam()
 	_update_shield()
-	if floating != null:
-		for b in nodes:
-			if _hp_seen.has(b) and _hp_seen[b] != b.hp:
-				floating.hp_changed(b)
-			_hp_seen[b] = b.hp
 	_draw_arcs()
 
 
@@ -1326,49 +1309,168 @@ func _ref_height(ref) -> float:
 	return 1.0
 
 
-## The outline uses a separate hull pass: hit flashes keep their original material and timing.
+## Who is highlighted. Trainers and beasts get a flat outline round their silhouette, drawn by the HUD from the
+## front render (floating_hud.gd); a ring pad (a Move's slot) keeps a hull outline. Hit flashes are untouched.
 func _select_hud_actor(ref) -> void:
 	_select_actors([] if ref == null else [ref])
 
 
+## Your trainer is outlined in the gem; beasts, pads and the rival in the element their ring's facing side fights
+## with (a wild beast: its own element).
+func outline_color(ref) -> Color:
+	if typeof(ref) == TYPE_STRING and ref != "foe_trainer":
+		return UIKit.ACCENT
+	if typeof(ref) == TYPE_OBJECT and wild and _team(ref) == "foe":
+		return Elements.color(_fight_el(ref))
+	var ours: bool = typeof(ref) == TYPE_INT or (typeof(ref) == TYPE_OBJECT and _team(ref) == "ally")
+	return Elements.color(Ring.side_element(ally_side if ours else foe_side))
+
+
+func _recolor_outlines() -> void:
+	for ref in _outline_mats:
+		(_outline_mats[ref] as ShaderMaterial).set_shader_parameter("gem", outline_color(ref))
+
+
 func _select_actors(refs: Array) -> void:
 	if refs == _selected_refs:
-		if _outline != null:
-			_outline.set_shader_parameter("gem", UIKit.ACCENT)
+		_recolor_outlines()
 		return
 	for mesh in _outline_overlays:
 		if is_instance_valid(mesh):
 			mesh.material_overlay = _outline_overlays[mesh]
 	_outline_overlays.clear()
-	for b in nodes:
-		if nodes[b].has_meta("flash"):
-			(nodes[b].get_meta("flash") as Material).next_pass = null
+	_outline_mats.clear()
 	_selected_refs = refs.duplicate()
-	if _outline == null:
-		_outline = ShaderMaterial.new()
-		_outline.shader = Outline
-	_outline.set_shader_parameter("gem", UIKit.ACCENT)
 	for ref in refs:
-		if typeof(ref) == TYPE_OBJECT and nodes.has(ref):
-			(nodes[ref].get_meta("flash") as Material).next_pass = _outline
-		elif typeof(ref) in [TYPE_STRING, TYPE_INT]:
-			var root: Node3D
-			if typeof(ref) == TYPE_INT:
-				root = pads["ally"].get(ref, null)
-			else:
-				root = rival_rig if ref == "foe_trainer" else player_rig
-			if root != null:
-				for mesh in root.find_children("*", "MeshInstance3D", true, false):
-					_outline_overlays[mesh] = mesh.material_overlay
-					mesh.material_overlay = _outline
+		if typeof(ref) != TYPE_INT:
+			continue
+		var root: Node3D = pads["ally"].get(ref, null)
+		if root == null:
+			continue
+		var mat := ShaderMaterial.new()
+		mat.shader = Outline
+		mat.set_shader_parameter("gem", outline_color(ref))
+		_outline_mats[ref] = mat
+		for mesh in root.find_children("*", "MeshInstance3D", true, false):
+			_outline_overlays[mesh] = mesh.material_overlay
+			mesh.material_overlay = mat
 
 
 func _set_acting(ref) -> void:
 	_acting_ref = ref
+	if ref != null:
+		_camera_shot("attacker", ref)
 	_hide_targets()
 	_select_hud_actor(null)
 	if floating != null:
 		floating.clear_choice()
+
+
+func _camera_shot(name: String, actor = null, target = null) -> void:
+	if camera_director != null:
+		camera_director.play(name, actor, target)
+
+
+## The models drawn for someone: a beast's own geometry (the parts its hit flash covers), or a trainer's rig.
+func _model_geometry(ref) -> Array:
+	var out := []
+	if typeof(ref) == TYPE_OBJECT and nodes.has(ref) and is_instance_valid(nodes[ref]):
+		var flash = nodes[ref].get_meta("flash", null)
+		for gi in (nodes[ref] as Node3D).find_children("*", "GeometryInstance3D", true, false):
+			if not gi is CPUParticles3D and gi.material_overlay == flash:
+				out.append(gi)
+	elif typeof(ref) == TYPE_STRING:
+		var rig: Node3D = rival_rig if ref == "foe_trainer" else player_rig
+		if is_instance_valid(rig):
+			out = rig.find_children("*", "MeshInstance3D", true, false)
+	return out
+
+
+## Someone's on-screen box (logical UI units) from their models' bounds; empty when they have none.
+func screen_bounds(ref) -> Rect2:
+	var k: Vector2 = hud.get_viewport_rect().size / cam.get_viewport().get_visible_rect().size
+	var box := Rect2()
+	var first := true
+	for gi: GeometryInstance3D in _model_geometry(ref):
+		if not gi.is_visible_in_tree():
+			continue
+		var aabb: AABB = gi.global_transform * gi.get_aabb()
+		for i in 8:
+			var corner := aabb.get_endpoint(i)
+			if cam.is_position_behind(corner):
+				continue
+			var at := cam.unproject_position(corner) * k
+			if first:
+				box = Rect2(at, Vector2.ZERO)
+				first = false
+			else:
+				box = box.expand(at)
+	return box
+
+
+## The chooser and targets are rendered a second time, alone, for their shapes (alpha): the HUD outlines those
+## silhouettes and shows the 3D view through them over the ends of the bars, which then run behind the models. Only
+## rendered while someone is listed (`set_front`); its lighting is never seen, so it is kept plain.
+const FRONT_LAYER := 1 << 19
+var _front_vp: SubViewport
+var _front_cam: Camera3D
+var _front_geometry: Array = []
+
+
+func front_texture() -> Texture2D:
+	if _front_vp == null:
+		_front_vp = SubViewport.new()
+		_front_vp.world_3d = cam.get_viewport().find_world_3d()
+		_front_vp.transparent_bg = true
+		_front_vp.msaa_3d = Viewport.MSAA_2X
+		_front_vp.audio_listener_enable_3d = false
+		_front_vp.handle_input_locally = false
+		_front_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		add_child(_front_vp)
+		_front_cam = Camera3D.new()
+		_front_cam.cull_mask = FRONT_LAYER
+		var env := Environment.new()
+		env.background_mode = Environment.BG_CLEAR_COLOR
+		env.background_color = Color(0, 0, 0, 0)
+		_front_cam.environment = env
+		_front_vp.add_child(_front_cam)
+		_front_cam.current = true
+	return _front_vp.get_texture()
+
+
+## Who is drawn in front of the HUD's bars this frame.
+func set_front(refs: Array) -> void:
+	var want := []
+	for ref in refs:
+		want.append_array(_model_geometry(ref))
+	for gi in _front_geometry:
+		if is_instance_valid(gi) and not want.has(gi):
+			gi.layers &= ~FRONT_LAYER
+	for gi: GeometryInstance3D in want:
+		gi.layers |= FRONT_LAYER
+	_front_geometry = want
+	if _front_vp == null:
+		if want.is_empty():
+			return
+		front_texture()
+	_front_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if not want.is_empty() else SubViewport.UPDATE_DISABLED
+	_sync_front_cam()
+
+
+func _sync_front_cam() -> void:
+	if _front_vp == null or _front_vp.render_target_update_mode == SubViewport.UPDATE_DISABLED:
+		return
+	var main_vp := cam.get_viewport()
+	if main_vp is SubViewport:
+		_front_vp.size = (main_vp as SubViewport).size
+	else:
+		_front_vp.size = Vector2i(main_vp.get_visible_rect().size)
+	_front_cam.global_transform = cam.global_transform
+	_front_cam.fov = cam.fov
+	_front_cam.near = cam.near
+	_front_cam.far = cam.far
+	_front_cam.h_offset = cam.h_offset
+	_front_cam.v_offset = cam.v_offset
 
 
 ## Logical UI coordinates, accounting for the full-resolution 3D SubViewport.
@@ -1404,7 +1506,12 @@ func _draw_arcs() -> void:
 		aim_mesh.visible = false
 		_aim_geometry.clear()
 		return
-	var from: Vector3 = origin + Vector3.UP * _ref_height(_aim_from) * 0.75
+	# It rises from behind the chooser (pushed away from the camera), so they stand in front of it, not under it.
+	var away := -cam.global_transform.basis.z
+	away.y = 0.0
+	away = away.normalized() if away.length_squared() > 0.0001 else Vector3.FORWARD
+	var h := _ref_height(_aim_from)
+	var from: Vector3 = origin + Vector3.UP * h * 0.6 + away * clampf(h * 0.45, 0.35, 0.9)
 	var ends := []
 	for ref in _target_refs:
 		var at = _ref_pos(ref)
@@ -1425,7 +1532,8 @@ func _show_targets(list: Array, sel: int, source = "trainer_self") -> void:
 		if sel < 0 or i == sel:
 			var t = list[i]
 			_target_refs.append(t["ref"] if typeof(t) == TYPE_DICTIONARY else t)
-	_select_actors(_target_refs)
+	# the chooser keeps its outline while it aims
+	_select_actors(([source] if source != null and _ref_pos(source) != null and not _target_refs.has(source) else []) + _target_refs)
 	if floating != null:
 		floating.clear_choice()
 	_update_shield()
@@ -1547,10 +1655,12 @@ func _remodel(b) -> void:
 func _lie_down(b, ease := true) -> void:
 	var rig := _rig(b)
 	if rig != null:
-		rig.state = "lie"
+		# knocked out: down quicker than to rest, slumped, its eyes shut (beast_rig.gd faint())
+		rig.faint()
 		if not ease:
 			rig.settle()
 		return
+	BeastModel.pose_guard(_model(b), false)
 	var n: Node3D = nodes[b]
 	if not ease:
 		n.rotation.z = -1.4
@@ -1923,6 +2033,8 @@ func _foe_trainer_level() -> int:
 func _end_defend(team: String) -> void:
 	for b in st:
 		if String(st[b]["side"]) == team:
+			if st[b]["defend"]:
+				BeastModel.pose_guard(_model(b), false)
 			st[b]["defend"] = false
 
 
@@ -2638,9 +2750,7 @@ func _choose_target(list: Array, title: String):
 	var row := {"kind": "trainer", "options": [{"label": title}], "targets": targets, "target_sel": 0}
 	var panel := CommandPanel.new()
 	panel.setup([row], {"target_only": true}, 0, Callable(), {
-		"render": func(_rows, _focus, _picking):
-			_show_targets(targets, int(row.get("target_sel", 0)))
-			_aim_control(row),
+		"render": func(_rows, _focus, _picking): _show_targets(targets, int(row.get("target_sel", 0))),
 		"hint": _caption, "info": _command_info, "stage": self, "floating": floating})
 	panel.picking = true
 	UI.push(panel)
@@ -2761,6 +2871,7 @@ func _charm_flow(song: String) -> bool:
 		# the lesson's beast joins whenever the song is played through
 		chance = 1.0
 	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
+	_camera_shot("capture", t)
 	await _song_fx(PLAYER_POS, [t], true, acc < SongDB.FLAT_ACCURACY)
 	await _note_effect(t)
 	if flawless and mistakes > 0:
@@ -3325,6 +3436,8 @@ func _resolve(acts: Array) -> void:
 			"defend":
 				var db = a["actor"]
 				_st(db)["defend"] = true
+				# braced, held until its side's next turn (_end_defend)
+				BeastModel.pose_guard(_model(db), true)
 				Sfx.play("shield")
 				_refresh()
 				await msg("%s braces itself!" % db.nickname, 0.55)
@@ -3365,6 +3478,7 @@ func _field_revived(t) -> void:
 func _trainer_throw(target_pos: Vector3, col: Color) -> void:
 	VPer.animate(player_rig, 1.2, 1.0)
 	var stone := MeshInstance3D.new()
+	stone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var bm := BoxMesh.new()
 	bm.size = Vector3(0.16, 0.16, 0.16)
 	stone.mesh = bm
@@ -3400,11 +3514,13 @@ func _do_slingshot(a: Dictionary) -> void:
 	if typeof(t) == TYPE_STRING:
 		await msg("%s fires the slingshot at %s!" % [GameState.player_name, trainer.get("name", "the trainer")], 0.5)
 		Sfx.play("slingshot")
+		_camera_shot("follow", "trainer_self", "foe_trainer")
 		await _trainer_throw(RIVAL_POS + Vector3(0, 1.2, 0), Color("#8a847a"))
 		await _strike(null, "foe")
 		return
 	await msg("%s fires the slingshot at %s!" % [GameState.player_name, t.nickname], 0.5)
 	Sfx.play("slingshot")
+	_camera_shot("follow", "trainer_self", t)
 	await _trainer_throw(_target_point(t), Color("#8a847a"))
 	var acc := 0.9 / _acc_mult(int(_st(t)["stages"]["eva"]))
 	if not tutorial and (_st(t)["vanish"] or randf() > acc):
@@ -3536,9 +3652,11 @@ func _shield_pulse(bubble: MeshInstance3D = null) -> void:
 ## point, or, with none left, ends the battle. `b` is the beast that strikes, or null for your slingshot.
 func _strike(b, team_hit: String) -> void:
 	var pos := PLAYER_POS if team_hit == "ally" else RIVAL_POS
+	var target_ref := "trainer_self" if team_hit == "ally" else "foe_trainer"
 	var who: String = GameState.player_name if team_hit == "ally" else String(trainer.get("name", "the trainer"))
 	if b != null:
 		await msg("%s charges straight at %s!" % [b.nickname, who], 0.6)
+		_camera_shot("follow", b, target_ref)
 		if nodes.has(b):
 			var n: Node3D = nodes[b]
 			var start := n.position
@@ -3554,6 +3672,7 @@ func _strike(b, team_hit: String) -> void:
 			tw.tween_property(n, "position", start, 0.25)
 			await get_tree().create_timer(lead + 0.22).timeout
 	_shield_until[team_hit] = _time + 1.0
+	_camera_shot("reaction", target_ref)
 	var left: int = GameState.shield if team_hit == "ally" else foe_shield
 	if left > 0:
 		if team_hit == "ally":
@@ -3567,6 +3686,7 @@ func _strike(b, team_hit: String) -> void:
 		await msg("%s shield absorbed the blow! (%d left)" % ["Your" if team_hit == "ally" else "%s's" % who, left - 1], 0.9)
 		return
 	Sfx.play("crit")
+	_camera_shot("knockout", target_ref)
 	if team_hit == "ally":
 		await UI.flash(Color("#ff4040"), 1)
 	# a beaten trainer drops to one knee, catching their breath (never knocked flat: nobody gets hurt); a robot
@@ -3638,16 +3758,28 @@ func _do_move(b, mv: String, target) -> void:
 		_refresh()
 	if int(m.get("cd", 0)) > 0:
 		s["cd"][mv] = int(m["cd"]) + 1
+	# (a cast's cut to the caster asked for now, so it's on it by the time it starts to gather)
+	if typeof(targets[0]) != TYPE_STRING and not (m["el"] == "neutral" and m["kind"] == "attack"):
+		_camera_shot("cast", b)
 	await msg("%s used %s!" % [b.nickname, m["name"]], 0.55, b)
 	# straight at an open trainer
 	if typeof(targets[0]) == TYPE_STRING:
 		await _strike(b, "foe" if _team(b) == "ally" else "ally")
 		return
-	await _lunge(b, m["kind"] == "attack")
+	# a plain attack lunges at its target; any other move is cast (its element's glow, white for a plain one)
+	if m["el"] == "neutral" and m["kind"] == "attack":
+		_camera_shot("follow", b, targets[0])
+		await _lunge(b, true)
+	else:
+		await _cast(b, m, targets)
 	for t in targets:
 		if result != "" or b.hp <= 0:
-			return
+			break
 		await _apply_move(b, t, mv, m)
+	# (the shot held on a beast that cast on itself goes back)
+	if _casting and camera_director != null and (camera_director.shot == "cast" or camera_director.pending == "cast"):
+		_camera_shot("return")
+	_casting = false
 
 
 func _targets_for(b, m: Dictionary, target) -> Array:
@@ -3707,13 +3839,18 @@ func _hit_check(a, t, m: Dictionary) -> bool:
 func _apply_move(a, t, mv: String, m: Dictionary) -> void:
 	var fx: Dictionary = m.get("fx", {})
 	var trick := 1.5 if a.passives.has("Trickster") else 1.0
+	# (a cast lands now: an attack's as it hits, or beside it as it misses)
+	if m["kind"] != "attack":
+		_cast_land(t)
 	match m["kind"]:
 		"attack":
 			if not _hit_check(a, t, m):
+				_cast_land(t, true)
 				Sfx.play("miss")
 				_float_text(t, "Miss", Color.WHITE)
 				await msg("%s avoided the attack!" % t.nickname if _st(t)["vanish"] else "The attack missed %s!" % t.nickname, 0.7)
 				return
+			_cast_land(t)
 			var r := _calc_damage(a, t, m)
 			var dealt: int = await _deal(a, t, r)
 			if t.hp > 0 and fx.has("status") and randf() < float(fx.get("chance", 0.0)) * trick:
@@ -3764,6 +3901,8 @@ func _apply_move(a, t, mv: String, m: Dictionary) -> void:
 			if not _hit_check(a, t, m):
 				await msg("%s wasn't affected." % t.nickname, 0.6)
 				return
+			# (a flinch as it takes hold)
+			BeastModel.pose_hit(_model(t), 0.1)
 			if fx.has("debuff"):
 				await _buff(t, fx["debuff"])
 			if fx.has("status") and randf() < float(fx.get("chance", 1.0)) * trick:
@@ -3773,6 +3912,7 @@ func _apply_move(a, t, mv: String, m: Dictionary) -> void:
 				Sfx.play("miss")
 				await msg("It missed %s!" % t.nickname, 0.6)
 				return
+			BeastModel.pose_hit(_model(t), 0.1)
 			await _inflict(t, fx["status"], true)
 		"shield":
 			var amt := int(t.max_hp() * float(fx.get("shield_pct", 0.2)))
@@ -3834,6 +3974,10 @@ func _calc_damage(a, t, m: Dictionary) -> Dictionary:
 
 ## `a` is the attacker beast, or null for the trainer's slingshot and bombs.
 func _deal(a, t, r: Dictionary) -> int:
+	# The summon owns its wide shot through all hits; regular attacks hold on their actual retargeted victim.
+	# (a cast's cut to where it lands already holds on it)
+	if (floating == null or floating.visible) and not _impact_on(t):
+		_camera_shot("reaction", t)
 	var s := _st(t)
 	var dmg: int = r["dmg"]
 	if tutorial:
@@ -3858,7 +4002,10 @@ func _deal(a, t, r: Dictionary) -> int:
 		Sfx.play("metal_hit", 0.1)
 	else:
 		Sfx.play("hit", 0.1)
-	_hit_fx(t, r["crit"])
+	# knocked back as hard as the hit was (a quarter of its HP or more: all the way), harder for a critical or extra
+	# effective one; a defended, resisted or absorbed hit is blocked
+	var blocked: bool = s["defend"] or r["eff"] < 1.0 or dmg <= 0
+	_hit_fx(t, r["crit"] or r["eff"] > 1.0, float(dmg) / maxf(float(t.max_hp()), 1.0) * 4.0, blocked)
 	_float_text(t, "-%d" % dmg if dmg > 0 else "0", Color("#ffe060") if r["eff"] > 1.0 else Color("#ffffff"))
 	_refresh()
 	if r["crit"]:
@@ -4049,6 +4196,7 @@ func _guardian_capture(acc: float) -> void:
 	var t = guardian_b
 	if t == null or t.hp <= 0:
 		return
+	_camera_shot("capture", t)
 	await _note_effect(t)
 	var chance := 0.0
 	if acc >= SongDB.FLAT_ACCURACY and t.hp_ratio() <= GUARDIAN_CAPTURE_HP:
@@ -4183,15 +4331,13 @@ func summon_cam(at: Vector3, size: float) -> void:
 	var back := (_cam_pos() - _cam_look()).normalized()
 	summon_look = FOE_CENTER.lerp(at, 0.45) + Vector3(0, 1.3 + minf(size, 7.0) * 0.14, 0)
 	summon_pos = summon_look + back * (13.5 + minf(size, 8.0) * 1.5)
-	var tw := create_tween()
-	tw.tween_property(self, "summon_mix", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
+	_camera_shot("summon")
 	# Summons own the frame; even brief HP tags wait until the cinematic ends.
 	floating.visible = false
 
 
 func summon_release() -> void:
-	var tw := create_tween()
-	tw.tween_property(self, "summon_mix", 0.0, 0.6).set_trans(Tween.TRANS_SINE)
+	_camera_shot("return")
 	floating.visible = true
 
 
@@ -4207,6 +4353,8 @@ func summon_dim(k: float) -> void:
 	tw.tween_property(stage_env, "ambient_light_energy", float(_stage_light[0]) * k, 0.5)
 	if stage_sun != null:
 		tw.tween_property(stage_sun, "light_energy", float(_stage_light[1]) * k, 0.5)
+	if stage_rim != null:
+		tw.tween_property(stage_rim, "light_energy", float(_stage_light[2]) * k, 0.5)
 
 
 func summon_flash(c: Color) -> void:
@@ -4234,6 +4382,7 @@ func _handle_faints() -> void:
 				await msg("%s's Phoenix Plume blazes! It rises again!" % b.nickname, 1.0)
 				continue
 			s["down"] = true
+			_camera_shot("knockout", b)
 			var beaten_foe: bool = team == "foe"
 			# Ring beasts on either side remain lying on their pads. Only defeated wild beasts leave the field.
 			Sfx.play("defeat" if beaten_foe else "faint")
@@ -4358,7 +4507,11 @@ func _finish() -> void:
 	GameState.ring_side = ally_side
 	match result:
 		"win":
+			_camera_shot("victory")
 			Sfx.music("victory")
+			# At the level cap there may be no reward messages to hold the victory shot on screen.
+			if wild and pending_xp.is_empty() and drops.is_empty():
+				await msg("You won!", 0.75)
 			if not wild:
 				if not trainer.get("guardian", false):
 					await msg("You defeated %s %s!" % [trainer.get("cls", "Trainer"), trainer.get("name", "")])
@@ -4434,6 +4587,83 @@ func _trainer_shield() -> int:
 
 
 # ================================================================ effects
+## A cast under way (_cast): its glow's colour, and whether it's kindly (a heal or a boost: rising motes where it
+## lands, rather than a burst)
+var _casting := false
+var _cast_col := Color.WHITE
+var _cast_soft := false
+const CAST_SOUND := {"fire": "fire", "water": "ice", "earth": "smash", "air": "fly", "ghost": "ghost"}
+
+
+## What a beast is drawn with on the field: its rig, or its old model (a legendary's, a robot's); null off it.
+func _model(b) -> Node3D:
+	if not nodes.has(b) or not is_instance_valid(nodes[b]):
+		return null
+	var h: Node3D = nodes[b].get_node_or_null("Model")
+	return h.get_child(0) as Node3D if h != null and h.get_child_count() > 0 else null
+
+
+## A move cast (beast_model.gd pose_cast): the shot on the caster as its glow gathers and it lets go, then a cut to
+## where it lands (on whoever it's aimed at, or all of a side; none on itself), the glow streaking in from the caster's
+## side. _apply_move bursts it on each one it reaches (_cast_land), and their hits and numbers land with it.
+func _cast(b, m: Dictionary, targets: Array) -> void:
+	var el := String(m["el"])
+	_casting = true
+	_cast_col = Elements.color(el) if el != "neutral" else Color(1.0, 0.97, 0.9)
+	_cast_soft = _team(b) == _team(targets[0]) if typeof(targets[0]) != TYPE_STRING else false
+	_camera_shot("cast", b)
+	var wind := BeastModel.pose_cast(_model(b), _cast_col)
+	await get_tree().create_timer(wind).timeout
+	Sfx.play(String(CAST_SOUND.get(el, "buff")))
+	var onto := targets.filter(func(t): return typeof(t) != TYPE_STRING and t != b and nodes.has(t))
+	# (the glow let go, seen leaving before the cut)
+	await get_tree().create_timer(0.24).timeout
+	if onto.is_empty():
+		return
+	_camera_shot("impact", onto[0] if onto.size() == 1 else onto)
+	var streak := 0.16
+	for t in onto:
+		_cast_streak(b, t, streak)
+	await get_tree().create_timer(streak).timeout
+
+
+## The cast's glow flying in to `t` from the caster's side, gone as it reaches it (the burst is _cast_land's).
+func _cast_streak(b, t, time: float) -> void:
+	var to = _ref_pos(t)
+	var from = _ref_pos(b)
+	if to == null or from == null:
+		return
+	var h := _ref_height(t)
+	var end: Vector3 = to + Vector3.UP * h * 0.55
+	var dir: Vector3 = (to - from)
+	dir.y = 0.0
+	dir = dir.normalized()
+	var orb: Node3D = CastGlow.new()
+	add_child(orb)
+	orb.position = end - dir * (1.6 + h * 0.6) + Vector3.UP * 0.25
+	orb.scale = Vector3.ONE * clampf(h, 0.8, 1.8) * 1.4
+	orb.begin(_cast_col)
+	orb.gather(1.0)
+	var tw := create_tween()
+	tw.tween_property(orb, "position", end - dir * 0.15, time).set_ease(Tween.EASE_IN)
+	tw.tween_callback(orb.queue_free)
+
+
+## A cast landing on `t` (_apply_move): a burst in its colour (rising motes, for a kindly one), or one off to its side
+## where it missed.
+func _cast_land(t, miss := false) -> void:
+	if not _casting:
+		return
+	var at = _ref_pos(t)
+	if at == null:
+		return
+	var h := _ref_height(t)
+	var spot: Vector3 = at + Vector3.UP * h * 0.55
+	if miss:
+		spot += cam.global_basis.x * (0.5 + h * 0.3)
+	CastGlow.burst(self, spot, _cast_col, clampf(h, 0.8, 2.0) * (1.4 if not _cast_soft else 1.0), _cast_soft)
+
+
 func _lunge(b, attack: bool) -> void:
 	if not nodes.has(b):
 		return
@@ -4464,7 +4694,9 @@ func _lunge(b, attack: bool) -> void:
 	await tw.finished
 
 
-func _hit_fx(b, big: bool) -> void:
+## A hit landing on `b` (the frame its number appears): a flash, and its hit pose (beast_model.gd): knocked back `k`
+## (0..1) as hard as it was, heavier if `big` (a critical or extra effective hit), or a quick block.
+func _hit_fx(b, big: bool, k := 0.3, blocked := false) -> void:
 	if not nodes.has(b):
 		return
 	var n: Node3D = nodes[b]
@@ -4473,11 +4705,24 @@ func _hit_fx(b, big: bool) -> void:
 	tw.tween_property(flash, "albedo_color", Color(1, 1, 1, 0.85), 0.05)
 	tw.tween_property(flash, "albedo_color", Color(1, 0.3, 0.3, 0.5), 0.08)
 	tw.tween_property(flash, "albedo_color", Color(1, 1, 1, 0.0), 0.14)
-	var base_x := n.position.x
-	var tw2 := create_tween()
-	for i in 4:
-		tw2.tween_property(n, "position:x", base_x + (0.12 if i % 2 == 0 else -0.12) * (1.6 if big else 1.0), 0.04)
-	tw2.tween_property(n, "position:x", base_x, 0.04)
+	if blocked:
+		BeastModel.pose_block(_model(b))
+	else:
+		BeastModel.pose_hit(_model(b), k, big)
+
+
+## Whether a cast's cut to where it lands (the camera's "impact" shot) is on `t` now, or about to be.
+func _impact_on(t) -> bool:
+	if camera_director == null:
+		return false
+	var on = null
+	if camera_director.shot == "impact":
+		on = camera_director.source
+	elif camera_director.pending == "impact":
+		on = camera_director.pending_source
+	else:
+		return false
+	return (on is Array and (on as Array).has(t)) or (not on is Array and is_same(on, t))
 
 
 ## A cloud of soft grey voxel puffs that swell, drift up and fade (a beaten foe vanishing). `size` ~ the beast's height.

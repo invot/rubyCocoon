@@ -47,7 +47,53 @@ def clipped(vertices, axis, boundary, above):
     return result
 
 
-def export(name, verts, uvs, normals, faces, box, texture, height):
+def timber_uvs(vertices, normals):
+    """Lay the huts' painted timber along each separate picket and rail."""
+    parent = list(range(len(vertices)))
+
+    def root(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def join(a, b):
+        parent[root(b)] = root(a)
+
+    positions = {}
+    for i, point in enumerate(vertices):
+        key = tuple(round(component, 5) for component in point)
+        if key in positions:
+            join(i, positions[key])
+        else:
+            positions[key] = i
+        join(i - i % 3, i)
+    pieces = {}
+    for i in range(len(vertices)):
+        pieces.setdefault(root(i), []).append(i)
+    result = [None] * len(vertices)
+    for piece, indices in enumerate(pieces.values()):
+        low = [min(vertices[i][axis] for i in indices) for axis in range(3)]
+        span = [max(vertices[i][axis] for i in indices) - low[axis] for axis in range(3)]
+        grain_axis = max(range(3), key=lambda axis: span[axis])
+        # Different crops keep neighbouring boards from repeating the same knot.
+        # Stay within the timber swatch so its edges never wrap through a board.
+        u_start = (piece * 0.23) % 0.32
+        v_start = (piece * 0.11) % 0.18
+        for start in range(0, len(indices), 3):
+            triangle = indices[start:start + 3]
+            normal = [sum(normals[i][axis] for i in triangle) for axis in range(3)]
+            face_axis = max(range(3), key=lambda axis: abs(normal[axis]))
+            along = grain_axis if face_axis != grain_axis else (2 if grain_axis == 1 else 1)
+            across = next(axis for axis in range(3) if axis not in (face_axis, along))
+            for i in triangle:
+                u = (vertices[i][across] - low[across]) / max(span[across], 1e-5)
+                v = (vertices[i][along] - low[along]) / max(span[along], 1e-5)
+                result[i] = [u_start + 0.68 * u, v_start + 0.82 * (1 - v)]
+    return result
+
+
+def export(name, verts, uvs, normals, faces, box, texture, height, flip_v=True):
     triangles = []
     for face in faces:
         points = [verts[c[0]] for c in face]
@@ -73,9 +119,12 @@ def export(name, verts, uvs, normals, faces, box, texture, height):
             output['v'].append([(p[0] - (low[0] + high[0]) / 2) / (high[0] - low[0]),
                                 (p[2] - low[2]) * height / (high[2] - low[2]),
                                 -(p[1] - (low[1] + high[1]) / 2) / (high[0] - low[0])])
-            output['uv'].append([uv[0], 1 - uv[1]])
+            # OBJ starts V at the bottom; glTF already uses Godot's top-down UVs.
+            output['uv'].append([uv[0], 1 - uv[1] if flip_v else uv[1]])
             output['n'].append([n[0] * (high[0] - low[0]), n[2] * (high[2] - low[2]) / height,
                                 -n[1] * (high[0] - low[0])])
+    if name == 'fence':
+        output['uv'] = timber_uvs(output['v'], output['n'])
     (OUT / (name + '.json')).write_text(json.dumps(output), encoding='utf-8')
     print(name, len(triangles), 'triangles')
 
@@ -90,7 +139,7 @@ faces = [[(c, c, c) for c in indices[i:i + 3]] for i in range(0, len(indices), 3
 view = doc['bufferViews'][doc['images'][1]['bufferView']]
 (OUT / 'wood.png').write_bytes(binary[view.get('byteOffset', 0):view.get('byteOffset', 0) + view['byteLength']])
 export('fence', v, uv, n, faces, (-129.33, -79.33, 93.0, 102.0),
-       'res://build/fences_source/wood.png', 0.78)
+       'res://build/fences_source/wood.png', 0.78, flip_v=False)
 
 with zipfile.ZipFile(SOURCE / 'Low Poly stone fence on grass.zip') as archive:
     for name in ['model_1.obj', 'fence1.png']:

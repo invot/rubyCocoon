@@ -14,5 +14,6 @@ small bush models as ground planting instead. Textures are resized, smoothed onc
 linear mipmapped anisotropic filtering. The optional bump and normal maps are not used.
 
 Converted resources: `assets/exteriors/tribal_hut.res` and `tribal_hut_wood.res`.
+The wooden fences reuse `tribal_hut_wood.res`, with varied UV crops along their pickets and rails.
 Rebuild: `tools/prepare_tribal_hut.py` and `tools/import_tribal_hut.gd`, followed by the documented smoothing/import steps.
 Original downloads remain untouched.

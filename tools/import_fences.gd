@@ -9,9 +9,13 @@ func _init() -> void:
 	for name in ["fence", "stone_fence"]:
 		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SOURCE + name + ".json"))
 		var mat := StandardMaterial3D.new()
-		var img := Image.load_from_file(d["texture"])
-		img.resize(512, 512, Image.INTERPOLATE_LANCZOS)
-		mat.albedo_texture = ImageTexture.create_from_image(img)
+		if name == "fence":
+			# Reuse the huts' already-smoothed timber, with grain fitted per board by prepare_fences.py.
+			mat.albedo_texture = load("res://assets/exteriors/tribal_hut_wood.res")
+		else:
+			var img := Image.load_from_file(d["texture"])
+			img.resize(512, 512, Image.INTERPOLATE_LANCZOS)
+			mat.albedo_texture = ImageTexture.create_from_image(img)
 		mat.roughness = 0.95
 		# Thin pickets and rails otherwise collect dark, jagged tree-shadow patches.
 		# Keep the painted texture and directional lighting, without receiving shadow maps.

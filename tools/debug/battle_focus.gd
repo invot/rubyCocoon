@@ -46,6 +46,7 @@ func run(main: Node) -> void:
 		else:
 			await main._tap_at(at)
 	check.call(battle._selected_refs == ["trainer_self"] and battle.floating.actor == "trainer_self", "trainer has the 3D outline and the only menu")
+	check.call(battle.floating._front_refs == ["trainer_self"] and battle.outline_color("trainer_self") == UIKit.ACCENT and battle.floating._outline_clip.visible, "your trainer is outlined in the gem round their silhouette")
 	check.call(battle._shield_orbs.values().all(func(orbs): return orbs.all(func(orb): return not orb.visible)), "shields are hidden during ordinary choosing")
 	layout.call("trainer")
 	await capture.call("trainer")
@@ -53,8 +54,13 @@ func run(main: Node) -> void:
 		return
 	await tap.call(battle.floating.action_rect.get_center())
 	check.call(panel.picking and panel.focus == 0 and not panel.rows[0].get("done", false), "a menu tap confirms only the move")
-	check.call(battle.floating.aiming and battle.floating.actor == "trainer_self" and battle._selected_refs == battle._target_refs, "targeting moves the outline to the target and keeps the one bar on the chooser")
+	check.call(battle.floating.aiming and battle.floating.actor == "trainer_self" and battle._selected_refs == ["trainer_self"] + battle._target_refs, "targeting outlines the chooser and the target and keeps the one bar on the chooser")
 	check.call(String(battle.floating.option.get("label", "")).contains("►"), "the bar names the target after the action")
+	var aimed = battle._target_refs[0]
+	battle.floating.layout()
+	check.call(battle.floating.tag_rects.has(aimed), "the target has its own bar while aimed at")
+	if battle.floating.tag_rects.has(aimed):
+		check.call(_touching(battle.floating.tag_rects[aimed], battle.floating.model_rect(aimed)), "the target's bar touches its model's side")
 	layout.call("target")
 	# A controller press and release, through the actual input map.
 	for down in [true, false]:
@@ -66,10 +72,12 @@ func run(main: Node) -> void:
 	await main._wait(0.15)
 	check.call(panel.focus == 1 and not panel.picking, "gamepad A confirms once and advances to the first beast")
 	var beast = panel.rows[panel.focus]["beast"]
-	check.call(battle._selected_refs == [beast] and battle.nodes[beast].get_meta("flash").next_pass == battle._outline, "chooser has a gem hull without replacing its hit flash")
+	check.call(battle._selected_refs == [beast] and battle.nodes[beast].get_meta("flash").next_pass == null and battle.floating._front_refs == [beast], "chooser is outlined without changing its materials")
+	check.call(battle.outline_color(beast) == battle.Elements.color(battle.Ring.side_element(battle.ally_side)), "a beast's outline is its ring's facing element")
+	check.call(battle.floating._bars[0]["front"] and battle.floating.menu_rect.end.x > battle.floating.model_rect(beast).position.x and battle.floating.menu_rect.position.x < battle.floating.model_rect(beast).position.x, "the bar stands left of its beast and runs in behind it")
 	layout.call("beast")
-	check.call(not battle.floating.aiming and battle.floating.menu_rect.grow(battle.floating.GAP + 24.0).intersects(battle.floating.model_rect(beast)), "control is pinned beside its beast")
-	check.call(battle.floating._others(beast).all(func(r: Rect2): return not battle.floating.menu_rect.intersects(r)), "beast control rests clear of the other creatures")
+	check.call(not battle.floating.aiming and _touching(battle.floating.menu_rect, battle.floating.model_rect(beast)), "the bar touches its beast's side")
+	check.call(battle.floating.menu_rect.size.y <= UIKit.row_h(), "the bar is compact")
 	if main._test.get("profile_hud", "0") == "1":
 		var started := Time.get_ticks_usec()
 		for frame in 60:
@@ -109,7 +117,7 @@ func run(main: Node) -> void:
 	for gem in UIKit.ACCENT_ORDER:
 		UIKit.set_accent(gem)
 		await main._wait(0.05)
-		check.call(battle._outline.get_shader_parameter("gem") == UIKit.ACCENT, gem + " updates the live 3D outline")
+		check.call(battle.outline_color("trainer_self") == UIKit.ACCENT, gem + " recolours your outline")
 		await capture.call(gem)
 	UIKit.set_accent(String(main._test.get("gem", "ruby")))
 	# Long names/moves wrap without reducing the font or hit target.
@@ -126,7 +134,7 @@ func run(main: Node) -> void:
 	await main._wait(0.15)
 	await main._press("ui_right")
 	await main._wait(0.15)
-	check.call(panel.picking and battle._selected_refs == battle._target_refs and battle._selected_refs != [beast], "keyboard aiming outlines the target")
+	check.call(panel.picking and battle._selected_refs == [beast] + battle._target_refs, "keyboard aiming outlines the chooser and the target")
 	await capture.call("target")
 	if preview == "target":
 		return
@@ -154,17 +162,14 @@ func run(main: Node) -> void:
 	beast.hp -= 1
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
-	check.call(battle.floating.hp_changes.has(beast), "damage creates a transient HP tag")
+	check.call(battle.floating._bars.is_empty(), "damage shows no HUD bar during actions")
 	await capture.call("hit")
 	if preview == "hit":
 		return
-	await main._wait(1.3)
-	check.call(not battle.floating.hp_changes.has(beast), "HP tag fades after about a second")
 	beast.hp += 1
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
-	check.call(battle.floating.hp_changes.has(beast), "healing also creates a transient HP tag")
-	await main._wait(1.3)
+	check.call(battle.floating._bars.is_empty(), "healing shows no HUD bar either")
 	if battle.wild:
 		var foe = battle.foe_slots.filter(func(b): return b != null and b.hp > 0)[0]
 		var hp: int = foe.hp
@@ -177,9 +182,7 @@ func run(main: Node) -> void:
 	await main.get_tree().process_frame
 	check.call(battle._shield_orbs["foe"].all(func(orb): return orb.visible), "targeted trainer shows shield orbs")
 	battle.floating.layout()
-	battle._aim_control({"targets": [{"ref": "foe_trainer"}]})
-	battle.floating.layout()
-	var shield_tag: Rect2 = battle.floating.menu_rect
+	var shield_tag: Rect2 = battle.floating.tag_rects.get("foe_trainer", Rect2())
 	for orb in battle._shield_orbs["foe"]:
 		var at: Vector2 = battle.cam.unproject_position(orb.position) * battle.hud.get_viewport_rect().size / battle.cam.get_viewport().get_visible_rect().size
 		check.call(not shield_tag.grow(6.0).has_point(at), "trainer tag leaves the shield orbs visible")
@@ -194,3 +197,8 @@ func run(main: Node) -> void:
 	check.call(battle._shield_orbs["foe"].all(func(orb): return not orb.visible), "shield orbs hide after the hit")
 	battle._set_acting(null)
 	print("BATTLE FOCUS DONE: %d problem(s)" % bad[0])
+
+
+## A pinned bar rests against its model: overlapping it, or within a couple of units of its side.
+func _touching(bar: Rect2, model: Rect2) -> bool:
+	return bar.has_area() and bar.grow(2.0).intersects(model)

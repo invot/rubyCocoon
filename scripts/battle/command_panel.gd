@@ -252,6 +252,17 @@ func _move(dir: int) -> void:
 	_focus_row(nxt)
 
 
+## Whether ▲ (-1) / ▼ (1) leads anywhere now: to another beast, or a turn of the ring (the pinned bar's hints).
+func can_move(dir: int) -> bool:
+	if picking or closed or not rows[0].get("done", false):
+		return false
+	if focus == 0 and dir > 0 and _next_beast(0, 1) > 0:
+		return true
+	if focus > 0 and _next_beast(focus, dir) >= 0:
+		return true
+	return String(info.get("up" if dir < 0 else "down", "")) != ""
+
+
 ## The next beast's row from `from` in direction `dir` that can act, or -1.
 func _next_beast(from: int, dir: int) -> int:
 	var i := from + dir

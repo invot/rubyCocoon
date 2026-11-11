@@ -10,8 +10,18 @@ extends Node3D
 ##     the head low, breathing slowly with the eyes half shut; flyers land, folding their wings; a worm in its hole
 ##     sinks into it
 ##   - attack(): once, then back to what it was doing: rearing back, then lunging, its arms (claws, wings, talons)
-##     striking, then settling back
+##     striking, then settling back (a plain move)
+##   - cast(colour): once: a long wind-up, standing tall and trembling as the element's glow (cast_glow.gd) gathers at
+##     its horns, its hands (on two, or claws on four, that it doesn't stand on) or its mouth, then letting go, thrust
+##     at the foe with a kick back from it, its feet planted (an elemental move; the released signal)
+##   - guard: held while it's true (Defend): braced, low and squat, head tucked, arms (claws) raised across in front,
+##     wings wrapped forward, a serpent coiled down, a blob squashed
+##   - block(): a quick guard, shoved back a little (a defended or resisted hit)
+##   - recoil(k, heavy): knocked back by a hit, k (0..1) as hard as the hit was, its head snapping back and its eyes
+##     wincing shut; heavy (a critical or extra effective hit) harder still, rocking it off balance
+##   - faint(): lying down, quicker, slumped over with its eyes shut (state "lie"; getting up again clears it)
 ## Its feet stay where they stand (each leg turned and stretched to reach its foot) while the body moves over them.
+## A ghost or a merge takes all of these from its frame (its kind and its measured limbs).
 ## A ghost is the same beast in black and purple, wrapped in smoke.
 ## A merged beast (setup_merge(), or setup_recipe() from the recipe it keeps) is built from two parents' models
 ## (beast_parts.gd: one gives the frame, the other some of its parts), painted in one parent's colours.
@@ -19,16 +29,27 @@ extends Node3D
 
 const Looks = preload("res://scripts/data/beast_looks.gd")
 const Parts = preload("res://scripts/gfx/beast_parts.gd")
+const CastGlow = preload("res://scripts/gfx/cast_glow.gd")
 const SHADER = preload("res://scripts/gfx/beast_toon.gdshader")
 const PARTS := Looks.PARTS
 ## how long an attack takes (s), and when in it the blow lands (0..1)
 const ATTACK_TIME := 0.75
 const HIT_AT := 0.42
+## how long a cast takes (s), and when in it the glow is let go (0..1)
+const CAST_TIME := 1.1
+const RELEASE_AT := 0.6
+## a quick guard (block), and a recoil from a light hit, a full one and a heavy one's extra (s)
+const BLOCK_TIME := 0.45
+const RECOIL_TIME := 0.45
+const RECOIL_FULL := 0.2
+const RECOIL_HEAVY := 0.15
 ## flyers hover this high while awake
 const HOVER := 0.22
 
 ## the blow of attack() lands
 signal hit
+## cast() lets its glow go
+signal released
 
 var form := ""
 ## quad, biped, flyer, serpent or blob (the frame's)
@@ -38,6 +59,8 @@ var state := "idle"
 var ghost := false
 ## steps per second while walking, as a part of its usual pace
 var pace := 1.0
+## braced (Defend): it eases into the stance and holds it while this is true
+var guard := false
 
 var pivot: Node3D
 var skel: Skeleton3D
@@ -77,6 +100,22 @@ var _atk := -1.0
 var _walk := 0.0
 var _lie := 0.0
 var _blink := 2.0
+## a cast, a block and a recoil under way (0..1, or -1), the recoil's strength and whether it's heavy, how far into
+## its braced stance it is, and whether (and how far) it has fainted
+var _cst := -1.0
+var _blk := -1.0
+var _rec := -1.0
+var _rec_k := 0.5
+var _rec_heavy := false
+var _rec_time := RECOIL_TIME
+var _grd := 0.0
+var _out := false
+var _ko := 0.0
+## where it gathers its glow casting: [part, where in that part's own space] for each point, and from what ("horn",
+## "hand" or "mouth"); the glows there, built on its first cast
+var _glow_at: Array = []
+var cast_from := "mouth"
+var _glows: Array = []
 
 ## built beasts' pieces and joints, by recipe (cutting a merge's meshes is slow; every beast of a recipe shares them)
 static var _built := {}
@@ -109,6 +148,57 @@ func attacking() -> bool:
 	return _atk >= 0.0
 
 
+## Starts a cast, its glow in this colour (let go RELEASE_AT of the way through: the released signal).
+func cast(col: Color) -> void:
+	if skel == null:
+		return
+	_cst = 0.0
+	if _glows.is_empty():
+		for g in _glow_at:
+			var at := BoneAttachment3D.new()
+			at.bone_name = String(g[0])
+			skel.add_child(at)
+			var gl: Node3D = CastGlow.new()
+			gl.position = g[1]
+			at.add_child(gl)
+			_glows.append(gl)
+	for gl in _glows:
+		gl.begin(col)
+
+
+func casting() -> bool:
+	return _cst >= 0.0
+
+
+## Where its glows are now, in world space (for a burst, or aiming from).
+func glow_points() -> Array:
+	var out := []
+	for gl in _glows:
+		if is_instance_valid(gl) and gl.is_inside_tree():
+			out.append((gl as Node3D).global_position)
+	return out
+
+
+## A quick guard (a defended or resisted hit).
+func block() -> void:
+	_blk = 0.0
+
+
+## Knocked back by a hit: k (0..1) as hard as it was; heavy for a critical or extra effective one.
+func recoil(k: float, heavy := false) -> void:
+	_rec = 0.0
+	_rec_k = clampf(k, 0.0, 1.0)
+	_rec_heavy = heavy
+	_rec_time = RECOIL_TIME + RECOIL_FULL * _rec_k + (RECOIL_HEAVY if heavy else 0.0)
+
+
+## Knocked out: lying down (quicker than to rest), slumped over, its eyes shut, until its state is set back.
+func faint() -> void:
+	state = "lie"
+	_out = true
+	guard = false
+
+
 ## Its height in beast units (as it stands, before the node's scale).
 func height() -> float:
 	return _height
@@ -118,6 +208,10 @@ func height() -> float:
 func settle() -> void:
 	_walk = 1.0 if state == "walk" else 0.0
 	_lie = 1.0 if state == "lie" else 0.0
+	if state != "lie":
+		_out = false
+	_ko = 1.0 if _out else 0.0
+	_grd = 1.0 if guard else 0.0
 	_pose()
 
 
@@ -125,6 +219,12 @@ func settle() -> void:
 ## statue, a museum exhibit, an icon).
 func hold() -> void:
 	_atk = -1.0
+	_cst = -1.0
+	_blk = -1.0
+	_rec = -1.0
+	guard = false
+	for gl in _glows:
+		gl.clear()
 	_bounce = PI / 2.0
 	_flap = 0.0
 	_step = 0.0
@@ -139,6 +239,9 @@ func bounds() -> AABB:
 	var bb := AABB()
 	var first := true
 	for mi in find_children("*", "MeshInstance3D", true, false):
+		# (its own pieces, not a cast's glow)
+		if mi.get_parent() != skel:
+			continue
 		var xf: Transform3D = pivot.transform * skel.transform * (mi as MeshInstance3D).transform
 		var b: AABB = xf * (mi as MeshInstance3D).get_aabb()
 		bb = b if first else bb.merge(b)
@@ -150,6 +253,7 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 	for c in get_children():
 		c.queue_free()
 	mats.clear()
+	_glows.clear()
 	_shut = -1.0
 	ghost = as_ghost
 	var frame: String = recipe["frame"]
@@ -226,10 +330,13 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 		_drop = measures["drop"]
 		_ground = measures["ground"]
 		_height = measures["height"]
+		_glow_at = measures["glow"].duplicate(true)
+		cast_from = measures["cast_from"]
 	else:
 		_measure(meshes, fi, blo, bhi)
 		_measurements[key] = {"feet": _feet.duplicate(true), "swing": _swing.duplicate(true),
-			"fold": _fold.duplicate(), "on_hands": _on_hands, "drop": _drop, "ground": _ground, "height": _height}
+			"fold": _fold.duplicate(), "on_hands": _on_hands, "drop": _drop, "ground": _ground, "height": _height,
+			"glow": _glow_at.duplicate(true), "cast_from": cast_from}
 	if ghost:
 		_add_smoke(blo, bhi)
 	_t = randf() * 10.0
@@ -383,6 +490,80 @@ func _measure(meshes: Array, fi: Dictionary, blo: Vector3, bhi: Vector3) -> void
 			var side := -1.0 if p.ends_with("_l") else 1.0
 			var down := clampf((j.y - _ground - _drop - 0.06) / maxf(to.length(), 0.01), 0.0, 0.6)
 			_fold[p] = Quaternion(to.normalized(), Vector3(-sqrt(1.0 - down * down - 0.0225), -down, 0.15 * side))
+	_measure_glow(arrays)
+
+
+## Where it gathers its glow casting (cast()), from its meshes as built (a merge's parts where they were set): the tips
+## of its horns, where they stand out (one glow, or one on each side for a pair); else its hands, on two (or claws, on
+## four) that it doesn't stand on; else its mouth, the front of its head (of its body, without one).
+func _measure_glow(arrays: Array) -> void:
+	var verts := {"horn": [], "arm_l": [], "arm_r": [], "head": [], "body": []}
+	for a in arrays:
+		var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var bs: PackedInt32Array = a[Mesh.ARRAY_BONES]
+		for i in vs.size():
+			var p: String = PARTS[bs[i * 4]]
+			if verts.has(p):
+				verts[p].append(vs[i])
+	_glow_at = []
+	# horns: their tips (the far end from the joint), split left and right for a pair
+	if (verts["horn"] as Array).size() >= 12:
+		var j: Vector3 = _joint.get("horn", _centre)
+		var far := 0.0
+		for v in verts["horn"]:
+			far = maxf(far, (v as Vector3).distance_to(j))
+		if far > 0.07:
+			var sides := {-1: [Vector3.ZERO, 0], 0: [Vector3.ZERO, 0], 1: [Vector3.ZERO, 0]}
+			for v in verts["horn"]:
+				if (v as Vector3).distance_to(j) > far * 0.82:
+					var sd := 0 if absf(v.z) < 0.04 else int(signf(v.z))
+					sides[sd][0] += v
+					sides[sd][1] += 1
+			for sd in sides:
+				if int(sides[sd][1]) > 0:
+					_glow_at.append(["horn", sides[sd][0] / float(sides[sd][1]) - j])
+			if not _glow_at.is_empty():
+				cast_from = "horn"
+				return
+	# hands: each arm's far end, on arms that hang free and reach out far enough to show
+	if kind == "biped" or kind == "quad":
+		for p in ["arm_l", "arm_r"]:
+			if _feet.has(p) or (verts[p] as Array).size() < 12:
+				continue
+			var j: Vector3 = _joint.get(p, _centre)
+			var far := 0.0
+			for v in verts[p]:
+				far = maxf(far, (v as Vector3).distance_to(j))
+			if far < 0.12:
+				continue
+			var tip := Vector3.ZERO
+			var n := 0
+			for v in verts[p]:
+				if (v as Vector3).distance_to(j) > far * 0.85:
+					tip += v
+					n += 1
+			_glow_at.append([p, tip / float(maxi(n, 1)) - j])
+		if not _glow_at.is_empty():
+			cast_from = "hand"
+			return
+	# the mouth: the front of the head (the body's upper front, without one)
+	var face := "head" if (verts["head"] as Array).size() >= 12 else "body"
+	var j: Vector3 = _joint.get("head", _centre) if face == "head" else _centre
+	var front := -9.0
+	var mid := _ground + _height * 0.5
+	for v in verts[face]:
+		if face == "head" or v.y > mid:
+			front = maxf(front, v.x)
+	var at := Vector3.ZERO
+	var n := 0
+	for v in verts[face]:
+		if v.x > front - 0.03 and (face == "head" or v.y > mid):
+			at += v
+			n += 1
+	at = at / float(maxi(n, 1)) if n > 0 else j + Vector3(0.1, 0.0, 0.0)
+	# (just in front of it, so the glow isn't buried in the face)
+	_glow_at.append([face, at + Vector3(0.03, 0.0, 0.0) - j])
+	cast_from = "mouth"
 
 
 ## An arm's turn (pitch) [winding up, striking], from the way the arms point (`at`, the angle up from forward) and how
@@ -469,7 +650,32 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	_walk = move_toward(_walk, 1.0 if state == "walk" else 0.0, delta * 4.0)
-	_lie = move_toward(_lie, 1.0 if state == "lie" else 0.0, delta * 1.4)
+	if state != "lie":
+		_out = false
+	# (knocked out: down quicker than lying down to rest)
+	_lie = move_toward(_lie, 1.0 if state == "lie" else 0.0, delta * (3.2 if _out else 1.4))
+	_ko = move_toward(_ko, 1.0 if _out else 0.0, delta * 3.0)
+	_grd = move_toward(_grd, 1.0 if guard else 0.0, delta * 5.0)
+	if _cst >= 0.0:
+		var was_c := _cst
+		_cst += delta / CAST_TIME
+		if was_c < RELEASE_AT and _cst >= RELEASE_AT:
+			for gl in _glows:
+				gl.release()
+			released.emit()
+		elif _cst < RELEASE_AT:
+			for gl in _glows:
+				gl.gather(_cst / RELEASE_AT)
+		if _cst >= 1.0:
+			_cst = -1.0
+	if _blk >= 0.0:
+		_blk += delta / BLOCK_TIME
+		if _blk >= 1.0:
+			_blk = -1.0
+	if _rec >= 0.0:
+		_rec += delta / _rec_time
+		if _rec >= 1.0:
+			_rec = -1.0
 	# (slow breaths lying down)
 	_bounce += delta * TAU * lerpf(1.5, 0.55, _ease(_lie))
 	_step += delta * TAU * 1.8 * pace
@@ -511,20 +717,44 @@ func _pose() -> void:
 	var sy := 1.0
 	var sx := 1.0
 	var lift := 0.0
+	# the battle's poses now: braced (gw: held, or a quick block, shoved back by it), a cast gathering (cg) and let go
+	# (cr), and knocked back by a hit (hr: as hard as it was, bouncing back a little after)
+	var gw := _ease(_grd)
+	var shove := 0.0
+	if _blk >= 0.0:
+		gw = maxf(gw, clampf(_blk / 0.12, 0.0, 1.0) * (1.0 - smoothstep(0.6, 1.0, _blk)))
+		shove = sin(PI * clampf((_blk - 0.06) / 0.4, 0.0, 1.0))
+	gw *= awake
+	var cg := 0.0
+	var cr := 0.0
+	if _cst >= 0.0:
+		if _cst < RELEASE_AT:
+			cg = _ease(_cst / RELEASE_AT)
+		else:
+			var u := (_cst - RELEASE_AT) / (1.0 - RELEASE_AT)
+			cg = 1.0 - smoothstep(0.0, 0.12, u)
+			cr = clampf(u / 0.15, 0.0, 1.0) * (1.0 - _ease(clampf((u - 0.5) / 0.5, 0.0, 1.0)))
+	var hr := 0.0
+	if _rec >= 0.0:
+		var u := _rec
+		var h := u / 0.08 if u < 0.08 else exp(-(u - 0.08) * 3.5) * cos((u - 0.08) * 6.0)
+		hr = h * (1.0 - smoothstep(0.8, 1.0, u)) * (0.35 + 0.65 * _rec_k) * (1.45 if _rec_heavy else 1.0)
+	# (held still, braced or gathering: the idle's sway and the wings' beat calmed)
+	var calm := 1.0 - 0.75 * maxf(gw, cg)
 	# idle: squashing down and springing up (the body dipping on its legs), the head nodding after it, the tail and
 	# arms swaying behind
 	var bob := cos(_bounce)
 	var amp: float = {"blob": 0.06, "serpent": 0.045, "flyer": 0.012}.get(kind, 0.04)
-	sy -= amp * bob * (1.0 - 0.7 * walk) * (1.0 - 0.3 * lie)
+	sy -= amp * bob * (1.0 - 0.7 * walk) * (1.0 - 0.3 * lie) * calm
 	if not flyer and not _feet.is_empty():
-		off["body"].y -= 0.02 * (0.5 + 0.5 * bob) * still * awake
-	rot["head"].z -= 0.05 * cos(_bounce - 0.8) * still
-	rot["tail"].y += 0.22 * sin(_bounce * 0.5)
-	rot["tail"].z += 0.06 * cos(_bounce - 1.2) * still
-	rot["arm_l"].x += 0.07 * cos(_bounce - 0.6) * still
-	rot["arm_r"].x -= 0.07 * cos(_bounce - 0.6) * still
+		off["body"].y -= 0.02 * (0.5 + 0.5 * bob) * still * awake * calm
+	rot["head"].z -= 0.05 * cos(_bounce - 0.8) * still * calm
+	rot["tail"].y += 0.22 * sin(_bounce * 0.5) * calm
+	rot["tail"].z += 0.06 * cos(_bounce - 1.2) * still * calm
+	rot["arm_l"].x += 0.07 * cos(_bounce - 0.6) * still * calm
+	rot["arm_r"].x -= 0.07 * cos(_bounce - 0.6) * still * calm
 	# wings flap while it's up (faster as it flies, the body rising on each beat), and fold when it lands
-	var fl := sin(_flap)
+	var fl := sin(_flap) * calm
 	if flyer:
 		lift = (HOVER - 0.022 * fl) * awake
 		rot["wing_l"].x += (0.6 * fl + 0.15) * awake
@@ -691,6 +921,107 @@ func _pose() -> void:
 						reach[p] += Vector3(lunge * 0.6 * s, 0.05 * snap, 0.0)
 		sx += 0.1 * snap
 		sy *= 1.0 - 0.04 * snap
+	# casting: standing tall and leaning back as it gathers, trembling as it builds, then letting go, thrust at the foe
+	# with its feet planted (no lunge, unlike an attack), and settling
+	if cg > 0.0 or cr > 0.0:
+		var shiver := cg * cg * sin(_t * 70.0) * 0.008
+		off["body"].x += -0.035 * cg + 0.05 * cr + shiver
+		rot["tail"].z += 0.3 * cg - 0.25 * cr
+		sy *= 1.0 + 0.05 * cg - 0.06 * cr
+		sx += 0.06 * cr
+		match cast_from:
+			"horn":
+				# lowering its horns at the foe as the glow builds on them, then tossing them up
+				rot["head"].z += -0.32 * cg + 0.22 * cr
+				rot["body"].z += -0.08 * cg + 0.06 * cr
+				if not _feet.is_empty() and not flyer:
+					off["body"].y -= 0.025 * cg
+			"hand":
+				# its hands raised high and apart, the glow in them, then flung forward at the foe
+				rot["head"].z += 0.12 * cg - 0.08 * cr
+				rot["body"].z += 0.06 * cg - 0.06 * cr
+				for p in _swing:
+					if _feet.has(p):
+						continue
+					var hanging: bool = float(_swing[p][0]) < 0.0
+					rot[p].z += (2.0 if hanging else 0.8) * cg + (1.3 if hanging else -0.25) * cr
+					rot[p].x += (0.4 if p == "arm_l" else -0.4) * cg
+			_:
+				# rearing up, its head back, drawing it in, then thrusting its head forward with it
+				rot["head"].z += 0.38 * cg - 0.3 * cr
+				rot["body"].z += 0.12 * cg - 0.1 * cr
+		if cast_from != "hand":
+			# arms held out a little, tense
+			rot["arm_l"].x += 0.15 * cg
+			rot["arm_r"].x -= 0.15 * cg
+		match kind:
+			"flyer":
+				# wings spread high and held, then swept forward
+				lift += 0.06 * cg - 0.03 * cr
+				rot["wing_l"].x += 0.75 * cg - 0.4 * cr
+				rot["wing_r"].x -= 0.75 * cg - 0.4 * cr
+			"serpent":
+				rot["body"].z += (0.2 if _hole else 0.06) * cg - (0.15 if _hole else 0.05) * cr
+			"blob":
+				# swelling as it fills, then squeezing it out
+				sy *= 1.0 + 0.1 * cg - 0.16 * cr
+	# braced (Defend; a block for a moment): low and squat, leaning into it with its head tucked, its arms (claws)
+	# raised across in front, wings wrapped round to the front, a serpent coiled down (a worm into its hole), a blob
+	# squashed; a block shoves it back
+	if gw > 0.0 or shove > 0.0:
+		if not _feet.is_empty() and not flyer:
+			off["body"].y -= 0.03 * gw
+		off["body"].x -= 0.03 * gw + 0.07 * shove
+		rot["body"].z -= 0.08 * gw
+		rot["head"].z -= 0.22 * gw + 0.08 * shove
+		rot["tail"].z -= 0.15 * gw
+		sy *= 1.0 - 0.07 * gw - 0.04 * shove
+		for p in _swing:
+			if _feet.has(p):
+				continue
+			var hanging: bool = float(_swing[p][0]) < 0.0
+			rot[p].z += (1.2 if hanging else 0.55) * gw
+			rot[p].x += (-0.3 if p == "arm_l" else 0.3) * gw
+		match kind:
+			"flyer":
+				lift *= 1.0 - 0.35 * gw
+				rot["wing_l"].y -= 0.9 * gw
+				rot["wing_r"].y += 0.9 * gw
+				rot["wing_l"].x -= 0.15 * gw
+				rot["wing_r"].x += 0.15 * gw
+			"serpent":
+				sy *= 1.0 - 0.1 * gw
+				rot["head"].z -= 0.12 * gw
+				if _hole:
+					off["body"].y -= _drop * 0.35 * gw
+			"blob":
+				sy *= 1.0 - 0.12 * gw
+	# knocked back by a hit: the body rocked back, the head snapping back, arms and wings flung out; a heavy hit rocks
+	# it off balance too
+	if hr != 0.0:
+		off["body"].x -= 0.09 * hr
+		rot["body"].z += 0.2 * hr
+		rot["head"].z += 0.4 * hr
+		rot["tail"].z -= 0.2 * hr
+		rot["arm_l"].x += 0.35 * hr
+		rot["arm_r"].x -= 0.35 * hr
+		rot["wing_l"].x += 0.5 * hr
+		rot["wing_r"].x -= 0.5 * hr
+		sy *= 1.0 - 0.1 * hr
+		sx -= 0.05 * hr
+		if _rec_heavy:
+			rot["body"].x += 0.14 * hr
+			rot["head"].x -= 0.12 * hr
+		if flyer:
+			lift -= 0.08 * hr
+		elif kind == "blob":
+			sy *= 1.0 - 0.08 * hr
+	# knocked out: slumped over to one side, its head lolling down
+	if _ko > 0.0 and lie > 0.0:
+		var ko := _ease(_ko) * lie
+		rot["body"].x += 0.2 * ko
+		rot["head"].z -= 0.25 * ko
+		rot["head"].x += 0.2 * ko
 	pivot.position = Vector3(0.0, lift - _ground, 0.0)
 	var wide := 1.0 / sqrt(sy)
 	pivot.scale = Vector3(wide * sx, sy / sqrt(sx), wide)
@@ -726,8 +1057,13 @@ func _pose() -> void:
 		skel.set_bone_pose_position(i, at)
 		skel.set_bone_pose_rotation(i, q)
 		skel.set_bone_pose_scale(i, sc)
-	# eyes half shut lying down, and a blink now and then
+	# eyes half shut lying down (shut, knocked out), and a blink now and then; wincing shut at a hit, narrowed braced
+	# or gathering a cast
 	var shut := 1.0 if _blink < 0.0 else lerpf(0.0, 0.85, lie)
+	if (_ko > 0.5 and lie > 0.5) or hr > 0.35:
+		shut = 1.0
+	elif gw > 0.5 or cg > 0.5:
+		shut = maxf(shut, 0.35)
 	if shut != _shut:
 		_shut = shut
 		for m in mats:

@@ -15,6 +15,7 @@ by Canino3d and **Windows Pack** by Midox as visual references. Both identify CC
 no meshes or textures from either pack are redistributed. See [window reference provenance](licenses/window_references.md).
 Kelpwick's stilt huts are adapted from the user-supplied **Low poly stylized tribal tropical hut** archive:
 its mesh and painted wood, plaster, windows and thatch, with pastel plaster, solid wooden doors, stilts and stairs.
+The wooden fences share the huts' painted timber texture.
 See [source details and conversion notes](licenses/tribal_hut.md).
 Kelpwick's arena uses **Stylized House** by [Kesenkai](https://sketchfab.com/kesenkai),
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), supplied as `stylized_house.glb`.

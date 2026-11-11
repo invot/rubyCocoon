@@ -1427,9 +1427,14 @@ func _run_test() -> void:
 		await load("res://tools/debug/top_bar_notices.gd").new().run(self)
 	elif scene == "battle-focus":
 		await load("res://tools/debug/battle_focus.gd").new().run(self)
+	elif scene == "battle-stage":
+		await load("res://tools/debug/battle_stage.gd").new().run(self)
 	elif scene == "battle-redirect":
 		# actions aimed at a foe that has fallen are passed on to the next one, then the trainer (--shots=)
 		await load("res://tools/debug/battle_redirect.gd").new().run(self)
+	elif scene == "battle-poses":
+		# the beasts' battle poses through the battle camera: a cast's cuts, Defend and a block, hits, a heal, a faint
+		await load("res://tools/debug/battle_poses.gd").new().run(self)
 	elif scene == "ringedit":
 		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
 		await _ringedit_test()
@@ -3424,7 +3429,7 @@ func _battlecmd_test() -> void:
 	UI.controls._send("a", false)
 	await _wait(0.2)
 	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "one tap of A: the slingshot only goes on to its target (picking %s, your action done %s)" % [p.picking, p.rows[0].get("done", false)])
-	check.call(not bt.floating.menu_rect.has_area() and bt._target_refs.size() == 1 and bt._aim_from == "trainer_self" and bt.aim_mesh.mesh.get_surface_count() > 0, "targeting hides move info and draws an arch from the trainer")
+	check.call(bt.floating.aiming and bt.floating.actor == "trainer_self" and bt._target_refs.size() == 1 and bt.floating.tag_rects.has(bt._target_refs[0]) and bt._aim_from == "trainer_self" and bt.aim_mesh.mesh.get_surface_count() > 0, "targeting keeps the trainer's bar, gives the target a bar and draws an arch from the trainer")
 	await key.call("ui_accept")
 	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
 	# the top beast: its move, then its target (two foes)
@@ -3432,7 +3437,7 @@ func _battlecmd_test() -> void:
 	await key.call("ui_accept")
 	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
 	await _wait(0.1)
-	check.call(not bt.floating.menu_rect.has_area() and bt._target_refs.size() == 1 and bt._aim_from == fire_a and bt.aim_mesh.mesh.get_surface_count() > 0, "a beast's arch starts at that beast, with move info closed")
+	check.call(bt.floating.aiming and is_same(bt.floating.actor, fire_a) and bt._target_refs.size() == 1 and bt._aim_from == fire_a and bt.aim_mesh.mesh.get_surface_count() > 0, "a beast's arch starts at that beast, whose bar names the target")
 	var first_target = bt._target_refs[0]
 	await key.call("ui_right")
 	check.call(bt._target_refs.size() == 1 and bt._target_refs[0] != first_target, "► moves the arrow to the other foe")
@@ -3458,7 +3463,7 @@ func _battlecmd_test() -> void:
 	check.call(not shift.is_empty() and shift.get("disabled", false), "the beast in the middle can't Move: \"%s\"" % shift.get("desc", ""))
 	await opt_to.call(p, "move", "fire_spin")
 	await key.call("ui_accept")
-	check.call(p.picking and p.rows[2].get("target_all", false) and not bt.floating.menu_rect.has_area() and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
+	check.call(p.picking and p.rows[2].get("target_all", false) and bt.floating.aiming and bt.floating.tag_rects.size() == 2 and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
 	if stop == "all":
 		return
 	await key.call("ui_left")
@@ -3860,9 +3865,21 @@ func _lessons_test() -> void:
 	print("lessons DONE: %d problem(s)" % bad[0])
 
 
+## the poses --anim=cycle runs through, in turn (beast_rig.gd)
+const NB_CYCLE := ["idle", "attack", "cast", "defend", "block", "hit", "heavy", "faint"]
+const NB_PAGE := 5
+var _nb_root: Node3D
+
+
 func _newbeasts_test() -> void:
+	if _test.get("anim", "") == "cycle" and _test.get("page", "") == "all":
+		await _newbeasts_all()
+		return
 	var Rig = load("res://scripts/gfx/beast_rig.gd")
+	if is_instance_valid(_nb_root):
+		_nb_root.free()
 	var root := Node3D.new()
+	_nb_root = root
 	view.add_child(root)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -3896,7 +3913,13 @@ func _newbeasts_test() -> void:
 	else:
 		var c := 0
 		var stages := String(_test.get("stages", "1,2,3")).split(",")
-		for line in String(_test.get("lines", "dino,scorpion,berry,beetle,cactus")).split(","):
+		# (--page=N: the lines NB_PAGE at a time, in RaceDB's order)
+		var lines := "dino,scorpion,berry,beetle,cactus"
+		if _test.has("page") and String(_test["page"]).is_valid_int():
+			var all: Array = RaceDB.LINES.map(func(l): return String(l[0]))
+			var from := int(_test["page"]) * NB_PAGE
+			lines = ",".join(all.slice(from, from + NB_PAGE))
+		for line in String(_test.get("lines", lines)).split(","):
 			for k in stages.size():
 				var f := "%s_%s" % [line, stages[k]]
 				cells.append([c, k, f, f])
@@ -3926,7 +3949,10 @@ func _newbeasts_test() -> void:
 		rig.position = at
 		rig.scale = Vector3(s, s, s)
 		rig.rotation_degrees.y = yaw
-		rig.state = "idle" if anim == "attack" else anim
+		rig.state = anim if anim in ["idle", "walk", "lie"] else "idle"
+		# (its glow casting: its line's element; a merge's, its frame's)
+		var frame_form: String = cell[3][0] if cell[3] is Array else String(cell[3])
+		rig.set_meta("el_col", load("res://scripts/data/elements.gd").color(RaceDB.element(maxi(RaceDB.of_form(frame_form), 0))))
 		rigs.append(rig)
 		var pad := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
@@ -3972,6 +3998,122 @@ func _newbeasts_test() -> void:
 		tm.start()
 		if _test.has("at"):
 			await _wait(float(_test["at"]))
+	elif anim in NB_CYCLE or anim == "cycle":
+		# the battle's poses: one (--anim=cast|defend|block|hit|heavy|faint, --at: a screenshot that long into it, once),
+		# or every one in turn (cycle), the pose named over them
+		var title := Label3D.new()
+		title.font = UIKit.font_body()
+		title.font_size = 64
+		title.outline_size = 12
+		title.pixel_size = cam.size / 1400.0
+		title.position = Vector3(0, cam.size * 0.44, -5.0)
+		title.no_depth_test = true
+		cam.add_child(title)
+		await _wait(0.5)
+		if anim != "cycle":
+			# (--wait=0 --shot=x.png: the shot --at seconds in)
+			title.text = anim.capitalize()
+			_nb_start(rigs, anim)
+			await _wait(maxf(float(_test.get("at", "0.5")), 0.0))
+			return
+		while true:
+			for pose in NB_CYCLE:
+				await _nb_pose(rigs, pose, title)
+			if _test.has("shots") or _test.get("quit", "1") == "1" or _test.has("page_all"):
+				break
+
+
+## --scene=newbeasts --anim=cycle --page=all: every line, NB_PAGE at a time, then ghosts of every kind of body, then
+## merges, each page through every pose (with --shots=dir: <dir>/<page>_<pose>.png at each pose's telling moment).
+func _newbeasts_all() -> void:
+	var pages := []
+	for i in ceili(RaceDB.LINES.size() / float(NB_PAGE)):
+		pages.append({"page": str(i), "tag": "page%d" % i})
+	# a ghost of each kind: on four, on two, flying, a serpent and a blob
+	pages.append({"lines": "scorpion,cactus,owl,worm,berry", "ghost": "1", "tag": "ghosts"})
+	pages.append({"merge": "dino_3+owl_3,crab_2+frog_2,worm_2+bat_2", "seeds": "1,2", "tag": "merges"})
+	var keep := _test.duplicate()
+	for pg in pages:
+		_test = keep.duplicate()
+		_test.erase("page")
+		_test.merge(pg, true)
+		_test["page_all"] = "1"
+		await _newbeasts_test()
+	_test = keep
+
+
+## Starts one pose on every rig shown (beast_rig.gd): a block braced first, as a defended hit is.
+func _nb_start(rigs: Array, pose: String) -> void:
+	for r in rigs:
+		match pose:
+			"attack":
+				r.attack()
+			"cast":
+				r.cast(r.get_meta("el_col", Color.WHITE))
+			"defend":
+				r.guard = true
+			"block":
+				r.guard = true
+				r.block()
+			"hit", "heavy":
+				r.recoil(0.55 if pose == "hit" else 1.0, pose == "heavy")
+			"faint":
+				r.faint()
+
+
+## One pose on every rig shown, named over them, with --shots at its telling moment: the blow landing, a cast
+## gathering and let go, braced, a block and the hits at their hardest, fainted; then back to standing.
+func _nb_pose(rigs: Array, pose: String, title: Label3D) -> void:
+	var Rig = load("res://scripts/gfx/beast_rig.gd")
+	var wind: float = Rig.CAST_TIME * Rig.RELEASE_AT
+	var names := {"idle": "Idle", "attack": "Attack (a plain move)", "cast": "Cast: gathering", "release": "Cast: let go",
+		"defend": "Defend (held)", "block": "Block (a defended or resisted hit)", "hit": "Hit",
+		"heavy": "Heavy hit (critical, extra effective)", "faint": "Faint"}
+	title.text = names.get(pose, pose)
+	if pose == "block":
+		for r in rigs:
+			r.guard = true
+		await _wait(0.4)
+	_nb_start(rigs, pose)
+	match pose:
+		"idle":
+			await _nb_moment(0.6, "idle")
+		"attack":
+			await _nb_moment(Rig.ATTACK_TIME * Rig.HIT_AT, "attack")
+			await _wait(Rig.ATTACK_TIME * (1.0 - Rig.HIT_AT) + 0.3)
+		"cast":
+			await _nb_moment(wind * 0.85, "cast")
+			title.text = names["release"]
+			await _nb_moment(wind * 0.15 + 0.08, "release")
+			await _wait(Rig.CAST_TIME - wind + 0.3)
+		"defend":
+			await _nb_moment(0.7, "defend")
+			await _wait(0.5)
+		"block":
+			await _nb_moment(0.1, "block")
+			await _wait(0.6)
+		"hit", "heavy":
+			await _nb_moment(0.05 if pose == "hit" else 0.065, pose)
+			await _wait(1.0)
+		"faint":
+			await _nb_moment(1.0, "faint")
+			await _wait(0.6)
+	for r in rigs:
+		r.guard = false
+		r.state = "idle"
+	if pose in ["defend", "block", "faint"]:
+		await _wait(1.0)
+
+
+## (t seconds on, the frame drawn, then saved as <--shots>/<--tag>_<name>.png)
+func _nb_moment(t: float, name: String) -> void:
+	await _wait(t)
+	if not _test.has("shots"):
+		return
+	await RenderingServer.frame_post_draw
+	var dir := String(_test["shots"])
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	_save_shot(dir.path_join("%s_%s.png" % [String(_test.get("tag", "beasts")), name]))
 
 
 ## Tapped walks to the nearest of `goals` on this map, again after each stop (a teacher's lesson, say), until you're on

@@ -3,6 +3,7 @@ extends SceneTree
 const Arrow = preload("res://scripts/battle/target_arrow.gd")
 const Backdrop = preload("res://scripts/battle/backdrop.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
+const Director = preload("res://scripts/battle/battle_camera.gd")
 var bad := 0
 
 
@@ -21,6 +22,8 @@ func _initialize() -> void:
 		"yellow arrow is translucent with normal 3D depth testing")
 	_check(Color(material.albedo_color, 1.0) == Arrow.YELLOW, "arrow stays yellow in every gem")
 	var wall := Backdrop.mesh()
+	_check(wall == Backdrop.mesh(), "surround geometry is cached between encounters")
+	_check(Backdrop.PROFILE[0].x > Director.OUTDOOR_CAMERA_RADIUS + 1.0, "every directed outdoor camera is inside the surround")
 	var arrays := wall.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	for row in Backdrop.PROFILE.size():

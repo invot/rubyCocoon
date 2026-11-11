@@ -10,8 +10,10 @@ Only extracted, fitted fence sections are redistributed in `assets/props/`.
 - Source: https://sketchfab.com/3d-models/low-poly-wood-fence-on-grass-d35a038f74ea47819459cabae8c28c62.
 - Embedded license: CC BY 4.0, http://creativecommons.org/licenses/by/4.0/.
 - Changes: one straight picket section extracted; grass display base removed;
-  section centred, fitted to a tile and made 0.78 units high; texture resized and
-  smoothed with the project's texture pipeline. Corners use joined half sections.
+  section centred, fitted to a tile and made 0.78 units high; retextured with the
+  [supplied tropical huts' painted timber](tribal_hut.md), with grain aligned along
+  each picket and rail. The shared timber texture is smoothed with the project's
+  texture pipeline. Corners use joined half sections.
 
 ## Iron Fence
 

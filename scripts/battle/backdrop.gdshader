@@ -4,6 +4,7 @@ render_mode cull_back, shadows_disabled;
 uniform sampler2D panorama : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D ground_texture : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float repeats = 6.0;
+uniform vec4 paint_tint : source_color = vec4(1.0);
 varying vec3 world_position;
 
 void vertex() {
@@ -17,6 +18,6 @@ void fragment() {
 	vec3 floor_color = texture(ground_texture, vec2(world_position.x, world_position.z - 1.5)).rgb;
 	float painted = smoothstep(0.1, 1.65, world_position.y);
 	ALBEDO = floor_color * (1.0 - painted);
-	EMISSION = scenery * painted;
+	EMISSION = scenery * paint_tint.rgb * painted * 0.72;
 	ROUGHNESS = 1.0;
 }
