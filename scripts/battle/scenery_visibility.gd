@@ -35,7 +35,8 @@ func register(node: MultiMeshInstance3D, originals: Array) -> void:
 func step(delta: float) -> void:
 	_elapsed += delta
 	# Cuts and quick camera moves clear the view immediately. Slow drifts reuse the last result for 80 ms.
-	if _elapsed >= INTERVAL or battle.cam.global_position.distance_squared_to(_camera_position) > 0.12:
+	if _elapsed >= INTERVAL or battle.cam.global_position.distance_squared_to(_camera_position) > 0.12 \
+		or (-battle.cam.global_basis.z).dot(_forward) < 0.999:
 		update()
 
 
