@@ -8,6 +8,8 @@ extends CanvasLayer
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
 const LEGEND_H := 48.0
+var _legend_tween: Tween
+signal layout_changed
 ## The touch buttons answer taps a little outside their drawn edge (pixels).
 const TOUCH_SLOP := 22.0
 ## A and B click at a lower pitch than the menu blip, B two notes (a minor third) below A, and softer.
@@ -41,21 +43,49 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_layout)
 	if is_instance_valid(Prefs):
 		Prefs.changed.connect(refresh)
+	Controllers.changed.connect(refresh)
 	refresh()
 
 
 func refresh() -> void:
 	if _gem != UIKit.accent_name:
 		_recolour()
-	_touch_on = Prefs.touch_enabled() and not title_mode
+	var next_touch := Prefs.touch_enabled() and not title_mode
+	if _touch_on and not next_touch:
+		# A controller connected while a thumb was down: release the pad's actions before hiding it.
+		for id in PAD_ACTIONS:
+			if (_buttons[id] as TouchScreenButton).is_pressed() or id == _arm:
+				_send_actions(id, false)
+		_arm = ""
+	_touch_on = next_touch
 	touch_root.visible = _touch_on
-	legend.visible = not _touch_on and (Prefs.show_key_legend or Prefs.is_desktop_web())
+	touch_root.process_mode = Node.PROCESS_MODE_INHERIT if _touch_on else Node.PROCESS_MODE_DISABLED
+	_legend_row.visible = not controller_guide() and not flute_mode
+	_flute_row.visible = not controller_guide() and flute_mode
 	_place_legend(true)
 	_layout()
+	layout_changed.emit()
 
 
 func legend_visible() -> bool:
-	return legend != null and legend.visible and (_legend_up or _title_legend_up)
+	return legend != null and legend.visible and _guide_requested()
+
+
+func controller_visible() -> bool:
+	return controller_guide() and _legend_up and not title_mode
+
+
+func _guide_requested() -> bool:
+	return _legend_up or _title_legend_up and (controller_guide() or Prefs.is_desktop_web() or Prefs.input_mode == "keyboard")
+
+
+func controller_guide() -> bool:
+	return Prefs.effective_input() == "controller"
+
+
+func legend_height() -> float:
+	var safe := UIKit.safe_rect(legend)
+	return LEGEND_H + get_viewport().get_visible_rect().size.y - safe.end.y
 
 
 ## Slides the key legend up into view (or back down out of sight).
@@ -64,6 +94,7 @@ func show_legend(on: bool) -> void:
 		return
 	_legend_up = on
 	_place_legend(false)
+	layout_changed.emit()
 
 
 ## The web title flow and the Start book own their visibility independently.
@@ -72,20 +103,26 @@ func show_title_legend(on: bool) -> void:
 		return
 	_title_legend_up = on
 	_place_legend(false)
+	layout_changed.emit()
 
 
 func _place_legend(instant: bool) -> void:
-	if legend == null:
+	if not is_inside_tree() or not is_instance_valid(legend) or not legend.is_inside_tree():
 		return
-	var top := -LEGEND_H if _legend_up or _title_legend_up else 0.0
+	legend.visible = not _legend_up and not _touch_on and not controller_guide() and (Prefs.show_key_legend or Prefs.is_desktop_web()) and not title_mode
+	if _legend_tween != null and _legend_tween.is_valid():
+		_legend_tween.kill()
+	var height := legend_height()
+	var top := -height if _guide_requested() else 0.0
 	if instant:
 		legend.offset_top = top
-		legend.offset_bottom = top + LEGEND_H
+		legend.offset_bottom = top + height
 		return
 	var tw := legend.create_tween()
+	_legend_tween = tw
 	tw.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_property(legend, "offset_top", top, 0.25)
-	tw.parallel().tween_property(legend, "offset_bottom", top + LEGEND_H, 0.25)
+	tw.parallel().tween_property(legend, "offset_bottom", top + height, 0.25)
 
 
 func touch_visible() -> bool:
@@ -623,8 +660,8 @@ func set_flute_mode(on: bool) -> void:
 	_arm = ""
 	flute_mode = on
 	if _legend_row:
-		_legend_row.visible = not on
-		_flute_row.visible = on
+		_legend_row.visible = not on and not controller_guide()
+		_flute_row.visible = on and not controller_guide()
 
 
 ## The d-pad arm whose arrow is held: one at a time (outside the flute game), so two thumbs, or one on the line
@@ -676,6 +713,10 @@ func _send_actions(id: String, down: bool) -> void:
 func _layout() -> void:
 	if touch_root == null:
 		return
+	_place_legend(true)
+	var safe := UIKit.safe_rect(legend)
+	legend.offset_left = safe.position.x
+	legend.offset_right = safe.end.x - get_viewport().get_visible_rect().size.x
 	var vp := get_viewport().get_visible_rect().size
 	var pad := Vector2(28, vp.y - 28 - ARM * 3.0)
 	_dpad_base.position = pad
@@ -731,7 +772,7 @@ func button_rect(id: String) -> Rect2:
 ## Central menus can use the space between the side controls; right-hand lists must stop above A/B.
 func menu_bottom_reserve(left: float, right: float) -> float:
 	if not _touch_on:
-		return 0.0
+		return legend_height() if legend_visible() else 0.0
 	var reserve := 0.0
 	var height := get_viewport().get_visible_rect().size.y
 	for group in CLUSTERS:

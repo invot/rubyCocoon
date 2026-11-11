@@ -182,7 +182,7 @@ func _apply(m: Dictionary) -> void:
 	var icon: Texture2D = m.get("icon", null)
 	left_icon.texture = icon
 	# (pixel art up to the slot's size stays sharp; a bigger picture, such as an egg, is smoothed as it shrinks)
-	var smooth: bool = m.get("smooth", false) or (icon != null and icon.get_width() > ICON)
+	var smooth: bool = m.get("smooth", false) or UI.Glyphs.smooth(icon) or (icon != null and icon.get_width() > ICON)
 	left_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if smooth else CanvasItem.TEXTURE_FILTER_NEAREST
 	left_icon.visible = true
 	right_icon.texture = null
@@ -231,8 +231,9 @@ func say_battle(text: String, icon: Texture2D, ours: bool, max_w := 0.0) -> void
 	_set_text(text, "", false)
 	left_icon.texture = null if ours else icon
 	right_icon.texture = icon if ours else null
-	left_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	right_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var filter := CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(icon) else CanvasItem.TEXTURE_FILTER_NEAREST
+	left_icon.texture_filter = filter
+	right_icon.texture_filter = filter
 	_fit(_max_w())
 
 

@@ -1,5 +1,14 @@
 # Ruby Cocoon: credits
 
+**Item illustrations:** selected artwork from the supplied *Items & Icons Mega Pack* (`ItemsIcons_v1.0.zip`),
+used with its original shapes and fixed recolors per item. The archive does not name a creator.
+See [provenance and rebuild instructions](licenses/item_icons.md) and [license](licenses/Items%20Icons%20Mega%20Pack%20-%20License.txt).
+The town houses, wooden bat and clover icons are original project vector artwork.
+
+**Controller illustrations:** [Controllercons 2.1](https://controllercons.github.io/) by Kieran McClung,
+SIL Open Font License 1.1. Duotone SVGs use a white fill and larger rasterization size for the game UI.
+See [provenance](licenses/controllercons.md) and [licence](licenses/Controllercons%20-%20OFL.txt).
+
 **Cocoon Cove layout proposals:** *Towns* and *WholeHouseFBX* by
 [loafbrr](https://sketchfab.com/loafbrr), CC BY 4.0. Extracted scenery meshes, LODs,
 resized and smoothed textures. See [source links and licence](licenses/pirate_cove.md).

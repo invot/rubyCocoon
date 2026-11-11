@@ -1,0 +1,358 @@
+{
+  "spirit_drop": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_teardrop_bottle.png",
+    "palette": "#58bdd9"
+  },
+  "spirit_tonic": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_spiral_bottle.png",
+    "palette": "#6389df"
+  },
+  "spirit_elixir": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_star_bottle.png",
+    "palette": "#a878dc"
+  },
+  "minor_potion": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_test_tube.png",
+    "palette": "#ee826f"
+  },
+  "potion": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_round_flask.png",
+    "palette": "#df4960"
+  },
+  "mega_potion": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_potion_jug.png",
+    "palette": "#b93458"
+  },
+  "full_restore": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_diamond_bottle.png",
+    "palette": "#83c56b"
+  },
+  "remedy_herb": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Herbs/icons/potions_mint_sprig.png",
+    "palette": "original"
+  },
+  "revival_seed": {
+    "source": "ItemsIcons/08_Quest_Misc/Seeds_Sprouts/icons/quest_glowing_seed.png",
+    "palette": "original"
+  },
+  "phoenix_feather": {
+    "source": "ItemsIcons/07_Gems_Treasure/Treasure/icons/gems_golden_feather.png",
+    "palette": "original"
+  },
+  "elixir": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Elixirs/icons/potions_rainbow_elixir.png",
+    "palette": "original"
+  },
+  "calm_incense": {
+    "source": "ItemsIcons/08_Quest_Misc/Misc_Junk/icons/quest_taper_candles.png",
+    "palette": "#7fb8b2"
+  },
+  "lure_incense": {
+    "source": "ItemsIcons/08_Quest_Misc/Misc_Junk/icons/quest_taper_candles.png",
+    "palette": "#df9864"
+  },
+  "spicy_bun": {
+    "source": "ItemsIcons/03_Food_Drink/Bakery/icons/food_sweet_bun.png",
+    "palette": "original"
+  },
+  "mint_tea": {
+    "source": "ItemsIcons/03_Food_Drink/Drinks/icons/food_matcha_bowl.png",
+    "palette": "original"
+  },
+  "honey_cake": {
+    "source": "ItemsIcons/03_Food_Drink/Bakery/icons/food_honey_cake.png",
+    "palette": "original"
+  },
+  "training_candy": {
+    "source": "ItemsIcons/03_Food_Drink/Sweets/icons/food_wrapped_candy.png",
+    "palette": "original"
+  },
+  "fire_bomb": {
+    "source": "ItemsIcons/01_Weapons/Throwables/icons/weapons_smoke_bomb.png",
+    "palette": "#e57c45"
+  },
+  "tide_bomb": {
+    "source": "ItemsIcons/01_Weapons/Throwables/icons/weapons_smoke_bomb.png",
+    "palette": "#529ccd"
+  },
+  "stone_bomb": {
+    "source": "ItemsIcons/01_Weapons/Throwables/icons/weapons_smoke_bomb.png",
+    "palette": "#ad8755"
+  },
+  "gale_bomb": {
+    "source": "ItemsIcons/01_Weapons/Throwables/icons/weapons_smoke_bomb.png",
+    "palette": "#74bfaa"
+  },
+  "inferno_flask": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_conical_flask.png",
+    "palette": "#e57c45"
+  },
+  "tsunami_flask": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_conical_flask.png",
+    "palette": "#529ccd"
+  },
+  "quake_flask": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_conical_flask.png",
+    "palette": "#ad8755"
+  },
+  "cyclone_flask": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_conical_flask.png",
+    "palette": "#74bfaa"
+  },
+  "poison_dart": {
+    "source": "ItemsIcons/01_Weapons/Ammo/icons/weapons_blowgun_darts.png",
+    "palette": "original"
+  },
+  "sleep_powder": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Powders/icons/potions_drawstring_pouch.png",
+    "palette": "#a481cb"
+  },
+  "flash_powder": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Powders/icons/potions_glitter_jar.png",
+    "palette": "original"
+  },
+  "stun_net": {
+    "source": "ItemsIcons/06_Tools/Fishing/icons/tools_hand_net.png",
+    "palette": "original"
+  },
+  "sticky_snare": {
+    "source": "ItemsIcons/08_Quest_Misc/Pet_Items/icons/quest_leash.png",
+    "palette": "original"
+  },
+  "weaken_powder": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Powders/icons/potions_paper_packet.png",
+    "palette": "original"
+  },
+  "rust_dust": {
+    "source": "ItemsIcons/05_Materials/Metals/icons/materials_metal_dust_pile.png",
+    "palette": "original"
+  },
+  "haste_tonic": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_tall_vial.png",
+    "palette": "#dbc45e"
+  },
+  "iron_tonic": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Potion_Bottles/icons/potions_square_bottle.png",
+    "palette": "#8aabb6"
+  },
+  "war_drum": {
+    "source": "ItemsIcons/08_Quest_Misc/Instruments/icons/quest_hand_drum.png",
+    "palette": "original"
+  },
+  "smoke_bomb": {
+    "source": "ItemsIcons/01_Weapons/Throwables/icons/weapons_smoke_bomb.png",
+    "palette": "original"
+  },
+  "titan_tonic": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Elixirs/icons/potions_giant_draught.png",
+    "palette": "original"
+  },
+  "rope_collar": {
+    "source": "ItemsIcons/08_Quest_Misc/Pet_Items/icons/quest_leash.png",
+    "palette": "original"
+  },
+  "cloth_band": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_double_band.png",
+    "palette": "original"
+  },
+  "twine_anklet": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_braided_ring.png",
+    "palette": "original"
+  },
+  "power_collar": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_spiked_ring.png",
+    "palette": "original"
+  },
+  "stone_band": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_plain_band.png",
+    "palette": "original"
+  },
+  "swift_anklet": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_twisted_ring.png",
+    "palette": "original"
+  },
+  "sage_bead": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_pearl_strand.png",
+    "palette": "original"
+  },
+  "vital_belt": {
+    "source": "ItemsIcons/02_Armor/Belts/icons/armor_leather_belt.png",
+    "palette": "original"
+  },
+  "ember_charm": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_sun_medallion.png",
+    "palette": "#e57c45"
+  },
+  "tide_charm": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_teardrop_pendant.png",
+    "palette": "#529ccd"
+  },
+  "stone_charm": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_rune_stone_necklace.png",
+    "palette": "#ad8755"
+  },
+  "gale_charm": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_feather_charm.png",
+    "palette": "#74bfaa"
+  },
+  "tide_pendant": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_shell_necklace.png",
+    "palette": "original"
+  },
+  "thorn_collar": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_spiked_ring.png",
+    "palette": "#677f8d"
+  },
+  "feather_cloak": {
+    "source": "ItemsIcons/02_Armor/Cloaks/icons/armor_feather_cloak.png",
+    "palette": "original"
+  },
+  "quick_claw": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_claw_set_ring.png",
+    "palette": "original"
+  },
+  "shade_ward": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_moon_pendant.png",
+    "palette": "#936ac3"
+  },
+  "phoenix_plume": {
+    "source": "ItemsIcons/07_Gems_Treasure/Treasure/icons/gems_golden_feather.png",
+    "palette": "original"
+  },
+  "tidal_tiara": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_crown_ring.png",
+    "palette": "#529ccd"
+  },
+  "granite_greaves": {
+    "source": "ItemsIcons/02_Armor/Boots/icons/armor_plate_sabatons.png",
+    "palette": "original"
+  },
+  "blaze_bracer": {
+    "source": "ItemsIcons/02_Armor/Gloves/icons/armor_ranger_bracers.png",
+    "palette": "#e57c45"
+  },
+  "gale_ribbon": {
+    "source": "ItemsIcons/08_Quest_Misc/Cosmetics/icons/quest_hair_ribbon.png",
+    "palette": "#74bfaa"
+  },
+  "verdant_crown": {
+    "source": "ItemsIcons/07_Gems_Treasure/Treasure/icons/gems_royal_crown.png",
+    "palette": "#79ae5f"
+  },
+  "sunfang_amulet": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_tooth_necklace.png",
+    "palette": "original"
+  },
+  "storm_gauntlet": {
+    "source": "ItemsIcons/02_Armor/Gloves/icons/armor_plate_gauntlet.png",
+    "palette": "original"
+  },
+  "fishing_rod": {
+    "source": "ItemsIcons/06_Tools/Fishing/icons/tools_fly_rod.png",
+    "palette": "original"
+  },
+  "worm_bait": {
+    "source": "ItemsIcons/06_Tools/Fishing/icons/tools_bait_jar.png",
+    "palette": "original"
+  },
+  "spinner_lure": {
+    "source": "ItemsIcons/06_Tools/Fishing/icons/tools_spoon_lure.png",
+    "palette": "original"
+  },
+  "glow_lure": {
+    "source": "ItemsIcons/06_Tools/Fishing/icons/tools_fly_lure.png",
+    "palette": "original"
+  },
+  "bridge_log": {
+    "source": "ItemsIcons/05_Materials/Wood/icons/materials_log.png",
+    "palette": "original"
+  },
+  "bridge_planks": {
+    "source": "ItemsIcons/05_Materials/Wood/icons/materials_plank_stack.png",
+    "palette": "original"
+  },
+  "card_ledger": {
+    "source": "ItemsIcons/08_Quest_Misc/Books/icons/quest_ledger.png",
+    "palette": "original"
+  },
+  "miner_pass": {
+    "source": "ItemsIcons/08_Quest_Misc/Cards/icons/quest_membership_card.png",
+    "palette": "original"
+  },
+  "slingshot": {
+    "source": "ItemsIcons/01_Weapons/Bows_Crossbows/icons/weapons_slingshot.png",
+    "palette": "original"
+  },
+  "boomerang": {
+    "source": "ItemsIcons/01_Weapons/Throwables/icons/weapons_boomerang.png",
+    "palette": "original"
+  },
+  "reed_flute": {
+    "source": "ItemsIcons/08_Quest_Misc/Instruments/icons/quest_flute.png",
+    "palette": "reed"
+  },
+  "silver_flute": {
+    "source": "ItemsIcons/08_Quest_Misc/Instruments/icons/quest_flute.png",
+    "palette": "silver"
+  },
+  "golden_flute": {
+    "source": "ItemsIcons/08_Quest_Misc/Instruments/icons/quest_flute.png",
+    "palette": "gold"
+  },
+  "jade_flute": {
+    "source": "ItemsIcons/08_Quest_Misc/Instruments/icons/quest_flute.png",
+    "palette": "jade"
+  },
+  "worn_cap": {
+    "source": "ItemsIcons/02_Armor/Helmets/icons/armor_cloth_cap.png",
+    "palette": "original"
+  },
+  "old_sneakers": {
+    "source": "ItemsIcons/02_Armor/Boots/icons/armor_cloth_shoes.png",
+    "palette": "original"
+  },
+  "explorer_hat": {
+    "source": "ItemsIcons/02_Armor/Helmets/icons/armor_feathered_cap.png",
+    "palette": "original"
+  },
+  "sage_hood": {
+    "source": "ItemsIcons/02_Armor/Helmets/icons/armor_ranger_hood.png",
+    "palette": "original"
+  },
+  "hiking_boots": {
+    "source": "ItemsIcons/02_Armor/Boots/icons/armor_leather_boots.png",
+    "palette": "original"
+  },
+  "wind_sandals": {
+    "source": "ItemsIcons/02_Armor/Boots/icons/armor_winged_boots.png",
+    "palette": "original"
+  },
+  "canopy_boots": {
+    "source": "ItemsIcons/02_Armor/Boots/icons/armor_ranger_boots.png",
+    "palette": "original"
+  },
+  "calm_lantern": {
+    "source": "ItemsIcons/06_Tools/Adventuring/icons/tools_bullseye_lantern.png",
+    "palette": "original"
+  },
+  "lure_charm": {
+    "source": "ItemsIcons/02_Armor/Amulets/icons/armor_eye_amulet.png",
+    "palette": "original"
+  },
+  "merchant_badge": {
+    "source": "ItemsIcons/02_Armor/Rings/icons/armor_signet_ring.png",
+    "palette": "original"
+  },
+  "_tome": {
+    "source": "ItemsIcons/08_Quest_Misc/Books/icons/quest_ancient_codex.png",
+    "palette": "original"
+  },
+  "_sheet": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Scrolls/icons/potions_open_rune_scroll.png",
+    "palette": "original"
+  },
+  "_unknown": {
+    "source": "ItemsIcons/04_Potions_Alchemy/Powders/icons/potions_drawstring_pouch.png",
+    "palette": "original"
+  }
+}

@@ -11,6 +11,9 @@ var sfx_volume := 0.9
 var text_speed := 60.0
 ## "auto" (touch controls only on touch devices), "on", "off"
 var touch_controls := "auto"
+## Empty keeps automatic selection for existing settings. Explicit choices persist across launches.
+var input_mode := ""
+var _hardware_keyboard := false
 var show_key_legend := true
 var fullscreen := false
 ## Internal 3D height; width follows the window's aspect. The UI keeps its full resolution.
@@ -26,6 +29,9 @@ signal changed
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	load_prefs()
+	_hardware_keyboard = DisplayServer.has_hardware_keyboard()
+	if OS.has_feature("android"):
+		DisplayServer.set_hardware_keyboard_connection_change_callback(_keyboard_changed)
 	apply()
 	add_child(load("res://scripts/gfx/render_quality.gd").new())
 
@@ -46,6 +52,9 @@ func load_prefs() -> void:
 	sfx_volume = float(c.get_value("audio", "sfx", sfx_volume))
 	text_speed = float(c.get_value("game", "text_speed", text_speed))
 	touch_controls = String(c.get_value("controls", "touch", touch_controls))
+	input_mode = String(c.get_value("controls", "input", ""))
+	if not input_mode in ["", "screen", "keyboard", "controller"]:
+		input_mode = ""
 	show_key_legend = bool(c.get_value("controls", "key_legend", show_key_legend))
 	fullscreen = bool(c.get_value("video", "fullscreen", fullscreen))
 	render_height = int(c.get_value("video", "render_height", 1080))
@@ -63,6 +72,7 @@ func save_prefs() -> void:
 	c.set_value("audio", "sfx", sfx_volume)
 	c.set_value("game", "text_speed", text_speed)
 	c.set_value("controls", "touch", touch_controls)
+	c.set_value("controls", "input", input_mode)
 	c.set_value("controls", "key_legend", show_key_legend)
 	c.set_value("video", "fullscreen", fullscreen)
 	c.set_value("video", "render_height", render_height)
@@ -124,9 +134,39 @@ func touch_enabled() -> bool:
 	# Desktop web always uses the key guide, including touchscreen laptops and old saved pad settings.
 	if is_desktop_web():
 		return false
+	if input_mode != "" or is_instance_valid(Controllers) and Controllers.connected():
+		return effective_input() == "screen"
 	match touch_controls:
 		"on":
 			return true
 		"off":
 			return false
 	return is_mobile() or (DisplayServer.is_touchscreen_available() and OS.has_feature("web"))
+
+
+func _keyboard_changed(connected: bool) -> void:
+	_hardware_keyboard = connected
+	changed.emit()
+
+
+## Touchscreen controls only appear as a choice on a touch-capable device; desktop web stays keyboard based.
+func available_inputs() -> Array[String]:
+	var modes: Array[String] = []
+	if not is_desktop_web() and (is_mobile() or DisplayServer.is_touchscreen_available()):
+		modes.append("screen")
+	if _hardware_keyboard or not is_mobile():
+		modes.append("keyboard")
+	if is_instance_valid(Controllers) and Controllers.connected():
+		modes.append("controller")
+	return modes
+
+
+func effective_input() -> String:
+	var modes := available_inputs()
+	if input_mode in modes:
+		return input_mode
+	if "controller" in modes:
+		return "controller"
+	if "screen" in modes and is_mobile():
+		return "screen"
+	return "keyboard" if "keyboard" in modes else "screen"

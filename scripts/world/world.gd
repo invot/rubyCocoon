@@ -2587,6 +2587,16 @@ func _walkable(p: Vector2i) -> bool:
 ## True if you can step from `from` onto its neighbour `to`: free to walk on, and no cliff between (elevation.gd); onto
 ## a house's stairs only at their open end, never through the handrail or the wall beside them.
 func _can_step(from: Vector2i, to: Vector2i) -> bool:
+	var d := to - from
+	if absi(d.x) == 1 and absi(d.y) == 1:
+		# All four edges must be traversable. Keep ramps, doors, push puzzles and encounters cardinal;
+		# neither a blocked corner nor a stair rail can be crossed diagonally.
+		var x := from + Vector2i(d.x, 0)
+		var y := from + Vector2i(0, d.y)
+		for p in [from, x, y, to]:
+			if not _walkable(p) or stair_ways.has(p) or doors.has(p) or map["exits"].has(p) or _beast_at(p) != null or Elev.ramp_dir(map, p) != Vector2i.ZERO:
+				return false
+		return _can_step(from, x) and _can_step(from, y) and _can_step(x, to) and _can_step(y, to)
 	return _walkable(to) and Elev.joined(map, from, to) and (not stair_ways.has(to) or from in stair_ways[to])
 
 
@@ -2634,17 +2644,17 @@ func _process(delta: float) -> void:
 	elif moving:
 		# the legs keep pace with the ground (a step every half turn of the phase)
 		anim_t += VPer.phase_for(delta * move_speed, move_speed)
-		move_t += delta * move_speed
+		move_t += delta * move_speed / _move_length
 		if move_t >= 1.0:
 			# a step always lands on the middle of its tile, whatever was let go of or pressed on the way
-			var spill := move_t - 1.0
+			var spill := (move_t - 1.0) * _move_length
 			player.position = tile_pos(player_pos)
 			moving = false
 			_on_step_done()
 			_courier_tick(0.0)
 			# keep walking without a stop between tiles when the next step is ready right away (keys or a tapped path)
 			if not moving and not busy and not frozen and not UI.busy() and _next_step():
-				move_t = minf(spill, 0.5)
+				move_t = minf(spill / _move_length, 0.5)
 				player.position = _along(move_from, move_to, move_t)
 		else:
 			player.position = _along(move_from, move_to, move_t)
@@ -2828,12 +2838,18 @@ func _next_step() -> bool:
 	return _step(d, Input.is_action_pressed("run"))
 
 
-## Faces `d` (one of the four ways) and walks one tile that way if possible. Returns true if a step started.
+## The stick may walk to a diagonal neighbour; interactions and special tiles retain cardinal approaches.
 func _step(d: Vector2i, run: bool) -> bool:
-	facing = d
-	VPer.face(player, facing, true)
+	facing = _four_way(d)
+	VPer.face(player, d, true)
 	_walk_dir = Vector2i.ZERO
 	var target := player_pos + d
+	if d.x != 0 and d.y != 0:
+		if not _can_step(player_pos, target):
+			return false
+		_begin_step(target, run)
+		_walk_dir = d
+		return true
 	if d == Vector2i(0, -1) and doors.has(target):
 		_enter_building(doors[target])
 		return false
@@ -2857,12 +2873,16 @@ func _step(d: Vector2i, run: bool) -> bool:
 	return false
 
 
-## One whole tile, from the middle of this one to the middle of the next, at the hero's jog (a sprint while running).
+var _move_length := 1.0
+
+
+## Centre to centre, at the same ground speed for cardinal and diagonal steps.
 func _begin_step(target: Vector2i, run: bool) -> void:
 	moving = true
 	move_t = 0.0
 	move_from = tile_pos(player_pos)
 	move_to = tile_pos(target)
+	_move_length = Vector2(target - player_pos).length()
 	player_pos = target
 	move_speed = 4.6 * (1.0 + GameState.gear_fx("speed")) * (1.7 if run else 1.0)
 
@@ -3716,7 +3736,7 @@ func _note_keys() -> void:
 			_held.append(d)
 
 
-## The way the keys (or the d-pad, or a gamepad's left stick) are steering: one of the four, or zero.
+## Keys and d-pad keep cardinal priority; the left stick has eight directions.
 func _key_dir() -> Vector2i:
 	if _held.is_empty():
 		return _stick_dir()
@@ -3725,14 +3745,9 @@ func _key_dir() -> Vector2i:
 	return _held.back()
 
 
-## A gamepad's left stick steers along whichever axis it's pushed further; the axis you're walking along holds until
-## the other is clearly further.
+## Read the active controller, including pads whose device ID is not zero.
 func _stick_dir() -> Vector2i:
-	var v := Vector2(Input.get_joy_axis(0, JOY_AXIS_LEFT_X), Input.get_joy_axis(0, JOY_AXIS_LEFT_Y))
-	if v.length() < 0.35:
-		return Vector2i.ZERO
-	var x_wins := absf(v.x) * (1.25 if _walk_dir.x != 0 else 1.0) > absf(v.y) * (1.25 if _walk_dir.y != 0 else 1.0)
-	return Vector2i(int(signf(v.x)), 0) if x_wins else Vector2i(0, int(signf(v.y)))
+	return Controllers.direction()
 
 
 func _clear_path() -> void:

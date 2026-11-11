@@ -34,9 +34,8 @@ const TABS := [
 ## the tab strip's height, and the gap between the tabs and the window
 const TAB_H := 64.0
 const TAB_GAP := 6.0
-## the left (list) pane's share of the window; the Map tab's left page is the map itself, so it takes more
-const LEFT_SHARE := 0.46
-const MAP_SHARE := 0.64
+## Two equal pages throughout the full-width book.
+const LEFT_SHARE := 0.5
 const SLOT_SHORT := {"flute": "Flute", "head": "Hat", "feet": "Boots", "acc": "Charm"}
 const CREST_ICONS := {"Wave Crest": "crest_wave", "Coral Crest": "crest_coral", "Spur Crest": "crest_spur", "Ore Crest": "crest_ore",
 	"Cog Crest": "crest_cog", "Flame Crest": "crest_flame", "Vine Crest": "crest_vine", "River Crest": "crest_river"}
@@ -68,6 +67,8 @@ var focus_row := 0
 var map_view: Control
 var _t := 0.0
 var _keep_row := -1
+var _changing_row := false
+var _shown_inputs: Array[String] = []
 ## the gem the open page was built in (a page is rebuilt when it changes)
 var _built_gem := ""
 var ring_start_picker: Control
@@ -94,8 +95,10 @@ func _ready() -> void:
 	Sfx.play("page")
 	_build()
 	resized.connect(_layout)
+	UI.controls.layout_changed.connect(_layout)
 	if is_instance_valid(Prefs):
 		Prefs.changed.connect(_on_prefs_changed)
+	Controllers.changed.connect(_on_controllers_changed)
 	_open_tab(tab)
 
 
@@ -179,8 +182,8 @@ func _layout() -> void:
 	var avail := vp.y - (UI.bottom_reserve() if is_instance_valid(UI) else 0.0)
 	var side := 24.0
 	var top := 14.0
-	var w := minf(vp.x - side * 2.0, 1240.0)
-	book.position = Vector2(roundf((vp.x - w) / 2.0), top)
+	var w := vp.x - side * 2.0
+	book.position = Vector2(side, top)
 	book.size = Vector2(w, avail - top - 10.0)
 	tab_strip.position = Vector2.ZERO
 	tab_strip.size = Vector2(w, TAB_H)
@@ -191,7 +194,7 @@ func _layout() -> void:
 
 
 func _left_share() -> float:
-	return MAP_SHARE if TABS[tab]["id"] == "map" else LEFT_SHARE
+	return LEFT_SHARE
 
 
 ## A new gem (from the Settings tab): the window and tabs are redrawn in it.
@@ -200,6 +203,12 @@ func _on_prefs_changed() -> void:
 		return
 	window.add_theme_stylebox_override("panel", UIKit.box("textfield"))
 	_style_tabs()
+	if _changing_row:
+		return
+	if TABS[tab]["id"] == "settings":
+		_keep_row = focus_row
+		_open_tab(tab)
+		return
 	if _built_gem != UIKit.accent_name and mode == "list" and not row_buttons.is_empty():
 		_keep_row = focus_row
 		_open_tab(tab)
@@ -207,6 +216,15 @@ func _on_prefs_changed() -> void:
 		var keep_mode := mode
 		_open_tab(tab)
 		mode = keep_mode
+
+
+func _on_controllers_changed() -> void:
+	if is_inside_tree() and TABS[tab]["id"] == "settings":
+		if _shown_inputs != Prefs.available_inputs():
+			_keep_row = focus_row
+			_open_tab(tab)
+		elif mode == "list" and focus_row < rows.size():
+			_row_focused(focus_row)
 
 
 ## The tabs: bordered plates over the blurred scene; the open one framed in white with white text, the rest framed
@@ -236,6 +254,9 @@ func _click_tab(i: int) -> void:
 
 
 func _open_tab(i: int) -> void:
+	var keep_scroll := list_scroll.scroll_vertical if i == tab and is_instance_valid(list_scroll) else 0
+	if i != tab:
+		focus_row = 0
 	tab = i
 	last_tab = i
 	_built_gem = UIKit.accent_name
@@ -266,6 +287,8 @@ func _open_tab(i: int) -> void:
 			_tab_settings()
 	if mode == "list":
 		_focus_first.call_deferred()
+	if is_instance_valid(list_scroll):
+		list_scroll.set_deferred("scroll_vertical", keep_scroll)
 
 
 func _clear(c: Control) -> void:
@@ -360,7 +383,8 @@ func _add_row(row: Dictionary) -> void:
 		b.focus_exited.connect(func(): slot.add_theme_stylebox_override("panel", UIKit.slot_box()))
 		var icon := TextureRect.new()
 		icon.texture = UI.Glyphs.item(row["item_slot"])
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(icon.texture) else CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.position = Vector2(24, 8)
 		icon.size = Vector2(40, 40)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -388,10 +412,12 @@ func _focus_first() -> void:
 	if row_buttons.is_empty():
 		mode = "tabs"
 		return
-	var i := clampi(_keep_row if _keep_row >= 0 else 0, 0, row_buttons.size() - 1)
+	var i := clampi(_keep_row if _keep_row >= 0 else focus_row, 0, row_buttons.size() - 1)
 	_keep_row = -1
 	(row_buttons[i] as Button).grab_focus()
 	_row_focused(i)
+	if is_instance_valid(list_scroll):
+		list_scroll.ensure_control_visible.call_deferred(row_buttons[i])
 
 
 func _row_focused(i: int) -> void:
@@ -405,6 +431,17 @@ func _row_focused(i: int) -> void:
 		if detail_box == right_box:
 			right_scroll.scroll_vertical = 0
 		(row["detail"] as Callable).call(detail_box)
+	_keep_focus_clear_of_pad.call_deferred(i)
+
+
+func _keep_focus_clear_of_pad(i: int) -> void:
+	if not is_inside_tree() or not UI.is_touch() or i != focus_row or i >= row_buttons.size() or not is_instance_valid(list_scroll):
+		return
+	var rect: Rect2 = row_buttons[i].get_global_rect()
+	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x)
+	var bottom := minf(list_scroll.get_global_rect().end.y, get_viewport_rect().size.y - reserve)
+	if rect.end.y > bottom:
+		list_scroll.scroll_vertical += ceili(rect.end.y - bottom)
 
 
 func _activate(i: int) -> void:
@@ -415,10 +452,12 @@ func _activate(i: int) -> void:
 		Sfx.play("error")
 		return
 	Sfx.play("confirm")
-	_keep_row = i
+	_changing_row = true
 	await (row["act"] as Callable).call()
+	_changing_row = false
 	if closed:
 		return
+	_keep_row = i
 	_open_tab(tab)
 
 
@@ -452,9 +491,12 @@ func on_input(ev: InputEvent) -> void:
 		dir = 1
 	if dir != 0:
 		if mode == "list" and focus_row < rows.size() and rows[focus_row].has("adjust"):
+			var keep := focus_row
+			_changing_row = true
 			(rows[focus_row]["adjust"] as Callable).call(dir)
+			_changing_row = false
 			Sfx.play("toggle")
-			_keep_row = focus_row
+			_keep_row = keep
 			_open_tab(tab)
 			return
 		Sfx.play("page")
@@ -1107,12 +1149,13 @@ func _tab_settings() -> void:
 		"adjust": func(d): Prefs.set_value("accent", gems[posmod(gi + d, gems.size())]),
 		"act": func(): Prefs.set_value("accent", gems[posmod(gi + 1, gems.size())]),
 		"detail": _controls_help.bind("The color used for window tints, headings and bars: Ruby, Sapphire, Emerald or Hematite.")})
-	var touch_opts := ["auto", "on", "off"]
-	var ti := maxi(0, touch_opts.find(Prefs.touch_controls))
-	_add_row({"text": "Touch pad", "right": "◄ %s ►" % String(touch_opts[ti]).capitalize(), "right_width": 150,
-		"adjust": func(d): Prefs.set_value("touch_controls", touch_opts[posmod(ti + d, 3)]),
-		"act": func(): Prefs.set_value("touch_controls", touch_opts[posmod(ti + 1, 3)]),
-		"detail": _controls_help.bind("On-screen d-pad and buttons. Auto shows them on phones and tablets.")})
+	var inputs := Prefs.available_inputs()
+	_shown_inputs = inputs.duplicate()
+	var current := maxi(0, inputs.find(Prefs.effective_input()))
+	_add_row({"text": "Input", "right": "◄ %s ►" % Prefs.effective_input().capitalize(), "right_width": 240,
+		"adjust": func(d): Prefs.set_value("input_mode", inputs[posmod(current + d, inputs.size())]),
+		"act": func(): Prefs.set_value("input_mode", inputs[posmod(current + 1, inputs.size())]),
+		"detail": _controls_help.bind("Choose an available input. Controls are fixed.")})
 	_add_row({"text": "Key guide", "right": "◄ %s ►" % ("On" if Prefs.show_key_legend else "Off"), "right_width": 150,
 		"adjust": func(_d): Prefs.set_value("show_key_legend", not Prefs.show_key_legend),
 		"act": func(): Prefs.set_value("show_key_legend", not Prefs.show_key_legend),
@@ -1128,20 +1171,9 @@ func _tab_settings() -> void:
 
 func _controls_help(c: VBoxContainer, what: String) -> void:
 	c.add_child(_t_label(what, UIKit.ACCENT))
-	c.add_child(_spacer(10))
-	var keys := [["←↑↓→", "Move"], ["A", "Talk / confirm"], ["S", "Back · hold to run"], ["SPACE", "Start: this book"], ["SHIFT", "Pause"]]
-	if Prefs.touch_enabled():
-		keys = [["D-PAD", "Move"], ["A", "Talk / confirm"], ["B", "Back · hold to run"], ["START", "This book"], ["PAUSE", "Pause"]]
-	for k in keys:
-		var cap := PanelContainer.new()
-		cap.add_theme_stylebox_override("panel", UIKit.box("frame", Vector4(4, -2, 4, -2)))
-		cap.custom_minimum_size.x = 92
-		var kl := UIKit.label(k[0], 20, UIKit.INK)
-		kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cap.add_child(kl)
-		c.add_child(_row_of([cap, _w(k[1])], 10))
-	c.add_child(_spacer(6))
-	c.add_child(_t_label("Flute: listen, memorise the sheet, then play the notes back in order with ← → A %s (and ↑ ↓ in bigger songs)." % ("B" if Prefs.touch_enabled() else "S"), UIKit.DIM))
+	var guide = load("res://scripts/ui/input_guide.gd").new()
+	guide.input_mode = Prefs.effective_input()
+	c.add_child(guide)
 
 
 func _credits() -> void:

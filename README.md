@@ -30,7 +30,7 @@ it isn't on your PATH.
 
 | Action | Keyboard | Gamepad | Touch (phones and tablets) |
 |---|---|---|---|
-| Move (one of the four ways, a whole tile at a time) | Arrow keys (with two held, you keep going the way you were walking, else the newest one counts) | D-pad or left stick (the way it's pushed further) | D-pad, bottom left (one arrow at a time) |
+| Move (whole steps between tile centres) | Arrow keys, four ways (with two held, you keep going the way you were walking, else the newest one counts) | D-pad: four ways; left stick: eight ways, including diagonals | D-pad, bottom left (one arrow at a time) |
 | Action: talk, confirm, use a beast or weapon on an obstacle | A (or Enter) | A | A, bottom right |
 | Back; hold to run | S (or Esc) | B | B, bottom right |
 | Start: the travel book menu | Space | Start | START, bottom centre |
@@ -38,11 +38,29 @@ it isn't on your PATH.
 | Flute notes (Esc / Pause stops a song) | ← → A S, then ↑ ↓ | ← → A B, then ↑ ↓ | ← → A B, then ↑ ↓ |
 | Walk somewhere / run there / use something | Click / double-click / click it | | Tap / double-tap / tap it |
 
-On desktop, a key guide slides up along the bottom of the screen while the Start book is open, and hides again
-during play. On phones and tablets the on-screen buttons take its place. You can switch either off in **Start → Settings**.
-Desktop browsers always use the keyboard guide instead of the touch pad, even on touchscreen computers. The guide
+The Start book keeps the selected input's guide on Settings' right page: keyboard key mappings, screen-button
+meanings, or a matching controller illustration and fixed mappings. Only Controller input shows controller artwork.
+The book has no bottom key strip. Phones and tablets show their on-screen buttons when Screen input is selected.
+Desktop browsers use a keyboard or controller guide instead of the touch pad, even on touchscreen computers. The guide
 also appears on the web title menu, character creator and Load Game screen. Web builds have no Quit application
-button; **Quit to title** in Settings still returns to the title menu. Mobile browser and Android controls are unchanged.
+button; **Quit to title** in Settings still returns to the title menu.
+
+USB and Bluetooth gamepads use Godot's automatic controller mappings, without a mapping screen. Connect or pair the
+controller with your device, then play. The last controller used supplies the left stick. The full-width Start book
+keeps two equal pages. Settings shows the matching **Controllercons duotone** illustration and fixed button guide
+on the right page, without a bottom controller window. The title screen shows no controller illustration.
+Layouts include Xbox, PlayStation, Switch/Joy-Cons,
+Wii Classic/U Pro and Stadia layouts, with Xbox as the fallback for unidentified pads. Confirm is the bottom face button
+(Xbox A, PlayStation Cross, Nintendo B); Back/run is the right face button (B, Circle, Nintendo A).
+The stick has a radial deadzone; diagonal steps retain normal ground speed and cannot cut corners, cross stair rails,
+or approach ramps and doors diagonally. Keyboard, physical d-pad, touch d-pad and tap paths keep cardinal steps.
+
+**Start → Settings → Input** selects **Screen**, **Keyboard** or **Controller**, showing only available inputs.
+Screen requires touch or mouse-emulated taps (desktop web uses guides); Keyboard requires a hardware keyboard on mobile;
+Controller requires a connected pad. Your choice persists and sets the displayed controls/guide; connected inputs
+remain usable. Controls are fixed; there is no remapping screen. With no explicit choice, connecting a controller hides Android/mobile touch buttons.
+An explicit Screen choice restores the pad. Disconnecting falls back to an available input and restores
+the phone pad when appropriate. Settings retain the selected row and scroll position while cycling or tapping values.
 
 Tap (or click) anywhere in the world to walk there; double-tap to run. Tap a person, a door, a sign, an item, a weapon obstacle or a
 wild beast to walk up to it and use it; if you're already next to it, you use it straight away.
@@ -726,13 +744,17 @@ excess bag items there once, even beyond the storage limit.
 ### Sky Tower locker and bird courier
 
 Every Sky Tower lobby's ticket desk offers **Store items**, free. All towers share
-one **48-stack locker**, using the bag's nine-item stacks and exemptions. The Bag
-and Locker lists sit side by side with counts and shared scroll rails; **A** or a
-row tap moves **one item**. Each separate A press moves the next item from the
+one **48-stack locker**, using the bag's nine-item stacks and exemptions. The Inventory
+and Locker lists sit side by side in equal-height windows, with item icons, counts
+and shared scroll rails. Courier visits use **Inventory** on the left and **Bird**
+on the right; delivery calls load the bird from the **Locker**. **A** or a row tap
+stages **one item**. Each separate A press moves the next item from the
 selected stack until it is empty; its displayed count decreases with each press.
-Left/Right changes lists, and B or **Done** closes the screen. Emptying the source
-keeps the transfer direction; it never starts withdrawing items automatically. Important key items stay in the bag. `GameState.locker`
-and `tower_inventory` refer to the same dictionary, including automatic bag overflow.
+Left/Right changes lists. **Confirm** applies the transfers; **Cancel** or B discards
+them. These are the only two action buttons. Emptying the source keeps the transfer
+direction; it never starts withdrawing items automatically.
+Important key items stay in the bag. `GameState.locker` and `tower_inventory` refer
+to the same dictionary, including automatic bag overflow.
 
 Call the **Sky Tower company** from any phone for **Ride**, **Pick up items**,
 **Deliver items**, or **Deliver and ride**. A payphone charges its normal five coins.
@@ -750,9 +772,12 @@ leans forward 45 degrees with its head level; the rider follows its back while s
 
 A **ride** goes to a visited town for **twice the tower fare** (240 gold).
 A **pickup** stores up to 12 stacks for **20 gold**, charged only for a successful
-nonempty pickup. **Delivery is free** beyond the call: if the bag is full, send bag
-stacks back to storage or confirm dropping them, then move delivered stacks into
-the freed space. Anything unclaimed stays in the locker. **Deliver and ride** hands
+nonempty pickup. **Delivery is free** beyond the call: everything that fits goes
+straight into your inventory. The transfer screen opens only when items cannot fit.
+Send inventory items to the bird, then take the remaining delivery into the freed
+space and confirm the exchange. Items handed back remain visible on the bird until
+you confirm; anything left with it returns to the locker. Cancel discards the manual
+exchange while keeping any items delivered automatically before the screen opened. **Deliver and ride** hands
 over the delivery first, then offers travel. Insufficient gold cancels paid service
 without blocking delivery. Pickup and ride are separate services.
 
@@ -761,6 +786,8 @@ The courier scenario uses isolated saves and a shortened arrival timer. For real
 window captures, use `--scene=sky-courier --shots=res://build/shots/courier_desktop
 --save_dir=res://build/courier_saves/` (plus `--resolution 2400x1080` before `--` and
 `--touch` after it for the phone layout).
+Use `--ui_only=1` to isolate the transfer controls or `--pose_only=1` to inspect the
+mounted owl and its rider.
 
 ## UI and audio
 
@@ -778,6 +805,12 @@ window captures, use `--scene=sky-courier --shots=res://build/shots/courier_desk
     grey). It goes into the windows' black as a faint tint, the headings, the bars and filled slots; borders and body
     text stay white. `UIKit.set_accent` derives the palette. The old Pixel / Classic style setting is gone, and a saved
     `ui_style` value is ignored.
+  - **Item artwork** uses the supplied pack PNG illustrations with sharp nearest filtering and permanent colors for each item,
+    independent of the interface gem. Potions, food, herbs, equipment and other items have their own shapes.
+    `glyphs.gd` shares the artwork between the Bag, courier and pickup notices. Town arrival notices
+    use a cluster of houses; arena towns retain their crests. Source details and the offline rebuild command
+    are in [item icon provenance](licenses/item_icons.md). Verify with `bash tools/run_tests.sh item-icons
+    item-icons-touch`; windowed `--scene=item-icons --shots=res://build/shots/icons` captures all four gems.
   - The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at the top centre: place names on
     entering a town, road or building, pickups, gold and battle messages. It is the same dark blurred box, a little
     darker (78%), outlined in white with its sides leaning in towards the bottom: [left icon] divider, text, divider
@@ -785,7 +818,7 @@ window captures, use `--scene=sky-courier --shots=res://build/shots/courier_desk
     text is League Spartan; place names use Semibold and the gem heading colour.
     - Outside battle it is hidden until there is something to say, then slides in, holds about 2.5 seconds and slides
       out. Messages queue; the same pickup or gold arriving while one shows or waits merges into it ("Potion x3",
-      "+120 gold"). These always have a left icon (the item's glyph, a coin, a map pin or crest, a note for songs)
+      "+120 gold"). These always have a left icon (the item's illustration, a coin, town houses, a location pin or crest, a note for songs)
       and never a right one. `UI.toast(text, icon, key)`, `UI.pickup`, `UI.gold` and `UI.place_name` post to it;
       story gifts ("Received the Miner's Pass!") use it too rather than a line of dialogue.
     - In battle it is always shown with the battle's messages: the icon of whoever acts is on the left for the
@@ -919,7 +952,7 @@ window captures, use `--scene=sky-courier --shots=res://build/shots/courier_desk
   See [the performance audit](docs/performance.md) for measurements and remaining limits.
 - Pack models over 300 triangles get levels of detail baked in by `tools/import_psx_models.gd`, so far-off trees and rocks draw fewer triangles. `godot --path . --rendering-method mobile -- --scene=perf --detail=1` prints what each map costs.
 - The project uses the Mobile renderer on phones and tablets, sensor-landscape orientation, ETC2/ASTC textures, and an expanding aspect, so wide phones get extra width instead of black bars.
-- On touch devices the d-pad, A/B and Start/Pause buttons appear automatically. They send the same input actions as the keyboard, so every screen and the flute minigame work with them. Dialogue boxes and menus stay clear of the buttons.
+- On touch devices the d-pad, A/B and Start/Pause buttons appear automatically. Connecting a controller hides them unless Screen was explicitly selected in Settings. The controller guide appears on the book's Settings right page. Touch targets retain phone sizing while the pad is hidden. All connected inputs use the same actions, so every screen and the flute minigame work with them.
 - HUD windows and menus, including the arena ladder's trainer list, must never overlap A/B or their enlarged hit areas. Only the Start menu may use that space while those buttons are hidden. Ordinary lists keep full-sized rows and paginate above the controls.
 - Each button answers taps a little outside its drawn edge. The arrows are silent; A and B click softly at a low pitch, with B two notes below A.
 - Tap the world to walk, double-tap to run, and tap things to use them (see Controls). Taps on or near the on-screen buttons never count as world taps: each cluster (the whole d-pad including its middle, A and B, Start and Pause) has a no-tap zone around it.
@@ -1106,6 +1139,16 @@ python tools/town_check.py
 
 ## Tests
 
+`bash tools/run_tests.sh controllers controllers-touch video-settings video-settings-touch walk walk-touch`
+checks controller layout detection, nonzero device IDs, connect/disconnect fallback, eight stick directions, deadzone,
+corner/stair protection, equal diagonal speed, menu input, available input choices, saved preferences and settings
+focus/scroll retention. These inject joypad events; physical USB/Bluetooth pairing and Android drivers require device testing.
+Windowed captures: `godot --path . --resolution 1920x1080 -- --scene=controllers
+--controller="DualSense Wireless Controller" --shots=res://build/shots/controllers_desktop --shot_w=0
+--prefs_path=res://build/controller_preview/settings.cfg --save_dir=res://build/controller_preview/saves/`.
+Repeat at `2400x1080` with `--touch` and separate output/settings/save directories for a 20:9 phone layout;
+`--controller="Nintendo Switch Pro Controller"` previews Nintendo, and an unknown name previews Xbox fallback.
+
 Bag capacity regression and previews: `bash tools/run_tests.sh bag-limit bag-limit-touch`.
 Use `--scene=bag-limit --shots=res://build/shots/bag --shot_w=0
 --save_dir=res://build/bag_preview/` at 1920x1080, or 2400x1080 with `--touch`.
@@ -1173,7 +1216,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   and the hero in every outfit and hairdo (and the pack, in the colour chosen), can be dressed.
 - `check_maps.gd` (above) also checks stage furniture facing, tall scenery placement and the implied TV wall;
   `check_beasts.gd` checks the beast lines, growing up and merging.
-- The test scenes: the story flow, four-way walking (keys and touch), battle commands, the ring editor, the lessons,
+- The test scenes: the story flow, cardinal walking (keys and touch), eight-direction controller walking, battle commands, the ring editor, the lessons,
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
 - `title-startup` / `title-startup-touch`, plus `title-startup-gamepad`, `title-startup-mouse`,
@@ -1367,7 +1410,7 @@ godot --path . -- --scene=spiral --kind=ambush --wait=0.6 --shot=C:/tmp/s.png   
 godot --path . -- --scene=tap                                           # tap to walk, double-tap to run, tap to talk / enter
 godot --path . -- --scene=title --fixture=1 --keys=d,a --save_dir=res://build/title_saves/ --shot=C:/tmp/t.png   # title with a fresh test save; d,a opens Load Game (--saves=0: first-launch menu)
 godot --path . -- --scene=title --hold=1 --quit=0 --save_dir=res://build/title_skip_preview/   # hold the rising dragon; press A or tap to check skipping
-godot --path . -- --scene=walk4 --touch                                 # four-way walking: two keys at once, a turn mid-step, gamepad d-pad and stick, B to run, the touch d-pad, tap to walk and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)")
+godot --path . -- --scene=walk4 --touch                                 # cardinal keys/d-pad, a near-cardinal stick push, B to run, touch walking and a porch; every stop on a tile's centre ("WALK TEST DONE: 0 problem(s)"); controllers covers eight stick directions
 godot --headless --path . -- --scene=building-fade                      # buildings load when their base reaches the screen and fade in; also walks the western dock lane; --town=tidewater narrows the audit
 godot --headless --path . -- --scene=exteriors --town=caccoon --verbose=1  # no building shows its inside from outside; full-size front doors set on their walls
 godot --path . -- --scene=tapzone                                       # taps near the touch controls don't walk you anywhere

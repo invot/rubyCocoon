@@ -15,6 +15,7 @@ const TopBar = preload("res://scripts/ui/top_bar.gd")
 const Glyphs = preload("res://scripts/ui/glyphs.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
+const WorldDB = preload("res://scripts/data/world_db.gd")
 
 var root: Control
 var hud: Control
@@ -99,7 +100,7 @@ func bottom_reserve() -> float:
 		return 0.0
 	if controls.touch_visible():
 		return 96.0
-	return controls.LEGEND_H if controls.legend_visible() else 0.0
+	return controls.legend_height() if controls.legend_visible() else 0.0
 
 
 ## True when the on-screen touch pad is showing (phones, tablets).
@@ -322,9 +323,10 @@ func gold(amount: int) -> void:
 
 
 ## A place's name on entering it, in League Spartan Semibold and the gem heading colour: `icon` is
-## its crest or a map pin.
+## its crest, a cluster of town houses, or a map pin for other locations.
 func place_name(title: String, sub := "", icon: Texture2D = null) -> void:
-	top_bar.post(title, icon if icon != null else Glyphs.tex("pin"), {"sub": sub, "heading": true, "key": "place", "replace": true})
+	var place_icon := Glyphs.tex("town" if WorldDB.is_town(GameState.map_id) else "pin") if icon == null else icon
+	top_bar.post(title, place_icon, {"sub": sub, "heading": true, "key": "place", "replace": true})
 
 
 ## (older name) a place's name.
@@ -342,7 +344,7 @@ func icon_texture(icon: Variant) -> Texture2D:
 		var s := String(icon)
 		if s.begins_with("item:"):
 			return Glyphs.item(s.substr(5))
-		if Glyphs.GLYPHS.has(s):
+		if Glyphs.has(s):
 			return Glyphs.tex(s)
 		var t := UIKit.tex(s)
 		if t != null:

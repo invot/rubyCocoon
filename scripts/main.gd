@@ -148,7 +148,7 @@ func _title_intro_input(ev: InputEvent) -> bool:
 func _title() -> void:
 	UI.allow_pause = false
 	UI.controls.set_title_mode(false)
-	UI.controls.show_title_legend(Prefs.is_desktop_web())
+	UI.controls.show_title_legend(true)
 	_clear_title_world()
 	Sfx.music("title")
 	Sfx.ambience("")
@@ -692,6 +692,16 @@ func _run_test() -> void:
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 	GameState.new_game("Tester")
+	if scene == "item-icons":
+		await load("res://tools/debug/item_icons.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
+	if scene == "controllers":
+		await load("res://tools/debug/controllers.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "sky-courier":
 		await load("res://tools/debug/sky_courier.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -3138,9 +3148,9 @@ func _walk4_test() -> void:
 	jb2.button_index = JOY_BUTTON_DPAD_DOWN
 	Input.parse_input_event(jb2)
 	await check.call("gamepad d-pad down", Vector2i(-999, -999))
-	# the gamepad's left stick pushed between right and down (mostly right): right only
+	# A nearly cardinal stick push stays right; diagonals are covered by the controllers scenario.
 	p = w.player_pos
-	for ax in [[JOY_AXIS_LEFT_X, 0.8], [JOY_AXIS_LEFT_Y, 0.55]]:
+	for ax in [[JOY_AXIS_LEFT_X, 0.8], [JOY_AXIS_LEFT_Y, 0.15]]:
 		var jm := InputEventJoypadMotion.new()
 		jm.axis = ax[0]
 		jm.axis_value = ax[1]

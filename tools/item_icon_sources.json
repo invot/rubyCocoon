@@ -1,0 +1,309 @@
+{
+  "spirit_drop": [
+    "potions_teardrop_bottle",
+    "#58bdd9"
+  ],
+  "spirit_tonic": [
+    "potions_spiral_bottle",
+    "#6389df"
+  ],
+  "spirit_elixir": [
+    "potions_star_bottle",
+    "#a878dc"
+  ],
+  "minor_potion": [
+    "potions_test_tube",
+    "#ee826f"
+  ],
+  "potion": [
+    "potions_round_flask",
+    "#df4960"
+  ],
+  "mega_potion": [
+    "potions_potion_jug",
+    "#b93458"
+  ],
+  "full_restore": [
+    "potions_diamond_bottle",
+    "#83c56b"
+  ],
+  "remedy_herb": [
+    "potions_mint_sprig"
+  ],
+  "revival_seed": [
+    "quest_glowing_seed"
+  ],
+  "phoenix_feather": [
+    "gems_golden_feather"
+  ],
+  "elixir": [
+    "potions_rainbow_elixir"
+  ],
+  "calm_incense": [
+    "quest_taper_candles",
+    "#7fb8b2"
+  ],
+  "lure_incense": [
+    "quest_taper_candles",
+    "#df9864"
+  ],
+  "spicy_bun": [
+    "food_sweet_bun"
+  ],
+  "mint_tea": [
+    "food_matcha_bowl"
+  ],
+  "honey_cake": [
+    "food_honey_cake"
+  ],
+  "training_candy": [
+    "food_wrapped_candy"
+  ],
+  "fire_bomb": [
+    "weapons_smoke_bomb",
+    "#e57c45"
+  ],
+  "tide_bomb": [
+    "weapons_smoke_bomb",
+    "#529ccd"
+  ],
+  "stone_bomb": [
+    "weapons_smoke_bomb",
+    "#ad8755"
+  ],
+  "gale_bomb": [
+    "weapons_smoke_bomb",
+    "#74bfaa"
+  ],
+  "inferno_flask": [
+    "potions_conical_flask",
+    "#e57c45"
+  ],
+  "tsunami_flask": [
+    "potions_conical_flask",
+    "#529ccd"
+  ],
+  "quake_flask": [
+    "potions_conical_flask",
+    "#ad8755"
+  ],
+  "cyclone_flask": [
+    "potions_conical_flask",
+    "#74bfaa"
+  ],
+  "poison_dart": [
+    "weapons_blowgun_darts"
+  ],
+  "sleep_powder": [
+    "potions_drawstring_pouch",
+    "#a481cb"
+  ],
+  "flash_powder": [
+    "potions_glitter_jar"
+  ],
+  "stun_net": [
+    "tools_hand_net"
+  ],
+  "sticky_snare": [
+    "quest_leash"
+  ],
+  "weaken_powder": [
+    "potions_paper_packet"
+  ],
+  "rust_dust": [
+    "materials_metal_dust_pile"
+  ],
+  "haste_tonic": [
+    "potions_tall_vial",
+    "#dbc45e"
+  ],
+  "iron_tonic": [
+    "potions_square_bottle",
+    "#8aabb6"
+  ],
+  "war_drum": [
+    "quest_hand_drum"
+  ],
+  "smoke_bomb": [
+    "weapons_smoke_bomb"
+  ],
+  "titan_tonic": [
+    "potions_giant_draught"
+  ],
+  "rope_collar": [
+    "quest_leash"
+  ],
+  "cloth_band": [
+    "armor_double_band"
+  ],
+  "twine_anklet": [
+    "armor_braided_ring"
+  ],
+  "power_collar": [
+    "armor_spiked_ring"
+  ],
+  "stone_band": [
+    "armor_plain_band"
+  ],
+  "swift_anklet": [
+    "armor_twisted_ring"
+  ],
+  "sage_bead": [
+    "armor_pearl_strand"
+  ],
+  "vital_belt": [
+    "armor_leather_belt"
+  ],
+  "lucky_clover": [
+    "@original"
+  ],
+  "ember_charm": [
+    "armor_sun_medallion",
+    "#e57c45"
+  ],
+  "tide_charm": [
+    "armor_teardrop_pendant",
+    "#529ccd"
+  ],
+  "stone_charm": [
+    "armor_rune_stone_necklace",
+    "#ad8755"
+  ],
+  "gale_charm": [
+    "armor_feather_charm",
+    "#74bfaa"
+  ],
+  "tide_pendant": [
+    "armor_shell_necklace"
+  ],
+  "thorn_collar": [
+    "armor_spiked_ring",
+    "#677f8d"
+  ],
+  "feather_cloak": [
+    "armor_feather_cloak"
+  ],
+  "quick_claw": [
+    "armor_claw_set_ring"
+  ],
+  "shade_ward": [
+    "armor_moon_pendant",
+    "#936ac3"
+  ],
+  "phoenix_plume": [
+    "gems_golden_feather"
+  ],
+  "tidal_tiara": [
+    "armor_crown_ring",
+    "#529ccd"
+  ],
+  "granite_greaves": [
+    "armor_plate_sabatons"
+  ],
+  "blaze_bracer": [
+    "armor_ranger_bracers",
+    "#e57c45"
+  ],
+  "gale_ribbon": [
+    "quest_hair_ribbon",
+    "#74bfaa"
+  ],
+  "verdant_crown": [
+    "gems_royal_crown",
+    "#79ae5f"
+  ],
+  "sunfang_amulet": [
+    "armor_tooth_necklace"
+  ],
+  "storm_gauntlet": [
+    "armor_plate_gauntlet"
+  ],
+  "fishing_rod": [
+    "tools_fly_rod"
+  ],
+  "worm_bait": [
+    "tools_bait_jar"
+  ],
+  "spinner_lure": [
+    "tools_spoon_lure"
+  ],
+  "glow_lure": [
+    "tools_fly_lure"
+  ],
+  "bridge_log": [
+    "materials_log"
+  ],
+  "bridge_planks": [
+    "materials_plank_stack"
+  ],
+  "card_ledger": [
+    "quest_ledger"
+  ],
+  "miner_pass": [
+    "quest_membership_card"
+  ],
+  "slingshot": [
+    "weapons_slingshot"
+  ],
+  "boomerang": [
+    "weapons_boomerang"
+  ],
+  "bat": [
+    "@original"
+  ],
+  "reed_flute": [
+    "quest_flute",
+    "reed"
+  ],
+  "silver_flute": [
+    "quest_flute",
+    "silver"
+  ],
+  "golden_flute": [
+    "quest_flute",
+    "gold"
+  ],
+  "jade_flute": [
+    "quest_flute",
+    "jade"
+  ],
+  "worn_cap": [
+    "armor_cloth_cap"
+  ],
+  "old_sneakers": [
+    "armor_cloth_shoes"
+  ],
+  "explorer_hat": [
+    "armor_feathered_cap"
+  ],
+  "sage_hood": [
+    "armor_ranger_hood"
+  ],
+  "hiking_boots": [
+    "armor_leather_boots"
+  ],
+  "wind_sandals": [
+    "armor_winged_boots"
+  ],
+  "canopy_boots": [
+    "armor_ranger_boots"
+  ],
+  "calm_lantern": [
+    "tools_bullseye_lantern"
+  ],
+  "lure_charm": [
+    "armor_eye_amulet"
+  ],
+  "merchant_badge": [
+    "armor_signet_ring"
+  ],
+  "_tome": [
+    "quest_ancient_codex"
+  ],
+  "_sheet": [
+    "potions_open_rune_scroll"
+  ],
+  "_unknown": [
+    "potions_drawstring_pouch"
+  ]
+}

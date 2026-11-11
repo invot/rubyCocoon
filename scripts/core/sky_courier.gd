@@ -8,10 +8,11 @@ const DELAY := 30.0
 const PICKUP_FEE := 20
 const KEEPER := "Sky Tower Courier"
 
-static func available() -> Dictionary:
-	var stock := GameState.locker.duplicate()
-	for id in GameState.courier_request.get("items", {}):
-		stock[id] = maxi(0, int(stock.get(id, 0)) - int(GameState.courier_request["items"][id]))
+static func available(contents = null, reserved = null) -> Dictionary:
+	var stock: Dictionary = (GameState.locker if contents == null else contents).duplicate()
+	var pending: Dictionary = GameState.courier_request.get("items", {}) if reserved == null else reserved
+	for id in pending:
+		stock[id] = maxi(0, int(stock.get(id, 0)) - int(pending[id]))
 		if stock[id] == 0:
 			stock.erase(id)
 	return stock
@@ -26,10 +27,12 @@ static func order(service: int, items: Dictionary = {}) -> bool:
 	GameState.courier_left = DELAY
 	return true
 
-static func receive(id: String, quantity: int) -> int:
-	var pending: Dictionary = GameState.courier_request.get("items", {})
+static func receive(id: String, quantity: int, inventory = null, locker = null, reserved = null) -> int:
+	var bag: Dictionary = GameState.inventory if inventory == null else inventory
+	var stock: Dictionary = GameState.locker if locker == null else locker
+	var pending: Dictionary = GameState.courier_request.get("items", {}) if reserved == null else reserved
 	var n := mini(quantity, int(pending.get(id, 0)))
-	n = Stacks.move(GameState.locker, GameState.inventory, id, n, BAG_CAP)
+	n = Stacks.move(stock, bag, id, n, BAG_CAP)
 	if n > 0:
 		pending[id] = int(pending[id]) - n
 		if pending[id] <= 0:
@@ -61,9 +64,9 @@ static func visit(world, employee: Node3D) -> bool:
 	if service in [2, 3]:
 		receive_fitting()
 		if not GameState.courier_request.get("items", {}).is_empty():
-			await UI.say(["Your bag is full. You can send stacks back to your locker or drop them to make room."], KEEPER, null, employee)
 			await load("res://scripts/ui/locker_screen.gd").open("receive")
-		await UI.say(["Your delivery is here. Anything you couldn't carry stays safe in your locker."], KEEPER, null, employee)
+		var message := "Your remaining items are safe in the locker." if not GameState.courier_request.get("items", {}).is_empty() else "Here's your delivery!"
+		await UI.say([message], KEEPER, null, employee)
 	if service == 1:
 		if GameState.gold < PICKUP_FEE:
 			await UI.say(["A pickup costs 20 gold. You don't have enough today."], KEEPER, null, employee)

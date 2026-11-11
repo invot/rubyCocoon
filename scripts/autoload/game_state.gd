@@ -147,6 +147,7 @@ func _bind(action: String, keys: Array, pads := []) -> void:
 		InputMap.action_add_event(action, ev)
 	for j in pads:
 		var jb := InputEventJoypadButton.new()
+		jb.device = -1
 		jb.button_index = j
 		InputMap.action_add_event(action, jb)
 

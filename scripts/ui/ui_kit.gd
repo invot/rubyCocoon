@@ -168,7 +168,7 @@ static func gem_name(name: String) -> String:
 
 ## Input capability, independent of whether the on-screen pad is currently visible (it hides on the title).
 static func touch_ui() -> bool:
-	return is_instance_valid(Prefs) and Prefs.touch_enabled()
+	return is_instance_valid(Prefs) and (Prefs.is_mobile() or Prefs.touch_enabled())
 
 
 ## How tall an interactive row is. Keep the same touch minimum on the title and while the pad steps aside.

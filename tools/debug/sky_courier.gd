@@ -30,6 +30,20 @@ func screen(kind := "desk") -> Control:
 	UI.push(s)
 	return s
 
+func check_layout(s: Control) -> void:
+	var left: Rect2 = s.lists[0]._panel.get_global_rect()
+	var right: Rect2 = s.lists[1]._panel.get_global_rect()
+	check(absf(left.size.y - right.size.y) < 1.0 and absf(left.position.y - right.position.y) < 1.0, "inventory panes keep the same height and top edge")
+	for menu in s.lists:
+		for button in menu.buttons:
+			check(button.icon != null and button.expand_icon, "every item row shows its existing icon")
+	check(s.action_buttons.size() == 2 and s.action_buttons[0].text == "Confirm" and s.action_buttons[1].text == "Cancel", "Confirm and Cancel are the only action buttons")
+	for button in s.action_buttons:
+		check(not button.get_theme_stylebox("normal") is StyleBoxEmpty, "action buttons have a visible background")
+		check(button.get_global_rect().position.y >= maxf(left.end.y, right.end.y) + 4.0, "action buttons sit below both inventory panes")
+		if UIKit.touch_ui():
+			check(not UI.touch_blocks(button.get_global_rect().get_center()), "action button stays clear of touch controls")
+
 func tap(target) -> void:
 	for frame in 3:
 		await main.get_tree().process_frame
@@ -123,39 +137,48 @@ func run(root: Node, options: Dictionary) -> void:
 	GameState.locker = {"potion": 108, "honey_cake": 9}
 	var s := screen()
 	await main._wait(0.4)
+	check_layout(s)
 	check(s.lists.size() == 2 and s.entries[0].size() == 3, "two lists split quantities into stacks")
 	for menu in s.lists:
 		for button in menu.buttons:
 			check(button.size.y >= UIKit.row_h(), "full-size stack row")
 	await main._press("ui_accept")
 	await main._wait(0.2)
-	check(GameState.item_count("minor_potion") == 17 and GameState.locker.minor_potion == 1, "one A moves exactly one item")
+	check(int(s._inventory.get("minor_potion", 0)) == 17 and int(s._locker.get("minor_potion", 0)) == 1, "one A stages exactly one item")
+	check(GameState.item_count("minor_potion") == 18 and not GameState.locker.has("minor_potion"), "inventory stays unchanged until Confirm")
 	check(s.entries[0][0].count == 8 and s.entries[0][1].count == 9, "the selected stack counts down without repacking it")
 	for i in 8:
 		await press_a()
 		await main._wait(0.04)
-	check(GameState.item_count("minor_potion") == 9 and GameState.locker.minor_potion == 9, "nine separate A presses transfer one whole stack")
+	check(s._inventory.minor_potion == 9 and s._locker.minor_potion == 9, "nine separate A presses stage one whole stack")
 	check(UI.stack.size() == 1 and s.active == 0, "A transfers stay on the same screen and source list")
 	await main._press("ui_right")
 	await main._wait(0.2)
 	check(s.active == 1, "keyboard changes list")
 	await main._press("ui_left")
 	await tap(s.lists[0].buttons[1])
-	check(GameState.item_count("spirit_drop") == 8 and GameState.locker.spirit_drop == 1, "a row tap transfers exactly one item")
+	check(s._inventory.spirit_drop == 8 and s._locker.spirit_drop == 1, "a row tap stages exactly one item")
 	for gem in UIKit.ACCENT_ORDER:
 		UIKit.set_accent(gem)
 		UI.root.theme = UIKit.make_theme()
 		UI.controls.refresh()
 		s._refresh()
 		await main._wait(0.2)
+		check_layout(s)
 		await shot("locker_" + gem)
 	# Real shared rail buttons must move the long list, on touch as well as desktop.
 	check(s.lists[1]._rail.enabled, "shared scroll rail enabled on both input layouts")
 	await tap(s.lists[1]._rail._down)
 	await main._wait(0.4)
 	check(s.lists[1]._scroll.scroll_vertical > 0, "scroll button moves locker list")
-	s.close({})
+	await tap(s.action_buttons[0])
+	check(GameState.item_count("minor_potion") == 9 and GameState.item_count("spirit_drop") == 8 and GameState.locker.minor_potion == 9, "Confirm applies the staged inventory transfers")
 	await main._wait(0.25)
+	s = screen()
+	await main._wait(0.2)
+	await tap(s.lists[0].buttons[0])
+	await tap(s.action_buttons[1])
+	check(GameState.item_count("minor_potion") == 9 and GameState.locker.minor_potion == 9, "Cancel discards staged inventory transfers")
 	GameState.inventory = {"minor_potion": 9}
 	GameState.locker = {"potion": 117}
 	s = screen("order")
@@ -177,29 +200,44 @@ func run(root: Node, options: Dictionary) -> void:
 	Courier.order(2, {"potion": 9})
 	s = screen("receive")
 	await main._wait(0.25)
+	if opts.has("shots"):
+		await main._wait(3.0)
+	check(s.lists[0].title.begins_with("Inventory") and s.lists[1].title.begins_with("Bird"), "overflow shows inventory on the left and bird on the right")
+	check_layout(s)
 	await shot("full_bag")
 	await tap(s.lists[0].buttons[0])
 	for i in 8:
 		await press_a()
 		await main._wait(0.04)
-	check(GameState.locker.get("minor_potion", 0) == 9, "overflow screen hands a bag stack back to storage")
+	check(int(s._locker.get("minor_potion", 0)) == 9, "overflow screen stages a stack to send back with the bird")
+	check(int(s._stock()[1].get("minor_potion", 0)) == 9, "items handed back stay visible on the bird")
 	await tap(s.lists[1].buttons[0])
 	for i in 8:
 		await press_a()
 		await main._wait(0.04)
-	check(GameState.item_count("potion") == 9 and GameState.courier_request.items.is_empty(), "overflow screen fills the freed slot")
-	s.active = 0
-	s._focus_row(0)
-	UI.auto = true
-	UI.auto_answers = [0]
+	check(int(s._inventory.get("potion", 0)) == 9 and s._pending.is_empty(), "overflow screen stages delivery into the freed slot")
+	await shot("bird_inventory")
 	await tap(s.action_buttons[0])
-	await main._wait(0.2)
-	check(GameState.item_count("minor_potion") == 198, "drop removes exactly one confirmed stack")
-	UI.auto = false
-	s.close({})
+	check(GameState.item_count("minor_potion") == 207 and GameState.item_count("potion") == 9 and GameState.courier_request.items.is_empty(), "Confirm applies delivery and handed-back items together")
 	GameState.courier_request = {}
 	await main._wait(0.25)
-	# The employee's actual pickup screen commits and charges only after Done.
+	# The employee's actual pickup screen commits and charges only after Confirm.
+	GameState.inventory = {"minor_potion": 9}
+	GameState.locker = {}
+	GameState.gold = 20
+	Courier.order(1)
+	Courier.visit(main.world, null)
+	await main._wait(0.25)
+	s = UI.stack.back()
+	check_layout(s)
+	await tap(s.lists[0].buttons[0])
+	await main._wait(0.1)
+	check(GameState.gold == 20 and GameState.item_count("minor_potion") == 9, "pickup selection is staged until Confirm")
+	UI.auto = true
+	await tap(s.action_buttons[0])
+	await main._wait(0.25)
+	check(GameState.gold == 0 and GameState.locker.get("minor_potion", 0) == 1 and GameState.item_count("minor_potion") == 8, "employee stores selected pickup for twenty gold")
+	UI.auto = false
 	GameState.inventory = {"minor_potion": 9}
 	GameState.locker = {}
 	GameState.gold = 20
@@ -208,12 +246,9 @@ func run(root: Node, options: Dictionary) -> void:
 	await main._wait(0.25)
 	s = UI.stack.back()
 	await tap(s.lists[0].buttons[0])
-	await main._wait(0.1)
-	check(GameState.gold == 20 and GameState.item_count("minor_potion") == 9, "pickup selection is staged until Done")
+	await tap(s.action_buttons[1])
+	check(GameState.gold == 20 and GameState.item_count("minor_potion") == 9 and GameState.locker.is_empty(), "cancelled pickup changes no items and charges nothing")
 	UI.auto = true
-	await tap(s.action_buttons.back())
-	await main._wait(0.25)
-	check(GameState.gold == 0 and GameState.locker.get("minor_potion", 0) == 1 and GameState.item_count("minor_potion") == 8, "employee stores selected pickup for twenty gold")
 	GameState.gold = 5
 	UI.auto_answers = [2, 1]
 	await main.Phone.call_home(main.world, main.Phone.FEE)
@@ -226,16 +261,45 @@ func run(root: Node, options: Dictionary) -> void:
 	await main._wait(0.3)
 	await main._press("ui_accept")
 	await main._wait(0.2)
-	check(s.active == 0 and GameState.item_count("minor_potion") == 0 and GameState.locker.minor_potion == 1, "an emptied source never reverses transfer direction")
-	s.close({})
+	check(s.active == 0 and s._inventory.is_empty() and s._locker.minor_potion == 1, "an emptied source never reverses transfer direction")
+	await main._press("ui_cancel")
 	await main._wait(0.2)
+	check(GameState.item_count("minor_potion") == 1 and GameState.locker.is_empty(), "B cancels transfers without changing inventory")
+	GameState.inventory = {}
 	GameState.locker = {}
 	s = screen()
 	await main._wait(0.3)
 	check(s.entries[0].is_empty() and s.entries[1].is_empty(), "empty lists open safely")
+	check_layout(s)
 	await shot("empty")
 	await main._press("ui_cancel")
 	await main._wait(0.3)
+	# The normal delivery skips the inventory screen entirely; overflow goes straight to the two lists.
+	GameState.inventory = {}
+	GameState.locker = {"potion": 9}
+	Courier.order(2, {"potion": 9})
+	Courier.visit(main.world, null)
+	await main._wait(0.2)
+	check(GameState.item_count("potion") == 9 and UI.stack.size() == 1 and UI.stack.back() is UI.DialogBox, "a fitting delivery goes straight into inventory without a transfer screen")
+	UI.auto = true
+	UI.stack.back().close(-1)
+	await main._wait(0.2)
+	UI.auto = false
+	GameState.inventory = {"potion": 215}
+	GameState.locker = {"potion": 9}
+	Courier.order(2, {"potion": 9})
+	Courier.visit(main.world, null)
+	await main._wait(0.3)
+	check(UI.stack.size() == 1 and UI.stack.back() is Screen, "an overflowing delivery opens the inventory and bird directly")
+	s = UI.stack.back()
+	check_layout(s)
+	check(GameState.item_count("potion") == 216 and GameState.locker.potion == 8, "delivery automatically fills the available room first")
+	await tap(s.lists[0].buttons[0])
+	UI.auto = true
+	await main._press("ui_cancel")
+	await main._wait(0.2)
+	check(GameState.item_count("potion") == 216 and GameState.locker.potion == 8, "Cancel preserves automatic delivery and discards only the manual changes")
+	UI.auto = false
 	if opts.get("ui_only", "0") == "1":
 		print("SKY COURIER UI DONE: %d problem(s)" % bad)
 		return

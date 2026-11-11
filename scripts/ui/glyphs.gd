@@ -1,7 +1,7 @@
 extends RefCounted
-## Small pixel icons for short notices (the top bar, top_bar.gd): what kind of item was found, gold, a map pin for
-## places, a note for songs, and a mark for anything else. Each is a 12 x 12 bitmap ("#" white line, "+" the gem,
-## "o" a light shade of the gem, "." clear; the coin is gold in every gem) made once per gem, so it scales by whole screen pixels (12 x 4 UI units).
+## Shared item illustrations and notice symbols for menus and the top bar.
+## Items use fixed-color supplied PNGs; the town symbol and two missing item shapes use SVGs.
+## Legacy notice glyphs are 12 x 12 bitmaps ("#" white, "+" gem, "o" gold, "." clear), cached per gem.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
@@ -56,10 +56,18 @@ const GLYPHS := {
 const OWN_COLORS := {"coin": [Color(0.91, 0.69, 0.19), Color(1.0, 0.89, 0.52)]}
 
 static var _cache := {}
+## Item artwork uses permanent, item-specific colors, independent of the interface gem.
+static var _items := {}
+static var _town: Texture2D
 
 
 ## A glyph's texture in the current gem (unknown names: the notice mark). Shown at SIZE x 4 UI units.
 static func tex(name: String) -> Texture2D:
+	if name == "town":
+		if _town == null:
+			_town = load("res://assets/ui/town.svg")
+			_town.set_meta("smooth_ui_icon", true)
+		return _town
 	if not GLYPHS.has(name):
 		name = "notice"
 	var key := "%s|%s" % [name, UIKit.ACCENT.to_html()]
@@ -119,6 +127,25 @@ static func item_glyph(id: String) -> String:
 	return "pouch"
 
 
-## The texture for an item's glyph.
+## Supplied pack artwork. Variant colors are baked into the image, never taken from UIKit.ACCENT.
 static func item(id: String) -> Texture2D:
-	return tex(item_glyph(id))
+	if _items.has(id):
+		return _items[id]
+	var name := "_tome" if id.begins_with("tome_") else ("_sheet" if id.begins_with("sheet_") else id)
+	var extension := "svg" if name in ["bat", "lucky_clover"] else "png"
+	var path := "res://assets/ui/items/%s.%s" % [name, extension]
+	if not ResourceLoader.exists(path):
+		path = "res://assets/ui/items/_unknown.png"
+	var texture: Texture2D = load(path)
+	texture.set_meta("item_art", true)
+	texture.set_meta("smooth_ui_icon", extension == "svg")
+	_items[id] = texture
+	return texture
+
+
+static func smooth(texture: Texture2D) -> bool:
+	return texture != null and bool(texture.get_meta("smooth_ui_icon", false))
+
+
+static func has(name: String) -> bool:
+	return name == "town" or GLYPHS.has(name)

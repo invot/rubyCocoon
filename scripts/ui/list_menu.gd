@@ -2,6 +2,7 @@ extends "res://scripts/ui/modal.gd"
 ## Keyboard/touch list menu in a window, with a title tab above it. Emits the chosen index, or -1 when cancelled.
 ## items: Array of String or Dictionary {text, right, disabled, desc, icon}
 ## opts: anchor, width, rows, cancel, start, on_focus (Callable), dim, title_size, margin; font_size: the rows' text
+## fixed_rows: reserve the same number of rows even for short or empty lists (paired inventory panes).
 ## size (UI units); bare: no box at all: the first option is a big glowing button in the gem, pulsing, with a shine
 ## sweeping across it (the title's "New Game"), and any others plain text under it
 
@@ -68,6 +69,8 @@ func _ready() -> void:
 		rib.z_index = 1
 		outer.add_child(rib)
 	_panel = UIKit.panel()
+	if opts.get("embedded", false):
+		_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(_panel)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 4)
@@ -86,7 +89,7 @@ func _ready() -> void:
 	for it in items:
 		if it.has("icon") and it["icon"] != null:
 			has_icons = true
-	var row_h := UIKit.row_h() + (8.0 if has_icons else 0.0)
+	var row_h := UIKit.row_h() + (8.0 if has_icons and not opts.get("embedded", false) else 0.0)
 	var font_size := int(opts.get("font_size", UIKit.BUTTON_FONT_SIZE))
 	font_size = maxi(font_size, UIKit.BUTTON_FONT_SIZE)
 	if font_size > 0:
@@ -96,7 +99,7 @@ func _ready() -> void:
 	if bare:
 		_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var rows := int(opts.get("rows", 8))
-	_max_rows = mini(rows, maxi(1, items.size()))
+	_max_rows = rows if opts.get("fixed_rows", false) else mini(rows, maxi(1, items.size()))
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 0)
@@ -110,7 +113,7 @@ func _ready() -> void:
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		scroll.follow_focus = true
 		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		scroll.custom_minimum_size = Vector2(0, row_h * mini(rows, maxi(1, items.size())) + 2)
+		scroll.custom_minimum_size = Vector2(0, row_h * _max_rows + 2)
 		# up / down buttons beside a menu longer than it shows, taking their room from the rows (see scroll_rail.gd)
 		var side := HBoxContainer.new()
 		side.add_theme_constant_override("separation", 6)
@@ -132,8 +135,9 @@ func _ready() -> void:
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		if it.has("icon") and it["icon"] != null:
 			b.icon = it["icon"]
-			b.expand_icon = false
-			b.add_theme_constant_override("icon_max_width", 56)
+			b.expand_icon = b.icon.has_meta("item_art") or opts.get("expand_icons", false)
+			b.add_theme_constant_override("icon_max_width", int(opts.get("icon_width", 56)))
+			b.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(b.icon) else CanvasItem.TEXTURE_FILTER_NEAREST
 		if it.has("right"):
 			var rl := UIKit.label(str(it["right"]), 20, UIKit.ACCENT if not b.disabled else UIKit.DIM)
 			rl.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BUTTON_FONT_SIZE))
@@ -174,6 +178,7 @@ func _ready() -> void:
 	UIKit.place(outer, _layout_anchor, _layout_margin)
 	if _scroll != null:
 		get_viewport().size_changed.connect(_fit_rows)
+		UI.controls.layout_changed.connect(_fit_rows)
 		_fit_rows.call_deferred()
 	_grab_start.call_deferred()
 

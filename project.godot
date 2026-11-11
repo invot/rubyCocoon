@@ -23,6 +23,7 @@ boot_splash/bg_color=Color(0.012, 0.016, 0.098, 1)
 GameState="*res://scripts/autoload/game_state.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 Prefs="*res://scripts/autoload/prefs.gd"
+Controllers="*res://scripts/autoload/controllers.gd"
 UI="*res://scripts/autoload/ui.gd"
 Menus="*res://scripts/autoload/menus.gd"
 Places="*res://scripts/autoload/places.gd"

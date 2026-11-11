@@ -665,7 +665,7 @@ func fly_to(dest: String, cost := 0) -> void:
 	Sfx.play("fly")
 	await UI.flash(Color("#e8f8ff"), 2)
 	GameState.main.goto_map(dest, "skytower")
-	UI.toast("Flying to %s..." % WorldDB.map_name(dest), "pin")
+	UI.toast("Flying to %s..." % WorldDB.map_name(dest), "town")
 
 
 # ================================================================ electronics
