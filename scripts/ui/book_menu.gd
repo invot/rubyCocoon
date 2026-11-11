@@ -1017,12 +1017,11 @@ func _race_detail(c: VBoxContainer, i: int) -> void:
 ## described on the right. Once an air beast of yours can carry you (Places.own_flyer), you can fly from here to any
 ## town you've visited.
 func _tab_map() -> void:
-	left_box.add_child(_pane_title("The Realm"))
+	left_box.add_child(_pane_title("Rubisa"))
 	if not GameState.flags.get("world_map", true):
 		left_box.add_child(_t_label("You don't have a map yet. Librarian Quill has a free one for you at Cocoon Cove Library, beside the path from home to the square.", UIKit.DIM))
 		return
 	map_view = WorldMap.new().setup(GameState.map_id)
-	map_view.paper = Color(0, 0, 0, 0.8)
 	map_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	map_view.focused.connect(_town_focused)
 	map_view.activated.connect(_fly_to)

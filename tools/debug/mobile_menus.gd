@@ -1,6 +1,7 @@
 extends RefCounted
 ## Fresh-state mobile menu interaction checks and previews: --scene=mobile-menus --touch --verify=1
-## --preview=confirm|list|book|title; --shots=res://build/shots/mobile_menu captures representative states.
+## --preview=confirm|list|book|map|title; --explored=1 shows all map markers.
+## --shots=res://build/shots/mobile_menu captures representative states.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
@@ -27,6 +28,14 @@ func run(root, opts: Dictionary) -> void:
 			await _center_menu()
 		"book":
 			Menus.pause_menu(main.world, "beasts")
+		"map":
+			GameState.set_flag("world_map")
+			GameState.visited = WorldDB.TOWN_ORDER.duplicate() if opts.get("explored", "0") == "1" else ["caccoon", "tidewater", "shellhaven", "kelpwick", "dustwell"]
+			UI.auto = true
+			await main._go("route3", "south")
+			UI.auto = false
+			await main._wait(4.0)
+			Menus.pause_menu(main.world, "map")
 		"title":
 			main._title()
 			main._title_intro.skip_ascent()
@@ -203,6 +212,11 @@ func _book_map(opts: Dictionary) -> void:
 	await main._tap_at(_town_point(book, "tidewater"))
 	await main._wait(0.2)
 	_check(book.map_view.town() == "tidewater", "a tap picks a town on the map")
+	for t in WorldDB.TOWN_ORDER:
+		# Touch the visible pin head, rather than just the map coordinate at its tip.
+		await main._tap_at(_town_point(book, t) - Vector2(0, 22))
+		_check(book.map_view.town() == t, "the visible marker for %s can be tapped" % t)
+	await main._tap_at(_town_point(book, "tidewater"))
 	_check(_button(book, "Fly here") == null and _says(book, "Step outside"), "no flying from indoors")
 	var covered := []
 	for group in UI.controls.CLUSTERS:

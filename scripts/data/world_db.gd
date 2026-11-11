@@ -318,12 +318,12 @@ const TIPS := [
 
 ## Positions on the world map screen.
 const MAP_POS := {
-	"caccoon": Vector2(40, 430), "tidewater": Vector2(200, 430), "shellhaven": Vector2(330, 470), "kelpwick": Vector2(470, 470),
-	"dustwell": Vector2(200, 330), "sundown": Vector2(200, 230), "copperpick": Vector2(200, 110), "cogsworth": Vector2(380, 110),
-	"emberfall": Vector2(380, 0), "vinehollow": Vector2(580, 0), "riverbend": Vector2(580, 160), "gravenmoor": Vector2(760, 160),
+	"caccoon": Vector2(40, 420), "tidewater": Vector2(240, 420), "shellhaven": Vector2(415, 475), "kelpwick": Vector2(610, 475),
+	"dustwell": Vector2(130, 300), "sundown": Vector2(80, 170), "copperpick": Vector2(230, 80), "cogsworth": Vector2(430, 120),
+	"emberfall": Vector2(400, -50), "vinehollow": Vector2(650, -20), "riverbend": Vector2(610, 220), "gravenmoor": Vector2(825, 160),
 }
 const ROUTE_PATHS := {
-	"reef": [Vector2(470, 470), Vector2(600, 470)],
+	"reef": [Vector2(610, 475), Vector2(780, 470)],
 }
 ## The ferry between Bellerive and Shellhaven (drawn on the map, travelled by boat).
 const FERRY := ["tidewater", "shellhaven"]

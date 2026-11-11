@@ -207,7 +207,7 @@ explains Shadow Eggs and ghost merging. Arriving still unlocks ghost eggs and me
 | Jungle | Vinehollow | The village sells the finest gear in the land. The shaman needs the Sun, Moon and Earth relics; the ritual raises the hidden **Temple of Roots**. |
 | River and moor | Riverbend, Gravenmoor | Gravenmoor is the Legion's town. Ghost beasts can be hatched and merged from here on. The gravedigger teaches the Requiem of Dusk. Commander Nyx guards the cathedral, and General Vexmora waits in the crypt beneath it. |
 
-<img src="docs/screenshots/worldmap.jpg" width="640" alt="The world map on the Start book's Map page: the towns you've been to, ??? for the ones you haven't reached yet, and a pin where you are."><br><sub>The world map on the Start book's Map page: the towns you've been to, ??? for the ones you haven't reached yet, and a pin where you are.</sub>
+<img src="docs/screenshots/worldmap.jpg" width="640" alt="The world map on aged paper in the Start book: town markers, question marks for unexplored towns, and a flag where you are. Town names appear on the facing page."><br><sub>The world map on aged paper in the Start book: town markers, question marks for unexplored towns, and a flag where you are. Town names appear on the facing page.</sub>
 
 Every road between towns narrows to one bottleneck with a puzzle, getting harder as you go:
 
@@ -320,7 +320,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
   <img src="docs/screenshots/temple.jpg" width="640" alt="Inside the Temple of Flame, on the Caldera Road."><br><sub>Inside the Temple of Flame, on the Caldera Road.</sub>
 
-  <img src="docs/screenshots/summon.jpg" width="640" alt="Pyroclast answers your song: a summon arriving in battle."><br><sub>Pyroclast answers your song: a summon arriving in battle.</sub>
+  <img src="docs/screenshots/summon.jpg" width="640" alt="Pyroclast answers your song: a summon striking the opposing team."><br><sub>Pyroclast answers your song: a summon striking the opposing team.</sub>
 
 - **Merging** happens at Beast Centers, between two beasts grown into their final form and at their level limit: **Lv
   40** at rank 1, and each merge raises the limit by 20 (`Beast.level_cap`). A normal merge is 50/50. The new beast is
@@ -394,7 +394,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - A plain attack lunges at its target. Any other move is cast: the camera cuts to the caster as its element's glow (white for a plain move) gathers and it lets go, then cuts to where it lands as the glow streaks in, a burst there (rising motes for a heal or a boost) with the target's hit pose and number on the same frame. A beast that Defends holds a braced stance until its side's next turn; a defended or resisted hit is blocked, and other hits knock a beast back as hard as they were (`battle_camera.gd` "cast" / "impact", `battle.gd` `_cast`).
   - Winning plays *Android Sock Hop*. A beaten wild foe vanishes in a puff of smoke; fainted beasts on either trainer's ring lie on their pads, slumped with their eyes shut. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use League Spartan.
 
-  <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: the translucent yellow arrow and gem outline aim at the 3D target, with a small HP tag."><br><sub>A wild battle in a desert clearing: the translucent yellow arrow and gem outline aim at the 3D target, with a small HP tag.</sub>
+  <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars."><br><sub>A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars.</sub>
 
 - **Weapons and the beat attack** (`item_db.gd` WEAPONS, `scripts/core/beat_chain.gd`, `scripts/battle/beat_cue.gd`, `battle.gd` _do_weapon):
   - Your trainer's bar lists the weapons you own; you pick one each turn. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit, on one foe you run up to: Sheriff Dalton hands over Black Bart's with the Sundown bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
@@ -448,7 +448,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Guide Dottie walks about the room and explains how it all works.
   - All three wear the Beast Center uniform: white on top, red below, and a red cap with the pawprint from the sign over the door on a white panel at its front. None of them wears glasses.
 
-  <img src="docs/screenshots/heal.jpg" width="640" alt="Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine glowing in its bay, the storage terminal, the merge altar and the red phone."><br><sub>Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine glowing in its bay, the storage terminal, the merge altar and the red phone.</sub>
+  <img src="docs/screenshots/heal.jpg" width="640" alt="Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine, the storage terminal, the merge altar and the red phone."><br><sub>Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine, the storage terminal, the merge altar and the red phone.</sub>
 
 - **Saving**: your dad is away up north for work, and **calling him is how you save**. Tell him how your journey's going, he cheers you on, and the game is saved; then keep playing, or stop for now (back to the title screen).
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
@@ -785,7 +785,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Flute | Every song with its effect and mastery; press A to practise one. The Capture page shows your level and when the next one is ready to learn. Unknown songs show where to learn them. |
 | Bag | Items grouped as care, battle items, weapons, beast gear, trainer gear, sheet music, fishing, key items and tomes. Each stack has its own bordered item slot; the heading shows stacks used, such as **18/24**. |
 | Bestiary | All 39 forms with live portraits and where to find them. |
-| Map | The world map across the left page: the twelve towns and the roads between them, ??? for towns you haven't reached, and a pin where you are (on a road, halfway along it). Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
+| Map | An aged-paper map of **Rubisa** across the left page: jagged coastlines, mountains and woodland, the twelve towns and their roads, question-mark pins for towns you haven't reached, and a flag where you are (on a road, halfway along it). The map has no town-name labels; the facing page names the selected town. Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
 | Settings | 3D resolution, graphics quality, music and sound volume, text speed, interface color, touch pad, key guide, fullscreen, credits and quit to title. |
 
 The bag holds **24 stacks of up to 9** of the same item; a tenth starts another stack.
@@ -1489,6 +1489,13 @@ godot --path . -- --scene=flute --song=weaken --mode=learn --lesson=1    # the f
 godot --path . --resolution 2400x1080 -- --touch --scene=maker --verify=1  # the character creator's two tabs: rows, keys and taps ("MAKER TEST DONE: 0 problem(s)"); --picks=tab:1,row:eyes
 godot --path . -- --scene=hero --shot=C:/tmp/h.png                      # the hero from four sides
 ```
+
+World-map artwork previews: `godot --path . -- --scene=mobile-menus --preview=map --explored=1 --wait=1
+--shot=res://build/shots/map.png --shot_w=0 --prefs_path=res://build/map_preview/settings.cfg
+--save_dir=res://build/map_preview/saves/`. Use 1920x1080 on desktop, or 2400x1080 with `--touch`
+for the phone layout. Omit `--explored=1` to retain question marks for unreached towns.
+The supplied map artwork is rebuilt with `python tools/prepare_world_map.py` (Pillow), then
+`godot --headless --path . --import`; these are 2D UI assets, not world textures.
 
 ## Credits
 

@@ -1,6 +1,6 @@
 extends RefCounted
 ## Shared item illustrations and notice symbols for menus and the top bar.
-## Items use fixed-color supplied PNGs; the town symbol and two missing item shapes use SVGs.
+## Items and location symbols use supplied PNGs; two missing item shapes use SVGs.
 ## Legacy notice glyphs are 12 x 12 bitmaps ("#" white, "+" gem, "o" gold, "." clear), cached per gem.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -58,16 +58,18 @@ const OWN_COLORS := {"coin": [Color(0.91, 0.69, 0.19), Color(1.0, 0.89, 0.52)]}
 static var _cache := {}
 ## Item artwork uses permanent, item-specific colors, independent of the interface gem.
 static var _items := {}
-static var _town: Texture2D
+static var _locations := {}
 
 
 ## A glyph's texture in the current gem (unknown names: the notice mark). Shown at SIZE x 4 UI units.
 static func tex(name: String) -> Texture2D:
-	if name == "town":
-		if _town == null:
-			_town = load("res://assets/ui/town.svg")
-			_town.set_meta("smooth_ui_icon", true)
-		return _town
+	if name in ["town", "pin"]:
+		if not _locations.has(name):
+			var path := "town" if name == "town" else "position"
+			var location: Texture2D = load("res://assets/ui/world_map/%s.png" % path)
+			location.set_meta("smooth_ui_icon", true)
+			_locations[name] = location
+		return _locations[name]
 	if not GLYPHS.has(name):
 		name = "notice"
 	var key := "%s|%s" % [name, UIKit.ACCENT.to_html()]

@@ -1888,7 +1888,7 @@ func _run_test() -> void:
 		autoplay = true
 		# (Bellerive's first-visit welcome would stay up under the fishing)
 		GameState.set_flag("seen_tidewater")
-		await _do_goto("tidewater", Vector2i(7, 33), Vector2i(0, 1))
+		await _do_goto("tidewater", Vector2i(6, 37), Vector2i(0, 1))
 		await _wait(1.5)
 		# (after arriving, so the arrival doesn't start Gil's lesson by itself)
 		GameState.set_flag("fisher_met")
@@ -1929,8 +1929,8 @@ func _run_test() -> void:
 			await Story.fish_lesson(world)
 			print("fishing lesson done: ", GameState.flag("fish_lesson"))
 		else:
-			print("fishing result: ", await Fishing.cast(world, Vector2i(7, 34)), "  bait left ", GameState.item_count(String(_test.get("bait", "worm_bait"))))
-			print("in a rippling patch: ", world.map.get("fish_areas", {}).has(Vector2i(7, 34)))
+			print("fishing result: ", await Fishing.cast(world, Vector2i(6, 38)), "  bait left ", GameState.item_count(String(_test.get("bait", "worm_bait"))))
+			print("in a rippling patch: ", world.map.get("fish_areas", {}).has(Vector2i(6, 38)))
 		tapping[0] = false
 		world.busy = false
 		print("party: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), "  caught ", GameState.caught.size())
