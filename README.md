@@ -1116,10 +1116,11 @@ with the **Web Demo** preset's baked-in `demo` feature. It deploys to the existi
 secrets as the full build. The demo and full Web packages are separate Actions artifacts (`RubyCocoon-web-demo`
 and `RubyCocoon-web`). A failed demo check or export prevents that demo deployment.
 
-Full-game production Pages and the native `latest` release are published **only** by manually running the workflow
-on `main` with **publish_full** checked (off by default). Ordinary pushes publish only the demo. This does not remove
-older full-game deployments or downloads already published. Manual runs from other branches save artifacts without
-deploying either public site.
+The existing full-game publishing continues alongside the demo: successful runs update the native `latest` release,
+and runs on `main` also deploy the full Web game to [rubycoccon.pages.dev](https://rubycoccon.pages.dev).
+The demo job independently updates its own Pages alias on `main` or `master`. Manual runs from other branches
+retain the existing native-release behavior but do not deploy either Web site. Repository visibility and release
+access settings are unchanged; the repository and its non-draft releases are currently public.
 
 Build locally with `python tools/make_web.py --demo`; the normal command still builds the full Web game into
 `build/web/`. To upload the demo manually using the existing Cloudflare login:
@@ -1145,7 +1146,8 @@ Set these under the GitHub repository's **Settings → Secrets and variables →
 
 Keep token values in GitHub secrets. No browser login is needed in CI. Without both secrets, the workflow
 keeps building and saving the web artifact and reports a deployment-skipped warning. After adding them,
-run the workflow on `main` with **publish_full** left unchecked to publish the demo. Keep the existing Pages project's production branch as `main` so `demo` remains a preview alias.
+run the workflow on `main` to publish both Web versions. Keep the existing Pages project's production branch as
+`main` so `demo` remains a preview alias.
 See [Cloudflare's CI authentication guide](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/).
 
 For local builds, `GODOT` can override the Godot executable (`GODOT=/path/to/godot python tools/make_web.py`).
@@ -1451,8 +1453,9 @@ Studio; `LOOK_URL` and `LOOK_MODEL` pick the server and model) and prints its sh
 
 Every push to `main` or `master` builds the full game for Windows and Android on GitHub
 (`.github/workflows/windows-build.yml`), alongside the separate public Web demo. Godot exports headless on Linux
-after the quick checks. To publish the full native downloads as "Latest build", run the workflow manually on `main`
-and check **publish_full**. That choice also publishes the full Web game to production Pages.
+after the quick checks and publishes the full native downloads as "Latest build". Successful runs on `main` also
+publish the full Web game to production Pages, while the parallel demo job updates the demo alias. A build can
+also be started by hand from the Actions tab, as before.
 
 - `RubyCocoon-windows.zip`: one portable `RubyCocoon.exe` (unzip and run; it isn't signed, so the first time Windows
   SmartScreen asks: More info, Run anyway).

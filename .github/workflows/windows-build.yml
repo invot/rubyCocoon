@@ -1,6 +1,6 @@
 # Every push to main/master builds a separate public demo (the demo Pages alias).
-# Full-game builds remain available; publishing production Pages and the native "latest" release requires
-# the manual publish_full input on main. The demo reuses the existing Cloudflare repository secrets.
+# Full-game production Pages and the native "latest" release keep their existing automatic publishing.
+# The parallel demo reuses the existing Cloudflare repository secrets.
 # Also runs by hand from the Actions tab ("Run workflow"). The quick checks (tools/run_tests.sh quick) run first; if
 # they fail, nothing is published.
 name: Windows, Android and Web build
@@ -9,11 +9,6 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
-    inputs:
-      publish_full:
-        description: Publish the full game to production Pages and the latest native release
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -129,7 +124,6 @@ jobs:
 
       # the "latest" release always holds the newest build (the one before is replaced)
       - name: Publish as the latest build
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_full && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -155,7 +149,7 @@ jobs:
           fi
 
       - name: Deploy Web to Cloudflare Pages
-        if: steps.cloudflare.outputs.ready == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish_full && github.ref == 'refs/heads/main'
+        if: steps.cloudflare.outputs.ready == 'true' && github.ref == 'refs/heads/main'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
