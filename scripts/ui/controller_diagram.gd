@@ -75,17 +75,17 @@ func _draw() -> void:
 		_leader([from, Vector2(from.x, 94.0), Vector2(point.x, 94.0), point])
 	var accept := _anchor("accept")
 	var below := _label_edge("accept", false)
-	_leader([accept, Vector2(accept.x, HEIGHT - 112.0), Vector2(below.x, HEIGHT - 112.0), below])
+	_leader([accept, Vector2(accept.x, HEIGHT - 112.0), Vector2(below.x, HEIGHT - 112.0), below], true)
 	var back := _anchor("back")
 	var back_label := _label_edge("back", false)
 	var right := _image_rect.end.x + 8.0
-	_leader([back, Vector2(right, back.y), Vector2(right, HEIGHT - 96.0), Vector2(back_label.x, HEIGHT - 96.0), back_label])
+	_leader([back, Vector2(right, back.y), Vector2(right, HEIGHT - 96.0), Vector2(back_label.x, HEIGHT - 96.0), back_label], true)
 
 
-func _leader(path: PackedVector2Array) -> void:
+func _leader(path: PackedVector2Array, button_at_start := false) -> void:
 	draw_polyline(path, Color(0, 0, 0, 0.8), 5.0, true)
 	draw_polyline(path, UIKit.LIGHT, 2.0, true)
 	# A small dot marks the exact button; lines can be read without relying on colour.
-	var point := path[0] if path[0].y > 100.0 else path[-1]
+	var point := path[0] if button_at_start else path[-1]
 	draw_circle(point, 5.0, Color(0, 0, 0, 0.8), true, -1.0, true)
 	draw_circle(point, 3.0, UIKit.LIGHT, true, -1.0, true)
