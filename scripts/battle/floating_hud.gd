@@ -57,6 +57,11 @@ const ORB_R := 6.5
 const SHIELD_COLOR := Color("#3fc8e6")
 ## The readout plates: as dark as the top-centre bar, and the room inside their line.
 const PLATE_ALPHA := 0.66
+## A plate's "HP" label turns yellow at HP_LOW of the beast's HP or less, and red at HP_CRITICAL or less.
+const HP_LOW := 0.25
+const HP_CRITICAL := 0.1
+const LOW_COLOR := Color("#ffd23f")
+const CRITICAL_COLOR := Color("#ff4a4a")
 ## How far beyond its content a plate fades out on each side.
 const PLATE_FADE := 14.0
 const PLATE_PAD := 5.0
@@ -447,7 +452,7 @@ func _draw_readouts() -> void:
 		var ratios := [clampf(float(b.hp) / maxf(1.0, b.max_hp()), 0.0, 1.0), clampf(float(b.mp) / maxf(1.0, b.max_mp()), 0.0, 1.0)]
 		for i in 2:
 			var row_y := inner.position.y + line_h * i
-			draw_string(font, _snap(Vector2(inner.position.x, row_y + font.get_ascent(px))), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, px, UIKit.INK)
+			draw_string(font, _snap(Vector2(inner.position.x, row_y + font.get_ascent(px))), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, px, _hp_text_color(ratios[0]) if i == 0 else UIKit.INK)
 			var gauge := Rect2(_snap(Vector2(inner.position.x + text_w + LABEL_GAP, row_y + (line_h - MINI_HP_H) * 0.5)), Vector2(MINI_W, MINI_HP_H))
 			_well(gauge, ratios[i], UIKit.hp_color(ratios[i]) if i == 0 else MP_COLOR)
 	_shield_plate("trainer_self", int(GameState.shield), int(GameState.max_shield))
@@ -498,6 +503,15 @@ func _plate(rect: Rect2) -> Rect2:
 	var w := outer.size.x
 	_fade_band(Rect2(Vector2(outer.position.x, outer.end.y - line), Vector2(w, line)), [0.0, w * 0.3, w * 0.7, w], UIKit.BORDER)
 	return rect.grow(-PLATE_PAD)
+
+
+## The HP label's colour: white, yellow at a quarter of the beast's HP or less, red at a tenth or less.
+static func _hp_text_color(ratio: float) -> Color:
+	if ratio <= HP_CRITICAL:
+		return CRITICAL_COLOR
+	if ratio <= HP_LOW:
+		return LOW_COLOR
+	return UIKit.INK
 
 
 ## A horizontal band in `col`, clear at both ends and full between stops[1] and stops[2] (offsets from its left).

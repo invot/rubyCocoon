@@ -158,7 +158,7 @@ static func _old_set(model: Node3D, pitch: float, fwd: float, tall: float) -> vo
 static func _old_tween(model: Node3D) -> Tween:
 	if not model.has_meta("pose_rest"):
 		model.set_meta("pose_rest", model.transform)
-	var old = model.get_meta("pose_tween", null)
+	var old = model.get_meta("pose_tween") if model.has_meta("pose_tween") else null
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
 	var tw := model.create_tween()
@@ -182,7 +182,7 @@ static func _old_back(model: Node3D, tw: Tween, time: float, trans := Tween.TRAN
 
 ## (an old model's glow, at the front of it two-thirds of the way up, built the first time)
 static func _old_glow(model: Node3D) -> Node3D:
-	var gl = model.get_meta("pose_glow", null)
+	var gl = model.get_meta("pose_glow") if model.has_meta("pose_glow") else null
 	if gl != null and is_instance_valid(gl):
 		return gl
 	var box := AABB()

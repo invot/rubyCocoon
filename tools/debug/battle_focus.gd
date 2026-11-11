@@ -1,5 +1,5 @@
 extends RefCounted
-## Cinematic HUD regression with real inputs and the shared resolver. --preview=trainer|beast|target|hit|shield|action
+## Cinematic HUD regression with real inputs and the shared resolver. --preview=trainer|lowhp|beast|target|hit|shield|action
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
 func run(main: Node) -> void:
@@ -51,6 +51,15 @@ func run(main: Node) -> void:
 	layout.call("trainer")
 	await capture.call("trainer")
 	if preview == "trainer":
+		return
+	var hud_script = battle.floating.get_script()
+	check.call(hud_script._hp_text_color(0.5) == UIKit.INK and hud_script._hp_text_color(0.25) == hud_script.LOW_COLOR and hud_script._hp_text_color(0.1) == hud_script.CRITICAL_COLOR, "plate HP labels turn yellow at a quarter and red at a tenth")
+	if preview == "lowhp":
+		var standing: Array = battle.nodes.keys().filter(func(b): return typeof(b) == TYPE_OBJECT and b.hp > 0)
+		for i in mini(2, standing.size()):
+			standing[i].hp = maxi(1, int(standing[i].max_hp() * (0.2 if i == 0 else 0.08)))
+		battle.floating.queue_redraw()
+		await capture.call("lowhp")
 		return
 	await tap.call(battle.floating.action_rect.get_center())
 	check.call(panel.picking and panel.focus == 0 and not panel.rows[0].get("done", false), "a menu tap confirms only the move")
