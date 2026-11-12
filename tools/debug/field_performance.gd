@@ -8,6 +8,13 @@ func run(main, opts: Dictionary) -> void:
 	for flag in ["intro_done", "tutorial_done", "ritual_done", "opening_seen"]:
 		GameState.set_flag(flag)
 	GameState.party = [Beasts.create(0, 10)]
+	# --finish=0 measures without the surfaces' soft finishes (surface_finish.gd), --prebuild=0 without building every
+	# building behind the arrival fade (world.gd prepare_arrival_view)
+	load("res://scripts/gfx/surface_finish.gd").enabled = opts.get("finish", "1") == "1"
+	(await main.wait_for_script(main.WORLD_PATH)).prebuild = opts.get("prebuild", "1") == "1"
+	# --fade=1 / 0 forces the buildings' arrival fade on or off (it is off on Compatibility: world.gd NO_ARRIVAL_FADE)
+	if opts.has("fade"):
+		(await main.wait_for_script(main.WORLD_PATH)).NO_ARRIVAL_FADE = opts["fade"] == "0"
 	for town in String(opts.get("maps", "caccoon,tidewater,cogsworth")).split(","):
 		await main._go(town, "start")
 		var world = main.world

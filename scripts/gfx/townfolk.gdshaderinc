@@ -20,12 +20,21 @@ uniform vec4 camo_mid : source_color = vec4(0.36, 0.48, 0.28, 1.0);
 uniform vec4 camo_dark : source_color = vec4(0.23, 0.31, 0.2, 1.0);
 // how big the patches are (metres, on the kit's body)
 uniform float camo_cell = 0.045;
+// The surfaces' soft finishes (surface_finish.gd, set by townfolk.gd): woven cloth on clothes, shoes, hats and packs, a
+// faint satin on skin, hair and eyes. Mapped on the body as it stands at rest, like the camo, so they stay on the cloth.
+uniform sampler2D cloth_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D skin_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+// texture repeats per metre of body; each finish's average brightness, divided out
+uniform float finish_scale = 3.0;
+uniform float cloth_level = 1.0;
+uniform float skin_level = 1.0;
 
 varying vec3 col;
 varying vec3 rest;
 varying float camo_on;
 varying float camo_slot;
 varying float light;
+varying vec3 rest_n;
 
 vec3 shade(vec3 c, float l) {
 	return l <= 1.0 ? c * l : mix(c, vec3(1.0), clamp(l - 1.0, 0.0, 1.0));
@@ -52,6 +61,7 @@ void vertex() {
 	vec3 tinted = slot == 3 ? want.rgb * clamp(UV2.y, 0.8, 1.15) : shade(want.rgb, UV2.y);
 	col = mix(COLOR.rgb, tinted, want.a);
 	rest = CUSTOM0.xyz;
+	rest_n = abs(NORMAL);
 	light = UV2.y;
 	camo_on = (slot == 4 || slot == 5) ? camo : 0.0;
 	camo_slot = float(slot);
@@ -87,9 +97,21 @@ void fragment() {
 		vec3 tone = t < 0.46 ? camo_light.rgb : (t < 0.76 ? camo_mid.rgb : camo_dark.rgb);
 		c = shade(tone, min(light, 1.0));
 	}
+	// triplanar on the rest pose, by which way the surface faces
+	vec3 w = pow(rest_n, vec3(4.0));
+	w /= max(w.x + w.y + w.z, 0.0001);
+	vec3 q = rest * finish_scale;
+	bool cloth = camo_slot > 3.5;
+	vec3 f = cloth
+		? texture(cloth_tex, q.zy).rgb * w.x + texture(cloth_tex, q.xz).rgb * w.y + texture(cloth_tex, q.xy).rgb * w.z
+		: texture(skin_tex, q.zy).rgb * w.x + texture(skin_tex, q.xz).rgb * w.y + texture(skin_tex, q.xy).rgb * w.z;
+	c *= f / (cloth ? cloth_level : skin_level);
 	ALBEDO = c;
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
+	// a soft sheen round the outline, lifting people off the ground behind them (the beasts have the same)
+	RIM = 0.12;
+	RIM_TINT = 0.85;
 #ifdef PLAYER_GRACE
 	ALPHA = opacity;
 #endif

@@ -19,6 +19,7 @@ const ActionIcons = preload("res://scripts/battle/action_icons.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
+const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
@@ -371,6 +372,9 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 	world.demo = demo
 	view.add_child(world)
 	await world.build(id, true)
+	# Every surface textured before the first draw: on Compatibility, drawing a material before it is finished compiles
+	# a shader of its own that is thrown away again (surface_finish.gd).
+	SurfaceFinish.apply(world)
 	if demo:
 		world.player.visible = false
 	else:
@@ -775,6 +779,14 @@ func _run_test() -> void:
 		return
 	if scene == "field-perf":
 		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "shader-kinds":
+		await load("res://tools/debug/shader_kinds.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "bake-ground":
+		await load("res://tools/bake_ground.gd").new().run(self, _test)
 		get_tree().quit()
 		return
 	if scene == "texture-audit":

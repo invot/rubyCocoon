@@ -2,7 +2,7 @@ extends RefCounted
 ## Surface textures for buildings, terrain, water and lava.
 ## Most are textures from assets/textures/surfaces (built by tools/build_psx_textures.gd from the packs credited in
 ## CREDITS.md, then cleaned up by tools/smooth_textures.gd), sampled smoothly. They are nearly grey, so buildings tint them per style with vertex colours and the ground
-## is coloured per biome. Kinds without a PSX texture (brass, timber framing) are drawn here at 16x16.
+## is coloured per biome. Kinds without a texture of their own (brass, iron...) take one of the soft finishes (tools/build_soft_textures.py).
 
 const PSX_DIR := "res://assets/textures/surfaces/"
 ## The ground layers of the terrain shader, in texture-array order.
@@ -22,6 +22,8 @@ const LAVA_FRAMES := 3
 const TERRAIN_SOURCE := {"top_grass": "ground_grass", "top_path": "ground_path", "top_plaza": "ground_plaza",
 	"top_sand": "ground_sand", "top_rock": "ground_rock", "side_soil": "ground_path", "side_rock": "ground_rock",
 	"water": "water_0", "lava": "lava_0", "snow": "ground_ice"}
+
+const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 
 static var _cache := {}
 static var _mats := {}
@@ -162,14 +164,8 @@ static func frames(kind: String) -> Texture2DArray:
 	return arr
 
 
-static func _img() -> Image:
-	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	img.fill(Color.WHITE)
-	return img
-
-
-static func _shade(img: Image, x: int, y: int, v: float) -> void:
-	img.set_pixel(posmod(x, 16), posmod(y, 16), Color(v, v, v))
+## Surface kinds without a painted texture of their own, and the soft finish each takes (default "soft").
+const SOFT_KINDS := {"brass": "brushed", "iron": "brushed", "slot": "brushed", "drape": "fabric", "banner": "fabric"}
 
 
 static func texture(kind: String) -> ImageTexture:
@@ -195,88 +191,14 @@ static func texture(kind: String) -> ImageTexture:
 						tim.set_pixel(x, y, beam.darkened(0.1 * float((x * 3 + y) % 3)))
 			_cache[kind] = _mipmapped(tim)
 			return _cache[kind]
-	var img := _img()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = kind.hash()
-	for y in 16:
-		for x in 16:
-			_shade(img, x, y, rng.randf_range(0.9, 1.0))
-	match kind:
-		"plaster":
-			for i in 10:
-				_shade(img, rng.randi_range(0, 15), rng.randi_range(0, 15), 0.84)
-		"adobe":
-			for i in 14:
-				_shade(img, rng.randi_range(0, 15), rng.randi_range(0, 15), rng.randf_range(0.78, 0.86))
-			for x in 16:
-				_shade(img, x, 7, 0.88)
-		"planks_v", "bamboo":
-			for y in 16:
-				for x in 16:
-					if x % 4 == 0:
-						_shade(img, x, y, 0.68)
-					elif kind == "bamboo" and y % 8 == 3:
-						_shade(img, x, y, 0.76)
-			for i in 6:
-				_shade(img, rng.randi_range(0, 15), rng.randi_range(0, 15), 0.8)
-		"planks", "wood_dark":
-			for y in 16:
-				for x in 16:
-					if y % 4 == 0:
-						_shade(img, x, y, 0.66)
-					elif (x + (y / 4) * 7) % 16 == 0:
-						_shade(img, x, y, 0.72)
-		"brick", "stone", "stone_dark":
-			var bh := 4 if kind == "brick" else 8
-			for y in 16:
-				for x in 16:
-					var row := y / bh
-					var off := (bh if kind == "brick" else 4) * (row % 2)
-					if y % bh == 0 or (x + off) % 8 == 0:
-						_shade(img, x, y, 0.62)
-					elif y % bh == 1:
-						_shade(img, x, y, 1.0)
-		"slate", "shingle", "tile":
-			for y in 16:
-				for x in 16:
-					if y % 4 == 3:
-						_shade(img, x, y, 0.6)
-					elif (x + (y / 4) * 3) % 5 == 0:
-						_shade(img, x, y, 0.78)
-		"thatch", "leaf":
-			for y in 16:
-				for x in 16:
-					var v := 0.75 + 0.25 * float((x * 7 + y * 3) % 5) / 4.0
-					if y % 5 == 4:
-						v = 0.62
-					_shade(img, x, y, v)
-		"tin":
-			for y in 16:
-				for x in 16:
-					_shade(img, x, y, 0.95 if x % 3 == 0 else 0.8)
-		"brass":
-			for y in 16:
-				for x in 16:
-					if x % 8 == 0 or y % 8 == 0:
-						_shade(img, x, y, 0.7)
-					elif (x + y) % 8 == 2:
-						_shade(img, x, y, 1.0)
-			for p in [Vector2i(2, 2), Vector2i(10, 2), Vector2i(2, 10), Vector2i(10, 10)]:
-				_shade(img, p.x, p.y, 0.55)
-		"timber":
-			for y in 16:
-				for x in 16:
-					if x < 2 or y < 2 or x == y or x == 15 - y:
-						img.set_pixel(x, y, Color(0.45, 0.32, 0.22))
-		"cobble":
-			for i in 10:
-				var cx := rng.randi_range(0, 15)
-				var cy := rng.randi_range(0, 15)
-				for d in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]:
-					_shade(img, cx + d.x, cy + d.y, 0.72)
-	var t := ImageTexture.create_from_image(img)
-	_cache[kind] = t
-	return t
+	# Anything else is one of the soft finishes (tools/build_soft_textures.py), never a small pixel drawing.
+	var finish: String = SOFT_KINDS.get(kind, "soft")
+	var soft := psx_image(finish)
+	if soft == null:
+		soft = Image.create(4, 4, false, Image.FORMAT_RGBA8)
+		soft.fill(Color.WHITE)
+	_cache[kind] = _mipmapped(soft)
+	return _cache[kind]
 
 
 ## Coloured 16x16 terrain textures. kind: top_grass, top_path, top_plaza, top_sand, top_rock,
@@ -420,7 +342,13 @@ static func _base_material(kind: String) -> StandardMaterial3D:
 static func color_material() -> StandardMaterial3D:
 	if _mats.has("color"):
 		return _mats["color"]
+	# painted colour on the soft finish (the kit's UVs are in world units)
 	var m := StandardMaterial3D.new()
+	m.albedo_texture = texture("soft")
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.uv1_scale = Vector3(1.0 / PSX_SPAN, 1.0 / PSX_SPAN, 1.0)
+	var k := 1.0 / SurfaceFinish.mean("soft")
+	m.albedo_color = Color(k, k, k)
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = true
 	m.roughness = 0.9

@@ -21,6 +21,8 @@ func run(main, opts: Dictionary) -> void:
 	for flag in ["intro_done", "tutorial_done", "ritual_done", "opening_seen"]:
 		GameState.set_flag(flag)
 	GameState.party = [Beasts.create(0, 10)]
+	# --finish=0: without the surfaces' soft finishes (surface_finish.gd), to measure what they cost
+	load("res://scripts/gfx/surface_finish.gd").enabled = opts.get("finish", "1") == "1"
 	var route := [
 		["caccoon", "start"],
 		[MapLoader.interior_of("caccoon", "home"), "entry"],

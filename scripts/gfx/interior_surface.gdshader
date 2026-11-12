@@ -6,6 +6,14 @@ uniform int finish = 0; // oak, carpet, tile, stone, diner checker, area rug
 uniform vec4 base_colour : source_color = vec4(0.64, 0.44, 0.28, 1.0);
 uniform vec4 accent_colour : source_color = vec4(0.75, 0.58, 0.39, 1.0);
 uniform vec2 rug_size = vec2(3.0, 2.0);
+// the surface's soft finish (surface_finish.gd: woven for carpet and rugs, soft paint otherwise), in world units
+uniform sampler2D finish_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float finish_level = 1.0;
+varying vec3 place;
+
+void vertex() {
+	place = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
 
 float line_at(float coordinate, float width) {
 	float distance_to_line = min(fract(coordinate), 1.0 - fract(coordinate));
@@ -42,6 +50,6 @@ void fragment() {
 		colour = mix(base_colour.rgb, accent_colour.rgb, border);
 		colour = mix(colour, mix(accent_colour.rgb, vec3(0.9, 0.84, 0.72), 0.65), piping * 0.65);
 	}
-	ALBEDO = colour * COLOR.rgb;
+	ALBEDO = colour * COLOR.rgb * texture(finish_tex, place.xz * 0.5).rgb / finish_level;
 	ROUGHNESS = 0.95;
 }

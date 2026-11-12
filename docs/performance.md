@@ -126,3 +126,61 @@ Phones were not profiled. Reproduce with `--scene=transitions` in a window, and 
 After changing imported houses, run `tools/bake_house_measurements.gd` and its `-- --verify` mode. After changing
 ring/sweep generators, run `tools/bake_battle_art.gd` and its `-- --verify` mode. These bake geometry metadata, UI
 glyphs and synthesized audio; no new world texture was introduced or smoothed.
+
+## Ground on disk, prebuilt buildings, lighter scenery and textured surfaces — November 12, 2026
+
+The user reported slow scene loads, a near-freeze walking up to a building, and untextured, unappealing 3D. Changes:
+
+- **Ground on disk** (`scripts/world/ground_store.gd`): every outdoor map's ground meshes are baked into
+  `assets/ground/` by `--scene=bake-ground` (32 shapes: each map fresh and with its story gates, obstacles and floods
+  changed; about 32 MB) and read back instead of generated. Other ground is generated once and kept in
+  `user://ground/` (24 maps at most). The `ground` test checks the shipped set against the terrain code.
+- **No building is built during play**: `prepare_arrival_view` builds every building behind the fade and keeps it
+  (hidden while its base is off-screen); `HIDDEN_BUILDING_CACHE` is 64.
+- **Lighter scenery**: `tools/import_stylized_nature.gd` simplifies bushes and shrubs to about 700 triangles and trees
+  to 1,400 (`bush_2` and `shrub_3` 4,341 -> 1,083, `tree_oak` 3,780 -> 1,890) before their LODs are generated.
+- **Every object textured** (`scripts/gfx/surface_finish.gd`): 14,500 plain-colour surfaces now carry soft finishes
+  painted by `tools/build_soft_textures.py`. The pass runs synchronously before a map's first draw: on Compatibility a
+  material drawn before it is finished compiles a shader that is thrown away again (3.5 s on every Beast Center visit
+  until this was fixed). The `textures` test fails on any untextured object.
+
+Map construction, CPU only (`--scene=build-profile`, Forward+ window, all buildings built):
+
+| Map | Ground before | after | Whole map before | after |
+|---|---:|---:|---:|---:|
+| Cocoon Cove | 664 ms | 170 ms | 1,837 ms | 1,532 ms |
+| Bellerive | 560 ms | 78 ms | 1,333 ms | 762 ms |
+| Cogsworth | 287 ms | 40 ms | 1,254 ms | 870 ms |
+| Dustwell | 239 ms | 36 ms | 559 ms | 304 ms |
+
+Milliseconds of black screen (`--scene=transitions --passes=2 --battles=1`), Mobile renderer at 1920x1080 on this
+desktop (Ryzen 7 9700X / RX 9060 XT) — a desktop measurement, not a phone's:
+
+| Transition | before | after |
+|---|---:|---:|
+| Into Cocoon Cove, first | 3,292 | 2,488 |
+| Into Bellerive, first | 1,514 | 723 |
+| Coastal Path, first | 665 | 300 |
+| Into Cocoon Cove, again | 749 | 167 |
+| Into Bellerive, again | 1,349 | 406 |
+| First battle, largest frame | 1,398 | 150 |
+
+Walking past houses (`--scene=field-perf`, Mobile renderer, same desktop): no frame over 20 ms; the earlier report
+had 225 ms (Cocoon Cove) and 608 ms (Bellerive) spikes. GPU time per frame is 1.4-2.1 ms with or without the finishes
+(`--finish=0` measures without them); the triangles drawn on Coastal Path fell with the lighter bushes.
+
+On Compatibility (the web renderer) return visits are as fast as before or faster, but a first visit still holds black
+for seconds while the driver compiles shaders on first draw (Cocoon Cove 20.3 -> 16.3 s, its Beast Center 9.8 -> 4.3 s).
+Phones and a browser export were not measured.
+
+### Lighting pass and the web renderer's walking stalls — November 12, 2026
+
+- The outdoor light now fills shade from the sky (`OutdoorLight.ambient`, a 64-pixel radiance map built once) and is
+  graded for more contrast (+7%) and richer colour (+3-10%) at the same brightness (within 2%), measured over
+  screenshots of Cocoon Cove and Bellerive on all three renderers. GPU time while walking on the Mobile renderer rose
+  from about 1.9 to 2.2 ms per frame on this desktop. Battles keep their own stage lighting unchanged.
+- On Compatibility, buildings no longer fade in (`world.gd NO_ARRIVAL_FADE`): each see-through copy compiled a shader
+  on first sight. Behind the black screen the map's meshes and materials are each drawn once as a speck in front of the
+  camera (`_warm_shaders`), so nothing compiles mid-walk: the largest render time while walking past Bellerive's
+  houses fell from about 960 ms to 1 ms (`--scene=field-perf`, `--fade=1` forces the fade back for comparison).
+  Medians in these runs were inflated by two busy Godot editors on the same machine.

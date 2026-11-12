@@ -8,7 +8,7 @@ extends Node
 ##   shell_heard, kelp_heard, island_peace         - the Isle of Tides: Kelpwick shut the reef against Shellhaven's
 ##                                                   souvenir-hunting tourists; beating Nerissa opens it (island_peace)
 ##   guardian_water                                - also opens the Dune Road to the desert
-##   met_sheriff, bandits_cleared                  - Sundown's bandits (opens the Dune Sea)
+##   met_sheriff, bandits_cleared                  - Sunwall's bandits, the Jackals (opens the Dune Sea)
 ##   ceo_defeated                                  - Gearhart Tower (opens Caldera Road)
 ##   opening_seen, missing_trainers, trainers_freed - prologue, Dustwell's missing posters (seen on arriving), tower
 ##   freight-cage rescue
@@ -51,7 +51,8 @@ const REEF_CROWD := [
 ]
 ## A Shellhaven resort guest on the Isle Trail, showing off a shell prised from the Temple of Tides.
 const TOURIST_LOOK := {"skin": "#f0c8a8", "hair": "#d8a040", "shirt": "#f07aa0", "pants": "#f0e0b0", "hat": "#f4e8c0", "hair_style": 1}
-const SHERIFF_LOOK := {"skin": "#d8a880", "hair": "#6a4a2a", "shirt": "#a07040", "pants": "#3a3048", "hat": "#4a3020", "outfit": "coat"}
+## Captain Dalton of Sunwall's gate watch: an indigo coat, sand-pale trousers and headwrap
+const SHERIFF_LOOK := {"skin": "#d8a880", "hair": "#2a1a10", "shirt": "#2f5a7a", "pants": "#e2d4b4", "hat": "#ece2cc", "outfit": "coat"}
 const PROTESTER_LOOK := {"skin": "#f0c8a0", "hair": "#c86a30", "shirt": "#6a6a5a", "pants": "#3a3a3a", "outfit": "apron"}
 const SHAMAN_LOOK := {"skin": "#a8704a", "hair": "#e8e0d0", "shirt": "#3a8a4a", "pants": "#6a4a2a", "hat": "#d8b040", "outfit": "robe"}
 const DIGGER_LOOK := {"skin": "#c8b8a8", "hair": "#7a7a7a", "shirt": "#4a4048", "pants": "#2a2830", "hat": "#2a2a2a", "outfit": "coat"}
@@ -286,7 +287,7 @@ func extra_npcs(map: Dictionary) -> Array:
 					out.append({"kind": "story", "id": "searcher", "searcher": i, "name": sr["name"], "pos": _at(map, "searcher_%d" % i, plaza),
 						"look": sr["look"], "facing": sr["facing"], "story": true})
 		"sundown":
-			out.append({"kind": "story", "id": "sheriff", "name": "Sheriff Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
+			out.append({"kind": "story", "id": "sheriff", "name": "Captain Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
 		"cogsworth":
 			out.append({"kind": "story", "id": "protester", "name": "Tinker Wren", "pos": _at(map, "protester", plaza), "look": PROTESTER_LOOK, "facing": Vector2i(0, 1), "story": true})
 			if GameState.flag("trainers_freed"):
@@ -384,7 +385,7 @@ func weapon_guide(n: Dictionary) -> void:
 	var status := "You've got the %s already. You're ready to try!" % name if owned else "You don't have a %s yet." % name
 	if not owned:
 		status += {"boomerang": " Chief Coralie in Kelpwick gives one to trainers who open the reef path.",
-			"bat": " Sheriff Dalton in Sundown gives one with Black Bart's bounty."}.get(weapon, "")
+			"bat": " Captain Dalton in Sunwall gives one with the Jackals' bounty."}.get(weapon, "")
 	await say([mechanism, status, "Face the target from clear ground and press A, or tap it to walk to the right spot and use it. No rhythm timing is needed here. Come back if you need the weapon first."], n["name"])
 	GameState.set_flag(o["flag"] + "_explained")
 
@@ -570,7 +571,7 @@ func can_enter(world, b: Dictionary) -> bool:
 		"hideout":
 			if not GameState.flag("met_sheriff"):
 				await say(["A crude wooden door in the rock. Rough voices and laughter echo from inside...",
-					"Maybe you should talk to someone in Sundown Gulch before barging in."])
+					"Maybe you should talk to someone in Sunwall before barging in."])
 				return false
 	return true
 
@@ -878,7 +879,7 @@ func _talk_villager(world, n: Dictionary) -> void:
 	elif world.map_id == "dustwell" and not GameState.flag("trainers_freed"):
 		quest = "Seen the posters? Three new trainers, gone off the roads. Folks here won't let their kids past the trough."
 	elif world.map_id == "sundown" and not GameState.flag("bandits_cleared"):
-		quest = "Black Bart's gang rode through again. Took every sack of flour. And my favourite spoon. Monsters."
+		quest = "The Jackals hit another caravan outside the gate. Took every sack of flour. And my favourite spoon. Monsters."
 	elif world.map_id == "cogsworth" and not GameState.flag("ceo_defeated"):
 		quest = "Those freight wagons aren't carrying machinery. Wren heard people calling from inside. Gearhart's sentries guard every lift."
 	if world.map_id == "gravenmoor":
@@ -1001,7 +1002,7 @@ func _talk_trainer(world, n: Dictionary) -> void:
 		GameState.set_flag("bandits_cleared")
 		Sfx.play("levelup")
 		await say(["\"Alright, alright! We're leavin'! The Dune Sea road's all yours!\"",
-			"Black Bart and his gang scatter into the desert. The barricade on the Dune Sea road has been torn down!"])
+			"Bart the Jackal and his gang scatter into the desert. The barricade on the Dune Sea road has been torn down!"])
 	elif n.get("legion", false) and not GameState.flag("met_legion"):
 		GameState.set_flag("met_legion")
 		await say(["So the rumours are true... The Umbral Legion is here, with beasts twisted into shadow.",
@@ -1076,7 +1077,7 @@ func _talk_story(world, n: Dictionary) -> void:
 					"In the full game, finish her rhythm lesson and bring me my slippers to open the road beyond Dustwell.",
 					"You can still learn rhythm attacks at her DANCE studio and keep exploring and battling here."], n["name"])
 			elif GameState.flag("dance_lesson_done"):
-				await say(["My dance shoes! Lucille finally let them go? You must have some rhythm!", "Thank you. I'll get out of your way. Sundown Gulch is north, along the Mesa Trail."], n["name"])
+				await say(["My dance shoes! Lucille finally let them go? You must have some rhythm!", "Thank you. I'll get out of your way. Sunwall is north, along the Mesa Trail."], n["name"])
 				GameState.set_flag("dance_shoes_returned")
 				GameState.remove_item("dance_shoes")
 				world.remove_npc(n)
@@ -1421,26 +1422,26 @@ func _sheriff() -> void:
 			GameState.gold += 2500
 			GameState.receive_item("revival_seed", 2)
 			Sfx.play("buy")
-			await say(["You ran Black Bart's gang out of the desert? Well, I'll be!",
-				"Here's the bounty: 2500 gold and a couple of Revival Seeds. Sundown owes you one, partner.",
-				"The road north through the Dune Sea is open again. They say an old temple to the winds stands out there."], "Sheriff Dalton")
+			await say(["You drove the Jackals out of the desert? The whole watch owes you.",
+				"Here's the bounty: 2500 gold and a couple of Revival Seeds. Sunwall's gates are always open to you.",
+				"The road north through the Dune Sea is open again. They say an old temple to the winds stands out there."], "Captain Dalton")
 		if GameState.item_count("bat") <= 0:
-			# Black Bart's own bat (a trainer weapon, item_db.gd WEAPONS), with the bounty or, for a game saved before,
+			# Bart the Jackal's own bat (a trainer weapon, item_db.gd WEAPONS), with the bounty or, for a game saved before,
 			# the next time you call by
-			await say(["And this. Bart dropped his hickory bat when he lit out of that hideout.",
-				"Reckon it's yours now, partner. It swings mean: walk right up and let 'em have it."], "Sheriff Dalton")
+			await say(["And this. Bart dropped his hickory bat when he fled that hideout.",
+				"It's yours now. It swings hard: walk right up to a foe and let them have it."], "Captain Dalton")
 			GameState.receive_item("bat")
 			Sfx.play("capture")
 			UI.toast("Received the Bat!", "item:bat")
 		elif GameState.flag("sheriff_thanks"):
-			await say(["Quiet as a church on Monday, ever since you cleaned up this town."], "Sheriff Dalton")
+			await say(["The caravans come and go in peace again. My watch can finally sleep at night."], "Captain Dalton")
 		return
 	GameState.set_flag("met_sheriff")
-	await say(["Howdy, stranger. Mind yourself in Sundown. Black Bart's gang has this town by the throat.",
-		"And new trainers are vanishing. We found Gearhart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
-		"Black Bart's gang raids our stores, then holes up out on the Dune Sea road. They've barricaded the road north, too.",
-		"I'm one sheriff with one old Galeberry. If you're half the trainer you look, go teach those varmints some manners.",
-		"Their hideout's a door in the rocks, just north of town."], "Sheriff Dalton")
+	await say(["Welcome to Sunwall, traveller. I'm Captain Dalton of the gate watch.",
+		"New trainers are vanishing. We found Gearhart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
+		"And Bart the Jackal's gang raids every caravan that comes to our gates, then holes up out on the Dune Sea road. They've barricaded the road north, too.",
+		"My watch can hold the walls, but we can't chase bandits across the dunes. If you're half the trainer you look, go and teach them some manners.",
+		"Their hideout's a door in the rocks, just north of the gate."], "Captain Dalton")
 
 
 func _protester() -> void:
@@ -1660,8 +1661,8 @@ const SEARCHERS := [
 		"home": ["Bea wrote! She's home, and she says she's never going near a freight wagon again.", "I'm taking the posters down. Well. I'm leaving one up. For luck."]},
 	{"name": "Tamsin", "facing": Vector2i(0, 1), "look": {"skin": "#f0c8a0", "hair": "#8a3a20", "hair_style": 1, "body": "female", "shirt": "#f2c14e", "pants": "#3a5a4a", "hat": "#c86a3a", "pack": true},
 		"lines": ["Orin wrote to me every week. Then nothing.",
-			"Sheriff Dalton in Sundown Gulch is asking questions. If you're heading north, would you tell him about Orin? Please?"],
-		"sheriff": ["Did the sheriff say anything? ...Bandits on the Mesa Trail, he thinks. I hope that's all it is."],
+			"Captain Dalton in Sunwall is asking questions. If you're heading north, would you tell him about Orin? Please?"],
+		"sheriff": ["Did Captain Dalton say anything? ...Bandits on the Mesa Trail, he thinks. I hope that's all it is."],
 		"home": ["Orin's letter came this morning. Four pages! Three of them are about you."]},
 ]
 ## What each poster says (the trainers in TrainerCell.NAMES order; the last is the sheriff's notice of all three).
@@ -1680,7 +1681,7 @@ func _poster(n: Dictionary) -> void:
 	if GameState.flag("trainers_freed"):
 		lines.push_front("Someone has painted FOUND across this poster in big green letters, and underneath: Home safe. Thank you!")
 	else:
-		lines.append("Any news, tell Sheriff Dalton in Sundown Gulch.")
+		lines.append("Any news, tell Captain Dalton in Sunwall.")
 	await say(lines)
 
 
@@ -1703,7 +1704,7 @@ func _searcher(n: Dictionary) -> void:
 ## Slim walked out of an open cell. The deputy asks you to catch him (convict_asked); Slim, hiding behind the wagon on the
 ## dune shelf, swears he was framed and was at the saloon's card table all that night (convict_found); Barkeep Dusty's
 ## card ledger proves it (the key item card_ledger); shown to the deputy, it clears Slim (slim_cleared), and the deputy
-## asks you to help find the missing trainers and whoever really took them (deputy_partner): Sheriff Dalton first.
+## asks you to help find the missing trainers and whoever really took them (deputy_partner): Captain Dalton first.
 const SLIM_LOOK := {"skin": "#c89070", "hair": "#3a2a20", "shirt": "#8a9a5a", "pants": "#5a4a3a", "hat": "#7a5a3a", "outfit": "coat"}
 const DEPUTY := "Deputy Rusk"
 
@@ -1750,7 +1751,7 @@ func _deputy() -> void:
 		await _deputy_partner()
 		return
 	if GameState.flag("deputy_partner"):
-		await say(["Sheriff Dalton's up in Sundown Gulch, north up the Mesa Trail. Tell him what we found, partner.",
+		await say(["Captain Dalton's up in Sunwall, north up the Mesa Trail. Tell him what we found, partner.",
 			"I'll hold the fort here. And the cells. Somebody has to. I've locked them. I've checked twice."], DEPUTY)
 		return
 	if GameState.flag("convict_found"):
@@ -1770,7 +1771,7 @@ func _deputy_partner() -> void:
 	Sfx.play("item")
 	await say(["Partners! Here: the reward that was on Slim's head. Feels wrong keeping it now. 300 gold.",
 		"Slim saw a big freight wagon roll through the night the trainers went, metal footprints all round it.",
-		"Sheriff Dalton in Sundown Gulch is asking questions up north. Take him what we know. I'll keep watch here."], DEPUTY)
+		"Captain Dalton in Sunwall is asking questions up north. Take him what we know. I'll keep watch here."], DEPUTY)
 
 
 ## Slim: hiding from the deputy (framed, he says), then a free man.
@@ -1793,7 +1794,7 @@ func _slim(n: Dictionary) -> void:
 ## At the saloon: once Slim has told you about the card game, Barkeep Dusty hands over the ledger that clears him.
 func card_ledger() -> void:
 	if not GameState.flag("convict_found") or GameState.flag("slim_cleared") or GameState.item_count("card_ledger") > 0:
-		await say(["And if you hear word of those missing trainers, you tell the sheriff, y'hear?"], "Barkeep Dusty")
+		await say(["And if you hear word of those missing trainers, you tell Captain Dalton up in Sunwall, y'hear?"], "Barkeep Dusty")
 		return
 	await say(["Slim? Rusk's prisoner? He was at my card table the whole night those trainers went missing. Lost every hand, too.",
 		"It's all in my ledger. Here, take it to Rusk. That boy couldn't find his own hat if he was wearing it."], "Barkeep Dusty")

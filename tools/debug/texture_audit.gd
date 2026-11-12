@@ -15,6 +15,8 @@ const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 ## group, or by one of these scripts on the node or an ancestor.
 const FX_GROUP := &"untextured_fx"
 const FX_SCRIPTS := ["contact_shadow.gd", "cast_glow.gd", "target_arrow.gd", "beat_cue.gd", "summon_fx.gd"]
+## Shaders that paint their own pattern (boards, stucco, roof tiles, leaves) rather than sampling an image.
+const PATTERNED := ["island_wood.gdshader", "cove_stucco.gdshader", "cove_roof.gdshader", "lily_pad.gdshader", "hut_plaster.gdshader"]
 
 ## group -> {"count", "where": {place: true}, "example"}
 var bare := {}
@@ -123,6 +125,8 @@ static func _textured(mat: Material) -> bool:
 	if mat is BaseMaterial3D:
 		return mat.albedo_texture != null or (mat.emission_enabled and mat.emission_texture != null)
 	if mat is ShaderMaterial and mat.shader != null:
+		if mat.shader.resource_path.get_file() in PATTERNED:
+			return true
 		for u in mat.shader.get_shader_uniform_list():
 			if int(u.get("type", 0)) == TYPE_OBJECT:
 				var v = mat.get_shader_parameter(u["name"])
@@ -136,6 +140,10 @@ static func _textured(mat: Material) -> bool:
 
 
 static func _is_fx(n: Node, mat: Material) -> bool:
+	# light rather than an object: unshaded glows and lamps, see-through effects (surface_finish.gd leaves these)
+	if mat is BaseMaterial3D and (mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED
+			or (mat.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED and mat.albedo_color.a < 0.95)):
+		return true
 	var at := n
 	while at != null:
 		if at.is_in_group(FX_GROUP):

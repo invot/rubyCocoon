@@ -18,6 +18,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const DIR := "res://assets/interiors/"
 const SOFT_SURFACE = preload("res://scripts/gfx/interior_surface.gdshader")
+const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 ## Rectangular area rugs, in tile units; rotations are included when fitting a room.
 const RUG_SIZES := [Vector2i(3, 2), Vector2i(4, 3), Vector2i(5, 4), Vector2i(6, 5)]
 const RUG_BLOCKED := [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.IDIAG_A, MapGen.IDIAG_B,
@@ -396,6 +397,8 @@ var ancient := false
 var blocks := false
 ## a Spanish mission's finish (the template's "mission"): see _mission_decor
 var mission := false
+## an adobe house's finish (Sunwall's rooms, map_loader.gd _interior): see _adobe_decor
+var adobe := false
 ## an ancient room's stone (SANDSTONE, touched by the template's wall colour)
 var stone := SANDSTONE
 ## per row of walls: a node, and the mesher its walls go into
@@ -433,6 +436,7 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.35)
 	rb.trim = Color(str(room.get("trim", "#5a3a26")))
 	rb.mission = room.get("mission", false)
+	rb.adobe = room.get("adobe", false)
 	rb.ancient = room.get("ancient", String(m.get("room_key", "")).begins_with("temple"))
 	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
 	rb.blocks = room.get("blocks", false)
@@ -457,6 +461,8 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._wall_decor()
 	if rb.mission:
 		rb._mission_decor()
+	if rb.adobe:
+		rb._adobe_decor()
 	if rb.ancient:
 		rb._pilasters()
 	rb._lights()
@@ -605,6 +611,8 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = SOFT_SURFACE
 	mat.set_shader_parameter("finish", finish)
+	mat.set_shader_parameter("finish_tex", SurfaceFinish.texture("fabric" if finish == 1 else "soft"))
+	mat.set_shader_parameter("finish_level", SurfaceFinish.mean("fabric" if finish == 1 else "soft"))
 	mat.set_shader_parameter("base_colour", base)
 	mat.set_shader_parameter("accent_colour", accent)
 	_mats[key] = mat
@@ -614,7 +622,7 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 func wall_mat(z: String) -> Material:
 	if ancient:
 		return wall_surface("blocks" if blocks else "ashlar", stone)
-	return wall_surface(_pick(z, "wall"), tint if z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE)
+	return wall_surface(_pick(z, "wall"), tint if adobe or z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE)
 
 
 ## Whether (x, y) is part of a stage room's stairwell down: open, with no floor over it.
@@ -1688,6 +1696,33 @@ func _mission_decor() -> void:
 					m.box("mission_flame", flame_material(), s + nrm * 0.1 + Vector3.UP * 0.1, Vector3(0.05, 0.13, 0.05))
 
 
+const ADOBE_EARTH := Color("#c99a6c")
+const ADOBE_WOOD := Color("#5e3c24")
+
+
+## An adobe house's finish: a band of darker earth plaster along the foot of the walls under a slim wooden rail. (The
+## vigas' log ends show only outside, adobe_town.gd.)
+func _adobe_decor() -> void:
+	var earth := (load("res://scripts/gfx/house_builder.gd")).wall_material("adobe", ADOBE_EARTH) as Material
+	var wood := surface("mission_wood", ADOBE_WOOD)
+	for y in h - 1:
+		var m := _row(y)
+		for x in w:
+			if not code(x, y) in [MapGen.IWALL, MapGen.IWINDOW]:
+				continue
+			for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				if zone(x + d.x, y + d.y) == "":
+					continue
+				var nrm := Vector3(d.x, 0, d.y)
+				var along := Vector3(absi(d.y), 0, absi(d.x))
+				var base := Vector3(x + 0.5, 0, y + 0.5) + nrm * (T / 2.0 + 0.012)
+				var a := base - along * 0.5
+				var b := base + along * 0.5
+				if code(x, y) == MapGen.IWALL:
+					m.quad("adobe_earth", earth, [a + Vector3.UP * 0.1, b + Vector3.UP * 0.1, b + Vector3.UP * 0.62, a + Vector3.UP * 0.62], nrm, along, Vector3.UP)
+					_along_box(m, "mission_wood", wood, base + Vector3.UP * 0.64, along, 1.0, 0.05, 0.04)
+
+
 ## A mission lobby's reception desk in place of a shop's counters: panelled dark wood under a marble top, the
 ## counter's red phone, a brass bell and the guest book, and a board of room keys on the wall behind the clerk.
 func _reception_desk() -> void:
@@ -2079,6 +2114,8 @@ static func rug_material(colour: Color, size: Vector2) -> ShaderMaterial:
 	mat.shader = SOFT_SURFACE
 	var wool := colour.lerp(Color("#dfc9ac"), 0.55)
 	mat.set_shader_parameter("finish", 5)
+	mat.set_shader_parameter("finish_tex", SurfaceFinish.texture("fabric"))
+	mat.set_shader_parameter("finish_level", SurfaceFinish.mean("fabric"))
 	mat.set_shader_parameter("base_colour", wool)
 	mat.set_shader_parameter("accent_colour", wool.darkened(0.24))
 	mat.set_shader_parameter("rug_size", size)

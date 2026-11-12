@@ -378,6 +378,30 @@ func _with_lods(m: ArrayMesh) -> ArrayMesh:
 	return im.get_mesh()
 
 
+## The same mesh brought down to about `budget` triangles (the finest of Godot's own simplified levels that fits), then
+## given levels of detail of its own. Hundreds of bushes and trees stand on a map, so their meshes need to be light.
+func _simplified(m: ArrayMesh, budget: int) -> ArrayMesh:
+	if _tris(m) <= budget:
+		return _with_lods(m) if _tris(m) > 300 else m
+	var im := ImporterMesh.new()
+	for s in m.get_surface_count():
+		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, m.surface_get_arrays(s), [], {}, m.surface_get_material(s))
+	# (a gentle normal split keeps leaf cards and crisp edges from smearing together)
+	im.generate_lods(60.0, 25.0, [])
+	var out := ArrayMesh.new()
+	for s in im.get_surface_count():
+		var arrays := im.get_surface_arrays(s)
+		var share := float(budget) / float(_tris(m))
+		var own: int = arrays[Mesh.ARRAY_INDEX].size()
+		for i in im.get_surface_lod_count(s):
+			var idx := im.get_surface_lod_indices(s, i)
+			if idx.size() >= 3 * 8 and idx.size() >= int(own * share * 0.8):
+				arrays[Mesh.ARRAY_INDEX] = idx
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(s, im.get_surface_material(s))
+	return _with_lods(out) if _tris(out) > 300 else out
+
+
 func _xf_to(node: Node3D, top: Node) -> Transform3D:
 	var xf := Transform3D.IDENTITY
 	var cur: Node = node

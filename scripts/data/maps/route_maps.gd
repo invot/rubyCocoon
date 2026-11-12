@@ -465,7 +465,7 @@ const MAPS := {
 		"signs": [
 			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"Rockslide! Push the boulders to clear a way north. (Stuck? Leave the trail and come back, and they'll be back where they started.)",
-			"Mesa Trail. North: Sundown Gulch.",
+			"Mesa Trail. North: Sunwall.",
 		],
 		"weapon_obstacles": [
 			{"id": "mesa_rock", "type": "cracked_rock", "targets": [Vector2i(7, 9)], "use_from": Vector2i(8, 9), "coach_pos": Vector2i(8, 8),
@@ -593,7 +593,7 @@ const MAPS := {
 		"signs": [
 			"The Dune Sea. Many go in. Few come out.",
 		],
-		"gate": {"flag": "bandits_cleared", "text": "A bandit barricade blocks the road into the Dune Sea. The Sheriff says only clearing out the gang will open it."},
+		"gate": {"flag": "bandits_cleared", "text": "A bandit barricade blocks the road into the Dune Sea. Captain Dalton says only clearing out the gang will open it."},
 	},
 	"route6": {
 		"rows": [

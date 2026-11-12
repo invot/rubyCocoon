@@ -109,7 +109,7 @@ const ITEMS := {
 		"desc": "Carved from Kelpwick driftwood. Sweeps every foe on the side facing you and comes back to your hand, hitting each a little softer."},
 	"bat": {"name": "Bat", "kind": "key", "price": 0, "tier": 99,
 		"weapon": {"target": "enemy", "power": 1.6, "anim": "swing", "order": 2},
-		"desc": "Black Bart's hickory bat, left behind in a hurry. You run up to one foe and swing: the hardest hit of the three."},
+		"desc": "Bart the Jackal's hickory bat, left behind in a hurry. You run up to one foe and swing: the hardest hit of the three."},
 	"reed_flute": {"name": "Reed Flute", "kind": "tgear", "slot": "flute", "price": 0, "tier": 99, "fx": {}, "desc": "A simple flute. Plays the songs you know."},
 	"silver_flute": {"name": "Silver Flute", "kind": "tgear", "slot": "flute", "price": 1500, "tier": 3, "fx": {"time": 0.1, "egg": 0.02}, "desc": "10% more time to play each song, +2% egg chance."},
 	"golden_flute": {"name": "Golden Flute", "kind": "tgear", "slot": "flute", "price": 4000, "tier": 7, "fx": {"time": 0.2, "egg": 0.04}, "desc": "20% more time to play each song, +4% egg chance."},

@@ -30,7 +30,7 @@ SHOP = {'C': 'center', 'A': 'apothecary', 'G': 'beast_gear', 'O': 'trainer_gear'
         'h': 'decor', 'D': 'music_shop', 's': 'shack'}
 # town -> building style (world_db.gd BIOMES)
 STYLE = {'caccoon': 'pirate_cove', 'tidewater': 'creole', 'shellhaven': 'island', 'kelpwick': 'island',
-         'dustwell': 'frontier', 'sundown': 'western', 'copperpick': 'mining', 'cogsworth': 'steampunk',
+         'dustwell': 'frontier', 'sundown': 'adobe', 'copperpick': 'mining', 'cogsworth': 'steampunk',
          'emberfall': 'hotspring', 'vinehollow': 'jungle', 'riverbend': 'town', 'gravenmoor': 'gothic'}
 ROOF = {'coastal': 'gable', 'island': 'hip', 'adobe': 'flat', 'western': 'western', 'mining': 'shed',
         'steampunk': 'gable', 'hotspring': 'pagoda', 'jungle': 'hip', 'town': 'gable', 'gothic': 'steep'}
@@ -57,9 +57,11 @@ def load_towns():
         doors = [(int(x), int(y)) for x, y in re.findall(r'"door": Vector2i\((\d+), (\d+)\)', body)]
         low = re.search(r'^\t\t"low_trees": \[(.*?)\],\n', body, re.M)
         low = [tuple(int(v) for v in t) for t in re.findall(r'\[(\d+), (\d+), (\d+), (\d+)\]', low.group(1))] if low else []
+        # a walled town's wall (adobe_town.gd): tall, but only a low parapet from row "low_from" south
+        wall = re.search(r'"town_wall": \{"low_from": (\d+)\}', body)
         towns[m.group(1)] = (re.findall(r'"([^"]*)"', rows.group(1)),
                              [r.replace('\\\\', '\\') for r in re.findall(r'"([^"]*)"', hts.group(1))] if hts else None,
-                             scenery, doors, low)
+                             scenery, doors, low, int(wall.group(1)) if wall else None)
     return towns
 
 
@@ -231,9 +233,24 @@ def frontier_height(shop, w, d, lx, lz):
     return 6.8
 
 
+def adobe_height(shop, w, d, lx, lz, low=False):
+    """Sunwall's flat-roofed adobe houses and shops (adobe_town.gd): the ground storey's roof behind its parapet over
+    the whole plot, and at the back (worst case: every house may have one) the storey set back on the roof."""
+    ax, az = abs(lx), abs(lz)
+    if ax > w / 2 or az > d / 2:
+        return 0.0
+    two = (w >= 5 if shop in COMMERCIAL else w >= 4) and not low
+    ud = max(2.2, round(d * 1.1) / 2)
+    if two and lz <= -d / 2 + ud:
+        return 6.95
+    return 4.0
+
+
 def roof_height(style, shop, w, d, lx, lz, low=False):
     """Height of a building's top at local position (lx, lz) from its centre, or 0 outside it."""
     ax, az = abs(lx), abs(lz)
+    if style == 'adobe' and shop in COMMERCIAL | {'house', 'home', 'decor'}:
+        return adobe_height(shop, w, d, lx, lz, low)
     if style == 'creole' and shop not in ('center',):
         return creole_height(shop, w, d, lx, lz, low)
     if style == 'frontier' and shop in COMMERCIAL | {'center', 'house', 'home', 'decor'}:
@@ -341,7 +358,7 @@ def walk_gap_behind(rows, x0, y0, bw):
     return 99
 
 
-def height_map(rows, style, lv, scenery=(), low_woods=()):
+def height_map(rows, style, lv, scenery=(), low_woods=(), wall_low=None):
     """Callable (wx, wz) -> height of whatever stands there, on its level. Trees in a "low_trees" area are only
     thickets of shrubs (world.gd), as low as a hedge, so they hide nobody."""
     h, w = len(rows), len(rows[0])
@@ -366,7 +383,10 @@ def height_map(rows, style, lv, scenery=(), low_woods=()):
                     for xx in (x - 1, x, x + 1):
                         cells.setdefault((xx, yy), []).append(('t', x + 0.5, y + 0.5, base))
             elif c == 'W':
-                cells.setdefault((x, y), []).append(('r', 1.6 + base))
+                if wall_low is None:
+                    cells.setdefault((x, y), []).append(('r', 1.6 + base))
+                else:
+                    cells.setdefault((x, y), []).append(('r', (0.55 if y >= wall_low else 3.8) + base))
             elif c == '#':
                 cells.setdefault((x, y), []).append(('r', 1.3 + base))
             elif c == 'S' and (x == 0 or rows[y][x - 1] != 'S') and (y == 0 or rows[y - 1][x] != 'S'):
@@ -423,7 +443,7 @@ def hidden(at, x, y, ht, ground=0.0):
     return False
 
 
-def check(name, rows, hrows=None, scenery=(), doors=(), low=()):
+def check(name, rows, hrows=None, scenery=(), doors=(), low=(), wall_low=None):
     h, w = len(rows), len(rows[0])
     problems = []
     bad_rows = [i for i, r in enumerate(rows) if len(r) != w]
@@ -431,7 +451,7 @@ def check(name, rows, hrows=None, scenery=(), doors=(), low=()):
         return ['rows of different widths: %s' % bad_rows]
     style = STYLE.get(name, 'town')
     lv = Levels(w, h, hrows)
-    at = height_map(rows, style, lv, scenery, low)
+    at = height_map(rows, style, lv, scenery, low, wall_low)
     blind, half = [], []
     for y in range(h):
         for x in range(w):

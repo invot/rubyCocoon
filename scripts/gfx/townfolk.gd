@@ -6,6 +6,7 @@ extends RefCounted
 
 const DIR := "res://assets/townfolk/"
 const SHADER := preload("res://scripts/gfx/townfolk.gdshader")
+const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 ## The skeleton they share, where its joints are on the kit's body (centimetres, y up, facing +z, standing on y = 0;
 ## "l" is the person's left, +x): [bone, parent, joint]. Every bone's rest is unturned.
 const BONES := [
@@ -482,6 +483,10 @@ static func material(colours: Dictionary) -> ShaderMaterial:
 		return _mats[key]
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER
+	mat.set_shader_parameter("cloth_tex", SurfaceFinish.texture("fabric"))
+	mat.set_shader_parameter("cloth_level", SurfaceFinish.mean("fabric"))
+	mat.set_shader_parameter("skin_tex", SurfaceFinish.texture("satin"))
+	mat.set_shader_parameter("skin_level", SurfaceFinish.mean("satin"))
 	for s in COLOURED:
 		var c: Color = colours.get(s, Color(0, 0, 0, 0))
 		mat.set_shader_parameter(s, Color(c.r, c.g, c.b, 1.0 if colours.has(s) else 0.0))

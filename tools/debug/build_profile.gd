@@ -14,6 +14,7 @@ func run(main, opts: Dictionary) -> void:
 		GameState.set_flag(flag)
 	GameState.party = [Beasts.create(0, 10)]
 	var tree: SceneTree = main.get_tree()
+	load("res://scripts/gfx/surface_finish.gd").enabled = opts.get("finish", "1") == "1"
 	var script = await main.wait_for_script(main.WORLD_PATH)
 	for id in String(opts.get("maps", "caccoon,tidewater,cogsworth,route1")).split(","):
 		if main.world != null:

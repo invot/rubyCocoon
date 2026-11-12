@@ -3,6 +3,7 @@ extends Node
 ## Remember authored flags on each node so Max never enables shadows/effects on deliberately unlit scenery.
 ## Registration is deferred until builders finish assigning their properties. No per-frame tree traversal.
 
+const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const GROUP := &"render_quality_nodes"
 const BASELINE := &"render_quality_baseline"
 var _quality := ""
@@ -18,6 +19,16 @@ func _ready() -> void:
 func _node_added(node: Node) -> void:
 	if node is SubViewport or node is WorldEnvironment or node is Light3D:
 		_register.call_deferred(node)
+	elif node is GeometryInstance3D:
+		# now, for what it already has, and again once builders have assigned the rest of its meshes and materials
+		SurfaceFinish.node(node)
+		_finish.call_deferred(node)
+
+
+## Every 3D object is drawn textured (surface_finish.gd).
+func _finish(node: GeometryInstance3D) -> void:
+	if is_instance_valid(node):
+		SurfaceFinish.node(node)
 
 
 func _register(node: Node) -> void:

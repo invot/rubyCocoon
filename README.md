@@ -1,6 +1,6 @@
 # Ruby Cocoon
 
-A low-poly beast-training RPG with a smooth, cozy PS2-era look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, hatch every new beast from the eggs wild beasts leave behind, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
+A beast-training RPG with a clean, modern stylized look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, hatch every new beast from the eggs wild beasts leave behind, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
 <img src="docs/screenshots/title.jpg" width="800" alt="The start menu after the skippable dragon entrance."><br><sub>Press A / Enter or tap during the dragon entrance to open the start menu immediately.</sub>
 
@@ -164,7 +164,7 @@ of Lio, Bea and Orin searching the town, tell it (`story.gd` SEARCHERS, POSTERS)
 asks you to catch Slim, the prisoner who walked out of his open cell; Slim, hiding behind the wagon on the dune shelf,
 was framed with a trainer's flute in his saddlebag, and Barkeep Dusty's **Card Ledger** (a key item) proves he spent
 that night at the saloon's card table. Shown the ledger, the deputy clears Slim and asks you to help find the missing
-trainers and the real culprit, pointing you to Sheriff Dalton in Sundown (flags `convict_asked`, `convict_found`,
+trainers and the real culprit, pointing you to Captain Dalton of the gate watch in Sunwall (flags `convict_asked`, `convict_found`,
 `slim_cleared`, `deputy_partner`).
 **Cocoon Cove** lies low in a cove ringed by tall cliffs, on the north, the west and the east above the road out. Your
 home stands in a western garden on a gentle terrace one step above the town, with two small scenery homes at the back of
@@ -238,7 +238,7 @@ required before confronting Vexmora.
     the DANCE sign at the west end of Main Street (the existing `dustwell#1` building identity). Below **trainer
     level 4**, she calls you too weak to dance and explains how to raise your trainer level. At level 4 or above,
     pass her safe rhythm practice and guided weapon battle to unlock rhythm attacks and receive Jasper's shoes.
-    Return them to open the Mesa Trail toward Sundown. Talking to Lucille first works too.
+    Return them to open the Mesa Trail toward Sunwall. Talking to Lucille first works too.
 
 New battle mechanics are explained when used, rather than all at the start. With more than three beasts in your
 party, the next ordinary battle requires you to turn the ring once before confirming beast moves. Later options
@@ -256,7 +256,7 @@ explains Shadow Eggs and ghost merging. Arriving still unlocks ghost eggs and me
 |---|---|---|
 | Coast | Cocoon Cove, Bellerive | Bellerive, a French Quarter harbour town, has the first arena (its coaches' lessons, then Tide Captain Marina, whose Wave Crest the ferry asks for), **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
 | Isle of Tides | Shellhaven (resort), Kelpwick (village) | Shellhaven's tourists keep carrying pieces of the **Temple of Tides** home as souvenirs, so Kelpwick's villagers stand across the way to the reef. The resort thinks the village quaint but backwards; the village thinks the resort is exploiting the island. They step aside only for a trainer who proves they're no tourist: beat Reef Warden Nerissa in Kelpwick's great hut. |
-| Desert | Dustwell Oasis (old western main street), Sundown Gulch (western town) | Bandits terrorise Sundown. Talk to the Sheriff, then beat Black Bart in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
+| Desert | Dustwell Oasis (old western main street), Sunwall (old walled adobe town) | The Jackals raid every caravan at Sunwall's gates. Talk to Captain Dalton of the gate watch, then beat Bart the Jackal in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
 | Mountains | Copperpick, Cogsworth (steampunk city) | CEO Magnus Gearhart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearhart Tower: each floor's robot sentries must fall before the stairs unlock. |
 | Volcano | Emberfall | The **Temple of Flame** sits on the Caldera Road. |
 | Jungle | Vinehollow | The village sells the finest gear in the land. The shaman needs the Sun, Moon and Earth relics; the ritual raises the hidden **Temple of Roots**. |
@@ -272,7 +272,7 @@ Every road between towns narrows to one bottleneck with a puzzle, getting harder
 | Isle Trail | Thorny brambles. A fire beast burns them; an air beast slices them down. |
 | Dune Road | A sheer cliff with a rope ladder coiled at the top. A beast with wings flies up and drops it. |
 | Mesa Trail | A rockslide: push the boulders around until a path opens. |
-| Dune Sea | Black Bart's barricade. Beat the bandit gang in their hideout. |
+| Dune Sea | The Jackals' barricade. Beat the bandit gang in their hideout. |
 | Mine Road | The mine checkpoint. Foreman Gorran signs a Miner's Pass when you beat him at the Copperpick Arena. |
 | Caldera Road | Gearhart's steam gate, then a stream of lava that a water beast cools. |
 | Summit Pass | A frozen pond of ice blocks that slide until they hit something. |
@@ -410,7 +410,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   and you dissolves around your shape in a fine dither (`terrain.gdshader` `hole`), while buildings stay unloaded until their ground footprint
   reaches the screen.
   They fade in as their base comes into view and unload when it leaves. Arrival fades use isolated material opacity
-  on all renderers, including Mobile and Compatibility, then restore their original opaque materials.
+  on Forward+ and Mobile, then restore their original opaque materials. On Compatibility (the web) buildings appear
+  without the fade: each see-through copy compiled a shader of its own on first sight, freezing play for up to half a
+  second as a building came into view.
 - **Town mascots and their signature moves**: every town has a mascot beast roaming its square and a statue of it
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
   teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
@@ -457,7 +459,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars."><br><sub>A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars.</sub>
 
 - **Weapons and the beat attack** (`item_db.gd` WEAPONS, `scripts/core/beat_chain.gd`, `scripts/battle/beat_cue.gd`, `battle.gd` _do_weapon):
-  - Your trainer's bar lists the weapons you own; you pick one each turn. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit, on one foe you run up to: Sheriff Dalton hands over Black Bart's with the Sundown bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
+  - Your trainer's bar lists the weapons you own; you pick one each turn. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit, on one foe you run up to: Captain Dalton hands over Bart the Jackal's with the Sunwall bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
   - Until you pass **Instructor Lucille's lesson** at Dustwell's dance studio, a weapon makes one plain throw (or swing) with its accuracy roll. She teaches trainers of **Lv 4 or above**, beginning with one safe beat that repeats until you land it, then a protected weapon battle. Passing unlocks the **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
   - Each press is graded by how far it is from the beat: **Perfect** (0.06 s), **Good** (0.13 s) or **Miss**, shown beside the ring, and the grade sets that hit's damage (half a plain throw for Perfect, 0.3 for Good). A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit, so the turn is never wasted. Land every hit your level allows and the last one is critical. Your first beat attack has wider windows (0.10 / 0.20 s), as they always do on the Coastal Path. Reaching Lv 4 points you to Lucille; later levels that add a hit say so. Older saves retain rhythm attacks already learned and access to a north road already passed.
   - At a trainer who's open, a weapon is one blow whatever your level: it breaks a shield point.
@@ -536,11 +538,14 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 <img src="docs/screenshots/tidewater.jpg" width="640" alt="Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay."><br><sub>Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay.</sub>
 
-- **Look**: the world aims for the PS2 era (*Final Fantasy X*, *Jade Cocoon 2*) with a clean, soft, stylized finish:
-  low-poly shapes with smooth, painted textures and soft light, never grainy or blocky. Outdoors, `scripts/gfx/outdoor_light.gd`
+- **Look**: the world aims for a modern, clean stylized finish in the spirit of *Fortnite*: smooth readable shapes,
+  soft painted textures on every object and soft light, never gritty, retro (PSX/PS2), voxel, blocky or pixelated. Outdoors, `scripts/gfx/outdoor_light.gd`
   keeps a gentle sun low in the south-east, so shadows fall beside things rather than hidden behind them and fronts
   still catch the light, and grades the world, open-air roofs and battles alike for contrast and rich colour without
-  blowing out; people and beasts also stand on a soft patch of shade (`scripts/gfx/contact_shadow.gdshader`). The packs' small textures are
+  blowing out. Shade is lit partly by the sky itself (`OutdoorLight.ambient`: warm-tinted sky above, the ground's warm
+  bounce below) rather than one flat colour, so shaded faces still read by which way they face; people carry a faint
+  sheen round their outline, like the beasts. `--light_exposure=0.7` (and `_sun`, `_ambient`, `_sky`, `_contrast`,
+  `_saturation`, `_white`, `_glow`) on a test run tries other values without editing; people and beasts also stand on a soft patch of shade (`scripts/gfx/contact_shadow.gdshader`). The packs' small textures are
   cleaned up by `scripts/gfx/smooth_texture.gd` (edge-preserving smoothing that keeps brick courses, boards and leaves
   but drops grain and speckle, eased contrast, then enlarged with a soft filter) and sampled with linear, mipmapped,
   anisotropic filtering. `tools/smooth_textures.gd` applies it in place to the surface, pattern and interior textures
@@ -760,7 +765,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in
   plain sight. Low hedge borders continue as low planting beyond the map edge; Bellerive's Dune Road approach
   has low hedges on both sides to keep its narrow exit visible. The desert lands (biomes with `"boulders"` in
-  `world_db.gd`: Dune Road, Mesa Trail, Dune Sea, Dustwell and Sundown) are walled by rock instead of plants:
+  `world_db.gd`: Dune Road, Mesa Trail, Dune Sea, Dustwell and Sunwall) are walled by rock instead of plants (Sunwall's own wall and gardens inside it aside):
   boulders on tree tiles and in the ring, broken lines of low rocks on hedge tiles, in the last three rows and to
   the south, no scrub in the open, and only `"cacti"` of the tree tiles (a few percent) keeping a cactus; their
   edges step up as terrain cliffs (Dustwell's and the Dune Road's and Dune Sea's outer edges two levels).
@@ -773,6 +778,20 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   storeys, a balcony across its front, batwing doors and SALOON on its false front; **Dustwell Jail** (room `jail`) has
   barred windows, a sheriff's star and JAIL. The Beast Center is the small stone temple every town has. Missing posters hang on the porch posts;
   the readable ones are notice boards about town. Water troughs, a wagon, barrels and crates line the street.
+- **Sunwall** (map id `sundown`) is an old walled adobe town (map `"style": "adobe"`, `adobe_town.gd`, biome
+  `desert`). Its houses and shops are blocks of sun-dried mud in warm earth colours with rounded corners, flat roofs
+  behind parapets stepped up at the corners, vigas (log beam ends) under the roof and wooden drain spouts; the back
+  row's have a second storey set back on the roof with a ladder up to it, while a building with a street close behind
+  it (world.gd `low`) keeps to one storey. Shops have wide windows under a striped awning in their colour and their
+  icon on a board on the parapet; doors and windows are the house pack's. The town wall stands on the map's `W` tiles
+  (`"town_wall"`): tall mud walls with merlons and vigas behind and beside the town, square gate towers with slit
+  windows either side of the north road (the gateway open to the sky, so nobody walking through is hidden), and from
+  row `low_from` south a knee-high parapet with broad gateposts, so the street beside it stays in view. The market
+  round the mascot statue has striped stalls, clay jars and a stone well (`street_props` `adobe_stall`, `adobe_jars`,
+  `adobe_well`); palms and low shrubs grow in the gardens behind the buildings (`"palm_groves"`), and open desert lies
+  outside the walls. Inside, its houses and shops have terracotta tiles, warm plaster and a band of darker earth
+  along the foot of the walls (`map_loader.gd` `_adobe_room`, `room_builder.gd` `_adobe_decor`); the Beast Center,
+  arena and Sky Tower keep their own rooms. **Captain Dalton** of the gate watch stands by the plaza.
 - **Dustwell's wagon and water troughs** come from the Low Poly Western pack, painted by part. To rebuild them from
   the download, unzip it into a folder `lpwestern/` and run:
 
@@ -802,7 +821,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   names them like the pack's).
 - **People, eggs, signs and obstacles** are built procedurally:
   - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the outfit, hairdo and colours the character creator gave them). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--pose=ready --weapon=slingshot|boomerang|bat` a trainer's weapon held ready, and `--pose=throw|boomerang|catch|swing --at=0,0.07,0.15,0.25` four moments of using it; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
-  - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Sundown's a false front and a balcony; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
+  - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
   - Readable wooden notice boards carry three rows of dark mock lettering, raised just off the wood so it stays
     visible from the gameplay camera. Interacting with a board still opens its full text.
@@ -1006,7 +1025,7 @@ mounted owl and its rider.
     It continues through character creation. Browser audio starts after a click, tap or key press;
     runtime Music and SFX buses grow through `AudioServer.bus_count` to preserve the web sample driver's
     route to the speakers (Godot 4.7's `add_bus()` append path disconnects it).
-  - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Black Bart, Gearhart, Nyx and Vexmora.
+  - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Bart the Jackal, Gearhart, Nyx and Vexmora.
     Both keep a beat for the weapons' beat attack (`Sfx.TEMPOS`, 106 and 122 BPM), with a quiet percussion layer playing along that comes up during one.
   - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
@@ -1072,6 +1091,18 @@ mounted owl and its rider.
   warm during loading, and the music cache retains three recent tracks while active crossfades keep their streams.
   Battles use the world's two shadow splits and 30-unit range; live portraits follow the graphics preset's MSAA.
   See [the performance audit](docs/performance.md) for measurements and remaining limits.
+- **Ground on disk**: every outdoor map's ground meshes are baked into `assets/ground/` (`scripts/world/ground_store.gd`,
+  `--scene=bake-ground`), so a map's ground is read back instead of generated behind the black screen; ground a story
+  has changed some other way is generated once on the device and kept in `user://ground/` (at most 24 maps).
+- **No building is built while you walk**: every building on a map is built behind the arrival fade and kept, hidden
+  while its base is off-screen, so walking up to one no longer stalls a frame while it is built (10-150 ms each).
+- **Light scenery**: the bushes, shrubs and trees are simplified to triangle budgets as they are baked
+  (`tools/import_stylized_nature.gd`: about 700 for a bush, 1,400 for a tree, a quarter to a half of the pack's), since
+  hundreds stand on every map.
+- **Every object textured**: lit materials that would draw as bare flat colour get one of the soft finishes painted by
+  `tools/build_soft_textures.py` (soft paint, woven fabric, brushed metal, satin), applied by `scripts/gfx/surface_finish.gd`
+  as each object enters the scene; people wear fabric and satin and beasts satin in their own shaders. Each finish's
+  average brightness is divided out, so colours stay as authored.
 - Pack models over 300 triangles get levels of detail baked in by `tools/import_psx_models.gd`, so far-off trees and rocks draw fewer triangles. `godot --path . --rendering-method mobile -- --scene=perf --detail=1` prints what each map costs.
 - The project uses the Mobile renderer on phones and tablets, sensor-landscape orientation, ETC2/ASTC textures, and an expanding aspect, so wide phones get extra width instead of black bars.
 - On touch devices the d-pad, A/B and Start/Pause buttons appear automatically. Connecting a controller hides them unless Screen was explicitly selected in Settings. The controller guide appears on the book's Settings right page. Touch targets retain phone sizing while the pad is hidden. All connected inputs use the same actions, so every screen and the flute minigame work with them.
@@ -1230,9 +1261,11 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   `flutes` (how deep the ribs are), and optionally `band` (strata in a second colour) and `moss` (a green over the
   upper face). A biome's `"woods"` is the share of its wood tiles that grow a tree (the volcano's thin dead wood).
 - **A town's own look**: `"style"` builds a town's buildings in a style of its own, whatever its biome's (Dustwell's
-  `"frontier"`, `frontier_builder.gd`). Its `building_looks` can set a building's `"paint"` (red, orange, yellow, pink,
+  `"frontier"`, `frontier_builder.gd`; Sunwall's `"adobe"`, `adobe_town.gd`). Its `building_looks` can set a building's `"paint"` (red, orange, yellow, pink,
   coral, gold, rose) and `"frontier"` (`"saloon"`, `"jail"`). Authored `street_props` may be the two-tile `wagon` or
-  `water_trough`. `prop_clearance: [[x, y, width, depth], ...]` reserves walking lanes and door approaches from
+  `water_trough`, or Sunwall's `adobe_stall`, `adobe_jars` and `adobe_well`. `"town_wall": {"low_from": row}` builds
+  a town wall on the map's `W` tiles (adobe_town.gd; low from that row south), and `"palm_groves": [[x, y, w, d]]`
+  grows palms on a desert town's tree tiles and low shrubs on its bush tiles there instead of boulders. `prop_clearance: [[x, y, width, depth], ...]` reserves walking lanes and door approaches from
   both authored and procedural street furniture; authored cargo is also checked for route connectivity.
 - **Shards** use `*`.
 - **Room templates**: in `interior_maps.gd`, `>` and `<` are stairs to the next and previous floor, `K` is a kennel pen and `@` a red phone. Most rooms are `stage` rooms: one compact room seen whole like a stage set (no front wall, the camera still), the front door (`D`, blue, with a window over it) in a side wall. A building of several rooms (`SHOP_ROOMS`, `HOUSES`) joins them with doors in their walls (`doors`: a symbol for each, and the room it leads to), each room loaded on its own; locked doors (`L`, red) can say what's behind them (`locked`). A door that opens is its own leaf on a hinge (`room_builder.gd _hinged_leaf`; `world.gd _through_door` swings it open, `spawn_at` shuts the one you came in by). Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it); Sky Tower lobbies have a visible side-wall entrance like home; lobbies and open-air decks use the same three-tile stair flights and recessed stairwells as home (`stair_flights` in their room templates). `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight. `world.gd _take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor. `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached. `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
@@ -1390,6 +1423,14 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `polish` / `polish-touch`: glyph coverage and font metrics, home/door/dock rules, colored lamps, machine speech,
   reply feedback, bounded beast information, sequential level stats and immediate item notices. Windowed
   `--scene=polish --shots=res://build/shots/polish --shot_w=0` captures these states using isolated test data.
+- `ground`: the shipped ground meshes in `assets/ground/` match what the terrain code generates for every outdoor map,
+  as a new game finds it and with its story gates, obstacles and floods changed. After changing the terrain code or a
+  map's tiles, rebake with `godot --headless --path . -- --scene=bake-ground`, then `godot --headless --path . --import`.
+- `textures`: every 3D surface on every town, road and room, and every beast and ghost, is drawn with a texture
+  (`scripts/gfx/surface_finish.gd`); only light, shade and glow effects may be plain. `--scene=texture-audit` lists the
+  rest (add `--maps=caccoon,route1` or `--rooms=0` to narrow it, `--report=path.json` to save the list).
+- `--scene=build-profile --maps=caccoon,tidewater` times each phase of building a map and every building on it, and
+  counts what the finished map asks of the renderer (`--buildings=1` lists each building).
 - `--scene=field-perf --report=res://build/field_frames.json` samples desktop frame intervals, script CPU and GPU
   times on a repeatable camera path behind buildings. Run with the same renderer and settings before and after.
 - `transitions`: walks a route of towns, roads and rooms through the real transition, timing how long each stays black

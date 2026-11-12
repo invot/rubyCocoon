@@ -42,10 +42,17 @@ func _init() -> void:
   st.set_material(mat)
   st.index()
   var mesh: ArrayMesh=st.commit()
-  if d.v.size()/3>300:
-   mesh=baker._with_lods(mesh)
+  mesh=baker._simplified(mesh,_budget(file.get_basename()))
   var path := "res://assets/nature/"+file.get_basename()+".res"
   ResourceSaver.save(mesh,path,ResourceSaver.FLAG_COMPRESS)
   print(file.get_basename(),": ",d.v.size()/3," triangles")
  baker.free()
  quit()
+
+
+static func _budget(name: String) -> int:
+ if name.begins_with("bush") or name.begins_with("shrub"):
+  return 700
+ if name.begins_with("tree") or name.begins_with("palm") or name == "dead_tree":
+  return 1400
+ return 1000000

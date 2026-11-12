@@ -33,7 +33,7 @@ Dustwell has one north road two tiles wide. Jasper occupies both tiles while his
 either tile interacts with the same actor. Lucille gives Jasper's Shoes as a key item once the lesson is won.
 Returning the shoes clears both tiles and removes Jasper from subsequent loads. The studio keeps the old
 `dustwell#1` identity and is always open. Existing saves with a previously learned rhythm attack retain it; saves
-that already visited Sundown retain their road access.
+that already visited Sunwall (map `sundown`) retain their road access.
 
 Focused verification:
 

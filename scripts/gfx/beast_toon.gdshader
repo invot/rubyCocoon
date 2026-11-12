@@ -38,16 +38,24 @@ uniform vec3 eye_dark = vec3(0.06, 0.05, 0.08);
 uniform vec3 lid_col = vec3(0.5);
 uniform float ghost = 0.0;
 uniform float rim = 0.35;
+// a faint satin finish over the flat colours (surface_finish.gd, set by beast_rig.gd), triplanar in the model's units
+uniform sampler2D skin_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float finish_scale = 2.0;
+uniform float skin_level = 1.0;
 
 varying vec4 attr;
 varying vec2 face;
 // (the part, unblended: a face across two parts takes one of them whole, rather than whatever parts' numbers lie
 // between theirs)
 varying flat float part_id;
+varying vec3 obj;
+varying vec3 obj_n;
 
 void vertex() {
 	attr = COLOR;
 	part_id = COLOR.r;
+	obj = VERTEX * finish_scale;
+	obj_n = abs(NORMAL);
 	face = UV2;
 }
 
@@ -119,6 +127,11 @@ void fragment() {
 		if (part == 0 || part == 1) {
 			c = painted_eye(c);
 		}
+	}
+	if (part != EYE) {
+		vec3 w = pow(obj_n, vec3(4.0));
+		w /= max(w.x + w.y + w.z, 0.0001);
+		c *= (texture(skin_tex, obj.zy).rgb * w.x + texture(skin_tex, obj.xz).rgb * w.y + texture(skin_tex, obj.xy).rgb * w.z) / skin_level;
 	}
 	if (ghost > 0.5) {
 		float l = dot(c, vec3(0.3, 0.55, 0.15));

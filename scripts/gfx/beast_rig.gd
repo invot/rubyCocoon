@@ -31,6 +31,7 @@ const Looks = preload("res://scripts/data/beast_looks.gd")
 const Parts = preload("res://scripts/gfx/beast_parts.gd")
 const CastGlow = preload("res://scripts/gfx/cast_glow.gd")
 const SHADER = preload("res://scripts/gfx/beast_toon.gdshader")
+const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const PARTS := Looks.PARTS
 ## how long an attack takes (s), and when in it the blow lands (0..1)
 const ATTACK_TIME := 0.75
@@ -357,6 +358,8 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 		var eyes: Array = Looks.look(pc["face"]).get("eyes", []) if pc["face"] != "" else []
 		Parts.paint(mat, colours, eyes)
 		mat.set_shader_parameter("ghost", 1.0 if ghost else 0.0)
+		mat.set_shader_parameter("skin_tex", SurfaceFinish.texture("satin"))
+		mat.set_shader_parameter("skin_level", SurfaceFinish.mean("satin"))
 		mi.material_override = mat
 		mats.append(mat)
 		skel.add_child(mi)

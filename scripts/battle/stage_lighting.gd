@@ -46,7 +46,7 @@ static func apply(env: Environment, key: DirectionalLight3D, biome: Dictionary, 
 	env.fog_light_color = cool.lerp(Color(biome["ground"]), 0.2).darkened(0.1)
 	env.fog_density = float(biome.get("fog", 0.004)) * 0.65
 	key.light_color = Color(biome["sun"]).lerp(Color("#ffd0a0"), 0.35)
-	key.light_energy = 0.65 if indoor else OutdoorLight.sun_energy(biome) * 0.68
+	key.light_energy = 0.65 if indoor else OutdoorLight.sun_energy(biome) * 0.633  # (0.68 of the sun before its 0.8 -> 0.86 scale)
 	key.light_specular = 0.25
 	key.rotation_degrees = Vector3(-32, -48, 0)
 	key.shadow_blur = 2.0

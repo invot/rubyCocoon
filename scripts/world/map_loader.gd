@@ -258,7 +258,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
-	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props", "prop_clearance", "shoreline", "style"]:
+	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props", "prop_clearance", "shoreline", "style", "town_wall", "palm_groves"]:
 		if src.has(setting):
 			m[setting] = src[setting]
 	for p in m["pushables"]:
@@ -778,6 +778,23 @@ static func room_set(b: Dictionary) -> Array:
 	return InteriorMaps.SHOP_ROOMS.get(shop, ["house_a"])
 
 
+## A room of an adobe town's house or shop (Sunwall): warm sand plaster walls over a band of darker earth, glazed
+## terracotta tiles underfoot (room_builder.gd _adobe decor). The Beast Center,
+## arena and Sky Tower keep their own rooms.
+static func _adobe_room(room: Dictionary) -> Dictionary:
+	var r := room.duplicate(true)
+	r["adobe"] = true
+	r["wall"] = "#f3d6ac"
+	var floors := {}
+	var walls := {}
+	for z in ["living", "bedroom", "kitchen", "bathroom", "hall", "shop", "back", "office", "wood", "stone", "diner"]:
+		floors[z] = "floor_terracotta"
+		walls[z] = "wall_plaster"
+	r["floor_tex"] = floors
+	r["wall_tex"] = walls
+	return r
+
+
 static func floor_of(id: String) -> int:
 	return int(id.get_slice("@", 1)) if "@" in id else 1
 
@@ -807,6 +824,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	if parent == "shellhaven" and key in ["cafe", "apothecary"]:
 		room = room.duplicate(true)
 		room["floor_tex"] = {"shop": "floor_marble"}
+	if pm.get("style", "") == "adobe" and not b["shop"] in ["center", "arena", "skytower", "kennel", "hideout", "temple"]:
+		room = _adobe_room(room)
 	var flood := _flooded(room, flags)
 	var rows: Array = flood["rows"]
 	# (a water puzzle's falls: tide_puzzles.gd)
@@ -1175,9 +1194,9 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			if boss:
 				team = [[9, 24, false], [6, 24, false], [33, 25, false]]
 			return {"kind": "trainer", "pos": p, "facing": Vector2i(0, 1), "sight": 3, "flag": "tr_%s_%s" % [map_id, ch],
-				"name": "Black Bart" if boss else "Bandit %s" % WorldDB.TRAINER_NAMES[rng.randi_range(0, 30)], "cls": "Bandit Boss" if boss else "Bandit",
+				"name": "Bart the Jackal" if boss else "Bandit %s" % WorldDB.TRAINER_NAMES[rng.randi_range(0, 30)], "cls": "Bandit Boss" if boss else "Bandit",
 				"look": BANDIT_LOOK, "team": team, "lines": ["This here's our hideout, stranger. Turn around!"] if not boss else ["So you're the one roughin' up my boys. Let's dance!"],
-				"defeat": "Alright, alright! We'll leave Sundown alone!" if boss else "Ugh... the boss won't like this.", "vanish": not boss, "bandit_boss": boss}
+				"defeat": "Alright, alright! We'll leave Sunwall alone!" if boss else "Ugh... the boss won't like this.", "vanish": not boss, "bandit_boss": boss}
 		"grunt", "ghost_grunt":
 			var lv3 := 44 if role == "ghost_grunt" else 40
 			var team2 := []

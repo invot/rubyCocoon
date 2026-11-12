@@ -29,11 +29,15 @@ const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const CoveBuildings = preload("res://scripts/gfx/cove_buildings.gd")
 const Creole = preload("res://scripts/gfx/creole_builder.gd")
 const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
+const AdobeTown = preload("res://scripts/gfx/adobe_town.gd")
+## the trees of a desert town's palm groves (map "palm_groves")
+const PALMS := [["palm", 3], ["palm_bent", 2]]
 const BeastTemple = preload("res://scripts/gfx/beast_temple.gd")
 const BarnBuilder = preload("res://scripts/gfx/barn_builder.gd")
 const HarborBoats = preload("res://scripts/gfx/harbor_boats.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
+const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const TempleProps = preload("res://scripts/gfx/temple_props.gd")
 const WaterShader = preload("res://scripts/gfx/water.gdshader")
@@ -119,8 +123,12 @@ var _build_slice := 0
 ## How long to work between frames while building a map behind the black screen. There's nothing on view to keep smooth,
 ## and every frame given up is time spent staring at black. (On the web, music is mixed on this thread: stay under a frame.)
 var _build_slice_us := 12000 if OS.has_feature("web") else 50000
-## Keep a small number of hidden buildings ready for walking back, bounded independently of map size.
-const HIDDEN_BUILDING_CACHE := 8
+## Every building is built behind the arrival fade (prepare_arrival_view) and kept, hidden while its base is off-screen,
+## so walking up to one never builds it in the middle of play (a building takes 10-150 ms). The bound only matters for a
+## map with more buildings than any town has.
+const HIDDEN_BUILDING_CACHE := 64
+## (off only for measuring: --scene=field-perf --prebuild=0)
+static var prebuild := true
 var _building_tick := 0
 var _building_camera := Transform3D()
 var _building_view_size := Vector2.ZERO
@@ -271,7 +279,8 @@ func keep_shaders() -> void:
 	VT.keep_shaders(self, extra)
 
 
-## Build the buildings the arrival camera can see, while the screen is still dark.
+## Build the buildings while the screen is still dark: the ones the arrival camera can see first, then all the rest
+## (hidden until their base comes into view), so none is built during play.
 func prepare_arrival_view() -> void:
 	_build_slice = Time.get_ticks_usec()
 	for i in building_fades.size():
@@ -279,6 +288,67 @@ func prepare_arrival_view() -> void:
 		if visible_buildings_ready():
 			break
 		await _build_checkpoint()
+	for f in building_fades if prebuild else []:
+		if is_instance_valid(f["node"]):
+			continue
+		_load_building(f)
+		var node: Node3D = f["node"]
+		node.hide()
+		node.process_mode = Node.PROCESS_MODE_DISABLED
+		await _build_checkpoint()
+	_warm_shaders()
+
+
+## Compatibility (the web) compiles a shader the first time something is drawn with it: a stall of up to a second
+## when a building or prop first comes into view. While the screen is still black, every kind of mesh and material on
+## the map is drawn once, shrunk to a speck in front of the camera, and taken away again after a few frames.
+## The other renderers compile without stalling play, and skip this.
+const WARM_LIMIT := 400
+
+
+func _warm_shaders() -> void:
+	if RenderingServer.get_current_rendering_method() != "gl_compatibility" or cam == null:
+		return
+	var seen := {}
+	var specks := Node3D.new()
+	specks.name = "ShaderWarmup"
+	cam.add_child(specks)
+	specks.position = Vector3(0, 0, -2.0)
+	specks.scale = Vector3.ONE * 0.0005
+	for gi in find_children("*", "GeometryInstance3D", true, false):
+		var mesh: Mesh = null
+		if gi is MeshInstance3D:
+			mesh = gi.mesh
+		elif gi is MultiMeshInstance3D and gi.multimesh != null:
+			mesh = gi.multimesh.mesh
+		if mesh == null or gi.get_parent() == specks:
+			continue
+		var mats := [gi.material_override]
+		if gi is MeshInstance3D:
+			for i in gi.get_surface_override_material_count():
+				mats.append(gi.get_surface_override_material(i))
+		var key := [mesh.get_rid(), mats]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		var speck := MeshInstance3D.new()
+		speck.mesh = mesh
+		speck.material_override = gi.material_override
+		speck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		specks.add_child(speck)
+		if gi is MeshInstance3D:
+			for i in gi.get_surface_override_material_count():
+				speck.set_surface_override_material(i, gi.get_surface_override_material(i))
+		if seen.size() >= WARM_LIMIT:
+			break
+	_drop_warmup(specks)
+
+
+func _drop_warmup(specks: Node3D) -> void:
+	for i in 3:
+		await get_tree().process_frame
+	if is_instance_valid(specks):
+		specks.queue_free()
 
 
 func spawn_at(key, face := Vector2i.ZERO) -> void:
@@ -481,18 +551,9 @@ func _sandy() -> bool:
 # ================================================================ environment
 func _build_environment() -> void:
 	var env := Environment.new()
-	var sky := Sky.new()
-	var sm := ProceduralSkyMaterial.new()
-	sm.sky_top_color = Color(biome["sky_top"])
-	sm.sky_horizon_color = Color(biome["sky_hz"])
-	sm.ground_bottom_color = Color(biome["side"]).darkened(0.4)
-	sm.ground_horizon_color = Color(biome["sky_hz"])
-	sky.sky_material = sm
 	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = OutdoorLight.ambient_color(biome)
-	env.ambient_light_energy = OutdoorLight.ambient_energy(biome)
+	env.sky = OutdoorLight.sky(biome)
+	OutdoorLight.ambient(env, biome)
 	OutdoorLight.grade(env)
 	env.ssao_enabled = RenderingServer.get_current_rendering_method() != "mobile"
 	env.ssao_radius = 0.8
@@ -507,6 +568,7 @@ func _build_environment() -> void:
 		env.fog_density = 0.045
 		env.fog_sky_affect = 1.0
 		env.ambient_light_color = STORM_SAND
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -743,6 +805,12 @@ func _build_terrain() -> void:
 	var wx := []
 	for c in walls:
 		wx.append(_xf(c))
+	if map.has("town_wall"):
+		# a walled town's wall, built whole along its W tiles (Sunwall's adobe wall and gates: adobe_town.gd)
+		var tw := MeshInstance3D.new()
+		tw.mesh = AdobeTown.wall(map, _lift)
+		add_child(tw)
+		wx.clear()
 	_multimesh(wk.mesh(), wx)
 	var rk := VBld.Kit.new()
 	rk.box("ground_rock", Vector3(0, 0.45, 0), Vector3(0.96, 0.9, 0.96), Color(rock_hex))
@@ -1097,7 +1165,7 @@ func _outskirt_houses(rng: RandomNumberGenerator, taken: Dictionary) -> void:
 				z += rng.randf_range(9.0, 12.0)
 	for p in spots:
 		await _build_checkpoint()
-		var made := Creole.backdrop(rng) if style == "creole" else (Frontier.backdrop(rng) if style == "frontier" else HouseModels.backdrop(style, rng))
+		var made := Creole.backdrop(rng) if style == "creole" else (Frontier.backdrop(rng) if style == "frontier" else (AdobeTown.backdrop(rng) if style == "adobe" else HouseModels.backdrop(style, rng)))
 		var node: Node3D = made[0]
 		if node == null:
 			continue
@@ -1445,6 +1513,10 @@ func _build_scatter() -> void:
 	var low_woods := []
 	for r in map.get("low_trees", []):
 		low_woods.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
+	# palm groves inside a desert town's walls ("palm_groves", [x, y, w, d]): palms there, not boulders
+	var groves := []
+	for r in map.get("palm_groves", []):
+		groves.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
 	for y in h:
 		await _build_checkpoint()
 		for x in w:
@@ -1460,7 +1532,8 @@ func _build_scatter() -> void:
 				MapGen.FLOWERS:
 					flowers[rng.randi_range(0, 1)].append(_xf(center, _voxel_rot(rng)))
 				MapGen.TREE:
-					if biome.has("boulders"):
+					var grove := groves.any(func(r: Rect2i) -> bool: return r.has_point(Vector2i(x, y)))
+					if biome.has("boulders") and not grove:
 						# the desert's walls are rock: boulders (low ones in the last rows), only now and then a cactus
 						if y >= h - 3:
 							# a broken line, not a carpet of rubble
@@ -1494,7 +1567,7 @@ func _build_scatter() -> void:
 					var name := ""
 					var hgt := 0.0
 					for attempt in 6:
-						name = _pick_weighted(trees, rng)
+						name = _pick_weighted(PALMS if grove else trees, rng)
 						hgt = rng.randf_range(2.0, 3.3) if mix <= 0.0 else rng.randf_range(1.7, 3.7)
 						if name == "stump":
 							hgt = rng.randf_range(0.45, 0.7)
@@ -1526,9 +1599,13 @@ func _build_scatter() -> void:
 					var key := name if _open_ground_near(x, y, 2) else name + SHADOWLESS
 					_add_plant(by_asset, key, _tree_xf(center + Vector3(rng.randf_range(-0.14, 0.14), -bb.position.y * s, rng.randf_range(-0.14, 0.14)), rng.randf() * TAU, s, girth))
 				MapGen.BUSH:
-					if not hedge_lines.has(Vector2i(x, y)):
+					# a walled desert town's gardens (inside its "palm_groves"): low shrubs on bare earth
+					var garden := groves.any(func(r: Rect2i) -> bool: return r.has_point(Vector2i(x, y)))
+					if garden and rng.randf() < 0.6:
 						continue
-					if biome.has("boulders"):
+					if not garden and not hedge_lines.has(Vector2i(x, y)):
+						continue
+					if biome.has("boulders") and not garden:
 						_low_rock(by_asset, center, rng)
 						continue
 					# A low continuous boundary, with several silhouettes rather than repeated green balls.
@@ -1702,7 +1779,7 @@ func _plan_houses() -> void:
 			max_h = maxf(4.6, CAM_LOOK_Y + (CAM_OFFSET.y - CAM_LOOK_Y) * (float(gap) + 0.5) / CAM_OFFSET.z)
 		if style in ["roundwood", "resort"]:
 			continue
-		if style == "creole" or style == "frontier" and Frontier.handles(b["shop"]):
+		if style == "creole" or style == "frontier" and Frontier.handles(b["shop"]) or style == "adobe" and AdobeTown.handles(b["shop"]):
 			# Bellerive's and Dustwell's buildings are their own (creole_builder.gd, frontier_builder.gd): only whether
 			# it's kept low matters here
 			continue
@@ -1864,6 +1941,8 @@ func _load_building(f: Dictionary) -> void:
 	f["node"] = node
 	f["meshes"] = node.find_children("*", "GeometryInstance3D", true, false)
 	f["opacity"] = 0.0
+	# (textured before the arrival fade copies its materials)
+	SurfaceFinish.apply(node)
 	_set_building_opacity(f, 0.0)
 	if b["shop"] == "skytower" and node.has_node("Bird") and not node.get_node("Bird") is BeastRig:
 		bobbers.append([node.get_node("Bird"), (node.get_node("Bird") as Node3D).position.y, 1.3])
@@ -1887,6 +1966,9 @@ const STREET_WIDE := {"wagon": 2, "water_trough": 2}
 
 
 func _street_mesh(name: String) -> Mesh:
+	if name.begins_with("adobe_"):
+		# Sunwall's market: stalls, clay jars, the well (adobe_town.gd)
+		return AdobeTown.prop(name)
 	if name == "planter":
 		return load("res://assets/interiors/plant_tall.res") if ResourceLoader.exists("res://assets/interiors/plant_tall.res") else null
 	if not ResourceLoader.exists(STREET_DIR + name + ".res"):
@@ -2032,6 +2114,9 @@ func _build_street_props() -> void:
 				name = "trash_can"
 			if c[2] == "side" and commercial and city and rng.randf() < 0.3:
 				name = "dumpster"
+			if style == "adobe" and name in ["trash_can", "hydrant", "dumpster", "bench", "hedge_round"]:
+				# an old adobe town's clutter: clay jars, not bins and benches
+				name = "adobe_jars"
 			placed.append([t, c[1], name])
 			if c[2] == "front":
 				n_front += 1
@@ -2133,6 +2218,9 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 			node = Creole.build(b)
 		elif style == "frontier" and Frontier.handles(b["shop"]):
 			node = Frontier.build(b)
+		elif style == "adobe" and AdobeTown.handles(b["shop"]):
+			# Sunwall's flat-roofed mud-brick houses and shops (adobe_town.gd)
+			node = AdobeTown.build(b)
 		elif style == "frontier":
 			node = VBld.build(b, "western")
 		else:
@@ -2170,6 +2258,8 @@ func _decor_building(b: Dictionary, style: String) -> Node3D:
 		return Creole.build(bb)
 	if style == "frontier":
 		return Frontier.build(b.merged({"shop": "decor"}))
+	if style == "adobe":
+		return AdobeTown.build(b.merged({"shop": "decor"}))
 	return VBld.build(bb, style)
 
 
@@ -2943,9 +3033,16 @@ func visible_buildings_ready() -> bool:
 	return true
 
 
+static var NO_ARRIVAL_FADE: bool = RenderingServer.get_current_rendering_method() == "gl_compatibility"
+
+
 ## Instance transparency is ignored on Mobile and Compatibility. Use isolated materials during arrival;
 ## never alter the shared house/texture cache. Restore the original opaque pipeline when the fade finishes.
 func _set_building_opacity(f: Dictionary, opacity: float) -> void:
+	# On Compatibility (the web) every see-through copy compiles a shader of its own the first time it is drawn, a
+	# freeze of up to half a second as a building comes into view: there, buildings appear without the fade.
+	if NO_ARRIVAL_FADE:
+		return
 	if not f.has("fade_materials"):
 		var copies := {}
 		var bindings := []
@@ -5026,17 +5123,9 @@ func _build_room() -> void:
 	env.ambient_light_color = Color("#fff0dc") if not dark else Color("#8a7aa8")
 	env.ambient_light_energy = 0.55 if not dark else 0.35
 	if open_air:
-		var sky := Sky.new()
-		var sm := ProceduralSkyMaterial.new()
-		sm.sky_top_color = Color(biome["sky_top"])
-		sm.sky_horizon_color = Color(biome["sky_hz"])
-		sm.ground_bottom_color = Color(biome["ground"]).darkened(0.2)
-		sm.ground_horizon_color = Color(biome["sky_hz"])
-		sky.sky_material = sm
 		env.background_mode = Environment.BG_SKY
-		env.sky = sky
-		env.ambient_light_color = Color(biome["sky_top"]).lerp(Color("#fff0dc"), 0.5)
-		env.ambient_light_energy = OutdoorLight.ambient_energy(biome)
+		env.sky = OutdoorLight.sky(biome)
+		OutdoorLight.ambient(env, biome)
 		# haze only on the town far below, not on the platform
 		env.fog_enabled = true
 		env.fog_mode = Environment.FOG_MODE_DEPTH
