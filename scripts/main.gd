@@ -556,7 +556,7 @@ func _show_slot_preview(i: int) -> void:
 	vb.add_theme_constant_override("separation", 6)
 	p.add_child(vb)
 	var info := GameState.slot_info(i)
-	vb.add_child(UIKit.header("Slot %d" % (i + 1), UIKit.ACCENT))
+	vb.add_child(UIKit.header("Slot %d" % (i + 1), UIKit.HEAD))
 	var frame := PanelContainer.new()
 	frame.add_theme_stylebox_override("panel", UIKit.box("slot", Vector4(4, 4, 4, 4)))
 	vb.add_child(frame)
@@ -709,6 +709,10 @@ func _parse_test_args() -> void:
 
 func _run_test() -> void:
 	var scene: String = _test["scene"]
+	if scene == "desktop-audit":
+		await load("res://tools/debug/desktop_audit.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	var wait := float(_test.get("wait", "3"))
 	if _test.has("render_height") or _test.has("graphics_quality"):
 		Prefs.render_height = int(_test.get("render_height", str(Prefs.render_height)))

@@ -78,7 +78,7 @@ func _ready() -> void:
 	info_box.add_theme_constant_override("separation", 2)
 	info_box.custom_minimum_size.y = 96
 	right.add_child(info_box)
-	hint = UIKit.label("", 20, UIKit.ACCENT.lightened(0.35))
+	hint = UIKit.label("", 20, UIKit.HEAD)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(120, 52)
 	right.add_child(hint)

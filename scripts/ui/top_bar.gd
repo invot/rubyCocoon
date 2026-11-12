@@ -117,6 +117,7 @@ func post(text: String, icon: Texture2D, opts := {}) -> void:
 	var m := {"text": text, "icon": icon, "sub": String(opts.get("sub", "")), "heading": bool(opts.get("heading", false)),
 		"key": String(opts.get("key", "")), "count": int(opts.get("count", 1)), "fmt": String(opts.get("fmt", "")),
 		"smooth": bool(opts.get("smooth", false)), "replace": bool(opts.get("replace", false)), "hold": float(opts.get("hold", HOLD))}
+	var priority: bool = opts.get("priority", false) and not battle
 	if m["key"] != "":
 		if not _msg.is_empty() and _msg["key"] == m["key"]:
 			_merge(_msg, m)
@@ -124,17 +125,26 @@ func post(text: String, icon: Texture2D, opts := {}) -> void:
 				_apply(_msg)
 				# (shown again in full: back in if it was leaving, and its time starts over)
 				_hold = 0.0
+				if priority:
+					_phase = "hold"
+					_slide = 1.0
+					_place()
 				if _phase == "out":
 					_phase = "in"
 			return
-		for q in _queue:
+		for i in _queue.size():
+			var q: Dictionary = _queue[i]
 			if q["key"] == m["key"]:
 				_merge(q, m)
-				return
+				if not priority:
+					return
+				_queue.remove_at(i)
+				m = q
+				break
 	# Acquiring an item is immediate feedback. Arrival notices must not make the
 	# player wait several seconds to learn what they just picked up.
-	if opts.get("priority", false) and not battle and not _msg.is_empty() and not String(_msg["key"]).begins_with("item:"):
-		if _msg["key"] != "place":
+	if priority:
+		if not _msg.is_empty() and _msg["key"] != "place":
 			_queue.push_front(_msg)
 		_msg = m
 		_apply(m)

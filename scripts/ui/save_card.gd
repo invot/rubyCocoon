@@ -40,7 +40,7 @@ func _ready() -> void:
 	shot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	shot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	frame.add_child(shot)
-	vb.add_child(UIKit.header("Slot %d   ·   %s" % [slot + 1, String(info.get("place", ""))], UIKit.ACCENT))
+	vb.add_child(UIKit.header("Slot %d   ·   %s" % [slot + 1, String(info.get("place", ""))], UIKit.HEAD))
 	vb.add_child(UIKit.label("Play time  %s" % GameState.time_text(float(info.get("play_time", 0.0))), 33, UIKit.INK))
 	vb.add_child(UIKit.label(String(info.get("summary", "")), 20, UIKit.DIM))
 	UIKit.place(outer, "center")

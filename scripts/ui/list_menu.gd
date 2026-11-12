@@ -18,6 +18,9 @@ var _panel: PanelContainer
 var _outer: VBoxContainer
 var _scroll: ScrollContainer
 var _rail: Control
+var _actions: HBoxContainer
+var _select_button: Button
+var _back_button: Button
 var _row_h := 0.0
 var _max_rows := 0
 var _focus := -1
@@ -139,7 +142,7 @@ func _ready() -> void:
 			b.add_theme_constant_override("icon_max_width", int(opts.get("icon_width", 56)))
 			b.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(b.icon) else CanvasItem.TEXTURE_FILTER_NEAREST
 		if it.has("right"):
-			var rl := UIKit.label(str(it["right"]), 20, UIKit.ACCENT if not b.disabled else UIKit.DIM)
+			var rl := UIKit.label(str(it["right"]), 20, UIKit.GOLD if not b.disabled else UIKit.DIM)
 			rl.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BUTTON_FONT_SIZE))
 			rl.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 			rl.offset_left = -220
@@ -172,6 +175,26 @@ func _ready() -> void:
 		vb.add_child(desc_label)
 	if items.is_empty():
 		list.add_child(UIKit.label("(nothing here)", 20, UIKit.DIM))
+	if not bare and not opts.get("embedded", false) and not UIKit.touch_ui():
+		_actions = HBoxContainer.new()
+		_actions.add_theme_constant_override("separation", 12)
+		vb.add_child(_actions)
+		_select_button = Button.new()
+		_select_button.text = "A: Select"
+		_select_button.disabled = items.is_empty() or items.all(func(it): return it.get("disabled", false))
+		_select_button.pressed.connect(func():
+			if _focus >= 0 and _focus < items.size():
+				_pick(_focus))
+		_back_button = Button.new()
+		_back_button.text = "B: Back"
+		_back_button.disabled = not opts.get("cancel", true)
+		_back_button.pressed.connect(_cancel)
+		for action in [_select_button, _back_button]:
+			action.focus_mode = Control.FOCUS_NONE
+			action.custom_minimum_size.y = UIKit.row_h()
+			action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			UIKit.plate_button(action)
+			_actions.add_child(action)
 	if opts.get("embedded", false):
 		outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		return
@@ -216,20 +239,17 @@ func _fit_rows() -> void:
 		_scroll.ensure_control_visible.call_deferred(focused)
 
 
-## A bare menu's option: the first is the big glowing button, the rest plain outlined text (bright when picked).
+## A title menu's first option glows; secondary actions keep visible button frames.
 func _bare_button(b: Button, hero: bool) -> void:
 	for st in ["normal", "hover", "pressed", "focus", "hover_pressed", "disabled"]:
 		b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
 	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	b.add_theme_color_override("font_outline_color", UIKit.BROWN)
 	if not hero:
+		UIKit.plate_button(b)
+		b.add_theme_constant_override("outline_size", 0)
 		b.custom_minimum_size.y = UIKit.row_h()
 		b.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BUTTON_FONT_SIZE))
-		b.add_theme_constant_override("outline_size", 10)
-		for c in ["font_color", "font_pressed_color"]:
-			b.add_theme_color_override(c, UIKit.DIM)
-		for c in ["font_focus_color", "font_hover_color", "font_hover_pressed_color"]:
-			b.add_theme_color_override(c, UIKit.LIGHT)
 		return
 	_hero = b
 	b.custom_minimum_size = HERO_SIZE
@@ -376,6 +396,10 @@ func _pick(i: int) -> void:
 
 func on_input(ev: InputEvent) -> void:
 	if ev.is_action_pressed("ui_cancel") and not ev.is_echo():
-		if opts.get("cancel", true):
-			Sfx.play("back")
-			close(-1)
+		_cancel()
+
+
+func _cancel() -> void:
+	if opts.get("cancel", true):
+		Sfx.play("back")
+		close(-1)
