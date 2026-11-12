@@ -92,6 +92,26 @@ func run(main, opts: Dictionary) -> void:
 				hidden += 1
 		_check(hidden <= world.HIDDEN_BUILDING_CACHE, "hidden building cache is bounded")
 	report["layouts"] = layouts
+	# A room trip reuses only the static set. Actor nodes and all interactions belong
+	# to the new world, and changed story flags must invalidate the old set.
+	await main._load_world("caccoon", "start")
+	var set_id: int = main.world._scenery_root.get_instance_id()
+	var grid_hash: int = hash(main.world.map["grid"])
+	var player_id: int = main.world.player.get_instance_id()
+	await main._load_world("caccoon#1", "entry")
+	await main._load_world("caccoon", "start")
+	_check(main.world._scenery_root.get_instance_id() == set_id, "room trip reuses the static scenery")
+	_check(hash(main.world.map["grid"]) == grid_hash and not main.world.doors.is_empty(), "restored scenery preserves collision and door interactions")
+	_check(main.world.player.get_instance_id() != player_id, "cached scenery never retains actors")
+	GameState.set_flag("performance_cache_probe")
+	await main._load_world("caccoon#1", "entry")
+	await main._load_world("caccoon", "start")
+	_check(main.world._scenery_root.get_instance_id() == set_id, "unrelated flags preserve unchanged scenery")
+	GameState.flags["has_starter"] = not GameState.flag("has_starter")
+	await main._load_world("caccoon#1", "entry")
+	await main._load_world("caccoon", "start")
+	_check(main.world._scenery_root.get_instance_id() != set_id, "story changes invalidate cached scenery")
+	_check(main.world._scenery_cache.size() <= main.world.SCENERY_CACHE_LIMIT, "outdoor set cache stays bounded")
 	if opts.has("baseline"):
 		var baseline = JSON.parse_string(FileAccess.get_file_as_string(String(opts["baseline"])))
 		for town in layouts:

@@ -2,6 +2,32 @@ extends RefCounted
 ## Battle-only warm key / cool fill. The overworld keeps its shared daylight unchanged.
 const OutdoorLight = preload("res://scripts/gfx/outdoor_light.gd")
 const Ground = preload("res://scripts/battle/stage_ground.gdshader")
+static var _grass_floor: ArrayMesh
+
+
+## Broad painted patches are baked into vertices once, instead of running noise
+## over every floor pixel each frame. Alpha blends a few soft areas of bare earth.
+static func grass_floor() -> ArrayMesh:
+	if _grass_floor != null:
+		return _grass_floor
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(80, 80)
+	plane.subdivide_width = 39
+	plane.subdivide_depth = 39
+	var arrays := plane.get_mesh_arrays()
+	var colours := PackedColorArray()
+	for p: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
+		var broad := sin(p.x*0.31+sin(p.z*0.22))*sin(p.z*0.28-p.x*0.13)
+		var light := 1.0 + broad*0.16
+		var dirt := 0.0
+		for patch in [Vector3(-6, 3.8, 1), Vector3(7, 4.5, -3), Vector3(-2, 3.4, 11)]:
+			var d := Vector2(p.x-patch.x, (p.z-patch.z)*1.3).length()
+			dirt = maxf(dirt, 1.0-smoothstep(patch.y*0.3, patch.y, d))
+		colours.append(Color(light*1.02, light, light*0.91, dirt*0.7))
+	arrays[Mesh.ARRAY_COLOR] = colours
+	_grass_floor = ArrayMesh.new()
+	_grass_floor.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return _grass_floor
 
 
 static func apply(env: Environment, key: DirectionalLight3D, biome: Dictionary, indoor: bool) -> DirectionalLight3D:

@@ -448,15 +448,16 @@ const ROOMS := {
 		],
 	},
 	## Your home: the living room downstairs, where Mom (1) is, and the red phone; stairs up to your bedroom. The kitchen
-	## is locked while Mom's baking. The first time you go to leave, the phone rings (story.gd can_use_exit).
+	## is locked. The phone stands against the staircase wall; the first time you go to leave, it rings.
 	"home": {
 		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "npcs": {"1": "mom"},
-		"locked": ["The kitchen. Mom's baking something, and you're not allowed in until it's done."],
+		"furniture_offsets": {Vector2i(11, 2): Vector2(0, -0.28)},
+		"locked": ["The kitchen. A faint smell of biscuits lingers by the door."],
 		"rows": [
 			"#######L#####",
 			"#BB.SS...>>>#",
-			"w...........#",
-			"wa..yy.....@#",
+			"w..........@#",
+			"wa..yy......#",
 			"#.......1...#",
 			"#lp..rrr...PD",
 			"#############",

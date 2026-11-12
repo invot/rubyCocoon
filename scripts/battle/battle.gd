@@ -411,6 +411,11 @@ func _build_stage() -> void:
 	pm.size = Vector2(80, 80)
 	ground.mesh = pm
 	ground.material_override = _tex_mat(ground_tex, Vector2(80, 80))
+	if not fishing and not arena and not dark and not sandy:
+		ground.mesh = StageLighting.grass_floor()
+		var ground_material := ground.material_override as ShaderMaterial
+		ground_material.set_shader_parameter("grass_patches", true)
+		ground_material.set_shader_parameter("dirt_texture", VT.terrain("top_path", biome["path"]))
 	ground.position = Vector3(0, 0, 1.5) if not fishing else Vector3(0, -0.6, -10)
 	add_child(ground)
 	if not dark:
@@ -998,17 +1003,18 @@ func _outdoor_scenery(rng: RandomNumberGenerator) -> void:
 		by_asset[rn].append(_xf(Vector3(x2, -VA.aabb(rn).position.y * s2, rng.randf_range(-6, -3.5)), rng.randi_range(0, 3) * PI / 2.0, s2))
 	for name in by_asset:
 		_multimesh(VA.mesh(name), by_asset[name])
-	var tufts := [[], [], []]
-	for i in 56:
-		var p := Vector3(rng.randf_range(-12, 12), 0, rng.randf_range(-7, 10))
-		# clear of both rings
-		for c: Vector3 in [ALLY_CENTER, FOE_CENTER]:
-			var off: Vector3 = p - c
-			if off.length() < 4.0:
-				p = c + off.normalized() * rng.randf_range(4.0, 5.5)
-		tufts[i % 3].append(_xf(p, rng.randi_range(0, 3) * PI / 2.0, rng.randf_range(0.9, 1.3)))
-	for i in 3:
-		_multimesh(VP.grass_tuft(biome["tuft"], i), tufts[i])
+	var shrubs: Array = biome.get("shrubs", [])
+	var bushes := {}
+	for i in (14 if not shrubs.is_empty() else 0):
+		var name: String = shrubs[i % shrubs.size()]
+		var s := VA.fit_scale(name, rng.randf_range(0.8, 1.3))
+		# The whole lane between the parties and both rings remains open.
+		var p := Vector3((1.0 if i%2 == 0 else -1.0)*rng.randf_range(8.5, 13.0), -VA.aabb(name).position.y*s, rng.randf_range(-8, 11))
+		if not bushes.has(name):
+			bushes[name] = []
+		bushes[name].append(_xf(p, rng.randf_range(0, TAU), s))
+	for name in bushes:
+		_multimesh(VA.mesh(name), bushes[name])
 	if biome["id"] in ["coast", "quarter", "island", "river", "reef"]:
 		var water := MeshInstance3D.new()
 		var wp := PlaneMesh.new()
@@ -1467,6 +1473,10 @@ func front_texture() -> Texture2D:
 		_front_cam.environment = env
 		_front_vp.add_child(_front_cam)
 		_front_cam.current = true
+		# The camera director is a child and may move after the battle's _process.
+		# Sample its final transform immediately before rendering both viewports,
+		# otherwise the HUD masks use the previous view for one frame.
+		RenderingServer.frame_pre_draw.connect(_sync_front_cam)
 	return _front_vp.get_texture()
 
 
@@ -1493,6 +1503,8 @@ func _sync_front_cam() -> void:
 	if _front_vp == null or _front_vp.render_target_update_mode == SubViewport.UPDATE_DISABLED:
 		return
 	var main_vp := cam.get_viewport()
+	_front_vp.msaa_3d = main_vp.msaa_3d
+	_front_vp.screen_space_aa = main_vp.screen_space_aa
 	if main_vp is SubViewport:
 		_front_vp.size = (main_vp as SubViewport).size
 	else:
@@ -4975,7 +4987,7 @@ func _finish_growth() -> void:
 		for e in events:
 			match e["type"]:
 				"level":
-					await UI.beast_cinematic("level", e["look"])
+					await UI.beast_cinematic("level", e["before"], e["look"])
 					_refresh()
 				"evolve":
 					await UI.beast_cinematic("evolve", e["before"], e["after"])

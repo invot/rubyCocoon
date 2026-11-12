@@ -312,11 +312,12 @@ func beast_center(town: String) -> void:
 
 ## The self-service healing machine in every Beast Center.
 func heal_machine(world) -> void:
+	var source: Node3D = world.machines.get("healer", {}).get("node", null) if is_instance_valid(world) else null
 	if GameState.party.is_empty():
 		Sfx.play("error")
-		await Story.say(["BZZT. \"NO BEASTS DETECTED. PLEASE INSERT BEASTS.\""])
+		await UI.say(["No beasts detected. Please bring your beasts for healing."], "Automated Voice", null, source)
 		return
-	if not await Story.ask("A tall glass healing chamber, humming softly. \"FREE HEALING, ANY TIME!\" Put your beasts inside?"):
+	if not await UI.ask("Free healing, any time! Shall I restore your beasts?", "Automated Voice", "Yes", "No", source):
 		return
 	await Story.say(["You place your beasts in the chamber..."])
 	if world != null and is_instance_valid(world) and world.has_method("play_heal_fx"):
@@ -1511,11 +1512,9 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 			if map.get("stone_doors", {}).has(t):
 				await Story.say([map.get("locked_text", {}).get(t, "The stone door won't budge.")])
 			else:
-				Sfx.play("knock")
-				await get_tree().create_timer(0.85).timeout
-				var room := String(map.get("room_key", ""))
-				var voices: Dictionary = ChatterDB.STAFF_DOOR_VOICES if map.get("staff_doors", {}).has(t) else ChatterDB.ROOM_DOOR_VOICES
-				await UI.say([voices.get(room, "Shh! I'm trying to remember why I came in here.")], "Muffled Voice", null, world.door_speaker(t))
+				var description: String = map.get("locked_text", {}).get(t,
+					"Staff only. A neatly polished handle, firmly locked." if map.get("staff_doors", {}).has(t) else "The door is locked. The handle won't turn.")
+				await UI.say(["Locked. " + description])
 		MapGen.FURN:
 			if map.get("furniture", {}).get(t, "") == "phone":
 				await Phone.call_home(world)

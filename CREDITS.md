@@ -276,6 +276,9 @@ The voxel models were all replaced by the PSX ones above and removed. They came 
   **Noto Sans Symbols** by The Noto Project Authors, from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/notosanssymbols),
   unchanged under the SIL Open Font License 1.1 (`licenses/Noto Sans Symbols - OFL.txt`), supplies missing UI symbols
   such as the four arrow keys (`ui/NotoSansSymbols.ttf`);
+  **Noto Sans Symbols 2** by The Noto Project Authors, from [Noto Fonts](https://github.com/notofonts/noto-fonts/tree/main/hinted/ttf/NotoSansSymbols2),
+  unchanged under the SIL Open Font License 1.1 (`licenses/NotoSansSymbols2-OFL.txt`), supplies directional triangles.
+  Symbol fallback layout metrics are matched to League Spartan at runtime; the font files are unchanged.
   **Lunchtime Doubly So** (the original 3D intro/title logo); licence file not included, check the author's terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)

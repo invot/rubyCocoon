@@ -1,7 +1,7 @@
 extends "res://scripts/ui/modal.gd"
 ## Named speech uses a white bubble; written text and system prompts use the shared dark window.
-## CinematicDialog keeps the legacy dark window by disabling bubble_mode.
-## Text sits at the top of the box (not vertically centred), three big lines at a time: longer lines are split into pages.
+## CinematicDialog shares the spoken/written distinction.
+## Text stays top-aligned. Speech pages keep complete sentences, normally within three lines.
 
 const LINES_PER_PAGE := 3
 ## Leave the face readable on either side of the bubble, including the pointer's tip.
@@ -40,6 +40,7 @@ var _had_anchor := false
 var _tail_below := false
 var _door_anchor := false
 var _door_bottom := Vector2.ZERO
+var _speech_width := 720.0
 
 
 func setup(_lines: Array, _speaker := "", _portrait: Texture2D = null, _speaker_node: Node3D = null) -> Control:
@@ -197,12 +198,13 @@ func _layout_bubble() -> void:
 			(name_panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = UIKit.ACCENT
 	var safe := UIKit.safe_rect(self).grow(-16.0)
 	var plate_h := name_panel.get_combined_minimum_size().y - 6.0 if name_panel != null else 0.0
-	var width := minf(720.0, safe.size.x)
-	var line_count := mini(LINES_PER_PAGE, String(lines[idx]).count("\n") + 1) if _paged else LINES_PER_PAGE
+	var width := minf(_speech_width, safe.size.x)
+	var line_count := String(lines[idx]).count("\n") + 1 if _paged else LINES_PER_PAGE
 	_box_h = text_label.get_theme_font("font").get_height(text_label.get_theme_font_size("font_size")) * line_count + 48.0
 	if portrait != null:
 		_box_h = maxf(_box_h, 168.0)
 	var room := Rect2(safe.position + Vector2(0, plate_h), safe.size - Vector2(0, plate_h))
+	room.size.y -= _below_reserve()
 	_anchored = _project_head()
 	if _anchored and _door_anchor and UI.top_bar != null and UI.top_bar.visible:
 		# A place-name notice may still be showing just after the player knocks indoors.
@@ -225,8 +227,9 @@ func _layout_bubble() -> void:
 		for group in UI.controls.CLUSTERS:
 			var zone: Rect2 = UI.controls.cluster_zone(group, UI.controls.TOUCH_SLOP + UI.controls.NO_TAP_MARGIN)
 			var footprint := Rect2(rect.position - Vector2(0, plate_h), rect.size + Vector2(0, plate_h))
+			footprint.size.y += _below_reserve()
 			if zone.has_area() and footprint.intersects(zone):
-				rect.position.y = minf(rect.position.y, zone.position.y - rect.size.y - 4.0)
+				rect.position.y = minf(rect.position.y, zone.position.y - rect.size.y - _below_reserve() - 4.0)
 	rect.position = _snap(rect.position)
 	var changed := rect != _bubble_rect
 	if changed:
@@ -262,41 +265,76 @@ func _layout_bubble() -> void:
 	_place_more(0.0)
 
 
-## Splits every line into pages of LINES_PER_PAGE wrapped lines, once the label knows its width.
+## Packs complete spoken sentences into pages once the label knows its width.
 func _paginate() -> void:
 	await get_tree().process_frame
 	var width := text_label.size.x - 4.0
 	var font := text_label.get_theme_font("font")
 	var fs := text_label.get_theme_font_size("font_size")
 	var pages := []
+	var stops := RegEx.new()
+	stops.compile("[.!?]+[\"”’']*(?=\\s|$)")
 	for raw in lines:
-		var wrapped := []
+		if not bubble_mode:
+			var written := _wrapped(str(raw), font, fs, width)
+			for i in range(0, written.size(), LINES_PER_PAGE):
+				pages.append("\n".join(written.slice(i, i+LINES_PER_PAGE)))
+			continue
+		var page := ""
+		var paragraph_index := 0
 		for paragraph in str(raw).split("\n"):
-			var cur := ""
-			for word in paragraph.split(" ", false):
-				var trial := word if cur == "" else cur + " " + word
-				if cur != "" and font.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > width:
-					wrapped.append(cur)
-					cur = ""
-				# A long unbroken word must also respect the three-line page budget.
-				for letter in word:
-					trial = cur + letter
-					if cur != "" and font.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > width:
-						wrapped.append(cur)
-						cur = ""
-					cur += letter
-				cur += " "
-			wrapped.append(cur.strip_edges())
-		for i in range(0, wrapped.size(), LINES_PER_PAGE):
-			pages.append("\n".join(wrapped.slice(i, i + LINES_PER_PAGE)))
+			var sentences := []
+			var start := 0
+			for stop in stops.search_all(paragraph):
+				sentences.append(paragraph.substr(start, stop.get_end()-start).strip_edges())
+				start = stop.get_end()
+			if start < paragraph.length():
+				sentences.append(paragraph.substr(start).strip_edges())
+			var first := true
+			for sentence: String in sentences:
+				if sentence == "":
+					continue
+				var separator := "\n" if first and paragraph_index > 0 else " "
+				var trial := sentence if page == "" else page + separator + sentence
+				if _wrapped(trial, font, fs, width).size() > LINES_PER_PAGE and page != "":
+					pages.append("\n".join(_wrapped(page, font, fs, width)))
+					page = ""
+				page = sentence if page == "" else page + separator + sentence
+				first = false
+			paragraph_index += 1
+		if page != "":
+			var wrapped := _wrapped(page, font, fs, width)
+			# An unusually long single sentence stays intact, in a taller bubble.
+			pages.append("\n".join(wrapped))
 	lines = pages
+	# Wrapping is already measured above. A second wrap at a manually inserted break
+	# can add an empty line on a different text backend or fractional browser scale.
+	text_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_paged = true
 	_show_line()
+
+
+func _wrapped(text: String, font: Font, fs: int, width: float) -> Array:
+	var wrapped := []
+	for paragraph in text.split("\n"):
+		var current := ""
+		for word in paragraph.split(" ", false):
+			var trial := word if current == "" else current + " " + word
+			if current != "" and font.get_string_size(trial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > width:
+				wrapped.append(current)
+				current = ""
+			current = word if current == "" else current + " " + word
+		wrapped.append(current)
+	return wrapped
 
 
 ## Leaves room for the key legend / touch controls at the bottom of the screen.
 func _bottom_gap() -> float:
 	return UI.bottom_reserve() if is_instance_valid(UI) else 0.0
+
+
+func _below_reserve() -> float:
+	return 0.0
 
 
 func _place_more(bob: float) -> void:

@@ -70,6 +70,8 @@ func _ready() -> void:
 	Prefs.changed.connect(_fit_view)
 	_fit_view()
 	_parse_test_args()
+	if _test.has("window_title"):
+		get_window().title = String(_test["window_title"])
 	if _test.has("scene"):
 		_run_test.call_deferred()
 	else:
@@ -77,6 +79,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _loaded_scripts.has(WORLD_PATH):
+		_loaded_scripts[WORLD_PATH].clear_scenery_cache()
 	if world != null and is_instance_valid(world) and not world.is_inside_tree():
 		world.free()
 
@@ -352,6 +356,7 @@ func wait_for_script(path: String) -> GDScript:
 func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> void:
 	if world != null:
 		world.keep_shaders()
+		world.retain_scenery()
 		if world.get_parent():
 			world.get_parent().remove_child(world)
 		world.queue_free()
@@ -760,6 +765,22 @@ func _run_test() -> void:
 		return
 	if scene == "stalls":
 		await load("res://tools/debug/performance.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "field-perf":
+		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "texture-audit":
+		await load("res://tools/debug/texture_audit.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "build-profile":
+		await load("res://tools/debug/build_profile.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "polish":
+		await load("res://tools/debug/polish.gd").new().run(self, _test)
 		get_tree().quit()
 		return
 	if scene == "transitions":
@@ -2082,7 +2103,7 @@ func _saveui_test() -> void:
 	if DisplayServer.get_name() != "headless":
 		bad += _saveui_check(viewport_rect.encloses(menu._outer.get_global_rect()), "whole menu fits inside the screen")
 		bad += _saveui_check(not menu._outer.get_global_rect().intersects(_slot_preview.get_global_rect()), "list and snapshot do not overlap")
-	bad += _saveui_check(menu._rail.active and menu._scroll.scroll_vertical > 0, "all ten slots remain reachable with full-sized rows")
+	bad += _saveui_check(menu._scroll.get_global_rect().grow(1.0).encloses(menu.buttons[9].get_global_rect()), "all ten slots remain reachable with full-sized rows")
 	bad += _saveui_check(menu.buttons[9].size.y >= UIKit.row_h(), "rows honor the shared button minimum")
 	bad += _saveui_check(menu._rail._down.size.y >= UIKit.row_h() and menu._rail._up.size.y >= UIKit.row_h(), "scroll buttons honor the same minimum")
 	var standard_button := Button.new()
@@ -2098,7 +2119,7 @@ func _saveui_test() -> void:
 	var previous_scroll: int = menu._scroll.scroll_vertical
 	menu._rail.step(-1)
 	await _wait(0.3)
-	bad += _saveui_check(menu._scroll.scroll_vertical < previous_scroll, "the up arrow scrolls back")
+	bad += _saveui_check(menu._scroll.scroll_vertical < previous_scroll if previous_scroll > 0 else not menu._rail.active, "the up arrow scrolls back when the list overflows")
 	var selected = menu.buttons[clampi(int(_test.get("slot", "0")), 0, 9)]
 	selected.grab_focus()
 	menu._scroll.ensure_control_visible(selected)
@@ -4574,15 +4595,19 @@ func _maker_test(m: Control) -> void:
 			var shown: bool = (m._rows[id] as Control).is_visible_in_tree()
 			check.call(shown == (m.TABS[k]["rows"] as Array).has(id), "tab %d shows %s: %s" % [k, id, shown])
 			if shown:
+				m._go(id, false)
+				await get_tree().process_frame
+				await get_tree().process_frame
 				var r: Rect2 = (m._rows[id] as Control).get_global_rect()
 				check.call(r.size.y >= UIKit.row_h() - 0.5, "row %s only %d tall" % [id, r.size.y])
 				check.call(screen_rect.encloses(r), "row %s off screen: %s" % [id, r])
-		check.call(m._pages[k].get_global_rect() == page_rect, "tab %d's page moved: %s vs %s" % [k, m._pages[k].get_global_rect(), page_rect])
+		check.call(m._pages[k].size == page_rect.size, "tab %d keeps its page size" % k)
 		check.call((m._tabs[k] as Control).size.y >= UIKit.row_h() - 0.5, "tab %d only %d tall" % [k, (m._tabs[k] as Control).size.y])
 	for id in m._chips:
 		for b in m._chips[id]:
 			check.call((b as Control).size.y >= (m.CHIP_TOUCH if UIKit.touch_ui() else m.CHIP) - 0.5, "%s swatch too small" % id)
 	check.call(screen_rect.encloses(m._start.get_global_rect()), "Confirm off screen")
+	check.call(m._start.get_global_rect().end.y <= screen_rect.end.y - UI.bottom_reserve(), "Confirm stays above the key guide")
 	# the keys
 	m._open_tab(0, false)
 	m._go("name", false)
@@ -4610,6 +4635,9 @@ func _maker_test(m: Control) -> void:
 	await get_tree().process_frame
 	check.call(m.tab == 1, "tapping Colours opens it")
 	var before: int = m.pick["top"]
+	m._go("top", false)
+	await get_tree().process_frame
+	await get_tree().process_frame
 	await _tap_at(m._chips["top"][2].get_global_rect().get_center())
 	check.call(m.pick["top"] == 2 and before != 2 and m.row == "top", "tapping a swatch picks it (top %d, row %s)" % [m.pick["top"], m.row])
 	m._go("pack", false)

@@ -10,6 +10,7 @@ extends "res://scripts/ui/modal.gd"
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const Townfolk = preload("res://scripts/gfx/townfolk.gd")
+const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 
 ## ten names for each body, the first the one it starts with
 const NAMES := {
@@ -44,7 +45,7 @@ const STEPPED := ["name", "outfit", "hairdo"]
 const CHIP := 44.0
 const CHIP_TOUCH := 54.0
 ## the preview's size at least (Confirm goes under it)
-const PREVIEW := Vector2i(340, 464)
+const PREVIEW := Vector2i(300, 360)
 ## on a touch screen, how far up from the bottom Start and Pause reach: the creator stands clear above them
 const PAD_CLEAR := 72.0
 
@@ -79,6 +80,7 @@ var _still := 0.0
 var _shown := {}
 var _painted_buttons := {}
 var _swatch_styles := {}
+var _scroll: ScrollContainer
 
 
 func _init() -> void:
@@ -135,7 +137,17 @@ func _ready() -> void:
 	p.add_child(vb)
 	# both tabs' pages in one place, as big as the bigger of them, so nothing moves when the tab changes
 	var pages := Control.new()
-	vb.add_child(pages)
+	var page_row := HBoxContainer.new()
+	page_row.add_theme_constant_override("separation", 8)
+	vb.add_child(page_row)
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	page_row.add_child(_scroll)
+	_scroll.add_child(pages)
+	var rail := ScrollRail.new().setup(_scroll)
+	rail.reserve = true
+	page_row.add_child(rail)
 	var biggest := Vector2.ZERO
 	for t in TABS:
 		var page := VBoxContainer.new()
@@ -146,6 +158,7 @@ func _ready() -> void:
 		_pages.append(page)
 		biggest = biggest.max(page.get_combined_minimum_size())
 	pages.custom_minimum_size = biggest
+	_scroll.custom_minimum_size = Vector2(biggest.x, minf(biggest.y, 400.0 if tight else 380.0))
 	for page in _pages:
 		page.size = biggest
 	if not UI.is_touch():
@@ -161,11 +174,11 @@ func _ready() -> void:
 ## On a touch screen, Start and Pause sit under the middle of the screen: the creator moves up clear of them.
 func _clear_pad(hb: Control) -> void:
 	await get_tree().process_frame
-	if not UI.is_touch():
-		return
-	var over := hb.position.y + hb.size.y - (size.y - PAD_CLEAR)
+	var safe := UIKit.safe_rect(self)
+	var reserve := maxf(PAD_CLEAR, UI.bottom_reserve()) if UI.is_touch() else UI.bottom_reserve()
+	var over := hb.position.y + hb.size.y - (safe.end.y - reserve - 12.0)
 	if over > 0.0:
-		hb.position.y = maxf(8.0, hb.position.y - over)
+		hb.position.y = maxf(safe.position.y + 8.0, hb.position.y - over)
 
 
 ## The hero on a small stage, turning slowly (drag to turn them yourself).
@@ -241,7 +254,7 @@ func _row(id: String) -> Control:
 	var tall := UIKit.row_h() - 8.0
 	match id:
 		"name", "outfit", "hairdo":
-			var lt := _button("<", func() -> void: _change(id, -1), Vector2(64, tall))
+			var lt := _button("◄", func() -> void: _change(id, -1), Vector2(64, tall))
 			_arrows.append(lt)
 			hb.add_child(lt)
 			var nl := UIKit.label("", UIKit.BODY_HUGE, UIKit.LIGHT)
@@ -253,7 +266,7 @@ func _row(id: String) -> Control:
 			_stepped[id] = nl
 			if id == "name":
 				_name_label = nl
-			var rt := _button(">", func() -> void: _change(id, 1), Vector2(64, tall))
+			var rt := _button("►", func() -> void: _change(id, 1), Vector2(64, tall))
 			_arrows.append(rt)
 			hb.add_child(rt)
 		"body":
@@ -345,6 +358,7 @@ func _go(r: String, sound := true) -> void:
 	if sound:
 		Sfx.play("blip")
 	_show()
+	_scroll_to_row.call_deferred()
 
 
 ## Opens a tab (tapped, or left and right on the tab strip), keeping the tab strip chosen if it was.
@@ -358,6 +372,13 @@ func _open_tab(i: int, sound := true) -> void:
 	if row != "tab" and row != "start" and not (TABS[tab]["rows"] as Array).has(row):
 		row = "tab"
 	_show()
+	_scroll.scroll_vertical = 0
+	_scroll_to_row.call_deferred()
+
+
+func _scroll_to_row() -> void:
+	if _rows.has(row) and (TABS[tab]["rows"] as Array).has(row):
+		_scroll.ensure_control_visible(_rows[row])
 
 
 ## One step along a row (left or right).

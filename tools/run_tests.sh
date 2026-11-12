@@ -12,6 +12,8 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"polish|-- --scene=polish --prefs_path=res://build/polish/settings.cfg --save_dir=res://build/polish_saves/|POLISH DONE: 0 problem"
+	"polish-touch|--resolution 2400x1080 -- --scene=polish --touch --prefs_path=res://build/polish_touch/settings.cfg --save_dir=res://build/polish_touch_saves/|POLISH DONE: 0 problem"
 	"demo|-- --demo --scene=mechanic-lessons --part=dance --save_dir=res://build/demo_test_saves/|MECHANIC LESSONS DONE: 0 problem"
 	"demo-touch|--resolution 2400x1080 -- --demo --scene=mechanic-lessons --part=dance --touch --save_dir=res://build/demo_touch_test_saves/|MECHANIC LESSONS DONE: 0 problem"
 	"mechanic-lessons|-- --scene=mechanic-lessons --save_dir=res://build/mechanic_lesson_saves/|MECHANIC LESSONS DONE: 0 problem"

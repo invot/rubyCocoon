@@ -62,6 +62,7 @@ func run(main, opts: Dictionary) -> void:
 		UI.auto_answers = [-1]
 		var at: Vector2 = world.cam.unproject_position(world.tile_pos(phone) + Vector3(0, 1.2, 0))
 		check(world._pick(at).get("tile", Vector2i(-1, -1)) == phone, "raised phone tap bounds: " + key)
+		at *= Vector2(main.get_window().size) / Vector2(main.view.size)
 		for down in [true, false]:
 			var event := InputEventScreenTouch.new()
 			event.index = 0

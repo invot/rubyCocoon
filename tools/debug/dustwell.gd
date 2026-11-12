@@ -107,6 +107,7 @@ func _check(ok: bool, what: String) -> void:
 func _tap(main, tile: Vector2i) -> void:
 	await main._wait(0.6)
 	var at: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(tile) + Vector3(0, 0.8, 0))
+	at *= Vector2(main.get_window().size) / Vector2(main.view.size)
 	for down in [true, false]:
 		var event := InputEventScreenTouch.new()
 		event.index = 0

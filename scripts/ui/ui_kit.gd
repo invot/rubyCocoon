@@ -21,6 +21,7 @@ const DividerBox = preload("res://scripts/ui/divider_box.gd")
 const UI_DIR := "res://assets/ui/"
 const FONT_FILE := "res://ui/LeagueSpartan.ttf"
 const SYMBOL_FONT := preload("res://ui/NotoSansSymbols.ttf")
+const TRIANGLE_FONT := preload("res://ui/NotoSansSymbols2.ttf")
 ## Shared League Spartan weights; keep ordinary text light and headings semibold.
 const BODY_WEIGHT := 400
 const HEAD_WEIGHT := 600
@@ -141,9 +142,10 @@ static func set_accent(name: String) -> void:
 	accent_name = name
 	var g: Color = ACCENTS[name]
 	ACCENT = g
-	HEAD = g.lerp(Color.WHITE, 0.16)
-	GOLD = g.lerp(Color.WHITE, 0.25)
-	GOLD_BRIGHT = g.lerp(Color.WHITE, 0.45)
+	var text_gem := g.lerp(Color.WHITE, 0.55) if name == "hematite" else g
+	HEAD = text_gem.lerp(Color.WHITE, 0.16)
+	GOLD = text_gem.lerp(Color.WHITE, 0.25)
+	GOLD_BRIGHT = text_gem.lerp(Color.WHITE, 0.45)
 	ORANGE = g
 	BORDER = Color.WHITE
 	FrameBox.shade = Color.BLACK.lerp(g, SHADE_MIX)
@@ -234,10 +236,18 @@ static func _font(weight: int) -> Font:
 	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	f.hinting = TextServer.HINTING_LIGHT
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	f.fallbacks = [SYMBOL_FONT, ThemeDB.fallback_font]
+	# Symbol fonts contain very tall specialist glyphs. Label and row minimums use the
+	# maximum metrics of every fallback, even for plain Latin text. Match their layout
+	# metrics to Spartan while retaining the symbols' original outlines and baseline.
+	if _fonts.is_empty():
+		for symbols in [SYMBOL_FONT, TRIANGLE_FONT]:
+			for px in range(8, 97):
+				symbols.set_cache_ascent(0, px, f.get_ascent(px))
+				symbols.set_cache_descent(0, px, f.get_descent(px))
+	f.fallbacks = []
 	var fv := FontVariation.new()
 	fv.base_font = f
-	fv.fallbacks = [SYMBOL_FONT, ThemeDB.fallback_font]
+	fv.fallbacks = [TRIANGLE_FONT, SYMBOL_FONT]
 	fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
 	_fonts[weight] = fv
 	return fv

@@ -36,11 +36,18 @@ var _detail: Label
 var _sound_played := false
 var _ring_sound := false
 var _motes: Array[MeshInstance3D] = []
+const STAT_ORDER := ["hp", "mp", "atk", "def", "spr", "spd"]
+const STAT_LABELS := ["HP", "MP", "Attack", "Defense", "Spirit", "Speed"]
+var _stat_rows: Array[Label] = []
+var _stat_window: PanelContainer
 
 
 func _init() -> void:
 	super._init()
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	# This stage owns its title and reward information; field/battle notices sit
+	# behind the full-screen film instead of covering its heading.
+	z_index = 1
 
 
 func setup(mode: String, old_look: Dictionary, new_look := {}, shell := {}) -> Control:
@@ -48,7 +55,7 @@ func setup(mode: String, old_look: Dictionary, new_look := {}, shell := {}) -> C
 	before = old_look
 	after = new_look if not new_look.is_empty() else old_look
 	egg = shell
-	duration = 2.5 if kind == "level" else (7.0 if kind == "evolve" else 8.6)
+	duration = 4.2 if kind == "level" else (7.0 if kind == "evolve" else 8.6)
 	return self
 
 
@@ -127,18 +134,45 @@ func _ready() -> void:
 	title.add_child(_heading)
 	_detail = UIKit.label("", 32, UIKit.LIGHT)
 	_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_detail.add_theme_color_override("font_shadow_color", Color.BLACK)
-	_detail.add_theme_constant_override("shadow_offset_x", 2)
-	_detail.add_theme_constant_override("shadow_offset_y", 2)
-	add_child(_detail)
-	_detail.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_detail.offset_top = -192
-	_detail.offset_bottom = -132
+	var detail_window := UIKit.panel()
+	detail_window.add_child(_detail)
+	add_child(detail_window)
+	detail_window.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	detail_window.offset_left = 304
+	detail_window.offset_right = -304
+	detail_window.offset_top = -148
+	detail_window.offset_bottom = -96
+	if kind == "level":
+		_stat_window = UIKit.panel()
+		_stat_window.custom_minimum_size.x = 360
+		add_child(_stat_window)
+		var rows := VBoxContainer.new()
+		rows.add_theme_constant_override("separation", 4)
+		_stat_window.add_child(rows)
+		for i in STAT_ORDER.size():
+			var key: String = STAT_ORDER[i]
+			var old := int(before.get("stats", {}).get(key, before.get(key, 0)))
+			var current := int(after.get("stats", {}).get(key, after.get(key, old)))
+			var row := UIKit.label("%s   %d ► %d   (+%d)" % [STAT_LABELS[i], old, current, current-old], 32, UIKit.INK)
+			row.custom_minimum_size.y = 36
+			rows.add_child(row)
+			_stat_rows.append(row)
+		_place_stats.call_deferred()
+		get_viewport().size_changed.connect(_place_stats)
 	_white = ColorRect.new()
 	_white.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_white.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_white)
 	_update(0)
+
+
+func _place_stats() -> void:
+	if _stat_window == null:
+		return
+	var safe := UIKit.safe_rect(self).grow(-24)
+	var x := safe.end.x-_stat_window.size.x
+	var reserve: float = UI.controls.menu_bottom_reserve(x, safe.end.x) if UI.controls != null else 0.0
+	_stat_window.position = Vector2(x, maxf(safe.position.y+100.0, minf(safe.get_center().y-_stat_window.size.y/2.0, safe.end.y-reserve-_stat_window.size.y)))
 
 
 func _material(col: Color, rough := 0.75, metal := 0.0) -> StandardMaterial3D:
@@ -208,7 +242,9 @@ static func stage_beast(look: Dictionary) -> Node3D:
 func _process(delta: float) -> void:
 	if _vp == null:
 		return
-	_vp.size = Prefs.render_size(get_window().size)
+	var render_size := Prefs.render_size(get_window().size)
+	if _vp.size != render_size:
+		_vp.size = render_size
 	_screen.texture_filter = Prefs.render_filter(get_window().size)
 	if preview_time >= 0:
 		_update(preview_time)
@@ -251,6 +287,8 @@ func _update(t: float) -> void:
 		heading = "%s evolved!" % after.name if revealed else "%s is evolving..." % before.name
 	_heading.text = heading
 	_detail.text = ("HP %d  /  MP %d · Fully restored" % [after.hp, after.mp]) if revealed and not hatch else ("A new friend awakens" if revealed else ("" if level else "The shell stirs..." if t > 4.0 and hatch else ""))
+	for i in _stat_rows.size():
+		_stat_rows[i].modulate.a = 1.0 if t >= 0.65 + i*0.4 else 0.0
 	# Gentle dolly, generous framing at both 16:9 and 20:9; no aspect-dependent art stretching.
 	var zoom := smoothstep(0.0, duration, t)
 	# A hatch frames the egg and the core above it, then moves in on the beast while the screen is fully white.

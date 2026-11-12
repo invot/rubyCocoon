@@ -54,7 +54,7 @@ func run(root, opts: Dictionary) -> void:
 	UI.auto_log.clear()
 	await Places.beast_center("gravenmoor")
 	_check("Shadow Egg" in String(UI.auto_log[0]) and String(UI.auto_log[0]).begins_with("Nurse Clover:"), "Clover explains ghost eggs herself")
-	var lamps: Array[Node] = main.world.find_children("StreetLampLight*", "OmniLight3D", false, false)
+	var lamps: Array[Node] = main.world.find_children("StreetLampLight*", "OmniLight3D", true, false)
 	_check(lamps.size() == 4, "Gravenmoor's four lamps cast light")
 	for lamp in lamps:
 		_check(lamp.light_energy > 0 and not lamp.shadow_enabled, "lamplight stays on without extra shadow casters")

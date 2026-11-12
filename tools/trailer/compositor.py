@@ -62,7 +62,7 @@ class Reader:
         if not os.path.exists(path):
             raise SystemExit("missing clip: " + path)
         self.proc = subprocess.Popen(["ffmpeg", "-v", "error", "-ss", "%.4f" % max(src, 0.0), "-i", path, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
-                                     stdout=subprocess.PIPE, bufsize=W * H * 3 * 2)
+                                     stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=W * H * 3 * 2)
 
     def next(self):
         if self.proc is None:

@@ -171,6 +171,7 @@ func _huts(opts: Dictionary) -> void:
 			await main._wait(0.4)
 		if UI.is_touch():
 			var at: Vector2 = outside.cam.unproject_position(outside.tile_pos(b["door"]) + Vector3(0, 1.6, 0))
+			at *= Vector2(main.get_window().size) / Vector2(main.view.size)
 			# Screen-touch events enter in window pixels; Godot applies the viewport stretch once.
 			for down in [true, false]:
 				var event := InputEventScreenTouch.new()

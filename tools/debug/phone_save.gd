@@ -25,7 +25,9 @@ func answer(yes: bool) -> void:
 			await main.get_tree().process_frame
 	else:
 		await main._press("ui_accept" if yes else "ui_cancel")
-	await main._wait(0.4)
+	# Desktop reply feedback precedes the card; let its separate input guard
+	# settle before sending the next test press to that newly opened screen.
+	await main._wait(0.75)
 
 
 func shot(suffix: String) -> void:

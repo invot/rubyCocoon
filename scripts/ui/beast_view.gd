@@ -9,11 +9,14 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const VoxelPortrait = preload("res://scripts/ui/voxel_portrait.gd")
+const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 
 var beast
 var heading := ""
 var _sprite: TextureRect
 var _t := 0.0
+var _panel: PanelContainer
+var _scroll: ScrollContainer
 
 
 func setup(b, _heading := "") -> Control:
@@ -25,7 +28,8 @@ func setup(b, _heading := "") -> Control:
 
 func _ready() -> void:
 	var b = beast
-	var p := UIKit.panel(Vector2(980, 560))
+	var p := UIKit.panel()
+	_panel = p
 	add_child(p)
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 10)
@@ -37,7 +41,17 @@ func _ready() -> void:
 		root.add_child(h)
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 24)
-	root.add_child(hb)
+	var page := HBoxContainer.new()
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(page)
+	_scroll = ScrollContainer.new()
+	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	page.add_child(_scroll)
+	hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(hb)
+	page.add_child(ScrollRail.new().setup(_scroll))
 
 	# left: portrait
 	var left := VBoxContainer.new()
@@ -61,7 +75,7 @@ func _ready() -> void:
 	xpb.set_ratio(b.xp_progress(), true)
 	left.add_child(xpb)
 	if b.at_cap():
-		left.add_child(UIKit.label("Ready to merge!", 18, UIKit.ACCENT))
+		left.add_child(UIKit.label("Ready to merge!", 18, UIKit.HEAD))
 	var lin := UIKit.label("Lineage: " + b.lineage_text(), 15, UIKit.DIM)
 	lin.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lin.custom_minimum_size.x = 290
@@ -94,13 +108,13 @@ func _ready() -> void:
 		grid.add_child(sbar)
 	right.add_child(HSeparator.new())
 	for ps in b.passives:
-		var pl := UIKit.label("%s — %s" % [ps, RaceDB.PASSIVE_DESC.get(ps, "")], 16, UIKit.ACCENT)
+		var pl := UIKit.label("%s — %s" % [ps, RaceDB.PASSIVE_DESC.get(ps, "")], 16, UIKit.HEAD)
 		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		right.add_child(pl)
 	var eq := "Gear: " + (ItemDB.item_name(b.equip) if b.equip != "" else "(none)")
 	right.add_child(UIKit.label(eq, 16, UIKit.DIM))
 	right.add_child(HSeparator.new())
-	right.add_child(UIKit.header("Skills", UIKit.ACCENT, UIKit.HEAD_SMALL))
+	right.add_child(UIKit.header("Skills", UIKit.HEAD, UIKit.HEAD_SMALL))
 	for mv in b.battle_moves():
 		var m := MoveDB.get_move(mv)
 		var row := HBoxContainer.new()
@@ -109,15 +123,37 @@ func _ready() -> void:
 		ml.custom_minimum_size.x = 170
 		row.add_child(ml)
 		var dl := UIKit.label(_short(mv), 15, UIKit.DIM)
+		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		dl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(dl)
 		right.add_child(row)
 	var extra: int = b.known.size() - b.moves.size()
 	if extra > 0:
 		right.add_child(UIKit.label("(+%d more moves remembered)" % extra, 15, UIKit.DIM))
-	var hint := UIKit.label("A / S close", 15, UIKit.DIM)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	root.add_child(hint)
-	UIKit.place(p, "center")
+	var done := Button.new()
+	done.text = "A / B: Close"
+	done.custom_minimum_size.y = UIKit.row_h()
+	UIKit.plate_button(done)
+	done.pressed.connect(func(): close())
+	root.add_child(done)
+	get_viewport().size_changed.connect(_layout)
+	UI.controls.layout_changed.connect(_layout)
+	_layout()
+
+
+func _layout() -> void:
+	var safe := UIKit.safe_rect(self).grow(-24.0)
+	if UI.top_bar != null and UI.top_bar.visible:
+		var top := maxf(safe.position.y, UI.top_bar.get_global_rect().end.y + 12.0)
+		safe.size.y -= top - safe.position.y
+		safe.position.y = top
+	var w := minf(1060.0, safe.size.x)
+	var x := safe.get_center().x - w/2.0
+	# The close action spans the free centre, above Start/Pause. Side pads may
+	# overlap the frame, rather than reducing the whole detail pane to half a page.
+	var bottom: float = UI.bottom_reserve()
+	_panel.position = Vector2(x, safe.position.y)
+	_panel.size = Vector2(w, safe.size.y-bottom)
 
 
 func _short(mv: String) -> String:
@@ -137,11 +173,14 @@ func _process(delta: float) -> void:
 func on_input(ev: InputEvent) -> void:
 	if ev.is_echo():
 		return
+	if ev.is_action_pressed("ui_down") or ev.is_action_pressed("ui_up"):
+		_scroll.scroll_vertical += int(UIKit.row_h()) * (1 if ev.is_action_pressed("ui_down") else -1)
+		return
 	if ev.is_action_pressed("ui_accept") or ev.is_action_pressed("ui_cancel") or ev.is_action_pressed("interact"):
 		Sfx.play("back")
 		close()
 
 
 func _gui_input(ev: InputEvent) -> void:
-	if ev is InputEventMouseButton and ev.pressed:
+	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT and not _panel.get_global_rect().has_point(ev.position):
 		close()

@@ -2,7 +2,7 @@ extends "res://scripts/ui/modal.gd"
 ## The Start menu: one large window with a strip of tabs across the top and two panes, a list on the left and the
 ## chosen row's details on the right (the menus of the early PS2 RPGs), in the game's one dark style (UIKit).
 ## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
-## Controls: ←/→ switch tabs (on the ring row, turn the starting side), ↑/↓ choose, A to act,
+## Controls: ◄/► switch tabs (on the ring row, turn the starting side), ▲/▼ choose, A to act,
 ## S (back) returns to the tabs / closes, Start closes.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -523,7 +523,7 @@ func _press() -> String:
 
 
 func _adjust_hint() -> String:
-	return "Tap to change it" if UI.is_touch() else "Use ←/→ to adjust"
+	return "Tap to change it" if UI.is_touch() else "Use ◄/► to adjust"
 
 
 func _h(text: String, color := UIKit.INK, size := UIKit.HEAD_SIZE) -> Label:
@@ -1002,7 +1002,7 @@ func _race_detail(c: VBoxContainer, i: int) -> void:
 	for st in 3:
 		var nm := RaceDB.race_name(k + st) if GameState.seen.has(str(k + st)) else "?"
 		forms.append(("[%s]" % nm if k + st == i else nm) + ("" if st == 0 else " (Lv %d)" % RaceDB.EVOLVE[st - 1]))
-	c.add_child(_t_label("Grows: " + " → ".join(forms), UIKit.DIM))
+	c.add_child(_t_label("Grows: " + " ► ".join(forms), UIKit.DIM))
 	var where := []
 	for rid in WorldDB.ROUTES:
 		if WorldDB.route_forms(rid).has(i):
@@ -1169,9 +1169,8 @@ func _tab_settings() -> void:
 
 
 func _controls_help(c: VBoxContainer, what: String) -> void:
-	c.add_child(_t_label(what, UIKit.ACCENT))
+	c.add_child(_t_label(what, UIKit.HEAD))
 	var guide = load("res://scripts/ui/input_guide.gd").new()
-	guide.input_mode = Prefs.effective_input()
 	c.add_child(guide)
 
 

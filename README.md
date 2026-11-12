@@ -292,7 +292,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   you own the right weapon and where to get a missing one. They greet you at the firing spot, can also be spoken to
   directly, and leave once you solve it; solved guides are not loaded again. These fixtures are optional road
   detours, never required story gates.
-  Early Coastal Path rewards need the later boomerang or bat, so there is a reason to come back.
+  Weapon fixtures begin after the Coastal Path; the first road focuses on its battle teachers and footbridge.
   Solves and collected chests have separate permanent flags, retained by ordinary phone saves.
 
 - **Fishing** (`scripts/world/fishing.gd`, `scripts/ui/fishing_game.gd`). Fisher Gil fishes off the deck of his rusty
@@ -325,7 +325,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   **Lv 40** (`RaceDB.EVOLVE`, `Beast.evolve`): bigger, stronger, with the new form's name (unless it has a name of its
   own). It keeps its moves, and a line learns the same moves at every form. Wild and trainers' beasts are whatever form
   their level gives. Battle XP is applied after the fighting ends. Each beast gets a short level-up celebration
-  and a longer before-and-after evolution reveal, one beast at a time. Every level-up and evolution fully restores HP and MP.
+  and a longer before-and-after evolution reveal, one beast at a time. The level film reveals HP, MP, Attack, Defense,
+  Spirit and Speed one line at a time, with the actual previous value, new value and gain. Every level-up and evolution fully restores HP and MP.
 - **Element roles**: Fire are offensive tanks, Water are healers, Earth are defenders, and Air handle status and evasion.
 - **Eggs**:
   - A defeated wild beast has a **20%** chance to leave an egg at the end of the battle.
@@ -532,7 +533,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
   <img src="docs/screenshots/bedroom.jpg" width="640" alt="Upstairs at home: your bedroom, where you wake up. The blue door leads out to the landing."><br><sub>Upstairs at home: your bedroom, where you wake up. The blue door leads out to the landing.</sub>
 
-- **Doors**: blue doors open; red doors answer a knock. The same paint applies to every town's exteriors and indoor wooden doors. About a third of houses are locked, and so is Gravenmoor Cathedral until its Legion guard is beaten. Their crimson doors retain iron straps and a brass padlock. Each red exterior door has its own permanent, silly reply, tied to the building's saved identity; indoor red doors have replies about their rooms. Puzzle stone doors retain their inscriptions and unlock rules.
+- **Doors**: blue doors open; red doors are locked. The same paint applies to exteriors and indoor wooden doors, including scenery homes with no enterable room. About a third of houses are locked, and so is Gravenmoor Cathedral until its Legion guard is beaten. Each interactive red exterior door has its permanent reply, tied to its saved identity; ordinary indoor red doors give a locked-door observation in the dark window, without inventing someone behind them. Puzzle stone doors retain their inscriptions and unlock rules. Home is red with a blue door; its phone stands against the staircase wall. Cocoon Cove's docks have no lightposts, and the waterfront paving keeps a grass verge beside the cliff.
 
 ## Art
 
@@ -911,6 +912,10 @@ mounted owl and its rider.
   linework stays sharp. The blur is one shared screen-reading shader (`scripts/ui/blur.gdshader`) that reads the
   screen copy's mipmaps, so it runs on the Mobile and the web's Compatibility renderer; `UIKit.set_blur(false)` falls
   back to a plain box at 80%.
+  Interface text belongs inside a visible button or HUD window: no floating action labels. Desktop spoken Yes/No
+  prompts use two small white reply bubbles below the speaker. Selecting one highlights it, hides the other,
+  and holds the answer briefly before closing; A and B still answer directly. Touch uses the widened labelled A/B
+  controls. The beast summary and creator use bounded panes with scrolling instead of extending beyond the viewport.
   - Selected or focused: a white frame with corner marks round the row. Primary or pressed: solid white with dark
     text. Disabled: dim text, no frame. Item slots: square bordered tiles with the count beneath, the selected one
     filled with the gem.
@@ -938,8 +943,9 @@ mounted owl and its rider.
       opposing side and on the right for yours, and the empty slot keeps its space so the text doesn't jump. Notices
       posted during a battle wait for it to end.
   - **Speech bubbles** (`dialog_box.gd`) are the one bright exception: rectangular white paper with gently rounded
-    corners, subtle shading, a soft shadow and a seamless pointer. Dark body text stays top-aligned, at most three
-    lines per page, with the existing advance arrow and typewriter reveal; short pages use a shorter bubble. The
+    corners, subtle shading, a soft shadow and a seamless pointer. Dark body text stays top-aligned, normally three
+    lines per page, with the existing advance triangle and typewriter reveal; short pages use a shorter bubble. Pages
+    keep complete sentences together; a single unusually long sentence gets a taller bubble. The
     speaker's name sits in white on a small top-left plate filled with the selected gem, using the shared heading
     font. World conversations pass the actual NPC to
     `UI.say(lines, name, portrait, speaker_node)` or `UI.ask(question, name, yes, no, speaker_node)`.
@@ -954,11 +960,11 @@ mounted owl and its rider.
     Someone speaking through a closed door gets a white bubble anchored to that door: above its top when there is
     room, or below its bottom near the top edge of the screen. The entire bubble and name plate stay in the safe
     area and clear of touch controls. This applies to locked outdoor doors and indoor room/staff doors.
-    Cinematics retain their own dark dialogue presentation.
+    Cinematic spoken lines use the same speaker bubbles and fit a complete sentence on each automatic page.
 
   <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts**: **League Spartan** (`ui/LeagueSpartan.ttf`, a clean sans with accents) for interface text and painted shop/town signs. Names and headings use **Semibold (600)** (`UIKit.font_head`); body text, menu actions, values, dialogue and damage numbers use **Regular (400)** (`UIKit.font_body`). The intro/title's 3D logo keeps its original **Lunchtime Doubly So** font (`ui/lunchds.ttf`). Missing symbols use bundled Noto Sans Symbols, then Godot's fallback font. Settings values use the same 32 UI units as their action labels, with room reserved for the full value. Use `UIKit.body_px` / `head_px`; never shrink text to fit. The desktop window opens at 1920x1080 for the same 1.5x scale as phones. Dialogue stays top-aligned, three lines per page.
+- **Fonts**: **League Spartan** (`ui/LeagueSpartan.ttf`, a clean sans with accents) for interface text and painted shop/town signs. Names and headings use **Semibold (600)** (`UIKit.font_head`); body text, menu actions, values, dialogue and damage numbers use **Regular (400)** (`UIKit.font_body`). The intro/title's 3D logo keeps its original **Lunchtime Doubly So** font (`ui/lunchds.ttf`). Missing symbols use bundled Noto Sans Symbols 2 and Noto Sans Symbols, with line metrics matched to Spartan. Direction keys use ▲ ▼ ◄ ►. Settings values use the same 32 UI units as their action labels, with room reserved for the full value. Use `UIKit.body_px` / `head_px`; never shrink text to fit. The desktop window opens at 1920x1080 for the same 1.5x scale as phones. Dialogue stays top-aligned and normally uses three lines per page; sentences stay whole, with a taller bubble for an unusually long single sentence.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
   direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
@@ -1060,6 +1066,9 @@ mounted owl and its rider.
   invisible and stop processing. Stationary cameras reuse visibility results. Street-prop placement proves local
   connectivity where possible, retaining the full-map check for chokepoints. House geometry measurements are baked
   by `tools/bake_house_measurements.gd` after house imports; `-- --verify` checks them against the source meshes.
+  The most recent outdoor scenery set also survives a room trip, avoiding repeated scenery construction and GPU
+  uploads. Actors and interactions rebuild from current state; a changed layout or door lock invalidates the set.
+  Only one detached outdoor set is retained. Item pickups replace arrival notices immediately, with short Bag hints.
 - **Repeated work**: beast animation measurements are shared by recipe, with a bounded cache. The creator updates
   changed choices and reuses its swatch styles. Battle ring glyphs and encounter sweeps are baked by
   `tools/bake_battle_art.gd` (`-- --verify` checks exact image/audio data), so the first encounter does not paint or
@@ -1382,6 +1391,11 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `performance`: cold/repeated creator and beast timings, map loading frame gaps, a bounded building cache, and
   cached animation measurements. `--scene=stalls --report=res://build/performance.json` writes the timing report;
   optionally pass `--baseline=res://build/performance/baseline.json` to compare collision-grid hashes.
+- `polish` / `polish-touch`: glyph coverage and font metrics, home/door/dock rules, colored lamps, machine speech,
+  reply feedback, bounded beast information, sequential level stats and immediate item notices. Windowed
+  `--scene=polish --shots=res://build/shots/polish --shot_w=0` captures these states using isolated test data.
+- `--scene=field-perf --report=res://build/field_frames.json` samples desktop frame intervals, script CPU and GPU
+  times on a repeatable camera path behind buildings. Run with the same renderer and settings before and after.
 - `transitions`: walks a route of towns, roads and rooms through the real transition, timing how long each stays black
   and failing if a loading message appears. `--scene=transitions --report=res://build/transitions.json` writes the
   timings; run it in a window for VSync-capped figures.
@@ -1609,8 +1623,9 @@ plays the opening film without the controls' hints, `--shot=world` runs the hero
 cranes down onto them, and `--shot=battle` plays a battle by itself on a chosen map with a chosen party and foes.
 The cut, its title cards and its sound are listed in `make_trailer.py` `build_cut()`; its shots land on the bar lines
 of the coast theme and, for the finale, the boss theme. Every frame carries a pre-release footage notice along the
-bottom. The music is Kevin MacLeod's ("Adventures in Adventureland", "Ether Vox" and "Rising Tide (faster)", CC BY
-4.0, see `CREDITS.md`): credit him wherever the trailer is posted.
+bottom. The music is the game's own: "Adventures in Adventureland", "Ether Vox" and "Rising Tide (faster)", listed in
+`CREDITS.md` as Kevin MacLeod's under CC BY 4.0 (each still to be confirmed there). Credit him wherever the trailer
+is posted.
 
 ## Credits
 

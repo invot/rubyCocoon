@@ -11,6 +11,11 @@ uniform vec4 colors[8];
 
 void fragment() {
 	float inside = texture(TEXTURE, UV).a;
+	// Interior pixels cannot contribute to the exterior line. Avoid another 32
+	// texture reads there, especially when a large beast fills the chooser's view.
+	if (inside >= 0.65) {
+		discard;
+	}
 	vec2 reach = TEXTURE_PIXEL_SIZE * width;
 	float near = 0.0;
 	for (int i = 0; i < 16; i++) {

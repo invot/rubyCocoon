@@ -84,6 +84,14 @@ func run(root, opts: Dictionary) -> void:
 		await main._wait(0.06)
 	_check(UI.stack.is_empty(), "mouse/tap, gamepad and keyboard each advance exactly one page")
 	_check(main.world.player_pos == player_tile, "dialogue input never moves the hero")
+	var advice := "The gate's open. Along the Coastal Path, the trainers will each teach you a bit of battling. Everyone who passes gets a lesson. Rules are rules. "
+	UI.say([advice.repeat(3)], "Scout Bram", null, node)
+	await main._wait(0.1)
+	dialog = UI.stack.back()
+	for page: String in dialog.lines:
+		_check(page.ends_with("."), "speech pages finish a complete sentence")
+	_check(" ".join(dialog.lines).replace("\n", " ") == advice.repeat(3).strip_edges(), "sentence pagination preserves every word")
+	dialog.close()
 	UI.say(["Reveal this sentence, then advance on a separate press."], "Elder Rowan", null, node)
 	await main._wait(0.1)
 	dialog = UI.stack.back()
@@ -167,7 +175,9 @@ func run(root, opts: Dictionary) -> void:
 			await _touch(UI.controls.button_rect("a" if accepted else "b").get_center())
 		else:
 			await main._press("ui_accept" if accepted else "ui_cancel")
-		await main._wait(0.1)
+			_check(dialog._answering and dialog._buttons[int(not accepted)].modulate.a == 1.0 and dialog._buttons[int(accepted)].modulate.a == 0.0, "chosen reply highlights once and hides the other bubble")
+			await _shot(opts, "answer_yes" if accepted else "answer_no")
+		await main._wait(0.45)
 		_check(answer == (1 if accepted else 0) and UI.stack.is_empty(), "one direct A/B press answers exactly once")
 	await main._wait(0.3)
 	if UI.is_touch():

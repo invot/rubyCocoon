@@ -492,6 +492,8 @@ func _asset(key: String, pos: Vector3, height: float, yaw := 0.0) -> MeshInstanc
 ## front faces +z at zero).
 func _piece(name: String, pos: Vector3, height: float, yaw := 0.0) -> MeshInstance3D:
 	var mesh := RoomBuilder.piece(name)
+	if name in ["el_lamp", "table_lamp", "floor_lamp"]:
+		mesh = RoomBuilder.lamp_mesh(name, absi(hash(str(pos))) % 5)
 	var node := MeshInstance3D.new()
 	if mesh == null:
 		return node

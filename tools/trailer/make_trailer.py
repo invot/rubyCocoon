@@ -42,7 +42,7 @@ def a(bar, beat=1.0):
 # the coast theme's own hit, where the story turns and the music stops
 HIT = a(34, 3)
 # the finale's first bar
-T_C = HIT + 12.85
+T_C = HIT + 12.1
 
 
 def b(bar, beat=1.0):
@@ -51,6 +51,11 @@ def b(bar, beat=1.0):
 
 CHORD = b(9)
 END = CHORD + 7.2
+
+
+# where the tower scene is picked up: Gearhart on his way to the steel door, his line already in its bubble (the fade
+# in starts a moment earlier, and must not reach back past the film's own cut at 24.17)
+DOOR_FROM = 24.55
 
 
 def build_cut():
@@ -74,7 +79,7 @@ def build_cut():
         Shot("b_first", 7.22, a(18), fx="punch", audio=0.6, note="Embit's Ember"),
         Shot("b_trio", 14.20, a(19), audio=0.6, note="a cast"),
         Shot("b_trio", 16.82, a(20), fx="flash", audio=0.6, note="extra effective"),
-        Shot("b_arena", 2.7, a(21), fx="punch", audio=0.6, note="the arena: Tide Captain Marina"),
+        Shot("b_arena", 3.05, a(21), fx="punch", audio=0.6, note="the arena: Tide Captain Marina"),
         Shot("b_first", 11.88, a(22), audio=0.6, note="the last hit: a puff of smoke"),
         # ---- grow
         Shot("evolve_dino", evolve_white - (a(24) - a(23)), a(23), ("fade", 0.4), audio=0.7, note="GROW: Embit becomes Cinderex"),
@@ -83,32 +88,32 @@ def build_cut():
         Shot("merge_b", 5.62, a(28, 3), ("bloom", 0.5), audio=0.45, note="a second merge"),
         Shot("merge_c", 5.62, a(29, 3), ("bloom", 0.5), audio=0.45, note="a third"),
         Shot("b_arena", 19.5, a(30, 3), ("fade", 0.35), audio=0.55, note="the grown team"),
-        Shot("b_summon_water", 15.0, a(31, 2), audio=0.55, note="a water team"),
-        # ---- the joke, and the turn
-        Shot("intro", 80.45 - (HIT - a(32)), a(32), ("fade", 0.4), zoom=(1.0, 1.07, 0.5, 0.42), audio=0.5, note="hero: some gloomy weirdo"),
+        # ---- the joke, and the turn: the film's last lines, cut off by the music's own hit
+        Shot("intro", 80.45 - (HIT - a(31, 2)), a(31, 2), ("fade", 0.4), zoom=(1.0, 1.07, 0.5, 0.42), audio=0.5, note="hero: a whole season of adventure"),
         Shot("black", 0.0, HIT, audio=0.0, note="the music stops"),
-        Shot("intro", 23.75, HIT + 0.45, ("fade", 0.7), audio=1.0, note="Gearhart at the steel door, then the cages"),
-        Shot("intro", 37.55, HIT + 0.45 + (33.45 - 23.75), audio=0.8, note="the warehouse"),
+        Shot("intro", DOOR_FROM, HIT + 0.45, ("fade", 0.7), audio=1.0, note="Gearhart at the steel door, then the cages"),
+        Shot("intro", 37.55, HIT + 0.45 + (33.45 - DOOR_FROM), audio=0.8, note="the warehouse"),
         # ---- the finale
         Shot("w_cogsworth", 2.25, b(1), fx="flash", audio=0.3, note="Cogsworth"),
-        Shot("b_robots", 2.35, b(2), fx="punch", audio=0.55, note="Gearhart's robots"),
+        Shot("b_robots", 2.9, b(2), fx="punch", audio=0.55, note="Gearhart's robots"),
         Shot("b_robots", 7.30, b(2, 3), audio=0.55, note="a robot's turn"),
         Shot("b_robots", 16.03, b(3), fx="flash", audio=0.55, note="Pyrosaur's Heat Wave"),
         Shot("w_gravenmoor", 2.25, b(4), audio=0.3, note="Gravenmoor"),
-        Shot("b_ghost", 8.75, b(5), fx="punch", audio=0.55, note="ghost beasts"),
-        Shot("b_ghost", 16.65, b(5, 3), audio=0.55, note="Overheat"),
-        Shot("b_summon_fire", 15.5, b(6, 3), fx="flash", audio=0.7, note="Pyroclast answers your song"),
+        Shot("b_ghost", 8.95, b(5), fx="punch", audio=0.55, note="ghost beasts"),
+        Shot("b_ghost", 16.65, b(5, 3) - 0.02, audio=0.55, note="Overheat"),
+        Shot("b_summon_fire", 15.1, b(6, 3), fx="flash", audio=0.7, note="Pyroclast answers your song"),
         # ---- the title, on the last chord
         Shot("title", 0.0, CHORD, ("bloom", 0.6), zoom=(1.0, 1.04, 0.5, 0.0), hold=4.15, audio=0.0, note="Ruby Cocoon"),
     ]
     for i, s in enumerate(shots):
         s.end = shots[i + 1].at if i + 1 < len(shots) else END
+    warehouse = next(s for s in shots if s.note == "the warehouse")
     cards = [
         Plate(a(12) + 0.03, 1.72, "HATCH", "your first beast"),
         Plate(a(17), 1.72, "BATTLE", "on the elemental ring"),
         Plate(a(23), 1.62, "GROW", "through three forms"),
         Plate(a(25) + 0.05, 1.70, "MERGE", "two beasts into one"),
-        ColdCard(shots[24].at + 0.15, 2.6, ["TRAINERS", "ARE", "VANISHING."], dim=0.74),
+        ColdCard(warehouse.at + 0.15, 2.6, ["TRAINERS", "ARE", "VANISHING."], dim=0.74),
         Slam(b(1) + 0.10, 1.70, "FIND THEM."),
         Slam(b(4) + 0.10, 1.75, "STOP THE UMBRAL LEGION."),
         Tagline(CHORD + 2.5, ["HATCH", "BATTLE", "MERGE"]),
@@ -237,7 +242,7 @@ def build_audio(shots, sounds, path):
     for t, file, gain in sounds:
         place(master, load_audio(file), t, gain)
     # keep peaks in hand without flattening the mix: untouched below the knee, rounded off above it
-    knee, top = 0.62, 0.95
+    knee, top = 0.6, 0.88
     mag = np.abs(master)
     over = mag > knee
     master[over] = np.sign(master[over]) * (knee + (top - knee) * np.tanh((mag[over] - knee) / (top - knee)))
@@ -279,7 +284,8 @@ def sheet(shots, cards, disclaimer):
     font = ImageFont.truetype("C:/Windows/Fonts/consolab.ttf", 15)
     marks = [((s.at + min(s.end, s.at + 6.0)) / 2.0, s.note) for s in shots if s.clip != "black"]
     marks += [(c.at + min(1.2, getattr(c, "dur", 3.0) * 0.7), "card") for c in cards]
-    marks += [(shots[23].at + 2.4, "the door"), (shots[23].at + 6.3, "the cages"), (CHORD + 1.5, "title: the dragon"), (END - 2.0, "title: the tagline")]
+    door = next(s for s in shots if s.note.startswith("Gearhart at"))
+    marks += [(door.at + 2.4, "the door"), (door.at + 6.3, "the cages"), (CHORD + 1.5, "title: the dragon"), (END - 2.0, "title: the tagline")]
     marks.sort()
     tw, th, cols = 480, 270, 5
     os.makedirs(os.path.join(OUT, "sheets"), exist_ok=True)

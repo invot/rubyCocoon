@@ -311,10 +311,10 @@ func pickup(id: String, count := 1, sound := "item") -> void:
 	var sub := ""
 	match String(ItemDB.get_item(id).get("kind", "")):
 		"tgear":
-			sub = "Put it on from your Bag in the Start book."
+			sub = "Equip: Start ► Bag"
 		"gear":
-			sub = "Give it to a beast from your Bag in the Start book."
-	top_bar.post(name, Glyphs.item(id), {"key": "item:" + id, "count": count, "sub": sub})
+			sub = "Give: Start ► Bag"
+	top_bar.post(name, Glyphs.item(id), {"key": "item:" + id, "count": count, "sub": sub, "priority": true})
 
 
 ## Gold received: "+120 gold" by a coin (amounts close together add up).

@@ -51,6 +51,7 @@ func run(main, opts: Dictionary) -> void:
 	await main._go("shellhaven", Vector2i(14, 16))
 	await main._wait(0.8)
 	var at: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(Vector2i(14, 15)) + Vector3(0, 0.02, 0))
+	at *= Vector2(main.get_window().size) / Vector2(main.view.size)
 	for down in [true, false]:
 		var event := InputEventScreenTouch.new()
 		event.index = 0
@@ -94,6 +95,7 @@ func shore(main, opts: Dictionary) -> void:
 	check(main.world.player_pos == Vector2i(43, 23), "running cannot cross the shallow-water limit")
 	# Tap the adjacent shallow tile through the actual window's input pipeline.
 	var at: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(Vector2i(44, 23)) + Vector3(0, 0.02, 0))
+	at *= Vector2(main.get_window().size) / Vector2(main.view.size)
 	for down in [true, false]:
 		var ev := InputEventScreenTouch.new()
 		ev.index = 0

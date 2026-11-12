@@ -122,6 +122,14 @@ const HIDDEN_BUILDING_CACHE := 8
 var _building_tick := 0
 var _building_camera := Transform3D()
 var _building_view_size := Vector2.ZERO
+## Keep the last outdoor set when entering a room. Actors, items, puzzles and their
+## world references are rebuilt; only the expensive, unchanged scenery is retained.
+const SCENERY_CACHE_LIMIT := 1
+const SCENERY_FIELDS := ["map", "ground_h", "_lifts", "house_cover", "water_mats", "terrain_mats", "building_fades", "spinners", "bobbers"]
+static var _scenery_cache := {}
+var _scenery_root: Node3D
+var _scenery_key := ""
+var _scenery_state := {}
 
 
 func build(id: String, cooperative := false) -> void:
@@ -146,22 +154,29 @@ func build(id: String, cooperative := false) -> void:
 		_build_room()
 		refresh_kennel()
 	else:
-		_build_environment()
-		await _build_terrain()
-		await _build_checkpoint()
-		await _plan_round_huts()
-		await _plan_houses()
-		await _build_checkpoint()
-		await _build_scatter()
-		await _build_checkpoint()
-		await _build_backdrop()
-		await _build_checkpoint()
-		_build_buildings()
-		if map["kind"] == "town":
-			await _build_street_props()
-		await _build_checkpoint()
-		_build_statue()
-		_build_payphone()
+		# Fingerprint the fresh story-adjusted layout and door paint. Unrelated
+		# inventory/phone flags must not throw away an otherwise unchanged town.
+		for b in map["buildings"]:
+			b["locked"] = Places.door_locked(b)
+		_scenery_key = map_id + ":" + str(hash(map))
+		if not _restore_scenery():
+			_build_environment()
+			await _build_terrain()
+			await _build_checkpoint()
+			await _plan_round_huts()
+			await _plan_houses()
+			await _build_checkpoint()
+			await _build_scatter()
+			await _build_checkpoint()
+			await _build_backdrop()
+			await _build_checkpoint()
+			_build_buildings()
+			if map["kind"] == "town":
+				await _build_street_props()
+			await _build_checkpoint()
+			_build_statue()
+			_build_payphone()
+			_capture_scenery()
 		_build_obstacles()
 		weapon_obstacles = WeaponObstacles.new()
 		add_child(weapon_obstacles)
@@ -180,6 +195,62 @@ func build(id: String, cooperative := false) -> void:
 	if not cooperative:
 		_spawn_wilds.call_deferred()
 		set_process(true)
+
+
+func _capture_scenery() -> void:
+	_scenery_root = Node3D.new()
+	_scenery_root.name = "Scenery"
+	var children := get_children()
+	add_child(_scenery_root)
+	for child in children:
+		child.reparent(_scenery_root)
+	# The live map is subsequently mutated by NPCs, pickups and puzzles. Save the
+	# static construction result now, without any actor nodes or interaction state.
+	_scenery_state["map"] = map.duplicate(true)
+
+
+func _restore_scenery() -> bool:
+	if not _scenery_cache.has(_scenery_key):
+		return false
+	var state: Dictionary = _scenery_cache[_scenery_key]
+	_scenery_cache.erase(_scenery_key)
+	_scenery_root = state["root"]
+	_scenery_state["map"] = state["map"]
+	for field in SCENERY_FIELDS:
+		set(field, state[field].duplicate(true) if field == "map" else state[field])
+	add_child(_scenery_root)
+	_scenery_root.process_mode = Node.PROCESS_MODE_INHERIT
+	for f in building_fades:
+		f.erase("base_visible")
+	for b in map["buildings"]:
+		if b["shop"] != "decor":
+			doors[b["door"]] = b
+	return true
+
+
+## Called before this world is freed. Detached sets cannot process or retain an old World.
+func retain_scenery() -> void:
+	if not is_instance_valid(_scenery_root):
+		return
+	var state := {"root": _scenery_root}
+	for field in SCENERY_FIELDS:
+		state[field] = _scenery_state["map"] if field == "map" else get(field)
+	state["spinners"] = spinners.filter(func(n): return is_instance_valid(n) and _scenery_root.is_ancestor_of(n))
+	state["bobbers"] = bobbers.filter(func(b): return is_instance_valid(b[0]) and _scenery_root.is_ancestor_of(b[0]))
+	remove_child(_scenery_root)
+	_scenery_root.process_mode = Node.PROCESS_MODE_DISABLED
+	_scenery_cache[_scenery_key] = state
+	_scenery_root = null
+	while _scenery_cache.size() > SCENERY_CACHE_LIMIT:
+		var oldest: String = _scenery_cache.keys()[0]
+		(_scenery_cache[oldest]["root"] as Node3D).free()
+		_scenery_cache.erase(oldest)
+
+
+static func clear_scenery_cache() -> void:
+	for state in _scenery_cache.values():
+		(state["root"] as Node3D).free()
+	_scenery_cache.clear()
 
 
 ## Share the main thread with rendering and UI on single-threaded web exports too.
@@ -1672,6 +1743,8 @@ func _plan_houses() -> void:
 	# Authored scenery uses the same fitted houses, with solid woodland footprints and no interactive doors.
 	for entry in map.get("scenery_houses", []):
 		var b: Dictionary = entry.duplicate()
+		# These houses have no interior. Their door paint must never promise an entrance.
+		b["locked"] = true
 		b["door"] = Vector2i(int(b["x"]) + int(b["w"]) / 2, int(b["y"]) + int(b["d"]) - 1)
 		b["seed"] = (map_id + String(b["name"])).hash()
 		var footprint: Rect2
@@ -1783,7 +1856,7 @@ func _load_building(f: Dictionary) -> void:
 		node = CoveBuildings.build(b) if style == "pirate_cove" else (Creole.scenery(b) if style == "creole" else HouseModels.build(f["plan"]))
 		node.name = b["name"]
 		node.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, _lift(b["door"]), float(b["y"]) + float(b["d"]) / 2.0)
-		add_child(node)
+		_scenery_root.add_child(node)
 	else:
 		node = _building_node(b, style)
 	f["node"] = node
@@ -1907,9 +1980,10 @@ func _build_street_props() -> void:
 		var bd: int = b["d"]
 		var door: Vector2i = b["door"]
 		var cands := []
+		var door_clearance := 2 if map_id == "caccoon" else 1
 		# along the front, either side of the door's own column
 		for x in range(bx, bx + bw):
-			if absi(x - door.x) >= 1:
+			if absi(x - door.x) >= door_clearance:
 				cands.append([Vector2i(x, by + bd), Vector2i(0, 1), "front"])
 		# down both sides
 		for y in range(by, by + bd):
@@ -2056,7 +2130,7 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 			node = VBld.build(b, style)
 	# (a building stands on one level: its door's, see tools/check_maps.gd)
 	node.position = Vector3(float(b["x"]) + float(b["w"]) / 2.0, _lift(b["door"]), float(b["y"]) + float(b["d"]) / 2.0)
-	add_child(node)
+	_scenery_root.add_child(node)
 	return node
 
 
@@ -2892,6 +2966,10 @@ func _set_building_opacity(f: Dictionary, opacity: float) -> void:
 		var colour := original.albedo_color
 		colour.a *= opacity
 		faded.albedo_color = colour
+	var fading := opacity < 1.0
+	if cache.get("fading", false) == fading:
+		return
+	cache["fading"] = fading
 	for mesh: MeshInstance3D in cache["overrides"]:
 		mesh.material_override = cache["overrides"][mesh] if opacity == 1.0 else null
 	for binding in cache["bindings"]:
@@ -4614,6 +4692,8 @@ func _build_healer(center: Vector3) -> void:
 	var body := MeshInstance3D.new()
 	body.mesh = RoomBuilder.piece("stasis_chamber")
 	root.add_child(body)
+	if body.mesh != null:
+		root.set_meta("speech_bounds", body.mesh.get_aabb())
 	# the glass gets a material of its own, to light up
 	var glass: StandardMaterial3D = null
 	if body.mesh != null:

@@ -1,9 +1,8 @@
 extends SceneTree
 ## Regression checks use project-local save files, never player saves.
 
-class TestState extends "res://scripts/autoload/game_state.gd":
-	func save_dir() -> String:
-		return "res://build/review_saves/"
+class TestHost extends Node:
+	var _test := {"save_dir": "res://build/review_saves/"}
 
 var problems := 0
 
@@ -16,7 +15,15 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func run() -> void:
-	var gs := TestState.new()
+	# Resolve the autoload after startup; inheriting it while the entry script
+	# compiles can precede registration of the UI singleton it depends on.
+	var gs = root.get_node("GameState")
+	var host := TestHost.new()
+	gs.main = host
+	if gs.save_dir() != "res://build/review_saves/":
+		check(false, "isolated review save directory")
+		quit(1)
+		return
 	gs.new_game("Review")
 	var b = gs.Beasts.create(21, 50)
 	gs.party = [b]
@@ -62,6 +69,7 @@ func run() -> void:
 	audio.music("")
 	world.free()
 	player.free()
-	gs.free()
+	gs.main = null
+	host.free()
 	print("REVIEW FIXES DONE: %d problem(s)" % problems)
 	quit.call_deferred(1 if problems else 0)

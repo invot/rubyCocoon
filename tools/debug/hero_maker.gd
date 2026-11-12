@@ -50,9 +50,11 @@ func run(main, opts: Dictionary) -> void:
 	await main._tap_at(maker._tabs[1].get_global_rect().get_center())
 	_check(maker.tab == 1, "Colours tab responds to a tap")
 	for id in ["pack", "skin", "top", "trousers", "hair", "eyes"]:
+		maker._go(id, false)
 		await main.get_tree().process_frame
 		await main.get_tree().process_frame
 		var chips: Array = maker._chips[id]
+		_check(maker._scroll.get_global_rect().encloses(maker._rows[id].get_global_rect()), id+" scrolls into view")
 		await main._tap_at(chips.back().get_global_rect().get_center())
 		_check(maker.pick[id] == chips.size() - 1 and chips.back().scale.x > 1.0, id + " swatch updates selection")
 	if opts.has("shots") and DisplayServer.get_name() != "headless":

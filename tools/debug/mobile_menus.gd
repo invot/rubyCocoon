@@ -61,10 +61,12 @@ func _verify_desktop() -> void:
 	await main._wait(0.05)
 	_check(prompt._yes_button.text == "A: Yes", "last desktop question page offers Yes")
 	prompt._yes_button.pressed.emit()
+	await main._wait(0.45)
 	_check(answer == 1 and UI.stack.is_empty(), "desktop Yes answers directly")
 	_ask()
 	await main._wait(0.1)
 	await main._press("ui_cancel")
+	await main._wait(0.45)
 	_check(answer == 0, "desktop B or Escape answers No directly")
 	# the map page with the keys: the cursor moves between towns, and B gives the arrows back to the tabs
 	GameState.set_flag("world_map")

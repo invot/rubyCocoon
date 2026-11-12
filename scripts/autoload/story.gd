@@ -1066,7 +1066,7 @@ func _mascot(world, n: Dictionary) -> void:
 	Sfx.play("levelup")
 	var out := ["%s learned %s!" % [b.nickname, move_name]]
 	if res == "known":
-		out.append("It already uses four moves, so %s waits among its known moves: swap it in from Start → Beasts → Moves." % move_name)
+		out.append("It already uses four moves, so %s waits among its known moves: swap it in from Start ► Beasts ► Moves." % move_name)
 	await say(out)
 
 
@@ -1270,14 +1270,14 @@ func _elder(_world, _n: Dictionary) -> void:
 			"A fresh hatchling starts at level 1, so be gentle with it at first. Win battles and it will grow strong.",
 			"Defeated wild beasts sometimes leave an egg behind, about one time in five. Collect them and hatch them too!",
 			"Remember the elements: fire is weak to air, earth to water, water to air, and air to fire.",
-			"And %s... beware the Umbral Legion. Their ghost beasts have no weakness." % GameState.player_name], "Elder Rowan")
+			"Look after your new friend, %s. Come back and tell me how you're getting on." % GameState.player_name], "Elder Rowan")
 		return
 	if not GameState.flag("has_starter"):
 		await say(["Your egg won't hatch in your pocket! The Beast Center is right across the road from this square.",
 			"Look for the red-and-white striped awning and the red paw print over the door. Nurse Clover is inside."], "Elder Rowan")
 		return
 	if GameState.flag("game_cleared"):
-		await say(["The ghost beasts are free, and the Legion is gone. You did it, %s." % GameState.player_name], "Elder Rowan")
+		await say(["You've come such a long way, %s. I'm proud of the trainer you've become." % GameState.player_name], "Elder Rowan")
 		return
 	var tips := [
 		"Remember: fire is weak to air, earth to water, water to air, and air to fire.",

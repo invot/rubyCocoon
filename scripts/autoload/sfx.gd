@@ -306,7 +306,7 @@ func _battle_tone(spec: Array) -> AudioStream:
 ## Called behind a map transition's fade; only these small, frequently used effects are retained.
 func prewarm_field() -> void:
 	var slice := Time.get_ticks_usec()
-	for name in ["step_grass", "step_stone", "step_water", "notify", "encounter"]:
+	for name in ["step_grass", "step_stone", "step_water", "notify", "encounter", "item"]:
 		for path in SOUNDS.get(name, [[]])[0]:
 			_load(path)
 			if Time.get_ticks_usec() - slice >= 6000:

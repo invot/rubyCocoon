@@ -34,7 +34,7 @@ func finish(mesh: ArrayMesh, key: String) -> ArrayMesh:
 			_window(Vector3(-5.09,5.62,z),Vector2(1.90,1.40),-90)
 	elif key == "house_1":
 		mesh = _town_materials(mesh)
-		_box(Vector3(0,1.54,0),Vector3(8.96,3.08,7.08),PLASTER)
+		_box(Vector3(0,1.40,0),Vector3(8.96,2.80,7.08),PLASTER)
 		_door(Vector3(0,1.0,3.61),Vector2(2.42,2.04))
 		for x in [-2.766,2.765]:
 			_window(Vector3(x,1.765,3.61),Vector2(1.16,0.81))

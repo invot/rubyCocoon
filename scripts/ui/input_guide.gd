@@ -7,6 +7,8 @@ var input_mode := ""
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_theme_constant_override("separation", 20)
+	Prefs.changed.connect(rebuild)
+	Controllers.changed.connect(rebuild)
 	rebuild()
 
 
@@ -24,7 +26,7 @@ func rebuild() -> void:
 	keys.alignment = BoxContainer.ALIGNMENT_CENTER
 	keys.add_theme_constant_override("separation", 8)
 	add_child(keys)
-	var lines := ["← ↑ ↓ →: Move", "A / Enter: Action / confirm", "S / Esc: Back · hold S to run", "Space: Book", "Shift: Pause"]
+	var lines := ["◄ ▲ ▼ ►: Move", "A / Enter: Action / confirm", "S / Esc: Back · hold S to run", "Space: Book", "Shift: Pause"]
 	if mode == "screen":
 		lines = ["D-pad: Move", "A: Action / confirm", "B: Back · hold to run", "Start: Book", "Pause: Pause"]
 	_add_keys(keys, lines)

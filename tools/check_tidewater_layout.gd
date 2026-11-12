@@ -114,7 +114,13 @@ func _waterfront() -> void:
 	var cove := MapLoader.load_map("caccoon", {})
 	var library: Dictionary = cove["buildings"].filter(func(b): return b["shop"] == "bookstore")[0]
 	var beside := Vector2i(int(library["x"]) - 1, int(library["y"]) + int(library["d"]))
-	if not cove["signs"].has(beside) or cove["signs"].has(library["door"] + Vector2i.DOWN):
+	var note := Vector2i(-1, -1)
+	for tile in cove["signs"]:
+		if String(cove["signs"][tile]).begins_with("Cocoon Cove Library."):
+			note = tile
+	# The supplied-kit library's verge continues across the boulevard to the
+	# square, three tiles south of its facade; the sign stands off the road.
+	if note.x != beside.x or note.y < beside.y or note.y > beside.y + 3 or cove["signs"].has(library["door"] + Vector2i.DOWN):
 		_fail("library sign must be beside the facade, clear of the doorway")
 
 

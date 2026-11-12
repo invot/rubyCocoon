@@ -34,7 +34,7 @@ func run(main, opts: Dictionary) -> void:
 	for y in town["h"]:
 		for x in town["w"]:
 			deck_tiles += 1 if MapGen.get_t(open_town,x,y) == MapGen.BRIDGE else 0
-	_check(deck_tiles<=84,"the dock has %d public deck tiles before cargo (169 before)" % deck_tiles)
+	_check(deck_tiles<=86,"the compact dock has %d public deck tiles, including the removed lightposts (169 before)" % deck_tiles)
 	var cargo := 0
 	var missing_cargo := []
 	for entry in town.get("street_props",[]):

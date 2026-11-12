@@ -59,7 +59,7 @@ func run(main, opts: Dictionary) -> void:
 	for tile in room.get("locked_text",{}):
 		UI.auto_log.clear()
 		await Places.prop(MapGen.LOCKED,room,main.world,tile)
-		_check(UI.auto_log.any(func(line): return Chatter.ROOM_DOOR_VOICES["home"] in String(line)), "the indoor red kitchen door answers through the normal interaction")
+		_check(UI.auto_log.any(func(line): return "Locked." in String(line)) and not UI.auto_log.any(func(line): return "Muffled Voice" in String(line)), "the home kitchen gives a locked-door observation without an invented speaker")
 		break
 	print("DOOR VOICES DONE: %d problem(s)" % bad)
 	if opts.has("verify"):
@@ -135,7 +135,7 @@ func _edge_checks(main, opts: Dictionary) -> void:
 		dialog.close()
 		await main._wait(0.2)
 	camera.global_transform = original
-	# An indoor reply also has a source, rather than becoming disembodied narration.
+	# Ordinary locked rooms use written observations, without inventing a speaker.
 	UI.auto = true
 	await main._go("caccoon#1", "entry")
 	UI.auto = false
@@ -143,9 +143,7 @@ func _edge_checks(main, opts: Dictionary) -> void:
 		Places.prop(MapGen.LOCKED, main.world.map, main.world, tile)
 		await main._wait(1.1)
 		var dialog = UI.stack.back()
-		_check(dialog.bubble_mode and dialog._anchored and dialog.speaker_node.has_meta("speech_bounds"), "indoor locked door replies point to their door")
-		var footprint: Rect2 = dialog._bubble_rect.merge(dialog.name_panel.get_global_rect())
-		_check(not UI.top_bar.visible or not footprint.intersects(UI.top_bar.get_global_rect()), "the indoor door's name plate stays clear of arrival notices")
+		_check(not dialog.bubble_mode and dialog.speaker == "" and dialog.speaker_node == null, "indoor locked door uses the dark observation window")
 		dialog.text_label.visible_characters = -1
 		if opts.has("shot") and DisplayServer.get_name() != "headless":
 			await RenderingServer.frame_post_draw

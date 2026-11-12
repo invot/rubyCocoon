@@ -207,9 +207,9 @@ func _build_legend() -> void:
 	add_child(legend)
 	var cc := CenterContainer.new()
 	legend.add_child(cc)
-	_legend_row = _legend_keys([["← ↑ ↓ →", "Move"], ["A", "Action"], ["S", "Back · hold to run"], ["SPACE", "Start"], ["SHIFT", "Pause"]])
+	_legend_row = _legend_keys([["◄ ▲ ▼ ►", "Move"], ["A", "Action"], ["S", "Back · hold to run"], ["SPACE", "Start"], ["SHIFT", "Pause"]])
 	cc.add_child(_legend_row)
-	_flute_row = _legend_keys([["← ↑ ↓ →", "Arrow notes"], ["A", "A note"], ["S", "B note"], ["ESC", "Stop playing"]])
+	_flute_row = _legend_keys([["◄ ▲ ▼ ►", "Arrow notes"], ["A", "A note"], ["S", "B note"], ["ESC", "Stop playing"]])
 	_flute_row.visible = false
 	cc.add_child(_flute_row)
 

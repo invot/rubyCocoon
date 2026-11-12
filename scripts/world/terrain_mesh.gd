@@ -28,6 +28,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const TerrainShader = preload("res://scripts/gfx/terrain.gdshader")
 const WaterShader = preload("res://scripts/gfx/water.gdshader")
 const Shoreline = preload("res://scripts/world/shoreline.gd")
+const GroundStore = preload("res://scripts/world/ground_store.gd")
 
 const CHUNK := 16
 const MARGIN := 16
@@ -468,14 +469,24 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 	_liquid(parent, shape["lava"], 2, Color("#ff6a20"))
 
 
+## Everything the ground's shape depends on (once build has prepared the beds, halves and corners).
+func shape_key() -> String:
+	return str([w, h, seed, walls, flutes, hash(layer), hash(height), hash(rough), hash(liquid), hash(lifted), hash(firm), hash(base_lo),
+		hash(base_hi), hash(ramp), hash(elev_map.get("shoreline", []))])
+
+
 ## This map's ground meshes: remembered from a recent visit if the ground hasn't changed since, else generated.
 func _shape(parent: Node3D, slice_us: int) -> Dictionary:
-	var key := str([w, h, seed, walls, flutes, hash(layer), hash(height), hash(rough), hash(liquid), hash(lifted), hash(firm), hash(base_lo),
-		hash(base_hi), hash(ramp), hash(elev_map.get("shoreline", []))])
+	var key := shape_key()
 	if _shapes.has(key):
 		_shape_order.erase(key)
 		_shape_order.append(key)
 		return _shapes[key]
+	# (or read back from disk: baked with the game, or kept from when this device last generated it)
+	var stored := GroundStore.fetch(key)
+	if not stored.is_empty():
+		_remember(key, stored)
+		return stored
 	_grids = {}
 	var x0 := -MARGIN
 	var z0 := -MARGIN
@@ -496,11 +507,16 @@ func _shape(parent: Node3D, slice_us: int) -> Dictionary:
 		cz += CHUNK
 	_grids = {}
 	var shape := {"chunks": chunks, "water": _liquid_mesh(1), "lava": _liquid_mesh(2)}
+	_remember(key, shape)
+	GroundStore.keep(key, shape)
+	return shape
+
+
+static func _remember(key: String, shape: Dictionary) -> void:
 	_shapes[key] = shape
 	_shape_order.append(key)
 	while _shape_order.size() > REMEMBERED_SHAPES:
 		_shapes.erase(_shape_order.pop_front())
-	return shape
 
 
 ## A raised walking deck is not a raised body of water. Continue the neighbouring water under dock/bridge tiles.

@@ -177,10 +177,11 @@ func gain_xp(amount: int) -> Array:
 		return events
 	xp += amount
 	while level < level_cap() and xp >= xp_for_level(level + 1):
+		var previous := growth_look()
 		level += 1
 		hp = max_hp()
 		mp = max_mp()
-		events.append({"type": "level", "level": level, "look": growth_look()})
+		events.append({"type": "level", "level": level, "before": previous, "look": growth_look()})
 		var nf := RaceDB.for_level(race, level)
 		if nf != race:
 			var was := nickname
@@ -222,7 +223,8 @@ func evolve(nf: int) -> void:
 ## Small immutable presentation snapshot: rewards may cross both evolution thresholds at once.
 func growth_look() -> Dictionary:
 	return {"genes": genes.duplicate(true), "name": nickname, "race": race, "level": level,
-		"hp": max_hp(), "mp": max_mp()}
+		"hp": max_hp(), "mp": max_mp(), "stats": {"hp": max_hp(), "mp": max_mp(),
+			"atk": stat("atk"), "def": stat("def"), "spr": stat("spr"), "spd": stat("spd")}}
 
 
 func xp_progress() -> float:

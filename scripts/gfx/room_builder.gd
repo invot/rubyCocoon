@@ -91,7 +91,7 @@ const KINDS := {
 	"dresser": {"m": ["dresser"], "top": ["teddy", "books", "radio", "el_lamp", "el_photo", "el_vase"]},
 	"desk": {"m": ["desk_writing", "desk_sled"], "top": ["books", "pencils", "globe", "phone"]},
 	"storage": {"m": ["shelves_metal", "shelves"], "long": true},
-	"boxes": {"m": ["box_1", "box_2", "box_3", "pallet"], "single": true},
+	"boxes": {"m": ["box_1", "box_2", "box_3"], "single": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
 	"floor_lamp": {"m": ["floor_lamp"], "lamp": true, "single": true},
 	"coat_stand": {"m": ["coat_stand"], "single": true},
@@ -199,6 +199,47 @@ static func piece(name: String) -> Mesh:
 		if _meshes[name] == null:
 			push_warning("model missing: " + DIR + name + ".res")
 	return _meshes[name]
+
+
+## Keep the supplied lamps' silhouettes, with fabric shades and separate metal/wood
+## fittings. Their old all-white material lost every detail in the room lighting.
+static func lamp_mesh(name: String, palette: int) -> Mesh:
+	var key := "lamp:%s:%d" % [name, palette]
+	if _meshes.has(key):
+		return _meshes[key]
+	var source := piece(name)
+	if source == null:
+		return null
+	var shades := [Color("#a85642"), Color("#47827c"), Color("#d0a459"), Color("#7c6595"), Color("#68894e")]
+	var colours := [Color("#73563c"), Color("#877047"), shades[posmod(palette, shades.size())]]
+	var bb := source.get_aabb()
+	var verts := [PackedVector3Array(), PackedVector3Array(), PackedVector3Array()]
+	var normals := [PackedVector3Array(), PackedVector3Array(), PackedVector3Array()]
+	for surface_index in source.get_surface_count():
+		var arrays := source.surface_get_arrays(surface_index)
+		var vs: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var ns: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var ids = arrays[Mesh.ARRAY_INDEX]
+		if ids == null or (ids as PackedInt32Array).is_empty():
+			ids = PackedInt32Array(range(vs.size()))
+		for i in range(0, ids.size(), 3):
+			var y: float = ((vs[ids[i]].y + vs[ids[i+1]].y + vs[ids[i+2]].y)/3.0-bb.position.y)/maxf(0.001, bb.size.y)
+			var part := 2 if y > 0.63 else (0 if y < 0.15 else 1)
+			for j in 3:
+				verts[part].append(vs[ids[i+j]])
+				normals[part].append(ns[ids[i+j]])
+	var mesh := ArrayMesh.new()
+	for part in 3:
+		if verts[part].is_empty():
+			continue
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = verts[part]
+		arrays[Mesh.ARRAY_NORMAL] = normals[part]
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(mesh.get_surface_count()-1, plain_material(colours[part]))
+	_meshes[key] = mesh
+	return mesh
 
 
 ## A surface material: one of the pack's textures (tiled once per SPAN of world units), tinted.
@@ -1168,9 +1209,7 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 		else:
 			_hinged_leaf(x, y, horiz, front)
 		if front:
-			# the window over the front door, bright with the day outside
-			m.box("door_glass", _glass(), c + Vector3(0, top + 0.27, 0), _axes(along, 0.66, 0.26, T + 0.03, horiz))
-			m.box("frame", fr, c + Vector3(0, top + 0.42, 0), _axes(along, 0.78, 0.05, T + 0.05, horiz))
+			_exit_banner(m, c + Vector3(0, top + 0.30, 0), horiz)
 	if locked:
 		if map.get("staff_doors", {}).has(Vector2i(x, y)):
 			# a small brass plate: STAFF ONLY
@@ -1213,6 +1252,7 @@ func _door_leaf(m: Mesher, c: Vector3, horiz: bool, col: Color, glazed: bool) ->
 		m.box(key + "_panel", panel, c + face + Vector3(0, 0.52, 0), _axes(along, 0.56, 0.64, 0.02, horiz))
 		if glazed:
 			m.box("door_glass", _glass(), c + face + Vector3(0, 1.36, 0), _axes(along, 0.5, 0.62, 0.02, horiz))
+			m.box("frame", surface("frame", trim), c + across * side * 0.06 + Vector3(0, 1.36, 0), _axes(along, 0.035, 0.62, 0.018, horiz))
 		else:
 			m.box(key + "_panel", panel, c + face + Vector3(0, 1.36, 0), _axes(along, 0.56, 0.68, 0.02, horiz))
 		m.box("brass", brass, c + across * side * 0.06 + along * 0.29 + Vector3(0, 0.98, 0), Vector3(0.08, 0.08, 0.08))
@@ -1294,13 +1334,37 @@ func shut_door(t: Vector2i, wait := 0.15, secs := 0.4) -> void:
 		tw.tween_callback(func() -> void: past.visible = false)
 
 
-## The glass of a front door and the window over it: pale, and lit as if by the day outside.
+## Woven geometric exit markers: several yarn palettes, stepped diamonds and a clear downward triangle.
+## Mesh details share the room's batches; no texture generation or extra shadow casters.
+func _exit_banner(m: Mesher, c: Vector3, horiz: bool) -> void:
+	var palettes := [[Color("#804737"), Color("#d9b377"), Color("#426b70")],
+		[Color("#365f69"), Color("#e2c599"), Color("#a55b3e")],
+		[Color("#665475"), Color("#dbc89a"), Color("#819477")]]
+	var palette: Array = palettes[absi(hash(str(map.get("building", {}).get("seed", 0)) + str(c))) % palettes.size()]
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var across := Vector3.BACK if horiz else Vector3.RIGHT
+	m.box("banner_rod", surface("frame", trim), c+Vector3.UP*0.19, _axes(along, 0.92, 0.035, T+0.08, horiz))
+	m.box("exit_cloth_"+str(palette[0]), surface("exit_cloth", palette[0]), c, _axes(along, 0.80, 0.34, T+0.04, horiz))
+	for side in [-1.0, 1.0]:
+		var face: Vector3 = c + across*side*(T/2.0+0.023)
+		var ink := surface("exit_yarn", palette[1])
+		for h in [-0.13, 0.13]:
+			m.box("exit_yarn_"+str(palette[1]), ink, face+Vector3.UP*h, _axes(along, 0.75, 0.025, 0.005, horiz))
+		for dx in [-0.29, 0.29]:
+			var centre: Vector3 = face+along*dx
+			m.quad("exit_diamond_"+str(palette[2]), surface("exit_diamond", palette[2]), [centre-Vector3.UP*0.095, centre+along*0.07, centre+Vector3.UP*0.095, centre-along*0.07], across*side, along, Vector3.UP)
+		m.tri("exit_arrow_"+str(palette[1]), ink, [face-along*0.105+Vector3.UP*0.07, face+along*0.105+Vector3.UP*0.07, face-Vector3.UP*0.095], across*side, along, Vector3.UP)
+		for dx in [-0.34, -0.23, -0.12, 0.0, 0.12, 0.23, 0.34]:
+			m.box("exit_fringe_"+str(palette[1]), ink, face+along*dx-Vector3.UP*0.185, _axes(along, 0.015, 0.035, 0.005, horiz))
+
+
+## Pale blue glass, softly lit by the day outside without clipping to a white panel.
 func _glass() -> StandardMaterial3D:
-	var g := surface("door_glass", Color("#dff0ff"))
+	var g := surface("door_glass", Color("#82b8cd"))
 	if not g.emission_enabled:
 		g.emission_enabled = true
-		g.emission = Color("#fff4d8")
-		g.emission_energy_multiplier = 0.8
+		g.emission = Color("#91c7db")
+		g.emission_energy_multiplier = 0.12
 	return g
 
 
@@ -1319,27 +1383,29 @@ func _window(x: int, y: int, horiz: bool) -> void:
 		inside = -inside
 	var z := zone(x + inside.x, y + inside.y)
 	var yaw := atan2(float(inside.x), float(inside.y))
-	var win := MeshInstance3D.new()
-	win.mesh = piece("window_2" if z in ["living", "bedroom"] else "window")
-	if win.mesh != null:
-		var bb := win.mesh.get_aabb()
-		win.scale = Vector3(0.98 / bb.size.x, (WIN_TOP - SILL) / bb.size.y, 1.6)
-		win.position = c + Vector3(0, SILL, 0)
-		win.rotation.y = yaw
-		_attach(x, y, win)
-	var sky := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2(0.98, WIN_TOP - SILL)
-	sky.mesh = q
-	var sm := StandardMaterial3D.new()
-	sm.albedo_color = Color("#cfe6ff")
-	sm.emission_enabled = true
-	sm.emission = Color("#bcdcff")
-	sm.emission_energy_multiplier = 0.9
-	sky.material_override = sm
-	sky.position = c + Vector3(0, (SILL + WIN_TOP) / 2.0, 0) - Vector3(inside.x, 0, inside.y) * 0.04
-	sky.rotation.y = yaw
-	_attach(x, y, sky)
+	# Build the pane and its frame together on the room-facing wall surface.
+	# The old bright quad could sit in front of the pack frame and bleach it out.
+	var m := _row(y)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var inward := Vector3(inside.x, 0, inside.y)
+	var centre := c + Vector3(0, (SILL + WIN_TOP) / 2.0, 0)
+	var glass := centre + inward * (T/2.0 + 0.012)
+	m.box("window_pane", _glass(), glass, _axes(along, 0.98, WIN_TOP-SILL, 0.025, horiz))
+	var frame := surface("window_frame", trim.lightened(0.22))
+	var face := centre + inward * (T/2.0 + 0.045)
+	for side in [-1.0, 1.0]:
+		m.box("window_frame", frame, face + along * side * 0.49, _axes(along, 0.075, WIN_TOP-SILL+0.10, 0.08, horiz))
+		m.box("window_frame", frame, face + Vector3.UP * side * (WIN_TOP-SILL)/2.0, _axes(along, 1.07, 0.075, 0.08, horiz))
+	m.box("window_frame", frame, face, _axes(along, 0.035, WIN_TOP-SILL, 0.05, horiz))
+	m.box("window_frame", frame, face + Vector3.UP * 0.12, _axes(along, 0.98, 0.035, 0.05, horiz))
+	m.box("window_frame", frame, face + Vector3(0, -(WIN_TOP-SILL)/2.0-0.035, 0) + inward*0.04, _axes(along, 1.14, 0.08, 0.20, horiz))
+	# A quiet landscape and two reflection strokes keep the glazing readable as glass.
+	var pane_face := glass + inward*0.018
+	var hills := surface("window_hills", Color("#739c87"))
+	m.tri("window_hills", hills, [pane_face-along*0.45-Vector3.UP*0.53, pane_face+along*0.45-Vector3.UP*0.53, pane_face-along*0.12-Vector3.UP*0.18], inward, along, Vector3.UP)
+	for side in [-1.0, 1.0]:
+		var at: Vector3 = pane_face + along*side*0.24 + Vector3.UP*0.29
+		m.quad("window_reflection", surface("window_reflection", Color("#d8e8df")), [at-along*0.07, at+along*0.02, at+along*0.16+Vector3.UP*0.22, at+along*0.07+Vector3.UP*0.22], inward, along, Vector3.UP)
 	if z in ["living", "bedroom"]:
 		var cur := MeshInstance3D.new()
 		cur.mesh = piece(["curtains_1", "curtains_2", "curtains_3", "curtains_4"][rng.randi_range(0, 3)])
@@ -2017,6 +2083,8 @@ func _place(kind: String, group: Array) -> void:
 	# room up to the wall's face beyond the tiles
 	var reach := 0.5 - T / 2.0 if against else 0.0
 	var mesh := _choose(k["m"], span, depth + reach, k.get("same", false))
+	if kind == "floor_lamp":
+		mesh = lamp_mesh("floor_lamp", absi(hash(str(map.get("building", {}).get("seed", 0))+str(lo))) % 5)
 	if mesh == null:
 		return
 	var bb := mesh.get_aabb()
@@ -2048,6 +2116,10 @@ func _place(kind: String, group: Array) -> void:
 		pos = wall_face - Vector3(back.x, 0, back.y) * (bb.size.z * sc.z / 2.0 + 0.01)
 	if k.get("rug", false):
 		pos.y = 0.012
+	# Authored offsets attach small pieces to non-grid surfaces, such as a stair's
+	# enclosing wall, while their tile and interaction approach stay unchanged.
+	var offset: Vector2 = map.get("room", {}).get("furniture_offsets", {}).get(lo, Vector2.ZERO)
+	pos += Vector3(offset.x, 0, offset.y)
 	mi.position = pos
 	parent.add_child(mi)
 	# the piece and everything on it, to fade together if it's tall
@@ -2063,6 +2135,8 @@ func _place(kind: String, group: Array) -> void:
 				continue
 			var t := MeshInstance3D.new()
 			t.mesh = piece(name)
+			if name in ["table_lamp", "el_lamp"]:
+				t.mesh = lamp_mesh(name, absi(hash(str(pos)+str(map.get("building", {}).get("seed", 0)))) % 5)
 			if t.mesh == null:
 				continue
 			var spread := Vector3(bb.size.x * sc.x * 0.3, 0, bb.size.z * sc.z * 0.25)

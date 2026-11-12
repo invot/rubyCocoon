@@ -6,6 +6,7 @@ const DIR := "res://assets/exteriors/cove_"
 const Houses = preload("res://scripts/gfx/house_models.gd")
 const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 const STUCCO := {
+	"red": Color("#ba3e36"),
 	"sky": Color("#a3cad8"), "coral": Color("#e4ac99"),
 	"sage": Color("#b4cb9c"), "rose": Color("#d8adb8"),
 	"butter": Color("#ead398"), "lavender": Color("#c7b9d9"),
@@ -33,7 +34,7 @@ const DOORS := {
 ## Measured wall tops in the kit's metres. Fit doors and whole storeys to people,
 ## rather than leaving a full-size door under a compressed upper floor or eave.
 const FLOORS := {
-	"whole_house": [3.75, 7.5], "house_1": [3.08], "house_2": [2.72],
+	"whole_house": [3.75, 7.5], "house_1": [2.80], "house_2": [2.72],
 	"house_3": [2.925, 5.12], "house_4": [5.12],
 	"hut_1": [3.14], "hut_3": [3.14], "hut_4": [3.2],
 }
@@ -114,8 +115,14 @@ static func warped(key: String, scale: float) -> Mesh:
 			continue
 		var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 		var ns = arr[Mesh.ARRAY_NORMAL]
+		# The old bake's sealing box extended to 3.08, above this roof's 2.80 eave.
+		# Lower its cap inside the roof; preserve the walls that seal the door/windows.
+		var material: Material = m.surface_get_material(si)
+		var sealing_box := key == "house_1" and material.resource_name == "cove_stucco" and vs.size() == 24
 		for i in vs.size():
 			var v := vs[i]
+			if sealing_box:
+				v.y = minf(v.y, 2.80)
 			if ns != null:
 				var slope := (_height(key,v.y+0.001,scale)-_height(key,v.y,scale))/0.001/scale
 				var n: Vector3 = ns[i]

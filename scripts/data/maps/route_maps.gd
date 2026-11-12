@@ -87,12 +87,7 @@ const MAPS := {
 			"Coastal Path. West: Cocoon Cove. East: Bellerive.",
 			"Creek Footbridge ahead, on the road to Bellerive. Builder's cabin by the creek.",
 		],
-		"weapon_obstacles": [
-			{"id": "glade_stump", "type": "stump", "targets": [Vector2i(50, 4)], "use_from": Vector2i(50, 5), "coach_pos": Vector2i(51, 5),
-				"blocks": [Vector2i(50, 4)], "reward": {"pos": Vector2i(50, 3), "item": "revival_seed"}},
-			{"id": "creek_switches", "type": "switches", "targets": [Vector2i(11, 5), Vector2i(12, 5), Vector2i(13, 5)],
-				"use_from": Vector2i(10, 5), "coach_pos": Vector2i(10, 6), "effect": "chest", "reward": {"pos": Vector2i(11, 7), "item": "spirit_drop"}},
-		],
+		# The first road teaches battles; weapon mechanisms begin on later roads.
 	},
 	"route2": {
 		"rows": [
