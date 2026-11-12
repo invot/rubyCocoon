@@ -554,13 +554,14 @@ func _preview(main, opts: Dictionary, mode: String) -> void:
 		elif mode == "level":
 			b.gain_xp(b.xp_for_level(5) - b.xp)
 		var egg := {"race": race, "kind": "legendary" if RaceDB.is_legendary(race) else RaceDB.element(race), "ghost": b.ghost}
-		var film := Film.new().setup(mode, before, b.growth_look(), egg)
+		# ("egg": the film for an egg a beaten wild beast left behind)
+		var film := Film.new().setup(mode, {"name": b.nickname} if mode == "egg" else before, {} if mode == "egg" else b.growth_look(), egg)
 		if opts.has("at"):
 			film.preview_time = float(opts.at)
 		UI.push(film)
 		if not opts.has("at"):
 			if opts.has("shots"):
-				var times := [0.6, 2.7, 3.8, 4.9, 5.7, 7.5] if mode == "hatch" else [0.4, 2.7, 4.0, 5.5]
+				var times := [0.6, 2.7, 3.8, 4.9, 5.7, 7.5] if mode == "hatch" else ([0.5, 0.8, 1.6, 3.2] if mode == "egg" else [0.4, 2.7, 4.0, 5.5])
 				var frame := 0
 				while is_instance_valid(film) and not film.closed:
 					await main.get_tree().process_frame

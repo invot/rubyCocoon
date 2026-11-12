@@ -29,6 +29,7 @@ const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const CoveBuildings = preload("res://scripts/gfx/cove_buildings.gd")
 const Creole = preload("res://scripts/gfx/creole_builder.gd")
 const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
+const BarnBuilder = preload("res://scripts/gfx/barn_builder.gd")
 const HarborBoats = preload("res://scripts/gfx/harbor_boats.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
@@ -2071,7 +2072,8 @@ func _build_street_props() -> void:
 	if city:
 		var ac := _street_mesh("ac_unit")
 		for b in map["buildings"]:
-			if ac == null or not (b["shop"] in VBld.COMMERCIAL or b["shop"] in ["center", "electronics"]) or rng.randf() < 0.4:
+			# (never on a Beast Center: a temple has no machines)
+			if ac == null or not (b["shop"] in VBld.COMMERCIAL or b["shop"] == "electronics") or rng.randf() < 0.4:
 				continue
 			for sx in [-1, 1]:
 				if rng.randf() < 0.5:
@@ -2120,7 +2122,10 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 		node = _decor_building(b, style)
 	else:
 		b["locked"] = Places.door_locked(b)
-		if style == "creole" and not b["shop"] in ["center", "fishery"]:
+		if b["shop"] == "kennel":
+			# the roads' kennel barns look the same everywhere, but for a region's paint (barn_builder.gd)
+			node = BarnBuilder.build(b, String(biome.get("id", "coast")))
+		elif style == "creole" and not b["shop"] in ["center", "fishery"]:
 			node = Creole.build(b)
 		elif style == "frontier" and Frontier.handles(b["shop"]):
 			node = Frontier.build(b)
@@ -4648,7 +4653,7 @@ func _flat_mat(col: Color, glow := 0.0, metal := 0.0, rough := 0.8) -> StandardM
 
 
 # ---------------------------------------------------------------- the kennel
-## Pen tiles in reading order (pen i shows beast i of the town's kennel) and the beasts standing in them.
+## Pen tiles in reading order (pen i shows beast i of this barn's kennel) and the beasts standing in them.
 var kennel_pens: Array = []
 ## The room's walls and furniture (room_builder.gd): tall furniture between the camera and the player fades out of the
 ## way (see its fade), and its doors swing open as you go through them (see _through_door).
@@ -4658,6 +4663,7 @@ var stair_ways := {}
 var _kennel_nodes: Array = []
 
 
+## The key of this kennel barn's pens (GameState.kennel): the road it stands on.
 func kennel_town() -> String:
 	return String(map.get("building", {}).get("town", map.get("parent", "")))
 
@@ -5111,7 +5117,7 @@ func _build_room() -> void:
 				MapGen.INCUBATOR:
 					_build_incubator(center)
 				MapGen.KENNEL:
-					# a straw bed behind a little picket fence; the beast in it comes from the town's kennel
+					# a straw bed behind a little picket fence; the beast in it comes from this barn's kennel
 					k.box("color", center + Vector3(0, 0.05, -0.05), Vector3(0.9, 0.1, 0.8), Color("#e0c060"))
 					k.box("color", center + Vector3(0, 0.11, -0.05), Vector3(0.7, 0.04, 0.6), Color("#c8a040"))
 					for side in [-1, 1]:

@@ -4,7 +4,7 @@ extends Node
 ## Quest flags (GameState.flags):
 ##   intro_done, got_egg, has_starter            - the first egg and the first hatch (opens the Coastal Path)
 ##   lesson_screen/turns/slingshot/items/ring, tutorial_done   - the Coastal Path's teachers
-##   flute_lesson_done                             - the guided capture of your first wild beast after the flute
+##   flute_lesson_done                             - the guided first wild battle after the flute (Weaken, and its egg)
 ##   shell_heard, kelp_heard, island_peace         - the Isle of Tides: Kelpwick shut the reef against Shellhaven's
 ##                                                   souvenir-hunting tourists; beating Nerissa opens it (island_peace)
 ##   guardian_water                                - also opens the Dune Road to the desert
@@ -484,15 +484,15 @@ func _intro() -> void:
 		"Then go east along the Coastal Path to Bellerive. Uncle Rafe has your dad's flute, and he's promised to teach you."], "Mom")
 
 
-## Uncle Rafe's lessons in Bellerive: the flute, then Weaken, then Capture I. Kept short: he plays each song once,
-## then you play it back (the 30-second lesson clock, see flute_game.gd). Returns true when all are done.
+## Uncle Rafe's lessons in Bellerive: the flute, then Weaken. Kept short: he plays the song once, then you play it
+## back (the 30-second lesson clock, see flute_game.gd). Returns true when all are done.
 func uncle_lessons() -> bool:
 	var who := "Uncle Rafe"
 	var b_key := "B" if Prefs.touch_enabled() else "B (the S key)"
 	var lesson := {"lesson": true, "performer": who}
 	if not GameState.has_flute():
 		await say(["%s! Look at you, all grown up, with a beast of your own and everything!" % GameState.player_name,
-			"Here's what you came for: your father's reed flute. Songs can lift your beasts, trip up a foe, even win a wild beast over."], who)
+			"Here's what you came for: your father's reed flute. Songs can lift your beasts and trip up a foe."], who)
 		GameState.gear["flute"] = "reed_flute"
 		GameState.set_flag("reed_flute")
 		Sfx.play("capture")
@@ -506,19 +506,14 @@ func uncle_lessons() -> bool:
 			return false
 		await say(["Ha! That's your father's knack, right there.",
 			"In a battle nobody plays it for you: read the sheet and go. Finish while the bar's green for full power. Three wrong notes spoil it."], who)
-	if GameState.capture_level() == 0:
-		await say(["Now the important one: Capture. Play it for a wild beast and it might join you, up to level %d." % SongDB.CAPTURE_CAPS[0],
-			"Same as before: I play, then you!"], who)
-		if not await Places.learn_attempts(SongDB.capture_id(1), who, 0.0, lesson):
-			await say(["Almost had it! Talk to me when you want another try."], who)
-			return false
-		await say(["That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece"),
+		await say(["One thing no song can do is make a wild beast yours. New beasts only ever come from eggs: beat a wild one and now and then it leaves an egg behind.",
+			"That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece"),
 			"Oh, and the Bellerive Arena only lets in trainers with a flute. Go show Captain Marina what you can do!"], who)
 	return true
 
 
 func _lessons_done() -> bool:
-	return GameState.has_flute() and GameState.knows_song("weaken") and GameState.capture_level() > 0
+	return GameState.has_flute() and GameState.knows_song("weaken")
 
 
 ## Called before an exit (map edge, door mat or stairs) is used. Returning false cancels the step.
@@ -634,7 +629,7 @@ func _fisher(world) -> void:
 	if not GameState.flag("fisher_met"):
 		GameState.set_flag("fisher_met")
 		await say(["Ahoy! Gil's the name. Been fishing off this pier since before there was a pier.",
-			"Water beasts live all round the docks. Hook one, reel it in, and it'll come out fighting. Catch it, if you've a flute!",
+			"Water beasts live all round the docks. Hook one, reel it in, and it'll come out fighting. Beat it and it might leave an egg!",
 			"Fancy a go? There's a spare pole in my shack, right there on the planks. Go on in and take it."], who)
 		return
 	if GameState.flag("got_rod") and not GameState.flag("fish_lesson"):
@@ -1192,7 +1187,7 @@ func _talk_story(world, n: Dictionary) -> void:
 				"Each machine has its own bay along the back wall. First, Nurse Clover's counter. She hatches eggs in the incubator beside her.",
 				"That tall glass chamber next along? The healing machine. Pop your beasts in and they come out good as new. Free, any time! The storage terminal's right beside it.",
 				"The glowing altar on the end merges two beasts that have hit their level limit into one stronger beast. Very fancy. Very sparkly.",
-				"And round the end of that wall on the left is the kennel. Pip finds homes for beasts other trainers couldn't keep. You can adopt one, or leave one of yours.",
+				"Looking for the kennel? It's out on the roads now: look for the barns with our pawprint. Pip finds homes there for beasts other trainers couldn't keep. Adopt one, or leave one of yours.",
 				"And that red phone on the nurse's counter? Call your dad on it any time. That's how you save your journey."], "Guide Dottie")
 		"kennel_keeper":
 			await Places.kennel(world, world.kennel_town())
@@ -1595,15 +1590,12 @@ func _gravedigger() -> void:
 		await say(["The ghosts aren't wicked, you know. Just lost. The Legion drags them up from the crypt and twists them.",
 			"Vexmora's down there now, beneath the cathedral. Commander Nyx guards the stairs."], "Old Mort")
 		return
+	# (the flag keeps its old name: Mort once taught a song here)
 	GameState.set_flag("got_requiem")
-	GameState.learn_song("requiem")
-	Sfx.play("levelup")
 	await say(["A living trainer, in Gravenmoor? Hah. Haven't seen one of those in a while.",
 		"Mind the ghosts in that fog. No element has an advantage against them.",
-		"Those ghost beasts out on the moor won't listen to your ordinary songs. But this one... this one they remember.",
-		"It's the Requiem of Dusk. My mother taught it to me. Play it for a ghost beast, and it may follow you home.",
-		"Same rules as your Capture song, mind: no stronger than your Capture level, and only perfection reaches the really tough ones."], "Old Mort")
-	UI.toast("Learned the song: Requiem of Dusk!", "note")
+		"No song will make one follow you home, either. But lay a ghost to rest in battle and now and then it leaves a Shadow Egg behind.",
+		"Take it to Nurse Clover. A ghost hatched by a kind hand is nobody's weapon."], "Old Mort")
 
 
 func _nyx(world, n: Dictionary) -> void:
@@ -2164,18 +2156,14 @@ func _roll_wild_beast(race: int, lv: Array, ghost_rate: float):
 	var ghost := randf() < ghost_rate
 	if ghost:
 		level += 2
-	var abandoned := not ghost and randf() < 0.025 + GameState.gear_fx("abandoned")
-	if abandoned:
-		level += randi_range(2, 5)
 	var b := Beasts.create(race, level, ghost)
-	b.abandoned = abandoned
 	b.hp = b.max_hp()
 	return b
 
 
 ## A battle with roaming beasts. kind: "sneak" (you caught it off guard), "wild" (face to face) or "ambush" (it caught you).
 ## The first lone wild beast after Uncle Rafe's lessons is a guided battle (battle.gd LESSONS "flute"): playing Weaken,
-## then Capture to win it over.
+## then beating it for its egg.
 func wild_battle(_world, foes: Array, kind: String, extra := {}) -> String:
 	if GameState.alive_party().is_empty():
 		return "run"
@@ -2219,11 +2207,7 @@ func wild_encounter(world) -> void:
 		var ghost := randf() < ghost_rate
 		if ghost:
 			level += 2
-		var abandoned := not ghost and randf() < 0.025 + GameState.gear_fx("abandoned")
-		if abandoned:
-			level += randi_range(2, 5)
 		var b := Beasts.create(race, level, ghost)
-		b.abandoned = abandoned
 		b.hp = b.max_hp()
 		foes.append(b)
 	await GameState.main.start_battle({"wild": true, "foes": foes, "seed": randi()})

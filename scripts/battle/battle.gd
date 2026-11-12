@@ -38,6 +38,7 @@ const CommandPanel = preload("res://scripts/battle/command_panel.gd")
 const FloatingHUD = preload("res://scripts/battle/floating_hud.gd")
 const Outline = preload("res://scripts/battle/selection_outline.gdshader")
 const TargetArrow = preload("res://scripts/battle/target_arrow.gd")
+const ActionIcons = preload("res://scripts/battle/action_icons.gd")
 const Backdrop = preload("res://scripts/battle/backdrop.gd")
 const BattleCamera = preload("res://scripts/battle/battle_camera.gd")
 const StageLighting = preload("res://scripts/battle/stage_lighting.gd")
@@ -63,7 +64,6 @@ const CAM_HIGH := 7.5
 const CAM_T := 0.35
 const CAM_FOV := 24.0
 const STAGE_NAMES := {"atk": "Attack", "def": "Defense", "spr": "Spirit", "spd": "Speed", "eva": "Evasion", "acc": "Accuracy"}
-const EGG_CHANCE := 0.2
 
 var cfg: Dictionary = {}
 var wild := true
@@ -110,7 +110,7 @@ var rotation_lesson := false
 ## first lone wild beast after Uncle Rafe's lessons ("flute"). intro: what the teacher says before the first round
 ## (narration: a line before that, with no speaker; coach: who's speaking, if not the trainer). rounds: in turn (the
 ## last repeats), what the teacher says ({beast} is your beast, {foe} theirs), your own action ("you": Slingshot,
-## Watch, Items or Flute, with "song": weaken or capture), your beast's ("beast": Fight or Defend; "target":
+## Watch, Items or Flute, with "song": weaken), your beast's ("beast": Fight or Defend; "target":
 ## "trainer" sends it at the trainer). finish: the round the foe's beast goes down (0 never). trainer: the battle
 ## ends by striking the trainer rather than when their beasts are down. level: the level your beast reaches.
 const LESSONS := {
@@ -191,21 +191,21 @@ const LESSONS := {
 	"elements": {"finish": 2, "practice": true,
 		"intro": ["Every element has a weakness: fire beasts are weak to air, earth to water, water to air, and air to fire.",
 			"Hit a beast with the element it's weak to and it takes double damage! Hit it with its own element, though, and it shrugs some off.",
-			"After a hit, a message tells you when it was extra effective or the target is resistant. Only the element of the side facing the foe can be used: turn your ring to the side that hits hardest. Today I've turned it for you."],
+			"As you aim, a red burst beside a foe's name means it's weak to that attack; a shield means it resists. Only the element of the side facing the foe can be used: turn your ring to the side that hits hardest. Today I've turned it for you."],
 		"rounds": [
 			{"say": ["My {foe} is weak to the element of your side. Pick the elemental move and watch it fly!"], "you": "Watch", "beast": "Fight"},
 			{"say": ["Double damage! Finish it the same way. And remember: your beasts have weaknesses too."], "you": "Watch", "beast": "Fight"},
 		]},
-	"flute": {"finish": 6, "coach": "Uncle Rafe",
+	# (egg: the beaten beast always leaves one, so the first egg found on the road is part of the lesson)
+	"flute": {"finish": 2, "coach": "Uncle Rafe", "egg": true,
 		"narration": "A wild {foe}! Uncle Rafe's advice comes back to you...",
 		"intro": ["\"A wild beast's your chance to put that flute to work. Songs change how a fight goes. Weaken, for one, makes a foe drop its guard so your beasts hit harder.\""],
 		"rounds": [
 			{"say": ["\"Open Flute beside your trainer and play Weaken at it. Your beast can Fight in the meantime.\""],
 				"you": "Flute", "song": "weaken", "beast": "Fight"},
-			{"say": ["\"See it flinch? Weakened and worn down, a beast listens much better. So does one that's asleep or out of sorts.\"",
-				"\"Now play Capture, and it might just join you! Have {beast} Defend, so you don't knock it out first.\""],
-				"you": "Flute", "song": "capture", "beast": "Defend"},
-			{"say": ["\"So close! Play it again, nice and steady.\""], "you": "Flute", "song": "capture", "beast": "Defend"},
+			{"say": ["\"See it flinch? Now finish it. No song makes a wild beast yours: new beasts only ever come from eggs.\"",
+				"\"Beat one and now and then it leaves an egg behind. Watch this round, and let {beast} Fight.\""],
+				"you": "Watch", "beast": "Fight"},
 		]},
 }
 ## Defending halves the damage a beast takes until its side's next turn.
@@ -218,6 +218,8 @@ var scenery_visibility: RefCounted
 var aim_mesh: MeshInstance3D
 var _aim_geometry: Array = []
 var _aim_from = null
+## the option being aimed while a target is picked (see target_mark)
+var _aim_option := {}
 var _target_refs: Array = []
 var _time := 0.0
 var player_rig: Node3D
@@ -1586,6 +1588,7 @@ func _show_targets(list: Array, sel: int, source = "trainer_self") -> void:
 func _hide_targets() -> void:
 	_target_refs = []
 	_aim_from = null
+	_aim_option = {}
 	if floating != null and floating.aiming:
 		floating.clear_choice()
 	_select_hud_actor(null)
@@ -1807,8 +1810,27 @@ func _aim_control(row: Dictionary) -> void:
 
 func _status_text(ref) -> String:
 	if typeof(ref) == TYPE_OBJECT:
-		return "%s  HP %d / %d" % [ref.nickname, maxi(0, ref.hp), ref.max_hp()]
+		var mark: String = {"weak": "  ·  Weak!", "resist": "  ·  Resists"}.get(target_mark(ref), "")
+		return "%s  HP %d / %d%s" % [ref.nickname, maxi(0, ref.hp), ref.max_hp(), mark]
 	return floating._name(ref)
+
+
+## How the attack being aimed meets a beast it is aimed at (the rule _calc_damage uses): "weak" when its element takes
+## double from the attack's, "resist" when the attack is of its own element, else "". Only attacks have one: a
+## beast's attacking move, or an elemental bomb (`_aim_option`: the option being aimed, with "move" or "el").
+func target_mark(ref) -> String:
+	if typeof(ref) != TYPE_OBJECT or _aim_option.is_empty():
+		return ""
+	var el := String(_aim_option.get("el", ""))
+	if _aim_option.has("move"):
+		var m := MoveDB.get_move(String(_aim_option["move"]))
+		if String(m["kind"]) != "attack":
+			return ""
+		el = String(m["el"])
+	if el == "":
+		return ""
+	var eff := Elements.multiplier(el, _guard_el(ref))
+	return "weak" if eff > 1.0 else ("resist" if eff < 1.0 else "")
 
 
 ## The top bar's words for the command being chosen: what the action does (the panel's own hint, `text`); while
@@ -1898,6 +1920,8 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 	_prompt_ref = "trainer_self" if row["kind"] == "trainer" else row.get("beast", null)
 	if picking:
 		var ts: Array = row.get("targets", [])
+		var opts: Array = row.get("options", [])
+		_aim_option = opts[clampi(int(row.get("sel", 0)), 0, opts.size() - 1)] if not opts.is_empty() else {}
 		_show_targets(ts, -1 if row.get("target_all", false) else int(row.get("target_sel", 0)), _prompt_ref)
 		_aim_control(row)
 	else:
@@ -1961,9 +1985,6 @@ func _run() -> void:
 			await msg("A wild %s (Lv %d) appeared!" % [foes[0].nickname, foes[0].level])
 		else:
 			await msg("Wild beasts appeared: %s!" % ", ".join(names))
-		for f in foes:
-			if f.abandoned:
-				await msg("%s looks lonely... It seems to have been abandoned by its trainer." % f.nickname, 1.4)
 		match String(cfg.get("ambush", "")):
 			"player":
 				await msg("You caught it off guard! It can't act this round.", 1.1)
@@ -2143,7 +2164,7 @@ func _tut_move(b) -> String:
 
 func _tut_round_intro() -> void:
 	var rounds: Array = lesson.get("rounds", [])
-	# the last round's words aren't said again while it repeats, except a capture to try again
+	# the last round's words aren't said again while it repeats, except one to try again
 	if round_no <= rounds.size() or _tut_you() == "Flute":
 		await _tut_say(_tut_round().get("say", []))
 
@@ -2330,7 +2351,7 @@ func _command_phase() -> Array:
 							rows[0]["done"] = true
 							rows[0]["locked"] = true
 							focus = 1
-							# a charmed beast has left the field: the beasts' targets are chosen afresh
+							# a song may have changed the field: the beasts' targets are chosen afresh
 							var keep2: Dictionary = rows[0]
 							rows = _panel_rows()
 							rows[0] = keep2
@@ -2379,10 +2400,10 @@ func _panel_rows() -> Array:
 		shield = "Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield) + "   "
 	var t_opts := _weapon_options()
 	t_opts.append_array([
-		{"id": "items", "label": "Items", "sub": true, "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
-		{"id": "flute", "label": "Flute", "sub": true, "disabled": not GameState.has_flute(),
-			"desc": "Play a song: lift your team, weaken the foes, or charm a wild beast into joining you." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Bellerive is keeping your father's."},
-		{"id": "watch", "label": "Watch", "target": "none", "desc": "Let your beasts handle this round."},
+		{"id": "items", "label": "Items", "icon": "item", "sub": true, "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
+		{"id": "flute", "label": "Flute", "icon": "flute", "sub": true, "disabled": not GameState.has_flute(),
+			"desc": "Play a song: lift your team, or weaken the foes." if GameState.has_flute() else "You don't have a flute yet. Your uncle in Bellerive is keeping your father's."},
+		{"id": "watch", "label": "Watch", "icon": "watch", "target": "none", "desc": "Let your beasts handle this round."},
 	])
 	if not GameState.summons.is_empty():
 		# a captured temple guardian, called with its song: once per battle, for a shield point
@@ -2393,12 +2414,12 @@ func _panel_rows() -> Array:
 			why = "Summoning costs a shield point, and you have none left."
 		elif not GameState.has_flute():
 			why = "You need your flute to play a summon's song."
-		t_opts.insert(t_opts.size() - 1, {"id": "summon", "label": "Summon", "sub": true, "disabled": why != "",
+		t_opts.insert(t_opts.size() - 1, {"id": "summon", "label": "Summon", "icon": "summon", "sub": true, "disabled": why != "",
 			"desc": why if why != "" else "Play a temple's song to call its guardian: it strikes every foe at once. Once per battle, for one shield point (%d left)." % GameState.shield})
 	if wild:
-		t_opts.append({"id": "run", "label": "Run", "sub": true, "desc": "Try to escape."})
+		t_opts.append({"id": "run", "label": "Run", "icon": "run", "sub": true, "desc": "Try to escape."})
 	else:
-		t_opts.append({"id": "forfeit", "label": "Forfeit", "sub": true, "disabled": tutorial,
+		t_opts.append({"id": "forfeit", "label": "Forfeit", "icon": "run", "sub": true, "disabled": tutorial,
 			"desc": "Give up the battle. It counts as a loss, but you keep your gold and can try again." if not tutorial else "%s: \"No giving up in the middle of a lesson!\"" % _tut_who()})
 	if tutorial:
 		var want := _tut_you()
@@ -2448,7 +2469,7 @@ func _weapon_options() -> Array:
 			"bat": "Run up to a foe and swing: the hardest hit of the three."}.get(id, "")
 		if most > 0 and (GameState.flag("dance_lesson_done") or lesson_id == "rhythm"):
 			desc += " Press A on the beat: up to %d hits." % most
-		out.append({"id": "weapon", "weapon": id, "label": ItemDB.item_name(id), "target": w.get("target", "enemy"), "desc": desc})
+		out.append({"id": "weapon", "weapon": id, "icon": "attack", "label": ItemDB.item_name(id), "target": w.get("target", "enemy"), "desc": desc})
 	return out
 
 
@@ -2485,13 +2506,13 @@ func _move_options(b) -> Array:
 				off = true
 				desc = "%s: \"%s\"" % [_tut_who(), "Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"]]
 				note = desc
-		out.append({"id": "move", "move": mv, "label": String(m["name"]), "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
+		out.append({"id": "move", "move": mv, "icon": ActionIcons.for_move(mv), "label": String(m["name"]), "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
 	if el == "neutral" and not b.ghost:
 		var plain := "%s can't use %s moves from the %s side: plain moves only." % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()]
 		out[0]["desc"] = plain + "\n" + String(out[0]["desc"])
 		if String(out[0].get("note", "")) == "":
 			out[0]["note"] = plain
-	var d := {"id": "defend", "label": "Defend", "target": "none", "right": "half damage",
+	var d := {"id": "defend", "label": "Defend", "icon": "defend", "target": "none", "right": "half damage",
 		"desc": "Brace for impact: %s takes half damage until your side's next turn." % b.nickname}
 	if tutorial and _tut_beast() != "Defend":
 		d["disabled"] = true
@@ -2506,7 +2527,7 @@ func _move_options(b) -> Array:
 			else "There's no open slot %s can move to without leaving you open to attack." % b.nickname
 	if tutorial:
 		mv_desc = "%s: \"Not in a lesson! Attack this round.\"" % _tut_who()
-	out.append({"id": "shift", "label": "Move", "target": "slot", "right": "uses its turn", "desc": mv_desc, "disabled": spots.is_empty() or tutorial,
+	out.append({"id": "shift", "label": "Move", "icon": "move", "target": "slot", "right": "uses its turn", "desc": mv_desc, "disabled": spots.is_empty() or tutorial,
 		"none_hint": "Only one beast can move each round."})
 	return out
 
@@ -2829,15 +2850,7 @@ func _auto_commands() -> Array:
 			"Summon":
 				acts.append(await _summon_flow())
 			"Flute":
-				if String(_tut_round().get("song", "")) == "weaken":
-					acts.append({"type": "player_song", "song": "weaken", "acc": 0.75, "prio": 9})
-				else:
-					# played right away, as from the panel (UI.auto_flute gives the performance)
-					for sid in SongDB.ordered(GameState.songs):
-						var s := SongDB.get_song(sid)
-						if s["kind"] == "charm" and not s.get("ghost", false) and GameState.knows_song(sid):
-							await _charm_flow(sid)
-							break
+				acts.append({"type": "player_song", "song": String(_tut_round().get("song", "weaken")), "acc": 0.75, "prio": 9})
 		# every beast on the side facing the foe (in most lessons, just yours)
 		for b in _alive(ally_slots):
 			if _tut_beast() == "Defend":
@@ -2879,7 +2892,8 @@ func _auto_trainer_action() -> Dictionary:
 	return {"type": "weapon", "weapon": weapon, "target": foes_alive[0], "prio": 9}
 
 
-func _choose_target(list: Array, title: String):
+## `el`: the element of what is being aimed (an elemental bomb), for the targets' weak / resist marks.
+func _choose_target(list: Array, title: String, el := ""):
 	if list.is_empty():
 		return null
 	if list.size() == 1 and (title == "Target" or tutorial):
@@ -2890,7 +2904,9 @@ func _choose_target(list: Array, title: String):
 	var row := {"kind": "trainer", "options": [{"label": title}], "targets": targets, "target_sel": 0}
 	var panel := CommandPanel.new()
 	panel.setup([row], {"target_only": true}, 0, Callable(), {
-		"render": func(_rows, _focus, _picking): _show_targets(targets, int(row.get("target_sel", 0))),
+		"render": func(_rows, _focus, _picking):
+			_aim_option = {"el": el} if el != "" else {}
+			_show_targets(targets, int(row.get("target_sel", 0))),
 		"hint": _caption, "info": _command_info, "stage": self, "floating": floating})
 	panel.picking = true
 	UI.push(panel)
@@ -2923,16 +2939,9 @@ func _flute_flow() -> bool:
 				continue
 			if guardian_b.hp_ratio() > GUARDIAN_CAPTURE_HP:
 				why = "%s is still too strong to listen. Wear it down below 60%% of its HP first." % guardian_b.nickname
-		elif s["kind"] == "charm":
-			if not wild:
-				why = "You can't charm another trainer's beasts."
-			elif _charmable(sid).is_empty():
-				why = ("None of these beasts will listen to it (max Lv %d)." % GameState.capture_cap()) if not s.get("ghost", false) else "Only ghost beasts listen to the Requiem."
 		if tutorial:
-			# a lesson lists just the song it teaches (for Capture, the first capture song you know); its beast always
-			# listens
-			var want_song := String(_tut_round().get("song", ""))
-			if not ids.is_empty() or not (sid == want_song or (want_song == "capture" and s["kind"] == "charm" and not s.get("ghost", false))):
+			# a lesson lists just the song it teaches
+			if not ids.is_empty() or sid != String(_tut_round().get("song", "")):
 				continue
 			why = ""
 		var stars := GameState.mastery_stars(sid)
@@ -2947,18 +2956,10 @@ func _flute_flow() -> bool:
 	var played: bool
 	if SongDB.is_summon(song):
 		played = await _guardian_song_flow(song)
-	elif SongDB.is_charm(song):
-		played = await _charm_flow(song)
 	else:
 		played = await _effect_song_flow(song)
 	_set_acting(null)
 	return played
-
-
-func _charmable(song: String) -> Array:
-	if lesson_id == "flute":
-		return _alive(foe_slots)
-	return _alive(foe_slots).filter(func(f): return GameState.song_can_charm(song, f) == "")
 
 
 func _effect_song_flow(song: String) -> bool:
@@ -2984,69 +2985,6 @@ func _effect_song_flow(song: String) -> bool:
 	await _apply_song(song, acc, "ally", target)
 	if star:
 		await msg("Your mastery of %s improved! It grew to %d notes." % [s["name"], SongDB.note_count(song, GameState.song_level(song))], 1.2)
-	return true
-
-
-func _charm_flow(song: String) -> bool:
-	var targets := _charmable(song)
-	if targets.is_empty():
-		return false
-	var t = await _choose_target(targets, "Charm which beast?") if targets.size() > 1 else targets[0]
-	if t == null:
-		return false
-	flute_used = true
-	var flawless: bool = GameState.needs_flawless(t) and not tutorial
-	if flawless:
-		await msg("%s is stronger than any of your beasts. Only a flawless performance will reach it!" % t.nickname, 1.2)
-	_set_acting("trainer_self")
-	await msg("You raise your flute and play %s..." % SongDB.get_song(song)["name"], 0.7)
-	var sub := "Charming %s (Lv %d)  —  play it FLAWLESSLY: not a single wrong note!" % [t.nickname, t.level] if flawless \
-		else "Charming %s (Lv %d)  —  faster and cleaner means a better chance" % [t.nickname, t.level]
-	var r: Dictionary = await UI.flute_ex(song, sub, {"goal": {"no_mistakes": true}} if flawless else {"lesson": tutorial})
-	var acc: float = float(r["acc"])
-	var mistakes: int = int(r["mistakes"])
-	_battle_music()
-	var chance := GameState.capture_chance(t, song, acc, mistakes)
-	if tutorial and acc > 0.0:
-		# the lesson's beast joins whenever the song is played through
-		chance = 1.0
-	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
-	_camera_shot("capture", t)
-	await _song_fx(PLAYER_POS, [t], true, acc < SongDB.FLAT_ACCURACY)
-	await _note_effect(t)
-	if flawless and mistakes > 0:
-		Sfx.play("fail")
-		await msg("%d mistake%s... %s is too strong to be charmed by anything less than perfect." % [mistakes, "" if mistakes == 1 else "s", t.nickname], 1.4)
-		if star:
-			await msg("Your mastery of %s improved!" % SongDB.get_song(song)["name"], 1.0)
-		return true
-	if mistakes == 0 and not r.get("cancelled", false):
-		await msg("A flawless performance!", 0.6)
-	if randf() < chance:
-		Sfx.play("capture")
-		if lesson_id == "flute":
-			GameState.set_flag("flute_lesson_done")
-		await msg("%s was charmed by your melody!" % t.nickname)
-		var slot := foe_slots.find(t)
-		if slot >= 0:
-			foe_slots[slot] = null
-		foes.erase(t)
-		_despawn(t)
-		st.erase(t)
-		var where := GameState.add_beast(t)
-		_refresh()
-		if where == "party":
-			await msg("%s joined your party!" % t.nickname)
-		else:
-			await msg("%s was sent to your Beast Center storage." % t.nickname)
-		_check_end()
-	else:
-		Sfx.play("fail")
-		await msg("%s shook off the melody! (%d%% chance)" % [t.nickname, int(chance * 100)], 1.2)
-		if randf() < 0.3:
-			await _buff(t, {"atk": 1})
-	if star:
-		await msg("Your mastery of %s improved!" % SongDB.get_song(song)["name"], 1.0)
 	return true
 
 
@@ -3311,7 +3249,7 @@ func _choose_item() -> Dictionary:
 				return {}
 			t = await _choose_target(pool, "Use on whom?")
 		"enemy":
-			t = await _choose_target(_alive(foe_slots), "Target")
+			t = await _choose_target(_alive(foe_slots), "Target", String(it2.get("bomb", {}).get("el", "")))
 		"allies":
 			if _alive(ally_slots).is_empty():
 				await msg("None of your beasts are standing.", 0.8)
@@ -4941,7 +4879,7 @@ func _roll_egg(b) -> void:
 		return
 	if b.ghost and not GameState.flag("ghost_merge"):
 		return
-	if randf() < EGG_CHANCE:
+	if lesson.get("egg", false) or randf() < GameState.egg_chance():
 		# (an egg of its line's first form: a Cinderex leaves an Embit's egg)
 		drops.append({"race": RaceDB.first_form(b.race), "ghost": b.ghost, "name": b.nickname})
 
@@ -5003,11 +4941,6 @@ func _finish_growth() -> void:
 						await msg("%s can now use %s! Swap it in from the Beasts menu." % [who, mn], 1.1)
 				"cap":
 					await msg("%s reached its level limit! Merge it at a Beast Center to grow stronger." % who, 1.6)
-		if GameState.next_capture_ready() and not GameState.flag("capture_hint_%d" % GameState.capture_level()):
-			GameState.set_flag("capture_hint_%d" % GameState.capture_level())
-			Sfx.play("notify")
-			await msg("%s reached Lv %d! You can now practise %s from the Flute page of your book." % [b.nickname, b.level,
-				SongDB.get_song(SongDB.capture_id(GameState.capture_level() + 1))["name"]], 1.8)
 	pending_xp.clear()
 
 
@@ -5066,9 +4999,14 @@ func _finish() -> void:
 	await _finish_growth()
 	if result != "lose":
 		for d in drops:
+			# each egg has its own short film, like a level-up's (beast_cinematic.gd "egg")
 			GameState.add_egg(int(d["race"]), bool(d["ghost"]))
-			Sfx.play("capture")
-			await msg("%s left something behind... You found a%s %s!" % [d["name"], "n" if GameState.egg_name(GameState.eggs.back()).substr(0, 1) in ["A", "E", "I", "O", "U"] else "", GameState.egg_name(GameState.eggs.back())], 1.3)
+			var found: Dictionary = GameState.eggs.back()
+			await msg("%s left something behind..." % d["name"], 0.7)
+			await UI.beast_cinematic("egg", {"name": String(d["name"])}, {}, found)
+			await msg("You found %s %s!" % ["an" if GameState.egg_name(found).substr(0, 1) in ["A", "E", "I", "O", "U"] else "a", GameState.egg_name(found)], 0.9)
+		if lesson_id == "flute" and result == "win":
+			GameState.set_flag("flute_lesson_done")
 	for b in GameState.party:
 		b.status = ""
 		b.status_turns = 0

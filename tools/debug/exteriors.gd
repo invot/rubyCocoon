@@ -1,6 +1,6 @@
 extends RefCounted
 ## Town buildings seen from outside (AGENTS.md, "Building exteriors"), every building of every town and its scenery
-## houses, built as the world builds them:
+## houses, and the kennel barns out on the roads (only the barns there), built as the world builds them:
 ##   godot --headless --path . -- --scene=exteriors [--town=caccoon] [--verbose=1]
 ## - Sealed: from points the building encloses (walled on all four sides and roofed), a line towards anywhere the
 ##   gameplay camera can look from must meet an opaque face of the building turned towards that camera. One-sided
@@ -12,6 +12,7 @@ extends RefCounted
 
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const HouseModels = preload("res://scripts/gfx/house_models.gd")
+const MapLoader = preload("res://scripts/world/map_loader.gd")
 const VoxelPerson = preload("res://scripts/gfx/voxel_person.gd")
 
 ## the hero is 1.44 tall: a door this tall clears their head with room to spare (house_models.gd DOOR_H is 1.8)
@@ -36,7 +37,7 @@ func run(main, opts: Dictionary) -> void:
 	UI.auto = true
 	verbose = opts.has("verbose")
 	_front_sign = _winding()
-	var towns: Array = [String(opts["town"])] if opts.has("town") else WorldDB.TOWN_ORDER
+	var towns: Array = [String(opts["town"])] if opts.has("town") else WorldDB.TOWN_ORDER + _barn_roads()
 	var counted := 0
 	for town in towns:
 		await main._go(town, "start")
@@ -58,6 +59,9 @@ func run(main, opts: Dictionary) -> void:
 		for i in world.building_fades.size():
 			var f: Dictionary = world.building_fades[i]
 			var body: Dictionary = bodies[i]
+			# out on a road only its kennel barn is audited
+			if not WorldDB.is_town(town) and String(f["b"].get("shop", "")) != "kennel":
+				continue
 			# only this building: the others' copies leave the space while it's measured
 			for j in bodies.size():
 				for part in [[ALL, "all"], [SHELL, "shell"]]:
@@ -91,6 +95,17 @@ func run(main, opts: Dictionary) -> void:
 			await main.get_tree().create_timer(0.5).timeout
 	UI.auto = false
 	print("EXTERIORS DONE: %d building(s), %d problem(s)" % [counted, bad])
+
+
+## The roads with a kennel barn.
+func _barn_roads() -> Array:
+	var out := []
+	for rid in WorldDB.ROUTES:
+		for b in MapLoader.load_map(rid, {})["buildings"]:
+			if b["shop"] == "kennel":
+				out.append(rid)
+				break
+	return out
 
 
 ## Godot draws a triangle's front where its corners run clockwise; which way the cross product of its edges points

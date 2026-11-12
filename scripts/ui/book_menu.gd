@@ -808,53 +808,44 @@ func _tab_flute() -> void:
 		_add_row({"text": "No flute yet", "detail": func(c): c.add_child(_t_label("Your father's reed flute is waiting for you with Uncle Rafe in Bellerive, east along the Coastal Path. He'll teach you to play it."))})
 		return
 	_make_list(left_box, "Songs %d / %d" % [GameState.songs.size(), SongDB.ORDER.size()], right_box)
-	# the songs you know come first (battle songs, then charms), the ones still to learn after them
+	# the songs you know come first (battle songs, then temple songs), the ones still to learn after them
 	var known_ids := []
 	var unknown_ids := []
 	for sid in SongDB.ordered(GameState.songs):
 		(known_ids if GameState.knows_song(sid) else unknown_ids).append(sid)
-	var charms := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] == "charm")
 	var temple := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] == "summon")
 	var battle := known_ids.filter(func(id): return SongDB.get_song(id)["kind"] == "effect")
 	var hdr := ""
-	for sid in battle + charms + temple + unknown_ids:
+	for sid in battle + temple + unknown_ids:
 		var s := SongDB.get_song(sid)
 		var known := GameState.knows_song(sid)
-		var want: String = {"charm": "CHARM SONGS", "summon": "TEMPLE SONGS"}.get(s["kind"], "BATTLE SONGS") if known else "NOT YET LEARNED"
+		var want: String = {"summon": "TEMPLE SONGS"}.get(s["kind"], "BATTLE SONGS") if known else "NOT YET LEARNED"
 		if want != hdr:
 			hdr = want
 			_add_row({"header": true, "text": hdr})
-		var ready: bool = SongDB.capture_level(sid) > 0 and GameState.next_capture_ready()
-		var is_cap: bool = SongDB.capture_level(sid) > 0
-		var right := ("★ new" if ready else SongDB.tag(sid)) if known else ""
+		var right := SongDB.tag(sid) if known else ""
 		if known and s["kind"] == "summon":
 			# whether its guardian is yours yet
 			right = "SUMMON" if GameState.summons.has(String(s["summon"])) else "GUARDIAN"
-		_add_row({"text": s["name"] if known else "? ? ?", "right": right, "right_width": 80 if is_cap else 150,
+		_add_row({"text": s["name"] if known else "? ? ?", "right": right, "right_width": 150,
 			"disabled": not known, "detail": _song_detail.bind(sid), "act": _song_act.bind(sid)})
 
 
 func _song_act(sid: String) -> void:
 	if not GameState.knows_song(sid):
 		return
-	if SongDB.capture_level(sid) > 0 and GameState.next_capture_ready():
-		await Places.practice_next_capture()
-	else:
-		await Places.practice_once(sid)
+	await Places.practice_once(sid)
 
 
 func _song_detail(c: VBoxContainer, sid: String) -> void:
 	var s := SongDB.get_song(sid)
 	var known := GameState.knows_song(sid)
-	if SongDB.capture_level(sid) > 0 and known:
-		_capture_detail(c, sid)
-		return
 	if not known:
 		c.add_child(_h("Unknown song"))
 		c.add_child(_t_label("Where to learn it: " + String(s["from"]), UIKit.DIM))
 		return
 	c.add_child(_h(s["name"]))
-	var kt := UIKit.tag({"charm": "CHARM", "summon": "SUMMON"}.get(s["kind"], "BATTLE"), UIKit.ACCENT)
+	var kt := UIKit.tag({"summon": "SUMMON"}.get(s["kind"], "BATTLE"), UIKit.ACCENT)
 	kt.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	c.add_child(kt)
 	c.add_child(_spacer())
@@ -877,33 +868,6 @@ func _song_detail(c: VBoxContainer, sid: String) -> void:
 	c.add_child(_t_label("%s to practise it." % _press(), UIKit.ACCENT))
 
 
-func _capture_detail(c: VBoxContainer, sid: String) -> void:
-	var lv := GameState.capture_level()
-	c.add_child(_h(SongDB.song_name(sid)))
-	var ct := UIKit.tag("CHARM", UIKit.ACCENT)
-	ct.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	c.add_child(ct)
-	c.add_child(_spacer())
-	c.add_child(_t_label("Charms wild beasts up to Lv %d, if one of your beasts is at least that strong (yours: Lv %d)." % [GameState.capture_cap(), GameState.best_level()]))
-	c.add_child(_t_label("The faster and cleaner you play, the better the chance. Play it flawlessly to charm a beast stronger than any of yours.", UIKit.DIM))
-	c.add_child(_t_label("Capture %s  ·  %d notes" % [SongDB.ROMAN[lv - 1], SongDB.note_count(sid, lv)], UIKit.DIM))
-	c.add_child(_spacer())
-	if lv >= SongDB.CAPTURE_CAPS.size():
-		c.add_child(_t_label("This is the final level of Capture. Nothing can resist you now!", UIKit.ACCENT))
-	elif GameState.next_capture_ready():
-		c.add_child(_t_label("Your beasts have outgrown it! %s to practise %s (up to Lv %d)." % [_press(), SongDB.song_name(SongDB.capture_id(lv + 1)), SongDB.CAPTURE_CAPS[lv]], UIKit.ACCENT))
-	else:
-		c.add_child(_t_label("Next: %s, once one of your beasts reaches Lv %d." % [SongDB.song_name(SongDB.capture_id(lv + 1)), GameState.capture_cap()], UIKit.DIM))
-	c.add_child(_spacer())
-	var stars := GameState.mastery_stars(sid)
-	var hb := HBoxContainer.new()
-	hb.add_child(_w("Mastery "))
-	for i in 5:
-		hb.add_child(UIKit.icon("icon_star" if i < stars else "icon_star_empty"))
-	c.add_child(hb)
-
-
-# ================================================================ Bag
 func _tab_bag() -> void:
 	_make_list(left_box, "Bag  %d/24  ·  %d gold" % [GameState.stacks_used(GameState.inventory), GameState.gold], right_box)
 	var groups := [["CARE", func(it): return it["kind"] == "use" and not it.get("battle_only", false)],

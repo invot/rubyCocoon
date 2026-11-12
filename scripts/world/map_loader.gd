@@ -46,7 +46,7 @@ const BUILDING_LETTERS := {
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",
 	"H": "house", "Z": "home", "Q": "temple", "X": "electronics", "V": "skytower", "I": "ceo_tower",
 	"B": "cathedral", "J": "hideout", "h": "decor", "D": "music_shop", "b": "cabin", "r": "uncle", "p": "fishery",
-	"s": "shack",
+	"s": "shack", "?": "kennel",
 }
 const ENTITY_CHARS := "@v^<>$*123456789P"
 const FACING := {"v": Vector2i(0, 1), "^": Vector2i(0, -1), "<": Vector2i(-1, 0), ">": Vector2i(1, 0)}
@@ -647,6 +647,10 @@ static func _villager(p: Vector2i, rng: RandomNumberGenerator) -> Dictionary:
 
 static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector2i, rng: RandomNumberGenerator, map_id: String, idx: int) -> void:
 	var door := Vector2i(pos.x + sz.x / 2, pos.y + sz.y - 1)
+	if shop == "kennel":
+		# a kennel barn is its plot's eastern five tiles, its doors in the middle of them; the rest is its paddock
+		# (barn_builder.gd)
+		door.x = pos.x + sz.x - 3
 	var b := {"shop": shop, "name": MapGen.SHOP_NAMES.get(shop, shop), "x": pos.x, "y": pos.y, "w": sz.x, "d": sz.y, "door": door,
 		"roof": MapGen.ROOF.get(shop, "#a05a40"), "town": map_id, "seed": rng.randi(), "height": 2.6 if sz.y >= 4 else 2.2,
 		"index": idx, "interior": "%s#%d" % [map_id, idx]}
@@ -671,6 +675,8 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 			b["name"] = "Bandit Hideout"
 		"cabin":
 			b["name"] = "Builder's Cabin"
+		"kennel":
+			b["name"] = "Kennel Barn"
 		"uncle":
 			b["name"] = "Uncle Rafe's House"
 		"fishery":

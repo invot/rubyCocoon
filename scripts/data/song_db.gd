@@ -1,19 +1,15 @@
 extends RefCounted
-## Flute songs. Three kinds:
+## Flute songs. Two kinds (no song wins a wild beast over: new beasts only ever come from eggs):
 ##   "effect" songs are played as the trainer's turn in any battle. They raise your beasts' stats, heal or cure
 ##            them, or lower the foes' stats and lull them into sleep, poison, confusion...
 ##            The better you play, the stronger the effect.
-##   "charm"  songs win a wild beast over. The main one is Capture, which grows in levels (capture1, capture2, ...):
-##            Capture N charms beasts up to CAPTURE_CAPS[N - 1], and only beasts no stronger than your strongest
-##            beast, unless you play it flawlessly. When one of your beasts reaches the cap, the next level can be
-##            practised from the Start book. The Requiem of Dusk charms ghost beasts by the same rules.
 ##   "summon" songs are the temples' own songs, taught by each temple's singing stones (Places.song_stone). Played to
-##            the temple's guardian once it's worn down, the song captures it; from then on it calls the guardian
+##            the temple's guardian once it's worn down, the song binds it as a summon; from then on it calls the guardian
 ##            into any battle (the Summon command), once per battle, for a shield point. Each starts as long as its
 ##            temple's stone puzzle ("min_notes") and grows with mastery like the others.
 ## Playing: see flute_game.gd. A song is sheet music of 4 to 16 notes that you memorise and play back against the clock.
 ## Higher levels are longer, add ↑ then ↓ above the first four notes, and finally chords (A or B with a direction).
-## Learning: Uncle Rafe in Bellerive hands over your father's flute and teaches Weaken and Capture I. Arena masters teach strong battle
+## Learning: Uncle Rafe in Bellerive hands over your father's flute and teaches Weaken. Arena masters teach strong battle
 ## songs. The music shop in Cogsworth plays one song for free (once) and sells sheet music. A few rival trainers
 ## play their own songs in battle; play one back without a single mistake after the battle and it's yours.
 ##
@@ -67,9 +63,7 @@ const SONGS := {
 		"bpm": 122, "tier": 7, "root": 72, "from": "Jungle Huntress Aeris (Vinehollow Arena)"},
 	"anthem": {"name": "River Anthem", "kind": "effect", "target": "allies", "heal_pct": 0.3, "cure": true, "buff": {"spr": 1},
 		"bpm": 128, "tier": 8, "root": 74, "from": "River Ranger Skye (Riverbend Arena)"},
-	# ---------------- charm songs (Capture is generated per level, see get_song) ----------------
-	"requiem": {"name": "Requiem of Dusk", "kind": "charm", "bpm": 100, "tier": 7, "from": "the Gravenmoor gravedigger", "root": 69, "ghost": true},
-	# ---------------- temple songs: capture the temple's guardian, then summon it (see WorldDB.TEMPLES) ----------------
+	# ---------------- temple songs: bind the temple's guardian, then summon it (see WorldDB.TEMPLES) ----------------
 	"song_tides": {"name": "Song of Tides", "kind": "summon", "summon": "water", "target": "enemies", "min_notes": 4,
 		"bpm": 84, "tier": 2, "root": 72, "from": "the singing stones of the Temple of Tides"},
 	"song_winds": {"name": "Song of Winds", "kind": "summon", "summon": "air", "target": "enemies", "min_notes": 5,
@@ -81,14 +75,15 @@ const SONGS := {
 	"song_dusk": {"name": "Nocturne of the Crypt", "kind": "summon", "summon": "ghost", "target": "enemies", "min_notes": 8,
 		"bpm": 98, "tier": 7, "root": 66, "ghost": true, "from": "the singing stones of Gravenmoor's crypt"},
 }
-## Display order. "capture" stands for whichever Capture level you know.
+## Display order.
 const ORDER := ["weaken", "jig", "hymn", "chorale", "mending", "canon", "minuet", "lullaby", "sluggish", "dazzle", "venom", "static", "discord", "dread",
-	"shanty", "coral", "reel", "dirge", "anvil", "waltz", "fanfare", "anthem", "capture", "requiem",
+	"shanty", "coral", "reel", "dirge", "anvil", "waltz", "fanfare", "anthem",
 	"song_tides", "song_winds", "song_flame", "song_roots", "song_dusk"]
 
-## Capture levels: Capture N charms wild beasts up to this level.
-const CAPTURE_CAPS := [5, 10, 15, 20, 25, 30, 40, 50, 60, 75, 100]
-const ROMAN := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI"]
+## Songs from older saves that no longer exist (the Capture levels and the Requiem of Dusk): dropped on loading.
+static func exists(id: String) -> bool:
+	return SONGS.has(id)
+
 
 ## A performance scores 0..1 ("accuracy"): the timer colour it finished in (green 1.0 ... red 0.5) times a little less for
 ## each wrong note. Running out of time or three wrong notes scores 0.
@@ -115,7 +110,7 @@ const BASE_TIME := 10.0
 ## the uncle's lessons give beginners more time
 const TUTORIAL_TIME := 30.0
 const TIME_PER_NOTE := 1.25
-## Songs other than Capture level up with mastery: level = 1 + mastery stars.
+## Songs level up with mastery: level = 1 + mastery stars.
 const MASTERY_LEVELS := 6
 ## How far towards its top level a song has to be before ↑, then ↓, then chords join it.
 const UNLOCK_UP := 0.35
@@ -128,45 +123,23 @@ const STATUS_WORD := {"sleep": "sleep", "poison": "poison", "shock": "paralysis"
 
 
 static func get_song(id: String) -> Dictionary:
-	if id.begins_with("capture"):
-		var n := clampi(capture_level(id), 1, CAPTURE_CAPS.size())
-		return {"name": "Capture " + ROMAN[n - 1], "kind": "charm", "max_level": CAPTURE_CAPS[n - 1], "capture": n,
-			"bpm": 80 + n * 4, "tier": mini(8, n - 1), "root": 72 + (n % 3),
-			"from": "Uncle Rafe in Bellerive taught you Capture I. Each new level is practised from the Flute page of your book"}
 	return SONGS.get(id, SONGS["weaken"])
 
 
-static func capture_id(level: int) -> String:
-	return "capture%d" % level
-
-
-## 0 if `id` isn't a Capture song.
-static func capture_level(id: String) -> int:
-	return int(id.substr(7)) if id.begins_with("capture") and id.length() > 7 else 0
-
-
-## ORDER with "capture" replaced by the Capture level in `known` (Capture I if none is known).
-static func ordered(known: Array) -> Array:
-	var cap := capture_id(1)
-	for k in known:
-		if capture_level(String(k)) > capture_level(cap):
-			cap = String(k)
-	return ORDER.map(func(id): return cap if id == "capture" else id)
+## Every song, in display order (`_known` is kept for callers that pass the songs you know).
+static func ordered(_known: Array = []) -> Array:
+	return ORDER.duplicate()
 
 
 static func song_name(id: String) -> String:
 	return get_song(id)["name"]
 
 
-static func is_charm(id: String) -> bool:
-	return get_song(id)["kind"] == "charm"
-
-
 static func is_summon(id: String) -> bool:
 	return get_song(id)["kind"] == "summon"
 
 
-## The temple song that captures and summons the guardian of `temple` ("water", ..., "ghost"), or "".
+## The temple song that binds and summons the guardian of `temple` ("water", ..., "ghost"), or "".
 static func summon_song(temple: String) -> String:
 	for id in SONGS:
 		if String(SONGS[id].get("summon", "")) == temple:
@@ -178,11 +151,9 @@ static func shop_songs() -> Array:
 	return ORDER.filter(func(id): return SONGS.has(id) and SONGS[id].has("shop"))
 
 
-## A short tag for menus, e.g. "DEF↓ foes" or "≤ Lv 14".
+## A short tag for menus, e.g. "DEF↓ foes".
 static func tag(id: String) -> String:
 	var s := get_song(id)
-	if s["kind"] == "charm":
-		return "ghosts" if s.get("ghost", false) else "≤ Lv %d" % s["max_level"]
 	if s["kind"] == "summon":
 		return "SUMMON"
 	var bits := []
@@ -203,10 +174,6 @@ static func tag(id: String) -> String:
 ## One-line description of what a song does.
 static func describe(id: String) -> String:
 	var s := get_song(id)
-	if s["kind"] == "charm":
-		if s.get("ghost", false):
-			return "Charms a wild ghost beast, up to your Capture level. Only ghosts listen to it."
-		return "Charms a wild beast up to Lv %d, if one of your beasts is at least as strong. Play it flawlessly to charm a stronger one!" % s["max_level"]
 	if s["kind"] == "summon":
 		return "A temple's own song. Play it to the temple's guardian once it's worn down, and the guardian is yours. After that it calls the guardian into battle (Summon) to strike every foe at once: once per battle, for one shield point."
 	var who: String = {"enemies": "every foe", "enemy": "one foe", "allies": "every beast on your team", "ally": "one of your beasts"}.get(s["target"], "")
@@ -225,15 +192,15 @@ static func describe(id: String) -> String:
 	return text.substr(0, 1).to_upper() + text.substr(1) + ". Play it well for a stronger effect."
 
 
-## The note one button plays (its staff position's pitch). The Requiem sounds a fourth lower.
+## The note one button plays (its staff position's pitch). The crypt's nocturne sounds a fourth lower.
 static func note_freq(id: String, btn: int) -> float:
 	var midi: int = STEP_MIDI[BTN_STEP[btn]] - (5 if get_song(id).get("ghost", false) else 0)
 	return 440.0 * pow(2.0, (midi - 69) / 12.0)
 
 
-## A song's top level: Capture has one level per Capture song, every other song levels up with mastery.
-static func max_level(id: String) -> int:
-	return CAPTURE_CAPS.size() if capture_level(id) > 0 else MASTERY_LEVELS
+## A song's top level: songs level up with mastery.
+static func max_level(_id: String) -> int:
+	return MASTERY_LEVELS
 
 
 ## How far along a song is towards its top level, 0..1.
@@ -263,7 +230,7 @@ static func time_limit(count: int, base := BASE_TIME) -> float:
 static func melody(id: String, level: int) -> Array:
 	level = clampi(level, 1, max_level(id))
 	var rng := RandomNumberGenerator.new()
-	rng.seed = ("capture" if capture_level(id) > 0 else id).hash()
+	rng.seed = id.hash()
 	var out := []
 	for lv in range(1, level + 1):
 		var u := unlocks(id, lv)

@@ -21,7 +21,6 @@ func run(root, opts: Dictionary) -> void:
 		GameState.set_flag(flag)
 	GameState.gear["flute"] = "reed_flute"
 	GameState.learn_song("weaken")
-	GameState.learn_song("capture1")
 	GameState.set_flag("lesson_team")
 	GameState.set_flag("lesson_elements")
 	GameState.crests.append(Story.WorldDB.ARENAS["tidewater"]["crest"])
@@ -49,7 +48,7 @@ func run(root, opts: Dictionary) -> void:
 	GameState.flags.erase("game_cleared")
 	UI.auto_log.clear()
 	await Story.talk(main.world, main._npc("gravedigger"))
-	_check(GameState.knows_song("requiem") and GameState.flag("got_requiem"), "Mort still teaches the ghost capture song")
+	_check(not GameState.knows_song("requiem") and GameState.flag("got_requiem"), "Mort explains Shadow Eggs and teaches no capture song")
 	UI.auto_answers = [3]
 	UI.auto_log.clear()
 	await Places.beast_center("gravenmoor")

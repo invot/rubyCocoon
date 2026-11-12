@@ -230,7 +230,7 @@ func _shack(main, opts: Dictionary) -> bool:
 	await Menus.use_bag_item("worn_cap")
 	await Menus.use_bag_item("old_sneakers")
 	_check(GameState.gear["head"] == "worn_cap" and GameState.gear["feet"] == "old_sneakers"
-		and GameState.gear_fx("speed") > speed and GameState.gear_fx("capture") > 0.0, "the cap and sneakers can be put on")
+		and GameState.gear_fx("speed") > speed and GameState.gear_fx("egg") > 0.0, "the cap and sneakers can be put on")
 	await main._go("caccoon", step)
 	await main._go(shack["interior"], "entry")
 	await main._settle(shack["interior"])

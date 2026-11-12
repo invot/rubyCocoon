@@ -10,6 +10,8 @@ const STUCCO := {
 	"sky": Color("#a3cad8"), "coral": Color("#e4ac99"),
 	"sage": Color("#b4cb9c"), "rose": Color("#d8adb8"),
 	"butter": Color("#ead398"), "lavender": Color("#c7b9d9"),
+	# the Beast Center's temple: pale dressed stone (voxel_buildings.gd SHRINE_STONE)
+	"shrine": Color("#e9dfc8"),
 }
 ## The plaster's finish: painted stucco with soft trowel sweeps (cove_stucco.gdshader), one material per paint.
 const StuccoShader = preload("res://scripts/gfx/cove_stucco.gdshader")
@@ -39,8 +41,10 @@ const FLOORS := {
 	"hut_1": [3.14], "hut_3": [3.14], "hut_4": [3.2],
 }
 const GROUND_STOREY := 2.6
-## The shops' taller ground storey: the apothecary's (house_3) and the Beast Center's (house_1), whose sign board over
-## the awning (voxel_buildings.gd _shop_front, up to about 2.7) must sit on the wall under the eaves, not in the roof.
+## The taller ground storey: the apothecary's (house_3), whose sign board over the awning (voxel_buildings.gd
+## _shop_front, up to about 2.7) must sit on the wall under the eaves, not in the roof, and the Beast Center's (house_1),
+## whose temple front (voxel_buildings.gd shrine_front: columns, a lintel and the stepped pediment with the pawprint)
+## stands under the eaves the same way.
 const SHOP_STOREY := 3.1
 const SHOP_STOREY_MODELS := ["house_3", "house_1"]
 const APOTHECARY_SETBACK := 1.2
@@ -168,7 +172,9 @@ static func build(b: Dictionary) -> Node3D:
 	inst.mesh = warped(p["key"],float(p["scale"]))
 	# One cached mesh can serve several houses without repainting its timber,
 	# clay roof, window surrounds or blue/red door.
-	var paint: String = b.get("cove_stucco", "butter")
+	var shop: String = b["shop"]
+	# The Beast Center is a temple: pale stone, whatever paint its plot was given.
+	var paint: String = "shrine" if shop == "center" else String(b.get("cove_stucco", "butter"))
 	if not _stucco_materials.has(paint):
 		var material := ShaderMaterial.new()
 		material.resource_name = "Cove stucco: " + paint
@@ -184,7 +190,6 @@ static func build(b: Dictionary) -> Node3D:
 	inst.scale = Vector3.ONE*float(p["scale"])
 	inst.position = p["offset"]
 	node.add_child(inst)
-	var shop: String = b["shop"]
 	var builders = load("res://scripts/gfx/voxel_buildings.gd")
 	if p.has("porch"):
 		_porch(node,p)
@@ -202,7 +207,26 @@ static func build(b: Dictionary) -> Node3D:
 		var lock := MeshInstance3D.new()
 		lock.mesh = kit.mesh()
 		node.add_child(lock)
-	if shop in ["center","apothecary","bookstore"]:
+	if shop == "center":
+		# The temple front every Beast Center has, on the kit's wall under its clay eaves: columns either side of the
+		# door, a lintel, the stepped pediment with the pawprint roundel, banners and a crystal on the roof's ridge.
+		var kit = builders.Kit.new()
+		var face: float = at.z
+		var eave: float = ground_storey(p["key"])
+		builders.shrine_front(kit,at.x,0.0,face,Houses.DOOR_H+0.06,eave,builders.SHRINE_STONE,0.78)
+		var rect: Rect2 = p["rect"]
+		for side in [-1.0,1.0]:
+			var x: float = at.x+side*1.5
+			if x > rect.position.x+0.35 and x < rect.end.x-0.35:
+				builders._shrine_banner(kit,Vector3(x,eave-0.1,face+0.03),0.36,0.7)
+		var ridge: float = float(p["height"])
+		kit.box("plaster",Vector3(rect.get_center().x,ridge+0.05,rect.get_center().y),Vector3(0.34,0.3,0.34),builders.SHRINE_STONE,true)
+		builders.shrine_crystal(kit,Vector3(rect.get_center().x,ridge+0.2+0.3,rect.get_center().y),0.2,0.74)
+		var front := MeshInstance3D.new()
+		front.name = "ShrineFront"
+		front.mesh = kit.mesh()
+		node.add_child(front)
+	if shop in ["apothecary","bookstore"]:
 		# Reuse the game's striped shop fronts, colors and pixel sign icons.
 		if shop == "bookstore":
 			p["awning_width"] = p["door_size"].x+0.35

@@ -2,7 +2,7 @@ extends RefCounted
 ## Fishing. With Fisher Gil's pole (from his shack in Bellerive), face any water and press A to cast. Where the water
 ## ripples (a 4-tile-square patch round each of the map's "fish_spots", see map_loader.gd) something nearly always bites, and quickly; elsewhere only now and
 ## then. When the float dips, strike, then reel (ui/fishing_game.gd); land it and the water beast leaps out for a wild
-## battle (catch it with the flute, or beat it). Bait on your hook (GameState.bait) is used up whenever something
+## battle (beat it, and it may leave an egg). Bait on your hook (GameState.bait) is used up whenever something
 ## bites, and brings up stronger, rarer water beasts, sooner: worms from the islands, lures further on.
 
 const Beasts = preload("res://scripts/core/beasts.gd")

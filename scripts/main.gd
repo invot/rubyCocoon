@@ -15,6 +15,8 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
+const ActionIcons = preload("res://scripts/battle/action_icons.gd")
+const Elements = preload("res://scripts/data/elements.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
@@ -862,7 +864,6 @@ func _run_test() -> void:
 	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("reed_flute")
 	GameState.learn_song("weaken")
-	GameState.learn_song("capture3")
 	# a Pricklet, a Clawlet and a Grubbit: fire, water and earth (none of Cocoon Cove's dino line, for --scene=mascot)
 	for r in [3, 24, 12]:
 		var b := Beasts.create(r, 12)
@@ -1032,7 +1033,6 @@ func _run_test() -> void:
 		print("merge: ", m.nickname, " rank ", m.rank, " lv ", m.level, " el ", m.element_text(), " moves ", m.moves, " genes ", m.genes)
 		var g := Beasts.create(6, 40, true)
 		print("ghost merge allowed? ", Beasts.can_merge(m, g, false), " | ", Beasts.can_merge(a, g, true))
-		print("capture chance lv5 Capture III acc1 full hp: ", GameState.capture_chance(Beasts.create(0, 5), "capture3", 1.0))
 		Engine.time_scale = 1.0
 	elif scene == "flow":
 		await _flow_test()
@@ -1053,6 +1053,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/ring_start.gd").new().run(self, _test)
 	elif scene == "kennel":
 		await load("res://tools/debug/kennel.gd").new().run(self, _test)
+	elif scene == "action-icons":
+		await load("res://tools/debug/action_icons.gd").new().run(self, _test)
 	elif scene == "egg-sales":
 		# Real sale menus, seeded with demo eggs; no player saves are loaded or written.
 		var town := String(_test.get("buyer", ""))
@@ -1229,7 +1231,6 @@ func _run_test() -> void:
 			GameState.set_flag(f)
 		GameState.gear["flute"] = "reed_flute"
 		GameState.learn_song("weaken")
-		GameState.learn_song("capture1")
 		var town_advice := " ".join(Phone.level_advice(world))
 		print("next goal ", Story.next_goal(), " in town: ", town_advice)
 		bad += int(not "Tide Captain Marina's beasts are Lv 9 to 10" in town_advice)
@@ -1266,7 +1267,6 @@ func _run_test() -> void:
 				GameState.set_flag(flag)
 			GameState.gear["flute"] = "reed_flute"
 			GameState.learn_song("weaken")
-			GameState.learn_song("capture1")
 			GameState.party = [Beasts.create(24, int(_test.get("level", "6")))]
 			if _test.has("tip"):
 				Phone._tip_turn = int(_test["tip"])
@@ -1461,7 +1461,7 @@ func _run_test() -> void:
 		else:
 			await _mascot_test()
 	elif scene == "flutelesson":
-		# the first lone wild beast after Uncle Rafe's lessons: Weaken, then Capture (played by the autoplay)
+		# the first lone wild beast after Uncle Rafe's lesson: Weaken, then beating it for its egg (played by the autoplay)
 		GameState.set_flag("flute_lesson_done", false)
 		# a new trainer's: just the starter caught so far
 		GameState.caught = {}
@@ -1470,10 +1470,12 @@ func _run_test() -> void:
 		UI.auto = true
 		UI.auto_flute = [{"acc": 0.8, "mistakes": 0}]
 		var before := GameState.party.size() + GameState.storage.size()
+		var eggs_before := GameState.eggs.size()
 		var res: String = await Story.wild_battle(world, [Beasts.create(27, 3)], "wild")
-		print("flute lesson: result ", res, "  done ", GameState.flag("flute_lesson_done"), "  beasts before ", before, " after ", GameState.party.size() + GameState.storage.size())
+		print("flute lesson: result ", res, "  done ", GameState.flag("flute_lesson_done"), "  beasts before ", before, " after ", GameState.party.size() + GameState.storage.size(),
+			"  eggs before ", eggs_before, " after ", GameState.eggs.size())
 		for l in UI.auto_log:
-			if l.begins_with("[menu]"):
+			if l.begins_with("[menu]") or l.begins_with("[cinematic]"):
 				print("   ", l)
 	elif scene == "tutorial":
 		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring, or
@@ -1572,22 +1574,14 @@ func _run_test() -> void:
 		UI.auto_flute = [{"acc": 0.0, "mistakes": 3, "failed": "misses"}]
 		UI.auto_answers = [1]
 		print("uncle: fail Weaken and give up -> done: ", await Story.uncle_lessons(), "  flute ", GameState.has_flute(), "  songs ", GameState.songs)
-		print("uncle again, pass both -> done: ", await Story.uncle_lessons(), "  songs ", GameState.songs)
+		print("uncle again, pass -> done: ", await Story.uncle_lessons(), "  songs ", GameState.songs)
 		print("arena with a flute -> allowed: ", await Story.can_enter(world, arena))
-		var weak := Beasts.create(6, 2)
-		var strong := Beasts.create(6, 3)
-		var too_big := Beasts.create(6, 6)
-		print("best beast Lv", GameState.best_level(), "  Capture cap ", GameState.capture_cap())
-		print("Lv2 target, 90%%, 2 mistakes: %.2f" % GameState.capture_chance(weak, "capture1", 0.9, 2))
-		print("Lv3 target (stronger than yours), 2 mistakes: %.2f   flawless: %.2f" % [GameState.capture_chance(strong, "capture1", 0.9, 2), GameState.capture_chance(strong, "capture1", 1.0, 0)])
-		print("Lv2 target, 40%% vs 90%% accuracy: %.2f vs %.2f" % [GameState.capture_chance(weak, "capture1", 0.4, 6), GameState.capture_chance(weak, "capture1", 0.9, 1)])
-		print("Lv6 target: '", GameState.song_can_charm("capture1", too_big), "'")
-		print("next level ready at Lv2: ", GameState.next_capture_ready())
-		GameState.party[0].level = 5
-		print("next level ready at Lv5: ", GameState.next_capture_ready())
-		UI.auto_flute = [0.95]
-		print("practised next level: ", await Places.practice_next_capture(), "  songs ", GameState.songs, "  cap ", GameState.capture_cap())
-		print("Lv6 target now: '", GameState.song_can_charm(GameState.capture_song(), too_big), "'  needs flawless: ", GameState.needs_flawless(too_big))
+		# beasts only come from eggs: no song is left that wins one over, and old saves drop theirs
+		print("Capture I learnable: ", GameState.learn_song("capture1"), "  Requiem learnable: ", GameState.learn_song("requiem"), "  songs ", GameState.songs)
+		print("egg chance, no gear: %.2f" % GameState.egg_chance())
+		GameState.gear["head"] = "explorer_hat"
+		GameState.gear["flute"] = "jade_flute"
+		print("egg chance, Explorer Hat and Jade Flute: %.2f" % GameState.egg_chance())
 	elif scene == "building-fade":
 		await load("res://tools/debug/building_fade.gd").new().run(self, _test)
 	elif scene == "exteriors":
@@ -3483,6 +3477,9 @@ func _battlecmd_test() -> void:
 	GameState.max_shield = 4
 	GameState.shield = 4
 	var foes := [Beasts.create(12, 20), Beasts.create(15, 20)]
+	if _test.has("foes"):
+		# --foes=30,0: other races to aim at (an air and a fire beast: one weak to your fire side's moves, one resisting)
+		foes = Array(String(_test["foes"]).split(",")).map(func(r): return Beasts.create(int(r), 20))
 	if _test.has("stage_map"):
 		GameState.map_id = String(_test["stage_map"])
 	start_battle({"wild": _test.get("wild", "0") == "1", "foes": foes,
@@ -3522,6 +3519,14 @@ func _battlecmd_test() -> void:
 	check.call(bt.ally_side == 0, "the ring last faced the air side (nobody in its middle): it starts turned to the %s side" % Ring.side_element(bt.ally_side))
 	check.call(bt._selected_refs == ["trainer_self"] and bt.floating.actor == "trainer_self", "only the trainer is outlined while choosing their action")
 	check.call(bt.floating.action_rect.size.y >= UIKit.row_h(), "floating action respects the input target minimum")
+	var icon_groups := {}
+	for r in p.rows:
+		for o in r["options"]:
+			if String(o.get("label", "")) != "":
+				icon_groups[String(o["label"])] = ActionIcons.group(String(o.get("icon", ""))) if String(o.get("icon", "")) != "" else "none"
+	check.call(not icon_groups.values().has("none") and icon_groups.get("Slingshot", "") == "attack" and icon_groups.get("Watch", "") == "support"
+		and icon_groups.get("Defend", "") == "support" and icon_groups.get("Ember", "element") == "element" and icon_groups.get("Tackle", "attack") == "attack",
+		"every action has an icon: elemental attacks by element, plain attacks grey, the rest navy (%s)" % str(icon_groups))
 	check.call(bt.pads["ally"][2].get_meta("sigil").albedo_color.r < 0.5, "empty 3D pads stay visibly dim")
 	if String(_test.get("scene", "")) in ["battle-focus", "battle-redirect"]:
 		return # this focused fixture starts at command selection; battlecmd covers the caption and picker checks below
@@ -3644,6 +3649,10 @@ func _battlecmd_test() -> void:
 	await opt_to.call(p, "move", "fire_spin")
 	await key.call("ui_accept")
 	check.call(p.picking and p.rows[2].get("target_all", false) and bt.floating.aiming and bt.floating.tag_rects.size() == 2 and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
+	for f in bt._target_refs:
+		var eff := Elements.multiplier("fire", bt._guard_el(f))
+		check.call(bt.target_mark(f) == ("weak" if eff > 1.0 else ("resist" if eff < 1.0 else "")) and bt.floating._bars.any(func(b): return is_same(b["ref"], f) and b["mark"] == bt.target_mark(f)),
+			"%s's bar shows how Fire Spin meets it: '%s'" % [f.nickname, bt.target_mark(f)])
 	if stop == "all":
 		return
 	await key.call("ui_left")

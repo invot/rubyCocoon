@@ -49,6 +49,7 @@ TESTS=(
 	"island-towns-touch|-- --scene=island-towns --touch --wait=0.3|ISLAND TOWNS DONE: 0 problem"
 	"kelpwick-huts|-- --scene=island-towns --huts=1 --save_dir=res://build/hut_test_saves/|ISLAND TOWNS DONE: 0 problem"
 	"kelpwick-huts-touch|-- --scene=island-towns --huts=1 --touch --save_dir=res://build/hut_touch_test_saves/|ISLAND TOWNS DONE: 0 problem"
+	"action-icons|-- --scene=action-icons --save_dir=res://build/action_icon_saves/|ACTION ICONS DONE: 0 problem"
 	"scripts|--script res://tools/check_scripts.gd|SCRIPTS CHECK DONE: 0 of"
 	"data|--script res://tools/check_data.gd|DATA CHECK DONE: 0 problem"
 	"audio|--script res://tools/check_audio.gd|AUDIO CHECK DONE: 0 problem"

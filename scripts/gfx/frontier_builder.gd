@@ -7,8 +7,8 @@ extends RefCounted
 ##   their icon, and a porch roof striped in their colour; houses a tin gable roof.
 ##   The saloon (building_looks "frontier": "saloon") is two storeys with a balcony on posts across its front, batwing
 ##   doors and SALOON on its false front; the jail ("jail") one storey with barred windows, a sheriff's star and JAIL.
-##   The Beast Center is a railcar diner (voxel_buildings.gd's curved steel roof, red stripes and roadside sign) with a
-##   red western false front over its door and a checkerboard skirt.
+##   The Beast Center is a little temple (voxel_buildings.gd's shrine pieces: pale stone, a stepped tiled roof with a
+##   crystal at its peak, the pawprint on a stepped pediment) behind a colonnade where the other buildings have porches.
 ## Missing-trainer posters are pinned to the porch posts (Story's poster boards are the ones you can read).
 ## A building's local origin is the centre of its plot at ground level; its front faces +z (as voxel_buildings.gd).
 
@@ -428,9 +428,10 @@ static func _trainers_home() -> bool:
 
 
 # ================================================================ the Beast Center
-## The Beast Center: the diner every town has (its railcar's brushed-steel walls with red stripes, the curved roof and
-## the roadside sign) behind a western front: a red false front over the door with the pawprint board, a porch roof
-## in the diner's red and white on posts, and a black and white checkerboard skirt. Returns its top.
+## The Beast Center: the temple every town has (voxel_buildings.gd "Beast Center: a small temple"), standing back
+## behind a colonnade where its neighbours have porches: walls of pale stone on a stone platform, round stone columns
+## carrying a stone beam and a tiled porch roof, and over the door, where a store's false front would step up, the
+## stepped pediment with the pawprint roundel; a stepped tiled roof with a crystal at its peak. Returns its top.
 static func _beast_center(node: Node3D, w: float, d: float, door_lx: float) -> float:
 	var body := Node3D.new()
 	body.position.z = -PORCH / 2.0
@@ -441,70 +442,52 @@ static func _beast_center(node: Node3D, w: float, d: float, door_lx: float) -> f
 	hb.w = w
 	hb.d = bd
 	hb.rng.seed = int(w * 13.0 + d)
+	hb.stone_windows = true
 	var k := VBld.Kit.new()
-	var look: Dictionary = VBld.PACK_LOOKS["center"]
-	var brand := Color(look["brand"])
-	var steel := Color("#eef0f2")
-	var mat: Material = HouseBuilder.wall_material("tin", steel)
+	var stone := VBld.SHRINE_STONE.lerp(Color("#e8c9a0"), 0.3)
+	var tile := VBld.SHRINE_TILE.lerp(Color("#c8703c"), 0.4)
+	var mat: Material = HouseBuilder.wall_material("plaster", stone)
 	var zf := bd / 2.0 - IN
-	var zp := bd / 2.0 + PORCH - 0.16
+	var zp := bd / 2.0 + PORCH - 0.2
 	var zfront := bd / 2.0 + PORCH - 0.03
 	var x0 := -w / 2.0 + IN + THICK
 	var x1 := w / 2.0 - IN - THICK
-	k.box("planks", Vector3(0, PLINTH / 2.0, 0), Vector3(w - 0.08, PLINTH, bd - 0.08), WOOD)
-	k.box("planks", Vector3(0, PLINTH / 2.0, (zf + zfront - 0.32) / 2.0), Vector3(w - 0.04, PLINTH, zfront - 0.32 - zf), DECK)
-	k.box("planks", Vector3(door_lx, PLINTH / 4.0, zfront - 0.16), Vector3(1.3, PLINTH / 2.0, 0.32), DECK.darkened(0.08))
+	# the platform: stone under the hall and the colonnade, a broad step down at the door
+	var flag := stone.darkened(0.2)
+	k.box("stone", Vector3(0, PLINTH / 2.0, 0), Vector3(w - 0.08, PLINTH, bd - 0.08), flag)
+	k.box("stone", Vector3(0, PLINTH / 2.0, (zf + zfront - 0.32) / 2.0), Vector3(w - 0.04, PLINTH, zfront - 0.32 - zf), flag.lightened(0.08))
+	k.box("stone", Vector3(door_lx, PLINTH / 4.0, zfront - 0.16), Vector3(1.6, PLINTH / 2.0, 0.32), flag)
 	for sx in [-1.0, 1.0]:
-		k.box("planks", Vector3(sx * (w / 2.0 - 0.6), PLINTH / 2.0, zfront - 0.16), Vector3(1.2, PLINTH, 0.32), DECK)
+		k.box("stone", Vector3(sx * (w / 2.0 - 0.6), PLINTH / 2.0, zfront - 0.16), Vector3(1.2, PLINTH, 0.32), flag.lightened(0.08))
 	var y := PLINTH
 	var dw := 1.5
 	hb.place("door_6", Vector2i(0, 1), door_lx, dw, y, mat)
 	k.box("color", Vector3(door_lx + 0.27, y + 0.95, zf + 0.05), Vector3(0.07, 0.07, 0.07), BRASS)
-	_openings(hb, x0, door_lx - dw / 2.0, y, mat, "wide")
-	_openings(hb, door_lx + dw / 2.0, x1, y, mat, "wide")
+	_openings(hb, x0, door_lx - dw / 2.0, y, mat, "house")
+	_openings(hb, door_lx + dw / 2.0, x1, y, mat, "house")
 	_walls(hb, x0, x1, bd, y, mat)
-	hb.corners(k, y, S, Color("#d8dce2"))
-	# the diner's red stripes along the front and sides, and its checkerboard skirt
-	for sy in [y + 0.3, y + 2.62]:
-		k.box("color", Vector3(0, sy, zf + 0.03), Vector3(w - 0.16, 0.1, 0.04), brand)
-	var n := int((w - 0.2) / 0.2)
-	for i in n:
-		var cx := -w / 2.0 + 0.1 + 0.2 * (i + 0.5)
-		for row in 2:
-			k.box("color", Vector3(cx, PLINTH + 0.06 + row * 0.1, zf + 0.04), Vector3(0.2, 0.1, 0.02), Color("#1e1e24") if (i + row) % 2 == 0 else Color("#f8f8f4"))
-	var top := y + S
-	VBld._diner_roof(k, w, bd, top, Color(look["flat_roof"]), brand)
-	VBld._diner_pylon(body, k, w, bd, door_lx, top, brand)
-	# the porch: posts, a beam on their tops, and a roof in red and white stripes
+	VBld._shrine_corners(k, w, bd, y, S, stone)
+	var top := VBld._shrine_frieze(k, w, bd, y + S, stone, 0.5)
+	var peak := VBld.shrine_roof(k, w, bd, top, "tile", tile, stone)
+	# the colonnade: round columns on square bases, a stone beam on their tops, and a tiled roof from the wall to it
 	var post_top := PLINTH + POST_TOP
 	var posts := _posts(w, door_lx)
 	for px in posts:
-		k.box("planks", Vector3(px, (PLINTH + post_top) / 2.0, zp), Vector3(0.14, post_top - PLINTH, 0.14), TRIM)
-	k.box("planks", Vector3(0, post_top + 0.07, zp), Vector3(w - 0.04, 0.14, 0.18), TRIM)
+		k.box("plaster", Vector3(px, PLINTH + 0.08, zp), Vector3(0.34, 0.16, 0.34), stone.darkened(0.12))
+		VBld._column(k, "plaster", Vector3(px, PLINTH + 0.16, zp), 0.115, post_top - PLINTH - 0.28, 10, stone.lightened(0.03), PI / 10.0)
+		k.box("plaster", Vector3(px, post_top - 0.06, zp), Vector3(0.34, 0.12, 0.34), stone.darkened(0.06))
+	k.box("plaster", Vector3(0, post_top + 0.09, zp), Vector3(w - 0.04, 0.18, 0.3), stone, true)
+	k.box("color", Vector3(0, post_top + 0.03, zp + 0.006), Vector3(w - 0.03, 0.05, 0.3), VBld.SHRINE_GOLD.darkened(0.1))
 	var yw := PLINTH + S - 0.04
-	var x := -w / 2.0
-	var i := 0
-	while x < w / 2.0 - 0.01:
-		var x2 := minf(x + 0.45, w / 2.0)
-		k.poly("color", [Vector3(x, yw, zf), Vector3(x2, yw, zf), Vector3(x2, post_top + 0.14, zp + 0.12), Vector3(x, post_top + 0.14, zp + 0.12)],
-			Vector3(0, 0.95, 0.3), brand if i % 2 == 0 else Color("#f4f0e4"))
-		x = x2
-		i += 1
-	_posters(k, posts, door_lx, zp + 0.08, RandomNumberGenerator.new())
-	# the western front over the door: red boards stepping up, cream trim, and the pawprint on a white board
-	var fw := minf(3.0, w - 1.0)
-	var fz := zf + 0.12
-	var hi := top + 1.55
-	k.box("planks_v", Vector3(door_lx, (top - 0.2 + hi - 0.4) / 2.0, fz), Vector3(fw, hi - 0.4 - top + 0.2, 0.16), brand)
-	k.box("planks_v", Vector3(door_lx, hi - 0.2, fz), Vector3(fw * 0.55, 0.4, 0.16), brand)
-	k.box("planks", Vector3(door_lx, hi - 0.35, fz + 0.02), Vector3(fw + 0.14, 0.1, 0.24), TRIM)
-	k.box("planks", Vector3(door_lx, hi + 0.05, fz + 0.02), Vector3(fw * 0.55 + 0.14, 0.1, 0.24), TRIM)
-	var sy := top + 0.45
-	k.box("color", Vector3(door_lx, sy, fz + 0.1), Vector3(1.0, 0.8, 0.04), Color("#f8f8f4"))
-	var paw := MeshInstance3D.new()
-	paw.mesh = VP.icon("center")
-	paw.position = Vector3(door_lx, sy - 0.03, VBld._on_face(paw.mesh, fz + 0.13))
-	body.add_child(paw)
+	VBld._slope(k, "tile", [Vector3(-w / 2.0, post_top + 0.18, zp + 0.17), Vector3(w / 2.0, post_top + 0.18, zp + 0.17), Vector3(w / 2.0, yw, zf),
+		Vector3(-w / 2.0, yw, zf)], tile, Vector3.RIGHT)
+	_posters(k, posts, door_lx, zp + 0.125, RandomNumberGenerator.new())
+	# over the door, where a store's false front would stand: the stepped pediment with the pawprint
+	var hi := VBld.shrine_pediment(k, Vector3(door_lx, post_top + 0.18, zp), minf(3.0, w - 1.0), 0.3, 0.9, stone)
+	for sx in [-1.0, 1.0]:
+		var bx: float = door_lx + sx * 1.3
+		if absf(bx) < w / 2.0 - 0.4:
+			VBld._shrine_banner(k, Vector3(bx, y + S - 0.2, zf + 0.03), 0.36, 0.7)
 	var l := OmniLight3D.new()
 	l.light_color = Color("#ffd8a0")
 	l.light_energy = 0.7
@@ -515,4 +498,4 @@ static func _beast_center(node: Node3D, w: float, d: float, door_lx: float) -> f
 	var km := MeshInstance3D.new()
 	km.mesh = k.mesh()
 	body.add_child(km)
-	return maxf(hi + 0.1, top + 3.0)
+	return maxf(hi + 0.1, peak)

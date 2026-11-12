@@ -70,7 +70,7 @@ var facing := Vector2i(0, 1)
 var last_center := "caccoon"
 var seen := {}
 var caught := {}
-## Each town's kennel: [{"beast": Beast or null, "yours": bool, "since": play_time}] (not saved: it restocks).
+## Each kennel barn's pens, by the road it stands on: [{"beast": Beast or null, "yours": bool, "since": play_time}] (not saved: it restocks).
 var kennels := {}
 var play_time := 0.0
 var steps := 0
@@ -627,7 +627,7 @@ func price(base_price: int) -> int:
 	return int(round(base_price * (1.0 - gear_fx("discount"))))
 
 
-# ---------------------------------------------------------------- songs & capture
+# ---------------------------------------------------------------- songs
 func has_flute() -> bool:
 	return String(gear.get("flute", "")) != ""
 
@@ -638,42 +638,17 @@ func weapons() -> Array:
 	return out if not out.is_empty() else ["slingshot"]
 
 
-
-## Learning a Capture level replaces the lower one.
+## No song wins a wild beast over: new beasts only come from eggs. (Older saves' Capture levels and the Requiem of
+## Dusk are dropped when loading.)
 func learn_song(id: String) -> bool:
-	if songs.has(id):
+	if songs.has(id) or not SongDB.exists(id):
 		return false
-	var lv := SongDB.capture_level(id)
-	if lv > 0:
-		if lv <= capture_level():
-			return false
-		songs = songs.filter(func(x): return SongDB.capture_level(String(x)) == 0)
 	songs.append(id)
 	return true
 
 
 func knows_song(id: String) -> bool:
-	if id == "capture":
-		return capture_level() > 0
 	return songs.has(id)
-
-
-## The Capture level you know (0 = none yet).
-func capture_level() -> int:
-	var best := 0
-	for x in songs:
-		best = maxi(best, SongDB.capture_level(String(x)))
-	return best
-
-
-func capture_song() -> String:
-	return SongDB.capture_id(capture_level()) if capture_level() > 0 else ""
-
-
-## Highest level Capture can reach right now (0 if you don't know it).
-func capture_cap() -> int:
-	var lv := capture_level()
-	return int(SongDB.CAPTURE_CAPS[lv - 1]) if lv > 0 else 0
 
 
 ## Level of your strongest beast in the party.
@@ -684,37 +659,20 @@ func best_level() -> int:
 	return best
 
 
-## True when a beast has reached your Capture cap and a higher level exists to practise.
-func next_capture_ready() -> bool:
-	var lv := capture_level()
-	return lv > 0 and lv < SongDB.CAPTURE_CAPS.size() and best_level() >= capture_cap()
-
-
-## Charming a beast stronger than all of yours needs a flawless performance.
-func needs_flawless(b: Beast) -> bool:
-	return b.level > best_level()
-
-
-## Every Capture level shares one mastery.
-func _mkey(song_id: String) -> String:
-	return "capture" if SongDB.capture_level(song_id) > 0 else song_id
-
-
 func mastery_stars(song_id: String) -> int:
-	return clampi(int(song_mastery.get(_mkey(song_id), 0)) / 2, 0, 5)
+	return clampi(int(song_mastery.get(song_id, 0)) / 2, 0, 5)
 
 
 func add_mastery(song_id: String, amount := 1) -> bool:
 	## Returns true if a new star was earned.
 	var before := mastery_stars(song_id)
-	song_mastery[_mkey(song_id)] = int(song_mastery.get(_mkey(song_id), 0)) + amount
+	song_mastery[song_id] = int(song_mastery.get(song_id, 0)) + amount
 	return mastery_stars(song_id) > before
 
 
-## A song's level: its Capture level, or 1 + mastery stars for every other song. Higher levels are longer and stronger.
+## A song's level: 1 + mastery stars. Higher levels are longer and stronger.
 func song_level(song_id: String) -> int:
-	var cl := SongDB.capture_level(song_id)
-	return cl if cl > 0 else 1 + mastery_stars(song_id)
+	return 1 + mastery_stars(song_id)
 
 
 ## Extra share of time to play a song (better flutes).
@@ -722,46 +680,13 @@ func flute_time_bonus() -> float:
 	return gear_fx("time")
 
 
-func song_can_charm(song_id: String, b: Beast) -> String:
-	var s := SongDB.get_song(song_id)
-	if s["kind"] != "charm":
-		return "That song doesn't charm beasts."
-	if b.ghost and not s.get("ghost", false):
-		return "Ghost beasts don't respond to ordinary songs."
-	if not b.ghost and s.get("ghost", false):
-		return "The Requiem only reaches ghost beasts."
-	var cap := _charm_cap(song_id)
-	if cap <= 0:
-		return "You need to know Capture first."
-	if b.level > cap:
-		return "%s is too strong for %s (max Lv %d)." % [b.nickname, s["name"] if not s.get("ghost", false) else "your Capture level", cap]
-	return ""
+## How often a beaten wild beast leaves an egg: the only way to more beasts. Hats and flutes that once helped charm
+## beasts make an egg a little likelier instead (item_db.gd "egg").
+const EGG_CHANCE := 0.2
 
 
-func _charm_cap(song_id: String) -> int:
-	var s := SongDB.get_song(song_id)
-	return capture_cap() if s.get("ghost", false) else int(s.get("max_level", 0))
-
-
-## `mistakes` matters for beasts stronger than all of yours: only a flawless performance works on them.
-func capture_chance(b: Beast, song_id: String, accuracy: float, mistakes := 0) -> float:
-	if song_can_charm(song_id, b) != "":
-		return 0.0
-	if needs_flawless(b) and mistakes > 0:
-		return 0.0
-	var lvl_factor := 1.0 - 0.55 * float(b.level) / float(maxi(1, _charm_cap(song_id)))
-	var hp_factor := 1.0 - 0.6 * b.hp_ratio()
-	var c := clampf(accuracy, 0.0, 1.0) * lvl_factor * hp_factor * 1.6
-	c *= 1.0 + 0.04 * mastery_stars(song_id) + gear_fx("capture")
-	if b.abandoned:
-		c += 0.35
-	if b.status == "sleep":
-		c *= 1.4
-	elif b.status != "":
-		c *= 1.15
-	if mistakes == 0:
-		c *= 1.2
-	return clampf(c, 0.02, 0.95)
+func egg_chance() -> float:
+	return clampf(EGG_CHANCE + gear_fx("egg"), 0.0, 1.0)
 
 
 # ---------------------------------------------------------------- progress
@@ -783,7 +708,7 @@ func visit(map: String) -> void:
 
 
 # ---------------------------------------------------------------- kennels
-## Pens in every Beast Center kennel.
+## Pens in every kennel barn.
 const KENNEL_PENS := 4
 ## Seconds of play before an empty pen gets a new arrival (or a beast you dropped off finds a new trainer).
 const KENNEL_RESTOCK := 240.0
@@ -794,7 +719,7 @@ func kennel_adoption_fee(b: Beast) -> int:
 	return 40 + 2 * (maxi(1, b.level) - 1)
 
 
-## The kennel in `town`'s Beast Center. Beasts arrive near your party's level, so adopting one is a new friend, not
+## The kennel barn on the road `town` (its map id; each barn keeps its own pens). Beasts arrive near your party's level, so adopting one is a new friend, not
 ## a shortcut.
 func kennel(town: String) -> Array:
 	if not kennels.has(town):
@@ -829,6 +754,9 @@ func party_level() -> int:
 
 func kennel_beast(town: String) -> Beast:
 	var races := []
+	# the beasts of the barn's own road (or, by a town's name, of the roads that meet there)
+	if WorldDB.ROUTES.has(town):
+		races += WorldDB.ROUTES[town]["races"]
 	for rid in WorldDB.ROUTES:
 		var r: Dictionary = WorldDB.ROUTES[rid]
 		if r["from"] == town or r["to"] == town:
@@ -1070,7 +998,8 @@ func load_game(slot := -2) -> bool:
 	inventory["slingshot"] = 1
 	gear = d.get("gear", gear)
 	bait = String(d.get("bait", ""))
-	songs = d.get("songs", [])
+	# (saves from before beasts came only from eggs still list their Capture level and the Requiem of Dusk)
+	songs = (d.get("songs", []) as Array).filter(func(id): return SongDB.exists(String(id)))
 	summons = d.get("summons", [])
 	song_mastery = {}
 	var sm: Dictionary = d.get("song_mastery", {})

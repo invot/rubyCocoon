@@ -230,11 +230,20 @@ static func build(b: Dictionary, style: String) -> Node3D:
 		top = _stilt_hut(node, k, b, dx, face)
 	else:
 		var wall := _stucco(int(b["seed"]))
+		if shop == "center":
+			# The Beast Center is a temple of pale stone among the pastel villas (voxel_buildings.gd's shrine pieces).
+			wall.albedo_color = VB.SHRINE_STONE
 		top = _hotel(node, b, w, d, dx, wall) if b.get("hotel", false) else _villa(k, hb, b, w, d, dx, wall)
 		if shop == "center":
 			# An inner stucco shell seals the enlarged façade's wall-section corner joins.
 			k.box("color", Vector3(0, top / 2.0, 0), Vector3(w - 0.42, top, d - 0.42), (wall as StandardMaterial3D).albedo_color, true)
-		if shop in ["apothecary", "cafe", "center"]:
+			# Its temple front stands round the mission arch: columns, a lintel and the stepped pediment with the
+			# pawprint, where a shop would hang its awning and sign. A crystal stands on the roof's ridge.
+			VB.shrine_front(k, dx, 0.0, d / 2.0 - HB.INSET, 2.74, top, VB.SHRINE_STONE, 1.0)
+			var ridge := top + 0.04 + ((d - 0.12) / 2.0 + 0.08) * 0.36
+			k.box("plaster", Vector3(0, ridge + 0.12, 0), Vector3(0.34, 0.3, 0.34), VB.SHRINE_STONE)
+			VB.shrine_crystal(k, Vector3(0, ridge + 0.27 + 0.3, 0), 0.2, 0.74)
+		if shop in ["apothecary", "cafe"]:
 			var brand := Color("#439d93") if shop == "apothecary" else Color("#bd757b")
 			for stripe in 8:
 				k.box("color", Vector3(dx - 1.4 + float(stripe) * 0.4, 2.7, face + 0.1), Vector3(0.4, 0.12, 0.65), brand if stripe % 2 == 0 else Color("#fff3dc"))
@@ -249,7 +258,8 @@ static func build(b: Dictionary, style: String) -> Node3D:
 			surface_index += 1
 	node.add_child(mi)
 	b["height"] = top if wood else top + 1.8
-	if shop != "house":
+	# (a resort Beast Center's sign is the pawprint carved on its pediment)
+	if shop != "house" and not (shop == "center" and not wood):
 		var plaque := MeshInstance3D.new()
 		plaque.mesh = VP.icon(shop)
 		# The arena sign follows its roof lip as the supplied model grows.

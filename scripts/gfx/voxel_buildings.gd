@@ -24,7 +24,7 @@ const STYLES := {
 	"jungle": {"wall": ["planks_v", "#9a7040"], "roof": ["leaf", "#5a9a3a"], "trim": "#5a3a1a", "base": "#6a4a2a", "roof_type": "hip", "stilts": true, "door": "#5a3a1a"},
 	"town": {"wall": ["timber", "#efe4cc"], "roof": ["shingle", "#a8503a"], "trim": "#5a3a26", "base": "#9a948a", "roof_type": "gable", "door": "#5a3a26"},
 	"gothic": {"wall": ["stone_dark", "#7a7a84"], "roof": ["slate", "#3a3a48"], "trim": "#4a4a52", "base": "#5a5a62", "roof_type": "steep", "door": "#3a2a3a", "window": "#b080ff"},
-	# Bellerive's French Quarter: its buildings are creole_builder.gd's; this is for what's shared (the diner, rooms)
+	# Bellerive's French Quarter: its buildings are creole_builder.gd's; this is for what's shared (the Beast Center's temple, rooms)
 	"creole": {"wall": ["plaster", "#f0cc7a"], "roof": ["slate", "#56626e"], "trim": "#f6f1e6", "base": "#a8a096", "roof_type": "hip", "door": "#2f6048"},
 }
 const SHOP_ROOF := {"center": "#d84848", "arena": "#c8a030", "electronics": "#3a3a48", "apothecary": "#48a868", "bookstore": "#8050b0",
@@ -231,7 +231,7 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		"cathedral":
 			_pack_cathedral(node, w, d, door_lx, locked)
 			return node
-	var key := "%s:%s:%d:%d:%d%s" % [style_name if shop != "center" else "diner", shop, int(w), int(d), int(b.get("seed", 0)) % 3, ":locked" if locked else ""]
+	var key := "%s:%s:%d:%d:%d%s" % [style_name, shop, int(w), int(d), int(b.get("seed", 0)) % 3, ":locked" if locked else ""]
 	var kit_mesh: ArrayMesh = _mesh_cache.get(key, null)
 	var extras := []
 	if kit_mesh == null:
@@ -239,8 +239,6 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = key.hash()
 		match shop:
-			"center":
-				_diner(kit, w, d, door_lx)
 			"hideout":
 				pass
 			"temple":
@@ -290,12 +288,6 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 			l.omni_range = 5.0
 			l.position = gem.position
 			node.add_child(l)
-	if shop == "center":
-		# the Beast Center's pawprint sign hangs on the wall right by the door
-		var paw := MeshInstance3D.new()
-		paw.mesh = VP.icon("center")
-		paw.position = Vector3(door_lx + 0.95, 1.4, _on_face(paw.mesh, _sign_face(shop, d)))
-		node.add_child(paw)
 	# wordless sign above the door
 	if shop not in ["house", "home", "hideout", "temple", "decor", "cathedral", "ceo_tower", "center", "uncle"]:
 		var icon := MeshInstance3D.new()
@@ -311,7 +303,7 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 		else:
 			icon.position = Vector3(door_lx, minf(iy, hgt + 0.1), iz)
 		node.add_child(icon)
-	if st.get("lanterns", false) or shop == "center":
+	if st.get("lanterns", false):
 		var l2 := OmniLight3D.new()
 		l2.light_color = Color("#ffd8a0")
 		l2.light_energy = 0.7
@@ -323,11 +315,11 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 
 ## Buildings with a look of their own; every other house and shop is built from the house pack (_pack_building).
 const SPECIAL := ["center", "arena", "skytower", "electronics", "ceo_tower", "cathedral", "hideout", "temple"]
-## The special buildings built as a shop of the house pack with a look of their own (as SHOP_LOOKS): the Beast
-## Center's chrome diner. The other landmarks have builders of their own (_pack_arena, _pack_electronics,
-## _pack_skytower, _pack_ceo_tower, _pack_cathedral).
+## The special buildings built of the house pack's walls with a look of their own (as SHOP_LOOKS): the Beast
+## Center's little temple (see "Beast Center: a small temple" below). The other landmarks have builders of their own
+## (_pack_arena, _pack_electronics, _pack_skytower, _pack_ceo_tower, _pack_cathedral).
 const PACK_LOOKS := {
-	"center": {"floors": 1, "ground": ["tin", "#eef0f2"], "roof": "flat", "trim": "#d8283a", "flat_roof": "#b8bcc4", "brand": "#d8283a"},
+	"center": {"floors": 1, "ground": ["plaster", "#e9dfc8"], "roof": "shrine", "trim": "#d8ccb0", "brand": "#c8303c"},
 }
 ## House paints by town style: soft colours, so a street of houses isn't all one shade.
 const HOUSE_PAINTS := {
@@ -360,6 +352,8 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 	hb.rng.seed = ("%s:%d:%d" % [shop, int(b.get("seed", 0)), int(w)]).hash()
 	var rng: RandomNumberGenerator = hb.rng
 	var commercial := shop in COMMERCIAL or PACK_LOOKS.has(shop)
+	# the Beast Center: a temple of pale stone under the town's own roof tiles, rather than a shop
+	var shrine := shop == "center"
 	var look: Dictionary = PACK_LOOKS.get(shop, SHOP_LOOKS.get(style_name, SHOP_LOOKS["town"]))
 	var k := Kit.new()
 	var trim := Color(look.get("trim", st["trim"])) if commercial else Color(st["trim"])
@@ -375,10 +369,18 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 			k.box("planks", Vector3(door_lx, 0.12 + i * 0.2, d / 2.0 + 0.55 - i * 0.22), Vector3(1.1, 0.12, 0.3), trim.lightened(0.1))
 	else:
 		k.box("stone", Vector3(0, 0.12, 0), Vector3(w - 0.08, 0.24, d - 0.08), base)
-		# a step up to the door
-		k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.3, 0.14, 0.4), base.lightened(0.08))
+		# a step up to the door (a temple's: two broad steps, the upper one carrying its columns)
+		if shrine:
+			k.box("stone", Vector3(door_lx, 0.06, d / 2.0 + 0.1), Vector3(2.8, 0.12, 0.4), base.lightened(0.04))
+			k.box("stone", Vector3(door_lx, 0.12, d / 2.0 + 0.07), Vector3(2.5, 0.24, 0.34), base.lightened(0.1))
+		else:
+			k.box("stone", Vector3(door_lx, 0.07, d / 2.0 + 0.12), Vector3(1.3, 0.14, 0.4), base.lightened(0.08))
 	var y0 := lift + (0.24 if lift == 0.0 else 0.0)
 	var ground: Array = look["ground"] if commercial else st["wall"]
+	if shrine:
+		# its stone takes a little of the town's own
+		ground = ["plaster", SHRINE_STONE.lerp(Color(st["base"]), 0.12).to_html()]
+		hb.stone_windows = true
 	var upper: Array = look.get("upper", look["ground"]) if commercial else st["wall"]
 	# houses in town wear plaster below and half-timbering above, like the shops
 	if not commercial and style_name == "town" and rng.randf() < 0.5:
@@ -400,8 +402,13 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 	var door: String = "door_1" if locked else PACK_DOORS[rng.randi_range(0, PACK_DOORS.size() - 1)]
 	var shutters := not commercial and style_name in ["town", "coastal", "gothic", "steampunk"] and rng.randf() < 0.75
 	var kinds := {2: PACK_WINDOWS, 3: PACK_WIDE} if commercial else {2: PACK_WINDOWS if rng.randf() < 0.6 else PACK_SMALL}
+	if shrine:
+		kinds = {2: PACK_WINDOWS}
 	hb.storey(y0, gmat, door, door_lx, kinds, shutters, d >= 3)
-	hb.corners(k, y0, HouseBuilder.STOREY, trim)
+	if shrine:
+		_shrine_corners(k, w, d, y0, HouseBuilder.STOREY, Color(ground[1]))
+	else:
+		hb.corners(k, y0, HouseBuilder.STOREY, trim)
 	if locked:
 		_door_lock(k, Vector3(door_lx, y0 + 1.0, d / 2.0 - HouseBuilder.INSET + 0.06), 0.8, 1.9)
 	var top := y0 + HouseBuilder.STOREY
@@ -413,7 +420,22 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 		hb.corners(k, top, HouseBuilder.STOREY, trim)
 		top += HouseBuilder.STOREY
 	var front := d / 2.0 - HouseBuilder.INSET
-	if commercial:
+	if shrine:
+		# a frieze of the same stone above the storey, its rune stones glowing, and the temple front at the door
+		var stone := Color(ground[1])
+		top = _shrine_frieze(k, w, d, top, stone)
+		shrine_front(k, door_lx, y0, front, y0 + 2.26, top, stone)
+		for sx in [-1.0, 1.0]:
+			var bx: float = door_lx + sx * 1.62
+			if absf(bx) < w / 2.0 - 0.45:
+				_shrine_banner(k, Vector3(bx, top - 0.12, front + 0.03), 0.4, 0.86)
+		var l3 := OmniLight3D.new()
+		l3.light_color = Color("#ffd8a0")
+		l3.light_energy = 0.7
+		l3.omni_range = 3.5
+		l3.position = Vector3(door_lx, 1.6, d / 2.0 + 0.6)
+		node.add_child(l3)
+	elif commercial:
 		var brand := Color(look.get("brand", SHOP_ROOF.get(shop, "#c84040")))
 		# a striped awning over the shop front
 		var ay := y0 + 2.3
@@ -444,10 +466,9 @@ static func _pack_building(node: Node3D, b: Dictionary, style_name: String, st: 
 			mi.position = Vector3(door_lx + (0.95 if door_lx < w / 2.0 - 1.4 else -0.95), y0 + 1.7, front)
 			node.add_child(mi)
 	var rt := String(look["roof"]) if commercial else String(st["roof_type"])
-	if shop == "center":
-		# the Beast Center: a railcar diner's curved roof and a roadside sign, the same in every town
-		_diner_roof(k, w, d, top, Color(look["flat_roof"]), Color(look["brand"]))
-		_diner_pylon(node, k, w, d, door_lx, top, Color(look["brand"]))
+	if shrine:
+		# the Beast Center: a temple's stepped roof in the town's own tiles, a crystal at its peak
+		shrine_roof(k, w, d, top, String(st["roof"][0]), SHRINE_TILE.lerp(Color(st["roof"][1]), 0.35), Color(ground[1]), bool(b.get("low", false)))
 		rt = "none"
 	if rt == "false_front":
 		rt = "western"
@@ -545,47 +566,159 @@ static func _shop_front(node: Node3D, plan: Dictionary, shop: String, st: Dictio
 	node.add_child(icon)
 
 
-## A railcar diner's roof: a low barrel vault along the building in brushed steel with a stripe of the brand colour
-## along its crown, closed at both ends, with a chrome band at the eaves.
-static func _diner_roof(k: Kit, w: float, d: float, top: float, steel: Color, brand: Color) -> void:
-	var seg := 12
-	var half := d / 2.0 + 0.18
-	var rise := 1.05
-	var x0 := -w / 2.0 - 0.12
-	var x1 := w / 2.0 + 0.12
-	var arc := []
-	for i in seg + 1:
-		var a := PI * float(i) / seg
-		arc.append(Vector2(cos(a) * half, sin(a) * rise))
-	for i in seg:
-		var p0: Vector2 = arc[i]
-		var p1: Vector2 = arc[i + 1]
-		var n := Vector3(0, (p0.y + p1.y) / rise, (p0.x + p1.x) / half).normalized()
-		var col := brand if i in [seg / 2 - 1, seg / 2] else steel.lightened(0.06 * float(i % 2))
-		k.poly("color", [Vector3(x0, top + p0.y, p0.x), Vector3(x1, top + p0.y, p0.x), Vector3(x1, top + p1.y, p1.x), Vector3(x0, top + p1.y, p1.x)], n, col)
-	for ex in [x0, x1]:
-		for i in seg:
-			var p0: Vector2 = arc[i]
-			var p1: Vector2 = arc[i + 1]
-			k.poly("color", [Vector3(ex, top, 0.0), Vector3(ex, top + p0.y, p0.x), Vector3(ex, top + p1.y, p1.x)], Vector3(signf(ex), 0, 0), steel.darkened(0.12))
-	for sz in [-1.0, 1.0]:
-		k.box("color", Vector3(0, top + 0.06, sz * half), Vector3(x1 - x0 + 0.04, 0.12, 0.08), Color("#e8ecf0"))
+# ---------------------------------------------------------------- Beast Center: a small temple
+## Every Beast Center is a shrine, worked by magic rather than machines: walls of pale dressed stone, a stepped roof
+## with a crystal glowing at its peak, rune stones set glowing in a frieze, and at the door a pair of columns carrying
+## a stepped pediment with the pawprint carved on a roundel (the Beast Center's sign in every town), small crystals at
+## its ends and red banners beside it. Each town's builder dresses its own walls with these pieces (_pack_building
+## here, frontier_builder.gd, island_buildings.gd, cove_buildings.gd), so the shrine looks native to its town.
+## Nothing here is a light or casts a shadow of its own: the glow is unshaded colour.
+const SHRINE_STONE := Color("#e9dfc8")
+const SHRINE_RED := Color("#c8303c")
+const SHRINE_GOLD := Color("#e2b24c")
+const SHRINE_CRYSTAL := Color("#8ff2e0")
+const SHRINE_TILE := Color("#b9503c")
 
 
-## The Beast Center's sign: a post rising from the front corner of its roof (away from the door) holding a board in
-## the brand colour with the pawprint, seen from across town; it stays over the diner, clear of its neighbours.
-static func _diner_pylon(node: Node3D, k: Kit, w: float, d: float, door_lx: float, top: float, brand: Color) -> void:
-	var x := w / 2.0 - 0.6 if door_lx < w / 4.0 else -w / 2.0 + 0.6
-	var z := d / 2.0 - 0.35
-	var y := top + 0.35
-	k.box("color", Vector3(x, y + 0.7, z - 0.1), Vector3(0.14, 1.4, 0.14), Color("#d8dce2"))
-	k.box("color", Vector3(x, y + 1.75, z), Vector3(0.95, 0.95, 0.14), brand)
-	k.box("color", Vector3(x, y + 1.75, z - 0.02), Vector3(1.07, 1.07, 0.08), Color("#f4f4f0"))
-	k.box("glow", Vector3(x, y + 2.3, z), Vector3(0.8, 0.09, 0.16), Color("#ffe8a0"))
-	var paw := MeshInstance3D.new()
-	paw.mesh = VP.icon("center")
-	paw.position = Vector3(x, y + 1.7, _on_face(paw.mesh, z + 0.08))
-	node.add_child(paw)
+## A flat disc (an ellipse) standing upright on a wall, facing +z.
+static func _disc(k: Kit, mat: String, c: Vector3, rx: float, ry: float, sides: int, col: Color) -> void:
+	for i in sides:
+		var a0 := TAU * float(i) / float(sides)
+		var a1 := TAU * float(i + 1) / float(sides)
+		k.poly(mat, [c, c + Vector3(cos(a0) * rx, sin(a0) * ry, 0), c + Vector3(cos(a1) * rx, sin(a1) * ry, 0)], Vector3.BACK, col)
+
+
+## The Beast Center's pawprint, carved and painted red on a pale roundel in a gold ring, `r` across its radius, lying
+## on a wall face at `c` and facing +z.
+static func shrine_emblem(k: Kit, c: Vector3, r: float) -> void:
+	_disc(k, "color", c + Vector3(0, 0, 0.006), r * 1.16, r * 1.16, 20, SHRINE_GOLD.darkened(0.2))
+	_disc(k, "color", c + Vector3(0, 0, 0.014), r, r, 20, Color("#f8f1de"))
+	var p := c + Vector3(0, -r * 0.06, 0.022)
+	_disc(k, "color", p + Vector3(0, -r * 0.24, 0), r * 0.4, r * 0.32, 14, SHRINE_RED)
+	for t in [[-0.5, 0.1], [-0.19, 0.4], [0.19, 0.4], [0.5, 0.1]]:
+		_disc(k, "color", p + Vector3(float(t[0]) * r, float(t[1]) * r, 0), r * 0.15, r * 0.19, 10, SHRINE_RED)
+
+
+## A glowing crystal: two four-sided points base to base, `r` across and `h` tall, its middle at `c`.
+static func shrine_crystal(k: Kit, c: Vector3, r: float, h: float, col := SHRINE_CRYSTAL) -> void:
+	var ring := []
+	for i in 4:
+		var a := PI / 4.0 + TAU * float(i) / 4.0
+		ring.append(c + Vector3(cos(a) * r, 0, sin(a) * r))
+	var tip := c + Vector3(0, h * 0.62, 0)
+	var foot := c - Vector3(0, h * 0.38, 0)
+	for i in 4:
+		var a: Vector3 = ring[i]
+		var e: Vector3 = ring[(i + 1) % 4]
+		var out := ((a + e) / 2.0 - c).normalized()
+		# (unshaded: each facet its own tone, the ones towards the camera the brightest)
+		var tone := clampf(0.16 * float(i % 2) - 0.1 * out.z, 0.0, 1.0)
+		k.poly("glow", [a, e, tip], (out + Vector3(0, 0.4, 0)).normalized(), col.lightened(0.25).darkened(tone))
+		k.poly("glow", [a, e, foot], (out - Vector3(0, 0.4, 0)).normalized(), col.darkened(0.18 + tone))
+
+
+## A stone pilaster at each corner of a temple's storey, on a base and under a cap.
+static func _shrine_corners(k: Kit, w: float, d: float, y0: float, h: float, stone: Color) -> void:
+	var inset := HouseBuilder.INSET + HouseBuilder.THICK / 2.0
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			var p := Vector3(sx * (w / 2.0 - inset), y0, sz * (d / 2.0 - inset))
+			k.box("plaster", p + Vector3(0, h / 2.0, 0), Vector3(0.34, h, 0.34), stone.darkened(0.07))
+			k.box("plaster", p + Vector3(0, 0.15, 0), Vector3(0.42, 0.3, 0.42), stone.darkened(0.14))
+			k.box("plaster", p + Vector3(0, h - 0.08, 0), Vector3(0.42, 0.16, 0.42), stone.lightened(0.04))
+
+
+## A temple's frieze: a course of its stone all round above the storey (a closed block, so nothing shows under the
+## eaves), a gold line along its foot and rune stones glowing along the front and sides. Returns its top.
+static func _shrine_frieze(k: Kit, w: float, d: float, top: float, stone: Color, h := 0.7) -> float:
+	var fw := w - 2.0 * HouseBuilder.INSET + 0.04
+	var fd := d - 2.0 * HouseBuilder.INSET + 0.04
+	k.box("plaster", Vector3(0, top + h / 2.0, 0), Vector3(fw, h, fd), stone.darkened(0.03))
+	k.box("color", Vector3(0, top + 0.05, 0), Vector3(fw + 0.05, 0.07, fd + 0.05), SHRINE_GOLD.darkened(0.12))
+	var n := maxi(2, int(fw / 1.1))
+	for i in n:
+		var x := -fw / 2.0 + fw * (float(i) + 0.5) / float(n)
+		k.box("glow", Vector3(x, top + h * 0.56, fd / 2.0 + 0.012), Vector3(0.13, 0.2, 0.03), SHRINE_CRYSTAL)
+	var m := maxi(1, int(fd / 1.3))
+	for i in m:
+		var z := -fd / 2.0 + fd * (float(i) + 0.5) / float(m)
+		for sx in [-1.0, 1.0]:
+			k.box("glow", Vector3(sx * (fw / 2.0 + 0.012), top + h * 0.56, z), Vector3(0.03, 0.2, 0.13), SHRINE_CRYSTAL.darkened(0.12))
+	return top + h
+
+
+## The temple front at a Beast Center's door, on the wall face z = `front`: a round column either side of the door
+## (`door_x`, standing on the floor at y0) under a lintel just over the door's top (`door_top`), and on it a stepped
+## pediment with the pawprint roundel, kept under `eave` (the eaves, or whatever is over it), with a small crystal on
+## each end of the lintel. All of it is solid stone lying against the wall. `half` is how far the columns stand out
+## from the door's middle.
+static func shrine_front(k: Kit, door_x: float, y0: float, front: float, door_top: float, eave: float, stone := SHRINE_STONE, half := 0.86) -> void:
+	var cz := front + 0.18
+	var lintel_y := door_top + 0.08
+	for sx in [-1.0, 1.0]:
+		var x: float = door_x + sx * half
+		k.box("plaster", Vector3(x, y0 + 0.08, cz), Vector3(0.42, 0.16, 0.36), stone.darkened(0.12))
+		_column(k, "plaster", Vector3(x, y0 + 0.16, cz), 0.145, lintel_y - 0.14 - y0 - 0.16, 10, stone.lightened(0.03), PI / 10.0)
+		k.box("plaster", Vector3(x, lintel_y - 0.07, cz), Vector3(0.42, 0.14, 0.36), stone.darkened(0.06))
+	var wide := half * 2.0 + 0.62
+	var lz := front + 0.2
+	k.box("plaster", Vector3(door_x, lintel_y + 0.12, lz), Vector3(wide, 0.24, 0.44), stone.lightened(0.02), true)
+	k.box("color", Vector3(door_x, lintel_y + 0.045, lz + 0.006), Vector3(wide + 0.01, 0.06, 0.44), SHRINE_GOLD.darkened(0.1))
+	shrine_pediment(k, Vector3(door_x, lintel_y + 0.24, lz), wide, 0.44, eave - 0.05 - (lintel_y + 0.24), stone)
+
+
+## A stepped stone pediment standing on a lintel or beam `wide` long and `deep` thick, its middle at `c` (the top of
+## the beam): three steps sharing one front face, the pawprint roundel on it, and a small crystal on each end of the
+## beam. `room` is the height it may take.
+static func shrine_pediment(k: Kit, c: Vector3, wide: float, deep: float, room: float, stone := SHRINE_STONE) -> float:
+	var step := clampf(room / 3.0, 0.14, 0.3)
+	var y := c.y
+	for i in 3:
+		var sw: float = wide * [0.8, 0.58, 0.36][i]
+		k.box("plaster", Vector3(c.x, y + step / 2.0, c.z), Vector3(sw, step, deep), stone.darkened(0.04 * float(i)), true)
+		y += step
+	shrine_emblem(k, Vector3(c.x, c.y + step * 1.5, c.z + deep / 2.0), minf(step * 1.32, wide * 0.17))
+	for sx in [-1.0, 1.0]:
+		shrine_crystal(k, Vector3(c.x + sx * (wide / 2.0 - 0.13), c.y + 0.15, c.z), 0.085, 0.32)
+	return y
+
+
+## A red banner hanging down a wall from `p` (the middle of its top edge), `bw` wide and `long` long, with a gold
+## rod, a gold diamond and a pointed end.
+static func _shrine_banner(k: Kit, p: Vector3, bw: float, long: float) -> void:
+	k.box("color", p + Vector3(0, -0.02, 0.01), Vector3(bw + 0.12, 0.05, 0.06), SHRINE_GOLD.darkened(0.15))
+	k.box("color", p + Vector3(0, -long / 2.0, 0), Vector3(bw, long, 0.03), SHRINE_RED)
+	var z := 0.016
+	k.poly("color", [p + Vector3(-bw / 2.0, -long, z), p + Vector3(bw / 2.0, -long, z), p + Vector3(0, -long - bw * 0.5, z)], Vector3.BACK, SHRINE_RED)
+	var c := p + Vector3(0, -long * 0.48, z + 0.004)
+	var r := bw * 0.26
+	k.poly("color", [c + Vector3(-r, 0, 0), c + Vector3(0, -r * 1.3, 0), c + Vector3(r, 0, 0), c + Vector3(0, r * 1.3, 0)], Vector3.BACK, SHRINE_GOLD)
+
+
+## A temple's stepped roof: a broad hipped roof with deep eaves and, rising out of its middle, a stone lantern with
+## glowing slits under a second, smaller roof, a crystal standing at the very top. A `low` one (a street close behind
+## it: see world.gd _plan_houses) keeps to the one shallow roof. Returns the height of the crystal's tip.
+static func shrine_roof(k: Kit, w: float, d: float, top: float, tex: String, col: Color, stone: Color, low := false) -> float:
+	var slope := 0.34 if low else 0.46
+	var ov := 0.4
+	var ridge := _hip(k, w, d, top, slope, ov, false, tex, col, stone.darkened(0.1))
+	var peak := ridge
+	if not low and minf(w, d) >= 3.0:
+		var uw := maxf(1.5, w * 0.44)
+		var ud := maxf(1.2, d * 0.44)
+		# the lantern stands in the roof: from inside it up to a little above where the slopes meet its walls
+		var hs := minf(w, d) / 2.0 + ov
+		var meet := top + 0.04 + (hs - minf(uw, ud) / 2.0) * slope
+		var lantern_top := minf(meet, ridge) + 0.5
+		k.box("plaster", Vector3(0, (top + lantern_top) / 2.0, 0), Vector3(uw, lantern_top - top, ud), stone.darkened(0.05))
+		var n := maxi(2, int(uw / 0.6))
+		for i in n:
+			var x := -uw / 2.0 + uw * (float(i) + 0.5) / float(n)
+			k.box("glow", Vector3(x, lantern_top - 0.24, ud / 2.0 + 0.012), Vector3(0.16, 0.26, 0.03), SHRINE_CRYSTAL)
+		peak = _hip(k, uw, ud, lantern_top, slope + 0.08, 0.32, false, tex, col.lightened(0.04), stone.darkened(0.1))
+	k.box("plaster", Vector3(0, peak + 0.1, 0), Vector3(0.3, 0.2, 0.3), stone)
+	shrine_crystal(k, Vector3(0, peak + 0.2 + 0.3, 0), 0.2, 0.74)
+	return peak + 0.2 + 0.3 + 0.46
 
 
 ## The Sky Tower: an eight-sided lookout of the house pack's walls in the town's wall finish, three storeys that step
@@ -1419,52 +1552,6 @@ static func _mine_entrance(node: Node3D, door_lx: float, fz: float) -> void:
 		node.add_child(mi)
 
 
-# ---------------------------------------------------------------- Beast Center: a 1950s roadside diner
-static func _diner(k: Kit, w: float, d: float, door_lx: float) -> void:
-	var chrome := Color("#dfe3e8")
-	var red := Color("#d8283a")
-	var teal := Color("#4fd0c0")
-	var white := Color("#f6f6f2")
-	# checkered plinth
-	var cells := int(w * 2.0)
-	for i in cells:
-		for j in int(d * 2.0):
-			var on := (i + j) % 2 == 0
-			k.box("color", Vector3(-w / 2.0 + 0.25 + i * 0.5, 0.06, -d / 2.0 + 0.25 + j * 0.5), Vector3(0.5, 0.12, 0.5), Color("#f2f2ee") if on else Color("#2a2a30"))
-	var y0 := 0.12
-	var H := 2.0
-	var bw := w - 0.8
-	var bd := d - 0.6
-	# body with rounded (stepped) ends
-	k.box("tin", Vector3(0, y0 + H / 2.0, 0), Vector3(bw, H, bd), chrome)
-	for sx in [-1, 1]:
-		k.box("tin", Vector3(sx * (bw / 2.0 + 0.15), y0 + H / 2.0, 0), Vector3(0.3, H, bd - 0.4), chrome)
-		k.box("tin", Vector3(sx * (bw / 2.0 + 0.35), y0 + H / 2.0, 0), Vector3(0.1, H, bd - 1.0), chrome.darkened(0.05))
-	# red belt, thin teal pinstripe, white kick plate
-	k.box("color", Vector3(0, y0 + 0.62, 0), Vector3(bw + 0.04, 0.26, bd + 0.04), red)
-	for sx in [-1, 1]:
-		k.box("color", Vector3(sx * (bw / 2.0 + 0.15), y0 + 0.62, 0), Vector3(0.32, 0.26, bd - 0.36), red)
-	k.box("color", Vector3(0, y0 + 0.88, bd / 2.0 + 0.01), Vector3(bw, 0.06, 0.04), teal)
-	k.box("color", Vector3(0, y0 + 0.2, bd / 2.0 + 0.01), Vector3(bw, 0.3, 0.04), white)
-	# a long run of windows (with room beside the door for the pawprint sign)
-	var x := -bw / 2.0 + 0.45
-	while x < bw / 2.0 - 0.3:
-		if absf(x - door_lx) > 0.75 and absf(x - door_lx - 0.95) > 0.6:
-			k.box("color", Vector3(x, y0 + 1.42, bd / 2.0 + 0.02), Vector3(0.66, 0.78, 0.05), chrome.darkened(0.25))
-			k.box("glow", Vector3(x, y0 + 1.42, bd / 2.0 + 0.05), Vector3(0.56, 0.66, 0.03), Color("#fff2c8"))
-		x += 0.72
-	# glass door in a chrome frame
-	k.box("color", Vector3(door_lx, y0 + 0.75, bd / 2.0 + 0.03), Vector3(0.9, 1.5, 0.06), chrome.darkened(0.3))
-	k.box("glow", Vector3(door_lx, y0 + 0.75, bd / 2.0 + 0.06), Vector3(0.66, 1.3, 0.03), Color("#bfe8ff"))
-	k.box("color", Vector3(door_lx + 0.22, y0 + 0.7, bd / 2.0 + 0.09), Vector3(0.05, 0.3, 0.04), chrome)
-	# red-and-white awning over the door
-	for i in 4:
-		k.box("color", Vector3(door_lx - 0.45 + i * 0.3, y0 + 1.62, bd / 2.0 + 0.35), Vector3(0.3, 0.07, 0.6), red if i % 2 == 0 else white)
-	# flat roof with an overhang and a red trim
-	k.box("tin", Vector3(0, y0 + H + 0.06, 0), Vector3(w - 0.2, 0.12, d - 0.3), white)
-	k.box("color", Vector3(0, y0 + H + 0.06, (d - 0.3) / 2.0), Vector3(w - 0.2, 0.14, 0.06), red)
-
-
 # ---------------------------------------------------------------- shops
 static func _shop(k: Kit, w: float, d: float, st: Dictionary, look: Dictionary, shop: String, door_lx: float, rng: RandomNumberGenerator) -> void:
 	var trim := Color(look.get("trim", st["trim"]))
@@ -1757,8 +1844,6 @@ static func _sign_face(shop: String, d: float) -> float:
 	if shop in COMMERCIAL:
 		return (d - 0.3) / 2.0 + 0.11
 	match shop:
-		"center":
-			return (d - 0.6) / 2.0
 		"skytower":
 			return (d - 0.8) / 2.0
 	return (d - 0.3) / 2.0

@@ -284,7 +284,7 @@ const MAPS := {
 		"meadow": {"rect": [43, 6, 61, 20], "races": [0, 27, 36, 24, 15, 30, 21], "lv": [3, 5]},
 		"signs": [
 			"Bellerive. Ferries to the Isle of Tides leave from the long pier.",
-			"Jardin des Bêtes. Wild beasts roam the long grass. The arena lies on the far side: catch a few on your way!",
+			"Jardin des Bêtes. Wild beasts roam the long grass. The arena lies on the far side: beaten beasts sometimes leave eggs!",
 		],
 	},
 	"shellhaven": {

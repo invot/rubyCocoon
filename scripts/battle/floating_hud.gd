@@ -5,8 +5,10 @@ extends Control
 ##   - The chooser's bar (you first, then each beast in turn; only one at a time): its level, then ◄ the action ►,
 ##     with ▲ / ▼ (or a short rounded line where that way leads nowhere) above and below it. A beast's has its HP
 ##     and MP; the part of the MP the move would spend slowly flashes. While aiming it reads
-##     "Bite ► Tadlet" and ◄ ► change the target.
-##   - A target's bar while it is aimed at: level, name, HP.
+##     "Bite ► Tadlet" and ◄ ► change the target. A round icon stands before the action's name (action_icons.gd):
+##     its element's colour for an elemental attack, grey for a plain attack, navy for anything that isn't an attack.
+##   - A target's bar while it is aimed at: level, name, HP, and after the name a red burst if it is weak to the
+##     attack aimed at it, or a slate shield if it resists it (its own element).
 ## Bars show only while something is being chosen; nothing appears during actions.
 ## A bar stands to the left of its model (to the right when there is no room) and its inner end runs behind it: the
 ## highlighted models are shown again over the bars (the 3D view, cut to their shapes by battle.gd front_texture),
@@ -69,6 +71,11 @@ const PLATE_PAD := 5.0
 const NAV_GAP := 7.0
 const NAV_SIZE := 7.0
 const TargetArrow = preload("res://scripts/battle/target_arrow.gd")
+const ActionIcons = preload("res://scripts/battle/action_icons.gd")
+## The action's icon before its name, and a target's weak / resist mark after its name: radius, and the gap to the text.
+const ICON_R := 11.0
+const ICON_GAP := 7.0
+const MARK_R := 10.0
 
 var battle: Node
 var actor = null
@@ -208,13 +215,14 @@ func _keep_clear() -> Array:
 
 ## A bar for `ref`, level with the middle of its model: to its left (`side` -1) unless only the right has room, its
 ## inner end running `tuck` behind the model. The text keeps clear of the model. `tall`: the height its tap target needs.
-func _bar(key: String, ref, label: String, cap: String, arrows: bool, gauges: String, tall := 0.0) -> Dictionary:
+## `icon`: the action's icon before the label; `mark`: "weak" / "resist" after it.
+func _bar(key: String, ref, label: String, cap: String, arrows: bool, gauges: String, tall := 0.0, icon := "", mark := "") -> Dictionary:
 	var safe := UIKit.safe_rect(self).grow(-12.0)
 	safe.position.y = maxf(safe.position.y, UI.top_bar.bottom() + 8.0)
 	safe.size.y = UIKit.safe_rect(self).end.y - 12.0 - safe.position.y
 	var pill_h := _pill_h()
 	var label_w := clampf(UIKit.font_body().get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(TEXT_PX)).x + 4.0, 96.0, 330.0)
-	var content := 12.0 + (ARROW_W * 2.0 if arrows else 0.0) + label_w + (LV_GAP * 2.0 + LV_W if cap != "" else 0.0) + 12.0
+	var content := 12.0 + (ARROW_W * 2.0 if arrows else 0.0) + label_w + (LV_GAP * 2.0 + LV_W if cap != "" else 0.0) + 12.0 		+ (ICON_R * 2.0 + ICON_GAP if icon != "" else 0.0) + (MARK_R * 2.0 + ICON_GAP if mark != "" else 0.0)
 	var body := model_rect(ref)
 	# The model's true middle (its projected origin): a bounding box can be much wider than the model it holds.
 	var center_x: float = battle.screen_anchor(ref, 0.5).x
@@ -274,7 +282,7 @@ func _bar(key: String, ref, label: String, cap: String, arrows: bool, gauges: St
 	var inner := Rect2(pill.position + Vector2(tuck + gap + slant if out["side"] > 0 else slant, 0), Vector2(content, pill_h))
 	out.merge({"key": key, "ref": ref, "rect": rect, "pill": pill, "inner": inner, "label": label, "label_w": label_w,
 		"cap": cap, "arrows": arrows, "gauges": gauges, "top": pill_h, "slant": slant, "alpha": 1.0, "front": _front_refs.has(ref) and not out["loose"],
-		"body": body}, true)
+		"body": body, "icon": icon, "mark": mark}, true)
 	return out
 
 
@@ -299,7 +307,7 @@ func layout() -> void:
 	var hit_h := maxf(UIKit.row_h(), _pill_h())
 	if actor != null and not option.is_empty() and battle._ref_pos(actor) != null:
 		var bar := _bar("menu:" + _key(actor), actor, String(option.get("label", "")), _level(actor), true,
-			"both" if typeof(actor) == TYPE_OBJECT else "", hit_h)
+			"both" if typeof(actor) == TYPE_OBJECT else "", hit_h, String(option.get("icon", "")))
 		_bars.append(bar)
 		menu_rect = bar["rect"]
 		var pill: Rect2 = bar["pill"]
@@ -308,7 +316,8 @@ func layout() -> void:
 	for ref in battle._target_refs:
 		if is_same(ref, actor) or battle._ref_pos(ref) == null:
 			continue
-		var bar := _bar("tag:" + _key(ref), ref, _name(ref), _level(ref), false, "hp" if typeof(ref) == TYPE_OBJECT else "")
+		var bar := _bar("tag:" + _key(ref), ref, _name(ref), _level(ref), false, "hp" if typeof(ref) == TYPE_OBJECT else "", 0.0, "",
+			battle.target_mark(ref))
 		_bars.append(bar)
 		tag_rects[ref] = bar["rect"]
 	for key in _born.keys():
@@ -586,6 +595,10 @@ func _draw_bar(index: int) -> void:
 		x += ARROW_W
 	if menu and not aiming:
 		_nav_hints(canvas, inner, pill, edge, alpha)
+	if String(bar["icon"]) != "":
+		# dimmed with the text when the action can't be chosen
+		ActionIcons.draw(canvas, String(bar["icon"]), _snap(Vector2(x + ICON_R, mid_y)), ICON_R, alpha * (0.45 if menu and option.get("disabled", false) else 1.0))
+		x += ICON_R * 2.0 + ICON_GAP
 	# "Bite ► Tadlet": the arrow between the action and its target is the 3D arrow's yellow
 	var label: String = bar["label"]
 	var parts := label.split(AIM_MARK, true, 1)
@@ -608,6 +621,9 @@ func _draw_bar(index: int) -> void:
 	else:
 		var text := _line(label, float(bar["label_w"]))
 		text.draw(ci, _snap(Vector2(x, mid_y - text.get_size().y * 0.5)), ink)
+		if String(bar["mark"]) != "":
+			var name_w := minf(float(bar["label_w"]), UIKit.font_body().get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(TEXT_PX)).x)
+			ActionIcons.draw_mark(canvas, String(bar["mark"]), _snap(Vector2(x + name_w + ICON_GAP + MARK_R, mid_y)), MARK_R, alpha)
 	var kind: String = bar["gauges"]
 	if kind == "":
 		return

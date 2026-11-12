@@ -281,10 +281,10 @@ func beast_center(town: String) -> void:
 	if WorldDB.is_town(town):
 		GameState.last_center = town
 	var greeting := ["Welcome to the Beast Center! I hatch eggs, and I look after storage and the merge altar.",
-		"Healing's self-service: the machine along the back. Beasts looking for a new home are in the kennel, round the wall on the left!"]
+		"Healing's self-service: the machine along the back. Beasts looking for a new home are at the kennel barns, out on the roads!"]
 	if town == "gravenmoor" and GameState.flag("ghost_merge"):
 		greeting = ["Come in out of that fog! If a defeated ghost leaves a Shadow Egg, bring it to me. I can hatch it for you.",
-			"I can merge ghost beasts now, too. So can the other Beast Centers. Old Mort in the graveyard can teach you their capture song."] + greeting
+			"I can merge ghost beasts now, too. So can the other Beast Centers. Beaten ghosts sometimes leave Shadow Eggs, and I can hatch those too."] + greeting
 	await Story.say(greeting, KEEPERS["center"])
 	if not GameState.eggs.is_empty() and GameState.party.is_empty():
 		await hatchery()
@@ -1103,7 +1103,7 @@ func music_shop() -> void:
 	if not GameState.flag("met_maestro"):
 		GameState.set_flag("met_maestro")
 		await Story.say(["Welcome to Brass & Reed! I'm Maestro Clef, flautist to the finest beasts in Cogsworth.",
-			"Songs aren't only for charming wild beasts, you know. The right melody lifts your team's spirits... or sours the foe's.",
+			"Songs can turn a whole battle, you know. The right melody lifts your team's spirits... or sours the foe's.",
 			"I'll play any song in my book for you, free of charge. Once! Listen closely, then play it back. Get it right and it's yours.",
 			"Miss it, and you'll need the sheet music. Practice makes perfect!"], k)
 	while true:
@@ -1251,7 +1251,7 @@ func museum() -> void:
 
 func music_hall() -> void:
 	await Story.say(["Practice makes perfect! Each good performance raises your mastery of a song.",
-		"Every star of mastery makes a song stronger and adds new notes to it. It makes charming easier, too."], KEEPERS["music_hall"])
+		"Every star of mastery makes a song stronger and adds new notes to it."], KEEPERS["music_hall"])
 	await practice(KEEPERS["music_hall"])
 
 
@@ -1267,7 +1267,7 @@ func _practice_result(sid: String, acc: float, who: String) -> void:
 	var gain := 2 if acc >= 0.85 else (1 if acc >= 0.6 else 0)
 	if gain > 0 and GameState.add_mastery(sid, gain):
 		Sfx.play("levelup")
-		var grew := "" if SongDB.capture_level(sid) > 0 else " The song grew to %d notes!" % SongDB.note_count(sid, GameState.song_level(sid))
+		var grew := " The song grew to %d notes!" % SongDB.note_count(sid, GameState.song_level(sid))
 		await Story.say(["Bravo! Your mastery of %s rose to %s.%s" % [SongDB.song_name(sid), "★".repeat(GameState.mastery_stars(sid)), grew]], who)
 	elif gain > 0:
 		await Story.say(["Nicely played! (%d%% power)" % int(round(acc * 100))], who)
@@ -1275,17 +1275,6 @@ func _practice_result(sid: String, acc: float, who: String) -> void:
 		await Story.say(["You got through it (%d%% power). Faster, and with fewer slips!" % int(round(acc * 100))], who)
 	else:
 		await Story.say(["That one got away from you. Keep practising!"], who)
-
-
-## Learning the next level of Capture (from the book, once a beast has reached the current cap).
-func practice_next_capture() -> bool:
-	var next := GameState.capture_level() + 1
-	var sid := SongDB.capture_id(next)
-	await Story.say(["You flip to a new page of your book and hum the first notes of %s..." % SongDB.song_name(sid)])
-	if await learn_attempts(sid, ""):
-		await Story.say(["%s now charms wild beasts up to Lv %d!" % [SongDB.song_name(sid), SongDB.CAPTURE_CAPS[next - 1]]])
-		return true
-	return false
 
 
 ## Practise known songs to raise mastery.
@@ -1326,7 +1315,7 @@ func fortune() -> void:
 		GameState.lucky_battles = 3
 		lines.append("And luck! Your next three battles will bring extra gold and experience.")
 	else:
-		lines.append(["A lonely beast waits in tall grass, abandoned by its trainer. Play kindly and it will follow you.",
+		lines.append(["A beast fights hardest for the one who hatched it. Keep your eggs warm.",
 			"Two become one, and one becomes more. Merge often, young trainer.",
 			"An egg will come to you after a hard-won battle. Treasure it.",
 			"Shadows gather in the far east, beyond the river. Keep your strongest beasts close."][randi() % 4])

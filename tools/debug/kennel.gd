@@ -1,20 +1,42 @@
 extends RefCounted
-## Real kennel UI in fresh state. --scene=kennel [--touch] [--verify=1] [--preview=poor|empty]
+## Real kennel UI in fresh state, in a kennel barn entered from its road:
+##   --scene=kennel [--touch] [--verify=1] [--preview=poor|empty|room] [--road=route3]
+## Checks that no town has a kennel, that each barn keeps its own pens, and the keeper's and pens' menus.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
+const WorldDB = preload("res://scripts/data/world_db.gd")
+const MapGen = preload("res://scripts/world/map_gen.gd")
 
 var main
 var bad := 0
-var town := "caccoon"
+## the road whose barn is entered (the pens' key, GameState.kennel)
+var town := "route1"
 
 
 func run(root, opts: Dictionary) -> void:
 	main = root
 	UI.auto = true
-	await main._go(MapLoader.interior_of(town, "center"), "entry")
+	town = String(opts.get("road", town))
+	_places()
+	# in through the barn's doors from the road outside
+	var barn: Dictionary = {}
+	for b in MapLoader.load_map(town, {})["buildings"]:
+		if b["shop"] == "kennel":
+			barn = b
+	_check(not barn.is_empty(), "%s has a kennel barn" % town)
+	await main._go(town, barn["door"] + Vector2i(0, 1))
+	_check(main.world.player_pos == barn["door"] + Vector2i(0, 1), "the barn's doorstep can be stood on")
+	main.world._step(Vector2i(0, -1), false)
+	await main._settle(barn["interior"])
+	_check(main.world.map_id == barn["interior"] and main.world.map.get("room_key", "") == "kennel_barn", "the barn's doors lead into its kennel room")
+	_check(main.world.kennel_town() == town and main.world.kennel_pens.size() == GameState.KENNEL_PENS, "the room shows this road's four pens")
+	_check(String(main.world.map.get("name", "")) == "Kennel Barn", "the place is named Kennel Barn")
 	UI.auto = false
 	_seed()
+	if opts.get("preview", "") == "room":
+		await main._wait(float(opts.get("wait", "0.5")))
+		return
 	Places.kennel(main.world, town)
 	await main._wait(0.3)
 	await _dialogs()
@@ -35,6 +57,33 @@ func run(root, opts: Dictionary) -> void:
 	if opts.get("preview", "") == "empty":
 		UI.stack.back().text_label.visible_characters = -1
 	await main._wait(float(opts.get("wait", "0.5")))
+
+
+## Kennels are barns on the roads: no town has one (nor a pen left in its Beast Center), every barn is on a route,
+## and each has pens of its own.
+func _places() -> void:
+	var roads := []
+	for id in WorldDB.TOWN_ORDER + WorldDB.ROUTES.keys():
+		var m: Dictionary = MapLoader.load_map(id, {})
+		for b in m["buildings"]:
+			if b["shop"] == "kennel":
+				_check(not WorldDB.is_town(id), "no kennel barn in a town (%s)" % id)
+				roads.append(id)
+			elif b["shop"] == "center":
+				var room: Dictionary = MapLoader.load_map(b["interior"], {})
+				var pens := 0
+				for y in int(room["h"]):
+					for x in int(room["w"]):
+						pens += 1 if MapGen.get_t(room, x, y) == MapGen.KENNEL else 0
+				_check(pens == 0, "no kennel pens in %s's Beast Center" % id)
+	_check(roads.size() >= 6 and roads.has("route1"), "kennel barns stand on the roads, the first on the Coastal Path (%d)" % roads.size())
+	if roads.size() >= 2:
+		var a: Array = GameState.kennel(roads[0])
+		var b2: Array = GameState.kennel(roads[1])
+		a[0]["beast"] = null
+		_check(b2[0]["beast"] != null and not is_same(a, b2), "each barn keeps its own pens")
+		GameState.kennels.erase(roads[0])
+		GameState.kennels.erase(roads[1])
 
 
 func _seed() -> void:

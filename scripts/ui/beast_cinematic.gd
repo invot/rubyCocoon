@@ -1,5 +1,6 @@
 extends "res://scripts/ui/modal.gd"
-## One modal, isolated 3D stage for every hatch, evolution and level reward.
+## One modal, isolated 3D stage for every hatch, evolution and level reward, and for an egg left behind after a battle
+## ("egg": the shell drops into the light, turning, with its name; before.name is the beast that left it).
 ## Timed rather than confirm-driven: a held battle button cannot skip a reveal or select the next screen.
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
@@ -55,7 +56,7 @@ func setup(mode: String, old_look: Dictionary, new_look := {}, shell := {}) -> C
 	before = old_look
 	after = new_look if not new_look.is_empty() else old_look
 	egg = shell
-	duration = 4.2 if kind == "level" else (7.0 if kind == "evolve" else 8.6)
+	duration = 4.2 if kind == "level" else (4.4 if kind == "egg" else (7.0 if kind == "evolve" else 8.6))
 	return self
 
 
@@ -89,10 +90,10 @@ func _ready() -> void:
 	_glow.emission_enabled = true
 	_glow.emission = Color.WHITE
 	_glow.emission_energy_multiplier = 2.0
-	_subject = EggModel.build(egg) if kind == "hatch" else stage_beast(before)
+	_subject = EggModel.build(egg) if kind == "hatch" else (Node3D.new() if kind == "egg" else stage_beast(before))
 	_stage.add_child(_subject)
 	_subject.position.y = 1.07
-	_reveal = stage_beast(after)
+	_reveal = _found_egg() if kind == "egg" else stage_beast(after)
 	_stage.add_child(_reveal)
 	_reveal.position.y = 1.07
 	_reveal.visible = false
@@ -212,6 +213,15 @@ func _build_stage() -> void:
 		_set.build()
 
 
+## The egg a beaten beast left: larger than life on the platform, so its shell and markings read.
+func _found_egg() -> Node3D:
+	var root := Node3D.new()
+	var shell := EggModel.build(egg)
+	shell.scale = Vector3.ONE * 1.35
+	root.add_child(shell)
+	return root
+
+
 static func stage_beast(look: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	var genes: Dictionary = look.genes
@@ -257,7 +267,9 @@ func _process(delta: float) -> void:
 
 func _update(t: float) -> void:
 	var hatch := kind == "hatch"
-	var level := kind == "level"
+	var found := kind == "egg"
+	# (an egg found plays on the level-up's quiet stage: no machinery, no whiteout)
+	var level := kind == "level" or found
 	var reveal_at := 5.65 if hatch else (0.45 if level else 3.8)
 	var glow_start := 4.5 if hatch else 1.4
 	var revealed := t >= reveal_at
@@ -277,16 +289,21 @@ func _update(t: float) -> void:
 		Sfx.play("lever")
 	if not _sound_played and revealed and preview_time < 0:
 		_sound_played = true
-		Sfx.play("hatch" if hatch else ("levelup" if level else "merge"))
+		Sfx.play("hatch" if hatch else ("bird_cry" if found else ("levelup" if level else "merge")))
 	var heading: String
 	if hatch:
 		heading = "%s hatched!" % after.name if revealed else EggLooks.name_for(egg)
+	elif found:
+		heading = EggLooks.name_for(egg)
 	elif level:
 		heading = "%s · Level %d" % [after.name, after.level]
 	else:
 		heading = "%s evolved!" % after.name if revealed else "%s is evolving..." % before.name
 	_heading.text = heading
-	_detail.text = ("HP %d  /  MP %d · Fully restored" % [after.hp, after.mp]) if revealed and not hatch else ("A new friend awakens" if revealed else ("" if level else "The shell stirs..." if t > 4.0 and hatch else ""))
+	if found:
+		_detail.text = "%s left an egg behind!" % String(before.get("name", "It")) if t < 2.2 else "Hatch it at a Beast Center"
+	else:
+		_detail.text = ("HP %d  /  MP %d · Fully restored" % [after.hp, after.mp]) if revealed and not hatch else ("A new friend awakens" if revealed else ("" if level else "The shell stirs..." if t > 4.0 and hatch else ""))
 	for i in _stat_rows.size():
 		_stat_rows[i].modulate.a = 1.0 if t >= 0.65 + i*0.4 else 0.0
 	# Gentle dolly, generous framing at both 16:9 and 20:9; no aspect-dependent art stretching.
@@ -297,6 +314,12 @@ func _update(t: float) -> void:
 	_cam.look_at(Vector3(0, lerpf(2.75, 2.15, near), 0))
 	if level:
 		_reveal.position.y = 1.07 + sin(clampf((t - reveal_at) / 0.65, 0, 1) * PI) * 0.20
+		if found:
+			# it drops in from the light, settles with a wobble, and turns slowly to show its markings
+			var fall := clampf((t - reveal_at) / 0.55, 0.0, 1.0)
+			_reveal.position.y = 1.07 + (1.0 - fall * fall) * 2.6 + sin(clampf((t - reveal_at - 0.55) / 0.5, 0, 1) * PI) * 0.12
+			_reveal.rotation.y = t * 0.9
+			_reveal.rotation.z = sin(t * 9.0) * 0.07 * clampf(1.6 - t, 0.0, 1.0)
 		_ring.visible = false
 		_lamp.light_energy = 0.4 + sin(t * 4.0) * 0.1
 	for i in _motes.size():

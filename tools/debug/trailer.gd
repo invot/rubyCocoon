@@ -30,7 +30,6 @@ func run(main, opts: Dictionary) -> void:
 		GameState.set_flag("battle_tip_" + String(topic))
 	GameState.gear["flute"] = "reed_flute"
 	GameState.learn_song("weaken")
-	GameState.learn_song("capture3")
 	for f in String(opts.get("flags", "")).split("+", false):
 		GameState.set_flag(f)
 	for b in _beasts(String(opts.get("party", "0:8"))):

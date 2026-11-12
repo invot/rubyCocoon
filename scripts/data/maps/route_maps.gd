@@ -18,6 +18,8 @@ extends RefCounted
 ##   Y dojo  M museum  U music hall  N fortune teller  E cafe  H house  Z your home  Q temple
 ##   X electronics  V Sky Tower  I Gearhart Tower  B cathedral  J bandit hideout  D music shop  h scenery building
 ##   b Kit's log cabin (the Coastal Path)
+##   ? a kennel barn (Kennel Keeper Pip's adoption kennel; only on the roads, never in a town): its eastern five
+##     tiles are the barn, its doors in the middle of them, and any tiles west of those its fenced paddock
 ## Walkable tiles touching the map edge become exits to the neighbouring map (see world_db.gd).
 ## "heights" (optional): one more row of characters per row of the map, giving each tile its level (elevation.gd):
 ##   0-9 the ground's level there   ^ v < > a ramp rising that way, between the levels at its two ends
@@ -40,11 +42,11 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-			"T.t.fTTTTT...TTTTTTTTTTTTTTT~~...fTTTTTT5TTTTTTT..z....T",
-			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.TTTTTT.TTTTTTT.z.zgg*T",
-			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.,,,,,,,,,,,,,,....gg.T",
-			"Tggg.TTT,,.~~~.....f,,TTTTTT~~.gg.,,,,,,,,,,,,,,....gg.T",
-			"Tggg.2TT,,g.g.3.gg..,,..TTTT~~.gg.,,....zzzzzt,,f......T",
+			"T.t.fTTTTT...TTTTTTTTTTTTTTT~~...fTTTTTT5TTTTTTT???????T",
+			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.TTTTTT.TTTTTTT???????T",
+			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.,,,,,,,,,,,,,,???????T",
+			"Tggg.TTT,,.~~~.....f,,TTTTTT~~.gg.,,,,,,,,,,,,,,+g...ggT",
+			"Tggg.2TT,,g.g.3.gg..,,..TTTT~~.gg.,,....zzzzzt,,.*gg.g.T",
 			"T.+...TT,,g.g.t...,,,,TTTTTT~~.gg.,,.gg.t....f,,TTTTTTTT",
 			",,,,,,,,,,ggg.t..,,,,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
 			",,,,,,,,,,..$.t...,,,,TbbbbT~~.gg.,,.gg.t.ggg.,,,,,,,,,,",
@@ -63,7 +65,7 @@ const MAPS := {
 		"heights": [
 			"11111111111111111111111111111122222222222222222222222222",
 			"111111111111111111111111111111\\2222222222222222222222222",
-			"1/00\\1111/000\\11111111111111/\\111\\22222212222222/11111\\2",
+			"1/00\\1111/000\\11111111111111/\\111\\2222221222222211111112",
 			"1000011100000000000000111111001111\\2222/1\\22222/11111112",
 			"10000111000000000000001111110011111111111111111111111112",
 			"10000\\1100000000000000\\111110011111111111111111111111112",
@@ -84,6 +86,7 @@ const MAPS := {
 		],
 		"anchors": {"2": "lesson_screen", "3": "lesson_turns", "4": "lesson_slingshot", "5": "lesson_items", "6": "lesson_ring", "7": "logpile"},
 		"signs": [
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"Coastal Path. West: Cocoon Cove. East: Bellerive.",
 			"Creek Footbridge ahead, on the road to Bellerive. Builder's cabin by the creek.",
 		],
@@ -93,13 +96,13 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~TTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTT~~~~~~~~~~~~~TTTTTTTTTTTTTTTTTTTTTTTT",
-			"TTt.f....tT.........___________.TTT.....t....T.......fTT",
-			"TT..............v...____6______..TT..............fT...TT",
-			"TT..*........t.....T_____,,____.tTT.....f....v........TT",
+			"TTt.f....tT.........___________.TTT.....t....T???????fTT",
+			"TT..............v...____6______..TT...........???????.TT",
+			"TT..*........t.....T_____,,____.tTT.....f....v???????.TT",
 			"TTT...f..................,,....ggTTgT.................TT",
 			"TTTf.t......,,,,,,,,,,,,,,,,..gggTTggT...TT......T...TTT",
 			"TT..........,,,,,,,,,,,,,,,,..gggTTgg...T.T...tTf...T.TT",
-			"TT.+........,,..ggggg.....,,.TgggTTgg.................TT",
+			"TT.+........,,..ggggg.....,,.TgggTTgg............+....TT",
 			"TT..........,,.ggggggg..t.,,.T.ggTTg.T..,,,,,,,,,,,,,,,,",
 			",,,,,,,,,,,,,,ggggggggg...,,....TTT.....,,,,,,,,,,,,,,,,",
 			",,,,,,,,,,,,,..ggggggg....,,...+.TT.....,,............tt",
@@ -116,7 +119,7 @@ const MAPS := {
 		"heights": [
 			"22111111112111111110000000000000113222222222232222222233",
 			"2/1111111111111111100000000000001122222222222222222222\\3",
-			"11/00000111/00000000000000000000\\12/11111111\\2/111111\\22",
+			"11/00000111/00000000000000000000\\12/11111111\\21111111\\22",
 			"11000000111000000000000000000000012111111111111111111122",
 			"11000000111000000000000000000000012111111111111111111122",
 			"21\\000000^0000000000000000000000012111111111111111111/22",
@@ -138,6 +141,7 @@ const MAPS := {
 		"anchors": {"6": "tourist"},
 		"signs": [
 			"Isle Trail. West: Shellhaven. East: Kelpwick.",
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"Thorny brambles choke the trail. A beast that breathes fire, or one quick enough to slice the wind, could clear them.",
 		],
 		"weapon_obstacles": [
@@ -238,10 +242,10 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTT,,TTTTTTTTTTTTT",
 			"TTTTTTTTT,,TTTTTTTTTTTTT",
-			"TT.....#.,,..t...##..TTT",
-			"TT.#t.f..,,...........TT",
-			"TT...~zzz,,.......f..#TT",
-			"TT.#..z.z,,...........TT",
+			"TT.....#.,,..???????.TTT",
+			"TT.#t.f..,,..???????..TT",
+			"TT...~zzz,,..???????.#TT",
+			"TT.#..z.z,,+..........TT",
 			"TT..T.z.z,,..ggg......TT",
 			"TT.......,,.ggggg.....TT",
 			"TT.....f.,,ggggggg..T.TT",
@@ -341,6 +345,7 @@ const MAPS := {
 			"000000000000000000000000",
 		],
 		"signs": [
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"A sheer cliff. A rope ladder is coiled at the top, far out of reach. A beast with wings could fly up and drop it down.",
 			"Dune Road. North: Dustwell Oasis.",
 		],
@@ -353,12 +358,12 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTT,,TTTTTTTTTT",
 			"TTTTTTTTTTTT,,TTTTTTTTTT",
-			"TT###.......,,..Tf.###TT",
-			"TT####......,,.g...###TT",
-			"TT###.....f.,,ggg.####TT",
-			"TT###.......,,gggg.###TT",
+			"TT###.TTTTTT,,..Tf.###TT",
+			"TT###???????,,.g...###TT",
+			"TT###???????,,ggg.####TT",
+			"TT###???????,,gggg.###TT",
 			"TT###...T...,,ggg..###TT",
-			"TT###..f.T..,,.gff.###TT",
+			"TT###..f.T.+,,.gff.###TT",
 			"TT####fz..#.,,.....###TT",
 			"TT###.......,,.....###TT",
 			"TT###..z,,,,,,.....###TT",
@@ -458,6 +463,7 @@ const MAPS := {
 		"anchors": {"5": "puzzle_exit"},
 		"puzzle_area": [5, 14, 14, 7],
 		"signs": [
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"Rockslide! Push the boulders to clear a way north. (Stuck? Leave the trail and come back, and they'll be back where they started.)",
 			"Mesa Trail. North: Sundown Gulch.",
 		],
@@ -593,14 +599,14 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-			"TT..T..T.....f##.........v.#..T.*...f.T.#f##......t#f.TT",
-			"TT..f#.#...$..##..........................##...#...T#.TT",
-			"TT.....f.....###..g..,,,,,,,,,,,,,,,,..T..##..#....#.TTT",
+			"TT..T..T.....f##.........v.#..T.*...f.T.#f##???????#f.TT",
+			"TT..f#.#...$..##..........................##???????T#.TT",
+			"TT.....f.....###..g..,,,,,,,,,,,,,,,,..T..##???????#.TTT",
 			"TT...t.Tt.....##.ggg.,,,,,,,,,,,,,,,,.....##Tf....T.f.TT",
 			"TT..........T.##.ggg.,,............,,.ggg.##...#......TT",
 			"TT.+.....#....##.ggg.,,.tg.###.....,,.ggg###.ff#.....TTT",
 			"TT............##gggggoo.gggt##..#..,,.ggg.##.t........TT",
-			",,,,,,,,,,....##fggg.ooggggg##...#.,,ggggg##f....,,,,,,,",
+			",,,,,,,,,,....##fggg.ooggggg##...#.,,ggggg##f...+,,,,,,,",
 			",,,,,,,,,,..T###.ggg.,,ggggg##...T.,,.<gg###.....,,,,,,,",
 			"tt......,,.T..###ggg.,,ggggg###....,,.ggg.##..>..,,...tt",
 			"tt.gggf.,,....##..gT.,,ggggg##.....,,.ggg.##.....,,...tt",
@@ -616,7 +622,7 @@ const MAPS := {
 		"heights": [
 			"33223223222221331111111111131121111111211133111111111122",
 			"3/2222222222/1\\/11111111111311111111111111\\/1111111111\\2",
-			"22/\\2/\\2/1111022/000000000\\2/\\1/00000\\1/0\\22/00000000\\11",
+			"22/\\2/\\2/1111022/000000000\\2/\\1/00000\\1/0\\22000000000\\11",
 			"22111111111110220000000000000000000000000022000000000/11",
 			"22111111111112220000000000000000000000000022000000000112",
 			"22111111111110220000000000000000000000000022000000000\\11",
@@ -638,6 +644,7 @@ const MAPS := {
 		"anchors": {"2": "inspector"},
 		"signs": [
 			"Mine Road. East: Cogsworth.",
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"MINE ROAD CHECKPOINT. Miner's Pass required beyond this point. By order of the Copperpick Mining Co.",
 		],
 		"legion": 2,
@@ -646,10 +653,10 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTTTT,,TTTTTTTT",
 			"TTTTTTTTTTTTTT,,TTTTTTTT",
-			"TT......#.....,,.....fTT",
-			"TT...#.#f.t...,,......TT",
-			"TT............,,...<..TT",
-			"TT............,,......TT",
+			"TT.....???????,,.....fTT",
+			"TT...#.???????,,......TT",
+			"TT.....???????,,...<..TT",
+			"TT...........+,,......TT",
 			"TT.........T..,,......TT",
 			"TT...g........,,......TT",
 			"TT.ggggg...,,,,,..###tTT",
@@ -749,6 +756,7 @@ const MAPS := {
 			"000000000000000000000000",
 		],
 		"signs": [
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"Caldera Road. Property of Gearheart Industries. KEEP OUT.",
 		],
 		"gate": {"flag": "ceo_defeated", "text": "A massive steam gate stamped GEARHEART INDUSTRIES seals the road to Mount Cinder."},
@@ -811,12 +819,12 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTT,,TTTTTTTTTT",
 			"TTTTTTTTTTTT,,TTTTTTTTTT",
-			"TTf..T......,,..f.T...TT",
-			"TT....TT....,,+.....$.TT",
-			"TTT......TT.,,QQQQQQ..TT",
-			"TT..........,,QQQQQQ..TT",
+			"TTf..T.TTTTT,,..f.T...TT",
+			"TT...???????,,+.....$.TT",
+			"TTT..???????,,QQQQQQ..TT",
+			"TT...???????,,QQQQQQ..TT",
 			"TT..T.......,,QQQQQQ..TT",
-			"TT..........,,QQQQQQ..TT",
+			"TT.........+,,QQQQQQ..TT",
 			"TTt....Ttf..,,,,<.....TT",
 			"TT..........,,,...fT..TT",
 			"TT...,,,,,,,,,,.t.....TT",
@@ -916,6 +924,7 @@ const MAPS := {
 		"anchors": {"9": "relic_earth", "3": "warden"},
 		"signs": [
 			"Jungle Trail. Ancient ruins lie hidden here.",
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"WARDEN'S CROSSING. Only trainers who best the Jungle Warden may pass into the deep jungle.",
 		],
 		"hidden": {"Q": "ritual_done"},
@@ -924,10 +933,10 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-			"TT.......T..T..#...##..........f.f.......##.##T.#.f...TT",
-			"TT....T....T..#..T.###.....TTf.TTfT.v.T##...##..g....*TT",
-			"TT...........f.ttTt##.T..#....#Tt#.....T..f.##ggggg...TT",
-			"TTf...............g###t.....................##gggggg..TT",
+			"TT.......T..T..#...##.???????..f.f.......##.##T.#.f...TT",
+			"TT....T....T..#..T.###???????f.TTfT.v.T##...##..g....*TT",
+			"TT...........f.ttTt##.???????.#Tt#.....T..f.##ggggg...TT",
+			"TTf...............g###t......+..............##gggggg..TT",
 			"TT......v.T......gg##gT....,,,,,,,,,,,,,,,,.##ggggg..TTT",
 			"TT.+..T....f....ggg##gg..#.,,,,,,,,,,,,,,,,.##.Tg....TTT",
 			"TT...............gg##g.....,,............oo.##..TTT..TTT",
@@ -968,6 +977,7 @@ const MAPS := {
 		],
 		"anchors": {"4": "sentinel"},
 		"signs": [
+			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"Moor Road. The fog grows thicker towards Gravenmoor.",
 			"The fog here is as thick as soup. A strong wind might clear it.",
 		],

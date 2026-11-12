@@ -92,6 +92,8 @@ const KINDS := {
 	"desk": {"m": ["desk_writing", "desk_sled"], "top": ["books", "pencils", "globe", "phone"]},
 	"storage": {"m": ["shelves_metal", "shelves"], "long": true},
 	"boxes": {"m": ["box_1", "box_2", "box_3"], "single": true},
+	# a kennel barn's hay bales (barn_builder.gd)
+	"hay": {"m": ["hay_stack"], "single": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
 	"floor_lamp": {"m": ["floor_lamp"], "lamp": true, "single": true},
 	"coat_stand": {"m": ["coat_stand"], "single": true},
@@ -194,6 +196,8 @@ static func _ashlar(colour: Color) -> Material:
 
 
 static func piece(name: String) -> Mesh:
+	if name == "hay_stack":
+		return load("res://scripts/gfx/barn_builder.gd").hay_stack()
 	if not _meshes.has(name):
 		_meshes[name] = load(DIR + name + ".res") if ResourceLoader.exists(DIR + name + ".res") else null
 		if _meshes[name] == null:
@@ -2502,6 +2506,16 @@ func _hang(name: String, x: int, y: int, inside: Vector2i, up: float, side: floa
 		parent.add_child(mi)
 
 
+## A barn's lantern on wall tile (x, y), on its face towards `inside` (barn_builder.gd).
+func _lantern(x: int, y: int, inside: Vector2i) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = load("res://scripts/gfx/barn_builder.gd").lantern()
+	mi.position = Vector3(x + 0.5, 1.75, y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.005)
+	mi.rotation.y = atan2(float(inside.x), float(inside.y))
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_attach(x, y, mi)
+
+
 ## Paintings, clocks, mirrors, shelves and lights on the walls: along each room's back walls (the ones the camera
 ## looks at) and side walls, where nothing tall stands in front.
 func _wall_decor() -> void:
@@ -2531,6 +2545,12 @@ func _wall_decor() -> void:
 					continue
 				var before := parent.get_child_count() + (rows[y] as Node3D).get_child_count() if rows.has(y) else parent.get_child_count()
 				var roll := rng.randf()
+				if map.get("room", {}).get("barn", false):
+					# a kennel barn: lanterns along the walls, no pictures
+					if (x + y) % 3 == 0:
+						_lantern(x, y, inside)
+						hung[Vector2i(x, y)] = true
+					continue
 				match z:
 					"bathroom":
 						if front_kind == "basin":

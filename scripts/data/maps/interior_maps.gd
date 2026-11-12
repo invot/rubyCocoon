@@ -30,56 +30,59 @@ extends RefCounted
 ##   furniture (see FURNITURE): k kitchen counter, i kitchen sink, v stove, f fridge, j pantry, T toilet, U bathtub,
 ##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table, R wardrobe,
 ##   N nightstand, Q dresser, E desk, F storage shelves, X boxes, m mop and bucket, l floor lamp, O coat stand,
-##   z bin, J bunk bed, & low book display. TVs (V) belong on the implied fourth wall in stage rooms.
+##   z bin, J bunk bed, & low book display, ^ hay bales. TVs (V) belong on the implied fourth wall in stage rooms.
 ##   A run of the same letter is one piece (two b's are a bed, a block of four a double bed).
 ##   "zones": the kind of room each tile is in, one letter per tile like the rows (see room_builder.gd ZONES):
 ##   l living room, b bedroom, k kitchen, a bathroom, h hall, s shop floor, o back room, f office, g grand hall,
 ##   w wood panelling, t stone, d diner; any other letter (walls) takes "zone", the template's default.
 ## People: keeper (runs the shop), leader (arena leader), patron (chatty visitor),
 ##   resident (lives in the house), mom. The bottom row is the open front: no wall is drawn there.
-## Staff (keepers, the Beast Center's guide and kennel keeper, the receptionist) always stand behind a counter,
+## Staff (keepers, the Beast Center's guide, a barn's kennel keeper, the receptionist) always stand behind a counter,
 ## boxed in so you can only talk to them across it.
 
 const FURNITURE := {
 	"k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
 	"R": "wardrobe", "N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "X": "boxes", "m": "mop",
-	"&": "book_display", "l": "floor_lamp", "O": "coat_stand", "z": "trash", "J": "bunk", "@": "phone",
+	"&": "book_display", "l": "floor_lamp", "O": "coat_stand", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
 }
 
 const ROOMS := {
-	## Every Beast Center is the same 50s diner, one room you walk into from the side; bigger than the other rooms
-	## (17x9), so the camera follows you round it. On the left, on its own wood floor, is the kennel: its four pens (K)
-	## behind Kennel Keeper Pip's counter (4), and two chairs (c) in the front corner. A wall runs forward from the back
-	## between it and the diner and stops short of the front, so you walk round its end. Each machine has its own bay
-	## along the diner's back wall: the nurse's counter with her egg incubator (1, I), the soda-can healing machine (H),
+	## Every Beast Center is the same 50s diner, one room you walk into from the side (12x9). Each machine has its own
+	## bay along the back wall: the nurse's counter with her egg incubator (1, I), the soda-can healing machine (H),
 	## the storage terminal (M) and the merge altar (A); the red phone stands on the nurse's counter. Guide Dottie (2)
-	## walks about the room.
+	## walks about the room, and two waiting chairs (c) stand by the left wall. (The kennel is no longer here: it has
+	## its own barns out on the roads, "kennel_barn" below.)
 	"center": {
 		"wall": "#eef6f2", "rug": "#d8283a", "checker": true, "stage": true,
-		"npcs": {"1": "keeper", "2": "guide", "3": "patron", "4": "kennel"},
-		"counter_phone": [8, 2],
+		"npcs": {"1": "keeper", "2": "guide", "3": "patron"},
+		"counter_phone": [3, 2],
 		"rows": [
-			"##w######w###w###",
-			"#KKKK#1I#:H:M:A:#",
-			"#.4..#CCCrrrrrrr#",
-			"#CCCC#::::::::::#",
-			"#....#::::::::::#",
-			"#....#::2:::3:::#",
-			"#c...:::::::::::#",
-			"#c...::::::::::PD",
-			"#################",
+			"####w###w###",
+			"#1I#:H:M:A:#",
+			"#CCCrrrrrrr#",
+			"#::::::::::#",
+			"#::::::::::#",
+			"#::2:::3:::#",
+			"#c:::::::::#",
+			"#c::::::::PD",
+			"############",
 		],
-		"zones": [
-			"#################",
-			"#wwww############",
-			"#wwww############",
-			"#wwww############",
-			"#wwww############",
-			"#wwww############",
-			"#wwww############",
-			"#wwww############",
-			"#################",
+	},
+	## A kennel barn out on the roads (route_maps.gd "?", barn_builder.gd): timber walls and boards, hay bales (^) and
+	## lanterns ("barn"), and the four pens (K) behind Kennel Keeper Pip's counter (1) with his stores beside them.
+	## Each barn keeps its own pens (GameState.kennel, keyed by its road).
+	"kennel_barn": {
+		"wall": "#c08a58", "rug": "#a85a3a", "zone": "wood", "stage": true, "barn": true, "npcs": {"1": "kennel"},
+		"rows": [
+			"###w###w###",
+			"#^KKKK^.FX#",
+			"#...1.....#",
+			"#CCCCCCCCC#",
+			"#.........w",
+			"#^........#",
+			"#c.......PD",
+			"###########",
 		],
 	},
 	"apothecary": {
@@ -1002,6 +1005,7 @@ const SHOP_ROOMS := {
 	"skytower": ["skytower", "skytower_top"],
 	"hideout": ["hideout"],
 	"cabin": ["kit_cabin"],
+	"kennel": ["kennel_barn"],
 	"shack": ["shack"],
 	"uncle": ["uncle_home"],
 	"fishery": ["fishery"],

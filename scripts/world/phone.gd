@@ -30,7 +30,7 @@ const NEWS := {
 	"bridge": ["Mending Old Hal's footbridge? Good. Always leave a road better than you found it."],
 	"builder_egg": ["Old Hal never forgets a favour. Go and see him before you head on."],
 	"flute": ["My old reed flute's waiting for you with your uncle Rafe in Bellerive. He'll make you practise. Practise anyway."],
-	"rafe": ["Learn every song Rafe teaches you. Weaken first, then Capture. That's how I caught my Tempestrix. Allegedly."],
+	"rafe": ["Learn the song Rafe teaches you: Weaken. And hatch every egg you find. That's how I got my Tempestrix. Allegedly."],
 	"arena": ["Bellerive's arena! Listen to the coaches before you take on Marina. Nobody skips Rory's lesson. Nobody."],
 	"marina": ["Marina's tough. Her beasts are all water, so bring something airy. And don't let her splash you first."],
 	"ferry": ["The Isle of Tides! Those two villages have been squabbling since before I was born."],
