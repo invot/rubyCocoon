@@ -1,3 +1,5 @@
+> **Folded into [runbook.md](runbook.md)**, the numbered chain to follow. This file is background; where they differ, the runbook wins on order and scope.
+
 # Audit of the visual standards and checklist
 
 12 November 2026. This audit covers `standards.md` (the Visual Standards and Whole-Game Overhaul Plan) and `checklist.md` (the Visual Enforcement Checklist). Copies of both are in this folder, unchanged except for a banner that points here. It also records the user's answers to the clarifying questions asked that day. **Where this file and those two disagree, this file wins.**

@@ -1,3 +1,5 @@
+> **Folded into [runbook.md](runbook.md)**, the numbered chain to follow. This file is background; where they differ, the runbook wins on order and scope.
+
 # Exploration and secrets
 
 The user's direction, 12 November 2026: **Ruby Cocoon has two pillars, exploration and battling.** Roads become larger, winding and full of secrets, with silly and goofy puzzles, caves, shortcuts and cozy side paths. This file is the design. The work is done in the X steps at the bottom, and inside each biome's B steps in [steps.md](steps.md), so every road is laid out once and decorated once.

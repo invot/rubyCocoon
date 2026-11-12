@@ -14,11 +14,12 @@ is asked about in parts, and the model then puts the parts' answers together. Re
 per 25,000 characters), and its line numbers can be a few dozen out on long files.
 
 It talks to an OpenAI-style chat server on this machine: by default Bionic's (LM Studio-like) at
-http://127.0.0.1:1235 running qwen3.6-27b, a thinking model that reads text and images. LOOK_URL and LOOK_MODEL
-change them. It thinks before it answers, so each call gets THINK_TOKENS (LOOK_THINK, 2000) on top of max_tokens
-for its reasoning, and an answer takes a minute or two (about 90 s for a screenshot). It is far better than the old
-8B model at reading pictures and code, but still approximate: ask plain, specific questions, and look at the
-picture yourself when an answer matters.
+http://127.0.0.1:1235 running qwen3.6-27b, which reads text and images. LOOK_URL and LOOK_MODEL change them. Since
+2026-11-12 the server no longer has it reason before answering: a short text answer takes a few seconds, a screenshot
+or an 8 KB diff about 15 s. THINK_TOKENS (LOOK_THINK, 2000) is still added to max_tokens as spare room in case
+reasoning is switched back on; an unused budget costs nothing. It is approximate and agreeable, and without
+reasoning more so: ask neutral, specific questions ("describe the cliff edge" rather than "is there a rounded
+lip?"), and look at the picture yourself when an answer matters.
 """
 import base64
 import json
@@ -33,7 +34,7 @@ CHARS = int(os.environ.get("LOOK_CHARS", "100000"))
 
 
 def _chat(content, max_tokens):
-    # (the model reasons first: without room for that, its whole budget goes on thinking and the answer is empty)
+    # (spare room in case the server turns reasoning back on: then the budget would otherwise go on thinking)
     body = {"model": MODEL, "temperature": 0.1, "max_tokens": max_tokens + THINK_TOKENS,
             "messages": [{"role": "user", "content": content}]}
     req = urllib.request.Request(URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})

@@ -1,3 +1,5 @@
+> **Folded into [runbook.md](runbook.md)**, the numbered chain to follow. This file is background; where they differ, the runbook wins on order and scope.
+
 # Visual overhaul: steps
 
 One step is one session of about 1–2 hours. Each step has a fixed goal, the files it touches, the evidence it must produce, and a clear stopping point. The user approves each visual step from before/after screenshots before the next visual step starts. Performance and tooling steps need only their numbers and tests.
