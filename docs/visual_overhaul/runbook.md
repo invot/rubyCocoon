@@ -216,8 +216,25 @@ Every step:
 **Evidence:** `ledger/perf.md` § Diagnosis, a ranked table.
 **Done when:** steps 005–010 reflect the ranking.
 
-### 005 · P5: material sharing
+**004 result (12 November 2026):** see [004-cost-diagnosis.md](004-cost-diagnosis.md) and the generated
+`build/perf/vo/004/tables.md`. Existing finishes and scenery are already shared/batched; grass is opaque geometry.
+Do not implement the old blanket assumptions. Execution order after 004 is:
+**005a → 009a → 010a → 005b if justified → 009b → 010b → 008 → 006 → 007 → 011**.
+The cheap audits/measurements precede changes. Follow the dependencies below rather than the headings' numerical order.
+
+### 005 · P5: material sharing (split into 005a and 005b)
+### 005a · P5a: exact-duplicate eligibility (analysis only)
+**Approval:** numbers. **Needs:** 004.
+**Do:** count exact rendering-property-equivalent finished materials in the four whole-map fixtures and battle;
+inspect ownership/mutation before proposing reuse. Distinguish resource duplication, tint differences and shader features.
+Use conservative resource identity for textures; do not merge materials or move tint to vertices in this substep.
+**Evidence:** eligibility counts, mutation audit and go/no-go for 005b in `ledger/perf.md`.
+**Done when:** the 005b scope is justified by actual duplicates, or an evidence-backed no-op is recorded.
+Continue automatically to 009a.
+
+### 005b · P5b: proven safe material sharing
 **Approval:** numbers, plus a pixel diff. **Needs:** 004.
+**Additional needs:** 005a, 009a, 010a. Skip implementation only with the evidence-backed no-op from 005a.
 **Files:** `scripts/gfx/surface_finish.gd`, `tools/build_soft_textures.py`, the builders that create per-surface materials.
 **Do:**
 - Cache one `Material` per (finish texture, tint, shader, flags) key. Move per-object tint into vertex colour or an instance uniform where it's still unique.
@@ -227,45 +244,64 @@ Every step:
 
 **Offload:** a diff review for slips.
 **Evidence:** material and draw-call counts before/after on all three renderers.
-**Done when:** distinct materials drop by the largest achievable factor, and the `textures`, `performance` and `transitions` tests pass. Split into 005a (finish pass) and 005b (builders) if needed.
+**Done when:** only proven equivalent immutable materials are shared, counts meet the measured eligibility target,
+and the `textures`, `performance` and `transitions` tests pass. Identical-looking tint/flags alone are not a complete cache key.
+Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 
 ### 006 · P6: batched scenery
-**Approval:** numbers. **Needs:** 005.
+**Approval:** numbers and screenshot review if visible. **Needs:** 008.
 **Files:** the nature/scenery placement code in `scripts/world/` (find it with a grep for `MeshInstance3D.new()` in scenery code), `foliage.gdshader`.
 **Do:**
 - Per terrain chunk, draw repeated bushes, grass, flowers, rocks and small props as `MultiMeshInstance3D`, with per-instance colour or custom data for variation.
 - Keep LODs (one MultiMesh per LOD band, or a visibility range), fading near the camera (instance alpha via custom data), collision (separate static shapes, unchanged), and building and terrain visibility rules.
 - It must work on Mobile and Compatibility.
+- Existing 8×8 chunked MultiMeshes stay. Target residual repetitions, excess LOD submissions or update work only
+  where measurements justify it; do not perform a second wholesale batching conversion.
 
 **Offload:** a first look at before/after shots ("list differences"), and the diff review.
 **Evidence:** draw calls before/after on Coastal Path and Cocoon Cove; a `field-perf` run with no frame over 20 ms on desktop.
 **Done when:** the `nature`, `walk`, `building-fade` and `maps-built` tests pass.
 
 ### 007 · P7: alpha and overdraw
-**Approval:** numbers. **Needs:** 006.
+**Approval:** numbers and screenshot review if visible. **Needs:** 006.
 **Do:**
 - Switch alpha-blended foliage and grass cards to alpha-scissor (or opaque geometry), cap card layers, and turn off depth pre-pass costs where not needed.
 - Measure Mobile GPU time on desktop and on the phone (repeat the 002 route).
+- 004 found solid foliage and no BaseMaterial blended surfaces in field endpoint views. Attribute actual residual
+  transparent draws first; preserve water, contact shadows, fades and intentional battle effects. Record a no-op
+  if no harmful foliage blend remains, rather than converting an already opaque shader.
 
 **Offload:** triage the before/after crops for visible holes or aliasing ("describe the edges of the grass blades").
 **Evidence:** transparent draws and GPU time before/after.
 **Done when:** fewer transparent draws, no visible fringe regressions, and the `nature` test passes.
 
 ### 008 · P8: shadows and lights budget
-**Approval:** numbers, plus a quick look from you. **Needs:** 007.
+**Approval:** numbers and actual before/after screenshots. **Needs:** 010b.
 **Files:** `outdoor_light.gd`, `render_quality.gd`, `scripts/autoload/prefs.gd`, the scenery builders' `cast_shadow` settings.
 **Do:**
 - Only large scenery, buildings and actors cast shadows. Grass, flowers, small props and decals never do.
 - Shadow distance and splits per preset (Min/Mid/Max).
 - Contact shadows (`contact_shadow.gd`) keep small things grounded.
 - Battles keep "only fighters cast shadows".
+- First isolate shadow-pass GPU cost with controlled diagnostics; one shadow light outdoors does not establish
+  excessive lights. Do not remove authored large casters without evidence and visual review.
 
 **Offload:** a first look ("describe where shadows appear under characters and props").
 **Evidence:** shadow-pass cost and shots before/after.
 **Done when:** characters still look grounded and the `battle-stage` test passes.
 
-### 009 · P9: shader warm-up and first-visit stalls
-**Approval:** numbers. **Needs:** 005.
+### 009 · P9: shader warm-up and first-visit stalls (split)
+### 009a · P9a: production loading-phase attribution (nonvisual instrumentation)
+**Approval:** numbers. **Needs:** 005a.
+**Do:** time production teardown, script wait, world build, finish, wild spawn, battle/audio prewarm,
+arrival preparation and first draws separately in the existing route. Record available pipeline-counter deltas;
+Compatibility zeros do not mean no compilation. Preserve Web cache caveats. Do not alter warm-up behavior here.
+**Evidence:** phase report on desktop Mobile and Compatibility; construction versus first-draw ranking.
+**Done when:** timings explain where the black hold is spent without calling every wait shader compilation;
+quick and vo-perf-route pass. Continue automatically to 010a.
+
+### 009b · P9b: shader warm-up and first-visit changes
+**Approval:** numbers, plus screenshots/approval if visible. **Needs:** 009a, 010a, 005b (or its documented no-op).
 **Do:**
 - Check the Godot 4.7 export options for shader baking and pipeline caches per renderer (read the local Godot docs or the export preset options; don't guess). Enable what applies.
 - Move `_warm_shaders` to warm the reduced shared material set once, behind the title or the first fade, instead of per map.
@@ -274,8 +310,17 @@ Every step:
 **Evidence:** first-visit black screens on Compatibility on desktop and the web (repeat 003).
 **Done when:** a first visit is at most about 1.5 s per map on desktop Compatibility, and the web improves measurably. The `transitions` and `title-startup` tests pass.
 
-### 010 · P10: smooth low-resolution output
-**Approval: you.** **Needs:** 001.
+### 010 · P10: low-resolution output (split)
+### 010a · P10a: phone resolution and pacing experiment (measurement only)
+**Approval:** numbers. **Needs:** 009a.
+**Do:** on the isolated benchmark package compare 720p/Mid with 540p/Mid on the same route; retain interval,
+tick/render CPU/GPU and refresh/pacing metadata. House/battle remain ~30 fps despite ~15 ms GPU in 002;
+do not assume scenery alone explains the interval. Preserve player app and lock settings. Record unavailable counters.
+**Evidence:** actual phone reports and a measured resolution sensitivity, not the optimistic pixel-count model from 004.
+**Done when:** the results select the next GPU/pacing intervention; no production video behavior changes in this substep.
+
+### 010b · P10b: smooth low-resolution resolve
+**Approval: you.** **Needs:** 010a, 009b.
 **Files:** `scripts/autoload/prefs.gd:100-115`, `render_quality.gd`, video settings; README Mobile/Art sections.
 **Do:**
 - Replace nearest enlargement with a smooth resolve: bilinear on Compatibility, and FSR 1 or bilinear plus mild sharpening on Mobile and Forward+. Verify each renderer supports the mode.

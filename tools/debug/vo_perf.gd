@@ -139,11 +139,21 @@ func _write_report() -> void:
 func _arrive(id: String, spawn) -> void:
 	print("VO PERF arrival ", id)
 	seed(ROUTE_SEED)
+	var pipelines := {}
+	if _opts.get("diagnose", "0") == "1":
+		pipelines = load("res://tools/debug/vo_cost.gd").pipeline_counters()
 	_trace = {"map": id, "started": Time.get_ticks_usec(), "black_start": -1, "black_end": -1}
 	await _main._do_goto(id, spawn)
 	_transition_sample()
 	_transitions.append({"map": id, "total_ms": (Time.get_ticks_usec() - int(_trace.started)) / 1000.0,
 		"black_ms": maxf(0.0, (int(_trace.black_end) - int(_trace.black_start)) / 1000.0)})
+	if _opts.get("diagnose", "0") == "1":
+		var after: Dictionary = load("res://tools/debug/vo_cost.gd").pipeline_counters()
+		for key in after:
+			after[key] -= pipelines.get(key, 0)
+		_transitions.back()["pipeline_compilation_delta"] = after
+	if _opts.get("load_phases", "0") == "1":
+		_transitions.back()["loading_phases_ms"] = _main.cost_load_phases.duplicate()
 	_trace = {}
 	_main.world.busy = true
 	_main.world.frozen = true
@@ -280,6 +290,14 @@ func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array
 	var summary := {}
 	for key in values:
 		summary[key] = _stats(values[key])
+	var diagnosis := {}
+	if _opts.get("diagnose", "0") == "1":
+		var cost = load("res://tools/debug/vo_cost.gd")
+		diagnosis = {"whole_tree": cost.inventory(subject), "end_view": cost.inventory(subject, camera)}
+		if is_field:
+			diagnosis.script_probes = cost.script_probes(subject)
+		if _opts.get("eligibility", "0") == "1":
+			diagnosis.material_eligibility = load("res://tools/debug/material_eligibility.gd").audit(subject)
 	var worst := []
 	var indices := range(positions.size())
 	indices.sort_custom(func(a, b): return values.frame_ms[a] > values.frame_ms[b])
@@ -287,7 +305,7 @@ func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array
 		var index: int = indices[i]
 		worst.append({"frame": index, "ms": values.frame_ms[index]})
 	print("VO PERF ", label, " ", JSON.stringify(summary.frame_ms))
-	return {"frames": positions.size(), "summary": summary, "worst_five": worst, "trace": values, "inventory": inventory,
+	return {"frames": positions.size(), "summary": summary, "worst_five": worst, "trace": values, "inventory": inventory, "diagnosis": diagnosis,
 		"availability": {"gpu_timing": summary.gpu_ms.max > 0.0, "render_cpu_timing": summary.render_cpu_ms.max > 0.0,
 			"video_memory": summary.video_memory_bytes.max > 0.0}}
 

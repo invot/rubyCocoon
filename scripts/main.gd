@@ -41,6 +41,9 @@ var _title_intro: Node3D
 var _title_skip_held := false
 var _title_touches := {}
 var _test := {}
+## Opt-in performance harness diagnostics, empty in ordinary play.
+var cost_load_phases := {}
+var _cost_load_clock := 0
 var autoplay := false
 var _cinematic: Node3D
 var _loaded_scripts := {}
@@ -364,32 +367,49 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 			world.get_parent().remove_child(world)
 		world.queue_free()
 		world = null
+	_cost_load_lap("teardown")
 	# These shader dependencies must be created on the main thread before requesting the world script.
 	for sh in THREAD_SHY:
 		load(sh)
 	var script := await wait_for_script(WORLD_PATH)
+	_cost_load_lap("shader dependencies and world script wait")
 	world = script.new()
 	world.demo = demo
 	view.add_child(world)
 	await world.build(id, true)
+	_cost_load_lap("world build")
 	# Every surface textured before the first draw: on Compatibility, drawing a material before it is finished compiles
 	# a shader of its own that is thrown away again (surface_finish.gd).
 	SurfaceFinish.apply(world)
+	_cost_load_lap("explicit surface finish")
 	if demo:
 		world.player.visible = false
 	else:
 		world.spawn_at(spawn, face)
 		await world._spawn_wilds()
+		_cost_load_lap("spawn and wilds")
 		# the first battle's ring, ready before anyone meets a beast (behind this load's fade)
 		if not _battle_warm:
 			_battle_warm = true
 			var battle_script := await wait_for_script(BATTLE_PATH)
 			battle_script.prewarm()
+		_cost_load_lap("first battle prewarm")
 		await Sfx.prewarm_field()
+		_cost_load_lap("field audio prewarm")
 	# Prepare the arrival view behind the fade.
 	if not demo and not world.interior:
 		await world.prepare_arrival_view()
+	_cost_load_lap("arrival preparation and warmup setup")
 	world.set_process(true)
+	_cost_load_lap("enable world processing")
+
+
+func _cost_load_lap(label: String) -> void:
+	if _cost_load_clock == 0:
+		return
+	var now := Time.get_ticks_usec()
+	cost_load_phases[label] = (now - _cost_load_clock) / 1000.0
+	_cost_load_clock = now
 
 
 ## A room's map data: the one standing there if it's that room, without parsing its whole town again.
@@ -442,12 +462,18 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	await UI.fade_out(fade)
 	# Nothing's on view: drawing a half-built map each frame would only slow the building of it.
 	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	if _test.get("load_phases", "0") == "1":
+		cost_load_phases = {}
+		_cost_load_clock = Time.get_ticks_usec()
 	await _load_world(id, spawn, false, face)
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	# Draw the finished map while it's still dark, so any first-draw hitch doesn't cut into the fade (a long frame's
 	# delta would jump the tween); the second frame is the one that pays for that delta.
 	await get_tree().process_frame
+	_cost_load_lap("first process-frame await after enabling viewport")
 	await get_tree().process_frame
+	_cost_load_lap("second process-frame await")
+	_cost_load_clock = 0
 	GameState.map_id = id
 	GameState.visit(id)
 	GameState.pos = world.player_pos

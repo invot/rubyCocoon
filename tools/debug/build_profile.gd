@@ -111,6 +111,11 @@ func run(main, opts: Dictionary) -> void:
 			if not String(k).begins_with("building "):
 				total += float(t[k])
 		t["total"] = snappedf(total, 0.1)
+		if opts.get("diagnose", "0") == "1":
+			var began := Time.get_ticks_usec()
+			load("res://scripts/gfx/surface_finish.gd").apply(w)
+			t["finish pass ms"] = (Time.get_ticks_usec() - began) / 1000.0
+			t["diagnosis"] = load("res://tools/debug/vo_cost.gd").inventory(w)
 		t.merge(_tree_stats(w))
 		w.set_process(true)
 		w.frozen = true

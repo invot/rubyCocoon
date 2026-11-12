@@ -13,9 +13,12 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 ## Next step
 
-**004: P4, cost diagnosis.** Steps [001](001-performance.md), [002](002-phone.md), and
-[003](003-web.md) are complete. The user requested a fresh-chat checkpoint here;
-use [the parallel handoff](parallel-handoff.md) for Claude artwork and Codex engineering.
+**009a: production loading-phase attribution.** Steps 001–004 and 005a are complete; see
+[the diagnosis](004-cost-diagnosis.md) for the revised execution order and
+[the parallel handoff](parallel-handoff.md) for Claude artwork and Codex engineering.
+The user requested a [measurement checkpoint](009a-loading-checkpoint.md) after focus losses; instrumentation tests pass,
+but accepted first/return phase evidence is still pending. Claude may continue the isolated
+[rev_002 technical refinement prompt](claude-next-prompt.md); this does not advance 027.
 
 ## How to prompt
 

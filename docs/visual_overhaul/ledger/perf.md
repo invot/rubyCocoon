@@ -46,3 +46,42 @@ not a cold-install or compressed production download measurement. One audio
 missing-music errors in the accepted run. Quick + route checks passed.
 
 [Full Web method, evidence and limitations](../003-web.md).
+
+## Diagnosis
+
+Step 004 completed 12 November 2026. [Ranked causes, estimated savings, source audit and limits](../004-cost-diagnosis.md).
+Exact numerical tables are generated with `python tools/vo_cost_summary.py` into `build/perf/vo/004/tables.md`;
+raw/derived JSON, logs and quick/route results live beside them. No production rendering change.
+
+| Rank | Cause / affected target | Evidence and saving estimate | Next investigation |
+|---|---|---|---|
+| 1 | First-visit work, desktop Compatibility; Web/phone follow | Seconds of black hold; 50–80% reduction is a planning hypothesis, not an observed saving | 009a phase attribution |
+| 2 | Outdoor phone GPU workload | Highest accepted GPU medians; model 15–30% GPU reduction, verify affected passes | 010a, 008, 006 |
+| 3 | Phone pacing / unmeasured frame work | Smaller scenes remain near half-rate despite lower GPU time; no established cause or guaranteed saving | 010a |
+| 4 | Loading CPU construction | Different largest phases per map; model one-quarter of the identified phase only | 009a |
+| 5 | Rue Royale phone script tick | Full tick is more significant here; endpoint cached probes do not identify moving cost | 006 |
+| 6 | Exact material duplicates | Sharing already substantial; no defensible nonzero millisecond prediction | 005a |
+| 7 | Transparent foliage / local lights | Blanket explanation unsupported by field inventories; near-zero expected from blanket conversion | 007 targeted audit |
+
+Ranking: (1) Compatibility first-visit/loading attribution, then Web/phone; (2) phone outdoor GPU workload;
+(3) unexplained ~30 fps pacing in smaller phone scenes; (4) loading construction (scatter, buildings/street props,
+backdrop, room); (5) phone Rue Royale tick; (6) only proven duplicate materials; (7) targeted transparency/light audit.
+Savings are scenarios in the report, not measured speedups. Existing foliage is opaque and chunked; the finish pass
+already shares many surfaces, so the old “14,500 unique materials” premise is rejected.
+
+Execution order: 005a → 009a → 010a → 005b if justified → 009b → 010b → 008 → 006 → 007 → 011.
+Phone reference-class devices, pass-level GPU captures, compiler time, and exact draw calls by node type remain unmeasured.
+Compatibility pipeline zeros are non-informative. Web cache/startup/audio caveats from 003 remain in force.
+
+### Material eligibility (005a)
+
+[Ownership audit and 005b no-op decision](../005a-material-eligibility.md). Generated table:
+`build/perf/vo/005a/table.md` (`python tools/vo_material_summary.py`). Apparent town duplicates are predominantly
+independent fades or named window roles; two house resources remain plausible candidates without measured payoff.
+No runtime material cache/bindings changed. Quick and route checks passed.
+
+### Loading phases (009a, checkpoint)
+
+[Instrumentation and retry instructions](../009a-loading-checkpoint.md). Quick, route and transitions pass.
+Both new native phase attempts lost foreground focus; retain as invalid diagnostic traces, not accepted timings.
+User selected a measurement checkpoint; 009a remains in progress and 010a has not started.
