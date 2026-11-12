@@ -538,8 +538,12 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 <img src="docs/screenshots/tidewater.jpg" width="640" alt="Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay."><br><sub>Bellerive from above: Creole townhouses along Rue Royale, the bell tower over the Place d'Armes, the park and the arena, and the harbour below the quay.</sub>
 
-- **Look**: the world aims for a modern, clean stylized finish in the spirit of *Fortnite*: smooth readable shapes,
-  soft painted textures on every object and soft light, never gritty, retro (PSX/PS2), voxel, blocky or pixelated. Outdoors, `scripts/gfx/outdoor_light.gd`
+- **Look**: the world aims for a modern, cozy, clean stylized finish with *Animal Crossing: New Horizons* as the
+  primary reference for environmental cohesion: deliberate rounded forms, soft painted textures on every object,
+  consistent turf lips, banks and shorelines, organized foliage and soft light, in gentle colours with clear contrast;
+  never gritty, retro (PSX/PS2), voxel, blocky or pixelated. People, beasts and regional architecture keep their own
+  identities. The overhaul toward this look is planned in small steps in [docs/visual_overhaul/](docs/visual_overhaul/README.md)
+  (some of what follows describes the game before it). Outdoors, `scripts/gfx/outdoor_light.gd`
   keeps a gentle sun low in the south-east, so shadows fall beside things rather than hidden behind them and fronts
   still catch the light, and grades the world, open-air roofs and battles alike for contrast and rich colour without
   blowing out. Shade is lit partly by the sky itself (`OutdoorLight.ambient`: warm-tinted sky above, the ground's warm
