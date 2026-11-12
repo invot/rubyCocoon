@@ -52,8 +52,8 @@ The rules below translate those principles into cardinal tile movement, small ro
 
 Walls use smooth solid finishes or subtle, filtered striped wallpaper instead of the pack's coarse wall textures.
 The wood, stone and grand-room finishes retain their familiar warm or cool colour families as solid surfaces.
-Floors use smooth warm oak boards, soft carpet, muted tile or stone, with the Beast Centers retaining their diner
-checkerboards. The roof deck and arena ring use the same smooth finish system. Area rugs have a muted wool colour,
+Floors use smooth warm oak boards, soft carpet, muted tile or stone; the Beast Centers' temple
+has smooth stone flags under walls of the grey blocks their outside is built of. The roof deck and arena ring use the same smooth finish system. Area rugs have a muted wool colour,
 broad binding and a simple inset border, with a 3x4 preferred minimum and 2x3 for tighter spaces. The allowed tile
 footprints are 2x3, 3x4, 4x5 and 6x5, including rotations; no square rugs or narrow runners. Their placement follows
 the old rug tiles, fitting around walls, stairs and hazards and allowing furniture to stand on the rug. Entrance
@@ -79,7 +79,7 @@ and shop types inherit the template changes and share the renderer's placement r
 | `bookstore` | Foreground bookcase barrier replaced by three low book displays; tall shelving retained upstage. |
 | `museum` | Two central columns moved upstage; exhibit paths opened; display beasts face camera. |
 | `music_shop` | Organ moved from playing area to back wall; low visitor bench retained. |
-| `center` | Existing rear service bays, kennel wing and open diner circulation retained; side waiting chairs remain low. |
+| `center` | Rear relic bays (cradle stone, healing font, reliquary, merge altar) behind the nurse's stone counter, open circulation; side waiting chairs remain low. The kennel is a separate barn (`kennel_barn`). |
 | `apothecary`, `outfitter`, `electronics` | Rear stock, customer-facing counters and low merchandise displays already suitable; display beasts now face camera. |
 | `arena` | Combined lobby/master hall retained: rear reception, clear lesson arrival route, ring and low perimeter benches. |
 | `cafe` | Rear counter and tables with patrons in profile retained. |

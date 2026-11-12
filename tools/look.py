@@ -14,9 +14,11 @@ is asked about in parts, and the model then puts the parts' answers together. Re
 per 25,000 characters), and its line numbers can be a few dozen out on long files.
 
 It talks to an OpenAI-style chat server on this machine: by default Bionic's (LM Studio-like) at
-http://127.0.0.1:1235 running qwen3-vl-8b-instruct. LOOK_URL and LOOK_MODEL change them. Its answers are quick
-(a couple of seconds) but approximate: ask plain, specific questions, and look at the picture yourself when an
-answer matters.
+http://127.0.0.1:1235 running qwen3.6-27b, a thinking model that reads text and images. LOOK_URL and LOOK_MODEL
+change them. It thinks before it answers, so each call gets THINK_TOKENS (LOOK_THINK, 2000) on top of max_tokens
+for its reasoning, and an answer takes a minute or two (about 90 s for a screenshot). It is far better than the old
+8B model at reading pictures and code, but still approximate: ask plain, specific questions, and look at the
+picture yourself when an answer matters.
 """
 import base64
 import json
@@ -25,16 +27,19 @@ import sys
 import urllib.request
 
 URL = os.environ.get("LOOK_URL", "http://127.0.0.1:1235/v1/chat/completions")
-MODEL = os.environ.get("LOOK_MODEL", "qwen3-vl-8b-instruct")
+MODEL = os.environ.get("LOOK_MODEL", "qwen3.6-27b")
+THINK_TOKENS = int(os.environ.get("LOOK_THINK", "2000"))
 CHARS = int(os.environ.get("LOOK_CHARS", "100000"))
 
 
 def _chat(content, max_tokens):
-    body = {"model": MODEL, "temperature": 0.1, "max_tokens": max_tokens,
+    # (the model reasons first: without room for that, its whole budget goes on thinking and the answer is empty)
+    body = {"model": MODEL, "temperature": 0.1, "max_tokens": max_tokens + THINK_TOKENS,
             "messages": [{"role": "user", "content": content}]}
     req = urllib.request.Request(URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=600) as r:
-        return json.load(r)["choices"][0]["message"]["content"].strip()
+        msg = json.load(r)["choices"][0]["message"]
+    return (msg.get("content") or "").strip() or "(the model gave no answer; raise LOOK_THINK)"
 
 
 def look(image, question, max_tokens=200):

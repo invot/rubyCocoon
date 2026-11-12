@@ -173,6 +173,8 @@ static func style_for(biome_id: String) -> String:
 
 ## Builds the full node for a building dictionary (shop, w, d, height, door, x, y, seed).
 static func build(b: Dictionary, style_name: String) -> Node3D:
+	if b["shop"] == "center":
+		return load("res://scripts/gfx/beast_temple.gd").build(b)
 	if style_name == "pirate_cove":
 		return load("res://scripts/gfx/cove_buildings.gd").build(b)
 	if style_name in ["roundwood", "resort"]:

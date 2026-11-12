@@ -972,7 +972,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			# benches: the diner's are red leather booths
 			elif fc == MapGen.BENCH and not room.get("open", false):
 				m["furniture"][Vector2i(x, y)] = "booth" if diner else "bench"
-			elif fc == MapGen.TERMINAL:
+			# (an ancient room's storage is a stone reliquary, world.gd _build_reliquary, not a computer)
+			elif fc == MapGen.TERMINAL and not room.get("ancient", false):
 				m["furniture"][Vector2i(x, y)] = "computer"
 	# people face the middle of the room, or the table they're sitting at; never a wall
 	# (staff stay facing out over their counters)

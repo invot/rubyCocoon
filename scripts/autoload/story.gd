@@ -1165,7 +1165,7 @@ func _talk_story(world, n: Dictionary) -> void:
 			elif GameState.flag("has_starter"):
 				await say(["You look tired! Let me take care of your beasts.", "...There. Good as new! Come home any time."], "Mom")
 			elif GameState.flag("got_egg"):
-				await say(["What a lovely egg! Take it to the Beast Center by the square, the one with the red-and-white awning and the paw print over the door. Nurse Clover can hatch it."], "Mom")
+				await say(["What a lovely egg! Take it to the Beast Center by the square, the little stone temple with the paw print over the door. Nurse Clover can hatch it."], "Mom")
 			else:
 				await say(["Elder Rowan is waiting for you in the plaza.", "I'm so proud of you, %s." % GameState.player_name], "Mom")
 		"guard":
@@ -1184,8 +1184,8 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _blocker(world, n)
 		"center_guide":
 			await say(["Hi, sugar! Welcome to the Beast Center. Every one in the land is built just like this one, so you'll never get lost.",
-				"Each machine has its own bay along the back wall. First, Nurse Clover's counter. She hatches eggs in the incubator beside her.",
-				"That tall glass chamber next along? The healing machine. Pop your beasts in and they come out good as new. Free, any time! The storage terminal's right beside it.",
+				"No machines in here, sugar: it's all old magic. Each relic has its own bay along the back wall. First, Nurse Clover's counter. She hatches eggs in the warm cradle stone beside her.",
+				"That font with the floating crystal? It heals. Your beasts come out good as new. Free, any time! The storage reliquary's right beside it.",
 				"The glowing altar on the end merges two beasts that have hit their level limit into one stronger beast. Very fancy. Very sparkly.",
 				"Looking for the kennel? It's out on the roads now: look for the barns with our pawprint. Pip finds homes there for beasts other trainers couldn't keep. Adopt one, or leave one of yours.",
 				"And that red phone on the nurse's counter? Call your dad on it any time. That's how you save your journey."], "Guide Dottie")
@@ -1261,7 +1261,7 @@ func _elder(_world, _n: Dictionary) -> void:
 		GameState.set_flag("got_egg")
 		Sfx.play("capture")
 		UI.toast("Received the %s!" % GameState.egg_name(GameState.eggs.back()), GameState.EggLooks.icon(GameState.eggs.back()), "egg")
-		await say(["Take it to the Beast Center, right across the road from this square: the blue building with the red-and-white striped awning and a red paw print over the door. Nurse Clover will help it hatch.",
+		await say(["Take it to the Beast Center, right across the road from this square: the little stone temple with a crystal on its roof and a red paw print over the door. Nurse Clover will help it hatch.",
 			"A fresh hatchling starts at level 1, so be gentle with it at first. Win battles and it will grow strong.",
 			"Defeated wild beasts sometimes leave an egg behind, about one time in five. Collect them and hatch them too!",
 			"Remember the elements: fire is weak to air, earth to water, water to air, and air to fire.",
@@ -1269,7 +1269,7 @@ func _elder(_world, _n: Dictionary) -> void:
 		return
 	if not GameState.flag("has_starter"):
 		await say(["Your egg won't hatch in your pocket! The Beast Center is right across the road from this square.",
-			"Look for the red-and-white striped awning and the red paw print over the door. Nurse Clover is inside."], "Elder Rowan")
+			"Look for the little stone temple with the red paw print over the door. Nurse Clover is inside."], "Elder Rowan")
 		return
 	if GameState.flag("game_cleared"):
 		await say(["You've come such a long way, %s. I'm proud of the trainer you've become." % GameState.player_name], "Elder Rowan")

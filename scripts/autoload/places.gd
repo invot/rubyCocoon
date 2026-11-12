@@ -281,7 +281,7 @@ func beast_center(town: String) -> void:
 	if WorldDB.is_town(town):
 		GameState.last_center = town
 	var greeting := ["Welcome to the Beast Center! I hatch eggs, and I look after storage and the merge altar.",
-		"Healing's self-service: the machine along the back. Beasts looking for a new home are at the kennel barns, out on the roads!"]
+		"Healing's self-service: the font along the back. Beasts looking for a new home are at the kennel barns, out on the roads!"]
 	if town == "gravenmoor" and GameState.flag("ghost_merge"):
 		greeting = ["Come in out of that fog! If a defeated ghost leaves a Shadow Egg, bring it to me. I can hatch it for you.",
 			"I can merge ghost beasts now, too. So can the other Beast Centers. Beaten ghosts sometimes leave Shadow Eggs, and I can hatch those too."] + greeting
@@ -410,7 +410,7 @@ func hatchery() -> void:
 		var lines := ["%s hatched from the egg! It's Lv 1, so train it up with care." % b.nickname]
 		if first:
 			lines.append("Your very first beast! Scout Bram is waiting by the east gate. He'll show you how battles work before you head out.")
-			lines.append("If your beasts ever get tired, pop them in the healing machine over there. It's free!")
+			lines.append("If your beasts ever get tired, rest them at the healing font over there. It's free!")
 		if RaceDB.is_legendary(b.race):
 			lines.append("A legendary beast! When it merges, about 80% of the child will come from it.")
 		await Story.say(lines, KEEPERS["center"])
@@ -1444,11 +1444,11 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 		MapGen.HEALER:
 			await heal_machine(world)
 		MapGen.INCUBATOR:
-			await Story.say(["The incubator hums, warm as toast. Nurse Clover hatches eggs in it."])
+			await Story.say(["The cradle stone is warm as toast, and its golden ring turns slowly. Nurse Clover hatches eggs in it."])
 			if not GameState.eggs.is_empty():
 				await hatchery()
 		MapGen.TERMINAL:
-			await Story.say(["A storage terminal. Beasts you deposit rest in comfort until you need them."])
+			await Story.say(["A storage reliquary. Beasts you deposit rest in its glowing orbs until you need them."])
 			await storage()
 		MapGen.EXHIBIT:
 			var race: int = map.get("exhibits", {}).get(t, 0)

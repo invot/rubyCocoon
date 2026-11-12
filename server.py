@@ -1,5 +1,5 @@
 """A small server on this machine for running Ruby Cocoon's tests with the help of the vision model in Bionic
-(qwen3-vl-8b-instruct, as tools/look.py uses it): it runs the tests and takes screenshots here, then has the model
+(qwen3.6-27b, as tools/look.py uses it): it runs the tests and takes screenshots here, then has the model
 read the logs of the tests that failed and look at the pictures, so what comes back is a few short lines instead of
 long logs and big images.
 

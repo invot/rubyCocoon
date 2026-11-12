@@ -29,6 +29,7 @@ const HouseModels = preload("res://scripts/gfx/house_models.gd")
 const CoveBuildings = preload("res://scripts/gfx/cove_buildings.gd")
 const Creole = preload("res://scripts/gfx/creole_builder.gd")
 const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
+const BeastTemple = preload("res://scripts/gfx/beast_temple.gd")
 const BarnBuilder = preload("res://scripts/gfx/barn_builder.gd")
 const HarborBoats = preload("res://scripts/gfx/harbor_boats.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
@@ -105,7 +106,7 @@ var spinners: Array = []
 ## the rippling fishing spots: [ring nodes, phase] (see _build_ripples)
 var ripples: Array = []
 var bobbers: Array = []
-## Beast Center machines: "healer" / "incubator" -> {"node", "glass", "slots", "light", "dome", "egg"}
+## Beast Center relics: "healer" / "incubator" -> {"node", "glass", "slots", "light", "ring", "egg"}
 var machines := {}
 ## the healing chamber's glow
 const HEAL_GLOW := Color("#7affd0")
@@ -2122,7 +2123,10 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 		node = _decor_building(b, style)
 	else:
 		b["locked"] = Places.door_locked(b)
-		if b["shop"] == "kennel":
+		if b["shop"] == "center":
+			# every town's Beast Center is the same little temple (beast_temple.gd)
+			node = BeastTemple.build(b)
+		elif b["shop"] == "kennel":
 			# the roads' kennel barns look the same everywhere, but for a region's paint (barn_builder.gd)
 			node = BarnBuilder.build(b, String(biome.get("id", "coast")))
 		elif style == "creole" and not b["shop"] in ["center", "fishery"]:
@@ -4688,57 +4692,93 @@ func refresh_kennel() -> void:
 		_kennel_nodes.append(node)
 
 
-## The healing machine: a stasis chamber (tools/import_psx_stasis.gd) whose glass glows while it heals, with a little
-## lamp per party beast round its foot.
+## The Beast Center's healing font, a relic rather than a machine: a carved stone basin on a fluted pedestal, a
+## crystal hovering over it that brightens while it heals, and a rune stone per party beast set round its rim.
 func _build_healer(center: Vector3) -> void:
 	var root := Node3D.new()
-	# (nudged off the back wall: the chamber is a touch deeper than its tile)
 	root.position = center + Vector3(0, 0, 0.04)
 	add_child(root)
+	var stone := RELIC_STONE
+	var k := VBld.Kit.new()
+	k.box("color", Vector3(0, 0.08, 0), Vector3(0.86, 0.16, 0.86), stone.darkened(0.2))
+	k.box("color", Vector3(0, 0.2, 0), Vector3(0.7, 0.08, 0.7), stone.darkened(0.1))
+	k.box("color", Vector3(0, 0.5, 0), Vector3(0.36, 0.56, 0.36), stone)
+	for i in 4:
+		var a := i * PI / 2.0 + PI / 4.0
+		k.box("color", Vector3(cos(a) * 0.19, 0.5, sin(a) * 0.19), Vector3(0.08, 0.56, 0.08), stone.lightened(0.08))
+	k.box("color", Vector3(0, 0.82, 0), Vector3(0.82, 0.12, 0.82), stone.lightened(0.04))
+	# the basin's rim, round a pool of glowing water
+	for side in [-1, 1]:
+		k.box("color", Vector3(side * 0.37, 0.93, 0), Vector3(0.08, 0.1, 0.82), stone.darkened(0.05))
+		k.box("color", Vector3(0, 0.93, side * 0.37), Vector3(0.66, 0.1, 0.08), stone.darkened(0.05))
+	k.box("glow", Vector3(0, 0.89, 0), Vector3(0.66, 0.02, 0.66), HEAL_GLOW.darkened(0.35))
 	var body := MeshInstance3D.new()
-	body.mesh = RoomBuilder.piece("stasis_chamber")
+	body.mesh = k.mesh()
 	root.add_child(body)
-	if body.mesh != null:
-		root.set_meta("speech_bounds", body.mesh.get_aabb())
-	# the glass gets a material of its own, to light up
-	var glass: StandardMaterial3D = null
-	if body.mesh != null:
-		var gi: int = (body.mesh as ArrayMesh).surface_find_by_name("glass")
-		glass = body.mesh.surface_get_material(gi).duplicate()
-		body.set_surface_override_material(gi, glass)
-	# the lamps, set into the dark band round the foot (0.44 out from the middle)
+	root.set_meta("speech_bounds", AABB(Vector3(-0.43, 0, -0.43), Vector3(0.86, 1.75, 0.86)))
+	# the crystal, turning slowly over the water: lit only while it heals
+	var crystal := MeshInstance3D.new()
+	var cm := SphereMesh.new()
+	cm.radius = 0.16
+	cm.height = 0.52
+	cm.radial_segments = 6
+	cm.rings = 2
+	crystal.mesh = cm
+	var glass := _flat_mat(Color("#bff4e4"), 0.0, 0.1, 0.15)
+	glass.emission_enabled = true
+	glass.emission = Color.BLACK
+	glass.emission_energy_multiplier = 1.0
+	crystal.material_override = glass
+	crystal.position = Vector3(0, 1.35, 0)
+	root.add_child(crystal)
+	spinners.append(crystal)
+	# the rune stones, set round the rim facing the room
 	var slots := []
 	for i in 6:
 		var s := MeshInstance3D.new()
 		var sb := BoxMesh.new()
-		sb.size = Vector3(0.065, 0.05, 0.03)
+		sb.size = Vector3(0.08, 0.07, 0.03)
 		s.mesh = sb
-		s.material_override = _flat_mat(Color("#1a1a1e"))
-		var a := (i - 2.5) * 0.15
-		s.position = Vector3(sin(a) * 0.445, 0.215, cos(a) * 0.445)
-		s.rotation.y = a
+		s.material_override = _flat_mat(RUNE_DIM)
+		s.position = Vector3(-0.3 + i * 0.12, 0.82, 0.425)
 		root.add_child(s)
 		slots.append(s)
 	var l := OmniLight3D.new()
 	l.light_color = HEAL_GLOW
 	l.light_energy = 0.0
 	l.omni_range = 2.5
-	l.position = Vector3(0, 0.9, 0.8)
+	l.position = Vector3(0, 1.2, 0.8)
 	root.add_child(l)
 	machines["healer"] = {"node": root, "glass": glass, "slots": slots, "light": l}
 
 
-## The incubator: a brass base with a glass dome and an egg inside.
+## The relics' stone: the Beast Center's grey blocks (beast_temple.gd STONE), a shade lighter.
+const RELIC_STONE := Color("#c6c2ba")
+
+
+## A rune stone at rest (the healing font's, before and after it heals).
+const RUNE_DIM := Color("#4a4250")
+
+
+## The incubator: a warming cradle of carved stone with the egg resting in it, under a golden rune ring that turns
+## slowly round it.
 func _build_incubator(center: Vector3) -> void:
 	var root := Node3D.new()
-	root.position = center
+	# (raised on a pedestal, so the cradle shows over the nurse's counter in front of it)
+	root.position = center + Vector3(0, 0.4, 0)
 	add_child(root)
+	var stone := RELIC_STONE
 	var k := VBld.Kit.new()
-	k.box("brass", Vector3(0, 0.35, 0), Vector3(0.7, 0.7, 0.7), Color("#c8a040"))
-	k.box("color", Vector3(0, 0.72, 0), Vector3(0.78, 0.06, 0.78), Color("#8a6a2a"))
-	k.box("glow", Vector3(0.22, 0.45, 0.36), Vector3(0.1, 0.1, 0.02), Color("#ff5a3a"))
-	k.box("glow", Vector3(0.06, 0.45, 0.36), Vector3(0.1, 0.1, 0.02), Color("#7aff7a"))
-	k.box("color", Vector3(-0.15, 0.45, 0.36), Vector3(0.18, 0.12, 0.02), Color("#2a2a30"))
+	k.box("color", Vector3(0, -0.2, 0), Vector3(0.6, 0.4, 0.6), stone.darkened(0.12))
+	k.box("color", Vector3(0, 0.08, 0), Vector3(0.72, 0.16, 0.72), stone.darkened(0.2))
+	k.box("color", Vector3(0, 0.42, 0), Vector3(0.44, 0.52, 0.44), stone)
+	k.box("color", Vector3(0, 0.72, 0), Vector3(0.68, 0.08, 0.68), stone.lightened(0.05))
+	for side in [-1, 1]:
+		k.box("color", Vector3(side * 0.3, 0.8, 0), Vector3(0.08, 0.1, 0.68), stone.darkened(0.05))
+		k.box("color", Vector3(0, 0.8, side * 0.3), Vector3(0.52, 0.1, 0.08), stone.darkened(0.05))
+	# warm embers in the cradle under the egg
+	k.box("glow", Vector3(0, 0.77, 0), Vector3(0.5, 0.02, 0.5), Color("#ff9a4a"))
+	k.box("glow", Vector3(0, 0.45, 0.225), Vector3(0.12, 0.16, 0.01), Color("#ffc860"))
 	var egg_k := VBld.Kit.new()
 	for i in 6:
 		var wdt: float = [0.14, 0.22, 0.26, 0.26, 0.22, 0.14][i]
@@ -4749,16 +4789,50 @@ func _build_incubator(center: Vector3) -> void:
 	var egg := MeshInstance3D.new()
 	egg.mesh = egg_k.mesh()
 	root.add_child(egg)
-	var dome := MeshInstance3D.new()
-	var dm := BoxMesh.new()
-	dm.size = Vector3(0.6, 0.55, 0.6)
-	dome.mesh = dm
-	var gm := _flat_mat(Color(0.7, 0.95, 1.0, 0.28), 0.0, 0.2, 0.05)
-	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dome.material_override = gm
-	dome.position = Vector3(0, 1.03, 0)
-	root.add_child(dome)
-	machines["incubator"] = {"node": root, "dome": dome, "egg": egg}
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.3
+	tm.outer_radius = 0.34
+	tm.rings = 24
+	tm.ring_segments = 6
+	ring.mesh = tm
+	ring.material_override = _flat_mat(Color("#ffd870"), 1.6, 0.3, 0.4)
+	ring.position = Vector3(0, 1.0, 0)
+	ring.rotation = Vector3(0.35, 0, 0.2)
+	root.add_child(ring)
+	spinners.append(ring)
+	machines["incubator"] = {"node": root, "ring": ring, "egg": egg}
+
+
+## The storage reliquary (the Beast Center's storage, a relic rather than a terminal): a tall stone cabinet with an
+## arched niche, where the spirit orbs of the beasts you've deposited float and glow.
+func _build_reliquary(center: Vector3) -> void:
+	var stone := RELIC_STONE
+	var k := VBld.Kit.new()
+	var c := center + Vector3(0, 0, -0.12)
+	k.box("color", c + Vector3(0, 0.1, 0), Vector3(0.92, 0.2, 0.62), stone.darkened(0.2))
+	k.box("color", c + Vector3(0, 0.95, 0), Vector3(0.8, 1.5, 0.52), stone)
+	k.box("color", c + Vector3(0, 1.75, 0), Vector3(0.92, 0.14, 0.62), stone.lightened(0.05))
+	k.box("color", c + Vector3(0, 1.88, 0), Vector3(0.5, 0.14, 0.4), stone.darkened(0.05))
+	# the niche: dark, with a glowing arch over it
+	k.box("color", c + Vector3(0, 0.95, 0.262), Vector3(0.5, 0.9, 0.01), Color("#241c2c"))
+	k.box("glow", c + Vector3(0, 1.43, 0.265), Vector3(0.56, 0.05, 0.01), Color("#9ab8ff"))
+	for side in [-1, 1]:
+		k.box("glow", c + Vector3(side * 0.28, 0.95, 0.265), Vector3(0.04, 0.9, 0.01), Color("#9ab8ff"))
+	# spirit orbs on little shelves in the niche
+	for i in 3:
+		k.box("color", c + Vector3(0, 0.62 + i * 0.28, 0.24), Vector3(0.46, 0.03, 0.06), stone.darkened(0.25))
+		var orb := Color.from_hsv(0.55 + i * 0.12, 0.45, 1.0)
+		k.box("glow", c + Vector3(-0.12 + i * 0.12, 0.7 + i * 0.28, 0.25), Vector3(0.09, 0.09, 0.05), orb)
+	var mi := MeshInstance3D.new()
+	mi.mesh = k.mesh()
+	add_child(mi)
+	var l := OmniLight3D.new()
+	l.light_color = Color("#9ab8ff")
+	l.light_energy = 0.6
+	l.omni_range = 2.0
+	l.position = c + Vector3(0, 1.0, 0.6)
+	add_child(l)
 
 
 func _sparkles(at: Vector3, col: Color, amount := 60, life := 1.2, radius := 0.6) -> void:
@@ -4854,7 +4928,7 @@ func play_heal_fx(count: int) -> void:
 		down.parallel().tween_property(gm, "emission_energy_multiplier", 1.0, 0.6)
 	down.parallel().tween_property(light, "light_energy", 0.0, 0.6)
 	for s in slots:
-		(s as MeshInstance3D).material_override = _flat_mat(Color("#1a1a1e"))
+		(s as MeshInstance3D).material_override = _flat_mat(RUNE_DIM)
 	_sparkles(node.position + Vector3(0, 0.9, 0.45), Color("#ffffff"), 50, 1.0, 0.5)
 	await down.finished
 
@@ -5169,7 +5243,13 @@ func _build_room() -> void:
 					fl.position = center + Vector3(0, 0.6, 0.6)
 					add_child(fl)
 				MapGen.ALTAR:
-					k.box("stone", center + Vector3(0, 0.45, 0), Vector3(0.95, 0.9, 0.95), stone)
+					if room.get("blocks", false):
+						# the Beast Center's merge altar: a stepped plinth of its smooth grey stone
+						k.box("color", center + Vector3(0, 0.1, 0), Vector3(0.95, 0.2, 0.95), RELIC_STONE.darkened(0.2))
+						k.box("color", center + Vector3(0, 0.5, 0), Vector3(0.75, 0.6, 0.75), RELIC_STONE)
+						k.box("color", center + Vector3(0, 0.85, 0), Vector3(0.9, 0.1, 0.9), RELIC_STONE.lightened(0.05))
+					else:
+						k.box("stone", center + Vector3(0, 0.45, 0), Vector3(0.95, 0.9, 0.95), stone)
 					var gem := MeshInstance3D.new()
 					var prism := PrismMesh.new()
 					prism.size = Vector3(0.35, 0.5, 0.35)
@@ -5194,6 +5274,8 @@ func _build_room() -> void:
 					k.box("planks", center + Vector3(0, 1.3, -0.42), Vector3(1.0, 1.4, 0.1), lw)
 					for i in 5:
 						k.box("color", center + Vector3(rng.randf_range(-0.35, 0.35), rng.randf_range(0.8, 1.8), -0.36), Vector3(0.22, 0.26, 0.02), Color("#f4eedc"))
+				MapGen.TERMINAL when room.get("ancient", false):
+					_build_reliquary(center)
 				MapGen.TERMINAL when open_air:
 					k.box("tin", center + Vector3(0, 0.75, -0.1), Vector3(0.8, 1.5, 0.6), Color("#8a96a8"))
 				MapGen.PILLAR:

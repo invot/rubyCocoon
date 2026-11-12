@@ -172,7 +172,7 @@ it; a garden path runs along the terrace and short three-tile ramps lead down. T
 **Cocoon Cove Library**, a two-storey house at the compact square's western entrance. Speak to
 **Librarian Quill** for a free **World Map**, then open it from **Start → Map**.
 Existing saves keep their map access and all seven buildings keep their saved interior identities. The town is a
-modern pirate cove: textured brown timber, varied pastel stucco, orange clay roofs, planted gardens, and seaside cliffs. Crates and barrel staves use the same brown wood finish, with metal barrel hoops. The diner-like Beast
+modern pirate cove: textured brown timber, varied pastel stucco, orange clay roofs, planted gardens, and seaside cliffs. Crates and barrel staves use the same brown wood finish, with metal barrel hoops. The temple Beast
 Center faces the square and the apothecary stands on land to the east. The only dock entrance is down the right-hand
 stairs. A short pier holds a wooden neighbor's shack (a lived-in fisher's cabin inside, room `cove_dock_shack`) and ends
 at the **Old Gear Shack**; the plaster neighbor's home stands in a garden on land. Every house has a path to its door.
@@ -493,13 +493,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Fast travel**:
   - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Tempestrix flies you to any town you've visited, for a fee.
   - Once you own an air beast of **Lv 40+** (in your ring, not storage), pick a town you've visited on the Start book's Map page and choose **Fly here** (or press A) to travel there from anywhere outdoors. It asks first: A: Yes flies, B: No stays.
-- **Beast Centers** all look the same: a 1950s roadside diner with the pawprint sign by the door, to the tune of "Hep Cats". It's one big room (17x9 tiles, bigger than the rest, so the camera follows you round it), the kennel on the left behind a wall that stops short of the front. Each machine has its own bay along the back wall.
-  - The **healing machine** is a tall glass healing chamber with a lamp per beast round its foot; the glass glows while it heals. Use it yourself, any time, for free.
-  - The **storage terminal** and the **merge altar** stand in the bays beside it.
-  - Nurse Clover at the counter hatches eggs in the **incubator** beside her (with the hatch cinematic), and runs storage and the merge altar. A red phone stands by the door, for calling Dad or Mom (see Saving).
-  - Round the end of the wall, on its own wood floor, is the **kennel**, with two chairs in its front corner. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level. Adoption costs **40 gold at Lv 1, plus 2 gold per additional level** (78 at Lv 20, 118 at Lv 40). The list and confirmation show the fee; you need enough gold to adopt. Or drop one of yours off for another trainer (Pip thanks you with a little gold); taking it back before another trainer adopts it is free. Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
+- **Beast Centers** all look the same, inside and out, in every town (`scripts/gfx/beast_temple.gd`): a small temple that works by old magic, not machines, to the tune of "Hep Cats". Outside it is a squat eight-sided drum of smooth grey stone blocks on a plinth, with a gabled portal at the front (gold-trimmed eaves set with teal tiles, a pointed niche, the sign board with the pawprint) round an arched doorway with teal inlays and a closed blue door; stepped terracotta tiers, a little red drum ringed with posts and a golden thatched dome with a crest of coral petals round a teal jewel crown it. Inside is one room (12x9) with walls of the same grey blocks, pilasters with flame sconces and a glowing inlay in the Center's red; each relic has its own bay along the back wall.
+  - The **healing font** is a stone basin on a fluted pedestal with a crystal turning over it and a rune stone per beast set in its rim; the rune stones light one by one and the crystal glows while it heals. Use it yourself, any time, for free.
+  - The **storage reliquary** (a stone cabinet whose arched niche holds glowing spirit orbs) and the **merge altar** stand in the bays beside it.
+  - Nurse Clover at her stone counter hatches eggs in the **incubator**, a warm cradle stone on a pedestal with a golden rune ring turning round the egg (with the hatch cinematic), and runs storage and the merge altar. A red phone stands on her counter, for calling Dad or Mom (see Saving).
+  - The **kennel** is not in the Center: it is a barn of its own out on the roads and in the wilds, never in a town (route map letter `?`, `scripts/gfx/barn_builder.gd`): the supplied Small Barn in its region's paint with closed double doors, the pawprint sign and a lantern, and a fenced paddock with a trough and hay bales. Inside (room `kennel_barn`) are timber walls, hay bales and lanterns. Kennel Keeper Pip looks after beasts other trainers left behind; they wait in the pens behind his counter, close to your party's level, and each barn keeps its own pens. Adoption costs **40 gold at Lv 1, plus 2 gold per additional level** (78 at Lv 20, 118 at Lv 40). The list and confirmation show the fee; you need enough gold to adopt. Or drop one of yours off for another trainer (Pip thanks you with a little gold); taking it back before another trainer adopts it is free. Tapping a pen walks you over to Pip. Empty pens fill up again after a few minutes of play.
   - Guide Dottie walks about the room and explains how it all works.
-  - All three wear the Beast Center uniform: white on top, red below, and a red cap with the pawprint from the sign over the door on a white panel at its front. None of them wears glasses.
+  - The Center's staff (and Pip) wear the Beast Center uniform: white on top, red below, and a red cap with the pawprint from the sign over the door on a white panel at its front. None of them wears glasses.
 
   <img src="docs/screenshots/heal.jpg" width="640" alt="Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine, the storage terminal, the merge altar and the red phone."><br><sub>Cocoon Cove's Beast Center: Nurse Clover's counter, the healing machine, the storage terminal, the merge altar and the red phone.</sub>
 
@@ -660,7 +660,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   meet it, and people step up onto it. A house may lean over the hedges and trees beside and behind
   its plot (never over a walkable tile); those trees are left out. Shops, the dojo, museum and music hall add a
   striped awning and a sign board with their icon; houses get flower planters by the door; locked doors stay crimson.
-  The Beast Center is a railcar diner with a curved steel roof and a sign on its roof.
+  The Beast Center is the small stone temple every town has.
 - **Isle of Tides**: Kelpwick is a modest reef-diving village of round, timber-framed pastel plaster huts on wooden stilts,
   with centered solid blue-painted wood doors, six-tread entry stairs and broad, painted golden thatched roofs. The store has a round wooden interior. There is no Beast Center: the
   arena uses the supplied **Stylized House** model at one horizontal scale on a 7x6 plot, with a matching wooden door and its TV antenna removed. The healing hut is 25% wider and deeper than its initial model fit, with its stairs centered on the original approach. Its rectangular wooden hall keeps the village's healing machine in its
@@ -771,8 +771,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   the posts' tops). Stores wear tall false fronts (stepped, arched or flat) with their icon on a sign board and porch
   roofs striped in their colour; houses tin gable roofs. The **Oasis Saloon** (a cafe inside: room `saloon`) has two
   storeys, a balcony across its front, batwing doors and SALOON on its false front; **Dustwell Jail** (room `jail`) has
-  barred windows, a sheriff's star and JAIL. The Beast Center is the diner every town has, fronted by a red western
-  false front over its door, a striped porch roof and a checkerboard skirt. Missing posters hang on the porch posts;
+  barred windows, a sheriff's star and JAIL. The Beast Center is the small stone temple every town has. Missing posters hang on the porch posts;
   the readable ones are notice boards about town. Water troughs, a wagon, barrels and crates line the street.
 - **Dustwell's wagon and water troughs** come from the Low Poly Western pack, painted by part. To rebuild them from
   the download, unzip it into a folder `lpwestern/` and run:
@@ -788,7 +787,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   warm flagstone sidewalks and squares, paved too under its buildings and balustrade. Planted hedge beds retain
   grass ground. Trees, shrubs, flowers and grass tufts keep their full foliage bounds off streets and sidewalks.
   `creole_builder.gd`
-  builds everything there but the Beast Center's diner and Gil's tin shack: Creole townhouses of two or three storeys
+  builds everything there but the Beast Center's temple and Gil's tin shack: Creole townhouses of two or three storeys
   in pastel stucco or red brick along Rue Royale, with louvred shutters and cast-iron galleries on slender posts recessed within
   their plots, clear of paths (or balconies on brackets), lace railings and hanging ferns, under slate hip roofs, dormered side gables
   or parapets; on the riverfront row, where a street runs close behind, one-storey Creole cottages and shotgun houses

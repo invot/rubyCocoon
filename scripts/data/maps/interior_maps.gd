@@ -48,13 +48,14 @@ const FURNITURE := {
 }
 
 const ROOMS := {
-	## Every Beast Center is the same 50s diner, one room you walk into from the side (12x9). Each machine has its own
-	## bay along the back wall: the nurse's counter with her egg incubator (1, I), the soda-can healing machine (H),
-	## the storage terminal (M) and the merge altar (A); the red phone stands on the nurse's counter. Guide Dottie (2)
-	## walks about the room, and two waiting chairs (c) stand by the left wall. (The kennel is no longer here: it has
-	## its own barns out on the roads, "kennel_barn" below.)
+	## Every Beast Center is the same little temple, one room you walk into from the side (12x9): walls of the same grey
+	## stone blocks as its outside (beast_temple.gd), pilasters and flame sconces, a glowing inlay in the Center's red, and magic rather than machines. Each relic
+	## has its own bay along the back wall: the nurse's stone counter with her warming cradle (1, I), the healing font
+	## (H), the storage reliquary (M) and the merge altar (A); the red phone stands on the nurse's counter. Guide Dottie
+	## (2) walks about the room, and two waiting chairs (c) stand by the left wall. (The kennel is not here: it has its
+	## own barns out on the roads, "kennel_barn" below.)
 	"center": {
-		"wall": "#eef6f2", "rug": "#d8283a", "checker": true, "stage": true,
+		"wall": "#c2beb6", "rug": "#d8283a", "ancient": true, "blocks": true, "stage": true,
 		"npcs": {"1": "keeper", "2": "guide", "3": "patron"},
 		"counter_phone": [3, 2],
 		"rows": [

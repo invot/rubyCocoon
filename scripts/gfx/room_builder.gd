@@ -138,6 +138,8 @@ const PILASTER_EVERY := 3
 static func wall_surface(tex: String, colour: Color) -> Material:
 	if tex == "ashlar":
 		return _ashlar(colour)
+	if tex == "blocks":
+		return _blocks(colour)
 	if tex == "kelpwood":
 		return load("res://scripts/gfx/island_buildings.gd").wood_material()
 	var key := "smooth_wall:%s:%s" % [tex, colour.to_html()]
@@ -191,6 +193,47 @@ static func _ashlar(colour: Color) -> Material:
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.95
 	mat.uv1_scale = Vector3(1.0, 1.0 / COURSE, 1.0)
+	_mats[key] = mat
+	return mat
+
+
+## The Beast Center's dressed stone blocks, the same as its outside (beast_temple.gd _blocks_on): courses BLOCK.y
+## tall, blocks BLOCK.x long staggered course by course, soft darker joints between them and each block its own faint
+## shade, painted smooth (no grain). The texture holds two courses of two blocks.
+const BLOCK := Vector2(0.82, 0.42)
+
+
+static func _blocks(colour: Color) -> Material:
+	var key := "blocks:" + colour.to_html()
+	if _mats.has(key):
+		return _mats[key]
+	var iw := 256
+	var ih := 128
+	var img := Image.create(iw, ih, false, Image.FORMAT_RGB8)
+	var joint := 0.016 / (BLOCK.x * 2.0) * iw
+	var shades := [0.98, 1.03, 1.0, 0.96, 1.02, 0.99]
+	for y in ih:
+		var row := y * 2 / ih
+		var fy := float(y % (ih / 2)) + 0.5
+		var dy := minf(fy, ih / 2.0 - fy) / (joint * 0.5)
+		for x in iw:
+			var sx := float(x) + (iw / 4.0 if row == 1 else 0.0)
+			var fx := fmod(sx, iw / 2.0) + 0.5
+			var dx := minf(fx, iw / 2.0 - fx) / joint
+			var blk := int(sx / (iw / 2.0)) % 2 + row * 2
+			# 0 in the joint, rising softly to 1 on the block's face
+			var face := clampf(minf(dx, dy) - 0.6, 0.0, 1.0)
+			var c: Color = Color.WHITE * float(shades[blk]) * lerpf(0.7, 1.0, face)
+			c.a = 1.0
+			img.set_pixel(x, y, c)
+	img.generate_mipmaps()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	mat.albedo_texture = ImageTexture.create_from_image(img)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.95
+	mat.uv1_scale = Vector3(1.0 / (BLOCK.x * 2.0), 1.0 / (BLOCK.y * 2.0), 1.0)
 	_mats[key] = mat
 	return mat
 
@@ -349,6 +392,8 @@ var textures := {}
 var default_zone := "shop"
 var trim := Color("#5a3a26")
 var ancient := false
+## an ancient room laid in dressed blocks rather than smooth ashlar (the Beast Center's, matching its outside)
+var blocks := false
 ## a Spanish mission's finish (the template's "mission"): see _mission_decor
 var mission := false
 ## an ancient room's stone (SANDSTONE, touched by the template's wall colour)
@@ -390,6 +435,10 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb.mission = room.get("mission", false)
 	rb.ancient = room.get("ancient", String(m.get("room_key", "")).begins_with("temple"))
 	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
+	rb.blocks = room.get("blocks", false)
+	if rb.blocks:
+		# (the template's own stone, as it is outside)
+		rb.stone = Color(str(room.get("wall", "#b9b5ad")))
 	if room.get("open", false):
 		# Open decks keep their existing floor and railings; only add the shared stairwell.
 		rb._stairs()
@@ -564,7 +613,7 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 
 func wall_mat(z: String) -> Material:
 	if ancient:
-		return wall_surface("ashlar", stone)
+		return wall_surface("blocks" if blocks else "ashlar", stone)
 	return wall_surface(_pick(z, "wall"), tint if z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE)
 
 
@@ -1693,6 +1742,38 @@ func _reception_desk() -> void:
 			_row(0).box("brass", brass, board + Vector3(-0.5 + 0.25 * i, 0.15 - 0.3 * j, 0.04), Vector3(0.05, 0.1, 0.02))
 
 
+## An ancient room's counters (the Beast Center's temple): blocks of its dressed stone on a darker plinth, under a
+## pale capstone with a thin glowing inlay of the temple's colour along the front, and the counter's red phone.
+func _stone_counters() -> void:
+	var body := surface("pilaster", stone.lightened(0.04))
+	var foot := surface("plinth", stone.darkened(0.22))
+	var cap := surface("cornice", stone.lightened(0.1))
+	var inlay := surface("inlay", _inlay_colour())
+	inlay.emission_enabled = true
+	inlay.emission = _inlay_colour()
+	inlay.emission_energy_multiplier = 0.8
+	var phone_at: Vector2i = map.get("counter_phone", Vector2i(-1, -1))
+	for y in h:
+		for x in w:
+			if code(x, y) != MapGen.COUNTER:
+				continue
+			var m := _row(y)
+			var c := Vector3(x + 0.5, 0, y + 0.5)
+			var face := Vector2i(0, 1)
+			for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0)]:
+				if MapGen.walkable(code(x + d.x, y + d.y)):
+					face = d
+					break
+			var out := Vector3(face.x, 0, face.y)
+			var along := Vector3(absi(face.y), 0, absi(face.x))
+			_along_box(m, "plinth", foot, c + out * 0.02 + Vector3.UP * 0.08, along, 1.0, 0.16, 0.86)
+			_along_box(m, "pilaster", body, c + Vector3.UP * 0.5, along, 1.0, 0.7, 0.78)
+			_along_box(m, "cornice", cap, c + Vector3.UP * (DESK_TOP - 0.04), along, 1.0, 0.08, 0.9)
+			_along_box(m, "inlay", inlay, c + out * 0.395 + Vector3.UP * 0.66, along, 1.0, 0.04, 0.01)
+			if Vector2i(x, y) == phone_at:
+				_counter_phone(c, atan2(float(face.x), float(face.y)), DESK_TOP)
+
+
 # ---------------------------------------------------------------- stairs
 ## A house's stairs (a stage room's; a dungeon's are world.gd's stone steps): a flight up (>) or a stairwell down (<)
 ## along a row of three tiles, four steps to a tile, flush with the walls beside it. A flight up climbs to the top of
@@ -2293,6 +2374,9 @@ const DISPLAY_BLOCK := Vector2(0.41, 1.07)
 func _counters() -> void:
 	if mission:
 		_reception_desk()
+		return
+	if ancient:
+		_stone_counters()
 		return
 	var shop: String = map.get("building", {}).get("shop", "")
 	var goods: Array = COUNTER_GOODS.get(shop, ["product_1", "books", "cup"])
