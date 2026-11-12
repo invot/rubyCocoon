@@ -39,7 +39,7 @@ func _ready() -> void:
 ## Explicit override for isolated settings tests; ordinary play always uses PATH.
 func prefs_path() -> String:
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--prefs_path=res://build/"):
+		if (arg.begins_with("--prefs_path=res://build/") or arg.begins_with("--prefs_path=user://bench/vo/")) and not ".." in arg:
 			return arg.trim_prefix("--prefs_path=")
 	return PATH
 

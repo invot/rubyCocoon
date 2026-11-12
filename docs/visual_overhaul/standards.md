@@ -708,7 +708,7 @@ Prefer extending these systems over building parallel implementations:
 
 ### Existing command examples
 
-Resolve the local Godot executable; `godot` below is a placeholder. `tools/run_tests.sh` accepts the `GODOT` override. These examples were checked against project documentation/source during planning, not executed in this task.
+Resolve the local Godot executable; `godot` below is a placeholder. `tools/run_tests.sh` accepts the `GODOT` override. The runner supplies isolated save/preferences defaults to every test. Direct Godot examples below explicitly isolate both. Step 001 records execution results under `build/perf/vo/001/commands/`; an example that fails is not evidence of visual acceptance.
 
 ```text
 bash tools/run_tests.sh quick
@@ -717,18 +717,18 @@ bash tools/run_tests.sh cove-exteriors
 bash tools/run_tests.sh textures
 bash tools/run_tests.sh battle-poses
 
-godot --headless --path . --script res://tools/check_maps.gd
+godot --headless --path . --script res://tools/check_maps.gd -- --save_dir=res://build/visual_saves/ --prefs_path=res://build/visual_prefs/settings.cfg
 python tools/town_check.py
-godot --headless --path . --script res://tools/check_battle_visuals.gd
+godot --headless --path . --script res://tools/check_battle_visuals.gd -- --save_dir=res://build/visual_saves/ --prefs_path=res://build/visual_prefs/settings.cfg
 
-godot --path . -- --scene=texture-audit --verify=1 --save_dir=res://build/visual_saves/ --report=res://build/visual_texture_audit.json
-godot --path . -- --scene=newbeasts --anim=cycle --page=all --save_dir=res://build/visual_saves/
+godot --path . -- --scene=texture-audit --verify=1 --save_dir=res://build/visual_saves/ --report=res://build/visual_texture_audit.json --prefs_path=res://build/visual_prefs/settings.cfg
+godot --path . -- --scene=newbeasts --anim=cycle --page=all --save_dir=res://build/visual_saves/ --prefs_path=res://build/visual_prefs/settings.cfg --shots=res://build/shots/visual_beasts --shot_w=0
 
-godot --path . --resolution 1920x1080 -- --scene=interiors --shots=res://build/shots/visual_interiors --save_dir=res://build/visual_saves/
-godot --path . --resolution 2400x1080 -- --scene=interiors --touch --shots=res://build/shots/visual_interiors_touch --save_dir=res://build/visual_touch_saves/
+godot --path . --resolution 1920x1080 -- --scene=interiors --shots=res://build/shots/visual_interiors --save_dir=res://build/visual_saves/ --prefs_path=res://build/visual_prefs/settings.cfg
+godot --path . --resolution 2400x1080 -- --scene=interiors --touch --shots=res://build/shots/visual_interiors_touch --save_dir=res://build/visual_touch_saves/ --prefs_path=res://build/visual_prefs/settings.cfg
 
-godot --path . --rendering-method mobile --resolution 1920x1080 -- --scene=battle-stage --shots=res://build/shots/visual_battle --shot_w=0 --save_dir=res://build/visual_saves/
-godot --path . --rendering-method mobile --resolution 2400x1080 -- --scene=battle-stage --touch --shots=res://build/shots/visual_battle_touch --shot_w=0 --save_dir=res://build/visual_touch_saves/
+godot --path . --rendering-method mobile --resolution 1920x1080 -- --scene=battle-stage --shots=res://build/shots/visual_battle --shot_w=0 --save_dir=res://build/visual_saves/ --prefs_path=res://build/visual_prefs/settings.cfg
+godot --path . --rendering-method mobile --resolution 2400x1080 -- --scene=battle-stage --touch --shots=res://build/shots/visual_battle_touch --shot_w=0 --save_dir=res://build/visual_touch_saves/ --prefs_path=res://build/visual_prefs/settings.cfg
 ```
 
 Use the broader suite after changes spanning shared systems. For changed world-texture derivatives, run the established smoothing/import sequence at the appropriate scope. Re-bake measurements and derived assets using their existing tools when their inputs change. Keep original packs untouched.

@@ -775,7 +775,7 @@ func kennel_beast(town: String) -> Beast:
 func save_dir() -> String:
 	if main != null and not main._test.is_empty():
 		var test_dir := String(main._test.get("save_dir", TEST_SAVE_DIR))
-		return test_dir if test_dir.begins_with("res://build/") and not ".." in test_dir else TEST_SAVE_DIR
+		return test_dir if (test_dir.begins_with("res://build/") or test_dir.begins_with("user://bench/vo/")) and not ".." in test_dir else TEST_SAVE_DIR
 	return "user://demo_saves/" if BuildEdition.is_demo() else SAVE_DIR
 
 

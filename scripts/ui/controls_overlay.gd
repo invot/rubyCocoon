@@ -435,7 +435,9 @@ func _paint_pad() -> void:
 	if not faces.is_empty():
 		_show_faces(faces)
 		return
-	WorkerThreadPool.add_task(_paint_faces.bind(key))
+	# Capture the script callback and weak reference on the main thread. A worker must never query a live Node.
+	var deliver := Callable(get_script(), "_deliver_faces")
+	WorkerThreadPool.add_task(_paint_faces.bind(key, deliver, weakref(self)))
 
 
 ## Where this gem's faces are kept: its name, and its colours, the sizes and PAD_STYLE, so any change paints afresh.
@@ -457,7 +459,7 @@ static func _kept_faces(key: String) -> Dictionary:
 
 
 ## On a worker thread: paints every face, keeps them, and hands them to the main thread.
-func _paint_faces(key: String) -> void:
+static func _paint_faces(key: String, deliver: Callable, overlay: WeakRef) -> void:
 	var faces := {"dpad": _dpad_face(), "pill": _pill_face(false), "pill_pressed": _pill_face(true),
 		"dpad_mark": _mark(int(ARM * 3.0), int(ARM * 3.0), _sd_cross),
 		"round_mark": _mark(int(ROUND), int(ROUND), _sd_round),
@@ -471,7 +473,7 @@ func _paint_faces(key: String) -> void:
 	for f in faces:
 		(faces[f] as Image).save_png(PAD_CACHE + key + "/" + f + ".png")
 	# (through a weak reference: the game may have closed, freeing the overlay, while they were painted)
-	Callable(get_script(), "_deliver_faces").call_deferred(weakref(self), key, faces)
+	deliver.call_deferred(overlay, key, faces)
 
 
 static func _deliver_faces(me: WeakRef, key: String, faces: Dictionary) -> void:

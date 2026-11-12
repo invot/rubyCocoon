@@ -26,12 +26,13 @@ func _node_added(node: Node) -> void:
 
 
 ## Every 3D object is drawn textured (surface_finish.gd).
-func _finish(node: GeometryInstance3D) -> void:
+func _finish(node) -> void:
+	# A freed deferred argument cannot be converted to a typed GeometryInstance3D before the guard runs.
 	if is_instance_valid(node):
 		SurfaceFinish.node(node)
 
 
-func _register(node: Node) -> void:
+func _register(node) -> void:
 	if not is_instance_valid(node) or not node.is_inside_tree():
 		return
 	if not node.has_meta(BASELINE):

@@ -781,6 +781,11 @@ func _run_test() -> void:
 		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "vo-perf":
+		var audit = load("res://tools/debug/vo_perf.gd").new()
+		await audit.run(self, _test)
+		get_tree().quit(0 if audit.bad == 0 else 1)
+		return
 	if scene == "shader-kinds":
 		await load("res://tools/debug/shader_kinds.gd").new().run(self, _test)
 		get_tree().quit()

@@ -35,6 +35,7 @@ TESTS=(
 	"video-settings|-- --scene=video-settings --prefs_path=res://build/video_settings_test/settings.cfg --save_dir=res://build/video_settings_saves/|VIDEO SETTINGS DONE: 0 problem"
 	"video-settings-touch|--resolution 2400x1080 -- --scene=video-settings --touch --prefs_path=res://build/video_settings_touch_test/settings.cfg --save_dir=res://build/video_settings_touch_saves/|VIDEO SETTINGS DONE: 0 problem"
 	"performance|-- --scene=stalls --save_dir=res://build/performance_test_saves/|PERFORMANCE AUDIT DONE: 0 problem"
+	"vo-perf-route|-- --scene=vo-perf --verify=1 --report=res://build/perf/vo/route-check.json|VO PERF DONE: 0 problem"
 	"ground|-- --scene=bake-ground --verify=1 --save_dir=res://build/ground_test_saves/|GROUND BAKE DONE: .*, 0 problem"
 	"textures|-- --scene=texture-audit --verify=1 --save_dir=res://build/texture_test_saves/|TEXTURE AUDIT DONE: 0 problem"
 	"transitions|-- --scene=transitions --passes=1 --save_dir=res://build/transition_test_saves/|TRANSITIONS DONE: 0 problem"
@@ -136,7 +137,7 @@ TESTS=(
 )
 QUICK="scripts data maps beasts"
 ## what in a test's log fails it whatever else it printed: a script error, or a model, texture or sound missing
-BAD="SCRIPT ERROR|Failed loading resource|Resource file not found|Cannot open file|asset missing|model missing"
+BAD="SCRIPT ERROR|Error calling deferred method|Failed loading resource|Resource file not found|Cannot open file|asset missing|model missing"
 
 cd "$(dirname "$0")/.." || exit 2
 GODOT="${GODOT:-C:/Program Files/Godot/Godot_v4.7-stable_win64.exe}"
@@ -155,6 +156,10 @@ fi
 # one test: run it (and once more if it fails), write "<status>|<seconds>|<detail>" to its .result
 run_one() {
 	local name="$1" args="$2" pass="$3" log="$LOGS/$1.log" start=$SECONDS status="FAIL" detail="" try
+	# Scripts and legacy scenarios also get isolated defaults. Explicit per-test overrides win.
+	[[ " $args " != *" -- "* ]] && args="$args --"
+	[[ "$args" != *"--save_dir="* ]] && args="$args --save_dir=res://build/test_saves/$name/"
+	[[ "$args" != *"--prefs_path="* ]] && args="$args --prefs_path=res://build/test_prefs/$name/settings.cfg"
 	for try in 1 2; do
 		# shellcheck disable=SC2086
 		timeout 900 "$GODOT" --headless --path . $args > "$log" 2>&1

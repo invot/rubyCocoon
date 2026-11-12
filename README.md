@@ -1152,6 +1152,15 @@ and ffmpeg.
   screen, in landscape.
 - To try it locally: `python -m http.server 8060 --directory build/web`, then open http://localhost:8060.
 
+For the isolated overhaul runtime benchmark, run `python tools/vo_web.py export`,
+then `python tools/vo_web.py serve` and open `http://127.0.0.1:8061/?vo_perf=1`.
+It makes two route passes and saves full traces under `build/perf/vo/baseline-web/`;
+it does not measure the production compressed download pipeline. See
+`docs/visual_overhaul/003-web.md` for results and cache limitations. When Claude
+and Codex work concurrently, use `docs/visual_overhaul/parallel-handoff.md`:
+model requests are serialized by the shared wrappers, and heavy renders/measured
+native commands use `python tools/local_resource.py -- <command>`.
+
 ### Automatic web deployment and authentication
 
 The [build workflow](.github/workflows/windows-build.yml) runs on every push to `main` (the current default
@@ -1322,6 +1331,11 @@ python tools/town_check.py
 ```
 
 ## Tests
+
+The runner supplies isolated save and preferences paths under `build/` when a scenario has no explicit override.
+It rejects script errors, missing assets and deferred callback errors even if a scenario prints its success marker.
+`bash tools/run_tests.sh vo-perf-route` checks the benchmark's cardinal routes and deferred rendering callbacks;
+windowed measurements remain separate from this headless check.
 
 `bash tools/run_tests.sh demo demo-touch mechanic-lessons` checks the demo boundary and the unchanged full-game
 lesson, including real rhythm input, missing slippers, Jasper's two blocked road tiles, direct travel restrictions,
@@ -1546,6 +1560,23 @@ tools/         new_beasts/ (bake.py, forms.json, debug_draw.py), import_new_beas
 ```
 
 ## Developer test modes
+
+The phone benchmark uses `python tools/vo_phone.py export`, then
+`python tools/vo_phone.py run --serial=<adb-serial> --display=<SurfaceFlinger-display-id>`.
+It installs a separate debug package, records at least 15 minutes at 720p / Mid and uses isolated
+`user://bench/vo/` storage. `--attach` resumes a host observer without restarting the app.
+The first real-device baseline measured approximately 29–30 fps on a razr 2024; see
+[the phone report](docs/visual_overhaul/002-phone.md) for the thermal curve, loading stalls and measurement gaps.
+
+`python tools/vo_perf.py` runs the fixed-seed visual-overhaul performance route twice on Forward+, Mobile and
+Compatibility at 1920×1080, plus Mobile at 2400×1080 with touch controls. It uses isolated saves and preferences,
+writes raw frame traces, median/p95/p99, worst frames, CPU/render/GPU counters, video memory, frustum material/surface
+estimates and transition black holds under `build/perf/vo/`, and captures each segment under `build/shots/vo/001/`.
+It checks identical routes and a 5% median repeatability limit. Run it alone, without other GPU jobs. These are
+desktop measurements with presentation pacing enabled, not phone results. `GODOT` overrides the executable;
+`--renderers mobile` selects one configuration. The underlying mode is
+`--scene=vo-perf --report=res://build/perf/vo/run.json --shots=res://build/shots/vo/run --save_dir=res://build/vo_state/saves/ --prefs_path=res://build/vo_state/settings.cfg`;
+`--verify=1` only checks route reachability and produces no performance baseline.
 
 Cocoon Cove implements the selected pirate-cove layout, with a two-storey library, textured brown timber, painted stucco (`cove_stucco.gdshader`), clay tile roofs laid in courses along the eaves (`cove_roof.gdshader`), 2.6-unit ground storeys (3.1 at the apothecary and the Beast Center, so the sign over each awning sits on the wall under the eaves) and upper storeys at least 2.45 units high. See [the design and original layout studies](docs/cove_layout_proposals.md)
 for asset preparation, fitted bounds, and the opaque-exterior check. `--scene=cocoon --preview=overview|square|library|neighbor|home|docks|gear|apothecary|apothecary-wide`

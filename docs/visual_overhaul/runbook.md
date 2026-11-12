@@ -8,7 +8,7 @@ Each step has a number and an ID. Start a fresh session and say:
 
 > **Run runbook step 021.**
 
-(or `Run runbook step S1`). One step per session. The agent reads §1–§5 of this file and that step's section only. It finds the step with a search for `### 021`, not by reading the whole file.
+(or `Run runbook step S1`). Work one step at a time and always state the current step. The agent reads §1–§5 of this file and that step's section only. It finds the step with a search for `### 021`, not by reading the whole file.
 
 Useful variations:
 
@@ -20,7 +20,7 @@ Useful variations:
 | `Split runbook step 021.` | Rewrites the step as 021a/021b when it's too big |
 | `What's the next runbook step?` | Reads `progress.md` and answers |
 
-Steps marked **Approval: you** stop with before/after screenshots. The next step that depends on them waits until you say "approve". Steps marked **Approval: numbers** finish on their measurements and tests.
+Steps that affect the game's visuals stop with before/after screenshots. The next step waits until you approve. Offer **approve and continue**, **request changes**, or **approve and pause**; approval means continue unless you ask to pause. Tooling and measurement steps that do not affect game visuals finish on their measurements and tests and continue automatically. This review protocol follows the user's instructions of 12 November 2026, including their clarification that nonvisual steps need no approval.
 
 ---
 
@@ -138,7 +138,7 @@ Every step:
 6. **Test:** `bash tools/run_tests.sh quick` plus the step's named tests (through `server.py` `tests`), and read errors first. Map or layout changes also run `godot --headless --path . --script res://tools/check_maps.gd` and `python tools/town_check.py`. From step 011, `vo-budget`; from step 018, `vo-ledger`.
 7. **Ledger:** from step 016, regenerate `ledger/assets.csv` and `scenes.csv`, and set the touched families to `ready for review`.
 8. **Record:** add a row to `progress.md` with the step, status, date, evidence paths, numbers and remaining defects. Update README.md "Next step".
-9. **Report:** before/after shots, numbers, tests, and the local-model help used, with any answer you overrode. Stop. Commit nothing and create no branches unless you're asked.
+9. **Report:** before/after shots, numbers, tests, and the local-model help used, with any answer you overrode. Stop for review when game visuals change; otherwise continue after the checks pass. Commit nothing and create no branches unless you're asked.
 
 `godot` means the local Godot 4.7 executable: resolve its path. Use isolated `--save_dir=res://build/...` and `--prefs_path=res://build/...` every time; never touch player saves.
 

@@ -26,11 +26,51 @@ import json
 import os
 import sys
 import urllib.request
+import contextlib
+from pathlib import Path
+import threading
+import time
 
 URL = os.environ.get("LOOK_URL", "http://127.0.0.1:1235/v1/chat/completions")
 MODEL = os.environ.get("LOOK_MODEL", "qwen3.6-27b")
 THINK_TOKENS = int(os.environ.get("LOOK_THINK", "2000"))
 CHARS = int(os.environ.get("LOOK_CHARS", "100000"))
+_THREAD_LOCK = threading.Lock()
+
+
+@contextlib.contextmanager
+def model_lock(timeout=120):
+    """Serialize wrapper requests across processes and server threads; OS releases on exit."""
+    path = Path(__file__).resolve().parents[1] / "build/coordination/local-model.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with _THREAD_LOCK, path.open("a+b") as lock:
+        lock.seek(0, 2)
+        if lock.tell() == 0:
+            lock.write(b"0")
+            lock.flush()
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                lock.seek(0)
+                if os.name == "nt":
+                    import msvcrt
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("Local model is busy; try this wrapper again after the other task finishes")
+                time.sleep(0.25)
+        try:
+            yield
+        finally:
+            lock.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def _chat(content, max_tokens):
@@ -38,7 +78,7 @@ def _chat(content, max_tokens):
     body = {"model": MODEL, "temperature": 0.1, "max_tokens": max_tokens + THINK_TOKENS,
             "messages": [{"role": "user", "content": content}]}
     req = urllib.request.Request(URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=600) as r:
+    with model_lock(), urllib.request.urlopen(req, timeout=600) as r:
         msg = json.load(r)["choices"][0]["message"]
     return (msg.get("content") or "").strip() or "(the model gave no answer; raise LOOK_THINK)"
 

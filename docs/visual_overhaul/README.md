@@ -13,13 +13,17 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 ## Next step
 
-**001: P1, reproducible perf runs.** Update this line when a step finishes.
+**004: P4, cost diagnosis.** Steps [001](001-performance.md), [002](002-phone.md), and
+[003](003-web.md) are complete. The user requested a fresh-chat checkpoint here;
+use [the parallel handoff](parallel-handoff.md) for Claude artwork and Codex engineering.
 
 ## How to prompt
 
-Start a fresh session and say **"Run runbook step 001."** One step per session. Then:
+Say **"Run runbook step 001."** Work one step at a time. Tooling and measurement steps continue automatically after their checks pass; steps that affect the game's visuals stop for screenshot review. Then:
 - "Approve step NNN" or "Redo step NNN: …" after the screenshots;
 - "Continue runbook step NNN" to pick up a stopped step;
 - "What's the next runbook step?".
 
-The full protocol is in runbook.md §4–§5. Never: start a second step in the same session, touch player saves, hand-edit `tools/smoothed.json`, commit or create branches unless the user asks, or change the interface style before Phase U (steps 163–165).
+After visual approval, continue to the next step unless the user chooses to pause. Always state the current step. At a review, offer **approve and continue**, **request changes**, or **approve and pause**. If a step is too large, split it and record a clean checkpoint before stopping; never start a dependency before its evidence is complete.
+
+The full protocol is in runbook.md §4–§5. Never touch player saves, hand-edit `tools/smoothed.json`, commit or create branches unless the user asks, or change the interface style before Phase U (steps 163–165).
