@@ -174,7 +174,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	for bus in ["Music", "SFX"]:
 		if AudioServer.get_bus_index(bus) < 0:
-			AudioServer.add_bus()
+			# Godot 4.7's web sample driver misorders buses appended with add_bus(-1),
+			# disconnecting Master from the speakers. Growing the count keeps both lists aligned.
+			AudioServer.bus_count += 1
 			AudioServer.set_bus_name(AudioServer.bus_count - 1, bus)
 			AudioServer.set_bus_send(AudioServer.bus_count - 1, "Master")
 	for i in 12:

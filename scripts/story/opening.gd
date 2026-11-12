@@ -9,7 +9,7 @@ extends Node3D
 ## as film sets (main.gd build_set), so the film shows the very places the game starts in.
 ## The reveal is played straight: Gearhart sends his staff home with a pep talk about "freight", walks alone to the
 ## steel door and steps through. The music stops dead, a dread hit (sfx "dread"), and behind it is a warehouse under
-## harsh hanging lamps: a concrete shed with a truss roof, shipping containers, racks and crates, and down its aisle
+## cool hanging lamps: a concrete shed with a truss roof, shipping containers, racks and crates, and down its aisle
 ## rusted iron cages full of trainers (Lio, Bea and Orin among them, as the hero finds them later), their beasts in
 ## smaller cages on pallets at the far end. Then spring, out on the Coastal Path where the wild beasts live (there
 ## are none in towns): Scout Bram and Camper Tilly on the trail, watching them come out of the tall grass; and the
@@ -111,12 +111,12 @@ const LIFT_AT := Vector3(5.0, 0, 8.1)
 ## when the steel door slides open
 const DOOR_OPEN := 26.6
 ## the office's lights at full: the pool over the rug, the desk lamp, the neon by the crates, the hanging lamps; the
-## warehouse's hard white lamps
+## warehouse's softer white lamps
 const SPOT_E := 3.4
 const DESK_E := 1.7
 const CAGE_E := 1.8
 const HANG_E := 1.5
-const ROOM_E := 9.0
+const ROOM_E := 2.2
 ## the office's woods, brick and brass; the warehouse's concrete and steel
 const BRICK := "#7a646c"
 const PANEL := "#4a3026"
@@ -852,7 +852,7 @@ func _freight_room() -> void:
 	for i in TUBE_ZS.size():
 		_beast_crate(Vector3(TUBE_X, 0, TUBE_ZS[i]), races[i])
 	_warehouse_goods()
-	# hard white light straight down from the lamps hung over the aisle, and one over the beasts; all off until the
+	# Soft white pools from the lamps hung over the aisle, and one over the beasts; all off until the
 	# door opens. Shadows from every lamp only off the phone renderer, where one keeps the bars' shadows on the floor.
 	var phone := RenderingServer.get_current_rendering_method() == "mobile"
 	var hung := []
@@ -1043,7 +1043,9 @@ func _beam_material() -> StandardMaterial3D:
 	var beam := StandardMaterial3D.new()
 	beam.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	beam.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	# Compatibility's additive blend adds the full RGB even with a tiny alpha, washing out the room.
+	# Alpha blending keeps the dust faint on both web and Mobile without hiding the captives.
+	beam.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
 	beam.cull_mode = BaseMaterial3D.CULL_DISABLED
 	beam.albedo_color = Color(1.0, 0.96, 0.86, 0.006)
 	_mats["beam"] = beam
@@ -1322,7 +1324,7 @@ func _tower_frame() -> void:
 	door_panel.position.z = DOOR_Z - 2.4 * open
 	# (the warehouse has no colour of its own: grey air, and whatever the lamps reach)
 	env.ambient_light_color = Color("#5c64a0") if elapsed < INSIDE else Color("#5a6068")
-	env.ambient_light_energy = 0.66 if elapsed < INSIDE else 0.27
+	env.ambient_light_energy = 0.66 if elapsed < INSIDE else 0.5
 	env.fog_light_color = Color("#1c1838") if elapsed < INSIDE else Color("#15171b")
 	for gear in gears:
 		(gear as Node3D).rotation.x = elapsed * float(gear.get_meta("speed"))

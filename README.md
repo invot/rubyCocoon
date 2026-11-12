@@ -138,7 +138,7 @@ looking as they always do: nothing can move, so the d-pad, Start and Pause step 
 The reveal is played straight (`scripts/story/opening.gd`): Gearhart gives his staff a cheerful briefing about new
 robots and "freight" for a friend in Gravenmoor, sends them home, then walks alone to a steel door in his office wall.
 As he steps through, the music stops dead and a dread hit sounds (`tools/make_sfx.py`): behind it is a freight
-warehouse under hard white hanging lamps, rusted iron cages down its aisle full of trainers (Lio, Bea and Orin among
+warehouse under soft white hanging lamps, rusted iron cages down its aisle full of trainers (Lio, Bea and Orin among
 them, as the hero later finds them), and at its far end their beasts in smaller cages on pallets. Gearhart's office
 by night is built from the game's own pieces: wood floor and a red rug, brick and dark panelling under timber beams,
 hanging lamps, three brass gears turning on the west wall, his new robots on lit plinths before the moonlit windows
@@ -1001,6 +1001,9 @@ mounted owl and its rider.
   so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - The title screen plays *Nerves*.
+    It continues through character creation. Browser audio starts after a click, tap or key press;
+    runtime Music and SFX buses grow through `AudioServer.bus_count` to preserve the web sample driver's
+    route to the speakers (Godot 4.7's `add_bus()` append path disconnects it).
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Black Bart, Gearhart, Nyx and Vexmora.
     Both keep a beat for the weapons' beat attack (`Sfx.TEMPOS`, 106 and 122 BPM), with a quiet percussion layer playing along that comes up during one.
   - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.

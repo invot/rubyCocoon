@@ -14,6 +14,11 @@ func _check(ok: bool, label: String) -> void:
 
 func _run() -> void:
 	var sfx = root.get_node("Sfx")
+	# Both routes must keep their identity and reach Master after runtime bus creation.
+	for bus in ["Music", "SFX"]:
+		var index := AudioServer.get_bus_index(bus)
+		_check(index > 0 and AudioServer.get_bus_send(index) == "Master"
+			and not AudioServer.is_bus_mute(index), "%s bus is audible and routed to Master" % bus)
 	for key in sfx.SOUNDS:
 		var spec: Array = sfx.SOUNDS[key]
 		if spec.is_empty():
