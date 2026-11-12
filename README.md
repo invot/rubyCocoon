@@ -1587,6 +1587,26 @@ for the phone layout. Omit `--explored=1` to retain question marks for unreached
 The supplied map artwork is rebuilt with `python tools/prepare_world_map.py` (Pillow), then
 `godot --headless --path . --import`; these are 2D UI assets, not world textures.
 
+## Trailer
+
+`tools/trailer/` records and cuts the trailer from real play (it needs ffmpeg, and Python with Pillow and NumPy):
+
+```
+bash tools/trailer/record_all.sh               # every clip, 1920x1080 at 60 fps, into build/trailer/raw/ (name clips to record just those)
+python tools/trailer/make_trailer.py           # the cut -> build/trailer/ruby_cocoon_trailer.mp4
+python tools/trailer/make_trailer.py --sheet   # a still of every shot and card, for checking the cut
+python tools/trailer/make_trailer.py --audio   # mix the sound again and lay it on the finished picture
+```
+
+Clips are recorded with Godot's movie writer from fresh state (their own settings and saves under `build/trailer/`),
+with the game's sound effects and no music. `--scene=trailer` (`tools/debug/trailer.gd`) stages them: `--shot=film`
+plays the opening film without the controls' hints, `--shot=world` runs the hero through a map behind a camera that
+cranes down onto them, and `--shot=battle` plays a battle by itself on a chosen map with a chosen party and foes.
+The cut, its title cards and its sound are listed in `make_trailer.py` `build_cut()`; its shots land on the bar lines
+of the coast theme and, for the finale, the boss theme. Every frame carries a pre-release footage notice along the
+bottom. The music is Kevin MacLeod's ("Adventures in Adventureland", "Ether Vox" and "Rising Tide (faster)", CC BY
+4.0, see `CREDITS.md`): credit him wherever the trailer is posted.
+
 ## Credits
 
 See **CREDITS.md**; the same list is in the game under Start → Settings → Credits.

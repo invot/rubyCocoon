@@ -745,6 +745,10 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
+	if scene == "trailer":
+		await load("res://tools/debug/trailer.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "growth":
 		await load("res://tools/debug/beast_growth.gd").new().run(self, _test)
 		get_tree().quit()
