@@ -8,6 +8,7 @@ signal arrived
 const ASCENT_TIME := 4.2
 const SUMMON := "res://assets/summons/fire.res"
 const FONT := preload("res://ui/lunchds.ttf")
+const BuildEdition = preload("res://scripts/core/build_edition.gd")
 const FOV := 30.0
 const CAMERA := Vector3(0, 2.2, 12.0)
 const LOOK := Vector3(0, 2.4, 0)
@@ -229,8 +230,19 @@ func _logo() -> void:
 	logo = Node3D.new()
 	logo.position = Vector3(0, 4.45, 1.0)
 	add_child(logo)
+	_logo_line("RUBY COCOON")
+	if BuildEdition.is_demo():
+		var demo := _logo_line("DEMO")
+		demo.position.y = -0.62
+		demo.scale = Vector3.ONE * 0.5
+
+
+## Each line shares the logo's gold, outlined lettering, animation and menu visibility.
+func _logo_line(text: String) -> Node3D:
+	var line := Node3D.new()
+	logo.add_child(line)
 	var tm := TextMesh.new()
-	tm.text = "RUBY COCOON"
+	tm.text = text
 	tm.font = FONT
 	tm.font_size = 64
 	tm.pixel_size = 0.0145
@@ -245,7 +257,7 @@ func _logo() -> void:
 	m.set_shader_parameter("left", bb.position.x)
 	m.set_shader_parameter("right", bb.end.x)
 	gold.material_override = m
-	logo.add_child(gold)
+	line.add_child(gold)
 	# (drawn four times as big as the mesh's font size, at a quarter of its pixel size: the same letters, crisper)
 	for k in [[52, Color("#1c0508"), bb.position.z - 0.07], [30, Color("#c8142e"), bb.position.z - 0.04]]:
 		var l := Label3D.new()
@@ -257,7 +269,8 @@ func _logo() -> void:
 		l.outline_size = k[0]
 		l.outline_modulate = k[1]
 		l.position.z = k[2]
-		logo.add_child(l)
+		line.add_child(l)
+	return line
 
 
 ## Motes of moonlit dust drifting up through the dark.

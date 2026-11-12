@@ -11,7 +11,7 @@ extends RefCounted
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
 ## Fonts: League Spartan throughout, Regular for body text, menu actions, dialogue and damage, Semibold for
-## names and headings. Missing symbols use Godot's fallback.
+## names and headings. Missing symbols use bundled Noto Sans Symbols, then Godot's fallback.
 
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -20,6 +20,7 @@ const DividerBox = preload("res://scripts/ui/divider_box.gd")
 
 const UI_DIR := "res://assets/ui/"
 const FONT_FILE := "res://ui/LeagueSpartan.ttf"
+const SYMBOL_FONT := preload("res://ui/NotoSansSymbols.ttf")
 ## Shared League Spartan weights; keep ordinary text light and headings semibold.
 const BODY_WEIGHT := 400
 const HEAD_WEIGHT := 600
@@ -221,7 +222,7 @@ static func font_bold() -> Font:
 	return font_body()
 
 
-## League Spartan at `weight` (symbols it lacks come from Godot's default).
+## League Spartan at `weight`; bundled symbols keep arrows available in every export.
 static func _font(weight: int) -> Font:
 	if _fonts.has(weight):
 		return _fonts[weight]
@@ -233,9 +234,10 @@ static func _font(weight: int) -> Font:
 	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	f.hinting = TextServer.HINTING_LIGHT
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	f.fallbacks = [ThemeDB.fallback_font]
+	f.fallbacks = [SYMBOL_FONT, ThemeDB.fallback_font]
 	var fv := FontVariation.new()
 	fv.base_font = f
+	fv.fallbacks = [SYMBOL_FONT, ThemeDB.fallback_font]
 	fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
 	_fonts[weight] = fv
 	return fv

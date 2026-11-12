@@ -96,7 +96,8 @@ The Start book keeps the selected input's guide on Settings' right page: keyboar
 meanings, or a matching controller illustration and fixed mappings. Only Controller input shows controller artwork.
 The book has no bottom key strip. Phones and tablets show their on-screen buttons when Screen input is selected.
 Desktop browsers use a keyboard or controller guide instead of the touch pad, even on touchscreen computers. The guide
-also appears on the web title menu, character creator and Load Game screen. Web builds have no Quit application
+uses bundled Noto Sans Symbols for arrow-key glyphs in desktop and Web builds. It also appears on the web title menu,
+character creator and Load Game screen. Web builds have no Quit application
 button; **Quit to title** in Settings still returns to the title menu.
 
 USB and Bluetooth gamepads use Godot's automatic controller mappings, without a mapping screen. Connect or pair the
@@ -957,7 +958,7 @@ mounted owl and its rider.
 
   <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts**: **League Spartan** (`ui/LeagueSpartan.ttf`, a clean sans with accents) for interface text and painted shop/town signs. Names and headings use **Semibold (600)** (`UIKit.font_head`); body text, menu actions, values, dialogue and damage numbers use **Regular (400)** (`UIKit.font_body`). The intro/title's 3D logo keeps its original **Lunchtime Doubly So** font (`ui/lunchds.ttf`). Only missing symbols use Godot's fallback font. Settings values use the same 32 UI units as their action labels, with room reserved for the full value. Use `UIKit.body_px` / `head_px`; never shrink text to fit. The desktop window opens at 1920x1080 for the same 1.5x scale as phones. Dialogue stays top-aligned, three lines per page.
+- **Fonts**: **League Spartan** (`ui/LeagueSpartan.ttf`, a clean sans with accents) for interface text and painted shop/town signs. Names and headings use **Semibold (600)** (`UIKit.font_head`); body text, menu actions, values, dialogue and damage numbers use **Regular (400)** (`UIKit.font_body`). The intro/title's 3D logo keeps its original **Lunchtime Doubly So** font (`ui/lunchds.ttf`). Missing symbols use bundled Noto Sans Symbols, then Godot's fallback font. Settings values use the same 32 UI units as their action labels, with room reserved for the full value. Use `UIKit.body_px` / `head_px`; never shrink text to fit. The desktop window opens at 1920x1080 for the same 1.5x scale as phones. Dialogue stays top-aligned, three lines per page.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
   direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
@@ -991,7 +992,8 @@ mounted owl and its rider.
   it).
 - The start menu appears over the same 3D tableau (`scripts/gfx/title_stage.gd`): the fully raised dragon, moon,
   drifting motes and gold **Ruby Cocoon** lettering remain visible. Skipping advances the ascent to its natural
-  ending, then the dragon's hover, wingbeats and title animation continue as usual. Load Game and the character
+  ending. Demo builds add **DEMO** below the logo in the same gold lettering. After the ascent,
+  the dragon's hover, wingbeats and title animation continue as usual. Load Game and the character
   creator hide the lettering while retaining the background. World, creator,
   battle and book scripts load in the background after the entrance's first draw.
   Transitions wait for those requests without blocking the main thread (`main.gd` _title_backdrop, wait_for_script).

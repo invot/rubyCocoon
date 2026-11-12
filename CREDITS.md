@@ -39,7 +39,7 @@ from the project's existing battle and sound code by `tools/bake_battle_art.gd`.
 (`assets/houses/measurements.res`) are geometry metadata derived from the credited house models below; their meshes
 and textures are unchanged.
 The downloaded packs themselves aren't kept in the repository (they were in `psx/`, `voxelassets/`, `ui/`,
-`music/`, `sfx/`, `new models/` and `new beasts/`): only what the game uses is, converted into `assets/`, plus the two
+`music/`, `sfx/`, `new models/` and `new beasts/`): only what the game uses is, converted into `assets/`, plus the
 fonts in `ui/` and the sound effects in `sfx/` the game plays. The licence files the packs came with are in
 `licenses/`. To rebuild an asset with its `tools/` importer, download its pack again (the sources are listed below).
 **Several packs came without licence files: check each source's terms before releasing the game.**
@@ -273,6 +273,9 @@ The voxel models were all replaced by the PSX ones above and removed. They came 
   them as nine-patches over the blurred box.
 - Fonts: **League Spartan** by The League Spartan Project Authors (interface text and painted signs), from Google
   Fonts under the SIL Open Font License (`licenses/League Spartan - OFL.txt`), unchanged;
+  **Noto Sans Symbols** by The Noto Project Authors, from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/notosanssymbols),
+  unchanged under the SIL Open Font License 1.1 (`licenses/Noto Sans Symbols - OFL.txt`), supplies missing UI symbols
+  such as the four arrow keys (`ui/NotoSansSymbols.ttf`);
   **Lunchtime Doubly So** (the original 3D intro/title logo); licence file not included, check the author's terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)
