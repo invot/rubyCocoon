@@ -1053,6 +1053,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/ring_start.gd").new().run(self, _test)
 	elif scene == "kennel":
 		await load("res://tools/debug/kennel.gd").new().run(self, _test)
+	elif scene == "robe-options":
+		await load("res://tools/debug/robe_options.gd").new().run(self, _test)
 	elif scene == "action-icons":
 		await load("res://tools/debug/action_icons.gd").new().run(self, _test)
 	elif scene == "egg-sales":

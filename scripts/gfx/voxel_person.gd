@@ -129,6 +129,51 @@ static func _dress_body(rig: Node3D, look: Dictionary) -> void:
 		att.add_child(badge)
 
 
+	# a robe's emblem (look "emblem": a shop whose sign it shows, in "emblem_colour"), on the chest so it moves with it
+	if look.has("emblem"):
+		var att2 := BoneAttachment3D.new()
+		att2.bone_name = model.get_meta("bones").get("chest", "chest")
+		sk.add_child(att2)
+		var em := MeshInstance3D.new()
+		em.mesh = _emblem(String(look["emblem"]), Color(look.get("emblem_colour", "#f0c050")))
+		var chest := sk.find_bone(String(att2.bone_name))
+		em.position = EMBLEM_AT - Townfolk.fit(Townfolk.BONES[chest][2]) if chest >= 0 else EMBLEM_AT
+		att2.add_child(em)
+
+
+## Where a robe's emblem sits: on the front of the robe, below the chest (metres, as baked: see Townfolk.fit).
+const EMBLEM_AT := Vector3(0, 0.66, 0.222)
+## Robe emblems made so far (see _emblem), by shop and colour.
+static var _emblems := {}
+
+
+## A robe's emblem: the shop's sign icon (voxel_props.gd ICONS) alone, cut out in one colour with a slightly darker
+## edge, a flat square facing +z.
+static func _emblem(shop: String, col: Color) -> Mesh:
+	var key := shop + col.to_html()
+	if _emblems.has(key):
+		return _emblems[key]
+	var rows: Array = VProps.ICONS.get(shop, VProps.ICONS["center"])
+	var img := Image.create(12, 12, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for y in 12:
+		for x in 12:
+			if String(rows[y])[x] != ".":
+				img.set_pixel(x, y, col)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.metallic = 0.4
+	m.roughness = 0.45
+	var q := QuadMesh.new()
+	q.size = Vector2(0.24, 0.24)
+	q.material = m
+	_emblems[key] = q
+	return q
+
+
 ## A cap's badge: the shop's sign icon (voxel_props.gd ICONS) on a white panel, a flat square facing +z.
 static func _badge(shop: String) -> Mesh:
 	if _badges.has(shop):
