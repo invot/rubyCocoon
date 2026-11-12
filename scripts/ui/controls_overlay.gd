@@ -174,10 +174,6 @@ func _show_group(ids: Array, backs: Array, on: bool) -> void:
 func _recolour() -> void:
 	_gem = UIKit.accent_name
 	legend.add_theme_stylebox_override("panel", _legend_style())
-	for row in [_legend_row, _flute_row]:
-		for item in row.get_children():
-			var cap: PanelContainer = item.get_child(0)
-			cap.add_theme_stylebox_override("panel", UIKit.box("frame", Vector4(2, -5, 2, -5)))
 	_shade_backdrops()
 	_paint_pad()
 
@@ -207,30 +203,93 @@ func _build_legend() -> void:
 	add_child(legend)
 	var cc := CenterContainer.new()
 	legend.add_child(cc)
-	_legend_row = _legend_keys([["◄ ▲ ▼ ►", "Move"], ["A", "Action"], ["S", "Back · hold to run"], ["SPACE", "Start"], ["SHIFT", "Pause"]])
+	_legend_row = _legend_keys([[ARROW_KEYS, "Move"], ["A", "Action"], ["S", "Back · hold to run"], ["SPACE", "Start"], ["SHIFT", "Pause"]])
 	cc.add_child(_legend_row)
-	_flute_row = _legend_keys([["◄ ▲ ▼ ►", "Arrow notes"], ["A", "A note"], ["S", "B note"], ["ESC", "Stop playing"]])
+	_flute_row = _legend_keys([[ARROW_KEYS, "Arrow notes"], ["A", "A note"], ["S", "B note"], ["ESC", "Stop playing"]])
 	_flute_row.visible = false
 	cc.add_child(_flute_row)
 
 
+## the four arrow keys, drawn as one cluster of caps (all from the same symbol set so they match in size)
+const ARROW_KEYS := ["left", "up", "down", "right"]
+## each arrow key's turn of the one up-pointing triangle
+const ARROW_TURNS := {"left": -PI / 2, "up": 0.0, "down": PI, "right": PI / 2}
+## a key cap's height on the legend strip
+const CAP_H := 30.0
+## the caps are a soft grey rather than white, so the strip stays quiet beside the scene
+const CAP_FILL := Color(0.66, 0.68, 0.71)
+const CAP_LIP := Color(0.42, 0.44, 0.48)
+const CAP_INK := Color(0.13, 0.14, 0.16)
+
+
 func _legend_keys(keys: Array) -> HBoxContainer:
 	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 30)
+	hb.add_theme_constant_override("separation", 36)
 	for k in keys:
 		var item := HBoxContainer.new()
-		item.add_theme_constant_override("separation", 8)
-		var cap := PanelContainer.new()
-		cap.add_theme_stylebox_override("panel", UIKit.box("frame", Vector4(2, -5, 2, -5)))
-		var kl := UIKit.label(k[0], 20, UIKit.INK)
-		kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cap.add_child(kl)
-		item.add_child(cap)
+		item.add_theme_constant_override("separation", 10)
+		var caps := HBoxContainer.new()
+		caps.add_theme_constant_override("separation", 4)
+		caps.alignment = BoxContainer.ALIGNMENT_CENTER
+		for face in (k[0] if k[0] is Array else [k[0]]):
+			caps.add_child(_key_cap(face))
+		item.add_child(caps)
 		var dl := UIKit.label(k[1], 20, UIKit.LIGHT)
 		dl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		item.add_child(dl)
 		hb.add_child(item)
 	return hb
+
+
+## The one arrow triangle (equilateral, pointing up), turned by `turn` about its centre, so all four keys match.
+func _arrow_glyph(turn: float) -> Control:
+	var g := Control.new()
+	g.custom_minimum_size = Vector2(12, 12)
+	g.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	g.draw.connect(func() -> void:
+		var c := g.size / 2.0 + Vector2(0, -1.5)
+		var r := 7.0
+		var pts := PackedVector2Array()
+		for i in 3:
+			pts.append(Vector2.from_angle(turn - PI / 2 + TAU * i / 3.0) * r)
+		# centre the turned triangle by its bounds, not its centroid, so up and down sit level with left and right
+		var lo := pts[0].min(pts[1]).min(pts[2])
+		var hi := pts[0].max(pts[1]).max(pts[2])
+		var shift := c - (lo + hi) / 2.0
+		for i in 3:
+			pts[i] = (pts[i] + shift).round()
+		g.draw_colored_polygon(pts, CAP_INK)
+	)
+	return g
+
+
+## One keyboard key: a small solid grey cap with a shaded lip along its bottom and the key's name in dark text.
+func _key_cap(face: String) -> PanelContainer:
+	var cap := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = CAP_FILL
+	sb.border_color = CAP_LIP
+	sb.border_width_bottom = 3
+	sb.set_corner_radius_all(5)
+	sb.content_margin_left = 9
+	sb.content_margin_right = 9
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 0
+	cap.add_theme_stylebox_override("panel", sb)
+	cap.custom_minimum_size = Vector2(CAP_H, CAP_H)
+	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if face in ARROW_TURNS:
+		cap.add_child(_arrow_glyph(ARROW_TURNS[face]))
+		return cap
+	var kl := UIKit.label(face, 20, CAP_INK)
+	kl.add_theme_font_override("font", UIKit.font_head())
+	kl.add_theme_font_size_override("font_size", UIKit.head_px(17))
+	kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	kl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	kl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cap.add_child(kl)
+	return cap
 
 
 # ---------------------------------------------------------------- touch controls
