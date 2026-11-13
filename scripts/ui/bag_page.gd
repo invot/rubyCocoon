@@ -274,7 +274,7 @@ func _item_heading(id: String, s: Dictionary) -> Control:
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var icon := TextureRect.new()
 	icon.texture = UI.Glyphs.item(id)
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(icon.texture) else CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if UI.Glyphs.smooth(icon.texture) else CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.position = Vector2(12, 12)
@@ -771,7 +771,7 @@ class ItemCell extends Button:
 		var s: Dictionary = page.stacks[i]
 		icon_tex = UI.Glyphs.item(s["id"])
 		smooth = UI.Glyphs.smooth(icon_tex)
-		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if smooth else CanvasItem.TEXTURE_FILTER_NEAREST
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if smooth else CanvasItem.TEXTURE_FILTER_NEAREST
 		var side: float = page.cell_size()
 		custom_minimum_size = Vector2(side, side)
 		tooltip_text = ""

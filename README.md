@@ -489,7 +489,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Trainer level**: beating trainers earns trainer XP, and clearing a rank of the **arena ladder** raises your trainer level to at least that rank + 1. The ladder (`ladder_db.gd`) is the same at every arena: ten ranks of three or four ring trainers each; beat them all to open the next rank. Each rank cleared earns a crystal shard; beaten trainers can be fought again.
 - **Sparkwire Electronics** (Volt, Bellerive): **shield points** (5 crystal shards each, up to 4) and **beast slots** (3 shards each, up to 8). How many Volt can fit depends on your trainer level: one more slot per level, one more shield point every other level.
 - **Flute songs** are a sheet-music game.
-  - Only a song you're learning plays by itself (from a teacher, sheet music or a flute trainer): it plays once while its notes light up on the staff. A song you already know (in battle, practising) doesn't: the sheet comes up and it's your turn straight away. Each line and space is a button: ← → A B from the bottom up.
+  - Only a song you're learning plays by itself (from a teacher, sheet music or a flute trainer): it plays once while its notes light up on the staff. A song you already know (in battle, practising) doesn't: the sheet comes up and it's your turn straight away. Each line and space is a button: ← → A B from the bottom up. The notes are the buttons' prompts in their colours on faint staff lines, on a window whose sides fade into aged paper; each stays outlined until it's played, then swells and comes back filled. The outcome pops up on a bouncy card in its own colour (green, gold, orange or red by the timer's colour; purple for a failed song) and stays until you dismiss it with A or its small "A: Dismiss" button, which appears a second after the card.
   - The clock starts on your turn (*Your turn!* lights up over the sheet). Play the notes in order: the sheet stays up the whole time, with the notes you've played lit.
   - You have 10 seconds for four notes and 5 more for every four more (30 seconds in Uncle Rafe's lessons). The bar shrinks without numbers, going green, then yellow, orange and red. The colour you finish in sets the song's power: full in the green, about half in the red.
   - Each wrong note breaks one of three hearts and costs a little power. Lose all three, or run out of time, and the song fails.
@@ -976,11 +976,16 @@ mounted owl and its rider.
     grey). It goes into the windows' off-white as a faint tint, the headings, the bars, buttons and filled slots; body
     text stays near-black. `UIKit.set_accent` derives the palette. The old Pixel / Classic style setting is gone, and a saved
     `ui_style` value is ignored.
-  - **Item artwork** uses the supplied pack PNG illustrations with sharp nearest filtering and permanent colors for each item,
-    independent of the interface gem. Potions, food, herbs, equipment and other items have their own shapes.
-    `glyphs.gd` shares the artwork between the Bag, courier and pickup notices. Town arrival notices
-    use a cluster of houses; arena towns retain their crests. Source details and the offline rebuild command
-    are in [item icon provenance](licenses/item_icons.md). Verify with `bash tools/run_tests.sh item-icons
+  - **Icons** are smooth and painted in one cozy look: each shape in its own colour with soft top light, its inner
+    detail in a light tint, a warm dark outline and a soft shadow. Every item has its own shape and permanent colours,
+    independent of the interface gem. `tools/build_icons.gd` bakes them at 128 px from the vector sources in
+    `tools/icon_src` (game-icons.net, at-icons and Kenney's Input Prompts; see [credits](CREDITS.md)) as listed in
+    `tools/icon_manifest.gd`: items (`assets/ui/icons/items`, shared by the Bag, courier and pickup notices through
+    `glyphs.gd`), notice symbols (`icons/glyphs`), the small menu symbols and arena crests (`icons/ui`), the travel
+    book's white tab icons (`icons/tabs`) and the flute game's direction and A / B prompts (`icons/prompts`). Rebake with
+    `godot --headless --path . --script res://tools/build_icons.gd` (`-- --only=a,b --sheet=build/shots/icons.png`
+    for some, with a review sheet), then `--import`; set `mipmaps/generate=true` in new icons' `.import` files.
+    Town arrival notices use a cluster of houses. Verify with `bash tools/run_tests.sh item-icons
     item-icons-touch`; windowed `--scene=item-icons --shots=res://build/shots/icons` captures all four gems.
   - The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at the top centre: place names on
     entering a town, road or building, pickups, gold and battle messages. It is the windows' off-white box, hanging

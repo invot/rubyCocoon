@@ -103,13 +103,15 @@ func _draw_paper(ci: RID, rect: Rect2) -> void:
 		_flat.shadow_size = 0
 	_flat.draw(ci, rect)
 	if blur and col.a > 0.0:
-		draw_bezel(ci, rect, Vector4(r, r, r, r), alpha)
+		draw_bezel(ci, rect, Vector4(r, r, r, r), alpha, true, Color(col, 1.0))
 
 
 ## The soft bezel over a box already drawn at `rect` with corner radii `radii` (top-left, top-right, bottom-right,
 ## bottom-left): its top edge lit (unless `top` is false: the top-centre HUD, which hangs from the screen's edge) and
-## its bottom edge shaded, each fading into the face.
-static func draw_bezel(ci: RID, rect: Rect2, radii: Vector4, fade := 1.0, top := true) -> void:
+## its bottom edge shaded, each fading into the face. `face` is the box's colour: on a coloured box (an outcome card, a
+## gem button) the lit edge is a light tint of that colour, and fainter the more colourful it is, rather than a white
+## stripe; on the off-white paper it stays white.
+static func draw_bezel(ci: RID, rect: Rect2, radii: Vector4, fade := 1.0, top := true, face := Color.WHITE) -> void:
 	if _bezel_hi == null:
 		_bezel_hi = _bezel_box(BEZEL_LIGHT)
 		_bezel_hi.border_width_top = BEZEL
@@ -121,7 +123,9 @@ static func draw_bezel(ci: RID, rect: Rect2, radii: Vector4, fade := 1.0, top :=
 		box.corner_radius_top_right = int(round(radii.y))
 		box.corner_radius_bottom_right = int(round(radii.z))
 		box.corner_radius_bottom_left = int(round(radii.w))
-		var c: Color = BEZEL_LIGHT if box == _bezel_hi else BEZEL_SHADE
+		var c: Color = BEZEL_SHADE
+		if box == _bezel_hi:
+			c = Color(face.lerp(BEZEL_LIGHT, 0.4), BEZEL_LIGHT.a * lerpf(1.0, 0.4, clampf(face.s * 1.3, 0.0, 1.0)))
 		box.border_color = Color(c, c.a * fade)
 		box.draw(ci, rect)
 
@@ -153,7 +157,7 @@ class Bezeled extends StyleBox:
 		base.draw(ci, rect)
 		var FB = load("res://scripts/ui/frame_box.gd")
 		FB.draw_bezel(ci, rect, Vector4(base.corner_radius_top_left, base.corner_radius_top_right,
-			base.corner_radius_bottom_right, base.corner_radius_bottom_left), base.bg_color.a)
+			base.corner_radius_bottom_right, base.corner_radius_bottom_left), base.bg_color.a, true, Color(base.bg_color, 1.0))
 
 
 ## A box of this kind, for a control or for draw_style_box. `pad`: the content padding (l, t, r, b).

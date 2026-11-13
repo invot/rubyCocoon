@@ -121,6 +121,7 @@ func _build() -> void:
 		var m := Button.new()
 		m.focus_mode = Control.FOCUS_NONE
 		m.icon = UIKit.tex(TABS[i]["icon"])
+		m.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		m.expand_icon = false
 		m.add_theme_constant_override("icon_max_width", 36)
 		m.text = TABS[i]["name"]
@@ -426,7 +427,7 @@ func _add_row(row: Dictionary) -> void:
 		b.add_child(slot)
 		var icon := TextureRect.new()
 		icon.texture = UI.Glyphs.item(row["item_slot"])
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(icon.texture) else CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if UI.Glyphs.smooth(icon.texture) else CanvasItem.TEXTURE_FILTER_NEAREST
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.position = Vector2(24, 8)
 		icon.size = Vector2(40, 40)

@@ -14,15 +14,18 @@ const INSET := 28.0
 
 var button: Button
 var _fired := false
+## a smaller button (the flute's "A: Dismiss"); its tap area keeps the full row height
+var compact := false
 
 
-func setup(text: String) -> Control:
+func setup(text: String, small := false) -> Control:
+	compact = small
 	button = Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	UIKit.plate_button(button, Vector4(14, 0, 14, 0))
 	button.add_theme_font_override("font", UIKit.font_body())
-	button.add_theme_font_size_override("font_size", UIKit.body_px(FONT))
+	button.add_theme_font_size_override("font_size", UIKit.body_px(_font()))
 	button.mouse_filter = Control.MOUSE_FILTER_PASS
 	button.pressed.connect(_fire)
 	add_child(button)
@@ -53,9 +56,13 @@ func _rearm() -> void:
 
 ## The button's visible size.
 func button_size() -> Vector2:
-	var h := 64.0 if UIKit.touch_ui() else 44.0
-	var w := UIKit.font_body().get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(FONT)).x + 44.0
+	var h := (40.0 if UIKit.touch_ui() else 28.0) if compact else (64.0 if UIKit.touch_ui() else 44.0)
+	var w := UIKit.font_body().get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(_font())).x + (30.0 if compact else 44.0)
 	return Vector2(w, h)
+
+
+func _font() -> int:
+	return 20 if compact else FONT
 
 
 func _pad() -> float:

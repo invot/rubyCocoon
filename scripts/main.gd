@@ -1097,6 +1097,9 @@ func _run_test() -> void:
 		if _test.get("lesson", "0") == "1":
 			fo["lesson"] = true
 			fo["performer"] = "Mom"
+		# --goal=0.9: a learn-mode bar to pass (with --outcome, shows "Not quite...")
+		if _test.has("goal"):
+			fo["goal"] = {"accuracy": float(_test["goal"])}
 		UI.flute_ex(_test.get("song", "shanty"), "Test", fo)
 		if _test.has("play"):
 			await get_tree().create_timer(0.3).timeout
@@ -1109,6 +1112,24 @@ func _run_test() -> void:
 				await get_tree().create_timer(0.3).timeout
 			if _test.has("slip"):
 				g._slip(0)
+		# --outcome=zone0..zone3 (finished in that timer colour, --slips=N wrong notes), time or misses (failed), or demo
+		# (someone else's song ends): jumps straight to the result card
+		if _test.has("outcome"):
+			await get_tree().create_timer(0.3).timeout
+			var g = UI.stack.back()
+			var o := String(_test["outcome"])
+			g.mistakes = int(_test.get("slips", "0"))
+			if o == "time" or o == "misses":
+				g.pos = mini(2, g.melody.size() - 1)
+				if o == "misses":
+					g.mistakes = g.LIVES
+				g._fail(o)
+			elif o == "demo":
+				g._end_listen()
+			else:
+				g.pos = g.melody.size()
+				g.zone = int(o.trim_prefix("zone"))
+				g.phase = "result"
 		await get_tree().create_timer(wait).timeout
 	elif scene == "sim":
 		Engine.time_scale = 40.0

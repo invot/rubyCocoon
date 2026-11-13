@@ -28,13 +28,12 @@ func run(root: Node, options: Dictionary) -> void:
 		main.get_window().grab_focus()
 	var originals := {}
 	for id in Items.ITEMS:
-		var extension := "svg" if id in ["bat", "lucky_clover"] else "png"
-		check(ResourceLoader.exists("res://assets/ui/items/%s.%s" % [id, extension]), "artwork exists: " + id)
+		check(ResourceLoader.exists("res://assets/ui/icons/items/%s.png" % id), "artwork exists: " + id)
 		var texture: Texture2D = UI.Glyphs.item(id)
-		check(UI.Glyphs.smooth(texture) == (extension == "svg"), "original artwork sampling: " + id)
+		check(UI.Glyphs.smooth(texture) and texture.get_size() == Vector2(128, 128), "smooth baked artwork: " + id)
 		originals[id] = texture.get_image().get_data()
-	check(UI.Glyphs.item("tome_fire").get_size() == Vector2(16, 16), "dynamic tomes use supplied artwork")
-	check(UI.Glyphs.item("sheet_hymn").get_size() == Vector2(16, 16), "dynamic sheet music uses supplied artwork")
+	check(UI.Glyphs.item("tome_fire").resource_path.ends_with("/_tome.png"), "dynamic tomes use the tome artwork")
+	check(UI.Glyphs.item("sheet_hymn").resource_path.ends_with("/_sheet.png"), "dynamic sheet music uses the sheet artwork")
 	check(UI.Glyphs.item("unknown_test_item") != null, "unknown item fallback")
 	UI.auto = true
 	await main._go("caccoon", "start")
@@ -60,7 +59,7 @@ func run(root: Node, options: Dictionary) -> void:
 		check(fixed_colors, "all item colors unchanged in " + gem)
 		for list in screen.lists:
 			for button in list.buttons:
-				check(button.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "pack icons use sharp courier sampling")
+				check(button.texture_filter == CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS, "item icons use smooth courier sampling")
 		await shot("courier_" + gem)
 	await main._press("ui_down")
 	check(screen.lists[0]._focus == 1, "courier focus navigation")
@@ -91,7 +90,7 @@ func run(root: Node, options: Dictionary) -> void:
 	await main._wait(3.5)
 	UI.pickup("potion")
 	await main._wait(0.5)
-	check(UI.top_bar.left_icon.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "pickup notice keeps pack icon sharp")
+	check(UI.top_bar.left_icon.texture_filter == CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS, "pickup notice keeps item icon smooth")
 	await shot("pickup")
 	await main._wait(3.5)
 	# Replacing a place name swaps in the new place's picture.

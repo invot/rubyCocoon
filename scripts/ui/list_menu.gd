@@ -142,7 +142,7 @@ func _ready() -> void:
 			b.icon = it["icon"]
 			b.expand_icon = b.icon.has_meta("item_art") or opts.get("expand_icons", false)
 			b.add_theme_constant_override("icon_max_width", int(opts.get("icon_width", 56)))
-			b.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(b.icon) else CanvasItem.TEXTURE_FILTER_NEAREST
+			b.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if UI.Glyphs.smooth(b.icon) else CanvasItem.TEXTURE_FILTER_NEAREST
 		if it.has("right"):
 			var rl := UIKit.label(str(it["right"]), 20, UIKit.GOLD if not b.disabled else UIKit.DIM)
 			UIKit.follow_row(b, rl, UIKit.GOLD if not b.disabled else UIKit.DIM)

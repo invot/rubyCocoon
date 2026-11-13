@@ -5,10 +5,15 @@ by [roroer](https://sketchfab.com/roroer), [CC BY 4.0](https://creativecommons.o
 recoloured, root flare added, rearranged into three variants, decimated into LODs.
 See [source and modification details](licenses/broadleaf_roroer.md).
 
-**Item illustrations:** selected artwork from the supplied *Items & Icons Mega Pack* (`ItemsIcons_v1.0.zip`),
-used with its original shapes and fixed recolors per item. The archive does not name a creator.
-See [provenance and rebuild instructions](licenses/item_icons.md) and [license](licenses/Items%20Icons%20Mega%20Pack%20-%20License.txt).
-The town houses, wooden bat and clover icons are original project vector artwork.
+**Menu icons** (items, notice symbols, stars, hearts, gold, energy, arena crests, the travel book's tabs and the flute
+game's control prompts) are recoloured and restyled by `tools/build_icons.gd` from these vector packs (sources kept in
+`tools/icon_src/`, choices and colours in `tools/icon_manifest.gd`):
+- [game-icons.net](https://game-icons.net), [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/), by
+  Lorc, Delapouite, Carl Olsen, Caro Asercion, Cathelineau, DarkZaitzev, Faithtoken, Lucas (lucasms) and Sbed.
+  See [licence and contributor list](licenses/game-icons.net%20-%20License.txt).
+- *at-icons* 1.6.0 by Valentin Fossati (Voxybuns) and contributors, MIT. See [licence](licenses/at-icons%20-%20MIT.txt).
+- *Input Prompts* 1.5 by [Kenney](https://www.kenney.nl), CC0: the info and arrow flairs, the Switch direction buttons and the Xbox A / B
+  prompts. See [licence](licenses/Kenney%20Input%20Prompts%20-%20License.txt).
 
 **Controller illustrations:** [Controllercons 2.1](https://controllercons.github.io/) by Kieran McClung,
 SIL Open Font License 1.1. Duotone SVGs use a white fill and larger rasterization size for the game UI.

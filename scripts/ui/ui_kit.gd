@@ -8,8 +8,8 @@ extends RefCounted
 ## - Selected or focused: a bordered frame with corner marks. Primary or pressed: solid white with dark text.
 ##   Disabled: dim text, no frame. Item slots: square bordered tiles, the selected one filled.
 ## - The pack's divider separates sections (HSeparator, divider()) and flanks banner text (flanked()).
-## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
-## copied by tools/build_ui_icons.gd).
+## The small icons (stars, hearts, gold, energy, crests) and the travel book's tab icons are smooth painted icons
+## baked by tools/build_icons.gd into assets/ui/icons/ui and assets/ui/icons/tabs.
 ## Fonts: Quattrocento Sans Regular for body text, menu actions and descriptions; its Bold for names and headings, and in
 ## upper case for small text; Fuzzy Bubbles for dialogue. Missing symbols use bundled Noto Sans Symbols, then Godot's fallback.
 
@@ -286,19 +286,18 @@ static func _font(path: String, weight := BODY_WEIGHT) -> Font:
 	return fv
 
 
-## A UI texture: one of the icons drawn here (see ICONS), a flatUI icon (assets/ui/flat), or an older texture.
+## A UI texture: a baked icon (assets/ui/icons/ui or /tabs, see tools/build_icons.gd) or an older texture.
 static func tex(name: String) -> Texture2D:
-	var key := "gen:" + name if ICONS.has(name) else name
-	if _tex.has(key):
-		return _tex[key]
+	if _tex.has(name):
+		return _tex[name]
 	var t: Texture2D = null
-	if ICONS.has(name):
-		t = _icon_tex(name)
-	elif ResourceLoader.exists(UI_DIR + "flat/" + name + ".png"):
-		t = load(UI_DIR + "flat/" + name + ".png")
-	elif ResourceLoader.exists(UI_DIR + name + ".png"):
-		t = load(UI_DIR + name + ".png")
-	_tex[key] = t
+	for dir in ["icons/ui/", "icons/tabs/", ""]:
+		if ResourceLoader.exists(UI_DIR + dir + name + ".png"):
+			t = load(UI_DIR + dir + name + ".png")
+			if dir != "":
+				t.set_meta("smooth_ui_icon", true)
+			break
+	_tex[name] = t
 	return t
 
 
@@ -616,10 +615,13 @@ static func ribbon(text: String, small := false) -> PanelContainer:
 	return p
 
 
+## A small icon from tex(), `px` UI units square (default: 56 for a crest, 30 for anything else).
 static func icon(name: String, px := 0.0) -> TextureRect:
 	var tr := TextureRect.new()
 	tr.texture = tex(name)
-	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if px <= 0.0:
+		px = 56.0 if name.begins_with("crest_") else 30.0
 	if px > 0.0:
 		tr.custom_minimum_size = Vector2(px, px)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -760,23 +762,6 @@ static func hp_color(ratio: float) -> Color:
 
 
 # ================================================================ drawn icons
-## Small icons drawn here as pixel bitmaps ("#" the colour, "+" the accent, "." clear), so they stay crisp and take the
-## accent: [rows...].
-const ICONS := {
-	"icon_star": ["....+....", "....+....", "...+++...", "+++++++++", ".+++++++.", "..+++++..", "..++.++..", ".++...++.", ".+.....+."],
-	"icon_star_empty": ["....#....", "....#....", "...#.#...", "###...###", ".#.....#.", "..#...#..", "..#.#.#..", ".##...##.", ".#.....#."],
-	"star": ["....+....", "....+....", "...+++...", "+++++++++", ".+++++++.", "..+++++..", "..++.++..", ".++...++.", ".+.....+."],
-	"star_empty": ["....#....", "....#....", "...#.#...", "###...###", ".#.....#.", "..#...#..", "..#.#.#..", ".##...##.", ".#.....#."],
-	"heart": [".++...++.", "++++.++++", "+++++++++", "+++++++++", ".+++++++.", "..+++++..", "...+++...", "....+....", "........."],
-	"heart_empty": [".##...##.", "#..#.#..#", "#...#...#", "#.......#", ".#.....#.", "..#...#..", "...#.#...", "....#....", "........."],
-	"icon_coin": ["..#####..", ".#+++++#.", "#++###++#", "#+#+++++#", "#+#+++++#", "#+#+++++#", "#++###++#", ".#+++++#.", "..#####.."],
-	"icon_energy": ["....+++..", "...+++...", "..+++....", ".+++++++.", "....+++..", "...+++...", "..+++....", ".++......", ".+......."],
-	"icon_energy_empty": ["....###..", "...#.#...", "..#.#....", ".#.....#.", "....#.#..", "...#.#...", "..#.#....", ".##......", ".#......."],
-	"icon_arrow": ["#........", "###......", "#####....", "#######..", "#########", "#######..", "#####....", "###......", "#........"],
-	"tab_beasts": ["..##.##..", ".####.###", ".###..##.", "...###...", "#.#####.#", "##.###.##", "..#####..", ".#######.", ".#######.", "..#####.."],
-}
-
-
 ## The "more to read" arrow under a page of dialogue: a smooth, softly rounded white triangle pointing down
 ## (27 x 15 UI units, drawn at 4x and filtered so it stays clean when scaled). Tint it with `self_modulate`.
 static func more_arrow() -> TextureRect:
@@ -820,21 +805,3 @@ static func _tri_dist(p: Vector2, a: Vector2, b: Vector2, c: Vector2) -> float:
 	var inside := Geometry2D.point_is_inside_triangle(p, a, b, c)
 	return -best if inside else best
 
-
-## The icon's bitmap, each of its pixels drawn 3 x 3 (the icons are tiny), so it can be used at its own size.
-static func _icon_tex(name: String) -> ImageTexture:
-	var rows: Array = ICONS[name]
-	var w := String(rows[0]).length()
-	var h := rows.size()
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for y in h:
-		var r: String = rows[y]
-		for x in w:
-			match r[x]:
-				"#":
-					img.set_pixel(x, y, BORDER)
-				"+":
-					img.set_pixel(x, y, ACCENT.lerp(Color.WHITE, 0.15))
-	img.resize(w * 3, h * 3, Image.INTERPOLATE_NEAREST)
-	return ImageTexture.create_from_image(img)
