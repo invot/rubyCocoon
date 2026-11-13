@@ -304,12 +304,17 @@ func prepare_arrival_view() -> void:
 ## the map is drawn once, shrunk to a speck in front of the camera, and taken away again after a few frames.
 ## The other renderers compile without stalling play, and skip this.
 const WARM_LIMIT := 400
+## Opt-in cost experiment; ordinary gameplay keeps the existing warm-up path.
+var cost_warmup_shared := false
+var cost_warmup_stats := {}
 
 
 func _warm_shaders() -> void:
 	if RenderingServer.get_current_rendering_method() != "gl_compatibility" or cam == null:
 		return
 	var seen := {}
+	var mesh_keys := {}
+	var candidates := 0
 	var specks := Node3D.new()
 	specks.name = "ShaderWarmup"
 	cam.add_child(specks)
@@ -323,11 +328,29 @@ func _warm_shaders() -> void:
 			mesh = gi.multimesh.mesh
 		if mesh == null or gi.get_parent() == specks:
 			continue
+		candidates += 1
 		var mats := [gi.material_override]
 		if gi is MeshInstance3D:
 			for i in gi.get_surface_override_material_count():
 				mats.append(gi.get_surface_override_material(i))
 		var key := [mesh.get_rid(), mats]
+		if cost_warmup_shared:
+			# Keep exact material identities and geometry formats. Only geometry data is interchangeable;
+			# do not use the coarse material-feature inventory as shader equivalence.
+			var rid := mesh.get_rid()
+			if not mesh_keys.has(rid):
+				var surfaces := []
+				for surface in mesh.get_surface_count():
+					if mesh is ArrayMesh:
+						surfaces.append([mesh.surface_get_format(surface), mesh.surface_get_primitive_type(surface),
+							mesh.surface_get_material(surface)])
+					elif mesh is PrimitiveMesh:
+						# Built-in primitives share one vertex layout (plus an optional UV2) and draw triangles.
+						surfaces.append([mesh.add_uv2, mesh.surface_get_material(surface)])
+					else:
+						surfaces.append(rid)  # unknown layout: never shared
+				mesh_keys[rid] = [mesh.get_class(), mesh.get_blend_shape_count() if mesh is ArrayMesh else 0, surfaces]
+			key = [mesh_keys[rid], mats]
 		if seen.has(key):
 			continue
 		seen[key] = true
@@ -341,6 +364,8 @@ func _warm_shaders() -> void:
 				speck.set_surface_override_material(i, gi.get_surface_override_material(i))
 		if seen.size() >= WARM_LIMIT:
 			break
+	cost_warmup_stats = {"shared": cost_warmup_shared, "candidates_scanned": candidates,
+		"representatives": seen.size(), "hit_limit": seen.size() >= WARM_LIMIT}
 	_drop_warmup(specks)
 
 

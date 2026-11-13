@@ -1,5 +1,10 @@
 # Ruby Cocoon: credits
 
+**Approved broadleaf artwork candidate (not yet integrated):** [Stylized tree](https://sketchfab.com/3d-models/stylized-tree-6ba26deef34249ddb8694888b47db449)
+by [roroer](https://sketchfab.com/roroer), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), modified:
+recoloured, root flare added, rearranged into three variants, decimated into LODs.
+See [source and modification details](licenses/broadleaf_roroer.md).
+
 **Item illustrations:** selected artwork from the supplied *Items & Icons Mega Pack* (`ItemsIcons_v1.0.zip`),
 used with its original shapes and fixed recolors per item. The archive does not name a creator.
 See [provenance and rebuild instructions](licenses/item_icons.md) and [license](licenses/Items%20Icons%20Mega%20Pack%20-%20License.txt).

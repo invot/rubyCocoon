@@ -1176,6 +1176,13 @@ The demo job independently updates its own Pages alias on `main` or `master`. Ma
 retain the existing native-release behavior but do not deploy either Web site. Repository visibility and release
 access settings are unchanged; the repository and its non-draft releases are currently public.
 
+**Password**: `functions/_middleware.js` is a Pages Function that asks for a password (any username) on every
+address of the project except [demo.rubycoccon.pages.dev](https://demo.rubycoccon.pages.dev). That covers the full
+game at rubycoccon.pages.dev, `main.rubycoccon.pages.dev` and each deploy's own address. Only the password's
+SHA-256 is in the repository. To change it, replace `PASSWORD_SHA256` with the output of
+`printf 'NewPassword' | sha256sum`. `wrangler pages deploy` picks up `functions/` from the folder it runs in, so run
+deploys from the repository root, as the workflow does.
+
 Build locally with `python tools/make_web.py --demo`; the normal command still builds the full Web game into
 `build/web/`. To upload the demo manually using the existing Cloudflare login:
 

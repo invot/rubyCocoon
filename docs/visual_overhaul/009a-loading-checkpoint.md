@@ -1,5 +1,8 @@
 # Step 009a — loading phase instrumentation checkpoint
 
+**Historical checkpoint, superseded by [accepted 009a evidence](009a-loading-phases.md).** The resumed focused-01
+runs completed two clean passes per renderer on 2026-11-12. Keep the earlier invalid attempts for traceability.
+
 **In progress, 12 November 2026. No accepted phase measurement yet.** User selected “Keep working; checkpoint the
 measurement” after two native window attempts lost foreground focus. Do not automatically repeat these while the user
 is using other windows. Step 010a has not started and must wait for 009a's evidence.

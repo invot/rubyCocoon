@@ -5,6 +5,7 @@ from pathlib import Path
 import struct
 import math
 from collections import Counter
+import argparse
 
 ROOT = Path(__file__).resolve().parents[1]
 REV = ROOT / "build/art_candidates/broadleaf/rev_001"
@@ -26,6 +27,12 @@ def accessor(gltf, index):
 
 
 def main():
+    global REV, OUT
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--revision", default="rev_001", choices=["rev_001", "rev_002", "rev_003"])
+    args = parser.parse_args()
+    REV = ROOT / "build/art_candidates/broadleaf" / args.revision
+    OUT = ROOT / "build/perf/vo/art-review" / ("broadleaf-" + args.revision + ".json")
     ready = json.loads((REV / "READY.json").read_text())
     result = {"revision": ready["revision"], "manifest_sha256": hashlib.sha256((REV / "READY.json").read_bytes()).hexdigest(),
               "hash_mismatches": [], "geometry": {}, "provenance_hashes": {}, "textures": {}}
@@ -36,9 +43,13 @@ def main():
         if len(raw) != expected["bytes"] or hashlib.sha256(raw).hexdigest() != expected["sha256"]:
             result["hash_mismatches"].append(name)
     result["files_checked"] = len(ready["files"])
+    provenance = ready["source_provenance"]
     for name in ["derivative", "derivative_texture"]:
-        entry = ready["source_provenance"][name]
-        result["provenance_hashes"][name] = hashlib.sha256((ROOT / entry["path"]).read_bytes()).hexdigest() == entry["sha256"]
+        if name in provenance:
+            entry = provenance[name]
+            result["provenance_hashes"][name] = hashlib.sha256((ROOT / entry["path"]).read_bytes()).hexdigest() == entry["sha256"]
+    if "model" in provenance:
+        result["provenance_hashes"]["original_model"] = hashlib.sha256((REV / "source/original/stylized_tree.glb").read_bytes()).hexdigest() == provenance["model"]["sha256"]
     for path in sorted((REV / "mesh/textures").glob("*.png")):
         raw = path.read_bytes()
         assert raw[:8] == b"\x89PNG\r\n\x1a\n" and raw[12:16] == b"IHDR"
@@ -91,6 +102,12 @@ def main():
             "topology_by_primitive": topology,
             "alpha_modes": [m.get("alphaMode", "OPAQUE") for m in gltf["materials"]], "samplers": gltf.get("samplers", []),
             "textured": ["baseColorTexture" in m.get("pbrMetallicRoughness", {}) for m in gltf["materials"]]}
+    result["manifest_count_mismatches"] = []
+    for variant in ready["counts"].values():
+        for lod in variant["lods"].values():
+            actual = result["geometry"][lod["file"]]
+            if actual["triangles"] != lod["triangles"] or actual["materials"] != lod["materials"]:
+                result["manifest_count_mismatches"].append(lod["file"])
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"files_checked": result["files_checked"], "hash_mismatches": result["hash_mismatches"],

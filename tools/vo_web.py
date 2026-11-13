@@ -15,6 +15,8 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "build/web_perf"
 OUT = ROOT / "build/perf/vo/baseline-web"
+BENCH_REL = "bench/vo/003"
+EXTRA_ARGS = []
 
 
 def export(godot):
@@ -33,13 +35,17 @@ def export(godot):
         if count != 1:
             raise RuntimeError(f"Expected one {key}, found {count}")
     (OUT / "export-preset-perf.cfg").write_text(clone, encoding="utf-8")
-    path.write_bytes(original + b"\n" + clone.encode())
+    temporary_presets = original + b"\n" + clone.encode()
+    path.write_bytes(temporary_presets)
     try:
         with (OUT / "export.log").open("w", encoding="utf-8") as log:
             subprocess.run([godot, "--headless", "--path", str(ROOT), "--export-release", "Web Perf", str(WEB / "index.html")],
                            cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
     finally:
-        path.write_bytes(original)
+        if path.read_bytes() == temporary_presets:
+            path.write_bytes(original)
+        else:
+            raise RuntimeError("Export presets changed externally; preserved for inspection")
     html = WEB / "index.html"
     text = html.read_text(encoding="utf-8")
     setup = '''
@@ -53,11 +59,13 @@ window.voPerfReport = report => {
         .catch(e => console.error('VO PERF WEB save failed',e));
 };
 if (new URLSearchParams(location.search).get('vo_perf') === '1') {
-    GODOT_CONFIG.args = ['--','--scene=vo-perf','--passes=2','--render_height=1080','--graphics_quality=mid',
-        '--report=user://bench/vo/003/report.json','--save_dir=user://bench/vo/003/saves/',
-        '--prefs_path=user://bench/vo/003/settings.cfg'];
+    GODOT_CONFIG.args = __VO_ARGS__;
 }
 '''
+    setup = setup.replace('__VO_ARGS__', json.dumps([
+        '--', '--scene=vo-perf', '--passes=2', '--render_height=1080', '--graphics_quality=mid',
+        f'--report=user://{BENCH_REL}/report.json', f'--save_dir=user://{BENCH_REL}/saves/',
+        f'--prefs_path=user://{BENCH_REL}/settings.cfg', *EXTRA_ARGS]))
     text = text.replace('const engine = new Engine(GODOT_CONFIG);', setup + '\nconst engine = new Engine(GODOT_CONFIG);')
     text = text.replace('<script src="index.js"></script>', '<script src="web_fullscreen.js"></script>\n<script src="index.js"></script>')
     html.write_text(text, encoding="utf-8")

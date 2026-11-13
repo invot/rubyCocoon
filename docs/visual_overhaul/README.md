@@ -13,12 +13,12 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 ## Next step
 
-**009a: production loading-phase attribution.** Steps 001–004 and 005a are complete; see
+**009b: shader warm-up and first-visit changes.** Steps 001–004, 005a, 009a and 010a are complete; see
 [the diagnosis](004-cost-diagnosis.md) for the revised execution order and
 [the parallel handoff](parallel-handoff.md) for Claude artwork and Codex engineering.
-The user requested a [measurement checkpoint](009a-loading-checkpoint.md) after focus losses; instrumentation tests pass,
-but accepted first/return phase evidence is still pending. Claude may continue the isolated
-[rev_002 technical refinement prompt](claude-next-prompt.md); this does not advance 027.
+The [accepted loading-phase report](009a-loading-phases.md) replaces the earlier measurement checkpoint.
+rev_003's [technical review](art_reviews/broadleaf-rev_003.md) and attribution are complete; integration still awaits
+011/022/023 and in-game review. The old rev_002 prompt is superseded. Step 027 remains open.
 
 ## How to prompt
 

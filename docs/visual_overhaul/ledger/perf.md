@@ -80,8 +80,20 @@ Compatibility pipeline zeros are non-informative. Web cache/startup/audio caveat
 independent fades or named window roles; two house resources remain plausible candidates without measured payoff.
 No runtime material cache/bindings changed. Quick and route checks passed.
 
-### Loading phases (009a, checkpoint)
+### Loading phases (009a, complete)
 
-[Instrumentation and retry instructions](../009a-loading-checkpoint.md). Quick, route and transitions pass.
-Both new native phase attempts lost foreground focus; retain as invalid diagnostic traces, not accepted timings.
-User selected a measurement checkpoint; 009a remains in progress and 010a has not started.
+[Accepted evidence and attribution](../009a-loading-phases.md), generated `build/perf/vo/009a/focused-01/phases.md`.
+Two clean passes on each native renderer; quick, route and transitions pass. First-use draw/frame waits dominate
+Compatibility, not the final finish traversal. Earlier interrupted attempts remain invalid.
+**Legacy black_ms caveat:** frame-boundary sampling can miss synchronous loading/first-draw work before its first sample.
+It is not a continuous stopwatch; retain 001–003 raw data, use a new continuous black interval for 009b before/after.
+
+### Phone resolution and pacing (010a, complete)
+
+[Experiment and limits](../010a-phone-resolution.md); exact generated comparisons in
+`build/perf/vo/010a/phone/comparison.md`. Three 720p/540p/720p passes, 429.41 seconds, zero problems/focus losses.
+540p GPU medians improve 7.3–20.3%, but every scene remains near 30 fps. 720p GPU drift is within about ±1.2%.
+Battery 26.9–27.9°C; no clocks/throttling or presentation timestamps collected. Resolution alone does not meet 60 fps.
+Native refresh is 60 Hz in all passes, cap 60, VSync enabled. Preserve outliers and legacy black-time caveat.
+Next phone investigation is controlled pacing/presentation, alongside outdoor non-pixel GPU workload; no production
+setting changed. Temporary package removed; original player app/saves preserved. Continue ordered work with 009b.

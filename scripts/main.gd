@@ -43,6 +43,7 @@ var _title_touches := {}
 var _test := {}
 ## Opt-in performance harness diagnostics, empty in ordinary play.
 var cost_load_phases := {}
+var cost_continuous_black_ms := 0.0
 var _cost_load_clock := 0
 var autoplay := false
 var _cinematic: Node3D
@@ -375,6 +376,7 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 	_cost_load_lap("shader dependencies and world script wait")
 	world = script.new()
 	world.demo = demo
+	world.cost_warmup_shared = _test.get("diagnose", "0") == "1" and _test.get("warmup_shared", "0") == "1"
 	view.add_child(world)
 	await world.build(id, true)
 	_cost_load_lap("world build")
@@ -460,6 +462,7 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 		return
 	_transitioning = true
 	await UI.fade_out(fade)
+	var black_began := Time.get_ticks_usec() if _test.get("load_phases", "0") == "1" else 0
 	# Nothing's on view: drawing a half-built map each frame would only slow the building of it.
 	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	if _test.get("load_phases", "0") == "1":
@@ -473,12 +476,15 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	_cost_load_lap("first process-frame await after enabling viewport")
 	await get_tree().process_frame
 	_cost_load_lap("second process-frame await")
-	_cost_load_clock = 0
 	GameState.map_id = id
 	GameState.visit(id)
 	GameState.pos = world.player_pos
 	Sfx.music(music_for(id))
 	Sfx.ambience(ambience_for(id))
+	_cost_load_lap("arrival state and audio selection")
+	_cost_load_clock = 0
+	if black_began > 0:
+		cost_continuous_black_ms = (Time.get_ticks_usec() - black_began) / 1000.0
 	await UI.fade_in(maxf(0.3, fade))
 	var sub := ""
 	var title := WorldDB.map_name(id)

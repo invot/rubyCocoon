@@ -268,6 +268,12 @@ Test both the broad view and close gameplay crops. A map overview proves layout;
 
 ### Trees and shrubs
 
+User refinement, 12 November 2026: the approved broadleaf direction is [rev_003](art_candidates/broadleaf.md):
+simple pillowy crown domes with soft painted edges, without a projected pattern of individual leaves. Start later
+tree/shrub families from that visual grammar while preserving regional species. The supplied Gostbento Low Poly
+Nature Pack palms are rejected. This selects a look; it does not waive measured budgets, scale/material prerequisites,
+real-game checks or the rule against crude block/primitive construction. Approved candidate files stay immutable.
+
 Choose a common construction grammar: substantial tapered trunks and roots; rounded crown masses; designed leaf clusters; restrained supporting leaf texture. Species may vary in branching, crown shape, leaf size, and silhouette without changing rendering style.
 
 - Remove cube-like canopy masses and crude stacked primitive forms.

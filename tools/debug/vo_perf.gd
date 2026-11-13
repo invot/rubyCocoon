@@ -16,6 +16,8 @@ var _transitions := []
 var _segments := {}
 var _passes := []
 var _focus_losses := []
+var _previous_keep_on := false
+var _title_ready_wait_ms := 0.0
 
 
 func run(main, opts: Dictionary) -> void:
@@ -27,7 +29,15 @@ func run(main, opts: Dictionary) -> void:
 	if not _isolated(save_path) or not _isolated(prefs_path):
 		_fail("vo-perf requires isolated --save_dir and --prefs_path under res://build/ or user://bench/vo/")
 		return
+	var resolution_sweep := PackedInt32Array()
+	if opts.has("resolution_sweep"):
+		for height in String(opts.resolution_sweep).split(","):
+			if not height.is_valid_int() or not int(height) in Prefs.RESOLUTIONS:
+				_fail("invalid benchmark resolution sweep")
+				return
+			resolution_sweep.append(int(height))
 	var kept_on := DisplayServer.screen_is_kept_on()
+	_previous_keep_on = kept_on
 	DisplayServer.screen_set_keep_on(true)
 	main.get_window().focus_exited.connect(_focus_lost)
 	seed(ROUTE_SEED)
@@ -55,15 +65,31 @@ func run(main, opts: Dictionary) -> void:
 	for i in 3:
 		GameState.party[i].slot = [7, 0, 1][i]
 	_main.get_tree().process_frame.connect(_transition_sample)
+	if opts.get("title_ready", "0") == "1":
+		var title_started := Time.get_ticks_usec()
+		await main._title_backdrop()
+		_title_ready_wait_ms = (Time.get_ticks_usec() - title_started) / 1000.0
 	var began := Time.get_ticks_usec()
 	var duration := float(opts.get("duration", "0"))
 	var requested_passes := maxi(1, int(opts.get("passes", "1")))
+	if not resolution_sweep.is_empty():
+		requested_passes = resolution_sweep.size()
+		duration = 0.0
 	while true:
+		if not resolution_sweep.is_empty():
+			Prefs.render_height = resolution_sweep[_passes.size()]
+			Prefs.apply()
+			# Let the existing viewport resize handler settle before any route/frame samples.
+			await main.get_tree().process_frame
+			await main.get_tree().process_frame
 		_transitions = []
 		_segments = {}
 		await _route()
 		_passes.append({"segments": _segments, "transitions": _transitions,
-			"elapsed_s": (Time.get_ticks_usec() - began) / 1000000.0, "focus_losses": _focus_losses.duplicate()})
+			"elapsed_s": (Time.get_ticks_usec() - began) / 1000000.0, "focus_losses": _focus_losses.duplicate(),
+			"render_height": Prefs.render_height, "render_size": [main.view.size.x, main.view.size.y],
+			"refresh_hz": DisplayServer.screen_get_refresh_rate(), "vsync": DisplayServer.window_get_vsync_mode(),
+			"max_fps": Engine.max_fps, "quality": Prefs.graphics_quality})
 		_write_report()
 		print("VO PERF PASS ", _passes.size(), " elapsed_s=", (Time.get_ticks_usec() - began) / 1000000.0)
 		if bad > 0 or not _focus_losses.is_empty():
@@ -84,6 +110,10 @@ func _isolated(path: String) -> bool:
 func _focus_lost() -> void:
 	_focus_losses.append(Time.get_ticks_msec())
 	_fail("benchmark lost foreground focus; this pass is not valid sustained-run evidence")
+	# A minimized window may never emit the awaited draw signal. Preserve the partial failure and release resources.
+	_write_report()
+	DisplayServer.screen_set_keep_on(_previous_keep_on)
+	_main.get_tree().quit(1)
 
 
 func _route() -> void:
@@ -96,13 +126,17 @@ func _route() -> void:
 	await _field("hero_house", [])
 	await _arrive("tidewater", "west")
 	await _field("rue_royale", [Vector2i(40, 8)])
-	if _opts.get("verify", "0") != "1":
+	if _opts.get("verify", "0") != "1" and _opts.get("load_only", "0") != "1":
 		await _battle()
 
 
 func _write_report() -> void:
 	var report := {
 		"schema": 1, "route_version": 1, "seed": ROUTE_SEED,
+		"loading_only": _opts.get("load_only", "0") == "1",
+		"warmup_shared": _opts.get("warmup_shared", "0") == "1",
+		"shader_cache_enabled": ProjectSettings.get_setting_with_override("rendering/shader_compiler/shader_cache/enabled"),
+		"title_script_ready": _opts.get("title_ready", "0") == "1", "title_script_wait_ms": _title_ready_wait_ms,
 		"engine": Engine.get_version_info(), "platform": OS.get_name(),
 		"processor": OS.get_processor_name(), "gpu": RenderingServer.get_video_adapter_name(),
 		"renderer": RenderingServer.get_current_rendering_method(), "driver": RenderingServer.get_current_rendering_driver_name(),
@@ -154,6 +188,8 @@ func _arrive(id: String, spawn) -> void:
 		_transitions.back()["pipeline_compilation_delta"] = after
 	if _opts.get("load_phases", "0") == "1":
 		_transitions.back()["loading_phases_ms"] = _main.cost_load_phases.duplicate()
+		_transitions.back()["continuous_black_ms"] = _main.cost_continuous_black_ms
+		_transitions.back()["warmup"] = _main.world.cost_warmup_stats.duplicate()
 	_trace = {}
 	_main.world.busy = true
 	_main.world.frozen = true
@@ -203,6 +239,9 @@ func _path(world, start: Vector2i, goal: Vector2i) -> Array:
 
 
 func _field(label: String, goals: Array) -> void:
+	if _opts.get("load_only", "0") == "1":
+		await _capture(label + "_arrival")
+		return
 	var world = _main.world
 	var tiles := [world.player_pos]
 	for goal in goals:

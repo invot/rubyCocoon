@@ -532,10 +532,14 @@ The reference images aren't in the repo. To use them in captures, save copies in
 
 ### 027 · S7: tree grammar (Blender)
 **Approval: you.** **Needs:** 022, 023.
+**Approved preproduction:** broadleaf rev_003 is the selected candidate; [technical review](art_reviews/broadleaf-rev_003.md)
+and attribution are recorded. Reuse its immutable source/generator through integration copies rather than restarting
+the rejected individual-leaf direction. The user's look is pillowy painted domes with soft edges, no individual-leaf
+pattern; see standards §11. This does not complete 027 or bypass 011/022/023 and actual in-game approval.
 **Files:** a new `tools/blender/tree_broadleaf.py` (`blender -b -P tools/blender/tree_broadleaf.py -- <args>`), `tools/import_stylized_nature.gd`, `foliage.gdshader`.
 **Do:**
 - **Rework first:** take a derivative of the existing `tree_oak` source (the pack stays untouched).
-- Target: a tapered trunk with **root flare**, and a crown of **rounded leaf-cluster masses** with organized leaves. 1,000–3,000 triangles, 2–3 variants, 2 LODs.
+- Target: a tapered trunk with **root flare**, and **pillowy crown masses** with quiet painted edges as in approved rev_003. 1,000–3,000 triangles, 2–3 variants, 2 LODs; final measured budgets win.
 - If the source can't reach the silhouette, build it procedurally in the script.
 - Bake or paint the leaf-cluster texture, import it, and swap the cube-crown trees **on Coastal Path only**.
 

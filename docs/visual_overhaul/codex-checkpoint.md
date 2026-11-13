@@ -1,5 +1,114 @@
 # Codex checkpoint — 12 November 2026
 
+## Current checkpoint (supersedes the historical text below)
+
+**Claude continuation (after Codex's session ended):** 009b remains in progress, waiting for the user's decision.
+Capture comparison done; fixed the shared warm-up crash on PrimitiveMesh (two partial runs marked INVALID);
+shared warm-up gives no measurable gain on desktop (2316 vs 2322 ms Path) and was inconclusive on Web, so it is not
+adopted. `vo_cost.py --warmup-shared` and summary columns added. Quick, transitions and title-startup pass.
+See the continuation section in 009b-first-visit-checkpoint.md. No active jobs; no root override.cfg.
+
+
+**Current state: 009b remains in progress. No active benchmark/model jobs.**
+The user's latest “Ready for the focused run” was used; `exported-compat-focused` completed cleanly.
+Read [009b-first-visit-checkpoint.md](009b-first-visit-checkpoint.md) for the accepted cache comparison,
+packaged evidence, renderer scope and remaining cold/Web requirements. Latest first visits: 1272/1133/302/461 ms;
+earlier packaged first launch 13811/7089/3260/1219 ms remains adverse evidence. Do not mark complete or advance.
+Title-script waits were separately recorded (941 and 696 ms), not hidden as loading improvement.
+Actual benchmark export is `build/windows-compat-bench/RubyCocoon.exe` with custom feature compatibility_build;
+normal presets restored, no root override remains. Normal Mobile/Forward+ caching enabled. Existing warm-up unchanged.
+Templates in build/tools came from official partial archive; full archive SHA explicitly unverified, ZIP CRC checked.
+`vo_firstvisit_summary.py` validated six accepted experiments (including ANGLE, which was slower).
+Focus-lost packaged repeat is invalid and retained; fail-fast handler worked. No save/art candidate changes.
+Next: capture comparison and tool review; Web continuous-timer before measurement; safe warm-up optimization.
+
+The text below is historical and may name jobs that have since finished:
+
+**Newest 009b state:** continuous timer and failure-safe harness implemented; production warm-up/configuration still
+unchanged. Full-route before attempt lost focus and hung waiting for drawing; stopped only its verified own Godot PID
+13516. It is invalid, retains logs/captures, and has no accepted report. Focus-loss handler now saves partial failure,
+restores keep-on and exits nonzero immediately. Quick passes after the change.
+
+Loading-only fixture (`--load-only`) measures the same 4 arrivals × 2 passes, skips walking/battle samples, and cuts
+focus time to about one minute. Report explicitly marks loading_only; do not compare its missing segments as perf frames.
+Accepted runs: `build/perf/vo/009b/before-load/` (cache on), `cache-off/`, `cache-on-control/`, all zero problems/focus losses.
+Generated comparison `first-visits.md` / `validated-first-visits.json` via
+`python tools/vo_firstvisit_summary.py before-load cache-off cache-on-control`.
+First continuous black Path: 23.383 s cache on → 2.483 s off → 22.976 s on control. Cove: 5.528 → 0.875 → 5.446 s;
+house: 3.872 → 0.345 → 3.552 s. Return visits are small in all. This is a native AMD OpenGL/cache-path finding,
+not a Web/Vulkan conclusion or an isolated compiler-time trace. No blanket cache-disable fix applied.
+
+`tools/vo_cost.py --shader-cache off/on` creates a temporary root override.cfg under the shared lock only when none
+exists, refuses an existing file, verifies effective value in report, then removes only its own unchanged override in finally.
+All three experiments restored it; no existing shader cache was deleted. Cache probe shows cache/pipeline enabled,
+671 runtime cache files (~125 MB), 88 project cache files. Probe is read-only: tools/debug/shader_cache_probe.gd;
+evidence `009b/cache-probe.json`. Native shader-binary cache load is a strong causal lead, not proof of specific driver internals.
+
+**Active job now: tool session 56613**, ANGLE comparison with cache left enabled:
+`python tools/vo_cost.py --phases --step 009b --renderer gl_compatibility --driver opengl3_angle --attempt angle-cache-on --load-only --shots`.
+It holds shared lock and requires focus. Output/captures under matching 009b/angle-cache-on folders. Runner rejects driver
+fallback. No temporary override for this test. The installed Godot 4.7 is a single executable; checking if its ANGLE is linked
+in rather than assuming older dynamic-DLL packaging. Do not download or install anything unless actual evidence needs it.
+
+Next: validate ANGLE result, compare real captures/pixels with tools/img.sh after releasing shared lock. Find a
+Compatibility-only production remedy; do not disable caching for Vulkan/phone. First Path cache-off is still 2.48 s
+including initial script/battle prewarm, so 009b's 1.5-second goal is not yet met. Web improvement unmeasured.
+Before production changes, complete evidence and check renderer/platform scope. Before any new visual change, actual
+before/after shots and user review remain mandatory. No commits, branches, saves, asset replacements or new visual change.
+
+The following earlier paragraphs remain historical:
+
+**Latest state: 009b in progress; 010a completed and benchmark package uninstalled.** Phone results are independently
+validated in `build/perf/vo/010a/phone/{validated-sweep.json,comparison.md}` and `010a-phone-resolution.md`:
+429.41 s, zero problems/focus loss, 540p GPU improves 7.3–20.3% but frame medians stay ~33 ms; GPU bracket drift ±1.2%,
+battery 26.9–27.9°C. Original player package path unchanged. Three captured passes extracted safely under phone/extracted/.
+Local model crop notes completed; minor labels wrong and disregarded. No heavy/model job remains from 010a.
+
+009b: continuous timer added (opt-in load_phases) from fade_out return through fade_in call, including state/audio.
+Legacy black_ms retained. Quick, vo-perf-route, transitions pass under `build/perf/vo/009b/`.
+Fresh Compatibility before run active: tool session **19371**, command
+`python tools/vo_cost.py --phases --step 009b --renderer gl_compatibility --attempt before --shots`.
+It holds the shared lock and needs window focus. Output `build/perf/vo/009b/before/gl_compatibility-cost.json/.log`,
+captures `build/shots/vo/009b/before/gl_compatibility/`. Runtime warm-up/shaders/export presets remain unchanged.
+Continuous phases now include a twelfth lap (arrival state/audio); the old 009a summary validates only its historical
+eleven-lap evidence, so use a new/adapted validator for 009b. Do not relabel 009a's frame samples as continuous.
+
+Read official Godot pipeline documentation for 009b: shader baker applies only Forward+/Mobile, not Compatibility/Web,
+and does not replace driver pipeline compilation. No baking/cache flags enabled yet. Next: inspect actual cache defaults
+and measured material/mesh warmup coverage before changing production code; keep visuals identical and gather after evidence.
+
+The following phone-running paragraph describes the earlier state; its job is finished:
+
+Current step: **010a, real-phone resolution/pacing measurement running**. User explicitly resumed work and reconnected
+razr `ZY22K7BD2J`. The phone was awake/unlocked. Do not start heavy Godot/Blender/model jobs while this holds the lock.
+`python tools/vo_phone_sweep.py run --serial ZY22K7BD2J` is tool session **83598**, temporary package
+`com.rubycocoon.vo_perf`. It runs 720p/540p/720p, same route, Mid, three passes. Never touch `com.rubycocoon.x` data.
+Runner stops only the temporary package on exit; uninstall that temporary package after extracting/validating results.
+APK SHA256: `a9c5ed2d9d8e21c159f12d194552b86da803314ab52befa3bb4793b83525b510`.
+Evidence: `build/perf/vo/010a/phone/`; report, temperatures/logcat while running, private-files tar on completion.
+No native readback screenshots during samples; harness viewport captures are outside sampled intervals.
+
+009a **complete**: focused-01 Mobile 146.72 s / Compatibility 181.03 s, two passes each, zero focus losses/problems.
+`009a-loading-phases.md`, generated `build/perf/vo/009a/focused-01/{phases.md,validated-phases.json}`.
+Quick + route + transitions pass. Crucial finding: legacy sampled black_ms can miss first-frame synchronous work;
+Compatibility house sampled 234.5 ms but phases total 3628.6 ms. Do not trust old samples as continuous timers.
+009b needs a continuous fade_out-return→fade_in-start counter and new before/after evidence. Keep baselines intact.
+
+rev_003 **technical review complete with integration follow-ups**: `art_reviews/broadleaf-rev_003.md`.
+154 hashes/counts match, source embedded metadata verifies author/CC-BY-4.0; credits/license provenance prepared.
+Intentional two-sided crown, lower-LOD slivers and normal-heuristic flags retained for real game inspection.
+No new Claude correction needed for continuing performance work. 011/022/023 and actual in-game approval still gate integration.
+
+010a tooling: opt-in `--resolution_sweep=720,540,720` on vo-perf; per-pass height/size/refresh/vsync/maxfps metadata.
+`vo_phone_sweep.py` configures existing exporter/recorder, locks entire run, isolates state at user://bench/vo/010a/,
+preserves baseline-phone evidence and original preset (byte restoration checked). Headless three-resolution route,
+quick and normal route check pass. No production video setting/renderer/art changes.
+When the phone job completes, run `python tools/vo_phone_sweep_summary.py`, inspect raw errors and captures,
+collect post-run display/game pacing metadata if needed, preserve original player package path and uninstall only benchmark.
+Record limitations/thermal drift; complete 010a evidence before starting 009b (005b no-op already decided).
+
+## Historical checkpoint
+
 Latest user update: **broadleaf rev_003 approved as the selected candidate**, superseding rev_001; rev_002 received
 change requests. The Claude-owned candidate index already records this. Do not execute the obsolete rev_002 refinement
 prompt below. rev_003 is a different source/geometry and needs its own technical review; rev_001's review is not transferable.

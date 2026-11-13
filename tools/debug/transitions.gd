@@ -57,6 +57,8 @@ func run(main, opts: Dictionary) -> void:
 				"largest_gap_ms": snappedf(int(_trace["gap"]) / 1000.0, 0.1),
 			}
 			print("[transition] %s %s" % [key, JSON.stringify(report[key])])
+			if opts.get("load_phases", "0") == "1":
+				report[key]["continuous_black_ms"] = main.cost_continuous_black_ms
 			await tree.create_timer(0.15).timeout
 	for b in int(opts.get("battles", "0")):
 		main.autoplay = true

@@ -18,6 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "com.rubycocoon.vo_perf"
 OUT = ROOT / "build/perf/vo/baseline-phone"
 APK = ROOT / "build/android/RubyCocoon-perf.apk"
+BENCH_REL = "bench/vo/002"
+TARGET_PASSES = 0
+RUN_METADATA = {"render_height": 720, "quality": "mid", "duration_target_s": 900}
+EXTRA_ARGS = "-- --scene=vo-perf --duration=900 --render_height=720 --graphics_quality=mid " \
+    "--report=user://bench/vo/002/report.json --shots=user://bench/vo/002/shots --shot_w=0 " \
+    "--save_dir=user://bench/vo/002/saves/ --prefs_path=user://bench/vo/002/settings.cfg"
 
 
 def call(command, **kwargs):
@@ -58,9 +64,7 @@ def export(args):
         "name": "Android Perf", "export_path": str(APK).replace("\\", "/"),
         "exclude_filter": ", ".join(value.strip() for value in excluded.split(",") if value.strip() != "tools/*"), "custom_template/debug": str(template).replace("\\", "/"),
         "package/unique_name": PACKAGE, "package/name": "Ruby Cocoon Perf",
-        "command_line/extra_args": "-- --scene=vo-perf --duration=900 --render_height=720 --graphics_quality=mid "
-            "--report=user://bench/vo/002/report.json --shots=user://bench/vo/002/shots --shot_w=0 "
-            "--save_dir=user://bench/vo/002/saves/ --prefs_path=user://bench/vo/002/settings.cfg",
+        "command_line/extra_args": EXTRA_ARGS,
     }
     # Only the top-level name is overridden; version/name and package/name are separate options.
     for key, value in overrides.items():
@@ -96,7 +100,7 @@ def record(args):
             path.unlink()
     def read(*command):
         return call(adb + list(command), capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
-    metadata = {"package": PACKAGE, "render_height": 720, "quality": "mid", "duration_target_s": 900,
+    metadata = {"package": PACKAGE, **RUN_METADATA,
                 "model": read("shell", "getprop", "ro.product.model").strip(),
                 "android": read("shell", "getprop", "ro.build.version.release").strip(),
                 "soc": read("shell", "getprop", "ro.soc.model").strip(),
@@ -119,7 +123,7 @@ def record(args):
             raise RuntimeError("Benchmark has no launch activity: " + activity)
         # Launch is deliberately separate from export so the user can unlock immediately beforehand.
         call(adb + ["shell", "am", "force-stop", PACKAGE])
-        call(adb + ["shell", "run-as", PACKAGE, "rm", "-f", "files/bench/vo/002/report.json"])
+        call(adb + ["shell", "run-as", PACKAGE, "rm", "-f", f"files/{BENCH_REL}/report.json"])
         call(adb + ["shell", "am", "start", "-n", activity])
         began = time.monotonic()
     else:
@@ -164,7 +168,7 @@ def record(args):
                 with (OUT / f"device-{int(elapsed):04d}.png").open("wb") as shot:
                     call(adb + ["exec-out", "screencap", "-d", args.display, "-p"], stdout=shot)
                 next_shot += 180
-            probe = subprocess.run(adb + ["shell", "run-as", PACKAGE, "cat", "files/bench/vo/002/report.json"], capture_output=True)
+            probe = subprocess.run(adb + ["shell", "run-as", PACKAGE, "cat", f"files/{BENCH_REL}/report.json"], capture_output=True)
             if probe.returncode == 0:
                 try:
                     data = json.loads(probe.stdout)
@@ -178,7 +182,7 @@ def record(args):
                     print(f"PHONE passes={last_passes} active duration={data['passes'][-1]['elapsed_s']:.1f}s", flush=True)
                 if data.get("focus_losses") or data.get("problems"):
                     raise RuntimeError("Benchmark lost focus or reported a problem; preserve partial report and unlock before retrying")
-                if data["passes"][-1]["elapsed_s"] >= 900:
+                if (TARGET_PASSES and len(data["passes"]) >= TARGET_PASSES) or (not TARGET_PASSES and data["passes"][-1]["elapsed_s"] >= 900):
                     break
             elif subprocess.run(adb + ["shell", "pidof", PACKAGE], capture_output=True).returncode != 0:
                 raise RuntimeError("Benchmark exited before producing a report; inspect logcat")
@@ -188,7 +192,7 @@ def record(args):
         # run-as access stays within this benchmark package's private files.
         archive = OUT / "phone-files.tar"
         with archive.open("wb") as f:
-            call(adb + ["exec-out", "run-as", PACKAGE, "tar", "-cf", "-", "files/bench/vo/002"], stdout=f)
+            call(adb + ["exec-out", "run-as", PACKAGE, "tar", "-cf", "-", f"files/{BENCH_REL}"], stdout=f)
         print("PHONE RECORDING COMPLETE", flush=True)
     finally:
         logger.terminate()
