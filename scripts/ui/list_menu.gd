@@ -18,9 +18,6 @@ var _panel: PanelContainer
 var _outer: VBoxContainer
 var _scroll: ScrollContainer
 var _rail: Control
-var _actions: HBoxContainer
-var _select_button: Button
-var _back_button: Button
 var _row_h := 0.0
 var _max_rows := 0
 var _focus := -1
@@ -143,6 +140,7 @@ func _ready() -> void:
 			b.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(b.icon) else CanvasItem.TEXTURE_FILTER_NEAREST
 		if it.has("right"):
 			var rl := UIKit.label(str(it["right"]), 20, UIKit.GOLD if not b.disabled else UIKit.DIM)
+			UIKit.follow_row(b, rl, UIKit.GOLD if not b.disabled else UIKit.DIM)
 			rl.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BUTTON_FONT_SIZE))
 			rl.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 			rl.offset_left = -220
@@ -175,26 +173,7 @@ func _ready() -> void:
 		vb.add_child(desc_label)
 	if items.is_empty():
 		list.add_child(UIKit.label("(nothing here)", 20, UIKit.DIM))
-	if not bare and not opts.get("embedded", false) and not UIKit.touch_ui():
-		_actions = HBoxContainer.new()
-		_actions.add_theme_constant_override("separation", 12)
-		vb.add_child(_actions)
-		_select_button = Button.new()
-		_select_button.text = "A: Select"
-		_select_button.disabled = items.is_empty() or items.all(func(it): return it.get("disabled", false))
-		_select_button.pressed.connect(func():
-			if _focus >= 0 and _focus < items.size():
-				_pick(_focus))
-		_back_button = Button.new()
-		_back_button.text = "B: Back"
-		_back_button.disabled = not opts.get("cancel", true)
-		_back_button.pressed.connect(_cancel)
-		for action in [_select_button, _back_button]:
-			action.focus_mode = Control.FOCUS_NONE
-			action.custom_minimum_size.y = UIKit.row_h()
-			action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			UIKit.plate_button(action)
-			_actions.add_child(action)
+	# No Select / Back buttons: A picks the row and B goes back, as everywhere, and a row can be clicked or tapped.
 	if opts.get("embedded", false):
 		outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		return
@@ -212,6 +191,9 @@ func _fit_rows() -> void:
 		return
 	var margin := _layout_margin
 	var anchor := _layout_anchor
+	if anchor == "right" and opts.get("beside_pad", false) and UIKit.touch_ui():
+		# beside the A/B buttons rather than over them, so the whole height is free for rows
+		margin.x = maxf(margin.x, UI.controls.right_cluster_width())
 	UIKit.place(_outer, anchor, margin)
 	var rect := _outer.get_global_rect()
 	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x)
@@ -254,11 +236,11 @@ func _bare_button(b: Button, hero: bool) -> void:
 	_hero = b
 	b.custom_minimum_size = HERO_SIZE
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	# dark text on the white face while it's picked, white on the dark plate otherwise
+	# white text on the gem face while it's picked, dark on the off-white plate otherwise
 	b.add_theme_constant_override("outline_size", 0)
-	b.add_theme_color_override("font_color", UIKit.LIGHT)
+	b.add_theme_color_override("font_color", UIKit.INK)
 	for c in ["font_focus_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		b.add_theme_color_override(c, UIKit.DARK)
+		b.add_theme_color_override(c, UIKit.LIGHT)
 	# the face is drawn behind the button's own text
 	_hero_face = Control.new()
 	_hero_face.show_behind_parent = true
@@ -329,7 +311,7 @@ func _draw_hero() -> void:
 		var grow := 6.0 + float(i) * 6.0 + roundf(breath * 2.0) * 2.0
 		_hero_face.draw_rect(rect.grow(grow), Color(glow, (0.6 if on else 0.15) * (1.0 - float(i) / 3.0) * (0.5 + 0.5 * breath)), false, 2.0)
 	if on:
-		_hero_face.draw_style_box(UIKit.row_box(Color.WHITE, Color.WHITE), rect)
+		_hero_face.draw_style_box(UIKit.row_box(UIKit.ACCENT, Color(0, 0, 0, 0)), rect)
 	else:
 		_hero_face.draw_style_box(UIKit.row_box(Color(0, 0, 0, 0), UIKit.BORDER, 1.0, true), rect)
 	var k := fposmod(_t, SHINE_EVERY) / SHINE_CROSS
@@ -342,7 +324,7 @@ func _draw_hero() -> void:
 		var b1 := clampf(x + inner.size.y, inner.position.x, inner.end.x)
 		if b1 > a0:
 			_hero_face.draw_colored_polygon(PackedVector2Array([Vector2(a0, inner.end.y), Vector2(b0, inner.position.y),
-				Vector2(b1, inner.position.y), Vector2(a1, inner.end.y)]), Color(UIKit.ACCENT, 0.22))
+				Vector2(b1, inner.position.y), Vector2(a1, inner.end.y)]), Color(1, 1, 1, 0.18))
 
 
 ## Keeps a button's text clear of its right-hand label.

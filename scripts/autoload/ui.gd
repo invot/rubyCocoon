@@ -185,10 +185,20 @@ func choose(title: String, items: Array, opts := {}) -> int:
 			a = 0
 		auto_log.append("[menu] %s -> %d" % [title.get_slice(char(10), 0), a])
 		return a
+	# Talking with someone, or on the phone: the camera closes in on them, on the left, and the menu stands on the right.
+	var world = GameState.main.world if GameState.main != null else null
+	var shot: bool = is_instance_valid(world) and world.menu_shot_begin()
+	if shot:
+		opts = opts.duplicate()
+		opts["anchor"] = "right"
+		opts["keep_anchor"] = true
+		opts["beside_pad"] = true
 	var m := ListMenu.new()
 	m.setup(title, items, opts)
 	push(m)
 	var r = await m.done
+	if shot and is_instance_valid(world):
+		world.menu_shot_end()
 	return int(r)
 
 

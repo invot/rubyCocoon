@@ -43,7 +43,7 @@ func _ready() -> void:
 	window.add_child(vb)
 	var top := HBoxContainer.new()
 	vb.add_child(top)
-	var title := UIKit.header("Arrange your beasts", UIKit.LIGHT, UIKit.HEAD_SIZE)
+	var title := UIKit.header("Arrange your beasts", UIKit.HEAD, UIKit.HEAD_SIZE)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(title)
 	count_label = UIKit.label("", 20, UIKit.GOLD)
@@ -156,12 +156,12 @@ func _draw_ring() -> void:
 	var c: Vector2 = g[0]
 	var rad: float = g[1]
 	ring_area.draw_arc(c, rad, 0, TAU, 64, Color(UIKit.BORDER, 0.3), 3.0, true)
-	ring_area.draw_circle(c, rad * 0.3, Color(UIKit.WINDOW_BOTTOM, 0.95))
+	ring_area.draw_circle(c, rad * 0.3, UIKit.WELL)
 	ring_area.draw_arc(c, rad * 0.3, 0, TAU, 32, Color(UIKit.BORDER, 0.6), 2.0, true)
 	var h := rad * 0.11
-	ring_area.draw_circle(c + Vector2(0, -h * 1.1), h * 0.55, UIKit.LIGHT)
+	ring_area.draw_circle(c + Vector2(0, -h * 1.1), h * 0.55, UIKit.INK)
 	ring_area.draw_colored_polygon(PackedVector2Array([c + Vector2(-h * 0.8, h * 1.1), c + Vector2(-h * 0.5, -h * 0.3),
-		c + Vector2(h * 0.5, -h * 0.3), c + Vector2(h * 0.8, h * 1.1)]), UIKit.LIGHT)
+		c + Vector2(h * 0.5, -h * 0.3), c + Vector2(h * 0.8, h * 1.1)]), UIKit.INK)
 	var font := UIKit.font_body()
 	var fs := UIKit.body_px(18)
 	var you := "You"
@@ -322,20 +322,14 @@ class Cell extends Button:
 		var lifted: bool = editor.picked != null and editor.picked == b
 		var can: bool = editor.can_go(dest)
 		var pulse := 0.5 + 0.5 * sin(editor._time * TAU / 0.9)
-		# a bordered tile: filled with the gem on the side facing the foe; framed in white where it's focused, in
-		# light gem where the lifted beast is, and pulsing where it can go
-		var edge := Color(UIKit.BORDER, 0.55)
+		# a rounded tile: filled with the gem on the side facing the foe, else a well; ringed where it's focused or
+		# where the lifted beast is, and pulsing where it can go
 		if can:
-			edge = UIKit.ACCENT.lightened(0.3).lerp(UIKit.LIGHT, pulse)
 			for g in 2:
 				draw_rect(r.grow(3.0 + g * 4.0 + pulse * 2.0), Color(UIKit.ACCENT.lightened(0.2), (0.55 - g * 0.25) * (0.5 + 0.5 * pulse)), false, 2.0)
-		if lifted:
-			edge = UIKit.GOLD_BRIGHT
-		if has_focus() and not can and not lifted:
-			edge = UIKit.LIGHT
-		draw_style_box(UIKit.tile_box(Color(UIKit.ACCENT.darkened(0.3), 0.9) if facing else Color(0, 0, 0, 0.55), edge), r)
-		if has_focus():
-			draw_rect(r.grow(-5.0), Color(UIKit.LIGHT, 0.8), false, 2.0)
+		draw_style_box(UIKit.tile_box(UIKit.ACCENT if facing else UIKit.WELL, Color(0, 0, 0, 0)), r)
+		if has_focus() or lifted:
+			draw_style_box(UIKit.focus_ring(), r)
 		var font := UIKit.font_body()
 		var fs := UIKit.body_px(17)
 		var under := ""
@@ -360,7 +354,7 @@ class Cell extends Button:
 			draw_string(font, r.get_center() + Vector2(-ps.x / 2.0, ps.y * 0.3), plus, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(30), Color(UIKit.DIM, 0.6))
 		if under != "":
 			var us := font.get_string_size(under, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
-			draw_string(font, Vector2((size.x - us.x) / 2.0, size.y - 6.0), under, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.GOLD if facing else UIKit.DIM)
+			draw_string(font, Vector2((size.x - us.x) / 2.0, size.y - 6.0), under, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.LIGHT if facing else UIKit.DIM)
 		if editor.picked != null and not can and not lifted:
 			# somewhere it can't go
-			draw_rect(r, Color(0, 0, 0, 0.55))
+			draw_style_box(UIKit.tile_box(Color(UIKit.FILL, 0.6), Color(0, 0, 0, 0)), r)

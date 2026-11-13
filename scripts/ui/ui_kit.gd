@@ -44,7 +44,8 @@ const BUTTON_FONT_SIZE := 32
 const MIN_BUTTON_HEIGHT := 56.0
 const MIN_TOUCH_HEIGHT := 80.0
 
-## The gem the interface is tinted with (Settings > Color): the windows' black, headings, bars and filled slots.
+## The gem the interface is tinted with (Settings > Color): the windows' off-white, headings, bars, buttons and filled
+## slots.
 const ACCENTS := {"ruby": Color("#d21f2c"), "sapphire": Color("#3a6ad8"), "emerald": Color("#26a468"),
 	"hematite": Color("#6f7d90")}
 const ACCENT_ORDER := ["ruby", "sapphire", "emerald", "hematite"]
@@ -53,36 +54,48 @@ const OLD_ACCENTS := {"red": "ruby", "blue": "sapphire", "green": "emerald", "si
 
 ## How thick the border's lines are, in UI units; on screen they are the nearest whole number of pixels.
 const LINE_W := 2.0
-## text on a solid white (primary or pressed) fill
+## dark text on light fills (speech, the battle bars)
 const DARK := Color("#101216")
-## how much of the gem is mixed into the windows' black
+## how much of the gem is mixed into the battle HUDs' black
 const SHADE_MIX := 0.16
+## the windows' off-white, and how much of the gem is mixed into it
+const PAPER_BASE := Color("#f7f4f0")
+const PAPER_MIX := 0.045
+## the old dark style's colours, kept for the battle HUDs (floating_hud.gd, target_cards.gd, beat_cue.gd), which stay
+## as they were
+const BATTLE_INK := Color.WHITE
+const BATTLE_DIM := Color("#b9bcc6")
+const BATTLE_BORDER := Color.WHITE
+const BATTLE_BORDER_DIM := Color(0.6, 0.61, 0.66)
 
 # ---- palette (see set_accent) ----
 static var accent_name := "ruby"
 ## the gem itself: bars, fills, stripes
 static var ACCENT := Color("#d21f2c")
-## headings: the gem, lifted a little so it reads on the dark windows (not so far that red turns pink)
-static var HEAD := Color("#dc4a54")
-## highlighted text: lighter shades of the gem
-static var GOLD := Color("#e05a63")
-static var GOLD_BRIGHT := Color("#e98a90")
+## headings: the gem, deepened a little so it reads on the off-white windows
+static var HEAD := Color("#b81b27")
+## highlighted text: the gem's shades that read on the off-white
+static var GOLD := Color("#c41d2a")
+static var GOLD_BRIGHT := Color("#d21f2c")
 static var ORANGE := Color("#d21f2c")
-## body text: white
-static var INK := Color.WHITE
+## body text: near-black on the off-white windows
+static var INK := Color("#2a272d")
+## text on the gem (buttons, the focused row, filled slots): white
 static var LIGHT := Color.WHITE
 ## secondary text
-static var DIM := Color("#b9bcc6")
-## the window fill, where a screen paints one itself: black with a faint tint of the gem, at 60%
-static var FILL := Color(0.034, 0.005, 0.007, 0.6)
+static var DIM := Color("#6f6b73")
+## the window fill, where a screen paints one itself: off-white with a faint tint of the gem
+static var FILL := Color("#f7f4f0")
 static var WINDOW_TOP := FILL
 static var WINDOW_BOTTOM := FILL
-## the border: white in every gem
-static var BORDER := Color.WHITE
-## an unselected frame beside a selected (white) one
-static var BORDER_DIM := Color(0.6, 0.61, 0.66)
+## a well inside a window (an empty slot, a gauge's track): the off-white a shade deeper
+static var WELL := Color("#e9e4df")
+## the old border colour, now the colour of the few lines still drawn (dividers, rails, gauge edges): a soft grey
+static var BORDER := Color(0.16, 0.15, 0.18, 0.3)
+## an unselected line beside a selected one
+static var BORDER_DIM := Color(0.16, 0.15, 0.18, 0.22)
 ## faint rules inside a window
-static var BORDER_INNER := Color(1, 1, 1, 0.22)
+static var BORDER_INNER := Color(0.16, 0.15, 0.18, 0.14)
 static var PAGE := Color("#08090c")
 static var BROWN := Color("#08090c")
 static var BG := Color("#08090c")
@@ -118,8 +131,8 @@ static func speech_surface() -> ColorRect:
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var material := ShaderMaterial.new()
 	material.shader = load("res://scripts/ui/speech.gdshader")
-	material.set_shader_parameter("paper_top", INK)
-	material.set_shader_parameter("paper_bottom", INK.lerp(DARK, 0.065))
+	material.set_shader_parameter("paper_top", Color.WHITE)
+	material.set_shader_parameter("paper_bottom", Color.WHITE.lerp(DARK, 0.065))
 	material.set_shader_parameter("shade", Color(DARK, 0.22))
 	paper.material = material
 	return paper
@@ -149,24 +162,26 @@ static func set_accent(name: String) -> void:
 	accent_name = name
 	var g: Color = ACCENTS[name]
 	ACCENT = g
-	var text_gem := g.lerp(Color.WHITE, 0.55) if name == "hematite" else g
-	HEAD = text_gem.lerp(Color.WHITE, 0.16)
-	GOLD = text_gem.lerp(Color.WHITE, 0.25)
-	GOLD_BRIGHT = text_gem.lerp(Color.WHITE, 0.45)
+	# (text in the gem is deepened a little so it reads on the off-white)
+	var text_gem := g.darkened(0.15) if name == "hematite" else g
+	HEAD = text_gem.darkened(0.12)
+	GOLD = text_gem.darkened(0.06)
+	GOLD_BRIGHT = text_gem
 	ORANGE = g
-	BORDER = Color.WHITE
 	FrameBox.shade = Color.BLACK.lerp(g, SHADE_MIX)
-	FILL = Color(FrameBox.shade, FrameBox.FILL_ALPHA)
+	FrameBox.paper = PAPER_BASE.lerp(g, PAPER_MIX)
+	FILL = FrameBox.paper
 	WINDOW_TOP = FILL
 	WINDOW_BOTTOM = FILL
+	WELL = FILL.darkened(0.07)
 	_styles.clear()
 	for k in _tex.keys():
 		if String(k).begins_with("gen:"):
 			_tex.erase(k)
 
 
-## Turns the blur behind the windows on or off (off: plain boxes, a little more opaque; for a renderer the blur costs
-## too much on).
+## Turns the blur behind the battle HUDs' boxes on or off (off: plain boxes, a little more opaque; for a renderer the
+## blur costs too much on). The windows themselves have no blur.
 static func set_blur(on: bool) -> void:
 	FrameBox.blur_on = on
 
@@ -288,25 +303,41 @@ static func tex(name: String) -> Texture2D:
 
 
 # ================================================================ windows
-## A window: the blurred dark box in the window border. `pad` is extra content padding (l, t, r, b).
+## A window: the rounded off-white box. `pad` is extra content padding (l, t, r, b).
 static func window(pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 	return FrameBox.make("window", BORDER, Color(0, 0, 0, 0), true, Vector4(24, 20, 24, 20) + pad)
 
 
-## A small box in the row border: `fill` inside an `edge` border (tags, key caps, plates, buttons). The radius and
-## edge width of the older rounded chips are ignored.
+## A small rounded box filled with `fill` (tags, key caps, plates, buttons). The edge, radius and edge width of the
+## older bordered chips are ignored.
 static func chip(fill: Color, edge: Color, _radius := 10.0, pad := Vector4(10, 2, 10, 2), _edge_w := 2.0) -> StyleBox:
 	return FrameBox.make("row", edge, fill, false, pad + Vector4(4, 2, 4, 2))
 
 
-## The same small box over the blurred scene (plates and buttons that stand on their own).
+## The same small box in the off-white (plates that stand on their own over the scene).
 static func plate(edge := BORDER, pad := Vector4(14, 4, 14, 4)) -> StyleBox:
 	return FrameBox.make("row", edge, Color(0, 0, 0, 0), true, pad)
 
 
-## Primary or pressed: solid white (its text is DARK).
+## Primary or pressed: the gem, deepened (its text is LIGHT).
 static func solid(pad := Vector4(14, 4, 14, 4)) -> StyleBox:
-	return FrameBox.make("row", Color.WHITE, Color.WHITE, false, pad)
+	return FrameBox.make("row", Color(0, 0, 0, 0), pressed_fill(), false, pad)
+
+
+## The gem a standalone button is filled with, and its pressed shade.
+static func button_fill() -> Color:
+	return ACCENT
+
+
+static func pressed_fill() -> Color:
+	return ACCENT.darkened(0.28)
+
+
+## A standalone button's focus: the gem with a thin dark ring just inside its edge.
+static func focus_box(pad := Vector4(14, 4, 14, 4)) -> StyleBox:
+	var sb := FrameBox.make("row", Color(0, 0, 0, 0), ACCENT.darkened(0.08), false, pad)
+	sb.ring = INK
+	return sb
 
 
 ## The row border kept for drawing straight onto a control every frame (draw_style_box): `fill` inside `edge`,
@@ -328,36 +359,65 @@ static func tile_box(fill: Color, edge: Color, alpha := 1.0) -> StyleBox:
 	return _styles[key]
 
 
-## An item slot: a square bordered tile; the selected one is filled with the gem.
+## The old dark bordered box, for the battle HUDs only (they keep their look): `fill` inside `edge`, faded by
+## `alpha`; `blurred` puts the blurred scene under it instead of a fill.
+static func battle_row_box(fill: Color, edge: Color, alpha := 1.0, blurred := false) -> StyleBox:
+	var key := "battle|%s|%s|%.2f|%s" % [fill.to_html(), edge.to_html(), alpha, blurred]
+	if not _styles.has(key):
+		var sb := FrameBox.make("row", Color(edge, edge.a * alpha), Color(fill, fill.a * alpha), blurred, Vector4.ZERO, true)
+		sb.alpha = alpha
+		_styles[key] = sb
+	return _styles[key]
+
+
+## A focus ring alone (a thin dark line just inside a rounded box's edge), drawn over a tile or card that has the
+## cursor.
+static func focus_ring(frame := "slot") -> StyleBox:
+	var key := "ring|" + frame
+	if not _styles.has(key):
+		var sb := FrameBox.make(frame, Color(0, 0, 0, 0))
+		sb.ring = INK
+		_styles[key] = sb
+	return _styles[key]
+
+
+## An item slot: a rounded square tile, a well in the off-white; the selected one is filled with the gem.
 static func slot_box(selected := false, pad := Vector4(8, 8, 8, 8)) -> StyleBox:
 	if selected:
-		return FrameBox.make("slot", Color.WHITE, ACCENT, false, pad)
-	return FrameBox.make("slot", BORDER, Color(FrameBox.shade, 0.35), false, pad)
+		return FrameBox.make("slot", Color(0, 0, 0, 0), ACCENT, false, pad)
+	return FrameBox.make("slot", Color(0, 0, 0, 0), WELL, false, pad)
 
 
-## A button standing on its own (not a list row): a dark bordered plate, its border white while focused; solid white
-## with dark text while held; dim text and no frame once it's disabled.
+## Keeps a label inside a list row readable: white while its row is lit in the gem (focused, hovered or pressed),
+## `normal` otherwise.
+static func follow_row(b: Button, l: Label, normal: Color) -> void:
+	var sync := func() -> void:
+		# (focus isn't a draw mode: the focus box is drawn over the normal one)
+		var lit := not b.disabled and (b.has_focus() or b.get_draw_mode() != BaseButton.DRAW_NORMAL)
+		l.add_theme_color_override("font_color", LIGHT if lit else normal)
+	b.draw.connect(sync)
+	b.focus_entered.connect(sync)
+	b.focus_exited.connect(sync)
+	sync.call()
+
+
+## A button standing on its own (not a list row): the gem with white text; a thin dark ring while focused; a deeper gem
+## while held; a plain well with dim text once it's disabled.
 static func plate_button(b: Button, pad := Vector4(12, 2, 12, 2)) -> void:
 	var p := pad + Vector4(4, 2, 4, 2)
-	var up := plate(BORDER, p)
-	var focus := plate(Color.WHITE, p)
+	var up := FrameBox.make("row", Color(0, 0, 0, 0), button_fill(), false, p)
+	var focus := focus_box(p)
 	var held := solid(p)
-	var off := StyleBoxEmpty.new()
-	off.content_margin_left = p.x
-	off.content_margin_top = p.y
-	off.content_margin_right = p.z
-	off.content_margin_bottom = p.w
+	var off := FrameBox.make("row", Color(0, 0, 0, 0), WELL, false, p)
 	b.add_theme_stylebox_override("normal", up)
 	for st in ["hover", "focus"]:
 		b.add_theme_stylebox_override(st, focus)
 	for st in ["pressed", "hover_pressed"]:
 		b.add_theme_stylebox_override(st, held)
 	b.add_theme_stylebox_override("disabled", off)
-	for c in ["font_color", "font_hover_color", "font_focus_color"]:
+	for c in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
 		b.add_theme_color_override(c, LIGHT)
-	for c in ["font_pressed_color", "font_hover_pressed_color"]:
-		b.add_theme_color_override(c, DARK)
-	b.add_theme_color_override("font_disabled_color", Color(DIM, 0.45))
+	b.add_theme_color_override("font_disabled_color", DIM)
 
 
 ## The boxes by their old texture names, so every screen picks up the look: `pad` is extra content padding
@@ -371,9 +431,9 @@ static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 			return plate(BORDER, Vector4(20, 6, 20, 6) + pad)
 		"frame":
 			# key caps
-			return FrameBox.make("row", DIM, Color(FrameBox.shade, 0.45), false, Vector4(12, 4, 12, 4) + pad)
+			return FrameBox.make("row", Color(0, 0, 0, 0), WELL, false, Vector4(12, 4, 12, 4) + pad)
 		"bar_frame":
-			return FrameBox.make("row", BORDER, FILL)
+			return FrameBox.make("row", Color(0, 0, 0, 0), WELL)
 		"slot":
 			# HUD readouts
 			return plate(BORDER, Vector4(16, 12, 16, 12) + pad)
@@ -381,14 +441,14 @@ static func box(name: String, pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 
 
 # ================================================================ theme
-## The selected or focused row: a bordered frame with corner marks around it. `right` leaves room for a right-hand
+## The selected or focused row: a rounded bar in the gem (its text turns LIGHT). `right` leaves room for a right-hand
 ## label.
 static func highlight(right := 0.0) -> StyleBox:
 	var pad_y := _button_pad_y()
-	return FrameBox.make("row", Color.WHITE, Color(1, 1, 1, 0.07), false, Vector4(22, pad_y, 12 + right, pad_y))
+	return FrameBox.make("row", Color(0, 0, 0, 0), ACCENT, false, Vector4(22, pad_y, 12 + right, pad_y))
 
 
-## A pressed row: solid white (its text turns DARK).
+## A pressed row: the gem, deepened (its text stays LIGHT).
 static func pressed_row(right := 0.0) -> StyleBox:
 	var pad_y := _button_pad_y()
 	return solid(Vector4(22, pad_y, 12 + right, pad_y))
@@ -419,10 +479,9 @@ static func make_theme() -> Theme:
 		t.set_stylebox(st, "Button", held)
 	t.set_font("font", "Button", font_body())
 	t.set_font_size("font_size", "Button", body_px(BUTTON_FONT_SIZE))
-	for c in ["font_color", "font_hover_color", "font_focus_color"]:
-		t.set_color(c, "Button", INK)
-	for c in ["font_pressed_color", "font_hover_pressed_color"]:
-		t.set_color(c, "Button", DARK)
+	t.set_color("font_color", "Button", INK)
+	for c in ["font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
+		t.set_color(c, "Button", LIGHT)
 	t.set_color("font_disabled_color", "Button", Color(DIM, 0.6))
 	t.set_constant("h_separation", "Button", 12)
 
@@ -430,7 +489,7 @@ static func make_theme() -> Theme:
 	t.set_constant("outline_size", "Label", 0)
 	t.set_constant("line_spacing", "Label", 2)
 
-	var le := chip(Color(FrameBox.shade, 0.45), BORDER, 12.0, Vector4(14, 6, 14, 6))
+	var le := chip(WELL, BORDER, 12.0, Vector4(14, 6, 14, 6))
 	t.set_stylebox("normal", "LineEdit", le)
 	t.set_stylebox("focus", "LineEdit", le)
 	t.set_color("font_color", "LineEdit", INK)
@@ -440,11 +499,12 @@ static func make_theme() -> Theme:
 	t.set_font_size("font_size", "LineEdit", body_px(BODY_HUGE))
 
 	var sb_bg := StyleBoxFlat.new()
-	sb_bg.bg_color = Color(1, 1, 1, 0.12)
+	sb_bg.bg_color = Color(INK, 0.08)
 	sb_bg.content_margin_left = 4
 	sb_bg.content_margin_right = 4
 	var sb_grab := StyleBoxFlat.new()
-	sb_grab.bg_color = BORDER
+	sb_grab.bg_color = Color(INK, 0.35)
+	sb_grab.set_corner_radius_all(3)
 	for st in ["grabber", "grabber_highlight", "grabber_pressed"]:
 		t.set_stylebox(st, "VScrollBar", sb_grab)
 	t.set_stylebox("scroll", "VScrollBar", sb_bg)
@@ -568,10 +628,10 @@ static func icon(name: String, px := 0.0) -> TextureRect:
 	return tr
 
 
-## A small tag: white text in a bordered box tinted `col`.
+## A small tag: white text in a rounded box filled with `col`.
 static func tag(text: String, col: Color, size := 14) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", chip(Color(col.darkened(0.55), 0.7), col.lerp(Color.WHITE, 0.22), 9.0, Vector4(9, 0, 9, 0)))
+	p.add_theme_stylebox_override("panel", chip(col.darkened(0.1), Color(0, 0, 0, 0), 9.0, Vector4(9, 0, 9, 0)))
 	var l := label(text, size, LIGHT)
 	p.add_child(l)
 	return p

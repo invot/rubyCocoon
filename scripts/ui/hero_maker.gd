@@ -257,7 +257,7 @@ func _row(id: String) -> Control:
 			var lt := _button("◄", func() -> void: _change(id, -1), Vector2(64, tall))
 			_arrows.append(lt)
 			hb.add_child(lt)
-			var nl := UIKit.label("", UIKit.BODY_HUGE, UIKit.LIGHT)
+			var nl := UIKit.label("", UIKit.BODY_HUGE, UIKit.INK)
 			nl.custom_minimum_size.x = 220
 			nl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -465,7 +465,7 @@ func _show() -> void:
 		return
 	for id in _row_labels:
 		if _shown.get("row", "") != row:
-			(_row_labels[id] as Label).add_theme_color_override("font_color", UIKit.LIGHT if row == id else UIKit.DIM)
+			(_row_labels[id] as Label).add_theme_color_override("font_color", UIKit.INK if row == id else UIKit.DIM)
 	# the tabs: the open one filled with the gem, edged in white while the tab strip is the row being chosen
 	for k in _tabs.size():
 		if _shown.get("tab", -1) == tab and (_shown.get("row", "") == "tab") == (row == "tab"):
@@ -473,7 +473,9 @@ func _show() -> void:
 		var open := k == tab
 		var tb: Button = _tabs[k]
 		var edge := UIKit.LIGHT if open and row == "tab" else (UIKit.BORDER if open else UIKit.BORDER_INNER)
-		var sb := UIKit.chip(UIKit.ACCENT if open else UIKit.WINDOW_BOTTOM, edge, 14.0, Vector4(10, 2, 10, 2), 3.0 if open and row == "tab" else 2.0)
+		var sb := UIKit.chip(UIKit.ACCENT if open else UIKit.WELL, edge, 14.0, Vector4(10, 2, 10, 2), 3.0 if open and row == "tab" else 2.0)
+		# (the open tab rings while the tab row is the one being chosen)
+		sb.ring = UIKit.INK if open and row == "tab" else Color(0, 0, 0, 0)
 		for st in ["normal", "hover", "pressed", "hover_pressed"]:
 			tb.add_theme_stylebox_override(st, sb)
 		for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
@@ -485,10 +487,11 @@ func _show() -> void:
 		if not _painted_buttons.has(a):
 			_paint(a, false)
 			_painted_buttons[a] = true
-	# Confirm is always in the gem's colour, edged in white while it's the row being chosen
+	# Confirm is always in the gem's colour, ringed while it's the row being chosen
 	var confirm_on: bool = row == "start"
 	if not _shown.has("row") or (_shown["row"] == "start") != confirm_on:
 		var csb := UIKit.chip(UIKit.ACCENT, UIKit.LIGHT if confirm_on else UIKit.BORDER_DIM, 12.0, Vector4(10, 2, 10, 2), 3.0 if confirm_on else 2.0)
+		csb.ring = UIKit.INK if confirm_on else Color(0, 0, 0, 0)
 		for st in ["normal", "hover", "pressed", "hover_pressed"]:
 			_start.add_theme_stylebox_override(st, csb)
 		for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
@@ -506,10 +509,11 @@ func _show() -> void:
 			if id == "body":
 				_paint(b, on)
 				continue
-			# a swatch: the colour itself, ringed in white when it's the one chosen
+			# a swatch: the colour itself, ringed in ink when it's the one chosen
 			var key := "%s:%d:%s" % [id, i, on]
 			if not _swatch_styles.has(key):
 				_swatch_styles[key] = UIKit.chip(Color(SWATCHES[id][i]), UIKit.LIGHT if on else Color(0, 0, 0, 0.55), 10.0, Vector4.ZERO, 4.0 if on else 2.0)
+				_swatch_styles[key].ring = UIKit.INK if on else Color(0, 0, 0, 0.18)
 			var sw: StyleBox = _swatch_styles[key]
 			for st in ["normal", "hover", "pressed", "hover_pressed"]:
 				b.add_theme_stylebox_override(st, sw)

@@ -45,17 +45,12 @@ func _draw() -> void:
 	_draw_bar(col)
 
 
-## A dark trough edged in the gem, its corners nicked, and a square fill inside, in steps of whole pixels.
+## A well in the window's off-white (no border) and a square fill inside, in steps of whole pixels.
 func _draw_bar(col: Color) -> void:
 	var u := 2.0 if size.y >= 8.0 else 1.0
 	var r := Rect2(Vector2.ZERO, size)
-	var line := UIKit.BORDER
-	draw_rect(r.grow(-u), Color(0, 0, 0, 0.7))
-	draw_rect(Rect2(u, 0, r.size.x - 2.0 * u, u), line)
-	draw_rect(Rect2(u, r.size.y - u, r.size.x - 2.0 * u, u), line)
-	draw_rect(Rect2(0, u, u, r.size.y - 2.0 * u), line)
-	draw_rect(Rect2(r.size.x - u, u, u, r.size.y - 2.0 * u), line)
-	var inner := r.grow(-2.0 * u) if r.size.y > 4.0 * u else r.grow(-u)
+	draw_rect(r, UIKit.WELL.darkened(0.08))
+	var inner := r.grow(-u)
 	var w := floorf(inner.size.x * shown / u) * u
 	if w > 0.0:
 		draw_rect(Rect2(inner.position, Vector2(w, inner.size.y)), col)

@@ -55,9 +55,10 @@ func _draw() -> void:
 		var p := cell_center(k)
 		var r := Rect2(p - Vector2(cell, cell) / 2.0, Vector2(cell, cell))
 		var on_side := active_side >= 0 and k in Ring.side_slots(active_side)
-		# a bordered tile: filled with the gem on the side facing the foe, framed in white where it's picked out
-		draw_style_box(UIKit.tile_box(Color(UIKit.ACCENT.darkened(0.3), 0.9) if on_side else Color(0, 0, 0, 0.55),
-			Color.WHITE if k == highlight else (UIKit.BORDER_DIM if on_side else Color(UIKit.BORDER, 0.55))), r)
+		# a rounded tile: filled with the gem on the side facing the foe, else a well; ringed where it's picked out
+		draw_style_box(UIKit.tile_box(UIKit.ACCENT if on_side else UIKit.WELL, Color(0, 0, 0, 0)), r)
+		if k == highlight:
+			draw_style_box(UIKit.focus_ring(), r)
 		var b = ring.get(k, null)
 		if b != null:
 			var tex := PixelArt.beast_texture(b.genes)
@@ -73,7 +74,7 @@ func _draw() -> void:
 			var ts := font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
 			draw_string(font, lp - Vector2(ts.x / 2.0, -ts.y * 0.3), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.GOLD if on_side else UIKit.DIM)
 	# the trainer in the middle, with their shield
-	draw_circle(c, rad * 0.32, Color(UIKit.WINDOW_BOTTOM, 0.95))
+	draw_circle(c, rad * 0.32, UIKit.WELL)
 	draw_arc(c, rad * 0.32, 0, TAU, 24, Color(UIKit.BORDER, 0.6), 2.0, true)
 	if shield >= 0 and max_shield > 0:
 		var n := max_shield

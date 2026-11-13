@@ -148,7 +148,7 @@ func run(root, opts: Dictionary) -> void:
 		UIKit.set_accent(gem)
 		await main._wait(0.05)
 		dialog.text_label.visible_characters = -1
-		_check(dialog.name_panel.get_theme_stylebox("panel").bg_color == UIKit.ACCENT and dialog._name_label.get_theme_color("font_color") == UIKit.INK, "open name plate follows " + gem)
+		_check(dialog.name_panel.get_theme_stylebox("panel").bg_color == UIKit.ACCENT and dialog._name_label.get_theme_color("font_color") == Color.WHITE, "open name plate follows " + gem)
 		_check_layout(dialog, "indoors " + gem)
 		await _shot(opts, "indoors_" + gem)
 		if opts.get("preview", "") == "indoors_" + gem:

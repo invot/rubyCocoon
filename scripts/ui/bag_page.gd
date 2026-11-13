@@ -370,6 +370,7 @@ func _action_button(text: String, blocked: String) -> Button:
 		for c in ["font_color", "font_focus_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
 			b.add_theme_color_override(c, Color(UIKit.DIM, 0.7))
 		var rl := UIKit.label(blocked, 20, UIKit.DIM)
+		UIKit.follow_row(b, rl, UIKit.DIM)
 		rl.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
 		var w := UIKit.font_bold().get_string_size(rl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, rl.get_theme_font_size("font_size")).x + 16.0
 		rl.offset_left = -w - 8.0
@@ -616,7 +617,7 @@ func _show_preview() -> void:
 		on.add_child(_cell_label(r["name"], UIKit.DIM, true))
 		on.add_child(_cell_label(r["before"], UIKit.DIM if changed else UIKit.INK))
 		on.add_child(_cell_label("►" if changed else "", UIKit.ACCENT))
-		var after := _cell_label(r["after"], UIKit.LIGHT if changed else UIKit.INK, false, changed)
+		var after := _cell_label(r["after"], UIKit.GOLD if changed else UIKit.INK, false, changed)
 		if on == stats:
 			after.custom_minimum_size.x = 56
 		on.add_child(after)
@@ -914,14 +915,10 @@ class TargetCell extends Button:
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
 		var chosen: bool = allowed and page.same(page.target, who)
-		# disabled: a dim tile with no frame; chosen: filled with the gem; focused: framed in white
-		if allowed:
-			var fill := Color(UIKit.ACCENT.darkened(0.3), 0.9) if chosen else Color(0, 0, 0, 0.55)
-			draw_style_box(UIKit.tile_box(fill, UIKit.LIGHT if chosen or has_focus() else Color(UIKit.BORDER, 0.55)), r)
-		else:
-			draw_rect(r.grow(-3.0), Color(0, 0, 0, 0.35))
+		# disabled: a faint tile; chosen: filled with the gem; focused: a thin dark ring
+		draw_style_box(UIKit.tile_box(UIKit.ACCENT if chosen else UIKit.WELL, Color(0, 0, 0, 0), 1.0 if allowed else 0.5), r)
 		if has_focus():
-			draw_rect(r.grow(-5.0), Color(UIKit.LIGHT, 0.8), false, 2.0)
+			draw_style_box(UIKit.focus_ring(), r)
 		var font := UIKit.font_bold()
 		var fs := UIKit.body_px(20)
 		var under := ""

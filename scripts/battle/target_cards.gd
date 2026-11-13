@@ -77,20 +77,20 @@ func _draw() -> void:
 			draw_texture_rect(tex, ic, false, Color(1, 1, 1, fade))
 		var x0 := ic.end.x + card.y * 0.12
 		var x1 := r.end.x - card.y * 0.14
-		var col := UIKit.LIGHT if on else UIKit.INK
+		var col := Color.WHITE if on else UIKit.BATTLE_INK
 		col.a = fade
 		# name, then level and element
 		if c.get("weak", false):
 			# the move aimed hits it hard: a star in the top corner
 			var wk := "★ WEAK"
 			var ws := font.get_string_size(wk, HORIZONTAL_ALIGNMENT_LEFT, -1, small)
-			draw_string(font, Vector2(x1 - ws.x, r.position.y + info_y), wk, HORIZONTAL_ALIGNMENT_LEFT, -1, small, Color(UIKit.GOLD_BRIGHT, fade))
+			draw_string(font, Vector2(x1 - ws.x, r.position.y + info_y), wk, HORIZONTAL_ALIGNMENT_LEFT, -1, small, Color(UIKit.ACCENT.lerp(Color.WHITE, 0.45), fade))
 		var name: String = _fit(font, String(c.get("name", "")), big, x1 - x0)
 		draw_string(font, Vector2(x0, r.position.y + name_y), name, HORIZONTAL_ALIGNMENT_LEFT, -1, big, col)
 		var info := "Trainer" if c.get("trainer", false) else "Lv %d  %s" % [int(c.get("lv", 1)), Elements.label(String(c.get("element", "neutral")))]
 		if c.get("slot", false):
 			info = String(c.get("note", ""))
-		draw_string(font, Vector2(x0, r.position.y + info_y), _fit(font, info, small, x1 - x0), HORIZONTAL_ALIGNMENT_LEFT, -1, small, Color(UIKit.GOLD_BRIGHT if on else UIKit.DIM, fade))
+		draw_string(font, Vector2(x0, r.position.y + info_y), _fit(font, info, small, x1 - x0), HORIZONTAL_ALIGNMENT_LEFT, -1, small, Color(UIKit.ACCENT.lerp(Color.WHITE, 0.45) if on else UIKit.BATTLE_DIM, fade))
 		if c.get("slot", false):
 			continue
 		# HP (a trainer: shield points)
@@ -103,7 +103,7 @@ func _draw() -> void:
 				draw_circle(bar.position + Vector2(orb * 0.6 + k * orb * 1.5, bar.size.y * 0.5), orb * 0.55, Color("#6ab0ff", fade) if full else Color(0.2, 0.25, 0.4, 0.8 * fade))
 			continue
 		var ratio := float(c.get("hp", 0)) / maxf(1.0, float(c.get("max_hp", 1)))
-		draw_rect(bar.grow(2.0), Color(UIKit.BORDER, fade))
+		draw_rect(bar.grow(2.0), Color(UIKit.BATTLE_BORDER, fade))
 		draw_rect(bar, Color(0, 0, 0, 0.85 * fade))
 		draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(ratio, 0.0, 1.0), bar.size.y)), Color(UIKit.hp_color(ratio), fade))
 
@@ -115,7 +115,7 @@ func _draw_card(r: Rect2, on: bool, pulse: float) -> void:
 		for g in 3:
 			var grow := 4.0 + g * 4.0 + roundf(pulse * 2.0) * 2.0
 			draw_rect(r.grow(grow), Color(UIKit.ACCENT.lightened(0.2), (0.7 - g * 0.22) * (0.6 + 0.4 * pulse)), false, 2.0)
-	draw_style_box(UIKit.row_box(Color(0, 0, 0, 0), Color.WHITE if on else UIKit.BORDER_DIM, 1.0 if on else 0.6, true), r)
+	draw_style_box(UIKit.battle_row_box(Color(0, 0, 0, 0), Color.WHITE if on else UIKit.BATTLE_BORDER_DIM, 1.0 if on else 0.6, true), r)
 
 
 static func _fit(font: Font, text: String, fs: int, w: float) -> String:

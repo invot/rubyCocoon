@@ -1,8 +1,10 @@
 extends PanelContainer
 ## The top bar: the one place at the top centre of the screen for short messages, owned by the UI autoload (UI.top_bar).
-## A dark box like every window (the blurred scene under the windows' near-black, framed in white), its sides tapered
-## in a little towards the bottom, hanging from the top edge of the screen with no top border: [left icon] text [right icon], with no divider ornaments inside it. It sits inside
-## the device's safe area and grows with its text up to a maximum width, then wraps.
+## An off-white box like every window (no border, no blur), hanging from the top edge of the screen with its bottom
+## corners slightly rounded: [left icon] text [right icon]. It sits inside the device's safe area.
+## - It has exactly three sizes (SIZES): small (one line, narrow), medium (one line, wide) and large (two lines, wide).
+##   A message takes the smallest that holds it; text never shrinks. One that even the large size can't hold is split
+##   into pages that show one after another (a long second line gets pages of its own).
 ## - Outside battle it is hidden until there is something to say (UI.toast, UI.pickup, UI.place_name): it slides
 ##   down, holds for HOLD seconds and slides away, one message after another. Messages with the same key merge into the
 ##   one showing or waiting ("Potion x3"). These always have a left icon and never a right one.
@@ -22,19 +24,24 @@ const ICON := 36.0
 const TEXT_SIZE := 24
 const SUB_SIZE := 18
 ## gap under the safe area's top edge: none, the bar hangs from the top of the screen (its box reaches up past any
-## safe-area inset to the screen's edge, and has no top border)
+## safe-area inset to the screen's edge)
 const TOP := 0.0
-## widest outside battle (UI units), and the space kept free at either side of the screen
-const MAX_W := 860.0
+## the three sizes (UI units): [width, lines of text]
+const SIZES := {"small": [360.0, 1], "medium": [640.0, 1], "large": [640.0, 2]}
+const SIZE_ORDER := ["small", "medium", "large"]
+## widest it may be (the large size), and the space kept free at either side of the screen
+const MAX_W := 640.0
 const SIDE := 24.0
 ## the strip's inner padding at its ends and top/bottom
 const PAD_X := 34.0
 const PAD_Y := 8.0
 const GAP := 10.0
-## how far each side leans in from the top corners to the bottom ones
+## how far the battle bars' left edges lean (floating_hud.gd, which keeps its look; the top bar itself is now square-sided)
 const TAPER := 16.0
-## darker than a window: it holds short lines of text over whatever the scene is
-const SHADE_ALPHA := 0.78
+## the bottom corners' rounding
+const RADIUS := 12.0
+## how long each page of a long message shows in battle
+const BATTLE_PAGE := 1.6
 
 var battle := false
 var label: Label
@@ -53,7 +60,13 @@ var _hold := 0.0
 var _slide := 0.0
 var _battle_max := 0.0
 var _settle := 0
-var _marker: ImageTexture
+## which of SIZES the bar is showing
+var size_name := "small"
+## the pages of the message showing ([[text, sub], ...]) and which one is up
+var _pages: Array = []
+var _page := 0
+var _page_time := 0.0
+var _box: StyleBoxFlat
 
 
 func _init() -> void:
@@ -91,9 +104,11 @@ func _init() -> void:
 	right_icon = _slot()
 	_row.add_child(right_icon)
 	visible = false
-	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
-	img.fill(Color(1, 0, 1, 1))
-	_marker = ImageTexture.create_from_image(img)
+	_box = StyleBoxFlat.new()
+	_box.anti_aliasing = true
+	_box.corner_detail = 6
+	_box.shadow_size = 10
+	_box.shadow_offset = Vector2(0, 3)
 	resized.connect(queue_redraw)
 
 
@@ -202,7 +217,6 @@ func _next() -> void:
 
 
 func _apply(m: Dictionary) -> void:
-	_set_text(_shown_text(m), String(m.get("sub", "")), bool(m.get("heading", false)))
 	var icon: Texture2D = m.get("icon", null)
 	left_icon.texture = icon
 	# (pixel art up to the slot's size stays sharp; a bigger picture, such as an egg, is smoothed as it shrinks)
@@ -212,7 +226,9 @@ func _apply(m: Dictionary) -> void:
 	right_icon.texture = null
 	# (no right icon outside battle: its slot folds away)
 	right_icon.visible = false
-	_fit(_max_w())
+	_pages = _paginate(_shown_text(m), String(m.get("sub", "")))
+	_page = 0
+	_show_page()
 
 
 # ---------------------------------------------------------------- battle
@@ -226,13 +242,14 @@ func begin_battle() -> void:
 		_queue.push_front(_msg)
 	_msg = {}
 	_phase = ""
-	_set_text("", "", false)
+	_pages = [["", ""]]
+	_page = 0
 	left_icon.texture = null
 	right_icon.texture = null
 	left_icon.visible = true
 	right_icon.visible = true
 	visible = true
-	_fit(_max_w())
+	_show_page()
 
 
 ## Back to notices: the bar slides away, then any notices that came in meanwhile follow.
@@ -252,13 +269,15 @@ func say_battle(text: String, icon: Texture2D, ours: bool, max_w := 0.0) -> void
 		begin_battle()
 	if max_w > 0.0:
 		_battle_max = max_w
-	_set_text(text, "", false)
 	left_icon.texture = null if ours else icon
 	right_icon.texture = icon if ours else null
 	var filter := CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(icon) else CanvasItem.TEXTURE_FILTER_NEAREST
 	left_icon.texture_filter = filter
 	right_icon.texture_filter = filter
-	_fit(_max_w())
+	_pages = _paginate(text, "")
+	_page = 0
+	_page_time = 0.0
+	_show_page()
 
 
 ## The bar's lowest edge where it rests (UI units), for windows placed under it.
@@ -287,30 +306,87 @@ func _max_w() -> float:
 	return minf(MAX_W, room)
 
 
-## Fits the text to its words, up to the widest the bar may be (then it wraps).
-func _fit(max_w: float) -> void:
-	var slots := ICON * (2.0 if right_icon.visible else 1.0)
-	var fixed := PAD_X * 2.0 + slots + GAP * (2.0 if right_icon.visible else 1.0)
-	var room := maxf(80.0, max_w - fixed)
-	var w := minf(room, maxf(_natural(label), _natural(sub_label) if sub_label.visible else 0.0))
-	label.custom_minimum_size.x = ceilf(w)
-	sub_label.custom_minimum_size.x = ceilf(w)
+## How wide one of the sizes is here (never past the room on screen).
+func _size_w(which: String) -> float:
+	return minf(float(SIZES[which][0]), _max_w())
+
+
+## The room for text inside a size, past the padding and the icon slots in use.
+func _text_w(which: String) -> float:
+	var two := battle
+	var fixed := PAD_X * 2.0 + ICON * (2.0 if two else 1.0) + GAP * (2.0 if two else 1.0)
+	return maxf(80.0, _size_w(which) - fixed)
+
+
+## How many lines `text` takes at `w` in the main face (`heading`: the bold face) or the second line's.
+func _lines(text: String, w: float, sub := false, heading := false) -> int:
+	if text == "":
+		return 0
+	var font: Font = UIKit.font_bold() if sub else (UIKit.font_head() if heading else UIKit.font_body())
+	var fs := UIKit.body_px(SUB_SIZE if sub else TEXT_SIZE)
+	var shown := text.to_upper() if sub else text
+	var h := font.get_multiline_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, w, fs, -1,
+		TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE).y
+	return maxi(1, int(round(h / font.get_height(fs))))
+
+
+## Splits a message into pages that each fit the large size: [[text, sub], ...]. Most messages are one page; a second
+## line that won't fit beside the first gets pages of its own, shown in the main face.
+func _paginate(text: String, sub: String) -> Array:
+	var w := _text_w("large")
+	var heading := bool(_msg.get("heading", false)) if not battle else false
+	if sub == "" and _lines(text, w, false, heading) <= 2:
+		return [[text, ""]]
+	if sub != "" and _lines(text, w, false, heading) == 1 and _lines(sub, w, true) == 1:
+		return [[text, sub]]
+	var pages: Array = []
+	for part in [text, sub]:
+		if part == "":
+			continue
+		var cur := ""
+		for word in String(part).split(" ", false):
+			var next: String = word if cur == "" else cur + " " + word
+			if cur != "" and _lines(next, w, false, heading and part == text) > 2:
+				pages.append([cur, ""])
+				cur = word
+			else:
+				cur = next
+		if cur != "":
+			pages.append([cur, ""])
+	return pages if not pages.is_empty() else [["", ""]]
+
+
+## Shows the current page in the smallest size that holds it.
+func _show_page() -> void:
+	var p: Array = _pages[_page] if _page < _pages.size() else ["", ""]
+	var heading := bool(_msg.get("heading", false)) and not battle and _page == 0
+	_set_text(String(p[0]), String(p[1]), heading)
+	_fit()
+
+
+## Picks the size: small or medium when the page is one line there, else large (two lines).
+func _fit() -> void:
+	var main := label.text
+	var sub := sub_label.text if sub_label.visible else ""
+	var heading := label.get_theme_font("font") == UIKit.font_head()
+	size_name = "large"
+	if sub == "":
+		for which in ["small", "medium"]:
+			if _lines(main, _text_w(which), false, heading) <= 1:
+				size_name = which
+				break
+	var lines := int(SIZES[size_name][1])
+	var line_h := UIKit.font_body().get_height(UIKit.body_px(TEXT_SIZE))
+	var tw := _text_w(size_name)
+	label.custom_minimum_size.x = ceilf(tw)
+	sub_label.custom_minimum_size.x = ceilf(tw)
+	custom_minimum_size = Vector2(_size_w(size_name), ceilf(maxf(ICON, line_h * lines) + PAD_Y * 2.0))
 	reset_size()
 	# (wrapped labels settle their height over the next frames)
 	_settle = 2
-	var want: Material = FrameBox.material() if FrameBox.blur_on else null
-	if material != want:
-		material = want
-		queue_redraw()
+	material = null
+	queue_redraw()
 	_place()
-
-
-func _natural(l: Label) -> float:
-	if l.text == "":
-		return 0.0
-	var font := l.get_theme_font("font")
-	var fs := l.get_theme_font_size("font_size")
-	return font.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 2.0
 
 
 ## The part of the screen clear of notches and rounded corners (UI units).
@@ -335,6 +411,12 @@ func _process(delta: float) -> void:
 		reset_size()
 	if battle:
 		_slide = move_toward(_slide, 1.0, delta / SLIDE)
+		if _page < _pages.size() - 1:
+			_page_time += delta
+			if _page_time >= BATTLE_PAGE:
+				_page_time = 0.0
+				_page += 1
+				_show_page()
 	else:
 		match _phase:
 			"in":
@@ -344,7 +426,13 @@ func _process(delta: float) -> void:
 			"hold":
 				_hold += delta
 				if _hold >= float(_msg.get("hold", HOLD)):
-					_phase = "out"
+					if _page < _pages.size() - 1:
+						# the next page of a long message, in place
+						_page += 1
+						_hold = 0.0
+						_show_page()
+					else:
+						_phase = "out"
 			"out":
 				_slide = move_toward(_slide, 0.0, delta / SLIDE)
 				if _slide <= 0.0:
@@ -357,25 +445,17 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- drawing
-## The box: the blurred scene (the windows' shared blur, FrameBox) under the windows' near-black, outlined in white,
-## its sides leaning in towards the bottom.
+## The box: the windows' off-white (no border, no blur), its bottom corners slightly rounded, with a soft shadow.
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	if r.size.x <= 0.0 or r.size.y <= 0.0:
 		return
-	var t := minf(TAPER, r.size.x * 0.2)
 	# (the box starts at the screen's top edge, above the safe area's inset if there is one)
 	var up := -maxf(0.0, _shown_y())
-	var pts := PackedVector2Array([Vector2(0, up), Vector2(r.size.x, up), Vector2(r.size.x - t, r.size.y), Vector2(t, r.size.y)])
-	var uvs := PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
-	var blurred := FrameBox.blur_on and material != null
-	if blurred:
-		draw_colored_polygon(pts, Color.WHITE, uvs, _marker)
-	draw_colored_polygon(pts, Color(FrameBox.shade, SHADE_ALPHA if blurred else maxf(SHADE_ALPHA, FrameBox.PLAIN_ALPHA)))
-	# the outline, drawn just inside the shape on whole screen pixels: the two sides and the bottom, no top edge
-	var w := FrameBox.unit
-	var h := w / 2.0
-	var k := t / (r.size.y - up)
-	var line := PackedVector2Array([Vector2(h, up), Vector2(t + h - k * h, r.size.y - h),
-		Vector2(r.size.x - t - h + k * h, r.size.y - h), Vector2(r.size.x - h, up)])
-	draw_polyline(line, UIKit.BORDER, w, true)
+	_box.bg_color = Color(FrameBox.paper, FrameBox.PAPER_ALPHA)
+	_box.shadow_color = FrameBox.SHADOW
+	_box.corner_radius_top_left = 0
+	_box.corner_radius_top_right = 0
+	_box.corner_radius_bottom_left = int(RADIUS)
+	_box.corner_radius_bottom_right = int(RADIUS)
+	draw_style_box(_box, Rect2(0, up, r.size.x, r.size.y - up))

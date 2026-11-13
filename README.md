@@ -325,8 +325,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   **Lv 40** (`RaceDB.EVOLVE`, `Beast.evolve`): bigger, stronger, with the new form's name (unless it has a name of its
   own). It keeps its moves, and a line learns the same moves at every form. Wild and trainers' beasts are whatever form
   their level gives. Battle XP is applied after the fighting ends. Each beast gets a short level-up celebration
-  and a longer before-and-after evolution reveal, one beast at a time. The level film reveals HP, MP, Attack, Defense,
-  Spirit and Speed one line at a time, with the actual previous value, new value and gain. Every level-up and evolution fully restores HP and MP.
+  and a longer before-and-after evolution reveal, one beast at a time. The level film shows the beast on the left of
+  the screen and one window on the right, with no top or bottom HUD: its name and element, its level going up, then
+  HP, MP, Attack, Defense, Spirit and Speed one line at a time with the actual previous value, new value and gain, and
+  any move it learned at that level with the move's icon (`--scene=growth --preview=level --to=N` previews it). Every level-up and evolution fully restores HP and MP.
 - **Element roles**: Fire are offensive tanks, Water are healers, Earth are defenders, and Air handle status and evasion.
 - **Eggs**:
   - Eggs are the only way to get more beasts (apart from adopting one at a kennel): no song charms a wild beast.
@@ -509,7 +511,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
   - In Beast Centers, shops and arena lobbies, phones sit on the attendant's counter or display case; house phones stay on their own tables.
   - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
-  - Every phone asks who to call: **Dad** (save), **Mom** (advice), or the **Sky Tower company** (courier; a payphone still takes its 5 coins). Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
+  - Every phone asks who to call: **Mom** (advice), **Dad** (save) or **SkyTower Inc** (courier; a payphone still takes its 5 coins). At home Mom is in the room, so the home phone doesn't offer her. SkyTower Inc is only on the list once one of its employees has given you the number: Skykeeper Aria does, at any Sky Tower's desk, the first time you talk to her, explaining how the couriers' rides, pickups and deliveries work (`phone.gd` SKYTOWER_FLAG). While the phone's menus are open the camera swings round beside the hero to the phone (see the menu shot under Interface style). Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
   - Every phone stands on a white placemat on a boxy little chest of three drawers (`side_table`, baked by `tools/make_side_table.gd`) in the middle of its tile, out from the wall, so you stand right beside it to call.
   - Ten save slots, one per journey: you never pick a slot when you save. A new game takes the first empty slot the first time you save, and after that every save goes back into the same slot. If all ten are full, Dad asks (A: Yes / B: No) before writing over the save made longest ago.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
@@ -897,7 +899,7 @@ direction; it never starts withdrawing items automatically.
 Important key items stay in the bag. `GameState.locker` and `tower_inventory` refer
 to the same dictionary, including automatic bag overflow.
 
-Call the **Sky Tower company** from any phone for **Ride**, **Pick up items**,
+Once Skykeeper Aria has given you the number, call **SkyTower Inc** from any phone for **Ride**, **Pick up items**,
 **Deliver items**, or **Deliver and ride**. A payphone charges its normal five coins.
 Select up to **12 stacks** from the locker during a delivery call. Completing a
 new request replaces the old one; cancelling the call keeps the old one. Selected
@@ -932,23 +934,26 @@ mounted owl and its rider.
 
 ## UI and audio
 
-- **One look** (`scripts/ui/frame_box.gd`, built through `scripts/ui/ui_kit.gd`): every window is a near-black box at
-  60% with the scene behind it blurred, framed by a thin white ornamental border from Kenney's Fantasy UI Borders
-  (`assets/ui/kenney/`). One border for windows, one for rows and buttons, one for item slots, and the pack's divider
-  between sections and either side of banner text. Borders are nine-patches scaled in whole screen-pixel steps, so the
-  linework stays sharp. The blur is one shared screen-reading shader (`scripts/ui/blur.gdshader`) that reads the
-  screen copy's mipmaps, so it runs on the Mobile and the web's Compatibility renderer; `UIKit.set_blur(false)` falls
-  back to a plain box at 80%.
+- **One look** (`scripts/ui/frame_box.gd`, built through `scripts/ui/ui_kit.gd`; the user's 2026-11-13 direction):
+  every window is a slightly rounded off-white box with a faint tint of the gem, with no border and no blur behind it,
+  and a soft shadow under it. Rows, buttons, tags and item slots are the same rounded box with other fills; a thin
+  plain line (`scripts/ui/divider_box.gd`) separates a window's sections. Text on the off-white is near-black, with
+  headings in a deepened gem. The battle HUDs keep their own look (below): they still use the old near-black blurred
+  box with Kenney's white border (`FrameBox.legacy`, `UIKit.battle_row_box`, `blur.gdshader`), and
+  `UIKit.set_blur(false)` only affects them.
   Interface text belongs inside a visible button or HUD window: no floating action labels. Desktop spoken Yes/No
   prompts use two small white reply bubbles below the speaker. Selecting one highlights it, hides the other,
   and holds the answer briefly before closing; A and B still answer directly. Touch uses the widened labelled A/B
   controls. The beast summary and creator use bounded panes with scrolling instead of extending beyond the viewport.
-  - Selected or focused: a white frame with corner marks round the row. Primary or pressed: solid white with dark
-    text. Disabled: dim text, no frame. Item slots: square bordered tiles with the count beneath, the selected one
-    filled with the gem.
+  - List rows: dark text on the window; the selected or focused row is a rounded bar in the gem with white text, a
+    deeper gem while pressed; disabled rows have dim text. List menus have no Select/Back buttons: A and B do that.
+    Standalone buttons (page and scroll buttons,
+    the touch A/B/Start/Pause) are the gem with white text, with a thin dark ring while focused and a deeper gem while
+    pressed. Item slots: rounded tiles in a slightly deeper off-white with the count beneath, the selected one filled
+    with the gem; focused tiles get the thin dark ring.
   - The menu color is picked in Start → Settings → Color: **Ruby** (the default), **Sapphire**, **Emerald** or **Hematite** (slate
-    grey). It goes into the windows' black as a faint tint, the headings, the bars and filled slots; borders and body
-    text stay white. `UIKit.set_accent` derives the palette. The old Pixel / Classic style setting is gone, and a saved
+    grey). It goes into the windows' off-white as a faint tint, the headings, the bars, buttons and filled slots; body
+    text stays near-black. `UIKit.set_accent` derives the palette. The old Pixel / Classic style setting is gone, and a saved
     `ui_style` value is ignored.
   - **Item artwork** uses the supplied pack PNG illustrations with sharp nearest filtering and permanent colors for each item,
     independent of the interface gem. Potions, food, herbs, equipment and other items have their own shapes.
@@ -957,9 +962,11 @@ mounted owl and its rider.
     are in [item icon provenance](licenses/item_icons.md). Verify with `bash tools/run_tests.sh item-icons
     item-icons-touch`; windowed `--scene=item-icons --shots=res://build/shots/icons` captures all four gems.
   - The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at the top centre: place names on
-    entering a town, road or building, pickups, gold and battle messages. It is the same dark blurred box, a little
-    darker (78%), outlined in white with its sides leaning in towards the bottom: [left icon] divider, text, divider
-    [right icon]. It stays inside the safe area and grows with its text up to 860 UI units, then wraps. All of its
+    entering a town, road or building, pickups, gold and battle messages. It is the windows' off-white box, hanging
+    from the top edge with its bottom corners slightly rounded: [left icon] text [right icon]. It has exactly three
+    sizes (`TopBar.SIZES`): **small** (360 UI units, one line), **medium** (640, one line) and **large** (640, two
+    lines). Each message takes the smallest size that holds it; text never shrinks. A message too long even for the
+    large size is split into pages shown one after another (a long second line gets pages of its own). All of its
     text is Quattrocento Sans; place names use Bold and the gem heading colour.
     - Outside battle it is hidden until there is something to say, then slides in, holds about 2.5 seconds and slides
       out. Messages queue; the same pickup or gold arriving while one shows or waits merges into it ("Potion x3",
@@ -969,6 +976,12 @@ mounted owl and its rider.
     - In battle it is always shown with the battle's messages: the icon of whoever acts is on the left for the
       opposing side and on the right for yours, and the empty slot keeps its space so the text doesn't jump. Notices
       posted during a battle wait for it to end.
+  - **The menu shot** (`world.gd` menu_shot_begin, from `UI.choose`): when someone you're talking to opens a menu (a
+    shop's, a Beast Center's, an arena's...), the camera eases in over about a second to an over-the-shoulder close-up
+    of them on the left of the screen, and the menu stands on the right (beside the A/B buttons on touch). At a phone
+    it frames the phone with more of the hero beside it. Plain dialogue keeps the usual camera; the shot holds through
+    a shop's next menu and eases back once the menus are done. `--scene=talk-menu` (`--place`, `--side`) and
+    `--scene=call --presses=0` show it.
   - **Speech bubbles** (`dialog_box.gd`) are the one bright exception: rectangular white paper with gently rounded
     corners, subtle shading, a soft shadow and a seamless pointer. Dark body text stays top-aligned, normally three
     lines per page, with the existing advance triangle and typewriter reveal; short pages use a shorter bubble. Pages
@@ -1002,9 +1015,9 @@ mounted owl and its rider.
 - **Phones**: a joined cross-shaped d-pad with raised arrows, for getting about (hold B to run), battles and the flute
   game alike. Each arm answers in its own quarter of the pad (a wedge from the middle out past its arrow), and only one
   arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
-  round A and B buttons and Start / Pause pills. They are the windows' look: the blurred scene under the near-black,
-  outlined in white with white arrows and letters; a held button (or arm of the d-pad) fills solid white with a dark
-  letter or arrow. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
+  round A and B buttons and Start / Pause pills, with no borders or blur: the d-pad's cross is the windows' off-white
+  with dark arrows, and A, B, Start and Pause are buttons in the gem with white letters. A held button deepens; a held
+  arm of the d-pad fills with the gem and its arrow turns white. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
   and Start closes the book. A little overlap with the book is allowed; the Map page spreads its towns clear of the
   d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions widen A and B with an animation into
   **A: Yes** and **B: No**: each answers directly, without a separate choice list. Long questions show **A: Next**

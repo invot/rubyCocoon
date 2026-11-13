@@ -95,8 +95,20 @@ func _sight(world, p: Vector2i, n: Dictionary) -> Dictionary:
 	return out
 
 
-## Everything reachable from the starts by real steps, never entering `avoid`.
+## Everything reachable from the starts by real steps, never entering `avoid`. Items and shards on the ground count as
+## already picked up, since a first run can collect them before meeting the teacher.
 func _flood(world, starts: Array, avoid: Dictionary) -> Dictionary:
+	var items = world.items
+	var shards = world.shards
+	world.items = {}
+	world.shards = {}
+	var seen := _flood_steps(world, starts, avoid)
+	world.items = items
+	world.shards = shards
+	return seen
+
+
+func _flood_steps(world, starts: Array, avoid: Dictionary) -> Dictionary:
 	var seen := {}
 	var q := []
 	for s in starts:

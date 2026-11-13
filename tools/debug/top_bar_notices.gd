@@ -45,6 +45,7 @@ func run(main: Node) -> void:
 	var vp: Rect2 = tb.get_viewport_rect()
 	_check(r.position.y >= 0.0 and r.end.x <= vp.size.x and r.position.x >= 0.0, "the bar sits on screen at the top")
 	_check(absf(r.get_center().x - vp.size.x * 0.5) <= 2.0, "the bar is centred")
+	_check(tb.size_name == "small" and absf(tb.size.x - float(tb.SIZES["small"][0])) <= 1.0, "a short pickup takes the small size (%s, %d wide)" % [tb.size_name, int(tb.size.x)])
 	await capture.call("pickup")
 
 	await _until(main, tb, "+120 gold")
@@ -54,6 +55,7 @@ func run(main: Node) -> void:
 
 	await _until(main, tb, "Tidewater")
 	_check(tb.current_text() == "Tidewater" and tb.sub_label.visible and tb.sub_label.text == "Market Row", "the place name follows, with its second line")
+	_check(tb.size_name == "large", "a place name with its second line takes the large (two-line) size (%s)" % tb.size_name)
 	await main._wait(0.4)
 	await capture.call("place")
 
@@ -61,11 +63,17 @@ func run(main: Node) -> void:
 	UI.toast("A very long notice that keeps going and going, to see that the top bar wraps onto a second line rather than growing past its widest", "notice")
 	await _until(main, tb, "A very long")
 	await main._wait(0.4)
-	_check(tb.size.x <= tb.MAX_W + 1.0 and tb.label.get_line_count() >= 2, "a long notice wraps at the bar's widest (%d wide, %d lines)" % [int(tb.size.x), tb.label.get_line_count()])
+	_check(tb.size.x <= tb.MAX_W + 1.0 and tb.label.get_line_count() == 2 and tb.size_name == "large", "a long notice wraps to the large size's two lines (%d wide, %d lines, %s)" % [int(tb.size.x), tb.label.get_line_count(), tb.size_name])
 	await capture.call("long")
+	# one too long even for two lines is split into pages, each fitting the large size
+	UI.toast("This notice is far too long for the top bar's largest size, so it has to be split into pages that show one after another, each of them fitting the two lines the large size has room for, and never shrinking its text", "notice")
+	await _until(main, tb, "This notice")
+	await main._wait(0.4)
+	_check(tb._pages.size() >= 2 and tb.label.get_line_count() <= 2 and tb.size_name == "large", "an overlong notice pages (%d pages, %d lines)" % [tb._pages.size(), tb.label.get_line_count()])
+	await capture.call("paged")
 
 	t = 0.0
-	while tb.visible and t < 12.0:
+	while tb.visible and t < 20.0:
 		await main._wait(0.1)
 		t += 0.1
 	_check(not tb.visible and tb.pending() == 0, "the bar slides away once everything has been said")

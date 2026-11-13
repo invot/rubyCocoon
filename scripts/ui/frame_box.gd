@@ -1,13 +1,13 @@
 extends StyleBox
-## The game's one window style: a near-black box at 60% (black with a faint tint of the gem, `shade`) with the scene
-## behind it blurred, inside a thin white ornamental border from Kenney's Fantasy UI Borders (assets/ui/kenney, CC0). The same box, with other fills,
-## is every row, button, tag, plate and item slot (see UIKit).
-## - The border is the pack's white line art, so the tint is a colour multiply. It is a nine-patch (corners kept,
-##   sides and middle stretched) whose cells cover a whole number of screen pixels (`unit`), so the lines stay sharp.
-## - The blur is one shared screen-reading shader (blur.gdshader). A box marks its inside with a magenta fill the
-##   shader swaps for the blurred scene; the control that draws the box is given the shader here, so any screen that
-##   uses a box gets it. With the blur off (`blur_on`: a renderer it costs too much on) the box is plain black, a
-##   little more opaque.
+## The game's one window style (the user's 2026-11-13 direction): a slightly rounded off-white box with a faint tint of
+## the gem (`paper`), no border and no blur behind it, with a soft shadow under the windows. The same box, with other
+## fills, is every row, button, tag, plate and item slot (see UIKit).
+## - `fill` is drawn as given; `blur` (kept as the name for "a window over the scene") draws the paper instead.
+## - `line` no longer draws a border; a box with `ring` set draws a thin focus ring just inside its edge instead (the
+##   focused standalone button).
+## - `legacy` keeps the old look for the battle HUDs, which stay as they were: a near-black box at 60% with the scene
+##   blurred behind it (blur.gdshader), inside a thin white ornamental border from Kenney's Fantasy UI Borders
+##   (assets/ui/kenney, CC0), drawn as a nine-patch whose cells cover a whole number of screen pixels (`unit`).
 
 const DIR := "res://assets/ui/kenney/"
 ## The pack's shapes in use: [file, corner size in cells]. The art is on a 2-pixel grid; a cell is one of its squares.
@@ -23,8 +23,16 @@ const SHADER := "res://scripts/ui/blur.gdshader"
 ## UI units per cell of the art: a whole number of screen pixels (UIKit.set_screen_scale).
 static var unit := 2.0
 static var blur_on := true
-## the windows' black, faintly tinted with the gem (UIKit.set_accent)
+## the battle HUDs' black, faintly tinted with the gem (UIKit.set_accent)
 static var shade := Color(0.034, 0.005, 0.007)
+## the windows' off-white, faintly tinted with the gem (UIKit.set_accent)
+static var paper := Color(0.965, 0.945, 0.94)
+## how rounded each kind of box is (UI units)
+const RADIUS := {"window": 12.0, "row": 9.0, "slot": 8.0}
+## the windows' soft shadow
+const SHADOW := Color(0.08, 0.06, 0.07, 0.16)
+## how opaque the paper is over the scene
+const PAPER_ALPHA := 0.96
 static var _tex := {}
 static var _material: ShaderMaterial
 
@@ -38,10 +46,18 @@ var fill := Color(0, 0, 0, 0)
 var blur := false
 ## fades a blurred inside (a flat fill and the border fade with their own colours' alpha)
 var alpha := 1.0
+## the old dark, bordered, blurred look (battle HUDs only)
+var legacy := false
+## a focus ring inside the edge (alpha 0: none)
+var ring := Color(0, 0, 0, 0)
+var _flat: StyleBoxFlat
 
 
 func _draw(ci: RID, rect: Rect2) -> void:
 	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
+	if not legacy:
+		_draw_paper(ci, rect)
 		return
 	var t: Array = textures(frame)
 	if blur and blur_on:
@@ -56,9 +72,35 @@ func _draw(ci: RID, rect: Rect2) -> void:
 		_patch(ci, rect, t[0], t[3], line)
 
 
+## The current look: a rounded flat box (the paper for a window, else its fill), with an optional focus ring.
+func _draw_paper(ci: RID, rect: Rect2) -> void:
+	var col := Color(paper, PAPER_ALPHA * alpha) if blur else fill
+	if col.a <= 0.0 and ring.a <= 0.0:
+		return
+	if _flat == null:
+		_flat = StyleBoxFlat.new()
+		_flat.anti_aliasing = true
+		_flat.corner_detail = 6
+	var r: float = minf(RADIUS.get(frame, 9.0), minf(rect.size.x, rect.size.y) / 2.0)
+	_flat.set_corner_radius_all(int(round(r)))
+	_flat.bg_color = col
+	_flat.draw_center = col.a > 0.0
+	var rw := 0 if ring.a <= 0.0 else int(maxf(2.0, round(unit * 1.5)))
+	_flat.set_border_width_all(rw)
+	_flat.border_color = ring
+	if blur and frame == "window":
+		_flat.shadow_color = Color(SHADOW, SHADOW.a * alpha)
+		_flat.shadow_size = 10
+		_flat.shadow_offset = Vector2(0, 3)
+	else:
+		_flat.shadow_size = 0
+	_flat.draw(ci, rect)
+
+
 ## A box of this kind, for a control or for draw_style_box. `pad`: the content padding (l, t, r, b).
-static func make(frame_name: String, line_col: Color, fill_col := Color(0, 0, 0, 0), blurred := false, pad := Vector4.ZERO) -> StyleBox:
+static func make(frame_name: String, line_col: Color, fill_col := Color(0, 0, 0, 0), blurred := false, pad := Vector4.ZERO, old_look := false) -> StyleBox:
 	var sb: StyleBox = load("res://scripts/ui/frame_box.gd").new()
+	sb.legacy = old_look
 	sb.frame = frame_name
 	sb.line = line_col
 	sb.fill = fill_col

@@ -188,7 +188,7 @@ func _draw_track() -> void:
 		return
 	var t := _thumb()
 	var mid := roundf(_track.size.x / 2.0)
-	# a faint hairline, and the thumb a bordered plate filled with the gem
+	# a faint hairline, and the thumb a rounded plate filled with the gem
 	_track.draw_rect(Rect2(mid - 1.0, 0, 2.0, _track.size.y), UIKit.BORDER_INNER)
 	_track.draw_style_box(UIKit.row_box(UIKit.ACCENT, UIKit.BORDER), t)
 

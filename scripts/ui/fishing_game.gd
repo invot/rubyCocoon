@@ -67,7 +67,7 @@ func _ready() -> void:
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 8)
 	_box.add_child(vb)
-	_title = UIKit.header("", UIKit.LIGHT, UIKit.HEAD_BIG)
+	_title = UIKit.header("", UIKit.HEAD, UIKit.HEAD_BIG)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(_title)
 	_gauge = Control.new()
@@ -204,13 +204,12 @@ func _draw_gauge() -> void:
 	var w := _gauge.size.x
 	var bar := Rect2(10, 8, w - 20, 34)
 	var z := _zone()
-	_gauge.draw_rect(bar.grow(3), UIKit.BORDER)
-	_gauge.draw_rect(bar, UIKit.WINDOW_BOTTOM)
+	_gauge.draw_rect(bar, UIKit.WELL)
 	var zr := Rect2(bar.position.x + bar.size.x * z.x, bar.position.y, bar.size.x * (z.y - z.x), bar.size.y)
 	_gauge.draw_rect(zr, Color(UIKit.ACCENT, 0.85))
 	# the danger end: the last tenth, where the line snaps
 	_gauge.draw_rect(Rect2(bar.position.x + bar.size.x * 0.9, bar.position.y, bar.size.x * 0.1, bar.size.y), Color(0.85, 0.2, 0.2, 0.35))
-	var col := UIKit.LIGHT
+	var col := UIKit.INK
 	if tension > z.y:
 		col = Color("#ff6a4a")
 	elif tension < z.x and progress > 0.0:
@@ -225,6 +224,5 @@ func _draw_gauge() -> void:
 	_gauge.draw_string(font, Vector2(bar.end.x - 46, bar.end.y + 22), "Snap!", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.DIM)
 	# the catch meter
 	var pm := Rect2(bar.position.x + 90, bar.end.y + 10, bar.size.x - 180, 14)
-	_gauge.draw_rect(pm.grow(2), UIKit.BORDER)
-	_gauge.draw_rect(pm, UIKit.WINDOW_BOTTOM)
+	_gauge.draw_rect(pm, UIKit.WELL)
 	_gauge.draw_rect(Rect2(pm.position, Vector2(pm.size.x * clampf(progress, 0.0, 1.0), pm.size.y)), UIKit.hp_color(1.0))

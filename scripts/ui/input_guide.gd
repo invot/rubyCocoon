@@ -34,11 +34,7 @@ func rebuild() -> void:
 
 func _add_keys(keys: VBoxContainer, lines: Array) -> void:
 	for text in lines:
-		var label := UIKit.label(text, 32, UIKit.LIGHT)
+		var label := UIKit.label(text, 32, UIKit.INK)
 		label.add_theme_font_size_override("font_size", UIKit.body_px(32))
-		label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-		label.add_theme_constant_override("shadow_offset_y", 2)
-		label.add_theme_constant_override("outline_size", 3)
-		label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		keys.add_child(label)

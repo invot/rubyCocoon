@@ -78,7 +78,7 @@ static func tex(name: String) -> Texture2D:
 	var rows: Array = GLYPHS[name]
 	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var cols := {"#": UIKit.LIGHT, "+": UIKit.ACCENT, "o": UIKit.GOLD_BRIGHT}
+	var cols := {"#": UIKit.INK, "+": UIKit.ACCENT, "o": UIKit.GOLD_BRIGHT}
 	if OWN_COLORS.has(name):
 		cols["+"] = OWN_COLORS[name][0]
 		cols["o"] = OWN_COLORS[name][1]

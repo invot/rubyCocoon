@@ -611,6 +611,15 @@ func kennel_drop_off(world, town: String) -> void:
 ## The Sky Tower: climb to the platform where a great bird flies you to any town you've visited.
 ## Skykeeper Aria's ticket desk in the Sky Tower's lobby.
 func skytower_desk() -> void:
+	# the first time, she gives you the company's number and how its couriers work (phone.gd: no calling it before)
+	if not GameState.flag(Phone.SKYTOWER_FLAG):
+		await Story.say(["Welcome to SkyTower Inc! First time with us? Then take our number. Any phone in the land can reach us.",
+			"Call us, and one of our couriers comes flying to you on a Tempestrix. Just step outside, under open sky, and wait about thirty seconds.",
+			"We can fly you to any town you've visited, at twice the tower fare. Or pick up items from your bag and put them in our locker for 20 gold.",
+			"Or bring items from the locker to you. Deliveries are free! Up to twelve stacks a trip, handed over right where you stand.",
+			"One request at a time, mind: a new call replaces the last one."], KEEPERS["skytower"])
+		GameState.set_flag(Phone.SKYTOWER_FLAG)
+		UI.top_bar.post("SkyTower Inc's number", null, {"sub": "Call them from any phone for a ride, pickup or delivery."})
 	while true:
 		var choice := await UI.choose("Sky Tower", ["Flight information", "Store items (free)", "Leave"])
 		if choice < 0 or choice == 2:

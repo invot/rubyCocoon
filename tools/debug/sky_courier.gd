@@ -79,6 +79,8 @@ func run(root: Node, options: Dictionary) -> void:
 	check(GameState.save_dir().begins_with("res://build/"), "isolated save directory")
 	if bad > 0:
 		return
+	# the phone reaches the company only once one of its employees has given you the number
+	GameState.set_flag(main.Phone.SKYTOWER_FLAG)
 	if opts.get("pose_only", "0") == "1":
 		UI.auto = true
 		await main._go("caccoon", "start")

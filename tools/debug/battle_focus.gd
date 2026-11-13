@@ -53,7 +53,7 @@ func run(main: Node) -> void:
 	if preview == "trainer":
 		return
 	var hud_script = battle.floating.get_script()
-	check.call(hud_script._hp_text_color(0.5) == UIKit.INK and hud_script._hp_text_color(0.25) == hud_script.LOW_COLOR and hud_script._hp_text_color(0.1) == hud_script.CRITICAL_COLOR, "plate HP labels turn yellow at a quarter and red at a tenth")
+	check.call(hud_script._hp_text_color(0.5) == UIKit.BATTLE_INK and hud_script._hp_text_color(0.25) == hud_script.LOW_COLOR and hud_script._hp_text_color(0.1) == hud_script.CRITICAL_COLOR, "plate HP labels turn yellow at a quarter and red at a tenth")
 	if preview == "lowhp":
 		var standing: Array = battle.nodes.keys().filter(func(b): return typeof(b) == TYPE_OBJECT and b.hp > 0)
 		for i in mini(2, standing.size()):

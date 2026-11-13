@@ -9,6 +9,11 @@ const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const EggModel = preload("res://scripts/gfx/egg_model.gd")
 const EggLooks = preload("res://scripts/data/egg_looks.gd")
 const HatcheryStage = preload("res://scripts/gfx/hatchery_stage.gd")
+const ActionIcons = preload("res://scripts/battle/action_icons.gd")
+const MoveDB = preload("res://scripts/data/move_db.gd")
+## How far right of the beast a level-up's camera looks (world units), so the beast stands in the left part of the
+## screen and its window has the right.
+const LEVEL_SHIFT := 2.6
 ## This camera looks straight at the roundel chamber's walls, so they are kept down to leave the egg as the focus.
 const HATCH_GLASS := 0.5
 const HATCH_MIST := 1.8
@@ -39,8 +44,12 @@ var _ring_sound := false
 var _motes: Array[MeshInstance3D] = []
 const STAT_ORDER := ["hp", "mp", "atk", "def", "spr", "spd"]
 const STAT_LABELS := ["HP", "MP", "Attack", "Defense", "Spirit", "Speed"]
-var _stat_rows: Array[Label] = []
+## each stat's row (its cells), and each new move's row, revealed one at a time
+var _stat_rows: Array = []
+var _move_rows: Array[Control] = []
 var _stat_window: PanelContainer
+var _title: PanelContainer
+var _detail_window: PanelContainer
 
 
 func _init() -> void:
@@ -57,6 +66,8 @@ func setup(mode: String, old_look: Dictionary, new_look := {}, shell := {}) -> C
 	after = new_look if not new_look.is_empty() else old_look
 	egg = shell
 	duration = 4.2 if kind == "level" else (4.4 if kind == "egg" else (7.0 if kind == "evolve" else 8.6))
+	if kind == "level":
+		duration += 0.6 * mini(2, (after.get("learned", []) as Array).size())
 	return self
 
 
@@ -122,8 +133,10 @@ func _ready() -> void:
 		var mote := _mesh(_stage, sphere, Vector3.ZERO, spark)
 		mote.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_motes.append(mote)
-	# Existing window styling and typography, kept central and clear of side controls.
+	# Existing window styling and typography, kept central and clear of side controls. A level-up has neither: its one
+	# window on the right holds everything (_level_window).
 	var title := PanelContainer.new()
+	_title = title
 	title.add_theme_stylebox_override("panel", UIKit.box("slot", Vector4(22, 12, 22, 12)))
 	add_child(title)
 	title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -136,6 +149,7 @@ func _ready() -> void:
 	_detail = UIKit.label("", 32, UIKit.LIGHT)
 	_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var detail_window := UIKit.panel()
+	_detail_window = detail_window
 	detail_window.add_child(_detail)
 	add_child(detail_window)
 	detail_window.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
@@ -144,20 +158,9 @@ func _ready() -> void:
 	detail_window.offset_top = -148
 	detail_window.offset_bottom = -96
 	if kind == "level":
-		_stat_window = UIKit.panel()
-		_stat_window.custom_minimum_size.x = 360
-		add_child(_stat_window)
-		var rows := VBoxContainer.new()
-		rows.add_theme_constant_override("separation", 4)
-		_stat_window.add_child(rows)
-		for i in STAT_ORDER.size():
-			var key: String = STAT_ORDER[i]
-			var old := int(before.get("stats", {}).get(key, before.get(key, 0)))
-			var current := int(after.get("stats", {}).get(key, after.get(key, old)))
-			var row := UIKit.label("%s   %d ► %d   (+%d)" % [STAT_LABELS[i], old, current, current-old], 32, UIKit.INK)
-			row.custom_minimum_size.y = 36
-			rows.add_child(row)
-			_stat_rows.append(row)
+		title.visible = false
+		detail_window.visible = false
+		_level_window()
 		_place_stats.call_deferred()
 		get_viewport().size_changed.connect(_place_stats)
 	_white = ColorRect.new()
@@ -167,13 +170,98 @@ func _ready() -> void:
 	_update(0)
 
 
+## A level-up's one window, on the right: the beast's name and element, its level going up, each stat's old and new
+## value and gain, and any move it learned with the move's icon.
+func _level_window() -> void:
+	_stat_window = UIKit.panel()
+	_stat_window.custom_minimum_size.x = 500
+	_stat_window.add_theme_stylebox_override("panel", UIKit.window(Vector4(8, 6, 8, 8)))
+	add_child(_stat_window)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	_stat_window.add_child(col)
+	# name, with its element tags on the right
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	col.add_child(top)
+	var name_label := UIKit.header(String(after.get("name", "")), UIKit.INK, UIKit.HEAD_BIG)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	top.add_child(name_label)
+	for el in after.get("elements", [after.get("element", "")]):
+		if String(el) != "":
+			var t := UIKit.element_tag(String(el), 18)
+			t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			top.add_child(t)
+	# "LEVEL UP" caption and the level going up
+	var lv := HBoxContainer.new()
+	lv.add_theme_constant_override("separation", 12)
+	col.add_child(lv)
+	var cap := UIKit.label("Level up", 18, UIKit.DIM)
+	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lv.add_child(cap)
+	var old_lv := int(before.get("level", int(after.get("level", 1)) - 1))
+	lv.add_child(UIKit.label("Lv %d" % old_lv, 32, UIKit.DIM))
+	lv.add_child(UIKit.label("►", 32, UIKit.DIM))
+	lv.add_child(UIKit.header("Lv %d" % int(after.get("level", old_lv + 1)), UIKit.HEAD, UIKit.HEAD_BIG))
+	col.add_child(UIKit.divider(0.0, "none"))
+	# the stats: name, old value, new value, gain
+	var grid := GridContainer.new()
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 2)
+	col.add_child(grid)
+	for i in STAT_ORDER.size():
+		var key: String = STAT_ORDER[i]
+		var old := int(before.get("stats", {}).get(key, before.get(key, 0)))
+		var current := int(after.get("stats", {}).get(key, after.get(key, old)))
+		var cells: Array = [UIKit.label(STAT_LABELS[i], 32, UIKit.INK), UIKit.label(str(old), 32, UIKit.DIM),
+			UIKit.label("►", 32, UIKit.DIM), UIKit.label(str(current), 32, UIKit.INK),
+			UIKit.label(("+%d" % (current - old)) if current > old else "", 32, UIKit.GOLD)]
+		(cells[0] as Label).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		for c in cells.slice(1):
+			(c as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		(cells[4] as Label).custom_minimum_size.x = 64
+		for c in cells:
+			grid.add_child(c)
+		_stat_rows.append(cells)
+	# moves it learned at this level
+	var learned: Array = after.get("learned", [])
+	if not learned.is_empty():
+		col.add_child(UIKit.divider(0.0, "none"))
+		var mcap := UIKit.label("New move" if learned.size() == 1 else "New moves", 18, UIKit.DIM)
+		col.add_child(mcap)
+		_move_rows.append(mcap)
+		for e in learned:
+			var id := String(e.get("move", "")) if e is Dictionary else String(e)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 12)
+			var icon := Control.new()
+			icon.custom_minimum_size = Vector2(36, 36)
+			icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			var kind_id := ActionIcons.for_move(id)
+			icon.draw.connect(func(): ActionIcons.draw(icon, kind_id, icon.size / 2.0, 16.0))
+			row.add_child(icon)
+			var mname := UIKit.label(String(MoveDB.get_move(id).get("name", id)), 32, UIKit.INK)
+			mname.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(mname)
+			if e is Dictionary and not bool(e.get("active", true)):
+				var note := UIKit.label("In reserve", 18, UIKit.DIM)
+				note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+				row.add_child(note)
+			col.add_child(row)
+			_move_rows.append(row)
+
+
 func _place_stats() -> void:
 	if _stat_window == null:
 		return
 	var safe := UIKit.safe_rect(self).grow(-24)
-	var x := safe.end.x-_stat_window.size.x
+	_stat_window.reset_size()
+	var x := safe.end.x - 24.0 - _stat_window.size.x
 	var reserve: float = UI.controls.menu_bottom_reserve(x, safe.end.x) if UI.controls != null else 0.0
-	_stat_window.position = Vector2(x, maxf(safe.position.y+100.0, minf(safe.get_center().y-_stat_window.size.y/2.0, safe.end.y-reserve-_stat_window.size.y)))
+	_stat_window.position = Vector2(x, maxf(safe.position.y, minf(safe.get_center().y - _stat_window.size.y / 2.0, safe.end.y - reserve - _stat_window.size.y)))
 
 
 func _material(col: Color, rough := 0.75, metal := 0.0) -> StandardMaterial3D:
@@ -305,13 +393,18 @@ func _update(t: float) -> void:
 	else:
 		_detail.text = ("HP %d  /  MP %d · Fully restored" % [after.hp, after.mp]) if revealed and not hatch else ("A new friend awakens" if revealed else ("" if level else "The shell stirs..." if t > 4.0 and hatch else ""))
 	for i in _stat_rows.size():
-		_stat_rows[i].modulate.a = 1.0 if t >= 0.65 + i*0.4 else 0.0
+		for c in _stat_rows[i]:
+			(c as Control).modulate.a = 1.0 if t >= 0.65 + i * 0.4 else 0.0
+	for i in _move_rows.size():
+		_move_rows[i].modulate.a = 1.0 if t >= 0.65 + _stat_rows.size() * 0.4 + 0.2 + i * 0.3 else 0.0
 	# Gentle dolly, generous framing at both 16:9 and 20:9; no aspect-dependent art stretching.
 	var zoom := smoothstep(0.0, duration, t)
 	# A hatch frames the egg and the core above it, then moves in on the beast while the screen is fully white.
 	var near := smoothstep(5.5, 5.75, t) if hatch else 1.0
-	_cam.position = Vector3(1.5 - zoom * 0.9, 2.5 - zoom * 0.25 - near * 0.3, 11.3 - zoom * 1.5 - near * 2.3)
-	_cam.look_at(Vector3(0, lerpf(2.75, 2.15, near), 0))
+	# (a level-up looks to the right of the beast, leaving the right of the screen to its window)
+	var shift := LEVEL_SHIFT if kind == "level" else 0.0
+	_cam.position = Vector3(1.5 - zoom * 0.9 + shift, 2.5 - zoom * 0.25 - near * 0.3, 11.3 - zoom * 1.5 - near * 2.3)
+	_cam.look_at(Vector3(shift, lerpf(2.75, 2.15, near), 0))
 	if level:
 		_reveal.position.y = 1.07 + sin(clampf((t - reveal_at) / 0.65, 0, 1) * PI) * 0.20
 		if found:

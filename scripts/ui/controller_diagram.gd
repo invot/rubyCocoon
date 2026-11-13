@@ -23,12 +23,10 @@ func _ready() -> void:
 	for entry in [["move", "Move\nD-pad / stick"], ["pause", "Pause\n" + profile.pause],
 		["start", "Book\n" + profile.start], ["accept", "Action / confirm\n" + profile.accept],
 		["back", "Back / run\n" + profile.back]]:
-		var label := UIKit.label(entry[1], 32, UIKit.LIGHT)
+		var label := UIKit.label(entry[1], 32, UIKit.INK)
 		label.add_theme_font_size_override("font_size", UIKit.body_px(32))
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-		label.add_theme_constant_override("shadow_offset_y", 2)
 		add_child(label)
 		_labels[entry[0]] = label
 	resized.connect(_layout)
@@ -83,9 +81,7 @@ func _draw() -> void:
 
 
 func _leader(path: PackedVector2Array, button_at_start := false) -> void:
-	draw_polyline(path, Color(0, 0, 0, 0.8), 5.0, true)
-	draw_polyline(path, UIKit.LIGHT, 2.0, true)
+	draw_polyline(path, UIKit.INK, 2.0, true)
 	# A small dot marks the exact button; lines can be read without relying on colour.
 	var point := path[0] if button_at_start else path[-1]
-	draw_circle(point, 5.0, Color(0, 0, 0, 0.8), true, -1.0, true)
-	draw_circle(point, 3.0, UIKit.LIGHT, true, -1.0, true)
+	draw_circle(point, 5.0, UIKit.ACCENT, true, -1.0, true)

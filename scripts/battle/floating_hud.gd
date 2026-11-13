@@ -436,7 +436,7 @@ func _draw() -> void:
 		if rect.grow(8.0).has_point(tip):
 			continue
 		var edge := Vector2(clampf(tip.x, rect.position.x + 8, rect.end.x - 8), clampf(tip.y, rect.position.y + 8, rect.end.y - 8))
-		draw_line(_snap(edge), _snap(tip), Color(UIKit.BORDER, bar["alpha"]), 2.0 / UIKit.screen_scale, true)
+		draw_line(_snap(edge), _snap(tip), Color(UIKit.BATTLE_BORDER, bar["alpha"]), 2.0 / UIKit.screen_scale, true)
 		draw_circle(_snap(tip), 3.0, Color(UIKit.ACCENT, bar["alpha"]))
 	_draw_readouts()
 
@@ -462,7 +462,7 @@ func _draw_readouts() -> void:
 		var ratios := [clampf(float(b.hp) / maxf(1.0, b.max_hp()), 0.0, 1.0), clampf(float(b.mp) / maxf(1.0, b.max_mp()), 0.0, 1.0)]
 		for i in 2:
 			var row_y := inner.position.y + line_h * i
-			draw_string(font, _snap(Vector2(inner.position.x, row_y + font.get_ascent(px))), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, px, _hp_text_color(ratios[0]) if i == 0 else UIKit.INK)
+			draw_string(font, _snap(Vector2(inner.position.x, row_y + font.get_ascent(px))), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, px, _hp_text_color(ratios[0]) if i == 0 else UIKit.BATTLE_INK)
 			var gauge := Rect2(_snap(Vector2(inner.position.x + text_w + LABEL_GAP, row_y + (line_h - MINI_HP_H) * 0.5)), Vector2(MINI_W, MINI_HP_H))
 			_well(gauge, ratios[i], UIKit.hp_color(ratios[i]) if i == 0 else MP_COLOR)
 	_shield_plate("trainer_self", int(GameState.shield), int(GameState.max_shield))
@@ -481,7 +481,7 @@ func _shield_plate(ref, left: int, most: int) -> void:
 	var size := Vector2(PLATE_PAD * 2.0 + label_w + LABEL_GAP + orbs_w, PLATE_PAD * 2.0 + maxf(ORB_R * 2.0, font.get_height(px)))
 	var inner := _plate(_plate_above(ref, size))
 	var mid_y := inner.get_center().y
-	draw_string(font, _snap(Vector2(inner.position.x, mid_y - font.get_height(px) * 0.5 + font.get_ascent(px))), "SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, px, UIKit.INK)
+	draw_string(font, _snap(Vector2(inner.position.x, mid_y - font.get_height(px) * 0.5 + font.get_ascent(px))), "SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, px, UIKit.BATTLE_INK)
 	for i in most:
 		var c := Vector2(inner.position.x + label_w + LABEL_GAP + ORB_R + i * (ORB_R * 2.0 + ORB_GAP), mid_y)
 		if i < left:
@@ -511,7 +511,7 @@ func _plate(rect: Rect2) -> Rect2:
 	_fade_band(Rect2(outer.position, outer.size), [0.0, PLATE_FADE, outer.size.x - PLATE_FADE, outer.size.x], dark)
 	var line := FrameBox.unit * 0.75
 	var w := outer.size.x
-	_fade_band(Rect2(Vector2(outer.position.x, outer.end.y - line), Vector2(w, line)), [0.0, w * 0.3, w * 0.7, w], UIKit.BORDER)
+	_fade_band(Rect2(Vector2(outer.position.x, outer.end.y - line), Vector2(w, line)), [0.0, w * 0.3, w * 0.7, w], UIKit.BATTLE_BORDER)
 	return rect.grow(-PLATE_PAD)
 
 
@@ -521,7 +521,7 @@ static func _hp_text_color(ratio: float) -> Color:
 		return CRITICAL_COLOR
 	if ratio <= HP_LOW:
 		return LOW_COLOR
-	return UIKit.INK
+	return UIKit.BATTLE_INK
 
 
 ## A horizontal band in `col`, clear at both ends and full between stops[1] and stops[2] (offsets from its left).

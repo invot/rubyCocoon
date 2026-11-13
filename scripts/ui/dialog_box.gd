@@ -88,7 +88,7 @@ func _ready() -> void:
 	hb.add_child(text_label)
 	if speaker != "":
 		name_panel = PanelContainer.new()
-		name_panel.add_theme_stylebox_override("panel", UIKit.box("nameplate", Vector4(8, -2, 8, -2)))
+		name_panel.add_theme_stylebox_override("panel", UIKit.chip(UIKit.ACCENT, Color(0, 0, 0, 0), 0.0, Vector4(24, 4, 24, 4)))
 		var nl := UIKit.header(speaker, UIKit.LIGHT)
 		name_panel.add_child(nl)
 		name_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -138,7 +138,7 @@ func _ready_bubble() -> void:
 		name_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		name_panel.add_theme_stylebox_override("panel", UIKit.speech_box(true))
 		_name_label = UIKit.header(speaker, UIKit.ACCENT)
-		_name_label.add_theme_color_override("font_color", UIKit.INK)
+		_name_label.add_theme_color_override("font_color", Color.WHITE)
 		_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		name_panel.add_child(_name_label)
 		add_child(name_panel)

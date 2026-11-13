@@ -252,7 +252,7 @@ func _draw() -> void:
 			if full:
 				draw_arc(at, 6.0, 0.0, TAU, 16, white, 1.5, true)
 		elif i < grades.size():
-			draw_arc(at, 5.5, 0.0, TAU, 16, Color(UIKit.DIM, 0.6 * a), 1.5, true)
+			draw_arc(at, 5.5, 0.0, TAU, 16, Color(UIKit.BATTLE_DIM, 0.6 * a), 1.5, true)
 		else:
 			draw_arc(at, 5.5, 0.0, TAU, 16, white, 2.0, true)
 	# the grade of the last press, beside the ring, rising a little as it fades (a newer one replaces it)
@@ -262,6 +262,6 @@ func _draw() -> void:
 		var fade := a * (1.0 - smoothstep(0.45, 0.8, t))
 		var text := String(p["text"])
 		var at := c + Vector2(r + 18.0, font.get_ascent(px) * 0.35 - 14.0 * smoothstep(0.0, 0.8, t))
-		var col := Color(UIKit.DIM, fade) if String(p["grade"]) == "miss" else Color(1, 1, 1, fade)
+		var col := Color(UIKit.BATTLE_DIM, fade) if String(p["grade"]) == "miss" else Color(1, 1, 1, fade)
 		draw_string_outline(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 8, Color(0, 0, 0, 0.6 * fade))
 		draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, col)

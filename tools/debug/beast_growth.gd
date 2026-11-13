@@ -549,13 +549,22 @@ func _preview(main, opts: Dictionary, mode: String) -> void:
 		var race := int(opts.get("race", "0"))
 		var b := Beasts.create(race, 1 if mode == "hatch" else (19 if mode == "evolve" else 4), opts.get("ghost", "0") == "1")
 		var before := b.growth_look()
+		var level_look := {}
 		if mode == "evolve":
 			b.gain_xp(b.xp_for_level(20) - b.xp)
 		elif mode == "level":
-			b.gain_xp(b.xp_for_level(5) - b.xp)
+			# (--to: the level it reaches, from the one before; its event's look carries the moves it learned)
+			var to := int(opts.get("to", "5"))
+			if to > 2:
+				b.level = to - 1
+				b.xp = b.xp_for_level(to - 1)
+				before = b.growth_look()
+			for e in b.gain_xp(b.xp_for_level(to) - b.xp):
+				if e["type"] == "level":
+					level_look = e["look"]
 		var egg := {"race": race, "kind": "legendary" if RaceDB.is_legendary(race) else RaceDB.element(race), "ghost": b.ghost}
 		# ("egg": the film for an egg a beaten wild beast left behind)
-		var film := Film.new().setup(mode, {"name": b.nickname} if mode == "egg" else before, {} if mode == "egg" else b.growth_look(), egg)
+		var film := Film.new().setup(mode, {"name": b.nickname} if mode == "egg" else before, {} if mode == "egg" else (level_look if not level_look.is_empty() else b.growth_look()), egg)
 		if opts.has("at"):
 			film.preview_time = float(opts.at)
 		UI.push(film)

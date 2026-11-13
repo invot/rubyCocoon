@@ -181,7 +181,8 @@ func gain_xp(amount: int) -> Array:
 		level += 1
 		hp = max_hp()
 		mp = max_mp()
-		events.append({"type": "level", "level": level, "before": previous, "look": growth_look()})
+		var lv_event := {"type": "level", "level": level, "before": previous, "look": growth_look()}
+		events.append(lv_event)
 		var nf := RaceDB.for_level(race, level)
 		if nf != race:
 			var was := nickname
@@ -189,10 +190,14 @@ func gain_xp(amount: int) -> Array:
 			evolve(nf)
 			events.append({"type": "evolve", "from": was, "to": nickname,
 				"before": before, "after": growth_look()})
+		var learned := []
 		for mv in _learnset_at(level):
 			var res := learn(mv)
 			if res != "":
 				events.append({"type": "learn", "move": mv, "active": res == "new"})
+				learned.append({"move": mv, "active": res == "new"})
+		# (the level-up film lists what it learned beside its stats)
+		lv_event["look"]["learned"] = learned
 	if at_cap():
 		xp = xp_for_level(level)
 		events.append({"type": "cap"})
@@ -222,7 +227,7 @@ func evolve(nf: int) -> void:
 
 ## Small immutable presentation snapshot: rewards may cross both evolution thresholds at once.
 func growth_look() -> Dictionary:
-	return {"genes": genes.duplicate(true), "name": nickname, "race": race, "level": level,
+	return {"genes": genes.duplicate(true), "name": nickname, "race": race, "level": level, "elements": elements(),
 		"hp": max_hp(), "mp": max_mp(), "stats": {"hp": max_hp(), "mp": max_mp(),
 			"atk": stat("atk"), "def": stat("def"), "spr": stat("spr"), "spd": stat("spd")}}
 

@@ -1,9 +1,9 @@
 extends RefCounted
 ## The telephone. Your dad is away working, and calling him is how the game is saved: you tell him how your journey
 ## is going, he cheers you on, and asks whether to save; then whether to play on, or return to the title screen.
-## You can also call Mom: she passes on a tip about what to do next (ChatterDB.MOM_TIPS) and says
-## whether your beasts are strong enough for where you are (level_advice). Every phone also reaches the Sky Tower
-## company, which sends a courier ride, pickup or delivery.
+## You can also call Mom (away from home: at home she's in the room): she passes on a tip about what to do next
+## (ChatterDB.MOM_TIPS) and says whether your beasts are strong enough for where you are (level_advice). Once a SkyTower employee has given you its
+## number (SKYTOWER_FLAG), every phone also reaches SkyTower Inc, which sends a courier ride, pickup or delivery.
 ## Saving never costs anything: the red phones in homes, Beast Centers, some shops, the arenas and some temple
 ## doorways are free to use. Only a payphone in the street takes FEE coins for the call, and without them there's no
 ## call (a phone indoors is free).
@@ -14,6 +14,9 @@ const ChatterDB = preload("res://scripts/data/chatter_db.gd")
 const InteriorMaps = preload("res://scripts/data/maps/interior_maps.gd")
 
 const FEE := 5
+## Set when a SkyTower Inc employee (Skykeeper Aria at a tower's desk, places.gd skytower_desk) first gives you the
+## company's number: until then the phone can't call it.
+const SKYTOWER_FLAG := "skytower_number"
 ## Your beasts' average level next to the wild beasts' range (level_advice): below the bottom of it by more than
 ## WAY_BELOW is far too strong for them; above the top by more than ABOVE, they could press on.
 const WAY_BELOW := 2
@@ -64,18 +67,29 @@ static func call_home(world, fee := 0) -> void:
 		await UI.say(["A payphone. It takes %d coins to make a call, and you only have %d." % [fee, GameState.gold],
 			"The red phones in people's homes are free to use, and so is the one in every Beast Center."])
 		return
-	var who := 0
 	var what := "A payphone. A call costs %d coins." % fee if fee > 0 else "A telephone."
-	who = await UI.choose(what + " Who will you call?", ["Call Dad (save)", "Call Mom (advice)", "Sky Tower company"])
-	if who < 0:
+	# at home Mom's right there in the room, so there's no calling her
+	var whom := ["dad"] if _at_home(world) else ["mom", "dad"]
+	if knows_skytower():
+		whom.append("tower")
+	var labels := {"mom": "Mom", "dad": "Dad", "tower": "SkyTower Inc"}
+	# the phone's menus are shot towards the phone, you beside it (world.gd menu_shot_begin)
+	if world != null:
+		world.aim_phone_shot()
+	var pick := await UI.choose(what + " Who will you call?", whom.map(func(k): return labels[k]))
+	if pick < 0 or pick >= whom.size():
+		_end_phone_shot(world)
 		return
 	if fee > 0:
 		GameState.gold -= fee
 		Sfx.play("buy")
-	if who == 2:
+	var who: String = whom[pick]
+	if who == "tower":
 		await call_tower()
+		_end_phone_shot(world)
 		return
-	if who == 1:
+	_end_phone_shot(world)
+	if who == "mom":
 		await call_mom(world)
 		return
 	Sfx.play("phone_ring")
@@ -87,6 +101,17 @@ static func call_home(world, fee := 0) -> void:
 		"Work's busy, but hearing from you is the best part of my day."][randi() % 3])
 	await UI.say(lines, "Dad")
 	await _save()
+
+
+## True once you have SkyTower Inc's number (a request already under way counts, for saves from before the number).
+static func knows_skytower() -> bool:
+	return GameState.flag(SKYTOWER_FLAG) or not GameState.courier_request.is_empty()
+
+
+static func _end_phone_shot(world) -> void:
+	if world != null and world.shot_phone:
+		world.shot_subject = null
+		world.shot_phone = false
 
 
 ## Calls Mom: she passes on a tip about what to do next, then what she makes of your beasts' levels. Nothing is saved.
@@ -248,7 +273,7 @@ class Ringer extends Node:
 static func call_tower() -> void:
 	const Courier = preload("res://scripts/core/sky_courier.gd")
 	Sfx.play("phone_ring")
-	var choice := await UI.choose("Sky Tower company", [
+	var choice := await UI.choose("SkyTower Inc", [
 		{"text": "Ride", "desc": "A visited town, at twice the tower fare."},
 		{"text": "Pick up items", "desc": "Store up to 12 stacks from your bag for 20 gold."},
 		{"text": "Deliver items", "desc": "Choose up to 12 locker stacks. Delivery is free."},

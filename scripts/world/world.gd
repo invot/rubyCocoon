@@ -104,6 +104,29 @@ var rock_tops := {}
 var house_cover := {}
 ## Test harness: the camera is placed by hand (main.gd --overview) and stops following the player.
 var cam_free := false
+## The menu shot (menu_shot_begin): while you talk with someone (_talk) or use a phone (Phone.call_home), a menu that
+## opens swings the camera round to a close shot of them, over your shoulder, on the left of the screen with the menu
+## on the right. Plain dialogue keeps the usual camera. shot_subject is who (or what) it's on; shot_phone: a phone,
+## seen from further off, more of you in it.
+var shot_subject: Node3D = null
+var shot_phone := false
+## 0..1: how far the camera has swung into the shot; whether a menu holds it now, and how long until it lets go
+var _shot_w := 0.0
+var _shot_on := false
+var _shot_release := 0.0
+## where the follow camera would be (kept apart from cam.position while the shot moves the camera)
+var _cam_follow := Vector3.ZERO
+## what the shot is on (kept while it eases out, after the talk's over)
+var _shot_node: Node3D = null
+var _shot_is_phone := false
+## the shot changed the lens (put back once it's over)
+var _shot_lens := false
+## seconds to swing into the shot (slow, so the zoom reads as a gentle move) and back out of it
+const SHOT_IN := 1.2
+const SHOT_OUT := 0.6
+const SHOT_HOLD := 0.2
+const SHOT_FOV := 32.0
+const SHOT_FOV_PHONE := 44.0
 var building_fades: Array = []
 var water_mats: Array = []
 var spinners: Array = []
@@ -2867,18 +2890,116 @@ func _place_camera(instant := false) -> void:
 		var off := CAM_OFFSET_ROOM
 		if map.get("stage", false) and w <= still_w:
 			off *= _stage_pull(w, h, t)
-		var want_r := t + off
-		cam.position = want_r if instant else cam.position.lerp(want_r, 0.15)
-		cam.look_at(cam.position - off + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
+		_aim_camera(t + off, off, 0.15, instant)
 		return
 	t.x = clampf(t.x, 7.0, maxf(7.0, w - 7.0))
 	t.z = clampf(t.z, 4.0, maxf(4.0, h - 2.5))
-	var want := t + CAM_OFFSET
-	cam.position = want if instant else cam.position.lerp(want, 0.12)
-	cam.look_at(cam.position - CAM_OFFSET + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
+	_aim_camera(t + CAM_OFFSET, CAM_OFFSET, 0.12, instant)
 	# Track the hero's view-space depth even when the follow camera stops at a map boundary.
 	var subject := player.position if is_instance_valid(player) else cam_target
+	if _shot_w > 0.5 and is_instance_valid(_shot_node):
+		subject = _shot_node.global_position
 	cam.attributes.dof_blur_far_distance = maxf(1.0, (subject - cam.position).dot(-cam.basis.z)) + 4.0
+
+
+## The follow camera easing (by `rate` a frame) towards `want`, looking back along `off`; blended with the menu shot
+## while one is on (or easing out).
+func _aim_camera(want: Vector3, off: Vector3, rate: float, instant: bool) -> void:
+	var dt := get_process_delta_time()
+	if _shot_on:
+		_shot_w = minf(1.0, _shot_w + dt / SHOT_IN)
+	elif _shot_release > 0.0:
+		_shot_release -= dt
+	else:
+		_shot_w = maxf(0.0, _shot_w - dt / SHOT_OUT)
+	if not is_instance_valid(_shot_node) or not is_instance_valid(player):
+		_shot_w = 0.0
+	var from := cam.position if _shot_w <= 0.0 else _cam_follow
+	_cam_follow = want if instant else from.lerp(want, rate)
+	var follow := Transform3D(Basis.looking_at(-off + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP), _cam_follow)
+	var lens := 36.0 if not interior else 44.0
+	if _shot_w <= 0.0:
+		cam.transform = follow
+		if _shot_lens:
+			cam.fov = lens
+			_shot_lens = false
+		return
+	var k := smoothstep(0.0, 1.0, _shot_w)
+	# a longer lens for a person, closer in on them; a phone keeps more of the room
+	cam.fov = lerpf(lens, SHOT_FOV_PHONE if _shot_is_phone else SHOT_FOV, k)
+	_shot_lens = true
+	cam.transform = follow.interpolate_with(_shot_transform(), k)
+
+
+## Swings the camera into the menu shot, if someone's being talked to or a phone used (and the world's on screen);
+## true if it did, and the menu should open on the right. Ends with menu_shot_end.
+func menu_shot_begin() -> bool:
+	if cam_free or not is_inside_tree() or not is_instance_valid(shot_subject) or not is_instance_valid(player) or demo:
+		return false
+	_shot_on = true
+	_shot_release = 0.0
+	_shot_node = shot_subject
+	_shot_is_phone = shot_phone
+	return true
+
+
+## The menu's closed: the camera eases back, unless another menu opens straight away (a shop's next screen).
+func menu_shot_end() -> void:
+	_shot_on = false
+	_shot_release = SHOT_HOLD
+
+
+## Points the menu shot at the phone you're using: the telephone nearest the tile you face (a table's or a counter's),
+## else a mark where you're facing, at a payphone's handset height. Clear it with shot_subject = null.
+func aim_phone_shot() -> void:
+	var at := tile_pos(_facing_tile())
+	var best: Node3D = null
+	for p in get_tree().get_nodes_in_group("phones"):
+		var n := p as Node3D
+		if n == null or not n.is_inside_tree() or not is_ancestor_of(n):
+			continue
+		var gap := Vector2(n.global_position.x - at.x, n.global_position.z - at.z).length()
+		if gap < 1.6 and (best == null or gap < Vector2(best.global_position.x - at.x, best.global_position.z - at.z).length()):
+			best = n
+	if best == null:
+		best = get_node_or_null("PhoneShot") as Node3D
+		if best == null:
+			best = Node3D.new()
+			best.name = "PhoneShot"
+			add_child(best)
+		best.position = at + Vector3(0, 1.1, 0)
+	shot_subject = best
+	shot_phone = true
+
+
+## Over your shoulder towards whoever you're talking to, framed on the left third of the screen (the menu takes the
+## right). A phone is seen from further off and more to the side, so the hero stands in the shot beside it.
+func _shot_transform() -> Transform3D:
+	var me := player.global_position
+	var them := _shot_node.global_position
+	var d := Vector3(them.x - me.x, 0.0, them.z - me.z)
+	if d.length() < 0.05:
+		d = Vector3(facing.x, 0.0, facing.y)
+	d = d.normalized()
+	var right := d.cross(Vector3.UP)
+	var pos: Vector3
+	var look: Vector3
+	if _shot_is_phone:
+		pos = me - d * 2.3 + right * 1.5 + Vector3(0, 1.75, 0)
+		look = (me + Vector3(0, 0.85, 0)).lerp(them, 0.55)
+	else:
+		pos = me - d * 1.8 + right * 0.62 + Vector3(0, 2.0, 0)
+		look = them + Vector3(0, 1.0, 0)
+	if interior:
+		# never behind the room's walls
+		pos.x = clampf(pos.x, 0.35, float(map["w"]) - 0.35)
+		pos.z = maxf(pos.z, 0.35)
+	var basis := Basis.looking_at(look - pos, Vector3.UP)
+	# turn right, so what's looked at sits on the left of the screen
+	var size := get_viewport().get_visible_rect().size
+	var half := tan(deg_to_rad(cam.fov / 2.0)) * size.x / maxf(size.y, 1.0)
+	basis = Basis(Vector3.UP, -atan(0.45 * half)) * basis
+	return Transform3D(basis, pos)
 
 
 ## How much further back than usual the camera stands so a stage room's whole width, both side walls and their doors,
@@ -3751,7 +3872,13 @@ func _talk(n: Dictionary) -> void:
 	var person: bool = node != null and node.has_meta("skeleton")
 	if person:
 		VPer.set_talking(node, true)
+	# a menu they open (a shop's, a Beast Center's...) is shot over your shoulder at them
+	var subject: Node3D = node.person if node is TrainerCell else node
+	shot_subject = subject if is_instance_valid(subject) else null
+	shot_phone = false
 	await Story.talk(self, n)
+	if shot_subject == subject:
+		shot_subject = null
 	if person and is_instance_valid(node):
 		VPer.set_talking(node, false)
 

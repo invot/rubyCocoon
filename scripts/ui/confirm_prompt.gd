@@ -48,13 +48,13 @@ func _speech_choice(button: Button, selected: bool) -> void:
 	button.add_theme_font_override("font", UIKit.font_dialog())
 	button.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.DIALOG_SIZE))
 	var paper := StyleBoxFlat.new()
-	paper.bg_color = UIKit.INK
+	paper.bg_color = Color.WHITE
 	paper.set_corner_radius_all(12)
 	paper.set_content_margin_all(12)
 	paper.shadow_color = Color(UIKit.DARK, 0.22)
 	paper.shadow_size = 4
 	paper.shadow_offset = Vector2(0, 3)
-	paper.border_color = UIKit.ACCENT if selected else UIKit.INK
+	paper.border_color = UIKit.ACCENT if selected else Color.WHITE
 	paper.set_border_width_all(4 if selected else 1)
 	for state in ["normal", "disabled"]:
 		button.add_theme_stylebox_override(state, paper)

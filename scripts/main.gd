@@ -1274,7 +1274,7 @@ func _run_test() -> void:
 		print("broke: gold ", before, " -> ", GameState.gold)
 		bad += int(GameState.gold != before)
 		GameState.gold = 20
-		UI.auto_answers = [0, 0, 0]
+		UI.auto_answers = [1, 0, 0]
 		await Phone.call_home(world, Phone.FEE)
 		print("paid: gold 20 -> ", GameState.gold)
 		bad += int(GameState.gold != 20 - Phone.FEE)
@@ -1282,7 +1282,7 @@ func _run_test() -> void:
 		# Declining Dad's save leaves the existing journey untouched, then still asks whether to continue.
 		var save_before := FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot))
 		UI.auto_log.clear()
-		UI.auto_answers = [0, 1, 0]
+		UI.auto_answers = [1, 1, 0]
 		await Phone.call_home(world)
 		bad += int(FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot)) != save_before)
 		bad += int(not "Dad: Would you like me to save your journey?" in UI.auto_log)
@@ -1290,7 +1290,7 @@ func _run_test() -> void:
 		# away from home you can call Mom instead (the payphone still takes its coins): a tip, and nothing is saved
 		GameState.gold = 20
 		UI.auto_log.clear()
-		UI.auto_answers = [1]
+		UI.auto_answers = [0]
 		await Phone.call_home(world, Phone.FEE)
 		var mom_log := " | ".join(UI.auto_log)
 		print("Mom from the payphone: gold 20 -> ", GameState.gold, "  ", mom_log)
@@ -1321,17 +1321,38 @@ func _run_test() -> void:
 		var town_advice := " ".join(Phone.level_advice(world))
 		print("next goal ", Story.next_goal(), " in town: ", town_advice)
 		bad += int(not "Tide Captain Marina's beasts are Lv 9 to 10" in town_advice)
-		# Every phone, including home, offers the company as the third contact.
+		# Every phone, including home, offers the company; at home it's second, since Mom's in the room and can't be
+		# called there.
 		await _do_goto(home, "entry")
 		await _wait(1.0)
+		# before a SkyTower employee gives you the number, there's only Dad to call from home
+		GameState.flags.erase(Phone.SKYTOWER_FLAG)
+		GameState.courier_request = {}
 		UI.auto_log.clear()
-		UI.auto_answers = [2, 0]
+		UI.auto_answers = [1]
+		await Phone.call_home(world)
+		print("no number yet: ", UI.auto_log)
+		bad += int(UI.auto_log.size() != 1 or not GameState.courier_request.is_empty())
+		# Skykeeper Aria gives you the number the first time you talk to her, and explains the couriers
+		UI.auto_log.clear()
+		UI.auto_answers = [2]
+		await Places.skytower_desk()
+		print("Aria, first time: ", UI.auto_log)
+		bad += int(not GameState.flag(Phone.SKYTOWER_FLAG)) + int(not "take our number" in " ".join(UI.auto_log))
+		UI.auto_log.clear()
+		UI.auto_answers = [2]
+		await Places.skytower_desk()
+		bad += int("take our number" in " ".join(UI.auto_log))
+		UI.auto_log.clear()
+		UI.auto_answers = [1, 0]
 		var call_gold := GameState.gold
 		await Phone.call_home(world)
 		print("at home: ", UI.auto_log)
 		bad += int(not "Who will you call" in " ".join(UI.auto_log))
 		bad += int(GameState.courier_request.get("service", -1) != 0 or GameState.gold != call_gold)
 		GameState.courier_request = {}
+		print("Mom callable at home: ", not Phone._at_home(world))
+		bad += int(not Phone._at_home(world))
 		print("PHONE TEST DONE: %d problem(s)" % bad)
 		UI.auto = false
 	elif scene == "doorway":
@@ -1339,7 +1360,7 @@ func _run_test() -> void:
 	elif scene == "call":
 		# calling Dad, for a screenshot: from the phone at home, the town square's payphone (--where=payphone) or a
 		# Beast Center's (--where=center, in --town), standing at --stand=x,y facing --face=dx,dy (by the phone if not
-		# given); A is pressed --presses times (4: past "Call Dad?", Yes and the dialling, to Dad's first line; the call
+		# given); A is pressed --presses times (4: past "Dad", Yes and the dialling, to Dad's first line; the call
 		# never gets as far as saving). Dad says --name (the game's default). --who=mom calls Mom instead (away from
 		# home), with the story up to Bellerive's arena, a beast of --level for her advice and her --tip'th tip
 		var where := String(_test.get("where", "home"))
@@ -1377,13 +1398,45 @@ func _run_test() -> void:
 		world.facing = f
 		load("res://scripts/gfx/voxel_person.gd").face(world.player, f)
 		Phone.call_home(world, Phone.FEE if pay else 0)
-		if _test.get("who", "dad") == "mom":
+		# away from home Mom comes first, then Dad; at home it's Dad, then SkyTower Inc
+		if _test.get("who", "dad") == "dad" and not Phone._at_home(world):
 			while UI.stack.is_empty():
 				await _wait(0.1)
 			await _wait(0.4)
 			await _press("ui_down")
 		for i in int(_test.get("presses", "4")):
 			await _wait(0.7)
+			await _press("ui_accept")
+		await _wait(wait)
+	elif scene == "talk-menu":
+		# the menu shot (world.gd menu_shot_begin), for a screenshot: talk to the keeper of --town's --place (a
+		# building's shop kind, "center" by default; --place=outside: the first person in the town), from the side
+		# --side=dx,dy of them (0,1: south, across a counter if there's one), and A is pressed until a menu is up
+		var town := String(_test.get("town", "caccoon"))
+		var place := String(_test.get("place", "center"))
+		await _go(town if place == "outside" else MapLoader.interior_of(town, place), "start" if place == "outside" else "entry")
+		await _wait(1.0)
+		var side_s := String(_test.get("side", "0,1")).split(",")
+		var side := Vector2i(int(side_s[0]), int(side_s[1]))
+		var placed := false
+		for p in world.npcs:
+			if placed or not is_instance_valid(world.npcs[p].get("node")):
+				continue
+			for k in [1, 2]:
+				var stand: Vector2i = p + side * k
+				if world._walkable(stand) and (k == 1 or world._counter_like(p + side)):
+					world.player_pos = stand
+					world.player.position = world.tile_pos(stand)
+					world.facing = -side
+					load("res://scripts/gfx/voxel_person.gd").face(world.player, -side)
+					placed = true
+					break
+		print("talk-menu placed: ", placed, " at ", world.player_pos)
+		world._interact()
+		for i in 12:
+			await _wait(0.6)
+			if not UI.stack.is_empty() and UI.stack.back() is UI.ListMenu:
+				break
 			await _press("ui_accept")
 		await _wait(wait)
 	elif scene == "knock":

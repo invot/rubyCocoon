@@ -229,13 +229,12 @@ func _on_controllers_changed() -> void:
 			_row_focused(focus_row)
 
 
-## The tabs: bordered plates over the blurred scene; the open one framed in white with white text, the rest framed
-## faintly in the gem with dim text.
+## The tabs: rounded plates; the open one filled with the gem with white text, the rest off-white with dim text.
 func _style_tabs() -> void:
 	for k in markers.size():
 		var m: Button = markers[k]
 		var open := k == tab
-		var sb: StyleBox = UIKit.plate(Color.WHITE if open else Color(UIKit.BORDER, 0.5), Vector4(10, 0, 10, 0))
+		var sb: StyleBox = UIKit.chip(UIKit.ACCENT, Color(0, 0, 0, 0), 0.0, Vector4(6, -2, 6, -2)) if open else UIKit.plate(UIKit.BORDER, Vector4(10, 0, 10, 0))
 		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
 			m.add_theme_stylebox_override(st, sb)
 		var col := UIKit.LIGHT if open else UIKit.DIM
@@ -348,6 +347,7 @@ func _add_row(row: Dictionary) -> void:
 		# Adjustable values share their action label's size, including every Settings row.
 		var value_size := UIKit.BUTTON_FONT_SIZE if row.has("adjust") else int(row.get("right_font", 20))
 		var rl := UIKit.label(str(row["right"]), value_size, UIKit.GOLD)
+		UIKit.follow_row(b, rl, UIKit.GOLD)
 		var value_width := UIKit.font_body().get_string_size(rl.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 			rl.get_theme_font_size("font_size")).x
 		var right_width := maxf(float(row.get("right_width", 110)), value_width + 8.0)
@@ -384,8 +384,6 @@ func _add_row(row: Dictionary) -> void:
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot.add_theme_stylebox_override("panel", UIKit.slot_box())
 		b.add_child(slot)
-		b.focus_entered.connect(func(): slot.add_theme_stylebox_override("panel", UIKit.slot_box(true)))
-		b.focus_exited.connect(func(): slot.add_theme_stylebox_override("panel", UIKit.slot_box()))
 		var icon := TextureRect.new()
 		icon.texture = UI.Glyphs.item(row["item_slot"])
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR if UI.Glyphs.smooth(icon.texture) else CanvasItem.TEXTURE_FILTER_NEAREST
