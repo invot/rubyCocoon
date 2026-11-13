@@ -1,46 +1,39 @@
 extends RefCounted
-## Dragon entrance: natural completion, skip inputs, and one screen per confirmation.
+## Artwork title: crossfade/zoom, navigation, touch clusters and one screen per confirmation.
 var bad := 0
 
 func run(main) -> void:
-	_check(is_instance_valid(main._title_intro) and UI.stack.is_empty(), "dragon entrance precedes the menu")
-	var stage = main._title_intro
-	_check(not stage._arrived and stage._t < stage.ASCENT_TIME and stage._dragon_card.position.y < stage._dragon_rest.y, "unskipped entrance starts with the dragon below its final position")
-	var mode: String = main._test.get("skip", "touch" if Prefs.is_mobile() else "key")
-	if mode != "none":
-		main._title_intro.freeze(1.8)
-		await main._wait(0.1)
-		var point: Vector2 = main.get_viewport().get_visible_rect().size * Vector2(0.5, 0.7)
-		if mode == "touch-a":
-			point = UI.controls._buttons["a"].position + Vector2(52, 52)
-		Input.parse_input_event(_skip_event(mode, true, point, main))
-		await main._wait(0.2)
-		_check(UI.stack.size() == 1 and UI.stack.back().get_script() == UI.ListMenu, "skip opens only the title menu, even while held")
-		if mode == "key":
-			var echo := _skip_event(mode, true, point, main) as InputEventKey
-			echo.echo = true
-			Input.parse_input_event(echo)
-			await main.get_tree().process_frame
-			_check(UI.stack.size() == 1 and UI.stack.back().get_script() == UI.ListMenu, "held A does not confirm the new menu")
-		Input.parse_input_event(_skip_event(mode, false, point, main))
 	var deadline := Time.get_ticks_msec() + 15000
 	while UI.stack.is_empty() and Time.get_ticks_msec() < deadline:
 		await main.get_tree().process_frame
-	_check(not UI.stack.is_empty(), "menu becomes ready without hanging")
+	_check(not UI.stack.is_empty(), "slideshow title menu becomes ready")
 	if UI.stack.is_empty():
 		return
 	await main._wait(0.3)
-	_check(not main._title_skip_held, "skip input is released before the next confirmation")
-	_check(main.view.render_target_update_mode == SubViewport.UPDATE_ALWAYS and main.screen.visible, "menu keeps the 3D background visible")
-	_check(not is_instance_valid(main._title_intro), "ascent no longer intercepts menu input")
-	_check(is_instance_valid(stage) and main._title_nodes[0] == stage and stage.get_parent() == main.view, "menu retains the original title tableau")
-	_check(stage._arrived and stage._t >= stage.ASCENT_TIME and stage._dragon_card.position.is_equal_approx(stage._dragon_rest), "dragon reaches its natural resting position")
-	_check(stage.logo is Node3D and stage.logo.is_visible_in_tree(), "original 3D Ruby Cocoon title stays visible")
-	var before_time: float = stage._t
+	var stage = main._title_nodes[0]
+	_check(main.view.render_target_update_mode == SubViewport.UPDATE_DISABLED and not main.screen.visible, "title leaves the unused 3D viewport asleep")
+	_check(not is_instance_valid(main._title_intro), "slideshow has no entrance blocking menu input")
+	_check(stage.get_parent() == UI.root and stage.logo.is_visible_in_tree(), "slideshow and title remain behind the menu")
+	_check(stage.logo.get_script() == stage.Plaque and stage.logo.get_rect().get_center().x > main.get_viewport().get_visible_rect().size.x * 0.45
+		and stage.logo.get_rect().get_center().x < main.get_viewport().get_visible_rect().size.x * 0.55, "the game's name hangs on its stone plaque at the top centre")
+	_check(not UI.top_bar.visible, "the shared top bar stays out of the title screen")
+	_check(stage.slideshow.front.texture != null, "first artwork is loaded")
+	var before_time: float = stage.slideshow.elapsed
 	await main._wait(0.1)
-	_check(stage._t > before_time, "dragon hover and title animation continue after the ascent")
+	_check(stage.slideshow.elapsed > before_time, "slideshow zoom continues while the menu waits")
+	# Verify an actual crossfade and wrap using the same production controller.
+	var art = stage.slideshow
+	while art.back.texture == null and Time.get_ticks_msec() < deadline:
+		await main.get_tree().process_frame
+	art.elapsed = art.HOLD + art.FADE * 0.5
+	art._process(0.0)
+	_check(art.back.modulate.a > 0.4 and art.back.modulate.a < 0.6, "artwork crossfades through half opacity")
+	art.index = art.library().slides.size() - 1
+	art.elapsed = art.HOLD + art.FADE
+	art._process(0.0)
+	_check(art.index == 0, "slideshow wraps to the first artwork")
 	var menu = UI.stack.back()
-	_check(menu.get_script() == UI.ListMenu and UI.stack.size() == 1, "entrance ends at the New Game / Load Game menu")
+	_check(menu.get_script() == UI.ListMenu and UI.stack.size() == 1, "slideshow keeps the New Game / Load Game menu")
 	if main._test.get("fixture", "0") == "1":
 		_check(menu.buttons.any(func(b): return b.text == "Load Game"), "Load Game remains available with a test save")
 	if menu.buttons.size() > 1:
@@ -82,6 +75,11 @@ func run(main) -> void:
 		if button.text == "New Game":
 			await main._tap_at(button.get_global_rect().get_center())
 			break
+	# (the creator's script may still be loading on a busy machine: wait for it, then a little longer so a leaked
+	# second confirmation would show)
+	var creator_deadline := Time.get_ticks_msec() + 4000
+	while Time.get_ticks_msec() < creator_deadline and not (not UI.stack.is_empty() and UI.stack.back().get_script().resource_path == "res://scripts/ui/hero_maker.gd"):
+		await main.get_tree().process_frame
 	await main._wait(0.3)
 	_check(not UI.stack.is_empty() and UI.stack.back().get_script().resource_path == "res://scripts/ui/hero_maker.gd" and is_instance_valid(main._title_nodes[0]), "one tap opens the character creator once")
 	_check(UI.stack.size() == 1, "the title tap does not confirm the character creator")
@@ -89,7 +87,7 @@ func run(main) -> void:
 	await main._press("ui_cancel")
 	await main._wait(0.3)
 	_check(not UI.stack.is_empty() and UI.stack.back().get_script() == UI.ListMenu, "B returns to the title")
-	_check(is_instance_valid(stage) and stage.logo.is_visible_in_tree(), "returning restores the original 3D title")
+	_check(is_instance_valid(stage) and stage.logo.is_visible_in_tree(), "returning restores the title lettering")
 	print("TITLE STARTUP DONE: %d problem(s)" % bad)
 
 

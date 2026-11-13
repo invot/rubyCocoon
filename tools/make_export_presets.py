@@ -50,7 +50,7 @@ def unused_models():
     return len(assets), out
 
 
-COMMON = ['music/*', 'ui/Complete_UI_Book_Styles_Pack_Free_v1.0/*', 'ui/DEMO_Fantasy_RPG_UI_doboui/*',
+COMMON = ['music/*', 'output/*', 'ui/Complete_UI_Book_Styles_Pack_Free_v1.0/*', 'ui/DEMO_Fantasy_RPG_UI_doboui/*',
           'ui/set1/*', 'ui/set2/*', 'ui/seamless patterns/*', 'tools/*', 'build/*']
 
 # iPhone home-screen support: full-screen launch and the page colour (Godot adds the apple-touch-icon link itself;
@@ -70,7 +70,7 @@ advanced_options=false
 dedicated_server=false
 custom_features="%(features)s"
 export_filter="all_resources"
-include_filter="assets/ui/ui_manifest.json"
+include_filter="assets/ui/ui_manifest.json,assets/loading/slideshow.json"
 exclude_filter="%(exclude)s"
 export_path="%(path)s"
 patches=PackedStringArray()

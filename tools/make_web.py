@@ -165,9 +165,14 @@ def main():
         html = html.replace('<title>Ruby Cocoon</title>', '<title>Ruby Cocoon Demo</title>')
     shutil.copy(os.path.join(ROOT, 'tools', 'web_fullscreen.js'), OUT)
     shutil.copy(os.path.join(ROOT, 'tools', 'web_loading.js'), OUT)
-    for font in ('LeagueSpartan.ttf', 'QuattrocentoSans-Regular.ttf'):
+    # Browser artwork is available before the engine/PCK download, using the same library as Godot.
+    shutil.copytree(os.path.join(ROOT, 'assets', 'loading'), os.path.join(OUT, 'loading'),
+                    ignore=shutil.ignore_patterns('*.import'))
+    loading = json.load(open(os.path.join(ROOT, 'assets', 'loading', 'slideshow.json'), encoding='utf-8'))
+    for font in ('LeagueSpartan.ttf', 'QuattrocentoSans-Regular.ttf', 'CormorantSC-Bold.ttf'):
         shutil.copy(os.path.join(ROOT, 'ui', font), OUT)
     html = html.replace('<script src="index.js"></script>', SHIM % json.dumps(packed) +
+                        '<script>window.RC_LOADING = ' + json.dumps(loading) + ';</script>\n' +
                         '<script src="web_loading.js"></script>\n\t\t<script src="web_fullscreen.js"></script>\n\t\t<script src="index.js"></script>', 1)
     assert 'realFetch' in html, 'could not add the loader script to index.html'
     open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(html)

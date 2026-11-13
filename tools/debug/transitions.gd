@@ -1,6 +1,6 @@
 extends RefCounted
 ## Times whole map transitions as the player meets them, fades and black hold included, and checks that none of them
-## puts a loading message on screen. Run in a fresh process with an isolated --save_dir. Windowed runs are VSync-capped,
+## keeps the artwork progress monotonic during outdoor loading. Run in a fresh process with an isolated --save_dir. Windowed runs are VSync-capped,
 ## which is what a player gets; headless runs measure CPU work only.
 ##   --passes=2  how many times to walk the route (the first is cold, later ones reuse caches)
 ##   --shot=path  the arrival view of the last step, and <path>_black.<ext> from the middle of its black hold
@@ -48,6 +48,13 @@ func run(main, opts: Dictionary) -> void:
 			var now := Time.get_ticks_usec()
 			_trace = {"began": now, "last": now, "frames": 0, "gap": 0, "black_began": -1, "black_ended": -1}
 			await main._do_goto(step[0], step[1])
+			if not MapLoader.is_interior(step[0]):
+				if not _trace.get("art_seen", false):
+					bad += 1
+					print("FAIL outdoor transition did not show artwork")
+			if is_instance_valid(main._loading_screen) or is_instance_valid(main._loading_layer):
+				bad += 1
+				print("FAIL loading overlay leaked into play")
 			var done := Time.get_ticks_usec()
 			var key := "pass%d_%02d_%s" % [p + 1, i, String(step[0]).replace("#", "_")]
 			report[key] = {
@@ -94,12 +101,16 @@ func _sample() -> void:
 	if int(_trace["black_began"]) < 0:
 		_trace["black_began"] = now
 	_trace["black_ended"] = now
-	# While the screen is black, nothing should be telling the player they're waiting.
-	for label in UI.root.find_children("*", "Label", true, false):
-		if label.is_visible_in_tree() and String(label.text).to_lower().contains("loading"):
+	if is_instance_valid(_main._loading_screen):
+		var value: float = _main._loading_screen.progress.value
+		if value < float(_trace.get("progress", 0.0)):
 			bad += 1
-			print("FAIL a loading message is on screen: ", label.text)
-			break
+			print("FAIL loading progress went backwards")
+		_trace["progress"] = value
+		_trace["art_seen"] = true
+		if _main._loading_screen.caption.text.is_empty():
+			bad += 1
+			print("FAIL loading caption is empty")
 	if _black_shot != "" and now - int(_trace["black_began"]) > 30000:
 		_main._save_shot(_black_shot)
 		_black_shot = ""

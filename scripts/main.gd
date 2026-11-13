@@ -50,6 +50,8 @@ var _cost_load_clock := 0
 var autoplay := false
 var _cinematic: Node3D
 var _loaded_scripts := {}
+var _loading_layer: CanvasLayer
+var _loading_screen: Control
 
 
 func _ready() -> void:
@@ -173,16 +175,14 @@ func _title() -> void:
 	_clear_title_world()
 	Sfx.music("title")
 	Sfx.ambience("")
-	# Keep the same tableau after the ascent; skipping advances it without choosing a menu item.
-	var stage = load("res://scripts/gfx/title_stage.gd").new()
-	_title_intro = stage
+	var stage = load("res://scripts/ui/art_title.gd").new()
 	_title_nodes = [stage]
-	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	screen.show()
-	view.add_child(stage)
+	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	screen.hide()
+	UI.root.add_child(stage)
+	UI.root.move_child(stage, 0)
 	_title_backdrop()
-	await stage.arrived
-	_title_intro = null
+	await get_tree().process_frame
 	if _test.get("title_precompile", "1") == "1":
 		precompile_shaders()
 	while true:
@@ -407,6 +407,9 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 	var script := await wait_for_script(WORLD_PATH)
 	_cost_load_lap("shader dependencies and world script wait")
 	world = script.new()
+	world.build_progress.connect(func(value: float):
+		if is_instance_valid(_loading_screen):
+			_loading_screen.set_progress(0.16 + value * 0.5))
 	world.demo = demo
 	world.cost_warmup_shared = _test.get("diagnose", "0") == "1" and _test.get("warmup_shared", "0") == "1"
 	view.add_child(world)
@@ -439,6 +442,13 @@ func _load_world(id: String, spawn, demo := false, face := Vector2i.ZERO) -> voi
 
 
 func _cost_load_lap(label: String) -> void:
+	var stages := {"teardown": 0.08, "shader dependencies and world script wait": 0.16,
+		"world build": 0.68, "explicit surface finish": 0.72, "spawn and wilds": 0.78,
+		"first battle prewarm": 0.83, "field audio prewarm": 0.87,
+		"arrival preparation and warmup setup": 0.94, "enable world processing": 0.96,
+		"arrival state and audio selection": 1.0}
+	if is_instance_valid(_loading_screen) and stages.has(label):
+		_loading_screen.set_progress(stages[label])
 	if _cost_load_clock == 0:
 		return
 	var now := Time.get_ticks_usec()
@@ -496,6 +506,17 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	# (where we came from: a building's name shows on walking in from outside, not between its rooms)
 	var came_from := GameState.map_id
 	await UI.fade_out(fade)
+	var was_pause_allowed := UI.allow_pause
+	UI.allow_pause = false
+	# Artwork covers the hidden world while construction yields. Rooms retain their short door fades.
+	if not MapLoader.is_interior(id) and (id != came_from or world == null):
+		_loading_layer = CanvasLayer.new()
+		_loading_layer.layer = 30
+		add_child(_loading_layer)
+		_loading_screen = load("res://scripts/ui/loading_screen.gd").new()
+		_loading_layer.add_child(_loading_screen)
+		_loading_screen.destination.text = WorldDB.map_name(id)
+		await get_tree().process_frame
 	var black_began := Time.get_ticks_usec() if _test.get("load_phases", "0") == "1" else 0
 	# Nothing's on view: drawing a half-built map each frame would only slow the building of it.
 	view.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -519,7 +540,17 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	_cost_load_clock = 0
 	if black_began > 0:
 		cost_continuous_black_ms = (Time.get_ticks_usec() - black_began) / 1000.0
+	if is_instance_valid(_loading_screen):
+		_loading_screen.set_progress(1.0)
+		await get_tree().process_frame
+		var reveal := create_tween()
+		reveal.tween_property(_loading_screen, "modulate:a", 0.0, maxf(0.3, fade))
 	await UI.fade_in(maxf(0.3, fade))
+	if is_instance_valid(_loading_layer):
+		_loading_layer.queue_free()
+	_loading_layer = null
+	_loading_screen = null
+	UI.allow_pause = was_pause_allowed
 	var sub := ""
 	var title := WorldDB.map_name(id)
 	if MapLoader.is_interior(id):

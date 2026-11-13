@@ -39,7 +39,6 @@ func run(root, opts: Dictionary) -> void:
 			Menus.pause_menu(main.world, "map")
 		"title":
 			main._title()
-			main._title_intro.skip_ascent()
 		_:
 			if opts.get("pad", "") == "hidden":
 				_hide_pad(true)

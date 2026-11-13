@@ -2,7 +2,7 @@
 
 A beast-training RPG with a clean, modern stylized look, for **Godot 4.8 beta 3**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, hatch every new beast from the eggs wild beasts leave behind, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
-<img src="docs/screenshots/title.jpg" width="800" alt="The start menu after the skippable dragon entrance."><br><sub>Press A / Enter or tap during the dragon entrance to open the start menu immediately.</sub>
+<img src="docs/screenshots/title.jpg" width="800" alt="The start menu after the skippable dragon entrance."><br><sub>The start menu appears over a slowly zooming artwork slideshow.</sub>
 
 ## Running it
 
@@ -995,7 +995,7 @@ mounted owl and its rider.
     Town arrival notices use a cluster of houses. Verify with `bash tools/run_tests.sh item-icons
     item-icons-touch`; windowed `--scene=item-icons --shots=res://build/shots/icons` captures all four gems.
   - The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at the top centre: place names on
-    entering a town, road or building, pickups, gold and battle messages. It is the windows' off-white box, hanging
+    entering a town, road or building, pickups, gold and battle messages (the title screen has its own stone plaque). It is the windows' off-white box, hanging
     from the top edge with its bottom corners slightly rounded and the bezel only along its bottom: [left icon] text [right icon]. It has exactly three
     sizes (`TopBar.SIZES`): **small** (360 UI units, one line), **medium** (640, one line) and **large** (640, two
     lines). Each message takes the smallest size that holds it; text never shrinks. A message too long even for the
@@ -1073,20 +1073,17 @@ mounted owl and its rider.
   at its end. So all of it can be reached with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
-- A moonlit dragon rises for 4.2 seconds before the **New Game / Continue / Load Game** menu. **A / Enter**, gamepad
-  **A**, or a tap/click anywhere skips the ascent and opens the menu immediately. The skip press never selects a
-  menu item; release it before confirming a choice. The mobile controls remain available during the entrance.
-  Continue and Load Game appear when a compatible save exists. With no save yet, **New Game** is a big, glowing
-  pill in the gem with no box round it: a thick pale border inside a dark edge, a soft glow that breathes, a slow pulse
-  and a band of light sweeping across it every few seconds (`list_menu.gd` "bare"; on desktops a plain Quit sits under
-  it).
-- The start menu appears over the same 3D tableau (`scripts/gfx/title_stage.gd`): the fully raised dragon, moon,
-  drifting motes and gold **Ruby Cocoon** lettering remain visible. Skipping advances the ascent to its natural
-  ending. Demo builds add **DEMO** below the logo in the same gold lettering. After the ascent,
-  the dragon's hover, wingbeats and title animation continue as usual. Load Game and the character
-  creator hide the lettering while retaining the background. World, creator,
-  battle and book scripts load in the background after the entrance's first draw.
-  Transitions wait for those requests without blocking the main thread (`main.gd` _title_backdrop, wait_for_script).
+- The title menu appears immediately over ten detailed landscape scenes (`scripts/ui/art_slideshow.gd`).
+  Pictures slowly zoom by seven percent and crossfade over two seconds; each new scene begins seven seconds
+  after the last. Artwork fills the screen without stretching, cropping gently on wider phones. Only the current
+  picture and next picture are held as textures; the unused 3D viewport sleeps. Continue and Load Game appear
+  when a compatible save exists. With no save yet, New Game retains its large glowing gem button. Keyboard,
+  gamepad and touch navigation remain available. Once the title menu is up, the game's name hangs at the top centre on
+  this screen's own HUD, a carved stone plaque (`scripts/ui/title_plaque.gd`) a little wider at the top, each side
+  one straight slant: the name large in Cormorant SC Bold, in a deepened shade of the chosen gem, with runes cut
+  under it (DEMO there in demos). It steps up while the shared top bar has a notice. Load Game and the character
+  creator hide it while the artwork continues. World, creator, battle and book
+  scripts load after the title's first draw.
   The touch pad's faces are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem,
   so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
@@ -1146,8 +1143,17 @@ mounted owl and its rider.
   Enclosed-room suns also use two shadow splits over 30 units on Mid/Max; Min disables their shadows.
   The indoor coverage is checked at reachable room edges, including the largest generated building interior.
 - **Starting video settings**: fresh or missing video preferences use **540p** and Graphics **Max** on every platform. Existing saved choices are retained.
-- **Web download**: playful phrases above the loading bar rotate while the game downloads; they disappear with the loader and leave engine error messages clear.
-- **Stalls and loading**: a transition shows no loading message. The next map is built behind the black fade,
+- **Web download**: the same artwork slideshow fills the browser during download, with **Ruby Cocoon** at the top
+  and a progress window below. The bar retains the engine's real download progress. Game-specific silly captions
+  rotate every three seconds. Artwork and captions share `assets/loading/slideshow.json` with the game. Errors
+  keep their original engine notice and hide the title/progress window. Browser reduced-motion preferences stop
+  the zoom. Artwork and fonts are copied beside the export so they appear before the game data is ready.
+- **Stalls and loading**: entering a different outdoor town or path (including returning from a building and the
+  first outdoor load) shows the artwork slideshow, destination, a gem progress bar and playful game-specific captions.
+  Progress measures completed construction phases, rather than elapsed time, and reaches full after arrival state
+  and audio are ready. Fast transitions add no minimum display delay. Room-to-room moves and same-map reloads
+  keep short black fades. Input and pause are blocked during loading; the overlay fades away on arrival.
+  The next map is built behind the artwork/fade,
   yielding between terrain chunks, scenery rows, house plans and NPCs after 50 ms of work (12 ms on the web, which
   mixes its music on the same thread). The 3D view is switched off until the map is finished, and its first draw also
   happens while the screen is still black. The ground meshes of the last three outdoor maps are remembered, so walking
@@ -1538,8 +1544,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   the coaches, the mascots, the doors and stairs at home, and each temple from its stone puzzle to capturing its
   guardian.
 - `title-startup` / `title-startup-touch`, plus `title-startup-gamepad`, `title-startup-mouse`,
-  `title-startup-touch-a` and `title-startup-natural`: skip the dragon with A, gamepad A, a click, a screen tap or the
-  on-screen A button, or let it finish. Check one confirmation per press, the retained 3D tableau and title, keyboard
+  `title-startup-touch-a` and `title-startup-natural`: check the artwork crossfade, zoom and looping. Check one confirmation per press, the retained slideshow and title, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
 - `hero-maker` / `hero-maker-touch`: actual name/body navigation, outfit and hair arrows, every color row's swatches,
   preview updates, and cancellation. `--scene=creator --shots=res://build/shots/creator` captures both tabs.
@@ -1560,7 +1565,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `--scene=field-perf --report=res://build/field_frames.json` samples desktop frame intervals, script CPU and GPU
   times on a repeatable camera path behind buildings. Run with the same renderer and settings before and after.
 - `transitions`: walks a route of towns, roads and rooms through the real transition, timing how long each stays black
-  and failing if a loading message appears. `--scene=transitions --report=res://build/transitions.json` writes the
+  and checking outdoor artwork, monotonic progress and overlay cleanup on arrival. `--scene=transitions --report=res://build/transitions.json` writes the
   timings; run it in a window for VSync-capped figures.
 - `house-measurements` / `battle-art`: baked geometry measurements and exact generated ring/audio assets.
 - `exteriors` (`--scene=exteriors`, `tools/debug/exteriors.gd`): every town building and scenery house, built as the

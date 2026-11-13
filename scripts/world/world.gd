@@ -1,4 +1,5 @@
 extends Node3D
+signal build_progress(value: float)
 const TrainerCell = preload("res://scripts/story/trainer_cell.gd")
 ## The voxel overworld: block terrain, voxel trees/props from the asset pack, procedural voxel
 ## buildings, people and beasts. Also renders building interiors (map kind "interior").
@@ -178,6 +179,7 @@ func build(id: String, cooperative := false) -> void:
 	ground_h = {}
 	_lifts = PackedByteArray()
 	map = MapLoader.load_map(id, GameState.flags)
+	build_progress.emit(0.05)
 	biome = map["biome"].duplicate(true)
 	if map_id.get_slice("#", 0) in ["kelpwick", "shellhaven"]:
 		biome["style"] = "roundwood" if map_id.begins_with("kelpwick") else "resort"
@@ -199,13 +201,17 @@ func build(id: String, cooperative := false) -> void:
 		if not _restore_scenery():
 			_build_environment()
 			await _build_terrain()
+			build_progress.emit(0.3)
 			await _build_checkpoint()
 			await _plan_round_huts()
 			await _plan_houses()
+			build_progress.emit(0.45)
 			await _build_checkpoint()
 			await _build_scatter()
+			build_progress.emit(0.6)
 			await _build_checkpoint()
 			await _build_backdrop()
+			build_progress.emit(0.7)
 			await _build_checkpoint()
 			_build_buildings()
 			if map["kind"] == "town":
@@ -224,9 +230,11 @@ func build(id: String, cooperative := false) -> void:
 		if map_id == "shellhaven":
 			load("res://scripts/gfx/island_buildings.gd").beach(self)
 	await _build_npcs()
+	build_progress.emit(0.9)
 	_build_items()
 	_build_player()
 	_build_camera()
+	build_progress.emit(1.0)
 	if map.get("sandstorm", false):
 		_build_sandstorm()
 	if not cooperative:
