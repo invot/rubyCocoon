@@ -4,6 +4,7 @@ python tools/vo_cost.py --renderer mobile
 Does not replace the accepted 001-003 baselines or change runtime rendering.
 """
 import argparse
+from godot_toolchain import default_godot
 from contextlib import contextmanager
 import json
 import os
@@ -48,7 +49,7 @@ def run(renderer, build=False, eligibility=False, phases=False, attempt="", step
     if report.exists():
         raise FileExistsError(f"Preserve existing evidence: {report}")
     state = f"res://build/vo_state/{step}/{renderer}"
-    cmd = [os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe"),
+    cmd = [default_godot(),
            "--path", str(ROOT), "--rendering-method", renderer, "--resolution", "1920x1080", "--",
            "--scene=vo-perf", "--diagnose=1", "--render_height=1080", "--graphics_quality=mid",
            f"--report=res://build/perf/vo/{step}/{tag}.json",

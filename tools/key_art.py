@@ -8,7 +8,9 @@ import tempfile
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
-GODOT = os.environ.get('GODOT', r'C:\Program Files\Godot\Godot_v4.7-stable_win64.exe')
+from godot_toolchain import default_godot
+
+GODOT = default_godot()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 

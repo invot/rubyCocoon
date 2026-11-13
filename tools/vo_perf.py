@@ -5,6 +5,7 @@ python tools/vo_perf.py --renderers mobile --tag experiment
 Never run a second benchmark or a test suite concurrently with this script.
 """
 import argparse
+from godot_toolchain import default_godot
 import json
 import math
 import os
@@ -133,7 +134,7 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--godot", default=os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe"))
+    parser.add_argument("--godot", default=default_godot())
     parser.add_argument("--renderers", nargs="+", choices=CONFIGS, default=list(CONFIGS))
     parser.add_argument("--runs", type=int, default=2)
     parser.add_argument("--tag", default="baseline-desktop")

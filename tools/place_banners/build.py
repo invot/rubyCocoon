@@ -29,7 +29,9 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 SVG = os.path.join(HERE, "svg")
 RAW = os.path.join(ROOT, "build", "place_banners", "raw")
 OUT = os.path.join(ROOT, "assets", "ui", "place_banners")
-GODOT = os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+from godot_toolchain import default_godot
+GODOT = default_godot()
 W, H = 1280, 160
 # alpha: the ends (EDGE) and the middle (MID), easing between them over the middle part of each half
 EDGE, MID = 1.0, 0.12

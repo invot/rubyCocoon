@@ -1,5 +1,6 @@
 """011: explicit budget recording/generation; tests never rewrite reviewed limits."""
 import argparse
+from godot_toolchain import default_godot
 import hashlib
 import json
 import math
@@ -185,7 +186,7 @@ if __name__ == "__main__":
     rec.add_argument("--touch",action="store_true")
     rec.add_argument("--trial",choices=["terrain","noise","lighting"],default="")
     rec.add_argument("--renderer",choices=["forward_plus","mobile","gl_compatibility"],default="forward_plus")
-    rec.add_argument("--godot",default="C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
+    rec.add_argument("--godot",default=default_godot())
     gen = sub.add_parser("generate")
     gen.add_argument("--desktop",required=True)
     gen.add_argument("--touch-report",required=True)

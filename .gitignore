@@ -1,7 +1,8 @@
 .godot/
 *.import
 export/
-build/
+build/*
+!build/.gdignore
 /psx/
 /tools/new_beasts/out/
 __pycache__/

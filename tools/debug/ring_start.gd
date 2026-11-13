@@ -298,21 +298,37 @@ func _storage_inputs(fire, stored) -> void:
 	page.activate(page._row_of(stored))
 	var stops: Array = page._stops()
 	_check(stops.back() == page.STORE_STOP, "a carried beast's spots end with Storage, so Store works with the d-pad")
-	while page.destination != page.STORE_STOP:
-		page.move_destination(1)
+	if not await _select_storage_destination(page):
+		return
 	_check(page.heading.text.ends_with("Storage") and page.store_button.visible and not page.store_button.disabled, "Storage stop and Store button are offered")
 	await main._press("ui_accept")
 	await main._wait(0.1)
 	page = book.beasts_page
 	_check(GameState.storage.has(stored) and page.slots_label.text == "1 / 4 slots used", "storing a beast updates occupied versus unlocked slots")
 	page.activate(0)
-	while page.destination != page.STORE_STOP:
-		page.move_destination(1)
+	if not await _select_storage_destination(page):
+		return
 	await main._press("ui_accept")
 	_check(GameState.party.size() == 1 and page.store_button.disabled, "the last carried beast cannot be placed in storage")
 	await main._press("ui_cancel")
 	await main._press("ui_cancel")
 	_check((not is_instance_valid(book) or book.closed) and UI.stack.is_empty(), "B closes the storage screen")
+
+
+## A failed earlier pickup can leave no Storage stop. Fail instead of spinning
+## synchronously and queuing unbounded audio play commands without a frame.
+func _select_storage_destination(page) -> bool:
+	var stops: Array = page._stops()
+	if not stops.has(page.STORE_STOP):
+		_check(false, "the picked beast offers a Storage destination")
+		return false
+	for i in stops.size():
+		if page.destination == page.STORE_STOP:
+			return true
+		page.move_destination(1)
+		await main.get_tree().process_frame
+	_check(page.destination == page.STORE_STOP, "the Storage destination is reachable in one cycle")
+	return page.destination == page.STORE_STOP
 
 
 ## Every tab: Up from the top of its page goes to the tabs, and Down from the tabs goes back into the page.

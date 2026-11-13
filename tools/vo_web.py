@@ -5,6 +5,7 @@ are collected in build/perf/vo/baseline-web/report.json. This is a local measure
 export, without the production download compression/partitioning stage.
 """
 import argparse
+from godot_toolchain import default_godot
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
@@ -103,7 +104,7 @@ class Handler(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["export", "serve"])
-    parser.add_argument("--godot", default="C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
+    parser.add_argument("--godot", default=default_godot())
     args = parser.parse_args()
     if args.command == "export":
         export(args.godot)

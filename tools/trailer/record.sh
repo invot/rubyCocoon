@@ -5,7 +5,7 @@
 # The clip lands in build/trailer/raw/<name>.avi, its log in build/trailer/logs/<name>.log.
 set -u
 cd "$(dirname "$0")/../.."
-GODOT="${GODOT:-C:/Program Files/Godot/Godot_v4.7-stable_win64.exe}"
+GODOT="${GODOT:-$(python tools/godot_toolchain.py)}"
 name="$1"; seconds="$2"; shift 2
 [ "${1:-}" = "--" ] && shift
 out="build/trailer/raw"; mkdir -p "$out" build/trailer/logs build/trailer/prefs build/trailer/saves

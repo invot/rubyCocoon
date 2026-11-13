@@ -1,15 +1,16 @@
 """Verify Windows export defaults with actual executables, without renderer command overrides."""
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
 import argparse
 from look import model_lock
+from godot_toolchain import default_godot, engine_version, template_path
+from run_guarded import run as run_guarded
 
 ROOT = Path(__file__).resolve().parents[1]
-GODOT = "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe"
+GODOT = default_godot()
 
 
 def run(attempt):
@@ -32,7 +33,7 @@ def run(attempt):
             exe.parent.mkdir(parents=True,exist_ok=True)
             clone = f"[preset.{number}]\n\n"+content.replace(f"[preset.{index}.options]",f"[preset.{number}.options]")
             changes = {"name":"VO Export Probe", "custom_features":features, "export_path":exe.as_posix(),
-                       "custom_template/debug":(ROOT/"build/tools/godot-windows-templates/4.7.stable/windows_debug_x86_64.exe").as_posix()}
+                       "custom_template/debug":template_path(GODOT, "windows_debug_x86_64.exe").as_posix()}
             for key,value in changes.items():
                 clone,count=re.subn(r'^'+re.escape(key)+r'=.*$',lambda _:key+"="+json.dumps(value),clone,flags=re.M)
                 if count!=1:raise ValueError("Missing preset field "+key)
@@ -41,7 +42,9 @@ def run(attempt):
             path.write_bytes(temporary)
             try:
                 with (folder/"export.log").open("w") as log:
-                    subprocess.run([GODOT,"--headless","--path",str(ROOT),"--export-debug","VO Export Probe",str(exe)],stdout=log,stderr=subprocess.STDOUT,check=True,timeout=180)
+                    command=[GODOT,"--headless","--path",str(ROOT),"--export-debug","VO Export Probe",str(exe)]
+                    code=run_guarded(command,timeout=180,stdout=log,stderr=log,log=log)
+                    if code:raise subprocess.CalledProcessError(code,command)
             finally:
                 if path.read_bytes()!=temporary:raise RuntimeError("Concurrent preset edit; preserve original snapshot")
                 path.write_bytes(original)
@@ -49,13 +52,15 @@ def run(attempt):
             command=[str(exe),"--log-file",str(log_path),"--","--scene=vo-renderer",
                      f"--prefs_path=user://bench/vo/011/export-{tag}/settings.cfg",f"--save_dir=user://bench/vo/011/export-{tag}/saves/"]
             (folder/"command.json").write_text(json.dumps(command,indent=2))
-            subprocess.run(command,check=True,timeout=90)
+            code=run_guarded(command,timeout=90)
+            if code:raise subprocess.CalledProcessError(code,command)
             log=log_path.read_text(encoding="utf8")
             if "SCRIPT ERROR" in log or "Failed loading resource" in log:raise RuntimeError("Export probe failed")
             line=next(line for line in log.splitlines() if line.startswith("VO RENDERER "))
             data=json.loads(line.removeprefix("VO RENDERER "))
             if data["renderer"]!=expected or data["compatibility_build"]!=bool(features):raise ValueError("Wrong export renderer")
             data["executable_sha256"]=hashlib.sha256(exe.read_bytes()).hexdigest()
+            data["editor_version"]=engine_version(GODOT).full
             pack=exe.with_suffix(".pck")
             data["pack_sha256"]=hashlib.sha256(pack.read_bytes()).hexdigest() if pack.exists() else None
             results.append(data)

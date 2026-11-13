@@ -4812,7 +4812,7 @@ func _make_wild_node(w: Dictionary) -> void:
 	root.position = tile_pos(w["pos"])
 	add_child(root)
 	w["node"] = root
-	_face_wild(w)
+	_face_wild(w, true)
 	if not interior:
 		# (on the root, not the beasts: an old model hops, and its shade stays on the ground)
 		w["shadows"] = [_ground_shadow(root, BEAST_SHADOW * 0.72)]
@@ -4820,9 +4820,17 @@ func _make_wild_node(w: Dictionary) -> void:
 			w["shadows"].append(_ground_shadow(root, BEAST_SHADOW * 0.62, (f as Node3D).position))
 
 
-func _face_wild(w: Dictionary) -> void:
+## Turns a wild beast to its facing: over a moment, as people turn (see _animate_wild), unless at_once.
+func _face_wild(w: Dictionary, at_once := false) -> void:
 	var d: Vector2i = w["facing"]
-	(w["node"] as Node3D).rotation.y = atan2(-float(d.y), float(d.x))
+	w["yaw_to"] = atan2(-float(d.y), float(d.x))
+	if at_once:
+		(w["node"] as Node3D).rotation.y = float(w["yaw_to"])
+
+
+## True while a wild beast is still turning to its facing.
+func _wild_turning(w: Dictionary) -> bool:
+	return absf(angle_difference((w["node"] as Node3D).rotation.y, float(w.get("yaw_to", 0.0)))) >= 0.02
 
 
 func _set_mark(w: Dictionary, text: String, col := Color.WHITE) -> void:
@@ -4951,6 +4959,13 @@ func _wild_step_rel(w: Dictionary, sgn: int, speed: float) -> bool:
 
 func _animate_wild(w: Dictionary, delta: float) -> void:
 	var node: Node3D = w["node"]
+	# turning to a new facing: quickly, but not all at once (as people do)
+	var yaw_to := float(w.get("yaw_to", node.rotation.y))
+	if absf(angle_difference(node.rotation.y, yaw_to)) < 0.02:
+		node.rotation.y = yaw_to
+	else:
+		# (a slow frame doesn't snap it round)
+		node.rotation.y = lerp_angle(node.rotation.y, yaw_to, 1.0 - exp(-clampf(delta, 0.0, 1.0 / 30.0) * 14.0))
 	if w["moving"]:
 		w["mt"] = float(w["mt"]) + delta * float(w["speed"])
 		if float(w["mt"]) >= 1.0:
@@ -5095,7 +5110,14 @@ func _wild_encounter(w: Dictionary, kind: String) -> void:
 	if kind == "ambush":
 		# you spin round in surprise
 		facing = -w["facing"]
-		VPer.face(player, facing)
+		VPer.face(player, facing, true)
+	# let the beast (and you) finish turning to face each other before the battle starts
+	var turn_left := 0.45
+	while turn_left > 0.0 and _wild_turning(w) and is_inside_tree():
+		await get_tree().process_frame
+		turn_left -= get_process_delta_time()
+	if not is_inside_tree():
+		return
 	var res: String = await Story.wild_battle(self, w["beasts"], kind)
 	busy = false
 	if not is_inside_tree():

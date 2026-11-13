@@ -725,7 +725,7 @@ static func _sigil_texture(els: Array) -> ImageTexture:
 		_sigils[key] = load(RING_ART + _sigil_name(els))
 		return _sigils[key]
 	var n := 128
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBAF)
 	img.fill(Color(0, 0, 0, 0))
 	var c := Vector2(n, n) / 2.0
 	var gold := Color("#f4d27a")
@@ -754,6 +754,7 @@ static func _sigil_texture(els: Array) -> ImageTexture:
 				col.a = maxf(col.a, ring)
 			img.set_pixel(x, y, col)
 	_draw_sign(img, String(els[0]) if els.size() == 1 else "", gold)
+	img = PixelArt.rgba8_truncated(img)
 	img.generate_mipmaps()
 	var tex := ImageTexture.create_from_image(img)
 	_sigils[key] = tex
@@ -805,7 +806,7 @@ static func _circle_texture() -> ImageTexture:
 		_circle_tex = load(RING_ART + "circle.res")
 		return _circle_tex
 	var n := 384
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBAF)
 	img.fill(Color(1, 1, 1, 0))
 	var c := Vector2(n, n) / 2.0
 	var rng := RandomNumberGenerator.new()
@@ -842,6 +843,7 @@ static func _circle_texture() -> ImageTexture:
 					var d2 := Geometry2D.get_closest_point_to_segment(p, p0, p1).distance_to(p) / (n / 2.0)
 					a = maxf(a, clampf(1.0 - d2 / 0.007, 0.0, 1.0) * 0.55)
 			img.set_pixel(x, y, Color(1, 1, 1, a))
+	img = PixelArt.rgba8_truncated(img)
 	img.generate_mipmaps()
 	_circle_tex = ImageTexture.create_from_image(img)
 	return _circle_tex

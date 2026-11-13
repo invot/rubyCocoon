@@ -6,6 +6,7 @@ Then open http://127.0.0.1:8062/?vo_perf=1 in the in-app browser.
 Serving holds the shared resource lock and exits after receiving a report.
 """
 import argparse
+from godot_toolchain import default_godot
 import json
 import re
 import time
@@ -19,7 +20,7 @@ def main():
     parser.add_argument('--attempt', required=True)
     parser.add_argument('--shared-warmup', action='store_true', help='opt-in exact-material/geometry-format experiment')
     parser.add_argument('--precompile', action='store_true', help='title shader precompile after the title script wait')
-    parser.add_argument('--godot', default='C:/Program Files/Godot/Godot_v4.7-stable_win64.exe')
+    parser.add_argument('--godot', default=default_godot())
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]+', args.attempt):
         parser.error('Expected a plain attempt name')

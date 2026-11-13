@@ -1,18 +1,19 @@
-"""Fetch only the two Windows templates from the official Godot archive using HTTP ranges.
+"""Fetch selected matching templates from the official Godot archive using HTTP ranges.
 
 The complete archive is not downloaded/hashed. HTTPS provenance and ZIP entry CRCs are checked;
 per-file SHA256s and the release's full-archive digest are recorded separately.
 """
 import hashlib
+import argparse
 import io
 import json
 from pathlib import Path
 import urllib.request
 import zipfile
 from look import model_lock
+from godot_toolchain import default_godot, engine_version
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "build/tools/godot-windows-templates/4.7.stable"
 UA = {"User-Agent": "RubyCocoon-build-tools"}
 
 
@@ -49,31 +50,39 @@ class RangeFile(io.RawIOBase):
 
 
 def main():
-    request = urllib.request.Request("https://api.github.com/repos/godotengine/godot/releases/tags/4.7-stable", headers=UA)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--godot", default=default_godot())
+    parser.add_argument("--files", nargs="+", default=["windows_debug_x86_64.exe", "windows_release_x86_64.exe"],
+                        choices=["windows_debug_x86_64.exe", "windows_release_x86_64.exe", "android_debug.apk",
+                                 "android_release.apk", "web_nothreads_debug.zip", "web_nothreads_release.zip"])
+    args = parser.parse_args()
+    version = engine_version(args.godot)
+    out = ROOT / "build/tools/godot-windows-templates" / version.templates
+    request = urllib.request.Request(f"https://api.github.com/repos/godotengine/godot-builds/releases/tags/{version.release}", headers=UA)
     release = json.load(urllib.request.urlopen(request, timeout=30))
-    asset = next(a for a in release["assets"] if a["name"] == "Godot_v4.7-stable_export_templates.tpz")
+    asset = next(a for a in release["assets"] if a["name"] == f"Godot_v{version.release}_export_templates.tpz")
     url = asset["browser_download_url"]
-    assert url.startswith("https://github.com/godotengine/godot/releases/download/4.7-stable/")
-    OUT.mkdir(parents=True, exist_ok=True)
-    result = {"source": url, "archive_bytes": asset["size"], "release_archive_digest": asset.get("digest"),
+    assert url.startswith(f"https://github.com/godotengine/godot-builds/releases/download/{version.release}/")
+    out.mkdir(parents=True, exist_ok=True)
+    result = {"editor_version": version.full, "source": url, "archive_bytes": asset["size"], "release_archive_digest": asset.get("digest"),
               "full_archive_digest_verified": False, "entry_crc_verified": True, "files": {}}
     with model_lock(timeout=3600):
         remote = RangeFile(url, asset["size"])
         with zipfile.ZipFile(remote) as archive:
-            for filename in ["windows_debug_x86_64.exe", "windows_release_x86_64.exe"]:
+            for filename in args.files:
                 entries = [e for e in archive.infolist() if Path(e.filename).name == filename]
                 if len(entries) != 1:
                     raise RuntimeError("Ambiguous/missing template: " + filename)
                 entry = entries[0]
                 data = archive.read(entry)  # zipfile checks the entry CRC on complete read.
-                path = OUT / filename
+                path = out / filename
                 if path.exists() and path.read_bytes() != data:
                     raise RuntimeError("Existing template preserved: " + str(path))
                 if not path.exists(): path.write_bytes(data)
                 result["files"][filename] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), "zip_crc32": f"{entry.CRC:08x}"}
                 print("Prepared", filename, len(data), flush=True)
         result["downloaded_range_bytes"] = remote.transferred
-    (OUT / "provenance.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    (out / ("provenance-" + "-".join(args.files) + ".json")).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
 
 

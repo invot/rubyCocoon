@@ -41,6 +41,8 @@ func run(root, opts: Dictionary) -> void:
 			main._title()
 			main._title_intro.skip_ascent()
 		_:
+			if opts.get("pad", "") == "hidden":
+				_hide_pad(true)
 			_ask()
 	await main._wait(0.4)
 
@@ -48,6 +50,36 @@ func run(root, opts: Dictionary) -> void:
 func _ask(question := "Put your beasts in the healing chamber?") -> void:
 	answer = -1
 	answer = 1 if await UI.ask(question, "Beast Center") else 0
+
+
+## With a controller (or keyboard) hiding the pad, the question shows its own Yes/No answers with the outline.
+func _hide_pad(on: bool) -> void:
+	Prefs._hardware_keyboard = on or DisplayServer.has_hardware_keyboard()
+	Prefs.input_mode = "keyboard" if on else ""
+	Prefs.changed.emit()
+
+
+func _verify_pad_hidden(opts: Dictionary) -> void:
+	_hide_pad(true)
+	await main._wait(0.1)
+	_check(not UI.controls.touch_visible(), "keyboard/controller input hides the pad")
+	_ask()
+	await main._wait(0.3)
+	var prompt = UI.stack.back()
+	_check(prompt._choices.visible and prompt._active == 0, "hidden pad: Yes/No answers show, Yes outlined")
+	await _shot(opts, "yes_no_pad_hidden")
+	await main._press("ui_right")
+	_check(prompt._active == 1, "hidden pad: right moves the outline to No")
+	await main._press("ui_accept")
+	await main._wait(0.5)
+	_check(answer == 0 and UI.stack.is_empty(), "hidden pad: A picks the outlined No")
+	_hide_pad(false)
+	await main._wait(0.1)
+	_ask()
+	await main._wait(0.2)
+	_check(not UI.stack.back()._choices.visible, "pad shown: on-screen answers step aside")
+	await main._press("ui_cancel")
+	await main._wait(0.1)
 
 
 func _verify_desktop() -> void:
@@ -217,6 +249,7 @@ func _verify(opts: Dictionary) -> void:
 	_check(answer == 1, "gamepad A maps directly to Yes")
 	await main._wait(0.3)
 	_check(UI.controls.button_rect("a").size.x == UI.controls.ROUND and UI.controls._labels["a"].text == "A", "normal button shapes and labels return after the prompt")
+	await _verify_pad_hidden(opts)
 	await _center_menu()
 	await main._wait(0.2)
 	var menu = UI.stack.back()

@@ -34,6 +34,10 @@ style foundations in the runbook.
 - Server helpers must run outside the sandbox when required by AGENTS.md. Never
   restart the local model or kill another agent's process. Ask the user only when
   genuinely blocked; a busy lock means wait rather than bypass it.
+- After the 13 November host memory-exhaustion incident, tests run serially by
+  default through `tools/run_guarded.py`. Keep its memory cutoffs enabled. Archived
+  010c snapshots contain superseded runners/fixtures: refresh the guard and bounded
+  ring fixture before rerunning them. See `010c-godot-48-results.md`.
 
 ## Claude's first assignment: broadleaf artwork candidate
 
@@ -92,7 +96,7 @@ approve and continue, request changes, approve and pause. Continue after approva
 unless the user asks to pause. Use small checkpoints and leave a durable handoff
 before context becomes tight; do not abandon a half-applied change.
 
-Godot: `C:/Program Files/Godot/Godot_v4.7-stable_win64.exe`.
+Godot: resolve `python tools/godot_toolchain.py` (approved 4.8 beta 3; workspace portable editor). Do not reopen the main 4.8 cache with 4.7. See `010c-godot-48-results.md` for rollback.
 Git Bash: `C:/Program Files/Git/bin/bash.exe`. Tests use `server.py` `/bionic/run`;
 read its `errors`, then affected logs. Always isolate saves and preferences.
 The temporary phone benchmark package was removed after step 002; the player's

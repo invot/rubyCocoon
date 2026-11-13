@@ -43,7 +43,9 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 SRC = os.path.join(ROOT, "build", "art_candidates", "home_decor", "sources", "svg")
-GODOT = os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+from godot_toolchain import default_godot
+GODOT = default_godot()
 CW, CH = 192, 256
 COLS, ROWS = 5, 4
 HEX = re.compile(r"#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-fA-F])")

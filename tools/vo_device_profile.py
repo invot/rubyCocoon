@@ -1,5 +1,6 @@
 """Isolated one-pass scene profile on a physical phone, with explicit renderer/quality."""
 import argparse
+from godot_toolchain import default_godot
 from pathlib import Path
 from look import model_lock
 import vo_phone as phone
@@ -60,7 +61,7 @@ if __name__=="__main__":
     parser.add_argument("--noise-ab",action="store_true",help="Diagnostic analytic/lookup/analytic noise; changes noise placement, not adopted")
     parser.add_argument("--lighting-ab",action="store_true",help="Diagnostic pixel/vertex/pixel lighting; not a production preset change")
     parser.add_argument("--display",default="")
-    parser.add_argument("--godot",default="C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
+    parser.add_argument("--godot",default=default_godot())
     parser.add_argument("--sdk",default=str(phone.ROOT/"build/tools/android"))
     parser.add_argument("--java",default="C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot")
     args=parser.parse_args()

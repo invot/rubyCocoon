@@ -4,6 +4,7 @@ Open http://127.0.0.1:8066/?vo_perf=1 in the in-app browser. The collector stops
 five seconds after receiving all three passes; original baseline files are untouched.
 """
 import argparse
+from godot_toolchain import default_godot
 import base64
 from http.server import ThreadingHTTPServer
 import json
@@ -55,7 +56,7 @@ class Handler(vo_web.Handler):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["export", "serve"])
-    parser.add_argument("--godot", default="C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
+    parser.add_argument("--godot", default=default_godot())
     parser.add_argument("--attempt", default="01")
     args = parser.parse_args()
     if not re.fullmatch(r"[A-Za-z0-9_-]+", args.attempt):

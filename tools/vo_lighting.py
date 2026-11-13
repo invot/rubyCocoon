@@ -6,6 +6,7 @@ python tools/vo_lighting.py phone
 python tools/vo_lighting.py summary build/perf/vo/008b/phone/report.json
 """
 import argparse
+from godot_toolchain import default_godot
 import json
 import os
 from pathlib import Path
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     parser.add_argument("--attempt", default="")
     parser.add_argument("--renderer", choices=["mobile", "forward_plus", "gl_compatibility"], default="mobile")
     parser.add_argument("--touch", action="store_true")
-    parser.add_argument("--godot", default=os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe"))
+    parser.add_argument("--godot", default=default_godot())
     parser.add_argument("--sdk", default=str(ROOT / "build/tools/android"))
     parser.add_argument("--java", default=os.environ.get("JAVA_HOME", "C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot"))
     parser.add_argument("--serial", default="ZY22K7BD2J")

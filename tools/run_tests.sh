@@ -1,12 +1,12 @@
 #!/bin/bash
-# Runs the game's checks and test scenes, headless (no windows), a few at a time, and prints one line per test:
+# Runs the game's checks and test scenes, headless (no windows), serially by default, and prints one line per test:
 # "ok" or "FAIL" with the first line that went wrong. Full logs go to build/test_logs/<test>.log. A test that fails is
-# run once more before it counts (a couple of the scene tests are timing-sensitive).
+# run once more before it counts, except after a memory cutoff.
 #
-#   bash tools/run_tests.sh              everything (about 6-8 minutes)
+#   bash tools/run_tests.sh              everything (runtime depends on scene fixtures)
 #   bash tools/run_tests.sh quick        the fast checks only: scripts, data, maps, beasts (under a minute)
 #   bash tools/run_tests.sh flow ringedit    just the tests named
-#   JOBS=4 bash tools/run_tests.sh       how many run at once (default 3)
+#   JOBS=2 bash tools/run_tests.sh       how many run at once (default 1)
 #   GODOT=/path/to/godot.exe bash tools/run_tests.sh
 #
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
@@ -125,6 +125,7 @@ TESTS=(
 	"coaches|-- --scene=coaches --wait=0.3|coaches DONE: 0 problem"
 	"teacher-gates|-- --scene=teacher-gates --save_dir=res://build/teacher_gates_saves/|TEACHER GATES DONE: 0 problem"
 	"wild-grace|-- --scene=wild-grace --wait=0.3|WILD GRACE DONE: 0 problem"
+	"beast-turn|-- --scene=beast-turn --wait=0.3|BEAST TURN DONE: 0 problem"
 	"building-fade|-- --scene=building-fade --wait=0.3|BUILDING FADE DONE: 0 problem"
 	"exteriors|-- --scene=exteriors --wait=0.3|EXTERIORS DONE: .* building(s), 0 problem"
 	"arena-entry|-- --scene=arena-entry --wait=0.3|ARENA ENTRY DONE: 0 problem"
@@ -155,11 +156,11 @@ TESTS=(
 )
 QUICK="scripts data maps beasts"
 ## what in a test's log fails it whatever else it printed: a script error, or a model, texture or sound missing
-BAD="SCRIPT ERROR|Error calling deferred method|Failed loading resource|Resource file not found|Cannot open file|asset missing|model missing"
+BAD="SCRIPT ERROR|Error calling deferred method|Failed loading resource|Resource file not found|Cannot open file|asset missing|model missing|GUARD MEMORY|GUARD TIMEOUT"
 
 cd "$(dirname "$0")/.." || exit 2
-GODOT="${GODOT:-C:/Program Files/Godot/Godot_v4.7-stable_win64.exe}"
-JOBS="${JOBS:-3}"
+GODOT="${GODOT:-$(python tools/godot_toolchain.py)}"
+JOBS="${JOBS:-1}"
 LOGS="${TEST_LOG_DIR:-build/test_logs}"
 mkdir -p "$LOGS"
 rm -f "$LOGS"/*.log "$LOGS"/*.result
@@ -173,23 +174,26 @@ fi
 
 # one test: run it (and once more if it fails), write "<status>|<seconds>|<detail>" to its .result
 run_one() {
-	local name="$1" args="$2" pass="$3" log="$LOGS/$1.log" start=$SECONDS status="FAIL" detail="" try
+	local name="$1" args="$2" pass="$3" log="$LOGS/$1.log" start=$SECONDS status="FAIL" detail="" try code
 	# Scripts and legacy scenarios also get isolated defaults. Explicit per-test overrides win.
 	[[ " $args " != *" -- "* ]] && args="$args --"
 	[[ "$args" != *"--save_dir="* ]] && args="$args --save_dir=res://build/test_saves/$name/"
 	[[ "$args" != *"--prefs_path="* ]] && args="$args --prefs_path=res://build/test_prefs/$name/settings.cfg"
 	for try in 1 2; do
 		# shellcheck disable=SC2086
-		timeout 900 "$GODOT" --headless --path . $args > "$log" 2>&1
+		python tools/run_guarded.py --timeout 900 -- "$GODOT" --headless --path . $args > "$log" 2>&1
+		code=$?
 		# (a missing model, texture or sound counts as a failure too)
-		if grep -q "$pass" "$log" && ! grep -qE "$BAD" "$log"; then
+		if [ "$code" = 0 ] && grep -q "$pass" "$log" && ! grep -qE "$BAD" "$log"; then
 			status="ok"
 			[ "$try" = 2 ] && detail="(passed on the second try)"
 			break
 		fi
+		# A memory cutoff must not immediately launch the same failing test again.
+		[ "$code" = 125 ] && break
 	done
 	if [ "$status" = "FAIL" ]; then
-		detail=$(grep -m1 -E "$BAD|FAIL|problem|captured false|Error" "$log" | grep -v "0 problem" | cut -c1-160)
+		detail=$(grep -E "$BAD|FAIL|problem|captured false|Error" "$log" | grep -v "0 problem" | head -n1 | cut -c1-160)
 		[ -z "$detail" ] && detail="didn't print \"$pass\""
 	fi
 	echo "$status|$((SECONDS - start))|$detail" > "$LOGS/$name.result"

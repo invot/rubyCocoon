@@ -28,7 +28,10 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 New **010c: Godot 4.8 migration** is scheduled immediately after 007 phone recovery/cleanup,
 before 011 budget acceptance. See the [assessment and rework](010c-godot-48-plan.md).
-4.8 is beta 3 as of 13 November; test early, with adoption gated as documented. Existing 011
+The user approved beta3 and the comparison visuals; the main checkout now selects
+4.8 beta 3. Main 19/19 checks and both Windows export paths pass under the guard;
+see [results and rollback](010c-godot-48-results.md).
+Broader 010c target/feature evidence and 007's original-phone recovery remain open. Existing 011
 tooling remains provisional until remeasured. Unfinished 022a now covers offline texture baking
 in place of LightmapGI, following the user’s direction; completed steps retain their status.
 

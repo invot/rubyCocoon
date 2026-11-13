@@ -15,6 +15,22 @@ static var _painter: SubViewport = null
 
 
 # ---------------------------------------------------------------- canvas helpers
+## Canonical 4.7 RGBA8 bytes for baked art; 4.8 Image.set_pixel rounds instead of truncating.
+## Draw into RGBAF first, then quantize explicitly before generating mipmaps.
+static func rgba8_truncated(source: Image) -> Image:
+	var bytes := PackedByteArray()
+	bytes.resize(source.get_width() * source.get_height() * 4)
+	for y in source.get_height():
+		for x in source.get_width():
+			var color := source.get_pixel(x, y)
+			var at := (y * source.get_width() + x) * 4
+			bytes[at] = int(clampf(color.r * 255.0, 0.0, 255.0))
+			bytes[at + 1] = int(clampf(color.g * 255.0, 0.0, 255.0))
+			bytes[at + 2] = int(clampf(color.b * 255.0, 0.0, 255.0))
+			bytes[at + 3] = int(clampf(color.a * 255.0, 0.0, 255.0))
+	return Image.create_from_data(source.get_width(), source.get_height(), false, Image.FORMAT_RGBA8, bytes)
+
+
 class Canvas:
 	var w: int
 	var h: int

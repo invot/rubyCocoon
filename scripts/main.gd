@@ -77,8 +77,9 @@ func _ready() -> void:
 	add_child(screen)
 	get_window().size_changed.connect(_fit_view)
 	Prefs.changed.connect(_fit_view)
-	_fit_view()
 	_parse_test_args()
+	_size_headless_test_window()
+	_fit_view()
 	if _test.has("window_title"):
 		get_window().title = String(_test["window_title"])
 	if _test.has("scene"):
@@ -777,6 +778,26 @@ func _parse_test_args() -> void:
 			_test[kv[0]] = kv[1]
 
 
+## Headless DisplayServer starts with a dummy 64x64 window, even with --resolution.
+## Set Window.size explicitly so GUI touch clipping uses the intended test viewport.
+func _size_headless_test_window() -> void:
+	if DisplayServer.get_name() != "headless" or not _test.has("scene"):
+		return
+	var resolution := Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width", 1280)),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height", 720)))
+	var args := OS.get_cmdline_args()
+	for i in range(args.size() - 1):
+		if args[i] != "--resolution":
+			continue
+		var dimensions := args[i + 1].split("x")
+		if dimensions.size() == 2 and dimensions[0].is_valid_int() and dimensions[1].is_valid_int():
+			var requested := Vector2i(int(dimensions[0]), int(dimensions[1]))
+			if requested.x > 0 and requested.y > 0:
+				resolution = requested
+	get_window().size = resolution
+
+
 func _run_test() -> void:
 	var scene: String = _test["scene"]
 	if scene == "desktop-audit":
@@ -809,7 +830,7 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
-	if scene == "bag-limit" or scene == "bag-actions":
+	if scene == "bag-limit" or scene == "bag-actions" or scene == "loading-art":
 		await load("res://tools/debug/%s.gd" % scene.replace("-", "_")).new().run(self, _test)
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
@@ -1766,6 +1787,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/teacher_gates.gd").new().run(self, _test)
 	elif scene == "wild-grace":
 		await load("res://tools/debug/wild_grace.gd").new().run(self, _test)
+	elif scene == "beast-turn":
+		await load("res://tools/debug/beast_turn.gd").new().run(self, _test)
 	elif scene == "wilds":
 		autoplay = true
 		UI.auto = true
@@ -1778,7 +1801,7 @@ func _run_test() -> void:
 		w0["t"] = 99.0
 		# (beasts face any of the eight ways; you only bump into one head on)
 		w0["facing"] = Vector2i(1, 0)
-		world._face_wild(w0)
+		world._face_wild(w0, true)
 		var behind: Vector2i = w0["pos"] - w0["facing"]
 		world.player_pos = behind
 		world.player.position = world.tile_pos(behind)

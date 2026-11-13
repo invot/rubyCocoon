@@ -472,7 +472,7 @@ do not assume scenery alone explains the interval. Preserve player app and lock 
 **Done when:** you approve, and the `video-settings` and `video-settings-touch` tests pass.
 
 ### 010c · P10c: migrate to Godot 4.8 and verify useful rendering features
-**Status:** todo (added 2026-11-13; no completed step replaced).
+**Status:** in progress; user approved beta3 target and comparison visuals. Main cutover and guarded validation are recorded in [results](010c-godot-48-results.md); broader target/feature evidence remains open.
 **Approval:** measured compatibility/performance, then before/after gameplay screenshots before adoption.
 **Needs:** recover 007 phone evidence and clean up its temporary package; preserve completed 005–010 evidence.
 **Runs before:** 011 budget acceptance, 021/022 material work and production texture bakes.

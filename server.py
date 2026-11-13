@@ -36,7 +36,9 @@ _spec = importlib.util.spec_from_file_location("look", os.path.join(ROOT, "tools
 qwen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(qwen)
 
-GODOT = os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
+from tools.godot_toolchain import default_godot
+
+GODOT = default_godot()
 # Git's bash, which the test script needs (on Windows a bare "bash" can be WSL's, which can't see Godot)
 GIT_BASH = os.environ.get("GIT_BASH") or next(
     (p for p in ["C:/Program Files/Git/bin/bash.exe", "C:/Program Files (x86)/Git/bin/bash.exe"] if os.path.exists(p)),

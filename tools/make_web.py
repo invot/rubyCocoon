@@ -24,7 +24,9 @@ import subprocess
 
 from PIL import Image
 
-GODOT = os.environ.get('GODOT', r'C:\Program Files\Godot\Godot_v4.7-stable_win64.exe' if os.name == 'nt' else 'godot')
+from godot_toolchain import default_godot
+
+GODOT = default_godot()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT = os.path.join(ROOT, 'build', 'web_export')
 OUT = os.path.join(ROOT, 'build', 'web')

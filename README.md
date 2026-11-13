@@ -1,6 +1,6 @@
 # Ruby Cocoon
 
-A beast-training RPG with a clean, modern stylized look, for **Godot 4.7**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, hatch every new beast from the eggs wild beasts leave behind, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
+A beast-training RPG with a clean, modern stylized look, for **Godot 4.8 beta 3**. You hatch your first beast from an egg, battle to make it stronger as it grows into its second and third forms, hatch every new beast from the eggs wild beasts leave behind, merge grown beasts into new ones built from both, and stop the Umbral Legion and their ghost beasts.
 
 <img src="docs/screenshots/title.jpg" width="800" alt="The start menu after the skippable dragon entrance."><br><sub>Press A / Enter or tap during the dragon entrance to open the start menu immediately.</sub>
 
@@ -11,7 +11,7 @@ To just play, download the newest Windows or Android build from the [Releases pa
 
 To run it from the source:
 
-1. Install [Godot 4.7](https://godotengine.org/download) (the standard build; the game has no C#).
+1. Install the pinned [Godot 4.8 beta 3](https://github.com/godotengine/godot-builds/releases/tag/4.8-beta3) standard build (the game has no C#), with matching `4.8.beta3` export templates when exporting.
 2. Clone this repository, or download it as a zip and unpack it.
 3. In Godot's Project Manager, choose **Import**, pick the `project.godot` in the repository's folder, then press
    **F5** to play. The first time, Godot imports all the assets before the game opens, which takes a while.
@@ -22,15 +22,22 @@ Or from a terminal, in the repository's folder:
 godot --path .
 ```
 
-Here and in the rest of this README, `godot` stands for your Godot 4.7 executable, for example
-`Godot_v4.7-stable_win64.exe` on Windows or `Godot_v4.7-stable_linux.x86_64` on Linux, with its folder in front if
+Here and in the rest of this README, `godot` stands for your Godot 4.8 beta 3 executable, for example
+`Godot_v4.8-beta3_win64.exe` on Windows or `Godot_v4.8-beta3_linux.x86_64` on Linux, with its folder in front if
 it isn't on your PATH.
+
+The local tools resolve the workspace editor under `build/tools/godot-4.8-beta3/`,
+then the installation path; `GODOT` overrides that choice. The user approved this
+beta target and comparison screenshots on 13 November 2026. Broader runbook 010c
+feature/performance acceptance remains in progress; see the
+[migration evidence and rollback](docs/visual_overhaul/010c-godot-48-results.md).
 
 ## System requirements
 
 These are **provisional requirements for playing Ruby Cocoon**, not for developing it in the editor. OS and
-graphics support follow [Godot 4.7's exported-project requirements](https://docs.godotengine.org/en/4.7/about/system_requirements.html#exported-godot-project)
-and the current export settings. Hardware and free-space figures are estimates pending testing on lower-end PCs,
+graphics estimates retain the [Godot 4.7 exported-project baseline](https://docs.godotengine.org/en/4.7/about/system_requirements.html#exported-godot-project);
+the [4.8 beta 3 validation report](docs/visual_overhaul/010c-godot-48-results.md) records tested targets and remaining gaps.
+Hardware and free-space figures are estimates pending testing on lower-end PCs,
 Macs and Android devices; they are not a guarantee of 60 fps. Existing [performance measurements](docs/performance.md)
 come from a desktop Windows PC.
 
@@ -59,7 +66,7 @@ The downloadable Windows build is **x86-64 only**. Desktop play uses the Forward
 | Starting settings | 720p, Graphics **Min** | 1080p, Graphics **Mid** |
 
 There is currently **no packaged macOS release or macOS export preset**. These estimates apply to running from
-source with Godot 4.7 (see [Running it](#running-it)); macOS compatibility and performance still need verification.
+source with Godot 4.8 beta 3 (see [Running it](#running-it)); macOS compatibility and performance still need verification.
 
 ### Android
 
@@ -577,7 +584,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   already-smoothed resources without filtering them again. Ground
   layers blend softly across their wandering borders (`terrain.gdshader`). Shop-sign icons stay crisp pixel art, and
   the interface keeps its own look (see UI and audio).
-- **Planned lighting workflow** (user direction, 2026-11-13): bake static illumination/contact shading into texture assets offline, with coherent existing direct lighting and actor shadows. Do not introduce multi-bounce AO approximation or runtime bounce-light GI. The unfinished [runbook 022a](docs/visual_overhaul/runbook.md) now prototypes this texture workflow; [010c](docs/visual_overhaul/010c-godot-48-plan.md) schedules Godot 4.8 testing before budget acceptance. This is planned work, not an engine upgrade already applied.
+- **Planned lighting workflow** (user direction, 2026-11-13): bake static illumination/contact shading into texture assets offline, with coherent existing direct lighting and actor shadows. Do not introduce multi-bounce AO approximation or runtime bounce-light GI. The unfinished [runbook 022a](docs/visual_overhaul/runbook.md) now prototypes this texture workflow; [010c](docs/visual_overhaul/010c-godot-48-results.md) records the approved Godot 4.8 beta 3 cutover and remaining validation before budget acceptance. The lighting workflow remains planned work.
 - **App icon**: the icon is painted like PS2 box art from the game's own models: the water summon
   rising as a ghost in a dusk sky over a dark hill, where a ruby glows on the crest. `tools/make_key_art.gd` renders
   the summon and a shrub and `tools/key_art.py` does the painting; `python tools/make_icon.py` writes Android's
@@ -1032,7 +1039,8 @@ mounted owl and its rider.
     bottom-centre bubble without a chevron. Written signs, descriptions and system prompts use the shared dark
     window with white text, without speech sounds. Prefer visible changes and contextual NPC speech to narration;
     keep written explanations only where they help the player act. On desktop A picks the outlined Yes/No answer and B
-    answers No; touch keeps A: Yes / B: No on the widened pad buttons.
+    answers No; touch keeps A: Yes / B: No on the widened pad buttons, and a phone whose pad is hidden
+    (a controller or keyboard in use) shows the desktop answers instead.
     Someone speaking through a closed door gets a white bubble anchored to that door: above its top when there is
     room, or below its bottom near the top edge of the screen. The entire bubble and name plate stay in the safe
     area and clear of touch controls. This applies to locked outdoor doors and indoor room/staff doors.
@@ -1198,7 +1206,7 @@ Installed home-screen apps already run without browser chrome. Browsers without 
 **Play in browser**, with an iPhone home-screen installation hint.
 
 `python tools/make_web.py` builds a version that runs in the browser into `build/web/`, ready to host on Cloudflare
-Pages. It needs Godot's web export templates (`web_nothreads_*.zip` in `%APPDATA%\Godot\export_templates\4.7.stable\`)
+Pages. It needs Godot's web export templates (`web_nothreads_*.zip` in `%APPDATA%\Godot\export_templates\4.8.beta3\`)
 and ffmpeg.
 
 - **Small download**: about 18 MB before the title screen. The engine and game data are gzipped and stored as
@@ -1420,6 +1428,11 @@ not renderer transparent-pass counts. Phone export/record commands are `export` 
 they use the separate benchmark package, never player saves. See `tools/vo_alpha.py --help`.
 
 The runner supplies isolated save and preferences paths under `build/` when a scenario has no explicit override.
+It runs one test at a time by default (`JOBS` can override this). On Windows, each test is stopped
+at 4 GiB private memory or when system headroom drops below 8 GiB of commit / 4 GiB of RAM.
+A memory cutoff is a failure and is not automatically retried; only that test's process tree is stopped.
+Headless scene tests explicitly size the dummy window to the 1280×720 reference (or the test's
+`--resolution`), so GUI clipping and injected touch input use the intended screen dimensions.
 It rejects script errors, missing assets and deferred callback errors even if a scenario prints its success marker.
 `bash tools/run_tests.sh vo-perf-route` checks the benchmark's cardinal routes and deferred rendering callbacks;
 windowed measurements remain separate from this headless check.
@@ -1589,6 +1602,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
 - `arena-ladder`: trainer list clearance from touch controls, full-sized rows, focus navigation, scroll buttons, direct trainer taps and A/B confirmation. Add `--matrix=1` to the scene for all four gems.
 - `kennel` / `kennel-ui`: level-based adoption fees, exact/insufficient funds, cancellation, free reclaiming, storage overflow, drop-off to storage or adoption (and the Beast Center's storage-only drop-off), and the real keeper/pen menus with touch and focus navigation. Preview with `--scene=kennel --shot=res://build/shots/kennel.png` (`--preview=poor` or `empty` for those states; `--verify=1` exercises inputs).
+- `beast-turn`: a wild beast met from the side turns smoothly to face you before the battle (no snap). Add `--shot=res://build/shots/beast_turn.png` for before, mid-turn and facing frames.
 - `wild-grace`: wild battle return protection, smooth opacity bounds, sight and hearing, existing chases, contact, expiry, map changes, and trainer battle exclusion. Add `--shot=res://build/shots/wild_grace.png` for low, middle and high pulse opacity and the fully opaque player after expiry, or `--preview=pulse` to replay the effect in a game window.
 
 Focused cinematic previews use the normal screenshot harness and fresh state (no player saves):

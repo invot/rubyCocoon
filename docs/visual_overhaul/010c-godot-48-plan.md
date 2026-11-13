@@ -64,8 +64,12 @@ Availability must be checked against the exact adopted build, not just these pre
 ## Migration work inventory
 
 1. Preserve a manifest of the dirty checkout and source/assets before opening it
-   with a newer editor. Use an isolated, ignored project copy for beta/import
-   trials, excluding player data; do not make branches/worktrees or reset edits.
+   with a newer editor. Include the source assets' ignored `.import` sidecars:
+   these carry custom import settings and UIDs, unlike the disposable `.godot`
+   cache. A tracked-files-only copy silently falls back to default imports and
+   cannot establish matched texture, package-size or performance evidence.
+   Use an isolated, ignored project copy for beta/import trials, excluding player
+   data; do not make branches/worktrees or reset edits.
    Keep 4.7 installed and a reproducible 4.7 export for rollback. Never reopen
    upgraded import caches with 4.7 as the rollback strategy.
 2. Parameterize actual version pins, not a blanket search/replace: `project.godot`,

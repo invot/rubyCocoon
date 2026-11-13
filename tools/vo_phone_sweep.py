@@ -5,6 +5,7 @@ python tools/vo_phone_sweep.py run --serial ZY22K7BD2J
 Already acquires the shared lock; do not wrap in local_resource.py.
 """
 import argparse
+from godot_toolchain import default_godot
 import os
 from pathlib import Path
 import subprocess
@@ -72,7 +73,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["export", "run"])
     parser.add_argument("--sdk", default=str(ROOT / "build/tools/android"))
-    parser.add_argument("--godot", default=os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe"))
+    parser.add_argument("--godot", default=default_godot())
     parser.add_argument("--java", default=os.environ.get("JAVA_HOME", "C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot"))
     parser.add_argument("--serial", default="ZY22K7BD2J")
     parser.add_argument("--display", default="")

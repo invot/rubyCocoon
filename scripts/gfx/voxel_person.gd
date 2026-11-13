@@ -769,6 +769,11 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		# kneeling: the left hand on the raised knee, the right hanging down beside the lowered one
 		a_swing = lerpf(a_swing, 0.95 if side == "l" else 0.25, kw)
 		bend = lerpf(bend, 0.7 if side == "l" else 0.2, kw)
+		# hanging on (meta "hang_w", 0-1): both arms straight up overhead, gripping something above
+		var hang_w := float(rig.get_meta("hang_w", 0.0))
+		a_swing = lerpf(a_swing, 3.1, hang_w)
+		bend = lerpf(bend, -0.2, hang_w)
+		spread = lerpf(spread, 0.12, hang_w)
 		# reaching out (set_reach): the right arm straight out ahead, a little to the side
 		if side == "r":
 			a_swing = lerpf(a_swing, 1.45, arm_reach)

@@ -2,7 +2,8 @@
 
 python tools/vo_phone.py export
 python tools/vo_phone.py run --serial <adb serial> --display <SurfaceFlinger display ID>
-The workspace-local SDK needs platform-tools, build-tools 35.0.1 and platform android-35.
+The workspace-local SDK needs the selected editor's Android packages (4.7: build-tools
+35.0.1/android-35; 4.8 beta3: build-tools 36.1.0/android-36 and cmdline-tools/latest).
 """
 import argparse
 import hashlib
@@ -13,6 +14,7 @@ import re
 import shutil
 import subprocess
 import time
+from godot_toolchain import default_godot, editor_binary, engine_version, template_path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "com.rubycocoon.vo_perf"
@@ -31,26 +33,28 @@ def call(command, **kwargs):
 
 
 def export(args, playable=False, renderer="", package="", app_name=""):
+    version = engine_version(args.godot)
+    template = template_path(args.godot, "android_debug.apk")
+    source_engine = editor_binary(args.godot)
     (ROOT / "build/tools").mkdir(parents=True, exist_ok=True)
     (ROOT / "build/tools/.gdignore").touch()
     (ROOT / "build/shots").mkdir(parents=True, exist_ok=True)
     (ROOT / "build/shots/.gdignore").touch()
-    engine = ROOT / "build/tools/godot-perf/godot.exe"
+    engine = ROOT / "build/tools/godot-perf" / version.templates / "godot.exe"
     engine.parent.mkdir(parents=True, exist_ok=True)
-    if not engine.exists() or engine.stat().st_mtime != Path(args.godot).stat().st_mtime:
-        shutil.copy2(args.godot, engine)
+    if not engine.exists() or engine.stat().st_mtime != source_engine.stat().st_mtime or engine.stat().st_size != source_engine.stat().st_size:
+        shutil.copy2(source_engine, engine)
     (engine.parent / "_sc_").touch()
     editor = engine.parent / "editor_data"
     editor.mkdir(exist_ok=True)
     roaming = Path(os.environ["APPDATA"]) / "Godot"
-    template = roaming / "export_templates/4.7.stable/android_debug.apk"
     keystore = roaming / "keystores/debug.keystore"
     settings = {"export/android/android_sdk_path": str(Path(args.sdk).resolve()).replace("\\", "/"),
                 "export/android/java_sdk_path": args.java.replace("\\", "/"),
                 "export/android/debug_keystore": str(keystore).replace("\\", "/"),
                 "export/android/debug_keystore_user": "androiddebugkey",
                 "export/android/debug_keystore_pass": "android"}
-    (editor / "editor_settings-4.7.tres").write_text(
+    (editor / f"editor_settings-{version.minor}.tres").write_text(
         '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n' +
         '\n'.join(f'{key} = {json.dumps(value)}' for key, value in settings.items()) + '\n', encoding="utf-8")
     path = ROOT / "export_presets.cfg"
@@ -76,6 +80,10 @@ def export(args, playable=False, renderer="", package="", app_name=""):
     APK.parent.mkdir(parents=True, exist_ok=True)
     (OUT / "export-presets-original.cfg").write_bytes(original)
     (OUT / "export-preset-perf.cfg").write_text(clone, encoding="utf-8")
+    (OUT / "toolchain.json").write_text(json.dumps({
+        "engine": version.full, "engine_binary": str(source_engine), "engine_sha256": hashlib.sha256(source_engine.read_bytes()).hexdigest(),
+        "template": str(template), "template_sha256": hashlib.sha256(template.read_bytes()).hexdigest(),
+    }, indent=2) + "\n", encoding="utf-8")
     path.write_bytes(original + b"\n" + clone.encode("utf-8"))
     try:
         with (OUT / "export.log").open("w", encoding="utf-8") as log:
@@ -238,7 +246,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["export", "run"])
     parser.add_argument("--sdk", default=str(ROOT / "build/tools/android"))
-    parser.add_argument("--godot", default=os.environ.get("GODOT", "C:/Program Files/Godot/Godot_v4.7-stable_win64.exe"))
+    parser.add_argument("--godot", default=default_godot())
     parser.add_argument("--java", default=os.environ.get("JAVA_HOME", "C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot"))
     parser.add_argument("--serial")
     parser.add_argument("--display")

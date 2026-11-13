@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GODOT_VERSION: "4.7"
-  GODOT_RELEASE: "stable"
+  GODOT_VERSION: "4.8"
+  GODOT_RELEASE: "beta3"
 
 jobs:
   windows:
@@ -63,7 +63,7 @@ jobs:
       # imports the project's assets (first run in a fresh checkout), then the quick checks
       - name: Import and check
         run: |
-          ~/godot/godot --headless --path . --import || true
+          ~/godot/godot --headless --path . --import
           GODOT=~/godot/godot bash tools/run_tests.sh quick
 
       - uses: actions/setup-python@v5
@@ -108,6 +108,7 @@ jobs:
             echo "::warning::No ANDROID_KEYSTORE_BASE64 secret, so no Android build"
             exit 0
           fi
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.1.0"
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/android.keystore"
           mkdir -p ~/.config/godot build/android
           printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n%s\n%s\n' \
@@ -192,7 +193,7 @@ jobs:
           cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* /tmp/tpz/templates/android_*.apk /tmp/tpz/templates/web_nothreads_*.zip "$templates/"
       - name: Import and check demo progression
         run: |
-          ~/godot/godot --headless --path . --import || true
+          ~/godot/godot --headless --path . --import
           GODOT=~/godot/godot bash tools/run_tests.sh quick
           GODOT=~/godot/godot bash tools/run_tests.sh demo demo-touch
       - name: Build Web demo
