@@ -8,6 +8,8 @@ import argparse
 import os
 from pathlib import Path
 import subprocess
+import sys
+import json
 from look import model_lock
 import vo_phone as phone
 
@@ -34,18 +36,34 @@ def run(args):
         raise FileExistsError("Preserve existing evidence; use --attach only for observer recovery")
     with model_lock(timeout=3600):
         before = subprocess.run(adb + ["shell", "pm", "path", "com.rubycocoon.x"], capture_output=True, text=True, check=True).stdout
-        (phone.OUT / "player-package-before.txt").write_text(before, encoding="utf-8")
+        snapshot = phone.OUT / "player-package-before.txt"
+        if args.attach:
+            if snapshot.read_text(encoding="utf-8") != before:
+                raise RuntimeError("Player package changed before observer recovery; original snapshot preserved")
+        else:
+            snapshot.write_text(before, encoding="utf-8")
         with (phone.OUT / "display-before.txt").open("w", encoding="utf-8") as file:
             phone.call(adb + ["shell", "dumpsys", "display"], stdout=file)
         try:
             phone.record(args)
         finally:
+            # A disconnected device may still be running. Preserve the original error and
+            # snapshot so --attach can recover observation without reinstalling/restarting.
+            had_error = sys.exc_info()[0] is not None
             # Stop only this tool's temporary package, restoring normal app keep-on behavior even on errors.
-            subprocess.run(adb + ["shell", "am", "force-stop", phone.PACKAGE], check=False)
-            after = subprocess.run(adb + ["shell", "pm", "path", "com.rubycocoon.x"], capture_output=True, text=True, check=True).stdout
-            (phone.OUT / "player-package-after.txt").write_text(after, encoding="utf-8")
-            if after != before:
+            stopped = subprocess.run(adb + ["shell", "am", "force-stop", phone.PACKAGE], capture_output=True, text=True, check=False)
+            checked = subprocess.run(adb + ["shell", "pm", "path", "com.rubycocoon.x"], capture_output=True, text=True, check=False)
+            status = {"benchmark_stop_returncode": stopped.returncode, "player_check_returncode": checked.returncode,
+                      "recover_observer_if_still_running": had_error and checked.returncode != 0}
+            (phone.OUT / "cleanup.json").write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
+            if checked.returncode == 0:
+                (phone.OUT / "player-package-after.txt").write_text(checked.stdout, encoding="utf-8")
+            elif not had_error:
+                raise RuntimeError("USB unavailable during cleanup; player identity unverified, inspect cleanup.json")
+            if checked.returncode == 0 and checked.stdout != before:
                 raise RuntimeError("Player package identity changed; inspect package snapshots")
+            if stopped.returncode != 0 and not had_error:
+                raise RuntimeError("Benchmark cleanup failed; inspect cleanup.json before declaring the run finished")
         if args.attach:
             print("Observer recovery complete")
 

@@ -45,6 +45,8 @@ func _below_reserve() -> float:
 
 
 func _speech_choice(button: Button, selected: bool) -> void:
+	button.add_theme_font_override("font", UIKit.font_dialog())
+	button.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.DIALOG_SIZE))
 	var paper := StyleBoxFlat.new()
 	paper.bg_color = UIKit.INK
 	paper.set_corner_radius_all(12)

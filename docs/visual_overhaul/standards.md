@@ -4,11 +4,12 @@
 
 This decision supersedes earlier instructions to use League Spartan for all text.
 - Headings and names: League Spartan Semibold (600).
-- Body text, menu actions, values, dialogue and damage numbers: Short Stack.
+- Body text, menu actions, values and damage numbers: PT Sans Regular.
+- Spoken dialogue: Short Stack at 29 UI units, about 10% smaller than the previous 32; headers retain their sizes.
 - Lettering physically painted, engraved or displayed on objects in the 3D world: Noto Sans Old North Arabian, using a deterministic mapping from English letters (and explicitly defined ligatures where needed) to its glyphs. Do not render English lettering on world objects. This is a fictional substitution alphabet, not an Arabic translation. Preserve the underlying readable English for dialogue, interaction descriptions and accessibility.
 - UI and spoken dialogue remain readable English; they are not world-object lettering. Preserve the established intro/title logo exception unless the user changes it.
-- Sources: [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
-- Implementation checkpoint: Short Stack body/dialogue and the shared world-lettering font/map are wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
+- Sources: [PT Sans](https://fonts.google.com/specimen/PT+Sans), [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
+- Implementation checkpoint: PT Sans body text, Short Stack dialogue and the shared world-lettering font/map are wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
 
 Codex continues code, tests and nonvisual work. Stop at the next task requiring Claude's visual authorship and prepare its concrete handoff; do not silently perform that artwork.
 
@@ -513,7 +514,7 @@ Keep the existing layout structure, information hierarchy, input model, and acce
 - Retain the shared dark translucent window family and bright spoken-bubble distinction. Use subtler material variation and calmer ornament within that structure.
 - Keep white borders and body text. Preserve the faint gem tint and all four palettes.
 - Simplify or soften excessive ornament and frame weight consistently. Do not soften by blurring text, reducing contrast, or making focus ambiguous.
-- Use Short Stack for body/dialogue and League Spartan 600 for headings and the intro/title logo's established font unless separately approved.
+- Use PT Sans for body text, Short Stack for spoken dialogue (29 UI units) and League Spartan 600 for headings and the intro/title logo's established font unless separately approved.
 - Keep the existing battle bar structure and white shape/dark text presentation; harmonize its finish and framing with the revised shared UI.
 - Review every icon family together: items, beasts, actions, map markers, prompts, rings, shop signs, and status graphics. Any retained crisp icon must have coherent line weight, palette, silhouette, and padding.
 - Re-render beast portraits, menu icons, save placeholders, title scenes, and applicable key art after their source assets change.

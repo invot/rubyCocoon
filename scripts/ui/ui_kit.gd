@@ -10,7 +10,7 @@ extends RefCounted
 ## - The pack's divider separates sections (HSeparator, divider()) and flanks banner text (flanked()).
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
-## Fonts: Short Stack for body text, menu actions, dialogue and damage; League Spartan Semibold for
+## Fonts: PT Sans for body text, menu actions, values and damage; Short Stack for dialogue; League Spartan Semibold for
 ## names and headings. Missing symbols use bundled Noto Sans Symbols, then Godot's fallback.
 
 const Elements = preload("res://scripts/data/elements.gd")
@@ -20,16 +20,19 @@ const DividerBox = preload("res://scripts/ui/divider_box.gd")
 
 const UI_DIR := "res://assets/ui/"
 const FONT_FILE := "res://ui/LeagueSpartan.ttf"
-const BODY_FONT_FILE := "res://ui/ShortStack-Regular.ttf"
+const BODY_FONT_FILE := "res://ui/PTSans-Regular.ttf"
+const DIALOG_FONT_FILE := "res://ui/ShortStack-Regular.ttf"
 const SYMBOL_FONT := preload("res://ui/NotoSansSymbols.ttf")
 const TRIANGLE_FONT := preload("res://ui/NotoSansSymbols2.ttf")
-## Shared League Spartan weights; keep ordinary text light and headings semibold.
+## Regular body/dialogue faces and semibold League Spartan headings.
 const BODY_WEIGHT := 400
 const HEAD_WEIGHT := 600
 const BODY_SMALL := 21
 const BODY_BIG := 21
-## dialogue text: three lines fill the box
+## Large body text, including written descriptions and system prompts.
 const BODY_HUGE := 32
+## Spoken dialogue keeps Short Stack, about 10% smaller than the previous 32 UI units.
+const DIALOG_SIZE := 29
 const HEAD_SIZE := 22
 const HEAD_SMALL := 21
 const HEAD_BIG := 32
@@ -213,11 +216,15 @@ static func head_px(size: float) -> int:
 
 # ================================================================ resources
 static func font_body() -> Font:
-	return _font(BODY_WEIGHT)
+	return _font(BODY_FONT_FILE)
+
+
+static func font_dialog() -> Font:
+	return _font(DIALOG_FONT_FILE)
 
 
 static func font_head() -> Font:
-	return _font(HEAD_WEIGHT)
+	return _font(FONT_FILE, HEAD_WEIGHT)
 
 
 ## Compatibility alias for numeric labels: ordinary text uses the shared Regular weight.
@@ -225,11 +232,12 @@ static func font_bold() -> Font:
 	return font_body()
 
 
-## League Spartan at `weight`; bundled symbols keep arrows available in every export.
-static func _font(weight: int) -> Font:
-	if _fonts.has(weight):
-		return _fonts[weight]
-	var f: FontFile = load(BODY_FONT_FILE if weight == BODY_WEIGHT else FONT_FILE)
+## Each face has independent fallback metrics; bundled symbols keep arrows available in every export.
+static func _font(path: String, weight := BODY_WEIGHT) -> Font:
+	var key := "%s:%d" % [path, weight]
+	if _fonts.has(key):
+		return _fonts[key]
+	var f: FontFile = load(path)
 	if f == null:
 		return ThemeDB.fallback_font
 	f.generate_mipmaps = false
@@ -237,7 +245,7 @@ static func _font(weight: int) -> Font:
 	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	f.hinting = TextServer.HINTING_LIGHT
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	# Each face has its own fallback metrics; Short Stack and Spartan have different heights.
+	# Each face has its own fallback metrics, including the separate spoken-dialogue face.
 	var fallbacks: Array[Font] = []
 	for source in [TRIANGLE_FONT, SYMBOL_FONT]:
 		var symbols: FontFile = source.duplicate()
@@ -251,7 +259,7 @@ static func _font(weight: int) -> Font:
 	fv.fallbacks = fallbacks
 	if weight == HEAD_WEIGHT:
 		fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
-	_fonts[weight] = fv
+	_fonts[key] = fv
 	return fv
 
 
@@ -441,7 +449,7 @@ static func make_theme() -> Theme:
 
 
 # ================================================================ widgets
-## Body text (League Spartan Regular): small (<24), big (24-31) or huge (32+, dialogue).
+## Body text (PT Sans Regular): small (<24), big (24-31) or huge (32+).
 static func label(text: String, size := 20, color := TEXT) -> Label:
 	var l := Label.new()
 	l.text = text

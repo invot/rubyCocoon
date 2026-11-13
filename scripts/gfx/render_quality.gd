@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 func _node_added(node: Node) -> void:
-	if node is SubViewport or node is WorldEnvironment or node is Light3D:
+	if node is SubViewport or node is WorldEnvironment or node is Light3D or node is Camera3D:
 		_register.call_deferred(node)
 	elif node is GeometryInstance3D:
 		# now, for what it already has, and again once builders have assigned the rest of its meshes and materials
@@ -49,6 +49,10 @@ func _register(node) -> void:
 			base = env.get_meta(BASELINE)
 		elif node is Light3D:
 			base = {"shadow": node.shadow_enabled}
+		elif node is Camera3D:
+			if not node.attributes is CameraAttributesPractical:
+				return
+			base = {"dof_far": node.attributes.dof_blur_far_enabled, "dof_near": node.attributes.dof_blur_near_enabled}
 		node.set_meta(BASELINE, base)
 	node.add_to_group(GROUP)
 	_apply_node(node)
@@ -76,6 +80,10 @@ func _apply_node(node: Node) -> void:
 		node.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	elif node is Light3D:
 		node.shadow_enabled = base["shadow"] and _quality != "min" and diag_shadows
+	elif node is Camera3D and node.attributes is CameraAttributesPractical:
+		var enabled := _quality == "max" and RenderingServer.get_current_rendering_method() != "gl_compatibility"
+		node.attributes.dof_blur_far_enabled = base["dof_far"] and enabled
+		node.attributes.dof_blur_near_enabled = base["dof_near"] and enabled
 	elif node is WorldEnvironment and node.environment != null:
 		var env: Environment = node.environment
 		env.glow_enabled = base["glow"] and _quality != "min"

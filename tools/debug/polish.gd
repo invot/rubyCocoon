@@ -25,7 +25,7 @@ func run(host, options: Dictionary) -> void:
 	for ch in encoded:
 		_check(lettering.FONT.has_char(ch.unicode_at(0)), "world alphabet glyph coverage")
 	var native_body: Font = load(UIKit.BODY_FONT_FILE)
-	_check(absf(UIKit.font_body().get_height(32) - native_body.get_height(32)) <= 1.0, "symbol fallback preserves Short Stack line height")
+	_check(absf(UIKit.font_body().get_height(32) - native_body.get_height(32)) <= 1.0, "symbol fallback preserves body face line height")
 	_check(Maps.load_map("route1", {}).get("weapon_obstacles", []).is_empty(), "first road has no weapon puzzles")
 	for name in ["floor_lamp", "table_lamp"]:
 		for palette in 5:

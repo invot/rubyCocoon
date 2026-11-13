@@ -983,7 +983,7 @@ mounted owl and its rider.
 
   <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts** (user direction, 12 November 2026; migration pending): League Spartan Semibold (600) for headings/names; Short Stack for body text, actions, values, dialogue and damage numbers. Lettering on 3D world objects uses Noto Sans Old North Arabian through a shared English-to-glyph substitution map; retain readable English for interactions and accessibility. UI/dialogue stay English. The intro/title logo retains Lunchtime Doubly So. Preserve `UIKit` sizing, touch targets and readable wrapping; do not shrink text to fit. See `docs/visual_overhaul/standards.md` for the authoritative typography direction.
+- **Fonts** (user direction, 12 November 2026): League Spartan Semibold (600) for headings/names; PT Sans for body text, actions, values and damage numbers; Short Stack for spoken dialogue at 29 UI units, about 10% smaller than the previous 32. Lettering on 3D world objects uses Noto Sans Old North Arabian through a shared English-to-glyph substitution map; retain readable English for interactions and accessibility. UI/dialogue stay English. The intro/title logo retains Lunchtime Doubly So. Preserve `UIKit` sizing, touch targets and readable wrapping; do not shrink text to fit. See `docs/visual_overhaul/standards.md` for the authoritative typography direction.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
   direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
@@ -1070,7 +1070,8 @@ mounted owl and its rider.
   between launches. These are rendering presets using the established materials and lighting: **Min** disables
   dynamic shadows, glow and anti-aliasing; **Mid** keeps authored soft shadows and glow with 2x MSAA;
   **Max** uses 4x MSAA and authored ambient occlusion on Forward+ and Compatibility (other screen-space effects
-  require Forward+).
+  require Forward+). Max also gently blurs distant outdoor scenery on Forward+ and Mobile, keeping the hero,
+  nearby paths and interactions sharp; interiors stay sharp. Compatibility skips this depth-of-field effect.
   Mobile and Compatibility skip unsupported effects. Deliberately shadowless scenery remains shadowless.
   The default is **Mid**. Use Left/Right to adjust a focused setting, or tap / press A to cycle it.
 

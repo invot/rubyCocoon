@@ -26,7 +26,10 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 ## Next step
 
-**010b: smooth low-resolution resolve.** Steps 001–004, 005a, 009a, 009b and 010a are complete (009b closed with the
+**008b: Claude visual lighting review.** [008a diagnosis](008-shadow-budget.md) is complete with recorded
+desktop/observation limits; use [the concrete handoff](claude-008b-handoff.md).
+010b's missing [phone evidence](010b-phone-resolve.md) is complete;
+its visual approval is retained. Steps 001–004, 005a, 009a, 009b and 010a are complete (009b closed with the
 Web criterion recorded as not met); see [the diagnosis](004-cost-diagnosis.md) for the revised execution order and
 [the parallel handoff](parallel-handoff.md) for Claude artwork and Codex engineering.
 rev_003's [technical review](art_reviews/broadleaf-rev_003.md) and attribution are complete; integration still awaits

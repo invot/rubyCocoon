@@ -125,6 +125,8 @@ func _ready_bubble() -> void:
 		image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(image)
 	text_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.DARK)
+	text_label.add_theme_font_override("font", UIKit.font_dialog())
+	text_label.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.DIALOG_SIZE))
 	text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_label.add_theme_constant_override("line_spacing", 0)
 	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

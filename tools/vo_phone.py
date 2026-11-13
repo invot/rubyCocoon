@@ -185,6 +185,9 @@ def record(args):
                 if (TARGET_PASSES and len(data["passes"]) >= TARGET_PASSES) or (not TARGET_PASSES and data["passes"][-1]["elapsed_s"] >= 900):
                     break
             elif subprocess.run(adb + ["shell", "pidof", PACKAGE], capture_output=True).returncode != 0:
+                connection = subprocess.run(adb + ["get-state"], capture_output=True, text=True)
+                if connection.returncode or connection.stdout.strip() != "device":
+                    raise ConnectionError("USB observation lost; preserve this attempt and use --attach if the benchmark is still running")
                 raise RuntimeError("Benchmark exited before producing a report; inspect logcat")
             time.sleep(5)
         else:

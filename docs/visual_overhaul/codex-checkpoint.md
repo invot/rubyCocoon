@@ -2,6 +2,25 @@
 
 ## Current checkpoint (supersedes the historical text below)
 
+Codex continuation complete through **008a controlled shadow diagnosis**. Next: **Claude 008b visual work**,
+with concrete instructions in `claude-008b-handoff.md` and evidence in `008-shadow-budget.md`.
+010b missing phone evidence is complete: three clean passes / 459.855 s, 28.9–29.9°C;
+see `010b-phone-resolve.md` for pacing/drift limits. 008a phone on/off/on completed in 457.203 s,
+zero problems/focus losses; battery 29.9°C. USB recovery on the same PID left a 108.084 s
+observation/temperature gap; no continuous host observation/lock coverage claim.
+Outdoor shadow-off GPU differences: Path 3.706 ms, Cove 3.337, Rue Royale 1.620; frames still ~33 ms.
+House drift +108.5% is inconclusive. Its sun uses 100 units/four splits: concrete 008b coverage question.
+Desktop attempt `008/desktop-mobile-01` lost focus and is INVALID, preserved without retry.
+Eight Python validator/recovery checks, quick, vo-shadow-route and focused scenarios pass.
+Both benchmark packages have been removed; player identity and export preset bytes match originals.
+No measured job remains, no override.cfg. Local-model triage 67037 timed out on the busy lock;
+subsequent log triage completed (its 'Godot Error' was actually an XR property WARNING, confirmed directly).
+Image first-look completed too; exaggerated grounding/UI-shadow claims were corrected by direct inspection.
+All Codex measurement/model jobs from this continuation have ended. No further job is queued.
+Production lighting unchanged; no new art candidate/approval, no Codex commits/branches/resets.
+006 remains gated by parent 008. Preserve concurrent typography/UI/documentation changes;
+the historical font paragraphs below may be superseded by those ongoing edits.
+
 Font task: Short Stack body/dialogue is implemented; Spartan headings retained. See font-update.md for captures/checks and pending world-artwork review. All checks including 26 glyph coverage passed; no active jobs. Waiting for visual approval. Preserve existing Claude work.
 
 Latest user steering: resume Codex code/testing/nonvisual work, stop for Claude visual authorship. Typography direction recorded in AGENTS, README and overhaul README/runbook/standards/steps; font and shared world-glyph mapping implementation pending. Read Claude’s latest state below: 009b user-closed, 010b visually approved but phone evidence missing; 008 shadow measurement tooling awaits run. Preserve Claude changes. No jobs remain from Codex’s earlier session.

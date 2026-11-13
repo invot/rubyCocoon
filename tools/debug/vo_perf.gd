@@ -19,6 +19,7 @@ var _focus_losses := []
 var _previous_keep_on := false
 var _title_ready_wait_ms := 0.0
 var _precompile := {}
+var _shadow_state := true
 
 
 func run(main, opts: Dictionary) -> void:
@@ -100,7 +101,8 @@ func run(main, opts: Dictionary) -> void:
 		duration = 0.0
 	while true:
 		if not shadow_sweep.is_empty():
-			quality_node.set_diag_shadows(shadow_sweep[_passes.size()])
+			_shadow_state = shadow_sweep[_passes.size()]
+			quality_node.set_diag_shadows(_shadow_state)
 		if not resolution_sweep.is_empty():
 			Prefs.render_height = resolution_sweep[_passes.size()]
 			Prefs.apply()
@@ -210,6 +212,8 @@ func _arrive(id: String, spawn) -> void:
 	_transition_sample()
 	_transitions.append({"map": id, "total_ms": (Time.get_ticks_usec() - int(_trace.started)) / 1000.0,
 		"black_ms": maxf(0.0, (int(_trace.black_end) - int(_trace.black_start)) / 1000.0)})
+	if _opts.has("shadow_sweep"):
+		_transitions.back()["lights"] = _shadow_lights(_main.world)
 	if _opts.get("diagnose", "0") == "1":
 		var after: Dictionary = load("res://tools/debug/vo_cost.gd").pipeline_counters()
 		for key in after:
@@ -359,10 +363,12 @@ func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array
 	for key in values:
 		summary[key] = _stats(values[key])
 	var diagnosis := {}
-	if _opts.get("diagnose", "0") == "1":
+	if _opts.get("diagnose", "0") == "1" or _opts.has("shadow_sweep"):
 		var cost = load("res://tools/debug/vo_cost.gd")
 		diagnosis = {"whole_tree": cost.inventory(subject), "end_view": cost.inventory(subject, camera)}
-		if is_field:
+		if _opts.has("shadow_sweep"):
+			diagnosis["lights"] = _shadow_lights(subject)
+		if is_field and _opts.get("diagnose", "0") == "1":
 			diagnosis.script_probes = cost.script_probes(subject)
 		if _opts.get("eligibility", "0") == "1":
 			diagnosis.material_eligibility = load("res://tools/debug/material_eligibility.gd").audit(subject)
@@ -376,6 +382,29 @@ func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array
 	return {"frames": positions.size(), "summary": summary, "worst_five": worst, "trace": values, "inventory": inventory, "diagnosis": diagnosis,
 		"availability": {"gpu_timing": summary.gpu_ms.max > 0.0, "render_cpu_timing": summary.render_cpu_ms.max > 0.0,
 			"video_memory": summary.video_memory_bytes.max > 0.0}}
+
+
+## Outside measured intervals. Record effective light flags rather than trusting the requested switch.
+func _shadow_lights(subject: Node3D) -> Array:
+	var lights := []
+	for light in subject.find_children("*", "Light3D", true, false):
+		var base: Dictionary = light.get_meta(&"render_quality_baseline", {})
+		if not base.has("shadow"):
+			_fail("shadow diagnostic found an unregistered light: " + String(subject.get_path_to(light)))
+		elif light.shadow_enabled != (base["shadow"] and _shadow_state and Prefs.graphics_quality != "min"):
+			_fail("effective shadow state disagrees with diagnostic request: " + String(subject.get_path_to(light)))
+		var entry := {"path": String(subject.get_path_to(light)), "type": light.get_class(),
+			"shadows": light.shadow_enabled, "visible": light.is_visible_in_tree()}
+		if light is DirectionalLight3D:
+			entry["distance"] = light.directional_shadow_max_distance
+			entry["splits"] = light.directional_shadow_mode
+		elif light is SpotLight3D:
+			entry["range"] = light.spot_range
+			entry["angle"] = light.spot_angle
+		elif light is OmniLight3D:
+			entry["range"] = light.omni_range
+		lights.append(entry)
+	return lights
 
 
 func _capture(label: String) -> void:

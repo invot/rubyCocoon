@@ -51,6 +51,18 @@ func run(root: Node, opts: Dictionary) -> void:
 			Prefs.apply()
 			await main._wait(0.3)
 			await _shot(shots.path_join("world_%dp_%s.png" % pair))
+		# Same scene, resolution and Max effects: isolate only the distant blur for visual review.
+		Prefs.render_height = 1080
+		Prefs.graphics_quality = "max"
+		Prefs.apply()
+		var focus: CameraAttributesPractical = main.world.cam.attributes
+		var enabled := focus.dof_blur_far_enabled
+		focus.dof_blur_far_enabled = false
+		await main._wait(0.3)
+		await _shot(shots.path_join("distant_blur_before.png"))
+		focus.dof_blur_far_enabled = enabled
+		await main._wait(0.3)
+		await _shot(shots.path_join("distant_blur_after.png"))
 		_open()
 		await main._wait(0.2)
 	print("VIDEO SETTINGS DONE: %d problem(s)" % bad)
@@ -79,6 +91,12 @@ func _matrix() -> void:
 					_check(node.shadow_enabled == (base["shadow"] and quality != "min"), "quality preserves authored shadow exclusions")
 				elif node is WorldEnvironment:
 					_check(node.environment.glow_enabled == (base["glow"] and quality != "min"), "glow follows quality")
+				elif node is Camera3D and node.attributes is CameraAttributesPractical:
+					var enabled: bool = quality == "max" and RenderingServer.get_current_rendering_method() != "gl_compatibility"
+					_check(node.attributes.dof_blur_far_enabled == (base["dof_far"] and enabled), "distant blur follows quality and renderer")
+					_check(not node.attributes.dof_blur_near_enabled, "foreground remains sharp")
+			var subject_depth: float = (main.world.player.position - main.world.cam.position).dot(-main.world.cam.basis.z)
+			_check(main.world.cam.attributes.dof_blur_far_distance >= subject_depth + 3.9, "hero and nearby tiles stay in focus")
 	# A phone resize must keep the selected render height and expand width without stretching the camera.
 	main.get_window().size = Vector2i(2400, 1080)
 	await main._wait(0.15)
@@ -126,10 +144,15 @@ func _new_scene() -> void:
 	var lamp := DirectionalLight3D.new()
 	lamp.shadow_enabled = true
 	stage.add_child(lamp)
+	var camera := Camera3D.new()
+	camera.attributes = CameraAttributesPractical.new()
+	camera.attributes.dof_blur_far_enabled = RenderingServer.get_current_rendering_method() != "gl_compatibility"
+	stage.add_child(camera)
 	await main.get_tree().process_frame
 	await main.get_tree().process_frame
 	_check(not lamp.shadow_enabled and not env_node.environment.glow_enabled and vp.msaa_3d == Viewport.MSAA_DISABLED,
 		"new scenes honor Min immediately")
+	_check(not camera.attributes.dof_blur_far_enabled, "camera first loaded at Min has no distant blur")
 	var shared_view := SubViewport.new()
 	shared_view.own_world_3d = true
 	main.add_child(shared_view)
@@ -144,6 +167,8 @@ func _new_scene() -> void:
 		"Max restores authored effects even for scenes first loaded at Min")
 	_check(env_node.environment.ssao_enabled == (RenderingServer.get_current_rendering_method() != "mobile"),
 		"ambient occlusion only runs on a supported renderer")
+	_check(camera.attributes.dof_blur_far_enabled == (RenderingServer.get_current_rendering_method() != "gl_compatibility"),
+		"Max restores distant blur on a camera first loaded at Min")
 	stage.queue_free()
 	vp.queue_free()
 	shared_view.queue_free()

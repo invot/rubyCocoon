@@ -270,6 +270,29 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 - It must work on Mobile and Compatibility.
 - Existing 8×8 chunked MultiMeshes stay. Target residual repetitions, excess LOD submissions or update work only
   where measurements justify it; do not perform a second wholesale batching conversion.
+- Audit frustum-culling bounds for generated terrain, merged assets, MultiMeshes, animated meshes and
+  shader-displaced effects. Keep AABBs tight but large enough for the complete animation/displacement;
+  check camera-edge popping and oversized bounds from actual gameplay views. A MultiMesh is culled as
+  a group, not per instance; measure chunk-size trade-offs before changing the existing 8×8 layout.
+- Prototype engine occlusion culling in one dense street or suitable room, with simple occluders from
+  the existing runtime builders. Enable `use_occlusion_culling` on the actual 3D SubViewport (not only
+  the root window), and compare on/off on the same route. Automatic occluder baking excludes MultiMesh
+  sources; use conservative manually generated shapes where needed. Occluders must stay within genuinely
+  opaque geometry and disable/update when that geometry fades, hides, opens or changes. Never let an
+  invisible occluder hide the hero, essential choices or geometry revealed by terrain dithering.
+- Keep building fading and battle sightline hiding: engine occlusion culling does not replace either.
+  Compare CPU overhead, GPU time and total frame intervals on Forward+, Mobile and Compatibility/web,
+  with a real phone where available. Retain occlusion only where measured savings exceed its overhead;
+  record a no-op where the top-down/stage-room layout offers too little hidden geometry.
+- Trial distance ranges for small nonessential decoration by category and camera framing, not a blanket
+  40-unit cutoff. Preserve landmarks, interactables, mandatory sightlines, map-edge bands and battle
+  dressing that seals joins. Check wide touch aspects and every directed battle shot for popping.
+  Built-in visibility-range smooth fading is Forward+ only; Mobile/Compatibility need tested hysteresis
+  or a measured shared alternative. Avoid adding blended overdraw just to hide a distance transition.
+  Apply ranges at suitable chunk/asset granularity and preserve gameplay collision and movement rules.
+- Run bounds, occlusion, distance-range and mesh-merger experiments as separate small checkpoints,
+  keeping other settings fixed. Record each go/no-go before combining successful changes, then verify
+  the combined result. Visible checkpoints retain screenshot approval; unavailable device tests stay explicit.
 - Evaluate [Static Mesh Merger](https://github.com/EverettM12/Static-Mesh-Merger) on one isolated complex
   static prop or structure. This is an editor-side asset-preparation experiment, not a replacement for
   runtime builders or existing MultiMeshes. Review and pin the tested plugin version; keep source assets
@@ -286,7 +309,9 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
   visible change under the existing review protocol.
 
 **Offload:** a first look at before/after shots ("list differences"), and the diff review.
-**Evidence:** draw calls before/after on Coastal Path and Cocoon Cove; a `field-perf` run with no frame over 20 ms on desktop.
+**Evidence:** draw calls before/after on Coastal Path and Cocoon Cove; bounds/occlusion debug views and
+camera-edge/distance-transition crops; separate on/off CPU/GPU/frame comparisons for each experiment;
+a `field-perf` run with no frame over 20 ms on desktop. Identify desktop Mobile-renderer measurements as desktop.
 **Done when:** the `nature`, `walk`, `building-fade` and `maps-built` tests pass.
 
 ### 007 · P7: alpha and overdraw
@@ -314,6 +339,7 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 **Done when:** fewer transparent draws, no visible fringe regressions, and the `nature` test passes.
 
 ### 008 · P8: shadows and lights budget
+Split at the engineering/visual handoff into 008a and 008b below; the requirements here apply to both.
 **Approval:** numbers and actual before/after screenshots. **Needs:** 010b.
 **Files:** `outdoor_light.gd`, `render_quality.gd`, `scripts/autoload/prefs.gd`, the scenery builders' `cast_shadow` settings.
 **Do:**
@@ -325,6 +351,9 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
   excessive lights. Do not remove authored large casters without evidence and visual review.
 - Start from the existing 30-unit, two-split world/battle sun. Do not extend it to the suggested 50–80 units
   by default; choose distance and splits from visible coverage, shadow stability and measured cost per preset.
+- Verify existing grass/flower/small-clutter shadow suppression and audit remaining minor bushes/debris
+  by actual caster contribution. Include off-camera casters that can cast visible shadows; camera-frustum
+  counts alone do not describe shadow-pass work. Preserve useful silhouettes and measure each change.
 - Audit hatch/merge local-light ranges, overlap and caster eligibility as well as outdoor lighting.
   Decorative beams/particles already cast no shadows; the shared hatchery has one shadow-casting key
   and shadowless fills. Light energy (including values up to 16) is not itself a rendering-cost metric.
@@ -333,6 +362,19 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 **Offload:** a first look ("describe where shadows appear under characters and props").
 **Evidence:** shadow-pass cost and shots before/after.
 **Done when:** characters still look grounded and the `battle-stage` test passes.
+
+### 008a · P8a: controlled shadow diagnosis (nonvisual)
+**Approval:** numbers. **Needs:** 010b.
+Run matched on/off/on diagnostics, validate raw traces and effective light states, audit existing caster rules
+and local-light ranges, and record GPU/pacing/drift limitations. No production lighting changes.
+Use `tools/vo_shadow_sweep.py`; evidence and limitations in [008-shadow-budget.md](008-shadow-budget.md).
+Quick, vo-shadow-route and battle-stage must pass. Hand off the concrete visible questions to Claude.
+
+### 008b · P8b: authored shadows and lights
+**Approval:** user screenshots. **Needs:** 008a.
+Claude evaluates grounded silhouettes and shadow coverage using the diagnosis before selecting visible changes.
+Codex handles any resulting shared-code integration and measured validation. Preserve authored large casters unless
+measurements and visual review justify changing them. Finish the parent 008 evidence before advancing 006.
 
 ### 009 · P9: shader warm-up and first-visit stalls (split)
 ### 009a · P9a: production loading-phase attribution (nonvisual instrumentation)
@@ -558,8 +600,13 @@ The reference images aren't in the repo. To use them in captures, save copies in
 **Files:** one representative interior fixture, its existing room/material builders, and an offline bake tool.
 **Do:**
 - Prototype one static interior using the approved materials; keep the experiment isolated from production.
-  The current runtime has no active SDFGI to replace: assess added bounce-light quality and total cost,
+  The current runtime has no active VoxelGI or SDFGI to replace: assess added bounce-light quality and total cost,
   rather than claiming an existing runtime GI saving.
+- Prefer this LightmapGI experiment over VoxelGI for the shared lighting path. VoxelGI's bake prepares voxel
+  data but still requires demanding runtime GI and Forward+; it does not benefit Mobile or Compatibility/web.
+  Its static bake also has custom-ShaderMaterial limitations relevant to the game's terrain and foliage.
+  Any future desktop-only VoxelGI experiment needs a separate measured justification and fallback;
+  adding a VoxelGI node is not an optimization of the current lighting.
 - Establish a repeatable offline bake from the runtime-built room, unique non-overlapping UV2s,
   stable geometry/transforms and resource mapping, and a cache/invalidation rule for rebuilt rooms.
   Exported play must load the baked result, never attempt an editor-only bake.

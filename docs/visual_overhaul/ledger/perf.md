@@ -97,3 +97,24 @@ Battery 26.9–27.9°C; no clocks/throttling or presentation timestamps collecte
 Native refresh is 60 Hz in all passes, cap 60, VSync enabled. Preserve outliers and legacy black-time caveat.
 Next phone investigation is controlled pacing/presentation, alongside outdoor non-pixel GPU workload; no production
 setting changed. Temporary package removed; original player app/saves preserved. Continue ordered work with 009b.
+
+### Smooth resolve phone evidence (010b, complete)
+
+[Observed phone results and limitations](../010b-phone-resolve.md), generated
+`build/perf/vo/010b/phone/comparison.md`. Three clean 720p/540p/720p passes / 459.855 s;
+28.9–29.9°C, charging. 540p frame medians: house 16.72, battle 16.86, Rue Royale 32.83,
+Path 33.46 and Cove 33.47 ms. House 720p pacing changed from 33.22 to 16.69 ms;
+GPU bracket drift ranges from −52.4% to +11.2%. This is not a controlled before/after
+sharpening-cost attribution or proof of sustained 60 fps. Original player-package identity
+matches; benchmark removed. Existing visual approval retained; continue 008a diagnostics.
+
+### Controlled shadows (008a)
+
+[Diagnosis and limits](../008-shadow-budget.md), generated `build/perf/vo/008/phone/shadows.md`.
+457.203 s phone on/off/on; effective light states/route/raw statistics validate. Outdoor net
+GPU differences from all-light-shadow disabling: Path 3.706 ms, Cove 3.337, Rue Royale 1.620;
+on-bracket GPU drift −0.1% to −0.9%. Frame medians still ~33 ms. Battle difference 0.950 ms;
+house inconclusive (+108.5% GPU drift / pacing change). Battery readings 29.9°C; USB recovery
+caused a 108.084-second observation/temperature gap on the same running app. No harness
+problems/focus loss. Desktop attempt is INVALID (lost focus); no desktop gain asserted.
+No production lighting change. Continue at Claude's 008b visual handoff; parent 008 remains open.

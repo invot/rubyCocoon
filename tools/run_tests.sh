@@ -36,6 +36,7 @@ TESTS=(
 	"video-settings-touch|--resolution 2400x1080 -- --scene=video-settings --touch --prefs_path=res://build/video_settings_touch_test/settings.cfg --save_dir=res://build/video_settings_touch_saves/|VIDEO SETTINGS DONE: 0 problem"
 	"performance|-- --scene=stalls --save_dir=res://build/performance_test_saves/|PERFORMANCE AUDIT DONE: 0 problem"
 	"vo-perf-route|-- --scene=vo-perf --verify=1 --report=res://build/perf/vo/route-check.json|VO PERF DONE: 0 problem"
+	"vo-shadow-route|-- --scene=vo-perf --verify=1 --shadow_sweep=on,off,on --report=res://build/perf/vo/008/route-check.json --prefs_path=res://build/vo_shadow_test/settings.cfg --save_dir=res://build/vo_shadow_test/saves/|VO PERF DONE: 0 problem"
 	"ground|-- --scene=bake-ground --verify=1 --save_dir=res://build/ground_test_saves/|GROUND BAKE DONE: .*, 0 problem"
 	"textures|-- --scene=texture-audit --verify=1 --save_dir=res://build/texture_test_saves/|TEXTURE AUDIT DONE: 0 problem"
 	"transitions|-- --scene=transitions --passes=1 --save_dir=res://build/transition_test_saves/|TRANSITIONS DONE: 0 problem"

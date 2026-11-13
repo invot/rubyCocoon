@@ -2808,7 +2808,13 @@ func _build_player() -> void:
 func _build_camera() -> void:
 	cam = Camera3D.new()
 	cam.fov = 36 if not interior else 44
-	# no depth-of-field: the PSX look keeps every pixel sharp and lets the fog soften the distance
+	# Only distant outdoor scenery softens; rooms, the hero and nearby interactions stay sharp.
+	var focus := CameraAttributesPractical.new()
+	focus.dof_blur_far_enabled = not interior and RenderingServer.get_current_rendering_method() != "gl_compatibility"
+	focus.dof_blur_amount = 0.035
+	focus.dof_blur_far_distance = CAM_OFFSET.length() + 4.0
+	focus.dof_blur_far_transition = 10.0
+	cam.attributes = focus
 	add_child(cam)
 	cam.current = true
 
@@ -2839,6 +2845,9 @@ func _place_camera(instant := false) -> void:
 	var want := t + CAM_OFFSET
 	cam.position = want if instant else cam.position.lerp(want, 0.12)
 	cam.look_at(cam.position - CAM_OFFSET + Vector3(0, CAM_LOOK_Y, 0), Vector3.UP)
+	# Track the hero's view-space depth even when the follow camera stops at a map boundary.
+	var subject := player.position if is_instance_valid(player) else cam_target
+	cam.attributes.dof_blur_far_distance = maxf(1.0, (subject - cam.position).dot(-cam.basis.z)) + 4.0
 
 
 ## How much further back than usual the camera stands so a stage room's whole width, both side walls and their doors,
