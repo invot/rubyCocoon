@@ -47,10 +47,12 @@ You asked for a straight hedge middle piece and a fruit bush with large fruit th
 - the fruit becomes an item that can be fed to a beast, restoring HP like a Minor Potion;
 - every action works with touch as well as keyboard and gamepad (AGENTS.md).
 
-Ask the user before building:
-- whether the fruit grows back, and how fast;
-- what the fruit is called;
-- whether picked bushes are saved per map.
+**Further user decisions (2026-11-13):**
+- Fruit regrows whenever the player re-enters the area/map. Picked state does not persist across map visits or saves.
+- Fruit-bearing bushes must be very rare; an exact placement count has not been set.
+- Never place fruit near a map entry point. Place it in the map's interior or off the main path, while keeping it clear of entry points.
+
+Ask the user what the fruit is called before building. Regrowth and picked-state persistence are already decided.
 
 New previews in `rev_002/previews/`:
 - `new_pieces.png`;

@@ -58,7 +58,10 @@ void vertex() {
 	else if (slot == 9) want = pack;
 	// Iris highlights brighten the chosen hue instead of mixing in white, which
 	// washes out these small patches under the character preview's lighting.
-	vec3 tinted = slot == 3 ? want.rgb * clamp(UV2.y, 0.8, 1.15) : shade(want.rgb, UV2.y);
+	// Hair does the same: the kit paints some hairdos two-tone (white round the sides), and mixing even a tenth of
+	// white into dark hair (in linear colour) turned that band grey.
+	vec3 tinted = slot == 3 ? want.rgb * clamp(UV2.y, 0.8, 1.15)
+		: (slot == 2 ? want.rgb * clamp(UV2.y, 0.8, 1.15) : shade(want.rgb, UV2.y));
 	col = mix(COLOR.rgb, tinted, want.a);
 	rest = CUSTOM0.xyz;
 	rest_n = abs(NORMAL);

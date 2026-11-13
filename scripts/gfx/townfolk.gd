@@ -88,6 +88,8 @@ const HERO_FACE := 0
 const SHOE_COLOURS := ["#5a3a24", "#2a2a2a", "#e8e4dc", "#3a3a4a", "#7a4a2a", "#8a2a2a", "#4a5a7a"]
 const EYE_COLOURS := ["#4a2e1c", "#5a3a22", "#3e2a1c", "#4a6680", "#56704e", "#6a5a3a", "#4a3a2e"]
 const SKIN := "#f0c8a0"
+## The hero's hair colour when the look has none: the character creator's first (hero_maker.gd SWATCHES "hair").
+const HERO_HAIR := "#1a1410"
 
 static var _list := {}
 static var _skin: Skin
@@ -369,6 +371,10 @@ static func outfit(look: Dictionary) -> Dictionary:
 		if look.has(names[slot]):
 			colours[slot] = Color(look[names[slot]])
 	colours["skin"] = colours.get("skin", Color(SKIN))
+	# a hero with no hair colour chosen (a test's new game, or a save from before the character creator) has the
+	# creator's first one, not the kit's own orange-and-white
+	if hero and not m.begins_with("tf") and not colours.has("hair"):
+		colours["hair"] = Color(HERO_HAIR)
 	colours["eyes"] = colours.get("eyes", Color(EYE_COLOURS[seed % EYE_COLOURS.size()]))
 	if String(look.get("outfit", "")) == "camo" and not hero and not m.begins_with("tf"):
 		var extras: Dictionary = data()["extras"]

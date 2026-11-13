@@ -93,8 +93,8 @@ var rough := PackedByteArray()
 var liquid := PackedByteArray()
 ## per tile: 1 where the ground stands LIFT above its level (the grass, and a doorstep on a building's grass)
 var lifted := PackedByteArray()
-## per tile: 1 under a building: its ground is lifted with the lawn it stands on, but holds a firm edge (a plinth
-## rather than rolling turf), and no corner of it is cut
+## per tile: 1 under a building: its ground is lifted with the lawn it stands on and rolls over its edge in turf like the
+## lawn's, but no corner of it is cut (the walls stand to its corners)
 var firm := PackedByteArray()
 ## per tile: its cut (grass) or filled (path) corners, NW | NE | SE | SW, and the layer those corners show
 var corners := PackedByteArray()
@@ -824,7 +824,9 @@ static func _face_drop(f: Dictionary) -> float:
 func _side_info(tx: int, tz: int, d: Vector2i, bits: Array) -> Array:
 	var i := _i(tx, tz)
 	var code := _diag(tx, tz)
-	var grassy := _grassy(i)
+	# (a building's lawn rolls over its edge like any other grass, so the strip in front of a house meets the path in
+	# the same soft turf, not a hard ruled line; its corners still stay square under the walls)
+	var grassy := grassy_layer(layer[i])
 	if code != 0:
 		grassy = grassy_layer(int(halves[i][0 if Elev.on_high_half(code, 0.5 + d.x * 0.5, 0.5 + d.y * 0.5) else 1]["layer"]))
 	var on_map := code == 0 and tx >= 0 and tz >= 0 and tx < w and tz < h

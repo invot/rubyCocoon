@@ -566,8 +566,8 @@ static func _turn(sk: Skeleton3D, bone: Dictionary, parent: Quaternion, by: Quat
 ## How people walk, after the animators' rules for a walk cycle. The cadence follows the speed and the stride lengthens
 ## with it (step_length), so a planted foot stays put instead of skating. Each foot follows its own path: the heel
 ## strikes with the toes up, the foot rolls flat, the heel peels up for the toe-off, then the foot swings through,
-## lifting; the knee bends just enough for the leg to reach it. The hips settle as each foot lands and rise as the legs
-## pass; they twist with the stride while the chest twists back; the arms swing against the legs and trail them a
+## lifting; the knee bends just enough for the leg to reach it. The hips (and so the head) stay at one height through
+## the stride; they twist with the stride while the chest twists back; the arms swing against the legs and trail them a
 ## little, the forearms trailing the arms; the head stays level, looking ahead. A stroll (speed about 1.7) blends into
 ## the hero's jog (4.6: leaning in, a moment in the air between steps, elbows bent and pumping) and a sprint (7.8).
 ## Standing, a person breathes, shifts their weight and looks about; talking (set_talking), they gesture with one
@@ -630,9 +630,22 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	var u := fposmod(phase / TAU, 1.0)
 	# knees a little bent on the move, a little more to run; standing, shifting the weight dips the hips a touch
 	var body_y := (-lerpf(0.012, 0.05, run) * m - 0.008 * still * (0.5 + 0.5 * shift)) * LEGS
-	# a run leaves the ground between steps: lowest with a foot under the body, highest in the air
-	body_y += 0.045 * LEGS * run * m * (0.5 - 0.5 * cos(TAU * 2.0 * (u - duty * 0.5)))
 	body_y -= float(wpose.get("crouch", 0.0)) * ww * LEGS
+	# the head stays at one height through the stride: the hips ride as high as the planted foot lets them at its
+	# furthest reach (landing ahead, or rolled onto its toes behind), all the way through, and the knees take up the
+	# rest; holding them down only while a foot was planted made them jump up as it left the ground
+	if m > 0.0:
+		for side in ["l", "r"]:
+			var leg: Dictionary = r[side + "_leg"]
+			var long: float = (float(leg["thigh"]) + float(leg["shin"])) * 0.995
+			var ankle: Vector3 = leg["ankle"]
+			var hip: Vector3 = leg["hip"]
+			for i in 9:
+				var k := i / 8.0
+				var toe := (-heel * (1.0 - smoothstep(0.0, 0.25, k)) + toe_off * smoothstep(0.6, 1.0, k)) * m
+				var ty: float = ankle.y + float(leg["foot"]) * sin(maxf(toe, 0.0))
+				var dz: float = ankle.z + front - reach * k - hip.z
+				body_y = minf(body_y, ty + sqrt(maxf(0.0, long * long - dz * dz)) - hip.y)
 	var feet := {}
 	for side in ["l", "r"]:
 		var leg: Dictionary = r[side + "_leg"]
@@ -657,11 +670,6 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		var hip: Vector3 = leg["hip"]
 		var target := Vector2(ankle.z + z, ankle.y + y)
 		feet[side] = [target, toe]
-		if planted:
-			# the hips can't be higher than a planted foot lets them
-			var long: float = (float(leg["thigh"]) + float(leg["shin"])) * 0.995
-			var dz := target.x - hip.z
-			body_y = minf(body_y, target.y + sqrt(maxf(0.0, long * long - dz * dz)) - hip.y)
 	# sitting: the hips come down onto the seat, a little back from the edge; kneeling, down over the lowered knee
 	var seat := float(rig.get_meta("seat", 0.36))
 	var hip_y: float = r["l_leg"]["hip"].y
@@ -690,9 +698,9 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	for bone in spine:
 		g = _turn(sk, bone, g, Quaternion(lat, lean * each) * Quaternion(up, (chest_turn - 1.5 * twist) * each) * Quaternion(fwd, -0.8 * roll * each))
 		posed[bone["i"]] = g
-	# the head keeps looking ahead, nodding a little behind each step; talking, it nods along and tilts
+	# the head keeps looking ahead, steady through the steps; talking, it nods along and tilts
 	var head: Dictionary = r["head"]
-	var nod := 0.025 * m * sin(TAU * 2.0 * u - 1.2) + talk_w * (0.06 * sin(t * 4.1) * sin(t * 1.7) - 0.04) + 0.3 * kw
+	var nod := talk_w * (0.06 * sin(t * 4.1) * sin(t * 1.7) - 0.04) + 0.3 * kw
 	var look := sin(t * 0.53) * 0.14 * still * (1.0 - 0.7 * talk_w) * (1.0 - kw)
 	_turn(sk, head, g, Quaternion(up, 0.5 * twist + look)
 		* Quaternion(lat, -0.7 * lean + nod + sin(t * 1.1) * 0.02 * still) * Quaternion(fwd, 0.2 * roll + 0.07 * talk_w * sin(t * 0.9)))

@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "tolerance": 0.05,
+  "scope": "headless whole-subtree source capacity",
+  "profiles": {
+    "desktop16x9": {
+      "coast_battle": {
+        "geometry_nodes": 249,
+        "surface_submissions": 254,
+        "source_triangles": 102177,
+        "distinct_materials": 56,
+        "transparent_surfaces": 28,
+        "texture_rgba8_mip_bytes": 12294575
+      },
+      "coastal_path": {
+        "geometry_nodes": 686,
+        "surface_submissions": 705,
+        "source_triangles": 1851129,
+        "distinct_materials": 72,
+        "transparent_surfaces": 98,
+        "texture_rgba8_mip_bytes": 17257194
+      },
+      "cove_plaza": {
+        "geometry_nodes": 955,
+        "surface_submissions": 1045,
+        "source_triangles": 2663320,
+        "distinct_materials": 144,
+        "transparent_surfaces": 134,
+        "texture_rgba8_mip_bytes": 22868582
+      },
+      "hero_house": {
+        "geometry_nodes": 44,
+        "surface_submissions": 90,
+        "source_triangles": 21800,
+        "distinct_materials": 36,
+        "transparent_surfaces": 0,
+        "texture_rgba8_mip_bytes": 2964692
+      },
+      "rue_royale": {
+        "geometry_nodes": 996,
+        "surface_submissions": 1403,
+        "source_triangles": 1947132,
+        "distinct_materials": 224,
+        "transparent_surfaces": 516,
+        "texture_rgba8_mip_bytes": 18955814
+      }
+    },
+    "touch20x9": {
+      "coast_battle": {
+        "geometry_nodes": 249,
+        "surface_submissions": 254,
+        "source_triangles": 102177,
+        "distinct_materials": 56,
+        "transparent_surfaces": 28,
+        "texture_rgba8_mip_bytes": 12294575
+      },
+      "coastal_path": {
+        "geometry_nodes": 686,
+        "surface_submissions": 705,
+        "source_triangles": 1851129,
+        "distinct_materials": 72,
+        "transparent_surfaces": 98,
+        "texture_rgba8_mip_bytes": 17257194
+      },
+      "cove_plaza": {
+        "geometry_nodes": 955,
+        "surface_submissions": 1045,
+        "source_triangles": 2663320,
+        "distinct_materials": 144,
+        "transparent_surfaces": 134,
+        "texture_rgba8_mip_bytes": 22868582
+      },
+      "hero_house": {
+        "geometry_nodes": 44,
+        "surface_submissions": 90,
+        "source_triangles": 21800,
+        "distinct_materials": 36,
+        "transparent_surfaces": 0,
+        "texture_rgba8_mip_bytes": 2964692
+      },
+      "rue_royale": {
+        "geometry_nodes": 996,
+        "surface_submissions": 1403,
+        "source_triangles": 1947132,
+        "distinct_materials": 224,
+        "transparent_surfaces": 516,
+        "texture_rgba8_mip_bytes": 18955814
+      }
+    }
+  },
+  "provenance": [
+    {
+      "profile": "desktop16x9",
+      "path": "build/perf/vo/011/headless-desktop-01/report.json",
+      "sha256": "037718bee9f9dafdc6835236c4312a6295960bf18f9fd5ac82238cc63ee54619"
+    },
+    {
+      "profile": "touch20x9",
+      "path": "build/perf/vo/011/headless-touch-01/report.json",
+      "sha256": "846d444463eb974ac52340dfc08caf6941b36d5fa2ca7ffff6820b4bd2268c99"
+    }
+  ]
+}

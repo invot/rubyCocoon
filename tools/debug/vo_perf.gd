@@ -299,9 +299,7 @@ func _field(label: String, goals: Array) -> void:
 		await _capture(label + "_arrival")
 		return
 	var world = _main.world
-	var tiles := [world.player_pos]
-	for goal in goals:
-		tiles.append_array(_path(world, tiles.back(), goal))
+	var tiles := _field_tiles(world, goals)
 	print("VO PERF route ", label, " tiles=", tiles.size())
 	if _opts.get("verify", "0") == "1":
 		return
@@ -315,6 +313,13 @@ func _field(label: String, goals: Array) -> void:
 	var result := await _measure(label, world, world.cam, positions)
 	result["tiles"] = tiles.map(func(t): return [t.x, t.y])
 	_segments[label] = result
+
+
+func _field_tiles(world, goals: Array) -> Array:
+	var tiles := [world.player_pos]
+	for goal in goals:
+		tiles.append_array(_path(world, tiles.back(), goal))
+	return tiles
 
 
 func _battle() -> void:

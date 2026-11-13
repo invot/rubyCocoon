@@ -70,8 +70,12 @@ def summarize(path):
     print("\n".join(lines), flush=True)
 
 
-def configure_phone(part):
+def configure_phone(part, device_tag=""):
     sweep.configure("007-v2" + ("-aa" if part == "aa" else ""))
+    if device_tag:
+        if not all(c.isalnum() or c in "_-" for c in device_tag):
+            raise ValueError("Use a plain device tag")
+        phone.OUT = phone.OUT.with_name("phone-" + device_tag)
     phone.RUN_METADATA = {"experiment": "alpha-007 " + part, "quality": "mid", "passes_target": 3}
     phone.EXTRA_ARGS = phone.EXTRA_ARGS.replace("--scene=vo-perf", "--scene=vo-alpha --part="+part).replace("--resolution_sweep=720,540,720 ", "")
 
@@ -127,18 +131,19 @@ if __name__ == "__main__":
     parser.add_argument("--serial", default="ZY22K7BD2J")
     parser.add_argument("--display", default="")
     parser.add_argument("--attach", action="store_true")
+    parser.add_argument("--device-tag", default="", help="Separate evidence folders for a different physical phone; reuse the frozen APK")
     args = parser.parse_args()
     if args.action == "desktop":
         desktop(args)
     elif args.action == "summary":
         summarize(args.report)
     else:
-        configure_phone(args.part)
+        configure_phone(args.part, args.device_tag)
         if args.action == "export":
             with model_lock(timeout=3600):
                 phone.export(args)
         else:
-            previous = ROOT / "build/perf/vo/007-v2/phone/cleanup.json"
+            previous = ROOT / "build/perf/vo/007-v2" / ("phone-"+args.device_tag if args.device_tag else "phone") / "cleanup.json"
             if args.part == "aa" and previous.exists() and json.loads(previous.read_text()).get("recover_observer_if_still_running"):
                 raise RuntimeError("Recover the preceding phone observer with --part=suite --attach before starting another package")
             sweep.run(args)

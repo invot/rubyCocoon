@@ -30,7 +30,7 @@ def call(command, **kwargs):
     return subprocess.run(command, cwd=ROOT, check=True, **kwargs)
 
 
-def export(args):
+def export(args, playable=False, renderer="", package="", app_name=""):
     (ROOT / "build/tools").mkdir(parents=True, exist_ok=True)
     (ROOT / "build/tools/.gdignore").touch()
     (ROOT / "build/shots").mkdir(parents=True, exist_ok=True)
@@ -61,10 +61,11 @@ def export(args):
     clone = first.replace("[preset.0", f"[preset.{index}")
     excluded = json.loads(re.search(r'^exclude_filter=(.*)$', clone, re.M)[1])
     overrides = {
-        "name": "Android Perf", "export_path": str(APK).replace("\\", "/"),
-        "exclude_filter": ", ".join(value.strip() for value in excluded.split(",") if value.strip() != "tools/*"), "custom_template/debug": str(template).replace("\\", "/"),
-        "package/unique_name": PACKAGE, "package/name": "Ruby Cocoon Perf",
-        "command_line/extra_args": EXTRA_ARGS,
+        "name": "Android Playable" if playable else "Android Perf", "export_path": str(APK).replace("\\", "/"),
+        "exclude_filter": excluded if playable else ", ".join(value.strip() for value in excluded.split(",") if value.strip() != "tools/*"), "custom_template/debug": str(template).replace("\\", "/"),
+        "package/unique_name": package or (json.loads(re.search(r'^package/unique_name=(.*)$', clone, re.M)[1]) if playable else PACKAGE),
+        "package/name": app_name or ("Ruby Cocoon" if playable else "Ruby Cocoon Perf"),
+        "command_line/extra_args": (("--rendering-method " + renderer + " ") if renderer else "") + ("" if playable else EXTRA_ARGS),
     }
     # Only the top-level name is overridden; version/name and package/name are separate options.
     for key, value in overrides.items():
@@ -78,7 +79,7 @@ def export(args):
     path.write_bytes(original + b"\n" + clone.encode("utf-8"))
     try:
         with (OUT / "export.log").open("w", encoding="utf-8") as log:
-            call([str(engine), "--headless", "--path", str(ROOT), "--export-debug", "Android Perf", str(APK)], stdout=log, stderr=subprocess.STDOUT)
+            call([str(engine), "--headless", "--path", str(ROOT), "--export-debug", overrides["name"], str(APK)], stdout=log, stderr=subprocess.STDOUT)
     finally:
         path.write_bytes(original)
     print(f"APK {APK} ({APK.stat().st_size} bytes)", flush=True)

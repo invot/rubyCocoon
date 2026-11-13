@@ -844,8 +844,15 @@ func _run_test() -> void:
 		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
 		get_tree().quit()
 		return
-	if scene in ["vo-perf", "vo-lighting", "vo-scenery", "vo-mesh-merger", "vo-alpha"]:
-		var audit_path: String = {"vo-perf": "vo_perf", "vo-lighting": "vo_lighting", "vo-scenery": "vo_scenery", "vo-mesh-merger": "vo_mesh_merger", "vo-alpha": "vo_alpha"}[scene]
+	if scene == "vo-renderer":
+		print("VO RENDERER ", JSON.stringify({"platform": OS.get_name(), "renderer": RenderingServer.get_current_rendering_method(),
+			"driver": RenderingServer.get_current_rendering_driver_name(), "gpu": RenderingServer.get_video_adapter_name(),
+			"mobile_feature": OS.has_feature("mobile"), "web_feature": OS.has_feature("web"),
+			"compatibility_build": OS.has_feature("compatibility_build"), "shader_cache": ProjectSettings.get_setting_with_override("rendering/shader_compiler/shader_cache/enabled")}))
+		get_tree().quit()
+		return
+	if scene in ["vo-perf", "vo-lighting", "vo-scenery", "vo-mesh-merger", "vo-alpha", "vo-budget"]:
+		var audit_path: String = {"vo-perf": "vo_perf", "vo-lighting": "vo_lighting", "vo-scenery": "vo_scenery", "vo-mesh-merger": "vo_mesh_merger", "vo-alpha": "vo_alpha", "vo-budget": "vo_budget"}[scene]
 		var audit = load("res://tools/debug/" + audit_path + ".gd").new()
 		await audit.run(self, _test)
 		get_tree().quit(0 if audit.bad == 0 else 1)
