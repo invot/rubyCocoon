@@ -2,6 +2,23 @@
 
 ## Current checkpoint (supersedes the historical text below)
 
+**008b complete; parent 008 complete; next 006** (supersedes historical paragraphs below).
+Claude's approved enclosed-room 30-unit/two-split setting is integrated in `world.gd`.
+Outdoors and films retain their lighting. Full report: `008b-integration.md`; film evidence:
+`claude-008b-cost-return.md`. Largest generated room reef#0, 31×13, four reachable edges inspected.
+`vo-lighting` / `tools/vo_lighting.py` record indoor old/approved/old and film key-shadow on/off/on.
+Desktop Mobile `008b/mobile-01`: 125.335 s, zero problems/focus loss; GPU drift/background Godot
+limit attribution. Phone: 309.625 s, zero problems/focus loss/disconnect, 28.9–29.9°C.
+Reported phone refresh is 24 Hz throughout (cap 60); ~41.6 ms frame medians do not prove an fps gain.
+Indoor GPU differences 0.105/0.248 ms. Film key-shadow differences 0.540/0.160 ms, films unchanged.
+Mobile desktop/phone coverage frames and 2400×1080 Compatibility/touch capture inspected.
+Quick + six focused scenarios and 14 Python validator/recovery checks pass. Earlier harness errors/stall
+were corrected; only this task's verified stalled PIDs were stopped. Source/tests/log limits in report.
+Benchmark removed; player-package identity and export preset bytes match. Phone captures extracted safely.
+APK SHA-256 `7a84f0604a7127aff0acd882793fcbd9ff45a3eab356592c5139b698f4f10c70`.
+All Codex model/measurement/export jobs from this step have finished. No root override.cfg.
+No commits, branches, resets, production art replacements or player-save changes. Preserve all existing work.
+
 Codex continuation complete through **008a controlled shadow diagnosis**. Next: **Claude 008b visual work**,
 with concrete instructions in `claude-008b-handoff.md` and evidence in `008-shadow-budget.md`.
 010b missing phone evidence is complete: three clean passes / 459.855 s, 28.9–29.9°C;

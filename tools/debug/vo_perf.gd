@@ -314,8 +314,8 @@ func _battle() -> void:
 	_main.world.cam.make_current()
 
 
-func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array) -> Dictionary:
-	var vp: RID = _main.view.get_viewport_rid()
+func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array, advance := Callable(), measured_view: SubViewport = null, captures := {}) -> Dictionary:
+	var vp: RID = (_main.view if measured_view == null else measured_view).get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp, true)
 	var values := {"frame_ms": [], "process_cpu_ms": [], "tick_cpu_ms": [], "render_cpu_ms": [], "gpu_ms": [],
 		"draw_calls": [], "objects": [], "primitives": [], "video_memory_bytes": []}
@@ -323,15 +323,19 @@ func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array
 	var last := 0
 	var is_field: bool = subject == _main.world
 	for i in positions.size():
-		if i == 0 or i == positions.size() / 2:
+		if i == 0 or i == positions.size() / 2 or captures.has(i):
 			inventory.append(_inventory(subject, camera, i))
 			if i == positions.size() / 2:
 				await _capture(label)
+			if captures.has(i):
+				await _capture(label + "_" + String(captures[i]))
 			for warm in 3:
 				await _main.get_tree().process_frame
 			last = Time.get_ticks_usec()
 		var began := Time.get_ticks_usec()
-		if is_field:
+		if advance.is_valid():
+			advance.call()
+		elif is_field:
 			var before: Vector3 = subject.player.position
 			subject.player.position = positions[i]
 			subject.player_pos = Vector2i(floori(positions[i].x), floori(positions[i].z))
@@ -357,7 +361,8 @@ func _measure(label: String, subject: Node3D, camera: Camera3D, positions: Array
 		values.video_memory_bytes.append(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED))
 	RenderingServer.viewport_set_measure_render_time(vp, false)
 	inventory.append(_inventory(subject, camera, positions.size()))
-	await RenderingServer.frame_post_draw
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
 	await _capture(label + "_end")
 	var summary := {}
 	for key in values:

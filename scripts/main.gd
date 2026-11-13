@@ -844,8 +844,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
 		get_tree().quit()
 		return
-	if scene == "vo-perf":
-		var audit = load("res://tools/debug/vo_perf.gd").new()
+	if scene in ["vo-perf", "vo-lighting"]:
+		var audit = load("res://tools/debug/vo_lighting.gd" if scene == "vo-lighting" else "res://tools/debug/vo_perf.gd").new()
 		await audit.run(self, _test)
 		get_tree().quit(0 if audit.bad == 0 else 1)
 		return

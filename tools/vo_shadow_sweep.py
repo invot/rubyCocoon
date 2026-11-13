@@ -33,6 +33,18 @@ def light_configuration(entries, shadows=False):
     return sorted(normalized)
 
 
+def validate_segment(segment):
+    for metric, trace in segment["trace"].items():
+        if not trace or len(trace) != segment["frames"] or not all(math.isfinite(v) for v in trace):
+            raise ValueError("Missing or nonfinite trace: " + metric)
+        ordered = sorted(trace)
+        stats = {"median": statistics.median(trace), "p95": ordered[math.ceil(len(trace)*.95)-1],
+                 "p99": ordered[math.ceil(len(trace)*.99)-1], "max": ordered[-1]}
+        if not all(math.isclose(segment["summary"][metric][k], v, rel_tol=1e-9, abs_tol=1e-9)
+                   for k, v in stats.items()):
+            raise ValueError("Summary does not match raw trace: " + metric)
+
+
 def summarize(path):
     path = Path(path)
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -58,15 +70,7 @@ def summarize(path):
                 raise ValueError("Shadow flags did not restore")
             if segment["frames"] != first["frames"] or segment.get("tiles") != first.get("tiles"):
                 raise ValueError("Route differs between shadow passes")
-            for metric, trace in segment["trace"].items():
-                if not trace or len(trace) != segment["frames"] or not all(math.isfinite(v) for v in trace):
-                    raise ValueError("Missing or nonfinite trace: " + metric)
-                ordered = sorted(trace)
-                stats = {"median": statistics.median(trace), "p95": ordered[math.ceil(len(trace)*.95)-1],
-                         "p99": ordered[math.ceil(len(trace)*.99)-1], "max": ordered[-1]}
-                if not all(math.isclose(segment["summary"][metric][k], v, rel_tol=1e-9, abs_tol=1e-9)
-                           for k, v in stats.items()):
-                    raise ValueError("Summary does not match raw trace: " + metric)
+            validate_segment(segment)
     if not any(light["shadows"] for segment in batches[0]["segments"].values() for light in segment["diagnosis"]["lights"]):
         raise ValueError("Control pass has no shadow lights")
     result = {"source": str(path), "platform": data["platform"], "renderer": data["renderer"],

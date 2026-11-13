@@ -26,8 +26,9 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 ## Next step
 
-**008b: Claude visual lighting review.** [008a diagnosis](008-shadow-budget.md) is complete with recorded
-desktop/observation limits; use [the concrete handoff](claude-008b-handoff.md).
+**006: batched scenery and visibility experiments.** [008b's approved indoor integration](008b-integration.md)
+and film cost experiment are complete; films retain their lighting. See [Claude's returned evidence](claude-008b-cost-return.md).
+[008a diagnosis](008-shadow-budget.md) retains its desktop/observation limits.
 010b's missing [phone evidence](010b-phone-resolve.md) is complete;
 its visual approval is retained. Steps 001–004, 005a, 009a, 009b and 010a are complete (009b closed with the
 Web criterion recorded as not met); see [the diagnosis](004-cost-diagnosis.md) for the revised execution order and

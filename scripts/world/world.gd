@@ -5189,6 +5189,10 @@ func _build_room() -> void:
 	sun.rotation_degrees = Vector3(-60, 20, 0)
 	if open_air:
 		OutdoorLight.aim(sun)
+	else:
+		# 008b: approved indoor coverage; 20 units clips the hero's shadow near a doorway.
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sun.directional_shadow_max_distance = 30.0
 	add_child(sun)
 	# floors, walls, doors, windows, furniture and a light per room (an open-air roof keeps its deck and railings)
 	room_walls = null

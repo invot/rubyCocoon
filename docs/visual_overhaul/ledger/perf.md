@@ -118,3 +118,17 @@ house inconclusive (+108.5% GPU drift / pacing change). Battery readings 29.9°C
 caused a 108.084-second observation/temperature gap on the same running app. No harness
 problems/focus loss. Desktop attempt is INVALID (lost focus); no desktop gain asserted.
 No production lighting change. Continue at Claude's 008b visual handoff; parent 008 remains open.
+
+### Approved indoor coverage and film key-shadow experiment (008b)
+
+[Integration report and limits](../008b-integration.md). Desktop Mobile: 125.335 s, zero
+problems/focus losses; significant GPU bracket drift and another pre-existing Godot window
+limit PC attribution. Phone: 309.625 s, zero problems/focus loss/disconnects, 28.9–29.9°C.
+Reported refresh **24 Hz** in all three passes, cap 60, Mid/720p. Frame medians stay ~41.6 ms;
+do not compare fps directly to the earlier 60 Hz walking routes. Indoor 100/four → approved
+30/two net GPU median differences: house 0.105 ms, largest room (reef#0, 31×13) 0.248 ms.
+Film key-shadow on/off/on: hatch 0.540 ms, merge 0.160 ms; merge bracket drift −3.1%.
+Film lighting retained; no all-shadow removal. Raw traces, p95/max and nominal peak indices:
+`build/perf/vo/008b/{mobile-01,phone}/{report.json,validated-lighting.json,lighting.md}`.
+Original package identity and export preset bytes match; benchmark removed. Parent 008 complete;
+next 006. Target-device sustained acceptance and refresh-selection diagnosis remain open.

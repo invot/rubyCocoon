@@ -1078,6 +1078,8 @@ mounted owl and its rider.
 <img src="docs/screenshots/phone.jpg" width="640" alt="On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle."><br><sub>On a 20:9 phone: the d-pad, A and B, and Start and Pause around a battle.</sub>
 
 - **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; the patch of shade under each character is one small shared quad with no lighting or texture; phones are capped at a steady 60 fps.
+  Enclosed-room suns also use two shadow splits over 30 units on Mid/Max; Min disables their shadows.
+  The indoor coverage is checked at reachable room edges, including the largest generated building interior.
 - **Stalls and loading**: a transition shows no loading message. The next map is built behind the black fade,
   yielding between terrain chunks, scenery rows, house plans and NPCs after 50 ms of work (12 ms on the web, which
   mixes its music on the same thread). The 3D view is switched off until the map is finished, and its first draw also

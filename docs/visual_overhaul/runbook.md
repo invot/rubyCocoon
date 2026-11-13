@@ -376,6 +376,12 @@ Claude evaluates grounded silhouettes and shadow coverage using the diagnosis be
 Codex handles any resulting shared-code integration and measured validation. Preserve authored large casters unless
 measurements and visual review justify changing them. Finish the parent 008 evidence before advancing 006.
 
+**008b result (12 November 2026):** [approved integration and measured validation](008b-integration.md).
+Enclosed-room suns use 30 units / two splits; outdoor and film lighting retained. Largest generated room
+coverage checked, desktop/phone controls validated, film key-shadow experiment delivered to Claude.
+Phone reported 24 Hz throughout this experiment; no fps gain or cross-run pacing comparison claimed.
+Parent 008 complete; proceed to 006.
+
 ### 009 · P9: shader warm-up and first-visit stalls (split)
 ### 009a · P9a: production loading-phase attribution (nonvisual instrumentation)
 **Approval:** numbers. **Needs:** 005a.

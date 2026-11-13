@@ -1,5 +1,8 @@
 # Claude handoff: 008b shadows and light coverage
 
+> **Returned 2026-11-12, user-approved:** see [claude-008b-result.md](claude-008b-result.md) for the settings to integrate.
+> **Integrated and verified:** [008b-integration.md](008b-integration.md). Requested film experiment returned in [claude-008b-cost-return.md](claude-008b-cost-return.md); film lighting retained.
+
 Codex has completed the nonvisual 008a diagnosis and 010b's missing phone evidence.
 **Next work requires visual judgement/authorship.** Production lighting is unchanged.
 Read AGENTS.md, runbook §1–§5 and 008/008a/008b, parallel-handoff.md, and
