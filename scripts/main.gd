@@ -21,6 +21,7 @@ const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const ShaderPrecompile = preload("res://scripts/gfx/shader_precompile.gd")
+const RESOLVE_SHARPEN = preload("res://scripts/gfx/resolve_sharpen.gdshader")
 const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
@@ -116,6 +117,12 @@ func _fit_view() -> void:
 		return
 	view.size = Prefs.render_size(win)
 	screen.texture_filter = Prefs.render_filter(win)
+	if Prefs.render_sharpen(win):
+		if screen.material == null:
+			screen.material = ShaderMaterial.new()
+			screen.material.shader = RESOLVE_SHARPEN
+	else:
+		screen.material = null
 
 
 ## A point on the screen (in UI units) -> the same point in the 3D view.

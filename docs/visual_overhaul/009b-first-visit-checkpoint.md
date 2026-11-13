@@ -1,8 +1,10 @@
-# 009b: first-visit/cache investigation (in progress)
+# 009b: shader warm-up and first-visit changes (done)
 
-12 November 2026. This is a checkpoint, not completion of 009b. The roughly 1.5 s
-desktop first-visit goal has not been demonstrated on an initially cold packaged
-launch, and Web improvement has not yet been measured. Do not advance to 010b.
+12 November 2026. **Closed by the user ("Close 009b").** Desktop Compatibility meets the ~1.5 s goal: the packaged
+build with the title precompile gives first visits of 0.06–0.8 s. The Web criterion ("the web improves measurably")
+is **recorded as not met**: neither the native cache change nor the title precompile helps the web, and the
+precompile is off there. A cold first launch moves about 28 s of compiling onto the title. The sections below are the
+running record; the latest results come last.
 
 ## Accepted desktop experiments
 
@@ -178,6 +180,14 @@ This suggests that the 13.8 s cold first Path visit becomes about 28 s of title 
 1.2 s, covering every map rather than one. A focused packaged run (cold and warm) is still needed to confirm the
 first visits.
 
+**Packaged, focused, warm driver (`exported-precompile-ready`, the user at the machine):** two clean passes, no
+focus losses. Title precompile 3636 ms in 46 frames, slowest 246 ms. First visits 507.9 / 798.0 / 55.3 / 441.7 ms,
+against 1272.0 / 1133.4 / 301.5 / 460.9 ms for the same profile without it (`exported-compat-focused`). Second pass
+106.5 / 210.6 / 37.6 / 297.3 ms. Every first visit is now under 0.8 s, well inside the 1.5 s goal. The cold case can't
+be repeated now that the driver has seen this build; the cold title precompile measured above (about 28 s) stands.
+
+A fourth packaged attempt after approval (`exported-precompile-focused`) also lost focus at 1.6 s. Launched from the agent, the packaged window doesn't keep the foreground, so the next focused run needs the user at the machine.
+
 Checks: quick, transitions, title-startup and vo-perf-route pass (`precompile-*.json`). The README documents the
 manifest and when to regenerate it.
 
@@ -186,7 +196,7 @@ manifest and when to regenerate it.
 1. ~~Capture comparison and tooling review~~ (done above).
 2. ~~Web continuous-timer evidence~~ (Codex's `web-before-validated`).
 3. ~~Shared warm-up~~ measured: no effect on desktop, inconclusive on Web; not adopted.
-4. The user chose to prototype the title compile (above). **Waiting for the user's review** of the title behaviour
+4. Closed by the user after the focused packaged run; Web is recorded as not met. Previously: the user chose to prototype the title compile (above), then reviewed it of the title behaviour
    (about 3 s of hitches of up to about 0.24 s with a warm driver; about 28 s with frames up to about 1.2 s on a
    cold first launch). Still open: a focused packaged run, and the Web criterion (not met; the precompile is off on
    the web). Keep all adverse results and the renderer-specific scope.

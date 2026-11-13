@@ -2,6 +2,15 @@
 
 ## Current checkpoint (supersedes the historical text below)
 
+**Latest (Claude, usage limit reached mid-step):** 010b approved by the user. Its phone evidence is still missing:
+the 010b phone sweep (`tools/vo_phone_sweep.py --step 010b`, package already exported at
+`build/android/RubyCocoon-perf-010b.apk`) lost the USB connection and produced no report (`build/perf/vo/010b/phone/INVALID.txt`).
+Benchmark package uninstalled; player app unchanged. Step 008 has only its measurement tooling so far:
+`--shadow_sweep=on,off,on` in vo-perf (render_quality.gd `diag_shadows`), quick and vo-perf-route pass; no measurement run yet.
+No active jobs, no root override.cfg.
+
+**009b closed by the user (Web criterion recorded as not met). Next: 010b.**
+
 **Claude continuation (after Codex's session ended):** 009b remains in progress, waiting for the user's decision.
 Capture comparison done; fixed the shared warm-up crash on PrimitiveMesh (two partial runs marked INVALID);
 shared warm-up gives no measurable gain on desktop (2316 vs 2322 ms Path) and was inconclusive on Web, so it is not

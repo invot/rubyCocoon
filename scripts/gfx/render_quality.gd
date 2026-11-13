@@ -7,6 +7,9 @@ const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const GROUP := &"render_quality_nodes"
 const BASELINE := &"render_quality_baseline"
 var _quality := ""
+## Measurement only (--scene=vo-perf --shadow_sweep, runbook step 008): false turns every light's shadows off
+## without touching the other preset effects. Ordinary play never changes it.
+var diag_shadows := true
 
 
 func _ready() -> void:
@@ -59,13 +62,20 @@ func _refresh() -> void:
 		_apply_node(node)
 
 
+func set_diag_shadows(on: bool) -> void:
+	diag_shadows = on
+	for node in get_tree().get_nodes_in_group(GROUP):
+		if node is Light3D:
+			_apply_node(node)
+
+
 func _apply_node(node: Node) -> void:
 	var base: Dictionary = node.get_meta(BASELINE)
 	if node is SubViewport:
 		node.msaa_3d = {"min": Viewport.MSAA_DISABLED, "mid": Viewport.MSAA_2X, "max": Viewport.MSAA_4X}[_quality]
 		node.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	elif node is Light3D:
-		node.shadow_enabled = base["shadow"] and _quality != "min"
+		node.shadow_enabled = base["shadow"] and _quality != "min" and diag_shadows
 	elif node is WorldEnvironment and node.environment != null:
 		var env: Environment = node.environment
 		env.glow_enabled = base["glow"] and _quality != "min"

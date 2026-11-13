@@ -13,12 +13,11 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 ## Next step
 
-**009b: shader warm-up and first-visit changes.** Steps 001–004, 005a, 009a and 010a are complete; see
-[the diagnosis](004-cost-diagnosis.md) for the revised execution order and
+**010b: smooth low-resolution resolve.** Steps 001–004, 005a, 009a, 009b and 010a are complete (009b closed with the
+Web criterion recorded as not met); see [the diagnosis](004-cost-diagnosis.md) for the revised execution order and
 [the parallel handoff](parallel-handoff.md) for Claude artwork and Codex engineering.
-The [accepted loading-phase report](009a-loading-phases.md) replaces the earlier measurement checkpoint.
 rev_003's [technical review](art_reviews/broadleaf-rev_003.md) and attribution are complete; integration still awaits
-011/022/023 and in-game review. The old rev_002 prompt is superseded. Step 027 remains open.
+011/022/023 and in-game review. Step 027 remains open.
 
 ## How to prompt
 

@@ -68,7 +68,9 @@ func _matrix() -> void:
 				"%dp/%s preserves aspect and internal height" % [height, quality])
 			var ui_size: Vector2 = main.get_viewport().get_visible_rect().size
 			_check(main.to_view(ui_size * 0.5).is_equal_approx(Vector2(main.view.size) * 0.5), "world taps map to the render viewport")
-			_check(main.screen.texture_filter == Prefs.render_filter(window), "crisp enlargement / filtered reduction")
+			_check(main.screen.texture_filter == CanvasItem.TEXTURE_FILTER_LINEAR, "smooth (bilinear) enlargement and reduction")
+			var sharpen: bool = height < window.y and RenderingServer.get_current_rendering_method() != "gl_compatibility"
+			_check((main.screen.material != null) == sharpen, "mild sharpen only when enlarging on Forward+/Mobile")
 			for node in main.get_tree().get_nodes_in_group(Quality.GROUP):
 				var base: Dictionary = node.get_meta(Quality.BASELINE)
 				if node is SubViewport:

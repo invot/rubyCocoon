@@ -310,6 +310,11 @@ quick and vo-perf-route pass. Continue automatically to 010a.
 **Evidence:** first-visit black screens on Compatibility on desktop and the web (repeat 003).
 **Done when:** a first visit is at most about 1.5 s per map on desktop Compatibility, and the web improves measurably. The `transitions` and `title-startup` tests pass.
 
+**009b result (12 November 2026):** see [009b-first-visit-checkpoint.md](009b-first-visit-checkpoint.md). Desktop
+Compatibility uses the dedicated cache-off profile plus a title-time shader precompile (`shader_precompile.gd`,
+manifest from `--scene=shader-manifest`). Packaged first visits are 0.06–0.8 s. The web criterion was not met and the
+user closed the step anyway; the precompile is off on the web and whenever the shader cache is on.
+
 ### 010 · P10: low-resolution output (split)
 ### 010a · P10a: phone resolution and pacing experiment (measurement only)
 **Approval:** numbers. **Needs:** 009a.
@@ -482,6 +487,11 @@ The reference images aren't in the repo. To use them in captures, save copies in
 - Add `--scene=material-board`. Rows of spheres, planks, blocks and cloth drapes per family: painted timber, bark, plaster, stone, cloth, upholstery, foliage, ceramic, metal, water, skin/fur/scale and neon/emissive (for Cogsworth).
 - Show them beside the hero and a familiar beast, under the outdoor, warm-indoor, cool-indoor, night and battle profiles.
 - Shared presets go in one place (extend `surface_finish.gd` or add `scripts/gfx/material_library.gd`), using the §8 roughness bands.
+- Surface relief (user's direction, 2026-11-12; standards.md §8): the brick/masonry, stone, stucco/plaster and
+  wooden-plank presets get soft bump (normal) maps generated from their painted textures, so joints, courses and
+  boards catch the light. Show each with and without relief on the board, and measure its cost on Mobile and
+  Compatibility (Min and the web may drop it). Every later building, interior and prop step uses these relief
+  presets rather than adding its own maps.
 
 **Offload:** "List any sample that looks glossy like plastic, or grainy/noisy."
 **Done when:** you approve, and the presets are in code.
@@ -585,6 +595,9 @@ pattern; see standards §11. This does not complete 027 or bypass 011/022/023 an
 **Files:** `cove_buildings.gd`, `house_models.gd`, `cove_stucco.gdshader`, `cove_roof.gdshader`.
 **Do:**
 - Stucco, roof, timber and trim at one feature scale. Replace the plastic-looking roofs and gritty cobbles.
+- Apply 022's relief presets: the Cove's stone blocks, brick, stucco and timber planks show soft bump-mapped joints
+  and boards (standards.md §8 Surface relief); check them from the gameplay camera, beside the hero, at 540p and
+  1080p.
 - Where a map marks a diagonal wall, the builder makes sealed angled corners and footprints. Doors stay on straight wall sections facing their door tile.
 
 **Done when:** you approve, and `exteriors`, `cove-exteriors`, `cocoon` and `house-measurements` pass (re-bake if needed).

@@ -37,6 +37,21 @@ func run(main, opts: Dictionary) -> void:
 				_fail("invalid benchmark resolution sweep")
 				return
 			resolution_sweep.append(int(height))
+	# Step 008: one pass per entry with every light's shadows on or off, everything else unchanged.
+	var shadow_sweep := []
+	if opts.has("shadow_sweep"):
+		for state in String(opts.shadow_sweep).split(","):
+			if not state in ["on", "off"]:
+				_fail("invalid benchmark shadow sweep")
+				return
+			shadow_sweep.append(state == "on")
+	var quality_node: Node = null
+	for child in Prefs.get_children():
+		if child.has_method("set_diag_shadows"):
+			quality_node = child
+	if not shadow_sweep.is_empty() and (quality_node == null or not resolution_sweep.is_empty()):
+		_fail("shadow sweep needs the render-quality node and no resolution sweep")
+		return
 	var kept_on := DisplayServer.screen_is_kept_on()
 	_previous_keep_on = kept_on
 	DisplayServer.screen_set_keep_on(true)
@@ -80,7 +95,12 @@ func run(main, opts: Dictionary) -> void:
 	if not resolution_sweep.is_empty():
 		requested_passes = resolution_sweep.size()
 		duration = 0.0
+	if not shadow_sweep.is_empty():
+		requested_passes = shadow_sweep.size()
+		duration = 0.0
 	while true:
+		if not shadow_sweep.is_empty():
+			quality_node.set_diag_shadows(shadow_sweep[_passes.size()])
 		if not resolution_sweep.is_empty():
 			Prefs.render_height = resolution_sweep[_passes.size()]
 			Prefs.apply()
@@ -94,13 +114,16 @@ func run(main, opts: Dictionary) -> void:
 			"elapsed_s": (Time.get_ticks_usec() - began) / 1000000.0, "focus_losses": _focus_losses.duplicate(),
 			"render_height": Prefs.render_height, "render_size": [main.view.size.x, main.view.size.y],
 			"refresh_hz": DisplayServer.screen_get_refresh_rate(), "vsync": DisplayServer.window_get_vsync_mode(),
-			"max_fps": Engine.max_fps, "quality": Prefs.graphics_quality})
+			"max_fps": Engine.max_fps, "quality": Prefs.graphics_quality,
+			"shadows": quality_node == null or quality_node.diag_shadows})
 		_write_report()
 		print("VO PERF PASS ", _passes.size(), " elapsed_s=", (Time.get_ticks_usec() - began) / 1000000.0)
 		if bad > 0 or not _focus_losses.is_empty():
 			break
 		if (duration <= 0.0 and _passes.size() >= requested_passes) or (duration > 0.0 and Time.get_ticks_usec() - began >= duration * 1000000.0):
 			break
+	if quality_node != null:
+		quality_node.set_diag_shadows(true)
 	_main.get_tree().process_frame.disconnect(_transition_sample)
 	main.get_window().focus_exited.disconnect(_focus_lost)
 	DisplayServer.screen_set_keep_on(kept_on)

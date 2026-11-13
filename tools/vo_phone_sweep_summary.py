@@ -5,7 +5,8 @@ from pathlib import Path
 import statistics
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "build/perf/vo/010a/phone"
+import sys
+OUT = ROOT / f"build/perf/vo/{sys.argv[1] if len(sys.argv) > 1 else '010a'}/phone"  # step: 010a (default) or 010b
 
 
 def main():

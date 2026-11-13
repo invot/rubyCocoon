@@ -12,22 +12,26 @@ from look import model_lock
 import vo_phone as phone
 
 ROOT = phone.ROOT
-phone.OUT = ROOT / "build/perf/vo/010a/phone"
-phone.APK = ROOT / "build/android/RubyCocoon-perf-010a.apk"
-phone.BENCH_REL = "bench/vo/010a"
-phone.TARGET_PASSES = 3
-phone.RUN_METADATA = {"resolution_sweep": [720, 540, 720], "quality": "mid", "passes_target": 3}
-phone.EXTRA_ARGS = "-- --scene=vo-perf --resolution_sweep=720,540,720 --passes=3 --duration=0 " \
-    "--render_height=720 --graphics_quality=mid --report=user://bench/vo/010a/report.json " \
-    "--shots=user://bench/vo/010a/shots --shot_w=0 --save_dir=user://bench/vo/010a/saves/ " \
-    "--prefs_path=user://bench/vo/010a/settings.cfg"
+
+
+def configure(step):
+    """Evidence folder, package file and isolated on-device state per step (010a baseline, 010b after the resolve)."""
+    phone.OUT = ROOT / f"build/perf/vo/{step}/phone"
+    phone.APK = ROOT / f"build/android/RubyCocoon-perf-{step}.apk"
+    phone.BENCH_REL = f"bench/vo/{step}"
+    phone.TARGET_PASSES = 3
+    phone.RUN_METADATA = {"resolution_sweep": [720, 540, 720], "quality": "mid", "passes_target": 3}
+    phone.EXTRA_ARGS = "-- --scene=vo-perf --resolution_sweep=720,540,720 --passes=3 --duration=0 "         f"--render_height=720 --graphics_quality=mid --report=user://bench/vo/{step}/report.json "         f"--shots=user://bench/vo/{step}/shots --shot_w=0 --save_dir=user://bench/vo/{step}/saves/ "         f"--prefs_path=user://bench/vo/{step}/settings.cfg"
+
+
+configure("010a")
 
 
 def run(args):
     adb = [str(Path(args.sdk) / "platform-tools/adb.exe"), "-s", args.serial]
     phone.OUT.mkdir(parents=True, exist_ok=True)
     if (phone.OUT / "report.json").exists() and not args.attach:
-        raise FileExistsError("Preserve existing 010a evidence; use --attach only for observer recovery")
+        raise FileExistsError("Preserve existing evidence; use --attach only for observer recovery")
     with model_lock(timeout=3600):
         before = subprocess.run(adb + ["shell", "pm", "path", "com.rubycocoon.x"], capture_output=True, text=True, check=True).stdout
         (phone.OUT / "player-package-before.txt").write_text(before, encoding="utf-8")
@@ -55,7 +59,9 @@ if __name__ == "__main__":
     parser.add_argument("--serial", default="ZY22K7BD2J")
     parser.add_argument("--display", default="")
     parser.add_argument("--attach", action="store_true")
+    parser.add_argument("--step", choices=["010a", "010b"], default="010a")
     args = parser.parse_args()
+    configure(args.step)
     if args.action == "export":
         with model_lock(timeout=3600):
             phone.export(args)

@@ -1062,9 +1062,10 @@ mounted owl and its rider.
 
 - **Video settings**: Start → Settings → **Resolution** selects **540p, 720p, 1080p or 1440p** for the 3D scene,
   including hatch and merge films. Width follows the window's aspect ratio, so wide phones still gain usable space.
-  Lower resolutions enlarge with nearest-neighbor sampling for crisp pixels; rendering above the display's height
-  is downsampled. Menus, dialogue and touch controls retain full resolution and their normal sizes. World textures
-  keep their painted filtering; the pixel effect comes from the final 3D image. The default is **1080p**.
+  Lower resolutions enlarge smoothly (bilinear), with a mild halo-free sharpen on Forward+ and Mobile
+  (`resolve_sharpen.gdshader`); Compatibility (desktop OpenGL, the web) keeps plain bilinear. Rendering above the
+  display's height is downsampled. Menus, dialogue and touch controls retain full resolution and their normal sizes.
+  World textures keep their painted filtering; nothing is drawn as blocky pixels. The default is **1080p**.
 - **Graphics** independently selects **Min / Mid / Max** at every resolution, applies immediately and persists
   between launches. These are rendering presets using the established materials and lighting: **Min** disables
   dynamic shadows, glow and anti-aliasing; **Mid** keeps authored soft shadows and glow with 2x MSAA;
@@ -1422,7 +1423,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   `tools/debug/hatchery_parts.gd -- core` (or `platform`) produce source-part inspection sheets.
 - `check_scripts.gd`: every script parses and compiles.
 - `video-settings` / `video-settings-touch`: all twelve resolution/quality combinations, aspect ratio and resize,
-  world-coordinate mapping, nearest enlargement, authored effect restoration, supported renderers, isolated
+  world-coordinate mapping, smooth enlargement (sharpened only on Forward+/Mobile), authored effect restoration, supported renderers, isolated
   settings persistence/legacy defaults, actual taps, gamepad A, focus navigation and scrolling.
   For windowed captures use `--scene=video-settings --prefs_path=res://build/video_preview/settings.cfg
   --save_dir=res://build/video_preview/saves/ --shots=res://build/shots/video --shot_w=0` at 1920x1080, or

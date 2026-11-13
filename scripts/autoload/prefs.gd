@@ -105,9 +105,15 @@ func render_size(window_size: Vector2i) -> Vector2i:
 	return Vector2i(maxi(2, roundi(float(window_size.x) * render_height / height)), render_height)
 
 
-## Nearest when enlarging pixels; linear only when reducing a higher-resolution image.
-func render_filter(window_size: Vector2i) -> int:
-	return CanvasItem.TEXTURE_FILTER_NEAREST if render_height <= window_size.y else CanvasItem.TEXTURE_FILTER_LINEAR
+## Smooth both ways: bilinear when enlarging a lower resolution (never blocky pixels) and when reducing a higher one.
+func render_filter(_window_size: Vector2i) -> int:
+	return CanvasItem.TEXTURE_FILTER_LINEAR
+
+
+## A mild sharpen after enlarging (resolve_sharpen.gdshader), on Forward+ and Mobile only; Compatibility (desktop
+## OpenGL, the web) keeps plain bilinear. No pass at or above the window's height.
+func render_sharpen(window_size: Vector2i) -> bool:
+	return render_height < window_size.y and RenderingServer.get_current_rendering_method() != "gl_compatibility"
 
 
 func set_value(key: String, value) -> void:

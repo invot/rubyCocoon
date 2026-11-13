@@ -224,6 +224,15 @@ Extend the existing material/shader systems into a small approved library. Avoid
 | Water/ice | Controlled depth, transparency, highlights and motion | Glass slabs, hard seams, visual noise |
 | Magic/emission | Shaped light and clear timing | Featureless overexposure hiding the asset |
 
+**Surface relief (the user's direction, 2026-11-12).** Textured brick, stone and masonry, stucco/plaster and wooden
+planks carry a bump (normal) map as well as their painted colour, so courses, joints, boards and trowel marks catch
+the light and the surface reads as tactile rather than printed. Keep the relief soft and broad, matching the painted
+shapes at the same feature scale: rounded block edges, shallow mortar joints, gentle board seams. Never use it for
+grain, speckle or sharp cracks (§4.5). Generate the maps from the painted source through the shared texture pipeline
+(smoothed once, linear-mipmapped, compressed for each platform), keep them in the shared material presets rather than
+per asset, and confirm their cost on the Mobile and Compatibility renderers. Where a map costs too much on a preset
+(Min, the web), drop the relief before the colour.
+
 Useful provisional roughness bands are approximately 0.7–0.95 for matte plaster, stone, cloth, and foliage; 0.45–0.8 for painted wood and subdued skin/fur; and 0.25–0.6 for glazed or polished accents. These are material-tuning starting points, not universal engine-independent values. Judge the rendered result under the shared light rig.
 
 Do not give every beast a conspicuous satin finish. Species markings, fur, shell, metal, and scales should differ within a coherent rendering response. Preserve elemental and species identities.
