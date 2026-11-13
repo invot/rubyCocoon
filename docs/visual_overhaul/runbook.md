@@ -356,6 +356,9 @@ Only closing this checkpoint closes parent 006 and releases 007.
 
 ### 007 · P7: alpha and overdraw
 **Approval:** numbers and screenshot review if visible. **Needs:** 006.
+**Checkpoint (13 November 2026):** [desktop evidence and phone recovery](007-alpha-overdraw.md).
+No production change adopted. Phone evidence/cleanup remain open after USB observation failed;
+do not mark this step complete or replace its on-device benchmark before recovering the checkpoint.
 **Do:**
 - Switch alpha-blended foliage and grass cards to alpha-scissor (or opaque geometry), cap card layers, and turn off depth pre-pass costs where not needed.
 - Measure Mobile GPU time on desktop and on the phone (repeat the 002 route).

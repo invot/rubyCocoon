@@ -844,8 +844,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
 		get_tree().quit()
 		return
-	if scene in ["vo-perf", "vo-lighting", "vo-scenery", "vo-mesh-merger"]:
-		var audit_path: String = {"vo-perf": "vo_perf", "vo-lighting": "vo_lighting", "vo-scenery": "vo_scenery", "vo-mesh-merger": "vo_mesh_merger"}[scene]
+	if scene in ["vo-perf", "vo-lighting", "vo-scenery", "vo-mesh-merger", "vo-alpha"]:
+		var audit_path: String = {"vo-perf": "vo_perf", "vo-lighting": "vo_lighting", "vo-scenery": "vo_scenery", "vo-mesh-merger": "vo_mesh_merger", "vo-alpha": "vo_alpha"}[scene]
 		var audit = load("res://tools/debug/" + audit_path + ".gd").new()
 		await audit.run(self, _test)
 		get_tree().quit(0 if audit.bad == 0 else 1)

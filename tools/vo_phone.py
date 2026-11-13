@@ -132,6 +132,36 @@ def record(args):
         elapsed = prior[-1]["elapsed_s"] + time.time() - saved.stat().st_mtime
         began = time.monotonic() - elapsed
         print(f"PHONE attaching to running benchmark at about {elapsed:.0f}s", flush=True)
+        # The app may have completed and exited while USB observation was unavailable.
+        # Recover its private checkpoint before requiring a live PID; never relaunch/clear it.
+        completed_probe = subprocess.run(adb + ["shell", "run-as", PACKAGE, "cat", f"files/{BENCH_REL}/report.json"], capture_output=True)
+        try:
+            completed_data = json.loads(completed_probe.stdout) if completed_probe.returncode == 0 else {}
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            completed_data = {}
+        completed_passes = completed_data.get("passes", [])
+        enough = (len(completed_passes) >= TARGET_PASSES if TARGET_PASSES else
+                  bool(completed_passes) and completed_passes[-1].get("elapsed_s", 0) >= 900)
+        if enough:
+            (OUT / "report.json").write_bytes(completed_probe.stdout)
+            if completed_data.get("problems") or completed_data.get("focus_losses"):
+                raise RuntimeError("Recovered report is interrupted; preserve it as invalid evidence")
+            previous_log = OUT / "logcat.log"
+            previous_text = previous_log.read_text(encoding="utf-8", errors="replace") if previous_log.exists() else ""
+            match = re.search(r'^\d\d-\d\d \d\d:\d\d:\d\d\.\d+\s+(\d+)\s+', previous_text, re.M)
+            recovered_log = ""
+            if match:
+                recovered_log = read("logcat", "-d", "--pid=" + match[1], "-v", "threadtime")
+                (OUT / "logcat-recovered.log").write_text(recovered_log, encoding="utf-8")
+                if re.search(r'SCRIPT ERROR|\bE\s+godot\s*:\s*ERROR:', previous_text + recovered_log, re.I):
+                    raise RuntimeError("Runtime error in recovered benchmark log")
+            with (OUT / "phone-files.tar").open("wb") as archive:
+                call(adb + ["exec-out", "run-as", PACKAGE, "tar", "-cf", "-", f"files/{BENCH_REL}"], stdout=archive)
+            (OUT / "observer-recovery.json").write_text(json.dumps({"completed_checkpoint": True,
+                "historical_logcat_nonempty": bool(recovered_log), "pid_from_previous_log": bool(match),
+                "note": "USB gap; logcat ring buffer may not retain the entire interval"}, indent=2), encoding="utf-8")
+            print("PHONE COMPLETED CHECKPOINT RECOVERED", flush=True)
+            return
     pid = ""
     for _ in range(30):
         process = subprocess.run(adb + ["shell", "pidof", PACKAGE], capture_output=True, text=True)

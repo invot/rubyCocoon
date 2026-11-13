@@ -1376,6 +1376,15 @@ python tools/town_check.py
 
 ## Tests
 
+`bash tools/run_tests.sh vo-alpha` checks the step-007 diagnostic route and merge-film setup.
+`python tools/vo_alpha.py desktop --part=film --renderer=mobile --attempt=<new-name>` runs the
+isolated zero-alpha beam/halo comparison; `--part=aa` separately compares 2x MSAA / FXAA / 2x MSAA
+on moving Coastal Path foliage and the merge film. `--part=suite` retains the standard walking/battle route
+for transparency attribution and tests zero-alpha film draws. These are diagnostic changes only, with isolated state,
+three passes, raw traces and foreground validation. Material inventories are source/frustum estimates,
+not renderer transparent-pass counts. Phone export/record commands are `export` and `phone`;
+they use the separate benchmark package, never player saves. See `tools/vo_alpha.py --help`.
+
 The runner supplies isolated save and preferences paths under `build/` when a scenario has no explicit override.
 It rejects script errors, missing assets and deferred callback errors even if a scenario prints its success marker.
 `bash tools/run_tests.sh vo-perf-route` checks the benchmark's cardinal routes and deferred rendering callbacks;

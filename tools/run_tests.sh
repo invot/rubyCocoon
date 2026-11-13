@@ -40,6 +40,8 @@ TESTS=(
 	"vo-perf-route|-- --scene=vo-perf --verify=1 --report=res://build/perf/vo/route-check.json|VO PERF DONE: 0 problem"
 	"vo-shadow-route|-- --scene=vo-perf --verify=1 --shadow_sweep=on,off,on --report=res://build/perf/vo/008/route-check.json --prefs_path=res://build/vo_shadow_test/settings.cfg --save_dir=res://build/vo_shadow_test/saves/|VO PERF DONE: 0 problem"
 	"vo-lighting|-- --scene=vo-lighting --verify=1 --report=res://build/perf/vo/008b/route-check.json --prefs_path=res://build/vo_lighting_test/settings.cfg --save_dir=res://build/vo_lighting_test/saves/|VO PERF DONE: 0 problem"
+	"vo-alpha|-- --scene=vo-alpha --part=suite --verify=1 --report=res://build/perf/vo/007/route-check.json --prefs_path=res://build/vo_alpha_test/settings.cfg --save_dir=res://build/vo_alpha_test/saves/|VO PERF DONE: 0 problem"
+	"vo-alpha-aa|-- --scene=vo-alpha --part=aa --verify=1 --report=res://build/perf/vo/007/aa-check.json --prefs_path=res://build/vo_alpha_aa_test/settings.cfg --save_dir=res://build/vo_alpha_aa_test/saves/|VO PERF DONE: 0 problem"
 	"scenery-lods|--script res://tools/check_scenery_lods.gd|SCENERY LODS DONE: 0 problem"
 	"vo-scenery|-- --scene=vo-scenery --verify=1 --part=lod --report=res://build/perf/vo/006/route-check.json|VO PERF DONE: 0 problem"
 	"vo-scenery-pads|-- --scene=vo-scenery --verify=1 --part=pads --report=res://build/perf/vo/006/pad-route-check.json|VO PERF DONE: 0 problem"

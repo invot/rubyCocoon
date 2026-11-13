@@ -145,3 +145,14 @@ Phone 1760×720/Mid: 753.3 s, three passes, zero problems/focus losses, ~30 fps 
 Unpaced focused desktop frozen-pack field maxima 3.864/3.486/3.278 ms; paced control max 20.113 ms.
 Do not treat desktop headroom as a phone/presentation guarantee. All 10 focused and four quick checks pass;
 temporary benchmark removed and player package identity preserved. Next 007.
+
+### Alpha/overdraw desktop checkpoint (007, 13 November 2026; phone open)
+
+[Evidence and exact recovery](../007-alpha-overdraw.md). Opaque foliage retained. Runtime midpoint
+attribution confirms twelve blended TorusMesh surfaces are fishing ripples; preserve intentional water/shadows.
+Desktop Mobile merge exact-zero beam/halo hiding: total draws 48/44/48, GPU medians
+0.299/0.299/0.287 ms. No reliable gain; no adoption. Separate 2x MSAA/FXAA/2x trial keeps AA defaults.
+Three focused, four quick and four observer-recovery checks pass. Phone package launched but USB observer
+disconnected; reconnect/bounded wait and final device probe did not recover a working transport. Phone
+performance, AA comparison, after-package snapshot and temporary-package removal remain unverified.
+Do not close 007 or claim a phone gain. Recover the original report with `--part=suite --attach` first.
