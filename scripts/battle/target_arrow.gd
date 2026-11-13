@@ -12,23 +12,21 @@ const HEAD_HALF_THICK := 0.085
 const HEAD_LENGTH := 0.7
 
 
-static func material() -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(YELLOW, OPACITY)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.roughness = 0.55
-	mat.emission_enabled = true
-	mat.emission = YELLOW
-	mat.emission_energy_multiplier = 0.2
+static func material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://scripts/battle/target_arrow.gdshader")
+	mat.set_shader_parameter("yellow", Vector3(YELLOW.r, YELLOW.g, YELLOW.b))
+	mat.set_shader_parameter("opacity", OPACITY)
 	return mat
 
 
 static func build(from: Vector3, targets: Array) -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 	for target: Vector3 in targets:
-		_append(vertices, normals, indices, from, target)
+		_append(vertices, normals, uvs, indices, from, target)
 	var mesh := ArrayMesh.new()
 	if vertices.is_empty():
 		return mesh
@@ -36,6 +34,7 @@ static func build(from: Vector3, targets: Array) -> ArrayMesh:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
@@ -67,16 +66,17 @@ static func _face_normal(k: int, side: Vector3, up: Vector3) -> Vector3:
 
 
 ## A flat polygon with its own vertices, so its edges stay sharp.
-static func _face(vertices: PackedVector3Array, normals: PackedVector3Array, indices: PackedInt32Array, points: Array[Vector3], normal: Vector3) -> void:
+static func _face(vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, indices: PackedInt32Array, points: Array[Vector3], normal: Vector3) -> void:
 	var first := vertices.size()
 	for point in points:
 		vertices.append(point)
 		normals.append(normal)
+		uvs.append(Vector2(-1.0, 0.0)) # Caps, shoulder and head stay plain yellow.
 	for i in range(1, points.size() - 1):
 		_triangle(vertices, indices, first, first + i, first + i + 1, normal)
 
 
-static func _append(vertices: PackedVector3Array, normals: PackedVector3Array, indices: PackedInt32Array, from: Vector3, to: Vector3) -> void:
+static func _append(vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, indices: PackedInt32Array, from: Vector3, to: Vector3) -> void:
 	if from.distance_squared_to(to) < 0.0001:
 		return
 	var distance := from.distance_to(to)
@@ -101,9 +101,13 @@ static func _append(vertices: PackedVector3Array, normals: PackedVector3Array, i
 	var start := vertices.size()
 	var first_ring: Array[Vector3] = []
 	var last_ring: Array[Vector3] = []
+	var travelled := 0.0
+	var previous := from
 	for step in STEPS + 1:
 		var t := end_t * float(step) / STEPS
 		var at := _point(from, control, to, t)
+		travelled += at.distance_to(previous)
+		previous = at
 		var tangent := ((control - from) * (1.0 - t) + (to - control) * t).normalized()
 		if step == STEPS:
 			tangent = head_direction
@@ -116,8 +120,10 @@ static func _append(vertices: PackedVector3Array, normals: PackedVector3Array, i
 			var normal := _face_normal(k, side, up)
 			vertices.append(ring[k])
 			normals.append(normal)
+			uvs.append(Vector2(0.0, travelled))
 			vertices.append(ring[(k + 1) % 4])
 			normals.append(normal)
+			uvs.append(Vector2(1.0, travelled))
 	for step in STEPS:
 		for k in 4:
 			var a := start + step * 8 + k * 2
@@ -126,13 +132,13 @@ static func _append(vertices: PackedVector3Array, normals: PackedVector3Array, i
 			var d := a + 8
 			_triangle(vertices, indices, a, b, c, normals[a])
 			_triangle(vertices, indices, a, c, d, normals[a])
-	_face(vertices, normals, indices, first_ring, -(control - from).normalized())
+	_face(vertices, normals, uvs, indices, first_ring, -(control - from).normalized())
 	# A flat shoulder steps out from the shaft's end to the pyramid's wider rectangular base.
 	var outer := _corners(base, side, head_up, head_width, head_thick)
 	for k in 4:
 		var next := (k + 1) % 4
-		_face(vertices, normals, indices, [last_ring[k], last_ring[next], outer[next], outer[k]], -head_direction)
+		_face(vertices, normals, uvs, indices, [last_ring[k], last_ring[next], outer[next], outer[k]], -head_direction)
 		var slope := (outer[next] - outer[k]).cross(to - outer[k]).normalized()
 		if slope.dot(_face_normal(k, side, head_up)) < 0.0:
 			slope = -slope
-		_face(vertices, normals, indices, [outer[k], outer[next], to], slope)
+		_face(vertices, normals, uvs, indices, [outer[k], outer[next], to], slope)

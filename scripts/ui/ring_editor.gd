@@ -98,6 +98,7 @@ func _ready() -> void:
 		var c := Cell.new(self, {"slot": k})
 		ring_area.add_child(c)
 		cells.append(c)
+	store_grid.sort_children.connect(_link_focus, CONNECT_DEFERRED)
 	_fill_storage()
 	_layout()
 	resized.connect(_layout)
@@ -147,6 +148,40 @@ func _place_ring() -> void:
 		cc.size = Vector2(g[2], g[2])
 		cc.position = p - cc.size / 2.0
 	ring_area.queue_redraw()
+	_link_focus.call_deferred()
+
+
+## The d-pad moves between this screen's own cells and Done only (left to itself, Godot would wander off onto the
+## book behind): each points, in each direction, at the nearest one that way, or at itself at the edge.
+func _link_focus() -> void:
+	var all: Array = cells.duplicate()
+	all.append(done_button)
+	var dirs := [[Vector2.LEFT, "focus_neighbor_left"], [Vector2.RIGHT, "focus_neighbor_right"],
+		[Vector2.UP, "focus_neighbor_top"], [Vector2.DOWN, "focus_neighbor_bottom"]]
+	for a: Control in all:
+		if not is_instance_valid(a) or not a.is_inside_tree():
+			continue
+		var from := a.get_global_rect().get_center()
+		for dir in dirs:
+			var v: Vector2 = dir[0]
+			var best: Control = null
+			var best_score := INF
+			for b: Control in all:
+				if b == a or not is_instance_valid(b) or not b.is_inside_tree() or not b.is_visible_in_tree():
+					continue
+				var off := b.get_global_rect().get_center() - from
+				var along := off.dot(v)
+				if along < 4.0:
+					continue
+				var score := along + 2.0 * absf(off.dot(Vector2(-v.y, v.x)))
+				if score < best_score:
+					best_score = score
+					best = b
+			a.set(dir[1], a.get_path_to(best) if best != null else NodePath("."))
+	for a: Control in all:
+		if is_instance_valid(a):
+			a.focus_next = NodePath(".")
+			a.focus_previous = NodePath(".")
 
 
 ## The ring itself under the cells: its circle and the trainer in the middle, under a line saying which side faces

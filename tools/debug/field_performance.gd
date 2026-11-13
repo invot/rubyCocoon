@@ -66,6 +66,8 @@ func run(main, opts: Dictionary) -> void:
 		RenderingServer.viewport_set_measure_render_time(vp, false)
 		report[town] = {"frames": _stats(frames), "tick_cpu": _stats(ticks), "gpu": _stats(gpu), "render_cpu": _stats(render_cpu), "sections": sections,
 			"focused_frames": focused_frames, "sampled_frames": frames.size(),
+			"renderer": RenderingServer.get_current_rendering_method(), "vsync": DisplayServer.window_get_vsync_mode(),
+			"max_fps": Engine.max_fps, "render_size": [main.view.size.x, main.view.size.y], "quality": Prefs.graphics_quality,
 			"draw_calls": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)}
 		print("[field performance] ", town, " ", JSON.stringify(report[town]))
 	if opts.has("report"):

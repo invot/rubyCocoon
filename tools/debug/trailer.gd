@@ -43,9 +43,119 @@ func run(main, opts: Dictionary) -> void:
 			UI.top_bar.modulate.a = 0.0
 			var film = main._opening(0.0, false)
 			await film.finished
+		"play":
+			await _play(main, opts)
 		_:
 			await _world(main, opts)
 	await main.get_tree().create_timer(3600).timeout
+
+
+## --shot=play --map=caccoon --from=start|x,y [--face=u|d|l|r] [--items=id:n+id:n] [--gold=n] [--battle=1 + the
+##     battle options] --input=TOKENS
+## Real play from key presses, for a gameplay compilation. TOKENS, comma-separated, one after another:
+##   w1.5        wait 1.5 s
+##   r  a  s+r   tap keys together (l r u d: arrows, a: A, s: S (B / run), m: Space (Start), p: Shift (Pause))
+##   s+r@2.4     hold them for 2.4 s
+##   go:12_8     walk to a tile (run:12_8 runs), by the path a tap there would take
+##   cell:3      click the ring editor's cell 3 (0-7 the ring by slot, then storage); cell:go clicks the first cell
+##               the beast picked up may go to, cell:p2 where party beast 2 stands, cell:store the first storage cell it may go to
+##   fish        strike when the float dips, then reel steadily until the fishing's over
+##   song        play the flute sheet that's up, note by note, then confirm its result
+const KEYS := {"l": KEY_LEFT, "r": KEY_RIGHT, "u": KEY_UP, "d": KEY_DOWN, "a": KEY_A, "s": KEY_S, "m": KEY_SPACE, "p": KEY_SHIFT}
+const NOTE_KEYS := ["l", "r", "a", "s", "u", "d"]
+
+
+func _play(main, opts: Dictionary) -> void:
+	for it in String(opts.get("items", "")).split("+", false):
+		GameState.add_item(it.get_slice(":", 0), int(it.get_slice(":", 1)) if ":" in it else 1)
+	if opts.has("gold"):
+		GameState.gold = int(opts.gold)
+	var face: Vector2i = {"u": Vector2i(0, -1), "d": Vector2i(0, 1), "l": Vector2i(-1, 0), "r": Vector2i(1, 0)}.get(String(opts.get("face", "")), Vector2i.ZERO)
+	if opts.has("battle"):
+		_battle(main, opts)
+	else:
+		await main._do_goto(String(opts.get("map", "caccoon")), _tile(null, String(opts.get("from", "start"))), face)
+	while main._transitioning:
+		await main.get_tree().process_frame
+	if opts.has("dump") and main.world != null:
+		print("TRAILER: at ", main.world.player_pos)
+		for p in main.world.npcs:
+			var n = main.world.npcs[p]
+			print("TRAILER: npc ", p, " ", n.get("name", "") if n is Dictionary else n)
+		print("TRAILER: obstacles ", main.world.map["obstacles"].keys())
+		print("TRAILER: fish ", main.world.map.get("fish_spots", []))
+	for tok in String(opts.get("input", "")).split(",", false):
+		if tok.begins_with("w"):
+			await main._wait(float(tok.substr(1)))
+		elif tok == "song":
+			await _song(main)
+		elif tok == "probe":
+			var wd = main.world
+			print("TRAILER: probe ", wd.map_id, " at ", wd.player_pos, " facing ", wd.facing, " cam ", wd.cam.global_position, " map ", wd.map["w"], "x", wd.map["h"])
+		elif tok == "focus":
+			var f = main.get_viewport().gui_get_focus_owner()
+			print("TRAILER: focus ", f, " ", f.get("dest") if f != null else "", " ", f.get_global_rect() if f != null else "", " top ", UI.stack.back().get_script().resource_path.get_file() if not UI.stack.is_empty() else "")
+		elif tok.begins_with("cell:"):
+			await _cell(main, tok.get_slice(":", 1))
+		elif tok == "fish":
+			await _fish(main)
+		elif tok.begins_with("go:") or tok.begins_with("run:"):
+			# walk (or run) a found path to a tile, as tapping it would
+			var world = main.world
+			var spot := tok.get_slice(":", 1).replace("_", ",")
+			world._walk_to([_tile(world, spot)], NOWHERE, tok.begins_with("run:"))
+			for i in 2400:
+				await main.get_tree().process_frame
+				if main.world != world or (world._path.is_empty() and not world.moving):
+					break
+		else:
+			var hold := 0.07
+			if "@" in tok:
+				hold = float(tok.get_slice("@", 1))
+				tok = tok.get_slice("@", 0)
+			await _keys(main, tok.split("+"), hold)
+	print("TRAILER: input done")
+
+
+func _keys(main, names: Array, hold: float) -> void:
+	for n in names:
+		_key(KEYS.get(n, KEY_A), true)
+	await main._wait(hold)
+	for n in names:
+		_key(KEYS.get(n, KEY_A), false)
+	await main.get_tree().process_frame
+
+
+func _key(code: int, down: bool) -> void:
+	var ev := InputEventKey.new()
+	ev.physical_keycode = code
+	ev.keycode = code
+	ev.pressed = down
+	Input.parse_input_event(ev)
+
+
+## Plays the flute sheet on screen as a player would: a short look at it, then each note on the song's beat.
+func _song(main) -> void:
+	var game = null
+	for i in 600:
+		for m in UI.stack:
+			if m.get_script() != null and String(m.get_script().resource_path).ends_with("flute_game.gd"):
+				game = m
+		if game != null and game.phase in ["study", "play"]:
+			break
+		await main.get_tree().process_frame
+	if game == null:
+		print("TRAILER: no flute sheet up")
+		return
+	await main._wait(0.9)
+	for note in game.melody:
+		var names := []
+		for b in note:
+			names.append(NOTE_KEYS[int(b)])
+		await _keys(main, names, 0.12)
+		await main._wait(game._spb * 0.6)
+	await main._wait(1.6)
+	await _keys(main, ["a"], 0.07)
 
 
 func _beasts(list: String) -> Array:
@@ -121,7 +231,7 @@ func _battle(main, opts: Dictionary) -> void:
 	await main._do_goto(map_id, _tile(null, from))
 	await main._wait(float(opts.get("lead", "0.6")))
 	var cfg := {"wild": not opts.has("trainer"), "foes": _beasts(String(opts.get("foes", "27:8,30:8"))),
-		"seed": int(opts.get("seed", "5")), "autoplay": true, "arena": arena}
+		"seed": int(opts.get("seed", "5")), "autoplay": opts.get("auto", "1") == "1", "arena": arena}
 	if opts.has("intro"):
 		cfg["intro"] = String(opts.intro)
 	if opts.has("trainer"):
@@ -141,3 +251,56 @@ func _battle(main, opts: Dictionary) -> void:
 		cfg["auto_summon"] = String(opts.summon)
 	var result: String = await main.start_battle(cfg)
 	print("TRAILER: battle over: ", result)
+
+
+## Fishing as a player does it: wait for the float to dip, strike, then tap to keep the line in the bright zone.
+func _fish(main) -> void:
+	var seen := false
+	for i in 60 * 40:
+		var g = UI.stack.back() if not UI.stack.is_empty() else null
+		var fishing: bool = g != null and g.get("tension") != null
+		if not fishing:
+			if seen:
+				return
+			await main.get_tree().process_frame
+			continue
+		seen = true
+		match String(g.phase):
+			"nibble":
+				await main._wait(0.25)
+				await _keys(main, ["a"], 0.06)
+			"reel":
+				var z: Vector2 = g._zone()
+				if float(g.tension) < (z.x + z.y) / 2.0:
+					await _keys(main, ["a"], 0.05)
+					await main._wait(0.17)
+				else:
+					await main.get_tree().process_frame
+			_:
+				await main.get_tree().process_frame
+
+
+## A click on one of the ring editor's cells, as a mouse player arranges their beasts.
+func _cell(main, which: String) -> void:
+	var ed = null
+	for m in UI.stack:
+		if m.get_script() != null and String(m.get_script().resource_path).ends_with("ring_editor.gd"):
+			ed = m
+	if ed == null:
+		print("TRAILER: no ring editor up")
+		return
+	var c = null
+	if which == "go" or which == "store":
+		for i in ed.cells.size():
+			if (which == "go" or i >= 8) and ed.can_go(ed.cells[i].dest):
+				c = ed.cells[i]
+				break
+	elif which.begins_with("p"):
+		# where the party's beast number N stands
+		c = ed.cells[int(GameState.party[int(which.substr(1))].slot)]
+	else:
+		c = ed.cells[int(which)]
+	if c == null:
+		print("TRAILER: no cell for ", which)
+		return
+	await main._tap_at((c as Control).get_global_rect().get_center())

@@ -32,6 +32,36 @@ func run(root, opts: Dictionary) -> void:
 	main.world.cam.look_at(node.global_position + Vector3(0, main.world.CAM_LOOK_Y, 0), Vector3.UP)
 	var original_camera: Transform3D = main.world.cam.global_transform
 	var original_position := node.global_position
+	# Exercise the real interaction path: dialogue must not snap a quarter/half turn.
+	var had_egg: bool = GameState.flag("got_egg")
+	GameState.set_flag("got_egg")
+	main.world.spawn_at(elder["pos"] + Vector2i(0, 1), Vector2i(0, -1))
+	for start in [Vector2i(1, 0), Vector2i(0, -1)]:
+		VPer.face(node, start)
+		await main._wait(0.1)
+		var body: Node3D = node.get_node("Body")
+		var initial := body.rotation.y
+		await _shot(opts, "turn_%d_before" % start.x)
+		main.world._interact()
+		_check(is_equal_approx(body.rotation.y, initial), "conversation requests a turn without snapping")
+		var intermediate := false
+		for frame in 30:
+			await main.get_tree().process_frame
+			var remaining := absf(angle_difference(body.rotation.y, 0.0))
+			if remaining > 0.02 and remaining < absf(angle_difference(initial, 0.0)):
+				intermediate = true
+				break
+		_check(intermediate, "conversation rotates through an intermediate angle")
+		await _shot(opts, "turn_%d_during" % start.x)
+		await main._wait(0.5)
+		_check(absf(angle_difference(body.rotation.y, 0.0)) < 0.02, "conversation finishes facing the hero")
+		await _shot(opts, "turn_%d_after" % start.x)
+		while not UI.stack.is_empty():
+			UI.stack.back().close()
+		await main._wait(0.05)
+		main.world.busy = true
+	if not had_egg:
+		GameState.flags.erase("got_egg")
 	for sample in ["top", "bottom", "dpad"]:
 		main.world.cam.global_transform = original_camera
 		var target := Vector2(0.5, 0.10) if sample == "top" else Vector2(0.5, 0.88)

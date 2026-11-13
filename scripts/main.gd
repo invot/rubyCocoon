@@ -3993,6 +3993,44 @@ func _ringedit_test() -> void:
 	await tap.call(cell_of.call({"slot": 7}))
 	await tap.call(cell_of.call({"slot": 7}))
 	check.call(ed.picked == null and fire2.slot == 7, "tapping the picked-up beast again puts it back down")
+	# the d-pad stays on the editor's own cells and Done, even with something focusable behind it (the book's rows,
+	# when it's opened from the Start book)
+	var decoys := []
+	for at in [Vector2(20, 300), Vector2(20, 640), Vector2(1100, 20), Vector2(600, 690)]:
+		var decoy := Button.new()
+		decoy.text = "behind"
+		decoy.position = at
+		decoy.size = Vector2(160, 56)
+		ed.get_parent().add_child(decoy)
+		ed.get_parent().move_child(decoy, ed.get_index())
+		decoys.append(decoy)
+	await get_tree().process_frame
+	var mine: Array = ed.cells + [ed.done_button]
+	var strays := []
+	for c in mine:
+		for act in ["ui_left", "ui_right", "ui_up", "ui_down"]:
+			(c as Control).grab_focus()
+			await get_tree().process_frame
+			await _press(act)
+			await get_tree().process_frame
+			var f := get_viewport().gui_get_focus_owner()
+			if not mine.has(f):
+				strays.append("%s %s" % [(c as Control).get("dest") if c != ed.done_button else "Done", act])
+	check.call(strays.is_empty(), "the d-pad never leaves the editor's cells and Done%s" % ("" if strays.is_empty() else ": " + ", ".join(strays)))
+	# ...and reaches every one of them from the ring's first cell
+	var seen := [mine[0]]
+	var todo := [mine[0]]
+	while not todo.is_empty():
+		var c: Control = todo.pop_back()
+		for side in ["focus_neighbor_left", "focus_neighbor_right", "focus_neighbor_top", "focus_neighbor_bottom"]:
+			var n = c.get_node_or_null(c.get(side))
+			if n != null and mine.has(n) and not seen.has(n):
+				seen.append(n)
+				todo.append(n)
+	check.call(seen.size() == mine.size(), "the d-pad reaches all %d cells and Done (%d of %d reached)" % [mine.size() - 1, seen.size(), mine.size()])
+	for decoy in decoys:
+		decoy.queue_free()
+	(cell_of.call({"slot": 0}) as Control).grab_focus()
 	# for the screenshot: the air beast picked up
 	await tap.call(cell_of.call({"slot": 2}))
 	print("RING EDIT DONE: %d problem(s)" % bad[0])

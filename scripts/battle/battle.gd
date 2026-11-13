@@ -526,7 +526,7 @@ func _slot_pos(team: String, k: int) -> Vector3:
 
 
 ## The glowing circle and the eight pads of a ring (they turn together; the beasts on them are placed each turn).
-func _build_ring(team: String) -> void:
+func _build_ring(team: String, trainer_dais := true) -> void:
 	var root := Node3D.new()
 	root.position = _center(team)
 	add_child(root)
@@ -548,7 +548,8 @@ func _build_ring(team: String) -> void:
 	circle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(circle)
 	# the trainer's own dais in the middle
-	root.add_child(_dais())
+	if trainer_dais:
+		root.add_child(_dais())
 	for k in Ring.SLOTS:
 		var pad := _make_pad(k)
 		var a := -deg_to_rad(45.0 * k)
@@ -1598,7 +1599,7 @@ func _hide_targets() -> void:
 
 
 ## Shows a beast: on its pad (slot = its ring slot) for a trainer's ring, or in the wild line (slot = 0..2).
-func _spawn(b, side: String, slot: int) -> void:
+func _spawn(b, side: String, slot: int, animate := true) -> void:
 	var root := Node3D.new()
 	var holder := Node3D.new()
 	holder.name = "Model"
@@ -1625,9 +1626,13 @@ func _spawn(b, side: String, slot: int) -> void:
 	add_child(root)
 	nodes[b] = root
 	_hp_seen[b] = b.hp
-	root.scale = Vector3(0.2, 0.2, 0.2)
-	var tw := create_tween()
-	tw.tween_property(root, "scale", Vector3.ONE * (1.15 if ringed else 1.25) * big, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var final_scale := Vector3.ONE * (1.15 if ringed else 1.25) * big
+	if animate:
+		root.scale = Vector3(0.2, 0.2, 0.2)
+		var tw := create_tween()
+		tw.tween_property(root, "scale", final_scale, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	else:
+		root.scale = final_scale
 	var s := _st(b)
 	s["side"] = side
 	s["down"] = b.hp <= 0

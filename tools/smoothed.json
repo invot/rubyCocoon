@@ -493,8 +493,8 @@
 	"res://assets/textures/surfaces/wood_board.png": "2fbda9e012bb23a11d6376655f6d182d",
 	"res://assets/textures/surfaces/wood_board_v.png": "96899e87a2126bda772c14e06008de30",
 	"res://assets/textures/surfaces/wood_dark.png": "d82003aee8203cc048822d9523149544",
-	"res://assets/textures/surfaces/wood_deck.png": "a2d03e01f7e2bae4a89ce5c3d0aaaad7",
-	"res://assets/textures/surfaces/wood_deck_v.png": "5ac09d49348ef24e01ad14e18c3b69ee",
+	"res://assets/textures/surfaces/wood_deck.png": "824fa1870850d123b570b9dc319641d4",
+	"res://assets/textures/surfaces/wood_deck_v.png": "f92cb53d3b36dd73f6044e47ef994405",
 	"res://assets/textures/surfaces/wood_drift.png": "6e251aa095e9955a66097d717ae0d3c6",
 	"res://assets/textures/surfaces/wood_drift_v.png": "cf7ea3e2b32a9bc73273abaee176866c"
 }

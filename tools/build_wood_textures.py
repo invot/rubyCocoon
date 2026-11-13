@@ -1,6 +1,6 @@
 """Builds the game's family of clean painted wood textures from the fence's grain (assets/textures/surfaces/planks_v.png).
 
-    python tools/build_wood_textures.py
+    python tools/build_wood_textures.py [variant ...]   (all of them when none is named)
     godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/textures/surfaces/wood_
     godot --headless --path . --import
 
@@ -26,7 +26,8 @@ VARIANTS = {
     # wall boards: shacks, kit walls, stalls, signs (and the kit's old "planks")
     "wood_board": dict(boards=[34, 30, 32, 32], seam=0.16, spread=0.035, grain=1.0, joints=0, seed=11),
     # decks, docks and bridges: narrower boards with an end joint here and there
-    "wood_deck": dict(boards=[26, 25, 26, 25, 26], seam=0.21, spread=0.04, grain=1.0, joints=1, seed=23),
+    # (deeper seams than the walls: a deck is seen flat and wide from the camera, where shallow ones vanish)
+    "wood_deck": dict(boards=[26, 25, 26, 25, 26], seam=0.42, spread=0.05, grain=1.0, joints=1, seed=23),
     # beams, posts, trim and frames: two wide boards, almost seamless (and the kit's old "wood_dark")
     "wood_beam": dict(boards=[66, 62], seam=0.07, spread=0.025, grain=0.9, joints=0, seed=37),
     # sea-weathered boards for dock shacks and piers: a little more streak and variety, still clean
@@ -88,7 +89,10 @@ def main():
     # neighbourhood
     soft = blur1d(blur1d(src, 2.0, 0), 2.0, 1)
     src = soft + np.clip(src - soft, -6.0, 6.0)
+    only = sys.argv[1:]
     for name, v in VARIANTS.items():
+        if only and name not in only:
+            continue
         g = build(src, **v).astype(np.uint8)
         rgba = np.dstack([g, g, g, np.full_like(g, 255)])
         vert = Image.fromarray(rgba, "RGBA")

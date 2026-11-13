@@ -2,7 +2,7 @@ extends "res://scripts/ui/modal.gd"
 ## The Start menu: one large window with a strip of tabs across the top and two panes, a list on the left and the
 ## chosen row's details on the right (the menus of the early PS2 RPGs), in the game's one dark style (UIKit).
 ## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
-## Controls: ◄/► switch tabs (on the ring row, turn the starting side), ▲/▼ choose, A to act,
+## Controls: ◄/► switch tabs (or adjust Default element / beast placement), ▲/▼ choose, A to act,
 ## S (back) returns to the tabs / closes, Start closes.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -18,8 +18,7 @@ const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 const WorldMap = preload("res://scripts/ui/world_map.gd")
-const RingEditor = preload("res://scripts/ui/ring_editor.gd")
-const RingStartPicker = preload("res://scripts/ui/ring_start_picker.gd")
+const BeastsPage = preload("res://scripts/ui/beasts_page.gd")
 const BagPage = preload("res://scripts/ui/bag_page.gd")
 
 const TABS := [
@@ -71,7 +70,7 @@ var _changing_row := false
 var _shown_inputs: Array[String] = []
 ## the gem the open page was built in (a page is rebuilt when it changes)
 var _built_gem := ""
-var ring_start_picker: Control
+var beasts_page: Node
 ## the Bag tab's grid, actions and target ring while it's open (bag_page.gd)
 var bag: Node
 
@@ -269,6 +268,10 @@ func _open_tab(i: int) -> void:
 	list_box = null
 	detail_box = null
 	map_view = null
+	if is_instance_valid(beasts_page):
+		remove_child(beasts_page)
+		beasts_page.queue_free()
+	beasts_page = null
 	if is_instance_valid(bag):
 		bag.queue_free()
 	bag = null
@@ -451,6 +454,8 @@ func _keep_focus_clear_of_pad(i: int) -> void:
 
 
 func _activate(i: int) -> void:
+	if is_instance_valid(beasts_page) and beasts_page.activate(i):
+		return
 	if mode != "list":
 		mode = "list"
 	var row: Dictionary = rows[i]
@@ -483,6 +488,8 @@ func on_input(ev: InputEvent) -> void:
 		_close_book()
 		return
 	if is_instance_valid(bag) and bag.on_input(ev):
+		return
+	if is_instance_valid(beasts_page) and beasts_page.on_input(ev):
 		return
 	if ev.is_action_pressed("ui_cancel"):
 		if mode == "list":
@@ -637,43 +644,8 @@ func _tab_trainer() -> void:
 
 # ================================================================ Beasts
 func _tab_beasts() -> void:
-	GameState.fix_ring()
-	_make_list(left_box, "Beasts %d / %d" % [GameState.party.size(), GameState.party_max()], right_box)
-	if not GameState.party.is_empty():
-		_add_row({"text": "Battle ring & storage",
-			"act": _arrange_ring, "detail": _ring_detail})
-		(row_buttons[0] as Control).gui_input.connect(_ring_start_input)
-	var ordered: Array = GameState.party.duplicate()
-	ordered.sort_custom(func(x, y): return int(x.slot) < int(y.slot))
-	for b in ordered:
-		_add_row({"text": b.nickname, "right": "Lv %d" % b.level if b.hp > 0 else "fainted", "icon": PixelArt.beast_texture(b.genes),
-			"act": func(): await Menus.beast_options(b), "detail": _beast_detail.bind(b)})
-	if not GameState.eggs.is_empty():
-		_add_row({"header": true, "text": "EGGS"})
-		for e in GameState.eggs:
-			_add_row({"text": GameState.egg_name(e), "right": String(e["kind"]).capitalize(), "detail": _egg_detail.bind(e)})
-	if GameState.party.is_empty() and GameState.eggs.is_empty():
-		right_box.add_child(_t_label("You don't have any beasts yet.", UIKit.DIM))
-
-
-## Your battle ring: who stands where. It fills the page, so it never needs scrolling.
-func _ring_detail(c: VBoxContainer) -> void:
-	c.add_child(_h("Battle ring"))
-	ring_start_picker = RingStartPicker.new()
-	ring_start_picker.return_focus = row_buttons[0]
-	c.add_child(ring_start_picker)
-
-
-func _ring_start_input(event: InputEvent) -> void:
-	if is_instance_valid(ring_start_picker) and ring_start_picker.is_inside_tree():
-		ring_start_picker.handle_input(event)
-
-
-## Arranging your beasts round the ring and in storage (ring_editor.gd).
-func _arrange_ring() -> void:
-	var ed := RingEditor.new()
-	UI.push(ed)
-	await ed.done
+	beasts_page = BeastsPage.new().setup(self)
+	add_child(beasts_page)
 
 
 func _egg_detail(c: VBoxContainer, e: Dictionary) -> void:

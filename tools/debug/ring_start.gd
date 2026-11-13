@@ -39,6 +39,12 @@ func run(root: Node, opts: Dictionary) -> void:
 	else:
 		_check_layout()
 		await _shot(opts, "")
+	if opts.get("placing", "0") == "1":
+		book.beasts_page.activate(1)
+		book.beasts_page.move_destination(1)
+		await main._wait(0.3)
+		_check_layout()
+		await _shot(opts, "_placement")
 	if opts.get("battle", "0") == "1":
 		await _battle_opening()
 	print("RING START DONE: %d problem(s)" % bad)
@@ -47,7 +53,7 @@ func run(root: Node, opts: Dictionary) -> void:
 func _fixture(sparse: bool) -> void:
 	GameState.party = []
 	GameState.storage = []
-	GameState.beast_slots = 8
+	GameState.beast_slots = 4 if sparse else 8
 	GameState.ring_side = 0
 	GameState.preferred_ring_side = 0
 	var entries := [[0, 0], [24, 4]] if sparse else [[0, 0], [3, 1], [30, 2], [30, 3], [24, 4], [12, 5], [12, 6], [0, 7]]
@@ -55,6 +61,11 @@ func _fixture(sparse: bool) -> void:
 		var beast := Beasts.create(entry[0], 8)
 		beast.slot = entry[1]
 		GameState.party.append(beast)
+	if sparse:
+		var stored := Beasts.create(0, 5)
+		stored.slot = -1
+		stored.nickname = "Stored Embit"
+		GameState.storage.append(stored)
 
 
 func _rules_and_saves() -> void:
@@ -107,11 +118,10 @@ func _open() -> void:
 
 func _inputs() -> void:
 	var at: Vector2i = main.world.player_pos
-	var picker = book.ring_start_picker
-	await main._tap_at(picker.right.get_global_rect().get_center())
-	_check(GameState.preferred_ring_side == 2 and picker.element.text == "Water", "one arrow tap skips empty Air exactly once")
-	_check(UI.stack.size() == 1, "arrow tap does not open storage")
-	picker.left.grab_focus()
+	var page = book.beasts_page
+	await main._tap_at(book.row_buttons[0].get_global_rect().get_center())
+	_check(GameState.preferred_ring_side == 2, "one Default element tap skips empty Air exactly once")
+	_check(UI.stack.size() == 1, "default element stays within the beast list")
 	for down in [true, false]:
 		var event := InputEventJoypadButton.new()
 		event.button_index = JOY_BUTTON_A
@@ -119,35 +129,80 @@ func _inputs() -> void:
 		Input.parse_input_event(event)
 		await main.get_tree().process_frame
 	await main._wait(0.1)
-	_check(GameState.preferred_ring_side == 0, "gamepad A activates the focused left arrow once")
-	await main._press("ui_cancel")
-	await main._wait(0.05)
-	_check(book.row_buttons[0].has_focus() and book.mode == "list", "B from an arrow returns to the ring row")
+	_check(GameState.preferred_ring_side == 0, "gamepad A changes the focused default element once")
 	await main._press("ui_left")
 	await main._wait(0.1)
-	_check(GameState.preferred_ring_side == 2 and book.tab == 1, "Left on the ring row rotates without changing tabs")
+	_check(GameState.preferred_ring_side == 2 and book.tab == 1, "Left on Default element rotates without changing tabs")
+	var fire = GameState.party[0]
+	var stored = GameState.storage[0]
 	await main._press("ui_down")
-	await main._wait(0.1)
 	_check(book.focus_row == 1, "Down still selects a beast")
-	await main._press("ui_up")
 	await main._press("ui_accept")
+	await main._wait(0.05)
+	_check(page.picked == fire and fire.slot == 0 and UI.stack.size() == 1, "one A picks a beast without moving it or opening a separate editor")
+	await main._press("ui_right")
+	_check(page.destination == 1 and fire.slot == 0, "Right previews an empty compatible corner without changing the formation")
 	await main._wait(0.2)
-	_check(UI.stack.size() == 2 and UI.stack.back().get_script() == Book.RingEditor, "A on the ring row still opens arrangement")
-	_check(UI.stack.back().cells[4].has_focus(), "arrangement opens on the preferred side")
+	var stage = page.preview.stage
+	_check(stage.selected_beast == fire and stage.aim_mesh == null and stage._front_geometry.size() > 0,
+		"placement outlines the selected 3D beast without a yellow arrow")
+	_check((stage.nodes[fire] as Node3D).position.distance_to(stage._slot_pos("ally", 1)) < 0.01,
+		"the selected model previews the destination while its saved slot stays unchanged")
+	var cycled := []
+	for step in 3:
+		cycled.append(page.destination)
+		page.move_destination(1)
+	_check(cycled.size() == 3 and cycled.has(0) and cycled.has(1) and cycled.has(7) and page.destination == 1,
+		"a fire beast cycles exactly its three element-compatible ring slots")
+	await main._wait(0.2)
+	_check(stage._model_geometry(fire).all(func(geometry): return geometry.layers & 1 != 0 and geometry.layers & stage.FRONT_LAYER != 0 and geometry.layers & stage.FADED_LAYER == 0),
+		"the moving selected beast stays fully opaque in the main view and continuously in the outline mask")
+	var water = GameState.party[1]
+	_check(stage._model_geometry(water).all(func(geometry): return geometry.layers & stage.FADED_LAYER != 0 and geometry.layers & 1 == 0),
+		"the other beasts render only in the faded layer")
+	await main._press("ui_accept")
+	_check(page.picked == null and fire.slot == 1 and page.ring_badges[fire].visible, "A confirms one move and keeps its in-ring icon")
+	await main._tap_at(book.row_buttons[1].get_global_rect().get_center())
+	await main._press("ui_right")
 	await main._press("ui_cancel")
-	await main._wait(0.2)
+	_check(page.picked == null and fire.slot == 1 and book.mode == "list", "B cancels tentative placement without moving the beast")
+	await main._tap_at(book.row_buttons[3].get_global_rect().get_center())
+	_check(page.picked == stored, "stored beasts are selectable from the same list")
+	await main._press("ui_right")
+	_check(page.destination == 1 and GameState.party.has(fire), "an occupied compatible spot can be selected without swapping yet")
+	await main._press("ui_accept")
+	_check(GameState.party.has(stored) and stored.slot == 1 and GameState.storage.has(fire) and fire.slot == -1,
+		"confirmation swaps a stored beast onto an occupied ring spot")
+	_check(not page.ring_badges[fire].visible and page.ring_badges[stored].visible and "Lv 5" in book.rows[3]["right"],
+		"left roster keeps levels and updates the membership icons after a swap")
+	await main._tap_at(book.row_buttons[3].get_global_rect().get_center())
+	_check(page.store_button.visible and not page.store_button.disabled, "a separate Store action leaves placement cycling limited to ring slots")
+	page.store_selected()
+	_check(GameState.storage.has(stored) and page.slots_label.text == "1 / 4 slots used",
+		"storing a beast updates occupied versus unlocked slots immediately")
+	await main._tap_at(book.row_buttons[2].get_global_rect().get_center())
+	_check(page.store_button.disabled, "the last carried beast cannot be placed in storage")
+	await main._press("ui_cancel")
 	_check(UI.stack.size() == 1 and main.world.player_pos == at, "menu inputs never walk the player")
-	# Disabled arrows and no-party state; then a full list with a long nickname and real scrolling.
-	GameState.party = [GameState.party[0]]
+	# No-party state, then a full roster with compatible occupied swaps and scrolling.
 	GameState.preferred_ring_side = 0
-	book._open_tab(1)
-	await main._wait(0.1)
-	_check(book.ring_start_picker.left.disabled and book.ring_start_picker.right.disabled, "arrows disable when only one side is occupied")
 	GameState.party = []
+	GameState.storage = []
 	book._open_tab(1)
 	await main._wait(0.1)
-	_check(book.row_buttons.is_empty() and book.right_box.find_children("*", "Label", true, false).any(func(label): return "don't have" in label.text), "an empty party keeps its existing empty state")
+	_check(book.rows.size() == 1 and book.beasts_page.preview.stage.nodes.is_empty(), "an empty roster keeps Default element and an empty 3D ring")
 	_fixture(false)
+	book._open_tab(1)
+	await main._wait(0.1)
+	page = book.beasts_page
+	fire = GameState.party[0]
+	page.activate(1)
+	page.move_destination(1)
+	var dest: int = page.destination
+	var other = GameState.beast_at(dest)
+	_check(other != null and other != fire, "a full ring offers an occupied compatible spot")
+	await main._press("ui_accept")
+	_check(fire.slot == dest and other.slot == 0, "two beasts already in the ring trade places on confirmation")
 	GameState.party[0].nickname = "Embit the Extraordinary"
 	book.mode = "list"
 	book._open_tab(1)
@@ -164,15 +219,40 @@ func _inputs() -> void:
 
 
 func _check_layout() -> void:
-	var picker = book.ring_start_picker
+	var page = book.beasts_page
 	var clip: Rect2 = book.right_scroll.get_global_rect().grow(1.0)
-	for button in [picker.left, picker.right]:
-		_check(button.size.x >= UIKit.row_h() and button.size.y >= UIKit.row_h(), "rotation arrow meets desktop/touch minimum")
-		_check(clip.encloses(button.get_global_rect()), "rotation arrow is fully visible")
-		_check(not UI.touch_blocks(button.get_global_rect().get_center()), "rotation arrow clears touch controls")
-	_check(picker.element.text == "Fire" and picker.element.get_global_rect().position.y > picker.left.get_global_rect().position.y,
-		"element label is on the second line between the arrows")
+	_check(book.rows[0]["text"] == "Default element" and book.row_buttons[0].get_child(0).text == "Fire",
+		"Default element and its name occupy the first left row")
+	_check(book.right_box.find_children("*", "Button", true, false).all(func(button): return button.text in ["Details", "Store"]),
+		"ring preview has no default-element arrow buttons")
+	_check(page.details.custom_minimum_size.y >= UIKit.row_h() and (not page.details.visible or clip.encloses(page.details.get_global_rect())),
+		"beast details remain reachable at the shared touch/desktop size")
+	_check(book.rows.slice(1).all(func(row): return "Lv " in row.get("right", "") and not "Ring " in row.get("right", "") and page.ring_badges[row["beast"]].visible),
+		"every carried beast lists its level and a ring icon instead of position text")
 	_check(book.right_scroll.get_v_scroll_bar().max_value <= book.right_scroll.get_v_scroll_bar().page + 2.0, "ring and selector fit without detail scrolling")
+	var preview = page.preview.stage
+	_check(page.slots_label.text == "%d / %d slots used" % [GameState.ring().size(), GameState.party_max()],
+		"right pane shows occupied slots and unlocked capacity")
+	_check(preview.player_rig == null and preview.ring_root["ally"].get_child_count() == 9,
+		"Beasts preview omits the trainer and center dais, retaining the circle and eight pads")
+	_check(preview.nodes.size() == GameState.ring().size() and preview.pads["ally"].size() == 8,
+		"preview uses all eight battle pads and the actual party's 3D models")
+	_check(preview.camera_director == null and preview.floating == null,
+		"preview never starts combat or constructs a battle HUD")
+	var battle_direction: Vector3 = (preview._cam_look() - preview._cam_pos()).normalized()
+	_check(preview.cam.global_basis.z.dot(-battle_direction) > 0.999,
+		"preview preserves the battle camera's perspective direction")
+	var visible := Rect2(Vector2.ZERO, Vector2(preview.get_viewport().size))
+	var fits := true
+	for beast in preview.nodes:
+		var model: Node3D = preview.nodes[beast]
+		var shown_slot: int = page.destination if page.picked == beast else beast.slot
+		fits = fits and model.position.distance_to(preview._slot_pos("ally", shown_slot)) < 0.01
+		for mesh: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+			for index in 8:
+				var point := mesh.global_transform * mesh.get_aabb().get_endpoint(index)
+				fits = fits and visible.has_point(preview.cam.unproject_position(point))
+	_check(fits, "3D beasts stand on their battle slots and fit inside the preview")
 
 
 func _battle_opening() -> void:
@@ -191,6 +271,8 @@ func _battle_opening() -> void:
 		await main.get_tree().process_frame
 	_check(battle != null and battle.ally_side == 2, "a real battle opens on the chosen Water side instead of last-used Fire")
 	if battle != null:
+		_check(battle.player_rig != null and battle.ring_root["ally"].get_child_count() == 10,
+			"actual battles retain the trainer and center dais")
 		await battle._turn_ring("ally", 0, true)
 		_check(GameState.preferred_ring_side == 0 and GameState.starting_ring_side() == 0,
 			"a player-chosen battle rotation becomes the next battle's opening side")

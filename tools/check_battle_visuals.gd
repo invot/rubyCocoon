@@ -18,9 +18,9 @@ func _initialize() -> void:
 		[Vector3(-3, 0.8, -5), Vector3(0, 1.2, -7), Vector3(3, 1, -5)], [Vector3(0.01, 1, 0.01)]]:
 		_arrow(Arrow.build(Vector3(0, 1, 0), targets))
 	var material := Arrow.material()
-	_check(material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and is_equal_approx(material.albedo_color.a, Arrow.OPACITY) and not material.no_depth_test,
-		"yellow arrow is translucent with normal 3D depth testing")
-	_check(Color(material.albedo_color, 1.0) == Arrow.YELLOW, "arrow stays yellow in every gem")
+	_check(is_equal_approx(material.get_shader_parameter("opacity"), Arrow.OPACITY), "yellow arrow retains its translucency")
+	var yellow: Vector3 = material.get_shader_parameter("yellow")
+	_check(Color(yellow.x, yellow.y, yellow.z) == Arrow.YELLOW, "arrow stays yellow in every gem")
 	var wall := Backdrop.mesh()
 	_check(wall == Backdrop.mesh(), "surround geometry is cached between encounters")
 	_check(Backdrop.PROFILE[0].x > Director.OUTDOOR_CAMERA_RADIUS + 1.0, "every directed outdoor camera is inside the surround")
@@ -46,6 +46,13 @@ func _arrow(mesh: ArrayMesh) -> void:
 	var arrays := mesh.surface_get_arrays(0)
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	_check(uvs.size() == vertices.size(), "all arrow faces have pattern coordinates")
+	var forward := true
+	# Each ring has four pairs, with distance increasing toward the target.
+	for i in range(8, (Arrow.STEPS + 1) * 8, 8):
+		forward = forward and uvs[i].y > uvs[i - 8].y
+	_check(forward, "stem pattern runs from attacker to target")
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var edges := {}
 	var welded := {}

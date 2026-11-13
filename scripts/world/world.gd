@@ -3006,24 +3006,46 @@ func _shot_transform() -> Transform3D:
 		d = Vector3(facing.x, 0.0, facing.y)
 	d = d.normalized()
 	var right := d.cross(Vector3.UP)
-	var pos: Vector3
-	var look: Vector3
-	if _shot_is_phone:
-		pos = me - d * 2.3 + right * 1.5 + Vector3(0, 1.75, 0)
-		look = (me + Vector3(0, 0.85, 0)).lerp(them, 0.55)
-	else:
-		pos = me - d * 1.8 + right * 0.62 + Vector3(0, 2.0, 0)
-		look = them + Vector3(0, 1.0, 0)
+	var back := 2.3 if _shot_is_phone else 1.8
+	var side := 1.5 if _shot_is_phone else 0.62
+	var pos := me - d * back + right * side + Vector3(0, 1.75 if _shot_is_phone else 2.0, 0)
+	var look := (me + Vector3(0, 0.85, 0)).lerp(them, 0.55) if _shot_is_phone else them + Vector3(0, 1.0, 0)
 	if interior:
-		# never behind the room's walls
-		pos.x = clampf(pos.x, 0.35, float(map["w"]) - 0.35)
-		pos.z = maxf(pos.z, 0.35)
+		# never behind the room's walls: inside the faces of the walls round you (the open front aside). Beside a side
+		# wall the shot looks over your other shoulder instead.
+		var room := _room_box()
+		var other := pos - right * side * 2.0
+		if not room.has_point(Vector2(pos.x, pos.z)) and room.has_point(Vector2(other.x, other.z)):
+			pos = other
+		pos.x = clampf(pos.x, room.position.x, room.end.x)
+		pos.z = maxf(pos.z, room.position.y)
 	var basis := Basis.looking_at(look - pos, Vector3.UP)
 	# turn right, so what's looked at sits on the left of the screen
 	var size := get_viewport().get_visible_rect().size
 	var half := tan(deg_to_rad(cam.fov / 2.0)) * size.x / maxf(size.y, 1.0)
 	basis = Basis(Vector3.UP, -atan(0.45 * half)) * basis
 	return Transform3D(basis, pos)
+
+
+## Where the menu shot's camera may stand in a room: between the faces of the walls left and right of you and in front
+## of the back wall behind you, a little clear of each (x across, y along the map's z); open towards the front.
+func _room_box() -> Rect2:
+	const CLEAR := 0.3
+	var t := player_pos
+	var lo := t.x
+	while lo > 0 and not _room_wall(Vector2i(lo - 1, t.y)):
+		lo -= 1
+	var hi := t.x
+	while hi < int(map["w"]) - 1 and not _room_wall(Vector2i(hi + 1, t.y)):
+		hi += 1
+	var top := t.y
+	while top > 0 and not _room_wall(Vector2i(t.x, top - 1)):
+		top -= 1
+	return Rect2(lo + CLEAR, top + CLEAR, hi + 1 - lo - CLEAR * 2.0, float(map["h"]) + 20.0)
+
+
+func _room_wall(p: Vector2i) -> bool:
+	return room_walls.wallish(p.x, p.y) if room_walls != null else not MapGen.walkable(MapGen.get_t(map, p.x, p.y))
 
 
 ## How much further back than usual the camera stands so a stage room's whole width, both side walls and their doors,
@@ -3621,7 +3643,7 @@ func _interact() -> void:
 	busy = true
 	if npcs.has(t):
 		var n: Dictionary = npcs[t]
-		_face_npc(n, -facing)
+		_face_npc(n, -facing, true)
 		await _talk(n)
 	elif doors.has(t):
 		await _enter_building(doors[t])
@@ -3635,7 +3657,7 @@ func _interact() -> void:
 		await Phone.call_home(self)
 	elif _counter_like(t) and _across_counter(t) != Vector2i(-999, -999):
 		var n2: Dictionary = npcs[_across_counter(t)]
-		_face_npc(n2, -facing)
+		_face_npc(n2, -facing, true)
 		await _talk(n2)
 	elif map["signs"].has(t):
 		await UI.say([map["signs"][t]])
