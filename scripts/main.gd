@@ -1675,6 +1675,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/exteriors.gd").new().run(self, _test)
 	elif scene == "coastal-path":
 		await load("res://tools/debug/coastal_path.gd").new().run(self, _test)
+	elif scene == "teacher-gates":
+		await load("res://tools/debug/teacher_gates.gd").new().run(self, _test)
 	elif scene == "wild-grace":
 		await load("res://tools/debug/wild_grace.gd").new().run(self, _test)
 	elif scene == "wilds":

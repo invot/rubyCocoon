@@ -595,13 +595,18 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   retain their compact street and dock frontages. Bellerive's park and Gravenmoor's cemetery use the supplied
   ironwork; the quay's stone balustrades remain. `scripts/gfx/fence_models.gd` joins sections at corners and
   junctions through the existing scenery batches: stone walls join at their full size (the through run reaches across
-  the turned arms, which stop at its faces), the picket fence with half-length sections that put a post at the corner,
-  and every end that meets nothing, including where a run reaches a cliff's edge, is closed with its own face, so no
+  the turned arms, which stop at its faces), and so does the picket fence, so its corners keep full-size pickets; the
+  iron fence's bends and junctions are full-size half sections sharing one post at the tile's centre (`POSTED`). Every end that meets nothing, including where a run reaches a cliff's edge, is closed with its own face, so no
   fence shows its inside. A run carries on only between tiles whose ground meets level. Fences keep their painted shading and normal lighting but
   neither cast nor receive shadow maps, avoiding dark patches on the thin rails and pickets.
   The picket fence wears the game's one shared wood (`voxel_textures.gd` `WOOD` on the kit's plank grain,
   `wood_material()`, applied in `voxel_assets.gd` `WOODEN`), the same timber as the stairs, decks, stalls, signs and
-  benches; the street pack's crates, barrels and kegs are tinted to it (`match_wood`).
+  benches; the street pack's crates, barrels and kegs are tinted to it (`match_wood`). The rest of the game's wood is a
+  family cut from the fence's grain (`tools/build_wood_textures.py`, each with vertical `_v` boards): `wood_board`
+  (wall boards; the kit's `planks` kind draws it), `wood_deck` (narrow boards with end joints: docks, bridges, porches,
+  boat decks), `wood_beam` (wide boards for posts, trim and frames; the kit's `wood_dark`) and `wood_drift` (the dock
+  shacks), in the tones `WOOD` and `WOOD_DRIFT`. Rebuild with `python tools/build_wood_textures.py`, then
+  `smooth_textures.gd -- --only=res://assets/textures/surfaces/wood_` and `--import`.
   Outdoor map letters `z` and `q` explicitly select wood and
   stone; `F` selects the biome's usual wood or iron fence. Saved building order is retained when houses are set
   back inside their gardens. Riverbend's stone fence stops a tile short of the waterfall, leaving its left bank clear.

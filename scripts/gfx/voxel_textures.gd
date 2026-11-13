@@ -85,8 +85,14 @@ static func _kind_of(m: BaseMaterial3D) -> String:
 		m.heightmap_deep_parallax, flags, features, textures])
 
 
+## The kit's old wood kinds, drawn with the clean wood family cut from the fence's grain (tools/build_wood_textures.py)
+## instead of their mottled pack textures, so every "planks" and "wood_dark" in the game reads like the fences.
+const WOOD_GRAINS := {"planks": "wood_board", "wood_dark": "wood_beam"}
+
+
 ## A PSX texture's image (uncompressed, no mipmaps), or null if there is none for `name`.
 static func psx_image(name: String) -> Image:
+	name = WOOD_GRAINS.get(name, name)
 	if _images.has(name):
 		return _images[name]
 	var path := PSX_DIR + name + ".png"
@@ -316,24 +322,33 @@ static func material(kind: String, scale := 1.0) -> StandardMaterial3D:
 ## The one wood colour the wooden props share (signposts, stalls, benches, fences): with the kit's own plank grain
 ## ("planks" / "planks_v") it reads as the same timber as the stairs, decks and signs beside it.
 const WOOD := Color("#8a6038")
+## Its sun-bleached tone for piers, docks and dock shacks (a little softer, still warm).
+const WOOD_DRIFT := Color("#95704a")
+
+## The wood family (tools/build_wood_textures.py), all cut from the fence's grain ("planks_v"); each also comes with
+## vertical boards as <name>_v:
+##   wood_board: wall boards (shacks, stalls, signs; the kit's "planks")
+##   wood_deck: narrower boards with end joints, for decks, docks and bridges
+##   wood_beam: two wide boards, for beams, posts, trim and frames (the kit's "wood_dark")
+##   wood_drift: sea-weathered boards for dock shacks and piers
 
 
 ## That shared wood for meshes whose own UVs don't follow the kit's (fences, the Cove kit's timber, the house pack's
-## wooden trim and decks, dock planks): the plank grain in WOOD, `lighten` lighter for decks and slats, mapped in world
-## space at the kit's density so boards are the same size on everything, with no vertex colours.
-static func wood_material(grain := "planks_v", lighten := 0.0) -> StandardMaterial3D:
-	var key := "wood:%s:%s" % [grain, lighten]
+## wooden trim and decks, dock planks): `grain` (one of the wood family) in `tone`, `lighten` lighter for decks and
+## slats, mapped in world space at the kit's density so boards are the same size on everything, with no vertex colours.
+static func wood_material(grain := "planks_v", lighten := 0.0, tone := WOOD) -> StandardMaterial3D:
+	var key := "wood:%s:%s:%s" % [grain, lighten, tone.to_html()]
 	if not _mats.has(key):
 		var m := StandardMaterial3D.new()
 		m.roughness = 0.95
-		_mats[key] = apply_wood(m, grain, lighten)
+		_mats[key] = apply_wood(m, grain, lighten, tone)
 	return _mats[key]
 
 
 ## Turns `m` (a duplicate of a pack material, keeping its culling and other settings) into the shared wood.
-static func apply_wood(m: StandardMaterial3D, grain := "planks_v", lighten := 0.0) -> StandardMaterial3D:
+static func apply_wood(m: StandardMaterial3D, grain := "planks_v", lighten := 0.0, tone := WOOD) -> StandardMaterial3D:
 	m.albedo_texture = texture(grain)
-	m.albedo_color = WOOD.lightened(lighten)
+	m.albedo_color = tone.lightened(lighten)
 	m.vertex_color_use_as_albedo = false
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.uv1_triplanar = true

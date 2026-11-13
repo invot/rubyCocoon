@@ -712,10 +712,53 @@ const ICONS := {
 	"icon_coin": ["..#####..", ".#+++++#.", "#++###++#", "#+#+++++#", "#+#+++++#", "#+#+++++#", "#++###++#", ".#+++++#.", "..#####.."],
 	"icon_energy": ["....+++..", "...+++...", "..+++....", ".+++++++.", "....+++..", "...+++...", "..+++....", ".++......", ".+......."],
 	"icon_energy_empty": ["....###..", "...#.#...", "..#.#....", ".#.....#.", "....#.#..", "...#.#...", "..#.#....", ".##......", ".#......."],
-	"arrow_down": ["#########", ".#######.", "..#####..", "...###...", "....#...."],
 	"icon_arrow": ["#........", "###......", "#####....", "#######..", "#########", "#######..", "#####....", "###......", "#........"],
 	"tab_beasts": ["..##.##..", ".####.###", ".###..##.", "...###...", "#.#####.#", "##.###.##", "..#####..", ".#######.", ".#######.", "..#####.."],
 }
+
+
+## The "more to read" arrow under a page of dialogue: a smooth, softly rounded white triangle pointing down
+## (27 x 15 UI units, drawn at 4x and filtered so it stays clean when scaled). Tint it with `self_modulate`.
+static func more_arrow() -> TextureRect:
+	var tr := TextureRect.new()
+	if not _tex.has("gen:more_arrow"):
+		_tex["gen:more_arrow"] = _more_arrow_tex()
+	tr.texture = _tex["gen:more_arrow"]
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.custom_minimum_size = Vector2(27, 15)
+	tr.size = Vector2(27, 15)
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
+
+
+static func _more_arrow_tex() -> ImageTexture:
+	const S := 4.0
+	var w := int(27 * S)
+	var h := int(15 * S)
+	var r := 2.5 * S # corner rounding
+	var a := Vector2(r + 1.0, r + 1.0)
+	var b := Vector2(w - r - 1.0, r + 1.0)
+	var c := Vector2(w * 0.5, h - r - 1.0)
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var d := _tri_dist(p, a, b, c) - r
+			img.set_pixel(x, y, Color(1, 1, 1, clampf(0.5 - d, 0.0, 1.0)))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## Signed distance from `p` to the triangle abc (negative inside).
+static func _tri_dist(p: Vector2, a: Vector2, b: Vector2, c: Vector2) -> float:
+	var best := INF
+	for e in [[a, b], [b, c], [c, a]]:
+		var q: Vector2 = Geometry2D.get_closest_point_to_segment(p, e[0], e[1])
+		best = minf(best, p.distance_to(q))
+	var inside := Geometry2D.point_is_inside_triangle(p, a, b, c)
+	return -best if inside else best
 
 
 ## The icon's bitmap, each of its pixels drawn 3 x 3 (the icons are tiny), so it can be used at its own size.

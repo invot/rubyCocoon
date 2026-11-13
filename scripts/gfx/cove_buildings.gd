@@ -187,10 +187,13 @@ static func build(b: Dictionary) -> Node3D:
 		if material != null and material.resource_name == "cove_stucco":
 			inst.set_surface_override_material(surface, _stucco_materials[paint])
 		elif material != null and material.resource_name == "Cove painted wood":
-			# the kit's timber (frames, trim, hut walls and plank roofs) in the game's shared wood, its lighter boards a
-			# shade lighter (voxel_textures.gd WOOD)
+			# the kit's timber in the game's wood family (voxel_textures.gd): the dock shacks' walls and plank roofs in
+			# sea-weathered boards, a house's frames and trim in wide beams, lighter boards a shade lighter
 			var light := (material as StandardMaterial3D).albedo_color.get_luminance() > Color("#89684b").get_luminance() + 0.02
-			inst.set_surface_override_material(surface, VT.wood_material("planks", 0.14 if light else 0.0))
+			if String(p["key"]).begins_with("hut"):
+				inst.set_surface_override_material(surface, VT.wood_material("wood_drift", 0.12 if light else 0.0, VT.WOOD_DRIFT))
+			else:
+				inst.set_surface_override_material(surface, VT.wood_material("wood_beam_v", 0.14 if light else 0.0))
 		elif _roof(material):
 			inst.set_surface_override_material(surface, _roof_material(material))
 	inst.scale = Vector3.ONE*float(p["scale"])
@@ -273,11 +276,11 @@ static func _porch(node: Node3D, p: Dictionary) -> void:
 	var center := rect.get_center()
 	var height := float(pc["top"])
 	var wood: Color = VT.WOOD
-	kit.box("planks",Vector3(center.x,0.01,center.y),Vector3(rect.size.x,0.02,rect.size.y),wood)
+	kit.box("wood_deck",Vector3(center.x,0.01,center.y),Vector3(rect.size.x,0.02,rect.size.y),wood)
 	for x in [rect.position.x+0.06,rect.end.x-0.06]:
-		kit.box("planks",Vector3(x,height/2.0,rect.end.y-0.06),Vector3(0.12,height,0.12),wood)
+		kit.box("wood_beam_v",Vector3(x,height/2.0,rect.end.y-0.06),Vector3(0.12,height,0.12),wood)
 	for z in [p["door_at"].z-0.03,rect.end.y-0.06]:
-		kit.box("planks",Vector3(center.x,height-0.05,z),Vector3(rect.size.x+0.12,0.14,0.22),wood)
+		kit.box("wood_beam",Vector3(center.x,height-0.05,z),Vector3(rect.size.x+0.12,0.14,0.22),wood)
 	var inst := MeshInstance3D.new()
 	inst.mesh = kit.mesh()
 	node.add_child(inst)
@@ -292,15 +295,13 @@ static func docks(map: Dictionary) -> Node3D:
 		for x in int(map["w"]):
 			if gen.get_t(map,x,y) != gen.BRIDGE:
 				continue
-			# quiet seams between the deck's boards (the deck itself is the shared wood: world.gd)
-			for seam in [0.0,0.33,0.66]:
-				kit.box("color",Vector3(x+0.5,0.084,y+seam),Vector3(1.0,0.006,0.013),VT.WOOD.darkened(0.1))
+			# the deck itself is the wood family's deck boards, with their own seams (world.gd)
 			for delta in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
 				if gen.get_t(map,x+delta.x,y+delta.y) != gen.WATER:
 					continue
 				var edge := Vector3(x+0.5+delta.x*0.48,0.52,y+0.5+delta.y*0.48)
 				var size := Vector3(0.07,0.07,1.02) if delta.x != 0 else Vector3(1.02,0.07,0.07)
-				kit.box("planks",edge,size,VT.WOOD.lightened(0.14))
+				kit.box("wood_beam",edge,size,VT.WOOD_DRIFT.lightened(0.14))
 				if delta.x != 0:
 					var px := x+(1 if delta.x>0 else 0)
 					posts[Vector2i(px,y)] = true
@@ -310,7 +311,7 @@ static func docks(map: Dictionary) -> Node3D:
 					posts[Vector2i(x,pz)] = true
 					posts[Vector2i(x+1,pz)] = true
 	for p in posts:
-		kit.box("planks",Vector3(p.x,-0.10,p.y),Vector3(0.13,1.42,0.13),VT.WOOD)
+		kit.box("wood_beam_v",Vector3(p.x,-0.10,p.y),Vector3(0.13,1.42,0.13),VT.WOOD_DRIFT.darkened(0.08))
 	var root := Node3D.new()
 	var inst := MeshInstance3D.new()
 	inst.mesh = kit.mesh()

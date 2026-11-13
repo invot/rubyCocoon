@@ -847,8 +847,8 @@ func _build_terrain() -> void:
 	_multimesh(rk.mesh(), rx)
 	var pb := BoxMesh.new()
 	pb.size = Vector3(1.0, 0.1, 1.0)
-	# docks and plank bridges in the game's shared wood, a deck's lighter shade (voxel_textures.gd WOOD)
-	_multimesh(pb, planks, VT.wood_material("planks", 0.14), true)
+	# docks and plank bridges in the wood family's deck boards, sun-bleached a shade lighter (voxel_textures.gd)
+	_multimesh(pb, planks, VT.wood_material("wood_deck", 0.1, VT.WOOD_DRIFT), true)
 	if biome.get("style", "") == "pirate_cove":
 		add_child(CoveBuildings.docks(map))
 	_build_bridges()
@@ -2842,7 +2842,7 @@ func _build_camera() -> void:
 	# Only distant outdoor scenery softens; rooms, the hero and nearby interactions stay sharp.
 	var focus := CameraAttributesPractical.new()
 	focus.dof_blur_far_enabled = not interior and RenderingServer.get_current_rendering_method() != "gl_compatibility"
-	focus.dof_blur_amount = 0.035
+	focus.dof_blur_amount = 0.045
 	focus.dof_blur_far_distance = CAM_OFFSET.length() + 4.0
 	focus.dof_blur_far_transition = 10.0
 	cam.attributes = focus

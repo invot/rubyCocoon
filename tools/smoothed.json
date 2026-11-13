@@ -488,5 +488,13 @@
 	"res://assets/textures/surfaces/water_7.png": "122ff6aaed334d83e6c3e0679b42bcde",
 	"res://assets/textures/surfaces/water_8.png": "d62955a6ed097f183cac5ad566500c85",
 	"res://assets/textures/surfaces/water_9.png": "dfe4f808d9002f155751faf186e9a32f",
-	"res://assets/textures/surfaces/wood_dark.png": "d82003aee8203cc048822d9523149544"
+	"res://assets/textures/surfaces/wood_beam.png": "a86068a10096c8ca41a13e212d3a1581",
+	"res://assets/textures/surfaces/wood_beam_v.png": "18c14f44f4055fb12e847c7b77d7a46d",
+	"res://assets/textures/surfaces/wood_board.png": "2fbda9e012bb23a11d6376655f6d182d",
+	"res://assets/textures/surfaces/wood_board_v.png": "96899e87a2126bda772c14e06008de30",
+	"res://assets/textures/surfaces/wood_dark.png": "d82003aee8203cc048822d9523149544",
+	"res://assets/textures/surfaces/wood_deck.png": "a2d03e01f7e2bae4a89ce5c3d0aaaad7",
+	"res://assets/textures/surfaces/wood_deck_v.png": "5ac09d49348ef24e01ad14e18c3b69ee",
+	"res://assets/textures/surfaces/wood_drift.png": "6e251aa095e9955a66097d717ae0d3c6",
+	"res://assets/textures/surfaces/wood_drift_v.png": "cf7ea3e2b32a9bc73273abaee176866c"
 }

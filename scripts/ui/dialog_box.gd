@@ -96,8 +96,7 @@ func _ready() -> void:
 		name_panel.offset_top = -12.0 - _box_h - 46.0 - _bottom_gap()
 		name_panel.offset_bottom = -12.0 - _box_h + 6.0 - _bottom_gap()
 		add_child(name_panel)
-	more = UIKit.icon("arrow_down")
-	more.stretch_mode = TextureRect.STRETCH_KEEP
+	more = UIKit.more_arrow()
 	more.self_modulate = UIKit.GOLD
 	add_child(more)
 	_place_more(0.0)
@@ -143,9 +142,7 @@ func _ready_bubble() -> void:
 		_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		name_panel.add_child(_name_label)
 		add_child(name_panel)
-	more = UIKit.icon("arrow_down")
-	more.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	more.stretch_mode = TextureRect.STRETCH_KEEP
+	more = UIKit.more_arrow()
 	more.self_modulate = UIKit.DARK
 	more.visible = false
 	add_child(more)

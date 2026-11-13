@@ -23,7 +23,8 @@ float line_at(float coordinate, float width) {
 void fragment() {
 	vec3 colour = base_colour.rgb;
 	if (finish == 0) {
-		vec2 board = vec2(UV.x / 0.45, UV.y / 2.8);
+		// boards about 0.3 wide and 1.85 long, in proportion to the furniture and people (the user's 2026-11-13 choice)
+		vec2 board = vec2(UV.x / 0.3, UV.y / 1.85);
 		float row = floor(board.x);
 		board.y += mod(row, 3.0) / 3.0;
 		float tone = 0.5 + 0.5 * sin(row * 2.37);

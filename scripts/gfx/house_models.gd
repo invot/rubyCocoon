@@ -917,7 +917,7 @@ static func _skin(mi: MeshInstance3D, m: ArrayMesh, skin: Array, locked: bool) -
 
 ## The pack's plain-wood tiles that wear the game's shared wood instead (voxel_textures.gd WOOD), so wooden trim and
 ## decks match the docks, fences, benches and stairs: tile -> [grain, how much lighter].
-const SHARED_WOOD := {"trim_wood_dark": ["planks_v", 0.0], "deck_wood": ["planks", 0.14]}
+const SHARED_WOOD := {"trim_wood_dark": ["wood_beam_v", 0.0], "deck_wood": ["wood_deck", 0.14]}
 
 
 ## A part of a house in one of the pack's tiles (made once per part, tile and lock).

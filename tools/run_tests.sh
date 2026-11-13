@@ -116,6 +116,7 @@ TESTS=(
 	"ring-start-touch|-- --scene=ring-start --touch --battle=1 --save_dir=res://build/ring_start_touch_test_saves/ --wait=0.3|RING START DONE: 0 problem"
 	"lessons|-- --scene=lessons --wait=0.3|lessons DONE: 0 problem"
 	"coaches|-- --scene=coaches --wait=0.3|coaches DONE: 0 problem"
+	"teacher-gates|-- --scene=teacher-gates --save_dir=res://build/teacher_gates_saves/|TEACHER GATES DONE: 0 problem"
 	"wild-grace|-- --scene=wild-grace --wait=0.3|WILD GRACE DONE: 0 problem"
 	"building-fade|-- --scene=building-fade --wait=0.3|BUILDING FADE DONE: 0 problem"
 	"exteriors|-- --scene=exteriors --wait=0.3|EXTERIORS DONE: .* building(s), 0 problem"

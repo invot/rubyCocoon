@@ -144,7 +144,7 @@ const LESSON_TRAINERS := [
 		"lines": ["Is that a beast? Is it hungry? Never mind. Let's talk about the most important thing in a battle: snacks. I mean items."],
 		"after": ["Take these for the road: three Minor Potions! Ranger Holt waits just before Bellerive with the last lesson."],
 		"defeat": "Potions heal HP and Spirit Drops bring back MP. Apothecaries sell them. Picnic baskets don't. I checked."},
-	{"anchor": "lesson_ring", "lesson": "ring", "name": "Holt", "cls": "Ranger", "team": [[30, 3]], "facing": Vector2i(0, -1),
+	{"anchor": "lesson_ring", "lesson": "ring", "name": "Holt", "cls": "Ranger", "team": [[30, 3]], "facing": Vector2i(0, -1), "sight": 6,
 		"look": {"skin": "#8a5a3a", "hair": "#2a1a10", "shirt": "#5a7a3a", "pants": "#4a3a2a", "hat": "#4a6a2a"},
 		"lines": ["Halt! Rangers check every new trainer before Bellerive. Relax, it's a lesson, not a test. Well. A little bit a test."],
 		"after": ["You're ready. Shields recharge after every battle, and Volt at Sparkwire Electronics can add shield points and beast slots for crystal shards.",

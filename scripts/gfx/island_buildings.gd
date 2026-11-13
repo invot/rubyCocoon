@@ -46,7 +46,7 @@ static func timber_material() -> StandardMaterial3D:
 		# the hut's stairs, deck and posts in the game's shared wood (voxel_textures.gd WOOD), like every dock and fence
 		_hut_timber = StandardMaterial3D.new()
 		_hut_timber.roughness = 0.95
-		load("res://scripts/gfx/voxel_textures.gd").apply_wood(_hut_timber, "planks", 0.0)
+		load("res://scripts/gfx/voxel_textures.gd").apply_wood(_hut_timber, "wood_deck", 0.0)
 	return _hut_timber
 
 ## Fit the supplied mesh to the existing plot, keeping a full-size door and the source roof/profile.

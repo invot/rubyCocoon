@@ -4,9 +4,12 @@ const VA = preload("res://scripts/gfx/voxel_assets.gd")
 ## Sections cut from a longer supplied fence (tools/prepare_fences.py): their cut ends are open, so every end left
 ## free is closed with a face of its own.
 const CUT_SECTIONS := ["stone_fence", "fence"]
-## Solid walls among them, joined at bends by clipping at full size (the picket fence keeps its half-length sections,
-## which put a post at the corner).
-const SOLID_JOINS := ["stone_fence"]
+## Sections joined at bends and junctions by clipping at full size, so a corner's pickets and boards are the same size
+## as a straight run's (squashing whole sections to half length shrank them).
+const SOLID_JOINS := ["stone_fence", "fence"]
+## Post-to-post sections (posts at x = ±0.5): a bend or junction is built from full-size half sections, each running
+## from one shared post at the tile's centre out to its neighbour's post.
+const POSTED := {"iron_fence": 0.05}
 const EPS := 0.0001
 static var _meshes := {}
 static var _sources := {}
@@ -18,7 +21,12 @@ static func tile(style: String, mask: int) -> ArrayMesh:
 	if _meshes.has(key):
 		return _meshes[key]
 	var straight := mask in [0, 1, 2, 3, 4, 8, 12]
-	_meshes[key] = _cut_tile(style, mask) if style in SOLID_JOINS or (style in CUT_SECTIONS and straight) else _scaled_tile(style, mask)
+	if style in SOLID_JOINS or (style in CUT_SECTIONS and straight):
+		_meshes[key] = _cut_tile(style, mask)
+	elif style in POSTED and not straight:
+		_meshes[key] = _posted_tile(style, mask)
+	else:
+		_meshes[key] = _scaled_tile(style, mask)
 	return _meshes[key]
 
 
@@ -41,6 +49,34 @@ static func _scaled_tile(style: String, mask: int) -> ArrayMesh:
 				var yaw: float = [PI, 0.0, PI / 2, -PI / 2][i]
 				st.append_from(source, 0, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(0.5, 1, 0.5)), directions[i] * 0.25))
 	st.set_material(source.surface_get_material(0))
+	st.index()
+	return st.commit()
+
+
+## A posted section's bend or junction at full size: each arm is the section's west half moved so its end post stands
+## at the tile's centre, and the arm reaches the neighbour's post at the tile's edge. Only the first arm keeps the post
+## (the others start just past it), so no faces lie on top of each other.
+static func _posted_tile(style: String, mask: int) -> ArrayMesh:
+	var src := _source(style)
+	var post: float = POSTED[style]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var first := true
+	for i in 4:
+		if mask & (1 << i) == 0:
+			continue
+		var yaw: float = [PI, 0.0, PI / 2, -PI / 2][i]
+		var xf := Transform3D(Basis(Vector3.UP, yaw), Vector3.ZERO) * Transform3D(Basis(), Vector3(0.5, 0, 0))
+		var cut := _clip(src["tris"], -1.0 if first else -0.5 + post, 0.0)
+		first = false
+		for t: Array in cut["tris"]:
+			for v: Array in t:
+				st.set_normal(xf.basis * (v[1] as Vector3))
+				st.set_uv(v[2])
+				if src["colors"]:
+					st.set_color(v[3])
+				st.add_vertex(xf * (v[0] as Vector3))
+	st.set_material(src["material"])
 	st.index()
 	return st.commit()
 

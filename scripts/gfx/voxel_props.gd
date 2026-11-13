@@ -677,11 +677,11 @@ static func bench() -> ArrayMesh:
 		for x in [-BENCH_W / 2.0 + 0.1, 0.0, BENCH_W / 2.0 - 0.1]:
 			var end: bool = x != 0.0
 			# front leg, back post (up to the top back slat), and the rail under the seat joining them
-			k.box("planks_v", Vector3(x, (seat_y - 0.025) / 2.0, 0.17), Vector3(0.08, seat_y - 0.025, 0.08), frame)
-			k.box("planks_v", Vector3(x, 0.44, -0.2), Vector3(0.08, 0.88, 0.08), frame)
+			k.box("wood_beam_v", Vector3(x, (seat_y - 0.025) / 2.0, 0.17), Vector3(0.08, seat_y - 0.025, 0.08), frame)
+			k.box("wood_beam_v", Vector3(x, 0.44, -0.2), Vector3(0.08, 0.88, 0.08), frame)
 			k.box("planks", Vector3(x, seat_y - 0.06, -0.01), Vector3(0.08, 0.07, 0.42), frame)
 			if end:
 				# an arm rest on a short post above the front leg
-				k.box("planks_v", Vector3(x, seat_y + 0.1, 0.17), Vector3(0.07, 0.2, 0.07), frame)
+				k.box("wood_beam_v", Vector3(x, seat_y + 0.1, 0.17), Vector3(0.07, 0.2, 0.07), frame)
 				k.box("planks", Vector3(x, seat_y + 0.22, -0.02), Vector3(0.1, 0.05, 0.5), slat)
 		return k.mesh())

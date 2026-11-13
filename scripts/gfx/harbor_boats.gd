@@ -58,7 +58,7 @@ static func _outline(l: float, beam: float, bow: float, stern_round := 0.0) -> A
 
 ## A hull: its sides from `draft` below the water up to `free` above it in the hull's colour with a band of `band`
 ## round its foot, and the deck on top.
-static func _hull(k: VBld.Kit, pts: Array, draft: float, free: float, col: Color, band: Color, deck: Color, deck_tex := "planks") -> void:
+static func _hull(k: VBld.Kit, pts: Array, draft: float, free: float, col: Color, band: Color, deck: Color, deck_tex := "wood_deck") -> void:
 	var c := Vector2.ZERO
 	VBld._skirt(k, "color", pts, -draft, draft + 0.08, band, c)
 	VBld._skirt(k, "color", pts, 0.08, free - 0.08, col, c)
