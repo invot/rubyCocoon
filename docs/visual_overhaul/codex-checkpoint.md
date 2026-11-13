@@ -7,6 +7,9 @@ Capture comparison done; fixed the shared warm-up crash on PrimitiveMesh (two pa
 shared warm-up gives no measurable gain on desktop (2316 vs 2322 ms Path) and was inconclusive on Web, so it is not
 adopted. `vo_cost.py --warmup-shared` and summary columns added. Quick, transitions and title-startup pass.
 See the continuation section in 009b-first-visit-checkpoint.md. No active jobs; no root override.cfg.
+Then the user chose **Prototype title compile**: shader_precompile.gd + assets/shaders/compat_warmup.scn
+(--scene=shader-manifest), desktop Compatibility with cache off only. Results and open items in the checkpoint's
+title-precompile section. Waiting for user review. Browser pane emulation reset; no override.cfg.
 
 
 **Current state: 009b remains in progress. No active benchmark/model jobs.**

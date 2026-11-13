@@ -131,12 +131,62 @@ this code finished cleanly).
   or need a "preparing" state while about 13 s of cold compilation runs. Reducing shader variants touches many
   builders and can change materials. Either needs the user's decision and screenshots before it is implemented.
 
+## Title-time precompile prototype (user's choice: "Prototype title compile")
+
+**User decision (2026-11-12): approve and continue.** The title hitches described below are accepted.
+
+**What it does.** `tools/debug/shader_manifest.gd` (`--scene=shader-manifest`, headless, about 10 s) builds all 178
+towns, roads and interior floors and records each distinct lighting set-up (environment, sun, local lights) and each
+distinct (material shader kind, instance kind, shadow casting) drawn under it, plus sign (Label3D) variants. The
+result is 176 entries in 5 set-ups, deterministic across fresh runs, saved as `assets/shaders/compat_warmup.scn`
+(about 25 KB; textures replaced by one 2×2 placeholder, layered textures left unbound). With a local light, each entry
+is drawn both inside and outside its range, giving 318 specks. `scripts/gfx/shader_precompile.gd` draws them a few per
+frame (adaptive batches, 40/120 ms thresholds) in off-screen 128 px views. These copy the game view's output settings
+and keep the copied materials and environments for the session, so the compiled programs persist. `main.gd` starts it
+when the title menu appears and cancels it on any menu choice. It runs only on desktop Compatibility with the engine
+shader cache off (the `compatibility_build` profile). `voxel_assets.gd` now shares its code-built two-sided foliage
+shader through `two_sided_foliage()` (same behaviour), so the title compiles the same Shader object the plants use.
+
+**Desktop, editor, cache off** (`title-precompile-2` against `title-ready-control-2`; both title-ready, two clean passes,
+no focus losses):
+
+| First visit | Control ms | With title precompile ms |
+|---|---:|---:|
+| Path | 1288.4 | 501.2 |
+| Cove | 750.6 | 428.2 |
+| House | 297.6 | 58.1 |
+| Rue | 446.9 | 442.0 |
+
+Second passes are unchanged (104/202/36/294 against 104/203/36/299). On the title the precompile took 3352 ms in
+46 frames (slowest 241 ms); the real title screen, run separately, took 3069 ms (slowest 238 ms). Arrival captures differ only in the
+animated characters (`capture-compare-precompile.txt`). Title captures during and after the precompile are identical
+(`build/shots/vo/009b/title/title_during_after.png`). Continue during the precompile cancels it after 14 specks and
+Cove loads normally (`continue_cacheoff_wait6.png`). The first precompile attempt (`title-precompile`, 17.2 s,
+slowest frame 804 ms) had a manifest with unloadable texture arrays and is marked invalid.
+
+**Measured where it does not help (so it is switched off there):**
+- Shader cache **on** (an editor run): the real title took 51.4 s with one 15.9 s frame, twice. This is the native
+  cache-load slowdown again.
+- **Web** (`web-precompile` against `web-control-2`, same pane, run back to back): 59.4 s of title compiling with
+  frames up to 3.9 s. First visits were 4.4 / 3.3 / 0.11 / 2.3 s, against a control of 16.4 / 11.3 / 6.4 / 0.65 s.
+  Web numbers swing widely with the browser's state (Codex's earlier baseline: 1.4 / 1.3 / 0.3 / 0.6 s). Freezing
+  the title for about a minute is not acceptable, so the web keeps compiling per map.
+
+**Packaged, cold driver (new export):** the title precompile took 27,955 ms, slowest frame 1225 ms (`exported-precompile-first`).
+The window then lost focus during the route, so its first visits are invalid. Two retries lost focus within 1.6 s.
+This suggests that the 13.8 s cold first Path visit becomes about 28 s of title compiling with frames up to about
+1.2 s, covering every map rather than one. A focused packaged run (cold and warm) is still needed to confirm the
+first visits.
+
+Checks: quick, transitions, title-startup and vo-perf-route pass (`precompile-*.json`). The README documents the
+manifest and when to regenerate it.
+
 ## Remaining work in this step
 
 1. ~~Capture comparison and tooling review~~ (done above).
 2. ~~Web continuous-timer evidence~~ (Codex's `web-before-validated`).
 3. ~~Shared warm-up~~ measured: no effect on desktop, inconclusive on Web; not adopted.
-4. **Waiting for the user:** how to resolve the cold first launch and the Web criterion. The options are a
-   title-time compile with a visible preparing state, reducing shader variants (visual risk), or accepting the
-   warm-driver result and recording that Web is already within budget. Keep all adverse results and the
-   renderer-specific scope.
+4. The user chose to prototype the title compile (above). **Waiting for the user's review** of the title behaviour
+   (about 3 s of hitches of up to about 0.24 s with a warm driver; about 28 s with frames up to about 1.2 s on a
+   cold first launch). Still open: a focused packaged run, and the Web criterion (not met; the precompile is off on
+   the web). Keep all adverse results and the renderer-specific scope.

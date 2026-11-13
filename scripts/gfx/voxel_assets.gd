@@ -52,6 +52,15 @@ const LEAVES := "res://assets/textures/surfaces/foliage.png"
 static var _two_sided: Shader = null
 
 
+## The foliage shader drawn from both sides: one shared Shader object, so the title's Compatibility precompile
+## (shader_precompile.gd) and the plants compile and keep the same program.
+static func two_sided_foliage() -> Shader:
+	if _two_sided == null:
+		_two_sided = Shader.new()
+		_two_sided.code = FoliageShader.code.replace("render_mode cull_back;", "render_mode cull_disabled;")
+	return _two_sided
+
+
 ## Swap a plant's palette materials for the foliage shader, keeping each one's palette and whether it shows both sides.
 static func _leafy(m: Mesh) -> void:
 	if not ResourceLoader.exists(LEAVES):
@@ -64,10 +73,7 @@ static func _leafy(m: Mesh) -> void:
 		mat.resource_name = "foliage"
 		mat.shader = FoliageShader
 		if src.cull_mode == BaseMaterial3D.CULL_DISABLED:
-			if _two_sided == null:
-				_two_sided = Shader.new()
-				_two_sided.code = FoliageShader.code.replace("render_mode cull_back;", "render_mode cull_disabled;")
-			mat.shader = _two_sided
+			mat.shader = two_sided_foliage()
 		mat.set_shader_parameter("atlas", src.albedo_texture)
 		mat.set_shader_parameter("leaves", load(LEAVES))
 		m.surface_set_material(si, mat)

@@ -18,6 +18,7 @@ def main():
     parser.add_argument('command', choices=['export', 'serve'])
     parser.add_argument('--attempt', required=True)
     parser.add_argument('--shared-warmup', action='store_true', help='opt-in exact-material/geometry-format experiment')
+    parser.add_argument('--precompile', action='store_true', help='title shader precompile after the title script wait')
     parser.add_argument('--godot', default='C:/Program Files/Godot/Godot_v4.7-stable_win64.exe')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]+', args.attempt):
@@ -28,6 +29,8 @@ def main():
     vo_web.EXTRA_ARGS = ['--load_only=1', '--load_phases=1', '--diagnose=1', '--title_ready=1']
     if args.shared_warmup:
         vo_web.EXTRA_ARGS.append('--warmup_shared=1')
+    if args.precompile:
+        vo_web.EXTRA_ARGS.append('--precompile=1')
     report = vo_web.OUT / 'report.json'
     if report.exists():
         raise FileExistsError('Preserve existing evidence; choose a new attempt')

@@ -1095,6 +1095,13 @@ mounted owl and its rider.
   warm during loading, and the music cache retains three recent tracks while active crossfades keep their streams.
   Battles use the world's two shadow splits and 30-unit range; live portraits follow the graphics preset's MSAA.
   See [the performance audit](docs/performance.md) for measurements and remaining limits.
+- **Shaders compiled at the title (prototype, step 009b)**: the dedicated desktop Compatibility build
+  (`compatibility_build`, engine shader cache off) compiles every map's shader combinations while the title menu waits
+  (`scripts/gfx/shader_precompile.gd`), a few per frame in small off-screen views lit as the maps are, and keeps them
+  for the session; choosing a menu item stops it, and anything left compiles behind the next fade as before. The list
+  is `assets/shaders/compat_warmup.scn`, written by `--scene=shader-manifest` (headless, every town, road and room;
+  regenerate it after adding maps, lighting set-ups or material kinds). The web and native runs with the shader cache
+  on skip it (both measured far slower); Forward+ and Mobile don't need it.
 - **Ground on disk**: every outdoor map's ground meshes are baked into `assets/ground/` (`scripts/world/ground_store.gd`,
   `--scene=bake-ground`), so a map's ground is read back instead of generated behind the black screen; ground a story
   has changed some other way is generated once on the device and kept in `user://ground/` (at most 24 maps).

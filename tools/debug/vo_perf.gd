@@ -18,6 +18,7 @@ var _passes := []
 var _focus_losses := []
 var _previous_keep_on := false
 var _title_ready_wait_ms := 0.0
+var _precompile := {}
 
 
 func run(main, opts: Dictionary) -> void:
@@ -69,6 +70,10 @@ func run(main, opts: Dictionary) -> void:
 		var title_started := Time.get_ticks_usec()
 		await main._title_backdrop()
 		_title_ready_wait_ms = (Time.get_ticks_usec() - title_started) / 1000.0
+	if opts.get("precompile", "0") == "1":
+		# step 009b: the title menu's Compatibility shader precompile, timed as the title would run it
+		_precompile = await main.precompile_shaders()
+		_precompile["requested"] = true
 	var began := Time.get_ticks_usec()
 	var duration := float(opts.get("duration", "0"))
 	var requested_passes := maxi(1, int(opts.get("passes", "1")))
@@ -137,6 +142,7 @@ func _write_report() -> void:
 		"warmup_shared": _opts.get("warmup_shared", "0") == "1",
 		"shader_cache_enabled": ProjectSettings.get_setting_with_override("rendering/shader_compiler/shader_cache/enabled"),
 		"title_script_ready": _opts.get("title_ready", "0") == "1", "title_script_wait_ms": _title_ready_wait_ms,
+		"title_precompile": _precompile,
 		"engine": Engine.get_version_info(), "platform": OS.get_name(),
 		"processor": OS.get_processor_name(), "gpu": RenderingServer.get_video_adapter_name(),
 		"renderer": RenderingServer.get_current_rendering_method(), "driver": RenderingServer.get_current_rendering_driver_name(),

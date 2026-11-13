@@ -35,7 +35,7 @@ def cache_override(enabled, folder):
             raise RuntimeError("Temporary override.cfg changed externally; preserved for inspection")
 
 
-def run(renderer, build=False, eligibility=False, phases=False, attempt="", step_override="", shots=False, load_only=False, shader_cache=None, driver="", warmup_shared=False):
+def run(renderer, build=False, eligibility=False, phases=False, attempt="", step_override="", shots=False, load_only=False, shader_cache=None, driver="", warmup_shared=False, precompile=False, title_ready=False):
     step = step_override or ("009a" if phases else "004")
     if attempt:
         if any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in attempt):
@@ -68,6 +68,11 @@ def run(renderer, build=False, eligibility=False, phases=False, attempt="", step
         cmd.append("--load_only=1")
     if warmup_shared:
         cmd.append("--warmup_shared=1")
+    if title_ready and not precompile:
+        cmd.append("--title_ready=1")
+    if precompile:
+        # the title's script loading first, then its shader precompile, as the title menu runs them
+        cmd.extend(["--title_ready=1", "--precompile=1"])
     if driver:
         cmd[1:1] = ["--rendering-driver", driver]
     print("Waiting for shared resource lock:", renderer, flush=True)
@@ -85,6 +90,8 @@ def run(renderer, build=False, eligibility=False, phases=False, attempt="", step
         raise RuntimeError("Incomplete diagnostic route")
     if shader_cache is not None and data["shader_cache_enabled"] != shader_cache:
         raise RuntimeError("Cache override did not take effect; report rejected")
+    if precompile and not (data.get("title_precompile") or {}).get("drawn"):
+        raise RuntimeError("Title precompile did not run; report rejected")
     if warmup_shared and not data.get("warmup_shared"):
         raise RuntimeError("Shared warm-up option did not take effect; report rejected")
     if driver and data["driver"] != driver:
@@ -105,6 +112,8 @@ if __name__ == "__main__":
     parser.add_argument("--shader-cache", choices=["on", "off"], default=None)
     parser.add_argument("--driver", choices=["opengl3", "opengl3_angle"], default="")
     parser.add_argument("--warmup-shared", action="store_true", help="opt-in 009b exact-material/geometry-format warm-up")
+    parser.add_argument("--precompile", action="store_true", help="009b: title script wait plus title shader precompile")
+    parser.add_argument("--title-ready", action="store_true", help="009b: title script wait only (control for --precompile)")
     args = parser.parse_args()
     if sum([args.build, args.eligibility, args.phases]) > 1:
         parser.error("choose --build, --eligibility or --phases")
@@ -116,4 +125,4 @@ if __name__ == "__main__":
     if args.warmup_shared and not args.phases:
         parser.error("--warmup-shared requires --phases")
     run(args.renderer, args.build, args.eligibility, args.phases, args.attempt, args.step, args.shots, args.load_only, cache,
-        args.driver, args.warmup_shared)
+        args.driver, args.warmup_shared, args.precompile, args.title_ready)

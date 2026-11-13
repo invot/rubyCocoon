@@ -20,6 +20,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 const Fishing = preload("res://scripts/world/fishing.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
+const ShaderPrecompile = preload("res://scripts/gfx/shader_precompile.gd")
 const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
@@ -174,6 +175,8 @@ func _title() -> void:
 	_title_backdrop()
 	await stage.arrived
 	_title_intro = null
+	if _test.get("title_precompile", "1") == "1":
+		precompile_shaders()
 	while true:
 		var items := []
 		# (--saves=0: a test run shows the title as a first launch would)
@@ -189,6 +192,9 @@ func _title() -> void:
 		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 70 if first else 60),
 			"font_size": 64 if first else UIKit.BODY_HUGE, "bare": first, "keep_anchor": true})
 		var pick: String = items[c]
+		# whatever was picked, stop compiling ahead: the rest compiles behind the next fade as before
+		if is_instance_valid(_precompiler):
+			_precompiler.cancel()
 		if pick == "Quit":
 			get_tree().quit()
 			return
@@ -329,6 +335,24 @@ func _title_backdrop() -> void:
 	# Retrieve each completed request as well: leaving requests unclaimed retains resources until exit.
 	for path in [WORLD_PATH, "res://scripts/ui/hero_maker.gd", BATTLE_PATH, Menus.BOOK_PATH]:
 		await wait_for_script(path)
+
+
+## Compatibility only: compile the maps' shaders while the title menu waits (shader_precompile.gd). Returns its stats,
+## or an empty dictionary when there is nothing to do.
+var _precompiler: Node = null
+
+
+func precompile_shaders() -> Dictionary:
+	if not ShaderPrecompile.wanted() or is_instance_valid(_precompiler):
+		return {}
+	_precompiler = ShaderPrecompile.new()
+	_precompiler.name = "ShaderPrecompile"
+	add_child(_precompiler)
+	var stats: Dictionary = await _precompiler.run(view)
+	print("Shader precompile: ", stats)
+	_precompiler.queue_free()
+	_precompiler = null
+	return stats
 
 
 ## A script loaded in the background (see _title_backdrop), or loaded now if it wasn't asked for or isn't done yet.
@@ -828,6 +852,10 @@ func _run_test() -> void:
 		return
 	if scene == "texture-audit":
 		await load("res://tools/debug/texture_audit.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "shader-manifest":
+		await load("res://tools/debug/shader_manifest.gd").new().run(self, _test)
 		get_tree().quit()
 		return
 	if scene == "build-profile":
