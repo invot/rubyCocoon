@@ -190,6 +190,14 @@ func _battle_opening() -> void:
 			break
 		await main.get_tree().process_frame
 	_check(battle != null and battle.ally_side == 2, "a real battle opens on the chosen Water side instead of last-used Fire")
+	if battle != null:
+		await battle._turn_ring("ally", 0, true)
+		_check(GameState.preferred_ring_side == 0 and GameState.starting_ring_side() == 0,
+			"a player-chosen battle rotation becomes the next battle's opening side")
+		await battle._turn_ring("ally", 2)
+		_check(GameState.preferred_ring_side == 0, "automatic formation changes retain the player's chosen front")
+		_check(GameState.save_game(2) and GameState.load_game(2) and GameState.preferred_ring_side == 0,
+			"the battle-chosen front survives isolated save/load")
 
 
 func _shot(opts: Dictionary, suffix: String) -> void:

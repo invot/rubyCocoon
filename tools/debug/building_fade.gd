@@ -35,8 +35,8 @@ func run(main, opts: Dictionary) -> void:
 			world._fade_buildings(0.1)
 			_check(is_instance_valid(f["node"]) and is_equal_approx(f["opacity"], 0.3), "visible base constructs the building and starts its fade")
 			for binding in f.get("fade_materials", {}).get("bindings", []):
-				var mat: BaseMaterial3D = binding["mesh"].get_active_material(binding["surface"])
-				_check(mat == binding["faded"] and mat != binding["original"] and is_equal_approx(mat.albedo_color.a, binding["original"].albedo_color.a * 0.3), "isolated fade works on all renderers")
+				var mat: Material = binding["mesh"].get_active_material(binding["surface"])
+				_check(mat == binding["faded"] and mat != binding["original"] and (is_equal_approx(mat.albedo_color.a, binding["original"].albedo_color.a * 0.3) if mat is BaseMaterial3D else is_equal_approx(mat.get_shader_parameter("building_opacity"), 0.3)), "isolated fade works on all renderers")
 			world._fade_buildings(1.0)
 			_check(f["opacity"] == 1.0, "arrival finishes opaque")
 			for binding in f.get("fade_materials", {}).get("bindings", []):
@@ -44,6 +44,8 @@ func run(main, opts: Dictionary) -> void:
 			var cached_id: int = f["node"].get_instance_id()
 			world.cam.position = base + Vector3(0, 7, -30)
 			world.cam.look_at(base + Vector3(0, 0, -41))
+			world._fade_buildings(0.1)
+			_check(f["node"].visible and is_equal_approx(f["opacity"], 0.7), "departing building fades out before hiding")
 			world._fade_buildings(1.0)
 			world.cam.position = base + world.CAM_OFFSET
 			world.cam.look_at(base + Vector3(0, world.CAM_LOOK_Y, 0))

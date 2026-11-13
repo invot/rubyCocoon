@@ -75,7 +75,7 @@ source with Godot 4.7 (see [Running it](#running-it)); macOS compatibility and p
 The APK is **ARM64 (`arm64-v8a`) only**; 32-bit Android and x86 Android devices are not included. It uses the
 Mobile renderer and landscape touch controls. Android version alone does not establish Vulkan compatibility.
 
-Change **Resolution** and **Graphics** in **Start → Settings**. The game's defaults are 1080p / Mid, so lower-end
+Change **Resolution** and **Graphics** in **Start → Settings**. The game's defaults are 540p / Max, so lower-end
 devices should start with the settings above. Storage estimates cover the installed game and working space,
 not the source checkout, Godot editor or asset-import cache. Browser play has separate requirements under
 [Web version](#web-version-iphone-and-any-browser).
@@ -326,14 +326,14 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   own). It keeps its moves, and a line learns the same moves at every form. Wild and trainers' beasts are whatever form
   their level gives. Battle XP is applied after the fighting ends. Each beast gets a short level-up celebration
   and a longer before-and-after evolution reveal, one beast at a time. The level film shows the beast on the left of
-  the screen and one window on the right, with no top or bottom HUD: its name and element, its level going up, then
+  the screen and one window on the right: its name and element, its level going up, then
   HP, MP, Attack, Defense, Spirit and Speed one line at a time with the actual previous value, new value and gain, and
   any move it learned at that level with the move's icon (`--scene=growth --preview=level --to=N` previews it). Every level-up and evolution fully restores HP and MP.
 - **Element roles**: Fire are offensive tanks, Water are healers, Earth are defenders, and Air handle status and evasion.
 - **Eggs**:
   - Eggs are the only way to get more beasts (apart from adopting one at a kennel): no song charms a wild beast.
   - A defeated wild beast has a **20%** chance to leave an egg at the end of the battle (`GameState.egg_chance`). Some trainer gear adds a little: the Worn Cap +1%, Explorer Hat +3%, Lure Charm +2%, and the Silver, Golden and Jade Flutes +2%, +4% and +6%.
-  - Each egg found plays a short film after the battle, like a level-up's (`beast_cinematic.gd` "egg"): the egg drops into the light on the quiet growth stage and turns, with its name, who left it, and "Hatch it at a Beast Center".
+  - Each egg found plays a short film after the battle, like a level-up's (`beast_cinematic.gd` "egg"): the egg drops into the light on the quiet growth stage and turns, with its name, who left it, in the shared top-centre HUD.
   - Trainers' beasts, robots and guardians never drop eggs.
   - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
   - Eggs name the beast inside (for example **Embit Egg**), with the element beside the starter choices.
@@ -345,6 +345,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
     egg disappears in a whiteout with a hatch sound, then the light fades to reveal the beast. Ground mist, drifting
     dust and depth fog set the mood. Evolutions and level rewards play in the hatching vault, a dark stone chamber
     shaped like the inside of a great cocoon, with curved ribs, a stepped plinth and a horseshoe of lanterns.
+  - Hatchlings show their six stats in a window on the right. Hatch, egg-drop and level-up films wait for a fresh A/B confirmation after the reveal; their notices use the shared top-centre HUD, with no bottom caption or A/B Continue label.
   - **Sell eggs** at the Beast Center: ordinary eggs fetch **100 gold**, Shadow Eggs **200**, and radiant legendary eggs **500**. Select an egg and confirm the offer to sell it.
   - Arena hosts and masters offer to buy eggs only when you carry one matching the master's element, paying **twice the Beast Center price**. Marina, Nerissa and Skye buy Water eggs; Rosa buys Air; Gorran, Volta and Aeris buy Earth; Brann buys Fire. Shadow Eggs count as Ghost, and radiant eggs use their guardian's element. You can sell before completing the arena's lessons or challenging its master.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
@@ -440,6 +441,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - The camera looks over your shoulder: you stand at the bottom right, the foe at the top left. Every slot is an ornate hexagonal pad with a glowing sigil of its element(s); the side facing the foe glows brighter.
   - **Cinematic HUD**: there are no fixed foe/ally grids or shield panels. The trainer or beast choosing an action gets a flat outline round their silhouette (one clean line, never across their features): you in the selected gem; a beast in the colour of the element its ring's facing side fights with, a wild beast in its own element. The camera gently frames them. One compact white bar stands to their left (to the right when the left has no room), framed in that same outline colour, and slides out from behind them; its far end runs behind the model, so the bar's frame meets the outline behind them. Its left edge leans in towards the bottom at the top-centre bar's angle. It shows the level in small black text, a thin divider, then small ◄ the action ►; a beast's HP and MP run full width along the bottom inside the same shape (square, not slanted), each in a white border, with a small margin on the right (the MP the move would spend slowly flashes). Above and below it a ▲ / ▼ in the outline colour shows that up / down lead to another beast or a turn of the ring; where they lead nowhere, a short, thick rounded line takes its place. Only one chooser bar shows at a time: yours first, then each beast's in turn. ◄ ► change the action and **A confirms**; the whole bar is a full-height tap target. What the action does, and warnings, use the shared top-centre bar.
   - Each round you choose your own action first, then each beast's move from the top. Every aimed move has a separate target confirmation, even with one foe; a move that hits everyone shows all its targets. B goes back. One press or tap confirms once. **▲ ▼ move between your beasts; ▲ past the top (or from your trainer after choosing their action) turns the 3D ring anticlockwise, ▼ past the bottom clockwise**, to the next side with a standing beast. You can also tap an available 3D ally to choose their move.
+  - A ring rotation chosen during battle becomes the preferred front for the next battle and is saved with the game. Automatic guard fallbacks and lesson formations do not replace that choice.
   - **The ring turns by itself** at the start of battle to a side with a standing middle beast (the preferred starting side if covered, otherwise the nearest; without a preference, the last facing), and when everyone on the facing side falls. Guided lessons keep their teaching formation and restricted choices. Fainted beasts on either trainer's ring remain lying on their pads; empty pads stay dim. Turning is shown by the actual ring and beasts moving.
   - **Action icons**: a round icon stands before the action's name on the chooser's bar (`scripts/battle/action_icons.gd`). An elemental attack's disc is its element's colour with the element's glyph (flame, drop, peaks, wind, ghost); a plain attack (and your weapons) is grey with claw marks; every action that isn't an attack is navy, with a glyph for what it does (Defend's shield, a heal's cross, chevrons up for a boost and down for a hex, Move's arrows, Items' bottle, the Flute's note, Watch's eye, Summon's star, Run's arrow). `--scene=action-icons --shot=...` shows the whole set.
   - **Weak and resistant targets**: while an attack is aimed, each target's bar shows a mark after its name: a red burst with "!" when it is weak to that attack (double damage), a slate shield when it resists it (an attack of its own element does three quarters). The top-centre bar says "Weak!" or "Resists" after the target's HP. Elemental bombs show the marks too; plain attacks, weapons and ghosts have none.
@@ -1004,7 +1006,7 @@ mounted owl and its rider.
 
   <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts** (user direction, 12 November 2026): Quattrocento Sans: Bold for headings/names, Bold upper case for small text (captions, tags, values, hints and damage numbers), Regular for body text, actions and descriptions; Fuzzy Bubbles for spoken dialogue at 29 UI units, about 10% smaller than the previous 32. Lettering on 3D world objects uses Noto Sans Old North Arabian through a shared English-to-glyph substitution map; retain readable English for interactions and accessibility. UI/dialogue stay English. The intro/title logo retains Lunchtime Doubly So. Preserve `UIKit` sizing, touch targets and readable wrapping; do not shrink text to fit. See `docs/visual_overhaul/standards.md` for the authoritative typography direction.
+- **Fonts** (user direction, 12 November 2026; title updated 13 November): Quattrocento Sans: Bold for headings/names, Bold upper case for small text (captions, tags, values, hints and damage numbers), Regular for body text, actions and descriptions; Fuzzy Bubbles for spoken dialogue at 29 UI units, about 10% smaller than the previous 32. Lettering on 3D world objects uses Noto Sans Old North Arabian through a shared English-to-glyph substitution map; retain readable English for interactions and accessibility. UI/dialogue stay English. The 3D intro/title logo uses Cormorant SC Bold, including the DEMO line. Preserve `UIKit` sizing, touch targets and readable wrapping; do not shrink text to fit. See `docs/visual_overhaul/standards.md` for the authoritative typography direction.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
   direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
@@ -1086,7 +1088,7 @@ mounted owl and its rider.
   Lower resolutions enlarge smoothly (bilinear), with a mild halo-free sharpen on Forward+ and Mobile
   (`resolve_sharpen.gdshader`); Compatibility (desktop OpenGL, the web) keeps plain bilinear. Rendering above the
   display's height is downsampled. Menus, dialogue and touch controls retain full resolution and their normal sizes.
-  World textures keep their painted filtering; nothing is drawn as blocky pixels. The default is **1080p**.
+  World textures keep their painted filtering; nothing is drawn as blocky pixels. The default is **540p**, with Graphics **Max**.
 - **Graphics** independently selects **Min / Mid / Max** at every resolution, applies immediately and persists
   between launches. These are rendering presets using the established materials and lighting: **Min** disables
   dynamic shadows, glow and anti-aliasing; **Mid** keeps authored soft shadows and glow with 2x MSAA;
@@ -1101,6 +1103,8 @@ mounted owl and its rider.
 - **Performance**: outdoors, every batch of trees, grass, flowers and ground blocks is split into 8x8-tile chunks, so only what's near the camera gets drawn (a map-wide batch was drawn in full every frame, then again for every shadow layer). The sun uses two shadow layers out to 30 units; trees deep in a wood, grass tufts and flowers cast no shadow; street lamps only light up in gloomy places like Gravenmoor; the patch of shade under each character is one small shared quad with no lighting or texture; phones are capped at a steady 60 fps.
   Enclosed-room suns also use two shadow splits over 30 units on Mid/Max; Min disables their shadows.
   The indoor coverage is checked at reachable room edges, including the largest generated building interior.
+- **Starting video settings**: fresh or missing video preferences use **540p** and Graphics **Max** on every platform. Existing saved choices are retained.
+- **Web download**: playful phrases above the loading bar rotate while the game downloads; they disappear with the loader and leave engine error messages clear.
 - **Stalls and loading**: a transition shows no loading message. The next map is built behind the black fade,
   yielding between terrain chunks, scenery rows, house plans and NPCs after 50 ms of work (12 ms on the web, which
   mixes its music on the same thread). The 3D view is switched off until the map is finished, and its first draw also
@@ -1754,3 +1758,5 @@ See **CREDITS.md**; the same list is in the game under Start → Settings → Cr
 - The TravelBook UI licence asks for credit and a note of changes.
 - StickyBizcuit's asset pack asks for a hidden easter egg: look for Bizcuit in Cocoon Cove.
 - Several packs (some sample models, the fonts, set1 and the sound effects) came without licence files. Check each source's terms before releasing the game.
+
+The Start book caps its touch width at 1232 UI units on wide screens, centered to leave more room beside the d-pad. Raw touches and their releases in touch-control clusters are consumed before reaching menu rows. Beast Center menus close with B, without a Leave row; beast summaries use A/B without a separate Close button. NPC item gifts post the shared pickup HUD. Cocoon Cove's two upper red-door houses answer knocks without opening. Outdoor buildings fade both ways on all renderers, including Compatibility/web.

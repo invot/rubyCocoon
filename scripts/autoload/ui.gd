@@ -113,12 +113,34 @@ func touch_blocks(p: Vector2) -> bool:
 	return controls != null and controls.covers(p)
 
 
+var _pad_touches := {}
+var _pad_mouse := false
+
+
 func _input(ev: InputEvent) -> void:
-	# A press on or around the touch pad belongs to the pad alone: stop the mouse click Godot emulates from that touch
-	# before it reaches menu rows behind the controls. The pad itself reads InputEventScreenTouch, so it still works.
-	if ev is InputEventMouseButton and ev.pressed and touch_blocks(ev.position):
+	# TouchScreenButtons have already read the raw event. Keep its full gesture
+	# out of GUI controls, including release after a thumb slides off the pad.
+	if ev is InputEventScreenTouch:
+		if ev.pressed and touch_blocks(ev.position):
+			_pad_touches[ev.index] = true
+		if _pad_touches.has(ev.index):
+			if not ev.pressed:
+				_pad_touches.erase(ev.index)
+			get_viewport().set_input_as_handled()
+			return
+	if ev is InputEventScreenDrag and _pad_touches.has(ev.index):
 		get_viewport().set_input_as_handled()
 		return
+	# A press on or around the touch pad belongs to the pad alone: stop the mouse click Godot emulates from that touch
+	# before it reaches menu rows behind the controls. The pad itself reads InputEventScreenTouch, so it still works.
+	if ev is InputEventMouseButton:
+		if ev.pressed:
+			_pad_mouse = touch_blocks(ev.position)
+		if _pad_mouse or touch_blocks(ev.position):
+			if not ev.pressed:
+				_pad_mouse = false
+			get_viewport().set_input_as_handled()
+			return
 	if ev.is_action_pressed("pause") and not ev.is_echo() and allow_pause and not auto:
 		if stack.is_empty() or not (stack.back() is PauseOverlay or stack.back() is FluteGame):
 			push(PauseOverlay.new())

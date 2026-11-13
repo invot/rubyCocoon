@@ -103,6 +103,7 @@ func run(main, opts: Dictionary) -> void:
 	battle.queue_free()
 	if opts.get("verify_ui", "0") == "1":
 		await _verify_ui(main)
+	await _check_reward_confirmation(main)
 	print("BEAST GROWTH DONE: %d problem(s)" % bad)
 
 
@@ -462,8 +463,10 @@ func _verify_ui(main) -> void:
 	await main._press("pause")
 	await main._wait(0.1)
 	check(not main.get_tree().paused and film.elapsed > held, "Pause resumes the hatch timeline")
-	film.elapsed = film.duration - 0.02
-	await film.done
+	film.elapsed = film.duration
+	await main._wait(0.3)
+	check(not film.closed and film._stat_window.visible, "hatch holds its revealed stats until confirmation")
+	await main._press("ui_accept")
 	UI.auto = true
 	await main._wait(0.2)
 	if not UI.stack.is_empty():
@@ -491,7 +494,8 @@ func _verify_ui(main) -> void:
 	film = UI.stack.back()
 	check(film is Film and film.egg.race == 36 and film.egg.ghost, "a scrolled egg row directly hatches the chosen Shadow species")
 	film.elapsed = film.duration
-	await film.done
+	await main._wait(0.1)
+	await main._press("ui_cancel")
 	UI.auto = true
 	await main._wait(0.15)
 	if not UI.stack.is_empty():
@@ -521,6 +525,8 @@ func _verify_ui(main) -> void:
 				seen_films[current.get_instance_id()] = true
 				seen.append(current.kind + ":" + String(current.after.name))
 				current.elapsed = current.duration
+				await main._wait(0.1)
+				await main._press("ui_accept")
 		if finished[0]:
 			break
 	check(finished[0] and seen == ["level:Embit", "evolve:Cinderex", "level:Hootlet"],
@@ -624,3 +630,26 @@ func _print_perf(main) -> void:
 	samples.sort()
 	print("HATCHERY PERF: median %.2f ms, p95 %.2f ms, %d draws, %d primitives" % [samples[60], samples[114],
 		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
+
+
+func _check_reward_confirmation(main) -> void:
+	var b := Beasts.create(24, 1)
+	var look := b.growth_look()
+	for kind in ["hatch", "egg", "level"]:
+		var film := Film.new().setup(kind, look, look, {"race": 24, "kind": "water"})
+		UI.push(film)
+		var press := InputEventAction.new()
+		press.action = "ui_accept"
+		press.pressed = true
+		film.on_input(press)
+		check(not film.closed, kind + " ignores confirmation before the reveal finishes")
+		film.elapsed = film.duration
+		film._process(0.0)
+		await main._wait(0.2)
+		check(not film.closed, kind + " holds for the player after its timeline")
+		check(not film._notice.current_text().is_empty() and not film._notice.current_text().contains("Continue"), kind + " keeps only the reveal notice in the top HUD")
+		if kind == "hatch":
+			check(film._stat_window.visible and film._stat_rows.size() == 6, "hatch reveals six stats in the right window")
+		film.on_input(press)
+		check(film.closed, kind + " closes on a fresh confirmation")
+		await main.get_tree().process_frame

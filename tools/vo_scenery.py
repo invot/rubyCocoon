@@ -118,7 +118,7 @@ def desktop(args):
     log_path = folder / "godot.log"
     command = [args.godot, "--path", str(ROOT), "--rendering-method", args.renderer,
                "--resolution", "2400x1080" if args.touch else "1920x1080", "--log-file", log_path.as_posix(), "--",
-               "--scene=" + ("vo-mesh-merger" if args.part == "merger" else "vo-scenery"), f"--part={args.part}", "--graphics_quality=mid", "--render_height=1080",
+               "--scene=" + ("vo-mesh-merger" if args.part == "merger" else "vo-scenery"), f"--part={args.part}", "--await_focus=1", "--graphics_quality=mid", "--render_height=1080",
                f"--report={report.as_posix()}", f"--shots=res://build/shots/vo/006/{args.attempt}", "--shot_w=0",
                f"--save_dir={state}/saves/", f"--prefs_path={state}/settings.cfg"]
     if args.touch:

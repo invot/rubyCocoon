@@ -130,12 +130,6 @@ func _ready() -> void:
 	var extra: int = b.known.size() - b.moves.size()
 	if extra > 0:
 		right.add_child(UIKit.label("(+%d more moves remembered)" % extra, 15, UIKit.DIM))
-	var done := Button.new()
-	done.text = "A / B: Close"
-	done.custom_minimum_size.y = UIKit.row_h()
-	UIKit.plate_button(done)
-	done.pressed.connect(func(): close())
-	root.add_child(done)
 	get_viewport().size_changed.connect(_layout)
 	UI.controls.layout_changed.connect(_layout)
 	_layout()

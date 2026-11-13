@@ -117,14 +117,14 @@ func _persistence() -> void:
 	config.set_value("audio", "music", 0.4)
 	config.save(Prefs.prefs_path())
 	Prefs.load_prefs()
-	_check(Prefs.render_height == 1080 and Prefs.graphics_quality == "mid" and is_equal_approx(Prefs.music_volume, 0.4),
+	_check(Prefs.render_height == 540 and Prefs.graphics_quality == "max" and is_equal_approx(Prefs.music_volume, 0.4),
 		"old settings get sensible video defaults and retain audio preferences")
 	config.set_value("video", "render_height", -1)
 	config.set_value("video", "graphics_quality", "unknown")
 	config.save(Prefs.prefs_path())
 	Prefs.load_prefs()
 	Prefs.apply()
-	_check(Prefs.render_height == 1080 and Prefs.graphics_quality == "mid", "invalid video settings recover safely")
+	_check(Prefs.render_height == 540 and Prefs.graphics_quality == "max", "invalid video settings recover safely")
 
 
 func _new_scene() -> void:
@@ -186,6 +186,33 @@ func _inputs() -> void:
 	Prefs.apply()
 	_open()
 	await main._wait(0.3)
+	if UI.is_touch():
+		_check(book.book.size.x <= 1232.0, "wide touch book keeps a bounded width")
+		# A probe behind the pad counts only GUI clicks. D-pad actions may still
+		# legitimately change the selected setting through keyboard-style input.
+		var clicks := [0]
+		var probe := Button.new()
+		probe.focus_mode = Control.FOCUS_NONE
+		probe.text = "Touch leak probe"
+		probe.size = Vector2(220, 100)
+		book.add_child(probe)
+		var pad: Vector2 = UI.controls.button_rect("right").get_center()
+		probe.position = pad - probe.size / 2.0
+		probe.pressed.connect(func(): clicks[0] += 1)
+		for down in [true, false]:
+			var ev := InputEventScreenTouch.new()
+			ev.index = 7
+			ev.position = pad * Vector2(main.get_window().size) / main.get_viewport().get_visible_rect().size
+			ev.pressed = down
+			Input.parse_input_event(ev)
+			await main.get_tree().process_frame
+		_check(clicks[0] == 0, "raw d-pad touch never clicks the button behind it")
+		probe.queue_free()
+		Prefs.render_height = 540
+		Prefs.graphics_quality = "min"
+		Prefs.apply()
+		book._open_tab(book.tab)
+		await main._wait(0.2)
 	var position: Vector2i = main.world.player_pos
 	await main._tap_at(book.row_buttons[0].get_global_rect().get_center())
 	_check(Prefs.render_height == 720 and UI.stack.size() == 1, "one resolution tap advances once (got %dp)" % Prefs.render_height)

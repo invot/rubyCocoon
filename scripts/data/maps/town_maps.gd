@@ -50,8 +50,8 @@ const MAPS := {
 		},
 		"outskirt_houses": [],
 		"scenery_houses": [
-			{"name": "UpperNeighborWest", "x": 24, "y": 3, "w": 5, "d": 3, "cove_model": "house_2", "cove_stucco": "lavender", "cove_door_dx": -1.0},
-			{"name": "UpperNeighborEast", "x": 36, "y": 3, "w": 5, "d": 3, "cove_model": "hut_1"},
+			{"name": "UpperNeighborWest", "knockable": true, "x": 24, "y": 3, "w": 5, "d": 3, "cove_model": "house_2", "cove_stucco": "lavender", "cove_door_dx": -1.0},
+			{"name": "UpperNeighborEast", "knockable": true, "x": 36, "y": 3, "w": 5, "d": 3, "cove_model": "hut_1"},
 		],
 		# Thickets of shrubs fill the strips behind the town's buildings where the camera can't see anyone standing,
 		# so nothing there looks like open lawn.

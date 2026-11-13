@@ -447,6 +447,7 @@ func _dance_lesson(world, n: Dictionary) -> void:
 	GameState.set_flag("dance_lesson_done")
 	if not BuildEdition.is_demo() and not GameState.flag("dance_shoes_returned"):
 		GameState.receive_item("dance_shoes")
+		UI.pickup("dance_shoes")
 	GameState.heal_party()
 	var ending := _dance_road_lines() if BuildEdition.is_demo() else ["Keep that beat with you on the road!" if GameState.flag("dance_shoes_returned") else "Here are Jasper's dance shoes. Give them back to him by the north road, and he'll let you through."]
 	await say(["You've passed! From now on, your weapons can chain hits to the battle music."] + ending, n["name"])
@@ -1450,7 +1451,8 @@ func _sheriff() -> void:
 			GameState.set_flag("sheriff_thanks")
 			GameState.gold += 2500
 			GameState.receive_item("revival_seed", 2)
-			Sfx.play("buy")
+			UI.pickup("revival_seed", 2, "buy")
+			UI.gold(2500)
 			await say(["You drove the Jackals out of the desert? The whole watch owes you.",
 				"Here's the bounty: 2500 gold and a couple of Revival Seeds. Sunwall's gates are always open to you.",
 				"The road north through the Dune Sea is open again. They say an old temple to the winds stands out there."], "Captain Dalton")

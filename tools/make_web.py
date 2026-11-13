@@ -162,10 +162,11 @@ def main():
     if args.demo:
         html = html.replace('<title>Ruby Cocoon</title>', '<title>Ruby Cocoon Demo</title>')
     shutil.copy(os.path.join(ROOT, 'tools', 'web_fullscreen.js'), OUT)
-    for font in ('LeagueSpartan.ttf',):
+    shutil.copy(os.path.join(ROOT, 'tools', 'web_loading.js'), OUT)
+    for font in ('LeagueSpartan.ttf', 'QuattrocentoSans-Regular.ttf'):
         shutil.copy(os.path.join(ROOT, 'ui', font), OUT)
     html = html.replace('<script src="index.js"></script>', SHIM % json.dumps(packed) +
-                        '<script src="web_fullscreen.js"></script>\n\t\t<script src="index.js"></script>', 1)
+                        '<script src="web_loading.js"></script>\n\t\t<script src="web_fullscreen.js"></script>\n\t\t<script src="index.js"></script>', 1)
     assert 'realFetch' in html, 'could not add the loader script to index.html'
     open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(html)
     music()

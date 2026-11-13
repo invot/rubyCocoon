@@ -31,6 +31,9 @@ func run(main, opts: Dictionary) -> void:
 	if not _isolated(save_path) or not _isolated(prefs_path):
 		_fail("vo-perf requires isolated --save_dir and --prefs_path under res://build/ or user://bench/vo/")
 		return
+	if opts.get("await_focus", "0") == "1" and not await wait_for_desktop_focus(main):
+		_fail("benchmark could not acquire stable desktop focus before starting")
+		return
 	var resolution_sweep := PackedInt32Array()
 	if opts.has("resolution_sweep"):
 		for height in String(opts.resolution_sweep).split(","):
@@ -135,6 +138,24 @@ func run(main, opts: Dictionary) -> void:
 
 func _isolated(path: String) -> bool:
 	return (path.begins_with("res://build/") or path.begins_with("user://bench/vo/")) and not ".." in path
+
+
+static func wait_for_desktop_focus(main) -> bool:
+	if DisplayServer.get_name() == "headless" or OS.has_feature("mobile") or OS.has_feature("web"):
+		return true
+	print("VO PERF awaiting stable desktop focus before measuring")
+	var deadline := Time.get_ticks_msec() + 60000
+	var held_since := -1
+	while Time.get_ticks_msec() < deadline:
+		if main.get_window().has_focus():
+			if held_since < 0:
+				held_since = Time.get_ticks_msec()
+			elif Time.get_ticks_msec() - held_since >= 500:
+				return true
+		else:
+			held_since = -1
+		await main.get_tree().create_timer(0.05).timeout
+	return false
 
 
 func _focus_lost() -> void:

@@ -17,8 +17,8 @@ var _hardware_keyboard := false
 var show_key_legend := true
 var fullscreen := false
 ## Internal 3D height; width follows the window's aspect. The UI keeps its full resolution.
-var render_height := 1080
-var graphics_quality := "mid"
+var render_height := 540
+var graphics_quality := "max"
 var _browser_mobile: Variant = null
 ## the gem the menus are tinted with: one of UIKit.ACCENTS ("ruby", "sapphire", "emerald", "hematite")
 var accent := "ruby"
@@ -57,8 +57,8 @@ func load_prefs() -> void:
 		input_mode = ""
 	show_key_legend = bool(c.get_value("controls", "key_legend", show_key_legend))
 	fullscreen = bool(c.get_value("video", "fullscreen", fullscreen))
-	render_height = int(c.get_value("video", "render_height", 1080))
-	graphics_quality = String(c.get_value("video", "graphics_quality", "mid"))
+	render_height = int(c.get_value("video", "render_height", 540))
+	graphics_quality = String(c.get_value("video", "graphics_quality", "max"))
 	_validate_video()
 	accent = String(c.get_value("ui", "accent", accent))
 	# (an old "style" value, Pixel or Classic, is ignored: there is one look now)
@@ -95,9 +95,9 @@ func apply() -> void:
 
 func _validate_video() -> void:
 	if not render_height in RESOLUTIONS:
-		render_height = 1080
+		render_height = 540
 	if not graphics_quality in QUALITY_ORDER:
-		graphics_quality = "mid"
+		graphics_quality = "max"
 
 
 func render_size(window_size: Vector2i) -> Vector2i:

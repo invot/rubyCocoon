@@ -1,7 +1,7 @@
 extends "res://scripts/ui/modal.gd"
 ## One modal, isolated 3D stage for every hatch, evolution and level reward, and for an egg left behind after a battle
 ## ("egg": the shell drops into the light, turning, with its name; before.name is the beast that left it).
-## Timed rather than confirm-driven: a held battle button cannot skip a reveal or select the next screen.
+## Reveals finish before a fresh A/B press can dismiss a hatch, egg drop or level reward.
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
@@ -37,8 +37,6 @@ var _lamp: OmniLight3D
 var _set: Node3D
 var _glow: StandardMaterial3D
 var _white: ColorRect
-var _heading: Label
-var _detail: Label
 var _sound_played := false
 var _ring_sound := false
 var _motes: Array[MeshInstance3D] = []
@@ -48,8 +46,8 @@ const STAT_LABELS := ["HP", "MP", "Attack", "Defense", "Spirit", "Speed"]
 var _stat_rows: Array = []
 var _move_rows: Array[Control] = []
 var _stat_window: PanelContainer
-var _title: PanelContainer
-var _detail_window: PanelContainer
+var _notice: Control
+var _notice_text := ""
 
 
 func _init() -> void:
@@ -133,33 +131,9 @@ func _ready() -> void:
 		var mote := _mesh(_stage, sphere, Vector3.ZERO, spark)
 		mote.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_motes.append(mote)
-	# Existing window styling and typography, kept central and clear of side controls. A level-up has neither: its one
-	# window on the right holds everything (_level_window).
-	var title := PanelContainer.new()
-	_title = title
-	title.add_theme_stylebox_override("panel", UIKit.box("slot", Vector4(22, 12, 22, 12)))
-	add_child(title)
-	title.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	title.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	title.offset_top = 28
-	title.offset_bottom = 104
-	_heading = UIKit.header("", UIKit.INK)
-	_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_child(_heading)
-	_detail = UIKit.label("", 32, UIKit.LIGHT)
-	_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var detail_window := UIKit.panel()
-	_detail_window = detail_window
-	detail_window.add_child(_detail)
-	add_child(detail_window)
-	detail_window.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	detail_window.offset_left = 304
-	detail_window.offset_right = -304
-	detail_window.offset_top = -148
-	detail_window.offset_bottom = -96
-	if kind == "level":
-		title.visible = false
-		detail_window.visible = false
+	_notice = preload("res://scripts/ui/top_bar.gd").new()
+	add_child(_notice)
+	if kind in ["level", "hatch"]:
 		_level_window()
 		_place_stats.call_deferred()
 		get_viewport().size_changed.connect(_place_stats)
@@ -197,18 +171,19 @@ func _level_window() -> void:
 	var lv := HBoxContainer.new()
 	lv.add_theme_constant_override("separation", 12)
 	col.add_child(lv)
-	var cap := UIKit.label("Level up", 18, UIKit.DIM)
+	var cap := UIKit.label("Hatched" if kind == "hatch" else "Level up", 18, UIKit.DIM)
 	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lv.add_child(cap)
 	var old_lv := int(before.get("level", int(after.get("level", 1)) - 1))
-	lv.add_child(UIKit.label("Lv %d" % old_lv, 32, UIKit.DIM))
-	lv.add_child(UIKit.label("►", 32, UIKit.DIM))
+	if kind != "hatch":
+		lv.add_child(UIKit.label("Lv %d" % old_lv, 32, UIKit.DIM))
+		lv.add_child(UIKit.label("►", 32, UIKit.DIM))
 	lv.add_child(UIKit.header("Lv %d" % int(after.get("level", old_lv + 1)), UIKit.HEAD, UIKit.HEAD_BIG))
 	col.add_child(UIKit.divider(0.0, "none"))
 	# the stats: name, old value, new value, gain
 	var grid := GridContainer.new()
-	grid.columns = 5
+	grid.columns = 2 if kind == "hatch" else 5
 	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 2)
 	col.add_child(grid)
@@ -219,10 +194,15 @@ func _level_window() -> void:
 		var cells: Array = [UIKit.label(STAT_LABELS[i], 32, UIKit.INK), UIKit.label(str(old), 32, UIKit.DIM),
 			UIKit.label("►", 32, UIKit.DIM), UIKit.label(str(current), 32, UIKit.INK),
 			UIKit.label(("+%d" % (current - old)) if current > old else "", 32, UIKit.GOLD)]
+		if kind == "hatch":
+			for c in [cells[1], cells[2], cells[4]]:
+				c.free()
+			cells = [cells[0], cells[3]]
 		(cells[0] as Label).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for c in cells.slice(1):
 			(c as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		(cells[4] as Label).custom_minimum_size.x = 64
+		if kind != "hatch":
+			(cells[4] as Label).custom_minimum_size.x = 64
 		for c in cells:
 			grid.add_child(c)
 		_stat_rows.append(cells)
@@ -258,6 +238,10 @@ func _place_stats() -> void:
 	if _stat_window == null:
 		return
 	var safe := UIKit.safe_rect(self).grow(-24)
+	if _notice != null and _notice.visible:
+		var top := maxf(safe.position.y, _notice.bottom() + 12.0)
+		safe.size.y -= top - safe.position.y
+		safe.position.y = top
 	_stat_window.reset_size()
 	var x := safe.end.x - 24.0 - _stat_window.size.x
 	var reserve: float = UI.controls.menu_bottom_reserve(x, safe.end.x) if UI.controls != null else 0.0
@@ -349,7 +333,7 @@ func _process(delta: float) -> void:
 		return
 	elapsed += delta
 	_update(elapsed)
-	if elapsed >= duration:
+	if elapsed >= duration and kind == "evolve":
 		close()
 
 
@@ -387,11 +371,17 @@ func _update(t: float) -> void:
 		heading = "%s · Level %d" % [after.name, after.level]
 	else:
 		heading = "%s evolved!" % after.name if revealed else "%s is evolving..." % before.name
-	_heading.text = heading
+	var notice := heading
 	if found:
-		_detail.text = "%s left an egg behind!" % String(before.get("name", "It")) if t < 2.2 else "Hatch it at a Beast Center"
-	else:
-		_detail.text = ("HP %d  /  MP %d · Fully restored" % [after.hp, after.mp]) if revealed and not hatch else ("A new friend awakens" if revealed else ("" if level else "The shell stirs..." if t > 4.0 and hatch else ""))
+		notice = "%s left %s!" % [String(before.get("name", "A beast")), EggLooks.name_for(egg)]
+	if notice != _notice_text:
+		_notice_text = notice
+		_notice.post(notice, null, {"key": "reveal", "replace": true, "priority": true, "hold": 86400.0})
+		_place_stats.call_deferred()
+	if _stat_window != null:
+		if _stat_window.visible != revealed:
+			_stat_window.visible = revealed
+			_place_stats.call_deferred()
 	for i in _stat_rows.size():
 		for c in _stat_rows[i]:
 			(c as Control).modulate.a = 1.0 if t >= 0.65 + i * 0.4 else 0.0
@@ -402,7 +392,7 @@ func _update(t: float) -> void:
 	# A hatch frames the egg and the core above it, then moves in on the beast while the screen is fully white.
 	var near := smoothstep(5.5, 5.75, t) if hatch else 1.0
 	# (a level-up looks to the right of the beast, leaving the right of the screen to its window)
-	var shift := LEVEL_SHIFT if kind == "level" else 0.0
+	var shift := LEVEL_SHIFT * near if kind in ["level", "hatch"] else 0.0
 	_cam.position = Vector3(1.5 - zoom * 0.9 + shift, 2.5 - zoom * 0.25 - near * 0.3, 11.3 - zoom * 1.5 - near * 2.3)
 	_cam.look_at(Vector3(shift, lerpf(2.75, 2.15, near), 0))
 	if level:
@@ -420,3 +410,10 @@ func _update(t: float) -> void:
 		var rise := fposmod(float(i) * 0.23 + t * (0.85 if level else 0.40), 2.8)
 		_motes[i].position = Vector3(cos(a) * 1.1, 1.1 + rise, sin(a) * 1.1)
 		_motes[i].visible = level or t > glow_start
+
+
+func on_input(ev: InputEvent) -> void:
+	if preview_time >= 0 or elapsed < duration or ev.is_echo():
+		return
+	if ev.is_action_pressed("ui_accept") or ev.is_action_pressed("interact") or ev.is_action_pressed("ui_cancel"):
+		close()

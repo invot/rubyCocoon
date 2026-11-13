@@ -61,6 +61,21 @@ func run(main, opts: Dictionary) -> void:
 		await Places.prop(MapGen.LOCKED,room,main.world,tile)
 		_check(UI.auto_log.any(func(line): return "Locked." in String(line)) and not UI.auto_log.any(func(line): return "Muffled Voice" in String(line)), "the home kitchen gives a locked-door observation without an invented speaker")
 		break
+	await main._go("caccoon", "start")
+	for f in main.world.building_fades:
+		var b: Dictionary = f["b"]
+		if not b.get("knockable", false):
+			continue
+		_check(main.world.doors.has(b["door"]) and Places.door_locked(b), "Cove scenery door registers as a locked interaction")
+		main.world.spawn_at(b["door"] + Vector2i.DOWN)
+		main.world.facing = Vector2i.UP
+		await main._wait(0.1)
+		var pixel: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(b["door"]) + Vector3(0, 0.9, 0))
+		_check(main.world._pick(pixel).get("tile", Vector2i(-1, -1)) == b["door"], "visible scenery door wins over hidden building bounds")
+		UI.auto_log.clear()
+		main.world._enter_building(b)
+		await main._wait(1.0)
+		_check(UI.auto_log.any(func(line): return "Muffled Voice" in String(line)), "Cove scenery neighbor answers a knock")
 	print("DOOR VOICES DONE: %d problem(s)" % bad)
 	if opts.has("verify"):
 		await _input_preview(main,opts)
@@ -68,14 +83,26 @@ func run(main, opts: Dictionary) -> void:
 
 func _input_preview(main, opts: Dictionary) -> void:
 	await main._go("caccoon", "start")
-	var b: Dictionary = main.world.map["buildings"][4]
+	var b: Dictionary = main.world.doors[Vector2i(25, 5)] if opts.get("preview", "") == "scenery" else main.world.map["buildings"][4]
 	main.world.spawn_at(b["door"]+Vector2i.DOWN)
+	if opts.get("preview", "") == "scenery":
+		_check(main.world.player_pos == b["door"] + Vector2i.DOWN, "scenery door approach is walkable")
 	main.world.facing = Vector2i.UP
 	UI.auto = false
 	await main._wait(0.4)
 	if UI.is_touch():
 		var pixel: Vector2 = main.world.cam.unproject_position(main.world.tile_pos(b["door"])+Vector3(0,0.9,0))
-		await main._tap_at(pixel*main.get_viewport().get_visible_rect().size/Vector2(main.view.size))
+		if opts.get("preview", "") == "scenery":
+			_check(main.world._pick(pixel).get("tile", Vector2i(-1, -1)) == b["door"], "tap ray picks the scenery house's door")
+			for down in [true, false]:
+				var ev := InputEventScreenTouch.new()
+				ev.index = 8
+				ev.pressed = down
+				ev.position = pixel * Vector2(main.get_window().size) / Vector2(main.view.size)
+				Input.parse_input_event(ev)
+				await main.get_tree().process_frame
+		else:
+			await main._tap_at(pixel*main.get_viewport().get_visible_rect().size/Vector2(main.view.size))
 	else:
 		await main._press("interact")
 	await main._wait(1.2)

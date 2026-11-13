@@ -4,6 +4,11 @@ const Beasts = preload("res://scripts/core/beasts.gd")
 var report := {}
 
 func run(main, opts: Dictionary) -> void:
+	if opts.get("await_focus", "0") == "1":
+		main.get_window().title = "Ruby Cocoon - 006 field " + String(opts.get("report", "")).get_base_dir().get_file()
+	if opts.get("await_focus", "0") == "1" and not await load("res://tools/debug/vo_perf.gd").wait_for_desktop_focus(main):
+		push_error("field benchmark could not acquire stable desktop focus")
+		return
 	UI.auto = true
 	for flag in ["intro_done", "tutorial_done", "ritual_done", "opening_seen"]:
 		GameState.set_flag(flag)
@@ -30,6 +35,7 @@ func run(main, opts: Dictionary) -> void:
 		var gpu := []
 		var render_cpu := []
 		var sections := {}
+		var focused_frames := 0
 		var last := Time.get_ticks_usec()
 		for i in 240:
 			# Same directed path on both runs, including newly visible buildings and their arrival fades.
@@ -44,6 +50,8 @@ func run(main, opts: Dictionary) -> void:
 			last = now
 			gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(vp))
 			render_cpu.append(RenderingServer.viewport_get_measured_render_time_cpu(vp))
+			if main.get_window().has_focus():
+				focused_frames += 1
 		for method in ["_fade_buildings", "_update_hole", "_animate_npcs", "_update_wilds"]:
 			var samples := []
 			for i in 60:
@@ -57,6 +65,7 @@ func run(main, opts: Dictionary) -> void:
 			sections[method] = _stats(samples)
 		RenderingServer.viewport_set_measure_render_time(vp, false)
 		report[town] = {"frames": _stats(frames), "tick_cpu": _stats(ticks), "gpu": _stats(gpu), "render_cpu": _stats(render_cpu), "sections": sections,
+			"focused_frames": focused_frames, "sampled_frames": frames.size(),
 			"draw_calls": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)}
 		print("[field performance] ", town, " ", JSON.stringify(report[town]))
 	if opts.has("report"):

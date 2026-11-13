@@ -255,6 +255,8 @@ func _restore_scenery() -> bool:
 	_scenery_root.process_mode = Node.PROCESS_MODE_INHERIT
 	for f in building_fades:
 		f.erase("base_visible")
+		if f["b"].get("knockable", false):
+			doors[f["b"]["door"]] = f["b"]
 	for b in map["buildings"]:
 		if b["shop"] != "decor":
 			doors[b["door"]] = b
@@ -335,6 +337,19 @@ var cost_warmup_stats := {}
 func _warm_shaders() -> void:
 	if RenderingServer.get_current_rendering_method() != "gl_compatibility" or cam == null:
 		return
+	# Compile the isolated fade copies behind the arrival screen as well as the
+	# opaque materials. First approaching a house must not compile them mid-step.
+	var fade_bindings := {}
+	for f in building_fades:
+		if not is_instance_valid(f["node"]):
+			continue
+		_set_building_opacity(f, 0.5)
+		_set_building_opacity(f, 1.0)
+		for binding in f["fade_materials"]["bindings"]:
+			var mesh: MeshInstance3D = binding["mesh"]
+			if not fade_bindings.has(mesh):
+				fade_bindings[mesh] = []
+			fade_bindings[mesh].append(binding)
 	var seen := {}
 	var mesh_keys := {}
 	var candidates := 0
@@ -385,6 +400,12 @@ func _warm_shaders() -> void:
 		if gi is MeshInstance3D:
 			for i in gi.get_surface_override_material_count():
 				speck.set_surface_override_material(i, gi.get_surface_override_material(i))
+		if fade_bindings.has(gi):
+			var fading_speck := speck.duplicate() as MeshInstance3D
+			fading_speck.material_override = null
+			for binding in fade_bindings[gi]:
+				fading_speck.set_surface_override_material(binding["surface"], binding["faded"])
+			specks.add_child(fading_speck)
 		if seen.size() >= WARM_LIMIT:
 			break
 	cost_warmup_stats = {"shared": cost_warmup_shared, "candidates_scanned": candidates,
@@ -1884,6 +1905,9 @@ func _plan_houses() -> void:
 			footprint = plan["rect"]
 		var origin := Vector2(float(b["x"]) + float(b["w"]) / 2.0, float(b["y"]) + float(b["d"]) / 2.0)
 		b["shop"] = "decor"
+		if b.get("knockable", false):
+			b["door"].x = roundi(origin.x + float(b.get("cove_door_dx", 0.0)) - 0.5)
+			doors[b["door"]] = b
 		building_fades.append({"b": b, "scenery": true, "plan": plan, "node": null, "meshes": [], "opacity": 0.0})
 		for y in range(floori(origin.y + footprint.position.y) - 1, ceili(origin.y + footprint.end.y) + 1):
 			for x in range(floori(origin.x + footprint.position.x) - 1, ceili(origin.x + footprint.end.x) + 1):
@@ -3180,10 +3204,14 @@ func _fade_buildings(delta: float, load_limit := 1) -> void:
 		if not f["base_visible"]:
 			if is_instance_valid(f["node"]):
 				var node: Node3D = f["node"]
-				node.hide()
-				node.process_mode = Node.PROCESS_MODE_DISABLED
-				f["opacity"] = 0.0
-				hidden.append(f)
+				var opacity := move_toward(float(f["opacity"]), 0.0, delta * 3.0)
+				if opacity != f["opacity"]:
+					f["opacity"] = opacity
+					_set_building_opacity(f, opacity)
+				if opacity == 0.0:
+					node.hide()
+					node.process_mode = Node.PROCESS_MODE_DISABLED
+					hidden.append(f)
 			continue
 		if not is_instance_valid(f["node"]):
 			# Spread newly visible construction over frames, including wide phone views.
@@ -3219,16 +3247,8 @@ func visible_buildings_ready() -> bool:
 	return true
 
 
-static var NO_ARRIVAL_FADE: bool = RenderingServer.get_current_rendering_method() == "gl_compatibility"
-
-
-## Instance transparency is ignored on Mobile and Compatibility. Use isolated materials during arrival;
-## never alter the shared house/texture cache. Restore the original opaque pipeline when the fade finishes.
+## Isolated material copies fade on every renderer, including the web.
 func _set_building_opacity(f: Dictionary, opacity: float) -> void:
-	# On Compatibility (the web) every see-through copy compiles a shader of its own the first time it is drawn, a
-	# freeze of up to half a second as a building comes into view: there, buildings appear without the fade.
-	if NO_ARRIVAL_FADE:
-		return
 	if not f.has("fade_materials"):
 		var copies := {}
 		var bindings := []
@@ -3237,11 +3257,12 @@ func _set_building_opacity(f: Dictionary, opacity: float) -> void:
 				continue
 			for surface in gi.mesh.get_surface_count():
 				var original: Material = gi.get_active_material(surface)
-				if not original is BaseMaterial3D:
+				if not original is BaseMaterial3D and not (original is ShaderMaterial and original.shader.resource_path in ["res://scripts/gfx/cove_stucco.gdshader", "res://scripts/gfx/cove_roof.gdshader"]):
 					continue
 				if not copies.has(original):
-					var faded := original.duplicate() as BaseMaterial3D
-					faded.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					var faded := original.duplicate() as Material
+					if faded is BaseMaterial3D:
+						faded.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 					copies[original] = faded
 				bindings.append({"mesh": gi, "surface": surface, "original": original,
 					"override": gi.get_surface_override_material(surface), "faded": copies[original]})
@@ -3253,11 +3274,14 @@ func _set_building_opacity(f: Dictionary, opacity: float) -> void:
 				overrides[mesh] = mesh.material_override
 		f["fade_materials"] = {"copies": copies, "bindings": bindings, "overrides": overrides}
 	var cache: Dictionary = f["fade_materials"]
-	for original: BaseMaterial3D in cache["copies"]:
-		var faded: BaseMaterial3D = cache["copies"][original]
-		var colour := original.albedo_color
-		colour.a *= opacity
-		faded.albedo_color = colour
+	for original: Material in cache["copies"]:
+		var faded: Material = cache["copies"][original]
+		if faded is BaseMaterial3D:
+			var colour: Color = original.albedo_color
+			colour.a *= opacity
+			faded.albedo_color = colour
+		else:
+			faded.set_shader_parameter("building_opacity", opacity)
 	var fading := opacity < 1.0
 	if cache.get("fading", false) == fading:
 		return
@@ -4352,8 +4376,10 @@ func _pick(screen: Vector2) -> Dictionary:
 		boxes.append([AABB(Vector3(p.x + 0.2, _lift(p), p.y + 0.2), Vector3(0.6, 0.7, 0.6)), p, "item"])
 	for p in shards:
 		boxes.append([AABB(Vector3(p.x + 0.2, _lift(p), p.y + 0.2), Vector3(0.6, 0.9, 0.6)), p, "item"])
-	for b in map["buildings"]:
-		if b["shop"] == "decor":
+	for f in building_fades:
+		var b: Dictionary = f["b"]
+		# Hidden buildings must not steal a tap through an invisible roof's bounds.
+		if not doors.has(b["door"]) or not f.get("base_visible", false):
 			continue
 		boxes.append([AABB(Vector3(float(b["x"]), _lift(b["door"]), float(b["y"])), Vector3(float(b["w"]), float(b.get("height", 2.4)) + 1.2, float(b["d"]))), b["door"], "door"])
 	for bx in boxes:

@@ -38,7 +38,11 @@ float sweeps(vec2 p) {
 	return broad * 0.7 + fine * 0.3;
 }
 
+uniform float building_opacity = 1.0;
+
 void fragment() {
+	// Screen-door coverage keeps the opaque pipeline and hides interior surfaces.
+	if (fract(dot(floor(FRAGCOORD.xy), vec2(0.754877666, 0.569840296))) >= building_opacity) discard;
 	vec3 n = abs(wnorm);
 	n /= max(n.x + n.y + n.z, 0.001);
 	float s = sweeps(vec2(wpos.z, wpos.y)) * n.x + sweeps(vec2(wpos.x, wpos.y)) * n.z + vnoise(wpos.xz * 2.0) * n.y;

@@ -91,17 +91,25 @@ func run(host, options: Dictionary) -> void:
 	film.preview_time = 0.7
 	UI.push(film)
 	await main._wait(0.1)
-	_check(film._stat_rows[0].modulate.a == 1 and film._stat_rows[1].modulate.a == 0, "level cinematic starts with one stat line")
+	_check(film._stat_rows[0][0].modulate.a == 1 and film._stat_rows[1][0].modulate.a == 0, "level cinematic starts with one stat line")
 	await _shot("level-first-stat")
 	film.preview_time = 3.0
 	await main._wait(0.1)
-	_check(film._stat_rows.all(func(row): return row.modulate.a == 1), "level cinematic reveals all six stat changes")
+	_check(film._stat_rows.all(func(row): return row.all(func(cell): return cell.modulate.a == 1)), "level cinematic reveals all six stat changes")
 	await _shot("level-all-stats")
 	film.close()
 	UI.place_name("Cocoon Cove")
 	UI.pickup("old_sneakers")
 	_check(UI.top_bar.current_text() == "Old Sneakers", "pickup replaces arrival notice immediately")
 	await _shot("pickup")
+	UI.auto = true
+	UI.auto_log.clear()
+	for seed_value in 20:
+		await Places.house({"town": "bugfix_fixture", "seed": seed_value})
+		if UI.auto_log.any(func(line): return String(line).begins_with("[pickup]")):
+			break
+	_check(UI.auto_log.any(func(line): return String(line).begins_with("[pickup]")), "resident item gifts confirm in the pickup HUD")
+	await _shot("resident-gift")
 	UI.auto = false
 	print("POLISH DONE: %d problem(s)" % bad)
 

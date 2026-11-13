@@ -184,8 +184,8 @@ func _layout() -> void:
 	var avail := vp.y - (UI.bottom_reserve() if is_instance_valid(UI) else 0.0)
 	var side := 24.0
 	var top := 14.0
-	var w := vp.x - side * 2.0
-	book.position = Vector2(side, top)
+	var w := minf(vp.x - side * 2.0, 1232.0) if UI.is_touch() else vp.x - side * 2.0
+	book.position = Vector2((vp.x - w) / 2.0, top)
 	book.size = Vector2(w, avail - top - 10.0)
 	tab_strip.position = Vector2.ZERO
 	tab_strip.size = Vector2(w, TAB_H)

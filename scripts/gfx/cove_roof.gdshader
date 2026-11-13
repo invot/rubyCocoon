@@ -36,7 +36,11 @@ float vnoise(vec2 p) {
 	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+uniform float building_opacity = 1.0;
+
 void fragment() {
+	// Screen-door coverage keeps the opaque pipeline and hides interior surfaces.
+	if (fract(dot(floor(FRAGCOORD.xy), vec2(0.754877666, 0.569840296))) >= building_opacity) discard;
 	vec3 base = use_atlas ? texture(atlas, UV).rgb : clay.rgb;
 	// the kit's roof reds; anything else on this surface keeps its own colour
 	float red = use_atlas ? clamp((base.r - max(base.g, base.b) * 1.6) * 6.0, 0.0, 1.0) : 1.0;

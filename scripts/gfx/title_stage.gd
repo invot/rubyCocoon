@@ -7,7 +7,7 @@ signal arrived
 
 const ASCENT_TIME := 4.2
 const SUMMON := "res://assets/summons/fire.res"
-const FONT := preload("res://ui/lunchds.ttf")
+const FONT := preload("res://ui/CormorantSC-Bold.ttf")
 const BuildEdition = preload("res://scripts/core/build_edition.gd")
 const FOV := 30.0
 const CAMERA := Vector3(0, 2.2, 12.0)
@@ -224,7 +224,7 @@ func _ground() -> void:
 	g.add_child(glow)
 
 
-## RUBY COCOON in the heading font: extruded gold letters, with a ruby rim and a dark edge round them on flat plates
+## RUBY COCOON in Cormorant SC Bold: extruded gold letters, with a ruby rim and a dark edge round them on flat plates
 ## just behind (the same letters, outlined).
 func _logo() -> void:
 	logo = Node3D.new()

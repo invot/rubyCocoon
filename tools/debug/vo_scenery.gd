@@ -15,6 +15,8 @@ func run(main, opts: Dictionary) -> void:
 	options["duration"] = "0"
 	options["benchmark_kind"] = "scenery-006"
 	options["position_sampling"] = "240 uniform samples along each cardinal path; static freshwater hold"
+	if opts.get("await_focus", "0") == "1":
+		main.get_window().title = "Ruby Cocoon - 006 waiting " + String(opts.get("report", "")).get_base_dir().get_file()
 	main.get_window().grab_focus()
 	await main.get_tree().process_frame
 	await super.run(main, options)

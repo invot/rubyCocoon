@@ -293,7 +293,6 @@ func beast_center(town: String) -> void:
 			{"text": "Hatchery", "right": "%d" % GameState.eggs.size(), "desc": "Hatch the eggs you're carrying in the incubator. Hatchlings start at Lv 1."},
 			{"text": "Beast storage", "desc": "Deposit or withdraw beasts. (%d in storage)" % GameState.storage.size()},
 			{"text": "Merge altar", "desc": "Merge two beasts in their final form, at their level limit, into one stronger beast."},
-			{"text": "Leave"},
 			{"text": "Sell eggs", "desc": "Sell spare beast eggs for gold."},
 		]
 		var c: int = await UI.choose("Beast Center", items, {"anchor": "right", "width": 340})
@@ -304,7 +303,7 @@ func beast_center(town: String) -> void:
 				await storage()
 			2:
 				await merge_altar(false)
-			4:
+			3:
 				await sell_eggs()
 			_:
 				return
@@ -1253,7 +1252,7 @@ func museum() -> void:
 		if n >= int(r[0]) and not GameState.flag(key):
 			GameState.set_flag(key)
 			GameState.receive_item(r[1], int(r[2]))
-			Sfx.play("buy")
+			UI.pickup(r[1], int(r[2]), "buy")
 			await Story.say(["For recording %d beasts, please accept %d × %s!" % [r[0], r[2], ItemDB.item_name(r[1])]], KEEPERS["museum"])
 	await Menus.bestiary()
 
@@ -1334,6 +1333,8 @@ func fortune() -> void:
 ## Whether a building's door is locked: about a third of the houses, and the cathedral until its guard is beaten.
 ## Locked doors are painted a colour of their own (voxel_buildings.gd); all you can do is knock.
 func door_locked(b: Dictionary) -> bool:
+	if b.get("knockable", false):
+		return true
 	# Hotel Mariposa stands on a house plot, but it's a business: always open, whatever its seed rolls.
 	if b.get("hotel", false) or b.get("public", false):
 		return false
@@ -1374,7 +1375,7 @@ func house(b: Dictionary, resident_seed := 0) -> void:
 		GameState.set_flag(key)
 		var gift: String = ["potion", "remedy_herb", "revival_seed", "honey_cake"][rng.randi_range(0, 3)]
 		GameState.receive_item(gift)
-		Sfx.play("buy")
+		UI.pickup(gift, 1, "buy")
 		await Story.say(["Here, take this for your travels: a %s!" % ItemDB.item_name(gift)], "Resident")
 
 

@@ -875,12 +875,14 @@ func _place_ring(team: String) -> void:
 
 
 ## Turns a ring so `side` faces the foe (a short spin), and makes that side's beasts the active three.
-func _turn_ring(team: String, side: int) -> void:
+func _turn_ring(team: String, side: int, player_chosen := false) -> void:
 	var from := float(ring_psi[team])
 	var to := _psi_for(team, side)
 	to = from + wrapf(to - from, -PI, PI)
 	if team == "ally":
 		ally_side = side
+		if player_chosen:
+			GameState.preferred_ring_side = side
 	else:
 		foe_side = side
 	Sfx.play("page")
@@ -2317,7 +2319,7 @@ func _command_phase() -> Array:
 				_select_hud_actor(null)
 				var ns := Ring.next_side(ally_ring, ally_side, int(r["dir"]))
 				if ns != ally_side:
-					await _turn_ring("ally", ns)
+					await _turn_ring("ally", ns, true)
 					if rotation_lesson:
 						GameState.set_flag("ring_rotation_taught")
 						rotation_lesson = false
