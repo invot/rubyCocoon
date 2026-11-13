@@ -142,10 +142,10 @@ func _verify_cancel_button() -> void:
 	await main._wait(0.1)
 	_check(choice == -1 and UI.stack.is_empty(), "B backs out of the menu too")
 	# a level-up: A skips the stats' reveal, A: Continue shows under the window, and the next A carries on
-	var b = Beasts.create(0, 4)
-	var before: Dictionary = b.growth_look()
-	b.gain_xp(b.xp_for_level(5) - b.xp)
-	var film = load("res://scripts/ui/beast_cinematic.gd").new().setup("level", before, b.growth_look())
+	var pup = Beasts.create(0, 4)
+	var before: Dictionary = pup.growth_look()
+	pup.gain_xp(pup.xp_for_level(5) - pup.xp)
+	var film = load("res://scripts/ui/beast_cinematic.gd").new().setup("level", before, pup.growth_look())
 	UI.push(film)
 	await main._wait(0.8)
 	_check(not film._continue.visible and film.elapsed < film.duration, "A: Continue waits for the stats' reveal")
@@ -158,7 +158,7 @@ func _verify_cancel_button() -> void:
 	_check(not UI.touch_blocks(cont.get_center()), "A: Continue is clear of the touch pad")
 	await main._press("ui_accept")
 	await main._wait(0.15)
-	_check(film.closed and UI.stack.is_empty(), "the next A carries on")
+	_check(not is_instance_valid(film) and UI.stack.is_empty(), "the next A carries on")
 
 
 func _center_menu() -> void:
