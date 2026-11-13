@@ -118,6 +118,8 @@ func activate(index: int) -> bool:
 	if picked == beast:
 		_confirm()
 		return true
+	if picked != null:
+		_refresh_ring()
 	# Finish a default-element turn before calculating any preview destinations.
 	if _turn != null and _turn.is_running():
 		_turn.kill()

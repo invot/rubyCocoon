@@ -132,6 +132,10 @@ var water_mats: Array = []
 var spinners: Array = []
 ## the rippling fishing spots: [ring nodes, phase] (see _build_ripples)
 var ripples: Array = []
+## the line out while you fish (see fishing_line), or null
+var fishing: Node3D = null
+## the people fishing (npc "rod"), each with their "Line"
+var rod_lines: Array = []
 var bobbers: Array = []
 ## Beast Center relics: "healer" / "incubator" -> {"node", "glass", "slots", "light", "ring", "egg"}
 var machines := {}
@@ -2780,11 +2784,15 @@ func _build_npcs() -> void:
 				if n.has("seat_height"):
 					VPer.set_pose(node, "sit", float(n["seat_height"]))
 			if n.get("rod", false):
-				# someone fishing: a rod held out in front, its line down into the water
-				var body: Node3D = node.get_node("Body")
-				var tip := Vector3(0.2, VPer.hand_height() + 0.8, 1.35)
-				body.add_child(_rod_mesh(Vector3(0.2, VPer.hand_height(), 0.25), tip))
-				body.add_child(_rod_mesh(tip, Vector3(0.24, -0.1, 2.1), 0.008, Color("#e8e8e8")))
+				# someone fishing: the rod in both hands as you hold yours (fishing_line), its line from the tip down
+				# into the water ahead (kept on the tip in _process: _aim_npc_lines)
+				VPer.set_ready(node, "rod", true)
+				VPer.animate(node, 0.0, 0.0)
+				var nl := _rod_mesh(Vector3.ZERO, Vector3.UP, 0.008, Color("#e8e8e8"))
+				nl.name = "Line"
+				nl.visible = false
+				node.add_child(nl)
+				rod_lines.append(node)
 		node.position = tile_pos(p) + n.get("visual_offset", Vector3.ZERO)
 		add_child(node)
 		if not (n.has("scene") or n.has("mesh") or n.has("asset")):
@@ -3156,6 +3164,10 @@ func _process(delta: float) -> void:
 		# easing back to standing, then breathing and looking about
 		_stride = move_toward(_stride, 0.0, delta * 25.0)
 	VPer.animate(player, anim_t, _stride)
+	if fishing != null:
+		_aim_line()
+	if not rod_lines.is_empty():
+		_aim_npc_lines()
 	cam_target = player.position
 	_place_camera()
 	_fade_buildings(delta)
@@ -3784,14 +3796,66 @@ func fishing_line(t: Vector2i) -> Node3D:
 	fl.position = tile_pos(t) + Vector3(0, -0.08, 0)
 	holder.add_child(fl)
 	bobbers.append([fl, fl.position.y, 3.0])
-	# the rod held out over the water, and the line down to the float
-	var tip := tile_pos(player_pos) + Vector3(t.x - player_pos.x, 0, t.y - player_pos.y) * 0.55 + Vector3(0, VPer.hand_height() + 0.8, 0)
-	var rod := _rod_mesh(tile_pos(player_pos) + Vector3(0, VPer.hand_height(), 0), tip)
-	holder.add_child(rod)
-	var line := _rod_mesh(tip, fl.position + Vector3(0, 0.1, 0), 0.008, Color("#e8e8e8"))
+	# the rod in your hands, cast out over the water; the line runs from its tip down to the float (see _aim_line)
+	VPer.set_ready(player, "rod")
+	VPer.set_action(player, "cast")
+	var line := _rod_mesh(Vector3.ZERO, Vector3.UP, 0.008, Color("#e8e8e8"))
 	line.name = "Line"
+	line.visible = false
 	holder.add_child(line)
+	holder.set_meta("float", fl)
+	fishing = holder
 	return holder
+
+
+## Done fishing: the line comes in and the rod is put away.
+func reel_in(holder: Node3D) -> void:
+	if fishing == holder:
+		fishing = null
+	if is_instance_valid(holder):
+		holder.queue_free()
+	VPer.set_ready(player, "")
+
+
+## The fishing line now: a slight sag from the rod's tip to the float, which bobs and dips under it.
+func _aim_line() -> void:
+	if not is_instance_valid(fishing):
+		fishing = null
+		return
+	var line := fishing.get_node_or_null("Line") as MeshInstance3D
+	var fl: Node3D = fishing.get_meta("float")
+	var tip = VPer.rod_tip(player)
+	if line == null or tip == null or not is_instance_valid(fl):
+		if line != null:
+			line.visible = false
+		return
+	_string_line(line, tip, fl.global_position + Vector3(0, 0.1, 0))
+
+
+## The lines of the people fishing, near enough to see: from each one's rod tip down into the water ahead of them.
+func _aim_npc_lines() -> void:
+	for node in rod_lines.duplicate():
+		if not is_instance_valid(node):
+			rod_lines.erase(node)
+			continue
+		if not node.is_visible_in_tree() or node.position.distance_squared_to(player.position) >= 300.0:
+			continue
+		var line := node.get_node_or_null("Line") as MeshInstance3D
+		var tip = VPer.rod_tip(node)
+		if line == null or tip == null:
+			continue
+		_string_line(line, tip, (node.get_node("Body") as Node3D).to_global(Vector3(0, -0.1, 2.1)))
+
+
+## Stretches a thin line made by _rod_mesh(Vector3.ZERO, Vector3.UP, ...) from `a` to `b` (world space).
+func _string_line(line: MeshInstance3D, a: Vector3, b: Vector3) -> void:
+	var span := a.distance_to(b)
+	if span < 0.01:
+		return
+	var up := (b - a) / span
+	var side := up.cross(Vector3.FORWARD if absf(up.z) < 0.9 else Vector3.RIGHT).normalized()
+	line.global_transform = Transform3D(Basis(side, up * span, side.cross(up)), (a + b) / 2.0)
+	line.visible = true
 
 
 ## Something nibbles: the float bobs under.
@@ -3809,6 +3873,11 @@ func dip_line(holder: Node3D) -> void:
 	var water := fl.position.y + 0.08
 	tw.tween_property(fl, "position:y", water - 0.3, 0.12)
 	tw.tween_property(fl, "position:y", water - 0.12, 0.18)
+
+
+## The rod in your hands moves with the fight: "strike" as you hook it, "reel" with each turn of the reel.
+func rod_action(kind: String) -> void:
+	VPer.set_action(player, kind)
 
 
 ## A thin pole from `a` to `b` (a fishing rod, or its line).

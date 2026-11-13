@@ -132,3 +132,16 @@ Film lighting retained; no all-shadow removal. Raw traces, p95/max and nominal p
 `build/perf/vo/008b/{mobile-01,phone}/{report.json,validated-lighting.json,lighting.md}`.
 Original package identity and export preset bytes match; benchmark removed. Parent 008 complete;
 next 006. Target-device sustained acceptance and refresh-selection diagnosis remain open.
+
+### Batched scenery / visibility (006, 13 November 2026)
+
+[Decisions, evidence and limitations](../006-scenery.md). Existing 8×8 MultiMeshes retained.
+4×4 raises submissions; phone/Web 16×16 reduces draws without a reliable frame benefit.
+Conservative engine occlusion adds render CPU for small savings; Web template disables it at build time.
+Manual grass/flower bounds hysteresis adds update cost. Pinned merger reduces draws but fails transformed
+normal preservation (max error 0.241678). None adopted. Recentered LOD copying is corrected defensively
+(zero affected sampled assets); pad batches gain a 0.07-unit swell margin, matching draws/primitives.
+Phone 1760×720/Mid: 753.3 s, three passes, zero problems/focus losses, ~30 fps field, peak sampled 29.9°C.
+Unpaced focused desktop frozen-pack field maxima 3.864/3.486/3.278 ms; paced control max 20.113 ms.
+Do not treat desktop headroom as a phone/presentation guarantee. All 10 focused and four quick checks pass;
+temporary benchmark removed and player package identity preserved. Next 007.

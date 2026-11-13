@@ -1,6 +1,7 @@
 # 006a — scenery bounds, chunk sizing and retained LODs
 
-Engineering checkpoint, 12 November 2026. **In progress**; parent 006 remains open.
+Engineering checkpoint, 12–13 November 2026. **Complete**; see the combined
+[006 report, decisions and limits](006-scenery.md) for final phone/Web evidence and verification.
 No chunks, distance cutoffs, engine occlusion setting or merged production assets have been adopted.
 
 ## Scope and corrections
@@ -30,7 +31,8 @@ maximum swell. The foliage shader does not displace vertices. Terrain dithering 
   no problems/focus losses, 30.9°C at each temperature sample. The player's package identity is preserved;
   temporary `com.rubycocoon.vo_perf` was uninstalled after recording.
 - `build/perf/vo/006/mobile-chunks4-01/`: accepted 8/4/8 comparison. The candidate increases draw and
-  render-CPU submissions, without consistent GPU benefit; keep 8×8 pending the other experiments.
+  render-CPU submissions, without consistent GPU benefit; keep 8×8. The complete phone/Web 16×16
+  comparisons likewise do not justify replacing the existing layout.
 - `build/perf/vo/006/mobile-pads-01/`, `compat-pads-01/`, `forward-pads-02/`: accepted pad-margin controls.
   Draws and primitives match; no material or geometry change. Desktop Mobile is desktop evidence.
 - Interrupted/superseded attempts retain their raw reports/logs and invalid markers. They are excluded from
@@ -39,7 +41,8 @@ maximum swell. The foliage shader does not displace vertices. Terrain dithering 
 
 The current bounds inventory compares each batch's rendered AABB with the union of its transformed mesh
 bounds: Coastal Path 485 batches / 1,600 instances; Cove 681 / 2,426; Rue Royale 378 / 1,718.
-No static underbounds or >10% oversized volumes were found. This is not an exhaustive animation/effect audit.
+No static underbounds or >10% oversizing were found (latest checks compare each axis).
+This is not an exhaustive animation/effect audit.
 Renderer bounds are unavailable headless; headless tests do not claim to check them.
 
 ## Reproduction and verification
@@ -50,9 +53,10 @@ experiments separate. Reports contain raw traces, effective settings and per-exp
 the Python reader validates traces/summaries, route and settings consistency, three controls and focus.
 Use isolated saves/preferences exactly as the runner supplies. See its command JSONs for accepted runs.
 
-Early checks through `server.py`: quick, nature, scenery-lods, vo-scenery, walk, building-fade and maps-built pass.
-Pad/occlusion/distance and isolated-merger headless smoke checks pass. Final checks and outstanding evidence
-are still required before closing this checkpoint or parent 006.
+Final checks through `server.py`: all ten focused checks pass in 44 seconds; quick's four checks pass
+in nine seconds. See `build/vo006-final-resumed.json` and `build/vo006-final-quick-resumed.json`.
+Matched native pad-margin controls cover all three renderers; affected recentered mesh count is zero,
+so repeating that A/A on every renderer cannot demonstrate an LOD gain. Synthetic checks exercise the branch.
 
 Local-model help: a focused code index and a first-pass typo/unused-variable diff triage. Source inspection
 confirmed the useful index; correctness, LOD buffers and bounds calculations were reviewed directly.

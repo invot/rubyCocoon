@@ -264,12 +264,15 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 ### 006 · P6: batched scenery
 **Execution checkpoints:** 006a (bounds, chunk sizing and preserved mesh LODs), 006b (engine occlusion),
 006c (decoration distance ranges), 006d (Static Mesh Merger and combined verification).
-Run in that order; parent 006 stays open until all four close. The loader's lost LODs were discovered during
+Record decisions in that order; independent experiments may collect evidence while another platform runs.
+Parent 006 stays open until all four close. The loader's missing LOD-copy path was discovered during
 006a. The sampled shipped assets already have centered origins and do not trigger that loader branch;
 the correction is defensive, not a measured speedup. The shader audit also found missing water-swell
 bounds on lily-pad batches. Finish matched evidence; require screenshot review only for visible changes.
 This split follows §5's clean-checkpoint rule; it does not waive any requirement below.
 **Approval:** numbers and screenshot review if visible. **Needs:** 008.
+**Result (13 November 2026):** [006 complete with explicit measurement limits](006-scenery.md).
+Keep 8×8; no experimental optimization adopted. LOD preservation and pad-bound correctness fixes retained.
 **Files:** the nature/scenery placement code in `scripts/world/` (find it with a grep for `MeshInstance3D.new()` in scenery code), `foliage.gdshader`.
 **Do:**
 - Per terrain chunk, draw repeated bushes, grass, flowers, rocks and small props as `MultiMeshInstance3D`, with per-instance colour or custom data for variation.
@@ -322,13 +325,15 @@ a `field-perf` run with no frame over 20 ms on desktop. Identify desktop Mobile-
 **Done when:** the `nature`, `walk`, `building-fade` and `maps-built` tests pass.
 
 ### 006a · P6a: bounds, chunks and scenery LOD preservation
-**Approval:** numbers and screenshots for the restored LODs. **Needs:** 008.
+**Approval:** numbers; screenshots if appearance changes. **Needs:** 008.
 **Do:** audit existing batch bounds against transformed source bounds; compare 4/8/16 chunk sizes with other
 settings fixed; preserve the source meshes' existing LOD thresholds and indices when recentering them.
 Keep collision, materials, per-instance transforms, building fades and terrain visibility unchanged.
 Cover the lily-pad shader's maximum 0.06525-unit world-space displacement after instance scaling.
-Compare original/restored/original LODs in matched Coastal Path, Cove and Rue Royale views on all three native
-renderers and the attached phone. Check base geometry/UV/normal/material identity and both index widths.
+Compare original/restored/original LODs in matched Coastal Path, Cove and Rue Royale views and the attached
+phone. If sampled assets do not enter the recenter branch, record that A/A result and exercise it synthetically;
+do not claim a renderer speedup. Check the pad-bound fix on all three native renderers and phone.
+Check base geometry/UV/normal/material identity and both index widths.
 **Evidence:** `build/perf/vo/006/`, `build/shots/vo/006/`, report `006a-scenery.md`.
 **Done when:** matched measurements and captures exist; quick, scenery-lods, vo-scenery, nature, walk,
 building-fade and maps-built pass, and any visible result is approved. Renderer bounds are unavailable headless.

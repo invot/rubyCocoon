@@ -7,7 +7,8 @@ extends "res://scripts/ui/modal.gd"
 ##      line goes over the zone and snaps; too slow and it falls slack and the beast slips off.
 ## opts: bite (seconds until something nibbles; -1: nothing will), strength (0..1, how hard the beast fights: a
 ## narrower zone, a faster slackening line, longer to land), lesson (a gentler line and a coach's words), coach (their
-## name), on_nibble (Callable, to dip the float in the world).
+## name), on_nibble (Callable, to dip the float in the world), on_strike and on_reel (Callables: the hero hooks it, and
+## turns the reel, so the rod in the world moves with them).
 ## done emits {"result": "landed" / "nothing" / "missed" / "too_fast" / "too_slow" / "cancelled"}.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -122,11 +123,15 @@ func on_input(ev: InputEvent) -> void:
 			_phase_t = 0.0
 			tension = 0.12
 			_show()
+			if opts.has("on_strike"):
+				(opts["on_strike"] as Callable).call()
 			_coach("reel", "Got it! Now tap A, tap A, tap A... and get that marker up into the bright zone!")
 		"reel":
 			tension += TAP
 			_taps.append(_t)
 			Sfx.play("blip", 0.25)
+			if opts.has("on_reel"):
+				(opts["on_reel"] as Callable).call()
 
 
 func _process(delta: float) -> void:

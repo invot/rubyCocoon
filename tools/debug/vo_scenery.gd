@@ -176,6 +176,13 @@ func _experiment(part: String) -> void:
 		var label: String = "%s_%s_%d" % [entry.id, part, _passes.size()]
 		await _main._wait(0.1)
 		var result := await _measure(label, world, world.cam, positions, advance)
+		# Diagnostic captures are outside every measured interval.
+		if part == "occlusion" and candidate and _opts.get("debug_views", "0") == "1" and RenderingServer.get_current_rendering_method() != "gl_compatibility":
+			_main.view.debug_draw = Viewport.DEBUG_DRAW_OCCLUDERS
+			await _main.get_tree().process_frame
+			await _main.get_tree().process_frame
+			await _capture(label + "_occluders_debug")
+			_main.view.debug_draw = Viewport.DEBUG_DRAW_DISABLED
 		if part == "pads" and _opts.get("verify", "0") != "1":
 			await _capture_pad_bounds(world, label)
 		result["experiment"] = setup

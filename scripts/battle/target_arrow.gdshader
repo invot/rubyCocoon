@@ -10,9 +10,9 @@ void fragment() {
 	float phase = (UV.y - TIME * 0.55 + abs(UV.x - 0.5) * 0.24) / 0.48;
 	float line_distance = abs(fract(phase + 0.5) - 0.5) * 0.48;
 	float aa = max(fwidth(phase) * 0.48, 0.001);
-	float stripe = (1.0 - smoothstep(0.014, 0.014 + aa, line_distance)) * step(0.0, UV.x);
-	ALBEDO = mix(yellow, vec3(1.0), stripe * 0.28);
-	ALPHA = opacity;
+	float stripe = (1.0 - smoothstep(0.028, 0.028 + aa, line_distance)) * step(0.0, UV.x);
+	ALBEDO = mix(yellow, vec3(1.0), stripe * 0.78);
+	ALPHA = mix(opacity, 0.82, stripe);
 	ROUGHNESS = 0.55;
 	EMISSION = ALBEDO * 0.2;
 }

@@ -40,6 +40,10 @@ const READY := {
 		"dir": Vector3(-0.2, 1.0, -0.2)},
 	"bat": {"l": Vector3(1.15, 1.6, -0.45), "r": Vector3(1.3, 1.9, 0.25), "twist": -0.45, "crouch": 0.03,
 		"dir": Vector3(-0.25, 0.8, -0.5)},
+	# a fishing rod (set_ready "rod" while fishing): in both hands together in front, the left just above the right,
+	# angled up and out over the water (the arms turned well in, as the kit's arms are short)
+	"rod": {"l": Vector3(1.0, 1.0, -1.5), "r": Vector3(0.7, 1.3, -1.35), "twist": 0.0, "crouch": 0.01,
+		"dir": Vector3(0.0, 0.85, 1.0)},
 }
 ## A use's keys: [seconds in, the pose then (what it leaves out, and null, is the ready pose)].
 const ACTIONS := {
@@ -58,7 +62,22 @@ const ACTIONS := {
 		[0.19, {"l": Vector3(1.35, 0.45, 0.35), "r": Vector3(1.35, 0.55, -0.4), "twist": 0.75, "crouch": 0.04, "dir": Vector3(0.45, 0.05, 0.9)}],
 		[0.28, {"l": Vector3(1.3, 0.7, 0.4), "r": Vector3(1.2, 0.8, -0.45), "twist": 0.85, "dir": Vector3(0.95, 0.2, -0.1)}],
 		[0.46, null]],
+	# the rod: swung back over the shoulder, flicked forward to send the line out, and settling again
+	"cast": [[0.0, null], [0.2, {"l": Vector3(1.9, 1.5, -1.3), "r": Vector3(1.6, 1.8, -1.2), "twist": -0.15, "dir": Vector3(0.0, 1.0, -0.5)}],
+		[0.34, {"l": Vector3(1.3, 0.6, -1.5), "r": Vector3(1.0, 0.9, -1.35), "twist": 0.1, "dir": Vector3(0.0, 0.3, 1.0)}],
+		[0.65, null]],
+	# striking as the float dips: the rod jerked up and back, leaning into it
+	"strike": [[0.0, null], [0.1, {"l": Vector3(1.5, 1.2, -1.45), "r": Vector3(1.2, 1.5, -1.3), "twist": 0.0, "crouch": -0.01,
+		"dir": Vector3(0.0, 1.0, 0.2)}], [0.4, {"l": Vector3(1.45, 1.2, -1.45), "r": Vector3(1.15, 1.5, -1.3), "dir": Vector3(0.0, 1.0, 0.3)}],
+		[0.7, null]],
+	# each turn of the reel: a tug, the rod lifting a little
+	"reel": [[0.0, null], [0.08, {"l": Vector3(1.2, 1.1, -1.5), "r": Vector3(0.9, 1.4, -1.35), "dir": Vector3(0.0, 1.0, 0.55)}],
+		[0.32, null]],
 }
+## How long the fishing rod is from the hand to its tip (the kit's metres: see _hold), and how far its butt runs back
+## behind the hand.
+const ROD_LEN := 1.45
+const ROD_BUTT := 0.18
 ## When in a use the stone or boomerang leaves the hand, or the bat meets the target (seconds in).
 const ACTION_HIT := {"throw": 0.05, "boomerang": 0.15, "catch": 0.0, "swing": 0.13}
 
@@ -268,6 +287,16 @@ static func weapon_point(rig: Node3D) -> Vector3:
 	return rig.global_position + Vector3.UP * hand_height()
 
 
+## Where the tip of the fishing rod in the hand is now, in world space (where the line leaves it); null if it holds
+## none.
+static func rod_tip(rig: Node3D) -> Variant:
+	var prop: Node3D = (rig.get_meta("weapon_prop") if rig.has_meta("weapon_prop") else null)
+	if prop == null or not is_instance_valid(prop) or not prop.is_inside_tree() or not prop.visible:
+		return null
+	var tip := prop.get_node_or_null("Tip") as Node3D
+	return tip.global_position if tip != null else null
+
+
 ## The clock a person's animation runs on when animate isn't given one (offset per person).
 static func clock(rig: Node3D) -> float:
 	return Time.get_ticks_msec() / 1000.0 + float(rig.get_instance_id() % 1000) * 0.61
@@ -292,6 +321,8 @@ static func _hold(rig: Node3D, weapon: String) -> void:
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color("#b9824e") if weapon != "boomerang" else Color("#d9a066")
 	wood.roughness = 0.75
+	if weapon == "rod":
+		wood.albedo_color = Color("#8a5a32")
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color("#5a3a22") if weapon != "boomerang" else Color("#2f86b4")
 	dark.roughness = 0.8
@@ -304,6 +335,35 @@ static func _hold(rig: Node3D, weapon: String) -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		prop.add_child(mi)
 	match weapon:
+		"rod":
+			# a long tapering pole, a cork grip round the hand and a little reel just ahead of it; "Tip" is where the
+			# line leaves it
+			var pole := CylinderMesh.new()
+			pole.top_radius = 0.007
+			pole.bottom_radius = 0.02
+			pole.height = ROD_LEN + ROD_BUTT
+			pole.radial_segments = 8
+			pole.rings = 1
+			add.call(pole, wood, Transform3D(Basis.IDENTITY, Vector3(0, (ROD_LEN - ROD_BUTT) / 2.0, 0)))
+			var cork := StandardMaterial3D.new()
+			cork.albedo_color = Color("#d2a878")
+			cork.roughness = 0.9
+			var grip := CylinderMesh.new()
+			grip.top_radius = 0.027
+			grip.bottom_radius = 0.03
+			grip.height = 0.3
+			grip.radial_segments = 8
+			add.call(grip, cork, Transform3D(Basis.IDENTITY, Vector3(0, -0.02, 0)))
+			var reel := CylinderMesh.new()
+			reel.top_radius = 0.045
+			reel.bottom_radius = 0.045
+			reel.height = 0.035
+			reel.radial_segments = 10
+			add.call(reel, dark, Transform3D(Basis(Vector3.BACK, PI / 2.0), Vector3(0, 0.17, -0.055)))
+			var tip := Node3D.new()
+			tip.name = "Tip"
+			tip.position = Vector3(0, ROD_LEN, 0)
+			prop.add_child(tip)
 		"bat":
 			var cyl := CylinderMesh.new()
 			cyl.top_radius = 0.055
@@ -395,9 +455,17 @@ static func _place_weapon(rig: Node3D, sk: Skeleton3D, r: Dictionary, pose: Dict
 	var fwd: Vector3 = r["fwd"]
 	var d: Vector3 = pose["dir"]
 	var y := (lat * d.x + up * d.y + fwd * d.z).normalized()
+	var grip := hand + (hand - fore).normalized() * 0.04
+	if String(prop.get_meta("kind")) == "rod":
+		# held in both hands, together in front, one above the other: the rod runs between them
+		var other := sk.find_bone("l_hand")
+		if other >= 0:
+			var lh := sk.get_bone_global_pose(other).origin
+			var lf := sk.get_bone_global_pose(sk.get_bone_parent(other)).origin
+			grip = (grip + lh + (lh - lf).normalized() * 0.04) / 2.0
 	var z := (fwd - y * fwd.dot(y))
 	z = z.normalized() if z.length() > 0.05 else lat
-	prop.transform = Transform3D(Basis(y.cross(z), y, z), hand + (hand - fore).normalized() * 0.04)
+	prop.transform = Transform3D(Basis(y.cross(z), y, z), grip)
 
 
 ## What posing a person's skeleton needs, worked out once from its rest pose, in the skeleton's own space (whatever

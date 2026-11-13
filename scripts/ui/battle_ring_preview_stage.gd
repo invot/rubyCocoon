@@ -7,6 +7,7 @@ var _faded_view: SubViewport
 var _faded_camera: Camera3D
 var _preview_environment: Environment
 var selected_beast = null
+var preview_slot := -1
 var _slot_motion: Tween
 
 
@@ -108,6 +109,7 @@ func show_placement(beast, slot: int) -> void:
 	if _slot_motion != null and _slot_motion.is_running():
 		_slot_motion.kill()
 	selected_beast = beast
+	preview_slot = slot
 	if not nodes.has(beast):
 		_spawn(beast, "ally", slot, false)
 	_place_ring("ally")
@@ -132,6 +134,7 @@ func clear_placement() -> void:
 	if _slot_motion != null and _slot_motion.is_running():
 		_slot_motion.kill()
 	selected_beast = null
+	preview_slot = -1
 	set_front([])
 	for beast in nodes:
 		for geometry: GeometryInstance3D in nodes[beast].find_children("*", "GeometryInstance3D", true, false):
@@ -160,7 +163,11 @@ func fit_camera(view_size: Vector2) -> void:
 				continue
 			var bounds := mesh.get_aabb()
 			for index in 8:
-				points.append(mesh.global_transform * bounds.get_endpoint(index))
+				var corner := mesh.global_transform * bounds.get_endpoint(index)
+				points.append(corner)
+				if selected_beast != null and fighter == nodes[selected_beast]:
+					# Fit both ends of the moving beast's path before it starts moving.
+					points.append(corner + _slot_pos("ally", preview_slot) - fighter.position)
 	var extent := Rect2()
 	for index in points.size():
 		var point := cam.to_local(points[index])

@@ -51,12 +51,12 @@ static func cast(world, tile: Vector2i, lesson := false, coach := "") -> String:
 	else:
 		var g = FishingGame.new()
 		g.setup({"bite": bite, "strength": strength, "lesson": lesson, "coach": coach,
-			"on_nibble": func(): world.dip_line(line)})
+			"on_nibble": func(): world.dip_line(line), "on_strike": func(): world.rod_action("strike"),
+			"on_reel": func(): world.rod_action("reel")})
 		UI.push(g)
 		var r: Dictionary = await g.done
 		res = String(r.get("result", "cancelled"))
-	if is_instance_valid(line):
-		line.queue_free()
+	world.reel_in(line)
 	# something bit: the bait is gone
 	if res in ["landed", "missed", "too_fast", "too_slow"] and GameState.bait != "":
 		GameState.remove_item(GameState.bait)

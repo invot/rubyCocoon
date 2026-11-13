@@ -2057,11 +2057,13 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "fishing":
 		# Gil's fishing: --lesson=1 (default) his lesson off the shack's deck, 0 an ordinary cast at a ripple; A is pressed
-		# --taps times a second once the float dips (--taps=0: never strike); --snap=secs saves a screenshot mid-cast
+		# --taps times a second once the float dips (--taps=0: never strike); --snap=secs saves a screenshot mid-cast;
+		# --cast=x,y casts into that tile instead, from --at=x,y (on the deck: 4,37 and --cast=3,37 fishes side-on)
 		autoplay = true
 		# (Bellerive's first-visit welcome would stay up under the fishing)
 		GameState.set_flag("seen_tidewater")
-		await _do_goto("tidewater", Vector2i(6, 37), Vector2i(0, 1))
+		var at: PackedStringArray = String(_test.get("at", "6,37")).split(",")
+		await _do_goto("tidewater", Vector2i(int(at[0]), int(at[1])), Vector2i(0, 1))
 		await _wait(1.5)
 		# (after arriving, so the arrival doesn't start Gil's lesson by itself)
 		GameState.set_flag("fisher_met")
@@ -2102,8 +2104,11 @@ func _run_test() -> void:
 			await Story.fish_lesson(world)
 			print("fishing lesson done: ", GameState.flag("fish_lesson"))
 		else:
-			print("fishing result: ", await Fishing.cast(world, Vector2i(6, 38)), "  bait left ", GameState.item_count(String(_test.get("bait", "worm_bait"))))
-			print("in a rippling patch: ", world.map.get("fish_areas", {}).has(Vector2i(6, 38)))
+			# --cast=x,y: the water tile to cast into (by default the ripple just south of the deck)
+			var c: PackedStringArray = String(_test.get("cast", "6,38")).split(",")
+			var into := Vector2i(int(c[0]), int(c[1]))
+			print("fishing result: ", await Fishing.cast(world, into), "  bait left ", GameState.item_count(String(_test.get("bait", "worm_bait"))))
+			print("in a rippling patch: ", world.map.get("fish_areas", {}).has(into))
 		tapping[0] = false
 		world.busy = false
 		print("party: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), "  caught ", GameState.caught.size())
