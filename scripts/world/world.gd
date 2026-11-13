@@ -3180,11 +3180,12 @@ func _along(a: Vector3, b: Vector3, t: float) -> Vector3:
 	var p := a.lerp(b, t)
 	var ta := Vector2i(floori(a.x), floori(a.z))
 	var tb := Vector2i(floori(b.x), floori(b.z))
-	# the grass pillow is stepped up onto (or down off) at the tiles' edge, not slid up to
+	# the grass pillow is stepped up onto (or down off) round the tiles' edge: eased in and out over the middle of the
+	# step rather than all at once, so the body rises or settles onto it instead of jolting
 	var la := _grass_lift(ta)
 	var lb := _grass_lift(tb)
 	if la != lb:
-		p.y += lerpf(la, lb, smoothstep(0.4, 0.6, t)) - lerpf(la, lb, t)
+		p.y += lerpf(la, lb, smoothstep(0.2, 0.8, t)) - lerpf(la, lb, t)
 	if map.has("shoreline"):
 		p.y += Shoreline.bottom(map, p.x, p.z) - lerpf(Shoreline.bottom(map, a.x, a.z), Shoreline.bottom(map, b.x, b.z), t)
 	if Elev.has(map):

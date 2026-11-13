@@ -176,6 +176,14 @@ float bayer(vec2 px) {
 	return (m[i] + 0.5) / 16.0;
 }
 
+// Only ground branches that actually use the wandering boundary calculate it.
+vec2 _edge_at(vec2 q, int own) {
+	vec2 j = vec2(vnoise(q * 1.6), vnoise(q * 1.6 + vec2(17.3, 41.9))) - 0.5;
+	j += 0.5 * (vec2(vnoise(q * 4.1 + vec2(5.1, 2.7)), vnoise(q * 4.1 + vec2(29.0, 13.0))) - 0.5);
+	float amp = _laid(own) ? 0.12 : 1.0;
+	return q + j * edge_noise * 2.0 * amp;
+}
+
 void fragment() {
 	// (the camera's view only: the sun's shadow pass looks straight down its own orthographic view)
 	if (hole.w > 0.5 && wpos.y > hole.y + 0.3 && PROJECTION_MATRIX[3][3] < 0.5) {
@@ -202,8 +210,6 @@ void fragment() {
 		}
 	}
 	vec2 q = wpos.xz;
-	vec2 j = vec2(vnoise(q * 1.6), vnoise(q * 1.6 + vec2(17.3, 41.9))) - 0.5;
-	j += 0.5 * (vec2(vnoise(q * 4.1 + vec2(5.1, 2.7)), vnoise(q * 4.1 + vec2(29.0, 13.0))) - 0.5);
 	int own = _layer_at(q);
 	// The grass top's outermost pixels can look a hair over its edge into the path's tile and come out as dirt, a thin
 	// light line round the turf. Bare ground this close to grass is under the turf's overhang anyway, so it's grass.
@@ -217,20 +223,6 @@ void fragment() {
 			}
 		}
 	}
-	// laid surfaces (plaza, paving, ice) keep neat edges: they barely wander, and nothing wanders onto them
-	float amp = _laid(own) ? 0.12 : 1.0;
-	vec2 at = q + j * edge_noise * 2.0 * amp;
-	// four looks round the point; where they disagree (a border) their layers are blended
-	int ls[4];
-	for (int k = 0; k < 4; k++) {
-		vec2 o = vec2(k % 2 == 0 ? -1.0 : 1.0, k < 2 ? -1.0 : 1.0) * edge_soft * 0.5;
-		int l = _layer_at(at + o);
-		// (and a river or sea bed never wanders up onto the bank above it; the turf's edge is where its pillow steps
-		// down, so grass and the ground below it never wander over one another)
-		ls[k] = ((_laid(l) || l == 5 || l == 6 || _grassy(l) != _grassy(own)) && l != own) ? own : l;
-	}
-	int layer = ls[0];
-	bool border = ls[1] != layer || ls[2] != layer || ls[3] != layer;
 	vec3 n = abs(wnorm);
 	vec2 uv = n.y > 0.6 ? wpos.xz : (n.x > n.z ? vec2(wpos.z, -wpos.y) : vec2(wpos.x, -wpos.y));
 	if (cliff && COLOR.g > 0.1 && COLOR.g < 0.25) {
@@ -275,18 +267,8 @@ void fragment() {
 		}
 	} else {
 		vec3 col;
-		if (_soil(own) && n.y > 0.6) {
-			col = _soil_mix(q, uv, own);
-		} else if (border) {
-			col = vec3(0.0);
-			for (int k = 0; k < 4; k++) {
-				col += texture(layers, vec3(uv * tex_scale, float(ls[k]))).rgb * tints[ls[k]];
-			}
-			col *= 0.25;
-		} else {
-			col = texture(layers, vec3(uv * tex_scale, float(layer))).rgb * tints[layer];
-		}
 		if (_grassy(own)) {
+			vec2 at = _edge_at(q, own);
 			// the darker grass (round the trees and hedges, where the long grass grows) melts into the lawn over
 			// half a tile rather than along a line
 			float dark = 0.0;
@@ -297,6 +279,28 @@ void fragment() {
 			}
 			col = texture(layers, vec3(uv * tex_scale, 0.0)).rgb * mix(tints[0], tints[9], smoothstep(0.0, 1.0, dark));
 			col *= _mottle(q);
+		} else if (_soil(own) && n.y > 0.6) {
+			// Soil blending has its own boundary search; the generic one never contributes to its result.
+			col = _soil_mix(q, uv, own);
+		} else {
+			vec2 at = _edge_at(q, own);
+			int ls[4];
+			for (int k = 0; k < 4; k++) {
+				vec2 o = vec2(k % 2 == 0 ? -1.0 : 1.0, k < 2 ? -1.0 : 1.0) * edge_soft * 0.5;
+				int l = _layer_at(at + o);
+				ls[k] = ((_laid(l) || l == 5 || l == 6 || _grassy(l) != _grassy(own)) && l != own) ? own : l;
+			}
+			int layer = ls[0];
+			bool border = ls[1] != layer || ls[2] != layer || ls[3] != layer;
+			if (border) {
+				col = vec3(0.0);
+				for (int k = 0; k < 4; k++) {
+					col += texture(layers, vec3(uv * tex_scale, float(ls[k]))).rgb * tints[ls[k]];
+				}
+				col *= 0.25;
+			} else {
+				col = texture(layers, vec3(uv * tex_scale, float(layer))).rgb * tints[layer];
+			}
 		}
 		ALBEDO = col;
 	}

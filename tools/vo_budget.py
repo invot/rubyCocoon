@@ -16,12 +16,12 @@ METRICS = ["geometry_nodes", "surface_submissions", "source_triangles", "distinc
 SCENES = {"coastal_path", "cove_plaza", "hero_house", "rue_royale", "coast_battle"}
 
 
-def load_report(path):
+def load_report(path, expected_scenes=None):
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     if data.get("benchmark") != "budget-011" or data["problems"] or data["focus_losses"] or len(data["passes"]) != 1:
         raise ValueError("Incomplete/interrupted budget record: " + str(path))
     segments = data["passes"][0]["segments"]
-    if set(segments) != SCENES:
+    if set(segments) != (SCENES if expected_scenes is None else expected_scenes):
         raise ValueError("Budget route scenes changed")
     for name, segment in segments.items():
         if len(segment["samples"]) != (1 if name == "coast_battle" else 3):

@@ -10,6 +10,8 @@ var _quality := ""
 ## Measurement only (--scene=vo-perf --shadow_sweep, runbook step 008): false turns every light's shadows off
 ## without touching the other preset effects. Ordinary play never changes it.
 var diag_shadows := true
+## Diagnostic only: -1 preserves the preset. Never persisted to player preferences.
+var diag_msaa := -1
 
 
 func _ready() -> void:
@@ -73,10 +75,18 @@ func set_diag_shadows(on: bool) -> void:
 			_apply_node(node)
 
 
+func set_diag_msaa(value: int) -> void:
+	assert(value >= -1 and value <= Viewport.MSAA_8X)
+	diag_msaa = value
+	for node in get_tree().get_nodes_in_group(GROUP):
+		if node is SubViewport:
+			_apply_node(node)
+
+
 func _apply_node(node: Node) -> void:
 	var base: Dictionary = node.get_meta(BASELINE)
 	if node is SubViewport:
-		node.msaa_3d = {"min": Viewport.MSAA_DISABLED, "mid": Viewport.MSAA_2X, "max": Viewport.MSAA_4X}[_quality]
+		node.msaa_3d = diag_msaa if diag_msaa >= 0 else {"min": Viewport.MSAA_DISABLED, "mid": Viewport.MSAA_2X, "max": Viewport.MSAA_4X}[_quality]
 		node.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	elif node is Light3D:
 		node.shadow_enabled = base["shadow"] and _quality != "min" and diag_shadows

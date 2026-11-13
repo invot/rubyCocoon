@@ -9,8 +9,12 @@ var _base_lod := 1.0
 
 
 func run(main, opts: Dictionary) -> void:
+	if opts.has("diag_msaa"):
+		for child in main.get_children():
+			if child.has_method("set_diag_msaa"):
+				child.set_diag_msaa(int(opts.diag_msaa))
 	var options := opts.duplicate()
-	options["passes"] = "5" if opts.get("trial", "") == "suite" else "1"
+	options["passes"] = "6" if opts.get("trial", "") == "suite" else "1"
 	options["duration"] = "0"
 	options["verify"] = "1"
 	options["benchmark_kind"] = "budget-011"
@@ -50,26 +54,46 @@ func run(main, opts: Dictionary) -> void:
 
 func _route() -> void:
 	if _opts.get("trial", "") == "suite":
-		var trial: String = ["none", "scenery_off", "unshaded", "lod4", "none"][_passes.size()]
+		var trial: String = ["none", "scenery_off", "terrain_off", "unshaded", "lod4", "none"][_passes.size()]
 		_main.view.debug_draw = Viewport.DEBUG_DRAW_UNSHADED if trial == "unshaded" else Viewport.DEBUG_DRAW_DISABLED
 		_main.view.mesh_lod_threshold = 4.0 if trial == "lod4" else _base_lod
 		await _arrive("route1", "west")
 		var hidden := 0
-		if trial == "scenery_off":
-			for node in _main.world.find_children("*", "MultiMeshInstance3D", true, false):
-				var foliage := false
-				for surface in node.multimesh.mesh.get_surface_count():
-					var material: Material = node.material_override if node.material_override != null else node.multimesh.mesh.surface_get_material(surface)
-					if material is ShaderMaterial and material.shader != null and (material.resource_name == "foliage" or material.shader.resource_path.ends_with("foliage.gdshader")):
-						foliage = true
-				if foliage:
-					node.hide()
-					hidden += 1
-			if hidden == 0:
-				_fail("foliage attribution did not find the expected batch materials")
+		var restore := []
+		var visible_foliage := 0
+		for node in _main.world.find_children("*", "GeometryInstance3D", true, false):
+			var mesh: Mesh = node.mesh if node is MeshInstance3D else (node.multimesh.mesh if node is MultiMeshInstance3D and node.multimesh != null else null)
+			if mesh == null:
+				continue
+			var foliage := false
+			var terrain := false
+			for surface in mesh.get_surface_count():
+				var material: Material = node.material_override if node.material_override != null else (node.get_active_material(surface) if node is MeshInstance3D else mesh.surface_get_material(surface))
+				if material is ShaderMaterial and material.shader != null:
+					foliage = foliage or material.resource_name == "foliage" or material.shader.resource_path.ends_with("foliage.gdshader")
+					terrain = terrain or material.shader.resource_path.ends_with("terrain.gdshader")
+			if foliage and node.visible:
+				visible_foliage += 1
+			if (trial == "scenery_off" and foliage) or (trial == "terrain_off" and terrain):
+				restore.append({"node": node, "visible": node.visible})
+				node.hide()
+				hidden += 1
+		if trial in ["scenery_off", "terrain_off"] and hidden == 0:
+			_fail("GPU attribution did not find expected " + trial + " materials")
 		await _field("coastal_path", [_main.world.map.spawns.east])
-		_segments.coastal_path["experiment"] = {"trial": trial, "hidden_foliage_batches": hidden,
+		_segments.coastal_path["experiment"] = {"trial": trial, "hidden_nodes": hidden, "visible_foliage_before_mask": visible_foliage,
 			"mesh_lod_threshold": _main.view.mesh_lod_threshold, "debug_draw": _main.view.debug_draw}
+		for item in restore:
+			if is_instance_valid(item.node):
+				item.node.visible = item.visible
+		_main.view.debug_draw = Viewport.DEBUG_DRAW_DISABLED
+		_main.view.mesh_lod_threshold = _base_lod
+		if _passes.size() > 0 and visible_foliage != _passes[0].segments.coastal_path.experiment.visible_foliage_before_mask:
+			_fail("cached foliage visibility changed between trial passes")
+		return
+	if _opts.get("part", "") == "coastal":
+		await _arrive("route1", "west")
+		await _field("coastal_path", [_main.world.map.spawns.east])
 		return
 	await super._route()
 	await _battle()
@@ -118,7 +142,7 @@ func _sample(label: String, root: Node3D, camera: Camera3D) -> Dictionary:
 	var source: Dictionary = _source.collect(root, camera)
 	if not source.unsupported_textures.is_empty():
 		_fail("unsupported texture classes: " + str(source.unsupported_textures))
-	var result := {"source": source, "rendered": {}}
+	var result := {"source": source, "rendered": {}, "effective_msaa": _main.view.msaa_3d}
 	if DisplayServer.get_name() != "headless":
 		var frames := []
 		for i in 120:

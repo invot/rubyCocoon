@@ -40,7 +40,7 @@ def summarize(path):
             if exp["part"] == "aa":
                 if exp["msaa"] != (0 if i == 1 else 1) or exp["screen_aa"] != (1 if i == 1 else 0):
                     raise ValueError("Effective AA differs from request")
-            elif exp["msaa"] != 1 or exp["screen_aa"] != 0:
+            elif exp["msaa"] != (0 if batch["quality"] == "min" else 1) or exp["screen_aa"] != 0:
                 raise ValueError("Unexpected baseline AA")
             if name == "merge":
                 if segment["frames"] != 570 or abs(segment["film_elapsed"] - 9.5) > .002:
