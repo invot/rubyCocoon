@@ -26,6 +26,12 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 
 ## Next step
 
+New **010c: Godot 4.8 migration** is scheduled immediately after 007 phone recovery/cleanup,
+before 011 budget acceptance. See the [assessment and rework](010c-godot-48-plan.md).
+4.8 is beta 3 as of 13 November; test early, with adoption gated as documented. Existing 011
+tooling remains provisional until remeasured. Unfinished 022a now covers offline texture baking
+in place of LightmapGI, following the user’s direction; completed steps retain their status.
+
 **007: alpha and overdraw.** [006's batched scenery experiments](006-scenery.md) are complete:
 keep 8×8 batches, preserve recentered LOD data and cover pad swell; no experimental visual change adopted.
 Phone/Web results and remaining performance limits are recorded in that report.

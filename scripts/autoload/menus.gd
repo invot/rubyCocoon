@@ -24,6 +24,18 @@ func pause_menu(world, start_tab := "") -> void:
 	await book.done
 
 
+## The Beast Center's and kennels' storage: the book's Beasts page alone, with your stored beasts beside the ring
+## (book_menu.storage_mode, beasts_page.gd). The only place to change which beasts you carry.
+func storage_screen() -> void:
+	if UI.auto:
+		return
+	var book = GameState.main.loaded_script(BOOK_PATH).new()
+	book.storage_mode = true
+	book.setup(GameState.main.world if GameState.main != null else null, "beasts")
+	UI.push(book)
+	await book.done
+
+
 func eggs_menu() -> void:
 	if GameState.eggs.is_empty():
 		await UI.say(["You aren't carrying any eggs. Defeated wild beasts sometimes leave one behind (about 1 in 5)."])
@@ -78,7 +90,15 @@ func report_events(b, events: Array) -> void:
 				GameState.seen[str(b.race)] = true
 			"learn":
 				var mn: String = MoveDB.get_move(e["move"])["name"]
-				lines.append(("%s learned %s!" % [who, mn]) if e["active"] else ("%s can now use %s. Swap it in from the Moves menu." % [who, mn]))
+				if e["active"]:
+					lines.append("%s learned %s!" % [who, mn])
+				else:
+					# its slots are full: say what came before, then let the player choose
+					if not lines.is_empty():
+						Sfx.play("levelup")
+						await UI.say(lines)
+						lines = []
+					await decide_learn(b, e["move"])
 			"cap":
 				lines.append("%s reached its level limit! It's ready to merge." % who)
 	if not lines.is_empty():
@@ -86,7 +106,7 @@ func report_events(b, events: Array) -> void:
 		await UI.say(lines)
 
 
-## Teaches a move right away, asking which move to replace if needed.
+## Teaches a move right away, asking which move to forget if its slots for that kind of move are full.
 func teach(b, mv: String) -> void:
 	var mn: String = MoveDB.get_move(mv)["name"]
 	var res: String = b.learn(mv)
@@ -94,84 +114,40 @@ func teach(b, mv: String) -> void:
 		Sfx.play("levelup")
 		await UI.say(["%s learned %s!" % [b.nickname, mn]])
 		return
-	var items := []
-	for m in b.moves:
-		items.append({"text": MoveDB.get_move(m)["name"], "desc": "Forget this move (it stays remembered and can be swapped back later).\n" + MoveDB.summary(m)})
-	items.append({"text": "Keep current moves", "desc": "%s will remember %s for later." % [b.nickname, mn]})
-	var c: int = await UI.choose("%s wants to use %s. Replace which move?" % [b.nickname, mn], items, {"width": 520})
-	if c >= 0 and c < b.moves.size():
-		b.moves[c] = mv
+	await decide_learn(b, mv)
+
+
+## `b` wants to learn `mv` but that kind of slot is full: the player picks a move to forget for good, or lets the new
+## one go. Returns true if it learned it.
+func decide_learn(b, mv: String) -> bool:
+	var mn: String = MoveDB.get_move(mv)["name"]
+	var group: String = b.slot_group(mv)
+	var kind := "plain" if group == "plain" else group.capitalize()
+	var current: Array = b.slot_moves(group)
+	while true:
+		var items := []
+		for m in current:
+			items.append({"text": MoveDB.get_move(m)["name"], "right": kind.to_upper(),
+				"desc": "Forget %s for good and learn %s.\n%s" % [MoveDB.get_move(m)["name"], mn, MoveDB.summary(m)]})
+		items.append({"text": "Don't learn %s" % mn, "desc": "%s keeps its moves and never learns %s.\n%s" % [b.nickname, mn, MoveDB.summary(mv)]})
+		var c: int = await UI.choose("%s wants to learn %s.\nIts %s slots are full. Forget which?" % [b.nickname, mn, kind], items, {"width": 560})
+		if c < 0 or c >= current.size():
+			if UI.auto or await UI.ask("Let %s go without learning it?" % mn):
+				await UI.say(["%s did not learn %s." % [b.nickname, mn]])
+				return false
+			continue
+		var old: String = current[c]
+		var on: String = MoveDB.get_move(old)["name"]
+		if not await UI.ask("Forget %s for good and learn %s?" % [on, mn]):
+			continue
+		b.replace_move(old, mv)
 		Sfx.play("levelup")
-		await UI.say(["%s is now using %s!" % [b.nickname, mn]])
-	else:
-		await UI.say(["%s will remember %s." % [b.nickname, mn]])
+		await UI.say(["%s forgot %s and learned %s!" % [b.nickname, on, mn]])
+		return true
+	return false
 
 
 # ---------------------------------------------------------------- party
-func party_menu() -> void:
-	while true:
-		var b = await pick_beast("Your beasts", GameState.party)
-		if b == null:
-			return
-		await beast_options(b)
-
-
-func beast_options(b) -> void:
-	while true:
-		var i := GameState.party.find(b)
-		var c: int = await UI.choose(b.nickname, [
-			{"text": "Summary", "desc": "Stats, passives and moves."},
-			{"text": "Moves", "desc": "Choose which 4 known moves to use (%d known)." % b.known.size()},
-			{"text": "Gear", "desc": "Equipped: %s" % (ItemDB.item_name(b.equip) if b.equip != "" else "nothing")},
-			{"text": "Use item", "desc": "Use a potion or candy on %s." % b.nickname},
-			{"text": "Move to front", "desc": "The first three beasts start each battle.", "disabled": i <= 0},
-			{"text": "Back"}], {"anchor": "right", "width": 300})
-		match c:
-			0:
-				await UI.show_beast(b)
-			1:
-				await manage_moves(b)
-			2:
-				await equip_beast(b)
-			3:
-				await use_item_on(b)
-			4:
-				GameState.party.erase(b)
-				GameState.party.insert(0, b)
-				UI.toast("%s moved to the front." % b.nickname, b)
-			_:
-				return
-
-
-func manage_moves(b) -> void:
-	while true:
-		var items := []
-		for m in b.moves:
-			var md := MoveDB.get_move(m)
-			items.append({"text": md["name"], "right": md["el"].to_upper(), "desc": MoveDB.summary(m)})
-		if b.moves.size() < 4:
-			items.append({"text": "(empty slot)", "desc": "Add a remembered move here."})
-		var c: int = await UI.choose("%s's moves — pick one to change" % b.nickname, items, {"width": 520})
-		if c < 0:
-			return
-		var spare: Array = b.known.filter(func(m): return not b.moves.has(m))
-		if spare.is_empty():
-			await UI.say(["%s doesn't remember any other moves." % b.nickname])
-			continue
-		var items2 := []
-		for m in spare:
-			var md2 := MoveDB.get_move(m)
-			items2.append({"text": md2["name"], "right": md2["el"].to_upper(), "desc": MoveDB.summary(m)})
-		var c2: int = await UI.choose("Replace with...", items2, {"width": 520})
-		if c2 < 0:
-			continue
-		if c >= b.moves.size():
-			b.moves.append(spare[c2])
-		else:
-			b.moves[c] = spare[c2]
-		Sfx.play("select")
-
-
 func equip_beast(b) -> void:
 	var ids := []
 	var items := []
@@ -183,10 +159,11 @@ func equip_beast(b) -> void:
 	if b.equip != "":
 		ids.append("")
 		items.append({"text": "Unequip %s" % ItemDB.item_name(b.equip), "desc": "Return it to your bag."})
+	var wearing := ItemDB.item_name(b.equip) if b.equip != "" else "nothing"
 	if ids.is_empty():
-		await UI.say(["You don't have any beast gear. Outfitters sell it!"])
+		await UI.say(["%s is wearing %s. You don't have any beast gear to change it. Outfitters sell it!" % [b.nickname, wearing]])
 		return
-	var c: int = await UI.choose("Equip %s with..." % b.nickname, items, {"width": 480})
+	var c: int = await UI.choose("%s is wearing %s.\nEquip it with..." % [b.nickname, wearing], items, {"width": 480})
 	if c < 0:
 		return
 	var id2: String = ids[c]

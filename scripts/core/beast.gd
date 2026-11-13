@@ -7,7 +7,10 @@ const ItemDB = preload("res://scripts/data/item_db.gd")
 
 const STAT_KEYS := ["hp", "atk", "def", "spr", "spd"]
 const STAT_NAMES := {"hp": "HP", "atk": "Attack", "def": "Defense", "spr": "Spirit", "spd": "Speed"}
-const MAX_MOVES := 4
+## Plain (neutral) moves have their own two slots, so a beast can always fight off its element.
+const PLAIN_SLOTS := 2
+## Elemental move slots of a newly hatched first form; each growth into a next form adds one, a merge two.
+const FIRST_ELEM_SLOTS := 2
 
 var uid := 0
 var nickname := ""
@@ -26,7 +29,10 @@ var mp := 0
 var base: Dictionary = {}
 var genes: Dictionary = {}
 var moves: Array = []
+## the moves it has learned and not forgotten (the same as `moves`: a forgotten move is gone for good)
 var known: Array = []
+## how many elemental moves it can hold, split between its elements when it has two (see slot_size)
+var elem_slots := FIRST_ELEM_SLOTS
 var passives: Array = []
 var equip := ""
 var hp := 1
@@ -130,15 +136,80 @@ func battle_moves() -> Array:
 	return out
 
 
+## Returns "new" (it took a free slot), "full" (its slots for that kind of move are full: the player decides what to
+## forget, see Menus.decide_learn; nothing changed) or "" (it already has it).
 func learn(move_id: String) -> String:
-	## Returns "new" (added to active moves), "known" (stored), or "" (already had it).
-	if known.has(move_id):
+	if moves.has(move_id):
 		return ""
-	known.append(move_id)
-	if moves.size() < MAX_MOVES:
-		moves.append(move_id)
-		return "new"
-	return "known"
+	var group := slot_group(move_id)
+	if slot_moves(group).size() >= slot_size(group):
+		return "full"
+	moves.append(move_id)
+	_sync_known()
+	return "new"
+
+
+## Forgets `old` for good and uses `new_move` in its place.
+func replace_move(old: String, new_move: String) -> void:
+	var i := moves.find(old)
+	if i < 0:
+		moves.append(new_move)
+	else:
+		moves[i] = new_move
+	_sync_known()
+
+
+## Which slots a move takes: "plain" for a neutral move, else one of its elements. A move of another element (a ghost's
+## moves, or a merge's lineage) uses its main element's slots.
+func slot_group(move_id: String) -> String:
+	var el := String(MoveDB.get_move(move_id).get("el", "neutral"))
+	if el == "neutral":
+		return "plain"
+	return el if element2 != "" and el == element2 else element
+
+
+## How many moves a group holds. A beast of two elements splits its elemental slots evenly (the odd one to its main).
+func slot_size(group: String) -> int:
+	if group == "plain":
+		return PLAIN_SLOTS
+	if element2 == "":
+		return elem_slots if group == element else 0
+	if group == element2:
+		return elem_slots / 2
+	return elem_slots - elem_slots / 2 if group == element else 0
+
+
+func slot_moves(group: String) -> Array:
+	return moves.filter(func(m): return slot_group(m) == group)
+
+
+## Its slot groups in order: its element(s), then plain.
+func slot_groups() -> Array:
+	return ([element] if element2 == "" else [element, element2]) + ["plain"]
+
+
+## Drops moves that no longer fit their slots, keeping the most recently learned (the end of `moves`).
+func fit_moves() -> void:
+	var kept := []
+	var counts := {}
+	for i in range(moves.size() - 1, -1, -1):
+		var m: String = moves[i]
+		var g := slot_group(m)
+		if kept.has(m) or int(counts.get(g, 0)) >= slot_size(g):
+			continue
+		counts[g] = int(counts.get(g, 0)) + 1
+		kept.push_front(m)
+	moves = kept
+	_sync_known()
+
+
+func _sync_known() -> void:
+	known = moves.duplicate()
+
+
+## The slot count a beast should have from its form and rank (new beasts, and saves from before slots).
+static func default_elem_slots(race_id: int, rank_n: int) -> int:
+	return FIRST_ELEM_SLOTS + RaceDB.stage(race_id) - 1 + 2 * maxi(0, rank_n - 1)
 
 
 func can_learn(move_id: String) -> bool:
@@ -221,6 +292,7 @@ func evolve(nf: int) -> void:
 		nickname = nickname.replace(oname, RaceDB.race_name(nf))
 	lineage = lineage.map(func(r): return nf if int(r) == old else int(r))
 	race = nf
+	elem_slots += maxi(0, RaceDB.stage(nf) - RaceDB.stage(old))
 	hp = max_hp()
 	mp = max_mp()
 
@@ -270,7 +342,7 @@ func to_dict() -> Dictionary:
 	return {
 		"uid": uid, "nickname": nickname, "race": race, "lineage": lineage, "element": element, "element2": element2, "slot": slot,
 		"ghost": ghost, "rank": rank, "level": level, "xp": xp, "mp": mp, "base": base, "genes": genes,
-		"moves": moves, "known": known, "passives": passives, "equip": equip, "hp": hp,
+		"moves": moves, "known": known, "elem_slots": elem_slots, "passives": passives, "equip": equip, "hp": hp,
 		"origin": origin, "merges": merges, "abandoned": abandoned, "parents": parents,
 	}
 
@@ -292,6 +364,7 @@ func load_dict(d: Dictionary) -> void:
 	genes = d.get("genes", {})
 	moves = d.get("moves", [])
 	known = d.get("known", [])
+	elem_slots = int(d.get("elem_slots", default_elem_slots(race, rank)))
 	passives = d.get("passives", [])
 	equip = d.get("equip", "")
 	hp = int(d.get("hp", 1))
@@ -305,5 +378,7 @@ func load_dict(d: Dictionary) -> void:
 	for r in lineage:
 		lin.append(int(r))
 	lineage = lin
+	# (saves from before move slots: keep the newest moves that fit; forgotten moves are no longer remembered)
+	fit_moves()
 	if genes.has("size"):
 		genes["size"] = float(genes["size"])

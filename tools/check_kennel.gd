@@ -80,5 +80,29 @@ func run() -> void:
 	await places.kennel_pen(null, "caccoon", -1)
 	await places.kennel_pen(null, "caccoon", 4)
 	check(gs.gold == 260 and gs.all_beasts().size() == 2, "empty/invalid pens cannot charge or duplicate beasts")
+	# dropping off: Pip asks whether it goes to your storage or up for adoption; a Beast Center only stores
+	_seed_beast(1)
+	gs.kennels = {"caccoon": [{"beast": null, "yours": false, "since": 0.0}]}
+	var keep = gs.party[0]
+	var other = gs.Beasts.create(12, 5)
+	gs.add_beast(other)
+	other.hp = 1
+	ui.auto_answers = [1, 0]
+	await places.kennel_drop_off(null, "caccoon")
+	check(gs.storage.has(other) and not gs.party.has(other) and other.hp == other.max_hp(), "drop-off to your storage stores and heals it")
+	ui.auto_answers = [0, 1, 0]
+	await places.kennel_drop_off(null, "caccoon")
+	check(gs.party.has(keep) and gs.storage.has(other) and gs.kennels["caccoon"][0]["beast"] == null, "the last carried beast can't be put up for adoption")
+	ui.auto_answers = [1, 0]
+	await places.kennel_drop_off(null, "caccoon")
+	check(not gs.all_beasts().has(other) and gs.kennels["caccoon"][0]["beast"] == other and gs.kennels["caccoon"][0]["yours"], "a stored beast can go up for adoption")
+	ui.auto_answers = [0]
+	await places.center_drop_off("Nurse Clover")
+	check(gs.party.has(keep) and gs.party.size() == 1, "a Beast Center won't store your last carried beast")
+	var spare = gs.Beasts.create(30, 5)
+	gs.add_beast(spare)
+	ui.auto_answers = [1]
+	await places.center_drop_off("Nurse Clover")
+	check(gs.storage.has(spare) and gs.party.size() == 1, "a Beast Center drop-off goes straight to storage, with no adoption question")
 	print("KENNEL DONE: %d problem(s)" % problems)
 	quit.call_deferred(1 if problems else 0)

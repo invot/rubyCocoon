@@ -1,7 +1,6 @@
 # Rock family: artwork candidate
 
-**Status:** rev_001 is published for your review (2026-11-13). This is preproduction for runbook step 030 (S10: rocks). **It is not integrated, and 030 is not complete.** Integration waits for:
-- your review;
+**Status:** **rev_001 approved by the user as the rock family candidate on 2026-11-13.** This is preproduction for runbook step 030 (S10: rocks). **It is not integrated, and 030 is not complete.** Integration waits for:
 - Codex's technical review;
 - steps 011, 022 and 023 (budgets, material presets and the scale sheet);
 - the mixed nature gallery (028).
@@ -12,7 +11,7 @@
 
 | Revision | Published | Folder | Notes |
 |---|---|---|---|
-| rev_001 | 2026-11-13 | `build/art_candidates/rocks/rev_001/` | First candidate. 4 shapes × 2 palettes (grassland, coast), 2 LODs each. `READY.json` lists hashes, counts, scale and provenance |
+| rev_001 | 2026-11-13 | `build/art_candidates/rocks/rev_001/` | First candidate. 4 shapes × 2 palettes (grassland, coast), 2 LODs each. `READY.json` lists hashes, counts, scale and provenance. **Approved by the user as the candidate on 2026-11-13** |
 
 Published revisions never change. Corrections go in `rev_002` and later revisions.
 

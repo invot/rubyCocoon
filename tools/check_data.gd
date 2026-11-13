@@ -185,6 +185,7 @@ func _dress(look: Dictionary, who: String) -> void:
 
 ## The hero in everything the character creator offers.
 func _people() -> void:
+	_head_colours()
 	for body in Townfolk.HERO_OUTFITS:
 		for person in Townfolk.HERO_OUTFITS[body]:
 			_dress({"face": "hero", "body": body, "person": person}, "hero %s outfit %d" % [body, person])
@@ -198,3 +199,29 @@ func _people() -> void:
 		if int(id) >= Townfolk.data()["parts"].size():
 			_fail("PART_FIXES names part %d, which doesn't exist" % id)
 	_dress({"outfit": "camo", "shirt": "#c84040"}, "a camo trainer")
+
+
+## Eye palette swatches also occur on the kit's cheeks and underside of the head.
+## Check every face; the hero must retain an iris on both sides.
+func _head_colours() -> void:
+	for id in Townfolk.data()["parts"].size():
+		if Townfolk.data()["parts"][id]["kind"] != "head":
+			continue
+		var mesh := Townfolk.part_mesh(id)
+		var sides := {}
+		for s in mesh.get_surface_count():
+			var a := mesh.surface_get_arrays(s)
+			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
+			var ix: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+			for t in range(0, ix.size(), 3):
+				var mid := (v[ix[t]] + v[ix[t + 1]] + v[ix[t + 2]]) / 3.0
+				if roundi(uv[ix[t]].x) == 3 and (mid.y < 1.224 or mid.z < 0.15):
+					_fail("head %d: eye colour reaches cheek/neck/back at %s" % [id, mid])
+				for k in 3:
+					var i := ix[t + k]
+					if roundi(uv[i].x) != 3:
+						continue
+					sides[signi(int(v[i].x * 10000.0))] = true
+		if Townfolk.data()["people"][Townfolk.HERO_FACE]["parts"].has(id) and (not sides.has(-1) or not sides.has(1)):
+			_fail("head %d: missing coloured iris" % id)

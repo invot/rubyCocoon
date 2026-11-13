@@ -232,7 +232,7 @@ Every step:
 **004 result (12 November 2026):** see [004-cost-diagnosis.md](004-cost-diagnosis.md) and the generated
 `build/perf/vo/004/tables.md`. Existing finishes and scenery are already shared/batched; grass is opaque geometry.
 Do not implement the old blanket assumptions. Execution order after 004 is:
-**005a → 009a → 010a → 005b if justified → 009b → 010b → 008 → 006 → 007 → 011**.
+**005a → 009a → 010a → 005b if justified → 009b → 010b → 008 → 006 → 007 → 010c → 011**.
 The cheap audits/measurements precede changes. Follow the dependencies below rather than the headings' numerical order.
 
 ### 005 · P5: material sharing (split into 005a and 005b)
@@ -471,8 +471,39 @@ do not assume scenery alone explains the interval. Preserve player app and lock 
 **Evidence:** side-by-side 540p and 720p crops before/after, and phone fps at 540p.
 **Done when:** you approve, and the `video-settings` and `video-settings-touch` tests pass.
 
+### 010c · P10c: migrate to Godot 4.8 and verify useful rendering features
+**Status:** todo (added 2026-11-13; no completed step replaced).
+**Approval:** measured compatibility/performance, then before/after gameplay screenshots before adoption.
+**Needs:** recover 007 phone evidence and clean up its temporary package; preserve completed 005–010 evidence.
+**Runs before:** 011 budget acceptance, 021/022 material work and production texture bakes.
+**Read:** [migration assessment and rework inventory](010c-godot-48-plan.md), README Art/Mobile/Tests,
+`parallel-handoff.md`, and the exact target release's compatibility/regression notes.
+**Do:**
+- Start at the first clean boundary after 007; preserve any existing 011 tooling as provisional work.
+  Test in an isolated project copy with matching, pinned editor/export templates and an intact 4.7 rollback.
+  As of 13 November, 4.8 is beta 3: begin testing now, but leave adoption open for stable or an explicit
+  user decision to adopt the tested beta. Recheck release status when executing.
+- Fix version-pinned launchers, phone editor/template paths, Windows probe templates, imports and only
+  actual API incompatibilities. Preserve renderer split, package identity, saves and smoothing records.
+- Measure unchanged-game 4.7/4.8 native, phone and production web exports first. Retest shader warm-up,
+  Web audio, touch/focus, terrain/water/fading, battle silhouettes and smooth 540p/720p output.
+- Trial texture streaming and ASTC profiles on representative assets; record support/fallbacks per renderer.
+  Carry accepted compression/import rules into 022. Scope cutout mipmaps to 027–029, decal/contact-shadow
+  trials to 022/043, and optional Trail3D work to 043. Keep each feature independently measurable.
+- No multi-bounce AO approximation or runtime bounce-light/GI adoption. The user wants lighting baked
+  into textures; unfinished 022a below is reworked accordingly. Keep approved direct/actor lighting coherent.
+- Use small checkpoints; split if necessary. Record regressions, required asset/shader/tooling rework,
+  feature support, costs, rollback and any release/device blockers in `010c-godot-48-results.md`.
+
+**Offload:** local model summarizes import/test failures and neutral screenshot differences; confirm against
+actual logs, renderer output and crops. Use the shared resource lock for measured native runs.
+**Evidence:** full suite and both map checkers, rendered input/graphics checks, exact build/template hashes,
+matched native/phone/web frame and loading traces, texture/export sizes, and before/after screenshots.
+**Done when:** the tested engine is adopted, required target evidence passes and screenshots are approved;
+011 then accepts budgets measured on that engine. A beta-only feasibility report does not finish migration.
+
 ### 011 · P11: measured budgets and the `vo-budget` test
-**Approval:** numbers. **Needs:** 005–010.
+**Approval:** numbers. **Needs:** 005–010 and adopted 010c. Existing 4.7 budget tooling/results stay provisional until remeasured on the adopted engine.
 **Do:**
 - From the improved numbers, write `ledger/budgets.md`: per scene and renderer, the draw calls, distinct materials, triangles in view, texture MB, transparent draws and frame ms. Give a target per hardware class (30 fps minimum class, 60 fps mid class and PC), with headroom for the art phases.
 - Add a `vo-budget` line to `tools/run_tests.sh`. It runs the route headless and fails over the CPU-side budgets.
@@ -643,34 +674,31 @@ The reference images aren't in the repo. To use them in captures, save copies in
 **Offload:** "List any sample that looks glossy like plastic, or grainy/noisy."
 **Done when:** you approve, and the presets are in code.
 
-### 022a · S2a: static-interior LightmapGI feasibility prototype
-**Approval:** numbers and before/after screenshots for the prototype; production adoption requires your approval.
-**Needs:** 011, 021, 022.
-**Files:** one representative interior fixture, its existing room/material builders, and an offline bake tool.
+### 022a · S2a: offline texture-lighting bake workflow
+**Status:** todo; reworked 2026-11-13 from the unfinished LightmapGI feasibility experiment.
+**Approval:** before/after gameplay screenshots and measured costs for the prototype.
+**Needs:** adopted 010c, 011, 021, 022.
+**Files:** one representative static interior fixture, existing room/material builders and offline bake tools.
 **Do:**
-- Prototype one static interior using the approved materials; keep the experiment isolated from production.
-  The current runtime has no active VoxelGI or SDFGI to replace: assess added bounce-light quality and total cost,
-  rather than claiming an existing runtime GI saving.
-- Prefer this LightmapGI experiment over VoxelGI for the shared lighting path. VoxelGI's bake prepares voxel
-  data but still requires demanding runtime GI and Forward+; it does not benefit Mobile or Compatibility/web.
-  Its static bake also has custom-ShaderMaterial limitations relevant to the game's terrain and foliage.
-  Any future desktop-only VoxelGI experiment needs a separate measured justification and fallback;
-  adding a VoxelGI node is not an optimization of the current lighting.
-- Establish a repeatable offline bake from the runtime-built room, unique non-overlapping UV2s,
-  stable geometry/transforms and resource mapping, and a cache/invalidation rule for rebuilt rooms.
-  Exported play must load the baked result, never attempt an editor-only bake.
-- Compare indirect-only versus direct-plus-indirect baking where useful. Keep actors, moving objects,
-  room changes and dynamic lights coherent; check existing wall fading and omitted camera-facing walls.
-- Verify baked-light rendering on Forward+, Mobile and Compatibility, including web. Record texture memory,
-  export/download size, loading cost, GPU/frame timings and bake time alongside matched gameplay crops.
-- Decide go/no-go against 011 budgets. If worthwhile, document a bounded follow-up for eligible static rooms;
-  assess village/overworld eligibility separately because runtime assembly, batching and changing geometry
-  may make baking unsuitable. Do not roll lightmaps across the world as part of this prototype.
+- Follow the user's texture-baking direction: paint/bake soft contact shading and static illumination into
+  texture assets offline. Do not add LightmapGI, VoxelGI, SDFGI, SSIL or multi-bounce AO approximation.
+- Prototype a bounded room with approved materials. Decide which illumination can safely live in reusable
+  textures and which needs room-specific UVs/atlases. Preserve recolouring, material sharing and texel density;
+  do not bake strong room-specific directional shadows into movable/reused furnishings, people or beasts.
+- Build a repeatable source → bake → eligible smoothing once → import/export path with hashes,
+  invalidation and stable geometry/UV mapping. Runtime loads finished textures; no bake during play.
+- Compare baked and existing runtime shading to avoid doubled AO/shadows. Check wall fading, omitted
+  camera-facing walls, moving objects, actors and dynamic lights; preserve their existing direct lighting.
+- Verify compressed textures on Forward+, Mobile and Compatibility/web, including dark rooms and close
+  crops of seams. Measure texture memory, export/download size, loading, draw/material counts, GPU/frame
+  cost and bake time against 011 budgets. Keep the prototype isolated until approved.
+- Record a bounded rollout for eligible static interiors in 036–038. Evaluate outdoor eligibility separately;
+  runtime terrain, batching and changing layouts must not inherit incorrect static shadows.
 
-**Offload:** neutral comparison of contact shadows, light bounce and visible bake seams; verify findings directly.
-**Evidence:** repeatable bake instructions, renderer/device results, matched crops and an adoption decision.
-**Done when:** the prototype's quality/cost trade-off and limitations are recorded and reviewed; either a
-bounded adoption follow-up is planned or an evidence-backed no-op is recorded. No automatic production rollout.
+**Offload:** neutral descriptions of contact shading, seams and readability; verify significant findings directly.
+**Evidence:** repeatable bake instructions, matched gameplay crops, target measurements and rollout/rejection rationale.
+**Done when:** the texture-bake method and limitations are reviewed and a bounded follow-up or justified no-op
+is documented. This does not authorize a world-wide rebake or complete any later art step.
 
 ### 023 · S3: scale sheet
 **Approval: you.** **Needs:** 022.

@@ -212,20 +212,23 @@ static func _fix_eyes(arrays: Array) -> void:
 	var uv2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
 	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var was := uv2.duplicate()
-	# each painted triangle: "iris", "line" (outline, lashes and brows to begin with) or "brow"
+	# each painted triangle: "iris", "line", "brow", or stray eye paint restored to "skin"
 	var kinds := {}
 	var cells := {}
 	for t in range(0, idx.size(), 3):
 		if int(was[idx[t]].x + 0.5) != 3:
 			continue
 		var c := col[idx[t]].linear_to_srgb()
-		kinds[t] = "iris" if c.s < EYE_LINE_S and c.h > 0.6 and c.h < 0.9 else "line"
 		var a := Vector2(v[idx[t]].x, v[idx[t]].y)
 		var b := Vector2(v[idx[t + 1]].x, v[idx[t + 1]].y)
 		var d := Vector2(v[idx[t + 2]].x, v[idx[t + 2]].y)
 		var mid := (v[idx[t]] + v[idx[t + 1]] + v[idx[t + 2]]) / 3.0
 		if nrm[idx[t]].z < 0.3 or mid.z < 0.15 or mid.y < 1.224 or absf(mid.x) < 0.015:
+			# The baked palette also tagged small cheek, jaw and scalp faces as eyes.
+			# Apply the face bounds to recolouring itself, not just brow detection.
+			kinds[t] = "skin"
 			continue
+		kinds[t] = "iris" if c.s < EYE_LINE_S and c.h > 0.6 and c.h < 0.9 else "line"
 		# the cells it covers (and the one its middle is in, if it's too small to cover any)
 		var x0 := floori(minf(a.x, minf(b.x, d.x)) / EYE_CELL)
 		var x1 := floori(maxf(a.x, maxf(b.x, d.x)) / EYE_CELL)
@@ -276,6 +279,8 @@ static func _fix_eyes(arrays: Array) -> void:
 		for k in 3:
 			var i := idx[t + k]
 			match kinds[t]:
+				"skin":
+					uv2[i] = Vector2(1, 1.0)
 				"brow":
 					# (dark, too, for someone with no hair colour of their own)
 					uv2[i] = Vector2(2, 0.85)

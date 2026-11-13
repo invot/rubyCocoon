@@ -3071,6 +3071,8 @@ func _stage_pull(w: float, h: float, t: Vector3) -> float:
 
 # ================================================================ movement
 func _walkable(p: Vector2i) -> bool:
+	if _npc_departing(p):
+		return false
 	if npc_footprints.has(p):
 		return false
 	if p.x < 0 or p.y < 0 or p.x >= map["w"] or p.y >= map["h"]:
@@ -4131,7 +4133,7 @@ func _animate_npcs(delta: float) -> void:
 		if (n["node"] as Node3D).position.distance_squared_to(player.position) >= 300.0:
 			n["gait"] = 0.0
 			VPer.animate(n["node"], 0.0, 0.0)
-	if not busy and not frozen:
+	if not busy and not frozen and not UI.busy():
 		_roam(delta)
 	if busy:
 		return
@@ -4160,8 +4162,7 @@ const ROAM_FLOORS := [MapGen.IFLOOR, MapGen.ITILE, MapGen.RUG]
 
 
 func _roam(delta: float) -> void:
-	var moves := []
-	for p in npcs:
+	for p in npcs.keys():
 		var n: Dictionary = npcs[p]
 		if not n.get("roam", false) or n.has("walking") or n.get("node", null) == null:
 			continue
@@ -4174,15 +4175,21 @@ func _roam(delta: float) -> void:
 		for d in dirs:
 			var t: Vector2i = p + d
 			if _roam_free(t, p, n):
-				moves.append([p, t, d])
+				# Reserve immediately: two visitors must never pick the same destination.
+				npcs.erase(p)
+				npcs[t] = n
+				n["pos"] = t
+				_face_npc(n, d, true)
+				n["walking"] = {"from": tile_pos(p), "to": tile_pos(t), "tile_from": p, "t": 0.0}
 				break
-	for mv in moves:
-		var n2: Dictionary = npcs[mv[0]]
-		npcs.erase(mv[0])
-		npcs[mv[1]] = n2
-		n2["pos"] = mv[1]
-		_face_npc(n2, mv[2], true)
-		n2["walking"] = {"from": tile_pos(mv[0]), "to": tile_pos(mv[1]), "t": 0.0}
+
+
+## Keep both ends occupied until a strolling person has finished their step.
+func _npc_departing(t: Vector2i) -> bool:
+	for n in npcs.values():
+		if n.has("walking") and n["walking"].get("tile_from", Vector2i(-999, -999)) == t:
+			return true
+	return false
 
 
 ## The four ways anyone can step: everyone walks the grid, one whole tile at a time.
@@ -4202,13 +4209,42 @@ func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
 	var home: Vector2i = n.get("home", from)
 	if absi(t.x - home.x) + absi(t.y - home.y) > ROAM_LEASH:
 		return false
-	if npcs.has(t) or items.has(t) or shards.has(t) or t == player_pos:
+	if not _walkable(t) or t == player_pos or not Elev.joined(map, from, t):
+		return false
+	if moving and tile_pos(t).distance_squared_to(move_from) < 0.01:
+		return false
+	if map.get("spawns", {}).values().has(t):
 		return false
 	for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
 		var q: Vector2i = t + d
 		if q == player_pos or (npcs.has(q) and q != from):
 			return false
+		if map["exits"].has(q) or doors.has(q) or stair_ways.has(q) or MapGen.get_t(map, q.x, q.y) == MapGen.LOCKED:
+			return false
 		if MapGen.get_t(map, q.x, q.y) in PROP_CODES and MapGen.get_t(map, q.x, q.y) != MapGen.FURN:
+			return false
+	# All free neighbours must still connect around the person. A visitor may
+	# stroll across an open floor, but may never occupy a corridor's only route.
+	var neighbours: Array[Vector2i] = []
+	for d in FOUR_WAYS:
+		var q: Vector2i = t + d
+		if _walkable(q) and Elev.joined(map, t, q):
+			neighbours.append(q)
+	if neighbours.size() < 2:
+		return false
+	var seen := {neighbours[0]: true}
+	var pending := [neighbours[0]]
+	var index := 0
+	while index < pending.size():
+		var p: Vector2i = pending[index]
+		index += 1
+		for d in FOUR_WAYS:
+			var q: Vector2i = p + d
+			if q != t and not seen.has(q) and _can_step(p, q):
+				seen[q] = true
+				pending.append(q)
+	for q in neighbours:
+		if not seen.has(q):
 			return false
 	return true
 

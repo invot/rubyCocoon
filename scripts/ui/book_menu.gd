@@ -2,8 +2,8 @@ extends "res://scripts/ui/modal.gd"
 ## The Start menu: one large window with a strip of tabs across the top and two panes, a list on the left and the
 ## chosen row's details on the right (the menus of the early PS2 RPGs), in the game's one dark style (UIKit).
 ## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
-## Controls: ◄/► switch tabs (or adjust Default element / beast placement), ▲/▼ choose, A to act,
-## S (back) returns to the tabs / closes, Start closes.
+## Controls: ◄/► switch tabs (or adjust Default element / beast placement), ▲/▼ choose, A to act; ▲ at the top of a
+## page goes to the tabs and ▼ (or A) from the tabs back into it; S (back) returns to the tabs / closes, Start closes.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Bar = preload("res://scripts/ui/bar.gd")
@@ -45,6 +45,9 @@ static var last_tab := 1
 var hides_touch_pad := false
 
 var world = null
+## The Beast Center's and kennel's storage screen (Menus.storage_screen): only the Beasts page, without the tabs, with
+## your stored beasts beside the ring (beasts_page.gd). B closes it.
+var storage_mode := false
 var tab := 1
 var mode := "list"
 var book: Control
@@ -128,6 +131,7 @@ func _build() -> void:
 		m.pressed.connect(_click_tab.bind(i))
 		tab_strip.add_child(m)
 		markers.append(m)
+	tab_strip.visible = not storage_mode
 	window = PanelContainer.new()
 	window.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	book.add_child(window)
@@ -188,8 +192,10 @@ func _layout() -> void:
 	book.size = Vector2(w, avail - top - 10.0)
 	tab_strip.position = Vector2.ZERO
 	tab_strip.size = Vector2(w, TAB_H)
-	window.position = Vector2(0, TAB_H + TAB_GAP)
-	window.size = Vector2(w, book.size.y - TAB_H - TAB_GAP)
+	# (storage mode has no tabs, but keeps their room free for the top-centre HUD's notices, such as "Embit was stored.")
+	var tabs_h := TAB_H + TAB_GAP
+	window.position = Vector2(0, tabs_h)
+	window.size = Vector2(w, book.size.y - tabs_h)
 	left_box.size_flags_stretch_ratio = _left_share()
 	right_col.size_flags_stretch_ratio = 1.0 - _left_share()
 
@@ -369,6 +375,37 @@ func _add_row(row: Dictionary) -> void:
 		b.add_theme_stylebox_override("disabled", empty)
 		for st in ["hover", "focus", "pressed", "hover_pressed"]:
 			b.add_theme_stylebox_override(st, hl)
+	if row.has("sub"):
+		# a second, small line under the name (a beast's HP and MP): the row grows to fit it
+		var sub_h := 30.0
+		# the name sits near the top and the small line just under it, the pair centred in the row
+		var name_h := 40.0
+		var row_h := maxf(UIKit.row_h(), name_h + sub_h + 12.0)
+		var top := (row_h - name_h - sub_h) / 2.0
+		b.custom_minimum_size.y = row_h
+		for st in ["normal", "disabled", "hover", "focus", "pressed", "hover_pressed"]:
+			if b.has_theme_stylebox_override(st):
+				var box: StyleBox = b.get_theme_stylebox(st)
+				box.content_margin_top = top
+				box.content_margin_bottom = row_h - top - name_h
+		if row.has("right"):
+			(b.get_child(0) as Label).offset_bottom = -(row_h - top - name_h)
+			(b.get_child(0) as Label).offset_top = top
+		var sl := UIKit.label(str(row["sub"]), 20, UIKit.DIM)
+		UIKit.follow_row(b, sl, UIKit.DIM)
+		sl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sl.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		# (left-aligned with the name: past the row's padding, the icon as drawn and the gap after it)
+		var sub_left := 22.0
+		if b.icon != null:
+			sub_left += b.icon.get_width() + b.get_theme_constant("h_separation") + 4.0
+		sl.offset_left = sub_left
+		sl.offset_right = -12
+		sl.offset_top = top + name_h - 4.0
+		sl.offset_bottom = top + name_h - 4.0 + sub_h
+		sl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		b.add_child(sl)
+		row["sub_label"] = sl
 	if row.has("item_slot"):
 		# One square item slot per stack, with a readable action label beside it.
 		b.custom_minimum_size.y = maxf(96, UIKit.row_h())
@@ -402,6 +439,11 @@ func _add_row(row: Dictionary) -> void:
 		count.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		slot.add_child(count)
 	var idx := rows.size()
+	if idx == 0:
+		# Up on the first row goes back to the tabs, before focus navigation looks for something above it
+		b.gui_input.connect(func(ev: InputEvent) -> void:
+			if mode == "list" and ev.is_action_pressed("ui_up") and to_tabs():
+				b.accept_event())
 	b.pressed.connect(_activate.bind(idx))
 	b.focus_entered.connect(_row_focused.bind(idx))
 	b.mouse_entered.connect(func(): if mode == "list": b.grab_focus())
@@ -492,7 +534,7 @@ func on_input(ev: InputEvent) -> void:
 	if is_instance_valid(beasts_page) and beasts_page.on_input(ev):
 		return
 	if ev.is_action_pressed("ui_cancel"):
-		if mode == "list":
+		if mode == "list" and not storage_mode:
 			Sfx.play("back")
 			mode = "tabs"
 			get_viewport().gui_release_focus()
@@ -524,6 +566,17 @@ func on_input(ev: InputEvent) -> void:
 	if mode == "tabs" and (ev.is_action_pressed("ui_accept") or ev.is_action_pressed("ui_down")):
 		mode = "list"
 		_focus_first()
+
+
+## Up from the top of a page (its first row, the Bag's top row of slots, the Map's northernmost town): the cursor goes
+## back to the tab strip. Returns false where there are no tabs (the storage screen).
+func to_tabs() -> bool:
+	if storage_mode or mode != "list":
+		return false
+	Sfx.play("select")
+	mode = "tabs"
+	get_viewport().gui_release_focus()
+	return true
 
 
 func _close_book() -> void:
@@ -644,7 +697,7 @@ func _tab_trainer() -> void:
 
 # ================================================================ Beasts
 func _tab_beasts() -> void:
-	beasts_page = BeastsPage.new().setup(self)
+	beasts_page = BeastsPage.new().setup(self, storage_mode)
 	add_child(beasts_page)
 
 
@@ -917,6 +970,7 @@ func _tab_map() -> void:
 	map_view.focused.connect(_town_focused)
 	map_view.activated.connect(_fly_to)
 	map_view.focus_entered.connect(func() -> void: mode = "list")
+	map_view.edge_up.connect(func() -> void: to_tabs())
 	left_box.add_child(map_view)
 	detail_box = right_box
 	_town_focused(map_view.town())

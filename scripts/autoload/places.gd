@@ -17,6 +17,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
 const Phone = preload("res://scripts/world/phone.gd")
 
+const KENNEL_KEEPER := "Kennel Keeper Pip"
 const KEEPERS := {
 	"center": "Nurse Clover", "apothecary": "Apothecary Fen", "beast_gear": "Outfitter Hale",
 	"trainer_gear": "Outfitter Juniper", "bookstore": "Librarian Quill", "cafe": "Barista Pim",
@@ -129,13 +130,13 @@ func library() -> void:
 		await Story.say(["Open Start and choose Map to see it, with you marked on it. New places fill in as you visit them."], KEEPERS["bookstore"])
 	else:
 		await Story.say(["Your map has room for a whole journey. Shall we spread it out?"], KEEPERS["bookstore"])
-		if await UI.choose("Cocoon Cove Library", ["Read world map", "Leave"]) == 0:
+		if await UI.choose("Cocoon Cove Library", ["Read world map"], {"cancel_button": true}) == 0:
 			await Menus.world_map()
 
 
 func shop_loop(title: String, stock: Array, price_scale := 1.0) -> void:
 	while true:
-		var c: int = await UI.choose("%s   (%d gold)" % [title, GameState.gold], ["Buy", "Sell", "Leave"], {"anchor": "right", "width": 320})
+		var c: int = await UI.choose("%s   (%d gold)" % [title, GameState.gold], ["Buy", "Sell"], {"anchor": "right", "width": 320, "cancel_button": true})
 		if c == 0:
 			await _buy(stock, price_scale)
 		elif c == 1:
@@ -291,19 +292,22 @@ func beast_center(town: String) -> void:
 	while true:
 		var items := [
 			{"text": "Hatchery", "right": "%d" % GameState.eggs.size(), "desc": "Hatch the eggs you're carrying in the incubator. Hatchlings start at Lv 1."},
-			{"text": "Beast storage", "desc": "Deposit or withdraw beasts. (%d in storage)" % GameState.storage.size()},
+			{"text": "Drop off a beast", "desc": "Put one of the beasts you carry in your storage. It's healed while it rests."},
+			{"text": "Pick up beast", "desc": "Take beasts out of your storage, shared with every Beast Center and kennel. (%d in storage)" % GameState.storage.size()},
 			{"text": "Merge altar", "desc": "Merge two beasts in their final form, at their level limit, into one stronger beast."},
 			{"text": "Sell eggs", "desc": "Sell spare beast eggs for gold."},
 		]
-		var c: int = await UI.choose("Beast Center", items, {"anchor": "right", "width": 340})
+		var c: int = await UI.choose("Beast Center", items, {"anchor": "right", "width": 340, "cancel_button": true})
 		match c:
 			0:
 				await hatchery()
 			1:
-				await storage()
+				await center_drop_off(KEEPERS["center"])
 			2:
-				await merge_altar(false)
+				await pick_up(KEEPERS["center"])
 			3:
+				await merge_altar(false)
+			4:
 				await sell_eggs()
 			_:
 				return
@@ -413,44 +417,61 @@ func hatchery() -> void:
 		if RaceDB.is_legendary(b.race):
 			lines.append("A legendary beast! When it merges, about 80% of the child will come from it.")
 		await Story.say(lines, KEEPERS["center"])
+		await keep_or_store(b, KEEPERS["center"])
 
 
+## Beast storage (Nurse Clover, the reliquary, Pip at the kennels): one storage for the whole land, arranged on the
+## same screen as the book's Beasts page. Beasts that go into storage are healed.
 func storage() -> void:
-	while true:
-		var c: int = await UI.choose("Storage", [
-			{"text": "Deposit", "desc": "Leave a beast here. Stored beasts are healed."},
-			{"text": "Withdraw", "desc": "Take a beast with you: it stands on a free slot of your battle ring (room for %d)." % GameState.party_max()},
-			{"text": "Back"}], {"anchor": "right", "width": 300})
-		if c == 0:
-			if GameState.party.size() <= 1:
-				await Story.say(["You need to keep at least one beast with you."])
-				continue
-			var b = await Menus.pick_beast("Deposit which beast?", GameState.party)
-			if b != null:
-				GameState.party.erase(b)
-				b.slot = -1
-				b.heal_full()
-				GameState.storage.append(b)
-				UI.toast("%s was stored." % b.nickname, b)
-		elif c == 1:
-			if GameState.party.size() >= GameState.party_max():
-				await Story.say(["Your party is full. Volt at Sparkwire Electronics can wire up more beast slots as your trainer level grows."])
-				continue
-			if GameState.storage.is_empty():
-				await Story.say(["Storage is empty."])
-				continue
-			var b2 = await Menus.pick_beast("Withdraw which beast?", GameState.storage)
-			if b2 != null:
-				var k: int = GameState.free_slot_for(b2)
-				if k < 0:
-					await Story.say(["There's no free slot on your ring for a %s beast. Its side and corners are taken: store one of them first, or rearrange your ring in the Beasts page of your book." % b2.element_text()])
-					continue
-				GameState.storage.erase(b2)
-				b2.slot = k
-				GameState.party.append(b2)
-				UI.toast("%s joined your party (%s)." % [b2.nickname, Ring.slot_name(k)], b2)
-		else:
-			return
+	await Menus.storage_screen()
+
+
+## Puts a beast you carry into your storage (healed), keeping at least one with you.
+func store_beast(b, keeper: String) -> bool:
+	if GameState.party.size() <= 1:
+		await Story.say(["You need to keep at least one beast with you."], keeper)
+		return false
+	if GameState.ring_move(b, {"store": GameState.storage.size()}) != "":
+		return false
+	b.heal_full()
+	Sfx.play("pickup")
+	await Story.say(["%s is resting in your storage, good as new. Pick it up at any Beast Center or kennel." % b.nickname], keeper)
+	return true
+
+
+## Beast Centers: drop off a beast you carry into your storage (Centers don't take beasts for adoption).
+func center_drop_off(keeper: String) -> void:
+	if GameState.party.size() <= 1:
+		await Story.say(["You need to keep at least one beast with you."], keeper)
+		return
+	var b = await Menus.pick_beast("Put which beast in your storage?", GameState.party)
+	if b != null:
+		await store_beast(b, keeper)
+
+
+## Taking beasts out of your storage: the storage screen, where they're placed on your ring (or swapped).
+func pick_up(keeper: String) -> void:
+	if GameState.storage.is_empty():
+		await Story.say(["Your storage is empty. Drop a beast off here or at a Beast Center, and it'll wait for you."], keeper)
+		return
+	await storage()
+
+
+## A beast that has just come to you (hatched, or adopted at a kennel), already added by GameState.add_beast. With a
+## free ring spot for it, you choose to keep it with you or store it; otherwise it's told it went to storage.
+## Returns "party" or "storage".
+func keep_or_store(b, keeper: String) -> String:
+	if GameState.storage.has(b):
+		await Story.say(["There's no free spot on your battle ring for %s, so it was placed in storage. Swap your beasts at any Beast Center or kennel." % b.nickname], keeper)
+		return "storage"
+	if GameState.party.size() <= 1:
+		return "party"
+	if await Story.ask("Keep %s with you on your ring's %s, or send it to storage?" % [b.nickname, Ring.slot_name(b.slot)], keeper, "Keep", "Store"):
+		return "party"
+	GameState.ring_move(b, {"store": GameState.storage.size()})
+	b.heal_full()
+	UI.toast("%s was stored." % b.nickname, b)
+	return "storage"
 
 
 func merge_altar(temple: bool, keeper := "Nurse Clover") -> void:
@@ -502,12 +523,13 @@ func merge_altar(temple: bool, keeper := "Nurse Clover") -> void:
 ## Kennel Keeper Pip: adopt a beast another trainer left behind, or leave one of yours for someone else to adopt.
 func kennel(world, town: String) -> void:
 	await Story.say(["Welcome to the kennel! Trainers leave beasts here when they can't keep them, and every one deserves a good home.",
-		"There's a small adoption fee based on level. Or leave one of yours and I'll find it a kind new trainer."], "Kennel Keeper Pip")
+		"There's a small adoption fee based on level. Or drop one of yours off: I'll keep it in your storage, or find it a kind new trainer."], KENNEL_KEEPER)
 	while true:
 		var c: int = await UI.choose("Kennel", [
 			{"text": "Adopt a beast", "desc": "Give a beast a new home. Fees start at 40 gold, plus 2 per level after Lv 1."},
-			{"text": "Drop off a beast", "desc": "Leave one of yours here for another trainer to adopt."},
-			{"text": "Leave"}], {"anchor": "right", "width": 320})
+			{"text": "Drop off a beast", "desc": "Put one of yours in your storage, or up for adoption by another trainer."},
+			{"text": "Pick up beast", "desc": "Take beasts out of your storage, shared with every Beast Center and kennel. (%d in storage)" % GameState.storage.size()}],
+			{"anchor": "right", "width": 320, "cancel_button": true})
 		if c == 0:
 			var pens: Array = GameState.kennel(town)
 			var items := []
@@ -531,6 +553,8 @@ func kennel(world, town: String) -> void:
 				await kennel_pen(world, town, int(idx[k]))
 		elif c == 1:
 			await kennel_drop_off(world, town)
+		elif c == 2:
+			await pick_up(KENNEL_KEEPER)
 		else:
 			return
 
@@ -562,25 +586,37 @@ func kennel_pen(world, town: String, i: int) -> void:
 	pens[i]["yours"] = false
 	pens[i]["since"] = GameState.play_time
 	b.heal_full()
-	var where := GameState.add_beast(b)
+	GameState.add_beast(b)
 	b.origin = "trade"
 	Sfx.play("capture")
 	if world != null and is_instance_valid(world) and world.has_method("refresh_kennel"):
 		world.refresh_kennel()
-	await Story.say(["%s hops out of its pen and joins you%s! Take good care of it." % [b.nickname, " (it went to storage)" if where == "storage" else ""]], "Kennel Keeper Pip")
+	await Story.say(["%s hops out of its pen and joins you! Take good care of it." % b.nickname], "Kennel Keeper Pip")
+	await keep_or_store(b, "Kennel Keeper Pip")
 
 
 func kennel_drop_off(world, town: String) -> void:
 	if GameState.all_beasts().size() <= 1:
-		await Story.say(["You'd be all alone! Keep your beast with you."], "Kennel Keeper Pip")
+		await Story.say(["You'd be all alone! Keep your beast with you."], KENNEL_KEEPER)
 		return
-	var b = await Menus.pick_beast("Leave which beast?", GameState.all_beasts())
+	var b = await Menus.pick_beast("Drop off which beast?", GameState.all_beasts())
 	if b == null:
 		return
-	if GameState.party.size() == 1 and GameState.party.has(b):
-		await Story.say(["That's the only beast you're carrying! Take another one out of storage first."], "Kennel Keeper Pip")
-		return
-	if not await Story.ask("Leave %s here for another trainer to adopt? You won't get it back once someone takes it." % b.nickname, "Kennel Keeper Pip"):
+	# Pip asks where it goes: your storage (only for one you carry) or up for adoption
+	if GameState.party.has(b):
+		var where: int = await UI.choose("Where should %s go?" % b.nickname, [
+			{"text": "Your storage", "desc": "It rests in your storage, healed. Pick it up here, at another kennel or at any Beast Center."},
+			{"text": "Up for adoption", "desc": "Another trainer gives it a new home. You can take it back for free until someone does."}],
+			{"anchor": "right", "width": 320})
+		if where < 0:
+			return
+		if where == 0:
+			await store_beast(b, KENNEL_KEEPER)
+			return
+		if GameState.party.size() == 1:
+			await Story.say(["That's the only beast you're carrying! Pick up another one from your storage first."], KENNEL_KEEPER)
+			return
+	if not await Story.ask("Leave %s here for another trainer to adopt? You won't get it back once someone takes it." % b.nickname, KENNEL_KEEPER):
 		return
 	var pens: Array = GameState.kennel(town)
 	var slot := -1
@@ -620,8 +656,8 @@ func skytower_desk() -> void:
 		GameState.set_flag(Phone.SKYTOWER_FLAG)
 		UI.top_bar.post("SkyTower Inc's number", null, {"sub": "Call them from any phone for a ride, pickup or delivery."})
 	while true:
-		var choice := await UI.choose("Sky Tower", ["Flight information", "Store items (free)", "Leave"])
-		if choice < 0 or choice == 2:
+		var choice := await UI.choose("Sky Tower", ["Flight information", "Store items (free)"], {"cancel_button": true})
+		if choice < 0:
 			return
 		if choice == 1:
 			await load("res://scripts/ui/locker_screen.gd").open()
@@ -643,9 +679,14 @@ func skytower(b: Dictionary) -> void:
 ## Your own air beast (Lv FLY_LEVEL+) carrying you. Returns the beast or null.
 func own_flyer():
 	for x in GameState.party:
-		if x.element == "air" and x.level >= FLY_LEVEL and x.hp > 0:
+		if can_carry(x):
 			return x
 	return null
+
+
+## Whether this beast is strong enough to fly you to a town (an air beast of Lv FLY_LEVEL+, awake).
+func can_carry(x) -> bool:
+	return x.element == "air" and x.level >= FLY_LEVEL and x.hp > 0
 
 
 ## Lets the player pick a visited town and flies there. Returns true if a flight happened.
@@ -715,9 +756,8 @@ func electronics(b: Dictionary) -> void:
 			{"text": "Add a shield point", "right": "%d shards" % SHIELD_COST, "disabled": not can_sh, "desc": sh_desc},
 			{"text": "Wire a beast slot", "right": "%d shards" % SLOT_COST, "disabled": not can_sl, "desc": sl_desc},
 			{"text": "Buy gadgets", "desc": "Nets, flash powder and tonics for the trainer's turn in battle."},
-			{"text": "Leave"},
 		]
-		var c: int = await UI.choose("Sparkwire Electronics  ·  Shards %d  ·  Trainer Lv %d" % [GameState.shards, GameState.trainer_level], items, {"anchor": "right", "width": 460})
+		var c: int = await UI.choose("Sparkwire Electronics  ·  Shards %d  ·  Trainer Lv %d" % [GameState.shards, GameState.trainer_level], items, {"anchor": "right", "width": 460, "cancel_button": true})
 		match c:
 			0:
 				if not can_sh:
@@ -777,15 +817,14 @@ func arena(b: Dictionary, town: String) -> void:
 		var items := [
 			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
 				"desc": "Climb the ladder of ring trainers. Beat every trainer of a rank to open the next; each rank you clear raises your trainer level (you're Lv %d) and earns a crystal shard." % GameState.trainer_level},
-			{"text": "Leave"},
 		]
 		if has_eggs_to_sell(town):
 			items.append({"text": "Sell eggs to " + a["leader"],
 				"desc": "%s eggs only. Pays twice the Beast Center's offer." % String(a["element"]).capitalize()})
-		var c: int = await UI.choose(b["name"], items, {"anchor": "right", "width": 400})
-		if c == 1 or c < 0:
+		var c: int = await UI.choose(b["name"], items, {"anchor": "right", "width": 400, "cancel_button": true})
+		if c < 0:
 			return
-		if c == 2:
+		if c == 1:
 			await sell_eggs(town)
 			continue
 		if GameState.alive_party().is_empty():
@@ -933,10 +972,9 @@ func leader_talk(b: Dictionary) -> void:
 	if has_eggs_to_sell(town):
 		challenge = await UI.choose(leader, [
 			{"text": "Challenge " + a["leader"]},
-			{"text": "Not now"},
 			{"text": "Sell eggs", "desc": "%s eggs only. Pays twice the Beast Center's offer." % String(a["element"]).capitalize()},
-		], {"width": 460})
-		if challenge == 2:
+		], {"width": 460, "cancel_button": true})
+		if challenge == 1:
 			await sell_eggs(town)
 			return
 		if challenge != 0:
@@ -1122,8 +1160,8 @@ func music_shop() -> void:
 				"desc": "The Maestro plays a song from his book. Then play it back to learn it. Only once!" if free_left else "You've already had your free performance."},
 			{"text": "Buy sheet music", "desc": "Learn songs at your own pace: play from the sheet (here or from your bag) until you get it right."},
 			{"text": "Play from sheet music", "right": "%d" % sheets.size(), "desc": "Try to learn a song from sheet music you own.", "disabled": sheets.is_empty()},
-			{"text": "Practice a song", "desc": "Raise your mastery: each star makes a song stronger, and a little longer."},
-			{"text": "Leave"}], {"anchor": "right", "width": 360})
+			{"text": "Practice a song", "desc": "Raise your mastery: each star makes a song stronger, and a little longer."}],
+			{"anchor": "right", "width": 360, "cancel_button": true})
 		match c:
 			0:
 				await _hear_song(k)

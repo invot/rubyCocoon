@@ -33,6 +33,10 @@ var _hero_face: Control
 const HERO_SIZE := Vector2(460, 104)
 const SHINE_EVERY := 2.8
 const SHINE_CROSS := 0.9
+## opts.cancel_button (menus while talking to someone or on the phone, ui.gd choose): a small "B: Cancel" button in the
+## gem under the window's right end, overlapping its bottom edge, in place of a "Leave" row (edge_button.gd).
+var _cancel_hit: Control
+var _cancel_btn: Button
 
 
 func setup(_title: String, _items: Array, _opts := {}) -> Control:
@@ -178,6 +182,8 @@ func _ready() -> void:
 	if opts.get("embedded", false):
 		outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		return
+	if opts.get("cancel_button", false) and opts.get("cancel", true) and not bare:
+		_make_cancel_button()
 	UIKit.place(outer, _layout_anchor, _layout_margin)
 	if _scroll != null:
 		get_viewport().size_changed.connect(_fit_rows)
@@ -205,6 +211,9 @@ func _fit_rows() -> void:
 		reserve = UI.bottom_reserve()
 	if anchor in ["bottom", "bottom_right"]:
 		reserve = maxf(reserve, UI.bottom_reserve())
+	if _cancel_hit != null:
+		# the B: Cancel button hangs below the window's bottom edge
+		reserve += _cancel_overhang()
 	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0 - reserve
 	var chrome := _outer.get_combined_minimum_size().y - _scroll.get_parent_control().get_combined_minimum_size().y
 	var rows := clampi(floori((available - chrome - 2.0) / _row_h), 1, _max_rows)
@@ -256,8 +265,25 @@ func _bare_button(b: Button, hero: bool) -> void:
 	pulse.tween_property(b, "scale", Vector2.ONE, 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
+func _make_cancel_button() -> void:
+	_cancel_hit = load("res://scripts/ui/edge_button.gd").new().setup("B: Cancel")
+	_cancel_btn = _cancel_hit.button
+	_cancel_hit.pressed.connect(_cancel)
+	add_child(_cancel_hit)
+
+
+func _cancel_overhang() -> float:
+	return _cancel_hit.overhang()
+
+
+func _place_cancel() -> void:
+	if _cancel_hit != null and _panel != null:
+		_cancel_hit.place_under(_panel.get_global_rect())
+
+
 func _process(delta: float) -> void:
 	_t += delta
+	_place_cancel()
 	if _hero_face != null:
 		_hero_face.queue_redraw()
 	if _held_direction != 0:
@@ -383,6 +409,6 @@ func on_input(ev: InputEvent) -> void:
 
 
 func _cancel() -> void:
-	if opts.get("cancel", true):
+	if opts.get("cancel", true) and not closed:
 		Sfx.play("back")
 		close(-1)

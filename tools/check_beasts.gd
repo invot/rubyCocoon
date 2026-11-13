@@ -42,6 +42,30 @@ func _init() -> void:
 	_check(recipe.has("frame") and recipe["frame"] in ["dino_3", "owl_3"] and m.rank == 2 and m.level_cap() == 60, "their merge, %s (%s), rank %d, limit Lv %d: %s" % [m.nickname, m.element_text(), m.rank, m.level_cap(), JSON.stringify(recipe)])
 	var back := Beasts.from_dict(JSON.parse_string(JSON.stringify(m.to_dict())))
 	_check(JSON.stringify(back.genes.get("recipe", {})) == JSON.stringify(recipe), "a save keeps its recipe")
+	# move slots: two elemental at first, one more per growth, the best parent's plus two on a merge (split between two
+	# elements), two plain; a full kind of slot waits for the player (Menus.decide_learn)
+	_check(Beasts.create(0, 1).elem_slots == 2 and b.elem_slots == 4, "elemental slots: 2 when hatched, 4 grown up (%d)" % b.elem_slots)
+	_check(m.elem_slots == maxi(a.elem_slots, c.elem_slots) + 2 and back.elem_slots == m.elem_slots, "a merge has the best parent's slots plus two: %d" % m.elem_slots)
+	var split := m.slot_size(m.element) + (m.slot_size(m.element2) if m.element2 != "" else 0)
+	_check(split == m.elem_slots and (m.element2 == "" or m.slot_size(m.element) == m.slot_size(m.element2)), "its slots split evenly between its elements (%s)" % m.element_text())
+	var fits := true
+	for id in RaceDB.count():
+		for level in [1, 25, 45, 70]:
+			var x := Beasts.create(id, level)
+			for group in x.slot_groups():
+				fits = fits and x.slot_moves(group).size() <= x.slot_size(group)
+	_check(fits, "every new beast's moves fit their slots")
+	var full := Beasts.create(0, 40)
+	var before: Array = full.moves.duplicate()
+	var fire_full: bool = full.slot_moves("fire").size() == full.slot_size("fire")
+	_check(not fire_full or (full.learn("inferno") == "full" and full.moves == before), "a full slot leaves the moves for the player to choose")
+	var legacy := full.to_dict()
+	legacy.erase("elem_slots")
+	legacy["moves"] = ["tackle", "scratch", "bite", "ember", "flame_fang", "fire_spin", "lava_slam", "heat_wave", "inferno"]
+	legacy["known"] = legacy["moves"].duplicate()
+	var old := Beasts.from_dict(legacy)
+	_check(old.elem_slots == 4 and old.moves == ["scratch", "bite", "fire_spin", "lava_slam", "heat_wave", "inferno"] and old.known == old.moves,
+		"an older save keeps the newest moves that fit: %s" % [old.moves])
 	print("BEASTS CHECK DONE: %d problem(s)" % bad)
 	quit()
 

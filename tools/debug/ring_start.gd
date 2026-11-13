@@ -26,7 +26,9 @@ func run(root: Node, opts: Dictionary) -> void:
 	if opts.get("verify", "1") == "1":
 		await _inputs()
 	_fixture(false)
+	var started := Time.get_ticks_usec()
 	book._open_tab(1)
+	print("Beasts page built in %.0f ms (%d beasts)" % [(Time.get_ticks_usec() - started) / 1000.0, GameState.party.size()])
 	await main._wait(0.3)
 	if opts.get("matrix", "0") == "1":
 		for style in ["dark"]:
@@ -39,8 +41,28 @@ func run(root: Node, opts: Dictionary) -> void:
 	else:
 		_check_layout()
 		await _shot(opts, "")
+	if opts.has("shots") and opts.get("matrix", "0") != "1":
+		book.beasts_page.activate(1)
+		await main._wait(0.3)
+		await _shot(opts, "_actions")
+		book.beasts_page._close_actions()
+		UI.clear_all()
+		await main._wait(0.1)
+		_fixture(true)
+		GameState.party[0].hp = maxi(1, GameState.party[0].max_hp() / 3)
+		var storage := Book.new()
+		storage.storage_mode = true
+		storage.setup(main.world, "beasts")
+		UI.push(storage)
+		book = storage
+		await main._wait(0.6)
+		await _shot(opts, "_storage")
+		storage.beasts_page.activate(storage.beasts_page._row_of(GameState.storage[0]))
+		await main._wait(0.3)
+		await _shot(opts, "_storage_placing")
 	if opts.get("placing", "0") == "1":
 		book.beasts_page.activate(1)
+		book.beasts_page._do_action("move")
 		book.beasts_page.move_destination(1)
 		await main._wait(0.3)
 		_check_layout()
@@ -112,12 +134,15 @@ func _rules_and_saves() -> void:
 
 
 func _open() -> void:
+	var started := Time.get_ticks_usec()
 	book = Book.new().setup(main.world, "beasts")
 	UI.push(book)
+	print("book opened on Beasts in %.0f ms (%d beasts)" % [(Time.get_ticks_usec() - started) / 1000.0, GameState.party.size()])
 
 
 func _inputs() -> void:
 	var at: Vector2i = main.world.player_pos
+	await _tabs_up_down()
 	var page = book.beasts_page
 	await main._tap_at(book.row_buttons[0].get_global_rect().get_center())
 	_check(GameState.preferred_ring_side == 2, "one Default element tap skips empty Air exactly once")
@@ -133,17 +158,45 @@ func _inputs() -> void:
 	await main._press("ui_left")
 	await main._wait(0.1)
 	_check(GameState.preferred_ring_side == 2 and book.tab == 1, "Left on Default element rotates without changing tabs")
+	book.focus_row = 0
+	book.row_buttons[0].grab_focus()
+	await main._press("ui_up")
+	await main._wait(0.05)
+	_check(book.mode == "tabs" and book.tab == 1, "Up on the first row goes back to the tabs")
+	await main._press("ui_down")
+	await main._wait(0.05)
+	_check(book.mode == "list" and book.row_buttons[0].has_focus(), "Down from the tabs returns to the first row")
 	var fire = GameState.party[0]
 	var stored = GameState.storage[0]
+	_check(book.rows.size() == 1 + GameState.party.size() and not book.rows.any(func(row): return row.get("beast", null) == stored),
+		"the book lists only carried (ring) beasts, never stored ones")
+	_check(book.rows.slice(1).all(func(row): return String(row.get("sub", "")).begins_with("HP ") and " MP " in String(row["sub"])),
+		"every beast row shows its HP and MP under its name")
+	fire.hp = 1
+	var vit: String = page.vitals(fire)
+	_check(vit.begins_with("HP 1/%d" % fire.max_hp()) and vit.ends_with("MP %d" % fire.max_mp()), "vitals show current/limit, or one value when full: %s" % vit)
+	fire.heal_full()
 	await main._press("ui_down")
 	_check(book.focus_row == 1, "Down still selects a beast")
+	await main._wait(0.2)
+	var stage = page.preview.stage
+	_check(stage.selected_beast == fire, "focusing a beast highlights it on the ring")
 	await main._press("ui_accept")
 	await main._wait(0.05)
-	_check(page.picked == fire and fire.slot == 0 and UI.stack.size() == 1, "one A picks a beast without moving it or opening a separate editor")
+	_check(page.actions_for == fire and page.picked == null and fire.slot == 0 and UI.stack.size() == 1,
+		"one A opens the beast's actions without moving it or opening another screen")
+	var ids: Array = page.action_buttons.keys()
+	_check(ids == ["info", "move", "equip"], "actions are Info, Move and Equip (no Fly without a strong air beast): %s" % [ids])
+	_check(page.action_buttons["info"].has_focus(), "the first action has the focus")
+	_check(page.action_buttons.values().all(func(button): return button.custom_minimum_size.y >= UIKit.row_h()), "action buttons keep full touch height")
+	await main._press("ui_right")
+	_check(page.action_buttons["move"].has_focus() and book.tab == 1, "Right moves along the actions without changing tabs")
+	await main._press("ui_accept")
+	await main._wait(0.05)
+	_check(page.picked == fire and fire.slot == 0 and book.mode == "ring_place", "Move picks the beast up without moving it yet (mode %s, picked %s)" % [book.mode, page.picked != null])
 	await main._press("ui_right")
 	_check(page.destination == 1 and fire.slot == 0, "Right previews an empty compatible corner without changing the formation")
 	await main._wait(0.2)
-	var stage = page.preview.stage
 	_check(stage.selected_beast == fire and stage.aim_mesh == null and stage._front_geometry.size() > 0,
 		"placement outlines the selected 3D beast without a yellow arrow")
 	_check((stage.nodes[fire] as Node3D).position.distance_to(stage._slot_pos("ally", 1)) < 0.01,
@@ -153,37 +206,31 @@ func _inputs() -> void:
 		cycled.append(page.destination)
 		page.move_destination(1)
 	_check(cycled.size() == 3 and cycled.has(0) and cycled.has(1) and cycled.has(7) and page.destination == 1,
-		"a fire beast cycles exactly its three element-compatible ring slots")
+		"a fire beast cycles exactly its three element-compatible ring slots (no storage in the book)")
 	await main._wait(0.2)
 	_check(stage._model_geometry(fire).all(func(geometry): return geometry.layers & 1 != 0 and geometry.layers & stage.FRONT_LAYER != 0 and geometry.layers & stage.FADED_LAYER == 0),
 		"the moving selected beast stays fully opaque in the main view and continuously in the outline mask")
 	var water = GameState.party[1]
 	_check(stage._model_geometry(water).all(func(geometry): return geometry.layers & stage.FADED_LAYER != 0 and geometry.layers & 1 == 0),
 		"the other beasts render only in the faded layer")
+	_check(not page.store_button.visible, "the book has no Store action")
 	await main._press("ui_accept")
-	_check(page.picked == null and fire.slot == 1 and page.ring_badges[fire].visible, "A confirms one move and keeps its in-ring icon")
+	_check(page.picked == null and fire.slot == 1, "A confirms one move")
 	await main._tap_at(book.row_buttons[1].get_global_rect().get_center())
+	_check(page.actions_for == fire, "tapping a beast opens its actions")
+	await main._tap_at(page.action_buttons["move"].get_global_rect().get_center())
+	_check(page.picked == fire, "tapping Move picks it up")
 	await main._press("ui_right")
 	await main._press("ui_cancel")
-	_check(page.picked == null and fire.slot == 1 and book.mode == "list", "B cancels tentative placement without moving the beast")
-	await main._tap_at(book.row_buttons[3].get_global_rect().get_center())
-	_check(page.picked == stored, "stored beasts are selectable from the same list")
-	await main._press("ui_right")
-	_check(page.destination == 1 and GameState.party.has(fire), "an occupied compatible spot can be selected without swapping yet")
-	await main._press("ui_accept")
-	_check(GameState.party.has(stored) and stored.slot == 1 and GameState.storage.has(fire) and fire.slot == -1,
-		"confirmation swaps a stored beast onto an occupied ring spot")
-	_check(not page.ring_badges[fire].visible and page.ring_badges[stored].visible and "Lv 5" in book.rows[3]["right"],
-		"left roster keeps levels and updates the membership icons after a swap")
-	await main._tap_at(book.row_buttons[3].get_global_rect().get_center())
-	_check(page.store_button.visible and not page.store_button.disabled, "a separate Store action leaves placement cycling limited to ring slots")
-	page.store_selected()
-	_check(GameState.storage.has(stored) and page.slots_label.text == "1 / 4 slots used",
-		"storing a beast updates occupied versus unlocked slots immediately")
-	await main._tap_at(book.row_buttons[2].get_global_rect().get_center())
-	_check(page.store_button.disabled, "the last carried beast cannot be placed in storage")
+	_check(page.picked == null and fire.slot == 1 and page.actions_for == fire and page.action_buttons["move"].has_focus(),
+		"B cancels tentative placement and returns to the actions on Move")
+	await main._press("ui_cancel")
+	_check(page.actions_for == null and book.mode == "list" and book.row_buttons[1].has_focus(), "B closes the actions back to the list")
 	await main._press("ui_cancel")
 	_check(UI.stack.size() == 1 and main.world.player_pos == at, "menu inputs never walk the player")
+	await _storage_inputs(fire, stored)
+	_open()
+	await main._wait(0.3)
 	# No-party state, then a full roster with compatible occupied swaps and scrolling.
 	GameState.preferred_ring_side = 0
 	GameState.party = []
@@ -197,6 +244,7 @@ func _inputs() -> void:
 	page = book.beasts_page
 	fire = GameState.party[0]
 	page.activate(1)
+	page._do_action("move")
 	page.move_destination(1)
 	var dest: int = page.destination
 	var other = GameState.beast_at(dest)
@@ -218,17 +266,99 @@ func _inputs() -> void:
 	await main._wait(0.1)
 
 
+## The Beast Center's storage: the same page in storage mode, the only place to swap carried and stored beasts.
+func _storage_inputs(fire, stored) -> void:
+	UI.clear_all()
+	await main._wait(0.1)
+	book = Book.new()
+	book.storage_mode = true
+	book.setup(main.world, "beasts")
+	UI.push(book)
+	await main._wait(0.4)
+	var page = book.beasts_page
+	_check(not book.tab_strip.visible and book.rows.size() == GameState.party.size() + GameState.storage.size(),
+		"storage lists carried and stored beasts, without the book's tabs or Default element")
+	var row: int = page._row_of(stored)
+	_check(row == GameState.party.size(), "stored beasts follow the carried ones")
+	fire.hp = 1
+	await main._tap_at(book.row_buttons[row].get_global_rect().get_center())
+	_check(page.picked == stored, "tapping a stored beast picks it up")
+	for i in 3:
+		if page.destination == fire.slot:
+			break
+		await main._press("ui_right")
+	_check(page.destination == fire.slot, "an occupied compatible spot can be chosen without swapping yet")
+	await main._press("ui_accept")
+	await main._wait(0.1)
+	_check(GameState.party.has(stored) and stored.slot == 1 and GameState.storage.has(fire) and fire.slot == -1,
+		"confirmation swaps a stored beast onto an occupied ring spot")
+	_check(fire.hp == fire.max_hp(), "a beast going into storage is healed")
+	page = book.beasts_page
+	_check(page._row_of(stored) < GameState.party.size() and page._row_of(fire) >= GameState.party.size(), "the list moves both beasts to their new sections")
+	page.activate(page._row_of(stored))
+	var stops: Array = page._stops()
+	_check(stops.back() == page.STORE_STOP, "a carried beast's spots end with Storage, so Store works with the d-pad")
+	while page.destination != page.STORE_STOP:
+		page.move_destination(1)
+	_check(page.heading.text.ends_with("Storage") and page.store_button.visible and not page.store_button.disabled, "Storage stop and Store button are offered")
+	await main._press("ui_accept")
+	await main._wait(0.1)
+	page = book.beasts_page
+	_check(GameState.storage.has(stored) and page.slots_label.text == "1 / 4 slots used", "storing a beast updates occupied versus unlocked slots")
+	page.activate(0)
+	while page.destination != page.STORE_STOP:
+		page.move_destination(1)
+	await main._press("ui_accept")
+	_check(GameState.party.size() == 1 and page.store_button.disabled, "the last carried beast cannot be placed in storage")
+	await main._press("ui_cancel")
+	await main._press("ui_cancel")
+	_check((not is_instance_valid(book) or book.closed) and UI.stack.is_empty(), "B closes the storage screen")
+
+
+## Every tab: Up from the top of its page goes to the tabs, and Down from the tabs goes back into the page.
+func _tabs_up_down() -> void:
+	var had_map: bool = GameState.flags.get("world_map", true)
+	GameState.flags["world_map"] = true
+	for i in book.TABS.size():
+		book._open_tab(i)
+		book.mode = "list"
+		book._focus_first()
+		await main._wait(0.1)
+		var name: String = book.TABS[i]["id"]
+		var owner_before: Control = book.get_viewport().gui_get_focus_owner()
+		if name == "map":
+			# from the northernmost town
+			if is_instance_valid(book.map_view):
+				for k in 12:
+					await main._press("ui_up")
+				await main._wait(0.05)
+		else:
+			await main._press("ui_up")
+			await main._wait(0.05)
+		_check(book.mode == "tabs", "%s: Up at the top goes to the tabs (mode %s, focus was %s)" % [name, book.mode, owner_before])
+		await main._press("ui_down")
+		await main._wait(0.05)
+		var owner: Control = book.get_viewport().gui_get_focus_owner()
+		_check(book.mode == "list" and owner != null and book.tab == i, "%s: Down from the tabs enters the page (mode %s, focus %s)" % [name, book.mode, owner])
+	GameState.flags["world_map"] = had_map
+	book._open_tab(1)
+	book.mode = "list"
+	book.focus_row = 0
+	book._focus_first()
+	await main._wait(0.1)
+
+
 func _check_layout() -> void:
 	var page = book.beasts_page
 	var clip: Rect2 = book.right_scroll.get_global_rect().grow(1.0)
 	_check(book.rows[0]["text"] == "Default element" and book.row_buttons[0].get_child(0).text == "Fire",
 		"Default element and its name occupy the first left row")
-	_check(book.right_box.find_children("*", "Button", true, false).all(func(button): return button.text in ["Details", "Store"]),
+	_check(book.right_box.find_children("*", "Button", true, false).all(func(button): return button.text in ["Info", "Store", "Move", "Fly", "Equip"]),
 		"ring preview has no default-element arrow buttons")
 	_check(page.details.custom_minimum_size.y >= UIKit.row_h() and (not page.details.visible or clip.encloses(page.details.get_global_rect())),
 		"beast details remain reachable at the shared touch/desktop size")
-	_check(book.rows.slice(1).all(func(row): return "Lv " in row.get("right", "") and not "Ring " in row.get("right", "") and page.ring_badges[row["beast"]].visible),
-		"every carried beast lists its level and a ring icon instead of position text")
+	_check(book.rows.slice(1).all(func(row): return "Lv " in row.get("right", "") and not "Ring " in row.get("right", "") and "HP " in String(row.get("sub", ""))),
+		"every carried beast lists its level and its HP and MP, with no ring icon")
 	_check(book.right_scroll.get_v_scroll_bar().max_value <= book.right_scroll.get_v_scroll_bar().page + 2.0, "ring and selector fit without detail scrolling")
 	var preview = page.preview.stage
 	_check(page.slots_label.text == "%d / %d slots used" % [GameState.ring().size(), GameState.party_max()],

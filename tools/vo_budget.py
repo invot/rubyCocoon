@@ -8,12 +8,41 @@ import subprocess
 import time
 
 from look import model_lock
+from vo_shadow_sweep import validate_segment
 
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "docs/visual_overhaul/ledger"
 METRICS = ["geometry_nodes", "surface_submissions", "source_triangles", "distinct_materials",
            "transparent_surfaces", "texture_rgba8_mip_bytes"]
 SCENES = {"coastal_path", "cove_plaza", "hero_house", "rue_royale", "coast_battle"}
+
+
+def load_terrain_report(path, noise=False, lighting=False):
+    data=json.loads(Path(path).read_text(encoding="utf-8"))
+    if data.get("benchmark")!="budget-011" or data['problems'] or data['focus_losses'] or len(data['passes'])!=3:
+        raise ValueError("Incomplete terrain A/B/A")
+    batches=data['passes']
+    settings=['render_height','render_size','quality','vsync','max_fps']
+    experiments=[]
+    for batch in batches:
+        if batch['focus_losses'] or set(batch['segments'])!={'coastal_path'} or any(batch[k]!=batches[0][k] for k in settings):
+            raise ValueError("Terrain controls/settings differ")
+        segment=batch['segments']['coastal_path']
+        experiments.append(segment['experiment'])
+        if len(segment['samples'])!=3 or segment['tiles']!=batches[0]['segments']['coastal_path']['tiles']:
+            raise ValueError("Terrain route differs")
+        for sample in segment['samples']:
+            validate_segment(sample['rendered'])
+            if sample['rendered']['frames']!=120:raise ValueError("Terrain samples changed")
+    if lighting:
+        if [e['trial'] for e in experiments]!=['pixel','vertex','pixel'] or experiments[1]['materials']<=0 or experiments[1]['shaders']<=0:
+            raise ValueError("Vertex lighting controls did not take effect")
+    elif noise:
+        if [e['trial'] for e in experiments]!=['analytic','lookup','analytic'] or any(e['materials']<=0 for e in experiments):
+            raise ValueError("Noise lookup controls did not take effect")
+    elif [e['trial'] for e in experiments]!=['original','optimized','original'] or experiments[0]['shader_sha256']!=experiments[2]['shader_sha256'] or experiments[0]['shader_sha256']==experiments[1]['shader_sha256']:
+        raise ValueError("Terrain shader controls did not take effect")
+    return data
 
 
 def load_report(path, expected_scenes=None):
@@ -57,6 +86,8 @@ def record(args):
         command.append("--await_focus=1")
     if args.touch:
         command.append("--touch")
+    if args.trial:
+        command += ["--trial="+args.trial,f"--shots=res://build/shots/vo/011/{args.attempt}","--shot_w=0"]
     (out/"command.json").write_text(json.dumps(command, indent=2))
     with model_lock(timeout=3600), (out/"stdout.log").open("w") as log:
         print("Recording 011 " + args.attempt, flush=True)
@@ -75,7 +106,7 @@ def record(args):
     if process.returncode or errors or "VO BUDGET DONE: 0 problem(s)" not in text:
         (out/"INVALID.txt").write_text("Inspect godot.log; not accepted budget evidence\n")
         raise RuntimeError("Budget record failed: " + str(out))
-    data = load_report(out/"report.json")
+    data = load_terrain_report(out/"report.json", noise=args.trial=="noise",lighting=args.trial=="lighting") if args.trial else load_report(out/"report.json")
     if not args.headless and data["renderer"] != args.renderer:
         raise ValueError("Unexpected renderer fallback")
     print("Validated " + str(out/"report.json"), flush=True)
@@ -152,6 +183,7 @@ if __name__ == "__main__":
     rec.add_argument("--attempt",required=True)
     rec.add_argument("--headless",action="store_true")
     rec.add_argument("--touch",action="store_true")
+    rec.add_argument("--trial",choices=["terrain","noise","lighting"],default="")
     rec.add_argument("--renderer",choices=["forward_plus","mobile","gl_compatibility"],default="forward_plus")
     rec.add_argument("--godot",default="C:/Program Files/Godot/Godot_v4.7-stable_win64.exe")
     gen = sub.add_parser("generate")

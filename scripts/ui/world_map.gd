@@ -6,6 +6,8 @@ extends Control
 ## (`activated`: the book flies you there, if you can).
 
 signal focused(town: String)
+## Up pressed with no town above (the book takes the cursor back to its tabs).
+signal edge_up
 signal activated(town: String)
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -188,7 +190,8 @@ func _gui_input(ev: InputEvent) -> void:
 		return
 	for a in DIRS:
 		if ev.is_action_pressed(a, true):
-			_step(DIRS[a])
+			if not _step(DIRS[a]) and a == "ui_up" and not ev.is_echo():
+				edge_up.emit()
 			accept_event()
 			return
 	if ev.is_action_pressed("ui_accept"):
@@ -214,7 +217,8 @@ func _town_at(p: Vector2) -> int:
 
 
 ## The cursor to the nearest town that way (favouring the ones most nearly straight ahead).
-func _step(dir: Vector2) -> void:
+## Moves to the nearest town that way; false if there's none.
+func _step(dir: Vector2) -> bool:
 	var from := _to_screen(WorldDB.MAP_POS[town()])
 	var best := -1
 	var best_cost := INF
@@ -229,6 +233,7 @@ func _step(dir: Vector2) -> void:
 			best = i
 	if best >= 0:
 		_pick(best)
+	return best >= 0
 
 
 func _pick(i: int) -> void:

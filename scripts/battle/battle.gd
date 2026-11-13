@@ -4945,7 +4945,7 @@ func _finish_growth() -> void:
 					if e["active"]:
 						await msg("%s learned %s!" % [who, mn], 0.8)
 					else:
-						await msg("%s can now use %s! Swap it in from the Beasts menu." % [who, mn], 1.1)
+						await Menus.decide_learn(b, e["move"])
 				"cap":
 					await msg("%s reached its level limit! Merge it at a Beast Center to grow stronger." % who, 1.6)
 	pending_xp.clear()

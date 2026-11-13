@@ -12,6 +12,7 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"shop-paths|-- --scene=shop-paths --save_dir=res://build/shop_paths_saves/|SHOP PATHS DONE: 0 problem"
 	"desktop-audit|-- --scene=desktop-audit --prefs_path=res://build/audit/settings.cfg --save_dir=res://build/audit_saves/|DESKTOP AUDIT DONE: 0 problem"
 	"desktop-audit-touch|--resolution 2400x1080 -- --scene=desktop-audit --touch --prefs_path=res://build/audit_touch/settings.cfg --save_dir=res://build/audit_touch_saves/|DESKTOP AUDIT DONE: 0 problem"
 	"polish|-- --scene=polish --prefs_path=res://build/polish/settings.cfg --save_dir=res://build/polish_saves/|POLISH DONE: 0 problem"

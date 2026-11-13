@@ -45,7 +45,9 @@ static func create(race_id: int, level: int, ghost := false) -> Beast:
 	for e in ls:
 		if int(e[0]) <= b.level and not b.known.has(e[1]):
 			b.known.append(e[1])
-	b.moves = b.known.slice(maxi(0, b.known.size() - Beast.MAX_MOVES))
+	b.elem_slots = Beast.default_elem_slots(race_id, b.rank)
+	b.moves = b.known.duplicate()
+	b.fit_moves()
 	b.hp = b.max_hp()
 	b.mp = b.max_mp()
 	return b
@@ -210,26 +212,37 @@ static func _mix_genes(a: Beast, b: Beast, rng: RandomNumberGenerator, pa: float
 
 ## A merge's moves, passives, name and health.
 static func _merge_moves(c: Beast, a: Beast, b: Beast, primary: Beast, pa: float, rng: RandomNumberGenerator, temple: bool) -> void:
-	# moves: mostly from the dominant parent, everything else remembered
-	var pool := []
-	for m in a.known + b.known:
-		if not pool.has(m):
-			pool.append(m)
+	# moves: the best parent's slots plus two, split between the child's elements (Beast.slot_size)
+	c.elem_slots = maxi(a.elem_slots, b.elem_slots) + 2
 	var am := a.moves.duplicate()
 	var bm := b.moves.duplicate()
 	am.shuffle()
 	bm.shuffle()
-	var na := int(round(4 * pa))
-	var active := []
-	for m in am.slice(0, na) + bm.slice(0, 4 - na) + am + bm:
-		if active.size() >= Beast.MAX_MOVES:
-			break
-		if not active.has(m):
-			active.append(m)
+	# mostly from the dominant parent: alternate picks weighted by its share, then everything else, each group to its size
+	var order := []
+	var ia := 0
+	var ib := 0
+	while ia < am.size() or ib < bm.size():
+		var take_a := ib >= bm.size() or (ia < am.size() and rng.randf() < pa)
+		order.append(am[ia] if take_a else bm[ib])
+		if take_a:
+			ia += 1
+		else:
+			ib += 1
 	# a mascot's signature move stays only with a beast of the line it was taught to
 	var own := RaceDB.first_form(c.race)
-	c.moves = active.filter(func(m): return not MoveDB.is_signature(m) or int(MoveDB.SIGNATURE[m]) == own)
-	c.known = pool.filter(func(m): return not MoveDB.is_signature(m) or int(MoveDB.SIGNATURE[m]) == own)
+	var active := []
+	var counts := {}
+	for m in order:
+		if active.has(m) or (MoveDB.is_signature(m) and int(MoveDB.SIGNATURE[m]) != own):
+			continue
+		var g := c.slot_group(m)
+		if int(counts.get(g, 0)) >= c.slot_size(g):
+			continue
+		counts[g] = int(counts.get(g, 0)) + 1
+		active.append(m)
+	c.moves = active
+	c.known = active.duplicate()
 
 	# passives
 	var ppool := []

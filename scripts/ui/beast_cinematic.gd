@@ -1,7 +1,9 @@
 extends "res://scripts/ui/modal.gd"
 ## One modal, isolated 3D stage for every hatch, evolution and level reward, and for an egg left behind after a battle
 ## ("egg": the shell drops into the light, turning, with its name; before.name is the beast that left it).
-## Reveals finish before a fresh A/B press can dismiss a hatch, egg drop or level reward.
+## Reveals finish before a fresh A/B press can dismiss a hatch, egg drop or level reward. On a level-up or a hatching,
+## once the stats window is showing, A (or B) skips the rest of its reveal; then a small "A: Continue" button stands
+## under the window (edge_button.gd), and A, or a click or tap on it, carries on. An egg drop has no button.
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
@@ -48,6 +50,8 @@ var _move_rows: Array[Control] = []
 var _stat_window: PanelContainer
 var _notice: Control
 var _notice_text := ""
+## the A: Continue button under a level-up's or hatching's stats window
+var _continue: Control
 
 
 func _init() -> void:
@@ -135,6 +139,10 @@ func _ready() -> void:
 	add_child(_notice)
 	if kind in ["level", "hatch"]:
 		_level_window()
+		_continue = load("res://scripts/ui/edge_button.gd").new().setup("A: Continue")
+		_continue.visible = false
+		_continue.pressed.connect(_carry_on)
+		add_child(_continue)
 		_place_stats.call_deferred()
 		get_viewport().size_changed.connect(_place_stats)
 	_white = ColorRect.new()
@@ -227,7 +235,7 @@ func _level_window() -> void:
 			mname.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			row.add_child(mname)
 			if e is Dictionary and not bool(e.get("active", true)):
-				var note := UIKit.label("In reserve", 18, UIKit.DIM)
+				var note := UIKit.label("Slots full", 18, UIKit.DIM)
 				note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 				row.add_child(note)
 			col.add_child(row)
@@ -243,9 +251,16 @@ func _place_stats() -> void:
 		safe.size.y -= top - safe.position.y
 		safe.position.y = top
 	_stat_window.reset_size()
-	var x := safe.end.x - 24.0 - _stat_window.size.x
+	var right := 24.0
+	if UIKit.touch_ui() and UI.controls != null:
+		# beside the A/B buttons rather than under them, with its A: Continue clear of them
+		right = maxf(right, UI.controls.right_cluster_width() - (UIKit.safe_rect(self).end.x - safe.end.x))
+	var x := safe.end.x - right - _stat_window.size.x
 	var reserve: float = UI.controls.menu_bottom_reserve(x, safe.end.x) if UI.controls != null else 0.0
-	_stat_window.position = Vector2(x, maxf(safe.position.y, minf(safe.get_center().y - _stat_window.size.y / 2.0, safe.end.y - reserve - _stat_window.size.y)))
+	var below: float = _continue.overhang() if _continue != null else 0.0
+	_stat_window.position = Vector2(x, maxf(safe.position.y, minf(safe.get_center().y - _stat_window.size.y / 2.0, safe.end.y - reserve - below - _stat_window.size.y)))
+	if _continue != null:
+		_continue.place_under(_stat_window.get_global_rect())
 
 
 func _material(col: Color, rough := 0.75, metal := 0.0) -> StandardMaterial3D:
@@ -330,11 +345,19 @@ func _process(delta: float) -> void:
 	_screen.texture_filter = Prefs.render_filter(get_window().size)
 	if preview_time >= 0:
 		_update(preview_time)
+		if _continue != null and _continue.visible != (preview_time >= duration):
+			_continue.visible = preview_time >= duration
+			_place_stats()
 		return
 	elapsed += delta
 	_update(elapsed)
 	if elapsed >= duration and kind == "evolve":
 		close()
+	if _continue != null:
+		var ready := elapsed >= duration
+		if _continue.visible != ready:
+			_continue.visible = ready
+			_place_stats()
 
 
 func _update(t: float) -> void:
@@ -413,7 +436,20 @@ func _update(t: float) -> void:
 
 
 func on_input(ev: InputEvent) -> void:
-	if preview_time >= 0 or elapsed < duration or ev.is_echo():
+	if preview_time >= 0 or ev.is_echo():
 		return
-	if ev.is_action_pressed("ui_accept") or ev.is_action_pressed("interact") or ev.is_action_pressed("ui_cancel"):
-		close()
+	if not (ev.is_action_pressed("ui_accept") or ev.is_action_pressed("interact") or ev.is_action_pressed("ui_cancel")):
+		return
+	if elapsed >= duration:
+		_carry_on()
+	elif _stat_window != null and _stat_window.visible:
+		# skip the rest of the stats' reveal; A: Continue shows, and the next press carries on
+		elapsed = duration
+		Sfx.play("blip")
+
+
+func _carry_on() -> void:
+	if elapsed < duration or closed:
+		return
+	Sfx.play("confirm")
+	close()

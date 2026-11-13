@@ -69,7 +69,10 @@ func run(host, options: Dictionary) -> void:
 			for row in menu.buttons:
 				for child in row.get_children():
 					if child is Label:
-						_check(child.get_theme_color("font_color") == UIKit.GOLD and UIKit.GOLD.get_luminance() > 0.5, "adoption prices use the lighter Hematite text color")
+						# (the off-white windows: the price colour must stay dark enough to read on them)
+						# (and white on the focused row's gem bar, like the rest of a lit row)
+						var want: Color = UIKit.LIGHT if row.has_focus() else UIKit.GOLD
+						_check(child.get_theme_color("font_color") == want and UIKit.GOLD.get_luminance() < 0.6, "adoption prices use the shared price colour, readable on the off-white window, and white on the lit row (Hematite)")
 			await _shot("adoption-hematite")
 			await _select(menu)
 			await main._wait(0.15)

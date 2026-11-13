@@ -113,6 +113,19 @@ Then validate/extract screenshots, compare phone costs, verify player identity a
 
 ## Verification
 
+### New-device follow-up, 13 November
+
+The Galaxy A71 (`R58N22FFRCB`) is now connected and authorized for testing; this does not recover
+the interrupted run on the original phone. Keep that original evidence directory intact.
+`007-v2/phone-a71` hit Vulkan device loss at Mid/720p. The separate Compatibility trial
+`007-a71-compat/phone` was deliberately stopped for triage: Coastal median 146.702 ms and Cove
+176.0435 ms, without a complete pass. Neither is an accepted three-pass alpha comparison.
+Benchmark cleanup on the A71 preserves the player package identity. A separate playable
+`com.rubycocoon.compat` remains available alongside the user's `com.rubycocoon.x`.
+See [011's provisional A71 diagnosis](011-budgets.md) for accepted Min-profile measurements,
+terrain attribution and crash-isolation trials. Requirements have not changed; the user describes
+the A71 as around the minimum specification. Step 007 remains open for its missing comparisons.
+
 `vo-alpha`, `vo-alpha-aa` and required `nature`: **all three pass** in 15 seconds. Quick's four checks
 pass in eight seconds. Verification advances the complete 9.5-second film in 24 coarse steps;
 those headless reports are not performance evidence. Four Python observer-recovery regressions pass,

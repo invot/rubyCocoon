@@ -51,9 +51,15 @@ The rules below translate those principles into cardinal tile movement, small ro
    Homes look lived in (the user's direction, 2026-11-12): art and decor on the walls, cushions and throws on the
    seating and beds, a lamp beside each seating group and bed, plants in corners. The tile in front of every door
    and both stair ends stays empty, and a one-tile route still links every entrance and interaction. Shops and
-   service rooms keep their seeded dressing; do not add tall clutter near service staff's faces or essential
+   service rooms keep their seeded dressing on counters and perimeter shelves, with an open central floor.
+   Keep merchandise displays to the sides and café/saloon seating in small side groups; do not add tall clutter near service staff's faces or essential
    controls. Rooms may have notches and alcoves for character (runbook 037c); see
    `docs/visual_overhaul/runbook.md` Phase H.
+
+Unseated visitors and residents may stroll. Roaming destinations must leave arrivals, door and stair approaches,
+service counters and conversation spaces clear, and must not cut the only route through a passage. Both ends of
+an NPC's step stay reserved until arrival. Seated patrons and service staff remain in their authored positions.
+`bash tools/run_tests.sh shop-paths` checks these navigation rules.
 
 Walls use smooth solid finishes or subtle, filtered striped wallpaper instead of the pack's coarse wall textures.
 The wood, stone and grand-room finishes retain their familiar warm or cool colour families as solid surfaces.
@@ -81,13 +87,14 @@ and shop types inherit the template changes and share the renderer's placement r
 | `home_mom` | Armchair moved out of the bedroom foreground to the side, facing inward. Bed and nightstands retained. |
 | `home_bed`, `house_two_bed`, `house_up_bed` | Bed heads, nightstands and wall storage already suitable; desk chair in profile. |
 | `home_hall`, `house_up_hall` | Clear landing and door approaches retained; narrow side furniture already suitable. |
-| `bookstore` | Foreground bookcase barrier replaced by three low book displays; tall shelving retained upstage. |
+| `bookstore` | One low display at the right side; central floor open and tall shelving retained upstage. |
 | `museum` | Two central columns moved upstage; exhibit paths opened; display beasts face camera. |
 | `music_shop` | Organ moved from playing area to back wall; low visitor bench retained. |
 | `center` | Rear relic bays (cradle stone, healing font, reliquary, merge altar) behind the nurse's stone counter, open circulation; side waiting chairs remain low. The kennel is a separate barn (`kennel_barn`). |
-| `apothecary`, `outfitter`, `electronics` | Rear stock, customer-facing counters and low merchandise displays already suitable; display beasts now face camera. |
+| `apothecary`, `outfitter`, `electronics` | Rear stock and customer-facing counters retained; outfitter/electronics displays reduced to the two side edges, with beasts facing camera. |
 | `arena` | Combined lobby/master hall retained: rear reception, clear lesson arrival route, ring and low perimeter benches. |
 | `cafe` | Rear counter and tables with patrons in profile retained. |
+| `saloon` | Two occupied table groups at the sides; spare central tables removed. |
 | `dojo` | Rear sensei desk, side columns and clear training mat retained. |
 | `music_hall` | Rear organ and desk retained; patron shifted out of the only cross-aisle so the left seating/restroom remain reachable. Low audience benches are a functional exception. |
 | `fortune` | Fortune teller framed by rear plants, crystal table and open rug retained. |

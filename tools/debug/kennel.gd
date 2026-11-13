@@ -1,12 +1,13 @@
 extends RefCounted
 ## Real kennel UI in fresh state, in a kennel barn entered from its road:
-##   --scene=kennel [--touch] [--verify=1] [--preview=poor|empty|room] [--road=route3]
+##   --scene=kennel [--touch] [--verify=1] [--preview=poor|empty|room|menu|dropoff] [--road=route3]
 ## Checks that no town has a kennel, that each barn keeps its own pens, and the keeper's and pens' menus.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
+const Beasts = preload("res://scripts/core/beasts.gd")
 
 var main
 var bad := 0
@@ -37,9 +38,21 @@ func run(root, opts: Dictionary) -> void:
 	if opts.get("preview", "") == "room":
 		await main._wait(float(opts.get("wait", "0.5")))
 		return
+	if opts.get("preview", "") == "dropoff":
+		# Pip's question after choosing a beast to drop off: your storage, or up for adoption
+		if GameState.party.size() < 2:
+			GameState.add_beast(Beasts.create(12, 6))
+		Places.kennel_drop_off(main.world, town)
+		await main._wait(0.4)
+		await main._press("ui_accept")
+		await main._wait(float(opts.get("wait", "0.5")))
+		return
 	Places.kennel(main.world, town)
 	await main._wait(0.3)
 	await _dialogs()
+	if opts.get("preview", "") == "menu":
+		await main._wait(float(opts.get("wait", "0.5")))
+		return
 	await _open_list()
 	if opts.get("verify", "0") == "1":
 		await _verify()

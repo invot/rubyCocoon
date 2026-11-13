@@ -192,8 +192,17 @@ func _link_cells() -> void:
 		c.focus_neighbor_top = c.get_path_to(cells[i - columns]) if i - columns >= 0 else NodePath(".")
 		var below := mini(i + columns, cells.size() - 1)
 		c.focus_neighbor_bottom = c.get_path_to(cells[below]) if below > i and int(below / columns) > int(i / columns) else NodePath(".")
+		if i < columns and not c.gui_input.is_connected(_top_cell_input.bind(c)):
+			c.gui_input.connect(_top_cell_input.bind(c))
 		c.focus_next = c.get_path_to(cells[(i + 1) % cells.size()])
 		c.focus_previous = c.get_path_to(cells[posmod(i - 1, cells.size())])
+
+
+## Up on the top row of slots goes back to the book's tabs.
+func _top_cell_input(ev: InputEvent, c: Control) -> void:
+	var at := cells.find(c)
+	if mode == "grid" and at >= 0 and at < columns and ev.is_action_pressed("ui_up") and book.to_tabs():
+		c.accept_event()
 
 
 ## The book hands the cursor to the bag.

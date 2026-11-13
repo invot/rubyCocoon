@@ -12,6 +12,8 @@ var _quality := ""
 var diag_shadows := true
 ## Diagnostic only: -1 preserves the preset. Never persisted to player preferences.
 var diag_msaa := -1
+## Diagnostic only: false isolates glow without changing the chosen preset.
+var diag_glow := true
 
 
 func _ready() -> void:
@@ -83,6 +85,13 @@ func set_diag_msaa(value: int) -> void:
 			_apply_node(node)
 
 
+func set_diag_glow(on: bool) -> void:
+	diag_glow = on
+	for node in get_tree().get_nodes_in_group(GROUP):
+		if node is WorldEnvironment:
+			_apply_node(node)
+
+
 func _apply_node(node: Node) -> void:
 	var base: Dictionary = node.get_meta(BASELINE)
 	if node is SubViewport:
@@ -96,7 +105,7 @@ func _apply_node(node: Node) -> void:
 		node.attributes.dof_blur_near_enabled = base["dof_near"] and enabled
 	elif node is WorldEnvironment and node.environment != null:
 		var env: Environment = node.environment
-		env.glow_enabled = base["glow"] and _quality != "min"
+		env.glow_enabled = base["glow"] and _quality != "min" and diag_glow
 		var method := RenderingServer.get_current_rendering_method()
 		var maximum := _quality == "max"
 		# Godot 4.7 also supports SSAO on Compatibility; SSIL and SSR still require Forward+.

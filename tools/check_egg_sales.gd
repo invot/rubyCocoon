@@ -58,12 +58,12 @@ func run() -> void:
 	check(gs.eggs.is_empty() and gs.gold == before + 500, "Beast Center menu sells an egg")
 	gs.party = []
 	gs.add_egg(24)
-	# (the host's menu: the ladder, Leave, then Sell eggs)
-	ui.auto_answers = [2, 0, 0, 1]
+	# (the host's menu: the ladder, then Sell eggs; B backs out)
+	ui.auto_answers = [1, 0, 0, -1]
 	await places.arena({"name": "Test Arena"}, "tidewater")
 	check(gs.eggs.is_empty() and gs.gold == before + 700, "arena host sells eggs without a healthy party or completed lessons")
 	gs.add_egg(24)
-	ui.auto_answers = [2, 0, 0]
+	ui.auto_answers = [1, 0, 0]
 	await places.leader_talk({"town": "tidewater"})
 	check(gs.eggs.is_empty() and gs.gold == before + 900, "master dialogue sells eggs before battle lesson gates")
 	ui.auto_answers = []

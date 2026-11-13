@@ -22,6 +22,7 @@ func run(root, opts: Dictionary) -> void:
 			await _verify(opts)
 		else:
 			await _verify_desktop()
+		await _verify_cancel_button()
 		print("MOBILE MENUS DONE: %d problem(s)" % bad)
 	match opts.get("preview", "confirm"):
 		"list":
@@ -53,21 +54,41 @@ func _verify_desktop() -> void:
 	_ask("Read the whole question before deciding. ".repeat(16))
 	await main._wait(0.15)
 	var prompt = UI.stack.back()
-	_check(prompt.lines.size() > 1 and prompt._yes_button.text == "A: Next", "long desktop question offers Next before Yes")
-	prompt._yes_button.pressed.emit()
-	_check(prompt.idx == 1 and answer == -1, "desktop Next advances exactly one question page")
+	_check(prompt.lines.size() > 1 and prompt._choices.modulate.a == 0.0 and prompt.more.visible, "long desktop question offers Next before the answers")
+	prompt._buttons[1].pressed.emit()
+	_check(answer == -1 and not prompt._answering, "a click on the hidden answers before the last page does nothing")
+	await main._press("ui_accept")
+	_check(prompt.idx == 1 and answer == -1, "desktop A advances exactly one question page")
 	while prompt.idx < prompt.lines.size() - 1:
 		await main._press("ui_accept")
 	await main._wait(0.05)
-	_check(prompt._yes_button.text == "A: Yes", "last desktop question page offers Yes")
-	prompt._yes_button.pressed.emit()
+	_check(prompt._choices.modulate.a == 1.0 and prompt._active == 0, "last desktop question page shows the answers, Yes outlined")
+	await main._press("ui_right")
+	_check(prompt._active == 1, "right moves the outline to No")
+	await main._press("ui_left")
+	_check(prompt._active == 0, "left moves it back to Yes")
+	await main._press("ui_accept")
+	await main._wait(0.05)
+	_check(prompt._buttons[1].modulate.a == 0.0 and prompt._buttons[0].get_theme_color("font_color") == UIKit.LIGHT, "the picked answer fills with the gem and the other disappears")
 	await main._wait(0.45)
-	_check(answer == 1 and UI.stack.is_empty(), "desktop Yes answers directly")
+	_check(answer == 1 and UI.stack.is_empty(), "desktop A answers the outlined Yes")
+	_ask()
+	await main._wait(0.1)
+	await main._press("ui_right")
+	await main._press("ui_accept")
+	await main._wait(0.45)
+	_check(answer == 0, "desktop A answers the outlined No")
 	_ask()
 	await main._wait(0.1)
 	await main._press("ui_cancel")
 	await main._wait(0.45)
 	_check(answer == 0, "desktop B or Escape answers No directly")
+	_ask()
+	await main._wait(0.1)
+	prompt = UI.stack.back()
+	prompt._buttons[1].pressed.emit()
+	await main._wait(0.45)
+	_check(answer == 0, "clicking No answers No")
 	# the map page with the keys: the cursor moves between towns, and B gives the arrows back to the tabs
 	GameState.set_flag("world_map")
 	Menus.pause_menu(main.world, "map")
@@ -87,6 +108,57 @@ func _verify_desktop() -> void:
 	await main._press("menu")
 	await main._wait(0.2)
 	_check(UI.stack.is_empty(), "Start closes the book")
+
+
+## A menu while talking to someone has no Leave row: a small B: Cancel button hangs under its right end, over the
+## window's bottom edge, and a click or tap on it backs out once.
+func _pick_cancel_menu() -> void:
+	choice = await UI.choose("Beast Center", ["Hatchery", "Drop off a beast"], {"anchor": "right", "width": 340, "cancel_button": true})
+
+
+func _verify_cancel_button() -> void:
+	choice = -2
+	_pick_cancel_menu()
+	await main._wait(0.3)
+	var menu = UI.stack.back()
+	var ok: bool = menu != null and menu.get("_cancel_btn") != null
+	_check(ok, "a talking menu has a B: Cancel button")
+	if not ok:
+		return
+	var b: Button = menu._cancel_btn
+	var panel: Rect2 = menu._panel.get_global_rect()
+	var r := b.get_global_rect()
+	_check(b.text == "B: Cancel" and r.position.y < panel.end.y and r.end.y > panel.end.y, "it overlaps the window's bottom edge")
+	_check(r.end.x <= panel.end.x and r.get_center().x > panel.get_center().x, "it stands on the window's right side")
+	_check(menu._cancel_hit.size.y >= UIKit.row_h() - 1.0, "its tap area is a full-size target")
+	_check(UIKit.safe_rect(menu).encloses(menu._cancel_hit.get_global_rect()), "it stays inside the safe area")
+	await main._tap_at(r.get_center())
+	await main._wait(0.1)
+	_check(choice == -1 and UI.stack.is_empty(), "clicking B: Cancel backs out of the menu")
+	choice = -2
+	_pick_cancel_menu()
+	await main._wait(0.3)
+	await main._press("ui_cancel")
+	await main._wait(0.1)
+	_check(choice == -1 and UI.stack.is_empty(), "B backs out of the menu too")
+	# a level-up: A skips the stats' reveal, A: Continue shows under the window, and the next A carries on
+	var b = Beasts.create(0, 4)
+	var before: Dictionary = b.growth_look()
+	b.gain_xp(b.xp_for_level(5) - b.xp)
+	var film = load("res://scripts/ui/beast_cinematic.gd").new().setup("level", before, b.growth_look())
+	UI.push(film)
+	await main._wait(0.8)
+	_check(not film._continue.visible and film.elapsed < film.duration, "A: Continue waits for the stats' reveal")
+	await main._press("ui_accept")
+	await main._wait(0.15)
+	var cont: Rect2 = film._continue.button.get_global_rect()
+	var win: Rect2 = film._stat_window.get_global_rect()
+	_check(not film.closed and film._continue.visible and film._continue.button.text == "A: Continue", "A skips the reveal and shows A: Continue")
+	_check(cont.position.y < win.end.y and cont.end.y > win.end.y and cont.end.x <= win.end.x, "A: Continue overlaps the stats window's bottom right")
+	_check(not UI.touch_blocks(cont.get_center()), "A: Continue is clear of the touch pad")
+	await main._press("ui_accept")
+	await main._wait(0.15)
+	_check(film.closed and UI.stack.is_empty(), "the next A carries on")
 
 
 func _center_menu() -> void:

@@ -32,11 +32,15 @@ package is `com.rubycocoon.vo_perf`. A separate playable **Ruby Cocoon Compatibi
 `com.rubycocoon.compat`; it preserves the user's existing installation. All benchmark state is isolated.
 
 The user said the phone will not be touched and authorized all needed testing; ask only for physical
-interaction if needed. They also authorized keeping it awake via ADB. Current temporary global USB
-stay-awake flag is **2**, original value **0**, recorded in
-`build/perf/vo/011/a71-playable-compat/usb-stay-awake.json`. **Restore the original after testing**, then mark
-that record restored. Preserve lock/PIN settings. Ordinary game foreground was not force-stopped by us;
+interaction if needed. They also authorized keeping it awake via ADB. Temporary charging
+stay-awake flag **3 (AC and USB)** has now been restored to its original value **0**, confirmed by ADB and
+recorded as restored in `build/perf/vo/011/a71-playable-compat/usb-stay-awake.json`.
+Preserve lock/PIN settings. Ordinary game foreground was not force-stopped by us;
 cleanup commands target only the temporary benchmark. User-installed game has its own native crash record.
+Android reports `mStayOn=false` despite that flag: device administration enforces a maximum screen-off
+timeout of 300000 ms. Do not change that policy or the PIN/lock settings. Keep the stable playable game
+foreground between tests; the benchmark requests screen keep-on during its runs. The user has opened a
+game to keep the phone awake and confirmed it will otherwise remain untouched.
 
 ## Stability / performance evidence so far
 
@@ -48,14 +52,57 @@ cleanup commands target only the temporary benchmark. User-installed game has it
 3. `007-a71-compat/phone`: Compatibility Mid/720p standard route is far too slow. Completed Coastal Path
    segment median 146.702 ms (~6.8 fps), Cove median 176.0435 ms. Stopped our own benchmark deliberately for
    triage before its first complete pass; preserve as diagnostic only, not an accepted three-pass result.
-4. `011-a71-min-mobile/phone`: testing the existing Min/540p profile (MSAA/shadows disabled), one budget route
-   pass. It progressed through Coastal and Cove without the immediate Mid-profile crash; snapshot frame
-   medians still ~83–116 ms outdoors. USB observation disconnected transiently at ~127 s; device is back and
-   `--attach` recovery was launched. Do not replace/clear it before recovering its report/archive.
+4. `011-a71-min-mobile/phone`: existing Min/540p Mobile profile completed all five fixtures. Completed report
+   and private benchmark archive recovered with `--attach` after a transient USB disconnect at ~127 s.
+   `observer-recovery.json` records the historical-logcat coverage gap. No reported focus/runtime problems;
+   outdoor snapshot frame medians remain ~83–116 ms, so stability does not establish acceptable performance.
+5. `011-a71-gpu-trial-03/phone`: valid six-pass attribution, 299.7 s. Coastal baseline GPU medians
+   71.62/91.31/85.95 ms; terrain hidden 26.79/26.47/28.53 ms; final control 71.82/91.05/86.55 ms.
+   Hiding foliage or increasing LOD threshold helped much less. Earlier trial-02 leaked cached visibility
+   and is explicitly invalid; trial-01 used an incomplete material selector. Do not cite either for savings.
+6. `011-a71-terrain-ab/phone`: original/branch-cleanup/original, 170.0 s, same 252/266/275 draws.
+   Original GPU 72.0525/91.525/87.758 ms, cleanup 53.825/66.3525/64.4085 ms, final original
+   70.8925/89.5565/87.3645 ms. This removes unused calculations and preserves analytical noise/formulas.
+   Desktop matched crops (`011/terrain-pixel-comparison.json`) have zero changed path/grass pixels;
+   cliff crop differs in five of 6000 pixels by at most one channel value. It still misses 30 fps outdoors.
+7. `011-a71-noise-ab/phone`: rejected diagnostic lookup-noise variant, 120.9 s. Only ~1–3 ms GPU gain,
+   with different noise placement. Prototype remains in `tools/experiments/011/terrain_lookup.gdshader`;
+   production terrain retains analytical noise. Do not compare its separate baseline epoch as a controlled
+   improvement over the prior terrain test.
+8. `011-a71-mid-no-msaa/phone`: disabling MSAA alone still hit device loss. The subsequent
+   `011-a71-mid-no-shadows/phone` launch also hit Vulkan device loss with SIGTRAP in VkThread;
+   its earlier lock-blocked attempt supplies no performance evidence. Neither switch alone prevents it.
+9. `011-a71-lighting-ab/phone`: isolated pixel/vertex/pixel diagnostic, 157.7 s, three completed passes
+   with no reported focus/runtime problems. Baseline GPU 53.9265/66.337/63.901 ms, vertex lighting
+   51.0195/59.383/50.3725 ms, final baseline 53.775/66.232/63.817 ms. Draws remain 252/266/275;
+   candidate changes 62 standard materials and two shaders, restored in the final control. This still
+   misses 30 fps and is **not adopted** as a preset change. Headless three-pass smoke also passed.
+   `phone-startup-focus-invalid/` preserves the first launch interrupted by foreground loss; excluded.
+10. `011-a71-mid-no-glow/phone`: current-source Mid/720p diagnostic with glow disabled also hit Vulkan
+    device loss/SIGTRAP after entering Coastal. This is not an accepted timing result. It does not prove
+    the independent effects are unrelated or exclude interactions/resolution/driver faults; no production
+    workaround follows from it. All three failed diagnostic packages were force-stopped, with unchanged
+    player-package paths verified. The stable playable Compatibility app was brought back to foreground.
 
-The next decision needs actual GPU versus tick/render CPU values from that recovered report. Do not infer
-the whole problem from frame intervals or promise 30 fps. Existing 30/60 fps hardware goals are unchanged.
+Do not infer the whole problem from frame intervals or promise 30 fps. Existing 30/60 fps hardware goals are unchanged.
 No global renderer/preset policy has been changed; all A71 variants are explicitly isolated experiments.
+
+Latest focused checks: `build/vo011-final-focused-02.json` has six passes (script compilation,
+both budget profiles, synthetic inventory, terrain and video settings). The earlier quick run's
+data/maps/beasts passed but scripts caught a concurrent `beasts_page.gd` type-inference error;
+that file was independently corrected in the shared checkout before the successful compilation rerun.
+Do not describe the original quick result as an uninterrupted pass. Final glow-hook focused checks
+are recorded separately in `build/vo011-glow-focused.json`.
+
+## Evidence boundaries
+
+Current 4.7 measurements and budget ceilings remain provisional. The newly scheduled
+[010c migration assessment](010c-godot-48-plan.md) places engine adoption before 011 budget acceptance;
+preserve these results and remeasure on the adopted engine rather than relabelling them.
+Native terrain also warns that the baked ground source hash is stale. Shader edits do not cause that
+warning: the bake hashes terrain mesh/elevation/shoreline sources. Native regeneration and exports that
+trust the baked set may therefore use different geometry epochs. No ground rebake has been performed
+here; this discrepancy must be resolved before claiming source/export budget equivalence.
 
 ## Reproduction / continuation
 

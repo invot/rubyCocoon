@@ -1079,12 +1079,7 @@ func _mascot(world, n: Dictionary) -> void:
 		b = ready[c]
 	if not await ask("The %s strikes a pose in front of your %s, then does it again, slower. It wants to teach it %s! Learn it?" % [name, b.nickname, move_name]):
 		return
-	var res: String = b.learn(mv)
-	Sfx.play("levelup")
-	var out := ["%s learned %s!" % [b.nickname, move_name]]
-	if res == "known":
-		out.append("It already uses four moves, so %s waits among its known moves: swap it in from Start ► Beasts ► Moves." % move_name)
-	await say(out)
+	await Menus.teach(b, mv)
 
 
 func _talk_story(world, n: Dictionary) -> void:

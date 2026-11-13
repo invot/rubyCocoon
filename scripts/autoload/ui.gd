@@ -208,6 +208,7 @@ func choose(title: String, items: Array, opts := {}) -> int:
 		auto_log.append("[menu] %s -> %d" % [title.get_slice(char(10), 0), a])
 		return a
 	# Talking with someone, or on the phone: the camera closes in on them, on the left, and the menu stands on the right.
+	# There's no "Leave" row: a small B: Cancel button under the menu backs out (list_menu.gd cancel_button).
 	var world = GameState.main.world if GameState.main != null else null
 	var shot: bool = is_instance_valid(world) and world.menu_shot_begin()
 	if shot:
@@ -215,6 +216,7 @@ func choose(title: String, items: Array, opts := {}) -> int:
 		opts["anchor"] = "right"
 		opts["keep_anchor"] = true
 		opts["beside_pad"] = true
+		opts["cancel_button"] = true
 	var m := ListMenu.new()
 	m.setup(title, items, opts)
 	push(m)

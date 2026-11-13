@@ -9,6 +9,9 @@ var _preview_environment: Environment
 var selected_beast = null
 var preview_slot := -1
 var _slot_motion: Tween
+## The beasts stand still (their rigs held in a resting pose), so the views render only after a change, and every frame
+## only while something moves (a ring turn, a beast sliding to a spot): seconds left of that.
+var _live := 0.0
 
 
 func _ready() -> void:
@@ -38,11 +41,40 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
-	_time += delta
-	for beast in nodes:
-		var root: Node3D = nodes[beast]
-		if beast.hp > 0 and root.has_meta("phase"):
-			root.get_node("Model").position.y = float(root.get_meta("lift")) + absf(sin(_time * 2.4 + float(root.get_meta("phase")))) * 0.05
+	if _live <= 0.0:
+		return
+	_live -= delta
+	if _live <= 0.0:
+		_set_update(SubViewport.UPDATE_ONCE)
+
+
+## Renders the views again: once, or every frame for `seconds` while something moves.
+func redraw(seconds := 0.0) -> void:
+	_live = maxf(_live, seconds)
+	_set_update(SubViewport.UPDATE_ALWAYS if _live > 0.0 else SubViewport.UPDATE_ONCE)
+
+
+func _set_update(mode: int) -> void:
+	var view := get_viewport() as SubViewport
+	if view != null:
+		view.render_target_update_mode = mode
+	if _faded_view != null and selected_beast != null:
+		_faded_view.render_target_update_mode = mode
+	if _front_vp != null and not _front_geometry.is_empty():
+		_front_vp.render_target_update_mode = mode
+
+
+## A still model: the rig stands in its resting pose and stops animating (cheaper than the battle's idle).
+func _build_model(root: Node3D, b) -> void:
+	super(root, b)
+	root.remove_meta("phase")
+	if root.has_meta("rig"):
+		var rig: Node3D = root.get_meta("rig")
+		if rig.has_method("hold"):
+			if rig.is_inside_tree():
+				rig.hold()
+			else:
+				rig.ready.connect(rig.hold, CONNECT_ONE_SHOT)
 
 
 func show_ring(placed: Dictionary, side: int) -> void:
@@ -64,11 +96,14 @@ func show_ring(placed: Dictionary, side: int) -> void:
 			_spawn(beast, "ally", slot, false)
 	_place_ring("ally")
 	_light_pads("ally")
+	# (a few frames, while new models and their materials settle in)
+	redraw(0.3)
 
 
 func face_offset(angle: float) -> void:
 	ring_psi["ally"] = _psi_for("ally", ally_side) - angle
 	_place_ring("ally")
+	redraw(0.1)
 
 
 ## Separate the other beasts into an alpha-composited view so fading also works
@@ -87,7 +122,7 @@ func faded_texture() -> Texture2D:
 		_faded_view.add_child(_faded_camera)
 		_faded_camera.current = true
 		RenderingServer.frame_pre_draw.connect(_sync_faded_camera)
-	_faded_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_faded_view.render_target_update_mode = SubViewport.UPDATE_ONCE
 	_sync_faded_camera()
 	return _faded_view.get_texture()
 
@@ -126,8 +161,7 @@ func show_placement(beast, slot: int) -> void:
 	for other in nodes:
 		for geometry: GeometryInstance3D in nodes[other].find_children("*", "GeometryInstance3D", true, false):
 			geometry.layers = (geometry.layers | 1) & ~FADED_LAYER if other == beast else (geometry.layers & ~1) | FADED_LAYER
-	if _faded_view != null:
-		_faded_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	redraw(0.25 if same_beast else 0.05)
 
 
 func clear_placement() -> void:
@@ -142,6 +176,7 @@ func clear_placement() -> void:
 	_place_ring("ally")
 	if _faded_view != null:
 		_faded_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	redraw()
 
 
 func fit_camera(view_size: Vector2) -> void:

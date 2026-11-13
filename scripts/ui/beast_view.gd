@@ -127,9 +127,10 @@ func _ready() -> void:
 		dl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(dl)
 		right.add_child(row)
-	var extra: int = b.known.size() - b.moves.size()
-	if extra > 0:
-		right.add_child(UIKit.label("(+%d more moves remembered)" % extra, 15, UIKit.DIM))
+	var slots := []
+	for g in b.slot_groups():
+		slots.append("%s %d/%d" % ["Plain" if g == "plain" else String(g).capitalize(), b.slot_moves(g).size(), b.slot_size(g)])
+	right.add_child(UIKit.label("Move slots: " + "  ·  ".join(slots), 16, UIKit.DIM))
 	get_viewport().size_changed.connect(_layout)
 	UI.controls.layout_changed.connect(_layout)
 	_layout()

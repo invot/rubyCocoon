@@ -853,7 +853,12 @@ func _run_test() -> void:
 		return
 	if scene in ["vo-perf", "vo-lighting", "vo-scenery", "vo-mesh-merger", "vo-alpha", "vo-budget"]:
 		var audit_path: String = {"vo-perf": "vo_perf", "vo-lighting": "vo_lighting", "vo-scenery": "vo_scenery", "vo-mesh-merger": "vo_mesh_merger", "vo-alpha": "vo_alpha", "vo-budget": "vo_budget"}[scene]
-		var audit = load("res://tools/debug/" + audit_path + ".gd").new()
+		var audit_script = load("res://tools/debug/" + audit_path + ".gd")
+		if audit_script == null or not audit_script.can_instantiate():
+			push_error("Cannot instantiate diagnostic: " + audit_path)
+			get_tree().quit(1)
+			return
+		var audit = audit_script.new()
 		await audit.run(self, _test)
 		get_tree().quit(0 if audit.bad == 0 else 1)
 		return
@@ -1818,6 +1823,8 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "interiors":
 		await load("res://tools/debug/interiors.gd").new().run(self, _test)
+	elif scene == "shop-paths":
+		load("res://tools/debug/shop_paths.gd").new().run(self, _test)
 	elif scene == "counter-phones":
 		await load("res://tools/debug/counter_phones.gd").new().run(self, _test)
 	elif scene == "maps":
@@ -4700,7 +4707,8 @@ func _mascot_test() -> void:
 	var early: bool = not kin.known.has("bandit_blaze")
 	print("%s a Lv 39 %s can't learn it yet: %s" % ["ok  " if early else "FAIL", kin.nickname, UI.auto_log.back()])
 	kin.level = 40
-	UI.auto_answers = [0]
+	# (its fire slots are full: yes to learning, forget the first fire move, yes to forgetting it)
+	UI.auto_answers = [0, 0, 0]
 	await Story.talk(world, mascot)
 	var learned: bool = kin.known.has("bandit_blaze")
 	print("%s at Lv 40 it learns Bandit Blaze: %s  (moves %s)" % ["ok  " if learned else "FAIL", learned, kin.moves])
@@ -4712,8 +4720,9 @@ func _mascot_test() -> void:
 	var refused: bool = not other.known.has("bandit_blaze")
 	print("%s a %s (another fire line) isn't taught: %s" % ["ok  " if refused else "FAIL", other.nickname, UI.auto_log.back()])
 	var child := Beasts.merge(other, kin, true)
-	var kept: bool = child.known.has("bandit_blaze") == (RaceDB.first_form(child.race) == 0)
-	print("%s a merge (%s) keeps Bandit Blaze only if it's of the dino line: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
+	# (a merge keeps the parents' moves that fit its slots, so a dino child may or may not keep it)
+	var kept: bool = not child.known.has("bandit_blaze") or RaceDB.first_form(child.race) == 0
+	print("%s a merge (%s) can keep Bandit Blaze only if it's of the dino line: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
 	for ok2 in [early, learned, refused, kept]:
 		if not ok2:
 			bad += 1
