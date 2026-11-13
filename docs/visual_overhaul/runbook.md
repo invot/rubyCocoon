@@ -1,5 +1,18 @@
 # Ruby Cocoon overhaul runbook
 
+## Typography direction — user decision, 12 November 2026
+
+This decision supersedes earlier instructions to use League Spartan for all text.
+- Headings and names: League Spartan Semibold (600).
+- Body text, menu actions, values, dialogue and damage numbers: Short Stack.
+- Lettering physically painted, engraved or displayed on objects in the 3D world: Noto Sans Old North Arabian, using a deterministic mapping from English letters (and explicitly defined ligatures where needed) to its glyphs. Do not render English lettering on world objects. This is a fictional substitution alphabet, not an Arabic translation. Preserve the underlying readable English for dialogue, interaction descriptions and accessibility.
+- UI and spoken dialogue remain readable English; they are not world-object lettering. Preserve the established intro/title logo exception unless the user changes it.
+- Sources: [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
+- Implementation checkpoint: Short Stack body/dialogue and the shared world-lettering font/map are now wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
+
+Codex continues code, tests and nonvisual work. Stop at the next task requiring Claude's visual authorship and prepare its concrete handoff; do not silently perform that artwork.
+
+
 This is the single ordered chain of work for the visual overhaul, performance, diagonal movement and exploration. It combines [audit.md](audit.md) (decisions and diagnosis), [steps.md](steps.md) (the visual and performance steps) and [exploration.md](exploration.md) (the exploration pillar). **Where they differ, this runbook wins on order and scope.** The full visual standard stays in [standards.md](standards.md) and the enforcement list in [checklist.md](checklist.md); steps cite their sections instead of repeating them.
 
 ## How to prompt
@@ -257,6 +270,20 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 - It must work on Mobile and Compatibility.
 - Existing 8×8 chunked MultiMeshes stay. Target residual repetitions, excess LOD submissions or update work only
   where measurements justify it; do not perform a second wholesale batching conversion.
+- Evaluate [Static Mesh Merger](https://github.com/EverettM12/Static-Mesh-Merger) on one isolated complex
+  static prop or structure. This is an editor-side asset-preparation experiment, not a replacement for
+  runtime builders or existing MultiMeshes. Review and pin the tested plugin version; keep source assets
+  and a repeatable rebuild path, and record its license/attribution if adopted.
+- Merge only pieces that share visibility, fading, shadow and LOD behavior. Preserve collision transforms,
+  materials, UVs and normals. Keep doors, interactables, independently faded buildings and battle props
+  that hide for sightlines separate. Never merge whole streets or forests across the existing chunk boundaries.
+- Compare the original asset with the merged result on Forward+, Mobile and Compatibility, including an
+  actual phone where available: surface/draw counts, CPU/GPU frame time, memory and load cost, plus matched
+  gameplay views and collision checks. A single ArrayMesh can retain multiple surface draws; fewer nodes
+  alone do not prove a gain. Check culling and LODs explicitly because the plugin does not generate LODs.
+- Adopt only if measured benefit survives those checks; otherwise record an evidence-backed no-op.
+  Keep generated mesh collision out of the tile movement rules, and obtain screenshot approval for any
+  visible change under the existing review protocol.
 
 **Offload:** a first look at before/after shots ("list differences"), and the diff review.
 **Evidence:** draw calls before/after on Coastal Path and Cocoon Cove; a `field-perf` run with no frame over 20 ms on desktop.
@@ -270,6 +297,17 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 - 004 found solid foliage and no BaseMaterial blended surfaces in field endpoint views. Attribute actual residual
   transparent draws first; preserve water, contact shadows, fades and intentional battle effects. Record a no-op
   if no harmful foliage blend remains, rather than converting an already opaque shader.
+- Include a focused merge-film overdraw check (`MergeCinematic.tscn`, `merge_cinematic.gd`,
+  `hatchery_stage.gd`, `hatchery_beam.gdshader`): compare peak overlapping beams, halos and particles,
+  reducing layers or covered screen area only where measured GPU cost justifies it. Beams are already
+  unshaded/additive and shadowless; unshaded transparency still needs transparency handling.
+  Existing merge emitters already use 56/40/40 particles with 1.1-second lifetimes; treat these as the
+  baseline, not a new optimization or a universal cap for other effects. Preserve the films' timing and readability.
+- If edge aliasing remains, compare the existing 2x MSAA default against FXAA at the same resolution,
+  including moving foliage and beam edges. Presets currently use no AA/2x/4x MSAA, screen-space AA is
+  disabled and no TAA is configured. Do not stack AA methods without evidence; ordinary MSAA does not
+  multiply fragment shading by its sample count or smooth alpha-scissor edges without alpha antialiasing.
+  Record an evidence-backed no-op if FXAA does not improve the quality/cost trade-off.
 
 **Offload:** triage the before/after crops for visible holes or aliasing ("describe the edges of the grass blades").
 **Evidence:** transparent draws and GPU time before/after.
@@ -285,6 +323,12 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 - Battles keep "only fighters cast shadows".
 - First isolate shadow-pass GPU cost with controlled diagnostics; one shadow light outdoors does not establish
   excessive lights. Do not remove authored large casters without evidence and visual review.
+- Start from the existing 30-unit, two-split world/battle sun. Do not extend it to the suggested 50–80 units
+  by default; choose distance and splits from visible coverage, shadow stability and measured cost per preset.
+- Audit hatch/merge local-light ranges, overlap and caster eligibility as well as outdoor lighting.
+  Decorative beams/particles already cast no shadows; the shared hatchery has one shadow-casting key
+  and shadowless fills. Light energy (including values up to 16) is not itself a rendering-cost metric.
+  Reserve costly shadows for subjects that need them and verify that important silhouettes stay grounded.
 
 **Offload:** a first look ("describe where shadows appear under characters and props").
 **Evidence:** shadow-pass cost and shots before/after.
@@ -341,6 +385,10 @@ do not assume scenery alone explains the interval. Preserve player app and lock 
 **Do:**
 - From the improved numbers, write `ledger/budgets.md`: per scene and renderer, the draw calls, distinct materials, triangles in view, texture MB, transparent draws and frame ms. Give a target per hardware class (30 fps minimum class, 60 fps mid class and PC), with headroom for the art phases.
 - Add a `vo-budget` line to `tools/run_tests.sh`. It runs the route headless and fails over the CPU-side budgets.
+- Verify the existing renderer split in actual exports: Forward+ desktop default, Mobile phones/tablets,
+  Compatibility web and the dedicated compatibility build. Preserve it unless target measurements justify
+  a change. Report desktop Mobile-renderer timings as desktop measurements. Keep GPU timing and frame
+  pacing separate: 010a reduced GPU time without resolving the roughly 30 fps phone frame intervals.
 
 **Done when:** the test passes today, and the budgets are cited by every later step.
 
@@ -475,6 +523,14 @@ The reference images aren't in the repo. To use them in captures, save copies in
   - glow only on bright sources;
   - clear light, mid and dark steps.
 - Produce 3 candidate gradings. Commit the chosen one in code and data.
+- Filmic is already the shared baseline. If testing AgX, compare it with Filmic using coordinated exposure,
+  saturation and highlight tuning, including bright roofs and hatchery beams; do not treat this as a
+  Linear-to-Filmic fix. Verify the chosen result on Forward+, Mobile and Compatibility.
+- Review existing horizon-tinted, per-biome distance fog for depth separation. Trial 0.005–0.01 only where
+  appropriate to that scene's scale; preserve clear routes, dark regions and intentional dense story fog.
+- Tune authored SSAO only on supported renderers at Max quality (currently Forward+ and Compatibility,
+  not Mobile). Compare contact crops for grounding versus halos before widening the current outdoor
+  0.8 radius toward 1.0–1.5. Preserve contact-shadow grounding on lower presets and Mobile.
 
 **Offload:** pairwise difference notes ("list differences in brightness, saturation and shadow colour between left and right") for each candidate against the current grading and against the AC grass reference.
 **Evidence:** Coastal Path, three cameras × three candidates.
@@ -495,6 +551,30 @@ The reference images aren't in the repo. To use them in captures, save copies in
 
 **Offload:** "List any sample that looks glossy like plastic, or grainy/noisy."
 **Done when:** you approve, and the presets are in code.
+
+### 022a · S2a: static-interior LightmapGI feasibility prototype
+**Approval:** numbers and before/after screenshots for the prototype; production adoption requires your approval.
+**Needs:** 011, 021, 022.
+**Files:** one representative interior fixture, its existing room/material builders, and an offline bake tool.
+**Do:**
+- Prototype one static interior using the approved materials; keep the experiment isolated from production.
+  The current runtime has no active SDFGI to replace: assess added bounce-light quality and total cost,
+  rather than claiming an existing runtime GI saving.
+- Establish a repeatable offline bake from the runtime-built room, unique non-overlapping UV2s,
+  stable geometry/transforms and resource mapping, and a cache/invalidation rule for rebuilt rooms.
+  Exported play must load the baked result, never attempt an editor-only bake.
+- Compare indirect-only versus direct-plus-indirect baking where useful. Keep actors, moving objects,
+  room changes and dynamic lights coherent; check existing wall fading and omitted camera-facing walls.
+- Verify baked-light rendering on Forward+, Mobile and Compatibility, including web. Record texture memory,
+  export/download size, loading cost, GPU/frame timings and bake time alongside matched gameplay crops.
+- Decide go/no-go against 011 budgets. If worthwhile, document a bounded follow-up for eligible static rooms;
+  assess village/overworld eligibility separately because runtime assembly, batching and changing geometry
+  may make baking unsuitable. Do not roll lightmaps across the world as part of this prototype.
+
+**Offload:** neutral comparison of contact shadows, light bounce and visible bake seams; verify findings directly.
+**Evidence:** repeatable bake instructions, renderer/device results, matched crops and an adoption decision.
+**Done when:** the prototype's quality/cost trade-off and limitations are recorded and reviewed; either a
+bounded adoption follow-up is planned or an evidence-backed no-op is recorded. No automatic production rollout.
 
 ### 023 · S3: scale sheet
 **Approval: you.** **Needs:** 022.
@@ -690,6 +770,11 @@ pattern; see standards §11. This does not complete 027 or bypass 011/022/023 an
 - Re-bake the coast backdrop from the approved assets (`tools/bake_battle_backdrops.gd`, then smoothing).
 - Battle light matched to 021 and 022.
 - Check the rings, pads, a legacy guardian or robot, effects and every named shot.
+- Preserve and verify the existing camera safeguards through rapid action requests and large summons:
+  exponential position/look/FOV smoothing, 24–65-degree FOV limits, at least 0.5 seconds between shot
+  changes, indoor bounds and the outdoor 27-unit radius, including shake. Change smoothing speeds only
+  for a reproduced jitter problem. Bounds keep shots inside scenery; they do not themselves guarantee
+  less geometry or shadow work, so make performance claims only from measurements.
 
 **Done when:** **you approve Reference 6**, and `battle-visuals`, `battle-stage`, `battle-stage-touch`, `battle-poses`, `battle-focus` and `battle-focus-touch` pass.
 
@@ -1205,7 +1290,7 @@ Every C family step:
 
 ## Phase U: interface softening (agreed for later)
 
-Keep the structure, layout, inputs and AGENTS.md interface rules: dark blurred windows, white borders, faint gem tint and League Spartan. Each step is checked in all four gems × desktop and touch × 1280×720.
+Keep the structure, layout, inputs and AGENTS.md interface rules: dark blurred windows, white borders, faint gem tint, League Spartan headings and Short Stack body/dialogue. Each step is checked in all four gems × desktop and touch × 1280×720.
 
 ### 163 · U1: shared frame and border weight and ornament (`frame_box.gd`, `UIKit`)
 **Approval: you.**

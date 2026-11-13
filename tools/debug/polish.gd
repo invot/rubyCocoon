@@ -19,7 +19,13 @@ func run(host, options: Dictionary) -> void:
 	GameState.party = [Beasts.create(0, 10)]
 	for symbol in "◄►▲▼♂♀★":
 		_check(UIKit.font_body().has_char(symbol.unicode_at(0)), "bundled glyph: "+symbol)
-	_check(UIKit.font_body().get_height(32) <= 36, "symbol fallback does not inflate Spartan line height")
+	var lettering = load("res://scripts/gfx/world_lettering.gd")
+	var encoded: String = lettering.encode("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	_check(encoded.length() == 26 and lettering.encode("hotel") == lettering.encode("HOTEL"), "world alphabet is deterministic and case insensitive")
+	for ch in encoded:
+		_check(lettering.FONT.has_char(ch.unicode_at(0)), "world alphabet glyph coverage")
+	var native_body: Font = load(UIKit.BODY_FONT_FILE)
+	_check(absf(UIKit.font_body().get_height(32) - native_body.get_height(32)) <= 1.0, "symbol fallback preserves Short Stack line height")
 	_check(Maps.load_map("route1", {}).get("weapon_obstacles", []).is_empty(), "first road has no weapon puzzles")
 	for name in ["floor_lamp", "table_lamp"]:
 		for palette in 5:

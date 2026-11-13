@@ -1,5 +1,18 @@
 > **Folded into [runbook.md](runbook.md)**, the numbered chain to follow. This file is background; where they differ, the runbook wins on order and scope.
 
+## Typography direction — user decision, 12 November 2026
+
+This decision supersedes earlier instructions to use League Spartan for all text.
+- Headings and names: League Spartan Semibold (600).
+- Body text, menu actions, values, dialogue and damage numbers: Short Stack.
+- Lettering physically painted, engraved or displayed on objects in the 3D world: Noto Sans Old North Arabian, using a deterministic mapping from English letters (and explicitly defined ligatures where needed) to its glyphs. Do not render English lettering on world objects. This is a fictional substitution alphabet, not an Arabic translation. Preserve the underlying readable English for dialogue, interaction descriptions and accessibility.
+- UI and spoken dialogue remain readable English; they are not world-object lettering. Preserve the established intro/title logo exception unless the user changes it.
+- Sources: [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
+- Implementation checkpoint: Short Stack body/dialogue and the shared world-lettering font/map are wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
+
+Codex continues code, tests and nonvisual work. Stop at the next task requiring Claude's visual authorship and prepare its concrete handoff; do not silently perform that artwork.
+
+
 # Visual overhaul: steps
 
 One step is one session of about 1–2 hours. Each step has a fixed goal, the files it touches, the evidence it must produce, and a clear stopping point. The user approves each visual step from before/after screenshots before the next visual step starts. Performance and tooling steps need only their numbers and tests.
@@ -25,7 +38,7 @@ The goal is to know where the time goes on every target, then remove the biggest
 | **P3** Web baseline | First-visit and steady numbers in a real browser | Make the single-threaded web export. Serve it locally and open it in the built-in browser. Record black-screen times for the first and return visits on the same route, plus the steady fps | Numbers in `ledger/perf.md`. Shader-compile stalls are listed per map |
 | **P4** Cost diagnosis (analysis only) | Rank the causes | From P1–P3, list the top offenders per scene: unique materials (the soft-finish pass's ~14,500 surfaces), draw calls by node type, shadow casters, alpha overdraw (grass, foliage cards), lights, and per-frame scripts (use Godot's profiler output, or timing from `--scene=build-profile`). Have the local model summarise the long profiler dumps | `ledger/perf.md` has a ranked table with an estimated saving per fix. P5–P10 are re-ordered or split to match it |
 | **P5** Material sharing | Far fewer unique materials | `surface_finish.gd` (and the builders it touches) shares one material per (finish texture, tint) key, or moves tint into vertex colour or instance uniforms, so identical finishes reuse a single material. Keep the look pixel-identical: compare before/after shots with `tools/img.sh diff` | The material count on the route falls by the largest achievable factor, with no visual diff beyond noise. `textures` test passes |
-| **P6** Batched scenery | Fewer draw calls for repeated nature/props | Per terrain chunk, replace repeated MeshInstances (bushes, grass, flowers, rocks, small props) with MultiMeshInstance3D, keeping LOD, visibility, fading and collision. Mobile- and Compatibility-safe | Draw calls on Coastal Path and Cove fall measurably on all three renderers. Walking, fading and `field-perf` still have no spikes over 20 ms on desktop |
+| **P6** Batched scenery | Fewer draw calls for repeated nature/props | Preserve existing chunked MultiMeshes; optimize measured residual work. Trial Static Mesh Merger on one complex static asset, following [runbook 006](runbook.md#006--p6-batched-scenery); preserve LOD, visibility, independent fading, battle sightlines and collision. Mobile- and Compatibility-safe | Measured frame/draw benefit on target renderers, or a documented no-op for the merger. Walking, fading and `field-perf` still have no spikes over 20 ms on desktop |
 | **P7** Alpha and overdraw | Cheap foliage and grass | Make alpha-blended foliage and grass alpha-scissor or opaque. Cap card layers. Measure overdraw on Mobile. (S9 replaces the grass design later; this step only fixes cost) | Fewer transparent draws, and the GPU time on the phone route improves |
 | **P8** Shadows and lights | A per-preset budget | Restrict shadow casters (big scenery and actors only; grass, flowers and small props never cast). Set shadow distance and splits per preset (Min/Mid/Max). Contact shadows carry the small things | Shadow-pass cost recorded before/after. Characters stay grounded in shots |
 | **P9** Shader warm-up | No multi-second first-visit stalls | Check Godot 4.7's export shader baking/pipeline cache options for each renderer. Extend `_warm_shaders` to warm the reduced material set (P5) once at boot behind the title or the first fade, not per map. Remove one-off shader variants found in P4 | Web/Compatibility first-visit black screen is at most about 1.5 s per map on desktop. Phone first visits are recorded |
@@ -125,7 +138,7 @@ Using `ledger/scenes.csv`, take **2–3 maps or 4–6 rooms per step**. Capture 
 
 ## Phase U — Interface (later)
 
-On 12 November 2026 the user agreed to soften the UI **later**: after Phase E and before F, never earlier. Keep the structure, layout, inputs and the AGENTS.md interface rules (dark blurred windows, white borders, faint gem tint, League Spartan). Soften only the frame weight, ornament and finish. Steps: U1 shared frame/border weight in `frame_box.gd` and `UIKit`, across four gems × desktop/touch; U2 icon family consistency; U3 battle bar finish. Each step needs user approval.
+On 12 November 2026 the user agreed to soften the UI **later**: after Phase E and before F, never earlier. Keep the structure, layout, inputs and the AGENTS.md interface rules (dark blurred windows, white borders, faint gem tint, League Spartan headings and Short Stack body/dialogue). Soften only the frame weight, ornament and finish. Steps: U1 shared frame/border weight in `frame_box.gd` and `UIKit`, across four gems × desktop/touch; U2 icon family consistency; U3 battle bar finish. Each step needs user approval.
 
 ## Phase F — Final acceptance
 

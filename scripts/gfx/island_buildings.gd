@@ -717,8 +717,7 @@ static func _hotel_block(node: Node3D, cx: float, w: float, plot_d: float, level
 		for sx in [-1.0, 1.0]:
 			k.box("color", Vector3(sx * 0.52, 2.58, zf + 0.05), Vector3(0.04, 0.36, 0.03), Color("#2f5f9e"))
 		var title := Label3D.new()
-		title.text = "HOTEL"
-		title.font = UIKit.font_head()
+		load("res://scripts/gfx/world_lettering.gd").apply(title, "HOTEL")
 		title.font_size = 48
 		title.pixel_size = 0.0055
 		title.outline_size = 0

@@ -31,3 +31,5 @@ Ownership (latest user direction, 2026-11-12): stop after 003 for fresh Claude a
 Claude authors isolated artwork candidates; Codex owns code, integration, testing and technical review.
 The proposed odd/even split is cancelled. Step 004 is complete; follow its revised execution order, starting with 005a.
 Follow [parallel-handoff.md](parallel-handoff.md) for file ownership and shared local-model/hardware locks.
+
+Font update: waiting for visual review; see [font-update.md](font-update.md). Does not close 010b phone evidence.

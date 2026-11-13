@@ -10,7 +10,7 @@ extends RefCounted
 ## - The pack's divider separates sections (HSeparator, divider()) and flanks banner text (flanked()).
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
-## Fonts: League Spartan throughout, Regular for body text, menu actions, dialogue and damage, Semibold for
+## Fonts: Short Stack for body text, menu actions, dialogue and damage; League Spartan Semibold for
 ## names and headings. Missing symbols use bundled Noto Sans Symbols, then Godot's fallback.
 
 const Elements = preload("res://scripts/data/elements.gd")
@@ -20,6 +20,7 @@ const DividerBox = preload("res://scripts/ui/divider_box.gd")
 
 const UI_DIR := "res://assets/ui/"
 const FONT_FILE := "res://ui/LeagueSpartan.ttf"
+const BODY_FONT_FILE := "res://ui/ShortStack-Regular.ttf"
 const SYMBOL_FONT := preload("res://ui/NotoSansSymbols.ttf")
 const TRIANGLE_FONT := preload("res://ui/NotoSansSymbols2.ttf")
 ## Shared League Spartan weights; keep ordinary text light and headings semibold.
@@ -228,7 +229,7 @@ static func font_bold() -> Font:
 static func _font(weight: int) -> Font:
 	if _fonts.has(weight):
 		return _fonts[weight]
-	var f: FontFile = load(FONT_FILE)
+	var f: FontFile = load(BODY_FONT_FILE if weight == BODY_WEIGHT else FONT_FILE)
 	if f == null:
 		return ThemeDB.fallback_font
 	f.generate_mipmaps = false
@@ -236,19 +237,20 @@ static func _font(weight: int) -> Font:
 	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	f.hinting = TextServer.HINTING_LIGHT
 	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	# Symbol fonts contain very tall specialist glyphs. Label and row minimums use the
-	# maximum metrics of every fallback, even for plain Latin text. Match their layout
-	# metrics to Spartan while retaining the symbols' original outlines and baseline.
-	if _fonts.is_empty():
-		for symbols in [SYMBOL_FONT, TRIANGLE_FONT]:
-			for px in range(8, 97):
-				symbols.set_cache_ascent(0, px, f.get_ascent(px))
-				symbols.set_cache_descent(0, px, f.get_descent(px))
+	# Each face has its own fallback metrics; Short Stack and Spartan have different heights.
+	var fallbacks: Array[Font] = []
+	for source in [TRIANGLE_FONT, SYMBOL_FONT]:
+		var symbols: FontFile = source.duplicate()
+		for px in range(8, 97):
+			symbols.set_cache_ascent(0, px, f.get_ascent(px))
+			symbols.set_cache_descent(0, px, f.get_descent(px))
+		fallbacks.append(symbols)
 	f.fallbacks = []
 	var fv := FontVariation.new()
 	fv.base_font = f
-	fv.fallbacks = [TRIANGLE_FONT, SYMBOL_FONT]
-	fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+	fv.fallbacks = fallbacks
+	if weight == HEAD_WEIGHT:
+		fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
 	_fonts[weight] = fv
 	return fv
 

@@ -344,8 +344,7 @@ static func _false_front(node: Node3D, k: VBld.Kit, w: float, zf: float, top: fl
 ## Big painted letters on a sign board, in the shared semibold heading font.
 static func _words(node: Node3D, text: String, p: Vector3, col: Color) -> void:
 	var l := Label3D.new()
-	l.text = text
-	l.font = UIKit.font_head()
+	load("res://scripts/gfx/world_lettering.gd").apply(l, text)
 	l.font_size = 64
 	l.pixel_size = 0.0068
 	l.outline_size = 0
@@ -410,8 +409,7 @@ static func poster_board(who: int, found: bool) -> Node3D:
 	mi.mesh = k.mesh()
 	node.add_child(mi)
 	var l := Label3D.new()
-	l.text = "FOUND" if found else "MISSING"
-	l.font = UIKit.font_head()
+	load("res://scripts/gfx/world_lettering.gd").apply(l, "FOUND" if found else "MISSING")
 	l.font_size = 64
 	l.pixel_size = 0.0034
 	l.outline_size = 0

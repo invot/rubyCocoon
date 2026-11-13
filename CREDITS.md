@@ -373,3 +373,5 @@ Changes: transparent padding trimmed and exports resized; decorative stamps reco
 in warm ink and composited with custom geography by `tools/prepare_world_map.py`.
 Original downloaded archives are unchanged. The map has crisp irregular coastlines
 without an ink outline; water and artwork are masked to the paper's silhouette at runtime.
+
+Typography: Short Stack and Noto Sans Old North Arabian from Google Fonts, licensed under SIL OFL 1.1; see `licenses/shortstack-OFL.txt` and `licenses/notosansoldnortharabian-OFL.txt`.

@@ -2,6 +2,11 @@
 
 ## Current checkpoint (supersedes the historical text below)
 
+Font task: Short Stack body/dialogue is implemented; Spartan headings retained. See font-update.md for captures/checks and pending world-artwork review. All checks including 26 glyph coverage passed; no active jobs. Waiting for visual approval. Preserve existing Claude work.
+
+Latest user steering: resume Codex code/testing/nonvisual work, stop for Claude visual authorship. Typography direction recorded in AGENTS, README and overhaul README/runbook/standards/steps; font and shared world-glyph mapping implementation pending. Read Claude’s latest state below: 009b user-closed, 010b visually approved but phone evidence missing; 008 shadow measurement tooling awaits run. Preserve Claude changes. No jobs remain from Codex’s earlier session.
+
+
 **Latest (Claude, usage limit reached mid-step):** 010b approved by the user. Its phone evidence is still missing:
 the 010b phone sweep (`tools/vo_phone_sweep.py --step 010b`, package already exported at
 `build/android/RubyCocoon-perf-010b.apk`) lost the USB connection and produced no report (`build/perf/vo/010b/phone/INVALID.txt`).
