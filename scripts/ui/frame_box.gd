@@ -33,6 +33,11 @@ const RADIUS := {"window": 12.0, "row": 9.0, "slot": 8.0}
 const SHADOW := Color(0.08, 0.06, 0.07, 0.16)
 ## how opaque the paper is over the scene
 const PAPER_ALPHA := 0.96
+## the soft bezel round every off-white box (windows, the top-centre HUD, white reply bubbles): a highlight fading in
+## from the top edge and a faint shade from the bottom edge, `BEZEL` UI units deep
+const BEZEL := 10
+const BEZEL_LIGHT := Color(1, 1, 1, 1)
+const BEZEL_SHADE := Color(0.08, 0.06, 0.07, 0.11)
 static var _tex := {}
 static var _material: ShaderMaterial
 
@@ -51,6 +56,8 @@ var legacy := false
 ## a focus ring inside the edge (alpha 0: none)
 var ring := Color(0, 0, 0, 0)
 var _flat: StyleBoxFlat
+static var _bezel_hi: StyleBoxFlat
+static var _bezel_lo: StyleBoxFlat
 
 
 func _draw(ci: RID, rect: Rect2) -> void:
@@ -95,6 +102,58 @@ func _draw_paper(ci: RID, rect: Rect2) -> void:
 	else:
 		_flat.shadow_size = 0
 	_flat.draw(ci, rect)
+	if blur and col.a > 0.0:
+		draw_bezel(ci, rect, Vector4(r, r, r, r), alpha)
+
+
+## The soft bezel over a box already drawn at `rect` with corner radii `radii` (top-left, top-right, bottom-right,
+## bottom-left): its top edge lit (unless `top` is false: the top-centre HUD, which hangs from the screen's edge) and
+## its bottom edge shaded, each fading into the face.
+static func draw_bezel(ci: RID, rect: Rect2, radii: Vector4, fade := 1.0, top := true) -> void:
+	if _bezel_hi == null:
+		_bezel_hi = _bezel_box(BEZEL_LIGHT)
+		_bezel_hi.border_width_top = BEZEL
+		_bezel_lo = _bezel_box(BEZEL_SHADE)
+		_bezel_lo.border_width_bottom = BEZEL
+	for sb in ([_bezel_hi, _bezel_lo] if top else [_bezel_lo]):
+		var box: StyleBoxFlat = sb
+		box.corner_radius_top_left = int(round(radii.x))
+		box.corner_radius_top_right = int(round(radii.y))
+		box.corner_radius_bottom_right = int(round(radii.z))
+		box.corner_radius_bottom_left = int(round(radii.w))
+		var c: Color = BEZEL_LIGHT if box == _bezel_hi else BEZEL_SHADE
+		box.border_color = Color(c, c.a * fade)
+		box.draw(ci, rect)
+
+
+static func _bezel_box(col: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.anti_aliasing = true
+	sb.corner_detail = 6
+	sb.draw_center = false
+	sb.border_blend = true
+	sb.border_color = col
+	sb.set_border_width_all(0)
+	return sb
+
+
+## A plain StyleBoxFlat (a white reply bubble) with the soft bezel over it.
+static func bezeled(base: StyleBoxFlat) -> StyleBox:
+	var sb := Bezeled.new()
+	sb.base = base
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		sb.set_content_margin(side, base.get_content_margin(side))
+	return sb
+
+
+class Bezeled extends StyleBox:
+	var base: StyleBoxFlat
+
+	func _draw(ci: RID, rect: Rect2) -> void:
+		base.draw(ci, rect)
+		var FB = load("res://scripts/ui/frame_box.gd")
+		FB.draw_bezel(ci, rect, Vector4(base.corner_radius_top_left, base.corner_radius_top_right,
+			base.corner_radius_bottom_right, base.corner_radius_bottom_left), base.bg_color.a)
 
 
 ## A box of this kind, for a control or for draw_style_box. `pad`: the content padding (l, t, r, b).

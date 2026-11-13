@@ -953,7 +953,7 @@ mounted owl and its rider.
 
 - **One look** (`scripts/ui/frame_box.gd`, built through `scripts/ui/ui_kit.gd`; the user's 2026-11-13 direction):
   every window is a slightly rounded off-white box with a faint tint of the gem, with no border and no blur behind it,
-  and a soft shadow under it. Rows, buttons, tags and item slots are the same rounded box with other fills; a thin
+  a slight soft bezel (its top edge lit, its bottom edge shaded) and a soft shadow under it. Rows, buttons, tags and item slots are the same rounded box with other fills; a thin
   plain line (`scripts/ui/divider_box.gd`) separates a window's sections. Text on the off-white is near-black, with
   headings in a deepened gem. The battle HUDs keep their own look (below): they still use the old near-black blurred
   box with Kenney's white border (`FrameBox.legacy`, `UIKit.battle_row_box`, `blur.gdshader`), and
@@ -984,11 +984,21 @@ mounted owl and its rider.
     item-icons-touch`; windowed `--scene=item-icons --shots=res://build/shots/icons` captures all four gems.
   - The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at the top centre: place names on
     entering a town, road or building, pickups, gold and battle messages. It is the windows' off-white box, hanging
-    from the top edge with its bottom corners slightly rounded: [left icon] text [right icon]. It has exactly three
+    from the top edge with its bottom corners slightly rounded and the bezel only along its bottom: [left icon] text [right icon]. It has exactly three
     sizes (`TopBar.SIZES`): **small** (360 UI units, one line), **medium** (640, one line) and **large** (640, two
     lines). Each message takes the smallest size that holds it; text never shrinks. A message too long even for the
     large size is split into pages shown one after another (a long second line gets pages of its own). All of its
-    text is Quattrocento Sans; place names use Bold and the gem heading colour.
+    text is Quattrocento Sans; place names use Bold and the gem heading colour. A place name has no icon: a faint
+    picture of the town or road (a room shows its town's) fills the bar instead, strongest at its ends and nearly clear
+    behind the text (`assets/ui/place_banners/<map>.png`, baked from the user's SVG prints by
+    `python tools/place_banners/build.py`; `--scene=top-bar --banners=1` shows every one). Walking into any building
+    from outside, homes included, shows its name over a pattern chosen by its kind (`UI.ROOM_PATTERNS`: blobs for
+    homes and cafes, arches for Beast Centers, pills for towers and arenas...) in one of eight colourways the building
+    keeps (picked by its id); going between its rooms or floors shows nothing. Interior patterns are never mirrored.
+    No building is named vaguely: a home is its owner's, in the town's word for a home ("Ada's Townhouse", "Bram's
+    Hut"; `map_loader.gd` HOME_WORDS), and the owner is the first person inside; each town's shops have names of their
+    own (`SHOP_TITLES`: "Café du Port", "Iron Peak Dojo"); kennels are Pip's Kennel Barn. The chains (Beast Center,
+    Sky Tower) keep their names. Inside, the second line is just the town (or road).
     - Outside battle it is hidden until there is something to say, then slides in, holds about 2.5 seconds and slides
       out. Messages queue; the same pickup or gold arriving while one shows or waits merges into it ("Potion x3",
       "+120 gold"). These always have a left icon (the item's illustration, a coin, town houses, a location pin or crest, a note for songs)

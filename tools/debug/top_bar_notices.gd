@@ -2,6 +2,12 @@ extends RefCounted
 ## The top bar outside battle (scripts/ui/top_bar.gd): several pickups in quick succession merge ("Potion x3"), gold
 ## adds up, a place name waits its turn, each message slides in, holds and leaves, and the bar is hidden afterwards.
 ## --scene=top-bar [--gem=sapphire] [--touch] [--shots=res://build/shots/top_bar]  (shots: _pickup, _gold, _place)
+## [--banners=1]: afterwards shows every town's and road's name over its banner picture (shots: _banner_<map>), and a
+## pattern for several kinds of building (_room_<kind>). Last, it walks into a house and a café (_walk_in_house, _walk_in_cafe).
+
+const WorldDB = preload("res://scripts/data/world_db.gd")
+const MapLoader = preload("res://scripts/world/map_loader.gd")
+const MapGen = preload("res://scripts/world/map_gen.gd")
 
 var bad := 0
 
@@ -56,6 +62,8 @@ func run(main: Node) -> void:
 	await _until(main, tb, "Tidewater")
 	_check(tb.current_text() == "Tidewater" and tb.sub_label.visible and tb.sub_label.text == "Market Row", "the place name follows, with its second line")
 	_check(tb.size_name == "large", "a place name with its second line takes the large (two-line) size (%s)" % tb.size_name)
+	_check(not tb.left_icon.visible and not tb.right_icon.visible, "a place name has no icon")
+	_check(tb._backdrop != null and tb._backdrop.diffuse_texture == UI.place_banner(GameState.map_id), "a place name shows its place's picture behind it")
 	await main._wait(0.4)
 	await capture.call("place")
 
@@ -77,6 +85,70 @@ func run(main: Node) -> void:
 		await main._wait(0.1)
 		t += 0.1
 	_check(not tb.visible and tb.pending() == 0, "the bar slides away once everything has been said")
+	_check(tb._backdrop == null, "the picture leaves with the place name")
+
+	# every town and road has a picture; a room uses its town's
+	var places: Array = WorldDB.TOWN_ORDER.duplicate() + WorldDB.ROUTES.keys()
+	var missing := places.filter(func(id): return UI.place_banner(id) == null)
+	_check(missing.is_empty(), "every town and road has a banner picture (missing: %s)" % ", ".join(missing))
+	# inside, a building shows its kind's pattern in colours it keeps (the same on every floor, and on every visit)
+	_check(UI.place_banner("tidewater#3", "center").resource_path.contains("/rooms/arches_"), "a Beast Center shows the arches pattern")
+	_check(UI.place_banner("tidewater#3@2", "center") == UI.place_banner("tidewater#3", "center"), "every floor of a building has its colours")
+	var kinds := {}
+	for k in UI.ROOM_PATTERNS:
+		kinds[k] = UI.place_banner("tidewater#%d" % kinds.size(), k) != null
+	_check(not kinds.values().has(false) and UI.place_banner("tidewater#0", "no_such_kind") != null, "every kind of building, and any other, has a pattern")
+	var ways := {}
+	for i in 24:
+		ways[UI.place_banner("riverbend#%d" % i, "house").resource_path] = true
+	_check(ways.size() >= 5, "neighbouring houses get different colours (%d colourways among 24)" % ways.size())
+	# no building anywhere has a vague name ("House", "Apothecary"); the chains (Beast Center, Sky Tower) keep theirs
+	var vague := []
+	for id in places:
+		for b in MapLoader.load_map(id, {}).get("buildings", []):
+			if b["shop"] in ["center", "skytower", "decor", "music_shop"]:
+				continue
+			if String(b["name"]) == String(MapGen.SHOP_NAMES.get(b["shop"], "")) or b["name"] in ["Kennel Barn", "Fishery"]:
+				vague.append("%s %s" % [id, b["name"]])
+	_check(vague.is_empty(), "every building has a name of its own (vague: %s)" % ", ".join(vague))
+	if String(main._test.get("banners", "")) == "1":
+		for id in places:
+			tb.post(WorldDB.map_name(id), null, {"sub": "Banner preview", "heading": true, "key": "place", "replace": true,
+				"priority": true, "backdrop": UI.place_banner(id)})
+			await main._wait(0.3)
+			await capture.call("banner_" + id)
+		var i := 0
+		for k in ["house", "cafe", "fishery", "electronics", "bookstore", "center", "apothecary", "arena", "kennel"]:
+			tb.post(k.capitalize(), null, {"sub": "Bellerive", "heading": true, "key": "place", "replace": true,
+				"priority": true, "backdrop": UI.place_banner("tidewater#%d" % i, k)})
+			i += 3
+			await main._wait(0.3)
+			await capture.call("room_" + k)
+
+	# walking into a house from outside shows its name over its pattern (homes too, these days)
+	tb._queue.clear()
+	var house := {}
+	for bd in main.world.map.get("buildings", []):
+		if String(bd.get("shop", "")) == "house" and not Places.door_locked(bd):
+			house = bd
+			break
+	_check(not house.is_empty(), "the town has a house to walk into")
+	if not house.is_empty():
+		await main._do_goto(String(house["interior"]), "entry")
+		await main._wait(0.6)
+		_check(tb.visible and tb.current_text() == String(main.world.map["name"]), "a house shows its name on walking in (%s)" % tb.current_text())
+		_check(tb._backdrop != null and tb._backdrop.diffuse_texture == UI.place_banner(GameState.map_id, "house"), "...over its own pattern")
+		var owner := String(main.world.map["building"].get("owner", ""))
+		_check(owner != "" and tb.current_text().begins_with(owner + "'s ") and tb.current_text() != "House", "a house is named for its owner (%s)" % tb.current_text())
+		_check((main.world.map["npcs"] as Array).any(func(n): return String(n.get("name", "")) == owner), "...who is home")
+		_check(tb.sub_label.text == "Bellerive", "a building's second line is just its town (%s)" % tb.sub_label.text)
+		await capture.call("walk_in_house")
+	# ...and a shop has a name of its own, never a bare "Café"
+	tb._queue.clear()
+	await main._do_goto(MapLoader.interior_of("tidewater", "cafe"), "entry")
+	await main._wait(0.6)
+	_check(tb.visible and tb.current_text() == "Café du Port", "a shop has its own name (%s)" % tb.current_text())
+	await capture.call("walk_in_cafe")
 	print("TOP BAR DONE: %d problem(s)" % bad)
 
 

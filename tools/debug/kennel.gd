@@ -32,7 +32,7 @@ func run(root, opts: Dictionary) -> void:
 	await main._settle(barn["interior"])
 	_check(main.world.map_id == barn["interior"] and main.world.map.get("room_key", "") == "kennel_barn", "the barn's doors lead into its kennel room")
 	_check(main.world.kennel_town() == town and main.world.kennel_pens.size() == GameState.KENNEL_PENS, "the room shows this road's four pens")
-	_check(String(main.world.map.get("name", "")) == "Kennel Barn", "the place is named Kennel Barn")
+	_check(String(main.world.map.get("name", "")) == "Pip's Kennel Barn", "the place is named Pip's Kennel Barn")
 	UI.auto = false
 	_seed()
 	if opts.get("preview", "") == "room":

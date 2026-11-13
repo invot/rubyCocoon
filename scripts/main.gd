@@ -492,6 +492,8 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	if not BuildEdition.allows_map(id):
 		return
 	_transitioning = true
+	# (where we came from: a building's name shows on walking in from outside, not between its rooms)
+	var came_from := GameState.map_id
 	await UI.fade_out(fade)
 	var black_began := Time.get_ticks_usec() if _test.get("load_phases", "0") == "1" else 0
 	# Nothing's on view: drawing a half-built map each frame would only slow the building of it.
@@ -521,22 +523,21 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	var title := WorldDB.map_name(id)
 	if MapLoader.is_interior(id):
 		title = world.map["name"]
+		# (inside, the second line is just the town or road the building stands in)
 		sub = WorldDB.map_name(MapLoader.parent_of(id))
-		if int(world.map.get("floors", 1)) > 1:
-			sub = "Floor %d  ·  %s" % [int(world.map["floor_num"]), sub]
 	elif WorldDB.is_town(id):
 		sub = WorldDB.TOWNS[id]["size"].capitalize()
 	elif WorldDB.ROUTES.has(id):
 		var lv: Array = WorldDB.ROUTES[id]["lv"]
 		sub = "Wild beasts Lv %d-%d" % [lv[0], lv[1]]
-	# (not for a house, nor on going through to another room of the same building)
-	var room_to_room := MapLoader.is_interior(id) and str(spawn).begins_with("from_")
-	if (typeof(spawn) != TYPE_VECTOR2I or MapLoader.is_interior(id)) and not (MapLoader.is_interior(id) and world.map["building"]["shop"] in ["house", "uncle"]) \
-			and not room_to_room:
-		# a town with an arena shows its crest; anywhere else, a map pin
-		var arena: Dictionary = WorldDB.ARENAS.get(id, {}) if not MapLoader.is_interior(id) else {}
-		var crest: Texture2D = UIKit.tex("crest_" + String(arena["crest"]).get_slice(" ", 0).to_lower()) if arena.has("crest") else null
-		UI.place_name(title, sub, crest)
+	# Every building, homes included, shows its name on walking in from outside (not on going through to another of
+	# its rooms, nor up and down its stairs); outdoors, a place shows its name except on a reload where you stand.
+	var interior := MapLoader.is_interior(id)
+	var same_building := interior and MapLoader.is_interior(came_from) and came_from.get_slice("@", 0) == id.get_slice("@", 0)
+	var room_to_room := interior and (str(spawn).begins_with("from_") or same_building)
+	if (typeof(spawn) != TYPE_VECTOR2I or interior) and not room_to_room:
+		# (no icon: a faint picture of the place, or a building's pattern in its own colours, fills the bar)
+		UI.place_name(title, sub, String(world.map["building"].get("shop", "")) if interior else "")
 	_transitioning = false
 	await Story.on_map_enter(world)
 

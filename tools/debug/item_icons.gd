@@ -83,9 +83,10 @@ func run(root: Node, options: Dictionary) -> void:
 	UIKit.set_accent("Ruby")
 	UI.root.theme = UIKit.make_theme()
 	UI.controls.refresh()
+	GameState.map_id = "caccoon"
 	UI.place_name("Cocoon Cove")
 	await main._wait(0.5)
-	check(UI.top_bar.left_icon.texture == UI.Glyphs.tex("town"), "town arrival shows houses")
+	check(not UI.top_bar.left_icon.visible and UI.top_bar._backdrop != null, "town arrival shows the town's picture, no icon")
 	await shot("town")
 	await main._wait(3.5)
 	UI.pickup("potion")
@@ -93,11 +94,11 @@ func run(root: Node, options: Dictionary) -> void:
 	check(UI.top_bar.left_icon.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "pickup notice keeps pack icon sharp")
 	await shot("pickup")
 	await main._wait(3.5)
-	# Replacing a notice retains the correct location-specific artwork.
-	GameState.map_id = "coastal_path"
+	# Replacing a place name swaps in the new place's picture.
+	GameState.map_id = "route1"
 	UI.place_name("Coastal Path")
-	check(UI.top_bar.left_icon.texture == UI.Glyphs.tex("pin"), "non-town locations retain their location marker")
-	var crest := UIKit.tex("crest_wave")
-	UI.place_name("Bellerive", "", crest)
-	check(UI.top_bar.left_icon.texture == crest, "arena town crest is preserved")
+	check(UI.top_bar._backdrop != null and UI.top_bar._backdrop.diffuse_texture == UI.place_banner("route1"), "a road shows its own picture")
+	GameState.map_id = "tidewater"
+	UI.place_name("Bellerive", "")
+	check(UI.top_bar._backdrop.diffuse_texture == UI.place_banner("tidewater") and not UI.top_bar.left_icon.visible, "the newer place's picture replaces the older")
 	print("ITEM ICONS DONE: %d problem(s)" % bad)

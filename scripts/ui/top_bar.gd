@@ -7,7 +7,9 @@ extends PanelContainer
 ##   into pages that show one after another (a long second line gets pages of its own).
 ## - Outside battle it is hidden until there is something to say (UI.toast, UI.pickup, UI.place_name): it slides
 ##   down, holds for HOLD seconds and slides away, one message after another. Messages with the same key merge into the
-##   one showing or waiting ("Potion x3"). These always have a left icon and never a right one.
+##   one showing or waiting ("Potion x3"). These have a left icon (or none) and never a right one. A place's name has no
+##   icon: instead a faint picture of the place (a backdrop) fills the bar, strongest at its ends and nearly clear behind
+##   the text (BACKDROP_ALPHA; the picture's own alpha does the fading, see tools/place_banners/build.py).
 ## - In battle (begin_battle .. end_battle) it is always there and shows the battle's messages (battle.gd msg): the
 ##   icon of whoever a message is about stands on the left for the opposing side and on the right for yours, and the
 ##   unused slot keeps its space so the text doesn't jump. Notices posted meanwhile wait for the battle to end.
@@ -42,6 +44,8 @@ const TAPER := 16.0
 const RADIUS := 12.0
 ## how long each page of a long message shows in battle
 const BATTLE_PAGE := 1.6
+## how strongly a backdrop shows over the off-white (its picture is already faint in the middle)
+const BACKDROP_ALPHA := 0.5
 
 var battle := false
 var label: Label
@@ -67,6 +71,8 @@ var _pages: Array = []
 var _page := 0
 var _page_time := 0.0
 var _box: StyleBoxFlat
+## the picture behind the message showing (a place's name), drawn smooth whatever the project's default filter
+var _backdrop: CanvasTexture = null
 
 
 func _init() -> void:
@@ -131,7 +137,7 @@ func _slot() -> TextureRect:
 func post(text: String, icon: Texture2D, opts := {}) -> void:
 	var m := {"text": text, "icon": icon, "sub": String(opts.get("sub", "")), "heading": bool(opts.get("heading", false)),
 		"key": String(opts.get("key", "")), "count": int(opts.get("count", 1)), "fmt": String(opts.get("fmt", "")),
-		"smooth": bool(opts.get("smooth", false)), "replace": bool(opts.get("replace", false)), "hold": float(opts.get("hold", HOLD))}
+		"smooth": bool(opts.get("smooth", false)), "replace": bool(opts.get("replace", false)), "hold": float(opts.get("hold", HOLD)), "backdrop": opts.get("backdrop", null)}
 	var priority: bool = opts.get("priority", false) and not battle
 	if m["key"] != "":
 		if not _msg.is_empty() and _msg["key"] == m["key"]:
@@ -222,7 +228,9 @@ func _apply(m: Dictionary) -> void:
 	# (pixel art up to the slot's size stays sharp; a bigger picture, such as an egg, is smoothed as it shrinks)
 	var smooth: bool = m.get("smooth", false) or UI.Glyphs.smooth(icon) or (icon != null and icon.get_width() > ICON)
 	left_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if smooth else CanvasItem.TEXTURE_FILTER_NEAREST
-	left_icon.visible = true
+	# (no icon: its slot folds away and the text takes the room)
+	left_icon.visible = icon != null
+	_set_backdrop(m.get("backdrop", null))
 	right_icon.texture = null
 	# (no right icon outside battle: its slot folds away)
 	right_icon.visible = false
@@ -248,6 +256,7 @@ func begin_battle() -> void:
 	right_icon.texture = null
 	left_icon.visible = true
 	right_icon.visible = true
+	_set_backdrop(null)
 	visible = true
 	_show_page()
 
@@ -313,8 +322,8 @@ func _size_w(which: String) -> float:
 
 ## The room for text inside a size, past the padding and the icon slots in use.
 func _text_w(which: String) -> float:
-	var two := battle
-	var fixed := PAD_X * 2.0 + ICON * (2.0 if two else 1.0) + GAP * (2.0 if two else 1.0)
+	var icons := 2.0 if battle else (1.0 if left_icon.visible else 0.0)
+	var fixed := PAD_X * 2.0 + (ICON + GAP) * icons
 	return maxf(80.0, _size_w(which) - fixed)
 
 
@@ -445,7 +454,8 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- drawing
-## The box: the windows' off-white (no border, no blur), its bottom corners slightly rounded, with a soft shadow.
+## The box: the windows' off-white (no border, no blur), its bottom corners slightly rounded, with a soft shadow and
+## the windows' bezel along its sides and bottom (none along the top).
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
 	if r.size.x <= 0.0 or r.size.y <= 0.0:
@@ -459,3 +469,45 @@ func _draw() -> void:
 	_box.corner_radius_bottom_left = int(RADIUS)
 	_box.corner_radius_bottom_right = int(RADIUS)
 	draw_style_box(_box, Rect2(0, up, r.size.x, r.size.y - up))
+	if _backdrop != null:
+		_draw_backdrop(Rect2(0, up, r.size.x, r.size.y - up))
+	# the windows' soft bezel, but not along the top, which hangs from the screen's edge
+	FrameBox.draw_bezel(get_canvas_item(), Rect2(0, up, r.size.x, r.size.y - up), Vector4(0, 0, RADIUS, RADIUS), 1.0, false)
+
+
+func _set_backdrop(tex: Texture2D) -> void:
+	if tex == null:
+		_backdrop = null
+	else:
+		_backdrop = CanvasTexture.new()
+		_backdrop.diffuse_texture = tex
+		_backdrop.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	queue_redraw()
+
+
+## The backdrop over the box, cropped to fill it (keeping its middle) and clipped to its rounded bottom corners.
+func _draw_backdrop(r: Rect2) -> void:
+	var ts := _backdrop.get_size()
+	if ts.x <= 0.0 or ts.y <= 0.0:
+		return
+	# the part of the picture that covers the box at the box's own shape
+	var uv := Rect2(0, 0, 1, 1)
+	var box_aspect := r.size.x / r.size.y
+	var tex_aspect := ts.x / ts.y
+	if box_aspect > tex_aspect:
+		uv.size.y = tex_aspect / box_aspect
+		uv.position.y = (1.0 - uv.size.y) * 0.5
+	else:
+		uv.size.x = box_aspect / tex_aspect
+		uv.position.x = (1.0 - uv.size.x) * 0.5
+	var rad := minf(RADIUS, minf(r.size.x, r.size.y) * 0.5)
+	var pts := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y)])
+	for corner in [[Vector2(r.end.x - rad, r.end.y - rad), 0.0], [Vector2(r.position.x + rad, r.end.y - rad), PI * 0.5]]:
+		for i in 7:
+			var a: float = corner[1] + PI * 0.5 * i / 6.0
+			pts.append(corner[0] + Vector2(cos(a), sin(a)) * rad)
+	var uvs := PackedVector2Array()
+	for p in pts:
+		var t := (p - r.position) / r.size
+		uvs.append(uv.position + t * uv.size)
+	draw_colored_polygon(pts, Color(1, 1, 1, BACKDROP_ALPHA), uvs, _backdrop)

@@ -131,7 +131,7 @@ static func speech_surface() -> ColorRect:
 	paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var material := ShaderMaterial.new()
 	material.shader = load("res://scripts/ui/speech.gdshader")
-	material.set_shader_parameter("paper_top", Color.WHITE)
+	material.set_shader_parameter("paper_top", Color.WHITE.lerp(DARK, 0.02))
 	material.set_shader_parameter("paper_bottom", Color.WHITE.lerp(DARK, 0.065))
 	material.set_shader_parameter("shade", Color(DARK, 0.22))
 	paper.material = material

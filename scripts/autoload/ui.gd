@@ -361,11 +361,38 @@ func gold(amount: int) -> void:
 	top_bar.post("", Glyphs.tex("coin"), {"key": "gold", "count": amount, "fmt": "+%d gold"})
 
 
-## A place's name on entering it, in Quattrocento Sans Bold and the gem heading colour: `icon` is
-## its crest, a cluster of town houses, or a map pin for other locations.
-func place_name(title: String, sub := "", icon: Texture2D = null) -> void:
-	var place_icon := Glyphs.tex("town" if WorldDB.is_town(GameState.map_id) else "pin") if icon == null else icon
-	top_bar.post(title, place_icon, {"sub": sub, "heading": true, "key": "place", "replace": true})
+## A place's name on entering it, in Quattrocento Sans Bold and the gem heading colour, with no icon: instead a
+## faint picture of the town or road fills the bar's background, or inside a building (`kind`: its shop kind) a pattern
+## in that building's own colours.
+func place_name(title: String, sub := "", kind := "") -> void:
+	top_bar.post(title, null, {"sub": sub, "heading": true, "key": "place", "replace": true,
+		"backdrop": place_banner(GameState.map_id, kind)})
+
+
+## Which pattern each kind of building shows behind its name (assets/ui/place_banners/rooms/<pattern>_<n>.png, baked by
+## tools/place_banners/build.py from the user's interior prints); any other kind shows "tiles".
+const ROOM_PATTERNS := {
+	"home": "blobs", "house": "blobs", "uncle": "blobs", "shack": "blobs", "cabin": "blobs", "cafe": "blobs",
+	"fishery": "waves", "music_shop": "waves", "music_hall": "waves", "hideout": "waves",
+	"electronics": "pills", "skytower": "pills", "ceo_tower": "pills", "arena": "pills",
+	"bookstore": "tiles", "beast_gear": "tiles", "trainer_gear": "tiles", "museum": "tiles", "dojo": "tiles",
+	"center": "arches", "cathedral": "arches", "temple": "arches",
+	"apothecary": "garden", "fortune": "garden", "kennel": "garden",
+}
+## how many colourways each pattern is baked in (build.py ROOM_PALETTES)
+const ROOM_COLOURWAYS := 8
+
+
+## The picture behind a place's name: the town's or road's own (assets/ui/place_banners/<map>.png); inside a building
+## of `kind`, its kind's pattern in a colourway the building keeps (picked by its id, so every visit matches and
+## neighbours differ). Null where there is none.
+func place_banner(map_id: String, kind := "") -> Texture2D:
+	var path := "res://assets/ui/place_banners/%s.png" % map_id.get_slice("#", 0)
+	if "#" in map_id:
+		var building := map_id.get_slice("@", 0)
+		path = "res://assets/ui/place_banners/rooms/%s_%d.png" % [String(ROOM_PATTERNS.get(kind, "tiles")),
+			posmod(building.hash(), ROOM_COLOURWAYS)]
+	return load(path) if ResourceLoader.exists(path) else null
 
 
 ## (older name) a place's name.

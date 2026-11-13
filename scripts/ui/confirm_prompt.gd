@@ -75,7 +75,7 @@ func _style_answer(button: Button, state: String) -> void:
 		paper.shadow_offset = Vector2(0, 3)
 		paper.border_color = UIKit.ACCENT
 		paper.set_border_width_all(4 if state == "on" else 0)
-		box = paper
+		box = UIKit.FrameBox.bezeled(paper) if state != "picked" else paper
 	else:
 		button.add_theme_font_override("font", UIKit.font_body())
 		button.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.BUTTON_FONT_SIZE))

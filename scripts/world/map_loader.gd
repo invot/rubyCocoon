@@ -352,6 +352,13 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 				MapGen.set_t(m, was.x, was.y, MapGen.BUILDING)
 				MapGen.set_t(m, appearance["door"].x, appearance["door"].y, MapGen.DOOR)
 			m["buildings"].back()[key] = appearance[key]
+		# (a home given a name of its own is still someone's: "Mira's Seaview Villa"; a hotel, or a house plot given
+		# rooms of its own (Dustwell's jail and dance studio), is nobody's home)
+		var nb: Dictionary = m["buildings"].back()
+		if nb.get("hotel", false) or appearance.has("rooms"):
+			nb.erase("owner")
+		elif appearance.has("name") and nb.has("owner") and not "'s " in String(nb["name"]):
+			nb["name"] = "%s's %s" % [nb["owner"], nb["name"]]
 		idx += 1
 	# a town without a Beast Center (Kelpwick) heals in its arena: you arrive, fly in and come round in front of it
 	if not m.has("center_front"):
@@ -645,6 +652,36 @@ static func _villager(p: Vector2i, rng: RandomNumberGenerator) -> Dictionary:
 		"name": WorldDB.TRAINER_NAMES[rng.randi_range(0, WorldDB.TRAINER_NAMES.size() - 2)], "seed": rng.randi(), "wander": true}
 
 
+## What each town calls a home, for its houses' names ("Wren's Cottage"); elsewhere "House".
+const HOME_WORDS := {
+	"caccoon": "Cottage", "tidewater": "Townhouse", "shellhaven": "Villa", "kelpwick": "Hut", "dustwell": "Homestead",
+	"sundown": "Adobe", "copperpick": "Cabin", "cogsworth": "Flat", "emberfall": "Lodge", "vinehollow": "Hut",
+	"riverbend": "House", "gravenmoor": "Cottage",
+}
+
+
+## The shops' own names, town by town, in each town's flavour (map letters' generic names are MapGen.SHOP_NAMES).
+const SHOP_TITLES := {
+	"caccoon": {"apothecary": "Driftwood Remedies"},
+	"tidewater": {"apothecary": "Fleur-de-Lis Apothecary", "beast_gear": "Quayside Beast Outfitters",
+		"bookstore": "Balcony Books", "cafe": "Café du Port"},
+	"dustwell": {"apothecary": "Cactus Flower Remedies", "fortune": "Madame Opal's Parlour"},
+	"sundown": {"apothecary": "Sagebrush Apothecary", "trainer_gear": "Caravan Trail Outfitters",
+		"bookstore": "Sun Gate Books", "cafe": "Mesa Café"},
+	"copperpick": {"apothecary": "Lantern & Lode Remedies", "dojo": "Iron Peak Dojo"},
+	"cogsworth": {"apothecary": "Brass Mortar Apothecary", "beast_gear": "Cog & Collar Beast Outfitters",
+		"trainer_gear": "Gaslight Trainer Outfitters", "bookstore": "Gearwheel Books", "cafe": "Steam & Saucer Café",
+		"museum": "Brassworks Bestiary Museum"},
+	"emberfall": {"apothecary": "Hot Spring Remedies", "bookstore": "Cinder Leaf Books", "dojo": "Ember Fist Dojo"},
+	"vinehollow": {"apothecary": "Rootwood Apothecary", "beast_gear": "Canopy Beast Outfitters",
+		"trainer_gear": "Liana Trail Outfitters"},
+	"riverbend": {"apothecary": "Willow Bank Apothecary", "beast_gear": "Ferryman's Beast Outfitters",
+		"bookstore": "Lily Pad Books", "cafe": "Millwheel Café", "music_hall": "Willowsong Music Hall",
+		"fortune": "Madame Opal's Parlour", "museum": "Riverstone Bestiary Museum"},
+	"gravenmoor": {"apothecary": "Nightshade Apothecary", "trainer_gear": "Lantern Hollow Outfitters"},
+}
+
+
 static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector2i, rng: RandomNumberGenerator, map_id: String, idx: int) -> void:
 	var door := Vector2i(pos.x + sz.x / 2, pos.y + sz.y - 1)
 	if shop == "kennel":
@@ -654,6 +691,9 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 	var b := {"shop": shop, "name": MapGen.SHOP_NAMES.get(shop, shop), "x": pos.x, "y": pos.y, "w": sz.x, "d": sz.y, "door": door,
 		"roof": MapGen.ROOF.get(shop, "#a05a40"), "town": map_id, "seed": rng.randi(), "height": 2.6 if sz.y >= 4 else 2.2,
 		"index": idx, "interior": "%s#%d" % [map_id, idx]}
+	# never a bare "Apothecary" or "Café": each town's shops have names of their own (SHOP_TITLES); the Beast
+	# Centers and Sky Towers are chains and keep theirs, with the town under them
+	b["name"] = String(SHOP_TITLES.get(map_id, {}).get(shop, b["name"]))
 	match shop:
 		"bookstore":
 			if map_id == "caccoon":
@@ -672,13 +712,25 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 		"cathedral":
 			b["name"] = "Gravenmoor Cathedral"
 		"hideout":
-			b["name"] = "Bandit Hideout"
+			b["name"] = "Jackals' Hideout"
 		"cabin":
-			b["name"] = "Builder's Cabin"
+			b["name"] = "Old Hal's Cabin"
 		"kennel":
-			b["name"] = "Kennel Barn"
+			b["name"] = "Pip's Kennel Barn"
 		"uncle":
 			b["name"] = "Uncle Rafe's House"
+		"house":
+			# never just "House": whose it is, in the town's own word for a home ("Wren's Cottage", "Kai's Hut"); the
+			# first person you meet inside is that owner (_interior)
+			var taken: Dictionary = m.get("owners", {})
+			var names: Array = WorldDB.TRAINER_NAMES.slice(0, WorldDB.TRAINER_NAMES.size() - 1)
+			var pick := posmod(int(b["seed"]), names.size())
+			while taken.has(names[pick]) and taken.size() < names.size():
+				pick = (pick + 1) % names.size()
+			taken[names[pick]] = true
+			m["owners"] = taken
+			b["owner"] = names[pick]
+			b["name"] = "%s's %s" % [names[pick], String(HOME_WORDS.get(map_id, "House"))]
 		"fishery":
 			b["name"] = "Gil's Fishing Shack"
 		"shack":
@@ -943,6 +995,14 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			elif npc_roles.has(ch):
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
 				var npc := _room_npc(npc_roles[ch], b, p, rng, id, ch, key)
+				# (the first resident on a house's ground floor is the one it's named after)
+				if npc.get("kind", "") == "resident" and b.has("owner") and fl == 1 and not m.has("owner_placed"):
+					npc["name"] = b["owner"]
+					m["owner_placed"] = true
+				elif npc.get("kind", "") == "resident" and npc.get("name", "") == b.get("owner", ""):
+					# (and nobody else in it shares the owner's name)
+					var others: Array = WorldDB.TRAINER_NAMES.slice(0, WorldDB.TRAINER_NAMES.size() - 1)
+					npc["name"] = others[(others.find(npc["name"]) + 1 + rng.randi_range(0, others.size() - 3)) % others.size()]
 				if not npc.is_empty():
 					m["npcs"].append(npc)
 			elif ch == "*":
