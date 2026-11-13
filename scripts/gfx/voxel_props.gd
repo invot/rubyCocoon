@@ -57,6 +57,10 @@ static func _cards(img: Image, planes: int, w: float, h: float, tint := Color.WH
 
 
 # ---------------------------------------------------------------- plants
+## lily_pad.gdshader moves a leaf by at most (1 + 0.45) * 0.045 = 0.06525 world units.
+## Its shader cancels instance scale, so pad batches need this margin after their transforms.
+const LILY_SWELL_BOUND := 0.07
+
 ## A softly domed floating leaf: rounded rim, open notch and quiet painted veins, all one cached mesh.
 static func lily_pad() -> ArrayMesh:
 	return _cached("lily_pad", func():
@@ -649,3 +653,35 @@ static func icon(shop: String) -> ArrayMesh:
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, body.surface_get_arrays(si))
 			mesh.surface_set_material(mesh.get_surface_count() - 1, body.surface_get_material(si))
 		return mesh)
+
+
+## A park bench wide enough for two people to sit side by side (1.6 units: two tiles' street furniture, world.gd
+## STREET_WIDE), in the shared wood (voxel_textures.gd WOOD) on the kit's plank grain like the stairs and signs: three
+## seat slats at the hero's knee height, two back slats, and three frames (ends and middle) with arm rests at the ends.
+## It faces +z; its back is at -z.
+const BENCH_W := 1.6
+
+
+static func bench() -> ArrayMesh:
+	return _cached("bench", func():
+		var VT = load("res://scripts/gfx/voxel_textures.gd")
+		var VBld = load("res://scripts/gfx/voxel_buildings.gd")
+		var k = VBld.Kit.new()
+		var frame: Color = VT.WOOD
+		var slat: Color = VT.WOOD.lightened(0.14)
+		var seat_y := 0.42
+		for z in [0.15, 0.0, -0.15]:
+			k.box("planks", Vector3(0, seat_y, z), Vector3(BENCH_W, 0.05, 0.13), slat)
+		for y in [0.62, 0.8]:
+			k.box("planks", Vector3(0, y, -0.24), Vector3(BENCH_W, 0.12, 0.05), slat)
+		for x in [-BENCH_W / 2.0 + 0.1, 0.0, BENCH_W / 2.0 - 0.1]:
+			var end: bool = x != 0.0
+			# front leg, back post (up to the top back slat), and the rail under the seat joining them
+			k.box("planks_v", Vector3(x, (seat_y - 0.025) / 2.0, 0.17), Vector3(0.08, seat_y - 0.025, 0.08), frame)
+			k.box("planks_v", Vector3(x, 0.44, -0.2), Vector3(0.08, 0.88, 0.08), frame)
+			k.box("planks", Vector3(x, seat_y - 0.06, -0.01), Vector3(0.08, 0.07, 0.42), frame)
+			if end:
+				# an arm rest on a short post above the front leg
+				k.box("planks_v", Vector3(x, seat_y + 0.1, 0.17), Vector3(0.07, 0.2, 0.07), frame)
+				k.box("planks", Vector3(x, seat_y + 0.22, -0.02), Vector3(0.1, 0.05, 0.5), slat)
+		return k.mesh())

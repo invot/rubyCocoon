@@ -198,9 +198,19 @@ func extra_npcs(map: Dictionary) -> Array:
 	match id:
 		"caccoon":
 			out.append({"kind": "story", "id": "elder", "name": "Elder Rowan", "pos": _at(map, "elder", plaza), "look": ELDER_LOOK, "facing": Vector2i(0, 1), "story": true})
-			out.append({"kind": "story", "id": "guard", "name": "Scout Bram", "pos": _at(map, "guard", plaza + Vector2i(8, 1)), "look": GUARD_LOOK, "facing": Vector2i(-1, 0)})
-			if not GameState.flag("has_starter"):
-				_close_edge(map, "east", "A wooden gate. Scout Bram won't let anyone onto the Coastal Path without a beast of their own.")
+			# Scout Bram stands in the road out himself, across both lanes of the east exit, until he's seen you off with
+			# your first beast; then he steps aside onto the verge (bram_step_aside)
+			var bram := {"kind": "story", "id": "guard", "name": "Scout Bram", "pos": _at(map, "guard", plaza + Vector2i(8, 1)), "look": GUARD_LOOK, "facing": Vector2i(-1, 0)}
+			var lanes := _bram_lanes(map)
+			if not GameState.flag("bram_sendoff") and lanes.size() == 2:
+				bram["pos"] = lanes[0]
+				bram["blocks"] = lanes
+				bram["blocking"] = true
+				# between the two lanes
+				bram["visual_offset"] = Vector3(0, 0, 0.5)
+			elif lanes.size() == 2:
+				bram["pos"] = lanes[1] + Vector2i(0, 1)
+			out.append(bram)
 			# a little thank-you to the voxel artist StickyBizcuit, tucked away in the north-west corner
 			if MapGen.walkable(MapGen.get_t(map, 3, 2)):
 				out.append({"kind": "story", "id": "bizcuit", "name": "Bizcuit", "pos": Vector2i(3, 2), "facing": Vector2i(0, 1),
@@ -308,6 +318,16 @@ func extra_npcs(map: Dictionary) -> Array:
 		if r["map"] == id and GameState.flag("relic_quest") and not GameState.flag("relic_" + k) and _has_anchor(map, r["anchor"]):
 			out.append({"kind": "story", "id": "relic", "relic": k, "name": r["name"], "pos": _at(map, r["anchor"], plaza), "mesh": VP.relic(k), "facing": Vector2i(0, 1)})
 	return out
+
+
+## The two road tiles one step in from Cocoon Cove's east exit, north lane first (where Scout Bram stands guard).
+func _bram_lanes(map: Dictionary) -> Array:
+	var edge: Array = map.get("openings", {}).get("east", []).duplicate()
+	edge.sort_custom(func(a: Vector2i, b: Vector2i): return a.y < b.y)
+	var lanes := []
+	for t in edge:
+		lanes.append(t + Vector2i(-1, 0))
+	return lanes if lanes.size() == 2 else []
 
 
 ## Blocks every exit on one edge of a map with a fence (until the map is reloaded with the flag set).
@@ -1170,11 +1190,20 @@ func _talk_story(world, n: Dictionary) -> void:
 			else:
 				await say(["Elder Rowan is waiting for you in the plaza.", "I'm so proud of you, %s." % GameState.player_name], "Mom")
 		"guard":
-			if GameState.flag("has_starter") and not GameState.flag("tutorial_done"):
-				GameState.set_flag("bram_sendoff")
+			if GameState.flag("has_starter") and not GameState.flag("bram_sendoff"):
 				await say(["Hey, you hatched it! Look at that little %s. It has your nose." % GameState.party[0].nickname,
-					"The gate's open. Along the Coastal Path, the trainers will each teach you a bit of battling. Everyone who passes gets a lesson. Rules are rules. Mostly my rules.",
+					"All right, I'll get out of your way. Along the Coastal Path, the trainers will each teach you a bit of battling. Everyone who passes gets a lesson. Rules are rules. Mostly my rules.",
 					"Your uncle's waiting in Bellerive at the end of the path. Off you go, champ!"], "Scout Bram")
+				GameState.set_flag("bram_sendoff")
+				# off the road and onto the verge south of it, then watching you go
+				var lanes := _bram_lanes(world.map)
+				if n.has("blocks") and lanes.size() == 2:
+					var verge: Vector2i = lanes[1] + Vector2i(0, 1)
+					var path := [lanes[1], verge]
+					if world.player_pos == verge:
+						# (you're stood on his spot: he takes the one beside it)
+						path = [lanes[1], lanes[1] + Vector2i(-1, 0), verge + Vector2i(-1, 0)]
+					await world.walk_npc_aside(n, path, Vector2i(-1, 0) if world.player_pos != verge else Vector2i(1, 0))
 			elif GameState.flag("has_starter"):
 				await say(["Off you go! The Coastal Path leads east to Bellerive.",
 					"Wild beasts roam the path once you've got a flute to play them. Creep up behind one and you'll get the jump on it. Let one sneak up behind YOU and, well... don't.",

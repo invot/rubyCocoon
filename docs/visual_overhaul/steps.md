@@ -4,11 +4,11 @@
 
 This decision supersedes earlier instructions to use League Spartan for all text.
 - Headings and names: League Spartan Semibold (600).
-- Body text, menu actions, values, dialogue and damage numbers: Short Stack.
+- Body text, menu actions, values, dialogue and damage numbers: Fuzzy Bubbles.
 - Lettering physically painted, engraved or displayed on objects in the 3D world: Noto Sans Old North Arabian, using a deterministic mapping from English letters (and explicitly defined ligatures where needed) to its glyphs. Do not render English lettering on world objects. This is a fictional substitution alphabet, not an Arabic translation. Preserve the underlying readable English for dialogue, interaction descriptions and accessibility.
 - UI and spoken dialogue remain readable English; they are not world-object lettering. Preserve the established intro/title logo exception unless the user changes it.
-- Sources: [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
-- Implementation checkpoint: Short Stack body/dialogue and the shared world-lettering font/map are wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
+- Sources: [Fuzzy Bubbles](https://fonts.google.com/specimen/Fuzzy+Bubbles), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
+- Implementation checkpoint: Fuzzy Bubbles body/dialogue and the shared world-lettering font/map are wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
 
 Codex continues code, tests and nonvisual work. Stop at the next task requiring Claude's visual authorship and prepare its concrete handoff; do not silently perform that artwork.
 
@@ -139,7 +139,7 @@ Using `ledger/scenes.csv`, take **2–3 maps or 4–6 rooms per step**. Capture 
 
 ## Phase U — Interface (later)
 
-On 12 November 2026 the user agreed to soften the UI **later**: after Phase E and before F, never earlier. Keep the structure, layout, inputs and the AGENTS.md interface rules (dark blurred windows, white borders, faint gem tint, League Spartan headings and Short Stack body/dialogue). Soften only the frame weight, ornament and finish. Steps: U1 shared frame/border weight in `frame_box.gd` and `UIKit`, across four gems × desktop/touch; U2 icon family consistency; U3 battle bar finish. Each step needs user approval.
+On 12 November 2026 the user agreed to soften the UI **later**: after Phase E and before F, never earlier. Keep the structure, layout, inputs and the AGENTS.md interface rules (dark blurred windows, white borders, faint gem tint, League Spartan headings and Fuzzy Bubbles body/dialogue). Soften only the frame weight, ornament and finish. Steps: U1 shared frame/border weight in `frame_box.gd` and `UIKit`, across four gems × desktop/touch; U2 icon family consistency; U3 battle bar finish. Each step needs user approval.
 
 ## Phase F — Final acceptance
 

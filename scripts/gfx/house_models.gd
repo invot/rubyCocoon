@@ -18,6 +18,7 @@ extends RefCounted
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 
+const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const DIR := "res://assets/houses/"
 const TILES := DIR + "tiles/"
 const LOCKED_DOOR := Color("#b3262c")
@@ -905,11 +906,18 @@ static func _skin(mi: MeshInstance3D, m: ArrayMesh, skin: Array, locked: bool) -
 			if not _mats.has(frame_key):
 				var frame_mat: StandardMaterial3D = base.duplicate()
 				frame_mat.albedo_color = _tile_colour(String(skin[2]))
+				if SHARED_WOOD.has(String(skin[2])):
+					VT.apply_wood(frame_mat, SHARED_WOOD[skin[2]][0], SHARED_WOOD[skin[2]][1])
 				_mats[frame_key] = frame_mat
 			mi.set_surface_override_material(s, _mats[frame_key])
 		if not parts.has(role):
 			continue
 		mi.set_surface_override_material(s, _part_mat(base, role, String(parts[role]), locked))
+
+
+## The pack's plain-wood tiles that wear the game's shared wood instead (voxel_textures.gd WOOD), so wooden trim and
+## decks match the docks, fences, benches and stairs: tile -> [grain, how much lighter].
+const SHARED_WOOD := {"trim_wood_dark": ["planks_v", 0.0], "deck_wood": ["planks", 0.14]}
 
 
 ## A part of a house in one of the pack's tiles (made once per part, tile and lock).
@@ -919,7 +927,9 @@ static func _part_mat(base: StandardMaterial3D, role: String, tile: String, lock
 	var key := "%s:%s:%s" % [role, tile, "locked" if locked and role == "door" else ""]
 	if not _mats.has(key):
 		var mat: StandardMaterial3D = base.duplicate()
-		if ResourceLoader.exists(TILES + tile + ".res"):
+		if SHARED_WOOD.has(tile):
+			VT.apply_wood(mat, SHARED_WOOD[tile][0], SHARED_WOOD[tile][1])
+		elif ResourceLoader.exists(TILES + tile + ".res"):
 			mat.albedo_texture = load(TILES + tile + ".res")
 		_mats[key] = mat
 	return _mats[key]

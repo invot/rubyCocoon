@@ -10,8 +10,8 @@ extends RefCounted
 ## - The pack's divider separates sections (HSeparator, divider()) and flanks banner text (flanked()).
 ## The small icons are drawn here, pixel by pixel (cached textures); a few come from the flatUI kit (assets/ui/flat,
 ## copied by tools/build_ui_icons.gd).
-## Fonts: PT Sans for body text, menu actions, values and damage; Short Stack for dialogue; League Spartan Semibold for
-## names and headings. Missing symbols use bundled Noto Sans Symbols, then Godot's fallback.
+## Fonts: Quattrocento Sans Regular for body text, menu actions and descriptions; its Bold for names and headings, and in
+## upper case for small text; Fuzzy Bubbles for dialogue. Missing symbols use bundled Noto Sans Symbols, then Godot's fallback.
 
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -19,19 +19,22 @@ const FrameBox = preload("res://scripts/ui/frame_box.gd")
 const DividerBox = preload("res://scripts/ui/divider_box.gd")
 
 const UI_DIR := "res://assets/ui/"
-const FONT_FILE := "res://ui/LeagueSpartan.ttf"
-const BODY_FONT_FILE := "res://ui/PTSans-Regular.ttf"
-const DIALOG_FONT_FILE := "res://ui/ShortStack-Regular.ttf"
+## Quattrocento Sans (user's direction, 2026-11-12): Bold for headings and for small text (which is also upper case),
+## Regular for ordinary body text.
+const FONT_FILE := "res://ui/QuattrocentoSans-Bold.ttf"
+const BODY_FONT_FILE := "res://ui/QuattrocentoSans-Regular.ttf"
+const BOLD_FONT_FILE := "res://ui/QuattrocentoSans-Bold.ttf"
+const DIALOG_FONT_FILE := "res://ui/FuzzyBubbles-Regular.ttf"
 const SYMBOL_FONT := preload("res://ui/NotoSansSymbols.ttf")
 const TRIANGLE_FONT := preload("res://ui/NotoSansSymbols2.ttf")
-## Regular body/dialogue faces and semibold League Spartan headings.
+## (both faces are static files; the weight only keys the cache)
 const BODY_WEIGHT := 400
-const HEAD_WEIGHT := 600
+const HEAD_WEIGHT := 700
 const BODY_SMALL := 21
 const BODY_BIG := 21
 ## Large body text, including written descriptions and system prompts.
 const BODY_HUGE := 32
-## Spoken dialogue keeps Short Stack, about 10% smaller than the previous 32 UI units.
+## Spoken dialogue uses Fuzzy Bubbles, about 10% smaller than the previous 32 UI units.
 const DIALOG_SIZE := 29
 const HEAD_SIZE := 22
 const HEAD_SMALL := 21
@@ -227,9 +230,16 @@ static func font_head() -> Font:
 	return _font(FONT_FILE, HEAD_WEIGHT)
 
 
-## Compatibility alias for numeric labels: ordinary text uses the shared Regular weight.
+## Small text (captions, tags, values, damage numbers): Quattrocento Sans Bold, shown in upper case (small_caps).
 static func font_bold() -> Font:
-	return font_body()
+	return _font(BOLD_FONT_FILE, HEAD_WEIGHT)
+
+
+## Makes a label small text: the bold face, in upper case.
+static func small_caps(l: Label) -> Label:
+	l.add_theme_font_override("font", font_bold())
+	l.uppercase = true
+	return l
 
 
 ## Each face has independent fallback metrics; bundled symbols keep arrows available in every export.
@@ -257,8 +267,6 @@ static func _font(path: String, weight := BODY_WEIGHT) -> Font:
 	var fv := FontVariation.new()
 	fv.base_font = f
 	fv.fallbacks = fallbacks
-	if weight == HEAD_WEIGHT:
-		fv.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
 	_fonts[key] = fv
 	return fv
 
@@ -449,17 +457,20 @@ static func make_theme() -> Theme:
 
 
 # ================================================================ widgets
-## Body text (PT Sans Regular): small (<24), big (24-31) or huge (32+).
+## Body text (Quattrocento Sans): small (<24, Bold upper case), big (24-31, Regular) or huge (32+, Regular).
 static func label(text: String, size := 20, color := TEXT) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_override("font", font_body())
 	l.add_theme_font_size_override("font_size", body_px(BODY_HUGE if size >= BODY_HUGE else (BODY_BIG if size >= 24 else BODY_SMALL)))
 	l.add_theme_color_override("font_color", color)
+	# small text (asked for under 24) is bold and upper case; larger body text stays Regular
+	if size < 24:
+		small_caps(l)
 	return l
 
 
-## Heading text (League Spartan Semibold): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
+## Heading text (Quattrocento Sans Bold): titles, tabs, name plates, map names. Headings take the gem (HEAD); the body
 ## white or the raw gem passed in by a caller is taken as "the heading colour".
 static func header(text: String, color := HEAD, size := HEAD_SIZE) -> Label:
 	var l := Label.new()

@@ -154,13 +154,14 @@ func _pill_h() -> float:
 
 
 ## One line, trimmed with an ellipsis.
-func _line(text: String, width: float, px := TEXT_PX) -> TextParagraph:
-	var key := "%d:%d:%s" % [px, int(width), text]
+## (small: small text, bold and upper case, like the level)
+func _line(text: String, width: float, px := TEXT_PX, small := false) -> TextParagraph:
+	var key := "%d:%d:%s:%s" % [px, int(width), text, small]
 	if not _paragraphs.has(key):
 		if _paragraphs.size() > 96:
 			_paragraphs.clear()
 		var p := TextParagraph.new()
-		p.add_string(text, UIKit.font_body(), UIKit.body_px(px))
+		p.add_string(text.to_upper() if small else text, UIKit.font_bold() if small else UIKit.font_body(), UIKit.body_px(px))
 		p.width = width
 		p.max_lines_visible = 1
 		p.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -581,7 +582,7 @@ func _draw_bar(index: int) -> void:
 	var cap_text: String = bar["cap"]
 	if cap_text != "":
 		# the level, at the left in small black text, set off by a thin divider after it
-		var lv := _line(cap_text, LV_W, LV_PX)
+		var lv := _line(cap_text, LV_W, LV_PX, true)
 		lv.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lv.draw(ci, _snap(Vector2(x, mid_y - lv.get_size().y * 0.5)), Color(Color.BLACK, alpha))
 		x += LV_W + LV_GAP

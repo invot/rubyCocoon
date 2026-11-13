@@ -2,11 +2,19 @@
 
 User-requested visual exception while 010b phone evidence remains pending. Status: waiting for visual approval.
 
+## Fuzzy Bubbles dialogue — 12 November 2026
+
+Spoken dialogue and desktop speech reply bubbles now use Fuzzy Bubbles Regular
+(`ui/FuzzyBubbles-Regular.ttf`, from the official Google Fonts repository, OFL in
+`licenses/fuzzybubbles-OFL.txt`) in place of Short Stack, still at 29 UI units.
+Short Stack has been removed from the project. Body text, headings, world lettering
+and the title logo are unchanged.
+
 ## PT Sans follow-up — 12 November 2026
 
 Body text, menu actions, values and damage numbers now use PT Sans Regular, bundled
 from the official Google Fonts repository with its OFL license (`ui/PTSans-OFL.txt`).
-Spoken dialogue and desktop speech reply bubbles keep Short Stack at 29 UI units,
+Spoken dialogue and desktop speech reply bubbles kept Short Stack (since replaced by Fuzzy Bubbles) at 29 UI units,
 down from 32 (9.375% smaller). Written descriptions/system prompts use the body
 font. League Spartan 600 headings, world lettering and the title logo are unchanged.
 The three faces keep independent symbol fallback metrics. Menu text and touch
@@ -23,7 +31,7 @@ all passed (isolated evidence in `build/pt_sans/final_logs/`). Video settings
 passed on its second attempt while concurrent graphics edits were settling.
 Existing exit resource-leak warnings remain. Player saves/preferences were isolated.
 
-## Earlier Short Stack/world-lettering migration
+## Earlier Short Stack/world-lettering migration (Short Stack since replaced)
 
 Bundled Short Stack Regular and Noto Sans Old North Arabian from the official Google Fonts repository with OFL licenses. UIKit body/dialogue/action/value font now Short Stack; names/headings retain League Spartan 600. Each face owns symbol fallback metrics so their line heights do not contaminate each other. The title logo remains unchanged.
 

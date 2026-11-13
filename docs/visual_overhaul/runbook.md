@@ -4,11 +4,11 @@
 
 This decision supersedes earlier instructions to use League Spartan for all text.
 - Headings and names: League Spartan Semibold (600).
-- Body text, menu actions, values, dialogue and damage numbers: Short Stack.
+- Body text, menu actions, values, dialogue and damage numbers: Fuzzy Bubbles.
 - Lettering physically painted, engraved or displayed on objects in the 3D world: Noto Sans Old North Arabian, using a deterministic mapping from English letters (and explicitly defined ligatures where needed) to its glyphs. Do not render English lettering on world objects. This is a fictional substitution alphabet, not an Arabic translation. Preserve the underlying readable English for dialogue, interaction descriptions and accessibility.
 - UI and spoken dialogue remain readable English; they are not world-object lettering. Preserve the established intro/title logo exception unless the user changes it.
-- Sources: [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
-- Implementation checkpoint: Short Stack body/dialogue and the shared world-lettering font/map are now wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
+- Sources: [Fuzzy Bubbles](https://fonts.google.com/specimen/Fuzzy+Bubbles), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
+- Implementation checkpoint: Fuzzy Bubbles body/dialogue and the shared world-lettering font/map are now wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
 
 Codex continues code, tests and nonvisual work. Stop at the next task requiring Claude's visual authorship and prepare its concrete handoff; do not silently perform that artwork.
 
@@ -262,6 +262,13 @@ and the `textures`, `performance` and `transitions` tests pass. Identical-lookin
 Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 
 ### 006 · P6: batched scenery
+**Execution checkpoints:** 006a (bounds, chunk sizing and preserved mesh LODs), 006b (engine occlusion),
+006c (decoration distance ranges), 006d (Static Mesh Merger and combined verification).
+Run in that order; parent 006 stays open until all four close. The loader's lost LODs were discovered during
+006a. The sampled shipped assets already have centered origins and do not trigger that loader branch;
+the correction is defensive, not a measured speedup. The shader audit also found missing water-swell
+bounds on lily-pad batches. Finish matched evidence; require screenshot review only for visible changes.
+This split follows §5's clean-checkpoint rule; it does not waive any requirement below.
 **Approval:** numbers and screenshot review if visible. **Needs:** 008.
 **Files:** the nature/scenery placement code in `scripts/world/` (find it with a grep for `MeshInstance3D.new()` in scenery code), `foliage.gdshader`.
 **Do:**
@@ -313,6 +320,34 @@ Pixel diffs must be noise-only; a visible change stops for screenshot approval.
 camera-edge/distance-transition crops; separate on/off CPU/GPU/frame comparisons for each experiment;
 a `field-perf` run with no frame over 20 ms on desktop. Identify desktop Mobile-renderer measurements as desktop.
 **Done when:** the `nature`, `walk`, `building-fade` and `maps-built` tests pass.
+
+### 006a · P6a: bounds, chunks and scenery LOD preservation
+**Approval:** numbers and screenshots for the restored LODs. **Needs:** 008.
+**Do:** audit existing batch bounds against transformed source bounds; compare 4/8/16 chunk sizes with other
+settings fixed; preserve the source meshes' existing LOD thresholds and indices when recentering them.
+Keep collision, materials, per-instance transforms, building fades and terrain visibility unchanged.
+Cover the lily-pad shader's maximum 0.06525-unit world-space displacement after instance scaling.
+Compare original/restored/original LODs in matched Coastal Path, Cove and Rue Royale views on all three native
+renderers and the attached phone. Check base geometry/UV/normal/material identity and both index widths.
+**Evidence:** `build/perf/vo/006/`, `build/shots/vo/006/`, report `006a-scenery.md`.
+**Done when:** matched measurements and captures exist; quick, scenery-lods, vo-scenery, nature, walk,
+building-fade and maps-built pass, and any visible result is approved. Renderer bounds are unavailable headless.
+
+### 006b · P6b: conservative engine occlusion experiment
+**Approval:** numbers; screenshots if adopted. **Needs:** 006a.
+Run parent 006's occlusion experiment separately, including the actual 3D SubViewport, opaque-source geometry,
+fading/hidden-geometry safety, actor visibility and CPU/GPU/frame comparisons. No adoption without net benefit.
+
+### 006c · P6c: decoration distance experiment
+**Approval:** numbers; screenshots if adopted. **Needs:** 006b.
+Run parent 006's category-specific distance-range experiment separately. Preserve landmarks, interaction,
+edge bands and battle seals; check wide touch and battle shots. Use renderer-compatible hysteresis.
+
+### 006d · P6d: isolated mesh merger and combined verification
+**Approval:** numbers; screenshots if adopted. **Needs:** 006c.
+Run parent 006's pinned Static Mesh Merger experiment, then combine only successful, approved checkpoints.
+Retain the parent field-perf, required scenario, phone/web coverage and explicit-gap reporting requirements.
+Only closing this checkpoint closes parent 006 and releases 007.
 
 ### 007 · P7: alpha and overdraw
 **Approval:** numbers and screenshot review if visible. **Needs:** 006.
@@ -774,11 +809,121 @@ pattern; see standards §11. This does not complete 027 or bypass 011/022/023 an
 - Beds, sofas, cushions, tables, shelves and counters with designed edges, real volume and folds, and wood matching the floors.
 - Small props sit on real surfaces.
 - Blender rework where needed.
+- The user's assessment (2026-11-12): the current beds and couches are already nice; keep them (material pass only).
+  The lamps and plants do not fit the direction; 037a replaces them.
 
 **Done when:** you approve.
 
+### Phase H: cozy homes (037a–037c, added 2026-11-12)
+
+The user's direction (2026-11-12): homes are not cozy enough. They should look lived in, with lots of decor and
+art on the walls, complementary colour schemes for wall paint, floors and trim, and rooms that are sometimes
+smaller or have notches taken out of them for character, while keeping clear passages to every door. This phase
+sits between the furniture family (037) and home composition (038), so 038's Reference 3 is judged with it.
+The artwork is Claude's [home decor candidate](art_candidates/home_decor.md)
+(`build/art_candidates/home_decor/rev_NNN/`, `READY.json`); Codex integrates it.
+
+**Applies to:** every home: `home`, `home_hall`, `home_bed` (the player's bedroom), `home_mom`, `house_two*`,
+`house_up*`, `studio_a`, `studio_b`, `uncle_home`, `kit_cabin`, `shack` and any later home template. Shops,
+service rooms, temples and dungeons keep their own staging; they take only 037a's new lamps and plants.
+**Regional kits:** this phase builds the shared kit. Each region block's visual pass adds that region's home
+touches (for example Sunwall's pottery and woven textiles, island shells and rattan, Cogsworth neon) on the
+same pieces, tint masks and schemes, plus a regional scheme such as `adobe_turquoise`.
+
+### 037a · S17a: home decor kit (lamps, plants, wall art, soft furnishings)
+**Approval: you.** **Needs:** 022, 023, 037. Candidate: **rev_001, approved by the user 2026-11-12**.
+**Read:** [art_candidates/home_decor.md](art_candidates/home_decor.md); its revision's `READY.json`,
+`textures/layout.json` and `textures/art_layout.json`; `docs/interior_staging.md`; standards.md §14.
+**Files:** `scripts/gfx/room_builder.gd` (`KINDS`, `_wall_decor`, `lamp_mesh`, `_hang`), a new
+`scripts/gfx/home_decor.gd` and `home_decor.gdshader`, an importer `tools/import_home_decor.gd` writing
+`assets/interiors/home/`.
+**Do:**
+- Import the approved revision's `mesh/home_decor_kit.glb` (one node per piece) into one `.res` per piece.
+  Smooth `decor_atlas.png` once through `tools/smooth_textures.gd`; **never smooth `art_masks.png`** (its
+  channels are coverage masks). Linear, mipmapped, anisotropic filtering for both.
+- One shared shader for every piece: surface 0 is `atlas × mix(1, tint, mask)` per vertex-colour channel
+  (R fabric, G ceramic/accent, B wood, A trim paint), with the four tints as per-instance uniforms from the
+  room's scheme (037b; until then the candidate's `seafoam_cottage`). Surface 1 (prints) is
+  `paper×(1−R−G−B) + R×slot1 + G×slot2 + B×slot3` from `art_masks.png`, with the print's UV rect
+  (`uv_portrait`, `uv_landscape` or `uv_square`) and its four colours as instance uniforms. The glow cells
+  (`shade_inner`, `bulb`) are emissive at low strength. Keep it on Mobile and Compatibility; no extra passes.
+- Replace everywhere they appear (the user's assessment applies game-wide): `floor_lamp` → `floor_lamp_drum` /
+  `floor_lamp_tripod`; `table_lamp`, `el_lamp` → `table_lamp_gourd` / `table_lamp_mushroom` (kids' rooms);
+  `plant_small`, `plant_tall`, `plant_leafy`, `el_tp_plants` → `plant_pillow_round`, `plant_pillow_tall`,
+  `plant_paddle`, `plant_blades`, `plant_stand`; `el_flowers`, `el_vase` → `vase_flowers`, `vase_round`,
+  `vase_bud`. Retire `lamp_mesh`'s recolouring of the old lamp.
+- In homes: `painting_1`–`5` → the framed prints; `clock` → `wall_clock`; `wall_light` → `wall_sconce`; add
+  `picture_ledge`, `floating_shelf`, `mirror_arch`, `woven_plate`, `embroidery_hoop`, `tapestry`, `bunting`
+  (kids' rooms) and `plant_hanging` to `_wall_decor`. Dress the existing beds, sofas and armchairs with
+  `cushion_square`, `cushion_bolster`, `throw_blanket` and `quilt_fold`; add `pouf` and `basket_blankets` as
+  floor pieces; the tabletop pieces join `KINDS` `top` lists.
+- **Framed art comes only from the user's SVG prints** (`sources/svg/`, 20 as of 2026-11-12; never painted or
+  other artwork). Pick prints per house from its seed, never the same print twice in one room. Each print's
+  colours come from its `colourways`: the room's scheme by default; roughly one home in four (seeded), kids'
+  rooms and Cogsworth homes use the bold `jewel_pop` colourway instead. **The player's bedroom (`home_bed`)
+  always has `deep-IHWzHs98vQ8` (the rocket) centred over the bed** (the user's choice).
+- Hanging rules (extend `_wall_decor`): a gallery cluster of 3–5 frames, centre line about 1.55–1.75 up, over
+  the main sofa or bed head; art centred over furniture is about two-thirds of its width; pieces on one wall
+  share a top or centre line; no frame behind tall furniture, beside a door frame or over a window; side walls
+  get flatter pieces (plates, hoops, small frames, sconces) since the camera sees them at an angle.
+- Lamps cast no shadows and add no lights beyond the room's existing one (a lit shade is emissive only).
+  Batch the decor per room (merged by material or MultiMesh) and measure home rooms against the 011 budgets on
+  Mobile (desktop measurement labelled as such).
+
+**Offload:** "Describe the wall over the bed/sofa and the corners of the room" on before/after shots; neutral.
+**Evidence:** before/after `--scene=interiors --rooms=home,home_bed,home_mom,house_two,studio_a,kit_cabin,shack`
+at 1920×1080 and 2400×1080 `--touch`; a close crop of each lamp and plant beside the hero; draw calls and frame
+time per home room.
+**Done when:** you approve, `--scene=texture-audit --verify=1` lists nothing new, and `quick`, `doorway`,
+`phone` and both map checkers pass.
+
+### 037b · S17b: home colour schemes, paint and trim
+**Approval: you.** **Needs:** 036, 037a.
+**Read:** the candidate's `schemes.json`; standards.md §9 and §14.
+**Files:** a new `scripts/data/home_schemes.gd` (the approved schemes as data), `room_builder.gd` (`ZONES`,
+`WALL_COLOURS`, skirting), 036's floor finish.
+**Do:**
+- Each house picks a scheme per room from its seed, limited to the schemes whose `rooms` list that room's
+  kind; region blocks add regional schemes (`adobe_turquoise` for Sunwall and Dustwell). The scheme sets wall
+  paint, the lower wall (wainscot or a second paint below the chair rail), trim (baseboard, crown moulding,
+  chair rail, door and window casings), the floor's wood tone (and the kit's wood tint, so shelves and frames
+  match the floor), the rug's wool, the fabric/ceramic/accent tints, and the prints' colourways.
+- Trim: `baseboard` modules replace the thin dark skirting on every wall run; `crown_moulding` along back and
+  side walls; `chair_rail` with `wainscot_beadboard` (bedrooms, kitchens, bathrooms) or `wainscot_panel`
+  (living rooms, halls) in some rooms, chosen per house. Trim follows notches and alcoves (037c).
+- Keep each room's warm/cool family. Floors stay darker than walls; trim clearly lighter (or, in adobe,
+  darker) than walls; no two adjacent rooms of a house on the same scheme. Interface colours are unaffected.
+
+**Evidence:** a scheme sheet from the real renderer (every scheme in one room) plus the before/after shots.
+**Done when:** you approve, and `quick`, `texture-audit` and the interiors tour pass.
+
+### 037c · S17c: room character: notches, alcoves and smaller rooms
+**Approval: you.** **Needs:** 037b.
+**Read:** `docs/interior_staging.md` (rules 1, 3 and 6 and the room audit); AGENTS.md "World layout and
+navigation".
+**Files:** home templates in `scripts/data/maps/interior_maps.gd`, `room_builder.gd` (walls, trim and decor
+along the new wall runs), `tools/check_maps.gd`, `docs/interior_staging.md`.
+**Do:**
+- Give each home template one or two characterful shape changes in whole tiles: an alcove in a back wall
+  (a reading nook or window seat), a notch for a closet, chimney breast or stair cupboard, or a smaller room.
+  Rooms may shrink; never below what their furniture groups and routes need.
+- Notches go on back and side walls, never as a block just south of a path (the camera looks north). The open
+  front stays open. Every new wall run gets its trim, and its decor where it is in view.
+- Routes: a connected path at least one tile wide between every entrance, room door, stair end, the phone,
+  beds and story anchors; the tile in front of every door and both stair ends stays empty, decor included.
+  Preserve Rafe's anchor, the shack's starter sacks, lesson sightlines and the phone's approach.
+- Record the new shapes in `interior_staging.md`'s room audit.
+
+**Evidence:** floor plans (`check_maps` output) and the before/after shots of every changed home.
+**Done when:** you approve, both map checkers pass, and `doorway`, `phone`, `rescue`, `walk-touch` and the
+interiors tour pass.
+
 ### 038 · S18: home interior composition → Reference 3
-**Approval: you.** **Needs:** 037.
+**Approval: you.** **Needs:** 037c.
+**Do:** compose the homes with 037a–037c: lived in rather than sparse. Each room has its focus group (seating
+or bed) dressed with cushions and throws, a lamp beside every seating group and bed, a plant in at least one
+corner, art on every in-view back-wall run of two tiles or more, and dressed tabletops, while the playing area
+and routes stay clear (staging rules 3, 6 and 9).
 **Done when:** **you approve Reference 3** at 1920×1080, 2400×1080 touch and 1280×720 with a speech bubble on screen, and `doorway`, `speech` and `speech-touch` pass.
 
 ### 039 · S19: dark profile and Moor palette
@@ -984,7 +1129,8 @@ Each block follows the same pattern:
 - **layout** for each road: 3–4× (the Coastal Path excepted), keeping the existing required gate unless the step says otherwise;
 - **set pieces**, one per step;
 - **visual pass** (B-1 to B-5) reusing the frozen standard (044);
-- **hints, README** and temple rooms.
+- **hints, README** and temple rooms;
+- **homes:** the region's home touches and regional colour scheme on Phase H's shared decor kit (037a–037c).
 
 Every layout step:
 - runs both map checkers, `maps`, `terrain`, `ground` (re-bake), `walk` and `flow`;
@@ -1343,7 +1489,7 @@ Every C family step:
 
 ## Phase U: interface softening (agreed for later)
 
-Keep the structure, layout, inputs and AGENTS.md interface rules: dark blurred windows, white borders, faint gem tint, League Spartan headings and Short Stack body/dialogue. Each step is checked in all four gems × desktop and touch × 1280×720.
+Keep the structure, layout, inputs and AGENTS.md interface rules: dark blurred windows, white borders, faint gem tint, League Spartan headings and Fuzzy Bubbles body/dialogue. Each step is checked in all four gems × desktop and touch × 1280×720.
 
 ### 163 · U1: shared frame and border weight and ornament (`frame_box.gd`, `UIKit`)
 **Approval: you.**

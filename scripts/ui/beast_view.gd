@@ -108,7 +108,7 @@ func _ready() -> void:
 		grid.add_child(sbar)
 	right.add_child(HSeparator.new())
 	for ps in b.passives:
-		var pl := UIKit.label("%s — %s" % [ps, RaceDB.PASSIVE_DESC.get(ps, "")], 16, UIKit.HEAD)
+		var pl := UIKit.label("%s — %s" % [ps, RaceDB.PASSIVE_DESC.get(ps, "")], 24, UIKit.HEAD)
 		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		right.add_child(pl)
 	var eq := "Gear: " + (ItemDB.item_name(b.equip) if b.equip != "" else "(none)")
@@ -122,7 +122,7 @@ func _ready() -> void:
 		var ml := UIKit.label(" %s" % m["name"], 18)
 		ml.custom_minimum_size.x = 170
 		row.add_child(ml)
-		var dl := UIKit.label(_short(mv), 15, UIKit.DIM)
+		var dl := UIKit.label(_short(mv), 24, UIKit.DIM)
 		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		dl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(dl)

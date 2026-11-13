@@ -41,6 +41,8 @@ static func mesh(name: String) -> Mesh:
 	var m: Mesh = _recentered(load(path))
 	if FOLIAGE.any(func(prefix: String) -> bool: return name.begins_with(prefix)):
 		_leafy(m)
+	if name in WOODEN:
+		_wooden(m)
 	_meshes[name] = m
 	return m
 
@@ -62,6 +64,22 @@ static func two_sided_foliage() -> Shader:
 
 
 ## Swap a plant's palette materials for the foliage shader, keeping each one's palette and whether it shows both sides.
+## Supplied models of plain wood that wear the game's shared wood (voxel_textures.gd WOOD) instead of their pack's own
+## grain, so they match the kit-built stairs, stalls, signs and benches around them.
+const WOODEN := ["fence"]
+
+
+static func _wooden(m: Mesh) -> void:
+	var VT = load("res://scripts/gfx/voxel_textures.gd")
+	for si in m.get_surface_count():
+		var src := m.surface_get_material(si) as BaseMaterial3D
+		var mat: StandardMaterial3D = VT.wood_material().duplicate()
+		if src != null:
+			mat.disable_receive_shadows = src.disable_receive_shadows
+			mat.cull_mode = src.cull_mode
+		m.surface_set_material(si, mat)
+
+
 static func _leafy(m: Mesh) -> void:
 	if not ResourceLoader.exists(LEAVES):
 		return
@@ -93,9 +111,28 @@ static func _recentered(m: Mesh) -> Mesh:
 		for i in verts.size():
 			verts[i] -= off
 		arrays[Mesh.ARRAY_VERTEX] = verts
-		out.add_surface_from_arrays(src.surface_get_primitive_type(si), arrays)
+		# Translation leaves every LOD's vertex indices and edge lengths valid. Copy them
+		# as well as the base surface; otherwise a recentered tree always draws at full detail.
+		out.add_surface_from_arrays(src.surface_get_primitive_type(si), arrays, [], surface_lods(src, si))
 		out.surface_set_material(si, src.surface_get_material(si))
+		out.surface_set_name(si, src.surface_get_name(si))
 	return out
+
+
+## Recover the public add_surface_from_arrays() LOD dictionary from renderer index buffers.
+## The renderer chooses 16- or 32-bit indices independently of GDScript's PackedInt32Array.
+static func surface_lods(mesh: ArrayMesh, surface: int) -> Dictionary:
+	var data := RenderingServer.mesh_get_surface(mesh.get_rid(), surface)
+	var lods := {}
+	var stride := RenderingServer.mesh_surface_get_format_index_stride(data.format, data.vertex_count)
+	for lod in data.get("lods", []):
+		var bytes: PackedByteArray = lod.index_data
+		var indices := PackedInt32Array()
+		indices.resize(bytes.size() / stride)
+		for i in indices.size():
+			indices[i] = bytes.decode_u16(i * stride) if stride == 2 else bytes.decode_u32(i * stride)
+		lods[lod.edge_length] = indices
+	return lods
 
 
 static func aabb(name: String) -> AABB:

@@ -1020,6 +1020,9 @@ func load_game(slot := -2) -> bool:
 	if not flags.has("dance_shoes_returned") and (visited.has("sundown") or flag("met_sheriff")):
 		set_flag("dance_shoes_returned")
 	map_id = d.get("map_id", "caccoon")
+	# (Scout Bram now stands in the Cove's road out until he's seen you off: a journey saved past him already was)
+	if not flags.has("bram_sendoff") and flag("has_starter") and (not map_id.begins_with("caccoon") or flag("tutorial_done") or visited.size() > 1):
+		set_flag("bram_sendoff")
 	var p: Array = d.get("pos", [-1, -1])
 	pos = Vector2i(int(p[0]), int(p[1]))
 	# The marina adds sea west of the old map. Keep existing saves on their original town/beach tile.

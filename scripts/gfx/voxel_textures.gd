@@ -313,6 +313,54 @@ static func material(kind: String, scale := 1.0) -> StandardMaterial3D:
 	return m
 
 
+## The one wood colour the wooden props share (signposts, stalls, benches, fences): with the kit's own plank grain
+## ("planks" / "planks_v") it reads as the same timber as the stairs, decks and signs beside it.
+const WOOD := Color("#8a6038")
+
+
+## That shared wood for meshes whose own UVs don't follow the kit's (fences, the Cove kit's timber, the house pack's
+## wooden trim and decks, dock planks): the plank grain in WOOD, `lighten` lighter for decks and slats, mapped in world
+## space at the kit's density so boards are the same size on everything, with no vertex colours.
+static func wood_material(grain := "planks_v", lighten := 0.0) -> StandardMaterial3D:
+	var key := "wood:%s:%s" % [grain, lighten]
+	if not _mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.roughness = 0.95
+		_mats[key] = apply_wood(m, grain, lighten)
+	return _mats[key]
+
+
+## Turns `m` (a duplicate of a pack material, keeping its culling and other settings) into the shared wood.
+static func apply_wood(m: StandardMaterial3D, grain := "planks_v", lighten := 0.0) -> StandardMaterial3D:
+	m.albedo_texture = texture(grain)
+	m.albedo_color = WOOD.lightened(lighten)
+	m.vertex_color_use_as_albedo = false
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_triplanar_sharpness = 8.0
+	m.uv1_scale = Vector3.ONE / PSX_SPAN
+	m.uv1_offset = Vector3.ZERO
+	return m
+
+
+## The street pack's crates, barrels and kegs (assets/exteriors) share one atlas whose wood is a cooler grey-brown
+## (about 109, 91, 77): this tint brings it to the shared WOOD's warm brown, their iron hoops darkening a little with it.
+const PACK_WOOD_TINT := Color(1.0, 0.86, 0.6)
+
+
+## Tints a pack model's wood to the shared wood, once per loaded mesh (its materials are its own).
+static func match_wood(mesh: Mesh) -> Mesh:
+	if mesh == null or mesh.has_meta("shared_wood"):
+		return mesh
+	for si in mesh.get_surface_count():
+		var m := mesh.surface_get_material(si) as BaseMaterial3D
+		if m != null:
+			m.albedo_color = PACK_WOOD_TINT
+	mesh.set_meta("shared_wood", true)
+	return mesh
+
+
 ## The same look for meshes that carry their own UVs in world units (buildings from VBld.Kit, sloped roofs).
 static func kit_material(kind: String) -> StandardMaterial3D:
 	var key := "kit:" + kind

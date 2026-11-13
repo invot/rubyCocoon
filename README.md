@@ -194,7 +194,7 @@ required before confronting Vexmora.
    <img src="docs/screenshots/cove.jpg" width="640" alt="Cocoon Cove, the seaside hamlet where you start."><br><sub>Cocoon Cove, the seaside hamlet where you start.</sub>
 
 3. The Beast Center hatches it into a **level 1** beast.
-4. Scout Bram keeps the gate to the Coastal Path shut until you have a beast of your own.
+4. Scout Bram stands in the road to the Coastal Path until you have a beast of your own; talk to him once it has hatched and he steps aside.
 5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it (`world_db.gd`
    LESSON_TRAINERS, battle.gd LESSONS). Each looks straight across the trail where you can't slip past, so you always
    walk into their line of sight and they come over and stop you; you never need to talk to them first. Youngster Kit
@@ -454,7 +454,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **A target that falls first** (`ring.gd` `retarget`, `battle.gd` `_retarget`; the same rule for your beasts, your slingshot and items, and the foe's AI): when an action's turn comes and its target is down or has left the side facing the attacker, it goes to another beast standing on that side instead, the nearest slot first (a tie goes to the one facing the attacker's own row). With nobody standing there, an attack or the slingshot is turned on their trainer, who is open because that side's middle is down or empty; anything else, and any attack on a wild pack, is dropped without a message. A move that hits everyone just leaves the fallen out. A heal, boost or care item meant for an ally that has fallen goes to the standing ally with the least of its HP left; a revive is never passed on. MP is spent (and an item used up) only when the action has someone to land on. Lessons never turn a blow on a trainer by themselves.
   - Your actions: a **weapon** (the slingshot, later the boomerang and the bat: see **Weapons and the beat attack** below), **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
   - A plain attack lunges at its target. Any other move is cast: the camera cuts to the caster as its element's glow (white for a plain move) gathers and it lets go, then cuts to where it lands as the glow streaks in, a burst there (rising motes for a heal or a boost) with the target's hit pose and number on the same frame. A beast that Defends holds a braced stance until its side's next turn; a defended or resisted hit is blocked, and other hits knock a beast back as hard as they were (`battle_camera.gd` "cast" / "impact", `battle.gd` `_cast`).
-  - Winning plays *Android Sock Hop*. A beaten wild foe vanishes in a puff of smoke; fainted beasts on either trainer's ring lie on their pads, slumped with their eyes shut. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use League Spartan.
+  - Winning plays *Android Sock Hop*. A beaten wild foe vanishes in a puff of smoke; fainted beasts on either trainer's ring lie on their pads, slumped with their eyes shut. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use Quattrocento Sans Bold.
 
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars."><br><sub>A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars.</sub>
 
@@ -599,8 +599,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   and every end that meets nothing, including where a run reaches a cliff's edge, is closed with its own face, so no
   fence shows its inside. A run carries on only between tiles whose ground meets level. Fences keep their painted shading and normal lighting but
   neither cast nor receive shadow maps, avoiding dark patches on the thin rails and pickets.
-  Wood shares the Kelpwick huts' painted timber texture, with varied crops on each picket and rail and
-  grain following the length of each board.
+  The picket fence wears the game's one shared wood (`voxel_textures.gd` `WOOD` on the kit's plank grain,
+  `wood_material()`, applied in `voxel_assets.gd` `WOODEN`), the same timber as the stairs, decks, stalls, signs and
+  benches; the street pack's crates, barrels and kegs are tinted to it (`match_wood`).
   Outdoor map letters `z` and `q` explicitly select wood and
   stone; `F` selects the biome's usual wood or iron fence. Saved building order is retained when houses are set
   back inside their gardens. Riverbend's stone fence stops a tile short of the waterfall, leaving its left bank clear.
@@ -738,8 +739,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
 - **Grass** is a pillow laid on the ground (`terrain_mesh.gd` `LIFT`, `TURF`): it stands a little above paths, sand
   and paving, and rolls over its own edge in a soft, slightly wavy muffin top with the soil tucked in under it and a
-  faint shadow at its foot, so paths and dirt read as lower. Where a path bends, the grass's corner is chamfered
-  (and a path's inside corner filled), so stairs of path tiles run as straight diagonals. At a cliff only grass rolls
+  faint shadow at its foot, so paths and dirt read as lower. Where a path bends, the grass's corner is rounded off in a quarter circle
+  (and a path's inside corner filled the same way: `CORNER_ARC`), so the grass's outline has no points. Bare grounds
+  (path, plaza, sand, paving) run into each other over a ragged, soft band rather than along the tiles' square edges
+  (`terrain.gdshader` `_soil_mix`): a stone road crumbles into the dirt, the dirt into the beach. At a cliff only grass rolls
   over the top; a path or sand meets the rock in a sharp edge. The lawn has sunnier and deeper stretches
   (`terrain.gdshader` `_mottle`) and a darker grass (`grass_dark`) that melts into it over half a tile: under and
   round the trees and hedges nobody can pass, under the tall grass, and in lush patches a few tiles across
@@ -858,7 +861,7 @@ Press **Start** (Space) to open the travel book. Its bookmark tabs:
 | Trainer | Your portrait, gold, shield and shards, arena crests and trainer gear. |
 | Beasts | Your battle ring and storage (choose its starting side with the arrows beside the two-line heading above the ring; Left/Right on its row also turns it, skipping fully empty sides; tap the row or press A to arrange beasts), your party and eggs. Each beast's page shows its element(s), its slot, stats, skills, traits and its family tree: the parents and grandparents that were merged into it. |
 | Flute | Every song with its effect and mastery; press A to practise one. Unknown songs show where to learn them. |
-| Bag | Items grouped as care, battle items, weapons, beast gear, trainer gear, sheet music, fishing, key items and tomes. Each stack has its own bordered item slot; the heading shows stacks used, such as **18/24**. |
+| Bag | A grid of item slots on the left page, one per stack (its count at the corner when there's more than one), in the order care, battle items, weapons, beast gear, trainer gear, sheet music, fishing, key items and tomes; the heading shows stacks used, such as **18/24**. The right page names the focused item and describes it. Choose an item for its actions: **Use**, **Equip** (gear only), **Drop** and **Back**; one that can't be chosen now is dimmed with the reason beside it (battle items: **In battle**). Using an item on a beast, or Equip, turns the left page into your battle ring with you in the middle: each cell is named, and only the beasts (or, for trainer gear, you) it would affect can be chosen: the rest are disabled. A fainted beast's cell is tagged **KO** and an ailing one its status (**PSN**, **SLP**, ...). The right page shows the chosen one's HP and MP bars, its condition explained beside them, and its stats before and after, with **Confirm** and **Cancel** under them. Drop asks first and throws one away. Key items and weapons can't be dropped. B steps back a page at a time (`scripts/ui/bag_page.gd`, rules in `scripts/core/item_use.gd`). |
 | Bestiary | All 39 forms with live portraits and where to find them. |
 | Map | An aged-paper map of **Rubisa** across the left page: jagged coastlines, mountains and woodland, the twelve towns and their roads, question-mark pins for towns you haven't reached, and a flag where you are (on a road, halfway along it). The map has no town-name labels; the facing page names the selected town. Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
 | Settings | 3D resolution, graphics quality, music and sound volume, text speed, interface color, touch pad, key guide, fullscreen, credits and quit to title. |
@@ -952,7 +955,7 @@ mounted owl and its rider.
     entering a town, road or building, pickups, gold and battle messages. It is the same dark blurred box, a little
     darker (78%), outlined in white with its sides leaning in towards the bottom: [left icon] divider, text, divider
     [right icon]. It stays inside the safe area and grows with its text up to 860 UI units, then wraps. All of its
-    text is League Spartan; place names use Semibold and the gem heading colour.
+    text is Quattrocento Sans; place names use Bold and the gem heading colour.
     - Outside battle it is hidden until there is something to say, then slides in, holds about 2.5 seconds and slides
       out. Messages queue; the same pickup or gold arriving while one shows or waits merges into it ("Potion x3",
       "+120 gold"). These always have a left icon (the item's illustration, a coin, town houses, a location pin or crest, a note for songs)
@@ -983,7 +986,7 @@ mounted owl and its rider.
 
   <img src="docs/screenshots/gems.jpg" width="640" alt="Settings with the Sapphire gem."><br><sub>Settings with the Sapphire gem.</sub>
 
-- **Fonts** (user direction, 12 November 2026): League Spartan Semibold (600) for headings/names; PT Sans for body text, actions, values and damage numbers; Short Stack for spoken dialogue at 29 UI units, about 10% smaller than the previous 32. Lettering on 3D world objects uses Noto Sans Old North Arabian through a shared English-to-glyph substitution map; retain readable English for interactions and accessibility. UI/dialogue stay English. The intro/title logo retains Lunchtime Doubly So. Preserve `UIKit` sizing, touch targets and readable wrapping; do not shrink text to fit. See `docs/visual_overhaul/standards.md` for the authoritative typography direction.
+- **Fonts** (user direction, 12 November 2026): Quattrocento Sans: Bold for headings/names, Bold upper case for small text (captions, tags, values, hints and damage numbers), Regular for body text, actions and descriptions; Fuzzy Bubbles for spoken dialogue at 29 UI units, about 10% smaller than the previous 32. Lettering on 3D world objects uses Noto Sans Old North Arabian through a shared English-to-glyph substitution map; retain readable English for interactions and accessibility. UI/dialogue stay English. The intro/title logo retains Lunchtime Doubly So. Preserve `UIKit` sizing, touch targets and readable wrapping; do not shrink text to fit. See `docs/visual_overhaul/standards.md` for the authoritative typography direction.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
   tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
   direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
@@ -1123,7 +1126,7 @@ mounted owl and its rider.
 - On touch devices the d-pad, A/B and Start/Pause buttons appear automatically. Connecting a controller hides them unless Screen was explicitly selected in Settings. The controller guide appears on the book's Settings right page. Touch targets retain phone sizing while the pad is hidden. All connected inputs use the same actions, so every screen and the flute minigame work with them.
 - HUD windows and menus, including the arena ladder's trainer list, must never overlap A/B or their enlarged hit areas. Only the Start menu may use that space while those buttons are hidden. Ordinary lists keep full-sized rows and paginate above the controls.
 - Each button answers taps a little outside its drawn edge. The arrows are silent; A and B click softly at a low pitch, with B two notes below A.
-- Tap the world to walk, double-tap to run, and tap things to use them (see Controls). Taps on or near the on-screen buttons never count as world taps: each cluster (the whole d-pad including its middle, A and B, Start and Pause) has a no-tap zone around it.
+- Tap the world to walk, double-tap to run, and tap things to use them (see Controls). Taps on or near the on-screen buttons never count as world taps or reach menu rows behind them: each cluster (the whole d-pad including its middle, A and B, Start and Pause) has a no-tap zone around it.
 - To try the touch layout on desktop:
 
   ```
@@ -1293,8 +1296,9 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   upper face). A biome's `"woods"` is the share of its wood tiles that grow a tree (the volcano's thin dead wood).
 - **A town's own look**: `"style"` builds a town's buildings in a style of its own, whatever its biome's (Dustwell's
   `"frontier"`, `frontier_builder.gd`; Sunwall's `"adobe"`, `adobe_town.gd`). Its `building_looks` can set a building's `"paint"` (red, orange, yellow, pink,
-  coral, gold, rose) and `"frontier"` (`"saloon"`, `"jail"`). Authored `street_props` may be the two-tile `wagon` or
-  `water_trough`, or Sunwall's `adobe_stall`, `adobe_jars` and `adobe_well`. `"town_wall": {"low_from": row}` builds
+  coral, gold, rose) and `"frontier"` (`"saloon"`, `"jail"`). Authored `street_props` may be the two-tile `wagon`,
+  `water_trough` or `bench` (a two-seat bench in the shared wood, `voxel_props.gd` `bench()`; procedural benches
+  also take the next front tile east, or become a planter where it isn't free), or Sunwall's `adobe_stall`, `adobe_jars` and `adobe_well`. `"town_wall": {"low_from": row}` builds
   a town wall on the map's `W` tiles (adobe_town.gd; low from that row south), and `"palm_groves": [[x, y, w, d]]`
   grows palms on a desert town's tree tiles and low shrubs on its bush tiles there instead of boulders. `prop_clearance: [[x, y, width, depth], ...]` reserves walking lanes and door approaches from
   both authored and procedural street furniture; authored cargo is also checked for route connectivity.
@@ -1376,6 +1380,9 @@ Repeat at `2400x1080` with `--touch` and separate output/settings/save directori
 `--controller="Nintendo Switch Pro Controller"` previews Nintendo, and an unknown name previews Xbox fallback.
 
 Bag capacity regression and previews: `bash tools/run_tests.sh bag-limit bag-limit-touch`.
+The Bag page's actions (use on the one beast it helps, blocked battle items, beast and trainer gear, drop with No then
+Yes, key items): `bash tools/run_tests.sh bag-actions bag-actions-touch`; add `--shots=res://build/shots/bag/x` to
+`--scene=bag-actions` in a window for each state.
 Use `--scene=bag-limit --shots=res://build/shots/bag --shot_w=0
 --save_dir=res://build/bag_preview/` at 1920x1080, or 2400x1080 with `--touch`.
 The scenario checks stack boundaries, exemptions, lossless migration, refused purchases,
@@ -1437,6 +1444,11 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `ring-start` / `ring-start-touch`: starting-side arrows and the two-line heading, empty-side skipping in both directions, occupied corners and fainted beasts, focus/gamepad/tap input, empty/full parties, scrolling, isolated save compatibility and persistence across battle completion. `--battle=1` also opens a real battle on the chosen side. `--scene=ring-start --matrix=1 --shots=res://build/shots/ring_start --save_dir=res://build/ring_start_preview/` checks runtime changes through all four gems and captures each combination; add `--touch` for the phone layout.
 - `check_nature.gd` (`bash tools/run_tests.sh nature`): single-tile hedge borders on every outdoor map, unchanged
   planted-ground collision, and the solid-blade grass meshes' triangle budgets.
+- `scenery-lods`: recentering scenery preserves existing distance-detail thresholds/indices, base geometry,
+  UVs, normals and materials, including both renderer index widths. `vo-scenery` checks the isolated
+  three-map LOD-comparison route; windowed measurements use `python tools/vo_scenery.py desktop --part=lod
+  --renderer=mobile --attempt=<new-name>`. `--part=chunks4` and `chunks16` compare against the existing 8x8
+  chunks without changing gameplay defaults. Headless runs cannot verify renderer culling bounds.
 - `check_terrain.gd` (`bash tools/run_tests.sh terrain`): raised grass on both halves of all four diagonal cliff
   directions, lawn joins beside paths and other diagonals, and surface-appropriate lips for grass, sand, path and beds.
 - `check_data.gd`: everything the data names exists: the beasts (race ids) on routes, maps, trainers, leaders,

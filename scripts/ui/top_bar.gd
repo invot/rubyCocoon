@@ -18,7 +18,7 @@ const HOLD := 2.5
 const SLIDE := 0.25
 ## the icon slots (UI units): a 12-pixel glyph at 3 units a pixel
 const ICON := 36.0
-## the text, all in League Spartan: the main line (notices, battle messages and place names) and the dim second line
+## the text, all in Quattrocento Sans: the main line (notices, battle messages and place names) and the dim second line
 const TEXT_SIZE := 24
 const SUB_SIZE := 18
 ## gap under the safe area's top edge: none, the bar hangs from the top of the screen (its box reaches up past any
@@ -268,12 +268,12 @@ func bottom() -> float:
 
 # ---------------------------------------------------------------- layout
 func _set_text(main: String, sub: String, heading: bool) -> void:
-	# Place names use the same semibold heading weight as the rest of the interface.
+	# Place names use the same bold heading face as the rest of the interface.
 	label.add_theme_font_override("font", UIKit.font_head() if heading else UIKit.font_body())
 	label.add_theme_font_size_override("font_size", UIKit.body_px(TEXT_SIZE))
 	label.add_theme_color_override("font_color", UIKit.HEAD if heading else UIKit.INK)
 	label.text = main
-	sub_label.add_theme_font_override("font", UIKit.font_body())
+	sub_label.add_theme_font_override("font", UIKit.font_bold())
 	sub_label.add_theme_font_size_override("font_size", UIKit.body_px(SUB_SIZE))
 	sub_label.add_theme_color_override("font_color", UIKit.DIM)
 	sub_label.text = sub

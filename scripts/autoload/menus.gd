@@ -8,6 +8,7 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+const ItemUse = preload("res://scripts/core/item_use.gd")
 ## The travel book (the world map is its Map tab) isn't preloaded (it'd slow the start): main.gd loads it in the
 ## background once the title is up, and it's fetched when first opened.
 const BOOK_PATH := "res://scripts/ui/book_menu.gd"
@@ -189,13 +190,7 @@ func equip_beast(b) -> void:
 	if c < 0:
 		return
 	var id2: String = ids[c]
-	if id2 != "":
-		GameState.remove_item(id2)
-	if b.equip != "":
-		GameState.receive_item(b.equip)
-	var old_max: int = b.max_hp()
-	b.equip = id2
-	b.hp = clampi(b.hp + (b.max_hp() - old_max), 0 if b.hp <= 0 else 1, b.max_hp())
+	ItemUse.put_gear_on(id2, b)
 	Sfx.play("select")
 	UI.toast("%s equipped %s." % [b.nickname, ItemDB.item_name(id2)] if id2 != "" else "Unequipped.", "item:" + id2 if id2 != "" else b)
 
@@ -219,44 +214,40 @@ func use_item_on(b) -> void:
 
 func apply_field_item(id: String, b) -> void:
 	var it := ItemDB.get_item(id)
+	var why := ItemUse.beast_block(id, b)
+	if why != "":
+		await UI.say([why if not it.has("revive_pct") else "It won't have any effect."])
+		return
 	if it.has("revive_pct"):
-		if b.hp > 0:
-			await UI.say(["It won't have any effect."])
-			return
 		GameState.remove_item(id)
 		b.hp = maxi(1, int(b.max_hp() * float(it["revive_pct"])))
 		Sfx.play("heal")
 		await UI.say(["%s was revived!" % b.nickname])
 		return
 	if it.get("xp_level", false):
-		if b.at_cap():
-			await UI.say(["%s is at its level limit. Merge it to grow further!" % b.nickname])
-			return
 		GameState.remove_item(id)
 		var events: Array = b.gain_xp(b.xp_for_level(b.level + 1) - b.xp)
 		await report_events(b, events)
 		return
-	if b.hp <= 0:
-		await UI.say(["%s has fainted. It needs reviving first." % b.nickname])
-		return
-	if (it.has("mp") or it.has("mp_pct")) and not it.has("heal") and not it.has("heal_pct"):
-		if b.mp >= b.max_mp():
-			await UI.say(["%s's MP is already full." % b.nickname])
-			return
-		GameState.remove_item(id)
-		var before_mp: int = b.mp
-		b.mp = mini(b.max_mp(), b.mp + int(it.get("mp", 0)) + int(ceil(b.max_mp() * float(it.get("mp_pct", 0.0)))))
-		Sfx.play("heal")
-		await UI.say(["%s recovered %d MP." % [b.nickname, b.mp - before_mp]])
-		return
-	if b.hp >= b.max_hp():
-		await UI.say(["%s is already at full health." % b.nickname])
-		return
 	GameState.remove_item(id)
 	var before: int = b.hp
+	var before_mp: int = b.mp
 	b.hp = mini(b.max_hp(), b.hp + int(it.get("heal", 0)) + int(b.max_hp() * float(it.get("heal_pct", 0.0))))
+	b.mp = mini(b.max_mp(), b.mp + int(it.get("mp", 0)) + int(ceil(b.max_mp() * float(it.get("mp_pct", 0.0)))))
+	var cured: bool = it.get("cure", false) and b.status != ""
+	if it.get("cure", false):
+		b.status = ""
+		b.status_turns = 0
 	Sfx.play("heal")
-	await UI.say(["%s recovered %d HP." % [b.nickname, b.hp - before]])
+	var said := []
+	if b.hp > before:
+		said.append("%d HP" % (b.hp - before))
+	if b.mp > before_mp:
+		said.append("%d MP" % (b.mp - before_mp))
+	if not said.is_empty():
+		await UI.say(["%s recovered %s." % [b.nickname, " and ".join(said)]])
+	elif cured:
+		await UI.say(["%s feels better!" % b.nickname])
 
 
 # ---------------------------------------------------------------- bag
@@ -284,11 +275,7 @@ func use_bag_item(id2: String) -> void:
 		"gear":
 			var b2 = await pick_beast("Equip %s on..." % it2["name"], GameState.party)
 			if b2 != null:
-				GameState.remove_item(id2)
-				if b2.equip != "":
-					GameState.receive_item(b2.equip)
-				b2.equip = id2
-				b2.hp = mini(b2.hp, b2.max_hp())
+				ItemUse.put_gear_on(id2, b2)
 				UI.toast("%s equipped %s." % [b2.nickname, it2["name"]], "item:" + id2)
 		"sheet":
 			await Places.play_sheet(id2)
@@ -303,11 +290,7 @@ func use_bag_item(id2: String) -> void:
 				Sfx.play("pickup")
 				UI.toast("%s on your hook! It stays on until something bites." % it2["name"], "item:" + id2)
 		"tgear":
-			var slot: String = it2["slot"]
-			GameState.remove_item(id2)
-			if GameState.gear[slot] != "" and GameState.gear[slot] != "reed_flute":
-				GameState.receive_item(GameState.gear[slot])
-			GameState.gear[slot] = id2
+			ItemUse.put_trainer_gear_on(id2)
 			Sfx.play("confirm")
 			UI.toast("Equipped %s." % it2["name"], "item:" + id2)
 		"tome":

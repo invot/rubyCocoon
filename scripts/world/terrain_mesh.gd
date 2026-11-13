@@ -10,9 +10,9 @@ extends RefCounted
 ## with the ground (and water) of the tiles along its sides.
 ## The grass is a pillow laid on the ground: its tiles stand LIFT above their level, and where they meet a path, sand or
 ## paving on the same level the turf rolls over the edge in a muffin top (TURF) with the soil tucked in under it, in a
-## crisp line round the tile (the shader's wandering borders stop there). A convex corner of the grass is chamfered
-## off to the middles of its sides, and a path's corner inside the grass filled the same way, so paths bend round the
-## grass instead of stepping (_prepare_corners): a path laid as a stair of tiles runs as a straight diagonal.
+## crisp line round the tile (the shader's wandering borders stop there). A convex corner of the grass is rounded
+## off in a quarter circle to the middles of its sides (CORNER_ARC), and a path's corner inside the grass filled the same
+## way, so paths bend round the grass instead of stepping and the grass has no points (_prepare_corners).
 ## Where neighbouring tiles' edges don't meet (a cliff between two levels, the side of a ramp, a diagonal), a cliff face
 ## fills the gap, after the cosy island cliffs of life-sim games: the ground above rolls over its top in a rounded lip,
 ## and below it the rock stands in upright, rounded flutes, coloured and textured by the biome's look
@@ -66,6 +66,9 @@ const NE := 2
 const SE := 4
 const SW := 8
 const CORNER_DIRS := {NW: Vector2i(-1, -1), NE: Vector2i(1, -1), SE: Vector2i(1, 1), SW: Vector2i(-1, 1)}
+## A cut or filled corner follows a quarter circle round the tile's middle, half a tile across, from the middle of one
+## side to the other's (so the grass's outline is rounded, never pointed): drawn in this many straight pieces (even).
+const CORNER_ARC := 6
 const SIDES := [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
 ## the sides a diagonal tile's halves run along: [its high half's, its low half's]
 const HALF_SIDES := {
@@ -96,6 +99,9 @@ var firm := PackedByteArray()
 ## per tile: its cut (grass) or filled (path) corners, NW | NE | SE | SW, and the layer those corners show
 var corners := PackedByteArray()
 var corner_layer := PackedByteArray()
+## per tile: which of its cut or filled corners run on in a straight line into a neighbour's (a diagonal edge of grass:
+## those stay straight; a corner on its own is rounded)
+var straight := PackedByteArray()
 ## Visual bed depth only. Collision and elevation continue to use the authored tiles.
 var water_bed := PackedFloat32Array()
 var seed := 0
@@ -149,6 +155,7 @@ func setup(width: int, depth: int, map_seed: int, m: Dictionary = {}) -> void:
 	firm.resize(w * h)
 	corners.resize(w * h)
 	corner_layer.resize(w * h)
+	straight.resize(w * h)
 
 
 ## Tile (x, y)'s ground: its layer (VT.GROUND_LAYERS), its own height above its level, whether it's craggy rock and
@@ -342,9 +349,9 @@ func _flat_level(q: Vector2i, i: int) -> bool:
 
 
 ## The tiles' cut and filled corners. A grass tile's corner between two lower tiles (a path bending round it) is
-## chamfered off to the middles of its two sides, at the lower ground's level; a path's corner between three grass
-## tiles (bending inside them) is filled with grass the same way. Paths then bend in gentle octagons rather than
-## steps, and a diagonal stair of path tiles runs as one straight diagonal. (The halves of a diagonal cliff's tile
+## rounded off to the middles of its two sides (a quarter circle, CORNER_ARC), at the lower ground's level; a path's
+## corner between three grass tiles (bending inside them) is filled with grass the same way. Paths then bend in curves rather than
+## steps, and a diagonal stair of path tiles runs as a gently waving diagonal. (The halves of a diagonal cliff's tile
 ## aren't touched, nor laid surfaces: a plaza's corners stay square.)
 func _prepare_corners() -> void:
 	corners.fill(0)
@@ -375,6 +382,48 @@ func _prepare_corners() -> void:
 						mask |= bit
 						corner_layer[i] = layer[ia]
 			corners[i] = mask
+	# a corner's line runs on into the opposite corner of the tile beside it on either of its sides: a diagonal
+	straight.fill(0)
+	for z in h:
+		for x in w:
+			var i := x + z * w
+			for bit: int in CORNER_DIRS:
+				if corners[i] & bit == 0:
+					continue
+				var d: Vector2i = CORNER_DIRS[bit]
+				var opposite := _bit_of(-d)
+				for q in [Vector2i(x + d.x, z), Vector2i(x, z + d.y)]:
+					if q.x >= 0 and q.y >= 0 and q.x < w and q.y < h and corners[q.x + q.y * w] & opposite != 0:
+						straight[i] |= bit
+
+
+func _bit_of(d: Vector2i) -> int:
+	for bit: int in CORNER_DIRS:
+		if CORNER_DIRS[bit] == d:
+			return bit
+	return 0
+
+
+## The points of a cut or filled corner's arc, from `ma` (the middle of one side) to `mb` (the other's), round `ctr`
+## (the tile's middle), at height y: CORNER_ARC + 1 of them, bulging out toward the corner.
+static func _corner_arc(ctr: Vector3, ma: Vector3, mb: Vector3, y: float) -> Array:
+	var a := Vector2(ma.x - ctr.x, ma.z - ctr.z)
+	var b := Vector2(mb.x - ctr.x, mb.z - ctr.z)
+	var pts := []
+	for k in CORNER_ARC + 1:
+		var t := float(k) / CORNER_ARC
+		# a quarter turn from a to b, slerped (both are half a tile from the middle, at right angles)
+		var v := a * cos(t * PI / 2.0) + b * sin(t * PI / 2.0)
+		pts.append(Vector3(ctr.x + v.x, y, ctr.z + v.y))
+	return pts
+
+
+## A diagonal edge's corner: straight from m1 to m2, as CORNER_ARC + 1 points.
+static func _corner_line(m1: Vector3, m2: Vector3) -> Array:
+	var pts := []
+	for k in CORNER_ARC + 1:
+		pts.append(m1.lerp(m2, float(k) / CORNER_ARC))
+	return pts
 
 
 ## The height of tile i's corner triangle where it's cut or filled: the lower ground's level, or the grass's lift.
@@ -424,7 +473,8 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 	mat.shader = TerrainShader
 	mat.set_shader_parameter("layers", VT.ground_layers())
 	# per tile: its ground layer, and for a diagonal its low half's layer and which half is high (terrain.gdshader)
-	var kinds := Image.create(w + MARGIN * 2, h + MARGIN * 2, false, Image.FORMAT_RGB8)
+	# (A: the corners that run straight, on a tile with cut or filled ones)
+	var kinds := Image.create(w + MARGIN * 2, h + MARGIN * 2, false, Image.FORMAT_RGBA8)
 	for y in kinds.get_height():
 		for x in kinds.get_width():
 			var i := _i(x - MARGIN, y - MARGIN)
@@ -432,7 +482,7 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 			if code != 0:
 				kinds.set_pixel(x, y, Color(halves[i][0]["layer"] / 255.0, halves[i][1]["layer"] / 255.0, code / 255.0))
 			elif corners[i] != 0 and x >= MARGIN and y >= MARGIN and x < w + MARGIN and y < h + MARGIN:
-				kinds.set_pixel(x, y, Color(layer[i] / 255.0, corner_layer[i] / 255.0, (16 + corners[i]) / 255.0))
+				kinds.set_pixel(x, y, Color(layer[i] / 255.0, corner_layer[i] / 255.0, (16 + corners[i]) / 255.0, straight[i] / 255.0))
 			else:
 				kinds.set_pixel(x, y, Color(layer[i] / 255.0, layer[i] / 255.0, 0))
 	mat.set_shader_parameter("kind_map", ImageTexture.create_from_image(kinds))
@@ -672,7 +722,7 @@ func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 				_side_faces(found, [g2[6], g2[7], g2[8]], [s[0], s[1], s[2]], Vector3(0, 0, 1), flat2,
 					_side_info(tx, tz, Vector2i.DOWN, [SW, SE]), _side_info(tx, tz + 1, Vector2i.UP, [NW, NE]),
 					code == 0 and _diag(tx, tz + 1) == 0 and liquid[_i(tx, tz)] == 1 and liquid[_i(tx, tz + 1)] == 1)
-			# the chamfers of cut and filled corners: the turf's edge runs from the middle of one side to the other's
+			# the arcs of cut and filled corners: the turf's edge curves from the middle of one side to the other's
 			if code == 0 and tx >= 0 and tz >= 0 and tx < w and tz < h and corners[tx + tz * w] != 0:
 				var i := tx + tz * w
 				var hi_y := base_lo[i] + LIFT
@@ -680,12 +730,21 @@ func _faces(parent: Node3D, slice_us: int, slice: Array) -> Dictionary:
 					if corners[i] & bit == 0:
 						continue
 					var d: Vector2i = CORNER_DIRS[bit]
+					var ctr := Vector3(tx + 0.5, hi_y, tz + 0.5)
 					var m1 := Vector3(tx + 0.5 + 0.5 * d.x, hi_y, tz + 0.5)
 					var m2 := Vector3(tx + 0.5, hi_y, tz + 0.5 + 0.5 * d.y)
-					var mid := (m1 + m2) * 0.5
-					var face_out := Vector3(d.x, 0, d.y).normalized() * (1.0 if lifted[i] == 1 else -1.0)
-					found.append(_segment([m1, mid, m2], [Vector3(m1.x, base_lo[i], m1.z), Vector3(mid.x, base_lo[i], mid.z),
-						Vector3(m2.x, base_lo[i], m2.z)], face_out, false, true, true))
+					# round the quarter circle in pieces of three points each, each looking out from (or in toward) the middle
+					# (or straight across, along a diagonal edge)
+					var arc := _corner_arc(ctr, m1, m2, hi_y) if straight[i] & bit == 0 else _corner_line(m1, m2)
+					for k in range(0, CORNER_ARC, 2):
+						var top := [arc[k], arc[k + 1], arc[k + 2]]
+						var foot := []
+						for p: Vector3 in top:
+							foot.append(Vector3(p.x, base_lo[i], p.z))
+						var away: Vector3 = arc[k + 1] - ctr
+						away.y = 0.0
+						var face_out := away.normalized() * (1.0 if lifted[i] == 1 else -1.0)
+						found.append(_segment(top, foot, face_out, false, true, true))
 			if found.is_empty():
 				continue
 			var ck := Vector2i(-MARGIN + floori(float(tx + MARGIN) / CHUNK) * CHUNK, -MARGIN + floori(float(tz + MARGIN) / CHUNK) * CHUNK)
@@ -835,8 +894,15 @@ static func _segment(a: Array, b: Array, toward_b: Vector3, flat: bool, turf_a :
 func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, faces: Array) -> Array:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
-	# (each tile is eight triangles)
-	verts.resize((tx1 - tx0) * (tz1 - tz0) * 24)
+	# (each tile is eight triangles; a rounded corner's quarter 2 * CORNER_ARC instead of two)
+	var cut_quarters := 0
+	for tz in range(maxi(tz0, 0), mini(tz1, h)):
+		for tx in range(maxi(tx0, 0), mini(tx1, w)):
+			var m := int(corners[tx + tz * w]) & ~int(straight[tx + tz * w])
+			while m != 0:
+				cut_quarters += m & 1
+				m >>= 1
+	verts.resize(((tx1 - tx0) * (tz1 - tz0) * 8 + cut_quarters * (2 * CORNER_ARC - 2)) * 3)
 	normals.resize(verts.size())
 	var at := 0
 	var shore_normals := {}
@@ -859,10 +925,22 @@ func _chunk(tx0: int, tz0: int, tx1: int, tz1: int, faces: Array) -> Array:
 						var ma: Vector3 = g[[o + 1, o, o, o + 1][q]]
 						var mb: Vector3 = g[[o + 3, o + 4, o + 4, o + 3][q]]
 						var ctr: Vector3 = g[[o + 4, o + 3, o + 1, o][q]]
-						_tri(verts, normals, at, Vector3(c0.x, cy, c0.z), Vector3(ma.x, cy, ma.z), Vector3(mb.x, cy, mb.z))
-						at += 3
-						_tri(verts, normals, at, ma, ctr, mb)
-						at += 3
+						# (the arc from ma round to mb: a fan from the corner below it, and one from the middle above)
+						var corner := Vector3(c0.x, cy, c0.z)
+						if straight[own] & [NW, NE, SW, SE][q] != 0:
+							# along a diagonal edge: straight across
+							_tri(verts, normals, at, corner, Vector3(ma.x, cy, ma.z), Vector3(mb.x, cy, mb.z))
+							at += 3
+							_tri(verts, normals, at, ma, ctr, mb)
+							at += 3
+							continue
+						var low_arc := _corner_arc(ctr, ma, mb, cy)
+						var top_arc := _corner_arc(ctr, ma, mb, ctr.y)
+						for k in CORNER_ARC:
+							_tri(verts, normals, at, corner, low_arc[k], low_arc[k + 1])
+							at += 3
+							_tri(verts, normals, at, top_arc[k], ctr, top_arc[k + 1])
+							at += 3
 						continue
 					# alternate the diagonal so slopes don't all crease the same way (and a diagonal cliff's line is
 					# always a crease: it runs through the corners and the middle)

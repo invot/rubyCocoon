@@ -163,6 +163,8 @@ func _route() -> void:
 func _write_report() -> void:
 	var report := {
 		"schema": 1, "route_version": 1, "seed": ROUTE_SEED,
+		"benchmark": String(_opts.get("benchmark_kind", "vo-perf")),
+		"position_sampling": String(_opts.get("position_sampling", "14 frames per tile on the standard route")),
 		"loading_only": _opts.get("load_only", "0") == "1",
 		"warmup_shared": _opts.get("warmup_shared", "0") == "1",
 		"shader_cache_enabled": ProjectSettings.get_setting_with_override("rendering/shader_compiler/shader_cache/enabled"),
@@ -176,7 +178,7 @@ func _write_report() -> void:
 		"input_mode": Prefs.effective_input(), "touch_controls_visible": UI.controls.touch_visible(),
 		"quality": Prefs.graphics_quality, "render_height": Prefs.render_height,
 		"vsync": DisplayServer.window_get_vsync_mode(), "max_fps": Engine.max_fps,
-		"simulation_dt": DT, "frames_per_tile": TILE_FRAMES,
+		"simulation_dt": DT, "frames_per_tile": TILE_FRAMES if not _opts.has("benchmark_kind") else 0,
 		"notes": ["Desktop results do not establish phone performance.",
 			"Field camera, animation, water, fading and visibility use the shared world tick at fixed dt; input, encounters and NPC wandering are frozen.",
 			"Frame intervals include presentation pacing. CPU process and render CPU are separate, overlapping measurements, not summed.",
@@ -420,6 +422,10 @@ func _capture(label: String) -> void:
 		DirAccess.make_dir_recursive_absolute(shots)
 		await RenderingServer.frame_post_draw
 		_main._save_shot(shots + "/" + label + ".png")
+		if OS.has_feature("web") and _opts.get("web_images", "0") == "1" and ("riverbend" in label or "caccoon_occlusion" in label or label.begins_with("merger")):
+			# Optional diagnostic bridge. Encoding/upload happens outside measured intervals.
+			var bytes := FileAccess.get_file_as_bytes(shots + "/" + label + ".png")
+			JavaScriptBridge.eval("window.voPerfImage(" + JSON.stringify("%02d_%s" % [_passes.size() + 1, label]) + "," + JSON.stringify(Marshalls.raw_to_base64(bytes)) + ");", true)
 
 
 func _inventory(root: Node3D, camera: Camera3D, frame: int) -> Dictionary:

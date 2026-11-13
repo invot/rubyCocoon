@@ -2,14 +2,15 @@
 
 ## Typography direction — user decision, 12 November 2026
 
-This decision supersedes earlier instructions to use League Spartan for all text.
-- Headings and names: League Spartan Semibold (600).
-- Body text, menu actions, values and damage numbers: PT Sans Regular.
-- Spoken dialogue: Short Stack at 29 UI units, about 10% smaller than the previous 32; headers retain their sizes.
+This decision supersedes earlier instructions to use League Spartan and PT Sans (the user's 2026-11-12 direction: Quattrocento Sans).
+- Headings and names: Quattrocento Sans Bold.
+- Small text (captions, tags, short values, hints, damage numbers): Quattrocento Sans Bold, upper case.
+- Body text, menu actions and descriptions: Quattrocento Sans Regular.
+- Spoken dialogue: Fuzzy Bubbles at 29 UI units, about 10% smaller than the previous 32; headers retain their sizes.
 - Lettering physically painted, engraved or displayed on objects in the 3D world: Noto Sans Old North Arabian, using a deterministic mapping from English letters (and explicitly defined ligatures where needed) to its glyphs. Do not render English lettering on world objects. This is a fictional substitution alphabet, not an Arabic translation. Preserve the underlying readable English for dialogue, interaction descriptions and accessibility.
 - UI and spoken dialogue remain readable English; they are not world-object lettering. Preserve the established intro/title logo exception unless the user changes it.
-- Sources: [PT Sans](https://fonts.google.com/specimen/PT+Sans), [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
-- Implementation checkpoint: PT Sans body text, Short Stack dialogue and the shared world-lettering font/map are wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
+- Sources: [Quattrocento Sans](https://fonts.google.com/specimen/Quattrocento+Sans), [Fuzzy Bubbles](https://fonts.google.com/specimen/Fuzzy+Bubbles), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
+- Implementation checkpoint: PT Sans body text, Fuzzy Bubbles dialogue and the shared world-lettering font/map are wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
 
 Codex continues code, tests and nonvisual work. Stop at the next task requiring Claude's visual authorship and prepare its concrete handoff; do not silently perform that artwork.
 
@@ -379,7 +380,15 @@ Keep the compact stage-room arrangement and existing interior staging rules. Imp
 - Tables, shelving, drawers, and counters need designed edge thickness and construction. They must not read as untextured boxes wearing a front photograph.
 - Keep wood scale consistent between furniture and floors; use different patterns deliberately, not accidentally.
 - Put small props on real surfaces. Avoid floating books, lamps, bottles, and display objects.
-- Add lived-in detail through a few purposeful groups, not scattered clutter on every surface.
+- Add lived-in detail through purposeful groups, not scattered clutter on every surface.
+- **Homes look lived in** (the user's direction, 2026-11-12; runbook Phase H, 037a–037c): plenty of decor and
+  art on the walls, a dressed focus group (cushions, throws, quilts), a lamp beside each seating group and bed,
+  plants in corners, and complementary colour schemes for paint, lower walls, trim and floors. Rooms may be
+  smaller or have notches and alcoves for character, always with clear passages to every door and stair.
+  The kit, tint masks and schemes are in [art_candidates/home_decor.md](art_candidates/home_decor.md).
+- **Framed artwork** anywhere in the game comes only from the user's supplied SVG prints, recoloured through
+  their slot masks (the room's scheme, or the bold `jewel_pop` colourway). No painted or other artwork.
+- Lamps and plants follow the outdoor foliage language: pillowy painted domes, turned wood, soft fabric shades.
 - Keep tall furniture at the rear or sides, side-wall seating facing inward, and ordinary lounge seating facing the camera. Preserve motivated performance/altar seating exceptions.
 - Keep omitted-fourth-wall television staging and existing clear entrances, counters, stair approaches, and service access.
 - Preserve permitted rug footprints: 2×3, 3×4, 4×5, and 6×5 tiles, including rotation. Prefer 3×4 or larger; no square rugs or narrow runners.
@@ -514,7 +523,7 @@ Keep the existing layout structure, information hierarchy, input model, and acce
 - Retain the shared dark translucent window family and bright spoken-bubble distinction. Use subtler material variation and calmer ornament within that structure.
 - Keep white borders and body text. Preserve the faint gem tint and all four palettes.
 - Simplify or soften excessive ornament and frame weight consistently. Do not soften by blurring text, reducing contrast, or making focus ambiguous.
-- Use PT Sans for body text, Short Stack for spoken dialogue (29 UI units) and League Spartan 600 for headings and the intro/title logo's established font unless separately approved.
+- Use Quattrocento Sans (Regular body, Bold headings, Bold upper-case small text), Fuzzy Bubbles for spoken dialogue (29 UI units) and the intro/title logo's established font unless separately approved.
 - Keep the existing battle bar structure and white shape/dark text presentation; harmonize its finish and framing with the revised shared UI.
 - Review every icon family together: items, beasts, actions, map markers, prompts, rings, shop signs, and status graphics. Any retained crisp icon must have coherent line weight, palette, silhouette, and padding.
 - Re-render beast portraits, menu icons, save placeholders, title scenes, and applicable key art after their source assets change.

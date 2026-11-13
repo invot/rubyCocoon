@@ -47,8 +47,13 @@ The rules below translate those principles into cardinal tile movement, small ro
    silhouettes leave the room visible. Arenas retain their ring and spectators around it. Dungeon columns, mist,
    obstacles and stairs retain their authored navigation and encounters; inspect their whole layout and retain
    existing occluder fading. These exceptions do not justify obstructing ordinary houses or shops.
-9. **Dress sparingly.** Small books, cups and lamps belong on existing surfaces. Preserve the established seeded prop
-   dressing and reused assets. Do not add tall clutter near service staff's faces or essential controls.
+9. **Dress homes generously, service rooms with restraint.** Small books, cups and lamps belong on existing surfaces.
+   Homes look lived in (the user's direction, 2026-11-12): art and decor on the walls, cushions and throws on the
+   seating and beds, a lamp beside each seating group and bed, plants in corners. The tile in front of every door
+   and both stair ends stays empty, and a one-tile route still links every entrance and interaction. Shops and
+   service rooms keep their seeded dressing; do not add tall clutter near service staff's faces or essential
+   controls. Rooms may have notches and alcoves for character (runbook 037c); see
+   `docs/visual_overhaul/runbook.md` Phase H.
 
 Walls use smooth solid finishes or subtle, filtered striped wallpaper instead of the pack's coarse wall textures.
 The wood, stone and grand-room finishes retain their familiar warm or cool colour families as solid surfaces.

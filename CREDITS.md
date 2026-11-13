@@ -276,14 +276,17 @@ The voxel models were all replaced by the PSX ones above and removed. They came 
   every window's, row's and item slot's border and the section divider (`assets/ui/kenney/`: panel-border-010, -008,
   -001 and divider-003, the pack's white line art). *Changes made:* none to the files; `scripts/ui/frame_box.gd` draws
   them as nine-patches over the blurred box.
-- Fonts: **League Spartan** by The League Spartan Project Authors (interface text and painted signs), from Google
+- Fonts: **Quattrocento Sans** (Regular and Bold) by Pablo Impallari, Igino Marini and Brenda Gallo (all interface text
+  but spoken dialogue), from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/quattrocentosans), unchanged
+  under the SIL Open Font License 1.1 (`licenses/QuattrocentoSans-OFL.txt`, `ui/QuattrocentoSans-*.ttf`);
+  **League Spartan** by The League Spartan Project Authors (the web loading page and trailer cards), from Google
   Fonts under the SIL Open Font License (`licenses/League Spartan - OFL.txt`), unchanged;
   **Noto Sans Symbols** by The Noto Project Authors, from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/notosanssymbols),
   unchanged under the SIL Open Font License 1.1 (`licenses/Noto Sans Symbols - OFL.txt`), supplies missing UI symbols
   such as the four arrow keys (`ui/NotoSansSymbols.ttf`);
   **Noto Sans Symbols 2** by The Noto Project Authors, from [Noto Fonts](https://github.com/notofonts/noto-fonts/tree/main/hinted/ttf/NotoSansSymbols2),
   unchanged under the SIL Open Font License 1.1 (`licenses/NotoSansSymbols2-OFL.txt`), supplies directional triangles.
-  Symbol fallback layout metrics are matched to League Spartan at runtime; the font files are unchanged.
+  Symbol fallback layout metrics are matched to each interface face at runtime; the font files are unchanged.
   **Lunchtime Doubly So** (the original 3D intro/title logo); licence file not included, check the author's terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)
@@ -374,4 +377,4 @@ in warm ink and composited with custom geography by `tools/prepare_world_map.py`
 Original downloaded archives are unchanged. The map has crisp irregular coastlines
 without an ink outline; water and artwork are masked to the paper's silhouette at runtime.
 
-Typography: Short Stack and Noto Sans Old North Arabian from Google Fonts, licensed under SIL OFL 1.1; see `licenses/shortstack-OFL.txt` and `licenses/notosansoldnortharabian-OFL.txt`.
+Typography: Fuzzy Bubbles and Noto Sans Old North Arabian from Google Fonts, licensed under SIL OFL 1.1; see `licenses/fuzzybubbles-OFL.txt` and `licenses/notosansoldnortharabian-OFL.txt`.

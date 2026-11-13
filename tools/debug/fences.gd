@@ -56,7 +56,7 @@ func run(main, opts: Dictionary) -> void:
 		var scenes := {"wood": ["kelpwick", Vector2i(5, 7)], "stone": ["kelpwick", Vector2i(32, 7)],
 			"iron": ["tidewater", Vector2i(45, 20)], "graveyard": ["gravenmoor", Vector2i(31, 13)],
 			"nature": ["route1", Vector2i(42, 7)], "cove": ["caccoon", Vector2i(9, 10)],
-			"garden-stairs": ["caccoon", Vector2i(27, 15)]}
+			"garden-stairs": ["caccoon", Vector2i(27, 15)], "bench": ["caccoon", Vector2i(32, 27)], "dock": ["caccoon", Vector2i(31, 40)], "shack": ["caccoon", Vector2i(27, 39)], "tide-dock": ["tidewater", Vector2i(8, 27)], "houses": ["riverbend", Vector2i(20, 20)]}
 		var view: Array = scenes.get(preview, scenes["wood"])
 		await main._go(view[0], view[1])
 		await main._wait(1.0)

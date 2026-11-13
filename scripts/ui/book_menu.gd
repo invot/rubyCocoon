@@ -16,11 +16,11 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const Ring = preload("res://scripts/core/ring.gd")
-const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 const WorldMap = preload("res://scripts/ui/world_map.gd")
 const RingEditor = preload("res://scripts/ui/ring_editor.gd")
 const RingStartPicker = preload("res://scripts/ui/ring_start_picker.gd")
+const BagPage = preload("res://scripts/ui/bag_page.gd")
 
 const TABS := [
 	{"id": "trainer", "name": "Trainer", "icon": "tab_trainer"},
@@ -72,6 +72,8 @@ var _shown_inputs: Array[String] = []
 ## the gem the open page was built in (a page is rebuilt when it changes)
 var _built_gem := ""
 var ring_start_picker: Control
+## the Bag tab's grid, actions and target ring while it's open (bag_page.gd)
+var bag: Node
 
 
 func setup(_world, start_tab := "") -> Control:
@@ -268,6 +270,9 @@ func _open_tab(i: int) -> void:
 	list_box = null
 	detail_box = null
 	map_view = null
+	if is_instance_valid(bag):
+		bag.queue_free()
+	bag = null
 	right_scroll.scroll_vertical = 0
 	_layout()
 	match TABS[tab]["id"]:
@@ -405,6 +410,9 @@ func _add_row(row: Dictionary) -> void:
 
 
 func _focus_first() -> void:
+	if is_instance_valid(bag):
+		bag.focus()
+		return
 	if is_instance_valid(map_view):
 		map_view.grab_focus()
 		mode = "list"
@@ -476,6 +484,8 @@ func on_input(ev: InputEvent) -> void:
 	if ev.is_action_pressed("menu"):
 		_close_book()
 		return
+	if is_instance_valid(bag) and bag.on_input(ev):
+		return
 	if ev.is_action_pressed("ui_cancel"):
 		if mode == "list":
 			Sfx.play("back")
@@ -531,7 +541,8 @@ func _h(text: String, color := UIKit.INK, size := UIKit.HEAD_SIZE) -> Label:
 
 
 func _t_label(text: String, color := UIKit.INK, big := false, wrap := true) -> Label:
-	var l := UIKit.label(text, 24 if big else 20, color)
+	# (wrapping text is prose: Regular; a short unwrapped caption is small text, bold upper case)
+	var l := UIKit.label(text, 24 if big or wrap else 20, color)
 	if wrap:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 120
@@ -868,66 +879,12 @@ func _song_detail(c: VBoxContainer, sid: String) -> void:
 	c.add_child(_t_label("%s to practise it." % _press(), UIKit.ACCENT))
 
 
+## The Bag: a grid of item slots and the chosen item's details, actions and targets (bag_page.gd).
 func _tab_bag() -> void:
-	_make_list(left_box, "Bag  %d/24  ·  %d gold" % [GameState.stacks_used(GameState.inventory), GameState.gold], right_box)
-	var groups := [["CARE", func(it): return it["kind"] == "use" and not it.get("battle_only", false)],
-		["BATTLE ITEMS", func(it): return it["kind"] == "use" and it.get("battle_only", false)],
-		["WEAPONS", func(it): return it.has("weapon")],
-		["BEAST GEAR", func(it): return it["kind"] == "gear"],
-		["TRAINER GEAR", func(it): return it["kind"] == "tgear"],
-		["SHEET MUSIC", func(it): return it["kind"] == "sheet"],
-		["FISHING", func(it): return it["kind"] == "bait"],
-		["KEY ITEMS", func(it): return it["kind"] == "key" and not it.has("weapon")],
-		["TOMES", func(it): return it["kind"] == "tome"]]
-	var ids := GameState.inventory.keys()
-	ids.sort_custom(func(a, b): return ItemDB.item_name(a) < ItemDB.item_name(b))
-	var any := false
-	for g in groups:
-		var first := true
-		for id in ids:
-			var it := ItemDB.get_item(id)
-			if not (g[1] as Callable).call(it):
-				continue
-			if first:
-				_add_row({"header": true, "text": g[0]})
-				first = false
-			any = true
-			var remaining: int = GameState.item_count(id)
-			while remaining > 0:
-				var amount := remaining if GameState.bag_exempt(id) else mini(remaining, GameState.ITEM_STACK_SIZE)
-				_add_row({"text": it["name"] + ("  (on your hook)" if GameState.bait == id else ""), "stack_count": amount, "item_slot": id,
-					"act": func(): await Menus.use_bag_item(id), "detail": _item_detail.bind(id)})
-				remaining -= amount
-	if not any:
-		right_box.add_child(_t_label("Your bag is empty. Shops and hidden sacks will fill it up!", UIKit.DIM))
-
-
-func _item_detail(c: VBoxContainer, id: String) -> void:
-	var it := ItemDB.get_item(id)
-	c.add_child(_h(it["name"]))
-	c.add_child(_t_label("You have %d." % GameState.item_count(id), UIKit.DIM))
-	c.add_child(_spacer())
-	c.add_child(_t_label(it.get("desc", "")))
-	c.add_child(_spacer())
-	var how := "%s to use it on a beast." % _press()
-	match it["kind"]:
-		"gear":
-			how = "%s to give it to a beast." % _press()
-		"tgear":
-			how = "%s to equip it." % _press()
-		"sheet":
-			how = "%s to play from the sheet and learn the song." % _press()
-		"bait":
-			how = ("%s to take it off your hook." if GameState.bait == id else "%s to put it on your hook.") % _press()
-		"key":
-			how = "Bait on your hook: %s." % (ItemDB.item_name(GameState.bait) if GameState.bait != "" else "none")
-	if it.has("weapon"):
-		var most := BeatChain.max_hits(GameState.trainer_level)
-		how = "Pick it on your own turn in battle. " + ("Press A on the beat: up to %d hits." % most if most > 0 and GameState.flag("dance_lesson_done")
-			else "Learn rhythm attacks at Dustwell Oasis's dance studio from trainer Lv %d." % BeatChain.UNLOCK_LEVEL)
-	if it.get("battle_only", false):
-		how = "Use it on your own turn in battle."
-	c.add_child(_t_label(how, UIKit.ACCENT))
+	bag = BagPage.new().setup(self)
+	add_child(bag)
+	bag.build(_keep_row if _keep_row >= 0 else focus_row)
+	_keep_row = -1
 
 
 # ================================================================ Bestiary
@@ -1145,7 +1102,7 @@ func _credits() -> void:
 		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; furniture by Anker's Assets (CC0); the red telephones: Antique 1930s Rotary Telephones by Mad_Lobster_Workshop; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant; the healing chamber: Stasis Chamber by KieranEdwards (CC BY 4.0).",
 		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
 		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
-		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); UI borders by Kenney (kenney.nl); font League Spartan.",
+		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); UI borders by Kenney (kenney.nl); font Quattrocento Sans.",
 		"Music: Kevin MacLeod (incompetech.com), CC BY 4.0; plus DJARTMUSIC, Howling Hound Music and Monume (Pixabay).",
 		"Sound effects: the packs in the sfx folder. Full list in CREDITS.md.",
 	], "Credits")

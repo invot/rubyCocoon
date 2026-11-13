@@ -38,7 +38,7 @@ Production lighting unchanged; no new art candidate/approval, no Codex commits/b
 006 remains gated by parent 008. Preserve concurrent typography/UI/documentation changes;
 the historical font paragraphs below may be superseded by those ongoing edits.
 
-Font task: Short Stack body/dialogue is implemented; Spartan headings retained. See font-update.md for captures/checks and pending world-artwork review. All checks including 26 glyph coverage passed; no active jobs. Waiting for visual approval. Preserve existing Claude work.
+Font task: Fuzzy Bubbles body/dialogue is implemented; Spartan headings retained. See font-update.md for captures/checks and pending world-artwork review. All checks including 26 glyph coverage passed; no active jobs. Waiting for visual approval. Preserve existing Claude work.
 
 Latest user steering: resume Codex code/testing/nonvisual work, stop for Claude visual authorship. Typography direction recorded in AGENTS, README and overhaul README/runbook/standards/steps; font and shared world-glyph mapping implementation pending. Read Claude’s latest state below: 009b user-closed, 010b visually approved but phone evidence missing; 008 shadow measurement tooling awaits run. Preserve Claude changes. No jobs remain from Codex’s earlier session.
 

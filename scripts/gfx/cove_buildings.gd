@@ -2,6 +2,7 @@ extends RefCounted
 ## The supplied, repaired Towns kit, fitted to existing tile plots and door anchors.
 ## Both interactive and scenery buildings use the streamed world building path.
 
+const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const DIR := "res://assets/exteriors/cove_"
 const Houses = preload("res://scripts/gfx/house_models.gd")
 const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
@@ -22,7 +23,7 @@ const RoofShader = preload("res://scripts/gfx/cove_roof.gdshader")
 const ROOF_CLAY := Color("#bb704d")
 static var _roof_materials := {}
 ## The kit's own painted timber, which the windows' frames and sills match (the kit's "Cove painted wood").
-const TIMBER := Color("#89684b")
+const TIMBER := VT.WOOD
 ## The panes: sea glass, softer than the other towns' bright blue, so they sit quietly in the plaster.
 const GLASS := Color("#7fa9ad")
 ## The shops' awnings: clay canvas and cream, the colours of the roofs and plaster, rather than each shop's brand.
@@ -138,7 +139,7 @@ static func warped(key: String, scale: float) -> Mesh:
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arr)
 		out.surface_set_name(out.get_surface_count()-1,m.surface_get_name(si))
 		out.surface_set_material(out.get_surface_count()-1,m.surface_get_material(si))
-	var dressed := Windows.dress(out, [], true, Color("#c49a64") if key.begins_with("hut") else TIMBER, false, GLASS)
+	var dressed := Windows.dress(out, [], true, VT.WOOD.lightened(0.14) if key.begins_with("hut") else TIMBER, false, GLASS)
 	_meshes[ck] = dressed
 	return dressed
 
@@ -185,6 +186,11 @@ static func build(b: Dictionary) -> Node3D:
 		var material: Material = inst.mesh.surface_get_material(surface)
 		if material != null and material.resource_name == "cove_stucco":
 			inst.set_surface_override_material(surface, _stucco_materials[paint])
+		elif material != null and material.resource_name == "Cove painted wood":
+			# the kit's timber (frames, trim, hut walls and plank roofs) in the game's shared wood, its lighter boards a
+			# shade lighter (voxel_textures.gd WOOD)
+			var light := (material as StandardMaterial3D).albedo_color.get_luminance() > Color("#89684b").get_luminance() + 0.02
+			inst.set_surface_override_material(surface, VT.wood_material("planks", 0.14 if light else 0.0))
 		elif _roof(material):
 			inst.set_surface_override_material(surface, _roof_material(material))
 	inst.scale = Vector3.ONE*float(p["scale"])
@@ -266,7 +272,7 @@ static func _porch(node: Node3D, p: Dictionary) -> void:
 	var rect: Rect2 = pc["rect"]
 	var center := rect.get_center()
 	var height := float(pc["top"])
-	var wood := Color("#89684b")
+	var wood: Color = VT.WOOD
 	kit.box("planks",Vector3(center.x,0.01,center.y),Vector3(rect.size.x,0.02,rect.size.y),wood)
 	for x in [rect.position.x+0.06,rect.end.x-0.06]:
 		kit.box("planks",Vector3(x,height/2.0,rect.end.y-0.06),Vector3(0.12,height,0.12),wood)
@@ -286,15 +292,15 @@ static func docks(map: Dictionary) -> Node3D:
 		for x in int(map["w"]):
 			if gen.get_t(map,x,y) != gen.BRIDGE:
 				continue
-			# Painted boards with quiet seams, instead of magnified dark wood grain.
+			# quiet seams between the deck's boards (the deck itself is the shared wood: world.gd)
 			for seam in [0.0,0.33,0.66]:
-				kit.box("color",Vector3(x+0.5,0.084,y+seam),Vector3(1.0,0.006,0.013),Color("#96734f"))
+				kit.box("color",Vector3(x+0.5,0.084,y+seam),Vector3(1.0,0.006,0.013),VT.WOOD.darkened(0.1))
 			for delta in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
 				if gen.get_t(map,x+delta.x,y+delta.y) != gen.WATER:
 					continue
 				var edge := Vector3(x+0.5+delta.x*0.48,0.52,y+0.5+delta.y*0.48)
 				var size := Vector3(0.07,0.07,1.02) if delta.x != 0 else Vector3(1.02,0.07,0.07)
-				kit.box("planks",edge,size,Color("#b18b5e"))
+				kit.box("planks",edge,size,VT.WOOD.lightened(0.14))
 				if delta.x != 0:
 					var px := x+(1 if delta.x>0 else 0)
 					posts[Vector2i(px,y)] = true
@@ -304,7 +310,7 @@ static func docks(map: Dictionary) -> Node3D:
 					posts[Vector2i(x,pz)] = true
 					posts[Vector2i(x+1,pz)] = true
 	for p in posts:
-		kit.box("planks",Vector3(p.x,-0.10,p.y),Vector3(0.13,1.42,0.13),Color("#886746"))
+		kit.box("planks",Vector3(p.x,-0.10,p.y),Vector3(0.13,1.42,0.13),VT.WOOD)
 	var root := Node3D.new()
 	var inst := MeshInstance3D.new()
 	inst.mesh = kit.mesh()

@@ -20,8 +20,11 @@ func run(main, opts: Dictionary) -> void:
 	_check(town["buildings"][0]["shop"] == "center" and town["buildings"][1]["shop"] == "home"
 		and town["buildings"][2]["shop"] == "apothecary", "Beast Center, home and apothecary keep their saved interior ids")
 	var open_town := MapLoader.load_map("caccoon", {})
-	_check(town["exits"].is_empty() and open_town["exits"].size() == 2
-		and open_town["exits"].values().all(func(e): return e["to"] == "route1"), "Bram closes the only exit until the first beast, with no shore route")
+	var lanes: Array = town["exits"].keys().map(func(t): return t + Vector2i(-1, 0))
+	_check(town["exits"].size() == 2 and open_town["exits"].size() == 2
+		and open_town["exits"].values().all(func(e): return e["to"] == "route1")
+		and lanes.all(func(t): return not main.world._walkable(t) and MapGen.get_t(town, t.x, t.y) == MapGen.PATH),
+		"Bram himself (no fence) stands across the only exit until the first beast, with no shore route")
 	_check(town.get("style", "") == "pirate_cove" and town["w"]*town["h"] < 66*49, "the supplied-kit cove is smaller than the former map")
 	_check(town.get("boats",[]).is_empty(), "the cove has docks without ships or boats")
 	var apothecary: Dictionary = town["buildings"][2]
@@ -112,6 +115,8 @@ func run(main, opts: Dictionary) -> void:
 			"%s's path runs right up to its door" % entry["name"])
 		_check(Elev.surface(town, position) > Elev.surface(town, town["buildings"][0]["door"]), "the scenery homes occupy the rear cliff shelf")
 	main.world._place_camera(true)
+	if await _bram(main, opts):
+		return
 	if await _preview(main,opts):
 		return
 	main.world.spawn_at(apothecary["door"]+Vector2i.DOWN)
@@ -236,6 +241,49 @@ func _shack(main, opts: Dictionary) -> bool:
 	await main._settle(shack["interior"])
 	_check(main.world.items.is_empty(), "the gear stays picked up after leaving and coming back")
 	return false
+
+
+## Scout Bram in the road out: across both lanes with no fence before the first beast, then, talked to once it has
+## hatched, walking off onto the verge so the road to the map's edge is clear. --preview=bram_before|bram_after
+## (with --shot) ends there with a capture; --preview=bram checks it all.
+func _bram(main, opts: Dictionary) -> bool:
+	var name: String = opts.get("preview", "")
+	if not name.begins_with("bram"):
+		return false
+	var Beasts = load("res://scripts/core/beasts.gd")
+	var town: Dictionary = main.world.map
+	var lanes: Array = town["exits"].keys().map(func(t): return t + Vector2i(-1, 0))
+	lanes.sort_custom(func(a: Vector2i, b: Vector2i): return a.y < b.y)
+	var bram: Dictionary = main._npc("guard")
+	_check(not lanes.is_empty() and bram.get("pos") == lanes[0] and bram.get("blocks", []) == lanes, "Bram stands across both lanes of the road out")
+	_check(lanes.all(func(t): return MapGen.get_t(town, t.x + 1, t.y) == MapGen.PATH), "the road runs on to the map's edge (no fence)")
+	main.world.spawn_at(lanes[0] + Vector2i(-2, 0), Vector2i.RIGHT)
+	if name == "bram_before":
+		await _shot(main, opts)
+		return true
+	# hatch a first beast and come back
+	GameState.add_beast(Beasts.create(0, 5))
+	GameState.set_flag("got_egg")
+	GameState.set_flag("has_starter")
+	await main._go("caccoon", lanes[0] + Vector2i(-1, 0))
+	main.world.spawn_at(lanes[0] + Vector2i(-1, 0), Vector2i.RIGHT)
+	bram = main._npc("guard")
+	_check(Story.npc_has_news(bram) and bram.get("blocks", []) == lanes, "after the hatch Bram has news and still stands in the road")
+	UI.auto = true
+	await Story.talk(main.world, bram)
+	_check(GameState.flag("bram_sendoff"), "talking to him sees you off")
+	_check(lanes.all(func(t): return main.world._walkable(t)), "he has stepped out of both lanes")
+	_check(main.world.npcs.has(lanes[1] + Vector2i(0, 1)) and main.world.npcs[lanes[1] + Vector2i(0, 1)]["id"] == "guard", "he stands on the verge south of the road")
+	await main._walk_test([lanes[0] + Vector2i(1, 0)])
+	_check(main.world.map_id == "route1" or main.world.player_pos == lanes[0] + Vector2i(1, 0), "the way east is open")
+	if name == "bram_after":
+		await main._go("caccoon", lanes[0] + Vector2i(-2, 0))
+		main.world.spawn_at(lanes[0] + Vector2i(-2, 0), Vector2i.RIGHT)
+		_check(main._npc("guard").get("pos") == lanes[1] + Vector2i(0, 1), "he's still on the verge when you come back")
+		await _shot(main, opts)
+		return true
+	print("COCOON DONE: %d problem(s)" % bad)
+	return true
 
 
 func _enter(main, building: Dictionary) -> void:

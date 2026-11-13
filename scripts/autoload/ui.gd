@@ -114,6 +114,11 @@ func touch_blocks(p: Vector2) -> bool:
 
 
 func _input(ev: InputEvent) -> void:
+	# A press on or around the touch pad belongs to the pad alone: stop the mouse click Godot emulates from that touch
+	# before it reaches menu rows behind the controls. The pad itself reads InputEventScreenTouch, so it still works.
+	if ev is InputEventMouseButton and ev.pressed and touch_blocks(ev.position):
+		get_viewport().set_input_as_handled()
+		return
 	if ev.is_action_pressed("pause") and not ev.is_echo() and allow_pause and not auto:
 		if stack.is_empty() or not (stack.back() is PauseOverlay or stack.back() is FluteGame):
 			push(PauseOverlay.new())
@@ -322,7 +327,7 @@ func gold(amount: int) -> void:
 	top_bar.post("", Glyphs.tex("coin"), {"key": "gold", "count": amount, "fmt": "+%d gold"})
 
 
-## A place's name on entering it, in League Spartan Semibold and the gem heading colour: `icon` is
+## A place's name on entering it, in Quattrocento Sans Bold and the gem heading colour: `icon` is
 ## its crest, a cluster of town houses, or a map pin for other locations.
 func place_name(title: String, sub := "", icon: Texture2D = null) -> void:
 	var place_icon := Glyphs.tex("town" if WorldDB.is_town(GameState.map_id) else "pin") if icon == null else icon

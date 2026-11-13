@@ -72,11 +72,15 @@ int _layer_at(vec2 p) {
 	vec4 k = texelFetch(kind_map, t, 0);
 	int code = int(k.b * 255.0 + 0.5);
 	if (code >= 16) {
-		// corners cut or filled: the corner triangles out to the middles of the tile's sides take the other layer
+		// corners cut or filled: the corner out to the middles of the tile's sides, beyond a quarter circle round the
+		// tile's middle (terrain_mesh.gd CORNER_ARC), takes the other layer
 		int mask = code - 16;
 		vec2 f = p - floor(p);
-		bool corner = ((mask & 1) != 0 && f.x + f.y < 0.5) || ((mask & 2) != 0 && 1.0 - f.x + f.y < 0.5)
-			|| ((mask & 4) != 0 && 2.0 - f.x - f.y < 0.5) || ((mask & 8) != 0 && f.x + 1.0 - f.y < 0.5);
+		// (A: the corners along a diagonal edge, which cut straight across instead)
+		int along = int(k.a * 255.0 + 0.5);
+		int bit = f.x < 0.5 ? (f.y < 0.5 ? 1 : 8) : (f.y < 0.5 ? 2 : 4);
+		vec2 g = abs(f - 0.5);
+		bool corner = (mask & bit) != 0 && ((along & bit) != 0 ? g.x + g.y > 0.5 : length(g) > 0.5);
 		return int((corner ? k.g : k.r) * 255.0 + 0.5);
 	}
 	if (code >= 5) {
@@ -98,6 +102,67 @@ bool _grassy(int l) {
 	return l == 0 || l == 9;
 }
 
+// path, plaza, sand, paving: the bare grounds that run into each other (stone road to dirt, dirt to beach) over a
+// ragged, soft band instead of along the tiles' square edges
+bool _soil(int l) {
+	return l == 1 || l == 2 || l == 3 || l == 7;
+}
+
+// How far round a point the bare grounds are looked for (tiles): the band they fade over is about twice this wide.
+const float SOIL_REACH = 0.5;
+
+// The bare ground at q, blended with its neighbours': each layer found round q (a jittered ring of eight looks and
+// q itself) stands as high as its share of the looks, its texture's own light and dark (stones stand proud of
+// their mortar, the dirt fills in round them) and a patchy noise; the highest show, softly.
+vec3 _soil_mix(vec2 q, vec2 uv, int own) {
+	vec2 jq = vec2(vnoise(q * 2.3 + vec2(3.1, 7.7)), vnoise(q * 2.3 + vec2(19.4, 1.3))) - 0.5;
+	vec2 c = q + jq * 0.8;
+	int found[3] = int[](own, -1, -1);
+	float share[3] = float[](0.0, 0.0, 0.0);
+	for (int k = 0; k < 9; k++) {
+		vec2 o = k == 8 ? vec2(0.0) : vec2(cos(float(k) * 0.785398), sin(float(k) * 0.785398)) * SOIL_REACH;
+		int l = _layer_at(c + o);
+		// (grass, water and the rest stand apart: their own edges are drawn elsewhere)
+		if (!_soil(l)) {
+			l = own;
+		}
+		for (int s = 0; s < 3; s++) {
+			if (found[s] == l || found[s] == -1) {
+				found[s] = l;
+				share[s] += 1.0 / 9.0;
+				break;
+			}
+		}
+	}
+	if (found[1] == -1) {
+		return texture(layers, vec3(uv * tex_scale, float(own))).rgb * tints[own];
+	}
+	vec3 cols[3];
+	float hts[3];
+	float top = -10.0;
+	for (int s = 0; s < 3; s++) {
+		if (found[s] == -1) {
+			hts[s] = -10.0;
+			cols[s] = vec3(0.0);
+			continue;
+		}
+		vec3 t = texture(layers, vec3(uv * tex_scale, float(found[s]))).rgb;
+		float lum = dot(t, vec3(0.3, 0.55, 0.15));
+		cols[s] = t * tints[found[s]];
+		hts[s] = share[s] + (lum - 0.5) * 0.3 + (vnoise(q * 1.7 + vec2(float(found[s]) * 7.1, 2.0)) - 0.5) * 0.45
+			+ (vnoise(q * 5.3 + vec2(2.0, float(found[s]) * 3.7)) - 0.5) * 0.2;
+		top = max(top, hts[s]);
+	}
+	vec3 col = vec3(0.0);
+	float sum = 0.0;
+	for (int s = 0; s < 3; s++) {
+		float wgt = max(hts[s] - (top - 0.16), 0.0);
+		col += cols[s] * wgt;
+		sum += wgt;
+	}
+	return col / max(sum, 0.0001);
+}
+
 // lighter and darker patches across the grass: sunny, slightly yellower stretches and deeper, cooler ones
 vec3 _mottle(vec2 q) {
 	float m = vnoise(q * 0.21 + vec2(7.0, 3.0)) * 0.65 + vnoise(q * 0.8 + vec2(2.0, 11.0)) * 0.35;
@@ -115,7 +180,9 @@ void fragment() {
 	// (the camera's view only: the sun's shadow pass looks straight down its own orthographic view)
 	if (hole.w > 0.5 && wpos.y > hole.y + 0.3 && PROJECTION_MATRIX[3][3] < 0.5) {
 		vec3 feet = (VIEW_MATRIX * vec4(hole.xyz, 1.0)).xyz;
-		if (-VERTEX.z < -feet.z - 0.4) {
+		// only ground truly in front of them, nearer the camera across the map (a cliff rising just behind them leans
+		// toward the tilted camera, but must stay whole, or what's inside it shows through)
+		if (length(wpos.xz - CAMERA_POSITION_WORLD.xz) < length(hole.xz - CAMERA_POSITION_WORLD.xz) - 0.4) {
 			vec4 f = PROJECTION_MATRIX * vec4(feet, 1.0);
 			vec4 hd = PROJECTION_MATRIX * (VIEW_MATRIX * vec4(hole.xyz + vec3(0.0, 1.9, 0.0), 1.0));
 			vec4 g = PROJECTION_MATRIX * vec4(VERTEX, 1.0);
@@ -138,6 +205,18 @@ void fragment() {
 	vec2 j = vec2(vnoise(q * 1.6), vnoise(q * 1.6 + vec2(17.3, 41.9))) - 0.5;
 	j += 0.5 * (vec2(vnoise(q * 4.1 + vec2(5.1, 2.7)), vnoise(q * 4.1 + vec2(29.0, 13.0))) - 0.5);
 	int own = _layer_at(q);
+	// The grass top's outermost pixels can look a hair over its edge into the path's tile and come out as dirt, a thin
+	// light line round the turf. Bare ground this close to grass is under the turf's overhang anyway, so it's grass.
+	if (!cliff && !_grassy(own)) {
+		for (int k = 0; k < 4; k++) {
+			vec2 o = vec2(k == 0 ? 0.03 : (k == 1 ? -0.03 : 0.0), k == 2 ? 0.03 : (k == 3 ? -0.03 : 0.0));
+			int l = _layer_at(q + o);
+			if (_grassy(l)) {
+				own = l;
+				break;
+			}
+		}
+	}
 	// laid surfaces (plaza, paving, ice) keep neat edges: they barely wander, and nothing wanders onto them
 	float amp = _laid(own) ? 0.12 : 1.0;
 	vec2 at = q + j * edge_noise * 2.0 * amp;
@@ -196,7 +275,9 @@ void fragment() {
 		}
 	} else {
 		vec3 col;
-		if (border) {
+		if (_soil(own) && n.y > 0.6) {
+			col = _soil_mix(q, uv, own);
+		} else if (border) {
 			col = vec3(0.0);
 			for (int k = 0; k < 4; k++) {
 				col += texture(layers, vec3(uv * tex_scale, float(ls[k]))).rgb * tints[ls[k]];

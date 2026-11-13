@@ -808,8 +808,8 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
-	if scene == "bag-limit":
-		await load("res://tools/debug/bag_limit.gd").new().run(self, _test)
+	if scene == "bag-limit" or scene == "bag-actions":
+		await load("res://tools/debug/%s.gd" % scene.replace("-", "_")).new().run(self, _test)
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
@@ -844,8 +844,9 @@ func _run_test() -> void:
 		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
 		get_tree().quit()
 		return
-	if scene in ["vo-perf", "vo-lighting"]:
-		var audit = load("res://tools/debug/vo_lighting.gd" if scene == "vo-lighting" else "res://tools/debug/vo_perf.gd").new()
+	if scene in ["vo-perf", "vo-lighting", "vo-scenery", "vo-mesh-merger"]:
+		var audit_path: String = {"vo-perf": "vo_perf", "vo-lighting": "vo_lighting", "vo-scenery": "vo_scenery", "vo-mesh-merger": "vo_mesh_merger"}[scene]
+		var audit = load("res://tools/debug/" + audit_path + ".gd").new()
 		await audit.run(self, _test)
 		get_tree().quit(0 if audit.bad == 0 else 1)
 		return

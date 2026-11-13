@@ -4,6 +4,7 @@ Statuses: `todo`, `in progress`, `waiting for approval`, `approved` (visual step
 
 | Step | Status | Date | Evidence | Notes |
 |---|---|---|---|---|
+| 006 (P6), checkpoints 006a–006d | in progress | 2026-11-12 | `build/perf/vo/006/`, `build/shots/vo/006/`, `build/perf/vo/006a/phone/` | Existing 8x8 batches retained during isolated experiments. LOD copying was missing in the recenter branch, but sampled shipped assets do not enter it; no speedup claimed. Pad batches now cover shader swell with a 0.07-unit margin. Early quick + six focused checks and experiment smoke checks pass; final verification pending. Focus-interrupted desktop attempts are invalid, not accepted timing evidence. Separate phone LOD control run complete; temporary package removed. Occlusion, ranges and pinned merger remain experiments, not gameplay settings. |
 | Setup: audit, decisions, rules updated | done | 2026-11-12 | audit.md | AGENTS.md, README Art and memory now point to the Animal Crossing-inspired direction |
 | 001 (P1) | done | 2026-11-12 | [Report](001-performance.md), `build/perf/vo/baseline-desktop/`, `build/shots/vo/001/` | Eight accepted runs; largest median difference 0.123% (limit 5%); 16 command checks, final quick and performance passed. Forced screen input for the touch fixture; fixed freed deferred-node callbacks. Existing shutdown warnings remain; game visuals unchanged. |
 | 002 (P2) | done | 2026-11-12 | [Report](002-phone.md), `ledger/perf.md`, `build/perf/vo/baseline-phone/` | Real razr 2024, 720p/Mid: seven loops / 993.36 s; medians ~29–30 fps; battery 30.7–31.9°C. No focus losses or benchmark errors. 339.37 s temperature gap documented. Thread-safe pad delivery; 14 cached images unchanged. |
@@ -35,3 +36,9 @@ The proposed odd/even split is cancelled. Step 004 is complete; follow its revis
 Follow [parallel-handoff.md](parallel-handoff.md) for file ownership and shared local-model/hardware locks.
 
 Font update: waiting for visual review; see [font-update.md](font-update.md). Does not close 010b phone evidence.
+
+Home decor candidate (user, 2026-11-12): homes should look lived in. New runbook **Phase H** (037a–037c, between
+037 and 038; nothing completed was changed). Claude's [candidate](art_candidates/home_decor.md) rev_001
+(`build/art_candidates/home_decor/rev_001/`): 44 lamps, plants, wall art, trim, soft furnishings and tabletop
+pieces with tint masks, 12 colour schemes, and the user's 20 SVG prints (only framed art) with per-scheme and
+`jewel_pop` colourways; the rocket print goes in the player's bedroom. **Approved by the user as the candidate on 2026-11-12.** Not integrated: 037a still needs 022, 023 and 037.

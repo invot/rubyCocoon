@@ -51,6 +51,33 @@ func run(main) -> void:
 		_check(menu._focus == before, "keyboard returns to the previous choice")
 	if main._test.has("shot"):
 		main._save_shot(String(main._test["shot"]))
+	if UI.is_touch():
+		# A tap on or just beside the d-pad belongs to the pad: it must not pick a menu row behind it.
+		var pad_zone: Rect2 = UI.controls.cluster_zone(UI.controls.CLUSTERS[0], UI.controls.TOUCH_SLOP + UI.controls.NO_TAP_MARGIN)
+		var spots: Array = [pad_zone.get_center(), Vector2(pad_zone.end.x - 6.0, pad_zone.get_center().y)]
+		for button in menu.buttons:
+			var overlap: Rect2 = button.get_global_rect().intersection(pad_zone)
+			if overlap.has_area():
+				spots.append(overlap.get_center())
+		for spot in spots:
+			await main._tap_at(spot)
+			await main._wait(0.2)
+			_check(UI.stack.size() == 1 and UI.stack.back() == menu, "a tap at %s near the d-pad picks no title choice" % spot)
+		# A probe button lying under the d-pad and reaching past its zone: taps in the zone miss it, taps outside hit it.
+		var probe := Button.new()
+		var hits := [0]
+		probe.pressed.connect(func(): hits[0] += 1)
+		probe.position = pad_zone.position
+		probe.size = Vector2(pad_zone.size.x + 160.0, pad_zone.size.y)
+		UI.modal_layer.add_child(probe)
+		await main._wait(0.05)
+		await main._tap_at(pad_zone.get_center())
+		await main._tap_at(Vector2(pad_zone.end.x - 6.0, pad_zone.get_center().y))
+		_check(hits[0] == 0, "taps on and around the d-pad do not reach a button behind it")
+		await main._tap_at(Vector2(pad_zone.end.x + 80.0, pad_zone.get_center().y))
+		_check(hits[0] == 1, "the same button still takes a tap outside the d-pad's zone")
+		probe.queue_free()
+		await main._wait(0.05)
 	for button in menu.buttons:
 		if button.text == "New Game":
 			await main._tap_at(button.get_global_rect().get_center())

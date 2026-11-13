@@ -74,3 +74,14 @@ mid-frames. I'll judge those visually before any light layer is removed.
 2. Spot-check the largest interior for clipped shadows at 30.
 3. Film cost experiment as in §3.
 4. Run quick, vo-shadow-route, battle-stage.
+
+## Claude's review of the integration (2026-11-12)
+
+- `world.gd` (around line 5192): the indoor sun's 30 units / 2 splits apply only on the `not open_air` branch, as
+  recommended. `integration-indoor.png` matches the approved candidate: same hero, Mom and furniture shadows
+  in the house, and no clipping at the Temple of Tides (largest room) entry or edge views.
+- Film on/off boards (`film-hatch-diagnostic.png`, `film-merge-diagnostic.png`): turning OculusKey's shadow off
+  makes almost no visible difference in any of the five frames. The differences that are there (the merge
+  child's pose, the particles) come from animation timing, not shadow. The saving is just as small
+  (0.16–0.54 ms on the phone). Keeping the authored shadow is the right call: there's nothing to gain either way,
+  and later film-light work belongs with step 007's beam/alpha investigation.

@@ -168,7 +168,7 @@ func _ready() -> void:
 			has_desc = true
 	if has_desc or opts.get("desc_box", false):
 		vb.add_child(HSeparator.new())
-		desc_label = UIKit.label("", 20, UIKit.TEXT)
+		desc_label = UIKit.label("", 24, UIKit.TEXT)
 		desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		desc_label.custom_minimum_size = Vector2(width, 78)

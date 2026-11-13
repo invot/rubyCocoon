@@ -511,11 +511,11 @@ func _tex_mat(t: Texture2D, world_triplanar := false) -> StandardMaterial3D:
 const CHUNK := 8
 
 
-func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null, shadows := true) -> MultiMeshInstance3D:
+func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null, shadows := true, cull_margin := 0.0) -> MultiMeshInstance3D:
 	if xforms.is_empty():
 		return null
 	if interior:
-		return _multimesh_one(mesh, xforms, mat, shadows)
+		return _multimesh_one(mesh, xforms, mat, shadows, cull_margin)
 	var groups := {}
 	for xf in xforms:
 		var o: Vector3 = (xf as Transform3D).origin
@@ -525,13 +525,13 @@ func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null, shadows := true
 		groups[key].append(xf)
 	var first: MultiMeshInstance3D = null
 	for key in groups:
-		var mi := _multimesh_one(mesh, groups[key], mat, shadows)
+		var mi := _multimesh_one(mesh, groups[key], mat, shadows, cull_margin)
 		if first == null:
 			first = mi
 	return first
 
 
-func _multimesh_one(mesh: Mesh, xforms: Array, mat: Material, shadows: bool) -> MultiMeshInstance3D:
+func _multimesh_one(mesh: Mesh, xforms: Array, mat: Material, shadows: bool, cull_margin := 0.0) -> MultiMeshInstance3D:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = mesh
@@ -540,6 +540,7 @@ func _multimesh_one(mesh: Mesh, xforms: Array, mat: Material, shadows: bool) -> 
 		mm.set_instance_transform(i, xforms[i])
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
+	mi.extra_cull_margin = cull_margin
 	if mat:
 		mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -846,14 +847,8 @@ func _build_terrain() -> void:
 	_multimesh(rk.mesh(), rx)
 	var pb := BoxMesh.new()
 	pb.size = Vector3(1.0, 0.1, 1.0)
-	# a plain box has no vertex colours, so the plank texture gets its wood colour here
-	var pm: StandardMaterial3D = VT.material("planks").duplicate()
-	pm.vertex_color_use_as_albedo = false
-	pm.albedo_color = Color("#a8784a")
-	if biome.get("style", "") == "pirate_cove":
-		pm.albedo_texture = null
-		pm.albedo_color = Color("#ad875c")
-	_multimesh(pb, planks, pm, true)
+	# docks and plank bridges in the game's shared wood, a deck's lighter shade (voxel_textures.gd WOOD)
+	_multimesh(pb, planks, VT.wood_material("planks", 0.14), true)
 	if biome.get("style", "") == "pirate_cove":
 		add_child(CoveBuildings.docks(map))
 	_build_bridges()
@@ -1675,7 +1670,7 @@ func _build_scatter() -> void:
 	_cliff_rocks()
 	var pads := Shoreline.lily_pads(map, _ground_mesh.ground_y if _ground_mesh else Callable())
 	if not pads.is_empty():
-		_multimesh(VP.lily_pad(), pads, null, false)
+		_multimesh(VP.lily_pad(), pads, null, false, VP.LILY_SWELL_BOUND)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	var FenceModels = load("res://scripts/gfx/fence_models.gd")
@@ -1986,20 +1981,28 @@ const STREET_DIR := "res://assets/exteriors/"
 const STREET_FRONT_SHOP := ["bench", "bench", "trash_can", "crate", "barrel", "planter", "hydrant"]
 const STREET_FRONT_HOUSE := ["planter", "barrel", "hedge_round", "bench", "crate", "planter"]
 const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "hedge_round", "barrel"]
-## authored street furniture longer than a tile: how many tiles east from its own it takes (Dustwell's wagon and trough)
-const STREET_WIDE := {"wagon": 2, "water_trough": 2}
+## street furniture longer than a tile: how many tiles east from its own it takes (Dustwell's wagon and trough, and a
+## bench, which seats two)
+const STREET_WIDE := {"wagon": 2, "water_trough": 2, "bench": 2}
 
 
 func _street_mesh(name: String) -> Mesh:
 	if name.begins_with("adobe_"):
 		# Sunwall's market: stalls, clay jars, the well (adobe_town.gd)
 		return AdobeTown.prop(name)
+	if name == "bench":
+		# a two-seat bench in the shared wood (voxel_props.gd)
+		return VP.bench()
 	if name == "planter":
 		return load("res://assets/interiors/plant_tall.res") if ResourceLoader.exists("res://assets/interiors/plant_tall.res") else null
 	if not ResourceLoader.exists(STREET_DIR + name + ".res"):
 		push_warning("model missing: " + STREET_DIR + name + ".res")
 		return null
-	return load(STREET_DIR + name + ".res")
+	var mesh: Mesh = load(STREET_DIR + name + ".res")
+	if name in ["crate", "crate_open", "barrel", "keg"]:
+		# their pack wood, warmed to the shared wood of the benches, fences and stairs
+		VT.match_wood(mesh)
+	return mesh
 
 
 ## Tiles anyone can reach from the town's start, walking.
@@ -2142,6 +2145,12 @@ func _build_street_props() -> void:
 			if style == "adobe" and name in ["trash_can", "hydrant", "dumpster", "bench", "hedge_round"]:
 				# an old adobe town's clutter: clay jars, not bins and benches
 				name = "adobe_jars"
+			if name == "bench" and not _claim_bench_seat(t, bx + bw, door, door_clearance, taken, keep, start, before):
+				# no room along the front for a second seat: a planter instead
+				name = "barrel" if was == MapGen.PLAZA else "planter"
+			if name == "bench":
+				before = _reachable(start)
+				taken[t + Vector2i(1, 0)] = true
 			placed.append([t, c[1], name])
 			if c[2] == "front":
 				n_front += 1
@@ -2195,6 +2204,28 @@ func _build_street_props() -> void:
 				var x: float = float(b["x"]) + (float(b["w"]) + 0.02 if sx > 0 else -0.02) - sx * 0.1
 				mi2.position = Vector3(x + sx * ac.get_aabb().size.z / 2.0, _lift(b["door"]) + 1.9 + rng.randf_range(0, 2.4), float(b["y"]) + float(b["d"]) * rng.randf_range(0.3, 0.7))
 				add_child(mi2)
+
+
+## A bench takes the front tile east of `t` too (it seats two): that tile must be free open ground along the same front
+## (east of it the building ends at `end_x`), clear of the door's column, and leave every street, door and way out
+## reachable. Claims it (a street prop tile) when it can.
+func _claim_bench_seat(t: Vector2i, end_x: int, door: Vector2i, door_clearance: int, taken: Dictionary, keep: Array,
+		start: Vector2i, reach: Dictionary) -> bool:
+	var q := t + Vector2i(1, 0)
+	if q.x >= end_x or absi(q.x - door.x) < door_clearance or taken.has(q) or q == start:
+		return false
+	var was := MapGen.get_t(map, q.x, q.y)
+	if not was in [MapGen.GRASS, MapGen.PLAZA, MapGen.SAND] or not Elev.joined(map, t, q):
+		return false
+	MapGen.set_t(map, q.x, q.y, MapGen.STREET_PROP)
+	var after := _reachable(start)
+	var lost := after.size() != reach.size() - (1 if reach.has(q) else 0)
+	for k in keep:
+		if lost or not after.has(k):
+			MapGen.set_t(map, q.x, q.y, was)
+			return false
+	taken[q] = true
+	return true
 
 
 ## Builds and places one building; a locked door gets painted differently.
@@ -3937,6 +3968,46 @@ func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
 		if MapGen.get_t(map, q.x, q.y) in PROP_CODES and MapGen.get_t(map, q.x, q.y) != MapGen.FURN:
 			return false
 	return true
+
+
+## Someone standing in the way walks off it, tile by tile along `path` (their last tile is where they then stay),
+## at a stroll, and turns to `face` there; whatever they blocked is free to walk on from then.
+func walk_npc_aside(n: Dictionary, path: Array, face: Vector2i) -> void:
+	var node: Node3D = n.get("node", null)
+	for occupied in n.get("blocks", []):
+		npc_footprints.erase(occupied)
+	n.erase("blocks")
+	n.erase("blocking")
+	npcs.erase(n["pos"])
+	if node != null and not path.is_empty():
+		node.set_meta("posed", true)
+		var step := 0.32
+		var per_tile := VPer.phase_for(1.0, 1.0 / step)
+		var i := 0
+		var at: Vector3 = node.position
+		for t in path:
+			var to: Vector3 = tile_pos(t)
+			var d := Vector3(to.x - at.x, 0, to.z - at.z)
+			if node.has_node("Body") and d.length() > 0.01:
+				VPer.face(node, _four_way(Vector2i(roundi(signf(d.x)), roundi(signf(d.z)))), true)
+			var tw := create_tween()
+			tw.tween_property(node, "position", to, step * maxf(d.length(), 0.5))
+			if node.has_node("Body"):
+				tw.parallel().tween_method(func(ph: float): VPer.animate(node, ph, 1.0 / step), i * per_tile, (i + 1) * per_tile, step * maxf(d.length(), 0.5))
+			await tw.finished
+			at = to
+			i += 1
+		node.remove_meta("posed")
+		if node.has_node("Body"):
+			VPer.animate(node, 0.0, 0.0)
+	var end: Vector2i = path.back() if not path.is_empty() else n["pos"]
+	n["pos"] = end
+	n["home"] = end
+	n.erase("visual_offset")
+	npcs[end] = n
+	if n.get("ground_shadow", null) != null:
+		_lay_ground_shadow(n["ground_shadow"])
+	_face_npc(n, face, true)
 
 
 func remove_npc(n: Dictionary) -> void:

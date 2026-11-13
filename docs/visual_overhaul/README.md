@@ -4,11 +4,11 @@
 
 This decision supersedes earlier instructions to use League Spartan for all text.
 - Headings and names: League Spartan Semibold (600).
-- Body text, menu actions, values, dialogue and damage numbers: Short Stack.
+- Body text, menu actions, values, dialogue and damage numbers: Fuzzy Bubbles.
 - Lettering physically painted, engraved or displayed on objects in the 3D world: Noto Sans Old North Arabian, using a deterministic mapping from English letters (and explicitly defined ligatures where needed) to its glyphs. Do not render English lettering on world objects. This is a fictional substitution alphabet, not an Arabic translation. Preserve the underlying readable English for dialogue, interaction descriptions and accessibility.
 - UI and spoken dialogue remain readable English; they are not world-object lettering. Preserve the established intro/title logo exception unless the user changes it.
-- Sources: [Short Stack](https://fonts.google.com/specimen/Short+Stack), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
-- Implementation checkpoint: Short Stack body/dialogue and the shared world-lettering font/map are now wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
+- Sources: [Fuzzy Bubbles](https://fonts.google.com/specimen/Fuzzy+Bubbles), [Noto Sans Old North Arabian](https://fonts.google.com/noto/specimen/Noto+Sans+Old+North+Arabian).
+- Implementation checkpoint: Fuzzy Bubbles body/dialogue and the shared world-lettering font/map are now wired in; see [font-update.md](font-update.md). Generic signpost artwork and dedicated world-lettering visual review remain. Verify glyph coverage, wrapping, touch layouts and actual before/after game screenshots. Do not shrink text to accommodate the new font.
 
 Codex continues code, tests and nonvisual work. Stop at the next task requiring Claude's visual authorship and prepare its concrete handoff; do not silently perform that artwork.
 
@@ -33,6 +33,8 @@ and film cost experiment are complete; films retain their lighting. See [Claude'
 its visual approval is retained. Steps 001–004, 005a, 009a, 009b and 010a are complete (009b closed with the
 Web criterion recorded as not met); see [the diagnosis](004-cost-diagnosis.md) for the revised execution order and
 [the parallel handoff](parallel-handoff.md) for Claude artwork and Codex engineering.
+New Phase H (cozy homes, steps 037a–037c, added 2026-11-12) sits between 037 and 038; its
+[home decor candidate](art_candidates/home_decor.md) rev_001 is approved as the candidate (integration waits for 022, 023 and 037).
 rev_003's [technical review](art_reviews/broadleaf-rev_003.md) and attribution are complete; integration still awaits
 011/022/023 and in-game review. Step 027 remains open.
 

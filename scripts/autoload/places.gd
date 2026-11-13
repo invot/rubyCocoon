@@ -409,7 +409,7 @@ func hatchery() -> void:
 		await UI.beast_cinematic("hatch", b.growth_look(), {}, egg)
 		var lines := ["%s hatched from the egg! It's Lv 1, so train it up with care." % b.nickname]
 		if first:
-			lines.append("Your very first beast! Scout Bram is waiting by the east gate. He'll show you how battles work before you head out.")
+			lines.append("Your very first beast! Scout Bram is waiting on the east road. He'll show you how battles work before you head out.")
 			lines.append("If your beasts ever get tired, rest them at the healing font over there. It's free!")
 		if RaceDB.is_legendary(b.race):
 			lines.append("A legendary beast! When it merges, about 80% of the child will come from it.")

@@ -62,35 +62,28 @@ func run(root: Node, opts: Dictionary) -> void:
 	var book = Book.new().setup(main.world, "bag")
 	UI.push(book)
 	await main._wait(0.5)
-	check(book.rows.size() == 9, "Bag shows each stack and key items separately")
+	var bag = book.bag
+	check(bag != null and bag.stacks.size() == 9, "Bag shows each stack and key items separately")
 	book.mode = "list"
 	book._focus_first()
-	await main._press("ui_down")
-	check(book.focus_row == 1, "keyboard selection advances one stack")
-	var target: Button = book.row_buttons[3]
-	book.list_scroll.ensure_control_visible(target)
+	await main._wait(0.1)
+	await main._press("ui_right")
+	await main._wait(0.1)
+	check(bag.focus_cell == 1, "keyboard selection advances one stack")
+	var target: Button = bag.cells[3]
+	bag.grid_scroll.ensure_control_visible(target)
 	await main._wait(0.3)
 	await tap(target.get_global_rect().get_center())
 	await main._wait(0.2)
-	check(UI.stack.size() == 2, "tap activates exactly one item action (stack %d)" % UI.stack.size())
+	check(UI.stack.size() == 1 and bag.mode == "actions" and bag.picked == 3, "tap opens exactly one item's actions (stack %d, %s)" % [UI.stack.size(), bag.mode])
 	await main._press("ui_cancel")
 	await main._wait(0.2)
-	if UI.stack.size() > 1:
-		await main._press("ui_cancel")
-		await main._wait(0.2)
-	check(UI.stack.size() == 1, "closing item description returns to Bag")
-	book.mode = "list"
-	book._keep_row = 0
-	book._focus_first()
-	for i in book.rows.size() - 1:
-		await main._press("ui_down")
-	await main._wait(0.2)
-	check(book.list_scroll.scroll_vertical > 0, "focus scrolls through full bag")
-	for b in book.row_buttons:
-		check(b.size.y >= UIKit.row_h(), "stack row meets target minimum")
+	check(UI.stack.size() == 1 and bag.mode == "grid", "B returns from the actions to the grid")
+	for c in bag.cells:
+		check(c.size.y >= UIKit.row_h(), "item slot meets target minimum")
 	GameState.inventory = {}
 	book._open_tab(3)
-	check(book.rows.is_empty(), "empty bag remains usable")
+	check(book.bag.stacks.is_empty(), "empty bag remains usable")
 	GameState.inventory = {"minor_potion": 10, "spirit_drop": 9, "fire_bomb": 72, "power_collar": 9, "silver_flute": 36, "worm_bait": 18, "sheet_hymn": 1, "slingshot": 1}
 	while UI.top_bar.pending() > 0:
 		await main._wait(0.25)
