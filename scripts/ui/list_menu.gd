@@ -60,7 +60,8 @@ func _ready() -> void:
 	width = minf(width, get_viewport_rect().size.x - 48.0)
 	var outer := VBoxContainer.new()
 	_outer = outer
-	outer.add_theme_constant_override("separation", -2)
+	# a little space between the title's tab and the window under it
+	outer.add_theme_constant_override("separation", 8)
 	add_child(outer)
 	var title_lines := title.split("\n")
 	if title != "":

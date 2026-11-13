@@ -89,8 +89,6 @@ func run(host, options: Dictionary) -> void:
 	var empty = UI.ListMenu.new().setup("Empty list", [])
 	UI.push(empty)
 	await main._wait(0.1)
-	if not UIKit.touch_ui():
-		_check(empty._select_button.disabled and not empty._back_button.disabled, "empty choice list disables Select and keeps Back")
 	await _back(empty)
 	var bar := TopBar.new()
 	UI.root.add_child(bar)
@@ -126,24 +124,16 @@ func _menu(prefix: String):
 	return null
 
 func _check_actions(menu, cancel: bool) -> void:
-	if UIKit.touch_ui():
-		_check(menu._actions == null, "touch choice lists retain their A/B controls")
-		return
-	_check(menu._select_button != null and menu._back_button != null, "desktop choice list has visible Select and Back buttons")
-	_check(menu._back_button.disabled == not cancel, "Back respects the choice list's cancellation rule")
-	_check(menu._select_button.size.y >= UIKit.row_h() and UIKit.safe_rect(menu).encloses(menu._actions.get_global_rect()), "desktop actions are full-sized and on screen")
+	# no Select / Back buttons on any choice list: A and B do that (and rows are tapped or clicked directly)
+	_check(not "_select_button" in menu and not "_back_button" in menu, "choice lists show no Select or Back buttons")
+	_check(menu.opts.get("cancel", true) == cancel, "the choice list's cancellation rule is as expected")
+
 
 func _select(menu) -> void:
-	if UIKit.touch_ui():
-		await main._tap_at(menu.buttons[maxi(0, menu._focus)].get_global_rect().get_center())
-	else:
-		await main._tap_at(menu._select_button.get_global_rect().get_center())
+	await main._tap_at(menu.buttons[maxi(0, menu._focus)].get_global_rect().get_center())
 
-func _back(menu) -> void:
-	if UIKit.touch_ui():
-		await main._press("ui_cancel")
-	else:
-		await main._tap_at(menu._back_button.get_global_rect().get_center())
+func _back(_menu) -> void:
+	await main._press("ui_cancel")
 	await main._wait(0.05)
 
 func _shot(label: String) -> void:
