@@ -89,7 +89,8 @@ func dad_signs_off(label: String) -> void:
 		await main.get_tree().process_frame
 	await main._wait(0.2)
 	var top = null if UI.stack.is_empty() else UI.stack.back()
-	check(top is UI.DialogBox and "too hard" in " ".join(top.lines), "Dad tells you not to work too hard (%s)" % label)
+	check(top is UI.DialogBox and "too hard" in " ".join(top.lines).replace("
+", " "), "Dad tells you not to work too hard (%s)" % label)
 	for i in 3:
 		if UI.stack.is_empty() or not UI.stack.back() is UI.DialogBox:
 			break
