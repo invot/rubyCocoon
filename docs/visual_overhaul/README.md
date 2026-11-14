@@ -19,6 +19,7 @@ The overhaul aims to make the game cozy, beautiful, clean and fast, and to add t
 |---|---|
 | [runbook.md](runbook.md) | **The plan to follow.** Direction, current faults, local-model offloading, the step procedure, and every step in order |
 | [progress.md](progress.md) | Which steps are done, waiting for approval, or split |
+| [rubywave-five-story.md](rubywave-five-story.md) | Planned desert debt, mandatory temple diamond, dancing-cactus gate and Cogsworth concert/tower-entry story (user direction, 14 Nov 2026; not implemented) |
 | [audit.md](audit.md) | Background: the audit of the original plan and the decisions of 12 Nov 2026 |
 | [steps.md](steps.md), [exploration.md](exploration.md) | Background: the earlier phase plan and the exploration design (folded into the runbook; the runbook wins on order and scope) |
 | [standards.md](standards.md), [checklist.md](checklist.md) | The full visual standard and enforcement checklist (steps cite their sections) |

@@ -137,6 +137,12 @@ Coast/grassland, Quarter (Cocoon Cove area) and parts of Desert, Steampunk and M
 
 Using `ledger/scenes.csv`, take **2–3 maps or 4–6 rooms per step**. Capture the three cameras, fix composition, joins, placement and stale derivatives (murals, ground bakes), and run both map checkers and `exteriors`. Each batch gets user approval from a contact sheet. Films get their own steps (one film per step), as do the title and app icon (key art re-render).
 
+**Story addition, 14 November 2026 (planned only):** the required desert-to-Cogsworth
+[Rubywave Five arc](rubywave-five-story.md) is scheduled in runbook 082a–082b and
+105a–105c, with hint/documentation closure in 094 and 108. It adds the saloon debt,
+mandatory Temple of Winds diamond, band-cleared cactus gate, two-ticket concert
+and backstage guard diversion before the existing tower chapter.
+
 ## Phase U — Interface (later)
 
 On 12 November 2026 the user agreed to soften the UI **later**: after Phase E and before F, never earlier. Keep the structure, layout, inputs and the AGENTS.md interface rules (dark blurred windows, white borders, faint gem tint, League Spartan headings and Fuzzy Bubbles body/dialogue). Soften only the frame weight, ornament and finish. Steps: U1 shared frame/border weight in `frame_box.gd` and `UIKit`, across four gems × desktop/touch; U2 icon family consistency; U3 battle bar finish. Each step needs user approval.

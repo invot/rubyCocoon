@@ -105,6 +105,14 @@ The user named each of these. "Required" marks the ones proposed to sit on the m
 - Opponents' scores are rolled from their tier.
 
 ### The cyberpunk city
+**Planned story addition, 14 November 2026:** [The Rubywave Five](rubywave-five-story.md)
+adds a required desert debt/diamond/dancing-cactus quest and a Cogsworth concert that
+gets the tower guard backstage, allowing entry. The band has four members, introduced
+as first, second, fourth and fifth, with no explanation for the missing third.
+The full specification includes the user's forthcoming “Table Banana” audio, the
+skippable performance and excited guard's wiggling all-caps lyrics. Scheduled in
+runbook 082a–082b and 105a–105c; documentation only for now.
+
 The user says the cyberpunk city "currently does not look cyberpunk or like a city". Cogsworth is the only `"size": "city"` town, with the `steampunk` biome; Gearhart's office already overlooks a "neon city". **Confirmed by the user: Cogsworth becomes a proper dense cyberpunk city** (tall blocks, neon signage, layered streets) in its biome steps. Gearhart's steam gate and tower story stay. The README and the Steampunk row in `standards.md` §18 change when it is built.
 
 ## Steps

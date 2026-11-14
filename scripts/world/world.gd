@@ -15,6 +15,7 @@ const ItemDB = preload("res://scripts/data/item_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
+const BeastNest = preload("res://scripts/gfx/beast_nest.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
@@ -93,6 +94,8 @@ var courier_employee: Node3D
 var npcs := {}
 ## Additional occupied tiles share one actor and one interaction; visual placement can sit between tiles.
 var npc_footprints := {}
+## the tiles a temple guardian's nest stands on (beast_nest.gd): never walked on, the guardian there or not
+var nest_tiles := {}
 var _door_speakers := {}
 var items := {}
 ## Chests whose item has been taken: they stay where they are, lid open, and stand in the way like any prop.
@@ -2740,6 +2743,43 @@ func _beast_node(genes: Dictionary, scale := 1.0) -> Node3D:
 	return root
 
 
+## A temple guardian's nest (beast_nest.gd), round the tile `p`, on the floor of that tile; its tiles can't be walked on.
+func _build_nest(p: Vector2i) -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = "Nest"
+	mi.mesh = BeastNest.mesh()
+	mi.position = tile_pos(p)
+	add_child(mi)
+	for t in BeastNest.TILES:
+		nest_tiles[p + t] = true
+
+
+## A temple guardian at rest in its nest (tools/summon_rest.gd): lying in the bowl, turned a little from the camera.
+## Its speech bubbles hang over it (dialog_box.gd "speech_bounds").
+func _resting_guardian(temple: String) -> Node3D:
+	var root := Node3D.new()
+	var mi := MeshInstance3D.new()
+	mi.name = "Model"
+	mi.mesh = VB.summon_rest_mesh(temple, RESTING_LENGTH.get(temple, 2.6))
+	mi.position.y = BeastNest.FLOOR_H - 0.04
+	mi.rotation.y = -PI / 2.0 + 0.55
+	root.add_child(mi)
+	var bb: AABB = mi.mesh.get_aabb()
+	root.set_meta("speech_bounds", AABB(Vector3(-0.4, 0.0, -0.4), Vector3(0.8, mi.position.y + bb.end.y, 0.8)))
+	return root
+
+
+## How long each guardian lies in its nest, across its longer side (the nest's bowl is about 2 across).
+const RESTING_LENGTH := {"water": 2.6, "fire": 2.6, "earth": 2.6, "air": 2.2}
+
+
+## A slow breath for a guardian asleep in its nest.
+func _breathe(model: Node3D) -> void:
+	var tw := model.create_tween().set_loops()
+	tw.tween_property(model, "scale", Vector3(1.0, 1.035, 1.015), 1.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(model, "scale", Vector3.ONE, 2.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
 ## How far the soft shade under someone's feet spreads (contact_shadow.gd), for a person and a full-sized beast.
 const PERSON_SHADOW := 0.62
 const BEAST_SHADOW := 0.85
@@ -2782,6 +2822,8 @@ func _build_npcs() -> void:
 			continue
 		if n.get("kind", "") == "trainer" and n.get("vanish", false) and GameState.flag(n.get("flag", "")):
 			continue
+		if n.get("kind", "") == "guardian" and n.get("nest", false):
+			_build_nest(n["pos"])
 		if n.get("kind", "") == "guardian" and GameState.flag(n.get("flag", "")):
 			continue
 		if n.has("gone_flag") and GameState.flag(n["gone_flag"]):
@@ -2792,7 +2834,9 @@ func _build_npcs() -> void:
 			p = _free_tile_near(p)
 			n["pos"] = p
 		var node: Node3D
-		if n.get("beast_genes", null) != null:
+		if n.get("nest", false):
+			node = _resting_guardian(String(n["temple"]))
+		elif n.get("beast_genes", null) != null:
 			node = _beast_node(n["beast_genes"], 1.7 if n.get("big", false) else 1.0)
 			node.rotation.y = -PI / 2.0
 		elif n.has("robot_body"):
@@ -2836,7 +2880,9 @@ func _build_npcs() -> void:
 				rod_lines.append(node)
 		node.position = tile_pos(p) + n.get("visual_offset", Vector3.ZERO)
 		add_child(node)
-		if not (n.has("scene") or n.has("mesh") or n.has("asset")):
+		if n.get("nest", false):
+			_breathe(node.get_node("Model"))
+		elif not (n.has("scene") or n.has("mesh") or n.has("asset")):
 			var beast: bool = n.get("beast_genes", null) != null or n.has("robot_body")
 			n["ground_shadow"] = _ground_shadow(node, BEAST_SHADOW * (1.7 if n.get("big", false) else 1.0) if beast else PERSON_SHADOW)
 		n["node"] = node
@@ -2901,7 +2947,7 @@ func _build_items() -> void:
 			items[it["pos"]] = it
 			continue
 		# everything else lies in a chest (KayKit, temple_props.gd), facing the camera; once opened it stays open
-		var chest := TempleProps.chest(taken, false)
+		var chest := TempleProps.chest(taken)
 		chest.position = tile_pos(it["pos"])
 		add_child(chest)
 		it["node"] = chest
@@ -3126,7 +3172,7 @@ func _stage_pull(w: float, h: float, t: Vector3) -> float:
 func _walkable(p: Vector2i) -> bool:
 	if _npc_departing(p):
 		return false
-	if npc_footprints.has(p):
+	if npc_footprints.has(p) or nest_tiles.has(p):
 		return false
 	if p.x < 0 or p.y < 0 or p.x >= map["w"] or p.y >= map["h"]:
 		return false
@@ -3744,7 +3790,7 @@ func _interact() -> void:
 	elif interior and MapGen.get_t(map, t.x, t.y) in PROP_CODES:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
 	elif map.get("fall_spots", {}).has(t) and MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
-		await UI.say(["The water pounds down here. There's no walking through it."])
+		await UI.say(["The path has sunk under the water here, with the fall pouring in over it."])
 	elif map.get("basins", {}).has(t):
 		pass
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
@@ -4031,7 +4077,7 @@ func speaker_node(speaker: String) -> Node3D:
 		var matches := String(npc.get("name", "")) == speaker
 		if npc.get("kind", "") == "keeper":
 			matches = matches or speaker in Places.keeper_names(npc["building"])
-		if matches and is_instance_valid(node) and node.has_meta("skeleton"):
+		if matches and is_instance_valid(node) and (node.has_meta("skeleton") or node.has_meta("speech_bounds")):
 			return node
 		if matches and node is TrainerCell:
 			return node.person

@@ -42,7 +42,7 @@ func run(root: Node, opts: Dictionary) -> void:
 	check(w._walkable(at), "test tile beside the hero is free")
 	var it := {"item": "potion", "count": 2, "flag": "item_chest_test", "pos": at}
 	w.map["items"].append(it)
-	var chest: Node3D = TempleProps.chest(false, false)
+	var chest: Node3D = TempleProps.chest(false)
 	chest.position = w.tile_pos(at)
 	w.add_child(chest)
 	it["node"] = chest
@@ -72,10 +72,11 @@ func run(root: Node, opts: Dictionary) -> void:
 	check(built != null and is_equal_approx(built.get_node("Lid").rotation.x, TempleProps.LID_OPEN), "a taken chest is built open on the next visit")
 	check(not w.items.has(again["pos"]), "and holds nothing to take")
 	built.queue_free()
-	# a temple's treasure, gold-filled
-	var gold := TempleProps.chest(true, true)
-	check(gold.get_node_or_null("Lid") != null and gold.find_children("*", "MeshInstance3D", true, false).size() == 2, "temple chest is KayKit's gold chest")
-	gold.free()
+	# a temple's treasure uses the same plain chest: no gold coins anywhere
+	var temple := TempleProps.chest(true)
+	check(temple.get_node_or_null("Lid") != null and temple.find_children("*", "MeshInstance3D", true, false).size() == 2, "temple chest is KayKit's chest")
+	check(not ResourceLoader.exists("res://assets/props/kaykit_chest_gold_base.res"), "the gold-filled chest is gone")
+	temple.free()
 	for name in HouseBuilder.KAYKIT:
 		var m: Mesh = HouseBuilder.piece(name)
 		check(m != null and m.resource_path.get_file().begins_with("kaykit_"), "%s is KayKit's" % name)

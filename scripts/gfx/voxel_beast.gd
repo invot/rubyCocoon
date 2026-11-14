@@ -74,6 +74,48 @@ static func summon_mesh(element: String, size := 1.0) -> ArrayMesh:
 	return out
 
 
+## A temple guardian's resting pose (tools/summon_rest.gd: lying down, wings folded, or coiled), turned to face +x
+## like summon_mesh, lying on y = 0 with its footprint centred, its longer side across the ground `length` units;
+## null if the guardian has none.
+static func summon_rest_mesh(element: String, length := 1.0) -> ArrayMesh:
+	var path := SUMMON_DIR + element + "_rest.res"
+	var key := "rest:%s:%s" % [element, length]
+	if _cache.has(key):
+		return _cache[key]
+	if not ResourceLoader.exists(path):
+		return null
+	var base: ArrayMesh = load(path)
+	var bb := base.get_aabb()
+	var k := length / maxf(bb.size.x, bb.size.z)
+	var mid := Vector3(bb.get_center().x, 0.0, bb.get_center().z)
+	var turn := Basis(Vector3.UP, PI / 2.0)
+	var out := ArrayMesh.new()
+	for s in base.get_surface_count():
+		var arrays := base.surface_get_arrays(s)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for i in verts.size():
+			verts[i] = turn * (verts[i] - mid) * k
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		for a in [Mesh.ARRAY_NORMAL]:
+			if arrays[a] != null:
+				var ns: PackedVector3Array = arrays[a]
+				for i in ns.size():
+					ns[i] = turn * ns[i]
+				arrays[a] = ns
+		if arrays[Mesh.ARRAY_TANGENT] != null:
+			var ts: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+			for i in range(0, ts.size(), 4):
+				var t := turn * Vector3(ts[i], ts[i + 1], ts[i + 2])
+				ts[i] = t.x
+				ts[i + 1] = t.y
+				ts[i + 2] = t.z
+			arrays[Mesh.ARRAY_TANGENT] = ts
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(s, base.surface_get_material(s))
+	_cache[key] = out
+	return out
+
+
 # ================================================================ PSX models
 static func _form(form: String) -> Dictionary:
 	if _forms.has(form):

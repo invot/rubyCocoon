@@ -8,7 +8,8 @@ extends RefCounted
 ##   Codex.explain(id) one topic
 ## Its chime-ins can be switched off ("codex_off", the Start book's Settings); on a journey played for hours before
 ## the Codex existed it switches them off itself, saying so (veteran).
-## In battle the head stays up (pin); elsewhere it shows only while it talks.
+## In battle the head stays up (pin) while its tips are on; with them off, and everywhere else, it shows only while it
+## talks or you ask it something.
 
 const CodexDB = preload("res://scripts/data/codex_db.gd")
 const CodexHead = preload("res://scripts/ui/codex_head.gd")
@@ -42,12 +43,12 @@ static func _ensure() -> Control:
 	return head
 
 
-## Keep the head up (in battle) until unpin().
+## Keep the head up (in battle) until unpin(); with its tips switched off ("codex_off") it stays hidden between talks.
 static func pin() -> void:
 	if not has_codex() or UI.auto:
 		return
 	_pinned = true
-	_ensure().visible = true
+	_ensure().visible = _shown()
 
 
 static func unpin() -> void:
@@ -57,10 +58,15 @@ static func unpin() -> void:
 		head.visible = false
 
 
+## Whether the head stays up between talks: pinned in battle, with its tips on.
+static func _shown() -> bool:
+	return _pinned and not GameState.flag("codex_off")
+
+
 ## Whether a tap on the head asks a question (battle.gd, while you choose commands).
 static func set_tappable(on: bool) -> void:
 	if is_instance_valid(head):
-		head.tappable = on and _pinned
+		head.tappable = on and _shown()
 
 
 ## The head's tap signal, for battle.gd to connect.
@@ -116,7 +122,7 @@ static func say(lines: Array) -> void:
 	h.talking = false
 	if is_instance_valid(h.glow) and h.glow.get_parent() == UI.modal_layer:
 		UI.modal_layer.move_child(h.glow, 0)
-	if not _pinned and not shown_before:
+	if not _shown() and not shown_before:
 		h.visible = false
 
 
@@ -165,11 +171,10 @@ static func ask() -> void:
 				items.append(CodexDB.title(id))
 		if ids.is_empty():
 			return
-		var pinned_before := _pinned
 		_ensure().visible = true
 		var i: int = await UI.choose("What would you like to know?", items, {"start": start, "cancel": true, "rows": 6, "width": 420})
 		if i < 0:
-			if not pinned_before and is_instance_valid(head):
+			if not _shown() and is_instance_valid(head):
 				head.visible = false
 			return
 		start = i
@@ -187,6 +192,9 @@ static func veteran() -> void:
 	await say(["[surprised] Beep! Whoa, look at all these battles you've won. You're an old hand!",
 		"[proud] You don't need my tips, so I'm switching them off. Bzzt.",
 		"[happy] You can turn them back on from the Settings page of your Start book. And you can still ask me anything!"])
+	# tips off: the head leaves the battle screen until it's asked something
+	if is_instance_valid(head):
+		head.visible = _shown()
 
 
 ## Mae hands over the Codex: it switches on and says hello.

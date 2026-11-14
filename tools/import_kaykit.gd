@@ -4,11 +4,14 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/props/kaykit_
 ##   godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/exteriors/kaykit_
 ##   godot --headless --path . --import
+## `-- --chests` re-bakes only the chests (then smooth with --only=res://assets/props/kaykit_chest).
 ##
 ## The pack's glTF files (with their bin and dungeon_texture.png beside them) live in psx/kaykit_dungeon/, untouched.
-##  - The treasure chests, as two meshes each so the lid can swing: assets/props/kaykit_chest[_gold]_base.res and
+##  - The treasure chest (the plain one; the pack's gold-filled one is never baked), as two meshes so the lid can swing:
+##    assets/props/kaykit_chest_base.res and
 ##    _lid.res. The lid is baked about its hinge (the lid mesh's own origin, along the back of the box); the base keeps
-##    the hinge's position as its "hinge" meta. Both are scaled to CHEST_WIDTH across, front facing +z.
+##    the hinge's position as its "hinge" meta. Both are scaled to CHEST_WIDTH across, front facing +z. Their wood
+##    is deep blue planks (kaykit_chest_planks.res, painted here), the metal and gold the pack's atlas.
 ##  - The crates and barrels that replace the older packs' ones: each is sized to the height of the mesh it replaces
 ##    (so every caller keeps its scale), standing on y = 0 and centred on x/z, front facing +z.
 ## Materials sample the pack's colour atlas smoothly (linear, mipmapped, anisotropic).
@@ -43,7 +46,7 @@ var _mats := {}
 
 func _init() -> void:
 	var fails := 0
-	for kind in ["chest", "chest_gold"]:
+	for kind in ["chest"]:
 		var sc := _load(kind)
 		if sc == null:
 			fails += 1
@@ -68,14 +71,19 @@ func _init() -> void:
 		base.set_meta("hinge", hinge)
 		# the lid about its own origin, the hinge
 		var top := _bake([[lid, Transform3D(Basis().scaled(Vector3.ONE * s), Vector3.ZERO)]])
-		# the chests' wood is painted a pale blue (their own atlas), the metal left as it is
-		for m in [base, top]:
-			for si in m.get_surface_count():
-				m.surface_set_material(si, _chest_material(m.surface_get_material(si)))
+		# the chests' wood becomes deep blue planks (its own surface), the metal and gold keep the atlas
+		var hinge_meta = base.get_meta("hinge")
+		base = _planked(base)
+		base.set_meta("hinge", hinge_meta)
+		top = _planked(top)
 		_save(base, "res://assets/props/kaykit_%s_base.res" % kind)
 		_save(top, "res://assets/props/kaykit_%s_lid.res" % kind)
 		print("%s: %.2f x %.2f, lid hinge %s" % [kind, base.get_aabb().size.x, base.get_aabb().size.y, hinge])
 		sc.free()
+	if "--chests" in OS.get_cmdline_user_args():
+		print("KAYKIT DONE: %d problem(s)" % fails)
+		quit(1 if fails > 0 else 0)
+		return
 	for out in SWAPS:
 		var e: Array = SWAPS[out]
 		var sc := _load(String(e[0]))
@@ -201,6 +209,10 @@ var _atlas_tex: Texture2D = null
 func _atlas(src: Texture2D) -> Texture2D:
 	if _atlas_tex != null:
 		return _atlas_tex
+	# a chests-only bake keeps the shared (already smoothed) atlas the other meshes use
+	if "--chests" in OS.get_cmdline_user_args() and ResourceLoader.exists(ATLAS):
+		_atlas_tex = load(ATLAS)
+		return _atlas_tex
 	var img := src.get_image().duplicate()
 	if img.is_compressed():
 		img.decompress()
@@ -213,46 +225,133 @@ func _atlas(src: Texture2D) -> Texture2D:
 	return _atlas_tex
 
 
-## The chests' copy of the atlas: its warm wood browns (hue under WOOD_HUE, not grey) turned CHEST_BLUE, keeping
-## their light and shade; the grey metal and the yellow gold are untouched.
-const CHEST_ATLAS := "res://assets/props/kaykit_chest_atlas.res"
-const CHEST_BLUE := Color("#b9dcf2")
+## The chests' wood: every triangle whose atlas colour is the pack's warm wood brown (hue under WOOD_HUE, not grey)
+## moves to its own surface, painted with CHEST_PLANKS (deep blue boards, each the chest's full length, with soft grooves and grain) mapped
+## triplanar in the mesh's own space, PLANK_SCALE tiles per unit, so the boards run across the chest and stay put
+## as the lid swings. The grey metal and the yellow gold keep the shared atlas.
+const CHEST_PLANKS := "res://assets/props/kaykit_chest_planks.res"
+const PLANK_SCALE := 2.0
+const PLANK_PX := 256
+const PLANK_ROWS := 4
+const CHEST_BLUE := Color("#1c4176")
 const WOOD_HUE := 0.105
-var _chest_tex: Texture2D = null
-var _chest_mats := {}
+var _planks_tex: Texture2D = null
+var _plank_mat: StandardMaterial3D = null
+var _atlas_imgs := {}
 
 
-func _chest_material(src: Material) -> Material:
-	if _chest_mats.has(src):
-		return _chest_mats[src]
-	var m := (src as StandardMaterial3D).duplicate() as StandardMaterial3D
-	if m.albedo_texture != null:
-		if _chest_tex == null:
-			var img: Image = m.albedo_texture.get_image().duplicate()
-			if img.is_compressed():
-				img.decompress()
-			img.clear_mipmaps()
-			img.convert(Image.FORMAT_RGBA8)
-			# the atlas's brightest wood, so its shading maps onto the blue from light to shade
-			var top := 0.0
-			for y in img.get_height():
-				for x in img.get_width():
-					var c: Color = img.get_pixel(x, y)
-					if c.h < WOOD_HUE and c.s > 0.25:
-						top = maxf(top, c.v)
-			for y in img.get_height():
-				for x in img.get_width():
-					var c: Color = img.get_pixel(x, y)
-					if c.h < WOOD_HUE and c.s > 0.25:
-						var k := clampf(c.v / maxf(top, 0.01), 0.0, 1.0)
-						var b := CHEST_BLUE.darkened(0.42 * (1.0 - k))
-						img.set_pixel(x, y, Color(b.r, b.g, b.b, c.a))
-			img.generate_mipmaps()
-			_save(ImageTexture.create_from_image(img), CHEST_ATLAS)
-			_chest_tex = load(CHEST_ATLAS)
-		m.albedo_texture = _chest_tex
-	_chest_mats[src] = m
+func _planked(m: ArrayMesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	var wood := {}
+	for k in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV]:
+		wood[k] = []
+	for si in m.get_surface_count():
+		var mat := m.surface_get_material(si) as BaseMaterial3D
+		var img := _atlas_image(mat)
+		var a := m.surface_get_arrays(si)
+		var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var norms: PackedVector3Array = a[Mesh.ARRAY_NORMAL] if a[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+		var uvs: PackedVector2Array = a[Mesh.ARRAY_TEX_UV] if a[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX] if a[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(verts.size()))
+		var keep := {Mesh.ARRAY_VERTEX: [], Mesh.ARRAY_NORMAL: [], Mesh.ARRAY_TEX_UV: []}
+		for t in range(0, idx.size(), 3):
+			var tri := [idx[t], idx[t + 1], idx[t + 2]]
+			var is_wood := false
+			if img != null and uvs.size() > 0:
+				var c_uv: Vector2 = (uvs[tri[0]] + uvs[tri[1]] + uvs[tri[2]]) / 3.0
+				var px := Vector2i(posmod(int(c_uv.x * img.get_width()), img.get_width()), posmod(int(c_uv.y * img.get_height()), img.get_height()))
+				var c := img.get_pixelv(px)
+				is_wood = c.h < WOOD_HUE and c.s > 0.25 and c.v < 0.9
+			var dst: Dictionary = wood if is_wood else keep
+			for i in tri:
+				dst[Mesh.ARRAY_VERTEX].append(verts[i])
+				dst[Mesh.ARRAY_NORMAL].append(norms[i] if norms.size() > 0 else Vector3.UP)
+				dst[Mesh.ARRAY_TEX_UV].append(uvs[i] if uvs.size() > 0 else Vector2.ZERO)
+		if keep[Mesh.ARRAY_VERTEX].size() > 0:
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _arrays(keep))
+			out.surface_set_material(out.get_surface_count() - 1, mat)
+	if wood[Mesh.ARRAY_VERTEX].size() > 0:
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _arrays(wood))
+		out.surface_set_material(out.get_surface_count() - 1, _planks_material())
+	return out
+
+
+## Plain per-corner lists as surface arrays.
+func _arrays(d: Dictionary) -> Array:
+	var a := []
+	a.resize(Mesh.ARRAY_MAX)
+	a[Mesh.ARRAY_VERTEX] = PackedVector3Array(d[Mesh.ARRAY_VERTEX])
+	a[Mesh.ARRAY_NORMAL] = PackedVector3Array(d[Mesh.ARRAY_NORMAL])
+	a[Mesh.ARRAY_TEX_UV] = PackedVector2Array(d[Mesh.ARRAY_TEX_UV])
+	return a
+
+
+func _atlas_image(mat: BaseMaterial3D) -> Image:
+	if mat == null or mat.albedo_texture == null:
+		return null
+	if not _atlas_imgs.has(mat.albedo_texture):
+		var img: Image = mat.albedo_texture.get_image().duplicate()
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		_atlas_imgs[mat.albedo_texture] = img
+	return _atlas_imgs[mat.albedo_texture]
+
+
+func _planks_material() -> StandardMaterial3D:
+	if _plank_mat != null:
+		return _plank_mat
+	if _planks_tex == null:
+		_save(ImageTexture.create_from_image(_paint_planks()), CHEST_PLANKS)
+		_planks_tex = load(CHEST_PLANKS)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _planks_tex
+	m.roughness = 0.85
+	m.metallic_specular = 0.3
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = false
+	m.uv1_triplanar_sharpness = 4.0
+	m.uv1_scale = Vector3.ONE * PLANK_SCALE
+	_plank_mat = m
 	return m
+
+
+## A tile of deep blue boards, painted: PLANK_ROWS rows running across, each a slightly different blue with a soft
+## lit top and shaded bottom, gentle long grain streaks and soft dark grooves between rows. No joints along a
+## row, so each plank runs the full length of the chest. It tiles both ways.
+func _paint_planks() -> Image:
+	var n := PLANK_PX
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var row_h := n / PLANK_ROWS
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7041
+	var tones := []
+	var phases := []
+	for r in PLANK_ROWS:
+		tones.append(rng.randf_range(-0.1, 0.1))
+		phases.append([rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU])
+	var groove := CHEST_BLUE.darkened(0.65)
+	for y in n:
+		var r := y / row_h
+		var fy := float(y % row_h) / row_h
+		for x in n:
+			var fx := float(x) / n
+			var ph: Array = phases[r]
+			# long soft grain: low-frequency waves along the board
+			var grain := 0.5 * sin(fy * TAU * 3.0 + sin(fx * TAU * 2.0 + ph[0]) * 1.2 + ph[1]) 				+ 0.5 * sin(fy * TAU * 7.0 + sin(fx * TAU + ph[2]) * 2.0)
+			var c := CHEST_BLUE
+			c = c.lightened(tones[r]) if tones[r] > 0.0 else c.darkened(-tones[r])
+			c = c.lightened(0.06 * grain) if grain > 0.0 else c.darkened(-0.06 * grain)
+			# lit top edge, shaded bottom edge of each board
+			c = c.lightened(0.16 * smoothstep(0.3, 0.0, fy))
+			c = c.darkened(0.22 * smoothstep(0.7, 1.0, fy))
+			# the groove between rows, soft
+			var g := maxf(smoothstep(0.08, 0.0, fy), smoothstep(0.92, 1.0, fy))
+			c = c.lerp(groove, g)
+			img.set_pixel(x, y, Color(c.r, c.g, c.b, 1.0))
+	img.generate_mipmaps()
+	return img
 
 
 func _with_lods(m: ArrayMesh) -> ArrayMesh:

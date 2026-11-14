@@ -1265,6 +1265,27 @@ Required gates must stay solvable and impossible to get stuck in. Region blocks 
 ### 082 · B-desert-X1c: Dune Sea layout
 **Approval: you.** **Needs:** 081. The Jackals' barricade stays. The Sleeping Statues site on the temple approach, and the air GIANT cave mouth.
 
+### 082a · B-desert-story-1: The Rubywave Five, contract and temple diamond
+**Approval: you.** **Needs:** 082. **Planned addition, 14 November 2026; not implemented.**
+- Follow [the full Rubywave Five story specification](rubywave-five-story.md).
+- Meet the four-member band on the Dune Sea: first, second, fourth and fifth members,
+  never explaining the missing third. Establish the saloon's deliberately inescapable
+  debt contract, unsuccessful gem hunt and dream of playing for their Cogsworth fans.
+- After the Temple of Winds victory, one chest holds a protected quest diamond;
+  the player cannot leave until collecting it. Preserve retreat before victory.
+- Hand the diamond to the desert saloon owner, who explicitly clears the band's debt.
+  Keep the saloon reachable and preserve the existing Slim/Card Ledger story.
+- Verify collection/exit gates, hand-in, repeat interactions, saving and older saves.
+
+### 082b · B-desert-story-2: the band's dancing-cactus passage
+**Approval: you.** **Needs:** 082a.
+- The freed band plays; a required patch of cacti dances and clears the path permanently.
+  Position it without blocking the temple or return journey to the saloon.
+- The band moves ahead and tells the player that two free tickets await at the
+  Cogsworth concert venue. Keep the existing Jackals and Miner's Pass gates.
+- The optional Singing Cactus song in 083–084 must not bypass this story gate.
+- Verify the full desert sequence and capture the performance on desktop and touch.
+
 ### 083 · B-desert-X2a: Singing Cactus behaviour
 **Approval: you.** **Needs:** 080. A lone cactus **sings only while you stand beside it facing away**, and stops when you turn. Audio stays inside the existing music and sfx buses.
 
@@ -1303,7 +1324,10 @@ Required gates must stay solvable and impossible to get stuck in. Region blocks 
 **Approval: you.** **Needs:** 092. Phone route check.
 
 ### 094 · B-desert-X3: hints, README, Temple of Winds rooms
-**Approval: you.** **Needs:** 093. `temple-air` passes.
+**Approval: you.** **Needs:** 093, 082b. `temple-air` passes.
+Include the Rubywave Five encounter, diamond collection/exit requirement, saloon
+hand-in, cactus passage and Cogsworth ticket promise in quest hints and the README.
+Record the final saloon owner and encounter placement in the story specification.
 
 ### Mountains: Mine Road, Copperpick, Cogsworth (cyberpunk city)
 
@@ -1333,6 +1357,8 @@ Required gates must stay solvable and impossible to get stuck in. Region blocks 
 **Approval: you.** **Needs:** 042.
 - Re-lay Cogsworth as a dense city: blocks, layered streets and plazas.
 - Keep Gearhart Tower, the steam gate, the arena, shops and the Beast Center functions, plus door alignment.
+- Reserve the concert venue, ticket desk, standing audience, backstage room and
+  tower entrance guard for [the Rubywave Five arc](rubywave-five-story.md), steps 105a–105c.
 - `town_check.py` and `check_maps.gd` pass.
 
 ### 102 · B-mtn-4a: Cogsworth building kit, towers and facades
@@ -1347,6 +1373,37 @@ Required gates must stay solvable and impossible to get stuck in. Region blocks 
 ### 105 · B-mtn-X2e: pageant venue in Cogsworth
 **Approval: you.** **Needs:** 055, 104. A stage that hooks up steps 053–055, with NPC hosts and a hint.
 
+### 105a · B-mtn-story-1: tower guard, tickets and invitation
+**Approval: you.** **Needs:** 082b, 104.
+- Follow [the full Rubywave Five story specification](rubywave-five-story.md).
+- A security guard refuses Gearhart Tower entry and reveals their band fandom.
+- The concert attendant supplies two free tickets, says the show is later and
+  asks the player to find a companion. Returning to invite the guard earns an
+  excited acceptance. No real-time waiting or tower unlock from invitation alone.
+- Build the accessible venue/backstage spaces; sharing the pageant venue is optional.
+  Check venue-first/tower-first orders and saved quest state on all input methods.
+
+### 105b · B-mtn-story-2: “Table Banana” concert film
+**Approval: you.** **Needs:** 105a, **user-supplied audio** (pending).
+- Four band members perform energetically; the crowd stands and cheers throughout.
+  The guard screams their love for the singer and sings along in ALL CAPS with
+  wiggling letters in their speech bubbles. Singer lyrics also use speech bubbles.
+- Time lyrics and performance to the supplied song; no invented final lyrics/audio.
+- Wild venue lighting through movement, colour and intensity, **no strobes**.
+- Use the shared film controls, including touch A/B and hold-B skip. Skipping
+  reaches the same post-show invitation as watching. No narration or title cards.
+- Verify readable bubbles, safe areas, desktop/touch input and phone performance;
+  capture the performance and the guard's excitement for visual approval.
+
+### 105c · B-mtn-story-3: backstage and tower access
+**Approval: you.** **Needs:** 105b.
+- The attendant invites the player and guard backstage after the show. The player
+  talks with the band; the guard says they will stick around backstage.
+- The player leaves and can enter Gearhart Tower without being stopped. Preserve
+  the existing sentry floors, Gearhart fight, freight rescue and Caldera Road gate.
+- Check watched/skipped routes, backstage conversation, repeated visits and loads,
+  and migration for saves already beyond new gates; no duplicate tickets or relocking.
+
 ### 106 · B-mtn-4d: Copperpick mining buildings
 **Approval: you.** **Needs:** 100.
 
@@ -1354,7 +1411,9 @@ Required gates must stay solvable and impossible to get stuck in. Region blocks 
 **Approval: you.** **Needs:** 104, 106. Phone route check (dense city: watch the budget).
 
 ### 108 · B-mtn-X3: hints, README (Cogsworth now cyberpunk), Gearhart Tower interiors
-**Approval: you.** **Needs:** 107. Update the README region rows and standards.md §18's Steampunk row to cyberpunk.
+**Approval: you.** **Needs:** 107, 105c. Update the README region rows and standards.md §18's Steampunk row to cyberpunk.
+Close the Rubywave Five hints and journey documentation from desert debt through
+backstage tower access. Verify the original tower/rescue/Emberfall progression follows.
 
 ### Volcano: Caldera Road, Summit Pass, Emberfall, Temple of Flame
 

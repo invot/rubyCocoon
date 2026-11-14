@@ -1016,6 +1016,10 @@ func _run_test() -> void:
 	GameState.set_flag("has_codex")
 	for topic in preload("res://scripts/data/codex_db.gd").TOPICS:
 		GameState.set_flag("codex_seen_" + String(topic), String(topic) != String(_test.get("codex", "")))
+	# --flags=a+b: extra story flags for any scene (--flags=codex_off: the Codex's tips switched off)
+	if _test.has("flags"):
+		for f in String(_test["flags"]).split("+"):
+			GameState.set_flag(f)
 	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("reed_flute")
 	GameState.learn_song("weaken")
@@ -2768,10 +2772,49 @@ func _guardian_test(tk: String) -> void:
 	await _on_to_guardian(tk)
 	var g := _npc("guardian_" + tk)
 	print("guardian found: ", not g.is_empty())
+	if not g.is_empty() and _test.has("shots"):
+		await _guardian_shots(tk, g)
 	if not g.is_empty():
 		await Story.talk(world, g)
 	print("GUARDIAN %s: captured %s, summons %s, flag %s, now on %s, party %s" % [tk, GameState.summons.has(tk), GameState.summons,
 		GameState.flag("guardian_" + tk), GameState.map_id, GameState.party.map(func(x): return "%s L%d %d/%d" % [x.nickname, x.level, x.hp, x.max_hp()])])
+
+
+## With --shots: the guardian asleep in its nest, from the path in front of it and from high above, then its bubbles
+## (what it says when woken, and once won over) shown over it the way you'd see them.
+func _guardian_shots(tk: String, g: Dictionary) -> void:
+	var dir := String(_test["shots"])
+	var gp: Vector2i = g["pos"]
+	for goal in [gp + Vector2i(0, 2), gp + Vector2i(-2, 0), gp + Vector2i(2, 0)]:
+		await _walk_test([goal])
+		if world.player_pos == goal:
+			break
+	await _wait(1.5)
+	await RenderingServer.frame_post_draw
+	_save_shot(dir.path_join("guardian_%s_nest.png" % tk))
+	world.cam_free = true
+	world.cam.position = world.tile_pos(gp) + Vector3(0, 3.2, 4.2)
+	world.cam.look_at(world.tile_pos(gp) + Vector3(0, 0.5, 0), Vector3.UP)
+	await _wait(0.3)
+	await RenderingServer.frame_post_draw
+	_save_shot(dir.path_join("guardian_%s_close.png" % tk))
+	world.cam_free = false
+	world._place_camera(true)
+	await _wait(0.3)
+	var race := RaceDB.race_name(int(WorldDB.TEMPLES[tk]["guardian"]))
+	var lines: Dictionary = Story.GUARDIAN_LINES.get(tk, {})
+	for k in ["wake", "won"]:
+		if not lines.has(k):
+			continue
+		var page: String = lines[k][1]
+		var d = UI.DialogBox.new()
+		d.setup([page], race, null, world.speaker_node(race))
+		UI.push(d)
+		await _wait(2.5)
+		await RenderingServer.frame_post_draw
+		_save_shot(dir.path_join("guardian_%s_%s.png" % [tk, k]))
+		UI.pop(d)
+		await _wait(0.3)
 
 
 ## --scene=tides-walk: the Temple of Tides played on foot, by walking and pressing the interact button: out of the hall
@@ -2811,8 +2854,13 @@ func _tides_walk_test() -> void:
 	var last := await _tides_door(song, "temple_water")
 	bad += _tides_check("into the octagon", world.map_id == last)
 	await _tides_shot("8_octagon")
-	await _tides_walk_beside(_npc("guardian_water")["pos"])
-	bad += _tides_check("beside the guardian on its platform", (world.player_pos - _npc("guardian_water")["pos"] as Vector2i).length_squared() == 1)
+	# (the guardian rests in a nest round its tile: you stand beside the nest, at the end of the path)
+	var gp: Vector2i = _npc("guardian_water")["pos"]
+	await _walk_test([gp + Vector2i(-2, 0)])
+	world.facing = Vector2i(1, 0)
+	load("res://scripts/gfx/voxel_person.gd").face(world.player, Vector2i(1, 0))
+	await _wait(0.2)
+	bad += _tides_check("beside the guardian's nest on its platform", world.player_pos == gp + Vector2i(-2, 0) and world.npc_footprints.get(gp + Vector2i(-1, 0), Vector2i(-99, -99)) == gp)
 	await _tides_shot("9_guardian")
 	print("TIDES WALK DONE: %d problem(s)" % bad)
 

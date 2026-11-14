@@ -591,8 +591,9 @@ const ROOMS := {
 			"0000000000000000000000000000000",
 		],
 	},
-	# One path, along the back wall. Three waterfalls run down that wall into their basins (_) and across the path (a .. c)
-	# into the pool at the front of the room, with four levers against the wall between them. The treasure lies on the
+	# One path, along the back wall. Three waterfalls run down that wall into their sunken basins (_), open to the pool at
+	# the front of the room where a stretch of the path (a .. c) has sunk under the water while its fall runs (it rises
+	# again when the fall stops: tide_water.gd), with four levers against the wall between them. The treasure lies on the
 	# pool's floor, and two flights of steps lead down to it once it's drained.
 	"temple_tides_falls": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
@@ -704,8 +705,8 @@ const ROOMS := {
 			"/+++++++++++++++++\\",
 			"#+++++++++++++++++#",
 			"#+++++++:A:+++++++#",
-			"#++++++::1::++++++#",
-			"[:::::::::::++++++#",
+			"#++++++:::::++++++#",
+			"[::::::::1::++++++#",
 			"#++++++:::::++++++#",
 			"#+++++++:::+++++++#",
 			"#+++++++++++++++++#",
@@ -745,11 +746,11 @@ const ROOMS := {
 		"rows": [
 			"###w###w###w###w#",
 			"#o.....AAA.....o#",
-			"#..3..4.1.5..6..#",
+			"#..3..4...5..6..#",
 			"#o.ggg.....ggg.o#",
 			"#..ggg.....ggg..#",
 			"#o.....rrr.....o#",
-			"#......rrr......#",
+			"#......r1r......#",
 			"#..ggg.rrr.ggg..#",
 			"#..ggg.rrr.ggg..#",
 			"#o.....rrr.....o#",
@@ -766,11 +767,11 @@ const ROOMS := {
 		"rows": [
 			"#################",
 			"#o%%%o..A..o%%%o#",
-			"#.%%%...1...%%%.#",
+			"#.%%%.......%%%.#",
 			"#o.3..4...5..6.o#",
 			"#..ggg.....ggg..#",
 			"#..ggg..r..ggg..#",
-			"#o.....rrr.....o#",
+			"#o.....r1r.....o#",
 			"#.%%...rrr...%%.#",
 			"#.%%...rrr...%%.#",
 			"#o.....rrr.....o#",
@@ -787,11 +788,11 @@ const ROOMS := {
 		"rows": [
 			"#################",
 			"#op..p..A..p..po#",
-			"#.p.....1.....p.#",
+			"#.p...........p.#",
 			"#o.3..4...5..6.o#",
 			"#..ggg.....ggg..#",
 			"#..ggg..r..ggg..#",
-			"#o.....rrr.....o#",
+			"#o.....r1r.....o#",
 			"#.pp...rrr...pp.#",
 			"#o.....rrr.....o#",
 			"#......rrr......#",

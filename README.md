@@ -197,6 +197,13 @@ In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his towe
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
 
+**Planned story addition (not implemented):** [The Rubywave Five](docs/visual_overhaul/rubywave-five-story.md)
+links the desert to Cogsworth. Free a four-member band from a saloon's predatory debt contract with a
+diamond collected after the Temple of Winds victory; their music makes a cactus blockage dance clear.
+In Cogsworth, their two free concert tickets let you invite Gearhart Tower's superfan guard to
+“Table Banana,” then leave them backstage so you can enter the tower. The existing tower, rescue
+and Caldera Road unlock follow. Full requirements and future implementation steps are in the linked plan.
+
 <img src="docs/screenshots/maker.jpg" width="640" alt="The character creator's Look tab: name, body, outfit and hairdo; the Colours tab has the pack, skin, clothes, hair and eyes."><br><sub>The character creator's Look tab: name, body, outfit and hairdo; the Colours tab has the pack, skin, clothes, hair and eyes.</sub>
 
 1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Bellerive, the next town east.
@@ -258,7 +265,8 @@ roll, a recharge, ally or group targets, status, stat changes, recoil/drain, pro
 the Bat. You can ask it anything you're eligible to know, without using your turn: **Codex ?** at the end of your
 trainer's bar, a tap on the head, or the **Codex** page of the Start book. Topics about something you don't have
 yet (the flute, a summon, the Bat, rhythm attacks) stay hidden, and move rules appear once you've met them. Its tips
-can be switched off under **Settings ► Codex tips**; on a journey played for more than three hours before the Codex
+can be switched off under **Settings ► Codex tips**, and then its head leaves the battle screen, showing only while it
+talks or you ask it something (**Codex ?** on the trainer's bar); on a journey played for more than three hours before the Codex
 existed, it says it's switching them off itself the first time it appears. Lesson completion is saved through normal
 phone calls. See [tutorial coverage](docs/tutorials.md).
 
@@ -387,8 +395,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   the front. Inside is one long descent. You come in from the west onto a raised walkway along the back of a great
   hall, the water just below it. The first door, in the back wall, is open; further east the walkway steps down into the
   water. That door, on the room's east side, opens onto a single path along its back wall. Three waterfalls run
-  down that wall into basins and across the path into the pool at the front of the room, with four red levers against
-  the wall between them. All three are running when you arrive; each pull stops one, starts one or does both, by a fixed
+  down that wall into deep basins, open to the pool at the front of the room: where each one runs out, that stretch of
+  the path has sunk to the pool's floor, so basin, gap and pool are one level sheet of water; when a fall stops, its
+  stretch rises back up out of the pool. Four red levers
+  stand against the wall between the falls. All three are running when you arrive; each pull stops one, starts one or does both, by a fixed
   rule (`scripts/data/tide_puzzles.gd`), and the falls only stop when all four stand in the right pattern: a chime
   sounds, the pool drains and a treasure comes to light on its floor, with two flights of steps down to it. Back in the hall the water has dropped a level, so you can go down the first stairs to the second
   door: a maze of walkways over a pool, where three waterfalls drop from the ceiling through metal lattices and block
@@ -919,7 +929,8 @@ The bag holds **24 stacks of up to 9** of the same item; a tenth starts another 
 Key items, weapons, eggs and sheet music are exempt. Inventory remains item kind → count;
 capacity is the sum of `ceil(count / 9)` for non-exempt kinds. `GameState.add_item` returns
 how many could not fit. Items lying about the world sit in treasure chests (KayKit's, `temple_props.gd`
-`chest()`; a temple's treasures use the gold-filled one): the lid swings open as you take the item, and the emptied
+`chest()`, the same plain one for a temple's treasures; every chest is empty inside, with no coins or gleam, and
+the item goes straight into the bag): the lid swings open as you take the item, and the emptied
 chest stays where it is, open and solid, on every later visit (`world.gd` `opened_chests`; check with
 `bash tools/run_tests.sh item-chests`). A full-bag world pickup offers to swap one stack or leave it;
 the outgoing stack remains in that chest, including across saves. Shops refuse purchases

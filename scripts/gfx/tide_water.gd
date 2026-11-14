@@ -14,9 +14,10 @@ const DRAIN_SECS := 2.6
 const WALL_FACE := 0.6
 const WALL_FALL_TOP := 2.5
 const WALL_FALL_WIDE := 1.14
-## The water standing in a basin and running across the path: above the pale coping along the path's edge.
-const BASIN_Y := 0.07
-const RUN_Y := 0.06
+## How long the stretch of path a fall runs across takes to sink to the pool's floor (as the fall starts) or rise (once
+## it has stopped).
+const SINK_SECS := 0.7
+const RISE_SECS := 1.1
 
 var map: Dictionary
 var walls: RefCounted = null
@@ -60,8 +61,8 @@ func _under(p: Vector2i, y: float) -> bool:
 		return false
 	if c in [MapGen.IDIAG_A, MapGen.IDIAG_B]:
 		return true
-	# (a lattice is open to the water below it)
-	return Elev.surface(map, p) < y or map["lattices"].has(p)
+	# (a lattice is open to the water below it, and so is the shaft of a path that sinks under a fall)
+	return Elev.surface(map, p) < y or map["lattices"].has(p) or RoomBuilder.sunk_tile(map, p)
 
 
 func _build_sheet(water: ShaderMaterial) -> void:
@@ -167,29 +168,14 @@ func _foam(parent: Node3D, at: Vector3, wide: float, deep: float) -> MeshInstanc
 
 
 ## A waterfall down the back wall above spot p, the tile of the path it crosses: from a bronze outlet high on the wall
-## into the basin at the wall's foot, then out through the basin's open front, across the path and over its edge into the
-## pool. The basin, the outlet and the dark wet channel it runs in stay when the water stops.
+## into the basin at the wall's foot, which lies open to the pool through the gap where that stretch of the path has sunk
+## under the water. When the fall stops the path rises back up out of the water (show_running); the outlet stays.
 func _build_wall_fall(p: Vector2i, water: ShaderMaterial, on: bool) -> void:
 	var cx := p.x + 0.5
 	var front := float(p.y)
-	var stone: Color = walls.stone if walls != null else Color("#b8b0a0")
-	var curb := StandardMaterial3D.new()
-	curb.albedo_color = stone.lightened(0.12)
-	curb.roughness = 0.85
 	var bronze := StandardMaterial3D.new()
 	bronze.albedo_color = BRONZE
 	bronze.roughness = 0.45
-	var wet_stone := StandardMaterial3D.new()
-	wet_stone.albedo_color = Color(0.1, 0.24, 0.32, 0.42)
-	wet_stone.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wet_stone.roughness = 0.5
-	_flat(self, cx - 1.36, cx + 1.36, WALL_FACE, front, 0.015, wet_stone)
-	_flat(self, cx - 0.5, cx + 0.5, front, front + 0.92, 0.015, wet_stone)
-	# the basin's curb, open at the middle of its front
-	var mid_z := (WALL_FACE + front) / 2.0
-	for side: float in [-1.0, 1.0]:
-		_box(self, Vector3(cx + side * 1.43, 0.08, mid_z), Vector3(0.14, 0.16, front - WALL_FACE), curb)
-		_box(self, Vector3(cx + side, 0.08, front - 0.07), Vector3(1.0, 0.16, 0.14), curb)
 	var root := Node3D.new()
 	root.position = Vector3(cx, WALL_FALL_TOP, WALL_FACE)
 	add_child(root)
@@ -200,30 +186,93 @@ func _build_wall_fall(p: Vector2i, water: ShaderMaterial, on: bool) -> void:
 	var down := _fall_water(water, 0.92, Vector2(0.0, -1.2))
 	down.set_shader_parameter("fall_stretch", 4.5)
 	down.set_shader_parameter("froth", 0.62)
+	# (it lands in its basin, sunk to the pool's floor and full of the pool's own water, level and seamless with the rest:
+	# room_builder.gd sunk_basin; or on the dry floor once the room has drained)
+	var pool_y := level if not is_nan(level) else -0.12
+	var land_y := pool_y if not is_nan(level) else _lowest_floor()
 	# (z out from the wall, y down from the outlet: a sheet hugging the wall, curving out as it lands)
-	var low := BASIN_Y - WALL_FALL_TOP
+	var low := land_y - WALL_FALL_TOP
 	var profile: Array[Vector2] = [Vector2(0.3, -0.04), Vector2(0.2, -0.5), Vector2(0.15, -1.5), Vector2(0.17, low + 0.34), Vector2(0.3, low + 0.1), Vector2(0.56, low)]
 	_ribbon(stream, profile, WALL_FALL_WIDE / 2.0, down)
-	var foot := _foam(self, Vector3(cx, BASIN_Y + 0.03, WALL_FACE + 0.6), 1.5, 0.62)
-	# what it does once it has landed, fading in and out with it
-	var wet := Node3D.new()
-	add_child(wet)
-	var pool_y := level if not is_nan(level) else -0.12
-	var basin_water := _fall_water(water, 0.8, Vector2(0.03, -0.1))
-	var run := _fall_water(water, 0.84, Vector2(0.0, -1.5))
-	_flat(wet, cx - 1.36, cx + 1.36, WALL_FACE, front, BASIN_Y, basin_water)
-	_flat(wet, cx - 0.5, cx + 0.5, front - 0.14, front + 1.04, RUN_Y, run)
-	_mesh_of(PackedVector3Array([Vector3(cx - 0.5, pool_y, front + 1.04), Vector3(cx + 0.5, pool_y, front + 1.04), Vector3(cx + 0.5, RUN_Y, front + 1.04),
-		Vector3(cx - 0.5, pool_y, front + 1.04), Vector3(cx + 0.5, RUN_Y, front + 1.04), Vector3(cx - 0.5, RUN_Y, front + 1.04)]), Vector3.BACK, run, wet)
-	_foam(wet, Vector3(cx, pool_y + 0.03, front + 1.3), 1.4, 0.56)
+	var foot := _foam(self, Vector3(cx, land_y + 0.03, WALL_FACE + 0.6), 1.5, 0.62)
+	var slab := _path_slab(p, pool_y)
+	slab.position.y = _sunk_by(p, pool_y) if on else 0.0
 	stream.scale.y = 1.0 if on else 0.001
 	stream.visible = on
 	foot.visible = on
-	wet.visible = on
-	if not on:
-		for mat: ShaderMaterial in [basin_water, run]:
-			mat.set_shader_parameter("opacity", 0.0)
-	_falls[String(map["fall_spots"][p])] = {"stream": stream, "foam": foot, "on": on, "drop": WALL_FALL_TOP - BASIN_Y, "wet": wet, "fades": [[basin_water, 0.8], [run, 0.84]]}
+	_falls[String(map["fall_spots"][p])] = {"stream": stream, "foam": foot, "on": on, "drop": WALL_FALL_TOP - land_y,
+		"slab": slab, "sunk": _sunk_by(p, pool_y), "ripple": Vector3(cx, pool_y + 0.03, front + 0.5)}
+
+
+## How far the stretch of path on tile p drops: down to the pool's floor (the room's lowest), so the water over it is
+## as deep as the rest of the pool and looks the same.
+func _sunk_by(p: Vector2i, _pool_y: float) -> float:
+	return _lowest_floor() - Elev.surface(map, p)
+
+
+func _lowest_floor() -> float:
+	var low := INF
+	for z in int(map["h"]):
+		for x in int(map["w"]):
+			low = minf(low, Elev.surface(map, Vector2i(x, z)))
+	return low
+
+
+## The stretch of path on tile p that sinks under a fall: a block of the path's own floor and stone, filling the shaft
+## the room leaves for it (room_builder.gd rising_path) from the path's level down to the room's lowest floor, with the
+## pale coping along its front edge like the rest of the path's.
+func _path_slab(p: Vector2i, pool_y: float) -> Node3D:
+	var slab := Node3D.new()
+	add_child(slab)
+	var top := Elev.surface(map, p)
+	var low := minf(_lowest_floor(), pool_y)
+	var x0 := p.x + 0.005
+	var x1 := p.x + 0.995
+	var z0 := p.y + 0.005
+	var z1 := p.y + 0.995
+	var stone: Color = walls.stone if walls != null else Color("#b8b0a0")
+	var floor_mat: Material = walls.floor_mat(walls.zone(p.x, p.y)) if walls != null else RoomBuilder.floor_surface("floor_ancient")
+	var face := RoomBuilder.surface("drop", stone.darkened(0.2))
+	var coping := RoomBuilder.surface("coping", stone.lightened(0.14))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	for v: Vector3 in [Vector3(x0, top, z0), Vector3(x1, top, z0), Vector3(x1, top, z1), Vector3(x0, top, z0), Vector3(x1, top, z1), Vector3(x0, top, z1)]:
+		st.set_uv(Vector2(v.x, v.z))
+		st.add_vertex(v)
+	var top_mesh := MeshInstance3D.new()
+	top_mesh.mesh = st.commit()
+	top_mesh.material_override = floor_mat
+	slab.add_child(top_mesh)
+	# its sides, sliding past the shaft's stone (the room's drops) as it moves
+	var sides := SurfaceTool.new()
+	sides.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var corners := [Vector2(x0, z1), Vector2(x1, z1), Vector2(x1, z0), Vector2(x0, z0)]
+	for i in 4:
+		var a: Vector2 = corners[i]
+		var b: Vector2 = corners[(i + 1) % 4]
+		var n := Vector3(a.y - b.y, 0, b.x - a.x).normalized()
+		var along := absf(b.x - a.x) + absf(b.y - a.y)
+		# (wound clockwise seen from outside)
+		for q: Array in [[a, low, 0.0], [b, top, along], [b, low, along], [a, low, 0.0], [a, top, 0.0], [b, top, along]]:
+			var at: Vector2 = q[0]
+			sides.set_normal(n)
+			sides.set_uv(Vector2(float(q[2]), top - float(q[1])))
+			sides.add_vertex(Vector3(at.x, float(q[1]), at.y))
+	var side_mesh := MeshInstance3D.new()
+	side_mesh.mesh = sides.commit()
+	side_mesh.material_override = face
+	slab.add_child(side_mesh)
+	var lip := MeshInstance3D.new()
+	var lb := BoxMesh.new()
+	lb.size = Vector3(0.98, 0.05, 0.1)
+	lip.mesh = lb
+	lip.material_override = coping
+	lip.position = Vector3(p.x + 0.5, top + 0.02, p.y + 0.97)
+	slab.add_child(lip)
+	for mi in slab.get_children():
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return slab
 
 
 ## A strip of water `half` to either side, its middle line following `profile` ((z, y) points below the parent).
@@ -267,7 +316,8 @@ func _build_fall(p: Vector2i, water: ShaderMaterial, on: bool) -> void:
 	spout.roughness = 0.45
 	var stream := Node3D.new()
 	root.add_child(stream)
-	# the ceiling's outlet, only over a lattice with water falling through it
+	# the ceiling's outlet, only over a lattice with water falling through it: it stays put while the last of the water
+	# runs out below it, and goes once the fall has stopped (show_running)
 	var outlet := MeshInstance3D.new()
 	var ring := CylinderMesh.new()
 	ring.top_radius = FALL_RADIUS * 0.95
@@ -278,7 +328,7 @@ func _build_fall(p: Vector2i, water: ShaderMaterial, on: bool) -> void:
 	outlet.mesh = ring
 	outlet.material_override = spout
 	outlet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	stream.add_child(outlet)
+	root.add_child(outlet)
 	var column := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = FALL_RADIUS * 0.82
@@ -293,14 +343,13 @@ func _build_fall(p: Vector2i, water: ShaderMaterial, on: bool) -> void:
 	column.position.y = -(top - bottom) / 2.0
 	column.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	stream.add_child(column)
-	# (so it never hides you, walking behind it)
-	if walls != null:
-		walls.add_prop([column], p, Vector2.ONE)
+	# (never faded out in front of you like other tall things: a vanishing fall would look like it had stopped)
 	var foam := _foam(root, Vector3(0, -(top - bottom) + 0.03, 0), 1.24, 1.24)
 	stream.scale.y = 1.0 if on else 0.001
 	stream.visible = on
 	foam.visible = on
-	_falls[String(map["fall_spots"][p])] = {"stream": stream, "foam": foam, "on": on, "drop": top - bottom}
+	outlet.visible = on
+	_falls[String(map["fall_spots"][p])] = {"stream": stream, "foam": foam, "on": on, "drop": top - bottom, "outlet": outlet}
 
 
 func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> void:
@@ -326,6 +375,8 @@ func show_running(running: Array) -> void:
 		var tw := create_tween()
 		if on:
 			stream.visible = true
+			if f.has("outlet"):
+				(f["outlet"] as Node3D).visible = true
 			tw.tween_property(stream, "scale:y", 1.0, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 			tw.tween_callback(func() -> void: foam.visible = true)
 		else:
@@ -337,22 +388,31 @@ func show_running(running: Array) -> void:
 				stream.position.y = -drop * (1.0 - s), 1.0, 0.001, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 			tw.tween_callback(func() -> void:
 				stream.visible = false
+				if f.has("outlet"):
+					(f["outlet"] as Node3D).visible = false
 				stream.position.y = 0.0)
-		if f.has("wet"):
-			_fade_wet(f, on)
+		if f.has("slab"):
+			_move_slab(f, on)
 
 
-## The water a wall fall spreads after landing: it comes once the fall reaches the floor, and runs away as the fall stops.
-func _fade_wet(f: Dictionary, on: bool) -> void:
-	var wet: Node3D = f["wet"]
-	wet.visible = true
-	var tw := create_tween().set_parallel()
-	for pair: Array in f["fades"]:
-		var mat: ShaderMaterial = pair[0]
-		var full: float = pair[1]
-		tw.tween_method(func(a: float) -> void: mat.set_shader_parameter("opacity", a), 0.0 if on else full, full if on else 0.0, 0.3).set_delay(0.25 if on else 0.1)
-	if not on:
-		tw.chain().tween_callback(func() -> void: wet.visible = false)
+## The stretch of path under a wall fall: it sinks under the pool as the water arrives, and rises back up out of it once
+## the fall has run dry, a ring of foam spreading where it breaks the surface.
+func _move_slab(f: Dictionary, on: bool) -> void:
+	var slab: Node3D = f["slab"]
+	var tw := create_tween()
+	if on:
+		tw.tween_property(slab, "position:y", float(f["sunk"]), SINK_SECS).set_delay(0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		return
+	tw.tween_property(slab, "position:y", 0.0, RISE_SECS).set_delay(0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var ring := _foam(self, f["ripple"], 0.9, 0.9)
+	ring.visible = false
+	var mat: StandardMaterial3D = ring.material_override
+	var spread := create_tween()
+	spread.tween_interval(0.45 + RISE_SECS * 0.45)
+	spread.tween_callback(func() -> void: ring.visible = true)
+	spread.tween_property(ring, "scale", Vector3(1.7, 1.0, 1.5), 0.8).set_ease(Tween.EASE_OUT)
+	spread.parallel().tween_property(mat, "albedo_color:a", 0.0, 0.8)
+	spread.tween_callback(ring.queue_free)
 
 
 ## The water sinks to the bottom of the room and is gone.

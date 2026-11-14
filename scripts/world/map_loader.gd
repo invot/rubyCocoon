@@ -1218,8 +1218,15 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			if tk == "":
 				tk = b.get("temple", "water")
 			var t: Dictionary = WorldDB.TEMPLES[tk]
-			return {"kind": "guardian", "id": "guardian_" + tk, "temple": tk, "name": RaceDB.race_name(t["guardian"]), "pos": p,
+			var g := {"kind": "guardian", "id": "guardian_" + tk, "temple": tk, "name": RaceDB.race_name(t["guardian"]), "pos": p,
 				"beast_genes": RaceDB.genes(t["guardian"]), "facing": Vector2i(0, 1), "flag": "guardian_" + tk, "big": true}
+			# the temples' dragons rest in a nest of sticks round their tile (world.gd _build_nest); talking to any
+			# side of it talks to them
+			if ResourceLoader.exists("res://assets/summons/%s_rest.res" % tk):
+				g["nest"] = true
+				g["blocks"] = [p + Vector2i(-1, -1), p + Vector2i(0, -1), p + Vector2i(1, -1), p + Vector2i(-1, 0),
+					p + Vector2i(1, 0), p + Vector2i(-1, 1), p + Vector2i(0, 1), p + Vector2i(1, 1)]
+			return g
 		"thunderhawk":
 			# the Sky Tower's giant bird, a Tempestrix, waiting on the roof (its id is from when it was a Thunderhawk)
 			return {"kind": "story", "id": "thunderhawk", "name": "Tempestrix", "pos": p, "beast_genes": RaceDB.genes(32), "big": true,

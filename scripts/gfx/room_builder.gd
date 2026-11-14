@@ -644,6 +644,10 @@ func _floors() -> void:
 			# (in a room of several levels there's a floor under its water: tide_water.gd draws the water)
 			if c in [MapGen.RING, MapGen.LAVA, MapGen.IVOID] or (c == MapGen.WATER and not Elev.has(map)):
 				continue
+			if sunk_basin(map, Vector2i(x, y)):
+				# (a wall fall's basin, sunk to the pool's floor: its water is the pool's)
+				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y), _lowest())
+				continue
 			if _sunk_detail(x, y):
 				continue
 			if y == h - 1:
@@ -721,10 +725,28 @@ func _floor_tri(pts: Array, z: String, lv := 0.0) -> void:
 
 
 # ---------------------------------------------------------------- rooms of several levels (a room's "heights")
-## True for a tile _levels draws itself, not _floors: a flight of steps, or a metal lattice.
+## True for a tile _levels draws itself, not _floors: a flight of steps, or a metal lattice (and a stretch of path
+## that sinks under a wall fall: tide_water.gd draws it).
 func _sunk_detail(x: int, y: int) -> bool:
 	var p := Vector2i(x, y)
-	return Elev.ramp_dir(map, p) != Vector2i.ZERO or map.get("lattices", {}).has(p)
+	return Elev.ramp_dir(map, p) != Vector2i.ZERO or map.get("lattices", {}).has(p) or rising_path(map, p)
+
+
+## True for a stretch of path a wall fall runs across (a water puzzle without lattices): it sinks under the water while
+## the fall runs and rises again when it stops, so the room leaves an open shaft there for tide_water.gd's slab.
+static func rising_path(m: Dictionary, p: Vector2i) -> bool:
+	return m.get("fall_spots", {}).has(p) and m.get("lattices", {}).is_empty()
+
+
+## True for the basin a wall fall lands in (a water puzzle without lattices): sunk to the room's lowest floor, so the
+## pool's water fills it level with the rest.
+static func sunk_basin(m: Dictionary, p: Vector2i) -> bool:
+	return m.get("basins", {}).has(p) and not m.get("fall_spots", {}).is_empty() and m.get("lattices", {}).is_empty()
+
+
+## True for a tile whose floor is down at the room's lowest, under a water puzzle's wall falls.
+static func sunk_tile(m: Dictionary, p: Vector2i) -> bool:
+	return rising_path(m, p) or sunk_basin(m, p)
 
 
 ## The lowest floor in the room.
@@ -750,6 +772,8 @@ func _foot(x: int, y: int) -> float:
 			var low := Elev.surface(map, q)
 			if Elev.ramp_dir(map, q) != Vector2i.ZERO:
 				low = minf(Elev.edge(map, q, Elev.ramp_dir(map, q)), Elev.edge(map, q, -Elev.ramp_dir(map, q)))
+			if sunk_tile(map, q):
+				low = _lowest()
 			foot = minf(foot, low)
 	return foot
 
@@ -776,14 +800,17 @@ func _levels() -> void:
 			if map.get("lattices", {}).has(p):
 				_lattice(p, c, iron, rim)
 				continue
+			if sunk_tile(map, p):
+				continue
 			var top := Elev.surface(map, p)
 			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 				var q: Vector2i = p + d
 				if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h or code(q.x, q.y) in WALLISH or code(q.x, q.y) == MapGen.IVOID:
 					continue
-				# (a lattice is open underneath, so the walkway it joins shows its end)
-				var open_under: bool = map.get("lattices", {}).has(q)
-				var low := _lowest() if open_under else Elev.edge(map, q, -d)
+				# (a lattice is open underneath, so the walkway it joins shows its end; so is the shaft a rising path
+				# moves in, with no coping across the path where its slab meets it)
+				var open_under: bool = map.get("lattices", {}).has(q) or rising_path(map, q)
+				var low := _lowest() if open_under or sunk_basin(map, q) else Elev.edge(map, q, -d)
 				if low >= top - 0.01:
 					continue
 				var out := Vector3(d.x, 0, d.y)

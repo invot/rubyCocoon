@@ -2041,6 +2041,22 @@ func _tablet_node(glow: Color) -> Node3D:
 
 
 
+## What each guardian says when its song wakes it (it will only befriend the worthy), and once it's been won over
+## (it will come to your aid in battle). %s: the temple's song.
+const GUARDIAN_LINES := {
+	"water": {"wake": ["Who sings the %s in my temple?", "The sea answers only to the worthy. Show me your strength, and perhaps I will call you friend."],
+		"won": ["You fought well, and your song rang true.", "Play it in battle, and I will rise from the tide to come to your aid."]},
+	"air": {"wake": ["The %s... It has been a long time since anyone sang it.", "But I fly only beside the worthy. Show me you can keep up!"],
+		"won": ["Ha! You kept up after all.", "Play my song in battle, and I will ride the wind to your side."]},
+	"fire": {"wake": ["Who dares wake me with the %s?", "Only the worthy may befriend the flame. Prove yourself, or be scorched!"],
+		"won": ["Your fire burns hotter than I thought.", "Play my song in battle, and I will come blazing to your aid."]},
+	"earth": {"wake": ["The %s... the old ones taught it well.", "Yet I stand only beside the worthy. Show me your roots run deep!"],
+		"won": ["Your roots run deep indeed.", "Play my song in battle, and I will shake the ground to come to your aid."]},
+	"ghost": {"wake": ["Who stirs the dead with the %s?", "Only the worthy may befriend a shade. Prove it, if you dare."],
+		"won": ["You did not flinch from the dark.", "Play my song in battle, and I will rise from the shadows to aid you."]},
+}
+
+
 func _guardian(world, n: Dictionary) -> void:
 	var tk: String = n["temple"]
 	var t: Dictionary = WorldDB.TEMPLES[tk]
@@ -2049,12 +2065,17 @@ func _guardian(world, n: Dictionary) -> void:
 	if GameState.flag(n["flag"]):
 		return
 	if not GameState.knows_song(song):
-		await say(["%s, guardian of the %s, sleeps on, coiled around the altar." % [RaceDB.race_name(race), t["name"]],
+		await say(["%s, guardian of the %s, sleeps on, curled up in its nest." % [RaceDB.race_name(race), t["name"]],
 			"Its eyes stay shut. The song that wakes it is still locked in the singing stones."])
 		return
 	Sfx.play("growl")
-	await say(["The %s stirs the air, and %s opens its eyes." % [SongDB.song_name(song), RaceDB.race_name(race)],
-		"It rises to test you! It can't be beaten, only won over: wear it down, then play the %s to it." % SongDB.song_name(song)])
+	var talk: Dictionary = GUARDIAN_LINES.get(tk, {})
+	await say(["The %s stirs the air, and %s opens its eyes." % [SongDB.song_name(song), RaceDB.race_name(race)]])
+	if talk.has("wake"):
+		var wake: Array = (talk["wake"] as Array).duplicate()
+		wake[0] = String(wake[0]) % SongDB.song_name(song)
+		await say(wake, RaceDB.race_name(race))
+	await say(["It rises to test you! It can't be beaten, only won over: wear it down, then play the %s to it." % SongDB.song_name(song)])
 	if GameState.alive_party().is_empty():
 		await say(["The guardian closes its eyes again. Your beasts are in no state to fight."])
 		return
@@ -2072,6 +2093,8 @@ func _guardian(world, n: Dictionary) -> void:
 	var res: String = await GameState.main.start_battle({"wild": true, "foes": foes, "guardian": tk, "seed": randi(), "intro": "wild"})
 	if res != "win" or not GameState.summons.has(tk):
 		return
+	if talk.has("won"):
+		await say(talk["won"], RaceDB.race_name(race))
 	world.remove_npc(n)
 	Sfx.play("levelup")
 	await say(["%s is yours now: a summon!" % RaceDB.race_name(race),
@@ -2245,7 +2268,7 @@ func _speaker_node(speaker: String) -> Node3D:
 				names.append("Resident")
 		if speaker in names:
 			var node: Node3D = _dialogue_npc.get("node", null)
-			if is_instance_valid(node) and node.has_meta("skeleton"):
+			if is_instance_valid(node) and (node.has_meta("skeleton") or node.has_meta("speech_bounds")):
 				return node
 			if node is TrainerCell:
 				return node.person

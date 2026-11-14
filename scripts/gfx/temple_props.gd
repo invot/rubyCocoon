@@ -73,10 +73,11 @@ const LID_OPEN := -1.9
 
 
 ## A treasure chest from Kay Lousberg's KayKit Dungeon Pack (tools/import_kaykit.gd), front facing +z, its lid ("Lid",
-## hinged along the back) shut or thrown open: the gold-filled one for a temple's treasures, the plain one for the items
-## lying about the world (world.gd _build_items). Falls back to the older box-built chest if the meshes are missing.
-static func chest(open: bool, gold := true) -> Node3D:
-	var kind := "chest_gold" if gold else "chest"
+## hinged along the back) shut or thrown open: the plain one, for temple treasures and the items lying about the world
+## alike (no prop shows gold coins: the user's 2026-11-14 direction). Falls back to the older box-built chest if the
+## meshes are missing.
+static func chest(open: bool) -> Node3D:
+	var kind := "chest"
 	var base: Mesh = load("res://assets/props/kaykit_%s_base.res" % kind) if ResourceLoader.exists("res://assets/props/kaykit_%s_base.res" % kind) else null
 	var top: Mesh = load("res://assets/props/kaykit_%s_lid.res" % kind) if ResourceLoader.exists("res://assets/props/kaykit_%s_lid.res" % kind) else null
 	if base == null or top == null:
@@ -106,9 +107,6 @@ static func _box_chest(open: bool) -> Node3D:
 	for x: float in [-0.24, 0.24]:
 		k.box("tin", Vector3(x, 0.2, 0), Vector3(0.07, 0.42, 0.5), GOLD)
 	k.box("tin", Vector3(0, 0.26, 0.245), Vector3(0.12, 0.14, 0.02), GOLD)
-	if open:
-		# the gleam inside
-		k.box("glow", Vector3(0, 0.39, 0), Vector3(0.6, 0.02, 0.38), Color("#ffe8a0"))
 	var body := MeshInstance3D.new()
 	body.mesh = k.mesh()
 	root.add_child(body)
