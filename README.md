@@ -386,6 +386,25 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   A guardian can't be knocked out (it rises again): weaken it and play its song to capture it. In battle the same song
   summons it, once per battle for one shield point, to hit every foe for about half their HP, more with an element
   advantage; bosses always survive it (`summon_fx.gd`).
+  - The four temple dragons sleep in the middle of their chambers, curled up in a raised, round nest of woven sticks
+    with a lipped rim (`beast_nest.gd`; three tiles across, none of them walkable; talk to the guardian from any side
+    of it). They lie in a resting pose baked from their flying models by `tools/summon_rest.gd` (wings folded along
+    their backs, legs tucked, the sky serpent coiled with its head on its coils; `assets/summons/<element>_rest.res`),
+    perfectly still. Their song wakes them: each says that only the worthy may befriend it before the battle, and
+    once won over says it will now come to your aid in battle (`Story.GUARDIAN_LINES`, in their own bubbles). The
+    crypt's ghost keeps its usual model.
+  - The Temple of Tides' guardian chamber is round (`round_chamber.gd`, the room's "round"): a raised stone platform
+    almost fills it over a pit, and water pours from a ledge all round the wall into the pool filling the pit below
+    (the wall stands low on the camera's side, the water pouring over its top). A bridge crosses from the door, and a
+    lane between heaps of hoard and bundles of candles (every candle a different height and thickness) leads straight
+    to the nest, raised on a round dais of three steps. The chamber is dark; a soft shaft of sunlight falls from an
+    opening overhead onto the dragon.
+  - Every temple room is dark (`world.gd` _build_room) and lit by KayKit wall torches on its pilasters (at most six
+    giving light per room, for the Mobile renderer; `temple_lights.gd`, `room_builder.gd` _pilasters). The Beast
+    Centers keep their bronze flame bowls.
+  - Dragons hoard: each chamber's "hoard" tiles (`interior_maps.gd`) and the nest's corners are heaped with gold coins,
+    coin stacks, golden arms, trunks, candles, keys and plates from the KayKit Dungeon Pack (`dragon_hoard.gd`, one
+    merged mesh; `tools/import_kaykit.gd -- --hoard`). These chambers are the only place gold coins appear as props.
 - **Temples are several rooms** (`WorldDB.TEMPLES` `rooms`, the first room being the way in). The first is the
   **Temple of Tides**. Its road, the Coral Reef, is a jungle trail along cliffs above the sea. It crosses rivers
   falling from the high ground on railed bridges, until the old ford runs too deep to wade: a sluice lever on the
@@ -1507,6 +1526,14 @@ Repeat at `2400x1080` with `--touch` and separate capture/save directories for p
 checks controller layout detection, nonzero device IDs, connect/disconnect fallback, eight stick directions, deadzone,
 corner/stair protection, equal diagonal speed, menu input, available input choices, saved preferences and settings
 focus/scroll retention. These inject joypad events; physical USB/Bluetooth pairing and Android drivers require device testing.
+
+`bash tools/run_tests.sh diagonal diagonal-touch` checks the step-012 movement core in both states:
+all four diagonals, corner/level/ramp/cliff protection, single-component slides, equal ground speed,
+NPC and beast arrivals, grass step accounting and a cardinal door trigger after a diagonal.
+The core is staged behind the developer argument `--diagonal_core=1`; the public setting and expanded
+keyboard/touch input remain runbook step 013. Ordinary play retains its existing controls, including
+the controller stick's existing diagonals. The named `walk-diagonal-on`, `walk-touch-diagonal-on`,
+`wild-grace-diagonal-on`, `flow-diagonal-on` and `lessons-diagonal-on` scenarios exercise the opt-in core.
 Windowed captures: `godot --path . --resolution 1920x1080 -- --scene=controllers
 --controller="DualSense Wireless Controller" --shots=res://build/shots/controllers_desktop --shot_w=0
 --prefs_path=res://build/controller_preview/settings.cfg --save_dir=res://build/controller_preview/saves/`.

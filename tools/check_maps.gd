@@ -148,6 +148,11 @@ func _check(m: Dictionary) -> Array:
 				walled_in = false
 			elif MapGen.get_t(m, q.x, q.y) in [MapGen.COUNTER, MapGen.CRYSTAL, MapGen.TABLE] and seen.has(q + d):
 				adj = true
+		# (someone with a footprint, like a guardian in its nest on a dais: talked to from beside any tile of it)
+		for b: Vector2i in n.get("blocks", []):
+			for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+				if seen.has(b + d) and Elev.joined(m, b + d, b):
+					adj = true
 		var staff: bool = n.get("kind", "") == "keeper" or n.get("id", "") in ["center_guide", "kennel_keeper", "receptionist"]
 		# (staff who walk about the room, like the Beast Center's guide, are meant to be walked up to)
 		# The Sky Tower ticket desk is intentionally a straight counter with open ends.

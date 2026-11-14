@@ -132,6 +132,7 @@ static var _wall_papers := {}
 ## of the temple's stone, a heavy plinth and cornice instead of skirting, carved pilasters with flame sconces, stone
 ## portals instead of painted doors, worn stone flags underfoot and the warm light of the flames.
 const SANDSTONE := Color("#cdb896")
+const TempleLights = preload("res://scripts/gfx/temple_lights.gd")
 const FLAME := Color("#ffb04a")
 ## the stone courses' height, and a pilaster every this many tiles along a wall
 const COURSE := 0.7
@@ -379,6 +380,8 @@ var textures := {}
 var default_zone := "shop"
 var trim := Color("#5a3a26")
 var ancient := false
+## a temple's room ("temple..."): ancient, and dark, lit by its torches
+var temple := false
 ## an ancient room laid in dressed blocks rather than smooth ashlar (the Beast Center's, matching its outside)
 var blocks := false
 ## a Spanish mission's finish (the template's "mission"): see _mission_decor
@@ -424,11 +427,21 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb.mission = room.get("mission", false)
 	rb.adobe = room.get("adobe", false)
 	rb.ancient = room.get("ancient", String(m.get("room_key", "")).begins_with("temple"))
+	rb.temple = String(m.get("room_key", "")).begins_with("temple")
 	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
 	rb.blocks = room.get("blocks", false)
 	if rb.blocks:
 		# (the template's own stone, as it is outside)
 		rb.stone = Color(str(room.get("wall", "#b9b5ad")))
+	if room.has("round"):
+		# a round chamber builds itself (round_chamber.gd): only its doorways' stone portals here, in its round wall
+		for e: Vector2i in m.get("exits", {}):
+			rb._portal(e.x, e.y, e.y == 0 or e.y == rb.h - 1)
+		for y in rb._row_meshers:
+			var rmi := MeshInstance3D.new()
+			rmi.mesh = (rb._row_meshers[y] as Mesher).mesh()
+			(rb.rows[y] as Node3D).add_child(rmi)
+		return rb
 	if room.get("open", false):
 		# Open decks keep their existing floor and railings; only add the shared stairwell.
 		rb._stairs()
@@ -1087,8 +1100,13 @@ func _inlay_colour() -> Color:
 	return Color(str(map.get("room", {}).get("rug", "#5ac8ff"))).lightened(0.35)
 
 
-## Carved pilasters along an ancient room's walls, every PILASTER_EVERY tiles out from the middle of each wall, each
-## with a flame in a bronze sconce on every other one; none beside a doorway or a window, and always in mirrored pairs.
+## Carved pilasters along an ancient room's walls, every PILASTER_EVERY tiles out from the middle of each wall, a
+## flame burning on every other one: a KayKit torch in a temple (temple_lights.gd), a bronze bowl elsewhere; none beside a doorway or a window, and always in
+## mirrored pairs. The temples are dark: the torches light them, at most MAX_TORCH_LIGHTS lit ones in a room (for
+## the Mobile renderer's lights per mesh), spread evenly round it; the rest just burn.
+const MAX_TORCH_LIGHTS := 6
+
+
 func _pilasters() -> void:
 	var col := surface("pilaster", stone.lightened(0.04))
 	var cap := surface("pilaster_cap", stone.darkened(0.1))
@@ -1098,6 +1116,7 @@ func _pilasters() -> void:
 	flame.emission = FLAME
 	flame.emission_energy_multiplier = 2.4
 	flame.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var torches := []
 	# (a back wall with waterfalls down it has its pilasters behind the levers between them)
 	var lever_posts := {}
 	if not map.get("fall_spots", {}).is_empty() and map.get("lattices", {}).is_empty():
@@ -1140,11 +1159,22 @@ func _pilasters() -> void:
 				# (every other one out from the middle, the same either side)
 				if off2 / PILASTER_EVERY / 2 % 2 == 1:
 					continue
-				# a bronze bowl on a bracket, a flame in it
+				# in a temple, a torch on the pilaster's face
+				if temple:
+					torches.append([x, y, face + out * 0.24 + Vector3(0, 1.3, 0), out])
+					continue
+				# elsewhere (the Beast Centers), a bronze bowl on a bracket, a flame in it
 				m.box("brass", bronze, face + out * 0.34 + Vector3(0, 1.62, 0), wide * 0.08 + out.abs() * 0.22 + Vector3(0, 0.05, 0))
 				m.box("brass", bronze, face + out * 0.46 + Vector3(0, 1.7, 0), wide * 0.24 + out.abs() * 0.24 + Vector3(0, 0.1, 0))
 				m.box("flame", flame, face + out * 0.46 + Vector3(0, 1.84, 0), wide * 0.14 + out.abs() * 0.14 + Vector3(0, 0.2, 0))
 				m.box("flame", flame, face + out * 0.46 + Vector3(0, 1.98, 0), wide * 0.07 + out.abs() * 0.07 + Vector3(0, 0.12, 0))
+	var lit := {}
+	var n := torches.size()
+	for i in mini(n, MAX_TORCH_LIGHTS):
+		lit[int(floor((i + 0.5) * n / float(mini(n, MAX_TORCH_LIGHTS))))] = true
+	for i in n:
+		var t: Array = torches[i]
+		_attach(t[0], t[1], TempleLights.wall_torch(t[2], t[3], lit.has(i)))
 
 
 ## Whether wall tile (wx, wy) can carry a pilaster: plain wall, with no doorway or window either side of it along the
@@ -2766,7 +2796,8 @@ func _lights() -> void:
 				for j in nz:
 					var l := OmniLight3D.new()
 					l.light_color = Color(ZONES.get(z, ZONES["shop"])["light"]) if not ancient else Color("#ffc890")
-					l.light_energy = 0.7
+					# (a temple is dark: its torches light it, over a faint fill)
+					l.light_energy = 0.7 if not temple else 0.18
 					l.omni_range = maxf(size.x / nx, size.y / nz) * 0.9 + 2.0
 					l.position = Vector3(lo.x + size.x * (i + 0.5) / nx, 2.4, lo.y + size.y * (j + 0.5) / nz)
 					parent.add_child(l)

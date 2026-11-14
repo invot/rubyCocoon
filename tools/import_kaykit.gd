@@ -5,6 +5,7 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/smooth_textures.gd -- --only=res://assets/exteriors/kaykit_
 ##   godot --headless --path . --import
 ## `-- --chests` re-bakes only the chests (then smooth with --only=res://assets/props/kaykit_chest).
+## `-- --hoard` bakes only the dragons' hoards (HOARD), on the shared atlas already baked and smoothed.
 ##
 ## The pack's glTF files (with their bin and dungeon_texture.png beside them) live in psx/kaykit_dungeon/, untouched.
 ##  - The treasure chest (the plain one; the pack's gold-filled one is never baked), as two meshes so the lid can swing:
@@ -41,11 +42,27 @@ const BENCHES := {
 const SEAT_SCALE := 0.9
 const BENCH_WIDTH := 1.8
 
+## The hoards heaped round the temple guardians' nests (world.gd _dress_hoard): gold coins, stacks of them, golden
+## arms, trunks, candles, keys and plates. The only gold coins in the game. Each is baked at the chests' scale (so
+## they keep the pack's sizes next to each other) times its factor here, standing on y = 0, centred on x/z, as
+## assets/props/kaykit_hoard_<name>.res.
+const HOARD := {"coin": 1.6, "coin_stack_small": 1.3, "coin_stack_medium": 1.3, "coin_stack_large": 1.3,
+	"sword_shield_gold": 1.0, "sword_shield": 1.0, "trunk_large_A": 1.0, "trunk_medium_B": 1.0, "trunk_small_C": 1.0,
+	"candle_triple": 1.0, "candle_lit": 1.0, "candle_melted": 1.0, "keyring": 1.3, "plate_stack": 1.0, "keg_decorated": 1.0}
+## The temples' lights (world.gd, room_builder.gd, round_chamber.gd): the wall torch, the standing torch and the thin
+## candle, baked like the hoard (as assets/props/kaykit_hoard_<name>.res too, so one --hoard pass bakes them all).
+const LIGHTS := {"torch_mounted": 1.0, "torch_lit": 1.0, "candle_thin_lit": 1.0}
+
 var _mats := {}
 
 
 func _init() -> void:
 	var fails := 0
+	if "--hoard" in OS.get_cmdline_user_args():
+		fails += _bake_hoard()
+		print("KAYKIT DONE: %d problem(s)" % fails)
+		quit(1 if fails > 0 else 0)
+		return
 	for kind in ["chest"]:
 		var sc := _load(kind)
 		if sc == null:
@@ -134,6 +151,41 @@ func _init() -> void:
 	quit(1 if fails > 0 else 0)
 
 
+func _bake_hoard() -> int:
+	var fails := 0
+	# the chests' scale: CHEST_WIDTH across the chest's box
+	var chest := _load("chest")
+	var w := 1.0
+	for mi in chest.find_children("*", "MeshInstance3D", true, false):
+		if not String(mi.name).ends_with("_lid"):
+			w = (mi as MeshInstance3D).mesh.get_aabb().size.x
+	chest.free()
+	var all := HOARD.merged(LIGHTS)
+	for name in all:
+		var sc := _load(String(name))
+		if sc == null:
+			fails += 1
+			continue
+		var parts := []
+		var bb := AABB()
+		var first := true
+		for mi in sc.find_children("*", "MeshInstance3D", true, false):
+			var xf := _xf_to(mi, sc)
+			parts.append([mi, xf])
+			var b: AABB = xf * (mi as MeshInstance3D).mesh.get_aabb()
+			bb = b if first else bb.merge(b)
+			first = false
+		var s: float = CHEST_WIDTH / w * float(all[name])
+		var shift := Transform3D(Basis().scaled(Vector3.ONE * s), Vector3.ZERO) 			* Transform3D(Basis(), -Vector3(bb.get_center().x, bb.position.y, bb.get_center().z))
+		for p in parts:
+			p[1] = shift * p[1]
+		var mesh := _bake(parts)
+		_save(mesh, "res://assets/props/kaykit_hoard_%s.res" % name)
+		print("hoard %s: %.2f x %.2f x %.2f" % [name, mesh.get_aabb().size.x, mesh.get_aabb().size.y, mesh.get_aabb().size.z])
+		sc.free()
+	return fails
+
+
 func _load(name: String) -> Node:
 	var doc := GLTFDocument.new()
 	var st := GLTFState.new()
@@ -210,7 +262,7 @@ func _atlas(src: Texture2D) -> Texture2D:
 	if _atlas_tex != null:
 		return _atlas_tex
 	# a chests-only bake keeps the shared (already smoothed) atlas the other meshes use
-	if "--chests" in OS.get_cmdline_user_args() and ResourceLoader.exists(ATLAS):
+	if ("--chests" in OS.get_cmdline_user_args() or "--hoard" in OS.get_cmdline_user_args()) and ResourceLoader.exists(ATLAS):
 		_atlas_tex = load(ATLAS)
 		return _atlas_tex
 	var img := src.get_image().duplicate()

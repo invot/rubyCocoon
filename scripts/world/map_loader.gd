@@ -1107,9 +1107,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				if MapGen.walkable(MapGen.get_t(m, q.x, q.y)) and not ups.has(q):
 					m["spawns"]["from_above"] = q
 					break
-	# (a room of pools and walkways: you start at its door)
+	# (a room of pools and walkways, or a round chamber over its pit: you start at its door)
 	var front_spot := Vector2i(w / 2, h - 2)
-	if room.has("water_levels") and not links.is_empty():
+	if (room.has("water_levels") or room.has("round")) and not links.is_empty():
 		front_spot = m["spawns"].get("from_" + String(links.values()[0]), front_spot)
 	m["spawns"]["start"] = m["spawns"].get("entry", front_spot)
 	# where you wake up on the first morning (your home)
@@ -1224,8 +1224,10 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			# side of it talks to them
 			if ResourceLoader.exists("res://assets/summons/%s_rest.res" % tk):
 				g["nest"] = true
-				g["blocks"] = [p + Vector2i(-1, -1), p + Vector2i(0, -1), p + Vector2i(1, -1), p + Vector2i(-1, 0),
-					p + Vector2i(1, 0), p + Vector2i(-1, 1), p + Vector2i(0, 1), p + Vector2i(1, 1)]
+				g["blocks"] = []
+				for offset: Vector2i in load("res://scripts/gfx/beast_nest.gd").tiles(InteriorMaps.ROOMS.get(room, {})):
+					if offset != Vector2i.ZERO:
+						g["blocks"].append(p + offset)
 			return g
 		"thunderhawk":
 			# the Sky Tower's giant bird, a Tempestrix, waiting on the roof (its id is from when it was a Thunderhawk)

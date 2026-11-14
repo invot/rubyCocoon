@@ -190,7 +190,7 @@ upholstery) over a wood grain and cloth weave of our own.
 - **PSX Dungeon Boxes and Barrels Pack** by Games by McSteeg, https://mcsteeg.itch.io (the older crates and barrels,
   no longer shown). Free for commercial use; the files may not be redistributed.
 - **KayKit Dungeon Pack 1.1** by Kay Lousberg, https://www.kaylousberg.com, CC0 (the treasure chests that hold the
-  items lying about the world and the temples' treasures, the crates and barrels, and the street benches, made by stretching its stool along the seat; baked by
+  items lying about the world and the temples' treasures, the crates and barrels, the street benches, made by stretching its stool along the seat, and the temple dragons' hoards of coins, trunks, arms, candles, keys and plates; baked by
   `tools/import_kaykit.gd`).
   See [licence](licenses/KayKit%20Dungeon%20Pack%20-%20License.txt).
 - **PSX style modular hedges** by valsekamerplant, CC0, https://valsekamerplant.itch.io/psx-style-hedges.

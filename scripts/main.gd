@@ -1673,6 +1673,8 @@ func _run_test() -> void:
 			Prefs.accent = String(_test["flip"])
 			Prefs.changed.emit()
 		await _wait(wait)
+	elif scene == "diagonal":
+		await load("res://tools/debug/diagonal.gd").new().run(self, _test)
 	elif scene == "walk4":
 		# four-way walking on the grid (--touch adds the d-pad): two keys at once, a change of way mid-step, the
 		# gamepad's d-pad and stick, B to run, tap to walk and a porch's raised deck; every stop must be on a tile centre
@@ -2785,7 +2787,7 @@ func _guardian_test(tk: String) -> void:
 func _guardian_shots(tk: String, g: Dictionary) -> void:
 	var dir := String(_test["shots"])
 	var gp: Vector2i = g["pos"]
-	for goal in [gp + Vector2i(0, 2), gp + Vector2i(-2, 0), gp + Vector2i(2, 0)]:
+	for goal in [gp + Vector2i(2, 0), gp + Vector2i(-2, 0), gp + Vector2i(0, 2), gp + Vector2i(-3, 1)]:
 		await _walk_test([goal])
 		if world.player_pos == goal:
 			break
@@ -2854,13 +2856,13 @@ func _tides_walk_test() -> void:
 	var last := await _tides_door(song, "temple_water")
 	bad += _tides_check("into the octagon", world.map_id == last)
 	await _tides_shot("8_octagon")
-	# (the guardian rests in a nest round its tile: you stand beside the nest, at the end of the path)
+	# (the guardian rests in a nest on a round dais: you stand at the dais's foot, at the end of the lane)
 	var gp: Vector2i = _npc("guardian_water")["pos"]
-	await _walk_test([gp + Vector2i(-2, 0)])
+	await _walk_test([gp + Vector2i(-3, 0)])
 	world.facing = Vector2i(1, 0)
 	load("res://scripts/gfx/voxel_person.gd").face(world.player, Vector2i(1, 0))
 	await _wait(0.2)
-	bad += _tides_check("beside the guardian's nest on its platform", world.player_pos == gp + Vector2i(-2, 0) and world.npc_footprints.get(gp + Vector2i(-1, 0), Vector2i(-99, -99)) == gp)
+	bad += _tides_check("at the foot of the guardian's dais", world.player_pos == gp + Vector2i(-3, 0) and world.npc_footprints.get(gp + Vector2i(-2, 0), Vector2i(-99, -99)) == gp)
 	await _tides_shot("9_guardian")
 	print("TIDES WALK DONE: %d problem(s)" % bad)
 

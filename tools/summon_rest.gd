@@ -17,7 +17,7 @@ const DIR := "res://assets/summons/"
 ## reach: bind only vertices within this distance of the bone.
 const RIGS := {
 	# the sky serpent: coiled up flat, its head resting on top
-	"air": {"coil": {"outer": 0.2, "gap": 0.075, "lift": 0.07, "head": 0.18, "y": 0.04}},
+	"air": {"coil": {"outer": 0.15, "gap": 0.042, "lift": 0.07, "head": 0.16, "y": 0.04, "rise": 0.05, "girth": 1.5}},
 	"fire": {"bones": [
 		{"n": "body", "a": Vector3(0, 0.22, -0.01), "b": Vector3(0, 0.40, 0.13), "at": Vector3(0, 0.11, -0.10), "dir": Vector3(0, 0.08, 1)},
 		{"n": "neck", "p": "body", "a": Vector3(0, 0.40, 0.13), "b": Vector3(0, 0.37, 0.24), "dir": Vector3(0, -0.55, 1)},
@@ -54,8 +54,8 @@ const RIGS := {
 	# rearing upright in the air, wings swept back: it tips forward onto its belly
 	"water": {"bones": [
 		{"n": "body", "a": Vector3(0, 0.20, 0.13), "b": Vector3(0, 0.38, 0.15), "at": Vector3(0, 0.08, -0.04), "dir": Vector3(0, 0.05, 1)},
-		{"n": "neck", "p": "body", "a": Vector3(0, 0.38, 0.15), "b": Vector3(0, 0.48, 0.17), "dir": Vector3(0.1, -0.15, 1)},
-		{"n": "head", "p": "neck", "a": Vector3(0, 0.48, 0.17), "b": Vector3(0, 0.45, 0.26), "dir": Vector3(0.25, -0.2, 1)},
+		{"n": "neck", "p": "body", "a": Vector3(0, 0.38, 0.15), "b": Vector3(0, 0.48, 0.17), "dir": Vector3(0.1, 0.22, 1)},
+		{"n": "head", "p": "neck", "a": Vector3(0, 0.48, 0.17), "b": Vector3(0, 0.45, 0.26), "dir": Vector3(0.3, -0.05, 1)},
 		{"n": "tail1", "p": "body", "a": Vector3(0, 0.20, 0.13), "b": Vector3(0, 0.10, 0.13), "dir": Vector3(0.3, -0.1, -1)},
 		{"n": "tail2", "p": "tail1", "a": Vector3(0, 0.10, 0.13), "b": Vector3(0, 0.03, 0.19), "dir": Vector3(1, -0.05, -0.3)},
 		{"n": "tail3", "p": "tail2", "a": Vector3(0, 0.03, 0.19), "b": Vector3(0, 0.02, 0.0), "dir": Vector3(0.4, 0, 1)},
@@ -172,8 +172,8 @@ static func _deform(base: ArrayMesh, xform: Callable) -> ArrayMesh:
 
 ## The sky serpent's rest: its spine (the middle of the body along its length, from the tail at -z to the head at
 ## +z) laid on a flat spiral, the tail outermost and the head on top in the middle, each part of the body keeping
-## its shape round the spine. outer: the spiral's outer radius; gap: how far each turn comes in; lift: how high the
-## head rises over the last `head` of the spine.
+## its shape round the spine. outer: the spiral's outer radius; gap: how far each turn comes in; rise: how much
+## higher each turn in lies; lift: how high the head rises over the last `head` of the spine.
 static func _coil(base: ArrayMesh, cfg: Dictionary) -> ArrayMesh:
 	# the spine: the middle of each slice along z, smoothed
 	var bb := base.get_aabb()
@@ -210,13 +210,18 @@ static func _coil(base: ArrayMesh, cfg: Dictionary) -> ArrayMesh:
 	var lift: float = cfg.get("lift", 0.08)
 	var head: float = cfg.get("head", 0.15)
 	var y0: float = cfg.get("y", 0.04)
+	var rise: float = cfg.get("rise", 0.0)
+	# (a slender serpent coiled in a nest reads as a thin hose: its body is drawn this much thicker round its spine)
+	var girth: float = cfg.get("girth", 1.0)
+	var thick := Transform3D(Basis().scaled(Vector3(girth, girth, 1.0)), Vector3.ZERO)
 	var path := []
 	var theta := 0.0
 	var steps := 400
 	for i in steps + 1:
 		var s := total * i / steps
 		var r := maxf(0.05, outer - gap * theta / TAU)
-		var h := y0 + lift * smoothstep(total - head, total, s)
+		# each turn in lies a little higher on the one outside it, heaped up
+		var h := y0 + rise * (1.0 - r / outer) / maxf(gap / outer, 0.01) * 0.25 + lift * smoothstep(total - head, total, s)
 		path.append(Vector3(cos(theta) * r, h, sin(theta) * r))
 		theta += total / steps / r
 	return _deform(base, func(v: Vector3) -> Transform3D:
@@ -233,7 +238,7 @@ static func _coil(base: ArrayMesh, cfg: Dictionary) -> ArrayMesh:
 				s = lerpf(arc[i - 1], arc[i], t)
 		var src := _frame(spine, arc, s)
 		var dst := _frame(path, [], s * steps / total)
-		return dst * src.affine_inverse())
+		return dst * thick * src.affine_inverse())
 
 
 ## A frame on a polyline at arc length s (or, with no arc table, at fractional index s): x across, y up, z along.

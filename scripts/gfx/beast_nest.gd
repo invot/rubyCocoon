@@ -12,9 +12,18 @@ const R_OUT := 1.42
 const R_IN := 1.02
 const FLOOR_H := 0.36
 const LIP_H := 0.66
-## the tiles it covers round its middle tile
-const TILES := [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(0, 0), Vector2i(1, 0),
-	Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
+## The tiles it covers round its middle tile (offsets): the 3x3 round it, or, on a round chamber's dais
+## (round_chamber.gd), every tile within the dais's foot.
+static func tiles(room: Dictionary) -> Array:
+	var dais: Array = room.get("round", {}).get("dais", [])
+	var reach := float(dais[0]) if not dais.is_empty() else 1.5
+	var out := []
+	var n := int(ceil(reach))
+	for y in range(-n, n + 1):
+		for x in range(-n, n + 1):
+			if Vector2(x, y).length() <= reach:
+				out.append(Vector2i(x, y))
+	return out
 const BROWNS := ["#7a5530", "#8f6a40", "#6a4728", "#a07a4a", "#5e4026", "#86603a"]
 const CORE := Color("#4a321e")
 const SIDES := 6

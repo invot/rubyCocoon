@@ -8,6 +8,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const Terrain = preload("res://scripts/world/terrain_mesh.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
+const WalkerStep = preload("res://scripts/world/walker_step.gd")
 const OutdoorLight = preload("res://scripts/gfx/outdoor_light.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -16,6 +17,8 @@ const MoveDB = preload("res://scripts/data/move_db.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const VB = preload("res://scripts/gfx/voxel_beast.gd")
 const BeastNest = preload("res://scripts/gfx/beast_nest.gd")
+const DragonHoard = preload("res://scripts/gfx/dragon_hoard.gd")
+const RoundChamber = preload("res://scripts/gfx/round_chamber.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
@@ -77,6 +80,8 @@ var _player_grace_material: ShaderMaterial
 var player_pos := Vector2i.ZERO
 var facing := Vector2i(0, 1)
 var moving := false
+## Step 012's opt-in core; the public setting and input expansion follow in 013.
+var diagonal_movement := "--diagonal_core=1" in OS.get_cmdline_user_args()
 var move_from := Vector3.ZERO
 var move_to := Vector3.ZERO
 var move_t := 0.0
@@ -94,7 +99,8 @@ var courier_employee: Node3D
 var npcs := {}
 ## Additional occupied tiles share one actor and one interaction; visual placement can sit between tiles.
 var npc_footprints := {}
-## the tiles a temple guardian's nest stands on (beast_nest.gd): never walked on, the guardian there or not
+## the tiles a temple guardian's nest and hoard stand on (beast_nest.gd, dragon_hoard.gd): never walked on, the
+## guardian there or not
 var nest_tiles := {}
 var _door_speakers := {}
 var items := {}
@@ -2743,15 +2749,29 @@ func _beast_node(genes: Dictionary, scale := 1.0) -> Node3D:
 	return root
 
 
-## A temple guardian's nest (beast_nest.gd), round the tile `p`, on the floor of that tile; its tiles can't be walked on.
+## A temple guardian's nest (beast_nest.gd), round the tile `p`, on the floor of that tile, and its hoard of gold
+## (dragon_hoard.gd) in the nest's corners and on the room's "hoard" tiles. None of their tiles can be walked on.
 func _build_nest(p: Vector2i) -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "Nest"
 	mi.mesh = BeastNest.mesh()
-	mi.position = tile_pos(p)
+	# (on a round chamber's dais, round_chamber.gd)
+	mi.position = tile_pos(p) + Vector3(0, RoundChamber.dais_top(map["room"]), 0)
 	add_child(mi)
-	for t in BeastNest.TILES:
+	for t in BeastNest.tiles(map["room"]):
 		nest_tiles[p + t] = true
+	var spots := []
+	for t: Vector2i in map["room"].get("hoard", []):
+		spots.append(tile_pos(t))
+		nest_tiles[t] = true
+	var corners := []
+	for c in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		corners.append(tile_pos(p) + Vector3(c.x * 1.2, 0.0, c.y * 1.2))
+	var hoard := MeshInstance3D.new()
+	hoard.name = "Hoard"
+	hoard.mesh = DragonHoard.mesh(spots, corners, hash(map_id))
+	hoard.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(hoard)
 
 
 ## A temple guardian at rest in its nest (tools/summon_rest.gd): lying in the bowl, turned a little from the camera.
@@ -2761,23 +2781,17 @@ func _resting_guardian(temple: String) -> Node3D:
 	var mi := MeshInstance3D.new()
 	mi.name = "Model"
 	mi.mesh = VB.summon_rest_mesh(temple, RESTING_LENGTH.get(temple, 2.6))
-	mi.position.y = BeastNest.FLOOR_H - 0.04
+	# (sunk a little into the bowl, legs hidden; the coiled serpent lies on the sticks)
+	mi.position.y = BeastNest.FLOOR_H + (0.04 if temple == "air" else -0.04) + RoundChamber.dais_top(map["room"])
 	mi.rotation.y = -PI / 2.0 + 0.55
 	root.add_child(mi)
 	var bb: AABB = mi.mesh.get_aabb()
-	root.set_meta("speech_bounds", AABB(Vector3(-0.4, 0.0, -0.4), Vector3(0.8, mi.position.y + bb.end.y, 0.8)))
+	root.set_meta("speech_bounds", AABB(Vector3(-0.4, 0.0, -0.4), Vector3(0.8, mi.position.y + bb.end.y * 0.8, 0.8)))
 	return root
 
 
 ## How long each guardian lies in its nest, across its longer side (the nest's bowl is about 2 across).
-const RESTING_LENGTH := {"water": 2.6, "fire": 2.6, "earth": 2.6, "air": 2.2}
-
-
-## A slow breath for a guardian asleep in its nest.
-func _breathe(model: Node3D) -> void:
-	var tw := model.create_tween().set_loops()
-	tw.tween_property(model, "scale", Vector3(1.0, 1.035, 1.015), 1.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(model, "scale", Vector3.ONE, 2.1).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+const RESTING_LENGTH := {"water": 2.9, "fire": 2.9, "earth": 2.9, "air": 1.9}
 
 
 ## How far the soft shade under someone's feet spreads (contact_shadow.gd), for a person and a full-sized beast.
@@ -2880,9 +2894,8 @@ func _build_npcs() -> void:
 				rod_lines.append(node)
 		node.position = tile_pos(p) + n.get("visual_offset", Vector3.ZERO)
 		add_child(node)
-		if n.get("nest", false):
-			_breathe(node.get_node("Model"))
-		elif not (n.has("scene") or n.has("mesh") or n.has("asset")):
+		# (a guardian resting in its nest lies perfectly still)
+		if not n.get("nest", false) and not (n.has("scene") or n.has("mesh") or n.has("asset")):
 			var beast: bool = n.get("beast_genes", null) != null or n.has("robot_body")
 			n["ground_shadow"] = _ground_shadow(node, BEAST_SHADOW * (1.7 if n.get("big", false) else 1.0) if beast else PERSON_SHADOW)
 		n["node"] = node
@@ -3186,6 +3199,9 @@ func _walkable(p: Vector2i) -> bool:
 ## True if you can step from `from` onto its neighbour `to`: free to walk on, and no cliff between (elevation.gd); onto
 ## a house's stairs only at their open end, never through the handrail or the wall beside them.
 func _can_step(from: Vector2i, to: Vector2i) -> bool:
+	if diagonal_movement:
+		var diagonal := from.x != to.x and from.y != to.y
+		return _walker_can_step(from, to, _hero_diagonal_free if diagonal else _walkable) and (not stair_ways.has(to) or from in stair_ways[to])
 	var d := to - from
 	if absi(d.x) == 1 and absi(d.y) == 1:
 		# All four edges must be traversable. Keep ramps, doors, push puzzles and encounters cardinal;
@@ -3197,6 +3213,18 @@ func _can_step(from: Vector2i, to: Vector2i) -> bool:
 				return false
 		return _can_step(from, x) and _can_step(from, y) and _can_step(x, to) and _can_step(y, to)
 	return _walkable(to) and Elev.joined(map, from, to) and (not stair_ways.has(to) or from in stair_ways[to])
+
+
+func _walker_can_step(from: Vector2i, to: Vector2i, free: Callable) -> bool:
+	return WalkerStep.clear(map, from, to, free, _cardinal_approach)
+
+
+func _cardinal_approach(p: Vector2i) -> bool:
+	return stair_ways.has(p) or doors.has(p) or map["exits"].has(p)
+
+
+func _hero_diagonal_free(p: Vector2i) -> bool:
+	return _walkable(p) and _beast_at(p) == null
 
 
 func _process(delta: float) -> void:
@@ -3461,6 +3489,13 @@ func _step(d: Vector2i, run: bool) -> bool:
 	var target := player_pos + d
 	if d.x != 0 and d.y != 0:
 		if not _can_step(player_pos, target):
+			if diagonal_movement:
+				var x := Vector2i(d.x, 0)
+				var y := Vector2i(0, d.y)
+				var x_free := _can_step(player_pos, player_pos + x) and _beast_at(player_pos + x) == null
+				var y_free := _can_step(player_pos, player_pos + y) and _beast_at(player_pos + y) == null
+				if x_free != y_free:
+					return _step(x if x_free else y, run)
 			return false
 		_begin_step(target, run)
 		_walk_dir = d
@@ -4211,7 +4246,8 @@ func _animate_npcs(delta: float) -> void:
 		var node: Node3D = n.get("node", null)
 		if node == null:
 			continue
-		if n.get("beast_genes", null) != null or n.has("robot_body"):
+		# (a guardian resting in its nest lies still: no bob)
+		if (n.get("beast_genes", null) != null or n.has("robot_body")) and not n.get("nest", false):
 			var m: Node3D = node.get_node_or_null("Model")
 			if m is BeastRig:
 				# (a new beast bobs on its own, while it's near enough to see)
@@ -4221,7 +4257,7 @@ func _animate_npcs(delta: float) -> void:
 		if n.has("walking"):
 			# a step across the room, legs and arms swinging
 			var wk: Dictionary = n["walking"]
-			wk["t"] = minf(1.0, float(wk["t"]) + delta / ROAM_STEP)
+			wk["t"] = minf(1.0, float(wk["t"]) + delta / (ROAM_STEP * float(wk.get("length", 1.0))))
 			node.position = (wk["from"] as Vector3).lerp(wk["to"], wk["t"])
 			# a stroll, the legs keeping pace with the ground from one tile to the next
 			n["phase"] = float(n.get("phase", 0.0)) + VPer.phase_for(delta / ROAM_STEP, 1.0 / ROAM_STEP)
@@ -4278,6 +4314,8 @@ func _roam(delta: float) -> void:
 			continue
 		n["roam_t"] = randf_range(2.0, 5.0)
 		var dirs := FOUR_WAYS.duplicate()
+		if diagonal_movement:
+			dirs.append_array(DIAGONALS)
 		dirs.shuffle()
 		for d in dirs:
 			var t: Vector2i = p + d
@@ -4287,7 +4325,7 @@ func _roam(delta: float) -> void:
 				npcs[t] = n
 				n["pos"] = t
 				_face_npc(n, d, true)
-				n["walking"] = {"from": tile_pos(p), "to": tile_pos(t), "tile_from": p, "t": 0.0}
+				n["walking"] = {"from": tile_pos(p), "to": tile_pos(t), "tile_from": p, "t": 0.0, "length": Vector2(d).length()}
 				break
 
 
@@ -4301,6 +4339,7 @@ func _npc_departing(t: Vector2i) -> bool:
 
 ## The four ways anyone can step: everyone walks the grid, one whole tile at a time.
 const FOUR_WAYS := [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]
+const DIAGONALS := [Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]
 
 
 ## The nearer of the four ways to `d` (down for none).
@@ -4310,13 +4349,16 @@ static func _four_way(d: Vector2i) -> Vector2i:
 	return Vector2i(signi(d.x), 0) if absi(d.x) > absi(d.y) else Vector2i(0, signi(d.y))
 
 
-func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
+func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary, check_step := true) -> bool:
+	if diagonal_movement and check_step:
+		if not _walker_can_step(from, t, func(p: Vector2i) -> bool: return _roam_free(p, from, n, false)):
+			return false
 	if not MapGen.get_t(map, t.x, t.y) in ROAM_FLOORS or map["exits"].has(t):
 		return false
 	var home: Vector2i = n.get("home", from)
 	if absi(t.x - home.x) + absi(t.y - home.y) > ROAM_LEASH:
 		return false
-	if not _walkable(t) or t == player_pos or not Elev.joined(map, from, t):
+	if not _walkable(t) or t == player_pos or (check_step and not diagonal_movement and not Elev.joined(map, from, t)):
 		return false
 	if moving and tile_pos(t).distance_squared_to(move_from) < 0.01:
 		return false
@@ -4360,6 +4402,14 @@ func _roam_free(t: Vector2i, from: Vector2i, n: Dictionary) -> bool:
 ## at a stroll, and turns to `face` there; whatever they blocked is free to walk on from then.
 func walk_npc_aside(n: Dictionary, path: Array, face: Vector2i) -> void:
 	var node: Node3D = n.get("node", null)
+	if diagonal_movement:
+		var previous: Vector2i = n["pos"]
+		var free := func(p: Vector2i) -> bool:
+			return p != player_pos and (p == n["pos"] or p in n.get("blocks", []) or _walkable(p))
+		for t: Vector2i in path:
+			if not _walker_can_step(previous, t, free):
+				return
+			previous = t
 	for occupied in n.get("blocks", []):
 		npc_footprints.erase(occupied)
 	n.erase("blocks")
@@ -4370,6 +4420,7 @@ func walk_npc_aside(n: Dictionary, path: Array, face: Vector2i) -> void:
 		var step := 0.32
 		var per_tile := VPer.phase_for(1.0, 1.0 / step)
 		var i := 0
+		var phase := 0.0
 		var at: Vector3 = node.position
 		for t in path:
 			var to: Vector3 = tile_pos(t)
@@ -4379,7 +4430,9 @@ func walk_npc_aside(n: Dictionary, path: Array, face: Vector2i) -> void:
 			var tw := create_tween()
 			tw.tween_property(node, "position", to, step * maxf(d.length(), 0.5))
 			if node.has_node("Body"):
-				tw.parallel().tween_method(func(ph: float): VPer.animate(node, ph, 1.0 / step), i * per_tile, (i + 1) * per_tile, step * maxf(d.length(), 0.5))
+				var phase_end := phase + per_tile * d.length() if diagonal_movement else (i + 1) * per_tile
+				tw.parallel().tween_method(func(ph: float): VPer.animate(node, ph, 1.0 / step), phase if diagonal_movement else i * per_tile, phase_end, step * maxf(d.length(), 0.5))
+				phase = phase_end
 			await tw.finished
 			at = to
 			i += 1
@@ -4959,8 +5012,12 @@ func _beast_at(q: Vector2i):
 func _wild_free(p: Vector2i, w: Dictionary, from := Vector2i(-999, -999)) -> bool:
 	if p.x < 1 or p.y < 1 or p.x >= map["w"] - 1 or p.y >= map["h"] - 1 or p == player_pos:
 		return false
-	if from.x != -999 and not Elev.joined(map, from, p):
-		return false
+	if from.x != -999:
+		if diagonal_movement:
+			if not _walker_can_step(from, p, _wild_free.bind(w)):
+				return false
+		elif not Elev.joined(map, from, p):
+			return false
 	var c := MapGen.get_t(map, p.x, p.y)
 	if not MapGen.walkable(c) or (interior and c != MapGen.MIST and not _roams_floor(c)) or c == MapGen.DOOR or c == MapGen.ICE:
 		return false
@@ -5034,6 +5091,7 @@ func _wild_step(w: Dictionary, d: Vector2i, speed: float) -> bool:
 	w["mt"] = 0.0
 	w["moving"] = true
 	w["speed"] = speed
+	w["length"] = Vector2(d).length() if diagonal_movement else 1.0
 	return true
 
 
@@ -5042,7 +5100,8 @@ func _wild_step_rel(w: Dictionary, sgn: int, speed: float) -> bool:
 	var best := []
 	var best_d := INF
 	var here := Vector2(player_pos - w["pos"]).length()
-	for d in FOUR_WAYS:
+	var directions := FOUR_WAYS + DIAGONALS if diagonal_movement else FOUR_WAYS
+	for d in directions:
 		var q: Vector2i = w["pos"] + d
 		if not _wild_free(q, w, w["pos"]) and not (sgn > 0 and q == player_pos and Elev.joined(map, w["pos"], q)):
 			continue
@@ -5074,7 +5133,7 @@ func _animate_wild(w: Dictionary, delta: float) -> void:
 		# (a slow frame doesn't snap it round)
 		node.rotation.y = lerp_angle(node.rotation.y, yaw_to, 1.0 - exp(-clampf(delta, 0.0, 1.0 / 30.0) * 14.0))
 	if w["moving"]:
-		w["mt"] = float(w["mt"]) + delta * float(w["speed"])
+		w["mt"] = float(w["mt"]) + delta * float(w["speed"]) / float(w.get("length", 1.0))
 		if float(w["mt"]) >= 1.0:
 			node.position = w["to"]
 			w["moving"] = false
@@ -5637,6 +5696,11 @@ func _build_room() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#fff0dc") if not dark else Color("#8a7aa8")
 	env.ambient_light_energy = 0.55 if not dark else 0.35
+	# the temples are dark, lit by their torches and candles (room_builder.gd _pilasters, temple_lights.gd)
+	var temple: bool = key.begins_with("temple")
+	if temple:
+		env.ambient_light_color = Color("#7c88a8")
+		env.ambient_light_energy = 0.26 if not room.has("round") else 0.14
 	if open_air:
 		env.background_mode = Environment.BG_SKY
 		env.sky = OutdoorLight.sky(biome)
@@ -5666,6 +5730,8 @@ func _build_room() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color("#ffe8c8") if not open_air else Color(biome["sun"])
 	sun.light_energy = (0.45 if not dark else 0.15) if not open_air else OutdoorLight.sun_energy(biome)
+	if temple:
+		sun.light_energy = 0.1
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-60, 20, 0)
 	if open_air:
@@ -5684,6 +5750,8 @@ func _build_room() -> void:
 		company_sign.position = Vector3(7.5, 1.8, 0.63)
 		add_child(company_sign)
 	stair_ways = RoomBuilder.stair_ways_in(map)
+	if room.has("round") and room_walls != null:
+		RoundChamber.build(self, map, _pool_water_mat(), room_walls.stone, room_walls._inlay_colour())
 	var k := VBld.Kit.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(1, 1)
