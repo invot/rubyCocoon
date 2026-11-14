@@ -15,6 +15,9 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 const Houses = preload("res://scripts/gfx/house_models.gd")
 const DIR := "res://assets/exteriors/"
+## The crates and barrels come from KayKit's Dungeon Pack now (tools/import_kaykit.gd bakes kaykit_<name>.res beside
+## the older pack's <name>.res, at its size): piece() and the street furniture (world.gd) load those instead.
+const KAYKIT := ["crate", "crate_open", "barrel", "keg", "cove_crate", "cove_barrel"]
 ## a storey's height and how far the walls stand in from the footprint's edge
 const STOREY := 2.8
 const INSET := 0.1
@@ -30,7 +33,8 @@ static var _wall_mats := {}
 static func piece(name: String, stone := false, tint := Color("#eee1bf")) -> Mesh:
 	var key := name + (":stone:" + tint.to_html() if stone and name.begins_with("win_") else "")
 	if not _meshes.has(key):
-		_meshes[key] = load(DIR + name + ".res") if ResourceLoader.exists(DIR + name + ".res") else null
+		var file := ("kaykit_" + name) if name in KAYKIT else name
+		_meshes[key] = load(DIR + file + ".res") if ResourceLoader.exists(DIR + file + ".res") else null
 		if _meshes[key] != null and name.begins_with("door_"):
 			_meshes[key] = _paint_door(_meshes[key], name == "door_1")
 		if _meshes[key] != null and name.begins_with("win_"):

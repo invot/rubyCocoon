@@ -41,6 +41,7 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const TempleProps = preload("res://scripts/gfx/temple_props.gd")
+const HouseBuilder = preload("res://scripts/gfx/house_builder.gd")
 const WaterShader = preload("res://scripts/gfx/water.gdshader")
 const TideWater = preload("res://scripts/gfx/tide_water.gd")
 const Shoreline = preload("res://scripts/world/shoreline.gd")
@@ -94,6 +95,8 @@ var npcs := {}
 var npc_footprints := {}
 var _door_speakers := {}
 var items := {}
+## Chests whose item has been taken: they stay where they are, lid open, and stand in the way like any prop.
+var opened_chests := {}
 var shards := {}
 var doors := {}
 var obstacle_nodes := {}
@@ -2050,18 +2053,19 @@ func _street_mesh(name: String) -> Mesh:
 		# Sunwall's market: stalls, clay jars, the well (adobe_town.gd)
 		return AdobeTown.prop(name)
 	if name == "bench":
-		# a two-seat bench in the shared wood (voxel_props.gd)
+		# a two-seat bench: KayKit's stool stretched along its seat (tools/import_kaykit.gd), else the old one
+		if ResourceLoader.exists(STREET_DIR + "kaykit_stool_bench.res"):
+			return load(STREET_DIR + "kaykit_stool_bench.res")
 		return VP.bench()
 	if name == "planter":
 		return load("res://assets/interiors/plant_tall.res") if ResourceLoader.exists("res://assets/interiors/plant_tall.res") else null
+	if name in HouseBuilder.KAYKIT:
+		# the crates and barrels are KayKit's (tools/import_kaykit.gd), in that pack's own warm wood
+		name = "kaykit_" + name
 	if not ResourceLoader.exists(STREET_DIR + name + ".res"):
 		push_warning("model missing: " + STREET_DIR + name + ".res")
 		return null
-	var mesh: Mesh = load(STREET_DIR + name + ".res")
-	if name in ["crate", "crate_open", "barrel", "keg"]:
-		# their pack wood, warmed to the shared wood of the benches, fences and stairs
-		VT.match_wood(mesh)
-	return mesh
+	return load(STREET_DIR + name + ".res")
 
 
 ## Tiles anyone can reach from the town's start, walking.
@@ -2620,7 +2624,7 @@ func _push_free(q: Vector2i, from: Vector2i) -> bool:
 		return false
 	if not MapGen.walkable(MapGen.get_t(map, q.x, q.y)) or not Elev.joined(map, from, q):
 		return false
-	return not (npcs.has(q) or items.has(q) or shards.has(q) or pushables.has(q) or map["exits"].has(q) or q == player_pos or _beast_at(q) != null)
+	return not (npcs.has(q) or items.has(q) or opened_chests.has(q) or shards.has(q) or pushables.has(q) or map["exits"].has(q) or q == player_pos or _beast_at(q) != null)
 
 
 ## Pushes the block at `at` one tile along `d` (ice slides until it hits something). Returns true if it moved.
@@ -2855,18 +2859,30 @@ func _free_tile_near(p: Vector2i) -> Vector2i:
 func _build_items() -> void:
 	for it in map["items"]:
 		var swap = GameState.flags.get("bag_swap:" + String(it["flag"]), null)
-		if GameState.flag(it["flag"]):
-			if swap == null:
+		var taken := GameState.flag(it["flag"])
+		if it["item"] == "bridge_log":
+			if taken and swap == null:
 				continue
+			var log := MeshInstance3D.new()
+			log.mesh = VP.log_mesh(15, 2.8)
+			log.position = tile_pos(it["pos"])
+			log.rotation.y = 0.5 + (it["pos"].x * 7 + it["pos"].y * 3) % 5 * 0.4
+			add_child(log)
+			it["node"] = log
+			items[it["pos"]] = it
+			continue
+		# everything else lies in a chest (KayKit, temple_props.gd), facing the camera; once opened it stays open
+		var chest := TempleProps.chest(taken, false)
+		chest.position = tile_pos(it["pos"])
+		add_child(chest)
+		it["node"] = chest
+		if taken:
+			if swap == null:
+				opened_chests[it["pos"]] = chest
+				continue
+			# a stack you left in it when your bag was full
 			it["item"] = swap["item"]
 			it["count"] = int(swap["count"])
-		var mi := MeshInstance3D.new()
-		mi.mesh = VP.sack() if it["item"] != "bridge_log" else VP.log_mesh(15, 2.8)
-		mi.position = tile_pos(it["pos"])
-		if it["item"] == "bridge_log":
-			mi.rotation.y = 0.5 + (it["pos"].x * 7 + it["pos"].y * 3) % 5 * 0.4
-		add_child(mi)
-		it["node"] = mi
 		items[it["pos"]] = it
 	for sh in map.get("shards", []):
 		if GameState.flag(sh["flag"]):
@@ -3087,7 +3103,7 @@ func _walkable(p: Vector2i) -> bool:
 		return false
 	if not MapGen.walkable(MapGen.get_t(map, p.x, p.y)):
 		return false
-	if npcs.has(p) or items.has(p) or shards.has(p) or pushables.has(p):
+	if npcs.has(p) or items.has(p) or opened_chests.has(p) or shards.has(p) or pushables.has(p):
 		return false
 	return true
 
@@ -4009,16 +4025,16 @@ func _talk(n: Dictionary) -> void:
 		VPer.set_talking(node, false)
 
 
-## How tall the chairs people sit on at tables are (to the top of the back), sized for the townsfolk's short legs.
-const CHAIR_H := 0.67
-## The seat's height, for that size of chair (chair_slat's seat is about half way up).
+## How tall the chairs people sit on at tables are (to the top of the back): the KayKit chair at its room size.
+const CHAIR_H := 0.86
+## The seat's height, for that size of chair (kk_chair_A's seat is about 0.4 of the way up).
 const CHAIR_SEAT := 0.34
 
 
 ## Sits a person down on a chair (one put under them), facing `facing`: someone at a table, the chair's back away
 ## from it.
 static func seat(node: Node3D, facing: Vector2i) -> void:
-	var mesh := RoomBuilder.piece("chair_slat")
+	var mesh := RoomBuilder.piece("kk_chair_A")
 	if mesh != null:
 		var bb := mesh.get_aabb()
 		var s := CHAIR_H / maxf(0.01, bb.size.y)
@@ -4028,6 +4044,7 @@ static func seat(node: Node3D, facing: Vector2i) -> void:
 		var c := Vector3(bb.position.x + bb.size.x / 2.0, bb.position.y, bb.position.z + bb.size.z / 2.0) * s
 		var yaw := atan2(float(facing.x), float(facing.y))
 		chair.transform = Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), -c.rotated(Vector3.UP, yaw))
+		RoomBuilder.tint_fabric(chair, Color(RoomBuilder.CLOTH[absi(hash(String(node.name))) % RoomBuilder.CLOTH.size()]))
 		node.add_child(chair)
 	VPer.face(node, facing)
 	VPer.set_pose(node, "sit", CHAIR_SEAT, true)
@@ -4045,10 +4062,14 @@ func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 	VPer.face(node, n["facing"], smooth)
 
 
-## An item lying about: into the bag, with its sound and its name in the top bar (no dialogue, so you walk on).
+## An item lying about in a chest: its lid swings open, then the item goes into the bag, with its sound and its name
+## in the top bar (no dialogue, so you walk on). The emptied chest stays, open.
 func _pickup(it: Dictionary) -> void:
 	var incoming: String = it["item"]
 	var quantity := int(it.get("count", 1))
+	var chest: bool = it.get("node") is Node3D and (it["node"] as Node3D).has_node("Lid")
+	if chest and not is_equal_approx((it["node"] as Node3D).get_node("Lid").rotation.x, TempleProps.LID_OPEN):
+		await TempleProps.open_chest(it["node"])
 	if GameState.item_room(incoming) < quantity:
 		if not await UI.ask("Your bag is full. Swap a stack for %s?" % ItemDB.item_name(incoming)):
 			return
@@ -4081,7 +4102,10 @@ func _pickup(it: Dictionary) -> void:
 	GameState.set_flag(it["flag"])
 	GameState.flags.erase("bag_swap:" + String(it["flag"]))
 	var node: Node3D = it["node"]
-	node.queue_free()
+	if chest:
+		opened_chests[it["pos"]] = node
+	else:
+		node.queue_free()
 	items.erase(it["pos"])
 	UI.pickup(incoming, quantity)
 
@@ -4870,7 +4894,7 @@ func _wild_free(p: Vector2i, w: Dictionary, from := Vector2i(-999, -999)) -> boo
 		return false
 	if map.has("wild_area") and not map["wild_area"].has(p):
 		return false
-	if npcs.has(p) or items.has(p) or shards.has(p) or pushables.has(p) or map["exits"].has(p) or doors.has(p - Vector2i(0, 1)):
+	if npcs.has(p) or items.has(p) or opened_chests.has(p) or shards.has(p) or pushables.has(p) or map["exits"].has(p) or doors.has(p - Vector2i(0, 1)):
 		return false
 	for o in wilds:
 		if o != w and o["pos"] == p:

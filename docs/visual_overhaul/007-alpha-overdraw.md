@@ -1,8 +1,8 @@
 # 007 — alpha and overdraw
 
-13 November 2026. **Desktop checkpoint complete; required phone evidence remains open.**
-No production material, geometry, particle count, film timing, fade or AA setting has changed.
-Do not advance to 011 until the phone evidence/cleanup below is resolved or explicitly waived.
+13 November 2026. **Done: an evidence-backed no-op.** Desktop and original-phone (razr 2024) evidence
+agree; see [Phone results (v3)](#phone-results-v3). No production material, geometry, particle count,
+film timing, fade or AA setting has changed. 011 is unblocked.
 
 Claude can independently prepare the [isolated 028 shrub/flower candidate](claude-028-candidate-handoff.md).
 That is preproduction, not completion or integration of 028.
@@ -111,6 +111,52 @@ After suite validation, run `python tools/vo_alpha.py phone --part=aa` using the
 Then validate/extract screenshots, compare phone costs, verify player identity and uninstall only
 `com.rubycocoon.vo_perf`. A USB gap may prevent a full log audit; retain that limit explicitly.
 
+## Phone results (v3)
+
+Recovery of the interrupted `007-v2/phone/` run: the benchmark package was still installed and its
+report was copied off with `run-as`, without reinstalling or clearing. `vo_phone_sweep --attach`
+refused because the player package path had changed; `dumpsys` shows the user's own update of
+`com.rubycocoon.x` at 14:50, six hours after the benchmark install at 08:44. The recovered report
+(4.7) has one of three passes and a focus loss, so it is **invalid** and kept as a record
+(`recovery.json`); logcat for that run was no longer in the ring buffer.
+
+New attempt `v3` (`tools/vo_alpha.py --attempt=v3`) was exported with the adopted Godot 4.8 beta 3 and
+run on the same razr 2024 (Mali-G615), Mobile, Mid, 720p (1760x720 render), 60 Hz, AC power,
+27-28 °C. The source was the live checkout with another session's uncommitted furniture work
+(`007-v3/source-state.txt`); both comparisons are within one build. Both reports: three passes,
+zero problems, zero focus losses, Python validation `valid: true`.
+
+Suite (`007-v3/phone/`), control / merge zero-alpha candidate / control:
+
+| Scene | GPU ms | Frame ms | Draws |
+|---|---|---|---|
+| Merge film | 20.215 / 20.025 / 20.154 | 33.273 / 33.249 / 33.296 | 67 / 63 / 67 |
+| Coastal Path | 28.385 / 28.273 / 28.317 | 33.388 / 33.374 / 33.358 | 381 |
+| Cove plaza | 27.285 / 27.233 / 26.559 | 33.325 / 33.316 / 33.285 | 309 |
+| Rue Royale | 26.750 / 26.269 / 26.755 | 33.294 / 33.310 / 33.338 | 315 |
+| Coast battle | 19.929 / 20.109 / 20.082 | 32.223 / 32.498 / 32.604 | 344 |
+
+The candidate removes four draws in the film without a GPU gain beyond the control spread, as on
+desktop. Field scenes are unaffected (the candidate only touches the film). Frame times sit at the
+30 fps vsync step; the field GPU (~27-28 ms) is the limit, not alpha.
+
+AA (`007-v3-aa/phone/`), 2x MSAA / FXAA (MSAA off) / 2x MSAA:
+
+| Scene | GPU ms | Frame ms |
+|---|---|---|
+| Coastal Path | 28.440 / 28.158 / 28.352 | 33.423 / 33.355 / 33.375 |
+| Merge film | 20.219 / 21.243 / 20.071 | 33.282 / 33.294 / 33.297 |
+
+FXAA saves about 0.2 ms on the Coastal Path and costs about 1 ms in the film; neither changes frame
+time. A crop of the Coastal Path shows FXAA softening roof and wall edges. Keep 2x MSAA at Mid and
+never stack it with FXAA, as the desktop trial concluded. Comparison images:
+`build/shots/vo/007-v3/merge-control-vs-candidate.png`, `aa-msaa-vs-fxaa-crop.png`.
+
+Cleanup: `com.rubycocoon.vo_perf` uninstalled; `com.rubycocoon.x` is the only Ruby Cocoon package and
+its path matches the v3 before-snapshot after both runs (`007-v3/player-package-final.txt`).
+
+**Decision:** adopt neither candidate. 007 closes as a measured no-op.
+
 ## Verification
 
 ### New-device follow-up, 13 November
@@ -133,4 +179,5 @@ including completed-without-PID recovery, invalid-report preservation and unchan
 `py_compile` and `git diff --check` pass. Shutdown ObjectDB/resource warnings remain visible in test logs.
 
 Adopted game-visual changes: **none**. Screenshot approval is not requested for rejected diagnostic variants.
-Keep 007 open for the phone comparison/cleanup, then decide whether it closes as an evidence-backed no-op.
+Closed 13 November 2026 as an evidence-backed no-op (see Phone results (v3)). The four recovery
+regression tests, `py_compile` and `git diff --check` pass after the `--attempt` change.

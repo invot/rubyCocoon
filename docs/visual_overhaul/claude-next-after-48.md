@@ -13,7 +13,7 @@ Check the local model once and use the shared wrappers and resource lock for
 inference and heavy Blender jobs.
 
 Do not edit runtime assets, imports, shaders, UI, engine settings, smoothing records
-or Codex's validation documents. Godot 4.8 beta3 is adopted, but 010c validation is
-still open and 011/022/023 budgets/material/scale prerequisites remain provisional.
+or Codex's validation documents. Godot 4.8 beta3 is adopted and 010c is done (13 November 2026);
+011/022/023 budgets/material/scale prerequisites remain provisional.
 Deliver labelled previews, provenance/counts and `READY.json` last, then stop for
 user review. Do not integrate or mark step 028 complete.

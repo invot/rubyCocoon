@@ -27,10 +27,17 @@ func run(host, options: Dictionary) -> void:
 	var native_body: Font = load(UIKit.BODY_FONT_FILE)
 	_check(absf(UIKit.font_body().get_height(32) - native_body.get_height(32)) <= 1.0, "symbol fallback preserves body face line height")
 	_check(Maps.load_map("route1", {}).get("weapon_obstacles", []).is_empty(), "first road has no weapon puzzles")
-	for name in ["floor_lamp", "table_lamp"]:
-		for palette in 5:
-			var mesh := Room.lamp_mesh(name, palette)
-			_check(mesh != null and mesh.get_surface_count() >= 2, name+": fabric and fittings remain distinct")
+	# KayKit furniture: every piece the rooms use loads, and the cloth ones keep a separate "fabric" surface to colour
+	for kind in ["chair", "stool", "table", "coffee_table", "bed", "dresser", "plant", "floor_lamp", "rug"]:
+		for name: String in Room.KINDS[kind]["m"]:
+			_check(Room.piece(name) != null, kind+": "+name+" loads")
+	for name in ["kk_chair_A", "kk_stool", "kk_bed_single_A", "kk_bed_double_B", "kk_lamp_table", "kk_rug_rect"]:
+		var mesh := Room.piece(name) as ArrayMesh
+		var names := []
+		for i in mesh.get_surface_count():
+			names.append(mesh.surface_get_name(i))
+		_check("fabric" in names, name+": its cloth can be recoloured")
+	_check(not Room.piece("kk_rug_rect").get_aabb().size.y > 0.05, "KayKit rugs lie flat")
 	_check(not "pallet" in Room.KINDS["boxes"]["m"], "ordinary furnished rooms cannot select a pallet")
 	await main._go("caccoon", "start")
 	var town: Dictionary = main.world.map

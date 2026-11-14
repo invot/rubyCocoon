@@ -144,8 +144,10 @@ The top-centre HUD names those controls over the scene's place for the first fou
 comes back to say keep holding, a thin bar filling under it. On a phone only the pad's A and B show during the film,
 looking as they always do: nothing can move, so the d-pad, Start and Pause step aside (`controls_overlay.gd`
 `set_film_mode`). Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
-The reveal is played straight (`scripts/story/opening.gd`): Gearhart gives his staff a cheerful briefing about new
-robots and "freight" for a friend in Gravenmoor, sends them home, then walks alone to a steel door in his office wall.
+The reveal is played straight (`scripts/story/opening.gd`): it opens on a friendly end-of-quarter meeting, where
+Engineer Mara, Foreman Briggs and Clerk Nell ask how the company made such a huge profit. Gearhart answers with a
+riddle (a cargo that "walks aboard by itself") and sends them home, watches them into the lift until its doors shut
+on the last of them, then walks alone to a steel door in his office wall.
 As he steps through, the music stops dead and a dread hit sounds (`tools/make_sfx.py`): behind it is a freight
 warehouse under soft white hanging lamps, rusted iron cages down its aisle full of trainers (Lio, Bea and Orin among
 them, as the hero later finds them), and at its far end their beasts in smaller cages on pallets. Gearhart's office
@@ -879,7 +881,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   Small notched lily pads float in sparse clusters along grassy freshwater banks, clear of crossings and fishing
   spots. Each leaf floats whole: its rim is kept over open water, clear of the sloping bank (checked against the built
   ground's height, `terrain_mesh.gd ground_y`), nudged toward the channel's middle or made smaller, or left out. They never appear in coastal regions or near sandy beaches or wading shelves.
-- Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, quilted beds, stove-front fireplaces, plank counters and benches, wood tables and metal terminals. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors and area rugs instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone, and muted rugs with broad borders.
+- Furniture uses patterns from `ui/seamless patterns/` (smoothed like the rest): bookcases full of books, goods shelves, stove-front fireplaces, plank counters and benches and metal terminals.
+- Houseplants (potted cacti), floor and table lamps, chairs and stools, beds, tables and coffee tables, dressers (a long chest of drawers) and area rugs come from KayKit *Furniture Bits* (`tools/import_kaykit_furniture.gd`). Their blue cloth is recoloured in the game (`RoomBuilder.fabric_material`): a building's chairs and stools share one colour, each bed has its own blanket, and a rug takes its room's rug colour, softened toward wool. Rooms have no radiators. `tools/build_patterns.py` cuts them into `assets/textures/patterns/`. Interior floors instead use smooth, antialiased finishes (`interior_surface.gdshader`): warm boards, carpet, tile and stone.
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
 
@@ -902,8 +905,11 @@ Press **Start** (Space) to open the travel book: two pages of light tan paper wi
 The bag holds **24 stacks of up to 9** of the same item; a tenth starts another stack.
 Key items, weapons, eggs and sheet music are exempt. Inventory remains item kind → count;
 capacity is the sum of `ceil(count / 9)` for non-exempt kinds. `GameState.add_item` returns
-how many could not fit. A full-bag world pickup offers to swap one stack or leave it;
-the outgoing stack remains at that location, including across saves. Shops refuse purchases
+how many could not fit. Items lying about the world sit in treasure chests (KayKit's, `temple_props.gd`
+`chest()`; a temple's treasures use the gold-filled one): the lid swings open as you take the item, and the emptied
+chest stays where it is, open and solid, on every later visit (`world.gd` `opened_chests`; check with
+`bash tools/run_tests.sh item-chests`). A full-bag world pickup offers to swap one stack or leave it;
+the outgoing stack remains in that chest, including across saves. Shops refuse purchases
 that do not fit without charging gold. Rewards, story gifts and returned equipment send
 overflow to shared **tower storage**, with a top-bar notice. Visit a Sky Tower desk to
 deposit or withdraw items. Manual deposits respect its **48-stack**

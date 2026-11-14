@@ -68,8 +68,38 @@ static func throw_lever(node: Node3D, pulled: bool) -> void:
 	await tw.finished
 
 
-## A wooden treasure chest banded in gold, its lid ("Lid", hinged along the back) shut or thrown open.
-static func chest(open: bool) -> Node3D:
+## How far a chest's lid swings back when it's opened (radians about its hinge; negative lifts the front).
+const LID_OPEN := -1.9
+
+
+## A treasure chest from Kay Lousberg's KayKit Dungeon Pack (tools/import_kaykit.gd), front facing +z, its lid ("Lid",
+## hinged along the back) shut or thrown open: the gold-filled one for a temple's treasures, the plain one for the items
+## lying about the world (world.gd _build_items). Falls back to the older box-built chest if the meshes are missing.
+static func chest(open: bool, gold := true) -> Node3D:
+	var kind := "chest_gold" if gold else "chest"
+	var base: Mesh = load("res://assets/props/kaykit_%s_base.res" % kind) if ResourceLoader.exists("res://assets/props/kaykit_%s_base.res" % kind) else null
+	var top: Mesh = load("res://assets/props/kaykit_%s_lid.res" % kind) if ResourceLoader.exists("res://assets/props/kaykit_%s_lid.res" % kind) else null
+	if base == null or top == null:
+		return _box_chest(open)
+	var root := Node3D.new()
+	var body := MeshInstance3D.new()
+	body.mesh = base
+	root.add_child(body)
+	var lid := Node3D.new()
+	lid.name = "Lid"
+	lid.position = base.get_meta("hinge", Vector3(0, 0.219, -0.247))
+	var lm := MeshInstance3D.new()
+	lm.mesh = top
+	lid.add_child(lm)
+	lid.rotation.x = LID_OPEN if open else 0.0
+	root.add_child(lid)
+	for gi in root.find_children("*", "GeometryInstance3D", true, false):
+		(gi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return root
+
+
+## The older chest, built from VBld.Kit boxes.
+static func _box_chest(open: bool) -> Node3D:
 	var root := Node3D.new()
 	var k := VBld.Kit.new()
 	k.box("planks", Vector3(0, 0.2, 0), Vector3(0.7, 0.4, 0.48), WOOD)
@@ -92,7 +122,7 @@ static func chest(open: bool) -> Node3D:
 	var lm := MeshInstance3D.new()
 	lm.mesh = l.mesh()
 	lid.add_child(lm)
-	lid.rotation.x = -1.9 if open else 0.0
+	lid.rotation.x = LID_OPEN if open else 0.0
 	root.add_child(lid)
 	return root
 
@@ -103,7 +133,7 @@ static func open_chest(node: Node3D) -> void:
 	if lid == null:
 		return
 	var tw := node.create_tween()
-	tw.tween_property(lid, "rotation:x", -1.9, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lid, "rotation:x", LID_OPEN, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await tw.finished
 
 

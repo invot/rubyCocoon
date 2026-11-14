@@ -1,6 +1,6 @@
 # 010c remaining validation
 
-In progress, 13 November 2026. Continuation of the approved beta3 cutover;
+Done, 13 November 2026. Continuation of the approved beta3 cutover;
 [parent evidence and rollback](010c-godot-48-results.md) remain authoritative.
 
 ## Evidence boundaries
@@ -126,7 +126,10 @@ Mid/720p, Gravenmoor Max/720p, water Mid/540p, battle Max/540p and fishing Min/7
 Town, dark-area, water, combat models and silhouettes remain recognizable and
 closely matched. NPC/foliage animation and stochastic scenery differ between
 captures. A Compatibility house background is purple on 4.7 and black on beta3;
-this visible difference is recorded for review, not silently approved. Contact
+this visible difference is recorded for review, not silently approved. Sampled
+background: 4.7 Forward+ (12,9,16), Mobile (12,12,17), Compatibility (55,37,72);
+beta3 Compatibility (7,3,11). Beta3 brings Compatibility in line with the other
+renderers; the user approved it on 13 November 2026. Contact
 sheets are under `build/shots/vo/010c/closure-01/native-matrix-02/`.
 
 ## Actual texture feature trials
@@ -165,12 +168,64 @@ session has no journal available and the phone is locked at collection; retain
 the user's observation separately from instrumented verification. The physical
 controller is available but has not yet been exercised in this validation.
 
+Windows beta3 controller session: `windows-input-01/` (launcher
+`windows_live_input.py`; journal and per-press captures in
+`input-project/build/windows-input-01/`; isolated save, settings and APPDATA).
+The engine identified a Nintendo Switch Pro Controller. The user drove the
+committed game for about 55 seconds before closing the window: d-pad navigation
+through the character creator (59 presses, all mapped to `ui_*`/`move_*`), the
+bottom face button confirmed into the prologue and turned pages, the right face
+button skipped it, then the d-pad and left stick walked the hero across the
+bedroom (tiles (3,2) -> (6,3) -> (7,3)). The log shows no script errors, only the
+usual exit-time leak warning. Mapping is positional (Godot button 0, Switch "B",
+confirms), as before the migration. Not covered: keyboard and Start/Pause (book);
+the window closed before the 300-second observer finished.
+
+On 13 November the user reported testing again and that everything works with
+keyboard and controller. That later test was not recorded by the observer, so it
+is the user's observation rather than instrumented evidence; it closes the
+input gate by the user's acceptance.
+
+## Web
+
+Matched production-compressed Web builds (Compatibility, single-thread, compressed
+loader, streamed music; diagnostic scripts included) ran two route passes each in
+the in-app browser on the desktop host, with a fixed 1280x720 canvas. Accepted
+runs: `web-47-05/` and `web-48-05/`; `web-comparison.py` recomputes
+`web-comparison.json` from the raw traces. Attempts `web-47-02`, `web-47-04` and
+`web-48-04` lost foreground focus (hidden pane) and are invalid, not pooled.
+
+| Scene | 4.7 median / p95 / max, ms | beta3 median / p95 / max, ms | Draws |
+|---|---|---|---:|
+| Coastal Path | 16.7 / 16.9 / 23.2 | 16.7 / 16.9 / 17.9 | 310 |
+| Cove plaza | 16.7 / 16.8 / 17.5 | 16.7 / 17.1 / 20.8 | 304 |
+| Hero's house | 16.7 / 16.9 / 17.0 | 16.7 / 17.1 / 20.0 | 173 |
+| Rue Royale | 16.7 / 16.8 / 17.0 | 16.7 / 16.9 / 17.6 | 371 |
+| Coast battle | 16.7 / 16.8 / 18.0 | 16.7 / 17.0 / 19.9 | 330 |
+
+Both hold the 60 fps vsync cap on this desktop GPU, with identical draw counts;
+this is not a phone-browser result. Black holds at the four transitions are
+similar (beta3 101-417 ms, 4.7 129-393 ms). Neither run logged a script error;
+beta3 logs only the exit-time `PagedAllocator` warning that 4.7 also logs.
+
+SampleNode: the 4.7 `SampleNode._pause` null `currentTime` exception occurred in
+`web-47-03` (resizing canvas). Beta3 replaces that class: its sample playback
+`pause()` returns early when not started or without a source and no longer reads
+a nullable node's time. Two complete beta3 runs, `web-48-05` and the resizing-canvas
+`web-48-02`, logged no exception. `web-48-02`'s second pass was browser-throttled
+(1-second frames) and its canvas differs from 4.7's, so it counts only for the
+exception check, not timing. Closed for beta3 on code and observation; an
+intermittent error cannot be proven absent.
+
 ## Remaining gates
 
-- Production-compressed Web route and old SampleNode pause check: underway.
-- Physical controller/keyboard input observation and review of the Compatibility
-  background difference.
+- Production-compressed Web route and old SampleNode pause check: done (see Web).
+- Keyboard/controller input: accepted by the user (see Loading and input).
+- Compatibility background difference: approved by the user (near-black, matching
+  Forward+/Mobile).
 - Full-suite acceptance: retain the 13 failures and their source/control boundaries.
-- Original 007 phone recovery remains separate and open.
+- Original 007 phone recovery: done separately (see 007-alpha-overdraw.md).
 
-Keep 010c open and 011 budgets provisional until required acceptance is resolved.
+All 010c gates are resolved: the user accepted the remaining evidence on 13 November
+2026 and 010c is done. 011 may now accept budgets measured on beta3, once 007's
+separate phone recovery is closed.

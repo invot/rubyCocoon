@@ -861,7 +861,7 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
-	if scene == "bag-limit" or scene == "bag-actions" or scene == "loading-art":
+	if scene == "bag-limit" or scene == "bag-actions" or scene == "loading-art" or scene == "item-chests":
 		await load("res://tools/debug/%s.gd" % scene.replace("-", "_")).new().run(self, _test)
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()

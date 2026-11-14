@@ -6,8 +6,8 @@ adoption waiting for the remaining validation checks. The main 4.7 import cache
 was preserved at `build/perf/vo/010c/main-rollback-47/.godot/` before importing
 with 4.8. Main-tree checks pass **19/19**, both exported Windows renderer probes
 pass, and the Python town checker reports zero problems. Broader 010c
-performance/feature acceptance remains open. The [remaining-validation report](010c-validation-closure.md)
-records the current continuation, sustained A71 controls and evidence boundaries.
+performance/feature acceptance is complete. The [validation closure report](010c-validation-closure.md)
+records the Web, input and renderer gates, sustained A71 controls and evidence boundaries.
 The fresh `build/perf/vo/010c/integration-03/project/` candidate explicitly pins
 project features, default editor and CI to **4.8 beta 3**, with Android Swappy mode
 0. It includes the concurrent confirmation-UI work and crash-prevention fixes.
@@ -299,8 +299,7 @@ painted textures. No source texture, import sidecar, smoothing record, productio
 setting or rollback cache changed. The local model was unreachable at task start;
 this investigation used direct measurements and the pinned engine source.
 
-Next 010c checkpoint: isolated streaming eligibility/support trial and target
-validation listed above. Keep 010c open and 011 budgets provisional.
+Streaming and target validation were completed in the closure report; 010c is done.
 
 ## Host crash recovery and safe continuation
 
@@ -392,7 +391,7 @@ actual Forward+/Vulkan and Compatibility/OpenGL exports using the exact beta3
 editor and matching templates, with export presets restored byte-for-byte.
 This is not a claim that the previously recorded 140-case suite is green.
 
-The beta target and comparison visuals are approved. Keep step 010c in progress
-until the remaining target/feature evidence above is resolved; do not accept 011
-budgets or imply the known full-suite failures passed. Preserve 007's
+The beta target and comparison visuals are approved. The remaining target/feature
+evidence is resolved in the [closure report](010c-validation-closure.md) and **010c is
+done** (13 November 2026); do not imply the known full-suite failures passed. Preserve 007's
 original-phone recovery, provisional 011 work and all superseded raw records.

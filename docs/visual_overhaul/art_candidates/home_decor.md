@@ -104,6 +104,9 @@ colour (their texture is blank white); many files are duplicated camera/light ri
 
 ## Integration (Codex), in short
 
+(2026-11-13, the user's direction: the lamps and plants, with chairs, beds, tables, dressers and rugs, now come
+from KayKit *Furniture Bits*, `tools/import_kaykit_furniture.gd`; 037a no longer replaces lamps or plants.)
+
 Runbook 037a imports the kit and adds the shared tint/print shader, replaces lamps and plants everywhere and
 dresses homes; 037b turns the schemes into data and adds trim; 037c adds notches and alcoves with the route
 rules; 038 composes Reference 3. Smooth `decor_atlas.png` once; never smooth `art_masks.png`. Credit the

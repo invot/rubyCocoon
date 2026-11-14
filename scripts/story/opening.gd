@@ -7,8 +7,9 @@ extends Node3D
 ## up before the windows onto the neon city, crates and the freight lift), with his freight warehouse behind a steel
 ## door in its east wall. Then the real Coastal Path at dawn and the hero's real bedroom, built by the world itself
 ## as film sets (main.gd build_set), so the film shows the very places the game starts in.
-## The reveal is played straight: Gearhart sends his staff home with a pep talk about "freight", walks alone to the
-## steel door and steps through. The music stops dead, a dread hit (sfx "dread"), and behind it is a warehouse under
+## The reveal is played straight: at a friendly end-of-quarter meeting his staff ask how the company made such a
+## huge profit; Gearhart answers with a riddle about "freight", sends them home, waits until the lift has taken the
+## last of them down, then walks alone to the steel door and steps through. The music stops dead, a dread hit (sfx "dread"), and behind it is a warehouse under
 ## cool hanging lamps: a concrete shed with a truss roof, shipping containers, racks and crates, and down its aisle
 ## rusted iron cages full of trainers (Lio, Bea and Orin among them, as the hero finds them later), their beasts in
 ## smaller cages on pallets at the far end. Then spring, out on the Coastal Path where the wild beasts live (there
@@ -46,38 +47,45 @@ const CAPTIVE_LOOKS := [
 	{"skin": "#9a6848", "hair": "#2a2020", "shirt": "#c86a4a", "pants": "#3a4a5a", "pack": true},
 	{"skin": "#d8a880", "hair": "#6a3a2a", "shirt": "#7a7ac0", "pants": "#4a4a4a", "body": "female", "pack": true},
 ]
-const LENGTH := 80.5
+const LENGTH := 93.0
 ## Gearhart heads for the steel door; the cut into the warehouse; the cut to spring; the cut up to the bedroom
-const DOOR := 23.5
-const INSIDE := 28.5
-const DAWN := 40.5
-const ROOM := 60.5
+const DOOR := 36.0
+const INSIDE := 41.0
+const DAWN := 53.0
+const ROOM := 73.0
 ## start, end, who speaks, the line, camera shot. Lines advance automatically; A also advances a beat. Each line
 ## fits one page of a speech bubble (three lines), since nothing turns a page for the audience.
+## The film opens on a friendly end-of-quarter meeting: the staff marvel at the profits and ask how, Gearhart answers
+## with a riddle and sends them home, waits by the rug until the lift has taken the last of them down, and only then
+## goes to the steel door.
 const BEATS := [
-	[0.0, 3.5, "", "", "wide"],
-	[3.5, 10.0, "gear", "Gather round, team. Tomorrow is the first day of spring, and new trainers fill every road.", "gear"],
-	[10.0, 16.5, "mara", "The new freight robots are ready, sir. The lifts run quiet, and every crate is sealed.", "staff"],
-	[16.5, 20.2, "gear", "Splendid! Our friend in Gravenmoor pays well for every delivery.", "plan"],
-	[20.2, 23.5, "gear", "Off home, all of you. Big day tomorrow.", "leave"],
-	[23.5, 28.5, "gear", "Now then. Let's look in on tonight's freight.", "door"],
-	[28.5, 33.5, "bea", "Please, let us out! Give us back our beasts!", "reveal"],
-	[33.5, 37.5, "gear", "Every trainer caged, every beast crated. General Vexmora pays by the bond.", "crates"],
-	[37.5, 40.5, "", "", "cages"],
-	[40.5, 44.0, "", "", "spring"],
-	[44.0, 49.5, "bram", "Look at that, Tilly! First morning of spring, and the beasts are out of their burrows already.", "neighbours"],
-	[49.5, 55.0, "tilly", "A whole winter asleep. Now they're off to find food, a mate... or trouble.", "beasts"],
-	[55.0, 60.5, "bram", "Which makes it trainer season. Elder Rowan has an egg waiting for somebody back in town.", "egg"],
-	[60.5, 66.5, "hero", "Spring's here! My first beast. My own journey. I can hardly wait!", "hero"],
-	[66.5, 72.5, "mom", "Up already? Rowan's got your egg, and Uncle Rafe has Dad's flute, over in Bellerive!", "mom"],
-	[72.5, 76.0, "hero", "A whole season of adventure!", "joke"],
-	[76.0, 80.5, "hero", "Unless some gloomy weirdo's put 'ruin spring' on his to-do list. Ha! Get a hobby!", "home"],
+	[0.0, 3.0, "", "", "wide"],
+	[3.0, 8.5, "mara", "The quarter's numbers are in, sir! Profits are up four hundred percent. The board's over the moon!", "staff"],
+	[8.5, 14.0, "foreman", "Same robots, same lifts as last year. How on earth did we manage it, Mr. Gearhart?", "plan"],
+	[14.0, 19.5, "clerk", "Accounts can't make it out. The ledger just says 'freight'. Have we found a new client?", "staff"],
+	[19.5, 25.0, "gear", "Let's just say we've found a cargo that walks aboard by itself. And spring brings plenty more.", "gear"],
+	[25.0, 29.0, "gear", "Now, off home, all of you. Splendid work this quarter!", "leave"],
+	[29.0, 32.5, "mara", "Goodnight, Mr. Gearhart! And congratulations!", "wait"],
+	[32.5, 36.0, "", "", "alone"],
+	[36.0, 41.0, "gear", "Now then. Let's look in on tonight's freight.", "door"],
+	[41.0, 46.0, "bea", "Please, let us out! Give us back our beasts!", "reveal"],
+	[46.0, 50.0, "gear", "Every trainer caged, every beast crated. General Vexmora pays by the bond.", "crates"],
+	[50.0, 53.0, "", "", "cages"],
+	[53.0, 56.5, "", "", "spring"],
+	[56.5, 62.0, "bram", "Look at that, Tilly! First morning of spring, and the beasts are out of their burrows already.", "neighbours"],
+	[62.0, 67.5, "tilly", "A whole winter asleep. Now they're off to find food, a mate... or trouble.", "beasts"],
+	[67.5, 73.0, "bram", "Which makes it trainer season. Elder Rowan has an egg waiting for somebody back in town.", "egg"],
+	[73.0, 79.0, "hero", "Spring's here! My first beast. My own journey. I can hardly wait!", "hero"],
+	[79.0, 85.0, "mom", "Up already? Rowan's got your egg, and Uncle Rafe has Dad's flute, over in Bellerive!", "mom"],
+	[85.0, 88.5, "hero", "A whole season of adventure!", "joke"],
+	[88.5, 93.0, "hero", "Unless some gloomy weirdo's put 'ruin spring' on his to-do list. Ha! Get a hobby!", "home"],
 ]
 ## the names on the speech bubbles (the hero's is the player's), and which figure on the set each speaker is; Mom
 ## calls from downstairs, so hers is the stationary bubble of a voice off screen
-const SPEAKERS := {"gear": "Magnus Gearhart", "mara": "Engineer Mara", "bea": "Trainer Bea", "mom": "Mom",
-	"tilly": "Camper Tilly", "bram": "Scout Bram"}
-const ACTORS := {"gear": "gear", "mara": "mara", "bea": "captive0", "hero": "hero", "tilly": "tilly", "bram": "bram"}
+const SPEAKERS := {"gear": "Magnus Gearhart", "mara": "Engineer Mara", "foreman": "Foreman Briggs",
+	"clerk": "Clerk Nell", "bea": "Trainer Bea", "mom": "Mom", "tilly": "Camper Tilly", "bram": "Scout Bram"}
+const ACTORS := {"gear": "gear", "mara": "mara", "foreman": "staff0", "clerk": "staff1", "bea": "captive0",
+	"hero": "hero", "tilly": "tilly", "bram": "bram"}
 ## each scene's place, under the controls in the top-centre HUD, which stays up this long as the scene begins
 const PLACES := {"tower": "Gearhart Tower · Cogsworth", "route": "Coastal Path", "room": "Your Home · Cocoon Cove"}
 const HUD_HOLD := 4.0
@@ -103,13 +111,18 @@ const TUBE_ZS := [-0.9, 0.85, 2.6, 4.35, 6.1]
 const CAGE := "res://assets/props/iron_cage.res"
 ## Gearhart's walk: from the rug to the door, down the aisle, and over to the beasts' cages; when he sets off, how fast
 const GEAR_PATH := [Vector3(4.4, 0, 0.6), Vector3(9.4, 0, 2.6), Vector3(19.6, 0, 2.6), Vector3(20.8, 0, 3.4)]
-const GEAR_WALK := 24.0
+const GEAR_WALK := 36.5
 const GEAR_SPEED := 1.25
-## the staff head for the lift as the briefing ends
-const STAFF_GO := 20.2
+## the staff head for the lift as the meeting ends, each a moment after the last, and stand side by side in its car
+## (STAFF_SLOTS: across it from its middle) facing out; its doors slide open as they reach it and shut on them
+const STAFF_GO := 25.0
+const STAFF_SPEED := 1.6
+const STAFF_SLOTS := [-0.6, 0.0, 0.6]
 const LIFT_AT := Vector3(5.0, 0, 8.1)
+const LIFT_OPEN := 29.2
+const LIFT_SHUT := 32.2
 ## when the steel door slides open
-const DOOR_OPEN := 26.6
+const DOOR_OPEN := 39.1
 ## the office's lights at full: the pool over the rug, the desk lamp, the neon by the crates, the hanging lamps; the
 ## warehouse's softer white lamps
 const SPOT_E := 3.4
@@ -165,6 +178,9 @@ var room_lamps: Array = []
 var room_beams: Array = []
 var door_light: OmniLight3D
 var door_panel: MeshInstance3D
+## the lift's two door leaves (they slide apart into the wall) and the lamp in its car
+var lift_doors: Array = []
+var lift_lamp: OmniLight3D
 ## the real place standing in as the set (the Coastal Path, then the bedroom), and the view the game itself will
 ## open on in the bedroom
 var set_world: Node3D
@@ -372,6 +388,7 @@ func _change_scene(which: String) -> void:
 	hang_lamps = []
 	room_lamps = []
 	room_beams = []
+	lift_doors = []
 	if is_instance_valid(set_world):
 		set_world.keep_shaders()
 	set_world = null
@@ -492,12 +509,12 @@ func _asset(key: String, pos: Vector3, height: float, yaw := 0.0) -> MeshInstanc
 ## front faces +z at zero).
 func _piece(name: String, pos: Vector3, height: float, yaw := 0.0) -> MeshInstance3D:
 	var mesh := RoomBuilder.piece(name)
-	if name in ["el_lamp", "table_lamp", "floor_lamp"]:
-		mesh = RoomBuilder.lamp_mesh(name, absi(hash(str(pos))) % 5)
 	var node := MeshInstance3D.new()
 	if mesh == null:
 		return node
 	node.mesh = mesh
+	# the KayKit pieces' cloth in the office's deep red
+	RoomBuilder.tint_fabric(node, Color("#8e2436"))
 	var bb := mesh.get_aabb()
 	var s := height / maxf(0.001, bb.size.y)
 	node.scale = Vector3.ONE * s
@@ -618,7 +635,10 @@ func _office_shell() -> void:
 	_box(Vector3(DOOR_X, 3.0, -2.9), Vector3(0.3, 6.0, 8.6), BRICK, false, "wall_brick")
 	_box(Vector3(DOOR_X, 3.0, 6.125), Vector3(0.3, 6.0, 4.65), BRICK, false, "wall_brick")
 	_box(Vector3(DOOR_X, 4.7, DOOR_Z), Vector3(0.3, 2.6, 2.4), BRICK, false, "wall_brick")
-	_box(Vector3(0, 3.0, 8.3), Vector3(20.4, 6.0, 0.3), BRICK, false, "wall_brick")
+	# the front wall, with the lift's opening in it (2.8 wide and 3.2 high, behind the lift's doors)
+	_box(Vector3((LIFT_AT.x - 1.4 - 10.2) / 2.0, 3.0, 8.3), Vector3(LIFT_AT.x - 1.4 + 10.2, 6.0, 0.3), BRICK, false, "wall_brick")
+	_box(Vector3((10.2 + LIFT_AT.x + 1.4) / 2.0, 3.0, 8.3), Vector3(10.2 - LIFT_AT.x - 1.4, 6.0, 0.3), BRICK, false, "wall_brick")
+	_box(Vector3(LIFT_AT.x, 4.6, 8.3), Vector3(2.8, 2.8, 0.3), BRICK, false, "wall_brick")
 
 
 ## The window wall: a brick pier in the middle carrying the company's sign, two tall windows either side with
@@ -760,15 +780,15 @@ func _office_furniture() -> void:
 	_box(Vector3(0, 1.04, -4.7), Vector3(3.8, 0.08, 1.35), "#6a4430", false, "furniture_wood")
 	_box(Vector3(0, 0.5, -4.08), Vector3(3.0, 0.7, 0.04), "#5c3a2a", false, "furniture_wood")
 	_piece("el_monitor", Vector3(-0.9, 1.08, -4.85), 0.5)
-	_piece("el_lamp", Vector3(1.25, 1.08, -4.9), 0.55)
+	_piece("kk_lamp_table", Vector3(1.25, 1.08, -4.9), 0.55)
 	_piece("globe", Vector3(0.5, 1.08, -4.95), 0.4)
 	_piece("phone_rotary", Vector3(-1.5, 1.08, -4.5), 0.2)
 	_piece("books", Vector3(1.55, 1.08, -4.35), 0.24, 0.5)
 	desk_lamp = _lamp(Vector3(1.25, 1.7, -4.6), "#ffb870", DESK_E, 4.5)
-	_piece("chair_slat", Vector3(0, 0, -5.8), 1.1)
+	_piece("kk_chair_C", Vector3(0, 0, -5.8), 1.1)
 	for side in [-1.0, 1.0]:
 		_asset("robot_golem", Vector3(side * 3.2, 0, -5.0), 2.6, -side * 0.35)
-		_piece("plant_tall", Vector3(side * 2.3, 0, -6.4), 1.5)
+		_piece("kk_cactus_medium_A", Vector3(side * 2.3, 0, -6.4), 0.9)
 		# the new freight robots, a pair either side, each on a plinth edged in light
 		for k in 2:
 			var at := Vector3(side * (5.6 + k * 2.1), 0, -5.7)
@@ -778,16 +798,16 @@ func _office_furniture() -> void:
 		for z in [-2.7, -1.4]:
 			_piece("bookshelf", Vector3(side * 9.45, 0, z), 2.5, -side * PI / 2)
 	# the drafting table by the east wall, a blueprint pinned to it under a lamp, and the filing drawers
-	_piece("table_trestle", Vector3(7.7, 0, -3.3), 0.95, PI / 2)
+	_piece("kk_table_long", Vector3(7.7, 0, -3.3), 0.95, PI / 2)
 	_box(Vector3(7.7, 0.975, -3.3), Vector3(0.7, 0.012, 1.2), "#3a70b8")
 	for k in 3:
 		_box(Vector3(7.5 + k * 0.2, 0.983, -3.3), Vector3(0.02, 0.004, 1.0), "#cfe2ff")
-	_piece("el_lamp", Vector3(7.95, 0.97, -3.85), 0.5)
-	_piece("dresser", Vector3(9.5, 0, 0.75), 1.25, -PI / 2)
+	_piece("kk_lamp_table", Vector3(7.95, 0.97, -3.85), 0.5)
+	_piece("kk_drawers", Vector3(9.5, 0, 0.75), 1.25, -PI / 2)
 	_piece("coat_stand", Vector3(2.7, 0, 7.6), 1.9)
-	_piece("plant_tall", Vector3(7.4, 0, 7.5), 1.6)
+	_piece("kk_cactus_medium_B", Vector3(7.4, 0, 7.5), 0.95)
 	_piece("armchair_club", Vector3(-8.3, 0, -5.4), 1.05, 0.9)
-	_piece("floor_lamp", Vector3(-9.1, 0, -6.3), 1.8)
+	_piece("kk_lamp_standing", Vector3(-9.1, 0, -6.3), 1.8)
 	for at in [Vector3(-7.6, 0, 2.6), Vector3(8.5, 0, 6.6)]:
 		var west: bool = at.x < 0
 		_asset("crates", at, 1.4, 0.4 if west else -0.3)
@@ -1056,17 +1076,34 @@ func _beam_material() -> StandardMaterial3D:
 
 ## The freight lift's doors in the front wall: steel in a heavy frame, hazard stripes over them, a lamp above.
 func _lift(at: Vector3) -> void:
-	_box(at + Vector3(0, 1.6, 0), Vector3(3.0, 3.2, 0.12), "#5a6070")
-	_box(at + Vector3(0, 1.6, -0.02), Vector3(0.05, 3.1, 0.12), "#2a2e38")
+	# the car behind the front wall: steel walls, a tiled floor, a lamp overhead (lit while its doors are open)
+	_box(at + Vector3(0, 0.01, 1.2), Vector3(2.8, 0.04, 1.9), "#8a8c90", false, "floor_tiles")
+	_box(at + Vector3(0, 1.6, 2.2), Vector3(2.8, 3.2, 0.1), "#6a707c", false, "wall_plaster")
 	for side in [-1.0, 1.0]:
-		_box(at + Vector3(side * 1.6, 1.7, -0.06), Vector3(0.22, 3.4, 0.3), "#2e323c")
-	_box(at + Vector3(0, 3.32, -0.06), Vector3(3.42, 0.2, 0.3), "#2e323c")
+		_box(at + Vector3(side * 1.45, 1.6, 1.2), Vector3(0.1, 3.2, 2.0), "#6a707c", false, "wall_plaster")
+	_box(at + Vector3(0, 3.25, 1.2), Vector3(3.0, 0.1, 2.1), "#3a3e48", false, "wall_plaster")
+	_box(at + Vector3(0, 3.18, 1.2), Vector3(1.2, 0.04, 0.5), "#fff0d8", true)
+	_box(at + Vector3(0, 1.0, 2.13), Vector3(2.6, 0.06, 0.04), BRASS, false, "wall_plaster")
+	lift_lamp = _lamp(at + Vector3(0, 2.7, 1.2), "#fff0d8", 0.0, 3.2)
+	# the doors: two steel leaves meeting in the middle, sliding apart into the wall either side
+	for side in [-1.0, 1.0]:
+		var leaf := _box(at + Vector3(side * 0.7, 1.6, 0.16), Vector3(1.4, 3.2, 0.08), "#5a6070", false, "wall_plaster")
+		leaf.set_meta("side", side)
+		lift_doors.append(leaf)
+	for side in [-1.0, 1.0]:
+		_box(at + Vector3(side * 1.6, 1.7, -0.06), Vector3(0.22, 3.4, 0.3), "#2e323c", false, "wall_plaster")
+	_box(at + Vector3(0, 3.32, -0.06), Vector3(3.42, 0.2, 0.3), "#2e323c", false, "wall_plaster")
 	for k in 7:
 		var stripe := _box(at + Vector3(-1.4 + k * 0.47, 3.6, -0.06), Vector3(0.22, 0.24, 0.06), "#e0b020" if k % 2 == 0 else "#202020")
 		stripe.rotation.z = 0.5
 	_box(at + Vector3(0, 3.95, -0.08), Vector3(0.5, 0.18, 0.12), "#ff5a3a", true)
-	_box(at + Vector3(1.95, 1.3, -0.08), Vector3(0.2, 0.3, 0.06), "#2e323c")
+	_box(at + Vector3(1.95, 1.3, -0.08), Vector3(0.2, 0.3, 0.06), "#2e323c", false, "wall_plaster")
 	_box(at + Vector3(1.95, 1.36, -0.12), Vector3(0.08, 0.08, 0.02), "#7ad890", true)
+
+
+## How far open the lift's doors are: open for the staff as they reach it, shut on them once they're in.
+func _lift_open() -> float:
+	return smoothstep(LIFT_OPEN, LIFT_OPEN + 0.8, elapsed) * (1.0 - smoothstep(LIFT_SHUT, LIFT_SHUT + 0.8, elapsed))
 
 
 # ================================================================ spring: the real places as sets
@@ -1205,6 +1242,14 @@ func _camera_shot(shot: String, progress: float) -> void:
 			# from by the desk, as the staff file out to the lift
 			pos = Vector3(-2.6, 2.5, -3.2).lerp(Vector3(-2.0, 2.4, -3.0), progress)
 			target = Vector3(4.4, 1.9, 3.2)
+		"wait":
+			# behind Gearhart, over his shoulder to the lift as the staff step in and wave goodnight
+			pos = Vector3(3.6, 2.4, -2.4).lerp(Vector3(3.8, 2.35, -2.0), progress)
+			target = LIFT_AT + Vector3(0, 1.5, -0.6)
+		"alone":
+			# from by the shut lift, slowly in on him: alone at last, the steel door beyond
+			pos = Vector3(5.6, 2.1, 5.6).lerp(Vector3(5.3, 2.0, 4.4), progress)
+			target = GEAR_AT + Vector3(0.6, 1.7, 0)
 		"door":
 			# from behind, as he walks to the steel door and it slides open
 			pos = Vector3(3.2, 2.8, 7.2).lerp(Vector3(4.4, 2.7, 7.0), progress)
@@ -1323,6 +1368,10 @@ func _tower_frame() -> void:
 	for beam in room_beams:
 		(beam as Node3D).visible = room > 0.2
 	door_light.light_energy = 2.2 * open * office
+	var lift := _lift_open()
+	lift_lamp.light_energy = 1.4 * lift * office
+	for leaf in lift_doors:
+		(leaf as Node3D).position.x = LIFT_AT.x + float(leaf.get_meta("side")) * (0.7 + 1.35 * lift)
 	door_panel.position.z = DOOR_Z - 2.4 * open
 	# (the warehouse has no colour of its own: grey air, and whatever the lamps reach)
 	env.ambient_light_color = Color("#5c64a0") if elapsed < INSIDE else Color("#5a6068")
@@ -1365,35 +1414,54 @@ func _gear_frame() -> void:
 	if not walking and dist > 0.0:
 		# arrived: facing the beasts' cages
 		yaw = PI / 2.0
+	elif dist <= 0.0 and elapsed >= STAFF_GO + 0.6:
+		# seeing his staff off: he turns to watch them into the lift
+		var lift := LIFT_AT - GEAR_AT
+		yaw = atan2(lift.x, lift.z)
 	body.set_meta("yaw_to", yaw)
-	if preview or dist <= 0.0:
+	if preview or (dist <= 0.0 and elapsed < STAFF_GO + 0.6):
 		body.rotation.y = yaw
 	Person.animate(gear, Person.phase_for(dist, GEAR_SPEED), GEAR_SPEED if walking else 0.0, elapsed)
 
 
-## The staff: listening, then off to the lift as he sends them home; gone once he's alone.
+## The staff: listening, then off to the lift as he sends them home: up to its doors, in, and round to face out
+## while the doors shut on them; gone once he's alone.
 func _staff_frame() -> void:
-	var lift := LIFT_AT - Vector3(0, 0, 0.7)
 	for i in STAFF_AT.size():
 		var key := "mara" if i == 0 else "staff%d" % (i - 1)
 		var person: Node3D = people[key]
-		person.visible = elapsed < DOOR
-		var go := maxf(0.0, elapsed - STAFF_GO - i * 0.3) * 1.3
+		person.visible = elapsed < LIFT_SHUT + 0.8
 		var from: Vector3 = STAFF_AT[i]
-		var way := lift - from
-		person.position = from + way.normalized() * minf(go, way.length())
+		var slot := LIFT_AT + Vector3(float(STAFF_SLOTS[i]), 0, 1.1)
+		var door := Vector3(slot.x, 0, LIFT_AT.z - 0.6)
+		var go := maxf(0.0, elapsed - STAFF_GO - i * 0.4) * STAFF_SPEED
+		var first := from.distance_to(door)
+		var second := door.distance_to(slot)
+		var way := Vector3(1, 0, 0)
+		if go <= first:
+			way = door - from
+			person.position = from + way.normalized() * go
+		elif go <= first + second:
+			way = slot - door
+			person.position = door + way.normalized() * (go - first)
+		else:
+			way = Vector3(0, 0, -1)
+			person.position = slot
+		var walking := go > 0.0 and go < first + second
 		if go > 0.0:
 			var body: Node3D = person.get_node("Body")
 			body.set_meta("yaw_to", atan2(way.x, way.z))
 			if preview:
 				body.rotation.y = atan2(way.x, way.z)
-		Person.animate(person, Person.phase_for(go, 1.3), 1.3 if go > 0.0 else 0.0, elapsed)
+		Person.animate(person, Person.phase_for(go, STAFF_SPEED), STAFF_SPEED if walking else 0.0, elapsed)
 
 
 func _reveal_sounds() -> void:
 	if preview:
 		return
 	if elapsed >= DOOR_OPEN and _last_time < DOOR_OPEN:
+		Sfx.play("door")
+	if elapsed >= LIFT_SHUT and _last_time < LIFT_SHUT:
 		Sfx.play("door")
 	if elapsed >= INSIDE and _last_time < INSIDE:
 		# silence: the music stops dead on the cages

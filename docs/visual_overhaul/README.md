@@ -31,13 +31,13 @@ before 011 budget acceptance. See the [assessment and rework](010c-godot-48-plan
 The user approved beta3 and the comparison visuals; the main checkout now selects
 4.8 beta 3. Main 19/19 checks and both Windows export paths pass under the guard;
 see [results and rollback](010c-godot-48-results.md).
-Broader 010c target/feature evidence and 007's original-phone recovery remain open. Existing 011
-tooling remains provisional until remeasured. Unfinished 022a now covers offline texture baking
+**010c is done** (13 November 2026): Web, phone, native, input and renderer gates are closed in the
+[closure report](010c-validation-closure.md). 007 is also done (13 November 2026, a measured no-op on the razr).
+**Next: 011**, which accepts budgets measured on beta 3. Existing 011 tooling remains provisional until remeasured. Unfinished 022a now covers offline texture baking
 in place of LightmapGI, following the user’s direction; completed steps retain their status.
 010c's offline ASTC anomaly investigation is complete: the 6×6 encoder nearest-resizes
 to block-aligned dimensions, confounding the initial metric. Eighteen round trips and
-four quick checks pass; no compression profile is adopted. Next is the isolated streaming
-trial and remaining target validation, before 011 budget acceptance. See the results report.
+four quick checks pass; no compression profile is adopted. See the results report.
 
 **007: alpha and overdraw.** [006's batched scenery experiments](006-scenery.md) are complete:
 keep 8×8 batches, preserve recentered LOD data and cover pad swell; no experimental visual change adopted.

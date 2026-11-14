@@ -37,7 +37,7 @@ const PIECES := {
 	# walls
 	"painting_1": ["props/painting.glb", -90], "painting_2": ["props/painting2.glb", -90], "painting_3": ["props/painting3.glb", -90],
 	"painting_4": ["props/painting4.glb", -90], "painting_5": ["props/painting5.glb", -90], "clock": ["props/clock.glb", -90],
-	"radiator": ["props/radiator.glb", -90], "wall_shelf": ["props/wallShelf.glb", -90], "wall_shelf_2": ["props/wallShelf4.glb", -90],
+	"wall_shelf": ["props/wallShelf.glb", -90], "wall_shelf_2": ["props/wallShelf4.glb", -90],
 	"wall_light": ["props/wallLight.glb", -90], "breaker_box": ["props/breakerBox.glb", -90],
 	"curtains_1": ["props/windowCurtains.glb", 0], "curtains_2": ["props/windowCurtains2.glb", 0],
 	"curtains_3": ["props/windowCurtains3.glb", 0], "curtains_4": ["props/windowCurtains4.glb", 0],

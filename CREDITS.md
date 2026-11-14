@@ -144,11 +144,17 @@ upholstery) over a wood grain and cloth weave of our own.
   https://najjar320.itch.io/ps1-house-pack-100-low-poly-houses (the houses and shops). Free for commercial use; credit
   appreciated, not required; the files may not be redistributed.
 - **PSX modular house interior pack** by DissonantVoid, https://dissonantvoid.itch.io/psx-retro-interior-pack
-  (kitchens, bathrooms, wardrobes, shelves, lamps, ornaments, doors, windows, wall and floor textures). Free for
+  (kitchens, bathrooms, wardrobes, shelves, ornaments, doors, windows, wall and floor textures). Free for
   commercial use; the files may not be redistributed.
 - **Furniture pack** by Anker's Assets, CC0, https://ankersassets.itch.io/ (six OBJ showrooms, `model_0.obj` to
-  `model_5.obj`, with no textures, downloaded into `psx/furniture/`: the beds, bunk beds, sofas, armchairs, chairs,
-  tables, desks, nightstands, dresser, TV stand and bench).
+  `model_5.obj`, with no textures, downloaded into `psx/furniture/`: the bunk beds, sofas, armchairs, desks,
+  nightstands, TV stand and bench).
+- **KayKit Furniture Bits 1.0** by Kay Lousberg, https://www.kaylousberg.com, CC0 (glTF copied into
+  `psx/kaykit_furniture/`; baked by `tools/import_kaykit_furniture.gd` into `assets/interiors/kk_*.res`): every
+  room's houseplants (potted cacti), floor and table lamps, chairs and stools, beds, tables, coffee tables, the long
+  chest of drawers used for dressers, and the area rugs. *Changes made:* each piece sized to its tiles; its atlas
+  halved to 512 px; the blue cloth split off and painted from a grey copy of the atlas so each room can colour it.
+  See [licence](licenses/KayKit%20Furniture%20Bits%20-%20License.txt).
 - **Rustbound Iron Cage** by Ar3Designer (https://sketchfab.com/Ar3Designer), licensed under
   [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/),
   https://sketchfab.com/3d-models/rustbound-iron-cage-fcc2a26b6d8e49ed96c1909fec32dade, supplied as
@@ -181,8 +187,12 @@ upholstery) over a wood grain and cloth weave of our own.
 - **Retro 3D Assets Pack - Urban Props #1**: 3D Model by Conor McKenna (CyberThreat/Aphelios),
   https://cyberthreat.itch.io/retro-3d-style-assets-pack-1-urban-props, licensed under CC BY 4.0
   (https://creativecommons.org/licenses/by/4.0/) (benches, bins, hydrants, air conditioners, dumpsters).
-- **PSX Dungeon Boxes and Barrels Pack** by Games by McSteeg, https://mcsteeg.itch.io (crates and barrels). Free for
-  commercial use; the files may not be redistributed.
+- **PSX Dungeon Boxes and Barrels Pack** by Games by McSteeg, https://mcsteeg.itch.io (the older crates and barrels,
+  no longer shown). Free for commercial use; the files may not be redistributed.
+- **KayKit Dungeon Pack 1.1** by Kay Lousberg, https://www.kaylousberg.com, CC0 (the treasure chests that hold the
+  items lying about the world and the temples' treasures, the crates and barrels, and the street benches, made by stretching its stool along the seat; baked by
+  `tools/import_kaykit.gd`).
+  See [licence](licenses/KayKit%20Dungeon%20Pack%20-%20License.txt).
 - **PSX style modular hedges** by valsekamerplant, CC0, https://valsekamerplant.itch.io/psx-style-hedges.
 - **Stasis Chamber** by KieranEdwards (https://sketchfab.com/KieranEdwards),
   https://sketchfab.com/3d-models/stasis-chamber-0d09b5d0355d4727bd601015f394de3f, licensed under CC BY 4.0

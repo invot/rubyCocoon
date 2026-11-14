@@ -81,31 +81,33 @@ const KINDS := {
 	"sofa": {"m": ["sofa_love", "sofa_box", "sofa_cottage", "sofa_roll"], "long": true, "same": true},
 	"armchair": {"m": ["armchair_roll", "armchair_club", "armchair_cottage", "armchair_tub"], "same": true},
 	"tv": {"m": ["tv_stand"], "top": ["tv"], "always_top": true},
-	"chair": {"m": ["chair_spindle", "chair_ring", "chair_ladder", "chair_slat"], "chair": true, "single": true, "same": true},
-	"stool": {"m": ["chair_spindle", "chair_ring", "chair_ladder", "chair_slat"], "chair": true, "single": true, "same": true},
-	"coffee_table": {"m": ["coffee_shelf", "coffee_square"], "free": true, "top": ["books", "cup", "chessboard", "el_vase", ""]},
+	# KayKit Furniture Bits (tools/import_kaykit_furniture.gd): chairs, stools, tables, beds, the chest of drawers,
+	# houseplants, lamps and rugs; their cloth takes a colour (fabric_material)
+	"chair": {"m": ["kk_chair_A", "kk_chair_B", "kk_chair_C", "kk_chair_A_wood", "kk_chair_B_wood"], "chair": true,
+		"single": true, "same": true},
+	"stool": {"m": ["kk_stool", "kk_stool_wood"], "chair": true, "single": true, "same": true},
+	"coffee_table": {"m": ["kk_table_low"], "free": true, "top": ["books", "cup", "chessboard", "el_vase", "kk_cactus_small_A", ""]},
 	"book_display": {"m": ["coffee_shelf"], "free": true, "top": ["books"], "always_top": true},
-	"table": {"m": ["table_trestle", "table_curve", "table_pedestal", "table_small"], "free": true,
+	"table": {"m": ["kk_table_long", "kk_table_medium", "kk_table_small"], "free": true,
 		"top": ["plate", "cup", "cup_2", "bottle_2", "books_2", "apple", ""]},
 	"wardrobe": {"m": ["wardrobe"]},
-	"nightstand": {"m": ["nightstand"], "top": ["table_lamp"], "always_top": true, "single": true},
-	"dresser": {"m": ["dresser"], "top": ["teddy", "books", "radio", "el_lamp", "el_photo", "el_vase"]},
+	"nightstand": {"m": ["nightstand"], "top": ["kk_lamp_table"], "always_top": true, "single": true},
+	"dresser": {"m": ["kk_drawers"], "top": ["teddy", "books", "radio", "kk_lamp_table", "el_photo", "el_vase", "kk_cactus_small_B"]},
 	"desk": {"m": ["desk_writing", "desk_sled"], "top": ["books", "pencils", "globe", "phone"]},
 	"storage": {"m": ["shelves_metal", "shelves"], "long": true},
 	"boxes": {"m": ["box_1", "box_2", "box_3"], "single": true},
 	# a kennel barn's hay bales (barn_builder.gd)
 	"hay": {"m": ["hay_stack"], "single": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
-	"floor_lamp": {"m": ["floor_lamp"], "lamp": true, "single": true},
+	"floor_lamp": {"m": ["kk_lamp_standing"], "lamp": true, "single": true},
 	"coat_stand": {"m": ["coat_stand"], "single": true},
 	"trash": {"m": ["trash_bin"], "single": true},
-	"bed": {"m": ["bed_oak", "bed_spindle", "bed_house", "bed_iron", "bed_double_slat", "bed_double_panel", "bed_double_wave",
-		"bed_double_iron"], "short": true},
+	"bed": {"m": ["kk_bed_single_A", "kk_bed_single_B", "kk_bed_double_A", "kk_bed_double_B"], "short": true},
 	"bunk": {"m": ["bunk_oak", "bunk_ladder"], "short": true},
-	"plant": {"m": ["plant_small", "plant_tall", "plant_leafy", "el_tp_plants"], "single": true},
+	"plant": {"m": ["kk_cactus_medium_A", "kk_cactus_medium_B"], "single": true},
 	"bookshelf": {"m": ["bookshelf"], "long": true},
 	"shelf": {"m": ["shelves"], "long": true, "goods": true},
-	"rug": {"m": ["carpet_1", "carpet_2", "carpet_3", "carpet_4"], "free": true, "rug": true},
+	"rug": {"m": ["kk_rug_rect", "kk_rug_stripes", "kk_rug_oval"], "free": true, "rug": true},
 	"bench": {"m": ["bench_slats"], "fill": true},
 	"booth": {"m": ["el_booth"], "fit": true, "chair": true, "tint": "#e05050"},
 	"diner_table": {"m": ["el_diner_table"], "free": true, "fit": true, "top": ["cup", "plate", "el_flowers", "cup_2", ""]},
@@ -249,45 +251,29 @@ static func piece(name: String) -> Mesh:
 	return _meshes[name]
 
 
-## Keep the supplied lamps' silhouettes, with fabric shades and separate metal/wood
-## fittings. Their old all-white material lost every detail in the room lighting.
-static func lamp_mesh(name: String, palette: int) -> Mesh:
-	var key := "lamp:%s:%d" % [name, palette]
-	if _meshes.has(key):
-		return _meshes[key]
-	var source := piece(name)
-	if source == null:
-		return null
-	var shades := [Color("#a85642"), Color("#47827c"), Color("#d0a459"), Color("#7c6595"), Color("#68894e")]
-	var colours := [Color("#73563c"), Color("#877047"), shades[posmod(palette, shades.size())]]
-	var bb := source.get_aabb()
-	var verts := [PackedVector3Array(), PackedVector3Array(), PackedVector3Array()]
-	var normals := [PackedVector3Array(), PackedVector3Array(), PackedVector3Array()]
-	for surface_index in source.get_surface_count():
-		var arrays := source.surface_get_arrays(surface_index)
-		var vs: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var ns: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-		var ids = arrays[Mesh.ARRAY_INDEX]
-		if ids == null or (ids as PackedInt32Array).is_empty():
-			ids = PackedInt32Array(range(vs.size()))
-		for i in range(0, ids.size(), 3):
-			var y: float = ((vs[ids[i]].y + vs[ids[i+1]].y + vs[ids[i+2]].y)/3.0-bb.position.y)/maxf(0.001, bb.size.y)
-			var part := 2 if y > 0.63 else (0 if y < 0.15 else 1)
-			for j in 3:
-				verts[part].append(vs[ids[i+j]])
-				normals[part].append(ns[ids[i+j]])
-	var mesh := ArrayMesh.new()
-	for part in 3:
-		if verts[part].is_empty():
-			continue
-		var arrays := []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = verts[part]
-		arrays[Mesh.ARRAY_NORMAL] = normals[part]
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		mesh.surface_set_material(mesh.get_surface_count()-1, plain_material(colours[part]))
-	_meshes[key] = mesh
-	return mesh
+## Cloth colours for the KayKit furniture's fabric (seats, blankets, a table lamp's foot): the old furniture's red,
+## teal, green, mustard, blue, violet and rose.
+const CLOTH := ["#d8584e", "#2f9a9a", "#5fae6a", "#e0a838", "#4f7fcf", "#9a6ac8", "#e88aa6"]
+
+
+## The KayKit fabric material (assets/interiors/kaykit/fabric.tres: the pack's blue as plain grey) in `colour`.
+static func fabric_material(colour: Color) -> Material:
+	var key := "kk_fabric:" + colour.to_html()
+	if not _mats.has(key):
+		var mat: StandardMaterial3D = (load(DIR + "kaykit/fabric.tres") as StandardMaterial3D).duplicate()
+		mat.albedo_color = colour
+		_mats[key] = mat
+	return _mats[key]
+
+
+## Gives a KayKit piece's "fabric" surface (if it has one) `colour`.
+static func tint_fabric(mi: MeshInstance3D, colour: Color) -> void:
+	var mesh := mi.mesh as ArrayMesh
+	if mesh == null:
+		return
+	for i in mesh.get_surface_count():
+		if mesh.surface_get_name(i) == "fabric":
+			mi.set_surface_override_material(i, fabric_material(colour))
 
 
 ## A surface material: one of the pack's textures (tiled once per SPAN of world units), tinted.
@@ -1475,11 +1461,6 @@ func _window(x: int, y: int, horiz: bool) -> void:
 			cur.position = c + Vector3(0, WIN_TOP + 0.25 - cb.size.y, 0) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.08)
 			cur.rotation.y = yaw
 			_attach(x, y, cur)
-	# a radiator under the sill, now and then (not over stairs)
-	var below := code(x + inside.x, y + inside.y)
-	if z in ["living", "bedroom", "office", "hall"] and not below in [MapGen.STAIRS_UP, MapGen.STAIRS_DOWN] \
-			and rng.randf() < 0.6:
-		_hang("radiator", x, y, inside, 0.12, 0.0)
 
 
 ## An open doorway onto a balcony (map_loader.gd "!"), seen from the room: no leaf, a frame round the opening and sheer
@@ -2105,33 +2086,24 @@ static func plain_material(colour: Color) -> StandardMaterial3D:
 	return _mats[key]
 
 
-static func rug_material(colour: Color, size: Vector2) -> ShaderMaterial:
-	var key := "soft_rug:%s:%s" % [colour.to_html(), size]
-	if _mats.has(key):
-		return _mats[key]
-	var mat := ShaderMaterial.new()
-	mat.shader = SOFT_SURFACE
-	var wool := colour.lerp(Color("#dfc9ac"), 0.55)
-	mat.set_shader_parameter("finish", 5)
-	mat.set_shader_parameter("finish_tex", SurfaceFinish.texture("fabric"))
-	mat.set_shader_parameter("finish_level", SurfaceFinish.mean("fabric"))
-	mat.set_shader_parameter("base_colour", wool)
-	mat.set_shader_parameter("accent_colour", wool.darkened(0.24))
-	mat.set_shader_parameter("rug_size", size)
-	_mats[key] = mat
-	return mat
-
-
+## Area rugs are the KayKit rugs (plain, striped or oval, the room's pick), stretched over their tiles a little in from
+## the edges, in the room's rug colour (softened).
 func _rugs() -> void:
 	var colour := Color(str(map.get("room", {}).get("rug", "#a04040")))
+	var names: Array = KINDS["rug"]["m"]
 	for rect in rug_rectangles(map):
+		var mesh := piece(names[absi(hash(str(map.get("room_key", "")) + str(rect.position))) % names.size()])
+		if mesh == null:
+			continue
 		var rug := MeshInstance3D.new()
 		rug.name = "AreaRug"
-		var plane := PlaneMesh.new()
-		plane.size = Vector2(rect.size)
-		rug.mesh = plane
-		rug.material_override = rug_material(colour, plane.size)
-		rug.position = Vector3(rect.position.x + rect.size.x * 0.5, 0.014, rect.position.y + rect.size.y * 0.5)
+		rug.mesh = mesh
+		var bb := mesh.get_aabb()
+		var sz := Vector2(rect.size) - Vector2(0.12, 0.12)
+		rug.scale = Vector3(sz.x / bb.size.x, 1.0, sz.y / bb.size.z)
+		# softened toward undyed wool, as the rugs were before, so they stay muted
+		tint_fabric(rug, colour.lerp(Color("#dfc9ac"), 0.3))
+		rug.position = Vector3(rect.position.x + rect.size.x * 0.5, 0.004, rect.position.y + rect.size.y * 0.5)
 		rug.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(rug)
 
@@ -2204,8 +2176,6 @@ func _place(kind: String, group: Array) -> void:
 	# room up to the wall's face beyond the tiles
 	var reach := 0.5 - T / 2.0 if against else 0.0
 	var mesh := _choose(k["m"], span, depth + reach, k.get("same", false))
-	if kind == "floor_lamp":
-		mesh = lamp_mesh("floor_lamp", absi(hash(str(map.get("building", {}).get("seed", 0))+str(lo))) % 5)
 	if mesh == null:
 		return
 	var bb := mesh.get_aabb()
@@ -2223,6 +2193,9 @@ func _place(kind: String, group: Array) -> void:
 	mi.mesh = mesh
 	mi.scale = sc
 	mi.rotation.y = yaw
+	# the pack's cloth: a building's chairs and stools match; each bed has its own blanket
+	var cloth_at := posmod(pick_seed, CLOTH.size()) if k.get("same", false) 		else absi(hash(str(map.get("building", {}).get("seed", 0)) + str(lo))) % CLOTH.size()
+	tint_fabric(mi, Color(CLOTH[cloth_at]))
 	if k.has("tint"):
 		var tm := StandardMaterial3D.new()
 		var src := mesh.surface_get_material(0) as BaseMaterial3D
@@ -2256,8 +2229,6 @@ func _place(kind: String, group: Array) -> void:
 				continue
 			var t := MeshInstance3D.new()
 			t.mesh = piece(name)
-			if name in ["table_lamp", "el_lamp"]:
-				t.mesh = lamp_mesh(name, absi(hash(str(pos)+str(map.get("building", {}).get("seed", 0)))) % 5)
 			if t.mesh == null:
 				continue
 			var spread := Vector3(bb.size.x * sc.x * 0.3, 0, bb.size.z * sc.z * 0.25)
@@ -2280,6 +2251,7 @@ func _place(kind: String, group: Array) -> void:
 				lift = 0.008
 			t.position = pos + Basis(Vector3.UP, yaw) * off + Vector3(0, top_y + lift, 0)
 			t.rotation.y = yaw + (rng.randf_range(-0.6, 0.6) if not k.get("always_top", false) else 0.0)
+			tint_fabric(t, Color(CLOTH[absi(hash(str(pos) + name)) % CLOTH.size()]))
 			parent.add_child(t)
 			if kind == "phone":
 				# it shakes when it rings
@@ -2381,7 +2353,7 @@ func _room_of(q: Vector2i) -> Dictionary:
 
 ## What stands on each shop's counter, besides the till: a few things from its trade.
 const COUNTER_GOODS := {
-	"apothecary": ["bottle", "bottle_2", "product_1", "product_3", "el_vase", "plant_small"],
+	"apothecary": ["bottle", "bottle_2", "product_1", "product_3", "el_vase", "kk_cactus_small_A"],
 	"bookstore": ["books", "books_2", "book", "el_photo", "el_vase"],
 	"cafe": ["el_coffee_maker", "el_slush", "cup", "cup_2", "plate", "el_flowers"],
 	"electronics": ["phone", "radio", "books_2", "product_2"],

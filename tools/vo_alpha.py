@@ -71,8 +71,10 @@ def summarize(path):
     print("\n".join(lines), flush=True)
 
 
-def configure_phone(part, device_tag=""):
-    sweep.configure("007-v2" + ("-aa" if part == "aa" else ""))
+def configure_phone(part, device_tag="", attempt=""):
+    if attempt and not all(c.isalnum() for c in attempt):
+        raise ValueError("Use a plain attempt name such as v3")
+    sweep.configure("007-" + (attempt or "v2") + ("-aa" if part == "aa" else ""))
     if device_tag:
         if not all(c.isalnum() or c in "_-" for c in device_tag):
             raise ValueError("Use a plain device tag")
@@ -139,12 +141,12 @@ if __name__ == "__main__":
     elif args.action == "summary":
         summarize(args.report)
     else:
-        configure_phone(args.part, args.device_tag)
+        configure_phone(args.part, args.device_tag, args.attempt)
         if args.action == "export":
             with model_lock(timeout=3600):
                 phone.export(args)
         else:
-            previous = ROOT / "build/perf/vo/007-v2" / ("phone-"+args.device_tag if args.device_tag else "phone") / "cleanup.json"
+            previous = ROOT / ("build/perf/vo/007-" + (args.attempt or "v2")) / ("phone-"+args.device_tag if args.device_tag else "phone") / "cleanup.json"
             if args.part == "aa" and previous.exists() and json.loads(previous.read_text()).get("recover_observer_if_still_running"):
                 raise RuntimeError("Recover the preceding phone observer with --part=suite --attach before starting another package")
             sweep.run(args)

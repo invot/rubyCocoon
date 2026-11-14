@@ -33,6 +33,7 @@ TESTS=(
 	"sky-courier-touch|--resolution 2400x1080 -- --scene=sky-courier --touch --save_dir=res://build/courier_touch_test_saves/|SKY COURIER DONE: 0 problem"
 	"bag-limit|-- --scene=bag-limit --save_dir=res://build/bag_limit_tests/|BAG LIMIT DONE: 0 problem"
 	"bag-limit-touch|--resolution 2400x1080 -- --scene=bag-limit --touch --save_dir=res://build/bag_limit_touch_tests/|BAG LIMIT DONE: 0 problem"
+	"item-chests|-- --scene=item-chests --save_dir=res://build/item_chest_tests/|ITEM CHESTS DONE: 0 problem"
 	"bag-actions|-- --scene=bag-actions --save_dir=res://build/bag_actions_tests/|BAG ACTIONS DONE: 0 problem"
 	"bag-actions-touch|--resolution 2400x1080 -- --scene=bag-actions --touch --save_dir=res://build/bag_actions_touch_tests/|BAG ACTIONS DONE: 0 problem"
 	"video-settings|-- --scene=video-settings --prefs_path=res://build/video_settings_test/settings.cfg --save_dir=res://build/video_settings_saves/|VIDEO SETTINGS DONE: 0 problem"
