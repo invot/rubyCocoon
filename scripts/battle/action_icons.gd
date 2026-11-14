@@ -147,6 +147,11 @@ static func _glyph(canvas: CanvasItem, kind: String, at: Vector2, s: float, col:
 			# a four-pointed star
 			_poly(canvas, at, s, [Vector2(0, -1.0), Vector2(0.25, -0.25), Vector2(1.0, 0), Vector2(0.25, 0.25), Vector2(0, 1.0),
 				Vector2(-0.25, 0.25), Vector2(-1.0, 0), Vector2(-0.25, -0.25)], col)
+		"help":
+			# a question mark: the Codex (asking it never uses your turn)
+			canvas.draw_arc(at + Vector2(0, -s * 0.38), s * 0.42, PI * 1.05, PI * 2.45, 14, col, w, true)
+			canvas.draw_line(at + Vector2(s * 0.12, -s * 0.0), at + Vector2(0, s * 0.3), col, w, true)
+			canvas.draw_circle(at + Vector2(0, s * 0.72), w * 0.62, col, true, -1.0, true)
 		"run":
 			canvas.draw_line(at + Vector2(-s * 0.9, 0), at + Vector2(s * 0.2, 0), col, w, true)
 			_poly(canvas, at, s, [Vector2(1.0, 0), Vector2(0.15, -0.65), Vector2(0.15, 0.65)], col)

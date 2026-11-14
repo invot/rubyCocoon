@@ -25,6 +25,11 @@ const FONT_FILE := "res://ui/QuattrocentoSans-Bold.ttf"
 const BODY_FONT_FILE := "res://ui/QuattrocentoSans-Regular.ttf"
 const BOLD_FONT_FILE := "res://ui/QuattrocentoSans-Bold.ttf"
 const DIALOG_FONT_FILE := "res://ui/FuzzyBubbles-Regular.ttf"
+## The Codex's voice, and only its (the user's 2026-11-14 direction): Press Start 2P, a pixel face drawn crisp.
+const CODEX_FONT_FILE := "res://ui/PressStart2P-Regular.ttf"
+## Its size in the Codex's bubbles, and the extra room between its lines (the face has no line gap of its own).
+const CODEX_SIZE := 20
+const CODEX_LINE_GAP := 10
 const SYMBOL_FONT := preload("res://ui/NotoSansSymbols.ttf")
 const TRIANGLE_FONT := preload("res://ui/NotoSansSymbols2.ttf")
 ## (both faces are static files; the weight only keys the cache)
@@ -242,6 +247,25 @@ static func font_body() -> Font:
 
 static func font_dialog() -> Font:
 	return _font(DIALOG_FONT_FILE)
+
+
+## The Codex's speech: Press Start 2P, without smoothing so its pixels stay sharp.
+static func font_codex() -> Font:
+	if _fonts.has("codex"):
+		return _fonts["codex"]
+	var f: FontFile = load(CODEX_FONT_FILE)
+	if f == null:
+		return font_dialog()
+	f.generate_mipmaps = false
+	f.multichannel_signed_distance_field = false
+	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	f.hinting = TextServer.HINTING_NONE
+	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	var fv := FontVariation.new()
+	fv.base_font = f
+	fv.fallbacks = [font_dialog()]
+	_fonts["codex"] = fv
+	return fv
 
 
 static func font_head() -> Font:

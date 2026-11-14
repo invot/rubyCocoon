@@ -69,7 +69,7 @@ static func call_home(world, fee := 0) -> void:
 		return
 	var what := "A payphone. A call costs %d coins." % fee if fee > 0 else "A telephone."
 	# at home Mom's right there in the room, so there's no calling her
-	var whom := ["dad"] if _at_home(world) else ["mom", "dad"]
+	var whom := ["dad"] if _at_home(world) else ["dad", "mom"]
 	if knows_skytower():
 		whom.append("tower")
 	var labels := {"mom": "Mom", "dad": "Dad", "tower": "SkyTower Inc"}
@@ -226,6 +226,10 @@ static func _save() -> void:
 	if not await UI.ask("Do you want to continue playing?", "Dad"):
 		await UI.say(["\"Talk soon, kiddo.\" Click."])
 		GameState.main.back_to_title()
+		return
+	await UI.say([["Off you go, then! Just don't work too hard. Take a break now and then, and make sure you eat something.",
+		"Alright, kiddo. Don't work too hard out there, okay? Even trainers need a rest.",
+		"Go get 'em! But don't push yourself too hard. Your beasts need their rest, and so do you."][randi() % 3]], "Dad")
 
 
 ## What Dad hears about your team.

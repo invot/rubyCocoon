@@ -10,6 +10,9 @@ const CHEVRON_H := 18.0
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
+## A new page is shown: `src` is the index of the line it came from (the Codex changes its mood with each one).
+signal page_shown(src: int)
+
 var lines: Array = []
 var speaker := ""
 var portrait: Texture2D = null
@@ -41,6 +44,15 @@ var _tail_below := false
 var _door_anchor := false
 var _door_bottom := Vector2.ZERO
 var _speech_width := 720.0
+## A 2D speaker (the Codex's head, codex.gd): the bubble hangs from under its window instead of a 3D head.
+var anchor_control: Control = null
+## The Codex speaks in its own face (UIKit.font_codex): the font, its size and extra space between lines.
+var speech_font: Font = null
+var speech_font_size := 0
+var speech_line_gap := 0
+var _ctrl_anchor := false
+## for each page, the line it came from
+var _page_src: Array = []
 
 
 func setup(_lines: Array, _speaker := "", _portrait: Texture2D = null, _speaker_node: Node3D = null) -> Control:
@@ -124,10 +136,10 @@ func _ready_bubble() -> void:
 		image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(image)
 	text_label = UIKit.label("", UIKit.BODY_HUGE, UIKit.DARK)
-	text_label.add_theme_font_override("font", UIKit.font_dialog())
-	text_label.add_theme_font_size_override("font_size", UIKit.body_px(UIKit.DIALOG_SIZE))
+	text_label.add_theme_font_override("font", speech_font if speech_font != null else UIKit.font_dialog())
+	text_label.add_theme_font_size_override("font_size", UIKit.body_px(speech_font_size if speech_font_size > 0 else UIKit.DIALOG_SIZE))
 	text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	text_label.add_theme_constant_override("line_spacing", 0)
+	text_label.add_theme_constant_override("line_spacing", speech_line_gap)
 	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -159,6 +171,11 @@ func _ready_bubble() -> void:
 
 ## Project the stable head offset through the speaker's own viewport; the world renders in a SubViewport.
 func _project_head() -> bool:
+	_ctrl_anchor = is_instance_valid(anchor_control) and anchor_control.is_visible_in_tree()
+	if _ctrl_anchor:
+		var r := anchor_control.get_global_rect()
+		_head_screen = _snap(Vector2(r.get_center().x, r.end.y))
+		return true
 	if not is_instance_valid(speaker_node) or not speaker_node.is_inside_tree() or not speaker_node.is_visible_in_tree():
 		return false
 	var view := speaker_node.get_viewport()
@@ -199,7 +216,7 @@ func _layout_bubble() -> void:
 	var plate_h := name_panel.get_combined_minimum_size().y - 6.0 if name_panel != null else 0.0
 	var width := minf(_speech_width, safe.size.x)
 	var line_count := String(lines[idx]).count("\n") + 1 if _paged else LINES_PER_PAGE
-	_box_h = text_label.get_theme_font("font").get_height(text_label.get_theme_font_size("font_size")) * line_count + 48.0
+	_box_h = text_label.get_theme_font("font").get_height(text_label.get_theme_font_size("font_size")) * line_count + 48.0 		+ float(speech_line_gap * (line_count - 1))
 	if portrait != null:
 		_box_h = maxf(_box_h, 168.0)
 	var room := Rect2(safe.position + Vector2(0, plate_h), safe.size - Vector2(0, plate_h))
@@ -210,13 +227,16 @@ func _layout_bubble() -> void:
 		var top := maxf(room.position.y, UI.top_bar.get_global_rect().end.y + plate_h + 8.0)
 		room.size.y -= top - room.position.y
 		room.position.y = top
-	var gap := CHEVRON_H + 6.0 if _door_anchor else HEAD_GAP
-	_below = _anchored and _head_screen.y - gap - _box_h < room.position.y
+	var gap := CHEVRON_H + 6.0 if _door_anchor or _ctrl_anchor else HEAD_GAP
+	_below = _anchored and (_ctrl_anchor or _head_screen.y - gap - _box_h < room.position.y)
 	if _anchored and _door_anchor and _below:
 		_head_screen = _door_bottom
 	var at := Vector2(safe.get_center().x - width / 2.0, safe.end.y - _bottom_gap() - _box_h)
 	if _anchored:
 		at = Vector2(_head_screen.x - width / 2.0, _head_screen.y + gap if _below else _head_screen.y - gap - _box_h)
+		if _ctrl_anchor:
+			# under the Codex's window, with room for its name plate
+			at = Vector2(_head_screen.x - 60.0, _head_screen.y + gap + plate_h)
 	at.x = clampf(at.x, room.position.x, room.end.x - width)
 	at.y = clampf(at.y, room.position.y, room.end.y - _box_h)
 	var rect := Rect2(at, Vector2(width, _box_h))
@@ -271,13 +291,17 @@ func _paginate() -> void:
 	var font := text_label.get_theme_font("font")
 	var fs := text_label.get_theme_font_size("font_size")
 	var pages := []
+	_page_src.clear()
+	var src := -1
 	var stops := RegEx.new()
 	stops.compile("[.!?]+[\"”’']*(?=\\s|$)")
 	for raw in lines:
+		src += 1
 		if not bubble_mode:
 			var written := _wrapped(str(raw), font, fs, width)
 			for i in range(0, written.size(), LINES_PER_PAGE):
 				pages.append("\n".join(written.slice(i, i+LINES_PER_PAGE)))
+				_page_src.append(src)
 			continue
 		var page := ""
 		var paragraph_index := 0
@@ -297,6 +321,7 @@ func _paginate() -> void:
 				var trial := sentence if page == "" else page + separator + sentence
 				if _wrapped(trial, font, fs, width).size() > LINES_PER_PAGE and page != "":
 					pages.append("\n".join(_wrapped(page, font, fs, width)))
+					_page_src.append(src)
 					page = ""
 				page = sentence if page == "" else page + separator + sentence
 				first = false
@@ -305,6 +330,7 @@ func _paginate() -> void:
 			var wrapped := _wrapped(page, font, fs, width)
 			# An unusually long single sentence stays intact, in a taller bubble.
 			pages.append("\n".join(wrapped))
+			_page_src.append(src)
 	lines = pages
 	# Wrapping is already measured above. A second wrap at a manually inserted break
 	# can add an empty line on a different text backend or fractional browser scale.
@@ -347,6 +373,8 @@ func _place_more(bob: float) -> void:
 
 func _show_line() -> void:
 	text_label.text = str(lines[idx])
+	if _paged:
+		page_shown.emit(int(_page_src[idx]) if idx < _page_src.size() else idx)
 	text_label.visible_characters = 0
 	shown = 0.0
 	_last_blip = 0
@@ -373,6 +401,11 @@ func _process(delta: float) -> void:
 		_blink += delta
 		more.visible = true
 		_place_more(absf(sin(_blink * 5.0)) * 6.0)
+
+
+## True while the page's words are still appearing.
+func typing() -> bool:
+	return _paged and text_label.visible_characters != -1 and text_label.visible_characters < text_label.get_total_character_count()
 
 
 func _advance() -> void:

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Bakes the Codex's head from Quaternius's *Animated Robot* (CC0; the OBJ copied to psx/quaternius_robot/, see
 ## CREDITS.md) into assets/ui/codex/:
-##   codex_head.res   the head's shell (surface 0, recoloured light blue) and its trim band (surface 1)
+##   codex_head.res   the head's shell (surface 0, recoloured orange) and its trim band (surface 1)
 ##   codex_eyes.res   both eyes, so they can blink
 ##   codex_brow_l.res / codex_brow_r.res   each eyebrow, centred on its own middle so it can tilt and lift
 ##     (its place on the head is the mesh's "pivot" metadata)
@@ -13,8 +13,11 @@ extends SceneTree
 
 const SRC := "res://psx/quaternius_robot/Robot.obj"
 const OUT := "res://assets/ui/codex/"
-## The pack's yellow becomes this light blue (the user's direction, 2026-11-14); its grey trim becomes off-white.
-const SHELL := Color("#8ccdf0")
+## The pack's yellow becomes this warm orange (the user's direction, 2026-11-14); its grey trim becomes off-white.
+const SHELL := Color("#e8701a")
+## The pack's eyes are balls bulging out of the face; the Codex's are flat on the front (the user's direction,
+## 2026-11-14): cut off at this depth (the pack's units), just in front of the trim band (1.11) and face (1.07).
+const EYE_FRONT := 1.16
 const TRIM := Color("#eef2f4")
 const INK := Color("#1d2430")
 
@@ -70,7 +73,11 @@ func _init() -> void:
 	_add(head, faces["Grey"], verts, tf, TRIM, Vector3.ZERO)
 	ResourceSaver.save(head, OUT + "codex_head.res")
 	var eye_mesh := ArrayMesh.new()
-	_add(eye_mesh, eyes, verts, tf, INK, Vector3.ZERO)
+	var flat := verts.duplicate()
+	for f in eyes:
+		for i in f:
+			flat[i].z = minf(flat[i].z, EYE_FRONT)
+	_add(eye_mesh, eyes, flat, tf, INK, Vector3.ZERO)
 	ResourceSaver.save(eye_mesh, OUT + "codex_eyes.res")
 	for k in 2:
 		var pivot: Vector3 = tf.call(_mid(brows[k], verts))
@@ -123,9 +130,17 @@ func _add(mesh: ArrayMesh, fs: Array, verts: PackedVector3Array, tf: Callable, c
 		var p := []
 		for i in f:
 			p.append(tf.call(verts[i]))
-		var n: Vector3 = (p[1] - p[0]).cross(p[2] - p[0]).normalized()
+		var n: Vector3 = (p[1] - p[0]).cross(p[2] - p[0])
+		if n.length() < 1e-6 and p.size() > 3:
+			n = (p[2] - p[0]).cross(p[3] - p[0])
+		if n.length() < 1e-6:
+			# (a face the flattening squashed to nothing)
+			continue
+		n = n.normalized()
+		# (the OBJ winds its faces counter-clockwise; Godot's front faces are clockwise, so each triangle is reversed,
+		# or only the inside of the head would be drawn and the band behind it would show through the eyes)
 		for k in range(1, p.size() - 1):
-			for q in [p[0], p[k], p[k + 1]]:
+			for q in [p[0], p[k + 1], p[k]]:
 				st.set_color(col)
 				st.set_normal(n)
 				# planar UV across the face: the gradient texture runs light at the top to soft shade below

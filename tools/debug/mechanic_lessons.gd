@@ -6,6 +6,8 @@ const Ring = preload("res://scripts/core/ring.gd")
 const ML = preload("res://scripts/world/map_loader.gd")
 const MG = preload("res://scripts/world/map_gen.gd")
 const BuildEdition = preload("res://scripts/core/build_edition.gd")
+const Codex = preload("res://scripts/ui/codex.gd")
+const CodexDB = preload("res://scripts/data/codex_db.gd")
 var main
 var opts: Dictionary
 var bad := 0
@@ -46,6 +48,8 @@ func run(game, options: Dictionary) -> void:
 		await dance()
 	if part in ["all", "summon"]:
 		await summon()
+	if part in ["all", "rhythm"]:
+		await rhythm()
 	if part in ["all", "ring"]:
 		await ring()
 	if part == "field":
@@ -116,8 +120,8 @@ func drive(done: Array) -> void:
 						await shot("demo_full_game")
 				if top.speaker == "Dancer Jasper":
 					await shot("demo_jasper")
-				if top.speaker == "Coach Ondine":
-					await shot("summon_trainer")
+				if top.speaker == "Codex":
+					await shot("codex")
 				if top.speaker == "Tester Tess":
 					await shot("ring_coach")
 				if top.speaker == "Ranger Wren":
@@ -173,7 +177,6 @@ func dance() -> void:
 	teach.call()
 	await drive(done)
 	main.world.busy = false
-	check(practice_missed and practice_landed, "a missed practice beat retries until a real hit lands")
 	if BuildEdition.is_demo():
 		await demo_boundary()
 		return
@@ -237,30 +240,58 @@ func demo_boundary() -> void:
 	await shot("demo_freeplay")
 
 
+## No summon lesson any more: nobody waits outside the temple after you win Abyssion, and the Codex can explain
+## summons once one is yours.
 func summon() -> void:
 	UI.auto = true
 	GameState.summons = []
-	GameState.set_flag("lesson_summon", false)
+	check(not CodexDB.eligible("summon"), "the Codex can't explain summons before you have one")
 	await main._go("reef", Vector2i(70, 18))
-	check(npc("summon_coach").is_empty(), "summon trainer absent before winning Abyssion")
 	GameState.summons = ["water"]
 	var waiting: Array = Story.extra_npcs(ML.load_map("reef", GameState.flags))
-	check(waiting.filter(func(n): return n.get("id", "") in ["summon_coach", "tide_keeper"]).size() == 1, "only the summon trainer waits outside the temple after capture")
-	GameState.learn_song(String(Story.WorldDB.TEMPLES["water"]["song"]))
-	GameState.shield = 0
+	check(waiting.filter(func(n): return n.get("id", "") in ["summon_coach", "tide_keeper"]).is_empty(), "nobody waits outside the temple after capture")
+	check(CodexDB.eligible("summon"), "the Codex can explain summons once one is yours")
+	GameState.summons = []
+
+
+## Rhythm attacks: unlocked by Lucille's lesson, the Codex explains them in your next battle with a practice beat (a
+## missed beat retries until a real hit lands, by key or by a tap on the ring).
+func rhythm() -> void:
 	UI.auto = false
+	GameState.set_flag("dance_lesson_done")
+	GameState.trainer_level = maxi(4, GameState.trainer_level)
+	GameState.set_flag("codex_seen_rhythm", false)
+	GameState.set_flag("ring_rotation_taught")
+	main._test["stop"] = "trainer"
+	practice_missed = false
+	practice_landed = false
 	var done := [false]
-	var leave := func():
-		await main._go("reef", Vector2i(70, 18))
+	var open := func():
+		await main._battlecmd_test()
 		done[0] = true
-	leave.call()
+	open.call()
 	await drive(done)
-	check(GameState.flag("lesson_summon"), "trainer appears on leaving temple and completes the summon lesson")
-	check(failed_song, "failed summon can be retried in the protected lesson")
-	check(npc("summon_coach").is_empty(), "completed summon trainer leaves")
+	check(GameState.flag("codex_seen_rhythm"), "the Codex explains rhythm attacks in the first battle after the lesson")
+	check(practice_missed and practice_landed, "a missed practice beat retries until a real hit lands")
+	await _leave_battle()
+	GameState.set_flag("ring_rotation_taught", false)
+
+
+func _leave_battle() -> void:
+	if not main.in_battle:
+		return
 	UI.auto = true
-	await main._go("reef", Vector2i(70, 18))
-	check(npc("summon_coach").is_empty(), "summon trainer stays absent on re-entry")
+	for battle in main.view.get_children():
+		if battle.get_script() == load(main.BATTLE_PATH):
+			battle.result = "win"
+	var top = UI.stack.back() if not UI.stack.is_empty() else null
+	if top != null and top.has_method("_rotate"):
+		top.close({"kind": "go"})
+	for i in 1000:
+		if not main.in_battle:
+			break
+		await main._wait(0.025)
+	UI.auto = false
 
 
 func ring() -> void:
@@ -274,7 +305,12 @@ func ring() -> void:
 	open.call()
 	await drive(done)
 	var panel = UI.stack.back() if not UI.stack.is_empty() else null
-	check(panel != null and panel.has_method("_rotate") and panel.info.get("rotation_lesson", false), "four-beast party triggers an interactive rotation lesson")
+	check(panel != null and panel.has_method("_rotate") and panel.info.get("rotation_lesson", false), "four-beast party: the Codex starts an interactive rotation lesson")
+	check(GameState.flag("codex_seen_ring"), "the Codex explained turning the ring")
+	if panel != null and panel.has_method("_rotate"):
+		var labels: Array = panel.rows[0]["options"].map(func(o): return String(o.get("label", "")))
+		var codex_opt: Dictionary = panel.rows[0]["options"][labels.find("Codex")] if labels.has("Codex") else {}
+		check(codex_opt.get("icon", "") == "help" and codex_opt.get("sub", false), "the trainer's bar has Codex with its ? icon")
 	if panel == null or not panel.has_method("_rotate"):
 		return
 	for i in 20:
@@ -307,12 +343,12 @@ func ring() -> void:
 		var before: int = active.focus
 		active.rows[before]["options"].append({"id": "move", "move": "heat_wave", "label": "Heat Wave", "target": "enemies"})
 		active.rows[before]["sel"] = active.rows[before]["options"].size() - 1
-		GameState.set_flag("battle_tip_all_targets", false)
-		GameState.set_flag("battle_tip_status", false)
+		GameState.set_flag("codex_seen_all_targets", false)
+		GameState.set_flag("codex_seen_status", false)
 		await main._press("ui_accept")
 		await main._wait(0.05)
 		check(UI.stack.back() is UI.DialogBox and active._teaching and not active.picking, "first-use lesson pauses the actual confirm action")
-		check(UI.stack.back().speaker == "Tester Tess", "opponent teaches through a speech bubble")
+		check(UI.stack.back().speaker == "Codex" and UI.stack.back().anchor_control != null, "the Codex teaches from its head in the corner")
 		for i in 120:
 			var top = UI.stack.back()
 			if top is UI.DialogBox:
@@ -322,7 +358,12 @@ func ring() -> void:
 				break
 			await main._wait(0.025)
 		check(active.picking and not active.rows[before].get("done", false), "lesson dismissal opens targeting without confirming it")
-		check(GameState.flag("battle_tip_all_targets") and GameState.flag("battle_tip_status"), "first-use topics are saved independently")
+		check(GameState.flag("codex_seen_all_targets") and GameState.flag("codex_seen_status"), "first-use topics are saved independently")
+	check(CodexDB.eligible("bat") == GameState.weapons().has("bat"), "the Codex only explains the bat once it's yours")
+	GameState.set_flag("codex_off")
+	GameState.set_flag("codex_seen_protection", false)
+	check(not await Codex.chime("protection") and not GameState.flag("codex_seen_protection"), "switched off, the Codex stays quiet and keeps the topic for later")
+	GameState.set_flag("codex_off", false)
 
 
 func field() -> void:

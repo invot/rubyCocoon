@@ -217,6 +217,9 @@ recoloured in the game with each beast's own colours (and its menu icon rendered
   (most of the beasts).
 - **LowPoly Animated Monsters** by Quaternius, CC0, https://quaternius.itch.io/lowpoly-animated-monsters
   (the dragon and the slime).
+- **Animated Robot** by Quaternius, CC0 (the OBJ copied into psx/quaternius_robot/): the Codex's head, head only,
+  recoloured orange with flat-fronted eyes and separate brows by `tools/import_codex_head.gd`.
+  See [licence](licenses/Quaternius%20Animated%20Robot%20-%20License.txt).
 - **PS1/PSX Fish Pack** by CursedLake, https://cursedlake.itch.io/ps1psx-fish-pack (clownfish, catfish, perch).
 - **Fish - PolyPack Asset** by ALSTRA INFINITE, https://alstrainfinite.itch.io/fish (the shark).
 - **PS1/PSX style alpaca & capybara models** by obliviist,

@@ -1,5 +1,6 @@
 extends RefCounted
 ## Artwork title: crossfade/zoom, navigation, touch clusters and one screen per confirmation.
+const CAROUSEL := "res://scripts/ui/title_carousel.gd"
 var bad := 0
 
 func run(main) -> void:
@@ -33,15 +34,15 @@ func run(main) -> void:
 	art._process(0.0)
 	_check(art.index == 0, "slideshow wraps to the first artwork")
 	var menu = UI.stack.back()
-	_check(menu.get_script() == UI.ListMenu and UI.stack.size() == 1, "slideshow keeps the New Game / Load Game menu")
+	_check(menu.get_script().resource_path == CAROUSEL and UI.stack.size() == 1, "slideshow keeps the New Game / Load Game carousel")
 	if main._test.get("fixture", "0") == "1":
 		_check(menu.buttons.any(func(b): return b.text == "Load Game"), "Load Game remains available with a test save")
 	if menu.buttons.size() > 1:
-		var before: int = menu._focus
-		await main._press("ui_down")
-		_check(menu._focus == posmod(before + 1, menu.buttons.size()), "keyboard moves focus to the next choice")
+		var before: int = menu.chosen()
 		await main._press("ui_up")
-		_check(menu._focus == before, "keyboard returns to the previous choice")
+		_check(menu.chosen() == posmod(before + 1, menu.buttons.size()), "up slides the next choice up into the button")
+		await main._press("ui_down")
+		_check(menu.chosen() == before, "keyboard returns to the previous choice")
 	if main._test.has("shot"):
 		main._save_shot(String(main._test["shot"]))
 	if UI.is_touch():
@@ -71,6 +72,12 @@ func run(main) -> void:
 		_check(hits[0] == 1, "the same button still takes a tap outside the d-pad's zone")
 		probe.queue_free()
 		await main._wait(0.05)
+	# up/down loops round to New Game; a tap on the button picks it
+	for _i in menu.buttons.size():
+		if menu.buttons[menu.chosen()].text == "New Game":
+			break
+		await main._press("ui_up")
+	await main._wait(0.5)
 	for button in menu.buttons:
 		if button.text == "New Game":
 			await main._tap_at(button.get_global_rect().get_center())
@@ -86,7 +93,7 @@ func run(main) -> void:
 	_check(is_instance_valid(stage) and not stage.logo.visible, "creator hides only the title lettering, retaining the background")
 	await main._press("ui_cancel")
 	await main._wait(0.3)
-	_check(not UI.stack.is_empty() and UI.stack.back().get_script() == UI.ListMenu, "B returns to the title")
+	_check(not UI.stack.is_empty() and UI.stack.back().get_script().resource_path == CAROUSEL, "B returns to the title")
 	_check(is_instance_valid(stage) and stage.logo.is_visible_in_tree(), "returning restores the title lettering")
 	print("TITLE STARTUP DONE: %d problem(s)" % bad)
 

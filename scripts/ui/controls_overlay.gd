@@ -1,9 +1,8 @@
 extends CanvasLayer
 ## On-screen controls.
 ##  Desktop: a strip along the bottom showing which keys do what.
-##  Mobile:  a d-pad bottom-left, A and B bottom-right, Start and Pause bottom-centre: Kenney's Xbox prompts, the d-pad
-##           off-white with the held way in the gem, the buttons the gem with white letters.
-##  Both use Kenney's input prompts (assets/ui/input_prompts/), and light up what is held.
+##  Mobile:  a d-pad bottom-left, A and B bottom-right, Start and Pause bottom-centre. Like every window they are the
+##           blurred near-black box (blur.gdshader) with white linework; pressed, a button fills solid white.
 ## Touch buttons send the same input actions as the keyboard, so every screen works with them.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -61,7 +60,8 @@ func refresh() -> void:
 	_touch_on = next_touch
 	touch_root.visible = _touch_on
 	touch_root.process_mode = Node.PROCESS_MODE_INHERIT if _touch_on else Node.PROCESS_MODE_DISABLED
-	_show_rows()
+	_legend_row.visible = not controller_guide() and not flute_mode
+	_flute_row.visible = not controller_guide() and flute_mode
 	_place_legend(true)
 	_layout()
 	layout_changed.emit()
@@ -131,8 +131,6 @@ func touch_visible() -> bool:
 
 ## Only screens explicitly requesting it (the full map or ring editor) hide the side pad.
 func _process(_delta: float) -> void:
-	if legend != null and legend.visible:
-		_update_legend_icons()
 	if not _touch_on or _buttons.is_empty():
 		return
 	var top = UI.stack.back() if is_instance_valid(UI) and not UI.stack.is_empty() else null
@@ -147,16 +145,15 @@ func _process(_delta: float) -> void:
 			_answer_tween = create_tween()
 			_answer_tween.tween_property(self, "_answer_blend", 0.0 if answers.is_empty() else 1.0, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		_layout()
-	var hide: bool = top != null and top.get("hides_touch_pad") == true
-	_show_group(ARMS, not hide and not film)
-	_show_group(["a", "b"], not hide)
-	_show_group(["start", "pause"], not film)
 	_update_answer_faces()
-	_update_pad_faces()
+	var hide: bool = top != null and top.get("hides_touch_pad") == true
+	_show_group(ARMS, ["dpad"], not hide and not film)
+	_show_group(["a", "b"], ["a", "b"], not hide)
+	_show_group(["start", "pause"], ["start", "pause"], not film)
 
 
-## Shows or steps aside one cluster of the pad with its drawings.
-func _show_group(ids: Array, on: bool) -> void:
+## Shows or steps aside one cluster of the pad with its backdrops.
+func _show_group(ids: Array, backs: Array, on: bool) -> void:
 	if (_buttons[ids[0]] as TouchScreenButton).visible == on:
 		return
 	for id in ids:
@@ -167,22 +164,27 @@ func _show_group(ids: Array, on: bool) -> void:
 		if not on and b.is_pressed():
 			_send(id, false)
 		b.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
-		if _faces.has(id):
-			(_faces[id] as CanvasItem).visible = on
-			(_shadows[id] as CanvasItem).visible = on
+	for k in backs:
+		(_backdrops[k] as CanvasItem).visible = on
 	if "up" in ids:
-		_dpad_face.visible = on
-		_dpad_shadow.visible = on
-		_dpad_arm.visible = on and _dpad_shown != ""
+		_dpad_base.visible = on
 
 
-## Redraws the legend strip and the pad in the current gem.
+## Redraws the legend strip, key caps and pad faces in the current gem.
 func _recolour() -> void:
 	_gem = UIKit.accent_name
 	legend.add_theme_stylebox_override("panel", _legend_style())
-	for e in _legend_icons:
-		e["on"] = not e["on"]
-	_recolour_pad()
+	_shade_backdrops()
+	_paint_pad()
+
+
+## The pad's backdrops are plain fills (no blur): the d-pad's cross the windows' off-white a shade deeper, A, B, Start
+## and Pause the gem, like every button.
+func _shade_backdrops() -> void:
+	var fb = UIKit.FrameBox
+	# (a shade deeper than the windows, so the cross still reads where it overlaps one)
+	_backdrop_material.set_shader_parameter("shade", Color(UIKit.WELL, fb.PAPER_ALPHA))
+	_button_material.set_shader_parameter("shade", UIKit.button_fill())
 
 
 # ---------------------------------------------------------------- desktop key legend
@@ -198,135 +200,121 @@ func _build_legend() -> void:
 	legend.offset_top = -LEGEND_H
 	legend.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(legend)
-	_legend_box = CenterContainer.new()
-	legend.add_child(_legend_box)
-	_legend_row = _legend_keys([[ARROW_KEYS, "Move"], ["a", "Action"], ["s", "Back · hold to run"], ["space", "Start"],
-		["shift", "Pause"]])
-	_legend_box.add_child(_legend_row)
-	_flute_row = _legend_keys([[ARROW_KEYS, "Arrow notes"], ["a", "A note"], ["s", "B note"], ["escape", "Stop playing"]])
+	var cc := CenterContainer.new()
+	legend.add_child(cc)
+	_legend_row = _legend_keys([[ARROW_KEYS, "Move"], ["A", "Action"], ["S", "Back · hold to run"], ["SPACE", "Start"], ["SHIFT", "Pause"]])
+	cc.add_child(_legend_row)
+	_flute_row = _legend_keys([[ARROW_KEYS, "Arrow notes"], ["A", "A note"], ["S", "B note"], ["ESC", "Stop playing"]])
 	_flute_row.visible = false
-	_legend_box.add_child(_flute_row)
+	cc.add_child(_flute_row)
 
 
-## The legend's icons are Kenney's keyboard keys (assets/ui/input_prompts/): at rest the
-## outlined key in near-black, and while it is held the filled key in the gem (its cut-out letter shows the strip).
+## the four arrow keys, drawn as one cluster of caps (all from the same symbol set so they match in size)
 const ARROW_KEYS := ["left", "up", "down", "right"]
-const KEY_ICONS := {"left": "keyboard_arrow_left", "up": "keyboard_arrow_up", "down": "keyboard_arrow_down",
-	"right": "keyboard_arrow_right", "a": "keyboard_a", "s": "keyboard_s", "space": "keyboard_space",
-	"shift": "keyboard_shift", "escape": "keyboard_escape"}
-const KEY_CODES := {"left": KEY_LEFT, "up": KEY_UP, "down": KEY_DOWN, "right": KEY_RIGHT, "a": KEY_A, "s": KEY_S,
-	"space": KEY_SPACE, "shift": KEY_SHIFT, "escape": KEY_ESCAPE}
-## an icon's height on the legend strip (Kenney's keys have a margin inside their square, so the icon is a little
-## taller than the key it shows)
-const CAP_H := 40.0
-## the legend's icons: {rect, rest, held, test (Callable -> bool)}
-var _legend_icons: Array = []
-var _legend_box: CenterContainer
+## each arrow key's turn of the one up-pointing triangle
+const ARROW_TURNS := {"left": -PI / 2, "up": 0.0, "down": PI, "right": PI / 2}
+## a key cap's height on the legend strip
+const CAP_H := 30.0
+## the caps are a soft grey rather than white, so the strip stays quiet beside the scene
+const CAP_FILL := Color(0.66, 0.68, 0.71)
+const CAP_LIP := Color(0.42, 0.44, 0.48)
+const CAP_INK := Color(0.13, 0.14, 0.16)
 
 
 func _legend_keys(keys: Array) -> HBoxContainer:
-	var icons: Array = []
-	for k in keys:
-		var caps: Array = []
-		for face in (k[0] if k[0] is Array else [k[0]]):
-			var code: Key = KEY_CODES[face]
-			caps.append(_legend_icon(KEY_ICONS[face] + "_outline", KEY_ICONS[face], func() -> bool:
-				return Input.is_physical_key_pressed(code)))
-		icons.append([caps, k[1]])
-	return _legend_items(icons)
-
-
-## The strip's items: [[icons], what they do] each.
-func _legend_items(items: Array) -> HBoxContainer:
 	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 30)
-	for it in items:
+	hb.add_theme_constant_override("separation", 36)
+	for k in keys:
 		var item := HBoxContainer.new()
-		item.add_theme_constant_override("separation", 6)
+		item.add_theme_constant_override("separation", 10)
 		var caps := HBoxContainer.new()
-		caps.add_theme_constant_override("separation", 0)
+		caps.add_theme_constant_override("separation", 4)
 		caps.alignment = BoxContainer.ALIGNMENT_CENTER
-		for icon in it[0]:
-			caps.add_child(icon)
+		for face in (k[0] if k[0] is Array else [k[0]]):
+			caps.add_child(_key_cap(face))
 		item.add_child(caps)
-		var dl := UIKit.label(it[1], 20, UIKit.INK)
+		var dl := UIKit.label(k[1], 20, UIKit.INK)
 		dl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		item.add_child(dl)
 		hb.add_child(item)
 	return hb
 
 
-## One icon on the strip: `rest` (an outlined icon, in near-black) normally, `held` (filled, in the gem) while `test`.
-func _legend_icon(rest: String, held: String, test: Callable) -> TextureRect:
-	var r := TextureRect.new()
-	r.texture = _icon(rest)
-	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	r.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	r.custom_minimum_size = Vector2(CAP_H, CAP_H)
-	r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	r.self_modulate = UIKit.INK
-	_legend_icons.append({"rect": r, "rest": rest, "held": held, "test": test, "on": false})
-	return r
+## The one arrow triangle (equilateral, pointing up), turned by `turn` about its centre, so all four keys match.
+func _arrow_glyph(turn: float) -> Control:
+	var g := Control.new()
+	g.custom_minimum_size = Vector2(12, 12)
+	g.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	g.draw.connect(func() -> void:
+		var c := g.size / 2.0 + Vector2(0, -1.5)
+		var r := 7.0
+		var pts := PackedVector2Array()
+		for i in 3:
+			pts.append(Vector2.from_angle(turn - PI / 2 + TAU * i / 3.0) * r)
+		# centre the turned triangle by its bounds, not its centroid, so up and down sit level with left and right
+		var lo := pts[0].min(pts[1]).min(pts[2])
+		var hi := pts[0].max(pts[1]).max(pts[2])
+		var shift := c - (lo + hi) / 2.0
+		for i in 3:
+			pts[i] = (pts[i] + shift).round()
+		g.draw_colored_polygon(pts, CAP_INK)
+	)
+	return g
 
 
-## Which row the strip shows: the keys, or the flute game's notes.
-func _show_rows() -> void:
-	_legend_row.visible = not controller_guide() and not flute_mode
-	_flute_row.visible = not controller_guide() and flute_mode
-
-
-## Lights the legend's icons for what is held (each frame while the strip shows).
-func _update_legend_icons() -> void:
-	for e in _legend_icons:
-		var r: TextureRect = e["rect"]
-		if not r.is_visible_in_tree():
-			continue
-		var on: bool = e["test"].call()
-		if on != e["on"]:
-			e["on"] = on
-			r.texture = _icon(e["held"] if on else e["rest"])
-			r.self_modulate = UIKit.ACCENT if on else UIKit.INK
+## One keyboard key: a small solid grey cap with a shaded lip along its bottom and the key's name in dark text.
+func _key_cap(face: String) -> PanelContainer:
+	var cap := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = CAP_FILL
+	sb.border_color = CAP_LIP
+	sb.border_width_bottom = 3
+	sb.set_corner_radius_all(5)
+	sb.content_margin_left = 9
+	sb.content_margin_right = 9
+	sb.content_margin_top = 1
+	sb.content_margin_bottom = 0
+	cap.add_theme_stylebox_override("panel", sb)
+	cap.custom_minimum_size = Vector2(CAP_H, CAP_H)
+	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if face in ARROW_TURNS:
+		cap.add_child(_arrow_glyph(ARROW_TURNS[face]))
+		return cap
+	var kl := UIKit.label(face, 20, CAP_INK)
+	kl.add_theme_font_override("font", UIKit.font_head())
+	kl.add_theme_font_size_override("font_size", UIKit.head_px(17))
+	kl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	kl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	kl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cap.add_child(kl)
+	return cap
 
 
 # ---------------------------------------------------------------- touch controls
-## One arm of the d-pad (the cross is three arms across), A and B's diameter, and Start / Pause's pill (the Xbox
-## pill's own proportions).
+## One arm of the d-pad (the cross is three arms across), A and B's diameter, and Start / Pause's pill.
 const ARM := 88.0
 const ROUND := 104.0
-const PILL := Vector2(96, 64)
-## how far each face's soft shadow drops
-const SHADOW_DROP := 5.0
+const PILL := Vector2(100, 44)
+## room below each face for its drop shadow
+const SHADOW_ROOM := 8
 
-## Kenney's input prompts (CC0, assets/ui/input_prompts/, copied by tools/input_prompts/build.py): the pad uses the
-## Xbox d-pad, A, B and START pill, and a PAUSE pill made to match. Each is a white 64-unit SVG; prompt_tint.gdshader
-## colours it (the d-pad off-white with its held arm in the gem; the buttons the gem with white letters).
-const PROMPTS := "res://assets/ui/input_prompts/"
-const TINT := preload("res://scripts/ui/prompt_tint.gdshader")
-## where each kind of icon's shape lies in its 64-unit square (the rest is Kenney's margin)
-const SHAPE_ROUND := Rect2(8, 8, 48, 48)
-const SHAPE_PILL := Rect2(8, 16, 48, 32)
-const FACE_ICONS := {"a": "xbox_button_a", "b": "xbox_button_b", "start": "xbox_button_start", "pause": "xbox_button_pause"}
-## an answer pill's icon (A or B, white on the gem) as a share of its height, and the room around it
-const ANSWER_ICON := 0.72
-const ANSWER_PAD := 16.0
-
-## the d-pad's drawing: Kenney's outlined cross in off-white, with the arm for the way being held (by the touch pad,
-## keys or a controller) filled in the gem. The four arm buttons over it only take touches: each answers in its own quarter of
-## the pad (a wedge from the middle out past its edge, see _arm_shape), so a thumb only ever holds one of the four ways.
-var _dpad_face: Sprite2D
-var _dpad_shadow: Sprite2D
-var _dpad_arm: Sprite2D
-var _dpad_shown := "-"
-var _dpad_box := Rect2()
-## A, B, Start and Pause's drawings and their shadows (the buttons themselves only take touches)
-var _faces := {}
-var _shadows := {}
-var _face_state := {}
-## A and B's gem pills while they answer Yes / No, and the answer beside each button's letter
-var _answer_pills := {}
+## the d-pad's cross, drawn whole under its four arm buttons (which only show when pressed): getting about, battles,
+## menus and the flute game all use it. Each arm answers touches in its own quarter of the pad (a wedge from the middle
+## out past its arrow, see _arm_shape), so a thumb only ever holds one of the four ways.
+var _dpad_base: Sprite2D
+## the fill behind each face (the d-pad's cross in the off-white; A, B, Start and Pause in the gem), drawn under it
+var _backdrops := {}
+var _backdrop_material: ShaderMaterial
+var _button_material: ShaderMaterial
+## a backdrop's fill: `shade` wherever its shape's marker is
+const FILL_SHADER := "shader_type canvas_item;
+uniform vec4 shade : source_color = vec4(1.0);
+void fragment() { COLOR = vec4(shade.rgb, shade.a * texture(TEXTURE, UV).a); }
+"
+## A, B, Start and Pause's labels: they sink a little while their button is held
 var _labels := {}
+var _answer_faces := {}
 var _answer_labels := {}
 var _answer_tween: Tween
 var _answer_blend := 0.0:
@@ -335,174 +323,345 @@ var _answer_blend := 0.0:
 		_layout()
 
 
-static func _icon(name: String) -> Texture2D:
-	return load(PROMPTS + name + ".svg")
-
-
-func _tint(body: Color, mark := Color.WHITE, letter := Color.WHITE, solid: Texture2D = null) -> ShaderMaterial:
-	var m := ShaderMaterial.new()
-	m.shader = TINT
-	m.set_shader_parameter("body", body)
-	m.set_shader_parameter("mark", mark)
-	m.set_shader_parameter("letter", letter)
-	m.set_shader_parameter("has_solid", solid != null)
-	m.set_shader_parameter("solid", solid)
-	return m
-
-
-## A drawing and its shadow (the same shape, black and faint, a little lower): [face, shadow].
-func _face_sprite(tex: Texture2D, solid: Texture2D) -> Array:
-	var shadow := Sprite2D.new()
-	shadow.centered = false
-	shadow.texture = tex
-	shadow.material = _tint(Color(0, 0, 0, 0.26), Color(0, 0, 0, 0.26), Color.BLACK, solid)
-	touch_root.add_child(shadow)
-	var face := Sprite2D.new()
-	face.centered = false
-	face.texture = tex
-	touch_root.add_child(face)
-	return [face, shadow]
-
-
 func _build_touch() -> void:
 	touch_root = Node2D.new()
-	# the icons' SVGs are imported large, with mipmaps, and drawn smoothly scaled down
-	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	# the faces are drawn smooth (soft edges and shading), so they are scaled smoothly too
+	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	add_child(touch_root)
-	var pair := _face_sprite(_icon("xbox_dpad_none"), null)
-	_dpad_face = pair[0]
-	_dpad_shadow = pair[1]
-	_dpad_face.material = _tint(UIKit.WELL)
-	# the held arm: Kenney's filled d-pad with that arm marked, drawing only the mark (in the gem) inside the outline
-	_dpad_arm = Sprite2D.new()
-	_dpad_arm.centered = false
-	_dpad_arm.visible = false
-	_dpad_arm.material = _tint(Color(1, 1, 1, 0), UIKit.ACCENT)
-	touch_root.add_child(_dpad_arm)
-	for k in ["a", "b"]:
-		var pill := Panel.new()
-		pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pill.visible = false
-		touch_root.add_child(pill)
-		_answer_pills[k] = pill
+	_dpad_base = Sprite2D.new()
+	_dpad_base.centered = false
+	var fill := Shader.new()
+	fill.code = FILL_SHADER
+	_backdrop_material = ShaderMaterial.new()
+	_backdrop_material.shader = fill
+	_button_material = ShaderMaterial.new()
+	_button_material.shader = fill
+	var dpad_back := Sprite2D.new()
+	dpad_back.centered = false
+	dpad_back.material = _backdrop_material
+	touch_root.add_child(dpad_back)
+	_backdrops["dpad"] = dpad_back
 	for k in ["a", "b", "start", "pause"]:
-		var solid := _icon(FACE_ICONS[k] + "_solid")
-		var both := _face_sprite(_icon(FACE_ICONS[k]), solid)
-		_faces[k] = both[0]
-		_shadows[k] = both[1]
-		(both[0] as Sprite2D).material = _tint(UIKit.button_fill(), Color.WHITE, UIKit.LIGHT, solid)
+		# a nine-patch, so A and B's backdrops widen with them for Yes / No
+		var back := NinePatchRect.new()
+		back.material = _button_material
+		back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if k in ["a", "b"]:
+			back.patch_margin_left = 48
+			back.patch_margin_right = 48
+		else:
+			back.patch_margin_left = int(PILL.y / 2.0)
+			back.patch_margin_right = int(PILL.y / 2.0)
+		touch_root.add_child(back)
+		_backdrops[k] = back
+	_shade_backdrops()
+	touch_root.add_child(_dpad_base)
 	for dir in ["up", "down", "left", "right"]:
 		_touch_button(dir, Vector2(ARM, ARM))
 	for k in ["a", "b"]:
 		var b2 := _touch_button(k, Vector2(ROUND, ROUND))
-		# the answer beside the letter while A / B answer Yes / No
-		var l := UIKit.label("", 32, UIKit.LIGHT)
-		l.add_theme_font_size_override("font_size", UIKit.body_px(32))
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		l.visible = false
+		# Stretch the face's middle, preserving its round ends and pixel borders.
+		var face := NinePatchRect.new()
+		face.patch_margin_left = 48
+		face.patch_margin_right = 48
+		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		face.visible = false
+		b2.add_child(face)
+		_answer_faces[k] = face
+		var l := UIKit.label(k.to_upper(), UIKit.BODY_HUGE, UIKit.LIGHT)
+		# big letters: 64 screen pixels on a 1080p phone
+		l.add_theme_font_size_override("font_size", UIKit.body_px(43))
+		_style_cap_label(l, Vector2(ROUND, ROUND))
 		b2.add_child(l)
 		_labels[k] = l
 	for k in ["start", "pause"]:
-		_touch_button(k, PILL)
-	_recolour_pad()
+		var b3 := _touch_button(k, PILL)
+		var l2 := UIKit.label(k.to_upper(), 20, UIKit.LIGHT)
+		_style_cap_label(l2, PILL)
+		b3.add_child(l2)
+		_labels[k] = l2
+	_paint_pad()
 	_layout()
 
 
-func _answer_icon() -> float:
-	return roundf(ROUND * ANSWER_ICON)
-
-
-## A and B's width: round, or (while they answer) a pill holding the button's letter and its answer.
 func _answer_width() -> float:
-	var text_w := 0.0
+	var width := 240.0
 	for id in _answer_labels:
-		text_w = maxf(text_w, UIKit.font_body().get_string_size(String(_answer_labels[id]), HORIZONTAL_ALIGNMENT_LEFT, -1,
-			UIKit.body_px(32)).x)
-	var width := maxf(200.0, (ROUND - _answer_icon()) * 0.5 + _answer_icon() + ANSWER_PAD + text_w + ANSWER_PAD * 2.0)
+		var text := String(id).to_upper() + ": " + String(_answer_labels[id])
+		width = maxf(width, UIKit.font_body().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(32)).x + 48.0)
 	return lerpf(ROUND, width, _answer_blend)
 
 
-## Keeps A and B in step with a Yes / No prompt: round gem buttons, or a gem pill with the button (white, its cut-out
-## letter showing the gem) at its left and the answer in white to its right.
 func _update_answer_faces() -> void:
-	if _labels.is_empty():
+	if _answer_faces.is_empty():
 		return
-	var wide := _answer_blend > 0.001
 	for id in ["a", "b"]:
+		var button: TouchScreenButton = _buttons[id]
+		var wide := _answer_blend > 0.001
+		var face: NinePatchRect = _answer_faces[id]
+		button.self_modulate.a = 0.0 if wide else 1.0
+		face.visible = wide
+		face.texture = button.texture_pressed if button.is_pressed() else button.texture_normal
 		var label: Label = _labels[id]
-		var text: String = String(_answer_labels.get(id, "")) if _answer_blend > 0.45 else ""
+		var text: String = id.to_upper() + ": " + String(_answer_labels[id]) if _answer_blend > 0.45 and _answer_labels.has(id) else id.to_upper()
 		if label.text != text:
 			label.text = text
-		label.visible = text != ""
-		(_answer_pills[id] as Panel).visible = wide and (_faces[id] as Sprite2D).visible
-		(_shadows[id] as Sprite2D).visible = (_faces[id] as Sprite2D).visible and not wide
+		var font_size := UIKit.body_px(32 if wide else 43)
+		if label.get_theme_font_size("font_size") != font_size:
+			label.add_theme_font_size_override("font_size", font_size)
 
 
-## The answer pills' style in the current gem (the drawings' colours follow in _update_pad_faces).
-func _recolour_pad() -> void:
-	_face_state.clear()
-	(_dpad_face.material as ShaderMaterial).set_shader_parameter("body", UIKit.WELL)
-	(_dpad_arm.material as ShaderMaterial).set_shader_parameter("mark", UIKit.ACCENT)
-	for k in _answer_pills:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = UIKit.button_fill()
-		sb.set_corner_radius_all(int(ROUND / 2.0))
-		sb.anti_aliasing = true
-		sb.corner_detail = 12
-		sb.shadow_color = Color(0, 0, 0, 0.26)
-		sb.shadow_size = 6
-		sb.shadow_offset = Vector2(0, SHADOW_DROP - 1.0)
-		(_answer_pills[k] as Panel).add_theme_stylebox_override("panel", sb)
+## A button's label: crisp pixel text (not smoothed like the faces), centred, with a soft shadow below it.
+func _style_cap_label(l: Label, box: Vector2) -> void:
+	l.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	l.size = box
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_constant_override("shadow_offset_x", 0)
+	l.add_theme_constant_override("shadow_offset_y", 3)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## The pad's held states, each frame: the d-pad's arm in the gem for the way being held, a held button a deeper gem.
-func _update_pad_faces() -> void:
-	var dir := _held_way()
-	if dir != _dpad_shown:
-		_dpad_shown = dir
-		_dpad_arm.visible = dir != "" and _dpad_face.visible
-		if dir != "":
-			_dpad_arm.texture = _icon("xbox_dpad_" + dir)
-			_fit(_dpad_arm, Rect2(_dpad_box.position, _dpad_box.size), SHAPE_ROUND)
-	var wide := _answer_blend > 0.001
-	for k in _faces:
-		var down := (_buttons[k] as TouchScreenButton).is_pressed()
-		var on_pill: bool = wide and k in ["a", "b"]
-		var state := "%s %s %s" % [down, on_pill, UIKit.accent_name]
-		if _face_state.get(k, "") == state:
-			continue
-		_face_state[k] = state
-		var m := (_faces[k] as Sprite2D).material as ShaderMaterial
-		var fill := UIKit.pressed_fill() if down else UIKit.button_fill()
-		if on_pill:
-			# on its pill: a white button whose cut-out letter shows the gem behind it
-			m.set_shader_parameter("body", UIKit.LIGHT)
-			m.set_shader_parameter("has_solid", false)
-			((_answer_pills[k] as Panel).get_theme_stylebox("panel") as StyleBoxFlat).bg_color = fill
-		else:
-			m.set_shader_parameter("body", fill)
-			m.set_shader_parameter("has_solid", true)
+## The faces, painted pixel by pixel, take a second or more on a phone: they're painted on a worker thread and kept
+## in user:// for each gem, so the game doesn't wait for them and later launches just load them. Bump PAD_STYLE when
+## their look changes, so the kept ones are painted afresh.
+const PAD_CACHE := "user://touch_pad/"
+const PAD_STYLE := 7
+const FACES := ["dpad", "up", "down", "left", "right", "a", "a_pressed", "b", "b_pressed", "pill", "pill_pressed",
+	"dpad_mark", "round_mark", "pill_mark"]
+## (unused now: the faces had a white rim) and their drop shadow outside the shape
+const RIM := 3.0
+const SHADOW_A := 0.30
 
 
-## The way being held: the touch pad's arm, else a direction key or a controller's d-pad or stick.
-func _held_way() -> String:
-	if _arm != "":
-		return _arm
-	for dir in ARMS:
-		if Input.is_action_pressed("move_" + dir) or Input.is_action_pressed("ui_" + dir):
-			return dir
-	return ""
-
-
-## Sizes `sprite` so its icon's shape (`shape`, in Kenney's 64-unit square) fills `box`.
-static func _fit(sprite: Sprite2D, box: Rect2, shape: Rect2) -> void:
-	if sprite.texture == null:
+## (Re)draws every face in the current gem: kept ones straight away, else on a worker thread (until they're ready the
+## buttons work, unpainted).
+func _paint_pad() -> void:
+	for k in _labels:
+		(_labels[k] as Label).add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.25))
+	var key := _pad_key()
+	var faces := _kept_faces(key)
+	if not faces.is_empty():
+		_show_faces(faces)
 		return
-	var px := float(sprite.texture.get_width()) / 64.0
-	var k := box.size.x / shape.size.x / px
-	sprite.scale = Vector2(k, k)
-	sprite.position = box.position - shape.position * px * k
+	# Capture the script callback and weak reference on the main thread. A worker must never query a live Node.
+	var deliver := Callable(get_script(), "_deliver_faces")
+	WorkerThreadPool.add_task(_paint_faces.bind(key, deliver, weakref(self)))
+
+
+## Where this gem's faces are kept: its name, and its colours, the sizes and PAD_STYLE, so any change paints afresh.
+static func _pad_key() -> String:
+	return "%s_%x" % [UIKit.accent_name, hash([PAD_STYLE, UIKit.ACCENT.to_html(), UIKit.INK.to_html(), UIKit.pressed_fill().to_html(), ARM, ROUND, PILL])]
+
+
+static func _kept_faces(key: String) -> Dictionary:
+	var out := {}
+	for f in FACES:
+		var path: String = PAD_CACHE + key + "/" + f + ".png"
+		if not FileAccess.file_exists(path):
+			return {}
+		var img := Image.load_from_file(path)
+		if img == null or img.is_empty():
+			return {}
+		out[f] = img
+	return out
+
+
+## On a worker thread: paints every face, keeps them, and hands them to the main thread.
+static func _paint_faces(key: String, deliver: Callable, overlay: WeakRef) -> void:
+	var faces := {"dpad": _dpad_face(), "pill": _pill_face(false), "pill_pressed": _pill_face(true),
+		"dpad_mark": _mark(int(ARM * 3.0), int(ARM * 3.0), _sd_cross),
+		"round_mark": _mark(int(ROUND), int(ROUND), _sd_round),
+		"pill_mark": _mark(int(PILL.x), int(PILL.y), _sd_pill)}
+	for dir in ["up", "down", "left", "right"]:
+		faces[dir] = _arm_pressed(dir)
+	for k in ["a", "b"]:
+		faces[k] = _dome_face(k, false)
+		faces[k + "_pressed"] = _dome_face(k, true)
+	DirAccess.make_dir_recursive_absolute(PAD_CACHE + key)
+	for f in faces:
+		(faces[f] as Image).save_png(PAD_CACHE + key + "/" + f + ".png")
+	# (through a weak reference: the game may have closed, freeing the overlay, while they were painted)
+	deliver.call_deferred(overlay, key, faces)
+
+
+static func _deliver_faces(me: WeakRef, key: String, faces: Dictionary) -> void:
+	var overlay = me.get_ref()
+	if overlay != null:
+		overlay._faces_painted(key, faces)
+
+
+func _faces_painted(key: String, faces: Dictionary) -> void:
+	if key != _pad_key():
+		# the gem changed while they were being painted
+		_paint_pad()
+		return
+	_show_faces(faces)
+
+
+func _show_faces(faces: Dictionary) -> void:
+	# (the faces are smooth shapes)
+	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_dpad_base.texture = ImageTexture.create_from_image(faces["dpad"])
+	(_backdrops["dpad"] as Sprite2D).texture = ImageTexture.create_from_image(faces["dpad_mark"])
+	var round_mark := ImageTexture.create_from_image(faces["round_mark"])
+	var pill_mark := ImageTexture.create_from_image(faces["pill_mark"])
+	for k in ["a", "b"]:
+		(_backdrops[k] as NinePatchRect).texture = round_mark
+	for k in ["start", "pause"]:
+		(_backdrops[k] as NinePatchRect).texture = pill_mark
+	for dir in ["up", "down", "left", "right"]:
+		var b: TouchScreenButton = _buttons[dir]
+		b.texture_normal = _blank(Vector2i(int(ARM), int(ARM)))
+		b.texture_pressed = ImageTexture.create_from_image(faces[dir])
+	for k in ["a", "b"]:
+		_buttons[k].texture_normal = ImageTexture.create_from_image(faces[k])
+		_buttons[k].texture_pressed = ImageTexture.create_from_image(faces[k + "_pressed"])
+	for k in ["start", "pause"]:
+		_buttons[k].texture_normal = ImageTexture.create_from_image(faces["pill"])
+		_buttons[k].texture_pressed = ImageTexture.create_from_image(faces["pill_pressed"])
+
+
+# ---- shapes: signed distances, positive inside
+static func _sd_box(p: Vector2, rect: Rect2, r: float) -> float:
+	var q := (p - rect.get_center()).abs() - (rect.size / 2.0 - Vector2(r, r))
+	return -(Vector2(maxf(q.x, 0.0), maxf(q.y, 0.0)).length() + minf(maxf(q.x, q.y), 0.0) - r)
+
+
+## The d-pad's cross, in its own 264 x 264 space.
+static func _sd_cross(p: Vector2) -> float:
+	var v := _sd_box(p, Rect2(ARM, 0, ARM, ARM * 3.0), 16.0)
+	var h := _sd_box(p, Rect2(0, ARM, ARM * 3.0, ARM), 16.0)
+	return maxf(v, h)
+
+
+## The arrow on the arm `dir`, pointing outwards (signed distance to a triangle).
+static func _sd_arrow(p: Vector2, dir: String) -> float:
+	var c := Vector2(ARM * 1.5, ARM * 1.5)
+	var out: Vector2 = {"up": Vector2.UP, "down": Vector2.DOWN, "left": Vector2.LEFT, "right": Vector2.RIGHT}[dir]
+	var side := Vector2(-out.y, out.x)
+	var mid := c + out * ARM * 1.02
+	var tip := mid + out * 15.0
+	var b1 := mid - out * 11.0 + side * 16.0
+	var b2 := mid - out * 11.0 - side * 16.0
+	var d := INF
+	for e in [[tip, b1], [b1, b2], [b2, tip]]:
+		var a: Vector2 = e[0]
+		var n: Vector2 = (e[1] - a).orthogonal().normalized()
+		# the inside is on the side of the third corner
+		var third: Vector2 = tip + b1 + b2 - e[0] - e[1]
+		if n.dot(third - a) < 0.0:
+			n = -n
+		d = minf(d, n.dot(p - a))
+	return d - 1.5
+
+
+static func _cover(d: float) -> float:
+	return clampf(d + 0.5, 0.0, 1.0)
+
+
+static func _sd_round(p: Vector2) -> float:
+	return ROUND / 2.0 - 2.0 - p.distance_to(Vector2.ONE * ROUND / 2.0)
+
+
+static func _sd_pill(p: Vector2) -> float:
+	return _sd_box(p, Rect2(Vector2.ZERO, PILL).grow(-1), PILL.y / 2.0 - 1.0)
+
+
+## A backdrop's marker: the shape (`sd`, a signed distance, positive inside) in the blur shader's magenta, soft-edged.
+static func _mark(w: int, h: int, sd: Callable) -> Image:
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 0, 1, 0))
+	for y in h:
+		for x in w:
+			var a := _cover(float(sd.call(Vector2(x + 0.5, y + 0.5))))
+			if a > 0.0:
+				img.set_pixel(x, y, Color(1, 0, 1, a))
+	return img
+
+
+## A face's pixel `d` inside its edge (signed distance): a soft shadow outside the shape (`sh`: the distance to the
+## shape moved down) and `inner` within it (no rim: the backdrop's fill is its body).
+static func _line_px(d: float, sh: float, inner: Color) -> Color:
+	var col := Color(0, 0, 0, 0)
+	if d < 0.5:
+		col = Color(0, 0, 0, clampf((sh + 4.0) / 8.0, 0.0, 1.0) * SHADOW_A * (1.0 - _cover(d)))
+	var a := _cover(d)
+	if a > 0.0:
+		col = col.blend(Color(inner, inner.a * a))
+	return col
+
+
+## The whole cross: a faint ring in the middle and dark arrows. The off-white backdrop behind it (dpad_mark) is its
+## body.
+static func _dpad_face() -> Image:
+	var n := int(ARM * 3.0)
+	var img := Image.create(n, n + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
+	var centre := Vector2(ARM * 1.5, ARM * 1.5)
+	for y in img.get_height():
+		for x in n:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var d := _sd_cross(p)
+			var inner := Color(1, 1, 1, 0)
+			if d > 0.0:
+				var dc := absf(p.distance_to(centre) - 20.0)
+				if dc < 1.5:
+					inner = Color(UIKit.INK, 0.3 * _cover(1.5 - dc))
+				for dir in ["up", "down", "left", "right"]:
+					var ad := _sd_arrow(p, dir)
+					if ad > -1.0:
+						inner = inner.blend(Color(UIKit.INK, _cover(ad)))
+			img.set_pixel(x, y, _line_px(d, _sd_cross(p - Vector2(0, 5)), inner))
+	return img
+
+
+## A pressed arm: its part of the cross fills with the gem and its arrow turns white.
+static func _arm_pressed(dir: String) -> Image:
+	var off: Vector2 = {"up": Vector2(ARM, 0), "down": Vector2(ARM, ARM * 2.0), "left": Vector2(0, ARM), "right": Vector2(ARM * 2.0, ARM)}[dir]
+	var n := int(ARM)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var p := off + Vector2(x + 0.5, y + 0.5)
+			var d := _sd_cross(p)
+			var col := Color(1, 1, 1, 0)
+			if d > -0.5:
+				col = Color(UIKit.ACCENT, _cover(d))
+				var ad := _sd_arrow(p, dir)
+				if ad > -1.0:
+					col = col.blend(Color(UIKit.LIGHT, _cover(ad) * col.a))
+			img.set_pixel(x, y, col)
+	return img
+
+
+## A or B: a round button, the gem (its backdrop) with a white letter; pressed, the gem deepens.
+static func _dome_face(_which: String, pressed: bool) -> Image:
+	var w := int(ROUND)
+	var img := Image.create(w, w + SHADOW_ROOM, false, Image.FORMAT_RGBA8)
+	var r := ROUND / 2.0 - 2.0
+	var c := Vector2(ROUND / 2.0, ROUND / 2.0)
+	var sc := c + Vector2(0, 5)
+	var inner := UIKit.pressed_fill() if pressed else Color(1, 1, 1, 0)
+	for y in img.get_height():
+		for x in w:
+			var p := Vector2(x + 0.5, y + 0.5)
+			img.set_pixel(x, y, _line_px(r - p.distance_to(c), r - p.distance_to(sc), inner))
+	return img
+
+
+## Start / Pause: a small pill, the gem (its backdrop) with white text; pressed, the gem deepens.
+static func _pill_face(pressed: bool) -> Image:
+	var sz := Vector2i(int(PILL.x), int(PILL.y) + SHADOW_ROOM)
+	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
+	var rect := Rect2(Vector2.ZERO, PILL).grow(-1)
+	var shadow := Rect2(Vector2(0, 5), PILL).grow(-1)
+	var rad := PILL.y / 2.0 - 1.0
+	var inner := UIKit.pressed_fill() if pressed else Color(1, 1, 1, 0)
+	for y in sz.y:
+		for x in sz.x:
+			var p := Vector2(x + 0.5, y + 0.5)
+			img.set_pixel(x, y, _line_px(_sd_box(p, rect, rad), _sd_box(p, shadow, rad), inner))
+	return img
 
 
 static func _blank(sz: Vector2i) -> ImageTexture:
@@ -511,8 +670,7 @@ static func _blank(sz: Vector2i) -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
-## A touch button covering `box` (the hit area reaches a little further, so near-misses still count). It draws nothing
-## itself: its icon is drawn under it (_faces, _dpad_face).
+## A touch button whose face covers `box` (the hit area reaches a little further, so near-misses still count).
 func _touch_button(id: String, box: Vector2) -> TouchScreenButton:
 	var b := TouchScreenButton.new()
 	b.texture_normal = _blank(Vector2i(int(box.x), int(box.y)))
@@ -592,7 +750,8 @@ func set_flute_mode(on: bool) -> void:
 	_arm = ""
 	flute_mode = on
 	if _legend_row:
-		_show_rows()
+		_legend_row.visible = not on and not controller_guide()
+		_flute_row.visible = on and not controller_guide()
 
 
 ## The d-pad arm whose arrow is held: one at a time (outside the flute game), so two thumbs, or one on the line
@@ -617,6 +776,11 @@ func _send(id: String, down: bool) -> void:
 					_arm = other
 					_send_actions(other, true)
 					break
+	if _labels.has(id):
+		# white letters on the gem, pressed or not (the face deepens instead)
+		var l: Label = _labels[id]
+		l.add_theme_color_override("font_color", UIKit.LIGHT)
+		l.add_theme_constant_override("shadow_offset_y", 0 if down else 3)
 	if down and PAD_PITCH.has(id) and not flute_mode:
 		Sfx.play_tone("blip", PAD_PITCH[id], PAD_VOL)
 	_send_actions(id, down)
@@ -645,10 +809,8 @@ func _layout() -> void:
 	legend.offset_right = safe.end.x - get_viewport().get_visible_rect().size.x
 	var vp := get_viewport().get_visible_rect().size
 	var pad := Vector2(28, vp.y - 28 - ARM * 3.0)
-	_dpad_box = Rect2(pad, Vector2.ONE * ARM * 3.0)
-	for sprite in [_dpad_face, _dpad_shadow, _dpad_arm]:
-		_fit(sprite, _dpad_box, SHAPE_ROUND)
-	_dpad_shadow.position.y += SHADOW_DROP
+	_dpad_base.position = pad
+	(_backdrops["dpad"] as Sprite2D).position = pad
 	_buttons["up"].position = pad + Vector2(ARM, 0)
 	_buttons["left"].position = pad + Vector2(0, ARM)
 	_buttons["right"].position = pad + Vector2(ARM * 2.0, ARM)
@@ -656,28 +818,11 @@ func _layout() -> void:
 	var width := _answer_width()
 	_buttons["a"].position = Vector2(vp.x - 28 - width, vp.y - 28 - ROUND - lerpf(70.0, 160.0, _answer_blend))
 	_buttons["b"].position = Vector2(vp.x - 28 - width - lerpf(124.0, 0.0, _answer_blend), vp.y - 28 - ROUND)
-	_buttons["start"].position = Vector2(roundf(vp.x / 2.0) - PILL.x - 8, vp.y - 26 - PILL.y)
-	_buttons["pause"].position = Vector2(roundf(vp.x / 2.0) + 8, vp.y - 26 - PILL.y)
-	for id in ["start", "pause"]:
-		var box := Rect2((_buttons[id] as TouchScreenButton).position, PILL)
-		_fit(_faces[id], box, SHAPE_PILL)
-		_fit(_shadows[id], box, SHAPE_PILL)
-		(_shadows[id] as Sprite2D).position.y += SHADOW_DROP
 	for id in ["a", "b"]:
-		var at: Vector2 = (_buttons[id] as TouchScreenButton).position
-		# round, the button fills its circle; on its answer pill it shrinks to the pill's left end
-		var icon := lerpf(ROUND, _answer_icon(), _answer_blend)
-		var inset := (ROUND - icon) * 0.5
-		var box := Rect2(at + Vector2(inset, inset), Vector2(icon, icon))
-		_fit(_faces[id], box, SHAPE_ROUND)
-		_fit(_shadows[id], box, SHAPE_ROUND)
-		(_shadows[id] as Sprite2D).position.y += SHADOW_DROP
-		var pill: Panel = _answer_pills[id]
-		pill.position = at
-		pill.size = Vector2(width, ROUND)
-		var label: Label = _labels[id]
-		label.position = Vector2(inset + icon + ANSWER_PAD, 0)
-		label.size = Vector2(maxf(0.0, width - label.position.x - ANSWER_PAD), ROUND)
+		if not _answer_faces.has(id):
+			continue
+		(_answer_faces[id] as NinePatchRect).size = Vector2(width, ROUND + SHADOW_ROOM)
+		(_labels[id] as Label).size.x = width
 		var button: TouchScreenButton = _buttons[id]
 		if _answer_blend > 0.001:
 			if not button.shape is ConvexPolygonShape2D:
@@ -689,6 +834,12 @@ func _layout() -> void:
 				button.shape = CircleShape2D.new()
 				button.shape.radius = ROUND / 2.0 + TOUCH_SLOP
 			button.shape_centered = true
+	_buttons["start"].position = Vector2(roundf(vp.x / 2.0) - PILL.x - 8, vp.y - 26 - PILL.y)
+	_buttons["pause"].position = Vector2(roundf(vp.x / 2.0) + 8, vp.y - 26 - PILL.y)
+	for id in ["a", "b", "start", "pause"]:
+		var back: NinePatchRect = _backdrops[id]
+		back.position = (_buttons[id] as TouchScreenButton).position
+		back.size = Vector2(width, ROUND) if id in ["a", "b"] else PILL
 
 
 ## The button clusters, each one no-tap zone: the whole d-pad (its middle and the corners between the arrows too),

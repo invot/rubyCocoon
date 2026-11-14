@@ -3,8 +3,8 @@ extends Node
 ##
 ## Quest flags (GameState.flags):
 ##   intro_done, got_egg, has_starter            - the first egg and the first hatch (opens the Coastal Path)
-##   lesson_screen/turns/slingshot/items/ring, tutorial_done   - the Coastal Path's teachers
-##   flute_lesson_done                             - the guided first wild battle after the flute (Weaken, and its egg)
+##   lesson_attack/defend/potions/sling, tutorial_done   - the Coastal Path's teachers (Mae gives the Codex: has_codex)
+##   flute_lesson_done                             - the first wild beast beaten after the flute (it always leaves an egg)
 ##   shell_heard, kelp_heard, island_peace         - the Isle of Tides: Kelpwick shut the reef against Shellhaven's
 ##                                                   souvenir-hunting tourists; beating Nerissa opens it (island_peace)
 ##   guardian_water                                - also opens the Dune Road to the desert
@@ -27,6 +27,7 @@ const MapLoader = preload("res://scripts/world/map_loader.gd")
 const TidePuzzles = preload("res://scripts/data/tide_puzzles.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+const Codex = preload("res://scripts/ui/codex.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
@@ -136,27 +137,9 @@ func _bridge_flag() -> String:
 	return ""
 
 
-## Coach Ondine's beast for the side of your ring facing the foe: one that's weak to that side's element.
-const WEAK_FOES := {"fire": 36, "water": 12, "air": 3}
-
-
 ## True once a town's arena lessons are all done (always, for a town without any).
 func arena_lessons_done(town: String) -> bool:
 	return ARENA_LESSONS.all(func(t): return String(t["town"]) != town or GameState.flag("lesson_" + String(t["lesson"])))
-
-
-## Coach Ondine's lesson: her beast is weak to the element of the side of your ring that will face it. Nothing is weak
-## to earth, so with your earth side facing the foe you borrow the arena's air practice beasts for the lesson.
-func _elements_lesson(def: Dictionary) -> void:
-	var ring := GameState.ring()
-	var side := GameState.ring_side
-	if not Ring.side_alive(ring, side):
-		side = maxi(0, Ring.best_side(ring))
-	var el := Ring.side_element(side)
-	if not WEAK_FOES.has(el):
-		el = "air"
-	def["practice_side"] = el
-	def["team"] = [[WEAK_FOES[el], 4]]
 
 
 func extra_npcs(map: Dictionary) -> Array:
@@ -241,12 +224,6 @@ func extra_npcs(map: Dictionary) -> Array:
 			if id == "shellhaven":
 				out.append({"kind": "story", "id": "chief_shell", "name": "Chief Marlo", "pos": _at(map, "chief", plaza), "look": CHIEF_SHELL_LOOK, "facing": Vector2i(0, 1), "story": true})
 		"reef":
-			if GameState.summons.has("water") and not GameState.flag("lesson_summon"):
-				out.append({"kind": "trainer", "id": "summon_coach", "name": "Ondine", "cls": "Coach", "pos": _at(map, "tide_keeper", plaza),
-					"look": ARENA_LESSONS[1]["look"], "facing": Vector2i(0, 1), "story": true, "manual_only": true, "vanish": true,
-					"lesson": "summon", "flag": "lesson_summon", "team": [[12, 10], [15, 10]], "reward": 0,
-					"lines": ["You won Abyssion's trust! Before you head on, let me show you how to call the water dragon."],
-					"after": ["Abyssion will answer that same song in your other battles. One call, one shield point. Safe travels!"]})
 			if _has_anchor(map, "tide_keeper") and not GameState.summons.has("water"):
 				out.append({"kind": "story", "id": "tide_keeper", "name": "Keeper Pell", "pos": _at(map, "tide_keeper", plaza), "look": KEEPER_LOOK,
 					"facing": Vector2i(-1, 0), "story": true})
@@ -439,18 +416,15 @@ func _dance_lesson(world, n: Dictionary) -> void:
 	if GameState.trainer_level < 4:
 		await say(["You're too weak to dance! Come back at trainer level 4.", "Win trainer battles or clear arena ranks to raise your trainer level. Then I'll teach you rhythm attacks."], n["name"])
 		return
-	await say(["Now you're strong enough to dance!", "My beasts will help us practise. Show me you can keep a beat!" if BuildEdition.is_demo() else "Jasper wants his shoes back? Show me you can keep a beat and I'll hand them over. My beasts will help us practise."], n["name"])
-	GameState.heal_party()
-	var won := await trainer_battle({"name": "Lucille", "cls": "Instructor", "look": n["look"], "team": [[12, 10]], "lesson": "rhythm", "reward": 0})
-	if won != "win":
-		return
+	await say(["Now you're strong enough to dance!", "Step, clap, step, clap... feel that? That's the beat. Dancing and weapon attacks share it!",
+		"Your Codex will walk you through a practice beat in your next battle."], n["name"])
 	GameState.set_flag("dance_lesson_done")
 	if not BuildEdition.is_demo() and not GameState.flag("dance_shoes_returned"):
 		GameState.receive_item("dance_shoes")
 		UI.pickup("dance_shoes")
 	GameState.heal_party()
 	var ending := _dance_road_lines() if BuildEdition.is_demo() else ["Keep that beat with you on the road!" if GameState.flag("dance_shoes_returned") else "Here are Jasper's dance shoes. Give them back to him by the north road, and he'll let you through."]
-	await say(["You've passed! From now on, your weapons can chain hits to the battle music."] + ending, n["name"])
+	await say(["From now on, your weapons can chain hits to the battle music."] + ending, n["name"])
 	world.refresh_npc_marks()
 
 
@@ -993,8 +967,6 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	if n.has("lesson"):
 		# a lesson can't be lost: it starts with your beasts at their best
 		GameState.heal_party()
-		if n["lesson"] == "summon":
-			GameState.shield = maxi(1, GameState.shield)
 	if GameState.alive_party().is_empty() and GameState.shield <= 0:
 		await say(["Your beasts are too tired to battle! Heal them first."], name)
 		return
@@ -1007,8 +979,6 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	for k in ["lesson", "reward"]:
 		if n.has(k):
 			def[k] = n[k]
-	if n.get("lesson", "") == "elements":
-		_elements_lesson(def)
 	var res := await trainer_battle(def)
 	if res != "win":
 		return
@@ -1030,12 +1000,14 @@ func _talk_trainer(world, n: Dictionary) -> void:
 			"Those ghost beasts had no weakness at all. You'll need strong, merged beasts to stand against them."])
 
 
-## After a teacher's lesson on the Coastal Path: their parting words, a gift, and once all five are done, the path's
-## lessons are over.
+## After a teacher's lesson on the Coastal Path: their parting words, a gift (Mae's is the Codex), and once all four
+## are done, the path's lessons are over.
 func _lesson_done(n: Dictionary, name: String) -> void:
 	GameState.heal_party()
 	await say(n.get("after", []), name)
 	_give(n.get("gift", {}))
+	if n.get("codex", false) and not GameState.flag("has_codex"):
+		await Codex.receive()
 	if LESSON_TRAINERS.all(func(t): return GameState.flag("lesson_" + String(t["lesson"]))):
 		GameState.set_flag("tutorial_done")
 
@@ -2189,19 +2161,15 @@ func _roll_wild_beast(race: int, lv: Array, ghost_rate: float):
 
 
 ## A battle with roaming beasts. kind: "sneak" (you caught it off guard), "wild" (face to face) or "ambush" (it caught you).
-## The first lone wild beast after Uncle Rafe's lessons is a guided battle (battle.gd LESSONS "flute"): playing Weaken,
-## then beating it for its egg.
+## The first lone wild beast after Uncle Rafe's lessons always leaves an egg ("sure_egg"); the Codex explains the flute
+## in that battle.
 func wild_battle(_world, foes: Array, kind: String, extra := {}) -> String:
 	if GameState.alive_party().is_empty():
 		return "run"
-	var lesson := ""
 	# (not for older saves that have caught beasts already)
-	if _lessons_done() and not GameState.flag("flute_lesson_done") and GameState.caught.size() <= 2 and foes.size() == 1 and not foes[0].ghost:
-		lesson = "flute"
-		# a lesson can't be lost: it starts with your beasts at their best
-		GameState.heal_party()
-	var cfg := {"wild": true, "foes": foes, "seed": randi(), "intro": kind, "lesson": lesson,
-		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "") if lesson == "" else ""}
+	var sure_egg: bool = _lessons_done() and not GameState.flag("flute_lesson_done") and GameState.caught.size() <= 2 and foes.size() == 1 and not foes[0].ghost
+	var cfg := {"wild": true, "foes": foes, "seed": randi(), "intro": kind, "sure_egg": sure_egg,
+		"ambush": {"sneak": "player", "ambush": "foe"}.get(kind, "")}
 	cfg.merge(extra, true)
 	return await GameState.main.start_battle(cfg)
 

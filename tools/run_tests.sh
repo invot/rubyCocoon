@@ -115,7 +115,7 @@ TESTS=(
 	"battle-focus|-- --scene=battle-focus --wait=0.3 --save_dir=res://build/battle_focus_saves/|BATTLE FOCUS DONE: 0 problem"
 	"battle-focus-touch|--resolution 2400x1080 -- --scene=battle-focus --touch --wait=0.3 --save_dir=res://build/battle_focus_saves/|BATTLE FOCUS DONE: 0 problem"
 	"battle-focus-wild|-- --scene=battle-focus --wild=1 --wait=0.3 --save_dir=res://build/cinematic_wild_saves/|BATTLE FOCUS DONE: 0 problem"
-	"tutorial-ring|-- --scene=tutorial --lesson=ring --auto=1 --save_dir=res://build/cinematic_lesson_saves/|lesson result: won=true"
+	"tutorial-sling|-- --scene=tutorial --lesson=sling --auto=1 --save_dir=res://build/cinematic_lesson_saves/|lesson result: won=true"
 	"battle-redirect|-- --scene=battle-redirect --wait=0.3 --save_dir=res://build/battle_redirect_saves/|BATTLE REDIRECT DONE: 0 problem"
 	"battle-poses|-- --scene=battle-poses --wait=0 --save_dir=res://build/battle_poses_saves/|BATTLE POSES DONE: 0 problem"
 	"beat-attack|-- --scene=beat-attack --save_dir=res://build/beat_attack_saves/|BEAT ATTACK DONE: 0 problem"

@@ -35,6 +35,9 @@ const SHINE_EVERY := 2.8
 const SHINE_CROSS := 0.9
 ## opts.cancel_button (menus while talking to someone or on the phone, ui.gd choose): a small "B: Cancel" button in the
 ## gem under the window's right end, overlapping its bottom edge, in place of a "Leave" row (edge_button.gd).
+## the shortest rows (desktop, touch) and their text size when a talk or phone menu shrinks to show every choice
+const COMPACT_ROW := Vector2(48, 60)
+const COMPACT_FONT := 28
 var _cancel_hit: Control
 var _cancel_btn: Button
 
@@ -216,8 +219,36 @@ func _fit_rows() -> void:
 		reserve += _cancel_overhang()
 	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0 - reserve
 	var chrome := _outer.get_combined_minimum_size().y - _scroll.get_parent_control().get_combined_minimum_size().y
-	var rows := clampi(floori((available - chrome - 2.0) / _row_h), 1, _max_rows)
-	_scroll.custom_minimum_size.y = rows * _row_h + 2.0
+	var row_h := _row_h
+	var rows := clampi(floori((available - chrome - 2.0) / row_h), 1, _max_rows)
+	if opts.get("cancel_button", false) and not opts.get("fixed_rows", false) and rows < _max_rows:
+		# Talking with someone or on the phone: rather than scroll for a row or two, the rows get a little shorter
+		# (and their text a little smaller) until every choice fits, down to COMPACT_ROW (the user's direction,
+		# 2026-11-14); a list longer than that still scrolls.
+		var floor_h: float = COMPACT_ROW.y if UIKit.touch_ui() else COMPACT_ROW.x
+		row_h = maxf(floor_h, floorf((available - chrome - 2.0) / _max_rows))
+		rows = clampi(floori((available - chrome - 2.0) / row_h), 1, _max_rows)
+	var compact := row_h < _row_h
+	for b in buttons:
+		b.custom_minimum_size.y = row_h
+		if compact and not b.has_meta("compact"):
+			# the theme pads a row's text up to the full row height; the shorter row centres it with less
+			b.set_meta("compact", true)
+			for st in ["normal", "hover", "pressed", "focus", "hover_pressed", "disabled"]:
+				var box: StyleBox = b.get_theme_stylebox(st)
+				if box != null:
+					var source := box
+					box = box.duplicate()
+					# (a frame_box.gd style keeps its look in plain script variables, which duplicate() leaves behind)
+					for field in ["frame", "line", "fill", "blur", "alpha", "legacy", "ring"]:
+						if field in source:
+							box.set(field, source.get(field))
+					box.content_margin_top = 2.0
+					box.content_margin_bottom = 2.0
+					b.add_theme_stylebox_override(st, box)
+		var px := UIKit.body_px(COMPACT_FONT if compact else int(opts.get("font_size", UIKit.BUTTON_FONT_SIZE)))
+		b.add_theme_font_size_override("font_size", maxi(px, UIKit.body_px(COMPACT_FONT)))
+	_scroll.custom_minimum_size.y = rows * row_h + 2.0
 	_outer.reset_size()
 	# Centre inside the usable height, rather than leaving the last rows/description under the touch pad.
 	if anchor in ["center", "left", "right"]:

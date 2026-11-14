@@ -1,7 +1,7 @@
 extends "res://scripts/ui/modal.gd"
 ## The Start menu: one large window with a strip of tabs across the top and two panes, a list on the left and the
 ## chosen row's details on the right (the menus of the early PS2 RPGs), on tan paper with a spine between the pages (book_paper.gd).
-## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
+## Tabs: Trainer, Beasts, Flute, Bag, Codex, Map, Settings.
 ## Controls: ◄/► switch tabs (or adjust Default element / beast placement), ▲/▼ choose, A to act; ▲ at the top of a
 ## page goes to the tabs and ▼ (or A) from the tabs back into it; S (back) returns to the tabs / closes, Start closes.
 
@@ -21,13 +21,15 @@ const WorldMap = preload("res://scripts/ui/world_map.gd")
 const BeastsPage = preload("res://scripts/ui/beasts_page.gd")
 const BagPage = preload("res://scripts/ui/bag_page.gd")
 const BookPaper = preload("res://scripts/ui/book_paper.gd")
+const Codex = preload("res://scripts/ui/codex.gd")
+const CodexDB = preload("res://scripts/data/codex_db.gd")
 
 const TABS := [
 	{"id": "trainer", "name": "Trainer", "icon": "tab_trainer"},
 	{"id": "beasts", "name": "Beasts", "icon": "tab_beasts"},
 	{"id": "flute", "name": "Flute", "icon": "icon_notes"},
 	{"id": "bag", "name": "Bag", "icon": "tab_bag"},
-	{"id": "bestiary", "name": "Bestiary", "icon": "icon_quill"},
+	{"id": "codex", "name": "Codex", "icon": "tab_codex"},
 	{"id": "map", "name": "Map", "icon": "icon_map"},
 	{"id": "settings", "name": "Settings", "icon": "tab_settings"},
 ]
@@ -319,8 +321,8 @@ func _open_tab(i: int) -> void:
 			_tab_flute()
 		"bag":
 			_tab_bag()
-		"bestiary":
-			_tab_bestiary()
+		"codex":
+			_tab_codex()
 		"map":
 			_tab_map()
 		"settings":
@@ -937,50 +939,25 @@ func _tab_bag() -> void:
 	_keep_row = -1
 
 
-# ================================================================ Bestiary
-func _tab_bestiary() -> void:
-	_make_list(left_box, "Seen %d  Caught %d" % [GameState.seen.size(), GameState.caught.size()], right_box)
-	for i in RaceDB.count():
-		var seen: bool = GameState.seen.has(str(i))
-		var caught: bool = GameState.caught.has(str(i))
-		_add_row({"text": "%02d %s" % [i + 1, RaceDB.race_name(i) if seen else "? ? ?"], "right": "caught" if caught else ("seen" if seen else ""),
-			"detail": _race_detail.bind(i)})
-
-
-func _race_detail(c: VBoxContainer, i: int) -> void:
-	var seen: bool = GameState.seen.has(str(i))
-	if not seen:
-		c.add_child(_h("? ? ?"))
-		c.add_child(_t_label("You haven't met this beast yet.", UIKit.DIM))
-		var hint := []
-		for rid in WorldDB.ROUTES:
-			if WorldDB.route_forms(rid).has(i):
-				hint.append(WorldDB.ROUTES[rid]["name"])
-		if not hint.is_empty():
-			c.add_child(_t_label("Rumoured to live on the %s." % hint[0], UIKit.DIM))
+# ================================================================ Codex
+## The Codex's topics (codex_db.gd): only what you're eligible to know, by group. A topic's words show on the right;
+## A has the Codex say them.
+func _tab_codex() -> void:
+	if not CodexDB.has_codex():
+		_make_list(left_box, "Codex", right_box)
+		_add_row({"text": "No Codex yet", "detail": func(c): c.add_child(_t_label("Trainers along the Coastal Path are teaching you to battle. Picnicker Mae, the last of them, has something for you."))})
 		return
-	var el := RaceDB.element(i)
-	c.add_child(_h(RaceDB.race_name(i)))
-	c.add_child(_row_of([UIKit.element_tag(el), _w(Elements.ROLE.get(el, ""), UIKit.DIM)]))
-	var pc := CenterContainer.new()
-	pc.add_child(VoxelPortrait.new().setup(RaceDB.genes(i), 200))
-	c.add_child(pc)
-	var r := RaceDB.get_race(i)
-	c.add_child(_t_label("Trait: %s. %s" % [r["passive"], RaceDB.PASSIVE_DESC.get(r["passive"], "")]))
-	# its line: the three forms, the one shown marked, and the levels it grows at
-	var k := RaceDB.first_form(i)
-	var forms := []
-	for st in 3:
-		var nm := RaceDB.race_name(k + st) if GameState.seen.has(str(k + st)) else "?"
-		forms.append(("[%s]" % nm if k + st == i else nm) + ("" if st == 0 else " (Lv %d)" % RaceDB.EVOLVE[st - 1]))
-	c.add_child(_t_label("Grows: " + " ► ".join(forms), UIKit.DIM))
-	var where := []
-	for rid in WorldDB.ROUTES:
-		if WorldDB.route_forms(rid).has(i):
-			where.append(WorldDB.ROUTES[rid]["name"])
-	c.add_child(_t_label("Found: " + (", ".join(where) if not where.is_empty() else "nowhere in the wild..."), UIKit.DIM))
-	if GameState.caught.has(str(i)):
-		c.add_child(_t_label("You've raised one of these!", UIKit.ACCENT))
+	_make_list(left_box, "Ask the Codex", right_box)
+	for g in CodexDB.menu():
+		_add_row({"header": true, "text": String(g["group"]).to_upper()})
+		for id in g["ids"]:
+			_add_row({"text": CodexDB.title(id), "detail": _codex_detail.bind(String(id)), "act": Codex.explain.bind(String(id))})
+
+
+func _codex_detail(c: VBoxContainer, id: String) -> void:
+	c.add_child(_h(CodexDB.title(id)))
+	c.add_child(_t_label(CodexDB.plain(id)))
+	c.add_child(_t_label("A: Ask the Codex", UIKit.DIM))
 
 
 # ================================================================ Map
@@ -1114,6 +1091,12 @@ func _tab_settings() -> void:
 		"adjust": func(d): Prefs.set_value("text_speed", float(speeds[posmod(cur_speed + d, speeds.size())][1])),
 		"act": func(): Prefs.set_value("text_speed", float(speeds[posmod(cur_speed + 1, speeds.size())][1])),
 		"detail": _controls_help.bind("How fast dialogue appears.")})
+	if CodexDB.has_codex():
+		var codex_on := not GameState.flag("codex_off")
+		_add_row({"text": "Codex tips", "right": "◄ %s ►" % ("On" if codex_on else "Off"), "right_width": 150,
+			"adjust": func(_d): GameState.set_flag("codex_off", codex_on),
+			"act": func(): GameState.set_flag("codex_off", codex_on),
+			"detail": _controls_help.bind("On: your Codex chimes in the first time something new comes up in battle. Off: it stays quiet, but you can still ask it anything.")})
 	var gems: Array = UIKit.ACCENT_ORDER
 	var gi := maxi(0, gems.find(UIKit.accent_name))
 	_add_row({"text": "Color", "right": "◄ %s ►" % UIKit.gem_name(gems[gi]), "right_width": 150,

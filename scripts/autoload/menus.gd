@@ -332,6 +332,3 @@ func world_map() -> void:
 		return
 	await pause_menu(GameState.main.world if GameState.main else null, "map")
 
-
-func bestiary() -> void:
-	await pause_menu(GameState.main.world if GameState.main else null, "bestiary")

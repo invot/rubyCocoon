@@ -73,6 +73,10 @@ var caught := {}
 ## Each kennel barn's pens, by the road it stands on: [{"beast": Beast or null, "yours": bool, "since": play_time}] (not saved: it restocks).
 var kennels := {}
 var play_time := 0.0
+## How long a journey saved before the Codex existed must have been played for the Codex to switch its tips off.
+const VETERAN_TIME := 3.0 * 3600.0
+## True after loading such a journey, until the Codex has said so (codex.gd veteran).
+var codex_veteran := false
 var steps := 0
 var incense_steps := 0
 var incense_kind := 0
@@ -191,7 +195,8 @@ func new_game(pname: String, look := {}) -> void:
 	song_mastery = {}
 	crests = []
 	# Missing in older saves means the map remains available, as it was before the library.
-	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true}
+	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true, "codex_off": false}
+	codex_veteran = false
 	visited = ["caccoon"]
 	map_id = "caccoon"
 	pos = Vector2i(-1, -1)
@@ -1017,6 +1022,19 @@ func load_game(slot := -2) -> bool:
 	# Keep previously earned rhythm attacks and an already-passed north road on older journeys.
 	if not flags.has("dance_lesson_done") and flag("beat_taught"):
 		set_flag("dance_lesson_done")
+	# The Coastal Path's lessons became attack, defend, potions and sling (Kit and Mae swapped lessons; Ranger Holt's
+	# ring lesson went to the Codex). Whoever beat Mae, or finished the path, has the Codex.
+	for pair in [["lesson_screen", "lesson_attack"], ["lesson_turns", "lesson_defend"], ["lesson_slingshot", "lesson_potions"], ["lesson_items", "lesson_sling"]]:
+		if flag(pair[0]) and not flags.has(pair[1]):
+			set_flag(pair[1])
+	if not flags.has("has_codex") and (flag("lesson_sling") or flag("tutorial_done")):
+		set_flag("has_codex")
+		set_flag("codex_seen_codex")
+	# the tips trainers used to give are the Codex's to explain now: what you were told is not told again
+	for k in flags.keys():
+		if String(k).begins_with("battle_tip_") and flags[k]:
+			var topic := String(k).trim_prefix("battle_tip_")
+			set_flag("codex_seen_" + ("move" if topic == "shift" else topic))
 	if not flags.has("dance_shoes_returned") and (visited.has("sundown") or flag("met_sheriff")):
 		set_flag("dance_shoes_returned")
 	map_id = d.get("map_id", "caccoon")
@@ -1045,6 +1063,14 @@ func load_game(slot := -2) -> bool:
 	seen = d.get("seen", {})
 	caught = d.get("caught", {})
 	play_time = float(d.get("play_time", 0.0))
+	# A journey from before the Codex existed: past VETERAN_TIME it says it's switching its tips off at its first chance
+	# (Codex.veteran); a younger one keeps them on. Either way it's decided once, and Settings can change it.
+	codex_veteran = false
+	if not flags.has("codex_off"):
+		if play_time >= VETERAN_TIME and flag("has_codex"):
+			codex_veteran = true
+		else:
+			flags["codex_off"] = false
 	steps = int(d.get("steps", 0))
 	eggs = []
 	for e in d.get("eggs", []):

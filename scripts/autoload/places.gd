@@ -1292,7 +1292,11 @@ func museum() -> void:
 			GameState.receive_item(r[1], int(r[2]))
 			UI.pickup(r[1], int(r[2]), "buy")
 			await Story.say(["For recording %d beasts, please accept %d × %s!" % [r[0], r[2], ItemDB.item_name(r[1])]], KEEPERS["museum"])
-	await Menus.bestiary()
+	# (just a chat: the museum keeps its records, you keep raising beasts)
+	var chat := ["Every beast grows through three forms. Hatch one young and you'll see it change as it levels up.",
+		"Some beasts only live on one road. Keep exploring and you'll meet them all.",
+		"Merged beasts carry parts of both parents. We have a whole wing of sketches!"]
+	await Story.say([chat[randi() % chat.size()]], KEEPERS["museum"])
 
 
 func music_hall() -> void:

@@ -175,14 +175,14 @@ func run(host, args: Dictionary) -> void:
 	await main._wait(0.3)
 	var menu = UI.stack.back()
 	_check(not UI.controls.controller_visible() and not UI.controls.legend_visible(), "title hides controller illustration and bottom strip")
-	var before: int = menu._focus
+	var before: int = menu.chosen()
 	_axis(Vector2(0.0, 0.9))
 	await main._wait(0.08)
 	_axis(Vector2.ZERO)
 	await main._wait(0.08)
-	_check(menu._focus == posmod(before + 1, menu.buttons.size()), "one stick deflection moves one menu row")
+	_check(menu.chosen() == posmod(before - 1, menu.buttons.size()), "one stick deflection moves one title choice")
 	for i in menu.buttons.size():
-		if menu.buttons[menu._focus].text == "New Game":
+		if menu.buttons[menu.chosen()].text == "New Game":
 			break
 		_pad(JOY_BUTTON_DPAD_DOWN, true)
 		await main.get_tree().process_frame
@@ -197,7 +197,7 @@ func run(host, args: Dictionary) -> void:
 	await main.get_tree().process_frame
 	_pad(JOY_BUTTON_B, false)
 	await main._wait(0.3)
-	_check(UI.stack.size() == 1 and UI.stack.back().get_script() == UI.ListMenu, "controller back returns to title")
+	_check(UI.stack.size() == 1 and UI.stack.back().get_script().resource_path.ends_with("title_carousel.gd"), "controller back returns to title")
 	if opts.get("preview", "title") == "settings":
 		# Leave a standalone book for real keyboard/mouse inspection without advancing the title coroutine.
 		main._title_nodes[0].logo.visible = false

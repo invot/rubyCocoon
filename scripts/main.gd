@@ -194,11 +194,14 @@ func _title() -> void:
 		items.append("New Game")
 		if not Prefs.is_mobile() and not OS.has_feature("web"):
 			items.append("Quit")
-		# big enough to read across a phone; with no save yet, "New Game" is a big glowing button with no box round it
-		# (Quit, on desktops, plain text under it); on phones too it stays under the logo rather than over it
-		var first := not items.has("Continue")
-		var c: int = await UI.choose("", items, {"anchor": "bottom", "width": 320, "cancel": false, "margin": Vector2(0, 70 if first else 60),
-			"font_size": 64 if first else UIKit.BODY_HUGE, "bare": first, "keep_anchor": true})
+		# one gem button low on the screen, clear of the art's subject, with the other choices beside it
+		var c := 0
+		if UI.auto:
+			c = await UI.choose("", items, {"cancel": false})
+		else:
+			var carousel = load("res://scripts/ui/title_carousel.gd").new().setup(items)
+			UI.push(carousel)
+			c = int(await carousel.done)
 		var pick: String = items[c]
 		# whatever was picked, stop compiling ahead: the rest compiles behind the next fade as before
 		if is_instance_valid(_precompiler):
@@ -1009,8 +1012,10 @@ func _run_test() -> void:
 	GameState.set_flag("dance_shoes_returned")
 	GameState.set_flag("ring_rotation_taught")
 	GameState.set_flag("lesson_summon")
-	for topic in preload("res://scripts/core/battle_tutorials.gd").TIPS:
-		GameState.set_flag("battle_tip_" + String(topic))
+	# the Codex, with everything already explained (--codex=topic: that one is new, so the Codex chimes in about it)
+	GameState.set_flag("has_codex")
+	for topic in preload("res://scripts/data/codex_db.gd").TOPICS:
+		GameState.set_flag("codex_seen_" + String(topic), String(topic) != String(_test.get("codex", "")))
 	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("reed_flute")
 	GameState.learn_song("weaken")
@@ -1360,7 +1365,7 @@ func _run_test() -> void:
 		print("broke: gold ", before, " -> ", GameState.gold)
 		bad += int(GameState.gold != before)
 		GameState.gold = 20
-		UI.auto_answers = [1, 0, 0]
+		UI.auto_answers = [0, 0, 0]
 		await Phone.call_home(world, Phone.FEE)
 		print("paid: gold 20 -> ", GameState.gold)
 		bad += int(GameState.gold != 20 - Phone.FEE)
@@ -1368,7 +1373,7 @@ func _run_test() -> void:
 		# Declining Dad's save leaves the existing journey untouched, then still asks whether to continue.
 		var save_before := FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot))
 		UI.auto_log.clear()
-		UI.auto_answers = [1, 1, 0]
+		UI.auto_answers = [0, 1, 0]
 		await Phone.call_home(world)
 		bad += int(FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot)) != save_before)
 		bad += int(not "Dad: Would you like me to save your journey?" in UI.auto_log)
@@ -1376,7 +1381,7 @@ func _run_test() -> void:
 		# away from home you can call Mom instead (the payphone still takes its coins): a tip, and nothing is saved
 		GameState.gold = 20
 		UI.auto_log.clear()
-		UI.auto_answers = [0]
+		UI.auto_answers = [1]
 		await Phone.call_home(world, Phone.FEE)
 		var mom_log := " | ".join(UI.auto_log)
 		print("Mom from the payphone: gold 20 -> ", GameState.gold, "  ", mom_log)
@@ -1408,7 +1413,7 @@ func _run_test() -> void:
 		print("next goal ", Story.next_goal(), " in town: ", town_advice)
 		bad += int(not "Tide Captain Marina's beasts are Lv 9 to 10" in town_advice)
 		# Every phone, including home, offers the company; at home it's second, since Mom's in the room and can't be
-		# called there.
+		# called there (away it's third, after Dad and Mom).
 		await _do_goto(home, "entry")
 		await _wait(1.0)
 		# before a SkyTower employee gives you the number, there's only Dad to call from home
@@ -1484,8 +1489,8 @@ func _run_test() -> void:
 		world.facing = f
 		load("res://scripts/gfx/voxel_person.gd").face(world.player, f)
 		Phone.call_home(world, Phone.FEE if pay else 0)
-		# away from home Mom comes first, then Dad; at home it's Dad, then SkyTower Inc
-		if _test.get("who", "dad") == "dad" and not Phone._at_home(world):
+		# Dad comes first, then (away from home) Mom, then SkyTower Inc
+		if _test.get("who", "dad") == "mom" and not Phone._at_home(world):
 			while UI.stack.is_empty():
 				await _wait(0.1)
 			await _wait(0.4)
@@ -1704,22 +1709,21 @@ func _run_test() -> void:
 			if l.begins_with("[menu]") or l.begins_with("[cinematic]"):
 				print("   ", l)
 	elif scene == "tutorial":
-		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet; --lesson=screen|turns|slingshot|items|ring, or
-		# Bellerive's arena coaches: team|elements (--egg=race: the hatchling's race, e.g. 12 for an earth one)
+		# the starter-egg state: one fresh Lv1 hatchling, no lessons yet and no Codex; --lesson=attack|defend|potions|sling
+		# (--egg=race: the hatchling's race, e.g. 12 for an earth one)
 		GameState.party = [Beasts.create(int(_test.get("egg", "0")), 1)]
 		GameState.fix_ring()
 		GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
-		if _test.get("lesson", "") == "elements":
-			GameState.set_flag("lesson_team")
+		GameState.set_flag("has_codex", false)
 		GameState.party[0].heal_full()
 		GameState.gear["flute"] = ""
 		GameState.set_flag("tutorial_done", false)
-		var spot := _teacher_spot(String(_test.get("lesson", "screen")))
+		var spot := _teacher_spot(String(_test.get("lesson", "attack")))
 		# (Youngster Kit and the arena's coaches stop you as you come in, so their lessons begin by themselves)
 		UI.auto = _test.get("auto", "0") == "1"
 		await _do_goto(spot[0], spot[1])
 		await _wait(1.5)
-		var teacher := _lesson_trainer(String(_test.get("lesson", "screen")))
+		var teacher := _lesson_trainer(String(_test.get("lesson", "attack")))
 		var begun: bool = world.busy or in_battle
 		if UI.auto:
 			while world.busy or in_battle:
@@ -1746,6 +1750,18 @@ func _run_test() -> void:
 	elif scene == "prompt-icons":
 		# Kenney's input prompts: the title's keyboard strip with keys held, or (--touch) the pad's held d-pad arm
 		await load("res://tools/debug/prompt_icons.gd").new().run(self)
+	elif scene == "loading":
+		# the loading screen between maps, held part-way (--progress=0.4, --shot=, --wait=)
+		var shown: Control = load("res://scripts/ui/loading_screen.gd").new()
+		var layer := CanvasLayer.new()
+		layer.layer = 30
+		add_child(layer)
+		layer.add_child(shown)
+		shown.destination.text = WorldDB.map_name(String(_test.get("map", "cove")))
+		shown.set_progress(float(_test.get("progress", "0.4")))
+		await get_tree().create_timer(wait).timeout
+		if _test.has("shot"):
+			_save_shot(String(_test["shot"]))
 	elif scene == "top-bar":
 		# the top bar's notices outside battle: pickups merging, gold, a place name, a long line (--shots=)
 		await load("res://tools/debug/top_bar_notices.gd").new().run(self)
@@ -2014,6 +2030,19 @@ func _run_test() -> void:
 		print("tapped the Beast Center building -> now in ", world.map_id)
 	elif scene == "weapon-walk":
 		await load("res://tools/debug/weapon_walk.gd").new().run(self, _test)
+	elif scene == "codex":
+		# the Codex talking in the world (--mood=happy|worried|...: every bubble in that mood; --topic=id: that topic's
+		# own moods), or --book=1: the Start book's Codex page
+		await _do_goto("route1", "west")
+		await _wait(1.5)
+		if _test.get("book", "") == "1":
+			Menus.pause_menu(world, "codex")
+		else:
+			var lines: Array = preload("res://scripts/data/codex_db.gd").TOPICS[String(_test.get("topic", "team"))]["lines"]
+			if _test.has("mood"):
+				lines = lines.map(func(l): return "[%s] %s" % [_test["mood"], preload("res://scripts/data/codex_db.gd").parse(String(l))[1]])
+			preload("res://scripts/ui/codex.gd").say(lines)
+		await _wait(wait)
 	elif scene == "mechanic-lessons":
 		await load("res://tools/debug/mechanic_lessons.gd").new().run(self, _test)
 	elif scene == "puzzles":
@@ -3098,7 +3127,7 @@ func _flow_test() -> void:
 		else:
 			await Story.talk(world, _lesson_trainer(String(t["lesson"])))
 		await _wait(0.5)
-		if t["lesson"] == "slingshot":
+		if t["lesson"] == "potions":
 			# Old Hal the builder: he asks you to mend the footbridge with the logs by his door, then gives you an egg
 			await _go(MapLoader.interior_of("route1", "cabin"), "entry")
 			await _wait(1.0)
@@ -4147,6 +4176,7 @@ func _coaches_test() -> void:
 	GameState.ring_side = maxi(0, Ring.best_side(GameState.ring()))
 	GameState.gear["flute"] = ""
 	GameState.set_flag("tutorial_done", false)
+	GameState.set_flag("has_codex", false)
 	var bad := [0]
 	var teachers: Array = Story.LESSON_TRAINERS + Story.ARENA_LESSONS
 	# every frame: a lesson that's just been given, and where you were
@@ -4191,27 +4221,25 @@ func _coaches_test() -> void:
 	print("%s the Coastal Path's teachers, in order: %s (wanted %s), tutorial_done %s" % ["ok  " if ok else "FAIL", given, path_lessons, GameState.flag("tutorial_done")])
 	if not ok:
 		bad[0] += 1
-	# Uncle Rafe's flute, then into the arena: only Rory approaches at the door.
+	# Uncle Rafe's flute, then into the arena: no coaches any more (the Codex explains teams and elements), so nobody
+	# stops you and Tide Captain Marina can be challenged straight away
 	GameState.gear["flute"] = "reed_flute"
 	GameState.set_flag("reed_flute")
 	var arena := _bld("arena")
 	await _walk_road([arena["door"] + Vector2i(0, 1)])
 	world._step(Vector2i(0, -1), false)
 	await _settle(MapLoader.interior_of("tidewater", "arena"))
-	ok = GameState.flag("lesson_team") and not GameState.flag("lesson_elements")
-	print("%s only Rory's lesson runs on entry" % ("ok  " if ok else "FAIL"))
+	ok = Story.arena_lessons_done("tidewater") and _lesson_trainer("team").is_empty() and _lesson_trainer("elements").is_empty()
+	print("%s nobody stops you in the arena and Marina can be challenged" % ("ok  " if ok else "FAIL"))
 	if not ok:
 		bad[0] += 1
-	# (round the end of the wall into the master's hall, up to the ring below the master)
 	await _walk_road([Vector2i(6, 3)])
-	ok = world.player_pos == Vector2i(6, 3) and not GameState.flag("lesson_elements")
-	print("%s can walk round into the master's hall after Rory without leaving arena" % ("ok  " if ok else "FAIL"))
+	ok = world.player_pos == Vector2i(6, 3)
+	print("%s can walk round into the master's hall" % ("ok  " if ok else "FAIL"))
 	if not ok:
 		bad[0] += 1
-	await Story.talk(world, _lesson_trainer("elements"))
-	var all_lessons: Array = teachers.map(func(t): return t["lesson"])
-	ok = given == all_lessons and Story.arena_lessons_done("tidewater")
-	print("%s the arena's coaches, in order: %s (wanted %s)" % ["ok  " if ok else "FAIL", given.slice(path_lessons.size()), all_lessons.slice(path_lessons.size())])
+	ok = GameState.flag("has_codex")
+	print("%s Picnicker Mae gave you the Codex" % ("ok  " if ok else "FAIL"))
 	if not ok:
 		bad[0] += 1
 	get_tree().process_frame.disconnect(watch)
@@ -4230,9 +4258,8 @@ func _arena_entry_test() -> void:
 	var id := MapLoader.interior_of("tidewater", "arena")
 	await _go(id, "entry")
 	await _settle(id)
-	var only_rory := GameState.flag("lesson_team") and not GameState.flag("lesson_elements")
-	var ondine := _lesson_trainer("elements")
-	var waiting: bool = ondine["pos"] == world.map["anchors"]["lesson_elements"]
+	# (no coaches wait in the lobby any more: nobody stops you)
+	var nobody: bool = _lesson_trainer("team").is_empty() and _lesson_trainer("elements").is_empty() and not world.busy
 	Engine.time_scale = 1.0
 	UI.auto = false
 	await get_tree().create_timer(0.5).timeout
@@ -4241,13 +4268,12 @@ func _arena_entry_test() -> void:
 	UI.auto = true
 	await _walk_road([Vector2i(6, 3)])
 	var moved: bool = world.player_pos == Vector2i(6, 3) and world.map_id == id
-	var still_waiting := not GameState.flag("lesson_elements")
-	print("ARENA ENTRY: only Rory %s, Ondine at post %s, walked round to the master %s, no second ambush %s" % [only_rory, waiting, moved, still_waiting])
-	print("ARENA ENTRY DONE: %d problem(s)" % (int(not only_rory) + int(not waiting) + int(not moved) + int(not still_waiting)))
+	print("ARENA ENTRY: nobody stops you %s, walked round to the master %s" % [nobody, moved])
+	print("ARENA ENTRY DONE: %d problem(s)" % (int(not nobody) + int(not moved)))
 	UI.auto = false
 
 
-## --scene=lessons: every guided battle (the Coastal Path's teachers, Bellerive's arena coaches and the flute lesson)
+## --scene=lessons: every guided battle (the Coastal Path's four teachers; later topics are the Codex's)
 ## played by a button masher (random presses of A, B and the d-pad, nothing automatic), once with just a hatchling and
 ## once with a second beast beside it. Every bar and every menu must offer exactly one thing to pick, your beasts must
 ## never go down, and every lesson must be won. --seed=n
@@ -4258,7 +4284,7 @@ func _lessons_test() -> void:
 	var bad := [0]
 	var teachers: Array = Story.LESSON_TRAINERS + Story.ARENA_LESSONS
 	for party in [[0], [0, 3]]:
-		for t in teachers + [{"lesson": "flute", "name": "Uncle Rafe"}]:
+		for t in teachers:
 			var lesson := String(t["lesson"])
 			while _transitioning or not _pending_goto.is_empty() or in_battle:
 				await _wait(0.1)

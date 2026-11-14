@@ -12,7 +12,7 @@ extends RefCounted
 ##     --map also takes arena:<town> (that town's arena hall) and tower:<floor> (Gearhart Tower).
 
 const Beasts = preload("res://scripts/core/beasts.gd")
-const BattleTutorials = preload("res://scripts/core/battle_tutorials.gd")
+const CodexDB = preload("res://scripts/data/codex_db.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const NOWHERE := Vector2i(-999, -999)
 
@@ -26,8 +26,9 @@ func run(main, opts: Dictionary) -> void:
 		GameState.set_flag(f)
 	for t in Story.LESSON_TRAINERS + Story.ARENA_LESSONS:
 		GameState.set_flag("lesson_" + String(t["lesson"]))
-	for topic in BattleTutorials.TIPS:
-		GameState.set_flag("battle_tip_" + String(topic))
+	GameState.set_flag("has_codex")
+	for topic in CodexDB.TOPICS:
+		GameState.set_flag("codex_seen_" + String(topic))
 	GameState.gear["flute"] = "reed_flute"
 	GameState.learn_song("weaken")
 	for f in String(opts.get("flags", "")).split("+", false):

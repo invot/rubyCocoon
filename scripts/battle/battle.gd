@@ -47,6 +47,7 @@ const SceneryVisibility = preload("res://scripts/battle/scenery_visibility.gd")
 const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const BeatCue = preload("res://scripts/battle/beat_cue.gd")
 const BattleTutorials = preload("res://scripts/core/battle_tutorials.gd")
+const Codex = preload("res://scripts/ui/codex.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -106,106 +107,41 @@ var tutorial := false
 var lesson_id := ""
 var lesson: Dictionary = {}
 var rotation_lesson := false
-## The guided battles: the Coastal Path's five teachers, met before you have a flute (Story.LESSON_TRAINERS), and your
-## first lone wild beast after Uncle Rafe's lessons ("flute"). intro: what the teacher says before the first round
-## (narration: a line before that, with no speaker; coach: who's speaking, if not the trainer). rounds: in turn (the
-## last repeats), what the teacher says ({beast} is your beast, {foe} theirs), your own action ("you": Slingshot,
-## Watch, Items or Flute, with "song": weaken), your beast's ("beast": Fight or Defend; "target":
-## "trainer" sends it at the trainer). finish: the round the foe's beast goes down (0 never). trainer: the battle
-## ends by striking the trainer rather than when their beasts are down. level: the level your beast reaches.
+## the command panel while it's up (a tap on the Codex closes it to ask a question)
+var _panel_now = null
+## The guided battles: the Coastal Path's four teachers (Story.LESSON_TRAINERS), before you have a flute. intro: what
+## the teacher says before the first round. rounds: in turn (the last repeats), what the teacher says ({beast} is your
+## beast, {foe} theirs), anything they hand you as they say it ("give": {item: count}), your own action ("you":
+## Slingshot, Watch or Items) and your beast's ("beast": Fight or Defend). finish: the round the foe's beast goes down
+## (0 never). level: the level your beast reaches. Everything after these four is the Codex's to explain
+## (scripts/data/codex_db.gd): Mae gives it to you after the last one.
 const LESSONS := {
-	"rhythm": {"finish": 2,
-		"intro": ["Dancing and weapon attacks share a secret: timing. We'll practise safely, then try your slingshot to the music."],
+	"attack": {"level": 2, "finish": 2,
+		"intro": ["Lesson one: attacking! Pick your own action first, then your beast's move.",
+			"Left and right change a choice, A picks it and B goes back. Then A again on the foe. On touch, tap a foe and tap it again."],
 		"rounds": [
-			{"say": ["Choose Slingshot, then its target. When the ring appears, press A on each beat as the notch meets the top mark. Your beasts will Defend."], "you": "Slingshot", "beast": "Defend"},
-			{"say": ["Once more! Good and Perfect hits count. A miss ends the chain, but your earlier hits still land."], "you": "Slingshot", "beast": "Fight"},
+			{"say": ["Pick Watch beside your trainer, then {beast}'s move."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Nice hit! That number is the damage it did. Once more!"], "you": "Watch", "beast": "Fight"},
 		]},
-	"summon": {"finish": 2,
-		"intro": ["Abyssion answers your flute now. Let's try calling the water dragon together!",
-			"Choose Summon beside your trainer, then play Abyssion's song. It strikes every foe at once.",
-			"A summon costs one shield point and can answer only once per battle. I'll lend you a practice shield today."],
+	"defend": {"level": 3, "finish": 2,
+		"intro": ["Lesson two: Defend. Uh oh, my {foe} is winding up something big!"],
 		"rounds": [
-			{"say": ["Choose Summon, then play the song through. Your beasts will Defend while you practise."], "you": "Summon", "beast": "Defend"},
-			{"say": ["There it is! A better performance makes the summon stronger. Save that shield point for when you need it.", "Now Watch and let your beasts finish our practice battle."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Pick Watch, then Defend beside {beast}. Defending halves the damage, and it always goes first."], "you": "Watch", "beast": "Defend"},
+			{"say": ["Barely a scratch! Now strike back."], "you": "Watch", "beast": "Fight"},
 		]},
-	"screen": {"level": 2, "finish": 2,
-		"intro": ["Let's learn a battle together! You're in the near ring; I'm in the far one.",
-			"Lit pads show the side that fights. Empty pads stay dim; fainted beasts lie down.",
-			"An outline shows who is choosing. HP is health; MP powers elemental attacks. Flashing MP is the cost.",
-			"Pick your own action first, then each beast's. Left/right changes a choice, A chooses it, B goes back.",
-			"Then aim left/right and A confirms. With touch, tap a foe to aim and tap it again to confirm.",
-			"Lessons give you one choice at a time. Let's try it!"],
+	"potions": {"level": 3, "finish": 3,
+		"intro": ["Lesson three: potions! Battles get rough, so always carry some."],
 		"rounds": [
-			{"say": ["This round you just Watch, and {beast} Fights with its best move.", "Pick Watch beside your trainer, then the move beside {beast}."],
-				"you": "Watch", "beast": "Fight"},
-			{"say": ["Nice hit! The number that popped up is the damage it did. Once more to finish my {foe}!"], "you": "Watch", "beast": "Fight"},
-		]},
-	"turns": {"level": 3, "finish": 3,
-		"intro": ["Battles go in rounds, like the tide. Everybody picks what they'll do first, then the two sides take their turns.",
-			"The side with the faster beasts goes first, and a higher trainer level helps too. I'll let you go first today. The fish can wait."],
-		"rounds": [
-			{"say": ["Uh oh, my {foe} is winding up something big!", "When a big hit is coming, Defend: a defending beast takes half damage until your side's next turn, and Defend always goes first.",
-				"Watch beside your trainer, then Defend beside {beast}."], "you": "Watch", "beast": "Defend"},
-			{"say": ["Barely a scratch! Now strike back.", "Elemental moves cost MP, but plain moves are free, so you can always fight."], "you": "Watch", "beast": "Fight"},
-			{"say": ["Once more, with feeling!"], "you": "Watch", "beast": "Fight"},
-		]},
-	"slingshot": {"level": 3, "finish": 2,
-		"intro": ["You're not just a spectator, you know! You get a turn too: you choose your own action first.",
-			"Slingshot flings a pebble at a foe. Watch lets your beasts handle it. Items patch someone up. Once you have a flute, you can play songs.",
-			"Run gets you out of a wild battle. Against a trainer it's Forfeit: it counts as a loss, but nobody holds a grudge. Except my cousin."],
-		"rounds": [
-			{"say": ["Fire your slingshot at my {foe}! On your side's turn your own action goes first, before your beasts move."], "you": "Slingshot", "beast": "Fight"},
-			{"say": ["Pew! Again, both of you together!",
-				"Seasoned trainers fire in time with the battle music and land a whole string of hits. You'll get there!"], "you": "Slingshot", "beast": "Fight"},
-		]},
-	"items": {"level": 4, "finish": 3,
-		"intro": ["Picnic rule number one: never battle hungry. Rule number two: always, ALWAYS pack potions."],
-		"rounds": [
-			{"say": ["Warm-up round! You Watch, {beast} Fights."], "you": "Watch", "beast": "Fight"},
-			{"say": ["Ouch, {beast} got nipped! Open Items beside your trainer and give it a Minor Potion.",
-				"Potions heal HP, Spirit Drops bring back MP, and there are cures, bombs and tonics too. The apothecary in every town sells them."],
-				"you": "Items", "beast": "Fight"},
+			{"say": ["Warm-up round! You Watch, and {beast} Fights."], "you": "Watch", "beast": "Fight"},
+			{"say": ["Ouch, {beast} got nipped! Here, take a Minor Potion. Pick Items beside your trainer and give it to {beast}."],
+				"give": {"minor_potion": 1}, "you": "Items", "beast": "Fight"},
 			{"say": ["Good as new! Now finish it!"], "you": "Watch", "beast": "Fight"},
 		]},
-	"ring": {"level": 4, "finish": 1, "trainer": true,
-		"intro": ["Last lesson before Bellerive: the battle ring. This is how the pros fight.",
-			"Every trainer stands in the middle of a ring of eight slots. It has a side for each element, round it in this order: Fire, Air, Water, Earth.",
-			"Only the side facing the foe fights, with that side's element or plain moves. With more beasts, you can turn your ring: up on the top beast, or down on the bottom one.",
-			"The beast in the MIDDLE of the side facing the foe guards its trainer. Knock out the foe's middle beast, and the trainer behind it is open to attack!"],
+	"sling": {"level": 4, "finish": 2,
+		"intro": ["Last lesson: your slingshot! On your side's turn, your own action comes before your beasts move."],
 		"rounds": [
-			{"say": ["My {foe} is guarding me. Take it down!"], "you": "Watch", "beast": "Fight"},
-			{"say": ["My middle beast is down, so I'm wide open! Have {beast} attack me directly. Go on, I can take it.",
-				"Every hit on a trainer breaks one of their shield points: the orbs beside them when you aim at them or land a hit. A trainer hit with no shield left loses the battle. I've got none today."],
-				"you": "Watch", "beast": "Fight", "target": "trainer"},
-		]},
-	# Bellerive's arena coaches (story.gd ARENA_LESSONS). practice: the arena's practice beasts fill the empty slots of
-	# the side facing the foe (and the coach's "practice_side" turns your ring to that side first), see _practice_beasts
-	"team": {"finish": 2, "practice": true,
-		"intro": ["In a real battle, every beast on the side of your ring facing the foe fights: up to three at once, each choosing its own move.",
-			"The arena's practice beasts will stand in your empty slots today. They're very professional. They've been bonked by the best.",
-			"After your own action, each beast's menu opens in turn. Up and down move between your beasts; left and right pick a move."],
-		"rounds": [
-			{"say": ["Pick a move for every one of your beasts. Today they all go for the same one of mine: in a real battle, the arrows show who each move is aimed at."], "you": "Watch", "beast": "Fight"},
-			{"say": ["Teamwork! Two beasts on the same foe knock it out twice as fast. Finish my team!"], "you": "Watch", "beast": "Fight"},
-		]},
-	"elements": {"finish": 2, "practice": true,
-		"intro": ["Every element has a weakness: fire beasts are weak to air, earth to water, water to air, and air to fire.",
-			"Hit a beast with the element it's weak to and it takes double damage! Hit it with its own element, though, and it shrugs some off.",
-			"As you aim, a red burst beside a foe's name means it's weak to that attack; a shield means it resists. Only the element of the side facing the foe can be used: turn your ring to the side that hits hardest. Today I've turned it for you."],
-		"rounds": [
-			{"say": ["My {foe} is weak to the element of your side. Pick the elemental move and watch it fly!"], "you": "Watch", "beast": "Fight"},
-			{"say": ["Double damage! Finish it the same way. And remember: your beasts have weaknesses too."], "you": "Watch", "beast": "Fight"},
-		]},
-	# (egg: the beaten beast always leaves one, so the first egg found on the road is part of the lesson)
-	"flute": {"finish": 2, "coach": "Uncle Rafe", "egg": true,
-		"narration": "A wild {foe}! Uncle Rafe's advice comes back to you...",
-		"intro": ["\"A wild beast's your chance to put that flute to work. Songs change how a fight goes. Weaken, for one, makes a foe drop its guard so your beasts hit harder.\""],
-		"rounds": [
-			{"say": ["\"Open Flute beside your trainer and play Weaken at it. Your beast can Fight in the meantime.\""],
-				"you": "Flute", "song": "weaken", "beast": "Fight"},
-			{"say": ["\"See it flinch? Now finish it. No song makes a wild beast yours: new beasts only ever come from eggs.\"",
-				"\"Beat one and now and then it leaves an egg behind. Watch this round, and let {beast} Fight.\""],
-				"you": "Watch", "beast": "Fight"},
+			{"say": ["Pick Slingshot beside your trainer, then aim at my {foe}."], "you": "Slingshot", "beast": "Fight"},
+			{"say": ["Pew! Once more, both of you together!"], "you": "Slingshot", "beast": "Fight"},
 		]},
 }
 ## Defending halves the damage a beast takes until its side's next turn.
@@ -297,6 +233,7 @@ func _battle_music() -> void:
 
 
 func _exit_tree() -> void:
+	Codex.unpin()
 	Sfx.percussion("off")
 	Sfx.beat_end()
 
@@ -1959,8 +1896,6 @@ func _run() -> void:
 	ally_ring = GameState.ring()
 	var opening_side := GameState.ring_side if tutorial else GameState.starting_ring_side()
 	ally_side = Ring.covered_side(ally_ring, opening_side)
-	if tutorial and lesson.get("practice", false):
-		_practice_beasts()
 	if not wild:
 		var placed := Ring.arrange(foes)
 		for k in placed:
@@ -2030,8 +1965,10 @@ func _run() -> void:
 		if lesson.has("narration"):
 			await UI.say([_tut_fill(lesson["narration"])])
 		await _tut_say(lesson.get("intro", []))
-		if lesson_id == "rhythm":
-			await _rhythm_lesson()
+	elif Codex.has_codex() and not (cfg.get("autoplay", false) or UI.auto):
+		Codex.pin()
+		if not Codex.tapped().is_connected(_codex_tapped):
+			Codex.tapped().connect(_codex_tapped)
 	while result == "":
 		round_no += 1
 		for b in ally_slots:
@@ -2176,6 +2113,11 @@ func _tut_round_intro() -> void:
 	# the last round's words aren't said again while it repeats, except one to try again
 	if round_no <= rounds.size() or _tut_you() == "Flute":
 		await _tut_say(_tut_round().get("say", []))
+		if round_no <= rounds.size():
+			var give: Dictionary = _tut_round().get("give", {})
+			for item in give:
+				GameState.receive_item(item, int(give[item]))
+				UI.pickup(item, int(give[item]))
 
 
 ## How much of `d` damage `b` takes from recoil, confusion or a status: in a lesson your side's beasts always keep at
@@ -2193,22 +2135,6 @@ func _tut_damage(a, t) -> int:
 	if _tut_finish():
 		return t.hp
 	return mini(maxi(1, ceili(mx * 0.35)), maxi(0, t.hp - 1))
-
-
-## The arena's practice beasts for a lesson: one of the side's element in each empty slot of the side facing the foe
-## (a coach's "practice_side" turns your ring to that side first). They only stand in for the battle: never yours.
-const PRACTICE_RACES := {"fire": 3, "water": 27, "earth": 15, "air": 36}
-
-
-func _practice_beasts() -> void:
-	if trainer.has("practice_side"):
-		ally_side = Ring.side_index(String(trainer["practice_side"]))
-	var el := Ring.side_element(ally_side)
-	for k in Ring.side_slots(ally_side):
-		if ally_ring.get(k, null) == null:
-			var b := Beasts.create(int(PRACTICE_RACES[el]), maxi(2, GameState.best_level()))
-			b.nickname = "Practice " + b.nickname
-			ally_ring[k] = b
 
 
 func _start_passives() -> void:
@@ -2313,8 +2239,12 @@ func _command_phase() -> Array:
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "info": _command_info,
 			"option": _show_option, "teach": _teach_option, "stage": self, "floating": floating})
 		_commanding = true
+		_panel_now = p
+		Codex.set_tappable(true)
 		UI.push(p)
 		var r: Dictionary = await p.done
+		Codex.set_tappable(false)
+		_panel_now = null
 		_commanding = false
 		_show_option({}, {})
 		_hide_targets()
@@ -2322,6 +2252,8 @@ func _command_phase() -> Array:
 		match String(r.get("kind", "")):
 			"go":
 				break
+			"codex":
+				await Codex.ask()
 			"rotate":
 				_select_hud_actor(null)
 				var ns := Ring.next_side(ally_ring, ally_side, int(r["dir"]))
@@ -2330,7 +2262,7 @@ func _command_phase() -> Array:
 					if rotation_lesson:
 						GameState.set_flag("ring_rotation_taught")
 						rotation_lesson = false
-						await _battle_lesson_say(["That's it! Turning costs no turn. Choose moves for this side now. Keep a standing beast in the middle to guard you."])
+						await Codex.say(["[happy] That's it! Turning costs no turn. Now choose moves for this side, and keep a standing beast in its middle."])
 					# a new side: its beasts choose afresh
 					var keep: Dictionary = rows[0]
 					rows = _panel_rows()
@@ -2344,6 +2276,8 @@ func _command_phase() -> Array:
 			"sub":
 				var opt: Dictionary = rows[0]["options"][int(rows[0]["sel"])]
 				match String(opt["id"]):
+					"codex":
+						await Codex.ask()
 					"items":
 						var act := await _choose_item()
 						if not act.is_empty():
@@ -2430,6 +2364,10 @@ func _panel_rows() -> Array:
 	else:
 		t_opts.append({"id": "forfeit", "label": "Forfeit", "icon": "run", "sub": true, "disabled": tutorial,
 			"desc": "Give up the battle. It counts as a loss, but you keep your gold and can try again." if not tutorial else "%s: \"No giving up in the middle of a lesson!\"" % _tut_who()})
+	if Codex.has_codex() and not tutorial:
+		# asking the Codex never uses your turn
+		t_opts.append({"id": "codex", "label": "Codex", "icon": "help", "sub": true,
+			"desc": "Ask your Codex about anything you've learned. It doesn't use your turn."})
 	if tutorial:
 		var want := _tut_you()
 		for o in t_opts:
@@ -2476,7 +2414,7 @@ func _weapon_options() -> Array:
 		var desc: String = {"slingshot": "Fire a stone at a foe or an exposed trainer.",
 			"boomerang": "Sweep every foe on the side facing you, a little softer on each; it comes back to your hand.",
 			"bat": "Run up to a foe and swing: the hardest hit of the three."}.get(id, "")
-		if most > 0 and (GameState.flag("dance_lesson_done") or lesson_id == "rhythm"):
+		if most > 0 and GameState.flag("dance_lesson_done"):
 			desc += " Press A on the beat: up to %d hits." % most
 		out.append({"id": "weapon", "weapon": id, "icon": "attack", "label": ItemDB.item_name(id), "target": w.get("target", "enemy"), "desc": desc})
 	return out
@@ -2676,46 +2614,51 @@ func _panel_info() -> Dictionary:
 		"prompt": "What will you do, %s?" % GameState.player_name, "lesson": tutorial, "rotation_lesson": rotation_lesson}
 
 
-## Teach at the first usable opportunity, including journeys saved before these lessons existed.
+## The Codex chimes in the first time something new comes up (codex.gd chime; nothing before you have it). Older
+## journeys get the same explanations at their first chance.
 func _new_battle_lessons() -> void:
+	if not Codex.has_codex():
+		return
+	await Codex.veteran()
+	if not wild:
+		await Codex.chime("guard")
+	if (not wild and foes.size() > 1) or _alive(ally_slots).size() > 1:
+		await Codex.chime("team")
 	if _alive(foe_slots).size() > 1:
-		await _teach_topics(["retarget"])
+		await Codex.chime("retarget")
 	if _all_active().any(func(b): return not b.passives.is_empty() or not b.equip.is_empty()):
-		await _teach_topics(["passives"])
+		await Codex.chime("passives")
+	# your middle beast is down while another of the side still stands: Move one in to guard you
+	if not _middle_standing(ally_ring, ally_side) and Ring.side_alive(ally_ring, ally_side):
+		await Codex.chime("move")
+	if GameState.has_flute():
+		await Codex.chime("flute")
+	if not GameState.summons.is_empty() and not summoned:
+		await Codex.chime("summon")
+	if await Codex.chime("rhythm"):
+		await _rhythm_practice()
 	if not GameState.flag("ring_rotation_taught") and GameState.party.size() > 3 and Ring.next_side(ally_ring, ally_side, 1) != ally_side:
-		rotation_lesson = true
-		await _battle_lesson_say(["You have more than three beasts now. Only the three facing the foe can fight; turn the ring to bring the others forward.",
-			"Choose your trainer's action first. Then press up past the top beast, or down past the bottom one. Use the on-screen d-pad on touch screens.",
-			"Try a turn before choosing your beasts' moves. Turning is free, but the new side must choose its moves again."])
+		GameState.set_flag("codex_seen_ring", false)
+		if await Codex.chime("ring"):
+			rotation_lesson = true
+			await Codex.say(["[excited] Try it now, before choosing your beasts' moves! Press up past the top beast, or down past the bottom one."])
 
 
 func _teach_option(option: Dictionary) -> void:
 	if tutorial:
 		return
-	await _teach_topics(BattleTutorials.topics(option))
+	await Codex.chime_all(BattleTutorials.topics(option))
 
 
-func _teach_topics(topics: Array) -> void:
-	for topic in topics:
-		var flag := "battle_tip_" + String(topic)
-		if not GameState.flag(flag):
-			await _battle_lesson_say([BattleTutorials.TIPS[topic]])
-			GameState.set_flag(flag)
+## A tap on the Codex while you choose: the command panel closes to ask it a question, then opens again.
+func _codex_tapped() -> void:
+	if _commanding and is_instance_valid(_panel_now) and not _panel_now.closed and UI.stack.back() == _panel_now:
+		_panel_now.close({"kind": "codex", "focus": int(_panel_now.focus)})
 
 
-## Opposing trainers coach through their own anchored speech bubbles; wild encounters use a system window.
-func _battle_lesson_say(lines: Array) -> void:
-	if not wild and is_instance_valid(rival_rig):
-		var who := ("%s %s" % [trainer.get("cls", ""), trainer.get("name", "Trainer")]).strip_edges()
-		await UI.say(lines, who, null, rival_rig)
-	else:
-		await UI.say(lines)
-
-
-## One safe, repeatable hit before real rhythm attacks. Nothing takes damage or spends a turn here.
-func _rhythm_lesson() -> void:
-	await _tut_say(["First, a practice beat; nobody attacks while you learn.",
-		"Watch the white ring. Press A, or tap the ring, as the spinning notch meets the mark at the top. Listen for the beat."])
+## One safe, repeatable practice beat after the Codex explains rhythm attacks. Nothing takes damage or spends a turn.
+func _rhythm_practice() -> void:
+	await Codex.say(["[determined] Let's practise one beat first. Nobody attacks while you learn!"])
 	Sfx.beat_begin()
 	Sfx.percussion("full")
 	var learned := false
@@ -2731,11 +2674,11 @@ func _rhythm_lesson() -> void:
 		var grades: Array = await cue.done
 		learned = grades.has("good") or grades.has("perfect")
 		if not learned:
-			await _tut_say(["Let's try again. Wait for the notch to reach the top, then press A once. Each full circle is one beat."])
+			await Codex.say(["[worried] Almost! Wait for the notch to reach the top, then press A once. Each full circle is one beat."])
+	_caption("")
 	Sfx.percussion("bed")
 	Sfx.beat_end()
-	await _tut_say(["That's the beat! In battle, keep pressing once on each beat to fill the pips. A miss ends the chain; hits already landed still count.",
-		"Fill every pip and the last hit is critical. Your level sets the number of hits. Now choose a weapon when you're ready to try it."])
+	await Codex.say(["[proud] That's the beat! Choose a weapon whenever you want to try it for real."])
 
 
 ## Who a row's option can be aimed at: [{label, ref}]. An open rival
@@ -3642,7 +3585,7 @@ func _do_weapon(a: Dictionary) -> void:
 	VPer.set_ready(player_rig, id)
 	if at_trainer:
 		await _weapon_blow(player_rig, id, "foe")
-	elif BeatChain.max_hits(GameState.trainer_level) <= 0 or (tutorial and lesson_id != "rhythm") or (not tutorial and not GameState.flag("dance_lesson_done")):
+	elif BeatChain.max_hits(GameState.trainer_level) <= 0 or tutorial or not GameState.flag("dance_lesson_done"):
 		await _weapon_plain(player_rig, id, targets)
 	else:
 		await _weapon_chain(id, targets)
@@ -4714,8 +4657,6 @@ func _summon_flow() -> Dictionary:
 	var ids := []
 	var items := []
 	for tk in WorldDB.TEMPLES:
-		if lesson_id == "summon" and tk != "water":
-			continue
 		if not GameState.summons.has(tk):
 			continue
 		var t: Dictionary = WorldDB.TEMPLES[tk]
@@ -4745,9 +4686,6 @@ func _summon_flow() -> Dictionary:
 		Sfx.play("fail")
 		await msg("The song falters... %s doesn't answer." % who, 1.1)
 		_set_acting(null)
-		if lesson_id == "summon":
-			await _tut_say(["No shield spent. Let's try that song again; play the notes in order before the bar runs out."])
-			return await _summon_flow()
 		return {"type": "none"}
 	summoned = true
 	GameState.shield -= 1
@@ -4888,7 +4826,8 @@ func _roll_egg(b) -> void:
 		return
 	if b.ghost and not GameState.flag("ghost_merge"):
 		return
-	if lesson.get("egg", false) or randf() < GameState.egg_chance():
+	# (the first lone wild beast after Uncle Rafe's lessons always leaves one: Story.wild_battle "sure_egg")
+	if cfg.get("sure_egg", false) or randf() < GameState.egg_chance():
 		# (an egg of its line's first form: a Cinderex leaves an Embit's egg)
 		drops.append({"race": RaceDB.first_form(b.race), "ghost": b.ghost, "name": b.nickname})
 
@@ -5014,7 +4953,9 @@ func _finish() -> void:
 			await msg("%s left something behind..." % d["name"], 0.7)
 			await UI.beast_cinematic("egg", {"name": String(d["name"])}, {}, found)
 			await msg("You found %s %s!" % ["an" if GameState.egg_name(found).substr(0, 1) in ["A", "E", "I", "O", "U"] else "a", GameState.egg_name(found)], 0.9)
-		if lesson_id == "flute" and result == "win":
+		if not drops.is_empty():
+			await Codex.chime("eggs")
+		if cfg.get("sure_egg", false) and result == "win":
 			GameState.set_flag("flute_lesson_done")
 	for b in GameState.party:
 		b.status = ""

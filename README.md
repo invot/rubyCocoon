@@ -103,8 +103,8 @@ The Start book keeps the selected input's guide on Settings' right page: keyboar
 meanings, or a matching controller illustration and fixed mappings. Only Controller input shows controller artwork.
 The book has no bottom key strip. Phones and tablets show their on-screen buttons when Screen input is selected.
 Desktop browsers use a keyboard or controller guide instead of the touch pad, even on touchscreen computers. The
-keyboard strip and the controller illustration's callouts use Kenney's *Input Prompts*: each key or button is outlined
-in near-black, and fills with the gem while it is held (the controller's d-pad fills the arm being held). The
+keyboard strip shows small grey key caps; the controller illustration's callouts use Kenney's *Input Prompts*: each
+button is outlined in near-black, and fills with the gem while it is held (the controller's d-pad fills the arm being held). The
 controller callouts show the connected controller's own buttons (Xbox, PlayStation or Switch). It also appears on the web title menu,
 character creator and Load Game screen. Web builds have no Quit application
 button; **Quit to title** in Settings still returns to the title menu.
@@ -206,17 +206,16 @@ required before confronting Vexmora.
 
 3. The Beast Center hatches it into a **level 1** beast.
 4. Scout Bram stands in the road to the Coastal Path until you have a beast of your own; talk to him once it has hatched and he steps aside.
-5. The **Coastal Path** is the tutorial: a winding trail through the woods with five teachers on it (`world_db.gd`
+5. The **Coastal Path** is the tutorial: a winding trail through the woods with four teachers on it (`world_db.gd`
    LESSON_TRAINERS, battle.gd LESSONS). Each looks straight across the trail where you can't slip past, so you always
    walk into their line of sight and they come over and stop you; you never need to talk to them first. Youngster Kit
-   watches the trail where it reaches the creek. Each gives a guided battle, and so do the arena's coaches and
-   the flute lesson (`battle.gd` LESSONS): every floating choice and every menu has just the one thing to pick, the one being
-   taught (◄ ► stay put, and the teacher says what to do), the target and the beast to heal are chosen for you, and
-   you can't lose: your beasts are healed first and always keep at least 1 HP, and nobody can run, forfeit or hit
-   you. Your beast grows a level or so. Camper Tilly: the battle screen and
-   fighting. Fisher Dale: turns, speed and Defend. Youngster Kit, on the trail by the creek: your own turn (slingshot, Watch, Run and Forfeit).
-   Picnicker Mae: items (she gives you three Minor Potions). Ranger Holt: the ring, its middle beast, shields and
-   striking an open trainer. Until you have a flute there are no wild beasts on the path, only its teachers.
+   watches the trail where it reaches the creek. Each gives a short guided battle: every floating choice and every
+   menu has just the one thing to pick, the one being taught (◄ ► stay put, and the teacher says what to do), the
+   target and the beast to heal are chosen for you, and you can't lose: your beasts are healed first and always keep
+   at least 1 HP, and nobody can run, forfeit or hit you. Your beast grows a level or so. Camper Tilly: attacking.
+   Fisher Dale: Defend. Youngster Kit, on the trail by the creek: potions (he hands you one mid-battle and two more
+   after). Picnicker Mae: your slingshot, and then she gives you the **Codex** (see below). Until you have a flute
+   there are no wild beasts on the path, only its teachers.
 
    <img src="docs/screenshots/coastal_path.jpg" width="640" alt="The Coastal Path, the tutorial: a winding trail with teachers waiting on it."><br><sub>The Coastal Path, the tutorial: a winding trail with teachers waiting on it.</sub>
 
@@ -229,33 +228,39 @@ required before confronting Vexmora.
    shallow-water profile, without enclosing cliff walls, sunbathers, parasols or other resort dressing.
    It ends west of the creek; the river remains impassable until Hal's footbridge is repaired.
 7. Talk to **Neighbor Nell**, Rafe's old friend beside Bellerive's west entrance, for directions to his house: the one with the **golden flute sign** above the door. Uncle Rafe gives you the flute and teaches **Weaken**, briefly: a couple of lines on how the sheet works, then he plays the song once and it's your turn to play it back. He also tells you that no song can make a wild beast yours: new beasts only come from eggs. His lesson (and the guided battle after it) gives you 30 seconds per song.
-8. The first lone wild beast you meet after that is a guided battle too: Rafe's advice walks you through playing Weaken on it, then beating it. It always leaves an egg, shown in the egg film.
+8. The first lone wild beast you meet after that always leaves an egg, shown in the egg film; the Codex explains the flute in that battle.
 9. Arenas only take trainers with a flute. Each is one big room, like a Beast Center (the camera follows you round it):
    the host at the lobby desk runs the arena ladder and nothing else; the master waits in the hall on the other side of
    a wall that stops short of the front, and you challenge them there, in person.
-10. Bellerive's arena teaches you to battle properly before you may face its master (`world_db.gd` ARENA_LESSONS,
-    battle.gd LESSONS "team" and "elements"). Both coaches stand just inside the door; only Rory approaches you.
-    **Coach Rory** stops you first and shows you fighting with a whole side of your ring (the arena's practice beasts
-    fill your empty slots for the lesson). Then speak to **Coach Ondine** when you're ready for elemental
-    weaknesses: her beast is weak to the element of the side facing it (with your earth
-    side facing, you borrow the arena's air practice team, since nothing is weak to earth). Only then can you challenge
-    **Tide Captain Marina**, and Captain Gull's ferry to the Isle of Tides only takes trainers with her Wave Crest.
+10. **Tide Captain Marina** can be challenged as soon as you reach Bellerive's arena (the Codex explains fighting
+    with a whole side of your ring and elemental weaknesses when they first come up), and Captain Gull's ferry to the
+    Isle of Tides only takes trainers with her Wave Crest.
 11. The journey runs in one line: the Dune Road north of Bellerive stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
-12. When you leave the Temple of Tides with **Abyssion**, **Coach Ondine** appears outside and gives a protected
-    practice battle: choose **Summon**, play the Song of Tides and see the water dragon strike the opposing team.
-    A failed song can be tried again without spending a shield. The coach leaves after the lesson and stays gone.
+12. Once **Abyssion** is yours, the Codex explains **Summon** in your next battle: choose it, play the Song of
+    Tides and the water dragon strikes the opposing team.
 13. In **Dustwell Oasis**, **Dancer Jasper** sits in the centre of the single, two-tile-wide north road, blocking
     both tiles until you return his shoes. **Instructor Lucille** has them at the **Dustwell Dance Studio**, under
     the DANCE sign at the west end of Main Street (the existing `dustwell#1` building identity). Below **trainer
     level 4**, she calls you too weak to dance and explains how to raise your trainer level. At level 4 or above,
-    pass her safe rhythm practice and guided weapon battle to unlock rhythm attacks and receive Jasper's shoes.
+    she teaches you the beat, unlocking rhythm attacks, and gives you Jasper's shoes; in your next battle the Codex
+    walks you through a safe practice beat that repeats until you land it.
     Return them to open the Mesa Trail toward Sunwall. Talking to Lucille first works too.
 
-New battle mechanics are explained when used, rather than all at the start. With more than three beasts in your
-party, the next ordinary battle requires you to turn the ring once before confirming beast moves. Later options
-give brief first-use lessons for Move, recharging moves, ally and group targets, status, stat changes, recoil/drain,
-protective moves and the new weapons. The existing move descriptions supply each move's precise effect. Lesson
-completion is saved through normal phone calls. See [tutorial coverage](docs/tutorials.md).
+**The Codex** (`scripts/ui/codex.gd`, topics in `scripts/data/codex_db.gd`) explains everything after the Coastal
+Path. It is a little orange robot head (Quaternius's *Animated Robot*, head only, `tools/import_codex_head.gd`) that
+floats in a soft bluish glow at the top-left of the screen in battle; its white speech bubbles hang under it, its
+brows change with the mood of every bubble, and now and then it starts one with "Beep boop!" or the like. The first
+time something new comes up in battle it chimes in once (`codex_seen_<topic>`): your first trainer battle (guarding
+your trainer, shields), the first battle with two beasts on a side (choosing for each beast, aiming), a fainted
+middle beast (Move), more than three beasts (turning the ring: you must turn it once before confirming moves), your
+flute, a summon, rhythm attacks (with a practice beat), eggs, and the first time you pick a move with an accuracy
+roll, a recharge, ally or group targets, status, stat changes, recoil/drain, protection, an element, the Boomerang or
+the Bat. You can ask it anything you're eligible to know, without using your turn: **Codex ?** at the end of your
+trainer's bar, a tap on the head, or the **Codex** page of the Start book. Topics about something you don't have
+yet (the flute, a summon, the Bat, rhythm attacks) stay hidden, and move rules appear once you've met them. Its tips
+can be switched off under **Settings ► Codex tips**; on a journey played for more than three hours before the Codex
+existed, it says it's switching them off itself the first time it appears. Lesson completion is saved through normal
+phone calls. See [tutorial coverage](docs/tutorials.md).
 
 Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
 `Story.next_goal()`), so what they talk about moves on as soon as you've done it.
@@ -486,7 +491,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 - **Weapons and the beat attack** (`item_db.gd` WEAPONS, `scripts/core/beat_chain.gd`, `scripts/battle/beat_cue.gd`, `battle.gd` _do_weapon):
   - Your trainer's bar lists the weapons you own; you pick one each turn. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit, on one foe you run up to: Captain Dalton hands over Bart the Jackal's with the Sunwall bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
-  - Until you pass **Instructor Lucille's lesson** at Dustwell's dance studio, a weapon makes one plain throw (or swing) with its accuracy roll. She teaches trainers of **Lv 4 or above**, beginning with one safe beat that repeats until you land it, then a protected weapon battle. Passing unlocks the **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
+  - Until you pass **Instructor Lucille's lesson** at Dustwell's dance studio, a weapon makes one plain throw (or swing) with its accuracy roll. She teaches trainers of **Lv 4 or above**, and in your next battle the Codex gives you one safe practice beat that repeats until you land it. Passing unlocks the **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
   - Each press is graded by how far it is from the beat: **Perfect** (0.06 s), **Good** (0.13 s) or **Miss**, shown beside the ring, and the grade sets that hit's damage (half a plain throw for Perfect, 0.3 for Good). A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit, so the turn is never wasted. Land every hit your level allows and the last one is critical. Your first beat attack has wider windows (0.10 / 0.20 s), as they always do on the Coastal Path. Reaching Lv 4 points you to Lucille; later levels that add a hit say so. Older saves retain rhythm attacks already learned and access to a north road already passed.
   - At a trainer who's open, a weapon is one blow whatever your level: it breaks a shield point.
   - Your trainer takes the weapon up and uses it once per hit (`voxel_person.gd` set_ready, set_action): a stone from the slingshot, the boomerang flung side-arm (it curves through each target and is caught again), or the bat swung level after running up to the target. The camera holds a "beat" shot on the target meanwhile, and the hits land without messages until the chain is done.
@@ -535,11 +540,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Saving is free. Red phones stand in homes, every Beast Center, the apothecary, café and music shop, the arenas' lobbies and the doorways of the temples of winds, flame and roots. Only the red **payphone** by each town's square costs anything: 5 coins a call (no coins, no call).
   - In Beast Centers, shops and arena lobbies, phones sit on the attendant's counter or display case; house phones stay on their own tables.
   - On the first morning the phone rings as you go to leave home, and you can't go out until you've answered: it's Dad, wishing you luck.
-  - Every phone asks who to call: **Mom** (advice), **Dad** (save) or **SkyTower Inc** (courier; a payphone still takes its 5 coins). At home Mom is in the room, so the home phone doesn't offer her. SkyTower Inc is only on the list once one of its employees has given you the number: Skykeeper Aria does, at any Sky Tower's desk, the first time you talk to her, explaining how the couriers' rides, pickups and deliveries work (`phone.gd` SKYTOWER_FLAG). While the phone's menus are open the camera swings round beside the hero to the phone (see the menu shot under Interface style). Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
+  - Every phone asks who to call: **Dad** (save, always first), **Mom** (advice) or **SkyTower Inc** (courier; a payphone still takes its 5 coins). At home Mom is in the room, so the home phone doesn't offer her. SkyTower Inc is only on the list once one of its employees has given you the number: Skykeeper Aria does, at any Sky Tower's desk, the first time you talk to her, explaining how the couriers' rides, pickups and deliveries work (`phone.gd` SKYTOWER_FLAG). While the phone's menus are open the camera swings round beside the hero to the phone (see the menu shot under Interface style). Mom saves nothing: she passes on a tip for what you're doing now (`chatter_db.gd` MOM_TIPS, by `Story.next_goal()`, taking turns call by call), always as something she saw on the TV news, something Grandma wants you to know, or a call from someone who saw you do something you've done, with advice for what's ahead. Then she looks in your father's old trainer guide: your beasts' average level next to the wild beasts where you are, or, where there are none, the road or arena master next on your journey (MOM_AHEAD), and whether you're too weak, about right or strong enough to press on (`phone.gd` level_advice).
   - Every phone stands on a white placemat on a boxy little chest of three drawers (`side_table`, baked by `tools/make_side_table.gd`) in the middle of its tile, out from the wall, so you stand right beside it to call.
   - Ten save slots, one per journey: you never pick a slot when you save. A new game takes the first empty slot the first time you save, and after that every save goes back into the same slot. If all ten are full, Dad asks (A: Yes / B: No) before writing over the save made longest ago.
   - Each save keeps a snapshot of that moment (the world without the UI) and your play time, shown right after you save.
-  - Dad asks whether you want to save first (**A: Yes / B: No**). After saving, or if you decline, he asks whether you want to continue playing: **A: Yes** returns to your journey; **B: No** returns to the title screen.
+  - Dad asks whether you want to save first (**A: Yes / B: No**). After saving, or if you decline, he asks whether you want to continue playing: **A: Yes** returns to your journey, once he's told you not to work too hard (`phone.gd` `_save`); **B: No** returns to the title screen.
   - The title screen's **Load Game** lists the slots with their snapshots; you can load, copy or delete them there.
 
   <img src="docs/screenshots/call.jpg" width="640" alt="Calling Dad from the phone at home: that's how you save."><br><sub>Calling Dad from the phone at home: that's how you save.</sub>
@@ -898,7 +903,7 @@ Press **Start** (Space) to open the travel book: two pages of light tan paper wi
 | Beasts | One left list: **Default element** and its name first, then your carried beasts (the ones on your ring) with their levels and their HP and MP under their names, followed by eggs. The right pane shows **occupied / unlocked slots used** and the actual 3D battle ring and beasts, without the trainer or center dais, from the battle camera's perspective; the focused beast is lit on it. A opens the beast's actions under the ring: **Info**, **Move** (Left/Right preview its compatible spots, A confirms or swaps, B cancels), **Fly** when it can carry you, and **Equip**. Beasts are swapped in and out of storage only at Beast Centers and kennels. |
 | Flute | Every song with its effect and mastery; press A to practise one. Unknown songs show where to learn them. |
 | Bag | A grid of item slots on the left page, one per stack (its count at the corner when there's more than one), in the order care, battle items, weapons, beast gear, trainer gear, sheet music, fishing, key items and tomes; the heading shows stacks used, such as **18/24**. The right page names the focused item and describes it. Choose an item for its actions: **Use**, **Equip** (gear only), **Drop** and **Back**; one that can't be chosen now is dimmed with the reason beside it (battle items: **In battle**). Using an item on a beast, or Equip, turns the left page into your battle ring with you in the middle: each cell is named, and only the beasts (or, for trainer gear, you) it would affect can be chosen: the rest are disabled. A fainted beast's cell is tagged **KO** and an ailing one its status (**PSN**, **SLP**, ...). The right page shows the chosen one's HP and MP bars, its condition explained beside them, and its stats before and after, with **Confirm** and **Cancel** under them. Drop asks first and throws one away. Key items and weapons can't be dropped. B steps back a page at a time (`scripts/ui/bag_page.gd`, rules in `scripts/core/item_use.gd`). |
-| Bestiary | All 39 forms with live portraits and where to find them. |
+| Codex | The topics your Codex can explain (only those you're eligible to know), grouped: battle basics, your team, moves, and gear and songs. The right page shows the explanation; A has the Codex say it. |
 | Map | An aged-paper map of **Rubisa** across the left page: jagged coastlines, mountains and woodland, the twelve towns and their roads, question-mark pins for towns you haven't reached, and a flag where you are (on a road, halfway along it). The map has no town-name labels; the facing page names the selected town. Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
 | Settings | 3D resolution, graphics quality, music and sound volume, text speed, interface color, touch pad, key guide, fullscreen, credits and quit to title. |
 
@@ -1058,24 +1063,25 @@ mounted owl and its rider.
 
 - **Fonts** (user direction, 12 November 2026; title updated 13 November): Quattrocento Sans: Bold for headings/names, Bold upper case for small text (captions, tags, values, hints and damage numbers), Regular for body text, actions and descriptions; Fuzzy Bubbles for spoken dialogue at 29 UI units, about 10% smaller than the previous 32. Lettering on 3D world objects uses Noto Sans Old North Arabian through a shared English-to-glyph substitution map; retain readable English for interactions and accessibility. UI/dialogue stay English. The 3D intro/title logo uses Cormorant SC Bold, including the DEMO line. Preserve `UIKit` sizing, touch targets and readable wrapping; do not shrink text to fit. See `docs/visual_overhaul/standards.md` for the authoritative typography direction.
 - **Button minimums**: menu text uses 32 UI units; rows and buttons, scroll buttons included, are at least 56 units
-  tall on desktop and 80 on touch devices, including the title menu. Ordinary mobile lists scroll with Up/Down and
+  tall on desktop and 80 on touch devices. Ordinary mobile lists scroll with Up/Down and
   direct taps; book pages, the save browser and long desktop menus get scroll buttons. Buttons never shrink to fit
-  more entries (`UIKit.row_h`, `list_menu.gd`).
+  more entries (`UIKit.row_h`, `list_menu.gd`), with one exception (the user's direction, 14 November 2026): a menu
+  opened while talking to someone or on the phone shortens its rows (to 48 units on desktop, 60 on touch, with 28-unit
+  text) rather than scroll for a row or two (`list_menu.gd` `COMPACT_ROW`).
 - **Save previews**: Load Game shows the selected slot's screenshot from its latest save beside the list, and keeps
   it visible when choosing Load, Copy or Delete. Saves from before screenshots were stored show a placeholder
   until saved again. Copying a save includes its screenshot.
-- **Phones**: the on-screen pad uses Kenney's *Input Prompts* (CC0; `assets/ui/input_prompts/`, copied from the pack
-  by `python tools/input_prompts/build.py <pack>`): the Xbox outlined cross d-pad for getting about (hold B to run), battles and
-  the flute game alike, round A and B buttons, and START / PAUSE pills (PAUSE is the START pill with the lettering of
-  Kenney's Pause key). Each arm answers in its own quarter of the pad (a wedge from the middle out past its edge), and
-  only one way is held at a time, so a thumb on the line between two arms still walks one of the four ways. The SVGs
-  are recoloured by `scripts/ui/prompt_tint.gdshader`, with soft shadows and no borders or blur: the d-pad is the
-  windows' off-white outline, and A, B, Start and Pause are the gem with white letters. A held button deepens; the
-  d-pad's arm for the way being held (by touch, keys or a controller) fills with the gem. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
+- **Phones** (restored 14 November 2026 at the user's request, since the Kenney prompt pad drew blurry): a joined
+  cross-shaped d-pad with raised arrows, for getting about (hold B to run), battles and the flute game alike, painted
+  at the screen's own resolution so it stays crisp (`controls_overlay.gd`). Each arm answers in its own quarter of the
+  pad (a wedge from the middle out past its arrow), and only one arrow is held at a time, so a thumb on the line
+  between two arms still walks one of the four ways. With it, glossy round A and B buttons and Start / Pause pills,
+  with no borders or blur: the d-pad's cross is the windows' off-white with dark arrows, and A, B, Start and Pause are
+  buttons in the gem with white letters. A held button deepens; a held arm of the d-pad fills with the gem and its
+  arrow turns white. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
   and Start closes the book. A little overlap with the book is allowed; the Map page spreads its towns clear of the
-  d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions slide A and B left and grow each into a gem pill
-  with the button (white, its letter showing the gem) at its left and **Yes** or **No** in white to its right: each
-  answers directly, without a separate choice list. Long questions show **A: Next**
+  d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions widen A and B with an animation into
+  **A: Yes** and **B: No**: each answers directly, without a separate choice list. Long questions show **A: Next**
   until their last page. Ordinary mobile choice lists sit toward the center, show several full-size options,
   and scroll as Up/Down moves the selection; each visible option can also be tapped.
   Anything that runs past one of the book's pages gets a scroll bar beside it with an **▲** button at its top and a
@@ -1091,8 +1097,12 @@ mounted owl and its rider.
   down each picture, so scenes sit a little lower, clear of the title plaque. The web loader matches this timing
   and framing. Only the current
   picture and next picture are held as textures; the unused 3D viewport sleeps. Continue and Load Game appear
-  when a compatible save exists. With no save yet, New Game retains its large glowing gem button. Keyboard,
-  gamepad and touch navigation remain available. Once the title menu is up, the game's name hangs at the top centre on
+  when a compatible save exists. The menu sits low, clear of the picture's subject (`scripts/ui/title_carousel.gd`):
+  one gently rounded button of the gem over the blurred art, most opaque across its middle (`title_pill.gdshader`),
+  showing one choice, with ▲ and ▼ arrows above and below it (none when New Game is the only choice). Up or down
+  slides the words that way inside the button, cropped at its edges, as the next choice slides in from the other
+  edge, looping round forever; A or a tap on the button picks it, and the arrows can be tapped. On phones the button
+  rests just above Start and Pause. Keyboard, gamepad and touch navigation remain available. Once the title menu is up, the game's name hangs at the top centre on
   this screen's own HUD, a carved stone plaque (`scripts/ui/title_plaque.gd`) a little wider at the top, each side
   one straight slant: the name large in Cormorant SC Bold, in a deepened shade of the chosen gem, with runes cut
   under it (DEMO there in demos). It steps up while the shared top bar has a notice. Load Game and the character
@@ -1162,7 +1172,9 @@ mounted owl and its rider.
   keep their original engine notice and hide the progress window. Browser reduced-motion preferences stop
   the zoom. Artwork and fonts are copied beside the export so they appear before the game data is ready.
 - **Stalls and loading**: entering a different outdoor town or path (including returning from a building and the
-  first outdoor load) shows the artwork slideshow, destination, a gem progress bar and playful game-specific captions.
+  first outdoor load) shows the artwork slideshow with a bar along the bottom: the destination on the left, a playful
+  game-specific caption on the right (its trailing dots hidden in place, so the line never shifts) and a thin gem
+  progress bar under them (`loading_screen.gd`; `--scene=loading` previews it).
   Progress measures completed construction phases, rather than elapsed time, and reaches full after arrival state
   and audio are ready. Fast transitions add no minimum display delay. Room-to-room moves and same-map reloads
   keep short black fades. Input and pause are blocked during loading; the overlay fades away on arrival.
@@ -1729,9 +1741,11 @@ godot --path . -- --scene=world:tidewater --overview=13 --focus=34,21 --shot=C:/
 godot --path . -- --scene=book:settings --gem=sapphire --shot=C:/tmp/s.png  # try a gem for one run
 godot --path . -- --scene=book:map --flip=cozy --wait=1 --shot=C:/tmp/f.png   # Settings > Style changed with the book open
 godot --path . --resolution 2400x1080 -- --touch --scene=battle --shot=C:/tmp/p.png   # a 20:9 phone
-godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, bestiary, map, settings); --flyer=1 adds an air beast that can fly, --visited=caccoon,tidewater sets the towns you've been to, --no_map=1 is before the library's map, --next=N taps a scroll bar's down arrow N times
+godot --path . -- --scene=book:beasts --shot=C:/tmp/m.png               # the Start book on a tab (trainer, beasts, flute, bag, codex, map, settings); --flyer=1 adds an air beast that can fly, --visited=caccoon,tidewater sets the towns you've been to, --no_map=1 is before the library's map, --next=N taps a scroll bar's down arrow N times
 godot --path . -- --touch --scene=battle --shot=C:/tmp/t.png            # touch layout
-godot --headless --path . -- --scene=tutorial --lesson=ring --auto=1    # one Coastal Path teacher's guided battle (screen, turns, slingshot, items, ring)
+godot --headless --path . -- --scene=tutorial --lesson=sling --auto=1   # one Coastal Path teacher's guided battle (attack, defend, potions, sling)
+godot --path . -- --scene=codex --mood=worried --shot=C:/tmp/c.png       # the Codex talking (--topic=id, --mood=happy|excited|proud|curious|worried|surprised|determined|neutral); --book=1: the Start book's Codex page
+godot --path . -- --scene=battle --codex=team --shot=C:/tmp/b.png --wait=9  # a battle where the Codex chimes in about one topic
 godot --headless --path . -- --scene=tutorial --lesson=elements --auto=1  # a Bellerive arena coach's lesson (team, elements; --egg=24 starts with an earth beast)
 godot --path . -- --scene=fishing --taps=4.6 --snap=10 --shot=C:/tmp/f.png  # Gil's lesson (--lesson=0: a cast at a ripple, --bait=worm_bait)
 godot --path . -- --scene=battle --kind=fishing --shot=C:/tmp/d.png        # a reeled-in beast's battle: the dock and the water

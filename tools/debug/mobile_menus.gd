@@ -292,7 +292,7 @@ func _verify(opts: Dictionary) -> void:
 ## The book's scroll buttons, then its Map page: you marked on it, a town picked by a tap, no flying from indoors, and
 ## outdoors (with an air beast that can carry you) Fly here asking first: B stays, A flies.
 func _book_map(opts: Dictionary) -> void:
-	Menus.pause_menu(main.world, "bestiary")
+	Menus.pause_menu(main.world, "codex")
 	await main._wait(0.6)
 	var book = UI.stack.back()
 	var rail = book.list_scroll.get_parent().get_child(1)

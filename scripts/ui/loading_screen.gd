@@ -20,24 +20,33 @@ func _ready() -> void:
 	slideshow = Slideshow.new()
 	slideshow.index = randi() % Slideshow.library().slides.size()
 	add_child(slideshow)
+	# a bar along the bottom: the destination and a playful status above a thin gem progress bar
 	panel = UIKit.panel()
 	add_child(panel)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
+	column.add_theme_constant_override("separation", 10)
 	panel.add_child(column)
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 24)
+	column.add_child(line)
 	destination = UIKit.header("", UIKit.HEAD, 32)
-	destination.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(destination)
+	destination.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(destination)
 	caption = UIKit.label("", 28)
-	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(caption)
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	caption.clip_text = true
+	caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	# hide the dots after laying the line out, so a missing dot leaves its space and the text never shifts
+	caption.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
+	line.add_child(caption)
 	progress = ProgressBar.new()
-	progress.custom_minimum_size.y = 24
+	progress.custom_minimum_size.y = 16
 	progress.show_percentage = false
 	progress.max_value = 1.0
-	progress.add_theme_stylebox_override("background", UIKit.chip(UIKit.WELL, Color.TRANSPARENT))
-	progress.add_theme_stylebox_override("fill", UIKit.solid())
+	progress.add_theme_stylebox_override("background", UIKit.chip(UIKit.WELL, Color.TRANSPARENT, 10.0, Vector4.ZERO))
+	progress.add_theme_stylebox_override("fill", UIKit.solid(Vector4.ZERO))
 	column.add_child(progress)
 	_caption_index = randi() % Slideshow.library().captions.size()
 	_set_caption()
@@ -46,8 +55,9 @@ func _ready() -> void:
 
 func _layout() -> void:
 	var safe := UIKit.safe_rect(self).grow(-24.0)
-	panel.size.x = minf(720.0, safe.size.x)
-	panel.position = Vector2(safe.get_center().x - panel.size.x * 0.5, safe.end.y - panel.size.y - 24.0)
+	# (shrink to the content's height each time: a container only ever grows on its own)
+	panel.size = Vector2(minf(1200.0, safe.size.x), 0.0)
+	panel.position = Vector2(safe.get_center().x - panel.size.x * 0.5, safe.end.y - panel.size.y)
 
 func set_progress(value: float) -> void:
 	progress.value = maxf(progress.value, clampf(value, 0.0, 1.0))
