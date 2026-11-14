@@ -8,8 +8,15 @@ const CUT_SECTIONS := ["stone_fence", "fence"]
 ## as a straight run's (squashing whole sections to half length shrank them).
 const SOLID_JOINS := ["stone_fence", "fence"]
 ## Post-to-post sections (posts at x = ±0.5): a bend or junction is built from full-size half sections, each running
-## from one shared post at the tile's centre out to its neighbour's post.
-const POSTED := {"iron_fence": 0.05}
+## from one shared post at the tile's centre out to its neighbour's post. `post`: how far past the centre the other
+## arms start; parts lying wholly below `below` (the iron fence's stone piers) start past `low` instead, so no faces
+## lie on top of each other.
+const POSTED := {"iron_fence": {"post": 0.06, "low": 0.15, "below": 0.482}}
+## Railings standing on a plinth of their own (a cut section, joined at corners like the stone fence; one shared
+## material), and how far each fence's foot is sunk below the ground so it stays seated where the run crosses from
+## paving onto the raised grass (tools/import_fences.gd).
+const PLINTHS := {"iron_fence": "iron_fence_base"}
+const SINK := {"iron_fence": 0.12}
 const EPS := 0.0001
 static var _meshes := {}
 static var _sources := {}
@@ -21,13 +28,29 @@ static func tile(style: String, mask: int) -> ArrayMesh:
 	if _meshes.has(key):
 		return _meshes[key]
 	var straight := mask in [0, 1, 2, 3, 4, 8, 12]
-	if style in SOLID_JOINS or (style in CUT_SECTIONS and straight):
+	if PLINTHS.has(style):
+		_meshes[key] = _on_plinth(style, mask, straight)
+	elif style in SOLID_JOINS or (style in CUT_SECTIONS and straight):
 		_meshes[key] = _cut_tile(style, mask)
 	elif style in POSTED and not straight:
 		_meshes[key] = _posted_tile(style, mask)
 	else:
 		_meshes[key] = _scaled_tile(style, mask)
 	return _meshes[key]
+
+
+## A railing on its plinth: the plinth joined at full size like a cut section, the railing posted (or whole when
+## straight), the two in one batch, sunk to the fence's foot.
+static func _on_plinth(style: String, mask: int, straight: bool) -> ArrayMesh:
+	var rail := _posted_tile(style, mask) if style in POSTED and not straight else _scaled_tile(style, mask)
+	var down := Transform3D(Basis(), Vector3(0, -float(SINK.get(style, 0.0)), 0))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.append_from(_cut_tile(PLINTHS[style], mask), 0, down)
+	st.append_from(rail, 0, down)
+	st.set_material(rail.surface_get_material(0))
+	st.index()
+	return st.commit()
 
 
 static func _scaled_tile(style: String, mask: int) -> ArrayMesh:
@@ -58,7 +81,12 @@ static func _scaled_tile(style: String, mask: int) -> ArrayMesh:
 ## (the others start just past it), so no faces lie on top of each other.
 static func _posted_tile(style: String, mask: int) -> ArrayMesh:
 	var src := _source(style)
-	var post: float = POSTED[style]
+	var spec: Dictionary = POSTED[style]
+	var low := []
+	var high := []
+	for t: Array in src["tris"]:
+		var top := maxf(maxf(t[0][0].y, t[1][0].y), t[2][0].y)
+		(low if top <= float(spec.get("below", -INF)) + EPS else high).append(t)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var first := true
@@ -67,9 +95,10 @@ static func _posted_tile(style: String, mask: int) -> ArrayMesh:
 			continue
 		var yaw: float = [PI, 0.0, PI / 2, -PI / 2][i]
 		var xf := Transform3D(Basis(Vector3.UP, yaw), Vector3.ZERO) * Transform3D(Basis(), Vector3(0.5, 0, 0))
-		var cut := _clip(src["tris"], -1.0 if first else -0.5 + post, 0.0)
+		var tris: Array = _clip(high, -1.0 if first else -0.5 + float(spec["post"]), 0.0)["tris"]
+		tris += _clip(low, -1.0 if first else -0.5 + float(spec.get("low", spec["post"])), 0.0)["tris"]
 		first = false
-		for t: Array in cut["tris"]:
+		for t: Array in tris:
 			for v: Array in t:
 				st.set_normal(xf.basis * (v[1] as Vector3))
 				st.set_uv(v[2])
@@ -245,7 +274,11 @@ static func _cap(segs: Array, outward: float, src: Dictionary) -> Array:
 				links[pair[0]].append(pair[1])
 	var out := []
 	var used := {}
-	for start in links:
+	# A section open underneath leaves an outline that doesn't close: walk it from one of its ends, or a walk begun
+	# part-way along would trace only one side of it and leave the rest of the end open.
+	var starts := links.keys().filter(func(k) -> bool: return links[k].size() == 1)
+	starts += links.keys().filter(func(k) -> bool: return links[k].size() != 1)
+	for start in starts:
 		if used.has(start):
 			continue
 		var loop := [start]

@@ -1,7 +1,10 @@
 extends RefCounted
 ## Exterior window dressing inspired by the supplied cartoon window packs. Geometry is cached with each house or
-## wall piece: broad bevelled surrounds, a projecting cap and sill, thick mullions and painted blue glass.
-## No textures, transparency, per-frame work or additional shadow casters are needed.
+## wall piece: broad bevelled surrounds, a projecting cap and sill, thick mullions and opaque glass that reflects the
+## sky (window_glass.gd). No transparency, per-frame work or additional shadow casters are needed.
+
+const WindowGlass = preload("res://scripts/gfx/window_glass.gd")
+
 
 class Shape:
 	static var _materials := {}
@@ -77,7 +80,10 @@ class Shape:
 		mesh.surface_set_name(si, role)
 		mesh.surface_set_material(si, material(role))
 
-	func material(role: String) -> StandardMaterial3D:
+	func material(role: String) -> Material:
+		if role == "window_glass":
+			# opaque glass reflecting the sky, shimmering as the camera moves (window_glass.gd)
+			return WindowGlass.material()
 		if not _materials.has(role):
 			var mat := StandardMaterial3D.new()
 			mat.resource_name = role
@@ -244,8 +250,9 @@ static func paint(kit, p: Vector3, n: Vector3, w: float, h: float, trim: Color, 
 	var frame := Shape.new()
 	var glass := Shape.new()
 	_draw(frame, glass, {"p": p, "n": n, "w": w, "h": h, "glass": glass_colour}, trim)
-	var arr: Array = kit._arrays("color")
+	# the glass in the kit's own glass surface, so it reflects the sky (window_glass.gd)
 	for shape in [frame, glass]:
+		var arr: Array = kit._arrays("glass" if shape == glass else "color")
 		arr[0].append_array(shape.vertices)
 		arr[1].append_array(shape.normals)
 		arr[2].append_array(shape.colours)

@@ -1476,6 +1476,29 @@ func _shore_rocks(by_asset: Dictionary) -> void:
 		x += rng.randf_range(3.5, 5.5)
 
 
+## A map's "rocky_beach" rectangles ([x, y, width, depth]): a strip of sand at the water's level, out of the player's
+## reach, strewn with native beach rocks of mixed sizes, some at the water's edge. Scenery only, in the shared batches
+## (no collision, no shadows); the sand tiles under them stay as authored.
+func _rocky_beaches(by_asset: Dictionary) -> void:
+	if not map.has("rocky_beach"):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_id.hash() + 977
+	for r in map["rocky_beach"]:
+		for y in range(int(r[1]), int(r[1]) + int(r[3])):
+			for x in range(int(r[0]), int(r[0]) + int(r[2])):
+				if MapGen.get_t(map, x, y) != MapGen.SAND:
+					continue
+				for k in rng.randi_range(1, 3):
+					var name := "beach_rock" if rng.randf() > 0.35 else "rock_small"
+					var big := k == 0 and rng.randf() < 0.5
+					var sc := VA.fit_scale(name, -1.0, rng.randf_range(0.85, 1.2) if big else rng.randf_range(0.45, 0.9))
+					var at := Vector2(x + rng.randf_range(0.2, 0.85), y + rng.randf_range(0.15, 0.85))
+					var ground := _ground_mesh.ground_y(at.x, at.y) if _ground_mesh else _lift(Vector2i(x, y))
+					var sink := VA.aabb(name).position.y * sc
+					_add_asset(by_asset, name + SHADOWLESS, _xf(Vector3(at.x, ground - sink - 0.05, at.y), rng.randf() * TAU, sc))
+
+
 ## Now and then a rock stands in the deep water at the foot of a cliff, half against it, in the cliff's own rock
 ## (its texture and colour, CLIFF_LOOKS): rounded boulders breaking the surface. Clear of boats, docks and fishing spots.
 const CLIFF_ROCKS := ["rock_big", "beach_rock"]
@@ -1726,6 +1749,7 @@ func _build_scatter() -> void:
 	for i in 2:
 		_multimesh(VP.flowers(i), _plants_off_paving(VP.flowers(i), flowers[i]), null, false)
 	_shore_rocks(by_asset)
+	_rocky_beaches(by_asset)
 	_cliff_rocks()
 	var pads := Shoreline.lily_pads(map, _ground_mesh.ground_y if _ground_mesh else Callable())
 	if not pads.is_empty():
@@ -1760,7 +1784,12 @@ func _build_scatter() -> void:
 		var key := "%s:%d" % [style, mask]
 		if not garden_fences.has(key):
 			garden_fences[key] = {"style": style, "mask": mask, "transforms": []}
-		garden_fences[key]["transforms"].append(_xf(tile_pos(p)))
+		var at := tile_pos(p)
+		if FenceModels.PLINTHS.has(style) and Elev.ramp_dir(map, p) == Vector2i.ZERO:
+			# a plinthed run stays level across paving and the raised grass: it stands at the grass's height everywhere,
+			# its sunk foot reaching down to the paving
+			at.y += Terrain.LIFT - _grass_lift(p)
+		garden_fences[key]["transforms"].append(_xf(at))
 	for entry in garden_fences.values():
 		_multimesh(FenceModels.tile(entry["style"], entry["mask"]), entry["transforms"], null, false)
 	var lx := []

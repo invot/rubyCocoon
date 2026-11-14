@@ -159,6 +159,8 @@ class Kit:
 				mat = VT.color_material()
 			elif key == "glow":
 				mat = VT.glow_material()
+			elif key == "glass":
+				mat = load("res://scripts/gfx/window_glass.gd").material()
 			else:
 				mat = VT.kit_material(key)
 			m.surface_set_material(m.get_surface_count() - 1, mat)

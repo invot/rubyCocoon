@@ -22,10 +22,11 @@ Only extracted, fitted fence sections are redistributed in `assets/props/`.
 - Source: https://sketchfab.com/3d-models/iron-fence-ef5bdd2f8125412784d1992ba2f5c83b.
 - Embedded license: **CC BY-NC-SA 4.0**,
   http://creativecommons.org/licenses/by-nc-sa/4.0/.
-- Changes: one ornamental panel, its plinth and two capped piers extracted from
-  the display kit and combined, fitted to a tile and made 1.0 unit high; roughness
-  adapted to the existing scenery materials. Corners use joined half sections.
-  The supplied license includes noncommercial and share-alike conditions.
+- No longer used in the game (2026-11-14): the iron fence is now built by
+  `tools/import_fences.gd` from the Low Poly stone fence below (its upper half,
+  recoloured a warm grey, as the plinth) and a railing modelled in the script.
+  The earlier version took one panel, its plinth and two capped piers from this
+  kit. The supplied license includes noncommercial and share-alike conditions.
 
 ## Low Poly stone fence on grass
 

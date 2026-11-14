@@ -180,6 +180,7 @@ def generate(args):
               "Static settled start/midpoint/end holds, 120 frames each, Mid/720p. Desktop Mobile remains desktop evidence.",
               "Draws/primitives are renderer totals. Materials/transparent surfaces are conservative source/frustum estimates, not transparent-pass counters.",
               "Texture memory is RenderingServer's process/cache counter at the snapshot, not incremental scene residency; zero means unavailable.", "",
+              "A zero GPU timer means unavailable, especially on Web; it does not mean zero GPU cost.", "",
               "| Runtime / renderer / scene | Max median draws | Max median primitives | Max visible source materials | Max transparent-source surfaces | Max texture counter MiB | Max median GPU ms | Max p95 frame ms |",
               "|---|---:|---:|---:|---:|---:|---:|---:|"]
     for filename in args.rendered:

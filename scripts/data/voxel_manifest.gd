@@ -64,6 +64,7 @@ const ASSETS := {
 	"lamp": "res://assets/props/lamp.res",
 	"tomb_2": "res://assets/props/tomb_2.res",
 	"iron_fence": "res://assets/props/iron_fence.res",
+	"iron_fence_base": "res://assets/props/iron_fence_base.res",
 	# the Gearhart robots (tools/import_psx_robots.gd): facing +x like the beasts
 	"robot_clockwork": "res://assets/robots/robot_clockwork.res",
 	"robot_steam": "res://assets/robots/robot_steam.res",

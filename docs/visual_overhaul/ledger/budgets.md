@@ -44,6 +44,8 @@ Static settled start/midpoint/end holds, 120 frames each, Mid/720p. Desktop Mobi
 Draws/primitives are renderer totals. Materials/transparent surfaces are conservative source/frustum estimates, not transparent-pass counters.
 Texture memory is RenderingServer's process/cache counter at the snapshot, not incremental scene residency; zero means unavailable.
 
+A zero GPU timer means unavailable, especially on Web; it does not mean zero GPU cost.
+
 | Runtime / renderer / scene | Max median draws | Max median primitives | Max visible source materials | Max transparent-source surfaces | Max texture counter MiB | Max median GPU ms | Max p95 frame ms |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | editor / forward_plus / coast_battle | 223.0 | 141258 | 48 | 26 | 251.94 | 0.717 | 1.586 |
@@ -81,6 +83,7 @@ Texture memory is RenderingServer's process/cache counter at the snapshot, not i
 
 One settled pass establishes this fixture's counts and observed costs, not sustained thermal stability.
 A71 sustained stability and Mid-profile device-loss findings remain separately recorded in 010c/011.
+
 | Device / renderer / profile / scene | Max median draws | Max median primitives | Materials | Transparent-source surfaces | Texture counter MiB | Max median GPU ms | Max p95 frame ms |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | SM-A715F / mobile / min 540p / coast_battle | 321.0 | 81464 | 48 | 26 | 99.82 | 20.962 | 47.788 |

@@ -580,7 +580,7 @@ static func _spans(t: Array, x0: float, x1: float) -> bool:
 static func _triangles(m: ArrayMesh) -> Array:
 	var out := []
 	for si in m.get_surface_count():
-		var role := String((m.surface_get_material(si) as StandardMaterial3D).resource_name)
+		var role := String(m.surface_get_material(si).resource_name)
 		var arr := m.surface_get_arrays(si)
 		var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 		var idx = arr[Mesh.ARRAY_INDEX]
@@ -900,6 +900,9 @@ static func _skin(mi: MeshInstance3D, m: ArrayMesh, skin: Array, locked: bool) -
 	var parts := {"shell": skin[0], "roof": skin[1], "trim": skin[2], "door": skin[3], "extras": skin[4]}
 	for s in m.get_surface_count():
 		var base := m.surface_get_material(s) as StandardMaterial3D
+		if base == null:
+			# (the window glass is the shared sky-reflecting glass, window_glass.gd: no skin of its own)
+			continue
 		var role := String(base.resource_name)
 		if role == "window_frame":
 			var frame_key := "window_frame:" + String(skin[2])

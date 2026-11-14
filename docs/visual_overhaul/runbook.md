@@ -507,6 +507,7 @@ matched native/phone/web frame and loading traces, texture/export sizes, and bef
 011 then accepts budgets measured on that engine. A beta-only feasibility report does not finish migration.
 
 ### 011 · P11: measured budgets and the `vo-budget` test
+**Status:** done, 14 November 2026; user approved cache/limits, promoted with 8/8 focused main checks. See [report](011-budgets.md) and [budgets](ledger/budgets.md). Performance debt remains explicit.
 **Approval:** numbers. **Needs:** 005–010 and adopted 010c. Existing 4.7 budget tooling/results stay provisional until remeasured on the adopted engine.
 **Do:**
 - From the improved numbers, write `ledger/budgets.md`: per scene and renderer, the draw calls, distinct materials, triangles in view, texture MB, transparent draws and frame ms. Give a target per hardware class (30 fps minimum class, 60 fps mid class and PC), with headroom for the art phases.

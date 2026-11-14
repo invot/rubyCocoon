@@ -53,7 +53,22 @@
     overlay.insertBefore(panel, bar);
     panel.append(label, bar);
     bar.setAttribute('aria-label', 'Downloading Ruby Cocoon');
-    let captionIndex = 0, slideIndex = 0, active = 0, stopped = false, swapping = false, seenVisible = false;
+    let captionIndex = 0, active = 0, stopped = false, swapping = false, seenVisible = false;
+    let remaining = [];
+    function nextSlide(previous) {
+        if (!remaining.length) {
+            remaining = library.slides.map((_, index) => index);
+            for (let i = remaining.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+            }
+        }
+        if (remaining.length > 1 && remaining[remaining.length - 1] === previous) {
+            [remaining[0], remaining[remaining.length - 1]] = [remaining[remaining.length - 1], remaining[0]];
+        }
+        return remaining.pop();
+    }
+    let slideIndex = nextSlide(-1);
     const dotFrames = ['   ', '.  ', '.. ', '...'];
     let dotIndex = 0;
     function setCaption() {
@@ -62,7 +77,7 @@
         dots.textContent = dotFrames[dotIndex];
     }
     setCaption();
-    pictures[0].src = 'loading/' + library.slides[0];
+    pictures[0].src = 'loading/' + library.slides[slideIndex];
     pictures[0].className = 'rc-slide rc-active';
     pictures[0].style.animation = 'rc-zoom 12.5s linear forwards';
     const hidden = node => !node || getComputedStyle(node).display === 'none' || getComputedStyle(node).visibility === 'hidden';
@@ -93,6 +108,7 @@
         if (sync() || swapping || library.slides.length < 2) return;
         swapping = true;
         const incoming = pictures[1 - active];
+        const candidate = nextSlide(slideIndex);
         incoming.onload = () => {
             if (!stopped) {
                 incoming.style.animation = 'none';
@@ -101,12 +117,12 @@
                 incoming.className = 'rc-slide rc-active';
                 pictures[active].className = 'rc-slide';
                 active = 1 - active;
+                slideIndex = candidate;
             }
             swapping = false;
         };
         incoming.onerror = () => { swapping = false; };
-        slideIndex = (slideIndex + 1) % library.slides.length;
-        incoming.src = 'loading/' + library.slides[slideIndex];
+        incoming.src = 'loading/' + library.slides[candidate];
     }, 10000);
     new MutationObserver(sync).observe(overlay, {attributes: true, childList: true, subtree: true});
 })();

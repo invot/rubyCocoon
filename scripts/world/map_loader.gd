@@ -258,7 +258,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
 		m["cliffs"] = src["cliffs"]
-	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props", "prop_clearance", "shoreline", "style", "town_wall", "palm_groves"]:
+	for setting in ["outskirt_houses", "outskirt_scale", "scenery_houses", "street_props", "prop_clearance", "shoreline", "rocky_beach", "style", "town_wall", "palm_groves"]:
 		if src.has(setting):
 			m[setting] = src[setting]
 	for p in m["pushables"]:

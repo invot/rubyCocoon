@@ -22,17 +22,18 @@ func run(main) -> void:
 	var before_time: float = stage.slideshow.elapsed
 	await main._wait(0.1)
 	_check(stage.slideshow.elapsed > before_time, "slideshow zoom continues while the menu waits")
-	# Verify an actual crossfade and wrap using the same production controller.
+	# Verify an actual crossfade and transition to the randomly queued picture.
 	var art = stage.slideshow
 	while art.back.texture == null and Time.get_ticks_msec() < deadline:
 		await main.get_tree().process_frame
 	art.elapsed = art.HOLD + art.FADE * 0.5
 	art._process(0.0)
 	_check(art.back.modulate.a > 0.4 and art.back.modulate.a < 0.6, "artwork crossfades through half opacity")
-	art.index = art.library().slides.size() - 1
+	var previous_index: int = art.index
+	var queued_index: int = art._next_index
 	art.elapsed = art.HOLD + art.FADE
 	art._process(0.0)
-	_check(art.index == 0, "slideshow wraps to the first artwork")
+	_check(art.index == queued_index and art.index != previous_index, "slideshow advances to its shuffled next artwork without repeating")
 	var menu = UI.stack.back()
 	_check(menu.get_script().resource_path == CAROUSEL and UI.stack.size() == 1, "slideshow keeps the New Game / Load Game carousel")
 	if main._test.get("fixture", "0") == "1":

@@ -13,11 +13,14 @@ const ZOOM := 1.05
 ## lower on screen and their subjects stay clear of the title plaque
 const FOCUS := Vector2(0.5, 0.32)
 static var content: Dictionary = {}
+static var _last_shown := -1
 var index := 0
 var elapsed := 0.0
 var front: Slot
 var back: Slot
 var _requested := ""
+var _next_index := -1
+var _remaining: Array[int] = []
 ## the real clock at the last frame (µs): the zoom follows real time, so it keeps a steady pace even while a map being
 ## built (the loading screen) makes frames arrive unevenly
 var _clock := -1
@@ -67,6 +70,8 @@ func _ready() -> void:
 			front = image
 		else:
 			back = image
+	index = _pick_next(_last_shown)
+	_last_shown = index
 	front.texture = load(ART_DIR + library().slides[index])
 	back.modulate.a = 0.0
 	_request_next()
@@ -74,8 +79,21 @@ func _ready() -> void:
 
 
 func _request_next() -> void:
-	_requested = ART_DIR + library().slides[(index + 1) % library().slides.size()]
+	_next_index = _pick_next(index)
+	_requested = ART_DIR + library().slides[_next_index]
 	ResourceLoader.load_threaded_request(_requested)
+
+
+## Show every picture once per shuffled pass. New screens and pass boundaries cannot immediately repeat.
+func _pick_next(previous: int) -> int:
+	if _remaining.is_empty():
+		_remaining.assign(range(library().slides.size()))
+		_remaining.shuffle()
+	if _remaining.size() > 1 and _remaining.back() == previous:
+		var alternate := _remaining[0]
+		_remaining[0] = _remaining[-1]
+		_remaining[-1] = alternate
+	return _remaining.pop_back()
 
 
 func _process(_delta: float) -> void:
@@ -97,7 +115,8 @@ func _process(_delta: float) -> void:
 		front.zoom = back.zoom
 		back.texture = null
 		back.modulate.a = 0.0
-		index = (index + 1) % library().slides.size()
+		index = _next_index
+		_last_shown = index
 		elapsed -= HOLD
 		_request_next()
 

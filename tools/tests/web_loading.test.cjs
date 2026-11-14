@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../web_loading.js'), 'utf8');
 const library = JSON.parse(fs.readFileSync(path.join(__dirname, '../../assets/loading/slideshow.json')));
-function fixture(initiallyVisible = true) {
+function fixture(initiallyVisible = true, random = () => 0.5) {
     const nodes = {};
     const timers = new Map();
     const cleared = [];
@@ -25,6 +25,7 @@ function fixture(initiallyVisible = true) {
     let observer;
     vm.runInNewContext(source, {
         window: {RC_LOADING: library},
+        Math: Object.assign(Object.create(Math), {random}),
         document: {head: new Element('head'), getElementById: id => nodes[id], createElement: tag => new Element(tag)},
         getComputedStyle: n => n,
         setInterval: (fn, ms) => {timers.set(ms, fn); return ms;},
@@ -33,11 +34,28 @@ function fixture(initiallyVisible = true) {
     });
     return {nodes, timers, cleared, observe: () => observer(), images: nodes.status.children.filter(n => n.tag === 'img')};
 }
-test('real library contains ten separate available landscape pictures', () => {
-    assert.equal(library.slides.length, 10);
-    assert.equal(new Set(library.slides).size, 10);
+test('real library contains sixteen separate available landscape pictures', () => {
+    assert.equal(library.slides.length, 16);
+    assert.equal(new Set(library.slides).size, 16);
     for (const name of library.slides) assert.ok(fs.existsSync(path.join(__dirname, '../../assets/loading', name)));
     assert.ok(library.captions.length >= 20);
+});
+
+test('random first slides, complete shuffled passes, and no repeats at pass boundaries', () => {
+    const run = fixture(true, () => 0);
+    const other = fixture(true, () => 0.999);
+    assert.notEqual(run.images[0].src, other.images[0].src);
+    const seen = [run.images[0].src];
+    for (let i = 1; i < library.slides.length * 3; i++) {
+        run.timers.get(10000)();
+        const incoming = run.images[i % 2];
+        incoming.onload();
+        assert.notEqual(incoming.src, seen[seen.length - 1]);
+        seen.push(incoming.src);
+    }
+    for (let pass = 0; pass < 3; pass++) {
+        assert.equal(new Set(seen.slice(pass * library.slides.length, (pass + 1) * library.slides.length)).size, library.slides.length);
+    }
 });
 test('no title, rotating game captions, and engine-owned progress', () => {
     const {nodes, timers} = fixture();

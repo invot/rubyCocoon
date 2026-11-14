@@ -1,6 +1,6 @@
 # 011 — measured budgets on adopted beta3
 
-**14 November 2026: review candidate; ground-cache approval pending.** 010c and
+**Done, 14 November 2026.** The user approved the ground-cache comparison and measured limits; they are promoted and main-checkout verification passes. 010c and
 007 are complete. The earlier 4.7 experiments below remain historical evidence;
 they are not relabelled as beta3 measurements. Hardware requirements are unchanged.
 
@@ -22,7 +22,7 @@ epoch. Two shape keys are added and two retired; 18 matching libraries differ in
 index/topology data. Equal-length paired vertex/normal arrays compare identically;
 that does not establish equivalence for changed-size arrays or new shapes.
 No textures are regenerated or smoothed. Original files are preserved in
-`original-ground.tar`. Production ground is unchanged pending screenshot review.
+`original-ground.tar`. The validated 32-shape cache is now promoted. The two retired cache files and previous ledger are backed up in `main-before-promotion.tar`; `promotion.json` records the accepted file hashes.
 
 Before/after real-camera views are under `build/shots/vo/011/beta3-ground-01/`.
 Direct review finds the sampled Cove ground/cliffs, Coastal Path and Rue street
@@ -58,7 +58,8 @@ visually identical.
   files/report are archived, benchmark uninstalled, player package path unchanged.
   This is one-pass fixture evidence, not a new sustained stability certification.
 
-The candidate ledger is `beta3-20261114-01/candidate-ledger/`. It records per-scene
+The accepted ledger is [ledger/budgets.md](ledger/budgets.md), with schema-2 limits in
+`ledger/budgets.json`; the isolated candidate remains preserved. It records per-scene
 renderer draws/primitives, conservative source material/transparency counts,
 process/cache texture counters, frame/GPU costs and hashed provenance. Actual
 transparent-pass draw counts are unavailable through the exposed Godot counters;
@@ -88,14 +89,28 @@ negative case; its raw rejection is retained and the corrected four-case check
 passes (`guard-probes-02/results.json`). All eight isolated quick/budget/inventory/ground checks pass (48 seconds); the
 Python town checker reports zero problems. Do not describe this as a full-suite pass.
 
-## Review checkpoint
+## Acceptance and current-checkout verification
 
-Approve the concrete ground-cache comparison and measured limits before promotion.
-This pause follows AGENTS.md: "Pause for screenshot approval when game visuals
-change"; compiled exports will use the refreshed ground geometry. Once approved,
-copy the validated cache/ledger, run the current checkout's focused checks and
-record final acceptance. Do not start 012 or accept added art cost meanwhile.
+The user approved the concrete comparison and budgets on 14 November 2026.
+Promotion first verified that the terrain generator and original production cache
+still matched the reviewed source; it backed up the old cache/ledger and copied
+only the accepted 32 ground shapes, index and derived budget files. No textures,
+smoothing records, player data, renderer/preset policy or unrelated edits changed.
 
+The main import is clean. Through `server.py`'s test wrapper, all **8/8** focused
+checks pass in **53 seconds**: scripts, data, maps, beasts, vo-budget,
+vo-budget-touch, budget-inventory and ground. Five Python evidence-boundary tests
+pass, the Python town checker reports zero problems, and diff whitespace checks
+pass. These are focused results, not a rerun of the known failing full suite.
+Main evidence: `main-import.json`, `main-checks.json`, `main-test-logs/` and
+`promotion.json` under `beta3-20261114-01/`. A real-window main capture is retained
+as `build/shots/vo/011/beta3-ground-01/main-approved-cove.png`.
+
+**011 is complete. Next is 012, movement core.** Every later step must cite the
+ledger and affected scene/profile, run both structural budget profiles, and
+remeasure the target before accepting visual cost. The A71 frame-rate debt and
+historical Mid-profile device loss remain limitations; no added outdoor art cost
+is authorized by passing the guard.
 
 ---
 
@@ -224,5 +239,6 @@ Hold the shared resource lock for phone/native/export work. Do not run Blender o
 Claude can independently prepare the [isolated 030 rock candidate](claude-030-candidate-handoff.md).
 Heavy Blender jobs wait for the same lock; no runtime integration or published-art edits are authorized there.
 
-Do not mark 011 complete yet. Actual rendered tables, renderer-export coverage, guard validation and A71
-stability/performance disposition are still required. Budget guard success will not certify the frame targets.
+At this 13 November checkpoint, rendered tables, export coverage, guard validation and A71 disposition
+were still open. The 14 November acceptance above supersedes this continuation note. Budget guard
+success still does not certify the frame targets.

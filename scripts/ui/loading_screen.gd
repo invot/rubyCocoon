@@ -18,7 +18,6 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	theme = UIKit.make_theme()
 	slideshow = Slideshow.new()
-	slideshow.index = randi() % Slideshow.library().slides.size()
 	add_child(slideshow)
 	# a bar along the bottom: the destination and a playful status above a thin gem progress bar
 	panel = UIKit.panel()

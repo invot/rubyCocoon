@@ -627,11 +627,16 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Fences** use the supplied iron, wooden picket and stone models, with their display lawns removed.
   Low wood fences mark nature-route boundaries; wood and stone enclose front lawns and planted back gardens
   around rural houses, with two-tile gates aligned to their doors. City-center houses and over-water shacks
-  retain their compact street and dock frontages. Bellerive's park and Gravenmoor's cemetery use the supplied
-  ironwork; the quay's stone balustrades remain. `scripts/gfx/fence_models.gd` joins sections at corners and
+  retain their compact street and dock frontages. Bellerive's park and Gravenmoor's cemetery use the iron
+  fence; the quay's stone balustrades remain. `scripts/gfx/fence_models.gd` joins sections at corners and
   junctions through the existing scenery batches: stone walls join at their full size (the through run reaches across
   the turned arms, which stop at its faces), and so does the picket fence, so its corners keep full-size pickets; the
-  iron fence's bends and junctions are full-size half sections sharing one post at the tile's centre (`POSTED`). Every end that meets nothing, including where a run reaches a cliff's edge, is closed with its own face, so no
+  iron fence's railing bends and junctions are full-size half sections sharing one post at the tile's centre (`POSTED`).
+  The iron fence is cozy and stout: a low plinth cut from the stone fence's upper half, its stone a warm grey, joined
+  like the stone wall (`iron_fence_base`), under a thick-barred railing with ball finials on stone piers level with the
+  plinth's top (their cobbles at the plinth's own size), the bottom rail resting along both (`iron_fence`, built by `tools/import_fences.gd`; one shared texture atlas). Its foot is sunk below
+  the ground and every run stands at the grass's height, so it stays level where it crosses from paving onto the
+  raised turf (`SINK`, `PLINTHS`). Every end that meets nothing, including where a run reaches a cliff's edge, is closed with its own face, so no
   fence shows its inside. A run carries on only between tiles whose ground meets level. Fences keep their painted shading and normal lighting but
   neither cast nor receive shadow maps, avoiding dark patches on the thin rails and pickets.
   The picket fence wears the game's one shared wood (`voxel_textures.gd` `WOOD` on the kit's plank grain,
@@ -762,7 +767,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   godot --headless --path . --import
   ```
 - **Exterior windows** use `scripts/gfx/cartoon_windows.gd`: broad bevelled surrounds, bowed caps on tall windows,
-  deep sills with brackets, thick pane divisions and painted blue glass with bold glints, inspired by the supplied
+  deep sills with brackets, thick pane divisions and opaque glass that reflects the sky (`scripts/gfx/window_glass.gd`,
+  `window_glass.gdshader`: a soft blue sky with painted clouds from `assets/textures/surfaces/glass_sky.png`, baked by
+  `python tools/build_glass_texture.py`, and slim glints, all shifting with the reflected view so they shimmer as the
+  camera moves; never a room behind it), inspired by the supplied
   window packs listed in `licenses/window_references.md`. House surrounds keep their town's trim colour; shops keep
   their display bays, shutters, awnings and signs. Stone arenas, including Bellerive's, instead have round masonry
   arches with wedge stones, a large keystone, stone mullions and stone sills coloured from their walls. Kelpwick's
@@ -1090,7 +1098,11 @@ mounted owl and its rider.
   at its end. So all of it can be reached with taps alone. The
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
-- The title menu appears immediately over ten detailed landscape scenes (`scripts/ui/art_slideshow.gd`).
+- The title menu appears immediately over sixteen detailed landscape scenes (`scripts/ui/art_slideshow.gd`),
+  including Gearhart's meeting, merging, a Beast Center visit, trainer combat, Grubbit hatching in its cracked egg,
+  and a flute song. The trainer battle uses the corrected turtle facing its opponent.
+  Title, in-game loading and web loading shuffle all sixteen pictures for each pass, with a random first image
+  and no immediate repeats between passes. In-game screens also avoid reopening on the previous screen's last image.
   Pictures zoom slowly and smoothly by five percent (drawn at sub-pixel positions, so the zoom never steps a pixel
   at a time) and crossfade over two and a half seconds; each new scene begins ten seconds after the last. Artwork
   fills the screen without stretching, cropping gently on wider phones; the crop and zoom centre a third of the way
@@ -1408,7 +1420,9 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
     in its long grass), where Miss Odile feeds them candy corn; the arena's forecourt is fenced off from the river, so
     the way there is through the park. The waterfront has a continuous boardwalk at least two tiles deep, flush against the stone retaining wall,
     with stone stairs and matching side parapets starting south of the quay balustrade. Lamps sit within continuous
-    wall sections, garden fences end in capped posts, and the eastern shoreline is fenced below the arena.
+    wall sections, garden fences end in capped posts, and the eastern shoreline is fenced below the arena. Beside
+    the arena the quay's wall drops to a narrow rocky beach at sea level that nothing leads down to (the map's
+    `"rocky_beach": [[x, y, w, d]]`: sand strewn with beach rocks, scenery only, `world.gd _rocky_beaches`).
     Crates and open boxes sit against the retaining wall, leaving two clear dock rows and the stairs accessible.
     The steamboat pier runs straight south, two tiles wide, without a crosswise landing.
     Boat berths leave clearance from docks and one another, including paddle wheels and sail booms. The eastern dock ends at a second fishing shack standing over the water,

@@ -357,7 +357,7 @@ static func _window(k: VB.Kit, p: Vector3, t: Vector3, n: Vector3, w: float, h: 
 	var up := Vector3.UP
 	var r := w / 2.0
 	var spring := h - r
-	_arch_fill(k, "color", p + n * 0.012, t, n, w, spring, GLASS, FANLIGHT)
+	_arch_fill(k, "glass", p + n * 0.012, t, n, w, spring, GLASS, FANLIGHT)
 	var g := p + n * 0.03
 	VB._beam(k, "color", g, g + up * (h - 0.02), 0.04, SASH)
 	VB._beam(k, "color", g - t * r + up * spring, g + t * r + up * spring, 0.05, SASH)
