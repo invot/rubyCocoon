@@ -42,8 +42,8 @@ four quick checks pass; no compression profile is adopted. See the results repor
 **007: alpha and overdraw.** [006's batched scenery experiments](006-scenery.md) are complete:
 keep 8×8 batches, preserve recentered LOD data and cover pad swell; no experimental visual change adopted.
 Phone/Web results and remaining performance limits are recorded in that report.
-[007's desktop checkpoint](007-alpha-overdraw.md) retains existing rendering; phone evidence and temporary-app
-cleanup await a working ADB connection. Recover its report before starting another phone package.
+[007's report](007-alpha-overdraw.md) records the recovered invalid attempt, accepted razr
+comparisons and benchmark cleanup. It closes as a measured no-op; existing rendering is retained.
 [008b's approved indoor integration](008b-integration.md)
 and film cost experiment are complete; films retain their lighting. See [Claude's returned evidence](claude-008b-cost-return.md).
 [008a diagnosis](008-shadow-budget.md) retains its desktop/observation limits.

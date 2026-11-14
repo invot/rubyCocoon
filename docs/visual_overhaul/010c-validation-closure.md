@@ -1,6 +1,7 @@
-# 010c remaining validation
+# 010c validation closure
 
-Done, 13 November 2026. Continuation of the approved beta3 cutover;
+Done; input and Compatibility-background approvals reconfirmed by the user on
+14 November 2026. Continuation of the approved beta3 cutover;
 [parent evidence and rollback](010c-godot-48-results.md) remain authoritative.
 
 ## Evidence boundaries
@@ -126,7 +127,7 @@ Mid/720p, Gravenmoor Max/720p, water Mid/540p, battle Max/540p and fishing Min/7
 Town, dark-area, water, combat models and silhouettes remain recognizable and
 closely matched. NPC/foliage animation and stochastic scenery differ between
 captures. A Compatibility house background is purple on 4.7 and black on beta3;
-this visible difference is recorded for review, not silently approved. Sampled
+this visible difference was explicitly approved by the user. Sampled
 background: 4.7 Forward+ (12,9,16), Mobile (12,12,17), Compatibility (55,37,72);
 beta3 Compatibility (7,3,11). Beta3 brings Compatibility in line with the other
 renderers; the user approved it on 13 November 2026. Contact
@@ -166,7 +167,7 @@ The user reports the requested A71 touch exercise worked. The first native
 journal independently confirms title/creator A/B transitions only. The follow-up
 session has no journal available and the phone is locked at collection; retain
 the user's observation separately from instrumented verification. The physical
-controller is available but has not yet been exercised in this validation.
+controller was subsequently exercised in the Windows session below.
 
 Windows beta3 controller session: `windows-input-01/` (launcher
 `windows_live_input.py`; journal and per-press captures in
@@ -192,7 +193,9 @@ Matched production-compressed Web builds (Compatibility, single-thread, compress
 loader, streamed music; diagnostic scripts included) ran two route passes each in
 the in-app browser on the desktop host, with a fixed 1280x720 canvas. Accepted
 runs: `web-47-05/` and `web-48-05/`; `web-comparison.py` recomputes
-`web-comparison.json` from the raw traces. Attempts `web-47-02`, `web-47-04` and
+`web-comparison.json` from the raw traces. A final independent check recomputed
+every metric in all four pass traces and verified the matched workload/settings
+(`web-trace-validation.json`). Attempts `web-47-02`, `web-47-04` and
 `web-48-04` lost foreground focus (hidden pane) and are invalid, not pooled.
 
 | Scene | 4.7 median / p95 / max, ms | beta3 median / p95 / max, ms | Draws |
@@ -227,5 +230,6 @@ intermittent error cannot be proven absent.
 - Original 007 phone recovery: done separately (see 007-alpha-overdraw.md).
 
 All 010c gates are resolved: the user accepted the remaining evidence on 13 November
-2026 and 010c is done. 011 may now accept budgets measured on beta3, once 007's
-separate phone recovery is closed.
+2026, reconfirmed input/background approval on 14 November, and 010c is done.
+011 is next and may now accept budgets measured on beta3; 007's separate recovery
+is recorded as closed. The 13 suite failures remain explicit limitations.

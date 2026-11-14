@@ -53,6 +53,7 @@ func run(game) -> void:
 	check(GameState.current_slot == -1, "No creates no save")
 	check(UI.stack.back() is UI.ConfirmPrompt and UI.stack.back().lines[0] == "Do you want to continue playing?", "continue asked after declining save")
 	await answer(true)
+	await dad_signs_off("after declining the save")
 	check(UI.stack.is_empty(), "Yes to continue returns to play")
 	main.Phone._save()
 	await main._wait(0.6)
@@ -63,6 +64,7 @@ func run(game) -> void:
 	check(UI.stack.back() is UI.ConfirmPrompt and UI.stack.back().lines[0] == "Do you want to continue playing?", "dismissing card stops on continue prompt")
 	shot("_continue")
 	await answer(true)
+	await dad_signs_off("after saving")
 	check(UI.stack.is_empty(), "continue after save closes the call")
 	var before := FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot))
 	main.Phone._save()
@@ -77,3 +79,19 @@ func run(game) -> void:
 	await main._wait(1.0)
 	check(not main._title_nodes.is_empty(), "No to continue returns to title")
 	print("PHONE SAVE DONE: %d problem(s)" % bad)
+
+
+## Dad's "don't work too hard" after a Yes to keep playing: it shows, and A (twice, past the typewriter) dismisses it.
+func dad_signs_off(label: String) -> void:
+	# (on touch the Yes pill's animation runs first)
+	var deadline := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < deadline and (UI.stack.is_empty() or not UI.stack.back() is UI.DialogBox):
+		await main.get_tree().process_frame
+	await main._wait(0.2)
+	var top = null if UI.stack.is_empty() else UI.stack.back()
+	check(top is UI.DialogBox and "too hard" in " ".join(top.lines), "Dad tells you not to work too hard (%s)" % label)
+	for i in 3:
+		if UI.stack.is_empty() or not UI.stack.back() is UI.DialogBox:
+			break
+		await answer(true)
+		await main._wait(0.2)
