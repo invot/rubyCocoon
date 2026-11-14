@@ -200,7 +200,7 @@ func run(root, opts: Dictionary) -> void:
 		_check(dialog._anchored, "Yes/No question is anchored to the keeper")
 		_check_layout(dialog, "Yes/No")
 		if UI.is_touch():
-			_check(UI.controls._labels["a"].text == "A: Yes" and UI.controls.button_rect("a").size.x > UI.controls.ROUND, "Yes/No retains widened labelled touch buttons")
+			_check(UI.controls._labels["a"].text == "Yes" and UI.controls.button_rect("a").size.x > UI.controls.ROUND, "Yes/No retains widened labelled touch buttons")
 			await _shot(opts, "yes_no")
 			await _touch(UI.controls.button_rect("a" if accepted else "b").get_center())
 		else:

@@ -1,6 +1,6 @@
 # Bushes, hedges, flowers and fruit: artwork candidate
 
-**Status:** **rev_001 approved by the user as the shrub, hedge and flower candidate on 2026-11-13.** **rev_002** (published the same day, for your review) adds the straight hedge middle piece and the fruit bush you asked for. This is preproduction for runbook step 028 (S8: bushes, hedges and flowers). **It is not integrated, and 028 is not complete.** Integration waits for:
+**Status:** **rev_001 approved by the user as the shrub, hedge and flower candidate on 2026-11-13.** **rev_002**, published the same day, adds the straight hedge middle piece and the fruit bush you asked for. **It was approved by the user as the candidate on 2026-11-13 and supersedes rev_001.** This is preproduction for runbook step 028 (S8: bushes, hedges and flowers). **It is not integrated, and 028 is not complete.** Integration waits for:
 - Codex's technical review;
 - steps 011, 022 and 023 (budgets, material presets and the scale sheet);
 - 027's tree integration;
@@ -13,7 +13,7 @@
 | Revision | Published | Folder | Notes |
 |---|---|---|---|
 | rev_001 | 2026-11-13 | `build/art_candidates/shrubs/rev_001/` | First candidate. 4 bushes, 1 hedge and 4 flower clumps, 2 LODs each. `READY.json` lists hashes, counts, scale and provenance. **Approved by the user as the candidate on 2026-11-13** |
-| rev_002 | 2026-11-13 | `build/art_candidates/shrubs/rev_002/` | Adds `hedge_middle`, `bush_E` (fruit bush), `bush_E_picked` and `fruit`. rev_001's nine models are byte-identical; the atlas gains a fruit cell. For your review |
+| rev_002 | 2026-11-13 | `build/art_candidates/shrubs/rev_002/` | Adds `hedge_middle`, `bush_E` (fruit bush), `bush_E_picked` and `fruit`. rev_001's nine models are byte-identical; the atlas gains a fruit cell. **Approved by the user as the candidate on 2026-11-13** |
 
 Published revisions never change. Corrections go in `rev_002` and later revisions.
 

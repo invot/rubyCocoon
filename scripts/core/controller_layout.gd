@@ -65,3 +65,22 @@ static func button_points(layout: String) -> Dictionary:
 	}
 	var p: Array = points.get(layout, points["xbox-one"])
 	return {"stick": p[0], "dpad": p[1], "accept": p[2], "back": p[3], "pause": p[4], "start": p[5]}
+
+
+## Kenney's input prompts (assets/ui/input_prompts/) for a layout's buttons, by what they do here: its d-pad family
+## (with _none / _<way>_outline variants) and the buttons that confirm, back out, open the book and pause.
+static func prompt_icons(layout: String) -> Dictionary:
+	if layout.begins_with("ps"):
+		var menu: Array = {"ps5": ["playstation5_button_options", "playstation5_button_create"],
+			"ps3": ["playstation3_button_start", "playstation3_button_select"]}.get(layout,
+			["playstation4_button_options", "playstation4_button_share"])
+		return {"dpad": "playstation_dpad", "accept": "playstation_button_cross", "back": "playstation_button_circle",
+			"start": menu[0], "pause": menu[1]}
+	if layout in ["switch-pro", "joy-cons", "wii-u-pro", "wii-classic"]:
+		return {"dpad": "switch_dpad", "accept": "switch_button_b", "back": "switch_button_a",
+			"start": "switch_button_plus", "pause": "switch_button_minus"}
+	if layout == "xbox-360":
+		return {"dpad": "xbox_dpad", "accept": "xbox_button_a", "back": "xbox_button_b", "start": "xbox_button_start",
+			"pause": "xbox_button_back"}
+	return {"dpad": "xbox_dpad", "accept": "xbox_button_a", "back": "xbox_button_b", "start": "xbox_button_menu",
+		"pause": "xbox_button_view"}

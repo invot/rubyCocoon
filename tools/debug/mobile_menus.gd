@@ -219,7 +219,7 @@ func _verify(opts: Dictionary) -> void:
 	await main._wait(0.3)
 	var prompt = UI.stack.back()
 	_check(prompt is UI.ConfirmPrompt and UI.stack.size() == 1, "question and direct answers share one prompt")
-	_check(UI.controls._labels["a"].text == "A: Yes" and UI.controls._labels["b"].text == "B: No", "pad labels show A: Yes and B: No")
+	_check(UI.controls._labels["a"].text == "Yes" and UI.controls._labels["b"].text == "No", "pad pills show Yes and No beside A and B")
 	_check(not UI.controls.button_rect("a").grow(UI.controls.TOUCH_SLOP).intersects(UI.controls.button_rect("b").grow(UI.controls.TOUCH_SLOP)), "wide A/B hit areas stay separate")
 	await _shot(opts, "yes_no")
 	await _tap(prompt.text_label.get_global_rect().get_center())
@@ -247,7 +247,7 @@ func _verify(opts: Dictionary) -> void:
 		await main.get_tree().process_frame
 	_check(answer == 1, "gamepad A maps directly to Yes")
 	await main._wait(0.3)
-	_check(UI.controls.button_rect("a").size.x == UI.controls.ROUND and UI.controls._labels["a"].text == "A", "normal button shapes and labels return after the prompt")
+	_check(UI.controls.button_rect("a").size.x == UI.controls.ROUND and UI.controls._labels["a"].text == "", "normal button shapes and labels return after the prompt")
 	await _verify_pad_hidden(opts)
 	await _center_menu()
 	await main._wait(0.2)

@@ -13,7 +13,8 @@ game's control prompts) are recoloured and restyled by `tools/build_icons.gd` fr
   See [licence and contributor list](licenses/game-icons.net%20-%20License.txt).
 - *at-icons* 1.6.0 by Valentin Fossati (Voxybuns) and contributors, MIT. See [licence](licenses/at-icons%20-%20MIT.txt).
 - *Input Prompts* 1.5 by [Kenney](https://www.kenney.nl), CC0: the info and arrow flairs, the Switch direction buttons and the Xbox A / B
-  prompts. See [licence](licenses/Kenney%20Input%20Prompts%20-%20License.txt).
+  prompts; the touch pad (Xbox d-pad, A, B and START, and a PAUSE pill made from the START pill and the Pause key), the
+  keyboard strip's keys and the controller illustration's buttons (`assets/ui/input_prompts/`). See [licence](licenses/Kenney%20Input%20Prompts%20-%20License.txt).
 
 **Controller illustrations:** [Controllercons 2.1](https://controllercons.github.io/) by Kieran McClung,
 SIL Open Font License 1.1. Duotone SVGs use a white fill and larger rasterization size for the game UI.

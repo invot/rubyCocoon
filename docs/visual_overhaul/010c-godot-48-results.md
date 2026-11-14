@@ -6,7 +6,8 @@ adoption waiting for the remaining validation checks. The main 4.7 import cache
 was preserved at `build/perf/vo/010c/main-rollback-47/.godot/` before importing
 with 4.8. Main-tree checks pass **19/19**, both exported Windows renderer probes
 pass, and the Python town checker reports zero problems. Broader 010c
-performance/feature acceptance remains open.
+performance/feature acceptance remains open. The [remaining-validation report](010c-validation-closure.md)
+records the current continuation, sustained A71 controls and evidence boundaries.
 The fresh `build/perf/vo/010c/integration-03/project/` candidate explicitly pins
 project features, default editor and CI to **4.8 beta 3**, with Android Swappy mode
 0. It includes the concurrent confirmation-UI work and crash-prevention fixes.

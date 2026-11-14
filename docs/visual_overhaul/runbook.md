@@ -153,7 +153,11 @@ Every step:
 8. **Record:** add a row to `progress.md` with the step, status, date, evidence paths, numbers and remaining defects. Update README.md "Next step".
 9. **Report:** before/after shots, numbers, tests, and the local-model help used, with any answer you overrode. Stop for review when game visuals change; otherwise continue after the checks pass. Commit nothing and create no branches unless you're asked.
 
-`godot` means the local Godot 4.7 executable: resolve its path. Use isolated `--save_dir=res://build/...` and `--prefs_path=res://build/...` every time; never touch player saves.
+`godot` means the selected executable from `python tools/godot_toolchain.py`
+(currently the approved 4.8 beta 3). Historical 4.7 comparisons run only against
+their isolated source/import caches; never reopen the main 4.8 cache with 4.7.
+Use isolated `--save_dir=res://build/...` and `--prefs_path=res://build/...` every
+time; never touch player saves.
 
 ## §5 Approval, revisions and rebuilds
 

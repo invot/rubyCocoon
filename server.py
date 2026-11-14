@@ -7,7 +7,7 @@ long logs and big images.
 
   GET  /bionic/health              whether Bionic's server answers and the model is there
   POST /bionic/run                 {"tool": ..., "params": {...}}, one of:
-    tests  {"names": ["flow", "maps"]}, {"names": "quick"} or {} for everything (6-8 minutes): tools/run_tests.sh's
+    tests  {"names": ["flow", "maps"]}, {"names": "quick"} or {} for everything (serial full runs can exceed 30 minutes): tools/run_tests.sh's
            summary, and for each test that failed the model's two-sentence reading of its log
     shot   {"scene": "world:caccoon#1@2", "args": {"spawn": "entry", "crop": "0.4,0.2,0.8,0.6"},
             "question": "Is there a radiator under the window?"}: a screenshot from the game's test harness (saved
@@ -89,7 +89,9 @@ def tests(params):
         raise ValueError("test names are words like flow or maps-built")
     if not GIT_BASH:
         raise RuntimeError("Git's bash wasn't found: set GIT_BASH")
-    p = _run([GIT_BASH, "tools/run_tests.sh", *names], 1800)
+    # The guarded runner is serial by default. The complete suite exceeds the
+    # old 30-minute wrapper limit; each individual case still has its own guard.
+    p = _run([GIT_BASH, "tools/run_tests.sh", *names], 7200)
     summary = [line for line in p.stdout.splitlines() if line.strip()]
     failures = []
     for line in summary:

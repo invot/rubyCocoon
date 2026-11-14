@@ -1,7 +1,9 @@
 # Godot 4.8 migration assessment
 
-Planning only, 13 November 2026. Step **010c is todo**; no engine, templates,
-imports, game code or completed evidence were changed by this assessment.
+Original assessment, 13 November 2026. The main checkout has since adopted the
+user-approved **4.8 beta 3**; 010c target/feature validation is still in progress.
+See [current evidence and rollback](010c-godot-48-results.md). The assessment below
+records the original migration plan, not the current cutover status.
 
 ## Timing and release gate
 

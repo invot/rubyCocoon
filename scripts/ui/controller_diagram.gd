@@ -1,5 +1,7 @@
 extends Control
-## Read-only callouts around the supplied controller art. Button positions share its 64-unit viewBox.
+## Read-only callouts around the supplied controller art. Button positions share its 64-unit viewBox. Each callout
+## says what the button does over Kenney's icon for it (controller_layout.gd prompt_icons): outlined in near-black,
+## and filled in the gem while it is held.
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Layout = preload("res://scripts/core/controller_layout.gd")
 const HEIGHT := 460.0
@@ -8,6 +10,10 @@ var _texture: Texture2D
 var _labels := {}
 var _image_rect := Rect2()
 var _points := {}
+## each callout's icon: {rect, base, rest, action, shown}
+var _icons := {}
+const ICON := 40.0
+const PROMPTS := "res://assets/ui/input_prompts/"
 
 
 func _ready() -> void:
@@ -19,18 +25,59 @@ func _ready() -> void:
 		layout_id = Controllers.layout
 	_texture = load("res://assets/ui/controllers/%s.svg" % layout_id)
 	_points = Layout.button_points(layout_id)
-	var profile := Layout.describe(layout_id)
-	for entry in [["move", "Move\nD-pad / stick"], ["pause", "Pause\n" + profile.pause],
-		["start", "Book\n" + profile.start], ["accept", "Action / confirm\n" + profile.accept],
-		["back", "Back / run\n" + profile.back]]:
+	var icons := Layout.prompt_icons(layout_id)
+	for entry in [["move", "Move", "dpad", ""], ["pause", "Pause", "pause", "pause"], ["start", "Book", "start", "menu"],
+		["accept", "Action / confirm", "accept", "ui_accept"], ["back", "Back / run", "back", "ui_cancel"]]:
+		var box := VBoxContainer.new()
+		box.alignment = BoxContainer.ALIGNMENT_CENTER
+		box.add_theme_constant_override("separation", 0)
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var label := UIKit.label(entry[1], 32, UIKit.INK)
 		label.add_theme_font_size_override("font_size", UIKit.body_px(32))
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(label)
-		_labels[entry[0]] = label
+		box.add_child(label)
+		var name: String = icons[entry[2]]
+		var rest: String = name + ("_none" if entry[0] == "move" else "_outline")
+		var icon := TextureRect.new()
+		icon.texture = load(PROMPTS + rest + ".svg")
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		icon.custom_minimum_size = Vector2(ICON, ICON)
+		icon.self_modulate = UIKit.INK
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(icon)
+		add_child(box)
+		_labels[entry[0]] = box
+		_icons[entry[0]] = {"rect": icon, "base": name, "rest": rest, "action": entry[3], "shown": rest}
 	resized.connect(_layout)
 	_layout()
+
+
+## Lights the icon of whatever is held: the button filled in the gem, or the d-pad with the held way's arm filled.
+func _process(_delta: float) -> void:
+	for id in _icons:
+		var e: Dictionary = _icons[id]
+		var name: String = e["rest"]
+		if id == "move":
+			var way := _held_way()
+			if way != "":
+				name = e["base"] + "_" + way + "_outline"
+		elif Input.is_action_pressed(e["action"]):
+			name = e["base"]
+		if name != e["shown"]:
+			e["shown"] = name
+			var r: TextureRect = e["rect"]
+			r.texture = load(PROMPTS + name + ".svg")
+			r.self_modulate = UIKit.INK if name == e["rest"] else UIKit.ACCENT
+
+
+static func _held_way() -> String:
+	for way in ["up", "down", "left", "right"]:
+		if Input.is_action_pressed("move_" + way) or Input.is_action_pressed("ui_" + way):
+			return way
+	return ""
 
 
 func _layout() -> void:
@@ -42,7 +89,7 @@ func _layout() -> void:
 	for entry in [["move", 0.0, 0.36, 0.0], ["pause", 0.38, 0.26, 0.0],
 		["start", 0.68, 0.32, 0.0], ["accept", 0.0, 0.5, HEIGHT - 78.0],
 		["back", 0.5, 0.5, HEIGHT - 78.0]]:
-		var label: Label = _labels[entry[0]]
+		var label: Control = _labels[entry[0]]
 		label.position = Vector2(w * entry[1], entry[3])
 		label.size = Vector2(w * entry[2], 76.0)
 	queue_redraw()
@@ -53,7 +100,7 @@ func _anchor(button: String) -> Vector2:
 
 
 func _label_edge(id: String, bottom: bool) -> Vector2:
-	var label: Label = _labels[id]
+	var label: Control = _labels[id]
 	return label.position + Vector2(label.size.x / 2.0, label.size.y if bottom else 0.0)
 
 

@@ -18,6 +18,9 @@ var elapsed := 0.0
 var front: Slot
 var back: Slot
 var _requested := ""
+## the real clock at the last frame (µs): the zoom follows real time, so it keeps a steady pace even while a map being
+## built (the loading screen) makes frames arrive unevenly
+var _clock := -1
 
 
 ## One picture, drawn to cover the slideshow at a zoom, without pixel snapping.
@@ -75,9 +78,12 @@ func _request_next() -> void:
 	ResourceLoader.load_threaded_request(_requested)
 
 
-func _process(delta: float) -> void:
-	# A slow map-build frame must not cause a sudden zoom or skip multiple pictures.
-	elapsed += minf(delta, 0.1)
+func _process(_delta: float) -> void:
+	var now := Time.get_ticks_usec()
+	var step := 0.0 if _clock < 0 else float(now - _clock) / 1000000.0
+	_clock = now
+	# (a long stall still moves at most one picture on: the crossfade below waits for the next to load)
+	elapsed += minf(step, 1.0)
 	if back.texture == null and ResourceLoader.load_threaded_get_status(_requested) == ResourceLoader.THREAD_LOAD_LOADED:
 		back.texture = ResourceLoader.load_threaded_get(_requested)
 	if back.texture == null:

@@ -102,8 +102,10 @@ not the source checkout, Godot editor or asset-import cache. Browser play has se
 The Start book keeps the selected input's guide on Settings' right page: keyboard key mappings, screen-button
 meanings, or a matching controller illustration and fixed mappings. Only Controller input shows controller artwork.
 The book has no bottom key strip. Phones and tablets show their on-screen buttons when Screen input is selected.
-Desktop browsers use a keyboard or controller guide instead of the touch pad, even on touchscreen computers. The guide
-uses bundled Noto Sans Symbols for arrow-key glyphs in desktop and Web builds. It also appears on the web title menu,
+Desktop browsers use a keyboard or controller guide instead of the touch pad, even on touchscreen computers. The
+keyboard strip and the controller illustration's callouts use Kenney's *Input Prompts*: each key or button is outlined
+in near-black, and fills with the gem while it is held (the controller's d-pad fills the arm being held). The
+controller callouts show the connected controller's own buttons (Xbox, PlayStation or Switch). It also appears on the web title menu,
 character creator and Load Game screen. Web builds have no Quit application
 button; **Quit to title** in Settings still returns to the title menu.
 
@@ -1039,7 +1041,7 @@ mounted owl and its rider.
     bottom-centre bubble without a chevron. Written signs, descriptions and system prompts use the shared dark
     window with white text, without speech sounds. Prefer visible changes and contextual NPC speech to narration;
     keep written explanations only where they help the player act. On desktop A picks the outlined Yes/No answer and B
-    answers No; touch keeps A: Yes / B: No on the widened pad buttons, and a phone whose pad is hidden
+    answers No; touch keeps Yes / No in gem pills beside the A and B buttons, and a phone whose pad is hidden
     (a controller or keyboard in use) shows the desktop answers instead.
     Someone speaking through a closed door gets a white bubble anchored to that door: above its top when there is
     room, or below its bottom near the top edge of the screen. The entire bubble and name plate stay in the safe
@@ -1056,15 +1058,18 @@ mounted owl and its rider.
 - **Save previews**: Load Game shows the selected slot's screenshot from its latest save beside the list, and keeps
   it visible when choosing Load, Copy or Delete. Saves from before screenshots were stored show a placeholder
   until saved again. Copying a save includes its screenshot.
-- **Phones**: a joined cross-shaped d-pad with raised arrows, for getting about (hold B to run), battles and the flute
-  game alike. Each arm answers in its own quarter of the pad (a wedge from the middle out past its arrow), and only one
-  arrow is held at a time, so a thumb on the line between two arms still walks one of the four ways. With it, glossy
-  round A and B buttons and Start / Pause pills, with no borders or blur: the d-pad's cross is the windows' off-white
-  with dark arrows, and A, B, Start and Pause are buttons in the gem with white letters. A held button deepens; a held
-  arm of the d-pad fills with the gem and its arrow turns white. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
+- **Phones**: the on-screen pad uses Kenney's *Input Prompts* (CC0; `assets/ui/input_prompts/`, copied from the pack
+  by `python tools/input_prompts/build.py <pack>`): the Xbox cross d-pad for getting about (hold B to run), battles and
+  the flute game alike, round A and B buttons, and START / PAUSE pills (PAUSE is the START pill with the lettering of
+  Kenney's Pause key). Each arm answers in its own quarter of the pad (a wedge from the middle out past its edge), and
+  only one way is held at a time, so a thumb on the line between two arms still walks one of the four ways. The SVGs
+  are recoloured by `scripts/ui/prompt_tint.gdshader`, with soft shadows and no borders or blur: the d-pad is the
+  windows' off-white, and A, B, Start and Pause are the gem with white letters. A held button deepens; the d-pad's arm
+  for the way being held (by touch, keys or a controller) fills with the gem. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
   and Start closes the book. A little overlap with the book is allowed; the Map page spreads its towns clear of the
-  d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions widen A and B with an animation into
-  **A: Yes** and **B: No**: each answers directly, without a separate choice list. Long questions show **A: Next**
+  d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions slide A and B left and grow each into a gem pill
+  with the button (white, its letter showing the gem) at its left and **Yes** or **No** in white to its right: each
+  answers directly, without a separate choice list. Long questions show **A: Next**
   until their last page. Ordinary mobile choice lists sit toward the center, show several full-size options,
   and scroll as Up/Down moves the selection; each visible option can also be tapped.
   Anything that runs past one of the book's pages gets a scroll bar beside it with an **▲** button at its top and a
@@ -1087,8 +1092,6 @@ mounted owl and its rider.
   under it (DEMO there in demos). It steps up while the shared top bar has a notice. Load Game and the character
   creator hide it while the artwork continues. World, creator, battle and book
   scripts load after the title's first draw.
-  The touch pad's faces are painted on a worker thread the first time and kept in `user://touch_pad/` for each gem,
-  so later launches load them straight away (`controls_overlay.gd`).
 - **Music**:
   - The title screen plays *Nerves*.
     It continues through character creation. Browser audio starts after a click, tap or key press;

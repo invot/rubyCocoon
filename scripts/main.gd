@@ -1743,6 +1743,9 @@ func _run_test() -> void:
 		# the command panel played with keys and a touch A (--stop=trainer|target|all|move: stop there for a screenshot)
 		await _battlecmd_test()
 		await _wait(wait)
+	elif scene == "prompt-icons":
+		# Kenney's input prompts: the title's keyboard strip with keys held, or (--touch) the pad's held d-pad arm
+		await load("res://tools/debug/prompt_icons.gd").new().run(self)
 	elif scene == "top-bar":
 		# the top bar's notices outside battle: pickups merging, gold, a place name, a long line (--shots=)
 		await load("res://tools/debug/top_bar_notices.gd").new().run(self)
@@ -2598,7 +2601,7 @@ func _opening_ui_check(film: Node3D) -> int:
 	if UI.is_touch():
 		# only A and B on a phone, looking as they always do: nothing can move in a film
 		var pad: Dictionary = UI.controls._buttons
-		var plain: bool = UI.controls._labels["a"].text == "A" and UI.controls._labels["b"].text == "B" and UI.controls.button_rect("a").size.x == UI.controls.ROUND
+		var plain: bool = UI.controls._labels["a"].text == "" and UI.controls._labels["b"].text == "" and UI.controls.button_rect("a").size.x == UI.controls.ROUND
 		if pad["up"].visible or pad["start"].visible or not pad["a"].visible or not pad["b"].visible or not plain:
 			bad += 1
 			print("FAIL film touch pad: d-pad ", pad["up"].visible, " A ", pad["a"].visible, " label ", UI.controls._labels["a"].text)
