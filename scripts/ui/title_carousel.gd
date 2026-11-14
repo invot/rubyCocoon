@@ -124,11 +124,11 @@ func _layout() -> void:
 	if _down != null:
 		bottom += _down.size.y + ARROW_GAP
 	if UI.controls != null and UI.controls.touch_visible():
-		for id in ["start", "pause"]:
-			var r: Rect2 = UI.controls.button_rect(id)
-			if r.has_area():
-				# (the down arrow too stays above them)
-				bottom = maxf(bottom, get_viewport_rect().size.y - r.position.y + 6.0 + (_down.size.y + ARROW_GAP if _down != null else 8.0))
+		# the whole ladder, ▼ included, stays above Start and Pause's no-tap margin, or taps on it would go to the pad
+		var c = UI.controls
+		var zone: Rect2 = c.cluster_zone(["start", "pause"], c.TOUCH_SLOP + c.NO_TAP_MARGIN)
+		if zone.has_area():
+			bottom = maxf(bottom, get_viewport_rect().size.y - zone.position.y + (_down.size.y + ARROW_GAP if _down != null else 4.0))
 	var top_left := Vector2(cx - PILL.x * 0.5, safe.end.y - bottom - PILL.y)
 	_pill.position = top_left
 	_clip.position = top_left

@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 GODOT = default_godot()
 
 
-def run(attempt):
+def run(attempt, include_diagnostics=False):
     path = ROOT/"export_presets.cfg"
     if not attempt or not all(c.isalnum() or c in "_-" for c in attempt):raise ValueError("Use a plain new attempt")
     out = ROOT/"build/perf/vo/011"/attempt
@@ -34,6 +34,9 @@ def run(attempt):
             clone = f"[preset.{number}]\n\n"+content.replace(f"[preset.{index}.options]",f"[preset.{number}.options]")
             changes = {"name":"VO Export Probe", "custom_features":features, "export_path":exe.as_posix(),
                        "custom_template/debug":template_path(GODOT, "windows_debug_x86_64.exe").as_posix()}
+            if include_diagnostics:
+                excluded = json.loads(re.search(r'^exclude_filter=(.*)$', clone, re.M)[1])
+                changes["exclude_filter"] = ", ".join(x.strip() for x in excluded.split(",") if x.strip() != "tools/*")
             for key,value in changes.items():
                 clone,count=re.subn(r'^'+re.escape(key)+r'=.*$',lambda _:key+"="+json.dumps(value),clone,flags=re.M)
                 if count!=1:raise ValueError("Missing preset field "+key)
@@ -61,6 +64,7 @@ def run(attempt):
             if data["renderer"]!=expected or data["compatibility_build"]!=bool(features):raise ValueError("Wrong export renderer")
             data["executable_sha256"]=hashlib.sha256(exe.read_bytes()).hexdigest()
             data["editor_version"]=engine_version(GODOT).full
+            data["diagnostics_included"]=include_diagnostics
             pack=exe.with_suffix(".pck")
             data["pack_sha256"]=hashlib.sha256(pack.read_bytes()).hexdigest() if pack.exists() else None
             results.append(data)
@@ -72,4 +76,8 @@ def run(attempt):
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--attempt",required=True)
-    run(parser.parse_args().attempt)
+    parser.add_argument("--project",type=Path,default=ROOT)
+    parser.add_argument("--include-diagnostics",action="store_true")
+    args=parser.parse_args()
+    ROOT=args.project.resolve()
+    run(args.attempt,args.include_diagnostics)

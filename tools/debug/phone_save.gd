@@ -72,11 +72,20 @@ func run(game) -> void:
 	await answer(false)
 	check(FileAccess.get_file_as_bytes(GameState.slot_path(GameState.current_slot)) == before, "No preserves existing save bytes")
 	check(main.world.player_pos == start, "answers do not move the player")
+	var asked := Time.get_ticks_msec() + 2000
+	while Time.get_ticks_msec() < asked and (UI.stack.is_empty() or not UI.stack.back() is UI.ConfirmPrompt):
+		await main.get_tree().process_frame
 	await answer(false)
-	# Dismiss Dad's goodbye, including the typewriter reveal.
-	for i in 2:
+	await main._wait(0.3)
+	# Dismiss Dad's goodbye, including the typewriter reveal (only while it shows: a spare A would use the phone again).
+	for i in 3:
+		if UI.stack.is_empty() or not UI.stack.back() is UI.DialogBox:
+			break
 		await answer(true)
-	await main._wait(1.0)
+		await main._wait(0.2)
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline and main._title_nodes.is_empty():
+		await main.get_tree().process_frame
 	check(not main._title_nodes.is_empty(), "No to continue returns to title")
 	print("PHONE SAVE DONE: %d problem(s)" % bad)
 
@@ -89,8 +98,7 @@ func dad_signs_off(label: String) -> void:
 		await main.get_tree().process_frame
 	await main._wait(0.2)
 	var top = null if UI.stack.is_empty() else UI.stack.back()
-	check(top is UI.DialogBox and "too hard" in " ".join(top.lines).replace("
-", " "), "Dad tells you not to work too hard (%s)" % label)
+	check(top is UI.DialogBox and "too hard" in " ".join(top.lines).replace("\n", " "), "Dad tells you not to work too hard (%s)" % label)
 	for i in 3:
 		if UI.stack.is_empty() or not UI.stack.back() is UI.DialogBox:
 			break

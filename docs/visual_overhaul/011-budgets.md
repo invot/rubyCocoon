@@ -1,4 +1,105 @@
-# 011 — measured budgets / A71 stability checkpoint
+# 011 — measured budgets on adopted beta3
+
+**14 November 2026: review candidate; ground-cache approval pending.** 010c and
+007 are complete. The earlier 4.7 experiments below remain historical evidence;
+they are not relabelled as beta3 measurements. Hardware requirements are unchanged.
+
+## Current measurement boundary
+
+`build/perf/vo/011/beta3-20261114-01/` preserves an independent archive of committed
+source `2e7dd36421e6a2ed54acbbd2898349b76d0adc44`, 609 source import sidecars and an
+independently revalidated beta3 import cache. Initial editor import had user-directory/
+headless-editor warnings; the isolated-APPDATA recheck is clean (797 MiB sampled
+peak). A source recheck finds 148 line-ending-only differences against the checkout,
+with no actual differences in world, graphics, data or map source. Concurrent title
+and phone-save edits remain untouched. All measured jobs share the OS resource lock
+and exporters/native tests retain the memory guard.
+
+The existing shipped ground was stale, so source and compiled exports could use
+different geometry. The isolated bake regenerates 32 shapes, generator
+`d62622bf8c32a0047becafabb3018beb`, replacing the old `d1d404b2c75ff02756e1451aae47a63d`
+epoch. Two shape keys are added and two retired; 18 matching libraries differ in
+index/topology data. Equal-length paired vertex/normal arrays compare identically;
+that does not establish equivalence for changed-size arrays or new shapes.
+No textures are regenerated or smoothed. Original files are preserved in
+`original-ground.tar`. Production ground is unchanged pending screenshot review.
+
+Before/after real-camera views are under `build/shots/vo/011/beta3-ground-01/`.
+Direct review finds the sampled Cove ground/cliffs, Coastal Path and Rue street
+closely matched; the moving pink beast is not a ground addition. The local model
+invented an added lamppost; direct inspection confirms it in both views. A first
+array-diff helper used a nonexistent API and timed out; only the corrected
+`ground-diff-02` result is accepted. Selected captures do not prove every map/state
+visually identical.
+
+## Accepted beta3 records
+
+- `beta3-headless-desktop-01` and `beta3-headless-touch-02`: complete whole-subtree
+  structural baselines, reference 16:9 and explicit 2400x1080 20:9 respectively.
+  `beta3-headless-touch-01` was actually 16:9 despite its requested CLI resolution;
+  it is superseded. The diagnostic now explicitly sizes the dummy window.
+- `beta3-forward-01`, `beta3-mobile-01`, `beta3-compat-01`: complete unpaced desktop
+  settled routes, Mid/720p. Desktop Mobile is desktop evidence.
+- `beta3-export-forward-01`, `beta3-export-compat-02`: actual Windows debug exports,
+  with diagnostic scripts included and no renderer command override. They confirm
+  Forward+/Vulkan default and Compatibility/OpenGL dedicated build; preset bytes
+  are restored. Compatibility disables its shader cache. The first Compatibility
+  route lost focus and is excluded. The retry includes title shader precompile.
+- `beta3-web-01`: production compressor, loader and streamed music with diagnostic
+  scripts, default Web Compatibility, fixed 1280x720 canvas, Mid/720p. The complete
+  report and every trace statistic validate with no focus loss/problems. The local
+  collector raced its own report write after saving the result; the retained report
+  was independently validated and browser console read directly before closure.
+  Exit-time PagedAllocator/ObjectDB warnings remain. No script error was observed.
+  Browser GPU timing is unavailable (zero), not a zero-cost measurement.
+- `beta3-a71-min-540-01`: actual default Android Mobile/Vulkan export, no renderer
+  override, matched beta3 templates. A71 completes one settled pass / 153 seconds,
+  zero problems/focus losses; battery 28.6–29.0 C, USB charging. Private benchmark
+  files/report are archived, benchmark uninstalled, player package path unchanged.
+  This is one-pass fixture evidence, not a new sustained stability certification.
+
+The candidate ledger is `beta3-20261114-01/candidate-ledger/`. It records per-scene
+renderer draws/primitives, conservative source material/transparency counts,
+process/cache texture counters, frame/GPU costs and hashed provenance. Actual
+transparent-pass draw counts are unavailable through the exposed Godot counters;
+the source estimate is explicitly labelled rather than presented as that counter.
+Source texture capacity and renderer texture memory remain separate quantities.
+
+A71 Min/540p outdoor snapshot medians are about 50–66 ms, with worst scene GPU
+medians around 54–57 ms. These exceed the 33.333 ms minimum-class frame target and
+26.667 ms work allowance. The goals remain 30 fps minimum class, 60 fps middle
+class/PC, with 20% work reserve; no added outdoor art cost is accepted. A passing
+structural guard freezes cost and does not certify frame rate. The older A71 Mid
+Vulkan device-loss findings and beta3 sustained controls remain separate evidence.
+
+## Guard and verification
+
+The schema-2 guard pins the engine hash and ground generator as well as the two
+scene/profile ceilings. It rejects stale ground and missing metrics; tests never
+regenerate reviewed limits. Raw render summaries are validated against every trace.
+The recorder now uses the memory guard and isolated APPDATA, and can measure an
+independent project. Export probes can include diagnostics in an isolated project.
+
+Five Python evidence-boundary tests pass. In isolated Godot integration probes,
+normal limits pass; zero geometry allowance, wrong engine and wrong ground each
+return exit code 1 with the expected budget failure. Probe limits are restored
+byte-for-byte. The first probe checker incorrectly expected exit zero on a
+negative case; its raw rejection is retained and the corrected four-case check
+passes (`guard-probes-02/results.json`). All eight isolated quick/budget/inventory/ground checks pass (48 seconds); the
+Python town checker reports zero problems. Do not describe this as a full-suite pass.
+
+## Review checkpoint
+
+Approve the concrete ground-cache comparison and measured limits before promotion.
+This pause follows AGENTS.md: "Pause for screenshot approval when game visuals
+change"; compiled exports will use the refreshed ground geometry. Once approved,
+copy the validated cache/ledger, run the current checkout's focused checks and
+record final acceptance. Do not start 012 or accept added art cost meanwhile.
+
+
+---
+
+# Earlier provisional work and A71 stability investigation
 
 **In progress, 13 November 2026.** The user asked to advance after the 007 desktop checkpoint;
 007's original-phone evidence remains explicitly open. Do not pretend it passed or silently close it.

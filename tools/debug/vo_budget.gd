@@ -1,6 +1,7 @@
 extends "res://tools/debug/vo_perf.gd"
 ## Settled source-complexity guard; rendered measurements remain separate from headless limits.
 const Inventory = preload("res://tools/debug/budget_inventory.gd")
+const Ground = preload("res://scripts/world/ground_store.gd")
 const TerrainBefore = preload("res://tools/experiments/011/terrain_before.gdshader")
 const TerrainLookup = preload("res://tools/experiments/011/terrain_lookup.gdshader")
 const LIMITS := "res://docs/visual_overhaul/ledger/budgets.json"
@@ -17,6 +18,10 @@ var _vertex_shaders := {}
 
 
 func run(main, opts: Dictionary) -> void:
+	# The dummy display may discard engine --resolution flags. Size the actual
+	# diagnostic window explicitly so the touch profile measures a 20:9 camera.
+	if DisplayServer.get_name() == "headless":
+		main.get_window().size = Vector2i(2400, 1080) if Prefs.is_mobile() else Vector2i(1280, 720)
 	_terrain_optimized = _terrain_shader.code
 	if opts.get("diag_glow", "1") == "0":
 		for child in main.get_children():
@@ -47,9 +52,14 @@ func run(main, opts: Dictionary) -> void:
 			failures.append("missing budget limits; record/review explicitly, never auto-update limits in tests")
 		else:
 			var limits = JSON.parse_string(FileAccess.get_file_as_string(LIMITS))
-			if not limits is Dictionary or limits.get("schema", 0) != 1 or not limits.get("profiles", {}).has(profile):
+			if not limits is Dictionary or limits.get("schema", 0) != 2 or not limits.get("profiles", {}).has(profile):
 				failures.append("invalid/missing profile in budgets.json")
 			else:
+				if limits.get("engine_hash", "") != Engine.get_version_info().hash:
+					failures.append("budget engine differs; record/review on the adopted engine")
+				var ground: Dictionary = _report_context().ground
+				if not ground.baked_usable or limits.get("ground_generator", "") != ground.shipped_generator:
+					failures.append("budget ground epoch differs or shipped bake is stale")
 				var expected: Dictionary = limits.profiles[profile]
 				if _segments.size() != expected.size():
 					failures.append("scene set differs from reviewed budget")
@@ -65,6 +75,13 @@ func run(main, opts: Dictionary) -> void:
 		_fail(failure)
 	_write_report()
 	print("VO BUDGET DONE: %d problem(s); profile=%s; record=%s" % [bad, profile, opts.get("record", "0")])
+
+
+func _report_context() -> Dictionary:
+	var index: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Ground.INDEX))
+	return {"budget_schema": 2, "ground": {"runtime_generator": Ground.generator(),
+		"shipped_generator": index.get("generator", ""), "baked_usable": Ground._baked_usable(),
+		"index_sha256": FileAccess.get_sha256(Ground.INDEX)}}
 
 
 func _route() -> void:

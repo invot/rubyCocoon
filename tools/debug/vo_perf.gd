@@ -209,6 +209,7 @@ func _write_report() -> void:
 		"passes": _passes, "focus_losses": _focus_losses,
 		"screen_keep_on": DisplayServer.screen_is_kept_on(),
 	}
+	report.merge(_report_context())
 	var path := String(_opts.get("report", "res://build/perf/vo/run.json"))
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var file := FileAccess.open(path, FileAccess.WRITE)
@@ -222,6 +223,10 @@ func _write_report() -> void:
 		if OS.has_feature("web"):
 			# Debug export's same-origin collector retains the full trace outside browser storage.
 			JavaScriptBridge.eval("window.voPerfReport(" + serialized + ");", true)
+
+
+func _report_context() -> Dictionary:
+	return {}
 
 
 func _arrive(id: String, spawn) -> void:

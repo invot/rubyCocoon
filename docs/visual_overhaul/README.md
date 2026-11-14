@@ -33,7 +33,8 @@ The user approved beta3 and the comparison visuals; the main checkout now select
 see [results and rollback](010c-godot-48-results.md).
 **010c is done** (13 November 2026): Web, phone, native, input and renderer gates are closed in the
 [closure report](010c-validation-closure.md). 007 is also done (13 November 2026, a measured no-op on the razr).
-**Next: 011**, which accepts budgets measured on beta 3. Existing 011 tooling remains provisional until remeasured. Unfinished 022a now covers offline texture baking
+**Current: 011**, with fresh beta3 measurements and guard checks complete in an isolated project;
+[ground-cache and budget review](011-budgets.md) is pending before promotion. Existing 011 tooling remains provisional until remeasured. Unfinished 022a now covers offline texture baking
 in place of LightmapGI, following the user’s direction; completed steps retain their status.
 010c's offline ASTC anomaly investigation is complete: the 6×6 encoder nearest-resizes
 to block-aligned dimensions, confounding the initial metric. Eighteen round trips and

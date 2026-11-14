@@ -148,7 +148,7 @@ Every step:
    - new or re-baked world textures go through `tools/smooth_textures.gd`, then `godot --headless --path . --import`, never smoothed twice;
    - re-bake ground (`--scene=bake-ground`), houses (`tools/bake_house_measurements.gd`) or battle art (`tools/bake_battle_art.gd`, backdrops) when their inputs change.
 5. **After:** the same captures and numbers in `.../after/`.
-6. **Test:** `bash tools/run_tests.sh quick` plus the step's named tests (through `server.py` `tests`), and read errors first. Map or layout changes also run `godot --headless --path . --script res://tools/check_maps.gd` and `python tools/town_check.py`. From step 011, `vo-budget`; from step 018, `vo-ledger`.
+6. **Test:** `bash tools/run_tests.sh quick` plus the step's named tests (through `server.py` `tests`), and read errors first. Map or layout changes also run `godot --headless --path . --script res://tools/check_maps.gd` and `python tools/town_check.py`. From step 011, `vo-budget` and `vo-budget-touch`; cite `ledger/budgets.md` and the affected scene/profile in every later step's evidence. Structural guard success does not grant added art cost or certify device frame targets. From step 018, `vo-ledger`.
 7. **Ledger:** from step 016, regenerate `ledger/assets.csv` and `scenes.csv`, and set the touched families to `ready for review`.
 8. **Record:** add a row to `progress.md` with the step, status, date, evidence paths, numbers and remaining defects. Update README.md "Next step".
 9. **Report:** before/after shots, numbers, tests, and the local-model help used, with any answer you overrode. Stop for review when game visuals change; otherwise continue after the checks pass. Commit nothing and create no branches unless you're asked.

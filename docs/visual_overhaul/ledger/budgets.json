@@ -1,5 +1,7 @@
 {
-  "schema": 1,
+  "schema": 2,
+  "engine_hash": "c51ff06e8836a70ea905701c081bf94124dcd6ce",
+  "ground_generator": "d62622bf8c32a0047becafabb3018beb",
   "tolerance": 0.05,
   "scope": "headless whole-subtree source capacity",
   "profiles": {
@@ -10,39 +12,39 @@
         "source_triangles": 102177,
         "distinct_materials": 56,
         "transparent_surfaces": 28,
-        "texture_rgba8_mip_bytes": 12294575
+        "texture_rgba8_mip_bytes": 12569827
       },
       "coastal_path": {
-        "geometry_nodes": 686,
-        "surface_submissions": 705,
-        "source_triangles": 1851129,
-        "distinct_materials": 72,
-        "transparent_surfaces": 98,
-        "texture_rgba8_mip_bytes": 17257194
+        "geometry_nodes": 677,
+        "surface_submissions": 696,
+        "source_triangles": 1844023,
+        "distinct_materials": 73,
+        "transparent_surfaces": 97,
+        "texture_rgba8_mip_bytes": 18725201
       },
       "cove_plaza": {
-        "geometry_nodes": 955,
-        "surface_submissions": 1045,
-        "source_triangles": 2663320,
-        "distinct_materials": 144,
-        "transparent_surfaces": 134,
-        "texture_rgba8_mip_bytes": 22868582
+        "geometry_nodes": 958,
+        "surface_submissions": 1040,
+        "source_triangles": 2687887,
+        "distinct_materials": 143,
+        "transparent_surfaces": 121,
+        "texture_rgba8_mip_bytes": 22685077
       },
       "hero_house": {
-        "geometry_nodes": 44,
-        "surface_submissions": 90,
-        "source_triangles": 21800,
-        "distinct_materials": 36,
+        "geometry_nodes": 41,
+        "surface_submissions": 86,
+        "source_triangles": 21149,
+        "distinct_materials": 31,
         "transparent_surfaces": 0,
-        "texture_rgba8_mip_bytes": 2964692
+        "texture_rgba8_mip_bytes": 4799700
       },
       "rue_royale": {
         "geometry_nodes": 996,
-        "surface_submissions": 1403,
-        "source_triangles": 1947132,
-        "distinct_materials": 224,
-        "transparent_surfaces": 516,
-        "texture_rgba8_mip_bytes": 18955814
+        "surface_submissions": 1400,
+        "source_triangles": 1956960,
+        "distinct_materials": 218,
+        "transparent_surfaces": 508,
+        "texture_rgba8_mip_bytes": 19781566
       }
     },
     "touch20x9": {
@@ -52,52 +54,87 @@
         "source_triangles": 102177,
         "distinct_materials": 56,
         "transparent_surfaces": 28,
-        "texture_rgba8_mip_bytes": 12294575
+        "texture_rgba8_mip_bytes": 12569827
       },
       "coastal_path": {
-        "geometry_nodes": 686,
-        "surface_submissions": 705,
-        "source_triangles": 1851129,
-        "distinct_materials": 72,
-        "transparent_surfaces": 98,
-        "texture_rgba8_mip_bytes": 17257194
+        "geometry_nodes": 677,
+        "surface_submissions": 696,
+        "source_triangles": 1844023,
+        "distinct_materials": 73,
+        "transparent_surfaces": 97,
+        "texture_rgba8_mip_bytes": 18725201
       },
       "cove_plaza": {
-        "geometry_nodes": 955,
-        "surface_submissions": 1045,
-        "source_triangles": 2663320,
-        "distinct_materials": 144,
-        "transparent_surfaces": 134,
-        "texture_rgba8_mip_bytes": 22868582
+        "geometry_nodes": 958,
+        "surface_submissions": 1040,
+        "source_triangles": 2687887,
+        "distinct_materials": 143,
+        "transparent_surfaces": 121,
+        "texture_rgba8_mip_bytes": 22685077
       },
       "hero_house": {
-        "geometry_nodes": 44,
-        "surface_submissions": 90,
-        "source_triangles": 21800,
-        "distinct_materials": 36,
+        "geometry_nodes": 41,
+        "surface_submissions": 86,
+        "source_triangles": 21149,
+        "distinct_materials": 31,
         "transparent_surfaces": 0,
-        "texture_rgba8_mip_bytes": 2964692
+        "texture_rgba8_mip_bytes": 4799700
       },
       "rue_royale": {
         "geometry_nodes": 996,
-        "surface_submissions": 1403,
-        "source_triangles": 1947132,
-        "distinct_materials": 224,
-        "transparent_surfaces": 516,
-        "texture_rgba8_mip_bytes": 18955814
+        "surface_submissions": 1400,
+        "source_triangles": 1956960,
+        "distinct_materials": 218,
+        "transparent_surfaces": 508,
+        "texture_rgba8_mip_bytes": 19781566
       }
     }
   },
   "provenance": [
     {
       "profile": "desktop16x9",
-      "path": "build/perf/vo/011/headless-desktop-01/report.json",
-      "sha256": "037718bee9f9dafdc6835236c4312a6295960bf18f9fd5ac82238cc63ee54619"
+      "path": "build/perf/vo/011/beta3-headless-desktop-01/report.json",
+      "sha256": "6b57f7a1200289d9741b3f7615ba765c7f4e4fe98cc8ca76cfea1b4691774104"
     },
     {
       "profile": "touch20x9",
-      "path": "build/perf/vo/011/headless-touch-01/report.json",
-      "sha256": "846d444463eb974ac52340dfc08caf6941b36d5fa2ca7ffff6820b4bd2268c99"
+      "path": "build/perf/vo/011/beta3-headless-touch-02/report.json",
+      "sha256": "cf737f8b05c794cebcf8b746507a0d046601b2267134976ec8ad2e99fccadd3a"
+    },
+    {
+      "renderer": "forward_plus",
+      "path": "build/perf/vo/011/beta3-forward-01/report.json",
+      "sha256": "10fa889a5569f83b386714238ebec89e5a92007618e245bc7fa75888caf5db85"
+    },
+    {
+      "renderer": "mobile",
+      "path": "build/perf/vo/011/beta3-mobile-01/report.json",
+      "sha256": "4ed17a756aae2cb274543bd2687ebab21a1b7aeece6c85187f7760df480b57bf"
+    },
+    {
+      "renderer": "gl_compatibility",
+      "path": "build/perf/vo/011/beta3-compat-01/report.json",
+      "sha256": "fce786b259cea6f9d58602c085ded106691379132827370ac7e32a69d1d1bd09"
+    },
+    {
+      "renderer": "forward_plus",
+      "path": "build/perf/vo/011/beta3-export-forward-01/report.json",
+      "sha256": "9a2fa6a1e3a3cb5457fba132b75eb9ba075a06dc413a05c63f77bdd059812cb9"
+    },
+    {
+      "renderer": "gl_compatibility",
+      "path": "build/perf/vo/011/beta3-export-compat-02/report.json",
+      "sha256": "df4eb1334fe10bf99cadafe24cbe54c6652efab28a8101e56314fa7a007d2c2e"
+    },
+    {
+      "renderer": "gl_compatibility",
+      "path": "build/perf/vo/011/beta3-web-01/report.json",
+      "sha256": "0b0012b56f39418dd041a7c80c27a89bf2cdad6e51f9d9c8164c4537656ed75b"
+    },
+    {
+      "device": "SM-A715F",
+      "path": "build/perf/vo/011/beta3-a71-min-540-01/report.json",
+      "sha256": "ad28ea9a39731b3e5b7e1c5f242f82507104a95268f84917331807c210cd6154"
     }
   ]
 }
