@@ -1074,8 +1074,11 @@ mounted owl and its rider.
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
 - The title menu appears immediately over ten detailed landscape scenes (`scripts/ui/art_slideshow.gd`).
-  Pictures slowly zoom by seven percent and crossfade over two seconds; each new scene begins seven seconds
-  after the last. Artwork fills the screen without stretching, cropping gently on wider phones. Only the current
+  Pictures zoom slowly and smoothly by five percent (drawn at sub-pixel positions, so the zoom never steps a pixel
+  at a time) and crossfade over two and a half seconds; each new scene begins ten seconds after the last. Artwork
+  fills the screen without stretching, cropping gently on wider phones; the crop and zoom centre a third of the way
+  down each picture, so scenes sit a little lower, clear of the title plaque. The web loader matches this timing
+  and framing. Only the current
   picture and next picture are held as textures; the unused 3D viewport sleeps. Continue and Load Game appear
   when a compatible save exists. With no save yet, New Game retains its large glowing gem button. Keyboard,
   gamepad and touch navigation remain available. Once the title menu is up, the game's name hangs at the top centre on
@@ -1143,10 +1146,10 @@ mounted owl and its rider.
   Enclosed-room suns also use two shadow splits over 30 units on Mid/Max; Min disables their shadows.
   The indoor coverage is checked at reachable room edges, including the largest generated building interior.
 - **Starting video settings**: fresh or missing video preferences use **540p** and Graphics **Max** on every platform. Existing saved choices are retained.
-- **Web download**: the same artwork slideshow fills the browser during download, with **Ruby Cocoon** at the top
-  and a progress window below. The bar retains the engine's real download progress. Game-specific silly captions
+- **Web download**: the same artwork slideshow fills the browser during download, with a progress window at the
+  bottom and no title (the game's name first appears on the title screen's stone plaque). The bar retains the engine's real download progress. Game-specific silly captions
   rotate every three seconds. Artwork and captions share `assets/loading/slideshow.json` with the game. Errors
-  keep their original engine notice and hide the title/progress window. Browser reduced-motion preferences stop
+  keep their original engine notice and hide the progress window. Browser reduced-motion preferences stop
   the zoom. Artwork and fonts are copied beside the export so they appear before the game data is ready.
 - **Stalls and loading**: entering a different outdoor town or path (including returning from a building and the
   first outdoor load) shows the artwork slideshow, destination, a gem progress bar and playful game-specific captions.

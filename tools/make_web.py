@@ -169,7 +169,7 @@ def main():
     shutil.copytree(os.path.join(ROOT, 'assets', 'loading'), os.path.join(OUT, 'loading'),
                     ignore=shutil.ignore_patterns('*.import'))
     loading = json.load(open(os.path.join(ROOT, 'assets', 'loading', 'slideshow.json'), encoding='utf-8'))
-    for font in ('LeagueSpartan.ttf', 'QuattrocentoSans-Regular.ttf', 'CormorantSC-Bold.ttf'):
+    for font in ('LeagueSpartan.ttf', 'QuattrocentoSans-Regular.ttf'):
         shutil.copy(os.path.join(ROOT, 'ui', font), OUT)
     html = html.replace('<script src="index.js"></script>', SHIM % json.dumps(packed) +
                         '<script>window.RC_LOADING = ' + json.dumps(loading) + ';</script>\n' +

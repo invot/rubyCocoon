@@ -39,9 +39,10 @@ test('real library contains ten separate available landscape pictures', () => {
     for (const name of library.slides) assert.ok(fs.existsSync(path.join(__dirname, '../../assets/loading', name)));
     assert.ok(library.captions.length >= 20);
 });
-test('title, rotating game captions, and engine-owned progress', () => {
+test('no title, rotating game captions, and engine-owned progress', () => {
     const {nodes, timers} = fixture();
-    assert.equal(nodes['rc-title'].textContent, 'Ruby Cocoon');
+    // (the game's name waits for the title screen's own plaque)
+    assert.equal(nodes['rc-title'], undefined);
     assert.equal(nodes['rc-loading'].textContent, library.captions[0]);
     timers.get(3000)();
     assert.equal(nodes['rc-loading'].textContent, library.captions[1]);
@@ -52,11 +53,11 @@ test('two image slots fade only after load, and a failed picture does not blank 
     const {images, timers} = fixture();
     assert.equal(images.length, 2);
     assert.match(images[0].className, /rc-active/);
-    timers.get(7000)();
+    timers.get(10000)();
     assert.match(images[0].className, /rc-active/);
     images[1].onerror();
     assert.match(images[0].className, /rc-active/);
-    timers.get(7000)();
+    timers.get(10000)();
     images[1].onload();
     assert.match(images[1].className, /rc-active/);
     assert.equal(images[0].className, 'rc-slide');
@@ -68,11 +69,10 @@ test('errors hide artwork captions, preserve notices, and completed loader stops
     nodes['status-notice'].display = 'block';
     observe();
     assert.equal(nodes['rc-loading-panel'].hidden, true);
-    assert.equal(nodes['rc-title'].hidden, true);
     assert.equal(nodes['status-notice'].textContent, 'Engine error');
     nodes.status.display = 'none';
     observe();
-    assert.deepEqual(cleared.sort(), [3000, 7000]);
+    assert.deepEqual(cleared.sort((a, b) => a - b), [3000, 10000]);
 });
 test('initial hidden engine overlay does not cancel the slideshow before startup', () => {
     const {nodes, cleared, observe} = fixture(false);
@@ -80,7 +80,7 @@ test('initial hidden engine overlay does not cancel the slideshow before startup
     assert.equal(cleared.length, 0);
     nodes.status.visibility = 'visible';
     observe();
-    assert.equal(nodes['rc-title'].hidden, false);
+    assert.equal(nodes['rc-loading-panel'].hidden, false);
     nodes.status.visibility = 'hidden';
     observe();
     assert.equal(cleared.length, 2);

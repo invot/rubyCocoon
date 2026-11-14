@@ -12,7 +12,7 @@ const NAME_FONT = preload("res://ui/CormorantSC-Bold.ttf")
 ## the plaque's half-width along its bottom, its depth, and how much wider each side is at the top: each side is one
 ## straight slant from the top edge to the bottom (UI units)
 const CORE := 280.0
-const DEPTH := 118.0
+const DEPTH := 110.0
 const WING := 44.0
 ## the shadow: how far it drops, how far its blur spreads, its darkest alpha and how many layers make the blur
 const SHADOW_DROP := 4.0
@@ -195,12 +195,12 @@ func _draw_carving() -> void:
 	# the name, carved deep and large
 	var title := "Ruby Cocoon"
 	var ts := NAME_FONT.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE)
-	var base_y := 14.0 + NAME_FONT.get_ascent(NAME_SIZE)
+	var base_y := 6.0 + NAME_FONT.get_ascent(NAME_SIZE)
 	var ink := UIKit.HEAD.darkened(0.35)
 	c.draw_string(NAME_FONT, Vector2(cx - ts.x * 0.5, base_y + 2.0), title, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, lit)
 	c.draw_string(NAME_FONT, Vector2(cx - ts.x * 0.5, base_y), title, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZE, ink)
 	# a band under the name: runes (or DEMO in a demo) between two rules ending in small diamonds
-	var band_y := 92.0
+	var band_y := 84.0
 	var band := "Demo" if demo else Lettering.encode("hatch grow merge")
 	var band_font: Font = NAME_FONT if demo else rune_font
 	var band_size := 24 if demo else RUNE_SIZE - 2

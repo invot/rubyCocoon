@@ -260,11 +260,46 @@ Maximum Quality, Compressed and Maximum Compression. Actual formats are ASTC
 | leaf | 21,872 / 59.57 dB | 10,512 / 29.71 dB | 5,504 / 46.36 dB |
 
 These are software round-trip metrics, not in-game appearance or hardware
-support. The unexpectedly worse 6×6 reconstruction needs investigation before
-that profile is considered. Keep all production imports unchanged. No profile is
+support. The unexpectedly worse 6×6 reconstruction was investigated in the
+follow-up below; the original table mixes image alignment and codec error. Keep
+all production imports unchanged. No profile is
 accepted from this trial; target GPU/fallback and visual checks belong to the
 remaining feature evidence. Source images, importer settings and smoothing
 records were not modified. See `compression.gd`, `compression.json` and log.
+
+### ASTC round-trip follow-up (13 November)
+
+Completed the offline anomaly investigation with `tools/astc_roundtrip_probe.gd`.
+Final evidence: `build/perf/vo/010c/astc-roundtrip-04/roundtrip.json` and `godot.log`.
+All **18** encode/decode cases pass (three assets × three explicit profiles ×
+mipmaps off/on), under the shared resource lock and memory guard; sampled peak
+private memory **137 MiB**. The quick suite passes **4/4**, with logs under
+`astc-roundtrip-01/quick-logs/`. These are CPU/software checks, not renderer trials.
+
+The exact beta3 [ASTC encoder source](https://github.com/godotengine/godot/blob/c51ff06e8836a70ea905701c081bf94124dcd6ce/modules/astcenc/image_compress_astcenc.cpp#L102-L110)
+rounds dimensions up to the block size and **resizes with nearest interpolation**.
+For 6×6, coast becomes 1026×516, grass 258×258 and leaf 132×132. These are resized
+images, not merely padded borders: cropping the output leaves the old low scores.
+Resizing the decoded output back improves them, but introduces another filter.
+Comparing against the encoder's nearest-resized input isolates codec error:
+
+| Image | 4×4 PSNR, dB | 6×6 PSNR, dB | 8×8 PSNR, dB |
+|---|---|---|---|
+| coast | 53.851 | 47.428 | 43.410 |
+| grass | 59.102 | 49.540 | 45.167 |
+| leaf | 59.565 | 50.159 | 46.357 |
+
+Base-level results are identical with mipmaps enabled or disabled. This resolves
+the anomalous codec-quality ordering; it does **not** validate lower mip quality,
+GPU sampling, importer size restoration, normals/masks, ASTC device support or
+fallbacks. The initial crop/padding hypothesis was rejected by the measurements.
+The engine's nearest resize is a specific risk to check before adopting 6×6 for
+painted textures. No source texture, import sidecar, smoothing record, production
+setting or rollback cache changed. The local model was unreachable at task start;
+this investigation used direct measurements and the pinned engine source.
+
+Next 010c checkpoint: isolated streaming eligibility/support trial and target
+validation listed above. Keep 010c open and 011 budgets provisional.
 
 ## Host crash recovery and safe continuation
 

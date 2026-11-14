@@ -34,6 +34,10 @@ see [results and rollback](010c-godot-48-results.md).
 Broader 010c target/feature evidence and 007's original-phone recovery remain open. Existing 011
 tooling remains provisional until remeasured. Unfinished 022a now covers offline texture baking
 in place of LightmapGI, following the user’s direction; completed steps retain their status.
+010c's offline ASTC anomaly investigation is complete: the 6×6 encoder nearest-resizes
+to block-aligned dimensions, confounding the initial metric. Eighteen round trips and
+four quick checks pass; no compression profile is adopted. Next is the isolated streaming
+trial and remaining target validation, before 011 budget acceptance. See the results report.
 
 **007: alpha and overdraw.** [006's batched scenery experiments](006-scenery.md) are complete:
 keep 8×8 batches, preserve recentered LOD data and cover pad swell; no experimental visual change adopted.
