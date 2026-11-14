@@ -1,6 +1,6 @@
 extends "res://scripts/ui/modal.gd"
 ## The Start menu: one large window with a strip of tabs across the top and two panes, a list on the left and the
-## chosen row's details on the right (the menus of the early PS2 RPGs), in the game's one dark style (UIKit).
+## chosen row's details on the right (the menus of the early PS2 RPGs), on tan paper with a spine between the pages (book_paper.gd).
 ## Tabs: Trainer, Beasts, Flute, Bag, Bestiary, Map, Settings.
 ## Controls: ◄/► switch tabs (or adjust Default element / beast placement), ▲/▼ choose, A to act; ▲ at the top of a
 ## page goes to the tabs and ▼ (or A) from the tabs back into it; S (back) returns to the tabs / closes, Start closes.
@@ -20,6 +20,7 @@ const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 const WorldMap = preload("res://scripts/ui/world_map.gd")
 const BeastsPage = preload("res://scripts/ui/beasts_page.gd")
 const BagPage = preload("res://scripts/ui/bag_page.gd")
+const BookPaper = preload("res://scripts/ui/book_paper.gd")
 
 const TABS := [
 	{"id": "trainer", "name": "Trainer", "icon": "tab_trainer"},
@@ -52,7 +53,10 @@ var tab := 1
 var mode := "list"
 var book: Control
 var markers: Array = []
+## the window's pages: tan paper with a spine at the fold (book_paper.gd), behind the window, whose own box is empty
 var window: PanelContainer
+var paper: Control
+var divider: VSeparator
 var tab_strip: HBoxContainer
 var left_box: VBoxContainer
 var right_box: VBoxContainer
@@ -133,8 +137,11 @@ func _build() -> void:
 		tab_strip.add_child(m)
 		markers.append(m)
 	tab_strip.visible = not storage_mode
+	paper = BookPaper.new()
+	book.add_child(paper)
 	window = PanelContainer.new()
 	window.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	window.add_theme_stylebox_override("panel", _page_margins())
 	book.add_child(window)
 	var panes := HBoxContainer.new()
 	panes.add_theme_constant_override("separation", 18)
@@ -146,12 +153,10 @@ func _build() -> void:
 	left_box.size_flags_stretch_ratio = LEFT_SHARE
 	left_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panes.add_child(left_box)
-	var divider := VSeparator.new()
-	var line := StyleBoxLine.new()
-	line.vertical = true
-	line.color = UIKit.BORDER_INNER
-	line.thickness = 2
-	divider.add_theme_stylebox_override("separator", line)
+	# the fold between the pages: the paper draws the spine there, so the divider only keeps its room
+	divider = VSeparator.new()
+	divider.add_theme_stylebox_override("separator", StyleBoxEmpty.new())
+	divider.item_rect_changed.connect(_place_spine)
 	panes.add_child(divider)
 	# the detail pane scrolls, so a tall page (a beast's skills and family tree on a phone) never pushes the window
 	# off the screen, with up / down buttons beside it once it runs past a page (see scroll_rail.gd)
@@ -197,8 +202,27 @@ func _layout() -> void:
 	var tabs_h := TAB_H + TAB_GAP
 	window.position = Vector2(0, tabs_h)
 	window.size = Vector2(w, book.size.y - tabs_h)
+	paper.position = window.position
+	paper.size = window.size
 	left_box.size_flags_stretch_ratio = _left_share()
 	right_col.size_flags_stretch_ratio = 1.0 - _left_share()
+
+
+## The window's content padding with no box of its own (the paper behind it is the box).
+func _page_margins() -> StyleBox:
+	var src := UIKit.box("textfield")
+	var sb := StyleBoxEmpty.new()
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		sb.set_content_margin(side, src.get_content_margin(side))
+	return sb
+
+
+## The spine follows the divider between the pages.
+func _place_spine() -> void:
+	if not is_instance_valid(paper) or not is_instance_valid(divider):
+		return
+	paper.spine_x = divider.get_global_rect().get_center().x - paper.get_global_rect().position.x
+	paper.refresh()
 
 
 func _left_share() -> float:
@@ -209,7 +233,8 @@ func _left_share() -> float:
 func _on_prefs_changed() -> void:
 	if not is_inside_tree():
 		return
-	window.add_theme_stylebox_override("panel", UIKit.box("textfield"))
+	window.add_theme_stylebox_override("panel", _page_margins())
+	paper.refresh()
 	_style_tabs()
 	if _changing_row:
 		return
@@ -235,12 +260,13 @@ func _on_controllers_changed() -> void:
 			_row_focused(focus_row)
 
 
-## The tabs: rounded plates; the open one filled with the gem with white text, the rest off-white with dim text.
+## The tabs: rounded bookmarks; the open one filled with the gem with white text, the rest the book's tan paper with
+## dim text.
 func _style_tabs() -> void:
 	for k in markers.size():
 		var m: Button = markers[k]
 		var open := k == tab
-		var sb: StyleBox = UIKit.chip(UIKit.ACCENT, Color(0, 0, 0, 0), 0.0, Vector4(6, -2, 6, -2)) if open else UIKit.plate(UIKit.BORDER, Vector4(10, 0, 10, 0))
+		var sb: StyleBox = UIKit.chip(UIKit.ACCENT, Color(0, 0, 0, 0), 0.0, Vector4(6, -2, 6, -2)) if open else UIKit.FrameBox.make("row", Color(0, 0, 0, 0), UIKit.book_paper(), false, Vector4(10, 0, 10, 0))
 		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
 			m.add_theme_stylebox_override(st, sb)
 		var col := UIKit.LIGHT if open else UIKit.DIM

@@ -61,6 +61,9 @@ const SHADE_MIX := 0.16
 ## the windows' off-white, and how much of the gem is mixed into it
 const PAPER_BASE := Color("#f7f4f0")
 const PAPER_MIX := 0.045
+## the Start book's pages: a light tan paper, the one window that isn't the off-white (the user's 2026-11-13
+## direction; book_paper.gd), with the same faint tint of the gem
+const BOOK_PAPER_BASE := Color("#f0e4cd")
 ## the old dark style's colours, kept for the battle HUDs (floating_hud.gd, target_cards.gd, beat_cue.gd), which stay
 ## as they were
 const BATTLE_INK := Color.WHITE
@@ -302,6 +305,15 @@ static func tex(name: String) -> Texture2D:
 
 
 # ================================================================ windows
+## The Start book's tan paper, faintly tinted with the gem (book_paper.gd draws the pages with it), and a well in it.
+static func book_paper() -> Color:
+	return BOOK_PAPER_BASE.lerp(ACCENT, PAPER_MIX)
+
+
+static func book_well() -> Color:
+	return book_paper().darkened(0.07)
+
+
 ## A window: the rounded off-white box. `pad` is extra content padding (l, t, r, b).
 static func window(pad := Vector4(0, 0, 0, 0)) -> StyleBox:
 	return FrameBox.make("window", BORDER, Color(0, 0, 0, 0), true, Vector4(24, 20, 24, 20) + pad)

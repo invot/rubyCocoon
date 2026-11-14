@@ -75,9 +75,12 @@ def main():
     parser.add_argument("--godot", default=default_godot())
     parser.add_argument("--renderer", choices=["forward_plus", "mobile", "gl_compatibility"], default="forward_plus")
     parser.add_argument("--mode", choices=["regular", "streamed", "astc"], default="streamed")
+    parser.add_argument("--run-id", default="")
     args = parser.parse_args()
     if not args.attempt or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in args.attempt):
         parser.error("Use a new plain attempt name")
+    if any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in args.run_id):
+        parser.error("Use a plain run ID")
     folder = ROOT / "build/perf/vo/010c" / args.attempt
     if args.action == "prepare":
         prepare(folder)
@@ -85,7 +88,8 @@ def main():
     project = folder / "project"
     if not (project / "project.godot").is_file():
         raise FileNotFoundError("Prepare this attempt first")
-    destination = folder / ("import" if args.action == "import" else f"{args.renderer}-{args.mode}")
+    suffix = "-" + args.run_id if args.run_id else ""
+    destination = folder / ("import" if args.action == "import" else f"{args.renderer}-{args.mode}{suffix}")
     destination.mkdir(exist_ok=False)
     command = [args.godot, "--path", str(project), "--log-file", str(destination / "godot.log")]
     if args.action == "import":

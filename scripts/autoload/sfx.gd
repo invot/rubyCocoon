@@ -68,7 +68,7 @@ const SOUNDS := {
 	"confirm": [["res://assets/audio/sfx/menu_confirm.ogg"], -10.0],
 	"back": [["res://sfx/01_UI_Menu/UI_Menu_Click_001.mp3"], -10.0],
 	"error": [["res://assets/audio/sfx/menu_unavailable.ogg"], -12.0],
-	"page": [["res://assets/audio/sfx/book_page.ogg"], -10.0],
+	"page": [["res://assets/audio/sfx/book_page.ogg"], -7.0],
 	"open": [["res://assets/audio/sfx/arrange_open.ogg"], -10.0],
 	"pickup": [["res://assets/audio/sfx/pickup_kalimba.ogg"], -10.0],
 	"toggle": [["res://assets/audio/sfx/toggle_click.ogg"], -10.0],

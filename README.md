@@ -885,7 +885,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
 ## The Start book (menu)
 
-Press **Start** (Space) to open the travel book. ◄ / ► change tabs; Up from the top of a page (its first row, the Bag's top row of slots, the Map's northernmost town) moves the cursor to the tabs, and Down or A from the tabs goes back into the page. Its bookmark tabs:
+Press **Start** (Space) to open the travel book: two pages of light tan paper with a soft spine between them (`book_paper.gd`; the only window that isn't the off-white), with a page-turn sound as it opens, as you change tabs and as you open a beast's Info. ◄ / ► change tabs; Up from the top of a page (its first row, the Bag's top row of slots, the Map's northernmost town) moves the cursor to the tabs, and Down or A from the tabs goes back into the page. Its bookmark tabs:
 
 <img src="docs/screenshots/book_beasts.png" width="640" alt="The Start book's Beasts tab: roster, slot count and live 3D battle ring."><br><sub>The Start book's Beasts tab: roster, slot count and live 3D battle ring.</sub>
 

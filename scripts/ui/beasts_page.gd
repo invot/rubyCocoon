@@ -285,7 +285,8 @@ func _do_action(id: String) -> void:
 			_pick(beast)
 			return
 		"info":
-			Sfx.play("confirm")
+			# (a new page of the book: its page-turn sound)
+			Sfx.play("page")
 			await UI.show_beast(beast)
 		"equip":
 			Sfx.play("confirm")
