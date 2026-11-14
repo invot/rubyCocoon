@@ -1059,13 +1059,13 @@ mounted owl and its rider.
   it visible when choosing Load, Copy or Delete. Saves from before screenshots were stored show a placeholder
   until saved again. Copying a save includes its screenshot.
 - **Phones**: the on-screen pad uses Kenney's *Input Prompts* (CC0; `assets/ui/input_prompts/`, copied from the pack
-  by `python tools/input_prompts/build.py <pack>`): the Xbox cross d-pad for getting about (hold B to run), battles and
+  by `python tools/input_prompts/build.py <pack>`): the Xbox outlined cross d-pad for getting about (hold B to run), battles and
   the flute game alike, round A and B buttons, and START / PAUSE pills (PAUSE is the START pill with the lettering of
   Kenney's Pause key). Each arm answers in its own quarter of the pad (a wedge from the middle out past its edge), and
   only one way is held at a time, so a thumb on the line between two arms still walks one of the four ways. The SVGs
   are recoloured by `scripts/ui/prompt_tint.gdshader`, with soft shadows and no borders or blur: the d-pad is the
-  windows' off-white, and A, B, Start and Pause are the gem with white letters. A held button deepens; the d-pad's arm
-  for the way being held (by touch, keys or a controller) fills with the gem. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
+  windows' off-white outline, and A, B, Start and Pause are the gem with white letters. A held button deepens; the
+  d-pad's arm for the way being held (by touch, keys or a controller) fills with the gem. The title menu and Start book keep the controls visible: use the d-pad and A/B or tap rows and tabs,
   and Start closes the book. A little overlap with the book is allowed; the Map page spreads its towns clear of the
   d-pad and A/B. The ring editor still moves the side controls aside for direct tapping. Yes/No questions slide A and B left and grow each into a gem pill
   with the button (white, its letter showing the gem) at its left and **Yes** or **No** in white to its right: each
@@ -1151,7 +1151,8 @@ mounted owl and its rider.
 - **Starting video settings**: fresh or missing video preferences use **540p** and Graphics **Max** on every platform. Existing saved choices are retained.
 - **Web download**: the same artwork slideshow fills the browser during download, with a progress window at the
   bottom and no title (the game's name first appears on the title screen's stone plaque). The bar retains the engine's real download progress. Game-specific silly captions
-  rotate every three seconds. Artwork and captions share `assets/loading/slideshow.json` with the game. Errors
+  stay for five seconds; their trailing dots cycle through blank, one, two and three dots every half second,
+  in both the web loader and in-game loading screens. Artwork and captions share `assets/loading/slideshow.json` with the game. Errors
   keep their original engine notice and hide the progress window. Browser reduced-motion preferences stop
   the zoom. Artwork and fonts are copied beside the export so they appear before the game data is ready.
 - **Stalls and loading**: entering a different outdoor town or path (including returning from a building and the

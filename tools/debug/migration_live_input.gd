@@ -1,10 +1,11 @@
-extends SceneTree
+extends Node
 ## Observe manual input in the ordinary game using isolated state; inject nothing.
 class EventObserver extends Node:
-	var collector: SceneTree
+	var collector: Node
 	func _input(event: InputEvent) -> void:
 		collector.observe_input(event)
 
+var root: Window
 var output := ""
 var journal := {"events": [], "snapshots": []}
 var began := 0
@@ -12,13 +13,14 @@ var sequence := 0
 var previous_keep_on := false
 var game_root: Node
 
-func _initialize() -> void:
+func _ready() -> void:
+	root = get_tree().root
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--event_output="):
 			output = arg.trim_prefix("--event_output=")
 	if not (output.begins_with("res://build/") or output.begins_with("user://bench/vo/")):
 		push_error("Live migration input requires an isolated --event_output")
-		quit(1)
+		get_tree().quit(1)
 		return
 	call_deferred("start_observation")
 
@@ -36,23 +38,23 @@ func start_observation() -> void:
 	journal["devices"] = []
 	for device in Input.get_connected_joypads():
 		journal.devices.append({"device": device, "name": Input.get_joy_name(device)})
-	var scene: PackedScene = load(ProjectSettings.get_setting("application/run/main_scene"))
+	var scene: PackedScene = load("res://main.tscn")
 	game_root = scene.instantiate()
 	root.add_child(game_root)
 	var observer := EventObserver.new()
 	observer.collector = self
 	root.add_child(observer)
 	write_journal()
-	await create_timer(3.0).timeout
+	await get_tree().create_timer(3.0).timeout
 	await snapshot("initial")
 	for second in 300:
-		await create_timer(1.0).timeout
+		await get_tree().create_timer(1.0).timeout
 		if FileAccess.file_exists(output.path_join("finish.flag")):
 			break
 	journal["finished"] = true
 	write_journal()
 	DisplayServer.screen_set_keep_on(previous_keep_on)
-	quit()
+	get_tree().quit()
 
 func observe_input(event: InputEvent) -> void:
 	var kind := ""
@@ -81,7 +83,7 @@ func observe_input(event: InputEvent) -> void:
 		snapshot("event_%03d" % sequence)
 
 func snapshot(label: String) -> void:
-	await create_timer(0.6).timeout
+	await get_tree().create_timer(0.6).timeout
 	await RenderingServer.frame_post_draw
 	var error := root.get_texture().get_image().save_png(output.path_join(label + ".png"))
 	var stack: Array = []

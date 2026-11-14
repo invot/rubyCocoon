@@ -21,6 +21,7 @@
             padding:20px 24px}
         #rc-loading {margin:0 0 16px;font:clamp(24px,2.5vw,28px) RCLoading,sans-serif;
             text-align:center;min-height:1.3em}
+        #rc-loading-dots {display:inline-block;min-width:3ch;white-space:pre;text-align:left}
         #status-progress {position:static!important;width:100%;height:20px;
             margin:0!important;accent-color:#a93a4b;border:0;border-radius:6px;overflow:hidden}
         #status-progress::-webkit-progress-bar {background:#e7dedd;border-radius:6px}
@@ -41,13 +42,26 @@
     panel.id = 'rc-loading-panel';
     const label = document.createElement('p');
     label.id = 'rc-loading';
-    label.setAttribute('role', 'status');
-    label.setAttribute('aria-live', 'polite');
+    const captionText = document.createElement('span');
+    captionText.id = 'rc-loading-text';
+    captionText.setAttribute('role', 'status');
+    captionText.setAttribute('aria-live', 'polite');
+    const dots = document.createElement('span');
+    dots.id = 'rc-loading-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    label.append(captionText, dots);
     overlay.insertBefore(panel, bar);
     panel.append(label, bar);
     bar.setAttribute('aria-label', 'Downloading Ruby Cocoon');
     let captionIndex = 0, slideIndex = 0, active = 0, stopped = false, swapping = false, seenVisible = false;
-    label.textContent = library.captions[0];
+    const dotFrames = ['   ', '.  ', '.. ', '...'];
+    let dotIndex = 0;
+    function setCaption() {
+        captionText.textContent = library.captions[captionIndex].replace(/\.{3}$/, '');
+        dotIndex = 0;
+        dots.textContent = dotFrames[dotIndex];
+    }
+    setCaption();
     pictures[0].src = 'loading/' + library.slides[0];
     pictures[0].className = 'rc-slide rc-active';
     pictures[0].style.animation = 'rc-zoom 12.5s linear forwards';
@@ -58,6 +72,7 @@
             stopped = true;
             clearInterval(captionTimer);
             clearInterval(slideTimer);
+            clearInterval(dotTimer);
         }
         const notice = document.getElementById('status-notice');
         const quiet = stopped || hidden(bar) || (notice && !hidden(notice));
@@ -67,8 +82,13 @@
     const captionTimer = setInterval(() => {
         if (sync()) return;
         captionIndex = (captionIndex + 1) % library.captions.length;
-        label.textContent = library.captions[captionIndex];
-    }, 3000);
+        setCaption();
+    }, 5000);
+    const dotTimer = setInterval(() => {
+        if (sync()) return;
+        dotIndex = (dotIndex + 1) % dotFrames.length;
+        dots.textContent = dotFrames[dotIndex];
+    }, 500);
     const slideTimer = setInterval(() => {
         if (sync() || swapping || library.slides.length < 2) return;
         swapping = true;

@@ -2,6 +2,8 @@ extends Control
 ## Progress reports completed construction phases, never a timer pretending to measure loading.
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Slideshow = preload("res://scripts/ui/art_slideshow.gd")
+const CAPTION_SECONDS := 5.0
+const DOT_SECONDS := 0.5
 var slideshow: Control
 var panel: PanelContainer
 var caption: Label
@@ -9,6 +11,7 @@ var progress: ProgressBar
 var destination: Label
 var _caption_index := 0
 var _caption_clock := 0.0
+var _dot_clock := 0.0
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -37,7 +40,7 @@ func _ready() -> void:
 	progress.add_theme_stylebox_override("fill", UIKit.solid())
 	column.add_child(progress)
 	_caption_index = randi() % Slideshow.library().captions.size()
-	caption.text = Slideshow.library().captions[_caption_index]
+	_set_caption()
 	resized.connect(_layout)
 	_layout.call_deferred()
 
@@ -51,11 +54,19 @@ func set_progress(value: float) -> void:
 
 func _process(delta: float) -> void:
 	_caption_clock += delta
-	if _caption_clock >= 3.0:
-		_caption_clock = 0.0
+	_dot_clock = fmod(_dot_clock + delta, DOT_SECONDS * 4.0)
+	if _caption_clock >= CAPTION_SECONDS:
+		_caption_clock = fmod(_caption_clock, CAPTION_SECONDS)
 		_caption_index = (_caption_index + 1) % Slideshow.library().captions.size()
-		caption.text = Slideshow.library().captions[_caption_index]
+		_set_caption()
+	# Hidden trailing characters still reserve their width, so the centered text never wiggles.
+	caption.visible_characters = caption.text.length() - 3 + int(_dot_clock / DOT_SECONDS)
 	_layout()
+
+func _set_caption() -> void:
+	caption.text = String(Slideshow.library().captions[_caption_index]).trim_suffix("...") + "..."
+	_dot_clock = 0.0
+	caption.visible_characters = caption.text.length() - 3
 
 func _input(_event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()

@@ -21,11 +21,11 @@ func run(main) -> void:
 		await _shot(main, opts, "pad_rest")
 		Input.action_press("move_left")
 		await main._wait(0.2)
-		_check(c._dpad_face.texture.resource_path.ends_with("xbox_dpad_left.svg"), "a held way lights its d-pad arm")
+		_check(c._dpad_arm.visible and c._dpad_arm.texture.resource_path.ends_with("xbox_dpad_left.svg"), "a held way fills its d-pad arm")
 		await _shot(main, opts, "pad_left")
 		Input.action_release("move_left")
 		await main._wait(0.2)
-		_check(c._dpad_face.texture.resource_path.ends_with("xbox_dpad.svg"), "letting go restores the plain d-pad")
+		_check(not c._dpad_arm.visible and c._dpad_face.texture.resource_path.ends_with("xbox_dpad_none.svg"), "letting go leaves the outlined d-pad")
 	else:
 		_check(c.legend_visible(), "the keyboard strip shows on the title")
 		await _shot(main, opts, "keys_rest")

@@ -173,6 +173,7 @@ func _show_group(ids: Array, on: bool) -> void:
 	if "up" in ids:
 		_dpad_face.visible = on
 		_dpad_shadow.visible = on
+		_dpad_arm.visible = on and _dpad_shown != ""
 
 
 ## Redraws the legend strip and the pad in the current gem.
@@ -311,12 +312,14 @@ const FACE_ICONS := {"a": "xbox_button_a", "b": "xbox_button_b", "start": "xbox_
 const ANSWER_ICON := 0.72
 const ANSWER_PAD := 16.0
 
-## the d-pad's drawing: the whole cross, swapped for the one with an arm in the gem while that way is held (by the
-## touch pad, keys or a controller). The four arm buttons over it only take touches: each answers in its own quarter of
+## the d-pad's drawing: Kenney's outlined cross in off-white, with the arm for the way being held (by the touch pad,
+## keys or a controller) filled in the gem. The four arm buttons over it only take touches: each answers in its own quarter of
 ## the pad (a wedge from the middle out past its edge, see _arm_shape), so a thumb only ever holds one of the four ways.
 var _dpad_face: Sprite2D
 var _dpad_shadow: Sprite2D
+var _dpad_arm: Sprite2D
 var _dpad_shown := "-"
+var _dpad_box := Rect2()
 ## A, B, Start and Pause's drawings and their shadows (the buttons themselves only take touches)
 var _faces := {}
 var _shadows := {}
@@ -352,7 +355,7 @@ func _face_sprite(tex: Texture2D, solid: Texture2D) -> Array:
 	var shadow := Sprite2D.new()
 	shadow.centered = false
 	shadow.texture = tex
-	shadow.material = _tint(Color(0, 0, 0, 0.26), Color.BLACK, Color.BLACK, solid)
+	shadow.material = _tint(Color(0, 0, 0, 0.26), Color(0, 0, 0, 0.26), Color.BLACK, solid)
 	touch_root.add_child(shadow)
 	var face := Sprite2D.new()
 	face.centered = false
@@ -366,10 +369,16 @@ func _build_touch() -> void:
 	# the icons' SVGs are imported large, with mipmaps, and drawn smoothly scaled down
 	touch_root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	add_child(touch_root)
-	var pair := _face_sprite(_icon("xbox_dpad"), null)
+	var pair := _face_sprite(_icon("xbox_dpad_none"), null)
 	_dpad_face = pair[0]
 	_dpad_shadow = pair[1]
-	_dpad_face.material = _tint(UIKit.WELL, UIKit.ACCENT)
+	_dpad_face.material = _tint(UIKit.WELL)
+	# the held arm: Kenney's filled d-pad with that arm marked, drawing only the mark (in the gem) inside the outline
+	_dpad_arm = Sprite2D.new()
+	_dpad_arm.centered = false
+	_dpad_arm.visible = false
+	_dpad_arm.material = _tint(Color(1, 1, 1, 0), UIKit.ACCENT)
+	touch_root.add_child(_dpad_arm)
 	for k in ["a", "b"]:
 		var pill := Panel.new()
 		pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -433,9 +442,8 @@ func _update_answer_faces() -> void:
 ## The answer pills' style in the current gem (the drawings' colours follow in _update_pad_faces).
 func _recolour_pad() -> void:
 	_face_state.clear()
-	var m := _dpad_face.material as ShaderMaterial
-	m.set_shader_parameter("body", UIKit.WELL)
-	m.set_shader_parameter("mark", UIKit.ACCENT)
+	(_dpad_face.material as ShaderMaterial).set_shader_parameter("body", UIKit.WELL)
+	(_dpad_arm.material as ShaderMaterial).set_shader_parameter("mark", UIKit.ACCENT)
 	for k in _answer_pills:
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = UIKit.button_fill()
@@ -453,9 +461,10 @@ func _update_pad_faces() -> void:
 	var dir := _held_way()
 	if dir != _dpad_shown:
 		_dpad_shown = dir
-		var tex := _icon("xbox_dpad" if dir == "" else "xbox_dpad_" + dir)
-		_dpad_face.texture = tex
-		_dpad_shadow.texture = tex
+		_dpad_arm.visible = dir != "" and _dpad_face.visible
+		if dir != "":
+			_dpad_arm.texture = _icon("xbox_dpad_" + dir)
+			_fit(_dpad_arm, Rect2(_dpad_box.position, _dpad_box.size), SHAPE_ROUND)
 	var wide := _answer_blend > 0.001
 	for k in _faces:
 		var down := (_buttons[k] as TouchScreenButton).is_pressed()
@@ -636,8 +645,9 @@ func _layout() -> void:
 	legend.offset_right = safe.end.x - get_viewport().get_visible_rect().size.x
 	var vp := get_viewport().get_visible_rect().size
 	var pad := Vector2(28, vp.y - 28 - ARM * 3.0)
-	for sprite in [_dpad_face, _dpad_shadow]:
-		_fit(sprite, Rect2(pad, Vector2.ONE * ARM * 3.0), SHAPE_ROUND)
+	_dpad_box = Rect2(pad, Vector2.ONE * ARM * 3.0)
+	for sprite in [_dpad_face, _dpad_shadow, _dpad_arm]:
+		_fit(sprite, _dpad_box, SHAPE_ROUND)
 	_dpad_shadow.position.y += SHADOW_DROP
 	_buttons["up"].position = pad + Vector2(ARM, 0)
 	_buttons["left"].position = pad + Vector2(0, ARM)

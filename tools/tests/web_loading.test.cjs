@@ -43,9 +43,9 @@ test('no title, rotating game captions, and engine-owned progress', () => {
     const {nodes, timers} = fixture();
     // (the game's name waits for the title screen's own plaque)
     assert.equal(nodes['rc-title'], undefined);
-    assert.equal(nodes['rc-loading'].textContent, library.captions[0]);
-    timers.get(3000)();
-    assert.equal(nodes['rc-loading'].textContent, library.captions[1]);
+    assert.equal(nodes['rc-loading-text'].textContent, library.captions[0].replace(/\.{3}$/, ''));
+    timers.get(5000)();
+    assert.equal(nodes['rc-loading-text'].textContent, library.captions[1].replace(/\.{3}$/, ''));
     assert.equal(nodes['status-progress'].value, 0.37);
     assert.ok(nodes['rc-loading-panel'].children.includes(nodes['status-progress']));
 });
@@ -65,14 +65,14 @@ test('two image slots fade only after load, and a failed picture does not blank 
 });
 test('errors hide artwork captions, preserve notices, and completed loader stops timers', () => {
     const {nodes, timers, cleared, observe} = fixture();
-    timers.get(3000)();
+    timers.get(5000)();
     nodes['status-notice'].display = 'block';
     observe();
     assert.equal(nodes['rc-loading-panel'].hidden, true);
     assert.equal(nodes['status-notice'].textContent, 'Engine error');
     nodes.status.display = 'none';
     observe();
-    assert.deepEqual(cleared.sort((a, b) => a - b), [3000, 10000]);
+    assert.deepEqual(cleared.sort((a, b) => a - b), [500, 5000, 10000]);
 });
 test('initial hidden engine overlay does not cancel the slideshow before startup', () => {
     const {nodes, cleared, observe} = fixture(false);
@@ -83,5 +83,20 @@ test('initial hidden engine overlay does not cancel the slideshow before startup
     assert.equal(nodes['rc-loading-panel'].hidden, false);
     nodes.status.visibility = 'hidden';
     observe();
-    assert.equal(cleared.length, 2);
+    assert.equal(cleared.length, 3);
+});
+
+test('dots cycle independently without replacing the caption or announcing punctuation', () => {
+    const {nodes, timers} = fixture();
+    const original = nodes['rc-loading-text'].textContent;
+    assert.equal(nodes['rc-loading-dots'].textContent, '   ');
+    for (const suffix of ['.  ', '.. ', '...', '   ']) {
+        timers.get(500)();
+        assert.equal(nodes['rc-loading-dots'].textContent, suffix);
+        assert.equal(nodes['rc-loading-text'].textContent, original);
+    }
+    assert.equal(nodes['rc-loading-dots']['aria-hidden'], 'true');
+    timers.get(5000)();
+    assert.notEqual(nodes['rc-loading-text'].textContent, original);
+    assert.equal(nodes['rc-loading-dots'].textContent, '   ');
 });

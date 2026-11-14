@@ -1,5 +1,6 @@
 // Recolours one of Kenney's white input prompts (assets/ui/input_prompts/) for the touch pad (controls_overlay.gd).
-// The icon's white body takes `body`; Kenney's red highlight (the pressed arm of a d-pad) takes `mark`. With
+// The icon's white body takes `body`; Kenney's red highlight (the pressed arm of a d-pad) takes `mark` (each with
+// its own alpha, so a transparent body leaves only the highlight). With
 // `has_solid`, `solid` is the same button with its lettering filled in (<name>_solid.svg): where the icon has its
 // letters cut out, they show in `letter`, so a button can be the gem with white letters.
 shader_type canvas_item;
@@ -28,5 +29,5 @@ void fragment() {
 		rgb = mix(letter.rgb, rgb, c.a / max(s, 0.001));
 		a = s;
 	}
-	COLOR = vec4(rgb, a * body.a) * tint;
+	COLOR = vec4(rgb, a * mix(body.a, mark.a, t)) * tint;
 }
