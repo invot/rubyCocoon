@@ -35,6 +35,7 @@ const MAPS := {
 		# (level 1) holds home and the two scenery homes; every ramp is three tiles. Interior indices are retained;
 		# the two over-water buildings are wooden shacks on a short east-side pier.
 		"style": "pirate_cove",
+		"villager_placements": {"27,27": {"pos": [12, 25], "facing": [0, 1], "wander": false}},
 		# a cosy hamlet: more flowers in its lawns than other towns
 		"flower_share": 0.2,
 		"building_order": [[29, 15], [5, 3], [44, 15], [35, 32], [7, 16], [19, 15], [26, 35]],
@@ -391,8 +392,8 @@ const MAPS := {
 			"TTzHHHHzGGGGGTTTTTRRRRRRRTTTTqHHHHzHHHHzTT",
 			"TTz....zGGGGGTTTTTRRRRRRRTTTTq....z....zTT",
 			"TTzz,,zzGGGGGtTTTTRRRRRRRTTTTqq,,qzz,,zzTT",
-			",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,&&,,",
-			",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,&&,,",
+			",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,&,,,",
+			",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,&,,,",
 			"tt+........L::::::tt::::::L.............tt",
 			"tt..f..@...:::::::tt:::::::...f....f....tt",
 			"tt.........:::::::SS:::::::.............tt",

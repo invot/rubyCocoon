@@ -69,6 +69,7 @@ const ZONE_CHARS := {"l": "living", "b": "bedroom", "k": "kitchen", "a": "bathro
 ## long = its long side goes against the wall, short = its short end does (beds: the headboard),
 ## top = small things that may stand on it.
 const KINDS := {
+	"hot_tub": {"m": []}, "ice_maker": {"m": []},
 	"counter": {"m": ["counter"], "fill": true, "top": ["cup", "bottle", "plate_2", "milk", "apple", "el_microwave", "el_toaster", "", ""]},
 	"kitchen_sink": {"m": ["kitchen_sink"], "fill": true},
 	"stove": {"m": ["stove"], "fill": true, "top": ["pan", "pot", ""]},
@@ -471,13 +472,17 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._rugs()
 	rb._stalls()
 	rb._counters()
-	rb._wall_decor()
+	if room.get("art_walls", false):
+		rb._art_walls()
+	else:
+		rb._wall_decor()
 	if rb.mission:
 		rb._mission_decor()
 	if rb.adobe:
 		rb._adobe_decor()
 	if rb.ancient:
 		rb._pilasters()
+	rb._hotel_details()
 	rb._lights()
 	var fm := MeshInstance3D.new()
 	fm.mesh = rb.floor_mesher.mesh()
@@ -678,6 +683,9 @@ func _floors() -> void:
 				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y), _lowest())
 				continue
 			if _sunk_detail(x, y):
+				if map.get("room", {}).has("dais") and Elev.ramp_dir(map, Vector2i(x, y)) != Vector2i.ZERO:
+					# (a platform's steps stand on the floor below; _steps builds them up from it)
+					_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y), Elev.edge(map, Vector2i(x, y), -Elev.ramp_dir(map, Vector2i(x, y))))
 				continue
 			if y == h - 1:
 				# the open front: the floor stops half way across the row, in a dark edge (under the end of a side
@@ -703,7 +711,11 @@ func _floors() -> void:
 				# a hole in the floor: the stairs down go down into it (see world.gd _stairwell)
 				continue
 			if not c in WALLISH:
-				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y), Elev.surface(map, Vector2i(x, y)))
+				var lv := Elev.surface(map, Vector2i(x, y))
+				if map.get("room", {}).has("dais") and Elev.ramp_dir(map, Vector2i(x, y)) != Vector2i.ZERO:
+					# (a platform's steps stand on the floor below; _steps builds them up from it)
+					lv = Elev.edge(map, Vector2i(x, y), -Elev.ramp_dir(map, Vector2i(x, y)))
+				_floor_quad(x, y, 0.0, 0.0, 1.0, 1.0, zone(x, y), lv)
 				continue
 			if c in DIAGS:
 				# each half of the tile takes the floor of the room on its side of the diagonal
@@ -815,6 +827,11 @@ func _levels() -> void:
 	var face := surface("drop", stone.darkened(0.2))
 	var coping := surface("coping", stone.lightened(0.14))
 	var tread := surface("tread", stone.lightened(0.04))
+	if map.get("room", {}).has("dais"):
+		# a platform's sides and steps are wood, its lip painted trim
+		face = _rail_mat()
+		coping = _trim_mat()
+		tread = _rail_mat()
 	var iron := surface("lattice", Color("#6f7f86"))
 	var rim := surface("lattice_rim", Color("#b08840"))
 	for y in h:
@@ -847,6 +864,8 @@ func _levels() -> void:
 				# (carried on to the face of a wall it runs into)
 				var a := c + out * 0.5 - along * (0.5 + _into_wall(p, q, -Vector2i(along.x, along.z)))
 				var b := c + out * 0.5 + along * (0.5 + _into_wall(p, q, Vector2i(along.x, along.z)))
+				if map.get("room", {}).get("balcony", false):
+					low = maxf(low, top - 0.18)
 				floor_mesher.quad("drop", face, [a + Vector3(0, low, 0), b + Vector3(0, low, 0), b + Vector3(0, top, 0), a + Vector3(0, top, 0)], out, along, Vector3.DOWN)
 				if not open_under:
 					floor_mesher.box("coping", coping, c + out * 0.47 + Vector3(0, top + 0.02, 0), Vector3(0.1, 0.05, 0.1) + along * 0.96)
@@ -867,6 +886,19 @@ func _steps(p: Vector2i, c: Vector3, tread: Material) -> void:
 	var hi := Elev.edge(map, p, d)
 	var a := 0.5 + (0.4 if code(p.x - across.x, p.y - across.y) in WALLISH else 0.0)
 	var b := 0.5 + (0.4 if code(p.x + across.x, p.y + across.y) in WALLISH else 0.0)
+	if map.get("room", {}).has("dais"):
+		# a platform's steps (the user's direction, 2026-11-15: twice as steep as a full tile's slope): three treads
+		# rising over the middle half of the tile, so whoever stands on its middle is level with them, with a short
+		# landing at the top
+		var run := 0.5
+		var k := 3
+		for i in k:
+			var top := lerpf(lo, hi, float(i + 1) / k)
+			var at := c + up * (-run / 2.0 + (i + 0.5) * run / k) + side * (b - a) / 2.0
+			floor_mesher.box("tread", tread, at + Vector3(0, (top + lo) / 2.0, 0), up.abs() * (run / k) + side * (a + b) + Vector3(0, top - lo, 0))
+		floor_mesher.box("tread", tread, c + up * (run / 2.0 + (0.5 - run / 2.0) / 2.0) + side * (b - a) / 2.0 + Vector3(0, (hi + lo) / 2.0, 0),
+			up.abs() * (0.5 - run / 2.0) + side * (a + b) + Vector3(0, hi - lo, 0))
+		return
 	var n := 4
 	for i in n:
 		var t := lerpf(lo, hi, float(i + 1) / n)
@@ -940,9 +972,9 @@ func _walls() -> void:
 			if y == h - 1:
 				# no front wall: only the walls running back from it come on, to the floor's front edge
 				if wallish(x, y - 1) and not c in DIAGS:
-					_bars(x, y, _foot(x, y), H, false, true, false, false, true, false)
+					_bars(x, y, _foot(x, y), float(map.get("room", {}).get("wall_height", H)), false, true, false, false, true, false)
 				continue
-			var top := H
+			var top := float(map.get("room", {}).get("wall_height", H))
 			var e := wallish(x + 1, y)
 			var wv := wallish(x - 1, y)
 			var n := wallish(x, y - 1)
@@ -2204,6 +2236,8 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 
 
 func _place(kind: String, group: Array) -> void:
+	if kind in ["hot_tub", "ice_maker"]:
+		return # Built by _hotel_details.
 	var k: Dictionary = KINDS.get(kind, {})
 	var layout := furniture_layout(map, kind, group)
 	var lo: Vector2i = layout["lo"]
@@ -2457,6 +2491,9 @@ func _counters() -> void:
 		_stone_counters()
 		return
 	var shop: String = map.get("building", {}).get("shop", "")
+	if shop in ["center", "arena"]:
+		_reception_desk()
+		return
 	var goods: Array = COUNTER_GOODS.get(shop, ["product_1", "books", "cup"])
 	var keeper := Vector2i(-99, -99)
 	for n in map.get("npcs", []):
@@ -2842,9 +2879,13 @@ const CUBBY := {"half": 0.3, "y0": 0.98, "y1": 1.62, "depth": 0.3}
 const CLOSET := {"y1": 2.08, "depth": 0.48}
 ## how thick a closet's shelves are: chunky, never thin boards
 const SHELF_T := 0.09
-## A raised platform (a template's "dais": [[x, y, w, h], ...]): a low wooden stage that the furniture and people on
-## its tiles stand on (map_loader.gd seats people on it, on cushions).
-const DAIS_H := 0.22
+## A raised platform (the user's direction, 2026-11-15: mostly in cafes, large, along a whole side or in a corner of
+## the room, with railings and steps where you walk up). A template's "dais": [{"rect": [x, y, w, h], "steps":
+## [[x, y], ...]}, ...]: the rect is one step up (DAIS_H), walked on like any floor (map_loader.gd makes it the room's
+## "heights"); each step tile, just outside it, rises onto it. Railings run along its edges over open floor, except
+## at the steps. People on it sit on floor cushions (map_loader.gd).
+const DAIS_H := 0.3
+const RAIL_H := 0.55
 const HomeDecor = preload("res://scripts/gfx/home_decor.gd")
 
 var home := false
@@ -2943,7 +2984,11 @@ func _next_print() -> String:
 	avoid.append(HomeDecor.ROCKET)
 	var got := HomeDecor.pick_prints(pick_seed + _prints_used.size() * 7919, 1, avoid)
 	if got.is_empty():
-		return ""
+		# (a room with more frames than there are prints starts again, in a new order)
+		_prints_used.clear()
+		got = HomeDecor.pick_prints(pick_seed + 104729, 1, [HomeDecor.ROCKET])
+		if got.is_empty():
+			return ""
 	_prints_used.append(got[0])
 	return got[0]
 
@@ -3308,24 +3353,76 @@ func _cubby_wall(x: int, y: int) -> void:
 
 
 # ---------------------------------------------------------------- platforms
-## Raised platforms ("dais": [[x, y, w, h], ...]): a low wooden stage over those tiles with a painted lip.
-func _daises() -> void:
-	for d in map.get("room", {}).get("dais", []):
-		var r := Rect2(float(d[0]) + 0.03, float(d[1]) + 0.03, float(d[2]) - 0.06, float(d[3]) - 0.06)
-		var z := zone(int(d[0]), int(d[1]))
-		var top := floor_mat(z if z != "" else default_zone)
-		floor_mesher.box("dais_lip", _trim_mat(), Vector3(r.get_center().x, DAIS_H / 2.0, r.get_center().y), Vector3(r.size.x, DAIS_H, r.size.y))
-		floor_mesher.quad("dais_top", top, [Vector3(r.position.x + 0.05, DAIS_H + 0.003, r.position.y + 0.05),
-			Vector3(r.end.x - 0.05, DAIS_H + 0.003, r.position.y + 0.05), Vector3(r.end.x - 0.05, DAIS_H + 0.003, r.end.y - 0.05),
-			Vector3(r.position.x + 0.05, DAIS_H + 0.003, r.end.y - 0.05)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+## A room's platforms as "heights" rows (elevation.gd): their tiles at level 1, their steps ramps rising onto them.
+static func dais_heights(room: Dictionary, w: int, h: int) -> Array:
+	var grid := []
+	for y in h:
+		var row := []
+		row.resize(w)
+		row.fill("0")
+		grid.append(row)
+	for d in room.get("dais", []):
+		var r := _dais_rect(d)
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				if x >= 0 and y >= 0 and x < w and y < h:
+					grid[y][x] = "1"
+		for st in d.get("steps", []):
+			var t := Vector2i(int(st[0]), int(st[1]))
+			# the way up: towards the platform's side it touches
+			var dir := Vector2i.ZERO
+			for q in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if r.has_point(t + q):
+					dir = q
+			grid[t.y][t.x] = {Vector2i(0, -1): "^", Vector2i(0, 1): "v", Vector2i(-1, 0): "<", Vector2i(1, 0): ">"}.get(dir, "0")
+	return grid.map(func(row): return "".join(row))
 
 
-## How high a platform raises the floor under tile `t`.
+static func _dais_rect(d) -> Rect2i:
+	var r: Array = d["rect"] if d is Dictionary else d
+	return Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3]))
+
+
+## How high a platform raises tile `t` (0 off them, the middle of a step on one).
 static func dais_at(m: Dictionary, t: Vector2i) -> float:
-	for d in m.get("room", {}).get("dais", []):
-		if Rect2i(int(d[0]), int(d[1]), int(d[2]), int(d[3])).has_point(t):
-			return DAIS_H
-	return 0.0
+	if not m.get("room", {}).has("dais"):
+		return 0.0
+	return Elev.surface(m, t)
+
+
+## The railings round each platform: stout wooden posts at every tile corner along an edge over open floor (not at
+## its steps, nor along a wall or a counter) and a thick rail along their tops.
+func _daises() -> void:
+	var wood := _rail_mat()
+	for d in map.get("room", {}).get("dais", []):
+		var r := _dais_rect(d)
+		var steps := {}
+		for st in (d.get("steps", []) if d is Dictionary else []):
+			steps[Vector2i(int(st[0]), int(st[1]))] = true
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				var t := Vector2i(x, y)
+				for q in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var o: Vector2i = t + q
+					if r.has_point(o) or steps.has(o) or not code(o.x, o.y) in [MapGen.IFLOOR, MapGen.ITILE, MapGen.RUG, MapGen.MAT]:
+						continue
+					_rail(t, q, wood)
+
+
+## One tile's length of railing along tile t's side q (on the platform, just in from its edge).
+func _rail(t: Vector2i, q: Vector2i, mat: Material) -> void:
+	var c := Vector3(t.x + 0.5, DAIS_H, t.y + 0.5) + Vector3(q.x, 0, q.y) * 0.42
+	var along := Vector3(absf(q.y), 0, absf(q.x))
+	var post := 0.11
+	for s in [-1.0, 1.0]:
+		floor_mesher.box("rail", mat, c + along * s * (0.5 - post / 2.0) + Vector3(0, RAIL_H / 2.0, 0), Vector3(post, RAIL_H, post))
+	floor_mesher.box("rail", mat, c + Vector3(0, RAIL_H - 0.05, 0), along * 1.0 + Vector3(0, 0.1, 0) + Vector3(absf(q.x), 0, absf(q.y)) * 0.13)
+	floor_mesher.box("rail", mat, c + Vector3(0, RAIL_H * 0.42, 0), along * 0.9 + Vector3(0, 0.07, 0) + Vector3(absf(q.x), 0, absf(q.y)) * 0.08)
+
+
+## The warm wood of platforms' railings, steps and sides.
+func _rail_mat() -> Material:
+	return surface("floor_wood", Color("#b07a4c"))
 
 
 # ---------------------------------------------------------------- dressing a home
@@ -3537,3 +3634,114 @@ func _dressed_shelf(x: int, y: int, inside: Vector2i, up: float, side: float, lo
 		if it != null:
 			tint_fabric(it, Color(CLOTH[rr.randi_range(0, CLOTH.size() - 1)]))
 	return base
+
+
+## Hotel fixtures share the room's painted, texture-sampling surfaces.
+func _hotel_details() -> void:
+	var room: Dictionary = map.get("room", {})
+	if not String(map.get("room_key", "")).begins_with("hotel_"):
+		return
+	var ivory := surface("hotel_ivory", Color("#eee3cd"))
+	var dark := surface("hotel_iron", Color("#414951"))
+	var tile := surface("hotel_tile", Color("#a3c8c2"))
+	var water := surface("hotel_spring", Color("#73cdc4"))
+	if room.get("balcony", false):
+		var wood := surface("mission_wood", MISSION_WOOD)
+		for x in range(1, 20):
+			if x in [16, 17]:
+				continue
+			floor_mesher.box("mission_wood", wood, Vector3(x + 0.5, 3.58, 4.0), Vector3(1.0, 0.09, 0.1))
+			for dx in [0.12, 0.5, 0.88]:
+				floor_mesher.box("hotel_iron", dark, Vector3(x + dx, 3.13, 4.0), Vector3(0.05, 0.86, 0.05))
+		for x in [3.5, 9.5, 14.5]:
+			floor_mesher.box("hotel_ivory", ivory, Vector3(x, 1.28, 3.8), Vector3(0.25, 2.56, 0.25))
+		# Handrails follow the actual five-tile flight, clear of both landing approaches.
+		for x in [16.04, 17.96]:
+			for i in 20:
+				var z := 4.0 + float(i) / 4.0
+				var rise := 2.7 * (9.0 - z) / 5.0
+				floor_mesher.box("hotel_iron", dark, Vector3(x, rise + 0.48, z), Vector3(0.045, 0.96, 0.045))
+				floor_mesher.box("mission_wood", wood, Vector3(x, rise + 0.98, z), Vector3(0.1, 0.08, 0.28))
+	for fixture in room.get("fixtures", []):
+		if fixture[2] != "ice_maker":
+			continue
+		var c := Vector3(float(fixture[0]) + 0.5, 0, float(fixture[1]) + 0.5)
+		floor_mesher.box("hotel_ivory", ivory, c + Vector3(0, 0.62, 0), Vector3(0.86, 1.24, 0.76))
+		floor_mesher.box("hotel_iron", dark, c + Vector3(0, 0.7, 0.39), Vector3(0.56, 0.38, 0.025))
+		floor_mesher.box("hotel_tile", tile, c + Vector3(0, 0.47, 0.45), Vector3(0.62, 0.07, 0.16))
+		floor_mesher.box("hotel_iron", dark, c + Vector3(0.26, 1.08, 0.39), Vector3(0.12, 0.07, 0.03))
+	if map.get("room_key", "") == "hotel_pool":
+		# A two-tile-square sunken spa with a broad tiled rim, separate from the swimming pool.
+		var c := Vector3(11, 0, 7)
+		floor_mesher.box("hotel_tile", tile, c + Vector3(0, 0.24, 0), Vector3(2, 0.48, 2))
+		floor_mesher.box("hotel_spring", water, c + Vector3(0, 0.49, 0), Vector3(1.65, 0.025, 1.65))
+		for side in [-1, 1]:
+			floor_mesher.box("hotel_ivory", ivory, c + Vector3(side * 0.91, 0.52, 0), Vector3(0.18, 0.18, 2))
+			floor_mesher.box("hotel_ivory", ivory, c + Vector3(0, 0.52, side * 0.91), Vector3(1.65, 0.18, 0.18))
+		for i in 6:
+			floor_mesher.box("hotel_ivory", ivory, c + Vector3(-0.6 + float(i % 3) * 0.6, 0.515, -0.45 + float(i / 3) * 0.9), Vector3(0.09, 0.02, 0.09))
+	for treadmill in room.get("treadmills", []):
+		var c := Vector3(float(treadmill[0]) + 0.5, 0, float(treadmill[1]) + 0.5)
+		floor_mesher.box("hotel_ivory", ivory, c + Vector3(0, 0.08, 0.1), Vector3(0.95, 0.16, 1.85))
+		floor_mesher.box("hotel_iron", dark, c + Vector3(0, 0.18, 0.1), Vector3(0.7, 0.04, 1.55))
+		for side in [-1, 1]:
+			floor_mesher.box("hotel_ivory", ivory, c + Vector3(side * 0.43, 0.68, -0.7), Vector3(0.07, 1.2, 0.07))
+		floor_mesher.box("hotel_iron", dark, c + Vector3(0, 1.25, -0.7), Vector3(0.92, 0.2, 0.32))
+
+
+## A room whose walls are covered in art (a template's "art_walls", the user's direction for the café, 2026-11-15):
+## every free stretch of back and side wall gets boxy framed prints hung salon-style at varied heights, a large one
+## across two tiles now and then, nothing over windows, doors, curtains or tall furniture.
+func _art_walls() -> void:
+	var furn: Dictionary = map.get("furniture", {})
+	var hung := {}
+	var r := RandomNumberGenerator.new()
+	r.seed = pick_seed * 17 + 3
+	for y in range(0, h - 1):
+		for x in range(0, w):
+			var t0 := Vector2i(x, y)
+			if code(x, y) != MapGen.IWALL or hung.has(t0) or _cubbies.has(t0) or _by_window.has(t0):
+				continue
+			for inside in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0)]:
+				var t: Vector2i = t0 + inside
+				if zone(t.x, t.y) == "":
+					continue
+				var along := Vector2i(inside.y, inside.x)
+				if not (wallish(x + along.x, y + along.y) and wallish(x - along.x, y - along.y)):
+					continue
+				# beside a door or window: a narrow frame, set away from the opening
+				var away := 0.0
+				for sgn in [-1, 1]:
+					if code(x + along.x * sgn, y + along.y * sgn) in [MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED]:
+						away -= sgn * 0.14 * (1.0 if (along.x > 0 or along.y > 0) else -1.0)
+				if code(t.x, t.y) in [MapGen.SHELF, MapGen.BOOKSHELF, MapGen.BOARD, MapGen.FIREPLACE, MapGen.STAIRS_UP, MapGen.STAIRS_DOWN] 						or furn.get(t, "") in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "floor_lamp"]:
+					continue
+				# (over a tall plant the art hangs a little higher)
+				var high := 0.2 if code(t.x, t.y) == MapGen.PLANT or furn.get(t, "") == "plant" else 0.0
+				if away != 0.0:
+					var lift0 := Elev.surface(map, t) if Elev.has(map) else 0.0
+					_hang_frame(x, y, inside, 2.0 + lift0, away, 0.3, 0.4)
+					_hang_frame(x, y, inside, 1.5 + lift0, away, 0.34, 0.44)
+					hung[t0] = true
+					break
+				# the floor under it may be a platform: the art goes up with it
+				var lift := (Elev.surface(map, t) if Elev.has(map) else 0.0) + high
+				var next := t0 + along
+				var pair_free: bool = code(next.x, next.y) == MapGen.IWALL and not hung.has(next) and not _by_window.has(next) 					and wallish(next.x + along.x, next.y + along.y) and not code(next.x + along.x, next.y + along.y) in [MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED] 					and not furn.get(next + inside, "") in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "floor_lamp", "plant"] 					and not code(next.x + inside.x, next.y + inside.y) in [MapGen.SHELF, MapGen.BOOKSHELF]
+				var roll := r.randf()
+				# (a side wall's "along" runs south, so a two-tile piece's middle is half a tile that way)
+				var half := 0.5 if (along.x > 0 or along.y > 0) else -0.5
+				if pair_free and roll < 0.3 and high == 0.0:
+					var wide := r.randf() < 0.6
+					_hang_frame(x, y, inside, 1.72 + lift, half, 1.35 if wide else 0.95, 0.95 if wide else 1.2)
+					hung[next] = true
+				elif roll < 0.75:
+					# a stacked pair: a small landscape over a portrait
+					_hang_frame(x, y, inside, 2.02 + lift, r.randf_range(-0.12, 0.12), 0.48, 0.36)
+					_hang_frame(x, y, inside, 1.48 + lift, r.randf_range(-0.12, 0.12), 0.42, 0.56)
+				elif roll < 0.9:
+					_hang_frame(x, y, inside, r.randf_range(1.6, 1.8) + lift, r.randf_range(-0.1, 0.1), 0.56, 0.74)
+				else:
+					_hang_frame(x, y, inside, 1.7 + lift, 0.0, 0.6, 0.6)
+				hung[t0] = true
+				break

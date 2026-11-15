@@ -932,7 +932,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"pos": [pos.x, pos.y], "facing": [facing.x, facing.y], "last_center": last_center,
 		"seen": seen, "caught": caught, "play_time": play_time, "steps": steps,
 		"eggs": eggs, "shards": shards, "shards_spent": shards_spent, "max_shield": max_shield,
-		"beast_slots": beast_slots, "trainer_level": trainer_level, "trainer_xp": trainer_xp, "ladder": ladder,
+		"beast_slots": beast_slots, "trainer_level": trainer_level, "trainer_xp": trainer_xp, "ladder": ladder, "ladder_roster": 2,
 		"ring_side": ring_side,
 		"preferred_ring_side": preferred_ring_side,
 		"saved_at": Time.get_unix_time_from_system(),
@@ -1087,6 +1087,10 @@ func load_game(slot := -2) -> bool:
 	var ld: Dictionary = d.get("ladder", {})
 	for k in ld:
 		ladder[int(k)] = (ld[k] as Array).map(func(x): return int(x))
+	if int(d.get("ladder_roster", 1)) < 2:
+		for rank in range(1, 6):
+			if (ladder.get(rank, []) as Array).has(0) and ladder[rank].has(1) and ladder[rank].has(2) and not ladder[rank].has(3):
+				ladder[rank].append(3)
 	# saves from before the battle ring: room for the beasts already carried
 	beast_slots = int(d.get("beast_slots", clampi(party.size(), BEAST_SLOTS_START, PARTY_MAX)))
 	fix_ring()

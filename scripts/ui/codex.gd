@@ -351,4 +351,23 @@ static func receive() -> void:
 	GameState.set_flag("codex_seen_codex")
 	Sfx.play("capture")
 	UI.toast("Got the Codex!", "notice")
+	if UI.auto:
+		await say(["[surprised] Bzzt! Whirr... Oh! Hello!"] + CodexDB.TOPICS["codex"]["lines"])
+		return
+	# it swirls up into the middle of the screen to introduce itself, then settles in its corner (the user's
+	# 2026-11-15 direction)
+	var h := _ensure()
+	_whoosh()
+	await h.swirl_in()
+	_beep()
 	await say(["[surprised] Bzzt! Whirr... Oh! Hello!"] + CodexDB.TOPICS["codex"]["lines"])
+	h.visible = true
+	await h.fly_home()
+	if not _shown():
+		h.visible = false
+
+
+## A rising swirl of notes as the Codex flies in.
+static func _whoosh() -> void:
+	for i in 8:
+		UI.get_tree().create_timer(0.16 * i).timeout.connect(func() -> void: Sfx.tone(440.0 * pow(1.19, i), 0.1, "triangle", -20.0))

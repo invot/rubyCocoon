@@ -103,37 +103,35 @@ func run(game, opts: Dictionary) -> void:
 	print("HOTEL INTERIOR ", hotel["interior"])
 	await main._go(hotel["interior"], "entry")
 	print("[island] lobby ready")
-	var suite_door: Vector2i
-	for tile in main.world.map["exits"]:
-		if String(main.world.map["exits"][tile]["to"]).ends_with("@2"):
-			suite_door = tile
-	await main._go(hotel["interior"], suite_door + Vector2i(2, 0))
-	await main._walk_test([suite_door])
-	for attempt in 50:
-		if main.world.map_id == hotel["interior"] + "@2" and not main._transitioning:
-			break
-		await main._wait(0.1)
-	print("[island] suite reached ", main.world.map_id)
-	check(main.world.map_id == hotel["interior"] + "@2", "hotel suite door is reachable")
-	await main._go(hotel["interior"], "entry")
-	print("[island] hotel prompt ready")
-	UI.auto = false
+	var hotel_base: String = hotel["interior"]
+	# Lobby stairs are real elevation within one room; both halls and all guest facilities have reciprocal doors.
+	var lobby: Dictionary = main.world.map
+	check(lobby["room"].get("balcony", false), "lobby contains an upstairs balcony")
+	for f in range(1, ML.room_set(hotel).size() + 1):
+		var id := ML.floor_id(hotel_base, f)
+		var m := ML.load_map(id, {})
+		for door in m["exits"]:
+			var ex: Dictionary = m["exits"][door]
+			if String(ex["to"]).begins_with(hotel_base):
+				var next := ML.load_map(ex["to"], {})
+				check(next["spawns"].has(ex["spawn"]), "hotel rooms have reciprocal arrival points")
 	GameState.gold = 300
-	Places.open(hotel, main.world)
-	await main._wait(0.6)
-	check(UI.stack.back() is UI.ConfirmPrompt, "hotel uses the shared direct A/B prompt")
-	check(UI.stack.back().lines.size() == 1, "hotel decision fits one page at touch reference size")
-	if opts.has("shot") and DisplayServer.get_name() != "headless":
-		main._save_shot(String(opts["shot"]))
-	await answer(false)
-	check(GameState.gold == 300, "B declines without charging")
-	Places.open(hotel, main.world)
-	await main._wait(0.5)
-	await answer(true)
-	check(GameState.gold == 150, "A charges for exactly one hotel stay")
-	await main._press("ui_accept")
-	await main._wait(0.3)
 	UI.auto = true
+	await Places.open(hotel, main.world)
+	check(GameState.gold == 300, "reservation refusal charges no gold")
+	check(UI.auto_log.any(func(line): return "reservation" in String(line).to_lower()), "clerk refuses a guest without a reservation")
+	var pool := ML.load_map(ML.floor_id(hotel_base, 6), {})
+	for beast in GameState.party:
+		beast.hp = 1
+		beast.mp = 0
+	UI.auto_answers = [0]
+	await Places.prop(main.world.MapGen.FURN, pool, main.world, Vector2i(10, 6))
+	check(GameState.party.all(func(beast): return beast.hp == beast.max_hp() and beast.mp == beast.max_mp()), "hot tub restores the whole party's HP and MP")
+	var ice := ML.load_map(ML.floor_id(hotel_base, 9), {})
+	var seeds := GameState.item_count("revival_seed")
+	await Places.prop(main.world.MapGen.FURN, ice, main.world, Vector2i(3, 2))
+	await Places.prop(main.world.MapGen.FURN, ice, main.world, Vector2i(3, 2))
+	check(GameState.item_count("revival_seed") == seeds + 1, "broken upstairs ice maker gives its item exactly once")
 	UI.clear_all()
 	var west_pad: int = main.world.WorldDB.SHELLHAVEN_WEST_PADDING
 	await main._go("shellhaven", Vector2i(24 + west_pad, 21))

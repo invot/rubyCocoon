@@ -175,9 +175,56 @@ func _paint() -> Texture2D:
 
 
 func _layout() -> void:
+	size = BOX
+	if _flying:
+		return
 	var safe := UIKit.safe_rect(self)
 	position = safe.position + MARGIN
+
+
+## How big it grows at the middle of the screen for its hello (swirl_in).
+const BIG := 2.0
+## Flying in or out of its corner (swirl_in / fly_home): the corner layout leaves it be.
+var _flying := false
+## An extra turn of the head itself while it swirls (radians).
+var _spin := 0.0
+
+
+## When Mae hands it over (codex.gd receive): it swirls up from the bottom of the screen into the middle, spinning
+## and growing, to introduce itself there.
+func swirl_in() -> void:
+	_flying = true
 	size = BOX
+	pivot_offset = BOX / 2.0
+	visible = true
+	var safe := UIKit.safe_rect(self)
+	var centre := Vector2(safe.get_center().x, safe.position.y + safe.size.y * 0.3)
+	var tw := create_tween()
+	tw.tween_method(_swirl.bind(centre), 0.0, 1.0, 1.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	await tw.finished
+	_spin = 0.0
+
+
+func _swirl(t: float, centre: Vector2) -> void:
+	# a spiral that winds in to the middle, up from below
+	var ang := PI * 0.5 + t * TAU * 2.0
+	var r := (1.0 - t) * 300.0
+	var sc := lerpf(0.12, BIG, t)
+	scale = Vector2(sc, sc)
+	position = centre + Vector2(cos(ang), sin(ang)) * r - BOX / 2.0
+	modulate.a = minf(1.0, t * 4.0)
+	_spin = (1.0 - t) * TAU * 3.0
+
+
+## Back to its corner, shrinking to its usual size, after its hello.
+func fly_home() -> void:
+	var safe := UIKit.safe_rect(self)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(self, "position", safe.position + MARGIN + (BOX * 0.0), 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(self, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+	_flying = false
+	_layout()
 
 
 func set_mood(m: String) -> void:
@@ -208,6 +255,7 @@ func _process(delta: float) -> void:
 	# a bob and a little sway while talking, a slow drift otherwise
 	var nod := sin(_t * 9.0) * 3.0 if talking else sin(_t * 1.3) * 1.2
 	_pivot.rotation_degrees = Vector3(6 + nod, -6 + sin(_t * 0.7) * 3.0, sin(_t * 1.1) * 1.5)
+	_pivot.rotation.y += _spin
 	# celebrating: little hops, a happy wiggle at each one; a sad head sinks a little
 	var hop := absf(sin(_t * 11.0)) * 0.09 * minf(1.0, _bounce_left * 2.0) if _bounce_left > 0.0 else 0.0
 	var sink := -0.03 if face == "sad" else 0.0
@@ -216,8 +264,11 @@ func _process(delta: float) -> void:
 		_pivot.rotation_degrees.z += sin(_t * 11.0) * 6.0
 	# the glow breathes, and brightens while it talks
 	glow.visible = is_visible_in_tree()
-	glow.global_position = global_position - Vector2(GLOW_PAD, GLOW_PAD)
-	glow.size = size + Vector2(GLOW_PAD, GLOW_PAD) * 2.0
+	# (round what's drawn, which grows with its scale while it says hello)
+	var box := get_global_rect()
+	var pad := Vector2(GLOW_PAD, GLOW_PAD) * scale
+	glow.global_position = box.position - pad
+	glow.size = box.size + pad * 2.0
 	glow.modulate.a = lerpf(glow.modulate.a, (0.85 if talking or _bounce_left > 0.0 else 0.7) + sin(_t * 2.0) * 0.06, minf(1.0, delta * 6.0))
 	_blink_in -= delta
 	if _blink_in <= 0.0:

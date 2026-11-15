@@ -21,7 +21,7 @@ func run(main, opts: Dictionary) -> void:
 			for f in rooms.size():
 				var id := ML.floor_id(b["interior"], f + 1)
 				var m := ML.load_map(id, {})
-				if (b["shop"] in ["house", "home", "uncle"] and not b.get("hotel", false)) or rooms[f] == "hotel_suite":
+				if (b["shop"] in ["house", "home", "uncle"] and not b.get("hotel", false)) or (b.get("hotel", false) and rooms[f] != "hotel_lobby"):
 					continue
 				check(not m.get("furniture", {}).values().has("phone"), "service phone still on a table: " + id)
 				if not m.has("counter_phone"):

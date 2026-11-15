@@ -444,9 +444,13 @@ func practice() -> void:
 	GameState.party = [a, b]
 	# (in the red: once the lesson's done, the Codex heals it)
 	a.hp = 1
+	# every other lesson done, none skipped (earlier parts leave some untold or skipped on purpose)
 	for k in GameState.flags.keys():
 		if String(k).begins_with("codex_skipped_"):
 			GameState.set_flag(String(k), false)
+	for id in CodexDB.TOPICS:
+		if String(id) != "team":
+			GameState.set_flag("codex_seen_" + String(id))
 	GameState.ring_side = 0
 	GameState.max_shield = 4
 	GameState.shield = 4

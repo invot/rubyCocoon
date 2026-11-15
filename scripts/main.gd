@@ -1224,6 +1224,8 @@ func _run_test() -> void:
 	elif scene == "arena-entry":
 		await _arena_entry_test()
 		await get_tree().create_timer(wait).timeout
+	elif scene == "island-updates":
+		await load("res://tools/debug/island_updates.gd").new().run(self, _test)
 	elif scene == "arena-ladder":
 		await load("res://tools/debug/arena_ladder.gd").new().run(self, _test)
 	elif scene == "mobile-menus":
@@ -2045,6 +2047,10 @@ func _run_test() -> void:
 		await _wait(1.5)
 		if _test.get("book", "") == "1":
 			Menus.pause_menu(world, "codex")
+		elif _test.get("receive", "") == "1":
+			# --receive=1: Mae hands it over, and it swirls up into the middle to say hello
+			GameState.set_flag("has_codex", false)
+			preload("res://scripts/ui/codex.gd").receive()
 		else:
 			var lines: Array = preload("res://scripts/data/codex_db.gd").TOPICS[String(_test.get("topic", "team"))]["lines"]
 			if _test.has("mood"):

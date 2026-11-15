@@ -38,6 +38,7 @@ const SHINE_CROSS := 0.9
 ## the shortest rows (desktop, touch) and their text size when a talk or phone menu shrinks to show every choice
 const COMPACT_ROW := Vector2(48, 60)
 const COMPACT_FONT := 28
+var tab_buttons: Array = []
 var _cancel_hit: Control
 var _cancel_btn: Button
 
@@ -93,6 +94,8 @@ func _ready() -> void:
 		var gap := Control.new()
 		gap.custom_minimum_size.y = 6
 		vb.add_child(gap)
+	if opts.has("tabs"):
+		_make_tabs(vb, width)
 	var has_icons := false
 	for it in items:
 		if it.has("icon") and it["icon"] != null:
@@ -330,6 +333,11 @@ func _process(delta: float) -> void:
 func _input(ev: InputEvent) -> void:
 	if closed or UI.stack.is_empty() or UI.stack.back() != self:
 		return
+	if opts.has("tabs") and not ev.is_echo() and (ev.is_action_pressed("ui_left") or ev.is_action_pressed("ui_right")):
+		var step := -1 if ev.is_action_pressed("ui_left") else 1
+		_change_tab(posmod(int(opts.get("tab", 0)) + step, opts["tabs"].size()))
+		get_viewport().set_input_as_handled()
+		return
 	var direction := -1 if ev.is_action("ui_up") else (1 if ev.is_action("ui_down") else 0)
 	if direction == 0:
 		return
@@ -443,3 +451,32 @@ func _cancel() -> void:
 	if opts.get("cancel", true) and not closed:
 		Sfx.play("back")
 		close(-1)
+
+
+## Unlocked ranks in ascending order; a three-tab strip follows the selected rank.
+func _make_tabs(parent: VBoxContainer, width: float) -> void:
+	var bar := HBoxContainer.new()
+	bar.custom_minimum_size.x = width
+	parent.add_child(bar)
+	var tabs: Array = opts["tabs"]
+	var current := int(opts.get("tab", 0))
+	var first := clampi(current - 1, 0, maxi(0, tabs.size() - 3))
+	for i in range(first, mini(first + 3, tabs.size())):
+		var b := Button.new()
+		b.text = ("◄ " if i == first and current > 0 else "") + String(tabs[i]) + (" ►" if i == mini(first + 3, tabs.size()) - 1 and current < tabs.size() - 1 else "")
+		b.custom_minimum_size.y = COMPACT_ROW.y if UIKit.touch_ui() else UIKit.row_h()
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.focus_mode = Control.FOCUS_NONE
+		UIKit.plate_button(b)
+		if i == current:
+			b.add_theme_stylebox_override("normal", UIKit.highlight())
+		b.pressed.connect(_change_tab.bind(i))
+		bar.add_child(b)
+		tab_buttons.append(b)
+
+
+func _change_tab(index: int) -> void:
+	if index == int(opts.get("tab", 0)):
+		return
+	Sfx.play("page")
+	close(-2 - index)

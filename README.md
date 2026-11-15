@@ -227,7 +227,7 @@ and Caldera Road unlock follow. Full requirements and future implementation step
    target and the beast to heal are chosen for you, and you can't lose: your beasts are healed first and always keep
    at least 1 HP, and nobody can run, forfeit or hit you. Your beast grows a level or so. Camper Tilly: attacking.
    Fisher Dale: Defend. Youngster Kit, on the trail by the creek: potions (he hands you one mid-battle and two more
-   after). Picnicker Mae: your slingshot, and then she gives you the **Codex** (see below). Until you have a flute
+   after). Picnicker Mae: your slingshot, and then she gives you the **Codex** (see below), which swirls up into the middle of the screen to introduce itself. Until you have a flute
    there are no wild beasts on the path, only its teachers.
 
    <img src="docs/screenshots/coastal_path.jpg" width="640" alt="The Coastal Path, the tutorial: a winding trail with teachers waiting on it."><br><sub>The Coastal Path, the tutorial: a winding trail with teachers waiting on it.</sub>

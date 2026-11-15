@@ -177,20 +177,24 @@ const ROOMS := {
 		],
 	},
 	## The café: the counter at the back, tables out front; the kitchen is through the STAFF ONLY door.
+	## (2026-11-15) Widened so a large platform fills the left corner: one step up, railed along its open edges, its step
+	## at the east side; two regulars sit on cushions at low tables there. Platforms are most at home in cafes.
 	"cafe": {
 		"wall": "#f0d8d0", "rug": "#c07040", "stage": true, "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
 		"locked": ["The restroom. Somebody's humming in there."],
 		"counter_phone": [6, 2],
-		# (2026-11-15) a low platform where a regular (3) sits on a cushion over tea: platforms are most at home in cafes
-		"dais": [[6, 4, 3, 1]],
+		"dais": [{"rect": [1, 3, 4, 3], "steps": [[5, 4]]}],
+		# (lots of art all over the walls, the user's direction: room_builder.gd _art_walls)
+		"art_walls": true,
 		"rows": [
-			"#####Z#####",
-			"#ss..1...p#",
-			"#CCCCCCCCCw",
-			"#.........w",
-			"#ht2..)y3.#",
-			"L........PD",
-			"###########",
+			"######Z######",
+			"#ss...1...pp#",
+			"#CCCCCCCCCCCw",
+			"#p)y2.......w",
+			"#...........#",
+			"#)y3....ht..#",
+			"L..........PD",
+			"#############",
 		],
 	},
 	## Dustwell's Oasis Saloon (a cafe: the barkeep sells the same snacks, Places.shop): the bar along the back with
@@ -1025,21 +1029,8 @@ static func kelpwick_room(key: String) -> Dictionary:
 	return KELPWICK_ROOMS.get(key, ROOMS[key])
 
 const KELPWICK_ROOMS := {
-	"studio_a": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "resident"},
-		"rows": [
-			"   ###w###   ",
-			"  /Nbb..SR\\  ",
-			" /..bb.....\\ ",
-			"#...........#",
-			"#......yy...#",
-			"#..@.......PD",
-			"#.....1.....#",
-			"#...........#",
-			" \\........./ ",
-			"  \\......./  ",
-			"   #######   ",
-		],
-	},
+	"studio_a": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "home": true, "npcs": {"1": "resident"}, "rows": ["  ##w##  ", " /NbbR.\\ ", "#..bb...#", "#@......#", "#...1..PD", "#.[).yS.#", " \\...../ ", "  #####  "]},
+
 	"outfitter": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "2": "patron"},
 		"counter_phone": [7, 2],
 		"rows": [
@@ -1058,25 +1049,7 @@ const KELPWICK_ROOMS := {
 	},
 	## Kelpwick has no Beast Center: its great hut keeps the village's healing machine (H) in the back corner, with the red
 	## telephone on the host's counter beside it ("counter_phone": its counter tile) so nothing stands in the machine's way.
-	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "anchors": {"6": "lesson_team", "7": "lesson_elements"},
-		"counter_phone": [17, 2],
-		"rows": [
-			"##########w##########",
-			"#..............1....#",
-			"#CCCCCCCCCCCCCCCCCCC#",
-			"#.....3............H#",
-			"#..xxxxxxxx.........#",
-			"#..x......x.........#",
-			"#..x......x........PD",
-			"#..x......x......6..#",
-			"#..xxxxxxxx.........#",
-			"#..4......5......7..#",
-			"#...................#",
-			"#...................#",
-			"#####################",
-		],
-	},
-}
+	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "counter_phone": [15, 2], "rows": ["###w#####w#######w###", "#=::::3::::=#p1p.==.#", "#=:xxxxxxx:=#CCC...Hw", "#::x:::::x::#.......w", "#::x:::::x::#.......#", "#=:xxxxxxx:=#.......#", "#=4:::::::5:........#", "#:::::::::::.......PD", "#####################"]},}
 
 ## Hotel Mariposa, finished like a Spanish mission (room_builder.gd _mission_decor): terracotta tiles, white plaster over
 ## an azulejo dado, dark carved wood, iron sconces and arched doorways. Its lobby has doors through to two guest rooms, each with a pair of open doorways onto the
@@ -1084,50 +1057,343 @@ const KELPWICK_ROOMS := {
 ## room-door system.
 const HOTEL_ROOMS := {
 	"hotel_lobby": {
-		"stage": true, "zone": "hall", "wall": "#fbf1e2", "rug": "#5e1a22", "trim": "#4a2c1a", "mission": true,
-		"npcs": {"1": "keeper", "2": "patron"},
-		"doors": {"d": "hotel_suite", "g": "hotel_room"}, "locked": ["The hotel kitchen. Staff only."],
-		"counter_phone": [9, 2],
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
 		"rows": [
-			"#######Z#######",
-			"#p.....1.....p#",
-			"#CCCCCCCCCCCCCw",
-			"#....rrrr.....w",
-			"d....r2rr.....#",
-			"#....rrrr.....w",
-			"g..SS..yy....PD",
-			"###############",
+			"####w#####w#####w####",
+			"#...................#",
+			"g...................#",
+			"#...................#",
+			"#...............::..#",
+			"#.....CCCCCCCC..::..#",
+			"#.....C..1...C..::..#",
+			"#.....CCCCCCCC..::..#",
+			"#...............::..#",
+			"#....rrrrrrr........#",
+			"d....rrr2rrr........w",
+			"#.SS.rrrrrrr.yy....PD",
+			"#...................w",
+			"#####################"
 		],
-		"floor_tex": {"hall": "floor_terracotta"}, "wall_tex": {"hall": "wall_plaster"},
+		"doors": {
+			"d": "hotel_hall_lower",
+			"g": "hotel_hall_upper"
+		},
+		"npcs": {
+			"1": "keeper",
+			"2": "patron"
+		},
+		"counter_phone": [
+			11,
+			7
+		],
+		"wall_height": 5.5,
+		"balcony": true,
+		"level_h": 2.7,
+		"heights": [
+			"111111111111111111111",
+			"111111111111111111111",
+			"111111111111111111111",
+			"111111111111111111111",
+			"0000000000000000^^000",
+			"0000000000000000^^000",
+			"0000000000000000^^000",
+			"0000000000000000^^000",
+			"0000000000000000^^000",
+			"000000000000000000000",
+			"000000000000000000000",
+			"000000000000000000000",
+			"000000000000000000000",
+			"000000000000000000000"
+		]
 	},
 	"hotel_suite": {
-		"stage": true, "zone": "bedroom", "wall": "#fbf1e2", "rug": "#4e2140", "trim": "#4a2c1a", "mission": true,
-		"floor_tex": {"bedroom": "floor_terracotta"}, "wall_tex": {"bedroom": "wall_plaster"},
-		"doors": {"d": "hotel_lobby"}, "locked": ["Your suite's private bathroom."],
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
 		"rows": [
-			"##!#########!##",
-			"#.....NbbN...@#",
-			"#......bb.....#",
-			"#....rrrr.....L",
-			"dP...rrrrSS...#",
-			"#....rrrryy...#",
-			"#.............#",
-			"###############",
+			"###w####w####",
+			"#.NbbN...R..#",
+			"#..bb.......w",
+			"#.....rrr...#",
+			"dP....rrrSS.#",
+			"#.@...yyy...w",
+			"#############"
 		],
+		"doors": {
+			"d": "hotel_hall_upper"
+		}
 	},
 	"hotel_room": {
-		"stage": true, "zone": "bedroom", "wall": "#fbf1e2", "rug": "#1f3a66", "trim": "#4a2c1a", "mission": true,
-		"floor_tex": {"bedroom": "floor_terracotta"}, "wall_tex": {"bedroom": "wall_plaster"},
-		"doors": {"d": "hotel_lobby"},
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
 		"rows": [
-			"###!#####!###",
-			"#Ec..NbbN...#",
-			"#.....bb....w",
-			"#...rrrr....#",
-			"dP..rrrr.SS.w",
-			"#...rrrr.yy.#",
-			"#...........#",
-			"#############",
+			"###w####w##",
+			"#NbbN..R..#",
+			"#.bb......w",
+			"dP..1.yy..#",
+			"#.@.[..SS.w",
+			"###########"
 		],
+		"doors": {
+			"d": "hotel_hall_lower"
+		},
+		"npcs": {
+			"1": "patron"
+		}
 	},
+	"hotel_hall_lower": {
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
+		"rows": [
+			"##g###h###i####",
+			"#.............w",
+			"dP............#",
+			"#..p....==....#",
+			"###############"
+		],
+		"doors": {
+			"d": "hotel_lobby",
+			"g": "hotel_room",
+			"h": "hotel_pool",
+			"i": "hotel_ice_lower"
+		}
+	},
+	"hotel_hall_upper": {
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
+		"rows": [
+			"##g###h###i####",
+			"#.............w",
+			"dP............#",
+			"#..p....==....#",
+			"###############"
+		],
+		"doors": {
+			"d": "hotel_lobby",
+			"g": "hotel_suite",
+			"h": "hotel_room_upper",
+			"i": "hotel_ice_upper"
+		}
+	},
+	"hotel_pool": {
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
+		"rows": [
+			"#wwwwwwwwwwww#",
+			"#............#",
+			"#..______....#",
+			"#..______....#",
+			"dP.______....g",
+			"#..______....#",
+			"#.........UU.#",
+			"#.SS......UU.#",
+			"#............#",
+			"##############"
+		],
+		"doors": {
+			"d": "hotel_hall_lower",
+			"g": "hotel_gym"
+		},
+		"fixtures": [
+			[
+				10,
+				6,
+				"hot_tub"
+			],
+			[
+				11,
+				6,
+				"hot_tub"
+			],
+			[
+				10,
+				7,
+				"hot_tub"
+			],
+			[
+				11,
+				7,
+				"hot_tub"
+			]
+		]
+	},
+	"hotel_gym": {
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
+		"rows": [
+			"##w###w###w##",
+			"#...........w",
+			"#..1....2...#",
+			"#...........#",
+			"dP..........w",
+			"#..p.....p..#",
+			"#############"
+		],
+		"doors": {
+			"d": "hotel_pool"
+		},
+		"npcs": {
+			"1": "runner",
+			"2": "runner"
+		},
+		"treadmills": [
+			[
+				3,
+				2
+			],
+			[
+				8,
+				2
+			]
+		]
+	},
+	"hotel_ice_lower": {
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
+		"rows": [
+			"###w###",
+			"#.....#",
+			"#..f..#",
+			"dP....#",
+			"#..mz.#",
+			"#######"
+		],
+		"doors": {
+			"d": "hotel_hall_lower"
+		},
+		"fixtures": [
+			[
+				3,
+				2,
+				"ice_maker"
+			]
+		]
+	},
+	"hotel_ice_upper": {
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
+		"rows": [
+			"###w###",
+			"#.....#",
+			"#..f..#",
+			"dP....#",
+			"#..mz.#",
+			"#######"
+		],
+		"doors": {
+			"d": "hotel_hall_upper"
+		},
+		"fixtures": [
+			[
+				3,
+				2,
+				"ice_maker"
+			]
+		]
+	},
+	"hotel_room_upper": {
+		"stage": true,
+		"zone": "hall",
+		"wall": "#fbf1e2",
+		"trim": "#4a2c1a",
+		"mission": true,
+		"floor_tex": {
+			"hall": "floor_terracotta"
+		},
+		"wall_tex": {
+			"hall": "wall_plaster"
+		},
+		"rows": [
+			"###w####w##",
+			"#NbbN..R..#",
+			"#.bb......w",
+			"dP....yy..#",
+			"#.@.[..SS.w",
+			"###########"
+		],
+		"doors": {
+			"d": "hotel_hall_upper"
+		}
+	}
 }

@@ -45,10 +45,8 @@ const CHIEF_SHELL_LOOK := {"skin": "#c89070", "hair": "#2a1a10", "shirt": "#e0a0
 const CHIEF_KELP_LOOK := {"skin": "#a87050", "hair": "#d8d8d8", "shirt": "#30a0a0", "pants": "#2a4a4a", "outfit": "robe", "hair_style": 1}
 ## Kelpwick villagers standing shoulder to shoulder across the reef path (the map's crowd gate) until Nerissa is beaten.
 const REEF_CROWD := [
-	{"name": "Villager Tamsin", "look": {"skin": "#a87050", "hair": "#2a1a10", "shirt": "#30a0a0", "pants": "#3a3020", "outfit": "apron", "hair_style": 1}},
-	{"name": "Villager Oren", "look": {"skin": "#8a5a3c", "hair": "#1a1410", "shirt": "#e07a5a", "pants": "#2a4a4a", "hat": "#d8c080"}},
-	{"name": "Villager Kai", "look": {"skin": "#c08a60", "hair": "#3a2a1a", "shirt": "#e8c040", "pants": "#2a3a4a"}},
-	{"name": "Villager Ula", "look": {"skin": "#9a6440", "hair": "#d8d8d8", "shirt": "#5a9a5a", "pants": "#4a3a2a", "outfit": "robe", "hair_style": 1}},
+	{"name": "Villager Kai", "look": {"skin": "#c08a60", "hair": "#3a2a1a", "shirt": "#b87548", "pants": "#d6bb79", "islander": true}},
+	{"name": "Villager Tamsin", "look": {"skin": "#a87050", "hair": "#2a1a10", "shirt": "#b87548", "pants": "#d6bb79", "islander": true, "hair_style": 1}},
 ]
 ## A Shellhaven resort guest on the Isle Trail, showing off a shell prised from the Temple of Tides.
 const TOURIST_LOOK := {"skin": "#f0c8a8", "hair": "#d8a040", "shirt": "#f07aa0", "pants": "#f0e0b0", "hat": "#f4e8c0", "hair_style": 1}
@@ -861,6 +859,9 @@ func talk(world, n: Dictionary) -> void:
 
 
 func _talk_villager(world, n: Dictionary) -> void:
+	if n.has("lines"):
+		await say(n["lines"], n.get("name", "Guest"))
+		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(n.get("seed", 0))
 	var town: Dictionary = WorldDB.TOWNS.get(world.map_id, {})
@@ -1369,7 +1370,7 @@ func _chief(_world, n: Dictionary) -> void:
 		return
 	GameState.set_flag("kelp_heard")
 	await say(["Another visitor from the resort? Let me guess. You've come for the Temple of Tides.",
-		"Shellhaven's guests climb all over it. They chip the carvings and prise shells off the altar to take home as souvenirs.",
+		"Shellhaven's guests climb all over it. They leave trash in the temple and take anything they can carry as a keepsake.",
 		"The temple keeps the tides in balance. With every stone they take, the sea grows angrier. So now we stand across the path ourselves.",
 		"They call us quaint. Backwards. Meanwhile they line our beaches with deck chairs and sell the view by the night.",
 		"If you want through, prove you're a trainer and not a tourist. Beat Reef Warden Nerissa in our great hut, the big one on the high street."], nm)

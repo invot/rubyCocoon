@@ -1,5 +1,5 @@
 extends RefCounted
-## The arena ladder: a roster of trainers in ten ranks, the same at every arena. Beat every trainer of a rank to open
+## The arena ladder: a roster of trainers in twelve ranks, the same at every arena. Beat every trainer of a rank to open
 ## the next one; each rank cleared raises your trainer level to at least rank + 1 (see GameState.reach_trainer_level)
 ## and earns a crystal shard. Beaten trainers can be fought again for gold and trainer XP.
 ## Opponents are made from fixed seeds, so the roster never changes: each favours one side of the ring (an element
@@ -11,15 +11,15 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const MapGen = preload("res://scripts/world/map_gen.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 
-const RANKS := 10
-const RANK_NAMES := ["Novice", "Rookie", "Bronze", "Silver", "Gold", "Platinum", "Jade", "Ruby", "Master", "Champion"]
+const RANKS := 12
+const RANK_NAMES := ["Novice", "Rookie", "Bronze", "Silver", "Gold", "Platinum", "Jade", "Ruby", "Master", "Champion", "Sovereign", "Mythic"]
 const CLASSES := ["Ring Novice", "Ring Rookie", "Bronze Duelist", "Silver Duelist", "Gold Duelist", "Platinum Ace",
-	"Jade Ace", "Ruby Ace", "Ring Master", "Champion"]
+	"Jade Ace", "Ruby Ace", "Ring Master", "Champion", "Sovereign", "Mythic"]
 ## opponents per rank
-const COUNT := [3, 3, 3, 3, 3, 4, 4, 4, 4, 4]
+const COUNT := [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
 ## beasts per opponent, and their shield points, by rank
-const TEAM := [2, 3, 3, 4, 4, 5, 6, 6, 7, 8]
-const SHIELD := [0, 0, 1, 1, 1, 2, 2, 3, 3, 4]
+const TEAM := [2, 3, 3, 4, 4, 5, 6, 6, 7, 8, 8, 8]
+const SHIELD := [0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4]
 
 
 static func rank_name(rank: int) -> String:

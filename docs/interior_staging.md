@@ -68,8 +68,11 @@ The rules below translate those principles into cardinal tile movement, small ro
     (windows side by side share one rod), never across the glass. Homes get a small cubby or two in plain back
     walls (a shelf niche with a few things in it) and, where the template asks ("closets": [[x, y, w]]), a closet
     recessed into the back wall from the floor to head height with shelves of blankets, books and boxes; closets
-    replace wardrobes in the player's house. Raised platforms ("dais": [[x, y, w, h]]) are a café thing above all:
-    a low wooden stage whose people sit on floor cushions facing the room with their tea.
+    replace wardrobes in the player's house. Raised platforms are a café thing above all (the user's direction):
+    large, filling a whole side or a corner of the room, one step (0.3) up, walked on like any floor, with chunky
+    railings along their edges over open floor and wooden steps where you walk up ("dais": [{"rect": [x, y, w, h],
+    "steps": [[x, y]]}]; map_loader.gd turns them into the room's heights). People on them sit on floor cushions
+    facing the room with their tea.
 
 12. **Chubby, not thin (2026-11-15).** Furniture and decor are boxy and stout: no thin legs, thin boards or spindly
     frames (lamps excepted). See AGENTS.md for the swaps made (nightstands, desks, shelving, bunks, benches, basins,
@@ -102,7 +105,7 @@ and shop types inherit the template changes and share the renderer's placement r
 | --- | --- |
 | `home` (2026-11-15) | Sofa and armchair out in the room facing the front, coffee table before them past an open row, lamp beside the armchair at the back wall, closet in the back wall's left end; phone, stairs, kitchen door and Mom unchanged. Scheme `apricot_sunroom`. |
 | `home_bed`, `home_mom` (2026-11-15) | Closets in the back wall replace the wardrobes; front rows hold only low pieces (a pouf, a basket, low drawers); the rocket print over your bed; Mom's armchair against the side wall facing in. Schemes `mint_cherry`, `rose_moss`. |
-| `cafe` (2026-11-15) | A 3x1 platform with a pouf, a tea table and a regular sitting on a cushion; counter and tables unchanged. |
+| `cafe` (2026-11-15) | Widened to 13x8: a 4x3 railed platform fills the left corner with a step on its east side, two regulars on cushions at low tables on it; counter, phone, restroom door and a stool-and-table group on the open floor. |
 | `home` (earlier), `house_two`, `house_up` | Sofa moved upstage, coffee table downstage with an open tile; TV implied on fourth wall. Stairs, phone and doors retained. |
 | `studio_a`, `uncle_home` | Bed and lounge remain distinct groups; sofa upstage, low table below it; rear TV removed. Rafe's story anchor retained. |
 | `studio_b` | Rear TV removed; side dining chairs retained; side-wall armchair faces inward. |

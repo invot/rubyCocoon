@@ -206,6 +206,13 @@ func build(id: String, cooperative := false) -> void:
 	interior = map["kind"] == "interior"
 	for n in Story.extra_npcs(map):
 		map["npcs"].append(n)
+	if map_id.get_slice("#", 0) == "kelpwick":
+		for n in map["npcs"]:
+			if n.has("look"):
+				n["look"] = n["look"].duplicate()
+				n["look"]["islander"] = true
+				n["look"]["glasses"] = false
+				n["look"].erase("hat")
 	if interior:
 		_build_room()
 		refresh_kennel()
@@ -788,6 +795,8 @@ func _build_terrain() -> void:
 			match c:
 				MapGen.PATH, MapGen.DOOR:
 					# a town of stone (Bellerive) cobbles its streets
+					kind = "paving" if biome.get("stone_streets", false) else "path"
+				MapGen.GATE when map.get("gate", {}).get("crowd", false):
 					kind = "paving" if biome.get("stone_streets", false) else "path"
 				MapGen.PLAZA, MapGen.STATUE:
 					kind = "plaza"
@@ -2901,6 +2910,9 @@ func _build_npcs() -> void:
 				node.add_child(nl)
 				rod_lines.append(node)
 		node.position = tile_pos(p) + n.get("visual_offset", Vector3.ZERO)
+		if n.get("recline", false):
+			node.rotation.x = -PI / 2.0
+			node.scale = Vector3.ONE * 0.75
 		add_child(node)
 		# (a guardian resting in its nest lies perfectly still)
 		if not n.get("nest", false) and not (n.has("scene") or n.has("mesh") or n.has("asset")):
@@ -4279,6 +4291,10 @@ func _animate_npcs(delta: float) -> void:
 				m.set_process(node.position.distance_squared_to(player.position) < 300.0)
 			elif m:
 				m.position.y = absf(sin(_time * 2.6 + p.x)) * 0.06
+		if n.get("treadmill", false):
+			n["phase"] = float(n.get("phase", 0.0)) + VPer.phase_for(delta * 3.2, 3.2)
+			VPer.animate(node, n["phase"], 3.2)
+			continue
 		if n.has("walking"):
 			# a step across the room, legs and arms swinging
 			var wk: Dictionary = n["walking"]

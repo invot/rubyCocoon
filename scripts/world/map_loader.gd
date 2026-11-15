@@ -819,7 +819,7 @@ static func room_set(b: Dictionary) -> Array:
 	if b.get("town", "") == "kelpwick" and shop == "house":
 		return ["studio_a"]
 	if b.get("hotel", false):
-		return ["hotel_lobby", "hotel_suite", "hotel_room"]
+		return ["hotel_lobby", "hotel_suite", "hotel_room", "hotel_hall_lower", "hotel_hall_upper", "hotel_pool", "hotel_gym", "hotel_ice_lower", "hotel_ice_upper", "hotel_room_upper"]
 	if shop == "bookstore" and b.get("town", "") == "caccoon":
 		return ["library"]
 	if b.has("rooms"):
@@ -910,6 +910,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				m["basins"][Vector2i(x, y)] = true
 	if room.has("heights"):
 		Elev.parse(m, room["heights"], float(room.get("level_h", Elev.LEVEL_H)), int(room.get("top_level", 0)))
+	elif room.has("dais"):
+		# raised platforms (2026-11-15): their tiles one level up, their steps ramps up onto them
+		Elev.parse(m, RoomBuilder.dais_heights(room, w, h), RoomBuilder.DAIS_H, 0)
 	m["name"] = b["name"]
 	m["building"] = b
 	m["parent"] = parent
@@ -1027,6 +1030,10 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				ups.append(p)
 			elif ch == "<":
 				downs.append(p)
+	for fixture in room.get("fixtures", []):
+		var p := Vector2i(int(fixture[0]), int(fixture[1]))
+		MapGen.set_t(m, p.x, p.y, MapGen.FURN)
+		m["furniture"][p] = fixture[2]
 	m["floor"] = "tile" if tiles > dots else "wood"
 	var fcode := MapGen.ITILE if tiles > dots else MapGen.IFLOOR
 	for y in h:
@@ -1061,10 +1068,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	# (a diner's patrons sit at their tables too)
 	for n in m["npcs"]:
 		var table := _table_beside(m, n["pos"])
-		var raised := false
-		for d in room.get("dais", []):
-			if Rect2i(int(d[0]), int(d[1]), int(d[2]), int(d[3])).has_point(n["pos"]):
-				raised = true
+		var raised := RoomBuilder.dais_at(m, n["pos"]) > 0.0
 		if raised and n.get("kind", "") in ["villager", "resident", "patron"]:
 			# on a raised platform (room "dais"), sitting on a floor cushion facing the room, with their tea or book
 			n["facing"] = Vector2i(0, 1)
@@ -1072,7 +1076,6 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			n["sit"] = true
 			n["floor_seat"] = true
 			n["seat_height"] = 0.16
-			n["visual_offset"] = Vector3(0, 0.22, 0)
 		elif n.get("kind", "") in ["villager", "resident", "patron"] or n.get("id", "") == "mom":
 			if table != Vector2i.ZERO:
 				# sitting there, on a chair (see world.gd seat)
@@ -1215,6 +1218,10 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			for k in a.get("look", {}):
 				look2[k] = a["look"][k]
 			return {"kind": "leader", "pos": p, "look": look2, "facing": Vector2i(0, 1), "name": "%s %s" % [a["title"], a["leader"]], "building": b}
+		"runner":
+			return {"kind": "villager", "name": "Breathless Guest", "pos": p, "look": MapGen.random_look(rng),
+				"facing": Vector2i.UP, "treadmill": true, "still": true, "visual_offset": Vector3(0, 0.2, 0),
+				"lines": ["Hah... hello... can't... stop...", "They said... relaxing holiday... hah... trainer says... ten more minutes!"] if ch == "1" else ["Huff... is it... dinner yet?", "Can't... talk... and... run... tell the buffet... I'm coming..."]}
 		"resident":
 			var n := _villager(p, rng)
 			n["kind"] = "resident"

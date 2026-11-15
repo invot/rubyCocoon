@@ -26,9 +26,9 @@ func run(root, opts: Dictionary) -> void:
 				UIKit.set_accent(gem)
 				UI.root.theme = UIKit.make_theme()
 				UI.controls.refresh()
-				for rank in [1, 10]:
+				for rank in [1, LadderDB.RANKS]:
 					await _open(rank)
-					if rank == 10 and opts.has("shots") and DisplayServer.get_name() != "headless":
+					if rank == LadderDB.RANKS and opts.has("shots") and DisplayServer.get_name() != "headless":
 						await RenderingServer.frame_post_draw
 						main._save_shot("%s_%s_%s.png" % [opts["shots"], style, gem])
 					await _verify_menu()
@@ -41,7 +41,7 @@ func run(root, opts: Dictionary) -> void:
 		await main._press("ui_cancel")
 		await main._wait(0.25)
 		print("ARENA LADDER DONE: %d problem(s)" % bad)
-	await _open(clampi(int(opts.get("rank", "10")), 1, 10))
+	await _open(clampi(int(opts.get("rank", "10")), 1, LadderDB.RANKS))
 	await main._wait(float(opts.get("wait", "1")))
 
 
@@ -58,6 +58,19 @@ func _verify_menu() -> void:
 	var menu = UI.stack.back()
 	var player_pos: Vector2i = main.world.player_pos
 	_check_layout(menu)
+	_check(menu.items.size() == 4, "exactly four trainers on each rank tab")
+	_check(menu.opts["tabs"].size() == Places._ladder_rank(), "only unlocked ranks have tabs")
+	_check(menu._scroll.scroll_vertical == 0 and not menu._rail.active, "all four trainers fit without vertical scrolling")
+	if Places._ladder_rank() > 1:
+		var rank: int = menu.opts["tab"]
+		await main._press("ui_left")
+		await main._wait(0.3)
+		menu = UI.stack.back()
+		_check(menu.opts["tab"] == rank - 1, "left switches to previous rank")
+		await _tap(menu.tab_buttons.back().get_global_rect().get_center())
+		await main._wait(0.3)
+		menu = UI.stack.back()
+		_check(menu.opts["tab"] == rank, "tap switches to next unlocked rank")
 	_check(menu.buttons[0].has_focus(), "first trainer has keyboard/gamepad focus")
 	await main._press("ui_down")
 	await main._wait(0.15)
@@ -114,7 +127,7 @@ func _check_layout(menu) -> void:
 	var rect: Rect2 = menu._outer.get_global_rect()
 	_check(main.get_viewport().get_visible_rect().encloses(rect), "whole menu stays on screen")
 	for button in menu.buttons:
-		_check(button.size.y >= UIKit.row_h(), "trainer row keeps the shared minimum height")
+		_check(button.size.y >= (menu.COMPACT_ROW.y if UIKit.touch_ui() else menu.COMPACT_ROW.x), "trainer row keeps the shared talk-menu minimum height")
 	if UI.is_touch():
 		for id in UI.controls._buttons:
 			var button: TouchScreenButton = UI.controls._buttons[id]

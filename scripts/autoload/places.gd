@@ -57,14 +57,8 @@ func open(b: Dictionary, world) -> void:
 	var tier := _tier(town)
 	var shop: String = b["shop"]
 	if b.get("hotel", false):
-		if await Story.ask("Stay the night for 150 gold?", "Hotel Mariposa"):
-			if GameState.gold < 150:
-				await Story.say(["A suite costs 150 gold. The Beast Center is always happy to help travelers too."])
-			else:
-				GameState.gold -= 150
-				GameState.heal_party()
-				Sfx.play("heal")
-				await Story.say(["You wake to the sound of the surf. Your beasts are fully rested!"])
+		await Story.say(["A reservation? No, I don't see your name. We are rather particular about our guests.",
+			"You may look around the public rooms. Do try not to drip on the marble."], "Hotel Mariposa")
 		return
 	if town == "kelpwick" and shop == "beast_gear":
 		await Story.say(["Just the essentials here. We keep our prices low for the village."], "Outfitter Hale")
@@ -818,15 +812,9 @@ func arena(b: Dictionary, town: String) -> void:
 			{"text": "Arena ladder", "right": LadderDB.RANK_NAMES[_ladder_rank() - 1],
 				"desc": "Climb the ladder of ring trainers. Beat every trainer of a rank to open the next; each rank you clear raises your trainer level (you're Lv %d) and earns a crystal shard." % GameState.trainer_level},
 		]
-		if has_eggs_to_sell(town):
-			items.append({"text": "Sell eggs to " + a["leader"],
-				"desc": "%s eggs only. Pays twice the Beast Center's offer." % String(a["element"]).capitalize()})
 		var c: int = await UI.choose(b["name"], items, {"anchor": "right", "width": 400, "cancel_button": true})
 		if c < 0:
 			return
-		if c == 1:
-			await sell_eggs(town)
-			continue
 		if GameState.alive_party().is_empty():
 			await Story.say(["Your beasts need healing before they can battle!"], "Arena Host")
 			continue
@@ -847,7 +835,7 @@ func _rank_cleared(r: int) -> bool:
 	return (GameState.ladder.get(r, []) as Array).size() >= LadderDB.count(r)
 
 
-## The ladder: your open rank's trainers first, then the earlier ranks' for rematches. Returns false after a battle
+## The ladder: four trainers per rank tab, in roster order. Returns false after a battle
 ## you didn't win (you leave the arena).
 func ladder() -> bool:
 	var host := "Arena Host"
@@ -856,11 +844,13 @@ func ladder() -> bool:
 		await Story.say(["The arena ladder! Ring trainers from all over battle here, rank by rank.",
 			"Beat every trainer of your rank and the next rank opens up. Each rank you clear makes you a stronger trainer, and Volt at Sparkwire Electronics can do more for a stronger trainer: more beast slots, a bigger shield.",
 			"Ladder battles are ring battles to the end: knock out a side's middle beast, then break the trainer's shield!"], host)
+	var page := _ladder_rank()
 	while true:
 		var top := _ladder_rank()
+		page = clampi(page, 1, top)
 		var items := []
 		var refs := []
-		for r in range(top, 0, -1):
+		for r in [page]:
 			for i in LadderDB.count(r):
 				var o := LadderDB.opponent(r, i)
 				var beaten: bool = (GameState.ladder.get(r, []) as Array).has(i)
@@ -872,7 +862,11 @@ func ladder() -> bool:
 					"desc": "%s.  %d beasts, %d shield point%s; favours the %s side of the ring.  Prize: %d gold%s." % [LadderDB.rank_name(r), o["team"].size(),
 						o["shield"], "" if int(o["shield"]) == 1 else "s", String(o["theme"]).capitalize(), int(o["reward"]) / (2 if beaten else 1), " (rematch)" if beaten else ""]})
 				refs.append([r, i])
-		var c: int = await UI.choose("Arena ladder\n%s  ·  Trainer Lv %d" % [LadderDB.rank_name(top), GameState.trainer_level], items, {"anchor": "right", "width": 480, "rows": 7})
+		var tabs := LadderDB.RANK_NAMES.slice(0, top)
+		var c: int = await UI.choose("Arena ladder", items, {"width": 560, "rows": 4, "tabs": tabs, "tab": page - 1, "cancel_button": true})
+		if c <= -2:
+			page = -c - 1
+			continue
 		if c < 0:
 			return true
 		if GameState.alive_party().is_empty():
@@ -903,7 +897,7 @@ func ladder() -> bool:
 			if GameState.slot_cap() > before_slots or GameState.shield_cap() > before_shield:
 				lines.append("Volt at Sparkwire Electronics in Bellerive can now fit you with %s." % ("another beast slot and a shield point" if GameState.slot_cap() > before_slots and GameState.shield_cap() > before_shield
 					else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")))
-			lines.append("%s is open!" % LadderDB.rank_name(r2 + 1) if r2 < LadderDB.RANKS else "You're the ladder's Champion! Come back for a rematch any time.")
+			lines.append("%s is open!" % LadderDB.rank_name(r2 + 1) if r2 < LadderDB.RANKS else "You've conquered every rank! Come back for a rematch any time.")
 			await Story.say(lines, host)
 			# (what the new level means for your weapons' beat attack)
 			var beat_line := BeatChain.level_line(before_level, GameState.trainer_level)
@@ -968,24 +962,13 @@ func leader_talk(b: Dictionary) -> void:
 		return
 	var a: Dictionary = WorldDB.ARENAS[town]
 	var leader := "%s %s" % [a["title"], a["leader"]]
-	var challenge := -2
-	if has_eggs_to_sell(town):
-		challenge = await UI.choose(leader, [
-			{"text": "Challenge " + a["leader"]},
-			{"text": "Sell eggs", "desc": "%s eggs only. Pays twice the Beast Center's offer." % String(a["element"]).capitalize()},
-		], {"width": 460, "cancel_button": true})
-		if challenge == 1:
-			await sell_eggs(town)
-			return
-		if challenge != 0:
-			return
 	var beaten: bool = GameState.crests.has(a["crest"])
 	if beaten:
 		await _miner_pass(town)
 	elif await _lessons_first(town, leader):
 		return
-	var q := "Ready for our rematch?" if beaten else "I am %s, master of this arena. Do you challenge me for the %s?" % [leader, a["crest"]]
-	if challenge == 0 or await Story.ask(q, leader):
+	var q := "Ready for a rematch for %d gold?" % (int(a["gold"]) / 2) if beaten else "Win and you'll earn the %s, %s song and %d gold. Will you battle me?" % [a["crest"], SongDB.get_song(a["song"])["name"], int(a["gold"])]
+	if await Story.ask(q, leader):
 		await arena_challenge(town)
 	else:
 		await Story.say(["Train well. I'll be waiting right here."], leader)
@@ -1479,6 +1462,21 @@ static func _a(word: String) -> String:
 func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 	var b: Dictionary = map.get("building", {})
 	var town: String = b.get("town", GameState.map_id)
+	var furniture: String = map.get("furniture", {}).get(t, "")
+	if furniture == "hot_tub":
+		if await Story.ask("Let your beasts rest in the healing spring? Their HP and MP will be fully restored."):
+			GameState.heal_party()
+			Sfx.play("heal")
+			await Story.say(["The warm spring restores all your beasts' HP and MP."])
+		return
+	if furniture == "ice_maker":
+		await Story.say(["The ice maker is broken. Not even a single cube."])
+		if map.get("room_key", "") == "hotel_ice_upper" and not GameState.flag("hotel_ice_item"):
+			if GameState.add_item("revival_seed") == 0:
+				GameState.set_flag("hotel_ice_item")
+				UI.pickup("revival_seed")
+				await Story.say(["A Revival Seed was caught in the ice tray!"])
+		return
 	match code:
 		MapGen.ALTAR:
 			if b.get("shop", "") == "temple":

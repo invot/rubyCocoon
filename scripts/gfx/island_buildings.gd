@@ -783,11 +783,17 @@ static func beach(world: Node3D) -> void:
 		world.add_child(mesh)
 		# The existing character rig reclines on the chaise, with bare arms/legs and swim trunks.
 		var skin: String = ["#e7b58c", "#bd8059", "#8f5f45"][i % 3]
-		var person := PERSON.build({"skin": skin, "shirt": skin, "pants": PASTELS[(i + 2) % 5], "shoes": skin, "hair": "#593a27", "body": "male", "hair_style": 0, "model": "tf0", "outfit": "swim"})
-		person.rotation.x = -PI / 2.0
-		person.position = Vector3(chair_x, 0.42, z + 1.35)
-		person.scale = Vector3.ONE * 0.75
-		world.add_child(person)
+		var chatter := [
+			["I've been here a week and my palms still won't tan. I shall be asking for a refund."],
+			["The temple has so many lovely things, and apparently I can't take a single one. What sort of souvenir shop is that?"],
+			["Kelpwick doesn't even have organic kale. How am I supposed to enjoy an authentic village without my smoothie?"],
+			["Those little huts would be quite charming if they'd just install air conditioning."],
+			["The sand keeps getting on my beach towel. You'd think the hotel could do something about it."],
+			["I booked a sea view. Nobody warned me that the sea would be making noise all night."],
+		]
+		world.map["npcs"].append({"kind": "villager", "name": "Resort Guest", "pos": Vector2i(x - 1, z + 1),
+			"look": {"skin": skin, "shirt": skin, "pants": PASTELS[(i + 2) % 5], "shoes": skin, "hair": "#593a27", "body": "male", "hair_style": 0, "model": "tf0", "outfit": "swim"},
+			"facing": Vector2i.DOWN, "visual_offset": Vector3(-0.5, 0.42, -0.15), "recline": true, "still": true, "lines": chatter[i]})
 	# Palms along the foot of the cliff, clear of both ramps and the aisles below them; bent ones lean out to sea.
 	for j in CLIFF_PALMS.size():
 		var tile := Vector2i(WORLD.SHELLHAVEN_WEST_PADDING + int(CLIFF_PALMS[j]), 17)

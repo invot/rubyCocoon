@@ -424,6 +424,12 @@ static func outfit(look: Dictionary) -> Dictionary:
 				for id in people[hd]["parts"]:
 					if kinds[int(id)]["kind"] == "hair":
 						parts.append(id)
+	if look.get("islander", false):
+		# The village's woven wrap skirt and sleeveless top, on everyone's own head and hair.
+		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] in ["head", "neck", "hair"])
+		parts.append_array([54, 24, 156, 21, 159])
+		if not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
+			parts.append(5)
 	return {"person": person, "parts": parts, "colours": colours}
 
 

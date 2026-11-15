@@ -414,7 +414,7 @@ const MOM_TIPS := {
 		["Old Mort called me. Mort saw you beat Commander Nyx!", "Mort wanted you to know that if you ever beat a ghost, it may leave a Shadow Egg, and Nurse Clover can hatch it."]],
 	"done": [["I was watching TV, and you were on the news! The whole land's talking about you, sweetie."],
 		["Grandma wants you to know she's knitting you a sweater with your face on it. Act surprised."],
-		["The receptionist at Bellerive's arena called me. She said she saw you on the news!", "She wanted you to know that if you ever want a challenge, every arena's ladder has ten ranks of trainers to beat."]],
+		["The receptionist at Bellerive's arena called me. She said she saw you on the news!", "She wanted you to know that if you ever want a challenge, every arena's ladder has twelve ranks of trainers to beat."]],
 }
 
 ## Where your next battles are, by Story.next_goal(), for what Mom makes of your beasts' levels when there are no wild
