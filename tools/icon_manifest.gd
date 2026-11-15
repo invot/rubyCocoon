@@ -114,6 +114,7 @@ const ICONS := {
 	},
 	# Glyphs.tex(name): notice symbols for the top bar and other short messages
 	"glyphs": {
+		"spa_steam": ["gi/steam", "#e7c7d4"],
 		"potion": ["gi/standing-potion", "#e05a5a"],
 		"drop": ["gi/water-drop", "#5aa6ea"],
 		"herb": ["gi/herbs-bundle", "#6cb35c"],

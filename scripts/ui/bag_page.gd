@@ -625,7 +625,9 @@ func _show_preview() -> void:
 		var changed: bool = r["before"] != r["after"]
 		on.add_child(_cell_label(r["name"], UIKit.DIM, true))
 		on.add_child(_cell_label(r["before"], UIKit.DIM if changed else UIKit.INK))
-		on.add_child(_cell_label("►" if changed else "", UIKit.ACCENT))
+		var mark: Control = load("res://scripts/ui/soft_arrow.gd").make(Vector2.RIGHT, UIKit.ACCENT, Vector2(20, 20))
+		mark.modulate.a = 1.0 if changed else 0.0
+		on.add_child(mark)
 		var after := _cell_label(r["after"], UIKit.GOLD if changed else UIKit.INK, false, changed)
 		if on == stats:
 			after.custom_minimum_size.x = 56

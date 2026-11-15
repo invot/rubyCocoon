@@ -43,6 +43,10 @@ func run(root, opts: Dictionary) -> void:
 		await main._wait(0.25)
 		print("ARENA LADDER DONE: %d problem(s)" % bad)
 	await _open(clampi(int(opts.get("rank", "10")), 1, LadderDB.RANKS))
+	# --up=1: up onto the tabs first (they keep the cursor through rank changes)
+	if opts.get("up", "0") == "1":
+		await main._press("ui_up")
+		await main._wait(0.3)
 	# --left=N: step N ranks to the left first (the tab strip slides to keep the open one in view)
 	for i in int(opts.get("left", "0")):
 		await main._press("ui_left")
@@ -96,6 +100,13 @@ func _verify_menu() -> void:
 		menu = UI.stack.back()
 		_check(menu.opts["tab"] == rank, "tap switches to next unlocked rank")
 	_check(menu.buttons[0].has_focus(), "first trainer has keyboard/gamepad focus")
+	# up from the top trainer goes onto the tabs (the open one pulses); down comes back to the top trainer
+	await main._press("ui_up")
+	await main._wait(0.15)
+	_check(menu._on_tabs and not menu.buttons[0].has_focus(), "up from the top trainer moves onto the tabs")
+	await main._press("ui_down")
+	await main._wait(0.15)
+	_check(not menu._on_tabs and menu.buttons[0].has_focus(), "down from the tabs returns to the top trainer")
 	await main._press("ui_down")
 	await main._wait(0.15)
 	_check(menu._focus == 1, "direction input selects the next trainer")

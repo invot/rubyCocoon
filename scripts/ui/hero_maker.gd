@@ -294,6 +294,13 @@ func _chip_size() -> float:
 func _button(text: String, on: Callable, min_size := Vector2.ZERO) -> Button:
 	var b := Button.new()
 	b.text = text
+	if text in ["◄", "►"]:
+		# the game's soft arrow (soft_arrow.gd) rather than the pointed glyph
+		b.text = ""
+		var glyph: Control = load("res://scripts/ui/soft_arrow.gd").make(Vector2.LEFT if text == "◄" else Vector2.RIGHT, UIKit.LIGHT)
+		glyph.fill = 0.42
+		glyph.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		b.add_child(glyph)
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = min_size
 	b.add_theme_font_override("font", UIKit.font_body())

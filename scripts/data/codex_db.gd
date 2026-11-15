@@ -53,7 +53,7 @@ const TOPICS := {
 		"[excited] To turn it, choose your own action first, then press up past the top beast or down past the bottom one.",
 		"[happy] Turning is free! The new side then chooses its moves. Keep a standing beast in its middle."]},
 	"elements": {"title": "Elements", "group": "Your team", "lines": [
-		"[curious] Fire is weak to air, earth to water, water to air, and air to fire. A weak beast takes double damage!",
+		"[curious] Air is weak to fire, fire to water, water to earth, and earth to air. A weak beast takes double damage!",
 		"[neutral] A beast hit with its own element shrugs some off. Only the element of the side facing the foe can be used.",
 		"[excited] While aiming, a red burst means the foe is weak to that move; a shield means it resists."]},
 	"retarget": {"title": "When a target falls", "group": "Moves", "seen": true, "lines": [

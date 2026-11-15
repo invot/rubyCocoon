@@ -1,11 +1,12 @@
 extends RefCounted
-## Element rules. Fire is weak to Air, Earth to Water, Water to Air, Air to Fire.
+## Element rules, a cycle: Air is weak to Fire, Fire to Water, Water to Earth, Earth to Air (so Air beats Earth,
+## Earth beats Water, Water beats Fire, Fire beats Air). Each element is not very effective against itself.
 ## Ghost beasts (made by the Umbral Legion) have no weakness.
 
 const ELEMENTS := ["fire", "water", "earth", "air"]
 
 ## defender element -> attacking element it is weak to
-const WEAK_TO := {"fire": "air", "earth": "water", "water": "air", "air": "fire"}
+const WEAK_TO := {"air": "fire", "fire": "water", "water": "earth", "earth": "air"}
 
 const ROLE := {
 	"fire": "Offense Tank", "water": "Healer", "earth": "Defender",

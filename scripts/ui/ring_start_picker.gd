@@ -51,7 +51,11 @@ func _ready() -> void:
 
 func _arrow(dir: int) -> Button:
 	var button := Button.new()
-	button.text = "◄" if dir < 0 else "►"
+	# the game's soft arrow (soft_arrow.gd)
+	var glyph: Control = load("res://scripts/ui/soft_arrow.gd").make(Vector2.LEFT if dir < 0 else Vector2.RIGHT, UIKit.LIGHT)
+	glyph.fill = 0.42
+	glyph.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	button.add_child(glyph)
 	button.tooltip_text = "Previous starting side" if dir < 0 else "Next starting side"
 	button.custom_minimum_size = Vector2(UIKit.row_h(), UIKit.row_h())
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER

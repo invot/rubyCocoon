@@ -90,14 +90,9 @@ func _arrow(way: int) -> Button:
 	b.size = ARROW_TOUCH if UIKit.touch_ui() else ARROW
 	b.draw.connect(func() -> void:
 		var c := b.size * 0.5
-		var w := 26.0
-		var h := 16.0 * float(way)
-		var tri := PackedVector2Array([c + Vector2(-w, -h * 0.5), c + Vector2(w, -h * 0.5), c + Vector2(0, h * 0.5)])
-		var shadow := PackedVector2Array()
-		for p in tri:
-			shadow.append(p + Vector2(0, 2))
-		b.draw_colored_polygon(shadow, Color(0, 0, 0, 0.35))
-		b.draw_colored_polygon(tri, Color(1, 1, 1, 0.75 if b.is_hovered() or b.button_pressed else 1.0) if not b.button_pressed else UIKit.ACCENT.lightened(0.4))
+		var arrow = load("res://scripts/ui/soft_arrow.gd")
+		arrow.draw_arrow(b, c + Vector2(0, 2), Vector2(0, way), 18.0, Color(0, 0, 0, 0.35))
+		arrow.draw_arrow(b, c, Vector2(0, way), 18.0, Color(1, 1, 1, 0.75 if b.is_hovered() or b.button_pressed else 1.0) if not b.button_pressed else UIKit.ACCENT.lightened(0.4))
 	)
 	b.pressed.connect(func() -> void:
 		if not UI.stack.is_empty() and UI.stack.back() == self:

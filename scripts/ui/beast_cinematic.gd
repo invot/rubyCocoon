@@ -186,7 +186,7 @@ func _level_window() -> void:
 	var old_lv := int(before.get("level", int(after.get("level", 1)) - 1))
 	if kind != "hatch":
 		lv.add_child(UIKit.label("Lv %d" % old_lv, 32, UIKit.DIM))
-		lv.add_child(UIKit.label("►", 32, UIKit.DIM))
+		lv.add_child(load("res://scripts/ui/soft_arrow.gd").make(Vector2.RIGHT, UIKit.DIM, Vector2(UIKit.body_px(32) * 0.9, UIKit.body_px(32) * 1.2)))
 	lv.add_child(UIKit.header("Lv %d" % int(after.get("level", old_lv + 1)), UIKit.HEAD, UIKit.HEAD_BIG))
 	col.add_child(UIKit.divider(0.0, "none"))
 	# the stats: name, old value, new value, gain
@@ -200,7 +200,8 @@ func _level_window() -> void:
 		var old := int(before.get("stats", {}).get(key, before.get(key, 0)))
 		var current := int(after.get("stats", {}).get(key, after.get(key, old)))
 		var cells: Array = [UIKit.label(STAT_LABELS[i], 32, UIKit.INK), UIKit.label(str(old), 32, UIKit.DIM),
-			UIKit.label("►", 32, UIKit.DIM), UIKit.label(str(current), 32, UIKit.INK),
+			load("res://scripts/ui/soft_arrow.gd").make(Vector2.RIGHT, UIKit.DIM, Vector2(UIKit.body_px(32) * 0.9, UIKit.body_px(32) * 1.2)),
+			UIKit.label(str(current), 32, UIKit.INK),
 			UIKit.label(("+%d" % (current - old)) if current > old else "", 32, UIKit.GOLD)]
 		if kind == "hatch":
 			for c in [cells[1], cells[2], cells[4]]:
@@ -208,7 +209,8 @@ func _level_window() -> void:
 			cells = [cells[0], cells[3]]
 		(cells[0] as Label).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for c in cells.slice(1):
-			(c as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			if c is Label:
+				(c as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		if kind != "hatch":
 			(cells[4] as Label).custom_minimum_size.x = 64
 		for c in cells:

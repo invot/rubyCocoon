@@ -9,6 +9,9 @@ uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_dis
 uniform float frame_count = 10.0;
 uniform float fps = 6.0;
 uniform vec4 tint : source_color = vec4(0.23, 0.56, 0.88, 1.0);
+// Optional mineral-water palette; defaults preserve the ordinary sea and pool colours.
+uniform vec4 shallow_tint : source_color = vec4(0.025, 0.28, 0.22, 1.0);
+uniform vec3 deep_tint_scale = vec3(0.38, 0.66, 0.78);
 uniform float opacity = 0.82;
 uniform float glow = 0.0;
 uniform float spec = 0.4;
@@ -59,8 +62,8 @@ float light_cells(vec2 p) {
 }
 
 vec3 water_colour(float absorption) {
-	vec3 shallow = mix(vec3(0.025, 0.28, 0.22), tint.rgb, 0.18);
-	vec3 deep = tint.rgb * vec3(0.38, 0.66, 0.78);
+	vec3 shallow = mix(shallow_tint.rgb, tint.rgb, 0.18);
+	vec3 deep = tint.rgb * deep_tint_scale;
 	return mix(shallow, deep, absorption);
 }
 

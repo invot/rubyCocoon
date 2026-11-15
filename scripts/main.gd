@@ -506,6 +506,7 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	if not BuildEdition.allows_map(id):
 		return
 	_transitioning = true
+	UI.controls.release_touch_inputs()
 	# (where we came from: a building's name shows on walking in from outside, not between its rooms)
 	var came_from := GameState.map_id
 	await UI.fade_out(fade)
@@ -549,6 +550,7 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 		var reveal := create_tween()
 		reveal.tween_property(_loading_screen, "modulate:a", 0.0, maxf(0.3, fade))
 	await UI.fade_in(maxf(0.3, fade))
+	UI.controls.release_touch_inputs()
 	if is_instance_valid(_loading_layer):
 		_loading_layer.queue_free()
 	_loading_layer = null
@@ -749,6 +751,7 @@ func start_battle(cfg: Dictionary) -> String:
 	if in_battle:
 		return "run"
 	in_battle = true
+	UI.controls.release_touch_inputs()
 	GameState.wild_grace_left = 0.0
 	GameState.wild_grace_pulse = false
 	if autoplay:
@@ -797,6 +800,7 @@ func start_battle(cfg: Dictionary) -> String:
 	if cfg.get("wild", false):
 		GameState.wild_grace_left = GameState.WILD_BATTLE_GRACE
 		GameState.wild_grace_pulse = result == "win"
+	UI.controls.release_touch_inputs()
 	in_battle = false
 	return result
 

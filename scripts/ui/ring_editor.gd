@@ -202,9 +202,14 @@ func _draw_ring() -> void:
 	var you := "You"
 	var ys := font.get_string_size(you, HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
 	ring_area.draw_string(font, c + Vector2(-ys.x / 2.0, h * 2.6), you, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UIKit.DIM)
-	var word := "▲  Your %s side faces the foe  ▲" % Ring.side_element(GameState.starting_ring_side()).capitalize()
-	var ws := font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(20))
-	ring_area.draw_string(font, Vector2((ring_area.size.x - ws.x) / 2.0, 22.0), word, HORIZONTAL_ALIGNMENT_LEFT, -1, UIKit.body_px(20), UIKit.GOLD)
+	var word := "Your %s side faces the foe" % Ring.side_element(GameState.starting_ring_side()).capitalize()
+	var wfs := UIKit.body_px(20)
+	var ws := font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, wfs)
+	var wx := (ring_area.size.x - ws.x) / 2.0
+	ring_area.draw_string(font, Vector2(wx, 22.0), word, HORIZONTAL_ALIGNMENT_LEFT, -1, wfs, UIKit.GOLD)
+	# a soft arrow (soft_arrow.gd) either side, pointing up at the foe
+	for ax in [wx - wfs * 0.9, wx + ws.x + wfs * 0.9]:
+		load("res://scripts/ui/soft_arrow.gd").draw_arrow(ring_area, Vector2(ax, 22.0 - wfs * 0.32), Vector2.UP, wfs * 0.3, UIKit.GOLD)
 
 
 func _process(delta: float) -> void:

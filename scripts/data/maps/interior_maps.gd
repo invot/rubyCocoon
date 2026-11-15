@@ -1055,6 +1055,7 @@ const KELPWICK_ROOMS := {
 
 ## Hotel Mariposa: one two-storey lobby with walkable stairs and a windowed balcony; open hallway entrances on
 ## its left, guest rooms on both floors, and pool, healing spring and gym downstairs. Suite/room IDs @2/@3 stay stable.
+## Paintings: [wall x, wall y, inward x/y, centre height, along-wall offset, width, height].
 const HOTEL_ROOMS := {
 	"hotel_lobby": {
 		"stage": true,
@@ -1073,8 +1074,8 @@ const HOTEL_ROOMS := {
 			"#...................#",
 			"g...................#",
 			"#...................#",
-			"d...............::..#",
-			"#.....CCCCCCCC..::..#",
+			"d.....CCCCCCCC..::..#",
+			"#.....p......p..::..#",
 			"#.....p..1...p..::..#",
 			"#.....CCCCCCCC..::..#",
 			"#...............::..#",
@@ -1150,6 +1151,14 @@ const HOTEL_ROOMS := {
 				1,
 				"plant_table"
 			]
+		],
+		"paintings": [
+			[0, 8, 1, 0, 1.8, 0, 1.8, 1.2],
+			[20, 8, -1, 0, 1.8, 0, 1.8, 1.2]
+		],
+		"counter_facing": [
+			0,
+			1
 		]
 	},
 	"hotel_suite": {
@@ -1175,7 +1184,10 @@ const HOTEL_ROOMS := {
 		],
 		"doors": {
 			"d": "hotel_hall_upper"
-		}
+		},
+		"paintings": [
+			[5, 0, 0, 1, 1.8, 0.5, 1.8, 1.1]
+		]
 	},
 	"hotel_room": {
 		"stage": true,
@@ -1202,7 +1214,10 @@ const HOTEL_ROOMS := {
 		},
 		"npcs": {
 			"1": "patron"
-		}
+		},
+		"paintings": [
+			[5, 0, 0, 1, 1.8, 0.5, 1.8, 1.1]
+		]
 	},
 	"hotel_hall_lower": {
 		"stage": true,
@@ -1231,6 +1246,9 @@ const HOTEL_ROOMS := {
 		},
 		"open_doors": [
 			"d"
+		],
+		"paintings": [
+			[8, 0, 0, 1, 1.8, 0, 1.6, 1.1]
 		]
 	},
 	"hotel_hall_upper": {
@@ -1260,10 +1278,14 @@ const HOTEL_ROOMS := {
 		},
 		"open_doors": [
 			"d"
+		],
+		"paintings": [
+			[8, 0, 0, 1, 1.8, 0, 1.6, 1.1]
 		]
 	},
 	"hotel_pool": {
 		"stage": true,
+		"dais": [{"rect": [9, 5, 4, 4], "steps": [[9, 8]]}],
 		"zone": "hall",
 		"wall": "#fbf1e2",
 		"trim": "#4a2c1a",
@@ -1291,6 +1313,7 @@ const HOTEL_ROOMS := {
 			"g": "hotel_gym"
 		},
 		"fixtures": [
+			[12, 6, "hot_tub"], # The steam sign is solid and also offers the spring interaction.
 			[
 				10,
 				6,
@@ -1311,6 +1334,10 @@ const HOTEL_ROOMS := {
 				7,
 				"hot_tub"
 			]
+		],
+		"paintings": [
+			[0, 2, 1, 0, 1.8, 0, 1.5, 1.1],
+			[13, 2, -1, 0, 1.8, 0, 1.5, 1.1]
 		]
 	},
 	"hotel_gym": {
@@ -1350,6 +1377,10 @@ const HOTEL_ROOMS := {
 				8,
 				2
 			]
+		],
+		"paintings": [
+			[4, 0, 0, 1, 1.8, 0, 1.6, 1.1],
+			[8, 0, 0, 1, 1.8, 0, 1.6, 1.1]
 		]
 	},
 	"hotel_ice_lower": {
@@ -1436,6 +1467,9 @@ const HOTEL_ROOMS := {
 		],
 		"doors": {
 			"d": "hotel_hall_upper"
-		}
+		},
+		"paintings": [
+			[5, 0, 0, 1, 1.8, 0.5, 1.8, 1.1]
+		]
 	}
 }

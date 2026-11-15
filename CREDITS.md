@@ -423,3 +423,5 @@ Original downloaded archives are unchanged. The map has crisp irregular coastlin
 without an ink outline; water and artwork are masked to the paper's silhouette at runtime.
 
 Typography: Fuzzy Bubbles and Noto Sans Old North Arabian from Google Fonts, licensed under SIL OFL 1.1; see `licenses/fuzzybubbles-OFL.txt` and `licenses/notosansoldnortharabian-OFL.txt`.
+
+- Hotel spa sign: [Steam](https://game-icons.net/1x1/delapouite/steam.html) by Delapouite, CC BY 3.0; recoloured and baked using the shared icon pipeline.

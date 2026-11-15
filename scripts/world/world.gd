@@ -6104,7 +6104,7 @@ func _build_room() -> void:
 	var mm := _multimesh(VP.mist(), mist, null, false)
 	if mm:
 		bobbers.append([mm, 0.05, 1.1])
-	if not Elev.has(map):
+	if not Elev.has(map) or room.has("dais"):
 		_build_pools(pools)
 	elif room.has("water_levels"):
 		tide = TideWater.new()

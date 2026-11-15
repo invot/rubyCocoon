@@ -121,7 +121,8 @@ static func pick_prints(seed: int, n: int, avoid := []) -> Array:
 # ---------------------------------------------------------------- boxy framed prints (2026-11-15)
 ## The user's direction: paintings have thick, boxy frames, and come large enough to hold a wall on their own.
 ## A frame w wide and h tall (outer), its back on z = 0 facing +z, centred on x and y; the print sits a little back
-## inside the frame. Painted frames take the scheme's trim, the others its wood.
+## inside the frame. Painted frames take the scheme's trim, the others its wood (homes pass the room's furniture wood,
+## RoomBuilder._frame_wood, so a frame contrasts with its wall and never takes the floor's colour).
 static var _frame_meshes := {}
 const WOOD_CELL := Vector2(0.4378, 0.3125)
 const PAINT_CELL := Vector2(0.5625, 0.1875)

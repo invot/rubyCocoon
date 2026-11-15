@@ -423,6 +423,17 @@ func _make_list(on: VBoxContainer, title: String, detail_on: VBoxContainer = nul
 
 
 ## row: {text, right, icon, disabled, act: Callable, detail: Callable(VBoxContainer), adjust: Callable(dir), header: bool}
+## The soft arrows either side of an adjustable value, in the value's colour (white while its row is lit).
+func _value_arrows(rl: Label) -> void:
+	var fs := rl.get_theme_font_size("font_size")
+	var tw := rl.get_theme_font("font").get_string_size(rl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var col := rl.get_theme_color("font_color")
+	var y := rl.size.y / 2.0
+	var s := fs * 0.2
+	load("res://scripts/ui/soft_arrow.gd").draw_arrow(rl, Vector2(rl.size.x - tw + fs * 0.5, y), Vector2.LEFT, s, col)
+	load("res://scripts/ui/soft_arrow.gd").draw_arrow(rl, Vector2(rl.size.x - fs * 0.5, y), Vector2.RIGHT, s, col)
+
+
 func _add_row(row: Dictionary) -> void:
 	if row.get("header", false):
 		var h := UIKit.header(row["text"], UIKit.GOLD, UIKit.HEAD_SMALL)
@@ -447,8 +458,15 @@ func _add_row(row: Dictionary) -> void:
 	if row.has("right"):
 		# Adjustable values share their action label's size, including every Settings row.
 		var value_size := UIKit.BUTTON_FONT_SIZE if row.has("adjust") else int(row.get("right_font", 20))
-		var rl := UIKit.label(str(row["right"]), value_size, UIKit.GOLD)
+		# "◄ value ►": the value between two of the game's soft arrows (soft_arrow.gd), drawn rather than typed
+		var value := str(row["right"])
+		var arrows := value.begins_with("◄ ") and value.ends_with(" ►")
+		if arrows:
+			value = "     %s     " % value.trim_prefix("◄ ").trim_suffix(" ►")
+		var rl := UIKit.label(value, value_size, UIKit.GOLD)
 		UIKit.follow_row(b, rl, UIKit.GOLD)
+		if arrows:
+			rl.draw.connect(_value_arrows.bind(rl))
 		var value_width := UIKit.font_body().get_string_size(rl.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 			rl.get_theme_font_size("font_size")).x
 		var right_width := maxf(float(row.get("right_width", 110)), value_width + 8.0)

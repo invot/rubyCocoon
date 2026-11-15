@@ -51,9 +51,13 @@ func run(host, opts: Dictionary) -> void:
 	Prefs.diagonal_movement = false
 	Prefs.apply()
 	if opts.get("verify", "1") == "1":
-		await _directions(w)
+		if opts.get("pad_only", "0") != "1":
+			await _directions(w)
 		if Prefs.is_mobile():
-			await _touch_pad(w)
+			await _touch_pad(w, String(opts.get("touch_shots", "")))
+		if opts.get("pad_only", "0") == "1":
+			print("DIAGONAL INPUT DONE: %d problem(s), %d checks" % [bad, checks])
+			return
 		await _settings(w)
 	else:
 		_open(w)
@@ -222,7 +226,7 @@ func _directions(w) -> void:
 		_check(w.player_pos == start + Vector2i.ONE and w.player.position.is_equal_approx(w.tile_pos(w.player_pos)), "released diagonal completes its centred step after switching Off")
 
 
-func _touch_pad(w) -> void:
+func _touch_pad(w, transition_shots := "") -> void:
 	Prefs.input_mode = "screen"
 	Prefs.touch_controls = "on"
 	var controls = UI.controls
@@ -282,6 +286,55 @@ func _touch_pad(w) -> void:
 	controls.set_flute_mode(false)
 	await _frame()
 	_check(not Input.is_action_pressed("flute_1") and not Input.is_action_pressed("flute_3"), "flute chord releases cleanly")
+	await _touch_transitions(transition_shots)
+
+
+func _touch_transitions(shots: String) -> void:
+	var controls = UI.controls
+	Prefs.diagonal_movement = false
+	Prefs.apply()
+	await _frame()
+	var right: Vector2 = controls.button_rect("right").get_center()
+	var up: Vector2 = controls.button_rect("up").get_center()
+	var b: Vector2 = controls.button_rect("b").get_center()
+	_touch(right, 3, true)
+	_touch(up, 4, true)
+	_touch(b, 5, true)
+	await _frame()
+	_check(Input.is_action_pressed("move_up") and Input.is_action_pressed("run"), "transition starts with multiple held fingers")
+	if not shots.is_empty():
+		DirAccess.make_dir_recursive_absolute(shots)
+		await RenderingServer.frame_post_draw
+		main._save_shot(shots.path_join("held.png"))
+	# The real loading screen handles every raw event ahead of the pad. Reproduce
+	# lifting all fingers while it owns input, then the transition cleanup.
+	var loading = load("res://scripts/ui/loading_screen.gd").new()
+	main.add_child(loading)
+	_touch(right, 3, false)
+	_touch(up, 4, false)
+	_touch(b, 5, false)
+	await _frame()
+	_check(Input.is_action_pressed("move_up") and controls._buttons.up.is_pressed(), "loading screen reproduces a swallowed finger-up")
+	loading.queue_free()
+	controls.release_touch_inputs()
+	await _frame()
+	_check(not Input.is_action_pressed("move_up") and not Input.is_action_pressed("move_right") and not Input.is_action_pressed("run") and not Input.is_action_pressed("ui_up") and not Input.is_action_pressed("ui_cancel"), "transition clears swallowed releases and fallback arm")
+	_check(not controls._buttons.up.is_pressed() and not controls._buttons.right.is_pressed() and not controls._buttons.b.is_pressed(), "transition clears native button fingers")
+	if not shots.is_empty():
+		await RenderingServer.frame_post_draw
+		main._save_shot(shots.path_join("released.png"))
+	_touch(right, 3, true)
+	await _frame()
+	_check(Input.is_action_pressed("move_right"), "same finger index presses normally after transition")
+	main.get_window().focus_exited.emit()
+	await _frame()
+	_check(not Input.is_action_pressed("move_right") and not controls._buttons.right.is_pressed(), "focus loss clears native and synthetic movement")
+	_touch(right, 3, false)
+	_touch(right, 3, true)
+	await _frame()
+	_touch(right, 3, false)
+	await _frame()
+	_check(not Input.is_action_pressed("move_right"), "fresh press and release works after focus returns")
 
 
 func _settings(w) -> void:

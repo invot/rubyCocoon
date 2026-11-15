@@ -227,10 +227,4 @@ class Arrow extends Button:
 
 	func _draw() -> void:
 		var col := UIKit.LIGHT if not disabled else Color(UIKit.DIM, 0.4)
-		var c := (size / 2.0).round()
-		var w := 13.0
-		var h := 8.0 * dir
-		var pts := PackedVector2Array([c + Vector2(-w, -h), c + Vector2(w, -h), c + Vector2(0, h)])
-		draw_colored_polygon(pts, col)
-		pts.append(pts[0])
-		draw_polyline(pts, col, 1.0, true)
+		load("res://scripts/ui/soft_arrow.gd").draw_arrow(self, (size / 2.0).round(), Vector2(0, dir), 12.0, col)

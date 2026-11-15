@@ -1,7 +1,7 @@
 extends RefCounted
 ## --scene=battle-poses: the beasts' battle poses in a real battle, through the battle's own camera (beast_rig.gd,
 ## beast_model.gd, battle.gd _cast, battle_camera.gd "cast" / "impact"):
-##   1. a cast that's extra effective (water on earth): the cut to the caster gathering its glow, letting it go, the cut to the foe it
+##   1. a cast (water on the foe): the cut to the caster gathering its glow, letting it go, the cut to the foe it
 ##      lands on (a heavy hit, its number with it)
 ##   2. Defend held, then a plain attack (a lunge) blocked by it
 ##   3. a plain attack landing as an ordinary hit
@@ -50,7 +50,7 @@ func run(main: Node) -> void:
 	GameState.preferred_ring_side = -1
 	GameState.max_shield = 2
 	GameState.shield = 2
-	# the foe's: an earth beast (water is extra effective on it) and a flyer that defends (robots, with --old)
+	# the foe's: a flyer and a flyer that defends (robots, with --old)
 	var flyer = Beasts.create(44 if old else 19, 30)
 	var guard = Beasts.create(45 if old else 31, 30)
 	for f in [flyer, guard]:
@@ -79,7 +79,7 @@ func run(main: Node) -> void:
 		cd.shot_changed.connect(func(n: String) -> void: print("  shot: %s %.2f" % [n, cd.clock]))
 	print("field: ", _battle.ally_slots.map(func(b): return b.nickname if b != null else "-"), " vs ", _battle.foe_slots.map(func(b): return b.nickname if b != null else "-"),  "")
 
-	# 1. a cast, extra effective
+	# 1. a cast
 	var hp0: int = flyer.hp
 	var seen := await _round([{"type": "move", "actor": caster, "move": "water_jet", "target": flyer, "prio": 5}], [
 		["cast", func() -> bool: return _battle._casting, 0.45],

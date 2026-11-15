@@ -1280,7 +1280,7 @@ func _elder(_world, _n: Dictionary) -> void:
 		await say(["Take it to the Beast Center, right across the road from this square: the little stone temple with a crystal on its roof and a red paw print over the door. Nurse Clover will help it hatch.",
 			"A fresh hatchling starts at level 1, so be gentle with it at first. Win battles and it will grow strong.",
 			"Defeated wild beasts sometimes leave an egg behind, about one time in five. Collect them and hatch them too!",
-			"Remember the elements: fire is weak to air, earth to water, water to air, and air to fire.",
+			"Remember the elements: air is weak to fire, fire to water, water to earth, and earth to air.",
 			"Look after your new friend, %s. Come back and tell me how you're getting on." % GameState.player_name], "Elder Rowan")
 		return
 	if not GameState.flag("has_starter"):
@@ -1291,7 +1291,7 @@ func _elder(_world, _n: Dictionary) -> void:
 		await say(["You've come such a long way, %s. I'm proud of the trainer you've become." % GameState.player_name], "Elder Rowan")
 		return
 	var tips := [
-		"Remember: fire is weak to air, earth to water, water to air, and air to fire.",
+		"Remember: air is weak to fire, fire to water, water to earth, and earth to air.",
 		"You have %d of 8 arena crests. Each arena master teaches a new flute song." % GameState.crest_count(),
 		"Your beasts' elemental powers work outside battle too. Vines burn, sand washes away, boulders shatter!",
 		"Crystal shards glitter in hidden corners. Volt in Bellerive turns them into shield points and beast slots.",

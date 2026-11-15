@@ -19,6 +19,8 @@ const TOUCH_IDLE_MS := 2000
 const TOUCH_IDLE_ALPHA := 0.40
 var _last_touch_ms := 0
 var _touch_fingers := {}
+var _held_actions := {}
+var _resetting_touch := false
 ## actions each touch button presses (game + menu navigation + flute lanes)
 const PAD_ACTIONS := {
 	"up": ["move_up", "ui_up"], "down": ["move_down", "ui_down"],
@@ -42,7 +44,7 @@ func _ready() -> void:
 	layer = 12
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_last_touch_ms = Time.get_ticks_msec()
-	get_window().focus_exited.connect(_clear_touch_activity)
+	get_window().focus_exited.connect(release_touch_inputs)
 	_build_legend()
 	_build_touch()
 	_gem = UIKit.accent_name
@@ -58,12 +60,7 @@ func refresh() -> void:
 		_recolour()
 	var next_touch := Prefs.touch_enabled() and (not title_mode or film_mode)
 	if _touch_on and not next_touch:
-		_clear_touch_activity()
-		# A controller connected while a thumb was down: release the pad's actions before hiding it.
-		for id in PAD_ACTIONS:
-			if (_buttons[id] as TouchScreenButton).is_pressed() or id == _arm:
-				_send_actions(id, false)
-		_arm = ""
+		release_touch_inputs()
 	if next_touch and not _touch_on:
 		_last_touch_ms = Time.get_ticks_msec()
 	_touch_on = next_touch
@@ -167,6 +164,27 @@ func _input(event: InputEvent) -> void:
 func _clear_touch_activity() -> void:
 	_touch_fingers.clear()
 	_last_touch_ms = Time.get_ticks_msec()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED:
+		release_touch_inputs()
+
+
+## A loading screen can consume the finger-up before TouchScreenButton sees it.
+## Reset both the native fingers and the actions we sent, without handing a held
+## arm over to another stale finger or generating a fresh confirmation.
+func release_touch_inputs() -> void:
+	_resetting_touch = true
+	for id in _held_actions.keys():
+		_send_actions(id, false)
+	_arm = ""
+	for button: TouchScreenButton in _buttons.values():
+		var previous := button.process_mode
+		button.process_mode = Node.PROCESS_MODE_DISABLED
+		button.process_mode = previous
+	_resetting_touch = false
+	_clear_touch_activity()
 
 
 ## Only screens explicitly requesting it (the full map or ring editor) hide the side pad.
@@ -814,12 +832,7 @@ func set_film_mode(on: bool) -> void:
 func set_flute_mode(on: bool) -> void:
 	if on == flute_mode:
 		return
-	# let go of anything held, so no action stays stuck down across the switch
-	for id in PAD_ACTIONS:
-		for action in PAD_ACTIONS[id] + ([FLUTE_LANES[id]] if FLUTE_LANES.has(id) else []):
-			if Input.is_action_pressed(action):
-				Input.action_release(action)
-	_arm = ""
+	release_touch_inputs()
 	flute_mode = on
 	_sync_dpad()
 	if _legend_row:
@@ -834,6 +847,8 @@ var _arm := ""
 
 
 func _send(id: String, down: bool) -> void:
+	if _resetting_touch:
+		return
 	if id in ARMS and not flute_mode and not _pad_diagonal:
 		if down:
 			if _arm != "" and _arm != id:
@@ -860,12 +875,19 @@ func _send(id: String, down: bool) -> void:
 
 
 func _send_actions(id: String, down: bool) -> void:
-	var actions: Array = PAD_ACTIONS[id]
-	if flute_mode and FLUTE_LANES.has(id):
-		actions = [FLUTE_LANES[id]]
-	elif id in ["a", "b"] and down and not UI.stack.is_empty():
-		# A modal takes one accept/cancel event per press, without also triggering a world action or running.
-		actions = ["ui_accept" if id == "a" else "ui_cancel"]
+	var actions: Array
+	if down:
+		actions = PAD_ACTIONS[id]
+		if flute_mode and FLUTE_LANES.has(id):
+			actions = [FLUTE_LANES[id]]
+		elif id in ["a", "b"] and not UI.stack.is_empty():
+			# A modal takes one accept/cancel event per press.
+			actions = ["ui_accept" if id == "a" else "ui_cancel"]
+		_held_actions[id] = actions.duplicate()
+	else:
+		# Release the original actions even if the mode changed while held.
+		actions = _held_actions.get(id, [])
+		_held_actions.erase(id)
 	for action in actions:
 		var ev := InputEventAction.new()
 		ev.action = action

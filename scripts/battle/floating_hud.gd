@@ -15,6 +15,7 @@ extends Control
 ## each with a flat outline round its
 ## silhouette in its colour (battle.gd outline_color), so a bar meets the outline behind its beast. Bars slide out
 ## from behind their models. What an action does is said in the top bar.
+const SoftArrow = preload("res://scripts/ui/soft_arrow.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const FrameBox = preload("res://scripts/ui/frame_box.gd")
 const OutlineShader = preload("res://scripts/battle/silhouette_outline.gdshader")
@@ -660,18 +661,16 @@ func _gauge(canvas: Control, r: Rect2, ratio: float, col: Color, alpha: float) -
 
 
 func _tri(canvas: Control, c: Vector2, dir: int, col: Color) -> void:
-	var s := _pill_h() * 0.13
-	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(dir * s, 0), c + Vector2(-dir * s * 0.7, -s), c + Vector2(-dir * s * 0.7, s)]), col)
+	# (the game's soft arrow, soft_arrow.gd)
+	SoftArrow.draw_arrow(canvas, c, Vector2(dir, 0), _pill_h() * 0.13, col)
 
 
 ## The yellow pointer between an action and its target ("Bite ► Tadlet"): a short, wide triangle (the 3D arrow's
 ## yellow) with a thin dark edge so it reads on white. `at`: the middle of its left side.
 func _aim_pointer(canvas: Control, at: Vector2, alpha: float) -> void:
-	var half := AIM_H * 0.5
-	var pts := PackedVector2Array([at + Vector2(0, -half), at + Vector2(AIM_W, 0), at + Vector2(0, half)])
-	var rim := PackedVector2Array([at + Vector2(-1.2, -half - 1.6), at + Vector2(AIM_W + 1.8, 0), at + Vector2(-1.2, half + 1.6)])
-	canvas.draw_colored_polygon(rim, Color(0.3, 0.24, 0.05, alpha))
-	canvas.draw_colored_polygon(pts, Color(TargetArrow.YELLOW, alpha))
+	var c := at + Vector2(AIM_W * 0.5, 0)
+	SoftArrow.draw_arrow(canvas, c, Vector2.RIGHT, AIM_H * 0.5 + 1.7, Color(0.3, 0.24, 0.05, alpha))
+	SoftArrow.draw_arrow(canvas, c, Vector2.RIGHT, AIM_H * 0.5, Color(TargetArrow.YELLOW, alpha))
 
 
 ## Above and below the chooser's bar: ▲ / ▼ where up / down leads somewhere (another beast, or a turn of the ring),
@@ -685,13 +684,8 @@ func _nav_hints(canvas: Control, inner: Rect2, pill: Rect2, col: Color, alpha: f
 		var y := pill.position.y - NAV_GAP - NAV_SIZE * 0.5 if dir < 0 else pill.end.y + NAV_GAP + NAV_SIZE * 0.5
 		var shadow := Color(0, 0, 0, 0.35 * alpha)
 		if panel.can_move(dir):
-			var tip := Vector2(cx, y + NAV_SIZE * 0.6 * dir)
-			var pts := PackedVector2Array([tip, Vector2(cx - NAV_SIZE * 1.1, y - NAV_SIZE * 0.6 * dir), Vector2(cx + NAV_SIZE * 1.1, y - NAV_SIZE * 0.6 * dir)])
-			var under := PackedVector2Array()
-			for pt in pts:
-				under.append(pt + Vector2(0, 1.5))
-			canvas.draw_colored_polygon(under, shadow)
-			canvas.draw_colored_polygon(pts, Color(col, alpha))
+			SoftArrow.draw_arrow(canvas, Vector2(cx, y + 1.5), Vector2(0, dir), NAV_SIZE * 1.05, shadow)
+			SoftArrow.draw_arrow(canvas, Vector2(cx, y), Vector2(0, dir), NAV_SIZE * 1.05, Color(col, alpha))
 		else:
 			var a := Vector2(cx - NAV_SIZE, y)
 			var b := Vector2(cx + NAV_SIZE, y)

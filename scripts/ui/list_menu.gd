@@ -331,6 +331,9 @@ func _place_cancel() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_place_cancel()
+	# while the tabs have the cursor the open one pulses, as in the Start book (book_menu.gd _process)
+	for k in tab_buttons.size():
+		(tab_buttons[k] as Control).modulate = Color(1, 1, 1, 0.7 + 0.3 * absf(sin(_t * 4.0))) 			if _on_tabs and k == int(opts.get("tab", 0)) else Color.WHITE
 	if _hero_face != null:
 		_hero_face.queue_redraw()
 	if _held_direction != 0:
@@ -345,6 +348,11 @@ func _process(delta: float) -> void:
 
 func _input(ev: InputEvent) -> void:
 	if closed or UI.stack.is_empty() or UI.stack.back() != self:
+		return
+	if _on_tabs and ev.is_action_pressed("ui_accept") and not ev.is_echo():
+		# A on the tabs goes down into the list
+		_leave_tabs()
+		get_viewport().set_input_as_handled()
 		return
 	if opts.has("tabs") and not ev.is_echo() and (ev.is_action_pressed("ui_left") or ev.is_action_pressed("ui_right")):
 		var step := -1 if ev.is_action_pressed("ui_left") else 1
@@ -368,6 +376,16 @@ func _input(ev: InputEvent) -> void:
 func _step_focus(direction: int) -> void:
 	if buttons.is_empty():
 		return
+	if not tab_buttons.is_empty():
+		# the tabs sit above the rows (the user's direction, 2026-11-15): ▲ from the top row goes up onto them, ▼ from
+		# them comes back down to the top row
+		if _on_tabs:
+			if direction > 0:
+				_leave_tabs()
+			return
+		if direction < 0 and _first_enabled() == maxi(_focus, 0):
+			_enter_tabs()
+			return
 	for step in range(1, buttons.size() + 1):
 		var index := posmod(maxi(_focus, 0) + step * direction, buttons.size())
 		if not buttons[index].disabled:
@@ -420,6 +438,12 @@ func _reserve_right(b: Button, px: float) -> void:
 
 
 func _grab_start() -> void:
+	if _tabs_held.has(title):
+		# (a new rank picked from the tabs: they keep the cursor)
+		_tabs_held.erase(title)
+		if not tab_buttons.is_empty():
+			_enter_tabs(false)
+			return
 	if buttons.is_empty():
 		return
 	var s := clampi(int(opts.get("start", 0)), 0, buttons.size() - 1)
@@ -433,6 +457,7 @@ func _grab_start() -> void:
 
 
 func _focused(i: int) -> void:
+	_on_tabs = false
 	if _focus != -1 and _focus != i:
 		Sfx.play("select")
 	_focus = i
@@ -479,6 +504,37 @@ static var _tab_first := {}
 var _tab_row: Control
 var _tab_scroll: ScrollContainer
 var _tab_arrows: Array = []
+## whether the tabs have the cursor (▲ from the top row), and, per title, a rank change made from them so the next
+## menu opens with the cursor still on the tabs
+var _on_tabs := false
+static var _tabs_held := {}
+
+
+func _first_enabled() -> int:
+	for i in buttons.size():
+		if not buttons[i].disabled:
+			return i
+	return 0
+
+
+## The cursor up onto the tabs: no row lit, the open tab pulsing.
+func _enter_tabs(sound := true) -> void:
+	_on_tabs = true
+	var owner_now := get_viewport().gui_get_focus_owner()
+	if owner_now != null and is_ancestor_of(owner_now):
+		owner_now.release_focus()
+	if sound:
+		Sfx.play("select")
+
+
+## The cursor back down to the top row.
+func _leave_tabs() -> void:
+	_on_tabs = false
+	var i := _first_enabled()
+	if i < buttons.size():
+		buttons[i].grab_focus()
+		if _scroll != null:
+			_scroll.ensure_control_visible.call_deferred(buttons[i])
 
 
 func _tab_h() -> float:
@@ -536,11 +592,14 @@ func _make_tabs(parent: Control) -> void:
 	# the arrows, outside the strip's ends
 	for k in 2:
 		var a := Button.new()
-		a.text = "◄" if k == 0 else "►"
 		a.focus_mode = Control.FOCUS_NONE
-		UIKit.plate_button(a, Vector4(0, 0, 0, 0))
-		a.add_theme_font_override("font", UIKit.font_head())
-		a.add_theme_font_size_override("font_size", UIKit.head_px(40))
+		# no plate: just the game's soft arrow (soft_arrow.gd) in the gem, pointing outwards
+		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
+			a.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+		var glyph: Control = load("res://scripts/ui/soft_arrow.gd").make(Vector2.LEFT if k == 0 else Vector2.RIGHT, UIKit.ACCENT)
+		glyph.fill = 0.8
+		glyph.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		a.add_child(glyph)
 		a.size = Vector2(tab_h, tab_h)
 		a.visible = first > 0 if k == 0 else first + shown < n
 		a.pressed.connect(_change_tab.bind(first - 1 if k == 0 else first + shown))
@@ -585,5 +644,7 @@ func _scroll_tabs(step: float, before: int, first: int) -> void:
 func _change_tab(index: int) -> void:
 	if index == int(opts.get("tab", 0)):
 		return
+	if _on_tabs:
+		_tabs_held[title] = true
 	Sfx.play("page")
 	close(-2 - index)
