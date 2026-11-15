@@ -4716,8 +4716,10 @@ func _pick(screen: Vector2) -> Dictionary:
 		boxes.append([AABB(tile_pos(p) + Vector3(-0.4, 1.0, -0.35), Vector3(0.8, 0.5, 0.7)), p, "thing"])
 	for p in map.get("furniture", {}):
 		var kind: String = map["furniture"][p]
-		if kind in ["ice_maker", "hot_tub", "hot_tub_sign"]:
-			var height := 1.24 if kind in ["ice_maker", "hot_tub_sign"] else 0.65
+		if kind == "hot_tub_sign":
+			boxes.append([AABB(tile_pos(p) + Vector3(-1.325, 0.41, 0.64), Vector3(1.65, 0.62, 0.12)), p, "thing"])
+		elif kind in ["ice_maker", "hot_tub"]:
+			var height := 1.24 if kind == "ice_maker" else 0.65
 			boxes.append([AABB(tile_pos(p) + Vector3(-0.48, 0, -0.48), Vector3(0.96, height, 0.96)), p, "thing"])
 	for p in npcs:
 		var offset: Vector3 = npcs[p].get("visual_offset", Vector3.ZERO)

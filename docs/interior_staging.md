@@ -19,7 +19,7 @@ The rules below translate those principles into cardinal tile movement, small ro
 1. **Compose from the camera.** Judge the room from its actual gameplay view, including a wide phone. A correct
    floor plan alone is insufficient. Show useful faces, cushions, shelves and displays, rather than furniture backs.
    Preserve the existing cutaway walls, windows, room scale and regional materials.
-2. **Keep lounge seating open.** Furniture against a side wall faces inward towards the room's center. Rear-wall and
+2. **Keep lounge seating open.** Seats grouped around a coffee table face the table (the user's 2026-11-15 direction), even when that puts a seat's back towards the camera. This takes precedence over the camera-facing defaults below. Furniture against a side wall faces inward towards the room's center. Rear-wall and
    freestanding sofas and armchairs face south towards the camera. In a living room, assume the
    television is against the omitted fourth wall on the camera side; do not draw a rear-wall TV or orient seating
    towards one. Prefer the sofa upstage, with a low coffee table downstage and an open tile between them. Small
@@ -69,8 +69,8 @@ The rules below translate those principles into cardinal tile movement, small ro
     walls (a shelf niche with a few things in it) and, where the template asks ("closets": [[x, y, w]]), a closet
     recessed into the back wall from the floor to head height with shelves of blankets, books and boxes; closets
     replace wardrobes in the player's house. Raised platforms are a café thing above all (the user's direction):
-    large, filling a whole side or a corner of the room, one step (0.3) up, walked on like any floor, with chunky
-    railings along their edges over open floor and two big wooden steps cut into its edge where you walk up, in the floor's boards and climbing so their treads lie along the boards (the user's rule, 2026-11-15) ("dais": [{"rect": [x, y, w, h],
+    large, filling a whole side or a corner of the room, one step (0.3) up, walked on like any floor, with the hotel lobby's continuous bevelled handrails, capped wooden posts and broad slats
+    along their edges over open floor and two big wooden steps cut into its edge where you walk up, in the floor's boards and climbing so their treads lie along the boards (the user's rule, 2026-11-15) ("dais": [{"rect": [x, y, w, h],
     "steps": [[x, y]]}]; map_loader.gd turns them into the room's heights). People on them sit on floor cushions
     facing the room with their tea.
 

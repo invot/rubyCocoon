@@ -48,21 +48,21 @@ static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material) 
 	# Fixed to the front balustrade, facing the player's approach from the open aisle.
 	var board := BoxMesh.new()
 	board.size = Vector3(1.65, 0.62, 0.08)
-	_piece(spa, board, ivory, Vector3(0.5, 0.72, 2.98))
+	_piece(spa, board, ivory, Vector3(1.0, 0.72, 3.18))
 	var logo := QuadMesh.new()
 	logo.size = Vector2(0.51, 0.51)
 	var ink := StandardMaterial3D.new()
 	ink.albedo_texture = load("res://assets/ui/icons/glyphs/spa_steam.png")
 	ink.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ink.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	_piece(spa, logo, ink, Vector3(-0.03, 0.72, 3.027))
+	_piece(spa, logo, ink, Vector3(0.47, 0.72, 3.227))
 	var words := Label3D.new()
 	preload("res://scripts/gfx/world_lettering.gd").apply(words, "HEALING SPRING\nRESTORES PARTY\nHP AND MP")
 	words.font_size = 32
 	words.pixel_size = 0.0032
 	words.outline_size = 0
 	words.modulate = Color("#49393c")
-	words.position = Vector3(0.78, 0.72, 3.03)
+	words.position = Vector3(1.28, 0.72, 3.23)
 	spa.add_child(words)
 	_steam(spa)
 

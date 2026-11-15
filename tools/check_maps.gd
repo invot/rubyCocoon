@@ -314,9 +314,9 @@ func _staging(m: Dictionary) -> Array:
 		var lo: Vector2i = layout["lo"]
 		var size: Vector2 = layout["size"]
 		var back: Vector2i = layout["back"]
-		if kind in ["sofa", "armchair"] and back == Vector2i(0, 1):
+		if kind in ["sofa", "armchair"] and back == Vector2i(0, 1) and not layout.get("table_facing", false):
 			out.append("%s's %s at %s turns away from the camera" % [label, kind, lo])
-		if kind == "armchair":
+		if kind == "armchair" and not layout.get("table_facing", false):
 			for side in [Vector2i.LEFT, Vector2i.RIGHT]:
 				var wall: Vector2i = lo + side
 				if RoomBuilder._walled(m, wall) and back != side:

@@ -88,6 +88,11 @@ const HERO_FACE := 0
 const SHOE_COLOURS := ["#5a3a24", "#2a2a2a", "#e8e4dc", "#3a3a4a", "#7a4a2a", "#8a2a2a", "#4a5a7a"]
 const EYE_COLOURS := ["#4a2e1c", "#5a3a22", "#3e2a1c", "#4a6680", "#56704e", "#6a5a3a", "#4a3a2e"]
 const SKIN := "#f0c8a0"
+## The bathing suit (outfit "swim"): the first outfit's bare arms and legs, shorts (trunks), shoes (worn in the skin's
+## colour: bare feet) and tank top (in the skin's colour for a man, the suit's for a woman); and the suits' colours,
+## one picked by the look unless it says ("swimsuit").
+const SWIM_PARTS := [0, 1, 3, 6, 7]
+const SWIM_COLOURS := ["#e0566a", "#2f8fd0", "#f0a030", "#2aa58a", "#8a5ad0", "#f07aa8", "#1f5f9a"]
 ## The hero's hair colour when the look has none: the character creator's first (hero_maker.gd SWATCHES "hair").
 const HERO_HAIR := "#1a1410"
 
@@ -365,9 +370,14 @@ static func outfit(look: Dictionary) -> Dictionary:
 		# no pack of the kit's own: the hero's is the one pack, in the colour they chose
 		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "back")
 		_wear_pack(parts, colours, Color(look.get("pack_colour", PACK_COLOUR)))
-	if look.get("outfit", "") == "swim":
-		# Bare feet and a sleeveless swim top/trunks, using the existing skinned kit.
-		parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["back", "hat"])
+	var swim: bool = look.get("outfit", "") == "swim"
+	var swim_female := false
+	if swim:
+		# A bathing suit on their own head and hair (SWIM_PARTS): bare arms, legs and feet; trunks, or a one-piece
+		# for a woman (the tank top in the trunks' colour).
+		swim_female = _feminine(person) if not look.has("hair_style") else int(look["hair_style"]) == 1
+		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] in ["head", "neck", "hair"])
+		parts.append_array(SWIM_PARTS)
 	var names := {"skin": "skin", "hair": "hair", "eyes": "eyes", "top": "shirt", "bottom": "pants", "shoes": "shoes", "hat": "hat"}
 	if hero:
 		names["top"] = "top"
@@ -381,6 +391,12 @@ static func outfit(look: Dictionary) -> Dictionary:
 	if hero and not m.begins_with("tf") and not colours.has("hair"):
 		colours["hair"] = Color(HERO_HAIR)
 	colours["eyes"] = colours.get("eyes", Color(EYE_COLOURS[seed % EYE_COLOURS.size()]))
+	if swim:
+		var suit := Color(look["swimsuit"]) if look.has("swimsuit") else Color(SWIM_COLOURS[(seed / 5) % SWIM_COLOURS.size()])
+		colours["bottom"] = suit
+		colours["top"] = suit if swim_female else colours["skin"]
+		colours["shoes"] = colours["skin"]
+		colours.erase("hat")
 	if String(look.get("outfit", "")) == "camo" and not hero and not m.begins_with("tf"):
 		var extras: Dictionary = data()["extras"]
 		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] in ["neck", "head", "hair"])

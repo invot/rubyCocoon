@@ -1075,14 +1075,14 @@ const HOTEL_ROOMS := {
 			"g...................#",
 			"#...................#",
 			"d.....CCCCCCCC..::..#",
-			"#.....p......p..::..#",
-			"#.....p..1...p..::..#",
+			"#...............::..#",
+			"#........1......::..#",
 			"#.....CCCCCCCC..::..#",
 			"#...............::..#",
-			"#....rrrrrrr........#",
-			"#....rrr2rrr........w",
-			"#.SS.rrrrrrr.yy....PD",
-			"#...................w",
+			"#l...rrrrrrr........#",
+			"#.SSrrrr2rrr.a......w",
+			"#....rrrrrrr.yy....PD",
+			"#..yya.......a......w",
 			"#####################"
 		],
 		"doors": {
@@ -1121,6 +1121,24 @@ const HOTEL_ROOMS := {
 			"g"
 		],
 		"fixtures": [
+			[6, 5, "counter_gate"], [6, 6, "counter_gate"],
+			[13, 5, "counter_gate"], [13, 6, "counter_gate"],
+			[2, 6, "large_plant"],
+			[2, 7, "large_plant"],
+			[3, 6, "large_plant"],
+			[3, 7, "large_plant"],
+			[18, 5, "large_plant"],
+			[18, 6, "large_plant"],
+			[19, 5, "large_plant"],
+			[19, 6, "large_plant"],
+			[1, 11, "large_plant"],
+			[1, 12, "large_plant"],
+			[2, 11, "large_plant"],
+			[2, 12, "large_plant"],
+			[14, 11, "large_plant"],
+			[14, 12, "large_plant"],
+			[15, 11, "large_plant"],
+			[15, 12, "large_plant"],
 			[
 				2,
 				1,
@@ -1233,8 +1251,8 @@ const HOTEL_ROOMS := {
 		},
 		"rows": [
 			"##g###h###i####",
-			"#.............w",
-			"dP............#",
+			"w.............#",
+			"#............Pd",
 			"#..p....==....#",
 			"###############"
 		],
@@ -1265,8 +1283,8 @@ const HOTEL_ROOMS := {
 		},
 		"rows": [
 			"##g###h###i####",
-			"#.............w",
-			"dP............#",
+			"w.............#",
+			"#............Pd",
 			"#..p....==....#",
 			"###############"
 		],
@@ -1285,10 +1303,11 @@ const HOTEL_ROOMS := {
 	},
 	"hotel_pool": {
 		"stage": true,
-		"dais": [{"rect": [9, 1, 4, 4], "steps": [[10, 4]]}],
+		"dais": [{"rect": [1, 1, 4, 4], "steps": [[2, 4]]}],
 		"zone": "hall",
 		"full_height_windows": true,
-		"swimmers": [[4, 3], [7, 4]],
+		"swimmers": [[7, 5], [11, 3]],
+		"pool_ladder": [9, 5],
 		"wall": "#fbf1e2",
 		"trim": "#4a2c1a",
 		"mission": true,
@@ -1300,13 +1319,13 @@ const HOTEL_ROOMS := {
 		},
 		"rows": [
 			"#wwwwwwwwwwww#",
+			"#...._______.#",
+			"#...._______.#",
+			"#...._______.#",
+			"#...._______.g",
+			"#...._______.#",
+			"dP...........#",
 			"#............#",
-			"#..______....#",
-			"#..______....#",
-			"dP.______....g",
-			"#..______....#",
-			"#............#",
-			"#.SS.........#",
 			"#............#",
 			"##############"
 		],
@@ -1315,9 +1334,10 @@ const HOTEL_ROOMS := {
 			"g": "hotel_gym"
 		},
 		"fixtures": [
-			[10, 1, "hot_tub"], [11, 1, "hot_tub"],
-			[10, 2, "hot_tub"], [11, 2, "hot_tub"],
-			[11, 4, "hot_tub_sign"]
+			[2, 1, "hot_tub"], [3, 1, "hot_tub"],
+			[2, 2, "hot_tub"], [3, 2, "hot_tub"],
+			[4, 4, "hot_tub_sign"],
+			[1, 8, "chair"], [2, 8, "chair"]
 		],
 		"paintings": [
 			[0, 2, 1, 0, 1.8, 0, 1.5, 1.1],
@@ -1380,11 +1400,11 @@ const HOTEL_ROOMS := {
 			"hall": "wall_plaster"
 		},
 		"rows": [
-			"###w###",
+			"#####w#",
+			"#.mfz.#",
 			"#.....#",
-			"#..f..#",
 			"dP....#",
-			"#..mz.#",
+			"#.....#",
 			"#######"
 		],
 		"doors": {
@@ -1393,7 +1413,7 @@ const HOTEL_ROOMS := {
 		"fixtures": [
 			[
 				3,
-				2,
+				1,
 				"ice_maker"
 			]
 		]
@@ -1411,11 +1431,11 @@ const HOTEL_ROOMS := {
 			"hall": "wall_plaster"
 		},
 		"rows": [
-			"###w###",
+			"#####w#",
+			"#.mfz.#",
 			"#.....#",
-			"#..f..#",
 			"dP....#",
-			"#..mz.#",
+			"#.....#",
 			"#######"
 		],
 		"doors": {
@@ -1424,7 +1444,7 @@ const HOTEL_ROOMS := {
 		"fixtures": [
 			[
 				3,
-				2,
+				1,
 				"ice_maker"
 			]
 		]

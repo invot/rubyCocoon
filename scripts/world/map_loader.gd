@@ -1229,9 +1229,11 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 		"swimmer":
 			var look := MapGen.random_look(rng)
 			look["outfit"] = "swim"
+			look.erase("hat")
+			look["hair_style"] = 1 if p.x < 9 else 0
 			return {"kind": "villager", "name": "Swimming Guest", "pos": p, "look": look,
 				"facing": Vector2i.DOWN if p.x < 6 else Vector2i.LEFT, "swim": true, "still": true,
-				"visual_offset": Vector3(0, -1.05, 0), "lines": ["A swim, then a soak in the healing spring. That's my whole afternoon!"]}
+				"visual_offset": Vector3(0, -0.92, 0), "lines": ["A swim, then a soak in the healing spring. That's my whole afternoon!"]}
 		"runner":
 			return {"kind": "villager", "name": "Breathless Guest", "pos": p, "look": MapGen.random_look(rng),
 				"facing": Vector2i.UP, "treadmill": true, "still": true, "visual_offset": Vector3(0, 0.2, 0),

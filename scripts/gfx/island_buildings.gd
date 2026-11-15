@@ -8,6 +8,7 @@ const PERSON = preload("res://scripts/gfx/voxel_person.gd")
 const WORLD = preload("res://scripts/data/world_db.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
+const TF = preload("res://scripts/gfx/townfolk.gd")
 const PASTELS := ["#f1b8ae", "#f3d995", "#b5d9c8", "#c9bce1", "#aed4e2"]
 const HUT_LIFT := 0.84
 const HUT_FACE_INSET := 0.70
@@ -781,7 +782,7 @@ static func beach(world: Node3D) -> void:
 		var mesh := MeshInstance3D.new()
 		mesh.mesh = k.mesh()
 		world.add_child(mesh)
-		# The existing character rig reclines on the chaise, with bare arms/legs and swim trunks.
+		# The existing character rig reclines beside the chaise in a bathing suit (townfolk.gd outfit "swim").
 		var skin: String = ["#e7b58c", "#bd8059", "#8f5f45"][i % 3]
 		var chatter := [
 			["I've been here a week and my palms still won't tan. I shall be asking for a refund."],
@@ -792,7 +793,7 @@ static func beach(world: Node3D) -> void:
 			["I booked a sea view. Nobody warned me that the sea would be making noise all night."],
 		]
 		world.map["npcs"].append({"kind": "villager", "name": "Resort Guest", "pos": Vector2i(x - 1, z + 1),
-			"look": {"skin": skin, "shirt": skin, "pants": PASTELS[(i + 2) % 5], "shoes": skin, "hair": "#593a27", "body": "male", "hair_style": 0, "model": "tf0", "outfit": "swim"},
+			"look": {"skin": skin, "swimsuit": TF.SWIM_COLOURS[(i * 3 + 1) % TF.SWIM_COLOURS.size()], "hair": ["#593a27", "#2a1c14", "#c89a52"][i % 3], "hair_style": i % 2, "outfit": "swim"},
 			"facing": Vector2i.DOWN, "visual_offset": Vector3(-0.5, 0.42, -0.15), "recline": true, "still": true, "lines": chatter[i]})
 	# Palms along the foot of the cliff, clear of both ramps and the aisles below them; bent ones lean out to sea.
 	for j in CLIFF_PALMS.size():

@@ -70,6 +70,7 @@ const ZONE_CHARS := {"l": "living", "b": "bedroom", "k": "kitchen", "a": "bathro
 ## top = small things that may stand on it.
 const KINDS := {
 	"hot_tub": {"m": []}, "hot_tub_sign": {"m": []}, "ice_maker": {"m": []}, "plant_table": {"m": []},
+	"counter_gate": {"m": [], "free": true},
 	"counter": {"m": ["counter"], "fill": true, "top": ["cup", "bottle", "plate_2", "milk", "apple", "el_microwave", "el_toaster", "", ""]},
 	"kitchen_sink": {"m": ["kitchen_sink"], "fill": true},
 	"stove": {"m": ["stove"], "fill": true, "top": ["pan", "pot", ""]},
@@ -113,6 +114,7 @@ const KINDS := {
 	"bed": {"m": ["kk_bed_single_A", "kk_bed_single_B", "kk_bed_double_A", "kk_bed_double_B"], "short": true},
 	"bunk": {"m": ["kk_bed_single_A", "kk_bed_single_B"], "short": true},
 	"plant": {"m": ["home/plant_pillow_tall", "home/plant_paddle", "home/plant_pillow_round"], "single": true},
+	"large_plant": {"m": ["home/plant_pillow_tall"], "height": 1.9, "free": true},
 	# (a shop's bookshelves stay; in a home each tile of one is a small dressed cupboard, home_m)
 	"bookshelf": {"m": ["bookshelf"], "home_m": ["kk_cabinet_small_dec"], "long": true},
 	"shelf": {"m": ["shelves"], "long": true, "goods": true},
@@ -1733,6 +1735,9 @@ func _mission_decor() -> void:
 		for x in w:
 			if not code(x, y) in [MapGen.IWALL, MapGen.IWINDOW]:
 				continue
+			# Full-height glazing has only its own frames; room dado and cornice stop at its edges.
+			if code(x, y) == MapGen.IWINDOW and map.get("room", {}).get("full_height_windows", false):
+				continue
 			# over a balcony's open doorway only the crown carries on
 			var open := balconies.has(Vector2i(x, y))
 			for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
@@ -2253,6 +2258,28 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 		back = Vector2i(0, -1)
 		against = group.any(func(q): return _walled(m, q + back))
 
+	var table_facing := false
+	if kind in ["sofa", "armchair"]:
+		# Lounge seats face a nearby aligned coffee table, including across a one-tile aisle.
+		var found_table := false
+		for distance in [1, 2]:
+			for d in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+				for q in group:
+					var target: Vector2i = q + d * distance
+					if m.get("furniture", {}).get(target, "") != "coffee_table":
+						continue
+					if distance == 2 and MapGen.get_t(m, q.x + d.x, q.y + d.y) in RUG_BLOCKED:
+						continue
+					back = -d
+					against = false
+					found_table = true
+					table_facing = true
+					break
+				if found_table:
+					break
+			if found_table:
+				break
+
 	if k.get("chair", false):
 		# a chair faces the table beside it (its back away from it)
 		for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
@@ -2267,10 +2294,13 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 		yaw = atan2(float(-back.x), float(-back.y))
 	elif k.get("free", false) and size.y > size.x:
 		yaw = PI / 2.0
-	return {"lo": lo, "size": size, "back": back, "against": against, "yaw": yaw}
+	return {"lo": lo, "size": size, "back": back, "against": against, "yaw": yaw, "table_facing": table_facing}
 
 
 func _place(kind: String, group: Array) -> void:
+	if kind == "counter_gate":
+		_counter_gate(group)
+		return
 	if kind in ["hot_tub", "hot_tub_sign", "ice_maker", "plant_table"]:
 		return # Built by _hotel_details.
 	var k: Dictionary = KINDS.get(kind, {})
@@ -2307,6 +2337,10 @@ func _place(kind: String, group: Array) -> void:
 	else:
 		var s := minf(1.0, minf(span * 0.96 / bb.size.x, (depth + reach) * 0.96 / bb.size.z))
 		sc = Vector3(s, s, s)
+	# Authored tall planters keep their proportions within their blocked floor footprint.
+	if k.has("height"):
+		var s := minf(float(k["height"]) / bb.size.y, minf(span * 0.96 / bb.size.x, depth * 0.96 / bb.size.z))
+		sc = Vector3.ONE * s
 	if front and bb.size.y * sc.y > WAIST and bb.size.y * sc.y <= WAIST * WAIST_GIVE:
 		# (an armchair's back a hand above the waist settles to it)
 		sc.y *= WAIST / (bb.size.y * sc.y)
@@ -2337,6 +2371,8 @@ func _place(kind: String, group: Array) -> void:
 	var offset: Vector2 = map.get("room", {}).get("furniture_offsets", {}).get(lo, Vector2.ZERO)
 	pos += Vector3(offset.x, 0, offset.y)
 	pos.y += dais_at(map, lo)
+	if k.has("height"):
+		pos.y -= bb.position.y * sc.y
 	mi.position = pos
 	parent.add_child(mi)
 	if k.has("desk_side") and span >= 1.8:
@@ -3121,6 +3157,52 @@ func _trim_mat() -> Material:
 	return surface("window_frame", _sch("trim") if home else trim.lightened(0.55))
 
 
+## A sealed shallow garden outside the glazing: a landscape at the back, real bushes nearer the glass.
+func _window_garden() -> void:
+	var garden := Node3D.new()
+	garden.name = "WindowGarden"
+	parent.add_child(garden)
+	var span := float(w - 2)
+	var surround := surface("wall_plaster", Color("#9cab91"))
+	var roof := surface("wall_plaster", Color("#0c0a10"))
+	roof.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for box in [[Vector3(float(w) / 2.0, -0.06, -0.4), Vector3(span, 0.12, 1.8)],
+		[Vector3(float(w) / 2.0, H + 0.04, -0.4), Vector3(span, 0.08, 1.8)],
+		[Vector3(1.0, H / 2.0, -0.4), Vector3(0.1, H, 1.8)],
+		[Vector3(float(w - 1), H / 2.0, -0.4), Vector3(0.1, H, 1.8)]]:
+		var shell := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = box[1]
+		shell.mesh = mesh
+		shell.material_override = roof if float(box[0].y) > H else surround
+		shell.position = box[0]
+		shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		garden.add_child(shell)
+	var landscape := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(span, H)
+	landscape.mesh = quad
+	landscape.position = Vector3(float(w) / 2.0, H / 2.0, -1.25)
+	var paint := StandardMaterial3D.new()
+	paint.albedo_texture = load("res://assets/battle/backdrops/island.png")
+	paint.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	paint.albedo_color = Color("#b9c7ba")
+	landscape.material_override = paint
+	landscape.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	garden.add_child(landscape)
+	for i in 6:
+		var bush := MeshInstance3D.new()
+		bush.mesh = load("res://assets/nature/bush_%d.res" % (i % 3 + 1))
+		var bounds := bush.mesh.get_aabb()
+		var scale := (0.55 + float(i % 3) * 0.1) / bounds.size.y
+		bush.scale = Vector3.ONE * scale
+		bush.position = Vector3(1.8 + float(i) * 1.95, -bounds.position.y * scale, -0.25 - float(i % 2) * 0.2)
+		bush.rotation.y = float(i) * 0.7
+		bush.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		garden.add_child(bush)
+
+
 ## Floor-to-ceiling glazing with a continuous, existing island landscape beyond the recessed panes.
 func _nature_window(x: int, y: int, inside: Vector2i) -> void:
 	var inward := Vector3(inside.x, 0, inside.y)
@@ -3132,14 +3214,11 @@ func _nature_window(x: int, y: int, inside: Vector2i) -> void:
 	var quad := QuadMesh.new()
 	quad.size = Vector2(0.94, H)
 	pane.mesh = quad
-	var view := StandardMaterial3D.new()
-	view.albedo_texture = load("res://assets/battle/backdrops/island.png")
-	view.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	view.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	view.albedo_color = Color("#dbe5df")
-	view.uv1_scale = Vector3(1.0 / float(w - 2), 1, 1)
-	view.uv1_offset = Vector3(float(x - 1) / float(w - 2), 0, 0)
-	pane.material_override = view
+	var glass := ShaderMaterial.new()
+	glass.shader = preload("res://scripts/gfx/interior_glass.gdshader")
+	pane.material_override = glass
+	if x == 1 and y == 0:
+		_window_garden()
 	pane.position = c
 	pane.rotation.y = atan2(float(inside.x), float(inside.y))
 	_attach(x, y, pane)
@@ -3818,6 +3897,27 @@ func _dressed_shelf(x: int, y: int, inside: Vector2i, up: float, side: float, lo
 	return base
 
 
+## A closed pair of staff-only wooden leaves; its fixture tiles supply the movement barrier.
+func _counter_gate(group: Array) -> void:
+	var layout := furniture_layout(map, "counter_gate", group)
+	var lo: Vector2i = layout["lo"]
+	var size: Vector2 = layout["size"]
+	var c := Vector3(lo.x + size.x * 0.5, 0, lo.y + size.y * 0.5)
+	var wood := _rail_mat()
+	var panel := surface("floor_wood", MISSION_WOOD.lightened(0.12))
+	var iron := surface("wall_plaster", Color("#554534"))
+	var top := DESK_TOP - 0.14
+	var span := size.y - 0.12
+	for side in [-1.0, 1.0]:
+		var z: float = c.z + side * span * 0.25
+		floor_mesher.box("counter_gate_wood", wood, Vector3(c.x, (top + 0.12) * 0.5, z), Vector3(0.14, top - 0.12, span * 0.5 - 0.025))
+		for face in [-1.0, 1.0]:
+			floor_mesher.box("counter_gate_panel", panel, Vector3(c.x + face * 0.076, 0.48, z), Vector3(0.018, 0.4, span * 0.5 - 0.22))
+		_beam("counter_gate_cap", wood, Vector3(c.x, top - 0.04, z - span * 0.25 + 0.02), Vector3(c.x, top - 0.04, z + span * 0.25 - 0.02), 0.095, true)
+		for y in [0.28, 0.68]:
+			floor_mesher.box("counter_gate_hinge", iron, Vector3(c.x + 0.08, y, c.z + side * (span * 0.5 - 0.09)), Vector3(0.04, 0.1, 0.16))
+
+
 ## Hotel fixtures share the room's painted, texture-sampling surfaces.
 func _hotel_details() -> void:
 	var room: Dictionary = map.get("room", {})
@@ -3837,7 +3937,7 @@ func _hotel_details() -> void:
 			var shelf := _stand("home/floating_shelf", Vector3(x, 1.85, 4.12), 0, 1.6)
 			if shelf != null:
 				_stand("home/books_stack", Vector3(x - 0.28, 1.93, 4.2), 0, 0.9)
-				_stand("home/plant_succulent", Vector3(x + 0.4, 1.93, 4.2), 0, 0.9)
+				_stand("home/vase_flowers", Vector3(x + 0.4, 1.93, 4.2), 0, 0.9)
 		for x in [9.0, 11.0]:
 			var painting := _hang_frame(int(x), 4, Vector2i.DOWN, 1.78, 0, 1.8, 1.2)
 			painting.position = Vector3(x, 1.78, 4.12)
@@ -3872,7 +3972,7 @@ func _hotel_details() -> void:
 				var bb := table.mesh.get_aabb()
 				table.position.y -= bb.position.y * table.scale.y
 				var top := table.position.y + bb.end.y * table.scale.y
-				var name: String = ["home/plant_paddle", "home/plant_blades", "home/plant_pillow_round"][int(fixture[0]) % 3]
+				var name: String = ["home/plant_pillow_tall", "home/plant_pillow_round"][int(fixture[0]) % 2]
 				var plant := _stand(name, Vector3(c.x, top, c.z), 0)
 				if plant != null:
 					var pb := plant.mesh.get_aabb()
@@ -3888,7 +3988,9 @@ func _hotel_details() -> void:
 		floor_mesher.box("hotel_iron", dark, c + Vector3(0.26, 1.08, 0.39), Vector3(0.12, 0.07, 0.03))
 	if map.get("room_key", "") == "hotel_pool":
 		# The spa stands on the same walkable dais used by room floors and movement.
-		preload("res://scripts/gfx/hotel_spa.gd").build(parent, Vector3(11, DAIS_H, 2), tile, ivory)
+		preload("res://scripts/gfx/hotel_spa.gd").build(parent, Vector3(3, DAIS_H, 2), tile, ivory)
+	if room.has("pool_ladder"):
+		_pool_ladder(Vector2i(int(room["pool_ladder"][0]), int(room["pool_ladder"][1])))
 	for treadmill in room.get("treadmills", []):
 		var c := Vector3(float(treadmill[0]) + 0.5, 0, float(treadmill[1]) + 0.5)
 		floor_mesher.box("hotel_ivory", ivory, c + Vector3(0, 0.08, 0.1), Vector3(0.95, 0.16, 1.85))
@@ -3896,6 +3998,35 @@ func _hotel_details() -> void:
 		for side in [-1, 1]:
 			floor_mesher.box("hotel_ivory", ivory, c + Vector3(side * 0.43, 0.68, -0.7), Vector3(0.07, 1.2, 0.07))
 		floor_mesher.box("hotel_iron", dark, c + Vector3(0, 1.25, -0.7), Vector3(0.92, 0.2, 0.32))
+
+
+## A swimming pool's steel ladder on water tile `p` (a template's "pool_ladder"), against the pool's edge toward the
+## floor beside it: two stout rails rising out of the water and arching over the coping onto the deck, with rungs
+## below the surface. It stands within the edge's half tile, so the deck in front stays walkable.
+func _pool_ladder(p: Vector2i) -> void:
+	var out := Vector2i.ZERO
+	for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+		if code(p.x + d.x, p.y + d.y) != MapGen.WATER and not code(p.x + d.x, p.y + d.y) in WALLISH:
+			out = d
+			break
+	if out == Vector2i.ZERO:
+		return
+	var steel: StandardMaterial3D = surface("wall_plaster", Color("#c4cfd6"))
+	steel.metallic = 0.55
+	steel.roughness = 0.35
+	var o := Vector3(out.x, 0, out.y)
+	var side := Vector3(absf(out.y), 0, absf(out.x))
+	var edge := Vector3(p.x + 0.5, 0, p.y + 0.5) + o * 0.5
+	for s in [-0.24, 0.24]:
+		var at: Vector3 = edge + side * s
+		var pts := [at - o * 0.14 + Vector3(0, -0.5, 0), at - o * 0.14 + Vector3(0, 0.62, 0), at - o * 0.08 + Vector3(0, 0.76, 0),
+			at + o * 0.08 + Vector3(0, 0.76, 0), at + o * 0.16 + Vector3(0, 0.62, 0), at + o * 0.16 + Vector3(0, 0.0, 0)]
+		for i in pts.size() - 1:
+			_beam("pool_ladder", steel, pts[i], pts[i + 1], 0.045, true)
+		# a round foot plate where the rail meets the deck
+		_beam("pool_ladder", steel, at + o * 0.16, at + o * 0.16 + Vector3(0, 0.03, 0), 0.08, true)
+	for y in [-0.42, -0.22, 0.0]:
+		_beam("pool_ladder", steel, edge - o * 0.14 - side * 0.24 + Vector3(0, y, 0), edge - o * 0.14 + side * 0.24 + Vector3(0, y, 0), 0.04, true, 0.6)
 
 
 ## The shared indoor balustrade: a continuous solid handrail, a lower rail, broad slats and capped, stout posts.
