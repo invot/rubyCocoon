@@ -817,8 +817,12 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Exterior windows** use `scripts/gfx/cartoon_windows.gd`: broad bevelled surrounds, bowed caps on tall windows,
   deep sills with brackets, thick pane divisions and opaque glass that reflects the sky (`scripts/gfx/window_glass.gd`,
   `window_glass.gdshader`: a soft blue sky with painted clouds from `assets/textures/surfaces/glass_sky.png`, baked by
-  `python tools/build_glass_texture.py`, and slim glints, all shifting with the reflected view so they shimmer as the
-  camera moves; never a room behind it), inspired by the supplied
+  `python tools/build_glass_texture.py`, shifting with the reflected view as the camera moves; never a room behind it).
+  Exterior and interior glazing share faint, broadly blurred diagonal reflection bands
+  (`glass_reflection.gdshaderinc`), scaled across the whole screen rather than repeated per pane;
+  interior glazing keeps the softened view of its window box behind these reflections. Ordinary recessed windows
+  and full-height windows both use the shared interior glass shader; where no box fits, the painted view sits behind
+  the same glazing. The surrounds are inspired by the supplied
   window packs listed in `licenses/window_references.md`. House surrounds keep their town's trim colour; shops keep
   their display bays, shutters, awnings and signs. Stone arenas, including Bellerive's, instead have round masonry
   arches with wedge stones, a large keystone, stone mullions and stone sills coloured from their walls. Kelpwick's
@@ -1941,3 +1945,5 @@ The Start book caps its touch width at 1232 UI units on wide screens, centered t
 Island-update captures (isolated saves): use `--scene=island-updates --shots=res://build/shots/island_updates/desktop --shot_w=0` at 1920x1080, or 2400x1080 with `--touch`. The arena ladder has twelve ranks with four trainers each; old saves retain completed-rank credit when migrating to the expanded roster. Beach guests can be spoken to while reclining and complain about their resort holiday.
 
 Indoor raised platforms share the hotel lobby's continuous bevelled wooden balustrade, capped posts and broad slats (`room_builder.gd` `_indoor_railing`).
+
+Every window on a back or side wall looks out into a sealed window box (`room_builder.gd` `_window_boxes`): three tiles deep, running two tiles past its end windows but never behind a door or into another room or box, with a grass floor (parched in dry regions), the region's own nature (its small trees, shrubs, tufts, the odd rock and sometimes a stretch of its fence, seeded per box so it never changes), and the region's pre-blurred landscape round its back and ends. Its outsides and lid are the room's black background. Rebake the landscapes with `godot --headless --path . --script res://tools/bake_window_views.gd` (from `assets/battle/backdrops/` into `assets/interiors/window_views/`), then `--import`.

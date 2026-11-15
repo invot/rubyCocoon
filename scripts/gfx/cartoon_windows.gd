@@ -285,13 +285,7 @@ static func _draw(frame: Shape, glass: Shape, window: Dictionary, trim: Color) -
 		frame.block(Vector3(side * w * 0.35, -h / 2.0 - rail * 1.5, 0.085), Vector3(rail * 0.9, rail * 0.9, 0.16), trim.darkened(0.08), rail * 0.18)
 	frame.block(Vector3(0, 0, 0.15), Vector3(rail * 0.58, h, 0.065), trim, rail * 0.12)
 	frame.block(Vector3(0, h * 0.02, 0.15), Vector3(w, rail * 0.62, 0.065), trim, rail * 0.12)
-	# Broad graphic glints, clipped inside individual panes; no transparent or reflective material is required.
-	for side in [-1.0, 1.0]:
-		var x: float = side * w * 0.25
-		var y := h * (0.25 if side < 0 else -0.25)
-		var rw := w * 0.23
-		var rh := minf(h * 0.18, w * 0.25)
-		glass.face([Vector3(x - rw / 2.0, y - rh / 2.0, 0.125), Vector3(x - rw / 2.0 + rail * 0.45, y - rh / 2.0, 0.125), Vector3(x + rw / 2.0, y + rh / 2.0, 0.125), Vector3(x + rw / 2.0 - rail * 0.45, y + rh / 2.0, 0.125)], Vector3.BACK, Color("#a8d9df"))
+	# Soft reflection bands come from the shared shader, continuously across panes.
 
 
 ## Masonry arenas use a real round arch: broad wedge stones, an oversized keystone and coursed stone jambs.

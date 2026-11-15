@@ -1337,7 +1337,7 @@ const HOTEL_ROOMS := {
 			[2, 1, "hot_tub"], [3, 1, "hot_tub"],
 			[2, 2, "hot_tub"], [3, 2, "hot_tub"],
 			[4, 4, "hot_tub_sign"],
-			[1, 8, "chair"], [2, 8, "chair"]
+			[1, 7, "chair"], [1, 8, "chair"]
 		],
 		"paintings": [
 			[0, 2, 1, 0, 1.8, 0, 1.5, 1.1],

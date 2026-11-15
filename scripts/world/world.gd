@@ -2857,8 +2857,9 @@ func _build_npcs() -> void:
 		if n.has("gone_flag") and GameState.flag(n["gone_flag"]):
 			continue
 		var p: Vector2i = n["pos"]
-		# (someone "blocking" stands right on the shut gate tile they guard, like Kelpwick's villagers)
-		if n.get("kind", "") not in ["trainer", "guardian"] and not n.get("blocking", false) and not n.get("swim", false) and (not MapGen.walkable(MapGen.get_t(map, p.x, p.y)) or npcs.has(p)):
+		# (someone "blocking" stands right on the shut gate tile they guard, like Kelpwick's villagers; swimmers and
+		# beach guests reclining on a chaise stay on their pool or chaise tile)
+		if n.get("kind", "") not in ["trainer", "guardian"] and not n.get("blocking", false) and not n.get("swim", false) and not n.get("recline", false) and (not MapGen.walkable(MapGen.get_t(map, p.x, p.y)) or npcs.has(p)):
 			p = _free_tile_near(p)
 			n["pos"] = p
 		var node: Node3D
@@ -4204,6 +4205,9 @@ func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 		return
 	# someone sitting at a table stays turned to it
 	if VPer.pose_of(node) == "sit":
+		return
+	# someone lying back on a beach chaise stays lying on it (turning a rig laid flat swings it off the chair)
+	if n.get("recline", false):
 		return
 	# the nearer of the four ways
 	n["facing"] = _four_way(f)

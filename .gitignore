@@ -7,3 +7,31 @@ build/*
 /tools/new_beasts/out/
 __pycache__/
 /unused_assets/
+
+# Dev-only files stay local (the user's 2026-11-15 direction): only what builds and runs the game,
+# plus the tools CI uses to test and export it, is committed.
+/docs/
+/server.py
+/.claude/
+/AGENTS.md
+/CLAUDE.md
+/tools/**
+!/tools/**/
+!/tools/check_beasts.gd
+!/tools/check_beasts.gd.uid
+!/tools/check_data.gd
+!/tools/check_data.gd.uid
+!/tools/check_maps.gd
+!/tools/check_maps.gd.uid
+!/tools/check_scripts.gd
+!/tools/check_scripts.gd.uid
+!/tools/debug/mechanic_lessons.gd
+!/tools/debug/mechanic_lessons.gd.uid
+!/tools/godot_toolchain.py
+!/tools/make_export_presets.py
+!/tools/make_web.py
+!/tools/run_guarded.py
+!/tools/run_tests.sh
+!/tools/tests/web_fullscreen.test.cjs
+!/tools/web_fullscreen.js
+!/tools/web_loading.js

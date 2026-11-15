@@ -1,7 +1,10 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never;
-// Interior glazing: soften the real miniature garden behind each pane, with broad moving reflections.
+// Interior glazing: soften the real miniature garden behind each pane. Reflection
+// bands span the whole screen, at the same scale as the exterior glass.
+#include "res://scripts/gfx/glass_reflection.gdshaderinc"
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
+uniform float reflection_strength : hint_range(0.0, 1.0) = 0.14;
 void fragment() {
     // A compact Gaussian kernel also works on Compatibility without a screen mip chain.
     vec2 pixel = vec2(1.0) / vec2(textureSize(screen_texture, 0));
@@ -15,10 +18,9 @@ void fragment() {
         }
     }
     outside /= total;
-    float diagonal = UV.x * 0.7 + UV.y + dot(VIEW.xy, vec2(0.2, 0.1));
-    float shine = exp(-pow((diagonal - 0.62) * 12.0, 2.0)) * 0.16;
-    shine += exp(-pow((diagonal - 0.83) * 24.0, 2.0)) * 0.07;
+    float shine = glass_reflection(SCREEN_UV, VIEWPORT_SIZE) * reflection_strength;
     float edge = pow(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 3.0);
-    ALBEDO = mix(outside, vec3(0.75, 0.86, 0.9), 0.06 + edge * 0.12) + vec3(shine);
+    vec3 tinted = mix(outside, vec3(0.75, 0.86, 0.9), 0.06 + edge * 0.12);
+    ALBEDO = mix(tinted, vec3(1.0), shine);
     ALPHA = 1.0;
 }

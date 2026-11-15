@@ -469,6 +469,7 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._daises()
 	rb._stairs()
 	rb._plan_cubbies()
+	rb._window_boxes()
 	rb._walls()
 	rb._furniture()
 	rb._rugs()
@@ -3157,50 +3158,334 @@ func _trim_mat() -> Material:
 	return surface("window_frame", _sch("trim") if home else trim.lightened(0.55))
 
 
-## A sealed shallow garden outside the glazing: a landscape at the back, real bushes nearer the glass.
-func _window_garden() -> void:
-	var garden := Node3D.new()
-	garden.name = "WindowGarden"
-	parent.add_child(garden)
-	var span := float(w - 2)
-	var surround := surface("wall_plaster", Color("#9cab91"))
-	var roof := surface("wall_plaster", Color("#0c0a10"))
-	roof.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	for box in [[Vector3(float(w) / 2.0, -0.06, -0.4), Vector3(span, 0.12, 1.8)],
-		[Vector3(float(w) / 2.0, H + 0.04, -0.4), Vector3(span, 0.08, 1.8)],
-		[Vector3(1.0, H / 2.0, -0.4), Vector3(0.1, H, 1.8)],
-		[Vector3(float(w - 1), H / 2.0, -0.4), Vector3(0.1, H, 1.8)]]:
-		var shell := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = box[1]
-		shell.mesh = mesh
-		shell.material_override = roof if float(box[0].y) > H else surround
-		shell.position = box[0]
-		shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		garden.add_child(shell)
-	var landscape := MeshInstance3D.new()
+# ---------------------------------------------------------------- window boxes
+## Every window looks out into a sealed box of its region's nature (the user's direction, 2026-11-15): as deep, and
+## carrying on as far past its end windows (never behind a door), as its windows' size asks (BOX_SIZES; BOX_DEEP and
+## BOX_PAST are the largest), with a grass floor, the region's own
+## pre-blurred landscape (tools/bake_window_views.gd) round its back and ends, and its outsides and lid black like the
+## room's background (world.gd) so none of it shows from the camera.
+const BOX_DEEP := 3
+const BOX_PAST := 2
+const BOX_BLACK := Color("#0d0a10")
+const VIEWS := "res://assets/interiors/window_views/"
+## how much of the landscape's height (from its foot) shows, and how many units one repeat of it spans
+const VIEW_SHOWN := 0.7
+const VIEW_SPAN := 8.0
+const BOX_ROCKS := ["rock_small", "stone_2", "stone_3"]
+const BOX_TUFTS := ["grass_leaf_0", "grass_leaf_1", "grass_leaf_2"]
+const BOX_DRY := ["desert", "mesa", "western", "volcano"]
+const VA = preload("res://scripts/gfx/voxel_assets.gd")
+## window tiles that look out into a box (their glass is clear)
+var _boxed := {}
+## the boxes' plants, rocks and fences: mesh -> transforms, batched once per room
+var _box_props := {}
+
+
+## The window box rules (docs/interior_staging.md rule 12): a box's depth and how far it carries on past its end
+## windows follow the size of its windows. A full-height window shows a lot of ground and wants the full depth; an
+## ordinary window shows less and may have a shallower box. Each prefers its `deep` and, where other rooms or boxes are
+## in the way, makes do with less, down to `min`; below that the window has no box (and the checker says so, unless no
+## camera position can see through it: tools/check_maps.gd _window_box_check).
+const BOX_SIZES := {
+	"tall": {"deep": 3, "min": 2, "past": 2},
+	"window": {"deep": 2, "min": 1, "past": 1},
+}
+## the box planned behind each boxed window tile: {start, n, out, deep}
+var _box_of := {}
+
+
+## The size of window this room has (see BOX_SIZES).
+func _window_size() -> String:
+	return "tall" if map.get("room", {}).get("full_height_windows", false) else "window"
+
+
+## Plans the window boxes, back walls first (side walls' boxes stop where they meet them), marking the windows they
+## serve in _boxed. Returns [{start, n, out, deep, base}], one per box.
+func _plan_boxes() -> Array:
+	var boxes := []
+	if float(map.get("room", {}).get("wall_height", H)) < H:
+		return boxes
+	var size: Dictionary = BOX_SIZES[_window_size()]
+	var balconies: Dictionary = map.get("balcony_doors", {})
+	var claimed := {}
+	for out: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]:
+		var along := Vector2i(absi(out.y), absi(out.x))
+		for y in h - 1:
+			for x in w:
+				var t := Vector2i(x, y)
+				if _boxed.has(t) or not _box_window(t, out, balconies):
+					continue
+				# the deepest box (up to the size's own) that fits behind this window
+				var deep := int(size["deep"])
+				while deep >= int(size["min"]) and not _box_cells_free(t, out, claimed, deep):
+					deep -= 1
+				if deep < int(size["min"]):
+					continue
+				# from this window (the first on its wall line) back up to `past` tiles, and on past the last window
+				var past := int(size["past"])
+				var start := t
+				for i in past:
+					var q := start - along
+					if not _box_line_ok(q, out, balconies, claimed, deep):
+						break
+					start = q
+				var finish := t
+				var last := t
+				var windows := [t]
+				var q2 := t + along
+				while (q2 - last).length() <= past and _box_line_ok(q2, out, balconies, claimed, deep):
+					finish = q2
+					if _box_window(q2, out, balconies):
+						last = q2
+						windows.append(q2)
+					q2 += along
+				var n := int((finish - start).length()) + 1
+				for i in n:
+					var p: Vector2i = start + along * i
+					if _outside(p):
+						claimed[p] = true
+					for k in range(1, deep + 1):
+						claimed[p + out * k] = true
+				var box := {"start": start, "n": n, "out": out, "deep": deep, "base": Elev.surface(map, t)}
+				for wt in windows:
+					_boxed[wt] = true
+					_box_of[wt] = box
+				boxes.append(box)
+	return boxes
+
+
+## Every outward-looking window of map `m`, by tile: {"out" (the side the outside is on), "back" (on the back wall),
+## "box" (its planned box, or null)}. For the checker; builds nothing.
+static func window_boxes_of(m: Dictionary) -> Dictionary:
+	var rb = load("res://scripts/gfx/room_builder.gd").new()
+	rb.map = m
+	rb.w = m["w"]
+	rb.h = m["h"]
+	rb.default_zone = m.get("zone_default", "shop")
+	rb._plan_boxes()
+	var found := {}
+	var balconies: Dictionary = m.get("balcony_doors", {})
+	for y in rb.h:
+		for x in rb.w:
+			var t := Vector2i(x, y)
+			if rb.code(x, y) != MapGen.IWINDOW or balconies.has(t):
+				continue
+			for out: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]:
+				if rb.zone(x + out.x, y + out.y) == "" and rb.zone(x - out.x, y - out.y) != "":
+					found[t] = {"out": out, "back": out.y != 0, "outside": rb._outside(t + out), "box": rb._box_of.get(t)}
+					break
+	return found
+
+
+## Builds the planned window boxes.
+func _window_boxes() -> void:
+	for box in _plan_boxes():
+		_window_box(box["start"], box["n"], box["out"], box["base"], box["deep"])
+	if _box_props.is_empty():
+		return
+	var batch := Node3D.new()
+	batch.name = "WindowBoxNature"
+	parent.add_child(batch)
+	for mesh: Mesh in _box_props:
+		var xfs: Array = _box_props[mesh]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = xfs.size()
+		for i in xfs.size():
+			mm.set_instance_transform(i, xfs[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		batch.add_child(mmi)
+
+
+## Outside the room (off the map or void).
+func _outside(p: Vector2i) -> bool:
+	return p.x < 0 or p.y < 0 or p.x >= w or p.y >= h or code(p.x, p.y) == MapGen.IVOID
+
+
+## A window (not a balcony's doorway) with the room on its inside and the outside on side `out`.
+func _box_window(p: Vector2i, out: Vector2i, balconies: Dictionary) -> bool:
+	return code(p.x, p.y) == MapGen.IWINDOW and not balconies.has(p) and zone(p.x + out.x, p.y + out.y) == "" \
+		and zone(p.x - out.x, p.y - out.y) != "" and _outside(p + out)
+
+
+## The `deep` tiles outside wall tile `p` are all outside the room and in no other box.
+func _box_cells_free(p: Vector2i, out: Vector2i, claimed: Dictionary, deep := BOX_DEEP) -> bool:
+	for k in range(1, deep + 1):
+		var q := p + out * k
+		if claimed.has(q) or not _outside(q):
+			return false
+	return true
+
+
+## A box may carry on along its wall line over `p`: plain wall, a window facing the same way, or the outside, never a
+## door (nor a balcony's doorway) or a diagonal, with free outside tiles beyond it.
+func _box_line_ok(p: Vector2i, out: Vector2i, balconies: Dictionary, claimed: Dictionary, deep := BOX_DEEP) -> bool:
+	if claimed.has(p) or balconies.has(p):
+		return false
+	if not (_outside(p) or code(p.x, p.y) == MapGen.IWALL or _box_window(p, out, balconies)):
+		return false
+	return _box_cells_free(p, out, claimed, deep)
+
+
+## One window box `box_deep` tiles deep behind wall tiles `start` .. `start + along * (n - 1)`, its floor at height
+## `base`.
+func _window_box(start: Vector2i, n: int, out: Vector2i, base: float, box_deep := BOX_DEEP) -> void:
+	var biome: Dictionary = map.get("biome", {})
+	var bid := String(biome.get("id", "coast"))
+	var along := Vector3(absi(out.y), 0, absi(out.x))
+	var o3 := Vector3(out.x, 0, out.y)
+	var up := Vector3.UP
+	var tall := float(map.get("room", {}).get("wall_height", H)) - base
+	var len_u := float(n)
+	var deep := float(box_deep)
+	var origin := Vector3(start.x + 0.5, base, start.y + 0.5) + o3 * (T / 2.0) - along * 0.5
+	var at := func(u: float, v: float, hh: float) -> Vector3: return origin + along * u + o3 * v + up * hh
+	var grass := SurfaceTool.new()
+	var view := SurfaceTool.new()
+	var black := SurfaceTool.new()
+	for st: SurfaceTool in [grass, view, black]:
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var white := Color.WHITE
+	var flat := [Vector2.ZERO, Vector2.RIGHT, Vector2.ONE, Vector2.DOWN]
+	# the grass floor, one repeat of its texture per two tiles
+	_st_quad(grass, [at.call(0.0, 0.0, 0.0), at.call(len_u, 0.0, 0.0), at.call(len_u, deep, 0.0), at.call(0.0, deep, 0.0)],
+		[Vector2(0, 0), Vector2(len_u / 2.0, 0), Vector2(len_u / 2.0, deep / 2.0), Vector2(0, deep / 2.0)], up, white)
+	# the landscape round the inside: up one end, along the back and down the other, continuous round the corners;
+	# black on the outside of each
+	var s0 := float(start.x + start.y) - deep
+	var v_top := 1.0 - VIEW_SHOWN
+	var sides := [[0.0, 0.0, 0.0, deep, along], [0.0, deep, len_u, deep, -o3], [len_u, deep, len_u, 0.0, -along]]
+	var run := 0.0
+	for seg in sides:
+		var p0: Vector3 = at.call(seg[0], seg[1], 0.0)
+		var p1: Vector3 = at.call(seg[2], seg[3], 0.0)
+		var span := p0.distance_to(p1)
+		var u0 := (s0 + run) / VIEW_SPAN
+		var u1 := (s0 + run + span) / VIEW_SPAN
+		var quad := [p0, p1, p1 + up * tall, p0 + up * tall]
+		_st_quad(view, quad, [Vector2(u0, 1.0), Vector2(u1, 1.0), Vector2(u1, v_top), Vector2(u0, v_top)], seg[4], white)
+		_st_quad(black, quad, flat, -(seg[4] as Vector3), white)
+		run += span
+	# a black lid, and black across the box's front everywhere but its windows (behind the walls' own faces, and
+	# closing the gaps at the room's corners and wherever it runs on past the room)
+	_st_quad(black, [at.call(0.0, 0.0, tall), at.call(len_u, 0.0, tall), at.call(len_u, deep, tall), at.call(0.0, deep, tall)], flat, up, white)
+	for i in n:
+		if not _boxed.has(start + Vector2i(int(along.x), int(along.z)) * i):
+			_st_quad(black, [at.call(float(i), 0.0, 0.0), at.call(float(i + 1), 0.0, 0.0), at.call(float(i + 1), 0.0, tall),
+				at.call(float(i), 0.0, tall)], flat, -o3, white)
+	var gm := StandardMaterial3D.new()
+	gm.albedo_texture = load("res://assets/textures/surfaces/ground_grass.png")
+	# the region's own grass (the texture is grey), a little parched in dry regions
+	var turf := Color(str(biome.get("ground", "#7cc05a")))
+	gm.albedo_color = Color("#8cb85a").lerp(turf, 0.35) if bid in BOX_DRY else turf.lightened(0.08)
+	gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	gm.roughness = 1.0
+	var vm := StandardMaterial3D.new()
+	var tex_path := VIEWS + bid + ".png"
+	vm.albedo_texture = load(tex_path if ResourceLoader.exists(tex_path) else VIEWS + "coast.png")
+	vm.albedo_color = Color("#e6ece6")
+	vm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	vm.texture_repeat = true
+	vm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var bm := surface("wall_plaster", BOX_BLACK).duplicate() as StandardMaterial3D
+	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var mesh := ArrayMesh.new()
+	for pair in [[grass, gm], [view, vm], [black, bm]]:
+		(pair[0] as SurfaceTool).commit(mesh)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, pair[1])
+	var mi := MeshInstance3D.new()
+	mi.name = "WindowBox"
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	_box_nature(start, n, out, at, biome, box_deep)
+
+
+## The region's nature in a window box, the same every visit: small trees at the back, its shrubs, tufts and the odd
+## rock nearer, and sometimes a stretch of its fence across the middle.
+func _box_nature(start: Vector2i, n: int, out: Vector2i, at: Callable, biome: Dictionary, box_deep := BOX_DEEP) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash("%s:%d:%d:%d:%d" % [map.get("room_key", ""), start.x, start.y, out.x, out.y])
+	var trees := []
+	for tw in biome.get("trees", [["tree_round_1", 1], ["tree_oak", 1]]):
+		if String(tw[0]) != "stump":
+			for k in int(tw[1]):
+				trees.append(String(tw[0]))
+	if trees.is_empty():
+		trees = ["tree_round_1"]
+	var shrubs: Array = biome.get("shrubs", []).filter(func(s): return String(s).begins_with("bush") or String(s).begins_with("shrub"))
+	if shrubs.is_empty():
+		shrubs = ["bush_1", "bush_3"]
+	var fenced := n >= 3 and box_deep >= 2 and r.randf() < 0.4
+	# across the middle of the second row, a little nearer in a shallow box
+	var fence_v := 1.9 if box_deep >= 3 else 1.4
+	var f0 := r.randi_range(0, maxi(0, n - 3))
+	var f1 := r.randi_range(mini(f0 + 2, n - 1), n - 1)
+	if fenced:
+		var style := "iron_fence" if String(biome.get("id", "")) in ["moor", "quarter"] else "fence"
+		var FenceModels = load("res://scripts/gfx/fence_models.gd")
+		var horiz := out.y != 0
+		for i in range(f0, f1 + 1):
+			var mask := 0
+			if i > f0:
+				mask |= 1 if horiz else 4
+			if i < f1:
+				mask |= 2 if horiz else 8
+			_box_prop(FenceModels.tile(style, mask), Transform3D(Basis(), at.call(float(i) + 0.5, fence_v, 0.0)))
+	for i in n:
+		for j in box_deep:
+			if fenced and i >= f0 and i <= f1 and j == 1:
+				continue
+			var roll := r.randf()
+			var name := ""
+			var size := 0.0
+			if j == box_deep - 1 and roll < 0.5:
+				name = trees[r.randi_range(0, trees.size() - 1)]
+				size = r.randf_range(1.4, 2.3)
+			elif roll < 0.5:
+				name = shrubs[r.randi_range(0, shrubs.size() - 1)]
+				size = r.randf_range(0.35, 0.75)
+			elif roll < 0.75:
+				name = BOX_TUFTS[r.randi_range(0, 2)]
+				size = r.randf_range(0.2, 0.35)
+			elif roll < 0.83:
+				name = BOX_ROCKS[r.randi_range(0, 2)]
+				size = r.randf_range(0.15, 0.3)
+			else:
+				continue
+			var s := VA.fit_scale(name, size)
+			var basis := Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3.ONE * s)
+			var spot: Vector3 = at.call(float(i) + 0.5 + r.randf_range(-0.3, 0.3), float(j) + 0.5 + r.randf_range(-0.25, 0.25),
+				-VA.aabb(name).position.y * s)
+			_box_prop(VA.mesh(name), Transform3D(basis, spot))
+
+
+func _box_prop(mesh: Mesh, xf: Transform3D) -> void:
+	if not _box_props.has(mesh):
+		_box_props[mesh] = []
+	_box_props[mesh].append(xf)
+
+
+static var _pane_glass: ShaderMaterial
+
+
+## All interior panes share the same soft, screen-wide reflection over the view behind them.
+func _clear_pane(x: int, y: int, c: Vector3, inside: Vector2i, width: float, height: float) -> void:
+	var pane := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(span, H)
-	landscape.mesh = quad
-	landscape.position = Vector3(float(w) / 2.0, H / 2.0, -1.25)
-	var paint := StandardMaterial3D.new()
-	paint.albedo_texture = load("res://assets/battle/backdrops/island.png")
-	paint.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	paint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	paint.albedo_color = Color("#b9c7ba")
-	landscape.material_override = paint
-	landscape.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	garden.add_child(landscape)
-	for i in 6:
-		var bush := MeshInstance3D.new()
-		bush.mesh = load("res://assets/nature/bush_%d.res" % (i % 3 + 1))
-		var bounds := bush.mesh.get_aabb()
-		var scale := (0.55 + float(i % 3) * 0.1) / bounds.size.y
-		bush.scale = Vector3.ONE * scale
-		bush.position = Vector3(1.8 + float(i) * 1.95, -bounds.position.y * scale, -0.25 - float(i % 2) * 0.2)
-		bush.rotation.y = float(i) * 0.7
-		bush.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		garden.add_child(bush)
+	quad.size = Vector2(width, height)
+	pane.mesh = quad
+	if _pane_glass == null:
+		_pane_glass = ShaderMaterial.new()
+		_pane_glass.shader = preload("res://scripts/gfx/interior_glass.gdshader")
+	pane.material_override = _pane_glass
+	pane.position = c
+	pane.rotation.y = atan2(float(inside.x), float(inside.y))
+	pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_attach(x, y, pane)
 
 
 ## Floor-to-ceiling glazing with a continuous, existing island landscape beyond the recessed panes.
@@ -3210,18 +3495,7 @@ func _nature_window(x: int, y: int, inside: Vector2i) -> void:
 	var horiz := inside.y != 0
 	_recess(x, y, inside, 0.0, H, 0.47, WIN_DEPTH, false)
 	var c := Vector3(x + 0.5, H / 2.0, y + 0.5) + inward * (T / 2.0 - WIN_DEPTH)
-	var pane := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.94, H)
-	pane.mesh = quad
-	var glass := ShaderMaterial.new()
-	glass.shader = preload("res://scripts/gfx/interior_glass.gdshader")
-	pane.material_override = glass
-	if x == 1 and y == 0:
-		_window_garden()
-	pane.position = c
-	pane.rotation.y = atan2(float(inside.x), float(inside.y))
-	_attach(x, y, pane)
+	_clear_pane(x, y, c, inside, 0.94, H)
 	var m := _row(y)
 	var frame := surface("window_frame", trim.lightened(0.22))
 	for side in [-1.0, 1.0]:
@@ -3249,16 +3523,14 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 	var back := c + inward * (T / 2.0 - WIN_DEPTH)
 	var mid := (SILL + WIN_TOP) / 2.0
 	var tall := WIN_TOP - SILL
-	# the glass, and a quiet landscape and two strokes of reflection on it
-	m.box("window_pane", _glass(), back + Vector3.UP * mid, _axes(along, WIN_HALF * 2.0, tall, 0.02, horiz))
-	var pane := back + inward * 0.012
-	var hills := surface("window_hills", Color("#739c87"))
-	m.tri("window_hills", hills, [pane - along * WIN_HALF + Vector3.UP * (SILL + 0.02), pane + along * WIN_HALF + Vector3.UP * (SILL + 0.02),
-		pane - along * 0.1 + Vector3.UP * (SILL + 0.38)], inward, along, Vector3.UP)
-	for s in [-1.0, 1.0]:
-		var at: Vector3 = pane + along * s * 0.17 + Vector3.UP * (mid + 0.22)
-		m.quad("window_reflection", surface("window_reflection", Color("#d8e8df")), [at - along * 0.06, at + along * 0.02,
-			at + along * 0.13 + Vector3.UP * 0.2, at + along * 0.05 + Vector3.UP * 0.2], inward, along, Vector3.UP)
+	if not _boxed.has(Vector2i(x, y)):
+		# Keep a painted view where a real outside box cannot fit; glazing still goes over it.
+		m.box("window_pane", _glass(), back + Vector3.UP * mid, _axes(along, WIN_HALF * 2.0, tall, 0.02, horiz))
+		var pane := back + inward * 0.012
+		var hills := surface("window_hills", Color("#739c87"))
+		m.tri("window_hills", hills, [pane - along * WIN_HALF + Vector3.UP * (SILL + 0.02), pane + along * WIN_HALF + Vector3.UP * (SILL + 0.02),
+			pane - along * 0.1 + Vector3.UP * (SILL + 0.38)], inward, along, Vector3.UP)
+	_clear_pane(x, y, back + inward * 0.018 + Vector3.UP * mid, inside, WIN_HALF * 2.0, tall)
 	# the sash: a frame round the glass and its cross bars, just in front of it
 	var frame := surface("window_frame", _sch("trim") if home else trim.lightened(0.22))
 	var sash := back + inward * 0.03
