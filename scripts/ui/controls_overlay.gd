@@ -954,6 +954,13 @@ func right_cluster_width() -> float:
 	return maxf(0.0, get_viewport().get_visible_rect().size.x - zone.position.x)
 
 
+## How far in from the screen's left edge the d-pad's no-tap zone reaches (0 while it's hidden): a menu anchored on
+## the left beside the pad starts past it.
+func left_cluster_width() -> float:
+	var zone := cluster_zone(["up", "down", "left", "right"], TOUCH_SLOP + NO_TAP_MARGIN)
+	return zone.end.x if zone.has_area() else 0.0
+
+
 ## A cluster's buttons' faces together, grown by `grow`; empty while the touch pad (or that cluster) is hidden.
 func cluster_zone(group: Array, grow: float) -> Rect2:
 	if not _touch_on or not (_buttons[group[0]] as TouchScreenButton).visible:

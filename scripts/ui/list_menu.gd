@@ -66,17 +66,27 @@ func _ready() -> void:
 	if opts.get("embedded", false):
 		width = float(opts.get("width", 420))
 	width = minf(width, get_viewport_rect().size.x - 48.0)
+	if opts.has("tabs") and opts.get("beside_pad", false) and UIKit.touch_ui():
+		# Four trainers must remain visible. Keep the rank window between both touch clusters,
+		# rather than letting its far edge enter the opposite cluster and lose half its height.
+		var between: float = get_viewport_rect().size.x - UI.controls.left_cluster_width() - UI.controls.right_cluster_width()
+		width = minf(width, maxf(360.0, between - 48.0 - _tab_arrow_room() * 2.0))
+
 	var outer := VBoxContainer.new()
 	_outer = outer
 	# a little space between the title's tab and the window under it
 	outer.add_theme_constant_override("separation", 8)
 	add_child(outer)
 	var title_lines := title.split("\n")
-	if title != "":
+	# (a menu with tabs shows them in place of its title tag, as the Start book does)
+	if title != "" and not opts.has("tabs"):
 		var rib := UIKit.ribbon(title_lines[0], true)
 		rib.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		rib.z_index = 1
 		outer.add_child(rib)
+	if opts.has("tabs"):
+		# rank tabs float over the window, like the Start book's (the user's direction, 2026-11-15)
+		_make_tabs(outer)
 	_panel = UIKit.panel()
 	if opts.get("embedded", false):
 		_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -90,12 +100,10 @@ func _ready() -> void:
 		sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		sub.custom_minimum_size.x = width
 		vb.add_child(sub)
-	elif title != "":
+	elif title != "" and not opts.has("tabs"):
 		var gap := Control.new()
 		gap.custom_minimum_size.y = 6
 		vb.add_child(gap)
-	if opts.has("tabs"):
-		_make_tabs(vb, width)
 	var has_icons := false
 	for it in items:
 		if it.has("icon") and it["icon"] != null:
@@ -167,7 +175,7 @@ func _ready() -> void:
 			_bare_button(b, i == 0)
 		b.pressed.connect(_pick.bind(i))
 		b.focus_entered.connect(_focused.bind(i))
-		if not opts.get("embedded", false):
+		if not opts.get("embedded", false) and not opts.has("tabs"):
 			b.mouse_entered.connect(b.grab_focus)
 		list.add_child(b)
 		buttons.append(b)
@@ -207,6 +215,11 @@ func _fit_rows() -> void:
 	if anchor == "right" and opts.get("beside_pad", false) and UIKit.touch_ui():
 		# beside the A/B buttons rather than over them, so the whole height is free for rows
 		margin.x = maxf(margin.x, UI.controls.right_cluster_width())
+	elif anchor == "left" and opts.get("beside_pad", false) and UIKit.touch_ui():
+		# (beside the d-pad, likewise)
+		margin.x = maxf(margin.x, UI.controls.left_cluster_width())
+	# (room for a tab arrow outside the window's edge)
+	margin.x += _tab_arrow_room()
 	UIKit.place(_outer, anchor, margin)
 	var rect := _outer.get_global_rect()
 	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x)
@@ -335,7 +348,8 @@ func _input(ev: InputEvent) -> void:
 		return
 	if opts.has("tabs") and not ev.is_echo() and (ev.is_action_pressed("ui_left") or ev.is_action_pressed("ui_right")):
 		var step := -1 if ev.is_action_pressed("ui_left") else 1
-		_change_tab(posmod(int(opts.get("tab", 0)) + step, opts["tabs"].size()))
+		# (no wrapping round: it stops at the first and last rank)
+		_change_tab(clampi(int(opts.get("tab", 0)) + step, 0, opts["tabs"].size() - 1))
 		get_viewport().set_input_as_handled()
 		return
 	var direction := -1 if ev.is_action("ui_up") else (1 if ev.is_action("ui_down") else 0)
@@ -453,26 +467,119 @@ func _cancel() -> void:
 		close(-1)
 
 
-## Unlocked ranks in ascending order; a three-tab strip follows the selected rank.
-func _make_tabs(parent: VBoxContainer, width: float) -> void:
-	var bar := HBoxContainer.new()
-	bar.custom_minimum_size.x = width
-	parent.add_child(bar)
+## Unlocked ranks in ascending order, as rounded tabs floating over the window like the Start book's (book_menu.gd
+## _style_tabs): the open one the gem with white text, the rest the window's off-white with dim text. Three show at a
+## time in a strip that slides left or right to keep the open one in view; a gem arrow button stands outside the strip
+## at either end, centred on it, only while there are tabs hidden on that side (it opens the nearest of them), and
+## ◄/► stop at the first and last rank.
+const TABS_SHOWN := 3
+const TAB_SEP := 4.0
+## the first tab the strip showed last time, per menu title, so it slides on from there
+static var _tab_first := {}
+var _tab_row: Control
+var _tab_scroll: ScrollContainer
+var _tab_arrows: Array = []
+
+
+func _tab_h() -> float:
+	return COMPACT_ROW.y if UIKit.touch_ui() else COMPACT_ROW.x
+
+
+## How much room a tab arrow takes beside the window (0 when every tab shows).
+func _tab_arrow_room() -> float:
+	return _tab_h() + 8.0 if opts.has("tabs") and opts["tabs"].size() > TABS_SHOWN else 0.0
+
+
+func _make_tabs(parent: Control) -> void:
 	var tabs: Array = opts["tabs"]
+	var n := tabs.size()
 	var current := int(opts.get("tab", 0))
-	var first := clampi(current - 1, 0, maxi(0, tabs.size() - 3))
-	for i in range(first, mini(first + 3, tabs.size())):
+	var shown := mini(TABS_SHOWN, n)
+	var before: int = _tab_first.get(title, clampi(current - 1, 0, maxi(0, n - shown)))
+	var first := clampi(before, 0, maxi(0, n - shown))
+	if current < first:
+		first = current
+	elif current > first + shown - 1:
+		first = current - shown + 1
+	_tab_first[title] = first
+	var tab_h := _tab_h()
+	_tab_row = Control.new()
+	_tab_row.custom_minimum_size.y = tab_h
+	_tab_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(_tab_row)
+	_tab_scroll = ScrollContainer.new()
+	_tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_tab_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_tab_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	_tab_row.add_child(_tab_scroll)
+	var strip := HBoxContainer.new()
+	strip.add_theme_constant_override("separation", int(TAB_SEP))
+	_tab_scroll.add_child(strip)
+	for i in n:
 		var b := Button.new()
-		b.text = ("◄ " if i == first and current > 0 else "") + String(tabs[i]) + (" ►" if i == mini(first + 3, tabs.size()) - 1 and current < tabs.size() - 1 else "")
-		b.custom_minimum_size.y = COMPACT_ROW.y if UIKit.touch_ui() else UIKit.row_h()
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.text = String(tabs[i])
+		b.custom_minimum_size.y = tab_h
 		b.focus_mode = Control.FOCUS_NONE
-		UIKit.plate_button(b)
-		if i == current:
-			b.add_theme_stylebox_override("normal", UIKit.highlight())
+		b.clip_text = true
+		b.add_theme_font_size_override("font_size", UIKit.body_px(24))
+		var open := i == current
+		var sb: StyleBox = UIKit.chip(UIKit.ACCENT, Color(0, 0, 0, 0), 0.0, Vector4(6, -2, 6, -2)) if open 			else UIKit.FrameBox.make("row", Color(0, 0, 0, 0), UIKit.FILL, false, Vector4(10, 0, 10, 0))
+		for st in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
+			b.add_theme_stylebox_override(st, sb)
+		var col := UIKit.LIGHT if open else UIKit.DIM
+		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+			b.add_theme_color_override(c, col)
 		b.pressed.connect(_change_tab.bind(i))
-		bar.add_child(b)
+		strip.add_child(b)
 		tab_buttons.append(b)
+	# the arrows, outside the strip's ends
+	for k in 2:
+		var a := Button.new()
+		a.text = "◄" if k == 0 else "►"
+		a.focus_mode = Control.FOCUS_NONE
+		UIKit.plate_button(a, Vector4(0, 0, 0, 0))
+		a.add_theme_font_override("font", UIKit.font_head())
+		a.add_theme_font_size_override("font_size", UIKit.head_px(40))
+		a.size = Vector2(tab_h, tab_h)
+		a.visible = first > 0 if k == 0 else first + shown < n
+		a.pressed.connect(_change_tab.bind(first - 1 if k == 0 else first + shown))
+		_tab_row.add_child(a)
+		_tab_arrows.append(a)
+	_tab_row.resized.connect(_lay_tabs.bind(shown, before, first))
+
+
+## Sizes the tabs to the window's width, sets the arrows outside its ends, and slides the strip from where it was.
+func _lay_tabs(shown: int, before: int, first: int) -> void:
+	var w := _tab_row.size.x
+	var tab_w := floorf((w - TAB_SEP * (shown - 1)) / shown)
+	for b in tab_buttons:
+		b.custom_minimum_size.x = tab_w
+	var h := _tab_row.size.y
+	_tab_arrows[0].position = Vector2(-h - 8.0, 0)
+	_tab_arrows[1].position = Vector2(w + 8.0, 0)
+	for a in _tab_arrows:
+		a.size = Vector2(h, h)
+	_scroll_tabs.call_deferred(tab_w + TAB_SEP, before, first)
+
+
+## (a frame on, once the strip's new size is known) the first time, slides from where the strip was last time.
+func _scroll_tabs(step: float, before: int, first: int) -> void:
+	if not is_instance_valid(_tab_scroll):
+		return
+	if _tab_row.has_meta("slid"):
+		if not _tab_row.has_meta("sliding"):
+			_tab_scroll.scroll_horizontal = int(first * step)
+		return
+	_tab_row.set_meta("slid", true)
+	if before == first:
+		_tab_scroll.scroll_horizontal = int(first * step)
+		return
+	_tab_scroll.scroll_horizontal = int(before * step)
+	_tab_row.set_meta("sliding", true)
+	var tw := create_tween()
+	tw.tween_property(_tab_scroll, "scroll_horizontal", int(first * step), 0.2).set_trans(Tween.TRANS_SINE)
+	tw.finished.connect(func(): _tab_row.remove_meta("sliding"))
 
 
 func _change_tab(index: int) -> void:

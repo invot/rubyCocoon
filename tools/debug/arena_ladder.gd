@@ -18,6 +18,7 @@ func run(root, opts: Dictionary) -> void:
 	UI.auto = true
 	await main._go(MapLoader.interior_of("tidewater", "arena"), "entry")
 	UI.auto = false
+	_face_host()
 	if opts.get("verify", "0") == "1":
 		var styles: Array = ["dark"]
 		var gems: Array = UIKit.ACCENT_ORDER if opts.get("matrix", "0") == "1" else [UIKit.accent_name]
@@ -42,7 +43,29 @@ func run(root, opts: Dictionary) -> void:
 		await main._wait(0.25)
 		print("ARENA LADDER DONE: %d problem(s)" % bad)
 	await _open(clampi(int(opts.get("rank", "10")), 1, LadderDB.RANKS))
+	# --left=N: step N ranks to the left first (the tab strip slides to keep the open one in view)
+	for i in int(opts.get("left", "0")):
+		await main._press("ui_left")
+		await main._wait(0.35)
 	await main._wait(float(opts.get("wait", "1")))
+
+
+## Stands you across the counter from the Arena Host, as when you talk to them, so the ladder opens in the menu shot
+## (world.gd menu_shot_begin: host on the left, ladder menu on the right).
+func _face_host() -> void:
+	var w = main.world
+	for p in w.npcs:
+		var n: Dictionary = w.npcs[p]
+		if n.get("kind", "") != "keeper" or not is_instance_valid(n.get("node")):
+			continue
+		var stand: Vector2i = p + Vector2i(0, 2)
+		w.player_pos = stand
+		w.player.position = w.tile_pos(stand)
+		w.facing = Vector2i(0, -1)
+		load("res://scripts/gfx/voxel_person.gd").face(w.player, Vector2i(0, -1))
+		w.shot_subject = n["node"]
+		w.shot_phone = false
+		return
 
 
 func _open(rank: int) -> void:
@@ -58,9 +81,10 @@ func _verify_menu() -> void:
 	var menu = UI.stack.back()
 	var player_pos: Vector2i = main.world.player_pos
 	_check_layout(menu)
+	_check(menu._layout_anchor == "right", "ladder menu stays on the right of the host")
 	_check(menu.items.size() == 4, "exactly four trainers on each rank tab")
 	_check(menu.opts["tabs"].size() == Places._ladder_rank(), "only unlocked ranks have tabs")
-	_check(menu._scroll.scroll_vertical == 0 and not menu._rail.active, "all four trainers fit without vertical scrolling")
+	_check(menu._scroll.scroll_vertical == 0 and not menu._rail.active, "all four trainers fit without vertical scrolling (scrolled %d, rail %s, list %s in %s)" % [menu._scroll.scroll_vertical, menu._rail.active, menu._scroll.get_child(0).size.y, menu._scroll.size.y])
 	if Places._ladder_rank() > 1:
 		var rank: int = menu.opts["tab"]
 		await main._press("ui_left")
@@ -125,6 +149,9 @@ func _verify_menu() -> void:
 
 func _check_layout(menu) -> void:
 	var rect: Rect2 = menu._outer.get_global_rect()
+	if not main.get_viewport().get_visible_rect().encloses(rect) or menu._rail.active:
+		print("LADDER LAYOUT rect=", rect, " viewport=", main.get_viewport().get_visible_rect(), " rows=", menu._max_rows, " scroll=", menu._scroll.size, " row_h=", menu.buttons[0].size.y if not menu.buttons.is_empty() else 0, " anchor=", menu._layout_anchor, " margin=", menu._layout_margin, " chrome=", menu._outer.get_combined_minimum_size().y - menu._scroll.get_parent_control().get_combined_minimum_size().y)
+
 	_check(main.get_viewport().get_visible_rect().encloses(rect), "whole menu stays on screen")
 	for button in menu.buttons:
 		_check(button.size.y >= (menu.COMPACT_ROW.y if UIKit.touch_ui() else menu.COMPACT_ROW.x), "trainer row keeps the shared talk-menu minimum height")

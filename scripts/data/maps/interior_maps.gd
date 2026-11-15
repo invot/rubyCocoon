@@ -177,22 +177,24 @@ const ROOMS := {
 		],
 	},
 	## The café: the counter at the back, tables out front; the kitchen is through the STAFF ONLY door.
-	## (2026-11-15) Widened so a large platform fills the left corner: one step up, railed along its open edges, its step
+	## (2026-11-15) Widened so a large platform fills the whole left corner (no counter behind it): one step up, railed along its open edges, its step
 	## at the east side; two regulars sit on cushions at low tables there. Platforms are most at home in cafes.
 	"cafe": {
 		"wall": "#f0d8d0", "rug": "#c07040", "stage": true, "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
 		"locked": ["The restroom. Somebody's humming in there."],
 		"counter_phone": [6, 2],
-		"dais": [{"rect": [1, 3, 4, 3], "steps": [[5, 4]]}],
+		"dais": [{"rect": [1, 1, 4, 5], "steps": [[4, 5]]}],
+		# (all its wood this one colour except the floor, the user's direction: room_builder.gd _one_wood)
+		"wood": "#84522f",
 		# (lots of art all over the walls, the user's direction: room_builder.gd _art_walls)
 		"art_walls": true,
 		"rows": [
 			"######Z######",
-			"#ss...1...pp#",
-			"#CCCCCCCCCCCw",
-			"#p)y2.......w",
-			"#...........#",
-			"#)y3....ht..#",
+			"#ssp..1...pp#",
+			"#.2..CCCCCCCw",
+			"#)y)........w",
+			"#.3.........#",
+			"#)y.....hyh.#",
 			"L..........PD",
 			"#############",
 		],
@@ -1047,14 +1049,12 @@ const KELPWICK_ROOMS := {
 			"   #######   ",
 		],
 	},
-	## Kelpwick has no Beast Center: its great hut keeps the village's healing machine (H) in the back corner, with the red
-	## telephone on the host's counter beside it ("counter_phone": its counter tile) so nothing stands in the machine's way.
+	## Kelpwick shares healing and arena services: a wall separates the entrance lobby from the ring; the crystal
+	## stands one tile farther back, with no furniture behind it. The host has a plain desk and counter phone.
 	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "counter_phone": [15, 2], "rows": ["###w#####w#######w###", "#=::::3::::=#p1p.==.#", "#=:xxxxxxx:=#CCC...Hw", "#::x:::::x::#.......w", "#::x:::::x::#.......#", "#=:xxxxxxx:=#.......#", "#=4:::::::5:........#", "#:::::::::::.......PD", "#####################"]},}
 
-## Hotel Mariposa, finished like a Spanish mission (room_builder.gd _mission_decor): terracotta tiles, white plaster over
-## an azulejo dado, dark carved wood, iron sconces and arched doorways. Its lobby has doors through to two guest rooms, each with a pair of open doorways onto the
-## balconies seen on the front of the hotel ("!": drawn open, but you can't walk out of them). All share the normal
-## room-door system.
+## Hotel Mariposa: one two-storey lobby with walkable stairs and a windowed balcony; open hallway entrances on
+## its left, guest rooms on both floors, and pool, healing spring and gym downstairs. Suite/room IDs @2/@3 stay stable.
 const HOTEL_ROOMS := {
 	"hotel_lobby": {
 		"stage": true,
@@ -1069,17 +1069,17 @@ const HOTEL_ROOMS := {
 			"hall": "wall_plaster"
 		},
 		"rows": [
-			"####w#####w#####w####",
+			"#w#w#w#w#w#w#w#w#w#w#",
 			"#...................#",
 			"g...................#",
 			"#...................#",
-			"#...............::..#",
+			"d...............::..#",
 			"#.....CCCCCCCC..::..#",
-			"#.....C..1...C..::..#",
+			"#.....p..1...p..::..#",
 			"#.....CCCCCCCC..::..#",
 			"#...............::..#",
 			"#....rrrrrrr........#",
-			"d....rrr2rrr........w",
+			"#....rrr2rrr........w",
 			"#.SS.rrrrrrr.yy....PD",
 			"#...................w",
 			"#####################"
@@ -1114,6 +1114,42 @@ const HOTEL_ROOMS := {
 			"000000000000000000000",
 			"000000000000000000000",
 			"000000000000000000000"
+		],
+		"open_doors": [
+			"d",
+			"g"
+		],
+		"fixtures": [
+			[
+				2,
+				1,
+				"plant_table"
+			],
+			[
+				5,
+				1,
+				"plant_table"
+			],
+			[
+				8,
+				1,
+				"plant_table"
+			],
+			[
+				11,
+				1,
+				"plant_table"
+			],
+			[
+				14,
+				1,
+				"plant_table"
+			],
+			[
+				18,
+				1,
+				"plant_table"
+			]
 		]
 	},
 	"hotel_suite": {
@@ -1192,7 +1228,10 @@ const HOTEL_ROOMS := {
 			"g": "hotel_room",
 			"h": "hotel_pool",
 			"i": "hotel_ice_lower"
-		}
+		},
+		"open_doors": [
+			"d"
+		]
 	},
 	"hotel_hall_upper": {
 		"stage": true,
@@ -1218,7 +1257,10 @@ const HOTEL_ROOMS := {
 			"g": "hotel_suite",
 			"h": "hotel_room_upper",
 			"i": "hotel_ice_upper"
-		}
+		},
+		"open_doors": [
+			"d"
+		]
 	},
 	"hotel_pool": {
 		"stage": true,

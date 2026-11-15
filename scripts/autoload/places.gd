@@ -25,7 +25,7 @@ const KEEPERS := {
 	"electronics": "Volt", "skytower": "Skykeeper Aria", "music_shop": "Maestro Clef",
 }
 const SHIELD_COST := 5
-## Arena masters pay twice these Beast Center offers.
+## Beast Center offers; arena hosts and masters are not egg buyers.
 const EGG_PRICES := {"normal": 100, "ghost": 200, "legendary": 500}
 const MAX_SHIELD := 4
 const FLIGHT_COST := 120
@@ -335,14 +335,11 @@ func egg_element(egg: Dictionary) -> String:
 	return RaceDB.element(int(egg["race"]))
 
 
-## Zero means this buyer won't buy it. Center accepts every egg; a master accepts only their element.
+## Zero means this buyer won't buy it. Only Beast Centers buy eggs.
 func egg_offer(egg: Dictionary, town := "") -> int:
-	var price: int = EGG_PRICES.get(String(egg.get("kind", "")), EGG_PRICES["normal"])
-	if town == "":
-		return price
-	if not WorldDB.ARENAS.has(town) or egg_element(egg) != WorldDB.ARENAS[town]["element"]:
+	if town != "":
 		return 0
-	return price * 2
+	return EGG_PRICES.get(String(egg.get("kind", "")), EGG_PRICES["normal"])
 
 
 func has_eggs_to_sell(town := "") -> bool:
@@ -350,7 +347,9 @@ func has_eggs_to_sell(town := "") -> bool:
 
 
 func sell_eggs(town := "") -> void:
-	var buyer: String = KEEPERS["center"] if town == "" else WorldDB.ARENAS[town]["leader"]
+	if town != "":
+		return
+	var buyer: String = KEEPERS["center"]
 	while true:
 		var items := []
 		var indices := []
@@ -362,7 +361,7 @@ func sell_eggs(town := "") -> void:
 					"desc": "%s offers %d gold for this egg." % [buyer, offer]})
 				indices.append(i)
 		if items.is_empty():
-			await Story.say(["You have no eggs to sell." if town == "" else "I only buy %s eggs. Bring me one and I'll pay twice the Beast Center's offer." % String(WorldDB.ARENAS[town]["element"]).capitalize()], buyer)
+			await Story.say(["You have no eggs to sell."], buyer)
 			return
 		var c: int = await UI.choose("Sell which egg?  ·  %d gold" % GameState.gold, items, {"width": 460})
 		if c < 0:
@@ -804,7 +803,7 @@ func arena(b: Dictionary, town: String) -> void:
 	if not WorldDB.TOWNS.get(town, {}).get("shops", ["center"]).has("center"):
 		# Kelpwick's great hut is its arena and its Beast Center both
 		await Story.say(["Welcome to the great hut! I run the ladder of ring trainers. %s takes challengers by the ring." % leader,
-			"The restoring machine in the corner is free for any trainer. We're not a resort: nobody here charges for a rest."], "Arena Host")
+			"The healing crystal in the lobby is free for any trainer. We're not a resort: nobody here charges for a rest."], "Arena Host")
 	else:
 		await Story.say(["Welcome to the %s! I run the ladder of ring trainers. %s takes challengers in person, in the hall round the end of the wall." % [b["name"], leader]], "Arena Host")
 	while true:
@@ -1425,6 +1424,7 @@ const BOOK_TITLES := [
 ## Something in a room was examined. `code` is the MapGen tile code.
 ## What you see when you look at a piece of furniture (see room_builder.gd KINDS).
 const FURNITURE_LINES := {
+	"plant_table": "A thriving houseplant on a polished side table.",
 	"counter": "A clean kitchen counter. Someone wiped it down this morning.",
 	"kitchen_sink": "A few cups are drying by the sink.",
 	"stove": "Something smells good. A pot's been on the stove all afternoon.",

@@ -190,11 +190,11 @@ static func frame_mesh(w: float, h: float, painted: bool) -> ArrayMesh:
 
 
 ## A boxy framed print, w x h, coloured for `scheme_name`; `print_id` "" picks the frame's own default.
-static func framed_print(w: float, h: float, print_id: String, scheme_name: String, colourway := "", painted := false) -> MeshInstance3D:
+static func framed_print(w: float, h: float, print_id: String, scheme_name: String, colourway := "", painted := false, over := {}) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = "FramedPrint"
 	mi.mesh = frame_mesh(w, h, painted)
-	mi.set_surface_override_material(0, atlas_material(scheme_name))
+	mi.set_surface_override_material(0, atlas_material(scheme_name, over))
 	var pid := print_id if print_id != "" else String(print_defs().keys()[0])
 	mi.set_surface_override_material(1, print_material(pid, crop_for(w, h), colourway if colourway != "" else scheme_name, "unit"))
 	return mi

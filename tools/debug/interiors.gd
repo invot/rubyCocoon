@@ -47,6 +47,13 @@ func run(main, opts: Dictionary) -> void:
 			main.world.cam_free = true
 			main.world.cam.position = at + main.world.CAM_OFFSET_ROOM * pull
 			main.world.cam.look_at(at + Vector3(0, main.world.CAM_LOOK_Y, 0), Vector3.UP)
+		# --focus=x,y,pull: a close look at one tile (pull < 1 brings the gameplay camera nearer)
+		if opts.has("focus"):
+			var f := String(opts["focus"]).split(",")
+			var at := Vector3(float(f[0]) + 0.5, 0.0, float(f[1]) + 0.5)
+			main.world.cam_free = true
+			main.world.cam.position = at + main.world.CAM_OFFSET_ROOM * (float(f[2]) if f.size() > 2 else 0.4)
+			main.world.cam.look_at(at + Vector3(0, main.world.CAM_LOOK_Y * 0.3, 0), Vector3.UP)
 		await main._wait(float(opts.get("wait", "0.35")))
 		await RenderingServer.frame_post_draw
 		main._save_shot(directory + "/" + key + ".png")

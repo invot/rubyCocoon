@@ -195,7 +195,7 @@ func new_game(pname: String, look := {}) -> void:
 	song_mastery = {}
 	crests = []
 	# Missing in older saves means the map remains available, as it was before the library.
-	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true, "codex_off": false}
+	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true, "codex_off": false, "has_journal": false}
 	codex_veteran = false
 	visited = ["caccoon"]
 	map_id = "caccoon"
@@ -1012,6 +1012,9 @@ func load_game(slot := -2) -> bool:
 		song_mastery[k] = int(sm[k])
 	crests = d.get("crests", [])
 	flags = d.get("flags", {})
+	# Journeys saved before the journal pickup keep their existing menu access.
+	if not flags.has("has_journal"):
+		flags["has_journal"] = true
 	# (saves from before the Temple of Tides was rebuilt: its old levers, and a song or guardian already won)
 	if flags.get("tides_lever_3", false) or flags.get("guardian_water", false):
 		flags["tides_falls_solved"] = true

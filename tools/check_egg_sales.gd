@@ -24,16 +24,10 @@ func run() -> void:
 	check(places.egg_offer(gs.eggs[0]) == 100, "center ordinary egg offer")
 	check(places.egg_offer(gs.eggs[2]) == 200, "center shadow egg offer")
 	check(places.egg_offer(gs.eggs[3]) == 500, "center legendary egg offer")
-	check(places.egg_offer(gs.eggs[0], "tidewater") == 0, "Water master refuses Fire egg")
-	check(places.egg_offer(gs.eggs[1], "tidewater") == 200, "Water master pays double")
-	check(places.egg_offer(gs.eggs[2], "emberfall") == 0, "shadow egg does not match underlying Fire race")
-	check(places.egg_offer(gs.eggs[3], "tidewater") == 1000, "radiant egg matches guardian element and pays double")
 	for town in places.WorldDB.ARENAS:
-		var element: String = places.WorldDB.ARENAS[town]["element"]
-		var race: int = {"water": 24, "fire": 0, "earth": 12, "air": 30}[element]
-		gs.eggs = []
-		gs.add_egg(race)
-		check(places.has_eggs_to_sell(town) and places.egg_offer(gs.eggs[0], town) == 200, town + " accepts its element")
+		for egg in gs.eggs:
+			check(places.egg_offer(egg, town) == 0, town + " does not buy eggs")
+		check(not places.has_eggs_to_sell(town), town + " offers no egg sale action")
 	gs.eggs = []
 	gs.add_egg(0)
 	var before: int = gs.gold
@@ -46,28 +40,24 @@ func run() -> void:
 	ui.auto_answers = []
 	await places.sell_eggs("tidewater")
 	check(gs.eggs.size() == 1 and gs.gold == before, "master cannot buy nonmatching eggs")
-	gs.add_egg(24)
-	gs.add_egg(24)
-	ui.auto_answers = [0, 0, 0, 0]
-	await places.sell_eggs("tidewater")
-	check(gs.eggs.size() == 1 and gs.eggs[0]["kind"] == "fire" and gs.gold == before + 400,
-		"repeated filtered sales remove only matching eggs at double price")
 	gs.party = [gs.Beasts.create(0, 1)]
 	ui.auto_answers = [4, 0, 0, 3]
 	await places.beast_center("caccoon")
-	check(gs.eggs.is_empty() and gs.gold == before + 500, "Beast Center menu sells an egg")
+	check(gs.eggs.is_empty() and gs.gold == before + 100, "Beast Center menu sells an egg")
 	gs.party = []
 	gs.add_egg(24)
-	# (the host's menu: the ladder, then Sell eggs; B backs out)
-	ui.auto_answers = [1, 0, 0, -1]
+	ui.auto_log.clear()
+	ui.auto_answers = [-1]
 	await places.arena({"name": "Test Arena"}, "tidewater")
-	check(gs.eggs.is_empty() and gs.gold == before + 700, "arena host sells eggs without a healthy party or completed lessons")
-	gs.add_egg(24)
-	ui.auto_answers = [1, 0, 0]
-	await places.leader_talk({"town": "tidewater"})
-	check(gs.eggs.is_empty() and gs.gold == before + 900, "master dialogue sells eggs before battle lesson gates")
+	check(gs.eggs.size() == 1 and gs.gold == before + 100, "arena host never buys an egg")
+	check(not ui.auto_log.any(func(line): return "Sell eggs" in String(line)), "arena host has no egg-selling menu")
 	ui.auto_answers = []
+	await places.leader_talk({"town": "tidewater"})
+	check(gs.eggs.size() == 1 and gs.gold == before + 100, "master dialogue keeps eggs and gold unchanged")
+	await places.sell_eggs("tidewater")
+	check(gs.eggs.size() == 1 and gs.gold == before + 100, "direct arena sale cannot bypass the no-buying rule")
+	gs.eggs = []
 	await places.sell_eggs()
-	check(gs.gold == before + 900, "empty egg inventory cannot generate gold")
+	check(gs.gold == before + 100, "empty egg inventory cannot generate gold")
 	print("EGG SALES DONE: %d problem(s)" % problems)
 	quit.call_deferred(1 if problems else 0)

@@ -12,6 +12,8 @@
 # Exits 0 when everything passed. The tests (name | Godot arguments | what a pass prints):
 
 TESTS=(
+	"journal|-- --scene=journal --save_dir=res://build/journal_test/saves/ --prefs_path=res://build/journal_test/settings.cfg|JOURNAL DONE: 0 problem"
+	"journal-touch|--resolution 2400x1080 -- --scene=journal --touch --save_dir=res://build/journal_touch_test/saves/ --prefs_path=res://build/journal_touch_test/settings.cfg|JOURNAL DONE: 0 problem"
 	"island-updates|-- --scene=island-updates --save_dir=res://build/island_update_test_saves/|ISLAND UPDATES DONE: 0 problem"
 	"island-updates-touch|--resolution 2400x1080 -- --scene=island-updates --touch --save_dir=res://build/island_update_touch_test_saves/|ISLAND UPDATES DONE: 0 problem"
 	"shop-paths|-- --scene=shop-paths --save_dir=res://build/shop_paths_saves/|SHOP PATHS DONE: 0 problem"

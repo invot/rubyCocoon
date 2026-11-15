@@ -70,7 +70,7 @@ The rules below translate those principles into cardinal tile movement, small ro
     recessed into the back wall from the floor to head height with shelves of blankets, books and boxes; closets
     replace wardrobes in the player's house. Raised platforms are a café thing above all (the user's direction):
     large, filling a whole side or a corner of the room, one step (0.3) up, walked on like any floor, with chunky
-    railings along their edges over open floor and wooden steps where you walk up ("dais": [{"rect": [x, y, w, h],
+    railings along their edges over open floor and two big wooden steps cut into its edge where you walk up, in the floor's boards and climbing so their treads lie along the boards (the user's rule, 2026-11-15) ("dais": [{"rect": [x, y, w, h],
     "steps": [[x, y]]}]; map_loader.gd turns them into the room's heights). People on them sit on floor cushions
     facing the room with their tea.
 

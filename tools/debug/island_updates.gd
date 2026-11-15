@@ -17,6 +17,8 @@ func run(main, opts: Dictionary) -> void:
 	var hotel: Dictionary = resort["buildings"].filter(func(b): return b.get("hotel", false))[0]
 	var base: String = hotel["interior"]
 	await main._go(base, "entry")
+	check(main.world.map["open_doors"].has(Vector2i(0, 2)) and main.world.map["open_doors"].has(Vector2i(0, 4)), "both hallway entrances are open doorways near the rear")
+	check(not Elev.joined(main.world.map, Vector2i(10, 4), Vector2i(10, 3)), "balcony wall prevents walking underneath from the lobby")
 	# Walk to the foot, up the flight, across the balcony and into the upper hall.
 	for point in [Vector2i(16, 9), Vector2i(16, 3), Vector2i(1, 2)]:
 		await main._walk_test([point])
@@ -28,7 +30,7 @@ func run(main, opts: Dictionary) -> void:
 	await main._walk_test([Vector2i(0, 2)])
 	await main._settle(base)
 	check(main.world.map_id == base and Elev.surface(main.world.map, main.world.player_pos) > 2.6, "return from upper hall stays on the balcony")
-	for point in [Vector2i(16, 3), Vector2i(16, 9), Vector2i(1, 10), Vector2i(0, 10)]:
+	for point in [Vector2i(16, 3), Vector2i(16, 9), Vector2i(1, 4), Vector2i(0, 4)]:
 		await main._walk_test([point])
 	await main._settle(base + "@4")
 	check(main.world.map_id == base + "@4", "lower left hallway opens from the lobby")
@@ -36,6 +38,22 @@ func run(main, opts: Dictionary) -> void:
 		await main._go(ML.floor_id(base, f), "start")
 		if f == 7:
 			check(main.world.npcs.size() == 2 and main.world.npcs.values().all(func(n): return n.get("treadmill", false)), "two treadmill guests run in the gym")
+			check(main.world.npcs.values().all(func(n): return n["facing"] == Vector2i.UP), "runners face their treadmill consoles")
+	await main._go(base + "@6", Vector2i(9, 6))
+	for beast in GameState.party:
+		beast.hp = 1
+		beast.mp = 0
+	UI.auto_answers = [0]
+	await load("res://tools/debug/waterfront.gd").new()._tap(main, Vector2i(10, 6))
+	check(GameState.party.all(func(beast): return beast.hp == beast.max_hp() and beast.mp == beast.max_mp()), "a real hot-tub tap heals HP and MP")
+	await main._go(base + "@9", Vector2i(3, 3))
+	var seeds := GameState.item_count("revival_seed")
+	await load("res://tools/debug/waterfront.gd").new()._tap(main, Vector2i(3, 2))
+	check(GameState.item_count("revival_seed") == seeds + 1, "a real ice-maker tap retrieves its item")
+	main.world.facing = Vector2i.UP
+	await main._press("interact")
+	await main._wait(0.3)
+	check(GameState.item_count("revival_seed") == seeds + 1, "confirm examines the ice maker without duplicating its item")
 	await main._go("kelpwick", Vector2i(37, 8))
 	var crowd: Array = main.world.npcs.values().filter(func(n): return n.get("id", "") == "reef_crowd")
 	check(crowd.size() == 2, "two villagers block the reef path")

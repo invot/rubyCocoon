@@ -988,6 +988,11 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
+	if scene == "journal":
+		await load("res://tools/debug/journal.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "intro":
 		await _opening_test()
 		if _test.get("quit", "1") == "1":
@@ -2644,7 +2649,7 @@ func _opening_ui_check(film: Node3D) -> int:
 	if UI.is_touch():
 		# only A and B on a phone, looking as they always do: nothing can move in a film
 		var pad: Dictionary = UI.controls._buttons
-		var plain: bool = UI.controls._labels["a"].text == "" and UI.controls._labels["b"].text == "" and UI.controls.button_rect("a").size.x == UI.controls.ROUND
+		var plain: bool = UI.controls._labels["a"].text == "A" and UI.controls._labels["b"].text == "B" and UI.controls.button_rect("a").size.x == UI.controls.ROUND
 		if pad["up"].visible or pad["start"].visible or not pad["a"].visible or not pad["b"].visible or not plain:
 			bad += 1
 			print("FAIL film touch pad: d-pad ", pad["up"].visible, " A ", pad["a"].visible, " label ", UI.controls._labels["a"].text)

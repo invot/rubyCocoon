@@ -15,10 +15,11 @@ const BOOK_PATH := "res://scripts/ui/book_menu.gd"
 
 
 ## The Start menu: the travel book.
-func pause_menu(world, start_tab := "") -> void:
+func pause_menu(world, start_tab := "", journal_tour := false) -> void:
 	if UI.auto:
 		return
 	var book = GameState.main.loaded_script(BOOK_PATH).new()
+	book.journal_tour = journal_tour
 	book.setup(world, start_tab)
 	UI.push(book)
 	await book.done

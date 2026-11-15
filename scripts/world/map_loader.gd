@@ -931,6 +931,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["furniture"] = {}
 	m["staff_doors"] = {}
 	m["balcony_doors"] = {}
+	m["open_doors"] = {}
 	# a red telephone standing on the counter instead of on its own table (room "counter_phone": [x, y])
 	if room.has("counter_phone"):
 		m["counter_phone"] = Vector2i(int(room["counter_phone"][0]), int(room["counter_phone"][1]))
@@ -965,6 +966,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				# (a flight of stairs can lead to another room too: down out of a drained pool, say)
 				MapGen.set_t(m, x, y, MapGen.STAIRS_DOWN if ch == "<" else (MapGen.STAIRS_UP if ch == ">" else MapGen.IDOOR))
 				links[p] = door_rooms[ch]
+				if ch in room.get("open_doors", []):
+					m["open_doors"][p] = true
 			elif InteriorMaps.FURNITURE.has(ch):
 				MapGen.set_t(m, x, y, MapGen.FURN)
 				m["furniture"][p] = InteriorMaps.FURNITURE[ch]
@@ -1067,6 +1070,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	# (staff stay facing out over their counters)
 	# (a diner's patrons sit at their tables too)
 	for n in m["npcs"]:
+		if n.get("treadmill", false):
+			continue # Keep runners facing their consoles; they never roam off the belt.
 		var table := _table_beside(m, n["pos"])
 		var raised := RoomBuilder.dais_at(m, n["pos"]) > 0.0
 		if raised and n.get("kind", "") in ["villager", "resident", "patron"]:

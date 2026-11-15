@@ -23,6 +23,7 @@ const BagPage = preload("res://scripts/ui/bag_page.gd")
 const BookPaper = preload("res://scripts/ui/book_paper.gd")
 const Codex = preload("res://scripts/ui/codex.gd")
 const CodexDB = preload("res://scripts/data/codex_db.gd")
+const FluteGame = preload("res://scripts/ui/flute_game.gd")
 
 ## Let the book show through the pad while keeping every control available.
 var touch_controls_alpha := 0.55
@@ -54,6 +55,24 @@ var world = null
 ## The Beast Center's and kennel's storage screen (Menus.storage_screen): only the Beasts page, without the tabs, with
 ## your stored beasts beside the ring (beasts_page.gd). B closes it.
 var storage_mode := false
+## First pickup: a short, skippable introduction using the journal's own tabs and pages.
+var journal_tour := false
+var _tour_input_after := 0
+const TOUR_SKIP_HOLD := 0.8
+var _tour_hold := 0.0
+var _tour_cover: Control
+var _tour_tip: PanelContainer
+var _tour_meter: ProgressBar
+var _tour_hud_alpha := -1.0
+const TAB_INTROS := [
+	"Your journal opens with Start. This page shows your portrait, gold, shield, arena crests and trainer gear.",
+	"See your beasts and eggs, check their health and arrange your battle ring. Beast Centers handle storage.",
+	"Find your songs, read what they do and practise playing them once you have a flute.",
+	"Check your items and equipment. Choose an item to use it, equip it or read about it.",
+	"Once you meet the Codex, come here to ask about the battle mechanics you've discovered.",
+	"Once the librarian gives you a map, explore Rubisa here and read about its towns.",
+	"Adjust sound, graphics, controls and your interface gem. You can also return to the title here.",
+]
 var tab := 1
 var mode := "list"
 var book: Control
@@ -99,6 +118,7 @@ func setup(_world, start_tab := "") -> Control:
 
 
 func _exit_tree() -> void:
+	_restore_tour_hud()
 	if UI.controls:
 		UI.controls.show_legend(false)
 
@@ -212,6 +232,8 @@ func _layout() -> void:
 	paper.size = window.size
 	left_box.size_flags_stretch_ratio = _left_share()
 	right_col.size_flags_stretch_ratio = 1.0 - _left_share()
+	if is_instance_valid(_tour_tip):
+		_place_tour_tip.call_deferred()
 
 
 ## The window's content padding with no box of its own (the paper behind it is the box).
@@ -285,6 +307,8 @@ func _style_tabs() -> void:
 
 # ================================================================ tabs & rows
 func _click_tab(i: int) -> void:
+	if journal_tour:
+		return
 	if i != tab:
 		Sfx.play("page")
 		_open_tab(i)
@@ -345,6 +369,8 @@ func _open_tab(i: int) -> void:
 	if is_instance_valid(list_scroll):
 		list_scroll.set_deferred("scroll_vertical", keep_scroll)
 		_settle_list_focus(list_scroll)
+	if journal_tour:
+		_build_tour_tip()
 
 
 ## Input choices can resize the book while its rows are rebuilt. Wait for the
@@ -519,6 +545,10 @@ func _add_row(row: Dictionary) -> void:
 
 
 func _focus_first() -> void:
+	if journal_tour:
+		if is_instance_valid(_tour_cover):
+			_tour_cover.grab_focus()
+		return
 	if is_instance_valid(bag):
 		bag.focus()
 		return
@@ -582,6 +612,15 @@ func _activate(i: int) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if journal_tour:
+		if is_instance_valid(_tour_cover) and not _tour_cover.has_focus():
+			_tour_cover.grab_focus()
+		# A tap of B does nothing; only a deliberate hold skips the tour.
+		_tour_hold = _tour_hold + delta if Input.is_action_pressed("ui_cancel") else 0.0
+		if is_instance_valid(_tour_meter):
+			_tour_meter.value = _tour_hold / TOUR_SKIP_HOLD
+		if _tour_hold >= TOUR_SKIP_HOLD:
+			_finish_tour()
 	# while the tabs have the cursor, the open tab pulses
 	for k in markers.size():
 		(markers[k] as Control).modulate = Color(1, 1, 1, 0.7 + 0.3 * absf(sin(_t * 4.0))) if k == tab and mode == "tabs" else Color.WHITE
@@ -591,6 +630,10 @@ func on_input(ev: InputEvent) -> void:
 	if ev.is_echo() and not (ev.is_action("ui_left") or ev.is_action("ui_right")):
 		return
 	if not ev.is_pressed():
+		return
+	if journal_tour:
+		if ev.is_action_pressed("ui_accept"):
+			_tour_next()
 		return
 	if ev.is_action_pressed("menu"):
 		_close_book()
@@ -651,6 +694,97 @@ func _close_book() -> void:
 
 
 # ================================================================ small builders
+func _build_tour_tip() -> void:
+	_tour_input_after = Time.get_ticks_msec() + 180
+	_tour_hold = 0.0
+	get_viewport().gui_release_focus()
+	if is_instance_valid(_tour_cover):
+		_tour_cover.free()
+	# The actual page remains visible, but no row, tab or setting can activate underneath its tooltip.
+	_tour_cover = Control.new()
+	_tour_cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_tour_cover.mouse_filter = Control.MOUSE_FILTER_STOP
+	_tour_cover.focus_mode = Control.FOCUS_ALL
+	add_child(_tour_cover)
+	_tour_cover.grab_focus()
+	for direction in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		_tour_cover.set_focus_neighbor(direction, _tour_cover.get_path())
+	_tour_tip = PanelContainer.new()
+	_tour_tip.add_theme_stylebox_override("panel", UIKit.window(Vector4(20, 14, 20, 14)))
+	_tour_cover.add_child(_tour_tip)
+	var lines := VBoxContainer.new()
+	lines.add_theme_constant_override("separation", 8)
+	_tour_tip.add_child(lines)
+	lines.add_child(_h("%s · %d / %d" % [TABS[tab]["name"], tab + 1, TABS.size()], UIKit.HEAD, UIKit.HEAD_SMALL))
+	var explanation := UIKit.label(TAB_INTROS[tab], 24, UIKit.INK)
+	explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lines.add_child(explanation)
+	lines.add_child(_row_of([
+		_tour_prompt(SongDB.BTN_A, "TourA"), UIKit.label("Finish" if tab == TABS.size() - 1 else "Next", 20, UIKit.INK),
+		UIKit.label(" ·  Hold", 20, UIKit.INK), _tour_prompt(SongDB.BTN_B, "TourB"), UIKit.label("Skip", 20, UIKit.INK),
+	]))
+	_tour_meter = ProgressBar.new()
+	_tour_meter.max_value = 1.0
+	_tour_meter.show_percentage = false
+	_tour_meter.custom_minimum_size.y = 4
+	_tour_meter.add_theme_stylebox_override("background", UIKit.FrameBox.make("row", Color.TRANSPARENT, UIKit.WELL, false, Vector4.ZERO))
+	_tour_meter.add_theme_stylebox_override("fill", UIKit.FrameBox.make("row", Color.TRANSPARENT, UIKit.ACCENT, false, Vector4.ZERO))
+	lines.add_child(_tour_meter)
+	if _tour_hud_alpha < 0.0:
+		_tour_hud_alpha = UI.top_bar.modulate.a
+		UI.top_bar.modulate.a = 0.0
+	_place_tour_tip.call_deferred()
+	_tour_tip.resized.connect(_place_tour_tip)
+
+
+## Reuse the flute sheet's smooth circular prompts and its per-button colours.
+func _tour_prompt(button: int, node_name: String) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.name = node_name
+	icon.texture = FluteGame.PROMPTS[button]
+	icon.self_modulate = FluteGame.BTN_COLORS[button]
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	icon.custom_minimum_size = Vector2(48, 48)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return icon
+
+
+func _place_tour_tip() -> void:
+	if not is_instance_valid(_tour_tip):
+		return
+	var width := minf(620.0, size.x - 48.0)
+	_tour_tip.size = Vector2(width, 0)
+	_tour_tip.position = Vector2((size.x - width) / 2.0, size.y - UI.bottom_reserve() - _tour_tip.size.y - 18.0)
+
+
+func _restore_tour_hud() -> void:
+	if _tour_hud_alpha >= 0.0 and is_instance_valid(UI.top_bar):
+		UI.top_bar.modulate.a = _tour_hud_alpha
+		_tour_hud_alpha = -1.0
+
+
+func _tour_next() -> void:
+	if Time.get_ticks_msec() < _tour_input_after:
+		return
+	if tab == TABS.size() - 1:
+		_finish_tour()
+	else:
+		Sfx.play("page")
+		_open_tab(tab + 1)
+
+
+func _finish_tour() -> void:
+	if Time.get_ticks_msec() < _tour_input_after:
+		return
+	journal_tour = false
+	_tour_cover.queue_free()
+	_restore_tour_hud()
+	Sfx.play("page")
+	_open_tab(0)
+
+
 ## Rows work by direct tap or A; the d-pad remains available while the book is open.
 func _press() -> String:
 	return "Tap" if UI.is_touch() else "Press A"

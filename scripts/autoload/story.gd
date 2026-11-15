@@ -146,6 +146,17 @@ func extra_npcs(map: Dictionary) -> Array:
 	if map["kind"] == "interior":
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
 		var inside := _lesson_trainers(map)
+		if map.get("room_key", "") == "home_bed" and not GameState.flag("has_journal"):
+			var journal := Node3D.new()
+			var asset := MeshInstance3D.new()
+			asset.mesh = load("res://scripts/gfx/room_builder.gd").piece("book")
+			var bounds := asset.mesh.get_aabb()
+			var fit := minf(0.72 / bounds.size.x, 0.6 / bounds.size.z)
+			asset.scale = Vector3.ONE * fit
+			asset.position.y = -bounds.position.y * fit + 0.02
+			journal.add_child(asset)
+			inside.append({"kind": "story", "id": "journal", "name": "Journal", "pos": Vector2i(9, 3),
+				"scene": journal, "still": true, "story": true, "mark_height": 0.95})
 		if _has_anchor(map, "dance_instructor"):
 			inside.append({"kind": "story", "id": "dance_instructor", "name": "Instructor Lucille", "pos": _at(map, "dance_instructor", Vector2i.ZERO), "look": NEIGHBOR_LOOK, "facing": Vector2i(0, 1), "story": true})
 		if map.get("room_key", "") == "ceo_4":
@@ -315,6 +326,8 @@ func _close_edge(map: Dictionary, dir: String, text: String) -> void:
 
 func npc_has_news(n: Dictionary) -> bool:
 	match n.get("id", ""):
+		"journal":
+			return not GameState.flag("has_journal")
 		"dance_instructor":
 			return not GameState.flag("dance_lesson_done")
 		"dance_blocker":
@@ -1057,6 +1070,10 @@ func _mascot(world, n: Dictionary) -> void:
 
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
+		"journal":
+			GameState.set_flag("has_journal")
+			world.remove_npc(n)
+			await Menus.pause_menu(world, "trainer", true)
 		"dance_instructor":
 			await _dance_lesson(world, n)
 		"dance_blocker":

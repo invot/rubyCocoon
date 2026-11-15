@@ -69,7 +69,7 @@ const ZONE_CHARS := {"l": "living", "b": "bedroom", "k": "kitchen", "a": "bathro
 ## long = its long side goes against the wall, short = its short end does (beds: the headboard),
 ## top = small things that may stand on it.
 const KINDS := {
-	"hot_tub": {"m": []}, "ice_maker": {"m": []},
+	"hot_tub": {"m": []}, "ice_maker": {"m": []}, "plant_table": {"m": []},
 	"counter": {"m": ["counter"], "fill": true, "top": ["cup", "bottle", "plate_2", "milk", "apple", "el_microwave", "el_toaster", "", ""]},
 	"kitchen_sink": {"m": ["kitchen_sink"], "fill": true},
 	"stove": {"m": ["stove"], "fill": true, "top": ["pan", "pot", ""]},
@@ -484,6 +484,8 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 		rb._pilasters()
 	rb._hotel_details()
 	rb._lights()
+	if room.has("wood"):
+		rb._one_wood(p)
 	var fm := MeshInstance3D.new()
 	fm.mesh = rb.floor_mesher.mesh()
 	p.add_child(fm)
@@ -824,9 +826,9 @@ func _foot(x: int, y: int) -> float:
 func _levels() -> void:
 	if not Elev.has(map):
 		return
-	var face := surface("drop", stone.darkened(0.2))
-	var coping := surface("coping", stone.lightened(0.14))
-	var tread := surface("tread", stone.lightened(0.04))
+	var face: Material = surface("drop", stone.darkened(0.2))
+	var coping: Material = surface("coping", stone.lightened(0.14))
+	var tread: Material = surface("tread", stone.lightened(0.04))
 	if map.get("room", {}).has("dais"):
 		# a platform's sides and steps are wood, its lip painted trim
 		face = _rail_mat()
@@ -857,6 +859,12 @@ func _levels() -> void:
 				# moves in, with no coping across the path where its slab meets it)
 				var open_under: bool = map.get("lattices", {}).has(q) or rising_path(map, q)
 				var low := _lowest() if open_under or sunk_basin(map, q) else Elev.edge(map, q, -d)
+				# (the sides of steps inset into a platform run down to the floor they start from)
+				if map.get("room", {}).has("dais") and Elev.ramp_dir(map, q) != Vector2i.ZERO:
+					# (nothing where the steps arrive at the top, the user's direction: no trim on that threshold)
+					if Elev.ramp_dir(map, q) == -d:
+						continue
+					low = Elev.edge(map, q, -Elev.ramp_dir(map, q))
 				if low >= top - 0.01:
 					continue
 				var out := Vector3(d.x, 0, d.y)
@@ -887,11 +895,13 @@ func _steps(p: Vector2i, c: Vector3, tread: Material) -> void:
 	var a := 0.5 + (0.4 if code(p.x - across.x, p.y - across.y) in WALLISH else 0.0)
 	var b := 0.5 + (0.4 if code(p.x + across.x, p.y + across.y) in WALLISH else 0.0)
 	if map.get("room", {}).has("dais"):
-		# a platform's steps (the user's direction, 2026-11-15: twice as steep as a full tile's slope): three treads
-		# rising over the middle half of the tile, so whoever stands on its middle is level with them, with a short
+		# a platform's steps (the user's direction, 2026-11-15: steep, two big treads): rising over the middle of the tile, so whoever stands on its middle is level with them, with a short
 		# landing at the top
-		var run := 0.5
-		var k := 3
+		# (2026-11-15: larger still, the user's direction: two big steps up)
+		var run := 0.6
+		var k := 2
+		# (the same boards as the floor, the user's direction)
+		tread = floor_mat(zone(p.x, p.y))
 		for i in k:
 			var top := lerpf(lo, hi, float(i + 1) / k)
 			var at := c + up * (-run / 2.0 + (i + 0.5) * run / k) + side * (b - a) / 2.0
@@ -1010,8 +1020,8 @@ func _walls() -> void:
 					elif top < H:
 						_bars(x, y, 0.0, top, horiz, vert, e, wv, n, s)
 					else:
-						_bars(x, y, 0.0, SILL, horiz, vert, e, wv, n, s)
-						_bars(x, y, WIN_TOP, top, horiz, vert, e, wv, n, s)
+						_bars(x, y, _foot(x, y), SILL + Elev.surface(map, Vector2i(x, y)), horiz, vert, e, wv, n, s)
+						_bars(x, y, WIN_TOP + Elev.surface(map, Vector2i(x, y)), top, horiz, vert, e, wv, n, s)
 						_window(x, y, horiz)
 				MapGen.IDOOR, MapGen.LOCKED:
 					if top > DOOR_H:
@@ -1351,11 +1361,17 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 	var top := DOOR_H
 	var along := Vector3.RIGHT if horiz else Vector3.BACK
 	var across := Vector3.BACK if horiz else Vector3.RIGHT
-	var c := Vector3(cx, 0, cz)
+	var c := Vector3(cx, Elev.surface(map, Vector2i(x, y)), cz)
 	for side in [-1.0, 1.0]:
 		# the jambs (as deep as the wall, a little proud of it) and the head
 		m.box("frame", fr, c + along * side * 0.46 + Vector3(0, top / 2.0, 0), _axes(along, 0.09, top + 0.0, T + 0.06, horiz))
 	m.box("frame", fr, c + Vector3(0, top + 0.05, 0), _axes(along, 1.0, 0.1, T + 0.06, horiz))
+	if map.get("open_doors", {}).has(Vector2i(x, y)):
+		# A short, closed recess gives the open hallway depth without exposing the void beyond the set.
+		var inside := _into_room_side(x, y, horiz)
+		var tunnel := surface("wall_plaster", Color("#75624e"))
+		_recess(x, y, inside, c.y, c.y + DOOR_H, 0.41, 0.35, true, tunnel)
+		return
 	var ex: Dictionary = map.get("exits", {}).get(Vector2i(x, y), {})
 	if not ex.is_empty() or locked:
 		var front := not ex.is_empty() and not String(ex["to"]).contains("#")
@@ -1416,7 +1432,7 @@ func _door_leaf(m: Mesher, c: Vector3, horiz: bool, col: Color, glazed: bool) ->
 ## so it can swing open out of the room as you go through (open_door) and shut behind you as you come in (shut_door).
 ## Behind it, seen once it's open: a dim room, unless it's a front door, whose doorway is left empty.
 func _hinged_leaf(x: int, y: int, horiz: bool, front: bool) -> void:
-	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5)
 	var along := Vector3.RIGHT if horiz else Vector3.BACK
 	# which side is the room? (the door swings away from it)
 	var inside := Vector2i(0, 1) if horiz else Vector2i(1, 0)
@@ -2236,7 +2252,7 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 
 
 func _place(kind: String, group: Array) -> void:
-	if kind in ["hot_tub", "ice_maker"]:
+	if kind in ["hot_tub", "ice_maker", "plant_table"]:
 		return # Built by _hotel_details.
 	var k: Dictionary = KINDS.get(kind, {})
 	var layout := furniture_layout(map, kind, group)
@@ -2882,7 +2898,7 @@ const SHELF_T := 0.09
 ## A raised platform (the user's direction, 2026-11-15: mostly in cafes, large, along a whole side or in a corner of
 ## the room, with railings and steps where you walk up). A template's "dais": [{"rect": [x, y, w, h], "steps":
 ## [[x, y], ...]}, ...]: the rect is one step up (DAIS_H), walked on like any floor (map_loader.gd makes it the room's
-## "heights"); each step tile, just outside it, rises onto it. Railings run along its edges over open floor, except
+## "heights"); each step tile, on its edge, is cut into it and rises from the floor beside it. Railings run along its edges over open floor, except
 ## at the steps. People on it sit on floor cushions (map_loader.gd).
 const DAIS_H := 0.3
 const RAIL_H := 0.55
@@ -3096,8 +3112,9 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 	var horiz := inside.y != 0
 	var along := Vector3(absf(float(inside.y)), 0, absf(float(inside.x)))
 	var inward := Vector3(inside.x, 0, inside.y)
-	_recess(x, y, inside, SILL, WIN_TOP, WIN_HALF, WIN_DEPTH, false)
-	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var base_y := Elev.surface(map, Vector2i(x, y))
+	_recess(x, y, inside, SILL + base_y, WIN_TOP + base_y, WIN_HALF, WIN_DEPTH, false)
+	var c := Vector3(x + 0.5, base_y, y + 0.5)
 	var back := c + inward * (T / 2.0 - WIN_DEPTH)
 	var mid := (SILL + WIN_TOP) / 2.0
 	var tall := WIN_TOP - SILL
@@ -3123,7 +3140,7 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 	var sill_d := WIN_DEPTH + 0.1
 	m.box("window_frame", frame, c + inward * (T / 2.0 - WIN_DEPTH + sill_d / 2.0) + Vector3.UP * (SILL - 0.025),
 		_axes(along, WIN_HALF * 2.0 + 0.16, 0.05, sill_d, horiz))
-	_casing(x, y, inside, SILL, WIN_TOP, WIN_HALF, false)
+	_casing(x, y, inside, SILL + base_y, WIN_TOP + base_y, WIN_HALF, false)
 	if home and rng.randf() < 0.6:
 		# a little plant or a bud vase on the sill
 		var yaw := atan2(float(inside.x), float(inside.y))
@@ -3149,7 +3166,7 @@ func _curtains(x: int, y: int, inside: Vector2i, n := 1) -> void:
 	mi.mesh = _curtain_mesh(WIN_HALF + CASING + (n - 1) * 0.5, WIN_TOP + 0.2, SILL - 0.16)
 	var cloth := _sch("fabric") if home else Color(CLOTH[absi(hash(str(map.get("room_key", "")))) % CLOTH.size()])
 	mi.material_override = HomeDecor.atlas_material(scheme, {"fabric": "#" + cloth.to_html(false)})
-	mi.position = Vector3(x + 0.5, 0, y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.07) 		+ Vector3(step.x, 0, step.y) * (n - 1) * 0.5
+	mi.position = Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.07) 		+ Vector3(step.x, 0, step.y) * (n - 1) * 0.5
 	mi.rotation.y = atan2(float(inside.x), float(inside.y))
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_attach(x, y, mi)
@@ -3369,10 +3386,15 @@ static func dais_heights(room: Dictionary, w: int, h: int) -> Array:
 					grid[y][x] = "1"
 		for st in d.get("steps", []):
 			var t := Vector2i(int(st[0]), int(st[1]))
-			# the way up: towards the platform's side it touches
+			# the way up: into the platform. Steps are inset (the user's direction, 2026-11-15): a step tile on the
+			# platform's edge is cut into it, rising from the open floor beside it; one just outside rises onto it
+			# (a step that could rise two ways climbs east or west, so its treads lie along the floor's boards, which
+			# run north-south: the user's rule, 2026-11-15)
 			var dir := Vector2i.ZERO
-			for q in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-				if r.has_point(t + q):
+			for q in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+				if r.has_point(t) and r.has_point(t + q) and not r.has_point(t - q):
+					dir = q
+				elif not r.has_point(t) and r.has_point(t + q):
 					dir = q
 			grid[t.y][t.x] = {Vector2i(0, -1): "^", Vector2i(0, 1): "v", Vector2i(-1, 0): "<", Vector2i(1, 0): ">"}.get(dir, "0")
 	return grid.map(func(row): return "".join(row))
@@ -3402,6 +3424,8 @@ func _daises() -> void:
 		for y in range(r.position.y, r.end.y):
 			for x in range(r.position.x, r.end.x):
 				var t := Vector2i(x, y)
+				if steps.has(t):
+					continue
 				for q in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 					var o: Vector2i = t + q
 					if r.has_point(o) or steps.has(o) or not code(o.x, o.y) in [MapGen.IFLOOR, MapGen.ITILE, MapGen.RUG, MapGen.MAT]:
@@ -3422,7 +3446,83 @@ func _rail(t: Vector2i, q: Vector2i, mat: Material) -> void:
 
 ## The warm wood of platforms' railings, steps and sides.
 func _rail_mat() -> Material:
-	return surface("floor_wood", Color("#b07a4c"))
+	var room: Dictionary = map.get("room", {})
+	if room.has("wood"):
+		# (recoloured exactly as the room's furniture is, so they match)
+		var base := surface("floor_wood", Color.WHITE)
+		var toned := _wood_tone(base.albedo_texture, Color(str(room["wood"]))) if base.albedo_texture != null else null
+		if toned != null:
+			var m := (toned as ShaderMaterial).duplicate() as ShaderMaterial
+			m.set_shader_parameter("uv_scale", Vector2(base.uv1_scale.x, base.uv1_scale.y))
+			return m
+	return surface("floor_wood", Color(str(room.get("wood", "#b07a4c"))))
+
+
+# ---------------------------------------------------------------- one wood for a room
+## A room whose template names a "wood" (the cafe: the user's direction, 2026-11-15, all its wood one colour except
+## the floor) has every wooden piece's wood tones recoloured to it (wood_tone.gdshader): tables, stools, counters,
+## shelves and cabinets; railings and frames take it directly (_rail_mat, _hang_frame).
+const WOOD_PIECES := ["kk_table", "kk_stool", "kk_chair", "kk_shelf", "kk_cabinet", "kk_drawers", "kaykit_stool_bench",
+	"interiors/counter.res", "interiors/shelves.res", "interiors/el_display.res"]
+const WOOD_SHADER := preload("res://scripts/gfx/wood_tone.gdshader")
+static var _wood_refs := {}
+
+
+func _one_wood(node: Node) -> void:
+	var wood := Color(str(map["room"]["wood"]))
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = mi.mesh
+		if mesh == null or not WOOD_PIECES.any(func(k): return k in mesh.resource_path):
+			continue
+		for i in mesh.get_surface_count():
+			if mesh is ArrayMesh and (mesh as ArrayMesh).surface_get_name(i) == "fabric":
+				continue
+			var mat = mi.get_surface_override_material(i)
+			if mat == null:
+				mat = mesh.surface_get_material(i)
+			if mat is StandardMaterial3D and mat.albedo_texture != null:
+				var toned := _wood_tone(mat.albedo_texture, wood)
+				if toned != null:
+					mi.set_surface_override_material(i, toned)
+
+
+## A texture recoloured to `wood` (cached), or null if it has no wood in it.
+static func _wood_tone(tex: Texture2D, wood: Color) -> Material:
+	var key := "wood:%s:%s" % [tex.get_rid().get_id(), wood.to_html()]
+	if _mats.has(key):
+		return _mats[key]
+	if not _wood_refs.has(tex):
+		_wood_refs[tex] = _wood_ref(tex)
+	var ref: float = _wood_refs[tex]
+	var m: ShaderMaterial = null
+	if ref > 0.0:
+		m = ShaderMaterial.new()
+		m.shader = WOOD_SHADER
+		m.set_shader_parameter("albedo_tex", tex)
+		m.set_shader_parameter("wood", wood)
+		m.set_shader_parameter("ref", ref)
+	_mats[key] = m
+	return m
+
+
+## The usual (linear) brightness of a texture's wood tones, by the shader's own measure; 0 if it has none.
+static func _wood_ref(tex: Texture2D) -> float:
+	var img := tex.get_image()
+	if img == null:
+		return 0.0
+	if img.is_compressed():
+		img.decompress()
+	var step := maxi(1, int(sqrt(img.get_width() * img.get_height() / 4096.0)))
+	var sum := 0.0
+	var wsum := 0.0
+	for y in range(0, img.get_height(), step):
+		for x in range(0, img.get_width(), step):
+			var c := img.get_pixel(x, y).srgb_to_linear()
+			var hh := c.h
+			var wt := smoothstep(0.005, 0.03, hh) * (1.0 - smoothstep(0.12, 0.16, hh)) * smoothstep(0.25, 0.4, c.s) * smoothstep(0.01, 0.03, c.v)
+			sum += wt * (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b)
+			wsum += wt
+	return sum / wsum if wsum > 1.0 else 0.0
 
 
 # ---------------------------------------------------------------- dressing a home
@@ -3586,7 +3686,10 @@ func _home_wall_decor() -> void:
 ## print each time unless one is given. About a third of the frames are painted in the trim colour, the rest wood.
 func _hang_frame(x: int, y: int, inside: Vector2i, up: float, side: float, fw: float, fh: float, print_id := "") -> MeshInstance3D:
 	var painted := posmod(x * 7 + y * 3 + int(side * 10.0) + pick_seed, 3) == 0
-	var mi := HomeDecor.framed_print(fw, fh, print_id if print_id != "" else _next_print(), scheme, _colourway(), painted)
+	var over := {}
+	if map.get("room", {}).has("wood"):
+		over = {"wood": map["room"]["wood"]}
+	var mi := HomeDecor.framed_print(fw, fh, print_id if print_id != "" else _next_print(), scheme, _colourway(), painted, over)
 	var yaw := atan2(float(inside.x), float(inside.y))
 	mi.position = Vector3(x + 0.5, up, y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.004) \
 		+ Basis(Vector3.UP, yaw) * Vector3(side, 0, 0)
@@ -3641,12 +3744,35 @@ func _hotel_details() -> void:
 	var room: Dictionary = map.get("room", {})
 	if not String(map.get("room_key", "")).begins_with("hotel_"):
 		return
-	var ivory := surface("hotel_ivory", Color("#eee3cd"))
-	var dark := surface("hotel_iron", Color("#414951"))
-	var tile := surface("hotel_tile", Color("#a3c8c2"))
-	var water := surface("hotel_spring", Color("#73cdc4"))
+	var ivory := surface("wall_plaster", Color("#eee3cd"))
+	var dark := surface("wall_plaster", Color("#414951"))
+	var tile := surface("floor_tiles", Color("#a3c8c2"))
+	var water := surface("floor_tiles", Color("#73cdc4"))
 	if room.get("balcony", false):
-		var wood := surface("mission_wood", MISSION_WOOD)
+		var wood := surface("floor_wood", MISSION_WOOD)
+		# Reception's separate rear counter sits below shelves and framed paintings on the balcony wall.
+		for x in [7.4, 12.4]:
+			var shelf := _stand("home/floating_shelf", Vector3(x, 1.85, 4.12), 0, 1.6)
+			if shelf != null:
+				_stand("home/books_stack", Vector3(x - 0.28, 1.93, 4.2), 0, 0.9)
+				_stand("home/plant_succulent", Vector3(x + 0.4, 1.93, 4.2), 0, 0.9)
+		for x in [9, 10]:
+			var painting := _hang_decor("frame_landscape_small", x, 4, Vector2i.DOWN, 1.72, 0, "", 1.6)
+			if painting != null:
+				painting.position = Vector3(x + 0.5, 1.72, 4.12)
+		var paper := surface("wall_plaster", Color("#f6f0e5"))
+		for x in [8.0, 11.4]:
+			for sheet in 9:
+				floor_mesher.box("reception_papers", paper, Vector3(x + sin(float(sheet)) * 0.025, DESK_TOP + 0.004 + float(sheet) * 0.007, 5.5 + cos(float(sheet)) * 0.018), Vector3(0.62, 0.006, 0.43))
+		floor_mesher.box("balcony_wall", ivory, Vector3(10.5, 1.35, 4.0), Vector3(19.8, 2.7, T))
+		# Seal the floor, rear and side walls beneath the open balcony; no void shows between its columns.
+		for y in range(1, 4):
+			for x in range(1, 20):
+				_floor_quad(x, y, 0, 0, 1, 1, "hall", 0)
+		floor_mesher.box("hotel_ivory", ivory, Vector3(10.5, 1.35, 0.5), Vector3(20, 2.7, T))
+		for x in [0.5, 20.5]:
+			floor_mesher.box("hotel_ivory", ivory, Vector3(x, 1.35, 2.25), Vector3(T, 2.7, 3.5))
+		floor_mesher.box("hotel_ivory", ivory, Vector3(10.5, 2.58, 2.25), Vector3(19.8, 0.18, 3.5))
 		for x in range(1, 20):
 			if x in [16, 17]:
 				continue
@@ -3663,6 +3789,20 @@ func _hotel_details() -> void:
 				floor_mesher.box("hotel_iron", dark, Vector3(x, rise + 0.48, z), Vector3(0.045, 0.96, 0.045))
 				floor_mesher.box("mission_wood", wood, Vector3(x, rise + 0.98, z), Vector3(0.1, 0.08, 0.28))
 	for fixture in room.get("fixtures", []):
+		if fixture[2] == "plant_table":
+			var c := Vector3(float(fixture[0]) + 0.5, 2.7, float(fixture[1]) + 0.5)
+			var table := _stand("kk_table_small", c, 0, 0.7)
+			if table != null:
+				var bb := table.mesh.get_aabb()
+				table.position.y -= bb.position.y * table.scale.y
+				var top := table.position.y + bb.end.y * table.scale.y
+				var name: String = ["home/plant_paddle", "home/plant_blades", "home/plant_pillow_round"][int(fixture[0]) % 3]
+				var plant := _stand(name, Vector3(c.x, top, c.z), 0)
+				if plant != null:
+					var pb := plant.mesh.get_aabb()
+					plant.scale = Vector3.ONE * (0.85 / pb.size.y)
+					plant.position.y -= pb.position.y * plant.scale.y
+			continue
 		if fixture[2] != "ice_maker":
 			continue
 		var c := Vector3(float(fixture[0]) + 0.5, 0, float(fixture[1]) + 0.5)
@@ -3745,3 +3885,8 @@ func _art_walls() -> void:
 					_hang_frame(x, y, inside, 1.7 + lift, 0.0, 0.6, 0.6)
 				hung[t0] = true
 				break
+
+
+func _into_room_side(x: int, y: int, horiz: bool) -> Vector2i:
+	var inside := Vector2i.DOWN if horiz else Vector2i.RIGHT
+	return -inside if zone(x + inside.x, y + inside.y) == "" else inside

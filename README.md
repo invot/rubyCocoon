@@ -174,7 +174,11 @@ opens on.
 The mounted Gearheart Industries sign uses an original vector gear-and-split-heart logo inspired by the supplied reference.
 
 The hero knows nothing about the scheme. You start in your own bedroom, upstairs at home in **Cocoon Cove**, with no
-beasts, no flute and no songs. Mom calls you down, and gives the egg and flute objective in the living room, even if
+beasts, no flute and no songs. Your **journal**, the main menu, lies on the floor in front of the bedroom door,
+blocking the way out, with the same yellow quest crystal used for story interactions. Select it to pick it up and
+open a short tour of all seven real menu pages, with explanatory tooltips: **A** advances and **Hold B** skips.
+Finishing or skipping leaves the journal open for ordinary use; close it to leave the room. The journal stays with
+you, and older saves retain their existing menu access. Mom calls you down, and gives the egg and flute objective in the living room, even if
 the film was skipped (flags `woke_up`, `intro_done`). The first missing-trainer news is in **Dustwell Oasis**:
 nobody explains it on arrival; missing posters on the porch posts and notice boards, and Kip, Junie and Tamsin, friends
 of Lio, Bea and Orin searching the town, tell it (`story.gd` SEARCHERS, POSTERS). In the jail, dopey **Deputy Rusk**
@@ -390,7 +394,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
     shaped like the inside of a great cocoon, with curved ribs, a stepped plinth and a horseshoe of lanterns.
   - Hatchlings show their six stats in a window on the right. Hatch, egg-drop and level-up films wait for a fresh A/B confirmation after the reveal; their notices use the shared top-centre HUD, with no bottom caption. On a hatching or level-up, A (or B) during the stats' reveal skips it; then a small gem **A: Continue** button hangs under the stats window's right end, over its bottom edge (`edge_button.gd`), and the next A, or a tap on it, carries on. The egg drop has no button.
   - **Sell eggs** at the Beast Center: ordinary eggs fetch **100 gold**, Shadow Eggs **200**, and radiant legendary eggs **500**. Select an egg and confirm the offer to sell it.
-  - Arena hosts and masters offer to buy eggs only when you carry one matching the master's element, paying **twice the Beast Center price**. Marina, Nerissa and Skye buy Water eggs; Rosa buys Air; Gorran, Volta and Aeris buy Earth; Brann buys Fire. Shadow Eggs count as Ghost, and radiant eggs use their guardian's element. You can sell before completing the arena's lessons or challenging its master.
+  - Arena hosts run the ladder; masters explain the crest, song and gold awarded for winning, then ask whether you want to battle. Neither buys eggs.
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
 - **Temple guardians** are summons: each elemental temple holds a legendary guardian (Abyssion, Zephyrax, Pyroclast
   and Terranox), and Gravenmoor's crypt holds the ghost Nocthrax. A stone puzzle in each teaches that temple's song.
@@ -542,7 +546,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - If the beast in the middle of the side facing the foe is down (or that slot is empty), its trainer can be **attacked directly**: each hit breaks one shield point. Turn your ring to a side whose middle still stands to cover yourself, or have a corner beast Move into the fallen one's place.
   - A trainer battle ends only when a trainer is hit with no shield left, or someone forfeits. Wild beasts have no trainer: beat them all to win. If you're the one hit with no shield left, you wake up at the nearest Beast Center you've visited.
   - Every trainer starts with 1 shield point; trainers on the roads have 0 to 3, depending on their strength. The shield recharges after every battle.
-- **Trainer level**: beating trainers earns trainer XP, and clearing a rank of the **arena ladder** raises your trainer level to at least that rank + 1. The ladder (`ladder_db.gd`) is the same at every arena: ten ranks of three or four ring trainers each; beat them all to open the next rank. Each rank cleared earns a crystal shard; beaten trainers can be fought again.
+- **Trainer level**: beating trainers earns trainer XP, and clearing a rank of the **arena ladder** raises your trainer level to at least that rank + 1. The ladder (`ladder_db.gd`) is the same at every arena: twelve ranks of four ring trainers each; beat them all to open the next rank. The host stays on the left and the ladder menu on the right. Unlocked ranks appear as tabs: left/right or a tap changes rank, with all four trainers visible without vertical scrolling. Sovereign and Mythic follow Champion. Each rank cleared earns a crystal shard; beaten trainers can be fought again.
 - **Sparkwire Electronics** (Volt, Bellerive): **shield points** (5 crystal shards each, up to 4) and **beast slots** (3 shards each, up to 8). How many Volt can fit depends on your trainer level: one more slot per level, one more shield point every other level.
 - **Flute songs** are a sheet-music game.
   - Only a song you're learning plays by itself (from a teacher, sheet music or a flute trainer): it plays once while its notes light up on the staff. A song you already know (in battle, practising) doesn't: the sheet comes up and it's your turn straight away. Each line and space is a button: ← → A B from the bottom up. The notes are the buttons' prompts in their colours on faint staff lines, on a window whose sides fade into aged paper; each stays outlined until it's played, then swells and comes back filled. The outcome pops up on a bouncy card in its own colour (green, gold, orange or red by the timer's colour; purple for a failed song) and stays until you dismiss it with A or its small "A: Dismiss" button, which appears a second after the card.
@@ -763,8 +767,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   The Beast Center is the small stone temple every town has.
 - **Isle of Tides**: Kelpwick is a modest reef-diving village of round, timber-framed pastel plaster huts on wooden stilts,
   with centered solid blue-painted wood doors, six-tread entry stairs and broad, painted golden thatched roofs. The store has a round wooden interior. There is no Beast Center: the
-  arena uses the supplied **Stylized House** model at one horizontal scale on a 7x6 plot, with a matching wooden door and its TV antenna removed. The healing hut is 25% wider and deeper than its initial model fit, with its stairs centered on the original approach. Its rectangular wooden hall keeps the village's healing machine in its
-  back corner; flights and lost battles bring you back in front of it. Its general store sells essentials and basic beast gear at 30% below normal
+  arena uses the supplied **Stylized House** model at one horizontal scale on a 7x6 plot, with a matching wooden door and its TV antenna removed. The healing hut is 25% wider and deeper than its initial model fit, with its stairs centered on the original approach. Its rectangular wooden hall separates the entrance/healing lobby from the battle area with a wall. Its healing crystal stands one tile farther back, with plain reception counters and no merchandise displays; flights and lost battles bring you back in front of it. Homes have compact, furnished timber rooms. Villagers wear woven wrap skirts and sleeveless tops, without hats or glasses; two matching villagers block the paved reef path until Nerissa is beaten. Its general store sells essentials and basic beast gear at 30% below normal
   prices. Shellhaven's Beast Center occupies an 8x5 plot on the high street, with its established entrance at (40, 5).
   Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
   La Perla Restaurant, Pearl Coast Boutique (40% above normal prices), and Hotel Mariposa (`island_buildings.gd`). Its
@@ -772,9 +775,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   railed Juliet balconies above, a painted base, lanterns and bougainvillea. The hotel is a long building on the quay
   behind the marina's docks: a three-storey entrance block (a tiled HOTEL sign over its arcade, its door placed by
   `building_looks` "door") facing a paved forecourt, and a two-storey west wing set back one tile behind a railed terrace; an arcade runs along its ground floor
-  and every room above has a balcony set back inside the plot. Its lobby leads to two guest rooms, each with open
-  doorways onto those balconies (`"!"` in a room template: drawn open, but walled, so they lead nowhere); a 150-gold
-  stay restores the party. The broad beach has striped umbrellas standing in the sand over occupied chaise lounges,
+  and every room above has a balcony set back inside the plot. Its two-storey lobby has a walkable staircase and balcony in one room. Both left-hand corridors have open doorways, with the downstairs opening near the back; a wall seals the space beneath the balcony. The balcony's rear wall has windows, with plants on side tables along it. The front and back reception counters are separate, with shelves and paintings above the back counter and flat paper stacks on it. Guest rooms open off both corridors. Downstairs are a windowed swimming pool, a hot tub healing spring that freely restores the party's HP and MP, and a gym with two running guests who struggle to talk. Each floor has a broken ice maker; the upstairs tray contains one Revival Seed. The snooty receptionist refuses guests without reservations, replacing the old 150-gold healing stay. The broad beach has striped umbrellas standing in the sand over occupied chaise lounges,
   towels, and palms spaced along the foot of the cliff, with clear aisles and both beach ramps retained. The island's towns, trail and reef share dense tropical palms.
   Shellhaven's marina sits entirely west of the town and beach, reached by the original western pier, with
   three long berth fingers and an open, dock-free beachfront. Two-tile stone walks connect the marina landing
@@ -790,7 +791,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   The source cloth panel is replaced by a solid blue-painted wooden door; the platform and stairs use painted brown wood.
   Hanging red decorations and attached leaf cards are removed. Small ground bushes flank the huts with the stair approaches clear.
   The hero walks up the hut stairs before entering; the original street approaches and room identities are retained.
-  Run `bash tools/run_tests.sh island-towns island-towns-touch` for entrance, pricing, suite, A/B and beach-aisle checks.
+  Run `bash tools/run_tests.sh island-towns island-towns-touch island-updates island-updates-touch` for entrances, pricing, hotel room links, lobby stairs, hot-tub healing, the one-time ice-maker item and beach aisles.
   Run `bash tools/run_tests.sh kelpwick-huts kelpwick-huts-touch` to walk/tap into each raised hut, verify the rectangular arena's phone/healer/Nerissa approaches, and return to each stair foot.
   For a windowed preview and captures, use `-- --scene=island-towns --huts=1 --shot=build/shots/huts.png --quit=0`
   (add `--touch` for the phone layout); the focused scenario uses fresh state and never reads player saves.
@@ -944,14 +945,19 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - Rugs (and wood or tile floors) carry on under anyone standing on them and under furniture.
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
 
-## The Start book (menu)
+## The journal (Start menu)
+
+The first morning's journal pickup has a guided tour over the real pages, with small explanatory windows and no
+extra action buttons. Its A and B hints reuse the flute game's coloured circle prompts. A advances one tab at a time;
+holding B fills the skip bar and ends the tour. A quick B tap
+does nothing. `bash tools/run_tests.sh journal journal-touch` checks the doorway, tour, touch controls and saved ownership.
 
 While the book is open, its active touch controls use 55% opacity so the pages show through them.
 After two seconds without touching the screen, controls fade to 40% opacity, in the book and in the field.
 Any touch brightens them immediately and still performs its usual action; held fingers keep them active.
 Their touch targets and no-tap zones stay the same. Outside the book, active controls use full opacity.
 
-Press **Start** (Space) to open the travel book: two pages of light tan paper with a soft spine between them (`book_paper.gd`; the only window that isn't the off-white), with a page-turn sound as it opens, as you change tabs and as you open a beast's Info. ◄ / ► change tabs; Up from the top of a page (its first row, the Bag's top row of slots, the Map's northernmost town) moves the cursor to the tabs, and Down or A from the tabs goes back into the page. Its bookmark tabs:
+Press **Start** (Space) to open your journal: two pages of light tan paper with a soft spine between them (`book_paper.gd`; the only window that isn't the off-white), with a page-turn sound as it opens, as you change tabs and as you open a beast's Info. ◄ / ► change tabs; Up from the top of a page (its first row, the Bag's top row of slots, the Map's northernmost town) moves the cursor to the tabs, and Down or A from the tabs goes back into the page. Its bookmark tabs:
 
 <img src="docs/screenshots/book_beasts.png" width="640" alt="The Start book's Beasts tab: roster, slot count and live 3D battle ring."><br><sub>The Start book's Beasts tab: roster, slot count and live 3D battle ring.</sub>
 
@@ -1706,7 +1712,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   world map through the real dialogue controls, repeat visits and isolated save persistence. Run with
   `--scene=cocoon --verify=1 --save_dir=res://build/cocoon_saves/`; add `--touch` for touch input.
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
-- `arena-ladder`: trainer list clearance from touch controls, full-sized rows, focus navigation, scroll buttons, direct trainer taps and A/B confirmation. Add `--matrix=1` to the scene for all four gems.
+- `arena-ladder`: four-trainer rank tabs, touch-control clearance, compact talk-menu rows, left/right navigation, tab/trainer taps and A/B confirmation without vertical scrolling. Add `--matrix=1` to the scene for all four gems.
 - `kennel` / `kennel-ui`: level-based adoption fees, exact/insufficient funds, cancellation, free reclaiming, storage overflow, drop-off to storage or adoption (and the Beast Center's storage-only drop-off), and the real keeper/pen menus with touch and focus navigation. Preview with `--scene=kennel --shot=res://build/shots/kennel.png` (`--preview=poor` or `empty` for those states; `--verify=1` exercises inputs).
 - `beast-turn`: a wild beast met from the side turns smoothly to face you before the battle (no snap). Add `--shot=res://build/shots/beast_turn.png` for before, mid-turn and facing frames.
 - `wild-grace`: wild battle return protection, smooth opacity bounds, sight and hearing, existing chases, contact, expiry, map changes, and trainer battle exclusion. Add `--shot=res://build/shots/wild_grace.png` for low, middle and high pulse opacity and the fully opaque player after expiry, or `--preview=pulse` to replay the effect in a game window.
@@ -1928,3 +1934,6 @@ See **CREDITS.md**; the same list is in the game under Start → Settings → Cr
 - Several packs (some sample models, the fonts, set1 and the sound effects) came without licence files. Check each source's terms before releasing the game.
 
 The Start book caps its touch width at 1232 UI units on wide screens, centered to leave more room beside the d-pad. Raw touches and their releases in touch-control clusters are consumed before reaching menu rows. Beast Center, shop and phone menus close with B or their B: Cancel button, without a Leave row; beast summaries use A/B without a separate Close button. NPC item gifts post the shared pickup HUD. Cocoon Cove's two upper red-door houses answer knocks without opening. Outdoor buildings fade both ways on all renderers, including Compatibility/web.
+
+
+Island-update captures (isolated saves): use `--scene=island-updates --shots=res://build/shots/island_updates/desktop --shot_w=0` at 1920x1080, or 2400x1080 with `--touch`. The arena ladder has twelve ranks with four trainers each; old saves retain completed-rank credit when migrating to the expanded roster. Beach guests can be spoken to while reclining and complain about their resort holiday.

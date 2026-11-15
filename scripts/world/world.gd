@@ -2945,6 +2945,7 @@ func _build_npcs() -> void:
 			st.mesh = _story_crystal()
 			st.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			var top := VPer.height() + 0.5 if n.get("beast_genes", null) == null else 2.8
+			top = float(n.get("mark_height", top))
 			st.position = Vector3(0, top, 0)
 			node.add_child(st)
 			n["story_mark"] = st
@@ -4269,6 +4270,9 @@ func _pickup_shard(sh: Dictionary) -> void:
 
 
 func _open_menu() -> void:
+	if map.get("room_key", "") == "home_bed" and not GameState.flag("has_journal"):
+		UI.toast("Your journal is by the bedroom door.")
+		return
 	busy = true
 	GameState.pos = player_pos
 	GameState.facing = facing
@@ -4705,6 +4709,11 @@ func _pick(screen: Vector2) -> Dictionary:
 		var p: Vector2i = map["counter_phone"]
 		# Pick the raised handset itself rather than the floor or attendant behind it.
 		boxes.append([AABB(tile_pos(p) + Vector3(-0.4, 1.0, -0.35), Vector3(0.8, 0.5, 0.7)), p, "thing"])
+	for p in map.get("furniture", {}):
+		var kind: String = map["furniture"][p]
+		if kind in ["ice_maker", "hot_tub"]:
+			var height := 1.24 if kind == "ice_maker" else 0.65
+			boxes.append([AABB(tile_pos(p) + Vector3(-0.48, 0, -0.48), Vector3(0.96, height, 0.96)), p, "thing"])
 	for p in npcs:
 		var offset: Vector3 = npcs[p].get("visual_offset", Vector3.ZERO)
 		boxes.append([AABB(Vector3(p.x + 0.15, _lift(p), p.y + 0.15) + offset, Vector3(0.7, 1.9, 0.7)), p, "npc"])
