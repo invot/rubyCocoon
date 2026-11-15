@@ -4,7 +4,6 @@ blender --background --python tools/blender/save_beasts.py -- build/beasts_blend
 Use --verify to reopen every saved file; --preview renders a representative sample.
 """
 import json
-import math
 import sys
 from pathlib import Path
 
@@ -13,9 +12,11 @@ from mathutils import Vector
 
 
 def bounds():
+    scene = bpy.context.scene
     bpy.context.view_layer.update()
     depsgraph = bpy.context.evaluated_depsgraph_get()
-    objects = [o.evaluated_get(depsgraph) for o in scene.objects if o.type == 'MESH']
+    # The glTF importer also creates a hidden mesh used only as a bone widget.
+    objects = [o.evaluated_get(depsgraph) for o in scene.objects if o.type == 'MESH' and not o.hide_render]
     points = [o.matrix_world @ v.co for o in objects for v in o.data.vertices]
     lo = Vector(tuple(min(p[i] for p in points) for i in range(3)))
     hi = Vector(tuple(max(p[i] for p in points) for i in range(3)))
@@ -73,6 +74,13 @@ for entry in roster:
         scene['source_project'] = 'Ruby Cocoon'
         scene['export_notes'] = 'Resting model with baked game paint. Godot runtime animations and particle smoke are not included.'
         scene.view_settings.view_transform = 'Standard'
+        for index, obj in enumerate(o for o in scene.objects if o.type == 'MESH'):
+            obj.name = scene.name + '_Mesh_%02d' % (index + 1)
+            obj.data.name = obj.name
+        for obj in scene.objects:
+            if obj.type == 'ARMATURE':
+                obj.name = scene.name + '_Rig'
+                obj.data.name = obj.name
         center, extent = bounds()
         # Make the packed paint visible immediately in the solid viewport, too.
         for material in bpy.data.materials:
@@ -91,7 +99,7 @@ for entry in roster:
         bpy.ops.file.pack_all()
         bpy.context.preferences.filepaths.save_version = 0
         bpy.ops.wm.save_as_mainfile(filepath=str(target), compress=True)
-    meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
+    meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH' and not o.hide_render]
     armatures = [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']
     assert meshes and sum(len(o.data.polygons) for o in meshes), entry
     assert not entry['rigged'] or armatures, entry

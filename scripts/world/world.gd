@@ -80,8 +80,13 @@ var _player_grace_material: ShaderMaterial
 var player_pos := Vector2i.ZERO
 var facing := Vector2i(0, 1)
 var moving := false
-## Step 012's opt-in core; the public setting and input expansion follow in 013.
-var diagonal_movement := "--diagonal_core=1" in OS.get_cmdline_user_args()
+## Test fixtures may pin the core; ordinary worlds follow the live preference.
+var _diagonal_override := 1 if "--diagonal_core=1" in OS.get_cmdline_user_args() else -1
+var diagonal_movement: bool:
+	get:
+		return Prefs.diagonal_movement if _diagonal_override < 0 else _diagonal_override == 1
+	set(value):
+		_diagonal_override = 1 if value else 0
 var move_from := Vector3.ZERO
 var move_to := Vector3.ZERO
 var move_t := 0.0
@@ -2879,7 +2884,10 @@ func _build_npcs() -> void:
 			node = VPer.build(look)
 			VPer.face(node, n.get("facing", Vector2i(0, 1)))
 			if n.get("sit", false):
-				seat(node, n.get("facing", Vector2i(0, 1)))
+				if n.get("floor_seat", false):
+					floor_seat(node, n.get("facing", Vector2i(0, 1)))
+				else:
+					seat(node, n.get("facing", Vector2i(0, 1)))
 				if n.has("seat_height"):
 					VPer.set_pose(node, "sit", float(n["seat_height"]))
 			if n.get("rod", false):
@@ -4160,6 +4168,23 @@ static func seat(node: Node3D, facing: Vector2i) -> void:
 	VPer.set_pose(node, "sit", CHAIR_SEAT, true)
 
 
+## Sits a person down on a floor cushion (a pouf under them), facing `facing`: someone on a raised platform.
+static func floor_seat(node: Node3D, facing: Vector2i) -> void:
+	var mesh := RoomBuilder.piece("home/pouf")
+	if mesh != null:
+		var pouf := MeshInstance3D.new()
+		pouf.name = "Cushion"
+		pouf.mesh = mesh
+		pouf.scale = Vector3(1.0, 0.5, 1.0)
+		var made := load("res://scripts/gfx/home_decor.gd").make("pouf", "rose_moss") as MeshInstance3D
+		if made != null:
+			pouf.set_surface_override_material(0, made.get_surface_override_material(0))
+			made.free()
+		node.add_child(pouf)
+	VPer.face(node, facing)
+	VPer.set_pose(node, "sit", 0.16, true)
+
+
 func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 	var node: Node3D = n.get("node", null)
 	if node == null or not node.has_node("Body"):
@@ -4554,10 +4579,15 @@ func _note_keys() -> void:
 			_held.append(d)
 
 
-## Keys and d-pad keep cardinal priority; the left stick has eight directions.
+## Held directions combine only with the option on; off retains cardinal priority.
 func _key_dir() -> Vector2i:
 	if _held.is_empty():
 		return _stick_dir()
+	if Prefs.diagonal_movement:
+		var combined := Vector2i.ZERO
+		for d: Vector2i in _held:
+			combined += d
+		return Vector2i(signi(combined.x), signi(combined.y))
 	if _walk_dir in _held:
 		return _walk_dir
 	return _held.back()
@@ -4565,7 +4595,12 @@ func _key_dir() -> Vector2i:
 
 ## Read the active controller, including pads whose device ID is not zero.
 func _stick_dir() -> Vector2i:
-	return Controllers.direction()
+	if Prefs.diagonal_movement:
+		return Controllers.direction()
+	var stick := Controllers.stick()
+	if stick == Vector2.ZERO:
+		return Vector2i.ZERO
+	return Vector2i(int(signf(stick.x)), 0) if absf(stick.x) > absf(stick.y) else Vector2i(0, int(signf(stick.y)))
 
 
 func _clear_path() -> void:

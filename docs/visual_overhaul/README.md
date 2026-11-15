@@ -36,7 +36,11 @@ see [results and rollback](010c-godot-48-results.md).
 [closure report](010c-validation-closure.md). 007 is also done (13 November 2026, a measured no-op on the razr).
 **011 is done** (14 November 2026): the approved ground cache and [measured budgets](ledger/budgets.md)
 are promoted; all eight focused main-checkout checks pass. See the [acceptance report](011-budgets.md).
-**Next: 012, movement core.** A71 frame-rate debt remains; no added outdoor art cost is authorized. Unfinished 022a now covers offline texture baking
+**013, Diagonal movement setting/input, is waiting for visual approval.** Its
+[report](013-diagonal-input.md) records the passing UI suite, three capture
+layouts, A71 tests and OS-level inputs. [012's checkpoint](012-movement-core.md) retains the
+Rue Royale texture-budget failure; starting 013 does not close that gate.
+A71 frame-rate debt remains; no added outdoor art cost is authorized. Unfinished 022a now covers offline texture baking
 in place of LightmapGI, following the user’s direction; completed steps retain their status.
 010c's offline ASTC anomaly investigation is complete: the 6×6 encoder nearest-resizes
 to block-aligned dimensions, confounding the initial metric. Eighteen round trips and

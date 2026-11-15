@@ -56,6 +56,25 @@ The rules below translate those principles into cardinal tile movement, small ro
    controls. Rooms may have notches and alcoves for character (runbook 037c); see
    `docs/visual_overhaul/runbook.md` Phase H.
 
+10. **Nothing in a home hides the player (2026-11-15).** Homes do not fade furniture. Anything with walkable floor
+    straight behind it (north) stays below the hero's waist (`RoomBuilder.WAIST`, 0.85; an armchair's 0.90 back is
+    lowered to it): floor lamps, tall plants, wardrobes and shelving stand along the back wall, and the builder picks
+    the low version of a piece (a round plant rather than a tall one) when it stands in the open. Nothing taller is
+    put on top of a front piece either. `RoomBuilder.front_tall` lists offenders and `tools/check_maps.gd` fails on
+    them. Living-room seating stands out in the room facing the open front, with the coffee table before it past an
+    open row; other furniture backs onto a wall and faces the room's middle.
+11. **Walls have depth.** Windows are recessed: the glass sits at the back of a reveal in the wall, a deep sill runs
+    out into the room and a painted casing frames it; curtains hang from a rod above it either side of the opening
+    (windows side by side share one rod), never across the glass. Homes get a small cubby or two in plain back
+    walls (a shelf niche with a few things in it) and, where the template asks ("closets": [[x, y, w]]), a closet
+    recessed into the back wall from the floor to head height with shelves of blankets, books and boxes; closets
+    replace wardrobes in the player's house. Raised platforms ("dais": [[x, y, w, h]]) are a café thing above all:
+    a low wooden stage whose people sit on floor cushions facing the room with their tea.
+
+12. **Chubby, not thin (2026-11-15).** Furniture and decor are boxy and stout: no thin legs, thin boards or spindly
+    frames (lamps excepted). See AGENTS.md for the swaps made (nightstands, desks, shelving, bunks, benches, basins,
+    coat stands, cottage sofas, slatted chairs, thin wall shelves and frames).
+
 Unseated visitors and residents may stroll. Roaming destinations must leave arrivals, door and stair approaches,
 service counters and conversation spaces clear, and must not cut the only route through a passage. Both ends of
 an NPC's step stay reserved until arrival. Seated patrons and service staff remain in their authored positions.
@@ -81,7 +100,10 @@ and shop types inherit the template changes and share the renderer's placement r
 
 | Templates | Result / arrangement |
 | --- | --- |
-| `home`, `house_two`, `house_up` | Sofa moved upstage, coffee table downstage with an open tile; TV implied on fourth wall. Stairs, phone and doors retained. |
+| `home` (2026-11-15) | Sofa and armchair out in the room facing the front, coffee table before them past an open row, lamp beside the armchair at the back wall, closet in the back wall's left end; phone, stairs, kitchen door and Mom unchanged. Scheme `apricot_sunroom`. |
+| `home_bed`, `home_mom` (2026-11-15) | Closets in the back wall replace the wardrobes; front rows hold only low pieces (a pouf, a basket, low drawers); the rocket print over your bed; Mom's armchair against the side wall facing in. Schemes `mint_cherry`, `rose_moss`. |
+| `cafe` (2026-11-15) | A 3x1 platform with a pouf, a tea table and a regular sitting on a cushion; counter and tables unchanged. |
+| `home` (earlier), `house_two`, `house_up` | Sofa moved upstage, coffee table downstage with an open tile; TV implied on fourth wall. Stairs, phone and doors retained. |
 | `studio_a`, `uncle_home` | Bed and lounge remain distinct groups; sofa upstage, low table below it; rear TV removed. Rafe's story anchor retained. |
 | `studio_b` | Rear TV removed; side dining chairs retained; side-wall armchair faces inward. |
 | `home_mom` | Armchair moved out of the bedroom foreground to the side, facing inward. Bed and nightstands retained. |

@@ -1673,6 +1673,8 @@ func _run_test() -> void:
 			Prefs.accent = String(_test["flip"])
 			Prefs.changed.emit()
 		await _wait(wait)
+	elif scene == "diagonal-input":
+		await load("res://tools/debug/diagonal_input.gd").new().run(self, _test)
 	elif scene == "diagonal":
 		await load("res://tools/debug/diagonal.gd").new().run(self, _test)
 	elif scene == "walk4":

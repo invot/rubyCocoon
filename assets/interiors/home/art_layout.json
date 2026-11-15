@@ -1,0 +1,2352 @@
+{
+ "masks": "art_masks.png",
+ "original": "art_original.png",
+ "size": 1024,
+ "cell": [
+  192,
+  256
+ ],
+ "about": "Paper = 1 - R - G - B. colour = paper*slot0 + R*slot1 + G*slot2 + B*slot3.",
+ "prints": {
+  "anna-magenta-ua598LHEvBE": {
+   "source": "anna-magenta-ua598LHEvBE-unsplash.svg",
+   "px": [
+    0,
+    0,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.001953125,
+    0.001953125,
+    0.185546875,
+    0.248046875
+   ],
+   "uv_landscape": [
+    0.001953125,
+    0.0546875,
+    0.185546875,
+    0.1953125
+   ],
+   "uv_square": [
+    0.001953125,
+    0.033203125,
+    0.185546875,
+    0.216796875
+   ],
+   "slots_original": [
+    "#fde7db",
+    "#e6866b",
+    "#b2562b",
+    "#361915"
+   ],
+   "slot_count": 4,
+   "source_colours": 19,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#cf7652",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#8e3fd6",
+     "#1d1640"
+    ]
+   }
+  },
+  "balaji-krishnamurty-KxjJTr35lls": {
+   "source": "balaji-krishnamurty-KxjJTr35lls-unsplash.svg",
+   "px": [
+    192,
+    0,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.189453125,
+    0.001953125,
+    0.373046875,
+    0.248046875
+   ],
+   "uv_landscape": [
+    0.189453125,
+    0.0546875,
+    0.373046875,
+    0.1953125
+   ],
+   "uv_square": [
+    0.189453125,
+    0.033203125,
+    0.373046875,
+    0.216796875
+   ],
+   "slots_original": [
+    "#e7e7e7",
+    "#a9a9a9",
+    "#616060",
+    "#151415"
+   ],
+   "slot_count": 4,
+   "source_colours": 38,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d7a94b",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#e0aa4f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#8e3fd6",
+     "#1d1640"
+    ]
+   }
+  },
+  "deep-0ECAhyBYxhE": {
+   "source": "deep-0ECAhyBYxhE-unsplash.svg",
+   "px": [
+    384,
+    0,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.376953125,
+    0.001953125,
+    0.560546875,
+    0.248046875
+   ],
+   "uv_landscape": [
+    0.376953125,
+    0.0546875,
+    0.560546875,
+    0.1953125
+   ],
+   "uv_square": [
+    0.376953125,
+    0.033203125,
+    0.560546875,
+    0.216796875
+   ],
+   "slots_original": [
+    "#f2e1c8",
+    "#61beab",
+    "#864537",
+    "#241618"
+   ],
+   "slot_count": 4,
+   "source_colours": 7,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d7a94b",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#e0aa4f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#2f4fd8",
+     "#1d1640"
+    ]
+   }
+  },
+  "deep-3YErd7Gwol0": {
+   "source": "deep-3YErd7Gwol0-unsplash.svg",
+   "px": [
+    576,
+    0,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.564453125,
+    0.001953125,
+    0.748046875,
+    0.248046875
+   ],
+   "uv_landscape": [
+    0.564453125,
+    0.0546875,
+    0.748046875,
+    0.1953125
+   ],
+   "uv_square": [
+    0.564453125,
+    0.033203125,
+    0.748046875,
+    0.216796875
+   ],
+   "slots_original": [
+    "#e8d7b7",
+    "#a47c46",
+    "#46513c",
+    "#001a35"
+   ],
+   "slot_count": 4,
+   "source_colours": 8,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#b07a4e",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#6f9fd6",
+     "#d65a5a",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#0f9d7a",
+     "#d6245a",
+     "#1d1640"
+    ]
+   }
+  },
+  "deep-5-dZ-bHPMAY": {
+   "source": "deep-5-dZ-bHPMAY-unsplash.svg",
+   "px": [
+    768,
+    0,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.751953125,
+    0.001953125,
+    0.935546875,
+    0.248046875
+   ],
+   "uv_landscape": [
+    0.751953125,
+    0.0546875,
+    0.935546875,
+    0.1953125
+   ],
+   "uv_square": [
+    0.751953125,
+    0.033203125,
+    0.935546875,
+    0.216796875
+   ],
+   "slots_original": [
+    "#f8e4b2",
+    "#dda21c",
+    "#c26e30",
+    "#7c3406"
+   ],
+   "slot_count": 4,
+   "source_colours": 7,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d7a94b",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#e0aa4f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#b07a4e",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#9b6a43",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#ff4fa3",
+     "#d6245a"
+    ]
+   }
+  },
+  "deep-IHWzHs98vQ8": {
+   "source": "deep-IHWzHs98vQ8-unsplash.svg",
+   "px": [
+    0,
+    256,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.001953125,
+    0.251953125,
+    0.185546875,
+    0.498046875
+   ],
+   "uv_landscape": [
+    0.001953125,
+    0.3046875,
+    0.185546875,
+    0.4453125
+   ],
+   "uv_square": [
+    0.001953125,
+    0.283203125,
+    0.185546875,
+    0.466796875
+   ],
+   "slots_original": [
+    "#e3b87d",
+    "#b76324",
+    "#416267",
+    "#192d1f"
+   ],
+   "slot_count": 4,
+   "source_colours": 11,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#e0866a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#8aa57a",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#d9826a",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#b07a4e",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#8f6a4a",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#6f9fd6",
+     "#d65a5a",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#b88656",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#ff4fa3",
+     "#8e3fd6",
+     "#1d1640"
+    ]
+   }
+  },
+  "deep-K92pByP9tPQ": {
+   "source": "deep-K92pByP9tPQ-unsplash.svg",
+   "px": [
+    192,
+    256,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.189453125,
+    0.251953125,
+    0.373046875,
+    0.498046875
+   ],
+   "uv_landscape": [
+    0.189453125,
+    0.3046875,
+    0.373046875,
+    0.4453125
+   ],
+   "uv_square": [
+    0.189453125,
+    0.283203125,
+    0.373046875,
+    0.466796875
+   ],
+   "slots_original": [
+    "#fbefde",
+    "#f2d0ad",
+    "#a4c2c2",
+    "#497181"
+   ],
+   "slot_count": 4,
+   "source_colours": 7,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#b9d2c6",
+     "#e0866a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#8aa57a",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#d9826a",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d9a9a3",
+     "#7d9b5c",
+     "#9a6a46"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#b9aed6",
+     "#c2925f",
+     "#8b6a9f"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#f2d8a6",
+     "#a8c4d8",
+     "#4b6487"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#efe2c6",
+     "#5f8a7a",
+     "#7a5236"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#c79a64",
+     "#d65a5a"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#e9d4a8",
+     "#c9b896",
+     "#c4673f"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#d9826a",
+     "#5d6f8f"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#f6b81c",
+     "#0f9d7a",
+     "#8e3fd6"
+    ]
+   }
+  },
+  "deep-WQ5YDICQb3M": {
+   "source": "deep-WQ5YDICQb3M-unsplash.svg",
+   "px": [
+    384,
+    256,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.376953125,
+    0.251953125,
+    0.560546875,
+    0.498046875
+   ],
+   "uv_landscape": [
+    0.376953125,
+    0.3046875,
+    0.560546875,
+    0.4453125
+   ],
+   "uv_square": [
+    0.376953125,
+    0.283203125,
+    0.560546875,
+    0.466796875
+   ],
+   "slots_original": [
+    "#fbf3dd",
+    "#c5a47c",
+    "#d9805a",
+    "#aa3712"
+   ],
+   "slot_count": 4,
+   "source_colours": 7,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#c08a55",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#e8746a",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#d9826a",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d7a94b",
+     "#7d9b5c",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#b9aed6",
+     "#c2925f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#cf7652",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#8f6a4a",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#b88656",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#d9826a",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#0f9d7a",
+     "#d6245a"
+    ]
+   }
+  },
+  "deep-bQs3iP_7JtA": {
+   "source": "deep-bQs3iP_7JtA-unsplash.svg",
+   "px": [
+    576,
+    256,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.564453125,
+    0.251953125,
+    0.748046875,
+    0.498046875
+   ],
+   "uv_landscape": [
+    0.564453125,
+    0.3046875,
+    0.748046875,
+    0.4453125
+   ],
+   "uv_square": [
+    0.564453125,
+    0.283203125,
+    0.748046875,
+    0.466796875
+   ],
+   "slots_original": [
+    "#faf3e1",
+    "#b5ccd8",
+    "#76a6c4",
+    "#1c3751"
+   ],
+   "slot_count": 4,
+   "source_colours": 10,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#e0866a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#8aa57a",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#d9826a",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d9a9a3",
+     "#7d9b5c",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#b9aed6",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#cf7652",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#c79a64",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#b88656",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#d9826a",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#f6b81c",
+     "#0f9d7a",
+     "#1d1640"
+    ]
+   }
+  },
+  "deep-g5Jfpcd9VCo": {
+   "source": "deep-g5Jfpcd9VCo-unsplash.svg",
+   "px": [
+    768,
+    256,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.751953125,
+    0.251953125,
+    0.935546875,
+    0.498046875
+   ],
+   "uv_landscape": [
+    0.751953125,
+    0.3046875,
+    0.935546875,
+    0.4453125
+   ],
+   "uv_square": [
+    0.751953125,
+    0.283203125,
+    0.935546875,
+    0.466796875
+   ],
+   "slots_original": [
+    "#f3d6cb",
+    "#8f93a6",
+    "#cd6964",
+    "#3d3b47"
+   ],
+   "slot_count": 4,
+   "source_colours": 10,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#e0866a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#8aa57a",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#d9826a",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#cf7652",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#8f6a4a",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#b88656",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#9b6a43",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#0f9d7a",
+     "#d6245a"
+    ]
+   }
+  },
+  "deep-hzLpphmacLc": {
+   "source": "deep-hzLpphmacLc-unsplash.svg",
+   "px": [
+    0,
+    512,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.001953125,
+    0.501953125,
+    0.185546875,
+    0.748046875
+   ],
+   "uv_landscape": [
+    0.001953125,
+    0.5546875,
+    0.185546875,
+    0.6953125
+   ],
+   "uv_square": [
+    0.001953125,
+    0.533203125,
+    0.185546875,
+    0.716796875
+   ],
+   "slots_original": [
+    "#e7cbaf",
+    "#545b5b",
+    "#a12a14",
+    "#242424"
+   ],
+   "slot_count": 4,
+   "source_colours": 11,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#e0866a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#8aa57a",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#d9826a",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#b07a4e",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#7a5236",
+     "#503e2e",
+     "#c56a3f"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#6f9fd6",
+     "#d65a5a",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#b88656",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#ff4fa3",
+     "#d6245a",
+     "#1d1640"
+    ]
+   }
+  },
+  "deep-isf0PELGzBE": {
+   "source": "deep-isf0PELGzBE-unsplash.svg",
+   "px": [
+    192,
+    512,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.189453125,
+    0.501953125,
+    0.373046875,
+    0.748046875
+   ],
+   "uv_landscape": [
+    0.189453125,
+    0.5546875,
+    0.373046875,
+    0.6953125
+   ],
+   "uv_square": [
+    0.189453125,
+    0.533203125,
+    0.373046875,
+    0.716796875
+   ],
+   "slots_original": [
+    "#facf9c",
+    "#e66c2a",
+    "#195a6a",
+    "#0d3350"
+   ],
+   "slot_count": 4,
+   "source_colours": 4,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#b07a4e",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#6f9fd6",
+     "#d65a5a",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#0f9d7a",
+     "#d6245a",
+     "#1d1640"
+    ]
+   }
+  },
+  "deep-j-oNlEbFrpU": {
+   "source": "deep-j-oNlEbFrpU-unsplash.svg",
+   "px": [
+    384,
+    512,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.376953125,
+    0.501953125,
+    0.560546875,
+    0.748046875
+   ],
+   "uv_landscape": [
+    0.376953125,
+    0.5546875,
+    0.560546875,
+    0.6953125
+   ],
+   "uv_square": [
+    0.376953125,
+    0.533203125,
+    0.560546875,
+    0.716796875
+   ],
+   "slots_original": [
+    "#faae34",
+    "#c44855",
+    "#41618c",
+    "#263f63"
+   ],
+   "slot_count": 4,
+   "source_colours": 11,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#c08a55",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#6f8fb8",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#6f86c9",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#b07a4e",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#c56a3f",
+     "#8f6a4a",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#c79a64",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#3f8c8c",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#8a8f4a",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#8e3fd6",
+     "#2f4fd8",
+     "#1d1640"
+    ]
+   }
+  },
+  "marchell-manuputty-m-RoRWg-TMU": {
+   "source": "marchell-manuputty-m-RoRWg-TMU-unsplash.svg",
+   "px": [
+    576,
+    512,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.564453125,
+    0.501953125,
+    0.748046875,
+    0.748046875
+   ],
+   "uv_landscape": [
+    0.564453125,
+    0.5546875,
+    0.748046875,
+    0.6953125
+   ],
+   "uv_square": [
+    0.564453125,
+    0.533203125,
+    0.748046875,
+    0.716796875
+   ],
+   "slots_original": [
+    "#fffef3",
+    "#8dc1d3",
+    null,
+    null
+   ],
+   "slot_count": 2,
+   "source_colours": 2,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     null,
+     null
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     null,
+     null
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     null,
+     null
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d9a9a3",
+     null,
+     null
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#b9aed6",
+     null,
+     null
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     null,
+     null
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     null,
+     null
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     null,
+     null
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     null,
+     null
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     null,
+     null
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     null,
+     null
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     null,
+     null
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#f6b81c",
+     null,
+     null
+    ]
+   }
+  },
+  "pixeliota-X3F-M3I7TuM": {
+   "source": "pixeliota-X3F-M3I7TuM-unsplash.svg",
+   "px": [
+    768,
+    512,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.751953125,
+    0.501953125,
+    0.935546875,
+    0.748046875
+   ],
+   "uv_landscape": [
+    0.751953125,
+    0.5546875,
+    0.935546875,
+    0.6953125
+   ],
+   "uv_square": [
+    0.751953125,
+    0.533203125,
+    0.935546875,
+    0.716796875
+   ],
+   "slots_original": [
+    "#e6aaac",
+    "#fa7e26",
+    "#097edf",
+    "#32467a"
+   ],
+   "slot_count": 4,
+   "source_colours": 1011,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#cf7652",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#ff4fa3",
+     "#d6245a"
+    ]
+   }
+  },
+  "robin-granqvist-BiX562ApuHI": {
+   "source": "robin-granqvist-BiX562ApuHI-unsplash.svg",
+   "px": [
+    0,
+    768,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.001953125,
+    0.751953125,
+    0.185546875,
+    0.998046875
+   ],
+   "uv_landscape": [
+    0.001953125,
+    0.8046875,
+    0.185546875,
+    0.9453125
+   ],
+   "uv_square": [
+    0.001953125,
+    0.783203125,
+    0.185546875,
+    0.966796875
+   ],
+   "slots_original": [
+    "#f9e5ca",
+    "#e88490",
+    "#04a0ca",
+    "#142238"
+   ],
+   "slot_count": 4,
+   "source_colours": 6,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#8aa57a",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#6f86c9",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#b07a4e",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#e88f6e",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#8a8f4a",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#d9826a",
+     "#9b6a43",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#0f9d7a",
+     "#1d1640"
+    ]
+   }
+  },
+  "robin-granqvist-olP9nSZefas": {
+   "source": "robin-granqvist-olP9nSZefas-unsplash.svg",
+   "px": [
+    192,
+    768,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.189453125,
+    0.751953125,
+    0.373046875,
+    0.998046875
+   ],
+   "uv_landscape": [
+    0.189453125,
+    0.8046875,
+    0.373046875,
+    0.9453125
+   ],
+   "uv_square": [
+    0.189453125,
+    0.783203125,
+    0.373046875,
+    0.966796875
+   ],
+   "slots_original": [
+    "#fcfef9",
+    "#f1c8b6",
+    "#3292a0",
+    "#0e150f"
+   ],
+   "slot_count": 4,
+   "source_colours": 9,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#b9d2c6",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d9a9a3",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#b9aed6",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#b07a4e",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#9b6a43",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#f6b81c",
+     "#0f9d7a",
+     "#1d1640"
+    ]
+   }
+  },
+  "royyan-wijaya-IqxGxkuk088": {
+   "source": "royyan-wijaya-IqxGxkuk088-unsplash.svg",
+   "px": [
+    384,
+    768,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.376953125,
+    0.751953125,
+    0.560546875,
+    0.998046875
+   ],
+   "uv_landscape": [
+    0.376953125,
+    0.8046875,
+    0.560546875,
+    0.9453125
+   ],
+   "uv_square": [
+    0.376953125,
+    0.783203125,
+    0.560546875,
+    0.966796875
+   ],
+   "slots_original": [
+    "#edc6bc",
+    "#e0a53e",
+    "#957c4b",
+    "#2d3f43"
+   ],
+   "slot_count": 4,
+   "source_colours": 7,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d7a94b",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#e0aa4f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#b07a4e",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#9b6a43",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#19c9e6",
+     "#0f9d7a",
+     "#d6245a"
+    ]
+   }
+  },
+  "royyan-wijaya-xfWHBCwMeQQ": {
+   "source": "royyan-wijaya-xfWHBCwMeQQ-unsplash.svg",
+   "px": [
+    576,
+    768,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.564453125,
+    0.751953125,
+    0.748046875,
+    0.998046875
+   ],
+   "uv_landscape": [
+    0.564453125,
+    0.8046875,
+    0.748046875,
+    0.9453125
+   ],
+   "uv_square": [
+    0.564453125,
+    0.783203125,
+    0.748046875,
+    0.966796875
+   ],
+   "slots_original": [
+    "#e0e9ff",
+    "#c8bab5",
+    "#a87e4d",
+    "#2d3f43"
+   ],
+   "slot_count": 4,
+   "source_colours": 7,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#f0c75a",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#e8bf98",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#9fb3dc",
+     "#6f86c9",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#d9a9a3",
+     "#7d9b5c",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#b9aed6",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#a8c4d8",
+     "#b07a4e",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#5f8a7a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#f0c75a",
+     "#6f9fd6",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#7fb5b0",
+     "#3f8c8c",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#c9b896",
+     "#8a8f4a",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#e2b04a",
+     "#d9826a",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#f2d27a",
+     "#c98b62",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#f6b81c",
+     "#0f9d7a",
+     "#d6245a"
+    ]
+   }
+  },
+  "simple-wallpapers-xzYpQyYH3FA": {
+   "source": "simple-wallpapers-xzYpQyYH3FA-unsplash.svg",
+   "px": [
+    768,
+    768,
+    192,
+    256
+   ],
+   "uv_portrait": [
+    0.751953125,
+    0.751953125,
+    0.935546875,
+    0.998046875
+   ],
+   "uv_landscape": [
+    0.751953125,
+    0.8046875,
+    0.935546875,
+    0.9453125
+   ],
+   "uv_square": [
+    0.751953125,
+    0.783203125,
+    0.935546875,
+    0.966796875
+   ],
+   "slots_original": [
+    "#ff5733",
+    "#c70039",
+    "#900c3f",
+    "#511845"
+   ],
+   "slot_count": 4,
+   "source_colours": 4,
+   "raster_embedded": false,
+   "unfilled_fraction": 0.0,
+   "colourways": {
+    "seafoam_cottage": [
+     "#f6eace",
+     "#c08a55",
+     "#4f8f8a",
+     "#5a4b34"
+    ],
+    "apricot_sunroom": [
+     "#fbe2d8",
+     "#6f8fb8",
+     "#b97b4c",
+     "#5e472f"
+    ],
+    "butter_cornflower": [
+     "#fdfbf3",
+     "#6f86c9",
+     "#a8754c",
+     "#61412d"
+    ],
+    "rose_moss": [
+     "#f7e6e1",
+     "#7d9b5c",
+     "#9a6a46",
+     "#5a4126"
+    ],
+    "lavender_honey": [
+     "#f9f2f4",
+     "#c2925f",
+     "#8b6a9f",
+     "#624a3b"
+    ],
+    "sky_terracotta": [
+     "#f9f4e8",
+     "#b07a4e",
+     "#4b6487",
+     "#533f31"
+    ],
+    "forest_cabin": [
+     "#d7d5c1",
+     "#8f6a4a",
+     "#7a5236",
+     "#503e2e"
+    ],
+    "mint_cherry": [
+     "#e5eef8",
+     "#6f9fd6",
+     "#d65a5a",
+     "#705935"
+    ],
+    "peach_teal": [
+     "#fdf3e3",
+     "#3f8c8c",
+     "#a56f45",
+     "#61402a"
+    ],
+    "oat_olive": [
+     "#f8f1e2",
+     "#8a8f4a",
+     "#c4673f",
+     "#65452c"
+    ],
+    "dusk_study": [
+     "#efdbd0",
+     "#9b6a43",
+     "#5d6f8f",
+     "#5e4834"
+    ],
+    "adobe_turquoise": [
+     "#b5784a",
+     "#c98b62",
+     "#d6553f",
+     "#603726"
+    ],
+    "jewel_pop": [
+     "#fbf3e4",
+     "#2f4fd8",
+     "#d6245a",
+     "#1d1640"
+    ]
+   }
+  }
+ }
+}

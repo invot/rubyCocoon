@@ -41,6 +41,8 @@ const TRACKS := {
 	"andreas": "andreas_theme",
 	"krampus": "krampus_workshop",
 	"boss": "rising_tide_faster",
+	# the Codex's lessons, while the battle is its simulation (battle.gd _set_sim; user-supplied, 2026-11-15)
+	"codex": "bit_quest",
 }
 
 ## The beat of the battle tracks (track file -> beats a minute, and where the first beat falls, in seconds into the

@@ -541,6 +541,9 @@ matched native/phone/web frame and loading traces, texture/export sizes, and bef
 
 ### 013 · M2: Diagonal movement setting and input
 **Approval: you** (setting shots). **Needs:** 012.
+Execution note, 15 November 2026: the user explicitly requested 013 while 012's
+Rue Royale texture-budget gate remained open. See [013's report](013-diagonal-input.md);
+this does not waive the budget limit or complete 012.
 **Files:** `scripts/autoload/prefs.gd` (the new pref, default `false`, defaulted for old settings files); the settings page (`UIKit` rows); `controls_overlay.gd` (d-pad); input handling.
 **Do:**
 - Add a "Diagonal movement: On/Off" row with full-width values (32 UI units; 56/80 row heights).

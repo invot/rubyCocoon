@@ -24,6 +24,9 @@ const BookPaper = preload("res://scripts/ui/book_paper.gd")
 const Codex = preload("res://scripts/ui/codex.gd")
 const CodexDB = preload("res://scripts/data/codex_db.gd")
 
+## Let the book show through the pad while keeping every control available.
+var touch_controls_alpha := 0.55
+
 const TABS := [
 	{"id": "trainer", "name": "Trainer", "icon": "tab_trainer"},
 	{"id": "beasts", "name": "Beasts", "icon": "tab_beasts"},
@@ -66,6 +69,7 @@ var right_box: VBoxContainer
 var right_scroll: ScrollContainer
 var right_col: HBoxContainer
 var list_box: VBoxContainer
+var _list_tail: Control
 var list_scroll: ScrollContainer
 var detail_box: VBoxContainer
 var rows: Array = []
@@ -290,6 +294,7 @@ func _click_tab(i: int) -> void:
 
 func _open_tab(i: int) -> void:
 	var keep_scroll := list_scroll.scroll_vertical if i == tab and is_instance_valid(list_scroll) else 0
+	var keep_tail := _list_tail.custom_minimum_size.y if i == tab and is_instance_valid(_list_tail) else 0.0
 	if i != tab:
 		focus_row = 0
 	tab = i
@@ -301,6 +306,7 @@ func _open_tab(i: int) -> void:
 	rows = []
 	row_buttons = []
 	list_box = null
+	_list_tail = null
 	detail_box = null
 	map_view = null
 	if is_instance_valid(beasts_page):
@@ -327,10 +333,41 @@ func _open_tab(i: int) -> void:
 			_tab_map()
 		"settings":
 			_tab_settings()
+	if is_instance_valid(list_box):
+		_list_tail = Control.new()
+		_list_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# Keep the range valid while rebuilding a setting. Otherwise the
+		# restored scroll value clamps before the trailing space is laid out.
+		_list_tail.custom_minimum_size.y = keep_tail
+		list_box.add_child(_list_tail)
 	if mode == "list":
 		_focus_first.call_deferred()
 	if is_instance_valid(list_scroll):
 		list_scroll.set_deferred("scroll_vertical", keep_scroll)
+		_settle_list_focus(list_scroll)
+
+
+## Input choices can resize the book while its rows are rebuilt. Wait for the
+## containers to settle before ensuring the retained selection is fully visible.
+func _settle_list_focus(scroll: ScrollContainer) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree() or not is_instance_valid(scroll) or scroll != list_scroll or focus_row >= row_buttons.size():
+		return
+	if UI.is_touch() and is_instance_valid(_list_tail):
+		var rect := scroll.get_global_rect()
+		var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x, true)
+		# Enough trailing space to bring even the final row above the pad's
+		# enlarged no-tap zone, without shrinking rows or moving the controls.
+		_list_tail.custom_minimum_size.y = maxf(0.0, rect.end.y - (get_viewport_rect().size.y - reserve))
+		await get_tree().process_frame
+		await get_tree().process_frame
+		if not is_instance_valid(scroll) or scroll != list_scroll or focus_row >= row_buttons.size():
+			return
+	if mode != "list":
+		return
+	scroll.ensure_control_visible(row_buttons[focus_row])
+	_keep_focus_clear_of_pad(focus_row)
 
 
 func _clear(c: Control) -> void:
@@ -518,7 +555,7 @@ func _keep_focus_clear_of_pad(i: int) -> void:
 	if not is_inside_tree() or not UI.is_touch() or i != focus_row or i >= row_buttons.size() or not is_instance_valid(list_scroll):
 		return
 	var rect: Rect2 = row_buttons[i].get_global_rect()
-	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x)
+	var reserve: float = UI.controls.menu_bottom_reserve(rect.position.x, rect.end.x, true)
 	var bottom := minf(list_scroll.get_global_rect().end.y, get_viewport_rect().size.y - reserve)
 	if rect.end.y > bottom:
 		list_scroll.scroll_vertical += ceili(rect.end.y - bottom)
@@ -1114,6 +1151,10 @@ func _tab_settings() -> void:
 		"adjust": func(_d): Prefs.set_value("show_key_legend", not Prefs.show_key_legend),
 		"act": func(): Prefs.set_value("show_key_legend", not Prefs.show_key_legend),
 		"detail": _controls_help.bind("The strip at the bottom of the screen that shows which keys do what.")})
+	_add_row({"text": "Diagonal movement", "right": "◄ %s ►" % ("On" if Prefs.diagonal_movement else "Off"), "right_width": 150,
+		"adjust": func(_d): Prefs.set_value("diagonal_movement", not Prefs.diagonal_movement),
+		"act": func(): Prefs.set_value("diagonal_movement", not Prefs.diagonal_movement),
+		"detail": _controls_help.bind("On: move eight ways with two arrow keys, the controller stick or d-pad, or the touch pad's corners. Off: move four ways. You cannot cut blocked corners. Hold B to run.")})
 	if not Prefs.is_mobile():
 		_add_row({"text": "Fullscreen", "right": "◄ %s ►" % ("On" if Prefs.fullscreen else "Off"), "right_width": 150,
 			"adjust": func(_d): Prefs.set_value("fullscreen", not Prefs.fullscreen),

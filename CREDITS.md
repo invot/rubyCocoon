@@ -152,7 +152,8 @@ upholstery) over a wood grain and cloth weave of our own.
 - **KayKit Furniture Bits 1.0** by Kay Lousberg, https://www.kaylousberg.com, CC0 (glTF copied into
   `psx/kaykit_furniture/`; baked by `tools/import_kaykit_furniture.gd` into `assets/interiors/kk_*.res`): every
   room's houseplants (potted cacti), floor and table lamps, chairs and stools, beds, tables, coffee tables, the long
-  chest of drawers used for dressers, and the area rugs. *Changes made:* each piece sized to its tiles; its atlas
+  chest of drawers used for dressers, and the area rugs; since 2026-11-15 also the dressed wall shelves, low
+  cupboards, loose pillows and a set of books in homes. *Changes made:* each piece sized to its tiles; its atlas
   halved to 512 px; the blue cloth split off and painted from a grey copy of the atlas so each room can colour it.
   See [licence](licenses/KayKit%20Furniture%20Bits%20-%20License.txt).
 - **Rustbound Iron Cage** by Ar3Designer (https://sketchfab.com/Ar3Designer), licensed under
@@ -322,6 +323,10 @@ Magic Scout - Cottages, Magic Scout - Manor, Nerves (the title screen), Pleasant
 Rising Tide (faster), Screen Saver, Unanswered Questions, Wholesome, Wind of the Rainforest
 (trimmed to a 5-minute loop).
 
+*Bit Quest* by **Kevin MacLeod** (incompetech.com, 2015, per the supplied MP3's metadata), Creative Commons
+Attribution 4.0, plays while the Codex runs a lesson in battle. User-supplied source: `Bit Quest.mp3`; game copy:
+`assets/audio/music/bit_quest.mp3`.
+
 From Pixabay (Pixabay Content License):
 - "The Return of the 8-bit Era" by DJARTMUSIC
 - "Retro Egyptian Theme" by Howling Hound Music
@@ -391,6 +396,16 @@ a 0.7-second excerpt with a shortened tail. The complete intro dread hit remains
   `tools/place_banners/svg_rooms/`: Annie Spratt, Marchell Manuputty, Pixeliota, Sandeep Kumar, Simple Wallpapers and
   Sonika Agarwal. *Changes made:* recoloured into eight palettes (or hue-shifted), cropped or repeated into strips,
   and faded toward the middle.
+
+## Home decor kit (`assets/interiors/home/`, baked by `tools/import_home_decor.gd`)
+
+- The lamps, plants, frames, wall pieces, trim, cushions and tabletop things are Claude's own procedural models and
+  painted atlas (runbook 037a candidate rev_001; no third-party geometry or texture).
+- The framed prints are the user's picks of vector illustrations from **Unsplash** (Unsplash License; credit given as
+  a courtesy): Anna Magenta, Balaji Krishnamurty, Deep, Marchell Manuputty, Pixeliota, Robin Granqvist, Royyan Wijaya
+  and Simple Wallpapers. *Changes made:* reduced to up to four colour masks and recoloured per room scheme.
+- The user's *Cozy Cartoon Rooms* OBJ collections were studied for shapes (recessed windows, wall cubbies, closets)
+  only; nothing from them is in the game.
 
 ## World map and location markers (`assets/ui/world_map/`)
 

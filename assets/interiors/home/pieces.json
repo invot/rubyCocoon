@@ -1,0 +1,442 @@
+{
+ "floor_lamp_drum": {
+  "category": "lamps",
+  "mount": "floor",
+  "size": [
+   0.48,
+   0.48,
+   1.46
+  ],
+  "print": null
+ },
+ "floor_lamp_tripod": {
+  "category": "lamps",
+  "mount": "floor",
+  "size": [
+   0.5,
+   0.5,
+   1.403
+  ],
+  "print": null
+ },
+ "table_lamp_gourd": {
+  "category": "lamps",
+  "mount": "top",
+  "size": [
+   0.27,
+   0.27,
+   0.41
+  ],
+  "print": null
+ },
+ "table_lamp_mushroom": {
+  "category": "lamps",
+  "mount": "top",
+  "size": [
+   0.28,
+   0.28,
+   0.285
+  ],
+  "print": null
+ },
+ "wall_sconce": {
+  "category": "lamps",
+  "mount": "wall",
+  "size": [
+   0.21,
+   0.275,
+   0.26
+  ],
+  "print": null
+ },
+ "plant_pillow_round": {
+  "category": "plants",
+  "mount": "floor",
+  "size": [
+   0.448,
+   0.432,
+   0.537
+  ],
+  "print": null
+ },
+ "plant_pillow_tall": {
+  "category": "plants",
+  "mount": "floor",
+  "size": [
+   0.586,
+   0.478,
+   1.333
+  ],
+  "print": null
+ },
+ "plant_paddle": {
+  "category": "plants",
+  "mount": "floor",
+  "size": [
+   0.756,
+   0.593,
+   0.927
+  ],
+  "print": null
+ },
+ "plant_blades": {
+  "category": "plants",
+  "mount": "floor",
+  "size": [
+   0.25,
+   0.25,
+   0.727
+  ],
+  "print": null
+ },
+ "plant_hanging": {
+  "category": "plants",
+  "mount": "wall",
+  "size": [
+   0.286,
+   0.335,
+   0.726
+  ],
+  "print": null
+ },
+ "plant_succulent": {
+  "category": "plants",
+  "mount": "top",
+  "size": [
+   0.15,
+   0.15,
+   0.12
+  ],
+  "print": null
+ },
+ "vase_flowers": {
+  "category": "plants",
+  "mount": "top",
+  "size": [
+   0.274,
+   0.184,
+   0.39
+  ],
+  "print": null
+ },
+ "plant_stand": {
+  "category": "plants",
+  "mount": "floor",
+  "size": [
+   0.35,
+   0.3,
+   0.851
+  ],
+  "print": null
+ },
+ "frame_landscape_large": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   1.04,
+   0.045,
+   0.8
+  ],
+  "print": "deep-WQ5YDICQb3M:landscape"
+ },
+ "frame_landscape_small": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.6,
+   0.035,
+   0.47
+  ],
+  "print": "deep-K92pByP9tPQ:landscape"
+ },
+ "frame_portrait": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.42,
+   0.035,
+   0.56
+  ],
+  "print": "royyan-wijaya-xfWHBCwMeQQ:portrait"
+ },
+ "frame_portrait_small": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.3,
+   0.03,
+   0.4
+  ],
+  "print": "deep-isf0PELGzBE:portrait"
+ },
+ "frame_round": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.515,
+   0.035,
+   0.515
+  ],
+  "print": "deep-g5Jfpcd9VCo:square"
+ },
+ "woven_plate": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.42,
+   0.032,
+   0.42
+  ],
+  "print": null
+ },
+ "embroidery_hoop": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.324,
+   0.021,
+   0.347
+  ],
+  "print": "robin-granqvist-BiX562ApuHI:square"
+ },
+ "picture_ledge": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   1.1,
+   0.118,
+   0.408
+  ],
+  "print": "deep-0ECAhyBYxhE:portrait"
+ },
+ "wall_clock": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.42,
+   0.051,
+   0.42
+  ],
+  "print": null
+ },
+ "mirror_arch": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.5,
+   0.04,
+   0.84
+  ],
+  "print": null
+ },
+ "floating_shelf": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.9,
+   0.2,
+   0.23
+  ],
+  "print": null
+ },
+ "tapestry": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   0.76,
+   0.04,
+   0.885
+  ],
+  "print": null
+ },
+ "bunting": {
+  "category": "wall_art",
+  "mount": "wall",
+  "size": [
+   1.4,
+   0.006,
+   0.201
+  ],
+  "print": null
+ },
+ "baseboard": {
+  "category": "trim",
+  "mount": "wall",
+  "size": [
+   1.0,
+   0.03,
+   0.12
+  ],
+  "print": null
+ },
+ "crown_moulding": {
+  "category": "trim",
+  "mount": "wall",
+  "size": [
+   1.0,
+   0.075,
+   0.11
+  ],
+  "print": null
+ },
+ "chair_rail": {
+  "category": "trim",
+  "mount": "wall",
+  "size": [
+   1.0,
+   0.025,
+   0.045
+  ],
+  "print": null
+ },
+ "wainscot_beadboard": {
+  "category": "trim",
+  "mount": "wall",
+  "size": [
+   1.0,
+   0.035,
+   0.9
+  ],
+  "print": null
+ },
+ "wainscot_panel": {
+  "category": "trim",
+  "mount": "wall",
+  "size": [
+   1.0,
+   0.035,
+   0.9
+  ],
+  "print": null
+ },
+ "cushion_square": {
+  "category": "soft",
+  "mount": "floor",
+  "size": [
+   0.4,
+   0.222,
+   0.378
+  ],
+  "print": null
+ },
+ "cushion_bolster": {
+  "category": "soft",
+  "mount": "floor",
+  "size": [
+   0.4,
+   0.207,
+   0.21
+  ],
+  "print": null
+ },
+ "throw_blanket": {
+  "category": "soft",
+  "mount": "floor",
+  "size": [
+   0.48,
+   0.374,
+   0.445
+  ],
+  "print": null
+ },
+ "quilt_fold": {
+  "category": "soft",
+  "mount": "floor",
+  "size": [
+   1.5,
+   0.55,
+   0.14
+  ],
+  "print": null
+ },
+ "pouf": {
+  "category": "soft",
+  "mount": "floor",
+  "size": [
+   0.52,
+   0.52,
+   0.31
+  ],
+  "print": null
+ },
+ "basket_blankets": {
+  "category": "soft",
+  "mount": "floor",
+  "size": [
+   0.47,
+   0.465,
+   0.395
+  ],
+  "print": null
+ },
+ "vase_round": {
+  "category": "tabletop",
+  "mount": "top",
+  "size": [
+   0.17,
+   0.167,
+   0.21
+  ],
+  "print": null
+ },
+ "vase_bud": {
+  "category": "tabletop",
+  "mount": "top",
+  "size": [
+   0.09,
+   0.099,
+   0.49
+  ],
+  "print": null
+ },
+ "bowl_fruit": {
+  "category": "tabletop",
+  "mount": "top",
+  "size": [
+   0.28,
+   0.277,
+   0.14
+  ],
+  "print": null
+ },
+ "books_stack": {
+  "category": "tabletop",
+  "mount": "top",
+  "size": [
+   0.261,
+   0.202,
+   0.105
+  ],
+  "print": null
+ },
+ "candles": {
+  "category": "tabletop",
+  "mount": "top",
+  "size": [
+   0.26,
+   0.12,
+   0.165
+  ],
+  "print": null
+ },
+ "tea_set": {
+  "category": "tabletop",
+  "mount": "top",
+  "size": [
+   0.35,
+   0.158,
+   0.13
+  ],
+  "print": null
+ },
+ "photo_standing": {
+  "category": "tabletop",
+  "mount": "top",
+  "size": [
+   0.16,
+   0.107,
+   0.211
+  ],
+  "print": "balaji-krishnamurty-KxjJTr35lls:portrait"
+ }
+}

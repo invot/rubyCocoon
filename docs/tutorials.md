@@ -5,9 +5,11 @@ dialogue and battle controllers provide keyboard, controller and on-screen input
 The Coastal Path's four teachers give short guided battles from their own anchored bubbles. After them, the
 **Codex** (`scripts/ui/codex.gd`, topics in `scripts/data/codex_db.gd`) explains everything else: a little robot
 head at the top-left of the battle screen whose bubbles hang under it. It chimes in once per topic
-(`codex_seen_<topic>`), answers questions without using a turn (Codex ? on the trainer's bar, a tap on it, the
-Start book's Codex page), and only offers topics the player is eligible to know. Settings ► Codex tips turns its
-chime-ins off; a journey played over three hours before the Codex existed has it turn them off itself, saying so.
+(`codex_seen_<topic>`), answers questions without using a turn (Ask Codex on the trainer's bar, a tap on it whenever it shows, the
+Start book's Codex page), and only offers topics the player is eligible to know. While it teaches, the stage turns into its green wireframe
+simulation (`scripts/battle/sim_look.gd`), only the taught action is allowed, nobody takes damage, and Hold B skips
+the lesson. Lessons about an action (choosing for each beast, Move, the flute, summons, the Boomerang, the Bat) end
+with one practice turn on rails (`battle.gd` `_codex_practice`), after which everything is put back for the real round. Settings ► Codex tips turns its chime-ins off; a journey played over three hours before the Codex existed has it turn them off itself, saying so.
 Persistent flags belong to normal phone saves; previews and tests use `res://build/` saves only.
 
 | Mechanic | Introduction |

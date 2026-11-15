@@ -36,6 +36,8 @@ const ROOM_CHARS := {
 	# an open doorway onto a balcony: drawn open (room_builder.gd _balcony_door), but walled for walking, so it leads
 	# nowhere
 	"!": MapGen.IWINDOW,
+	# where a coat stand stood (retired 2026-11-15: too thin to be cosy): plain floor
+	"O": MapGen.IFLOOR,
 }
 ## Tiles drawn as furniture (see room_builder.gd KINDS): the furniture letters of interior_maps.gd plus the older
 ## room tiles that are furniture too.
@@ -1059,7 +1061,19 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	# (a diner's patrons sit at their tables too)
 	for n in m["npcs"]:
 		var table := _table_beside(m, n["pos"])
-		if n.get("kind", "") in ["villager", "resident", "patron"] or n.get("id", "") == "mom":
+		var raised := false
+		for d in room.get("dais", []):
+			if Rect2i(int(d[0]), int(d[1]), int(d[2]), int(d[3])).has_point(n["pos"]):
+				raised = true
+		if raised and n.get("kind", "") in ["villager", "resident", "patron"]:
+			# on a raised platform (room "dais"), sitting on a floor cushion facing the room, with their tea or book
+			n["facing"] = Vector2i(0, 1)
+			n["wander"] = false
+			n["sit"] = true
+			n["floor_seat"] = true
+			n["seat_height"] = 0.16
+			n["visual_offset"] = Vector3(0, 0.22, 0)
+		elif n.get("kind", "") in ["villager", "resident", "patron"] or n.get("id", "") == "mom":
 			if table != Vector2i.ZERO:
 				# sitting there, on a chair (see world.gd seat)
 				n["facing"] = table

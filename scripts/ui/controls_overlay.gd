@@ -15,6 +15,10 @@ const TOUCH_SLOP := 22.0
 ## A and B click at a lower pitch than the menu blip, B two notes (a minor third) below A, and softer.
 const PAD_PITCH := {"a": 0.75, "b": 0.75 * 0.8409}
 const PAD_VOL := -6.0
+const TOUCH_IDLE_MS := 2000
+const TOUCH_IDLE_ALPHA := 0.40
+var _last_touch_ms := 0
+var _touch_fingers := {}
 ## actions each touch button presses (game + menu navigation + flute lanes)
 const PAD_ACTIONS := {
 	"up": ["move_up", "ui_up"], "down": ["move_down", "ui_down"],
@@ -37,6 +41,8 @@ var _gem := ""
 func _ready() -> void:
 	layer = 12
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_last_touch_ms = Time.get_ticks_msec()
+	get_window().focus_exited.connect(_clear_touch_activity)
 	_build_legend()
 	_build_touch()
 	_gem = UIKit.accent_name
@@ -52,17 +58,21 @@ func refresh() -> void:
 		_recolour()
 	var next_touch := Prefs.touch_enabled() and (not title_mode or film_mode)
 	if _touch_on and not next_touch:
+		_clear_touch_activity()
 		# A controller connected while a thumb was down: release the pad's actions before hiding it.
 		for id in PAD_ACTIONS:
 			if (_buttons[id] as TouchScreenButton).is_pressed() or id == _arm:
 				_send_actions(id, false)
 		_arm = ""
+	if next_touch and not _touch_on:
+		_last_touch_ms = Time.get_ticks_msec()
 	_touch_on = next_touch
 	touch_root.visible = _touch_on
 	touch_root.process_mode = Node.PROCESS_MODE_INHERIT if _touch_on else Node.PROCESS_MODE_DISABLED
 	_legend_row.visible = not controller_guide() and not flute_mode
 	_flute_row.visible = not controller_guide() and flute_mode
 	_place_legend(true)
+	_sync_dpad()
 	_layout()
 	layout_changed.emit()
 
@@ -129,10 +139,46 @@ func touch_visible() -> bool:
 	return _touch_on
 
 
+func _active_touch_alpha() -> float:
+	var alpha := 1.0
+	for modal in UI.stack:
+		var requested: Variant = modal.get("touch_controls_alpha")
+		if requested is float or requested is int:
+			alpha = minf(alpha, clampf(float(requested), 0.0, 1.0))
+	return alpha
+
+
+func _input(event: InputEvent) -> void:
+	if not _touch_on:
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_touch_fingers[event.index] = true
+		else:
+			_touch_fingers.erase(event.index)
+	elif event is InputEventScreenDrag:
+		_touch_fingers[event.index] = true
+	else:
+		return
+	_last_touch_ms = Time.get_ticks_msec()
+	touch_root.modulate.a = _active_touch_alpha()
+
+
+func _clear_touch_activity() -> void:
+	_touch_fingers.clear()
+	_last_touch_ms = Time.get_ticks_msec()
+
+
 ## Only screens explicitly requesting it (the full map or ring editor) hide the side pad.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _touch_on or _buttons.is_empty():
 		return
+	var pad_alpha := _active_touch_alpha()
+	if _touch_fingers.is_empty() and Time.get_ticks_msec() - _last_touch_ms >= TOUCH_IDLE_MS:
+		pad_alpha = minf(pad_alpha, TOUCH_IDLE_ALPHA)
+	# Brighten immediately; a touch still performs its usual action once.
+	touch_root.modulate.a = pad_alpha if pad_alpha >= touch_root.modulate.a else move_toward(touch_root.modulate.a, pad_alpha, delta * 2.0)
+	_sync_dpad()
 	var top = UI.stack.back() if is_instance_valid(UI) and not UI.stack.is_empty() else null
 	var answers: Dictionary = top.get("confirmation_labels") if top != null and top.get("confirmation_labels") is Dictionary else {}
 	var film := film_mode
@@ -310,7 +356,9 @@ var _button_material: ShaderMaterial
 ## a backdrop's fill: `shade` wherever its shape's marker is
 const FILL_SHADER := "shader_type canvas_item;
 uniform vec4 shade : source_color = vec4(1.0);
-void fragment() { COLOR = vec4(shade.rgb, shade.a * texture(TEXTURE, UV).a); }
+varying vec4 tint;
+void vertex() { tint = COLOR; }
+void fragment() { COLOR = vec4(shade.rgb, shade.a * texture(TEXTURE, UV).a) * tint; }
 "
 ## A, B, Start and Pause's labels: they sink a little while their button is held
 var _labels := {}
@@ -698,14 +746,38 @@ func _touch_button(id: String, box: Vector2) -> TouchScreenButton:
 ## An arm's touch area: the quarter of the d-pad on its side of the two diagonals, from the middle of the cross out to
 ## a little past its edge (in the arm's own space, centred on the arm). The four never overlap, so wherever a thumb
 ## lands or slides it holds just one way.
-static func _arm_shape(dir: String) -> ConvexPolygonShape2D:
+static func _arm_shape(dir: String, diagonals := false) -> ConvexPolygonShape2D:
 	var out: Vector2 = {"up": Vector2.UP, "down": Vector2.DOWN, "left": Vector2.LEFT, "right": Vector2.RIGHT}[dir]
 	var side := Vector2(-out.y, out.x)
 	var reach := ARM * 1.5 + TOUCH_SLOP
 	var middle := -out * ARM
 	var shape := ConvexPolygonShape2D.new()
-	shape.points = PackedVector2Array([middle, middle + (out + side) * reach, middle + (out - side) * reach])
+	if diagonals:
+		# Overlap adjacent arms in 45-degree corner zones; stay inside the
+		# existing square hit area and its world/menu no-tap zone.
+		var slope := tan(PI / 8.0)
+		shape.points = PackedVector2Array([middle, middle + (out * slope + side) * reach,
+			middle + (out + side) * reach, middle + (out - side) * reach,
+			middle + (out * slope - side) * reach])
+	else:
+		shape.points = PackedVector2Array([middle, middle + (out + side) * reach, middle + (out - side) * reach])
 	return shape
+
+
+var _pad_diagonal := false
+
+
+func _sync_dpad() -> void:
+	var diagonals: bool = Prefs.diagonal_movement and not flute_mode and not film_mode \
+		and UI.stack.is_empty() and GameState.main != null and not GameState.main.in_battle
+	if diagonals == _pad_diagonal:
+		return
+	for id in ARMS:
+		if (_buttons[id] as TouchScreenButton).is_pressed() or id == _arm:
+			_send_actions(id, false)
+		(_buttons[id] as TouchScreenButton).shape = _arm_shape(id, diagonals)
+	_arm = ""
+	_pad_diagonal = diagonals
 
 
 ## The flute minigame's notes. While flute_mode is on, these buttons send only their note, without the button blip.
@@ -749,6 +821,7 @@ func set_flute_mode(on: bool) -> void:
 				Input.action_release(action)
 	_arm = ""
 	flute_mode = on
+	_sync_dpad()
 	if _legend_row:
 		_legend_row.visible = not on and not controller_guide()
 		_flute_row.visible = on and not controller_guide()
@@ -761,7 +834,7 @@ var _arm := ""
 
 
 func _send(id: String, down: bool) -> void:
-	if id in ARMS and not flute_mode:
+	if id in ARMS and not flute_mode and not _pad_diagonal:
 		if down:
 			if _arm != "" and _arm != id:
 				_send_actions(_arm, false)
@@ -860,13 +933,13 @@ func button_rect(id: String) -> Rect2:
 
 ## Bottom space a menu needs at its horizontal position, including the buttons' enlarged hit areas and a gap.
 ## Central menus can use the space between the side controls; right-hand lists must stop above A/B.
-func menu_bottom_reserve(left: float, right: float) -> float:
+func menu_bottom_reserve(left: float, right: float, respect_no_tap := false) -> float:
 	if not _touch_on:
 		return legend_height() if legend_visible() else 0.0
 	var reserve := 0.0
 	var height := get_viewport().get_visible_rect().size.y
 	for group in CLUSTERS:
-		var zone := cluster_zone(group, TOUCH_SLOP + 12.0)
+		var zone := cluster_zone(group, TOUCH_SLOP + (NO_TAP_MARGIN if respect_no_tap else 12.0))
 		if zone.has_area() and left < zone.end.x and right > zone.position.x:
 			reserve = maxf(reserve, height - zone.position.y)
 	return reserve

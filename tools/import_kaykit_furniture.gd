@@ -56,6 +56,20 @@ const PIECES := {
 	"kk_table_low": ["table_low", [1.25, 0.38, 0.78]],
 	# the long chest of drawers (every dresser stands on one tile against a wall)
 	"kk_drawers": ["cabinet_medium", [0.96, 0.62, 0.48]],
+	# (2026-11-15 interiors pass, at the pack's scale x 2/3 like the chairs) wall shelves, dressed with the pack's
+	# own books and pots, and a plain one; low cupboards; loose pillows and a set of books
+	"kk_shelf_wall_large": ["shelf_B_large_decorated", [1.33, 0.545, 0.333]],
+	"kk_shelf_wall_small": ["shelf_B_small_decorated", [0.667, 0.674, 0.381]],
+	"kk_shelf_plain": ["shelf_A_small", [0.667, 0.267, 0.333]],
+	# the same chunky shelves bare, for room_builder.gd to dress with its own things (2026-11-15)
+	"kk_shelf_bare_large": ["shelf_B_large", [1.33, 0.267, 0.333]],
+	"kk_shelf_bare_small": ["shelf_B_small", [0.667, 0.267, 0.333]],
+	"kk_cabinet_small": ["cabinet_small", [0.667, 0.667, 0.668]],
+	"kk_cabinet_small_dec": ["cabinet_small_decorated", [0.698, 1.078, 0.736]],
+	"kk_cabinet_medium_dec": ["cabinet_medium_decorated", [1.361, 1.218, 0.668]],
+	"kk_pillow_A": ["pillow_A", [0.433, 0.133, 0.333]],
+	"kk_pillow_B": ["pillow_B", [0.433, 0.133, 0.333]],
+	"kk_book_set": ["book_set", [0.52, 0.333, 0.243]],
 	# area rugs (room_builder.gd stretches them over their tiles)
 	"kk_rug_rect": ["rug_rectangle_B", [3.0, 0.025, 2.0]],
 	"kk_rug_stripes": ["rug_rectangle_stripes_B", [3.0, 0.025, 2.0]],

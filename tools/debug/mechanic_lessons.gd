@@ -1,6 +1,7 @@
 extends RefCounted
 ## Exercises progression, real lesson input, and save persistence without touching player saves.
 const BeatCue = preload("res://scripts/battle/beat_cue.gd")
+const Beasts = preload("res://scripts/core/beasts.gd")
 const FluteGame = preload("res://scripts/ui/flute_game.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const ML = preload("res://scripts/world/map_loader.gd")
@@ -52,6 +53,8 @@ func run(game, options: Dictionary) -> void:
 		await rhythm()
 	if part in ["all", "ring"]:
 		await ring()
+	if part in ["all", "practice"]:
+		await practice()
 	if part == "field":
 		await field()
 	if main.in_battle:
@@ -306,11 +309,15 @@ func ring() -> void:
 	await drive(done)
 	var panel = UI.stack.back() if not UI.stack.is_empty() else null
 	check(panel != null and panel.has_method("_rotate") and panel.info.get("rotation_lesson", false), "four-beast party: the Codex starts an interactive rotation lesson")
+	# the battle (the panel closes and opens again as the ring turns)
+	var after_stage = panel.hooks.get("stage", null) if panel != null and panel.has_method("_rotate") else null
 	check(GameState.flag("codex_seen_ring"), "the Codex explained turning the ring")
 	if panel != null and panel.has_method("_rotate"):
 		var labels: Array = panel.rows[0]["options"].map(func(o): return String(o.get("label", "")))
-		var codex_opt: Dictionary = panel.rows[0]["options"][labels.find("Codex")] if labels.has("Codex") else {}
-		check(codex_opt.get("icon", "") == "help" and codex_opt.get("sub", false), "the trainer's bar has Codex with its ? icon")
+		var codex_opt: Dictionary = panel.rows[0]["options"][labels.find("Ask Codex")] if labels.has("Ask Codex") else {}
+		check(codex_opt.get("icon", "") == "help" and codex_opt.get("sub", false), "the trainer's bar has Ask Codex with its ? icon")
+		var stage = panel.hooks.get("stage", null)
+		check(stage != null and stage._sim != null and Codex.in_lesson(), "the ring lesson shows the Codex's simulation until you turn the ring")
 	if panel == null or not panel.has_method("_rotate"):
 		return
 	for i in 20:
@@ -337,6 +344,59 @@ func ring() -> void:
 			break
 		await main._wait(0.025)
 	check(GameState.flag("ring_rotation_taught"), "actual ring turn completes the lesson")
+	check(after_stage != null and after_stage._sim == null and not Codex.in_lesson(), "turning the ring ends the lesson and its simulation")
+	# a skipped lesson: its bubble closes, the rest of its talk is left out, and the simulation goes
+	GameState.set_flag("codex_seen_protection", false)
+	var skip_done := [false]
+	var run_chime := func():
+		await Codex.chime("protection")
+		skip_done[0] = true
+	run_chime.call()
+	await main._wait(0.1)
+	# (shot() itself waits a moment: this lands near the wipe's peak)
+	await shot("sim_wipe")
+	check(after_stage != null and after_stage._sim != null, "a Codex lesson turns the stage into its simulation")
+	check(Sfx._music_kind == "codex", "the simulation plays its own music (Bit Quest)")
+	Codex.skip()
+	for i in 40:
+		if skip_done[0]:
+			break
+		await main._wait(0.025)
+	check(skip_done[0] and after_stage._sim == null and not Codex.in_lesson(), "skipping a lesson ends it at once, simulation and all")
+	# (the look and the music change at the wipe's peak)
+	await main._wait(0.7)
+	check(Sfx._music_kind in ["battle", "boss"] and (after_stage._wipe == null or not after_stage._wipe.visible), "the battle's own music comes back after the lesson's wipe")
+	# the Codex's face follows the battle: sad when one of yours faints, bouncing when you win
+	Codex.react("sad", 1.0)
+	await main._wait(0.05)
+	check(Codex.head._react_mood == "sad" and Codex.head._react_left > 0.0, "the Codex looks sad when it's told to")
+	await shot("codex_sad")
+	Codex.react("excited", 1.0, true)
+	await main._wait(0.2)
+	check(Codex.head._bounce_left > 0.0 and absf(Codex.head._pivot.position.y) > 0.001, "the Codex bounces when it celebrates")
+	await shot("codex_celebrate")
+	check(GameState.flag("codex_seen_protection"), "a skipped topic still counts as told (you can ask about it)")
+	# a tap on the head brings up its question list, here and now; B puts it away
+	var under = UI.stack.back() if not UI.stack.is_empty() else null
+	Codex.head.tapped.emit()
+	var asked := false
+	for i in 40:
+		await main._wait(0.025)
+		if not UI.stack.is_empty() and UI.stack.back() != under and Codex._asking:
+			asked = true
+			break
+	check(asked, "a tap on the Codex brings up its question list")
+	await main._press("ui_cancel")
+	for i in 40:
+		if not Codex._asking:
+			break
+		await main._wait(0.025)
+	check(not Codex._asking and not UI.get_tree().paused, "B puts the list away and the battle carries on")
+	for i in 80:
+		var top = UI.stack.back() if not UI.stack.is_empty() else null
+		if top != null and top.has_method("_rotate"):
+			break
+		await main._wait(0.025)
 	# A first-use explanation pauses confirmation; dismissing it resumes the same choice only once.
 	var active = UI.stack.back() if not UI.stack.is_empty() else null
 	if active != null and active.has_method("_rotate"):
@@ -364,6 +424,108 @@ func ring() -> void:
 	GameState.set_flag("codex_seen_protection", false)
 	check(not await Codex.chime("protection") and not GameState.flag("codex_seen_protection"), "switched off, the Codex stays quiet and keeps the topic for later")
 	GameState.set_flag("codex_off", false)
+
+
+## A Codex action lesson on rails: after explaining "Choosing for each beast" it runs one practice turn in its
+## simulation, only Watch open for you, every hit shown but nobody hurt, and everything put back afterwards.
+func practice() -> void:
+	await _leave_battle()
+	UI.auto = false
+	Engine.time_scale = 2.0
+	GameState.set_flag("ring_rotation_taught")
+	GameState.set_flag("codex_off", false)
+	GameState.set_flag("codex_seen_team", false)
+	await main._do_goto("route1", "west")
+	await main._wait(1.0)
+	var a := Beasts.create(0, 20)
+	var b := Beasts.create(3, 20)
+	a.slot = 0
+	b.slot = 1
+	GameState.party = [a, b]
+	# (in the red: once the lesson's done, the Codex heals it)
+	a.hp = 1
+	for k in GameState.flags.keys():
+		if String(k).begins_with("codex_skipped_"):
+			GameState.set_flag(String(k), false)
+	GameState.ring_side = 0
+	GameState.max_shield = 4
+	GameState.shield = 4
+	var foes := [Beasts.create(12, 20), Beasts.create(15, 20)]
+	var run_battle := func():
+		await main.start_battle({"wild": false, "foes": foes, "trainer": {"name": "Tess", "cls": "Tester", "team": []}, "seed": 7})
+	run_battle.call()
+	var bt = null
+	var panel = null
+	var until := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < until:
+		if bt == null:
+			for c in main.view.get_children():
+				if c.get_script() == load(main.BATTLE_PATH):
+					bt = c
+		var top = UI.stack.back() if not UI.stack.is_empty() else null
+		if bt != null and bt._practice == "team" and top != null and top.has_method("_rotate"):
+			panel = top
+			break
+		if top is UI.DialogBox and top._paged:
+			top.shown = 99999.0
+			await main._press("ui_accept")
+		await main._wait(0.03)
+	check(panel != null, "after explaining it, the Codex opens a practice turn of choosing for each beast")
+	if panel == null:
+		return
+	await shot("practice_panel")
+	check(bt._sim != null and Codex.in_lesson(), "the practice runs in the Codex's simulation")
+	var open: Array = panel.rows[0]["options"].filter(func(o): return not o.get("disabled", false)).map(func(o): return String(o.get("id", "")))
+	check(open.has("watch") and not open.has("weapon") and not open.has("items"), "on rails: only Watch is open for you (%s)" % str(open))
+	var hp := {}
+	for x in bt.st:
+		hp[x] = x.hp
+	var hit_seen := false
+	until = Time.get_ticks_msec() + 90000
+	while Time.get_ticks_msec() < until and (bt._practice != "" or Codex.in_lesson()):
+		var top = UI.stack.back() if not UI.stack.is_empty() else null
+		if top is UI.DialogBox and top._paged:
+			top.shown = 99999.0
+		if bt._practice != "" and not bt._commanding and not hit_seen and bt._acting_ref != null:
+			hit_seen = true
+			await shot("practice_hit")
+		await main._press("ui_accept")
+		await main._wait(0.05)
+	check(bt._practice == "" and not Codex.in_lesson(), "the practice turn ends, and the lesson with it")
+	var same := true
+	for x in hp:
+		if x.hp < hp[x]:
+			same = false
+	check(same, "nobody lost HP in the practice")
+	# all its lessons done: the Codex heals a beast in the red, once
+	until = Time.get_ticks_msec() + 30000
+	while Time.get_ticks_msec() < until and a.hp < a.max_hp():
+		var top = UI.stack.back() if not UI.stack.is_empty() else null
+		if top is UI.DialogBox and top._paged:
+			top.shown = 99999.0
+			if top.speaker == "Codex" and top.text_label.text.contains("patch you up"):
+				await shot("codex_heal")
+			await main._press("ui_accept")
+		await main._wait(0.05)
+	check(Codex.mastered() and a.hp == a.max_hp() and bt._codex_healed, "lessons done, the Codex heals a beast in the red (once a battle)")
+	# the achievement needs every lesson taught, none ever skipped (asking later doesn't make up for one), tips on
+	GameState.set_flag("codex_skipped_guard")
+	UI.auto = true
+	await Codex.explain("guard")
+	UI.auto = false
+	check(not Codex.mastered(), "a skipped lesson loses the Codex's heal for good")
+	GameState.set_flag("codex_skipped_guard", false)
+	GameState.set_flag("codex_seen_bat", false)
+	check(not Codex.mastered(), "a lesson not yet given keeps the heal locked")
+	GameState.set_flag("codex_seen_bat")
+	GameState.set_flag("codex_off")
+	check(not Codex.mastered(), "with its tips off, no heal")
+	GameState.set_flag("codex_off", false)
+	check(bt.result == "" and GameState.shield == 4, "the battle carries on as it was")
+	await main._wait(0.8)
+	check(bt._sim == null and bt.stage_env.sky != bt.SimLook._sky and not (bt._wipe != null and bt._wipe.visible), "the simulation ends with the practice, and the stage looks itself again")
+	await _leave_battle()
+	Engine.time_scale = 1.0
 
 
 func field() -> void:

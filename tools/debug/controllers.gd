@@ -14,6 +14,7 @@ func run(host, args: Dictionary) -> void:
 		_check(false, "use an isolated --prefs_path=res://build/.../settings.cfg")
 		return
 	Prefs.input_mode = ""
+	Prefs.diagonal_movement = false
 	if opts.get("verify", "1") == "0":
 		await _preview()
 		return
@@ -53,6 +54,8 @@ func run(host, args: Dictionary) -> void:
 	_check(start.x >= 0, "open ground found for eight-direction movement")
 	if start.x < 0:
 		return
+	Prefs.diagonal_movement = true
+	Prefs.apply()
 	for d in [Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(-1, 1),
 		Vector2i(-1, 0), Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1)]:
 		w.player_pos = start

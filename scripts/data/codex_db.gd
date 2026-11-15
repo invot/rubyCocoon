@@ -14,8 +14,9 @@ const GROUPS := ["Battle basics", "Your team", "Moves", "Gear and songs"]
 const TOPICS := {
 	"codex": {"title": "Using the Codex", "group": "Battle basics", "lines": [
 		"[happy] I'm your Codex! When something new comes up in battle, I'll chime in.",
-		"[proud] To ask me anything in battle, tap me or pick Codex beside your trainer. Asking never uses your turn.",
-		"[curious] Outside battle, find me on the Codex page of your Start book."]},
+		"[proud] Got a question? Tap my head, or pick Ask Codex beside your trainer in battle. It never takes up your turn, and I'll help you find the answer.",
+		"[curious] Outside battle, find me on the Codex page of your Start book.",
+		"[proud] Finish every one of my lessons without skipping, and keep my tips on: then once a battle I'll heal a beast in the red!"]},
 	"attack": {"title": "Attacking", "group": "Battle basics", "lines": [
 		"[neutral] Choose your own action first, then each beast's move. Left and right change a choice, A picks it, B goes back.",
 		"[determined] Then aim with left and right and confirm with A. On touch, tap a foe to aim and tap it again to confirm.",

@@ -13,6 +13,7 @@ extends RefCounted
 
 const CodexDB = preload("res://scripts/data/codex_db.gd")
 const CodexHead = preload("res://scripts/ui/codex_head.gd")
+const CodexSkip = preload("res://scripts/ui/codex_skip.gd")
 const DialogBox = preload("res://scripts/ui/dialog_box.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 
@@ -25,6 +26,22 @@ const BEEP_CHANCE := 0.4
 static var head: Control = null
 static var _pinned := false
 static var _last_mood := ""
+## Whether its question list is up (a tap on the head then does nothing).
+static var _asking := false
+## battle.gd's say on a tap while you choose commands: true if it took the tap (it closes its panel and asks).
+static var tap_handler := Callable()
+## A lesson in progress (begin_lesson / end_lesson nest), whether it was skipped, and battle.gd's hooks: on_lesson(on)
+## as one starts and ends (the stage's simulation look), on_skip() when it is skipped.
+static var _lesson_depth := 0
+static var _skipped := false
+static var on_lesson := Callable()
+static var on_skip := Callable()
+static var _skip_ui: Control = null
+## The topic of the lesson running now (its first chime), so a skip is remembered against it.
+static var _lesson_topic := ""
+## Whether the lesson running now has really started (_activate).
+static var _active := false
+static var _dialog: Control = null
 
 
 static func has_codex() -> bool:
@@ -40,7 +57,23 @@ static func _ensure() -> Control:
 		UI.root.move_child(head, UI.top_bar.get_index() + 1)
 		UI.modal_layer.add_child(head.glow)
 		UI.modal_layer.move_child(head.glow, 0)
+		head.tapped.connect(_on_tapped)
+		head.tappable = true
 	return head
+
+
+## A tap on the head, whenever it shows: its question list comes up (pausing whatever is going on), unless it's up
+## already. While you choose commands in battle, the battle takes the tap and asks between its menus (tap_handler).
+static func _on_tapped() -> void:
+	if _asking or not has_codex():
+		return
+	if tap_handler.is_valid() and bool(tap_handler.call()):
+		return
+	var tree := UI.get_tree()
+	var was_paused := tree.paused
+	tree.paused = true
+	await ask()
+	tree.paused = was_paused
 
 
 ## Keep the head up (in battle) until unpin(); with its tips switched off ("codex_off") it stays hidden between talks.
@@ -53,8 +86,15 @@ static func pin() -> void:
 
 static func unpin() -> void:
 	_pinned = false
+	tap_handler = Callable()
+	on_lesson = Callable()
+	on_skip = Callable()
+	_lesson_depth = 0
+	_active = false
+	_skipped = false
+	if is_instance_valid(_skip_ui):
+		_skip_ui.visible = false
 	if is_instance_valid(head):
-		head.tappable = false
 		head.visible = false
 
 
@@ -63,20 +103,93 @@ static func _shown() -> bool:
 	return _pinned and not GameState.flag("codex_off")
 
 
-## Whether a tap on the head asks a question (battle.gd, while you choose commands).
-static func set_tappable(on: bool) -> void:
-	if is_instance_valid(head):
-		head.tappable = on and _shown()
+## The head reacts to the battle while it's up (its tips on): `mood` (codex_head.gd MOODS: "sad" when one of yours
+## faints, "excited" when a foe does...) for `secs`, bouncing if `bounce` (a win). Nothing while it's talking or off.
+static func react(mood: String, secs := 2.5, bounce := false) -> void:
+	if not is_instance_valid(head) or not head.visible or head.talking or not _shown():
+		return
+	head.react(mood, secs, bounce)
 
 
-## The head's tap signal, for battle.gd to connect.
-static func tapped() -> Signal:
-	return _ensure().tapped
+## A lesson begins: the battle's stage turns into the Codex's simulation (on_lesson) and "Hold B: Skip lesson" shows
+## beside the head. Lessons nest (a chime inside a longer lesson); the outermost one decides.
+static func begin_lesson() -> void:
+	if not has_codex():
+		return
+	_lesson_depth += 1
+	if _lesson_depth > 1:
+		return
+	_skipped = false
+	_lesson_topic = ""
+	_active = false
+
+
+## The lesson really starts (its first chime speaks): the simulation and the skip button come up. A lesson that ends
+## up teaching nothing (its topic told long ago) never shows either.
+static func _activate() -> void:
+	if _active or _lesson_depth <= 0:
+		return
+	_active = true
+	if UI.auto:
+		if on_lesson.is_valid():
+			on_lesson.call(true)
+		return
+	var h := _ensure()
+	if not is_instance_valid(_skip_ui):
+		_skip_ui = CodexSkip.new()
+		UI.root.add_child(_skip_ui)
+		UI.root.move_child(_skip_ui, h.get_index() + 1)
+		_skip_ui.skip.connect(skip)
+	_skip_ui.visible = true
+	_skip_ui.place_beside(Rect2(h.global_position, h.size))
+	if on_lesson.is_valid():
+		on_lesson.call(true)
+
+
+static func end_lesson() -> void:
+	if _lesson_depth <= 0:
+		return
+	_lesson_depth -= 1
+	if _lesson_depth > 0:
+		return
+	_lesson_topic = ""
+	if not _active:
+		return
+	_active = false
+	if is_instance_valid(_skip_ui):
+		_skip_ui.visible = false
+	if on_lesson.is_valid():
+		on_lesson.call(false)
+
+
+static func in_lesson() -> bool:
+	return _lesson_depth > 0
+
+
+## Whether the lesson running now was skipped (its remaining talk and practice are left out).
+static func skipped() -> bool:
+	return _lesson_depth > 0 and _skipped
+
+
+## Skips the lesson running now: its bubble closes, the rest of its talk is left out, and the battle ends any practice.
+static func skip() -> void:
+	if _lesson_depth <= 0 or _skipped:
+		return
+	_skipped = true
+	if _lesson_topic != "":
+		GameState.set_flag("codex_skipped_" + _lesson_topic)
+	Sfx.play("back")
+	if is_instance_valid(_skip_ui):
+		_skip_ui.visible = false
+	if is_instance_valid(_dialog) and not _dialog.closed:
+		_dialog.close()
+	if on_skip.is_valid():
+		on_skip.call()
 
 
 ## The Codex says `lines` ("[mood] text"; codex_db.gd), one bubble each, its brows changing with every one.
 static func say(lines: Array) -> void:
-	if lines.is_empty():
+	if lines.is_empty() or skipped():
 		return
 	var parsed: Array = lines.map(func(l): return CodexDB.parse(String(l)))
 	if randf() < BEEP_CHANCE:
@@ -112,6 +225,7 @@ static func say(lines: Array) -> void:
 		if is_instance_valid(h):
 			h.set_mood(String(moods[clampi(src, 0, moods.size() - 1)])))
 	UI.push(d)
+	_dialog = d
 	# the glow just under this bubble (over any menu it's asked from), so it never washes over the words
 	if is_instance_valid(h.glow):
 		var at := d.get_index()
@@ -143,7 +257,31 @@ static func chime(id: String) -> bool:
 		return false
 	if not UI.auto:
 		_beep()
+	begin_lesson()
+	_activate()
+	if _lesson_topic == "":
+		_lesson_topic = id
 	await say(CodexDB.TOPICS[id]["lines"])
+	end_lesson()
+	return true
+
+
+## Topics the Coastal Path's trainers teach (and "codex", its hello): the Codex only answers questions about them, so
+## they're no lesson of its own.
+const BASICS := ["codex", "attack", "defend", "turns", "items", "slingshot", "run"]
+
+
+## The Codex's achievement (the user's 2026-11-15 direction): every one of its lessons taught to the end, none ever
+## skipped (a skip can't be made up), with its tips on. Then once a battle it heals your beasts in the red
+## (battle.gd _codex_heal).
+static func mastered() -> bool:
+	if not has_codex() or GameState.flag("codex_off"):
+		return false
+	for id in CodexDB.TOPICS:
+		if BASICS.has(id):
+			continue
+		if not GameState.flag("codex_seen_" + String(id)) or GameState.flag("codex_skipped_" + String(id)):
+			return false
 	return true
 
 
@@ -154,7 +292,11 @@ static func chime_all(ids: Array) -> void:
 
 
 static func explain(id: String) -> void:
+	# (asked for: a skipped lesson doesn't silence it)
+	var was := _skipped
+	_skipped = false
 	await say(CodexDB.TOPICS[id]["lines"])
+	_skipped = was
 
 
 ## The topics you may ask about, until you back out with B.
@@ -172,9 +314,15 @@ static func ask() -> void:
 		if ids.is_empty():
 			return
 		_ensure().visible = true
+		_asking = true
+		head.tappable = false
 		var i: int = await UI.choose("What would you like to know?", items, {"start": start, "cancel": true, "rows": 6, "width": 420})
+		_asking = false
+		if is_instance_valid(head):
+			head.tappable = true
 		if i < 0:
-			if not _shown() and is_instance_valid(head):
+			# (still up if it was talking when you tapped it)
+			if not _shown() and is_instance_valid(head) and not (is_instance_valid(_dialog) and not _dialog.closed):
 				head.visible = false
 			return
 		start = i

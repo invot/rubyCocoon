@@ -342,6 +342,9 @@ func _staging(m: Dictionary) -> Array:
 		for n in m["npcs"]:
 			if n.get("sit", false) and n.get("facing", Vector2i.ZERO) == Vector2i(0, -1):
 				out.append("%s's seated patron at %s has their back to the camera" % [label, n["pos"]])
+	# In a home nothing fades: anything you can walk behind stays below the hero's waist (2026-11-15).
+	for bad in RoomBuilder.front_tall(m):
+		out.append("%s's %s hides the player behind it; keep it below the waist or move it to the back wall" % [label, bad])
 	return out
 
 

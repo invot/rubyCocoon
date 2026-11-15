@@ -1461,13 +1461,13 @@ const FURNITURE_LINES := {
 	"nightstand": "A lamp and a dog-eared book on the nightstand.",
 	"dresser": "A dresser full of socks.",
 	"desk": "Papers, pencils and a half-written letter.",
-	"storage": "Shelves of boxes, all neatly labelled.",
+	"storage": "A cupboard, everything in it neatly labelled.",
 	"boxes": "Cardboard boxes, taped shut.",
 	"mop": "A mop and bucket.",
 	"floor_lamp": "A tall lamp casts a warm glow.",
 	"coat_stand": "Coats, scarves and an umbrella.",
 	"trash": "The bin's nearly full.",
-	"bunk": "A bunk bed. Top bunk's the best bunk.",
+	"bunk": "A little bed, the blanket tucked in tight.",
 }
 
 

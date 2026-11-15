@@ -91,7 +91,7 @@ not the source checkout, Godot editor or asset-import cache. Browser play has se
 
 | Action | Keyboard | Gamepad | Touch (phones and tablets) |
 |---|---|---|---|
-| Move (whole steps between tile centres) | Arrow keys, four ways (with two held, you keep going the way you were walking, else the newest one counts) | D-pad: four ways; left stick: eight ways, including diagonals | D-pad, bottom left (one arrow at a time) |
+| Move (whole steps between tile centres) | Arrow keys; four ways by default | D-pad or left stick; four ways by default | D-pad, bottom left; four ways by default |
 | Action: talk, confirm, use a beast or weapon on an obstacle | A (or Enter) | A | A, bottom right |
 | Back; hold to run | S (or Esc) | B | B, bottom right |
 | Start: the travel book menu | Space | Start | START, bottom centre |
@@ -118,8 +118,14 @@ from this Settings guide for every input type. The title screen shows no control
 Layouts include Xbox, PlayStation, Switch/Joy-Cons,
 Wii Classic/U Pro and Stadia layouts, with Xbox as the fallback for unidentified pads. Confirm is the bottom face button
 (Xbox A, PlayStation Cross, Nintendo B); Back/run is the right face button (B, Circle, Nintendo A).
-The stick has a radial deadzone; diagonal steps retain normal ground speed and cannot cut corners, cross stair rails,
-or approach ramps and doors diagonally. Keyboard, physical d-pad, touch d-pad and tap paths keep cardinal steps.
+**Start → Settings → Diagonal movement** enables eight-way movement on every platform; it defaults to **Off**,
+including with older settings files. On: hold two arrow keys or two controller d-pad directions, point the stick
+diagonally, or hold a corner of the touch pad. Off: the pad holds one direction at a time, the stick chooses a cardinal
+direction, and two held keyboard directions keep the current walking direction (otherwise the newest wins).
+The stick keeps its radial deadzone. Diagonal steps retain normal ground speed and cannot cut corners, cross stair
+rails, or approach ramps and doors diagonally. A blocked diagonal slides along a sole open cardinal component.
+Started steps finish at their destination's centre even if the setting changes. Tap paths remain cardinal;
+menus use cardinal navigation and flute chords keep their existing controls. Hold Back/B to run as usual.
 
 **Start → Settings → Input** selects **Screen**, **Keyboard** or **Controller**, showing only available inputs.
 Screen requires touch or mouse-emulated taps (desktop web uses guides); Keyboard requires a hardware keyboard on mobile;
@@ -262,11 +268,16 @@ your trainer, shields), the first battle with two beasts on a side (choosing for
 middle beast (Move), more than three beasts (turning the ring: you must turn it once before confirming moves), your
 flute, a summon, rhythm attacks (with a practice beat), eggs, and the first time you pick a move with an accuracy
 roll, a recharge, ally or group targets, status, stat changes, recoil/drain, protection, an element, the Boomerang or
-the Bat. You can ask it anything you're eligible to know, without using your turn: **Codex ?** at the end of your
-trainer's bar, a tap on the head, or the **Codex** page of the Start book. Topics about something you don't have
+the Bat. You can ask it anything you're eligible to know, without using your turn: **Ask Codex** at the end of your
+trainer's bar, a tap on the head, or the **Codex** page of the Start book; whenever the head shows, a tap on it brings up the list (it says so when you get it). Its face follows the fight: sad when one of your beasts
+faints, excited when a foe's does, and it bounces with joy when you win. Complete every one of its lessons without ever
+skipping one, and keep its tips on, and once a battle it heals any of your beasts whose HP is in the red. While it
+teaches in battle the stage turns into its green wireframe simulation (mostly black, with its own music, *Bit Quest*; the stage pixelates in and out), only the action being taught is allowed, nobody
+takes damage, and a lesson about something you do (choosing for each beast, Move, the flute, summons, the Boomerang or
+the Bat) ends with one practice turn on rails, after which everything is put back for the real round, and **Hold B: Skip lesson** beside the head skips it. Topics about something you don't have
 yet (the flute, a summon, the Bat, rhythm attacks) stay hidden, and move rules appear once you've met them. Its tips
 can be switched off under **Settings ► Codex tips**, and then its head leaves the battle screen, showing only while it
-talks or you ask it something (**Codex ?** on the trainer's bar); on a journey played for more than three hours before the Codex
+talks or you ask it something (**Ask Codex** on the trainer's bar); on a journey played for more than three hours before the Codex
 existed, it says it's switching them off itself the first time it appears. Lesson completion is saved through normal
 phone calls. See [tutorial coverage](docs/tutorials.md).
 
@@ -713,6 +724,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - `beast_rig.gd` builds a beast on its skeleton and moves it by hand: a bouncy idle, walking (a trot on four legs,
     a waddle on two, a wriggle, a hop, flying), lying down, and attacking; ghosts trail smoke. `beast_parts.gd` puts
     merged beasts together from their parents' parts.
+  - Individual Blender exports: `tools/export_beasts_blender.gd` exports all 48 roster entries and the 39 normal
+    forms' ghost variants through the shared model builders, baking their procedural paint into UV textures.
+    `tools/blender/save_beasts.py` converts these to self-contained `.blend` files with packed textures and the
+    existing skeletons, under `build/beasts_blender/`. These are editable resting models; runtime animation code,
+    particle smoke, and generated merge combinations are not exported. See that folder's `README.md` for commands.
   - Battle poses, for every body (quad, biped, flyer, serpent, blob), worked out from each beast's measured limbs so
     ghosts and merges take them from their frame: **attack** (rearing back and lunging: a plain move); **cast** (an
     elemental move: a long wind-up, standing tall and trembling as the element's glow, `cast_glow.gd`, gathers at its
@@ -929,6 +945,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - People indoors face the middle of the room, or the table they're sitting at; they never stare at a wall.
 
 ## The Start book (menu)
+
+While the book is open, its active touch controls use 55% opacity so the pages show through them.
+After two seconds without touching the screen, controls fade to 40% opacity, in the book and in the field.
+Any touch brightens them immediately and still performs its usual action; held fingers keep them active.
+Their touch targets and no-tap zones stay the same. Outside the book, active controls use full opacity.
 
 Press **Start** (Space) to open the travel book: two pages of light tan paper with a soft spine between them (`book_paper.gd`; the only window that isn't the off-white), with a page-turn sound as it opens, as you change tabs and as you open a beast's Info. ◄ / ► change tabs; Up from the top of a page (its first row, the Bag's top row of slots, the Map's northernmost town) moves the cursor to the tabs, and Down or A from the tabs goes back into the page. Its bookmark tabs:
 
@@ -1530,10 +1551,13 @@ focus/scroll retention. These inject joypad events; physical USB/Bluetooth pairi
 `bash tools/run_tests.sh diagonal diagonal-touch` checks the step-012 movement core in both states:
 all four diagonals, corner/level/ramp/cliff protection, single-component slides, equal ground speed,
 NPC and beast arrivals, grass step accounting and a cardinal door trigger after a diagonal.
-The core is staged behind the developer argument `--diagonal_core=1`; the public setting and expanded
-keyboard/touch input remain runbook step 013. Ordinary play retains its existing controls, including
-the controller stick's existing diagonals. The named `walk-diagonal-on`, `walk-touch-diagonal-on`,
+The developer argument `--diagonal_core=1` pins core collision rules for diagnostics independently of the public
+input preference. The named `walk-diagonal-on`, `walk-touch-diagonal-on`,
 `wild-grace-diagonal-on`, `flow-diagonal-on` and `lessons-diagonal-on` scenarios exercise the opt-in core.
+`diagonal-input`, `diagonal-input-touch` and `diagonal-input-reference` check the public setting's default,
+persistence, runtime changes, raw key/joypad/touch events, finger slides, B plus movement, flute chords and
+the Settings row at desktop, wide-phone and 1280×720 touch layouts. Capture the new row with
+`--scene=diagonal-input --shots=res://build/shots/vo/013/<profile> --shot_w=0` and isolated preferences/saves.
 Windowed captures: `godot --path . --resolution 1920x1080 -- --scene=controllers
 --controller="DualSense Wireless Controller" --shots=res://build/shots/controllers_desktop --shot_w=0
 --prefs_path=res://build/controller_preview/settings.cfg --save_dir=res://build/controller_preview/saves/`.

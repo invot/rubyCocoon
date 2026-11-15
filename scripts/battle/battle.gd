@@ -48,6 +48,7 @@ const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const BeatCue = preload("res://scripts/battle/beat_cue.gd")
 const BattleTutorials = preload("res://scripts/core/battle_tutorials.gd")
 const Codex = preload("res://scripts/ui/codex.gd")
+const SimLook = preload("res://scripts/battle/sim_look.gd")
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -107,6 +108,40 @@ var tutorial := false
 var lesson_id := ""
 var lesson: Dictionary = {}
 var rotation_lesson := false
+## The rhythm lesson's practice cue while it's up (a skipped lesson closes it).
+var _practice_cue = null
+## The Codex's simulation look on the stage while it runs a lesson (sim_look.gd).
+var _sim = null
+var _sim_gen := 0
+## A Codex practice turn in progress (_codex_practice): the topic it teaches ("team", "move", "flute", "summon",
+## "boomerang", "bat"), and for "move" the beast that practises it.
+var _practice := ""
+## Whether the Codex has healed your beasts this battle (_codex_heal: once).
+var _codex_healed := false
+var _practice_mover = null
+var _wipe: ColorRect = null
+var _wipe_tween: Tween = null
+var _wipe_mid := Callable()
+## The wipe into and out of the Codex's simulation (_sim_wipe): blocks of the stage, tinted green at the peak.
+const SIM_WIPE_SHADER := """
+shader_type canvas_item;
+uniform sampler2D screen : hint_screen_texture, filter_nearest;
+uniform float amount = 0.0;
+void fragment() {
+	float a = clamp(amount, 0.0, 1.0);
+	float block = mix(1.0, 56.0, a * a);
+	vec2 px = SCREEN_PIXEL_SIZE * block;
+	vec2 uv = (floor(SCREEN_UV / px) + 0.5) * px;
+	vec3 c = texture(screen, uv).rgb;
+	float lum = dot(c, vec3(0.3, 0.59, 0.11));
+	c = mix(c, vec3(0.0, lum * 1.4 + 0.04, lum * 0.6), a * 0.85);
+	// a thin bright edge round each block at the peak, like a grid of cells
+	vec2 cell = fract(SCREEN_UV / px);
+	float edge = step(cell.x, 0.06) + step(cell.y, 0.06);
+	c += vec3(0.1, 0.55, 0.25) * min(edge, 1.0) * a * step(4.0, block);
+	COLOR = vec4(c, 1.0);
+}
+"""
 ## the command panel while it's up (a tap on the Codex closes it to ask a question)
 var _panel_now = null
 ## The guided battles: the Coastal Path's four teachers (Story.LESSON_TRAINERS), before you have a flute. intro: what
@@ -1965,10 +2000,13 @@ func _run() -> void:
 		if lesson.has("narration"):
 			await UI.say([_tut_fill(lesson["narration"])])
 		await _tut_say(lesson.get("intro", []))
-	elif Codex.has_codex() and not (cfg.get("autoplay", false) or UI.auto):
-		Codex.pin()
-		if not Codex.tapped().is_connected(_codex_tapped):
-			Codex.tapped().connect(_codex_tapped)
+	elif Codex.has_codex():
+		# its lessons turn the stage into its simulation and can be skipped; a tap on its head asks it something
+		Codex.on_lesson = _set_sim
+		Codex.on_skip = _lesson_skipped
+		Codex.tap_handler = _codex_tapped
+		if not (cfg.get("autoplay", false) or UI.auto):
+			Codex.pin()
 	while result == "":
 		round_no += 1
 		for b in ally_slots:
@@ -2123,6 +2161,8 @@ func _tut_round_intro() -> void:
 ## How much of `d` damage `b` takes from recoil, confusion or a status: in a lesson your side's beasts always keep at
 ## least 1 HP (the foes' blows are kept small already, see _tut_damage).
 func _spare(b, d: int) -> int:
+	if _practice != "":
+		return 0
 	return clampi(d, 0, maxi(0, b.hp - 1)) if tutorial and _st(b)["side"] == "ally" else d
 
 
@@ -2216,13 +2256,15 @@ func _command_phase() -> Array:
 		if ns != ally_side:
 			await msg("Everyone on your %s side is down! You turn your ring to the %s side." % [Ring.side_element(ally_side).capitalize(), Ring.side_element(ns).capitalize()], 1.0)
 			await _turn_ring("ally", ns)
-	if not tutorial:
+	if not tutorial and _practice == "":
 		await _new_battle_lessons()
+		await _codex_heal()
 	if cfg.get("autoplay", false) or UI.auto:
 		if rotation_lesson:
 			await _turn_ring("ally", Ring.next_side(ally_ring, ally_side, 1))
 			GameState.set_flag("ring_rotation_taught")
 			rotation_lesson = false
+			Codex.end_lesson()
 		return await _auto_commands()
 	flute_used = false
 	if tutorial:
@@ -2230,7 +2272,7 @@ func _command_phase() -> Array:
 	var rows := _panel_rows()
 	var focus := 0
 	while true:
-		if result != "":
+		if result != "" or (_practice != "" and Codex.skipped()):
 			_select_hud_actor(null)
 			return []
 		if rows[0].get("done", false) and not _rows_waiting(rows):
@@ -2240,10 +2282,8 @@ func _command_phase() -> Array:
 			"option": _show_option, "teach": _teach_option, "stage": self, "floating": floating})
 		_commanding = true
 		_panel_now = p
-		Codex.set_tappable(true)
 		UI.push(p)
 		var r: Dictionary = await p.done
-		Codex.set_tappable(false)
 		_panel_now = null
 		_commanding = false
 		_show_option({}, {})
@@ -2255,6 +2295,8 @@ func _command_phase() -> Array:
 			"codex":
 				await Codex.ask()
 			"rotate":
+				if _practice != "":
+					continue
 				_select_hud_actor(null)
 				var ns := Ring.next_side(ally_ring, ally_side, int(r["dir"]))
 				if ns != ally_side:
@@ -2263,6 +2305,7 @@ func _command_phase() -> Array:
 						GameState.set_flag("ring_rotation_taught")
 						rotation_lesson = false
 						await Codex.say(["[happy] That's it! Turning costs no turn. Now choose moves for this side, and keep a standing beast in its middle."])
+						Codex.end_lesson()
 					# a new side: its beasts choose afresh
 					var keep: Dictionary = rows[0]
 					rows = _panel_rows()
@@ -2366,7 +2409,7 @@ func _panel_rows() -> Array:
 			"desc": "Give up the battle. It counts as a loss, but you keep your gold and can try again." if not tutorial else "%s: \"No giving up in the middle of a lesson!\"" % _tut_who()})
 	if Codex.has_codex() and not tutorial:
 		# asking the Codex never uses your turn
-		t_opts.append({"id": "codex", "label": "Codex", "icon": "help", "sub": true,
+		t_opts.append({"id": "codex", "label": "Ask Codex", "icon": "help", "sub": true,
 			"desc": "Ask your Codex about anything you've learned. It doesn't use your turn."})
 	if tutorial:
 		var want := _tut_you()
@@ -2374,6 +2417,11 @@ func _panel_rows() -> Array:
 			if o["label"] != want:
 				o["disabled"] = true
 				o["desc"] = "%s: \"Not yet! Try %s this round.\"" % [_tut_who(), want]
+	if _practice != "":
+		for o in t_opts:
+			if not _practice_trainer_ok(o):
+				o["disabled"] = true
+				o["desc"] = "Codex: \"Not in this practice! %s\"" % _practice_hint()
 	var start := 0
 	for i in t_opts.size():
 		if not t_opts[i].get("disabled", false):
@@ -2393,6 +2441,11 @@ func _panel_rows() -> Array:
 			row["status"] = "down"
 			row["options"] = [{"label": ""}]
 			row["status_desc"] = "%s has fainted. Revive it with an item, or turn the ring to another side." % b.nickname
+		elif _practice != "" and _practice != "team" and b != _practice_mover:
+			# (not part of this practice: it sits the turn out)
+			row["status"] = "practice"
+			row["options"] = [{"label": ""}]
+			row["status_desc"] = "%s sits this practice out." % b.nickname
 		else:
 			row["options"] = _move_options(b)
 			for i in row["options"].size():
@@ -2476,6 +2529,14 @@ func _move_options(b) -> Array:
 		mv_desc = "%s: \"Not in a lesson! Attack this round.\"" % _tut_who()
 	out.append({"id": "shift", "label": "Move", "icon": "move", "target": "slot", "right": "uses its turn", "desc": mv_desc, "disabled": spots.is_empty() or tutorial,
 		"none_hint": "Only one beast can move each round."})
+	if _practice == "team" or _practice == "move":
+		# on rails: attacks only while practising choosing for each beast; Move only while practising it
+		for o in out:
+			var ok: bool = (o["id"] == "move") if _practice == "team" else (o["id"] == "shift")
+			if not ok and not o.get("disabled", false):
+				o["disabled"] = true
+				o["note"] = "Codex: \"Not in this practice! %s\"" % _practice_hint()
+				o["desc"] = String(o["note"])
 	return out
 
 
@@ -2609,8 +2670,9 @@ func _walk_to(b, to) -> void:
 func _panel_info() -> Dictionary:
 	var up := Ring.next_side(ally_ring, ally_side, -1)
 	var down := Ring.next_side(ally_ring, ally_side, 1)
-	return {"up": Ring.side_element(up).capitalize() if up != ally_side and not tutorial else "",
-		"down": Ring.side_element(down).capitalize() if down != ally_side and not tutorial else "",
+	var turnable: bool = not tutorial and _practice == ""
+	return {"up": Ring.side_element(up).capitalize() if up != ally_side and turnable else "",
+		"down": Ring.side_element(down).capitalize() if down != ally_side and turnable else "",
 		"prompt": "What will you do, %s?" % GameState.player_name, "lesson": tutorial, "rotation_lesson": rotation_lesson}
 
 
@@ -2623,25 +2685,37 @@ func _new_battle_lessons() -> void:
 	if not wild:
 		await Codex.chime("guard")
 	if (not wild and foes.size() > 1) or _alive(ally_slots).size() > 1:
-		await Codex.chime("team")
+		await _codex_lesson("team")
 	if _alive(foe_slots).size() > 1:
 		await Codex.chime("retarget")
 	if _all_active().any(func(b): return not b.passives.is_empty() or not b.equip.is_empty()):
 		await Codex.chime("passives")
 	# your middle beast is down while another of the side still stands: Move one in to guard you
 	if not _middle_standing(ally_ring, ally_side) and Ring.side_alive(ally_ring, ally_side):
-		await Codex.chime("move")
+		await _codex_lesson("move")
 	if GameState.has_flute():
-		await Codex.chime("flute")
+		await _codex_lesson("flute")
 	if not GameState.summons.is_empty() and not summoned:
-		await Codex.chime("summon")
-	if await Codex.chime("rhythm"):
+		await _codex_lesson("summon")
+	# a new weapon is taught (and practised) as the battle begins, rather than when it's first picked
+	for w in ["boomerang", "bat"]:
+		if GameState.weapons().has(w):
+			await _codex_lesson(w)
+	# (a lesson with practice stays one lesson, simulation and all, until the practice is done or skipped)
+	Codex.begin_lesson()
+	if await Codex.chime("rhythm") and not Codex.skipped():
 		await _rhythm_practice()
+	Codex.end_lesson()
 	if not GameState.flag("ring_rotation_taught") and GameState.party.size() > 3 and Ring.next_side(ally_ring, ally_side, 1) != ally_side:
 		GameState.set_flag("codex_seen_ring", false)
-		if await Codex.chime("ring"):
+		Codex.begin_lesson()
+		if await Codex.chime("ring") and not Codex.skipped():
+			# on rails: the command panel only lets you turn the ring until you have (command_panel.gd); the lesson
+			# ends as you turn it (_command_round), or when skipped (_lesson_skipped)
 			rotation_lesson = true
 			await Codex.say(["[excited] Try it now, before choosing your beasts' moves! Press up past the top beast, or down past the bottom one."])
+		if not rotation_lesson:
+			Codex.end_lesson()
 
 
 func _teach_option(option: Dictionary) -> void:
@@ -2650,10 +2724,284 @@ func _teach_option(option: Dictionary) -> void:
 	await Codex.chime_all(BattleTutorials.topics(option))
 
 
-## A tap on the Codex while you choose: the command panel closes to ask it a question, then opens again.
-func _codex_tapped() -> void:
+## A tap on the Codex while you choose: the command panel closes to ask it a question, then opens again. True if
+## it took the tap; otherwise the Codex asks at once, pausing the battle (codex.gd _on_tapped).
+func _codex_tapped() -> bool:
 	if _commanding and is_instance_valid(_panel_now) and not _panel_now.closed and UI.stack.back() == _panel_now:
 		_panel_now.close({"kind": "codex", "focus": int(_panel_now.focus)})
+		return true
+	return false
+
+
+## Done all the Codex's lessons (codex.gd mastered)? Then once a battle, as you're about to choose, it fully heals
+## each of your standing beasts whose HP is in the red (FloatingHUD.HP_CRITICAL or less): the user's 2026-11-15
+## direction.
+func _codex_heal() -> void:
+	if _codex_healed or not Codex.mastered():
+		return
+	var red := []
+	for b in ally_ring.values():
+		if b != null and b.hp > 0 and float(b.hp) <= float(b.max_hp()) * FloatingHUD.HP_CRITICAL:
+			red.append(b)
+	if red.is_empty():
+		return
+	_codex_healed = true
+	# (after any wipe out of a lesson's simulation, so it happens on the real stage)
+	while _wipe != null and _wipe.visible:
+		await get_tree().process_frame
+	var names :=" and ".join(red.map(func(x): return x.nickname))
+	Codex.react("worried", 1.5)
+	await Codex.say(["[worried] Hang in there, %s! You've done all my lessons, so let me patch you up. Just this once!" % names])
+	for b in red:
+		var before: int = b.hp
+		b.hp = b.max_hp()
+		Sfx.play("heal")
+		_float_text(b, "+%d" % (b.hp - before), Color("#70ff90"))
+		_refresh()
+		await msg("The Codex restored %s's HP!" % b.nickname, 0.6)
+	Codex.react("happy", 2.0)
+
+
+## A Codex lesson about an action (on rails, the user's 2026-11-15 direction): it explains it, then you practise it
+## for one turn in its simulation (_codex_practice), before the real round. Skipping it skips both.
+func _codex_lesson(id: String) -> void:
+	Codex.begin_lesson()
+	if await Codex.chime(id) and not Codex.skipped():
+		await _codex_practice(id)
+	Codex.end_lesson()
+
+
+const PRACTICE_SAY := {
+	"team": "[excited] Let's practise! Choose Watch for yourself, then a move for each beast, and aim it. Nobody gets hurt in here!",
+	"move": "[excited] Let's practise! Choose Watch for yourself, then give {beast} the Move order and pick a lit pad.",
+	"flute": "[excited] Let's practise! Pick Flute beside your trainer and play a song. It's only a simulation.",
+	"summon": "[excited] Let's practise! Pick Summon and play its song through. In here it costs you nothing.",
+	"boomerang": "[excited] Let's practise! Pick the Boomerang and let it fly. Nobody gets hurt in here!",
+	"bat": "[excited] Let's practise! Pick the Bat, aim at a foe and swing. Nobody gets hurt in here!",
+}
+
+
+## What this practice wants, for the words on its locked choices.
+func _practice_hint() -> String:
+	match _practice:
+		"team":
+			return "Watch, then pick a move for each beast."
+		"move":
+			return "Watch, then Move %s." % (_practice_mover.nickname if _practice_mover != null else "your beast")
+		"flute":
+			return "Try your Flute."
+		"summon":
+			return "Try Summon."
+	return "Try the %s." % _practice.capitalize()
+
+
+## Whether a trainer's choice is open in the practice running now.
+func _practice_trainer_ok(o: Dictionary) -> bool:
+	var id := String(o.get("id", ""))
+	if id == "codex":
+		return true
+	match _practice:
+		"team", "move":
+			return id == "watch"
+		"flute", "summon":
+			return id == _practice
+		"boomerang", "bat":
+			return id == "weapon" and String(o.get("weapon", "")) == _practice
+	return false
+
+
+## One practice turn of `id` in the Codex's simulation: the menu is on rails (only the taught choice; beasts it doesn't
+## need sit it out), it plays out showing every hit while nobody loses HP, and then everything is put back as it was
+## (HP, MP, shields, ring slots, the flute and summon used this battle) for the real round.
+func _codex_practice(id: String) -> void:
+	if UI.auto or cfg.get("autoplay", false) or not PRACTICE_SAY.has(id):
+		return
+	_practice_mover = null
+	if id == "move":
+		for b in _alive(ally_slots):
+			if _active(b) and not _shift_spots(b).is_empty():
+				_practice_mover = b
+				break
+		if _practice_mover == null:
+			return
+	# a choice that can't be made right now (a summon with no shield left...) can't be practised
+	_practice = id
+	var open := false
+	for o in _panel_rows()[0]["options"]:
+		if String(o.get("id", "")) != "codex" and _practice_trainer_ok(o) and not o.get("disabled", false):
+			open = true
+	if not open:
+		_practice = ""
+		return
+	var snap := _practice_snapshot()
+	await Codex.say([String(PRACTICE_SAY[id]).replace("{beast}", _practice_mover.nickname if _practice_mover != null else "")])
+	if not Codex.skipped():
+		var acts := await _command_phase()
+		if not Codex.skipped() and result == "":
+			await _resolve(acts)
+	_practice_restore(snap)
+	_practice = ""
+	_practice_mover = null
+	if not Codex.skipped():
+		await Codex.say(["[proud] That's the way! Now let's do it for real."])
+
+
+func _practice_snapshot() -> Dictionary:
+	var beasts := {}
+	for b in st:
+		beasts[b] = {"hp": b.hp, "mp": b.mp, "status": b.status, "slot": b.slot, "st": (st[b] as Dictionary).duplicate(true)}
+	return {"beasts": beasts, "shield": GameState.shield, "foe_shield": foe_shield, "summoned": summoned,
+		"flute_used": flute_used, "ally_ring": ally_ring.duplicate(), "foe_ring": foe_ring.duplicate(),
+		"ally_slots": ally_slots.duplicate(), "foe_slots": foe_slots.duplicate(), "result": result}
+
+
+func _practice_restore(snap: Dictionary) -> void:
+	_end_defend("ally")
+	_end_defend("foe")
+	var beasts: Dictionary = snap["beasts"]
+	for b in beasts:
+		var v: Dictionary = beasts[b]
+		b.hp = v["hp"]
+		b.mp = v["mp"]
+		b.status = v["status"]
+		b.slot = v["slot"]
+		st[b] = v["st"]
+	GameState.shield = snap["shield"]
+	foe_shield = snap["foe_shield"]
+	summoned = snap["summoned"]
+	flute_used = snap["flute_used"]
+	ally_ring = snap["ally_ring"]
+	foe_ring = snap["foe_ring"]
+	ally_slots = snap["ally_slots"]
+	foe_slots = snap["foe_slots"]
+	result = snap["result"]
+	_place_ring("ally")
+	_place_ring("foe")
+	_update_shield()
+	_select_hud_actor(null)
+	_set_acting(null)
+	_refresh()
+
+
+## The Codex's face follows the fight (codex.gd react): worried when one of yours takes a hard, critical or extra
+## effective hit, excited at your critical hit on a foe, happy at an extra effective one, curious when a foe resists.
+func _codex_react_hit(t, dmg: int, r: Dictionary) -> void:
+	if not _st(t).has("side"):
+		return
+	if _team(t) == "ally":
+		if r["crit"] or r["eff"] > 1.0 or dmg >= int(t.max_hp() * 0.35):
+			Codex.react("worried", 2.0)
+	elif r["crit"]:
+		Codex.react("excited", 2.0)
+	elif r["eff"] > 1.0:
+		Codex.react("happy", 2.0)
+	elif r["eff"] < 1.0:
+		Codex.react("curious", 2.0)
+
+
+## While the Codex runs a lesson the stage turns into its simulation (sim_look.gd): black and green, every polygon's
+## edges in green lines; the fighters, the target arrow and shields keep their look. Nothing fights while it's up: a
+## lesson runs before any move is chosen, and a practice (the rhythm beat) harms nobody.
+## The stage goes in and out of the simulation through a quick pixelation (_sim_wipe): the swap happens at its peak.
+## (_sim is set at once, so the battle knows the lesson's state straight away; the look itself follows the wipe.)
+func _set_sim(on: bool) -> void:
+	if not is_inside_tree():
+		return
+	_sim_gen += 1
+	var gen := _sim_gen
+	var old = _sim
+	var neu = SimLook.new() if on else null
+	_sim = neu
+	if old == null and neu == null:
+		return
+	if on:
+		# the simulation's own music, Bit Quest (Sfx.TRACKS "codex"), without the battle's percussion
+		Sfx.percussion("off")
+		Sfx.music("codex")
+	var swap := func() -> void:
+		if old != null:
+			old.restore()
+		if gen != _sim_gen:
+			# (another change came along before this one's swap: that one decides)
+			return
+		if neu != null:
+			var keep: Array = nodes.values() + [player_rig, rival_rig, aim_mesh, shield_bubble, rival_bubble, cam, _front_vp]
+			for team in _shield_orbs:
+				keep.append_array(_shield_orbs[team])
+			neu.apply(self, keep, stage_env)
+		else:
+			# back to the battle's own music, and its percussion layer
+			_battle_music()
+	_sim_wipe(swap, on)
+
+
+## The wipe into (or out of) the simulation: the 3D view breaks into growing blocks tinted green, `mid` swaps the
+## look at the peak, and the blocks shrink away again (about half a second; the interface above stays sharp).
+func _sim_wipe(mid: Callable, into: bool) -> void:
+	if UI.auto or cfg.get("autoplay", false):
+		mid.call()
+		return
+	if _wipe == null:
+		var layer := CanvasLayer.new()
+		# under the interface's layers, over the 3D view: it reads (and pixelates) only the stage
+		layer.layer = -1
+		add_child(layer)
+		var rect := ColorRect.new()
+		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var sh := Shader.new()
+		sh.code = SIM_WIPE_SHADER
+		var mat := ShaderMaterial.new()
+		mat.shader = sh
+		rect.material = mat
+		layer.add_child(rect)
+		_wipe = rect
+	_wipe.visible = true
+	var mat: ShaderMaterial = _wipe.material
+	if _wipe_tween != null and _wipe_tween.is_valid():
+		_wipe_tween.kill()
+	# a wipe cut short still makes its swap (or a stage left in the simulation would never come back)
+	_run_wipe_mid()
+	_wipe_mid = mid
+	mat.set_shader_parameter("amount", 0.0)
+	if into:
+		_codex_tone(true)
+	_wipe_tween = create_tween()
+	_wipe_tween.tween_method(func(v: float) -> void: mat.set_shader_parameter("amount", v), 0.0, 1.0, 0.26).set_ease(Tween.EASE_IN)
+	_wipe_tween.tween_callback(_run_wipe_mid)
+	_wipe_tween.tween_method(func(v: float) -> void: mat.set_shader_parameter("amount", v), 1.0, 0.0, 0.3).set_ease(Tween.EASE_OUT)
+	_wipe_tween.tween_callback(func() -> void: _wipe.visible = false)
+	if not into:
+		_codex_tone(false)
+
+
+func _run_wipe_mid() -> void:
+	if _wipe_mid.is_valid():
+		var m := _wipe_mid
+		_wipe_mid = Callable()
+		m.call()
+
+
+## A little rising (into the simulation) or falling (out of it) blip under the wipe.
+func _codex_tone(up: bool) -> void:
+	var notes := [880.0, 1320.0, 1760.0] if up else [1760.0, 1320.0, 880.0]
+	for i in notes.size():
+		get_tree().create_timer(0.07 * i).timeout.connect(func() -> void: Sfx.tone(float(notes[i]), 0.06, "square", -24.0))
+
+
+## A Codex lesson was skipped (Hold B): any practice ends, and a ring-turning lesson lets the panel go back to normal.
+func _lesson_skipped() -> void:
+	if rotation_lesson:
+		rotation_lesson = false
+		GameState.set_flag("ring_rotation_taught")
+		if is_instance_valid(_panel_now) and not _panel_now.closed:
+			_panel_now.info["rotation_lesson"] = false
+			_caption("")
+		Codex.end_lesson()
+	if is_instance_valid(_practice_cue) and not _practice_cue.closed:
+		_practice_cue.close([])
+	if _practice != "" and is_instance_valid(_panel_now) and not _panel_now.closed:
+		_panel_now.close({"kind": "practice_skip", "focus": int(_panel_now.focus)})
 
 
 ## One safe, repeatable practice beat after the Codex explains rhythm attacks. Nothing takes damage or spends a turn.
@@ -2665,6 +3013,7 @@ func _rhythm_practice() -> void:
 	while not learned:
 		_caption("Practice: press A or tap the ring when the notch reaches the top.", "trainer_self")
 		var cue := BeatCue.new()
+		_practice_cue = cue
 		cue.most = 1
 		cue.easy = true
 		cue.anchor = func(): return UI.root.get_viewport_rect().size * Vector2(0.5, 0.4)
@@ -2672,7 +3021,7 @@ func _rhythm_practice() -> void:
 			cue.injected = [0.0]
 		UI.push(cue)
 		var grades: Array = await cue.done
-		learned = grades.has("good") or grades.has("perfect")
+		learned = grades.has("good") or grades.has("perfect") or Codex.skipped()
 		if not learned:
 			await Codex.say(["[worried] Almost! Wait for the notch to reach the top, then press A once. Each full circle is one beat."])
 	_caption("")
@@ -3441,7 +3790,7 @@ func _resolve(acts: Array) -> void:
 			return int(x.get("prio", 0)) > int(y.get("prio", 0))
 		return float(x["spd"]) > float(y["spd"]))
 	for a in acts:
-		if result != "":
+		if result != "" or (_practice != "" and Codex.skipped()):
 			return
 		# Skip inactive beasts before outlining their HUD icons, and clear before faint/end reports.
 		if a.get("type", "") in ["move", "defend"] and (a["actor"].hp <= 0 or not _active(a["actor"])):
@@ -4399,7 +4748,9 @@ func _deal(a, t, r: Dictionary, quiet := false) -> int:
 		dmg = t.hp - 1
 		s["sturdy"] = true
 		sturdy = true
-	t.hp = maxi(0, t.hp - dmg)
+	# (a Codex practice shows every hit but harms nobody)
+	if _practice == "":
+		t.hp = maxi(0, t.hp - dmg)
 	if r["crit"]:
 		Sfx.play("crit")
 	elif t.genes.has("model"):
@@ -4412,6 +4763,7 @@ func _deal(a, t, r: Dictionary, quiet := false) -> int:
 	_hit_fx(t, r["crit"] or r["eff"] > 1.0, float(dmg) / maxf(float(t.max_hp()), 1.0) * 4.0, blocked)
 	_float_text(t, "-%d" % dmg if dmg > 0 else "0", Color("#ffe060") if r["eff"] > 1.0 else Color("#ffffff"))
 	_refresh()
+	_codex_react_hit(t, dmg, r)
 	if quiet:
 		if t.hp > 0 and t.status == "sleep" and randf() < 0.3:
 			t.status = ""
@@ -4793,6 +5145,8 @@ func _handle_faints() -> void:
 			s["down"] = true
 			_camera_shot("knockout", b)
 			var beaten_foe: bool = team == "foe"
+			# the Codex's face: glad when a foe goes down, sad when one of yours does
+			Codex.react("excited" if beaten_foe else "sad", 3.0)
 			# Ring beasts on either side remain lying on their pads. Only defeated wild beasts leave the field.
 			Sfx.play("defeat" if beaten_foe else "faint")
 			if nodes.has(b):
@@ -4915,6 +5269,8 @@ func _finish() -> void:
 		"win":
 			_camera_shot("victory")
 			Sfx.music("victory")
+			# the Codex celebrates: excited, bouncing
+			Codex.react("excited", 4.5, true)
 			# At the level cap there may be no reward messages to hold the victory shot on screen.
 			if wild and pending_xp.is_empty() and drops.is_empty():
 				await msg("You won!", 0.75)
@@ -4940,6 +5296,7 @@ func _finish() -> void:
 					if not GameState.knows_song(sid):
 						await _learn_heard_song(sid)
 		"lose":
+			Codex.react("sad", 4.0)
 			await msg("Everything goes dark...")
 			await msg("You were carried to the nearest Beast Center.", 1.2)
 		"forfeit":

@@ -29,8 +29,9 @@ extends RefCounted
 ##   "locked": what you find at each locked door, in reading order (else just that it's locked)
 ##   furniture (see FURNITURE): k kitchen counter, i kitchen sink, v stove, f fridge, j pantry, T toilet, U bathtub,
 ##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table, R wardrobe,
-##   N nightstand, Q dresser, E desk, F storage shelves, X boxes, m mop and bucket, l floor lamp, O coat stand,
-##   z bin, J bunk bed, & low book display, ^ hay bales. TVs (V) belong on the implied fourth wall in stage rooms.
+##   N nightstand, Q dresser, E desk, F storage shelves, X boxes, m mop and bucket, l floor lamp, O plain floor (the
+##   coat stand, retired 2026-11-15 as too thin),
+##   z bin, J bunk bed, & low book display, ^ hay bales, ( low cupboard, ) pouf, [ basket of blankets. TVs (V) belong on the implied fourth wall in stage rooms.
 ##   A run of the same letter is one piece (two b's are a bed, a block of four a double bed).
 ##   "zones": the kind of room each tile is in, one letter per tile like the rows (see room_builder.gd ZONES):
 ##   l living room, b bedroom, k kitchen, a bathroom, h hall, s shop floor, o back room, f office, g grand hall,
@@ -44,7 +45,8 @@ const FURNITURE := {
 	"k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
 	"R": "wardrobe", "N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "X": "boxes", "m": "mop",
-	"&": "book_display", "l": "floor_lamp", "O": "coat_stand", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
+	"&": "book_display", "l": "floor_lamp", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
+	"(": "cabinet", ")": "pouf", "[": "basket",
 }
 
 const ROOMS := {
@@ -179,12 +181,14 @@ const ROOMS := {
 		"wall": "#f0d8d0", "rug": "#c07040", "stage": true, "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
 		"locked": ["The restroom. Somebody's humming in there."],
 		"counter_phone": [6, 2],
+		# (2026-11-15) a low platform where a regular (3) sits on a cushion over tea: platforms are most at home in cafes
+		"dais": [[6, 4, 3, 1]],
 		"rows": [
 			"#####Z#####",
 			"#ss..1...p#",
 			"#CCCCCCCCCw",
 			"#.........w",
-			"#ht2...ht3#",
+			"#ht2..)y3.#",
 			"L........PD",
 			"###########",
 		],
@@ -314,7 +318,7 @@ const ROOMS := {
 			"w.bb........#",
 			"#Q......yy.a#",
 			"w.rrr..1....#",
-			"#l.......2.PD",
+			"#[.......2.PD",
 			"#############",
 		],
 		"zones": [
@@ -447,30 +451,33 @@ const ROOMS := {
 			"w.b.........#",
 			"#Q.....1yy.a#",
 			"w.rrr.......#",
-			"#l.........PD",
+			"#[.........PD",
 			"#############",
 		],
 	},
 	## Your home: the living room downstairs, where Mom (1) is, and the red phone; stairs up to your bedroom. The kitchen
 	## is locked. The phone stands against the staircase wall; the first time you go to leave, it rings.
+	## (2026-11-15) The sofa and armchair stand out in the room facing the open front (the TV is on the fourth wall),
+	## the coffee table before them past an open row; a closet is built into the back wall, and only low things stand
+	## where you can walk behind them.
 	"home": {
-		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "npcs": {"1": "mom"},
-		"furniture_offsets": {Vector2i(11, 2): Vector2(0, -0.28)},
+		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "npcs": {"1": "mom"}, "scheme": "apricot_sunroom",
+		"furniture_offsets": {Vector2i(11, 2): Vector2(0, -0.28)}, "closets": [[1, 0, 2]],
 		"locked": ["The kitchen. A faint smell of biscuits lingers by the door."],
 		"rows": [
 			"#######L#####",
-			"#BB.SS...>>>#",
-			"w..........@#",
-			"wa..yy......#",
-			"#.......1...#",
-			"#lp..rrr...PD",
+			"#..l.....>>>#",
+			"w..aSSS....@#",
+			"w...rrr.....#",
+			"#...yyy.1...#",
+			"#p.(.......PD",
 			"#############",
 		],
 	},
 	## Upstairs at home: the landing, a hallway half a room deep. The stairs come up at its right end; your bedroom is
 	## through the door at its left end, Mom's room and the bathroom (locked) off its back wall.
 	"home_hall": {
-		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "hall",
+		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "hall", "scheme": "oat_olive",
 		"doors": {"!": "home_bed", "?": "home_mom"}, "locked": ["The bathroom. The tap's dripping again."],
 		"rows": [
 			"##!#L##?#####",
@@ -480,28 +487,33 @@ const ROOMS := {
 		],
 	},
 	## Your bedroom, where you wake up (wake). Your bed is the one to nap in.
+	## (2026-11-15) The rocket print over the bed, the desk under the window with its chair beside it, a closet in the
+	## back wall where the wardrobe was, and only low things at the front.
 	"home_bed": {
 		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "bedroom", "wake": [3, 2], "doors": {"!": "home_hall"},
+		"scheme": "mint_cherry", "closets": [[8, 0, 2]],
 		"rows": [
-			"###w###w###",
-			"#Nb.cE..RR#",
+			"#####w#####",
+			"#NbN.Ec...#",
 			"#.b.......#",
 			"#Q........!",
-			"#..rrr....#",
-			"#p......l.#",
+			"#...rrr)..#",
+			"#p......([#",
 			"###########",
 		],
 	},
 	## Mom's room: her double bed between two nightstands.
+	## (2026-11-15) A closet in the back wall where the wardrobe was; her armchair against the side wall facing in.
 	"home_mom": {
 		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "bedroom", "doors": {"!": "home_hall"},
+		"scheme": "rose_moss", "closets": [[8, 0, 2]],
 		"rows": [
-			"###w###w###",
-			"#RR.NbbN.Q#",
-			"#a...bb...#",
-			"!.........#",
-			"#..rrrr..p#",
-			"#l........#",
+			"###w#######",
+			"#pQ.NbbN..#",
+			"#....bb...#",
+			"!........a#",
+			"#..rrrr...#",
+			"#[......)(#",
 			"###########",
 		],
 	},
@@ -818,7 +830,7 @@ const ROOMS := {
 			"#....1....#",
 			"#.ctc...a.#",
 			"#.ctc.....#",
-			"#l.......PD",
+			"#[.......PD",
 			"###########",
 		],
 	},
@@ -848,7 +860,7 @@ const ROOMS := {
 			"#X.b......#",
 			"#...1..2..#",
 			"#.ct......#",
-			"#l.....3.PD",
+			"#[.....3.PD",
 			"###########",
 		],
 	},

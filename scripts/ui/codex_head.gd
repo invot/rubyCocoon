@@ -3,7 +3,7 @@ extends Control
 ## window: the user's 2026-11-14 direction). The glow breathes slowly and brightens while it talks.
 ## The head is Quaternius's robot head recoloured orange (tools/import_codex_head.gd), rendered in its own small
 ## 3D world. Its brows move with its mood (MOODS), which changes with every speech bubble; it blinks now and then,
-## and bobs while it talks. In battle it stays up, and a tap (or click) on it asks it a question (signal tapped).
+## and bobs while it talks. Whenever it shows, a tap (or click) on it asks it a question (signal tapped).
 
 signal tapped
 
@@ -25,11 +25,19 @@ const MOODS := {
 	"worried": [[0.012, 0.45], [0.012, 0.45]],
 	"surprised": [[0.042, 0.1], [0.042, 0.1]],
 	"determined": [[-0.02, -0.42], [-0.02, -0.42]],
+	"sad": [[-0.016, 0.38], [-0.016, 0.38]],
 }
+## How open its eyes are in a mood (1 when not listed): droopy when sad, wide when excited or surprised.
+const EYES := {"sad": 0.62, "excited": 1.12, "surprised": 1.2}
 
 var mood := "neutral"
+## A reaction to the battle (react): its mood for a few seconds, then back to `mood`; a bounce while celebrating.
+var _react_mood := ""
+var _react_left := 0.0
+var _bounce_left := 0.0
+var _eye_open := 1.0
 var talking := false
-## Whether a tap asks a question (battle.gd sets it while you choose commands).
+## Whether a tap asks a question (codex.gd: always, except while its question list is up).
 var tappable := false
 
 var _view: SubViewport
@@ -67,17 +75,18 @@ func _ready() -> void:
 	_view.msaa_3d = Viewport.MSAA_4X
 	box.add_child(_view)
 	_build_scene()
-	# a small "?" in the corner while a tap asks a question
-	_hint = UIKit.label("?", 22, Color.WHITE)
-	_hint.add_theme_font_override("font", UIKit.font_head())
+	# (no tag on its corner, the user's 2026-11-15 direction: the Codex says so itself when you get it, codex_db.gd
+	# "codex"; the hidden tag is kept so nothing else needs to change)
+	_hint = UIKit.label("", 18, Color.WHITE)
+	_hint.add_theme_font_override("font", UIKit.font_bold())
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var dot := Panel.new()
 	dot.add_theme_stylebox_override("panel", UIKit.chip(UIKit.ACCENT, Color(0, 0, 0, 0), 14.0, Vector4.ZERO))
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dot.size = Vector2(28, 28)
-	dot.position = BOX - Vector2(30, 30)
+	dot.size = Vector2(56, 28)
+	dot.position = BOX - Vector2(58, 30)
 	dot.add_child(_hint)
 	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(dot)
@@ -175,9 +184,19 @@ func set_mood(m: String) -> void:
 	mood = m if MOODS.has(m) else "neutral"
 
 
+## A quick reaction to something in battle (codex.gd react): `m` for `secs`, hopping up and down if `bounce`.
+func react(m: String, secs := 2.5, bounce := false) -> void:
+	_react_mood = m if MOODS.has(m) else "neutral"
+	_react_left = secs
+	_bounce_left = secs if bounce else 0.0
+
+
 func _process(delta: float) -> void:
 	_t += delta
-	var want: Array = MOODS[mood]
+	_react_left = maxf(0.0, _react_left - delta)
+	_bounce_left = maxf(0.0, _bounce_left - delta)
+	var face := _react_mood if _react_left > 0.0 and not talking else mood
+	var want: Array = MOODS[face]
 	for k in 2:
 		for j in 2:
 			_cur[k][j] = lerpf(_cur[k][j], float(want[k][j]), minf(1.0, delta * 12.0))
@@ -189,19 +208,26 @@ func _process(delta: float) -> void:
 	# a bob and a little sway while talking, a slow drift otherwise
 	var nod := sin(_t * 9.0) * 3.0 if talking else sin(_t * 1.3) * 1.2
 	_pivot.rotation_degrees = Vector3(6 + nod, -6 + sin(_t * 0.7) * 3.0, sin(_t * 1.1) * 1.5)
+	# celebrating: little hops, a happy wiggle at each one; a sad head sinks a little
+	var hop := absf(sin(_t * 11.0)) * 0.09 * minf(1.0, _bounce_left * 2.0) if _bounce_left > 0.0 else 0.0
+	var sink := -0.03 if face == "sad" else 0.0
+	_pivot.position.y = lerpf(_pivot.position.y, hop + sink, minf(1.0, delta * 20.0))
+	if _bounce_left > 0.0:
+		_pivot.rotation_degrees.z += sin(_t * 11.0) * 6.0
 	# the glow breathes, and brightens while it talks
 	glow.visible = is_visible_in_tree()
 	glow.global_position = global_position - Vector2(GLOW_PAD, GLOW_PAD)
 	glow.size = size + Vector2(GLOW_PAD, GLOW_PAD) * 2.0
-	glow.modulate.a = lerpf(glow.modulate.a, (0.85 if talking else 0.7) + sin(_t * 2.0) * 0.06, minf(1.0, delta * 6.0))
+	glow.modulate.a = lerpf(glow.modulate.a, (0.85 if talking or _bounce_left > 0.0 else 0.7) + sin(_t * 2.0) * 0.06, minf(1.0, delta * 6.0))
 	_blink_in -= delta
 	if _blink_in <= 0.0:
 		_blink = 0.14
 		_blink_in = randf_range(2.0, 5.0)
 	_blink = maxf(0.0, _blink - delta)
-	_eyes.scale.y = 0.12 if _blink > 0.0 else 1.0
+	_eye_open = lerpf(_eye_open, float(EYES.get(face, 1.0)), minf(1.0, delta * 10.0))
+	_eyes.scale.y = 0.12 if _blink > 0.0 else _eye_open
 	var dot: Control = _hint.get_meta("dot")
-	dot.visible = tappable
+	dot.visible = false
 	if _gem != UIKit.accent_name:
 		_gem = UIKit.accent_name
 		dot.add_theme_stylebox_override("panel", UIKit.chip(UIKit.ACCENT, Color(0, 0, 0, 0), 14.0, Vector4.ZERO))

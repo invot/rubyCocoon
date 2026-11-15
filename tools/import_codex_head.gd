@@ -18,6 +18,9 @@ const SHELL := Color("#e8701a")
 ## The pack's eyes are balls bulging out of the face; the Codex's are flat on the front (the user's direction,
 ## 2026-11-14): cut off at this depth (the pack's units), just in front of the trim band (1.11) and face (1.07).
 const EYE_FRONT := 1.16
+## The pack's eyes sit a little far apart: each eye and its brow are moved this share of their distance from the
+## middle in towards it (the user's direction, 2026-11-15).
+const EYE_IN := 0.16
 const TRIM := Color("#eef2f4")
 const INK := Color("#1d2430")
 
@@ -77,12 +80,24 @@ func _init() -> void:
 	for f in eyes:
 		for i in f:
 			flat[i].z = minf(flat[i].z, EYE_FRONT)
+	# each eye and brow a little closer to the middle (EYE_IN)
+	var moved := {}
+	for piece in [parts[0], parts[1], brows[0], brows[1]]:
+		var dx: float = -(_mid(piece, verts).x - centre.x) * EYE_IN
+		for f in piece:
+			for i in f:
+				if not moved.has(i):
+					moved[i] = true
+					flat[i].x += dx
+	var brow_verts := verts.duplicate()
+	for i in moved:
+		brow_verts[i].x = flat[i].x
 	_add(eye_mesh, eyes, flat, tf, INK, Vector3.ZERO)
 	ResourceSaver.save(eye_mesh, OUT + "codex_eyes.res")
 	for k in 2:
-		var pivot: Vector3 = tf.call(_mid(brows[k], verts))
+		var pivot: Vector3 = tf.call(_mid(brows[k], brow_verts))
 		var brow := ArrayMesh.new()
-		_add(brow, brows[k], verts, tf, INK, pivot)
+		_add(brow, brows[k], brow_verts, tf, INK, pivot)
 		brow.set_meta("pivot", pivot)
 		ResourceSaver.save(brow, OUT + ("codex_brow_l.res" if k == 0 else "codex_brow_r.res"))
 	print("codex head: %d shell, %d trim, %d eye, %d+%d brow faces; %s" % [faces["Main"].size(), faces["Grey"].size(),

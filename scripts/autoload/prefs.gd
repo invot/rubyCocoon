@@ -13,6 +13,8 @@ var text_speed := 60.0
 var touch_controls := "auto"
 ## Empty keeps automatic selection for existing settings. Explicit choices persist across launches.
 var input_mode := ""
+## Eight-way field movement; older settings keep four-way movement.
+var diagonal_movement := false
 var _hardware_keyboard := false
 var show_key_legend := true
 var fullscreen := false
@@ -45,6 +47,7 @@ func prefs_path() -> String:
 
 
 func load_prefs() -> void:
+	diagonal_movement = false
 	var c := ConfigFile.new()
 	if c.load(prefs_path()) != OK:
 		return
@@ -53,6 +56,8 @@ func load_prefs() -> void:
 	text_speed = float(c.get_value("game", "text_speed", text_speed))
 	touch_controls = String(c.get_value("controls", "touch", touch_controls))
 	input_mode = String(c.get_value("controls", "input", ""))
+	var diagonal: Variant = c.get_value("controls", "diagonal_movement", false)
+	diagonal_movement = diagonal if diagonal is bool else false
 	if not input_mode in ["", "screen", "keyboard", "controller"]:
 		input_mode = ""
 	show_key_legend = bool(c.get_value("controls", "key_legend", show_key_legend))
@@ -73,6 +78,7 @@ func save_prefs() -> void:
 	c.set_value("game", "text_speed", text_speed)
 	c.set_value("controls", "touch", touch_controls)
 	c.set_value("controls", "input", input_mode)
+	c.set_value("controls", "diagonal_movement", diagonal_movement)
 	c.set_value("controls", "key_legend", show_key_legend)
 	c.set_value("video", "fullscreen", fullscreen)
 	c.set_value("video", "render_height", render_height)
