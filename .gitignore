@@ -6,3 +6,4 @@ build/*
 /psx/
 /tools/new_beasts/out/
 __pycache__/
+/unused_assets/

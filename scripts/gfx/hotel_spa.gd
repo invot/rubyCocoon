@@ -1,7 +1,7 @@
 extends RefCounted
 ## Hotel spa dressing; navigation and steps come from the room's shared dais.
 
-static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material, dark: Material) -> void:
+static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material) -> void:
 	var spa := Node3D.new()
 	spa.name = "HotelSpa"
 	spa.position = at
@@ -9,9 +9,18 @@ static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material, 
 	var basin := CylinderMesh.new()
 	basin.top_radius = 1.06
 	basin.bottom_radius = 1.06
-	basin.height = 0.42
+	basin.height = 0.08
 	basin.radial_segments = 48
-	_piece(spa, basin, tile, Vector3(0, 0.21, 0))
+	var lining := (ivory as StandardMaterial3D).duplicate() as StandardMaterial3D
+	lining.albedo_color = Color("#f5c7d9")
+	_piece(spa, basin, lining, Vector3(0, 0.04, 0))
+	var wall := TorusMesh.new()
+	wall.inner_radius = 0.86
+	wall.outer_radius = 1.1
+	wall.rings = 48
+	wall.ring_segments = 16
+	var sides := _piece(spa, wall, tile, Vector3(0, 0.23, 0))
+	sides.scale.y = 1.9
 	var rim := TorusMesh.new()
 	rim.inner_radius = 0.87
 	rim.outer_radius = 1.12
@@ -32,30 +41,29 @@ static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material, 
 	water.set_shader_parameter("tint", Color("#edafc9"))
 	water.set_shader_parameter("shallow_tint", Color("#eab0c7"))
 	water.set_shader_parameter("deep_tint_scale", Vector3(0.85, 0.85, 0.85))
-	water.set_shader_parameter("absorption_strength", 4.0)
-	water.set_shader_parameter("opacity", 0.95)
-	water.set_shader_parameter("backdrop_depth", 0.5)
-	water.set_shader_parameter("wave_height", 0.006)
-	water.set_shader_parameter("spec", 0.0)
-	water.set_shader_parameter("drift", Vector2(0.01, 0.015))
+	water.set_shader_parameter("opacity", 0.84)
+	water.set_shader_parameter("drift", Vector2(0.0, 0.03))
 	var surface := _piece(spa, pool, water, Vector3(0, 0.425, 0))
 	surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# A freestanding sign beside the bath, facing into the room, with the pack's smooth painted steam symbol.
-	var post := CylinderMesh.new()
-	post.top_radius = 0.055
-	post.bottom_radius = 0.075
-	post.height = 1.12
-	_piece(spa, post, dark, Vector3(1.5, 0.56, -0.55))
+	# Fixed to the front balustrade, facing the player's approach from the open aisle.
 	var board := BoxMesh.new()
-	board.size = Vector3(0.78, 0.78, 0.08)
-	_piece(spa, board, ivory, Vector3(1.5, 1.3, -0.55))
+	board.size = Vector3(1.65, 0.62, 0.08)
+	_piece(spa, board, ivory, Vector3(0.5, 0.72, 2.98))
 	var logo := QuadMesh.new()
-	logo.size = Vector2(0.7, 0.7)
+	logo.size = Vector2(0.51, 0.51)
 	var ink := StandardMaterial3D.new()
 	ink.albedo_texture = load("res://assets/ui/icons/glyphs/spa_steam.png")
 	ink.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ink.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	_piece(spa, logo, ink, Vector3(1.5, 1.3, -0.503))
+	_piece(spa, logo, ink, Vector3(-0.03, 0.72, 3.027))
+	var words := Label3D.new()
+	preload("res://scripts/gfx/world_lettering.gd").apply(words, "HEALING SPRING\nRESTORES PARTY\nHP AND MP")
+	words.font_size = 32
+	words.pixel_size = 0.0032
+	words.outline_size = 0
+	words.modulate = Color("#49393c")
+	words.position = Vector3(0.78, 0.72, 3.03)
+	spa.add_child(words)
 	_steam(spa)
 
 static func _piece(parent: Node3D, mesh: Mesh, material: Material, at: Vector3) -> MeshInstance3D:

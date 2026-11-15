@@ -1037,6 +1037,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		var p := Vector2i(int(fixture[0]), int(fixture[1]))
 		MapGen.set_t(m, p.x, p.y, MapGen.FURN)
 		m["furniture"][p] = fixture[2]
+	for swimmer in room.get("swimmers", []):
+		var p := Vector2i(int(swimmer[0]), int(swimmer[1]))
+		m["npcs"].append(_room_npc("swimmer", b, p, rng, id, str(p), key))
 	m["floor"] = "tile" if tiles > dots else "wood"
 	var fcode := MapGen.ITILE if tiles > dots else MapGen.IFLOOR
 	for y in h:
@@ -1044,7 +1047,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			if MapGen.get_t(m, x, y) == MapGen.IFLOOR and String(rows[y])[x] != ".":
 				MapGen.set_t(m, x, y, fcode)
 	# someone standing on a rug stands ON the rug: their tile takes the floor around them
-	var spots: Array = m["npcs"].map(func(n): return n["pos"]) + m["anchors"].values()
+	var spots: Array = m["npcs"].filter(func(n): return not n.get("swim", false)).map(func(n): return n["pos"]) + m["anchors"].values()
 	for it in m["items"] + m["shards"]:
 		spots.append(it["pos"])
 	if m["spawns"].has("entry"):
@@ -1070,7 +1073,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	# (staff stay facing out over their counters)
 	# (a diner's patrons sit at their tables too)
 	for n in m["npcs"]:
-		if n.get("treadmill", false):
+		if n.get("treadmill", false) or n.get("swim", false):
 			continue # Keep runners facing their consoles; they never roam off the belt.
 		var table := _table_beside(m, n["pos"])
 		var raised := RoomBuilder.dais_at(m, n["pos"]) > 0.0
@@ -1223,6 +1226,12 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			for k in a.get("look", {}):
 				look2[k] = a["look"][k]
 			return {"kind": "leader", "pos": p, "look": look2, "facing": Vector2i(0, 1), "name": "%s %s" % [a["title"], a["leader"]], "building": b}
+		"swimmer":
+			var look := MapGen.random_look(rng)
+			look["outfit"] = "swim"
+			return {"kind": "villager", "name": "Swimming Guest", "pos": p, "look": look,
+				"facing": Vector2i.DOWN if p.x < 6 else Vector2i.LEFT, "swim": true, "still": true,
+				"visual_offset": Vector3(0, -1.05, 0), "lines": ["A swim, then a soak in the healing spring. That's my whole afternoon!"]}
 		"runner":
 			return {"kind": "villager", "name": "Breathless Guest", "pos": p, "look": MapGen.random_look(rng),
 				"facing": Vector2i.UP, "treadmill": true, "still": true, "visual_offset": Vector3(0, 0.2, 0),

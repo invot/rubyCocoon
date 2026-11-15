@@ -39,18 +39,20 @@ func run(main, opts: Dictionary) -> void:
 		if f == 7:
 			check(main.world.npcs.size() == 2 and main.world.npcs.values().all(func(n): return n.get("treadmill", false)), "two treadmill guests run in the gym")
 			check(main.world.npcs.values().all(func(n): return n["facing"] == Vector2i.UP), "runners face their treadmill consoles")
-	await main._go(base + "@6", Vector2i(8, 8))
-	check(not Elev.joined(main.world.map, Vector2i(8, 6), Vector2i(9, 6)), "spa deck is reached through its steps")
-	await main._walk_test([Vector2i(9, 8), Vector2i(9, 6)])
-	check(main.world.player_pos == Vector2i(9, 6) and is_equal_approx(main.world.player.position.y, 0.3), "player walks up the spa steps onto the raised deck")
+	await main._go(base + "@6", Vector2i(10, 5))
+	var swimmers: Array = main.world.npcs.values().filter(func(n): return n.get("swim", false))
+	check(swimmers.size() == 2 and swimmers.all(func(n): return preload("res://scripts/world/map_gen.gd").get_t(main.world.map, n["pos"].x, n["pos"].y) == preload("res://scripts/world/map_gen.gd").WATER), "two guests remain in the pool water")
+	check(not Elev.joined(main.world.map, Vector2i(9, 5), Vector2i(9, 4)), "spa deck is reached through its steps")
+	await main._walk_test([Vector2i(10, 4), Vector2i(10, 3)])
+	check(main.world.player_pos == Vector2i(10, 3) and is_equal_approx(main.world.player.position.y, 0.3), "player walks up the spa steps onto the raised deck")
 	for beast in GameState.party:
 		beast.hp = 1
 		beast.mp = 0
 	UI.auto_answers = [0]
-	await load("res://tools/debug/waterfront.gd").new()._tap(main, Vector2i(10, 6))
+	await load("res://tools/debug/waterfront.gd").new()._tap(main, Vector2i(10, 2))
 	check(GameState.party.all(func(beast): return beast.hp == beast.max_hp() and beast.mp == beast.max_mp()), "a real hot-tub tap heals HP and MP")
-	await main._walk_test([Vector2i(9, 8), Vector2i(8, 8)])
-	check(main.world.player_pos == Vector2i(8, 8) and is_zero_approx(main.world.player.position.y), "player walks back down the spa steps")
+	await main._walk_test([Vector2i(10, 4), Vector2i(10, 5)])
+	check(main.world.player_pos == Vector2i(10, 5) and is_zero_approx(main.world.player.position.y), "player walks back down the spa steps")
 	await main._go(base + "@9", Vector2i(3, 3))
 	var seeds := GameState.item_count("revival_seed")
 	await load("res://tools/debug/waterfront.gd").new()._tap(main, Vector2i(3, 2))

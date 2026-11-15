@@ -2858,7 +2858,7 @@ func _build_npcs() -> void:
 			continue
 		var p: Vector2i = n["pos"]
 		# (someone "blocking" stands right on the shut gate tile they guard, like Kelpwick's villagers)
-		if n.get("kind", "") not in ["trainer", "guardian"] and not n.get("blocking", false) and (not MapGen.walkable(MapGen.get_t(map, p.x, p.y)) or npcs.has(p)):
+		if n.get("kind", "") not in ["trainer", "guardian"] and not n.get("blocking", false) and not n.get("swim", false) and (not MapGen.walkable(MapGen.get_t(map, p.x, p.y)) or npcs.has(p)):
 			p = _free_tile_near(p)
 			n["pos"] = p
 		var node: Node3D
@@ -2915,7 +2915,7 @@ func _build_npcs() -> void:
 			node.scale = Vector3.ONE * 0.75
 		add_child(node)
 		# (a guardian resting in its nest lies perfectly still)
-		if not n.get("nest", false) and not (n.has("scene") or n.has("mesh") or n.has("asset")):
+		if not n.get("nest", false) and not n.get("swim", false) and not (n.has("scene") or n.has("mesh") or n.has("asset")):
 			var beast: bool = n.get("beast_genes", null) != null or n.has("robot_body")
 			n["ground_shadow"] = _ground_shadow(node, BEAST_SHADOW * (1.7 if n.get("big", false) else 1.0) if beast else PERSON_SHADOW)
 		n["node"] = node
@@ -4295,6 +4295,11 @@ func _animate_npcs(delta: float) -> void:
 				m.set_process(node.position.distance_squared_to(player.position) < 300.0)
 			elif m:
 				m.position.y = absf(sin(_time * 2.6 + p.x)) * 0.06
+		if n.get("swim", false):
+			n["phase"] = float(n.get("phase", 0.0)) + delta * 1.2
+			node.position.y = tile_pos(p).y + float(n["visual_offset"].y) + sin(float(n["phase"])) * 0.035
+			VPer.animate(node, float(n["phase"]), 0.12)
+			continue
 		if n.get("treadmill", false):
 			n["phase"] = float(n.get("phase", 0.0)) + VPer.phase_for(delta * 3.2, 3.2)
 			VPer.animate(node, n["phase"], 3.2)
@@ -4711,8 +4716,8 @@ func _pick(screen: Vector2) -> Dictionary:
 		boxes.append([AABB(tile_pos(p) + Vector3(-0.4, 1.0, -0.35), Vector3(0.8, 0.5, 0.7)), p, "thing"])
 	for p in map.get("furniture", {}):
 		var kind: String = map["furniture"][p]
-		if kind in ["ice_maker", "hot_tub"]:
-			var height := 1.24 if kind == "ice_maker" else 0.65
+		if kind in ["ice_maker", "hot_tub", "hot_tub_sign"]:
+			var height := 1.24 if kind in ["ice_maker", "hot_tub_sign"] else 0.65
 			boxes.append([AABB(tile_pos(p) + Vector3(-0.48, 0, -0.48), Vector3(0.96, height, 0.96)), p, "thing"])
 	for p in npcs:
 		var offset: Vector3 = npcs[p].get("visual_offset", Vector3.ZERO)

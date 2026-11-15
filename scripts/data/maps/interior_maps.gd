@@ -1285,8 +1285,10 @@ const HOTEL_ROOMS := {
 	},
 	"hotel_pool": {
 		"stage": true,
-		"dais": [{"rect": [9, 5, 4, 4], "steps": [[9, 8]]}],
+		"dais": [{"rect": [9, 1, 4, 4], "steps": [[10, 4]]}],
 		"zone": "hall",
+		"full_height_windows": true,
+		"swimmers": [[4, 3], [7, 4]],
 		"wall": "#fbf1e2",
 		"trim": "#4a2c1a",
 		"mission": true,
@@ -1303,8 +1305,8 @@ const HOTEL_ROOMS := {
 			"#..______....#",
 			"dP.______....g",
 			"#..______....#",
-			"#.........UU.#",
-			"#.SS......UU.#",
+			"#............#",
+			"#.SS.........#",
 			"#............#",
 			"##############"
 		],
@@ -1313,27 +1315,9 @@ const HOTEL_ROOMS := {
 			"g": "hotel_gym"
 		},
 		"fixtures": [
-			[12, 6, "hot_tub"], # The steam sign is solid and also offers the spring interaction.
-			[
-				10,
-				6,
-				"hot_tub"
-			],
-			[
-				11,
-				6,
-				"hot_tub"
-			],
-			[
-				10,
-				7,
-				"hot_tub"
-			],
-			[
-				11,
-				7,
-				"hot_tub"
-			]
+			[10, 1, "hot_tub"], [11, 1, "hot_tub"],
+			[10, 2, "hot_tub"], [11, 2, "hot_tub"],
+			[11, 4, "hot_tub_sign"]
 		],
 		"paintings": [
 			[0, 2, 1, 0, 1.8, 0, 1.5, 1.1],
