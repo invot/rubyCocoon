@@ -38,6 +38,8 @@ const ROOM_CHARS := {
 	"!": MapGen.IWINDOW,
 	# where a coat stand stood (retired 2026-11-15: too thin to be cosy): plain floor
 	"O": MapGen.IFLOOR, "R": MapGen.IFLOOR, # retired coat stands and wardrobes
+	# where open cardboard boxes stood (removed from the game 2026-11-16, the user's direction): plain floor
+	"X": MapGen.IFLOOR,
 }
 ## Tiles drawn as furniture (see room_builder.gd KINDS): the furniture letters of interior_maps.gd plus the older
 ## room tiles that are furniture too.

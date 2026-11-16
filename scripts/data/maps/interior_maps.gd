@@ -29,8 +29,8 @@ extends RefCounted
 ##   "locked": what you find at each locked door, in reading order (else just that it's locked)
 ##   furniture (see FURNITURE): k kitchen counter, i kitchen sink, v stove, f fridge, j pantry, T toilet, U bathtub,
 ##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table,
-##   N nightstand, Q dresser, E desk, F storage shelves, X boxes, m mop and bucket, l floor lamp, O plain floor (the
-##   coat stand, retired 2026-11-15 as too thin),
+##   N nightstand, Q dresser, E desk, F storage (a big chest of drawers over two tiles), m mop and bucket, l floor lamp, O and X plain floor (the
+##   coat stand, retired 2026-11-15 as too thin, and the open boxes, removed 2026-11-16),
 ##   z bin, J bunk bed, & low book display, ^ hay bales, ( low cupboard, ) pouf, [ basket of blankets. TVs (V) belong on the implied fourth wall in stage rooms.
 ##   A run of the same letter is one piece (two b's are a bed, a block of four a double bed).
 ##   "zones": the kind of room each tile is in, one letter per tile like the rows (see room_builder.gd ZONES):
@@ -44,7 +44,7 @@ extends RefCounted
 const FURNITURE := {
 	"|": "counter_gate", "k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
-	"N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "X": "boxes", "m": "mop",
+	"N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "m": "mop",
 	"&": "book_display", "l": "floor_lamp", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
 	"(": "cabinet", ")": "pouf", "[": "basket",
 }
@@ -79,7 +79,7 @@ const ROOMS := {
 		"wall": "#c08a58", "rug": "#a85a3a", "zone": "wood", "stage": true, "barn": true, "npcs": {"1": "kennel"},
 		"rows": [
 			"###w###w###",
-			"#^KKKK^.FX#",
+			"#^KKKK^.FF#",
 			"#...1.....#",
 			"#CCCCCCCCC#",
 			"#.........w",
@@ -207,7 +207,7 @@ const ROOMS := {
 		"counter_phone": [8, 2],
 		"rows": [
 			"######Z######",
-			"#XX..1...sss#",
+			"#....1...sss#",
 			"#CCCCCCCCCCCw",
 			"#...........w",
 			"#ht2....ht3.#",
@@ -222,7 +222,7 @@ const ROOMS := {
 		"wall": "#e2c48a", "rug": "#7a3a2a", "stage": true, "zone": "back", "npcs": {"1": "deputy"},
 		"rows": [
 			"###Z###Z###",
-			"#F...1...O#",
+			"#FF..1...O#",
 			"#CCCCCCCCCw",
 			"#.........w",
 			"#ht.......#",
@@ -302,15 +302,22 @@ const ROOMS := {
 			"###########",
 		],
 	},
+	## A fortune teller's parlour ("parlour", room_builder.gd _parlour_decor; the user's 2026-11-16 direction): dim and
+	## candlelit, the curtains drawn, cloth swagged along the walls, one rug and its floor full of poufs, baskets and books; one crystal ball on a
+	## square wooden table (Y) between the seer and her visitor.
 	"fortune": {
-		"wall": "#6a4a7a", "rug": "#5a2a6a", "stage": true, "npcs": {"1": "keeper"},
+		"wall": "#4e3a5e", "rug": "#6a2a5a", "trim": "#2e1c34", "stage": true, "parlour": true, "npcs": {"1": "keeper"},
+		# (its poufs' cloths in reading order: red at the far end of the left book table, indigo, green at the book table's near end, mustard)
+		"pouf_cloths": [0, 1, 3, 2],
+		# (its one rug, centred across the room under the crystal table: the user's 2026-11-16 direction)
+		"rug_rects": [[2, 2, 5, 4]],
 		"rows": [
 			"###w#w###",
-			"#..p1p..#",
-			"#..YYY..#",
-			"#rrrrrrr#",
-			"#rrrrrrr#",
-			"#t.....PD",
+			"#([p1p&(#",
+			"#)..Y..)#",
+			"#&rrrrr.#",
+			"#)rrrrr.#",
+			"#[.)...PD",
 			"#########",
 		],
 	},
@@ -428,7 +435,7 @@ const ROOMS := {
 		"wall": "#8a6a52", "rug": "#3a5a7a", "zone": "wood", "stage": true, "anchors": {"1": "rod"},
 		"rows": [
 			"####w####",
-			"#X.F..1X#",
+			"#.FF..1.#",
 			"#.......#",
 			"#th.....#",
 			"#......PD",
@@ -441,7 +448,7 @@ const ROOMS := {
 		"anchors": {"1": "item:rope_collar", "2": "item:cloth_band", "3": "item:twine_anklet"},
 		"rows": [
 			"####w####",
-			"#X.F...X#",
+			"#.FF....#",
 			"#.1.2.3.#",
 			"#th.....#",
 			"#......PD",
@@ -493,7 +500,7 @@ const ROOMS := {
 			"#############",
 		],
 	},
-	## Your bedroom, where you wake up (wake). Your bed is the one to nap in.
+	## Your bedroom, where you wake up (wake). Your bed is the one in this room.
 	## (2026-11-15) The rocket print over the bed, the desk under the window with its chair beside it, a closet in the
 	## back wall where the wardrobe was, and only low things at the front.
 	"home_bed": {
@@ -835,8 +842,8 @@ const ROOMS := {
 		"fireplace_style": "fieldstone", "fireplace_stone": "#b9b1a0",
 		"rows": [
 			"###w###w###",
-			"#Nb..qq..X#",
-			"#Xb......F#",
+			"#Nb..qq..F#",
+			"#.b......F#",
 			"#....1....#",
 			"#.ctc...a.#",
 			"#.ctc.....#",
@@ -852,11 +859,11 @@ const ROOMS := {
 		"fireplace_style": "fieldstone", "fireplace_stone": "#a6b3ac",
 		"rows": [
 			"###w###w###",
-			"#NbF.qq.XO#",
-			"#.b......X#",
+			"#Nb..qq.FF#",
+			"#.b.......#",
 			"#....1r...#",
 			"#.hth.r...#",
-			"#X.......PD",
+			"#........PD",
 			"###########",
 		],
 	},
@@ -867,8 +874,8 @@ const ROOMS := {
 		"anchors": {"1": "item:worn_cap", "2": "item:old_sneakers", "3": "item:rope_collar"},
 		"rows": [
 			"#####w##w##",
-			"#.Nb...F.X#",
-			"#X.b......#",
+			"#.Nb..FF..#",
+			"#..b......#",
 			"#...1..2..#",
 			"#.ct......#",
 			"#[.....3.PD",

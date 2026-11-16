@@ -978,14 +978,10 @@ func _warehouse_goods() -> void:
 	_container(Vector3(19.6, 2.5, north + 1.55), "#3f6470", 0.04)
 	_container(Vector3(13.2, 0, south - 1.5), "#44566e", 0.0)
 	_container(Vector3(25.6, 0, south - 2.7), "#8a8f55", PI / 2.0)
-	# steel racks on the north wall, stocked with boxes
+	# steel racks on the north wall
 	for k in 3:
-		var x := 11.4 + k * 1.75
-		_piece("shelves_metal", Vector3(x, 0, north + 0.6), 2.5)
-		for shelf in [0.75, 1.5]:
-			_piece(["box_1", "box_2", "box_3"][k], Vector3(x - 0.3, shelf, north + 0.6), 0.42, 0.3 * k)
-			_piece(["box_3", "box_1", "box_2"][k], Vector3(x + 0.35, shelf, north + 0.62), 0.36, -0.2 * k)
-	# crates, barrels and pallets of boxes
+		_piece("shelves_metal", Vector3(11.4 + k * 1.75, 0, north + 0.6), 2.5)
+	# crates, barrels and pallets
 	for goods in [[Vector3(18.6, 0, south - 1.3), 1.5, 0.3], [Vector3(20.4, 0, south - 1.1), 1.1, -0.5], [Vector3(25.8, 0, north + 1.3), 1.6, 0.9],
 			[Vector3(24.6, 0, north + 3.0), 1.1, 0.2], [Vector3(11.2, 0, south - 4.6), 1.2, 0.0]]:
 		_asset("crates", goods[0], goods[1], goods[2])
@@ -994,9 +990,6 @@ func _warehouse_goods() -> void:
 	for k in 3:
 		var at := Vector3(24.8 + k * 0.1, 0, south - 5.2 - k * 1.5) if k < 2 else Vector3(16.9, 0, north + 0.9)
 		_piece("pallet", at, 0.16, 0.2 * k)
-		_piece("box_2", at + Vector3(-0.25, 0.16, 0.1), 0.6, 0.2)
-		_piece("box_1", at + Vector3(0.3, 0.16, -0.15), 0.5, -0.3)
-		_piece("box_3", at + Vector3(0.0, 0.7, 0.0), 0.4, 0.5)
 	_piece("breaker_box", Vector3(DOOR_X + 0.34, 1.3, DOOR_Z + 2.2), 0.6, PI / 2.0)
 	_piece("ladder", Vector3(17.6, 0, DOOR_Z - HALF + 0.5), 2.6)
 	_piece("broom", Vector3(DOOR_X + 0.5, 0, DOOR_Z + 3.4), 1.4, PI / 2.0)

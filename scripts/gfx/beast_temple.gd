@@ -35,20 +35,24 @@ const PLINTH := 0.28
 static var _cache := {}
 
 
-## The temple for a building dictionary (w, d, door, x, seed, low). Sets b["height"] to its wall's top.
+## The temple for a building dictionary (w, d, door, x, seed, low, step_drop). Sets b["height"] to its wall's top.
+## `step_drop` is how far the ground in front of the door lies below the temple's base (its door tile is a doorstep,
+## raised like the turf, while the path before it isn't): the step and planters reach down to it, so the hero's feet
+## stand on the step's top rather than sinking through it, and nothing floats.
 static func build(b: Dictionary) -> Node3D:
 	var w: float = b["w"]
 	var d: float = b["d"]
 	var door_lx: float = float(b["door"].x) + 0.5 - (float(b["x"]) + w / 2.0)
 	var low: bool = b.get("low", false)
+	var drop := maxf(0.0, float(b.get("step_drop", 0.0)))
 	b["height"] = PLINTH + WALL
-	var key := "%d:%d:%.2f:%s" % [int(w * 10), int(d * 10), door_lx, low]
+	var key := "%d:%d:%.2f:%s:%.2f" % [int(w * 10), int(d * 10), door_lx, low, drop]
 	var node := Node3D.new()
 	var meshes: Array = _cache.get(key, [])
 	if meshes.is_empty():
 		var k := VBld.Kit.new()
 		var leaf := VBld.Kit.new()
-		_shell(k, leaf, w, d, door_lx, low)
+		_shell(k, leaf, w, d, door_lx, low, drop)
 		meshes = [k.mesh(), leaf.mesh()]
 		_cache[key] = meshes
 	for m in meshes:
@@ -180,7 +184,7 @@ static func _frustum(k: VBld.Kit, mat: String, c: Vector3, r0: float, r1: float,
 			k.poly(mat, [c + Vector3(0, y0, 0), c + Vector3(cos(a1) * r0, y0, sin(a1) * r0), c + Vector3(cos(a0) * r0, y0, sin(a0) * r0)], Vector3.DOWN, col.darkened(0.3))
 
 
-static func _shell(k: VBld.Kit, leaf: VBld.Kit, w: float, d: float, door_lx: float, low: bool) -> void:
+static func _shell(k: VBld.Kit, leaf: VBld.Kit, w: float, d: float, door_lx: float, low: bool, drop := 0.0) -> void:
 	var hx := w / 2.0 - 0.12
 	var front := _front(d)
 	var back := -d / 2.0 + 0.12
@@ -227,12 +231,12 @@ static func _shell(k: VBld.Kit, leaf: VBld.Kit, w: float, d: float, door_lx: flo
 		k.poly("color", [crest + side, tip, crest - side], Vector3(0, 0, 1), CORAL)
 		k.poly("color", [crest + side, crest - side, tip], Vector3(0, 0, -1), CORAL.darkened(0.15))
 	k.box("glow", crest + Vector3(0, 0, 0.02), Vector3(0.14, 0.14, 0.1), TEAL)
-	_portal(k, leaf, door_lx, front, hx)
+	_portal(k, leaf, door_lx, front, hx, drop)
 
 
 ## The front portal on the drum's face: pilasters either side of the arched doorway, the gable over it with its
 ## gold-trimmed, tile-set eaves and pointed niche, and the sign board between door and niche.
-static func _portal(k: VBld.Kit, leaf: VBld.Kit, x: float, front: float, hx: float) -> void:
+static func _portal(k: VBld.Kit, leaf: VBld.Kit, x: float, front: float, hx: float, drop := 0.0) -> void:
 	var hw := clampf(1.45, 1.1, hx - 0.25)
 	var x0 := clampf(x, -hx + hw, hx - hw)
 	var zf := front + PORTAL_DEPTH
@@ -324,14 +328,19 @@ static func _portal(k: VBld.Kit, leaf: VBld.Kit, x: float, front: float, hx: flo
 	for yy: float in [0.45, 1.35]:
 		leaf.box("tin", Vector3(x, y0 + yy, dz + 0.04), Vector3(DOOR_W - 0.08, 0.06, 0.02), Color("#3a3a40"))
 	leaf.box("brass", Vector3(x + 0.3, y0 + 1.0, dz + 0.05), Vector3(0.08, 0.08, 0.04), Color("#c8a040"))
-	# a half-round step before the door
-	_frustum(k, "color", Vector3(x, 0, zf + 0.05), 0.85, 0.8, 0.0, 0.12, STONE_DARK.lightened(0.05), 10)
+	# a half-round step before the door: a broad slab flush with the ground the hero stands on in front (its top only
+	# a hair above it, so feet rest on it), and a narrow half-step up to the sill that stays inside the door's own tile
+	var ground := -drop
+	_frustum(k, "color", Vector3(x, 0, zf + 0.05), 0.85, 0.82, ground - 0.15, ground + 0.03, STONE_DARK.lightened(0.05), 10)
+	_frustum(k, "color", Vector3(x, 0, zf + 0.05), 0.3, 0.28, ground, (ground + 0.03 + y0) / 2.0, STONE_DARK.lightened(0.08), 10)
 	# the planters of agaves either side, against the drum's base course
 	for sx: float in [-1.0, 1.0]:
 		var px := x0 + sx * (hw + 0.55)
 		if absf(px) > hx - 0.3:
 			continue
-		k.box("color", Vector3(px, PLINTH + 0.18, front + 0.22), Vector3(0.7, 0.36, 0.4), STONE_DARK)
+		# (down into the ground in front, since it stands out past the plinth)
+		var foot := -drop - 0.08
+		k.box("color", Vector3(px, (foot + PLINTH + 0.36) / 2.0, front + 0.22), Vector3(0.7, PLINTH + 0.36 - foot, 0.4), STONE_DARK)
 		k.box("color", Vector3(px, PLINTH + 0.37, front + 0.22), Vector3(0.6, 0.02, 0.3), Color("#5a3e2a"))
 		# (each leaf both sides, so it shows from any angle)
 		for j in 7:

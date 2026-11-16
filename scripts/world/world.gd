@@ -2383,7 +2383,9 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 	else:
 		b["locked"] = Places.door_locked(b)
 		if b["shop"] == "center":
-			# every town's Beast Center is the same little temple (beast_temple.gd)
+			# every town's Beast Center is the same little temple (beast_temple.gd); its step reaches down to the ground
+			# in front of its raised doorstep
+			b["step_drop"] = _lift(b["door"]) - _lift(b["door"] + Vector2i(0, 1))
 			node = BeastTemple.build(b)
 		elif b["shop"] == "kennel":
 			# the roads' kennel barns look the same everywhere, but for a region's paint (barn_builder.gd)
@@ -2857,8 +2859,7 @@ func _build_npcs() -> void:
 			continue
 		if n.get("kind", "") == "guardian" and n.get("nest", false):
 			_build_nest(n["pos"])
-		if n.get("kind", "") == "guardian" and GameState.flag(n.get("flag", "")):
-			continue
+		# (a guardian you've befriended stays in its nest: it doesn't go anywhere, it just answers your song in battle)
 		if n.has("gone_flag") and GameState.flag(n["gone_flag"]):
 			continue
 		var p: Vector2i = n["pos"]
@@ -5804,6 +5805,10 @@ func _build_room() -> void:
 	if temple:
 		env.ambient_light_color = Color("#7c88a8")
 		env.ambient_light_energy = 0.26 if not room.has("round") else 0.14
+	if room.get("parlour", false):
+		# a fortune teller's parlour: curtains drawn, a dim violet hush, lit by its candles and the crystal ball
+		env.ambient_light_color = Color("#8a74b8")
+		env.ambient_light_energy = 0.2
 	if open_air:
 		env.background_mode = Environment.BG_SKY
 		env.sky = OutdoorLight.sky(biome)
@@ -6094,19 +6099,33 @@ func _build_room() -> void:
 					k.box("stone", center + Vector3(0, 0.175, 0), Vector3(1.0, 0.35, 1.0), stone)
 					k.box("glow", center + Vector3(0, 0.36, 0), Vector3(0.8, 0.05, 0.8), Color("#4aa8ff"))
 				MapGen.CRYSTAL:
-					# a round table under a violet cloth, the crystal ball glowing on a little stand
-					var tm: Node3D = _room_model_interior("table_pedestal", center, Vector3(0.95, 0.78, 0.95))
-					if tm != null:
-						var cloth := StandardMaterial3D.new()
-						cloth.albedo_color = Color("#5a2a7a")
-						cloth.roughness = 0.9
-						(tm as MeshInstance3D).material_override = cloth
+					# the square wooden table (the user's 2026-11-16 direction), the crystal ball glowing on a little
+					# brass stand in its middle and a candle at one corner
+					var top := 0.74
+					var tmesh := RoomBuilder.piece("kk_table_small")
+					if tmesh != null:
+						var tm := MeshInstance3D.new()
+						tm.mesh = tmesh
+						tm.position = center
+						add_child(tm)
+						top = tmesh.get_aabb().end.y
+					var stand := MeshInstance3D.new()
+					var cyl := CylinderMesh.new()
+					cyl.top_radius = 0.1
+					cyl.bottom_radius = 0.13
+					cyl.height = 0.07
+					cyl.radial_segments = 12
+					stand.mesh = cyl
+					stand.material_override = RoomBuilder.surface("wall_plaster", Color("#c99a3a"))
+					stand.position = center + Vector3(0, top + 0.035, 0)
+					add_child(stand)
+					add_child(RoomBuilder.candle(center + Vector3(0.28, top, 0.22), 0.16, 0.045))
 					var ball := MeshInstance3D.new()
 					var sph := SphereMesh.new()
-					sph.radius = 0.17
-					sph.height = 0.34
-					sph.radial_segments = 10
-					sph.rings = 6
+					sph.radius = 0.16
+					sph.height = 0.32
+					sph.radial_segments = 16
+					sph.rings = 10
 					ball.mesh = sph
 					var bm := StandardMaterial3D.new()
 					bm.albedo_color = Color("#9affff")
@@ -6114,13 +6133,13 @@ func _build_room() -> void:
 					bm.emission = Color("#5adcff")
 					bm.emission_energy_multiplier = 1.6
 					ball.material_override = bm
-					ball.position = center + Vector3(0, 0.98, 0)
+					ball.position = center + Vector3(0, top + 0.07 + 0.14, 0)
 					add_child(ball)
 					var cl := OmniLight3D.new()
 					cl.light_color = Color("#7affff")
-					cl.light_energy = 0.6
-					cl.omni_range = 2.2
-					cl.position = center + Vector3(0, 1.1, 0)
+					cl.light_energy = 0.9
+					cl.omni_range = 2.6
+					cl.position = center + Vector3(0, top + 0.45, 0)
 					add_child(cl)
 	if open_air:
 		_build_tower_drop(k, w, h, wall_col, rng)

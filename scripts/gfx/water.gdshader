@@ -25,6 +25,11 @@ uniform float fall_stretch = 1.0;
 uniform float froth = 0.3;
 uniform float tex_scale = 0.5;
 uniform vec2 drift = vec2(0.0, 0.03);
+// A round curtain (round_chamber.gd): stream lines spaced by angle round fall_centre (mesh space), fall_ring of them
+// in a full turn (a whole number, so the ring closes without a seam). 0 keeps flat sheets' world x + z spacing, which
+// would fold into a chevron where a ring turns back along that diagonal.
+uniform float fall_ring = 0.0;
+uniform vec2 fall_centre = vec2(0.0);
 // Optional beach profile, shared with shoreline.gd. The five-centimetre wading shelf stays calm.
 uniform vec4 shore = vec4(0.0);
 uniform vec3 shore_levels = vec3(-0.12, -0.17, -1.65);
@@ -33,6 +38,7 @@ varying vec3 wpos;
 varying vec3 wnorm;
 varying vec2 flow_uv;
 varying vec2 crest_ends;
+varying vec3 lpos;
 
 // A connected network of rounded, irregular light cells. The sites move independently and the domain bends,
 // so the honeycomb breathes and reshapes instead of sliding a fixed grid across the surface.
@@ -80,6 +86,7 @@ bool on_beach(vec2 p) {
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	lpos = VERTEX;
 	wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	flow_uv = UV;
 	crest_ends = UV2;
@@ -129,10 +136,18 @@ void fragment() {
 		float down = (wpos.y + TIME * 1.2) / stretch;
 		float across = side * 5.0;
 		float aa = max(fwidth(across), 0.008);
+		if (fall_ring > 0.0) {
+			vec2 d = lpos.xz - fall_centre;
+			across = (atan(d.y, d.x) / 6.283185 + 0.5) * fall_ring;
+			// (measured from the opposite side too, so the angle's wrap doesn't blur one column)
+			float other = atan(-d.y, -d.x) / 6.283185 * fall_ring;
+			aa = max(min(fwidth(across), fwidth(other)), 0.008);
+		}
 		float lines = 0.0;
 		for (int i = -1; i <= 1; i++) {
 			float lane = floor(across) + float(i);
-			float seed = fract(sin(lane * 127.1 + 23.7) * 43758.5453);
+			float seed_lane = fall_ring > 0.0 ? mod(lane, fall_ring) : lane;
+			float seed = fract(sin(seed_lane * 127.1 + 23.7) * 43758.5453);
 			float phase = seed * 6.283185;
 			float centre = lane + 0.15 + seed * 0.7;
 			float bend = sin(down * 2.8 + phase) * 0.12 + sin(down * 5.1 - phase) * 0.04;

@@ -13,7 +13,8 @@ extends "res://scripts/ui/modal.gd"
 ## Modes: "play" (no listening first), "learn" (it plays once, then you play it back to learn the song; `goal` sets the
 ## bar to pass), "demo" (someone else plays it).
 ## opts: mode, goal, performer (who plays it while you listen), level (default: the song's level), lesson (true: a
-## teacher's lesson: the beginner's 30-second clock, and the song always plays through before your turn).
+## teacher's lesson: the beginner's 30-second clock, and the song always plays through before your turn), base (true:
+## a battle performance: only the song's original melody, its first level, at most 8 notes).
 ## done emits {"acc": 0..1, "mistakes", "cancelled", "failed": "" / "time" / "misses", "zone": 0..3}.
 
 const SongDB = preload("res://scripts/data/song_db.gd")
@@ -68,6 +69,8 @@ var performer := ""
 var subtitle := ""
 var song: Dictionary
 var level := 1
+## the level whose melody is played (1 in battle: the original melody)
+var _melody_level := 1
 var melody: Array = []
 var time_limit := 30.0
 ## listen, study, play, result
@@ -109,7 +112,9 @@ func setup(_song_id: String, _subtitle := "", time_bonus := 0.0, opts := {}) -> 
 	subtitle = _subtitle
 	dim = 0.45
 	level = int(opts.get("level", GameState.song_level(song_id)))
-	melody = SongDB.melody(song_id, level)
+	# a battle plays just the song's original melody (its first level); practising plays the whole song
+	_melody_level = 1 if opts.get("base", false) else level
+	melody = SongDB.melody(song_id, _melody_level)
 	lesson = opts.get("lesson", false)
 	var base: float = SongDB.TUTORIAL_TIME if lesson else SongDB.BASE_TIME
 	time_limit = SongDB.time_limit(melody.size(), base) * (1.0 + time_bonus)
@@ -399,7 +404,7 @@ func _draw() -> void:
 	draw_line(Vector2(staff_r - 7, top_y), Vector2(staff_r - 7, base_y), ink, 2.0)
 	draw_line(Vector2(staff_r - 1, top_y), Vector2(staff_r - 1, base_y), Color(SEPIA, 0.35), 4.0)
 	# which button each line and space is
-	var u := SongDB.unlocks(song_id, level)
+	var u := SongDB.unlocks(song_id, _melody_level)
 	var used := [SongDB.BTN_LEFT, SongDB.BTN_RIGHT, SongDB.BTN_A, SongDB.BTN_B]
 	if u["up"]:
 		used.append(SongDB.BTN_UP)

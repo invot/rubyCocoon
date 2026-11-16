@@ -9,7 +9,7 @@ const SongDB = preload("res://scripts/data/song_db.gd")
 const ITEMS := {
 	# ---------------- consumables ----------------
 	## In battle the trainer uses items. "target": ally, ally_ko, allies, enemy, enemies.
-	# MP: elemental attacks spend it; only these (and healing at a Beast Center or at home) bring it back
+	# MP: elemental attacks spend it; only these (and healing at a Beast Center) bring it back
 	"spirit_drop": {"name": "Spirit Drop", "kind": "use", "price": 80, "tier": 0, "mp": 15, "target": "ally", "desc": "Restores 15 MP."},
 	"spirit_tonic": {"name": "Spirit Tonic", "kind": "use", "price": 220, "tier": 3, "mp": 40, "target": "ally", "desc": "Restores 40 MP."},
 	"spirit_elixir": {"name": "Spirit Elixir", "kind": "use", "price": 600, "tier": 6, "mp_pct": 1.0, "target": "ally", "desc": "Fully restores MP."},

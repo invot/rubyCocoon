@@ -109,8 +109,9 @@ const KINDS := {
 	"basket": {"m": ["home/basket_blankets"], "single": true},
 	# a chunky table, with a chest of drawers beside it where the desk has two tiles or more (desk_side)
 	"desk": {"m": ["kk_table_small"], "desk_side": "kk_drawers", "top": ["books", "pencils", "globe", "home/books_stack"]},
-	"storage": {"m": ["kk_cabinet_medium_dec"], "alt": ["kk_drawers"], "long": true},
-	"boxes": {"m": ["box_1", "box_2", "box_3"], "single": true},
+	# (2026-11-16, the user's direction) the big chest of drawers takes two tiles, grown to fill them but for a little
+	# gap at each side (grow: the share of the tiles' width it takes)
+	"storage": {"m": ["kk_drawers"], "alt": ["kk_cabinet_medium_dec"], "long": true, "grow": 0.86},
 	# a kennel barn's hay bales (barn_builder.gd)
 	"hay": {"m": ["hay_stack"], "single": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
@@ -407,6 +408,10 @@ var blocks := false
 var mission := false
 ## an adobe house's finish (Sunwall's rooms, map_loader.gd _interior): see _adobe_decor
 var adobe := false
+## a fortune teller's parlour (the template's "parlour"): see _parlour_decor
+var parlour := false
+## where the parlour's candles stand (tops of its cupboards, its window sills)
+var _candle_spots := []
 ## an ancient room's stone (SANDSTONE, touched by the template's wall colour)
 var stone := SANDSTONE
 ## per row of walls: a node, and the mesher its walls go into
@@ -457,6 +462,10 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb.trim = Color(str(room.get("trim", "#5a3a26")))
 	rb.mission = room.get("mission", false)
 	rb.adobe = room.get("adobe", false)
+	rb.parlour = room.get("parlour", false)
+	if rb.parlour:
+		# (a parlour's walls take far more of its dusky colour)
+		rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.7)
 	rb.ancient = room.get("ancient", String(m.get("room_key", "")).begins_with("temple"))
 	rb.temple = String(m.get("room_key", "")).begins_with("temple")
 	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
@@ -493,6 +502,8 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	rb._counters()
 	if room.get("art_walls", false):
 		rb._art_walls()
+	elif rb.parlour:
+		rb._parlour_decor()
 	else:
 		rb._wall_decor()
 	if rb.mission:
@@ -1835,6 +1846,220 @@ func _mission_balcony_arch(x: int, y: int, horiz: bool, into: Vector3, z: String
 	_arch_band(m, "mission_wood", surface("mission_wood", MISSION_WOOD), c + into * 0.006, along, into, r - 0.02, r + 0.06)
 
 
+# ---------------------------------------------------------------- a fortune teller's parlour
+## A fortune teller's parlour (the template's "parlour", the user's 2026-11-16 direction): dim, spooky and cute. Its
+## curtains are drawn (_curtains), a faint violet fill stands in for daylight and candles light it: clusters on its
+## cupboards and candle sconces on its side walls. Cloth hangs everywhere: swags gathered along the top of every wall,
+## tapestries, poufs in its cloths, and baskets, books and cupboards of candles all about its floor.
+const PARLOUR_FILL := 0.12
+const PARLOUR_CURTAIN := Color("#7a2448")
+const PARLOUR_CLOTHS := [Color("#7a2448"), Color("#3e2f74"), Color("#b5822e"), Color("#4f6e5a")]
+const CANDLE_LIGHT := Color("#ffb45a")
+const CANDLE_ENERGY := 0.55
+const CANDLE_RANGE := 2.3
+const WAX := Color("#f2e4c4")
+## the parlour's prints' colourways: pale lilac with green and purple, pale mint with purple and green
+const PARLOUR_PRINTS := ["#e6dcf0,#6fb35e,#7a3fb0,#2a1a3a", "#dcefd8,#8e4fc8,#4f9a5a,#2a1a3a"]
+## where the parlour's candle glows go (_lights)
+var _candle_glow := []
+
+
+func _parlour_decor() -> void:
+	var fl := T / 2.0 + 0.5
+	# swags along the top of the back wall and both side walls, in turn plum, indigo, mustard and sage
+	# (a side wall's swags stop short of its first doorway, clear of the sign over the door: the user's 2026-11-16 direction)
+	var ends := []
+	for wx in [0, w - 1]:
+		var end := h - 1.0
+		for y in range(1, h - 1):
+			if not code(wx, y) in [MapGen.IWALL, MapGen.IWINDOW]:
+				end = float(y) - 0.15
+				break
+		ends.append(end)
+	var runs := [[Vector3(fl, 0, fl), Vector3(w - fl, 0, fl), Vector2i(0, 1)],
+		[Vector3(fl, 0, fl), Vector3(fl, 0, ends[0]), Vector2i(1, 0)],
+		[Vector3(w - fl, 0, fl), Vector3(w - fl, 0, ends[1]), Vector2i(-1, 0)]]
+	var i := 0
+	for run in runs:
+		var a: Vector3 = run[0]
+		var b: Vector3 = run[1]
+		var inside: Vector2i = run[2]
+		var n := maxi(1, int(round(a.distance_to(b) / 1.9)))
+		var seg := a.distance_to(b) / n
+		for k in n:
+			var mid := a.lerp(b, (k + 0.5) / n) + Vector3(inside.x, 0, inside.y) * 0.03
+			var mi := MeshInstance3D.new()
+			mi.mesh = _swag_mesh(seg + 0.06, 0.2, 0.32)
+			mi.material_override = HomeDecor.atlas_material(scheme, {"fabric": "#" + (PARLOUR_CLOTHS[i % PARLOUR_CLOTHS.size()] as Color).to_html(false)})
+			mi.position = mid + Vector3.UP * (H - 0.04)
+			mi.rotation.y = atan2(float(inside.x), float(inside.y))
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var wt := Vector2i(int(floor(mid.x - inside.x * 0.5)), int(floor(mid.z - inside.y * 0.5)))
+			if wallish(wt.x, wt.y):
+				_attach(wt.x, wt.y, mi)
+			else:
+				parent.add_child(mi)
+			i += 1
+	# tapestries: behind the seer between the windows, either end of the back wall and the middle of each side wall
+	var mid_x := w / 2
+	_drape("tapestry", mid_x, 0, Vector2i(0, 1), 1.62, 0.0, PARLOUR_CLOTHS[1], 0.92)
+	_drape("tapestry", 1, 0, Vector2i(0, 1), 1.58, 0.33, PARLOUR_CLOTHS[0], 1.0)
+	_drape("tapestry", w - 2, 0, Vector2i(0, 1), 1.58, -0.33, PARLOUR_CLOTHS[3], 1.0)
+	for side in [[0, Vector2i(1, 0)], [w - 1, Vector2i(-1, 0)]]:
+		var wx: int = side[0]
+		var into: Vector2i = side[1]
+		var wy := 2
+		_drape("tapestry", wx, wy + 1, into, 1.55, 0.0, PARLOUR_CLOTHS[2] if wx == 0 else PARLOUR_CLOTHS[0], 1.1)
+		_candle_sconce(wx, wy, into)
+	# framed prints in purple and green (the user's 2026-11-16 direction) in brass-coloured frames, on the side walls
+	var ids := HomeDecor.pick_prints(pick_seed, 3, [HomeDecor.ROCKET])
+	var spots := [[0, 1, Vector2i(1, 0)], [w - 1, 1, Vector2i(-1, 0)], [0, 4, Vector2i(1, 0)]]
+	for j in mini(ids.size(), spots.size()):
+		var sx: int = spots[j][0]
+		var sy: int = spots[j][1]
+		var into: Vector2i = spots[j][2]
+		# (above the corner cupboards' candles, which mark these walls as used)
+		if code(sx, sy) != MapGen.IWALL:
+			continue
+		var pm := HomeDecor.framed_print(0.56, 0.74, ids[j], scheme, PARLOUR_PRINTS[j % PARLOUR_PRINTS.size()], false, {"wood": "#c9a050"})
+		var yaw := atan2(float(into.x), float(into.y))
+		pm.position = Vector3(sx + 0.5, 1.5, sy + 0.5) + Vector3(into.x, 0, into.y) * (T / 2.0 + 0.004)
+		pm.rotation.y = yaw
+		pm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_wall_used[Vector2i(sx, sy)] = true
+		_attach(sx, sy, pm)
+	# candles on the cupboards
+	for at: Vector3 in _candle_spots:
+		_candles(at, 3)
+	# a pair of little candles on the floor beside each basket (unlit by a light of their own: the omni budget)
+	var fur: Dictionary = map.get("furniture", {})
+	for t: Vector2i in fur:
+		if fur[t] == "basket":
+			for k in 2:
+				parent.add_child(candle(Vector3(t.x + 0.8 - k * 0.1, 0, t.y + 0.2 + k * 0.12), [0.16, 0.1][k], [0.045, 0.038][k]))
+	# the poufs in the parlour's cloths, in reading order (the template's "pouf_cloths": indices into PARLOUR_CLOTHS)
+	var poufs := []
+	for c in parent.get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh != null and (c as MeshInstance3D).mesh.resource_path.ends_with("/pouf.res"):
+			poufs.append(c)
+	poufs.sort_custom(func(a, b): return Vector2(a.position.z, a.position.x) < Vector2(b.position.z, b.position.x))
+	var order: Array = map.get("room", {}).get("pouf_cloths", [0, 1, 2, 3])
+	for pi in poufs.size():
+		(poufs[pi] as MeshInstance3D).set_surface_override_material(0, HomeDecor.atlas_material(scheme,
+			{"fabric": "#" + (PARLOUR_CLOTHS[int(order[pi % order.size()]) % PARLOUR_CLOTHS.size()] as Color).to_html(false)}))
+
+
+## A decor-kit cloth piece (a tapestry) on wall tile (x, y), dyed `colour`.
+func _drape(name: String, x: int, y: int, inside: Vector2i, up: float, side: float, colour: Color, sc := 1.0) -> void:
+	if not wallish(x, y):
+		return
+	var mi := HomeDecor.make(name, scheme, "", "", {"fabric": "#" + colour.to_html(false), "wood": "#5a3a26"})
+	if mi == null:
+		return
+	var yaw := atan2(float(inside.x), float(inside.y))
+	mi.position = Vector3(x + 0.5, up, y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.004) \
+		+ Basis(Vector3.UP, yaw) * Vector3(side, 0, 0)
+	mi.rotation.y = yaw
+	mi.scale = Vector3.ONE * sc
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_wall_used[Vector2i(x, y)] = true
+	_attach(x, y, mi)
+
+
+## A little cluster of `n` church candles standing at `at`, their glow lighting the room (_lights).
+func _candles(at: Vector3, n: int) -> void:
+	for k in n:
+		var a := TAU * k / n + 0.4
+		var off := Vector3(cos(a), 0, sin(a)) * (0.09 if n > 1 else 0.0)
+		parent.add_child(candle(at + off, [0.24, 0.16, 0.11, 0.2][k % 4], [0.05, 0.042, 0.038, 0.045][k % 4]))
+	_candle_glow.append(at + Vector3.UP * 0.4)
+
+
+## An iron candle sconce on wall tile (x, y), facing `inside`.
+func _candle_sconce(x: int, y: int, inside: Vector2i) -> void:
+	var m := _row(y)
+	var iron := surface("iron", MISSION_IRON)
+	var nrm := Vector3(inside.x, 0, inside.y)
+	var along := Vector3(absi(inside.y), 0, absi(inside.x))
+	var s := Vector3(x + 0.5, 1.45, y + 0.5) + nrm * (T / 2.0 + 0.012)
+	_along_box(m, "iron", iron, s, along, 0.1, 0.26, 0.03)
+	m.box("iron", iron, s + nrm * 0.07 - Vector3.UP * 0.08, Vector3.ONE * 0.04)
+	m.box("iron", iron, s + nrm * 0.13 - Vector3.UP * 0.1, Vector3(0.14, 0.03, 0.14))
+	var c := candle(s + nrm * 0.13 - Vector3.UP * 0.085, 0.2, 0.045)
+	_attach(x, y, c)
+	_wall_used[Vector2i(x, y)] = true
+	_candle_glow.append(s + nrm * 0.35 + Vector3.UP * 0.3)
+
+
+## A chunky wax candle `height` tall with its little flame, standing on `at` (also the crystal ball's table, world.gd).
+static func candle(at: Vector3, height: float, radius: float) -> Node3D:
+	var root := Node3D.new()
+	root.position = at
+	var wax := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = radius
+	cm.bottom_radius = radius * 1.05
+	cm.height = height
+	cm.radial_segments = 12
+	cm.rings = 1
+	wax.mesh = cm
+	wax.material_override = surface("wall_plaster", WAX)
+	wax.position.y = height / 2.0
+	wax.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(wax)
+	var flame := MeshInstance3D.new()
+	var fm := SphereMesh.new()
+	fm.radius = 0.02
+	fm.height = 0.07
+	fm.radial_segments = 8
+	fm.rings = 4
+	flame.mesh = fm
+	flame.material_override = flame_material()
+	flame.position.y = height + 0.04
+	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(flame)
+	return root
+
+
+static var _swag_meshes := {}
+
+
+## A swag of gathered cloth hung along a wall: `length` along x, facing +z, its top edge at y = 0 dipping a little in
+## the middle, `band` deep and sagging `sag` more at the bottom, bellying out from the wall; in the decor atlas's
+## pleated cloth (its folds running along the swag), both sides.
+static func _swag_mesh(length: float, band: float, sag: float) -> ArrayMesh:
+	var key := "%.3f:%.3f:%.3f" % [length, band, sag]
+	if _swag_meshes.has(key):
+		return _swag_meshes[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var red := Color(1, 0, 0, 0)
+	var segs := 12
+	var layers := 4
+	for j in layers:
+		for i in segs:
+			var pts := []
+			var uvs := []
+			for c in [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]]:
+				var t := float(c[0]) / segs
+				var v := float(c[1]) / layers
+				var dip := 4.0 * t * (1.0 - t)
+				var y := -dip * 0.06 - v * (band + sag * dip)
+				# (it bellies out from the wall towards its lower edge)
+				var z := 0.02 + v * dip * 0.12
+				pts.append(Vector3((t - 0.5) * length, y, z))
+				# (the atlas's pleats run across its cell: laid across the swag, they gather along it)
+				uvs.append(Vector2(lerpf(PLEAT_UV[0], PLEAT_UV[2], 0.25 + v * 0.5), lerpf(PLEAT_UV[1], PLEAT_UV[3], t)))
+			var n: Vector3 = ((pts[1] as Vector3) - pts[0]).cross((pts[3] as Vector3) - pts[0]).normalized()
+			if n.z < 0.0:
+				n = -n
+			_st_quad(st, pts, uvs, n, red)
+			_st_quad(st, pts.map(func(p): return p + Vector3(0, 0, -0.004)), uvs, -n, red)
+	var mesh := st.commit()
+	_swag_meshes[key] = mesh
+	return mesh
+
+
 ## A Spanish mission's walls: a dado of glazed azulejo tiles round the room under a dark wooden rail, a carved crown
 ## along the top, and wrought-iron candle sconces along the side walls.
 func _mission_decor() -> void:
@@ -2273,6 +2498,11 @@ func _furniture() -> void:
 ## Fit one of the agreed tile sizes nearby, clear of walls, stairwells, hazards and other rugs.
 static func rug_rectangles(m: Dictionary) -> Array[Rect2i]:
 	var out: Array[Rect2i] = []
+	# (a room may lay its area rugs exactly instead, "rug_rects": [[x, y, w, h], ...], such as the parlour's, centred)
+	for r in m.get("room", {}).get("rug_rects", []):
+		out.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
+	if not out.is_empty():
+		return out
 	for part in furniture_groups(m):
 		if part["kind"] != "rug":
 			continue
@@ -2527,6 +2757,9 @@ func _place(kind: String, group: Array) -> void:
 		sc = Vector3(span * 0.94 / bb.size.x, 1.0, minf(1.0, (depth + reach) * 0.94 / bb.size.z))
 	elif k.get("fill", false):
 		sc = Vector3(span * 0.98 / bb.size.x, 1.0, minf(1.0, (depth + reach) * 0.95 / bb.size.z))
+	elif k.has("grow") and span >= 1.8:
+		var s := minf(span * float(k["grow"]) / bb.size.x, (depth + reach) * 0.96 / bb.size.z)
+		sc = Vector3(s, s, s)
 	else:
 		var s := minf(1.0, minf(span * 0.96 / bb.size.x, (depth + reach) * 0.96 / bb.size.z))
 		sc = Vector3(s, s, s)
@@ -2582,7 +2815,11 @@ func _place(kind: String, group: Array) -> void:
 	var top_y := bb.size.y * sc.y
 	# things standing on it
 	var tops: Array = k.get("top", [])
-	if used_alt and tops.is_empty():
+	if parlour and kind == "cabinet":
+		# a parlour's cupboards hold its candles (_parlour_decor)
+		tops = []
+		_candle_spots.append(pos + Vector3(0, top_y, 0))
+	elif used_alt and tops.is_empty():
 		# a plain cupboard standing in for a dressed one gets a few things on it
 		tops = KINDS["cabinet"]["top"]
 	var near_tops := _near_placed(group, false, _placed_tops)
@@ -2737,8 +2974,8 @@ const COUNTER_GOODS := {
 	"electronics": ["phone", "radio", "books_2", "product_2"],
 	"music_shop": ["radio", "books", "el_photo"],
 	"center": ["cup", "plate_2", "el_flowers"],
-	"beast_gear": ["product_2", "product_4", "box_3"],
-	"trainer_gear": ["product_2", "book", "box_3"],
+	"beast_gear": ["product_2", "product_4"],
+	"trainer_gear": ["product_2", "book"],
 }
 
 
@@ -3185,11 +3422,27 @@ func _lights() -> void:
 					l.light_color = Color(ZONES.get(z, ZONES["shop"])["light"]) if not ancient else Color("#ffc890")
 					# (a temple is dark: its torches light it, over a faint fill)
 					l.light_energy = FILL_ENERGY if not temple else 0.18
+					if parlour:
+						# (a parlour is dim and violet, its curtains drawn: its candles light it)
+						l.light_color = Color("#9a7ac8")
+						l.light_energy = PARLOUR_FILL
 					l.omni_range = maxf(size.x / nx, size.y / nz) * 0.9 + 2.0
 					l.position = Vector3(lo.x + size.x * (i + 0.5) / nx, 2.4, lo.y + size.y * (j + 0.5) / nz)
 					parent.add_child(l)
 					lights.append(l)
 	if temple or ancient or map.get("room", {}).get("barn", false):
+		return
+	if parlour:
+		for c in _candle_glow:
+			if _omni_count() >= MAX_OMNI:
+				break
+			var l := OmniLight3D.new()
+			l.light_color = CANDLE_LIGHT
+			l.light_energy = CANDLE_ENERGY
+			l.omni_range = CANDLE_RANGE
+			l.position = c
+			parent.add_child(l)
+			lights.append(l)
 		return
 	_daylight_lights()
 	for reg in regions:
@@ -4027,7 +4280,9 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 		m.tri("window_hills", hills, [pane - along * WIN_HALF + Vector3.UP * (SILL + 0.02), pane + along * WIN_HALF + Vector3.UP * (SILL + 0.02),
 			pane - along * 0.1 + Vector3.UP * (SILL + 0.38)], inward, along, Vector3.UP)
 	_clear_pane(x, y, back + inward * 0.018 + Vector3.UP * mid, inside, WIN_HALF * 2.0, tall)
-	_daylight.append({"at": c + inward * (T / 2.0) + Vector3.UP * (WIN_TOP - 0.15), "in": inward})
+	if not parlour:
+		# (a parlour's curtains are drawn: no daylight)
+		_daylight.append({"at": c + inward * (T / 2.0) + Vector3.UP * (WIN_TOP - 0.15), "in": inward})
 	# the sash: a frame round the glass and its cross bars, just in front of it
 	var sash := back + inward * 0.03
 	for s in [-1.0, 1.0]:
@@ -4045,7 +4300,7 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 		var yaw := atan2(float(inside.x), float(inside.y))
 		_stand(["home/plant_succulent", "home/vase_bud", "home/plant_succulent"][rng.randi_range(0, 2)],
 			c + inward * (T / 2.0 - 0.08) + along * rng.randf_range(-0.18, 0.18) + Vector3.UP * SILL, yaw)
-	if z in ["living", "bedroom"]:
+	if z in ["living", "bedroom"] or parlour:
 		# windows side by side share one rod, hung by the first of them, with a panel at each outer end
 		var step := Vector2i(absi(inside.y), absi(inside.x))
 		if code(x - step.x, y - step.y) != MapGen.IWINDOW:
@@ -4056,16 +4311,19 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 
 
 ## Curtains for a run of `n` recessed windows from (x, y): a turned rod above their casings and a pleated panel
-## either side of the run, never over the glass.
+## either side of the run, never over the glass. A parlour's are drawn shut across the glass instead (the user's
+## 2026-11-16 direction), hung a little further out so they fall clear of the sill.
 func _curtains(x: int, y: int, inside: Vector2i, n := 1) -> void:
 	var step := Vector2i(absi(inside.y), absi(inside.x))
 	_by_window[Vector2i(x, y) - step] = true
 	_by_window[Vector2i(x, y) + step * n] = true
 	var mi := MeshInstance3D.new()
-	mi.mesh = _curtain_mesh(WIN_HALF + CASING + (n - 1) * 0.5, WIN_TOP + 0.2, SILL - 0.16)
+	mi.mesh = _curtain_mesh(WIN_HALF + CASING + (n - 1) * 0.5, WIN_TOP + 0.2, SILL - (0.3 if parlour else 0.16), parlour)
 	var cloth := _sch("fabric") if home else Color(CLOTH[absi(hash(str(map.get("room_key", "")))) % CLOTH.size()])
+	if parlour:
+		cloth = PARLOUR_CURTAIN
 	mi.material_override = HomeDecor.atlas_material(scheme, {"fabric": "#" + cloth.to_html(false)})
-	mi.position = Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.07) 		+ Vector3(step.x, 0, step.y) * (n - 1) * 0.5
+	mi.position = Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + (0.14 if parlour else 0.07)) 		+ Vector3(step.x, 0, step.y) * (n - 1) * 0.5
 	mi.rotation.y = atan2(float(inside.x), float(inside.y))
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_attach(x, y, mi)
@@ -4091,25 +4349,28 @@ static func _st_quad(st: SurfaceTool, q: Array, uvs: Array, n: Vector3, col: Col
 
 
 ## The rod and two pleated panels, facing +z, centred on x = 0, in the decor kit's atlas (the panels tinted by its
-## fabric channel, the rod by its wood): the panels hang beside x = +-inner (the casing's outer edge), top to foot.
-static func _curtain_mesh(inner: float, top: float, foot: float) -> ArrayMesh:
-	var key := "%.3f:%.3f:%.3f" % [inner, top, foot]
+## fabric channel, the rod by its wood): the panels hang beside x = +-inner (the casing's outer edge), top to foot,
+## or (closed) meet in the middle and cover the window and its casing.
+static func _curtain_mesh(inner: float, top: float, foot: float, closed := false) -> ArrayMesh:
+	var key := "%.3f:%.3f:%.3f:%s" % [inner, top, foot, closed]
 	if _curtain_meshes.has(key):
 		return _curtain_meshes[key]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var panel_w := 0.3
-	var folds := 6
+	var panel_w := 0.3 if not closed else inner + 0.2
+	var folds := 6 if not closed else 9
 	var red := Color(1, 0, 0, 0)
 	var blue := Color(0, 0, 1, 0)
 	for s in [-1.0, 1.0]:
-		var x0: float = s * (inner - 0.04)
-		var x1: float = s * (inner - 0.04 + panel_w)
+		var x0: float = s * (inner - 0.04) if not closed else s * -0.015
+		var x1: float = s * (inner - 0.04 + panel_w) if not closed else s * (panel_w - 0.015)
 		for i in folds * 2:
 			var ta := float(i) / float(folds * 2)
 			var tb := float(i + 1) / float(folds * 2)
-			var za := 0.035 if i % 2 == 0 else 0.0
-			var zb := 0.0 if i % 2 == 0 else 0.035
+			# (drawn panels overlap in the middle: the right one hangs a little in front)
+			var zo := 0.014 if closed and s > 0.0 else 0.0
+			var za := (0.035 if i % 2 == 0 else 0.0) + zo
+			var zb := (0.0 if i % 2 == 0 else 0.035) + zo
 			var xa := lerpf(x0, x1, ta)
 			var xb := lerpf(x0, x1, tb)
 			# the hem flares out a little
@@ -4124,7 +4385,7 @@ static func _curtain_mesh(inner: float, top: float, foot: float) -> ArrayMesh:
 			var qb := q.map(func(v): return v + Vector3(0, 0, -0.004))
 			_st_quad(st, qb, uvs, -n, red)
 	# the rod (a square bar) and a knob on each end
-	var half := inner + panel_w + 0.06
+	var half := inner + panel_w + 0.06 if not closed else panel_w + 0.06
 	var r := 0.022
 	var rod := Vector3(0, top + 0.02, 0.02)
 	var mid_uv := Vector2(lerpf(WOOD_UV[0], WOOD_UV[2], 0.5), lerpf(WOOD_UV[1], WOOD_UV[3], 0.5))
@@ -4342,8 +4603,8 @@ func _cubby_wall(x: int, y: int) -> void:
 			m.box("casing", shelf, Vector3(mid + s * (cw / 2.0 - 0.12 + CASING / 2.0), y1 / 2.0, fz), Vector3(CASING, y1, 0.03))
 		m.box("casing", shelf, Vector3(mid, y1 + CASING / 2.0, fz), Vector3(cw - 0.24 + CASING * 2.0, CASING, 0.03))
 		_shelf_door(x0, y, cw, cw - 0.24, 0.04, y1, shelf)
-	# what's kept in it: blankets and books low down, pots and boxes higher up
-	var shelf_things := [["home/basket_blankets"], ["kk_book_set"], ["home/books_stack", "home/plant_succulent"], ["box_1"]]
+	# what's kept in it: blankets and books low down, pots and vases higher up
+	var shelf_things := [["home/basket_blankets"], ["kk_book_set"], ["home/books_stack", "home/plant_succulent"], ["home/vase_round"]]
 	var mid_z := (face.z + back.z) / 2.0
 	for li in levels.size():
 		if x == x0 and li == 2 and not shelf_doors[Vector2i(x0, y)].reward.is_empty():
@@ -4911,7 +5172,7 @@ func _frame_wood() -> Color:
 ## Things that can stand on a dressed shelf (the user's direction: plenty of variety).
 const SHELF_THINGS := ["home/books_stack", "kk_book_set", "home/vase_round", "home/vase_bud", "home/plant_succulent",
 	"home/candles", "home/photo_standing", "teddy", "home/bowl_fruit", "home/tea_set", "kk_pillow_A", "books", "globe",
-	"kk_cactus_small_A", "kk_cactus_small_B", "home/vase_flowers", "box_1"]
+	"kk_cactus_small_A", "kk_cactus_small_B", "home/vase_flowers"]
 
 
 ## One of KayKit's chunky wall shelves (the long one over two tiles, else the short one), hung on wall tile (x, y)

@@ -645,10 +645,15 @@ func _draw_bar(index: int) -> void:
 	_gauge(canvas, mp, keep / most, MP_COLOR, alpha)
 	var well := mp.grow(-GAUGE_EDGE)
 	if cost > 0.0:
-		var pulse := 0.15 + 0.85 * (0.5 + 0.5 * sin(_clock * 2.4))
-		canvas.draw_rect(Rect2(well.position + Vector2(well.size.x * keep / most, 0), Vector2(well.size.x * (minf(ref.mp, most) - keep) / most, well.size.y)), Color(MP_COLOR, pulse * alpha))
+		# the MP this move would spend flashes bright (a pale glow, not the gauge's own blue, so it stands out from the
+		# MP that stays), with a dark tick where the gauge would end
+		var pulse := smoothstep(-0.6, 0.6, sin(_clock * 6.0))
+		var spend := Rect2(well.position + Vector2(well.size.x * keep / most, 0), Vector2(well.size.x * (minf(ref.mp, most) - keep) / most, well.size.y))
+		canvas.draw_rect(spend, Color(MP_COLOR.lerp(Color.WHITE, 0.25 + 0.6 * pulse), (0.35 + 0.65 * pulse) * alpha))
+		if keep > 0.0:
+			canvas.draw_line(Vector2(spend.position.x, well.position.y), Vector2(spend.position.x, well.end.y), Color(UIKit.DARK, 0.8 * alpha), 1.5)
 		if ref.mp < cost:
-			canvas.draw_rect(well, Color(UIKit.ACCENT, 0.5 * pulse * alpha), false, 1.5)
+			canvas.draw_rect(well, Color(UIKit.ACCENT, (0.3 + 0.6 * pulse) * alpha), false, 1.5)
 
 
 ## A gauge in a white border: a grey well with a coloured fill.

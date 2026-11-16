@@ -265,7 +265,9 @@ static func build(b: Dictionary) -> Node3D:
 static func backdrop(rng: RandomNumberGenerator) -> Array:
 	var w := float(rng.randi_range(4, 6))
 	var d := 4.0
-	var b := {"shop": "decor", "x": rng.randi_range(0, 60), "y": rng.randi_range(0, 9), "w": w, "d": d, "door": Vector2i(int(w) / 2, 3), "seed": rng.randi()}
+	# the door in the middle of its front (a map tile, in the same coordinates as x)
+	var x := rng.randi_range(0, 60)
+	var b := {"shop": "decor", "x": x, "y": rng.randi_range(0, 9), "w": w, "d": d, "door": Vector2i(x + int(w) / 2, 3), "seed": rng.randi()}
 	var node := build(b)
 	for c in node.find_children("*", "GeometryInstance3D", true, false):
 		(c as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

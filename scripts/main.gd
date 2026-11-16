@@ -798,8 +798,10 @@ func start_battle(cfg: Dictionary) -> String:
 	cfg["map"] = GameState.map_id
 	b.setup(cfg)
 	b.reward_film_started.connect(func():
-		# Keep the reward coroutine alive, but retire its scenery before the first film opens.
-		# Closing any reward film now reveals the world, including between multiple rewards.
+		# Keep the reward coroutine alive, but retire its scenery before the first film opens. The films' quiet stage
+		# stays up between them (and under the messages and menus that follow), so rewards run straight from one to
+		# the next; the world fades in once the battle is over.
+		UI.hold_reward_stage()
 		b.hide()
 		b.hud.hide()
 		b.reparent(self)
@@ -818,8 +820,10 @@ func start_battle(cfg: Dictionary) -> String:
 		await UI.fade_in(0.25)
 	var result: String = await b.finished
 	var returned_during_rewards: bool = world.get_parent() == view
-	if not returned_during_rewards:
+	var held_stage := UI.reward_stage_held()
+	if not returned_during_rewards or held_stage:
 		await UI.fade_out(0.3)
+	UI.release_reward_stage()
 	b.get_parent().remove_child(b)
 	b.queue_free()
 	if not returned_during_rewards:
@@ -835,7 +839,7 @@ func start_battle(cfg: Dictionary) -> String:
 		GameState.last_center = town
 		goto_map(town, "center")
 		UI.toast("You lost half your gold...", "coin")
-	if not returned_during_rewards or result == "lose":
+	if not returned_during_rewards or held_stage or result == "lose":
 		await UI.fade_in(0.3)
 	# Keep detection blocked through the fade, then grant the full field-control window only to wild battles.
 	if cfg.get("wild", false):
@@ -1237,6 +1241,9 @@ func _run_test() -> void:
 		# --goal=0.9: a learn-mode bar to pass (with --outcome, shows "Not quite...")
 		if _test.has("goal"):
 			fo["goal"] = {"accuracy": float(_test["goal"])}
+		# --base=1: a battle performance (only the original melody, whatever --level says)
+		if _test.get("base", "0") == "1":
+			fo["base"] = true
 		UI.flute_ex(_test.get("song", "shanty"), "Test", fo)
 		if _test.has("play"):
 			await get_tree().create_timer(0.3).timeout
@@ -2886,6 +2893,12 @@ func _guardian_test(tk: String) -> void:
 		await Story.talk(world, g)
 	print("GUARDIAN %s: captured %s, summons %s, flag %s, now on %s, party %s" % [tk, GameState.summons.has(tk), GameState.summons,
 		GameState.flag("guardian_" + tk), GameState.map_id, GameState.party.map(func(x): return "%s L%d %d/%d" % [x.nickname, x.level, x.hp, x.max_hp()])])
+	# a befriended guardian stays in its nest
+	print("GUARDIAN %s still in nest: %s" % [tk, not _npc("guardian_" + tk).is_empty()])
+	if _test.has("shots") and GameState.flag("guardian_" + tk):
+		await _wait(1.5)
+		await RenderingServer.frame_post_draw
+		_save_shot(String(_test["shots"]).path_join("guardian_%s_befriended.png" % tk))
 
 
 ## With --shots: the guardian asleep in its nest, from the path in front of it and from high above, then its bubbles

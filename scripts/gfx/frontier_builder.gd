@@ -87,7 +87,9 @@ static func backdrop(rng: RandomNumberGenerator) -> Array:
 	var w := float(rng.randi_range(4, 6))
 	var d := 4.0
 	var shop := "house" if rng.randf() < 0.5 else "decor"
-	var b := {"shop": shop, "x": rng.randi_range(0, 60), "y": 0, "w": w, "d": d, "door": Vector2i(int(w) / 2, 3), "seed": rng.randi()}
+	# the door in the middle of its front (as on the street: the door is a map tile, the same coordinates as x)
+	var x := rng.randi_range(0, 60)
+	var b := {"shop": shop, "x": x, "y": 0, "w": w, "d": d, "door": Vector2i(x + int(w) / 2, 3), "seed": rng.randi()}
 	if shop == "decor":
 		b["frontier"] = "store"
 	var node := build(b)

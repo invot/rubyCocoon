@@ -65,7 +65,8 @@ static func print_material(print_id: String, crop: String, colourway: String, sr
 		var p: Dictionary = print_defs().get(print_id, print_defs().values()[0])
 		var sp: PackedStringArray = src.split(":")
 		var s: Dictionary = print_defs().get(sp[0], p)
-		var cols: Array = p["colourways"].get(colourway, p["colourways"][DEFAULT_SCHEME])
+		# (a colourway may also be its own four colours, "#rrggbb,#rrggbb,#rrggbb,#rrggbb": the parlour's purple and green)
+		var cols: Array = Array(colourway.split(",")) if colourway.begins_with("#") 			else p["colourways"].get(colourway, p["colourways"][DEFAULT_SCHEME])
 		var m := ShaderMaterial.new()
 		m.shader = PRINT_SHADER
 		m.set_shader_parameter("masks", load(DIR + "art_masks.png"))

@@ -9,6 +9,7 @@ const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const ItemUse = preload("res://scripts/core/item_use.gd")
+const Beast = preload("res://scripts/core/beast.gd")
 ## The travel book (the world map is its Map tab) isn't preloaded (it'd slow the start): main.gd loads it in the
 ## background once the title is up, and it's fetched when first opened.
 const BOOK_PATH := "res://scripts/ui/book_menu.gd"
@@ -118,23 +119,169 @@ func teach(b, mv: String) -> void:
 	await decide_learn(b, mv)
 
 
+## The forget menu's cards are this wide (UI units): the new move on the left, the list in the middle, the highlighted
+## move it already knows on the right, greyed out (or the boost instead, for "Don't learn").
+const CARD_W := 300
+## Letting a move go raises one stat for good instead (Beast.boosts): attacks Attack, heals and cures Spirit, anything
+## else Defense.
+const SKIP_BOOST := 2
+
+
+static func skip_stat(mv: String) -> String:
+	match String(MoveDB.get_move(mv).get("kind", "")):
+		"attack":
+			return "atk"
+		"heal", "cleanse":
+			return "spr"
+	return "def"
+
+
+## A card's caption line: small dim words on the left, an optional tag on the right.
+func _card_caption(text: String, tag: Control = null) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	var cap := UIKit.label(text, 18, UIKit.DIM)
+	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(cap)
+	if tag != null:
+		tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(tag)
+	return row
+
+
+func _card_col() -> VBoxContainer:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	col.custom_minimum_size.x = CARD_W
+	return col
+
+
+func _card_desc(col: VBoxContainer, text: String) -> void:
+	col.add_child(UIKit.divider(0.0, "none"))
+	var desc := UIKit.label(text, 24, UIKit.TEXT)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size.x = CARD_W
+	col.add_child(desc)
+
+
+## A move's card: its element, icon and name, what it costs, who it reaches, its power, accuracy and cooldown, and what
+## it does. `faded`: greyed out (a move it already knows, beside the forget menu).
+func move_card(id: String, caption := "New move", faded := false) -> Control:
+	var m := MoveDB.get_move(id)
+	var col := _card_col()
+	var el := String(m.get("el", "neutral"))
+	col.add_child(_card_caption(caption, UIKit.element_tag(el, 18) if el != "neutral" else UIKit.tag("Plain", UIKit.DIM, 18)))
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	col.add_child(top)
+	var icon := Control.new()
+	icon.custom_minimum_size = Vector2(40, 40)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var ActionIcons = load("res://scripts/battle/action_icons.gd")
+	var icon_kind = ActionIcons.for_move(id)
+	icon.draw.connect(func(): ActionIcons.draw(icon, icon_kind, icon.size / 2.0, 18.0))
+	top.add_child(icon)
+	var name_label := UIKit.header(String(m["name"]), UIKit.HEAD, UIKit.HEAD_BIG)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	top.add_child(name_label)
+	col.add_child(UIKit.divider(0.0, "none"))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 0)
+	col.add_child(grid)
+	var reach := MoveDB.target_name(id)
+	var rows := [["MP cost", MoveDB.mp_text(id)], ["Targets", reach.substr(0, 1).to_upper() + reach.substr(1)]]
+	if m.has("power"):
+		rows.append(["Power", str(m["power"])])
+	if m.has("acc"):
+		rows.append(["Accuracy", "%d%%" % int(m["acc"])])
+	if int(m.get("cd", 0)) > 0:
+		rows.append(["Cooldown", "%d turns" % int(m["cd"])])
+	for r in rows:
+		var k := UIKit.label(String(r[0]), 32, UIKit.DIM)
+		k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(k)
+		var v := UIKit.label(String(r[1]), 32, UIKit.INK)
+		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		grid.add_child(v)
+	_card_desc(col, String(m.get("desc", "")))
+	if faded:
+		col.set_meta("faded", true)
+	return col
+
+
+## The card on the right while "Don't learn" is highlighted: the stat it raises instead, from its value now to its
+## value after.
+func boost_card(b, mv: String) -> Control:
+	var st := skip_stat(mv)
+	var col := _card_col()
+	col.add_child(_card_caption("Instead"))
+	col.add_child(UIKit.header("%s +%d" % [Beast.STAT_NAMES[st], SKIP_BOOST], UIKit.HEAD, UIKit.HEAD_BIG))
+	col.add_child(UIKit.divider(0.0, "none"))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	col.add_child(row)
+	var k := UIKit.label(Beast.STAT_NAMES[st], 32, UIKit.INK)
+	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(k)
+	var now: int = b.stat(st)
+	row.add_child(UIKit.label(str(now), 32, UIKit.DIM))
+	row.add_child(load("res://scripts/ui/soft_arrow.gd").make(Vector2.RIGHT, UIKit.DIM, Vector2(UIKit.body_px(32) * 0.9, UIKit.body_px(32) * 1.2)))
+	row.add_child(UIKit.label(str(now + SKIP_BOOST), 32, UIKit.INK))
+	_card_desc(col, "%s keeps its moves, never learns %s, and raises its %s by %d for good." % [b.nickname,
+		MoveDB.get_move(mv)["name"], Beast.STAT_NAMES[st], SKIP_BOOST])
+	return col
+
+
+## Cards stacked in one place, only the shown one visible; the place keeps the biggest card's size, so the window
+## doesn't change size as the highlight moves.
+func _card_stack(cards: Array) -> MarginContainer:
+	var stack := MarginContainer.new()
+	stack.custom_minimum_size.x = CARD_W
+	for c in cards:
+		stack.add_child(c)
+	return stack
+
+
+static func _show_card(stack: Control, card: Control) -> void:
+	for c in stack.get_children():
+		c.modulate.a = (0.45 if c.has_meta("faded") else 1.0) if c == card else 0.0
+
+
 ## `b` wants to learn `mv` but that kind of slot is full: the player picks a move to forget for good, or lets the new
-## one go. Returns true if it learned it.
+## one go and raises a stat for good instead (SKIP_BOOST). Returns true if it learned it.
 func decide_learn(b, mv: String) -> bool:
 	var mn: String = MoveDB.get_move(mv)["name"]
 	var group: String = b.slot_group(mv)
 	var kind := "plain" if group == "plain" else group.capitalize()
 	var current: Array = b.slot_moves(group)
+	var st := skip_stat(mv)
 	while true:
+		# the new move's card on the left, the moves it knows in the middle (each with its MP cost), and on the right the
+		# highlighted one's card greyed out, or the stat it raises instead while "Don't learn" is highlighted
 		var items := []
 		for m in current:
-			items.append({"text": MoveDB.get_move(m)["name"], "right": kind.to_upper(),
-				"desc": "Forget %s for good and learn %s.\n%s" % [MoveDB.get_move(m)["name"], mn, MoveDB.summary(m)]})
-		items.append({"text": "Don't learn %s" % mn, "desc": "%s keeps its moves and never learns %s.\n%s" % [b.nickname, mn, MoveDB.summary(mv)]})
-		var c: int = await UI.choose("%s wants to learn %s.\nIts %s slots are full. Forget which?" % [b.nickname, mn, kind], items, {"width": 560})
+			items.append({"text": MoveDB.get_move(m)["name"], "right": MoveDB.mp_text(m)})
+		items.append({"text": "Don't learn %s" % mn})
+		var opts := {"width": 300}
+		if not UI.auto:
+			var new_card := move_card(mv)
+			var boost := boost_card(b, mv)
+			var olds: Array = current.map(func(m): return move_card(m, "Forget", true))
+			var right := _card_stack(olds + [boost])
+			opts["left_pane"] = new_card
+			opts["side_pane"] = right
+			opts["on_focus"] = func(i: int):
+				_show_card(right, olds[i] if i < olds.size() else boost)
+			_show_card(right, olds[0] if not olds.is_empty() else boost)
+		var c: int = await UI.choose("%s wants to learn %s.\nIts %s slots are full. Forget which?" % [b.nickname, mn, kind], items, opts)
 		if c < 0 or c >= current.size():
-			if UI.auto or await UI.ask("Let %s go without learning it?" % mn):
-				await UI.say(["%s did not learn %s." % [b.nickname, mn]])
+			if UI.auto or await UI.ask("Let %s go and raise %s's %s instead?" % [mn, b.nickname, Beast.STAT_NAMES[st]]):
+				b.boosts[st] = int(b.boosts.get(st, 0)) + SKIP_BOOST
+				Sfx.play("levelup")
+				await UI.say(["%s did not learn %s. Its %s rose by %d instead!" % [b.nickname, mn, Beast.STAT_NAMES[st], SKIP_BOOST]])
 				return false
 			continue
 		var old: String = current[c]

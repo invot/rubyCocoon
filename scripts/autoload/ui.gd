@@ -336,6 +336,38 @@ func beast_cinematic(kind: String, before: Dictionary, after := {}, egg := {}) -
 	await play_film(load("res://scripts/ui/beast_cinematic.gd").new().setup(kind, before, after, egg))
 
 
+## A battle's rewards (level-ups, eggs, new moves) go from one to the next on the reward films' quiet stage rather than
+## cutting back to the world between them: this empty stage stays behind the top bar and menus until released.
+var _reward_stage: Control = null
+var _reward_world_update := SubViewport.UPDATE_ALWAYS
+
+
+func hold_reward_stage() -> void:
+	if auto or is_instance_valid(_reward_stage):
+		return
+	var world_view: SubViewport = GameState.main.view if GameState.main != null else null
+	if is_instance_valid(world_view):
+		_reward_world_update = world_view.render_target_update_mode
+		world_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_reward_stage = load("res://scripts/ui/beast_cinematic.gd").new().setup("rest", {})
+	modal_layer.add_child(_reward_stage)
+	modal_layer.move_child(_reward_stage, 0)
+
+
+func reward_stage_held() -> bool:
+	return is_instance_valid(_reward_stage)
+
+
+func release_reward_stage() -> void:
+	if not is_instance_valid(_reward_stage):
+		return
+	_reward_stage.queue_free()
+	_reward_stage = null
+	var world_view: SubViewport = GameState.main.view if GameState.main != null else null
+	if is_instance_valid(world_view):
+		world_view.render_target_update_mode = _reward_world_update
+
+
 ## Shows a full-screen film and waits for it to end. The hidden world stops rendering until then.
 func play_film(film) -> void:
 	var world_view: SubViewport = GameState.main.view if GameState.main != null else null

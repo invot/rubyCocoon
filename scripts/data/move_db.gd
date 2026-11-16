@@ -161,6 +161,21 @@ static func tier(id: String) -> int:
 	return int(i * 5 / max(1, pool.size()))
 
 
+## Who a move reaches, in a few words ("1 foe", "all foes", "self"...).
+const TARGET_NAMES := {"enemy": "1 foe", "enemies": "all foes", "ally": "1 ally", "allies": "all allies", "self": "self", "ally_ko": "fainted ally"}
+
+
+static func target_name(id: String) -> String:
+	var t := String(get_move(id).get("target", "enemy"))
+	return String(TARGET_NAMES.get(t, t))
+
+
+## Its MP cost in a few words: "4 MP", or "No MP" for a free move.
+static func mp_text(id: String) -> String:
+	var cost := mp_cost(id)
+	return "%d MP" % cost if cost > 0 else "No MP"
+
+
 static func summary(id: String) -> String:
 	var m := get_move(id)
 	var parts := []
@@ -169,9 +184,8 @@ static func summary(id: String) -> String:
 		parts.append("Pow %d" % m["power"])
 	if m.has("acc"):
 		parts.append("Acc %d" % m["acc"])
-	var t: String = m.get("target", "enemy")
-	var tnames := {"enemy": "1 foe", "enemies": "all foes", "ally": "1 ally", "allies": "all allies", "self": "self", "ally_ko": "fainted ally"}
-	parts.append(tnames.get(t, t))
+	parts.append(mp_text(id))
+	parts.append(target_name(id))
 	if m.get("cd", 0) > 0:
 		parts.append("Cooldown %d" % m["cd"])
 	return "  ".join(parts) + "\n" + m.get("desc", "")

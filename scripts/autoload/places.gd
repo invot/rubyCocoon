@@ -1285,7 +1285,7 @@ func museum() -> void:
 
 func music_hall() -> void:
 	await Story.say(["Practice makes perfect! Each good performance raises your mastery of a song.",
-		"Every star of mastery makes a song stronger and adds new notes to it."], KEEPERS["music_hall"])
+		"Every star of mastery makes a song stronger and adds new notes to practise. In battle you only play its first melody."], KEEPERS["music_hall"])
 	await practice(KEEPERS["music_hall"])
 
 
@@ -1447,7 +1447,6 @@ const FURNITURE_LINES := {
 	"dresser": "A dresser full of socks.",
 	"desk": "Papers, pencils and a half-written letter.",
 	"storage": "A cupboard, everything in it neatly labelled.",
-	"boxes": "Cardboard boxes, taped shut.",
 	"mop": "A mop and bucket.",
 	"floor_lamp": "A tall lamp casts a warm glow.",
 	"coat_stand": "Coats, scarves and an umbrella.",
@@ -1536,13 +1535,7 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 			if b.get("shop", "") == "home" and not map.get("room", {}).has("wake"):
 				await Story.say(["Mom's bed, neatly made. Better not mess it up."])
 			elif b.get("shop", "") == "home":
-				await Story.say(["Your own bed! You lie down for a short nap..."])
-				await UI.fade_out(0.4)
-				GameState.heal_party()
-				Sfx.play("heal")
-				await get_tree().create_timer(0.4).timeout
-				await UI.fade_in(0.4)
-				await Story.say(["You feel refreshed. Your beasts are fully rested too!"])
+				await Story.say(["Your own bed, just as you left it. No time for a nap now!"])
 			else:
 				await Story.say(["Someone's neatly made bed. Better not mess it up."])
 		MapGen.FIREPLACE:

@@ -162,7 +162,7 @@ by night is built from the game's own pieces: wood floor and a red rug, brick an
 hanging lamps, three brass gears turning on the west wall, his new robots on lit plinths before the moonlit windows
 onto the neon city, the company sign over his desk, a drafting table, crates and the freight lift. The warehouse is a
 concrete shed with a steel truss roof, a band of factory windows high in each long wall and a roller door (modelled
-on a low-poly warehouse supplied as a reference), filled with the game's own crates, barrels, racks, boxes and
+on a low-poly warehouse supplied as a reference), filled with the game's own crates, barrels, racks and
 pallets beside shipping containers; its cages are the **Rustbound Iron Cage** model (`tools/import_iron_cage.gd`,
 `assets/props/iron_cage.res`). The spring scenes use the real places as sets (`main.gd` `build_set`): an open lawn and
 broad trail shoulder inside the Coastal Path's western bend at dawn, where the wild beasts live (there are none in
@@ -391,13 +391,20 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   the screen and one window on the right: its name and element, its level going up, then
   HP, MP, Attack, Defense, Spirit and Speed one line at a time with the actual previous value, new value and gain, and
   any move it learned at that level with the move's icon (`--scene=growth --preview=level --to=N` previews it). Every level-up and evolution fully restores HP and MP.
+  A battle's rewards run straight from one to the next: between the films, the messages and menus that follow stand on
+  the films' quiet stage (`UI.hold_reward_stage`), and the world fades back in only when the battle is over
+  (`--scene=growth --preview=rewards`).
 - **Move slots** (`Beast.slot_size`, `Beast.learn`): a beast holds two plain (neutral) moves, so it can always fight off
   its element, and a number of elemental moves: **2** as a hatchling, **one more each time it grows into its next form**
   (3 at Lv 20, 4 at Lv 40), and on a **merge** the better parent's count **plus two** (a fully grown pair gives 6). A beast
   of two elements splits its elemental slots evenly between them (the odd one to its main element); a move of another
   element (a ghost's, or a merge's lineage) uses its main element's slots. When it learns a move (levelling up, a tutor,
   a mascot) and that kind of slot is full, you choose there and then which move to forget for good, or to let the new
-  one go (`Menus.decide_learn`); there is no list of remembered moves to swap from later. A merge keeps its parents'
+  one go (`Menus.decide_learn`): one window shows the new move's card on the left (its element, MP cost, targets,
+  power, accuracy, cooldown and what it does), the moves it knows in the middle with their MP cost, and the highlighted
+  one's card greyed out on the right. Letting the new move go raises a stat by 2 for good instead (`Beast.boosts`:
+  Attack for an attack, Spirit for a heal or cure, Defense otherwise), shown on the right while "Don't learn" is
+  highlighted; there is no list of remembered moves to swap from later. A merge keeps its parents'
   moves that fit its slots, mostly from the dominant parent. Older saves keep each beast's newest moves that fit.
 - **Element roles**: Fire are offensive tanks, Water are healers, Earth are defenders, and Air handle status and evasion.
 - **Element weaknesses** (`scripts/data/elements.gd`): a cycle. Air is weak to Fire, Fire to Water, Water to Earth and Earth to Air (so Air beats Earth, Earth beats Water, Water beats Fire and Fire beats Air); a weak beast takes double damage. Every element is not very effective against itself (three quarters). Ghosts have no weakness, and plain attacks ignore elements.
@@ -423,7 +430,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Ghost beasts drop Shadow Eggs only after you reach Gravenmoor.
 - **Temple guardians** are summons: each elemental temple holds a legendary guardian (Abyssion, Zephyrax, Pyroclast
   and Terranox), and Gravenmoor's crypt holds the ghost Nocthrax. A stone puzzle in each teaches that temple's song.
-  A guardian can't be knocked out (it rises again): weaken it and play its song to capture it. In battle the same song
+  A guardian can't be knocked out (it rises again): weaken it and play its song to befriend it. It doesn't join your
+  party or leave: it stays in its nest and greets you as a friend when you visit (`Story.GUARDIAN_LINES` "friend"). In battle the same song
   summons it, once per battle for one shield point, to hit every foe for about half their HP, more with an element
   advantage; bosses always survive it (`summon_fx.gd`).
   - The four temple dragons sleep in the middle of their chambers, curled up in a raised, round nest of woven sticks
@@ -533,7 +541,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Groups grow slowly through the game (`Story.pack_cap`): beasts roam alone on the early roads (always on the Coastal Path), in pairs from wild Lv 7, and in threes only from Lv 16. Within that, a beast no stronger than your best one usually (70%) roams with more of its own kind, and the pack stands its ground; on roads with wild Lv 16+, stronger four-legged beasts, flyers and serpents sometimes run in packs too.
   - Each road's trainers are stronger than any wild beast on it. The early levels climb slowly: Coastal Path Lv 2-4, Isle Trail 4-7, Coral Reef 7-10, the Temple of Tides' puzzle rooms 10-12 (its guardian Lv 12, with one helper), Dune Road 10-13. Arena masters on that stretch: Marina Lv 9-10, then Nerissa Lv 10-11, who opens the reef.
 - **Levelling** is slower than before: about twice as many wins per level.
-- **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. Every level-up and evolution fully restores HP and MP. MP also comes back from healing (the Beast Center machine, Mom, your bed) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
+- **MP**: elemental attacks cost MP (about a tenth of their power, at least 2); regular (neutral) attacks and every other move are free, and a regular attack is always there when MP runs out. Every level-up and evolution fully restores HP and MP. MP also comes back from healing (the Beast Center machine; Mom and your bed at home don't heal) and items: Spirit Drop (15), Spirit Tonic (40), Spirit Elixir (all) from apothecaries, and Mint Tea at cafés.
 - **The battle ring** (as in Jade Cocoon 2, `scripts/core/ring.gd`): every trainer stands in the middle of a ring of 8 slots.
   - The ring has a side per element, in this order round it: **Fire, Air, Water, Earth**. A side's middle slot holds a beast of that element; the **corner** between two sides holds a beast of either element, or a dual beast of both.
   - You carry as many beasts as you have **beast slots** wired up: 3 to start, up to 8. New beasts take a free slot they may stand in, joining the side most of your team stands on.
@@ -587,7 +595,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - The clock starts on your turn (*Your turn!* lights up over the sheet). Play the notes in order: the sheet stays up the whole time, with the notes you've played lit.
   - You have 10 seconds for four notes and 5 more for every four more (30 seconds in Uncle Rafe's lessons). The bar shrinks without numbers, going green, then yellow, orange and red. The colour you finish in sets the song's power: full in the green, about half in the red.
   - Each wrong note breaks one of three hearts and costs a little power. Lose all three, or run out of time, and the song fails.
-  - Songs start at 4 notes and grow to 16 as they level up. Songs level up with mastery stars. Bigger songs add ↑, then ↓, and finally chords (A or B pressed together with a direction).
+  - Songs start at 4 notes (a temple song as many as its stones sang, never more than 8) and grow to 16 as they level up. Songs level up with mastery stars, earned only by practising the whole song (Start book ► Flute, or the music hall); each star makes the song stronger. Bigger songs add ↑, then ↓, and finally chords (A or B pressed together with a direction).
+  - In battle (effect songs, a guardian's song and summons) you only ever play the song's original melody, its first level, however far it has grown; its mastery still sets its strength.
   - Uncle Rafe keeps it short the first time: he plays the song, then you play it back.
   - **Battle songs** work in any battle. No song wins a wild beast over.
     - Some lift your team: Swift Jig, Battle Hymn, Iron Chorale, Mending Melody, Cleansing Canon, Mirage Minuet.

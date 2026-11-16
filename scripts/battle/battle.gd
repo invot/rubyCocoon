@@ -3305,14 +3305,12 @@ func _effect_song_flow(song: String) -> bool:
 	flute_used = true
 	_set_acting("trainer_self")
 	await msg("You raise your flute and play %s..." % s["name"], 0.6)
-	var acc: float = float((await UI.flute_ex(song, "%s  —  faster and cleaner means a stronger effect" % SongDB.tag(song), {"lesson": tutorial}))["acc"])
+	# battles play only the original melody; mastery (the longer song) is earned by practising the whole song
+	var acc: float = float((await UI.flute_ex(song, "%s  —  faster and cleaner means a stronger effect" % SongDB.tag(song), {"lesson": tutorial, "base": true}))["acc"])
 	_battle_music()
 	if tutorial:
 		acc = maxf(acc, 0.6)
-	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
 	await _apply_song(song, acc, "ally", target)
-	if star:
-		await msg("Your mastery of %s improved! It grew to %d notes." % [s["name"], SongDB.note_count(song, GameState.song_level(song))], 1.2)
 	return true
 
 
@@ -4969,14 +4967,11 @@ func _guardian_song_flow(song: String) -> bool:
 	flute_used = true
 	_set_acting("trainer_self")
 	await msg("You raise your flute and play the %s to %s..." % [SongDB.song_name(song), guardian_b.nickname], 0.8)
-	var r: Dictionary = await UI.flute_ex(song, "Winning over %s  —  the cleaner you play, the surer it is" % guardian_b.nickname)
+	var r: Dictionary = await UI.flute_ex(song, "Winning over %s  —  the cleaner you play, the surer it is" % guardian_b.nickname, {"base": true})
 	_battle_music()
 	var acc := float(r["acc"])
-	var star := GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
 	await _song_fx(PLAYER_POS, [guardian_b], true, acc < SongDB.FLAT_ACCURACY)
 	await _guardian_capture(acc)
-	if star and result == "":
-		await msg("Your mastery of the %s improved!" % SongDB.song_name(song), 1.0)
 	return true
 
 
@@ -5025,7 +5020,7 @@ func _guardian_capture(acc: float) -> void:
 		GameState.summons.append(guardian_tk)
 	GameState.set_flag("guardian_" + guardian_tk)
 	GameState.mark_seen(t)
-	await msg("%s is yours! You can summon it in battle now." % t.nickname, 1.2)
+	await msg("%s befriends you! You can summon it in battle now." % t.nickname, 1.2)
 	await _award_xp(t)
 	_refresh()
 	result = "win"
@@ -5056,10 +5051,9 @@ func _summon_flow() -> Dictionary:
 	var who := RaceDB.race_name(int(WorldDB.TEMPLES[tk]["guardian"]))
 	_set_acting("trainer_self")
 	await msg("You raise your flute and play the %s..." % SongDB.song_name(song), 0.7)
-	var r: Dictionary = await UI.flute_ex(song, "Summoning %s  —  play its song through to call it" % who, {"lesson": tutorial})
+	var r: Dictionary = await UI.flute_ex(song, "Summoning %s  —  play its song through to call it" % who, {"lesson": tutorial, "base": true})
 	_battle_music()
 	var acc := float(r["acc"])
-	GameState.add_mastery(song, 1 if acc >= 0.6 else 0)
 	# the song goes out to the foes the summon will strike
 	await _song_fx(PLAYER_POS, _alive(foe_slots), true, acc < SongDB.FLAT_ACCURACY)
 	if acc < SongDB.FLAT_ACCURACY:

@@ -9,6 +9,8 @@ extends RefCounted
 ##            temple's stone puzzle ("min_notes") and grows with mastery like the others.
 ## Playing: see flute_game.gd. A song is sheet music of 4 to 16 notes that you memorise and play back against the clock.
 ## Higher levels are longer, add ↑ then ↓ above the first four notes, and finally chords (A or B with a direction).
+## In battle you only ever play the original melody (level 1: four notes, a temple song its stones' 4-8); mastery, which
+## makes the song stronger, is earned by practising the whole, longer song (Places.practice_once).
 ## Learning: Uncle Rafe in Bellerive hands over your father's flute and teaches Weaken. Arena masters teach strong battle
 ## songs. The music shop in Cogsworth plays one song for free (once) and sells sheet music. A few rival trainers
 ## play their own songs in battle; play one back without a single mistake after the battle and it's yours.
@@ -105,6 +107,8 @@ const BTN_STEP := [0, 1, 2, 3, 5, 4]
 ## the pitch of each staff step: E4 F4 G4 A4 B4 C5
 const STEP_MIDI := [64, 65, 67, 69, 71, 72]
 const MIN_NOTES := 4
+## A song's first level (its original melody, the one played in battle) never has more than this many notes.
+const BASE_MAX_NOTES := 8
 const MAX_NOTES := 16
 const BASE_TIME := 10.0
 ## the uncle's lessons give beginners more time
@@ -210,7 +214,7 @@ static func _progress(id: String, level: int) -> float:
 
 ## How many notes a song has at a level: 4 at level 1 (a temple song as many as its stones sang), 16 at its top level.
 static func note_count(id: String, level: int) -> int:
-	var first := int(get_song(id).get("min_notes", MIN_NOTES))
+	var first := mini(int(get_song(id).get("min_notes", MIN_NOTES)), BASE_MAX_NOTES)
 	return first + int(round(_progress(id, level) * (MAX_NOTES - first)))
 
 

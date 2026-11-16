@@ -1109,7 +1109,7 @@ func _song_detail(c: VBoxContainer, sid: String) -> void:
 	for i in 5:
 		hb.add_child(UIKit.icon("icon_star" if i < stars else "icon_star_empty"))
 	c.add_child(hb)
-	c.add_child(_t_label("Each star of mastery makes the song stronger and adds notes to it.", UIKit.DIM))
+	c.add_child(_t_label("Each star of mastery makes the song stronger and adds notes to practise. In battle you play only its first melody.", UIKit.DIM))
 	c.add_child(_spacer())
 	c.add_child(_t_label("Learned from: " + String(s["from"]), UIKit.DIM))
 	var lv := GameState.song_level(sid)

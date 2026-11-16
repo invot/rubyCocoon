@@ -340,7 +340,7 @@ const MOM_TIPS := {
 		["Grandma wants you to know that every egg is different. Fire beasts hit hard, water beasts heal, earth beasts protect and air beasts play tricks.", "Pick the one that feels like you."],
 		["Scout Bram called me. He said he saw you set off from home this morning, all grown up!", "He wanted you to know that if you ever want to get past him on the east road, you'll need a beast of your own. Elder Rowan has an egg for you."]],
 	"hatch": [["Grandma wants you to know that eggs don't hatch in a pocket. Nurse Clover keeps an incubator beside her counter at the Beast Center.", "That's the little stone temple with the paw print over the door."],
-		["Elder Rowan called me. She said she saw you choose your egg, and she's ever so proud!", "She wanted you to know that if your beasts ever need healing, the font at any Beast Center is free. Or come home to me!"],
+		["Elder Rowan called me. She said she saw you choose your egg, and she's ever so proud!", "She wanted you to know that if your beasts ever need healing, the font at any Beast Center is free."],
 		["I was watching TV, and the news said Scout Bram won't let anyone onto the Coastal Path without a beast of their own. So hatch that egg first, sweetie."]],
 	"path": [["I was watching TV, and the news said the trainers on the Coastal Path give every new trainer a lesson.", "You can't lose a lesson, so just listen and do what they say."],
 		["Nurse Clover called me. She said she saw you hatch your very first beast!", "She wanted you to know that if your beasts are ever worn out, the healing font at the Beast Center is free, any time."],

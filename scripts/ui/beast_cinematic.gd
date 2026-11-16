@@ -67,9 +67,15 @@ func setup(mode: String, old_look: Dictionary, new_look := {}, shell := {}) -> C
 	before = old_look
 	after = new_look if not new_look.is_empty() else old_look
 	egg = shell
-	duration = 4.2 if kind == "level" else (4.4 if kind == "egg" else (7.0 if kind == "evolve" else 8.6))
+	duration = 4.2 if kind == "level" else (4.4 if kind in ["egg", "rest"] else (7.0 if kind == "evolve" else 8.6))
 	if kind == "level":
 		duration += 0.6 * mini(2, (after.get("learned", []) as Array).size())
+	if kind == "rest":
+		# (the empty stage held between a battle's reward films, behind the top bar and menus: UI.hold_reward_stage)
+		elapsed = duration
+		_sound_played = true
+		z_index = 0
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return self
 
 
@@ -103,10 +109,10 @@ func _ready() -> void:
 	_glow.emission_enabled = true
 	_glow.emission = Color.WHITE
 	_glow.emission_energy_multiplier = 2.0
-	_subject = EggModel.build(egg) if kind == "hatch" else (Node3D.new() if kind == "egg" else stage_beast(before))
+	_subject = EggModel.build(egg) if kind == "hatch" else (Node3D.new() if kind in ["egg", "rest"] else stage_beast(before))
 	_stage.add_child(_subject)
 	_subject.position.y = 1.07
-	_reveal = _found_egg() if kind == "egg" else stage_beast(after)
+	_reveal = _found_egg() if kind == "egg" else (Node3D.new() if kind == "rest" else stage_beast(after))
 	_stage.add_child(_reveal)
 	_reveal.position.y = 1.07
 	_reveal.visible = false
@@ -135,8 +141,9 @@ func _ready() -> void:
 		var mote := _mesh(_stage, sphere, Vector3.ZERO, spark)
 		mote.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_motes.append(mote)
-	_notice = preload("res://scripts/ui/top_bar.gd").new()
-	add_child(_notice)
+	if kind != "rest":
+		_notice = preload("res://scripts/ui/top_bar.gd").new()
+		add_child(_notice)
 	if kind in ["level", "hatch"]:
 		_level_window()
 		_continue = load("res://scripts/ui/edge_button.gd").new().setup("A: Continue")
@@ -351,6 +358,10 @@ func _process(delta: float) -> void:
 			_continue.visible = preview_time >= duration
 			_place_stats()
 		return
+	if kind == "rest":
+		# (nothing to draw while a reward film covers it)
+		var covered := UI.stack.any(func(m): return is_instance_valid(m) and m.get_script() == get_script())
+		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED if covered else SubViewport.UPDATE_ALWAYS
 	elapsed += delta
 	_update(elapsed)
 	if elapsed >= duration and kind == "evolve":
@@ -365,8 +376,8 @@ func _process(delta: float) -> void:
 func _update(t: float) -> void:
 	var hatch := kind == "hatch"
 	var found := kind == "egg"
-	# (an egg found plays on the level-up's quiet stage: no machinery, no whiteout)
-	var level := kind == "level" or found
+	# (an egg found plays on the level-up's quiet stage: no machinery, no whiteout; so does the empty "rest" stage)
+	var level := kind in ["level", "rest"] or found
 	var reveal_at := 5.65 if hatch else (0.45 if level else 3.8)
 	var glow_start := 4.5 if hatch else 1.4
 	var revealed := t >= reveal_at
@@ -388,7 +399,9 @@ func _update(t: float) -> void:
 		_sound_played = true
 		Sfx.play("hatch" if hatch else ("bird_cry" if found else ("levelup" if level else "merge")))
 	var heading: String
-	if hatch:
+	if kind == "rest":
+		heading = ""
+	elif hatch:
 		heading = "%s hatched!" % after.name if revealed else EggLooks.name_for(egg)
 	elif found:
 		heading = EggLooks.name_for(egg)
@@ -399,7 +412,7 @@ func _update(t: float) -> void:
 	var notice := heading
 	if found:
 		notice = "%s left %s!" % [String(before.get("name", "A beast")), EggLooks.name_for(egg)]
-	if notice != _notice_text:
+	if notice != _notice_text and _notice != null:
 		_notice_text = notice
 		_notice.post(notice, null, {"key": "reveal", "replace": true, "priority": true, "hold": 86400.0})
 		_place_stats.call_deferred()

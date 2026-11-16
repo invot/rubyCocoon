@@ -1165,12 +1165,10 @@ func _talk_story(world, n: Dictionary) -> void:
 			if world.get_node_or_null("Ringer") != null:
 				await say(["Quick, the phone! It's ringing!"], "Mom")
 				return
-			GameState.heal_party()
-			Sfx.play("heal")
 			if GameState.flag("game_cleared"):
-				await say(["My little hero! The whole Cove is talking about you.", "I healed your beasts. Go on, the world is waiting!"], "Mom")
+				await say(["My little hero! The whole Cove is talking about you.", "Go on, the world is waiting!"], "Mom")
 			elif GameState.flag("has_starter"):
-				await say(["You look tired! Let me take care of your beasts.", "...There. Good as new! Come home any time."], "Mom")
+				await say(["You look tired! If your beasts need a rest, Nurse Clover at the Beast Center will look after them.", "Come home any time."], "Mom")
 			elif GameState.flag("got_egg"):
 				await say(["What a lovely egg! Take it to the Beast Center by the square, the little stone temple with the paw print over the door. Nurse Clover can hatch it."], "Mom")
 			else:
@@ -2144,18 +2142,23 @@ func _tablet_node(glow: Color) -> Node3D:
 
 
 ## What each guardian says when its song wakes it (it will only befriend the worthy), and once it's been won over
-## (it will come to your aid in battle). %s: the temple's song.
+## (it will come to your aid in battle), and when you visit it afterwards ("friend"). %s: the temple's song.
 const GUARDIAN_LINES := {
 	"water": {"wake": ["Who sings the %s in my temple?", "The sea answers only to the worthy. Show me your strength, and perhaps I will call you friend."],
-		"won": ["You fought well, and your song rang true.", "Play it in battle, and I will rise from the tide to come to your aid."]},
+		"won": ["You fought well, and your song rang true.", "Play it in battle, and I will rise from the tide to come to your aid."],
+		"friend": ["Ah, my friend. The tide is calm while you are here.", "Play my song in battle, and I will come."]},
 	"air": {"wake": ["The %s... It has been a long time since anyone sang it.", "But I fly only beside the worthy. Show me you can keep up!"],
-		"won": ["Ha! You kept up after all.", "Play my song in battle, and I will ride the wind to your side."]},
+		"won": ["Ha! You kept up after all.", "Play my song in battle, and I will ride the wind to your side."],
+		"friend": ["Back again? Good! The wind gets dull without you.", "Play my song in battle, and I will be there."]},
 	"fire": {"wake": ["Who dares wake me with the %s?", "Only the worthy may befriend the flame. Prove yourself, or be scorched!"],
-		"won": ["Your fire burns hotter than I thought.", "Play my song in battle, and I will come blazing to your aid."]},
+		"won": ["Your fire burns hotter than I thought.", "Play my song in battle, and I will come blazing to your aid."],
+		"friend": ["Friend. Sit by the flame a while.", "Play my song in battle, and I will come blazing."]},
 	"earth": {"wake": ["The %s... the old ones taught it well.", "Yet I stand only beside the worthy. Show me your roots run deep!"],
-		"won": ["Your roots run deep indeed.", "Play my song in battle, and I will shake the ground to come to your aid."]},
+		"won": ["Your roots run deep indeed.", "Play my song in battle, and I will shake the ground to come to your aid."],
+		"friend": ["My friend returns. The stone remembers your steps.", "Play my song in battle, and I will come."]},
 	"ghost": {"wake": ["Who stirs the dead with the %s?", "Only the worthy may befriend a shade. Prove it, if you dare."],
-		"won": ["You did not flinch from the dark.", "Play my song in battle, and I will rise from the shadows to aid you."]},
+		"won": ["You did not flinch from the dark.", "Play my song in battle, and I will rise from the shadows to aid you."],
+		"friend": ["You came back to the dark, friend. Few do.", "Play my song in battle, and I will rise to aid you."]},
 }
 
 
@@ -2165,6 +2168,11 @@ func _guardian(world, n: Dictionary) -> void:
 	var race: int = t["guardian"]
 	var song: String = t["song"]
 	if GameState.flag(n["flag"]):
+		# befriended: it stays in its nest and greets you as a friend
+		var friend: Array = GUARDIAN_LINES.get(tk, {}).get("friend", [])
+		if not friend.is_empty():
+			Sfx.play("growl")
+			await say(friend, RaceDB.race_name(race))
 		return
 	if not GameState.knows_song(song):
 		await say(["%s, guardian of the %s, sleeps on, curled up in its nest." % [RaceDB.race_name(race), t["name"]],
@@ -2197,9 +2205,8 @@ func _guardian(world, n: Dictionary) -> void:
 		return
 	if talk.has("won"):
 		await say(talk["won"], RaceDB.race_name(race))
-	world.remove_npc(n)
 	Sfx.play("levelup")
-	await say(["%s is yours now: a summon!" % RaceDB.race_name(race),
+	await say(["%s is your friend now: a summon!" % RaceDB.race_name(race),
 		"In battle, choose Summon and play the %s: %s arrives and strikes every foe at once. Once per battle, for one shield point." % [SongDB.song_name(song), RaceDB.race_name(race)]])
 
 

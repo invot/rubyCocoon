@@ -3,6 +3,7 @@ extends "res://scripts/ui/modal.gd"
 ## items: Array of String or Dictionary {text, right, disabled, desc, icon}
 ## opts: anchor, width, rows, cancel, start, on_focus (Callable), dim, title_size, margin; font_size: the rows' text
 ## fixed_rows: reserve the same number of rows even for short or empty lists (paired inventory panes).
+## side_pane / left_pane: Controls shown to the right / left of the list inside the window (see _make_side).
 ## size (UI units); bare: no box at all: the first option is a big glowing button in the gem, pulsing, with a shine
 ## sweeping across it (the title's "New Game"), and any others plain text under it
 
@@ -106,6 +107,8 @@ func _ready() -> void:
 	_list_col = vb
 	if opts.has("book_page"):
 		_make_book(vb)
+	elif opts.has("side_pane") or opts.has("left_pane"):
+		_make_side(vb)
 	else:
 		_panel.add_child(vb)
 	if title_lines.size() > 1:
@@ -356,6 +359,25 @@ func _make_book(list_col: VBoxContainer) -> void:
 	var page: Control = opts["book_page"]
 	page.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_book_row.add_child(page)
+
+
+## opts.side_pane / opts.left_pane (the move-learn menu, menus.gd decide_learn): Controls standing to the right / left
+## of the list in the same window, with a thin divider between each and the list.
+func _make_side(list_col: VBoxContainer) -> void:
+	_book_row = HBoxContainer.new()
+	_book_row.add_theme_constant_override("separation", 20)
+	_panel.add_child(_book_row)
+	if opts.has("left_pane"):
+		var left: Control = opts["left_pane"]
+		left.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		_book_row.add_child(left)
+		_book_row.add_child(VSeparator.new())
+	_book_row.add_child(list_col)
+	if opts.has("side_pane"):
+		_book_row.add_child(VSeparator.new())
+		var pane: Control = opts["side_pane"]
+		pane.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		_book_row.add_child(pane)
 
 
 ## The paper follows the window, and its spine the fold.

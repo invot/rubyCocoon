@@ -34,6 +34,8 @@ var known: Array = []
 ## how many elemental moves it can hold, split between its elements when it has two (see slot_size)
 var elem_slots := FIRST_ELEM_SLOTS
 var passives: Array = []
+## lasting stat points it took instead of a move it chose not to learn (Menus.decide_learn): {stat: points}
+var boosts: Dictionary = {}
 var equip := ""
 var hp := 1
 var status := ""
@@ -68,6 +70,7 @@ func stat(s: String) -> int:
 		v = floor(2.0 * b * level / 100.0) + level + 10
 	else:
 		v = floor(2.0 * b * level / 100.0) + 5
+	v += float(boosts.get(s, 0))
 	if equip != "":
 		var mods: Dictionary = ItemDB.get_item(equip).get("mods", {})
 		v *= 1.0 + float(mods.get(s, 0.0))
@@ -342,7 +345,7 @@ func to_dict() -> Dictionary:
 	return {
 		"uid": uid, "nickname": nickname, "race": race, "lineage": lineage, "element": element, "element2": element2, "slot": slot,
 		"ghost": ghost, "rank": rank, "level": level, "xp": xp, "mp": mp, "base": base, "genes": genes,
-		"moves": moves, "known": known, "elem_slots": elem_slots, "passives": passives, "equip": equip, "hp": hp,
+		"moves": moves, "known": known, "elem_slots": elem_slots, "passives": passives, "boosts": boosts, "equip": equip, "hp": hp,
 		"origin": origin, "merges": merges, "abandoned": abandoned, "parents": parents,
 	}
 
@@ -366,6 +369,11 @@ func load_dict(d: Dictionary) -> void:
 	known = d.get("known", [])
 	elem_slots = int(d.get("elem_slots", default_elem_slots(race, rank)))
 	passives = d.get("passives", [])
+	boosts = {}
+	var saved_boosts = d.get("boosts", {})
+	if typeof(saved_boosts) == TYPE_DICTIONARY:
+		for k in saved_boosts:
+			boosts[String(k)] = int(saved_boosts[k])
 	equip = d.get("equip", "")
 	hp = int(d.get("hp", 1))
 	origin = d.get("origin", "wild")

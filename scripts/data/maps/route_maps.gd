@@ -40,8 +40,8 @@ const MAPS := {
 		# one quiet beach opens onto the sea, with a low grassy approach and no resort dressing or enclosing walls.
 		"shoreline": [0, 14, 23, 20],
 		"rows": [
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+			"TTTTTTTTTTTTTTTTTTTTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTTTTT",
+			"TTTTTTTTTTTTTTTTTTTTTTTTTTTT~~TTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"T.t.fTTTTT...TTTTTTTTTTTTTTT~~...fTTTTTT5TTTTTTT???????T",
 			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.TTTTTT.TTTTTTT???????T",
 			"Tggg.TTT,,,,,,,,,,,,,,TTTTTT~~.gg.,,,,,,,,,,,,,,???????T",
@@ -61,11 +61,12 @@ const MAPS := {
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 		],
-		# past the creek the woods stand higher, the trail along the top of the shore's cliff: a ramp up from the footbridge
+		# past the creek the woods stand higher, the trail along the top of the shore's cliff: a ramp up from the footbridge;
+		# the creek runs down its gorge from past the map's north edge, out of sight
 		"heights": [
-			"11111111111111111111111111111122222222222222222222222222",
-			"111111111111111111111111111111\\2222222222222222222222222",
-			"1/00\\1111/000\\11111111111111/\\111\\2222221222222211111112",
+			"11111111111111111111111111110022222222222222222222222222",
+			"11111111111111111111111111110022222222222222222222222222",
+			"1/00\\1111/000\\1111111111111100111\\2222221222222211111112",
 			"1000011100000000000000111111001111\\2222/1\\22222/11111112",
 			"10000111000000000000001111110011111111111111111111111112",
 			"10000\\1100000000000000\\111110011111111111111111111111112",
