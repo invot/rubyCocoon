@@ -567,7 +567,7 @@ func _low_wood(m: Dictionary, p: Vector2i) -> bool:
 	return false
 
 
-## Window boxes (docs/interior_staging.md rule 12): every window in a back wall looks out into a box; a window in a side
+## Window boxes (docs/interior_staging.md rule 13): every window in a back wall looks out into a box; a window in a side
 ## wall needs one only if the camera can see through it to its glass from somewhere it can be (world.gd _place_camera).
 ## Each box is at least as deep as its window size's minimum (RoomBuilder.BOX_SIZES).
 func _window_box_check(m: Dictionary) -> Array:

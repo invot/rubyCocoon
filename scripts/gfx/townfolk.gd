@@ -7,6 +7,7 @@ extends RefCounted
 const DIR := "res://assets/townfolk/"
 const SHADER := preload("res://scripts/gfx/townfolk.gdshader")
 const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
+const Wardrobe = preload("res://scripts/data/wardrobe_db.gd")
 ## The skeleton they share, where its joints are on the kit's body (centimetres, y up, facing +z, standing on y = 0;
 ## "l" is the person's left, +x): [bone, parent, joint]. Every bone's rest is unturned.
 const BONES := [
@@ -41,9 +42,12 @@ const ROLES := {"hips": "hips", "head": "head", "l_arm": "l_arm", "r_arm": "r_ar
 	"l_foot": "l_toe", "r_foot": "r_toe"}
 ## The colour slots a part's triangles can take (UV2.x in its mesh); "keep" is the kit's own colour, "top_plain" the
 ## top's where it's never camo, "pack" a worn pack's (see townfolk.gdshader).
-const SLOTS := ["keep", "skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "top_plain", "pack"]
+const SLOTS := ["keep", "skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "top_plain", "pack", "glasses"]
 ## The slots with a colour of their own to set (a look's colours by slot name).
-const COLOURED := ["skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "pack"]
+const COLOURED := ["skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "pack", "glasses"]
+## The glasses' slot: the kit paints them in its own colours, so they're moved into it as they load (see _fixed,
+## "frame"), each vertex as light or dark against the part's main colour as the kit drew it.
+const GLASSES_SLOT := 10
 ## The trainers' camo (outfit "camo"): its light, mid and dark tones, green or brown.
 const CAMO := {"green": ["#9aa060", "#5c7a48", "#3b4f33"], "brown": ["#b49a68", "#7a5c3c", "#4a3828"]}
 ## The camo outfit's parts (townfolk.json "extras"): the jacket (with its collar and belt), trousers and boots; and
@@ -156,7 +160,8 @@ static func skin() -> Skin:
 static func part_mesh(id: int) -> Mesh:
 	if not _meshes.has(id):
 		var mesh: ArrayMesh = load(DIR + "parts/%s.res" % data()["parts"][id]["file"])
-		var fix = PART_FIXES.get(id, "eyes" if data()["parts"][id]["kind"] == "head" else null)
+		var kind: String = data()["parts"][id]["kind"]
+		var fix = PART_FIXES.get(id, "eyes" if kind == "head" else ("frame" if kind == "glasses" else null))
 		_meshes[id] = mesh if fix == null else _fixed(mesh, fix)
 		return _meshes[id]
 	return _meshes[id]
@@ -183,6 +188,17 @@ static func _fixed(mesh: ArrayMesh, fix) -> ArrayMesh:
 		elif fix == "solid":
 			for i in uv2.size():
 				uv2[i].y = 1.0
+		elif fix == "frame":
+			# glasses: all in their own slot, each vertex as much lighter or darker than the part's middle tone as
+			# the kit painted it (glints and pale lenses mixed toward white)
+			var lums := []
+			for c in col:
+				lums.append(c.get_luminance())
+			lums.sort()
+			var mid := maxf(float(lums[lums.size() / 2]) if not lums.is_empty() else 1.0, 0.01)
+			for i in uv2.size():
+				var r := col[i].get_luminance() / mid
+				uv2[i] = Vector2(GLASSES_SLOT, clampf(r, 0.45, 1.0) if r <= 1.0 else 1.0 + clampf((r - 1.0) * 0.35, 0.0, 0.9))
 		elif fix == "laces":
 			# the shoes one colour (their own slot's, the kit's average of it), the light blue laces the top's
 			var sum := Color(0, 0, 0, 0)
@@ -323,9 +339,11 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 ## Who a look is drawn as and in what colours: {"person": an index in townfolk.json's people, "parts": the parts to
 ## put on them, "colours": slot -> Color (see material)}. The same look always gives the same.
 ##   look "model" "tf<n>": that person outright;
-##   face "hero": the hero in the outfit the character creator chose ("person", one of their body's HERO_OUTFITS),
-##   with its "hairdo" (one of HAIRDOS), the pack (PACK, in its "pack_colour") and no hat, coloured as it chose
-##   ("top", "trousers", "hair", "eyes", "skin");
+##   face "hero": the hero as the character creator dressed them: the shirt, pants and shoes its "shirt_style",
+##   "pants_style" and "shoes_style" pick from their body's wardrobe (wardrobe_db.gd; an older look's "person", one of
+##   HERO_OUTFITS, wears all three from that person), its "hairdo" (one of HAIRDOS), the pack (PACK, in its
+##   "pack_colour"), the hat and glasses its "hat_style" and "glasses_style" pick (Wardrobe.HATS, GLASSES; none
+##   without), coloured as it chose ("top", "trousers", "shoes", "hat", "glasses_colour", "hair", "eyes", "skin");
 ##   anyone else: one of the everyday townsfolk (no costumes) who suits the look: a woman for hair_style 1 (long
 ##   hair; with no hair_style, the look decides), robes for an "outfit" "robe", long sleeves for a coat, armour or
 ##   uniform, a hat for a look with a "hat" colour (and no hat without one); coloured with its "shirt", "pants",
@@ -358,6 +376,7 @@ static func outfit(look: Dictionary) -> Dictionary:
 	var parts: Array = (people[person]["parts"] as Array).duplicate()
 	var kinds: Array = data()["parts"]
 	if hero and not m.begins_with("tf"):
+		parts = _hero_clothes(look, person, parts)
 		# the hero's own face and hairdo, and no hat
 		var hd := clampi(int(look.get("hairdo", HERO_HAIRDO.get(String(look.get("body", "male")), 0))), 0, HAIRDOS.size() - 1)
 		parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["hair", "hat", "head"])
@@ -370,6 +389,17 @@ static func outfit(look: Dictionary) -> Dictionary:
 		# no pack of the kit's own: the hero's is the one pack, in the colour they chose
 		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "back")
 		_wear_pack(parts, colours, Color(look.get("pack_colour", PACK_COLOUR)))
+		# the hat and glasses from the wardrobe (Wardrobe.HATS, GLASSES), in their own colours
+		var hat_i := int(look.get("hat_style", -1))
+		if hat_i >= 0 and hat_i < Wardrobe.HATS.size():
+			parts.append_array(Wardrobe.HATS[hat_i][1])
+		if look.has("glasses_style"):
+			parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "glasses")
+			var gi := int(look["glasses_style"])
+			if gi >= 0 and gi < Wardrobe.GLASSES.size():
+				parts.append_array(Wardrobe.GLASSES[gi][1])
+		if look.has("glasses_colour"):
+			colours["glasses"] = Color(look["glasses_colour"])
 	var swim: bool = look.get("outfit", "") == "swim"
 	var swim_female := false
 	if swim:
@@ -420,7 +450,7 @@ static func outfit(look: Dictionary) -> Dictionary:
 		# a hat only for a look that has one; townsfolk with hair can take theirs off
 		var hats := parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] == "hat")
 		var has_hair := parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair")
-		if not look.has("hat") and has_hair:
+		if not look.has("hat") and has_hair and not hero:
 			for h in hats:
 				parts.erase(h)
 		# a uniform's baseball cap instead of their own hat; and no glasses, for a look that says so
@@ -447,6 +477,30 @@ static func outfit(look: Dictionary) -> Dictionary:
 		if not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
 			parts.append(5)
 	return {"person": person, "parts": parts, "colours": colours}
+
+
+## The hero's clothes (Wardrobe): the shirt, pants and shoes their look's "shirt_style", "pants_style" and
+## "shoes_style" pick from their body's wardrobe, each cut from its own kit person, over the rest of `person`'s parts
+## (their head, hair and so on, sorted out after). A look without them (from before the wardrobe) wears all three
+## from `person`, its outfit as it was.
+static func _hero_clothes(look: Dictionary, person: int, parts: Array) -> Array:
+	var people: Array = data()["people"]
+	var kinds: Array = data()["parts"]
+	var body := String(look.get("body", "male"))
+	var cut := []
+	for k in Wardrobe.KINDS:
+		cut.append_array(Wardrobe.KINDS[k])
+	var out := parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in cut)
+	for k in Wardrobe.KINDS:
+		var from := person
+		var key: String = k + "_style"
+		if look.has(key):
+			var list := Wardrobe.pieces(k, body)
+			from = int(list[clampi(int(look[key]), 0, list.size() - 1)][1])
+		for id in people[from]["parts"]:
+			if kinds[int(id)]["kind"] in Wardrobe.KINDS[k]:
+				out.append(id)
+	return out
 
 
 ## Puts the pack on (if they aren't wearing it already), in `colour` (alpha 0: their top's; see outfit).

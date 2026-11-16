@@ -2261,22 +2261,28 @@ func _run_test() -> void:
 		print("party: ", GameState.party.map(func(x): return "%s L%d" % [x.nickname, x.level]), "  caught ", GameState.caught.size())
 		await _wait(wait)
 	elif scene == "maker":
-		# the character creator over the town; --picks=body:1,top:3,tab:1,row:eyes as if chosen (tab: the one open, 0
-		# Look or 1 Colours; row: the one highlighted: tab, start or a row's id); --keys=d,d,a,r,... pressed in turn
-		# (u d l r a b), then --verify=1 checks the tabs: what each shows, the keys and taps between them
-		await _do_goto("caccoon", "start")
-		await _wait(1.0)
+		# the character creator (its bedroom set); --picks=body:1,shirt:3,hat:2,tab:1,row:eyes,dye:top:#3a6ab8,open:hat
+		# as if chosen (tab: the one open, 0 You, 1 Face, 2 Torso, 3 Legs; row: the one highlighted: tab, start or a
+		# row's id; dye: a look key's colour; open: a row's grid of colours, left open), then --verify=1 checks the
+		# tabs: what each shows, the keys and taps between them, the grid of colours
 		var m: Control = load("res://scripts/ui/hero_maker.gd").new()
 		UI.push(m)
-		await get_tree().process_frame
+		await _wait(2.5)
 		for kv in String(_test.get("picks", "")).split(",", false):
 			match kv.get_slice(":", 0):
 				"row":
 					m._go(kv.get_slice(":", 1), false)
 				"tab":
 					m._open_tab(int(kv.get_slice(":", 1)), false)
+				"body":
+					m._choose_body(int(kv.get_slice(":", 1)))
+				"dye":
+					m._set_dye(kv.get_slice(":", 1), kv.get_slice(":", 2))
+				"open":
+					m._open_colours(kv.get_slice(":", 1))
 				_:
 					m._choose(kv.get_slice(":", 0), int(kv.get_slice(":", 1)))
+			await get_tree().process_frame
 		if _test.get("verify", "0") == "1":
 			await _maker_test(m)
 		await _wait(wait)
@@ -4979,56 +4985,82 @@ func _maker_test(m: Control) -> void:
 	for k in m.TABS.size():
 		m._open_tab(k, false)
 		await get_tree().process_frame
+		check.call((m.TABS[k]["rows"] as Array).size() <= 4, "tab %d has no more than four rows" % k)
 		for id in m._rows:
 			var shown: bool = (m._rows[id] as Control).is_visible_in_tree()
 			check.call(shown == (m.TABS[k]["rows"] as Array).has(id), "tab %d shows %s: %s" % [k, id, shown])
 			if shown:
-				m._go(id, false)
-				await get_tree().process_frame
-				await get_tree().process_frame
 				var r: Rect2 = (m._rows[id] as Control).get_global_rect()
 				check.call(r.size.y >= UIKit.row_h() - 0.5, "row %s only %d tall" % [id, r.size.y])
 				check.call(screen_rect.encloses(r), "row %s off screen: %s" % [id, r])
+				check.call(page_rect.encloses(r.grow(-1.0)), "row %s inside its page (nothing scrolls)" % id)
 		check.call(m._pages[k].size == page_rect.size, "tab %d keeps its page size" % k)
-		check.call((m._tabs[k] as Control).size.y >= UIKit.row_h() - 0.5, "tab %d only %d tall" % [k, (m._tabs[k] as Control).size.y])
-	for id in m._chips:
-		for b in m._chips[id]:
-			check.call((b as Control).size.y >= (m.CHIP_TOUCH if UIKit.touch_ui() else m.CHIP) - 0.5, "%s swatch too small" % id)
+		check.call((m._tabs[k] as Control).size.y >= UIKit.row_h() - 8.5, "tab %d only %d tall" % [k, (m._tabs[k] as Control).size.y])
+	for id in m._swatches:
+		check.call((m._swatches[id] as Control).size.y >= UIKit.row_h() - 8.5, "%s swatch too small" % id)
 	check.call(screen_rect.encloses(m._start.get_global_rect()), "Confirm off screen")
 	check.call(m._start.get_global_rect().end.y <= screen_rect.end.y - UI.bottom_reserve(), "Confirm stays above the key guide")
+	for b in m._arrows + [m._start]:
+		check.call(not UI.touch_blocks((b as Control).get_global_rect().get_center()), "a control under the touch pad")
 	# the keys
 	m._open_tab(0, false)
 	m._go("name", false)
 	await _press("ui_up")
 	check.call(m.row == "tab", "up from Name onto the tabs (got %s)" % m.row)
 	await _press("ui_right")
-	check.call(m.tab == 1 and m.row == "tab", "right on the tabs opens Colours (tab %d, row %s)" % [m.tab, m.row])
+	check.call(m.tab == 1 and m.row == "tab", "right on the tabs opens Face (tab %d, row %s)" % [m.tab, m.row])
 	await _press("ui_down")
-	check.call(m.row == "pack", "down from the tabs to Pack (got %s)" % m.row)
-	await _press("ui_up")
+	check.call(m.row == "hairdo", "down from the tabs to Hair (got %s)" % m.row)
+	var hd: int = m.pick["hairdo"]
+	await _press("ui_right")
+	check.call(m.pick["hairdo"] == posmod(hd + 1, m.Townfolk.HAIRDOS.size()), "right steps the hairdo")
+	m._go("hat", false)
+	await _press("ui_right")
+	check.call(m.pick["hat"] == 0 and m._values["hat"].text == m.Wardrobe.HATS[0][0], "right puts on the first hat, named (%s)" % m._values["hat"].text)
 	await _press("ui_left")
-	check.call(m.tab == 0, "left on the tabs opens Look")
-	m._go("hairdo", false)
+	check.call(m.pick["hat"] == -1 and m._values["hat"].text == "None" and m._swatches["hat"].disabled, "left takes it off; no colour to choose")
+	m._open_tab(0, false)
+	m._go("body", false)
 	await _press("ui_accept")
-	check.call(m.tab == 1 and m.row == "pack", "A on Hairdo goes on to Colours (tab %d, row %s)" % [m.tab, m.row])
-	m._go("eyes", false)
+	check.call(m.row == "skin", "A on Body goes on to Skin (got %s)" % m.row)
+	# the grid of colours: A opens it, moving dyes the hero as it goes, B puts the old colour back
+	m._open_tab(2, false)
+	m._go("shirt", false)
+	var was: String = m.dye["top"]
 	await _press("ui_accept")
-	check.call(m.row == "start", "A on Eyes goes on to Confirm (got %s)" % m.row)
+	await get_tree().process_frame
+	check.call(m._picker != null and UI.stack.back() == m._picker, "A on Shirt opens its colours")
+	if m._picker != null:
+		var pk = m._picker
+		for c in pk.chips:
+			check.call((c as Control).size.y >= (UIKit.MIN_TOUCH_HEIGHT if UIKit.touch_ui() else UIKit.MIN_BUTTON_HEIGHT) - 0.5, "a colour too small to tap")
+			check.call(screen_rect.encloses((c as Control).get_global_rect()), "a colour off screen")
+		await _press("ui_right")
+		check.call(m.dye["top"] != was, "moving through the colours dyes the shirt")
+		await _press("ui_cancel")
+		await get_tree().process_frame
+		check.call(m.dye["top"] == was and m._picker == null and UI.stack.back() == m, "B puts the old colour back")
+	# a tap on the swatch opens it; a tap on a colour picks it, Confirm keeps it
+	await _tap_at(m._swatches["shirt"].get_global_rect().get_center())
+	await get_tree().process_frame
+	check.call(m._picker != null, "tapping the shirt's swatch opens its colours")
+	if m._picker != null:
+		var pk = m._picker
+		await _tap_at(pk.chips[5].get_global_rect().get_center())
+		check.call(m.dye["top"] == m.Wardrobe.CLOTH[5] and m._picker != null, "one tap on a colour picks it, the grid stays")
+		await _tap_at(pk.confirm.get_global_rect().get_center())
+		await get_tree().process_frame
+		check.call(m.dye["top"] == m.Wardrobe.CLOTH[5] and m._picker == null, "Confirm keeps it")
+	# the tabs by tap
+	await _tap_at(m._tabs[3].get_global_rect().get_center())
+	check.call(m.tab == 3, "tapping Legs opens it")
+	var shoes: int = m.pick["shoes"]
+	m._go("shoes", false)
+	await _press("ui_right")
+	check.call(m.pick["shoes"] != shoes and m.look()["shoes_style"] == m.pick["shoes"], "the shoes change and go in the look")
+	m._go("start", false)
 	await _press("ui_down")
 	check.call(m.row == "tab", "down from Confirm round to the tabs (got %s)" % m.row)
-	# the taps: the Look tab, then the Colours tab and its third top swatch
-	await _tap_at(m._tabs[0].get_global_rect().get_center())
-	check.call(m.tab == 0, "tapping Look opens it")
-	await _tap_at(m._tabs[1].get_global_rect().get_center())
-	await get_tree().process_frame
-	check.call(m.tab == 1, "tapping Colours opens it")
-	var before: int = m.pick["top"]
-	m._go("top", false)
-	await get_tree().process_frame
-	await get_tree().process_frame
-	await _tap_at(m._chips["top"][2].get_global_rect().get_center())
-	check.call(m.pick["top"] == 2 and before != 2 and m.row == "top", "tapping a swatch picks it (top %d, row %s)" % [m.pick["top"], m.row])
-	m._go("pack", false)
 	print("MAKER TEST DONE: %d problem(s)" % bad[0])
 
 

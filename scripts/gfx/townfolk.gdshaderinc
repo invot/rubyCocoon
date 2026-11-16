@@ -14,6 +14,8 @@ uniform vec4 bottom : source_color = vec4(0.5, 0.5, 0.5, 0.0);
 uniform vec4 shoes : source_color = vec4(0.5, 0.5, 0.5, 0.0);
 uniform vec4 hat : source_color = vec4(0.5, 0.5, 0.5, 0.0);
 uniform vec4 pack : source_color = vec4(0.42, 0.48, 0.3, 1.0);
+// slot 10: glasses (townfolk.gd GLASSES_SLOT); alpha 0 keeps the kit's colours
+uniform vec4 glasses : source_color = vec4(0.2, 0.2, 0.2, 0.0);
 uniform float camo = 0.0;
 uniform vec4 camo_light : source_color = vec4(0.6, 0.62, 0.38, 1.0);
 uniform vec4 camo_mid : source_color = vec4(0.36, 0.48, 0.28, 1.0);
@@ -56,6 +58,7 @@ void vertex() {
 	else if (slot == 6) want = shoes;
 	else if (slot == 7) want = hat;
 	else if (slot == 9) want = pack;
+	else if (slot == 10) want = glasses;
 	// Iris highlights brighten the chosen hue instead of mixing in white, which
 	// washes out these small patches under the character preview's lighting.
 	// Hair does the same: the kit paints some hairdos two-tone (white round the sides), and mixing even a tenth of
@@ -104,7 +107,7 @@ void fragment() {
 	vec3 w = pow(rest_n, vec3(4.0));
 	w /= max(w.x + w.y + w.z, 0.0001);
 	vec3 q = rest * finish_scale;
-	bool cloth = camo_slot > 3.5;
+	bool cloth = camo_slot > 3.5 && camo_slot < 9.5;
 	vec3 f = cloth
 		? texture(cloth_tex, q.zy).rgb * w.x + texture(cloth_tex, q.xz).rgb * w.y + texture(cloth_tex, q.xy).rgb * w.z
 		: texture(skin_tex, q.zy).rgb * w.x + texture(skin_tex, q.xz).rgb * w.y + texture(skin_tex, q.xy).rgb * w.z;

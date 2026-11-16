@@ -3185,7 +3185,7 @@ var _boxed := {}
 var _box_props := {}
 
 
-## The window box rules (docs/interior_staging.md rule 12): a box's depth and how far it carries on past its end
+## The window box rules (docs/interior_staging.md rule 13): a box's depth and how far it carries on past its end
 ## windows follow the size of its windows. A full-height window shows a lot of ground and wants the full depth; an
 ## ordinary window shows less and may have a shallower box. Each prefers its `deep` and, where other rooms or boxes are
 ## in the way, makes do with less, down to `min`; below that the window has no box (and the checker says so, unless no
@@ -3791,8 +3791,21 @@ func _cubby_wall(x: int, y: int) -> void:
 				it.scale = Vector3.ONE * fit
 
 
-## Keep glazing separate from the static wall batches, so only its leaf moves.
-func _shelf_door(x: int, y: int, columns: int, width: float, bottom: float, top: float, wood: Material) -> void:
+## The wood framing a shelf's sliding glass: the room's furniture wood, set apart from the wall as picture frames are
+## (_frame_wood), on the floor boards' grain.
+func _glass_frame_wood() -> Material:
+	var base := surface("floor_wood", Color.WHITE)
+	var toned := _wood_tone(base.albedo_texture, _frame_wood()) if base.albedo_texture != null else null
+	if toned == null:
+		return surface("floor_wood", _frame_wood().lightened(0.3))
+	var m := (toned as ShaderMaterial).duplicate() as ShaderMaterial
+	m.set_shader_parameter("uv_scale", Vector2(base.uv1_scale.x, base.uv1_scale.y))
+	return m
+
+
+## Keep glazing separate from the static wall batches, so only its leaf moves. Its rails and the leaf's frame are wood.
+func _shelf_door(x: int, y: int, columns: int, width: float, bottom: float, top: float, _shelf: Material) -> void:
+	var wood := _glass_frame_wood()
 	var door := preload("res://scripts/gfx/shelf_door.gd").new()
 	parent.add_child(door)
 	var glass := _glass().duplicate() as StandardMaterial3D

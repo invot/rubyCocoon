@@ -34,9 +34,11 @@ const WILD_BATTLE_GRACE := 3.0
 var main: Node = null
 
 var player_name := "Andrew"
-## The hero as the character creator made them: "body" ("male" or "female"), "person" (their outfit, one of
-## townfolk.gd HERO_OUTFITS), "hairdo" (one of its HAIRDOS), and the colours of their "skin", "top", "trousers",
-## "hair", "eyes" and "pack_colour" (their pack's; whatever's left out, as their body begins).
+## The hero as the character creator made them: "body" ("male" or "female"), "person" (one of townfolk.gd
+## HERO_OUTFITS: an older save's whole outfit), what they wear from the wardrobe (wardrobe_db.gd: "shirt_style",
+## "pants_style", "shoes_style", "hat_style" and "glasses_style", -1 for none), "hairdo" (one of HAIRDOS), and the
+## colours of their "skin", "top", "trousers", "shoes", "hat", "glasses_colour", "hair", "eyes" and "pack_colour"
+## (their pack's; whatever's left out, as their body begins).
 var hero := {}
 var gold := 0
 var party: Array = []

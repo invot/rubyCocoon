@@ -19,19 +19,23 @@ func setup(at: Vector3, width: float, bottom: float, top: float, wood: Material,
 	leaf = Node3D.new()
 	add_child(leaf)
 	leaf.position.x = -width / 4.0
-	_box(leaf, Vector3(0, (bottom + top) / 2.0, 0), Vector3(travel - 0.04, height - 0.06, 0.018), glass)
+	_box(leaf, Vector3(0, (bottom + top) / 2.0, 0), Vector3(travel - 0.06, height - 0.08, 0.018), glass)
 	for sx in [-travel / 2.0, travel / 2.0]:
-		_box(leaf, Vector3(sx, (bottom + top) / 2.0, 0.01), Vector3(0.035, height, 0.04), wood)
+		_box(leaf, Vector3(sx, (bottom + top) / 2.0, 0.01), Vector3(0.05, height, 0.04), wood)
 	for sy in [bottom, top]:
-		_box(leaf, Vector3(0, sy, 0.01), Vector3(travel, 0.035, 0.04), wood)
+		_box(leaf, Vector3(0, sy, 0.01), Vector3(travel, 0.05, 0.04), wood)
 	_box(leaf, Vector3(travel / 2.0 - 0.075, (bottom + top) / 2.0, 0.055), Vector3(0.045, minf(0.2, height * 0.3), 0.06), wood)
 	bounds = AABB(at + Vector3(-width / 2.0, bottom, -0.08), Vector3(width, height, 0.2))
 
 
 func stock(item: String, flag: String, tile: Vector2i, mesh: Mesh, mat: Material, bottom: float) -> void:
-	if GameState.flag(flag) and not GameState.flags.has("bag_swap:" + flag):
-		return
-	var swap: Dictionary = GameState.flags.get("bag_swap:" + flag, {})
+	# (looked up at run time: tool scripts build rooms without the autoloads)
+	var state: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("GameState")
+	var swap: Dictionary = {}
+	if state != null:
+		if state.flag(flag) and not state.flags.has("bag_swap:" + flag):
+			return
+		swap = state.flags.get("bag_swap:" + flag, {})
 	prize = MeshInstance3D.new()
 	prize.mesh = mesh
 	prize.material_override = mat
