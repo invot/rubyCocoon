@@ -3349,6 +3349,8 @@ var _tide_tween: Tween
 ## How far the panel sinks, and how bright the cubby glows, for each lever set right; open, it sinks 1.6 and glows 2.
 const TIDE_STEP_DROP := 0.25
 const TIDE_STEP_GLOW := 0.35
+## How deep the cubbies go behind the wall face: room for the lever's arm leaning back and an open chest's lid.
+const TIDE_CUBBY_DEPTH := 1.2
 ## Every occupied wall tile addresses its shared sliding leaf.
 var shelf_doors := {}
 ## wall tiles beside a window (its curtains hang over them)
@@ -4199,7 +4201,7 @@ func _tide_cubby(x: int, y: int) -> void:
 	var high := low + 1.55
 	_bars(x, y, _foot(x, y), low, true, false, true, true, false, false)
 	_bars(x, y, high, H, true, false, true, true, false, false)
-	_recess(x, y, Vector2i.DOWN, low, high, 0.46, 0.7, true, _ashlar(stone.darkened(0.32)))
+	_recess(x, y, Vector2i.DOWN, low, high, 0.46, TIDE_CUBBY_DEPTH, true, _ashlar(stone.darkened(0.32)))
 	var box := BoxMesh.new()
 	box.size = Vector3(0.92, high - low, 0.12)
 	box.material = wall_mat(default_zone)

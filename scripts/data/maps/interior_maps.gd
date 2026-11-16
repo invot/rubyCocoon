@@ -649,7 +649,8 @@ const ROOMS := {
 	# A maze of walkways over a pool, with metal lattices in them: three waterfalls drop from the pipes overhead through the
 	# lattices (a .. h) and block them. Four levers move the falls; all down reveal a fifth in a back-wall cubby
 	# (TidePuzzles.CUBBY_TILE), and pulling it drains the pool and opens a second cubby (CHEST_CUBBY_TILE) with the
-	# treasure. (Its "#1" keeps the save flag it had when it lay on the pool's floor, after the walkway's chest.)
+	# treasure, the room's only one. (Its "#1" keeps the save flag it had when it lay on the pool's floor, after a chest
+	# that stood at the walkway's east end.)
 	"temple_tides_maze": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
 		"doors": {"[": "temple_tides_hall"},
@@ -657,11 +658,11 @@ const ROOMS := {
 		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
 		"water_levels": [["tides_maze_solved", -0.12]], "puzzle": "maze",
 		"floods": {"+": {"flag": "tides_maze_solved", "wet": "_", "dry": ":"}},
-		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "4": "switch:4", "2": "chest:tide_charm@tides_maze_solved#1", "3": "chest:revival_seed"},
+		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "4": "switch:4", "2": "chest:tide_charm@tides_maze_solved#1"},
 		"rows": [
 			"#####################",
 			"#+++++2+++7+++4+++++#",
-			"#+:::::::::::::::::3#",
+			"#+::::::::::::::::::#",
 			"#+:+++++++:+++++++:+#",
 			"#+a+++++++d+++++++e+#",
 			"#+:+++++++:+++++++:+#",

@@ -3123,6 +3123,7 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 	if id == "maze":
 		bad += _tides_check("maze fifth lever hidden initially", not world.npcs[levers[4]]["node"].visible)
 		bad += _tides_check("maze treasure's panel shut and dark initially", world.room_walls.tide_chest_panel.visible and not world.room_walls.tide_chest_light.visible)
+		bad += _tides_check("maze holds one treasure, in its cubby", world.npcs.values().filter(func(n): return n.get("id", "") == "chest").size() == 1)
 		await _tides_cubby_shot(shot + "a0_maze_step0")
 		# All sixteen original patterns now require the fifth lever; the old solution cannot drain the room.
 		for bits in 16:
