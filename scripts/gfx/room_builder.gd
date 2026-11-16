@@ -95,15 +95,17 @@ const KINDS := {
 	"table": {"m": ["kk_table_long", "kk_table_medium", "kk_table_small"], "free": true,
 		"top": ["plate", "cup", "home/bowl_fruit", "home/tea_set", "home/vase_flowers", "books_2", ""]},
 	"wardrobe": {"m": ["wardrobe"]},
-	"nightstand": {"m": ["side_table"], "top": ["home/table_lamp_gourd"], "always_top": true, "single": true},
-	"dresser": {"m": ["kk_drawers"], "top": ["teddy", "home/books_stack", "home/table_lamp_gourd", "home/photo_standing", "home/vase_round", "home/plant_succulent", "home/candles"]},
+	# (2026-11-15) a nightstand is the small two-drawer cupboard; the wider chests of drawers are dressers. "alt" are
+	# what stands there instead when the first choice would be the same model as the piece beside it (_place)
+	"nightstand": {"m": ["kk_cabinet_small"], "alt": ["side_table"], "top": ["home/table_lamp_gourd"], "always_top": true, "single": true},
+	"dresser": {"m": ["kk_drawers"], "alt": ["kk_cabinet_small"], "top": ["teddy", "home/books_stack", "home/table_lamp_gourd", "home/photo_standing", "home/vase_round", "home/plant_succulent", "home/candles"]},
 	# (2026-11-15) a low cupboard, a pouf and a basket of blankets: low pieces that may stand anywhere, the front included
 	"cabinet": {"m": ["kk_drawers", "kk_cabinet_small"], "single": true, "top": ["home/vase_flowers", "home/books_stack", "home/plant_succulent", "home/photo_standing"]},
 	"pouf": {"m": ["home/pouf"], "single": true, "free": true},
 	"basket": {"m": ["home/basket_blankets"], "single": true},
 	# a chunky table, with a chest of drawers beside it where the desk has two tiles or more (desk_side)
 	"desk": {"m": ["kk_table_small"], "desk_side": "kk_drawers", "top": ["books", "pencils", "globe", "home/books_stack"]},
-	"storage": {"m": ["kk_cabinet_medium_dec"], "long": true},
+	"storage": {"m": ["kk_cabinet_medium_dec"], "alt": ["kk_drawers"], "long": true},
 	"boxes": {"m": ["box_1", "box_2", "box_3"], "single": true},
 	# a kennel barn's hay bales (barn_builder.gd)
 	"hay": {"m": ["hay_stack"], "single": true},
@@ -116,7 +118,7 @@ const KINDS := {
 	"plant": {"m": ["home/plant_pillow_tall", "home/plant_paddle", "home/plant_pillow_round"], "single": true},
 	"large_plant": {"m": ["home/plant_pillow_tall"], "height": 1.9, "free": true},
 	# (a shop's bookshelves stay; in a home each tile of one is a small dressed cupboard, home_m)
-	"bookshelf": {"m": ["bookshelf"], "home_m": ["kk_cabinet_small_dec"], "long": true},
+	"bookshelf": {"m": ["bookshelf"], "home_m": ["kk_cabinet_small_dec"], "alt": ["kk_drawers", "kk_cabinet_small"], "long": true},
 	"shelf": {"m": ["shelves"], "long": true, "goods": true},
 	"rug": {"m": ["kk_rug_rect", "kk_rug_stripes", "kk_rug_oval"], "free": true, "rug": true},
 	"bench": {"m": ["ext/kaykit_stool_bench"], "fill": true},
@@ -420,6 +422,10 @@ var _snap := true
 var door_leaves := {}
 ## the lowest floor in the room, found once (see _lowest)
 var _low_y := INF
+## the model each furnished tile got (_place), so no piece stands beside one exactly like it
+var _placed := {}
+## what was set on top of each furnished tile
+var _placed_tops := {}
 
 
 ## Builds everything into `p`. extra: textures by name to use instead of the pack's ("checker").
@@ -2190,6 +2196,16 @@ static func rug_rectangles(m: Dictionary) -> Array[Rect2i]:
 	return out
 
 
+## A room's runners ("runners": [[x, y, w, h], ...] in its template): long narrow rugs laid exactly where authored,
+## such as the hotel lobby's from the front door to the hallway (the user's 2026-11-15 direction). Unlike area rugs
+## they keep their own footprint; check_maps still keeps them clear of walls, stairs and hazards.
+static func runner_rects(m: Dictionary) -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	for r in m.get("room", {}).get("runners", []):
+		out.append(Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])))
+	return out
+
+
 ## A soft, untextured colour (a placemat), shared by everything of that colour.
 static func plain_material(colour: Color) -> StandardMaterial3D:
 	var key := "plain:%s" % colour.to_html()
@@ -2206,8 +2222,11 @@ static func plain_material(colour: Color) -> StandardMaterial3D:
 func _rugs() -> void:
 	var colour := Color(str(map.get("room", {}).get("rug", "#a04040")))
 	var names: Array = KINDS["rug"]["m"]
-	for rect in rug_rectangles(map):
-		var mesh := piece(names[absi(hash(str(map.get("room_key", "")) + str(rect.position))) % names.size()])
+	var runners := runner_rects(map)
+	for rect in rug_rectangles(map) + runners:
+		# a runner is the plain rug, so its border isn't stretched into stripes or an oval along its length
+		var pick: String = "kk_rug_rect" if rect in runners else names[absi(hash(str(map.get("room_key", "")) + str(rect.position))) % names.size()]
+		var mesh := piece(pick)
 		if mesh == null:
 			continue
 		var rug := MeshInstance3D.new()
@@ -2324,9 +2343,27 @@ func _place(kind: String, group: Array) -> void:
 		var low := names.filter(func(n): return piece(n) != null and piece(n).get_aabb().size.y <= WAIST)
 		if not low.is_empty():
 			names = low
+	# (the user's rule, 2026-11-15) never two exactly alike side by side, chairs excepted: a model a neighbouring
+	# piece already has gives way to another choice or an alternative ("alt"); a run of counters (fill) is one piece
+	var near := _near_placed(group, "chair" in k or "fill" in k or kind == "armchair", _placed)
+	var used_alt := false
+	if not near.is_empty():
+		var fresh := names.filter(func(n): return not n in near)
+		if fresh.is_empty():
+			fresh = k.get("alt", []).filter(func(n): return not n in near and piece(n) != null 				and (not front or piece(n).get_aabb().size.y <= WAIST))
+			used_alt = not fresh.is_empty()
+		if not fresh.is_empty():
+			names = fresh
+		elif home:
+			push_warning("%s: two alike %s pieces side by side at %s" % [map.get("room_key", ""), kind, lo])
 	var mesh := _choose(names, span, depth + reach, k.get("same", false))
 	if mesh == null:
 		return
+	for n in names:
+		if piece(n) == mesh:
+			for q in group:
+				_placed[q] = n
+			break
 	var bb := mesh.get_aabb()
 	var sc := Vector3.ONE
 	if k.get("rug", false):
@@ -2390,12 +2427,20 @@ func _place(kind: String, group: Array) -> void:
 	var top_y := bb.size.y * sc.y
 	# things standing on it
 	var tops: Array = k.get("top", [])
-	if not tops.is_empty() and (k.get("always_top", false) or rng.randf() < 0.75):
+	if used_alt and tops.is_empty():
+		# a plain cupboard standing in for a dressed one gets a few things on it
+		tops = KINDS["cabinet"]["top"]
+	var near_tops := _near_placed(group, false, _placed_tops)
+	if tops.size() > 1:
+		tops = tops.filter(func(n): return not n in near_tops)
+	if not tops.is_empty() and (k.get("always_top", false) or used_alt or rng.randf() < 0.75):
 		var n_items := 1 if k.get("always_top", false) else rng.randi_range(1, 1 + int(span * depth))
 		for i in n_items:
 			var name: String = tops[rng.randi_range(0, tops.size() - 1)] if not k.get("always_top", false) else tops[0]
 			if name == "":
 				continue
+			for q in group:
+				_placed_tops[q] = name
 			var t := MeshInstance3D.new()
 			t.mesh = piece(name)
 			if t.mesh == null:
@@ -2443,7 +2488,8 @@ func _place(kind: String, group: Array) -> void:
 		pieces.append_array(_goods(pos, yaw, bb, sc))
 	if home:
 		pieces.append_array(_dress(kind, mi, bb, sc))
-	elif top_y >= TALL:
+	elif top_y >= TALL and not map.get("room", {}).get("no_fade", false):
+		# ("no_fade" rooms, such as the hotel lobby, keep every piece solid: the user's 2026-11-15 direction)
 		add_prop(pieces, lo, size)
 	if k.get("lamp", false):
 		var l := OmniLight3D.new()
@@ -2719,6 +2765,21 @@ func _counter_phone(at: Vector3, yaw: float, top: float) -> void:
 
 ## Of the models for a kind, the one that fills the space best. Ties go to chance, or with `same`, to the building's
 ## own pick of the list (pick_seed), so its chairs match and its sofa and armchair do.
+## The models (_placed) or things on top (_placed_tops) of the pieces already standing on the tiles around a group, the
+## diagonals included; none for chairs, which may stand in matching rows.
+func _near_placed(group: Array, chair: bool, of: Dictionary) -> Array:
+	var out := []
+	if chair:
+		return out
+	for q in group:
+		for dx in [-1, 0, 1]:
+			for dy in [-1, 0, 1]:
+				var r: Vector2i = q + Vector2i(dx, dy)
+				if not r in group and of.has(r) and not of[r] in out:
+					out.append(of[r])
+	return out
+
+
 func _choose(names: Array, span: float, depth: float, same := false) -> Mesh:
 	var best: Mesh = null
 	var best_d := INF
@@ -2778,6 +2839,14 @@ func _hang(name: String, x: int, y: int, inside: Vector2i, up: float, side: floa
 	return mi
 
 
+## Marks a just-hung clock (`--scene=interiors` counts them: one per room at most); true when there is one.
+func _mark_clock(mi: Node3D) -> bool:
+	if mi == null:
+		return false
+	mi.set_meta("wall_clock", true)
+	return true
+
+
 ## A barn's lantern on wall tile (x, y), on its face towards `inside` (barn_builder.gd).
 func _lantern(x: int, y: int, inside: Vector2i) -> void:
 	var mi := MeshInstance3D.new()
@@ -2835,16 +2904,16 @@ func _wall_decor() -> void:
 					"kitchen":
 						if front_kind in ["counter", "kitchen_sink"] and roll < 0.45:
 							_hang("wall_shelf_2", x, y, inside, 1.25, 0.0)
-						elif front_kind == "" and roll < 0.2:
-							_hang("clock", x, y, inside, 1.75, 0.0)
+						elif front_kind == "" and roll < 0.2 and not _clock_hung:
+							_clock_hung = _mark_clock(_hang("clock", x, y, inside, 1.75, 0.0))
 					"back", "stone":
 						if roll < 0.08:
 							_hang("breaker_box", x, y, inside, 1.3, 0.0)
 					_:
 						if roll < 0.22:
 							_hang(["painting_1", "painting_2", "painting_3", "painting_4", "painting_5"][rng.randi_range(0, 4)], x, y, inside, 1.35, 0.0)
-						elif roll < 0.3:
-							_hang("clock", x, y, inside, 1.8, 0.0)
+						elif roll < 0.3 and not _clock_hung:
+							_clock_hung = _mark_clock(_hang("clock", x, y, inside, 1.8, 0.0))
 						elif roll < 0.38:
 							_hang("wall_light", x, y, inside, 1.6, 0.0)
 				var after := parent.get_child_count() + (rows[y] as Node3D).get_child_count() if rows.has(y) else parent.get_child_count()
@@ -2967,6 +3036,8 @@ var _cubbies := {}
 var shelf_doors := {}
 ## wall tiles beside a window (its curtains hang over them)
 var _by_window := {}
+## true once a clock hangs in this room: never more than one clock on a room's walls (the user's 2026-11-15 rule)
+var _clock_hung := false
 var _prints_used := []
 
 
@@ -4009,11 +4080,156 @@ func _dress(kind: String, mi: MeshInstance3D, bb: AABB, sc: Vector3) -> Array:
 		"armchair":
 			out.append(_stand("home/cushion_square", at + basis * Vector3(0, hgt * 0.48, -dep * 0.14), yaw))
 		"bed":
-			var q := _stand("home/quilt_fold", at + basis * Vector3(0, hgt * 0.62, dep * 0.3), yaw)
-			if q != null:
-				q.scale = Vector3(minf(1.0, wdt * 0.96 / 1.5), 1.0, 1.0)
+			# a patchwork quilt across the foot of the bed, lying on the covers (the mattress's top and sides measured
+			# from the bed's own mesh, not guessed from its height, which counts the headboard) and hanging down both
+			# sides of the bed most of the way to its frame, its fold rolled along the edge nearest the pillow
+			var z := bb.size.z * 0.3
+			var top := _surface_top(mi.mesh, bb.get_center().x, z - 0.2, z + 0.2, bb.size.x * 0.35)
+			var half := _surface_side(mi.mesh, top * 0.7, z, bb)
+			var q := MeshInstance3D.new()
+			q.mesh = draped_quilt(half * sc.x, top * sc.y * 0.6, 0.6 * sc.z)
+			q.material_override = HomeDecor.atlas_material(scheme)
+			q.position = at + basis * Vector3(0, top * sc.y, z * sc.z)
+			q.rotation.y = yaw
+			q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			parent.add_child(q)
 			out.append(q)
 	return out.filter(func(n): return n != null)
+
+
+## How far out from its middle a mesh's side stands at height y and depth z (in its own units): a bed's mattress.
+static func _surface_side(mesh: Mesh, y: float, z: float, bb: AABB) -> float:
+	var key := "side:%s:%.2f:%.2f" % [mesh.get_rid().get_id(), y, z]
+	if _tops.has(key):
+		return _tops[key]
+	var tm := mesh.generate_triangle_mesh()
+	var side := bb.size.x * 0.5
+	var hit := tm.intersect_ray(Vector3(bb.end.x + 1.0, y, z), Vector3.LEFT)
+	if not hit.is_empty():
+		side = float(hit["position"].x) - bb.get_center().x
+	_tops[key] = side
+	return side
+
+
+## A patchwork quilt draped over a bed (half: the mattress's half-width, drop: how far it hangs down each side,
+## depth: along the bed), as one soft sweep: its top on y = 0 across the mattress, rounding over the edges and down
+## both sides, a little flared at the hem, with rounded hems front and back and a rolled fold along the back (-z).
+## Built in the home decor atlas's patchwork cell, fabric-tinted (vertex colour red), so it takes the room's scheme.
+static var _quilts := {}
+const QUILT_CELL := Rect2(0.758, 0.009, 0.109, 0.107)
+static func draped_quilt(half: float, drop: float, depth: float) -> ArrayMesh:
+	var key := "%.3f:%.3f:%.3f" % [half, drop, depth]
+	if _quilts.has(key):
+		return _quilts[key]
+	const TH := 0.045  # the cloth's thickness
+	const R := 0.07  # how round it falls over the mattress's edges
+	const FLARE := 0.03  # how far the hem stands out from the bed's side
+	var hx := half + TH * 0.5 + 0.012
+	var y0 := TH * 0.5 + 0.003
+	# the cloth's middle line across the bed, from the left hem up, over and down to the right hem
+	var path: Array[Vector2] = []
+	var hang := maxf(drop - R, 0.02)
+	for i in 6:
+		var t := 1.0 - i / 6.0
+		path.append(Vector2(-hx - FLARE * t * t, y0 - R - hang * t))
+	for i in 7:
+		var a := PI - (PI * 0.5) * i / 6.0
+		path.append(Vector2(-hx + R + R * cos(a), y0 - R + R * sin(a)))
+	for i in range(1, 8):
+		path.append(Vector2(lerpf(-hx + R, hx - R, i / 8.0), y0))
+	for i in 7:
+		var a := PI * 0.5 - (PI * 0.5) * i / 6.0
+		path.append(Vector2(hx - R + R * cos(a), y0 - R + R * sin(a)))
+	for i in range(1, 7):
+		var t := i / 6.0
+		path.append(Vector2(hx + FLARE * t * t, y0 - R - hang * t))
+	# a round cross-section along the bed, as (out, z, normal out, normal z): the slab with rounded hems
+	var slab := []
+	var hz := depth * 0.5 - TH * 0.5
+	for i in 9:
+		var a := -PI * 0.5 + PI * i / 8.0
+		slab.append([TH * 0.5 * sin(a), hz + TH * 0.5 * cos(a), sin(a), cos(a)])
+	for i in 9:
+		var a := PI * 0.5 + PI * i / 8.0
+		slab.append([TH * 0.5 * sin(a), -hz + TH * 0.5 * cos(a), sin(a), cos(a)])
+	var roll := []
+	var rr := 0.05
+	for i in 13:
+		var a := TAU * i / 12.0
+		roll.append([TH * 0.5 + rr * 0.55 + rr * sin(a), -depth * 0.5 + rr + rr * cos(a), sin(a), cos(a)])
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_sweep(st, path, slab, true, depth)
+	_sweep(st, path, roll, true, depth)
+	st.generate_tangents()
+	var mesh := st.commit()
+	_quilts[key] = mesh
+	return mesh
+
+
+## A loop (rows of out, z, normal out, normal z, closed) swept along a path across the bed, as quads; the open ends
+## at the hems capped flat when `cap`.
+static func _sweep(st: SurfaceTool, path: Array[Vector2], loop: Array, cap: bool, depth: float) -> void:
+	var lens := [0.0]
+	for i in range(1, path.size()):
+		lens.append(lens[i - 1] + path[i].distance_to(path[i - 1]))
+	var total: float = lens[-1]
+	var ups := []
+	for i in path.size():
+		var t := (path[mini(i + 1, path.size() - 1)] - path[maxi(i - 1, 0)]).normalized()
+		ups.append(Vector2(-t.y, t.x))
+	var vert := func(i: int, k: int) -> Array:
+		var n: Vector2 = ups[i]
+		var l: Array = loop[k]
+		var o: float = l[0]
+		var p := Vector3(path[i].x + n.x * o, path[i].y + n.y * o, float(l[1]))
+		var nn: Vector3 = (Vector3(n.x, n.y, 0) * float(l[2]) + Vector3(0, 0, float(l[3]))).normalized()
+		var uv: Vector2 = QUILT_CELL.position + Vector2(float(lens[i]) / total * QUILT_CELL.size.x, (l[1] / depth + 0.5) * QUILT_CELL.size.x * depth / total)
+		return [p, nn, uv]
+	var put := func(v: Array) -> void:
+		st.set_color(Color(1, 0, 0, 0))
+		st.set_normal(v[1])
+		st.set_uv(v[2])
+		st.add_vertex(v[0])
+	for i in path.size() - 1:
+		for k in loop.size():
+			var k2 := (k + 1) % loop.size()
+			var a: Array = vert.call(i, k)
+			var b: Array = vert.call(i + 1, k)
+			var c: Array = vert.call(i + 1, k2)
+			var d: Array = vert.call(i, k2)
+			for v in [a, d, c, a, c, b]:
+				put.call(v)
+	if not cap:
+		return
+	for end in [0, path.size() - 1]:
+		var n3 := Vector3((path[1] - path[0]).x, (path[1] - path[0]).y, 0).normalized() * -1.0 if end == 0 else Vector3((path[end] - path[end - 1]).x, (path[end] - path[end - 1]).y, 0).normalized()
+		var mid := Vector3(path[end].x, path[end].y, 0)
+		for k in loop.size():
+			var a: Array = vert.call(end, k)
+			var b: Array = vert.call(end, (k + 1) % loop.size())
+			var tri := [mid, a[0], b[0]] if end == 0 else [mid, b[0], a[0]]
+			for p in tri:
+				put.call([p, n3, a[2]])
+
+
+## The highest point of `mesh`'s top surface (in its own units) under a patch around (x, z0..z1), x ± half: what
+## something laid on it rests on. Cached per mesh and patch.
+static var _tops := {}
+static func _surface_top(mesh: Mesh, x: float, z0: float, z1: float, half: float) -> float:
+	var key := "%s:%.2f:%.2f:%.2f:%.2f" % [mesh.get_rid().get_id(), x, z0, z1, half]
+	if _tops.has(key):
+		return _tops[key]
+	var tm := mesh.generate_triangle_mesh()
+	var top := 0.0
+	for i in 5:
+		for j in 3:
+			var p := Vector3(x + half * (i / 2.0 - 1.0), mesh.get_aabb().end.y + 1.0, lerpf(z0, z1, j / 2.0))
+			var hit := tm.intersect_ray(p, Vector3.DOWN)
+			if not hit.is_empty():
+				top = maxf(top, float(hit["position"].y))
+	_tops[key] = top
+	return top
 
 
 ## A home's walls, dressed generously (the user's direction: shelves, paintings and the like): a big framed print
@@ -4122,8 +4338,9 @@ func _home_wall_decor() -> void:
 							if roll < 0.26:
 								_hang_frame(x, y, inside, 1.62, -0.17, 0.44, 0.58)
 								got = _hang_frame(x, y, inside, 1.7, 0.25, 0.32, 0.42)
-							elif roll < 0.4:
+							elif roll < 0.4 and not _clock_hung:
 								got = _hang_decor("wall_clock", x, y, inside, 1.85, 0.0)
+								_clock_hung = _mark_clock(got)
 							elif roll < 0.6:
 								got = _dressed_shelf(x, y, inside, 1.3, 0.0, false)
 							elif roll < 0.74:

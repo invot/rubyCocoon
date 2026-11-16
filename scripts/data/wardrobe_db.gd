@@ -34,7 +34,8 @@ const SHOES := {
 		["Ankle Boots", 63]],
 }
 
-## Hats and glasses: [name, their parts in townfolk.json]. None comes first in the creator (index -1).
+## Hats and glasses: [name, their parts in townfolk.json]. None comes first in the creator (index -1). Glasses have
+## no lenses (townfolk.gd LENSES cuts them out of every pair).
 const HATS := [
 	["Ball Cap", [13]], ["Sport Cap", [28]], ["Bobble Hat", [91]], ["Beret", [96]], ["Bucket Hat", [99]],
 	["Rain Hat", [106]], ["Top Hat", [110]], ["Garden Hat", [115]], ["Sun Hat", [117]], ["Mushroom Hat", [122]],
@@ -42,8 +43,8 @@ const HATS := [
 	["Wizard Hat", [275]], ["Goggle Cap", [286, 287]], ["Horned Helmet", [303]],
 ]
 const GLASSES := [
-	["Round Specs", [141]], ["Wire Specs", [147]], ["Star Shades", [171]], ["Cat-Eye Shades", [175, 176]],
-	["Visor Shades", [183, 184]], ["Swim Goggles", [188, 189]], ["Ski Goggles", [195, 196]],
+	["Round Specs", [141]], ["Wire Specs", [147]], ["Star Shades", [171]], ["Cat-Eye Shades", [176]],
+	["Visor Shades", [184]], ["Swim Goggles", [188, 189]], ["Ski Goggles", [195, 196]],
 ]
 
 ## The dyes. Clothes, hats, glasses and the pack share one set; skin, hair and eyes have their own.
@@ -55,6 +56,39 @@ const SKIN := ["#f6d8c0", "#f0c8a0", "#e0ac84", "#c68a62", "#9a6440", "#6e4428",
 const HAIR := ["#1a1410", "#3a2216", "#6a4026", "#8a3a20", "#c0602a", "#d8b060", "#e8d8a8", "#c8c8d0",
 	"#d87a9a", "#4a5aa8", "#3a8a6a", "#8a4ab0"]
 const EYES := ["#642a12", "#845613", "#198337", "#195bc4", "#657f94", "#be7909", "#3a3a3a", "#8a3a8a"]
+
+## Each dye's name, as the creator shows it beside its colour (the same order as its list above).
+const NAMES := {
+	"CLOTH": ["Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Denim", "Purple", "Pink", "White", "Grey", "Black",
+		"Brown", "Khaki", "Maroon", "Olive"],
+	"PACK": ["Saddle", "Chocolate", "Tan", "Mustard", "Red", "Orange", "Blue", "Navy", "Green", "Teal", "Purple", "Pink",
+		"White", "Grey", "Black", "Maroon"],
+	"SKIN": ["Tone 1", "Tone 2", "Tone 3", "Tone 4", "Tone 5", "Tone 6", "Tone 7", "Tone 8"],
+	"HAIR": ["Black", "Dark Brown", "Brown", "Auburn", "Copper", "Blonde", "Platinum", "Silver", "Pink", "Blue",
+		"Teal", "Purple"],
+	"EYES": ["Brown", "Amber", "Green", "Blue", "Grey", "Gold", "Charcoal", "Violet"],
+}
+
+
+## A set of dyes by name ("CLOTH", "PACK", "SKIN", "HAIR", "EYES").
+static func dyes(set_name: String) -> Array:
+	match set_name:
+		"PACK":
+			return PACK
+		"SKIN":
+			return SKIN
+		"HAIR":
+			return HAIR
+		"EYES":
+			return EYES
+	return CLOTH
+
+
+## A dye's name in its set ("" for a colour not in it: a look from before the set changed).
+static func dye_name(set_name: String, hex: String) -> String:
+	var i := dyes(set_name).find(hex)
+	return String(NAMES[set_name][i]) if i >= 0 else ""
+
 
 ## What each body begins in (indices into the lists above, and colours).
 const START := {

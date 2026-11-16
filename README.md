@@ -220,13 +220,24 @@ and Caldera Road unlock follow. Full requirements and future implementation step
 The character creator (`scripts/ui/hero_maker.gd`) stands the hero in their own bedroom, built as a set
 (`main.gd` `build_set`), beside a standing mirror on the left of the screen. The mirror is a second camera where the
 main camera's reflection would stand, its picture projected back onto the glass; the room's missing front wall is put
-up for the mirror alone, so it shows the hero's back against wallpaper. Drag the hero to turn them round. The menu
-on the right has four tabs that float above its window like the Start book's: **You** (name, body, skin), **Face**
-(hair, eyes, hat, glasses), **Torso** (shirt, pack) and **Legs** (pants, shoes). No tab has more than four rows, so
-nothing scrolls. The arrows step through named pieces from the wardrobe (`scripts/data/wardrobe_db.gd`: shirts,
-pants and shoes for each body, cut from the townfolk kit's people; hats and glasses, or None, for either), and each
-piece's swatch (or A) opens a grid of big colours over the menu: moving through it dyes the hero as you go, A,
-Confirm or a second tap keeps the colour and B puts the old one back.
+up for the mirror alone, so it shows the hero's back against wallpaper. Drag the hero to turn them round; the camera
+keeps the hero and the mirror in the room left of the menu, easing in a little on the part each tab dresses (the
+head for Hair and Face, the chest for Torso, the legs and feet for Legs; the whole hero for Self). The menu on the right has five tabs that together span
+its window, with a gap above it: **Self** (name, body, skin), **Hair** (hair and hat), **Face** (eyes and glasses),
+**Torso** (shirt and pack) and **Legs** (pants and shoes). Everything with a type and a color has a small bold
+header with a line under it, then a **Type** row and a **Color** row (Hair: Type, Color; Hat: Type, Color). No tab has
+more than four rows, so nothing scrolls. Rows are laid out like Settings': the name on the
+left and the value on the right between soft arrows. Pieces come from the wardrobe (`scripts/data/wardrobe_db.gd`:
+shirts, pants and shoes for each body, cut from the townfolk kit's people; hats and glasses, or None, for either).
+Each color is a row of its own showing a swatch and the color's name; A or a tap on it opens a grid of big colors
+over the menu: the arrows move through it, dyeing the hero as you go; A (or a second tap) keeps the color and B puts
+the old one back, as the small "Confirm" and "Cancel" buttons centred along the grid's bottom edge say, each behind its A or B
+prompt.
+Start (Space, a controller's Start, the touch pad's Start) begins the game, as the small gem "Confirm" button hanging
+off the window's bottom right corner says, behind the Start button's own prompt (Kenney's *Input Prompts*, trimmed to
+its drawing: the space bar, the controller's Start or Menu, or the Start pill on touch). On a 16:9 touch screen the
+menu can't move far enough left to clear A entirely: the last row's right arrow and the Start button may meet its
+edge (the rest of the row, the keys and the pad's own Start still work).
 
 1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Bellerive, the next town east.
 2. Elder Rowan lets you choose one of four elemental eggs.
@@ -938,7 +949,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   The harbour's paddle steamer, shrimp trawler, sloops, skiff and schooner are `harbor_boats.gd`'s (a map's `boats`
   names them like the pack's).
 - **People, eggs, signs and obstacles** are built procedurally:
-  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the shirt, pants, shoes, hat, glasses, hairdo and colours the character creator gave them: each piece cut from its own kit person, see `wardrobe_db.gd`; glasses have their own colour slot, `Townfolk.GLASSES_SLOT`). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--pose=ready --weapon=slingshot|boomerang|bat` a trainer's weapon held ready, and `--pose=throw|boomerang|catch|swing --at=0,0.07,0.15,0.25` four moments of using it; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
+  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the shirt, pants, shoes, hat, glasses, hairdo and colours the character creator gave them: each piece cut from its own kit person, see `wardrobe_db.gd`; glasses have their own colour slot, `Townfolk.GLASSES_SLOT`, and no lenses: `Townfolk.LENSES` drops the kit's lens parts and cuts the goggles' lenses out as they load). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--pose=ready --weapon=slingshot|boomerang|bat` a trainer's weapon held ready, and `--pose=throw|boomerang|catch|swing --at=0,0.07,0.15,0.25` four moments of using it; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
   - Readable wooden notice boards carry three rows of dark mock lettering, raised just off the wood so it stays
@@ -993,8 +1004,9 @@ The bag holds **24 stacks of up to 9** of the same item; a tenth starts another 
 Key items, weapons, eggs and sheet music are exempt. Inventory remains item kind → count;
 capacity is the sum of `ceil(count / 9)` for non-exempt kinds. `GameState.add_item` returns
 how many could not fit. Items lying about the world sit in treasure chests (KayKit's, `temple_props.gd`
-`chest()`, the same plain one for a temple's treasures; every chest is empty inside, with no coins or gleam, and
-the item goes straight into the bag): the lid swings open as you take the item, and the emptied
+`chest()`, the same plain one for a temple's treasures; every chest is empty inside, with no coins, and
+the item goes straight into the bag): the lid swings open as you take the item, a golden light and
+shimmering sparkles welling out of it for a moment (`TempleProps.chest_glow`), and the emptied
 chest stays where it is, open and solid, on every later visit (`world.gd` `opened_chests`; check with
 `bash tools/run_tests.sh item-chests`). A full-bag world pickup offers to swap one stack or leave it;
 the outgoing stack remains in that chest, including across saves. Shops refuse purchases
@@ -1068,7 +1080,9 @@ mounted owl and its rider.
   plays, and the prompt closes a moment later. A long question shows its answers on its last page. Touch uses the
   widened labelled A/B controls. Menus opened while talking to someone (a Beast Center attendant, a shopkeeper) or
   on the phone have no Leave row: a small gem **B: Cancel** button hangs under the menu's right end, over its bottom
-  edge (`list_menu.gd` `cancel_button`, `edge_button.gd`), and B or a tap on it backs out. The beast summary and creator use bounded panes with scrolling instead of extending beyond the viewport.
+  edge (`list_menu.gd` `cancel_button`, `edge_button.gd`), and B or a tap on it backs out. Every such hanging button
+  shows the button's own prompt from Kenney's *Input Prompts* in place of "A:" or "B:" (`edge_button.gd` `prompt`:
+  the keyboard key, the controller's face button, or the pad's A/B on touch), then its word. The beast summary and creator use bounded panes with scrolling instead of extending beyond the viewport.
   - List rows: dark text on the window; the selected or focused row is a rounded bar in the gem with white text, a
     deeper gem while pressed; disabled rows have dim text. List menus have no Select/Back buttons: A and B do that.
     Standalone buttons (page and scroll buttons,
@@ -1672,8 +1686,8 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
   `title-startup-touch-a` and `title-startup-natural`: check the artwork crossfade, zoom and looping. Check one confirmation per press, the retained slideshow and title, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
 - `hero-maker` / `hero-maker-touch`: actual name/body navigation, the hair, hat, shirt, pants and shoes arrows, the
-  colour grids opened, picked and kept by tap, and cancellation. `--scene=creator --shots=res://build/shots/creator`
-  captures the Face and Legs tabs.
+  color rows' grids opened, picked and kept by tap, and cancellation. `--scene=creator --shots=res://build/shots/creator`
+  captures the Hair and Legs tabs.
 - `performance`: cold/repeated creator and beast timings, map loading frame gaps, a bounded building cache, and
   cached animation measurements. `--scene=stalls --report=res://build/performance.json` writes the timing report;
   optionally pass `--baseline=res://build/performance/baseline.json` to compare collision-grid hashes.
@@ -1909,7 +1923,7 @@ godot --path . -- --scene=heal --shot=C:/tmp/h.png                      # the Be
 godot --path . -- --scene=defeat --at=0.2 --shot=C:/tmp/d.png           # a beaten foe's puff of smoke and a damage number
 godot --path . -- --scene=defeat --trainer=foe --at=1.6 --shot=C:/tmp/k.png   # a beaten trainer dropping to one knee (ally: you; robot: powering down)
 godot --path . -- --scene=flute --song=weaken --mode=learn --lesson=1    # the flute game as a lesson (the teacher plays first); without --mode it's your turn straight away
-godot --path . --resolution 2400x1080 -- --touch --scene=maker --verify=1  # the character creator's four tabs: rows, keys, taps and colour grids ("MAKER TEST DONE: 0 problem(s)"); --picks=body:1,tab:1,hat:2,dye:hat:#3a6ab8,row:hat,open:hat
+godot --path . --resolution 2400x1080 -- --touch --scene=maker --verify=1  # the character creator's five tabs: rows, keys, taps, color grids and Start ("MAKER TEST DONE: 0 problem(s)"); --picks=body:1,tab:1,hat:2,dye:hat:#3a6ab8,row:hat_color,open:hat_color
 godot --path . -- --scene=hero --shot=C:/tmp/h.png                      # the hero from four sides
 ```
 

@@ -125,14 +125,161 @@ static func _box_chest(open: bool) -> Node3D:
 	return root
 
 
-## Throws a chest's lid open.
+## Throws a chest's lid open, with a golden light and shimmers welling out of it (chest_glow()).
 static func open_chest(node: Node3D) -> void:
 	var lid: Node3D = node.get_node_or_null("Lid")
 	if lid == null:
 		return
 	var tw := node.create_tween()
 	tw.tween_property(lid, "rotation:x", LID_OPEN, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_callback(chest_glow.bind(node, lid.position.y)).set_delay(0.12)
 	await tw.finished
+
+
+const GLOW_GOLD := Color(1.0, 0.82, 0.38)
+static var _sparkle_tex: Texture2D
+static var _shaft_tex: Texture2D
+
+
+## A golden glow that wells up out of an opened chest's mouth (`mouth` high): a soft warm light on the room, a
+## glowing shaft rising from the chest, and shimmering sparkles drifting up out of it. All of it fades in about two
+## seconds and frees itself; nothing casts shadows. Works on the Mobile and Compatibility renderers (CPU particles,
+## one omni light, additive unshaded quads).
+static func chest_glow(node: Node3D, mouth := 0.25) -> void:
+	if not is_instance_valid(node) or not node.is_inside_tree():
+		return
+	var fx := Node3D.new()
+	fx.name = "ChestGlow"
+	fx.position = Vector3(0, mouth, 0)
+	node.add_child(fx)
+	# the warm light it throws on the room around it
+	var light := OmniLight3D.new()
+	light.light_color = GLOW_GOLD
+	light.omni_range = 2.6
+	light.light_energy = 0.0
+	light.shadow_enabled = false
+	light.position = Vector3(0, 0.25, 0.1)
+	fx.add_child(light)
+	# the shaft of light rising out of the open chest, turning to face the camera about its upright axis
+	var shaft := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(0.95, 1.9)
+	q.center_offset = Vector3(0, 0.95, 0)
+	shaft.mesh = q
+	var sm := _glow_material(_shaft(), BaseMaterial3D.BILLBOARD_FIXED_Y)
+	sm.albedo_color = Color(GLOW_GOLD, 0.0)
+	shaft.material_override = sm
+	shaft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	shaft.scale = Vector3(0.6, 0.3, 1)
+	shaft.position.z = 0.08
+	fx.add_child(shaft)
+	# the shimmers: little four-pointed sparkles drifting up, twinkling as they shrink away
+	var p := CPUParticles3D.new()
+	var pq := QuadMesh.new()
+	pq.size = Vector2.ONE
+	p.mesh = pq
+	p.material_override = _glow_material(_sparkle(), BaseMaterial3D.BILLBOARD_PARTICLES)
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.amount = 36
+	p.lifetime = 1.7
+	p.one_shot = true
+	p.explosiveness = 0.55
+	p.randomness = 0.5
+	p.local_coords = true
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(0.22, 0.03, 0.12)
+	p.direction = Vector3(0, 1, 0)
+	p.spread = 32.0
+	p.initial_velocity_min = 1.3
+	p.initial_velocity_max = 2.2
+	p.gravity = Vector3(0, -0.5, 0)
+	p.damping_min = 0.6
+	p.damping_max = 1.2
+	p.angle_min = 0.0
+	p.angle_max = 45.0
+	p.angular_velocity_min = -90.0
+	p.angular_velocity_max = 90.0
+	p.scale_amount_min = 0.13
+	p.scale_amount_max = 0.27
+	var sc := Curve.new()
+	sc.add_point(Vector2(0.0, 0.2))
+	sc.add_point(Vector2(0.15, 1.0))
+	sc.add_point(Vector2(0.55, 0.6))
+	sc.add_point(Vector2(0.7, 1.0))
+	sc.add_point(Vector2(1.0, 0.0))
+	p.scale_amount_curve = sc
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0, 0.95, 0.75, 1.0))
+	ramp.set_color(1, Color(GLOW_GOLD, 0.0))
+	ramp.add_point(0.5, Color(1.0, 0.86, 0.45, 0.95))
+	p.color_ramp = ramp
+	fx.add_child(p)
+	p.emitting = true
+	# swell, hold a moment, then fade away
+	var tw := fx.create_tween().set_parallel()
+	tw.tween_property(light, "light_energy", 2.4, 0.25).set_ease(Tween.EASE_OUT)
+	tw.tween_property(sm, "albedo_color:a", 1.0, 0.25).set_ease(Tween.EASE_OUT)
+	tw.tween_property(shaft, "scale", Vector3.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_interval(0.45)
+	tw.chain().tween_property(light, "light_energy", 0.0, 1.2).set_ease(Tween.EASE_IN)
+	tw.tween_property(sm, "albedo_color:a", 0.0, 1.2).set_ease(Tween.EASE_IN)
+	tw.tween_property(shaft, "scale:y", 1.25, 1.2)
+	tw.chain().tween_interval(0.3)
+	tw.chain().tween_callback(fx.queue_free)
+
+
+## An unshaded, additive glow material for the chest's light, sampling `tex` smoothly.
+static func _glow_material(tex: Texture2D, billboard: BaseMaterial3D.BillboardMode) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.no_depth_test = false
+	m.albedo_texture = tex
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.vertex_color_use_as_albedo = billboard == BaseMaterial3D.BILLBOARD_PARTICLES
+	m.billboard_mode = billboard
+	m.billboard_keep_scale = true
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+## A soft four-pointed sparkle (made once, then shared): a round glow with two thin crossing rays.
+static func _sparkle() -> Texture2D:
+	if _sparkle_tex != null:
+		return _sparkle_tex
+	var n := 64
+	var img := Image.create(n, n, true, Image.FORMAT_RGBA8)
+	var c := (n - 1) / 2.0
+	for y in n:
+		for x in n:
+			var dx := absf(x - c) / c
+			var dy := absf(y - c) / c
+			var core := clampf(1.0 - sqrt(dx * dx + dy * dy) * 1.5, 0.0, 1.0)
+			var rays := maxf(clampf(1.0 - dx, 0.0, 1.0) * clampf(1.0 - dy * 5.0, 0.0, 1.0), clampf(1.0 - dy, 0.0, 1.0) * clampf(1.0 - dx * 5.0, 0.0, 1.0))
+			var a := clampf(core * core * 1.3 + rays, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	img.generate_mipmaps()
+	_sparkle_tex = ImageTexture.create_from_image(img)
+	return _sparkle_tex
+
+
+## The shaft's glow (made once, then shared): brightest at its foot in the middle, fading up and out to its sides.
+static func _shaft() -> Texture2D:
+	if _shaft_tex != null:
+		return _shaft_tex
+	var w := 64
+	var h := 128
+	var img := Image.create(w, h, true, Image.FORMAT_RGBA8)
+	for y in h:
+		var up := float(y) / (h - 1)  # 0 at the top, 1 at the foot
+		for x in w:
+			var side := 1.0 - absf(x - (w - 1) / 2.0) / ((w - 1) / 2.0)
+			var a := pow(side, 1.3) * pow(up, 0.9)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	img.generate_mipmaps()
+	_shaft_tex = ImageTexture.create_from_image(img)
+	return _shaft_tex
 
 
 ## An ornate stone bridge `span_len` tiles long and `wide` across, running along x (its middle at the origin, its deck at

@@ -77,6 +77,11 @@ const HERO_OUTFITS := {"male": [0, 13, 4, 10, 11, 29],
 ## kept the kit's tan and clipped, and shorts in patches); a slot alone: all of it in that slot, its light and dark
 ## kept (the pack); "laces": shoes all one colour but for their light blue laces, which take the top's.
 const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], 68: "laces", PACK: 9}
+## Glasses have no lenses (the user's 2026-11-15 direction): parts that are only lenses are dropped ("all"), and the
+## goggles lose their lens triangles as they load, picked by the colour the kit painted them: "pale" white fill,
+## "swim" the swim goggles' lavender, white and red shine inside their pink rims, "dark" the near-black fill and its
+## glints between the ski goggles' rims.
+const LENSES := {175: "all", 183: "all", 188: "swim", 195: "pale", 196: "dark"}
 ## A head's eyes (see _fix_eyes): the paint at least this saturated is the outline (or a brow), not the iris; the
 ## outline's colour; the cells the paint is laid out in to find the brows (metres).
 const EYE_LINE_S := 0.66
@@ -160,11 +165,45 @@ static func skin() -> Skin:
 static func part_mesh(id: int) -> Mesh:
 	if not _meshes.has(id):
 		var mesh: ArrayMesh = load(DIR + "parts/%s.res" % data()["parts"][id]["file"])
+		if LENSES.has(id):
+			mesh = _without_lenses(mesh, LENSES[id])
 		var kind: String = data()["parts"][id]["kind"]
 		var fix = PART_FIXES.get(id, "eyes" if kind == "head" else ("frame" if kind == "glasses" else null))
 		_meshes[id] = mesh if fix == null else _fixed(mesh, fix)
 		return _meshes[id]
 	return _meshes[id]
+
+
+## A pair of glasses with its lenses cut out (see LENSES): the same mesh without the triangles the rule picks.
+static func _without_lenses(mesh: ArrayMesh, rule: String) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	if rule == "all":
+		return out
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var col: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var keep := PackedInt32Array()
+		for t in idx.size() / 3:
+			var c := (col[idx[t * 3]] + col[idx[t * 3 + 1]] + col[idx[t * 3 + 2]]) / 3.0
+			var x := (pos[idx[t * 3]].x + pos[idx[t * 3 + 1]].x + pos[idx[t * 3 + 2]].x) / 3.0
+			var lens := false
+			match rule:
+				"pale":
+					lens = c.get_luminance() > 0.72 and c.s < 0.19
+				"swim":
+					# (their cups are solid: everything inside each rim goes too)
+					var y := (pos[idx[t * 3]].y + pos[idx[t * 3 + 1]].y + pos[idx[t * 3 + 2]].y) / 3.0
+					var inside := pow((absf(x) - 0.17) / 0.125, 2.0) + pow((y - 1.377) / 0.1, 2.0) < 1.0
+					lens = inside or c.s < 0.3 or c.h > 0.978 or c.h < 0.1
+				"dark":
+					lens = absf(x) < 0.3 and (c.get_luminance() < 0.1 or (c.get_luminance() > 0.7 and c.s < 0.12))
+			if not lens:
+				keep.append_array([idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]])
+		arrays[Mesh.ARRAY_INDEX] = keep
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return out
 
 
 ## A part recoloured as it loads (see PART_FIXES, and _fix_eyes for a head's eyes): a new mesh with the same

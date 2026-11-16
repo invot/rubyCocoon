@@ -304,6 +304,15 @@ func _rugs(m: Dictionary) -> Array:
 			for x in range(rug.position.x, rug.end.x):
 				if MapGen.get_t(m, x, y) in RoomBuilder.RUG_BLOCKED:
 					out.append("area rug covers a wall, stair or hazard at %s" % Vector2i(x, y))
+	# runners keep their authored footprint, with nothing standing on them
+	for runner in RoomBuilder.runner_rects(m):
+		for y in range(runner.position.y, runner.end.y):
+			for x in range(runner.position.x, runner.end.x):
+				var q := Vector2i(x, y)
+				if MapGen.get_t(m, x, y) in RoomBuilder.RUG_BLOCKED:
+					out.append("runner covers a wall, stair or hazard at %s" % q)
+				elif m.get("furniture", {}).has(q):
+					out.append("%s stands on the runner at %s" % [m["furniture"][q], q])
 	return out
 
 

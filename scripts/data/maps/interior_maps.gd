@@ -1074,17 +1074,22 @@ const HOTEL_ROOMS := {
 			"#...................#",
 			"g...................#",
 			"#...................#",
-			"d.....CCCCCCCC..::..#",
+			"#.....CCCCCCCC..::..#",
 			"#...............::..#",
 			"#........1......::..#",
 			"#.....CCCCCCCC..::..#",
 			"#...............::..#",
-			"#l...rrrrrrr........#",
-			"#.SSrrrr2rrr.a......w",
-			"#....rrrrrrr.yy....PD",
-			"#..yya.......a......w",
+			"#l..................w",
+			"d..................PD",
+			"#..aya........aya...w",
+			"#.........2.........#",
 			"#####################"
 		],
+		# (the user's 2026-11-15 direction) a runner leads straight from the front door to the hallway, with nothing on
+		# it; the big plants stand behind it, the paired armchairs face each other across small tables in front of it,
+		# and nothing in the lobby fades
+		"runners": [[1, 10, 19, 1]],
+		"no_fade": true,
 		"doors": {
 			"d": "hotel_hall_lower",
 			"g": "hotel_hall_upper"
@@ -1131,14 +1136,14 @@ const HOTEL_ROOMS := {
 			[18, 6, "large_plant"],
 			[19, 5, "large_plant"],
 			[19, 6, "large_plant"],
-			[1, 11, "large_plant"],
-			[1, 12, "large_plant"],
-			[2, 11, "large_plant"],
-			[2, 12, "large_plant"],
-			[14, 11, "large_plant"],
-			[14, 12, "large_plant"],
-			[15, 11, "large_plant"],
-			[15, 12, "large_plant"],
+			[4, 8, "large_plant"],
+			[4, 9, "large_plant"],
+			[5, 8, "large_plant"],
+			[5, 9, "large_plant"],
+			[12, 8, "large_plant"],
+			[12, 9, "large_plant"],
+			[13, 8, "large_plant"],
+			[13, 9, "large_plant"],
 			[
 				2,
 				1,
@@ -1172,7 +1177,7 @@ const HOTEL_ROOMS := {
 		],
 		"paintings": [
 			[0, 8, 1, 0, 1.8, 0, 1.8, 1.2],
-			[20, 8, -1, 0, 1.8, 0, 1.8, 1.2]
+			[20, 7, -1, 0, 1.8, 0, 1.6, 1.1]
 		],
 		"counter_facing": [
 			0,

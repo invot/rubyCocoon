@@ -52,7 +52,8 @@ const MAPS := {
 		"outskirt_houses": [],
 		"scenery_houses": [
 			{"name": "UpperNeighborWest", "knockable": true, "x": 24, "y": 3, "w": 5, "d": 3, "cove_model": "house_2", "cove_stucco": "lavender", "cove_door_dx": -1.0},
-			{"name": "UpperNeighborEast", "knockable": true, "x": 36, "y": 3, "w": 5, "d": 3, "cove_model": "hut_1"},
+			# a full-size stucco home on the widest plot the terrace allows, its door left of centre like its western neighbour's
+			{"name": "UpperNeighborEast", "knockable": true, "x": 35, "y": 3, "w": 7, "d": 4, "cove_model": "house_2", "cove_stucco": "sky", "cove_door_dx": -1.0, "cove_max_height": 5.4},
 		],
 		# Thickets of shrubs fill the strips behind the town's buildings where the camera can't see anyone standing,
 		# so nothing there looks like open lawn.
@@ -65,11 +66,11 @@ const MAPS := {
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-			"TTTTTZZZZZZZZTTTTTTTTT.zTTTTTzTTTT.qTTTTTqTTTTTTTTTTTT",
-			"TTTTTZZZZZZZZ.zTTTTTT..zTTTTTz.TT..qTTTTTq.TTTTTTTTTTT",
-			"TTTTfZZZZZZZZ.z.TTT....zTTTTTz.....qTTTTTq...TTTTTTTTT",
-			"TTTT.ZZZZZZZZfz........zf,..fz.f...qf.,.fq...fTTTTTTTT",
-			"TTTT.ZZZZZZZZ.z........zz,zzzz.....qqq,qqq......TTTTTT",
+			"TTTTTZZZZZZZZTTTTTTTTT.zTTTTTzTTTT.TTTTTTTTTTTTTTTTTTT",
+			"TTTTTZZZZZZZZ.zTTTTTT..zTTTTTz.TT..TTTTTTT.TTTTTTTTTTT",
+			"TTTTfZZZZZZZZ.z.TTT....zTTTTTz.....TTTTTTT...TTTTTTTTT",
+			"TTTT.ZZZZZZZZfz........zf,..fz.f...TTTTTTT...fTTTTTTTT",
+			"TTTT.ZZZZZZZZ.z........zz,zzzz.....f.,..f.......TTTTTT",
 			"TTTT.ZZZZZZZZ.,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.....TTTTT",
 			"TTTTf...,P,,,,,,,TTTTTTTTTT,,............,,.......TTTT",
 			"TTT.........f.,,,TTTTTTTTTT,,............,,TTTTTTTTTTT",
@@ -178,7 +179,9 @@ const MAPS := {
 		"building_order": [[26, 3], [2, 4], [7, 4], [13, 4], [33, 4], [21, 4], [64, 8], [3, 20], [8, 20], [14, 20], [20, 20], [4, 33], [69, 33]],
 		# the French Market's arcade on the riverfront (scenery: no door), on hedge tiles nobody walks on
 		# Keep the villager's original seeded identity, but station him on grass beside the market, clear of the road.
-		"villager_placements": {"35,24": {"pos": [39, 22], "facing": [0, 1], "wander": false}},
+		# Hana (the "@" by the west entrance) stands east of the Place d'Armes, well apart from Neighbor Nell and the mascot.
+		"villager_placements": {"35,24": {"pos": [39, 22], "facing": [0, 1], "wander": false},
+			"10,11": {"pos": [34, 13], "facing": [0, 1]}},
 		"scenery_houses": [{"name": "FrenchMarket", "x": 26, "y": 20, "w": 13, "d": 3, "kind": "market"}],
 		# Low hedges frame the Dune Road approach without canopies hiding the two-tile path.
 		"rows": [
