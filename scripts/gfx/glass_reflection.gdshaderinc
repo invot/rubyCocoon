@@ -1,13 +1,12 @@
-// One faint, defocused reflection across the viewport, shared by indoor and outdoor
-// glazing. SCREEN_UV keeps adjacent panes from restarting the stripes at their edges.
+// The supplied Aero glass reference is a translucent mask, shared across the screen.
+// Its alpha matters: dark transparent pixels must not become a grey film over the glass.
+uniform sampler2D glass_shimmer : filter_linear_mipmap_anisotropic, repeat_disable;
+
 float glass_reflection(vec2 screen_uv, vec2 viewport_size) {
-	float aspect = viewport_size.x / max(viewport_size.y, 1.0);
-	float diagonal = screen_uv.x - screen_uv.y * 0.55 / aspect;
-	// Broad Gaussian bands with different widths, like softly reflected strip lights.
-	float broad = exp(-pow((diagonal - 0.08) / 0.065, 2.0));
-	broad += 0.75 * exp(-pow((diagonal - 0.43) / 0.09, 2.0));
-	broad += 0.85 * exp(-pow((diagonal - 0.82) / 0.07, 2.0));
-	float slim = 0.35 * exp(-pow((diagonal - 0.25) / 0.025, 2.0));
-	slim += 0.25 * exp(-pow((diagonal - 0.64) / 0.035, 2.0));
-	return clamp(broad + slim, 0.0, 1.0);
+	// Map the whole image once over the viewport, never once per window. Sampling
+	// a coarse mip softens the reference's hard white edges at every screen resolution.
+	vec4 stripe = textureLod(glass_shimmer, screen_uv, 2.0);
+	// The supplied PNG is already translucent (peak alpha 97/255). Normalize that
+	// built-in fade before applying the material's faintness, rather than fading twice.
+	return clamp(stripe.r * stripe.a / (97.0 / 255.0), 0.0, 1.0);
 }

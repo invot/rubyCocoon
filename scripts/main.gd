@@ -4056,6 +4056,7 @@ func _battlecmd_test() -> void:
 	fire_b.hp = 0
 	p = await panel.call()
 	check.call(p != null and bt.round_no == 2, "after the bottom beast's target, the round played out (now round %d)" % bt.round_no)
+	check.call(bt.camera_home_at_turn, "round two's choices open only once the camera is back on its resting view")
 	if p == null:
 		print("BATTLE COMMANDS DONE: %d problem(s)" % bad[0])
 		return

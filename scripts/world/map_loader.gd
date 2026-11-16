@@ -37,12 +37,12 @@ const ROOM_CHARS := {
 	# nowhere
 	"!": MapGen.IWINDOW,
 	# where a coat stand stood (retired 2026-11-15: too thin to be cosy): plain floor
-	"O": MapGen.IFLOOR,
+	"O": MapGen.IFLOOR, "R": MapGen.IFLOOR, # retired coat stands and wardrobes
 }
 ## Tiles drawn as furniture (see room_builder.gd KINDS): the furniture letters of interior_maps.gd plus the older
 ## room tiles that are furniture too.
 const FURNITURE_CODES := {MapGen.BED: "bed", MapGen.TABLE: "table", MapGen.STOOL: "stool", MapGen.PLANT: "plant",
-	MapGen.BOOKSHELF: "bookshelf", MapGen.SHELF: "shelf", MapGen.RUG: "rug"}
+	MapGen.BOOKSHELF: "bookshelf", MapGen.SHELF: "shelf", MapGen.RUG: "rug", MapGen.FIREPLACE: "fireplace"}
 const BUILDING_LETTERS := {
 	"C": "center", "A": "apothecary", "G": "beast_gear", "O": "trainer_gear", "K": "bookstore",
 	"R": "arena", "Y": "dojo", "M": "museum", "U": "music_hall", "N": "fortune", "E": "cafe",

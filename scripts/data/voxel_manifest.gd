@@ -1,7 +1,7 @@
 extends RefCounted
 ## Name -> model: the PSX models baked by tools/import_psx_models.gd (assets/nature, assets/props, assets/boats),
-## tools/import_psx_robots.gd (assets/robots) and tools/import_psx_ferry.gd. (Cacti and the head totem are drawn in
-## code: voxel_assets.gd PROCEDURAL.)
+## tools/import_psx_robots.gd (assets/robots) and tools/import_psx_ferry.gd. Cacti are drawn in code
+## (voxel_assets.gd PROCEDURAL); the supplied shrine totem is baked by tools/import_requested_props.gd.
 
 const ASSETS := {
 	"tree_cypress": "res://assets/nature/tree_cypress.res",
@@ -14,15 +14,11 @@ const ASSETS := {
 
 	"tree_oak": "res://assets/nature/tree_oak.res",
 	"tree_big": "res://assets/nature/tree_big.res",
-	"tree_birch": "res://assets/nature/tree_birch.res",
 	"tree_pine": "res://assets/nature/tree_pine.res",
 	"stump": "res://assets/nature/stump.res",
-	"tree_round_1": "res://assets/nature/tree_round_1.res",
-	"tree_round_2": "res://assets/nature/tree_round_2.res",
 	"palm": "res://assets/nature/palm.res",
 	"beach_rock": "res://assets/nature/beach_rock.res",
 	"shrub_1": "res://assets/nature/shrub_1.res",
-	"shrub_2": "res://assets/nature/shrub_2.res",
 	"shrub_3": "res://assets/nature/shrub_3.res",
 	"shrub_4": "res://assets/nature/shrub_4.res",
 	"field_rock": "res://assets/nature/field_rock.res",
@@ -56,6 +52,7 @@ const ASSETS := {
 	"grave_1w": "res://assets/props/grave_1w.res",
 	"grave_2w": "res://assets/props/grave_2w.res",
 	"mossy_statue": "res://assets/props/mossy_statue.res",
+	"head_totem": "res://assets/props/head_totem.res",
 	"stone_pillar": "res://assets/props/stone_pillar.res",
 	"stone_pillar_dark": "res://assets/props/stone_pillar_dark.res",
 	"stone_wall": "res://assets/props/stone_wall.res",

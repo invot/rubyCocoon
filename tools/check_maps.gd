@@ -326,6 +326,26 @@ func _staging(m: Dictionary) -> Array:
 		var lo: Vector2i = layout["lo"]
 		var size: Vector2 = layout["size"]
 		var back: Vector2i = layout["back"]
+		if kind == "sofa" and layout.get("table_facing", false):
+			# Compare the complete furniture footprints, along the couch's actual facing.
+			var offsets: Dictionary = m.get("room", {}).get("furniture_offsets", {})
+			var seat_center := Vector2(lo) + size / 2.0 + Vector2(offsets.get(lo, Vector2.ZERO))
+			var side := Vector2(cos(layout["yaw"]), -sin(layout["yaw"]))
+			for table in RoomBuilder.furniture_groups(m):
+				if table["kind"] != "coffee_table" or not layout["lounge_table"] in table["tiles"]:
+					continue
+				var table_layout := RoomBuilder.furniture_layout(m, "coffee_table", table["tiles"])
+				var table_lo: Vector2i = table_layout["lo"]
+				var table_center := Vector2(table_lo) + Vector2(table_layout["size"]) / 2.0 + Vector2(offsets.get(table_lo, Vector2.ZERO))
+				if absf((table_center - seat_center).dot(side)) > 0.01:
+					out.append("%s's coffee table at %s must be centered in front of its sofa at %s" % [label, table_lo, lo])
+		if kind == "fireplace":
+			var expected := Vector2(2, 1) if back.y != 0 else Vector2(1, 2)
+			if not layout["against"] or size != expected or part["tiles"].size() != 2:
+				out.append("%s's fireplace at %s needs two tiles along a solid wall" % [label, lo])
+			for q: Vector2i in part["tiles"]:
+				if MapGen.get_t(m, q.x + back.x, q.y + back.y) != MapGen.IWALL:
+					out.append("%s's fireplace at %s backs onto a window or doorway" % [label, q])
 		if kind in ["sofa", "armchair"] and back == Vector2i(0, 1) and not layout.get("table_facing", false):
 			out.append("%s's %s at %s turns away from the camera" % [label, kind, lo])
 		if kind == "armchair" and not layout.get("table_facing", false):

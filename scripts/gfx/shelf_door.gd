@@ -8,6 +8,7 @@ var sliding := false
 var travel := 0.0
 var reward := {}
 var prize: Node3D
+const FRAME := 0.09
 
 
 func setup(at: Vector3, width: float, bottom: float, top: float, wood: Material, glass: Material) -> void:
@@ -15,15 +16,15 @@ func setup(at: Vector3, width: float, bottom: float, top: float, wood: Material,
 	travel = width / 2.0
 	var height := top - bottom
 	for sy in [bottom, top]:
-		_box(self, Vector3(0, sy, 0), Vector3(width, 0.045, 0.055), wood)
+		_box(self, Vector3(0, sy, 0), Vector3(width, FRAME, 0.07), wood)
 	leaf = Node3D.new()
 	add_child(leaf)
 	leaf.position.x = -width / 4.0
-	_box(leaf, Vector3(0, (bottom + top) / 2.0, 0), Vector3(travel - 0.06, height - 0.08, 0.018), glass)
+	_box(leaf, Vector3(0, (bottom + top) / 2.0, 0), Vector3(travel - FRAME, height - FRAME, 0.018), glass)
 	for sx in [-travel / 2.0, travel / 2.0]:
-		_box(leaf, Vector3(sx, (bottom + top) / 2.0, 0.01), Vector3(0.05, height, 0.04), wood)
+		_box(leaf, Vector3(sx, (bottom + top) / 2.0, 0.01), Vector3(FRAME, height, 0.06), wood)
 	for sy in [bottom, top]:
-		_box(leaf, Vector3(0, sy, 0.01), Vector3(travel, 0.05, 0.04), wood)
+		_box(leaf, Vector3(0, sy, 0.01), Vector3(travel, FRAME, 0.06), wood)
 	_box(leaf, Vector3(travel / 2.0 - 0.075, (bottom + top) / 2.0, 0.055), Vector3(0.045, minf(0.2, height * 0.3), 0.06), wood)
 	bounds = AABB(at + Vector3(-width / 2.0, bottom, -0.08), Vector3(width, height, 0.2))
 

@@ -1391,14 +1391,14 @@ static func _tide_temple(node: Node3D, w: float, d: float, door_lx: float) -> vo
 static func _tide_growth(node: Node3D, s: float, fz: float) -> void:
 	# [model, height (game units), x, y, z (model units)]; the terrace stands 1.7 up, its front step 1.2
 	var plants := [
-		["bush_1", 0.9, -3.4, 0.0, fz - 0.5], ["shrub_2", 0.8, 3.4, 0.0, fz - 0.5],
+		["bush_1", 0.9, -3.4, 0.0, fz - 0.5],
 		["tree_big", 5.0, -6.9, 0.0, 6.6], ["tree_oak", 5.4, 6.9, 0.0, 6.4],
 		["palm_bent", 5.2, -6.6, 0.0, 2.6], ["tree_big", 5.2, 7.0, 0.0, 2.4],
 		["bush_3", 0.8, -5.4, 0.0, fz - 0.4], ["bush_2", 0.9, 5.5, 0.0, fz - 0.6],
 		["shrub_1", 0.9, -7.6, 0.0, -5.0], ["tree_oak", 5.6, 7.4, 0.0, -6.0],
 		["tree_big", 5.4, -7.4, 0.0, -7.8],
 		["shrub_4", 0.7, -4.0, 1.7, 5.4], ["bush_2", 0.6, 4.0, 1.7, 4.8],
-		["shrub_2", 0.7, -4.0, 1.7, -6.2], ["bush_1", 0.7, 4.2, 1.7, -5.8],
+		["bush_1", 0.7, 4.2, 1.7, -5.8],
 		["shrub_1", 0.6, -6.2, 1.5, -2.6], ["shrub_3", 0.6, 6.3, 1.5, -1.2],
 		["palm_bent", 6.0, -5.0, 0.0, -8.4], ["palm", 6.4, 5.4, 0.0, -8.6],
 	]

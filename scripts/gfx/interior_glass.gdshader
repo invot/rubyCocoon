@@ -4,7 +4,7 @@ render_mode unshaded, cull_disabled, depth_draw_never;
 // bands span the whole screen, at the same scale as the exterior glass.
 #include "res://scripts/gfx/glass_reflection.gdshaderinc"
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear, repeat_disable;
-uniform float reflection_strength : hint_range(0.0, 1.0) = 0.14;
+uniform float reflection_strength : hint_range(0.0, 1.0) = 0.42;
 void fragment() {
     // A compact Gaussian kernel also works on Compatibility without a screen mip chain.
     vec2 pixel = vec2(1.0) / vec2(textureSize(screen_texture, 0));

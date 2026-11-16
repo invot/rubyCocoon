@@ -173,40 +173,40 @@ const ARENAS := {
 ## "tex" the face's texture (assets/textures/surfaces/cliff_<tex>.png, baked by tools/import_cliffs.gd from the cliff
 ## packs in CREDITS.md: "rock" upright grooves, "sandstone" broken blocks, "slate" weathered slabs), "tint" its colour,
 ## "scale" its repeats per unit along and down the cliff, "flutes" how deeply it stands in upright rounded columns (1 =
-## the usual), "band" strata laid along it ([colour, strength]) and "moss" on its upper part ([colour, amount]). The
+## the usual), "band" strata laid along it ([colour, strength]). Cliff faces have no moss overlay. The
 ## ground above rolls over the top as a lip of whatever it is (grass, sand...). A town's "cliffs": "walls" are stone
 ## retaining walls instead.
 const CLIFF_LOOKS := {
 	"coast": {"tex": "rock", "tint": "#d8975c", "scale": [0.45, 0.45], "flutes": 1.0},
 	"quarter": {"tex": "rock", "tint": "#cfa27a", "scale": [0.45, 0.45], "flutes": 0.9},
 	"island": {"tex": "rock", "tint": "#dc9054", "scale": [0.45, 0.45], "flutes": 1.0},
-	"reef": {"tex": "rock", "tint": "#cc8a56", "scale": [0.45, 0.45], "flutes": 1.0, "moss": ["#7aa848", 0.35]},
-	"river": {"tex": "rock", "tint": "#c69264", "scale": [0.45, 0.45], "flutes": 1.0, "moss": ["#7a9a48", 0.2]},
-	"jungle": {"tex": "rock", "tint": "#a27650", "scale": [0.45, 0.45], "flutes": 1.1, "moss": ["#5e9a38", 0.7]},
+	"reef": {"tex": "rock", "tint": "#cc8a56", "scale": [0.45, 0.45], "flutes": 1.0},
+	"river": {"tex": "rock", "tint": "#c69264", "scale": [0.45, 0.45], "flutes": 1.0},
+	"jungle": {"tex": "rock", "tint": "#a27650", "scale": [0.45, 0.45], "flutes": 1.1},
 	"desert": {"tex": "sandstone", "tint": "#e2ad6c", "scale": [0.4, 0.4], "flutes": 0.8, "band": ["#f0cc94", 0.35]},
 	"western": {"tex": "sandstone", "tint": "#d48c54", "scale": [0.4, 0.4], "flutes": 0.8, "band": ["#e8b07a", 0.4]},
 	"mesa": {"tex": "sandstone", "tint": "#c66c44", "scale": [0.4, 0.4], "flutes": 0.9, "band": ["#e6a272", 0.6]},
-	"mountain": {"tex": "slate", "tint": "#a29a8e", "scale": [0.3, 0.8], "flutes": 1.1, "moss": ["#7a8a52", 0.2]},
+	"mountain": {"tex": "slate", "tint": "#a29a8e", "scale": [0.3, 0.8], "flutes": 1.1},
 	"steampunk": {"tex": "slate", "tint": "#8e8a84", "scale": [0.3, 0.8], "flutes": 1.0},
 	"volcano": {"tex": "slate", "tint": "#56483f", "scale": [0.18, 0.35], "flutes": 1.5},
-	"hotspring": {"tex": "slate", "tint": "#a08c7a", "scale": [0.3, 0.8], "flutes": 1.1, "moss": ["#6e8a50", 0.25]},
-	"moor": {"tex": "slate", "tint": "#686070", "scale": [0.3, 0.8], "flutes": 1.1, "moss": ["#4e5e44", 0.35]},
+	"hotspring": {"tex": "slate", "tint": "#a08c7a", "scale": [0.3, 0.8], "flutes": 1.1},
+	"moor": {"tex": "slate", "tint": "#686070", "scale": [0.3, 0.8], "flutes": 1.1},
 }
 
 const BIOMES := {
 	"coast": {"ground": "#7cc05a", "side": "#9a7a50", "sand": "#ecd8a0", "path": "#c8a878", "plaza": "#c8c0b0", "tuft": "#5aa040",
-		"trees": [["palm", 2], ["palm_bent", 1], ["tree_dome", 2], ["tree_oak", 2], ["tree_birch", 1], ["tree_round_2", 1], ["tree_cypress", 1]], "rocks": ["beach_rock", "rock_small"],
+		"trees": [["palm", 2], ["palm_bent", 1], ["tree_dome", 2], ["tree_oak", 2], ["tree_cypress", 1]], "rocks": ["beach_rock", "rock_small"],
 		"shrubs": ["shrub_1", "shrub_3", "shrub_4", "bush_1", "bush_2"], "mixed": 0.35,
 		"sky_top": "#4aa8f0", "sky_hz": "#d8f0f8", "sun": "#fff8e8", "sun_e": 1.3, "amb": 0.6, "style": "coastal", "water": "#3a90e0", "music": "coast"},
 	# Bellerive's French Quarter: the coast's sky and sea, but a town of stone: cobbled streets ("paving", stone_streets:
 	# world.gd draws its paths as setts), warm flagstone sidewalks and squares, live oaks and palms, Creole buildings.
 	"quarter": {"ground": "#78b858", "side": "#9a8a70", "sand": "#e6d6a8", "path": "#8e8a84", "plaza": "#d4bfa4", "tuft": "#5aa040",
 		"paving": "#9a948c", "stone_streets": true,
-		"trees": [["tree_oak", 3], ["palm", 2], ["tree_round_1", 1]], "rocks": ["rock_small"],
+		"trees": [["tree_oak", 3], ["palm", 2]], "rocks": ["rock_small"],
 		"shrubs": ["shrub_1", "shrub_3", "bush_1", "bush_2"], "mixed": 0.3,
 		"sky_top": "#4aa8f0", "sky_hz": "#e0eef4", "sun": "#fff4e0", "sun_e": 1.3, "amb": 0.62, "style": "creole", "water": "#3a8ad0", "music": "coast"},
 	"island": {"ground": "#479c50", "side": "#9a7a50", "sand": "#f0e0a8", "path": "#d8b880", "plaza": "#d8ccb0", "tuft": "#4ab040",
-		"trees": [["palm", 5], ["palm_bent", 4], ["tree_big", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_2", "shrub_1"],
+		"trees": [["palm", 5], ["palm_bent", 4], ["tree_big", 1]], "rocks": ["beach_rock", "rock_small"], "shrubs": ["shrub_1"],
 		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.4, "amb": 0.62, "style": "island", "water": "#2aa8d8", "music": "island"},
 	# the desert lands: "boulders" stand where other lands grow woods and hedges (world.gd), only "cacti" of the tree
 	# tiles keep a cactus, and no scrub grows in the open
@@ -223,10 +223,10 @@ const BIOMES := {
 		"boulders": ["mountain_1", "mountain_4", "mountain_5", "mountain_7", "rock_big"], "cacti": 0.05,
 		"sky_top": "#5aa0e0", "sky_hz": "#f8d0a8", "sun": "#ffe0b8", "sun_e": 1.45, "amb": 0.58, "style": "western", "water": "#3a9ad8", "music": "western"},
 	"mountain": {"ground": "#8a9a6a", "side": "#6a6058", "sand": "#b8b0a0", "path": "#9a8a70", "plaza": "#a8a49a", "tuft": "#6a8a4a",
-		"trees": [["tree_pine", 3], ["tree_birch", 1], ["tree_cypress", 1], ["tree_cypress_slim", 1]], "rocks": ["mountain_0", "mountain_2", "mountain_5", "rock_big"], "shrubs": ["shrub_3", "bush_3"],
+		"trees": [["tree_pine", 3], ["tree_cypress", 1], ["tree_cypress_slim", 1]], "rocks": ["mountain_0", "mountain_2", "mountain_5", "rock_big"], "shrubs": ["shrub_3", "bush_3"],
 		"sky_top": "#6ab0f0", "sky_hz": "#e8f4f8", "sun": "#ffffff", "sun_e": 1.3, "amb": 0.6, "style": "mining", "water": "#3a8ad0", "music": "mountain"},
 	"steampunk": {"ground": "#7a7a72", "side": "#5a5a58", "sand": "#a89a80", "path": "#6a6a68", "plaza": "#8a847a", "tuft": "#5a7a40",
-		"trees": [["tree_round_2", 1]], "rocks": ["crates", "barrel"], "shrubs": ["shrub_1"],
+		"trees": [["tree_dome", 1]], "rocks": ["crates", "barrel"], "shrubs": ["shrub_1"],
 		"sky_top": "#8a9ab0", "sky_hz": "#e0d0b8", "sun": "#ffe8c8", "sun_e": 1.2, "amb": 0.55, "style": "steampunk", "water": "#4a7a9a", "music": "steampunk"},
 	# the volcano: a thin dead wood ("woods": the share of its wood tiles with a tree) over its canyon's cliffs
 	"volcano": {"ground": "#5a4a44", "side": "#3a2e2a", "woods": 0.3, "sand": "#7a6a5a", "path": "#6a5a50", "plaza": "#6a5e58", "tuft": "#6a6a3a",
@@ -238,13 +238,13 @@ const BIOMES := {
 	# the Coral Reef: a jungle of tall trees and palms on the cliffs above the sea, rivers falling through it
 	"reef": {"ground": "#4aa64a", "side": "#8a6a46", "sand": "#f0e0a8", "path": "#c8a674", "plaza": "#d8ccb0", "tuft": "#4ab040",
 		"trees": [["tree_big", 4], ["palm", 3], ["palm_bent", 2], ["tree_oak", 1]], "rocks": ["mossy_statue", "beach_rock", "rock_big"],
-		"shrubs": ["shrub_2", "shrub_4", "shrub_1"],
+		"shrubs": ["shrub_4", "shrub_1"],
 		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.35, "amb": 0.6, "style": "island", "water": "#2aa8d8", "music": "island"},
 	"jungle": {"lily_pads": true, "ground": "#3f8a3a", "side": "#5a4028", "sand": "#a89060", "path": "#8a7048", "plaza": "#8a8a70", "tuft": "#3aa03a",
-		"trees": [["tree_big", 3], ["tree_oak", 2], ["palm", 1]], "rocks": ["mossy_statue", "rock_big"], "shrubs": ["shrub_2", "shrub_4", "shrub_1"],
+		"trees": [["tree_big", 3], ["tree_oak", 2], ["palm", 1]], "rocks": ["mossy_statue", "rock_big"], "shrubs": ["shrub_4", "shrub_1"],
 		"sky_top": "#5aa0c8", "sky_hz": "#d8f0d0", "sun": "#fff4d0", "sun_e": 1.2, "amb": 0.55, "style": "jungle", "water": "#3a9a9a", "music": "jungle"},
 	"river": {"lily_pads": true, "ground": "#6ab050", "side": "#8a6a48", "sand": "#d8c890", "path": "#b89a6a", "plaza": "#b8b0a0", "tuft": "#5aa040",
-		"trees": [["tree_oak", 2], ["tree_birch", 1], ["tree_round_1", 1]], "rocks": ["rock_small", "field_rock"], "shrubs": ["shrub_1", "shrub_3"],
+		"trees": [["tree_oak", 2]], "rocks": ["rock_small", "field_rock"], "shrubs": ["shrub_1", "shrub_3"],
 		"sky_top": "#5aa0e8", "sky_hz": "#e0f0f0", "sun": "#fff0d0", "sun_e": 1.3, "amb": 0.6, "style": "town", "water": "#3a8ad8", "music": "river"},
 	"moor": {"lily_pads": true, "ground": "#4a5a48", "side": "#3a3430", "sand": "#7a7468", "path": "#6a6258", "plaza": "#6a6a70", "tuft": "#5a6a48",
 		"trees": [["dead_tree", 3], ["stump", 1]], "rocks": ["grave_1w", "grave_2w", "tomb_2", "stone_1"], "shrubs": ["bush_3"],

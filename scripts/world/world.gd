@@ -23,6 +23,7 @@ const RoundChamber = preload("res://scripts/gfx/round_chamber.gd")
 const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
+const FieldMist = preload("res://scripts/gfx/field_mist.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const Townfolk = preload("res://scripts/gfx/townfolk.gd")
 const PLAYER_GRACE_SHADER = preload("res://scripts/gfx/townfolk_grace.gdshader")
@@ -1819,7 +1820,6 @@ func _build_scatter() -> void:
 	var lx := []
 	# gas lamps a head and more above the people
 	var ls := VA.fit_scale("lamp", 2.8)
-	var gloomy: bool = float(biome.get("sun_e", 1.3)) < 1.0
 	for c in lamps:
 		var at := Vector2i(floori(c.x), floori(c.z))
 		if quay and _on_quay(at):
@@ -1828,16 +1828,18 @@ func _build_scatter() -> void:
 			piers.append(_xf(c))
 			c += Vector3(0, 0.87, 0)
 		lx.append(_xf(c, 0.0, ls))
-		if not gloomy:
-			continue
 		var l := OmniLight3D.new()
 		l.name = "StreetLampLight_%d_%d" % [at.x, at.y]
 		l.light_color = Color("#ffd090")
 		l.light_energy = 0.7
-		l.omni_range = 4.0
+		l.omni_range = 3.4
+		l.shadow_enabled = false
+		l.distance_fade_enabled = true
+		l.distance_fade_begin = 18.0
+		l.distance_fade_length = 6.0
 		l.position = c + Vector3(0, 2.89 * ls, 0)
 		add_child(l)
-	_multimesh(VA.street_lamp(gloomy), lx)
+	_multimesh(VA.street_lamp(), lx)
 	_multimesh(Creole.balustrade(), balusters)
 	_multimesh(Creole.pier(), piers)
 	var sx := []
@@ -2088,14 +2090,14 @@ func _load_building(f: Dictionary) -> void:
 
 
 ## Street furniture from the packs (assets/exteriors) on the open ground beside the town's buildings: benches,
-## bins, planters and crates outside shops, rain barrels, flower pots and hedges by houses, crates, barrels and
+## bins, planters and crates outside shops, rain barrels and flower pots by houses, crates, barrels and
 ## dumpsters down the sides, air conditioners on city shop walls. Each takes a grass or plaza tile that touches a
 ## building's front or side (never the door's own row in front of it), and only if every street, door and way out of
 ## town can still be reached without it; the tile then stops being walkable.
 const STREET_DIR := "res://assets/exteriors/"
 const STREET_FRONT_SHOP := ["bench", "bench", "trash_can", "crate", "barrel", "planter", "hydrant"]
-const STREET_FRONT_HOUSE := ["planter", "barrel", "hedge_round", "bench", "crate", "planter"]
-const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "hedge_round", "barrel"]
+const STREET_FRONT_HOUSE := ["planter", "barrel", "bench", "crate", "planter"]
+const STREET_SIDE := ["barrel", "crate", "crate_open", "keg", "barrel"]
 ## street furniture longer than a tile: how many tiles east from its own it takes (Dustwell's wagon and trough, and a
 ## bench, which seats two)
 const STREET_WIDE := {"wagon": 2, "water_trough": 2, "bench": 2}
@@ -2258,7 +2260,7 @@ func _build_street_props() -> void:
 				name = "trash_can"
 			if c[2] == "side" and commercial and city and rng.randf() < 0.3:
 				name = "dumpster"
-			if style == "adobe" and name in ["trash_can", "hydrant", "dumpster", "bench", "hedge_round"]:
+			if style == "adobe" and name in ["trash_can", "hydrant", "dumpster", "bench"]:
 				# an old adobe town's clutter: clay jars, not bins and benches
 				name = "adobe_jars"
 			if name == "bench" and not _claim_bench_seat(t, bx + bw, door, door_clearance, taken, keep, start, before):
@@ -2495,14 +2497,24 @@ func _build_obstacles() -> void:
 		var kind: String = grp["kind"]
 		if kind == "broken_bridge":
 			continue
+		if kind == "fog":
+			if p != grp["tiles"][0]:
+				continue
+			var placements := []
+			for tile: Vector2i in grp["tiles"]:
+				placements.append(_xf(tile_pos(tile)))
+			var fog := FieldMist.build(placements)
+			add_child(fog)
+			obstacle_nodes[p] = fog
+			continue
 		var mi := MeshInstance3D.new()
-		mi.mesh = VP.obstacle(kind if kind != "fog" else "dust", rng.randi_range(0, 1))
+		mi.mesh = VP.obstacle(kind, rng.randi_range(0, 1))
 		mi.position = tile_pos(p) + (Vector3(0, -1.6, 0) if kind == "chasm" else (Vector3(0, -0.13, 0) if kind == "broken_bridge" else Vector3.ZERO))
+		if kind == "rope_cliff":
+			mi.transform = _on_slope(p, 0.035)
 		if kind in ["boulder", "driftwood", "sand"]:
 			mi.rotation.y = _voxel_rot(rng)
-		if kind == "fog":
-			mi.material_override = _fog_mat()
-		if kind in ["dust", "fog"]:
+		if kind == "dust":
 			spinners.append(mi)
 		add_child(mi)
 		obstacle_nodes[p] = mi
@@ -2650,14 +2662,6 @@ func place_bridge_log(grp: Dictionary, placed: int) -> void:
 	var tw := create_tween()
 	tw.tween_property(lg, "position:y", (slot[0] as Transform3D).origin.y, 0.45).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	await tw.finished
-
-
-func _fog_mat() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.85, 0.88, 0.95, 0.55)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return m
 
 
 func _build_pushables() -> void:
@@ -6006,14 +6010,7 @@ func _build_room() -> void:
 					k.box("pat_quilt_%d" % rng.randi_range(0, 2), center + Vector3(0, 0.43, 0.08), Vector3(0.9, 0.18, 0.75), Color.WHITE)
 					k.box("color", center + Vector3(0, 0.45, -0.33), Vector3(0.7, 0.14, 0.22), Color("#f4f0e8"))
 				MapGen.FIREPLACE:
-					k.box("stone", center + Vector3(0, 0.75, -0.15), Vector3(1.0, 1.5, 0.7), stone)
-					k.box("pat_stove", center + Vector3(0, 0.5, 0.21), Vector3(0.8, 1.0, 0.03), Color.WHITE)
-					var fl := OmniLight3D.new()
-					fl.light_color = Color("#ff9a50")
-					fl.light_energy = 1.4
-					fl.omni_range = 4.5
-					fl.position = center + Vector3(0, 0.6, 0.6)
-					add_child(fl)
+					continue # Approved two-tile hearths and their light are built by RoomBuilder.
 				MapGen.ALTAR:
 					if room.get("blocks", false):
 						# the Beast Center's merge altar: a stepped plinth of its smooth grey stone
@@ -6137,9 +6134,8 @@ func _build_room() -> void:
 	lm.emission_energy_multiplier = 1.6
 	water_mats.append(lm)
 	_multimesh(plane, floors["lava"], lm, false)
-	var mm := _multimesh(VP.mist(), mist, null, false)
-	if mm:
-		bobbers.append([mm, 0.05, 1.1])
+	if not mist.is_empty():
+		add_child(FieldMist.build(mist))
 	if not Elev.has(map) or room.has("dais"):
 		_build_pools(pools)
 	elif room.has("water_levels"):

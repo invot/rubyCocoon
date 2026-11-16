@@ -34,8 +34,6 @@ uniform sampler2D cliff_tex : source_color, filter_linear_mipmap_anisotropic, re
 uniform vec2 cliff_scale = vec2(0.5);
 // strata: rgb a second (linear) colour laid in level bands, a how strongly
 uniform vec4 cliff_band = vec4(0.0);
-// moss: rgb its (linear) colour, a how much of the rock's upper part it covers
-uniform vec4 cliff_moss = vec4(0.0);
 // the soil under the grass's edge (linear), where its turf stands above a path (terrain_mesh.gd _face)
 uniform vec3 turf_soil = vec3(0.16, 0.1, 0.06);
 // the see-through patch (world.gd): xyz the player's feet, w 1 while it's on. Ground higher than their feet that
@@ -254,10 +252,6 @@ void fragment() {
 				tint = mix(tint, cliff_band.rgb / 0.71, cliff_band.a * smoothstep(0.35, 0.8, b));
 			}
 			vec3 col = rock * tint;
-			if (cliff_moss.a > 0.0) {
-				float m = smoothstep(0.45, 0.7, vnoise(cuv * vec2(2.4, 3.2) + vec2(wpos.y * 0.3, 0.0)) + (0.5 - down) * 0.6 * cliff_moss.a);
-				col = mix(col, cliff_moss.rgb * (0.85 + 0.3 * vnoise(cuv * 9.0)), m * cliff_moss.a);
-			}
 			// in the lip's shadow at the top, and darker towards the foot
 			float shade = mix(1.0, 0.62, smoothstep(0.0, 1.0, down)) * mix(0.78, 1.0, smoothstep(0.0, 0.18, cuv.y));
 			ALBEDO = col * shade;

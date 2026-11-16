@@ -505,10 +505,9 @@ func build(parent: Node3D, tints: Array, water_col: Color, look: Dictionary, sto
 		cliff_mat.set_shader_parameter("cliff_tex", VT.texture("cliff_" + String(look.get("tex", "rock"))))
 		cliff_mat.set_shader_parameter("cliff_textured", true)
 		cliff_mat.set_shader_parameter("cliff_scale", Vector2(look.get("scale", [0.5, 0.5])[0], look.get("scale", [0.5, 0.5])[1]))
-		for key in ["band", "moss"]:
-			if look.has(key):
-				var bc := Color(look[key][0]).srgb_to_linear()
-				cliff_mat.set_shader_parameter("cliff_" + key, Vector4(bc.r, bc.g, bc.b, float(look[key][1])))
+		if look.has("band"):
+			var bc := Color(look["band"][0]).srgb_to_linear()
+			cliff_mat.set_shader_parameter("cliff_band", Vector4(bc.r, bc.g, bc.b, float(look["band"][1])))
 	materials = [mat, cliff_mat]
 	var shape: Dictionary = await _shape(parent, slice_us)
 	for chunk: Array in shape["chunks"]:

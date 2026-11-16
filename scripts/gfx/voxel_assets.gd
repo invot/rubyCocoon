@@ -19,7 +19,7 @@ static func names_with(prefix: String) -> Array:
 
 
 ## Models drawn in code rather than loaded (nothing in the packs fits): name -> [builder, variant].
-const PROCEDURAL := {"cactus_1": ["cactus", 0], "cactus_2": ["cactus", 1], "cactus_3": ["cactus", 2], "head_totem": ["totem", 0]}
+const PROCEDURAL := {"cactus_1": ["cactus", 0], "cactus_2": ["cactus", 1], "cactus_3": ["cactus", 2]}
 
 
 ## The model's mesh (with the materials it was baked with).
@@ -139,24 +139,30 @@ static func aabb(name: String) -> AABB:
 	return mesh(name).get_aabb()
 
 
-## The pack lamp's glass has its own atlas swatch. Split those existing triangles so the panes glow,
-## leaving the ironwork dark. Shared by every lit street lamp; no new geometry, textures or shadow casters.
-static func street_lamp(lit: bool) -> Mesh:
-	if not lit:
-		return mesh("lamp")
+## Replace the pack's black pane swatch with glass around a warm luminous burner.
+## Every town uses this cached mesh, including daylight; ironwork keeps its original material.
+static func street_lamp() -> Mesh:
 	if _meshes.has("lamp_lit"):
 		return _meshes["lamp_lit"]
 	var source := mesh("lamp")
 	var out := ArrayMesh.new()
 	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color("#ffe2a0")
+	glass.resource_name = "lantern_glass"
+	glass.albedo_texture = load("res://assets/textures/surfaces/glass_sky.png")
+	glass.uv1_triplanar = true
+	glass.uv1_scale = Vector3(2.0, 2.0, 2.0)
+	glass.albedo_color = Color(0.82, 0.91, 1.0, 0.24)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	glass.roughness = 0.12
+	glass.metallic_specular = 0.8
 	glass.emission_enabled = true
-	glass.emission = Color("#ffd090")
-	glass.emission_energy_multiplier = 2.0
-	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.emission = Color("#ffdca6")
+	glass.emission_energy_multiplier = 0.35
 	glass.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	for surface in source.get_surface_count():
 		var arrays := source.surface_get_arrays(surface)
+		_taper_lantern_rails(arrays)
 		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 		var iron := PackedInt32Array()
@@ -178,8 +184,53 @@ static func street_lamp(lit: bool) -> Mesh:
 			var si := out.get_surface_count() - 1
 			out.surface_set_name(si, "lit_glass" if part == panes else "iron")
 			out.surface_set_material(si, glass if part == panes else source.surface_get_material(surface))
+	# The source's glass spans y=2.64..3.14; keep the burner fully inside it.
+	var bulb := SphereMesh.new()
+	bulb.radius = 0.055
+	bulb.height = 0.23
+	bulb.radial_segments = 12
+	bulb.rings = 6
+	var arrays := bulb.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	for i in vertices.size():
+		vertices[i] += Vector3(0, 2.89, 0)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	var flame := StandardMaterial3D.new()
+	flame.resource_name = "lantern_burner_glow"
+	flame.albedo_color = Color("#fff1cd")
+	flame.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flame.emission_enabled = true
+	flame.emission = Color("#ffd38b")
+	flame.emission_energy_multiplier = 3.0
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	out.surface_set_name(out.get_surface_count() - 1, "burner_glow")
+	out.surface_set_material(out.get_surface_count() - 1, flame)
 	_meshes["lamp_lit"] = out
 	return out
+
+
+## The source's four corner rails are vertical although its panes taper inward.
+## Shear each rail toward its pane's lower corner, retaining its thickness and UVs.
+static func _taper_lantern_rails(arrays: Array) -> void:
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	const BOTTOM := 2.73998475
+	const TOP := 3.05997348
+	const INSET := 0.035
+	for i in vertices.size():
+		var p := vertices[i]
+		if absf(p.x) < 0.154 or absf(p.z) < 0.154:
+			continue
+		if absf(p.y - BOTTOM) > 0.001 and absf(p.y - TOP) > 0.001:
+			continue
+		var sx := signf(p.x)
+		var sz := signf(p.z)
+		var inset := INSET * (1.0 - inverse_lerp(BOTTOM, TOP, p.y))
+		vertices[i] = p - Vector3(sx * inset, 0, sz * inset)
+		var n := normals[i]
+		normals[i] = Vector3(n.x, n.y - INSET / (TOP - BOTTOM) * (sx * n.x + sz * n.z), n.z).normalized()
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
 
 
 ## Uniform scale that makes the model `height` tall, or `width` wide (largest of X/Z).

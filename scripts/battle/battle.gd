@@ -184,6 +184,8 @@ const DEFEND_MULT := 0.5
 
 var cam: Camera3D
 var camera_director: RefCounted
+## whether the camera was back on its resting view when the last choices opened (_camera_home; checked by battlecmd)
+var camera_home_at_turn := false
 var scenery_visibility: RefCounted
 ## The original arcing arrow connects the attacker to every selected target.
 var aim_mesh: MeshInstance3D
@@ -1388,6 +1390,7 @@ func _camera_home() -> void:
 	while not camera_director.settled() and waited < 2.5:
 		await get_tree().process_frame
 		waited += get_process_delta_time()
+	camera_home_at_turn = camera_director.settled()
 
 
 ## The models drawn for someone: a beast's own geometry (the parts its hit flash covers), or a trainer's rig.

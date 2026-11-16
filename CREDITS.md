@@ -277,6 +277,13 @@ the Beast Centers', its flagstones continue the hatch's, and its bottle-bottom g
 That archive also included no author, source page or licence. The film's TCM Cores are simplified, white-and-steel
 repaints of the hatch's.
 
+## User-supplied shrine and ice props
+
+- **Cube World Totem - Proto Series**: the bird-topped three-face Old Shrine totem.
+- **Ice cube study**: the sliding ice block mesh and painted blue/turquoise fracture texture.
+
+These archives were supplied by the user on 2026-11-16 without author/license documents. Source details and processing are recorded in [licenses/requested_props.md](licenses/requested_props.md).
+
 ## Voxel art (`voxelassets/`; no longer in the game)
 The voxel models were all replaced by the PSX ones above and removed. They came from, among others:
 - **StickyBizcuit**: village/dungeon pack. The required easter egg is the hidden NPC "Bizcuit" in the

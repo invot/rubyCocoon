@@ -14,7 +14,7 @@ uniform vec3 cloud_colour : source_color = vec3(1.0, 1.0, 1.0);
 // how much of the reflection covers the glass's paint
 uniform float reflect_amount = 0.8;
 // the glints' brightness, and a faint glow so the sky still reads on a shaded wall (kept low: night stays dark)
-uniform float glint = 0.10;
+uniform float glint = 0.55;
 uniform float sheen = 0.08;
 
 varying vec3 world_pos;
@@ -40,8 +40,10 @@ void fragment() {
 	float fresnel = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.0);
 	vec3 paint = pow(COLOR.rgb, vec3(2.2));
 	vec3 col = mix(paint, sky, clamp(reflect_amount + fresnel * 0.25, 0.0, 1.0));
-	ALBEDO = col * 0.88 + band * glint * 0.5;
-	EMISSION = (sky * sheen + vec3(band * glint * 0.4)) * (0.6 + 0.4 * fresnel);
+	// Leave enough contrast beneath the white mask for its stripes to read even
+	// where the reflected clouds are pale. A nearly-white base hides the shimmer.
+	ALBEDO = mix(col * 0.55, vec3(1.0), band * glint);
+	EMISSION = (sky * sheen + vec3(band * glint * 0.55)) * (0.6 + 0.4 * fresnel);
 	ROUGHNESS = 0.3;
 	METALLIC = 0.0;
 	SPECULAR = 0.45;

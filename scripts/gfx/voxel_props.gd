@@ -219,29 +219,6 @@ static func cactus(variant: int) -> ArrayMesh:
 		return VM.build(g, VS))
 
 
-## The old shrine's carved stone head: a mossy block with a heavy brow, deep eyes and a grim mouth, on a plinth.
-static func totem(_variant: int) -> ArrayMesh:
-	return _cached("totem", func():
-		var g := VM.Grid.new(16, 30, 16)
-		var stone := g.add_color(Color("#9a9080"))
-		var dark := g.add_color(Color("#5a5248"))
-		var moss := g.add_color(Color("#6a8a4a"))
-		var eye := g.add_color(Color("#ffd870"), true)
-		g.box(1, 0, 1, 14, 3, 14, dark)
-		g.box(3, 4, 3, 12, 27, 12, stone)
-		g.ellipsoid(Vector3(8, 27.5, 8), Vector3(5.2, 2.2, 5.2), stone)
-		# brow, nose and mouth on the front (+z)
-		g.box(2, 19, 11, 13, 21, 13, stone)
-		g.box(7, 13, 12, 8, 19, 14, stone)
-		g.box(5, 9, 12, 10, 10, 13, dark)
-		g.box(4, 16, 12, 6, 18, 12, dark)
-		g.box(9, 16, 12, 11, 18, 12, dark)
-		g.box(5, 17, 13, 5, 17, 13, eye)
-		g.box(10, 17, 13, 10, 17, 13, eye)
-		g.paint_if(moss, stone, func(x, y, z): return y < 9 or (x * 5 + y * 3 + z * 7) % 11 == 0)
-		return VM.build(g, VS))
-
-
 # ---------------------------------------------------------------- eggs, shards, sacks
 const EGG_COLORS := {
 	"fire": ["#e8553a", "#ffd040"], "water": ["#3f8fe0", "#e8f4ff"], "earth": ["#9a6a40", "#7fc050"],
@@ -397,18 +374,6 @@ static func signpost() -> ArrayMesh:
 		return VM.build(g, VS / 4.0, Vector3(24, 0, 8)))
 
 
-static func mist() -> ArrayMesh:
-	return _cached("mist", func():
-		var g := VM.Grid.new(16, 10, 16)
-		var a := g.add_color(Color(0.55, 0.4, 0.85), true)
-		var b := g.add_color(Color(0.35, 0.85, 0.75), true)
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 404
-		for i in 22:
-			g.set_v(rng.randi_range(0, 15), rng.randi_range(0, 9), rng.randi_range(0, 15), a if i % 3 else b)
-		return VM.build(g, VS))
-
-
 # ---------------------------------------------------------------- obstacles
 ## kinds: boulder, vines, driftwood, sand, dust, lava, ice, chasm, barricade, gate
 static func obstacle(kind: String, variant := 0) -> ArrayMesh:
@@ -516,19 +481,16 @@ static func _make_obstacle(kind: String, variant: int) -> ArrayMesh:
 			g.box(11, 2, 15, 15, 2, 15, b)
 			return VM.build(g, VS)
 		"rope_cliff":
-			# a sheer crag with a rope ladder coiled on top
-			var g := VM.Grid.new(16, 22, 16)
-			var r1 := g.add_color(Color("#8a8478"))
-			var r2 := g.add_color(Color("#6e6a60"))
+			# Only the rope: world.gd lays it against the existing escarpment's slope.
+			var g := VM.Grid.new(16, 3, 16)
 			var rope := g.add_color(Color("#c8a870"))
-			g.box(1, 0, 1, 14, 17, 14, r1)
-			g.ellipsoid(Vector3(8, 18, 8), Vector3(7.2, 2.6, 7.2), r1)
-			g.ellipsoid(Vector3(4, 9, 13), Vector3(3.5, 8, 2.5), r2)
-			g.ellipsoid(Vector3(13, 6, 5), Vector3(2.5, 6, 3.5), r2)
-			for i in 8:
-				var a0 := i * TAU / 8.0
-				var a1 := (i + 1) * TAU / 8.0
-				g.capsule(Vector3(8 + cos(a0) * 3.5, 20.6, 8 + sin(a0) * 3.5), Vector3(8 + cos(a1) * 3.5, 20.6, 8 + sin(a1) * 3.5), 0.7, 0.7, rope)
+			g.capsule(Vector3(8, 0.6, 3), Vector3(8, 0.6, 15), 0.5, 0.5, rope)
+			for z in [6, 10, 14]:
+				g.ellipsoid(Vector3(8, 0.6, z), Vector3(0.85, 0.7, 0.7), rope)
+			for i in 16:
+				var a0 := i * TAU / 16.0
+				var a1 := (i + 1) * TAU / 16.0
+				g.capsule(Vector3(8 + cos(a0) * 2.7, 0.6, 3 + sin(a0) * 2.7), Vector3(8 + cos(a1) * 2.7, 0.6, 3 + sin(a1) * 2.7), 0.5, 0.5, rope)
 			return VM.build(g, VS)
 		"rope_ladder":
 			var g := VM.Grid.new(16, 2, 16)
@@ -540,14 +502,7 @@ static func _make_obstacle(kind: String, variant: int) -> ArrayMesh:
 				g.box(3, 1, z, 12, 1, z, rung)
 			return VM.build(g, VS)
 		"ice_block":
-			var g := VM.Grid.new(16, 15, 16)
-			var a := g.add_color(Color("#bfe8ff"))
-			var b := g.add_color(Color("#e8f8ff"))
-			var c := g.add_color(Color("#8ac8f0"))
-			g.box(1, 0, 1, 14, 13, 14, a)
-			g.paint_if(b, a, func(x, y, z): return y == 13 or x == 1 or z == 14)
-			g.paint_if(c, a, func(x, y, z): return (x + y * 2 + z) % 11 == 0)
-			return VM.build(g, VS)
+			return load("res://assets/props/ice_block.res")
 		"bridge":
 			var g := VM.Grid.new(16, 4, 16)
 			var a := g.add_color(Color("#8a6a40"))

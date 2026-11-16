@@ -28,7 +28,7 @@ extends RefCounted
 ##   d  doorway between rooms      L  locked door      Z  staff-only door (locked)
 ##   "locked": what you find at each locked door, in reading order (else just that it's locked)
 ##   furniture (see FURNITURE): k kitchen counter, i kitchen sink, v stove, f fridge, j pantry, T toilet, U bathtub,
-##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table, R wardrobe,
+##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table,
 ##   N nightstand, Q dresser, E desk, F storage shelves, X boxes, m mop and bucket, l floor lamp, O plain floor (the
 ##   coat stand, retired 2026-11-15 as too thin),
 ##   z bin, J bunk bed, & low book display, ^ hay bales, ( low cupboard, ) pouf, [ basket of blankets. TVs (V) belong on the implied fourth wall in stage rooms.
@@ -44,7 +44,7 @@ extends RefCounted
 const FURNITURE := {
 	"k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
-	"R": "wardrobe", "N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "X": "boxes", "m": "mop",
+	"N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "X": "boxes", "m": "mop",
 	"&": "book_display", "l": "floor_lamp", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
 	"(": "cabinet", ")": "pouf", "[": "basket",
 }
@@ -363,10 +363,11 @@ const ROOMS := {
 	## A house of two rooms: the living room, and the bedroom through the door at the back.
 	"house_two": {
 		"wall": "#e0d0b8", "rug": "#8a5a3a", "stage": true, "npcs": {"1": "resident", "2": "resident"},
+		"fireplace_style": "limestone", "fireplace_stone": "#d7c9a6",
 		"doors": {"!": "house_two_bed"}, "locked": ["The kitchen. It smells like toast."],
 		"rows": [
 			"######!###L##",
-			"#BB.SS.....@#",
+			"#BB.SS..qq.@#",
 			"w...........#",
 			"wa..yy......#",
 			"#...rrrr..1.#",
@@ -378,7 +379,7 @@ const ROOMS := {
 		"wall": "#e0d0b8", "rug": "#8a5a3a", "stage": true, "zone": "bedroom", "doors": {"!": "house_two"},
 		"rows": [
 			"###w###w###",
-			"#R..NbbN..#",
+			"#...NbbN..#",
 			"#....bb...#",
 			"!........Q#",
 			"#...rrr..p#",
@@ -415,7 +416,7 @@ const ROOMS := {
 		"wall": "#e8e0d0", "rug": "#3a7a6a", "stage": true, "zone": "bedroom", "doors": {"!": "house_up_hall"},
 		"rows": [
 			"###w###w###",
-			"#NbbN....R#",
+			"#NbbN.....#",
 			"#.bb......#",
 			"#Q........!",
 			"#l..rrr...#",
@@ -829,9 +830,10 @@ const ROOMS := {
 	## tired to mend it himself; he lends you the logs stacked by his door, and gives you an egg once it's mended.
 	"kit_cabin": {
 		"wall": "#c89a6a", "rug": "#a85a3a", "zone": "wood", "stage": true, "anchors": {"1": "builder"},
+		"fireplace_style": "fieldstone", "fireplace_stone": "#b9b1a0",
 		"rows": [
 			"###w###w###",
-			"#R.Nb..q.X#",
+			"#..Nbqq..X#",
 			"#X..b....F#",
 			"#....1....#",
 			"#.ctc...a.#",
@@ -845,9 +847,10 @@ const ROOMS := {
 	## the corners and by the side wall, a small table between two stools, a rag rug, and the neighbor (1).
 	"cove_dock_shack": {
 		"wall": "#8a6a52", "rug": "#5a4a3c", "zone": "wood", "stage": true, "npcs": {"1": "resident"},
+		"fireplace_style": "fieldstone", "fireplace_stone": "#a6b3ac",
 		"rows": [
 			"###w###w###",
-			"#NbF..q.XO#",
+			"#NbF.qq.XO#",
 			"#.b......X#",
 			"#....1r...#",
 			"#.hth.r...#",
@@ -862,7 +865,7 @@ const ROOMS := {
 		"anchors": {"1": "item:worn_cap", "2": "item:old_sneakers", "3": "item:rope_collar"},
 		"rows": [
 			"###w###w###",
-			"#RNb...F.X#",
+			"#.Nb...F.X#",
 			"#X.b......#",
 			"#...1..2..#",
 			"#.ct......#",
@@ -1031,7 +1034,7 @@ static func kelpwick_room(key: String) -> Dictionary:
 	return KELPWICK_ROOMS.get(key, ROOMS[key])
 
 const KELPWICK_ROOMS := {
-	"studio_a": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "home": true, "npcs": {"1": "resident"}, "rows": ["  ##w##  ", " /NbbR.\\ ", "#..bb...#", "#@......#", "#...1..PD", "#.[).yS.#", " \\...../ ", "  #####  "]},
+	"studio_a": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "home": true, "npcs": {"1": "resident"}, "rows": ["  ##w##  ", " /Nbb..\\ ", "#..bb...#", "#@......#", "#...1..PD", "#.[).yS.#", " \\...../ ", "  #####  "]},
 
 	"outfitter": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "2": "patron"},
 		"counter_phone": [7, 2],
@@ -1090,6 +1093,8 @@ const HOTEL_ROOMS := {
 		# it; the big plants stand behind it, the paired armchairs face each other across small tables in front of it,
 		# and nothing in the lobby fades
 		"runners": [[1, 10, 19, 1]],
+		"furniture_yaws": {Vector2i(4, 11): PI / 2.0, Vector2i(15, 11): PI / 2.0},
+		"counter_phone_plant": true,
 		"no_fade": true,
 		"doors": {
 			"d": "hotel_hall_lower",
@@ -1141,10 +1146,6 @@ const HOTEL_ROOMS := {
 			[4, 9, "large_plant"],
 			[5, 8, "large_plant"],
 			[5, 9, "large_plant"],
-			[12, 8, "large_plant"],
-			[12, 9, "large_plant"],
-			[13, 8, "large_plant"],
-			[13, 9, "large_plant"],
 			# guests' luggage, stacked against the back wall on every open tile (the user's 2026-11-15 direction)
 			[1, 4, "luggage"], [2, 4, "luggage"], [3, 4, "luggage"], [4, 4, "luggage"], [5, 4, "luggage"],
 			[14, 4, "luggage"], [15, 4, "luggage"], [18, 4, "luggage"], [19, 4, "luggage"],
@@ -1202,11 +1203,11 @@ const HOTEL_ROOMS := {
 		},
 		"rows": [
 			"########!#!##",
-			"#.NbbN...R..#",
+			"#.NbbN......#",
 			"#..bb.......w",
 			"#.....rrr...#",
 			"dP....rrrSS.#",
-			"#.@...yyy...w",
+			"#........yy.w",
 			"#############"
 		],
 		"doors": {
@@ -1230,10 +1231,10 @@ const HOTEL_ROOMS := {
 		},
 		"rows": [
 			"######!#!##",
-			"#NbbN..R..#",
+			"#NbbN.....#",
 			"#.bb......w",
-			"dP..1.yy..#",
-			"#.@.[..SS.w",
+			"dP..1..yy.#",
+			"#...[..SS.w",
 			"###########"
 		],
 		"doors": {
@@ -1472,10 +1473,10 @@ const HOTEL_ROOMS := {
 		},
 		"rows": [
 			"######!#!##",
-			"#NbbN..R..#",
+			"#NbbN.....#",
 			"#.bb......w",
-			"dP....yy..#",
-			"#.@.[..SS.w",
+			"dP.....yy.#",
+			"#...[..SS.w",
 			"###########"
 		],
 		"doors": {

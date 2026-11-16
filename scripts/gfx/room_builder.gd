@@ -72,6 +72,7 @@ const ZONE_CHARS := {"l": "living", "b": "bedroom", "k": "kitchen", "a": "bathro
 ## long = its long side goes against the wall, short = its short end does (beds: the headboard),
 ## top = small things that may stand on it.
 const KINDS := {
+	"fireplace": {"m": [], "long": true},
 	"hot_tub": {"m": []}, "hot_tub_sign": {"m": []}, "ice_maker": {"m": []}, "plant_table": {"m": []},
 	"luggage": {"m": []},
 	"counter_gate": {"m": [], "free": true},
@@ -98,7 +99,6 @@ const KINDS := {
 	"book_display": {"m": ["kk_table_low"], "free": true, "top": ["books"], "always_top": true},
 	"table": {"m": ["kk_table_long", "kk_table_medium", "kk_table_small"], "free": true,
 		"top": ["plate", "cup", "home/bowl_fruit", "home/tea_set", "home/vase_flowers", "books_2", ""]},
-	"wardrobe": {"m": ["wardrobe"]},
 	# (2026-11-15) a nightstand is the small two-drawer cupboard; the wider chests of drawers are dressers. "alt" are
 	# what stands there instead when the first choice would be the same model as the piece beside it (_place)
 	"nightstand": {"m": ["kk_cabinet_small"], "alt": ["side_table"], "top": ["home/table_lamp_gourd"], "always_top": true, "single": true},
@@ -771,7 +771,11 @@ func _floors() -> void:
 func _floor_quad(x: int, y: int, ox: float, oz: float, sx: float, sz: float, z: String, lv := 0.0) -> void:
 	var x0 := x + ox
 	var z0 := y + oz
-	floor_mesher.quad("floor_" + z, floor_mat(z), [Vector3(x0, lv, z0), Vector3(x0 + sx, lv, z0), Vector3(x0 + sx, lv, z0 + sz),
+	# The hearth's two occupied squares replace the room finish with tile, never an overlay on wood.
+	var hearth := code(x, y) == MapGen.FIREPLACE
+	var key := "floor_hearth_tiles" if hearth else "floor_" + z
+	var material := floor_surface("floor_tiles") if hearth else floor_mat(z)
+	floor_mesher.quad(key, material, [Vector3(x0, lv, z0), Vector3(x0 + sx, lv, z0), Vector3(x0 + sx, lv, z0 + sz),
 		Vector3(x0, lv, z0 + sz)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
 
 
@@ -1030,7 +1034,8 @@ func _walls() -> void:
 					if map.get("balcony_doors", {}).has(Vector2i(x, y)):
 						var sill := Elev.surface(map, Vector2i(x, y))
 						if sill > _foot(x, y):
-							_bars(x, y, _foot(x, y), sill, horiz, vert, e, wv, n, s)
+							# (its dark top cut sinks under the floor carried through the doorway, so no seam shows)
+							_bars(x, y, _foot(x, y), sill, horiz, vert, e, wv, n, s, 0.03)
 						_bars(x, y, sill + BALCONY_H, top, horiz, vert, e, wv, n, s)
 						_balcony_door(x, y, horiz)
 					elif top < H:
@@ -1038,7 +1043,8 @@ func _walls() -> void:
 					elif map.get("room", {}).get("full_height_windows", false):
 						_window(x, y, horiz)
 					else:
-						_bars(x, y, _foot(x, y), SILL + Elev.surface(map, Vector2i(x, y)), horiz, vert, e, wv, n, s)
+						# (its dark cut sits under the sill, which caps it, rather than flickering in the sill's top)
+						_bars(x, y, _foot(x, y), SILL + Elev.surface(map, Vector2i(x, y)), horiz, vert, e, wv, n, s, 0.06)
 						_bars(x, y, WIN_TOP + Elev.surface(map, Vector2i(x, y)), top, horiz, vert, e, wv, n, s)
 						_window(x, y, horiz)
 				MapGen.IDOOR, MapGen.LOCKED:
@@ -1048,8 +1054,10 @@ func _walls() -> void:
 
 
 ## The wall in tile (x, y) between heights y0 and y1: a bar along each line of wall through it, each face finished
-## like the room it faces, with a skirting board along the bottom and a dark cut along the top.
-func _bars(x: int, y: int, y0: float, y1: float, horiz: bool, vert: bool, e: bool, wv: bool, n: bool, s: bool) -> void:
+## like the room it faces, with a skirting board along the bottom and a dark cut along the top (`cut_drop` below it,
+## where something else caps the wall, such as a window's sill, so the two never share a plane and flicker).
+func _bars(x: int, y: int, y0: float, y1: float, horiz: bool, vert: bool, e: bool, wv: bool, n: bool, s: bool, cut_drop := 0.0) -> void:
+	var yc := y1 - cut_drop
 	var m := _row(y)
 	var cx := x + 0.5
 	var cz := y + 0.5
@@ -1073,7 +1081,7 @@ func _bars(x: int, y: int, y0: float, y1: float, horiz: bool, vert: bool, e: boo
 			if not e:
 				_face(m, zone_side(x, y, Vector2i(1, 0), Vector2i(0, -1)), [Vector3(xb, y0, cz - T / 2.0), Vector3(xb, y0, cz + T / 2.0),
 					Vector3(xb, y1, cz + T / 2.0), Vector3(xb, y1, cz - T / 2.0)], Vector3.RIGHT, Vector3.BACK)
-		m.quad("cut", cut, [Vector3(xa, y1, cz - T / 2.0), Vector3(xb, y1, cz - T / 2.0), Vector3(xb, y1, cz + T / 2.0), Vector3(xa, y1, cz + T / 2.0)],
+		m.quad("cut", cut, [Vector3(xa, yc, cz - T / 2.0), Vector3(xb, yc, cz - T / 2.0), Vector3(xb, yc, cz + T / 2.0), Vector3(xa, yc, cz + T / 2.0)],
 			Vector3.UP, Vector3.RIGHT, Vector3.BACK)
 	if vert:
 		var za0 := float(y) if n else cz - T / 2.0
@@ -1094,7 +1102,7 @@ func _bars(x: int, y: int, y0: float, y1: float, horiz: bool, vert: bool, e: boo
 			if not s:
 				_face(m, zone_side(x, y, Vector2i(0, 1), Vector2i(-1, 0)), [Vector3(cx - T / 2.0, y0, zb0), Vector3(cx + T / 2.0, y0, zb0),
 					Vector3(cx + T / 2.0, y1, zb0), Vector3(cx - T / 2.0, y1, zb0)], Vector3.BACK, Vector3.RIGHT)
-		m.quad("cut", cut, [Vector3(cx - T / 2.0, y1, za0), Vector3(cx + T / 2.0, y1, za0), Vector3(cx + T / 2.0, y1, zb0), Vector3(cx - T / 2.0, y1, zb0)],
+		m.quad("cut", cut, [Vector3(cx - T / 2.0, yc, za0), Vector3(cx + T / 2.0, yc, za0), Vector3(cx + T / 2.0, yc, zb0), Vector3(cx - T / 2.0, yc, zb0)],
 			Vector3.UP, Vector3.RIGHT, Vector3.BACK)
 
 
@@ -1571,7 +1579,7 @@ func _window(x: int, y: int, horiz: bool) -> void:
 	_recessed_window(x, y, inside)
 
 
-## An open doorway onto a balcony (map_loader.gd "!"), seen from the room: no leaf, a frame round the opening and sheer
+## An open doorway onto a balcony (map_loader.gd "!"), seen from the room: no leaf, a frame round the opening and
 ## curtains drawn back either side. Beyond it lies the window box planned behind it (the user's 2026-11-15
 ## direction: the hotel's arched doorways look out into its nature); only where no box fits does it get its own tiled
 ## balcony, iron railing and sea under the sky, closed in at the sides and above so nothing past the room shows. You
@@ -1590,58 +1598,92 @@ func _balcony_door(x: int, y: int, horiz: bool) -> void:
 	for side in [-1.0, 1.0]:
 		m.box("frame", fr, c + along * side * 0.46 + Vector3(0, BALCONY_H / 2.0, 0), _axes(along, 0.09, BALCONY_H, T + 0.06, horiz))
 	m.box("frame", fr, c + Vector3(0, BALCONY_H + 0.05, 0), _axes(along, 1.0, 0.1, T + 0.06, horiz))
-	m.box("frame", fr, c + Vector3(0, 0.02, 0), _axes(along, 0.86, 0.04, T + 0.02, horiz))
 	var iron := surface("iron", Color("#2d2622"))
 	if _box_of.has(Vector2i(x, y)):
-		_juliet_balcony(m, c, -into, along, horiz, iron)
+		_juliet_balcony(m, x, y, z, c, -into, along, horiz, iron)
 	else:
+		m.box("frame", fr, c + Vector3(0, 0.02, 0), _axes(along, 0.86, 0.04, T + 0.02, horiz))
 		_balcony_beyond(x, y, horiz, c, into, along, yaw, z, iron)
-	# sheer curtains tied back either side of the opening on a rod, on the room side
-	var drape := surface("drape", Color("#f3ead8"))
-	var rod := c + into * (T / 2.0 + 0.08)
-	m.box("iron", iron, rod + Vector3(0, BALCONY_H + 0.16, 0), _axes(along, 1.5, 0.04, 0.04, horiz))
+	# wide curtains hanging straight either side of the opening from an iron rod with knob ends, on the room side, in
+	# a colour that stands out from the wall (never the wall's own: the user's 2026-11-16 rule)
+	var drape := surface("drape_" + _curtain_colour(z).to_html(false), _curtain_colour(z))
+	var rod := c + into * (T / 2.0 + 0.1)
+	var rod_y := BALCONY_H + 0.2
+	m.box("iron", iron, rod + Vector3(0, rod_y, 0), _axes(along, 1.62, 0.06, 0.06, horiz))
 	for side in [-1.0, 1.0]:
-		var at: Vector3 = rod + along * side * 0.62
-		m.box("drape", drape, at + Vector3(0, BALCONY_H / 2.0 + 0.08, 0), _axes(along, 0.22, BALCONY_H + 0.14, 0.06, horiz))
-		m.box("drape", drape, at - along * side * 0.04 + Vector3(0, 1.0, 0), _axes(along, 0.3, 0.07, 0.1, horiz))
+		m.box("iron", iron, rod + along * side * 0.83 + Vector3(0, rod_y, 0), Vector3.ONE * 0.11)
+		# (inner edge just over the door frame, outer edge 0.28 past it)
+		var at: Vector3 = rod + along * side * 0.64
+		m.box("drape", drape, at + Vector3(0, (rod_y - 0.03) / 2.0, 0), _axes(along, 0.28, rod_y - 0.03, 0.06, horiz))
 	if mission:
 		_mission_balcony_arch(x, y, horiz, into, z)
 
 
 ## A little balcony half a tile deep outside an open doorway that looks into a window box (the user's 2026-11-15
-## direction): a stone slab on two corbels, tiled on top level with the room's floor, and a railing round its open
-## edges of stone corner posts and cap rails over wrought-iron bars. `c` is the doorway's foot at the wall's middle.
+## direction): a stone slab on corbels whose top is the room's own floor, carried on through the doorway with no
+## threshold or seam, running half a tile past the doorway at each end, with a wrought-iron railing round its open
+## edges. Neighbouring doorways' balconies that meet join into one, with no railing between them. `c` is the
+## doorway's foot at the wall's middle.
 const JULIET_DEEP := 0.5
-const JULIET_W := 1.2
+const JULIET_W := 2.0
 
 
-func _juliet_balcony(m: Mesher, c: Vector3, out: Vector3, along: Vector3, horiz: bool, iron: Material) -> void:
+func _juliet_balcony(m: Mesher, x: int, y: int, z: String, c: Vector3, out: Vector3, along: Vector3, horiz: bool, iron: Material) -> void:
 	var stone := surface("balcony_stone", Color("#ebe1cf"))
 	var face := c + out * (T / 2.0)
 	var mid := face + out * (JULIET_DEEP / 2.0)
-	m.box("balcony_stone", stone, mid + Vector3(0, -0.08, 0), _axes(along, JULIET_W, 0.16, JULIET_DEEP, horiz))
-	m.box("balcony_tile", surface("balcony_tile", Color("#d49a72")), mid + Vector3(0, 0.005, 0),
-		_axes(along, JULIET_W - 0.08, 0.03, JULIET_DEEP - 0.04, horiz))
+	var step := Vector2i(int(along.x), int(along.z))
+	var balconies: Dictionary = map.get("balcony_doors", {})
+	# (a doorway two tiles along has a balcony that meets this one; one tile along would overlap it, so each stops
+	# at the middle between them)
+	var lo := -0.5 if balconies.has(Vector2i(x, y) - step) else -JULIET_W / 2.0
+	var hi := 0.5 if balconies.has(Vector2i(x, y) + step) else JULIET_W / 2.0
+	var joined := {-1: lo > -JULIET_W / 2.0 or balconies.has(Vector2i(x, y) - step * 2),
+		1: hi < JULIET_W / 2.0 or balconies.has(Vector2i(x, y) + step * 2)}
+	var centre := (lo + hi) / 2.0
+	var width := hi - lo
+	m.box("balcony_stone", stone, mid + along * centre + Vector3(0, -0.09, 0), _axes(along, width, 0.16, JULIET_DEEP, horiz))
 	for side in [-1.0, 1.0]:
-		m.box("balcony_stone", stone, face + out * 0.17 + along * side * 0.42 + Vector3(0, -0.28, 0), _axes(along, 0.14, 0.26, 0.34, horiz))
-	# the railing: stone posts at its outer corners and against the wall, stone cap rails, iron bars between
+		m.box("balcony_stone", stone, face + out * 0.17 + along * side * 0.5 + Vector3(0, -0.3, 0), _axes(along, 0.14, 0.26, 0.34, horiz))
+	# the room's floor, from the wall's room face through the doorway to the balcony's edge (the floor's own texture,
+	# mapped in world space like the room's, so it runs on unbroken)
+	var inner := c - out * (T / 2.0)
+	var a0 := inner + along * -0.5
+	var a1 := inner + along * 0.5
+	var b0 := face + along * lo
+	var b1 := face + along * hi
+	var lift := Vector3(0, 0.001, 0)
+	var fm := floor_mat(z)
+	floor_mesher.quad("floor_" + z, fm, [a0 + lift, a1 + lift, a1 + out * T + lift, a0 + out * T + lift], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+	floor_mesher.quad("floor_" + z, fm, [b0 + lift, b1 + lift, b1 + out * JULIET_DEEP + lift, b0 + out * JULIET_DEEP + lift],
+		Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+	# the railing, all wrought iron: a top rail and a bottom rail along the front, bars every 0.11
 	var rail_h := 0.9
-	var edge := face + out * (JULIET_DEEP - 0.06)
-	var half := JULIET_W / 2.0 - 0.06
-	for side in [-1.0, 1.0]:
-		for at: Vector3 in [edge + along * side * half, face + out * 0.06 + along * side * half]:
-			m.box("balcony_stone", stone, at + Vector3(0, rail_h / 2.0, 0), _axes(along, 0.12, rail_h, 0.12, horiz))
-	m.box("balcony_stone", stone, edge + Vector3(0, rail_h - 0.04, 0), _axes(along, JULIET_W, 0.08, 0.14, horiz))
-	m.box("iron", iron, edge + Vector3(0, 0.1, 0), _axes(along, JULIET_W - 0.12, 0.04, 0.04, horiz))
-	for i in 9:
-		m.box("iron", iron, edge + along * (-0.44 + 0.11 * float(i)) + Vector3(0, rail_h / 2.0, 0), _axes(along, 0.025, rail_h - 0.1, 0.025, horiz))
-	for side in [-1.0, 1.0]:
-		var run: Vector3 = face + out * (JULIET_DEEP / 2.0) + along * side * half
-		m.box("balcony_stone", stone, run + Vector3(0, rail_h - 0.04, 0), _axes(along, 0.14, 0.08, JULIET_DEEP, horiz))
-		m.box("iron", iron, run + Vector3(0, 0.1, 0), _axes(along, 0.04, 0.04, JULIET_DEEP - 0.12, horiz))
-		for k in 2:
-			m.box("iron", iron, face + out * (0.2 + 0.13 * float(k)) + along * side * half + Vector3(0, rail_h / 2.0, 0),
-				_axes(along, 0.025, rail_h - 0.1, 0.025, horiz))
+	var edge := face + out * (JULIET_DEEP - 0.04)
+	m.box("iron", iron, edge + along * centre + Vector3(0, rail_h - 0.025, 0), _axes(along, width, 0.05, 0.06, horiz))
+	m.box("iron", iron, edge + along * centre + Vector3(0, 0.1, 0), _axes(along, width, 0.035, 0.035, horiz))
+	var bars := int(round(width / 0.11))
+	for i in bars:
+		var u := lo + (float(i) + 0.5) * width / float(bars)
+		m.box("iron", iron, edge + along * u + Vector3(0, rail_h / 2.0, 0), _axes(along, 0.025, rail_h - 0.05, 0.025, horiz))
+	for side in [-1, 1]:
+		if joined[side]:
+			continue
+		var end := (hi if side > 0 else lo) - float(side) * 0.03
+		m.box("iron", iron, edge + along * end + Vector3(0, rail_h / 2.0, 0), _axes(along, 0.05, rail_h, 0.05, horiz))
+		var run: Vector3 = face + out * (JULIET_DEEP / 2.0) + along * end
+		m.box("iron", iron, run + Vector3(0, rail_h - 0.025, 0), _axes(along, 0.06, 0.05, JULIET_DEEP, horiz))
+		m.box("iron", iron, run + Vector3(0, 0.1, 0), _axes(along, 0.035, 0.035, JULIET_DEEP, horiz))
+		for k in 3:
+			m.box("iron", iron, face + out * (0.12 + 0.11 * float(k)) + along * end + Vector3(0, rail_h / 2.0, 0),
+				_axes(along, 0.025, rail_h - 0.05, 0.025, horiz))
+
+
+## Curtains in a colour that stands out from the room's wall: maroon against a light wall (the user's 2026-11-16
+## choice), a warm cream against a dark one (never the wall's own colour, the user's 2026-11-16 rule).
+func _curtain_colour(_z: String) -> Color:
+	var wall := Color(str(map.get("room", {}).get("wall", "#fbf1e2")))
+	return Color("#6e1f2b") if wall.get_luminance() > 0.5 else Color("#f3ead8")
 
 
 ## A balcony of its own beyond an open doorway that has no window box behind it.
@@ -1798,6 +1840,10 @@ func _mission_decor() -> void:
 				continue
 			# Full-height glazing has only its own frames; room dado and cornice stop at its edges.
 			if code(x, y) == MapGen.IWINDOW and map.get("room", {}).get("full_height_windows", false):
+				continue
+			# (a wall standing on a raised floor, like the hotel lobby's balcony wall, would put the dado and crown,
+			# measured from the ground floor, across its foot and its doorways' thresholds)
+			if Elev.surface(map, Vector2i(x, y)) > DADO_TOP:
 				continue
 			# over a balcony's open doorway only the crown carries on
 			var open := balconies.has(Vector2i(x, y))
@@ -2344,6 +2390,7 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 		against = group.any(func(q): return _walled(m, q + back))
 
 	var table_facing := false
+	var lounge_table := Vector2i(-1, -1)
 	if kind in ["sofa", "armchair"]:
 		# Lounge seats face a nearby aligned coffee table, including across a one-tile aisle.
 		var found_table := false
@@ -2359,6 +2406,7 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 					against = false
 					found_table = true
 					table_facing = true
+					lounge_table = target
 					break
 				if found_table:
 					break
@@ -2379,10 +2427,43 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 		yaw = atan2(float(-back.x), float(-back.y))
 	elif k.get("free", false) and size.y > size.x:
 		yaw = PI / 2.0
-	return {"lo": lo, "size": size, "back": back, "against": against, "yaw": yaw, "table_facing": table_facing}
+	yaw = float(m.get("room", {}).get("furniture_yaws", {}).get(lo, yaw))
+	return {"lo": lo, "size": size, "back": back, "against": against, "yaw": yaw, "table_facing": table_facing,
+		"lounge_table": lounge_table}
+
+
+## Fixed-size hearth, its rear plane on the room-side face of the wall. Never stretch it.
+func _fireplace(group: Array) -> void:
+	var layout := furniture_layout(map, "fireplace", group)
+	var lo: Vector2i = layout["lo"]
+	var size: Vector2 = layout["size"]
+	var back: Vector2i = layout["back"]
+	if not layout["against"]:
+		push_warning("Fireplace needs a solid wall: %s %s" % [map.get("room_key", ""), lo])
+		return
+	var room: Dictionary = map.get("room", {})
+	var kit = load("res://scripts/gfx/fireplaces.gd")
+	var style: String = room.get("fireplace_style", "fieldstone")
+	var stone_colour := Color(str(room.get("fireplace_stone", kit.STONE.get(style, "#b9b1a0"))))
+	var wood := Color(str(room.get("wood", KAYKIT_WOOD.to_html())))
+	var mi: MeshInstance3D = kit.make(style, stone_colour, wood)
+	mi.position = Vector3(lo.x + size.x / 2.0, dais_at(map, lo), lo.y + size.y / 2.0)
+	var depth := size.y if back.y != 0 else size.x
+	mi.position += Vector3(back.x, 0, back.y) * (depth / 2.0 + 0.5 - T / 2.0)
+	mi.rotation.y = layout["yaw"]
+	parent.add_child(mi)
+	var glow := TempleLights.flame(Vector3(0, 0.26, 0.27), 0.13)
+	glow.name = "HearthGlow"
+	glow.add_to_group("untextured_fx")
+	mi.add_child(glow)
+	mi.add_child(TempleLights.light(Vector3(0, 0.5, 0.32), 0.65, 3.0))
+	mi.set_meta("fireplace_tiles", group)
 
 
 func _place(kind: String, group: Array) -> void:
+	if kind == "fireplace":
+		_fireplace(group)
+		return
 	if kind == "counter_gate":
 		_counter_gate(group)
 		return
@@ -2826,6 +2907,13 @@ func _counter_phone(at: Vector3, yaw: float, top: float) -> void:
 	t.rotation.y = yaw
 	t.add_to_group("phones")
 	parent.add_child(t)
+	if map.get("room", {}).get("counter_phone_plant", false):
+		var offset := Basis(Vector3.UP, yaw) * Vector3(0.7, 0, 0)
+		var plant := _stand("home/plant_succulent", Vector3(at.x, top, at.z) + offset, yaw)
+		if plant != null:
+			var bb := plant.mesh.get_aabb()
+			plant.scale = Vector3.ONE * (0.38 / bb.size.y)
+			plant.position.y -= bb.position.y * plant.scale.y
 
 
 ## Of the models for a kind, the one that fills the space best. Ties go to chance, or with `same`, to the building's
@@ -3397,6 +3485,41 @@ func _plan_boxes() -> Array:
 					_boxed[wt] = true
 					_box_of[wt] = box
 				boxes.append(box)
+	return _merge_boxes(boxes)
+
+
+## Boxes on the same wall line that meet end to end become one box (the user's 2026-11-15 direction: a run of the
+## hotel's doorways two tiles apart planned a little box behind each, their ends showing between them). The merged box
+## takes the shallower depth and the lower floor.
+func _merge_boxes(boxes: Array) -> Array:
+	var merged := true
+	while merged:
+		merged = false
+		for i in boxes.size():
+			for j in boxes.size():
+				if i == j:
+					continue
+				var a: Dictionary = boxes[i]
+				var b: Dictionary = boxes[j]
+				var out: Vector2i = a["out"]
+				if b["out"] != out:
+					continue
+				var along := Vector2i(absi(out.y), absi(out.x))
+				var a_end: Vector2i = a["start"] + along * int(a["n"])
+				if b["start"] != a_end:
+					continue
+				a["n"] = int(a["n"]) + int(b["n"])
+				a["deep"] = mini(int(a["deep"]), int(b["deep"]))
+				a["base"] = minf(float(a["base"]), float(b["base"]))
+				a["sill"] = maxf(float(a.get("sill", a["base"])), float(b.get("sill", b["base"])))
+				for t in _box_of.keys():
+					if _box_of[t] == b:
+						_box_of[t] = a
+				boxes.remove_at(j)
+				merged = true
+				break
+			if merged:
+				break
 	return boxes
 
 
@@ -3426,7 +3549,6 @@ static func window_boxes_of(m: Dictionary) -> Dictionary:
 ## Builds the planned window boxes.
 func _window_boxes() -> void:
 	for box in _plan_boxes():
-		print("BOXPLAN ", map.get("room_key", ""), " ", box) # TEMP
 		_window_box(box["start"], box["n"], box["out"], box["base"], box["deep"], box["sill"])
 	if _box_props.is_empty():
 		return
@@ -3568,12 +3690,12 @@ func _box_nature(start: Vector2i, n: int, out: Vector2i, at: Callable, biome: Di
 	var r := RandomNumberGenerator.new()
 	r.seed = hash("%s:%d:%d:%d:%d" % [map.get("room_key", ""), start.x, start.y, out.x, out.y])
 	var trees := []
-	for tw in biome.get("trees", [["tree_round_1", 1], ["tree_oak", 1]]):
+	for tw in biome.get("trees", [["tree_oak", 1]]):
 		if String(tw[0]) != "stump":
 			for k in int(tw[1]):
 				trees.append(String(tw[0]))
 	if trees.is_empty():
-		trees = ["tree_round_1"]
+		trees = ["tree_oak"]
 	var shrubs: Array = biome.get("shrubs", []).filter(func(s): return String(s).begins_with("bush") or String(s).begins_with("shrub"))
 	if shrubs.is_empty():
 		shrubs = ["bush_1", "bush_3"]
@@ -3650,6 +3772,7 @@ func _clear_pane(x: int, y: int, c: Vector3, inside: Vector2i, width: float, hei
 	if _pane_glass == null:
 		_pane_glass = ShaderMaterial.new()
 		_pane_glass.shader = preload("res://scripts/gfx/interior_glass.gdshader")
+		_pane_glass.set_shader_parameter("glass_shimmer", preload("res://assets/textures/surfaces/glass_shimmer.png"))
 	pane.material_override = _pane_glass
 	pane.position = c
 	pane.rotation.y = atan2(float(inside.x), float(inside.y))
@@ -3718,7 +3841,10 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 	var along := Vector3(absf(float(inside.y)), 0, absf(float(inside.x)))
 	var inward := Vector3(inside.x, 0, inside.y)
 	var base_y := Elev.surface(map, Vector2i(x, y))
-	_recess(x, y, inside, SILL + base_y, WIN_TOP + base_y, WIN_HALF, WIN_DEPTH, false)
+	# Line the whole opening in the frame finish, as with full-height windows. Leaving the reveal in the wall
+	# material exposes a strip of wallpaper inside the casing, especially when viewed from the side.
+	var frame := _trim_mat()
+	_recess(x, y, inside, SILL + base_y, WIN_TOP + base_y, WIN_HALF, WIN_DEPTH, false, frame)
 	var c := Vector3(x + 0.5, base_y, y + 0.5)
 	var back := c + inward * (T / 2.0 - WIN_DEPTH)
 	var mid := (SILL + WIN_TOP) / 2.0
@@ -3732,7 +3858,6 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 			pane - along * 0.1 + Vector3.UP * (SILL + 0.38)], inward, along, Vector3.UP)
 	_clear_pane(x, y, back + inward * 0.018 + Vector3.UP * mid, inside, WIN_HALF * 2.0, tall)
 	# the sash: a frame round the glass and its cross bars, just in front of it
-	var frame := surface("window_frame", _sch("trim") if home else trim.lightened(0.22))
 	var sash := back + inward * 0.03
 	for s in [-1.0, 1.0]:
 		m.box("window_frame", frame, sash + along * s * (WIN_HALF - 0.03) + Vector3.UP * mid, _axes(along, 0.06, tall, 0.05, horiz))
@@ -3989,8 +4114,7 @@ func _glass_frame_wood() -> Material:
 
 
 ## Keep glazing separate from the static wall batches, so only its leaf moves. Its rails and the leaf's frame are wood.
-func _shelf_door(x: int, y: int, columns: int, width: float, bottom: float, top: float, _shelf: Material) -> void:
-	var wood := _glass_frame_wood()
+func _shelf_door(x: int, y: int, columns: int, width: float, bottom: float, top: float, wood: Material) -> void:
 	var door := preload("res://scripts/gfx/shelf_door.gd").new()
 	parent.add_child(door)
 	var glass := _glass().duplicate() as StandardMaterial3D
