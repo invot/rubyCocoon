@@ -466,7 +466,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   down, and the stone panel over a cubby in the back wall sinks a little, the cubby glowing brighter behind it; thrown
   back up, it rises again (the puzzle's `hint` in `tide_puzzles.gd`). By the second, the top of a red lever shows over
   it. With the fourth, a chime and a brief camera focus announce the panel sliding the rest of the way open,
-  revealing a brightly lit cubby with a fifth red lever. The four levers lock down; pulling the fifth stops
+  revealing a brightly lit, shallow cubby with a compact stone wall switch and red handle within reach from the walkway.
+  The four levers lock down; pulling the fifth stops
   the falls and drains the pool, and with another chime and camera focus a second panel further along the back wall
   sinks the same way, showing the treasure's chest in its own lit cubby, opened from the walkway in front of it. Both
   cubbies stay open on return visits. That empties the hall, and the last
@@ -738,6 +739,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   godot --headless --path . --import
   ```
 
+- **Puzzle switches** use simplified derivatives of the supplied **Levers & Switches** collection (`temple_props.gd`, `assets/props/switch_*.res`): floor levers with flat grey stone bases and stone axle arches, shafts in the picket fence's exact wood grain and tone, and red grips; the reference's third/smaller wall switch in smooth stone with a red handle, used in the maze's hidden drain cubby. That cubby is 0.55 tiles deep (the treasure cubby remains 1.2). Push buttons have stone housings and red caps; `weapon_obstacles.gd` supports all three supplied button shapes on sturdy pedestals at the existing boomerang height, with caps that depress. Current maps have no authored boomerang switch line; the isolated `--scene=switch-props` preview stages them on a lawn. Pull angles, puzzle flags and save states are preserved; the hidden wall switch leaves its old floor-anchor tile clear so the hero can stand right at the cubby. The five models together use 1,280 triangles, 68% fewer than their nondegenerate source geometry. See [provenance and rebuild](licenses/supplied_switches.md).
 - **Other world props** (campfires and the like) are PSX pack models baked by `tools/import_psx_models.gd` into `assets/nature/`, `assets/props/` and `assets/boats/`, and listed in `scripts/data/voxel_manifest.gd` (cacti are drawn in code). Vinehollow's Old Shrine uses the supplied bird-topped **Cube World Totem - Proto Series** stack. Sliding ice blocks use the supplied **Ice cube study** mesh and its painted turquoise/deep-blue fracture texture (`tools/prepare_requested_props.py`, `tools/import_requested_props.gd`). Mist uses soft local fog wisps and drifting particles (`field_mist.gd`), with no floating cubes. Rope-cliff obstacles show a rope laid against the existing terrain slope, with no extra rock block; their climbing puzzle and collision are unchanged. The packs themselves aren't in the repository; with one downloaded again into `psx/`, re-bake and then let Godot rescan, or its file index (and so the exported game) won't include new files:
 
   ```

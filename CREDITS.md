@@ -414,6 +414,13 @@ a 0.7-second excerpt with a shortened tail. The complete intro dread hit remains
 - The user's *Cozy Cartoon Rooms* OBJ collections were studied for shapes (recessed windows, wall cubbies, closets)
   only; nothing from them is in the game.
 
+## Levers and buttons (`assets/props/switch_*.res`)
+
+User-supplied **Levers & Switches** OBJ collection (2026-11-16). Author and
+license were not included in the archive and remain unverified. Simplified and
+retextured with the game's fence wood, smooth stone and red controls.
+See [provenance and triangle counts](licenses/supplied_switches.md).
+
 ## World map and location markers (`assets/ui/world_map/`)
 
 - **Fantasy Map Assets Lite** by **Deface Games** (defacegames.com), user-supplied

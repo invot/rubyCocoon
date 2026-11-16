@@ -1837,16 +1837,17 @@ func fixtures(map: Dictionary) -> Array:
 			"scene": scene, "pick_offset": Vector3(0, 0, -1.25) if cubby else Vector3.ZERO, "still": true, "facing": Vector2i(0, 1)})
 	for sw in map.get("switches", []):
 		var secret: bool = map["puzzle"] == "maze" and sw["index"] == 4
-		var lever := TempleProps.red_lever(GameState.flag(TidePuzzles.lever_flag(String(map["puzzle"]), sw["index"])),
+		var pulled := GameState.flag(TidePuzzles.lever_flag(String(map["puzzle"]), sw["index"]))
+		var lever := TempleProps.wall_lever(pulled, 0.43) if secret else TempleProps.red_lever(pulled,
 			0.3 if MapGen.get_t(map, sw["pos"].x, sw["pos"].y - 1) == MapGen.IWALL else 0.0)
 		if secret:
-			# Its interaction tile is in front of the wall, its arm and base inside the actual recess.
-			for part in lever.get_children():
-				(part as Node3D).position.z -= 1.1
+			# The compact handle projects towards the opening of a shallow wall recess.
 			# (shown once the panel has started to sink: the panel hides it until then)
 			lever.visible = TidePuzzles.cubby_open(GameState.flags) or TidePuzzles.right_levers("maze", GameState.flags) > 0
-		out.append({"kind": "story", "id": "tide_switch", "name": "", "pos": sw["pos"], "index": sw["index"],
-			"scene": lever, "pick_offset": Vector3(0, 0, -1.4) if secret else Vector3.ZERO,
+		# Mount its interaction on the wall itself, leaving the old floor-anchor tile
+		# clear so the hero can walk right up to the handle rather than reach across it.
+		out.append({"kind": "story", "id": "tide_switch", "name": "", "pos": TidePuzzles.CUBBY_TILE if secret else sw["pos"], "index": sw["index"],
+			"scene": lever, "blocking": secret,
 			"still": true, "facing": Vector2i(0, 1)})
 	if _has_anchor(map, "tide_tablet"):
 		out.append({"kind": "story", "id": "tide_tablet", "name": "", "pos": _at(map, "tide_tablet", Vector2i.ZERO),

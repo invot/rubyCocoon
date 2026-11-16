@@ -21,14 +21,17 @@ func build(owner_world) -> void:
 		for p in o["targets"]:
 			if o["weapon"] == "bat" and o["solved"]:
 				continue
-			var root := _target(o["type"])
+			var root := _target(o["type"], o["targets"].find(p))
 			root.position = world.tile_pos(p)
 			var d: Vector2i = o["use_from"] - p
 			root.rotation.y = clampf(atan2(float(d.x), float(d.y)), -PI / 4.0, PI / 4.0)
 			add_child(root)
 			targets[p] = root
 			if o["solved"]:
-				root.rotation.z = 0.25
+				if o["type"] == "switches":
+					root.get_node("Switch/Button").position.y = -TempleProps.BUTTON_TRAVEL
+				else:
+					root.rotation.z = 0.25
 		if o.get("effect", "") == "ladder":
 			for p in o["blocks"]:
 				if o["solved"]:
@@ -116,6 +119,8 @@ func use(o: Dictionary) -> void:
 		var hit := create_tween()
 		if weapon == "bat":
 			hit.tween_property(node, "scale", Vector3.ONE * 0.02, 0.25)
+		elif o["type"] == "switches":
+			hit.tween_property(node.get_node("Switch/Button"), "position:y", -TempleProps.BUTTON_TRAVEL, 0.08)
 		else:
 			hit.tween_property(node, "rotation:z", 0.25, 0.08)
 		Sfx.play("smash" if weapon == "bat" else "menu_ok")
@@ -182,7 +187,9 @@ static func _part(parent: Node3D, mesh: Mesh, at: Vector3, colour: String) -> Me
 	return node
 
 
-static func _target(kind: String) -> Node3D:
+static func _target(kind: String, variant := 0) -> Node3D:
+	if kind == "switches":
+		return TempleProps.button_target(false, variant)
 	var root := Node3D.new()
 	if kind == "cracked_rock":
 		var rock := MeshInstance3D.new()

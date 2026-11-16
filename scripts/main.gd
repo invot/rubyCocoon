@@ -1028,6 +1028,11 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
+	if scene == "switch-props":
+		await load("res://tools/debug/switch_props.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "cocoon":
 		await load("res://tools/debug/cocoon.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -3118,8 +3123,9 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 	bad += _tides_check("into %s" % key, world.map_id == room and room != hall)
 	await _tides_shot(shot + "a_%s_start" % id)
 	var levers := {}
-	for sw in world.map["switches"]:
-		levers[int(sw["index"])] = sw["pos"]
+	for sw in world.npcs.values():
+		if sw.get("id", "") == "tide_switch":
+			levers[int(sw["index"])] = sw["pos"]
 	if id == "maze":
 		bad += _tides_check("maze fifth lever hidden initially", not world.npcs[levers[4]]["node"].visible)
 		bad += _tides_check("maze treasure's panel shut and dark initially", world.room_walls.tide_chest_panel.visible and not world.room_walls.tide_chest_light.visible)
