@@ -3339,6 +3339,9 @@ var scheme := HomeDecor.DEFAULT_SCHEME
 var _cubbies := {}
 var tide_panel: MeshInstance3D
 var tide_cubby_light: OmniLight3D
+## The treasure's cubby (TidePuzzles.CHEST_CUBBY_TILE), opened by the drain lever.
+var tide_chest_panel: MeshInstance3D
+var tide_chest_light: OmniLight3D
 ## The panel's height shut, and how many steps it stands lowered now (one per maze lever set right, tide_puzzles.gd).
 var tide_panel_y := 0.0
 var tide_step := 0
@@ -4150,8 +4153,9 @@ static func _curtain_mesh(inner: float, top: float, foot: float) -> ArrayMesh:
 ## wall with nothing tall before them, away from windows, doors and each other.
 func _plan_cubbies() -> void:
 	if map.get("puzzle", "") == "maze":
-		var tile: Vector2i = preload("res://scripts/data/tide_puzzles.gd").CUBBY_TILE
-		_cubbies[tile] = {"inside": Vector2i.DOWN, "kind": "tide"}
+		var tp := preload("res://scripts/data/tide_puzzles.gd")
+		_cubbies[tp.CUBBY_TILE] = {"inside": Vector2i.DOWN, "kind": "tide"}
+		_cubbies[tp.CHEST_CUBBY_TILE] = {"inside": Vector2i.DOWN, "kind": "tide"}
 	for cl in map.get("room", {}).get("closets", []):
 		for i in int(cl[2]):
 			_cubbies[Vector2i(int(cl[0]) + i, int(cl[1]))] = {"inside": Vector2i(0, 1), "kind": "closet", "x0": int(cl[0]), "w": int(cl[2])}
@@ -4188,7 +4192,8 @@ func _plan_cubbies() -> void:
 		placed += 1
 
 
-## A sealed stone recess using the shared cubby geometry; its panel sinks below the raised walkway.
+## A sealed stone recess using the shared cubby geometry, for the maze's drain lever or its treasure; its panel sinks
+## below the raised walkway.
 func _tide_cubby(x: int, y: int) -> void:
 	var low := Elev.surface(map, Vector2i(x, y + 1))
 	var high := low + 1.55
@@ -4198,20 +4203,33 @@ func _tide_cubby(x: int, y: int) -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(0.92, high - low, 0.12)
 	box.material = wall_mat(default_zone)
-	tide_panel = MeshInstance3D.new()
-	tide_panel.name = "SecretSluicePanel"
-	tide_panel.mesh = box
-	tide_panel_y = (low + high) / 2.0
-	tide_step = int(map.get("tide_cubby_step", 0))
-	tide_panel.position = Vector3(x + 0.5, tide_panel_y - TIDE_STEP_DROP * tide_step, y + 0.64)
-	tide_panel.visible = not map.get("tide_cubby_open", false)
-	parent.add_child(tide_panel)
-	tide_cubby_light = OmniLight3D.new()
-	tide_cubby_light.position = Vector3(x + 0.5, low + 1.0, y + 1.05)
-	tide_cubby_light.light_color = Color("#ffda82")
-	tide_cubby_light.light_energy = 2.0 if map.get("tide_cubby_open", false) else TIDE_STEP_GLOW * tide_step
-	tide_cubby_light.omni_range = 3.0
-	parent.add_child(tide_cubby_light)
+	var panel := MeshInstance3D.new()
+	panel.mesh = box
+	var light := OmniLight3D.new()
+	light.position = Vector3(x + 0.5, low + 1.0, y + 1.05)
+	light.light_color = Color("#ffda82")
+	light.omni_range = 3.0
+	if Vector2i(x, y) == preload("res://scripts/data/tide_puzzles.gd").CHEST_CUBBY_TILE:
+		# (the treasure's: shut, dark and its light off until the drain)
+		var open: bool = map.get("tide_chest_open", false)
+		panel.name = "SecretTreasurePanel"
+		panel.position = Vector3(x + 0.5, (low + high) / 2.0, y + 0.64)
+		panel.visible = not open
+		light.light_energy = 2.0
+		light.visible = open
+		tide_chest_panel = panel
+		tide_chest_light = light
+	else:
+		panel.name = "SecretSluicePanel"
+		tide_panel_y = (low + high) / 2.0
+		tide_step = int(map.get("tide_cubby_step", 0))
+		panel.position = Vector3(x + 0.5, tide_panel_y - TIDE_STEP_DROP * tide_step, y + 0.64)
+		panel.visible = not map.get("tide_cubby_open", false)
+		light.light_energy = 2.0 if map.get("tide_cubby_open", false) else TIDE_STEP_GLOW * tide_step
+		tide_panel = panel
+		tide_cubby_light = light
+	parent.add_child(panel)
+	parent.add_child(light)
 
 
 ## Lowers (or raises) the shut panel to `steps` steps down, with the cubby's glow to match.
@@ -4237,6 +4255,19 @@ func reveal_tide_cubby() -> void:
 	tw.parallel().tween_property(tide_cubby_light, "light_energy", 2.0, 1.2)
 	await tw.finished
 	tide_panel.hide()
+
+
+## The treasure's panel sinks into the floor as its cubby lights up.
+func reveal_tide_chest() -> void:
+	if not is_instance_valid(tide_chest_panel) or not tide_chest_panel.visible:
+		return
+	tide_chest_light.light_energy = 0.0
+	tide_chest_light.show()
+	var tw := parent.create_tween()
+	tw.tween_property(tide_chest_panel, "position:y", tide_chest_panel.position.y - 1.6, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(tide_chest_light, "light_energy", 2.0, 1.2)
+	await tw.finished
+	tide_chest_panel.hide()
 
 
 ## The wall of a cubby's or closet's tile, with its hole, lining and contents (from _walls, for that tile).

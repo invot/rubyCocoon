@@ -179,7 +179,9 @@ static func _keep_floods(m: Dictionary, src: Dictionary, flood: Dictionary) -> v
 ## An anchor that places a fixture rather than marking a spot (Story.extra_npcs builds them):
 ##   "lever:<flag>"   a lever that sets the flag (its words: the map's "levers"[flag]), draining or filling floods
 ##   "chest:<item>"   a treasure chest holding the item, opened once (its own flag); "chest:<item>@<flag>" lies hidden
-##                    until the flag is set (under water that drains)
+##                    until the flag is set (under water that drains). Its flag counts the map's chests in reading
+##                    order; a "#<n>" on the end gives it number n instead (to keep a moved chest's save flag), and
+##                    the others count without it.
 ##   "switch:<n>"     lever n of the room's "puzzle" (tide_puzzles.gd)
 ## Returns true if it was one.
 static func _fixture(m: Dictionary, an: String, p: Vector2i, id: String) -> bool:
@@ -188,8 +190,11 @@ static func _fixture(m: Dictionary, an: String, p: Vector2i, id: String) -> bool
 		m["levers"].append({"pos": p, "flag": flag, "info": m.get("lever_info", {}).get(flag, {})})
 		return true
 	if an.begins_with("chest:"):
-		m["chests"].append({"pos": p, "item": an.substr(6).get_slice("@", 0), "hidden_until": an.substr(6).get_slice("@", 1),
-			"flag": "chest_%s_%d" % [id, m["chests"].size()]})
+		var spec := an.substr(6).get_slice("#", 0)
+		var counted: int = m["chests"].filter(func(c: Dictionary) -> bool: return not c.get("numbered", false)).size()
+		var numbered := an.contains("#")
+		m["chests"].append({"pos": p, "item": spec.get_slice("@", 0), "hidden_until": spec.get_slice("@", 1), "numbered": numbered,
+			"flag": "chest_%s_%d" % [id, int(an.get_slice("#", 1)) if numbered else counted]})
 		return true
 	if an.begins_with("switch:"):
 		m["switches"].append({"pos": p, "index": int(an.substr(7))})
@@ -892,6 +897,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	_keep_floods(m, room, flood)
 	m["puzzle"] = puzzle
 	m["tide_cubby_open"] = puzzle == "maze" and TidePuzzles.cubby_open(flags)
+	# (the treasure's cubby opens with the drain)
+	m["tide_chest_open"] = puzzle == "maze" and TidePuzzles.solved(puzzle, flags)
 	# (how far its panel stands lowered: a step for each lever already set right)
 	m["tide_cubby_step"] = TidePuzzles.right_levers(puzzle, flags) if puzzle == "maze" else 0
 	m["fall_spots"] = placed["spots"]

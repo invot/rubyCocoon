@@ -467,7 +467,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   back up, it rises again (the puzzle's `hint` in `tide_puzzles.gd`). By the second, the top of a red lever shows over
   it. With the fourth, a chime and a brief camera focus announce the panel sliding the rest of the way open,
   revealing a brightly lit cubby with a fifth red lever. The four levers lock down; pulling the fifth stops
-  the falls and drains the pool, revealing its treasure. The cubby stays open on return visits. That empties the hall, and the last
+  the falls and drains the pool, and with another chime and camera focus a second panel further along the back wall
+  sinks the same way, showing the treasure's chest in its own lit cubby, opened from the walkway in front of it. Both
+  cubbies stay open on return visits. That empties the hall, and the last
   stairs lead down to a stone door in an aqua-blue frame in the east wall. Behind it the singing stones teach the
   temple's song, and learning it on your flute sinks a second stone door into the floor: beyond is an octagonal chamber
   of water, with a path to the island in its middle where the guardian waits. The two puzzle rooms are where strong
@@ -1472,7 +1474,8 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
   puzzle in `scripts/data/tide_puzzles.gd`, whose letters in `rows` are its falls' spots and whose levers are anchors
   `switch:<n>` (0–3 route the falls; the maze's hidden `switch:4` drains it after all four are down).
   Its back-wall cubby uses `TidePuzzles.CUBBY_TILE`, with the interaction anchor on the raised tile directly in front.
-  An anchor `chest:<item>@<flag>` lies hidden until the flag is set.
+  An anchor `chest:<item>@<flag>` lies hidden until the flag is set. A chest's save flag counts the map's chests in
+  reading order; a `#<n>` on the end of its anchor gives it number n instead, so a moved chest keeps its flag.
 - **Floods and levers**: a map's (or a room's) `floods` give a character for each stretch of water that a lever drains
   (`{"flag", "wet", "dry"}`; with `"rises": true`, a dry channel that fills instead). The character stands for its
   `wet` tile until the flag is set, then for its `dry` one: ground, floor, or a way on, such as stairs that are also in

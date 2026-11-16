@@ -578,7 +578,6 @@ const ROOMS := {
 		"stone_doors": ["4"], "level_h": 0.8, "top_level": 2,
 		"water_levels": [["tides_falls_solved", -0.12], ["tides_maze_solved", -0.92]],
 		"floods": {";": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}, "+": {"flag": "tides_maze_solved", "wet": "_", "dry": ":"}},
-		"anchors": {"6": "chest:spirit_tonic@tides_maze_solved"},
 		"rows": [
 			"######2##########3#############",
 			"#:::::::::::;;;;;;;;;+++++++++#",
@@ -589,7 +588,7 @@ const ROOMS := {
 			"#+++++++++++++++++++++++++++++#",
 			"#+++++++++++++++++++++++++++++#",
 			"#+++++++++++++++++++++++++++++#",
-			"#++++++++++++++++++++++++++6++#",
+			"#+++++++++++++++++++++++++++++#",
 			"#+++++++++++++++++++++++++++++#",
 			"#+++++++++++++++++++++++++++++#",
 			"###############################",
@@ -648,7 +647,9 @@ const ROOMS := {
 		],
 	},
 	# A maze of walkways over a pool, with metal lattices in them: three waterfalls drop from the pipes overhead through the
-	# lattices (a .. h) and block them. Four levers move the falls; all down reveal a fifth in a back-wall cubby.
+	# lattices (a .. h) and block them. Four levers move the falls; all down reveal a fifth in a back-wall cubby
+	# (TidePuzzles.CUBBY_TILE), and pulling it drains the pool and opens a second cubby (CHEST_CUBBY_TILE) with the
+	# treasure. (Its "#1" keeps the save flag it had when it lay on the pool's floor, after the walkway's chest.)
 	"temple_tides_maze": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
 		"doors": {"[": "temple_tides_hall"},
@@ -656,17 +657,17 @@ const ROOMS := {
 		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
 		"water_levels": [["tides_maze_solved", -0.12]], "puzzle": "maze",
 		"floods": {"+": {"flag": "tides_maze_solved", "wet": "_", "dry": ":"}},
-		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "4": "switch:4", "9": "chest:tide_charm@tides_maze_solved", "3": "chest:revival_seed"},
+		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "4": "switch:4", "2": "chest:tide_charm@tides_maze_solved#1", "3": "chest:revival_seed"},
 		"rows": [
 			"#####################",
-			"#+++++++++7+++4+++++#",
+			"#+++++2+++7+++4+++++#",
 			"#+:::::::::::::::::3#",
 			"#+:+++++++:+++++++:+#",
 			"#+a+++++++d+++++++e+#",
 			"#+:+++++++:+++++++:+#",
 			"[::::::6+5::h::::::+#",
 			"#+:+++++++:+++++++:+#",
-			"#+b+++++9+c+++++++:+#",
+			"#+b+++++++c+++++++:+#",
 			"#+:+++++++:+++++++:+#",
 			"#+::::::f:::::::g::+#",
 			"#+++++8+++++++++++++#",
@@ -674,7 +675,7 @@ const ROOMS := {
 		],
 		"heights": [
 			"111111111111111111111",
-			"100000000010001000001",
+			"100000100010001000001",
 			"101111111111111111111",
 			"101000000010000000101",
 			"101000000010000000101",
@@ -682,7 +683,7 @@ const ROOMS := {
 			"111111110111111111101",
 			"101000000010000000101",
 			"101000000010000000101",
-			"1010000v00100v0000101",
+			"101000000010000000101",
 			"101111111111111111101",
 			"100000100000000000001",
 			"111111111111111111111",

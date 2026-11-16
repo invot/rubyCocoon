@@ -2947,6 +2947,7 @@ func _tides_walk_test() -> void:
 	bad += await _tides_room(hall, "temple_tides_maze", "maze", [0, 1, 2, 3, 4], "tides_maze_solved", "tide_charm", "4")
 	await _tides_shot("5_hall_drained")
 	bad += _tides_check("hall drained: song door reachable", _tides_reach(hall, "temple_tides_song"))
+	bad += _tides_check("no treasure left in the hall's pit", not world.npcs.values().any(func(n): return n.get("id", "") == "chest"))
 	var song := await _tides_door(hall, "temple_tides_song")
 	bad += _tides_check("into the song room", world.map_id == song)
 	await _tides_shot("6_song_room_locked")
@@ -2985,6 +2986,23 @@ func _tides_check(what: String, ok: bool) -> int:
 	return int(not ok)
 
 
+## Taps a chest from where you stand, as on a phone, and waits for it to open.
+func _tides_tap_chest(chest: Dictionary, what: String) -> int:
+	var at: Vector3 = world.tile_pos(chest["pos"]) + chest.get("pick_offset", Vector3.ZERO) + Vector3(0, 0.35, 0)
+	var screen: Vector2 = world.cam.unproject_position(at)
+	var on_screen: bool = not world.cam.is_position_behind(at) and Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).has_point(screen)
+	var picked: Dictionary = world._pick(screen)
+	if not on_screen or picked.get("tile", Vector2i(-1, -1)) != chest["pos"]:
+		return _tides_check("%s chest at %s in view and picked by a tap (from %s: on screen %s, pick %s)" % [what, chest["pos"],
+			world.player_pos, on_screen, picked], false)
+	world.tap_at(screen)
+	for i in 150:
+		await _wait(0.1)
+		if GameState.flag(String(chest["chest"])) and not (world.busy or UI.busy()):
+			break
+	return _tides_check("%s chest opened by a tap (player now %s)" % [what, world.player_pos], GameState.flag(String(chest["chest"])))
+
+
 ## The maze cubby's panel stands `steps` steps lowered, as many as its levers set right.
 func _tides_check_panel(steps: int, when: String) -> int:
 	var rw = world.room_walls
@@ -3013,11 +3031,11 @@ func _tides_shot(n: String) -> void:
 	world._place_camera(true)
 
 
-## With --shots: the maze's cubby close up, from where its reveal looks at it.
-func _tides_cubby_shot(n: String) -> void:
+## With --shots: one of the maze's cubbies close up, from where its reveal looks at it.
+func _tides_cubby_shot(n: String, tile := TidePuzzles.CUBBY_TILE) -> void:
 	if not _test.has("shots"):
 		return
-	var focus: Vector3 = world.tile_pos(TidePuzzles.CUBBY_TILE + Vector2i.DOWN) + Vector3(0, 0.8, -0.4)
+	var focus: Vector3 = world.tile_pos(tile + Vector2i.DOWN) + Vector3(0, 0.8, -0.4)
 	world.cam_free = true
 	world.cam.transform = Transform3D(Basis.looking_at(Vector3(0, -2.4, -5.0)), focus + Vector3(0, 2.4, 5.0))
 	await get_tree().process_frame
@@ -3104,6 +3122,7 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 		levers[int(sw["index"])] = sw["pos"]
 	if id == "maze":
 		bad += _tides_check("maze fifth lever hidden initially", not world.npcs[levers[4]]["node"].visible)
+		bad += _tides_check("maze treasure's panel shut and dark initially", world.room_walls.tide_chest_panel.visible and not world.room_walls.tide_chest_light.visible)
 		await _tides_cubby_shot(shot + "a0_maze_step0")
 		# All sixteen original patterns now require the fifth lever; the old solution cannot drain the room.
 		for bits in 16:
@@ -3192,13 +3211,22 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 	for p in world.npcs:
 		if world.npcs[p].get("id", "") == "chest" and world.npcs[p].get("hidden_until", "") == flag:
 			chest = world.npcs[p]
+	if id == "maze":
+		bad += _tides_check("treasure's panel sunk and its cubby lit once drained", not world.room_walls.tide_chest_panel.visible and world.room_walls.tide_chest_light.visible)
+		await _tides_cubby_shot(shot + "c2_maze_treasure", TidePuzzles.CHEST_CUBBY_TILE)
+	bad += await _tides_tap_chest(chest, id)
 	await _tides_walk_beside(chest["pos"])
 	var at_chest: Vector2i = world.player_pos
 	for tries in 3:
 		if GameState.flag(String(chest["chest"])):
 			break
 		await _tides_press()
-	bad += _tides_check("%s treasure opened on the drained pool's floor, from %s" % [id, at_chest], int(GameState.inventory.get(item, 0)) > had or GameState.gear.values().has(item))
+	bad += _tides_check("%s treasure opened, from %s" % [id, at_chest], int(GameState.inventory.get(item, 0)) > had or GameState.gear.values().has(item))
+	if id == "maze":
+		await _tides_cubby_shot(shot + "c3_maze_treasure_opened", TidePuzzles.CHEST_CUBBY_TILE)
+		await GameState.main.reload_map()
+		await _settle(world.map_id)
+		bad += _tides_check("treasure's cubby still open after reload", not world.room_walls.tide_chest_panel.visible and world.room_walls.tide_chest_light.visible)
 	# and back out up the steps to the door
 	var back: Vector2i = _tides_door_tile("temple_tides_hall")
 	await _tides_go_to(back, hall)

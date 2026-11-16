@@ -1828,8 +1828,13 @@ func fixtures(map: Dictionary) -> Array:
 		var scene := TempleProps.chest(GameState.flag(ch["flag"]))
 		# (a treasure under the water shows as it drains)
 		scene.visible = ch["hidden_until"] == "" or GameState.flag(ch["hidden_until"])
+		# (the maze's stands inside its back-wall cubby, opened from the walkway in front of it like the drain lever)
+		var cubby: bool = map.get("puzzle", "") == "maze" and ch["pos"] == TidePuzzles.CHEST_CUBBY_TILE + Vector2i.DOWN
+		if cubby:
+			for part in scene.get_children():
+				(part as Node3D).position.z -= 1.25
 		out.append({"kind": "story", "id": "chest", "name": "", "pos": ch["pos"], "item": ch["item"], "chest": ch["flag"], "hidden_until": ch["hidden_until"],
-			"scene": scene, "still": true, "facing": Vector2i(0, 1)})
+			"scene": scene, "pick_offset": Vector3(0, 0, -1.25) if cubby else Vector3.ZERO, "still": true, "facing": Vector2i(0, 1)})
 	for sw in map.get("switches", []):
 		var secret: bool = map["puzzle"] == "maze" and sw["index"] == 4
 		var lever := TempleProps.red_lever(GameState.flag(TidePuzzles.lever_flag(String(map["puzzle"]), sw["index"])),
@@ -1915,26 +1920,36 @@ func _show_tide_drain_lever(world, on: bool) -> void:
 
 ## Pause on the new opening so the reveal is visible even when the last lever is across the room.
 func _tide_cubby_reveal(world) -> void:
-	var saved: Transform3D = world.cam.transform
-	var was_free: bool = world.cam_free
-	world.cam_free = true
-	var focus: Vector3 = world.tile_pos(TidePuzzles.CUBBY_TILE + Vector2i.DOWN) + Vector3(0, 0.8, -0.4)
-	var view := Transform3D(Basis.looking_at(Vector3(0, -2.4, -5.0)), focus + Vector3(0, 2.4, 5.0))
-	var pan = world.create_tween()
-	pan.tween_property(world.cam, "transform", view, 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	await pan.finished
+	var cam: Dictionary = await _tide_look_at(world, TidePuzzles.CUBBY_TILE)
 	Sfx.secret_chime()
 	Sfx.play("lever")
 	_show_tide_drain_lever(world, true)
 	await world.room_walls.reveal_tide_cubby()
 	await say(["A stone panel slides open in the back wall! A fifth red lever waits inside the lit cubby."])
+	await _tide_look_back(world, cam)
+
+
+## Turns the camera to the maze's back-wall cubby at `tile`; returns what _tide_look_back needs to turn it back.
+func _tide_look_at(world, tile: Vector2i) -> Dictionary:
+	var cam := {"saved": world.cam.transform, "free": world.cam_free}
+	world.cam_free = true
+	var focus: Vector3 = world.tile_pos(tile + Vector2i.DOWN) + Vector3(0, 0.8, -0.4)
+	var view := Transform3D(Basis.looking_at(Vector3(0, -2.4, -5.0)), focus + Vector3(0, 2.4, 5.0))
+	var pan = world.create_tween()
+	pan.tween_property(world.cam, "transform", view, 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await pan.finished
+	return cam
+
+
+func _tide_look_back(world, cam: Dictionary) -> void:
 	var back = world.create_tween()
-	back.tween_property(world.cam, "transform", saved, 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	back.tween_property(world.cam, "transform", cam["saved"], 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await back.finished
-	world.cam_free = was_free
+	world.cam_free = cam["free"]
 
 
-## A water puzzle solved: the chime, every fall stops, the room drains and what it hid comes to light.
+## A water puzzle solved: the chime, every fall stops, the room drains and what it hid comes to light (in the maze, a
+## second panel in the back wall sinks to show the treasure in its cubby).
 func _tide_solved(world, id: String) -> void:
 	GameState.set_flag(TidePuzzles.PUZZLES[id]["flag"])
 	Sfx.secret_chime()
@@ -1945,6 +1960,16 @@ func _tide_solved(world, id: String) -> void:
 			(m["node"] as Node3D).visible = true
 	await world.tide.drain()
 	world.refresh_tide()
+	if id == "maze":
+		await say(["Deep in the walls, a sluice grinds open. The water drains away!"])
+		var cam: Dictionary = await _tide_look_at(world, TidePuzzles.CHEST_CUBBY_TILE)
+		Sfx.secret_chime()
+		Sfx.play("lever")
+		await world.room_walls.reveal_tide_chest()
+		await say(["Another stone panel slides open in the back wall! A treasure chest waits inside the lit cubby."])
+		await _tide_look_back(world, cam)
+		await say(["The water in the great hall must have dropped too."])
+		return
 	await say(["Deep in the walls, a sluice grinds open. The water drains away!",
 		"The water in the great hall must have dropped too."])
 

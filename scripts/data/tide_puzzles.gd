@@ -20,6 +20,8 @@ const PUZZLES := {
 const LEVERS := 4
 const CUBBY_FLAG := "tides_maze_cubby"
 const CUBBY_TILE := Vector2i(14, 0)
+## The maze's second back-wall cubby, holding its treasure: its panel sinks when the drain lever is pulled.
+const CHEST_CUBBY_TILE := Vector2i(6, 0)
 
 
 ## How many of puzzle `id`'s four routing levers stand as its solution has them.
