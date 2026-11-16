@@ -403,7 +403,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 - **Element weaknesses** (`scripts/data/elements.gd`): a cycle. Air is weak to Fire, Fire to Water, Water to Earth and Earth to Air (so Air beats Earth, Earth beats Water, Water beats Fire and Fire beats Air); a weak beast takes double damage. Every element is not very effective against itself (three quarters). Ghosts have no weakness, and plain attacks ignore elements.
 - **Eggs**:
   - Eggs are the only way to get more beasts (apart from adopting one at a kennel): no song charms a wild beast.
-  - A defeated wild beast has a **20%** chance to leave an egg at the end of the battle (`GameState.egg_chance`). Some trainer gear adds a little: the Worn Cap +1%, Explorer Hat +3%, Lure Charm +2%, and the Silver, Golden and Jade Flutes +2%, +4% and +6%.
+  - A defeated wild beast has a **20%** chance to leave an egg at the end of the battle (`GameState.egg_chance`). **At most one egg drops per battle**, even against a group: once one beast leaves an egg, the others cannot. Some trainer gear adds a little: the Worn Cap +1%, Explorer Hat +3%, Lure Charm +2%, and the Silver, Golden and Jade Flutes +2%, +4% and +6%.
   - Each egg found plays a short film after the battle, like a level-up's (`beast_cinematic.gd` "egg"): the egg drops into the light on the quiet growth stage and turns, with its name, who left it, in the shared top-centre HUD.
   - The first post-battle reward film retires the battle view. Closing egg, level-up or evolution films returns to the world, including between multiple rewards; the arena never reappears afterward.
   - Trainers' beasts, robots and guardians never drop eggs.
@@ -462,8 +462,11 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   sounds, the pool drains and a treasure comes to light on its floor, with two flights of steps down to it. Back in the hall the water has dropped a level, so you can go down the first stairs to the second
   door: a maze of walkways over a pool, where three waterfalls drop from the ceiling through metal lattices and block
   them. Each of its four levers moves a fall from one lattice to another, opening one way and closing another, and the
-  four must all be pulled down. A chime and a brief camera focus announce a stone panel sliding open in the back
-  wall, revealing a brightly lit cubby with a fifth red lever. The four levers lock down; pulling the fifth stops
+  four must all be pulled down. Each one pulled down rings two soft bell notes, a step higher for every lever already
+  down, and the stone panel over a cubby in the back wall sinks a little, the cubby glowing brighter behind it; thrown
+  back up, it rises again (the puzzle's `hint` in `tide_puzzles.gd`). By the second, the top of a red lever shows over
+  it. With the fourth, a chime and a brief camera focus announce the panel sliding the rest of the way open,
+  revealing a brightly lit cubby with a fifth red lever. The four levers lock down; pulling the fifth stops
   the falls and drains the pool, revealing its treasure. The cubby stays open on return visits. That empties the hall, and the last
   stairs lead down to a stone door in an aqua-blue frame in the east wall. Behind it the singing stones teach the
   temple's song, and learning it on your flute sinks a second stone door into the floor: beyond is an octagonal chamber
@@ -801,7 +804,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   prices. Shellhaven's Beast Center occupies an 8x5 plot on the high street, with its established entrance at (40, 5).
   Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roofs, seaview villas,
   La Perla Restaurant, Pearl Coast Boutique (40% above normal prices), and Hotel Mariposa (`island_buildings.gd`). Its
-  fronts have round-arched windows in white surrounds with louvred shutters, iron rejas below and French doors on
+  fronts have round-arched windows in white surrounds with louvred shutters (no grilles on the ground floor) and French doors on
   railed Juliet balconies above, a painted base, lanterns and bougainvillea. The hotel is a long building on the quay
   behind the marina's docks: a three-storey entrance block (a tiled HOTEL sign over its arcade, its door placed by
   `building_looks` "door") facing a paved forecourt, and a two-storey west wing set back one tile behind a railed terrace; an arcade runs along its ground floor

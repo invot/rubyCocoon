@@ -7,16 +7,34 @@ extends RefCounted
 ##          read as a binary number (lever 0 lowest; bit i = spots[i]). Each pull stops one, starts one, or does both.
 ##   maze:  three falls, each with its own lattices ("at"): the levers in "levers" pick which, by their positions read as
 ##          a binary number, so each lever moves one fall from one lattice to another.
+##   "hint": a lever set as the solution has it chimes, and the cubby's panel stands lowered a step for each one
+##          (right_levers), rising again when one is thrown back.
 
 const PUZZLES := {
 	"falls": {"flag": "tides_falls_solved", "solution": [1, 1, 0, 1], "spots": ["a", "b", "c"],
 		"running": [7, 6, 3, 5, 3, 5, 6, 3, 6, 5, 5, 4, 5, 3, 3, 2]},
 	"maze": {"flag": "tides_maze_solved", "solution": [1, 1, 1, 1], "spots": ["a", "b", "c", "d", "e", "f", "g", "h"],
-		"falls": [{"levers": [0], "at": ["a", "b"]}, {"levers": [1], "at": ["c", "d"]}, {"levers": [2, 3], "at": ["e", "f", "g", "h"]}]},
+		"falls": [{"levers": [0], "at": ["a", "b"]}, {"levers": [1], "at": ["c", "d"]}, {"levers": [2, 3], "at": ["e", "f", "g", "h"]}],
+		"hint": true},
 }
 const LEVERS := 4
 const CUBBY_FLAG := "tides_maze_cubby"
 const CUBBY_TILE := Vector2i(14, 0)
+
+
+## How many of puzzle `id`'s four routing levers stand as its solution has them.
+static func right_levers(id: String, flags: Dictionary) -> int:
+	var n := 0
+	var p := pattern(id, flags)
+	for i in LEVERS:
+		if int(p[i]) == int(PUZZLES[id]["solution"][i]):
+			n += 1
+	return n
+
+
+## True when lever `i` of puzzle `id` stands as its solution has it.
+static func lever_right(id: String, i: int, flags: Dictionary) -> bool:
+	return i < LEVERS and int(pattern(id, flags)[i]) == int(PUZZLES[id]["solution"][i])
 
 
 static func cubby_open(flags: Dictionary) -> bool:

@@ -260,6 +260,13 @@ static func paint(kit, p: Vector3, n: Vector3, w: float, h: float, trim: Color, 
 			arr[3].append(Vector2.ZERO)
 
 
+## A window's own seed (0..1) from where it stands, kept in its glass's vertex alpha: window_glass.gdshader varies
+## the shimmer's alignment and strength by it, so neighbouring windows don't shimmer alike.
+static func seed_of(p: Vector3) -> float:
+	var h := hash(Vector3i(roundi(p.x * 8.0), roundi(p.y * 8.0), roundi(p.z * 8.0)))
+	return float(posmod(h, 997)) / 996.0
+
+
 static func _draw(frame: Shape, glass: Shape, window: Dictionary, trim: Color) -> void:
 	var n: Vector3 = window["n"]
 	var xf := Transform3D(Basis(Vector3.UP.cross(n).normalized(), Vector3.UP, n), window["p"])
@@ -271,6 +278,7 @@ static func _draw(frame: Shape, glass: Shape, window: Dictionary, trim: Color) -
 	# The solid backing covers the old fine frame and reflection marks, rather than leaving them visible underneath.
 	frame.block(Vector3(0, 0, 0.055), Vector3(w + rail * 2.0, h + rail * 2.0, 0.12), trim.darkened(0.32), 0.025)
 	var blue: Color = window.get("glass", Color("#498caa"))
+	blue.a = seed_of(window["p"])
 	for row in 2:
 		var y0 := -h / 2.0 + h * row / 2.0
 		var y1 := y0 + h / 2.0
@@ -304,7 +312,7 @@ static func _stone(frame: Shape, glass: Shape, window: Dictionary, stone: Color)
 	for i in 13:
 		var a := PI * float(i) / 12.0
 		pane.append(Vector3(cos(a) * radius, spring + sin(a) * radius, 0.122))
-	glass.face(pane, Vector3.BACK, Color("#386c86"))
+	glass.face(pane, Vector3.BACK, Color(Color("#386c86"), seed_of(window["p"])))
 	for i in 7:
 		var a := PI * float(i) / 7.0 + 0.012
 		var b := PI * float(i + 1) / 7.0 - 0.012

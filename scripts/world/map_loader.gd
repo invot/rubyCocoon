@@ -892,6 +892,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	_keep_floods(m, room, flood)
 	m["puzzle"] = puzzle
 	m["tide_cubby_open"] = puzzle == "maze" and TidePuzzles.cubby_open(flags)
+	# (how far its panel stands lowered: a step for each lever already set right)
+	m["tide_cubby_step"] = TidePuzzles.right_levers(puzzle, flags) if puzzle == "maze" else 0
 	m["fall_spots"] = placed["spots"]
 	# (the maze's falls drop through lattices; the checks see past a fall, which the levers can shift)
 	m["lattices"] = {}

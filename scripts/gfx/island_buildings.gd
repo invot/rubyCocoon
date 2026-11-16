@@ -328,6 +328,12 @@ static func _trace(k: VB.Kit, mat: String, pts: Array, thick: float, col: Color)
 static func _arch_fill(k: VB.Kit, mat: String, p: Vector3, t: Vector3, n: Vector3, w: float, spring: float, col: Color, head := Color(0, 0, 0, 0)) -> void:
 	var up := Vector3.UP
 	var r := w / 2.0
+	if mat == "glass":
+		# each window's own shimmer seed in its glass's alpha (window_glass.gd, cartoon_windows.gd seed_of)
+		var sd := maxf(preload("res://scripts/gfx/cartoon_windows.gd").seed_of(p), 0.002)
+		col.a = sd
+		if head.a > 0.0:
+			head.a = sd
 	k.poly(mat, [p - t * r, p + t * r, p + t * r + up * spring, p - t * r + up * spring], n, col)
 	var c := p + up * spring
 	var arc := _arc(c, t, r)
@@ -352,7 +358,7 @@ static func _room(xs: Array, stops: Array) -> Array:
 
 ## A Spanish window or French door on a wall: `p` the middle of its foot on the wall's face, `t` along the wall, `n` out
 ## of it, `w` wide and `h` tall to the top of its round head. Glass behind dark glazing bars, a white surround with a
-## keystone and a sill, then (by `kind`) an iron grille ("reja") or an iron railing with geraniums ("juliet"). Louvred
+## keystone and a sill, then (by `kind`) geraniums on the sill now and then ("reja", no grille) or an iron railing with geraniums ("juliet"). Louvred
 ## shutters fold back against the wall when there's `room` for them either side.
 static func _window(k: VB.Kit, p: Vector3, t: Vector3, n: Vector3, w: float, h: float, kind: String, paint: Color, room: float, rng: RandomNumberGenerator) -> void:
 	var up := Vector3.UP
@@ -391,23 +397,10 @@ static func _shutters(k: VB.Kit, p: Vector3, t: Vector3, n: Vector3, r: float, s
 			y += 0.14
 
 
-## A wrought-iron grille standing just proud of a ground-floor window, its bars curving over the arch, with a pot of
-## geraniums on the sill behind it now and then.
-static func _reja(k: VB.Kit, p: Vector3, t: Vector3, n: Vector3, w: float, spring: float, rng: RandomNumberGenerator) -> void:
+## A ground-floor window's sill, with a pot of geraniums on it now and then. (No iron grille: the user's 2026-11-16
+## direction took the bars off Shellhaven's ground-floor windows; the kind keeps its old name, "reja".)
+static func _reja(k: VB.Kit, p: Vector3, t: Vector3, n: Vector3, w: float, _spring: float, rng: RandomNumberGenerator) -> void:
 	var up := Vector3.UP
-	var f := p + n * 0.12
-	var r := w / 2.0 + 0.04
-	var top := spring + 0.1
-	var bars := maxi(4, int(round(w / 0.12)))
-	for i in bars + 1:
-		var o := -r + 2.0 * r * float(i) / float(bars)
-		VB._beam(k, "color", f + t * o - up * 0.06, f + t * o + up * top, 0.028, IRON)
-	for y in [0.0, spring * 0.5, top]:
-		VB._beam(k, "color", f - t * r + up * y, f + t * r + up * y, 0.04, IRON)
-	_trace(k, "color", _arc(f + up * top, t, r, 8), 0.035, IRON)
-	for s in [-1.0, 1.0]:
-		for y in [0.0, top]:
-			VB._beam(k, "color", f + t * s * r + up * y, f + t * s * r + up * y - n * 0.11, 0.03, IRON)
 	if rng.randf() < 0.6:
 		_flowers(k, p + n * 0.06 + up * 0.02, t, w * 0.6, rng)
 
@@ -530,7 +523,7 @@ static func _rail_between(k: VB.Kit, from: Vector3, to: Vector3) -> void:
 		VB._beam(k, "color", at + Vector3.UP * 0.02, at + Vector3.UP * 0.95, 0.025, IRON)
 
 
-## Two storeys of pastel stucco: round-arched windows behind iron rejas below (wide shop windows on the shops), French
+## Two storeys of pastel stucco: round-arched windows below (wide shop windows on the shops), French
 ## doors on railed Juliet balconies above, louvred shutters, a painted base, a string course and a cornice, the mission
 ## arch round the door, a lantern by it and bougainvillea up a corner. Returns the height of its walls.
 static func _villa(k: VB.Kit, hb: HB, b: Dictionary, w: float, d: float, dx: float, wall: Material) -> float:

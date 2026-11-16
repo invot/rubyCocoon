@@ -3339,6 +3339,13 @@ var scheme := HomeDecor.DEFAULT_SCHEME
 var _cubbies := {}
 var tide_panel: MeshInstance3D
 var tide_cubby_light: OmniLight3D
+## The panel's height shut, and how many steps it stands lowered now (one per maze lever set right, tide_puzzles.gd).
+var tide_panel_y := 0.0
+var tide_step := 0
+var _tide_tween: Tween
+## How far the panel sinks, and how bright the cubby glows, for each lever set right; open, it sinks 1.6 and glows 2.
+const TIDE_STEP_DROP := 0.25
+const TIDE_STEP_GLOW := 0.35
 ## Every occupied wall tile addresses its shared sliding leaf.
 var shelf_doors := {}
 ## wall tiles beside a window (its curtains hang over them)
@@ -4194,22 +4201,39 @@ func _tide_cubby(x: int, y: int) -> void:
 	tide_panel = MeshInstance3D.new()
 	tide_panel.name = "SecretSluicePanel"
 	tide_panel.mesh = box
-	tide_panel.position = Vector3(x + 0.5, (low + high) / 2.0, y + 0.64)
+	tide_panel_y = (low + high) / 2.0
+	tide_step = int(map.get("tide_cubby_step", 0))
+	tide_panel.position = Vector3(x + 0.5, tide_panel_y - TIDE_STEP_DROP * tide_step, y + 0.64)
 	tide_panel.visible = not map.get("tide_cubby_open", false)
 	parent.add_child(tide_panel)
 	tide_cubby_light = OmniLight3D.new()
 	tide_cubby_light.position = Vector3(x + 0.5, low + 1.0, y + 1.05)
 	tide_cubby_light.light_color = Color("#ffda82")
-	tide_cubby_light.light_energy = 2.0 if map.get("tide_cubby_open", false) else 0.0
+	tide_cubby_light.light_energy = 2.0 if map.get("tide_cubby_open", false) else TIDE_STEP_GLOW * tide_step
 	tide_cubby_light.omni_range = 3.0
 	parent.add_child(tide_cubby_light)
+
+
+## Lowers (or raises) the shut panel to `steps` steps down, with the cubby's glow to match.
+func step_tide_cubby(steps: int) -> void:
+	if not is_instance_valid(tide_panel) or not tide_panel.visible:
+		return
+	tide_step = steps
+	if _tide_tween != null and _tide_tween.is_valid():
+		_tide_tween.kill()
+	_tide_tween = parent.create_tween()
+	_tide_tween.tween_property(tide_panel, "position:y", tide_panel_y - TIDE_STEP_DROP * steps, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_tide_tween.parallel().tween_property(tide_cubby_light, "light_energy", TIDE_STEP_GLOW * steps, 0.55)
 
 
 func reveal_tide_cubby() -> void:
 	if not is_instance_valid(tide_panel):
 		return
+	if _tide_tween != null and _tide_tween.is_valid():
+		_tide_tween.kill()
 	var tw := parent.create_tween()
-	tw.tween_property(tide_panel, "position:y", tide_panel.position.y - 1.6, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_tide_tween = tw
+	tw.tween_property(tide_panel, "position:y", tide_panel_y - 1.6, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.parallel().tween_property(tide_cubby_light, "light_energy", 2.0, 1.2)
 	await tw.finished
 	tide_panel.hide()

@@ -18,7 +18,8 @@ void fragment() {
         }
     }
     outside /= total;
-    float shine = glass_reflection(SCREEN_UV, VIEWPORT_SIZE) * reflection_strength;
+    // each pane is its own mesh: its position seeds its own shimmer
+    float shine = glass_reflection_varied(SCREEN_UV, VIEWPORT_SIZE, glass_seed(MODEL_MATRIX[3].xyz)) * reflection_strength;
     float edge = pow(1.0 - abs(dot(normalize(NORMAL), normalize(VIEW))), 3.0);
     vec3 tinted = mix(outside, vec3(0.75, 0.86, 0.9), 0.06 + edge * 0.12);
     ALBEDO = mix(tinted, vec3(1.0), shine);

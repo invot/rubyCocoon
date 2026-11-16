@@ -284,6 +284,17 @@ func secret_chime() -> void:
 		await get_tree().create_timer(0.13).timeout
 
 
+## A puzzle lever set right: two soft bell notes, a step higher for each lever that is now right (`count`, 1-4), so the
+## last before the secret chime is the highest.
+func right_chime(count: int) -> void:
+	var freq: float = [523.25, 587.33, 659.25, 783.99][clampi(count, 1, 4) - 1]
+	tone(freq, 0.5, "sine", -9.0)
+	tone(freq * 2.0, 0.3, "sine", -18.0)
+	await get_tree().create_timer(0.11).timeout
+	tone(freq * 1.5, 0.6, "sine", -10.0)
+	tone(freq * 3.0, 0.35, "sine", -19.0)
+
+
 func flute_note(freq: float) -> void:
 	tone(freq, 0.42, "flute", -4.0, 0.0, 0.012)
 

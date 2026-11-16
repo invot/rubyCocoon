@@ -1838,7 +1838,8 @@ func fixtures(map: Dictionary) -> Array:
 			# Its interaction tile is in front of the wall, its arm and base inside the actual recess.
 			for part in lever.get_children():
 				(part as Node3D).position.z -= 1.1
-			lever.visible = TidePuzzles.cubby_open(GameState.flags)
+			# (shown once the panel has started to sink: the panel hides it until then)
+			lever.visible = TidePuzzles.cubby_open(GameState.flags) or TidePuzzles.right_levers("maze", GameState.flags) > 0
 		out.append({"kind": "story", "id": "tide_switch", "name": "", "pos": sw["pos"], "index": sw["index"],
 			"scene": lever, "pick_offset": Vector3(0, 0, -1.4) if secret else Vector3.ZERO,
 			"still": true, "facing": Vector2i(0, 1)})
@@ -1874,6 +1875,8 @@ func _tide_switch(world, n: Dictionary) -> void:
 		return
 	if id == "maze":
 		if n["index"] == 4 and not TidePuzzles.cubby_open(GameState.flags):
+			if TidePuzzles.right_levers(id, GameState.flags) > 0:
+				await say(["A lever waits behind the stone panel, out of reach."])
 			return
 		if n["index"] != 4 and TidePuzzles.cubby_open(GameState.flags):
 			await say(["The lever has locked down. A fifth lever waits in the lit cubby in the back wall."])
@@ -1882,15 +1885,32 @@ func _tide_switch(world, n: Dictionary) -> void:
 	var down := not GameState.flag(flag)
 	GameState.flags[flag] = down
 	Sfx.play("lever")
+	var hint: bool = TidePuzzles.PUZZLES[id].get("hint", false) and n["index"] < TidePuzzles.LEVERS
+	var right := TidePuzzles.right_levers(id, GameState.flags)
 	await TempleProps.throw_lever(n["node"], down)
+	# (a chime as it lands where the solution has it)
+	if hint and TidePuzzles.lever_right(id, n["index"], GameState.flags):
+		Sfx.right_chime(right)
 	if TidePuzzles.is_solution(id, GameState.flags):
 		await _tide_solved(world, id)
 		return
 	world.tide.show_running(TidePuzzles.running(id, GameState.flags))
 	world.refresh_tide()
+	if hint and not TidePuzzles.cubby_open(GameState.flags):
+		# (the cubby's panel sinks a step for each lever set right, and rises again when one is thrown back)
+		world.room_walls.step_tide_cubby(right)
+		_show_tide_drain_lever(world, right > 0)
 	if id == "maze" and TidePuzzles.cubby_open(GameState.flags) and not GameState.flag(TidePuzzles.CUBBY_FLAG):
 		GameState.set_flag(TidePuzzles.CUBBY_FLAG)
 		await _tide_cubby_reveal(world)
+
+
+## Shows or hides the maze's fifth lever behind the cubby's panel.
+func _show_tide_drain_lever(world, on: bool) -> void:
+	for p in world.npcs:
+		var npc: Dictionary = world.npcs[p]
+		if npc.get("id", "") == "tide_switch" and npc.get("index", -1) == 4:
+			(npc["node"] as Node3D).visible = on
 
 
 ## Pause on the new opening so the reveal is visible even when the last lever is across the room.
@@ -1905,10 +1925,7 @@ func _tide_cubby_reveal(world) -> void:
 	await pan.finished
 	Sfx.secret_chime()
 	Sfx.play("lever")
-	for p in world.npcs:
-		var npc: Dictionary = world.npcs[p]
-		if npc.get("id", "") == "tide_switch" and npc.get("index", -1) == 4:
-			(npc["node"] as Node3D).show()
+	_show_tide_drain_lever(world, true)
 	await world.room_walls.reveal_tide_cubby()
 	await say(["A stone panel slides open in the back wall! A fifth red lever waits inside the lit cubby."])
 	var back = world.create_tween()

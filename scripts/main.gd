@@ -2985,6 +2985,15 @@ func _tides_check(what: String, ok: bool) -> int:
 	return int(not ok)
 
 
+## The maze cubby's panel stands `steps` steps lowered, as many as its levers set right.
+func _tides_check_panel(steps: int, when: String) -> int:
+	var rw = world.room_walls
+	var want: float = rw.tide_panel_y - rw.TIDE_STEP_DROP * steps
+	return _tides_check("maze panel %d steps down %s (right levers %d, panel y %.2f, want %.2f)" % [steps, when,
+		TidePuzzles.right_levers("maze", GameState.flags), rw.tide_panel.position.y, want],
+		rw.tide_step == steps and absf(rw.tide_panel.position.y - want) < 0.02 and TidePuzzles.right_levers("maze", GameState.flags) == steps)
+
+
 ## With --shots: the view you'd see, and the whole room from high above it.
 func _tides_shot(n: String) -> void:
 	if not _test.has("shots"):
@@ -3000,6 +3009,20 @@ func _tides_shot(n: String) -> void:
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	_save_shot(dir.path_join("tides_%s_whole.png" % n))
+	world.cam_free = false
+	world._place_camera(true)
+
+
+## With --shots: the maze's cubby close up, from where its reveal looks at it.
+func _tides_cubby_shot(n: String) -> void:
+	if not _test.has("shots"):
+		return
+	var focus: Vector3 = world.tile_pos(TidePuzzles.CUBBY_TILE + Vector2i.DOWN) + Vector3(0, 0.8, -0.4)
+	world.cam_free = true
+	world.cam.transform = Transform3D(Basis.looking_at(Vector3(0, -2.4, -5.0)), focus + Vector3(0, 2.4, 5.0))
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	_save_shot(String(_test["shots"]).path_join("tides_%s_cubby.png" % n))
 	world.cam_free = false
 	world._place_camera(true)
 
@@ -3081,6 +3104,7 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 		levers[int(sw["index"])] = sw["pos"]
 	if id == "maze":
 		bad += _tides_check("maze fifth lever hidden initially", not world.npcs[levers[4]]["node"].visible)
+		await _tides_cubby_shot(shot + "a0_maze_step0")
 		# All sixteen original patterns now require the fifth lever; the old solution cannot drain the room.
 		for bits in 16:
 			var flags := {}
@@ -3143,6 +3167,22 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 			elif k == order.size() - 1:
 				await _wait(0.8)
 				await _tides_shot(shot + "b2_%s_nearly" % id)
+		if id == "maze" and i < 3:
+			await _wait(0.7)
+			bad += _tides_check_panel(k, "after lever %d" % i)
+			await _tides_cubby_shot(shot + "a%d_maze_step%d" % [k, k])
+			if k == 2:
+				# (thrown back up, the panel rises a step; down again, it sinks again)
+				await _tides_press()
+				await _wait(0.7)
+				bad += _tides_check_panel(1, "lever %d thrown back" % i)
+				await _tides_press()
+				await _wait(0.7)
+				bad += _tides_check_panel(2, "lever %d down again" % i)
+				await GameState.main.reload_map()
+				await _settle(room)
+				bad += _tides_check_panel(2, "after reload")
+				bad += _tides_check("fifth lever shows behind the lowered panel", world.npcs[levers[4]]["node"].visible)
 		bad += _tides_check("%s lever %d (step %d): beside it %s, running now %s" % [id, i, k, beside, TidePuzzles.running(id, GameState.flags)], beside)
 	await _wait(0.5)
 	bad += _tides_check("%s solved" % id, GameState.flag(flag))

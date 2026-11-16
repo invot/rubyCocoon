@@ -36,9 +36,13 @@ void fragment() {
 	vec2 pane = vec2(dot(world_pos, across), world_pos.y);
 	float c = texture(clouds, pane * vec2(0.22, 0.32) + vec2(dot(r, across), r.y) * 0.9).r;
 	sky = mix(sky, cloud_colour, c * 0.6);
-	float band = glass_reflection(SCREEN_UV, VIEWPORT_SIZE);
+	// each window's own seed rides in its glass's vertex alpha (cartoon_windows.gd _draw): its own shimmer
+	// (plus where the building stands, so copies of one cached building differ too)
+	float band = glass_reflection_varied(SCREEN_UV, VIEWPORT_SIZE, fract(COLOR.a + glass_seed(MODEL_MATRIX[3].xyz)));
 	float fresnel = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.0);
 	vec3 paint = pow(COLOR.rgb, vec3(2.2));
+	// dark-tinted glass (the island town's) shows a white band most starkly: keep it fainter there
+	band *= mix(0.5, 1.0, smoothstep(0.25, 0.5, dot(COLOR.rgb, vec3(0.3, 0.59, 0.11))));
 	vec3 col = mix(paint, sky, clamp(reflect_amount + fresnel * 0.25, 0.0, 1.0));
 	// Kept quiet (the user's 2026-11-16 direction): the shimmer is a faint sheen, not something that draws the eye.
 	ALBEDO = mix(col * 0.62, vec3(1.0), band * glint);

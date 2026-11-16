@@ -5204,6 +5204,9 @@ func _handle_faints() -> void:
 
 
 func _roll_egg(b) -> void:
+	# A whole encounter can leave at most one egg, including guaranteed drops.
+	if not drops.is_empty():
+		return
 	if not wild or RaceDB.is_robot(b.race) or RaceDB.is_legendary(b.race):
 		return
 	if b.ghost and not GameState.flag("ghost_merge"):
