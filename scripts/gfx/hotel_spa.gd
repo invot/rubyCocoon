@@ -45,26 +45,51 @@ static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material) 
 	water.set_shader_parameter("drift", Vector2(0.0, 0.03))
 	var surface := _piece(spa, pool, water, Vector3(0, 0.425, 0))
 	surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Fixed to the front balustrade, facing the player's approach from the open aisle.
+	_steam(spa)
+
+
+## The spa's small plaque: how big it is, and how high its middle stands above the platform (under the railing's
+## handrail).
+const PLAQUE_SIZE := Vector2(0.78, 0.34)
+const PLAQUE_UP := 0.66
+## The plaque hangs on the platform's front railing along fixture tile (x, y)'s south side, centred on the tile's west
+## edge, facing the camera: its back this far south of the tile's middle, just in front of the railing's slats (the run
+## is 0.42 out, room_builder.gd _daises, its slats 0.065 thick), and deep enough that its face stands in front of the
+## posts (0.145) too, so no part of the railing shows through it.
+const PLAQUE_BACK := 0.49
+const PLAQUE_DEPTH := 0.09
+
+
+## Where the plaque's middle is for its fixture tile `t` on a platform `dais_h` high.
+static func plaque_at(t: Vector2i, dais_h: float) -> Vector3:
+	return Vector3(t.x, dais_h + PLAQUE_UP, t.y + 0.5 + PLAQUE_BACK)
+
+
+## The spa's small plaque on the platform's front railing at fixture tile `t`, facing the camera: an ivory board with
+## the steam glyph and two words of world lettering.
+static func plaque(parent: Node3D, t: Vector2i, dais_h: float, ivory: Material) -> void:
+	var plate := Node3D.new()
+	plate.name = "SpaPlaque"
+	plate.position = plaque_at(t, dais_h)
+	parent.add_child(plate)
 	var board := BoxMesh.new()
-	board.size = Vector3(1.65, 0.62, 0.08)
-	_piece(spa, board, ivory, Vector3(1.0, 0.72, 3.18))
+	board.size = Vector3(PLAQUE_SIZE.x, PLAQUE_SIZE.y, PLAQUE_DEPTH)
+	_piece(plate, board, ivory, Vector3(0, 0, PLAQUE_DEPTH / 2.0))
 	var logo := QuadMesh.new()
-	logo.size = Vector2(0.51, 0.51)
+	logo.size = Vector2(0.24, 0.24)
 	var ink := StandardMaterial3D.new()
 	ink.albedo_texture = load("res://assets/ui/icons/glyphs/spa_steam.png")
 	ink.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ink.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	_piece(spa, logo, ink, Vector3(0.47, 0.72, 3.227))
+	_piece(plate, logo, ink, Vector3(-0.24, 0, PLAQUE_DEPTH + 0.002))
 	var words := Label3D.new()
-	preload("res://scripts/gfx/world_lettering.gd").apply(words, "HEALING SPRING\nRESTORES PARTY\nHP AND MP")
+	preload("res://scripts/gfx/world_lettering.gd").apply(words, "THERMAL\nSANCTUARY")
 	words.font_size = 32
-	words.pixel_size = 0.0032
+	words.pixel_size = 0.0022
 	words.outline_size = 0
 	words.modulate = Color("#49393c")
-	words.position = Vector3(1.28, 0.72, 3.23)
-	spa.add_child(words)
-	_steam(spa)
+	words.position = Vector3(0.1, 0, PLAQUE_DEPTH + 0.003)
+	plate.add_child(words)
 
 static func _piece(parent: Node3D, mesh: Mesh, material: Material, at: Vector3) -> MeshInstance3D:
 	var piece := MeshInstance3D.new()

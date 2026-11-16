@@ -1144,6 +1144,9 @@ const HOTEL_ROOMS := {
 			[12, 9, "large_plant"],
 			[13, 8, "large_plant"],
 			[13, 9, "large_plant"],
+			# guests' luggage, stacked against the back wall on every open tile (the user's 2026-11-15 direction)
+			[1, 4, "luggage"], [2, 4, "luggage"], [3, 4, "luggage"], [4, 4, "luggage"], [5, 4, "luggage"],
+			[14, 4, "luggage"], [15, 4, "luggage"], [18, 4, "luggage"], [19, 4, "luggage"],
 			[
 				2,
 				1,
@@ -1308,7 +1311,7 @@ const HOTEL_ROOMS := {
 	},
 	"hotel_pool": {
 		"stage": true,
-		"dais": [{"rect": [1, 1, 4, 4], "steps": [[2, 4]]}],
+		"dais": [{"rect": [1, 1, 4, 4], "steps": [[3, 4, "^"], [4, 4, "^"]]}],
 		"zone": "hall",
 		"full_height_windows": true,
 		"swimmers": [[7, 5], [11, 3]],
@@ -1341,7 +1344,7 @@ const HOTEL_ROOMS := {
 		"fixtures": [
 			[2, 1, "hot_tub"], [3, 1, "hot_tub"],
 			[2, 2, "hot_tub"], [3, 2, "hot_tub"],
-			[4, 4, "hot_tub_sign"],
+			[2, 4, "hot_tub_sign"],
 			[1, 7, "chair"], [1, 8, "chair"]
 		],
 		"paintings": [

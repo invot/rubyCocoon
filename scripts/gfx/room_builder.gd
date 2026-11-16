@@ -70,6 +70,7 @@ const ZONE_CHARS := {"l": "living", "b": "bedroom", "k": "kitchen", "a": "bathro
 ## top = small things that may stand on it.
 const KINDS := {
 	"hot_tub": {"m": []}, "hot_tub_sign": {"m": []}, "ice_maker": {"m": []}, "plant_table": {"m": []},
+	"luggage": {"m": []},
 	"counter_gate": {"m": [], "free": true},
 	"counter": {"m": ["counter"], "fill": true, "top": ["cup", "bottle", "plate_2", "milk", "apple", "el_microwave", "el_toaster", "", ""]},
 	"kitchen_sink": {"m": ["kitchen_sink"], "fill": true},
@@ -2233,11 +2234,22 @@ func _rugs() -> void:
 		rug.name = "AreaRug"
 		rug.mesh = mesh
 		var bb := mesh.get_aabb()
-		var sz := Vector2(rect.size) - Vector2(0.12, 0.12)
+		var lo := Vector2(rect.position) + Vector2(0.06, 0.06)
+		var hi := Vector2(rect.end) - Vector2(0.06, 0.06)
+		if rect in runners:
+			# a runner's ends run on to the wall (or doorway) it meets, so it reaches from door to door
+			var reach := 0.5 - T / 2.0
+			if rect.size.x >= rect.size.y:
+				lo.x -= reach if MapGen.get_t(map, rect.position.x - 1, rect.position.y) in RUG_BLOCKED else 0.0
+				hi.x += reach if MapGen.get_t(map, rect.end.x, rect.position.y) in RUG_BLOCKED else 0.0
+			else:
+				lo.y -= reach if MapGen.get_t(map, rect.position.x, rect.position.y - 1) in RUG_BLOCKED else 0.0
+				hi.y += reach if MapGen.get_t(map, rect.position.x, rect.end.y) in RUG_BLOCKED else 0.0
+		var sz := hi - lo
 		rug.scale = Vector3(sz.x / bb.size.x, 1.0, sz.y / bb.size.z)
 		# softened toward undyed wool, as the rugs were before, so they stay muted
 		tint_fabric(rug, colour.lerp(Color("#dfc9ac"), 0.3))
-		rug.position = Vector3(rect.position.x + rect.size.x * 0.5, 0.004, rect.position.y + rect.size.y * 0.5)
+		rug.position = Vector3((lo.x + hi.x) * 0.5, 0.004, (lo.y + hi.y) * 0.5)
 		rug.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(rug)
 
@@ -2321,7 +2333,7 @@ func _place(kind: String, group: Array) -> void:
 	if kind == "counter_gate":
 		_counter_gate(group)
 		return
-	if kind in ["hot_tub", "hot_tub_sign", "ice_maker", "plant_table"]:
+	if kind in ["hot_tub", "hot_tub_sign", "ice_maker", "plant_table", "luggage"]:
 		return # Built by _hotel_details.
 	var k: Dictionary = KINDS.get(kind, {})
 	var layout := furniture_layout(map, kind, group)
@@ -3177,20 +3189,23 @@ func _stand(name: String, at: Vector3, yaw: float, sc := 1.0) -> MeshInstance3D:
 ## A hole through wall tile (x, y) from height y0 to y1, `half` wide either side of the tile's middle, lined `depth`
 ## deep from the room-side face (past the wall's back, where nothing else is): the wall either side of the hole on
 ## both faces, and the reveal (both sides and the head; the bottom and back too if `closed`) in `lining`.
-func _recess(x: int, y: int, inside: Vector2i, y0: float, y1: float, half: float, depth: float, closed: bool, lining: Material = null) -> void:
+func _recess(x: int, y: int, inside: Vector2i, y0: float, y1: float, half: float, depth: float, closed: bool, lining: Material = null, span := 1) -> void:
 	var m := _row(y)
 	var z := zone(x + inside.x, y + inside.y)
 	if z == "":
 		z = default_zone
 	var mat: Material = lining if lining != null else wall_mat(z)
+	# (a lining of its own gets its own surface: the mesher keeps one material per key)
+	var key := "recess" if lining == null else "recess_%d" % lining.get_instance_id()
 	var along := Vector3(absf(float(inside.y)), 0, absf(float(inside.x)))
 	var inward := Vector3(inside.x, 0, inside.y)
-	var c := Vector3(x + 0.5, 0, y + 0.5)
+	# (a hole `span` tiles wide is centred on the run of tiles from (x, y) on)
+	var c := Vector3(x + 0.5, 0, y + 0.5) + along * (span - 1) * 0.5
 	var up := Vector3.UP
 	for f in [[c + inward * T / 2.0, inward], [c - inward * T / 2.0, -inward]]:
 		var o: Vector3 = f[0]
 		for s in [-1.0, 1.0]:
-			var a: Vector3 = o + along * s * 0.5
+			var a: Vector3 = o + along * s * span * 0.5
 			var b: Vector3 = o + along * s * half
 			_face(m, z, [a + up * y0, b + up * y0, b + up * y1, a + up * y1], f[1], along)
 	var face := c + inward * T / 2.0
@@ -3198,13 +3213,13 @@ func _recess(x: int, y: int, inside: Vector2i, y0: float, y1: float, half: float
 	for s in [-1.0, 1.0]:
 		var p: Vector3 = face + along * s * half
 		var q: Vector3 = back + along * s * half
-		m.quad("recess", mat, [p + up * y0, q + up * y0, q + up * y1, p + up * y1], -along * s, inward, Vector3.DOWN, 0.86)
-	m.quad("recess", mat, [face - along * half + up * y1, face + along * half + up * y1, back + along * half + up * y1,
+		m.quad(key, mat, [p + up * y0, q + up * y0, q + up * y1, p + up * y1], -along * s, inward, Vector3.DOWN, 0.86)
+	m.quad(key, mat, [face - along * half + up * y1, face + along * half + up * y1, back + along * half + up * y1,
 		back - along * half + up * y1], Vector3.DOWN, along, inward, 0.8)
 	if closed:
-		m.quad("recess", mat, [face - along * half + up * y0, face + along * half + up * y0, back + along * half + up * y0,
+		m.quad(key, mat, [face - along * half + up * y0, face + along * half + up * y0, back + along * half + up * y0,
 			back - along * half + up * y0], Vector3.UP, along, inward, 0.95)
-		m.quad("recess", mat, [back - along * half + up * y0, back + along * half + up * y0, back + along * half + up * y1,
+		m.quad(key, mat, [back - along * half + up * y0, back + along * half + up * y0, back + along * half + up * y1,
 			back - along * half + up * y1], inward, along, Vector3.DOWN, 0.82)
 
 
@@ -3574,21 +3589,52 @@ func _clear_pane(x: int, y: int, c: Vector3, inside: Vector2i, width: float, hei
 	_attach(x, y, pane)
 
 
-## Floor-to-ceiling glazing with a continuous, existing island landscape beyond the recessed panes.
+## Floor-to-ceiling glazing with a continuous, existing island landscape beyond the recessed panes. Windows along a
+## wall pair up, each two tiles wide (a lone tile left at a run's end stays one wide), in stout, chunky frames: a
+## thick frame round the glass, a deep kick rail along the floor and a broad casing on the room face, with a
+## stocky pier of wall between neighbours.
+const NATURE_PIER := 0.1
+const NATURE_FRAME := 0.15
+
+
 func _nature_window(x: int, y: int, inside: Vector2i) -> void:
+	var step := Vector2i(absi(inside.y), absi(inside.x))
+	var k := 0
+	while _full_glass(Vector2i(x, y) - step * (k + 1)):
+		k += 1
+	if k % 2 == 1:
+		return  # the second tile of a pair: built with the first
+	var span := 2 if _full_glass(Vector2i(x, y) + step) else 1
 	var inward := Vector3(inside.x, 0, inside.y)
 	var along := Vector3(absf(float(inside.y)), 0, absf(float(inside.x)))
 	var horiz := inside.y != 0
-	_recess(x, y, inside, 0.0, H, 0.47, WIN_DEPTH, false)
-	var c := Vector3(x + 0.5, H / 2.0, y + 0.5) + inward * (T / 2.0 - WIN_DEPTH)
-	_clear_pane(x, y, c, inside, 0.94, H)
+	var half := span * 0.5 - NATURE_PIER
+	# the reveal is lined in the frame's wood, so no plaster shows round the glass: one solid wooden frame
+	_recess(x, y, inside, 0.0, H, half, WIN_DEPTH, false, surface("window_frame", trim.lightened(0.22)), span)
+	var mid := Vector3(x + 0.5, 0, y + 0.5) + along * (span - 1) * 0.5
+	var c := mid + Vector3.UP * (H / 2.0) + inward * (T / 2.0 - WIN_DEPTH)
+	_clear_pane(x, y, c, inside, half * 2.0, H)
 	var m := _row(y)
 	var frame := surface("window_frame", trim.lightened(0.22))
+	var f := NATURE_FRAME
+	var fc := c + inward * 0.07
+	# the frame round the glass: thick jambs, a head under the ceiling and a deep kick rail along the floor
 	for side in [-1.0, 1.0]:
-		m.box("window_frame", frame, c + inward * 0.03 + along * side * 0.47,
-			_axes(along, 0.06, H, 0.06, horiz))
-		m.box("window_frame", frame, c + inward * 0.03 + Vector3.UP * side * (H / 2.0 - 0.03),
-			_axes(along, 1.0, 0.06, 0.06, horiz))
+		m.box("window_frame", frame, fc + along * side * (half - f / 2.0), _axes(along, f, H, 0.14, horiz))
+	m.box("window_frame", frame, fc + Vector3.UP * (H / 2.0 - f / 2.0), _axes(along, half * 2.0, f, 0.14, horiz))
+	m.box("window_frame", frame, fc + Vector3.UP * (-H / 2.0 + 0.11) + inward * 0.02, _axes(along, half * 2.0, 0.22, 0.18, horiz))
+	# a broad casing on the room face, its jambs meeting the neighbour's over the pier between them
+	var face := mid + inward * (T / 2.0 + 0.025)
+	var cas := surface("window_frame", trim)
+	for side in [-1.0, 1.0]:
+		m.box("window_casing", cas, face + along * side * (half + NATURE_PIER / 2.0) + Vector3.UP * (H / 2.0),
+			_axes(along, NATURE_PIER + 0.02, H, 0.05, horiz))
+
+
+## Tile `p` holds a floor-to-ceiling window (the room's full-height glazing).
+func _full_glass(p: Vector2i) -> bool:
+	return p.x >= 0 and p.y >= 0 and p.x < w and p.y < h and code(p.x, p.y) == MapGen.IWINDOW \
+		and map.get("room", {}).get("full_height_windows", false) and not map.get("balcony_doors", {}).has(p)
 
 
 ## A recessed window (the user's direction, 2026-11-15): the glass sits back in the wall at the end of a reveal, a
@@ -3920,7 +3966,13 @@ static func dais_heights(room: Dictionary, w: int, h: int) -> Array:
 			# (a step that could rise two ways climbs east or west, so its treads lie along the floor's boards, which
 			# run north-south: the user's rule, 2026-11-15)
 			var dir := Vector2i.ZERO
+			# (a step may name its way up, "^" "v" "<" ">", where the open floor is on one side only: the hotel spa's
+			# corner step beside the pool climbs north from the floor, not west out of the water)
+			var named := {"^": Vector2i(0, -1), "v": Vector2i(0, 1), "<": Vector2i(-1, 0), ">": Vector2i(1, 0)}
 			for q in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+				if st.size() > 2:
+					dir = named.get(str(st[2]), Vector2i.ZERO)
+					break
 				if r.has_point(t) and r.has_point(t + q) and not r.has_point(t - q):
 					dir = q
 				elif not r.has_point(t) and r.has_point(t + q):
@@ -3973,8 +4025,13 @@ func _daises() -> void:
 					last = int(spans[i])
 					continue
 				var fixed := float(key.z) + 0.5 + float(key.x if key.x != 0 else key.y) * 0.42
-				var a := Vector3(fixed, DAIS_H, first) if key.x != 0 else Vector3(first, DAIS_H, fixed)
-				var b := Vector3(fixed, DAIS_H, last + 1) if key.x != 0 else Vector3(last + 1, DAIS_H, fixed)
+				# (a run that ends beside a wall carries on into the wall's face, so no gap shows between them)
+				var before := Vector2i(key.z, first - 1) if key.x != 0 else Vector2i(first - 1, key.z)
+				var after := Vector2i(key.z, last + 1) if key.x != 0 else Vector2i(last + 1, key.z)
+				var start := float(first) - (0.5 - T / 2.0 if code(before.x, before.y) in WALLISH else 0.0)
+				var end := float(last + 1) + (0.5 - T / 2.0 if code(after.x, after.y) in WALLISH else 0.0)
+				var a := Vector3(fixed, DAIS_H, start) if key.x != 0 else Vector3(start, DAIS_H, fixed)
+				var b := Vector3(fixed, DAIS_H, end) if key.x != 0 else Vector3(end, DAIS_H, fixed)
 				_indoor_railing(a, b, wood)
 				if i < spans.size():
 					first = int(spans[i])
@@ -4462,6 +4519,34 @@ func _counter_gate(group: Array) -> void:
 			floor_mesher.box("counter_gate_hinge", iron, Vector3(c.x + 0.08, y, c.z + side * (span * 0.5 - 0.09)), Vector3(0.04, 0.1, 0.16))
 
 
+## Guests' cases, neatly stacked against the back wall (the user's 2026-11-15 direction): chunky painted suitcases,
+## biggest at the bottom and squared up, each with a darker strap and a handle, in a few travel colours.
+const LUGGAGE_COLOURS := ["#a8693f", "#3f8a8c", "#d9a441", "#8c3b3b", "#3b4f7a", "#e3d3b4"]
+## [width, height, depth] of each case from the bottom up; a tile picks one of these stacks
+const LUGGAGE_STACKS := [
+	[[0.84, 0.3, 0.58], [0.7, 0.26, 0.5], [0.52, 0.22, 0.4]],
+	[[0.8, 0.32, 0.6], [0.62, 0.28, 0.48]],
+	[[0.86, 0.28, 0.56], [0.74, 0.26, 0.5], [0.6, 0.24, 0.44], [0.44, 0.2, 0.34]],
+]
+
+
+func _luggage_stack(x: int, y: int) -> void:
+	var strap := surface("wall_plaster", Color("#4a2c1a"))
+	var stack: Array = LUGGAGE_STACKS[absi(x * 7 + y * 3) % LUGGAGE_STACKS.size()]
+	# against the wall behind the tile (the balcony wall's face for the lobby)
+	var back := float(y) + T / 2.0 + 0.04
+	var base := 0.0
+	for i in stack.size():
+		var size := Vector3(stack[i][0], stack[i][1], stack[i][2])
+		var colour := Color(LUGGAGE_COLOURS[absi(x * 5 + i * 2 + y) % LUGGAGE_COLOURS.size()])
+		var c := Vector3(float(x) + 0.5, base + size.y * 0.5, back + size.z * 0.5)
+		floor_mesher.box("luggage_" + colour.to_html(), surface("wall_plaster", colour), c, size)
+		# two straps round the case, a little proud of it, and a handle on the front face
+		for side in [-0.27, 0.27]:
+			floor_mesher.box("luggage_strap", strap, c + Vector3(size.x * side, 0, 0), Vector3(0.07, size.y + 0.02, size.z + 0.02))
+		floor_mesher.box("luggage_strap", strap, c + Vector3(0, 0, size.z * 0.5 + 0.02), Vector3(0.2, 0.06, 0.05))
+		base += size.y
+
 ## Hotel fixtures share the room's painted, texture-sampling surfaces.
 func _hotel_details() -> void:
 	var room: Dictionary = map.get("room", {})
@@ -4522,6 +4607,13 @@ func _hotel_details() -> void:
 					var pb := plant.mesh.get_aabb()
 					plant.scale = Vector3.ONE * (0.85 / pb.size.y)
 					plant.position.y -= pb.position.y * plant.scale.y
+			continue
+		if fixture[2] == "luggage":
+			_luggage_stack(int(fixture[0]), int(fixture[1]))
+			continue
+		if fixture[2] == "hot_tub_sign":
+			# on the platform's front railing, facing the camera
+			preload("res://scripts/gfx/hotel_spa.gd").plaque(parent, Vector2i(int(fixture[0]), int(fixture[1])), DAIS_H, ivory)
 			continue
 		if fixture[2] != "ice_maker":
 			continue

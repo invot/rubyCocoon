@@ -1035,7 +1035,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				downs.append(p)
 	for fixture in room.get("fixtures", []):
 		var p := Vector2i(int(fixture[0]), int(fixture[1]))
-		MapGen.set_t(m, p.x, p.y, MapGen.FURN)
+		# (the spa's sign hangs on the platform's railing, so its tile stays walkable; world.gd reads it from "furniture")
+		if fixture[2] != "hot_tub_sign":
+			MapGen.set_t(m, p.x, p.y, MapGen.FURN)
 		m["furniture"][p] = fixture[2]
 	for swimmer in room.get("swimmers", []):
 		var p := Vector2i(int(swimmer[0]), int(swimmer[1]))

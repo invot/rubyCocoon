@@ -8,6 +8,7 @@ const MapGen = preload("res://scripts/world/map_gen.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const Terrain = preload("res://scripts/world/terrain_mesh.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
+const HotelSpa = preload("res://scripts/gfx/hotel_spa.gd")
 const WalkerStep = preload("res://scripts/world/walker_step.gd")
 const OutdoorLight = preload("res://scripts/gfx/outdoor_light.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
@@ -3803,6 +3804,13 @@ func _interact() -> void:
 			busy = false
 			return
 	var t := _facing_tile()
+	# (the spa's sign hangs on the platform's railing, read from the floor below it as well as from the platform)
+	var hung: bool = interior and map.get("furniture", {}).get(t, "") == "hot_tub_sign"
+	if hung:
+		busy = true
+		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
+		busy = false
+		return
 	# nothing up or down a cliff is in reach (but you can cast a line down into the water)
 	if not Elev.joined(map, player_pos, t) and MapGen.get_t(map, t.x, t.y) != MapGen.WATER:
 		return
@@ -4211,6 +4219,9 @@ func _face_npc(n: Dictionary, f: Vector2i, smooth := false) -> void:
 		return
 	# someone lying back on a beach chaise stays lying on it (turning a rig laid flat swings it off the chair)
 	if n.get("recline", false):
+		return
+	# a runner on a treadmill keeps running toward its console
+	if n.get("treadmill", false):
 		return
 	# the nearer of the four ways
 	n["facing"] = _four_way(f)
@@ -4733,7 +4744,9 @@ func _pick(screen: Vector2) -> Dictionary:
 	for p in map.get("furniture", {}):
 		var kind: String = map["furniture"][p]
 		if kind == "hot_tub_sign":
-			boxes.append([AABB(tile_pos(p) + Vector3(-1.325, 0.41, 0.64), Vector3(1.65, 0.62, 0.12)), p, "thing"])
+			# the small plaque on the platform's front railing (hotel_spa.gd plaque)
+			var mid := HotelSpa.plaque_at(p, RoomBuilder.DAIS_H)
+			boxes.append([AABB(mid - Vector3(0.42, 0.22, 0.02), Vector3(0.84, 0.44, 0.12)), p, "thing"])
 		elif kind in ["ice_maker", "hot_tub"]:
 			var height := 1.24 if kind == "ice_maker" else 0.65
 			boxes.append([AABB(tile_pos(p) + Vector3(-0.48, 0, -0.48), Vector3(0.96, height, 0.96)), p, "thing"])

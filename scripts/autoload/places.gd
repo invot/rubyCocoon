@@ -1464,7 +1464,8 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 	var town: String = b.get("town", GameState.map_id)
 	var furniture: String = map.get("furniture", {}).get(t, "")
 	if furniture == "hot_tub_sign":
-		await Story.say(["Healing spring. Fully restores your party's HP and MP."])
+		await Story.say(["THE THERMAL SANCTUARY. A curated mineral spring, drawn from far beneath the earth and warmed to an exquisitely precise temperature.",
+			"Here, discerning beasts surrender their fatigue. A single languid soak fully restores HP and MP. Kindly refrain from splashing."])
 		return
 	if furniture == "hot_tub":
 		if await Story.ask("Let your beasts rest in the healing spring? Their HP and MP will be fully restored."):
