@@ -14,8 +14,8 @@ uniform vec3 cloud_colour : source_color = vec3(1.0, 1.0, 1.0);
 // how much of the reflection covers the glass's paint
 uniform float reflect_amount = 0.8;
 // the glints' brightness, and a faint glow so the sky still reads on a shaded wall (kept low: night stays dark)
-uniform float glint = 0.55;
-uniform float sheen = 0.08;
+uniform float glint = 0.3;
+uniform float sheen = 0.05;
 
 varying vec3 world_pos;
 
@@ -35,14 +35,13 @@ void fragment() {
 	vec3 across = normalize(cross(vec3(0.0, 1.0, 0.0), n) + vec3(1e-4, 0.0, 0.0));
 	vec2 pane = vec2(dot(world_pos, across), world_pos.y);
 	float c = texture(clouds, pane * vec2(0.22, 0.32) + vec2(dot(r, across), r.y) * 0.9).r;
-	sky = mix(sky, cloud_colour, c * 0.85);
+	sky = mix(sky, cloud_colour, c * 0.6);
 	float band = glass_reflection(SCREEN_UV, VIEWPORT_SIZE);
 	float fresnel = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.0);
 	vec3 paint = pow(COLOR.rgb, vec3(2.2));
 	vec3 col = mix(paint, sky, clamp(reflect_amount + fresnel * 0.25, 0.0, 1.0));
-	// Leave enough contrast beneath the white mask for its stripes to read even
-	// where the reflected clouds are pale. A nearly-white base hides the shimmer.
-	ALBEDO = mix(col * 0.55, vec3(1.0), band * glint);
+	// Kept quiet (the user's 2026-11-16 direction): the shimmer is a faint sheen, not something that draws the eye.
+	ALBEDO = mix(col * 0.62, vec3(1.0), band * glint);
 	EMISSION = (sky * sheen + vec3(band * glint * 0.55)) * (0.6 + 0.4 * fresnel);
 	ROUGHNESS = 0.3;
 	METALLIC = 0.0;

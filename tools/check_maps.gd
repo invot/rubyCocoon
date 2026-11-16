@@ -381,7 +381,8 @@ func _staging(m: Dictionary) -> Array:
 
 
 ## Every bed (and bunk) has a wall at its head: one along a short end of it, as RoomBuilder._place stands it. A bed
-## with none (two tiles side by side along the back wall, say) is shrunk to fit its tiles the wrong way round.
+## with none (two tiles side by side along the back wall, say) is shrunk to fit its tiles the wrong way round. No bed
+## touches a fireplace (even at a corner) or a window tile (the user's 2026-11-16 rule).
 func _beds(m: Dictionary) -> Array:
 	var out := []
 	var furn: Dictionary = m.get("furniture", {})
@@ -416,6 +417,22 @@ func _beds(m: Dictionary) -> Array:
 					headed = true
 		if not headed:
 			out.append("%s's %s at %s (%dx%d) has no wall at its head" % [m.get("room_key", m["id"]), furn[p], lo, size.x, size.y])
+		# No bed beside a fireplace (diagonals too) or in front of a window (the user's 2026-11-16 rule).
+		var by_fire := false
+		var by_window := false
+		for q in group:
+			for dy in [-1, 0, 1]:
+				for dx in [-1, 0, 1]:
+					var r: Vector2i = q + Vector2i(dx, dy)
+					if group.has(r):
+						continue
+					by_fire = by_fire or furn.get(r, "") == "fireplace" or MapGen.get_t(m, r.x, r.y) == MapGen.FIREPLACE
+					if dx == 0 or dy == 0:
+						by_window = by_window or MapGen.get_t(m, r.x, r.y) == MapGen.IWINDOW
+		if by_fire:
+			out.append("%s's %s at %s stands next to a fireplace" % [m.get("room_key", m["id"]), furn[p], lo])
+		if by_window:
+			out.append("%s's %s at %s stands in front of a window" % [m.get("room_key", m["id"]), furn[p], lo])
 	return out
 
 

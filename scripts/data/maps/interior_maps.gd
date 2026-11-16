@@ -415,7 +415,7 @@ const ROOMS := {
 	"house_up_bed": {
 		"wall": "#e8e0d0", "rug": "#3a7a6a", "stage": true, "zone": "bedroom", "doors": {"!": "house_up_hall"},
 		"rows": [
-			"###w###w###",
+			"#####w##w##",
 			"#NbbN.....#",
 			"#.bb......#",
 			"#Q........!",
@@ -833,8 +833,8 @@ const ROOMS := {
 		"fireplace_style": "fieldstone", "fireplace_stone": "#b9b1a0",
 		"rows": [
 			"###w###w###",
-			"#..Nbqq..X#",
-			"#X..b....F#",
+			"#Nb..qq..X#",
+			"#Xb......F#",
 			"#....1....#",
 			"#.ctc...a.#",
 			"#.ctc.....#",
@@ -864,7 +864,7 @@ const ROOMS := {
 		"wall": "#b08a62", "rug": "#8a5a3a", "zone": "wood", "stage": true,
 		"anchors": {"1": "item:worn_cap", "2": "item:old_sneakers", "3": "item:rope_collar"},
 		"rows": [
-			"###w###w###",
+			"#####w##w##",
 			"#.Nb...F.X#",
 			"#X.b......#",
 			"#...1..2..#",
@@ -1034,7 +1034,7 @@ static func kelpwick_room(key: String) -> Dictionary:
 	return KELPWICK_ROOMS.get(key, ROOMS[key])
 
 const KELPWICK_ROOMS := {
-	"studio_a": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "home": true, "npcs": {"1": "resident"}, "rows": ["  ##w##  ", " /Nbb..\\ ", "#..bb...#", "#@......#", "#...1..PD", "#.[).yS.#", " \\...../ ", "  #####  "]},
+	"studio_a": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "home": true, "npcs": {"1": "resident"}, "rows": ["  ###w#  ", " /Nbb..\\ ", "#..bb...#", "#@......#", "#...1..PD", "#.[).yS.#", " \\...../ ", "  #####  "]},
 
 	"outfitter": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "2": "patron"},
 		"counter_phone": [7, 2],

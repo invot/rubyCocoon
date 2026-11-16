@@ -5797,7 +5797,8 @@ func _build_room() -> void:
 	env.background_color = Color("#0d0a10")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#fff0dc") if not dark else Color("#8a7aa8")
-	env.ambient_light_energy = 0.55 if not dark else 0.35
+	# (a little low, so windows, lamps and wall lights shape the room: the user's 2026-11-16 direction)
+	env.ambient_light_energy = 0.42 if not dark else 0.35
 	# the temples are dark, lit by their torches and candles (room_builder.gd _pilasters, temple_lights.gd)
 	var temple: bool = key.begins_with("temple")
 	if temple:

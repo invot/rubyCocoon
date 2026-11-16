@@ -414,6 +414,12 @@ var rows := {}
 var _row_meshers := {}
 var floor_mesher := Mesher.new()
 var lights: Array = []
+## where daylight comes in, one per window ({"at": the glass's room-side middle, "in": the way into the room}), and the
+## wall lights hung so far ({"at", "in"}): _lights gives each its light (the user's 2026-11-16 direction)
+var _daylight := []
+var _fixtures := []
+## wall tiles something hangs on (_attach), so a wall light added for a dark corner never crowds it
+var _wall_used := {}
 var pick_seed := 0
 
 ## furniture at least this tall (metres) fades when the player is behind it (see add_prop): {nodes, x, z (its
@@ -552,6 +558,7 @@ func add_prop(nodes: Array, lo: Vector2i, size: Vector2) -> void:
 
 ## Puts `node` on wall tile (x, y), in its row.
 func _attach(_x: int, y: int, node: Node3D) -> void:
+	_wall_used[Vector2i(_x, y)] = true
 	_row(y)
 	(rows[y] as Node3D).add_child(node)
 
@@ -2646,6 +2653,7 @@ func _place(kind: String, group: Array) -> void:
 		l.omni_range = 2.6
 		l.position = pos + Vector3(0, top_y - 0.1, 0)
 		parent.add_child(l)
+		lights.append(l)
 
 
 ## A bathroom with more than one toilet has stalls: a partition either side of each toilet, out from the wall it backs
@@ -2987,6 +2995,8 @@ func _hang(name: String, x: int, y: int, inside: Vector2i, up: float, side: floa
 	c += Basis(Vector3.UP, yaw) * Vector3(side, 0, 0)
 	mi.position = c
 	mi.rotation.y = yaw
+	if name == "wall_light":
+		_add_fixture(x, y, inside, up, side)
 	if wallish(x, y):
 		_attach(x, y, mi)
 	else:
@@ -3113,9 +3123,35 @@ func _mats_at_doors() -> void:
 
 
 # ---------------------------------------------------------------- lights
-## A warm light near the ceiling of each room (each run of floor between walls of one kind of room).
+## Rooms are lit by their windows and their lights (the user's 2026-11-16 direction): a soft warm fill near the
+## ceiling of each room (each run of floor between walls of one kind of room), daylight falling in through every
+## window, a glow from every wall light and lamp, and, where part of a room is still far from all of them, a wall
+## light of its own on a back or side wall (never at the front of the room, by the camera). The Mobile renderer
+## lights a mesh with at most 8 omni and 8 spot lights, and a room's floor is one mesh: windows are spot lights (at
+## most MAX_DAYLIGHT), the rest omni lights (at most MAX_OMNI in all, once the fills are counted).
+const MAX_DAYLIGHT := 8
+const MAX_OMNI := 8
+const FILL_ENERGY := 0.5
+const DAYLIGHT := Color("#fff6ea")
+const DAYLIGHT_ENERGY := 3.0
+const DAYLIGHT_RANGE := 4.8
+const FIXTURE_LIGHT := Color("#ffcf8a")
+const FIXTURE_ENERGY := 1.0
+const FIXTURE_RANGE := 2.8
+## a floor tile further than this past every light's reach counts as a dark corner
+const DARK_REACH := 2.6
+
+
+## A wall light hung on wall tile (x, y), facing `inside`, `up` high and `side` along: it gets a light in _lights.
+func _add_fixture(x: int, y: int, inside: Vector2i, up: float, side: float) -> void:
+	var yaw := atan2(float(inside.x), float(inside.y))
+	_fixtures.append({"at": Vector3(x + 0.5, up, y + 0.5) + Vector3(inside.x, 0, inside.y) * (T / 2.0 + 0.28)
+		+ Basis(Vector3.UP, yaw) * Vector3(side, 0, 0), "in": Vector3(inside.x, 0, inside.y)})
+
+
 func _lights() -> void:
 	var seen := {}
+	var regions := []
 	for y in h:
 		for x in w:
 			var p := Vector2i(x, y)
@@ -3139,6 +3175,7 @@ func _lights() -> void:
 				lo = Vector2(minf(lo.x, q.x), minf(lo.y, q.y))
 				hi = Vector2(maxf(hi.x, q.x), maxf(hi.y, q.y))
 			var size := hi - lo + Vector2.ONE
+			regions.append({"zone": z, "tiles": tiles, "lo": lo, "hi": hi})
 			# big rooms get a light every few tiles
 			var nx := maxi(1, int(round(size.x / 6.0)))
 			var nz := maxi(1, int(round(size.y / 6.0)))
@@ -3147,11 +3184,124 @@ func _lights() -> void:
 					var l := OmniLight3D.new()
 					l.light_color = Color(ZONES.get(z, ZONES["shop"])["light"]) if not ancient else Color("#ffc890")
 					# (a temple is dark: its torches light it, over a faint fill)
-					l.light_energy = 0.7 if not temple else 0.18
+					l.light_energy = FILL_ENERGY if not temple else 0.18
 					l.omni_range = maxf(size.x / nx, size.y / nz) * 0.9 + 2.0
 					l.position = Vector3(lo.x + size.x * (i + 0.5) / nx, 2.4, lo.y + size.y * (j + 0.5) / nz)
 					parent.add_child(l)
 					lights.append(l)
+	if temple or ancient or map.get("room", {}).get("barn", false):
+		return
+	_daylight_lights()
+	for reg in regions:
+		_light_dark_corners(reg)
+	for f in _fixtures:
+		if _omni_count() >= MAX_OMNI:
+			break
+		var l := OmniLight3D.new()
+		l.light_color = FIXTURE_LIGHT
+		l.light_energy = FIXTURE_ENERGY
+		l.omni_range = FIXTURE_RANGE
+		l.position = f["at"]
+		parent.add_child(l)
+		lights.append(l)
+
+
+func _omni_count() -> int:
+	return lights.filter(func(l): return l is OmniLight3D).size()
+
+
+## Daylight through the windows: a soft spot light just inside each one, tilted down into the room. Back-wall windows
+## (the ones the camera looks at) come first when there are more than MAX_DAYLIGHT.
+func _daylight_lights() -> void:
+	var order := _daylight.duplicate()
+	order.sort_custom(func(a, b): return int(a["in"].z > 0.5) > int(b["in"].z > 0.5))
+	for i in mini(order.size(), MAX_DAYLIGHT):
+		var d: Dictionary = order[i]
+		var into: Vector3 = d["in"]
+		var l := SpotLight3D.new()
+		l.light_color = DAYLIGHT
+		l.light_energy = DAYLIGHT_ENERGY
+		l.spot_range = DAYLIGHT_RANGE
+		l.spot_angle = 75.0
+		l.spot_attenuation = 1.6
+		l.spot_angle_attenuation = 0.5
+		# (a soft wash, not a bright patch: little shine off the floor)
+		l.light_specular = 0.15
+		# (out from the glass, up under the ceiling: nothing beside the window — its frame, curtains — sits close enough to
+		# catch a hot spot)
+		l.position = Vector3(d["at"].x, 2.55, d["at"].z) + into * 0.75
+		# a spot light shines down its -Z: into the room and down
+		l.basis = Basis.looking_at((into + Vector3.DOWN * 1.1).normalized(), Vector3.UP)
+		parent.add_child(l)
+		lights.append(l)
+
+
+## Where part of a room's floor is still far from every light, hang a wall light on the nearest free back or side
+## wall (never on the front half of a side wall, by the camera), at most two per room.
+func _light_dark_corners(reg: Dictionary) -> void:
+	if (reg["tiles"] as Array).size() < 6 or String(reg["zone"]) in ["bathroom", "diner", "back", "stone"]:
+		return
+	var lo: Vector2 = reg["lo"]
+	var hi: Vector2 = reg["hi"]
+	var front := lo.y + (hi.y - lo.y) * 0.5
+	var furn: Dictionary = map.get("furniture", {})
+	for _n in 2:
+		# (the fixtures' own lights come after this, so count them as already lit)
+		if _omni_count() + _fixtures.size() >= MAX_OMNI:
+			return
+		var src := []
+		for l in lights:
+			if l is OmniLight3D:
+				src.append([Vector2(l.position.x, l.position.z), (l as OmniLight3D).omni_range * 0.5])
+			elif l is SpotLight3D:
+				var g: Vector3 = l.position - l.basis.z * 1.8
+				src.append([Vector2(g.x, g.z), 2.2])
+		for f in _fixtures:
+			src.append([Vector2(f["at"].x, f["at"].z), FIXTURE_RANGE * 0.6])
+		var worst := Vector2i(-1, -1)
+		var worst_d := DARK_REACH
+		for q: Vector2i in reg["tiles"]:
+			var c := Vector2(q.x + 0.5, q.y + 0.5)
+			var d := INF
+			for s2 in src:
+				d = minf(d, c.distance_to(s2[0]) - float(s2[1]) + DARK_REACH)
+			if d > worst_d:
+				worst_d = d
+				worst = q
+		if worst.x < 0:
+			return
+		# the nearest free wall facing into this room: the back wall, or a side wall's back half
+		var best := {}
+		var best_d := 4.0
+		for q: Vector2i in reg["tiles"]:
+			for inside in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0)]:
+				var wt: Vector2i = q - inside
+				if code(wt.x, wt.y) != MapGen.IWALL or (inside.y == 0 and q.y > front):
+					continue
+				var along := Vector2i(inside.y, inside.x)
+				if not (wallish(wt.x + along.x, wt.y + along.y) and wallish(wt.x - along.x, wt.y - along.y)):
+					continue
+				if _wall_used.has(wt) or _wall_used.has(wt + along) or _wall_used.has(wt - along) \
+						or _by_window.has(wt) or _cubbies.has(wt) or _boxed.has(wt):
+					continue
+				if code(q.x, q.y) in [MapGen.SHELF, MapGen.BOOKSHELF, MapGen.BOARD, MapGen.TERMINAL, MapGen.HEALER,
+						MapGen.FIREPLACE, MapGen.COUNTER, MapGen.STAIRS_UP, MapGen.STAIRS_DOWN] \
+						or String(furn.get(q, "")) in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "bunk", "dresser"]:
+					continue
+				var d := Vector2(q.x, q.y).distance_to(Vector2(worst.x, worst.y))
+				if d < best_d:
+					best_d = d
+					best = {"wall": wt, "inside": inside}
+		if best.is_empty():
+			return
+		var wt2: Vector2i = best["wall"]
+		var before := _fixtures.size()
+		if home:
+			_hang_decor("wall_sconce", wt2.x, wt2.y, best["inside"], 1.7, 0.0)
+		else:
+			_hang("wall_light", wt2.x, wt2.y, best["inside"], 1.75, 0.0)
+		if _fixtures.size() == before:
+			return
 
 
 # ---------------------------------------------------------------- homes (2026-11-15 interiors pass)
@@ -3310,6 +3460,8 @@ func _hang_decor(name: String, x: int, y: int, inside: Vector2i, up: float, side
 	mi.rotation.y = yaw
 	mi.scale = Vector3.ONE * sc
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if name == "wall_sconce":
+		_add_fixture(x, y, inside, up, side)
 	_attach(x, y, mi)
 	return mi
 
@@ -3809,6 +3961,7 @@ func _nature_window(x: int, y: int, inside: Vector2i) -> void:
 	var mid := Vector3(x + 0.5, 0, y + 0.5) + along * (span - 1) * 0.5
 	var c := mid + Vector3.UP * (H / 2.0) + inward * (T / 2.0 - WIN_DEPTH)
 	_clear_pane(x, y, c, inside, half * 2.0, H)
+	_daylight.append({"at": mid + inward * (T / 2.0) + Vector3.UP * (H - 0.5), "in": inward})
 	var m := _row(y)
 	var frame := surface("window_frame", trim.lightened(0.22))
 	var f := NATURE_FRAME
@@ -3861,6 +4014,7 @@ func _recessed_window(x: int, y: int, inside: Vector2i) -> void:
 		m.tri("window_hills", hills, [pane - along * WIN_HALF + Vector3.UP * (SILL + 0.02), pane + along * WIN_HALF + Vector3.UP * (SILL + 0.02),
 			pane - along * 0.1 + Vector3.UP * (SILL + 0.38)], inward, along, Vector3.UP)
 	_clear_pane(x, y, back + inward * 0.018 + Vector3.UP * mid, inside, WIN_HALF * 2.0, tall)
+	_daylight.append({"at": c + inward * (T / 2.0) + Vector3.UP * (WIN_TOP - 0.15), "in": inward})
 	# the sash: a frame round the glass and its cross bars, just in front of it
 	var sash := back + inward * 0.03
 	for s in [-1.0, 1.0]:
