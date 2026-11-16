@@ -765,7 +765,8 @@ func slot_manager() -> int:
 
 # ================================================================ battles
 ## Wild battles open with a spiral: green when you sneak up on a beast, blue face to face, red when it ambushes you.
-const SPIRAL_COLORS := {"sneak": Color("#3fbf5a"), "wild": Color("#3f8fe0"), "ambush": Color("#d83a3a")}
+## Trainer battles swirl in a deep, dark purple.
+const SPIRAL_COLORS := {"sneak": Color("#3fbf5a"), "wild": Color("#3f8fe0"), "ambush": Color("#d83a3a"), "trainer": Color("#3b1768")}
 
 
 func start_battle(cfg: Dictionary) -> String:
@@ -782,9 +783,10 @@ func start_battle(cfg: Dictionary) -> String:
 	Sfx.battle_start()
 	if not _test.is_empty():
 		print("[battle] intro=", cfg.get("intro", "trainer"), " ambush=", cfg.get("ambush", ""), " foes=", cfg["foes"].map(func(f): return "%s L%d" % [f.nickname, f.level]))
-	var spiral: bool = SPIRAL_COLORS.has(String(cfg.get("intro", "")))
+	var trainer_spiral: bool = not bool(cfg.get("wild", false))
+	var spiral: bool = trainer_spiral or SPIRAL_COLORS.has(String(cfg.get("intro", "")))
 	if spiral:
-		await UI.spiral_in(SPIRAL_COLORS[String(cfg["intro"])], 0.8)
+		await UI.spiral_in(SPIRAL_COLORS["trainer" if trainer_spiral else String(cfg["intro"])], 0.8)
 	else:
 		await UI.flash(Color.WHITE, 2)
 		await UI.fade_out(0.2)
@@ -795,18 +797,33 @@ func start_battle(cfg: Dictionary) -> String:
 	var b = battle_script.new()
 	cfg["map"] = GameState.map_id
 	b.setup(cfg)
+	b.reward_film_started.connect(func():
+		# Keep the reward coroutine alive, but retire its scenery before the first film opens.
+		# Closing any reward film now reveals the world, including between multiple rewards.
+		b.hide()
+		b.hud.hide()
+		b.reparent(self)
+		view.add_child(world)
+		world.cam.current = true
+	)
 	view.add_child(b)
 	if not _test.is_empty():
 		print("[battle] built in %d ms" % (Time.get_ticks_msec() - t0))
 	if spiral:
-		await UI.spiral_out(0.35)
+		# Draw the built battle under the opaque pattern before opening the centre.
+		if not UI.auto and DisplayServer.get_name() != "headless":
+			await RenderingServer.frame_post_draw
+		await UI.spiral_out(0.6)
 	else:
 		await UI.fade_in(0.25)
 	var result: String = await b.finished
-	await UI.fade_out(0.3)
-	view.remove_child(b)
+	var returned_during_rewards: bool = world.get_parent() == view
+	if not returned_during_rewards:
+		await UI.fade_out(0.3)
+	b.get_parent().remove_child(b)
 	b.queue_free()
-	view.add_child(world)
+	if not returned_during_rewards:
+		view.add_child(world)
 	world.cam.current = true
 	world.refresh_locks()
 	Sfx.music(music_for(world.map_id))
@@ -818,7 +835,8 @@ func start_battle(cfg: Dictionary) -> String:
 		GameState.last_center = town
 		goto_map(town, "center")
 		UI.toast("You lost half your gold...", "coin")
-	await UI.fade_in(0.3)
+	if not returned_during_rewards or result == "lose":
+		await UI.fade_in(0.3)
 	# Keep detection blocked through the fade, then grant the full field-control window only to wild battles.
 	if cfg.get("wild", false):
 		GameState.wild_grace_left = GameState.WILD_BATTLE_GRACE
@@ -1279,6 +1297,8 @@ func _run_test() -> void:
 		await get_tree().create_timer(wait).timeout
 	elif scene == "island-updates":
 		await load("res://tools/debug/island_updates.gd").new().run(self, _test)
+	elif scene == "egg-sale-hud":
+		await load("res://tools/debug/egg_sale_hud.gd").new().run(self, _test)
 	elif scene == "arena-ladder":
 		await load("res://tools/debug/arena_ladder.gd").new().run(self, _test)
 	elif scene == "mobile-menus":
@@ -2221,7 +2241,17 @@ func _run_test() -> void:
 	elif scene == "spiral":
 		await _do_goto("route1", "west")
 		await _wait(1.5)
-		UI.spiral_in(SPIRAL_COLORS[_test.get("kind", "sneak")], 1.0)
+		var kind: String = _test.get("kind", "sneak")
+		var primary: Color = SPIRAL_COLORS[kind]
+		var secondary := Color.TRANSPARENT
+		if _test.has("record"):
+			await load("res://tools/debug/spiral_preview.gd").new().run(self, _test, primary, secondary)
+		elif _test.has("progress") or _test.has("reveal"):
+			await UI.spiral_in(primary, 0.01, secondary)
+			UI.spiral_rect.material.set_shader_parameter("progress", float(_test.get("progress", "1")))
+			UI.spiral_rect.material.set_shader_parameter("reveal", float(_test.get("reveal", "0")))
+		else:
+			UI.spiral_in(primary, 1.0, secondary)
 		await _wait(wait)
 	elif scene == "saveui":
 		await _saveui_test()
@@ -2914,7 +2944,7 @@ func _tides_walk_test() -> void:
 	bad += await _tides_room(hall, "temple_tides_falls", "falls", [0, 1, 2, 3, 2], "tides_falls_solved", "tide_pendant", "2")
 	await _tides_shot("3_hall_lowered")
 	bad += _tides_check("hall lowered: maze door reachable, song door not", _tides_reach(hall, "temple_tides_maze") and not _tides_reach(hall, "temple_tides_song"))
-	bad += await _tides_room(hall, "temple_tides_maze", "maze", [0, 1, 2, 3, 1], "tides_maze_solved", "tide_charm", "4")
+	bad += await _tides_room(hall, "temple_tides_maze", "maze", [0, 1, 2, 3, 4], "tides_maze_solved", "tide_charm", "4")
 	await _tides_shot("5_hall_drained")
 	bad += _tides_check("hall drained: song door reachable", _tides_reach(hall, "temple_tides_song"))
 	var song := await _tides_door(hall, "temple_tides_song")
@@ -3049,6 +3079,14 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 	var levers := {}
 	for sw in world.map["switches"]:
 		levers[int(sw["index"])] = sw["pos"]
+	if id == "maze":
+		bad += _tides_check("maze fifth lever hidden initially", not world.npcs[levers[4]]["node"].visible)
+		# All sixteen original patterns now require the fifth lever; the old solution cannot drain the room.
+		for bits in 16:
+			var flags := {}
+			for i in 4:
+				flags[TidePuzzles.lever_flag(id, i)] = bool(bits & (1 << i))
+			bad += _tides_check("maze pattern %d needs the drain lever" % bits, not TidePuzzles.is_solution(id, flags))
 	var k := 0
 	for i: int in order:
 		k += 1
@@ -3070,13 +3108,32 @@ func _tides_room(hall: String, key: String, id: String, order: Array, flag: Stri
 			pass
 		elif last:
 			# (a moment of the drain itself)
-			await _press("interact")
+			if id == "maze":
+				var screen: Vector2 = world.cam.unproject_position(world.tile_pos(lever_at) + Vector3(0, 0.7, -1.4))
+				bad += _tides_check("fifth lever can be tapped inside the cubby", world._pick(screen).get("tile", Vector2i.ZERO) == lever_at)
+				world.tap_at(screen)
+			else:
+				await _press("interact")
 			await _wait(1.3)
 			await _tides_shot(shot + "c_%s_draining" % id)
 			for j in 300:
 				if not (world.busy or UI.busy()):
 					break
 				await _wait(0.1)
+		elif id == "maze" and i == 3:
+			await _press("interact")
+			await _wait(1.7)
+			if _test.has("shots"):
+				await _save_shot(String(_test["shots"]).path_join("tides_4b3_cubby_reveal.png"))
+			for j in 300:
+				if not (world.busy or UI.busy()):
+					break
+				await _wait(0.1)
+			bad += _tides_check("four down reveal cubby without draining", GameState.flag(TidePuzzles.CUBBY_FLAG) and not GameState.flag(flag) and world.npcs[levers[4]]["node"].visible)
+			await GameState.main.reload_map()
+			await _settle(room)
+			bad += _tides_check("cubby and fifth lever remain open after reload", world.npcs[levers[4]]["node"].visible and not world.room_walls.tide_panel.visible)
+			await _tides_shot(shot + "b4_cubby_open")
 		else:
 			await _tides_press()
 			# (once the falls have finished changing)

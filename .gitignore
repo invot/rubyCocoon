@@ -27,6 +27,8 @@ __pycache__/
 !/tools/check_scripts.gd.uid
 !/tools/debug/mechanic_lessons.gd
 !/tools/debug/mechanic_lessons.gd.uid
+!/tools/debug/egg_sale_hud.gd
+!/tools/debug/egg_sale_hud.gd.uid
 !/tools/godot_toolchain.py
 !/tools/make_export_presets.py
 !/tools/make_web.py

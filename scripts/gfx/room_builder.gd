@@ -119,7 +119,7 @@ const KINDS := {
 	"trash": {"m": ["trash_bin"], "single": true},
 	"bed": {"m": ["kk_bed_single_A", "kk_bed_single_B", "kk_bed_double_A", "kk_bed_double_B"], "short": true},
 	"bunk": {"m": ["kk_bed_single_A", "kk_bed_single_B"], "short": true},
-	"plant": {"m": ["home/plant_pillow_tall", "home/plant_paddle", "home/plant_pillow_round"], "single": true},
+	"plant": {"m": ["kk_cactus_medium_A", "kk_cactus_medium_B"], "single": true},
 	"large_plant": {"m": ["home/plant_pillow_tall"], "height": 1.9, "free": true},
 	# (a shop's bookshelves stay; in a home each tile of one is a small dressed cupboard, home_m)
 	"bookshelf": {"m": ["bookshelf"], "home_m": ["kk_cabinet_small_dec"], "alt": ["kk_drawers", "kk_cabinet_small"], "long": true},
@@ -1218,6 +1218,8 @@ func _pilasters() -> void:
 				var wy: int = y + d.y
 				if code(wx, wy) != MapGen.IWALL:
 					continue
+				if _cubbies.has(Vector2i(wx, wy)):
+					continue
 				var along_i := Vector2i(1, 0) if d.y != 0 else Vector2i(0, 1)
 				# spaced out from the middle of the wall, so each wall's run is symmetrical
 				var span := w if d.y != 0 else h
@@ -1931,7 +1933,7 @@ func _reception_desk() -> void:
 			if MapGen.walkable(code(q.x + d.x, q.y + d.y)):
 				face = d
 				break
-		# A straight reception run keeps every piece aligned, even beside a blocking plant.
+		# A straight reception run keeps every piece aligned, even beside a staff gate.
 		var fixed_face: Array = map.get("room", {}).get("counter_facing", [])
 		if fixed_face.size() == 2:
 			face = Vector2i(int(fixed_face[0]), int(fixed_face[1]))
@@ -3185,6 +3187,8 @@ var home := false
 var scheme := HomeDecor.DEFAULT_SCHEME
 ## wall tiles holding a cubby or a closet: {Vector2i: {"inside": Vector2i, "kind": "cubby" or "closet", "x0", "w"}}
 var _cubbies := {}
+var tide_panel: MeshInstance3D
+var tide_cubby_light: OmniLight3D
 ## Every occupied wall tile addresses its shared sliding leaf.
 var shelf_doors := {}
 ## wall tiles beside a window (its curtains hang over them)
@@ -3984,6 +3988,9 @@ static func _curtain_mesh(inner: float, top: float, foot: float) -> ArrayMesh:
 ## ("closets": [[x, y, w], ...], a run of back-wall tiles), and in a home a cubby or two on plain stretches of back
 ## wall with nothing tall before them, away from windows, doors and each other.
 func _plan_cubbies() -> void:
+	if map.get("puzzle", "") == "maze":
+		var tile: Vector2i = preload("res://scripts/data/tide_puzzles.gd").CUBBY_TILE
+		_cubbies[tile] = {"inside": Vector2i.DOWN, "kind": "tide"}
 	for cl in map.get("room", {}).get("closets", []):
 		for i in int(cl[2]):
 			_cubbies[Vector2i(int(cl[0]) + i, int(cl[1]))] = {"inside": Vector2i(0, 1), "kind": "closet", "x0": int(cl[0]), "w": int(cl[2])}
@@ -4020,9 +4027,46 @@ func _plan_cubbies() -> void:
 		placed += 1
 
 
+## A sealed stone recess using the shared cubby geometry; its panel sinks below the raised walkway.
+func _tide_cubby(x: int, y: int) -> void:
+	var low := Elev.surface(map, Vector2i(x, y + 1))
+	var high := low + 1.55
+	_bars(x, y, _foot(x, y), low, true, false, true, true, false, false)
+	_bars(x, y, high, H, true, false, true, true, false, false)
+	_recess(x, y, Vector2i.DOWN, low, high, 0.46, 0.7, true, _ashlar(stone.darkened(0.32)))
+	var box := BoxMesh.new()
+	box.size = Vector3(0.92, high - low, 0.12)
+	box.material = wall_mat(default_zone)
+	tide_panel = MeshInstance3D.new()
+	tide_panel.name = "SecretSluicePanel"
+	tide_panel.mesh = box
+	tide_panel.position = Vector3(x + 0.5, (low + high) / 2.0, y + 0.64)
+	tide_panel.visible = not map.get("tide_cubby_open", false)
+	parent.add_child(tide_panel)
+	tide_cubby_light = OmniLight3D.new()
+	tide_cubby_light.position = Vector3(x + 0.5, low + 1.0, y + 1.05)
+	tide_cubby_light.light_color = Color("#ffda82")
+	tide_cubby_light.light_energy = 2.0 if map.get("tide_cubby_open", false) else 0.0
+	tide_cubby_light.omni_range = 3.0
+	parent.add_child(tide_cubby_light)
+
+
+func reveal_tide_cubby() -> void:
+	if not is_instance_valid(tide_panel):
+		return
+	var tw := parent.create_tween()
+	tw.tween_property(tide_panel, "position:y", tide_panel.position.y - 1.6, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(tide_cubby_light, "light_energy", 2.0, 1.2)
+	await tw.finished
+	tide_panel.hide()
+
+
 ## The wall of a cubby's or closet's tile, with its hole, lining and contents (from _walls, for that tile).
 func _cubby_wall(x: int, y: int) -> void:
 	var cb: Dictionary = _cubbies[Vector2i(x, y)]
+	if cb["kind"] == "tide":
+		_tide_cubby(x, y)
+		return
 	var inside: Vector2i = cb["inside"]
 	var e := wallish(x + 1, y)
 	var wv := wallish(x - 1, y)
@@ -4700,15 +4744,21 @@ func _counter_gate(group: Array) -> void:
 	var panel := surface("floor_wood", MISSION_WOOD.lightened(0.12))
 	var iron := surface("wall_plaster", Color("#554534"))
 	var top := DESK_TOP - 0.14
-	var span := size.y - 0.12
+	# The hotel has two-tile north/south passages. Single-tile gates beside
+	# a side wall (or behind a desk) close east/west gaps instead.
+	var across := size.x > size.y or (size == Vector2.ONE and not wallish(lo.x, lo.y - 1) and not wallish(lo.x, lo.y + 1))
+	var turn := Basis(Vector3.UP, PI / 2.0 if across else 0.0)
+	var span := (size.x if across else size.y) - 0.12
 	for side in [-1.0, 1.0]:
-		var z: float = c.z + side * span * 0.25
-		floor_mesher.box("counter_gate_wood", wood, Vector3(c.x, (top + 0.12) * 0.5, z), Vector3(0.14, top - 0.12, span * 0.5 - 0.025))
+		var z: float = side * span * 0.25
+		var leaf := Vector3(0.14, top - 0.12, span * 0.5 - 0.025)
+		floor_mesher.box("counter_gate_wood", wood, c + turn * Vector3(0, (top + 0.12) * 0.5, z), leaf if not across else Vector3(leaf.z, leaf.y, leaf.x))
 		for face in [-1.0, 1.0]:
-			floor_mesher.box("counter_gate_panel", panel, Vector3(c.x + face * 0.076, 0.48, z), Vector3(0.018, 0.4, span * 0.5 - 0.22))
-		_beam("counter_gate_cap", wood, Vector3(c.x, top - 0.04, z - span * 0.25 + 0.02), Vector3(c.x, top - 0.04, z + span * 0.25 - 0.02), 0.095, true)
+			var inset := Vector3(0.018, 0.4, span * 0.5 - 0.22)
+			floor_mesher.box("counter_gate_panel", panel, c + turn * Vector3(face * 0.076, 0.48, z), inset if not across else Vector3(inset.z, inset.y, inset.x))
+		_beam("counter_gate_cap", wood, c + turn * Vector3(0, top - 0.04, z - span * 0.25 + 0.02), c + turn * Vector3(0, top - 0.04, z + span * 0.25 - 0.02), 0.095, true)
 		for y in [0.28, 0.68]:
-			floor_mesher.box("counter_gate_hinge", iron, Vector3(c.x + 0.08, y, c.z + side * (span * 0.5 - 0.09)), Vector3(0.04, 0.1, 0.16))
+			floor_mesher.box("counter_gate_hinge", iron, c + turn * Vector3(0.08, y, side * (span * 0.5 - 0.09)), Vector3(0.16, 0.1, 0.04) if across else Vector3(0.04, 0.1, 0.16))
 
 
 ## Guests' cases, neatly stacked against the back wall (the user's 2026-11-15 direction): chunky painted suitcases,

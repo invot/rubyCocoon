@@ -383,6 +383,7 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 ##   HERO_OUTFITS, wears all three from that person), its "hairdo" (one of HAIRDOS), the pack (PACK, in its
 ##   "pack_colour"), the hat and glasses its "hat_style" and "glasses_style" pick (Wardrobe.HATS, GLASSES; none
 ##   without), coloured as it chose ("top", "trousers", "shoes", "hat", "glasses_colour", "hair", "eyes", "skin");
+##   "face_person" optionally takes just another kit person's head, preserving the chosen hair and clothes.
 ##   anyone else: one of the everyday townsfolk (no costumes) who suits the look: a woman for hair_style 1 (long
 ##   hair; with no hair_style, the look decides), robes for an "outfit" "robe", long sleeves for a coat, armour or
 ##   uniform, a hat for a look with a "hat" colour (and no hat without one); coloured with its "shirt", "pants",
@@ -400,7 +401,10 @@ const ROBES := {"plain": [278, 268, 54], "cape": [273, 272, 268, 266]}
 
 static func outfit(look: Dictionary) -> Dictionary:
 	var people: Array = data()["people"]
-	var seed := absi(str(look).hash())
+	# Choosing an expression must not also change the person's hair or clothes.
+	var identity := look.duplicate()
+	identity.erase("face_person")
+	var seed := absi(str(identity).hash())
 	var person := -1
 	var colours := {}
 	var hero: bool = look.get("face", "") == "hero" or look.is_empty()
@@ -414,6 +418,11 @@ static func outfit(look: Dictionary) -> Dictionary:
 		person = _choose(look, seed)
 	var parts: Array = (people[person]["parts"] as Array).duplicate()
 	var kinds: Array = data()["parts"]
+	if look.has("face_person"):
+		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "head")
+		for id in people[clampi(int(look["face_person"]), 0, people.size() - 1)]["parts"]:
+			if kinds[int(id)]["kind"] == "head":
+				parts.append(id)
 	if hero and not m.begins_with("tf"):
 		parts = _hero_clothes(look, person, parts)
 		# the hero's own face and hairdo, and no hat

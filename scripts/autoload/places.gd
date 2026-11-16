@@ -363,19 +363,21 @@ func sell_eggs(town := "") -> void:
 		if items.is_empty():
 			await Story.say(["You have no eggs to sell."], buyer)
 			return
-		var c: int = await UI.choose("Sell which egg?  ·  %d gold" % GameState.gold, items, {"width": 460})
+		var confirm_sale := func(choice: int, panel: Control) -> bool:
+			var picked: Dictionary = GameState.eggs[indices[choice]]
+			return await UI.confirm_hud("Sell %s for %d gold?" % [GameState.egg_name(picked), egg_offer(picked, town)], panel)
+		var c: int = await UI.choose("Sell which egg?  ·  %d gold" % GameState.gold, items,
+			{"width": 460, "confirm_pick": confirm_sale})
 		if c < 0:
 			return
 		var index: int = indices[c]
 		var egg: Dictionary = GameState.eggs[index]
 		var offer := egg_offer(egg, town)
 		var name := GameState.egg_name(egg)
-		if not await Story.ask("Sell %s for %d gold?" % [name, offer], buyer):
-			continue
 		GameState.eggs.remove_at(index)
 		GameState.gold += offer
 		Sfx.play("item")
-		await Story.say(["Sold %s for %d gold. You now have %d gold." % [name, offer, GameState.gold]], buyer)
+		UI.toast("Sold %s for %d gold." % [name, offer])
 
 
 func hatchery() -> void:

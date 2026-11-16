@@ -22,6 +22,14 @@ var hud: Control
 var modal_layer: Control
 var fade_rect: ColorRect
 var spiral_rect: ColorRect
+var _spiral_elapsed := 0.0
+## The battle swirl's three graphics tiers (spiral.gdshaderinc): max has shadows, sparkles and a translucent first
+## pair; mid drops the shadows; min draws flat arms only.
+const SPIRAL_SHADERS := {"max": "res://scripts/ui/spiral.gdshader", "mid": "res://scripts/ui/spiral_mid.gdshader",
+	"min": "res://scripts/ui/spiral_min.gdshader"}
+## How opaque the first pair of arms is at max graphics; the next pair, opaque, covers the screen.
+const SPIRAL_FIRST_ALPHA := 0.7
+var _spiral_busy := false
 ## the strip at the top centre for notices and battle messages (top_bar.gd)
 var top_bar: TopBar
 var stack: Array = []
@@ -68,10 +76,12 @@ func _ready() -> void:
 	spiral_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	spiral_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sm := ShaderMaterial.new()
-	sm.shader = load("res://scripts/ui/spiral.gdshader")
+	sm.shader = load(SPIRAL_SHADERS[Prefs.graphics_quality])
+	sm.set_shader_parameter("sparkle_atlas", load("res://assets/ui/battle_sparkle.png"))
 	spiral_rect.material = sm
 	spiral_rect.visible = false
 	root.add_child(spiral_rect)
+	_prewarm_spiral.call_deferred()
 	fade_rect = ColorRect.new()
 	fade_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	fade_rect.color = Color(0, 0, 0, 0)
@@ -92,6 +102,27 @@ func _on_prefs_changed() -> void:
 	if Prefs.accent != UIKit.accent_name:
 		UIKit.set_accent(Prefs.accent)
 		root.theme = UIKit.make_theme()
+	if is_instance_valid(spiral_rect) and not _spiral_busy \
+			and (spiral_rect.material as ShaderMaterial).shader.resource_path != SPIRAL_SHADERS[Prefs.graphics_quality]:
+		_prewarm_spiral()
+
+
+## Picks the swirl for the graphics setting and draws it once, invisibly, so its shader is compiled before the first
+## battle rather than stalling the swirl's first frames.
+func _prewarm_spiral() -> void:
+	var sm: ShaderMaterial = spiral_rect.material
+	var path: String = SPIRAL_SHADERS[Prefs.graphics_quality]
+	if sm.shader.resource_path != path:
+		sm.shader = load(path)
+	if auto or _spiral_busy or DisplayServer.get_name() == "headless":
+		return
+	sm.set_shader_parameter("color", Color(0, 0, 0, 0))
+	sm.set_shader_parameter("progress", 0.5)
+	sm.set_shader_parameter("reveal", 0.5)
+	spiral_rect.visible = true
+	await RenderingServer.frame_post_draw
+	if not _spiral_busy:
+		spiral_rect.visible = false
 
 
 ## Height kept clear at the bottom of the screen for the key legend / touch buttons.
@@ -206,6 +237,9 @@ func choose(title: String, items: Array, opts := {}) -> int:
 		if a < 0 and not opts.get("cancel", true):
 			a = 0
 		auto_log.append("[menu] %s -> %d" % [title.get_slice(char(10), 0), a])
+		if a >= 0 and opts.has("confirm_pick"):
+			if not await opts["confirm_pick"].call(a, null):
+				return await choose(title, items, opts)
 		return a
 	# Talking with someone, or on the phone: the camera closes in on them, on the left, and the menu stands on the right.
 	# There's no "Leave" row: a small B: Cancel button under the menu backs out (list_menu.gd cancel_button).
@@ -237,6 +271,27 @@ func ask(question: String, speaker := "", yes := "Yes", no := "No", speaker_node
 	prompt.setup([question], speaker, null, speaker_node)
 	push(prompt)
 	return await prompt.done == 0
+
+
+func confirm_hud(question: String, anchor: Control = null) -> bool:
+	if auto:
+		return await choose(question, ["Confirm", "Cancel"]) == 0
+	var world = GameState.main.world if GameState.main != null else null
+	var shot: bool = anchor == null and is_instance_valid(world) and world.menu_shot_begin()
+	var prompt = load("res://scripts/ui/hud_confirm.gd").new()
+	prompt.question = question
+	prompt.anchor_control = anchor
+	# Short notices wait until the decision is finished.
+	var was_visible := top_bar.visible
+	top_bar.hide()
+	top_bar.set_process(false)
+	push(prompt)
+	var accepted: bool = await prompt.done
+	top_bar.visible = was_visible
+	top_bar.set_process(true)
+	if shot and is_instance_valid(world):
+		world.menu_shot_end()
+	return accepted
 
 
 func text_input(prompt: String, default := "") -> String:
@@ -433,33 +488,55 @@ func fade_in(t := 0.3) -> void:
 	fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-## A spiral of colour that winds in from the centre until it fills the screen (wild battles).
-func spiral_in(col: Color, t := 0.8) -> void:
+## The battle swirl: a pair of thick, flat-ended arms in two tones of the colour winds out from the centre, and when
+## it is halfway out a second pair follows it, covers the screen and keeps turning while the battle loads.
+func spiral_in(col: Color, t := 0.8, secondary := Color.TRANSPARENT) -> void:
 	if auto:
 		return
 	var sm: ShaderMaterial = spiral_rect.material
 	sm.set_shader_parameter("color", col)
+	sm.set_shader_parameter("color_secondary", col.darkened(0.3) if secondary == Color.TRANSPARENT else secondary)
+	_spiral_elapsed = 0.0
+	sm.set_shader_parameter("elapsed", 0.0)
+	sm.set_shader_parameter("entry_duration", t)
 	sm.set_shader_parameter("progress", 0.0)
-	sm.set_shader_parameter("fade", 1.0)
+	sm.set_shader_parameter("reveal", 0.0)
 	var vp := get_viewport().get_visible_rect().size
 	sm.set_shader_parameter("aspect", vp.x / maxf(1.0, vp.y))
+	var path: String = SPIRAL_SHADERS[Prefs.graphics_quality]
+	if sm.shader.resource_path != path:
+		sm.shader = load(path)
+	var first_alpha := SPIRAL_FIRST_ALPHA if Prefs.graphics_quality == "max" else 1.0
+	sm.set_shader_parameter("first_alpha", first_alpha)
+	_spiral_busy = true
 	spiral_rect.visible = true
 	spiral_rect.mouse_filter = Control.MOUSE_FILTER_STOP
 	var tw := create_tween()
-	tw.tween_method(func(v): sm.set_shader_parameter("progress", v), 0.0, 1.0, t).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_method(func(v): sm.set_shader_parameter("progress", v), 0.0, 1.0, t)
 	await tw.finished
+	# A translucent first pair leaves the screen covered only once the second pair has grown out (half a swirl's
+	# length later); callers take the world away as soon as this returns.
+	while first_alpha < 1.0 and _spiral_elapsed < t * 1.5 and spiral_rect.visible:
+		await get_tree().process_frame
 
 
-## Fades the full-screen spiral away again.
-func spiral_out(t := 0.35) -> void:
+func _process(delta: float) -> void:
+	if is_instance_valid(spiral_rect) and spiral_rect.visible:
+		_spiral_elapsed += delta
+		spiral_rect.material.set_shader_parameter("elapsed", _spiral_elapsed)
+
+
+## One last pair of arms, of nothing, winds out from the centre to reveal the loaded battle, with no translucent fade.
+func spiral_out(t := 0.6) -> void:
 	if auto or not spiral_rect.visible:
 		return
 	var sm: ShaderMaterial = spiral_rect.material
 	var tw := create_tween()
-	tw.tween_method(func(v): sm.set_shader_parameter("fade", v), 1.0, 0.0, t)
+	tw.tween_method(func(v): sm.set_shader_parameter("reveal", v), 0.0, 1.0, t)
 	await tw.finished
 	spiral_rect.visible = false
 	spiral_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_spiral_busy = false
 
 
 func flash(col := Color.WHITE, times := 3) -> void:

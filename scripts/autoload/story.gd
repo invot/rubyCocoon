@@ -1831,9 +1831,17 @@ func fixtures(map: Dictionary) -> Array:
 		out.append({"kind": "story", "id": "chest", "name": "", "pos": ch["pos"], "item": ch["item"], "chest": ch["flag"], "hidden_until": ch["hidden_until"],
 			"scene": scene, "still": true, "facing": Vector2i(0, 1)})
 	for sw in map.get("switches", []):
+		var secret: bool = map["puzzle"] == "maze" and sw["index"] == 4
+		var lever := TempleProps.red_lever(GameState.flag(TidePuzzles.lever_flag(String(map["puzzle"]), sw["index"])),
+			0.3 if MapGen.get_t(map, sw["pos"].x, sw["pos"].y - 1) == MapGen.IWALL else 0.0)
+		if secret:
+			# Its interaction tile is in front of the wall, its arm and base inside the actual recess.
+			for part in lever.get_children():
+				(part as Node3D).position.z -= 1.1
+			lever.visible = TidePuzzles.cubby_open(GameState.flags)
 		out.append({"kind": "story", "id": "tide_switch", "name": "", "pos": sw["pos"], "index": sw["index"],
-			"scene": TempleProps.red_lever(GameState.flag(TidePuzzles.lever_flag(String(map["puzzle"]), sw["index"])),
-				0.3 if MapGen.get_t(map, sw["pos"].x, sw["pos"].y - 1) == MapGen.IWALL else 0.0), "still": true, "facing": Vector2i(0, 1)})
+			"scene": lever, "pick_offset": Vector3(0, 0, -1.4) if secret else Vector3.ZERO,
+			"still": true, "facing": Vector2i(0, 1)})
 	if _has_anchor(map, "tide_tablet"):
 		out.append({"kind": "story", "id": "tide_tablet", "name": "", "pos": _at(map, "tide_tablet", Vector2i.ZERO),
 			"scene": _tablet_node(Color(String(WorldDB.TEMPLES["water"]["glow"]))), "still": true, "facing": Vector2i(0, 1)})
@@ -1864,6 +1872,12 @@ func _tide_switch(world, n: Dictionary) -> void:
 	if TidePuzzles.solved(id, GameState.flags):
 		await say(["The lever is locked in place. The water has gone."])
 		return
+	if id == "maze":
+		if n["index"] == 4 and not TidePuzzles.cubby_open(GameState.flags):
+			return
+		if n["index"] != 4 and TidePuzzles.cubby_open(GameState.flags):
+			await say(["The lever has locked down. A fifth lever waits in the lit cubby in the back wall."])
+			return
 	var flag := TidePuzzles.lever_flag(id, n["index"])
 	var down := not GameState.flag(flag)
 	GameState.flags[flag] = down
@@ -1874,6 +1888,33 @@ func _tide_switch(world, n: Dictionary) -> void:
 		return
 	world.tide.show_running(TidePuzzles.running(id, GameState.flags))
 	world.refresh_tide()
+	if id == "maze" and TidePuzzles.cubby_open(GameState.flags) and not GameState.flag(TidePuzzles.CUBBY_FLAG):
+		GameState.set_flag(TidePuzzles.CUBBY_FLAG)
+		await _tide_cubby_reveal(world)
+
+
+## Pause on the new opening so the reveal is visible even when the last lever is across the room.
+func _tide_cubby_reveal(world) -> void:
+	var saved: Transform3D = world.cam.transform
+	var was_free: bool = world.cam_free
+	world.cam_free = true
+	var focus: Vector3 = world.tile_pos(TidePuzzles.CUBBY_TILE + Vector2i.DOWN) + Vector3(0, 0.8, -0.4)
+	var view := Transform3D(Basis.looking_at(Vector3(0, -2.4, -5.0)), focus + Vector3(0, 2.4, 5.0))
+	var pan = world.create_tween()
+	pan.tween_property(world.cam, "transform", view, 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await pan.finished
+	Sfx.secret_chime()
+	Sfx.play("lever")
+	for p in world.npcs:
+		var npc: Dictionary = world.npcs[p]
+		if npc.get("id", "") == "tide_switch" and npc.get("index", -1) == 4:
+			(npc["node"] as Node3D).show()
+	await world.room_walls.reveal_tide_cubby()
+	await say(["A stone panel slides open in the back wall! A fifth red lever waits inside the lit cubby."])
+	var back = world.create_tween()
+	back.tween_property(world.cam, "transform", saved, 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await back.finished
+	world.cam_free = was_free
 
 
 ## A water puzzle solved: the chime, every fall stops, the room drains and what it hid comes to light.

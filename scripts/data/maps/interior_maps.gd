@@ -39,10 +39,10 @@ extends RefCounted
 ## People: keeper (runs the shop), leader (arena leader), patron (chatty visitor),
 ##   resident (lives in the house), mom. The bottom row is the open front: no wall is drawn there.
 ## Staff (keepers, the Beast Center's guide, a barn's kennel keeper, the receptionist) always stand behind a counter,
-## boxed in so you can only talk to them across it.
+## boxed in so you can only talk to them across it. Short wooden gates (|) close staff passages; plants are decoration.
 
 const FURNITURE := {
-	"k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
+	"|": "counter_gate", "k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
 	"N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "X": "boxes", "m": "mop",
 	"&": "book_display", "l": "floor_lamp", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
@@ -95,7 +95,7 @@ const ROOMS := {
 		"rows": [
 			"#####Z#####",
 			"#sss.1.sss#",
-			"#pCCCCCCCpw",
+			"#|CCCCCCC|w",
 			"#.........w",
 			"L..rr2rr..#",
 			"#..rrrrr.PD",
@@ -133,7 +133,7 @@ const ROOMS := {
 		"rows": [
 			"#####Z#####",
 			"#BBB.1.BBB#",
-			"#pCCCCCCCpw",
+			"#|CCCCCCC|w",
 			"#.........w",
 			"L.......&&#",
 			"#t2..rr..PD",
@@ -155,7 +155,7 @@ const ROOMS := {
 		"counter_phone": [15, 2],
 		"rows": [
 			"###w#####w#######w###",
-			"#=::::3::::=#p1p.==.#",
+			"#=::::3::::=#|1|.==.#",
 			"#=:xxxxxxx:=#CCC....w",
 			"#::x:::::x::#......6w",
 			"L::x:::::x::#.......#",
@@ -252,9 +252,9 @@ const ROOMS := {
 			"######Z######",
 			"#e.eoe.eoe.e#",
 			"#:::::::::::w",
-			"#pC:::::::::w",
+			"#|C:::::::::w",
 			"#1C::::2::::#",
-			"#pC::e:::e:PD",
+			"#|C::e:::e:PD",
 			"L:::::::::::#",
 			"#############",
 		],
@@ -648,7 +648,7 @@ const ROOMS := {
 		],
 	},
 	# A maze of walkways over a pool, with metal lattices in them: three waterfalls drop from the pipes overhead through the
-	# lattices (a .. h) and block them, and each lever moves one from a lattice to another.
+	# lattices (a .. h) and block them. Four levers move the falls; all down reveal a fifth in a back-wall cubby.
 	"temple_tides_maze": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
 		"doors": {"[": "temple_tides_hall"},
@@ -656,10 +656,10 @@ const ROOMS := {
 		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
 		"water_levels": [["tides_maze_solved", -0.12]], "puzzle": "maze",
 		"floods": {"+": {"flag": "tides_maze_solved", "wet": "_", "dry": ":"}},
-		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "9": "chest:tide_charm@tides_maze_solved", "3": "chest:revival_seed"},
+		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "4": "switch:4", "9": "chest:tide_charm@tides_maze_solved", "3": "chest:revival_seed"},
 		"rows": [
 			"#####################",
-			"#+++++++++7+++++++++#",
+			"#+++++++++7+++4+++++#",
 			"#+:::::::::::::::::3#",
 			"#+:+++++++:+++++++:+#",
 			"#+a+++++++d+++++++e+#",
@@ -674,7 +674,7 @@ const ROOMS := {
 		],
 		"heights": [
 			"111111111111111111111",
-			"100000000010000000001",
+			"100000000010001000001",
 			"101111111111111111111",
 			"101000000010000000101",
 			"101000000010000000101",
@@ -880,7 +880,7 @@ const ROOMS := {
 			"#####w###w#####",
 			"#p....#>>#...p#",
 			"#.....#..#....#",
-			"L...p..34.....#",
+			"L...|..34.....#",
 			"#..C1C........#",
 			"#..CCC........#",
 			"#.......e..e..L",
@@ -1054,7 +1054,7 @@ const KELPWICK_ROOMS := {
 	},
 	## Kelpwick shares healing and arena services: a wall separates the entrance lobby from the ring; the crystal
 	## stands one tile farther back, with no furniture behind it. The host has a plain desk and counter phone.
-	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "counter_phone": [15, 2], "rows": ["###w#####w#######w###", "#=::::3::::=#p1p.==.#", "#=:xxxxxxx:=#CCC...Hw", "#::x:::::x::#.......w", "#::x:::::x::#.......#", "#=:xxxxxxx:=#.......#", "#=4:::::::5:........#", "#:::::::::::.......PD", "#####################"]},}
+	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "counter_phone": [15, 2], "rows": ["###w#####w#######w###", "#=::::3::::=#|1|.==.#", "#=:xxxxxxx:=#CCC...Hw", "#::x:::::x::#.......w", "#::x:::::x::#.......#", "#=:xxxxxxx:=#.......#", "#=4:::::::5:........#", "#:::::::::::.......PD", "#####################"]},}
 
 ## Hotel Mariposa: one two-storey lobby with walkable stairs and a balcony whose back wall has
 ## round-arched open doorways ("!") into a window box, as the guest rooms' back walls do; open hallway entrances on

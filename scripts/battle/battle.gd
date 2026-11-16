@@ -11,6 +11,9 @@ extends Node3D
 ## Fire = offense tanks, Water = healers, Earth = defenders, Air = status/evasion, Ghost = Legion.
 
 signal finished(result: String)
+## The first reward film replaces the arena for the rest of this battle's closing sequence.
+signal reward_film_started
+var _reward_film_started := false
 
 const Beasts = preload("res://scripts/core/beasts.gd")
 const OutdoorLight = preload("res://scripts/gfx/outdoor_light.gd")
@@ -5233,6 +5236,14 @@ func _award_xp(foe) -> void:
 		pending_xp[b] = int(pending_xp.get(b, 0)) + amt
 
 
+## Switch away from the arena once, before any post-battle film can be dismissed.
+func _reward_film(kind: String, before: Dictionary, after := {}, egg := {}) -> void:
+	if not _reward_film_started:
+		_reward_film_started = true
+		reward_film_started.emit()
+	await UI.beast_cinematic(kind, before, after, egg)
+
+
 ## Resolve each beast in party order. Growth cannot heal or change a model in the middle of a round.
 func _finish_growth() -> void:
 	for b in GameState.party:
@@ -5252,10 +5263,10 @@ func _finish_growth() -> void:
 		for e in events:
 			match e["type"]:
 				"level":
-					await UI.beast_cinematic("level", e["before"], e["look"])
+					await _reward_film("level", e["before"], e["look"])
 					_refresh()
 				"evolve":
-					await UI.beast_cinematic("evolve", e["before"], e["after"])
+					await _reward_film("evolve", e["before"], e["after"])
 					_remodel(b)
 					who = e["to"]
 					GameState.caught[str(e["after"]["race"])] = true
@@ -5333,7 +5344,7 @@ func _finish() -> void:
 			GameState.add_egg(int(d["race"]), bool(d["ghost"]))
 			var found: Dictionary = GameState.eggs.back()
 			await msg("%s left something behind..." % d["name"], 0.7)
-			await UI.beast_cinematic("egg", {"name": String(d["name"])}, {}, found)
+			await _reward_film("egg", {"name": String(d["name"])}, {}, found)
 			await msg("You found %s %s!" % ["an" if GameState.egg_name(found).substr(0, 1) in ["A", "E", "I", "O", "U"] else "a", GameState.egg_name(found)], 0.9)
 		if not drops.is_empty():
 			await Codex.chime("eggs")

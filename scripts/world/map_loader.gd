@@ -60,7 +60,7 @@ const CLEAR_TO := {"path": MapGen.PATH, "grass": MapGen.GRASS, "sand": MapGen.SA
 const CENTER_UNIFORM := {"robe": "plain", "shirt": "#b02a3a", "shoes": "#5a3424", "glasses": false,
 	"emblem": "center", "emblem_colour": "#f0c050"}
 const KEEPER_LOOKS := {
-	"center": {"skin": "#f0c8a0", "hair": "#e88aa0", "hair_style": 1, "robe": "plain", "shirt": "#b02a3a", "shoes": "#5a3424",
+	"center": {"skin": "#f0c8a0", "hair": "#e88aa0", "hair_style": 1, "face_person": 0, "robe": "plain", "shirt": "#b02a3a", "shoes": "#5a3424",
 		"glasses": false, "emblem": "center", "emblem_colour": "#f0c050"},
 	"apothecary": {"skin": "#e0b088", "hair": "#4a3a2a", "shirt": "#5a9a6a", "trim": "#f0ece0", "pants": "#3a4a3a",
 		"hat": "#3a6a4a", "hat_style": "visor", "apron": "#f0ece0", "outfit": "uniform"},
@@ -891,6 +891,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	var m := MapGen._new_map(id, "interior", w, h)
 	_keep_floods(m, room, flood)
 	m["puzzle"] = puzzle
+	m["tide_cubby_open"] = puzzle == "maze" and TidePuzzles.cubby_open(flags)
 	m["fall_spots"] = placed["spots"]
 	# (the maze's falls drop through lattices; the checks see past a fall, which the levers can shift)
 	m["lattices"] = {}

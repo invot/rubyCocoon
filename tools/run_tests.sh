@@ -86,6 +86,8 @@ TESTS=(
 	"plant-paving|--script res://tools/check_plant_paving.gd|PLANT PAVING DONE: 0 problem"
 	"review-fixes|--script res://tools/check_review_fixes.gd|REVIEW FIXES DONE: 0 problem"
 	"egg-sales|--script res://tools/check_egg_sales.gd|EGG SALES DONE: 0 problem"
+	"egg-sale-hud|-- --scene=egg-sale-hud|EGG SALE HUD DONE: 0 problem"
+	"egg-sale-hud-touch|--resolution 2400x1080 -- --scene=egg-sale-hud --touch|EGG SALE HUD DONE: 0 problem"
 	"kennel|--script res://tools/check_kennel.gd|KENNEL DONE: 0 problem"
 	"kennel-ui|-- --scene=kennel --touch --verify=1 --wait=0.3|KENNEL UI DONE: 0 problem"
 	"mobile-menus|-- --scene=mobile-menus --touch --verify=1 --wait=0.3|MOBILE MENUS DONE: 0 problem"

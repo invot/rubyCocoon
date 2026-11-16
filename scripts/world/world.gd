@@ -4755,7 +4755,9 @@ func _pick(screen: Vector2) -> Dictionary:
 			var height := 1.24 if kind == "ice_maker" else 0.65
 			boxes.append([AABB(tile_pos(p) + Vector3(-0.48, 0, -0.48), Vector3(0.96, height, 0.96)), p, "thing"])
 	for p in npcs:
-		var offset: Vector3 = npcs[p].get("visual_offset", Vector3.ZERO)
+		if npcs[p].get("id", "") == "tide_switch" and not (npcs[p]["node"] as Node3D).visible:
+			continue
+		var offset: Vector3 = npcs[p].get("pick_offset", npcs[p].get("visual_offset", Vector3.ZERO))
 		boxes.append([AABB(Vector3(p.x + 0.15, _lift(p), p.y + 0.15) + offset, Vector3(0.7, 1.9, 0.7)), p, "npc"])
 	for w in wilds:
 		var wp: Vector3 = (w["node"] as Node3D).position

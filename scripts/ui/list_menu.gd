@@ -21,6 +21,7 @@ var _rail: Control
 var _row_h := 0.0
 var _max_rows := 0
 var _focus := -1
+var _confirming := false
 var _t := 0.0
 var _layout_anchor := "center"
 var _layout_margin := Vector2(24, 24)
@@ -547,10 +548,24 @@ func _focused(i: int) -> void:
 
 
 func _pick(i: int) -> void:
+	if _confirming or closed:
+		return
 	if items[i].get("disabled", false):
 		Sfx.play("error")
 		return
 	Sfx.play("confirm")
+	if opts.has("confirm_pick"):
+		_confirming = true
+		_held_direction = 0
+		set_process(false)
+		hide()
+		var accepted: bool = await opts["confirm_pick"].call(i, _panel)
+		set_process(true)
+		_confirming = false
+		if not accepted:
+			show()
+			buttons[i].grab_focus()
+			return
 	if opts.has("on_pick"):
 		opts["on_pick"].call(i)
 		return
@@ -563,7 +578,7 @@ func on_input(ev: InputEvent) -> void:
 
 
 func _cancel() -> void:
-	if opts.get("cancel", true) and not closed:
+	if opts.get("cancel", true) and not closed and not _confirming:
 		Sfx.play("back")
 		close(-1)
 
