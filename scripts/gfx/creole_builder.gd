@@ -580,12 +580,6 @@ static func _cottage(node: Node3D, b: Dictionary, w: float, d: float, door_lx: f
 		icon.mesh = VP.icon(shop)
 		icon.position = Vector3(door_lx, sy - 0.02, VBld._on_face(icon.mesh, wz + shift + 0.1))
 		node.add_child(icon)
-		if shop == "cafe":
-			# café tables under the awning's ends
-			for sx in [-1.0, 1.0]:
-				var tx: float = door_lx + sx * 1.35
-				if absf(tx) < w / 2.0 - 0.3:
-					_bistro(k, Vector3(tx, lift, wz + shift + 0.45))
 	else:
 		k.box("color", Vector3(door_lx + 0.9, lift + 2.0, wz + shift + 0.06), Vector3(0.08, 0.08, 0.12), IRON)
 		k.box("glow", Vector3(door_lx + 0.9, lift + 1.85, wz + shift + 0.14), Vector3(0.16, 0.24, 0.16), Color("#ffd890"))
@@ -622,17 +616,6 @@ static func _shotgun_roof(k: VBld.Kit, w: float, d: float, top: float, shift: fl
 	k.box("color", Vector3(0, top + rise * 0.4, ze - 0.01), Vector3(0.44, 0.04, 0.03), shutter)
 	k.box("tin", Vector3(0, ridge + 0.02, (zb + ze) / 2.0), Vector3(0.14, 0.08, ze - zb + 0.04), Color("#6a7478"))
 	return ridge
-
-
-## A little round café table with two chairs.
-static func _bistro(k: VBld.Kit, p: Vector3) -> void:
-	VBld._column(k, "color", p, 0.04, 0.68, 6, IRON)
-	VBld._column(k, "color", p + Vector3(0, 0.68, 0), 0.26, 0.04, 8, Color("#f4f0e8"))
-	for sx in [-1.0, 1.0]:
-		var c := p + Vector3(sx * 0.36, 0, 0)
-		k.box("color", c + Vector3(0, 0.22, 0), Vector3(0.05, 0.44, 0.05), IRON)
-		k.box("color", c + Vector3(0, 0.44, 0), Vector3(0.24, 0.04, 0.24), Color("#2e6a4a"))
-		k.box("color", c + Vector3(sx * 0.1, 0.66, 0), Vector3(0.04, 0.44, 0.24), Color("#2e6a4a"))
 
 
 # ================================================================ the bell tower (Sky Tower)

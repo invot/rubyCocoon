@@ -624,14 +624,20 @@ func snapshot() -> Image:
 
 
 # ================================================================ save slots
+## The saved games are an open book, like the Start book (list_menu.gd book_page): the list on the left page and the
+## selected save's snapshot and details on the right one, which _show_slot_preview fills.
 var _slot_preview: Control = null
 
 
-## Picks one of the ten slots, with the selected save's snapshot beside the list.
-## Returns -1 if cancelled.
+## Picks one of the ten slots: the list on the left page, the selected save's snapshot and details on the right, and
+## "A: Select" / "B: Cancel" hanging under the book's middle. Returns -1 if cancelled.
 func pick_slot(title: String, only_filled := false, preview := true, start := 0) -> int:
 	var items := _slot_items(only_filled)
-	var opts := {"anchor": "right", "width": 420, "rows": 10, "margin": Vector2(40, 0), "start": start, "keep_anchor": true}
+	if preview:
+		# (the right-hand page already says where and when)
+		for it in items:
+			it.erase("desc")
+	var opts := _slot_menu_opts({"width": 420, "rows": 10, "start": start}, preview)
 	if preview:
 		_show_slot_preview(start)
 		opts["on_focus"] = func(k): _show_slot_preview(k)
@@ -654,14 +660,33 @@ func _slot_items(only_filled: bool) -> Array:
 	return items
 
 
+## The saved-games menus: one book in the middle, its right page the slot preview (with `page`), and the A/B buttons
+## hanging under it.
+func _slot_menu_opts(extra: Dictionary, page := true) -> Dictionary:
+	var opts := {"anchor": "center", "keep_anchor": true, "ab_buttons": true}
+	if page:
+		_hide_slot_preview()
+		var vb := VBoxContainer.new()
+		vb.name = "SlotPage"
+		vb.add_theme_constant_override("separation", 6)
+		vb.custom_minimum_size.x = 456
+		opts["book_page"] = vb
+		_slot_preview = vb
+	opts.merge(extra, true)
+	return opts
+
+
+## Fills the book's right page with slot `i`'s snapshot and details (a page of its own, off screen, when no book is
+## open, as the save test does).
 func _show_slot_preview(i: int) -> void:
-	_hide_slot_preview()
 	if UI.auto:
 		return
-	var p := UIKit.panel(Vector2(500, 0))
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 6)
-	p.add_child(vb)
+	if _slot_preview == null or not is_instance_valid(_slot_preview):
+		_slot_menu_opts({})
+	var vb := _slot_preview
+	for child in vb.get_children():
+		vb.remove_child(child)
+		child.queue_free()
 	var info := GameState.slot_info(i)
 	vb.add_child(UIKit.header("Slot %d" % (i + 1), UIKit.HEAD))
 	var frame := PanelContainer.new()
@@ -692,13 +717,11 @@ func _show_slot_preview(i: int) -> void:
 			label.custom_minimum_size.x = 448
 			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			vb.add_child(label)
-	UI.hud.add_child(p)
-	UIKit.place(p, "left", Vector2(40, 0))
-	_slot_preview = p
 
 
+## Forgets the right-hand page (the book frees it as it closes; one never put in a book is freed here).
 func _hide_slot_preview() -> void:
-	if _slot_preview != null and is_instance_valid(_slot_preview):
+	if _slot_preview != null and is_instance_valid(_slot_preview) and _slot_preview.get_parent() == null:
 		_slot_preview.queue_free()
 	_slot_preview = null
 
@@ -713,12 +736,12 @@ func slot_manager() -> int:
 		if c < 0:
 			return -1
 		last = c
+		var actions := _slot_menu_opts({"width": 420})
 		_show_slot_preview(c)
 		var a: int = await UI.choose("Slot %d" % (c + 1), [
 			{"text": "Load", "desc": "Continue this journey."},
 			{"text": "Copy", "desc": "Copy this save into another slot."},
-			{"text": "Delete", "desc": "Erase this save for good."},
-			{"text": "Back"}], {"anchor": "right", "width": 300, "margin": Vector2(40, 0)})
+			{"text": "Delete", "desc": "Erase this save for good."}], actions)
 		_hide_slot_preview()
 		match a:
 			0:
@@ -1076,6 +1099,27 @@ func _run_test() -> void:
 			start_battle({"wild": true, "foes": foes, "seed": 5})
 		# (--keys: pressed once the command panel is up, as for --scene=ring)
 		await _battle_keys()
+		# --codex_tap=1: a real screen tap on the Codex's head once --keys are in (while choosing, or with keys that
+		# start the round, during its actions); --codex_tap_at=seconds waits first
+		if _test.get("codex_tap", "") == "1":
+			await _wait(float(_test.get("codex_tap_at", "0")))
+			var h = preload("res://scripts/ui/codex.gd").head
+			if is_instance_valid(h) and h.is_visible_in_tree():
+				var at: Vector2 = h.get_global_rect().get_center()
+				for down in [true, false]:
+					var t := InputEventScreenTouch.new()
+					t.index = 0
+					t.position = at
+					t.pressed = down
+					Input.parse_input_event(t)
+					await get_tree().process_frame
+				print("codex tap at ", at, "  paused ", get_tree().paused, "  top ", UI.stack.back() if not UI.stack.is_empty() else null)
+			else:
+				print("codex tap: head not showing")
+			await _wait(float(_test.get("shot_after", "1.5")))
+			print("after tap: paused ", get_tree().paused, "  top ", UI.stack.back() if not UI.stack.is_empty() else null)
+			if _test.has("shot"):
+				_save_shot(String(_test["shot"]))
 		# --notes=foes|foe|allies: a song's notes flying from your flute to them (take the --shot at --wait 0.5)
 		if _test.has("notes"):
 			await get_tree().create_timer(2.5).timeout
@@ -2391,7 +2435,8 @@ func _saveui_test() -> void:
 	menu._pick(1)
 	await _wait(0.2)
 	bad += _saveui_check(_slot_preview != null, "load/copy/delete actions keep the selected preview")
-	UI.stack.back()._pick(3)
+	bad += _saveui_check(UI.stack.back()._select_hit != null and UI.stack.back()._cancel_hit != null, "slot menus hang A: Select and B: Cancel")
+	UI.stack.back()._cancel()
 	await _wait(0.3)
 	menu = UI.stack.back()
 	menu.buttons[9].grab_focus()
@@ -2400,7 +2445,8 @@ func _saveui_test() -> void:
 	# The headless display reports a dummy 64x64 window. Verify actual layout in the windowed runs.
 	if DisplayServer.get_name() != "headless":
 		bad += _saveui_check(viewport_rect.encloses(menu._outer.get_global_rect()), "whole menu fits inside the screen")
-		bad += _saveui_check(not menu._outer.get_global_rect().intersects(_slot_preview.get_global_rect()), "list and snapshot do not overlap")
+		bad += _saveui_check(menu._scroll.get_global_rect().end.x <= _slot_preview.get_global_rect().position.x
+			and menu._panel.get_global_rect().encloses(_slot_preview.get_global_rect()), "list and snapshot share one book, side by side")
 	bad += _saveui_check(menu._scroll.get_global_rect().grow(1.0).encloses(menu.buttons[9].get_global_rect()), "all ten slots remain reachable with full-sized rows")
 	bad += _saveui_check(menu.buttons[9].size.y >= UIKit.row_h(), "rows honor the shared button minimum")
 	bad += _saveui_check(menu._rail._down.size.y >= UIKit.row_h() and menu._rail._up.size.y >= UIKit.row_h(), "scroll buttons honor the same minimum")
@@ -3961,12 +4007,12 @@ func _battlecmd_test() -> void:
 	check.call(bt.floating.aiming and bt.floating.actor == "trainer_self" and bt._target_refs.size() == 1 and bt.floating.tag_rects.has(bt._target_refs[0]) and bt._aim_from == "trainer_self" and bt.aim_mesh.mesh.get_surface_count() > 0, "targeting keeps the trainer's bar, gives the target a bar and draws an arch from the trainer")
 	await key.call("ui_accept")
 	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
-	# the top beast: its move, then its target (two foes)
-	await opt_to.call(p, "move")
+	# the top beast: a one-target move (Bite; at Lv 20 its first move is Fire Spin, which hits all), then its target
+	await opt_to.call(p, "move", "bite")
 	await key.call("ui_accept")
 	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
 	await _wait(0.1)
-	check.call(bt.floating.aiming and is_same(bt.floating.actor, fire_a) and bt._target_refs.size() == 1 and bt._aim_from == fire_a and bt.aim_mesh.mesh.get_surface_count() > 0, "a beast's arch starts at that beast, whose bar names the target")
+	check.call(bt.floating.aiming and is_same(bt.floating.actor, fire_a) and bt._target_refs.size() == 1 and bt._aim_from == fire_a and bt.aim_mesh.mesh.get_surface_count() > 0, "a beast's arch starts at that beast, whose bar names the target (%d target(s))" % bt._target_refs.size())
 	var first_target = bt._target_refs[0]
 	await key.call("ui_right")
 	check.call(bt._target_refs.size() == 1 and bt._target_refs[0] != first_target, "► moves the arrow to the other foe")
@@ -4015,6 +4061,11 @@ func _battlecmd_test() -> void:
 		return
 	fire_a.hp = fire_a.max_hp()
 	air_c.hp = air_c.max_hp()
+	# a panel reopened on a fallen beast's row (after Items, Flute, Summon or Run) moves on to the next that can act
+	var probe: Control = load(PANEL_PATH).new().setup([{"kind": "trainer", "done": true}, {"kind": "beast", "status": "down"},
+		{"kind": "beast", "status": ""}], {}, 1, Callable(), {})
+	check.call(probe.focus == 2, "a fainted beast never gets a turn: the panel skips its row (focus %d)" % probe.focus)
+	probe.free()
 	# round two: Watch, then ▲ on your own bar turns the ring
 	await opt_to.call(p, "watch")
 	await key.call("ui_accept")

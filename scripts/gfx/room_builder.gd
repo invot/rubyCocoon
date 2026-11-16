@@ -31,6 +31,9 @@ const SILL := 0.85
 const WIN_TOP := 2.07
 ## the head of an open doorway onto a balcony
 const BALCONY_H := 2.2
+## how far the garden in a balcony doorway's window box lies below the doorway's sill: about half a storey (the
+## user's 2026-11-15 direction), so you look down onto it over the little balcony's railing
+const BALCONY_DROP := 1.35
 ## how far the floor's front edge drops, below the open front of the room
 const EDGE := 0.35
 ## how steeply a stage room's camera looks down at the least (world.gd CAM_OFFSET_ROOM; nearer, it looks down more):
@@ -1025,7 +1028,10 @@ func _walls() -> void:
 						_bars(x, y, _foot(x, y), top, horiz, vert, e, wv, n, s)
 				MapGen.IWINDOW:
 					if map.get("balcony_doors", {}).has(Vector2i(x, y)):
-						_bars(x, y, BALCONY_H, top, horiz, vert, e, wv, n, s)
+						var sill := Elev.surface(map, Vector2i(x, y))
+						if sill > _foot(x, y):
+							_bars(x, y, _foot(x, y), sill, horiz, vert, e, wv, n, s)
+						_bars(x, y, sill + BALCONY_H, top, horiz, vert, e, wv, n, s)
 						_balcony_door(x, y, horiz)
 					elif top < H:
 						_bars(x, y, 0.0, top, horiz, vert, e, wv, n, s)
@@ -1566,11 +1572,13 @@ func _window(x: int, y: int, horiz: bool) -> void:
 
 
 ## An open doorway onto a balcony (map_loader.gd "!"), seen from the room: no leaf, a frame round the opening and sheer
-## curtains drawn back either side; beyond it a tiled balcony floor, an iron railing and the sea under the sky, closed
-## in at the sides and above so nothing past the room shows. You can't walk out: the tile stays wall.
+## curtains drawn back either side. Beyond it lies the window box planned behind it (the user's 2026-11-15
+## direction: the hotel's arched doorways look out into its nature); only where no box fits does it get its own tiled
+## balcony, iron railing and sea under the sky, closed in at the sides and above so nothing past the room shows. You
+## can't walk out: the tile stays wall.
 func _balcony_door(x: int, y: int, horiz: bool) -> void:
 	var m := _row(y)
-	var c := Vector3(x + 0.5, 0, y + 0.5)
+	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5)
 	var inside := Vector2i(0, 1) if horiz else Vector2i(1, 0)
 	if zone(x + inside.x, y + inside.y) == "":
 		inside = -inside
@@ -1583,6 +1591,62 @@ func _balcony_door(x: int, y: int, horiz: bool) -> void:
 		m.box("frame", fr, c + along * side * 0.46 + Vector3(0, BALCONY_H / 2.0, 0), _axes(along, 0.09, BALCONY_H, T + 0.06, horiz))
 	m.box("frame", fr, c + Vector3(0, BALCONY_H + 0.05, 0), _axes(along, 1.0, 0.1, T + 0.06, horiz))
 	m.box("frame", fr, c + Vector3(0, 0.02, 0), _axes(along, 0.86, 0.04, T + 0.02, horiz))
+	var iron := surface("iron", Color("#2d2622"))
+	if _box_of.has(Vector2i(x, y)):
+		_juliet_balcony(m, c, -into, along, horiz, iron)
+	else:
+		_balcony_beyond(x, y, horiz, c, into, along, yaw, z, iron)
+	# sheer curtains tied back either side of the opening on a rod, on the room side
+	var drape := surface("drape", Color("#f3ead8"))
+	var rod := c + into * (T / 2.0 + 0.08)
+	m.box("iron", iron, rod + Vector3(0, BALCONY_H + 0.16, 0), _axes(along, 1.5, 0.04, 0.04, horiz))
+	for side in [-1.0, 1.0]:
+		var at: Vector3 = rod + along * side * 0.62
+		m.box("drape", drape, at + Vector3(0, BALCONY_H / 2.0 + 0.08, 0), _axes(along, 0.22, BALCONY_H + 0.14, 0.06, horiz))
+		m.box("drape", drape, at - along * side * 0.04 + Vector3(0, 1.0, 0), _axes(along, 0.3, 0.07, 0.1, horiz))
+	if mission:
+		_mission_balcony_arch(x, y, horiz, into, z)
+
+
+## A little balcony half a tile deep outside an open doorway that looks into a window box (the user's 2026-11-15
+## direction): a stone slab on two corbels, tiled on top level with the room's floor, and a railing round its open
+## edges of stone corner posts and cap rails over wrought-iron bars. `c` is the doorway's foot at the wall's middle.
+const JULIET_DEEP := 0.5
+const JULIET_W := 1.2
+
+
+func _juliet_balcony(m: Mesher, c: Vector3, out: Vector3, along: Vector3, horiz: bool, iron: Material) -> void:
+	var stone := surface("balcony_stone", Color("#ebe1cf"))
+	var face := c + out * (T / 2.0)
+	var mid := face + out * (JULIET_DEEP / 2.0)
+	m.box("balcony_stone", stone, mid + Vector3(0, -0.08, 0), _axes(along, JULIET_W, 0.16, JULIET_DEEP, horiz))
+	m.box("balcony_tile", surface("balcony_tile", Color("#d49a72")), mid + Vector3(0, 0.005, 0),
+		_axes(along, JULIET_W - 0.08, 0.03, JULIET_DEEP - 0.04, horiz))
+	for side in [-1.0, 1.0]:
+		m.box("balcony_stone", stone, face + out * 0.17 + along * side * 0.42 + Vector3(0, -0.28, 0), _axes(along, 0.14, 0.26, 0.34, horiz))
+	# the railing: stone posts at its outer corners and against the wall, stone cap rails, iron bars between
+	var rail_h := 0.9
+	var edge := face + out * (JULIET_DEEP - 0.06)
+	var half := JULIET_W / 2.0 - 0.06
+	for side in [-1.0, 1.0]:
+		for at: Vector3 in [edge + along * side * half, face + out * 0.06 + along * side * half]:
+			m.box("balcony_stone", stone, at + Vector3(0, rail_h / 2.0, 0), _axes(along, 0.12, rail_h, 0.12, horiz))
+	m.box("balcony_stone", stone, edge + Vector3(0, rail_h - 0.04, 0), _axes(along, JULIET_W, 0.08, 0.14, horiz))
+	m.box("iron", iron, edge + Vector3(0, 0.1, 0), _axes(along, JULIET_W - 0.12, 0.04, 0.04, horiz))
+	for i in 9:
+		m.box("iron", iron, edge + along * (-0.44 + 0.11 * float(i)) + Vector3(0, rail_h / 2.0, 0), _axes(along, 0.025, rail_h - 0.1, 0.025, horiz))
+	for side in [-1.0, 1.0]:
+		var run: Vector3 = face + out * (JULIET_DEEP / 2.0) + along * side * half
+		m.box("balcony_stone", stone, run + Vector3(0, rail_h - 0.04, 0), _axes(along, 0.14, 0.08, JULIET_DEEP, horiz))
+		m.box("iron", iron, run + Vector3(0, 0.1, 0), _axes(along, 0.04, 0.04, JULIET_DEEP - 0.12, horiz))
+		for k in 2:
+			m.box("iron", iron, face + out * (0.2 + 0.13 * float(k)) + along * side * half + Vector3(0, rail_h / 2.0, 0),
+				_axes(along, 0.025, rail_h - 0.1, 0.025, horiz))
+
+
+## A balcony of its own beyond an open doorway that has no window box behind it.
+func _balcony_beyond(x: int, y: int, horiz: bool, c: Vector3, into: Vector3, along: Vector3, yaw: float, z: String, iron: Material) -> void:
+	var m := _row(y)
 	# the balcony: its floor, its side walls and a ceiling, all in the room's wall finish but the tiles
 	var out := -into
 	var deep := 0.8
@@ -1595,7 +1659,6 @@ func _balcony_door(x: int, y: int, horiz: bool) -> void:
 		m.box("balcony_wall_" + z, wall, mid + along * side * 0.5 + Vector3(0, roof / 2.0, 0), _axes(along, 0.06, roof, deep, horiz))
 	m.box("balcony_wall_" + z, wall, mid + Vector3(0, roof - 0.05, 0), _axes(along, 1.06, 0.1, deep, horiz))
 	# an iron railing along its edge
-	var iron := surface("iron", Color("#2d2622"))
 	var rail := c + out * (T / 2.0 + deep - 0.12)
 	m.box("iron", iron, rail + Vector3(0, 0.92, 0), _axes(along, 0.94, 0.05, 0.05, horiz))
 	m.box("iron", iron, rail + Vector3(0, 0.12, 0), _axes(along, 0.94, 0.035, 0.035, horiz))
@@ -1616,16 +1679,6 @@ func _balcony_door(x: int, y: int, horiz: bool) -> void:
 		view.position = c + out * (T / 2.0 + deep - 0.02) + Vector3(0, (float(part[0]) + float(part[1])) / 2.0, 0)
 		view.rotation.y = yaw
 		_attach(x, y, view)
-	# sheer curtains tied back either side of the opening on a rod, on the room side
-	var drape := surface("drape", Color("#f3ead8"))
-	var rod := c + into * (T / 2.0 + 0.08)
-	m.box("iron", iron, rod + Vector3(0, BALCONY_H + 0.16, 0), _axes(along, 1.5, 0.04, 0.04, horiz))
-	for side in [-1.0, 1.0]:
-		var at: Vector3 = rod + along * side * 0.62
-		m.box("drape", drape, at + Vector3(0, BALCONY_H / 2.0 + 0.08, 0), _axes(along, 0.22, BALCONY_H + 0.14, 0.06, horiz))
-		m.box("drape", drape, at - along * side * 0.04 + Vector3(0, 1.0, 0), _axes(along, 0.3, 0.07, 0.1, horiz))
-	if mission:
-		_mission_balcony_arch(x, y, horiz, into, z)
 
 
 # ---------------------------------------------------------------- a Spanish mission's finish (Hotel Mariposa)
@@ -1720,7 +1773,7 @@ func _mission_balcony_arch(x: int, y: int, horiz: bool, into: Vector3, z: String
 	var m := _row(y)
 	var along := Vector3.RIGHT if horiz else Vector3.BACK
 	var r := 0.46
-	var c := Vector3(x + 0.5, BALCONY_H - r, y + 0.5) + into * (T / 2.0 + 0.04)
+	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)) + BALCONY_H - r, y + 0.5) + into * (T / 2.0 + 0.04)
 	var wall := wall_mat(z)
 	for i in 12:
 		var a0 := PI * float(i) / 12.0
@@ -3336,7 +3389,10 @@ func _plan_boxes() -> Array:
 						claimed[p] = true
 					for k in range(1, deep + 1):
 						claimed[p + out * k] = true
-				var box := {"start": start, "n": n, "out": out, "deep": deep, "base": Elev.surface(map, t)}
+				# (a balcony doorway's garden lies half a storey below its sill, under its little balcony)
+				var sill := Elev.surface(map, t)
+				var drop := BALCONY_DROP if windows.any(func(wt): return balconies.has(wt)) else 0.0
+				var box := {"start": start, "n": n, "out": out, "deep": deep, "base": sill - drop, "sill": sill}
 				for wt in windows:
 					_boxed[wt] = true
 					_box_of[wt] = box
@@ -3358,7 +3414,7 @@ static func window_boxes_of(m: Dictionary) -> Dictionary:
 	for y in rb.h:
 		for x in rb.w:
 			var t := Vector2i(x, y)
-			if rb.code(x, y) != MapGen.IWINDOW or balconies.has(t):
+			if rb.code(x, y) != MapGen.IWINDOW:
 				continue
 			for out: Vector2i in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]:
 				if rb.zone(x + out.x, y + out.y) == "" and rb.zone(x - out.x, y - out.y) != "":
@@ -3370,7 +3426,8 @@ static func window_boxes_of(m: Dictionary) -> Dictionary:
 ## Builds the planned window boxes.
 func _window_boxes() -> void:
 	for box in _plan_boxes():
-		_window_box(box["start"], box["n"], box["out"], box["base"], box["deep"])
+		print("BOXPLAN ", map.get("room_key", ""), " ", box) # TEMP
+		_window_box(box["start"], box["n"], box["out"], box["base"], box["deep"], box["sill"])
 	if _box_props.is_empty():
 		return
 	var batch := Node3D.new()
@@ -3395,9 +3452,10 @@ func _outside(p: Vector2i) -> bool:
 	return p.x < 0 or p.y < 0 or p.x >= w or p.y >= h or code(p.x, p.y) == MapGen.IVOID
 
 
-## A window (not a balcony's doorway) with the room on its inside and the outside on side `out`.
+## A window (or a balcony's open doorway, which looks into a box too) with the room on its inside and the outside on
+## side `out`.
 func _box_window(p: Vector2i, out: Vector2i, balconies: Dictionary) -> bool:
-	return code(p.x, p.y) == MapGen.IWINDOW and not balconies.has(p) and zone(p.x + out.x, p.y + out.y) == "" \
+	return code(p.x, p.y) == MapGen.IWINDOW and zone(p.x + out.x, p.y + out.y) == "" \
 		and zone(p.x - out.x, p.y - out.y) != "" and _outside(p + out)
 
 
@@ -3411,9 +3469,9 @@ func _box_cells_free(p: Vector2i, out: Vector2i, claimed: Dictionary, deep := BO
 
 
 ## A box may carry on along its wall line over `p`: plain wall, a window facing the same way, or the outside, never a
-## door (nor a balcony's doorway) or a diagonal, with free outside tiles beyond it.
+## door or a diagonal, with free outside tiles beyond it.
 func _box_line_ok(p: Vector2i, out: Vector2i, balconies: Dictionary, claimed: Dictionary, deep := BOX_DEEP) -> bool:
-	if claimed.has(p) or balconies.has(p):
+	if claimed.has(p):
 		return false
 	if not (_outside(p) or code(p.x, p.y) == MapGen.IWALL or _box_window(p, out, balconies)):
 		return false
@@ -3421,8 +3479,9 @@ func _box_line_ok(p: Vector2i, out: Vector2i, balconies: Dictionary, claimed: Di
 
 
 ## One window box `box_deep` tiles deep behind wall tiles `start` .. `start + along * (n - 1)`, its floor at height
-## `base`.
-func _window_box(start: Vector2i, n: int, out: Vector2i, base: float, box_deep := BOX_DEEP) -> void:
+## `base`. Below `sill` (where a balcony doorway's garden lies lower than the room) its front is the building's
+## plastered wall all along, so nothing under the room shows.
+func _window_box(start: Vector2i, n: int, out: Vector2i, base: float, box_deep := BOX_DEEP, sill := NAN) -> void:
 	var biome: Dictionary = map.get("biome", {})
 	var bid := String(biome.get("id", "coast"))
 	var along := Vector3(absi(out.y), 0, absi(out.x))
@@ -3462,9 +3521,15 @@ func _window_box(start: Vector2i, n: int, out: Vector2i, base: float, box_deep :
 	# a black lid, and black across the box's front everywhere but its windows (behind the walls' own faces, and
 	# closing the gaps at the room's corners and wherever it runs on past the room)
 	_st_quad(black, [at.call(0.0, 0.0, tall), at.call(len_u, 0.0, tall), at.call(len_u, deep, tall), at.call(0.0, deep, tall)], flat, up, white)
+	var low := 0.0 if is_nan(sill) else maxf(0.0, sill - base)
+	var facade := SurfaceTool.new()
+	facade.begin(Mesh.PRIMITIVE_TRIANGLES)
+	if low > 0.0:
+		_st_quad(facade, [at.call(0.0, 0.0, 0.0), at.call(len_u, 0.0, 0.0), at.call(len_u, 0.0, low), at.call(0.0, 0.0, low)],
+			[Vector2(0, 0), Vector2(len_u, 0), Vector2(len_u, low), Vector2(0, low)], -o3, white)
 	for i in n:
 		if not _boxed.has(start + Vector2i(int(along.x), int(along.z)) * i):
-			_st_quad(black, [at.call(float(i), 0.0, 0.0), at.call(float(i + 1), 0.0, 0.0), at.call(float(i + 1), 0.0, tall),
+			_st_quad(black, [at.call(float(i), 0.0, low), at.call(float(i + 1), 0.0, low), at.call(float(i + 1), 0.0, tall),
 				at.call(float(i), 0.0, tall)], flat, -o3, white)
 	var gm := StandardMaterial3D.new()
 	gm.albedo_texture = load("res://assets/textures/surfaces/ground_grass.png")
@@ -3483,7 +3548,10 @@ func _window_box(start: Vector2i, n: int, out: Vector2i, base: float, box_deep :
 	var bm := surface("wall_plaster", BOX_BLACK).duplicate() as StandardMaterial3D
 	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var mesh := ArrayMesh.new()
-	for pair in [[grass, gm], [view, vm], [black, bm]]:
+	var parts := [[grass, gm], [view, vm], [black, bm]]
+	if low > 0.0:
+		parts.append([facade, wall_mat(default_zone)])
+	for pair in parts:
 		(pair[0] as SurfaceTool).commit(mesh)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, pair[1])
 	var mi := MeshInstance3D.new()

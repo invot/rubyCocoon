@@ -39,6 +39,15 @@ func setup(_rows: Array, _info: Dictionary, _focus: int, _targets_for: Callable,
 	rows = _rows
 	info = _info
 	focus = clampi(_focus, 0, rows.size() - 1)
+	# never open on a beast that can't act (fainted, empty pad, sitting out a practice): the next one that can, else you
+	if focus > 0 and rows[focus].get("status", "") != "":
+		var to := 0
+		for i in range(1, rows.size()):
+			var k := posmod(focus - 1 + i, rows.size() - 1) + 1
+			if rows[k].get("status", "") == "" and not rows[k].get("done", false):
+				to = k
+				break
+		focus = to
 	targets_for = _targets_for
 	hooks = _hooks
 	return self
@@ -61,7 +70,8 @@ func _input(ev: InputEvent) -> void:
 		at = ev.position
 	else:
 		return
-	if UI.touch_blocks(at):
+	# (the touch pad's zones, and the Codex's head and Skip lesson button, take their own presses)
+	if UI.touch_blocks(at) or preload("res://scripts/ui/codex.gd").hit(at):
 		return
 	get_viewport().set_input_as_handled()
 	var floating = hooks.get("floating", null)

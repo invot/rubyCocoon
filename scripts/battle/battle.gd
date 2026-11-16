@@ -214,6 +214,9 @@ var _message_subject = null
 var _prompt_ref = null
 ## true while the command controller is choosing actions
 var _commanding := false
+## the Codex was tapped while nothing was being chosen: its question list opens at the battle's next pause
+## (_codex_gate), since pausing the tree mid-action leaves the battle running on behind it
+var _codex_wanted := false
 ## the command panel's rows this round (see _panel_rows)
 var _rows_now: Array = []
 
@@ -303,10 +306,6 @@ func _multimesh(mesh: Mesh, xforms: Array, mat: Material = null) -> void:
 		scenery_visibility.register(mi, xforms)
 
 
-func _tex_mat(t: Texture2D, uv := Vector2.ONE) -> ShaderMaterial:
-	return StageLighting.ground_material(t, uv, biome)
-
-
 func _build_stage() -> void:
 	var arena: bool = cfg.get("arena", false)
 	var dark: bool = indoor and not arena
@@ -369,31 +368,22 @@ func _build_stage() -> void:
 	var sandy: bool = biome["id"] in ["desert", "mesa", "western"]
 	# a beast you've reeled in: you on a plank dock, the beach behind you, the beast out on the water
 	var fishing: bool = cfg.get("fishing", false)
-	var ground_tex: Texture2D
+	var look := "grass"
 	if fishing:
-		ground_tex = VT.terrain("top_sand", biome.get("sand", "#ecd8a0"))
+		look = "beach"
 	elif arena:
-		ground_tex = VT.terrain("top_plaza", biome["plaza"])
+		look = "arena"
 	elif dark:
-		ground_tex = VT.terrain("top_plaza", "#4a4652")
+		look = "dark"
 	elif sandy:
-		ground_tex = VT.terrain("top_sand", biome["sand"])
-	else:
-		ground_tex = VT.terrain("top_grass", biome["ground"])
+		look = "sand"
 	var ground := MeshInstance3D.new()
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(80, 80)
-	ground.mesh = pm
-	ground.material_override = _tex_mat(ground_tex, Vector2(80, 80))
-	if not fishing and not arena and not dark and not sandy:
-		ground.mesh = StageLighting.grass_floor()
-		var ground_material := ground.material_override as ShaderMaterial
-		ground_material.set_shader_parameter("grass_patches", true)
-		ground_material.set_shader_parameter("dirt_texture", VT.terrain("top_path", biome["path"]))
+	ground.mesh = StageLighting.floor_mesh(Vector2(80, 80))
+	ground.material_override = StageLighting.ground_material(biome, look)
 	ground.position = Vector3(0, 0, 1.5) if not fishing else Vector3(0, -0.6, -10)
 	add_child(ground)
 	if not dark:
-		surround = Backdrop.build(biome, ground_tex)
+		surround = Backdrop.build(biome, ground.material_override)
 		add_child(surround)
 	_build_ring("ally")
 	if not wild:
@@ -1031,10 +1021,8 @@ func _fishing_scenery(rng: RandomNumberGenerator) -> void:
 	water.position = FOE_CENTER + Vector3(0, -0.15, 0)
 	add_child(water)
 	var beach := MeshInstance3D.new()
-	var bp := PlaneMesh.new()
-	bp.size = Vector2(90, 40)
-	beach.mesh = bp
-	beach.material_override = _tex_mat(VT.terrain("top_sand", biome.get("sand", "#ecd8a0")), Vector2(90, 40))
+	beach.mesh = StageLighting.floor_mesh(Vector2(90, 40))
+	beach.material_override = StageLighting.ground_material(biome, "beach")
 	beach.position = shore - f * 20.0
 	beach.rotation.y = turn
 	add_child(beach)
@@ -1386,6 +1374,20 @@ func _set_acting(ref) -> void:
 func _camera_shot(name: String, actor = null, target = null) -> void:
 	if camera_director != null:
 		camera_director.play(name, actor, target)
+
+
+## Brings the camera back to its resting view and waits until it is there, so a turn's choices never open while it is
+## still on the last action (held shots such as a cast, beat or summon don't return by themselves).
+func _camera_home() -> void:
+	if camera_director == null:
+		return
+	var resting := ["home", "choose", "return"]
+	if not (camera_director.shot in resting) or not (camera_director.pending == "" or camera_director.pending in resting):
+		camera_director.play("return")
+	var waited := 0.0
+	while not camera_director.settled() and waited < 2.5:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
 
 
 ## The models drawn for someone: a beast's own geometry (the parts its hit flash covers), or a trainer's rig.
@@ -1911,6 +1913,7 @@ func _render_rows(rows: Array, focus: int, picking: bool) -> void:
 
 
 func msg(text: String, wait := 0.95, subject = null) -> void:
+	await _codex_gate()
 	_caption(text, subject)
 	if OS.has_feature("editor") and GameState.main != null and "--battle-log" in OS.get_cmdline_user_args():
 		print("  | ", text)
@@ -2277,6 +2280,11 @@ func _command_phase() -> Array:
 			return []
 		if rows[0].get("done", false) and not _rows_waiting(rows):
 			break
+		await _codex_gate()
+		await _camera_home()
+		if result != "":
+			_select_hud_actor(null)
+			return []
 		var p := CommandPanel.new()
 		p.setup(rows, _panel_info(), focus, _row_targets, {"render": _render_rows, "hint": _caption, "info": _command_info,
 			"option": _show_option, "teach": _teach_option, "stage": self, "floating": floating})
@@ -2724,13 +2732,26 @@ func _teach_option(option: Dictionary) -> void:
 	await Codex.chime_all(BattleTutorials.topics(option))
 
 
-## A tap on the Codex while you choose: the command panel closes to ask it a question, then opens again. True if
-## it took the tap; otherwise the Codex asks at once, pausing the battle (codex.gd _on_tapped).
+## A tap on the Codex in battle. While you choose, the command panel closes to ask it a question, then opens again.
+## Otherwise (an action playing out, the victory, an egg's film) the battle holds at its next message or action and
+## asks it then (_codex_gate): pausing the tree instead would freeze the films while the battle ran on behind them.
 func _codex_tapped() -> bool:
 	if _commanding and is_instance_valid(_panel_now) and not _panel_now.closed and UI.stack.back() == _panel_now:
 		_panel_now.close({"kind": "codex", "focus": int(_panel_now.focus)})
 		return true
-	return false
+	if not _codex_wanted:
+		_codex_wanted = true
+		Sfx.play("select")
+		Codex.react("happy", 1.0)
+	return true
+
+
+## Asks the Codex now if it was tapped while nothing was being chosen (_codex_tapped).
+func _codex_gate() -> void:
+	if not _codex_wanted:
+		return
+	_codex_wanted = false
+	await Codex.ask()
 
 
 ## Done all the Codex's lessons (codex.gd mastered)? Then once a battle, as you're about to choose, it fully heals
@@ -3790,6 +3811,7 @@ func _resolve(acts: Array) -> void:
 			return int(x.get("prio", 0)) > int(y.get("prio", 0))
 		return float(x["spd"]) > float(y["spd"]))
 	for a in acts:
+		await _codex_gate()
 		if result != "" or (_practice != "" and Codex.skipped()):
 			return
 		# Skip inactive beasts before outlining their HUD icons, and clear before faint/end reports.
@@ -5314,6 +5336,8 @@ func _finish() -> void:
 			await Codex.chime("eggs")
 		if cfg.get("sure_egg", false) and result == "win":
 			GameState.set_flag("flute_lesson_done")
+	# (tapped during the last film: it answers before the battle closes)
+	await _codex_gate()
 	for b in GameState.party:
 		b.status = ""
 		b.status_turns = 0

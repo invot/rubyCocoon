@@ -41,6 +41,15 @@ const COMPACT_FONT := 28
 var tab_buttons: Array = []
 var _cancel_hit: Control
 var _cancel_btn: Button
+## opts.ab_buttons (the saved-games list): "A: Select" and "B: Cancel" hang side by side under the window's middle
+var _select_hit: Control
+const AB_GAP := 20.0
+## opts.book_page (the saved games): a Control shown as the right-hand page, the list on the left one, the whole
+## window the Start book's tan paper with its spine at the fold between them (book_paper.gd)
+var _paper: Control
+var _fold: Control
+var _book_row: HBoxContainer
+var _list_col: VBoxContainer
 
 
 func setup(_title: String, _items: Array, _opts := {}) -> Control:
@@ -93,7 +102,11 @@ func _ready() -> void:
 	outer.add_child(_panel)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 4)
-	_panel.add_child(vb)
+	_list_col = vb
+	if opts.has("book_page"):
+		_make_book(vb)
+	else:
+		_panel.add_child(vb)
 	if title_lines.size() > 1:
 		vb.add_child(Control.new())
 		var sub := UIKit.label("\n".join(title_lines.slice(1)), 20, UIKit.DIM)
@@ -196,8 +209,12 @@ func _ready() -> void:
 	if opts.get("embedded", false):
 		outer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		return
-	if opts.get("cancel_button", false) and opts.get("cancel", true) and not bare:
+	if (opts.get("cancel_button", false) or opts.get("ab_buttons", false)) and opts.get("cancel", true) and not bare:
 		_make_cancel_button()
+	if _paper != null and _cancel_hit != null:
+		# the hanging A/B buttons cover only empty paper under the pages, never the list's scroll-down button
+		var sb: StyleBox = _panel.get_theme_stylebox("panel")
+		sb.content_margin_bottom += ceilf(_cancel_hit.button_size().y * _cancel_hit.OVERLAP) + 10.0
 	UIKit.place(outer, _layout_anchor, _layout_margin)
 	if _scroll != null:
 		get_viewport().size_changed.connect(_fit_rows)
@@ -235,6 +252,9 @@ func _fit_rows() -> void:
 		reserve += _cancel_overhang()
 	var available := get_viewport().get_visible_rect().size.y - maxf(24.0, margin.y) * 2.0 - reserve
 	var chrome := _outer.get_combined_minimum_size().y - _scroll.get_parent_control().get_combined_minimum_size().y
+	if _book_row != null:
+		# (a right-hand page taller than the list isn't the list's chrome)
+		chrome -= maxf(0.0, _book_row.get_combined_minimum_size().y - _list_col.get_combined_minimum_size().y)
 	var row_h := _row_h
 	var rows := clampi(floori((available - chrome - 2.0) / row_h), 1, _max_rows)
 	if opts.get("cancel_button", false) and not opts.get("fixed_rows", false) and rows < _max_rows:
@@ -312,11 +332,56 @@ func _bare_button(b: Button, hero: bool) -> void:
 	pulse.tween_property(b, "scale", Vector2.ONE, 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
+## The window as an open book: the list on the left page, opts.book_page on the right, on the Start book's paper.
+func _make_book(list_col: VBoxContainer) -> void:
+	_paper = load("res://scripts/ui/book_paper.gd").new()
+	add_child(_paper)
+	move_child(_paper, _outer.get_index())
+	# the window keeps only its padding: the paper behind it is the box (as book_menu.gd _page_margins)
+	var src := UIKit.box("textfield")
+	var sb := StyleBoxEmpty.new()
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		sb.set_content_margin(side, src.get_content_margin(side))
+	_panel.add_theme_stylebox_override("panel", sb)
+	_book_row = HBoxContainer.new()
+	_book_row.add_theme_constant_override("separation", 18)
+	_panel.add_child(_book_row)
+	_book_row.add_child(list_col)
+	# the fold between the pages: the paper draws the spine there, so this only keeps its room
+	var fold := VSeparator.new()
+	fold.add_theme_stylebox_override("separator", StyleBoxEmpty.new())
+	_fold = fold
+	_book_row.add_child(fold)
+	var page: Control = opts["book_page"]
+	page.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_book_row.add_child(page)
+
+
+## The paper follows the window, and its spine the fold.
+func _place_paper() -> void:
+	if _paper == null or _panel == null:
+		return
+	var r := _panel.get_global_rect()
+	if _paper.global_position != r.position or _paper.size != r.size:
+		_paper.global_position = r.position
+		_paper.size = r.size
+	var sx := _fold.get_global_rect().get_center().x - r.position.x
+	if absf(sx - _paper.spine_x) > 0.5:
+		_paper.spine_x = sx
+		_paper.refresh()
+
+
 func _make_cancel_button() -> void:
 	_cancel_hit = load("res://scripts/ui/edge_button.gd").new().setup("B: Cancel")
 	_cancel_btn = _cancel_hit.button
 	_cancel_hit.pressed.connect(_cancel)
 	add_child(_cancel_hit)
+	if opts.get("ab_buttons", false):
+		_select_hit = load("res://scripts/ui/edge_button.gd").new().setup("A: Select")
+		_select_hit.pressed.connect(func():
+			if _focus >= 0 and not closed:
+				_pick(_focus))
+		add_child(_select_hit)
 
 
 func _cancel_overhang() -> float:
@@ -324,12 +389,23 @@ func _cancel_overhang() -> float:
 
 
 func _place_cancel() -> void:
-	if _cancel_hit != null and _panel != null:
-		_cancel_hit.place_under(_panel.get_global_rect())
+	if _cancel_hit == null or _panel == null:
+		return
+	var rect := _panel.get_global_rect()
+	if _select_hit == null:
+		_cancel_hit.place_under(rect)
+		return
+	# "A: Select" and "B: Cancel" side by side, centred under the window
+	var wa: float = _select_hit.button_size().x
+	var wb: float = _cancel_hit.button_size().x
+	var left := rect.get_center().x - (wa + AB_GAP + wb) / 2.0
+	_select_hit.place_at(rect, left)
+	_cancel_hit.place_at(rect, left + wa + AB_GAP)
 
 
 func _process(delta: float) -> void:
 	_t += delta
+	_place_paper()
 	_place_cancel()
 	# while the tabs have the cursor the open one pulses, as in the Start book (book_menu.gd _process)
 	for k in tab_buttons.size():

@@ -106,6 +106,12 @@ func step(delta: float) -> void:
 	battle.cam.look_at(_look, Vector3.UP)
 
 
+## True once the camera is back on its resting view (home, or framing the chooser) and has arrived there.
+func settled() -> bool:
+	return pending == "" and shot in ["home", "choose"] and _position.distance_to(_goal_position) < 0.12 \
+		and _look.distance_to(_goal_look) < 0.12 and absf(battle.cam.fov - clampf(_goal_fov, 24.0, 65.0)) < 0.5
+
+
 func constrain(at: Vector3) -> Vector3:
 	if battle.indoor and not battle.cfg.get("arena", false):
 		return Vector3(clampf(at.x, -21.5, 21.5), clampf(at.y, 2.6, 10.0), clampf(at.z, -19.5, 22.5))

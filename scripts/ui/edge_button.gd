@@ -136,10 +136,15 @@ func overhang() -> float:
 ## Stands it under the right end of `rect` (global), over its bottom edge; `beside` (another edge button's width
 ## and the gap) moves it left of one already there.
 func place_under(rect: Rect2, beside := 0.0) -> void:
+	place_at(rect, rect.end.x - INSET - beside - button_size().x)
+
+
+## Stands it over `rect`'s (global) bottom edge with the button's left side at `left` (a centred pair, list_menu.gd).
+func place_at(rect: Rect2, left: float) -> void:
 	var s := button_size()
 	var pad := _pad()
 	button.custom_minimum_size = s
 	button.size = s
 	button.position = Vector2(pad, pad)
 	size = s + Vector2(pad, pad) * 2.0
-	global_position = (Vector2(rect.end.x - INSET - beside - s.x, rect.end.y - s.y * OVERLAP) - Vector2(pad, pad)).round()
+	global_position = (Vector2(left, rect.end.y - s.y * OVERLAP) - Vector2(pad, pad)).round()

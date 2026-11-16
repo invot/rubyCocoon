@@ -1053,7 +1053,8 @@ const KELPWICK_ROOMS := {
 	## stands one tile farther back, with no furniture behind it. The host has a plain desk and counter phone.
 	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "counter_phone": [15, 2], "rows": ["###w#####w#######w###", "#=::::3::::=#p1p.==.#", "#=:xxxxxxx:=#CCC...Hw", "#::x:::::x::#.......w", "#::x:::::x::#.......#", "#=:xxxxxxx:=#.......#", "#=4:::::::5:........#", "#:::::::::::.......PD", "#####################"]},}
 
-## Hotel Mariposa: one two-storey lobby with walkable stairs and a windowed balcony; open hallway entrances on
+## Hotel Mariposa: one two-storey lobby with walkable stairs and a balcony whose back wall has
+## round-arched open doorways ("!") into a window box, as the guest rooms' back walls do; open hallway entrances on
 ## its left, guest rooms on both floors, and pool, healing spring and gym downstairs. Suite/room IDs @2/@3 stay stable.
 ## Paintings: [wall x, wall y, inward x/y, centre height, along-wall offset, width, height].
 const HOTEL_ROOMS := {
@@ -1070,7 +1071,7 @@ const HOTEL_ROOMS := {
 			"hall": "wall_plaster"
 		},
 		"rows": [
-			"#w#w#w#w#w#w#w#w#w#w#",
+			"#!#!#!#!#!#!#!#!#!#!#",
 			"#...................#",
 			"g...................#",
 			"#...................#",
@@ -1153,7 +1154,7 @@ const HOTEL_ROOMS := {
 				"plant_table"
 			],
 			[
-				5,
+				6,
 				1,
 				"plant_table"
 			],
@@ -1163,7 +1164,7 @@ const HOTEL_ROOMS := {
 				"plant_table"
 			],
 			[
-				11,
+				12,
 				1,
 				"plant_table"
 			],
@@ -1200,7 +1201,7 @@ const HOTEL_ROOMS := {
 			"hall": "wall_plaster"
 		},
 		"rows": [
-			"###w####w####",
+			"########!#!##",
 			"#.NbbN...R..#",
 			"#..bb.......w",
 			"#.....rrr...#",
@@ -1212,7 +1213,7 @@ const HOTEL_ROOMS := {
 			"d": "hotel_hall_upper"
 		},
 		"paintings": [
-			[5, 0, 0, 1, 1.8, 0.5, 1.8, 1.1]
+			[3, 0, 0, 1, 1.8, 0.5, 1.6, 1.0]
 		]
 	},
 	"hotel_room": {
@@ -1228,7 +1229,7 @@ const HOTEL_ROOMS := {
 			"hall": "wall_plaster"
 		},
 		"rows": [
-			"###w####w##",
+			"######!#!##",
 			"#NbbN..R..#",
 			"#.bb......w",
 			"dP..1.yy..#",
@@ -1242,7 +1243,7 @@ const HOTEL_ROOMS := {
 			"1": "patron"
 		},
 		"paintings": [
-			[5, 0, 0, 1, 1.8, 0.5, 1.8, 1.1]
+			[2, 0, 0, 1, 1.8, 0.5, 1.6, 1.0]
 		]
 	},
 	"hotel_hall_lower": {
@@ -1470,7 +1471,7 @@ const HOTEL_ROOMS := {
 			"hall": "wall_plaster"
 		},
 		"rows": [
-			"###w####w##",
+			"######!#!##",
 			"#NbbN..R..#",
 			"#.bb......w",
 			"dP....yy..#",
@@ -1481,7 +1482,7 @@ const HOTEL_ROOMS := {
 			"d": "hotel_hall_upper"
 		},
 		"paintings": [
-			[5, 0, 0, 1, 1.8, 0.5, 1.8, 1.1]
+			[2, 0, 0, 1, 1.8, 0.5, 1.6, 1.0]
 		]
 	}
 }

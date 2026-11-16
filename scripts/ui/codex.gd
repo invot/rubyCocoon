@@ -63,7 +63,8 @@ static func _ensure() -> Control:
 
 
 ## A tap on the head, whenever it shows: its question list comes up (pausing whatever is going on), unless it's up
-## already. While you choose commands in battle, the battle takes the tap and asks between its menus (tap_handler).
+## already. In battle the battle takes the tap (tap_handler): between its menus while you choose, else at its next
+## message or action, since a paused tree would freeze its films while the battle's script ran on.
 static func _on_tapped() -> void:
 	if _asking or not has_codex():
 		return
@@ -74,6 +75,14 @@ static func _on_tapped() -> void:
 	tree.paused = true
 	await ask()
 	tree.paused = was_paused
+
+
+## Whether a press at screen point `at` lands on the head (or its Skip lesson button) while it takes taps, so screens
+## that catch every press themselves (the battle's command panel) leave it to them.
+static func hit(at: Vector2) -> bool:
+	if is_instance_valid(head) and head.is_visible_in_tree() and head.tappable and head.get_global_rect().has_point(at):
+		return true
+	return is_instance_valid(_skip_ui) and _skip_ui.is_visible_in_tree() and _skip_ui.get_global_rect().has_point(at)
 
 
 ## Keep the head up (in battle) until unpin(); with its tips switched off ("codex_off") it stays hidden between talks.

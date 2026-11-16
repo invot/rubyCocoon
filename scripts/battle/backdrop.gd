@@ -10,7 +10,8 @@ const PROFILE := [Vector2(29.0, -0.3), Vector2(29.3, 0.0), Vector2(29.6, 0.12), 
 static var _mesh: ArrayMesh
 
 
-static func build(biome: Dictionary, ground: Texture2D) -> MeshInstance3D:
+## ground: the stage floor's material, whose layers and patches the curved foot continues.
+static func build(biome: Dictionary, ground: ShaderMaterial) -> MeshInstance3D:
 	var wall := MeshInstance3D.new()
 	wall.name = "PaintedSurround"
 	wall.mesh = mesh()
@@ -18,7 +19,9 @@ static func build(biome: Dictionary, ground: Texture2D) -> MeshInstance3D:
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER
 	mat.set_shader_parameter("panorama", load(DIR + String(biome["id"]) + ".png"))
-	mat.set_shader_parameter("ground_texture", ground)
+	for param in ["layers", "base_layer", "patch_layer", "worn_layer", "base_tint", "patch_tint", "worn_tint",
+			"patch_cover", "worn_cover", "mottle_strength"]:
+		mat.set_shader_parameter(param, ground.get_shader_parameter(param))
 	mat.set_shader_parameter("paint_tint", StageLighting.backdrop_tint(biome))
 	mat.set_shader_parameter("edge_tint", StageLighting.edge_tint(biome))
 	wall.material_override = mat
