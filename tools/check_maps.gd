@@ -53,6 +53,9 @@ func _init() -> void:
 						problems.append("[%s F%d] %s" % [b["name"], f, p])
 					if im["exits"].is_empty():
 						problems.append("[%s F%d] interior has no way out" % [b["name"], f])
+					if flags.is_empty():
+						for p in _window_box_check(im):
+							problems.append("[%s F%d] %s" % [b["name"], f, p])
 			if problems.size() > 0:
 				bad += 1
 				print(id, " ", flags.keys(), ": ", problems)
@@ -561,4 +564,70 @@ func _low_wood(m: Dictionary, p: Vector2i) -> bool:
 	for r in m.get("low_trees", []):
 		if Rect2i(int(r[0]), int(r[1]), int(r[2]), int(r[3])).has_point(p):
 			return true
+	return false
+
+
+## Window boxes (docs/interior_staging.md rule 12): every window in a back wall looks out into a box; a window in a side
+## wall needs one only if the camera can see through it to its glass from somewhere it can be (world.gd _place_camera).
+## Each box is at least as deep as its window size's minimum (RoomBuilder.BOX_SIZES).
+func _window_box_check(m: Dictionary) -> Array:
+	var out := []
+	var room: Dictionary = m.get("room", {})
+	if room.get("open", false) or room.has("round") or float(room.get("wall_height", RoomBuilder.H)) < RoomBuilder.H:
+		return out
+	var tall: bool = room.get("full_height_windows", false)
+	var size: Dictionary = RoomBuilder.BOX_SIZES["tall" if tall else "window"]
+	var wins := RoomBuilder.window_boxes_of(m)
+	for t: Vector2i in wins:
+		var win: Dictionary = wins[t]
+		var box = win["box"]
+		if box != null:
+			if int(box["deep"]) < int(size["min"]):
+				out.append("window box behind %s is only %d deep" % [t, box["deep"]])
+			continue
+		var why := "another room or box is in the way" if win["outside"] else "it looks into the room's surround, not the outside"
+		if win["back"]:
+			out.append("back-wall window at %s has no window box (%s)" % [t, why])
+		elif _window_seen(m, t, win["out"], tall):
+			out.append("side-wall window at %s can be seen through but has no window box (%s)" % [t, why])
+	return out
+
+
+## Whether the camera can see through window `t` (looking out to side `face`) to its glass: a line from one of the
+## camera's positions passes through both the opening in the wall's face and the glass at the back of the reveal.
+func _window_seen(m: Dictionary, t: Vector2i, face: Vector2i, tall: bool) -> bool:
+	var w := float(m["w"])
+	var h := float(m["h"])
+	var stage: bool = m.get("stage", false)
+	var still_w := 13.0 if stage else 11.0
+	var still_h := 8.0 if stage else 7.0
+	var inward := Vector3(-face.x, 0, -face.y)
+	var along := Vector3(absi(face.y), 0, absi(face.x))
+	var base := Elev.surface(m, t)
+	var y0 := base + (0.0 if tall else RoomBuilder.SILL)
+	var y1 := base + (RoomBuilder.H if tall else RoomBuilder.WIN_TOP)
+	var half := 0.47 if tall else RoomBuilder.WIN_HALF
+	var c := Vector3(t.x + 0.5, 0, t.y + 0.5)
+	var face_p := c + inward * (RoomBuilder.T / 2.0)
+	var glass_p := face_p - inward * RoomBuilder.WIN_DEPTH
+	var xs := [w / 2.0] if w <= still_w else range(11, int(w * 2.0) - 10).map(func(i): return i / 2.0)
+	var zs := [h / 2.0] if h <= still_h else range(6, int(h * 2.0) - 3).map(func(i): return i / 2.0)
+	for pull in [0.8, 1.0, 1.4]:
+		for tx in xs:
+			for tz in zs:
+				var cam: Vector3 = Vector3(float(tx), base, float(tz)) + Vector3(0, 4.6, 8.2) * pull
+				for i in 5:
+					for j in 5:
+						var g := glass_p + along * lerpf(-half, half, (i + 0.5) / 5.0) + Vector3.UP * lerpf(y0, y1, (j + 0.5) / 5.0)
+						var d: Vector3 = g - cam
+						var den: float = d.dot(inward)
+						if absf(den) < 0.0001:
+							continue
+						# where the line crosses the wall's face, between the camera (on the room's side) and the glass
+						var s: float = (face_p - cam).dot(inward) / den
+						if s <= 0.0 or s >= 1.0:
+							continue
+						var hit: Vector3 = cam + d * s
+						if absf((hit - face_p).dot(along)) <= half and hit.y >= y0 and hit.y <= y1:
+							return true
 	return false

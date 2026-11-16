@@ -1937,6 +1937,8 @@ func _run_test() -> void:
 		await _wait(wait)
 	elif scene == "interiors":
 		await load("res://tools/debug/interiors.gd").new().run(self, _test)
+	elif scene == "shelf-doors":
+		await load("res://tools/debug/shelf_doors.gd").new().run(self, _test)
 	elif scene == "shop-paths":
 		load("res://tools/debug/shop_paths.gd").new().run(self, _test)
 	elif scene == "counter-phones":

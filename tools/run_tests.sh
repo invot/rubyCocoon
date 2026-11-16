@@ -162,6 +162,8 @@ TESTS=(
 	"save-ui|-- --scene=saveui --save_dir=res://build/save_ui_saves/ --wait=0.3|SAVE UI TEST DONE: 0 problem"
 	"save-ui-touch|-- --scene=saveui --touch --save_dir=res://build/save_ui_touch_saves/ --wait=0.3|SAVE UI TEST DONE: 0 problem"
 	"doorway|-- --scene=doorway --wait=0.3|DOORWAY TEST DONE: 0 problem"
+	"shelf-doors|-- --scene=shelf-doors --save_dir=res://build/shelf_test/saves/ --prefs_path=res://build/shelf_test/settings.cfg|SHELF DOORS DONE: 0 problem"
+	"shelf-doors-touch|--resolution 2400x1080 -- --scene=shelf-doors --touch --save_dir=res://build/shelf_touch_test/saves/ --prefs_path=res://build/shelf_touch_test/settings.cfg|SHELF DOORS DONE: 0 problem"
 	"temple-water|-- --scene=guardian --temple=water --wait=0.3|GUARDIAN water: captured true"
 	"tides-walk|-- --scene=tides-walk|TIDES WALK DONE: 0 problem"
 	"temple-air|-- --scene=guardian --temple=air --wait=0.3|GUARDIAN air: captured true"

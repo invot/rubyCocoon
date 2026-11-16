@@ -3812,7 +3812,10 @@ func _interact() -> void:
 		_bump_wild(wb)
 		return
 	busy = true
-	if npcs.has(t):
+	if room_walls != null and room_walls.shelf_doors.has(t):
+		_clear_path()
+		await room_walls.shelf_doors[t].use(self)
+	elif npcs.has(t):
 		var n: Dictionary = npcs[t]
 		_face_npc(n, -facing, true)
 		await _talk(n)
@@ -4661,6 +4664,8 @@ func _tile_under(screen: Vector2) -> Vector2i:
 
 ## Is there something to use on this tile? Returns "npc", "beast", "door", "item", "thing" or "".
 func _usable(t: Vector2i) -> String:
+	if room_walls != null and room_walls.shelf_doors.has(t):
+		return "thing"
 	if npc_footprints.has(t):
 		return "npc"
 	if map.get("weapon_targets", {}).has(t):
@@ -4709,6 +4714,13 @@ func _pick(screen: Vector2) -> Dictionary:
 	var best := {}
 	var best_d := INF
 	var boxes := []
+	if room_walls != null:
+		for p in room_walls.shelf_doors:
+			var bounds: AABB = room_walls.shelf_doors[p].bounds
+			var end_x := minf(bounds.end.x, p.x + 1.0)
+			bounds.position.x = maxf(bounds.position.x, p.x)
+			bounds.size.x = end_x - bounds.position.x
+			boxes.append([bounds, p, "thing"])
 	for p in map.get("weapon_targets", {}):
 		boxes.append([AABB(tile_pos(p) + Vector3(-0.5, 0, -0.5), Vector3(1.0, 1.8, 1.0)), p, "weapon"])
 	for p in map["signs"]:

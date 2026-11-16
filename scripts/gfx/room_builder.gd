@@ -2963,6 +2963,8 @@ var home := false
 var scheme := HomeDecor.DEFAULT_SCHEME
 ## wall tiles holding a cubby or a closet: {Vector2i: {"inside": Vector2i, "kind": "cubby" or "closet", "x0", "w"}}
 var _cubbies := {}
+## Every occupied wall tile addresses its shared sliding leaf.
+var shelf_doors := {}
 ## wall tiles beside a window (its curtains hang over them)
 var _by_window := {}
 var _prints_used := []
@@ -3167,6 +3169,8 @@ func _trim_mat() -> Material:
 const BOX_DEEP := 3
 const BOX_PAST := 2
 const BOX_BLACK := Color("#0d0a10")
+## how far a box's plants and rocks keep from its walls (the room's wall and its landscape)
+const BOX_CLEAR := 0.05
 const VIEWS := "res://assets/interiors/window_views/"
 ## how much of the landscape's height (from its foot) shows, and how many units one repeat of it spans
 const VIEW_SHOWN := 0.7
@@ -3457,10 +3461,21 @@ func _box_nature(start: Vector2i, n: int, out: Vector2i, at: Callable, biome: Di
 			else:
 				continue
 			var s := VA.fit_scale(name, size)
-			var basis := Basis(Vector3.UP, r.randf() * TAU).scaled(Vector3.ONE * s)
-			var spot: Vector3 = at.call(float(i) + 0.5 + r.randf_range(-0.3, 0.3), float(j) + 0.5 + r.randf_range(-0.25, 0.25),
-				-VA.aabb(name).position.y * s)
-			_box_prop(VA.mesh(name), Transform3D(basis, spot))
+			var yaw := r.randf() * TAU
+			var u := float(i) + 0.5 + r.randf_range(-0.3, 0.3)
+			var v := float(j) + 0.5 + r.randf_range(-0.25, 0.25)
+			# its whole footprint stays inside the box, clear of the room's wall (a wide shrub fitted by its height
+			# would poke through it into the room) and of the landscape round it: smaller where it can't fit
+			var bb := VA.aabb(name)
+			var reach := Vector2(bb.size.x, bb.size.z).length() / 2.0 + Vector2(bb.get_center().x, bb.get_center().z).length()
+			var room_for := minf(float(box_deep), float(n)) / 2.0 - BOX_CLEAR
+			if reach * s > room_for:
+				s = room_for / reach
+			var rr := reach * s + BOX_CLEAR
+			u = clampf(u, rr, float(n) - rr)
+			v = clampf(v, rr, float(box_deep) - rr)
+			var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s)
+			_box_prop(VA.mesh(name), Transform3D(basis, at.call(u, v, -bb.position.y * s)))
 
 
 func _box_prop(mesh: Mesh, xf: Transform3D) -> void:
@@ -3701,7 +3716,7 @@ func _cubby_wall(x: int, y: int) -> void:
 	var inside: Vector2i = cb["inside"]
 	var e := wallish(x + 1, y)
 	var wv := wallish(x - 1, y)
-	var lining := wall_surface("wall_plaster", _sch("wall_lower") if home else trim.lightened(0.6))
+	var lining := _trim_mat()
 	var c := Vector3(x + 0.5, 0, y + 0.5)
 	var inward := Vector3(inside.x, 0, inside.y)
 	var yaw := atan2(float(inside.x), float(inside.y))
@@ -3714,6 +3729,7 @@ func _cubby_wall(x: int, y: int) -> void:
 			["home/photo_standing", "home/plant_succulent"]][posmod(x * 7 + y + pick_seed, 4)]
 		for i in things.size():
 			_stand(things[i], c + inward * (T / 2.0 - CUBBY["depth"] * 0.5) + Vector3.RIGHT * (-0.13 + 0.26 * i) + Vector3.UP * CUBBY["y0"], yaw)
+		_shelf_door(x, y, 1, CUBBY["half"] * 2.0, CUBBY["y0"], CUBBY["y1"], lining)
 		return
 	# a closet: the wall above it, and a recess down to the floor across its tiles (the end tiles carry the wall
 	# beside the opening and the recess's sides; the first tile the casing round the whole of it)
@@ -3744,7 +3760,7 @@ func _cubby_wall(x: int, y: int) -> void:
 		Vector3.DOWN, Vector3.RIGHT, Vector3.BACK, 0.8)
 	m.quad("recess", lining, [Vector3(lo_x, 0, back.z), Vector3(hi_x, 0, back.z), Vector3(hi_x, y1, back.z), Vector3(lo_x, y1, back.z)],
 		inward, Vector3.RIGHT, Vector3.DOWN, 0.82)
-	m.quad("recess_floor", floor_mat(zr), [Vector3(lo_x, 0.002, face.z), Vector3(hi_x, 0.002, face.z), Vector3(hi_x, 0.002, back.z),
+	m.quad("recess_floor", lining, [Vector3(lo_x, 0.002, face.z), Vector3(hi_x, 0.002, face.z), Vector3(hi_x, 0.002, back.z),
 		Vector3(lo_x, 0.002, back.z)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
 	var shelf := _trim_mat()
 	var levels := [0.0, 0.62, 1.12, 1.6]
@@ -3757,10 +3773,13 @@ func _cubby_wall(x: int, y: int) -> void:
 		for s in [-1.0, 1.0]:
 			m.box("casing", shelf, Vector3(mid + s * (cw / 2.0 - 0.12 + CASING / 2.0), y1 / 2.0, fz), Vector3(CASING, y1, 0.03))
 		m.box("casing", shelf, Vector3(mid, y1 + CASING / 2.0, fz), Vector3(cw - 0.24 + CASING * 2.0, CASING, 0.03))
+		_shelf_door(x0, y, cw, cw - 0.24, 0.04, y1, shelf)
 	# what's kept in it: blankets and books low down, pots and boxes higher up
 	var shelf_things := [["home/basket_blankets"], ["kk_book_set"], ["home/books_stack", "home/plant_succulent"], ["box_1"]]
 	var mid_z := (face.z + back.z) / 2.0
 	for li in levels.size():
+		if x == x0 and li == 2 and not shelf_doors[Vector2i(x0, y)].reward.is_empty():
+			continue
 		var items: Array = shelf_things[(li + x) % shelf_things.size()]
 		for i in items.size():
 			var ax := lerpf(lo_x + 0.2, hi_x - 0.2, (i + 0.5) / float(items.size()))
@@ -3770,6 +3789,29 @@ func _cubby_wall(x: int, y: int) -> void:
 				var fit := minf(1.0, minf((hi_x - lo_x - 0.12) / maxf(bb.size.x, 0.01), (depth - 0.06) / maxf(bb.size.z, 0.01)))
 				fit = minf(fit, 0.44 / maxf(bb.size.y, 0.01))
 				it.scale = Vector3.ONE * fit
+
+
+## Keep glazing separate from the static wall batches, so only its leaf moves.
+func _shelf_door(x: int, y: int, columns: int, width: float, bottom: float, top: float, wood: Material) -> void:
+	var door := preload("res://scripts/gfx/shelf_door.gd").new()
+	parent.add_child(door)
+	var glass := _glass().duplicate() as StandardMaterial3D
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.albedo_color.a = 0.24
+	glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	door.setup(Vector3(x + columns / 2.0, 0, y + 0.5 + T / 2.0 + 0.045), width, bottom, top, wood, glass)
+	for dx in columns:
+		var tile := Vector2i(x + dx, y)
+		door.tiles.append(tile)
+		shelf_doors[tile] = door
+	# Stable, modest finds; revisiting never rerolls a shelf. Authors can override or disable a find.
+	var tile := Vector2i(x, y)
+	var item := String(map.get("room", {}).get("shelf_items", {}).get(tile,
+		"minor_potion" if posmod(pick_seed + x * 7 + y * 13, 4) == 0 else ""))
+	if item != "":
+		var room_id := "%s@%s" % [map.get("building", {}).get("interior", map.get("parent", "")), map.get("floor_num", 1)]
+		var flag := "shelf:%s:%d:%d" % [room_id, x, y]
+		door.stock(item, flag, tile, piece("bottle"), surface("window_frame", Color("#d7ab58")), 1.12 + SHELF_T / 2.0 + 0.002 if top > 2.0 else bottom)
 
 
 # ---------------------------------------------------------------- platforms
