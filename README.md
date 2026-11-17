@@ -140,6 +140,8 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 
 ## The journey
 
+**Planned narrative revision (spoilers; not implemented):** [Antagonists and ending direction](docs/story-direction.md) records the scientist and Marlyse, Gearheart's spirit-energy catastrophe, and Matt and Jared's spaceships ending, with continuity questions separated from established story beats.
+
 New Game opens with an 80-second cinematic: Magnus Gearhart's kidnapping scheme revealed in **Gearhart Tower**, then the
 first morning of spring on the **Coastal Path** and at home in **Cocoon Cove**, as beasts leave hibernation and
 trainer season begins. Everything is told by people talking: there is no narration and no title card. Lines advance
