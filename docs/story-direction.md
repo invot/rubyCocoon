@@ -43,6 +43,30 @@ In the present, instead of fighting, Gearheart asks his little brother to play s
 
 The scene recalls Matt's capacity for care and sharing before his fixation on accumulation. Its emotional endpoint is the brothers choosing to stop fighting. It should retain the simple, vulnerable invitation rather than replace it with a speech explaining the theme.
 
+### Revised intro: dungeon nightmare and remembered tool
+
+After the opening warehouse cage reveal, replace the trainers-in-the-grass / Coastal Path scene with a close-up of the sleeping player's face in bed. Transition into their nightmare.
+
+In the nightmare, the player is trapped in a poorly lit dungeon, holding the bars of their cell. This is a different location from the warehouse holding the kidnapped trainers. The player watches a mouse eating rotten food on the ground.
+
+From a dark corner behind the player, an unseen voice says:
+
+> "I'll get us out of here, just give me a [tool]."
+
+Select the tool name randomly from a pool of three. The three actual tool names have not yet been chosen. The speaker's identity is not specified at this stage.
+
+End the nightmare and return to the player waking in bed. They remark on the odd dream and joke that it could only happen if some maniac put "ruin spring" on their calendar. Preserve this meaning; final dialogue wording remains to be written.
+
+### Later jail escape: memory or a difficult flute song
+
+Later, the player is in jail with Jared. Remembering the tool named in the intro provides a way to bust out of the cell without performing the difficult flute song.
+
+The alternative is a really difficult song that makes the mouse a controllable drone and lets it unlock their cell. Both routes must lead to escape; the remembered clue bypasses the demanding musical challenge.
+
+Implementation requirement: choose the tool once for the playthrough and persist it with the save. The later jail scene must use the same tool, without rerolling it on reload or when the intro is replayed. Define how skipped intros and older saves expose or initialize the clue so that the flute route remains available.
+
+The tool pool, how the player supplies or selects the remembered tool, and the precise tool-based escape action are still open. Do not assume the unseen dream voice is Jared until that identity is decided.
+
 ## Suggested connective development
 
 These are working proposals from the brainstorm, not additional confirmed decisions.
@@ -89,6 +113,8 @@ Reviewed against README.md, scripts/autoload/story.gd, and scripts/story/opening
 
 | Current implementation | Required reconciliation |
 | --- | --- |
+| The opening currently cuts from the warehouse cages to trainers on the Coastal Path, then the bedroom. | Replace the grass scene with the sleeping-face close-up, separate dungeon nightmare, and wake-up joke. Add the three-option tool clue and its saved state. |
+| The new jail beat describes the player being imprisoned with Jared. | Clarify whether Jared is a separate companion or the protagonist named in the brothers\u0027 ending; do not silently resolve the existing identity ambiguity. |
 | Cogsworth is the city; the industrialist is Magnus Gearhart, and the company sign uses Gearheart Industries. | The new direction calls him Matt Gearheart. Confirm the surname spelling and how Magnus relates to Matt before changing dialogue, identifiers, or assets. Cogsworth remains the city unless separately changed. |
 | General Vexmora leads the Umbral Legion and explicitly intends to take every town. | Vexmora is the proposed existing character to revise into the scientist. Replace or reinterpret conquest as a means of securing research resources, or give expansionist aims to Gearheart. The scientist's final name and title remain open. |
 | The opening says Vexmora pays Gearhart by the trainer-beast bond; Wren says the Legion pays for captives. | Explain how this fits Gearheart initially funding the scientist. A proposed arrangement grants him exclusive research rights and commercial returns; current payment dialogue needs revision or an explicit accounting explanation. |
@@ -110,6 +136,8 @@ Reviewed against README.md, scripts/autoload/story.gd, and scripts/story/opening
 6. Define spirit-energy extraction, its effects on captives, and the island network's failure mechanism.
 7. Order the attempted killing, scientist's intervention, shutdown, Marlyse's farewell, and home confrontation.
 8. Establish that the immediate catastrophe is resolved or contained when the brothers play spaceships.
+9. Choose the three tool names, the clue-answer interaction, the tool-based escape action, and the flute song / mouse-drone controls.
+10. Clarify Jared's identity in the shared jail scene and decide whether he is the unseen nightmare speaker.
 
 ## Scope of this update
 
