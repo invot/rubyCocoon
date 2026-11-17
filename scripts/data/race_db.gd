@@ -4,7 +4,7 @@ extends RefCounted
 ## (beasts.gd). A line has one element, or two neighbouring ones on the ring: the scorpion is fire and earth, and the
 ## worm, an eel in the sea, earth and water. Race id = line × 3 + stage - 1. Each form is drawn with its own model
 ## (assets/beasts/<line>_<stage>.res, beast_rig.gd), the earlier stages smaller.
-## After the lines come the four legendary temple guardians and the Gearhart robots, then the crypt's ghost guardian,
+## After the lines come the four legendary temple guardians and the Gearheart robots, then the crypt's ghost guardian,
 ## in the old shape (name, element, body, head, ears, tail, back, pattern, c1, c2, c3, size). The guardians are drawn
 ## with the summon models (assets/summons, voxel_beast.gd): captured with their temple's song, they become summons.
 
@@ -38,7 +38,7 @@ const SPECIAL := [
 	["Zephyrax", "air", "bird", "beak", "crest", "feather", "wings", "stripes", "#e8f8ff", "#5ad8c8", "#ffd040", 1.4],
 	["Pyroclast", "fire", "quad", "horned", "horns", "flame", "flames", "belly", "#c8281a", "#2a1a1a", "#ffb030", 1.45],
 	["Terranox", "earth", "golem", "horned", "crest", "spike", "crystals", "stripes", "#4a6a3a", "#8a7a5a", "#7affb0", 1.5],
-	# Gearhart robots (43-46): not catchable, no eggs
+	# Gearheart robots (43-46): not catchable, no eggs
 	["Clockwork Sentry", "air", "biped", "flat", "antenna", "none", "none", "plain", "#8a8a96", "#c8a040", "#ff4a3a", 1.2],
 	["Steam Mecha", "fire", "golem", "flat", "none", "none", "none", "plain", "#c8c8d0", "#a83a2a", "#ffcf40", 1.3],
 	["Iron Golem", "earth", "golem", "flat", "horns", "none", "spikes", "plain", "#5a6070", "#9aa0b0", "#ff9040", 1.4],

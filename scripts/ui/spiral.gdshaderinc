@@ -20,6 +20,7 @@ uniform float entry_duration = 0.8;
 uniform float aspect = 1.7778;
 /// The very first pair's opacity (the max tier lets the world show through it a little).
 uniform float first_alpha = 1.0;
+uniform bool multicolor = false;
 
 /// A full-grown arm's step outward per turn, in screen heights. An arm is half this wide.
 const float PITCH = 0.64;
@@ -173,6 +174,11 @@ void fragment() {
 		float odd = mod(n, 2.0);
 		vec3 first = mix(light, mix(light, vec3(1.0), 0.09), odd);
 		vec3 second = mix(dark, dark * 0.84, odd);
+		if (multicolor) {
+			float stripe = mod(floor(o.along * 2.0), 3.0);
+			first = stripe < 1.0 ? color.rgb : (stripe < 2.0 ? color_secondary.rgb : vec3(0.87, 0.66, 0.22));
+			second = stripe < 1.0 ? vec3(0.24, 0.62, 0.46) : (stripe < 2.0 ? vec3(0.59, 0.39, 0.69) : color_secondary.rgb);
+		}
 		float a = o.mask * opacity;
 		paint += (1.0 - paint.a) * vec4(mix(first, second, o.tone) * a, a);
 #if SPIRAL_TIER >= 2

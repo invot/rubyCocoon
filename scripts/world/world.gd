@@ -72,6 +72,9 @@ var map: Dictionary
 var map_id := ""
 var biome: Dictionary
 var demo := false
+## A bare set (the character creator's bedroom): the room alone, with no people, story objects (the journal and its
+## marker) or pickups in it.
+var bare := false
 var interior := false
 
 var player: Node3D
@@ -209,8 +212,12 @@ func build(id: String, cooperative := false) -> void:
 		# a town of its own look among its biome's (Dustwell's western main street: frontier_builder.gd)
 		biome["style"] = map["style"]
 	interior = map["kind"] == "interior"
-	for n in Story.extra_npcs(map):
-		map["npcs"].append(n)
+	if bare:
+		map["npcs"] = []
+		map["items"] = []
+	else:
+		for n in Story.extra_npcs(map):
+			map["npcs"].append(n)
 	if map_id.get_slice("#", 0) == "kelpwick":
 		for n in map["npcs"]:
 			if n.has("look"):
@@ -5830,7 +5837,7 @@ func _build_room() -> void:
 	var key: String = map["room_key"]
 	var wall_col := Color(str(room.get("wall", "#e8d8c0")))
 	var rug_col := Color(str(room.get("rug", "#a04040")))
-	var dark: bool = key.begins_with("crypt") or key in ["hideout", "temple_fire"]
+	var dark: bool = bool(room.get("dark", false)) or key.begins_with("crypt") or key in ["hideout", "temple_fire"]
 	# an open-air room (the Sky Tower's roof): sky and sunshine, railings instead of walls
 	var open_air: bool = room.get("open", false)
 	var env := Environment.new()

@@ -21,6 +21,9 @@ var back: Slot
 var _requested := ""
 var _next_index := -1
 var _remaining: Array[int] = []
+## A destination's own artwork stays up for the entire load, using the same gentle zoom.
+## Empty means the normal shuffled slideshow (title, web, routes and towns without matching art).
+var destination_slide := ""
 ## the real clock at the last frame (µs): the zoom follows real time, so it keeps a steady pace even while a map being
 ## built (the loading screen) makes frames arrive unevenly
 var _clock := -1
@@ -70,11 +73,14 @@ func _ready() -> void:
 			front = image
 		else:
 			back = image
-	index = _pick_next(_last_shown)
-	_last_shown = index
+	var destination_index: int = library().slides.find(destination_slide)
+	index = destination_index if destination_index >= 0 else _pick_next(_last_shown)
+	if destination_index < 0:
+		_last_shown = index
 	front.texture = load(ART_DIR + library().slides[index])
 	back.modulate.a = 0.0
-	_request_next()
+	if destination_index < 0:
+		_request_next()
 	_process(0.0)
 
 
@@ -102,6 +108,9 @@ func _process(_delta: float) -> void:
 	_clock = now
 	# (a long stall still moves at most one picture on: the crossfade below waits for the next to load)
 	elapsed += minf(step, 1.0)
+	if _requested.is_empty():
+		front.zoom = _zoom_at(elapsed)
+		return
 	if back.texture == null and ResourceLoader.load_threaded_get_status(_requested) == ResourceLoader.THREAD_LOAD_LOADED:
 		back.texture = ResourceLoader.load_threaded_get(_requested)
 	if back.texture == null:

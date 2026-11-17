@@ -12,13 +12,21 @@ var destination: Label
 var _caption_index := 0
 var _caption_clock := 0.0
 var _dot_clock := 0.0
+## Set before adding to the tree so the first visible frame already matches the destination.
+var map_id := ""
+## Over the swirl (New Game's character creator, Continue and Load Game): no artwork, so the swirl turns behind the
+## bar, and the bar says only "Entering Rubisa". Set before adding it to the tree.
+var over_swirl := false
+const REALM := "Rubisa"
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	theme = UIKit.make_theme()
-	slideshow = Slideshow.new()
-	add_child(slideshow)
+	if not over_swirl:
+		slideshow = Slideshow.new()
+		slideshow.destination_slide = String(Slideshow.library().get("town_slides", {}).get(map_id, ""))
+		add_child(slideshow)
 	# a bar along the bottom: the destination and a playful status above a thin gem progress bar
 	panel = UIKit.panel()
 	add_child(panel)
@@ -47,13 +55,29 @@ func _ready() -> void:
 	progress.add_theme_stylebox_override("background", UIKit.chip(UIKit.WELL, Color.TRANSPARENT, 10.0, Vector4.ZERO))
 	progress.add_theme_stylebox_override("fill", UIKit.solid(Vector4.ZERO))
 	column.add_child(progress)
-	_caption_index = randi() % Slideshow.library().captions.size()
-	_set_caption()
+	if over_swirl:
+		destination.text = "Entering " + REALM
+		destination.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		destination.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		caption.visible = false
+	else:
+		_caption_index = randi() % Slideshow.library().captions.size()
+		_set_caption()
 	resized.connect(_layout)
 	_layout.call_deferred()
 
 func _layout() -> void:
 	var safe := UIKit.safe_rect(self).grow(-24.0)
+	# Over the swirl the touch pad stays up: the bar stands between the d-pad and A/B, above Start and Pause.
+	var pad: Node = UI.controls if over_swirl and UI.is_touch() else null
+	if pad != null:
+		var view := get_viewport_rect().size
+		var left: float = maxf(safe.position.x, pad.left_cluster_width())
+		var right: float = minf(safe.end.x, view.x - pad.right_cluster_width())
+		if right - left > 240.0:
+			safe = Rect2(left, safe.position.y, right - left, safe.size.y)
+		var bottom: float = view.y - pad.menu_bottom_reserve(safe.position.x, safe.end.x)
+		safe.size.y = minf(safe.size.y, bottom - 8.0 - safe.position.y)
 	# (shrink to the content's height each time: a container only ever grows on its own)
 	panel.size = Vector2(minf(1200.0, safe.size.x), 0.0)
 	panel.position = Vector2(safe.get_center().x - panel.size.x * 0.5, safe.end.y - panel.size.y)
@@ -62,6 +86,9 @@ func set_progress(value: float) -> void:
 	progress.value = maxf(progress.value, clampf(value, 0.0, 1.0))
 
 func _process(delta: float) -> void:
+	if over_swirl:
+		_layout()
+		return
 	_caption_clock += delta
 	_dot_clock = fmod(_dot_clock + delta, DOT_SECONDS * 4.0)
 	if _caption_clock >= CAPTION_SECONDS:

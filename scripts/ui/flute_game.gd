@@ -62,6 +62,7 @@ const STEP_PX := 20.0
 const HEAD_R := 18.0
 
 var song_id := "weaken"
+var dirt_sheet := false
 var mode := "play"
 ## learn mode: {"accuracy": 0.5} or {"no_mistakes": true}
 var goal: Dictionary = {}
@@ -109,15 +110,23 @@ func setup(_song_id: String, _subtitle := "", time_bonus := 0.0, opts := {}) -> 
 	goal = opts.get("goal", {})
 	performer = opts.get("performer", "")
 	song = SongDB.get_song(song_id)
+	dirt_sheet = bool(opts.get("dirt_sheet", false))
+	if dirt_sheet:
+		song = song.duplicate()
+		song["name"] = "Jared's Mouse March"
 	subtitle = _subtitle
 	dim = 0.45
 	level = int(opts.get("level", GameState.song_level(song_id)))
 	# a battle plays just the song's original melody (its first level); practising plays the whole song
 	_melody_level = 1 if opts.get("base", false) else level
 	melody = SongDB.melody(song_id, _melody_level)
+	if opts.has("melody"):
+		melody = opts["melody"].duplicate(true)
 	lesson = opts.get("lesson", false)
 	var base: float = SongDB.TUTORIAL_TIME if lesson else SongDB.BASE_TIME
 	time_limit = SongDB.time_limit(melody.size(), base) * (1.0 + time_bonus)
+	if opts.has("time_limit"):
+		time_limit = maxf(1.0, float(opts["time_limit"]))
 	_spb = clampf(60.0 / float(song.get("bpm", 90)), 0.42, 0.7)
 	# only a song being learned (or someone else's) plays by itself; a known one is yours to play straight away
 	if mode == "play":
@@ -419,7 +428,7 @@ func _draw() -> void:
 	# the notes
 	for i in melody.size():
 		var x := notes_l + spacing * float(units[i])
-		_draw_note(melody[i], x, base_y, 1.0, float(_pop.get(i, 0.0)), i == _lit, _played(i))
+		_draw_note(melody[i], x, base_y, 1.0, float(_pop.get(i, 0.0)), i == _lit, _played(i), dirt_sheet and i % 3 == 1)
 	# where you are
 	var cur := _lit if phase == "listen" else pos
 	if cur >= 0 and cur < melody.size() and phase != "result":
@@ -620,7 +629,7 @@ func _played(i: int) -> bool:
 
 ## One note (or chord) on the staff: each head is its button's prompt in the button's colour, outlined until it's
 ## played; then it swells and comes back filled. No stems.
-func _draw_note(note: Array, x: float, base_y: float, a: float, pop := 0.0, glow := false, played := false) -> void:
+func _draw_note(note: Array, x: float, base_y: float, a: float, pop := 0.0, glow := false, played := false, halved := false) -> void:
 	var hi := -1
 	for b in note:
 		hi = maxi(hi, SongDB.BTN_STEP[b])
@@ -639,7 +648,11 @@ func _draw_note(note: Array, x: float, base_y: float, a: float, pop := 0.0, glow
 		if glow:
 			draw_circle(c, r + 8.0, Color(col, 0.25 * a))
 		var tex: Texture2D = PROMPTS[b] if filled else _outline(b)
-		_draw_prompt(tex, c, r, Color(col, a))
+		if halved and not played:
+			var half := r * PROMPT_SCALE
+			draw_texture_rect_region(tex, Rect2(c - Vector2(half, half), Vector2(half, half * 2.0)), Rect2(Vector2.ZERO, tex.get_size() * Vector2(0.5, 1.0)), Color(col, a))
+		else:
+			_draw_prompt(tex, c, r, Color(col, a))
 
 
 ## A prompt icon centred on `c`, `r` across its half, tinted.

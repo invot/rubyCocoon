@@ -140,7 +140,7 @@ func _process(_delta: float) -> void:
 		if world == null or (not world.busy and not UI.busy()):
 			var g := _pending_goto
 			_pending_goto = {}
-			_do_goto(g["map"], g["spawn"], g.get("face", Vector2i.ZERO), g.get("fade", 0.25))
+			_do_goto(g["map"], g["spawn"], g.get("face", Vector2i.ZERO), g.get("fade", 0.25), g.get("swirl", false))
 
 
 # ================================================================ title
@@ -219,10 +219,12 @@ func _title() -> void:
 		if load_slot >= 0 and GameState.slot_outdated(load_slot):
 			UI.toast("That save is from before the new beasts, so it can't be loaded. Start a new game!")
 		elif load_slot >= 0 and GameState.load_game(load_slot):
+			# the same swirl as New Game's winds in over the title, and the journey loads under it
+			await UI.enter_swirl()
 			_clear_title()
 			UI.allow_pause = true
 			var spawn = GameState.pos if GameState.pos.x >= 0 else "center"
-			_pending_goto = {"map": GameState.map_id, "spawn": spawn}
+			_pending_goto = {"map": GameState.map_id, "spawn": spawn, "swirl": true}
 			return
 		if pick == "New Game":
 			# who you are: a name, a body and your colours
@@ -258,13 +260,15 @@ func _opening(at := 0.0, hold := false) -> Node3D:
 
 ## A map built as a film set (the prologue's spring scenes): the real place, with nobody playing in it. The film
 ## drives its camera and decides who stands where; the world only keeps its water and scenery moving.
-func build_set(id: String, parent: Node) -> Node3D:
+## bare: the room alone, nobody and nothing to pick up in it (the character creator's bedroom: see world.gd bare).
+func build_set(id: String, parent: Node, bare := false) -> Node3D:
 	for sh in THREAD_SHY:
 		load(sh)
 	var script := await wait_for_script(WORLD_PATH)
 	var set_world: Node3D = script.new()
 	set_world.demo = true
 	set_world.cam_free = true
+	set_world.bare = bare
 	parent.add_child(set_world)
 	await set_world.build(id, true)
 	set_world.set_process(true)
@@ -504,24 +508,30 @@ func reload_map() -> void:
 	goto_map(world.map_id, world.player_pos)
 
 
-func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
+## swirl: arriving from the title (Continue, Load Game) with UI.enter_swirl already covering the screen: no fade, the
+## bar along the bottom says "Entering Rubisa" over the swirl, and the swirl winds out to show the map.
+func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25, swirl := false) -> void:
 	if not BuildEdition.allows_map(id):
 		return
 	_transitioning = true
 	UI.controls.release_touch_inputs()
 	# (where we came from: a building's name shows on walking in from outside, not between its rooms)
 	var came_from := GameState.map_id
-	await UI.fade_out(fade)
+	if not swirl:
+		await UI.fade_out(fade)
 	var was_pause_allowed := UI.allow_pause
 	UI.allow_pause = false
 	# Artwork covers the hidden world while construction yields. Rooms retain their short door fades.
-	if not MapLoader.is_interior(id) and (id != came_from or world == null):
+	if swirl or (not MapLoader.is_interior(id) and (id != came_from or world == null)):
 		_loading_layer = CanvasLayer.new()
 		_loading_layer.layer = 30
 		add_child(_loading_layer)
-		_loading_screen = load("res://scripts/ui/loading_screen.gd").new()
+		_loading_screen = UI.swirl_cover() if swirl else load("res://scripts/ui/loading_screen.gd").new()
+		if not swirl:
+			_loading_screen.map_id = id
 		_loading_layer.add_child(_loading_screen)
-		_loading_screen.destination.text = WorldDB.map_name(id)
+		if not swirl:
+			_loading_screen.destination.text = WorldDB.map_name(id)
 		await get_tree().process_frame
 	var black_began := Time.get_ticks_usec() if _test.get("load_phases", "0") == "1" else 0
 	# Nothing's on view: drawing a half-built map each frame would only slow the building of it.
@@ -546,12 +556,17 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25) -> void:
 	_cost_load_clock = 0
 	if black_began > 0:
 		cost_continuous_black_ms = (Time.get_ticks_usec() - black_began) / 1000.0
-	if is_instance_valid(_loading_screen):
+	if swirl:
+		_loading_screen.set_progress(1.0)
+		await get_tree().process_frame
+		await UI.leave_swirl(_loading_screen)
+	elif is_instance_valid(_loading_screen):
 		_loading_screen.set_progress(1.0)
 		await get_tree().process_frame
 		var reveal := create_tween()
 		reveal.tween_property(_loading_screen, "modulate:a", 0.0, maxf(0.3, fade))
-	await UI.fade_in(maxf(0.3, fade))
+	if not swirl:
+		await UI.fade_in(maxf(0.3, fade))
 	UI.controls.release_touch_inputs()
 	if is_instance_valid(_loading_layer):
 		_loading_layer.queue_free()
@@ -1058,6 +1073,10 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
+	if scene == "story-revision":
+		await load("res://tools/debug/story_revision.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "tidewater-arrival":
 		await load("res://tools/debug/tidewater_arrival.gd").new().run(self, _test)
 		if _test.get("quit", "1") == "1":
@@ -1127,7 +1146,7 @@ func _run_test() -> void:
 			start_battle({"wild": true, "foes": [Beasts.create(27, 8)], "seed": 5, "fishing": true})
 		elif _test.get("kind", "") == "robots":
 			foes = [Beasts.create(44, 12), Beasts.create(45, 12), Beasts.create(46, 12)]
-			start_battle({"wild": false, "foes": foes, "seed": 5, "trainer": {"name": "Gearhart", "cls": "CEO", "look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}})
+			start_battle({"wild": false, "foes": foes, "seed": 5, "trainer": {"name": "Gearheart", "cls": "CEO", "look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}})
 		else:
 			start_battle({"wild": true, "foes": foes, "seed": 5})
 		# (--keys: pressed once the command panel is up, as for --scene=ring)
@@ -1213,7 +1232,7 @@ func _run_test() -> void:
 		else:
 			var tr := {"name": "Marina", "cls": "Swimmer", "shield": 0, "look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}
 			if beaten == "robot":
-				tr = {"name": "Unit 301", "cls": "Gearhart Sentry", "shield": 0, "robot_body": RaceDB.ROBOT_MODELS[RaceDB.ROBOTS[0]]}
+				tr = {"name": "Unit 301", "cls": "Gearheart Sentry", "shield": 0, "robot_body": RaceDB.ROBOT_MODELS[RaceDB.ROBOTS[0]]}
 			start_battle({"wild": false, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5, "trainer": tr})
 		await _wait(2.5)
 		var bt: Node = null
@@ -1877,11 +1896,12 @@ func _run_test() -> void:
 	elif scene == "loading":
 		# the loading screen between maps, held part-way (--progress=0.4, --shot=, --wait=)
 		var shown: Control = load("res://scripts/ui/loading_screen.gd").new()
+		shown.map_id = String(_test.get("map", "caccoon"))
 		var layer := CanvasLayer.new()
 		layer.layer = 30
 		add_child(layer)
 		layer.add_child(shown)
-		shown.destination.text = WorldDB.map_name(String(_test.get("map", "cove")))
+		shown.destination.text = WorldDB.map_name(shown.map_id)
 		shown.set_progress(float(_test.get("progress", "0.4")))
 		await get_tree().create_timer(wait).timeout
 		if _test.has("shot"):
@@ -2422,7 +2442,19 @@ func _run_test() -> void:
 			await get_tree().process_frame
 		await _wait(0.2)
 		await _test_keys()
-		await get_tree().create_timer(wait).timeout
+		# --burst=build/shots/x/f: a numbered shot every --burst_every seconds (0.25) through the wait, to watch the
+		# swirl into the creator or a loaded journey
+		if _test.has("burst"):
+			var every := float(_test.get("burst_every", "0.25"))
+			var n := 0
+			var until := Time.get_ticks_msec() + int(wait * 1000.0)
+			while Time.get_ticks_msec() < until:
+				await RenderingServer.frame_post_draw
+				_save_shot("%s_%03d.png" % [String(_test["burst"]), n])
+				n += 1
+				await get_tree().create_timer(every).timeout
+		else:
+			await get_tree().create_timer(wait).timeout
 	elif scene == "view":
 		await _do_goto("caccoon", "start")
 		await get_tree().create_timer(1.0).timeout
@@ -2848,7 +2880,7 @@ func _rescue_test() -> void:
 	await Story.talk(world, _npc("freight_control"))
 	if GameState.flag("trainers_freed"):
 		bad += 1
-		print("FAIL rescue unlocked before Gearhart defeat")
+		print("FAIL rescue unlocked before Gearheart defeat")
 	await Story._finale(world, {})
 	if not "still locked" in String(UI.auto_log.back()) or GameState.flag("game_cleared"):
 		bad += 1
@@ -5226,7 +5258,8 @@ func _maker_test(m: Control) -> void:
 		check.call((m._tabs[k] as Control).size.y >= UIKit.row_h() - 8.5, "tab %d only %d tall" % [k, (m._tabs[k] as Control).size.y])
 	for id in m._rows:
 		check.call(not m._values[id].text.is_empty() or (m.COLORS.has(id) and not m._dyeable(id)), "row %s shows its value" % id)
-		check.call(m._rows[id].text == m.ROW_NAMES[id], "row %s names itself on its left" % id)
+		# (the shirt's second color is named for what it dyes: "Sleeves", "Collar"...)
+		check.call(m._rows[id].text == (m._accent() if id == "shirt_color2" else m.ROW_NAMES[id]), "row %s names itself on its left" % id)
 	check.call(m._rows.has("shirt") and m._rows.has("shirt_color"), "the shirt and its color are rows of their own")
 	for k in m.TABS.size():
 		for id in m.TABS[k]["rows"]:

@@ -9,7 +9,7 @@ extends Node
 ##                                                   souvenir-hunting tourists; beating Nerissa opens it (island_peace)
 ##   guardian_water                                - also opens the Dune Road to the desert
 ##   met_sheriff, bandits_cleared                  - Sunwall's bandits, the Jackals (opens the Dune Sea)
-##   ceo_defeated                                  - Gearhart Tower (opens Caldera Road)
+##   ceo_defeated                                  - Gearheart Tower (opens Caldera Road)
 ##   opening_seen, missing_trainers, trainers_freed - prologue, Dustwell's missing posters (seen on arriving), tower
 ##   freight-cage rescue
 ##   relic_quest, relic_sun, relic_moon, relic_earth, ritual_done   - the jungle ritual (raises the earth temple)
@@ -143,9 +143,23 @@ func arena_lessons_done(town: String) -> bool:
 func extra_npcs(map: Dictionary) -> Array:
 	var out := []
 	var id: String = map["id"]
+	if map.get("room_key", "") == "mole_cave":
+		out.append_array(fixtures(map))
+		for i in 5:
+			out.append({"kind": "story", "id": "mole", "mole": i, "name": "Mole %s" % ["Pebble", "Nub", "Dibble", "Crumb", "Velvet"][i],
+				"pos": map["anchors"]["mole_%d" % i], "look": {"critter": "mole"}, "facing": Vector2i.DOWN, "still": true})
+		return out
 	if map["kind"] == "interior":
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
 		var inside := _lesson_trainers(map)
+		if map.get("parent", "") == "cogsworth" and map.get("room_key", "") == "music_shop":
+			for i in 4:
+				inside.append({"kind": "story", "id": "rubywave_member", "member": i, "name": ["Riff", "Tempo", "Cadence", "Encore"][i],
+					"pos": Vector2i([2, 3, 6, 7][i], 4), "look": {"model": "tf%d" % [13, 29, 62, 74][i], "shirt": ["#b93646", "#3a6ab8", "#3a8a4a", "#7a4aa8"][i]}, "still": true})
+		if map.get("room_key", "") == "crypt_2":
+			for i in 3:
+				inside.append({"kind": "story", "id": "reactor", "reactor": i, "name": ["Intake Isolator", "Spirit Reservoir", "Network Shutdown"][i],
+					"pos": map["anchors"]["reactor_%d" % i], "scene": _reactor_node(i), "still": true})
 		if map.get("room_key", "") == "home_bed" and not GameState.flag("has_journal"):
 			var journal := Node3D.new()
 			var asset := MeshInstance3D.new()
@@ -451,6 +465,9 @@ func _relic_count() -> int:
 func on_map_enter(world) -> void:
 	var id: String = world.map_id
 	world.busy = true
+	if id == "cogsworth" and not GameState.flag("mothers_met"):
+		await load("res://scripts/story/family_film.gd").play("friendship")
+		GameState.set_flag("mothers_met")
 	if world.interior and world.map["building"].get("shop", "") == "home" and not GameState.flag("intro_done"):
 		# the first morning: you wake up in your bedroom, and Mom has the day's plan downstairs
 		if world.map.get("room_key", "") == "home":
@@ -555,7 +572,7 @@ func can_use_exit(world, ex: Dictionary) -> bool:
 		for p in world.npcs:
 			var n: Dictionary = world.npcs[p]
 			if n.has("robot_body") and not GameState.flag(n.get("flag", "")):
-				await say(["A Gearhart Sentry's red eye swivels towards you. \"STAIRWELL LOCKED. DEFEAT ALL SENTRIES ON THIS FLOOR.\""])
+				await say(["A Gearheart Sentry's red eye swivels towards you. \"STAIRWELL LOCKED. DEFEAT ALL SENTRIES ON THIS FLOOR.\""])
 				return false
 	elif key == "cathedral" and not GameState.flag("nyx_defeated"):
 		await say(["Commander Nyx blocks the way to the crypt stairs."], "Commander Nyx")
@@ -575,6 +592,8 @@ func can_enter(world, b: Dictionary) -> bool:
 					"No flute, no entry. Come back when you've got one."], "Arena Doorman")
 				return false
 		"hideout":
+			if b.get("rooms", []).has("mole_cave"):
+				return true
 			if not GameState.flag("met_sheriff"):
 				await say(["A crude wooden door in the rock. Rough voices and laughter echo from inside...",
 					"Maybe you should talk to someone in Sunwall before barging in."])
@@ -890,7 +909,7 @@ func _talk_villager(world, n: Dictionary) -> void:
 	elif world.map_id == "sundown" and not GameState.flag("bandits_cleared"):
 		quest = "The Jackals hit another caravan outside the gate. Took every sack of flour. And my favourite spoon. Monsters."
 	elif world.map_id == "cogsworth" and not GameState.flag("ceo_defeated"):
-		quest = "Those freight wagons aren't carrying machinery. Wren heard people calling from inside. Gearhart's sentries guard every lift."
+		quest = "Those freight wagons aren't carrying machinery. Wren heard people calling from inside. Gearheart's sentries guard every lift."
 	if world.map_id == "gravenmoor":
 		var pool: Array = ChatterDB.GRAVENMOOR_PEACE if GameState.flag("game_cleared") else ChatterDB.GRAVENMOOR_FOG
 		lines = ChatterDB.pick(pool, rng)
@@ -1070,6 +1089,17 @@ func _mascot(world, n: Dictionary) -> void:
 
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
+		"mole":
+			await _mole(world, n)
+		"reactor":
+			await _shutdown(world, int(n["reactor"]))
+		"rubywave_member":
+			GameState.set_flag("met_rubywave")
+			await say(["I'm the %s member of the Rubywave Five!" % ["first", "second", "fourth", "fifth"][int(n["member"])],
+				"We're practising here between shows. Four musicians, five-star ambition."], n["name"])
+		"marlyse":
+			await say(["Your mother is such good company. She brings soup; I bring scandalously good card tricks.",
+				"Jared worries about me so much. I wish he'd spend a little less time trying to save my life, and a little more time sharing it." if not GameState.flag("game_cleared") else "My boys are finally talking again. Whatever time I have, I want to spend it with them."], "Marlyse")
 		"journal":
 			GameState.set_flag("has_journal")
 			world.remove_npc(n)
@@ -1098,7 +1128,7 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _free_trainers(world)
 		"captive":
 			var lines := ["They took us off the desert road. The robots brought us here in freight cages. Please, get us out!",
-				"The door control is on that console. Gearhart's command seal keeps it locked. Beat him and we can get out!",
+				"The door control is on that console. Gearheart's command seal keeps it locked. Beat him and we can get out!",
 				"I only left home this spring. I was supposed to send Dad a letter. Please tell me we're going home."]
 			await say([lines[int(n.get("captive_index", 0))]], n["name"])
 		"rescued_trainer":
@@ -1234,9 +1264,9 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _protester()
 		"receptionist":
 			if GameState.flag("ceo_defeated"):
-				await say(["Mr. Gearhart has... stepped down. The new council meets on the top floor every Tuesday."], "Receptionist")
+				await say(["Mr. Gearheart has... stepped down. The new council meets on the top floor every Tuesday."], "Receptionist")
 			else:
-				await say(["Welcome to Gearhart Tower. Mr. Gearhart is not taking visitors.",
+				await say(["Welcome to Gearheart Tower. Mr. Gearheart is not taking visitors.",
 					"...You want to see him anyway? The sentries on each floor will have something to say about that."], "Receptionist")
 		"ceo":
 			await _ceo(world, n)
@@ -1452,7 +1482,7 @@ func _sheriff() -> void:
 		return
 	GameState.set_flag("met_sheriff")
 	await say(["Welcome to Sunwall, traveller. I'm Captain Dalton of the gate watch.",
-		"New trainers are vanishing. We found Gearhart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
+		"New trainers are vanishing. We found Gearheart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
 		"And Bart the Jackal's gang raids every caravan that comes to our gates, then holes up out on the Dune Sea road. They've barricaded the road north, too.",
 		"My watch can hold the walls, but we can't chase bandits across the dunes. If you're half the trainer you look, go and teach them some manners.",
 		"Their hideout's a door in the rocks, just north of the gate."], "Captain Dalton")
@@ -1460,38 +1490,38 @@ func _sheriff() -> void:
 
 func _protester() -> void:
 	if GameState.flag("ceo_defeated") and not GameState.flag("trainers_freed"):
-		await say(["You beat Gearhart? The trainers are still locked in his freight cages!", "Use the Freight Lock Control on the top floor. I'll get their families on the phone."], "Tinker Wren")
+		await say(["You beat Gearheart? The trainers are still locked in his freight cages!", "Use the Freight Lock Control on the top floor. I'll get their families on the phone."], "Tinker Wren")
 		return
 	if GameState.flag("ceo_defeated"):
 		await say(["The trainers are safe. Their families know. And the steam is flowing again!", "You gave this city its heart back."], "Tinker Wren")
 		return
-	await say(["Down with Gearhart! Down with the rations!",
+	await say(["Down with Gearheart! Down with the rations!",
 		"His robots have been taking new trainers off the desert roads. I heard them inside the freight lift. They're still alive.",
-		"Gearhart owns every pipe and piston here. He supplies the cages; the Umbral Legion pays for the people.",
-		"Climb Gearhart Tower. Beat his robot sentries, stop him, and use the top-floor freight control to free the trainers.",
+		"Gearheart funded Vexmora’s research. His robots deliver captives; his company owns the extraction plants. He gets the profits.",
+		"Climb Gearheart Tower. Beat his robot sentries, stop him, and use the top-floor freight control to free the trainers.",
 		"He's sealed the Caldera Road too. Stop his drilling before Mount Cinder blows!"], "Tinker Wren")
 
 
 func _ceo(world, n: Dictionary) -> void:
 	if GameState.flag("ceo_defeated"):
 		await say(["The freight control accepts my command seal now. Take your precious trainers.",
-			"Vexmora will hear about this."], "Magnus Gearhart")
+			"Vexmora will hear about this."], "Matt Gearheart")
 		return
 	await say(["So. You're the pest who scrapped my sentries.",
 		"Those trainers? Vexmora needs living bonds to command his ghosts. I supply the transport. Very profitable.",
 		"Do you know what's inside Mount Cinder? Fire. Endless, free fire. Bottled and sold, it will make Gearheart Industries a god.",
 		"The city? Cattle. They'll pay whatever I ask for their steam.",
-		"Enough talk. My finest machines will turn your little pets into scrap!"], "Magnus Gearhart")
+		"Enough talk. My finest machines will turn your little pets into scrap!"], "Matt Gearheart")
 	if GameState.alive_party().is_empty():
-		await say(["Hah! Your beasts are already broken. Security will see you out."], "Magnus Gearhart")
+		await say(["Hah! Your beasts are already broken. Security will see you out."], "Matt Gearheart")
 		return
-	var res := await trainer_battle({"name": "Gearhart", "cls": "CEO", "boss": true, "team": [[44, 34], [45, 35], [46, 35], [43, 36]],
+	var res := await trainer_battle({"name": "Matt Gearheart", "cls": "CEO", "boss": true, "team": [[44, 34], [45, 35], [46, 35], [43, 36]],
 		"look": n.get("look", {}), "defeat": "Impossible... My machines... my fortune...", "reward": 6000})
 	if res == "win":
 		GameState.set_flag("ceo_defeated")
 		GameState.shards += 2
 		Sfx.play("levelup")
-		await say(["Gearhart slumps into his enormous chair. Outside, the city's steam whistles start to sing.",
+		await say(["Gearheart slumps into his enormous chair. Outside, the city's steam whistles start to sing.",
 			"His command seal falls onto the desk. The Freight Lock Control can open the trainers' cages now!",
 			"The Caldera Road gate grinds open. The path to Mount Cinder and the Temple of Flame is clear!",
 			"The grateful engineers of Cogsworth hand you 2 crystal shards. (%d in your bag)" % GameState.shards])
@@ -1534,7 +1564,7 @@ func _free_trainers(world) -> void:
 		await say(["All freight cages are open. The transport orders have been cancelled."])
 		return
 	if not GameState.flag("ceo_defeated"):
-		await say(["FREIGHT LOCK: COMMAND SEAL REQUIRED.", "Gearhart has the seal. You'll have to defeat him first."], "Freight Lock Control")
+		await say(["FREIGHT LOCK: COMMAND SEAL REQUIRED.", "Gearheart has the seal. You'll have to defeat him first."], "Freight Lock Control")
 		return
 	GameState.set_flag("trainers_freed")
 	GameState.set_flag("missing_trainers")
@@ -1542,7 +1572,7 @@ func _free_trainers(world) -> void:
 	for npc in world.npcs.values():
 		if npc.get("id", "") == "captive":
 			npc["node"].release()
-	await say(["You press Gearhart's command seal to the console. The freight locks snap open. All three trainers step free."])
+	await say(["You press Gearheart's command seal to the console. The freight locks snap open. All three trainers step free."])
 	await say(["I kept thinking nobody knew where we were. You found us.", "A general ordered this. Vexmora. The next shipment was bound for Gravenmoor."], "Trainer Lio")
 	await say(["We're going home. All of us. Thank you."], "Trainer Bea")
 	await say(["You cancel the remaining transport orders and send the missing-trainer register to Tinker Wren.",
@@ -1634,28 +1664,90 @@ func _finale(world, n: Dictionary) -> void:
 	if GameState.flag("game_cleared"):
 		return
 	if not GameState.flag("trainers_freed"):
-		await say(["The trainers in Gearhart Tower are still locked in their freight cages.",
-			"Free them with the top-floor Freight Lock Control before confronting Vexmora. You won't leave them behind."])
+		await say(["The trainers in Gearheart Tower are still locked in their freight cages.", "Free them with the top-floor Freight Lock Control first. You won't leave them behind."])
+		return
+	if GameState.flag("vexmora_defeated"):
+		await say(["The three controls here connect to every plant on the island. Isolate the intake, release the spirits, then shut down the network."], "Jared")
 		return
 	if GameState.alive_party().is_empty():
 		await say(["Your beasts can barely stand. Heal them first!"])
 		return
-	await say(["So the child from Cocoon Cove made it all the way to my crypt.",
-		"Gearhart's shipments have stopped. So you are the one who opened my cages.",
-		"Every ghost beast in this place answers to me. They have no weakness. No fear. No mercy.",
-		"With them, the Legion will take every town from the coast to the jungle. Starting with you."], "General Vexmora")
-	var res := await trainer_battle({"name": "Vexmora", "cls": "General", "boss": true, "team": [[9, 54, true], [21, 54, true], [30, 55, true], [12, 56, true]],
-		"look": n.get("look", {}), "song": "dread", "flute_skill": 0.9, "defeat": "...The light in your beasts. It's stronger than any shadow.", "reward": 12000})
+	if not GameState.flag("jail_escaped"):
+		await load("res://scripts/story/family_film.gd").play("arrest")
+		await load("res://scripts/story/prison_escape.gd").play()
+	await say(["If you shut down the network, Mother's treatment stops with it.", "I know what I've done. I know what it cost those trainers. But I don't know how to let her go."], "Jared")
+	var res := await trainer_battle({"name": "Jared", "cls": "Scientist", "boss": true, "team": [[9, 54, true], [21, 54, true], [30, 55, true], [12, 56, true]],
+		"look": n.get("look", {}), "song": "dread", "flute_skill": 0.9, "defeat": "...No more. No more people hurt for my sake.", "reward": 12000})
 	if res != "win":
 		return
-	GameState.set_flag("game_cleared")
-	world.remove_npc(n)
+	GameState.set_flag("vexmora_defeated")
+	await say(["Matt drove the machines beyond their limits. One reservoir bursting could wipe out half the realm.", "The island is full of them. They're linked. If one goes, the network could tear the whole world apart.", "Three controls: isolate the intake, release the spirits, and shut it all down. I'll help you."], "Jared")
+	if UI.auto:
+		for i in 3:
+			await _shutdown(world, i)
+	else:
+		UI.toast("Shut down the three spirit-energy controls.")
+
+
+func _reactor_node(index: int) -> Node3D:
+	var root := Node3D.new()
+	var painter = load("res://scripts/story/prison_stage.gd").new()
+	painter.sphere(root, Vector3(0, 0.65, 0), Vector3(0.42, 0.65, 0.38), "718392")
+	for x in [-0.45, 0.45]:
+		var pipe := CylinderMesh.new()
+		pipe.top_radius = 0.07
+		pipe.bottom_radius = 0.07
+		pipe.height = 1.4
+		painter.piece(root, pipe, Vector3(x, 0.7, 0), Vector3.ONE, "b6a26f")
+	var lever := TempleProps.lever(GameState.flag("reactor_shutdown_%d" % index))
+	lever.name = "ShutdownLever"
+	root.add_child(lever)
+	lever.position = Vector3(0, 0.15, 0.48)
+	painter.free()
+	return root
+
+
+func _shutdown(world, index: int) -> void:
+	if not GameState.flag("vexmora_defeated"):
+		await say(["The control is locked. Vexmora's seal holds it shut."])
+		return
+	var flag := "reactor_shutdown_%d" % index
+	if GameState.flag(flag):
+		await say(["This part of the network is safe."])
+		return
+	if index > 0 and not GameState.flag("reactor_shutdown_%d" % (index - 1)):
+		await say(["Isolate the intake, then release the spirits, then shut down the network. In that order."], "Jared")
+		return
+	if not UI.auto and not await ask(["Isolate the spirit-energy intake?", "Release the captive spirits from the reservoir?", "Shut down the entire network?"][index]):
+		return
+	GameState.set_flag(flag)
+	for npc in world.npcs.values():
+		if npc.get("id", "") == "reactor" and int(npc.get("reactor", -1)) == index and npc.has("node"):
+			await TempleProps.throw_lever(npc["node"].get_node("ShutdownLever"), true)
+	Sfx.play("lever")
+	if index == 0:
+		await say(["The intake's closed. He can't extract another bond."], "Jared")
+	elif index == 1:
+		await say(["Those spirits are free to choose now. Nobody commands them. Even the ones who stay beside a trainer."], "Jared")
+		await load("res://scripts/story/family_film.gd").play("hockey")
+		GameState.set_flag("mom_fought_goons")
+	else:
+		GameState.set_flag("reactors_safe")
+		await say(["The pressure is falling across the island. We're safe. It's really stopped."], "Jared")
+		await _revised_ending(world)
+
+
+func _revised_ending(world) -> void:
 	Sfx.music("ending")
-	await say(["General Vexmora's shadows unravel. The Umbral Legion's banners fall all across Gravenmoor.",
-		"Freed from the Legion's command, the ghost beasts drift quietly up into the moonlight."])
+	var film = load("res://scripts/story/family_film.gd")
+	await film.play("farewell")
+	await film.play("home")
+	await film.play("memory")
+	await film.play("spaceships")
+	GameState.set_flag("narrative_revision_complete")
+	GameState.set_flag("game_cleared")
 	await _ending_easter_eggs()
-	await say(["★ THE END ★", "Thank you for playing Ruby Cocoon!",
-		"Your journey continues: hatch every egg, master every song, and merge the ultimate team."])
+	await say(["★ THE END ★", "Thank you for playing Ruby Cocoon!", "Your journey continues: hatch every egg, master every song, and merge the ultimate team."])
 	await GameState.main.reload_map()
 
 
@@ -1678,7 +1770,7 @@ const SEARCHERS := [
 		"home": ["Lio's home! He says a trainer opened his cage with their own two hands.", "...That was you? I owe you a sarsaparilla. Several."]},
 	{"name": "Junie", "facing": Vector2i(0, 1), "look": {"skin": "#a8704a", "hair": "#2a1a14", "hair_style": 1, "body": "female", "shirt": "#f0a8c0", "pants": "#5a4a6a", "pack": true},
 		"lines": ["I'm putting up posters for Bea. One more and I'll have papered the whole town.",
-			"A wagon driver saw metal footprints round a Gearhart freight wagon out on the road. Metal! What walks on metal feet?"],
+			"A wagon driver saw metal footprints round a Gearheart freight wagon out on the road. Metal! What walks on metal feet?"],
 		"home": ["Bea wrote! She's home, and she says she's never going near a freight wagon again.", "I'm taking the posters down. Well. I'm leaving one up. For luck."]},
 	{"name": "Tamsin", "facing": Vector2i(0, 1), "look": {"skin": "#f0c8a0", "hair": "#8a3a20", "hair_style": 1, "body": "female", "shirt": "#f2c14e", "pants": "#3a5a4a", "hat": "#c86a3a", "pack": true},
 		"lines": ["Orin wrote to me every week. Then nothing.",
@@ -1744,7 +1836,7 @@ func deputy_waiting() -> bool:
 ## Deputy Rusk, minding Dustwell Jail (one empty cell more than he'd like).
 func _deputy() -> void:
 	if GameState.flag("trainers_freed"):
-		await say(["Gearhart, eh? Locking up trainers in freight cages.", "I've got a cell with his name on it. Literally. I painted it on. Spelled it wrong, but the thought's there."], DEPUTY)
+		await say(["Gearheart, eh? Locking up trainers in freight cages.", "I've got a cell with his name on it. Literally. I painted it on. Spelled it wrong, but the thought's there."], DEPUTY)
 		return
 	if not GameState.flag("convict_asked"):
 		await say(["Oh! A visitor! Nobody visits the jail. Except prisoners. And they don't visit so much as... stay.",
@@ -1981,6 +2073,33 @@ func _tide_solved(world, id: String) -> void:
 
 
 ## Opens a treasure chest (each once).
+func _mole(world, n: Dictionary) -> void:
+	var i := int(n["mole"])
+	var key := "mole_defeated_%d" % i
+	if GameState.flag(key):
+		await say(["Perhaps I'm not the third strongest mole... but I'm the third something. Never mind. That was a different life." if int(GameState.flags.get("mole_last", -1)) == i else "Third strongest. A very respectable rank. Please don't recount."], n["name"])
+		return
+	await say(["I'm the THIRD strongest mole in this cave! The others will tell you the same. They're mistaken, obviously."], n["name"])
+	if GameState.alive_party().is_empty():
+		await say(["Heal your beasts first. Third strongest doesn't mean third kindest. Well. Maybe it does."], n["name"])
+		return
+	var outcome := await trainer_battle({"name": n["name"], "cls": "Third Strongest", "look": {"critter": "mole"},
+		"team": [[12, 22 + i], [15, 23 + i]], "reward": 300, "defeat": "Third place is harder to defend than I thought."})
+	if outcome != "win":
+		return
+	GameState.set_flag(key)
+	var last := range(5).all(func(k): return GameState.flag("mole_defeated_%d" % k))
+	if last:
+		GameState.flags["mole_last"] = i
+		await say(["Perhaps I'm not the third strongest mole...", "But I'm still the third... Never mind. That was a different life."], n["name"])
+	else:
+		await say(["Fine! There's treasure behind me. Third strongest gets third-best hiding places."], n["name"])
+	for npc in world.npcs.values():
+		if npc.get("hidden_until", "") == key and npc.has("node"):
+			npc["node"].visible = true
+	Sfx.secret_chime()
+
+
 func _chest(n: Dictionary) -> void:
 	if n.get("hidden_until", "") != "" and not GameState.flag(n["hidden_until"]):
 		return

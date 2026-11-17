@@ -489,6 +489,9 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 		stairs.mesh = rb.floor_mesher.mesh()
 		p.add_child(stairs)
 		return rb
+	if room.get("cavern", false):
+		rb._cavern()
+		return rb
 	rb._floors()
 	rb._levels()
 	rb._daises()
@@ -621,6 +624,66 @@ func floor_mat(z: String) -> Material:
 	return floor_surface("floor_ancient" if ancient else _pick(z, "floor"))
 
 
+## Natural interiors keep the same collision map and doorway rules, with rounded, sealed rock masses.
+func _cavern() -> void:
+	var ground := MeshInstance3D.new()
+	var slab := BoxMesh.new()
+	slab.size = Vector3(w, 0.3, h)
+	ground.mesh = slab
+	ground.position = Vector3(w * 0.5, -0.15, h * 0.5)
+	ground.material_override = floor_surface("floor_cave")
+	parent.add_child(ground)
+	var rock := SphereMesh.new()
+	rock.radius = 1
+	rock.height = 2
+	rock.radial_segments = 24
+	rock.rings = 12
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load("res://assets/textures/surfaces/cliff_rock.png")
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.95
+	var groups := {}
+	for y in h:
+		for x in w:
+			if not wallish(x, y):
+				continue
+			if map.get("exits", {}).has(Vector2i(x, y)):
+				continue
+			var border := x == 0 or x == w - 1 or y == 0 or y == h - 1
+			var key := "shell" if border else "%d:%d" % [x, y / 4]
+			if not groups.has(key):
+				groups[key] = []
+			groups[key].append(Vector2i(x, y))
+	for key in groups:
+		var points: Array = groups[key]
+		var multi := MultiMesh.new()
+		multi.transform_format = MultiMesh.TRANSFORM_3D
+		multi.use_colors = true
+		multi.mesh = rock
+		multi.instance_count = points.size()
+		for i in points.size():
+			var p: Vector2i = points[i]
+			var front := p.y == h - 1
+			var tall := (0.35 if front else 2.5) + sin(p.x * 2.3 + p.y) * 0.12
+			multi.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(0.78, tall * 0.65, 0.78)), Vector3(p.x + 0.5, tall * 0.4, p.y + 0.5)))
+			multi.set_instance_color(i, Color("8c7d89").lightened(0.035 * sin(p.x * 1.7 + p.y)))
+		var node := MultiMeshInstance3D.new()
+		node.multimesh = multi
+		node.material_override = mat
+		parent.add_child(node)
+		if key != "shell":
+			add_prop([node], points[0], Vector2(1, points.size()))
+	for p in [Vector2i(3, 3), Vector2i(12, 3), Vector2i(21, 3), Vector2i(4, 12), Vector2i(20, 12)]:
+		var lamp := OmniLight3D.new()
+		lamp.position = Vector3(p.x + 0.5, 2.1, p.y + 0.5)
+		lamp.light_color = Color("e0bf9c")
+		lamp.light_energy = 0.65
+		lamp.omni_range = 7
+		lamp.shadow_enabled = false
+		parent.add_child(lamp)
+
+
 static func floor_surface(tex: String) -> ShaderMaterial:
 	var key := "soft_floor:" + tex
 	if _mats.has(key):
@@ -629,6 +692,10 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 	var base := Color("#ba9068")
 	var accent := Color("#d0aa7b")
 	match tex:
+		"floor_cave":
+			finish = 6
+			base = Color("#8c8277")
+			accent = base
 		"floor_wood_2":
 			base = Color("#a67b55")
 			accent = Color("#c49a6d")

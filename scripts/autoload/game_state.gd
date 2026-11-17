@@ -38,7 +38,7 @@ var player_name := "Andrew"
 ## "body" ("male" or "female", independent of gender), "person" (one of townfolk.gd
 ## HERO_OUTFITS: an older save's whole outfit), what they wear from the wardrobe (wardrobe_db.gd: "shirt_style",
 ## "pants_style", "shoes_style", "hat_style" and "glasses_style", -1 for none), "hairdo" (one of HAIRDOS), and the
-## colours of their "skin", "top", "trousers", "shoes", "hat", "glasses_colour", "hair", "eyes" and "pack_colour"
+## colours of their "skin", "top", "top2" (the shirt's second colour), "trousers", "shoes", "hat", "glasses_colour", "hair", "eyes" and "pack_colour"
 ## (their pack's; whatever's left out, as their body begins).
 var hero := {}
 var gold := 0
@@ -57,7 +57,7 @@ const BAG_STACKS := 24
 const ITEM_STACK_SIZE := 9
 const TOWER_STACKS := 48
 var tower_inventory := {}
-var gear := {"flute": "", "head": "", "feet": "", "acc": ""}
+var gear := {"weapon": "slingshot", "flute": "", "head": "", "feet": "", "acc": ""}
 ## the bait on your fishing hook (an ItemDB "bait" item), "" for none: one is used up each time something bites
 var bait := ""
 var songs: Array = []
@@ -164,6 +164,15 @@ func _bind(action: String, keys: Array, pads := []) -> void:
 ## How the hero is drawn (see voxel_person.gd).
 ## Heroes drawn bigger or smaller by name: size relative to the usual 1.0.
 const HERO_SCALES := {"Andrew": 0.93, "Ben": 1.1}
+const NIGHTMARE_TOOLS := ["a spork", "your left sock", "a roll of toilet paper"]
+
+
+## Save the clue in the existing flags dictionary. Old journeys get a deterministic clue, never a reload reroll.
+func nightmare_tool() -> int:
+	if not flags.has("nightmare_tool"):
+		flags["nightmare_tool"] = posmod(player_name.hash(), NIGHTMARE_TOOLS.size())
+	flags["nightmare_tool"] = clampi(int(flags["nightmare_tool"]), 0, NIGHTMARE_TOOLS.size() - 1)
+	return int(flags["nightmare_tool"])
 
 
 ## Name Easter eggs use exact names, ignoring case and accidental surrounding spaces.
@@ -207,7 +216,8 @@ func hero_word(male: String, female: String, neutral: String) -> String:
 
 func new_game(pname: String, look := {}) -> void:
 	player_name = pname if pname.strip_edges() != "" else "Andrew"
-	hero = look.duplicate()
+	# (a look from an older wardrobe keeps what it wore: see wardrobe_db.gd upgrade)
+	hero = preload("res://scripts/data/wardrobe_db.gd").upgrade(look)
 	gold = 300
 	party = []
 	storage = []
@@ -218,13 +228,14 @@ func new_game(pname: String, look := {}) -> void:
 	# every trainer has a slingshot (a key item, item_db.gd WEAPONS); the boomerang and the bat come later
 	inventory = {"minor_potion": 5, "remedy_herb": 2, "spirit_drop": 3, "slingshot": 1}
 	# no flute yet: Uncle Rafe in Bellerive keeps your father's
-	gear = {"flute": "", "head": "", "feet": "", "acc": ""}
+	gear = {"weapon": "slingshot", "flute": "", "head": "", "feet": "", "acc": ""}
 	songs = []
 	summons = []
 	song_mastery = {}
 	crests = []
 	# Missing in older saves means the map remains available, as it was before the library.
 	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true, "codex_off": false, "has_journal": false}
+	flags["nightmare_tool"] = randi_range(0, NIGHTMARE_TOOLS.size() - 1)
 	codex_veteran = false
 	visited = ["caccoon"]
 	map_id = "caccoon"
@@ -666,10 +677,17 @@ func has_flute() -> bool:
 	return String(gear.get("flute", "")) != ""
 
 
-## The trainer weapons you own, in the battle bar's order (always the slingshot at least).
+## Only the equipped weapon enters battle. Invalid or legacy equipment falls back to the slingshot.
 func weapons() -> Array:
-	var out := ItemDB.WEAPONS.filter(func(id): return item_count(id) > 0)
-	return out if not out.is_empty() else ["slingshot"]
+	var id := String(gear.get("weapon", "slingshot"))
+	return [id] if ItemDB.WEAPONS.has(id) and item_count(id) > 0 else ["slingshot"]
+
+
+func equip_weapon(id: String) -> bool:
+	if not ItemDB.WEAPONS.has(id) or item_count(id) <= 0:
+		return false
+	gear["weapon"] = id
+	return true
 
 
 ## No song wins a wild beast over: new beasts only come from eggs. (Older saves' Capture levels and the Requiem of
@@ -1031,6 +1049,7 @@ func load_game(slot := -2) -> bool:
 	# every trainer has a slingshot: saves from before it was a key item get theirs
 	inventory["slingshot"] = 1
 	gear = d.get("gear", gear)
+	gear["weapon"] = weapons()[0]
 	bait = String(d.get("bait", ""))
 	# (saves from before beasts came only from eggs still list their Capture level and the Requiem of Dusk)
 	songs = (d.get("songs", []) as Array).filter(func(id): return SongDB.exists(String(id)))

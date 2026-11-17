@@ -50,6 +50,31 @@ const FURNITURE := {
 }
 
 const ROOMS := {
+	"mole_cave": {
+		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true,
+		"encounter": {"races": [12, 15, 18, 6], "lv": [20, 24], "roam": true},
+		"anchors": {"1": "mole_0", "2": "mole_1", "3": "mole_2", "4": "mole_3", "5": "mole_4", "6": "chest:elixir@mole_defeated_0", "7": "chest:revival_seed@mole_defeated_1", "8": "chest:spirit_drop@mole_defeated_2", "9": "chest:mega_potion@mole_defeated_3", "0": "chest:honey_cake@mole_defeated_4"},
+		"rows": [
+			"#########################",
+			"#...........7...........#",
+			"#..6........2........8..#",
+			"#..1.................3..#",
+			"#.......#.......#.......#",
+			"#.......#.......#.......#",
+			"#..ggg..#..ggg..#..ggg..#",
+			"#..ggg..#..ggg..#..ggg..#",
+			"#..ggg..#..ggg..#..ggg..#",
+			"#.......#.......#.......#",
+			"#.......#.......#.......#",
+			"#..9....#.......#....0..#",
+			"#..4.................5..#",
+			"#.......................#",
+			"#.......................#",
+			"DP......................#",
+			"#########################",
+		],
+	},
+
 	## Every Beast Center is the same little temple, one room you walk into from the side (12x9): walls of the same grey
 	## stone blocks as its outside (beast_temple.gd), pilasters and flame sconces, a glowing inlay in the Center's red, and magic rather than machines. Each relic
 	## has its own bay along the back wall: the nurse's stone counter with her warming cradle (1, I), the healing font
@@ -991,16 +1016,17 @@ const ROOMS := {
 		"wall": "#3a3448", "rug": "#5a2a6a",
 		"npcs": {"1": "vexmora", "2": "ghost_grunt"},
 		"encounter": {"lv": [46, 52], "ghost": true},
+		"anchors": {"3": "reactor_0", "4": "reactor_1", "5": "reactor_2"},
 		"rows": [
 			"###################",
 			"#o......AAA......o#",
 			"#........1........#",
-			"#.....o.....o.....#",
+			"#..3..o.....o..4..#",
 			"#..ggg...rrr...ggg#",
 			"#..ggg...rrr...ggg#",
 			"#o.......rrr.....o#",
 			"#ggg..2..rrr......#",
-			"#ggg.....rrr...ggg#",
+			"#ggg.....5rr...ggg#",
 			"#<P......rrr...ggg#",
 			"###################",
 		],

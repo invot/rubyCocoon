@@ -30,6 +30,9 @@ const SPIRAL_SHADERS := {"max": "res://scripts/ui/spiral.gdshader", "mid": "res:
 ## How opaque the first pair of arms is at max graphics; the next pair, opaque, covers the screen.
 const SPIRAL_FIRST_ALPHA := 0.7
 var _spiral_busy := false
+## The swirl's and the fade's z: over everything else in the UI, menus' raised buttons included.
+const COVER_Z := 10
+var _creator_loading := false
 ## the strip at the top centre for notices and battle messages (top_bar.gd)
 var top_bar: TopBar
 var stack: Array = []
@@ -80,12 +83,15 @@ func _ready() -> void:
 	sm.set_shader_parameter("sparkle_atlas", load("res://assets/ui/battle_sparkle.png"))
 	spiral_rect.material = sm
 	spiral_rect.visible = false
+	# (above the hanging buttons, edge_button.gd's z 2, which otherwise showed over the swirl)
+	spiral_rect.z_index = COVER_Z
 	root.add_child(spiral_rect)
 	_prewarm_spiral.call_deferred()
 	fade_rect = ColorRect.new()
 	fade_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	fade_rect.color = Color(0, 0, 0, 0)
 	fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade_rect.z_index = COVER_Z
 	root.add_child(fade_rect)
 	controls = ControlsOverlay.new()
 	add_child(controls)
@@ -149,6 +155,9 @@ var _pad_mouse := false
 
 
 func _input(ev: InputEvent) -> void:
+	if _creator_loading:
+		get_viewport().set_input_as_handled()
+		return
 	# TouchScreenButtons have already read the raw event. Keep its full gesture
 	# out of GUI controls, including release after a thumb slides off the pad.
 	if ev is InputEventScreenTouch:
@@ -311,10 +320,58 @@ func make_hero():
 	if auto:
 		await get_tree().process_frame
 		return {"name": "Andrew", "look": {}}
+	_creator_loading = true
+	await enter_swirl()
+	var cover := swirl_cover()
+	root.add_child(cover)
+	cover.set_progress(0.1)
+	await get_tree().process_frame
 	var script: GDScript = await GameState.main.wait_for_script("res://scripts/ui/hero_maker.gd")
+	cover.set_progress(0.4)
+	await get_tree().process_frame
 	var m: Control = script.new()
+	# Keep the creator inactive until its room is ready and the loading cover has cleared.
+	m.process_mode = Node.PROCESS_MODE_DISABLED
 	push(m)
+	# (a creator taken away before its room was built must not leave the swirl turning for ever)
+	while is_instance_valid(m) and not m.scene_loaded:
+		await get_tree().process_frame
+	# Wake it under the swirl so it has laid out its rows and framed its camera before the swirl winds out to show it
+	# (input stays held back until the swirl has gone).
+	if is_instance_valid(m):
+		m.process_mode = Node.PROCESS_MODE_INHERIT
+	cover.set_progress(1.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await leave_swirl(cover)
+	_creator_loading = false
+	if not is_instance_valid(m):
+		return null
 	return await m.done
+
+
+## The swirl that takes you into the game (New Game's character creator, Continue and Load Game): ruby, sapphire and
+## gold arms with green and purple between them, rather than a battle's one colour.
+func enter_swirl() -> void:
+	await spiral_in(Color("c6454b"), 0.6, Color("4282be"), true)
+
+
+## The bar along the bottom that shows over that swirl while the game loads: "Entering Rubisa" over its progress.
+func swirl_cover() -> Control:
+	var cover: Control = load("res://scripts/ui/loading_screen.gd").new()
+	cover.name = "SwirlCover"
+	cover.over_swirl = true
+	cover.z_index = COVER_Z + 1
+	return cover
+
+
+## Fades the bar away as the swirl's last arms wind out to show what has loaded.
+func leave_swirl(cover: Control) -> void:
+	if is_instance_valid(cover):
+		var tw := cover.create_tween()
+		tw.tween_property(cover, "modulate:a", 0.0, 0.2)
+		tw.tween_callback(cover.queue_free)
+	await spiral_out()
 
 
 func show_beast(b, heading := "") -> void:
@@ -522,7 +579,7 @@ func fade_in(t := 0.3) -> void:
 
 ## The battle swirl: a pair of thick, flat-ended arms in two tones of the colour winds out from the centre, and when
 ## it is halfway out a second pair follows it, covers the screen and keeps turning while the battle loads.
-func spiral_in(col: Color, t := 0.8, secondary := Color.TRANSPARENT) -> void:
+func spiral_in(col: Color, t := 0.8, secondary := Color.TRANSPARENT, multicolor := false) -> void:
 	if auto:
 		return
 	var sm: ShaderMaterial = spiral_rect.material
@@ -538,6 +595,7 @@ func spiral_in(col: Color, t := 0.8, secondary := Color.TRANSPARENT) -> void:
 	var path: String = SPIRAL_SHADERS[Prefs.graphics_quality]
 	if sm.shader.resource_path != path:
 		sm.shader = load(path)
+	sm.set_shader_parameter("multicolor", multicolor)
 	var first_alpha := SPIRAL_FIRST_ALPHA if Prefs.graphics_quality == "max" else 1.0
 	sm.set_shader_parameter("first_alpha", first_alpha)
 	_spiral_busy = true

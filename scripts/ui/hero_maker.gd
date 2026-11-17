@@ -13,6 +13,7 @@ extends "res://scripts/ui/modal.gd"
 ## button; drag the hero to turn them round.
 
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+var scene_loaded := false
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const Townfolk = preload("res://scripts/gfx/townfolk.gd")
 const Wardrobe = preload("res://scripts/data/wardrobe_db.gd")
@@ -38,7 +39,7 @@ const TABS := [
 		"look_at": "head"},
 	{"name": "Face", "rows": ["eyes", "glasses", "glasses_color"], "heads": {"eyes": "Eyes", "glasses": "Glasses"},
 		"look_at": "head"},
-	{"name": "Torso", "rows": ["shirt", "shirt_color", "pack"], "heads": {"shirt": "Shirt", "pack": "Pack"},
+	{"name": "Torso", "rows": ["shirt", "shirt_color", "shirt_color2", "pack"], "heads": {"shirt": "Shirt", "pack": "Pack"},
 		"look_at": "torso"},
 	{"name": "Legs", "rows": ["pants", "pants_color", "shoes", "shoes_color"], "heads": {"pants": "Pants", "shoes": "Shoes"},
 		"look_at": "legs"},
@@ -50,7 +51,7 @@ const LOOK_AT := {"body": [0.6, 0.0], "head": [1.15, 0.3], "torso": [0.85, 0.2],
 const LOOK_EASE := 4.0
 const ROW_NAMES := {"name": "Name", "gender": "Gender", "skin": "Skin", "eyes": "Color", "hairdo": "Type",
 	"hair_color": "Color", "hat": "Type", "hat_color": "Color", "glasses": "Type", "glasses_color": "Color",
-	"shirt": "Type", "shirt_color": "Color", "pack": "Color", "pants": "Type", "pants_color": "Color", "shoes": "Type",
+	"shirt": "Type", "shirt_color": "Color", "shirt_color2": "Sleeves", "pack": "Color", "pants": "Type", "pants_color": "Color", "shoes": "Type",
 	"shoes_color": "Color"}
 ## The color rows: the look's key for the color, its set of dyes (Wardrobe.dyes), the piece it dyes (none worn,
 ## nothing to dye), and the color grid's title.
@@ -58,7 +59,7 @@ const COLORS := {
 	"skin": ["skin", "SKIN", "", "Skin color"], "eyes": ["eyes", "EYES", "", "Eye color"],
 	"hair_color": ["hair", "HAIR", "", "Hair color"], "hat_color": ["hat", "CLOTH", "hat", "Hat color"],
 	"glasses_color": ["glasses_colour", "CLOTH", "glasses", "Glasses color"],
-	"shirt_color": ["top", "CLOTH", "", "Shirt color"], "pack": ["pack_colour", "PACK", "", "Pack color"],
+	"shirt_color": ["top", "CLOTH", "", "Shirt color"], "shirt_color2": ["top2", "CLOTH", "", "Sleeves color"], "pack": ["pack_colour", "PACK", "", "Pack color"],
 	"pants_color": ["trousers", "CLOTH", "", "Pants color"], "shoes_color": ["shoes", "CLOTH", "", "Shoes color"],
 }
 ## The wardrobe kind each piece row picks from.
@@ -149,7 +150,7 @@ func _init() -> void:
 			"pants": start["pants_style"], "shoes": start["shoes_style"], "top": start["top"], "shoes_colour": start["shoes"]}
 	var s: Dictionary = Wardrobe.START["male"]
 	dye = {"skin": Wardrobe.SKIN[DEFAULT_SKIN], "hair": Wardrobe.HAIR[0], "eyes": Wardrobe.EYES[0],
-		"top": s["top"], "trousers": s["trousers"], "shoes": s["shoes"], "hat": s["hat"],
+		"top": s["top"], "top2": s["top2"], "trousers": s["trousers"], "shoes": s["shoes"], "hat": s["hat"],
 		"glasses_colour": s["glasses_colour"], "pack_colour": Wardrobe.PACK[0]}
 
 
@@ -375,8 +376,7 @@ func _nav() -> Array:
 
 func on_input(ev: InputEvent) -> void:
 	if ev.is_action_pressed("ui_cancel") and not ev.is_echo():
-		Sfx.play("back")
-		close(null)
+		_ask_leave()
 	elif ev.is_action_pressed("menu") and not ev.is_echo():
 		_finish()
 	elif ev.is_action_pressed("ui_up", true):
@@ -479,7 +479,14 @@ func _styles(id: String) -> Array:
 			return _names()
 		"hairdo":
 			return Townfolk.HAIRDOS.map(func(h: Array) -> String: return h[1])
-	return Wardrobe.pieces(PIECES[id], _body()).map(func(p: Array) -> String: return p[0])
+	return Wardrobe.pieces(PIECES[id], _body(), _gender()).map(func(p: Array) -> String: return p[0])
+
+
+## What the shirt's second color dyes, as its row names it (Wardrobe.SHIRTS: "Sleeves", "Collar"...).
+func _accent() -> String:
+	var list := Wardrobe.pieces("shirt", _body())
+	var piece: Array = list[clampi(int(pick["shirt"]), 0, list.size() - 1)]
+	return String(piece[2]) if piece.size() > 2 else "Trim"
 
 
 ## Picks a style on a row (a hairdo, a shirt, a hat...).
@@ -507,6 +514,9 @@ func _choose_gender(i: int) -> void:
 	if b >= 0 and b != pick["body"]:
 		_choose_body(b, false)
 	else:
+		# (a male hero has no long skirt: a non-binary one in it changes into the body's first pants)
+		if int(pick["pants"]) >= _styles("pants").size():
+			pick["pants"] = 0
 		_dress()
 
 
@@ -523,6 +533,7 @@ func _choose_body(i: int, sound := true) -> void:
 	for k in ["hairdo", "shirt", "pants", "shoes"]:
 		mem[k] = pick[k]
 	mem["top"] = dye["top"]
+	mem["top2"] = dye["top2"]
 	mem["shoes_colour"] = dye["shoes"]
 	pick["body"] = i
 	var back: Dictionary = _by_body[now]
@@ -531,6 +542,10 @@ func _choose_body(i: int, sound := true) -> void:
 	# a top left in the last body's own color takes this one's; one chosen stays
 	if dye["top"] == Wardrobe.START[was]["top"]:
 		dye["top"] = back["top"]
+	if dye["top2"] == Wardrobe.START[was]["top2"]:
+		dye["top2"] = back.get("top2", Wardrobe.START[now]["top2"])
+	if int(pick["pants"]) >= _styles("pants").size():
+		pick["pants"] = 0
 	if dye["shoes"] == Wardrobe.START[was]["shoes"]:
 		dye["shoes"] = back["shoes_colour"]
 	_dress()
@@ -560,7 +575,7 @@ func _open_colors(id: String) -> void:
 	var was: String = dye[key]
 	Sfx.play("confirm")
 	_picker = ColourPick.new()
-	_picker.setup(COLORS[id][3], Wardrobe.dyes(COLORS[id][1]), was, _column.get_global_rect(),
+	_picker.setup(COLORS[id][3] if id != "shirt_color2" else _accent() + " color", Wardrobe.dyes(COLORS[id][1]), was, _column.get_global_rect(),
 		func(hex: String) -> void: _set_dye(key, hex))
 	UI.push(_picker)
 	# (the Start button hangs over the grid's corner otherwise: it steps aside while the grid is up)
@@ -579,13 +594,33 @@ func _open_colors(id: String) -> void:
 func look() -> Dictionary:
 	var out := {"gender": _gender(), "body": _body(), "person": Townfolk.HERO_OUTFITS[_body()][0], "hairdo": pick["hairdo"],
 		"shirt_style": pick["shirt"], "pants_style": pick["pants"], "shoes_style": pick["shoes"],
-		"hat_style": pick["hat"], "glasses_style": pick["glasses"]}
+		"hat_style": pick["hat"], "glasses_style": pick["glasses"], "wardrobe": Wardrobe.VERSION}
 	out.merge(dye)
 	return out
 
 
 func _body() -> String:
 	return BODIES[pick["body"]]
+
+
+## B asks first, so a stray press doesn't throw the hero away: Leave goes back to the title, Stay (B again) keeps
+## them as they are.
+var _asking := false
+
+
+func _ask_leave() -> void:
+	if _asking:
+		return
+	_asking = true
+	Sfx.play("back")
+	# (the Confirm button stands above windows, so it steps aside while the question shows, as for the color grid)
+	_start_hit.visible = false
+	var leave: bool = await UI.ask("Leave the character creator? Your hero won't be kept.", "", "Leave", "Stay")
+	_asking = false
+	if is_instance_valid(_start_hit):
+		_start_hit.visible = true
+	if leave and is_inside_tree():
+		close(null)
 
 
 func _gender() -> String:
@@ -632,6 +667,8 @@ func _show() -> void:
 		var ink := UIKit.LIGHT if lit else (UIKit.DIM if off else UIKit.INK)
 		for st in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
 			b.add_theme_color_override(st, ink)
+		if id == "shirt_color2":
+			b.text = _accent()
 		var v: Label = _values[id]
 		v.text = _value_text(id)
 		v.add_theme_color_override("font_color", ink)
@@ -727,16 +764,21 @@ func _build_scene() -> void:
 
 func _load_room() -> void:
 	if GameState.main == null or not GameState.main.has_method("build_set"):
+		scene_loaded = true
 		return
 	var home := MapLoader.interior_of("caccoon", "home")
 	var id := MapLoader.wake_room(home) if home != "" else ""
 	if id == "":
+		scene_loaded = true
 		return
 	var stage := Node3D.new()
 	stage.name = "Bedroom"
 	_vp.add_child(stage)
-	_set = await GameState.main.build_set(id, stage)
+	# (bare: no journal on the floor with its marker over it, nor anyone else)
+	_set = await GameState.main.build_set(id, stage, true)
 	if not is_inside_tree() or not is_instance_valid(_set):
+		# (no room after all: the creator still opens rather than leaving its loading swirl turning)
+		scene_loaded = true
 		return
 	if is_instance_valid(_set.player):
 		_set.player.visible = false
@@ -746,6 +788,7 @@ func _load_room() -> void:
 	_turn.position = _set.tile_pos(HERO_TILE)
 	_build_mirror()
 	_frame_camera()
+	scene_loaded = true
 
 
 ## The camera in front of the hero, aimed so the hero and the mirror stand in the middle of the room left of the

@@ -24,6 +24,12 @@ __pycache__/
 !/tools/check_maps.gd
 !/tools/check_maps.gd.uid
 !/tools/check_scripts.gd
+!/tools/check_pending_requests.gd
+!/tools/debug/story_revision.gd
+!/tools/debug/story_revision.gd.uid
+!/tools/debug/story_revision_world.gd
+!/tools/debug/story_revision_world.gd.uid
+!/tools/check_pending_requests.gd.uid
 !/tools/check_scripts.gd.uid
 !/tools/check_phone_pose.gd
 !/tools/check_phone_pose.gd.uid

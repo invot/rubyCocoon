@@ -16,7 +16,7 @@ extends RefCounted
 ## Buildings are solid rectangles of one letter; the door is the middle of the bottom row:
 ##   C Beast Center  A apothecary  G beast outfitter  O trainer outfitter  K bookstore  R arena
 ##   Y dojo  M museum  U music hall  N fortune teller  E cafe  H house  Z your home  Q temple
-##   X electronics  V Sky Tower  I Gearhart Tower  B cathedral  J bandit hideout  D music shop  h scenery building
+##   X electronics  V Sky Tower  I Gearheart Tower  B cathedral  J bandit hideout  D music shop  h scenery building
 ##   b Kit's log cabin (the Coastal Path)
 ##   ? a kennel barn (Kennel Keeper Pip's adoption kennel; only on the roads, never in a town): its eastern five
 ##     tiles are the barn, its doors in the middle of them, and any tiles west of those its fenced paddock
@@ -613,10 +613,10 @@ const MAPS := {
 			"tt.gggf.,,....##..gT.,,ggggg##.....,,.ggg.##.....,,...tt",
 			"ttggggg.,,...........,,ggggg##...T.,,...+.####...,,..gtt",
 			"TTgggggg,,,,,,,,,,,,,,,.ggg.##.....,,,,,,,,,2,,,,,,.ggTT",
-			"TTggggg.,,,,,,,,,,,,,,..#g.f##...#.,,,,,,,####,,,,.gggTT",
-			"TT.ggg......................##............####......ggTT",
-			"TT..........................##............####.......gTT",
-			"TTzzzzzTTTTTTTzzzzzTTTTTTTTTTTzzzzzTTTTTTTTTTTTTTTTTTTTT",
+			"TTggJJJJ,,,,,,,,,,,,,,..#g.f##...#.,,,,,,,####,,,,.gggTT",
+			"TT.gJJJJ....................##............####......ggTT",
+			"TT..JJJJ....................##............####.......gTT",
+			"TTzzz......TTTzzzzzTTTTTTTTTTTzzzzzTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 		],
 		# rock ridges either side of the passes; a ledge up from the road in the north-west

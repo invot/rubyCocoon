@@ -1,7 +1,9 @@
 # Ruby Cocoon: antagonist and ending direction
 
-Status: planned narrative revision; not implemented in gameplay.
-Updated: 16 November 2026.
+Status: implemented locally on 17 November 2026; focused verification complete. Not pushed.
+Updated: 17 November 2026.
+
+Confirmed identity decisions (17 November): Jared is Vexmora, the scientist; Matt Gearheart is the industrialist and Jared’s older brother. The player remains a separately named protagonist. The nightmare tool pool is a spork, the player’s left sock, and a roll of toilet paper.
 
 This document records the story decisions from the development discussion, distinguishes them from suggested connective material, and identifies continuity work against the current game. User-established beats below are the intended direction; suggested details and open questions are not settled canon.
 
@@ -53,7 +55,7 @@ From a dark corner behind the player, an unseen voice says:
 
 > "I'll get us out of here, just give me a [tool]."
 
-Select the tool name randomly from a pool of three. The three actual tool names have not yet been chosen. The speaker's identity is not specified at this stage.
+Select the tool name randomly from a pool of three. The three tools are a spork, the player’s left sock, and a roll of toilet paper. The unseen speaker’s identity remains unspecified; identifying Jared as Vexmora does not settle who speaks in the nightmare.
 
 End the nightmare and return to the player waking in bed. They remark on the odd dream and joke that it could only happen if some maniac put "ruin spring" on their calendar. Preserve this meaning; final dialogue wording remains to be written.
 
@@ -67,7 +69,7 @@ Playing the song makes the mouse a controllable drone and lets it unlock their c
 
 Implementation requirement: choose the tool once for the playthrough and persist it with the save. The later jail scene must use the same tool, without rerolling it on reload or when the intro is replayed. Define how skipped intros and older saves expose or initialize the clue so that the flute route remains available.
 
-The tool pool, how the player supplies or selects the remembered tool, and the precise tool-based escape action are still open. Do not assume the unseen dream voice is Jared until that identity is decided.
+The tool pool, how the player supplies or selects the remembered tool, and the precise tool-based escape action are still open. Jared is Vexmora, the scientist; he is a separate character from the player.
 
 ## Suggested connective development
 
@@ -109,7 +111,7 @@ Matt offering a toy can begin reconciliation without guaranteeing forgiveness or
 
 Allow Marlyse's farewell and the brothers' reconciliation their own emotional space. Their exact sequence is not yet fixed.
 
-## Continuity against the current repository
+## Historical continuity audit (before the 17 November implementation)
 
 Reviewed against README.md, scripts/autoload/story.gd, and scripts/story/opening.gd on the main branch at f31a1b2a16d8c83b6ceaf55d0ea9c9d102d050f2.
 
@@ -130,17 +132,35 @@ Reviewed against README.md, scripts/autoload/story.gd, and scripts/story/opening
 
 ## Decisions still needed before implementation
 
-1. Confirm Gearheart/Gearhart spelling and Matt/Magnus naming.
-2. Confirm whether the scientist is Vexmora and whether his General title and the Legion remain.
-3. Define Jared's relationship to player naming and the protagonist's established family.
+1. Resolved 17 November: Matt Gearheart. Preserve legacy internal IDs.
+2. Resolved identity: Jared is Vexmora, the scientist. Stage the reveal while preserving existing progression.
+3. Resolved: Jared is a separate NPC, Matt’s younger brother; the player remains customizable.
 4. Place Marlyse's meeting and friendship with the player's mother, and decide where Mom's hockey-shirt-and-stick fight with the goons occurs.
 5. Establish the cause of the brothers' estrangement and the timing of the reveal.
 6. Define spirit-energy extraction, its effects on captives, and the island network's failure mechanism.
 7. Order the attempted killing, scientist's intervention, shutdown, Marlyse's farewell, and home confrontation.
 8. Establish that the immediate catastrophe is resolved or contained when the brothers play spaceships.
-9. Choose the three tool names, the clue-answer interaction, the tool-based escape action, and the flute song / mouse-drone controls.
-10. Clarify Jared's identity in the shared jail scene and decide whether he is the unseen nightmare speaker.
+9. Tool pool resolved: a spork, the player’s left sock, a roll of toilet paper. Implement the clue interaction, tool-based escape and flute/mouse controls.
+10. Jared is Vexmora in the shared jail. The unseen nightmare speaker remains unspecified.
 
 ## Scope of this update
 
-Documentation only. Existing dialogue, character names, quests, maps, save flags, and ending behavior have not been changed by this document.
+The original 16 November update was documentation only. The 17 November runtime implementation adds the saved nightmare clue, jail escape, mothers’ friendship, hockey fight, spirit-network shutdown and revised ending. Visible naming is Matt Gearheart; internal IDs remain compatible. See the checkpoint below.
+
+## Confirmed decisions superseding earlier continuity questions
+
+The 17 November answers resolve the tool pool, Jared/player ambiguity, Vexmora/scientist identity and Matt/Magnus naming. Use **Matt Gearheart** in visible names; retain existing internal IDs and save flags for compatibility. Jared/Vexmora is Matt’s younger brother, not the player. Their mother and Marlyse are therefore the same person; the player’s Mom remains distinct and befriends her. Existing references above to these identities being undecided are historical audit notes. The timing of their friendship, Mom’s fight, the machinery shutdown and the jail remain implementation design work; do not claim these scenes are present until their runtime, saves and tests are complete.
+
+## Runtime implementation checkpoint — 17 November
+
+- `opening.gd` now cuts from the cages to a sleeping-face shot, a separate dungeon with the mouse and the remembered tool line, then the wake-up joke. The tool phrase is red. Existing A/B/skip controls remain.
+- `GameState.nightmare_tool` stores the index in saved flags; new journeys choose once and older saves derive a stable fallback. Skipped/replayed intros do not reroll it.
+- `prison_escape.gd` provides the remembered-tool route and Jared’s difficult, partly erased Mouse March, with a controllable mouse and brass lock. Wrong answers, failed songs and returning from mouse control do not consume items or block retrying.
+- The finale preserves the captive-rescue prerequisite. Jared’s defeat unlocks three real controls in the crypt; their ordered saved state isolates intake, frees spirits and shuts down the island network before completion.
+- `family_film.gd` stages the mothers’ friendship, Matt’s attempted killing and Jared’s intervention, Mom’s hockey fight, Marlyse’s acceptance, the home confrontation, the restaurant/fries memory and spaceships invitation. Holding B skips without losing progression.
+- The existing Andrew/Jared wedding remains afterward. Previously completed saves remain completed. Ghost companions remain playable.
+- The mole cave is optional on Mine Road. Five independent trainer flags gate five chests; the last defeated mole gives the missing-third-member hint. Four Rubywave musicians in Cogsworth’s music shop introduce themselves as first, second, fourth and fifth. The older diamond/cactus/concert arc and user-supplied “Table Banana” audio remain separate runbook backlog; no substitute lyrics or audio were invented.
+
+Implementation choices made within the confirmed direction: the mothers meet while the player first reaches Cogsworth; Matt imprisons the player and Jared before the final scientist battle; three network trunk controls represent the island-wide shutdown. The diary and old General/Legion references are retained as prior in-world knowledge until the reveal. The unseen voice’s name plate remains “A voice” during the nightmare.
+
+Validation: final isolated story suite 10/10 passed; final appearance, custom melody and film follow-up 6/6 passed. See docs/development-plan.md and build/shots/story_revision/ for evidence and the remaining legacy concert scope.

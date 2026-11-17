@@ -2,13 +2,13 @@ extends Node3D
 ## A self-contained, real-time prologue. No map visits, inventory or quest knowledge is granted here.
 ## The same timeline drives playback and deterministic screenshot previews.
 ##
-## Three sets. Gearhart's office at the top of his tower by night, built here from the game's own pieces (wood floor,
+## Three sets. Gearheart's office at the top of his tower by night, built here from the game's own pieces (wood floor,
 ## brick and panelling under timber beams, the company sign over the desk, turning brass gears, his new robots lined
 ## up before the windows onto the neon city, crates and the freight lift), with his freight warehouse behind a steel
 ## door in its east wall. Then the real Coastal Path at dawn and the hero's real bedroom, built by the world itself
 ## as film sets (main.gd build_set), so the film shows the very places the game starts in.
 ## The reveal is played straight: at a friendly end-of-quarter meeting his staff ask how the company made such a
-## huge profit; Gearhart answers with a riddle about "freight", sends them home, waits until the lift has taken the
+## huge profit; Gearheart answers with a riddle about "freight", sends them home, waits until the lift has taken the
 ## last of them down, then walks alone to the steel door and steps through. The music stops dead, a dread hit (sfx "dread"), and behind it is a warehouse under
 ## cool hanging lamps: a concrete shed with a truss roof, shipping containers, racks and crates, and down its aisle
 ## rusted iron cages full of trainers (Lio, Bea and Orin among them, as the hero finds them later), their beasts in
@@ -36,7 +36,7 @@ const MapLoader = preload("res://scripts/world/map_loader.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 const GEAR_LOOK := {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}
 const ENGINEER_LOOK := {"skin": "#bc8868", "hair": "#49332d", "shirt": "#d6ae58", "pants": "#455469", "outfit": "apron", "glasses": false}
-## Gearhart's staff besides Mara: a foreman in a hard hat and a clerk
+## Gearheart's staff besides Mara: a foreman in a hard hat and a clerk
 const STAFF_LOOKS := [
 	{"skin": "#e0b890", "hair": "#2a2420", "shirt": "#5a6a80", "pants": "#2e3440", "outfit": "uniform", "hat": "#d8a838"},
 	{"skin": "#8a5a40", "hair": "#1a1414", "shirt": "#c8c0b0", "pants": "#3a3a48", "body": "female"},
@@ -48,51 +48,52 @@ const CAPTIVE_LOOKS := [
 	{"skin": "#d8a880", "hair": "#6a3a2a", "shirt": "#7a7ac0", "pants": "#4a4a4a", "body": "female", "pack": true},
 ]
 const LENGTH := 93.0
-## Gearhart heads for the steel door; the cut into the warehouse; the cut to spring; the cut up to the bedroom
+## Gearheart heads for the steel door; the cut into the warehouse; the cut to spring; the cut up to the bedroom
 const DOOR := 36.0
 const INSIDE := 41.0
 const DAWN := 53.0
+const DREAM := 58.0
 const ROOM := 73.0
 ## start, end, who speaks, the line, camera shot. Lines advance automatically; A also advances a beat. Each line
 ## fits one page of a speech bubble (three lines), since nothing turns a page for the audience.
-## The film opens on a friendly end-of-quarter meeting: the staff marvel at the profits and ask how, Gearhart answers
+## The film opens on a friendly end-of-quarter meeting: the staff marvel at the profits and ask how, Gearheart answers
 ## with a riddle and sends them home, waits by the rug until the lift has taken the last of them down, and only then
 ## goes to the steel door.
 const BEATS := [
 	[0.0, 3.0, "", "", "wide"],
 	[3.0, 8.5, "mara", "The quarter's numbers are in, sir! Profits are up four hundred percent. The board's over the moon!", "staff"],
-	[8.5, 14.0, "foreman", "Same robots, same lifts as last year. How on earth did we manage it, Mr. Gearhart?", "plan"],
+	[8.5, 14.0, "foreman", "Same robots, same lifts as last year. How on earth did we manage it, Mr. Gearheart?", "plan"],
 	[14.0, 19.5, "clerk", "Accounts can't make it out. The ledger just says 'freight'. Have we found a new client?", "staff"],
 	[19.5, 25.0, "gear", "Let's just say we've found a cargo that walks aboard by itself. And spring brings plenty more.", "gear"],
 	[25.0, 29.0, "gear", "Now, off home, all of you. Splendid work this quarter!", "leave"],
-	[29.0, 32.5, "mara", "Goodnight, Mr. Gearhart! And congratulations!", "wait"],
+	[29.0, 32.5, "mara", "Goodnight, Mr. Gearheart! And congratulations!", "wait"],
 	[32.5, 36.0, "", "", "alone"],
 	[36.0, 41.0, "gear", "Now then. Let's look in on tonight's freight.", "door"],
 	[41.0, 46.0, "bea", "Please, let us out! Give us back our beasts!", "reveal"],
-	[46.0, 50.0, "gear", "Every trainer caged, every beast crated. General Vexmora pays by the bond.", "crates"],
+	[46.0, 50.0, "gear", "Every trainer caged, every beast crated. Vexmora gets his research. I get the profits. A splendid arrangement.", "crates"],
 	[50.0, 53.0, "", "", "cages"],
-	[53.0, 56.5, "", "", "spring"],
-	[56.5, 62.0, "bram", "Look at that, Tilly! First morning of spring, and the beasts are out of their burrows already.", "neighbours"],
-	[62.0, 67.5, "tilly", "A whole winter asleep. Now they're off to find food, a mate... or trouble.", "beasts"],
-	[67.5, 73.0, "bram", "Which makes it trainer season. Elder Rowan has an egg waiting for somebody back in town.", "egg"],
-	[73.0, 79.0, "hero", "Spring's here! My first beast. My own journey. I can hardly wait!", "hero"],
+	[53.0, 58.0, "", "", "sleeping"],
+	[58.0, 64.0, "", "", "prison"],
+	[64.0, 68.0, "", "", "mouse"],
+	[68.0, 73.0, "voice", "I'll get us out of here, just give me {tool}.", "prison"],
+	[73.0, 79.0, "hero", "What an odd dream. A dungeon, a mouse... What was that about?", "hero"],
 	[79.0, 85.0, "mom", "Up already? Rowan's got your egg, and Uncle Rafe has Dad's flute, over in Bellerive!", "mom"],
 	[85.0, 88.5, "hero", "A whole season of adventure!", "joke"],
-	[88.5, 93.0, "hero", "Unless some gloomy weirdo's put 'ruin spring' on his to-do list. Ha! Get a hobby!", "home"],
+	[88.5, 93.0, "hero", "That could only happen if some maniac put 'ruin spring' on their calendar. Ha! Get a hobby!", "home"],
 ]
 ## the names on the speech bubbles (the hero's is the player's), and which figure on the set each speaker is; Mom
 ## calls from downstairs, so hers is the stationary bubble of a voice off screen
-const SPEAKERS := {"gear": "Magnus Gearhart", "mara": "Engineer Mara", "foreman": "Foreman Briggs",
+const SPEAKERS := {"gear": "Matt Gearheart", "voice": "A voice", "mara": "Engineer Mara", "foreman": "Foreman Briggs",
 	"clerk": "Clerk Nell", "bea": "Trainer Bea", "mom": "Mom", "tilly": "Camper Tilly", "bram": "Scout Bram"}
 const ACTORS := {"gear": "gear", "mara": "mara", "foreman": "staff0", "clerk": "staff1", "bea": "captive0",
 	"hero": "hero", "tilly": "tilly", "bram": "bram"}
 ## each scene's place, under the controls in the top-centre HUD, which stays up this long as the scene begins
-const PLACES := {"tower": "Gearhart Tower · Cogsworth", "route": "Coastal Path", "room": "Your Home · Cocoon Cove"}
+const PLACES := {"tower": "Gearheart Tower · Cogsworth", "sleep": "Your Home · Cocoon Cove", "dream": "A dungeon", "room": "Your Home · Cocoon Cove"}
 const HUD_HOLD := 4.0
 ## how long B (Esc, Start) is held to skip the film; let go sooner than TAP and B turned the page instead
 const SKIP_HOLD := 1.0
 const TAP := 0.35
-## Where everyone stands in the office: Gearhart on the rug's east side, his staff in a huddle facing him.
+## Where everyone stands in the office: Gearheart on the rug's east side, his staff in a huddle facing him.
 const GEAR_AT := Vector3(4.4, 0, 0.6)
 const STAFF_AT := [Vector3(1.5, 0, -0.6), Vector3(1.1, 0, 0.9), Vector3(1.7, 0, 2.3)]
 ## the steel door in the office's east wall, and the freight warehouse behind it: its far (east) wall, how far its
@@ -109,7 +110,7 @@ const CELL_Z := 3.0
 const TUBE_X := 22.4
 const TUBE_ZS := [-0.9, 0.85, 2.6, 4.35, 6.1]
 const CAGE := "res://assets/props/iron_cage.res"
-## Gearhart's walk: from the rug to the door, down the aisle, and over to the beasts' cages; when he sets off, how fast
+## Gearheart's walk: from the rug to the door, down the aisle, and over to the beasts' cages; when he sets off, how fast
 const GEAR_PATH := [Vector3(4.4, 0, 0.6), Vector3(9.4, 0, 2.6), Vector3(19.6, 0, 2.6), Vector3(20.8, 0, 3.4)]
 const GEAR_WALK := 36.5
 const GEAR_SPEED := 1.25
@@ -187,6 +188,7 @@ var set_world: Node3D
 var _home_view := Transform3D.IDENTITY
 var _home_fov := 44.0
 var _mats := {}
+var _prison: Node3D
 var _scene := ""
 var _beat := -1
 var _shot := ""
@@ -311,7 +313,7 @@ func _step() -> void:
 
 
 func _scene_at(t: float) -> String:
-	return "tower" if t < DAWN else "route" if t < ROOM else "room"
+	return "tower" if t < DAWN else "sleep" if t < DREAM else "dream" if t < ROOM else "room"
 
 
 func _build_overlay() -> void:
@@ -365,7 +367,12 @@ func _show_dialogue(beat: Array) -> void:
 	var speaker: String = GameState.player_name if who == "hero" else String(SPEAKERS.get(who, ""))
 	dialogue = CinematicDialog.new()
 	dialogue.instant_text = preview
-	dialogue.setup([String(beat[3])], speaker, null, people.get(ACTORS.get(who, ""), null))
+	if who == "voice":
+		dialogue.highlight_phrase = GameState.NIGHTMARE_TOOLS[GameState.nightmare_tool()]
+	var line := String(beat[3]).replace("{tool}", GameState.NIGHTMARE_TOOLS[GameState.nightmare_tool()])
+	if who == "voice" and not preview:
+		GameState.set_flag("nightmare_seen")
+	dialogue.setup([line], speaker, null, people.get(ACTORS.get(who, ""), null))
 	dialogue.advance_requested.connect(advance)
 	overlay.add_child(dialogue)
 	overlay.move_child(dialogue, 0)
@@ -403,12 +410,14 @@ func _change_scene(which: String) -> void:
 			# (the music stops dead as he steps into the warehouse, see _reveal_sounds)
 			Sfx.music("crypt" if elapsed < INSIDE else "")
 			Sfx.ambience("machines")
-		"route":
-			set_world = await GameState.main.build_set("route1", stage)
-			if not _still_wanted(which):
-				return
-			await _dress_route()
-		"room":
+		"dream":
+			_prison = load("res://scripts/story/prison_stage.gd").new()
+			_prison.nightmare = true
+			stage.add_child(_prison)
+			camera = _prison.camera
+			Sfx.music("crypt")
+			Sfx.ambience("")
+		"sleep", "room":
 			var home := MapLoader.interior_of("caccoon", "home")
 			set_world = await GameState.main.build_set(MapLoader.wake_room(home), stage)
 			if not _still_wanted(which):
@@ -416,7 +425,7 @@ func _change_scene(which: String) -> void:
 			_dress_room()
 	if not _still_wanted(which):
 		return
-	if which != "tower":
+	if which in ["sleep", "room"]:
 		# each place's own music, so the game carries on from the film without a change of tune
 		var place: String = set_world.map_id
 		Sfx.music(GameState.main.music_for(place))
@@ -426,7 +435,7 @@ func _change_scene(which: String) -> void:
 		_complete()
 		return
 	# the controls, as the scene begins (not when a preview opens part-way through it)
-	if elapsed - float({"tower": 0.0, "route": DAWN, "room": ROOM}[which]) < HUD_HOLD:
+	if elapsed - float({"tower": 0.0, "sleep": DAWN, "dream": DREAM, "room": ROOM}[which]) < HUD_HOLD:
 		_post_hint()
 	_update_frame()
 
@@ -613,14 +622,14 @@ func _build_tower() -> void:
 	spot.spot_attenuation = 0.6
 	spot.shadow_enabled = true
 	stage.add_child(spot)
-	# Gearhart addressing his staff, the staff in a huddle before him
+	# Gearheart addressing his staff, the staff in a huddle before him
 	_person("gear", GEAR_LOOK, GEAR_AT, Vector2i(-1, 0))
 	_person("mara", ENGINEER_LOOK, STAFF_AT[0], Vector2i(1, 0))
 	for i in STAFF_LOOKS.size():
 		_person("staff%d" % i, STAFF_LOOKS[i], STAFF_AT[i + 1], Vector2i(1, 0))
 
 
-## The floor (Gearhart's office is wood with a red rug, as when the hero comes back for the captives), the ceiling,
+## The floor (Gearheart's office is wood with a red rug, as when the hero comes back for the captives), the ceiling,
 ## and brick walls all round; the east wall has the doorway into the warehouse.
 func _office_shell() -> void:
 	_box(Vector3(0, -0.25, 0.5), Vector3(20.4, 0.5, 15.4), "#86705f", false, "floor_wood_2")
@@ -772,8 +781,8 @@ func _gear(at: Vector3, radius: float, teeth: int, speed: float) -> void:
 		spoke.rotation.y = PI * i / 3.0
 
 
-## Gearhart's desk before the sign, his new robots lined up on lit plinths before the windows, books, a drafting
-## table, and crates of "freight" under neon along the sides (clear of the staff's way to the lift and of Gearhart's
+## Gearheart's desk before the sign, his new robots lined up on lit plinths before the windows, books, a drafting
+## table, and crates of "freight" under neon along the sides (clear of the staff's way to the lift and of Gearheart's
 ## to the steel door).
 func _office_furniture() -> void:
 	_box(Vector3(0, 0.5, -4.7), Vector3(3.6, 1.0, 1.2), "#4a2e22", false, "furniture_wood")
@@ -1163,6 +1172,13 @@ func _dress_room() -> void:
 	_home_view = camera.transform
 	_home_fov = camera.fov
 	set_world.cam_free = true
+	if _scene == "sleep":
+		var sleeping_look := GameState.hero_look().duplicate()
+		sleeping_look["pack"] = false
+		Person.dress(hero, sleeping_look)
+		Person.sleeping_eyes(hero)
+		hero.rotation.x = -PI / 2.0
+		hero.position = set_world.tile_pos(Vector2i(2, 2)) + Vector3(0, 0.72, 0.65)
 	# morning sun through each window in the back wall: a warm glow, and shafts slanting down to the floor
 	var w: int = set_world.map["w"]
 	var shafts := SurfaceTool.new()
@@ -1220,11 +1236,11 @@ func _camera_shot(shot: String, progress: float) -> void:
 			pos = Vector3(-7.4, 4.9, 7.4).lerp(Vector3(-6.2, 4.2, 6.4), progress)
 			target = Vector3(1.6, 1.6, -1.6)
 		"gear":
-			# past the staff's shoulders, on Gearhart, the steel door behind him
+			# past the staff's shoulders, on Gearheart, the steel door behind him
 			pos = Vector3(-1.4, 2.0, 2.9).lerp(Vector3(-1.0, 1.95, 2.7), progress)
 			target = GEAR_AT + Vector3(0, 2.0, -0.2)
 		"staff":
-			# over Gearhart's shoulder, on Mara and the others, the gears turning behind them
+			# over Gearheart's shoulder, on Mara and the others, the gears turning behind them
 			pos = Vector3(6.6, 2.0, -1.7).lerp(Vector3(6.2, 1.95, -1.5), progress)
 			target = Vector3(1.3, 2.0, 0.9)
 		"plan":
@@ -1236,7 +1252,7 @@ func _camera_shot(shot: String, progress: float) -> void:
 			pos = Vector3(-2.6, 2.5, -3.2).lerp(Vector3(-2.0, 2.4, -3.0), progress)
 			target = Vector3(4.4, 1.9, 3.2)
 		"wait":
-			# behind Gearhart, over his shoulder to the lift as the staff step in and wave goodnight
+			# behind Gearheart, over his shoulder to the lift as the staff step in and wave goodnight
 			pos = Vector3(3.6, 2.4, -2.4).lerp(Vector3(3.8, 2.35, -2.0), progress)
 			target = LIFT_AT + Vector3(0, 1.5, -0.6)
 		"alone":
@@ -1278,6 +1294,20 @@ func _camera_shot(shot: String, progress: float) -> void:
 			target = Vector3(18.5, 1.8, 8.4)
 		# (the bedroom is a stage room, open at the front with nothing over its walls: long lenses from out front
 		# look down into it without seeing past them)
+		"sleeping":
+			var sk: Skeleton3D = people["hero"].get_meta("skeleton")
+			var head := sk.to_global(sk.get_bone_global_pose(sk.find_bone("head")).origin)
+			camera.fov = 32.0
+			pos = head + Vector3(0.3, 1.1, 1.8).lerp(Vector3(0.2, 0.8, 1.3), progress)
+			target = head
+		"prison":
+			camera.fov = 44.0
+			pos = Vector3(-2.4, 2.3, 4.8)
+			target = Vector3(-0.2, 1.0, 0.1)
+		"mouse":
+			camera.fov = 38.0
+			pos = Vector3(-2.1, 0.7, 3.0)
+			target = Vector3(-1.25, 0.19, 1.9)
 		"hero":
 			camera.fov = 24.0
 			pos = Vector3(5.0, 4.8, 9.8).lerp(Vector3(4.8, 4.7, 9.4), progress)
@@ -1318,8 +1348,8 @@ func _update_frame() -> void:
 	_camera_shot(String(beat[4]), p)
 	if _scene == "tower":
 		_tower_frame()
-	elif _scene == "route":
-		_route_frame(String(beat[4]))
+	elif _scene == "dream":
+		pass
 	else:
 		_room_frame(String(beat[4]))
 	# (the bubble goes up once everyone's where this moment has them, so it finds its speaker's head)
@@ -1336,6 +1366,7 @@ func _update_frame() -> void:
 func _fade_at(t: float) -> float:
 	var fade := maxf(0.0, 1.0 - t / 0.8)
 	fade = maxf(fade, _dip(t, DAWN, 1.1, 0.9))
+	fade = maxf(fade, _dip(t, DREAM, 0.5, 0.5))
 	fade = maxf(fade, _dip(t, ROOM, 0.5, 0.5))
 	return maxf(fade, clampf((t - LENGTH + 0.65) / 0.65, 0, 1))
 
@@ -1380,7 +1411,7 @@ func _tower_frame() -> void:
 	_reveal_sounds()
 
 
-## Gearhart: addressing the staff from the rug, then the walk (GEAR_PATH) to the steel door, through it, down the
+## Gearheart: addressing the staff from the rug, then the walk (GEAR_PATH) to the steel door, through it, down the
 ## aisle between the cages, and over to the beasts' cages, where he stands admiring them.
 func _gear_frame() -> void:
 	var gear: Node3D = people["gear"]
@@ -1485,5 +1516,7 @@ func _route_frame(shot: String) -> void:
 ## The bedroom: the hero by the bed, turning to the door while Mom calls up the stairs, then back.
 func _room_frame(shot: String) -> void:
 	var hero: Node3D = people["hero"]
+	if _scene == "sleep":
+		return
 	Person.face(hero, Vector2i(1, 0) if shot == "mom" else Vector2i(0, 1), not preview and shot == _shot)
 	Person.animate(hero, 0, 0, elapsed)

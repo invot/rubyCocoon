@@ -40,6 +40,9 @@ static func build(egg: Dictionary) -> Node3D:
 	mi.material_override = shell
 	mi.position.y = HEIGHT * 0.5
 	root.add_child(mi)
+	# Aquatic shells keep their painted markings, with a smooth, fin-free crown.
+	if d.crown == "fin":
+		return root
 	var mark := StandardMaterial3D.new()
 	mark.albedo_color = d.mark
 	mark.roughness = 0.55

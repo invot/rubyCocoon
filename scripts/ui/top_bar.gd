@@ -185,6 +185,13 @@ func pending() -> int:
 	return _queue.size() + (0 if _msg.is_empty() else 1)
 
 
+## A temporary interaction ended; retain unrelated queued notices.
+func dismiss(key: String) -> void:
+	_queue = _queue.filter(func(message): return message.get("key", "") != key)
+	if not battle and _msg.get("key", "") == key:
+		_next()
+
+
 ## The text on the bar now ("" when it's hidden).
 func current_text() -> String:
 	return label.text if visible else ""

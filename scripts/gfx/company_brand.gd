@@ -1,5 +1,5 @@
 extends RefCounted
-## Mounted company signage shared by the prologue and Gearhart's office.
+## Mounted company signage shared by the prologue and Gearheart's office.
 const LOGO = preload("res://assets/branding/gearheart_industries.svg")
 
 

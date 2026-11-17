@@ -4,6 +4,9 @@ extends "res://scripts/ui/dialog_box.gd"
 ## narration, with no speaker, uses the shared dark window. A tap anywhere on it turns the page, as in the game.
 signal advance_requested
 var instant_text := false
+## Colour a phrase without adding markup to pagination, speech timing, or accessible text.
+var highlight_phrase := ""
+var _highlight_key := ""
 ## the dark window, when this is narration
 var _window: PanelContainer
 
@@ -42,6 +45,36 @@ func _show_line() -> void:
 	if instant_text:
 		text_label.visible_characters = -1
 		shown = 99999.0
+
+
+func _process(delta: float) -> void:
+	super(delta)
+	if highlight_phrase == "" or not is_instance_valid(text_label):
+		return
+	var key := text_label.text + str(text_label.size)
+	if key == _highlight_key:
+		return
+	_highlight_key = key
+	var start := text_label.text.replace("\n", " ").find(highlight_phrase)
+	var spans: Array[Rect2] = []
+	if start >= 0:
+		for i in range(start, start + highlight_phrase.length()):
+			var rect := text_label.get_character_bounds(i)
+			if not rect.has_area():
+				continue
+			if not spans.is_empty() and absf(spans.back().position.y - rect.position.y) < 1.0:
+				spans[spans.size() - 1] = spans.back().merge(rect)
+			else:
+				spans.append(rect)
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://scripts/ui/dialog_highlight.gdshader")
+	var boxes := PackedVector4Array()
+	for i in 3:
+		var rect := spans[i] if i < spans.size() else Rect2()
+		boxes.append(Vector4(rect.position.x, rect.position.y, rect.end.x, rect.end.y))
+	mat.set_shader_parameter("spans", boxes)
+	mat.set_shader_parameter("span_count", mini(3, spans.size()))
+	text_label.material = mat
 
 
 func _paginate() -> void:

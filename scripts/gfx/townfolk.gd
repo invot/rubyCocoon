@@ -42,9 +42,11 @@ const ROLES := {"hips": "hips", "head": "head", "l_arm": "l_arm", "r_arm": "r_ar
 	"l_foot": "l_toe", "r_foot": "r_toe"}
 ## The colour slots a part's triangles can take (UV2.x in its mesh); "keep" is the kit's own colour, "top_plain" the
 ## top's where it's never camo, "pack" a worn pack's (see townfolk.gdshader).
-const SLOTS := ["keep", "skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "top_plain", "pack", "glasses"]
+const SLOTS := ["keep", "skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "top_plain", "pack", "glasses",
+	"sleeve", "trim", "bottom_trim", "shoe_trim", "hat_trim", "stripe", "stripe_sleeve"]
 ## The slots with a colour of their own to set (a look's colours by slot name).
-const COLOURED := ["skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "pack", "glasses"]
+const COLOURED := ["skin", "hair", "eyes", "top", "bottom", "shoes", "hat", "pack", "glasses", "sleeve", "trim",
+	"bottom_trim", "shoe_trim", "hat_trim"]
 ## The glasses' slot: the kit paints them in its own colours, so they're moved into it as they load (see _fixed,
 ## "frame"), each vertex as light or dark against the part's main colour as the kit drew it.
 const GLASSES_SLOT := 10
@@ -75,8 +77,80 @@ const HERO_OUTFITS := {"male": [0, 13, 4, 10, 11, 29],
 ## Parts of the kit recoloured as they load (part -> how; see _fixed): "solid": its slot's colour flat, without the
 ## kit's shading (the first outfit's top and shorts); [slot, lightness]: all of it in that slot (trousers whose cuffs
 ## kept the kit's tan and clipped, and shorts in patches); a slot alone: all of it in that slot, its light and dark
-## kept (the pack); "laces": shoes all one colour but for their light blue laces, which take the top's.
-const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], 68: "laces", PACK: 9}
+## kept (the pack). The wardrobe's parts are dyed all over besides (see _worn, _dye_part).
+const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], PACK: 9}
+## Parts made from the kit's as they load (named by a word, see part_id): name -> [the kit part it's made from, how].
+## "let_down": a skirt let down to the shin (the kit has none so long; see _let_down); "cargo": shorts made baggy, with
+## a pocket and flap on each thigh (see _cargo). Their ids follow the kit's own parts.
+const DERIVED := {"long_skirt": [174, "let_down"], "cargo_shorts": [33, "cargo"]}
+## Below LET_DOWN_FROM (metres, as baked) a let-down skirt is drawn out to reach LET_DOWN_HEM, flaring a little.
+const LET_DOWN_FROM := 0.62
+const LET_DOWN_HEM := 0.21
+const LET_DOWN_FLARE := 0.22
+## how much of the hem follows the thigh on its side (the rest the hips)
+const LET_DOWN_SWING := 0.45
+## Cargo shorts: below CARGO_FROM each leg widens round its middle (CARGO_LEG_X out from the body's), up to
+## CARGO_BAGGY times at the hem, which drops CARGO_DROP; each thigh's pocket is a box CARGO_POCKET big (across, high,
+## deep), its middle CARGO_POCKET_Y high, in a darker shade of the shorts, with a flap over it.
+const CARGO_FROM := 0.6
+const CARGO_LEG_X := 0.1
+const CARGO_BAGGY := 1.5
+const CARGO_DROP := 0.06
+const CARGO_POCKET := Vector3(0.026, 0.085, 0.1)
+const CARGO_POCKET_Y := 0.4
+## The kit's satchels and packs some of its tops come with (on the hero's back over their own pack): never worn as clothes.
+const NOT_CLOTHES := [138, 187]
+## The second colours of the wardrobe (wardrobe_db.gd): every part the hero can wear is dyed all over as it loads (see
+## _dye_part), nothing left in the kit's own colours but what FIXED keeps. Their slots (after SLOTS' first eleven): a
+## plain shirt's sleeves ("sleeve": the hero's "top2", anyone else's top), what the kit painted on a shirt in a second
+## colour ("trim": the hero's "top2", anyone else keeping the kit's), on pants, shoes and hats in shades of their own
+## colour ("bottom_trim", "shoe_trim", "hat_trim": the hero's pants, shoes and hat, anyone else keeping the kit's), and
+## a striped shirt's body and sleeves (STRIPES: the top's colour, or in a look with "stripes" bands of it and the trim's).
+const SLEEVE_SLOT := 11
+const TRIM_SLOT := 12
+const BOTTOM_TRIM_SLOT := 13
+const SHOE_TRIM_SLOT := 14
+const HAT_TRIM_SLOT := 15
+const STRIPE_SLOT := 16
+const STRIPE_SLEEVE_SLOT := 17
+## The striped shirt's parts (wardrobe_db.gd: the Striped Jumper's body and long sleeves; the Smock shares the
+## sleeves, plain unless the look asks for stripes).
+const STRIPES := [144, 322]
+## Shirts whose trim is all one colour (no lighter and darker shades): the Bow Blouse's collar and the skirt below it.
+const FLAT_TRIM := [116]
+## The laces' colour, whatever the shoes'.
+const LACE_WHITE := "#f2f0ea"
+## Parts of the wardrobe that keep a colour of their own, whatever they're dyed (the user's 2026-11-17 directions):
+## part -> [[where, colour]...], the first that fits a triangle winning. Where: the kit's colour there ("h" hue from,
+## to, wrapping past 1; "s" saturation; "v" value) and its middle (metres, as baked: "x" across from the middle, "y"
+## height, "z" forward, "r" out from the middle, "dx" across signed); "core": the middle of the white flower above that
+## height (a share of its width). Shoes' laces are white; the Runners have a white tip over the toes; the Garden Hat's
+## ribbon and bow are red, the Sun Hat's pink; the Duckie Hat's bill is yellow, its eyes sky blue, cheeks pink, the
+## flower's stem green and middle yellow; the Wizard Hat's band is black with a gold buckle.
+const FIXED := {
+	6: [[{"s": [0.0, 0.2], "v": [0.85, 1.0], "y": [0.06, 9.0], "z": [0.08, 9.0]}, LACE_WHITE]],
+	21: [[{"s": [0.0, 0.2], "v": [0.85, 1.0], "y": [0.06, 9.0], "z": [0.08, 9.0]}, LACE_WHITE]],
+	58: [[{"s": [0.0, 0.2], "v": [0.85, 1.0], "y": [0.08, 9.0], "z": [0.04, 9.0]}, LACE_WHITE],
+		[{"y": [0.03, 0.105], "z": [0.19, 9.0]}, "#f6f4ee"]],
+	74: [[{"s": [0.0, 0.2], "v": [0.85, 1.0], "y": [0.10, 9.0], "z": [0.08, 9.0]}, LACE_WHITE]],
+	79: [[{"h": [0.12, 0.26], "s": [0.4, 1.0], "v": [0.5, 1.0]}, LACE_WHITE]],
+	68: [[{"h": [0.45, 0.62], "s": [0.3, 1.0]}, LACE_WHITE]],
+	52: [[{"h": [0.62, 0.82], "s": [0.3, 1.0]}, LACE_WHITE]],
+	47: [[{"h": [0.48, 0.66], "s": [0.5, 1.0], "y": [0.04, 9.0], "z": [0.03, 9.0]}, LACE_WHITE]],
+	115: [[{"h": [0.4, 0.6], "s": [0.15, 1.0]}, "#c8303a"]],
+	117: [[{"h": [0.5, 0.7], "s": [0.3, 1.0]}, "#f29ab8"]],
+	122: [[{"core": [1.88, 0.3]}, "#f2c530"],
+		[{"h": [0.25, 0.45], "s": [0.15, 1.0], "y": [1.76, 9.0]}, "#5aa84a"],
+		[{"h": [0.38, 0.5], "s": [0.15, 1.0], "y": [0.0, 1.78]}, "#7cc8f0"],
+		[{"h": [0.95, 0.09], "s": [0.25, 1.0], "y": [0.0, 1.75], "x": [0.0, 0.12], "z": [0.3, 9.0]}, "#f2c530"],
+		[{"h": [0.95, 0.09], "s": [0.25, 1.0], "y": [0.0, 1.75], "x": [0.12, 9.0]}, "#f29ab0"]],
+	WIZARD_HAT: [[{"h": [0.08, 0.18], "s": [0.6, 1.0]}, "#26242a"]],
+}
+## The Wizard Hat, and its band's buckle (added as it loads, see _buckled): a square gold frame on the front of the
+## band, as tall as this share of it.
+const WIZARD_HAT := 275
+const BUCKLE_GOLD := "#e0b040"
+const BUCKLE_SIZE := 0.8
 ## Glasses have no lenses (the user's 2026-11-15 direction): parts that are only lenses are dropped ("all"), and the
 ## goggles lose their lens triangles as they load, picked by the colour the kit painted them: "pale" white fill,
 ## "swim" the swim goggles' lavender, white and red shine inside their pink rims, "dark" the near-black fill and its
@@ -114,7 +188,20 @@ static var _mats := {}
 static func data() -> Dictionary:
 	if _list.is_empty():
 		_list = JSON.parse_string(FileAccess.get_file_as_string(DIR + "townfolk.json"))
+		# the parts made as they load (DERIVED), after the kit's own
+		var parts: Array = _list["parts"]
+		for name in DERIVED:
+			var from: Dictionary = parts[int(DERIVED[name][0])]
+			parts.append({"file": from["file"], "kind": from["kind"], "derived": name})
 	return _list
+
+
+## A part's id: a number as townfolk.json numbers them, or a word naming one made as it loads (DERIVED).
+static func part_id(id) -> int:
+	if id is String and not (id as String).is_valid_int():
+		var parts: Array = data()["parts"]
+		return parts.size() - DERIVED.size() + DERIVED.keys().find(id)
+	return int(id)
 
 
 ## A point on the kit's body (centimetres) where it ends up on a baked person: in metres, the legs drawn longer.
@@ -165,10 +252,17 @@ static func skin() -> Skin:
 static func part_mesh(id: int) -> Mesh:
 	if not _meshes.has(id):
 		var mesh: ArrayMesh = load(DIR + "parts/%s.res" % data()["parts"][id]["file"])
+		if id == WIZARD_HAT:
+			mesh = _buckled(mesh)
+		if data()["parts"][id].has("derived"):
+			var how: Array = DERIVED[data()["parts"][id]["derived"]]
+			mesh = _let_down(mesh) if how[1] == "let_down" else _cargo(mesh)
 		if LENSES.has(id):
 			mesh = _without_lenses(mesh, LENSES[id])
 		var kind: String = data()["parts"][id]["kind"]
 		var fix = PART_FIXES.get(id, "eyes" if kind == "head" else ("frame" if kind == "glasses" else null))
+		if fix == null and _worn().has(id):
+			fix = _worn()[id]
 		_meshes[id] = mesh if fix == null else _fixed(mesh, fix)
 		return _meshes[id]
 	return _meshes[id]
@@ -224,6 +318,11 @@ static func _fixed(mesh: ArrayMesh, fix) -> ArrayMesh:
 		elif fix is int:
 			for i in uv2.size():
 				uv2[i].x = fix
+		elif fix is Dictionary:
+			_unshared(arrays)
+			_dye_part(arrays, fix)
+			col = arrays[Mesh.ARRAY_COLOR]
+			uv2 = arrays[Mesh.ARRAY_TEX_UV2]
 		elif fix == "solid":
 			for i in uv2.size():
 				uv2[i].y = 1.0
@@ -238,25 +337,427 @@ static func _fixed(mesh: ArrayMesh, fix) -> ArrayMesh:
 			for i in uv2.size():
 				var r := col[i].get_luminance() / mid
 				uv2[i] = Vector2(GLASSES_SLOT, clampf(r, 0.45, 1.0) if r <= 1.0 else 1.0 + clampf((r - 1.0) * 0.35, 0.0, 0.9))
-		elif fix == "laces":
-			# the shoes one colour (their own slot's, the kit's average of it), the light blue laces the top's
-			var sum := Color(0, 0, 0, 0)
-			for i in col.size():
-				if int(uv2[i].x + 0.5) == 6:
-					sum += col[i]
-			var own := sum / maxf(sum.a, 1.0)
-			own.a = 1.0
-			for i in col.size():
-				var c := col[i].linear_to_srgb()
-				if c.s > 0.3 and c.h > 0.45 and c.h < 0.62:
-					uv2[i] = Vector2(4, 1.0)
-				else:
-					uv2[i] = Vector2(6, 1.0)
-					col[i] = own
 		arrays[Mesh.ARRAY_COLOR] = col
 		arrays[Mesh.ARRAY_TEX_UV2] = uv2
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 	return out
+
+
+## A skirt let down (see DERIVED "let_down"): everything below LET_DOWN_FROM drawn downward so its hem reaches LET_DOWN_HEM,
+## widening as it goes; it keeps the skirt's weights (mostly the hips, a little each thigh).
+static func _let_down(mesh: ArrayMesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	var lo := INF
+	for s in mesh.get_surface_count():
+		for p in mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]:
+			lo = minf(lo, p.y)
+	var k := (LET_DOWN_FROM - LET_DOWN_HEM) / maxf(LET_DOWN_FROM - lo, 0.01)
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		var per := bones.size() / maxi(pos.size(), 1)
+		for i in pos.size():
+			var p := pos[i]
+			if p.y < LET_DOWN_FROM:
+				var t := (LET_DOWN_FROM - p.y) / maxf(LET_DOWN_FROM - lo, 0.01)
+				var wide := 1.0 + LET_DOWN_FLARE * t
+				pos[i] = Vector3(p.x * wide, LET_DOWN_FROM - (LET_DOWN_FROM - p.y) * k, p.z * wide)
+				# it swings with the thigh on its side more and more towards the hem (the middle stays with the hips),
+				# so a stride doesn't push the knee through it
+				var leg := LET_DOWN_SWING * t * smoothstep(0.015, 0.07, absf(p.x))
+				for j in per:
+					bones[i * per + j] = 0
+					weights[i * per + j] = 0.0
+				bones[i * per] = bone_index("hips")
+				weights[i * per] = 1.0 - leg
+				bones[i * per + 1] = bone_index("l_thigh" if p.x >= 0.0 else "r_thigh")
+				weights[i * per + 1] = leg
+		arrays[Mesh.ARRAY_VERTEX] = pos
+		arrays[Mesh.ARRAY_BONES] = bones
+		arrays[Mesh.ARRAY_WEIGHTS] = weights
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return out
+
+
+## Cargo shorts (see DERIVED "cargo"): the shorts' legs widened round their middles below CARGO_FROM, more towards the
+## hem (which drops a little), and a box pocket with a flap over it on the outside of each thigh, moving with the
+## shorts around it. (One surface, every triangle its own corners.)
+static func _cargo(mesh: ArrayMesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		_unshared(arrays)
+		var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var n := pos.size()
+		var lo := INF
+		for p in pos:
+			lo = minf(lo, p.y)
+		for i in n:
+			var p := pos[i]
+			if p.y < CARGO_FROM:
+				var t := smoothstep(0.0, 1.0, (CARGO_FROM - p.y) / maxf(CARGO_FROM - lo, 0.01))
+				var cx := signf(p.x) * CARGO_LEG_X
+				var wide := 1.0 + (CARGO_BAGGY - 1.0) * t
+				pos[i] = Vector3(cx + (p.x - cx) * wide, p.y - CARGO_DROP * t, p.z * wide)
+		arrays[Mesh.ARRAY_VERTEX] = pos
+		for side in [-1.0, 1.0]:
+			# the outside of the leg at the pocket's height
+			var xo := 0.0
+			for p in pos:
+				if signf(p.x) == side and absf(p.y - CARGO_POCKET_Y) < 0.015 and absf(p.z) < 0.06:
+					xo = maxf(xo, absf(p.x))
+			var c := Vector3(side * (xo + CARGO_POCKET.x * 0.5 - 0.012), CARGO_POCKET_Y, 0.0)
+			_add_box(arrays, c, CARGO_POCKET, 0.84)
+			var flap := Vector3(CARGO_POCKET.x + 0.012, 0.028, CARGO_POCKET.z + 0.012)
+			_add_box(arrays, c + Vector3(side * 0.006, CARGO_POCKET.y * 0.5, 0.0), flap, 0.94)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return out
+
+
+## The Wizard Hat with a buckle on its band (see WIZARD_HAT): a square gold frame of four bars on the band's front.
+static func _buckled(mesh: ArrayMesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		_unshared(arrays)
+		var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var col: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		# the band's front: its triangles in the middle facing forward
+		var front := -INF
+		var lo := INF
+		var hi := -INF
+		for t in pos.size() / 3:
+			var c := col[t * 3].linear_to_srgb()
+			var m := (pos[t * 3] + pos[t * 3 + 1] + pos[t * 3 + 2]) / 3.0
+			if _fits(FIXED[WIZARD_HAT][0][0], c, m) and absf(m.x) < 0.08 and m.z > 0.0:
+				for k in 3:
+					front = maxf(front, pos[t * 3 + k].z)
+					lo = minf(lo, pos[t * 3 + k].y)
+					hi = maxf(hi, pos[t * 3 + k].y)
+		if front > -INF:
+			var h := (hi - lo) * BUCKLE_SIZE
+			var bar := h * 0.2
+			var c := Vector3(0.0, (lo + hi) * 0.5, front + 0.01)
+			var gold := Color(BUCKLE_GOLD)
+			_add_box(arrays, c + Vector3(0, (h - bar) * 0.5, 0), Vector3(h, bar, 0.03), 1.0, gold)
+			_add_box(arrays, c - Vector3(0, (h - bar) * 0.5, 0), Vector3(h, bar, 0.03), 1.0, gold)
+			_add_box(arrays, c + Vector3((h - bar) * 0.5, 0, 0), Vector3(bar, h - bar * 2.0, 0.03), 1.0, gold)
+			_add_box(arrays, c - Vector3((h - bar) * 0.5, 0, 0), Vector3(bar, h - bar * 2.0, 0.03), 1.0, gold)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return out
+
+
+## Adds a box (middle, size) to an unshared surface, in the shorts' slot at `light` (see townfolk.gdshader), every
+## other attribute (its colour as painted, bones and weights, where it is at rest) the nearest vertex's.
+static func _add_box(arrays: Array, c: Vector3, size: Vector3, light: float, colour = null) -> void:
+	var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var n := pos.size()
+	var near := 0
+	for i in n:
+		if pos[i].distance_squared_to(c) < pos[near].distance_squared_to(c):
+			near = i
+	var h := size * 0.5
+	var faces := [
+		[Vector3.RIGHT, Vector3.BACK, Vector3.UP], [Vector3.LEFT, Vector3.FORWARD, Vector3.UP],
+		[Vector3.UP, Vector3.RIGHT, Vector3.FORWARD], [Vector3.DOWN, Vector3.RIGHT, Vector3.BACK],
+		[Vector3.BACK, Vector3.RIGHT, Vector3.UP], [Vector3.FORWARD, Vector3.LEFT, Vector3.UP],
+	]
+	# (wound as the shorts' own triangles are: the first's turn against its normal)
+	var base_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var turn := signf((pos[1] - pos[0]).cross(pos[2] - pos[0]).dot(base_n[0]))
+	var corners := PackedVector3Array()
+	var normals := PackedVector3Array()
+	for f in faces:
+		var nrm: Vector3 = f[0]
+		var u: Vector3 = f[1]
+		var v: Vector3 = f[2]
+		var o: Vector3 = c + nrm * h
+		var du := u * h
+		var dv := v * h
+		var q := [o - du - dv, o + du - dv, o + du + dv, o - du + dv]
+		var order := [0, 1, 2, 0, 2, 3]
+		if signf((q[1] - q[0]).cross(q[2] - q[0]).dot(nrm)) != turn:
+			order = [0, 2, 1, 0, 3, 2]
+		for k in order:
+			corners.append(q[k])
+			normals.append(nrm)
+	var rest_at = arrays[Mesh.ARRAY_CUSTOM0]
+	for a in Mesh.ARRAY_MAX:
+		if a == Mesh.ARRAY_INDEX or arrays[a] == null:
+			continue
+		var src = arrays[a]
+		var stride: int = src.size() / n
+		var dst = src.duplicate()
+		for k in corners.size():
+			for j in stride:
+				dst.append(src[near * stride + j])
+		arrays[a] = dst
+	var p2: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var n2: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var u2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var r2 = arrays[Mesh.ARRAY_CUSTOM0]
+	var c2: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var rs: int = (rest_at.size() / n) if rest_at != null else 0
+	for k in corners.size():
+		p2[n + k] = corners[k]
+		n2[n + k] = normals[k]
+		# (a colour of its own: kept as painted, the lightness below 0 telling _dye_part to leave it be)
+		u2[n + k] = Vector2(5, light) if colour == null else Vector2(0, -1.0)
+		if colour != null:
+			c2[n + k] = (colour as Color).srgb_to_linear()
+		# where it is at rest: the nearest vertex's, moved as far as this corner is from it
+		if rs == 8:
+			var d := corners[k] - pos[near]
+			for j in 3:
+				var b := (n + k) * 8 + j * 2
+				r2.encode_half(b, rest_at.decode_half(near * 8 + j * 2) + d[j])
+	arrays[Mesh.ARRAY_VERTEX] = p2
+	arrays[Mesh.ARRAY_NORMAL] = n2
+	arrays[Mesh.ARRAY_TEX_UV2] = u2
+	arrays[Mesh.ARRAY_COLOR] = c2
+	if r2 != null:
+		arrays[Mesh.ARRAY_CUSTOM0] = r2
+
+
+## The parts the wardrobe dresses the hero in (wardrobe_db.gd), each with how _dye_part dyes it: {"as": "shirt",
+## "pants", "shoes" or "hat", "id": the part}. (Made once.)
+static var _worn_parts := {}
+
+
+static func _worn() -> Dictionary:
+	if not _worn_parts.is_empty():
+		return _worn_parts
+	var people: Array = data()["people"]
+	var kinds: Array = data()["parts"]
+	var as_kind := {"shirt": "shirt", "pants": "pants", "shoes": "shoes"}
+	for k in as_kind:
+		for body in ["male", "female"]:
+			for piece in Wardrobe.pieces(k, body, "female"):
+				var ids: Array = piece[2] if piece.size() > 2 and piece[2] is Array else people[int(piece[1])]["parts"]
+				for raw in ids:
+					var id := part_id(raw)
+					if kinds[id]["kind"] in Wardrobe.KINDS[k] and not id in NOT_CLOTHES and id != PACK:
+						_worn_parts[id] = {"as": as_kind[k], "id": id}
+	for hat in Wardrobe.HATS:
+		for id in hat[1]:
+			_worn_parts[int(id)] = {"as": "hat", "id": int(id)}
+	return _worn_parts
+
+
+## A wardrobe part dyed all over (see _worn): its main colour stays in its piece's slot (the importer's pick, or for
+## shoes and anything the importer left alone the colour covering most of it, a saturated one if it covers a third);
+## everything else the kit painted is moved to the piece's trim slot, as much lighter or darker than the main colour
+## as it was (pants, shoes and hats: one colour), or than the rest of the trim (a shirt's second colour; FLAT_TRIM all
+## one). A plain shirt (next to no trim) has its sleeves in the sleeve slot, a striped one (STRIPES) its body and
+## sleeves in the stripe slots; what FIXED says keeps its own colour. Skin, the pack and anything else in a slot of its
+## own is left as it is. Every triangle has its own corners (see _unshared), each taken as a whole.
+static func _dye_part(arrays: Array, how: Dictionary) -> void:
+	var col: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var uv2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var as_kind: String = how["as"]
+	var id := int(how["id"])
+	var slot: int = {"shirt": 4, "pants": 5, "shoes": 6, "hat": 7}[as_kind]
+	var trim: int = {"shirt": TRIM_SLOT, "pants": BOTTOM_TRIM_SLOT, "shoes": SHOE_TRIM_SLOT, "hat": HAT_TRIM_SLOT}[as_kind]
+	var n := col.size()
+	var nt := n / 3
+	# each triangle's size, colour as painted (its first corner's) and middle
+	var area := PackedFloat32Array()
+	area.resize(nt)
+	var srgb := []
+	var mid := PackedVector3Array()
+	mid.resize(nt)
+	for t in nt:
+		area[t] = (pos[t * 3 + 1] - pos[t * 3]).cross(pos[t * 3 + 2] - pos[t * 3]).length() / 2.0
+		srgb.append(col[t * 3].linear_to_srgb())
+		mid[t] = (pos[t * 3] + pos[t * 3 + 1] + pos[t * 3 + 2]) / 3.0
+	# what's free to dye: the kit's own colours and the piece's slot (not skin, the pack and the like)
+	var free := PackedByteArray()
+	free.resize(nt)
+	for t in nt:
+		var sl := int(uv2[t * 3].x + 0.5)
+		free[t] = 1 if (sl == 0 or sl == slot) and uv2[t * 3].y >= 0.0 else 0
+		if uv2[t * 3].y < 0.0:
+			for k in 3:
+				uv2[t * 3 + k].y = 1.0
+	# what keeps a colour of its own (FIXED): the index of its rule, else -1
+	var fixed := PackedInt32Array()
+	fixed.resize(nt)
+	fixed.fill(-1)
+	var rules: Array = FIXED.get(id, [])
+	for k in rules.size():
+		var r: Dictionary = rules[k][0]
+		var core := {}
+		if r.has("core"):
+			core = _flower_core(srgb, mid, float(r["core"][0]), float(r["core"][1]))
+		for t in nt:
+			if free[t] == 1 and fixed[t] < 0 and (core.has(t) if r.has("core") else _fits(r, srgb[t], mid[t])):
+				fixed[t] = k
+	# the main colour: the importer's pick where it made one (not shoes: it often took the sole and laces)
+	var main := PackedByteArray()
+	main.resize(nt)
+	var picked := false
+	if as_kind != "shoes":
+		for t in nt:
+			if free[t] == 1 and fixed[t] < 0 and int(uv2[t * 3].x + 0.5) == slot:
+				main[t] = 1
+				picked = true
+	if not picked:
+		var fam := {}
+		var total := 0.0
+		for t in nt:
+			if free[t] == 1 and fixed[t] < 0:
+				var f := _family(srgb[t])
+				fam[f] = float(fam.get(f, 0.0)) + area[t]
+				total += area[t]
+		var best := -1
+		for f in fam:
+			if f >= 0 and (best < 0 or fam[f] > fam[best]):
+				best = f
+		var main_f := best if best >= 0 and fam[best] >= total / 3.0 else -1
+		for t in nt:
+			if free[t] == 1 and fixed[t] < 0 and _same(_family(srgb[t]), main_f):
+				main[t] = 1
+	# how light the main colour is, the trim, and each fixed colour's part
+	var lm := 0.0
+	var am := 0.0
+	var lt := 0.0
+	var at := 0.0
+	var lf := {}
+	for t in nt:
+		if free[t] == 0:
+			continue
+		var l: float = (srgb[t] as Color).get_luminance()
+		if fixed[t] >= 0:
+			var acc: Vector2 = lf.get(fixed[t], Vector2.ZERO)
+			lf[fixed[t]] = acc + Vector2(l * area[t], area[t])
+		elif main[t] == 1:
+			lm += l * area[t]
+			am += area[t]
+		else:
+			lt += l * area[t]
+			at += area[t]
+	lm = maxf(lm / am, 0.02) if am > 0.0 else 0.5
+	lt = maxf(lt / at, 0.02) if at > 0.0 else lm
+	# a shirt with next to no trim is plain: its sleeves take the second colour; a striped shirt's are striped
+	var plain := as_kind == "shirt" and at < (am + at) * 0.06
+	var striped := id in STRIPES
+	var bones = arrays[Mesh.ARRAY_BONES]
+	var weights = arrays[Mesh.ARRAY_WEIGHTS]
+	var per := 4 if bones == null or (bones as PackedInt32Array).size() <= n * 4 else 8
+	var arm := [bone_index("l_arm"), bone_index("l_forearm"), bone_index("l_hand"), bone_index("r_arm"),
+		bone_index("r_forearm"), bone_index("r_hand")]
+	for t in nt:
+		if free[t] == 0:
+			continue
+		var l: float = (srgb[t] as Color).get_luminance()
+		if fixed[t] >= 0:
+			# its own colour, keeping the kit's light and shade across it (slot 0: as painted)
+			var m: Vector2 = lf[fixed[t]]
+			var shade := clampf(1.0 + 0.5 * (l / maxf(m.x / maxf(m.y, 0.0001), 0.02) - 1.0), 0.8, 1.15)
+			var c := Color(rules[fixed[t]][1]).srgb_to_linear() * shade
+			for k in 3:
+				uv2[t * 3 + k] = Vector2(0, 1.0)
+				col[t * 3 + k] = Color(c.r, c.g, c.b, 1.0)
+			continue
+		var y: float
+		var to := slot
+		if striped and main[t] == 0:
+			# (a striped shirt's own trim is striped with the rest: no band of the second colour left over)
+			main[t] = 1
+			uv2[t * 3].y = 1.0
+		if main[t] == 1:
+			y = uv2[t * 3].y if int(uv2[t * 3].x + 0.5) == slot else clampf(1.0 + 0.5 * (l / lm - 1.0), 0.7, 1.2)
+			if (plain or striped) and bones != null:
+				var w := 0.0
+				for k in 3:
+					for j in per:
+						if int(bones[(t * 3 + k) * per + j]) in arm:
+							w += float(weights[(t * 3 + k) * per + j])
+				if striped:
+					to = STRIPE_SLEEVE_SLOT if w > 1.5 else STRIPE_SLOT
+				elif w > 1.5:
+					to = SLEEVE_SLOT
+		else:
+			# the shirt's second colour against the rest of the trim; anything else in shades of the piece's own
+			var r := 1.0 if id in FLAT_TRIM else l / (lt if as_kind == "shirt" else lm)
+			y = maxf(1.0 - 0.65 * (1.0 - r), 0.5) if r < 1.0 else minf(1.0 + 0.5 * (r - 1.0), 1.6)
+			to = trim
+		for k in 3:
+			uv2[t * 3 + k] = Vector2(to, y)
+	arrays[Mesh.ARRAY_COLOR] = col
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2
+
+
+## Whether a triangle fits a FIXED rule: its colour as painted (sRGB) and its middle.
+static func _fits(r: Dictionary, c: Color, m: Vector3) -> bool:
+	if r.has("h"):
+		var lo := float(r["h"][0])
+		var hi := float(r["h"][1])
+		if not ((c.h >= lo and c.h <= hi) if lo <= hi else (c.h >= lo or c.h <= hi)):
+			return false
+	var have := {"s": c.s, "v": c.v, "x": absf(m.x), "y": m.y, "z": m.z, "r": Vector2(m.x, m.z).length()}
+	for k in have:
+		if r.has(k) and (float(have[k]) < float(r[k][0]) or float(have[k]) > float(r[k][1])):
+			return false
+	return true
+
+
+## The middle of a white flower (FIXED "core"): of the pale triangles above `above`, those nearer their middle than
+## `share` of the farthest (triangle -> true).
+static func _flower_core(srgb: Array, mid: PackedVector3Array, above: float, share: float) -> Dictionary:
+	var petals := []
+	var centre := Vector3.ZERO
+	for t in mid.size():
+		var c: Color = srgb[t]
+		if mid[t].y > above and c.s < 0.15 and c.v > 0.8:
+			petals.append(t)
+			centre += mid[t]
+	var out := {}
+	if petals.is_empty():
+		return out
+	centre /= petals.size()
+	var far := 0.0
+	for t in petals:
+		far = maxf(far, mid[t].distance_to(centre))
+	for t in petals:
+		if mid[t].distance_to(centre) < far * share:
+			out[t] = true
+	return out
+
+
+## A surface with no corners shared between triangles (each triangle its own three vertices), so they can take
+## different colour slots without the colour fading across them.
+static func _unshared(arrays: Array) -> void:
+	var idx = arrays[Mesh.ARRAY_INDEX]
+	if idx == null or (idx as PackedInt32Array).is_empty():
+		return
+	var n: int = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	for a in Mesh.ARRAY_MAX:
+		if a == Mesh.ARRAY_INDEX or arrays[a] == null:
+			continue
+		var src = arrays[a]
+		var stride: int = src.size() / n
+		var dst = src.duplicate()
+		dst.resize(idx.size() * stride)
+		for t in idx.size():
+			for k in stride:
+				dst[t * stride + k] = src[idx[t] * stride + k]
+		arrays[a] = dst
+	arrays[Mesh.ARRAY_INDEX] = null
+
+
+## Which family of colours (as the importer sorts them, tools/import_townfolk.gd): -1 the greys, else one of 12 hues.
+static func _family(c: Color) -> int:
+	return -1 if c.s < 0.18 or c.v < 0.12 else int(roundf(c.h * 12.0)) % 12
+
+
+static func _same(f: int, main: int) -> bool:
+	if f == main:
+		return true
+	return f >= 0 and main >= 0 and (absi(f - main) == 1 or absi(f - main) == 11)
 
 
 ## The kit paints each eye in purples, and the importer gave them all the eye colour (tools/import_townfolk.gd
@@ -518,6 +1019,7 @@ static func outfit(look: Dictionary) -> Dictionary:
 				for id in people[hd]["parts"]:
 					if kinds[int(id)]["kind"] == "hair":
 						parts.append(id)
+	_second_colours(colours, look, hero and not m.begins_with("tf"), swim)
 	if look.get("islander", false):
 		# The village's woven wrap skirt and sleeveless top, on everyone's own head and hair.
 		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] in ["head", "neck", "hair"])
@@ -525,6 +1027,31 @@ static func outfit(look: Dictionary) -> Dictionary:
 		if not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
 			parts.append(5)
 	return {"person": person, "parts": parts, "colours": colours}
+
+
+## The wardrobe's second colours (see SLEEVE_SLOT): the hero's shirt's second colour ("top2", their top's in a look
+## from before it) on its sleeves or trim (and its stripes, for a striped shirt: Wardrobe.SHIRTS), their pants',
+## shoes' and hat's trim in their own colours; anyone else's plain sleeves in their top's, the rest of the trim as the
+## kit painted it; bare feet (a bathing suit) all skin.
+static func _second_colours(colours: Dictionary, look: Dictionary, hero: bool, swim: bool) -> void:
+	if hero and not swim:
+		var top2: Color = Color(look["top2"]) if look.has("top2") else colours.get("top", Color(0, 0, 0, 0))
+		if top2.a > 0.0:
+			colours["sleeve"] = top2
+			colours["trim"] = top2
+		for pair in [["bottom_trim", "bottom"], ["shoe_trim", "shoes"], ["hat_trim", "hat"]]:
+			if colours.has(pair[1]):
+				colours[pair[0]] = colours[pair[1]]
+		if look.has("shirt_style"):
+			var list := Wardrobe.pieces("shirt", String(look.get("body", "male")))
+			var piece: Array = list[clampi(int(look["shirt_style"]), 0, list.size() - 1)]
+			if piece.size() > 3 and piece[3] == true and top2.a > 0.0:
+				colours["stripes"] = true
+		return
+	if colours.has("top"):
+		colours["sleeve"] = colours["top"]
+	if swim:
+		colours["shoe_trim"] = colours["shoes"]
 
 
 ## The hero's clothes (Wardrobe): the shirt, pants and shoes their look's "shirt_style", "pants_style" and
@@ -540,13 +1067,15 @@ static func _hero_clothes(look: Dictionary, person: int, parts: Array) -> Array:
 		cut.append_array(Wardrobe.KINDS[k])
 	var out := parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in cut)
 	for k in Wardrobe.KINDS:
-		var from := person
+		var from: Array = people[person]["parts"]
 		var key: String = k + "_style"
 		if look.has(key):
-			var list := Wardrobe.pieces(k, body)
-			from = int(list[clampi(int(look[key]), 0, list.size() - 1)][1])
-		for id in people[from]["parts"]:
-			if kinds[int(id)]["kind"] in Wardrobe.KINDS[k]:
+			var list := Wardrobe.pieces(k, body, String(look.get("gender", "")))
+			var piece: Array = list[clampi(int(look[key]), 0, list.size() - 1)]
+			from = piece[2] if piece.size() > 2 and piece[2] is Array else people[int(piece[1])]["parts"]
+		for raw in from:
+			var id := part_id(raw)
+			if kinds[id]["kind"] in Wardrobe.KINDS[k] and not id in NOT_CLOTHES:
 				out.append(id)
 	return out
 
@@ -614,6 +1143,8 @@ static func material(colours: Dictionary) -> ShaderMaterial:
 		key += "/"
 	for c in colours.get("camo", []):
 		key += (c as Color).to_html(false)
+	if colours.get("stripes", false):
+		key += "S"
 	if _mats.has(key):
 		return _mats[key]
 	var mat := ShaderMaterial.new()
@@ -625,6 +1156,7 @@ static func material(colours: Dictionary) -> ShaderMaterial:
 	for s in COLOURED:
 		var c: Color = colours.get(s, Color(0, 0, 0, 0))
 		mat.set_shader_parameter(s, Color(c.r, c.g, c.b, 1.0 if colours.has(s) else 0.0))
+	mat.set_shader_parameter("stripes", 1.0 if colours.get("stripes", false) else 0.0)
 	if colours.has("camo"):
 		var tones: Array = colours["camo"]
 		mat.set_shader_parameter("camo", 1.0)

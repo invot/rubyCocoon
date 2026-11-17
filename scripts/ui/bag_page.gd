@@ -301,7 +301,7 @@ func _item_note(id: String) -> String:
 	var it := ItemDB.get_item(id)
 	if it.has("weapon"):
 		var most := BeatChain.max_hits(GameState.trainer_level)
-		return "Pick it on your own turn in battle. " + ("Press A on the beat: up to %d hits." % most if most > 0 and GameState.flag("dance_lesson_done")
+		return ("Equipped. " if GameState.weapons().has(id) else "Equip it in Journal > Trainer > Weapon. ") + ("Press A on the beat: up to %d hits." % most if most > 0 and GameState.flag("dance_lesson_done")
 			else "Learn rhythm attacks at Dustwell Oasis's dance studio from trainer Lv %d." % BeatChain.UNLOCK_LEVEL)
 	match it.get("kind", ""):
 		"use":
@@ -420,7 +420,12 @@ func _on_action(what: String, blocked: String) -> void:
 				_after_change(keep, "use")
 		"equip":
 			Sfx.play("confirm")
-			open_targets("equip")
+			if ItemDB.get_item(id).has("weapon"):
+				GameState.equip_weapon(id)
+				UI.toast("Equipped %s." % ItemDB.item_name(id), "item:" + id)
+				_after_change(picked, "equip")
+			else:
+				open_targets("equip")
 
 
 ## Why an action can't be used, as a full sentence for the top bar.

@@ -16,7 +16,7 @@ extends RefCounted
 ## Buildings are solid rectangles of one letter; the door is the middle of the bottom row:
 ##   C Beast Center  A apothecary  G beast outfitter  O trainer outfitter  K bookstore  R arena
 ##   Y dojo  M museum  U music hall  N fortune teller  E cafe  H house  Z your home  Q temple
-##   X electronics  V Sky Tower  I Gearhart Tower  B cathedral  J bandit hideout  D music shop  h scenery building
+##   X electronics  V Sky Tower  I Gearheart Tower  B cathedral  J bandit hideout  D music shop  h scenery building
 ##   s Cocoon Cove's Old Gear Shack, at the end of the dock (room "shack")
 ## Walkable tiles touching the map edge become exits to the neighbouring map (see world_db.gd).
 ## "heights" (optional): one more row of characters per row of the map, giving each tile its level (elevation.gd):

@@ -16,6 +16,18 @@ uniform vec4 hat : source_color = vec4(0.5, 0.5, 0.5, 0.0);
 uniform vec4 pack : source_color = vec4(0.42, 0.48, 0.3, 1.0);
 // slot 10: glasses (townfolk.gd GLASSES_SLOT); alpha 0 keeps the kit's colours
 uniform vec4 glasses : source_color = vec4(0.2, 0.2, 0.2, 0.0);
+// slots 11-15, the wardrobe's second colours (townfolk.gd SLEEVE_SLOT...HAT_TRIM_SLOT): a plain shirt's sleeves, a
+// shirt's trim, and pants', shoes' and hats' trim; alpha 0 keeps the kit's colours. Slots 16 and 17 are a striped
+// shirt's body and sleeves (STRIPE_SLOT, STRIPE_SLEEVE_SLOT): the top's colour, or with stripes on, thick bands of the
+// top's and the trim's, across the body and round the sleeves (laid on the body at rest, like the camo).
+uniform vec4 sleeve : source_color = vec4(0.5, 0.5, 0.5, 0.0);
+uniform vec4 trim : source_color = vec4(0.5, 0.5, 0.5, 0.0);
+uniform vec4 bottom_trim : source_color = vec4(0.5, 0.5, 0.5, 0.0);
+uniform vec4 shoe_trim : source_color = vec4(0.5, 0.5, 0.5, 0.0);
+uniform vec4 hat_trim : source_color = vec4(0.5, 0.5, 0.5, 0.0);
+uniform float stripes = 0.0;
+// how wide each stripe is (metres, on the body at rest)
+uniform float stripe_width = 0.065;
 uniform float camo = 0.0;
 uniform vec4 camo_light : source_color = vec4(0.6, 0.62, 0.38, 1.0);
 uniform vec4 camo_mid : source_color = vec4(0.36, 0.48, 0.28, 1.0);
@@ -59,6 +71,12 @@ void vertex() {
 	else if (slot == 7) want = hat;
 	else if (slot == 9) want = pack;
 	else if (slot == 10) want = glasses;
+	else if (slot == 11) want = sleeve;
+	else if (slot == 12) want = trim;
+	else if (slot == 13) want = bottom_trim;
+	else if (slot == 14) want = shoe_trim;
+	else if (slot == 15) want = hat_trim;
+	else if (slot == 16 || slot == 17) want = top;
 	// Iris highlights brighten the chosen hue instead of mixing in white, which
 	// washes out these small patches under the character preview's lighting.
 	// Hair does the same: the kit paints some hairdos two-tone (white round the sides), and mixing even a tenth of
@@ -103,11 +121,17 @@ void fragment() {
 		vec3 tone = t < 0.46 ? camo_light.rgb : (t < 0.76 ? camo_mid.rgb : camo_dark.rgb);
 		c = shade(tone, min(light, 1.0));
 	}
+	// a striped shirt's bands: across the body by height, round the sleeves by how far along the arm
+	if (stripes > 0.5 && camo_slot > 15.5 && camo_slot < 17.5) {
+		float along = camo_slot < 16.5 ? rest.y : abs(rest.x);
+		bool odd = mod(floor(along / stripe_width), 2.0) > 0.5;
+		c = shade(odd ? trim.rgb : top.rgb, light);
+	}
 	// triplanar on the rest pose, by which way the surface faces
 	vec3 w = pow(rest_n, vec3(4.0));
 	w /= max(w.x + w.y + w.z, 0.0001);
 	vec3 q = rest * finish_scale;
-	bool cloth = camo_slot > 3.5 && camo_slot < 9.5;
+	bool cloth = (camo_slot > 3.5 && camo_slot < 9.5) || camo_slot > 10.5;
 	vec3 f = cloth
 		? texture(cloth_tex, q.zy).rgb * w.x + texture(cloth_tex, q.xz).rgb * w.y + texture(cloth_tex, q.xy).rgb * w.z
 		: texture(skin_tex, q.zy).rgb * w.x + texture(skin_tex, q.xz).rgb * w.y + texture(skin_tex, q.xy).rgb * w.z;

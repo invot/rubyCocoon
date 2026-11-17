@@ -35,7 +35,7 @@ const TOWNS := {
 		"blurb": "A mining camp clinging to the mountainside."},
 	"cogsworth": {"name": "Cogsworth", "size": "city", "mascot": 14, "signature": "clockwork_crusher", "biome": "steampunk",
 		"shops": ["center", "apothecary", "beast_gear", "trainer_gear", "bookstore", "arena", "museum", "music_shop", "cafe", "skytower", "ceo_tower", "house", "house", "house"],
-		"blurb": "A city of brass and steam, ruled from the Gearhart Tower."},
+		"blurb": "A city of brass and steam, ruled from the Gearheart Tower."},
 	"emberfall": {"name": "Emberfall", "size": "village", "mascot": 11, "signature": "caldera_burst", "biome": "hotspring",
 		"shops": ["center", "apothecary", "bookstore", "arena", "dojo", "house", "house"],
 		"blurb": "A hot-spring village in the shadow of Mount Cinder."},

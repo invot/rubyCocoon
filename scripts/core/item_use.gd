@@ -42,7 +42,7 @@ static func has_use(id: String) -> bool:
 
 ## Can be put on a beast or on you.
 static func has_equip(id: String) -> bool:
-	return ItemDB.get_item(id).get("kind", "") in ["gear", "tgear"]
+	return ItemDB.get_item(id).has("weapon") or ItemDB.get_item(id).get("kind", "") in ["gear", "tgear"]
 
 
 ## Key items (weapons among them) stay in the bag; everything else may be thrown away.
@@ -80,6 +80,8 @@ static func use_block(id: String, party: Array) -> String:
 ## Why Equip can't be chosen right now ("" when it can).
 static func equip_block(id: String, party: Array) -> String:
 	var it := ItemDB.get_item(id)
+	if it.has("weapon"):
+		return "Already equipped" if GameState.weapons().has(id) else ""
 	if it.get("kind", "") == "tgear":
 		return trainer_block(id)
 	for b in party:

@@ -42,7 +42,7 @@ const TAB_H := 64.0
 const TAB_GAP := 6.0
 ## Two equal pages throughout the full-width book.
 const LEFT_SHARE := 0.5
-const SLOT_SHORT := {"flute": "Flute", "head": "Hat", "feet": "Boots", "acc": "Charm"}
+const SLOT_SHORT := {"weapon": "Weapon", "flute": "Flute", "head": "Hat", "feet": "Boots", "acc": "Charm"}
 const CREST_ICONS := {"Wave Crest": "crest_wave", "Coral Crest": "crest_coral", "Spur Crest": "crest_spur", "Ore Crest": "crest_ore",
 	"Cog Crest": "crest_cog", "Flame Crest": "crest_flame", "Vine Crest": "crest_vine", "River Crest": "crest_river"}
 const ARENA_ORDER := ["tidewater", "kelpwick", "sundown", "copperpick", "cogsworth", "emberfall", "vinehollow", "riverbend"]
@@ -906,7 +906,7 @@ func _tab_trainer() -> void:
 	detail_box = VBoxContainer.new()
 	right_box.add_child(HSeparator.new())
 	right_box.add_child(detail_box)
-	for slot in ["flute", "head", "feet", "acc"]:
+	for slot in ["weapon", "flute", "head", "feet", "acc"]:
 		var id: String = GameState.gear[slot]
 		_add_row({"text": SLOT_SHORT[slot], "right": ItemDB.item_name(id) if id != "" else "—", "right_width": 190,
 			"act": func(): await Menus.equip_trainer_slot(slot),

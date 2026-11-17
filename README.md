@@ -140,11 +140,9 @@ wild beast to walk up to it and use it; if you're already next to it, you use it
 
 ## The journey
 
-**Planned narrative revision (spoilers; not implemented):** [Antagonists and ending direction](docs/story-direction.md) records the scientist and Marlyse, Gearheart's spirit-energy catastrophe, and Matt and Jared's spaceships ending, with continuity questions separated from established story beats.
+**Narrative revision (spoilers):** [Story direction and implementation status](docs/story-direction.md) covers Jared/Vexmora, Marlyse, Matt Gearheart, the spirit-energy shutdown and the brothers’ spaceships ending. The revised development plan is [here](docs/development-plan.md).
 
-New Game opens with an 80-second cinematic: Magnus Gearhart's kidnapping scheme revealed in **Gearhart Tower**, then the
-first morning of spring on the **Coastal Path** and at home in **Cocoon Cove**, as beasts leave hibernation and
-trainer season begins. Everything is told by people talking: there is no narration and no title card. Lines advance
+New Game opens with a 93-second cinematic: Matt Gearheart’s kidnapping scheme in **Gearheart Tower**, a close-up of the sleeping hero, a separate dungeon nightmare, then waking at home in **Cocoon Cove**. Everything is told by people talking: there is no narration and no title card. Lines advance
 automatically, in the game's white speech bubbles over whoever is speaking (a voice from off screen, like Mom calling
 up the stairs, gets the stationary bottom-centre bubble). **A / Enter** (or a tap on the dialogue) reveals the typing,
 then advances a beat, and so does a tap of **B**. **Holding B** (or Esc, or Start) for a second skips the whole film.
@@ -154,12 +152,12 @@ comes back to say keep holding, a thin bar filling under it. On a phone only the
 looking as they always do: nothing can move, so the d-pad, Start and Pause step aside (`controls_overlay.gd`
 `set_film_mode`). Keyboard, controller and touch all work. Continue and Load Game go straight to your saved game.
 The reveal is played straight (`scripts/story/opening.gd`): it opens on a friendly end-of-quarter meeting, where
-Engineer Mara, Foreman Briggs and Clerk Nell ask how the company made such a huge profit. Gearhart answers with a
+Engineer Mara, Foreman Briggs and Clerk Nell ask how the company made such a huge profit. Gearheart answers with a
 riddle (a cargo that "walks aboard by itself") and sends them home, watches them into the lift until its doors shut
 on the last of them, then walks alone to a steel door in his office wall.
 As he steps through, the music stops dead and a dread hit sounds (`tools/make_sfx.py`): behind it is a freight
 warehouse under soft white hanging lamps, rusted iron cages down its aisle full of trainers (Lio, Bea and Orin among
-them, as the hero later finds them), and at its far end their beasts in smaller cages on pallets. Gearhart's office
+them, as the hero later finds them), and at its far end their beasts in smaller cages on pallets. Gearheart's office
 by night is built from the game's own pieces: wood floor and a red rug, brick and dark panelling under timber beams,
 hanging lamps, three brass gears turning on the west wall, his new robots on lit plinths before the moonlit windows
 onto the neon city, the company sign over his desk, a drafting table, crates and the freight lift. The warehouse is a
@@ -167,13 +165,7 @@ concrete shed with a steel truss roof, a band of factory windows high in each lo
 on a low-poly warehouse supplied as a reference), filled with the game's own crates, barrels, racks and
 pallets beside shipping containers; its cages are the **Rustbound Iron Cage** model (`tools/import_iron_cage.gd`,
 `assets/props/iron_cage.res`). The spring scenes use the real places as sets (`main.gd` `build_set`): an open lawn and
-broad trail shoulder inside the Coastal Path's western bend at dawn, where the wild beasts live (there are none in
-towns), a Grubbit trundling out of the tall grass while Scout Bram and Camper Tilly talk with room around them.
-The spring cameras face inland toward the woods, keeping the route entrance and map boundaries out of view;
-then the hero's own bedroom, the sun
-slanting through its windows, Mom calling up the stairs. The cage reveal fades straight to the bright spring morning,
-and the hero closes with an unwitting joke about anyone spoiling it as the camera settles into the view the game
-opens on.
+sleeping hero’s face in their bedroom, followed by a dim dungeon: the hero holds the bars while a mouse eats rotten food outside. An unseen voice asks for **a spork**, **your left sock**, or **a roll of toilet paper**; the chosen tool is highlighted in red and saved once per journey. The hero wakes and jokes about a maniac putting “ruin spring” on their calendar. Skipping or replaying never rerolls the clue. Older saves receive a stable clue, and the later flute escape always remains available.
 The mounted Gearheart Industries sign uses an original vector gear-and-split-heart logo inspired by the supplied reference.
 
 The hero knows nothing about the scheme. You start in your own bedroom, upstairs at home in **Cocoon Cove**, with no
@@ -206,14 +198,14 @@ The gear shack (`s` on the map, room `shack`) has no second shore entrance, ship
 a trainer left their starter gear behind: a **Worn Cap**, **Old Sneakers** and a **Rope Collar** for a beast. They
 are never sold (`item_db.gd` `found`), and you put them on from the Bag. The cap and sneakers are only found there;
 the Rope Collar can also be found in Bellerive's harbour equipment shack.
-In Cogsworth, defeat Gearhart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
+In Cogsworth, defeat Gearheart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and
 Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is
 required before confronting Vexmora.
 
 **Planned story addition (not implemented):** [The Rubywave Five](docs/visual_overhaul/rubywave-five-story.md)
 links the desert to Cogsworth. Free a four-member band from a saloon's predatory debt contract with a
 diamond collected after the Temple of Winds victory; their music makes a cactus blockage dance clear.
-In Cogsworth, their two free concert tickets let you invite Gearhart Tower's superfan guard to
+In Cogsworth, their two free concert tickets let you invite Gearheart Tower's superfan guard to
 “Table Banana,” then leave them backstage so you can enter the tower. The existing tower, rescue
 and Caldera Road unlock follow. Full requirements and future implementation steps are in the linked plan.
 
@@ -337,7 +329,7 @@ explains Shadow Eggs and ghost merging. Arriving still unlocks ghost eggs and me
 | Coast | Cocoon Cove, Bellerive | Bellerive, a French Quarter harbour town, has the first arena (its coaches' lessons, then Tide Captain Marina, whose Wave Crest the ferry asks for), **Sparkwire Electronics** (shield points and beast slots), a Sky Tower and the ferry. |
 | Isle of Tides | Shellhaven (resort), Kelpwick (village) | Shellhaven's tourists keep carrying pieces of the **Temple of Tides** home as souvenirs, so Kelpwick's villagers stand across the way to the reef. The resort thinks the village quaint but backwards; the village thinks the resort is exploiting the island. They step aside only for a trainer who proves they're no tourist: beat Reef Warden Nerissa in Kelpwick's great hut. |
 | Desert | Dustwell Oasis (old western main street), Sunwall (old walled adobe town) | The Jackals raid every caravan at Sunwall's gates. Talk to Captain Dalton of the gate watch, then beat Bart the Jackal in the hideout to open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea. |
-| Mountains | Copperpick, Cogsworth (steampunk city) | CEO Magnus Gearhart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearhart Tower: each floor's robot sentries must fall before the stairs unlock. |
+| Mountains | Copperpick, Cogsworth (steampunk city) | CEO Matt Gearheart is holding Cogsworth hostage and has sealed the road to the volcano. Fight up Gearheart Tower: each floor's robot sentries must fall before the stairs unlock. |
 | Volcano | Emberfall | The **Temple of Flame** sits on the Caldera Road. |
 | Jungle | Vinehollow | The village sells the finest gear in the land. The shaman needs the Sun, Moon and Earth relics; the ritual raises the hidden **Temple of Roots**. |
 | River and moor | Riverbend, Gravenmoor | Gravenmoor is the Legion's town. Ghost beasts can be hatched and merged from here on. The gravedigger teaches the Requiem of Dusk. Commander Nyx guards the cathedral, and General Vexmora waits in the crypt beneath it. |
@@ -354,7 +346,7 @@ Every road between towns narrows to one bottleneck with a puzzle, getting harder
 | Mesa Trail | A rockslide: push the boulders around until a path opens. |
 | Dune Sea | The Jackals' barricade. Beat the bandit gang in their hideout. |
 | Mine Road | The mine checkpoint. Foreman Gorran signs a Miner's Pass when you beat him at the Copperpick Arena. |
-| Caldera Road | Gearhart's steam gate, then a stream of lava that a water beast cools. |
+| Caldera Road | Gearheart's steam gate, then a stream of lava that a water beast cools. |
 | Summit Pass | A frozen pond of ice blocks that slide until they hit something. |
 | Jungle Trail | The Jungle Warden blocks the crossing until you beat him. |
 | Moor Road | A fog bank that an air beast blows away, then a Legion sentinel to defeat. |
@@ -594,7 +586,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars."><br><sub>A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars.</sub>
 
 - **Weapons and the beat attack** (`item_db.gd` WEAPONS, `scripts/core/beat_chain.gd`, `scripts/battle/beat_cue.gd`, `battle.gd` _do_weapon):
-  - Your trainer's bar lists the weapons you own; you pick one each turn. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit, on one foe you run up to: Captain Dalton hands over Bart the Jackal's with the Sunwall bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
+  - Equip one weapon at a time in **Journal → Trainer → Weapon**; only that weapon appears in battle. Your other weapons stay owned, and the selection is saved. Older saves start with the slingshot equipped. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit (1.6× slingshot damage), but its plain swing has 75% accuracy against the slingshot’s 90%; beat timing still controls rhythm attacks. It hits one foe you run up to: Captain Dalton hands over Bart the Jackal's with the Sunwall bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
   - Until you pass **Instructor Lucille's lesson** at Dustwell's dance studio, a weapon makes one plain throw (or swing) with its accuracy roll. She teaches trainers of **Lv 4 or above**, and in your next battle the Codex gives you one safe practice beat that repeats until you land it. Passing unlocks the **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
   - Each press is graded by how far it is from the beat: **Perfect** (0.06 s), **Good** (0.13 s) or **Miss**, shown beside the ring, and the grade sets that hit's damage (half a plain throw for Perfect, 0.3 for Good). A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit, so the turn is never wasted. Land every hit your level allows and the last one is critical. Your first beat attack has wider windows (0.10 / 0.20 s), as they always do on the Coastal Path. Reaching Lv 4 points you to Lucille; later levels that add a hit say so. Older saves retain rhythm attacks already learned and access to a north road already passed.
   - At a trainer who's open, a weapon is one blow whatever your level: it breaks a shield point.
@@ -655,7 +647,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   <img src="docs/screenshots/call.jpg" width="640" alt="Calling Dad from the phone at home: that's how you save."><br><sub>Calling Dad from the phone at home: that's how you save.</sub>
 
 - **Shops** differ per town. Small towns have a few; cities have many. Each building has a wordless sign fixed flat to its front above the door, showing what it is (houses have none).
-- **Inside**, every house and shop is a compact room seen whole, like a stage set: no front wall, the camera holding still, and the front door in a side wall (the Beast Centers and arenas are bigger, and there the camera follows you). Blue doors open (a door to another room loads that room on its own): you stop in front of one and it swings open, away from you, as the room fades out, and the door you come in by swings shut behind you; red ones are locked. Every room has windows in at least one wall, never in a wall with a door to another room (the front door may share theirs). Homes have no kitchens to wander into: many townsfolk live in studios, bed and sofa in one room, while others have a bedroom through a door or up a flight of stairs. Stairs always come up into a landing, a hallway half a room deep, with the floor's rooms through doors off it, and you only get onto them at their open end: up from the foot of the flight, down from beside the top step of the stairwell, never through the handrail or the wall beside them. You walk on up (or down) them as the room fades out, and on the other floor you're seen walking the last of them as it fades in. Your own home has the living room downstairs, with Mom (she has your skin, hair and eyes) and the phone; upstairs, your bedroom (where you wake up), Mom's room and the bathroom open off the landing. The big dungeons (temples, the hideout, Gearhart Tower, the Sky Tower and the cathedral) keep their own layouts, open at the front too.
+- **Inside**, every house and shop is a compact room seen whole, like a stage set: no front wall, the camera holding still, and the front door in a side wall (the Beast Centers and arenas are bigger, and there the camera follows you). Blue doors open (a door to another room loads that room on its own): you stop in front of one and it swings open, away from you, as the room fades out, and the door you come in by swings shut behind you; red ones are locked. Every room has windows in at least one wall, never in a wall with a door to another room (the front door may share theirs). Homes have no kitchens to wander into: many townsfolk live in studios, bed and sofa in one room, while others have a bedroom through a door or up a flight of stairs. Stairs always come up into a landing, a hallway half a room deep, with the floor's rooms through doors off it, and you only get onto them at their open end: up from the foot of the flight, down from beside the top step of the stairwell, never through the handrail or the wall beside them. You walk on up (or down) them as the room fades out, and on the other floor you're seen walking the last of them as it fades in. Your own home has the living room downstairs, with Mom (she has your skin, hair and eyes) and the phone; upstairs, your bedroom (where you wake up), Mom's room and the bathroom open off the landing. The big dungeons (temples, the hideout, Gearheart Tower, the Sky Tower and the cathedral) keep their own layouts, open at the front too.
   - Everyone who works in a shop stands behind a counter and wears their shop's uniform: a polo in the shop's colour with a contrasting collar and cuffs, short sleeves, a name badge and usually a visor (the sensei and the fortune teller wear headbands, the music hall's usher a pillbox hat).
 
   Furniture follows the [interior staging rules](docs/interior_staging.md): side-wall furniture faces inward and other
@@ -814,7 +806,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Menu icons: `tools/make_new_beast_icons.gd` renders every form and its ghost into `assets/beasts/icons/` (run it
     with a display: `godot --path . --script res://tools/make_new_beast_icons.gd`); a merge shows its frame's icon
     until the game has rendered its own (`beast_icons.gd`).
-- **Gearhart robots** (`RaceDB.ROBOTS`) are PSX robots: the Clockwork Sentry with a wind-up key, the boiler-bodied
+- **Gearheart robots** (`RaceDB.ROBOTS`) are PSX robots: the Clockwork Sentry with a wind-up key, the boiler-bodied
   Steam Mecha and the broad Iron Golem from Bricchi Games' Retro Robots, and the boxy Tank Walker from CokeEnthusiast's
   Robot guy (`RaceDB.ROBOT_MODELS`). `tools/import_psx_robots.gd` bakes them into `assets/robots/` (T-posed arms
   swung down, turned to face +x like the beasts, 1 unit tall) with their own textures and glowing eyes and vents; they
@@ -848,7 +840,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   The beach slopes smoothly into clear shallows, with soft wave crests washing toward the sand. Trainers can
   walk one tile into water no more than 5 cm (about two inches) deep, with light pitter-patter footsteps;
   the next, deeper tile stays blocked for walking, running and tap navigation.
-  Every interior entrance is in a visible side wall, including temples, the hideout, Gearhart Tower and the cathedral.
+  Every interior entrance is in a visible side wall, including temples, the hideout, Gearheart Tower and the cathedral.
   Kelpwick's buildings were renumbered when its Center went (older saves inside them are moved, game_state.gd
   _kelpwick_hut_rooms). The interiors retain their shared procedural wood finish. Kelpwick's exteriors use the supplied
   **Low poly stylized tribal tropical hut** mesh, painted timber, blue windows and straw fringe; only the plaster is recoloured.
@@ -899,7 +891,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   **Sparkwire Electronics** is a streamlined shop with a curved glass corner, a wrap-round canopy, a drum carrying a
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
   stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Tempestrix on the rail.
-  Gearhart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
+  Gearheart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
 - **Grass** is a pillow laid on the ground (`terrain_mesh.gd` `LIFT`, `TURF`): it stands a little above paths, sand
   and paving, and rolls over its own edge in a soft, slightly wavy muffin top with the soil tucked in under it and a
   faint shadow at its foot, so paths and dirt read as lower. Where a path bends, the grass's corner is rounded off in a quarter circle
@@ -989,7 +981,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   The harbour's paddle steamer, shrimp trawler, sloops, skiff and schooner are `harbor_boats.gd`'s (a map's `boats`
   names them like the pack's).
 - **People, eggs, signs and obstacles** are built procedurally:
-  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the shirt, pants, shoes, hat, glasses, hairdo and colours the character creator gave them: each piece cut from its own kit person, see `wardrobe_db.gd`; glasses have their own colour slot, `Townfolk.GLASSES_SLOT`, and no lenses: `Townfolk.LENSES` drops the kit's lens parts and cuts the goggles' lenses out as they load). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan, shoes all one colour with laces in the top's), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--pose=ready --weapon=slingshot|boomerang|bat` a trainer's weapon held ready, and `--pose=throw|boomerang|catch|swing --at=0,0.07,0.15,0.25` four moments of using it; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
+  - `voxel_person.gd` builds people from the townfolk kit (`townfolk.gd`, `assets/townfolk/`, baked by `tools/import_townfolk.gd`): 80 people made of the kit's parts on one shared skeleton, coloured by `townfolk.gdshader` from each look's skin, hair, shirt, trousers and hat (the hero in the shirt, pants, shoes, hat, glasses, hairdo and colours the character creator gave them: each piece cut from its own kit person, see `wardrobe_db.gd`; glasses have their own colour slot, `Townfolk.GLASSES_SLOT`, and no lenses: `Townfolk.LENSES` drops the kit's lens parts and cuts the goggles' lenses out as they load). Townsfolk pick the kit person who suits their look (a woman for long hair, robes, long sleeves for coats, a hat only if the look has one). Trainers out on the roads (and the arena ladder) wear `outfit: "camo"`: a padded jacket with a big upturned collar and a belt, combat trousers and boots, green or brown camo (`townfolk.gdshader` patches it in cells laid on the body at rest, so the pattern stays on the cloth), and a pack. Everyone can wear the pack (`look.pack`, in `look.pack_colour`): one kit person's round backpack and its straps (`Townfolk.PACK`; the kit's other packs sat badly), shaded like clothes in its own colour slot, and in their top's colour for the kit's people who wear it already. The hero always wears it, in the colour they pick in the character creator (brown to begin with). A few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan), and every piece in the hero's wardrobe is dyed all over, nothing left in the kit's own colours (`Townfolk._dye_part`): a shirt takes two colours (the look's `top` and `top2`: a plain shirt's sleeves, else the trim the kit painted in a second colour: collar, yoke, stripes, bow, flames; the creator names the row for it), pants, shoes and hats one each (their other colours become lighter and darker shades of it); a few details keep their own colours whatever the dye (`Townfolk.FIXED`: shoes' laces always white, the Runners' white toe tip, the Garden Hat's red ribbon and bow, the Sun Hat's pink ones, the Duckie Hat's yellow bill, sky-blue eyes, pink cheeks, green stem and yellow flower, the Wizard Hat's black band and its gold buckle, `_buckled`); the Striped Jumper is drawn in thick bands of its two colours (`Townfolk.STRIPES`, `townfolk.gdshaderinc`) and the Bow Blouse's collar matches its skirt (`FLAT_TRIM`); townsfolk wearing the same parts keep their old look. Two pieces are made from the kit's parts as they load (`Townfolk.DERIVED`): the Long Skirt (female heroes, and non-binary heroes on either body), the A-line skirt let down to the shin, and the baggy Cargo Shorts with a pocket on each thigh. A look from an older wardrobe keeps what it wore (`wardrobe_db.gd` `upgrade`, `RETIRED`), and so is every head's eyes: the outline dark, the brows the hair's colour, only the iris the eye colour. People talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel"). The walk is built on the animators' walk-cycle rules: the cadence follows the speed and the stride lengthens with it, so planted feet don't skate; each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it; the hips settle as a foot lands, twist with the stride while the chest twists back; arms swing against the legs and trail them a little; a stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint. People turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about). `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others; `--pose=ready --weapon=slingshot|boomerang|bat` a trainer's weapon held ready, and `--pose=throw|boomerang|catch|swing --at=0,0.07,0.15,0.25` four moments of using it; `--trainer=<seed>` four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side. `tools/townfolk/view.gd` renders the baked people in a grid.
   - `voxel_buildings.gd` uses ten architectural styles. Shops never look like houses: they have a shop front at street level (display windows, a sign board with the shop's icon and a striped awning in its colour), and in most towns a flat above. Cogsworth's darker brick with pipes; Riverbend's and Gravenmoor's have a jettied upper floor; Emberfall's a tiled skirt roof; the island and jungle villages have open market stalls; Copperpick has tin shops with false fronts. Out west, only shops wear false fronts.
   - `voxel_props.gd` builds the shop icons, eggs, shards, relics and obstacles.
   - Readable wooden notice boards carry three rows of dark mock lettering, raised just off the wood so it stays
@@ -1231,9 +1223,9 @@ mounted owl and its rider.
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
 - The title menu appears immediately over sixteen detailed landscape scenes (`scripts/ui/art_slideshow.gd`),
-  including Gearhart's meeting, merging, a Beast Center visit, trainer combat, Grubbit hatching in its cracked egg,
+  including Gearheart's meeting, merging, a Beast Center visit, trainer combat, Grubbit hatching in its cracked egg,
   and a flute song. The trainer battle uses the corrected turtle facing its opponent.
-  Title, in-game loading and web loading shuffle all sixteen pictures for each pass, with a random first image
+  Title, general in-game loading and web loading shuffle all sixteen pictures for each pass, with a random first image
   and no immediate repeats between passes. In-game screens also avoid reopening on the previous screen's last image.
   Pictures zoom slowly and smoothly by five percent (drawn at sub-pixel positions, so the zoom never steps a pixel
   at a time) and crossfade over two and a half seconds; each new scene begins ten seconds after the last. Artwork
@@ -1257,12 +1249,12 @@ mounted owl and its rider.
     It continues through character creation. Browser audio starts after a click, tap or key press;
     runtime Music and SFX buses grow through `AudioServer.bus_count` to preserve the web sample driver's
     route to the speakers (Godot 4.7's `add_bus()` append path disconnects it).
-  - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Bart the Jackal, Gearhart, Nyx and Vexmora.
+  - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Bart the Jackal, Gearheart, Nyx and Vexmora.
     Both keep a beat for the weapons' beat attack (`Sfx.TEMPOS`, 106 and 122 BPM), with a quiet percussion layer playing along that comes up during one.
-  - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearhart Tower plays *Krampus Workshop*.
+  - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearheart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
   - Desert, mountain, moor and some interiors add an ambient loop. Shellhaven adds quiet surf; the Coastal Path
-    adds birds and insects. Gearhart Tower and the intro use the approved machine-room ambience. Moor exteriors
+    adds birds and insects. Gearheart Tower and the intro use the approved machine-room ambience. Moor exteriors
     use an evil-spell texture; the cathedral uses a mystic-forest drone. The five new recordings are 12-second
     Ogg loops with a one-second crossfade at the join. Outdoor loops fade out indoors.
   - `tools/convert_audio.py` makes 128 kbps copies of the tracks registered in `Sfx.TRACKS` in `assets/audio/music/`, trimming the 59-minute rainforest track to a 5-minute loop. The originals in `music/` are untouched.
@@ -1318,10 +1310,18 @@ mounted owl and its rider.
 - **Stalls and loading**: entering a different outdoor town or path (including returning from a building and the
   first outdoor load) shows the artwork slideshow with a bar along the bottom: the destination on the left, a playful
   game-specific caption on the right (its trailing dots hidden in place, so the line never shifts) and a thin gem
-  progress bar under them (`loading_screen.gd`; `--scene=loading` previews it).
+  progress bar under them (`loading_screen.gd`; `--scene=loading` previews it). Towns with matching artwork use their
+  own scene for the whole load, with the same slow zoom: Cocoon Cove's dock, Bellerive's fountain, Sunwall's sparring,
+  Emberfall's springs, Vinehollow's grove and Gravenmoor's ghosts. `assets/loading/slideshow.json` maps town IDs to art;
+  destinations without a matching scene retain the shuffled slideshow. Preview a match with `--scene=loading --map=tidewater`.
   Progress measures completed construction phases, rather than elapsed time, and reaches full after arrival state
   and audio are ready. Fast transitions add no minimum display delay. Room-to-room moves and same-map reloads
   keep short black fades. Input and pause are blocked during loading; the overlay fades away on arrival.
+  Getting into the game from the title (New Game's character creator, Continue and Load Game) winds in the
+  multicolour swirl instead (`UI.enter_swirl`): the bar along the bottom says only "Entering Rubisa" over its
+  progress, with no artwork, standing between the d-pad and A/B on touch, and the swirl winds out to show the creator
+  or the saved place (`UI.swirl_cover` / `leave_swirl`). `--scene=title --burst=<path> --burst_every=0.2` captures
+  frames through it.
   The next map is built behind the artwork/fade,
   yielding between terrain chunks, scenery rows, house plans and NPCs after 50 ms of work (12 ms on the web, which
   mixes its music on the same thread). The 3D view is switched off until the map is finished, and its first draw also
@@ -1473,7 +1473,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 
 - **Buildings** are solid rectangles of one letter, for example:
   - `C` Beast Center, `X` electronics, `V` Sky Tower
-  - `I` Gearhart Tower, `B` cathedral, `J` hideout, `Q` temple
+  - `I` Gearheart Tower, `B` cathedral, `J` hideout, `Q` temple
 - **Weapon fixtures** use each road's `weapon_obstacles` list, rather than a tile letter. Every entry has a
   stable `id`, a `type` (`bullseye`, `bell`, `switches`, `cracked_rock`, `stump`), cardinal ordered `targets`, and
   a reachable default tap approach (`use_from`). A also works from another clear cardinal approach
@@ -1920,7 +1920,7 @@ godot --path . -- --scene=battlecmd --stop=message --shot=C:/tmp/b.png   # compa
 godot --path . --resolution 2400x1080 -- --scene=top-bar --touch --gem=sapphire --shots=res://build/shots/top_bar --save_dir=res://build/top_bar_test_saves/ # the top bar's notices: quick pickups merging, gold adding up, a place name queued behind them, a long line wrapping, then hidden ("TOP BAR DONE: 0 problem(s)")
 godot --headless --path . --script res://tools/check_battle_visuals.gd # closed arrow geometry, complete mural surfaces and mipmapped artwork for every biome
 
-godot --path . --rendering-method mobile --resolution 1920x1080 -- --scene=battle-stage --shots=res://build/shots/battle_stage_desktop --shot_w=0 --save_dir=res://build/battle_stage_saves/ # every biome, dock, arena, five temples/crypt, four Gearhart floors and both Sky Tower rooms; four angles and victory per setting
+godot --path . --rendering-method mobile --resolution 1920x1080 -- --scene=battle-stage --shots=res://build/shots/battle_stage_desktop --shot_w=0 --save_dir=res://build/battle_stage_saves/ # every biome, dock, arena, five temples/crypt, four Gearheart floors and both Sky Tower rooms; four angles and victory per setting
 
 godot --path . --rendering-method mobile --resolution 2400x1080 -- --scene=battle-stage --touch --shots=res://build/shots/battle_stage_touch --shot_w=0 --save_dir=res://build/battle_stage_saves/ # camera dwell, real action dispatch, enclosure, scenery shadows and menu/cluster clearance
 
@@ -2024,3 +2024,17 @@ Island-update captures (isolated saves): use `--scene=island-updates --shots=res
 Indoor raised platforms share the hotel lobby's continuous bevelled wooden balustrade, capped posts and broad slats (`room_builder.gd` `_indoor_railing`).
 
 Every window on a back or side wall looks out into a sealed window box (`room_builder.gd` `_window_boxes`), sized by its windows (`BOX_SIZES`: an ordinary window's box is two tiles deep and runs one tile past its end windows, shrinking to one tile deep where space is short; the hotel pool's full-height windows get three deep and two past), never behind a door or into another room or box, its plants and rocks kept wholly inside it, with a grass floor (parched in dry regions), the region's own nature (its small trees, shrubs, tufts, the odd rock and sometimes a stretch of its fence, seeded per box so it never changes), and the region's pre-blurred landscape round its back and ends. Its outsides and lid are the room's black background. Rebake the landscapes with `godot --headless --path . --script res://tools/bake_window_views.gd` (from `assets/battle/backdrops/` into `assets/interiors/window_views/`), then `--import`.
+
+Pending-request update, 17 November 2026: New Game covers character-creator loading with a multicolour spiral until the bedroom and mirror are ready. Its progress bar reports completed phases. A fresh A/B press can dismiss an egg-drop film immediately; hatching and level-up retain their reveal/continue flow. Aquatic egg shells no longer carry fins. See [revised development plan](docs/development-plan.md) for the remaining story and exploration work.
+
+### Revised story and the third-strongest cave (17 November 2026)
+
+A timbered cave entrance on Mine Road leads to five talking mole trainers and ordinary roaming wild beasts. Every mole claims third place; beating each reveals one saved treasure chest. Whichever mole falls last hints it is the missing third member of the Rubywave Five without explicitly admitting membership.
+
+Mom befriends Marlyse in a scene on first arriving in Cogsworth. Jared is Vexmora, the scientist seeking to save his dying mother; Matt Gearheart, his older brother, funds the research for profit. Existing internal map IDs and save flags remain compatible. The captive rescue and Caldera Road unlock remain required.
+
+Before the scientist’s final battle, Matt’s attempted killing is stopped by Jared, and the player shares a jail cell with him. Escape by recalling the tool or by playing Jared’s difficult dirt-written Mouse March with some prompt icons halved. The song grants control of the mouse: use the d-pad/arrows and A to reach and unlock the brass catch; B returns to the escape choices. Failed songs and wrong tool answers can be retried without spending items.
+
+After Jared’s defeat, three controls in the deepest crypt must be used in order: **Intake Isolator**, **Spirit Reservoir**, **Network Shutdown**. Their saved flags prevent repeated operations. Mom’s hockey-shirt-and-stick fight clears the goons from the controls; the machinery crisis is contained before Marlyse’s acceptance scene and the brothers’ home confrontation, fries memory and invitation to play spaceships. Only then is `game_cleared` set. Earlier completed saves retain their completion. Willing ghost companions remain playable. The Andrew/Jared bonus wedding remains after the revised ending.
+
+Family films use A/Enter or a tap on dialogue to advance; tapping B also advances, and holding B/Esc skips with the shared film controls and a progress bar. Skipping preserves the story outcome.

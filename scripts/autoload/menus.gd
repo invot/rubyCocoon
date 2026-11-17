@@ -429,6 +429,12 @@ func trainer_menu() -> void:
 
 ## Choose trainer gear for one slot.
 func equip_trainer_slot(slot2: String) -> void:
+	if slot2 == "weapon":
+		var owned := ItemDB.WEAPONS.filter(func(id): return GameState.item_count(id) > 0)
+		var choice: int = await UI.choose("Equip weapon", owned.map(func(id): return {"text": ItemDB.item_name(id), "desc": ItemDB.get_item(id)["desc"]}))
+		if choice >= 0 and GameState.equip_weapon(owned[choice]):
+			Sfx.play("confirm")
+		return
 	var ids := []
 	var opts := []
 	for id in GameState.inventory:

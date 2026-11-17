@@ -717,11 +717,14 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 		"skytower":
 			b["name"] = "Sky Tower"
 		"ceo_tower":
-			b["name"] = "Gearhart Tower"
+			b["name"] = "Gearheart Tower"
 		"cathedral":
 			b["name"] = "Gravenmoor Cathedral"
 		"hideout":
 			b["name"] = "Jackals' Hideout"
+			if map_id == "route6":
+				b["name"] = "Third Strongest Cave"
+				b["rooms"] = ["mole_cave"]
 		"cabin":
 			b["name"] = "Old Hal's Cabin"
 		"kennel":
@@ -740,6 +743,10 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 			m["owners"] = taken
 			b["owner"] = names[pick]
 			b["name"] = "%s's %s" % [names[pick], String(HOME_WORDS.get(map_id, "House"))]
+			if map_id == "cogsworth" and not m.get("marlyse_home", false):
+				m["marlyse_home"] = true
+				b["owner"] = "Marlyse"
+				b["name"] = "Marlyse's Flat"
 		"fishery":
 			b["name"] = "Gil's Fishing Shack"
 		"shack":
@@ -1161,6 +1168,12 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		# a temple's maze: its beasts prowl the corridors in plain sight (world.gd _spawn_wilds), not in mist
 		if enc.get("roam", false):
 			m["encounter"]["roam"] = true
+	for npc in m["npcs"]:
+		if npc.get("kind", "") == "resident" and npc.get("name", "") == "Marlyse" and parent == "cogsworth":
+			npc["kind"] = "story"
+			npc["id"] = "marlyse"
+			npc["look"] = preload("res://scripts/data/story_people.gd").LOOKS["Marlyse"].duplicate()
+			npc["wander"] = false
 	return m
 
 
@@ -1293,7 +1306,7 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			return {"kind": "story", "id": "center_guide", "name": "Guide Dottie", "pos": p, "facing": Vector2i(0, 1), "roam": true,
 				"look": CENTER_UNIFORM.merged({"skin": "#f0c8a0", "hair": "#f0d070", "hair_style": 1}, true)}
 		"receptionist":
-			# Gearhart Industries' brass-trimmed company uniform
+			# Gearheart Industries' brass-trimmed company uniform
 			return {"kind": "story", "id": "receptionist", "name": "Receptionist", "pos": p, "facing": Vector2i(0, 1),
 				"look": {"skin": "#f0c8a0", "hair": "#2a1a10", "hair_style": 1, "shirt": "#3a3a48", "trim": "#c8a040", "pants": "#2a2a32",
 					"badge": "#c8a040", "outfit": "uniform"}}
@@ -1301,11 +1314,11 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			var lv := 26 + ["3", "4", "5"].find(ch) + (int(map_id.get_slice("@", 1)) if "@" in map_id else 1) * 2
 			var race: int = RaceDB.ROBOTS[rng.randi_range(0, RaceDB.ROBOTS.size() - 1)]
 			return {"kind": "trainer", "pos": p, "facing": Vector2i(0, 1), "sight": 3, "flag": "tr_%s_%s" % [map_id, ch],
-				"name": "Unit %d" % rng.randi_range(100, 999), "cls": "Gearhart Sentry", "robot_body": RaceDB.ROBOT_MODELS[race],
+				"name": "Unit %d" % rng.randi_range(100, 999), "cls": "Gearheart Sentry", "robot_body": RaceDB.ROBOT_MODELS[race],
 				"team": [[race, lv, false], [RaceDB.ROBOTS[rng.randi_range(0, 3)], lv - 1, false]],
 				"lines": ["INTRUDER DETECTED. COMMENCING REMOVAL."], "defeat": "SYSTEM... FAILURE...", "vanish": true}
 		"ceo":
-			return {"kind": "story", "id": "ceo", "name": "Magnus Gearhart", "pos": p, "facing": Vector2i(0, 1), "story": true,
+			return {"kind": "story", "id": "ceo", "name": "Matt Gearheart", "pos": p, "facing": Vector2i(0, 1), "story": true,
 				"look": {"skin": "#e8c0a0", "hair": "#d8d8e0", "shirt": "#1a1a22", "pants": "#1a1a22", "hat": "#2a2a2a", "outfit": "coat"}}
 		"bandit", "bandit_boss":
 			var boss := role == "bandit_boss"

@@ -94,6 +94,8 @@ static func build(look: Dictionary) -> Node3D:
 	body.name = "Body"
 	root.add_child(body)
 	_dress_body(root, look)
+	if look.get("critter", "") == "mole":
+		preload("res://scripts/gfx/mole_model.gd").dress(root)
 	animate(root, 0.0, 0.0, 0.0)
 	return root
 
@@ -239,6 +241,69 @@ static func set_pose(rig: Node3D, pose: String, seat := 0.36, at_once := false) 
 
 static func pose_of(rig: Node3D) -> String:
 	return String(rig.get_meta("pose", ""))
+
+
+## Close the painted eyes on this one posed rig. Shared meshes and wardrobe materials stay unchanged.
+static func sleeping_eyes(rig: Node3D) -> void:
+	for part in rig.find_children("*", "MeshInstance3D", true, false):
+		var instance := part as MeshInstance3D
+		if not instance.mesh is ArrayMesh:
+			continue
+		var original: ArrayMesh = instance.mesh
+		var copy := ArrayMesh.new()
+		var bounds := {}
+		var face_vertices := PackedVector3Array()
+		for surface in original.get_surface_count():
+			var arrays := original.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var slots: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+			for i in slots.size():
+				if int(slots[i].x + 0.5) != 3:
+					continue
+				var side := signi(roundi(vertices[i].x * 1000))
+				var rect: Rect2 = bounds.get(side, Rect2(Vector2(vertices[i].x, vertices[i].y), Vector2.ZERO))
+				bounds[side] = rect.expand(Vector2(vertices[i].x, vertices[i].y))
+			for i in slots.size():
+				var side := signi(roundi(vertices[i].x * 1000))
+				if bounds.has(side) and vertices[i].z > 0.15 and (bounds[side] as Rect2).grow(0.045).has_point(Vector2(vertices[i].x, vertices[i].y)):
+					face_vertices.append(vertices[i])
+					slots[i] = Vector2(1, 1)
+			arrays[Mesh.ARRAY_TEX_UV2] = slots
+			copy.add_surface_from_arrays(original.surface_get_primitive_type(surface), arrays, [], {}, original.surface_get_format(surface))
+			copy.surface_set_material(surface, original.surface_get_material(surface))
+		instance.mesh = copy
+		if bounds.is_empty():
+			continue
+		var sk: Skeleton3D = rig.get_meta("skeleton")
+		var lids := BoneAttachment3D.new()
+		lids.bone_name = "head"
+		sk.add_child(lids)
+		var head_rest := sk.get_bone_global_rest(sk.find_bone("head")).affine_inverse()
+		var painter = load("res://scripts/story/prison_stage.gd").new()
+		for side in bounds:
+			var rect: Rect2 = bounds[side]
+			var previous := Vector3.ZERO
+			for i in 9:
+				var t := float(i) / 8.0
+				var point := Vector2(lerpf(rect.position.x, rect.end.x, t), rect.get_center().y - 0.02 + sin(t * PI) * 0.01)
+				var distance := INF
+				var depth := 0.15
+				for vertex in face_vertices:
+					var d := point.distance_squared_to(Vector2(vertex.x, vertex.y))
+					if d < distance:
+						distance = d
+						depth = vertex.z
+				var at := head_rest * Vector3(point.x, point.y, depth + 0.002)
+				if i > 0:
+					var stroke := CylinderMesh.new()
+					stroke.top_radius = 0.004
+					stroke.bottom_radius = 0.004
+					stroke.height = previous.distance_to(at) + 0.003
+					stroke.radial_segments = 8
+					var line = painter.piece(lids, stroke, (previous + at) * 0.5, Vector3.ONE, "40313d")
+					line.quaternion = Quaternion(Vector3.UP, (at - previous).normalized())
+				previous = at
+		painter.free()
 
 
 ## Whether a person is talking: gesturing as they speak, nodding along (sitting or standing).
@@ -795,6 +860,10 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		_turn(sk, fore, ag, Quaternion(lat, -bend))
 	if rig.has_meta("phone_prop"):
 		_place_phone(rig, sk, r, dt)
+	if rig.has_meta("critter_visual"):
+		var visual: Node3D = rig.get_meta("critter_visual")
+		visual.position.y = sin(phase) * 0.015 - float(rig.get_meta("kneel_w", 0.0)) * 0.3
+		visual.rotation.x = float(rig.get_meta("kneel_w", 0.0)) * 0.25
 	if rig.has_meta("weapon_prop"):
 		_place_weapon(rig, sk, r, wpose if ww > 0.5 else {})
 

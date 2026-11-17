@@ -1255,7 +1255,7 @@ static func _pennant(k: Kit, p: Vector3, col: Color) -> void:
 	k.poly("color", pts, Vector3.FORWARD, col.darkened(0.2))
 
 
-## Gearhart Tower: the steam company's offices, a stepped brick tower of the house pack's walls and windows (two
+## Gearheart Tower: the steam company's offices, a stepped brick tower of the house pack's walls and windows (two
 ## storeys, then two narrower set-backs), brass bands at each set-back, a clock on the top tier, chimney stacks
 ## at the back, gears on the front and a brass spire with a red beacon.
 static func _pack_ceo_tower(node: Node3D, w: float, d: float, door_lx: float, locked: bool) -> void:

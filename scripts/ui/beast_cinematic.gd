@@ -1,7 +1,7 @@
 extends "res://scripts/ui/modal.gd"
 ## One modal, isolated 3D stage for every hatch, evolution and level reward, and for an egg left behind after a battle
 ## ("egg": the shell drops into the light, turning, with its name; before.name is the beast that left it).
-## Reveals finish before a fresh A/B press can dismiss a hatch, egg drop or level reward. On a level-up or a hatching,
+## A fresh A/B press dismisses an egg drop immediately. Other reveals finish before dismissal. On a level-up or a hatching,
 ## once the stats window is showing, A (or B) skips the rest of its reveal; then a small "A: Continue" button stands
 ## under the window (edge_button.gd), and A, or a click or tap on it, carries on. An egg drop has no button.
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
@@ -455,7 +455,10 @@ func on_input(ev: InputEvent) -> void:
 		return
 	if not (ev.is_action_pressed("ui_accept") or ev.is_action_pressed("interact") or ev.is_action_pressed("ui_cancel")):
 		return
-	if elapsed >= duration:
+	if kind == "egg":
+		elapsed = duration
+		_carry_on()
+	elif elapsed >= duration:
 		_carry_on()
 	elif _stat_window != null and _stat_window.visible:
 		# skip the rest of the stats' reveal; A: Continue shows, and the next press carries on

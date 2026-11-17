@@ -2482,8 +2482,7 @@ func _panel_rows() -> Array:
 	return rows
 
 
-## Your weapons for the trainer's bar (item_db.gd WEAPONS, the ones you own): the slingshot, then the boomerang and the
-## bat once you have them. From trainer Lv 4 each one chains hits to the beat (scripts/core/beat_chain.gd).
+## Only the equipped weapon appears on the trainer's bar. From Lv 4 it chains hits to the beat.
 func _weapon_options() -> Array:
 	var out := []
 	var most := BeatChain.max_hits(GameState.trainer_level)
@@ -4291,7 +4290,7 @@ func _weapon_land(id: String, t, mult: float, crit: bool, plain: bool) -> void:
 		_weapon_dealt += t.hp
 		await _deal(null, t, {"dmg": t.hp, "eff": 1.0, "crit": true, "pierce": true, "instant": true}, not plain)
 		return
-	var acc := 0.9 / _acc_mult(int(_st(t)["stages"]["eva"]))
+	var acc := float(ItemDB.weapon(id).get("accuracy", 0.9)) / _acc_mult(int(_st(t)["stages"]["eva"]))
 	if _st(t)["vanish"] or (plain and not tutorial and randf() > acc):
 		Sfx.play("miss")
 		_float_text(t, "Miss", Color.WHITE)
