@@ -61,7 +61,9 @@ End the nightmare and return to the player waking in bed. They remark on the odd
 
 Later, the player is in jail with Jared. Remembering the tool named in the intro provides a way to bust out of the cell without performing the difficult flute song.
 
-The alternative is a really difficult song that makes the mouse a controllable drone and lets it unlock their cell. Both routes must lead to escape; the remembered clue bypasses the demanding musical challenge.
+The alternative is a really difficult song that Jared composes directly in the dirt on the cell floor. The written notation uses button icons, some of which are cut in half, leaving the player to interpret the incomplete symbols when performing the song. Which icons are halved and the exact difficulty tuning remain to be decided.
+
+Playing the song makes the mouse a controllable drone and lets it unlock their cell. Both routes must lead to escape; the remembered tool clue bypasses the demanding musical challenge.
 
 Implementation requirement: choose the tool once for the playthrough and persist it with the save. The later jail scene must use the same tool, without rerolling it on reload or when the intro is replayed. Define how skipped intros and older saves expose or initialize the clue so that the flute route remains available.
 
