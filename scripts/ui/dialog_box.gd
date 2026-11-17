@@ -194,7 +194,7 @@ func _project_head() -> bool:
 		_head_screen = _snap(camera.unproject_position(top) * scale)
 		_door_bottom = _snap(camera.unproject_position(bottom) * scale)
 		return get_viewport_rect().has_point(_head_screen) or get_viewport_rect().has_point(_door_bottom)
-	var head := speaker_node.to_global(_head_local)
+	var head := speaker_node.global_position if speaker_node.has_meta("speech_origin") else speaker_node.to_global(_head_local)
 	if camera.is_position_behind(head):
 		return false
 	_head_screen = camera.unproject_position(head) * get_viewport_rect().size / view.get_visible_rect().size
