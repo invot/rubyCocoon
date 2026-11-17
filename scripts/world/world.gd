@@ -126,10 +126,13 @@ var house_cover := {}
 var cam_free := false
 ## The menu shot (menu_shot_begin): while you talk with someone (_talk) or use a phone (Phone.call_home), a menu that
 ## opens swings the camera round to a close shot of them, over your shoulder, on the left of the screen with the menu
-## on the right. Plain dialogue keeps the usual camera. shot_subject is who (or what) it's on; shot_phone: a phone,
+## on the right. A phone call holds its shot until hangup. shot_subject is who (or what) it's on; shot_phone: a phone,
 ## seen from further off, more of you in it.
 var shot_subject: Node3D = null
 var shot_phone := false
+var phone_call_active := false
+var phone_receiver: Node3D = null
+var _phone_base: Node3D = null
 ## 0..1: how far the camera has swung into the shot; whether a menu holds it now, and how long until it lets go
 var _shot_w := 0.0
 var _shot_on := false
@@ -3117,8 +3120,43 @@ func menu_shot_begin() -> bool:
 
 ## The menu's closed: the camera eases back, unless another menu opens straight away (a shop's next screen).
 func menu_shot_end() -> void:
+	if phone_call_active:
+		return
 	_shot_on = false
 	_shot_release = SHOT_HOLD
+
+
+## A call owns the close-up across dialogue, menus and save cards.
+func begin_phone_call() -> void:
+	if phone_call_active or not is_instance_valid(player):
+		return
+	aim_phone_shot()
+	_phone_base = shot_subject
+	var body: Node3D = player.get_node("Body")
+	var local_phone := body.to_local(_phone_base.global_position)
+	var side := "l" if local_phone.x >= 0.0 else "r"
+	phone_receiver = VPer.begin_phone(player, side, _phone_base.global_position)
+	phone_call_active = true
+	if is_instance_valid(phone_receiver):
+		shot_subject = phone_receiver
+	menu_shot_begin()
+	await get_tree().create_timer(0.6).timeout
+
+
+func end_phone_call() -> void:
+	if not phone_call_active:
+		return
+	VPer.end_phone(player)
+	await get_tree().create_timer(0.45).timeout
+	if not is_instance_valid(self):
+		return
+	phone_call_active = false
+	var receiver := phone_receiver
+	phone_receiver = null
+	get_tree().create_timer(SHOT_HOLD + SHOT_OUT + 0.1).timeout.connect(receiver.queue_free)
+	shot_subject = null
+	shot_phone = false
+	menu_shot_end()
 
 
 ## Points the menu shot at the phone you're using: the telephone nearest the tile you face (a table's or a counter's),
@@ -3149,7 +3187,8 @@ func aim_phone_shot() -> void:
 func _shot_transform() -> Transform3D:
 	var me := player.global_position
 	var them := _shot_node.global_position
-	var d := Vector3(them.x - me.x, 0.0, them.z - me.z)
+	var direction_target := _phone_base.global_position if _shot_node.has_meta("speech_origin") and is_instance_valid(_phone_base) else them
+	var d := Vector3(direction_target.x - me.x, 0.0, direction_target.z - me.z)
 	if d.length() < 0.05:
 		d = Vector3(facing.x, 0.0, facing.y)
 	d = d.normalized()
@@ -3157,7 +3196,7 @@ func _shot_transform() -> Transform3D:
 	var back := 2.3 if _shot_is_phone else 1.8
 	var side := 1.5 if _shot_is_phone else 0.62
 	var pos := me - d * back + right * side + Vector3(0, 1.75 if _shot_is_phone else 2.0, 0)
-	var look := (me + Vector3(0, 0.85, 0)).lerp(them, 0.55) if _shot_is_phone else them + Vector3(0, 1.0, 0)
+	var look := them if _shot_node.has_meta("speech_origin") else ((me + Vector3(0, 0.85, 0)).lerp(them, 0.55) if _shot_is_phone else them + Vector3(0, 1.0, 0))
 	if interior:
 		# never behind the room's walls: inside the faces of the walls round you (the open front aside). Beside a side
 		# wall the shot looks over your other shoulder instead.
@@ -3171,7 +3210,8 @@ func _shot_transform() -> Transform3D:
 	# turn right, so what's looked at sits on the left of the screen
 	var size := get_viewport().get_visible_rect().size
 	var half := tan(deg_to_rad(cam.fov / 2.0)) * size.x / maxf(size.y, 1.0)
-	basis = Basis(Vector3.UP, -atan(0.45 * half)) * basis
+	if not _shot_node.has_meta("speech_origin"):
+		basis = Basis(Vector3.UP, -atan(0.45 * half)) * basis
 	return Transform3D(basis, pos)
 
 

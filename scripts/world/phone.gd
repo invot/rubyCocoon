@@ -62,6 +62,14 @@ static func call_home(world, fee := 0) -> void:
 	if world != null and world.get_node_or_null("Ringer") != null:
 		await answer(world)
 		return
+	if fee <= 0 or GameState.gold >= fee:
+		if is_instance_valid(world):
+			await world.begin_phone_call()
+	await _call_home(world, fee)
+	await _end_phone_shot(world)
+
+
+static func _call_home(world, fee := 0) -> void:
 	if fee > 0 and GameState.gold < fee:
 		Sfx.play("error")
 		await UI.say(["A payphone. It takes %d coins to make a call, and you only have %d." % [fee, GameState.gold],
@@ -73,22 +81,16 @@ static func call_home(world, fee := 0) -> void:
 	if knows_skytower():
 		whom.append("tower")
 	var labels := {"mom": "Mom", "dad": "Dad", "tower": "SkyTower Inc"}
-	# the phone's menus are shot towards the phone, you beside it (world.gd menu_shot_begin)
-	if world != null:
-		world.aim_phone_shot()
 	var pick := await UI.choose(what + " Who will you call?", whom.map(func(k): return labels[k]))
 	if pick < 0 or pick >= whom.size():
-		_end_phone_shot(world)
 		return
 	if fee > 0:
 		GameState.gold -= fee
 		Sfx.play("buy")
 	var who: String = whom[pick]
 	if who == "tower":
-		await call_tower()
-		_end_phone_shot(world)
+		await call_tower(world)
 		return
-	_end_phone_shot(world)
 	if who == "mom":
 		await call_mom(world)
 		return
@@ -99,8 +101,8 @@ static func call_home(world, fee := 0) -> void:
 	lines.append(_tally())
 	lines.append(["Keep at it. I'm proud of you.", "Look after your beasts, and they'll look after you.",
 		"Work's busy, but hearing from you is the best part of my day."][randi() % 3])
-	await UI.say(lines, "Dad")
-	await _save()
+	await UI.say(lines, "Dad", null, _voice(world))
+	await _save(world)
 
 
 ## True once you have SkyTower Inc's number (a request already under way counts, for saves from before the number).
@@ -109,9 +111,12 @@ static func knows_skytower() -> bool:
 
 
 static func _end_phone_shot(world) -> void:
-	if world != null and world.shot_phone:
-		world.shot_subject = null
-		world.shot_phone = false
+	if is_instance_valid(world):
+		await world.end_phone_call()
+
+
+static func _voice(world) -> Node3D:
+	return world.phone_receiver if is_instance_valid(world) else null
 
 
 ## Calls Mom: she passes on a tip about what to do next, then what she makes of your beasts' levels. Nothing is saved.
@@ -123,7 +128,7 @@ static func call_mom(world) -> void:
 	lines.append_array(level_advice(world))
 	lines.append(["Call me any time, sweetie. And eat something green!", "Don't forget to call your father too. He loves hearing from you.",
 		"Look after yourself out there. Love you!"][randi() % 3])
-	await UI.say(lines, "Mom")
+	await UI.say(lines, "Mom", null, _voice(world))
 
 
 ## Mom's next tip for what you're doing now (ChatterDB.MOM_TIPS, by Story.next_goal()): they take turns, call by call.
@@ -205,6 +210,13 @@ static func _at_home(world) -> bool:
 ## The phone ringing on your first morning: Dad, calling from work to wish you luck.
 static func answer(world) -> void:
 	stop_ringing(world)
+	if is_instance_valid(world):
+		await world.begin_phone_call()
+	await _answer(world)
+	await _end_phone_shot(world)
+
+
+static func _answer(world) -> void:
 	Sfx.play("door_close")
 	await UI.say(["You pick up the phone."])
 	await UI.say(["Hello? %s? It's Dad!" % GameState.player_name,
@@ -212,24 +224,24 @@ static func answer(world) -> void:
 		"Listen: call me whenever you can. Any phone will do. Every home has one, and so does every Beast Center.",
 		"The red payphones by the town squares take five coins, mind.",
 		"Tell me everything, and I'll write it all down for you. That way your adventure's never lost.",
-		"Now go on. Elder Rowan's waiting, and so is the whole world. I'm so proud of you, kiddo."], "Dad")
+		"Now go on. Elder Rowan's waiting, and so is the whole world. I'm so proud of you, kiddo."], "Dad", null, _voice(world))
 	GameState.set_flag("called_dad")
-	await _save()
+	await _save(world)
 
 
 ## Dad asks before saving, then asks whether to keep playing, even if you declined the save.
-static func _save() -> void:
+static func _save(world = null) -> void:
 	GameState.set_flag("called_dad")
-	if await UI.ask("Would you like me to save your journey?", "Dad"):
+	if await UI.ask("Would you like me to save your journey?", "Dad", "Yes", "No", _voice(world)):
 		if not await GameState.main.save_with_card():
 			return
-	if not await UI.ask("Do you want to continue playing?", "Dad"):
+	if not await UI.ask("Do you want to continue playing?", "Dad", "Yes", "No", _voice(world)):
 		await UI.say(["\"Talk soon, kiddo.\" Click."])
 		GameState.main.back_to_title()
 		return
 	await UI.say([["Off you go, then! Just don't work too hard. Take a break now and then, and make sure you eat something.",
 		"Alright, kiddo. Don't work too hard out there, okay? Even trainers need a rest.",
-		"Go get 'em! But don't push yourself too hard. Your beasts need their rest, and so do you."][randi() % 3]], "Dad")
+		"Go get 'em! But don't push yourself too hard. Your beasts need their rest, and so do you."][randi() % 3]], "Dad", null, _voice(world))
 
 
 ## What Dad hears about your team.
@@ -274,7 +286,7 @@ class Ringer extends Node:
 
 
 ## Every phone reaches the same company; a completed request replaces the last one atomically.
-static func call_tower() -> void:
+static func call_tower(world = null) -> void:
 	const Courier = preload("res://scripts/core/sky_courier.gd")
 	Sfx.play("phone_ring")
 	var choice := await UI.choose("SkyTower Inc", [
@@ -288,7 +300,7 @@ static func call_tower() -> void:
 	if choice in [2, 3]:
 		items = await load("res://scripts/ui/locker_screen.gd").open("order")
 		if items.is_empty():
-			await UI.say(["No items selected. Your previous request hasn't changed."], Courier.KEEPER)
+			await UI.say(["No items selected. Your previous request hasn't changed."], Courier.KEEPER, null, _voice(world))
 			return
 	if Courier.order(choice, items):
-		await UI.say(["We'll find you under open sky in about thirty seconds. This replaces any earlier request."], Courier.KEEPER)
+		await UI.say(["We'll find you under open sky in about thirty seconds. This replaces any earlier request."], Courier.KEEPER, null, _voice(world))

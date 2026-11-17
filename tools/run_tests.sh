@@ -156,6 +156,7 @@ TESTS=(
 	"gravenmoor-touch|--resolution 2400x1080 -- --scene=gravenmoor --touch --save_dir=res://build/gravenmoor_touch_test_saves/|GRAVENMOOR DONE: 0 problem"
 	"tidewater-layout|--script res://tools/check_tidewater_layout.gd|TIDEWATER LAYOUT DONE: 0 problem"
 	"maps-built|-- --scene=maps --wait=0.3|MAP TOUR DONE: .*, 0 porch"
+	"phone-pose|--script res://tools/check_phone_pose.gd|PHONE POSE DONE: 0 problem"
 	"phone|-- --scene=phone --wait=0.3|PHONE TEST DONE: 0 problem"
 	"counter-phones|-- --scene=counter-phones --wait=0.3|COUNTER PHONES DONE: 0 problem"
 	"counter-phones-touch|-- --scene=counter-phones --touch --wait=0.3|COUNTER PHONES DONE: 0 problem"

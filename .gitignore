@@ -25,6 +25,8 @@ __pycache__/
 !/tools/check_maps.gd.uid
 !/tools/check_scripts.gd
 !/tools/check_scripts.gd.uid
+!/tools/check_phone_pose.gd
+!/tools/check_phone_pose.gd.uid
 !/tools/debug/mechanic_lessons.gd
 !/tools/debug/mechanic_lessons.gd.uid
 !/tools/debug/egg_sale_hud.gd

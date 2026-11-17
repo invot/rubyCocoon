@@ -1438,6 +1438,29 @@ func _run_test() -> void:
 		var home := MapLoader.interior_of("caccoon", "home")
 		await _do_goto(home, "entry")
 		await _wait(1.0)
+		# A call keeps the close-up through menu closures, then releases it on hangup.
+		await world.begin_phone_call()
+		bad += int(not world.phone_call_active or not is_instance_valid(world.phone_receiver))
+		world.menu_shot_end()
+		await _wait(0.7)
+		bad += int(not world._shot_on or world._shot_w < 0.99)
+		bad += int(world.shot_subject != world.phone_receiver)
+		var phone_screen: Vector2 = world.cam.unproject_position(world.phone_receiver.global_position)
+		var screen: Vector2 = world.get_viewport().get_visible_rect().size
+		bad += int(phone_screen.distance_to(screen / 2.0) > 2.0)
+		var bubble := UI.DialogBox.new()
+		bubble.setup(["Hello from the receiver."], "Dad", null, world.phone_receiver)
+		UI.push(bubble)
+		await _wait(0.1)
+		bad += int(not bubble._project_head())
+		var projected: Vector2 = world.cam.unproject_position(world.phone_receiver.global_position) * bubble.get_viewport_rect().size / screen
+		bad += int(bubble._head_screen.distance_to(projected) > 2.0)
+		UI.pop(bubble)
+		await world.end_phone_call()
+		bad += int(world.phone_call_active or world.phone_receiver != null or world._shot_on)
+		UI.auto_answers = [-1]
+		await Phone.call_home(world)
+		bad += int(world.phone_call_active or world.shot_subject != null)
 		var out := {}
 		for t in world.map["exits"]:
 			if world.map["exits"][t]["to"] == "caccoon":

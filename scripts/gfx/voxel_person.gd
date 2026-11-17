@@ -793,8 +793,88 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		var ag := _turn(sk, arm, arm["parent"], Quaternion(fwd, float(arm["out"]) * spread) * Quaternion(lat, -a_swing) * arm["down"])
 		var fore: Dictionary = r[side + "_forearm"]
 		_turn(sk, fore, ag, Quaternion(lat, -bend))
+	if rig.has_meta("phone_prop"):
+		_place_phone(rig, sk, r, dt)
 	if rig.has_meta("weapon_prop"):
 		_place_weapon(rig, sk, r, wpose if ww > 0.5 else {})
+
+
+## A receiver travels from the telephone to the chosen ear; the arm follows with two-bone IK.
+static func begin_phone(rig: Node3D, side: String, from: Vector3) -> Node3D:
+	var sk: Skeleton3D = rig.get_meta("skeleton")
+	var prop := Node3D.new()
+	prop.name = "PhoneReceiver"
+	prop.set_meta("speech_origin", true)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("#c32f40")
+	mat.roughness = 0.4
+	for part in [Vector4(0.0, 0.0, 0.065, 0.26), Vector4(-0.12, -0.025, 0.13, 0.09), Vector4(0.12, -0.025, 0.13, 0.09)]:
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(part.z, part.w, 0.085)
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = mat
+		mi.position = Vector3(0, part.x, part.y)
+		prop.add_child(mi)
+	sk.add_child(prop)
+	rig.set_meta("phone_prop", prop)
+	rig.set_meta("phone_side", side)
+	rig.set_meta("phone_from", from)
+	rig.set_meta("phone_w", 0.0)
+	rig.set_meta("phone_on", true)
+	prop.global_position = from
+	return prop
+
+
+static func end_phone(rig: Node3D) -> void:
+	if is_instance_valid(rig):
+		rig.set_meta("phone_on", false)
+
+
+static func _place_phone(rig: Node3D, sk: Skeleton3D, r: Dictionary, dt: float) -> void:
+	var prop: Node3D = rig.get_meta("phone_prop")
+	if not is_instance_valid(prop):
+		rig.remove_meta("phone_prop")
+		return
+	var on: bool = rig.get_meta("phone_on", false)
+	var w := move_toward(float(rig.get_meta("phone_w", 0.0)), 1.0 if on else 0.0, dt / (0.55 if on else 0.4))
+	rig.set_meta("phone_w", w)
+	if w <= 0.0 and not on:
+		prop.visible = false
+		rig.remove_meta("phone_prop")
+		return
+	var side: String = rig.get_meta("phone_side")
+	var arm: Dictionary = r[side + "_arm"]
+	var fore: Dictionary = r[side + "_forearm"]
+	var hand := sk.find_bone(side + "_hand")
+	var out: float = arm["out"]
+	var up: Vector3 = r["up"]
+	var lat: Vector3 = r["lat"]
+	var fwd: Vector3 = r["fwd"]
+	var head := sk.get_bone_global_pose(r["head"]["i"]).origin
+	var ear := head + lat * out * 0.25 + up * 0.11 + fwd * 0.015
+	var start := sk.to_local(rig.get_meta("phone_from"))
+	var target := start.lerp(ear, smoothstep(0.0, 1.0, w))
+	var a := sk.get_bone_global_pose(arm["i"]).origin
+	var b := sk.get_bone_global_pose(fore["i"]).origin
+	var c := sk.get_bone_global_pose(hand).origin
+	var upper := a.distance_to(b)
+	var lower := b.distance_to(c)
+	var dist := clampf(a.distance_to(target), absf(upper - lower) + 0.001, upper + lower - 0.001)
+	var dir := (target - a).normalized()
+	var pole := (fwd * 0.6 + lat * out - up * 0.5).normalized()
+	pole = (pole - dir * pole.dot(dir)).normalized()
+	var along := (upper * upper + dist * dist - lower * lower) / (2.0 * dist)
+	var elbow := a + dir * along + pole * sqrt(maxf(0.0, upper * upper - along * along))
+	var ag := sk.get_bone_global_pose(arm["i"]).basis.orthonormalized().get_rotation_quaternion()
+	var fg := sk.get_bone_global_pose(fore["i"]).basis.orthonormalized().get_rotation_quaternion()
+	var turn := Quaternion((b - a).normalized(), (elbow - a).normalized())
+	var parent := sk.get_bone_global_pose(sk.get_bone_parent(arm["i"])).basis.orthonormalized().get_rotation_quaternion()
+	_place_bone(sk, arm, parent, turn * ag)
+	var fore_turn := Quaternion((turn * (c - b)).normalized(), (a + dir * dist - elbow).normalized())
+	_place_bone(sk, fore, turn * ag, fore_turn * turn * fg)
+	# The receiver's upper cap rests against the ear, its grip in the hand.
+	prop.transform = Transform3D(Basis(lat, up, fwd), target)
 
 
 ## How far one step carries a person at `speed` (game units a second): the faster, the longer the stride (a stroll's
