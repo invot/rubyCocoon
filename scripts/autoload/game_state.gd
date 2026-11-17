@@ -199,6 +199,19 @@ func hero_look() -> Dictionary:
 	return look
 
 
+## What the bedroom mirror may change (hero_maker.gd wardrobe()): the clothes and their colours, never the name,
+## gender, body, skin, hair or eyes.
+const OUTFIT_KEYS := ["shirt_style", "pants_style", "shoes_style", "hat_style", "glasses_style", "top", "top2", "trousers",
+	"shoes", "hat", "glasses_colour", "pack_colour"]
+
+
+## Puts on the clothes in `look` (a look from the wardrobe), leaving everything else about the hero as it was.
+func set_outfit(look: Dictionary) -> void:
+	for key in OUTFIT_KEYS:
+		if look.has(key):
+			hero[key] = look[key]
+
+
 ## Old saves used the body to choose gender; explicit gender always takes precedence.
 func hero_gender() -> String:
 	return String(hero.get("gender", hero.get("body", "male")))

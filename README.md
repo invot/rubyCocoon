@@ -229,8 +229,17 @@ and neutral terms in dialogue. Each gender has its own name choices, including *
 Rowan, River, Sage, Ash, Quinn, Avery, Robin, Ember and Sky for Non-Binary. Names are remembered when switching
 gender. **Ben** is 10% taller than the usual hero in both the
 creator preview and play (Andrew keeps his existing smaller scale).
-The creator plays Kevin MacLeod's *Space Jazz* (`Sfx.TRACKS` "creator"); backing out to the title brings the title
-music back.
+The creator plays Kevin MacLeod's *Space Jazz* (`Sfx.TRACKS` "creator"); B asks before leaving ("Leave the
+character creator?" Leave / Stay), and backing out to the title brings the title music back. Its bedroom is the room
+alone (`build_set` `bare`): no journal and quest marker, nobody, and none of the room's own furniture mirror, since the
+creator stands its own where its camera wants it.
+The same standing mirror (`scripts/gfx/standing_mirror.gd`, map letter `}`, furniture `mirror`) stands against the
+back wall of the hero's bedroom, between the nightstand and the desk, off the way from the bed to the door. Its glass
+is a painted silver sheen rather than a second camera. Press A facing it to open the creator as a wardrobe
+(`hero_maker.gd` `wardrobe`, `UI.change_outfit`): only **Head** (hat and glasses), **Torso** (shirt and pack) and
+**Legs** (pants and shoes), starting from what the hero wears; Start puts the clothes on (`GameState.set_outfit`
+changes only `OUTFIT_KEYS`, never the name, gender, skin, hair or eyes) and B asks before stepping away.
+`--scene=wardrobe --shots=<dir>` walks up to it, changes the shirt and checks the rest of the hero is untouched.
 Two names also hide battle easter eggs. **Moss** has a 10% chance each round to gather sparkles, charging the next
 trainer weapon attack: its first target is knocked out instantly if it is an ordinary beast, even through Defend,
 shields or Sturdy. The charge lasts until that weapon use and does not stack; other actions keep it. Boss and GIANT
@@ -1320,8 +1329,14 @@ mounted owl and its rider.
   Getting into the game from the title (New Game's character creator, Continue and Load Game) winds in the
   multicolour swirl instead (`UI.enter_swirl`): the bar along the bottom says only "Entering Rubisa" over its
   progress, with no artwork, standing between the d-pad and A/B on touch, and the swirl winds out to show the creator
-  or the saved place (`UI.swirl_cover` / `leave_swirl`). `--scene=title --burst=<path> --burst_every=0.2` captures
-  frames through it.
+  or the saved place (`UI.swirl_cover` / `leave_swirl`). New Game starts the creator while the swirl is still winding
+  in (`UI.make_hero`): the creator stays hidden and paused behind it (its mirror's camera off until it shows), and its
+  bedroom goes up a step at a time (`RoomBuilder.build_sliced`, the same steps as `build`; film sets give way after
+  8 ms rather than 50), so the creator is ready about when the swirl has covered the screen (about 1.0 s after the
+  press against about 1.3 s loading afterwards, desktop measurement). A few one-off loads (the hero's model, the
+  window's garden, the first wall textures) still take 30-80 ms frames in the swirl's first quarter-second.
+  `--scene=title --burst=<path> --burst_every=0.2` captures frames through it; `--idle=<s>` sits at the menu first,
+  as a player would, while the title loads scripts in the background.
   The next map is built behind the artwork/fade,
   yielding between terrain chunks, scenery rows, house plans and NPCs after 50 ms of work (12 ms on the web, which
   mixes its music on the same thread). The 3D view is switched off until the map is finished, and its first draw also

@@ -19,6 +19,7 @@ const Townfolk = preload("res://scripts/gfx/townfolk.gd")
 const Wardrobe = preload("res://scripts/data/wardrobe_db.gd")
 const MapLoader = preload("res://scripts/world/map_loader.gd")
 const HomeDecor = preload("res://scripts/gfx/home_decor.gd")
+const StandingMirror = preload("res://scripts/gfx/standing_mirror.gd")
 const SoftArrow = preload("res://scripts/ui/soft_arrow.gd")
 
 ## Names for each gender, the first the one it starts with.
@@ -44,6 +45,20 @@ const TABS := [
 	{"name": "Legs", "rows": ["pants", "pants_color", "shoes", "shoes_color"], "heads": {"pants": "Pants", "shoes": "Shoes"},
 		"look_at": "legs"},
 ]
+## The mirror in the hero's bedroom changes only what they wear (wardrobe()): hats and glasses, the shirt, the pack,
+## the pants and the shoes; never the name, gender, skin, hair or eyes.
+const WARDROBE_TABS := [
+	{"name": "Head", "rows": ["hat", "hat_color", "glasses", "glasses_color"], "heads": {"hat": "Hat", "glasses": "Glasses"},
+		"look_at": "head"},
+	{"name": "Torso", "rows": ["shirt", "shirt_color", "shirt_color2", "pack"], "heads": {"shirt": "Shirt", "pack": "Pack"},
+		"look_at": "torso"},
+	{"name": "Legs", "rows": ["pants", "pants_color", "shoes", "shoes_color"], "heads": {"pants": "Pants", "shoes": "Shoes"},
+		"look_at": "legs"},
+]
+## the tabs in use: TABS, or WARDROBE_TABS at the mirror
+var tabs: Array = TABS
+## true at the bedroom mirror (wardrobe())
+var wardrobe_mode := false
 ## Where the camera looks for each tab's part of the hero: its aim's height (metres) and how much nearer it comes
 ## (a share of the way in), a little closer than the whole body.
 const LOOK_AT := {"body": [0.6, 0.0], "head": [1.15, 0.3], "torso": [0.85, 0.2], "legs": [0.35, 0.2]}
@@ -84,7 +99,7 @@ const MENU_LEAST := 0.33
 ## its size); the camera's aim, off to the hero's left so they stand on the left of the screen, clear of the menu.
 const HERO_TILE := Vector2i(6, 3)
 const MIRROR_AT := Vector3(-1.2, 0.0, -0.75)
-const MIRROR_SIZE := Vector2(0.78, 1.62)
+const MIRROR_SIZE := StandingMirror.SIZE
 const MIRROR_LAYER := 1 << 19
 const CAM_AIM := Vector3(0.0, 0.6, 0.0)
 ## the middle of the hero and the mirror, across the screen (metres from the hero)
@@ -139,6 +154,18 @@ var _mirror_cam: Camera3D
 ## the camera's aim height and how far in it has come (LOOK_AT), easing towards the open tab's
 var _look := Vector2(0.6, 0.0)
 var _mirror_mat: ShaderMaterial
+var _mirror_vp: SubViewport
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_VISIBILITY_CHANGED:
+		return
+	if is_instance_valid(_mirror_vp):
+		_mirror_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if is_visible_in_tree() else SubViewport.UPDATE_DISABLED
+	# (built while hidden behind the loading swirl, its containers only arrange themselves once it shows: lay the menu
+	# and its hanging Confirm button out again then)
+	if is_visible_in_tree() and _column != null:
+		_layout.call_deferred()
 
 
 func _init() -> void:
@@ -154,6 +181,23 @@ func _init() -> void:
 		"glasses_colour": s["glasses_colour"], "pack_colour": Wardrobe.PACK[0]}
 
 
+## At the bedroom mirror: only the clothes tabs (WARDROBE_TABS), starting from what the hero wears now (`look`, as
+## GameState.hero keeps it). Call before adding it to the tree.
+func wardrobe(look: Dictionary) -> void:
+	wardrobe_mode = true
+	tabs = WARDROBE_TABS
+	row = tabs[0]["rows"][0]
+	pick["gender"] = maxi(0, GENDERS.find(String(look.get("gender", "male"))))
+	pick["body"] = maxi(0, BODIES.find(String(look.get("body", "male"))))
+	pick["hairdo"] = int(look.get("hairdo", pick["hairdo"]))
+	for key in [["shirt", "shirt_style"], ["pants", "pants_style"], ["shoes", "shoes_style"], ["hat", "hat_style"],
+			["glasses", "glasses_style"]]:
+		pick[key[0]] = int(look.get(key[1], pick[key[0]]))
+	for key in dye:
+		if look.has(key):
+			dye[key] = look[key]
+
+
 func _ready() -> void:
 	_build_scene()
 	_column = VBoxContainer.new()
@@ -163,9 +207,9 @@ func _ready() -> void:
 	var strip := HBoxContainer.new()
 	strip.add_theme_constant_override("separation", TAB_SEP)
 	_column.add_child(strip)
-	for i in TABS.size():
+	for i in tabs.size():
 		var tb := Button.new()
-		tb.text = TABS[i]["name"]
+		tb.text = tabs[i]["name"]
 		tb.focus_mode = Control.FOCUS_NONE
 		tb.custom_minimum_size = Vector2(0, UIKit.row_h() - 8.0)
 		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -187,7 +231,7 @@ func _ready() -> void:
 	var pages := Control.new()
 	inside.add_child(pages)
 	var biggest := Vector2.ZERO
-	for t in TABS:
+	for t in tabs:
 		var page := VBoxContainer.new()
 		page.add_theme_constant_override("separation", 4)
 		for id in t["rows"]:
@@ -371,7 +415,7 @@ func arrow_rect(id: String, side: int) -> Rect2:
 # ---------------------------------------------------------------- choosing
 ## The rows the keys step through on the open tab: the tabs and its rows (Start confirms, from any of them).
 func _nav() -> Array:
-	return ["tab"] + TABS[tab]["rows"]
+	return ["tab"] + tabs[tab]["rows"]
 
 
 func on_input(ev: InputEvent) -> void:
@@ -395,10 +439,10 @@ func on_input(ev: InputEvent) -> void:
 			_open_colors(row)
 			return
 		# on to the next row; from a tab's last row, on to the next tab
-		var rows: Array = TABS[tab]["rows"]
-		if row == rows.back() and tab < TABS.size() - 1:
+		var rows: Array = tabs[tab]["rows"]
+		if row == rows.back() and tab < tabs.size() - 1:
 			_open_tab(tab + 1, true)
-			_go(TABS[tab]["rows"][0], false)
+			_go(tabs[tab]["rows"][0], false)
 		else:
 			_step(1)
 
@@ -420,22 +464,22 @@ func _go(r: String, sound := true) -> void:
 
 ## Opens a tab (tapped, or left and right on the tab strip), keeping the tab strip chosen if it was.
 func _open_tab(i: int, sound := true) -> void:
-	i = posmod(i, TABS.size())
+	i = posmod(i, tabs.size())
 	if i != tab and sound:
 		Sfx.play("page")
 	tab = i
 	for k in _pages.size():
 		(_pages[k] as Control).visible = k == tab
-	if row != "tab" and not (TABS[tab]["rows"] as Array).has(row):
+	if row != "tab" and not (tabs[tab]["rows"] as Array).has(row):
 		row = "tab"
 	_show()
 
 
 ## Opens the tab a row is on (a row chosen from outside: a test, say).
 func _reveal(id: String) -> void:
-	if not (TABS[tab]["rows"] as Array).has(id):
-		for k in TABS.size():
-			if (TABS[k]["rows"] as Array).has(id):
+	if not (tabs[tab]["rows"] as Array).has(id):
+		for k in tabs.size():
+			if (tabs[k]["rows"] as Array).has(id):
 				_open_tab(k, false)
 
 
@@ -615,12 +659,13 @@ func _ask_leave() -> void:
 	Sfx.play("back")
 	# (the Confirm button stands above windows, so it steps aside while the question shows, as for the color grid)
 	_start_hit.visible = false
-	var leave: bool = await UI.ask("Leave the character creator? Your hero won't be kept.", "", "Leave", "Stay")
+	var question := "Step away from the mirror? These clothes won't be kept." if wardrobe_mode 		else "Leave the character creator? Your hero won't be kept."
+	var leave: bool = await UI.ask(question, "", "Leave", "Stay")
 	_asking = false
 	if is_instance_valid(_start_hit):
 		_start_hit.visible = true
 	if leave and is_inside_tree():
-		close(null)
+		await _close_with(null)
 
 
 func _gender() -> String:
@@ -628,8 +673,23 @@ func _gender() -> String:
 
 
 func _finish() -> void:
+	if _closing:
+		return
 	Sfx.play("confirm")
-	close({"name": _names()[pick["name"]], "look": look()})
+	await _close_with({"look": look()} if wardrobe_mode else {"name": _names()[pick["name"]], "look": look()})
+
+
+var _closing := false
+
+
+## Closes with `result`; at the mirror the screen goes dark first, and comes back on the room (UI.change_outfit).
+func _close_with(result) -> void:
+	if _closing:
+		return
+	_closing = true
+	if wardrobe_mode:
+		await UI.fade_out(0.2)
+	close(result)
 
 
 ## The names the chosen gender picks from.
@@ -729,7 +789,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(_rig):
 		VPer.animate(_rig, 0.0, 0.0, _t)
 	# the camera eases in on the open tab's part of the hero (and the mirror's camera follows)
-	var want: Array = LOOK_AT[TABS[tab]["look_at"]]
+	var want: Array = LOOK_AT[tabs[tab]["look_at"]]
 	var goal := Vector2(want[0], want[1])
 	if _look.distance_to(goal) > 0.001:
 		_look = _look.lerp(goal, minf(1.0, delta * LOOK_EASE))
@@ -771,11 +831,15 @@ func _load_room() -> void:
 	if id == "":
 		scene_loaded = true
 		return
+	# (the room starts on the next frame, not the one that dressed the hero and laid out the menu)
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
 	var stage := Node3D.new()
 	stage.name = "Bedroom"
 	_vp.add_child(stage)
 	# (bare: no journal on the floor with its marker over it, nor anyone else)
-	_set = await GameState.main.build_set(id, stage, true)
+	_set = await GameState.main.build_set(id, stage, true, ["mirror"])
 	if not is_inside_tree() or not is_instance_valid(_set):
 		# (no room after all: the creator still opens rather than leaving its loading swirl turning)
 		scene_loaded = true
@@ -813,36 +877,20 @@ func _frame_camera() -> void:
 ## wooden frame on two stout feet, its glass showing the room from where the camera's reflection would stand (a
 ## second camera on the far side of the glass, its picture projected back onto it), so it shows the hero's back.
 func _build_mirror() -> void:
-	var holder := Node3D.new()
-	holder.name = "Mirror"
-	holder.position = _turn.position + MIRROR_AT
-	_vp.add_child(holder)
-	var frame := MeshInstance3D.new()
-	frame.mesh = HomeDecor.frame_mesh(MIRROR_SIZE.x, MIRROR_SIZE.y, false)
-	var wood: Material = HomeDecor.atlas_material("jewel_pop")
-	frame.set_surface_override_material(0, wood)
-	frame.position.y = 0.12 + MIRROR_SIZE.y / 2.0
-	frame.layers = MIRROR_LAYER
-	holder.add_child(frame)
-	# its feet: two chubby blocks it stands on, in the frame's wood
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for side in [-1.0, 1.0]:
-		HomeDecor._box(st, Vector3(side * (MIRROR_SIZE.x / 2.0 - 0.08), 0.07, 0.0), Vector3(0.16, 0.14, 0.42), Color(0, 0, 1, 0), HomeDecor.WOOD_CELL)
-	var feet := MeshInstance3D.new()
-	feet.mesh = st.commit()
-	feet.material_override = wood
-	feet.layers = MIRROR_LAYER
-	holder.add_child(feet)
-	# the glass (the frame's canvas, surface 1)
+	# the same standing mirror as the one in the hero's bedroom (standing_mirror.gd), its glass showing the room
 	_mirror_mat = ShaderMaterial.new()
 	_mirror_mat.shader = _glass_shader()
-	frame.set_surface_override_material(1, _mirror_mat)
+	var holder := StandingMirror.build(_mirror_mat)
+	holder.position = _turn.position + MIRROR_AT
+	StandingMirror.set_layers(holder, MIRROR_LAYER)
+	_vp.add_child(holder)
 	var rvp := SubViewport.new()
 	rvp.size = Vector2i(320, 640)
 	rvp.world_3d = _vp.find_world_3d()
 	rvp.msaa_3d = Viewport.MSAA_2X
-	rvp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# (only while the creator shows: hidden behind the loading swirl, it would draw the room every frame for nobody)
+	rvp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if is_visible_in_tree() else SubViewport.UPDATE_DISABLED
+	_mirror_vp = rvp
 	holder.add_child(rvp)
 	_mirror_cam = Camera3D.new()
 	_mirror_cam.cull_mask = 0xFFFFF & ~MIRROR_LAYER | MIRROR_ONLY
@@ -885,7 +933,7 @@ func _aim_mirror() -> void:
 	var face := to_cam + to_hero
 	holder.rotation.y = atan2(face.x, face.z)
 	var n := holder.global_basis.z.normalized()
-	var mid := holder.global_position + Vector3(0, 0.12 + MIRROR_SIZE.y / 2.0, 0)
+	var mid := holder.global_position + Vector3(0, StandingMirror.LIFT + MIRROR_SIZE.y / 2.0, 0)
 	var dist := (cam_at - mid).dot(n)
 	var refl_at := cam_at - n * 2.0 * dist
 	_mirror_cam.global_transform = Transform3D(Basis.looking_at(mid - refl_at, Vector3.UP), refl_at)

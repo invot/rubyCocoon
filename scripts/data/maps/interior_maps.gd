@@ -31,7 +31,8 @@ extends RefCounted
 ##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table,
 ##   N nightstand, Q dresser, E desk, F storage (a big chest of drawers over two tiles), m mop and bucket, l floor lamp, O and X plain floor (the
 ##   coat stand, retired 2026-11-15 as too thin, and the open boxes, removed 2026-11-16),
-##   z bin, J bunk bed, & low book display, ^ hay bales, ( low cupboard, ) pouf, [ basket of blankets. TVs (V) belong on the implied fourth wall in stage rooms.
+##   z bin, J bunk bed, & low book display, ^ hay bales, ( low cupboard, ) pouf, [ basket of blankets,
+##   } the hero's standing mirror (against a back wall; looking in it changes clothes). TVs (V) belong on the implied fourth wall in stage rooms.
 ##   A run of the same letter is one piece (two b's are a bed, a block of four a double bed).
 ##   "zones": the kind of room each tile is in, one letter per tile like the rows (see room_builder.gd ZONES):
 ##   l living room, b bedroom, k kitchen, a bathroom, h hall, s shop floor, o back room, f office, g grand hall,
@@ -46,7 +47,7 @@ const FURNITURE := {
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
 	"N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "m": "mop",
 	"&": "book_display", "l": "floor_lamp", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
-	"(": "cabinet", ")": "pouf", "[": "basket",
+	"(": "cabinet", ")": "pouf", "[": "basket", "}": "mirror",
 }
 
 const ROOMS := {
@@ -528,12 +529,14 @@ const ROOMS := {
 	## Your bedroom, where you wake up (wake). Your bed is the one in this room.
 	## (2026-11-15) The rocket print over the bed, the desk under the window with its chair beside it, a closet in the
 	## back wall where the wardrobe was, and only low things at the front.
+	## (2026-11-17) The standing mirror from the character creator (}) in the nook between the nightstand and the desk,
+	## off the way from the bed to the door: look in it to change clothes.
 	"home_bed": {
 		"wall": "#f0e0c0", "rug": "#c05050", "stage": true, "zone": "bedroom", "wake": [3, 2], "doors": {"!": "home_hall"},
 		"scheme": "mint_cherry", "closets": [[8, 0, 2]],
 		"rows": [
 			"#####w#####",
-			"#NbN.Ec...#",
+			"#NbN}Ec...#",
 			"#.b.......#",
 			"#Q........!",
 			"#...rrr)..#",

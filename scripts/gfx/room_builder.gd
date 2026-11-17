@@ -73,6 +73,9 @@ const ZONE_CHARS := {"l": "living", "b": "bedroom", "k": "kitchen", "a": "bathro
 ## top = small things that may stand on it.
 const KINDS := {
 	"fireplace": {"m": [], "long": true},
+	# the hero's standing mirror (standing_mirror.gd), built rather than a pack piece: against a back wall, taller than
+	# the waist; looking in it opens the wardrobe (Places.prop)
+	"mirror": {"m": []},
 	"hot_tub": {"m": []}, "hot_tub_sign": {"m": []}, "ice_maker": {"m": []}, "plant_table": {"m": []},
 	"luggage": {"m": []},
 	"counter_gate": {"m": [], "free": true},
@@ -445,6 +448,30 @@ var _placed_tops := {}
 
 ## Builds everything into `p`. extra: textures by name to use instead of the pack's ("checker").
 static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounted:
+	var rb = _begin(m, p, seed, extra)
+	if rb._special():
+		return rb
+	for step: Callable in rb._build_steps():
+		step.call()
+	rb._finish_meshes()
+	return rb
+
+
+## The same room, built a step at a time: `checkpoint` (a coroutine, the world's _build_checkpoint) is awaited between
+## steps, so a film set's room can go up behind the swirl without stopping it turning. The steps and their order are
+## build()'s, so the room comes out the same.
+static func build_sliced(m: Dictionary, p: Node3D, seed: int, extra: Dictionary, checkpoint: Callable) -> RefCounted:
+	var rb = _begin(m, p, seed, extra)
+	if rb._special():
+		return rb
+	for step: Callable in rb._build_steps():
+		step.call()
+		await checkpoint.call()
+	rb._finish_meshes()
+	return rb
+
+
+static func _begin(m: Dictionary, p: Node3D, seed: int, extra: Dictionary) -> RefCounted:
 	var rb = load("res://scripts/gfx/room_builder.gd").new()
 	rb.map = m
 	rb.parent = p
@@ -473,60 +500,67 @@ static func build(m: Dictionary, p: Node3D, seed: int, extra := {}) -> RefCounte
 	if rb.blocks:
 		# (the template's own stone, as it is outside)
 		rb.stone = Color(str(room.get("wall", "#b9b5ad")))
+	return rb
+
+
+## The rooms that build themselves another way (a round chamber, an open deck, a cavern): built here, and true.
+func _special() -> bool:
+	var room: Dictionary = map.get("room", {})
 	if room.has("round"):
 		# a round chamber builds itself (round_chamber.gd): only its doorways' stone portals here, in its round wall
-		for e: Vector2i in m.get("exits", {}):
-			rb._portal(e.x, e.y, e.y == 0 or e.y == rb.h - 1)
-		for y in rb._row_meshers:
+		for e: Vector2i in map.get("exits", {}):
+			_portal(e.x, e.y, e.y == 0 or e.y == h - 1)
+		for y in _row_meshers:
 			var rmi := MeshInstance3D.new()
-			rmi.mesh = (rb._row_meshers[y] as Mesher).mesh()
-			(rb.rows[y] as Node3D).add_child(rmi)
-		return rb
+			rmi.mesh = (_row_meshers[y] as Mesher).mesh()
+			(rows[y] as Node3D).add_child(rmi)
+		return true
 	if room.get("open", false):
 		# Open decks keep their existing floor and railings; only add the shared stairwell.
-		rb._stairs()
+		_stairs()
 		var stairs := MeshInstance3D.new()
-		stairs.mesh = rb.floor_mesher.mesh()
-		p.add_child(stairs)
-		return rb
+		stairs.mesh = floor_mesher.mesh()
+		parent.add_child(stairs)
+		return true
 	if room.get("cavern", false):
-		rb._cavern()
-		return rb
-	rb._floors()
-	rb._levels()
-	rb._daises()
-	rb._stairs()
-	rb._plan_cubbies()
-	rb._window_boxes()
-	rb._walls()
-	rb._furniture()
-	rb._rugs()
-	rb._stalls()
-	rb._counters()
+		_cavern()
+		return true
+	return false
+
+
+## An ordinary room's steps, in order.
+func _build_steps() -> Array[Callable]:
+	var room: Dictionary = map.get("room", {})
+	var out: Array[Callable] = [_floors, _levels, _daises, _stairs, _plan_cubbies, _window_boxes, _walls, _furniture, _rugs,
+		_stalls, _counters]
 	if room.get("art_walls", false):
-		rb._art_walls()
-	elif rb.parlour:
-		rb._parlour_decor()
+		out.append(_art_walls)
+	elif parlour:
+		out.append(_parlour_decor)
 	else:
-		rb._wall_decor()
-	if rb.mission:
-		rb._mission_decor()
-	if rb.adobe:
-		rb._adobe_decor()
-	if rb.ancient:
-		rb._pilasters()
-	rb._hotel_details()
-	rb._lights()
+		out.append(_wall_decor)
+	if mission:
+		out.append(_mission_decor)
+	if adobe:
+		out.append(_adobe_decor)
+	if ancient:
+		out.append(_pilasters)
+	out.append(_hotel_details)
+	out.append(_lights)
 	if room.has("wood"):
-		rb._one_wood(p)
+		out.append(_one_wood.bind(parent))
+	return out
+
+
+## The floor and each row's walls, made into meshes once every step has added to them.
+func _finish_meshes() -> void:
 	var fm := MeshInstance3D.new()
-	fm.mesh = rb.floor_mesher.mesh()
-	p.add_child(fm)
-	for y in rb._row_meshers:
+	fm.mesh = floor_mesher.mesh()
+	parent.add_child(fm)
+	for y in _row_meshers:
 		var mi := MeshInstance3D.new()
-		mi.mesh = (rb._row_meshers[y] as Mesher).mesh()
-		(rb.rows[y] as Node3D).add_child(mi)
-	return rb
+		mi.mesh = (_row_meshers[y] as Mesher).mesh()
+		(rows[y] as Node3D).add_child(mi)
 
 
 # ---------------------------------------------------------------- fading furniture
@@ -2739,6 +2773,22 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 
 
 ## Fixed-size hearth, its rear plane on the room-side face of the wall. Never stretch it.
+## The hero's standing mirror on its tile, its feet against the wall behind it, facing into the room.
+func _standing_mirror(group: Array) -> void:
+	var layout := furniture_layout(map, "mirror", group)
+	var lo: Vector2i = layout["lo"]
+	var back: Vector2i = layout["back"]
+	if not layout["against"]:
+		push_warning("A standing mirror needs a wall behind it: %s %s" % [map.get("room_key", ""), lo])
+		back = Vector2i(0, -1)
+	var mirror := StandingMirror.build(StandingMirror.silvered())
+	var center := Vector3(lo.x + 0.5, dais_at(map, lo), lo.y + 0.5)
+	var b3 := Vector3(back.x, 0, back.y)
+	mirror.position = center + b3 * (0.5 - T / 2.0) - b3 * (StandingMirror.FOOT_DEPTH / 2.0 + 0.02)
+	mirror.rotation.y = atan2(-float(back.x), -float(back.y))
+	parent.add_child(mirror)
+
+
 func _fireplace(group: Array) -> void:
 	var layout := furniture_layout(map, "fireplace", group)
 	var lo: Vector2i = layout["lo"]
@@ -2769,6 +2819,9 @@ func _fireplace(group: Array) -> void:
 func _place(kind: String, group: Array) -> void:
 	if kind == "fireplace":
 		_fireplace(group)
+		return
+	if kind == "mirror":
+		_standing_mirror(group)
 		return
 	if kind == "counter_gate":
 		_counter_gate(group)
@@ -3351,7 +3404,7 @@ func _wall_decor() -> void:
 				var c := code(r.x, r.y)
 				if c in [MapGen.SHELF, MapGen.BOOKSHELF, MapGen.BOARD, MapGen.TERMINAL, MapGen.HEALER, MapGen.FIREPLACE, MapGen.COUNTER,
 						MapGen.STAIRS_UP, MapGen.STAIRS_DOWN] \
-						or front_kind in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "coat_stand", "bunk"]:
+						or front_kind in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "coat_stand", "bunk", "mirror"]:
 					continue
 				# never two things side by side, nor over a window's curtains
 				if hung.has(Vector2i(x, y) + along) or hung.has(Vector2i(x, y) - along) or _by_window.has(Vector2i(x, y)):
@@ -3652,6 +3705,7 @@ const SHELF_T := 0.09
 ## at the steps. People on it sit on floor cushions (map_loader.gd).
 const DAIS_H := 0.3
 const HomeDecor = preload("res://scripts/gfx/home_decor.gd")
+const StandingMirror = preload("res://scripts/gfx/standing_mirror.gd")
 
 var home := false
 var scheme := HomeDecor.DEFAULT_SCHEME
@@ -5132,7 +5186,7 @@ func _home_wall_decor() -> void:
 				var c := code(t.x, t.y)
 				if c in [MapGen.SHELF, MapGen.BOOKSHELF, MapGen.BOARD, MapGen.TERMINAL, MapGen.FIREPLACE, MapGen.COUNTER, MapGen.STAIRS_UP,
 						MapGen.STAIRS_DOWN] or front_kind in ["fridge", "wardrobe", "pantry", "storage", "bookshelf", "shelf", "bunk",
-						"floor_lamp", "plant"]:
+						"floor_lamp", "plant", "mirror"]:
 					continue
 				var got: Node3D = null
 				var roll := r.randf()

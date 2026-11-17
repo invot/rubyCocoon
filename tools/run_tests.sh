@@ -63,6 +63,8 @@ TESTS=(
 	"transitions|-- --scene=transitions --passes=1 --save_dir=res://build/transition_test_saves/|TRANSITIONS DONE: 0 problem"
 	"hero-maker|-- --scene=creator --save_dir=res://build/creator_test_saves/|HERO MAKER DONE: 0 problem"
 	"hero-maker-touch|-- --scene=creator --touch --save_dir=res://build/creator_touch_test_saves/|HERO MAKER DONE: 0 problem"
+	"wardrobe|-- --scene=wardrobe --save_dir=res://build/wardrobe_test_saves/|WARDROBE DONE: 0 problem"
+	"wardrobe-touch|-- --scene=wardrobe --touch --save_dir=res://build/wardrobe_touch_saves/|WARDROBE DONE: 0 problem"
 	"character-easter-eggs|--script res://tools/check_character_easter_eggs.gd|CHARACTER EASTER EGGS DONE: 0 problem"
 	"name-easter-eggs|-- --scene=name-easter-eggs --save_dir=res://build/name_easter_eggs/saves/|NAME EASTER EGGS DONE: 0 problem"
 	"name-easter-eggs-touch|--resolution 2400x1080 -- --scene=name-easter-eggs --touch --save_dir=res://build/name_easter_eggs_touch/saves/|NAME EASTER EGGS DONE: 0 problem"

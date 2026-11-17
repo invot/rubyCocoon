@@ -75,6 +75,8 @@ var demo := false
 ## A bare set (the character creator's bedroom): the room alone, with no people, story objects (the journal and its
 ## marker) or pickups in it.
 var bare := false
+## Furniture kinds a set leaves out of its room (the character creator's own mirror stands in for the bedroom's).
+var set_without: Array = []
 var interior := false
 
 var player: Node3D
@@ -215,6 +217,12 @@ func build(id: String, cooperative := false) -> void:
 	if bare:
 		map["npcs"] = []
 		map["items"] = []
+	if not set_without.is_empty():
+		var furniture: Dictionary = map.get("furniture", {})
+		for t in furniture.keys():
+			if furniture[t] in set_without:
+				furniture.erase(t)
+				MapGen.set_t(map, t.x, t.y, MapGen.IFLOOR)
 	else:
 		for n in Story.extra_npcs(map):
 			map["npcs"].append(n)
@@ -226,7 +234,7 @@ func build(id: String, cooperative := false) -> void:
 				n["look"]["glasses"] = false
 				n["look"].erase("hat")
 	if interior:
-		_build_room()
+		await _build_room()
 		refresh_kennel()
 	else:
 		# Fingerprint the fresh story-adjusted layout and door paint. Unrelated
@@ -3038,6 +3046,18 @@ func _build_player() -> void:
 	_player_grace_material.shader = PLAYER_GRACE_SHADER
 	add_child(player)
 	_player_shadow = _ground_shadow(player, PERSON_SHADOW)
+	_update_wild_grace(0.0)
+
+
+## New clothes from the bedroom mirror (Places.prop): the hero dressed again where they stand.
+func redress_player() -> void:
+	if player == null:
+		return
+	VPer.dress(player, GameState.hero_look())
+	_player_meshes = player.find_children("*", "MeshInstance3D", true, false)
+	_player_material = (_player_meshes[0] as MeshInstance3D).material_override
+	_player_grace_material = _player_material.duplicate()
+	_player_grace_material.shader = PLAYER_GRACE_SHADER
 	_update_wild_grace(0.0)
 
 
@@ -5899,7 +5919,11 @@ func _build_room() -> void:
 	# floors, walls, doors, windows, furniture and a light per room (an open-air roof keeps its deck and railings)
 	room_walls = null
 	if not open_air or RoomBuilder.has_flights(map):
-		room_walls = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
+		if _cooperative_build:
+			# (a step at a time: a film set's room goes up behind the creator's swirl without stopping it turning)
+			room_walls = await RoomBuilder.build_sliced(map, self, int(b["seed"]), {"checker": _checker_tex()}, _build_checkpoint)
+		else:
+			room_walls = RoomBuilder.build(map, self, int(b["seed"]), {"checker": _checker_tex()})
 	if key == "ceo_4":
 		var company_sign := CompanyBrand.sign_node(4.2)
 		company_sign.position = Vector3(7.5, 1.8, 0.63)

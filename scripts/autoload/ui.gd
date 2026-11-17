@@ -321,24 +321,31 @@ func make_hero():
 		await get_tree().process_frame
 		return {"name": "Andrew", "look": {}}
 	_creator_loading = true
-	await enter_swirl()
+	# The swirl winds in while the creator and its bedroom start loading behind it, rather than after it.
+	var swirl := {"in": false}
+	var wind_in := func() -> void:
+		await enter_swirl()
+		swirl["in"] = true
+	wind_in.call()
+	var script: GDScript = await GameState.main.wait_for_script("res://scripts/ui/hero_maker.gd")
+	var m: Control = script.new()
+	# Keep the creator inactive, and out of sight behind the swirl's see-through first arms, until its room is ready
+	# and the loading cover has cleared.
+	m.process_mode = Node.PROCESS_MODE_DISABLED
+	m.visible = false
+	push(m)
+	while not swirl["in"]:
+		await get_tree().process_frame
 	var cover := swirl_cover()
 	root.add_child(cover)
-	cover.set_progress(0.1)
-	await get_tree().process_frame
-	var script: GDScript = await GameState.main.wait_for_script("res://scripts/ui/hero_maker.gd")
 	cover.set_progress(0.4)
-	await get_tree().process_frame
-	var m: Control = script.new()
-	# Keep the creator inactive until its room is ready and the loading cover has cleared.
-	m.process_mode = Node.PROCESS_MODE_DISABLED
-	push(m)
 	# (a creator taken away before its room was built must not leave the swirl turning for ever)
 	while is_instance_valid(m) and not m.scene_loaded:
 		await get_tree().process_frame
-	# Wake it under the swirl so it has laid out its rows and framed its camera before the swirl winds out to show it
-	# (input stays held back until the swirl has gone).
+	# Show it and wake it under the swirl, so it has laid out its rows and framed its camera before the swirl winds out to
+	# show it (input stays held back until the swirl has gone).
 	if is_instance_valid(m):
+		m.visible = true
 		m.process_mode = Node.PROCESS_MODE_INHERIT
 	cover.set_progress(1.0)
 	await get_tree().process_frame
@@ -348,6 +355,52 @@ func make_hero():
 	if not is_instance_valid(m):
 		return null
 	return await m.done
+
+
+## The bedroom mirror: the creator's clothes tabs over its own copy of the room, starting from what the hero wears.
+## Puts the new clothes on (GameState.set_outfit) unless backed out of, and says whether it did. The screen goes dark
+## on the way in and is left dark on the way out, for the caller to dress the hero again before it lights.
+func change_outfit() -> bool:
+	if auto:
+		await get_tree().process_frame
+		return false
+	_creator_loading = true
+	await fade_out(0.25)
+	# (short notices, such as the room's name from walking in, wait until you step away: they'd cover the tabs)
+	var bar_was_visible := top_bar.visible
+	top_bar.hide()
+	top_bar.set_process(false)
+	var world_view: SubViewport = GameState.main.view if GameState.main != null else null
+	var previous := SubViewport.UPDATE_ALWAYS
+	if is_instance_valid(world_view):
+		previous = world_view.render_target_update_mode
+		world_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	var script: GDScript = await GameState.main.wait_for_script("res://scripts/ui/hero_maker.gd")
+	var m: Control = script.new()
+	m.wardrobe(GameState.hero)
+	m.process_mode = Node.PROCESS_MODE_DISABLED
+	push(m)
+	while is_instance_valid(m) and not m.scene_loaded:
+		await get_tree().process_frame
+	var got = null
+	if is_instance_valid(m):
+		m.process_mode = Node.PROCESS_MODE_INHERIT
+		await get_tree().process_frame
+		await get_tree().process_frame
+		await fade_in(0.25)
+		_creator_loading = false
+		got = await m.done
+	_creator_loading = false
+	# (it went dark before closing, so the room comes back as it is lit again)
+	await fade_out(0.0)
+	top_bar.visible = bar_was_visible
+	top_bar.set_process(true)
+	if is_instance_valid(world_view):
+		world_view.render_target_update_mode = previous
+	if typeof(got) == TYPE_DICTIONARY and got.has("look"):
+		GameState.set_outfit(got["look"])
+		return true
+	return false
 
 
 ## The swirl that takes you into the game (New Game's character creator, Continue and Load Game): ruby, sapphire and

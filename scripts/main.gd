@@ -260,8 +260,9 @@ func _opening(at := 0.0, hold := false) -> Node3D:
 
 ## A map built as a film set (the prologue's spring scenes): the real place, with nobody playing in it. The film
 ## drives its camera and decides who stands where; the world only keeps its water and scenery moving.
-## bare: the room alone, nobody and nothing to pick up in it (the character creator's bedroom: see world.gd bare).
-func build_set(id: String, parent: Node, bare := false) -> Node3D:
+## bare: the room alone, nobody and nothing to pick up in it (the character creator's bedroom: see world.gd bare);
+## without: furniture kinds left out of it (the creator stands its own mirror where it wants it).
+func build_set(id: String, parent: Node, bare := false, without: Array = []) -> Node3D:
 	for sh in THREAD_SHY:
 		load(sh)
 	var script := await wait_for_script(WORLD_PATH)
@@ -269,6 +270,9 @@ func build_set(id: String, parent: Node, bare := false) -> Node3D:
 	set_world.demo = true
 	set_world.cam_free = true
 	set_world.bare = bare
+	set_world.set_without = without
+	# (a set goes up behind a swirl or a film that keeps moving: it gives way after each step of its room, not 50 ms)
+	set_world._build_slice_us = 8000
 	parent.add_child(set_world)
 	await set_world.build(id, true)
 	set_world.set_process(true)
@@ -952,6 +956,11 @@ func _run_test() -> void:
 	if scene == "growth":
 		await load("res://tools/debug/beast_growth.gd").new().run(self, _test)
 		get_tree().quit()
+		return
+	if scene == "wardrobe":
+		await load("res://tools/debug/wardrobe_mirror.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
 		return
 	if scene == "creator":
 		await load("res://tools/debug/hero_maker.gd").new().run(self, _test)
@@ -2441,6 +2450,8 @@ func _run_test() -> void:
 		while UI.stack.is_empty():
 			await get_tree().process_frame
 		await _wait(0.2)
+		# --idle=<s>: sit at the menu first, as a player would, while the title loads scripts in the background
+		await _wait(float(_test.get("idle", "0")))
 		await _test_keys()
 		# --burst=build/shots/x/f: a numbered shot every --burst_every seconds (0.25) through the wait, to watch the
 		# swirl into the creator or a loaded journey

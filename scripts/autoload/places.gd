@@ -1455,6 +1455,16 @@ const FURNITURE_LINES := {
 }
 
 
+## The standing mirror in the hero's bedroom: change clothes (hero_maker.gd wardrobe), then back in the room wearing
+## them.
+func wardrobe_mirror(world) -> void:
+	var changed: bool = await UI.change_outfit()
+	if changed and world != null and world.has_method("redress_player"):
+		world.redress_player()
+	if not UI.auto:
+		await UI.fade_in(0.25)
+
+
 ## "a Pyrosaur", "an Embit", "an earth beast".
 static func _a(word: String) -> String:
 	return ("an " if word.left(1).to_lower() in ["a", "e", "i", "o", "u"] else "a ") + word
@@ -1464,6 +1474,9 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 	var b: Dictionary = map.get("building", {})
 	var town: String = b.get("town", GameState.map_id)
 	var furniture: String = map.get("furniture", {}).get(t, "")
+	if furniture == "mirror":
+		await wardrobe_mirror(world)
+		return
 	if furniture == "hot_tub_sign":
 		await Story.say(["THE THERMAL SANCTUARY. A curated mineral spring, drawn from far beneath the earth and warmed to an exquisitely precise temperature.",
 			"Here, discerning beasts surrender their fatigue. A single languid soak fully restores HP and MP. Kindly refrain from splashing."])
