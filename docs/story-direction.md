@@ -17,6 +17,12 @@ The scientist is staunchly opposed to Gearheart killing the protagonist. When Ge
 
 At the end of the scientist's arc, Marlyse asks him to accept her death and recognize that everyone will die someday. The emotional resolution requires him to accept her wishes rather than keep deciding for her.
 
+### The mothers meet, and Mom fights back
+
+At some point, the player's mother and Marlyse meet and get along very well. They are distinct characters who develop a warm friendship. The exact circumstances and placement of their meeting remain to be decided.
+
+At another point in the story, the player's mother puts on a hockey shirt, picks up a hockey stick, and beats up some goons. This is an established comic action beat; its location, trigger, and the goons' affiliation remain open.
+
 ### Gearheart's arrogance and the spirit-energy catastrophe
 
 Gearheart extracts extraordinary quantities of spirit energy by running the machines far beyond their design limits. His apparent industrial success depends on equipment already in critical condition.
@@ -91,7 +97,7 @@ Reviewed against README.md, scripts/autoload/story.gd, and scripts/story/opening
 | Gearhart is beaten at his tower before the final Vexmora encounter. The victory opens Caldera Road and enables the captive rescue. | Preserve the meaningful rescue and route progression while explaining Gearheart's return for the shutdown crisis and later confrontation at the mother's home. |
 | The current finale is a Vexmora battle followed by the Legion's defeat and release of ghosts. | Add the machinery crisis, attempted killing and intervention, Marlyse's resolution, and the brothers' ending. Determine their order before revising completion flags. |
 | The player chooses a name, and Mom appears at home and provides ongoing phone advice. | Decide whether Jared becomes a fixed protagonist name, a default/example name, or a personal name used in this particular story draft. Define why the older brother is absent and why the family connection is revealed late. |
-| Marlyse and the brothers' shared mother have not been established in these reviewed story sources. | Keep their identities unresolved. Do not silently make Marlyse the mother of all three men or merge the scientist with either brother. |
+| Marlyse and the brothers' shared mother have not been established in these reviewed story sources. | Marlyse and the player's mother are distinct characters who meet and get along very well. Establish their friendship without merging the scientist with either brother. |
 | Ghost companions remain playable after the ending. | Liberation from coercion should remain compatible with willing ghost companions. Marlyse's choice need not establish that every ghost must disappear. |
 
 ## Decisions still needed before implementation
@@ -99,7 +105,7 @@ Reviewed against README.md, scripts/autoload/story.gd, and scripts/story/opening
 1. Confirm Gearheart/Gearhart spelling and Matt/Magnus naming.
 2. Confirm whether the scientist is Vexmora and whether his General title and the Legion remain.
 3. Define Jared's relationship to player naming and the protagonist's established family.
-4. Define Marlyse's relationship, if any, to Matt and Jared's mother.
+4. Place Marlyse's meeting and friendship with the player's mother, and decide where Mom's hockey-shirt-and-stick fight with the goons occurs.
 5. Establish the cause of the brothers' estrangement and the timing of the reveal.
 6. Define spirit-energy extraction, its effects on captives, and the island network's failure mechanism.
 7. Order the attempted killing, scientist's intervention, shutdown, Marlyse's farewell, and home confrontation.
