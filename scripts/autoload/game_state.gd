@@ -34,7 +34,8 @@ const WILD_BATTLE_GRACE := 3.0
 var main: Node = null
 
 var player_name := "Andrew"
-## The hero as the character creator made them: "body" ("male" or "female"), "person" (one of townfolk.gd
+## The hero as the character creator made them: "gender" ("male", "female" or "non_binary", they/them),
+## "body" ("male" or "female", independent of gender), "person" (one of townfolk.gd
 ## HERO_OUTFITS: an older save's whole outfit), what they wear from the wardrobe (wardrobe_db.gd: "shirt_style",
 ## "pants_style", "shoes_style", "hat_style" and "glasses_style", -1 for none), "hairdo" (one of HAIRDOS), and the
 ## colours of their "skin", "top", "trousers", "shoes", "hat", "glasses_colour", "hair", "eyes" and "pack_colour"
@@ -161,21 +162,31 @@ func _bind(action: String, keys: Array, pads := []) -> void:
 
 # ---------------------------------------------------------------- new game
 ## How the hero is drawn (see voxel_person.gd).
-## Heroes drawn a little shorter than the rest, by name (one of the character creator's names): how tall, against 1.
-const SHORT_HEROES := {"Andrew": 0.93}
+## Heroes drawn bigger or smaller by name: size relative to the usual 1.0.
+const HERO_SCALES := {"Andrew": 0.93, "Ben": 1.1}
 
 
 func hero_look() -> Dictionary:
 	var look := {"face": "hero"}
 	look.merge(hero)
-	if SHORT_HEROES.has(player_name):
-		look["scale"] = SHORT_HEROES[player_name]
+	if HERO_SCALES.has(player_name):
+		look["scale"] = HERO_SCALES[player_name]
 	return look
 
 
-## The word for the hero that depends on whether they're a he or a she: hero_word("nephew", "niece").
-func hero_word(male: String, female: String) -> String:
-	return female if hero.get("body", "male") == "female" else male
+## Old saves used the body to choose gender; explicit gender always takes precedence.
+func hero_gender() -> String:
+	return String(hero.get("gender", hero.get("body", "male")))
+
+
+## Gendered dialogue must supply a neutral alternative, including they/them for pronouns.
+func hero_word(male: String, female: String, neutral: String) -> String:
+	match hero_gender():
+		"male":
+			return male
+		"female":
+			return female
+	return neutral
 
 
 func new_game(pname: String, look := {}) -> void:

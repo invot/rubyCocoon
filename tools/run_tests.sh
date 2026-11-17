@@ -63,6 +63,8 @@ TESTS=(
 	"transitions|-- --scene=transitions --passes=1 --save_dir=res://build/transition_test_saves/|TRANSITIONS DONE: 0 problem"
 	"hero-maker|-- --scene=creator --save_dir=res://build/creator_test_saves/|HERO MAKER DONE: 0 problem"
 	"hero-maker-touch|-- --scene=creator --touch --save_dir=res://build/creator_touch_test_saves/|HERO MAKER DONE: 0 problem"
+	"name-easter-eggs|-- --scene=name-easter-eggs --save_dir=res://build/name_easter_eggs/saves/|NAME EASTER EGGS DONE: 0 problem"
+	"name-easter-eggs-touch|--resolution 2400x1080 -- --scene=name-easter-eggs --touch --save_dir=res://build/name_easter_eggs_touch/saves/|NAME EASTER EGGS DONE: 0 problem"
 	"house-measurements|--script res://tools/bake_house_measurements.gd -- --verify|HOUSE MEASUREMENTS DONE: 0 problem"
 	"battle-visuals|--script res://tools/check_battle_visuals.gd|BATTLE VISUALS DONE: 0 problem"
 	"battle-stage|-- --scene=battle-stage --setting=coast --save_dir=res://build/battle_stage_saves/|BATTLE STAGE DONE: 0 problem"

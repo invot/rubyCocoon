@@ -223,12 +223,25 @@ main camera's reflection would stand, its picture projected back onto the glass;
 up for the mirror alone, so it shows the hero's back against wallpaper. Drag the hero to turn them round; the camera
 keeps the hero and the mirror in the room left of the menu, easing in a little on the part each tab dresses (the
 head for Hair and Face, the chest for Torso, the legs and feet for Legs; the whole hero for Self). The menu on the right has five tabs that together span
-its window, with a gap above it: **Self** (name, body, skin), **Hair** (hair and hat), **Face** (eyes and glasses),
+its window, with a gap above it: **Self** (name, gender, body, skin), **Hair** (hair and hat), **Face** (eyes and glasses),
 **Torso** (shirt and pack) and **Legs** (pants and shoes). Everything with a type and a color has a small bold
 header with a line under it, then a **Type** row and a **Color** row (Hair: Type, Color; Hat: Type, Color). No tab has
 more than four rows, so nothing scrolls. Rows are laid out like Settings': the name on the
 left and the value on the right between soft arrows. Pieces come from the wardrobe (`scripts/data/wardrobe_db.gd`:
 shirts, pants and shoes for each body, cut from the townfolk kit's people; hats and glasses, or None, for either).
+Gender is independent of body: **Male**, **Female** or **Non-Binary**. Non-Binary characters use **they/them**
+and neutral terms in dialogue. Each gender has its own name choices, including **Tra** for Female and **Moss**,
+Rowan, River, Sage, Ash, Quinn, Avery, Robin, Ember and Sky for Non-Binary. Names are remembered when switching
+gender; body changes keep the chosen gender and name. **Ben** is 10% taller than the usual hero in both the
+creator preview and play (Andrew keeps his existing smaller scale).
+Two names also hide battle easter eggs. **Moss** has a 10% chance each round to gather sparkles, charging the next
+trainer weapon attack: its first target is knocked out instantly if it is an ordinary beast, even through Defend,
+shields or Sturdy. The charge lasts until that weapon use and does not stack; other actions keep it. Boss and GIANT
+encounters, guardians, legendary beasts, robots and trainers take normal damage. **Tra** can unsettle attacking
+foes (15% per beast's turn): a beast above the level of your strongest conscious beast defends instead, while a
+lower-level beast with a trainer may attack its own trainer, using the normal shield/battle-ending rules. Equal-level
+foes, support moves and wild beasts without a trainer cannot turn on a trainer. Neither easter egg affects guided
+lessons or Codex simulations, and neither carries a charge between battles.
 Each color is a row of its own showing a swatch and the color's name; A or a tap on it opens a grid of big colors
 over the menu: the arrows move through it, dyeing the hero as you go; A (or a second tap) keeps the color and B puts
 the old one back, as the small "Confirm" and "Cancel" buttons centred along the grid's bottom edge say, each behind its A or B
@@ -1713,9 +1726,14 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `title-startup` / `title-startup-touch`, plus `title-startup-gamepad`, `title-startup-mouse`,
   `title-startup-touch-a` and `title-startup-natural`: check the artwork crossfade, zoom and looping. Check one confirmation per press, the retained slideshow and title, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
-- `hero-maker` / `hero-maker-touch`: actual name/body navigation, the hair, hat, shirt, pants and shoes arrows, the
+- `hero-maker` / `hero-maker-touch`: actual name/gender/body navigation (Tra, Moss, independent appearance and
+  gender, legacy gender defaults and isolated save/load), Ben's 10% scale in preview and play, the hair, hat, shirt, pants and shoes arrows, the
   color rows' grids opened, picked and kept by tap, and cancellation. `--scene=creator --shots=res://build/shots/creator`
-  captures the Hair and Legs tabs.
+  captures Tra, Moss, Ben, and the Hair and Legs tabs.
+- `name-easter-eggs` / `name-easter-eggs-touch`: deterministic Moss/Tra proc and non-proc rolls, a real charged
+  weapon through Defend/shields/Sturdy/Vanish, boss/special exclusions, real fear and betrayal turns, trainer shields
+  and defeat, and tutorial/Codex protections. `--scene=name-easter-eggs --shots=res://build/shots/name_eggs`
+  captures the sparkles, knockout, frightened beast and betrayal.
 - `performance`: cold/repeated creator and beast timings, map loading frame gaps, a bounded building cache, and
   cached animation measurements. `--scene=stalls --report=res://build/performance.json` writes the timing report;
   optionally pass `--baseline=res://build/performance/baseline.json` to compare collision-grid hashes.

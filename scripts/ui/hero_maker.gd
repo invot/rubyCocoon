@@ -20,17 +20,20 @@ const MapLoader = preload("res://scripts/world/map_loader.gd")
 const HomeDecor = preload("res://scripts/gfx/home_decor.gd")
 const SoftArrow = preload("res://scripts/ui/soft_arrow.gd")
 
-## ten names for each body, the first the one it starts with
+## Names for each gender, the first the one it starts with; appearance is chosen independently.
 const NAMES := {
 	"male": ["Andrew", "Ben", "Fritzy", "Sam", "Leo", "Max", "Kai", "Finn", "Theo", "Jack"],
-	"female": ["Regan", "Tessa", "Christina", "Mia", "Lily", "Ava", "Nora", "Ivy", "Zoe", "Clara"],
+	"female": ["Regan", "Tessa", "Christina", "Tra", "Mia", "Lily", "Ava", "Nora", "Ivy", "Zoe", "Clara"],
+	"non_binary": ["Moss", "Rowan", "River", "Sage", "Ash", "Quinn", "Avery", "Robin", "Ember", "Sky"],
 }
+const GENDERS := ["male", "female", "non_binary"]
+const GENDER_NAMES := {"male": "Male", "female": "Female", "non_binary": "Non-Binary"}
 const BODIES := ["male", "female"]
 const BODY_NAMES := {"male": "Male", "female": "Female"}
 ## the tabs and the rows on each (at most four, so every tab fits without scrolling); "heads": a small header (bold
 ## capitals over a line) before a row, naming the thing its Type and Color rows below are for
 const TABS := [
-	{"name": "Self", "rows": ["name", "body", "skin"], "heads": {}, "look_at": "body"},
+	{"name": "Self", "rows": ["name", "gender", "body", "skin"], "heads": {}, "look_at": "body"},
 	{"name": "Hair", "rows": ["hairdo", "hair_color", "hat", "hat_color"], "heads": {"hairdo": "Hair", "hat": "Hat"},
 		"look_at": "head"},
 	{"name": "Face", "rows": ["eyes", "glasses", "glasses_color"], "heads": {"eyes": "Eyes", "glasses": "Glasses"},
@@ -45,7 +48,7 @@ const TABS := [
 const LOOK_AT := {"body": [0.6, 0.0], "head": [1.15, 0.3], "torso": [0.85, 0.2], "legs": [0.35, 0.2]}
 ## how fast the camera eases to a tab's part (a share of the way a second)
 const LOOK_EASE := 4.0
-const ROW_NAMES := {"name": "Name", "body": "Body", "skin": "Skin", "eyes": "Color", "hairdo": "Type",
+const ROW_NAMES := {"name": "Name", "gender": "Gender", "body": "Body", "skin": "Skin", "eyes": "Color", "hairdo": "Type",
 	"hair_color": "Color", "hat": "Type", "hat_color": "Color", "glasses": "Type", "glasses_color": "Color",
 	"shirt": "Type", "shirt_color": "Color", "pack": "Color", "pants": "Type", "pants_color": "Color", "shoes": "Type",
 	"shoes_color": "Color"}
@@ -94,12 +97,14 @@ const MIRROR_ONLY := 1 << 18
 const HERO_YAW := -0.4
 const DRAG_TURN := 0.012
 
-var pick := {"name": 0, "body": 0, "hairdo": Townfolk.HERO_HAIRDO["male"], "shirt": 0, "pants": 0, "shoes": 0,
+var pick := {"name": 0, "gender": 0, "body": 0, "hairdo": Townfolk.HERO_HAIRDO["male"], "shirt": 0, "pants": 0, "shoes": 0,
 	"hat": -1, "glasses": -1}
 ## the colors chosen, by the look's key
 var dye := {}
 ## what was last picked for each body, so switching back keeps it
 var _by_body := {}
+## The last name chosen for each gender.
+var _by_gender := {"male": 0, "female": 0, "non_binary": 0}
 ## the open tab, and the row being chosen on it: "tab" (the tab strip) or one of its rows
 var tab := 0
 var row := "name"
@@ -140,7 +145,7 @@ func _init() -> void:
 	dim = 0.0
 	for b in BODIES:
 		var start: Dictionary = Wardrobe.START[b]
-		_by_body[b] = {"name": 0, "hairdo": Townfolk.HERO_HAIRDO[b], "shirt": start["shirt_style"],
+		_by_body[b] = {"hairdo": Townfolk.HERO_HAIRDO[b], "shirt": start["shirt_style"],
 			"pants": start["pants_style"], "shoes": start["shoes_style"], "top": start["top"], "shoes_colour": start["shoes"]}
 	var s: Dictionary = Wardrobe.START["male"]
 	dye = {"skin": Wardrobe.SKIN[DEFAULT_SKIN], "hair": Wardrobe.HAIR[0], "eyes": Wardrobe.EYES[0],
@@ -442,10 +447,12 @@ func _change(id: String, d: int) -> void:
 			_open_tab(tab + d)
 		"body":
 			_choose_body(posmod(pick["body"] + d, BODIES.size()))
+		"gender":
+			_choose_gender(posmod(pick["gender"] + d, GENDERS.size()))
 		"name":
 			pick["name"] = posmod(pick["name"] + d, _names().size())
 			Sfx.play("blip")
-			# (some names are a little shorter: see GameState.SHORT_HEROES)
+			# (some names change the hero's size: see GameState.HERO_SCALES)
 			_dress()
 		_:
 			if COLORS.has(id):
@@ -488,7 +495,20 @@ func _choose(id: String, i: int) -> void:
 	_dress()
 
 
-## Picks the body: the name, hairdo and clothes go to what was last picked for it (to begin with, its own).
+## Picks gender and restores its name, keeping the chosen appearance.
+func _choose_gender(i: int) -> void:
+	_reveal("gender")
+	_go("gender", false)
+	if pick["gender"] == i:
+		return
+	Sfx.play("blip")
+	_by_gender[_gender()] = pick["name"]
+	pick["gender"] = i
+	pick["name"] = _by_gender[_gender()]
+	_dress()
+
+
+## Picks the body: the hairdo and clothes go to what was last picked for it (to begin with, its own).
 func _choose_body(i: int) -> void:
 	_reveal("body")
 	_go("body", false)
@@ -498,13 +518,13 @@ func _choose_body(i: int) -> void:
 	var was := _body()
 	var now: String = BODIES[i]
 	var mem: Dictionary = _by_body[was]
-	for k in ["name", "hairdo", "shirt", "pants", "shoes"]:
+	for k in ["hairdo", "shirt", "pants", "shoes"]:
 		mem[k] = pick[k]
 	mem["top"] = dye["top"]
 	mem["shoes_colour"] = dye["shoes"]
 	pick["body"] = i
 	var back: Dictionary = _by_body[now]
-	for k in ["name", "hairdo", "shirt", "pants", "shoes"]:
+	for k in ["hairdo", "shirt", "pants", "shoes"]:
 		pick[k] = back[k]
 	# a top left in the last body's own color takes this one's; one chosen stays
 	if dye["top"] == Wardrobe.START[was]["top"]:
@@ -555,7 +575,7 @@ func _open_colors(id: String) -> void:
 
 ## The look chosen so far (see GameState.hero).
 func look() -> Dictionary:
-	var out := {"body": _body(), "person": Townfolk.HERO_OUTFITS[_body()][0], "hairdo": pick["hairdo"],
+	var out := {"gender": _gender(), "body": _body(), "person": Townfolk.HERO_OUTFITS[_body()][0], "hairdo": pick["hairdo"],
 		"shirt_style": pick["shirt"], "pants_style": pick["pants"], "shoes_style": pick["shoes"],
 		"hat_style": pick["hat"], "glasses_style": pick["glasses"]}
 	out.merge(dye)
@@ -566,14 +586,18 @@ func _body() -> String:
 	return BODIES[pick["body"]]
 
 
+func _gender() -> String:
+	return GENDERS[pick["gender"]]
+
+
 func _finish() -> void:
 	Sfx.play("confirm")
 	close({"name": _names()[pick["name"]], "look": look()})
 
 
-## The names the chosen body picks from.
+## The names the chosen gender picks from.
 func _names() -> Array:
-	return NAMES[_body()]
+	return NAMES[_gender()]
 
 
 # ---------------------------------------------------------------- showing
@@ -584,6 +608,8 @@ func _value_text(id: String) -> String:
 			return _names()[pick["name"]]
 		"body":
 			return BODY_NAMES[_body()]
+		"gender":
+			return GENDER_NAMES[_gender()]
 	if COLORS.has(id):
 		if not _dyeable(id):
 			return "None"
@@ -874,8 +900,8 @@ func _hero_look() -> Dictionary:
 	var l := {"face": "hero"}
 	l.merge(look())
 	var nm: String = _names()[pick["name"]]
-	if GameState.SHORT_HEROES.has(nm):
-		l["scale"] = GameState.SHORT_HEROES[nm]
+	if GameState.HERO_SCALES.has(nm):
+		l["scale"] = GameState.HERO_SCALES[nm]
 	return l
 
 

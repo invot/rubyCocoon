@@ -941,6 +941,10 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
+	if scene == "name-easter-eggs":
+		await load("res://tools/debug/name_easter_eggs.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "stalls":
 		await load("res://tools/debug/performance.gd").new().run(self, _test)
 		get_tree().quit()
@@ -2362,6 +2366,8 @@ func _run_test() -> void:
 					m._open_tab(int(kv.get_slice(":", 1)), false)
 				"body":
 					m._choose_body(int(kv.get_slice(":", 1)))
+				"gender":
+					m._choose_gender(int(kv.get_slice(":", 1)))
 				"dye":
 					m._set_dye(kv.get_slice(":", 1), kv.get_slice(":", 2))
 				"open":

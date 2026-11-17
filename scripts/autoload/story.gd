@@ -514,7 +514,7 @@ func uncle_lessons() -> bool:
 		await say(["Ha! That's your father's knack, right there.",
 			"In a battle nobody plays it for you: read the sheet and go. Finish while the bar's green for full power. Three wrong notes spoil it."], who)
 		await say(["One thing no song can do is make a wild beast yours. New beasts only ever come from eggs: beat a wild one and now and then it leaves an egg behind.",
-			"That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece"),
+			"That's my %s! Practise your songs from the Flute page of your book." % GameState.hero_word("nephew", "niece", "star"),
 			"Oh, and the Bellerive Arena only lets in trainers with a flute. Go show Captain Marina what you can do!"], who)
 	return true
 

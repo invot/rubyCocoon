@@ -52,6 +52,15 @@ const BeatCue = preload("res://scripts/battle/beat_cue.gd")
 const BattleTutorials = preload("res://scripts/core/battle_tutorials.gd")
 const Codex = preload("res://scripts/ui/codex.gd")
 const SimLook = preload("res://scripts/battle/sim_look.gd")
+const NameSparkles = preload("res://scripts/gfx/name_sparkles.gd")
+
+## Name easter eggs: rolled once per round (Moss), or per attacking foe (Tra).
+const MOSS_CHANCE := 0.10
+const TRA_CHANCE := 0.15
+var _name_rng := RandomNumberGenerator.new()
+var _moss_ready := false
+var _moss_target = null
+var _moss_sparkles: CPUParticles3D
 
 ## the middles of the two rings: you in front, at the bottom right, seen over your shoulder; the foe further back, at
 ## the top left
@@ -245,6 +254,7 @@ var _open_was := {"ally": false, "foe": false}
 
 func setup(c: Dictionary) -> void:
 	cfg = c
+	_name_rng.randomize()
 	wild = c.get("wild", true)
 	foes = c["foes"]
 	trainer = c.get("trainer", {})
@@ -2018,6 +2028,7 @@ func _run() -> void:
 			Codex.pin()
 	while result == "":
 		round_no += 1
+		await _name_round()
 		for b in ally_slots:
 			if b != null:
 				participants[b] = true
@@ -2934,6 +2945,8 @@ func _codex_react_hit(t, dmg: int, r: Dictionary) -> void:
 func _set_sim(on: bool) -> void:
 	if not is_inside_tree():
 		return
+	if is_instance_valid(_moss_sparkles):
+		_moss_sparkles.visible = not on
 	_sim_gen += 1
 	var gen := _sim_gen
 	var old = _sim
@@ -3628,7 +3641,7 @@ func _ai_actions() -> Array:
 				await _turn_ring("foe", ns)
 	for b in foe_slots:
 		if b != null and b.hp > 0 and b != mover:
-			out.append(_ai_choose(b))
+			out.append(_tra_action(_ai_choose(b)))
 	var song_now := _rival_wants_song()
 	if song_now:
 		out.append({"type": "rival_song", "song": String(trainer["song"]), "prio": 4})
@@ -3636,6 +3649,51 @@ func _ai_actions() -> Array:
 	if not weapon.is_empty():
 		out.append(weapon)
 	return out
+
+
+## No name effects during a trainer's lesson or any Codex simulation/practice.
+func _name_perks_enabled() -> bool:
+	return not tutorial and _practice == "" and _sim == null and not rotation_lesson
+
+
+## Regular beasts only: no boss encounters, GIANT encounters, guardians, legendaries or robots.
+func _moss_regular(t) -> bool:
+	return t != null and typeof(t) != TYPE_STRING and t.hp > 0 and _team(t) == "foe" \
+		and not is_boss() and not bool(cfg.get("giant", false)) and t != guardian_b and RaceDB.in_line(t.race)
+
+
+func _name_round() -> void:
+	if GameState.player_name != "Moss" or _moss_ready or not _name_perks_enabled():
+		return
+	if _name_rng.randf() >= MOSS_CHANCE:
+		return
+	_moss_ready = true
+	if is_instance_valid(player_rig):
+		_moss_sparkles = NameSparkles.new()
+		player_rig.add_child(_moss_sparkles)
+	await msg("Sparkles gather around Moss!", 0.7, "trainer_self")
+
+
+## Only attacks change: healing/support choices remain the beast's own. Equal-level foes are unaffected.
+func _tra_action(action: Dictionary) -> Dictionary:
+	if GameState.player_name != "Tra" or not _name_perks_enabled() or action.get("type", "") != "move":
+		return action
+	var b = action["actor"]
+	if RaceDB.is_robot(b.race) or MoveDB.get_move(String(action["move"]))["kind"] != "attack":
+		return action
+	var strongest := 0
+	for ally in GameState.party:
+		if ally.hp > 0:
+			strongest = maxi(strongest, ally.level)
+	if strongest == 0 or b.level == strongest or (b.level < strongest and wild):
+		return action
+	if _name_rng.randf() >= TRA_CHANCE:
+		return action
+	if b.level > strongest:
+		return {"type": "defend", "actor": b, "prio": 7, "tra_fear": true}
+	var turned := action.duplicate()
+	turned["own_trainer"] = true
+	return turned
 
 
 ## The foe trainer's Move (see _shift_spots): when the beast in the middle of the side facing you is down (or gone), a
@@ -3853,10 +3911,10 @@ func _resolve(acts: Array) -> void:
 				BeastModel.pose_guard(_model(db), true)
 				Sfx.play("shield")
 				_refresh()
-				await msg("%s braces itself!" % db.nickname, 0.55)
+				await msg(("%s is scared of Tra and defends!" if a.get("tra_fear", false) else "%s braces itself!") % db.nickname, 0.55)
 			"move":
 				var b = a["actor"]
-				await _do_move(b, a["move"], a["target"])
+				await _do_move(b, a["move"], a["target"], bool(a.get("own_trainer", false)))
 			_:
 				pass
 		_set_acting(null)
@@ -3955,16 +4013,25 @@ func _do_weapon(a: Dictionary) -> void:
 			targets = [t]
 	if targets.is_empty() and not at_trainer:
 		return
+	# One charge powers the next weapon use, including just one target of a boomerang or beat chain.
+	_moss_target = null
+	if _moss_ready and GameState.player_name == "Moss" and _name_perks_enabled():
+		_moss_ready = false
+		if is_instance_valid(_moss_sparkles):
+			_moss_sparkles.queue_free()
+		if not at_trainer and _moss_regular(targets[0]):
+			_moss_target = targets[0]
 	var aimed: String = String(trainer.get("name", "the trainer")) if at_trainer else (targets[0].nickname if targets.size() == 1 else "")
 	await msg(_weapon_line(GameState.player_name, id, aimed), 0.5)
 	VPer.set_ready(player_rig, id)
 	if at_trainer:
 		await _weapon_blow(player_rig, id, "foe")
-	elif BeatChain.max_hits(GameState.trainer_level) <= 0 or tutorial or not GameState.flag("dance_lesson_done"):
+	elif _moss_target != null or BeatChain.max_hits(GameState.trainer_level) <= 0 or tutorial or not GameState.flag("dance_lesson_done"):
 		await _weapon_plain(player_rig, id, targets)
 	else:
 		await _weapon_chain(id, targets)
 	VPer.set_ready(player_rig, "")
+	_moss_target = null
 
 
 ## "Andrew fires the slingshot at Tadlet!" (`aimed` "": the boomerang at every foe)
@@ -4218,6 +4285,11 @@ func _weapon_aim(ref) -> Vector3:
 ## hit first, as the slingshot always did. A beast out of sight (vanished) is always missed.
 func _weapon_land(id: String, t, mult: float, crit: bool, plain: bool) -> void:
 	if typeof(t) == TYPE_STRING or t == null or t.hp <= 0:
+		return
+	if t == _moss_target and _name_perks_enabled() and _moss_regular(t):
+		_moss_target = null
+		_weapon_dealt += t.hp
+		await _deal(null, t, {"dmg": t.hp, "eff": 1.0, "crit": true, "pierce": true, "instant": true}, not plain)
 		return
 	var acc := 0.9 / _acc_mult(int(_st(t)["stages"]["eva"]))
 	if _st(t)["vanish"] or (plain and not tutorial and randf() > acc):
@@ -4484,7 +4556,7 @@ func _strike(b, team_hit: String) -> void:
 	result = "lose" if team_hit == "ally" else "win"
 
 
-func _do_move(b, mv: String, target) -> void:
+func _do_move(b, mv: String, target, own_trainer := false) -> void:
 	var s := _st(b)
 	match b.status:
 		"sleep":
@@ -4526,7 +4598,9 @@ func _do_move(b, mv: String, target) -> void:
 	var m := MoveDB.get_move(mv)
 	# who it lands on now (a target that fell is passed on, see _targets_for); with nobody left the move is dropped
 	# without a word, and without costing its MP
-	var targets := _targets_for(b, m, target)
+	# Tra's weak foes turn on their own trainer; status, MP and cooldown rules still apply.
+	own_trainer = own_trainer and _name_perks_enabled() and not wild and _team(b) == "foe" and m["kind"] == "attack"
+	var targets := ["foe_trainer"] if own_trainer else _targets_for(b, m, target)
 	if targets.is_empty():
 		return
 	if short:
@@ -4542,7 +4616,9 @@ func _do_move(b, mv: String, target) -> void:
 	await msg("%s used %s!" % [b.nickname, m["name"]], 0.55, b)
 	# straight at an open trainer
 	if typeof(targets[0]) == TYPE_STRING:
-		await _strike(b, "foe" if _team(b) == "ally" else "ally")
+		if own_trainer:
+			await msg("%s turns on its own trainer!" % b.nickname, 0.7, b)
+		await _strike(b, "foe" if own_trainer or _team(b) == "ally" else "ally")
 		return
 	# a plain attack lunges at its target; any other move is cast (its element's glow, white for a plain one)
 	if m["el"] == "neutral" and m["kind"] == "attack":
@@ -4759,10 +4835,11 @@ func _deal(a, t, r: Dictionary, quiet := false) -> int:
 		_camera_shot("reaction", t)
 	var s := _st(t)
 	var dmg: int = r["dmg"]
+	var instant := bool(r.get("instant", false))
 	if tutorial:
 		dmg = _tut_damage(a, t)
 		r["crit"] = false
-	if s["defend"] and dmg > 0:
+	if not instant and s["defend"] and dmg > 0:
 		dmg = maxi(1, int(ceil(dmg * DEFEND_MULT))) if not tutorial else dmg
 	var absorbed := 0
 	if int(s["shield"]) > 0 and not r["pierce"]:
@@ -4770,7 +4847,7 @@ func _deal(a, t, r: Dictionary, quiet := false) -> int:
 		s["shield"] = int(s["shield"]) - absorbed
 		dmg -= absorbed
 	var sturdy := false
-	if not tutorial and t.passives.has("Sturdy") and not s["sturdy"] and t.hp == t.max_hp() and dmg >= t.hp:
+	if not instant and not tutorial and t.passives.has("Sturdy") and not s["sturdy"] and t.hp == t.max_hp() and dmg >= t.hp:
 		dmg = t.hp - 1
 		s["sturdy"] = true
 		sturdy = true
