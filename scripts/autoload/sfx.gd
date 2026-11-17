@@ -43,6 +43,8 @@ const TRACKS := {
 	"boss": "rising_tide_faster",
 	# the Codex's lessons, while the battle is its simulation (battle.gd _set_sim; user-supplied, 2026-11-15)
 	"codex": "bit_quest",
+	# the character creator (user-supplied, 2026-11-16)
+	"creator": "space_jazz",
 }
 
 ## The beat of the battle tracks (track file -> beats a minute, and where the first beat falls, in seconds into the

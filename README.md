@@ -235,6 +235,8 @@ and neutral terms in dialogue. Each gender has its own name choices, including *
 Rowan, River, Sage, Ash, Quinn, Avery, Robin, Ember and Sky for Non-Binary. Names are remembered when switching
 gender. **Ben** is 10% taller than the usual hero in both the
 creator preview and play (Andrew keeps his existing smaller scale).
+The creator plays Kevin MacLeod's *Space Jazz* (`Sfx.TRACKS` "creator"); backing out to the title brings the title
+music back.
 Two names also hide battle easter eggs. **Moss** has a 10% chance each round to gather sparkles, charging the next
 trainer weapon attack: its first target is knocked out instantly if it is an ordinary beast, even through Defend,
 shields or Sturdy. The charge lasts until that weapon use and does not stack; other actions keep it. Boss and GIANT

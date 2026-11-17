@@ -227,9 +227,11 @@ func _title() -> void:
 		if pick == "New Game":
 			# who you are: a name, a body and your colours
 			stage.logo.visible = false
+			Sfx.music("creator")
 			var made = await UI.make_hero()
 			stage.logo.visible = true
 			if made == null:
+				Sfx.music("title")
 				continue
 			GameState.new_game(made["name"], made["look"])
 			_clear_title()

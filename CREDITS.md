@@ -334,6 +334,10 @@ Rising Tide (faster), Screen Saver, Unanswered Questions, Wholesome, Wind of the
 Attribution 4.0, plays while the Codex runs a lesson in battle. User-supplied source: `Bit Quest.mp3`; game copy:
 `assets/audio/music/bit_quest.mp3`.
 
+*Space Jazz* by **Kevin MacLeod** (incompetech.com, 2021, per the supplied MP3's metadata), Creative Commons
+Attribution 4.0, plays in the character creator. User-supplied source: `Space Jazz.mp3`; game copy:
+`assets/audio/music/space_jazz.mp3`.
+
 From Pixabay (Pixabay Content License):
 - "The Return of the 8-bit Era" by DJARTMUSIC
 - "Retro Egyptian Theme" by Howling Hound Music
