@@ -223,16 +223,17 @@ main camera's reflection would stand, its picture projected back onto the glass;
 up for the mirror alone, so it shows the hero's back against wallpaper. Drag the hero to turn them round; the camera
 keeps the hero and the mirror in the room left of the menu, easing in a little on the part each tab dresses (the
 head for Hair and Face, the chest for Torso, the legs and feet for Legs; the whole hero for Self). The menu on the right has five tabs that together span
-its window, with a gap above it: **Self** (name, gender, body, skin), **Hair** (hair and hat), **Face** (eyes and glasses),
+its window, with a gap above it: **Self** (gender, name, skin), **Hair** (hair and hat), **Face** (eyes and glasses),
 **Torso** (shirt and pack) and **Legs** (pants and shoes). Everything with a type and a color has a small bold
 header with a line under it, then a **Type** row and a **Color** row (Hair: Type, Color; Hat: Type, Color). No tab has
 more than four rows, so nothing scrolls. Rows are laid out like Settings': the name on the
 left and the value on the right between soft arrows. Pieces come from the wardrobe (`scripts/data/wardrobe_db.gd`:
 shirts, pants and shoes for each body, cut from the townfolk kit's people; hats and glasses, or None, for either).
-Gender is independent of body: **Male**, **Female** or **Non-Binary**. Non-Binary characters use **they/them**
+Gender is **Male**, **Female** or **Non-Binary**, and there is no separate Body row: Male and Female wear their
+own body and its clothes, while Non-Binary keeps the body of the gender chosen before it. Non-Binary characters use **they/them**
 and neutral terms in dialogue. Each gender has its own name choices, including **Tra** for Female and **Moss**,
 Rowan, River, Sage, Ash, Quinn, Avery, Robin, Ember and Sky for Non-Binary. Names are remembered when switching
-gender; body changes keep the chosen gender and name. **Ben** is 10% taller than the usual hero in both the
+gender. **Ben** is 10% taller than the usual hero in both the
 creator preview and play (Andrew keeps his existing smaller scale).
 Two names also hide battle easter eggs. **Moss** has a 10% chance each round to gather sparkles, charging the next
 trainer weapon attack: its first target is knocked out instantly if it is an ordinary beast, even through Defend,
@@ -1726,8 +1727,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `title-startup` / `title-startup-touch`, plus `title-startup-gamepad`, `title-startup-mouse`,
   `title-startup-touch-a` and `title-startup-natural`: check the artwork crossfade, zoom and looping. Check one confirmation per press, the retained slideshow and title, keyboard
   focus, tapping New Game once and returning with B, using isolated save paths.
-- `hero-maker` / `hero-maker-touch`: actual name/gender/body navigation (Tra, Moss, independent appearance and
-  gender, legacy gender defaults and isolated save/load), Ben's 10% scale in preview and play, the hair, hat, shirt, pants and shoes arrows, the
+- `hero-maker` / `hero-maker-touch`: actual name/gender navigation (Tra, Moss, the body each gender wears, legacy gender defaults and isolated save/load), Ben's 10% scale in preview and play, the hair, hat, shirt, pants and shoes arrows, the
   color rows' grids opened, picked and kept by tap, and cancellation. `--scene=creator --shots=res://build/shots/creator`
   captures Tra, Moss, Ben, and the Hair and Legs tabs.
 - `name-easter-eggs` / `name-easter-eggs-touch`: deterministic Moss/Tra proc and non-proc rolls, a real charged

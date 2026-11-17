@@ -20,7 +20,7 @@ const MapLoader = preload("res://scripts/world/map_loader.gd")
 const HomeDecor = preload("res://scripts/gfx/home_decor.gd")
 const SoftArrow = preload("res://scripts/ui/soft_arrow.gd")
 
-## Names for each gender, the first the one it starts with; appearance is chosen independently.
+## Names for each gender, the first the one it starts with.
 const NAMES := {
 	"male": ["Andrew", "Ben", "Fritzy", "Sam", "Leo", "Max", "Kai", "Finn", "Theo", "Jack"],
 	"female": ["Regan", "Tessa", "Christina", "Tra", "Mia", "Lily", "Ava", "Nora", "Ivy", "Zoe", "Clara"],
@@ -28,12 +28,12 @@ const NAMES := {
 }
 const GENDERS := ["male", "female", "non_binary"]
 const GENDER_NAMES := {"male": "Male", "female": "Female", "non_binary": "Non-Binary"}
+## the bodies the kit dresses; gender picks one (Male and Female their own, Non-Binary keeps the one before)
 const BODIES := ["male", "female"]
-const BODY_NAMES := {"male": "Male", "female": "Female"}
 ## the tabs and the rows on each (at most four, so every tab fits without scrolling); "heads": a small header (bold
 ## capitals over a line) before a row, naming the thing its Type and Color rows below are for
 const TABS := [
-	{"name": "Self", "rows": ["name", "gender", "body", "skin"], "heads": {}, "look_at": "body"},
+	{"name": "Self", "rows": ["gender", "name", "skin"], "heads": {}, "look_at": "body"},
 	{"name": "Hair", "rows": ["hairdo", "hair_color", "hat", "hat_color"], "heads": {"hairdo": "Hair", "hat": "Hat"},
 		"look_at": "head"},
 	{"name": "Face", "rows": ["eyes", "glasses", "glasses_color"], "heads": {"eyes": "Eyes", "glasses": "Glasses"},
@@ -48,7 +48,7 @@ const TABS := [
 const LOOK_AT := {"body": [0.6, 0.0], "head": [1.15, 0.3], "torso": [0.85, 0.2], "legs": [0.35, 0.2]}
 ## how fast the camera eases to a tab's part (a share of the way a second)
 const LOOK_EASE := 4.0
-const ROW_NAMES := {"name": "Name", "gender": "Gender", "body": "Body", "skin": "Skin", "eyes": "Color", "hairdo": "Type",
+const ROW_NAMES := {"name": "Name", "gender": "Gender", "skin": "Skin", "eyes": "Color", "hairdo": "Type",
 	"hair_color": "Color", "hat": "Type", "hat_color": "Color", "glasses": "Type", "glasses_color": "Color",
 	"shirt": "Type", "shirt_color": "Color", "pack": "Color", "pants": "Type", "pants_color": "Color", "shoes": "Type",
 	"shoes_color": "Color"}
@@ -107,7 +107,7 @@ var _by_body := {}
 var _by_gender := {"male": 0, "female": 0, "non_binary": 0}
 ## the open tab, and the row being chosen on it: "tab" (the tab strip) or one of its rows
 var tab := 0
-var row := "name"
+var row := "gender"
 ## each row (a button the width of the window, its name on the left), and on its right: the value's name, a color
 ## row's swatch, and the arrows either side
 var _rows := {}
@@ -445,8 +445,6 @@ func _change(id: String, d: int) -> void:
 	match id:
 		"tab":
 			_open_tab(tab + d)
-		"body":
-			_choose_body(posmod(pick["body"] + d, BODIES.size()))
 		"gender":
 			_choose_gender(posmod(pick["gender"] + d, GENDERS.size()))
 		"name":
@@ -495,7 +493,7 @@ func _choose(id: String, i: int) -> void:
 	_dress()
 
 
-## Picks gender and restores its name, keeping the chosen appearance.
+## Picks gender and restores its name; Male and Female wear their own body, Non-Binary keeps the one before.
 func _choose_gender(i: int) -> void:
 	_reveal("gender")
 	_go("gender", false)
@@ -505,16 +503,20 @@ func _choose_gender(i: int) -> void:
 	_by_gender[_gender()] = pick["name"]
 	pick["gender"] = i
 	pick["name"] = _by_gender[_gender()]
-	_dress()
+	var b := BODIES.find(_gender())
+	if b >= 0 and b != pick["body"]:
+		_choose_body(b, false)
+	else:
+		_dress()
 
 
-## Picks the body: the hairdo and clothes go to what was last picked for it (to begin with, its own).
-func _choose_body(i: int) -> void:
-	_reveal("body")
-	_go("body", false)
+## Picks the body (through gender, or a test's --picks): the hairdo and clothes go to what was last picked for it (to
+## begin with, its own).
+func _choose_body(i: int, sound := true) -> void:
 	if pick["body"] == i:
 		return
-	Sfx.play("blip")
+	if sound:
+		Sfx.play("blip")
 	var was := _body()
 	var now: String = BODIES[i]
 	var mem: Dictionary = _by_body[was]
@@ -601,13 +603,11 @@ func _names() -> Array:
 
 
 # ---------------------------------------------------------------- showing
-## What a row shows on its right: the name, the body, a piece's name ("None" for no hat or glasses) or a color's.
+## What a row shows on its right: the name, the gender, a piece's name ("None" for no hat or glasses) or a color's.
 func _value_text(id: String) -> String:
 	match id:
 		"name":
 			return _names()[pick["name"]]
-		"body":
-			return BODY_NAMES[_body()]
 		"gender":
 			return GENDER_NAMES[_gender()]
 	if COLORS.has(id):

@@ -5224,9 +5224,9 @@ func _maker_test(m: Control) -> void:
 	check.call(m._column.position.x >= screen_rect.size.x * 0.33 - 1.0, "the menu stays on the right, clear of the hero")
 	# the keys
 	m._open_tab(0, false)
-	m._go("name", false)
+	m._go("gender", false)
 	await _press("ui_up")
-	check.call(m.row == "tab", "up from Name onto the tabs (got %s)" % m.row)
+	check.call(m.row == "tab", "up from Gender onto the tabs (got %s)" % m.row)
 	await _press("ui_right")
 	check.call(m.tab == 1 and m.row == "tab", "right on the tabs opens Hair (tab %d, row %s)" % [m.tab, m.row])
 	await _press("ui_down")
@@ -5243,9 +5243,9 @@ func _maker_test(m: Control) -> void:
 	await _press("ui_accept")
 	check.call(m._picker == null, "no hat: its color doesn't open")
 	m._open_tab(0, false)
-	m._go("body", false)
+	m._go("name", false)
 	await _press("ui_accept")
-	check.call(m.row == "skin", "A on Body goes on to Skin (got %s)" % m.row)
+	check.call(m.row == "skin", "A on Name goes on to Skin (got %s)" % m.row)
 	# the grid of colors: A on Shirt color opens it, moving dyes the hero as it goes, B puts the old color back
 	m._open_tab(3, false)
 	m._go("shirt", false)
