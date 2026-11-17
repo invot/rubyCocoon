@@ -154,7 +154,7 @@ func _build() -> void:
 		m.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		m.expand_icon = false
 		m.add_theme_constant_override("icon_max_width", 36)
-		m.text = TABS[i]["name"]
+		m.text = GameState.codex_text(TABS[i]["name"])
 		m.add_theme_font_override("font", UIKit.font_head())
 		m.add_theme_font_size_override("font_size", UIKit.head_px(UIKit.HEAD_SMALL))
 		m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -733,8 +733,8 @@ func _build_tour_tip() -> void:
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override("separation", 8)
 	_tour_tip.add_child(lines)
-	lines.add_child(_h("%s · %d / %d" % [TABS[tab]["name"], tab + 1, TABS.size()], UIKit.HEAD, UIKit.HEAD_SMALL))
-	var explanation := UIKit.label(TAB_INTROS[tab], 24, UIKit.INK)
+	lines.add_child(_h("%s · %d / %d" % [GameState.codex_text(TABS[tab]["name"]), tab + 1, TABS.size()], UIKit.HEAD, UIKit.HEAD_SMALL))
+	var explanation := UIKit.label(GameState.codex_text(TAB_INTROS[tab]), 24, UIKit.INK)
 	explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lines.add_child(explanation)
 	lines.add_child(_row_of([
@@ -1133,10 +1133,10 @@ func _tab_bag() -> void:
 ## A has the Codex say them.
 func _tab_codex() -> void:
 	if not CodexDB.has_codex():
-		_make_list(left_box, "Codex", right_box)
-		_add_row({"text": "No Codex yet", "detail": func(c): c.add_child(_t_label("Trainers along the Coastal Path are teaching you to battle. Picnicker Mae, the last of them, has something for you."))})
+		_make_list(left_box, GameState.codex_name(), right_box)
+		_add_row({"text": GameState.codex_text("No Codex yet"), "detail": func(c): c.add_child(_t_label("Trainers along the Coastal Path are teaching you to battle. Picnicker Mae, the last of them, has something for you."))})
 		return
-	_make_list(left_box, "Ask the Codex", right_box)
+	_make_list(left_box, "Ask " + GameState.codex_name(), right_box)
 	for g in CodexDB.menu():
 		_add_row({"header": true, "text": String(g["group"]).to_upper()})
 		for id in g["ids"]:
@@ -1146,7 +1146,7 @@ func _tab_codex() -> void:
 func _codex_detail(c: VBoxContainer, id: String) -> void:
 	c.add_child(_h(CodexDB.title(id)))
 	c.add_child(_t_label(CodexDB.plain(id)))
-	c.add_child(_t_label("A: Ask the Codex", UIKit.DIM))
+	c.add_child(_t_label("A: Ask " + GameState.codex_name(), UIKit.DIM))
 
 
 # ================================================================ Map

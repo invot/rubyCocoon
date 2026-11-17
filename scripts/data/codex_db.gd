@@ -148,7 +148,7 @@ static func menu() -> Array:
 
 
 static func title(id: String) -> String:
-	return String(TOPICS.get(id, {}).get("title", id))
+	return GameState.codex_text(String(TOPICS.get(id, {}).get("title", id)))
 
 
 ## A topic's lines as [mood, text] pairs.
@@ -161,8 +161,8 @@ static func parse(line: String) -> Array:
 	if line.begins_with("["):
 		var e := line.find("]")
 		if e > 0:
-			return [line.substr(1, e - 1), line.substr(e + 1).strip_edges()]
-	return ["", line]
+			return [line.substr(1, e - 1), GameState.codex_text(line.substr(e + 1).strip_edges())]
+	return ["", GameState.codex_text(line)]
 
 
 ## The topic's words without their moods, for the book's page.

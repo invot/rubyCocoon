@@ -166,6 +166,22 @@ func _bind(action: String, keys: Array, pads := []) -> void:
 const HERO_SCALES := {"Andrew": 0.93, "Ben": 1.1}
 
 
+## Name Easter eggs use exact names, ignoring case and accidental surrounding spaces.
+func name_is(value: String) -> bool:
+	return player_name.strip_edges().to_lower() == value.to_lower()
+
+
+## Derived from the saved trainer name, so old saves and new journeys behave alike.
+func codex_name() -> String:
+	return "Noodles" if name_is("Christiana") else "Codex"
+
+
+func codex_text(text: String) -> String:
+	if codex_name() == "Codex":
+		return text
+	return text.replace("the Codex", "Noodles").replace("The Codex", "Noodles").replace("your Codex", "Noodles").replace("Your Codex", "Noodles").replace("Codex", "Noodles")
+
+
 func hero_look() -> Dictionary:
 	var look := {"face": "hero"}
 	look.merge(hero)

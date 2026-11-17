@@ -1653,9 +1653,16 @@ func _finale(world, n: Dictionary) -> void:
 	Sfx.music("ending")
 	await say(["General Vexmora's shadows unravel. The Umbral Legion's banners fall all across Gravenmoor.",
 		"Freed from the Legion's command, the ghost beasts drift quietly up into the moonlight."])
+	await _ending_easter_eggs()
 	await say(["★ THE END ★", "Thank you for playing Ruby Cocoon!",
 		"Your journey continues: hatch every egg, master every song, and merge the ultimate team."])
 	await GameState.main.reload_map()
+
+
+## Bonus epilogues run only after the final victory, before the normal ending card.
+func _ending_easter_eggs() -> void:
+	if GameState.flag("game_cleared") and GameState.name_is("Andrew"):
+		await load("res://scripts/story/wedding.gd").play()
 
 
 # ================================================================ levers, chests and the temple keeper
