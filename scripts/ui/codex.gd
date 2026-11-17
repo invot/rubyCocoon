@@ -215,7 +215,7 @@ static func say(lines: Array) -> void:
 		_last_mood = m
 	var texts: Array = parsed.map(func(p): return String(p[1]))
 	if UI.auto:
-		UI.auto_log.append("%s: %s" % [NAME, texts[0]])
+		UI.auto_log.append("%s: %s" % [GameState.codex_name(), texts[0]])
 		await UI.get_tree().process_frame
 		return
 	var h := _ensure()
@@ -223,7 +223,7 @@ static func say(lines: Array) -> void:
 	h.visible = true
 	h.set_mood(String(moods[0]))
 	var d := DialogBox.new()
-	d.setup(texts, NAME)
+	d.setup(texts, GameState.codex_name())
 	d.anchor_control = h
 	# its own pixel voice (UIKit.font_codex), in a wider bubble since the face is wide
 	d.speech_font = UIKit.font_codex()
@@ -359,7 +359,7 @@ static func receive() -> void:
 	GameState.set_flag("has_codex")
 	GameState.set_flag("codex_seen_codex")
 	Sfx.play("capture")
-	UI.toast("Got the Codex!", "notice")
+	UI.toast(GameState.codex_text("Got the Codex!"), "notice")
 	if UI.auto:
 		await say(["[surprised] Bzzt! Whirr... Oh! Hello!"] + CodexDB.TOPICS["codex"]["lines"])
 		return

@@ -2434,8 +2434,8 @@ func _panel_rows() -> Array:
 			"desc": "Give up the battle. It counts as a loss, but you keep your gold and can try again." if not tutorial else "%s: \"No giving up in the middle of a lesson!\"" % _tut_who()})
 	if Codex.has_codex() and not tutorial:
 		# asking the Codex never uses your turn
-		t_opts.append({"id": "codex", "label": "Ask Codex", "icon": "help", "sub": true,
-			"desc": "Ask your Codex about anything you've learned. It doesn't use your turn."})
+		t_opts.append({"id": "codex", "label": "Ask " + GameState.codex_name(), "icon": "help", "sub": true,
+			"desc": GameState.codex_text("Ask your Codex about anything you've learned. It doesn't use your turn.")})
 	if tutorial:
 		var want := _tut_you()
 		for o in t_opts:
@@ -2446,7 +2446,7 @@ func _panel_rows() -> Array:
 		for o in t_opts:
 			if not _practice_trainer_ok(o):
 				o["disabled"] = true
-				o["desc"] = "Codex: \"Not in this practice! %s\"" % _practice_hint()
+				o["desc"] = "%s: \"Not in this practice! %s\"" % [GameState.codex_name(), _practice_hint()]
 	var start := 0
 	for i in t_opts.size():
 		if not t_opts[i].get("disabled", false):
@@ -2560,7 +2560,7 @@ func _move_options(b) -> Array:
 			var ok: bool = (o["id"] == "move") if _practice == "team" else (o["id"] == "shift")
 			if not ok and not o.get("disabled", false):
 				o["disabled"] = true
-				o["note"] = "Codex: \"Not in this practice! %s\"" % _practice_hint()
+				o["note"] = "%s: \"Not in this practice! %s\"" % [GameState.codex_name(), _practice_hint()]
 				o["desc"] = String(o["note"])
 	return out
 
