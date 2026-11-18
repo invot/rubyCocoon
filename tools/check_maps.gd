@@ -340,6 +340,9 @@ func _staging(m: Dictionary) -> Array:
 				var table_center := Vector2(table_lo) + Vector2(table_layout["size"]) / 2.0 + Vector2(offsets.get(table_lo, Vector2.ZERO))
 				if absf((table_center - seat_center).dot(side)) > 0.01:
 					out.append("%s's coffee table at %s must be centered in front of its sofa at %s" % [label, table_lo, lo])
+		# A counter gate hangs between a counter and a wall or another counter (the user's 2026-11-18 direction).
+		if kind == "counter_gate" and not RoomBuilder.gate_fit(m, part["tiles"])["anchored"]:
+			out.append("%s's counter gate at %s needs a counter or wall in line at both ends" % [label, lo])
 		if kind == "fireplace":
 			var expected := Vector2(2, 1) if back.y != 0 else Vector2(1, 2)
 			if not layout["against"] or size != expected or part["tiles"].size() != 2:

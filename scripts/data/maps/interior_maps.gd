@@ -41,6 +41,8 @@ extends RefCounted
 ##   resident (lives in the house), mom. The bottom row is the open front: no wall is drawn there.
 ## Staff (keepers, the Beast Center's guide, a barn's kennel keeper, the receptionist) always stand behind a counter,
 ## boxed in so you can only talk to them across it. Short wooden gates (|) close staff passages; plants are decoration.
+## A gate has a counter at one end of it and a wall or another counter at the other, in line with it, best behind
+## the counter's end with the back wall beyond it (RoomBuilder.gate_fit; the user's 2026-11-18 direction).
 
 const FURNITURE := {
 	"|": "counter_gate", "k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
@@ -120,8 +122,8 @@ const ROOMS := {
 		"counter_phone": [6, 2],
 		"rows": [
 			"#####Z#####",
-			"#BBs.1.sss#",
-			"#|CCCCCCC|w",
+			"#.|BB1ss|.#",
+			"#.CCCCCCC.w",
 			"#.........w",
 			"L..rr2rr..#",
 			"#..rrrrr.PD",
@@ -158,8 +160,8 @@ const ROOMS := {
 		"locked": ["The stockroom. Boxes of books are piled to the ceiling in there."],
 		"rows": [
 			"#####Z#####",
-			"#BB..1.BB.#",
-			"#|CCCCCCC|w",
+			"#.|BB1BB|.#",
+			"#.CCCCCCC.w",
 			"#.........w",
 			"L.......&&#",
 			"#t2..rr..PD",
@@ -181,7 +183,7 @@ const ROOMS := {
 		"counter_phone": [15, 2],
 		"rows": [
 			"###w#####w#######w###",
-			"#=::::3::::=#|1|.==.#",
+			"#=::::3::::=#.1|.==.#",
 			"#=:xxxxxxx:=#CCC....w",
 			"#::x:::::x::#......6w",
 			"L::x:::::x::#.......#",
@@ -917,7 +919,7 @@ const ROOMS := {
 			"#####w###w#####",
 			"#p....#>>#...p#",
 			"#.....#..#....#",
-			"L...|..34.....#",
+			"L..C|C.34.....#",
 			"#..C1C........#",
 			"#..CCC........#",
 			"#.......e..e..L",
@@ -1092,7 +1094,7 @@ const KELPWICK_ROOMS := {
 	},
 	## Kelpwick shares healing and arena services: a wall separates the entrance lobby from the ring; the crystal
 	## stands one tile farther back, with no furniture behind it. The host has a plain desk and counter phone.
-	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "counter_phone": [15, 2], "rows": ["###w#####w#######w###", "#=::::3::::=#|1|.==.#", "#=:xxxxxxx:=#CCC...Hw", "#::x:::::x::#.......w", "#::x:::::x::#.......#", "#=:xxxxxxx:=#.......#", "#=4:::::::5:........#", "#:::::::::::.......PD", "#####################"]},}
+	"arena": {"stage": true, "wall": "#dfbd8d", "zone": "wood", "npcs": {"1": "keeper", "3": "leader", "4": "patron", "5": "patron"}, "counter_phone": [15, 2], "rows": ["###w#####w#######w###", "#=::::3::::=#.1|.==.#", "#=:xxxxxxx:=#CCC...Hw", "#::x:::::x::#.......w", "#::x:::::x::#.......#", "#=:xxxxxxx:=#.......#", "#=4:::::::5:........#", "#:::::::::::.......PD", "#####################"]},}
 
 ## Hotel Mariposa: one two-storey lobby with walkable stairs and a balcony whose back wall has
 ## round-arched open doorways ("!") into a window box, as the guest rooms' back walls do; open hallway entrances on

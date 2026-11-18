@@ -5456,31 +5456,114 @@ func _dressed_shelf(x: int, y: int, inside: Vector2i, up: float, side: float, lo
 	return base
 
 
-## A closed pair of staff-only wooden leaves; its fixture tiles supply the movement barrier.
-func _counter_gate(group: Array) -> void:
-	var layout := furniture_layout(map, "counter_gate", group)
+## Half the thickness of a counter gate's leaves, to the faces of their panels.
+const GATE_FACE := 0.085
+
+
+## What a counter gate's end meets at tile t: "wall", "counter" (a shop counter or a kitchen counter) or "" (nothing
+## to hang from).
+static func _gate_anchor(m: Dictionary, t: Vector2i) -> String:
+	if _walled(m, t):
+		return "wall"
+	if MapGen.get_t(m, t.x, t.y) == MapGen.COUNTER or m.get("furniture", {}).get(t, "") == "counter":
+		return "counter"
+	return ""
+
+
+## How a counter gate (|) hangs (the user's 2026-11-18 direction): across its passage from one anchor to the other,
+## a counter or a wall at each end of its run of tiles, best from the back of a counter to the back wall; never
+## stopping short in the middle of its tile. "along": the way its leaves run (east or south); "ends": what each end
+## meets; "side": the tile edge it stands at (-1 or 1 across it), flush with the end of the counter it meets so the
+## counter and gate close the staff side in one line, or 0 in the middle when no counter ends at either edge;
+## "anchored": false when neither way has an anchor at both ends (check_maps reports it).
+static func gate_fit(m: Dictionary, group: Array) -> Dictionary:
+	var layout := furniture_layout(m, "counter_gate", group)
 	var lo: Vector2i = layout["lo"]
 	var size: Vector2 = layout["size"]
-	var c := Vector3(lo.x + size.x * 0.5, 0, lo.y + size.y * 0.5)
+	var hi := lo + Vector2i(size) - Vector2i.ONE
+	var best := {"lo": lo, "hi": hi, "along": Vector2i(1, 0) if size.x >= size.y else Vector2i(0, 1), "ends": ["", ""],
+		"side": 0, "anchored": false}
+	var best_score := -1
+	for a: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+		# a run of several tiles only runs along itself
+		if (a.x == 1 and size.y > 1) or (a.y == 1 and size.x > 1):
+			continue
+		var tips: Array[Vector2i] = [lo - a, hi + a]
+		var ends := [_gate_anchor(m, tips[0]), _gate_anchor(m, tips[1])]
+		if "" in ends:
+			continue
+		var p := Vector2i(a.y, a.x)
+		# the edge where a counter at either end stops (its run doesn't carry on that way)
+		var flush := []
+		for sd in [-1, 1]:
+			for e in 2:
+				if ends[e] == "counter" and _gate_anchor(m, tips[e] + p * sd) != "counter":
+					flush.append(sd)
+					break
+		var side := 0
+		if flush.size() == 1:
+			side = flush[0]
+		elif flush.size() == 2:
+			# (a one-tile counter: the public side, where the floor beside the gate is open)
+			for sd in [-1, 1]:
+				if MapGen.walkable(MapGen.get_t(m, lo.x + p.x * sd, lo.y + p.y * sd)):
+					side = sd
+					break
+		# best closing a passage between open tiles, then hanging from counters
+		var score := ends.count("counter") * 2 + (1 if side != 0 else 0)
+		for sd in [-1, 1]:
+			if MapGen.walkable(MapGen.get_t(m, lo.x + p.x * sd, lo.y + p.y * sd)):
+				score += 4
+		if score > best_score:
+			best_score = score
+			best = {"lo": lo, "hi": hi, "along": a, "ends": ends, "side": side, "anchored": true}
+	return best
+
+
+## A closed pair of staff-only wooden leaves (gate_fit says where), slightly below the counter's top; its fixture
+## tiles supply the movement barrier.
+func _counter_gate(group: Array) -> void:
+	var fit := gate_fit(map, group)
+	if not fit["anchored"]:
+		push_warning("Counter gate needs a counter or wall at both ends: %s %s" % [map.get("room_key", ""), group])
+	var a: Vector2i = fit["along"]
+	var lo: Vector2i = fit["lo"]
+	var hi: Vector2i = fit["hi"]
+	var ends: Array = fit["ends"]
+	var side: int = fit["side"]
+	var along := Vector3(a.x, 0, a.y)
+	var across := Vector3(a.y, 0, a.x)
+	# its visible ends: a wall's face (walls stand in the middle of their tiles) or a counter's back; the leaves run on
+	# into the wall or counter a little, so no crack shows
+	var reach := {"wall": 0.5 - T / 2.0, "counter": 0.05, "": -0.06}
+	var sink := {"wall": 0.03, "counter": 0.1, "": 0.0}
+	var start := float(lo.x if a.x != 0 else lo.y) - float(reach[ends[0]])
+	var stop := float(hi.x if a.x != 0 else hi.y) + 1.0 + float(reach[ends[1]])
+	var mid := (start + stop) / 2.0
+	var line := float(lo.y if a.x != 0 else lo.x) + 0.5 + side * (0.5 - GATE_FACE - 0.015)
+	# the hinges on the staff side, away from the counter's end
+	var staff := -float(side) if side != 0 else 1.0
+	var desk: bool = mission or ancient or map.get("building", {}).get("shop", "") in ["center", "arena"]
+	var top := DESK_TOP - 0.14 if desk else DISPLAY_TOP - 0.05
+	var at := func(u: float, y: float, v: float) -> Vector3: return along * u + Vector3.UP * y + across * (line + v)
+	var dims := func(u: float, y: float, v: float) -> Vector3: return (along * u + Vector3.UP * y + across * v).abs()
 	var wood := _rail_mat()
 	var panel := surface("floor_wood", MISSION_WOOD.lightened(0.12))
 	var iron := surface("wall_plaster", Color("#554534"))
-	var top := DESK_TOP - 0.14
-	# The hotel has two-tile north/south passages. Single-tile gates beside
-	# a side wall (or behind a desk) close east/west gaps instead.
-	var across := size.x > size.y or (size == Vector2.ONE and not wallish(lo.x, lo.y - 1) and not wallish(lo.x, lo.y + 1))
-	var turn := Basis(Vector3.UP, PI / 2.0 if across else 0.0)
-	var span := (size.x if across else size.y) - 0.12
-	for side in [-1.0, 1.0]:
-		var z: float = side * span * 0.25
-		var leaf := Vector3(0.14, top - 0.12, span * 0.5 - 0.025)
-		floor_mesher.box("counter_gate_wood", wood, c + turn * Vector3(0, (top + 0.12) * 0.5, z), leaf if not across else Vector3(leaf.z, leaf.y, leaf.x))
+	var tall := top - 0.12
+	for leaf in 2:
+		var u0: float = start - float(sink[ends[0]]) if leaf == 0 else mid + 0.0125
+		var u1: float = mid - 0.0125 if leaf == 0 else stop + float(sink[ends[1]])
+		var v0: float = start if leaf == 0 else mid
+		var v1: float = mid if leaf == 0 else stop
+		floor_mesher.box("counter_gate_wood", wood, at.call((u0 + u1) / 2.0, 0.12 + tall / 2.0, 0.0), dims.call(u1 - u0, tall, 0.14))
 		for face in [-1.0, 1.0]:
-			var inset := Vector3(0.018, 0.4, span * 0.5 - 0.22)
-			floor_mesher.box("counter_gate_panel", panel, c + turn * Vector3(face * 0.076, 0.48, z), inset if not across else Vector3(inset.z, inset.y, inset.x))
-		_beam("counter_gate_cap", wood, c + turn * Vector3(0, top - 0.04, z - span * 0.25 + 0.02), c + turn * Vector3(0, top - 0.04, z + span * 0.25 - 0.02), 0.095, true)
-		for y in [0.28, 0.68]:
-			floor_mesher.box("counter_gate_hinge", iron, c + turn * Vector3(0.08, y, side * (span * 0.5 - 0.09)), Vector3(0.16, 0.1, 0.04) if across else Vector3(0.04, 0.1, 0.16))
+			floor_mesher.box("counter_gate_panel", panel, at.call((v0 + v1) / 2.0, 0.12 + tall * 0.45, face * 0.076),
+				dims.call(maxf(v1 - v0 - 0.2, 0.1), tall * 0.55, 0.018))
+		_beam("counter_gate_cap", wood, at.call(v0 + 0.02, top - 0.04, 0.0), at.call(v1 - 0.02, top - 0.04, 0.0), 0.095, true)
+		var hinge: float = start + 0.09 if leaf == 0 else stop - 0.09
+		for y in [0.12 + tall * 0.22, 0.12 + tall * 0.75]:
+			floor_mesher.box("counter_gate_hinge", iron, at.call(hinge, y, staff * 0.08), dims.call(0.16, 0.1, 0.04))
 
 
 ## Guests' cases, neatly stacked against the back wall (the user's 2026-11-15 direction): chunky painted suitcases,
