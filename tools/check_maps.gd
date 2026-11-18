@@ -178,6 +178,7 @@ func _check(m: Dictionary) -> Array:
 	else:
 		problems.append_array(_windows(m))
 		problems.append_array(_beds(m))
+		problems.append_array(_drawers(m))
 		problems.append_array(_staging(m))
 		problems.append_array(_rugs(m))
 	problems.append_array(_slip_past(m))
@@ -677,3 +678,17 @@ func _window_seen(m: Dictionary, t: Vector2i, face: Vector2i, tall: bool) -> boo
 						if absf((hit - face_p).dot(along)) <= half and hit.y >= y0 and hit.y <= y1:
 							return true
 	return false
+
+
+## Wide drawers reserve two squares along their wall; never shrink them into one.
+func _drawers(m: Dictionary) -> Array:
+	var out := []
+	for part in RoomBuilder.furniture_groups(m):
+		if not part["kind"] in ["dresser", "storage"]:
+			continue
+		var layout := RoomBuilder.furniture_layout(m, part["kind"], part["tiles"])
+		var size: Vector2 = layout["size"]
+		var span := size.x if absf(sin(layout["yaw"])) < 0.5 else size.y
+		if span < 2.0:
+			out.append("wide drawers need two tiles at %s" % layout["lo"])
+	return out

@@ -47,13 +47,13 @@ const CAPTIVE_LOOKS := [
 	{"skin": "#9a6848", "hair": "#2a2020", "shirt": "#c86a4a", "pants": "#3a4a5a", "pack": true},
 	{"skin": "#d8a880", "hair": "#6a3a2a", "shirt": "#7a7ac0", "pants": "#4a4a4a", "body": "female", "pack": true},
 ]
-const LENGTH := 93.0
+const LENGTH := 113.0
 ## Gearheart heads for the steel door; the cut into the warehouse; the cut to spring; the cut up to the bedroom
 const DOOR := 36.0
 const INSIDE := 41.0
 const DAWN := 53.0
 const DREAM := 58.0
-const ROOM := 73.0
+const ROOM := 93.0
 ## start, end, who speaks, the line, camera shot. Lines advance automatically; A also advances a beat. Each line
 ## fits one page of a speech bubble (three lines), since nothing turns a page for the audience.
 ## The film opens on a friendly end-of-quarter meeting: the staff marvel at the profits and ask how, Gearheart answers
@@ -73,13 +73,19 @@ const BEATS := [
 	[46.0, 50.0, "gear", "Every trainer caged, every beast crated. Vexmora gets his research. I get the profits. A splendid arrangement.", "crates"],
 	[50.0, 53.0, "", "", "cages"],
 	[53.0, 58.0, "", "", "sleeping"],
-	[58.0, 64.0, "", "", "prison"],
-	[64.0, 68.0, "", "", "mouse"],
-	[68.0, 73.0, "voice", "I'll get us out of here, just give me {tool}.", "prison"],
-	[73.0, 79.0, "hero", "What an odd dream. A dungeon, a mouse... What was that about?", "hero"],
-	[79.0, 85.0, "mom", "Up already? Rowan's got your egg, and Uncle Rafe has Dad's flute, over in Bellerive!", "mom"],
-	[85.0, 88.5, "hero", "A whole season of adventure!", "joke"],
-	[88.5, 93.0, "hero", "That could only happen if some maniac put 'ruin spring' on their calendar. Ha! Get a hobby!", "home"],
+	# the dream: the hero at the bars, looking at a crust of bread; one of the ducks paddling in the channel spots it,
+	# climbs out, waddles over and eats it (prison_stage.gd dream_at); a long, quiet watch before anyone speaks
+	[58.0, 64.0, "", "", "dream_bread"],
+	[64.0, 67.6, "", "", "dream_ducks"],
+	[67.6, 72.0, "", "", "dream_waddle"],
+	[72.0, 78.0, "", "", "dream_eat"],
+	[78.0, 82.0, "hero", "Why are there ducks in a dungeon?", "dream_hero"],
+	[82.0, 87.5, "voice", "Those are my ducks. Did you know a duck can sleep with one eye open? Clever things.", "dream_voice"],
+	[87.5, 93.0, "voice", "I'll get us out of here, just give me {tool}.", "dream_voice"],
+	[93.0, 99.0, "hero", "What an odd dream. A dungeon, a duck... What was that about?", "hero"],
+	[99.0, 105.0, "mom", "Up already? Rowan's got your egg, and Uncle Rafe has Dad's flute, over in Bellerive!", "mom"],
+	[105.0, 108.5, "hero", "A whole season of adventure!", "joke"],
+	[108.5, 113.0, "hero", "That could only happen if some maniac put 'ruin spring' on their calendar. Ha! Get a hobby!", "home"],
 ]
 ## the names on the speech bubbles (the hero's is the player's), and which figure on the set each speaker is; Mom
 ## calls from downstairs, so hers is the stationary bubble of a voice off screen
@@ -415,6 +421,7 @@ func _change_scene(which: String) -> void:
 			_prison.nightmare = true
 			stage.add_child(_prison)
 			camera = _prison.camera
+			people["hero"] = _prison.hero
 			Sfx.music("crypt")
 			Sfx.ambience("")
 		"sleep", "room":
@@ -425,8 +432,12 @@ func _change_scene(which: String) -> void:
 			_dress_room()
 	if not _still_wanted(which):
 		return
-	if which in ["sleep", "room"]:
-		# each place's own music, so the game carries on from the film without a change of tune
+	if which == "sleep":
+		# night: no tune, only crickets outside, so it's plain the hero is asleep
+		Sfx.music("")
+		Sfx.ambience("night")
+	elif which == "room":
+		# the place's own music, so the game carries on from the film without a change of tune
 		var place: String = set_world.map_id
 		Sfx.music(GameState.main.music_for(place))
 		Sfx.ambience(GameState.main.ambience_for(place))
@@ -812,7 +823,7 @@ func _office_furniture() -> void:
 	for k in 3:
 		_box(Vector3(7.5 + k * 0.2, 0.983, -3.3), Vector3(0.02, 0.004, 1.0), "#cfe2ff")
 	_piece("kk_lamp_table", Vector3(7.95, 0.97, -3.85), 0.5)
-	_piece("kk_drawers", Vector3(9.5, 0, 0.75), 1.25, -PI / 2)
+	_piece("kk_drawers", Vector3(9.5, 0, 0.75), 0.667, -PI / 2)
 	_piece("coat_stand", Vector3(2.7, 0, 7.6), 1.9)
 	_piece("kk_cactus_medium_B", Vector3(7.4, 0, 7.5), 0.95)
 	_piece("armchair_club", Vector3(-8.3, 0, -5.4), 1.05, 0.9)
@@ -1176,9 +1187,13 @@ func _dress_room() -> void:
 		var sleeping_look := GameState.hero_look().duplicate()
 		sleeping_look["pack"] = false
 		Person.dress(hero, sleeping_look)
-		Person.sleeping_eyes(hero)
+		# (troubled: the dream is coming)
+		Person.sleeping_eyes(hero, true)
 		hero.rotation.x = -PI / 2.0
 		hero.position = set_world.tile_pos(Vector2i(2, 2)) + Vector3(0, 0.72, 0.65)
+		_tuck_in(hero)
+		_night_room()
+		return
 	# morning sun through each window in the back wall: a warm glow, and shafts slanting down to the floor
 	var w: int = set_world.map["w"]
 	var shafts := SurfaceTool.new()
@@ -1211,6 +1226,109 @@ func _dress_room() -> void:
 		beams.material_override = glow
 		beams.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		stage.add_child(beams)
+
+
+## The night before: the room's daylight and lamps out, a deep blue dark, and cool moonlight falling in through the
+## back windows across the bed, so the sleeping hero's face still reads.
+func _night_room() -> void:
+	for light in set_world.find_children("*", "Light3D", true, false):
+		(light as Light3D).visible = false
+	for world_env in set_world.find_children("*", "WorldEnvironment", true, false):
+		var night: Environment = (world_env as WorldEnvironment).environment.duplicate()
+		night.background_color = Color("#04060f")
+		night.ambient_light_color = Color("#2e45a8")
+		night.ambient_light_energy = 0.55
+		night.adjustment_saturation = 1.0
+		night.adjustment_brightness = 0.92
+		(world_env as WorldEnvironment).environment = night
+	var feet: Vector3 = people["hero"].position
+	# the moon, through the window behind the bed's head, onto the pillow and the covers
+	var moon_beam := SpotLight3D.new()
+	moon_beam.light_color = Color("#7090ff")
+	moon_beam.light_energy = 2.6
+	moon_beam.spot_range = 6.0
+	moon_beam.spot_angle = 34.0
+	moon_beam.spot_angle_attenuation = 0.8
+	stage.add_child(moon_beam)
+	moon_beam.position = Vector3(feet.x + 0.6, 2.5, feet.z - 2.1)
+	moon_beam.look_at(feet + Vector3(0, 0, -0.9))
+	# and a faint cool fill from the open front, so the face never falls into black
+	_lamp(feet + Vector3(0.2, 0.9, 0.2), "#5a74d8", 0.35, 2.4)
+
+
+## Covers over the sleeping hero: a puffy duvet (rounded at its sides and foot, lifted over the body) from just
+## under the chin to past the feet, and the sheet turned down over its top edge as a soft band following its shape.
+func _tuck_in(hero: Node3D) -> void:
+	var sk: Skeleton3D = hero.get_meta("skeleton")
+	# (the head bone is at the neck, the big head reaching back from it towards the pillow)
+	var head := sk.to_global(sk.get_bone_global_pose(sk.find_bone("head")).origin)
+	var feet := hero.position
+	var along := Vector3(feet.x - head.x, 0, feet.z - head.z).normalized()
+	var start := Vector3(head.x, feet.y, head.z) + along * 0.05
+	var length := Vector3(feet.x - start.x, 0, feet.z - start.z).length() + 0.22
+	var duvet := _cover(start, along, 0.0, length, 0.0, 0.07, 0.22)
+	duvet.material_override = _cloth(Color("#c4605a"))
+	stage.add_child(duvet)
+	var sheet := _cover(start, along, -0.03, 0.17, 0.035, 0.05, 0.05, 0.505)
+	sheet.material_override = _cloth(Color("#ece4d4"))
+	stage.add_child(sheet)
+
+
+## One layer of the covers, from `z0` to `z1` along the bed (from `start`, the middle of the chin end, at mattress
+## height): a rounded loaf across the bed (half `half_w` wide, its top just over the mattress at its sides, falling
+## past the mattress's edge) lifted over the body under it, rounded off over `head_r` and `foot_r` at its ends, and
+## `lift` above the duvet's own surface.
+func _cover(start: Vector3, along: Vector3, z0: float, z1: float, lift: float, head_r: float, foot_r: float,
+		half_w := 0.5) -> MeshInstance3D:
+	var across := Vector3.UP.cross(along).normalized()
+	var length := z1 - z0
+	var top := 0.06
+	var drop := 0.24
+	var nx := 28
+	var nz := maxi(6, int(length * 30.0))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for j in nz + 1:
+		var v := float(j) / nz
+		var z := z0 + v * length
+		var ez := 1.0
+		if z > z1 - foot_r:
+			ez = pow(maxf(0.0, 1.0 - pow((z - (z1 - foot_r)) / foot_r, 4.0)), 0.25)
+		elif z < z0 + head_r:
+			ez = pow(maxf(0.0, 1.0 - pow((z0 + head_r - z) / head_r, 4.0)), 0.25)
+		for i in nx + 1:
+			var t := PI * float(i) / nx
+			var c := cos(t)
+			var x := half_w * signf(c) * pow(absf(c), 0.5)
+			var y := -drop + (top + drop + lift) * pow(sin(t), 0.5) * ez + _body_under(x, z) * ez
+			st.set_uv(Vector2(x / (2.0 * half_w) + 0.5, v))
+			st.add_vertex(start + across * x + along * z + Vector3(0, y, 0))
+	for j in nz:
+		for i in nx:
+			var a := j * (nx + 1) + i
+			var b := a + nx + 1
+			for k in [a, b, a + 1, a + 1, b, b + 1]:
+				st.add_index(k)
+	st.generate_normals()
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = st.commit()
+	return mesh
+
+
+## How far the sleeping body lifts the covers `x` across the bed and `z` down it from the chin: the chest highest,
+## the legs lower, the toes poking up near the end.
+func _body_under(x: float, z: float) -> float:
+	var lump := lerpf(0.2, 0.12, smoothstep(0.25, 0.7, z)) + 0.05 * exp(-pow((z - 0.66) / 0.09, 2.0))
+	return lump * exp(-pow(x / 0.24, 2.0))
+
+
+## The furniture's cloth (KayKit's fabric) in `colour`, its UVs held inside one soft, near-white patch of the pack's
+## shading atlas, so a whole sheet or duvet reads as one cloth rather than a patchwork of its swatches.
+func _cloth(colour: Color) -> StandardMaterial3D:
+	var mat: StandardMaterial3D = (RoomBuilder.fabric_material(colour) as StandardMaterial3D).duplicate()
+	mat.uv1_scale = Vector3(0.26, 0.18, 1)
+	mat.uv1_offset = Vector3(0.54, 0.28, 0)
+	return mat
 
 
 ## True if the bedroom's back wall has a window over tile column x.
@@ -1297,17 +1415,43 @@ func _camera_shot(shot: String, progress: float) -> void:
 		"sleeping":
 			var sk: Skeleton3D = people["hero"].get_meta("skeleton")
 			var head := sk.to_global(sk.get_bone_global_pose(sk.find_bone("head")).origin)
-			camera.fov = 32.0
-			pos = head + Vector3(0.3, 1.1, 1.8).lerp(Vector3(0.2, 0.8, 1.3), progress)
-			target = head
-		"prison":
-			camera.fov = 44.0
-			pos = Vector3(-2.4, 2.3, 4.8)
-			target = Vector3(-0.2, 1.0, 0.1)
-		"mouse":
+			# close on the sleeping face from over the covers, easing slowly in: eyes shut, the duvet up to the chin
+			# (the head bone is at the neck: the face lies back from it towards the pillow)
+			var face := head + Vector3(0, 0.2, -0.22)
+			camera.fov = 30.0
+			pos = face + Vector3(0.16, 1.45, 1.05).lerp(Vector3(0.1, 1.2, 0.85), progress)
+			target = face + Vector3(0, -0.04, 0.25)
+		"dream_bread":
+			# over the hero's shoulder from inside the cell: the bread on the floor beyond the bars, the ducks' water past it
+			camera.fov = 40.0
+			pos = Vector3(1.05, 1.7, -0.7).lerp(Vector3(0.95, 1.64, -0.5), progress)
+			target = Vector3(-0.95, 0.2, 1.75)
+		"dream_ducks":
+			# low across the floor to the channel, where the ducks are paddling; one turns towards the bread
 			camera.fov = 38.0
-			pos = Vector3(-2.1, 0.7, 3.0)
-			target = Vector3(-1.25, 0.19, 1.9)
+			pos = Vector3(-0.7, 0.62, 2.55).lerp(Vector3(-0.85, 0.6, 2.65), progress)
+			target = Vector3(-2.3, 0.02, 3.85)
+		"dream_waddle":
+			# down at a duck's height, alongside it as it waddles over to the bread
+			camera.fov = 40.0
+			var duck: Vector3 = _prison.eater.position
+			pos = duck + Vector3(1.25, 0.7, 1.05)
+			target = duck + Vector3(-0.15, 0.2, -0.2)
+		"dream_eat":
+			# close on the duck pecking at the bread, the hero behind the bars watching it
+			camera.fov = 36.0
+			pos = Vector3(0.45, 0.85, 2.75).lerp(Vector3(0.3, 0.8, 2.55), progress)
+			target = Vector3(-0.8, 0.5, 1.0)
+		"dream_hero":
+			# the hero at the bars, the full duck at their feet outside
+			camera.fov = 36.0
+			pos = Vector3(-0.1, 1.15, 3.3).lerp(Vector3(-0.15, 1.1, 3.1), progress)
+			target = Vector3(-0.6, 0.62, 0.7)
+		"dream_voice":
+			# past the hero into the dark of the cell, where the voice comes from
+			camera.fov = 38.0
+			pos = Vector3(-1.1, 1.5, 3.1).lerp(Vector3(-1.0, 1.45, 2.8), progress)
+			target = Vector3(0.2, 1.0, -1.6)
 		"hero":
 			camera.fov = 24.0
 			pos = Vector3(5.0, 4.8, 9.8).lerp(Vector3(4.8, 4.7, 9.4), progress)
@@ -1345,6 +1489,10 @@ func _update_frame() -> void:
 		for key in people:
 			Person.set_talking(people[key], key == speaking, true)
 	var p := clampf((elapsed - float(beat[0])) / (float(beat[1]) - float(beat[0])), 0, 1)
+	if _scene == "dream" and is_instance_valid(_prison):
+		# (the duck first, so the camera can follow it)
+		_prison.dream_at(elapsed - DREAM)
+		_dream_sounds()
 	_camera_shot(String(beat[4]), p)
 	if _scene == "tower":
 		_tower_frame()
@@ -1478,6 +1626,16 @@ func _staff_frame() -> void:
 			if preview:
 				body.rotation.y = atan2(way.x, way.z)
 		Person.animate(person, Person.phase_for(go, STAFF_SPEED), STAFF_SPEED if walking else 0.0, elapsed)
+
+
+## The dream's quacks: the duck spotting the bread, and then, right beside the hero, full of bread (ducks only quack).
+func _dream_sounds() -> void:
+	if preview:
+		return
+	for cue in [[6.2, "eater"], [20.0, "eater"], [22.4, "eater"], [25.4, "floater"]]:
+		var at: float = DREAM + float(cue[0])
+		if elapsed >= at and _last_time < at:
+			(_prison.eater if cue[1] == "eater" else _prison.ducks[0]).quack()
 
 
 func _reveal_sounds() -> void:

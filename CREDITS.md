@@ -41,7 +41,7 @@ Kelpwick's arena uses **Stylized House** by [Kesenkai](https://sketchfab.com/kes
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), supplied as `stylized_house.glb`.
 The TV antenna and original door are removed; the model is fitted to its plot and given the huts' solid wood door.
 See [source and conversion details](licenses/kelpwick_arena.md).
-The procedural harbour pleasure boats and shallow-water footstep sounds (`tools/make_sfx.py`) are original project assets.
+The procedural harbour pleasure boats, shallow-water footstep sounds, the night crickets and the ducks' quack (`tools/make_sfx.py`) are original project assets.
 The battle mural textures (`assets/battle/backdrops/`) are rendered derivatives of the regional scenery already
 credited below, baked by `tools/bake_battle_backdrops.gd` and passed through the shared smoothing pipeline.
 See [battle backdrop provenance](licenses/battle_backdrops.md). The translucent yellow targeting arrow is original procedural geometry.
@@ -194,6 +194,12 @@ upholstery) over a wood grain and cloth weave of our own.
   items lying about the world and the temples' treasures, the crates and barrels, the street benches, made by stretching its stool along the seat, and the temple dragons' hoards of coins, trunks, arms, candles, keys and plates; baked by
   `tools/import_kaykit.gd`).
   See [licence](licenses/KayKit%20Dungeon%20Pack%20-%20License.txt).
+- **KayKit Restaurant Bits 1.0** by Kay Lousberg, https://www.kaylousberg.com, CC0 (the bread roll the duck eats in
+  the prologue's dream: `food_ingredient_bun`, converted to `assets/props/bread_roll.glb`).
+  See [licence](licenses/KayKit%20Restaurant%20Bits%20-%20License.txt).
+- **Mallard Duck (Drake), Stylized, Rigged & Animated** by Liray 3D, Standard Fab licence (Jared's ducks, in the
+  dream, the jail and on the roads: `assets/animals/duck.glb`, cut down to 5,000 triangles with its rig and clips).
+  See [source and modifications](licenses/duck_stylized_liray3d.md).
 - **PSX style modular hedges** by valsekamerplant, CC0, https://valsekamerplant.itch.io/psx-style-hedges.
 - **Stasis Chamber** by KieranEdwards (https://sketchfab.com/KieranEdwards),
   https://sketchfab.com/3d-models/stasis-chamber-0d09b5d0355d4727bd601015f394de3f, licensed under CC BY 4.0

@@ -243,8 +243,10 @@ static func pose_of(rig: Node3D) -> String:
 	return String(rig.get_meta("pose", ""))
 
 
-## Close the painted eyes on this one posed rig. Shared meshes and wardrobe materials stay unchanged.
-static func sleeping_eyes(rig: Node3D) -> void:
+## Close the painted eyes on this one posed rig. Shared meshes and wardrobe materials stay unchanged. Worried: a
+## troubled sleep (the prologue's dream coming on): the brows raised towards the middle and the smile painted out
+## for a small downturned mouth.
+static func sleeping_eyes(rig: Node3D, worried := false) -> void:
 	for part in rig.find_children("*", "MeshInstance3D", true, false):
 		var instance := part as MeshInstance3D
 		if not instance.mesh is ArrayMesh:
@@ -252,11 +254,15 @@ static func sleeping_eyes(rig: Node3D) -> void:
 		var original: ArrayMesh = instance.mesh
 		var copy := ArrayMesh.new()
 		var bounds := {}
+		var brows := {}
+		var mouth := Rect2()
+		var has_mouth := false
 		var face_vertices := PackedVector3Array()
 		for surface in original.get_surface_count():
 			var arrays := original.surface_get_arrays(surface)
 			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var slots: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+			var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR] if arrays[Mesh.ARRAY_COLOR] != null else PackedColorArray()
 			for i in slots.size():
 				if int(slots[i].x + 0.5) != 3:
 					continue
@@ -268,6 +274,28 @@ static func sleeping_eyes(rig: Node3D) -> void:
 				if bounds.has(side) and vertices[i].z > 0.15 and (bounds[side] as Rect2).grow(0.045).has_point(Vector2(vertices[i].x, vertices[i].y)):
 					face_vertices.append(vertices[i])
 					slots[i] = Vector2(1, 1)
+			if worried and not bounds.is_empty():
+				var eyes: Rect2 = bounds.values()[0]
+				for r in bounds.values():
+					eyes = eyes.merge(r)
+				for i in slots.size():
+					var at := Vector2(vertices[i].x, vertices[i].y)
+					if vertices[i].z <= 0.15:
+						continue
+					var slot := int(slots[i].x + 0.5)
+					# a brow (townfolk.gd _fix_eyes: the hair's slot at 0.85, in the eye line's dark)
+					var over_eye := at.y > eyes.get_center().y and at.y < eyes.end.y + 0.09 and absf(at.x) < eyes.end.x + 0.03
+					if slot == 2 and absf(slots[i].y - 0.85) < 0.03 and over_eye and i < colours.size() and colours[i].get_luminance() < 0.08:
+						var side := signi(roundi(vertices[i].x * 1000))
+						brows[side] = (brows[side] as Rect2).expand(at) if brows.has(side) else Rect2(at, Vector2.ZERO)
+						slots[i] = Vector2(1, 1)
+						face_vertices.append(vertices[i])
+					# the mouth: the kit's own paint below and between the eyes
+					elif slot == 0 and absf(at.x) < eyes.end.x and at.y < eyes.position.y and at.y > eyes.position.y - 0.16:
+						mouth = mouth.expand(at) if has_mouth else Rect2(at, Vector2.ZERO)
+						has_mouth = true
+						slots[i] = Vector2(1, 1)
+						face_vertices.append(vertices[i])
 			arrays[Mesh.ARRAY_TEX_UV2] = slots
 			copy.add_surface_from_arrays(original.surface_get_primitive_type(surface), arrays, [], {}, original.surface_get_format(surface))
 			copy.surface_set_material(surface, original.surface_get_material(surface))
@@ -282,28 +310,58 @@ static func sleeping_eyes(rig: Node3D) -> void:
 		var painter = load("res://scripts/story/prison_stage.gd").new()
 		for side in bounds:
 			var rect: Rect2 = bounds[side]
-			var previous := Vector3.ZERO
+			var lid := []
 			for i in 9:
 				var t := float(i) / 8.0
-				var point := Vector2(lerpf(rect.position.x, rect.end.x, t), rect.get_center().y - 0.02 + sin(t * PI) * 0.01)
-				var distance := INF
-				var depth := 0.15
-				for vertex in face_vertices:
-					var d := point.distance_squared_to(Vector2(vertex.x, vertex.y))
-					if d < distance:
-						distance = d
-						depth = vertex.z
-				var at := head_rest * Vector3(point.x, point.y, depth + 0.002)
-				if i > 0:
-					var stroke := CylinderMesh.new()
-					stroke.top_radius = 0.004
-					stroke.bottom_radius = 0.004
-					stroke.height = previous.distance_to(at) + 0.003
-					stroke.radial_segments = 8
-					var line = painter.piece(lids, stroke, (previous + at) * 0.5, Vector3.ONE, "40313d")
-					line.quaternion = Quaternion(Vector3.UP, (at - previous).normalized())
-				previous = at
+				lid.append(Vector2(lerpf(rect.position.x, rect.end.x, t), rect.get_center().y - 0.02 + sin(t * PI) * 0.01))
+			_face_line(lids, painter, lid, face_vertices, head_rest, "40313d", 0.004)
+			if worried:
+				# the brow over this eye, its inner end (towards the nose) lifted
+				var brow: Rect2 = brows.get(side, Rect2(rect.position.x, rect.end.y + 0.03, rect.size.x, 0.0))
+				var inner := brow.position.x if side > 0 else brow.end.x
+				var outer := brow.end.x if side > 0 else brow.position.x
+				var y := brow.get_center().y
+				var line := []
+				for i in 7:
+					var t := float(i) / 6.0
+					line.append(Vector2(lerpf(outer, inner, t), y - 0.012 + t * 0.028 - sin(t * PI) * 0.003))
+				_face_line(lids, painter, line, face_vertices, head_rest, "40313d", 0.0045)
+		if worried and has_mouth:
+			# a small, downturned mouth: its corners lower than its middle
+			var c := mouth.get_center()
+			var half := minf(mouth.size.x * 0.5, 0.03)
+			var line := []
+			for i in 7:
+				var t := float(i) / 6.0
+				line.append(Vector2(c.x - half + 2.0 * half * t, c.y - 0.004 + sin(t * PI) * 0.008))
+			_face_line(lids, painter, line, face_vertices, head_rest, "6a3440", 0.004)
 		painter.free()
+
+
+## A painted line on the face, drawn as thin strokes through `points` (the face's x, y; each sat just on the face's
+## surface there, found from the nearest of `face_vertices`), riding the head bone (on `holder`).
+static func _face_line(holder: Node3D, painter, points: Array, face_vertices: PackedVector3Array, head_rest: Transform3D,
+		colour: String, radius: float) -> void:
+	var previous := Vector3.ZERO
+	for i in points.size():
+		var point: Vector2 = points[i]
+		var distance := INF
+		var depth := 0.15
+		for vertex in face_vertices:
+			var d := point.distance_squared_to(Vector2(vertex.x, vertex.y))
+			if d < distance:
+				distance = d
+				depth = vertex.z
+		var at := head_rest * Vector3(point.x, point.y, depth + 0.002)
+		if i > 0:
+			var stroke := CylinderMesh.new()
+			stroke.top_radius = radius
+			stroke.bottom_radius = radius
+			stroke.height = previous.distance_to(at) + 0.003
+			stroke.radial_segments = 8
+			var line = painter.piece(holder, stroke, (previous + at) * 0.5, Vector3.ONE, colour)
+			line.quaternion = Quaternion(Vector3.UP, (at - previous).normalized())
+		previous = at
 
 
 ## Whether a person is talking: gesturing as they speak, nodding along (sitting or standing).

@@ -1,6 +1,7 @@
 extends RefCounted
 ## Shared beach profile for terrain, feet and touch picking. Deep water retains ordinary blocked water tiles.
 const WATER_Y := -0.12
+const WorldDB = preload("res://scripts/data/world_db.gd")
 const MAX_WADE_DEPTH := 0.05
 const WADE_FLOOR := WATER_Y - MAX_WADE_DEPTH
 const DEEP_FLOOR := -1.65
@@ -44,6 +45,75 @@ static func lily_pads(m: Dictionary, ground := Callable()) -> Array:
 			if not cluster.is_empty():
 				planted.append(p)
 	return out
+
+
+## The water tiles a few ducks float on: on the roads (never in a town or indoors), one or two small flocks, each duck
+## on its own tile right by a level grassy bank, the lily pads' kind of spot (so the hero can stand beside it and
+## press A: it quacks), clear of the lily pads (`pads`, their transforms), crossings, beaches and fishing spots.
+static func duck_spots(m: Dictionary, pads: Array = []) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	# (the reef is open sea: no ducks)
+	if m.get("kind", "") == "interior" or WorldDB.is_town(String(m.get("id", ""))) 			or m.get("biome", {}).get("id", "") == "reef":
+		return out
+	var rng := RandomNumberGenerator.new()
+	rng.seed = String(m.get("id", "")).hash() + 991
+	var flocks: Array[Vector2i] = []
+	for z in range(3, int(m["h"]) - 3):
+		for x in range(3, int(m["w"]) - 3):
+			var p := Vector2i(x, z)
+			if flocks.size() >= 2 or not _duck_tile(m, p, pads, out) or rng.randf() > 0.3:
+				continue
+			if flocks.any(func(q: Vector2i) -> bool: return p.distance_squared_to(q) < 144):
+				continue
+			flocks.append(p)
+			out.append(p)
+			# its flockmates, on open water beside it (by the bank too, where they can be, else a little way out)
+			for q in [p + Vector2i(1, 0), p + Vector2i(-1, 0), p + Vector2i(0, 1), p + Vector2i(0, -1), p + Vector2i(1, -1),
+					p + Vector2i(-1, -1), p + Vector2i(2, 0), p + Vector2i(-2, 0)]:
+				if out.size() - out.find(p) >= 3:
+					break
+				if _duck_tile(m, q, pads, out) or _mate_tile(m, q, p, pads, out):
+					out.append(q)
+	return out
+
+
+static func _duck_tile(m: Dictionary, p: Vector2i, pads: Array, taken: Array[Vector2i]) -> bool:
+	if p in taken or MapGen.get_t(m, p.x, p.y) != MapGen.WATER or Elev.diagonal(m, p) != 0 or m.get("fish_spots", {}).has(p):
+		return false
+	var level := Elev.surface(m, p)
+	var stand := false
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var q := p + Vector2i(dx, dz)
+			var tile := MapGen.get_t(m, q.x, q.y)
+			if tile in [MapGen.SAND, MapGen.SHALLOWS, MapGen.BRIDGE, MapGen.BUILDING, MapGen.DOOR] or m.get("over_water", {}).has(q):
+				return false
+			# (somewhere to stand beside it: open grass or path on its level, not a bush, a tree or a rock)
+			if absi(dx) + absi(dz) == 1 and tile in [MapGen.GRASS, MapGen.TALL, MapGen.FLOWERS, MapGen.PATH] 					and Elev.diagonal(m, q) == 0 and is_equal_approx(Elev.surface(m, q), level):
+				stand = true
+	if not stand:
+		return false
+	for pad in pads:
+		var at: Vector3 = (pad as Transform3D).origin
+		if Vector2(at.x, at.z).distance_to(Vector2(p.x + 0.5, p.y + 0.5)) < 0.75:
+			return false
+	return true
+
+
+## Open water by the flock's first duck (`p`) for another to float on: the same level, away from beaches and pads.
+static func _mate_tile(m: Dictionary, q: Vector2i, p: Vector2i, pads: Array, taken: Array[Vector2i]) -> bool:
+	if q in taken or MapGen.get_t(m, q.x, q.y) != MapGen.WATER or Elev.diagonal(m, q) != 0 			or not is_equal_approx(Elev.surface(m, q), Elev.surface(m, p)) or m.get("fish_spots", {}).has(q):
+		return false
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var t := MapGen.get_t(m, q.x + dx, q.y + dz)
+			if t in [MapGen.SAND, MapGen.SHALLOWS, MapGen.BRIDGE] or m.get("over_water", {}).has(q + Vector2i(dx, dz)):
+				return false
+	for pad in pads:
+		var at: Vector3 = (pad as Transform3D).origin
+		if Vector2(at.x, at.z).distance_to(Vector2(q.x + 0.5, q.y + 0.5)) < 0.75:
+			return false
+	return true
 
 
 ## Where near `want` a leaf of scale `size` floats whole on tile p's water, clear of the bank and not piled on the

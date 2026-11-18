@@ -113,7 +113,7 @@ func setup(_song_id: String, _subtitle := "", time_bonus := 0.0, opts := {}) -> 
 	dirt_sheet = bool(opts.get("dirt_sheet", false))
 	if dirt_sheet:
 		song = song.duplicate()
-		song["name"] = "Jared's Mouse March"
+		song["name"] = "Jared's Duck March"
 	subtitle = _subtitle
 	dim = 0.45
 	level = int(opts.get("level", GameState.song_level(song_id)))

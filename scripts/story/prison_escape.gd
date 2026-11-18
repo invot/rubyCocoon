@@ -1,5 +1,6 @@
 extends "res://scripts/ui/modal.gd"
-## Remembered-clue escape or a difficult flute performance followed by controlling the mouse.
+## Remembered-clue escape or a difficult flute performance followed by guiding one of Jared's ducks to the catch;
+## once the gate's up, the ducks follow Jared and the hero out (prison_stage.gd walk_out).
 const Stage = preload("res://scripts/story/prison_stage.gd")
 const MARCH := [[0], [2, 1], [3], [4], [2, 0], [1], [5], [3, 1], [0], [2, 4], [3, 5], [2]]
 const ROCKS := [Vector2i(2, 0), Vector2i(3, 1), Vector2i(4, 2), Vector2i(5, 1)]
@@ -7,7 +8,7 @@ const LOCK := Vector2i(6, 0)
 var stage: Node3D
 var view: SubViewport
 var mode := "choice"
-var mouse_tile := Vector2i(2, 1)
+var duck_tile := Vector2i(2, 1)
 var _cooldown := 0.0
 var _old_pause := true
 
@@ -51,7 +52,8 @@ func _layout() -> void:
 
 func _begin() -> void:
 	await UI.say(["Matt locked us in his old dungeon. He can't have us touching the machinery.",
-		"I can coax that mouse into helping. Let me write a song in the dirt...",
+		"At least my ducks found me. Did you know a duck's feet never feel the cold? No nerves in the webbing.",
+		"I can coax one of them into helping. Let me write a song in the dirt...",
 		"Some of the marks have rubbed off. Or perhaps you have another idea?"], "Jared", null, stage.jared)
 	_choose()
 
@@ -73,49 +75,54 @@ func _choose() -> void:
 		elif c == 1:
 			var result: Dictionary = await UI.flute_ex("dread", "Composed in the dirt · Some symbols are incomplete", {"mode": "play", "level": 5, "dirt_sheet": true, "melody": MARCH, "time_limit": 18.0})
 			if not result.get("cancelled", false) and float(result.get("acc", 0.0)) > 0.0:
-				mode = "mouse"
-				mouse_tile = Vector2i(2, 1)
-				stage.mouse.position = tile_position(mouse_tile)
+				mode = "duck"
+				duck_tile = Vector2i(2, 1)
+				stage.helper.position = tile_position(duck_tile)
 				stage.camera.position = Vector3(0, 4.6, 5.8)
 				stage.camera.look_at(Vector3(0, 0, 1.8))
-				UI.top_bar.post("Move the mouse · A: Unlock · B: Return", null, {"key": "jail", "replace": true, "hold": 120.0})
+				UI.top_bar.post("Move the duck · A: Unlock · B: Return", null, {"key": "jail", "replace": true, "hold": 120.0})
 			else:
 				await UI.say(["Let's try again. Or use that tool you remember."], "Jared", null, stage.jared)
 
 func tile_position(tile: Vector2i) -> Vector3:
-	return Vector3(-2.7 + tile.x * 0.8, 0.05, 1.2 + tile.y * 0.6)
+	return Vector3(-2.7 + tile.x * 0.8, 0.0, 1.2 + tile.y * 0.6)
 
 func _process(delta: float) -> void:
-	if mode != "mouse" or UI.stack.back() != self:
+	if mode != "duck" or UI.stack.back() != self:
+		stage.helper.act("Idle")
 		return
 	_cooldown = maxf(0.0, _cooldown - delta)
 	if _cooldown > 0:
 		return
+	var moved := false
 	for pair in [["ui_left", Vector2i.LEFT], ["ui_right", Vector2i.RIGHT], ["ui_up", Vector2i.UP], ["ui_down", Vector2i.DOWN]]:
 		if Input.is_action_pressed(pair[0]):
-			move_mouse(pair[1])
+			moved = move_duck(pair[1])
 			_cooldown = 0.18
 			break
+	stage.helper.act("Walk" if moved else "Idle", 1.6)
 
-func move_mouse(direction: Vector2i) -> bool:
-	var next := mouse_tile + direction
+func move_duck(direction: Vector2i) -> bool:
+	var next := duck_tile + direction
 	if absi(direction.x) + absi(direction.y) != 1 or next.x < 0 or next.x > 6 or next.y < 0 or next.y > 3 or next in ROCKS:
 		return false
-	mouse_tile = next
-	stage.mouse.position = tile_position(next)
-	stage.mouse.rotation.y = atan2(direction.x, direction.y)
+	duck_tile = next
+	stage.helper.position = tile_position(next)
+	stage.helper.face(Vector3(direction.x, 0, direction.y))
 	return true
 
 func on_input(ev: InputEvent) -> void:
-	if mode != "mouse" or ev.is_echo():
+	if mode != "duck" or ev.is_echo():
 		return
 	if ev.is_action_pressed("ui_cancel"):
 		_choose.call_deferred()
 	elif ev.is_action_pressed("interact") or ev.is_action_pressed("ui_accept"):
-		if mouse_tile == LOCK:
-			_escape("mouse")
+		if duck_tile == LOCK:
+			_escape("duck")
 		else:
-			UI.toast("Guide the mouse to the brass catch.")
+			# (a duck only ever quacks)
+			stage.helper.quack()
+			UI.toast("Guide the duck to the brass catch.")
 
 func _escape(route: String) -> void:
 	mode = "opening"
@@ -125,6 +132,12 @@ func _escape(route: String) -> void:
 	tween.tween_property(stage.gate, "position:y", 2.8, 0.8)
 	await tween.finished
 	await UI.say(["It's open. Come on. We have to shut those machines down."], "Jared", null, stage.jared)
+	# out of the cell, the ducks waddling after the two of you
+	stage.walk_out()
+	for i in 4:
+		await get_tree().create_timer(1.1).timeout
+		(stage.ducks[i % stage.ducks.size()] if i % 2 == 1 else stage.helper).quack()
+	await get_tree().create_timer(1.0).timeout
 	close(true)
 
 func _write_song() -> void:

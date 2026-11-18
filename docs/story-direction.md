@@ -49,15 +49,21 @@ The scene recalls Matt's capacity for care and sharing before his fixation on ac
 
 After the opening warehouse cage reveal, replace the trainers-in-the-grass / Coastal Path scene with a close-up of the sleeping player's face in bed. Transition into their nightmare.
 
-In the nightmare, the player is trapped in a poorly lit dungeon, holding the bars of their cell. This is a different location from the warehouse holding the kidnapped trainers. The player watches a mouse eating rotten food on the ground.
+In the nightmare, the player is trapped in a poorly lit dungeon, standing at the bars of their cell. This is a different location from the warehouse holding the kidnapped trainers. A channel of dark water runs across the dungeon in front of the cell, with ducks floating in it. The player looks at a piece of bread lying outside the cell; one of the ducks spots it, climbs out of the water, waddles over and eats it. The film lingers here: a long, quiet watch of the duck before anyone speaks. The duck only quacks.
 
-From a dark corner behind the player, an unseen voice says:
+The player asks why there are ducks in a dungeon. From the dark behind them, an unseen voice says those are his ducks, adds a duck fact, and then:
 
 > "I'll get us out of here, just give me a [tool]."
 
-Select the tool name randomly from a pool of three. The three tools are a spork, the player’s left sock, and a roll of toilet paper. The unseen speaker’s identity remains unspecified; identifying Jared as Vexmora does not settle who speaks in the nightmare.
+Select the tool name randomly from a pool of three. The three tools are a spork, the player’s left sock, and a roll of toilet paper. The unseen speaker’s name stays hidden (“A voice”), but “those are my ducks” is a deliberate hint for anyone who later meets Jared and his ducks.
 
 End the nightmare and return to the player waking in bed. They remark on the odd dream and joke that it could only happen if some maniac put "ruin spring" on their calendar. Preserve this meaning; final dialogue wording remains to be written.
+
+### Jared and his ducks
+
+Jared has an affinity for ducks. He has befriended them wherever he has been, including the ducks in Matt’s old dungeon, and they follow him about. He knows a great many duck facts (a duck can sleep with one eye open; a duck’s webbed feet don’t feel the cold) and, being eccentric, sometimes just talks about ducks in the middle of more serious matters. Use it lightly: a fact or an aside, never a lecture, and never at the expense of a serious scene’s weight.
+
+Ducks are animals, not talking critters or beasts: they never speak and are never caught, hatched or battled. They float on water and waddle on land. A duck next to the player only quacks (a sound, no speech bubble); pressing A at one again and again steps its quack up a major scale and back down, so they sound like they are singing. A few float by grassy banks on the roads (never in towns), and Jared’s are in the dungeon of the dream and of the jail.
 
 ### Later jail escape: memory or a difficult flute song
 
@@ -65,7 +71,7 @@ Later, the player is in jail with Jared. Remembering the tool named in the intro
 
 The alternative is a really difficult song that Jared composes directly in the dirt on the cell floor. The written notation uses button icons, some of which are cut in half, leaving the player to interpret the incomplete symbols when performing the song. Which icons are halved and the exact difficulty tuning remain to be decided.
 
-Playing the song makes the mouse a controllable drone and lets it unlock their cell. Both routes must lead to escape; the remembered tool clue bypasses the demanding musical challenge.
+Playing the song (“Jared’s Duck March”) coaxes one of Jared’s ducks into helping: the player guides it to the cell’s catch, and it unlocks the cell. Once the gate is open, the ducks follow Jared and the player out of the dungeon in a line. Both routes must lead to escape; the remembered tool clue bypasses the demanding musical challenge.
 
 Implementation requirement: choose the tool once for the playthrough and persist it with the save. The later jail scene must use the same tool, without rerolling it on reload or when the intro is replayed. Define how skipped intros and older saves expose or initialize the clue so that the flute route remains available.
 
@@ -140,7 +146,7 @@ Reviewed against README.md, scripts/autoload/story.gd, and scripts/story/opening
 6. Define spirit-energy extraction, its effects on captives, and the island network's failure mechanism.
 7. Order the attempted killing, scientist's intervention, shutdown, Marlyse's farewell, and home confrontation.
 8. Establish that the immediate catastrophe is resolved or contained when the brothers play spaceships.
-9. Tool pool resolved: a spork, the player’s left sock, a roll of toilet paper. Implement the clue interaction, tool-based escape and flute/mouse controls.
+9. Tool pool resolved: a spork, the player’s left sock, a roll of toilet paper. Implement the clue interaction, tool-based escape and flute/duck controls.
 10. Jared is Vexmora in the shared jail. The unseen nightmare speaker remains unspecified.
 
 ## Scope of this update
@@ -153,9 +159,9 @@ The 17 November answers resolve the tool pool, Jared/player ambiguity, Vexmora/s
 
 ## Runtime implementation checkpoint — 17 November
 
-- `opening.gd` now cuts from the cages to a sleeping-face shot, a separate dungeon with the mouse and the remembered tool line, then the wake-up joke. The tool phrase is red. Existing A/B/skip controls remain.
+- `opening.gd` now cuts from the cages to a sleeping-face shot, a separate dungeon where a duck eats bread outside the cell and the voice claims the ducks before the remembered tool line, then the wake-up joke. The tool phrase is red. Existing A/B/skip controls remain.
 - `GameState.nightmare_tool` stores the index in saved flags; new journeys choose once and older saves derive a stable fallback. Skipped/replayed intros do not reroll it.
-- `prison_escape.gd` provides the remembered-tool route and Jared’s difficult, partly erased Mouse March, with a controllable mouse and brass lock. Wrong answers, failed songs and returning from mouse control do not consume items or block retrying.
+- `prison_escape.gd` provides the remembered-tool route and Jared’s difficult, partly erased Duck March, with a controllable duck and brass lock; the ducks follow Jared and the player out once the gate opens. Wrong answers, failed songs and returning from duck control do not consume items or block retrying.
 - The finale preserves the captive-rescue prerequisite. Jared’s defeat unlocks three real controls in the crypt; their ordered saved state isolates intake, frees spirits and shuts down the island network before completion.
 - `family_film.gd` stages the mothers’ friendship, Matt’s attempted killing and Jared’s intervention, Mom’s hockey fight, Marlyse’s acceptance, the home confrontation, the restaurant/fries memory and spaceships invitation. Holding B skips without losing progression.
 - The existing Andrew/Jared wedding remains afterward. Previously completed saves remain completed. Ghost companions remain playable.

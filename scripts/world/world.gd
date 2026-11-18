@@ -119,6 +119,8 @@ var items := {}
 ## Chests whose item has been taken: they stay where they are, lid open, and stand in the way like any prop.
 var opened_chests := {}
 var shards := {}
+## the ducks floating by the banks (tile -> duck.gd); A beside one makes it quack
+var ducks := {}
 var doors := {}
 var obstacle_nodes := {}
 var weapon_obstacles: Node3D
@@ -1797,6 +1799,7 @@ func _build_scatter() -> void:
 	var pads := Shoreline.lily_pads(map, _ground_mesh.ground_y if _ground_mesh else Callable())
 	if not pads.is_empty():
 		_multimesh(VP.lily_pad(), pads, null, false, VP.LILY_SWELL_BOUND)
+	_place_ducks(pads)
 	for name in by_asset:
 		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
 	var FenceModels = load("res://scripts/gfx/fence_models.gd")
@@ -3891,6 +3894,12 @@ func _interact() -> void:
 	if wb != null:
 		_bump_wild(wb)
 		return
+	if ducks.has(t):
+		# a duck only ever quacks: each press the next note up the scale, so pressing on makes it sing
+		var duck: Node3D = ducks[t]
+		duck.face(Vector3(player_pos.x - t.x, 0, player_pos.y - t.y))
+		duck.quack()
+		return
 	busy = true
 	if room_walls != null and room_walls.shelf_doors.has(t):
 		_clear_path()
@@ -3936,6 +3945,20 @@ func _interact() -> void:
 	elif MapGen.get_t(map, t.x, t.y) == MapGen.WATER:
 		await Fishing.cast(self, t)
 	busy = false
+
+
+## Jared's kind of company: a few ducks floating by the banks of freshwater roads (Shoreline.duck_spots).
+func _place_ducks(pads: Array) -> void:
+	ducks.clear()
+	for p in Shoreline.duck_spots(map, pads):
+		var duck: Node3D = preload("res://scripts/gfx/duck.gd").new()
+		duck.floating = true
+		duck.wander = true
+		duck.size = 1.6
+		duck.position = Vector3(p.x + 0.5, Elev.surface(map, p) + Shoreline.WATER_Y, p.y + 0.5)
+		duck.rotation.y = float(posmod(p.x * 7 + p.y * 13, 12)) * TAU / 12.0
+		add_child(duck)
+		ducks[p] = duck
 
 
 # ---------------------------------------------------------------- fishing (see fishing.gd)

@@ -29,7 +29,7 @@ extends RefCounted
 ##   "locked": what you find at each locked door, in reading order (else just that it's locked)
 ##   furniture (see FURNITURE): k kitchen counter, i kitchen sink, v stove, f fridge, j pantry, T toilet, U bathtub,
 ##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table,
-##   N nightstand, Q dresser, E desk, F storage (a big chest of drawers over two tiles), m mop and bucket, l floor lamp, O and X plain floor (the
+##   N small one-tile drawers, QQ wide two-tile dresser (along its wall), E desk, F storage (a big chest of drawers over two tiles), m mop and bucket, l floor lamp, O and X plain floor (the
 ##   coat stand, retired 2026-11-15 as too thin, and the open boxes, removed 2026-11-16),
 ##   z bin, J bunk bed, & low book display, ^ hay bales, ( low cupboard, ) pouf, [ basket of blankets,
 ##   } the hero's standing mirror (against a back wall; looking in it changes clothes). TVs (V) belong on the implied fourth wall in stage rooms.
@@ -356,7 +356,7 @@ const ROOMS := {
 			"#NbbNB..SS.@#",
 			"w.bb........#",
 			"#Q......yy.a#",
-			"w.rrr..1....#",
+			"wQrrr..1....#",
 			"#[.......2.PD",
 			"#############",
 		],
@@ -413,7 +413,7 @@ const ROOMS := {
 		"rows": [
 			"###w###w###",
 			"#...NbbN..#",
-			"#....bb...#",
+			"#....bb..Q#",
 			"!........Q#",
 			"#...rrr..p#",
 			"###########",
@@ -450,7 +450,7 @@ const ROOMS := {
 		"rows": [
 			"#####w##w##",
 			"#NbbN.....#",
-			"#.bb......#",
+			"#Qbb......#",
 			"#Q........!",
 			"#l..rrr...#",
 			"###########",
@@ -490,7 +490,7 @@ const ROOMS := {
 			"#NbNBB..SS.@#",
 			"w.b.........#",
 			"#Q.....1yy.a#",
-			"w.rrr.......#",
+			"wQrrr.......#",
 			"#[.........PD",
 			"#############",
 		],
@@ -539,7 +539,7 @@ const ROOMS := {
 			"#NbN}Ec...#",
 			"#.b.......#",
 			"#Q........!",
-			"#...rrr)..#",
+			"#Q..rrr)..#",
 			"#p......([#",
 			"###########",
 		],
@@ -551,7 +551,7 @@ const ROOMS := {
 		"scheme": "rose_moss", "closets": [[8, 0, 2]],
 		"rows": [
 			"###w#######",
-			"#pQ.NbbN..#",
+			"#pQQNbbN..#",
 			"#....bb...#",
 			"!........a#",
 			"#..rrrr...#",

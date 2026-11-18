@@ -7,6 +7,7 @@ var instant_text := false
 ## Colour a phrase without adding markup to pagination, speech timing, or accessible text.
 var highlight_phrase := ""
 var _highlight_key := ""
+const HIGHLIGHT := preload("res://scripts/ui/dialog_highlight.gdshader")
 ## the dark window, when this is narration
 var _window: PanelContainer
 
@@ -51,7 +52,8 @@ func _process(delta: float) -> void:
 	super(delta)
 	if highlight_phrase == "" or not is_instance_valid(text_label):
 		return
-	var key := text_label.text + str(text_label.size)
+	# (the phrase's letters have no bounds until the typewriter reaches them, so look again as each one appears)
+	var key := text_label.text + str(text_label.size) + str(text_label.visible_characters)
 	if key == _highlight_key:
 		return
 	_highlight_key = key
@@ -66,15 +68,17 @@ func _process(delta: float) -> void:
 				spans[spans.size() - 1] = spans.back().merge(rect)
 			else:
 				spans.append(rect)
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://scripts/ui/dialog_highlight.gdshader")
+	var mat := text_label.material as ShaderMaterial
+	if mat == null or mat.shader != HIGHLIGHT:
+		mat = ShaderMaterial.new()
+		mat.shader = HIGHLIGHT
+		text_label.material = mat
 	var boxes := PackedVector4Array()
 	for i in 3:
 		var rect := spans[i] if i < spans.size() else Rect2()
 		boxes.append(Vector4(rect.position.x, rect.position.y, rect.end.x, rect.end.y))
 	mat.set_shader_parameter("spans", boxes)
 	mat.set_shader_parameter("span_count", mini(3, spans.size()))
-	text_label.material = mat
 
 
 func _paginate() -> void:

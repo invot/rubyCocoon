@@ -1077,6 +1077,16 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
+	if scene == "ducks":
+		await load("res://tools/debug/ducks.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
+	if scene == "jail":
+		await load("res://tools/debug/jail.gd").new().run(self, _test)
+		if _test.get("quit", "1") == "1":
+			get_tree().quit()
+		return
 	if scene == "intro":
 		await _opening_test()
 		if _test.get("quit", "1") == "1":
@@ -2788,6 +2798,11 @@ func _opening_test() -> void:
 		# (the real places take a moment to build as sets)
 		while film.loading:
 			await get_tree().process_frame
+		if _test.get("typing", "0") == "1" and is_instance_valid(film.dialogue):
+			# (--typing=1: the line types out as in playback rather than all at once, --wait seconds in)
+			film.dialogue.instant_text = false
+			film.dialogue.text_label.visible_characters = 0
+			film.dialogue.shown = 0.0
 		await _wait(float(_test.get("wait", "1.5")))
 		if _test.has("shot"):
 			_save_shot(String(_test["shot"]))

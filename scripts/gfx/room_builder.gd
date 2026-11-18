@@ -91,7 +91,7 @@ const KINDS := {
 	"basin": {"m": ["kitchen_sink", "vanity"]},
 	"washer": {"m": ["washer"]},
 	"sofa": {"m": ["sofa_love", "sofa_box", "sofa_roll"], "long": true, "same": true},
-	"armchair": {"m": ["armchair_roll", "armchair_club", "armchair_tub"], "same": true},
+	"armchair": {"m": ["armchair_roll", "armchair_club", "armchair_tub"], "same": true, "single": true},
 	"tv": {"m": ["tv_stand"], "top": ["tv"], "always_top": true},
 	# KayKit Furniture Bits (tools/import_kaykit_furniture.gd): chairs, stools, tables, beds, the chest of drawers,
 	# houseplants, lamps and rugs; their cloth takes a colour (fabric_material)
@@ -99,22 +99,23 @@ const KINDS := {
 		"single": true, "same": true},
 	"stool": {"m": ["kk_stool", "kk_stool_wood"], "chair": true, "single": true, "same": true},
 	"coffee_table": {"m": ["kk_table_low"], "free": true, "top": ["home/vase_flowers", "home/books_stack", "home/tea_set", "home/candles", "home/bowl_fruit", "cup", ""]},
+	"side_coffee_table": {"m": ["kk_table_low_square"], "single": true, "free": true,
+		"top": ["kk_lamp_table"], "always_top": true},
 	"book_display": {"m": ["kk_table_low"], "free": true, "top": ["books"], "always_top": true},
 	"table": {"m": ["kk_table_long", "kk_table_medium", "kk_table_small"], "free": true,
 		"top": ["plate", "cup", "home/bowl_fruit", "home/tea_set", "home/vase_flowers", "books_2", ""]},
 	# (2026-11-15) a nightstand is the small two-drawer cupboard; the wider chests of drawers are dressers. "alt" are
 	# what stands there instead when the first choice would be the same model as the piece beside it (_place)
 	"nightstand": {"m": ["kk_cabinet_small"], "alt": ["side_table"], "top": ["home/table_lamp_gourd"], "always_top": true, "single": true},
-	"dresser": {"m": ["kk_drawers"], "alt": ["kk_cabinet_small"], "top": ["teddy", "home/books_stack", "home/table_lamp_gourd", "home/photo_standing", "home/vase_round", "home/plant_succulent", "home/candles"]},
+	"dresser": {"m": ["kk_drawers"], "long": true, "top": ["teddy", "home/books_stack", "home/table_lamp_gourd", "home/photo_standing", "home/vase_round", "home/plant_succulent", "home/candles"]},
 	# (2026-11-15) a low cupboard, a pouf and a basket of blankets: low pieces that may stand anywhere, the front included
-	"cabinet": {"m": ["kk_drawers", "kk_cabinet_small"], "single": true, "top": ["home/vase_flowers", "home/books_stack", "home/plant_succulent", "home/photo_standing"]},
+	"cabinet": {"m": ["kk_cabinet_small"], "alt": ["side_table"], "single": true, "top": ["home/vase_flowers", "home/books_stack", "home/plant_succulent", "home/photo_standing"]},
 	"pouf": {"m": ["home/pouf"], "single": true, "free": true},
 	"basket": {"m": ["home/basket_blankets"], "single": true},
 	# a chunky table, with a chest of drawers beside it where the desk has two tiles or more (desk_side)
-	"desk": {"m": ["kk_table_small"], "desk_side": "kk_drawers", "top": ["books", "pencils", "globe", "home/books_stack"]},
-	# (2026-11-16, the user's direction) the big chest of drawers takes two tiles, grown to fill them but for a little
-	# gap at each side (grow: the share of the tiles' width it takes)
-	"storage": {"m": ["kk_drawers"], "alt": ["kk_cabinet_medium_dec"], "long": true, "grow": 0.86},
+	"desk": {"m": ["kk_table_small"], "desk_side": "kk_cabinet_small", "top": ["books", "pencils", "globe", "home/books_stack"]},
+	# The large chest keeps its baked 1.7-tile width within a two-tile footprint.
+	"storage": {"m": ["kk_drawers"], "long": true},
 	# a kennel barn's hay bales (barn_builder.gd)
 	"hay": {"m": ["hay_stack"], "single": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
@@ -124,12 +125,12 @@ const KINDS := {
 	"bed": {"m": ["kk_bed_single_A", "kk_bed_single_B", "kk_bed_double_A", "kk_bed_double_B"], "short": true},
 	"bunk": {"m": ["kk_bed_single_A", "kk_bed_single_B"], "short": true},
 	"plant": {"m": ["kk_cactus_medium_A", "kk_cactus_medium_B"], "single": true},
-	"large_plant": {"m": ["home/plant_pillow_tall"], "height": 1.9, "free": true},
+	"large_plant": {"m": ["home/plant_pillow_tall"], "alt": ["home/plant_pillow_round"], "height": 1.9, "free": true},
 	# (a shop's bookshelves stay; in a home each tile of one is a small dressed cupboard, home_m)
-	"bookshelf": {"m": ["bookshelf"], "home_m": ["kk_cabinet_small_dec"], "alt": ["kk_drawers", "kk_cabinet_small"], "long": true},
+	"bookshelf": {"m": ["bookshelf"], "home_m": ["kk_cabinet_small_dec"], "alt": ["kk_cabinet_small", "side_table"], "long": true},
 	"shelf": {"m": ["shelves"], "long": true, "goods": true},
 	"rug": {"m": ["kk_rug_rect", "kk_rug_stripes", "kk_rug_oval"], "free": true, "rug": true},
-	"bench": {"m": ["ext/kaykit_stool_bench"], "fill": true},
+	"bench": {"m": ["ext/kaykit_stool_bench"], "fit": true, "free": true},
 	"booth": {"m": ["el_booth"], "fit": true, "chair": true, "tint": "#e05050"},
 	"diner_table": {"m": ["el_diner_table"], "free": true, "fit": true, "top": ["cup", "plate", "el_flowers", "cup_2", ""]},
 	"computer": {"m": ["kk_table_small"], "top": ["el_monitor"], "always_top": true},
@@ -266,6 +267,11 @@ static func _blocks(colour: Color) -> Material:
 static func piece(name: String) -> Mesh:
 	if name == "hay_stack":
 		return load("res://scripts/gfx/barn_builder.gd").hay_stack()
+	if name in ["kk_table_low_square", "kk_table_low_2x1", "kk_table_low_2x2"]:
+		if not _meshes.has(name):
+			var size: Vector2 = {"kk_table_low_square": Vector2(0.88, 0.88), "kk_table_low_2x1": Vector2(1.84, 0.88), "kk_table_low_2x2": Vector2(1.6, 1.6)}[name]
+			_meshes[name] = _extend_coffee_table(size)
+		return _meshes[name]
 	if not _meshes.has(name):
 		# "ext/..." is a street piece (assets/exteriors/): the town's bench
 		var path := "res://assets/exteriors/" + name.substr(4) + ".res" if name.begins_with("ext/") else DIR + name + ".res"
@@ -273,6 +279,25 @@ static func piece(name: String) -> Mesh:
 		if _meshes[name] == null:
 			push_warning("model missing: " + path)
 	return _meshes[name]
+
+
+## Extend the low KayKit table between its corners, retaining leg thickness, rounded edges,
+## height, UVs and existing painted materials. The 2x2 adds depth to the same 2x1 construction.
+static func _extend_coffee_table(size: Vector2) -> ArrayMesh:
+	var source := piece("kk_table_low")
+	var bb := source.get_aabb()
+	var delta := (size - Vector2(bb.size.x, bb.size.z)) * 0.5
+	var mesh := ArrayMesh.new()
+	for surface in source.get_surface_count():
+		var arrays := source.surface_get_arrays(surface).duplicate(true)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		for i in vertices.size():
+			vertices[i].x += signf(vertices[i].x - bb.get_center().x) * delta.x
+			vertices[i].z += signf(vertices[i].z - bb.get_center().z) * delta.y
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(surface, source.surface_get_material(surface))
+	return mesh
 
 
 ## Cloth colours for the KayKit furniture's fabric (seats, blankets, a table lamp's foot): the old furniture's red,
@@ -442,6 +467,8 @@ var door_leaves := {}
 var _low_y := INF
 ## the model each furnished tile got (_place), so no piece stands beside one exactly like it
 var _placed := {}
+## Layout failures consumed by the real-renderer interior audit.
+var furniture_problems: Array[String] = []
 ## what was set on top of each furnished tile
 var _placed_tops := {}
 
@@ -2844,13 +2871,15 @@ func _place(kind: String, group: Array) -> void:
 	# in a home, anything the player can walk behind stays below their waist (and nothing fades)
 	var front := home and behind_open(map, lo, size)
 	var names: Array = k.get("home_m", k["m"]) if home else k["m"]
+	if kind == "coffee_table" and map.get("room", {}).get("close_lounge", false):
+		names = ["kk_table_low_2x2"] if minf(size.x, size.y) >= 1.8 else ["kk_table_low_2x1"]
 	if front:
 		var low := names.filter(func(n): return piece(n) != null and piece(n).get_aabb().size.y <= WAIST)
 		if not low.is_empty():
 			names = low
 	# (the user's rule, 2026-11-15) never two exactly alike side by side, chairs excepted: a model a neighbouring
-	# piece already has gives way to another choice or an alternative ("alt"); a run of counters (fill) is one piece
-	var near := _near_placed(group, "chair" in k or "fill" in k or kind == "armchair", _placed)
+	# piece already has gives way to another choice or an alternative ("alt"). Connected counter runs are assemblies.
+	var near := _near_placed(group, k.get("chair", false) or kind == "armchair", _placed)
 	var used_alt := false
 	if not near.is_empty():
 		var fresh := names.filter(func(n): return not n in near)
@@ -2859,8 +2888,8 @@ func _place(kind: String, group: Array) -> void:
 			used_alt = not fresh.is_empty()
 		if not fresh.is_empty():
 			names = fresh
-		elif home:
-			push_warning("%s: two alike %s pieces side by side at %s" % [map.get("room_key", ""), kind, lo])
+		else:
+			_furniture_problem("two alike %s pieces side by side at %s" % [kind, lo])
 	var mesh := _choose(names, span, depth + reach, k.get("same", false))
 	if mesh == null:
 		return
@@ -2871,7 +2900,11 @@ func _place(kind: String, group: Array) -> void:
 			break
 	var bb := mesh.get_aabb()
 	var sc := Vector3.ONE
-	if k.get("rug", false):
+	if mesh == piece("kk_drawers"):
+		# A wide chest is always 1.7 tiles, including storage and alternative uses.
+		if span < 1.8:
+			_furniture_problem("wide drawers need two tiles at %s" % lo)
+	elif k.get("rug", false):
 		sc = Vector3(span * 0.92 / bb.size.x, 1.0, depth * 0.92 / bb.size.z)
 	elif k.get("fit", false):
 		sc = Vector3(span * 0.94 / bb.size.x, 1.0, minf(1.0, (depth + reach) * 0.94 / bb.size.z))
@@ -2898,6 +2931,20 @@ func _place(kind: String, group: Array) -> void:
 	# the pack's cloth: a building's chairs and stools match; each bed has its own blanket
 	var cloth_at := posmod(pick_seed, CLOTH.size()) if k.get("same", false) 		else absi(hash(str(map.get("building", {}).get("seed", 0)) + str(lo))) % CLOTH.size()
 	tint_fabric(mi, Color(CLOTH[cloth_at]))
+	if map.get("room", {}).has("living_template") and kind in ["sofa", "armchair"]:
+		# Legacy seating uses a coloured cloth atlas rather than the KayKit fabric channel.
+		# Reuse its painted shading while taking the upholstery from this room's scheme.
+		for surface_index in mesh.get_surface_count():
+			var source := mesh.surface_get_material(surface_index) as BaseMaterial3D
+			if source != null and source.albedo_texture != null and "furniture_cloth" in source.albedo_texture.resource_path:
+				var key := "lounge_fabric:" + scheme + ":" + str(source.albedo_texture.get_rid())
+				if not _mats.has(key):
+					var material := ShaderMaterial.new()
+					material.shader = load("res://scripts/gfx/lounge_fabric.gdshader")
+					material.set_shader_parameter("albedo_tex", source.albedo_texture)
+					material.set_shader_parameter("fabric", _sch("fabric"))
+					_mats[key] = material
+				mi.set_surface_override_material(surface_index, _mats[key])
 	if k.has("tint"):
 		var tm := StandardMaterial3D.new()
 		var src := mesh.surface_get_material(0) as BaseMaterial3D
@@ -2920,6 +2967,8 @@ func _place(kind: String, group: Array) -> void:
 	if k.has("height"):
 		pos.y -= bb.position.y * sc.y
 	mi.position = pos
+	mi.set_meta("furniture_origin", lo)
+	mi.set_meta("furniture_kind", kind)
 	parent.add_child(mi)
 	if k.has("desk_side") and span >= 1.8:
 		# a desk two tiles long: the table at one end, a chest of drawers at the other
@@ -2934,7 +2983,7 @@ func _place(kind: String, group: Array) -> void:
 	var pieces: Array = [mi]
 	var top_y := bb.size.y * sc.y
 	# things standing on it
-	var tops: Array = k.get("top", [])
+	var tops: Array = map.get("room", {}).get("furniture_tops", {}).get(lo, k.get("top", []))
 	if parlour and kind == "cabinet":
 		# a parlour's cupboards hold its candles (_parlour_decor)
 		tops = []
@@ -3283,10 +3332,13 @@ func _counter_phone(at: Vector3, yaw: float, top: float) -> void:
 			plant.position.y -= bb.position.y * plant.scale.y
 
 
-## Of the models for a kind, the one that fills the space best. Ties go to chance, or with `same`, to the building's
-## own pick of the list (pick_seed), so its chairs match and its sofa and armchair do.
-## The models (_placed) or things on top (_placed_tops) of the pieces already standing on the tiles around a group, the
-## diagonals included; none for chairs, which may stand in matching rows.
+## Report invalid furnishing to both the log and the interior audit.
+func _furniture_problem(message: String) -> void:
+	furniture_problems.append(message)
+	push_error("%s: %s" % [map.get("room_key", ""), message])
+
+
+## Models on neighbouring tiles, including diagonals; matching chairs are allowed.
 func _near_placed(group: Array, chair: bool, of: Dictionary) -> Array:
 	var out := []
 	if chair:
@@ -3300,6 +3352,7 @@ func _near_placed(group: Array, chair: bool, of: Dictionary) -> Array:
 	return out
 
 
+## Pick the model that best fills the footprint; `same` keeps a building's chairs matching.
 func _choose(names: Array, span: float, depth: float, same := false) -> Mesh:
 	var best: Mesh = null
 	var best_d := INF
@@ -4560,6 +4613,8 @@ func _plan_cubbies() -> void:
 				if code(x + dx, y) in [MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED] or _cubbies.has(Vector2i(x + dx, y)):
 					ok = false
 			var front: String = furn.get(Vector2i(x, y + 1), "")
+			if map.get("room", {}).has("living_template") and (not MapGen.walkable(code(x, y + 1)) or map["npcs"].any(func(n): return n["pos"] == Vector2i(x, y + 1))):
+				ok = false
 			if front in ["wardrobe", "fridge", "pantry", "storage", "bookshelf", "shelf", "bunk", "coat_stand", "bed", "floor_lamp", "plant"] \
 					or code(x, y + 1) in [MapGen.STAIRS_UP, MapGen.STAIRS_DOWN, MapGen.SHELF, MapGen.BOOKSHELF, MapGen.FIREPLACE, MapGen.BED]:
 				ok = false

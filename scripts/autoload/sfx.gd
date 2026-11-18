@@ -104,6 +104,8 @@ const SOUNDS := {
 	"door_close": [["res://sfx/05_Environment/Environment_DoorClose_001.mp3"], -11.0],
 	# made by tools/make_sfx.py: three raps on a locked front door
 	"knock": [["res://sfx/Custom/Door_Knock.wav"], -6.0],
+	# a duck's quack, on D4 (tools/make_sfx.py): ducks.gd steps it up a scale
+	"quack": [["res://sfx/Custom/Duck_Quack.wav"], -7.0],
 	# made by tools/make_sfx.py: an old bell telephone ringing (calling Dad saves the game)
 	"phone_ring": [["res://sfx/Custom/Phone_Ring.wav"], -9.0],
 	# made by tools/make_sfx.py: a ghost beast rising, and a dread hit (the intro's cage reveal)
@@ -133,8 +135,10 @@ const AMBIENCE := {
 	"machines": "res://assets/audio/sfx/machine_room.ogg",
 	"surf": "res://assets/audio/sfx/shellhaven_surf.ogg",
 	"forest": "res://assets/audio/sfx/coastal_path_nature.ogg",
+	# crickets on a summer night (synthesised by tools/make_sfx.py): the prologue's sleeping hero
+	"night": "res://sfx/Custom/Night_Crickets.wav",
 }
-const AMBIENCE_VOLUMES := {"surf": -18.0, "forest": -20.0, "machines": -18.0, "ghostly": -20.0, "cathedral": -20.0}
+const AMBIENCE_VOLUMES := {"surf": -18.0, "forest": -20.0, "machines": -18.0, "ghostly": -20.0, "cathedral": -20.0, "night": -12.0}
 
 var _players: Array = []
 var _next := 0
