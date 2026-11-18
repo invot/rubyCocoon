@@ -120,7 +120,7 @@ const ROOMS := {
 		"counter_phone": [6, 2],
 		"rows": [
 			"#####Z#####",
-			"#sss.1.sss#",
+			"#BBs.1.sss#",
 			"#|CCCCCCC|w",
 			"#.........w",
 			"L..rr2rr..#",
@@ -133,7 +133,7 @@ const ROOMS := {
 		"locked": ["The fitting room. Someone in there is trying on a very large hat."],
 		"rows": [
 			"#####Z#####",
-			"#ss.s1s.ss#",
+			"#BB.s1s.ss#",
 			"#CCCCCCCCCw",
 			"#.........w",
 			"#e.......e#",
@@ -145,7 +145,7 @@ const ROOMS := {
 		"wall": "#c8b090", "rug": "#607a88", "stage": true, "npcs": {"1": "keeper", "2": "patron"},
 		"rows": [
 			"###w####w####",
-			"#BBB.1..BBBB#",
+			"#BB..1..BB.B#",
 			"#p.CCCCC...pw",
 			"#...........w",
 			"#ct2..rrr...#",
@@ -158,7 +158,7 @@ const ROOMS := {
 		"locked": ["The stockroom. Boxes of books are piled to the ceiling in there."],
 		"rows": [
 			"#####Z#####",
-			"#BBB.1.BBB#",
+			"#BB..1.BB.#",
 			"#|CCCCCCC|w",
 			"#.........w",
 			"L.......&&#",
@@ -216,7 +216,7 @@ const ROOMS := {
 		"art_walls": true,
 		"rows": [
 			"######Z######",
-			"#ssp..1...pp#",
+			"#BBp..1...pp#",
 			"#.2..CCCCCCCw",
 			"#)y)........w",
 			"#.3.........#",
@@ -233,7 +233,7 @@ const ROOMS := {
 		"counter_phone": [8, 2],
 		"rows": [
 			"######Z######",
-			"#....1...sss#",
+			"#....1...BB.#",
 			"#CCCCCCCCCCCw",
 			"#...........w",
 			"#ht2....ht3.#",
@@ -353,7 +353,7 @@ const ROOMS := {
 		"locked": ["The bathroom. Someone's in there, singing."],
 		"rows": [
 			"#######L#####",
-			"#NbbNB..SS.@#",
+			"#NbbN.B.SS.@#",
 			"w.bb........#",
 			"#Q......yy.a#",
 			"wQrrr..1....#",
@@ -376,7 +376,7 @@ const ROOMS := {
 		"locked": ["The kitchen. Something's simmering on the stove in there."],
 		"rows": [
 			"######L####",
-			"#Nb......p#",
+			"#Nb.BB...p#",
 			"w.b.......#",
 			"w....ctc..#",
 			"#a.1......#",
@@ -487,7 +487,7 @@ const ROOMS := {
 		"locked": ["Rafe's kitchen. It smells of brass polish."],
 		"rows": [
 			"#######L#####",
-			"#NbNBB..SS.@#",
+			"#NbN.BB.SS.@#",
 			"w.b.........#",
 			"#Q.....1yy.a#",
 			"wQrrr.......#",
@@ -506,7 +506,7 @@ const ROOMS := {
 		"locked": ["The kitchen. A faint smell of biscuits lingers by the door."],
 		"rows": [
 			"#######L#####",
-			"#..l.....>>>#",
+			"#..l.BB..>>>#",
 			"w..aSSS....@#",
 			"w...rrr.....#",
 			"#...yyy.1...#",
@@ -564,7 +564,7 @@ const ROOMS := {
 		"locked": ["The restroom. A note on the door: OUT OF ORDER (WE ARE FIXING IT. WE FIX THINGS)."],
 		"rows": [
 			"#####Z#####",
-			"#ss.s1s.ss#",
+			"#ss.s1s.BB#",
 			"#CCCCCCCCCw",
 			"#.........w",
 			"#e...r...e#",

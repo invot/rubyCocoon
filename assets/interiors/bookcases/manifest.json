@@ -1,0 +1,64 @@
+{
+	"bevel": 0.011,
+	"board_thickness": 0.09,
+	"book_rule": "coloured covers, never white",
+	"candidates": [
+		{
+			"id": "01-tall",
+			"name": "Tall classic",
+			"path": "res://assets/interiors/bookcases/01-tall.res",
+			"size": [
+				0.96,
+				1.86,
+				0.46
+			],
+			"surfaces": 7
+		},
+		{
+			"id": "02-low",
+			"name": "Low drawer console",
+			"path": "res://assets/interiors/bookcases/02-low.res",
+			"size": [
+				1.76,
+				1.02,
+				0.7
+			],
+			"surfaces": 7
+		},
+		{
+			"id": "03-library",
+			"name": "Double library",
+			"path": "res://assets/interiors/bookcases/03-library.res",
+			"size": [
+				1.76,
+				1.86,
+				0.46
+			],
+			"surfaces": 7
+		},
+		{
+			"id": "04-cubbies",
+			"name": "Staggered cubbies",
+			"path": "res://assets/interiors/bookcases/04-cubbies.res",
+			"size": [
+				1.42,
+				1.42,
+				0.46
+			],
+			"surfaces": 7
+		}
+	],
+	"decor": [
+		"books",
+		"stacked books",
+		"cacti",
+		"vases",
+		"framed prints",
+		"candles"
+	],
+	"drawer_source": "kk_drawers: one row retained; upper row removed; width aligned to 1.76 shelf",
+	"production_enabled": true,
+	"reference": "KayKit shelf_B_large / shelf_B_small, thinned at user request",
+	"revision": 3,
+	"texture": "res://assets/interiors/kaykit/furniture.png and existing home decor atlases"
+}

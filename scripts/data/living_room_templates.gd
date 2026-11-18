@@ -2,6 +2,8 @@ extends RefCounted
 ## Approved living-room recipes and geometry checks; opt-in until the ten-house trial is approved.
 const Rooms = preload("res://scripts/gfx/room_builder.gd")
 ## Visible breathing room, shorter than a walkable tile. Movement footprints stay adjoining.
+const STUDIO_LAYOUTS := [0, 4]
+const DEDICATED_LAYOUTS := [1, 2, 3, 5]
 const SEAT_GAP := 0.24
 const SQUARE_SEAT_GAP := 0.36
 const OPTIONS := [

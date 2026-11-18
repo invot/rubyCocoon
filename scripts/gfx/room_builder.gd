@@ -126,8 +126,7 @@ const KINDS := {
 	"bunk": {"m": ["kk_bed_single_A", "kk_bed_single_B"], "short": true},
 	"plant": {"m": ["kk_cactus_medium_A", "kk_cactus_medium_B"], "single": true},
 	"large_plant": {"m": ["home/plant_pillow_tall"], "alt": ["home/plant_pillow_round"], "height": 1.9, "free": true},
-	# (a shop's bookshelves stay; in a home each tile of one is a small dressed cupboard, home_m)
-	"bookshelf": {"m": ["bookshelf"], "home_m": ["kk_cabinet_small_dec"], "alt": ["kk_cabinet_small", "side_table"], "long": true},
+	"bookshelf": {"m": ["bookcases/01-tall", "bookcases/02-low", "bookcases/03-library", "bookcases/04-cubbies"], "long": true},
 	"shelf": {"m": ["shelves"], "long": true, "goods": true},
 	"rug": {"m": ["kk_rug_rect", "kk_rug_stripes", "kk_rug_oval"], "free": true, "rug": true},
 	"bench": {"m": ["ext/kaykit_stool_bench"], "fit": true, "free": true},
@@ -276,9 +275,30 @@ static func piece(name: String) -> Mesh:
 		# "ext/..." is a street piece (assets/exteriors/): the town's bench
 		var path := "res://assets/exteriors/" + name.substr(4) + ".res" if name.begins_with("ext/") else DIR + name + ".res"
 		_meshes[name] = load(path) if ResourceLoader.exists(path) else null
+		if name == "kk_book_set" and _meshes[name] != null:
+			_meshes[name] = _coloured_book_covers(_meshes[name])
 		if _meshes[name] == null:
 			push_warning("model missing: " + path)
 	return _meshes[name]
+
+## KayKit's neutral covers become blue; paper uses warm parchment rather than white.
+static func _coloured_book_covers(source: Mesh) -> ArrayMesh:
+	var result := ArrayMesh.new()
+	for si in source.get_surface_count():
+		var arrays := source.surface_get_arrays(si).duplicate(true)
+		var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		for i in uvs.size():
+			if uvs[i].x > 0.85 and uvs[i].y > 0.25 and uvs[i].y < 0.5:
+				uvs[i].x = 0.25 + fposmod(uvs[i].x, 0.25)
+			elif uvs[i].x > 0.85 and uvs[i].y < 0.25:
+				uvs[i].x = 0.57 # Darker warm paper stays distinct from white covers in room light.
+		arrays[Mesh.ARRAY_TEX_UV] = uvs
+		result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var cover_material := ShaderMaterial.new()
+		cover_material.shader = preload("res://scripts/gfx/book_palette.gdshader")
+		cover_material.set_shader_parameter("albedo_tex", (source.surface_get_material(si) as BaseMaterial3D).albedo_texture)
+		result.surface_set_material(si, cover_material)
+	return result
 
 
 ## Extend the low KayKit table between its corners, retaining leg thickness, rounded edges,
@@ -2616,6 +2636,33 @@ static func furniture_groups(m: Dictionary) -> Array:
 	return out
 
 
+## Check every wall touching the footprint, including side walls at a corner.
+static func bookshelf_by_window(m: Dictionary, group: Array) -> bool:
+	for p: Vector2i in group:
+		for d in [Vector2i.UP, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN]:
+			if not p + d in group and MapGen.get_t(m, p.x + d.x, p.y + d.y) == MapGen.IWINDOW:
+				return true
+	return false
+
+func _bookcase_materials(mi: MeshInstance3D) -> void:
+	var wood := Color(str(map.get("room", {}).get("wood", _frame_wood().to_html())))
+	for si in mi.mesh.get_surface_count():
+		var material := mi.mesh.surface_get_material(si) as ShaderMaterial
+		if material == null:
+			continue
+		if material.shader == WOOD_SHADER:
+			var tex: Texture2D = material.get_shader_parameter("albedo_tex")
+			mi.set_surface_override_material(si, _wood_tone(tex, wood.darkened(0.12) if si == 1 else wood))
+		elif material.shader == HomeDecor.SHADER:
+			mi.set_surface_override_material(si, HomeDecor.atlas_material(scheme))
+		elif material.shader == HomeDecor.PRINT_SHADER:
+			var copy := material.duplicate() as ShaderMaterial
+			copy.set_shader_parameter("slot0", _sch("wall"))
+			copy.set_shader_parameter("slot1", _sch("fabric"))
+			copy.set_shader_parameter("slot2", _sch("ceramic"))
+			copy.set_shader_parameter("slot3", _sch("trim"))
+			mi.set_surface_override_material(si, copy)
+
 func _furniture() -> void:
 	for part in furniture_groups(map):
 		if part["kind"] != "rug":
@@ -2871,6 +2918,23 @@ func _place(kind: String, group: Array) -> void:
 	# in a home, anything the player can walk behind stays below their waist (and nothing fades)
 	var front := home and behind_open(map, lo, size)
 	var names: Array = k.get("home_m", k["m"]) if home else k["m"]
+	if kind == "bookshelf":
+		# One connected B footprint is one case. Keep the approved widths and never
+		# squeeze a wide case into a single tile, or turn every home B into a cupboard.
+		var fitted: Array = names.filter(func(n): return piece(n).get_aabb().size.x <= span * 0.96 + 0.001)
+		if span >= 1.8:
+			fitted = fitted.filter(func(n): return n != "bookcases/01-tall")
+		if bookshelf_by_window(map, group):
+			fitted = fitted.filter(func(n): return n == "bookcases/02-low")
+		if fitted.is_empty():
+			_furniture_problem("window-backed bookcase needs a two-tile low console at %s" % lo)
+			return
+		var avoid := _near_placed(group, false, _placed)
+		var fresh := fitted.filter(func(n): return not n in avoid)
+		if not fresh.is_empty():
+			fitted = fresh
+		if not fitted.is_empty():
+			names = [fitted[posmod(hash(str(pick_seed) + str(lo)), fitted.size())]]
 	if kind == "coffee_table" and map.get("room", {}).get("close_lounge", false):
 		names = ["kk_table_low_2x2"] if minf(size.x, size.y) >= 1.8 else ["kk_table_low_2x1"]
 	if front:
@@ -2928,6 +2992,8 @@ func _place(kind: String, group: Array) -> void:
 	mi.scale = sc
 	mi.rotation.y = yaw
 	_decor_mats(mi)
+	if kind == "bookshelf":
+		_bookcase_materials(mi)
 	# the pack's cloth: a building's chairs and stools match; each bed has its own blanket
 	var cloth_at := posmod(pick_seed, CLOTH.size()) if k.get("same", false) 		else absi(hash(str(map.get("building", {}).get("seed", 0)) + str(lo))) % CLOTH.size()
 	tint_fabric(mi, Color(CLOTH[cloth_at]))
@@ -4599,6 +4665,10 @@ func _plan_cubbies() -> void:
 			_cubbies[Vector2i(int(cl[0]) + i, int(cl[1]))] = {"inside": Vector2i(0, 1), "kind": "closet", "x0": int(cl[0]), "w": int(cl[2])}
 	if not home or map.get("room", {}).get("cubbies", -1) == 0:
 		return
+	if map.get("room", {}).has("cubby_sources"):
+		for tile in map["room"]["cubby_sources"]:
+			_cubbies[tile] = {"inside": Vector2i.DOWN, "kind": "cubby", "x0": tile.x, "w": 1}
+		return
 	var furn: Dictionary = map.get("furniture", {})
 	var cands := []
 	for y in range(0, h - 2):
@@ -4823,11 +4893,12 @@ func _shelf_door(x: int, y: int, columns: int, width: float, bottom: float, top:
 		shelf_doors[tile] = door
 	# Stable, modest finds; revisiting never rerolls a shelf. Authors can override or disable a find.
 	var tile := Vector2i(x, y)
-	var item := String(map.get("room", {}).get("shelf_items", {}).get(tile,
-		"minor_potion" if posmod(pick_seed + x * 7 + y * 13, 4) == 0 else ""))
+	var source_tile: Vector2i = map.get("room", {}).get("cubby_sources", {}).get(tile, tile)
+	var item := String(map.get("room", {}).get("shelf_items", {}).get(source_tile,
+		"minor_potion" if posmod(pick_seed + source_tile.x * 7 + source_tile.y * 13, 4) == 0 else ""))
 	if item != "":
 		var room_id := "%s@%s" % [map.get("building", {}).get("interior", map.get("parent", "")), map.get("floor_num", 1)]
-		var flag := "shelf:%s:%d:%d" % [room_id, x, y]
+		var flag := "shelf:%s:%d:%d" % [room_id, source_tile.x, source_tile.y]
 		door.stock(item, flag, tile, piece("bottle"), surface("window_frame", Color("#d7ab58")), 1.12 + SHELF_T / 2.0 + 0.002 if top > 2.0 else bottom)
 
 
