@@ -165,8 +165,16 @@ The 17 November answers resolve the tool pool, Jared/player ambiguity, Vexmora/s
 - The finale preserves the captive-rescue prerequisite. Jared’s defeat unlocks three real controls in the crypt; their ordered saved state isolates intake, frees spirits and shuts down the island network before completion.
 - `family_film.gd` stages the mothers’ friendship, Matt’s attempted killing and Jared’s intervention, Mom’s hockey fight, Marlyse’s acceptance, the home confrontation, the restaurant/fries memory and spaceships invitation. Holding B skips without losing progression.
 - The existing Andrew/Jared wedding remains afterward. Previously completed saves remain completed. Ghost companions remain playable.
-- The mole cave is optional on Mine Road. Five independent trainer flags gate five chests; the last defeated mole gives the missing-third-member hint. Four Rubywave musicians in Cogsworth’s music shop introduce themselves as first, second, fourth and fifth. The older diamond/cactus/concert arc and user-supplied “Table Banana” audio remain separate runbook backlog; no substitute lyrics or audio were invented.
+- The Dustwell water arc below supersedes the Mine Road mole cave and the four-member version of the band. The older diamond/cactus/concert arc and user-supplied “Table Banana” audio remain separate runbook backlog; no substitute lyrics or audio were invented.
 
 Implementation choices made within the confirmed direction: the mothers meet while the player first reaches Cogsworth; Matt imprisons the player and Jared before the final scientist battle; three network trunk controls represent the island-wide shutdown. The diary and old General/Legion references are retained as prior in-world knowledge until the reveal. The unseen voice’s name plate remains “A voice” during the nightmare.
 
 Validation: final isolated story suite 10/10 passed; final appearance, custom melody and film follow-up 6/6 passed. See docs/development-plan.md and build/shots/story_revision/ for evidence and the remaining legacy concert scope.
+
+## Dustwell and the water mages
+
+Rosa sells water while the well is dry and holds the Rubywave Five to their contract. Beneath the well, five beavers have sealed Dale behind their dam. Dale recognizes the guardian song and hears the water answer the hero. Breaking the source dam together restores the town well. Rosa releases the band when confronted, and the musicians take their own repertoire to Cogsworth.
+
+Dale sends the hero back past Kelpwick to the Temple of Tides. Water opens the carved panel in the drained falls chamber. In their sanctuary, Keeper Nerine teaches Torrent. At the lip of Dustwell's north channel, Torrent raises the river and floats Captain Reed's boat. Boarding takes the hero to Sunwall in the full game. The demo offers credits or continued exploration.
+
+Other trainers remember playing the guardian song perfectly and being refused. The missing trainers have a separate trail through the posters in Dustwell, the search in Sunwall and the rescue in Cogsworth.

@@ -297,13 +297,12 @@ edge (the rest of the row, the keys and the pad's own Start still work).
 11. The journey runs in one line: the Dune Road north of Bellerive stays shut by sandstorms until you've beaten the guardian of the Temple of Tides on the Isle of Tides.
 12. Once **Abyssion** is yours, the Codex explains **Summon** in your next battle: choose it, play the Song of
     Tides and the water dragon strikes the opposing team.
-13. In **Dustwell Oasis**, **Dancer Jasper** sits in the centre of the single, two-tile-wide north road, blocking
-    both tiles until you return his shoes. **Instructor Lucille** has them at the **Dustwell Dance Studio**, under
-    the DANCE sign at the west end of Main Street (the existing `dustwell#1` building identity). Below **trainer
-    level 4**, she calls you too weak to dance and explains how to raise your trainer level. At level 4 or above,
-    she teaches you the beat, unlocking rhythm attacks, and gives you Jasper's shoes; in your next battle the Codex
-    walks you through a safe practice beat that repeats until you land it.
-    Return them to open the Mesa Trail toward Sunwall. Talking to Lucille first works too.
+13. In **Dustwell Oasis**, Rosa runs the Oasis Saloon and makes the Rubywave Five play the same tune on repeat.
+    The dance studio next door is open at any trainer level. The dry well leads to a cave where five beavers
+    each claim to be the third strongest. Defeat them, play the Song of Tides for Dale, and learn **Water**.
+    Break Dale’s dam, then play with him at the source dam to refill the town well. Once the water returns,
+    talk to Rosa to free the band. The river stays dry until you learn **Torrent** at the Temple of Tides and
+    play it at the river lip. Captain Reed then sails to Sunwall in the full game or offers the demo credits.
 
 **The Codex** (`scripts/ui/codex.gd`, topics in `scripts/data/codex_db.gd`) explains everything after the Coastal
 Path. It is a little orange robot head (Quaternius's *Animated Robot*, head only, `tools/import_codex_head.gd`) that
@@ -312,16 +311,16 @@ brows change with the mood of every bubble, and now and then it starts one with 
 time something new comes up in battle it chimes in once (`codex_seen_<topic>`): your first trainer battle (guarding
 your trainer, shields), the first battle with two beasts on a side (choosing for each beast, aiming), a fainted
 middle beast (Move), more than three beasts (turning the ring: you must turn it once before confirming moves), your
-flute, a summon, rhythm attacks (with a practice beat), eggs, and the first time you pick a move with an accuracy
+flute, a summon, eggs, and the first time you pick a move with an accuracy
 roll, a recharge, ally or group targets, status, stat changes, recoil/drain, protection, an element, the Boomerang or
 the Bat. You can ask it anything you're eligible to know, without using your turn: **Ask Codex** at the end of your
 trainer's bar, a tap on the head, or the **Codex** page of the Start book; whenever the head shows, a tap on it brings up the list (it says so when you get it). Its face follows the fight: sad when one of your beasts
 faints, excited when a foe's does, and it bounces with joy when you win. Complete every one of its lessons without ever
-skipping one, and keep its tips on, and once a battle it heals any of your beasts whose HP is in the red. While it
+skipping one, and keep its tips on, and once a battle it heals any standing beast at 10% HP or below. While it
 teaches in battle the stage turns into its green wireframe simulation (mostly black, with its own music, *Bit Quest*; the stage pixelates in and out), only the action being taught is allowed, nobody
 takes damage, and a lesson about something you do (choosing for each beast, Move, the flute, summons, the Boomerang or
 the Bat) ends with one practice turn on rails, after which everything is put back for the real round, and **Hold B: Skip lesson** beside the head skips it. Topics about something you don't have
-yet (the flute, a summon, the Bat, rhythm attacks) stay hidden, and move rules appear once you've met them. Its tips
+yet (the flute, a summon, the Bat) stay hidden, and move rules appear once you've met them. Its tips
 can be switched off under **Settings ► Codex tips**, and then its head leaves the battle screen, showing only while it
 talks or you ask it something (**Ask Codex** on the trainer's bar); on a journey played for more than three hours before the Codex
 existed, it says it's switching them off itself the first time it appears. Lesson completion is saved through normal
@@ -578,7 +577,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Action icons**: a round icon stands before the action's name on the chooser's bar (`scripts/battle/action_icons.gd`). An elemental attack's disc is its element's colour with the element's glyph (flame, drop, peaks, wind, ghost); a plain attack (and your weapons) is grey with claw marks; every action that isn't an attack is navy, with a glyph for what it does (Defend's shield, a heal's cross, chevrons up for a boost and down for a hex, Move's arrows, Items' bottle, the Flute's note, Watch's eye, Summon's star, Run's arrow). `--scene=action-icons --shot=...` shows the whole set.
   - **Weak and resistant targets**: while an attack is aimed, each target's bar shows a mark after its name: a red burst with "!" when it is weak to that attack (double damage), a slate shield when it resists it (an attack of its own element does three quarters). The top-centre bar says "Weak!" or "Resists" after the target's HP. Elemental bombs show the marks too; plain attacks, weapons and ghosts have none.
   - **Targeting**: the chooser stays outlined and their bar names the target after the action, with a yellow arrow between them ("Bite ► Tadlet"; "► All" for a move that hits everyone). Each target is outlined too and gets its own white bar (name, level and HP) in its outline colour, tucked behind it the same way. A translucent yellow 3D arrow rises from behind the actor (so they stand in front of it) and arcs to the target. The top-centre bar says the action, the target with its HP, and what the move does. The 3D arrow is a slim, flat rectangular shaft with a long four-sided pyramid head, with translucent depth-tested faces; white chevrons on the stem point and scroll towards the target, while the head stays plain yellow in every gem. All-target moves draw one arrow to each target. ◄ ► aim; **tap a 3D beast once to aim, then again to confirm**; A also confirms. B returns to choosing the action. Move uses ▲ ▼ or a tap on a legal 3D pad (the pad gets a hull outline). Item and song targeting use the same arrows, outlines and target bars without a chooser bar. Guided battles retain their automatic target restrictions. (The outlined models are rendered a second time, alone, for their shapes only: `battle.gd` `front_texture`; `floating_hud.gd` draws the outlines from it and shows the 3D view through it over the bars' ends.)
-  - **While you choose your own action** (and aim it), every standing beast without a bar of its own shows its HP over its MP in a small square plate above its head ("HP 63" over "MP 31" on the left, each beside its gauge; the HP label turns yellow at a quarter of the beast's HP or less and red at a tenth or less), and each trainer (you, and a rival trainer) shows their shield points in the same kind of plate: a "SHIELD" label, then an orb per point. The plates use the top-centre bar's dark fill with no frame, fading out towards both sides, and a thin white line along the bottom that fades the same way. None of these show while a beast is choosing. **During actions** no bars or readouts appear at all: HP changes show only as damage numbers. Shield orbs appear beside a trainer only while targeted or for about a second after a hit, and bars keep clear of them. Battle messages and damage numbers retain their existing presentation.
+  - **While you choose your own action** (and aim it), every standing beast without a bar of its own shows its HP over its MP in a small square plate above its head ("HP 63" over "MP 31" on the left, each beside its gauge; the HP gauge is green above 50%, and both the gauge and label turn yellow at 50% HP and red below 25%), and each trainer (you, and a rival trainer) shows their shield points in the same kind of plate: a "SHIELD" label, then an orb per point. The plates use the top-centre bar's dark fill with no frame, fading out towards both sides, and a thin white line along the bottom that fades the same way. None of these show while a beast is choosing. **During actions** no bars or readouts appear at all: HP changes show only as damage numbers. Shield orbs appear beside a trainer only while targeted or for about a second after a hit, and bars keep clear of them. Battle messages and damage numbers retain their existing presentation.
   - **Touch**: the chooser's bar is drawn compact but taps as a full-height row (at least 80 logical units on touch, 56 on desktop); its left end (level and ◄) and right end (►) change the action and the middle confirms. Bars stay in the safe area and outside the d-pad and A/B clusters' enlarged exclusion zones: a bar that fits on neither side of its model rests nearby with a pointer to it. Keyboard, gamepad and direct taps share the command controller; taps cannot pass into world movement.
   - **Surroundings**: outdoor, fishing and arena battles sit inside one continuous textured surround, with a curved foot blended into the stage's own floor. Each of the 14 biome palettes has its own repeating mural, baked from the game's existing regional assets. Batched clusters of regional trees, shrubs and rocks frame all four perimeter corners and hide joins; desert clusters use boulders, fishing keeps trees on land and uses rock outcrops over water, and arenas use pillars and banners. Indoor battles retain their enclosed walls and ceiling, with tall corner columns, lower temple or tower props and colored practical lights concealing wall junctions. The mural uses mipmapped anisotropic filtering and scenery casts no shadows. There is no runtime artwork generation.
   - **Battle lighting** (`stage_lighting.gd`, `stage_floor.gdshaderinc`): a softer warm key and cool rim separate the fighters from deeper blue/violet shade. The two rings sit in a broad pool of light fading gently toward darker, cooler corners; the floor and surround share the same falloff. Filmic highlights stay controlled, colors stay saturated, and only real highlights glow. Indoor corner accents replace the old row of seven lamps. The rim and practical lights cast no shadows, and the rim dims with the stage during summons. This lighting is specific to battles and works on Mobile and Compatibility.
@@ -588,20 +587,28 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Move**: instead of its move, a beast on the side facing the foe can step over to another slot of the ring (choose the slot with ▲ ▼, as you would a target; the arrow marks the slot). Any slot it can stand on that's empty, or holds a fainted beast (they trade places); the side it moves to then turns to face the foe. It may not leave the side facing the foe without a beast standing in its middle (so the beast guarding you stays put, but a corner beast can step into a fallen middle beast's place). One beast moves each round, last in your side's turn, so the others' moves land first. Foe trainers Move too: when the beast in the middle of the side facing you falls, one of that side's beasts steps into a slot that covers its trainer again, unless turning the ring to a side whose middle beast stands would keep more of their beasts fighting (`battle.gd` _ai_shift).
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - **A target that falls first** (`ring.gd` `retarget`, `battle.gd` `_retarget`; the same rule for your beasts, your slingshot and items, and the foe's AI): when an action's turn comes and its target is down or has left the side facing the attacker, it goes to another beast standing on that side instead, the nearest slot first (a tie goes to the one facing the attacker's own row). With nobody standing there, an attack or the slingshot is turned on their trainer, who is open because that side's middle is down or empty; anything else, and any attack on a wild pack, is dropped without a message. A move that hits everyone just leaves the fallen out. A heal, boost or care item meant for an ally that has fallen goes to the standing ally with the least of its HP left; a revive is never passed on. MP is spent (and an item used up) only when the action has someone to land on. Lessons never turn a blow on a trainer by themselves.
-  - Your actions: a **weapon** (the slingshot, later the boomerang and the bat: see **Weapons and the beat attack** below), **items** (potions, cures, revives, elemental bombs, sleep, poison, flash, nets, snares, weaken powder, haste, iron and war-drum tonics), a **flute song**, **Watch**, and **Run** (wild) or **Forfeit** (trainers). Each beast: a move, **Defend** (half damage until its side's next turn), or **Move** (to another slot).
+  - Your actions are your equipped **weapon**, **Items**, **Flute**, **Watch**, and **Run** (wild) or **Forfeit** (trainers).
+    Summon and Ask Codex appear when available. Choose your weapon by name to aim it.
+    Each beast chooses **Attack** to open its moves, **Defend** to halve damage until its side's next turn,
+    or **Move** to change slots. Press B or choose Back to return from Attack.
   - A plain attack lunges at its target. Any other move is cast: the camera cuts to the caster as its element's glow (white for a plain move) gathers and it lets go, then cuts to where it lands as the glow streaks in, a burst there (rising motes for a heal or a boost) with the target's hit pose and number on the same frame. A beast that Defends holds a braced stance until its side's next turn; a defended or resisted hit is blocked, and other hits knock a beast back as hard as they were (`battle_camera.gd` "cast" / "impact", `battle.gd` `_cast`).
   - Winning plays *Android Sock Hop*. A beaten wild foe vanishes in a puff of smoke; fainted beasts on either trainer's ring lie on their pads, slumped with their eyes shut. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use Quattrocento Sans Bold.
 
   <img src="docs/screenshots/battle.jpg" width="640" alt="A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars."><br><sub>A wild battle in a desert clearing: Bite aims at a 3D target, with a yellow arrow, silhouette outlines and compact battle bars.</sub>
 
-- **Weapons and the beat attack** (`item_db.gd` WEAPONS, `scripts/core/beat_chain.gd`, `scripts/battle/beat_cue.gd`, `battle.gd` _do_weapon):
-  - Equip one weapon at a time in **Journal → Trainer → Weapon**; only that weapon appears in battle. Your other weapons stay owned, and the selection is saved. Older saves start with the slingshot equipped. The **Slingshot** (every trainer has one) hits one foe, or a trainer left open. The **Boomerang** sweeps every foe on the side facing you, a little softer on each, and comes back to your hand: Chief Coralie gives it in Kelpwick once the reef path is open. The **Bat** is the hardest hit (1.6× slingshot damage), but its plain swing has 75% accuracy against the slingshot’s 90%; beat timing still controls rhythm attacks. It hits one foe you run up to: Captain Dalton hands over Bart the Jackal's with the Sunwall bounty (saves from before get it on their next visit). All three are key items: never sold or used up, and they don't count towards the bag's stacks.
-  - Until you pass **Instructor Lucille's lesson** at Dustwell's dance studio, a weapon makes one plain throw (or swing) with its accuracy roll. She teaches trainers of **Lv 4 or above**, and in your next battle the Codex gives you one safe practice beat that repeats until you land it. Passing unlocks the **beat attack**: after you pick the weapon and its target, a white ring floats above the target with a notch spinning round it once a beat, reaching the mark at the top on the battle music's beat as the ring pulses. Press **A** on the beat (the on-screen A on phones, a tap on the ring, the A key or gamepad A) for each hit, on consecutive beats: **3 hits at trainer Lv 4, one more each level (8 at Lv 9), and 10 at Lv 10**. Pips under the ring count the hits allowed and landed; the top bar says what to do.
-  - Each press is graded by how far it is from the beat: **Perfect** (0.06 s), **Good** (0.13 s) or **Miss**, shown beside the ring, and the grade sets that hit's damage (half a plain throw for Perfect, 0.3 for Good). A Miss ends the chain; hits already landed count. Missing the very first beat still lands one weak hit, so the turn is never wasted. Land every hit your level allows and the last one is critical. Your first beat attack has wider windows (0.10 / 0.20 s), as they always do on the Coastal Path. Reaching Lv 4 points you to Lucille; later levels that add a hit say so. Older saves retain rhythm attacks already learned and access to a north road already passed.
-  - At a trainer who's open, a weapon is one blow whatever your level: it breaks a shield point.
-  - Your trainer takes the weapon up and uses it once per hit (`voxel_person.gd` set_ready, set_action): a stone from the slingshot, the boomerang flung side-arm (it curves through each target and is caught again), or the bat swung level after running up to the target. The camera holds a "beat" shot on the target meanwhile, and the hits land without messages until the chain is done.
-  - Foe trainers don't play it. Only bosses and arena masters use a weapon (about one round in three, never while they play a song, and only at your beasts), with their hits rolled from their trainer level (`BeatChain.roll`). Their weapon follows the region: the slingshot, then the boomerang (their beasts Lv 11+) and the bat (Lv 15+).
-  - The beat comes from the music: `Sfx.TEMPOS` gives each battle track's tempo and first beat, measured from the decoded audio (*Rising Tide* 106 BPM, *Rising Tide (faster)* 122 BPM; both hold their tempo all the way through). `Sfx.beat_now()` is the beat as you hear it, allowing for the audio driver's output latency, plus `Sfx.BEAT_LATENCY` for the web and Android (set by ear with `--scene=beat-click`). A track with no steady beat (or none yet, while the web still fetches it) gets a fixed 100 BPM click instead. A **percussion layer** (a woodblock on each beat, a shaker between; one-bar loops baked into `assets/audio/battle/` by `tools/bake_battle_art.gd`) plays quietly in step with the battle music and comes up for a beat attack.
+- **Weapons** (`item_db.gd` WEAPONS, `battle.gd` `_do_weapon`):
+  - Equip a weapon in **Journal → Trainer → Weapon**. Your selection is saved, and older saves start with
+    the **Slingshot**. It fires one stone at a beast or an exposed trainer. The **Boomerang** sweeps every foe
+    on the facing side for less damage per target and returns to your hand. Chief Coralie gives it in Kelpwick
+    once the reef path opens. The **Bat** is the hardest hit (1.6× slingshot damage), with 75% accuracy against
+    the slingshot's 90%. You run up to one foe before swinging. Captain Dalton hands it over with the Sunwall
+    bounty. All three are key items with no bag stack cost.
+  - Each weapon attack uses the weapon once and rolls accuracy for each beast it targets. A hit on an exposed
+    trainer breaks one shield point. Bosses and arena masters sometimes use weapons against your beasts,
+    and they choose either a song or a weapon on their turn.
+  - Trainer attacks cannot critically hit. A beast's base critical chance is 0% above 50% HP, rises from
+    5% to 15% between 50% and 25% HP, and rises to 30% as HP approaches zero. A move's critical bonus adds
+    to that base chance.
 
 - **Shield and the end of a battle**:
   - If the beast in the middle of the side facing the foe is down (or that slot is empty), its trainer can be **attacked directly**: each hit breaks one shield point. Turn your ring to a side whose middle still stands to cover yourself, or have a corner beast Move into the fallen one's place.
@@ -1267,7 +1274,6 @@ mounted owl and its rider.
     runtime Music and SFX buses grow through `AudioServer.bus_count` to preserve the web sample driver's
     route to the speakers (Godot 4.7's `add_bus()` append path disconnects it).
   - Normal battles use *Rising Tide*; bosses use *Rising Tide (faster)*. Bosses are temple guardians, arena masters, Bart the Jackal, Gearheart, Nyx and Vexmora.
-    Both keep a beat for the weapons' beat attack (`Sfx.TEMPOS`, 106 and 122 BPM), with a quiet percussion layer playing along that comes up during one.
   - Cocoon Cove plays *Pennsylvania Rose*; Bellerive plays *Andreas Theme*; Gearheart Tower plays *Krampus Workshop*.
   - Every region and kind of room has its own track; see `TRACKS` in `scripts/autoload/sfx.gd` and `MAP_MUSIC` / `ROOM_MUSIC` in `world_db.gd`.
   - Desert, mountain, moor and some interiors add an ambient loop. Shellhaven adds quiet surf; the Coastal Path
@@ -1466,11 +1472,9 @@ Build locally with `python tools/make_web.py --demo`; the normal command still b
 npx wrangler pages deploy build/web_demo --project-name=rubycoccon --branch=demo
 ```
 
-The demo includes Cocoon Cove, Bellerive, Shellhaven, Kelpwick, Dustwell Oasis, their interiors and the roads/reef
-between them. Lucille still teaches the full rhythm lesson at trainer Lv 4. She explains that Jasper's slippers
-are available in the full game and awards no shoes in the demo. Jasper stays on both north-road tiles; travel to
-Mesa Trail or any later town is refused even with a stale quest flag. Players can keep backtracking, training,
-capturing, merging and battling without a time limit. Contextual hints explain this continued play.
+The demo includes Cocoon Cove, Bellerive, Shellhaven, Kelpwick, Dustwell Oasis, and their interiors and roads.
+After restoring the river, board with Captain Reed to see the credits or stay to explore and battle freely.
+The full game continues to Sunwall.
 Demo saves use `user://demo_saves/`, separate from full-game saves, with no automatic import from them. The exported
 demo ignores development scenario arguments. For editor previews, add `--demo` after Godot's `--` separator.
 
@@ -1640,9 +1644,8 @@ It rejects script errors, missing assets and deferred callback errors even if a 
 `bash tools/run_tests.sh vo-perf-route` checks the benchmark's cardinal routes and deferred rendering callbacks;
 windowed measurements remain separate from this headless check.
 
-`bash tools/run_tests.sh demo demo-touch mechanic-lessons` checks the demo boundary and the unchanged full-game
-lesson, including real rhythm input, missing slippers, Jasper's two blocked road tiles, direct travel restrictions,
-isolated save/reload, contextual hints, backtracking and remaining wild beasts. Capture the demo with:
+`bash tools/run_tests.sh demo demo-touch mechanic-lessons` checks the studio, the cave entrance, the band’s
+release and music switch, Torrent and the demo captain’s board-or-stay choice. Capture the demo with:
 
 ```sh
 godot --path . --resolution 1920x1080 -- --demo --scene=mechanic-lessons --part=dance --shots=res://build/shots/demo_desktop --shot_w=0 --save_dir=res://build/demo_preview/
@@ -1680,14 +1683,6 @@ Use `--scene=bag-limit --shots=res://build/shots/bag --shot_w=0
 The scenario checks stack boundaries, exemptions, lossless migration, refused purchases,
 persistent swaps, focus, tapping, scrolling and empty lists, then captures all four gems.
 
-- `beat-attack` (`--scene=beat-attack`, `tools/debug/beat_attack.gd`): the beat attack's rules on their own (hits by
-  trainer level, grading windows, weak first hit, critical finish, foes' rolled chains, the baked percussion bars),
-  then chains in a real trainer battle with presses injected at set offsets from each beat (1 to 4 hits, misses
-  part-way, an early press, every beat let go, 6 and 10 hits at Lv 7 and 10, the guided and first-road windows), one
-  real press of A through the input path, the plain throw below Lv 4, the boomerang and the bat, a blow at an open
-  trainer and a boss's rolled chain. Add `--shots=res://build/shots/beat/attack` in a window for the cue spinning in
-  and a hit. Headless, the dummy audio driver plays music at its own pace, so only a window checks the beat against
-  the clock; audio latency on the web and Android is checked by ear and eye with `--scene=beat-click` on the device.
 - `weapon-slingshot`, `weapon-boomerang`, `weapon-bat` and `weapon-touch`: road walks, unknown/known weapon hints,
   facing and blocked shots, automatic use, returning boomerangs, released ladders/gates, one-time treasure and
   isolated save/load persistence. Run `bash tools/run_tests.sh weapon-slingshot weapon-boomerang weapon-bat`.
@@ -1972,8 +1967,6 @@ godot --headless --path . -- --scene=mascot                             # mascot
 godot --headless --path . --script res://tools/check_beasts.gd           # every form's name, elements and model; growing up at Lv 20 and 40; merging only final forms ("BEASTS CHECK DONE: 0 problem(s)")
 godot --path . -- --scene=newbeasts --lines=dino,owl --shot=C:/tmp/n.png  # the beasts side by side, a column per line (--stages=1,3, --anim=idle|walk|lie|attack|cast|defend|block|hit|heavy|faint (--wait=0 --at=s: the shot that far into it), --ghost=1, --view=three|side|front, --zoom, --merge=dino_3+owl_3 --seeds=1,2,3)
 godot --path . --resolution 1920x1080 -- --scene=newbeasts --anim=cycle --page=all --shots=res://build/shots/poses --shot_w=0  # every line's three forms (--page=0..2, five lines a page), then ghosts of every body and merges, through every battle pose, named over them; saves <page>_<pose>.png at each pose's telling moment (--quit=0 loops one page)
-godot --path . --resolution 1920x1080 -- --scene=beat-attack --shots=res://build/shots/beat/attack --save_dir=res://build/beat_attack_saves/ # the weapons' beat attack: injected presses, a real A press, boomerang, bat, a boss's rolled chain ("BEAT ATTACK DONE: 0 problem(s)"); add --resolution 2400x1080 --touch for the phone layout
-godot --path . -- --scene=beat-click                                     # press A along with the battle track's beat (--music=boss: the faster one): the average offset, to set Sfx.BEAT_LATENCY on a device; B ends it
 godot --path . --resolution 1920x1080 -- --scene=battle-poses --shots=res://build/shots/battle_poses --shot_w=0 --save_dir=res://build/battle_poses_saves/ # the poses in a real battle through its camera: a cast's two cuts and its extra-effective hit, Defend and a block, a hit, a heal, a faint ("BATTLE POSES DONE: 0 problem(s)"); --old=1 the legendaries' and robots' models; add --resolution 2400x1080 --touch for the phone layout
 godot --path . -- --scene=mascot --plaque=1 --pages=2 --shot=C:/tmp/q.png   # read Cocoon Cove's statue plaque
 godot --headless --path . -- --scene=capture                            # eggs-only rules: Uncle Rafe's lesson, the arena's flute rule, no capture songs, egg chance with gear
@@ -2052,7 +2045,7 @@ Pending-request update, 17 November 2026: New Game covers character-creator load
 
 ### Revised story and the third-strongest cave (17 November 2026)
 
-A timbered cave entrance on Mine Road leads to five talking mole trainers and ordinary roaming wild beasts. Every mole claims third place; beating each reveals one saved treasure chest. Whichever mole falls last hints it is the missing third member of the Rubywave Five without explicitly admitting membership.
+Dustwell’s well leads to five beaver trainers, roaming wild beasts, and dams. Straight passages lined with KayKit dungeon masonry cut through winding chambers of cooler grey cliff rock. Each defeated beaver moves above ground. The old Mine Road entrance has caved in, and saves from inside that cave resume at the well’s entrance with their victories and claimed treasure preserved. The north road leads into a cliff-lined channel with a walkable dry bed. Beyond the panel in the drained falls chamber of the Temple of Tides, Keeper Nerine teaches Torrent. Playing it at the river lip raises the water to the landing and floats Captain Reed's riverboat.
 
 Mom befriends Marlyse in a scene on first arriving in Cogsworth. Jared is Vexmora, the scientist seeking to save his dying mother; Matt Gearheart, his older brother, funds the research for profit. Existing internal map IDs and save flags remain compatible. The captive rescue and Caldera Road unlock remain required.
 

@@ -214,7 +214,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		w = maxi(w, String(r).length())
 	var kind := "town" if WorldDB.is_town(id) else "route"
 	var m := MapGen._new_map(id, kind, w, h)
-	m["anchors"] = {}
+	m["anchors"] = src.get("anchor_tiles", {}).duplicate()
 	m["openings"] = {}
 	m["handmade"] = true
 	m["obstacles"] = {}
@@ -262,7 +262,15 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		MapGen.set_t(m, p.x, p.y, _infer_floor(m, p))
 	# cliffs and ramps (elevation.gd)
 	if src.has("heights"):
-		Elev.parse(m, src["heights"])
+		var heights: Array = src["heights"]
+		if src.has("height_states"):
+			var state: Dictionary = src["height_states"]
+			var symbols: Dictionary = state["wet" if flags.get(state["flag"], false) else "dry"]
+			heights = heights.duplicate()
+			for y in heights.size():
+				for symbol in symbols:
+					heights[y] = String(heights[y]).replace(symbol, symbols[symbol])
+		Elev.parse(m, heights)
 		_cut_ledges(m)
 	# "walls": the cliffs are drawn as dressed-stone retaining walls (a city's), not rock
 	if src.has("cliffs"):
@@ -364,6 +372,8 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		# (a home given a name of its own is still someone's: "Mira's Seaview Villa"; a hotel, or a house plot given
 		# rooms of its own (Dustwell's jail and dance studio), is nobody's home)
 		var nb: Dictionary = m["buildings"].back()
+		if nb.get("well", false):
+			nb["well_full"] = bool(flags.get("well_restored", false))
 		if nb.get("hotel", false) or appearance.has("rooms"):
 			nb.erase("owner")
 		elif appearance.has("name") and nb.has("owner") and not "'s " in String(nb["name"]):
@@ -492,6 +502,8 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 				areas[Vector2i(c.x + dx, c.y + dy)] = true
 	m["fish_areas"] = areas
 	m["boats"] = src.get("boats", [])
+	if src.has("beached_hull") and not flags.get("river_restored", false):
+		m["beached_hull"] = src["beached_hull"]
 	# exits along each connected edge
 	var edges := WorldDB.town_edges(id) if WorldDB.TOWNS.has(id) else WorldDB.route_edges(id)
 	for dir in edges:
@@ -723,8 +735,10 @@ static func _add_building(m: Dictionary, shop: String, pos: Vector2i, sz: Vector
 		"hideout":
 			b["name"] = "Jackals' Hideout"
 			if map_id == "route6":
-				b["name"] = "Third Strongest Cave"
-				b["rooms"] = ["mole_cave"]
+				# the old way into the beavers' cave, caved in: the cave is reached down Dustwell's well now
+				b["name"] = "Caved-in Tunnel"
+				b["rooms"] = ["collapsed_tunnel"]
+				b["sealed_tunnel"] = true
 		"cabin":
 			b["name"] = "Old Hal's Cabin"
 		"kennel":
@@ -944,7 +958,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["stair_flights"] = room.get("stair_flights", false)
 	m["floors"] = rooms.size() if not m["stage"] else 1
 	m["biome"] = pm["biome"]
-	m["anchors"] = {}
+	m["anchors"] = room.get("anchor_tiles", {}).duplicate()
 	m["exhibits"] = {}
 	m["shards"] = []
 	m["furniture"] = {}

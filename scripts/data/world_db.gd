@@ -58,7 +58,8 @@ const ROUTES := {
 	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [4, 7], "races": [24, 27, 12, 36, 9]},
 	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "reef", "lv": [7, 10], "races": [21, 24, 27]},
 	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [30, 15, 3, 33, 9]},
-	"route4": {"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3]},
+	"dustwell_channel": {"name": "Dustwell River Landing", "from": "dustwell", "to": "", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6]},
+	"route4": {"return_only": true,"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3]},
 	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21], "temple": "air"},
 	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [15, 12, 6, 18], "legion": true},
 	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [9, 0, 6, 3], "temple": "fire"},
@@ -76,7 +77,7 @@ const ROUTES := {
 const TEMPLES := {
 	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff",
 		"element": "water", "song": "song_tides", "helpers": [21],
-		"song_room": "temple_tides_song", "rooms": ["temple_tides_hall", "temple_water", "temple_tides_falls", "temple_tides_maze", "temple_tides_song"]},
+		"song_room": "temple_tides_song", "rooms": ["temple_tides_hall", "temple_water", "temple_tides_falls", "temple_tides_maze", "temple_tides_song", "temple_tides_sanctuary"]},
 	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
 		"element": "air", "song": "song_winds", "helpers": [33, 36]},
 	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a",
@@ -298,6 +299,7 @@ const MAP_POS := {
 	"emberfall": Vector2(400, -50), "vinehollow": Vector2(650, -20), "riverbend": Vector2(610, 220), "gravenmoor": Vector2(825, 160),
 }
 const ROUTE_PATHS := {
+	"dustwell_channel": [Vector2(130, 300), Vector2(120, 276), Vector2(118, 261)],
 	"reef": [Vector2(610, 475), Vector2(780, 470)],
 }
 ## The ferry between Bellerive and Shellhaven (drawn on the map, travelled by boat).
@@ -339,7 +341,7 @@ static func town_edges(town: String) -> Dictionary:
 	var out := {}
 	for rid in ROUTES:
 		var r: Dictionary = ROUTES[rid]
-		if r["from"] == town:
+		if r["from"] == town and not r.get("return_only", false):
 			out[r["dir"]] = rid
 		elif r["to"] == town:
 			out[opposite(r["dir"])] = rid

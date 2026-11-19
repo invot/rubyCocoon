@@ -69,7 +69,7 @@ const PAPER_MIX := 0.045
 ## the Start book's pages: a light tan paper, the one window that isn't the off-white (the user's 2026-11-13
 ## direction; book_paper.gd), with the same faint tint of the gem
 const BOOK_PAPER_BASE := Color("#f0e4cd")
-## the old dark style's colours, kept for the battle HUDs (floating_hud.gd, target_cards.gd, beat_cue.gd), which stay
+## the old dark style's colours, kept for the battle HUDs (floating_hud.gd, target_cards.gd), which stay
 ## as they were
 const BATTLE_INK := Color.WHITE
 const BATTLE_DIM := Color("#b9bcc6")

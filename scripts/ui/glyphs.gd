@@ -48,7 +48,7 @@ static func item_glyph(id: String) -> String:
 			return "note"
 		"bait":
 			return "hook"
-		"tome":
+		"tome", "scroll":
 			return "book"
 		"key":
 			if it.has("weapon"):
@@ -77,7 +77,7 @@ static func item_glyph(id: String) -> String:
 static func item(id: String) -> Texture2D:
 	if _items.has(id):
 		return _items[id]
-	var name := "_tome" if id.begins_with("tome_") else ("_sheet" if id.begins_with("sheet_") else id)
+	var name := "_tome" if id.begins_with("tome_") or id.begins_with("scroll_") else ("_sheet" if id.begins_with("sheet_") else id)
 	var path := ITEM_DIR + name + ".png"
 	if not ResourceLoader.exists(path):
 		path = ITEM_DIR + "_unknown.png"

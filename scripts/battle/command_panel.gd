@@ -1,7 +1,7 @@
 extends "res://scripts/ui/modal.gd"
 ## Round commands drive the anchored 3D selection and floating_hud.gd. The rules stay independent of presentation.
 ##   ◄ / ►  change the chosen actor's action: your own, or the beast's move (the side's element, neutral or Defend)
-##   A       confirm it; then every move aimed at someone has its target picked, even with just one to aim at: ◄ / ►
+##   A       open Attack or confirm a choice; then every move aimed at someone has its target picked, even with just one to aim at: ◄ / ►
 ##           choose it (a foe on the side facing you, or their trainer when the middle of that side is down) and A
 ##           confirms. A move that hits them all shows them all, for A to confirm. Move (a beast steps over to another
 ##           slot) picks the slot with ▲ / ▼ (or ◄ / ►).
@@ -18,7 +18,7 @@ extends "res://scripts/ui/modal.gd"
 ## "dir": -1 / 1}, or {"kind": "sub", "row": i} (the chosen option needs battle.gd's own menu).
 ## rows: [{kind: "trainer" | "beast", beast, options: [{label, target, disabled, desc, sub, move}], sel, done,
 ##         target_sel, targets: [{label, ref}], target_all (the move hits every target), pick_kind,
-##         status: "" | "down" | "empty", locked}]
+##         attack_parent (options and selection while inside Attack), status: "" | "down" | "empty", locked}]
 ## info: {up, down, prompt, lesson}; hooks: {render: Callable(rows, focus, picking), hint: Callable(text), point: Callable(ref),
 ##        option: Callable(row, option) (the action or move now highlighted, for battle.gd's pinned control),
 ##        info: Callable(row, option, picking, text) -> String (the top bar's explanation, built from the hint `text`),
@@ -180,7 +180,7 @@ func _bar_tapped(i: int, zone: String) -> void:
 
 
 func _focus_row(i: int) -> void:
-	if i == focus or not _row_enabled(i):
+	if i == focus or not _row_enabled(i) or _choosing_attack():
 		return
 	picking = false
 	focus = i
@@ -242,6 +242,8 @@ func _cycle(dir: int) -> void:
 ## ▲ / ▼: to the next beast that can act (skipping empty slots and fainted beasts); past the top or bottom one, turn
 ## the ring.
 func _move(dir: int) -> void:
+	if _choosing_attack() and not picking:
+		return
 	if picking:
 		if String(rows[focus].get("pick_kind", "")) == "slot":
 			_cycle(dir)
@@ -265,7 +267,7 @@ func _move(dir: int) -> void:
 
 ## Whether ▲ (-1) / ▼ (1) leads anywhere now: to another beast, or a turn of the ring (the pinned bar's hints).
 func can_move(dir: int) -> bool:
-	if picking or closed or not rows[0].get("done", false):
+	if picking or _choosing_attack() or closed or not rows[0].get("done", false):
 		return false
 	if focus == 0 and dir > 0 and _next_beast(0, 1) > 0:
 		return true
@@ -310,9 +312,16 @@ func _confirm() -> void:
 		return
 	if picking:
 		picking = false
+		row.erase("act")
 		row["done"] = true
 		Sfx.play("confirm")
 		_advance()
+		return
+	if o.has("choices"):
+		_open_attack(row, o["choices"])
+		return
+	if o.get("id", "") == "back":
+		_close_attack(row)
 		return
 	if hooks.has("teach"):
 		_teaching = true
@@ -345,9 +354,33 @@ func _confirm() -> void:
 		return
 	else:
 		row["targets"] = []
+	row.erase("act")
 	row["done"] = true
 	Sfx.play("confirm")
 	_advance()
+
+
+func _choosing_attack() -> bool:
+	return rows[focus].has("attack_parent") and not rows[focus].get("done", false)
+
+
+func _open_attack(row: Dictionary, choices: Array) -> void:
+	row["attack_parent"] = {"options": row["options"], "sel": row["sel"]}
+	row["options"] = choices.duplicate()
+	row["options"].append({"id": "back", "label": "Back", "icon": "run", "desc": "Return to the main actions."})
+	row["sel"] = row["options"].find_custom(func(o): return not o.get("disabled", false))
+	row["done"] = false
+	Sfx.play("confirm")
+	_redraw()
+
+
+func _close_attack(row: Dictionary) -> void:
+	var parent: Dictionary = row["attack_parent"]
+	row["options"] = parent["options"]
+	row["sel"] = parent["sel"]
+	row.erase("attack_parent")
+	Sfx.play("back")
+	_redraw()
 
 
 ## After a confirmation: on to the next beast that still needs a move, or begin the round when all are set.
@@ -384,6 +417,9 @@ func _back() -> void:
 		row["done"] = false
 		Sfx.play("back")
 		_redraw()
+		return
+	if row.has("attack_parent"):
+		_close_attack(row)
 		return
 	if focus > 0:
 		# back up to the beast chosen last, or to your own action

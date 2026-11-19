@@ -32,6 +32,7 @@ extends RefCounted
 ##   N small one-tile drawers, QQ wide two-tile dresser (along its wall), E desk, F storage (a big chest of drawers over two tiles), m mop and bucket, l floor lamp, O and X plain floor (the
 ##   coat stand, retired 2026-11-15 as too thin, and the open boxes, removed 2026-11-16),
 ##   z bin, J bunk bed, & low book display, ^ hay bales, ( low cupboard, ) pouf, [ basket of blankets,
+##   + a bedroll (a makeshift bed on the floor),
 ##   } the hero's standing mirror (against a back wall; looking in it changes clothes). TVs (V) belong on the implied fourth wall in stage rooms.
 ##   A run of the same letter is one piece (two b's are a bed, a block of four a double bed).
 ##   "zones": the kind of room each tile is in, one letter per tile like the rows (see room_builder.gd ZONES):
@@ -47,37 +48,53 @@ extends RefCounted
 const FURNITURE := {
 	"|": "counter_gate", "k": "counter", "i": "kitchen_sink", "v": "stove", "f": "fridge", "j": "pantry", "T": "toilet", "U": "bathtub",
 	"u": "basin", "W": "washer", "S": "sofa", "a": "armchair", "V": "tv", "c": "chair", "y": "coffee_table",
-	"N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "m": "mop",
+	"N": "nightstand", "Q": "dresser", "E": "desk", "F": "storage", "m": "mop", "+": "bedroll",
 	"&": "book_display", "l": "floor_lamp", "z": "trash", "J": "bunk", "@": "phone", "^": "hay",
 	"(": "cabinet", ")": "pouf", "[": "basket", "}": "mirror",
 }
 
 const ROOMS := {
-	"mole_cave": {
+	## The Dustwell Well cave (docs/dustwell-water-arc.md): five beavers who can't stand the sound of water (1-5,
+	## beaver_0..4) guard its narrow gaps, each the "third strongest". Dale, the water mage they walled in, is in the cell
+	## at the top left behind a dam (7). The source dam (8) at the top holds back the town's water, and a little dam (9)
+	## hides a pocket with a chest (0). Breaking dams takes Water, which Dale teaches once the beavers have gone.
+	"well_cave": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true,
-		"encounter": {"races": [12, 15, 18, 6], "lv": [20, 24], "roam": true},
-		"anchors": {"1": "mole_0", "2": "mole_1", "3": "mole_2", "4": "mole_3", "5": "mole_4", "6": "chest:elixir@mole_defeated_0", "7": "chest:revival_seed@mole_defeated_1", "8": "chest:spirit_drop@mole_defeated_2", "9": "chest:mega_potion@mole_defeated_3", "0": "chest:honey_cake@mole_defeated_4"},
+		# Cut stone lines the straight excavations. The exposed chamber walls follow the rock.
+		"masonry_runs": [Rect2i(1, 14, 6, 1), Rect2i(1, 16, 6, 1), Rect2i(12, 11, 1, 2),
+			Rect2i(12, 14, 1, 2), Rect2i(4, 4, 6, 1), Rect2i(4, 7, 5, 1),
+			Rect2i(17, 9, 1, 3), Rect2i(19, 9, 1, 3)],
+		"encounter": {"races": [12, 15, 18, 6], "lv": [15, 19], "roam": true},
+		"anchors": {"1": "beaver_0", "2": "beaver_1", "3": "beaver_2", "4": "beaver_3", "5": "beaver_4", "6": "dale",
+			"7": "dam_dale", "8": "dam_source", "9": "dam_pocket", "0": "chest:elixir@well_dam_pocket#1",
+			"?": "dale_source", "$": "chest:scroll_ice@well_dam_pocket#5", "*": "chest:revival_seed@beaver_defeated_1#0",
+			"-": "chest:spirit_drop@beaver_defeated_2#2", ",": "chest:mega_potion@beaver_defeated_3#3",
+			";": "chest:honey_cake@beaver_defeated_4#4"},
 		"rows": [
 			"#########################",
-			"#...........7...........#",
-			"#..6........2........8..#",
-			"#..1.................3..#",
-			"#.......#.......#.......#",
-			"#.......#.......#.......#",
-			"#..ggg..#..ggg..#..ggg..#",
-			"#..ggg..#..ggg..#..ggg..#",
-			"#..ggg..#..ggg..#..ggg..#",
-			"#.......#.......#.......#",
-			"#.......#.......#.......#",
-			"#..9....#.......#....0..#",
-			"#..4.................5..#",
-			"#.......................#",
-			"#.......................#",
-			"DP......................#",
+			"##.6..#.....8....###..0.#",
+			"#.....#....?...;5.##..$.#",
+			"#.....###.......,..#....#",
+			"###7########4########9###",
+			"##....................###",
+			"###ggg..#######...ggg..##",
+			"###g############..ggg...#",
+			"#####....######.....-.###",
+			"#######..........#.#...##",
+			"##################3######",
+			"###......##.#....#.#..###",
+			"##.*........#.........###",
+			"#.....2.....1...........#",
+			"#######.....#.........###",
+			"DP..........#.....#######",
 			"#########################",
 		],
 	},
 
+	"collapsed_tunnel": {
+		"cavern": true, "dark": true, "zone": "stone",
+		"rows": ["#####", "#...#", "#...#", "DP..#", "#####"],
+	},
 	## Every Beast Center is the same little temple, one room you walk into from the side (12x9): walls of the same grey
 	## stone blocks as its outside (beast_temple.gd), pilasters and flame sconces, a glowing inlay in the Center's red, and magic rather than machines. Each relic
 	## has its own bay along the back wall: the nurse's stone counter with her warming cradle (1, I), the healing font
@@ -227,20 +244,76 @@ const ROOMS := {
 			"#############",
 		],
 	},
-	## Dustwell's Oasis Saloon (a cafe: the barkeep sells the same snacks, Places.shop): the bar along the back with
-	## kegs and bottles behind it, tables and stools for the regulars, a locked back room where the card game goes on.
+	## Dustwell's Oasis Saloon (a cafe: the barkeep sells the same snacks, Places.shop). The band's stage (tiled) fills
+	## the back left, one step up, with an aisle beside it to the backstage door (!). Barkeep Dusty (1) is boxed in behind the bar, and the
+	## locked card room (Z) is behind him. The stairs at the right go up to the hotel landing. Tables fill the floor.
 	"saloon": {
 		"wall": "#c47a4e", "rug": "#8a2a2a", "stage": true, "zone": "wood", "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
+		"doors": {"!": "saloon_back"},
+		# the band's stage: one step up, at its front middle
+		"dais": [{"rect": [2, 1, 4, 3], "steps": [[4, 3]]}],
 		"locked": ["The back room. Somebody in there is shuffling cards, very slowly, and humming."],
-		"counter_phone": [8, 2],
+		"counter_phone": [9, 2],
 		"rows": [
-			"######Z######",
-			"#....1...BB.#",
-			"#CCCCCCCCCCCw",
-			"#...........w",
-			"#ht2....ht3.#",
-			"#...........#",
-			"L..........PD",
+			"#!######Z##########",
+			"#.::::C..1.BBC.>>>#",
+			"#.::::CCCCCCCC....w",
+			"#.::::............w",
+			"w..hth....hth..hth#",
+			"w.......2.....3...w",
+			"w..hth....hth..hth#",
+			"#................PD",
+			"###################",
+		],
+	},
+	## The saloon's hotel landing, half a room deep: the stairs come up at the right, two dancers' rooms open off the
+	## back wall and the third room is locked.
+	"saloon_hall": {
+		"wall": "#c47a4e", "rug": "#8a2a2a", "stage": true, "zone": "hall", "doors": {"!": "saloon_room_a", "?": "saloon_room_b"},
+		"locked": ["Room 3. A card on the knob says DO NOT DISTURB. Someone inside is practising high kicks, loudly."],
+		"rows": [
+			"###!#####?####L####",
+			"w..............<<<#",
+			"w...............P.#",
+			"###################",
+		],
+	},
+	## Hotel room 1: a can-can dancer (anchor dancer_0) by her dresser.
+	"saloon_room_a": {
+		"wall": "#d8a2a0", "rug": "#8a2a4a", "stage": true, "zone": "bedroom", "doors": {"!": "saloon_hall"},
+		"anchors": {"1": "dancer_0"},
+		"rows": [
+			"#####w##w##",
+			"#NbbN.....#",
+			"#Qbb..)...#",
+			"#Q....1...!",
+			"#l..rrr...#",
+			"###########",
+		],
+	},
+	## Hotel room 2: another dancer (anchor dancer_1), the room mirrored.
+	"saloon_room_b": {
+		"wall": "#d8a2a0", "rug": "#6a2a6a", "stage": true, "zone": "bedroom", "doors": {"?": "saloon_hall"},
+		"anchors": {"1": "dancer_1"},
+		"rows": [
+			"##w##w#####",
+			"#.....NbbN#",
+			"#...)..bbQ#",
+			"?...1....Q#",
+			"#...rrr..l#",
+			"###########",
+		],
+	},
+	## Backstage: the bar's storeroom, where the Rubywave Five live among the crates and shelves on blanket piles
+	## laid on the floor (bedrolls, +).
+	"saloon_back": {
+		"wall": "#a8704a", "rug": "#5a3a2a", "stage": true, "zone": "back", "doors": {"!": "saloon"},
+		"rows": [
+			"####w#####w##",
+			"#FF.((..ssss#",
+			"#...........!",
+			"#+.+..+..+..#",
+			"#..z........#",
 			"#############",
 		],
 	},
@@ -302,14 +375,17 @@ const ROOMS := {
 			"#############",
 		],
 	},
+	## Dustwell's dance studio: Lucille (1) drills three students (2-4) in the can-can, all facing the back wall, which
+	## is one floor-to-ceiling mirror reflecting the room ("mirror_wall", room_builder.gd). Benches along the side.
 	"dance_studio": {
-		"wall": "#dfbd8d", "stage": true, "anchors": {"1": "dance_instructor"},
+		"wall": "#dfbd8d", "stage": true, "mirror_wall": true,
+		"anchors": {"1": "dance_instructor", "2": "dance_student_0", "3": "dance_student_1", "4": "dance_student_2"},
 		"rows": [
-			"###w###w#####",
-			"#p.nn.....Op#",
-			"#.....1.....w",
+			"#############",
+			"#p.........p#",
+			"#...2.3.4...w",
 			"#==.........w",
-			"#...........#",
+			"#.....1.....#",
 			"#...........#",
 			"#...........#",
 			"#..........PD",
@@ -650,13 +726,28 @@ const ROOMS := {
 	# the front of the room where a stretch of the path (a .. c) has sunk under the water while its fall runs (it rises
 	# again when the fall stops: tide_water.gd), with four levers against the wall between them. The treasure lies on the
 	# pool's floor, and two flights of steps lead down to it once it's drained.
+	"temple_tides_sanctuary": {
+		"wall": "#648da3", "rug": "#247082", "zone": "stone",
+		"doors": {"[": "temple_tides_falls"},
+		"anchors": {"1": "water_teacher", "2": "water_acolyte"},
+		"rows": [
+			"#############",
+			"#o::_____::o#",
+			"#:::_____:::#",
+			"#::2::1:::::#",
+			"#:::::::::::[",
+			"#o:::::::::o#",
+			"#############",
+		],
+	},
 	"temple_tides_falls": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
-		"doors": {"[": "temple_tides_hall"},
+		"anchor_tiles": {"water_panel": Vector2i(1, 7)},
+		"doors": {"[": "temple_tides_hall", "]": "temple_tides_sanctuary"},
 		"level_h": 0.8, "top_level": 1,
 		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
 		"water_levels": [["tides_falls_solved", -0.12]], "puzzle": "falls",
-		"floods": {"+": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}},
+		"floods": {"?": {"flag": "water_mages_found", "wet": "#", "dry": "]"}, "+": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}},
 		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "9": "chest:tide_pendant@tides_falls_solved", "4": "tide_tablet"},
 		"rows": [
 			"#################",
@@ -666,7 +757,7 @@ const ROOMS := {
 			"#+++++++++++++++#",
 			"#+++++++++++++++#",
 			"#+++++++++++++++#",
-			"#+++++++9+++++++#",
+			"?+++++++9+++++++#",
 			"#+++++++++++++++#",
 			"#################",
 		],
@@ -678,7 +769,7 @@ const ROOMS := {
 			"10000000000000001",
 			"10000000000000001",
 			"10000000000000001",
-			"10000000000000001",
+			"00000000000000001",
 			"10000000000000001",
 			"00000000000000000",
 		],

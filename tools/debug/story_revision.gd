@@ -34,20 +34,33 @@ func run(main, opts: Dictionary) -> void:
 	var old: int = GameState.nightmare_tool()
 	GameState.flags.erase("nightmare_tool")
 	_check(GameState.nightmare_tool() == old, "legacy clue does not reroll")
-	var route := Maps.load_map("route6", {})
+	var legacy_cave := Maps.interior_of("route6", "hideout")
+	var new_cave := Maps.interior_of("dustwell", "hideout")
+	GameState.map_id = legacy_cave
+	GameState.pos = Vector2i(3, 3)
+	GameState.set_flag("mole_defeated_2")
+	GameState.set_flag("chest_%s_2" % legacy_cave)
+	_check(GameState.save_game(9) and GameState.load_game(9) and GameState.map_id == new_cave and GameState.pos == Vector2i(-1, -1),
+		"old cave saves arrive at the well entrance")
+	_check(GameState.flag("beaver_defeated_2") and GameState.flag("chest_%s_2" % new_cave), "old cave victories and claimed chests migrate")
+	GameState.map_id = "dustwell"
+	GameState.set_flag("chest_%s_4" % legacy_cave)
+	_check(GameState.save_game(9) and GameState.load_game(9) and GameState.map_id == "dustwell"
+		and GameState.flag("chest_%s_4" % new_cave), "claimed cave treasure migrates for a player saved elsewhere")
+	GameState.set_flag("beaver_defeated_2", false)
+	var town := Maps.load_map("dustwell", {})
 	var cave_id := ""
-	for building in route["buildings"]:
-		if building.get("rooms", []).has("mole_cave"):
+	for building in town["buildings"]:
+		if building.get("rooms", []).has("well_cave") and building.get("well", false):
 			cave_id = building["interior"]
-	_check(cave_id != "", "Mine Road has the cave")
+	_check(cave_id != "", "Dustwell's well leads to the cave")
 	var cave := Maps.load_map(cave_id, {})
-	_check(cave["chests"].size() == 5, "five treasure rewards")
+	_check(cave["chests"].size() == 6 and cave["chests"].filter(func(ch): return ch["hidden_until"] == "well_dam_pocket").size() == 2,
+		"the pocket chests wait behind their dam and the beavers' other treasures remain")
 	_check(cave["encounter"].get("ghosts", 1.0) == 0.0 and cave["encounter"]["roam"], "ordinary wild beasts inhabit cave")
 	var reachable := _reachable(cave, cave["spawns"]["entry"])
-	for p in cave["anchors"].values():
-		_check(reachable.has(p), "each mole is reachable")
-	for chest in cave["chests"]:
-		_check(reachable.has(chest["pos"]) and chest["hidden_until"].begins_with("mole_defeated_"), "each chest is reachable and gated")
+	for key in ["beaver_0", "beaver_1", "beaver_2", "beaver_3", "beaver_4", "dam_dale", "dam_source", "dam_pocket"]:
+		_check(reachable.has(cave["anchors"][key]), "%s is reachable" % key)
 	var stub := BattleStub.new()
 	main.add_child(stub)
 	GameState.main = stub
@@ -55,10 +68,58 @@ func run(main, opts: Dictionary) -> void:
 	var fake_world := Node.new()
 	fake_world.set_script(load("res://tools/debug/story_revision_world.gd"))
 	main.add_child(fake_world)
+	await Story._dale(fake_world, {"name": "Dale"})
+	_check(not GameState.flag("learned_water"), "Dale teaches nothing while beavers remain")
 	for i in [4, 1, 0, 3, 2]:
-		await Story._mole(fake_world, {"mole": i, "name": "Mole"})
-		_check(GameState.flag("mole_defeated_%d" % i), "victory saves the mole state")
-	_check(GameState.flags.get("mole_last", -1) == 2, "last defeated mole gets the band hint regardless of index")
+		await Story._beaver(fake_world, {"beaver": i, "name": "Beaver"})
+		_check(GameState.flag("beaver_defeated_%d" % i), "victory saves the beaver state")
+	await Story._dale(fake_world, {"name": "Dale"})
+	_check(not GameState.flag("learned_water"), "Dale waits until the hero brings the flute and the guardian's song")
+	GameState.gear["flute"] = "reed_flute"
+	GameState.songs.append("song_tides")
+	await Story._dale(fake_world, {"name": "Dale"})
+	_check(GameState.flag("learned_water"), "Dale teaches Water once the beavers have gone")
+	UI.auto_answers = [0]
+	UI.auto_flute = [{"acc": 1.0, "mistakes": 0, "cancelled": true}]
+	await Story._dam(fake_world, {"dam": "dale", "name": ""})
+	_check(not GameState.flag("well_dam_dale"), "cancelling the song leaves Dale's dam intact")
+	UI.auto_answers = [0]
+	UI.auto_flute = [{"acc": 0.3, "mistakes": 2}]
+	await Story._dam(fake_world, {"dam": "dale", "name": ""})
+	_check(not GameState.flag("well_dam_dale"), "a poor performance leaves Dale's dam intact")
+	await Story._dam(fake_world, {"dam": "source", "name": ""})
+	_check(not GameState.flag("well_restored"), "the source dam waits until Dale is free")
+	UI.auto_answers = [0, 0]
+	UI.auto_flute = [{"acc": 0.9, "mistakes": 0}, {"acc": 0.9, "mistakes": 0}]
+	await Story._dam(fake_world, {"dam": "dale", "name": ""})
+	await Story._dam(fake_world, {"dam": "source", "name": ""})
+	_check(GameState.flag("dale_freed") and GameState.flag("well_restored"), "Water breaks Dale's dam, then the source dam")
+	var falls := Maps.load_map(Maps.interior_of("reef", "temple") + "@3", {"tides_falls_solved": true})
+	var panel: Dictionary = {}
+	for n in Story.extra_npcs(falls):
+		if n.get("target", "") == "water_panel":
+			panel = n
+		if n.has("scene"):
+			n["scene"].free()
+	_check(falls["room_key"] == "temple_tides_falls" and not panel.is_empty(), "the real temple room keeps its Water target")
+	if not panel.is_empty():
+		UI.auto_answers = [0]
+		UI.auto_flute = [{"acc": 0.9, "mistakes": 0}]
+		await Story._water_target(fake_world, panel)
+	_check(GameState.flag("water_mages_found"), "Water opens the temple panel")
+	var stone := Vector2i(0, 7)
+	_check(not falls["exits"].has(stone), "the closed panel has no passage")
+	var opened := Maps.load_map(falls["id"], {"tides_falls_solved": true, "water_mages_found": true})
+	var sanctuary := Maps.load_map(opened["exits"][stone]["to"], GameState.flags)
+	_check(sanctuary["room_key"] == "temple_tides_sanctuary" and sanctuary["exits"].values()[0]["to"] == falls["id"], "the sanctuary doorway leads back to the falls")
+	var teacher := false
+	for n in Story.extra_npcs(sanctuary):
+		if n.get("id", "") == "water_teacher":
+			teacher = true
+			await Story._water_teacher(n["name"])
+		if n.has("scene"):
+			n["scene"].free()
+	_check(teacher and GameState.learned_spell("torrent"), "the teacher appears after the panel opens and teaches Torrent")
 	GameState.main = main
 	for tool in 3:
 		GameState.flags["nightmare_tool"] = tool
@@ -77,7 +138,7 @@ func run(main, opts: Dictionary) -> void:
 	for note in Jail.MARCH:
 		for button in note:
 			march._press(button)
-	_check(march.accuracy() > 0.0 and march.pos == Jail.MARCH.size(), "custom mouse melody can actually be completed")
+	_check(march.accuracy() > 0.0 and march.pos == Jail.MARCH.size(), "custom duck melody can actually be completed")
 	march.close(march._result())
 	await main.get_tree().process_frame
 	GameState.flags.erase("jail_escaped")
@@ -85,20 +146,20 @@ func run(main, opts: Dictionary) -> void:
 	UI.auto_flute = [{"acc": 1.0, "mistakes": 0, "cancelled": false}]
 	var jail := Jail.new()
 	UI.push(jail)
-	await _until(main, func(): return jail.mode == "mouse")
-	_check(jail.mode == "mouse", "successful song grants mouse control")
-	_check(not jail.move_mouse(Vector2i(1, -1)), "mouse rejects diagonal movement")
+	await _until(main, func(): return jail.mode == "duck")
+	_check(jail.mode == "duck", "successful song grants duck control")
+	_check(not jail.move_duck(Vector2i(1, -1)), "duck rejects diagonal movement")
 	var path := [Vector2i.DOWN, Vector2i.DOWN, Vector2i.RIGHT, Vector2i.RIGHT, Vector2i.RIGHT, Vector2i.RIGHT, Vector2i.UP, Vector2i.UP, Vector2i.UP]
 	for direction in path:
-		_check(jail.move_mouse(direction), "mouse traverses the route")
-	_check(jail.mouse_tile == Jail.LOCK, "mouse reaches the lock")
+		_check(jail.move_duck(direction), "duck traverses the route")
+	_check(jail.duck_tile == Jail.LOCK, "duck reaches the lock")
 	var event := InputEventAction.new()
 	event.action = "interact"
 	event.pressed = true
 	jail.on_input(event)
 	var jail_ref: WeakRef = weakref(jail)
 	await _until(main, func(): return jail_ref.get_ref() == null or jail_ref.get_ref().closed)
-	_check(GameState.flag("jail_escape_mouse"), "A unlocks the cell through mouse route")
+	_check(GameState.flag("jail_escape_duck"), "A unlocks the cell through duck route")
 	await main.get_tree().process_frame
 	GameState.main = stub
 	GameState.flags.erase("game_cleared")
@@ -151,7 +212,7 @@ func _preview(main, opts: Dictionary) -> void:
 		GameState.set_flag("vexmora_defeated")
 		GameState.set_flag("nyx_defeated")
 		GameState.set_flag("trainers_freed")
-		var place := Maps.interior_of("route6", "hideout") if kind == "cave" else Maps.interior_of("gravenmoor", "cathedral") + "@3"
+		var place := Maps.interior_of("dustwell", "hideout") if kind == "cave" else Maps.interior_of("gravenmoor", "cathedral") + "@3"
 		await main._do_goto(place, "entry" if kind == "cave" else "start")
 		main.world.demo = true
 		main.world.cam_free = true

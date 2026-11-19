@@ -96,6 +96,8 @@ static func build(look: Dictionary) -> Node3D:
 	_dress_body(root, look)
 	if look.get("critter", "") == "mole":
 		preload("res://scripts/gfx/mole_model.gd").dress(root)
+	elif look.get("critter", "") == "beaver":
+		preload("res://scripts/gfx/beaver_model.gd").dress(root)
 	animate(root, 0.0, 0.0, 0.0)
 	return root
 
@@ -922,6 +924,8 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		var visual: Node3D = rig.get_meta("critter_visual")
 		visual.position.y = sin(phase) * 0.015 - float(rig.get_meta("kneel_w", 0.0)) * 0.3
 		visual.rotation.x = float(rig.get_meta("kneel_w", 0.0)) * 0.25
+	if rig.has_meta("beaver_animation"):
+		preload("res://scripts/gfx/beaver_model.gd").animate(rig.get_meta("beaver_animation"), speed)
 	if rig.has_meta("weapon_prop"):
 		_place_weapon(rig, sk, r, wpose if ww > 0.5 else {})
 

@@ -258,6 +258,9 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	mi.mesh = kit_mesh
 	node.add_child(mi)
 	match shop:
+		"hideout" when b.get("well", false):
+			# Dustwell's well (docs/dustwell-water-arc.md): its way in is the climb down into the beavers' cave
+			_well(node, w, d, bool(b.get("well_full", false)))
 		"hideout":
 			# a rocky outcrop, tall enough to tunnel into, with a timbered mine entrance in its face
 			var rock := VA.instance_footprint("mountain_4", d + 0.4, w + 0.6)
@@ -1517,6 +1520,31 @@ static func _pack_cathedral(node: Node3D, w: float, d: float, door_lx: float, lo
 
 ## A mine entrance cut into the bandits' rock: a dark passage behind a timber frame (two posts and a lintel, with a
 ## brace either side), a lantern on the frame, and crates and barrels stacked outside. `fz` is the rock's front face.
+## A town well on its footprint: a round-ish stone curb, two posts under a little shingled roof, a crank and a bucket
+## on its rope. Dry, the shaft is dark; full, water shows just under the curb.
+static func _well(node: Node3D, w: float, d: float, full: bool) -> void:
+	var k := Kit.new()
+	var stone := Color("#b8a58a")
+	var timber := Color("#6a4a2a")
+	var r := minf(w, d) * 0.38
+	for i in 8:
+		var a := TAU * float(i) / 8.0
+		k.box("color", Vector3(cos(a) * r, 0.42, sin(a) * r), Vector3(0.42, 0.84, 0.42), stone.darkened(0.06 * (i % 2)), true)
+	k.box("color", Vector3(0, 0.5 if full else 0.05, 0), Vector3(r * 1.5, 0.04, r * 1.5), Color("#3f86a8") if full else Color("#0a0806"))
+	for sx in [-1.0, 1.0]:
+		k.box("planks", Vector3(sx * (r + 0.05), 1.3, 0), Vector3(0.14, 1.8, 0.14), timber, true)
+	k.box("planks", Vector3(0, 1.75, 0), Vector3(r * 2.2, 0.08, 0.08), timber.darkened(0.1))
+	k.box("planks", Vector3(r + 0.3, 1.75, 0), Vector3(0.08, 0.08, 0.36), timber.darkened(0.1))
+	k.box("color", Vector3(0, 1.35, 0), Vector3(0.03, 0.75, 0.03), Color("#c8b48a"))
+	k.box("planks", Vector3(0, 0.88, 0), Vector3(0.26, 0.24, 0.26), timber.lightened(0.15), true)
+	for sz in [-1.0, 1.0]:
+		k.box("planks", Vector3(0, 2.38, sz * 0.32), Vector3(r * 2.6, 0.08, 0.7), Color("#8a4a32"))
+	k.box("planks", Vector3(0, 2.46, 0), Vector3(r * 2.6, 0.12, 0.12), Color("#7a3e2a"))
+	var mi := MeshInstance3D.new()
+	mi.mesh = k.mesh()
+	node.add_child(mi)
+
+
 static func _mine_entrance(node: Node3D, door_lx: float, fz: float) -> void:
 	var k := Kit.new()
 	var timber := Color("#6a4a2a")

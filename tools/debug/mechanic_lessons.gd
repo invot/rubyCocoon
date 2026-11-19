@@ -1,6 +1,5 @@
 extends RefCounted
 ## Exercises progression, real lesson input, and save persistence without touching player saves.
-const BeatCue = preload("res://scripts/battle/beat_cue.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const FluteGame = preload("res://scripts/ui/flute_game.gd")
 const Ring = preload("res://scripts/core/ring.gd")
@@ -13,8 +12,6 @@ var main
 var opts: Dictionary
 var bad := 0
 var captured := {}
-var practice_missed := false
-var practice_landed := false
 var failed_song := false
 
 
@@ -49,8 +46,6 @@ func run(game, options: Dictionary) -> void:
 		await dance()
 	if part in ["all", "summon"]:
 		await summon()
-	if part in ["all", "rhythm"]:
-		await rhythm()
 	if part in ["all", "ring"]:
 		await ring()
 	if part in ["all", "practice"]:
@@ -73,27 +68,12 @@ func run(game, options: Dictionary) -> void:
 	print("MECHANIC LESSONS DONE: %d problem(s)" % bad)
 
 
-## Drive genuine modal input. Miss the first practice beat, then land it, including by direct tap on touch.
+## Drive genuine modal input, including direct speech taps on touch.
 func drive(done: Array) -> void:
 	var until := Time.get_ticks_msec() + 180000
 	while not done[0] and Time.get_ticks_msec() < until:
 		var top = UI.stack.back() if not UI.stack.is_empty() else null
-		if top is BeatCue:
-			if top._finished:
-				if top.most == 1 and top.grades == ["miss"]:
-					practice_missed = true
-				if top.most == 1 and (top.grades.has("good") or top.grades.has("perfect")):
-					practice_landed = true
-			elif top.most == 1 and not practice_missed:
-				pass
-			else:
-				await shot("rhythm_practice" if top.most == 1 else "rhythm_chain")
-				if not top._finished and top._now() >= top._expected() - 0.01:
-					if UI.is_touch():
-						await main._tap_at(top._center)
-					else:
-						await main._press("ui_accept")
-		elif top != null:
+		if top != null:
 			if top is FluteGame:
 				if top.phase in ["study", "play"]:
 					await shot("summon_song")
@@ -137,97 +117,137 @@ func drive(done: Array) -> void:
 	check(done[0], "lesson finishes through the real input path")
 
 
+## Dustwell's studio, cave, saloon and riverboat. The runner retains the original "dance" part name.
 func dance() -> void:
 	UI.auto = true
-	GameState.set_flag("dance_lesson_done", false)
-	GameState.set_flag("dance_shoes_returned", false)
-	GameState.inventory.erase("dance_shoes")
+	GameState.set_flag("well_restored", false)
 	GameState.trainer_level = 3
 	await main._go("dustwell", Vector2i(23, 3))
 	main.world.frozen = true
-	var jasper := npc("dance_blocker")
-	check(not jasper.is_empty(), "Jasper waits on the north road")
-	check(not main.world._walkable(Vector2i(22, 2)) and not main.world._walkable(Vector2i(23, 2)), "both tiles of the single north road are blocked")
-	check(is_equal_approx(jasper["node"].position.x, 23.0), "Jasper sits centered between the two road tiles")
-	check(main.world.VPer.pose_of(jasper["node"]) == "sit", "Jasper is seated")
-	var north: Array = main.world.map["exits"].keys().filter(func(p): return main.world.map["exits"][p]["to"] == "route4")
-	check(north.size() == 2 and north.all(func(p): return p.x in [22, 23]), "one two-tile north exit")
-	main.world.facing = Vector2i.UP
-	await main.world._interact()
-	check(GameState.flag("dance_shoes_asked") and not GameState.flag("dance_shoes_returned"), "right-hand road tile talks to the same blocker")
-	await shot("jasper_blocks_road")
+	check(npc("dance_blocker").is_empty(), "nobody blocks the north road any more")
+	var north: Dictionary = main.world.map["exits"][Vector2i(23, 0)]
+	check(north["to"] == "dustwell_channel" and await Story.can_use_exit(main.world, north), "the north road is enterable during the drought")
+	await main._go(north["to"], Vector2i(18, 10))
+	main.world.frozen = true
+	check(main.world._walkable(Vector2i(12, 8)), "the exposed riverbed can be walked")
+	check(not main.world._walkable(Vector2i(14, 6)), "the beached hull occupies the mud beneath it")
+	await Story.talk(main.world, npc("riverboat_captain"))
+	check(main._pending_goto.is_empty() and main.world.map_id == "dustwell_channel", "the captain cannot sail from the dry channel")
+	await shot("dry_road")
 	await main._go("dustwell", Vector2i(4, 6))
 	main.world.frozen = true
 	check(not Places.door_locked(main.world.map["buildings"][1]), "dance studio is always open")
-	await shot("studio_exterior")
 	await main.world._enter_building(main.world.map["buildings"][1])
 	for i in 800:
 		if main.world.map_id == "dustwell#1" and not main._transitioning:
 			break
 		await main._wait(0.025)
 	main.world.frozen = true
-	check(main.world.map["room_key"] == "dance_studio", "existing building identity now hosts the studio")
+	check(main.world.map["room_key"] == "dance_studio", "existing building identity still hosts the studio")
 	UI.auto_log.clear()
 	await Story.talk(main.world, npc("dance_instructor"))
-	check(str(UI.auto_log).contains("too weak to dance") and not GameState.flag("dance_lesson_done"), "level 3 refused without unlocking rhythm")
-	GameState.trainer_level = 4
-	UI.auto = false
-	main.world.busy = true
-	var done := [false]
-	var teach := func():
-		await Story.talk(main.world, npc("dance_instructor"))
-		done[0] = true
-	teach.call()
-	await drive(done)
-	main.world.busy = false
+	check(not str(UI.auto_log).contains("too weak"), "Lucille has no level gate")
+	check(GameState.item_count("dance_shoes") == 0, "no dance shoes are handed out")
+	check(main.world.has_node("StudioReflection"), "the studio has reflected room geometry")
+	await shot("studio")
+	await main._go("dustwell#5", Vector2i(7, 6))
+	main.world.frozen = true
+	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member").size() == 5, "all five band members are on stage")
+	check(Sfx.current_music() == "saloon_contract", "the saloon plays Rosa's contract song")
+	await shot("saloon")
+	var back: Array = main.world.map["exits"].values().filter(func(ex): return String(ex["to"]).ends_with("@5"))
+	check(back.size() == 1, "the saloon has a backstage exit")
+	await main._go("dustwell#7", "entry")
+	main.world.frozen = true
+	check(main.world.map.get("room_key") == "well_cave" and not npc("beaver").is_empty(), "the well opens into the beavers' cave")
+	await shot("well_cave")
+	await main._go("dustwell#7", Vector2i(3, 5))
+	main.world.frozen = true
+	await shot("dale_dam")
+	for i in 5:
+		GameState.set_flag("beaver_defeated_%d" % i)
+	await main._go("dustwell#7", "entry")
+	check(npc("beaver").is_empty(), "all five defeated beavers have left the cave")
+	GameState.set_flag("well_restored")
+	await main._go("dustwell#5", "entry")
+	main.world.frozen = true
+	await Story.talk(main.world, npc("rosa"))
+	check(GameState.flag("band_freed") and npc("rubywave_member").is_empty(), "Rosa frees all five musicians after the well refills")
+	check(Sfx.current_music() == "saloon_free", "the saloon switches music as the band leaves")
+	await main._go("dustwell", Vector2i(23, 4))
+	main.world.frozen = true
+	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "beaver").size() == 5, "all five defeated beavers appear in town")
+	var wet_well: bool = main.world.map["buildings"][7].get("well_full", false)
+	check(wet_well and not GameState.flag("river_restored"), "the full well and dry river are separate states")
+	check(main.world.map["exits"].values().all(func(ex): return ex["to"] != "route4"), "boarding is the only way north")
+	GameState.gear["flute"] = "reed_flute"
+	GameState.learn_spell("water")
+	GameState.set_flag("tides_falls_solved")
+	var falls := ML.interior_of("reef", "temple") + "@3"
+	await main._go(falls, Vector2i(2, 7))
+	main.world.frozen = true
+	await shot("water_panel")
+	UI.auto_answers = [0]
+	UI.auto_flute = [{"acc": 0.9, "mistakes": 0}]
+	main.world.facing = Vector2i.LEFT
+	await main.world._interact()
+	while main._transitioning or not main._pending_goto.is_empty():
+		await main._wait(0.025)
+	var passage: Dictionary = main.world.map["exits"][Vector2i(0, 7)]
+	await main._go(passage["to"], passage["spawn"])
+	main.world.frozen = true
+	check(main.world.map["room_key"] == "temple_tides_sanctuary" and not npc("water_acolyte").is_empty(), "the panel leads into the mages' sanctuary")
+	await shot("sanctuary")
+	await Story.talk(main.world, npc("water_teacher"))
+	check(GameState.learned_spell("torrent"), "Nerine teaches Torrent in the sanctuary")
+	await main._go("dustwell_channel", Vector2i(18, 2))
+	main.world.frozen = true
+	UI.auto_answers = [0]
+	UI.auto_flute = [{"acc": 0.9, "mistakes": 0}]
+	main.world.facing = Vector2i.UP
+	await main.world._interact()
+	for i in 800:
+		if not main._transitioning and main._pending_goto.is_empty():
+			break
+		await main._wait(0.025)
+	check(GameState.flag("river_restored") and main.world._walkable(Vector2i(18, 3)), "Torrent leaves a dry route back to the landing")
+	check(MG.get_t(main.world.map, 12, 8) == MG.WATER and not main.world._walkable(Vector2i(12, 8)), "the restored channel is deep water")
+	await main._go("dustwell_channel", Vector2i(18, 10))
+	main.world.frozen = true
+	await shot("riverboat")
 	if BuildEdition.is_demo():
 		await demo_boundary()
 		return
-	check(GameState.flag("dance_lesson_done") and GameState.item_count("dance_shoes") == 1, "level 4 lesson unlocks rhythm and awards shoes")
-	check(GameState.save_game(9), "save the completed lesson before returning shoes")
-	GameState.set_flag("dance_lesson_done", false)
-	check(GameState.load_game(9) and GameState.flag("dance_lesson_done") and GameState.item_count("dance_shoes") == 1, "save restores lesson and unreturned shoes")
-	UI.auto = true
-	await main._go("dustwell", Vector2i(23, 3))
-	main.world.frozen = true
-	await Story.talk(main.world, npc("dance_blocker"))
-	check(GameState.flag("dance_shoes_returned") and GameState.item_count("dance_shoes") == 0, "shoes returned once")
-	check(main.world._walkable(Vector2i(22, 2)) and main.world._walkable(Vector2i(23, 2)), "both road tiles reopen")
-	check(await Story.can_use_exit(main.world, {"to": "route4"}), "the road to Sundown opens")
-	await main._go("dustwell", Vector2i(23, 3))
-	check(npc("dance_blocker").is_empty(), "Jasper is not loaded after returning shoes")
-	await shot("road_open")
+	UI.auto_answers = [0]
+	await Story.talk(main.world, npc("riverboat_captain"))
+	check(main._pending_goto.get("map", main.world.map_id) == "sundown", "the captain boards for Sunwall after Torrent")
+	for i in 800:
+		if main.world.map_id == "sundown" and not main._transitioning:
+			break
+		await main._wait(0.025)
+	check(main.world.map_id == "sundown" and not npc("sunwall_searcher").is_empty(), "the boat reaches Sunwall and its missing-trainers follow-up")
+	await main._go(ML.interior_of("cogsworth", "music_shop"), "entry")
+	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member").size() == 5, "all five musicians regroup in Brass & Reed")
+	check(main.world._walkable(main.world.map["counter_phone"] + Vector2i.DOWN), "the band leaves the shop phone accessible")
 
 
 func demo_boundary() -> void:
-	check(GameState.flag("dance_lesson_done") and GameState.item_count("dance_shoes") == 0, "demo lesson unlocks rhythm without slippers")
-	check(GameState.save_game(9), "save completed demo lesson")
-	GameState.set_flag("dance_lesson_done", false)
-	check(GameState.load_game(9) and GameState.flag("dance_lesson_done"), "demo save restores rhythm")
 	UI.auto = true
 	GameState.set_flag("guardian_water")
-	check(Story.next_goal() == "demo_freeplay", "hints lead to continued play instead of unavailable shoes")
-	await main._go("dustwell", Vector2i(23, 3))
-	main.world.frozen = true
-	UI.auto = false
-	var done := [false]
-	var talk := func():
-		await Story.talk(main.world, npc("dance_blocker"))
-		done[0] = true
-	talk.call()
-	await drive(done)
-	UI.auto = true
-	check(not GameState.flag("dance_shoes_returned") and not npc("dance_blocker").is_empty(), "Jasper stays after talking")
-	check(not main.world._walkable(Vector2i(22, 2)) and not main.world._walkable(Vector2i(23, 2)), "both road tiles stay blocked after lesson")
+	check(Story.next_goal() == "demo_freeplay", "hints lead to continued play once the river flows")
+	UI.auto_answers = [1]
+	await Story.talk(main.world, npc("riverboat_captain"))
+	check(main.world.map_id == "dustwell_channel" and main._pending_goto.is_empty(), "declining to board stays in free play")
+	UI.auto_log.clear()
+	UI.auto_answers = [0]
+	await Story.talk(main.world, npc("riverboat_captain"))
+	check(str(UI.auto_log).contains("Credits: Ruby Cocoon."), "boarding plays the shared credits")
 	check(not await Story.can_use_exit(main.world, {"to": "route4"}), "exit cannot pass the demo boundary")
-	GameState.set_flag("dance_shoes_returned")
-	GameState.add_item("dance_shoes")
-	check(not await Story.can_use_exit(main.world, {"to": "route4"}), "stale flags and injected shoes cannot open the road")
 	main.world.frozen = false
 	main.goto_map("sundown", "start")
 	check(main._pending_goto.is_empty() and not main.world.frozen, "direct travel is refused without freezing play")
 	await main._go("sundown")
-	check(main.world.map_id == "dustwell", "transition guard refuses later towns")
+	check(main.world.map_id == "dustwell_channel", "transition guard refuses later towns")
 	for id in Story.WorldDB.TOWN_ORDER:
 		check(BuildEdition.allows_map(id + "#0") == (Story.WorldDB.TOWN_ORDER.find(id) <= 4), "demo town and interior boundary: " + id)
 	GameState.map_id = "sundown"
@@ -235,9 +255,6 @@ func demo_boundary() -> void:
 	GameState.visited.append("sundown")
 	check(GameState.save_game(9) and GameState.load_game(9), "load isolated contaminated demo state")
 	check(GameState.map_id == "dustwell" and GameState.last_center == "caccoon" and not GameState.visited.has("sundown"), "out-of-demo saved destinations reset safely")
-	check(not GameState.flag("dance_shoes_returned") and GameState.item_count("dance_shoes") == 0, "demo load removes stale road unlocks")
-	await main._go("dustwell", Vector2i(23, 3))
-	check(not npc("dance_blocker").is_empty(), "Jasper persists after reload")
 	await main._go("route3", "start")
 	check(main.world.map_id == "route3" and not main.world.wilds.is_empty(), "backtracking and wild beasts remain available")
 	await shot("demo_freeplay")
@@ -255,29 +272,6 @@ func summon() -> void:
 	check(waiting.filter(func(n): return n.get("id", "") in ["summon_coach", "tide_keeper"]).is_empty(), "nobody waits outside the temple after capture")
 	check(CodexDB.eligible("summon"), "the Codex can explain summons once one is yours")
 	GameState.summons = []
-
-
-## Rhythm attacks: unlocked by Lucille's lesson, the Codex explains them in your next battle with a practice beat (a
-## missed beat retries until a real hit lands, by key or by a tap on the ring).
-func rhythm() -> void:
-	UI.auto = false
-	GameState.set_flag("dance_lesson_done")
-	GameState.trainer_level = maxi(4, GameState.trainer_level)
-	GameState.set_flag("codex_seen_rhythm", false)
-	GameState.set_flag("ring_rotation_taught")
-	main._test["stop"] = "trainer"
-	practice_missed = false
-	practice_landed = false
-	var done := [false]
-	var open := func():
-		await main._battlecmd_test()
-		done[0] = true
-	open.call()
-	await drive(done)
-	check(GameState.flag("codex_seen_rhythm"), "the Codex explains rhythm attacks in the first battle after the lesson")
-	check(practice_missed and practice_landed, "a missed practice beat retries until a real hit lands")
-	await _leave_battle()
-	GameState.set_flag("ring_rotation_taught", false)
 
 
 func _leave_battle() -> void:

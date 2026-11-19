@@ -46,9 +46,6 @@ var auto_answers: Array = []
 var auto_log: Array = []
 ## test mode: queued flute results ({"acc", "mistakes"} or a float accuracy)
 var auto_flute: Array = []
-## test mode: queued beat attacks (battle/beat_cue.gd), each the presses to make: every beat's offset in seconds from
-## it, or null to let it go by. With none queued, test battles roll their chains.
-var auto_beats: Array = []
 
 
 func _ready() -> void:
@@ -514,7 +511,7 @@ func flute_ex(song_id: String, subtitle := "", opts := {}) -> Dictionary:
 		await get_tree().process_frame
 		var a = auto_flute.pop_front() if not auto_flute.is_empty() else {"acc": 0.9, "mistakes": 0}
 		var res: Dictionary = a if typeof(a) == TYPE_DICTIONARY else {"acc": float(a), "mistakes": 0}
-		res["cancelled"] = false
+		res["cancelled"] = bool(res.get("cancelled", false))
 		auto_log.append("[flute] %s %s -> %d%%, %d mistakes" % [opts.get("mode", "play"), song_id, int(float(res["acc"]) * 100), int(res["mistakes"])])
 		return res
 	var g := FluteGame.new()

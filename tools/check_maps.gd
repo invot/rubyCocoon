@@ -22,7 +22,8 @@ const TALL := [MapGen.TREE, MapGen.BUILDING, MapGen.DOOR]
 const ROADS := [MapGen.PATH, MapGen.PLAZA, MapGen.BRIDGE]
 ## The story's way-openers, all done: every map is checked as it is at the start and with these set.
 const CLEARED := {"has_starter": true, "island_peace": true, "bandits_cleared": true, "ceo_defeated": true, "ritual_done": true,
-	"sluice_reef": true, "tides_falls_solved": true, "tides_maze_solved": true, "tides_song_door": true}
+	"sluice_reef": true, "tides_falls_solved": true, "tides_maze_solved": true, "tides_song_door": true,
+	"well_restored": true, "river_restored": true, "water_mages_found": true}
 
 
 func _init() -> void:
@@ -72,6 +73,18 @@ func _check(m: Dictionary) -> Array:
 	var start: Vector2i = m["spawns"].get("start", m["spawns"].values()[0])
 	var seen := _flood(m, start)
 	problems.append_array(_weapon_check(m, start))
+	if m["id"] == "dustwell_channel":
+		var blocked := {}
+		var hull: Rect2i = m.get("beached_hull", Rect2i())
+		for y in range(hull.position.y, hull.end.y):
+			for x in range(hull.position.x, hull.end.x):
+				blocked[Vector2i(x, y)] = true
+		var shore := _flood(m, m["spawns"]["south"], blocked)
+		for anchor in ["riverboat_captain", "river_lip"]:
+			if not _beside(m, shore, m["anchors"][anchor]):
+				problems.append("no approach to " + anchor)
+		if shore.has(Vector2i(12, 8)) != m.has("beached_hull"):
+			problems.append("riverbed access disagrees with the water level")
 	for p in m.get("signs", {}):
 		# Gate descriptions share this dictionary; only signposts occupy a sign tile.
 		if MapGen.get_t(m, p.x, p.y) != MapGen.SIGN:

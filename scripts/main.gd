@@ -12,6 +12,7 @@ const THREAD_SHY := ["res://scripts/gfx/terrain.gdshader", "res://scripts/gfx/wa
 ## project.godot's boot splash colour
 const SPLASH_COLOR := Color(0.012, 0.016, 0.098)
 const WorldDB = preload("res://scripts/data/world_db.gd")
+const ItemDB = preload("res://scripts/data/item_db.gd")
 const Beasts = preload("res://scripts/core/beasts.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -479,6 +480,8 @@ func _room_map(id: String) -> Dictionary:
 func music_for(id: String) -> String:
 	if MapLoader.is_interior(id):
 		var m := _room_map(id)
+		if m.get("room_key", "") == "saloon":
+			return "saloon_free" if GameState.flag("band_freed") else "saloon_contract"
 		return String(WorldDB.ROOM_MUSIC.get(m.get("building", {}).get("shop", ""), "shop"))
 	if WorldDB.MAP_MUSIC.has(id):
 		return WorldDB.MAP_MUSIC[id]
@@ -1111,8 +1114,7 @@ func _run_test() -> void:
 	GameState.set_flag("tutorial_done")
 	GameState.set_flag("flute_lesson_done")
 	# Existing previews start after the new lessons. --scene=mechanic-lessons resets each flag it exercises.
-	GameState.set_flag("dance_lesson_done")
-	GameState.set_flag("dance_shoes_returned")
+	GameState.set_flag("well_restored")
 	GameState.set_flag("ring_rotation_taught")
 	GameState.set_flag("lesson_summon")
 	# the Codex, with everything already explained (--codex=topic: that one is new, so the Codex chimes in about it)
@@ -1938,22 +1940,6 @@ func _run_test() -> void:
 	elif scene == "battle-poses":
 		# the beasts' battle poses through the battle camera: a cast's cuts, Defend and a block, hits, a heal, a faint
 		await load("res://tools/debug/battle_poses.gd").new().run(self)
-	elif scene == "beat-click":
-		# by ear and eye on a device: the battle track (--music=boss for the faster one) with the percussion up and the
-		# beat cue spinning; press A along with the beat and it shows how far off the presses land on average (set
-		# Sfx.BEAT_LATENCY from it); B ends it
-		Sfx.music(String(_test.get("music", "battle")))
-		Sfx.percussion("full")
-		var cue = load("res://scripts/battle/beat_cue.gd").new()
-		cue.practice = true
-		UI.push(cue)
-		var offsets: Array = await cue.done
-		print("BEAT CLICK: %d presses: %s" % [offsets.size(), offsets.map(func(o): return int(round(float(o) * 1000.0)))])
-		Sfx.percussion("off")
-	elif scene == "beat-attack":
-		# the trainer weapons' beat attack: injected presses for 1 to 10 hits and misses, a real A press, the plain
-		# throw, boomerang, bat, a blow at an open trainer, a boss's rolled chain (--shots=: the cue)
-		await load("res://tools/debug/beat_attack.gd").new().run(self)
 	elif scene == "ringedit":
 		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
 		await _ringedit_test()
@@ -4062,6 +4048,30 @@ func _touch(at: Vector2, down: bool) -> void:
 	Input.parse_input_event(t)
 
 
+func _battle_choice_input(device: String, accept: bool) -> void:
+	for pressed in [true, false]:
+		var event: InputEvent
+		match device:
+			"touch":
+				var tap := InputEventScreenTouch.new()
+				tap.position = UI.controls.button_rect("a" if accept else "b").get_center() * Vector2(get_window().size) / get_viewport().get_visible_rect().size
+				tap.pressed = pressed
+				event = tap
+			"gamepad":
+				var pad := InputEventJoypadButton.new()
+				pad.button_index = JOY_BUTTON_A if accept else JOY_BUTTON_B
+				pad.pressed = pressed
+				event = pad
+			_:
+				var key := InputEventKey.new()
+				key.physical_keycode = KEY_A if accept else KEY_S
+				key.pressed = pressed
+				event = key
+		Input.parse_input_event(event)
+		await get_tree().process_frame
+	await _wait(0.12)
+
+
 ## --scene=battlecmd: a trainer battle's command panel played with the keys and a touch A, your fire beasts on the
 ## ring's fire side (top corner, middle) and an air one on its fire / air corner, and the ring last turned to the air
 ## side: the battle turns it round to a side with a beast standing in its middle; one tap of A confirms once; your
@@ -4143,9 +4153,16 @@ func _battlecmd_test() -> void:
 	check.call(bt.ally_side == 0, "the ring last faced the air side (nobody in its middle): it starts turned to the %s side" % Ring.side_element(bt.ally_side))
 	check.call(bt._selected_refs == ["trainer_self"] and bt.floating.actor == "trainer_self", "only the trainer is outlined while choosing their action")
 	check.call(bt.floating.action_rect.size.y >= UIKit.row_h(), "floating action respects the input target minimum")
+	check.call(is_zero_approx(bt._beast_crit_chance(0.51, 0.0)) and is_equal_approx(bt._beast_crit_chance(0.5, 0.0), 0.05)
+		and is_equal_approx(bt._beast_crit_chance(0.375, 0.0), 0.10) and is_equal_approx(bt._beast_crit_chance(0.25, 0.0), 0.15)
+		and is_equal_approx(bt._beast_crit_chance(0.125, 0.0), 0.225) and is_equal_approx(bt._beast_crit_chance(0.0, 0.0), 0.30)
+		and is_equal_approx(bt._beast_crit_chance(0.75, 0.20), 0.20), "beast critical chance follows the HP curve and adds move bonuses")
 	var icon_groups := {}
 	for r in p.rows:
-		for o in r["options"]:
+		var options: Array = r["options"].duplicate()
+		for root in r["options"]:
+			options.append_array(root.get("choices", []))
+		for o in options:
 			if String(o.get("label", "")) != "":
 				icon_groups[String(o["label"])] = ActionIcons.group(String(o.get("icon", ""))) if String(o.get("icon", "")) != "" else "none"
 	check.call(not icon_groups.values().has("none") and icon_groups.get("Slingshot", "") == "attack" and icon_groups.get("Watch", "") == "support"
@@ -4154,6 +4171,58 @@ func _battlecmd_test() -> void:
 	check.call(bt.pads["ally"][2].get_meta("sigil").albedo_color.r < 0.5, "empty 3D pads stay visibly dim")
 	if String(_test.get("scene", "")) in ["battle-focus", "battle-redirect"]:
 		return # this focused fixture starts at command selection; battlecmd covers the caption and picker checks below
+	if _test.get("scene", "") == "battlecmd":
+		# Elemental attacks (spell_db.gd): before a spell the named weapon aims straight away; after one it opens Basic and
+		# the spells, B or Back returns, and a spell spends the hero's MP and hits with its element, never critically.
+		check.call(not bt._weapon_option().has("choices"), "before any spell the weapon goes straight to aiming")
+		for device in ["keyboard", "gamepad", "touch"]:
+			await _battle_choice_input(device, true)
+			check.call(p.picking and not p.rows[0].has("attack_parent"), "%s aims directly before spell unlock" % device)
+			await _battle_choice_input(device, false)
+			check.call(not p.picking and p.focus == 0, "%s cancels weapon aim" % device)
+		GameState.learn_spell("water")
+		var wopt: Dictionary = bt._weapon_option()
+		var wlabels: Array = (wopt.get("choices", []) as Array).map(func(o): return String(o["label"]))
+		check.call(wopt["label"] == ItemDB.item_name(GameState.weapons()[0]) and wlabels == ["Basic", "Water Shot"] if GameState.weapons()[0] == "slingshot" else wlabels.size() == 2,
+			"after Water the named weapon opens Basic and its elemental attack (%s)" % str(wlabels))
+		# Swap in the options built for the new loadout on the live command panel.
+		var weapon_row: Dictionary = p.rows[0]
+		var weapon_index: int = weapon_row["options"].find_custom(func(o): return o["id"] == "weapon")
+		var plain_weapon: Dictionary = weapon_row["options"][weapon_index]
+		weapon_row["options"][weapon_index] = wopt
+		weapon_row["sel"] = weapon_index
+		p._redraw()
+		for device in ["keyboard", "gamepad", "touch"]:
+			await _battle_choice_input(device, true)
+			check.call(weapon_row.has("attack_parent") and weapon_row["options"][0]["label"] == "Basic", "%s opens elemental attacks" % device)
+			await _battle_choice_input(device, false)
+			check.call(not weapon_row.has("attack_parent") and weapon_row["options"][weapon_row["sel"]]["label"] == wopt["label"], "%s returns to the equipped weapon" % device)
+		weapon_row["options"][weapon_index] = plain_weapon
+		p._redraw()
+		var mp_was: int = GameState.trainer_mp
+		var foe_hp: int = foes[0].hp
+		var stages: Dictionary = bt._st(foes[0])["stages"]
+		var evasion: int = stages["eva"]
+		stages["eva"] = -6
+		await bt._do_weapon({"weapon": GameState.weapons()[0], "spell": "water", "target": foes[0]})
+		stages["eva"] = evasion
+		check.call(GameState.trainer_mp == mp_was - bt.SpellDB.mp_cost("water"), "an elemental attack spends its MP (%d -> %d)" % [mp_was, GameState.trainer_mp])
+		check.call(foes[0].hp < foe_hp, "the elemental attack lands through the weapon")
+		GameState.trainer_mp = 0
+		var low: Dictionary = bt._weapon_option()["choices"][1]
+		check.call(low.get("disabled", false) and not bt._weapon_option()["choices"][0].get("disabled", false), "short of MP the spell is greyed out and Basic stays free")
+		var after_hit: int = foes[0].hp
+		await bt._do_weapon({"weapon": GameState.weapons()[0], "spell": "water", "target": foes[0]})
+		check.call(foes[0].hp == after_hit and GameState.trainer_mp == 0, "a spell without MP does not turn into a Basic attack")
+		GameState.receive_item("spirit_drop")
+		await bt._do_item({"item": "spirit_drop", "target": "trainer_self"})
+		check.call(GameState.trainer_mp == mini(15, GameState.trainer_max_mp()), "a battle item can restore the trainer's MP from zero")
+		foes[0].hp = foe_hp
+		GameState.known_spells = []
+		GameState.trainer_mp = 0
+		GameState.set_flag("trainer_mp_unlocked", false)
+		GameState.set_flag("learned_water", false)
+		bt._refresh()
 	# The top bar resolves the subject: your side's icon in the right slot, the other side's in the left, the unused
 	# slot keeping its space; centred, clear of the foe's grid, wrapping long messages.
 	var tb = UI.top_bar
@@ -4229,19 +4298,28 @@ func _battlecmd_test() -> void:
 	if stop == "trainer":
 		return
 	await _tap_at(bt.floating.action_rect.get_center())
-	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "the anchored trainer menu receives taps and confirms only once")
+	check.call(p.picking and not p.rows[0].has("attack_parent") and not p.rows[0].get("done", false),
+		"a tap on Slingshot goes directly to aiming without confirming")
 	await key.call("ui_cancel")
 	check.call(bt.find_children("*", "Label3D", true, false).all(func(label): return label.text != "▼"), "no floating triangle is created")
-	# one touch A: your slingshot, picked out on its target, but not confirmed twice
+	# One touch A goes straight to the equipped weapon's target selection.
 	UI.controls._send("a", true)
 	await get_tree().process_frame
 	UI.controls._send("a", false)
 	await _wait(0.2)
-	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "one tap of A: the slingshot only goes on to its target (picking %s, your action done %s)" % [p.picking, p.rows[0].get("done", false)])
+	check.call(p.picking and p.focus == 0 and not p.rows[0].get("done", false), "one press on Slingshot aims without confirming")
 	check.call(bt.floating.aiming and bt.floating.actor == "trainer_self" and bt._target_refs.size() == 1 and bt.floating.tag_rects.has(bt._target_refs[0]) and bt._aim_from == "trainer_self" and bt.aim_mesh.mesh.get_surface_count() > 0, "targeting keeps the trainer's bar, gives the target a bar and draws an arch from the trainer")
 	await key.call("ui_accept")
 	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
 	# the top beast: a one-target move (Bite; at Lv 20 its first move is Fire Spin, which hits all), then its target
+	await opt_to.call(p, "attack")
+	if _test.get("scene", "") == "battlecmd":
+		for device in ["keyboard", "gamepad", "touch"]:
+			await _battle_choice_input(device, true)
+			check.call(p.rows[1].has("attack_parent") and p.rows[1]["options"][0]["id"] == "move", "%s opens beast moves" % device)
+			await _battle_choice_input(device, false)
+			check.call(not p.rows[1].has("attack_parent") and p.focus == 1, "%s returns to beast actions" % device)
+	await key.call("ui_accept")
 	await opt_to.call(p, "move", "bite")
 	await key.call("ui_accept")
 	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
@@ -4270,6 +4348,8 @@ func _battlecmd_test() -> void:
 		if o.get("id", "") == "shift":
 			shift = o
 	check.call(not shift.is_empty() and shift.get("disabled", false), "the beast in the middle can't Move: \"%s\"" % shift.get("desc", ""))
+	await opt_to.call(p, "attack")
+	await key.call("ui_accept")
 	await opt_to.call(p, "move", "fire_spin")
 	await key.call("ui_accept")
 	check.call(p.picking and p.rows[2].get("target_all", false) and bt.floating.aiming and bt.floating.tag_rects.size() == 2 and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
@@ -4283,6 +4363,8 @@ func _battlecmd_test() -> void:
 	check.call(bt._target_refs.size() == 2, "◄ doesn't pick one out of a move that hits them all")
 	await key.call("ui_accept")
 	check.call(p.rows[2].get("done", false) and p.focus == 3, "A: on to the bottom beast")
+	await opt_to.call(p, "attack")
+	await key.call("ui_accept")
 	await opt_to.call(p, "move")
 	await key.call("ui_accept")
 	await key.call("ui_accept")
@@ -4351,6 +4433,8 @@ func _battlecmd_test() -> void:
 	await opt_to.call(p, "shift")
 	await key.call("ui_accept")
 	check.call(not p.picking and not p.rows[fire_row].get("done", false), "a second beast can't Move the same round")
+	await opt_to.call(p, "attack")
+	await key.call("ui_accept")
 	await opt_to.call(p, "move")
 	await key.call("ui_accept")
 	await key.call("ui_accept")
@@ -4690,7 +4774,8 @@ func _lessons_test() -> void:
 				if top != null and top.get_script() == load(PANEL_PATH):
 					for j in top.rows.size():
 						var row: Dictionary = top.rows[j]
-						var open: Array = row["options"].filter(func(o): return not o.get("disabled", false))
+						# (a submenu's Back row is navigation, not a second choice)
+						var open: Array = row["options"].filter(func(o): return not o.get("disabled", false) and o.get("id", "") != "back")
 						if row.get("status", "") == "" and not row.get("locked", false) and open.size() != 1:
 							problems["a bar offers %s" % [open.map(func(o): return o.get("label", ""))]] = true
 						if top.picking and j == top.focus and (row.get("targets", []) as Array).size() != 1:

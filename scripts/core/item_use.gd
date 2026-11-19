@@ -37,7 +37,13 @@ const STAT_SHORT := {"hp": "Max HP", "atk": "Attack", "def": "Defense", "spr": "
 # ---------------------------------------------------------------- what an item allows
 ## Has a Use action in the bag at all (consumables, incense, sheet music, bait, tomes).
 static func has_use(id: String) -> bool:
-	return ItemDB.get_item(id).get("kind", "") in ["use", "sheet", "bait", "tome"]
+	return ItemDB.get_item(id).get("kind", "") in ["use", "sheet", "bait", "tome", "scroll"]
+
+
+## An MP item that can go on you as well (once a spell has unlocked your MP).
+static func hero_mp_item(id: String) -> bool:
+	var it := ItemDB.get_item(id)
+	return needs_target(id) and GameState.trainer_mp_unlocked() and (it.has("mp") or it.has("mp_pct")) and not it.has("buff") and not it.has("revive_pct")
 
 
 ## Can be put on a beast or on you.
@@ -68,9 +74,14 @@ static func use_block(id: String, party: Array) -> String:
 				for b in party:
 					if beast_block(id, b) == "":
 						return ""
+				if hero_mp_item(id) and GameState.trainer_mp < GameState.trainer_max_mp():
+					return ""
 				return "No effect"
 		"tome":
 			return "Bookstore"
+		"scroll":
+			if GameState.knows_spell(String(it.get("spell", ""))):
+				return "Known"
 		"bait":
 			if GameState.item_count("fishing_rod") <= 0:
 				return "Needs a pole"

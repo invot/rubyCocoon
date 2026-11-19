@@ -191,7 +191,7 @@ upholstery) over a wood grain and cloth weave of our own.
 - **PSX Dungeon Boxes and Barrels Pack** by Games by McSteeg, https://mcsteeg.itch.io (the older crates and barrels,
   no longer shown). Free for commercial use; the files may not be redistributed.
 - **KayKit Dungeon Pack 1.1** by Kay Lousberg, https://www.kaylousberg.com, CC0 (the treasure chests that hold the
-  items lying about the world and the temples' treasures, the crates and barrels, the street benches, made by stretching its stool along the seat, and the temple dragons' hoards of coins, trunks, arms, candles, keys and plates; baked by
+  items lying about the world and the temples' treasures, the fitted and cracked masonry lining Dustwell Well's excavated halls, the crates and barrels, the street benches, made by stretching its stool along the seat, and the temple dragons' hoards of coins, trunks, arms, candles, keys and plates; baked by
   `tools/import_kaykit.gd`).
   See [licence](licenses/KayKit%20Dungeon%20Pack%20-%20License.txt).
 - **KayKit Restaurant Bits 1.0** by Kay Lousberg, https://www.kaylousberg.com, CC0 (the bread roll the duck eats in
@@ -323,6 +323,8 @@ The voxel models were all replaced by the PSX ones above and removed. They came 
   **Lunchtime Doubly So** (the original 3D intro/title logo); licence file not included, check the author's terms.
 
 ## Music (`music/` → `assets/audio/music/`, re-encoded by `tools/convert_audio.py`)
+*One Song*, the Rubywave Five’s Oasis Saloon loop, was composed and synthesized for Ruby Cocoon.
+
 *Pennsylvania Rose* by **Kevin MacLeod** (album *Scoring: Aspiring*, 2007, per the supplied MP3's metadata)
 is Cocoon Cove's town theme. User-supplied source: `Pennsylvania Rose.mp3`; game copy:
 `assets/audio/music/pennsylvania_rose.mp3` (128 kbps, 44.1 kHz). No licence accompanied this file;
@@ -449,3 +451,5 @@ without an ink outline; water and artwork are masked to the paper's silhouette a
 Typography: Fuzzy Bubbles and Noto Sans Old North Arabian from Google Fonts, licensed under SIL OFL 1.1; see `licenses/fuzzybubbles-OFL.txt` and `licenses/notosansoldnortharabian-OFL.txt`.
 
 - Hotel spa sign: [Steam](https://game-icons.net/1x1/delapouite/steam.html) by Delapouite, CC BY 3.0; recoloured and baked using the shared icon pipeline.
+
+- Dustwell beavers use [Beaver Inc, Global Game Jam 2020](https://sketchfab.com/3d-models/beaver-inc-global-game-jam-2020-4f9358a91d284c5ea66b3169a485bc9c) by Edriviel, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The game adapts the material for scene lighting and scales and rotates the model to fit the trainer rig.

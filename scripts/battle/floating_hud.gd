@@ -60,9 +60,10 @@ const ORB_R := 6.5
 const SHIELD_COLOR := Color("#3fc8e6")
 ## The readout plates: as dark as the top-centre bar, and the room inside their line.
 const PLATE_ALPHA := 0.66
-## A plate's "HP" label turns yellow at HP_LOW of the beast's HP or less, and red at HP_CRITICAL or less.
-const HP_LOW := 0.25
-const HP_CRITICAL := 0.1
+## The HP display uses the same yellow and red bands as the battle critical chance.
+const HP_YELLOW := 0.5
+const HP_RED := 0.25
+const HEALTHY_COLOR := Color("#60c887")
 const LOW_COLOR := Color("#ffd23f")
 const CRITICAL_COLOR := Color("#ff4a4a")
 ## How far beyond its content a plate fades out on each side.
@@ -309,7 +310,7 @@ func layout() -> void:
 	var hit_h := maxf(UIKit.row_h(), _pill_h())
 	if actor != null and not option.is_empty() and battle._ref_pos(actor) != null:
 		var bar := _bar("menu:" + _key(actor), actor, String(option.get("label", "")), _level(actor), true,
-			"both" if typeof(actor) == TYPE_OBJECT else "", hit_h, String(option.get("icon", "")))
+			"both" if typeof(actor) == TYPE_OBJECT else ("mp" if _trainer_mp_shown(actor) else ""), hit_h, String(option.get("icon", "")))
 		_bars.append(bar)
 		menu_rect = bar["rect"]
 		var pill: Rect2 = bar["pill"]
@@ -465,7 +466,7 @@ func _draw_readouts() -> void:
 			var row_y := inner.position.y + line_h * i
 			draw_string(font, _snap(Vector2(inner.position.x, row_y + font.get_ascent(px))), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, px, _hp_text_color(ratios[0]) if i == 0 else UIKit.BATTLE_INK)
 			var gauge := Rect2(_snap(Vector2(inner.position.x + text_w + LABEL_GAP, row_y + (line_h - MINI_HP_H) * 0.5)), Vector2(MINI_W, MINI_HP_H))
-			_well(gauge, ratios[i], UIKit.hp_color(ratios[i]) if i == 0 else MP_COLOR)
+			_well(gauge, ratios[i], _battle_hp_color(ratios[i]) if i == 0 else MP_COLOR)
 	_shield_plate("trainer_self", int(GameState.shield), int(GameState.max_shield))
 	if not battle.wild:
 		_shield_plate("foe_trainer", int(battle.foe_shield), int(battle.foe_max_shield))
@@ -516,11 +517,14 @@ func _plate(rect: Rect2) -> Rect2:
 	return rect.grow(-PLATE_PAD)
 
 
-## The HP label's colour: white, yellow at a quarter of the beast's HP or less, red at a tenth or less.
+static func _battle_hp_color(ratio: float) -> Color:
+	return _hp_text_color(ratio) if ratio <= HP_YELLOW else HEALTHY_COLOR
+
+
 static func _hp_text_color(ratio: float) -> Color:
-	if ratio <= HP_CRITICAL:
+	if ratio < HP_RED:
 		return CRITICAL_COLOR
-	if ratio <= HP_LOW:
+	if ratio <= HP_YELLOW:
 		return LOW_COLOR
 	return UIKit.BATTLE_INK
 
@@ -633,26 +637,40 @@ func _draw_bar(index: int) -> void:
 	var ref = bar["ref"]
 	var left := maxf(inner.position.x, pill.position.x + slant + BORDER)
 	var row := Rect2(left, pill.position.y + top - GAUGE_TUCK, inner.end.x - GAUGE_MARGIN - left, GAUGE_H)
+	if kind == "mp":
+		# the hero's own bar, once a spell is known: MP only, with an elemental attack's cost flashing
+		_mp_gauge(canvas, row, float(GameState.trainer_mp), float(GameState.trainer_max_mp()),
+			float(battle.SpellDB.mp_cost(String(option["spell"]))) if option.has("spell") else 0.0, alpha)
+		return
 	var hp := Rect2(row.position, Vector2(row.size.x * (0.58 if kind == "both" else 1.0), GAUGE_H))
 	var hp_ratio := clampf(float(ref.hp) / maxf(1.0, ref.max_hp()), 0.0, 1.0)
-	_gauge(canvas, hp, hp_ratio, UIKit.hp_color(hp_ratio), alpha)
+	_gauge(canvas, hp, hp_ratio, _battle_hp_color(hp_ratio), alpha)
 	if kind != "both":
 		return
 	var mp := Rect2(hp.end.x, row.position.y, row.size.x - hp.size.x, GAUGE_H)
-	var most := maxf(1.0, ref.max_mp())
 	var cost := float(battle.MoveDB.mp_cost(String(option["move"]))) if option.has("move") else 0.0
-	var keep := maxf(0.0, ref.mp - cost)
-	_gauge(canvas, mp, keep / most, MP_COLOR, alpha)
-	var well := mp.grow(-GAUGE_EDGE)
+	_mp_gauge(canvas, mp, float(ref.mp), float(ref.max_mp()), cost, alpha)
+
+
+## Whether the hero's bar carries an MP gauge: once the first elemental attack is learned (outside lessons).
+func _trainer_mp_shown(ref) -> bool:
+	return typeof(ref) == TYPE_STRING and ref == "trainer_self" and GameState.trainer_mp_unlocked() and not battle.tutorial
+
+
+## An MP gauge. The MP a choice would spend flashes bright (a pale glow, not the gauge's own blue, so it stands out
+## from the MP that stays), with a dark tick where the gauge would end; short of it, the well's edge flashes.
+func _mp_gauge(canvas: Control, r: Rect2, have: float, most_mp: float, cost: float, alpha: float) -> void:
+	var most := maxf(1.0, most_mp)
+	var keep := maxf(0.0, have - cost)
+	_gauge(canvas, r, keep / most, MP_COLOR, alpha)
+	var well := r.grow(-GAUGE_EDGE)
 	if cost > 0.0:
-		# the MP this move would spend flashes bright (a pale glow, not the gauge's own blue, so it stands out from the
-		# MP that stays), with a dark tick where the gauge would end
 		var pulse := smoothstep(-0.6, 0.6, sin(_clock * 6.0))
-		var spend := Rect2(well.position + Vector2(well.size.x * keep / most, 0), Vector2(well.size.x * (minf(ref.mp, most) - keep) / most, well.size.y))
+		var spend := Rect2(well.position + Vector2(well.size.x * keep / most, 0), Vector2(well.size.x * (minf(have, most) - keep) / most, well.size.y))
 		canvas.draw_rect(spend, Color(MP_COLOR.lerp(Color.WHITE, 0.25 + 0.6 * pulse), (0.35 + 0.65 * pulse) * alpha))
 		if keep > 0.0:
 			canvas.draw_line(Vector2(spend.position.x, well.position.y), Vector2(spend.position.x, well.end.y), Color(UIKit.DARK, 0.8 * alpha), 1.5)
-		if ref.mp < cost:
+		if have < cost:
 			canvas.draw_rect(well, Color(UIKit.ACCENT, (0.3 + 0.6 * pulse) * alpha), false, 1.5)
 
 

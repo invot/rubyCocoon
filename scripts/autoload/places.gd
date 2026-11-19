@@ -4,7 +4,6 @@ extends Node
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const LadderDB = preload("res://scripts/data/ladder_db.gd")
-const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
@@ -890,7 +889,6 @@ func ladder() -> bool:
 			Sfx.play("levelup")
 			var before_slots := GameState.slot_cap()
 			var before_shield := GameState.shield_cap()
-			var before_level := GameState.trainer_level
 			GameState.reach_trainer_level(r2 + 1)
 			GameState.shards += 1
 			var lines := ["You've cleared %s of the arena ladder!" % LadderDB.rank_name(r2),
@@ -900,10 +898,6 @@ func ladder() -> bool:
 					else ("another beast slot" if GameState.slot_cap() > before_slots else "another shield point")))
 			lines.append("%s is open!" % LadderDB.rank_name(r2 + 1) if r2 < LadderDB.RANKS else "You've conquered every rank! Come back for a rematch any time.")
 			await Story.say(lines, host)
-			# (what the new level means for your weapons' beat attack)
-			var beat_line := BeatChain.level_line(before_level, GameState.trainer_level)
-			if beat_line != "":
-				UI.toast(beat_line, "item:slingshot")
 	return true
 
 

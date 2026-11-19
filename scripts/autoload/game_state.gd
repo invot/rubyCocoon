@@ -9,6 +9,7 @@ const RaceDB = preload("res://scripts/data/race_db.gd")
 const EggLooks = preload("res://scripts/data/egg_looks.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
+const SpellDB = preload("res://scripts/data/spell_db.gd")
 const WorldDB = preload("res://scripts/data/world_db.gd")
 
 const SAVE_DIR := "user://saves/"
@@ -96,6 +97,10 @@ var shield := 0
 var beast_slots := BEAST_SLOTS_START
 var trainer_level := 1
 var trainer_xp := 0
+## the hero's elemental attacks (spell_db.gd), at most SpellDB.MAX_PER_ELEMENT of each element, in learning order
+var known_spells: Array = []
+## the hero's MP, unlocked with the first spell (trainer_mp_unlocked); its maximum grows with the trainer level
+var trainer_mp := 0
 ## arena ladder: rank (1..LadderDB.RANKS) -> Array of the opponent indices beaten in it
 var ladder := {}
 ## the side of your ring that faced the foe when your last battle ended (see ring.gd)
@@ -272,6 +277,8 @@ func new_game(pname: String, look := {}) -> void:
 	beast_slots = BEAST_SLOTS_START
 	trainer_level = 1
 	trainer_xp = 0
+	known_spells = []
+	trainer_mp = 0
 	ladder = {}
 	ring_side = 0
 	preferred_ring_side = -1
@@ -489,6 +496,7 @@ func add_trainer_xp(amount: int) -> int:
 	trainer_xp += maxi(0, amount)
 	while trainer_level < TRAINER_LEVEL_MAX and trainer_xp >= trainer_xp_for(trainer_level + 1):
 		trainer_level += 1
+	_grow_trainer_mp(trainer_level - before)
 	return trainer_level - before
 
 
@@ -500,7 +508,76 @@ func reach_trainer_level(level: int) -> int:
 	var gained := level - trainer_level
 	trainer_level = level
 	trainer_xp = maxi(trainer_xp, trainer_xp_for(level))
+	_grow_trainer_mp(gained)
 	return gained
+
+
+# ---------------------------------------------------------------- spells and trainer MP
+## Has the hero's MP been unlocked (the first elemental attack learned)?
+func trainer_mp_unlocked() -> bool:
+	return flag("trainer_mp_unlocked") or not known_spells.is_empty()
+
+
+## The hero's maximum MP: 0 until the first spell, then SpellDB.max_mp_at the trainer level.
+func trainer_max_mp() -> int:
+	return SpellDB.max_mp_at(trainer_level) if trainer_mp_unlocked() else 0
+
+
+## Restores up to `amount` of the hero's MP. Returns how much it rose.
+func restore_trainer_mp(amount: int) -> int:
+	var before := trainer_mp
+	trainer_mp = clampi(trainer_mp + maxi(0, amount), 0, trainer_max_mp())
+	return trainer_mp - before
+
+
+## Spends MP for an elemental attack. False (and nothing spent) when there isn't enough.
+func spend_trainer_mp(amount: int) -> bool:
+	if amount > trainer_mp:
+		return false
+	trainer_mp -= amount
+	return true
+
+
+## New trainer levels raise the MP pool, and the new room comes filled.
+func _grow_trainer_mp(levels: int) -> void:
+	if levels > 0 and trainer_mp_unlocked():
+		trainer_mp = mini(trainer_max_mp(), trainer_mp + levels * SpellDB.MP_PER_LEVEL)
+
+
+func knows_spell(id: String) -> bool:
+	return known_spells.has(id)
+
+
+## Has the hero ever learned this spell? Field uses (dams, panels, the river) rest on this, so a spell forgotten for
+## battle still works with the song.
+func learned_spell(id: String) -> bool:
+	return known_spells.has(id) or flag("learned_" + id)
+
+
+## The known spells of one element.
+func spells_of(el: String) -> Array:
+	return SpellDB.of_element(known_spells, el)
+
+
+## Learns a spell outright, with room for it (Menus.learn_spell asks which to forget when there isn't). The first one
+## unlocks the hero's MP, full. `forget`: a known spell of the same element to drop first. False when it can't.
+func learn_spell(id: String, forget := "") -> bool:
+	if not SpellDB.exists(id) or known_spells.has(id):
+		return false
+	var el := SpellDB.element(id)
+	if forget != "":
+		if not known_spells.has(forget) or SpellDB.element(forget) != el:
+			return false
+		known_spells.erase(forget)
+	if spells_of(el).size() >= SpellDB.MAX_PER_ELEMENT:
+		return false
+	var first := not trainer_mp_unlocked()
+	known_spells.append(id)
+	set_flag("learned_" + id)
+	set_flag("trainer_mp_unlocked")
+	if first:
+		trainer_mp = trainer_max_mp()
+	return true
 
 
 ## The most shield points and beast slots Volt can fit at your trainer level.
@@ -551,6 +628,7 @@ func alive_party() -> Array:
 func heal_party() -> void:
 	for b in party:
 		b.heal_full()
+	trainer_mp = trainer_max_mp()
 
 
 func mark_seen(b: Beast) -> void:
@@ -993,6 +1071,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 		"seen": seen, "caught": caught, "play_time": play_time, "steps": steps,
 		"eggs": eggs, "shards": shards, "shards_spent": shards_spent, "max_shield": max_shield,
 		"beast_slots": beast_slots, "trainer_level": trainer_level, "trainer_xp": trainer_xp, "ladder": ladder, "ladder_roster": 2,
+		"known_spells": known_spells, "trainer_mp": trainer_mp,
 		"ring_side": ring_side,
 		"preferred_ring_side": preferred_ring_side,
 		"saved_at": Time.get_unix_time_from_system(),
@@ -1083,9 +1162,11 @@ func load_game(slot := -2) -> bool:
 	if songs.has("song_tides") or flags.get("guardian_water", false):
 		flags["tides_song_door"] = true
 	visited = d.get("visited", ["caccoon"])
-	# Keep previously earned rhythm attacks and an already-passed north road on older journeys.
-	if not flags.has("dance_lesson_done") and flag("beat_taught"):
-		set_flag("dance_lesson_done")
+	# The Mine Road moles became the Dustwell Well's beavers (docs/dustwell-water-arc.md): keep who was beaten.
+	for i in 5:
+		if flags.get("mole_defeated_%d" % i, false):
+			flags["beaver_defeated_%d" % i] = true
+	flags.erase("dance_lesson_done")
 	# The Coastal Path's lessons became attack, defend, potions and sling (Kit and Mae swapped lessons; Ranger Holt's
 	# ring lesson went to the Codex). Whoever beat Mae, or finished the path, has the Codex.
 	for pair in [["lesson_screen", "lesson_attack"], ["lesson_turns", "lesson_defend"], ["lesson_slingshot", "lesson_potions"], ["lesson_items", "lesson_sling"]]:
@@ -1099,14 +1180,47 @@ func load_game(slot := -2) -> bool:
 		if String(k).begins_with("battle_tip_") and flags[k]:
 			var topic := String(k).trim_prefix("battle_tip_")
 			set_flag("codex_seen_" + ("move" if topic == "shift" else topic))
-	if not flags.has("dance_shoes_returned") and (visited.has("sundown") or flag("met_sheriff")):
-		set_flag("dance_shoes_returned")
+	# Jasper's road gate became the dry river (docs/dustwell-water-arc.md): a journey already past Dustwell had the well
+	# mended, Water learned and the band freed along the way.
+	if not flags.has("well_restored") and (visited.has("sundown") or flag("met_sheriff") or flag("dance_shoes_returned")):
+		for f in ["learned_water", "dale_freed", "well_dam_dale", "well_dam_source", "well_restored", "band_freed"]:
+			set_flag(f)
+		for i in 5:
+			set_flag("beaver_defeated_%d" % i)
+	if flag("well_dam_dale") or flag("well_restored"):
+		set_flag("dale_heard")
+	if not flags.has("river_restored") and not BuildEdition.is_demo() and (
+		visited.has("sundown") or flag("met_sheriff") or flag("dance_shoes_returned")
+			or flag("well_restored") and String(d.get("map_id", "")).get_slice("#", 0) == "route4"):
+		set_flag("river_restored")
+	flags.erase("dance_shoes_returned")
+	flags.erase("dance_shoes_asked")
+	inventory.erase("dance_shoes")
+	locker.erase("dance_shoes")
+	if gear.get("feet") == "dance_shoes":
+		gear["feet"] = ""
+	if courier_request.has("items"):
+		courier_request["items"].erase("dance_shoes")
 	map_id = d.get("map_id", "caccoon")
 	# (Scout Bram now stands in the Cove's road out until he's seen you off: a journey saved past him already was)
 	if not flags.has("bram_sendoff") and flag("has_starter") and (not map_id.begins_with("caccoon") or flag("tutorial_done") or visited.size() > 1):
 		set_flag("bram_sendoff")
 	var p: Array = d.get("pos", [-1, -1])
 	pos = Vector2i(int(p[0]), int(p[1]))
+	# Routes are absent from visited. Claimed chest flags survive even when the player saved in town.
+	if map_id.begins_with("route6#") or flags.keys().any(func(k): return String(k).begins_with("chest_route6#")):
+		var maps := load("res://scripts/world/map_loader.gd")
+		var old_cave: String = maps.interior_of("route6", "hideout")
+		var well: String = maps.interior_of("dustwell", "hideout")
+		if old_cave != "" and well != "":
+			if map_id == old_cave:
+				map_id = well
+				pos = Vector2i(-1, -1)
+			for i in 5:
+				var old_chest := "chest_%s_%d" % [old_cave, i]
+				if flag(old_chest):
+					set_flag("chest_%s_%d" % [well, i])
+					flags.erase(old_chest)
 	# The marina adds sea west of the old map. Keep existing saves on their original town/beach tile.
 	if map_id == "shellhaven" and pos.x >= 0 and not flags.has("shellhaven_west_marina"):
 		pos.x += WorldDB.SHELLHAVEN_WEST_PADDING
@@ -1116,8 +1230,6 @@ func load_game(slot := -2) -> bool:
 	_kelpwick_hut_rooms()
 	last_center = d.get("last_center", "caccoon")
 	if BuildEdition.is_demo():
-		flags.erase("dance_shoes_returned")
-		inventory.erase("dance_shoes")
 		visited = visited.filter(func(id): return BuildEdition.allows_map(String(id)))
 		if not BuildEdition.allows_map(map_id):
 			map_id = "dustwell"
@@ -1145,6 +1257,16 @@ func load_game(slot := -2) -> bool:
 	shield = max_shield
 	trainer_level = int(d.get("trainer_level", 1))
 	trainer_xp = int(d.get("trainer_xp", 0))
+	# spells: saves from before them start with none, apart from what the story already taught (learned_<id> flags)
+	known_spells = []
+	var ks: Array = d.get("known_spells", SpellDB.SPELLS.keys().filter(func(id): return flag("learned_" + String(id))))
+	for id in ks:
+		var sid := String(id)
+		if SpellDB.exists(sid) and not known_spells.has(sid) and spells_of(SpellDB.element(sid)).size() < SpellDB.MAX_PER_ELEMENT:
+			known_spells.append(sid)
+	if not known_spells.is_empty():
+		set_flag("trainer_mp_unlocked")
+	trainer_mp = clampi(int(d.get("trainer_mp", trainer_max_mp())), 0, trainer_max_mp())
 	ring_side = int(d.get("ring_side", 0))
 	preferred_ring_side = clampi(int(d.get("preferred_ring_side", -1)), -1, 3)
 	ladder = {}

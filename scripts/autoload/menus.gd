@@ -4,6 +4,7 @@ extends Node
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
+const SpellDB = preload("res://scripts/data/spell_db.gd")
 const RaceDB = preload("res://scripts/data/race_db.gd")
 const Elements = preload("res://scripts/data/elements.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
@@ -13,6 +14,19 @@ const Beast = preload("res://scripts/core/beast.gd")
 ## The travel book (the world map is its Map tab) isn't preloaded (it'd slow the start): main.gd loads it in the
 ## background once the title is up, and it's fetched when first opened.
 const BOOK_PATH := "res://scripts/ui/book_menu.gd"
+
+
+func credits() -> void:
+	await UI.say([
+		"Ruby Cocoon. Thank you for playing!",
+		"PSX art: chilly_durango, Screaming Brain Studios, Foxhead, Elegant Crow and Caliber Creations; RetroGround Free by Binbun3D (CC BY 4.0); PSX Forest, Cemetery, Castle and Western Town Kits by heyheythere (CC BY 4.0). People: Characters PSX by Elbolilloduro; the hero by yugg0 (base mesh by Vinrax).",
+		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; furniture by Anker's Assets (CC0); the red telephones: Antique 1930s Rotary Telephones by Mad_Lobster_Workshop; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant; the healing chamber: Stasis Chamber by KieranEdwards (CC BY 4.0).",
+		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
+		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
+		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); UI borders by Kenney (kenney.nl); font Quattrocento Sans.",
+		"Music: Kevin MacLeod (incompetech.com), CC BY 4.0; plus DJARTMUSIC, Howling Hound Music and Monume (Pixabay).",
+		"Sound effects: the packs in the sfx folder. Full list in CREDITS.md.",
+	], "Credits")
 
 
 ## The Start menu: the travel book.
@@ -252,6 +266,51 @@ static func _show_card(stack: Control, card: Control) -> void:
 
 ## `b` wants to learn `mv` but that kind of slot is full: the player picks a move to forget for good, or lets the new
 ## one go and raises a stat for good instead (SKIP_BOOST). Returns true if it learned it.
+## The hero learns a spell (a scroll, a mage). With two of its element known already, choose one to forget or keep
+## both. The first spell unlocks the hero's MP. True when it was learned.
+func learn_spell(id: String) -> bool:
+	if not SpellDB.exists(id):
+		return false
+	var sn := SpellDB.spell_name(id)
+	if GameState.knows_spell(id):
+		await UI.say(["You already know %s." % sn])
+		return false
+	var first := not GameState.trainer_mp_unlocked()
+	var el := SpellDB.element(id)
+	var current: Array = GameState.spells_of(el)
+	if current.size() < SpellDB.MAX_PER_ELEMENT:
+		GameState.learn_spell(id)
+		Sfx.play("levelup")
+		var lines := ["You learned %s!" % sn]
+		if first:
+			lines.append("Your weapon in battle now opens Basic and its elemental attacks. Elemental attacks spend MP, which grows with your trainer level.")
+		await UI.say(lines)
+		return true
+	while true:
+		var items := []
+		for s2 in current:
+			items.append({"text": SpellDB.spell_name(s2), "right": "%d MP" % SpellDB.mp_cost(s2), "desc": String(SpellDB.get_spell(s2).get("desc", ""))})
+		items.append({"text": "Don't learn %s" % sn})
+		var c: int = await UI.choose("You want to learn %s.
+You already know two %s spells. Forget which?" % [sn, el], items, {"width": 360})
+		if c < 0 or c >= current.size():
+			if UI.auto or await UI.ask("Leave %s unlearned?" % sn):
+				await UI.say(["You did not learn %s." % sn])
+				return false
+			continue
+		var old: String = current[c]
+		if not UI.auto and not await UI.ask("Forget %s and learn %s?" % [SpellDB.spell_name(old), sn]):
+			continue
+		GameState.learn_spell(id, old)
+		Sfx.play("levelup")
+		var note := ""
+		if SpellDB.has_field_use(old):
+			note = " You can still play %s's song in the field." % SpellDB.spell_name(old)
+		await UI.say(["You forgot %s and learned %s!%s" % [SpellDB.spell_name(old), sn, note]])
+		return true
+	return false
+
+
 func decide_learn(b, mv: String) -> bool:
 	var mn: String = MoveDB.get_move(mv)["name"]
 	var group: String = b.slot_group(mv)
@@ -337,6 +396,18 @@ func use_item_on(b) -> void:
 	await apply_field_item(ids[c], b)
 
 
+## An MP item on you: only its MP part reaches you.
+func apply_hero_item(id: String) -> void:
+	var it := ItemDB.get_item(id)
+	if GameState.trainer_mp >= GameState.trainer_max_mp():
+		await UI.say(["Your MP is already full."])
+		return
+	GameState.remove_item(id)
+	var gain := GameState.restore_trainer_mp(int(it.get("mp", 0)) + int(ceil(GameState.trainer_max_mp() * float(it.get("mp_pct", 0.0)))))
+	Sfx.play("heal")
+	await UI.say(["You recovered %d MP." % gain])
+
+
 func apply_field_item(id: String, b) -> void:
 	var it := ItemDB.get_item(id)
 	var why := ItemUse.beast_block(id, b)
@@ -393,6 +464,16 @@ func use_bag_item(id2: String) -> void:
 				GameState.incense_steps = 150
 				Sfx.play("buff")
 				await UI.say(["You lit the %s. Its scent drifts on the breeze..." % it2["name"]])
+			elif ItemUse.hero_mp_item(id2):
+				# MP recovery reaches you too: you first, then your beasts
+				var items := [{"text": "You (%s)" % GameState.player_name, "right": "MP %d/%d" % [GameState.trainer_mp, GameState.trainer_max_mp()]}]
+				for pb in GameState.party:
+					items.append(beast_item(pb, ""))
+				var c: int = await UI.choose("Use %s on..." % it2["name"], items, {"width": 460})
+				if c == 0:
+					await apply_hero_item(id2)
+				elif c > 0 and c <= GameState.party.size():
+					await apply_field_item(id2, GameState.party[c - 1])
 			else:
 				var b = await pick_beast("Use %s on..." % it2["name"], GameState.party)
 				if b != null:
@@ -420,6 +501,10 @@ func use_bag_item(id2: String) -> void:
 			UI.toast("Equipped %s." % it2["name"], "item:" + id2)
 		"tome":
 			await UI.say(["Tomes are read at a bookstore, where the librarian helps your beast learn the move."])
+		"scroll":
+			# a scroll is used up only once its spell is learned
+			if await learn_spell(String(it2.get("spell", ""))):
+				GameState.remove_item(id2)
 
 
 # ---------------------------------------------------------------- trainer

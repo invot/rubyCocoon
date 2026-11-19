@@ -31,6 +31,8 @@ __pycache__/
 !/tools/debug/story_revision_world.gd.uid
 !/tools/check_pending_requests.gd.uid
 !/tools/check_scripts.gd.uid
+!/tools/check_spells.gd
+!/tools/check_spells.gd.uid
 !/tools/check_phone_pose.gd
 !/tools/check_phone_pose.gd.uid
 !/tools/check_character_easter_eggs.gd

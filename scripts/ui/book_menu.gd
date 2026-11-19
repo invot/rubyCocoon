@@ -24,6 +24,7 @@ const BookPaper = preload("res://scripts/ui/book_paper.gd")
 const Codex = preload("res://scripts/ui/codex.gd")
 const CodexDB = preload("res://scripts/data/codex_db.gd")
 const FluteGame = preload("res://scripts/ui/flute_game.gd")
+const SpellDB = preload("res://scripts/data/spell_db.gd")
 
 ## Let the book show through the pad while keeping every control available.
 var touch_controls_alpha := 0.55
@@ -879,6 +880,8 @@ func _tab_trainer() -> void:
 	var nxt := GameState.trainer_xp_for(GameState.trainer_level + 1)
 	info.add_child(_w("Trainer Lv %d%s" % [GameState.trainer_level, ("  (%d / %d XP)" % [GameState.trainer_xp, nxt]) if GameState.trainer_level < GameState.TRAINER_LEVEL_MAX else ""]))
 	info.add_child(_w("Beast slots %d / %d" % [GameState.beast_slots, GameState.PARTY_MAX]))
+	if GameState.trainer_mp_unlocked():
+		info.add_child(_w("MP %d / %d" % [GameState.trainer_mp, GameState.trainer_max_mp()]))
 	left_box.add_child(_sub("SHIELD"))
 	var sh := HBoxContainer.new()
 	for i in 4:
@@ -911,6 +914,27 @@ func _tab_trainer() -> void:
 		_add_row({"text": SLOT_SHORT[slot], "right": ItemDB.item_name(id) if id != "" else "—", "right_width": 190,
 			"act": func(): await Menus.equip_trainer_slot(slot),
 			"detail": func(c): c.add_child(_t_label(ItemDB.get_item(id).get("desc", "Nothing equipped.") if id != "" else "Nothing equipped. %s to equip trainer gear." % _press()))})
+	var hints: Array = Story.ChatterDB.HINTS.get(Story.next_goal(), [])
+	if not hints.is_empty():
+		_add_row({"text": "Next objective", "detail": func(c): c.add_child(_t_label(hints[0]))})
+	# the spells you know (spell_db.gd), each as your equipped weapon delivers it
+	for sid in GameState.known_spells:
+		_add_row({"text": "Spell", "right": SpellDB.spell_name(sid), "right_width": 190,
+			"detail": func(c): _spell_detail(c, String(sid))})
+
+
+func _spell_detail(c: VBoxContainer, sid: String) -> void:
+	var s := SpellDB.get_spell(sid)
+	c.add_child(_h(SpellDB.spell_name(sid)))
+	c.add_child(_t_label("%s · %d MP" % [Elements.label(SpellDB.element(sid)).capitalize(), SpellDB.mp_cost(sid)]))
+	c.add_child(_t_label(String(s.get("desc", ""))))
+	var names := []
+	for w in ItemDB.WEAPONS:
+		if GameState.item_count(w) > 0:
+			names.append("%s: %s" % [ItemDB.item_name(w), SpellDB.attack_name(sid, w)])
+	c.add_child(_t_label("\n".join(names)))
+	if SpellDB.has_field_use(sid):
+		c.add_child(_t_label("Play the water song near water in the field to use it there."))
 
 
 # ================================================================ Beasts
@@ -1146,6 +1170,9 @@ func _tab_codex() -> void:
 func _codex_detail(c: VBoxContainer, id: String) -> void:
 	c.add_child(_h(CodexDB.title(id)))
 	c.add_child(_t_label(CodexDB.plain(id)))
+	if id == "spells":
+		for sid in GameState.known_spells:
+			c.add_child(_t_label("%s · %d MP" % [SpellDB.attack_name(sid, GameState.weapons()[0]), SpellDB.mp_cost(sid)]))
 	c.add_child(_t_label("A: Ask " + GameState.codex_name(), UIKit.DIM))
 
 
@@ -1323,16 +1350,7 @@ func _controls_help(c: VBoxContainer, what: String) -> void:
 
 
 func _credits() -> void:
-	await UI.say([
-		"Ruby Cocoon. Thank you for playing!",
-		"PSX art: chilly_durango, Screaming Brain Studios, Foxhead, Elegant Crow and Caliber Creations; RetroGround Free by Binbun3D (CC BY 4.0); PSX Forest, Cemetery, Castle and Western Town Kits by heyheythere (CC BY 4.0). People: Characters PSX by Elbolilloduro; the hero by yugg0 (base mesh by Vinrax).",
-		"Buildings: PS1 House Pack by najjar320; interiors by DissonantVoid; furniture by Anker's Assets (CC0); the red telephones: Antique 1930s Rotary Telephones by Mad_Lobster_Workshop; Retro Modular House Pack by Elegant Crow; DINER, 6TWELVE and Trailer Park by Elbolilloduro; PSX Mall Kit and Building Kit by heyheythere (CC BY 4.0); street props: 3D Model by Conor McKenna (CyberThreat/Aphelios), CC BY 4.0; crates by Games by McSteeg; hedges by valsekamerplant; the healing chamber: Stasis Chamber by KieranEdwards (CC BY 4.0).",
-		"Beasts: Everything Library Animals by David OReilly; monsters by Quaternius (CC0); fish by CursedLake and ALSTRA INFINITE; alpaca and capybara by obliviist.",
-		"Voxel art: StickyBizcuit, Kytric, Maria Starko and other voxel packs (see CREDITS.md).",
-		"UI: Travel Book Lite by Crusenho; Fantasy RPG UI by dobo_ui (pixelated and recoloured); UI borders by Kenney (kenney.nl); font Quattrocento Sans.",
-		"Music: Kevin MacLeod (incompetech.com), CC BY 4.0; plus DJARTMUSIC, Howling Hound Music and Monume (Pixabay).",
-		"Sound effects: the packs in the sfx folder. Full list in CREDITS.md.",
-	], "Credits")
+	await Menus.credits()
 
 
 func _quit() -> void:

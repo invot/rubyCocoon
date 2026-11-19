@@ -460,8 +460,10 @@ const MAPS := {
 		# keeps the saved interiors of the first town (Center, two houses, apothecary, fortune teller) where they were
 		"building_order": [[25, 2], [2, 2], [8, 2], [38, 2], [43, 2], [14, 2], [32, 2]],
 		"building_looks": {"1": {"name": "Dustwell Dance Studio", "rooms": ["dance_studio"], "public": true, "frontier": "studio", "words": "DANCE", "paint": "pink"}, "2": {"paint": "orange"}, "3": {"paint": "rose"}, "4": {"paint": "gold"},
-			"5": {"name": "Oasis Saloon", "rooms": ["saloon"], "frontier": "saloon", "paint": "red"},
-			"6": {"name": "Dustwell Jail", "rooms": ["jail"], "frontier": "jail", "paint": "yellow"}},
+			"5": {"name": "Oasis Saloon", "rooms": ["saloon", "saloon_hall", "saloon_room_a", "saloon_room_b", "saloon_back"], "frontier": "saloon", "paint": "red"},
+			"6": {"name": "Dustwell Jail", "rooms": ["jail"], "frontier": "jail", "paint": "yellow"},
+			# the town well: climbing down it is the way into the beavers' cave (docs/dustwell-water-arc.md)
+			"7": {"name": "Dustwell Well", "rooms": ["well_cave"], "well": true}},
 		# water troughs by the saloon, a wagon on the dune shelf, barrels and crates
 		"street_props": [[14, 6, "water_trough", 1], [20, 6, "barrel", 1], [36, 6, "crate", 2], [38, 17, "wagon", 1],
 			[44, 8, "water_trough", 1], [32, 16, "barrel", 1]],
@@ -476,11 +478,11 @@ const MAPS := {
 			"TT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TT",
 			"TT................L:::tt:::L....................TT",
 			"TT...____.........::8:tt::::.......4............TT",
-			"TT.._~~~~_........::::SS::::....................TT",
-			"TT._~~~~~~_.......::::SS3:::....................TT",
-			"TT._~~~~~~_....2..::::::::::.....____.f.....f...TT",
-			"TT.._~~~~_........L::::::::L.....____...........TT",
-			"TT...____.............,,................f.......TT",
+			"TT.._~~~~_........::::SS::::...tt...............TT",
+			"TT._~~~~~~_.......::::SS3:::...tt...............TT",
+			"TT._~~~~~~_....2..::::::::::...tt____.f.....f...TT",
+			"TT.._~~~~_........L::::::::L...JJ____...........TT",
+			"TT...____.............,,.......JJ.......f.......TT",
 			"TT....................,,.....f..................TT",
 			"TT...........@........,,........................TT",
 			"TT..........f.........,,................7.......TT",
@@ -493,8 +495,8 @@ const MAPS := {
 		],
 		# the back and sides a step up, a dune shelf south-east of the square with a ramp up to it from the road
 		"heights": [
-			"20000000222222222222210012222220000000222200000002",
-			"20000000222222222222/100\\2222220000000222200000002",
+			"20000000222222222222000000222220000000222200000002",
+			"20000000222222222222000000222220000000222200000002",
 			"20000000000000000000000000000000000000000000000002",
 			"20000000000000000000000000000000000000000000000002",
 			"20000000000000000000000000000000000000000000000002",

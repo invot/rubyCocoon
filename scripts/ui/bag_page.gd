@@ -12,7 +12,6 @@ const ItemDB = preload("res://scripts/data/item_db.gd")
 const ItemUse = preload("res://scripts/core/item_use.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const PixelArt = preload("res://scripts/gfx/pixel_art.gd")
-const BeatChain = preload("res://scripts/core/beat_chain.gd")
 const ScrollRail = preload("res://scripts/ui/scroll_rail.gd")
 const VoxelPortrait = preload("res://scripts/ui/voxel_portrait.gd")
 const Bar = preload("res://scripts/ui/bar.gd")
@@ -149,7 +148,7 @@ func _is_key(it: Dictionary) -> bool:
 
 
 func _is_tome(it: Dictionary) -> bool:
-	return it["kind"] == "tome"
+	return it["kind"] in ["tome", "scroll"]
 
 
 ## A slot's side: big enough to tap on a phone, with room for the icon and its count.
@@ -300,9 +299,7 @@ func _item_heading(id: String, s: Dictionary) -> Control:
 func _item_note(id: String) -> String:
 	var it := ItemDB.get_item(id)
 	if it.has("weapon"):
-		var most := BeatChain.max_hits(GameState.trainer_level)
-		return ("Equipped. " if GameState.weapons().has(id) else "Equip it in Journal > Trainer > Weapon. ") + ("Press A on the beat: up to %d hits." % most if most > 0 and GameState.flag("dance_lesson_done")
-			else "Learn rhythm attacks at Dustwell Oasis's dance studio from trainer Lv %d." % BeatChain.UNLOCK_LEVEL)
+		return "Equipped." if GameState.weapons().has(id) else "Equip it in Journal > Trainer > Weapon."
 	match it.get("kind", ""):
 		"use":
 			if it.get("battle_only", false):
@@ -311,6 +308,8 @@ func _item_note(id: String) -> String:
 			return "It's on your hook." if GameState.bait == id else ""
 		"tome":
 			return "Tomes are read at a bookstore, where the librarian helps your beast learn the move."
+		"scroll":
+			return "You already know this spell." if GameState.knows_spell(String(it.get("spell", ""))) else "Use it to learn the spell."
 		"tgear":
 			var on: String = GameState.gear.get(String(it.get("slot", "")), "")
 			return "You're wearing %s there now." % ItemDB.item_name(on) if on != "" else ""

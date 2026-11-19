@@ -897,7 +897,7 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 ## the kit's people wear it) has it in their top's colour.
 ## Temple robes a look can wear (its "robe"), as townfolk.json part ids: "plain" the long robe with a gold collar and
 ## hem (the kit's wizard's, without the hat), "cape" the long coat with a cape and fur collar (the kit's king's).
-const ROBES := {"plain": [278, 268, 54], "cape": [273, 272, 268, 266]}
+const ROBES := {"plain": [278, 268, 54], "hooded": [278, 268, 54, 281], "cape": [273, 272, 268, 266]}
 
 
 static func outfit(look: Dictionary) -> Dictionary:
@@ -1013,8 +1013,10 @@ static func outfit(look: Dictionary) -> Dictionary:
 			var robe: Array = ROBES[String(look["robe"])]
 			parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["top", "bottom", "arms", "back", "hat", "hood"])
 			parts.append_array(robe)
+			if look["robe"] == "hooded":
+				parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "hair")
 			# bareheaded: anyone whose hat was all the hair they had gets a hairdo (long for long hair)
-			if not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
+			elif not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
 				var hd: int = HAIRDOS[4 if int(look.get("hair_style", 0)) == 1 else 0][0]
 				for id in people[hd]["parts"]:
 					if kinds[int(id)]["kind"] == "hair":

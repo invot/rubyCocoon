@@ -42,7 +42,7 @@ const TOPICS := {
 		"[worried] Every hit on a trainer breaks one shield point. A trainer hit with no shield left loses. Shields recharge after every battle."]},
 	"team": {"title": "Choosing for each beast", "group": "Your team", "lines": [
 		"[excited] Every standing beast on the side facing the foe gets its own move each round!",
-		"[neutral] After your own action, up and down switch between your beasts' bars. Left and right pick each one's move.",
+		"[neutral] After your own action, up and down switch between your beasts' bars. Choose Attack on a beast's bar, then use left and right to browse its moves.",
 		"[curious] With several foes, left and right choose who to aim at. The arrows show who each move will hit."]},
 	"move": {"title": "Moving your beasts", "group": "Your team", "lines": [
 		"[neutral] Move uses a beast's turn to change its ring slot. Pick a lit pad with up and down, then A.",
@@ -91,19 +91,19 @@ const TOPICS := {
 	"eggs": {"title": "Eggs", "group": "Gear and songs", "lines": [
 		"[happy] Beat a wild beast and now and then it leaves an egg behind. Eggs are how your team grows!",
 		"[curious] Kennels on the roads have beasts to adopt, too."]},
-	"rhythm": {"title": "Rhythm attacks", "group": "Gear and songs", "needs": "rhythm", "lines": [
-		"[excited] Your weapons chain hits to the music! Choose a weapon and its target, and a white ring appears.",
-		"[determined] Press A, or tap the ring, each time the spinning notch meets the mark at the top.",
-		"[proud] A miss ends the chain, but hits already landed count. Fill every pip and the last hit is critical!"]},
 	"summon": {"title": "Summons", "group": "Gear and songs", "needs": "summon", "lines": [
 		"[excited] A temple guardian answers your flute! Pick Summon beside your trainer and play its song through.",
 		"[neutral] It strikes every foe at once. A summon costs one shield point and answers once per battle.",
 		"[proud] Better playing makes the summon stronger."]},
 	"boomerang": {"title": "Boomerang", "group": "Gear and songs", "needs": "boomerang", "lines": [
-		"[excited] Your Boomerang sweeps every foe facing you in one throw. Confirm all its targets together.",
-		"[neutral] Each extra target takes a slightly softer hit."]},
+		"[excited] Choose Boomerang beside your trainer to sweep every foe facing you. Confirm all its targets together.",
+		"[neutral] Each target rolls separately for accuracy."]},
 	"bat": {"title": "Bat", "group": "Gear and songs", "needs": "bat", "lines": [
-		"[determined] Your Bat hits one foe harder than your other weapons. Pick it beside your trainer, aim, then A."]},
+		"[determined] Your Bat hits one foe harder than your other weapons. Choose Bat beside your trainer, aim, and confirm with A."]},
+	"spells": {"title": "Elemental attacks", "group": "Gear and songs", "needs": "spells", "lines": [
+		"[excited] You know a spell! Choose your weapon beside your trainer, then Basic or an elemental attack. B goes back.",
+		"[neutral] An elemental attack hits with your weapon and the spell's element, so aim water at fire beasts. It costs MP; Basic is free.",
+		"[happy] Your MP grows with your trainer level. Spirit Drops and other MP items work on you too. You keep two spells of each element."]},
 }
 
 ## Little noises the Codex sometimes starts a bubble with.
@@ -125,12 +125,12 @@ static func eligible(id: String) -> bool:
 	match String(t.get("needs", "")):
 		"flute":
 			return GameState.has_flute()
-		"rhythm":
-			return GameState.flag("dance_lesson_done") and GameState.trainer_level >= 4
 		"summon":
 			return not GameState.summons.is_empty()
 		"boomerang", "bat":
 			return GameState.weapons().has(String(t["needs"]))
+		"spells":
+			return GameState.trainer_mp_unlocked()
 	return true
 
 

@@ -1,4 +1,5 @@
 extends RefCounted
+## For beasts, the panel opens Attack before passing the selected move here.
 ## Which Codex topics (scripts/data/codex_db.gd) a battle choice brings up: the Codex chimes in about each the first
 ## time it's picked (scripts/ui/codex.gd chime). Completion lives in ordinary save flags ("codex_seen_<id>").
 const MoveDB = preload("res://scripts/data/move_db.gd")
@@ -11,6 +12,8 @@ static func topics(option: Dictionary) -> Array:
 	var weapon: String = option.get("weapon", "")
 	if weapon in ["boomerang", "bat"]:
 		out.append(weapon)
+	if option.has("spell"):
+		out.append("spells")
 	if not option.has("move"):
 		return out
 	var m := MoveDB.get_move(option["move"])

@@ -112,6 +112,8 @@ const KINDS := {
 	"cabinet": {"m": ["kk_cabinet_small"], "alt": ["side_table"], "single": true, "top": ["home/vase_flowers", "home/books_stack", "home/plant_succulent", "home/photo_standing"]},
 	"pouf": {"m": ["home/pouf"], "single": true, "free": true},
 	"basket": {"m": ["home/basket_blankets"], "single": true},
+	# a makeshift bed on the floor: a thin pad, a blanket over its foot and a pillow (the saloon band's backstage)
+	"bedroll": {"m": ["bedroll"], "single": true, "free": true},
 	# a chunky table, with a chest of drawers beside it where the desk has two tiles or more (desk_side)
 	"desk": {"m": ["kk_table_small"], "desk_side": "kk_cabinet_small", "top": ["books", "pencils", "globe", "home/books_stack"]},
 	# The large chest keeps its baked 1.7-tile width within a two-tile footprint.
@@ -264,6 +266,8 @@ static func _blocks(colour: Color) -> Material:
 
 
 static func piece(name: String) -> Mesh:
+	if name == "bedroll":
+		return _bedroll()
 	if name == "hay_stack":
 		return load("res://scripts/gfx/barn_builder.gd").hay_stack()
 	if name in ["kk_table_low_square", "kk_table_low_2x1", "kk_table_low_2x2"]:
@@ -280,6 +284,17 @@ static func piece(name: String) -> Mesh:
 		if _meshes[name] == null:
 			push_warning("model missing: " + path)
 	return _meshes[name]
+
+## A makeshift bed on the floor (FURNITURE "+"): a thin striped pad, a blanket folded over its foot and a pillow.
+static func _bedroll() -> ArrayMesh:
+	if not _meshes.has("bedroll"):
+		var k = load("res://scripts/gfx/voxel_buildings.gd").Kit.new()
+		k.box("color", Vector3(0, 0.035, 0), Vector3(0.74, 0.07, 0.96), Color("#c9b48a"), true)
+		k.box("color", Vector3(0, 0.072, 0.17), Vector3(0.78, 0.04, 0.6), Color("#8a3a3a"), true)
+		k.box("color", Vector3(0, 0.1, -0.33), Vector3(0.5, 0.1, 0.24), Color("#efe6d4"), true)
+		_meshes["bedroll"] = k.mesh()
+	return _meshes["bedroll"]
+
 
 ## KayKit's neutral covers become blue; paper uses warm parchment rather than white.
 static func _coloured_book_covers(source: Mesh) -> ArrayMesh:
@@ -608,6 +623,72 @@ func _finish_meshes() -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = (_row_meshers[y] as Mesher).mesh()
 		(rows[y] as Node3D).add_child(mi)
+	if map["room"].get("mirror_wall", false):
+		_build_mirror_wall(fm)
+
+
+const MIRROR_Z := 0.6
+var _mirror_space: Node3D
+var _mirror_actors: Array[Dictionary] = []
+
+
+## Reflected meshes share the actual room and clothing resources in the same view.
+func _build_mirror_wall(floor_mesh: MeshInstance3D) -> void:
+	_mirror_space = Node3D.new()
+	_mirror_space.name = "StudioReflection"
+	var sources := [floor_mesh]
+	for node in parent.get_children():
+		if node is MeshInstance3D and node.has_meta("furniture_origin"):
+			sources.append(node)
+	_mirror_space.transform = Transform3D(Basis.from_scale(Vector3(1.0, 1.0, -1.0)), Vector3(0.0, 0.0, 2.0 * MIRROR_Z))
+	parent.add_child(_mirror_space)
+	for source in sources:
+		var copy := source.duplicate(0) as MeshInstance3D
+		copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_mirror_space.add_child(copy)
+	var span := float(w - 1)
+	var depth := float(h) - MIRROR_Z
+	var frame := wall_surface("wall_wood", Color("#8c624b"))
+	_mirror_panel(Vector3(w * 0.5, H * 0.5, MIRROR_Z - depth), Vector3(span, H, 0.12), frame)
+	var mask := StandardMaterial3D.new()
+	mask.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mask.albedo_color = Color("#0d0a10")
+	_mirror_panel(Vector3(w * 0.5, H + 0.01, MIRROR_Z - depth * 0.5), Vector3(span + 0.18, 0.022, depth), mask)
+	for x in [0.5, float(w) - 0.5]:
+		_mirror_panel(Vector3(x, H * 0.5, MIRROR_Z - depth * 0.5), Vector3(0.18, H, depth), frame)
+	for y in [0.045, H - 0.045]:
+		_mirror_panel(Vector3(w * 0.5, y, MIRROR_Z + 0.015), Vector3(span, 0.09, 0.12), frame)
+	for x in range(1, w - 1, 2):
+		_mirror_panel(Vector3(x + 0.5, H * 0.5, MIRROR_Z + 0.015), Vector3(0.035, H, 0.035), frame)
+	var glass := StandingMirror.silvered().duplicate() as StandardMaterial3D
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glass.albedo_color = Color(0.83, 0.94, 1.0, 0.20)
+	_mirror_panel(Vector3(w * 0.5, H * 0.5, MIRROR_Z), Vector3(span - 0.18, H - 0.15, 0.01), glass)
+
+
+func _mirror_panel(at: Vector3, size: Vector3, material: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mi.mesh = mesh
+	mi.material_override = material
+	mi.position = at
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+
+
+func add_mirror_actor(actor: Node3D) -> void:
+	if _mirror_space == null or not actor.has_meta("skeleton"):
+		return
+	var body := actor.get_node("Body") as Node3D
+	var copy := body.duplicate(0) as Node3D
+	var skeleton := actor.get_meta("skeleton") as Skeleton3D
+	var copy_skeleton := copy.get_node(body.get_path_to(skeleton)) as Skeleton3D
+	for mesh: MeshInstance3D in copy.find_children("*", "MeshInstance3D", true, false):
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_mirror_space.add_child(copy)
+	_mirror_actors.append({"actor": actor, "body": body, "copy": copy, "skeleton": skeleton, "copy_skeleton": copy_skeleton})
 
 
 # ---------------------------------------------------------------- fading furniture
@@ -629,6 +710,15 @@ func _cone(dx: float, dz: float) -> float:
 
 ## Moves each tall piece's opacity towards where the player at `p` wants it (call every frame).
 func fade(p: Vector3, delta: float) -> void:
+	for reflection in _mirror_actors:
+		if not is_instance_valid(reflection["actor"]):
+			reflection["copy"].hide()
+			continue
+		reflection["copy"].transform = reflection["actor"].transform * reflection["body"].transform
+		var source: Skeleton3D = reflection["skeleton"]
+		var reflected: Skeleton3D = reflection["copy_skeleton"]
+		for i in source.get_bone_count():
+			reflected.set_bone_pose(i, source.get_bone_pose(i))
 	# the first call (on entering) sets them straight away
 	var step := 1.0 if _snap else delta * FADE_SPEED
 	_snap = false
@@ -714,6 +804,21 @@ func _cavern() -> void:
 	ground.position = Vector3(w * 0.5, -0.15, h * 0.5)
 	ground.material_override = floor_surface("floor_cave")
 	parent.add_child(ground)
+	if map["room"].has("masonry_runs"):
+		_well_walls()
+	else:
+		_rounded_cavern_walls()
+	for p in [Vector2i(3, 3), Vector2i(12, 3), Vector2i(21, 3), Vector2i(4, 12), Vector2i(20, 12)]:
+		var lamp := OmniLight3D.new()
+		lamp.position = Vector3(p.x + 0.5, 2.1, p.y + 0.5)
+		lamp.light_color = Color("#ede2d3") if map["room"].has("masonry_runs") else Color("e0bf9c")
+		lamp.light_energy = 0.65
+		lamp.omni_range = 7
+		lamp.shadow_enabled = false
+		parent.add_child(lamp)
+
+
+func _rounded_cavern_walls() -> void:
 	var rock := SphereMesh.new()
 	rock.radius = 1
 	rock.height = 2
@@ -747,7 +852,8 @@ func _cavern() -> void:
 			var p: Vector2i = points[i]
 			var front := p.y == h - 1
 			var tall := (0.35 if front else 2.5) + sin(p.x * 2.3 + p.y) * 0.12
-			multi.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(0.78, tall * 0.65, 0.78)), Vector3(p.x + 0.5, tall * 0.4, p.y + 0.5)))
+			var shape := Basis().scaled(Vector3(0.78, tall * 0.65, 0.78))
+			multi.set_instance_transform(i, Transform3D(shape, Vector3(p.x + 0.5, tall * 0.4, p.y + 0.5)))
 			multi.set_instance_color(i, Color("8c7d89").lightened(0.035 * sin(p.x * 1.7 + p.y)))
 		var node := MultiMeshInstance3D.new()
 		node.multimesh = multi
@@ -755,14 +861,89 @@ func _cavern() -> void:
 		parent.add_child(node)
 		if key != "shell":
 			add_prop([node], points[0], Vector2(1, points.size()))
-	for p in [Vector2i(3, 3), Vector2i(12, 3), Vector2i(21, 3), Vector2i(4, 12), Vector2i(20, 12)]:
-		var lamp := OmniLight3D.new()
-		lamp.position = Vector3(p.x + 0.5, 2.1, p.y + 0.5)
-		lamp.light_color = Color("e0bf9c")
-		lamp.light_energy = 0.65
-		lamp.omni_range = 7
-		lamp.shadow_enabled = false
-		parent.add_child(lamp)
+
+
+## Straight, two-tile bays cut through a continuous cliff shell. Use the same wall cells for
+## rendering and walking, including the mouths of the tunnels where the two finishes meet.
+func _well_walls() -> void:
+	var masonry := {}
+	for run: Rect2i in map["room"]["masonry_runs"]:
+		var vertical := run.size.y > 1
+		var length := maxi(run.size.x, run.size.y)
+		var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
+		for i in length:
+			masonry[run.position + along * i] = true
+		for i in range(0, length, 2):
+			var start := run.position + along * i
+			var span := mini(2, length - i)
+			var wall := MeshInstance3D.new()
+			wall.mesh = preload("res://assets/interiors/kaykit_wall_cracked.res") if (start.x + start.y) % 5 == 0 else preload("res://assets/interiors/kaykit_wall.res")
+			var bb := wall.mesh.get_aabb()
+			var height := 0.36 if start.y == h - 1 else 1.70
+			var scale_to_tile := Vector3(span / bb.size.x, height / bb.size.y, 0.92 / bb.size.z)
+			var basis := Basis(Vector3.UP, PI / 2.0 if vertical else 0.0).scaled_local(scale_to_tile)
+			var footprint := Vector2(1, span) if vertical else Vector2(span, 1)
+			var centre := Vector2(start) + footprint * 0.5
+			wall.transform = Transform3D(basis, Vector3(centre.x, 0, centre.y) - basis * Vector3(bb.get_center().x, bb.position.y, bb.get_center().z))
+			parent.add_child(wall)
+			if start.y < h - 1:
+				add_prop([wall], start, footprint)
+
+	var stone := StandardMaterial3D.new()
+	stone.albedo_texture = preload("res://scripts/gfx/temple_props.gd").grey_cliff_texture()
+	stone.albedo_color = Color("#b2b8bd")
+	stone.roughness = 1.0
+	stone.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	stone.uv1_triplanar = true
+	stone.uv1_scale = Vector3.ONE * 0.43
+	var exits: Dictionary = map["exits"]
+	# Small batches can fade independently when the camera looks across a rock spur.
+	for z in range(0, h, 2):
+		for x in range(0, w, 3):
+			var batch := Mesher.new()
+			var bounds := Rect2i(x, z, mini(3, w - x), mini(2, h - z))
+			for y in range(z, bounds.end.y):
+				for col in range(x, bounds.end.x):
+					var cell := Vector2i(col, y)
+					if not wallish(col, y) or masonry.has(cell) or exits.has(cell):
+						continue
+					_well_cliff_cell(batch, stone, cell, bounds, masonry)
+			if not batch.surf.is_empty():
+				var cliff := MeshInstance3D.new()
+				cliff.mesh = batch.mesh()
+				parent.add_child(cliff)
+				add_prop([cliff], bounds.position, Vector2(bounds.size))
+
+
+func _well_cliff_cell(batch: Mesher, stone: Material, cell: Vector2i, bounds: Rect2i, masonry: Dictionary) -> void:
+	var corners := [Vector2i.ZERO, Vector2i.RIGHT, Vector2i.ONE, Vector2i.DOWN]
+	var sides := [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
+	var foot := []
+	var ledge := []
+	var crown := []
+	for offset: Vector2i in corners:
+		var q := cell + offset
+		var phase := 0.65 * sin(q.x * 1.38 + q.y * 1.49) + 0.35 * cos(q.x * 2.73 - q.y * 0.84)
+		var skew := Vector3(phase, 0, cos(q.y * 2.21 - q.x * 1.37))
+		var height := 0.36 if q.y >= h - 1 else 1.85 + phase * 0.26
+		var base := Vector3(q.x, -0.04, q.y)
+		foot.append(base + skew * 0.09)
+		ledge.append(base + skew * 0.18 + Vector3.UP * height * 0.58)
+		crown.append(base - skew * 0.15 + Vector3.UP * height)
+	batch.quad("rock", stone, crown, Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+	for side in 4:
+		var neighbour: Vector2i = cell + sides[side]
+		# A neighbouring batch can fade away. Cap the joint so its rock stays solid.
+		if bounds.has_point(neighbour) and wallish(neighbour.x, neighbour.y) and not masonry.has(neighbour) and not map["exits"].has(neighbour):
+			continue
+		var end := (side + 1) % 4
+		var outward := Vector3(sides[side].x, 0, sides[side].y)
+		for strip in [[foot, ledge], [ledge, crown]]:
+			var face := [strip[0][side], strip[0][end], strip[1][end], strip[1][side]]
+			var normal: Vector3 = (face[1] - face[0]).cross(face[3] - face[0]).normalized()
+			if normal.dot(outward) < 0:
+				normal = -normal
+			batch.quad("rock", stone, face, normal, Vector3.RIGHT, Vector3.UP)
 
 
 static func floor_surface(tex: String) -> ShaderMaterial:
@@ -1159,6 +1340,8 @@ func _row(y: int) -> Mesher:
 func _walls() -> void:
 	for y in h:
 		for x in w:
+			if y == 0 and x > 0 and x < w - 1 and map["room"].get("mirror_wall", false):
+				continue
 			var c := code(x, y)
 			if not c in WALLISH:
 				continue

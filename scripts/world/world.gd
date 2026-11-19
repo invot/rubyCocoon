@@ -279,6 +279,10 @@ func build(id: String, cooperative := false) -> void:
 	build_progress.emit(0.9)
 	_build_items()
 	_build_player()
+	if room_walls != null and map.get("room", {}).get("mirror_wall", false):
+		room_walls.add_mirror_actor(player)
+		for resident in npcs.values():
+			room_walls.add_mirror_actor(resident["node"])
 	_build_camera()
 	build_progress.emit(1.0)
 	if map.get("sandstorm", false):
@@ -3283,6 +3287,8 @@ func _stage_pull(w: float, h: float, t: Vector3) -> float:
 func _walkable(p: Vector2i) -> bool:
 	if _npc_departing(p):
 		return false
+	if map.has("beached_hull") and map["beached_hull"].has_point(p):
+		return false
 	if npc_footprints.has(p) or nest_tiles.has(p):
 		return false
 	if p.x < 0 or p.y < 0 or p.x >= map["w"] or p.y >= map["h"]:
@@ -4021,13 +4027,15 @@ func _build_boats() -> void:
 		var holder := Node3D.new()
 		# on the water's surface (terrain_mesh.gd _liquid)
 		var at := Vector2i(floori(float(bt[0])), floori(float(bt[1])))
-		holder.position = Vector3(float(bt[0]), _lift(at) - 0.12, float(bt[1]))
+		var beached := map.has("beached_hull")
+		holder.position = Vector3(float(bt[0]), _lift(at) - (0.0 if beached else 0.12), float(bt[1]))
 		holder.rotation.y = deg_to_rad(float(bt[2]))
 		# (the harbour's own boats are drawn with their waterline at 0)
 		mi.position.y = 0.0 if own else -float(BOAT_DEPTH.get(name, 0.0)) - bb.position.y * s
 		holder.add_child(mi)
 		add_child(holder)
-		bobbers.append([holder, holder.position.y, 1.3 + float(bt[0]) * 0.01, BOAT_BOB])
+		if not beached:
+			bobbers.append([holder, holder.position.y, 1.3 + float(bt[0]) * 0.01, BOAT_BOB])
 
 
 ## The fishing line cast into water tile `t`: a red-and-white float bobbing there, and the line out to it from your
@@ -5895,6 +5903,9 @@ func _build_room() -> void:
 	if temple:
 		env.ambient_light_color = Color("#7c88a8")
 		env.ambient_light_energy = 0.26 if not room.has("round") else 0.14
+	if key == "well_cave":
+		env.ambient_light_color = Color("#aab2ba")
+		env.ambient_light_energy = 0.47
 	if room.get("parlour", false):
 		# a fortune teller's parlour: curtains drawn, a dim violet hush, lit by its candles and the crystal ball
 		env.ambient_light_color = Color("#8a74b8")

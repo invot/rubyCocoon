@@ -237,7 +237,7 @@ static var _grey_rock_tex: ImageTexture
 
 ## The cliff faces' rock texture (terrain_mesh.gd "cliff_rock"), desaturated to grey and brightened back to a mid tone,
 ## for the switches' carved stone.
-static func _grey_rock() -> ImageTexture:
+static func grey_cliff_texture() -> ImageTexture:
 	if _grey_rock_tex == null:
 		var img: Image = VT.texture("cliff_rock").get_image().duplicate()
 		if img.is_compressed():
@@ -256,7 +256,7 @@ static func _switch_material(kind: String) -> StandardMaterial3D:
 		# A smooth painted finish on the carved stone and red controls, rather than
 		# the source pack's scratched industrial atlas and English PULL lettering.
 		# (stone: the cliffs' painted rock, in grey)
-		mat.albedo_texture = VT.texture("soft") if kind == "red" else _grey_rock()
+		mat.albedo_texture = VT.texture("soft") if kind == "red" else grey_cliff_texture()
 		mat.albedo_color = LEVER_RED if kind == "red" else SWITCH_STONE
 		mat.roughness = 0.88 if kind == "red" else 0.98
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC

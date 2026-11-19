@@ -29,6 +29,7 @@ const VP = preload("res://scripts/gfx/voxel_props.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Codex = preload("res://scripts/ui/codex.gd")
 const ChatterDB = preload("res://scripts/data/chatter_db.gd")
+const SpellDB = preload("res://scripts/data/spell_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const Phone = preload("res://scripts/world/phone.gd")
@@ -143,19 +144,56 @@ func arena_lessons_done(town: String) -> bool:
 func extra_npcs(map: Dictionary) -> Array:
 	var out := []
 	var id: String = map["id"]
-	if map.get("room_key", "") == "mole_cave":
+	out.append_array(_water_targets(map))
+	if map.get("room_key", "") == "well_cave":
 		out.append_array(fixtures(map))
 		for i in 5:
-			out.append({"kind": "story", "id": "mole", "mole": i, "name": "Mole %s" % ["Pebble", "Nub", "Dibble", "Crumb", "Velvet"][i],
-				"pos": map["anchors"]["mole_%d" % i], "look": {"critter": "mole"}, "facing": Vector2i.DOWN, "still": true})
+			if not GameState.flag("beaver_defeated_%d" % i):
+				out.append({"kind": "story", "id": "beaver", "beaver": i, "name": "Beaver %s" % BEAVER_NAMES[i],
+					"pos": map["anchors"]["beaver_%d" % i], "look": {"critter": "beaver"}, "facing": Vector2i.DOWN, "still": true})
+		for which in ["dale", "source", "pocket"]:
+			if not GameState.flag("well_dam_" + which):
+				out.append({"kind": "story", "id": "dam", "dam": which, "name": "", "pos": map["anchors"]["dam_" + which],
+					"scene": _dam_scene(), "still": true, "facing": Vector2i.DOWN})
+		if not GameState.flag("well_restored"):
+			var dale_pos: Vector2i = map["anchors"]["dale_source" if GameState.flag("dale_freed") else "dale"]
+			out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": dale_pos, "look": DALE_LOOK,
+				"facing": Vector2i.DOWN, "still": true, "story": true})
 		return out
+	# the beavers who've left the cave grumble about town, well away from the oasis pool
+	if id == "dustwell":
+		for i in 5:
+			if GameState.flag("beaver_defeated_%d" % i):
+				out.append({"kind": "story", "id": "beaver", "beaver": i, "name": "Beaver %s" % BEAVER_NAMES[i],
+					"pos": Vector2i(11 + i * 2, 15), "look": {"critter": "beaver"}, "facing": Vector2i.DOWN, "still": true})
+		if GameState.flag("well_restored"):
+			out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": Vector2i(29, 15), "look": DALE_LOOK,
+				"facing": Vector2i.DOWN, "still": true, "story": not GameState.flag("river_restored")})
 	if map["kind"] == "interior":
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
-		var inside := _lesson_trainers(map)
-		if map.get("parent", "") == "cogsworth" and map.get("room_key", "") == "music_shop":
-			for i in 4:
-				inside.append({"kind": "story", "id": "rubywave_member", "member": i, "name": ["Riff", "Tempo", "Cadence", "Encore"][i],
-					"pos": Vector2i([2, 3, 6, 7][i], 4), "look": {"model": "tf%d" % [13, 29, 62, 74][i], "shirt": ["#b93646", "#3a6ab8", "#3a8a4a", "#7a4aa8"][i]}, "still": true})
+		var inside := out
+		inside.append_array(_lesson_trainers(map))
+		# The Rubywave Five play Rosa's stage in Dustwell's saloon until they're freed (band_freed), then move on to
+		# Cogsworth's music shop (docs/dustwell-water-arc.md).
+		var band_at_shop: bool = GameState.flag("band_freed") and map.get("parent", "") == "cogsworth" and map.get("room_key", "") == "music_shop"
+		var band_on_stage: bool = not GameState.flag("band_freed") and map.get("room_key", "") == "saloon"
+		if band_at_shop or band_on_stage:
+			for i in 5:
+				inside.append({"kind": "story", "id": "rubywave_member", "member": i, "name": ["Riff", "Tempo", "Cadence", "Encore", "Bramble"][i],
+					"pos": ([Vector2i(2, 2), Vector2i(3, 2), Vector2i(5, 2), Vector2i(3, 3), Vector2i(5, 3)] if band_on_stage
+						else [Vector2i(1, 3), Vector2i(3, 3), Vector2i(7, 4), Vector2i(7, 3), Vector2i(8, 3)])[i],
+					"look": {"model": "tf%d" % [13, 29, 62, 74, 24][i], "shirt": ["#b93646", "#3a6ab8", "#3a8a4a", "#7a4aa8", "#cf9c52"][i]},
+					"facing": Vector2i.DOWN, "still": true})
+		if map.get("room_key") == "temple_tides_sanctuary":
+			inside.append({"kind": "story", "id": "water_acolyte", "name": "Brother Shoal", "pos": map["anchors"]["water_acolyte"],
+				"look": DALE_LOOK.merged({"shirt": "#284d81"}, true), "still": true, "facing": Vector2i.DOWN})
+			inside.append({"kind": "story", "id": "water_teacher", "name": "Keeper Nerine", "pos": map["anchors"]["water_teacher"],
+				"look": DALE_LOOK.merged({"shirt": "#276d76", "hair": "#ded8c6"}, true), "facing": Vector2i.DOWN, "still": true,
+				"story": not GameState.learned_spell("torrent")})
+		for d in 2:
+			if _has_anchor(map, "dancer_%d" % d):
+				inside.append({"kind": "story", "id": "cancan_dancer", "dancer": d, "name": ["Dancer Josie", "Dancer Belle"][d],
+					"pos": _at(map, "dancer_%d" % d, Vector2i.ZERO), "look": NEIGHBOR_LOOK, "facing": Vector2i.DOWN})
 		if map.get("room_key", "") == "crypt_2":
 			for i in 3:
 				inside.append({"kind": "story", "id": "reactor", "reactor": i, "name": ["Intake Isolator", "Spirit Reservoir", "Network Shutdown"][i],
@@ -172,7 +210,14 @@ func extra_npcs(map: Dictionary) -> Array:
 			inside.append({"kind": "story", "id": "journal", "name": "Journal", "pos": Vector2i(9, 3),
 				"scene": journal, "still": true, "story": true, "mark_height": 0.95})
 		if _has_anchor(map, "dance_instructor"):
-			inside.append({"kind": "story", "id": "dance_instructor", "name": "Instructor Lucille", "pos": _at(map, "dance_instructor", Vector2i.ZERO), "look": NEIGHBOR_LOOK, "facing": Vector2i(0, 1), "story": true})
+			inside.append({"kind": "story", "id": "dance_instructor", "name": "Instructor Lucille", "pos": _at(map, "dance_instructor", Vector2i.ZERO), "look": NEIGHBOR_LOOK, "facing": Vector2i(0, 1)})
+		for s in 3:
+			if _has_anchor(map, "dance_student_%d" % s):
+				inside.append({"kind": "story", "id": "dance_student", "student": s, "name": ["Clara", "Daisy", "Hattie"][s],
+					"pos": _at(map, "dance_student_%d" % s, Vector2i.ZERO), "look": STUDENT_LOOKS[s], "facing": Vector2i(0, -1)})
+		if map.get("room_key", "") == "saloon":
+			inside.append({"kind": "story", "id": "rosa", "name": "Rosa", "pos": Vector2i(7, 3), "look": ROSA_LOOK, "facing": Vector2i(0, 1),
+				"story": GameState.flag("well_restored") and not GameState.flag("band_freed")})
 		if map.get("room_key", "") == "ceo_4":
 			if not GameState.flag("trainers_freed"):
 				for i in 3:
@@ -276,10 +321,10 @@ func extra_npcs(map: Dictionary) -> Array:
 		"route2":
 			if _has_anchor(map, "tourist"):
 				out.append({"kind": "story", "id": "tourist", "name": "Tourist Gwen", "pos": _at(map, "tourist", plaza), "look": TOURIST_LOOK, "facing": Vector2i(0, 1)})
+		"dustwell_channel":
+			out.append({"kind": "story", "id": "riverboat_captain", "name": "Captain Reed", "pos": _at(map, "riverboat_captain", plaza),
+				"look": {"shirt": "#3e687d", "pants": "#534234", "cap": true}, "still": true, "facing": Vector2i.DOWN})
 		"dustwell":
-			if BuildEdition.is_demo() or not GameState.flag("dance_shoes_returned"):
-				out.append({"kind": "story", "id": "dance_blocker", "name": "Dancer Jasper", "pos": Vector2i(22, 2), "look": UNCLE_LOOK,
-					"facing": Vector2i(0, 1), "story": true, "sit": true, "seat_height": 0.05, "visual_offset": Vector3(0.5, 0, 0), "blocks": [Vector2i(22, 2), Vector2i(23, 2)]})
 			# missing posters about town, and a friend of each missing trainer, searching
 			var home := GameState.flag("trainers_freed")
 			for i in 5:
@@ -298,6 +343,8 @@ func extra_npcs(map: Dictionary) -> Array:
 						"look": sr["look"], "facing": sr["facing"], "story": true})
 		"sundown":
 			out.append({"kind": "story", "id": "sheriff", "name": "Captain Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
+			out.append({"kind": "story", "id": "sunwall_searcher", "name": "Tracker Inez", "pos": Vector2i(12, 8),
+				"look": RANGER_LOOK, "facing": Vector2i.DOWN, "still": true})
 		"cogsworth":
 			out.append({"kind": "story", "id": "protester", "name": "Tinker Wren", "pos": _at(map, "protester", plaza), "look": PROTESTER_LOOK, "facing": Vector2i(0, 1), "story": true})
 			if GameState.flag("trainers_freed"):
@@ -342,10 +389,6 @@ func npc_has_news(n: Dictionary) -> bool:
 	match n.get("id", ""):
 		"journal":
 			return not GameState.flag("has_journal")
-		"dance_instructor":
-			return not GameState.flag("dance_lesson_done")
-		"dance_blocker":
-			return not GameState.flag("dance_shoes_returned")
 		"weapon_guide":
 			return not GameState.flag(n["weapon_fixture"]["flag"])
 		"elder":
@@ -408,7 +451,7 @@ func weapon_guide(n: Dictionary) -> void:
 	if not owned:
 		status += {"boomerang": " Chief Coralie in Kelpwick gives one to trainers who open the reef path.",
 			"bat": " Captain Dalton in Sunwall gives one with the Jackals' bounty."}.get(weapon, "")
-	await say([mechanism, status, "Face the target from clear ground and press A, or tap it to walk to the right spot and use it. No rhythm timing is needed here. Come back if you need the weapon first."], n["name"])
+	await say([mechanism, status, "Face the target from clear ground and press A, or tap it to walk to the right spot and use it. Come back if you need the weapon first."], n["name"])
 	GameState.set_flag(o["flag"] + "_explained")
 
 
@@ -426,31 +469,51 @@ func field_guide_on_step(world) -> bool:
 	return false
 
 
-func _dance_road_lines() -> Array:
-	if BuildEdition.is_demo():
-		return ["Oh, this is just the demo! I don't have Jasper's dance slippers in this version.",
-			"In the full game, I'll give you his slippers after the lesson. Return them to Jasper and he'll open the road beyond Dustwell.",
-			"For now, keep exploring, training and fighting beasts. Your rhythm attacks are yours to keep!"]
-	return ["Jasper's shoes are yours to return. He's waiting by the north road." if not GameState.flag("dance_shoes_returned") else "Keep dancing, wherever the road takes you!"]
+## Dustwell's dance studio (docs/dustwell-water-arc.md): Lucille teaches the can-can, nothing else, to the girls who
+## will dance at the saloon. No lesson for the hero, no level gate.
+const STUDENT_LOOKS := [{"skin": "#f0c8a8", "hair": "#c84a2a", "shirt": "#e86a9a", "pants": "#e86a9a", "outfit": "dress"},
+	{"skin": "#a87050", "hair": "#2a1a14", "shirt": "#f0d040", "pants": "#f0d040", "outfit": "dress"},
+	{"skin": "#e8b890", "hair": "#e8d080", "shirt": "#6ab8e8", "pants": "#6ab8e8", "outfit": "dress"}]
+## Rosa, who owns the Oasis Saloon: red and black, her hair up.
+const ROSA_LOOK := {"skin": "#e8c0a0", "hair": "#2a1a1a", "shirt": "#a82a3a", "pants": "#1a1a22", "outfit": "dress", "hair_style": 2}
 
 
-func _dance_lesson(world, n: Dictionary) -> void:
-	if GameState.flag("dance_lesson_done"):
-		await say(["You've got the rhythm! Pick a weapon in battle, then press A on consecutive beats. Fill every pip for a critical finish."] + _dance_road_lines(), n["name"])
+func _dance_teacher(n: Dictionary) -> void:
+	await say([["Step, hop, KICK! Higher, Clara! The saloon crowd wants to see your boots, not your knees!",
+		"And one, and two, and kick, kick, kick! From the top, girls!"],
+		["Oh, a spectator. Lovely. Sit, don't talk. Watch the can-can and learn something.",
+		"Step, hop, KICK! Daisy, your skirt flip is late again!"],
+		["Can-can, can-can, can-can. There is no other dance. I don't care what they do in the cities."]][randi() % 3], n["name"])
+
+
+func _dance_student(n: Dictionary) -> void:
+	await say([["Kick, kick, kick... sorry, can't stop. Lucille is watching in the mirror.", "We open at the Oasis when Rosa says we're ready. She never says we're ready."],
+		["My legs are going to fall off. Then I'll kick with my arms.", "Lucille says the mirror never lies. The mirror is very rude."],
+		["One day I'll dance on a big stage in a city. For now, the Oasis.", "Have you heard the Oasis band? Same song every night. We can-can to it. Every. Night."]][int(n["student"])], n["name"])
+
+
+## Rosa, the saloon's owner: she bought up Dustwell's water barrels during the drought and keeps the Rubywave Five
+## on a one-song contract. Once the well flows and Dale is back, her hold breaks and the band goes free.
+func _rosa(world, n: Dictionary) -> void:
+	GameState.set_flag("met_rosa")
+	if GameState.flag("band_freed"):
+		await say(["Barrels of water, gathering dust. Do you know what I paid for those?",
+			"Enjoy your little gift while you can. People like you never keep it quiet for long, and then the wrong people come asking."], n["name"])
 		return
-	if GameState.trainer_level < 4:
-		await say(["You're too weak to dance! Come back at trainer level 4.", "Win trainer battles or clear arena ranks to raise your trainer level. Then I'll teach you rhythm attacks."], n["name"])
+	if not GameState.flag("well_restored"):
+		await say(["Welcome to the Oasis, sugar. Water's two gold a cup, and the band plays my favourite song. All night.",
+			"My partner Dale? Ran off years ago. Didn't even say goodbye.",
+			"And don't go poking around that dry old well. Nothing down there but dust."], n["name"])
 		return
-	await say(["Now you're strong enough to dance!", "Step, clap, step, clap... feel that? That's the beat. Dancing and weapon attacks share it!",
-		"Your Codex will walk you through a practice beat in your next battle."], n["name"])
-	GameState.set_flag("dance_lesson_done")
-	if not BuildEdition.is_demo() and not GameState.flag("dance_shoes_returned"):
-		GameState.receive_item("dance_shoes")
-		UI.pickup("dance_shoes")
-	GameState.heal_party()
-	var ending := _dance_road_lines() if BuildEdition.is_demo() else ["Keep that beat with you on the road!" if GameState.flag("dance_shoes_returned") else "Here are Jasper's dance shoes. Give them back to him by the north road, and he'll let you through."]
-	await say(["From now on, your weapons can chain hits to the battle music."] + ending, n["name"])
-	world.refresh_npc_marks()
+	await say(["Water in the well. Dale in the street, telling the whole town I lied. And here you are, looking pleased with yourself.",
+		"...Fine. The town won't buy a cup of my water now, and nobody's paying to hear that song.",
+		"Tell the band the contract's off. Go on. Tell them before I change my mind."], n["name"])
+	GameState.set_flag("band_freed")
+	await say(["Free? We're FREE? We're going to Cogsworth! We'll play every song we know, and never that one again!"], "Riff")
+	for m in world.npcs.values().duplicate():
+		if m.get("id", "") == "rubywave_member":
+			world.remove_npc(m)
+	Sfx.music("saloon_free")
 
 
 func _relic_count() -> int:
@@ -545,14 +608,6 @@ func can_use_exit(world, ex: Dictionary) -> bool:
 	if not BuildEdition.allows_map(ex["to"]):
 		await say(["The demo's journey ends at Dustwell. You can keep exploring and battling in the places you've reached."])
 		return false
-	if world.map_id == "dustwell" and ex["to"] == "route4" and not GameState.flag("dance_shoes_returned"):
-		var blocker := {}
-		for n in world.npcs.values():
-			if n.get("id", "") == "dance_blocker":
-				blocker = n
-		if not blocker.is_empty():
-			await talk(world, blocker)
-		return GameState.flag("dance_shoes_returned")
 	if not world.interior:
 		return true
 	# the first time you go to leave home, the phone rings: Dad, calling from work (answer it, and the game's saved)
@@ -592,8 +647,13 @@ func can_enter(world, b: Dictionary) -> bool:
 					"No flute, no entry. Come back when you've got one."], "Arena Doorman")
 				return false
 		"hideout":
-			if b.get("rooms", []).has("mole_cave"):
-				return true
+			if b.get("sealed_tunnel", false):
+				await say(["The old tunnel has caved in."])
+				return false
+			if b.get("well", false):
+				if GameState.flag("well_restored"):
+					return await ask("The well is full. The ladder still leads to a ledge above the water. Climb down?")
+				return await ask("The well is bone dry. A rope ladder hangs down into the dark. Climb down?")
 			if not GameState.flag("met_sheriff"):
 				await say(["A crude wooden door in the rock. Rough voices and laughter echo from inside...",
 					"Maybe you should talk to someone in Sunwall before barging in."])
@@ -891,6 +951,10 @@ func talk(world, n: Dictionary) -> void:
 
 
 func _talk_villager(world, n: Dictionary) -> void:
+	if world.map.get("room_key", "") == "saloon":
+		await say(["A whole afternoon and I've heard three different tunes. I might start coming here for the music."]
+			if GameState.flag("band_freed") else ["You hear that? Same tune since breakfast. I shouldn't know the fiddle part, but I do."], n.get("name", "Guest"))
+		return
 	if n.has("lines"):
 		await say(n["lines"], n.get("name", "Guest"))
 		return
@@ -937,7 +1001,7 @@ func _talk_villager(world, n: Dictionary) -> void:
 
 ## What the player should do next, for the townsfolk's hints (ChatterDB.HINTS).
 func next_goal() -> String:
-	if BuildEdition.is_demo() and GameState.flag("dance_lesson_done"):
+	if BuildEdition.is_demo() and GameState.flag("river_restored"):
 		return "demo_freeplay"
 	for step in [["got_egg", "egg"], ["has_starter", "hatch"]]:
 		if not GameState.flag(step[0]):
@@ -965,10 +1029,22 @@ func next_goal() -> String:
 	# Kelpwick's side of the story, then Reef Warden Nerissa, whose win gets the villagers off the reef path
 	if not GameState.flag("kelp_heard") and not GameState.flag("island_peace"):
 		return "chiefs"
-	if GameState.flag("guardian_water") and not GameState.flag("dance_shoes_returned") and not GameState.flag("met_sheriff"):
-		if BuildEdition.is_demo():
-			return "demo_freeplay" if GameState.flag("dance_lesson_done") else "demo_dance"
-		return "dance_shoes" if GameState.flag("dance_lesson_done") else "dance"
+	if GameState.flag("guardian_water") and not GameState.flag("well_restored") and not GameState.flag("met_sheriff"):
+		if not GameState.flag("missing_trainers"):
+			return "dustwell_arrival"
+		if GameState.flag("dale_freed"):
+			return "source_dam"
+		if GameState.flag("dale_heard"):
+			return "free_dale"
+		if range(5).all(func(i): return GameState.flag("beaver_defeated_%d" % i)):
+			return "find_dale"
+		return "well" if GameState.flag("met_rosa") else "visit_rosa"
+	if GameState.flag("well_restored") and not GameState.flag("river_restored"):
+		if GameState.learned_spell("torrent"):
+			return "river"
+		return "sanctuary" if GameState.flag("water_mages_found") else "torrent"
+	if GameState.flag("river_restored") and not GameState.flag("met_sheriff"):
+		return "meet_dalton" if GameState.visited.has("sundown") else "board_riverboat"
 	for step in [["island_peace", "warden"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
 			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
 			["trainers_freed", "rescue"],
@@ -1089,14 +1165,39 @@ func _mascot(world, n: Dictionary) -> void:
 
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
-		"mole":
-			await _mole(world, n)
+		"beaver":
+			await _beaver(world, n)
+		"dam":
+			await _dam(world, n)
+		"water_target":
+			await _water_target(world, n)
+		"dale":
+			await _dale(world, n)
+		"water_teacher":
+			await _water_teacher(n["name"])
+		"water_acolyte":
+			await say(["I heard our door move. I came running with a bucket. I thought the pool had sprung a leak!", "You opened it yourself? At your age I could barely make a ripple."], n["name"])
+		"riverboat_captain":
+			await _riverboat(n["name"])
+		"sunwall_searcher":
+			await say(["Word from Cogsworth. The missing trainers are on their way home. I can finally put my boots up."]
+				if GameState.flag("trainers_freed") else ["I followed the missing trainers' trail from Dustwell. Their tracks end beside a set of freight wagon ruts.",
+					"The wagons were headed east. See if anyone in Cogsworth remembers them."], n["name"])
 		"reactor":
 			await _shutdown(world, int(n["reactor"]))
 		"rubywave_member":
 			GameState.set_flag("met_rubywave")
-			await say(["I'm the %s member of the Rubywave Five!" % ["first", "second", "fourth", "fifth"][int(n["member"])],
-				"We're practising here between shows. Four musicians, five-star ambition."], n["name"])
+			if not GameState.flag("band_freed"):
+				await say([["Same song again. Same song forever. Rosa's contract says so, in very small print.",
+					"Please request something else. Anything else. She won't let us, but please.",
+					"We sleep backstage on blanket piles. Rosa says rent comes out of our pay. There is no pay.",
+					"I used to love this song. Now I hum it in my sleep. My bandmates have complained.",
+					"I joined to play the fiddle. Rosa made me learn six notes. I'm still waiting to use the seventh."][int(n["member"])]], n["name"])
+			else:
+				await say(["I'm the %s member of the Rubywave Five!" % ["first", "second", "fourth", "fifth", "third"][int(n["member"])],
+					"No more Rosa, no more one-song contract. We play whatever we like now!"], n["name"])
+		"cancan_dancer":
+			await _cancan_dancer(n)
 		"marlyse":
 			await say(["Your mother is such good company. She brings soup; I bring scandalously good card tricks.",
 				"Jared worries about me so much. I wish he'd spend a little less time trying to save my life, and a little more time sharing it." if not GameState.flag("game_cleared") else "My boys are finally talking again. Whatever time I have, I want to spend it with them."], "Marlyse")
@@ -1105,23 +1206,11 @@ func _talk_story(world, n: Dictionary) -> void:
 			world.remove_npc(n)
 			await Menus.pause_menu(world, "trainer", true)
 		"dance_instructor":
-			await _dance_lesson(world, n)
-		"dance_blocker":
-			if BuildEdition.is_demo():
-				GameState.set_flag("dance_shoes_asked")
-				await say(["I'm staying right here until I get my dance slippers! Lucille can't give them back in the demo.",
-					"In the full game, finish her rhythm lesson and bring me my slippers to open the road beyond Dustwell.",
-					"You can still learn rhythm attacks at her DANCE studio and keep exploring and battling here."], n["name"])
-			elif GameState.flag("dance_lesson_done"):
-				await say(["My dance shoes! Lucille finally let them go? You must have some rhythm!", "Thank you. I'll get out of your way. Sunwall is north, along the Mesa Trail."], n["name"])
-				GameState.set_flag("dance_shoes_returned")
-				GameState.remove_item("dance_shoes")
-				world.remove_npc(n)
-			else:
-				GameState.set_flag("dance_shoes_asked")
-				await say(["I'm not moving without my dance shoes. Instructor Lucille borrowed them, and now she won't give them back!",
-					"Her dance studio is at the west end of Main Street, under the DANCE sign. Show her you can keep a beat and ask for my shoes.",
-					"She only teaches trainers of level 4 or higher. Win trainer battles or clear arena ranks if you need practice."], n["name"])
+			await _dance_teacher(n)
+		"dance_student":
+			await _dance_student(n)
+		"rosa":
+			await _rosa(world, n)
 		"weapon_guide":
 			await weapon_guide(n)
 		"freight_control":
@@ -1343,6 +1432,39 @@ func _ferry(world) -> void:
 	if not await ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
 		return
 	GameState.main.goto_map(dest, "dock")
+
+
+func _riverboat(captain: String) -> void:
+	if not GameState.flag("river_restored"):
+		var hint := "Try Torrent at the river lip." if GameState.learned_spell("torrent") \
+			else "The river's been gone since the well went dry. Same water, I'd bet."
+		await say(["She's sitting in mud. I couldn't take you across if I wanted to.", hint], captain)
+		return
+	if BuildEdition.is_demo():
+		if await ask("Boarding rolls the demo credits. You can stay here and keep exploring instead. Ready to board?", captain, "Board", "Stay"):
+			Sfx.music("ending")
+			await Menus.credits()
+			Sfx.music(GameState.main.music_for("dustwell_channel"))
+		return
+	if await ask("She's afloat and the channel's clear. Ready to sail to Sunwall?", captain, "Board", "Stay"):
+		GameState.main.goto_map("sundown", "south")
+
+
+func _water_teacher(teacher: String) -> void:
+	if GameState.learned_spell("torrent"):
+		await say(["Try Torrent at the old river lip north of Dustwell."], teacher)
+		return
+	await say(["Dale sent you? We thought we'd lost him.", "You moved the stone yourself? Come closer. Let me hear how the water answers you.",
+		"Torrent is for when a trickle won't do. Listen for the low notes, then give the water room to rise."], teacher)
+	await UI.flute_ex("song_tides", "Torrent", {"mode": "demo", "performer": teacher})
+	await _teach_field_spell("torrent")
+
+
+## Learning it for the field is permanent. The battle loadout keeps its usual replacement choice.
+func _teach_field_spell(spell: String) -> void:
+	if not GameState.learned_spell(spell) and not await Menus.learn_spell(spell):
+		GameState.set_flag("learned_" + spell)
+		await say(["You can still play the song with this spell outside battle."])
 
 
 ## Your first step into the Dune Road's sandstorm: the Dune Ranger spots you and jogs over (straight down the road, as
@@ -2073,31 +2195,248 @@ func _tide_solved(world, id: String) -> void:
 
 
 ## Opens a treasure chest (each once).
-func _mole(world, n: Dictionary) -> void:
-	var i := int(n["mole"])
-	var key := "mole_defeated_%d" % i
+## The saloon hotel's can-can dancers flirt shamelessly. Play along and they're delighted; don't, and they're very
+## cross about the wasted time.
+func _cancan_dancer(n: Dictionary) -> void:
+	var d := int(n["dancer"])
+	var key := "cancan_snubbed_%d" % d
 	if GameState.flag(key):
-		await say(["Perhaps I'm not the third strongest mole... but I'm the third something. Never mind. That was a different life." if int(GameState.flags.get("mole_last", -1)) == i else "Third strongest. A very respectable rank. Please don't recount."], n["name"])
+		await say([["Oh, it's you. Unless you've come to apologise, the door's behind you.",
+			"Back again? My time costs more than your sarsaparilla, sugar. Shoo."][d]], n["name"])
 		return
-	await say(["I'm the THIRD strongest mole in this cave! The others will tell you the same. They're mistaken, obviously."], n["name"])
+	await say([["Well, hello there. Nobody told me Dustwell grew them this cute.",
+		"Mm, a new face in the doorway. Come to watch me practise my kicks, darling?"][d]], n["name"])
+	if await ask(["So... are you going to buy a girl a sarsaparilla?", "Don't you think I'm the best dancer in Dustwell?"][d],
+			n["name"], ["Wink back", "Best by a mile"][d], "Er, no thanks"):
+		await say([["Ha! I knew you had charm. Catch our show downstairs some night. I'll kick highest just for you.",
+			"Smart answer. Josie will say otherwise. Josie is wrong."][d]], n["name"])
+	else:
+		GameState.set_flag(key)
+		await say([["...Excuse me? I bat my lashes and you say 'no thanks'? Don't waste my time.",
+			"Then why are you in my room? I have a show to rehearse. Don't waste my time!"][d]], n["name"])
+
+
+# ================================================================ the Dustwell Well cave (docs/dustwell-water-arc.md)
+const BEAVER_NAMES := ["Pebble", "Nub", "Dibble", "Crumb", "Velvet"]
+## Dale, the water mage the beavers walled in: a long blue robe (his order's colour), faded from years in the dark.
+const DALE_LOOK := {"robe": "hooded", "shirt": "#3a6a9a", "pants": "#2a4a6a", "hair": "#8a7a6a", "skin": "#d8a882"}
+
+
+## Each beaver swears it is the third strongest. Beat one and it agrees to leave the cave (for town, grumbling).
+func _beaver(world, n: Dictionary) -> void:
+	var i := int(n["beaver"])
+	var key := "beaver_defeated_%d" % i
+	if GameState.flag(key):
+		await say([["Up here it's quiet. No dripping. No sloshing. Just the third strongest beaver, resting.",
+			"I've been thinking. Maybe there are lots of third strongest beavers. That's fine. That's FINE.",
+			"Don't say 'river' near me. Don't say 'puddle' either.",
+			"Third strongest in the cave, third strongest in town. Consistency.",
+			"Fine, I'll admit it. The little one, Velvet... no. Never mind. Third strongest. Me."][i]], n["name"])
+		return
+	await say([["Hear that? No? Good! No dripping, no trickling. That's our work. I'm the third strongest beaver, by the way.",
+		"I am the THIRD strongest beaver. You met another one who said that? A fake. A fraud. Go away.",
+		"Those other two lied to you. I'm the third strongest. It says so on my tail. Don't check.",
+		"There might be a few thirds... but I'm the most third. The thirdest. Stand aside.",
+		"I'm... the third strongest beaver. (A much smaller beaver peeks out from behind it, then hides again.)"][i]], n["name"])
 	if GameState.alive_party().is_empty():
-		await say(["Heal your beasts first. Third strongest doesn't mean third kindest. Well. Maybe it does."], n["name"])
+		await say(["Heal your beasts first. Third strongest doesn't mean third meanest."], n["name"])
 		return
-	var outcome := await trainer_battle({"name": n["name"], "cls": "Third Strongest", "look": {"critter": "mole"},
-		"team": [[12, 22 + i], [15, 23 + i]], "reward": 300, "defeat": "Third place is harder to defend than I thought."})
+	var outcome := await trainer_battle({"name": n["name"], "cls": "Third Strongest", "look": {"critter": "beaver"},
+		"team": [[12, 15 + i], [15, 16 + i]], "reward": 300, "defeat": "Third place is harder to hold than I thought."})
 	if outcome != "win":
 		return
 	GameState.set_flag(key)
-	var last := range(5).all(func(k): return GameState.flag("mole_defeated_%d" % k))
-	if last:
-		GameState.flags["mole_last"] = i
-		await say(["Perhaps I'm not the third strongest mole...", "But I'm still the third... Never mind. That was a different life."], n["name"])
-	else:
-		await say(["Fine! There's treasure behind me. Third strongest gets third-best hiding places."], n["name"])
+	var all_gone: bool = range(5).all(func(k): return GameState.flag("beaver_defeated_%d" % k))
+	await say(["That's all of us, then. The dams are yours. Don't come crying when it all gets WET."] if all_gone
+		else ["Fine! I'm leaving. It's too splashy down here anyway... or it will be, if you get your way.", "I'll be in town. Somewhere dry."], n["name"])
+	world.remove_npc(n)
+	_reveal_dustwell_chests(world, key)
+
+
+## A dam of sticks and mud. The beavers' dams only give way to water magic (Water: field_cast).
+func _dam(world, n: Dictionary) -> void:
+	var which := String(n["dam"])
+	if not GameState.flag("dale_heard") or not GameState.learned_spell("water"):
+		if which == "dale":
+			await _dale(world, n)
+		else:
+			await say(["A dam of sticks and packed mud, chewed smooth. Somewhere behind it, very faintly, water is trying to get through."])
+		return
+	if which == "source" and not GameState.flag("well_dam_dale"):
+		await say(["The source dam is enormous. You'd never move this much water alone.", "Dale's still walled in his cell. Free him first."])
+		return
+	if not await field_cast(world, "water", "Play the song to move the water against the dam?"):
+		return
+	GameState.set_flag("well_dam_" + which)
+	world.remove_npc(n)
+	match which:
+		"dale":
+			GameState.set_flag("dale_freed")
+			await say(["The water swells through the dam, softens the mud, and the whole thing slumps apart."])
+			await say(["Ha! Free! Years in that hole, and it's a youngster who gets me out.",
+				"The source dam's at the top of the cave. That much water needs two flutes. Let's break it together."], "Dale")
+			GameState.main.reload_map()
+		"source":
+			await UI.flute_ex("song_tides", "At the source dam", {"mode": "demo", "performer": "Dale"})
+			GameState.set_flag("well_restored")
+			UI.toast("Dustwell's well is flowing again!")
+			await say(["You and Dale play the song together. Two flutes, one tune.",
+				"The great dam groans... then bursts. Water roars down the cave and up into the old well shaft!"])
+			await say(["Listen to that. Dustwell will be hauling up buckets by sundown.",
+				"The river north is a different matter. Lifting a whole river over that rock takes more than Water.",
+				"My teachers hid in the Temple of Tides. There's a panel in the drained chamber. You've walked right past it.",
+				"Only water opens it. Go back past Kelpwick, show them what you can do, and ask them for Torrent."], "Dale")
+			GameState.main.reload_map()
+		"pocket":
+			await say(["The little dam washes away. Something is tucked in the hollow behind it."])
+			_reveal_dustwell_chests(world, "well_dam_pocket")
+			Sfx.secret_chime()
+
+
+func _reveal_dustwell_chests(world, flag: String) -> void:
 	for npc in world.npcs.values():
-		if npc.get("hidden_until", "") == key and npc.has("node"):
-			npc["node"].visible = true
+		if npc.get("hidden_until", "") == flag and is_instance_valid(npc.get("node")):
+			npc["node"].show()
+
+
+## Dale: through his cell's dam he hears your flute, knows the song, and senses the water in you. He takes it that
+## water is all you have.
+func _dale(world, n: Dictionary) -> void:
+	if GameState.flag("well_restored"):
+		await say(["The well's full, Rosa's water barrels are worthless, and I've a story to tell this town.",
+			"Torrent is waiting in the Temple of Tides, behind the panel in the drained chamber. Use Water on it."], "Dale")
+		return
+	if GameState.flag("well_dam_dale"):
+		await say(["The source dam, at the top of the cave. Play with me and we'll break it together."], "Dale")
+		return
+	if GameState.flag("dale_heard"):
+		await say(["Go on, then. Play it at the dam. Ask the water. Don't order it."], "Dale")
+		return
+	if not range(5).all(func(k): return GameState.flag("beaver_defeated_%d" % k)):
+		await say(["(A voice through the dam.) Who's there? Keep it down. The beavers hate any sound like water, and that includes me.",
+			"Get them out of the cave, all five, and come back. Then we can talk properly."], "Dale")
+		return
+	await say(["(A voice through the dam.) The beavers are gone? Then you're no ordinary trainer.",
+		"Do you carry a flute? Play me something. Anything."], "Dale")
+	if not GameState.has_flute() or not GameState.knows_song("song_tides"):
+		await say(["The stones at the Temple of Tides know the tune. Come back with your flute once you've heard it."], "Dale")
+		return
+	var played := await UI.flute_ex("song_tides", "Play for Dale")
+	if played.get("cancelled", false):
+		return
+	await UI.flute_ex("song_tides", "From behind the dam", {"mode": "demo", "performer": "Dale"})
+	await say(["You know it. And when you play it... I can taste it. The water in this rock leans towards you.",
+		"You have the gift. Water magic. Rare as rain out here.",
+		"That song isn't for taming dragons. It's how you speak to water. Play it near water and mean it, and the water moves.",
+		"Try it on this dam. Gently. Ask the water. Don't order it."], "Dale")
+	await _teach_field_spell("water")
+	GameState.set_flag("dale_heard")
+
+
+## Field water magic (docs/dustwell-implementation-plan.md step 4): the hero plays the water song at a target (a dam,
+## a panel, the river's lip). It works if they've learned `spell` ("water" or "torrent") and play well enough.
+func field_cast(world, spell: String, question: String) -> bool:
+	# (learned once is enough: a spell forgotten for battle still answers the song here)
+	if not SpellDB.has_field_use(spell) or not GameState.learned_spell(spell):
+		return false
+	if not GameState.has_flute():
+		await say(["You'll need your flute to play the song."])
+		return false
+	if not await ask(question):
+		return false
+	var song: String = WorldDB.TEMPLES["water"]["song"]
+	var r: Dictionary = await UI.flute_ex(song, SpellDB.spell_name(spell))
+	if bool(r.get("cancelled", false)) or float(r.get("acc", 0.0)) < 0.5:
+		await say(["The water stirs... then settles. Try the song again, more surely."])
+		return false
 	Sfx.secret_chime()
+	return true
+
+
+## Field water magic targets (docs/dustwell-implementation-plan.md step 4): a map tags the tile with an anchor of
+## this name, and the target stands there until its flag is set. spell: what moves the water there (a stronger
+## spell of the list works too); weaker: what a hero who knows only a lesser water spell is told; reload: the map
+## changes state once it's done (the river channel fills), so it's loaded again. The beavers' dams are their own
+## (_dam), since Dale and the source dam share the cave's story.
+const WATER_TARGETS := {
+	"water_panel": {"spell": ["water", "torrent"], "flag": "water_mages_found", "kind": "panel", "reload": true,
+		"look": ["A smooth stone panel set into the wall, carved with waves. There's no handle, no keyhole. It's dry to the touch."],
+		"ask": "Play the song and ask the water to press on the panel?",
+		"done": ["Water beads on the carved waves, runs into the grooves... and the panel sinks into the wall with a long sigh."]},
+	"river_lip": {"spell": ["torrent"], "weaker": ["water"], "flag": "river_restored", "kind": "lip", "reload": true,
+		"look": ["The old waterfall's lip, bone dry. Far below, the riverbed cracks in the sun."],
+		"weak": ["You could coax a trickle over the lip with Water, but never a whole river.", "This needs something far stronger."],
+		"ask": "Play the song with everything you have and call the river back?",
+		"done": ["Deep in the rock, something answers. Water wells up behind the lip, spills over, and keeps coming.",
+			"The river roars back into its channel!"]},
+}
+
+
+## The water targets a map tags (WATER_TARGETS), until each is done.
+func _water_targets(map: Dictionary) -> Array:
+	var out := []
+	var anchors: Dictionary = map.get("anchors", {})
+	for key in WATER_TARGETS:
+		var t: Dictionary = WATER_TARGETS[key]
+		if anchors.has(key) and not GameState.flag(String(t["flag"])):
+			out.append({"kind": "story", "id": "water_target", "target": key, "name": "", "pos": anchors[key],
+				"scene": _water_target_scene(String(t["kind"])), "still": true, "facing": Vector2i.DOWN,
+				"blocking": key == "water_panel"})
+	return out
+
+
+## Facing a water target: a look at it, or the song played to move the water there.
+func _water_target(world, n: Dictionary) -> void:
+	var key := String(n.get("target", ""))
+	if not WATER_TARGETS.has(key):
+		return
+	var t: Dictionary = WATER_TARGETS[key]
+	if GameState.flag(String(t["flag"])):
+		return
+	if key == "river_lip" and not GameState.flag("well_restored"):
+		await say(["The channel's dry all the way down. There has to be water at the source first."])
+		return
+	var spells: Array = (t["spell"] as Array).filter(func(sp): return GameState.learned_spell(String(sp)))
+	if spells.is_empty():
+		var lesser: Array = (t.get("weaker", []) as Array).filter(func(sp): return GameState.learned_spell(String(sp)))
+		await say(t["weak"] if not lesser.is_empty() else t["look"])
+		return
+	await say(t["look"])
+	if not await field_cast(world, String(spells.back()), String(t["ask"])):
+		return
+	GameState.set_flag(String(t["flag"]))
+	world.remove_npc(n)
+	await say(t["done"])
+	if t.get("reload", false):
+		await GameState.main.reload_map()
+
+
+## A water target's look: a carved wall panel, or a low rock lip.
+func _water_target_scene(kind: String) -> Node3D:
+	var root := Node3D.new()
+	var painter = load("res://scripts/story/prison_stage.gd").new()
+	match kind:
+		"panel":
+			painter.box(root, Vector3(-0.44, 0.70, 0), Vector3(0.14, 1.3, 0.90), "6a8a96")
+			for k in 3:
+				painter.box(root, Vector3(-0.36, 0.35 + k * 0.38, 0), Vector3(0.04, 0.06, 0.7), "3f7fa8")
+		_:
+			painter.box(root, Vector3(0, 0.12, 0), Vector3(1.0, 0.24, 0.5), "a08060")
+			painter.box(root, Vector3(0, 0.3, -0.1), Vector3(0.8, 0.14, 0.3), "8a6a4a")
+	painter.free()
+	return root
+
+
+## A beaver dam across a gap: a heap of chewed logs and mud.
+func _dam_scene() -> Node3D:
+	var root := Node3D.new()
+	var painter = load("res://scripts/story/prison_stage.gd").new()
+	for k in 6:
+		var row := k / 2
+		painter.box(root, Vector3((k % 2) * 0.3 - 0.15, 0.18 + row * 0.3, 0.0), Vector3(1.0 - row * 0.18, 0.22, 0.32), ["7a5232", "6a4428", "8a6040"][k % 3])
+	painter.sphere(root, Vector3(0, 0.25, 0.2), Vector3(0.5, 0.2, 0.18), "5a4a3a")
+	painter.free()
+	return root
 
 
 func _chest(n: Dictionary) -> void:

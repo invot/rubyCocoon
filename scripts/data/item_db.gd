@@ -5,6 +5,7 @@ extends RefCounted
 
 const MoveDB = preload("res://scripts/data/move_db.gd")
 const SongDB = preload("res://scripts/data/song_db.gd")
+const SpellDB = preload("res://scripts/data/spell_db.gd")
 
 const ITEMS := {
 	# ---------------- consumables ----------------
@@ -96,11 +97,9 @@ const ITEMS := {
 	"bridge_planks": {"name": "Bridge Planks", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of sturdy planks, just right for patching a footbridge."},
 	"card_ledger": {"name": "Card Ledger", "kind": "key", "price": 0, "tier": 99, "desc": "Barkeep Dusty's record of the Oasis Saloon's card games. Slim's name is on every hand, all night long, the night the trainers vanished: he couldn't have taken them."},
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
-	"dance_shoes": {"name": "Jasper's Dance Shoes", "kind": "key", "price": 0, "tier": 99, "desc": "Earned from Instructor Lucille. Return them to Jasper by Dustwell's north road."},
-	## trainer weapons: key items your own battle action lists (battle.gd _weapon_options), never sold or used up.
+	## Trainer weapons appear on the trainer's battle bar and are never sold or used up.
 	## weapon: target ("enemy": one foe, or an open trainer; "enemies": every foe on the side facing you), power (each
 	## hit's damage against the slingshot's), anim (the trainer's pose: voxel_person.gd set_action), order (in the bar).
-	## How many hits a turn lands goes by trainer level and the beat (scripts/core/beat_chain.gd).
 	"slingshot": {"name": "Slingshot", "kind": "key", "price": 0, "tier": 99,
 		"weapon": {"target": "enemy", "power": 1.0, "anim": "throw", "order": 0},
 		"desc": "Every trainer has one. Fires a stone at one foe, or at a trainer left open."},
@@ -109,7 +108,7 @@ const ITEMS := {
 		"desc": "Carved from Kelpwick driftwood. Sweeps every foe on the side facing you and comes back to your hand, hitting each a little softer."},
 	"bat": {"name": "Bat", "kind": "key", "price": 0, "tier": 99,
 		"weapon": {"target": "enemy", "power": 1.6, "accuracy": 0.75, "anim": "swing", "order": 2},
-		"desc": "Bart the Jackal's hickory bat. The hardest hit of the three, but a plain swing is less accurate than the slingshot."},
+		"desc": "Bart the Jackal's hickory bat. The hardest hit of the three, but a swing is less accurate than the slingshot."},
 	"reed_flute": {"name": "Reed Flute", "kind": "tgear", "slot": "flute", "price": 0, "tier": 99, "fx": {}, "desc": "A simple flute. Plays the songs you know."},
 	"silver_flute": {"name": "Silver Flute", "kind": "tgear", "slot": "flute", "price": 1500, "tier": 3, "fx": {"time": 0.1, "egg": 0.02}, "desc": "10% more time to play each song, +2% egg chance."},
 	"golden_flute": {"name": "Golden Flute", "kind": "tgear", "slot": "flute", "price": 4000, "tier": 7, "fx": {"time": 0.2, "egg": 0.04}, "desc": "20% more time to play each song, +4% egg chance."},
@@ -141,6 +140,9 @@ static func get_item(id: String) -> Dictionary:
 		return tome(id.substr(5))
 	if id.begins_with("sheet_"):
 		return sheet(id.substr(6))
+	if id.begins_with("scroll_") and SpellDB.exists(id.substr(7)):
+		# a spell scroll (spell_db.gd): found in chests and puzzles, read from the bag to learn the spell
+		return SpellDB.scroll_item(id.substr(7))
 	return ITEMS.get(id, {"name": id, "kind": "none", "price": 0, "desc": ""})
 
 
