@@ -1056,7 +1056,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			else:
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
 			if ch == "e":
-				m["exhibits"][p] = (int(b["seed"]) + exhibit_k * 11 + WorldDB.town_tier(parent) * 3) % RaceDB.count()
+				m["exhibits"][p] = (int(b["seed"]) + exhibit_k * 11 + WorldDB.town_tier(parent) * 3) % RaceDB.NORMAL_COUNT
 				exhibit_k += 1
 			elif ch == "D":
 				mats.append(p)

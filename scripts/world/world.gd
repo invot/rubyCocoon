@@ -1121,7 +1121,7 @@ func _build_backdrop() -> void:
 					break
 			if not overlaps:
 				clear.append(xf)
-		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), clear, null, not String(name).ends_with(SHADOWLESS))
+		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), clear, null, not String(name).ends_with(SHADOWLESS), VA.WIND_CULL_MARGIN)
 	# hills on the horizon
 	var hills := ["mountain_0", "mountain_2", "mountain_4", "mountain_6", "mountain_8"]
 	var hx := -20.0
@@ -1794,7 +1794,7 @@ func _build_scatter() -> void:
 					signs.append(center)
 	for i in 3:
 		# grass tufts are too small to need shadows
-		_multimesh(VA.mesh("grass_leaf_%d" % i), _plants_off_paving(VA.mesh("grass_leaf_%d" % i), tufts[i]), null, false)
+		_multimesh(VA.mesh("grass_leaf_%d" % i), _plants_off_paving(VA.mesh("grass_leaf_%d" % i), tufts[i]), null, false, VA.WIND_CULL_MARGIN)
 	for i in 2:
 		_multimesh(VP.flowers(i), _plants_off_paving(VP.flowers(i), flowers[i]), null, false)
 	_shore_rocks(by_asset)
@@ -1805,7 +1805,7 @@ func _build_scatter() -> void:
 		_multimesh(VP.lily_pad(), pads, null, false, VP.LILY_SWELL_BOUND)
 	_place_ducks(pads)
 	for name in by_asset:
-		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS))
+		_multimesh(VA.mesh(String(name).trim_suffix(SHADOWLESS)), by_asset[name], null, not String(name).ends_with(SHADOWLESS), VA.WIND_CULL_MARGIN)
 	var FenceModels = load("res://scripts/gfx/fence_models.gd")
 	var fence_name := "iron_fence" if biome["id"] in ["moor", "quarter"] else "fence"
 	var quay: bool = biome["id"] == "quarter"

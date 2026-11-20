@@ -11,7 +11,24 @@ extends RefCounted
 ##         in units of the vertical radius. The last six values describe surface depth as a quadratic in normalized
 ##         socket coordinates: constant, u, y, u², uy, y². beast_eye_mesh.gd builds the smooth visible opening.
 ##   lid: the colour of an eyelid (default: the head's, darker)
+##   button_eyes: solid black eyes with a glint instead of white ones with a pupil (the Draco lines)
 ## Per line, "base" is every stage's look and "1", "2", "3" what each stage changes.
+
+## The frilled lizard lines (Draco, Dropo, Rocco, Floppo: the user's own design, tools/new_beasts/draco_model.py),
+## one model in four elements, told apart only by the skin each element paints (skin_look): orange frills edged in
+## red, a gold throat flap and brow gems, bone horns and claws, black button eyes; grown, a heavier brow.
+const DRACO_LOOK := {"base": {"col": {"body": "#72c6b2", "head": "#72c6b2", "legs": "#6cbfab", "tail": "#72c6b2", "wings": "#f6aa5c", "horn": "#eda543"},
+		"tip": {"wings": ["#d4563c", 0.8, 0.06], "legs": ["#f2e5c8", 0.93, 0.01], "horn": ["#f2e5c8", 0.32, 0.3]},
+		"belly": ["#f2e4c4", 0.66, ["body", "tail"]], "lid": "#4e9988", "button_eyes": true},
+	"1": {"eyes": [
+		[-0.31697, 0.40011, 0.08047, 0.08047, 0.62, 0.62761, 0.7805, 0.0, 1.08, 0.0, 0.70808, -0.00347, -0.01838, -0.03264, 0.00553, -0.02922],
+		[-0.31697, 0.40011, 0.08047, 0.08047, 0.62, 0.62765, 0.78053, 0.0, 1.08, 0.0, 0.70811, -0.00341, -0.01833, -0.03261, 0.0054, -0.02928]]},
+	"2": {"eyes": [
+		[-0.34443, 0.40614, 0.0684, 0.0684, 0.62, 0.62895, 0.7589, 0.0, 0.82, 0.18, 0.69735, -0.00291, -0.01564, -0.02773, 0.00454, -0.02464],
+		[-0.34443, 0.40614, 0.0684, 0.0684, 0.62, 0.62897, 0.75892, 0.0, 0.82, 0.18, 0.69736, -0.00284, -0.01555, -0.0278, 0.00453, -0.02462]]},
+	"3": {"eyes": [
+		[-0.35889, 0.43154, 0.05438, 0.05438, 0.62, 0.63009, 0.73341, 0.0, 0.5, 0.32, 0.68447, -0.00276, -0.0139, -0.02043, 0.00442, -0.01729],
+		[-0.35889, 0.43154, 0.05438, 0.05438, 0.62, 0.63007, 0.73339, 0.0, 0.5, 0.32, 0.68445, -0.00277, -0.01387, -0.02033, 0.00437, -0.01727]]}}
 
 const LINES := {
 	"dino": {"base": {"col": {"body": "#f4a27c", "head": "#f4a27c", "arms": "#d83a48", "legs": "#d83a48", "tail": "#f4a27c", "horn": "#ffe0b0"},
@@ -155,6 +172,7 @@ const LINES := {
 		"3": {"eyes": [
 			[0.18014, 0.90416, 0.05233, 0.04855, 0.0, -0.03886, 0.04864, 0.0, 0.61111, 0.38889, 0.00136, -0.02645, 0.00283, 0.02066, -0.01142, 0.01033],
 			[0.17961, 0.90362, 0.05179, 0.04801, 0.0, -0.03887, 0.04779, 0.0, 0.62921, 0.39326, 0.00202, -0.02643, 0.00269, 0.0199, -0.0121, 0.00927]]}},
+	"draco": DRACO_LOOK, "dropo": DRACO_LOOK, "rocco": DRACO_LOOK, "floppo": DRACO_LOOK,
 	"marmot": {"base": {"col": {"body": "#f2709a", "head": "#f2709a", "arms": "#f2709a", "legs": "#f2709a", "horn": "#a33244"},
 			"tip": {"arms": ["#f8e2b4", 0.86, 0.0], "head": ["#a33244", 0.66, 0.04]}, "belly": ["#f7a0bd", 0.64, ["body"]], "lid": "#a33244"},
 		"1": {"eyes": [
@@ -200,6 +218,7 @@ const SKIN_SWATCH := {
 	"dino": 1, "cactus": 0, "marmot": 2, "scorpion": 0,
 	"beetle": 1, "boar": 0, "tree": 2, "worm": 2,
 	"crab": 0, "frog": 2, "owl": 1, "bat": 0, "berry": 2,
+	"draco": 0, "dropo": 1, "rocco": 1, "floppo": 0,
 }
 
 
@@ -221,6 +240,9 @@ static func skin_look(form: String, element: String) -> Dictionary:
 			col[group] = original
 	if line in ["cactus", "beetle", "worm", "tree", "frog", "marmot", "bat", "dino"]:
 		col.arms = skin.lerp(accent, 0.30).to_html(false)
+	if line in ["draco", "dropo", "rocco", "floppo"]:
+		# its legs are the same skin as its body (only its frills, horns and claws are trim)
+		col.legs = skin.lerp(shadow, 0.12).to_html(false)
 	col.body = skin.to_html(false)
 	col.head = (skin if old_head == original else accent).to_html(false)
 	col.eye = col.head

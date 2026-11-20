@@ -2790,7 +2790,7 @@ func wild_encounter(world) -> void:
 		var race: int
 		var w := randf()
 		if races.is_empty() or w < 0.03:
-			race = randi_range(0, RaceDB.count() - 1)
+			race = randi_range(0, RaceDB.NORMAL_COUNT - 1)
 		elif w < 0.36:
 			race = races[0]
 		else:

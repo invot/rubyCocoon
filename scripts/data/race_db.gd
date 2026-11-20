@@ -2,8 +2,9 @@ extends RefCounted
 ## The beast races. Most belong to the 13 lines of three forms: a beast hatches as its line's first form, grows into
 ## the second at Lv 20 and the third at Lv 40 (EVOLVE, beast.gd gain_xp), and only a line's third form can merge
 ## (beasts.gd). A line has one element, or two neighbouring ones on the ring: the scorpion is fire and earth, and the
-## worm, an eel in the sea, earth and water. Race id = line × 3 + stage - 1. Each form is drawn with its own model
-## (assets/beasts/<line>_<stage>.res, beast_rig.gd), the earlier stages smaller.
+## worm, an eel in the sea, earth and water. Race id = line × 3 + stage - 1 for the first 13 lines; lines added later
+## (the Draco line) come after the specials, from LATE_BASE, so saved race ids never move. Each form is drawn with its
+## own model (assets/beasts/<line>_<stage>.res, beast_rig.gd), the earlier stages smaller.
 ## After the lines come the four legendary temple guardians and the Gearheart robots, then the crypt's ghost guardian,
 ## in the old shape (name, element, body, head, ears, tail, back, pattern, c1, c2, c3, size). The guardians are drawn
 ## with the summon models (assets/summons, voxel_beast.gd): captured with their temple's song, they become summons.
@@ -25,7 +26,19 @@ const LINES := [
 	["owl", ["Hootlet", "Gustowl", "Tempestrix"], "air", "", ["flyer", "flyer", "flyer"]],
 	["bat", ["Flittle", "Duskwing", "Nocturna"], "air", "", ["flyer", "flyer", "flyer"]],
 	["berry", ["Berrypuff", "Bramblume", "Galeberry"], "air", "", ["blob", "blob", "blob"]],
+	# added after the specials (race ids from LATE_BASE): the frilled lizard in each element, one model (draco_<stage>)
+	# copied to each line's name, the difference only its colours
+	["draco", ["Draco", "Cindrake", "Blazewyrm"], "fire", "", ["quad", "quad", "quad"]],
+	["dropo", ["Dropo", "Tidrake", "Torrentwyrm"], "water", "", ["quad", "quad", "quad"]],
+	["rocco", ["Rocco", "Bouldrake", "Quakewyrm"], "earth", "", ["quad", "quad", "quad"]],
+	["floppo", ["Floppo", "Glidrake", "Galewyrm"], "air", "", ["quad", "quad", "quad"]],
 ]
+## how many lines have the first race ids (0..38); the rest start at LATE_BASE, after the specials (39..47)
+const EARLY_LINES := 13
+const LATE_BASE := 48
+## lines that exist but aren't out in the world yet (no wild beasts, eggs or kennels have them, and the museum and the
+## journal don't count them): the frilled lizards, until the user places them
+const UNRELEASED := ["draco", "dropo", "rocco", "floppo"]
 ## the levels a beast grows into its line's second and third forms
 const EVOLVE := [20, 40]
 ## each stage's size (the "size" gene), and its share of the line's full stats
@@ -99,8 +112,32 @@ const PASSIVE_DESC := {
 static var _ls_cache := {}
 static var _ghost_ls_cache := {}
 
+## How many line forms there are to find (every released line's three).
 static func count() -> int:
-	return NORMAL_COUNT
+	return (LINES.size() - UNRELEASED.size()) * 3
+
+
+## Every line form's race id, in line order (the early lines' 0..38, then the late lines' from LATE_BASE).
+static func line_races() -> Array:
+	var out := []
+	for i in LINES.size():
+		var b := line_base(i)
+		out += [b, b + 1, b + 2]
+	return out
+
+
+## The race id of line i's first form.
+static func line_base(i: int) -> int:
+	return i * 3 if i < EARLY_LINES else LATE_BASE + (i - EARLY_LINES) * 3
+
+
+## The index in LINES of a line form's race, or -1.
+static func _line_index(id: int) -> int:
+	if id >= 0 and id < NORMAL_COUNT:
+		return id / 3
+	if id >= LATE_BASE and id < LATE_BASE + (LINES.size() - EARLY_LINES) * 3:
+		return EARLY_LINES + (id - LATE_BASE) / 3
+	return -1
 
 
 static func is_legendary(id: int) -> bool:
@@ -113,7 +150,7 @@ static func is_robot(id: int) -> bool:
 
 ## A form of one of the lines (not a legendary or a robot).
 static func in_line(id: int) -> bool:
-	return id >= 0 and id < NORMAL_COUNT
+	return _line_index(id) >= 0
 
 
 static func _special(id: int) -> Array:
@@ -121,7 +158,7 @@ static func _special(id: int) -> Array:
 
 
 static func _line(id: int) -> Array:
-	return LINES[clampi(id, 0, NORMAL_COUNT - 1) / 3]
+	return LINES[maxi(_line_index(id), 0)]
 
 
 ## The line a race belongs to ("dino"), "" for the legendaries and robots.
@@ -155,7 +192,7 @@ static func of_form(f: String) -> int:
 	var st := int(f.get_slice("_", 1)) if f.get_slice_count("_") == 2 else 0
 	for i in LINES.size():
 		if LINES[i][0] == f.get_slice("_", 0) and st >= 1 and st <= 3:
-			return i * 3 + st - 1
+			return line_base(i) + st - 1
 	return -1
 
 

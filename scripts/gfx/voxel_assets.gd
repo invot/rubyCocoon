@@ -40,7 +40,12 @@ static func mesh(name: String) -> Mesh:
 		return bm
 	var m: Mesh = _recentered(load(path))
 	if FOLIAGE.any(func(prefix: String) -> bool: return name.begins_with(prefix)):
-		_leafy(m)
+		var wind_strength := 0.0
+		if name.begins_with("grass_leaf_"):
+			wind_strength = 0.085
+		elif name.begins_with("tree_") or name.begins_with("palm"):
+			wind_strength = WIND_CULL_MARGIN
+		_leafy(m, wind_strength)
 	if name in WOODEN:
 		_wooden(m)
 	_meshes[name] = m
@@ -51,6 +56,7 @@ static func mesh(name: String) -> Mesh:
 const FOLIAGE := ["tree_", "palm", "shrub_", "bush_", "grass_leaf_"]
 const FoliageShader = preload("res://scripts/gfx/foliage.gdshader")
 const LEAVES := "res://assets/textures/surfaces/foliage.png"
+const WIND_CULL_MARGIN := 0.15
 static var _two_sided: Shader = null
 
 
@@ -80,9 +86,10 @@ static func _wooden(m: Mesh) -> void:
 		m.surface_set_material(si, mat)
 
 
-static func _leafy(m: Mesh) -> void:
+static func _leafy(m: Mesh, wind_strength: float) -> void:
 	if not ResourceLoader.exists(LEAVES):
 		return
+	var bounds := m.get_aabb()
 	for si in m.get_surface_count():
 		var src := m.surface_get_material(si) as BaseMaterial3D
 		if src == null or src.albedo_texture == null or src.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
@@ -94,6 +101,9 @@ static func _leafy(m: Mesh) -> void:
 			mat.shader = two_sided_foliage()
 		mat.set_shader_parameter("atlas", src.albedo_texture)
 		mat.set_shader_parameter("leaves", load(LEAVES))
+		mat.set_shader_parameter("wind_strength", wind_strength)
+		mat.set_shader_parameter("wind_base", bounds.position.y)
+		mat.set_shader_parameter("wind_height", maxf(bounds.size.y, 0.001))
 		m.surface_set_material(si, mat)
 
 

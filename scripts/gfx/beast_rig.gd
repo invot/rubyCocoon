@@ -361,6 +361,9 @@ func _build(recipe: Dictionary, as_ghost: bool, skin_element := "") -> void:
 		# painted eyes: from the form whose face this piece carries
 		var eyes: Array = Looks.look(pc["face"]).get("eyes", []) if pc["face"] != "" else []
 		Parts.paint(mat, colours, eyes, int(String(pc["face"]).get_slice("_", 1)))
+		# (button eyes, as the line whose face it is has: solid black with a glint)
+		var button: bool = pc["face"] != "" and bool(Looks.look(pc["face"]).get("button_eyes", false))
+		mat.set_shader_parameter("button_eyes", 1.0 if button else 0.0)
 		mat.set_shader_parameter("ghost", 1.0 if ghost else 0.0)
 		mat.set_shader_parameter("skin_tex", SurfaceFinish.texture("satin"))
 		mat.set_shader_parameter("skin_level", SurfaceFinish.mean("satin"))

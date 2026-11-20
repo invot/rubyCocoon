@@ -14,6 +14,9 @@ uniform sampler2D leaves : hint_default_white, filter_linear_mipmap_anisotropic,
 uniform float leaf_scale = 0.95;
 // how far plants' colours stray from the palette's (0 = all alike)
 uniform float vary = 1.0;
+uniform float wind_strength = 0.0;
+uniform float wind_base = 0.0;
+uniform float wind_height = 1.0;
 
 varying vec3 wpos;
 varying vec3 wnorm;
@@ -24,6 +27,20 @@ void vertex() {
 	wnorm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	// where this plant stands (its own place in a batch of them)
 	plant = MODEL_MATRIX[3].xyz;
+	if (wind_strength > 0.0) {
+		// Gusts travel across plants in world space, regardless of their rotation or scale.
+		vec3 direction = vec3(0.8, 0.0, 0.6);
+		float along = dot(plant, direction);
+		float gust = sin(TIME * 1.35 - along * 0.65) * 0.55
+			+ sin(TIME * 2.6 - along * 1.2) * 0.25 + 0.2;
+		// The painted texture uses the rest pose above so it follows the bend.
+		float height = clamp((VERTEX.y - wind_base) / wind_height, 0.0, 1.0);
+		vec3 axis_x = MODEL_MATRIX[0].xyz;
+		vec3 axis_z = MODEL_MATRIX[2].xyz;
+		vec2 local_direction = vec2(dot(direction, axis_x) / dot(axis_x, axis_x),
+			dot(direction, axis_z) / dot(axis_z, axis_z));
+		VERTEX.xz += local_direction * (gust * wind_strength * height * height);
+	}
 }
 
 float hash(vec2 p) {

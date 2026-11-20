@@ -21,6 +21,10 @@ const SHELLS := {
 	41: ["#a94439", "#ffc96c", 1, 0.94, "horns"],
 	42: ["#75977d", "#cbefc0", 4, 1.0, "horn"],
 	47: ["#473654", "#dba4ed", 1, 0.86, "horns"],
+	48: ["#e58a6a", "#f6c45a", 0, 0.84, "horns"], # Draco: ember shell, gold frill chevrons, little horns
+	51: ["#8fd3c2", "#f2a457", 0, 0.84, "horns"], # Dropo: teal shell, orange frill chevrons
+	54: ["#b3ab9c", "#e9a64f", 0, 0.84, "horns"], # Rocco: pebble-grey shell, orange chevrons
+	57: ["#a9d6ee", "#f2a457", 0, 0.84, "horns"], # Floppo: sky shell, orange chevrons
 }
 static var _icons := {}
 

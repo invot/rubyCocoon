@@ -390,13 +390,18 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
 
   <img src="docs/screenshots/fishing.jpg" width="640" alt="Reeling one in with Gil, off his shack's deck in Bellerive."><br><sub>Reeling one in with Gil, off his shack's deck in Bellerive.</sub>
 
-- **13 beast lines** of three forms each (`race_db.gd` LINES): Fire has the spiky dino (Embit, Cinderex, Pyrosaur),
+- **17 beast lines** of three forms each (`race_db.gd` LINES): Fire has the spiky dino (Embit, Cinderex, Pyrosaur),
   the cactus (Pricklet, Spinesear, Saguaroar) and the pink imp (Impkin, Scampyre, Infernook); Earth the beetle
   (Grubbit, Shellhorn, Rhinoclad), the armoured boar (Tuskit, Bristlehog, Crystusk) and the tree (Saplet, Barkbrute,
   Elderoot); Water the crab (Clawlet, Snapshell, Crustacor) and the frog (Tadlet, Croakus, Toadmiral); Air the owl
   (Hootlet, Gustowl, Tempestrix), the bat (Flittle, Duskwing, Nocturna) and the berries (Berrypuff, Bramblume,
   Galeberry). Two lines are of two elements: the scorpion (Nipskit, Scorchpin, Calderak) is Fire and Earth, and the
-  worm that is an eel in the sea (Wrigglet, Mudwhip, Abyssel) Earth and Water. The weaknesses are: Fire to Air, Earth
+  worm that is an eel in the sea (Wrigglet, Mudwhip, Abyssel) Earth and Water. Four more lines share one model,
+  a frilled gliding lizard with black button eyes, one in each element and told apart by colour: Draco (Fire: Draco,
+  Cindrake, Blazewyrm), Dropo (Water: Dropo, Tidrake, Torrentwyrm), Rocco (Earth: Rocco, Bouldrake, Quakewyrm) and
+  Floppo (Air: Floppo, Glidrake, Galewyrm). They were added after the specials, so their race ids are 48 to 59
+  (`RaceDB.LATE_BASE`), and they aren't out in the world yet (`RaceDB.UNRELEASED`: no wild beasts, eggs or kennels,
+  and the museum and journal totals leave them out). The weaknesses are: Fire to Air, Earth
   to Water, Water to Air, and Air to Fire.
 
   <img src="docs/screenshots/beasts.jpg" width="640" alt="Five of the lines, each in its three forms."><br><sub>Five of the lines, each in its three forms.</sub>
@@ -729,7 +734,8 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   level ground; they no longer form terrain pyramids or support balancing boulders. Movement and puzzle tiles
   retain their existing rules. Trees, bushes and grass tufts wear a painted leaf texture (`foliage.gdshader`, given
   to every plant by `voxel_assets.gd`; `tools/build_foliage_texture.py` paints `foliage.png`), sunlit on top and
-  deeper underneath, and each plant takes a shade of its own from where it stands, so neighbours never match. Woods
+  deeper underneath, and each plant takes a shade of its own from where it stands, so neighbours never match.
+  Gusts travel across trees, palms and grass tufts, bending their tops while their bases stay rooted. Woods
   are never crowded: no tree stands on a tile beside another's, in the map or the ring past its edge, and the tiles
   between hold low bushes (always along a wood's edge, so it still reads as a wall). Trees near one another differ in
   kind where the biome has more than one, in height and in build. Wooded tiles keep their collision.

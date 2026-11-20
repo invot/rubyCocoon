@@ -30,6 +30,8 @@ uniform vec2 lids[SOCKET_COUNT]; // intercept and slope in normalized socket spa
 uniform vec4 lid_frames[SOCKET_COUNT]; // outward sine, depth range and facial midline
 uniform float maturity = 1.0;
 uniform float lid_shut = 0.0;
+// solid black button eyes with a white glint high on the front, for lines that have them (beast_looks.gd button_eyes)
+uniform float button_eyes = 0.0;
 uniform vec3 lid_col = vec3(0.5);
 uniform float ghost = 0.0;
 uniform float rim = 0.35;
@@ -87,7 +89,14 @@ vec3 eye_colour(int pair, vec2 p) {
 	vec2 centre = vec2(-0.04, mix(0.5 * (min(1.0, lids[pair].x) - 1.0), 0.08, maturity));
 	float pupil = length((p - centre) * eye.zw) / max(0.0001, min(eye.z, eye.w)) - mix(0.54, 0.56, maturity);
 	float aa = max(fwidth(pupil), 0.001);
-	return mix(lid_col, mix(vec3(0.008), vec3(1.0), smoothstep(-0.5 * aa, 0.5 * aa, pupil)), open);
+	vec3 iris = mix(vec3(0.008), vec3(1.0), smoothstep(-0.5 * aa, 0.5 * aa, pupil));
+	if (button_eyes > 0.5) {
+		// a big round glint up and towards the front, and a little one below it
+		float glint = min(length(p - vec2(-0.32, 0.36)) - 0.24, length(p - vec2(-0.05, 0.02)) - 0.09);
+		float ga = max(fwidth(glint), 0.001);
+		iris = mix(vec3(1.0), vec3(0.012, 0.014, 0.02), smoothstep(-0.5 * ga, 0.5 * ga, glint));
+	}
+	return mix(lid_col, iris, open);
 }
 
 void fragment() {

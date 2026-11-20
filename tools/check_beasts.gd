@@ -12,7 +12,7 @@ var bad := 0
 
 
 func _init() -> void:
-	for id in RaceDB.count():
+	for id in RaceDB.line_races():
 		var f := RaceDB.form(id)
 		_check(ResourceLoader.exists("res://assets/beasts/%s.res" % f) and RaceDB.of_form(f) == id, "%2d %-10s %-11s %s" % [id, RaceDB.race_name(id), f, " / ".join([RaceDB.element(id), RaceDB.element2(id)]).trim_suffix(" / ")])
 	# growing up from an egg: two evolutions, at Lv 20 and Lv 40, the moves kept
@@ -49,7 +49,7 @@ func _init() -> void:
 	var split := m.slot_size(m.element) + (m.slot_size(m.element2) if m.element2 != "" else 0)
 	_check(split == m.elem_slots and (m.element2 == "" or m.slot_size(m.element) == m.slot_size(m.element2)), "its slots split evenly between its elements (%s)" % m.element_text())
 	var fits := true
-	for id in RaceDB.count():
+	for id in RaceDB.line_races():
 		for level in [1, 25, 45, 70]:
 			var x := Beasts.create(id, level)
 			for group in x.slot_groups():
