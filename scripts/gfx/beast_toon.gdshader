@@ -4,10 +4,7 @@ render_mode diffuse_toon, specular_toon, cull_back;
 // come from were painted. Every vertex carries what to paint it by (tools/import_new_beasts.gd): its part, how far
 // out along it it is (tip), how much it faces forward and down (belly), a pattern coordinate and where it sits on
 // the face. Each part takes its own colour, with optional tips (hands, feet, claws, spike tips), stripes round it or
-// bands up it; the body and head can have a belly patch; an eye part is white with a pupil where it looks forward;
-// and eyes can be painted on the face, a pair (or a pair on each of up to three faces: white, pupil, glint, an angry
-// lid and brow). A ghost is the same beast in
-// black and purple, glowing faintly.
+// bands up it. The white follows the measured lower rim and ends under the lid. A ghost uses the same geometry.
 
 const int PARTS = 14;
 const int EYE = 12;
@@ -26,15 +23,12 @@ uniform vec3 belly_col = vec3(1.0);
 // the belly patch on parts with belly_on, where they face forward and down more than belly_from (above 1: none)
 uniform float belly_on[PARTS];
 uniform float belly_from = 2.0;
-// up to three pairs of painted eyes (a face each), each pair mirrored about z = eye_mid: (z from there, y) of the
-// right one, its radius (0: no pair), and how far forward the face must be (x); style: lid (0 open .. 1 shut), brow
-// (0 none .. 1 angry; < 0: as angry, none painted), pupil size, look up. lid_shut closes them all (blinking, sleep).
-const int EYE_PAIRS = 3;
-uniform vec4 eye_pos[EYE_PAIRS];
-uniform vec4 eye_style[EYE_PAIRS];
-uniform float eye_mid[EYE_PAIRS];
+// Independently fitted sockets in mesh order, including all six eyes on the three-berry form.
+const int SOCKET_COUNT = 6;
+uniform vec4 sockets[SOCKET_COUNT]; // centre (u,y), radii
+uniform vec2 lids[SOCKET_COUNT]; // intercept and slope in normalized socket space
+uniform float maturity = 1.0;
 uniform float lid_shut = 0.0;
-uniform vec3 eye_dark = vec3(0.06, 0.05, 0.08);
 uniform vec3 lid_col = vec3(0.5);
 uniform float ghost = 0.0;
 uniform float rim = 0.35;
@@ -44,7 +38,6 @@ uniform float finish_scale = 2.0;
 uniform float skin_level = 1.0;
 
 varying vec4 attr;
-varying vec2 face;
 // (the part, unblended: a face across two parts takes one of them whole, rather than whatever parts' numbers lie
 // between theirs)
 varying flat float part_id;
@@ -56,61 +49,26 @@ void vertex() {
 	part_id = COLOR.r;
 	obj = VERTEX * finish_scale;
 	obj_n = abs(NORMAL);
-	face = UV2;
 }
 
-// The painted eyes over c, where the face is forward of each pair's eye_pos.w: outlined white with a pupil and its
-// glint, the lid coming down over it (its edge a dark line) and the brow above, both slanting down to the nose the
-// angrier it is (brow < 0: as angry, but no brow painted, where the sculpt has its own).
-vec3 painted_eye(vec3 c) {
-	float x = attr.a * 2.0 - 1.0;
-	for (int i = 0; i < EYE_PAIRS; i++) {
-		vec4 at = eye_pos[i];
-		vec4 st = eye_style[i];
-		if (at.z <= 0.0 || x < at.w) {
-			continue;
-		}
-		vec2 p = vec2(abs(face.x - eye_mid[i]) - at.x, face.y - at.y) / at.z;
-		// (p.x < 0 is the inner side, towards the nose)
-		float d = length(p);
-		float angry = abs(st.y);
-		float bk = 0.55 * angry;
-		if (st.y > 0.0 && abs(p.x) < 1.15 && abs(p.y - 1.15 - bk * p.x) < 0.2 * sqrt(1.0 + bk * bk)) {
-			return eye_dark;
-		}
-		if (d > 1.0) {
-			continue;
-		}
-		// the lid's edge: above the eye at lid 0, coming down to its bottom at 1 (shut), slanting less as it shuts
-		float lid = max(st.x, lid_shut);
-		float shut = lid * lid;
-		float lk = 0.45 * angry * (1.0 - shut);
-		float above = (p.y - 1.2 + 2.1 * shut - lk * p.x) / sqrt(1.0 + lk * lk);
-		if (above > 0.0) {
-			return above < 0.14 ? eye_dark : lid_col;
-		}
-		if (d > 0.86) {
-			return eye_dark;
-		}
-		vec2 q = p - vec2(-0.12, st.w * 0.2 - 0.08);
-		float pr = st.z;
-		if (length(q) < pr) {
-			return length(q - vec2(0.29) * pr) < pr * 0.28 ? vec3(1.0) : eye_dark;
-		}
-		return vec3(0.97, 0.96, 0.94);
-	}
-	return c;
+vec3 eye_colour(int pair, vec2 p) {
+	vec4 eye = sockets[pair];
+	float upper = lids[pair].x + lids[pair].y * p.x;
+	float bottom = -sqrt(max(0.0, 1.0 - p.x * p.x));
+	float lid_edge = p.y - mix(upper, bottom - 0.015, lid_shut);
+	float lid_aa = max(fwidth(lid_edge), 0.001);
+	float open = 1.0 - smoothstep(-0.5 * lid_aa, 0.5 * lid_aa, lid_edge);
+	vec2 centre = vec2(-0.04, mix(0.5 * (min(1.0, lids[pair].x) - 1.0), 0.08, maturity));
+	float pupil = length((p - centre) * eye.zw) / max(0.0001, min(eye.z, eye.w)) - mix(0.54, 0.56, maturity);
+	float aa = max(fwidth(pupil), 0.001);
+	return mix(lid_col, mix(vec3(0.008), vec3(1.0), smoothstep(-0.5 * aa, 0.5 * aa, pupil)), open);
 }
 
 void fragment() {
 	int part = clamp(int(part_id * 15.0 + 0.5), 0, PARTS - 1);
 	vec3 c = part_col[part];
 	float t = attr.g;
-	if (part == EYE) {
-		// white with a pupil where it looks forward (t: its normal's x); with painted eyes, the face's colour with them
-		// painted on it, as on the face (so a sculpted eyeball blinks with them)
-		c = eye_pos[0].z > 0.0 ? painted_eye(c) : (t > 0.82 ? eye_dark : (t > 0.74 ? vec3(0.3) : vec3(0.97, 0.96, 0.94)));
-	} else {
+	if (part != EYE) {
 		if (tip_from[part] <= 1.0) {
 			float on = smoothstep(tip_from[part] - tip_soft[part] - 0.0001, tip_from[part], t) * (1.0 - step(tip_to[part], t));
 			c = mix(c, tip_col[part], on);
@@ -124,14 +82,13 @@ void fragment() {
 		if (belly_on[part] > 0.5 && attr.b > belly_from) {
 			c = belly_col;
 		}
-		if (part == 0 || part == 1) {
-			c = painted_eye(c);
-		}
-	}
-	if (part != EYE) {
+
 		vec3 w = pow(obj_n, vec3(4.0));
 		w /= max(w.x + w.y + w.z, 0.0001);
 		c *= (texture(skin_tex, obj.zy).rgb * w.x + texture(skin_tex, obj.xz).rgb * w.y + texture(skin_tex, obj.xy).rgb * w.z) / skin_level;
+	}
+	if (UV.x < -2.0) {
+		c = eye_colour(clamp(int(attr.b * 7.0 + 0.5), 0, SOCKET_COUNT - 1), UV + vec2(4.0, 0.0));
 	}
 	if (ghost > 0.5) {
 		float l = dot(c, vec3(0.3, 0.55, 0.15));

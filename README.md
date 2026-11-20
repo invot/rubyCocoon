@@ -798,8 +798,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
     `godot --headless --path . --script res://tools/import_new_beasts.gd` makes `assets/beasts/<form>.res`, skinned to
     one bone per part.
   - `beast_toon.gdshader` paints them flat and bright by part, as the creature packs they came from were painted: each
-    part's colour, tips (hands, feet, claws, spikes), stripes and bands, a belly patch, and painted cartoon eyes;
-    `scripts/data/beast_looks.gd` holds each line's colours. A ghost is the same beast in black and purple.
+    part's colour, tips (hands, feet, claws, spikes), stripes and bands, and a belly patch.
+    Each evolving form has individually fitted left and right sockets in `scripts/data/beast_looks.gd`. A smooth
+    white eye follows the lower rim and upper lid, with a round black pupil. Young forms lift the inner brow, and
+    final forms keep the sculpt's brow angle. Ghosts and merges inherit the eyes of their face.
   - `beast_rig.gd` builds a beast on its skeleton and moves it by hand: a bouncy idle, walking (a trot on four legs,
     a waddle on two, a wriggle, a hop, flying), lying down, and attacking; ghosts trail smoke. `beast_parts.gd` puts
     merged beasts together from their parents' parts.

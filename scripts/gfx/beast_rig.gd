@@ -356,7 +356,7 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 		mat.shader = SHADER
 		# painted eyes: from the form whose face this piece carries
 		var eyes: Array = Looks.look(pc["face"]).get("eyes", []) if pc["face"] != "" else []
-		Parts.paint(mat, colours, eyes)
+		Parts.paint(mat, colours, eyes, int(String(pc["face"]).get_slice("_", 1)))
 		mat.set_shader_parameter("ghost", 1.0 if ghost else 0.0)
 		mat.set_shader_parameter("skin_tex", SurfaceFinish.texture("satin"))
 		mat.set_shader_parameter("skin_level", SurfaceFinish.mean("satin"))
@@ -451,6 +451,8 @@ func _measure(meshes: Array, fi: Dictionary, blo: Vector3, bhi: Vector3) -> void
 		var bs: PackedInt32Array = a[Mesh.ARRAY_BONES]
 		var cs: PackedColorArray = a[Mesh.ARRAY_COLOR]
 		for i in vs.size():
+			if a[Mesh.ARRAY_TEX_UV][i].x < -2.0:
+				continue
 			var v := vs[i]
 			var p: String = PARTS[bs[i * 4]]
 			bottom = minf(bottom, v.y)
@@ -468,6 +470,8 @@ func _measure(meshes: Array, fi: Dictionary, blo: Vector3, bhi: Vector3) -> void
 		var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 		var bs: PackedInt32Array = a[Mesh.ARRAY_BONES]
 		for i in vs.size():
+			if a[Mesh.ARRAY_TEX_UV][i].x < -2.0:
+				continue
 			var p: String = PARTS[bs[i * 4]]
 			if not lowest.has(p):
 				continue

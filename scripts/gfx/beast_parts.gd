@@ -160,8 +160,9 @@ static func has_group(fi: Dictionary, g: String) -> bool:
 static func info(f: String) -> Dictionary:
 	if _forms.has(f):
 		return _forms[f]
-	var m: ArrayMesh = load(DIR + f + ".res")
-	var arrays := m.surface_get_arrays(0)
+	var original: ArrayMesh = load(DIR + f + ".res")
+	var arrays := original.surface_get_arrays(0)
+	var mesh := preload("res://scripts/gfx/beast_eye_mesh.gd").attach(original, f, Looks.look(f).get("eyes", []))
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 	var lo := {}
@@ -174,8 +175,8 @@ static func info(f: String) -> Dictionary:
 		else:
 			lo[p] = (lo[p] as Vector3).min(verts[i])
 			hi[p] = (hi[p] as Vector3).max(verts[i])
-	var d := {"form": f, "mesh": m, "arrays": arrays, "joints": m.get_meta("joints", {}),
-		"parents": m.get_meta("parents", {}), "kind": String(m.get_meta("body", "quad")), "lo": lo, "hi": hi}
+	var d := {"form": f, "mesh": mesh, "arrays": arrays, "joints": original.get_meta("joints", {}),
+		"parents": original.get_meta("parents", {}), "kind": String(original.get_meta("body", "quad")), "lo": lo, "hi": hi}
 	_forms[f] = d
 	return d
 
@@ -644,7 +645,8 @@ static func hip(fi: Dictionary, at: Vector3) -> float:
 ## of its own body (so the seam overlaps the frame's rather than gapes), set onto the frame and bent by the frame's
 ## bone for it, from where it joins (fixed) to a third of its size out (following it).
 static func cut(di: Dictionary, keep: Dictionary, moves: Dictionary) -> ArrayMesh:
-	var arrays: Array = di["arrays"]
+	var mesh_with_eyes: ArrayMesh = di["mesh"]
+	var arrays := mesh_with_eyes.surface_get_arrays(0)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var src_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var src_c: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
@@ -653,7 +655,13 @@ static func cut(di: Dictionary, keep: Dictionary, moves: Dictionary) -> ArrayMes
 	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
 	var src_w: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
 	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var lab: PackedInt32Array = di["cut"]
+	# Detect merge regions only on the original sculpt. Each added eye travels with the piece supplying the face.
+	var original_labels: PackedInt32Array = di["cut"]
+	var lab := original_labels.duplicate()
+	lab.resize(verts.size())
+	var face_part := PARTS.find("head") if di["clo"].has("head") else PARTS.find("body")
+	for i in range(original_labels.size(), lab.size()):
+		lab[i] = face_part
 	var n := verts.size()
 	var nv := PackedVector3Array()
 	var nn := PackedVector3Array()
@@ -729,9 +737,8 @@ static func cut(di: Dictionary, keep: Dictionary, moves: Dictionary) -> ArrayMes
 	return mesh
 
 
-## Sets the toon shader's colours from a look (beast_looks.gd), with painted eyes: a look's "eyes" (a pair, or an
-## array of pairs, one for each face; [] for none).
-static func paint(mat: ShaderMaterial, look: Dictionary, eyes: Array) -> void:
+## Apply the coat colours and the socket measurements of the form supplying this face.
+static func paint(mat: ShaderMaterial, look: Dictionary, eyes: Array, face_stage: int) -> void:
 	var col: Dictionary = look.get("col", {})
 	var tips: Dictionary = look.get("tip", {})
 	var stripes: Dictionary = look.get("stripes", {})
@@ -776,24 +783,18 @@ static func paint(mat: ShaderMaterial, look: Dictionary, eyes: Array) -> void:
 	var head := Color(String(col["head"])) if col.has("head") else body
 	var lid := Color(String(look["lid"])) if look.has("lid") else head.darkened(0.3)
 	mat.set_shader_parameter("lid_col", lin(lid))
-	# the shader's three pairs: [z, y, radius, front x, lid, brow, pupil, look up, (mirror z)] each, radius 0: none
-	var pairs: Array = eyes if not eyes.is_empty() and eyes[0] is Array else [eyes]
-	var ep := PackedVector4Array()
-	var es := PackedVector4Array()
-	var em := PackedFloat32Array()
-	for i in 3:
-		var e: Array = pairs[i] if i < pairs.size() else []
-		if e.size() >= 8:
-			ep.append(Vector4(e[0], e[1], e[2], e[3]))
-			es.append(Vector4(e[4], e[5], e[6], e[7]))
-			em.append(float(e[8]) if e.size() > 8 else 0.0)
-		else:
-			ep.append(Vector4(0, 0, 0, 9))
-			es.append(Vector4(0, 0, 0.5, 0))
-			em.append(0.0)
-	mat.set_shader_parameter("eye_pos", ep)
-	mat.set_shader_parameter("eye_style", es)
-	mat.set_shader_parameter("eye_mid", em)
+	# Keep all socket coordinates in the donor face's bind space, including after a merge.
+	var sockets := PackedVector4Array()
+	var lids := PackedVector2Array()
+	sockets.resize(6)
+	lids.resize(6)
+	for i in eyes.size():
+		var e: Array = eyes[i]
+		sockets[i] = Vector4(e[0], e[1], e[2], e[3])
+		lids[i] = Vector2(e[8], e[9])
+	mat.set_shader_parameter("sockets", sockets)
+	mat.set_shader_parameter("lids", lids)
+	mat.set_shader_parameter("maturity", clampf((face_stage - 1) * 0.5, 0.0, 1.0))
 
 
 static func lin(c: Color) -> Vector3:
