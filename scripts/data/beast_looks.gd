@@ -16,7 +16,7 @@ extends RefCounted
 const LINES := {
 	"dino": {"base": {"col": {"body": "#f4a27c", "head": "#f4a27c", "arms": "#d83a48", "legs": "#d83a48", "tail": "#f4a27c", "horn": "#ffe0b0"},
 			"tip": {"legs": ["#ffc93c", 0.86, 0.0], "arms": ["#ffc93c", 0.82, 0.0], "head": ["#d83a48", 0.7, 0.05]},
-			"belly": ["#f9c9a6", 0.62, ["body"]]},
+			"belly": ["#f9c9a6", 0.62, ["body"]], "lid": "#f9c9a6"},
 		"1": {"col": {"body": "#f6aa8c", "head": "#f6aa8c"}, "eyes": [
 			[-0.20993, 0.72632, 0.07632, 0.07947, 0.82, 0.31466, 0.4225, 0.0, 0.07285, 0.23841, 0.35999, -0.01207, -0.04492, 0.00174, 0.00086, -0.00314],
 			[-0.20993, 0.72632, 0.07632, 0.07947, 0.82, 0.31466, 0.4225, 0.0, 0.07285, 0.23841, 0.35999, -0.01207, -0.04492, 0.00174, 0.00086, -0.00314]]},
@@ -27,7 +27,7 @@ const LINES := {
 			[-0.14688, 0.76605, 0.04158, 0.05474, 0.82, 0.19201, 0.23886, 0.0, 0.29808, 0.375, 0.21531, -0.00624, -0.00729, 0.00116, -0.00166, 0.00451],
 			[-0.14688, 0.76605, 0.04158, 0.05474, 0.82, 0.19201, 0.23886, 0.0, 0.29808, 0.375, 0.21531, -0.00624, -0.00729, 0.00116, -0.00166, 0.00451]]}},
 	"scorpion": {"base": {"col": {"body": "#3fc463", "head": "#3fc463", "arms": "#1f9d5e", "legs": "#8e4fd0", "tail": "#3fc463", "horn": "#9b5bd8"},
-			"tip": {"tail": ["#9b5bd8", 0.8, 0.05]}, "belly": ["#5fd67e", 0.7, ["body"]]},
+			"tip": {"tail": ["#9b5bd8", 0.8, 0.05]}, "belly": ["#5fd67e", 0.7, ["body"]], "lid": "#1f9d5e"},
 		# The upper sockets sit under the scorpion's sculpted purple lids.
 		"1": {"eyes": [
 			[0.11946, 0.59474, 0.08934, 0.08105, 0.35, 0.1255, 0.29342, 0.0, 0.125, -0.19318, 0.19429, -0.04003, -0.09028, -0.01354, -0.00706, -0.00155],
@@ -35,7 +35,7 @@ const LINES := {
 		"2": {"eyes": [
 			[-0.02427, 0.55743, 0.05474, 0.06414, 0.35, 0.33707, 0.40385, 0.0, 0.16, 0.22667, 0.3785, -0.00817, -0.01893, -0.00446, -0.0031, -0.00046],
 			[-0.02427, 0.55743, 0.05474, 0.06414, 0.35, 0.33707, 0.40385, 0.0, 0.16, 0.22667, 0.3785, -0.00817, -0.01893, -0.00446, -0.0031, -0.00046]]},
-		"3": {"eyes": [
+		"3": {"lid": "#8052b8", "eyes": [
 			[0.0087, 0.77126, 0.045, 0.054, 0.35, 0.14502, 0.21172, 0.0, 0.03509, 0.36842, 0.1837, -0.00862, -0.01522, -0.00313, -0.00234, -1e-05],
 			[0.0087, 0.77126, 0.045, 0.054, 0.35, 0.14502, 0.21172, 0.0, 0.03509, 0.36842, 0.1837, -0.00862, -0.01522, -0.00313, -0.00234, -1e-05]]}},
 	"berry": {"base": {"col": {"body": "#2f6fe0", "arms": "#5cb84a", "horn": "#5fb14a"},
@@ -56,7 +56,7 @@ const LINES := {
 			[0.05408, 0.15539, 0.04053, 0.04145, 0.0, -0.05783, 0.01089, 0.045, 0.51111, 0.46667, -0.01219, -0.02516, 0.00454, -0.0082, -0.00815, 0.0036]]}},
 	"beetle": {"base": {"col": {"body": "#2f6fb8", "head": "#5aa0e8", "arms": "#4a8ad8", "legs": "#4a8ad8", "tail": "#2f6fb8", "horn": "#e8b26a"},
 			"tip": {"legs": ["#e8b26a", 0.8, 0.0], "arms": ["#e8b26a", 0.75, 0.0], "head": ["#e8b26a", 0.72, 0.05]},
-			"belly": ["#5aa0e8", 0.66, ["body"]]},
+			"belly": ["#5aa0e8", 0.66, ["body"]], "lid": "#2f6fb8"},
 		"1": {"eyes": [
 			[-0.05125, 0.38947, 0.10105, 0.09316, 0.42, 0.46782, 0.58217, 0.0, 0.40678, 0.23729, 0.54473, -0.01496, -0.01795, -0.01542, -0.00696, -0.0119],
 			[-0.05125, 0.38947, 0.10105, 0.09316, 0.42, 0.46782, 0.58217, 0.0, 0.40678, 0.23729, 0.54473, -0.01496, -0.01795, -0.01542, -0.00696, -0.0119]]},
@@ -78,9 +78,9 @@ const LINES := {
 			[-0.02341, 0.75032, 0.05726, 0.06063, 0.47, 0.21397, 0.28414, 0.0, 0.09722, 0.31944, 0.2717, -0.01046, 0.02513, -0.01867, -0.03199, 0.01107],
 			[-0.02341, 0.75032, 0.05726, 0.06063, 0.47, 0.21397, 0.28414, 0.0, 0.09722, 0.31944, 0.2717, -0.01046, 0.02513, -0.01867, -0.03199, 0.01107]]}},
 	"crab": {"base": {"col": {"body": "#e8304e", "head": "#e8304e", "arms": "#e83a50", "legs": "#36c6d6", "horn": "#e8304e", "tail": "#e8304e"},
-			"belly": ["#ffd21f", 0.6, ["body"]], "lid": "#e8304e"},
+			"belly": ["#ffd21f", 0.6, ["body"]], "lid": "#c92d48"},
 		# The crab's sockets sit on its eye stalks.
-		"1": {"eyes": [
+		"1": {"lid": "#ffd21f", "eyes": [
 			[0.03151, 0.66882, 0.0625, 0.07961, 0.4, 0.18145, 0.26074, 0.0, 0.40496, 0.44628, 0.24989, 0.00609, -0.00243, -0.02193, -0.0036, -0.02849],
 			[0.03151, 0.66882, 0.0625, 0.07961, 0.4, 0.18145, 0.26074, 0.0, 0.40496, 0.44628, 0.24989, 0.00609, -0.00243, -0.02193, -0.0036, -0.02849]]},
 		"2": {"eyes": [
@@ -102,10 +102,10 @@ const LINES := {
 			[0.0288, 0.69711, 0.05592, 0.06711, 0.43, 0.14856, 0.1965, 0.0, 0.11765, 0.54902, 0.17981, -0.0045, 0.01144, -0.00413, -0.01187, 0.00959]]}},
 	"boar": {"base": {"col": {"body": "#9a6242", "head": "#4aa8d8", "legs": "#9a6242", "arms": "#a8e4f4", "tail": "#9a6242", "horn": "#a8e4f4"},
 			"tip": {"legs": ["#f2c6a8", 0.82, 0.0], "head": ["#f2c6a8", 0.62, 0.04]}, "lid": "#2856a8"},
-		"1": {"eyes": [
+		"1": {"lid": "#9a6242", "eyes": [
 			[-0.01689, 0.67493, 0.11118, 0.09322, 0.45, 0.33471, 0.50835, 0.0, 0.55046, 0.30275, 0.46521, -0.01121, -0.0402, -0.02276, -0.004, -0.02095],
 			[-0.01689, 0.67493, 0.10947, 0.09322, 0.45, 0.33601, 0.50686, 0.0, 0.55046, 0.30275, 0.46312, -0.01087, -0.04014, -0.02255, -0.00397, -0.02097]]},
-		"2": {"eyes": [
+		"2": {"lid": "#9a6242", "eyes": [
 			[-0.05074, 0.66163, 0.07895, 0.06126, 0.45, 0.33338, 0.45796, 0.0, 0.26804, 0.25773, 0.44072, -0.02749, -0.01104, -0.03652, -0.00857, -0.02566],
 			[-0.05137, 0.66037, 0.07832, 0.06253, 0.45, 0.3333, 0.46067, 0.0, 0.29293, 0.26263, 0.44227, -0.02701, -0.01083, -0.03442, -0.00665, -0.02591]]},
 		"3": {"eyes": [
@@ -186,4 +186,54 @@ static func look(form: String) -> Dictionary:
 			(out[k] as Dictionary).merge(over[k], true)
 		else:
 			out[k] = over[k]
+	return out
+
+
+# Three skin swatches per element. A line keeps its own dominant swatch at every stage.
+const SKIN_PALETTES := {
+	"fire": ["#d44d43", "#ee894d", "#965292"],
+	"water": ["#31578a", "#258c90", "#67a874"],
+	"earth": ["#956c50", "#85858b", "#a6ad60"],
+	"air": ["#85bfdf", "#e8c967", "#d58fb4"],
+}
+const SKIN_SWATCH := {
+	"dino": 1, "cactus": 0, "marmot": 2, "scorpion": 0,
+	"beetle": 1, "boar": 0, "tree": 2, "worm": 2,
+	"crab": 0, "frog": 2, "owl": 1, "bat": 0, "berry": 2,
+}
+
+
+## Paint exposed skin and its markings. Resolve trim that formerly inherited the body
+## colour before changing the body, so horns, feet, wings and other details keep their paint.
+static func skin_look(form: String, element: String) -> Dictionary:
+	var out := look(form)
+	var swatches: Array = SKIN_PALETTES[element]
+	var line := form.get_slice("_", 0)
+	var index: int = 1 if line == "worm" and element == "water" else SKIN_SWATCH[line]
+	var skin := Color(String(swatches[index]))
+	var accent := Color(String(swatches[(index + 1) % 3]))
+	var shadow := Color(String(swatches[(index + 2) % 3]))
+	var col: Dictionary = out.col
+	var original: String = col.body
+	var old_head: String = col.get("head", original)
+	for group in ["arms", "legs", "wings", "horn", "deco"]:
+		if not col.has(group):
+			col[group] = original
+	if line in ["cactus", "beetle", "worm", "tree", "frog", "marmot", "bat", "dino"]:
+		col.arms = skin.lerp(accent, 0.30).to_html(false)
+	col.body = skin.to_html(false)
+	col.head = (skin if old_head == original else accent).to_html(false)
+	col.eye = col.head
+	col.tail = skin.to_html(false)
+	if out.has("belly"):
+		var belly: Array = out.belly.duplicate(true)
+		belly[0] = skin.lerp(accent, 0.66).lightened(0.13).to_html(false)
+		out.belly = belly
+	for pattern in ["stripes", "bands"]:
+		for group in ["body", "head", "tail"]:
+			if out.get(pattern, {}).has(group):
+				out[pattern][group][0] = skin.lerp(shadow, 0.65).to_html(false)
+	var head := Color(String(col.head))
+	var lighter := Color(String(out.get("lid", old_head))).get_luminance() > Color(old_head).get_luminance()
+	out.lid = (head.lightened(0.20) if lighter else head.darkened(0.23)).to_html(false)
 	return out

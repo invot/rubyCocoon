@@ -799,8 +799,13 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
     one bone per part.
   - `beast_toon.gdshader` paints them flat and bright by part, as the creature packs they came from were painted: each
     part's colour, tips (hands, feet, claws, spikes), stripes and bands, and a belly patch.
+    Evolving beasts use elemental skin palettes. Fire uses red, orange and purple. Water uses dark blue, teal and green.
+    Earth uses brown, grey and yellow-green. Air uses light blue, yellow and pink. Feet, horns and other trim use their
+    authored colours. New scorpions (Fire/Earth) and worms (Earth/Water) can show either palette throughout evolution.
+    Earlier saves use the line's primary palette.
     Each evolving form has individually fitted left and right sockets in `scripts/data/beast_looks.gd`. A smooth
-    white eye follows the lower rim and upper lid, with a round black pupil. Young forms lift the inner brow, and
+    white eye follows the lower rim and upper lid, with a round black pupil. The upper lid carries a subtle shade
+    from the creature’s palette. Young forms lift the inner brow, and
     final forms keep the sculpt's brow angle. Ghosts and merges inherit the eyes of their face.
   - `beast_rig.gd` builds a beast on its skeleton and moves it by hand: a bouncy idle, walking (a trot on four legs,
     a waddle on two, a wriggle, a hop, flying), lying down, and attacking; ghosts trail smoke. `beast_parts.gd` puts

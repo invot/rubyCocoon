@@ -288,7 +288,10 @@ func evolve(nf: int) -> void:
 		var k: String = STAT_KEYS[i]
 		base[k] = snappedf(float(base.get(k, 50.0)) * nb[i] / maxf(ob[i], 1.0), 0.1)
 	var shade: float = genes.get("shade", 0.0)
+	var skin_element := String(genes.get("skin_element", ""))
 	genes = RaceDB.genes(nf)
+	if skin_element != "":
+		genes["skin_element"] = skin_element
 	genes["shade"] = shade
 	var oname := RaceDB.race_name(old)
 	if nickname == oname or nickname == "Umbral " + oname:

@@ -34,6 +34,8 @@ static func create(race_id: int, level: int, ghost := false) -> Beast:
 			v *= GHOST_STAT_MULT
 		b.base[Beast.STAT_KEYS[i]] = snappedf(v, 0.1)
 	b.genes = RaceDB.genes(race_id)
+	if not ghost and RaceDB.in_line(race_id) and b.element2 != "" and b.uid % 2 == 1:
+		b.genes["skin_element"] = b.element2
 	if ghost:
 		b.genes["shade"] = 0.85
 	b.passives = [r["passive"]]
@@ -180,6 +182,9 @@ static func merge(a: Beast, b: Beast, temple := false) -> Beast:
 		if c.ghost:
 			shade = 0.85 if (a.ghost and b.ghost) else 0.62
 		c.genes = {"form": frame, "recipe": recipe, "body": RaceDB.body(RaceDB.of_form(frame)), "size": size, "shade": shade}
+		var colour_parent := a if recipe.get("colours", frame) == fa else b
+		if colour_parent.genes.has("skin_element"):
+			c.genes["skin_element"] = colour_parent.genes.skin_element
 	else:
 		c.genes = _mix_genes(a, b, rng, pa, pick)
 	_merge_moves(c, a, b, primary, pa, rng, temple)

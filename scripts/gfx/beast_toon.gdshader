@@ -27,6 +27,7 @@ uniform float belly_from = 2.0;
 const int SOCKET_COUNT = 6;
 uniform vec4 sockets[SOCKET_COUNT]; // centre (u,y), radii
 uniform vec2 lids[SOCKET_COUNT]; // intercept and slope in normalized socket space
+uniform vec4 lid_frames[SOCKET_COUNT]; // outward sine, depth range and facial midline
 uniform float maturity = 1.0;
 uniform float lid_shut = 0.0;
 uniform vec3 lid_col = vec3(0.5);
@@ -43,12 +44,37 @@ varying vec4 attr;
 varying flat float part_id;
 varying vec3 obj;
 varying vec3 obj_n;
+varying vec3 bind_position;
 
 void vertex() {
 	attr = COLOR;
+	bind_position = vec3(COLOR.a * 2.0 - 1.0, UV.y, UV2.x);
 	part_id = COLOR.r;
 	obj = VERTEX * finish_scale;
 	obj_n = abs(NORMAL);
+}
+
+// Tint the skin between the measured lid edge and its outer arc. The fitted white has its own surface.
+float upper_lid_mask() {
+	float mask = 0.0;
+	for (int i = 0; i < SOCKET_COUNT; i++) {
+		vec4 socket = sockets[i];
+		if (socket.z <= 0.0) { break; }
+		vec4 frame = lid_frames[i];
+		float lateral = (bind_position.z - frame.w) * (i % 2 == 0 ? 1.0 : -1.0);
+		float cosine = sqrt(max(0.0, 1.0 - frame.x * frame.x));
+		float depth = cosine * bind_position.x + frame.x * lateral;
+		if (depth < frame.y || depth > frame.z + socket.z * 0.6) { continue; }
+		float u = (cosine * lateral - frame.x * bind_position.x - socket.x) / socket.z;
+		float y = (bind_position.y - socket.y) / socket.w;
+		float crown = sqrt(max(0.0, 1.0 - u*u));
+		float edge = min(crown, lids[i].x + lids[i].y * u);
+		float thickness = 0.12 + 0.65 * max(0.0, crown - edge);
+		float border = max(max(edge - y, y - edge - thickness * crown), abs(u) - 1.0);
+		float aa = max(fwidth(border), 0.015);
+		mask = max(mask, 1.0 - smoothstep(-aa, aa, border));
+	}
+	return mask;
 }
 
 vec3 eye_colour(int pair, vec2 p) {
@@ -89,6 +115,8 @@ void fragment() {
 	}
 	if (UV.x < -2.0) {
 		c = eye_colour(clamp(int(attr.b * 7.0 + 0.5), 0, SOCKET_COUNT - 1), UV + vec2(4.0, 0.0));
+	} else {
+		c = mix(c, lid_col, 0.50 * upper_lid_mask());
 	}
 	if (ghost > 0.5) {
 		float l = dot(c, vec3(0.3, 0.55, 0.15));

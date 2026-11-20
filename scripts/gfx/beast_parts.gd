@@ -785,15 +785,19 @@ static func paint(mat: ShaderMaterial, look: Dictionary, eyes: Array, face_stage
 	mat.set_shader_parameter("lid_col", lin(lid))
 	# Keep all socket coordinates in the donor face's bind space, including after a merge.
 	var sockets := PackedVector4Array()
+	var frames := PackedVector4Array()
 	var lids := PackedVector2Array()
 	sockets.resize(6)
 	lids.resize(6)
+	frames.resize(6)
 	for i in eyes.size():
 		var e: Array = eyes[i]
 		sockets[i] = Vector4(e[0], e[1], e[2], e[3])
 		lids[i] = Vector2(e[8], e[9])
+		frames[i] = Vector4(e[4], e[5], e[6], e[7])
 	mat.set_shader_parameter("sockets", sockets)
 	mat.set_shader_parameter("lids", lids)
+	mat.set_shader_parameter("lid_frames", frames)
 	mat.set_shader_parameter("maturity", clampf((face_stage - 1) * 0.5, 0.0, 1.0))
 
 

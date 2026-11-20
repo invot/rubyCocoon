@@ -186,7 +186,15 @@ static func _rig_icon(genes: Dictionary) -> ImageTexture:
 
 ## A new beast's form's icon file (a merge's frame's; a ghost's in its black and purple).
 static func _icon_path(genes: Dictionary) -> String:
-	return "res://assets/beasts/icons/%s%s.res" % [String(genes.get("form", "")), "_ghost" if BeastModel.ghostly(genes) else ""]
+	var form := String(genes.get("form", ""))
+	var suffix := ""
+	if BeastModel.ghostly(genes):
+		suffix = "_ghost"
+	elif genes.has("skin_element"):
+		var candidate := "res://assets/beasts/icons/%s_%s.res" % [form, genes.skin_element]
+		if ResourceLoader.exists(candidate):
+			return candidate
+	return "res://assets/beasts/icons/%s%s.res" % [form, suffix]
 
 
 ## A new beast's form's icon as an Image to draw on, or null where there's none.

@@ -37,10 +37,11 @@ static func rig(genes: Dictionary, k := 1.0) -> Node3D:
 	if not rigged(genes):
 		return null
 	var r: Rig = Rig.new()
+	var skin_element := String(genes.get("skin_element", ""))
 	if genes.has("recipe"):
-		r.setup_recipe(genes["recipe"], ghostly(genes))
+		r.setup_recipe(genes["recipe"], ghostly(genes), skin_element)
 	else:
-		r.setup(String(genes["form"]), ghostly(genes))
+		r.setup(String(genes["form"]), ghostly(genes), skin_element)
 	var s := float(genes.get("size", 1.0)) * k
 	r.scale = Vector3(s, s, s)
 	return r

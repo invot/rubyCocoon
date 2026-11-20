@@ -27,6 +27,7 @@ extends Node3D
 ## (beast_parts.gd: one gives the frame, the other some of its parts), painted in one parent's colours.
 ## Beast space: facing +x, standing on y = 0, its larger measure 1 unit (scale the node for its size).
 
+const Races = preload("res://scripts/data/race_db.gd")
 const Looks = preload("res://scripts/data/beast_looks.gd")
 const Parts = preload("res://scripts/gfx/beast_parts.gd")
 const CastGlow = preload("res://scripts/gfx/cast_glow.gd")
@@ -130,8 +131,8 @@ static var _mount_meshes: Array[ArrayMesh] = []
 const RECIPE_CACHE_LIMIT := 96
 
 ## A beast of this form (as "dino_3").
-func setup(f: String, as_ghost := false) -> void:
-	_build({"frame": f}, as_ghost)
+func setup(f: String, as_ghost := false, skin_element := "") -> void:
+	_build({"frame": f}, as_ghost, skin_element)
 
 
 ## A merged beast of two forms, mixed by the seed: which gives the frame, which its colours, what the other gives.
@@ -140,8 +141,8 @@ func setup_merge(a: String, b: String, seed_n: int, as_ghost := false) -> void:
 
 
 ## A merged beast from its recipe (as Parts.merge_recipe() gives it, and its genes keep it).
-func setup_recipe(recipe: Dictionary, as_ghost := false) -> void:
-	_build(recipe, as_ghost)
+func setup_recipe(recipe: Dictionary, as_ghost := false, skin_element := "") -> void:
+	_build(recipe, as_ghost, skin_element)
 
 
 func mount() -> void:
@@ -313,7 +314,7 @@ func bounds() -> AABB:
 	return bb
 
 
-func _build(recipe: Dictionary, as_ghost: bool) -> void:
+func _build(recipe: Dictionary, as_ghost: bool, skin_element := "") -> void:
 	for c in get_children():
 		c.queue_free()
 	mats.clear()
@@ -346,7 +347,10 @@ func _build(recipe: Dictionary, as_ghost: bool) -> void:
 		_built[key] = {"pieces": pcs, "joints": j}
 	_joint = (_built[key]["joints"] as Dictionary).duplicate()
 	var parents: Dictionary = fi["parents"]
-	var colours := Looks.look(String(recipe.get("colours", frame)))
+	var colour_form := String(recipe.get("colours", frame))
+	if not Looks.SKIN_PALETTES.has(skin_element):
+		skin_element = Races.element(Races.of_form(colour_form))
+	var colours := Looks.look(colour_form) if ghost else Looks.skin_look(colour_form, skin_element)
 	var meshes := []
 	for pc in _built[key]["pieces"]:
 		var mi := MeshInstance3D.new()
