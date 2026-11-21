@@ -194,9 +194,6 @@ upholstery) over a wood grain and cloth weave of our own.
   items lying about the world and the temples' treasures, the fitted and cracked masonry lining Dustwell Well's excavated halls, the crates and barrels, the street benches, made by stretching its stool along the seat, and the temple dragons' hoards of coins, trunks, arms, candles, keys and plates; baked by
   `tools/import_kaykit.gd`).
   See [licence](licenses/KayKit%20Dungeon%20Pack%20-%20License.txt).
-- **KayKit Restaurant Bits 1.0** by Kay Lousberg, https://www.kaylousberg.com, CC0 (the bread roll the duck eats in
-  the prologue's dream: `food_ingredient_bun`, converted to `assets/props/bread_roll.glb`).
-  See [licence](licenses/KayKit%20Restaurant%20Bits%20-%20License.txt).
 - **Mallard Duck (Drake), Stylized, Rigged & Animated** by Liray 3D, Standard Fab licence (Jared's ducks, in the
   dream, the jail and on the roads: `assets/animals/duck.glb`, cut down to 5,000 triangles with its rig and clips).
   See [source and modifications](licenses/duck_stylized_liray3d.md).

@@ -14,6 +14,7 @@ uniform sampler2D leaves : hint_default_white, filter_linear_mipmap_anisotropic,
 uniform float leaf_scale = 0.95;
 // how far plants' colours stray from the palette's (0 = all alike)
 uniform float vary = 1.0;
+// how far a plant's top leans downwind at the strongest gust, as a share of the plant's height (0 = still)
 uniform float wind_strength = 0.0;
 uniform float wind_base = 0.0;
 uniform float wind_height = 1.0;
@@ -28,18 +29,22 @@ void vertex() {
 	// where this plant stands (its own place in a batch of them)
 	plant = MODEL_MATRIX[3].xyz;
 	if (wind_strength > 0.0) {
-		// Gusts travel across plants in world space, regardless of their rotation or scale.
+		// One wind for the whole map: every plant bends along the same line, mostly downwind (only a little back past
+		// upright between gusts). Broad, slow gusts roll across the map, so a wood ripples one way, and a quicker
+		// flutter rides on them.
 		vec3 direction = vec3(0.8, 0.0, 0.6);
 		float along = dot(plant, direction);
-		float gust = sin(TIME * 1.35 - along * 0.65) * 0.55
-			+ sin(TIME * 2.6 - along * 1.2) * 0.25 + 0.2;
+		float gust = 0.4 + sin(TIME * 0.9 - along * 0.16) * 0.45
+			+ sin(TIME * 2.3 - along * 0.5) * 0.15;
 		// The painted texture uses the rest pose above so it follows the bend.
 		float height = clamp((VERTEX.y - wind_base) / wind_height, 0.0, 1.0);
+		// (the lean is a share of the plant's own height in the world, so tall trees bend as much as tufts do)
+		float tall = length(MODEL_MATRIX[1].xyz) * wind_height;
 		vec3 axis_x = MODEL_MATRIX[0].xyz;
 		vec3 axis_z = MODEL_MATRIX[2].xyz;
 		vec2 local_direction = vec2(dot(direction, axis_x) / dot(axis_x, axis_x),
 			dot(direction, axis_z) / dot(axis_z, axis_z));
-		VERTEX.xz += local_direction * (gust * wind_strength * height * height);
+		VERTEX.xz += local_direction * (gust * wind_strength * tall * height * height);
 	}
 }
 

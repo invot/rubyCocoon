@@ -74,7 +74,7 @@ const BEATS := [
 	[50.0, 53.0, "", "", "cages"],
 	[53.0, 58.0, "", "", "sleeping"],
 	# the dream: the hero at the bars, looking at a crust of bread; one of the ducks paddling in the channel spots it,
-	# climbs out, waddles over and eats it (prison_stage.gd dream_at); a long, quiet watch before anyone speaks
+	# climbs out, waddles over and nibbles at it (prison_stage.gd dream_at); a long, quiet watch before anyone speaks
 	[58.0, 64.0, "", "", "dream_bread"],
 	[64.0, 67.6, "", "", "dream_ducks"],
 	[67.6, 72.0, "", "", "dream_waddle"],

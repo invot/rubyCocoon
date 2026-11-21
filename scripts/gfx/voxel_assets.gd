@@ -42,9 +42,11 @@ static func mesh(name: String) -> Mesh:
 	if FOLIAGE.any(func(prefix: String) -> bool: return name.begins_with(prefix)):
 		var wind_strength := 0.0
 		if name.begins_with("grass_leaf_"):
-			wind_strength = 0.085
+			wind_strength = WIND_GRASS
 		elif name.begins_with("tree_") or name.begins_with("palm"):
-			wind_strength = WIND_CULL_MARGIN
+			wind_strength = WIND_TREES
+		else:
+			wind_strength = WIND_BUSHES
 		_leafy(m, wind_strength)
 	if name in WOODEN:
 		_wooden(m)
@@ -56,7 +58,12 @@ static func mesh(name: String) -> Mesh:
 const FOLIAGE := ["tree_", "palm", "shrub_", "bush_", "grass_leaf_"]
 const FoliageShader = preload("res://scripts/gfx/foliage.gdshader")
 const LEAVES := "res://assets/textures/surfaces/foliage.png"
-const WIND_CULL_MARGIN := 0.15
+## How far a plant's top leans downwind at the strongest gust, as a share of its height (foliage.gdshader).
+const WIND_TREES := 0.12
+const WIND_GRASS := 0.2
+const WIND_BUSHES := 0.06
+## Room past a plant's bounds for its lean: the old woods' tallest trees (5.8 high) lean about 0.7 at the top.
+const WIND_CULL_MARGIN := 0.75
 static var _two_sided: Shader = null
 
 

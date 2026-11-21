@@ -978,6 +978,10 @@ func _run_test() -> void:
 		await load("res://tools/debug/performance.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "first-walk":
+		await load("res://tools/debug/first_walk.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "field-perf":
 		await load("res://tools/debug/field_performance.gd").new().run(self, _test)
 		get_tree().quit()

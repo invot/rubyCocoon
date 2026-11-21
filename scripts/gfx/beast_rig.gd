@@ -77,6 +77,9 @@ var guard := false
 ## Only the courier's owl uses this pose; ordinary beasts keep their existing rig and animations.
 var mounted := false
 var _mount_seat := Vector3.ZERO
+## A flyer perched on the ground (perch()): awake and bobbing, but its feet down and its wings folded (a town's
+## mascot and its statue). Swimmers keep floating.
+var perched := false
 
 var pivot: Node3D
 var skel: Skeleton3D
@@ -158,6 +161,8 @@ func setup_recipe(recipe: Dictionary, as_ghost := false, skin_element := "") -> 
 
 ## How high it floats above the ground at rest, in its own units: 0 for a beast that stands.
 func hover() -> float:
+	if kind == "flyer" and perched:
+		return 0.0
 	if kind == "flyer":
 		return AUTHORED_FLY if _authored else HOVER
 	if locomotion == "swim":
@@ -302,6 +307,16 @@ func settle() -> void:
 	_ko = 1.0 if _out else 0.0
 	_grd = 1.0 if guard else 0.0
 	_pose()
+
+
+## A flyer lands and stays down while awake: standing on its feet, wings folded along its sides, no flapping (does
+## nothing to a beast that doesn't fly).
+func perch() -> void:
+	if kind != "flyer":
+		return
+	perched = true
+	_hover = hover()
+	settle()
 
 
 ## Stands still in its state's resting pose, neither squashed nor stretched, eyes open, and stops animating (a
@@ -869,10 +884,12 @@ func _pose() -> void:
 	rot["arm_r"].x -= 0.07 * cos(_bounce - 0.6) * still * calm
 	# wings flap while it's up (faster as it flies, the body rising on each beat), and fold when it lands
 	var fl := sin(_flap) * calm
+	# (perched: down on its feet, the wings held folded)
+	var aloft := awake * (0.0 if perched else 1.0)
 	if flyer:
-		lift = (_hover - 0.022 * fl) * awake
-		rot["wing_l"].x += (0.6 * fl + 0.15) * awake
-		rot["wing_r"].x -= (0.6 * fl + 0.15) * awake
+		lift = (_hover - 0.022 * fl) * aloft
+		rot["wing_l"].x += (0.6 * fl + 0.15) * aloft
+		rot["wing_r"].x -= (0.6 * fl + 0.15) * aloft
 		# flying on: leaning into it, the feet tucked back
 		rot["body"].z -= 0.18 * walk
 		for p in ["leg_fl", "leg_fr", "leg_bl", "leg_br"]:
@@ -1156,7 +1173,8 @@ func _pose() -> void:
 	var inv := pivot.transform.affine_inverse()
 	var body := Transform3D(Basis(Quaternion.from_euler(rot["body"])), _rest[0] + off["body"])
 	# the feet stand where they are (flyers' once they've landed), but for arms letting go to strike
-	var plant := lie if flyer or swimmer else 1.0
+	var plant := lie if flyer and not perched or swimmer else 1.0
+	var folded := 1.0 if flyer and perched else lie
 	var grip := 1.0 - clampf(a + s, 0.0, 1.0)
 	if _on_hands:
 		body.origin.y -= _drop * (1.0 - grip) * awake
@@ -1178,7 +1196,7 @@ func _pose() -> void:
 			at = inv * at
 			sc = Vector3.ONE / pivot.scale
 		if _fold.has(p):
-			q = Quaternion.IDENTITY.slerp(_fold[p], lie) * q
+			q = Quaternion.IDENTITY.slerp(_fold[p], folded) * q
 		if i == 0:
 			q = body.basis.get_rotation_quaternion()
 			at = body.origin

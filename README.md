@@ -757,7 +757,9 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   retain their existing rules. Trees, bushes and grass tufts wear a painted leaf texture (`foliage.gdshader`, given
   to every plant by `voxel_assets.gd`; `tools/build_foliage_texture.py` paints `foliage.png`), sunlit on top and
   deeper underneath, and each plant takes a shade of its own from where it stands, so neighbours never match.
-  Gusts travel across trees, palms and grass tufts, bending their tops while their bases stay rooted. Woods
+  One wind blows across each map (`foliage.gdshader`): every tree, palm, bush and grass tuft bends along the same
+  line, mostly downwind, as broad slow gusts roll across and a quicker flutter rides on them; tops move, bases stay
+  rooted. The bend is a share of each plant's own height (`voxel_assets.gd` `WIND_TREES`, `WIND_GRASS`, `WIND_BUSHES`). Woods
   are never crowded: no tree stands on a tile beside another's, in the map or the ring past its edge, and the tiles
   between hold low bushes (always along a wood's edge, so it still reads as a wall). Trees near one another differ in
   kind where the biome has more than one, in height and in build. Wooded tiles keep their collision.

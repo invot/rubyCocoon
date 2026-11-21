@@ -89,9 +89,10 @@ func _ready() -> void:
 	if nightmare:
 		# (the hero just stands at the bars, looking out at the bread)
 		Person.set_reach(hero, 0.0)
-		bread = (load("res://assets/props/bread_roll.glb") as PackedScene).instantiate()
-		bread.scale = Vector3.ONE * 0.36
-		bread.position = BREAD_AT
+		bread = _loaf()
+		# end-on to the duck, so it nibbles at the loaf's tip
+		bread.position = BREAD_AT + Vector3(0, 0, -0.04)
+		bread.rotation.y = PI / 2.0
 		add_child(bread)
 		eater = _duck(EATER_PATH[0], true)
 		dream_at(0.0)
@@ -124,6 +125,39 @@ func _duck(at: Vector3, floating: bool) -> Node3D:
 	add_child(duck)
 	return duck
 
+## The nightmare's loaf of bread: a domed golden crust, three pale slashes scored across its top.
+func _loaf() -> Node3D:
+	var loaf := Node3D.new()
+	loaf.name = "Loaf"
+	var crust := StandardMaterial3D.new()
+	crust.albedo_color = Color("b8732f")
+	crust.roughness = 0.8
+	var score := StandardMaterial3D.new()
+	score.albedo_color = Color("d9a867")
+	score.roughness = 0.9
+	var body := MeshInstance3D.new()
+	var dome := SphereMesh.new()
+	dome.radius = 1
+	dome.height = 2
+	dome.radial_segments = 24
+	dome.rings = 12
+	body.mesh = dome
+	body.material_override = crust
+	# sunk a little into the floor, so it sits flat
+	body.position = Vector3(0, 0.03, 0)
+	body.scale = Vector3(0.17, 0.09, 0.095)
+	loaf.add_child(body)
+	for x in [-0.075, 0.0, 0.075]:
+		var slash := MeshInstance3D.new()
+		var bar := BoxMesh.new()
+		bar.size = Vector3(0.016, 0.01, 0.09)
+		slash.mesh = bar
+		slash.material_override = score
+		slash.position = Vector3(x, 0.03 + 0.09 * sqrt(1.0 - pow(x / 0.17, 2.0)) - 0.004, 0)
+		slash.rotation.y = 0.5
+		loaf.add_child(slash)
+	return loaf
+
 func _process(delta: float) -> void:
 	clock += delta
 	if _leaving >= 0.0:
@@ -134,7 +168,7 @@ func _process(delta: float) -> void:
 	Person.animate(jared, 0, 0, clock)
 
 ## The nightmare at `s` seconds in (opening.gd drives it, so a preview frame shows exactly that moment): the hungry
-## duck paddles to the lip of the channel, hops up, waddles over to the bread and eats it, crumb by crumb.
+## duck paddles to the lip of the channel, hops up, waddles over to the loaf and nibbles at it (the loaf stays whole).
 func dream_at(s: float) -> void:
 	if eater == null:
 		return
@@ -165,10 +199,8 @@ func dream_at(s: float) -> void:
 	if eater.floating != (s < EATER_HOP):
 		eater.set_floating(s < EATER_HOP)
 	eater.act(clip)
-	# the bread gets smaller with every peck, and is gone by the time the duck's full
-	var left := 1.0 - smoothstep(EATER_EAT + 0.4, EATER_FULL - 0.3, s)
-	bread.scale = Vector3.ONE * 0.36 * maxf(left, 0.001)
-	bread.visible = left > 0.02
+	# nibbling: the duck tips forward over its feet to peck at the loaf's tip, again and again
+	eater.rotation.x = 0.6 * pow(maxf(0.0, sin((s - EATER_EAT) * 6.0)), 2.0) if clip == "Eat" else 0.0
 	# the hero watches it all, eyes on the duck, until the voice speaks up from the dark behind them
 	var look := eater.position - hero.position if s < VOICE else Vector3(1.6, 0, -2.6) - hero.position
 	hero.get_node("Body").set_meta("yaw_to", atan2(look.x, look.z) if s >= EATER_HOP else 0.0)

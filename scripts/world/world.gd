@@ -2504,6 +2504,8 @@ func _build_statue() -> void:
 	metal.metallic_specular = 0.7
 	var mi: Node3D = BeastModel.rig(genes, 1.5)
 	if mi != null:
+		# (a winged mascot stands on its pedestal, as it rests in the plaza)
+		(mi as BeastRig).perch()
 		BeastModel.cast(mi, metal)
 	else:
 		var m := MeshInstance3D.new()
@@ -2902,6 +2904,9 @@ func _build_npcs() -> void:
 		elif n.get("beast_genes", null) != null:
 			node = _beast_node(n["beast_genes"], 1.7 if n.get("big", false) else 1.0)
 			node.rotation.y = -PI / 2.0
+			# a town's mascot rests on the ground if it has wings (a swimmer still floats)
+			if n.get("id", "") == "mascot" and node.get_node("Model") is BeastRig:
+				(node.get_node("Model") as BeastRig).perch()
 		elif n.has("robot_body"):
 			node = _beast_node({"model": n["robot_body"]}, 0.95)
 			node.rotation.y = -PI / 2.0
