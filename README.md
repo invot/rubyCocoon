@@ -259,7 +259,8 @@ menu can't move far enough left to clear A entirely: the last row's right arrow 
 edge (the rest of the row, the keys and the pad's own Start still work).
 
 1. Mom tells you that your father's flute is waiting with **Uncle Rafe** in Bellerive, the next town east.
-2. Elder Rowan lets you choose one of four elemental eggs.
+2. Elder Rowan lets you choose one of four elemental eggs, one of each Draco line (`RaceDB.STARTERS`): Draco (Fire),
+   Dropo (Water), Rocco (Earth) or Floppo (Air). The Fire Draco's last form, Dracomni, is Cocoon Cove's mascot.
 
    <img src="docs/screenshots/cove.jpg" width="640" alt="Cocoon Cove, the seaside hamlet where you start."><br><sub>Cocoon Cove, the seaside hamlet where you start.</sub>
 
@@ -281,7 +282,7 @@ edge (the rest of the row, the keys and the pad's own Start still work).
 6. Mend the washed-out footbridge on the Coastal Path to reach Bellerive (the sign only says there's a footbridge ahead
    and a builder's cabin by the creek). Old Hal the builder, in the cabin just west of it, is too tired to rebuild it
    himself: once you've talked to him you can take the logs stacked by his door and lay them across the creek. Go back
-   in and he gives you a beast egg (a Young Water Axolotl) to hatch at Bellerive's Beast Center. Mended, it's a plank footbridge
+   in and he gives you a beast egg (a Driblo) to hatch at Bellerive's Beast Center. Mended, it's a plank footbridge
    with railings.
    A small, continuous beach below the western trail has a low grassy approach and Shellhaven's smooth sand and
    shallow-water profile, without enclosing cliff walls, sunbathers, parasols or other resort dressing.
@@ -391,14 +392,37 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   <img src="docs/screenshots/fishing.jpg" width="640" alt="Reeling one in with Gil, off his shack's deck in Bellerive."><br><sub>Reeling one in with Gil, off his shack's deck in Bellerive.</sub>
 
 - **25 creature lines, 75 forms** (`race_db.gd` `LINES`) use the supplied modular creature
-  models, their original colours, forehead crystals and authored growth proportions. Draco and
-  Axolotl each have Fire, Water, Earth and Air variants; Fennec Fox does too. Jerboa has Earth and
-  Fire variants, Elephant Shrew has Fire, Water and Air, Mantis Shrimp has Water and Fire, and
-  Poodle Moth has Air and Earth. Earth Echidna, Air Grey Owl, Water Yellow Boxfish and the aqua
-  Stubby Squid complete the roster. Every line is released, appears in a suitable wild habitat,
-  and is eligible for eggs, adoption and arena opponents. Stage names are Young, the species name,
-  and Guardian. Existing race ids remain stable; loading an older save translates its appearance
-  and default species name while keeping player nicknames, stats, equipment, moves and progress.
+  models, their original colours and forehead crystals. Draco and Axolotl each have Fire, Water,
+  Earth and Air variants; Fennec Fox does too. Jerboa has Earth and Fire variants, Elephant Shrew
+  has Fire, Water and Air, Mantis Shrimp has Water and Fire, and Poodle Moth has Air and Earth.
+  Earth Echidna, Air Grey Owl, Water Yellow Boxfish and Water Stubby Squid complete the roster.
+  Every line is released, appears in a suitable wild habitat, and is eligible for eggs, adoption
+  and arena opponents.
+  - **Names**: each element has its own root and each species one set of suffixes for its low, mid
+    and high forms, so a family reads as one and every name stays short:
+
+    | Species | Suffixes | Fire | Water | Earth | Air |
+    | --- | --- | --- | --- | --- | --- |
+    | Draco | o, one, omni | Draco | Dropo | Rocco | Floppo |
+    | Axolotl | lo, lotl, lotec | Sizzlo | Driblo | Muddlo | Pufflo |
+    | Fennec Fox | kit, fen, vix | Ashkit | Rillkit | Dunekit | Gustkit |
+    | Elephant Shrew | y, eek, eekor | Fizzy | Sippy | | Zippy |
+    | Mantis Shrimp | ip, imp, imperor | Scrip | Shrip | | |
+    | Echidna | let, ler, lord | | | Quillet | |
+    | Jerboa | pip, hop, hopper | Hotpip | | Clodpip | |
+    | Grey Owl | bit, bert, bertus | | | | Hoobit |
+    | Poodle Moth | let, wing, wingus | | | Fuzzlet | Pooflet |
+    | Yellow Boxfish | it, box, boxer | | Bloopit | | |
+    | Stubby Squid | by, ink, inkus | | Stubby | | |
+
+    (Draco grows into Dracone, then Dracomni.) Existing race ids remain stable; loading an older save
+    translates its appearance and default species name (`RaceDB.canonical_name`: the first roster's
+    names and the interim "Young <species>"/"Guardian <species>" ones) while keeping player
+    nicknames, stats, equipment, moves and progress.
+  - **Size**: every form is fitted to the shared beast box on import (height 1, or 1.6129 long:
+    `tools/import_generated_creatures.gd`), then drawn at its stage's size (`RaceDB.STAGE_SIZE`,
+    72%, 86% and 100%). Flyers float well clear of the ground and swimmers bob above it
+    (`beast_rig.gd` `hover()`).
   The supplied temple dragons replace the five existing temple/crypt guardians; their established
   names and story roles remain. The additional Spirit dragon is imported for previews and future
   placement. No new Spirit encounter is added.
@@ -434,7 +458,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - The first post-battle reward film retires the battle view. Closing egg, level-up or evolution films returns to the world, including between multiple rewards; the arena never reappears afterward.
   - Trainers' beasts, robots and guardians never drop eggs.
   - Beast Centers hatch eggs into level 1 beasts, the first form of the egg's line.
-  - Eggs name the beast inside (for example **Young Fire Axolotl Egg**), with the element beside the starter choices.
+  - Eggs name the beast inside (for example **Sizzlo Egg**), with the element beside the starter choices.
     Every species has its own shell colors, markings and silhouette; Shadow and Radiant variants keep the species' design.
   - Every hatch plays a cinematic in the same dark, misty roundel chamber as the merge film, with a stepped plinth
     in the middle. The platform holds the egg, and the TCM Core lowers above it, hanging from a column of metal and
@@ -548,13 +572,15 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns). The mascot
   teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier
   than any move of its element learnt by levelling (`world_db.gd` TOWNS "signature", `move_db.gd` SIGNATURE, e.g. the
-  Guardian Fire Axolotl's Bandit Blaze in Cocoon Cove; Guardian Water Axolotl is the mascot of both Bellerive and Riverbend, and
-  teaches each town's own move). Nobody else teaches it, and a merge keeps it only for a beast of that line. The statue's plaque explains it, and townsfolk bring it up now and then (`chatter_db.gd` MASCOT_MOVE).
+  Dracomni's Bandit Blaze in Cocoon Cove). Each town's mascot is a different species: Dracomni (Cocoon Cove), Driblotec
+  (Bellerive), Shrimperor (Shellhaven), Stubinkus (Kelpwick), Zippeekor (Dustwell), Poofwingus (Sunwall), Quillord
+  (Copperpick), Clodhopper (Cogsworth), Ashvix (Emberfall), Fuzzwingus (Vinehollow), Bloopboxer (Riverbend) and
+  Hoobertus (Gravenmoor). With 11 species for 12 towns, the Poodle Moth is the one that serves twice, in two elements. Nobody else teaches it, and a merge keeps it only for a beast of that line. The statue's plaque explains it, and townsfolk bring it up now and then (`chatter_db.gd` MASCOT_MOVE).
 - **Wild beasts** roam the routes in plain sight; there are no random encounters (the tall grass is still there).
   - Each beast sees in a cone in front of it, half as far if you're in tall grass, and hears you running nearby.
   - Beasts come running when they spot you. Only a lone beast hopelessly outmatched by your best one (8+ levels below it) bolts.
   - Marks: a yellow **!** when one spots you, a blue **!** when it's scared and fleeing, and **?** when it loses you. Nothing shows while it charges, or once it goes back to roaming.
-  - Walk into one from behind before it spots you: a **sneak attack** (green spiral, it loses its first turn). Meet one face to face: a normal battle (blue spiral). Let one catch you from behind: an **ambush** (red spiral, you lose your first turn).
+  - Walk into one from behind before it spots you: a **sneak attack**: it leaps in fright without turning round (green spiral, it loses its first turn). Meet one face to face: a normal battle (blue spiral). Let one catch you from behind: an **ambush** (red spiral, you lose your first turn).
   - Battle entry is a swirl: two thick, flat-ended arms, one in each of two flat tones of the encounter's colour, wind out from the centre of the screen round each other. The moment that pair is halfway to covering the screen, a second pair starts from the centre on top of it, a shade apart with a soft shadow under its edges; it covers the screen and keeps turning while the battle loads. White sparkles live inside the solid arms (never the see-through first pair on Max): they ride outward along them, growing and blurring toward the screen's edge. Wild encounters use their encounter colour; trainer battles are a deep, dark purple. A last pair of arms, of nothing, then opens from the centre onto the battle. The Graphics setting picks how much it draws (`scripts/ui/spiral.gdshaderinc`): Max has the shadows, the sparkles and a 70%-opaque first pair (the battle waits until the second pair covers the screen); Mid drops the shadows; Min draws flat arms only.
   - After any wild battle, you receive **three seconds of protection** during field control. Wild beasts cannot see or hear you, drop any chase, and cannot start another encounter, even on contact. After a **victory**, your character smoothly pulses between 35% and 80% opacity until protection ends, then returns to full opacity. Escaping or losing (including the return to the Beast Center) keeps the character fully opaque. Trainer battles grant neither protection nor an opacity pulse. Menus, interactions and map transitions pause the countdown and opacity pulse.
   - Groups grow slowly through the game (`Story.pack_cap`): beasts roam alone on the early roads (always on the Coastal Path), in pairs from wild Lv 7, and in threes only from Lv 16. Within that, a beast no stronger than your best one usually (70%) roams with more of its own kind, and the pack stands its ground; on roads with wild Lv 16+, stronger four-legged beasts, flyers and serpents sometimes run in packs too.
@@ -577,7 +603,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **The ring turns by itself** at the start of battle to a side with a standing middle beast (the preferred starting side if covered, otherwise the nearest; without a preference, the last facing), and when everyone on the facing side falls. Guided lessons keep their teaching formation and restricted choices. Fainted beasts on either trainer's ring remain lying on their pads; empty pads stay dim. Turning is shown by the actual ring and beasts moving.
   - **Action icons**: a round icon stands before the action's name on the chooser's bar (`scripts/battle/action_icons.gd`). An elemental attack's disc is its element's colour with the element's glyph (flame, drop, peaks, wind, ghost); a plain attack (and your weapons) is grey with claw marks; every action that isn't an attack is navy, with a glyph for what it does (Defend's shield, a heal's cross, chevrons up for a boost and down for a hex, Move's arrows, Items' bottle, the Flute's note, Watch's eye, Summon's star, Run's arrow). `--scene=action-icons --shot=...` shows the whole set.
   - **Weak and resistant targets**: while an attack is aimed, each target's bar shows a mark after its name: a red burst with "!" when it is weak to that attack (double damage), a slate shield when it resists it (an attack of its own element does three quarters). The top-centre bar says "Weak!" or "Resists" after the target's HP. Elemental bombs show the marks too; plain attacks, weapons and ghosts have none.
-  - **Targeting**: the chooser stays outlined and their bar names the target after the action, with a yellow arrow between them ("Bite ► Young Water Axolotl"; "► All" for a move that hits everyone). Each target is outlined too and gets its own white bar (name, level and HP) in its outline colour, tucked behind it the same way. A translucent yellow 3D arrow rises from behind the actor (so they stand in front of it) and arcs to the target. The top-centre bar says the action, the target with its HP, and what the move does. The 3D arrow is a slim, flat rectangular shaft with a long four-sided pyramid head, with translucent depth-tested faces; white chevrons on the stem point and scroll towards the target, while the head stays plain yellow in every gem. All-target moves draw one arrow to each target. ◄ ► aim; **tap a 3D beast once to aim, then again to confirm**; A also confirms. B returns to choosing the action. Move uses ▲ ▼ or a tap on a legal 3D pad (the pad gets a hull outline). Item and song targeting use the same arrows, outlines and target bars without a chooser bar. Guided battles retain their automatic target restrictions. (The outlined models are rendered a second time, alone, for their shapes only: `battle.gd` `front_texture`; `floating_hud.gd` draws the outlines from it and shows the 3D view through it over the bars' ends.)
+  - **Targeting**: the chooser stays outlined and their bar names the target after the action, with a yellow arrow between them ("Bite ► Driblo"; "► All" for a move that hits everyone). Each target is outlined too and gets its own white bar (name, level and HP) in its outline colour, tucked behind it the same way. A translucent yellow 3D arrow rises from behind the actor (so they stand in front of it) and arcs to the target. The top-centre bar says the action, the target with its HP, and what the move does. The 3D arrow is a slim, flat rectangular shaft with a long four-sided pyramid head, with translucent depth-tested faces; white chevrons on the stem point and scroll towards the target, while the head stays plain yellow in every gem. All-target moves draw one arrow to each target. ◄ ► aim; **tap a 3D beast once to aim, then again to confirm**; A also confirms. B returns to choosing the action. Move uses ▲ ▼ or a tap on a legal 3D pad (the pad gets a hull outline). Item and song targeting use the same arrows, outlines and target bars without a chooser bar. Guided battles retain their automatic target restrictions. (The outlined models are rendered a second time, alone, for their shapes only: `battle.gd` `front_texture`; `floating_hud.gd` draws the outlines from it and shows the 3D view through it over the bars' ends.)
   - **While you choose your own action** (and aim it), every standing beast without a bar of its own shows its HP over its MP in a small square plate above its head ("HP 63" over "MP 31" on the left, each beside its gauge; the HP gauge is green above 50%, and both the gauge and label turn yellow at 50% HP and red below 25%), and each trainer (you, and a rival trainer) shows their shield points in the same kind of plate: a "SHIELD" label, then an orb per point. The plates use the top-centre bar's dark fill with no frame, fading out towards both sides, and a thin white line along the bottom that fades the same way. None of these show while a beast is choosing. **During actions** no bars or readouts appear at all: HP changes show only as damage numbers. Shield orbs appear beside a trainer only while targeted or for about a second after a hit, and bars keep clear of them. Battle messages and damage numbers retain their existing presentation.
   - **Touch**: the chooser's bar is drawn compact but taps as a full-height row (at least 80 logical units on touch, 56 on desktop); its left end (level and ◄) and right end (►) change the action and the middle confirms. Bars stay in the safe area and outside the d-pad and A/B clusters' enlarged exclusion zones: a bar that fits on neither side of its model rests nearby with a pointer to it. Keyboard, gamepad and direct taps share the command controller; taps cannot pass into world movement.
   - **Surroundings**: outdoor, fishing and arena battles sit inside one continuous textured surround, with a curved foot blended into the stage's own floor. Each of the 14 biome palettes has its own repeating mural, baked from the game's existing regional assets. Batched clusters of regional trees, shrubs and rocks frame all four perimeter corners and hide joins; desert clusters use boulders, fishing keeps trees on land and uses rock outcrops over water, and arenas use pillars and banners. Indoor battles retain their enclosed walls and ceiling, with tall corner columns, lower temple or tower props and colored practical lights concealing wall junctions. The mural uses mipmapped anisotropic filtering and scenery casts no shadows. There is no runtime artwork generation.
@@ -638,7 +664,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - **Brass & Reed Music** in Cogsworth: Maestro Clef plays one song from his book for free, once. Play it back from memory to learn it. He also sells sheet music, which you can practise from your bag until you get it right.
   - **Flute trainers** play their own songs in battle: four route bards, three arena masters, Commander Nyx and General Vexmora. Win, then play the song back **without a single mistake** to learn it. Bards and arena masters will battle again for an encore.
 - **Fast travel**:
-  - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Guardian Grey Owl flies you to any town you've visited, for a fee.
+  - Climb a **Sky Tower**: Skykeeper Aria's ticket desk is in the lobby, and the stairs lead up to an open-air platform on the roof, where the Hoobertus flies you to any town you've visited, for a fee.
   - Once you own an air beast of **Lv 40+** (in your ring, not storage), pick a town you've visited on the Start book's Map page and choose **Fly here** (or press A) to travel there from anywhere outdoors. It asks first: A: Yes flies, B: No stays.
 - **Beast Centers** all look the same, inside and out, in every town (`scripts/gfx/beast_temple.gd`): a small temple that works by old magic, not machines, to the tune of "Hep Cats". Outside it is a squat eight-sided drum of smooth grey stone blocks on a plinth, with a gabled portal at the front (gold-trimmed eaves set with teal tiles, a pointed niche, the sign board with the pawprint) round an arched doorway with teal inlays and a closed blue door; stepped terracotta tiers, a little red drum ringed with posts and a golden thatched dome with a crest of coral petals round a teal jewel crown it. Inside is one room (12x9) with walls of the same grey blocks, pilasters with flame sconces and a glowing inlay in the Center's red; each relic has its own bay along the back wall.
   - The **healing font** is a stone basin on a fluted pedestal with a crystal turning over it and a rune stone per beast set in its rim; the rune stones light one by one and the crystal glows while it heals. Use it yourself, any time, for free.
@@ -918,7 +944,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   striped awning and pennants) behind a crenellated gatehouse between two turrets, in each region's stone;
   **Sparkwire Electronics** is a streamlined shop with a curved glass corner, a wrap-round canopy, a drum carrying a
   blade sign, a satellite dish and a radio mast; the **Sky Tower** is an eight-sided lookout in the town's finish,
-  stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Guardian Grey Owl on the rail.
+  stepping in as it rises, with a gallery, a glazed lantern under a pointed roof and the Hoobertus on the rail.
   Gearheart Tower is stepped brick with a clock and a spire; Gravenmoor Cathedral a dark nave between two spired towers.
 - **Grass** is a pillow laid on the ground (`terrain_mesh.gd` `LIFT`, `TURF`): it stands a little above paths, sand
   and paving, and rolls over its own edge in a soft, slightly wavy muffin top with the soil tucked in under it and a
@@ -1001,7 +1027,7 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   or parapets; on the riverfront row, where a street runs close behind, one-storey Creole cottages and shotgun houses
   (world.gd "low"). Shops hang a sign board from the gallery over a striped awning in their colour; the low ones wear
   the awning and the sign on the wall. Sparkwire Electronics is a townhouse with a blue blade sign, the Sky Tower the
-  white bell tower facing the Place d'Armes (a clock, a belfry and a black slate spire, Guardian Grey Owl on its balcony),
+  white bell tower facing the Place d'Armes (a clock, a belfry and a black slate spire, Hoobertus on its balcony),
   and the arena a cream oval under a mansard ring, entered through a pavilion with a mansard roof, iron cresting, a
   clock and Mardi Gras banners. The French Market's arcade on the riverfront is scenery (no door). Along the quay a
   stone balustrade with lamps on its piers (an `F` or `L` tile with the water or lower ground just south: world.gd
@@ -1104,7 +1130,7 @@ new request replaces the old one; cancelling the call keeps the old one. Selecte
 items remain reserved in the locker until handed over. The pending request and its
 remaining timer are saved with Dad's normal phone save.
 
-The Guardian Grey Owl arrives after about **30 seconds outdoors and in control**. The
+The Hoobertus arrives after about **30 seconds outdoors and in control**. The
 clock pauses indoors, in menus, dialogue and battles. It waits for a completed step
 and a free, level adjacent tile; temples, dungeons and interiors never qualify.
 The bird cries and swoops down while movement is frozen. The employee stays seated
@@ -1256,7 +1282,7 @@ mounted owl and its rider.
   book's detail pane scrolls, so a tall page never runs under the buttons, and in battle the command menu takes the
   place of the battle text while it is open.
 - The title menu appears immediately over sixteen detailed landscape scenes (`scripts/ui/art_slideshow.gd`),
-  including Gearheart's meeting, merging, a Beast Center visit, trainer combat, a Young Echidna hatching in its cracked egg,
+  including Gearheart's meeting, merging, a Beast Center visit, trainer combat, a Quillet hatching in its cracked egg,
   and a flute song. The trainer battle uses the corrected turtle facing its opponent.
   Title, general in-game loading and web loading shuffle all sixteen pictures for each pass, with a random first image
   and no immediate repeats between passes. In-game screens also avoid reopening on the previous screen's last image.
@@ -1824,7 +1850,7 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `rescue`: locked freight control, three captives, rescue persistence across map reloads, repeat use, and the reunion.
 - `arena-ladder`: four-trainer rank tabs, touch-control clearance, compact talk-menu rows, left/right navigation, tab/trainer taps and A/B confirmation without vertical scrolling. Add `--matrix=1` to the scene for all four gems.
 - `kennel` / `kennel-ui`: level-based adoption fees, exact/insufficient funds, cancellation, free reclaiming, storage overflow, drop-off to storage or adoption (and the Beast Center's storage-only drop-off), and the real keeper/pen menus with touch and focus navigation. Preview with `--scene=kennel --shot=res://build/shots/kennel.png` (`--preview=poor` or `empty` for those states; `--verify=1` exercises inputs).
-- `beast-turn`: a wild beast met from the side turns smoothly to face you before the battle (no snap). Add `--shot=res://build/shots/beast_turn.png` for before, mid-turn and facing frames.
+- `beast-turn`: a wild beast met from the side turns smoothly to face you before the battle (no snap), and one you sneak up on leaps without turning. Add `--shot=res://build/shots/beast_turn.png` for before, mid-turn and facing frames.
 - `wild-grace`: wild battle return protection, smooth opacity bounds, sight and hearing, existing chases, contact, expiry, map changes, and trainer battle exclusion. Add `--shot=res://build/shots/wild_grace.png` for low, middle and high pulse opacity and the fully opaque player after expiry, or `--preview=pulse` to replay the effect in a game window.
 
 Focused cinematic previews use the normal screenshot harness and fresh state (no player saves):
@@ -1924,7 +1950,7 @@ godot --headless --path . -- --scene=sim --n=10                          # simul
 godot --headless --path . -- --scene=flow                                # scripted run through the whole story
 godot --path . -- --scene=knock                                         # knock on locked doors (a Bellerive house, the cathedral)
 godot --path . -- --scene=door-voices --preview=1 --shot=res://build/shots/cove_red_door.png # permanent voices and red/blue paint; add --touch for a phone preview
-godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Guardian Grey Owl
+godot --path . -- --scene=skytower                                      # into a Sky Tower, up to the roof and away on the Hoobertus
 godot --path . -- --scene=gallery:nature:0 --shot=C:/tmp/g.png           # asset gallery
 godot --path . -- --scene=beasts:0 --shot=C:/tmp/v.png                   # beast gallery as the game draws them (pages 0-3: the forms, then the legendaries; 4 = merges)
 godot --headless --path . --script res://tools/check_tidewater_layout.gd  # galleries clear of paths; solid arena entrance shoulders
@@ -2060,7 +2086,7 @@ Mom befriends Marlyse in a scene on first arriving in Cogsworth. Jared is Vexmor
 
 Before the scientist’s final battle, Matt’s attempted killing is stopped by Jared, and the player shares a jail cell with him. Escape by recalling the tool or by playing Jared’s difficult dirt-written Duck March with some prompt icons halved. The song puts one of Jared’s ducks under your control: use the d-pad/arrows and A to waddle it to the brass catch and unlock it (A anywhere else just quacks); B returns to the escape choices. With the gate open, the hero and Jared walk out and his ducks follow them in a line (`prison_stage.gd walk_out`; preview with `--scene=jail --view=cell|duck|leave --at=s`, check with `--scene=jail --verify=1`).
 
-Ducks (`scripts/gfx/duck.gd`, Liray 3D’s mallard cut to 5,000 triangles in `assets/animals/duck.glb`) are animals, never characters: they float on water and waddle on land, and only quack. A few float by grassy banks on the roads, never in towns (`Shoreline.duck_spots`: today the desert road’s oasis and the mountain road’s pond). Press A beside one and it quacks; each press within three seconds of the last steps up a major scale from D4 and back down (`Duck.SONG`), so the ducks sing (`--scene=ducks --map=route8 --presses=9 --verify=1`). Failed songs and wrong tool answers can be retried without spending items.
+Ducks (`scripts/gfx/duck.gd`, Liray 3D’s mallard cut to 5,000 triangles in `assets/animals/duck.glb`) are animals, never characters: they float on water and waddle on land, and only quack. A few float by grassy banks on the roads, never in towns (`Shoreline.duck_spots`: today the desert road’s oasis and the mountain road’s pond). Press A beside one and it quacks, each quack shifted up to two semitones up or down at random (`Duck.PITCH_STEPS`; the sound is `assets/audio/sfx/duck_quack.ogg`) (`--scene=ducks --map=route8 --presses=9 --verify=1`). Failed songs and wrong tool answers can be retried without spending items.
 
 After Jared’s defeat, three controls in the deepest crypt must be used in order: **Intake Isolator**, **Spirit Reservoir**, **Network Shutdown**. Their saved flags prevent repeated operations. Mom’s hockey-shirt-and-stick fight clears the goons from the controls; the machinery crisis is contained before Marlyse’s acceptance scene and the brothers’ home confrontation, fries memory and invitation to play spaceships. Only then is `game_cleared` set. Earlier completed saves retain their completion. Willing ghost companions remain playable. The Andrew/Jared bonus wedding remains after the revised ending.
 

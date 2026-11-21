@@ -48,6 +48,10 @@ const RECOIL_FULL := 0.2
 const RECOIL_HEAVY := 0.15
 ## flyers hover this high while awake
 const HOVER := 0.22
+## how high the supplied creature models float, in their own units (a flyer's wingbeat and a swimmer's bob dip
+## below it a little): clear of the ground at a glance, in battle and on the routes
+const AUTHORED_FLY := 0.42
+const AUTHORED_SWIM := 0.34
 
 ## the blow of attack() lands
 signal hit
@@ -61,6 +65,8 @@ var kind := "quad"
 var locomotion := "ground"
 var appendage := "arms"
 var _authored := false
+## how high it floats at rest (hover())
+var _hover := HOVER
 ## idle, walk or lie (it eases from one to the next)
 var state := "idle"
 var ghost := false
@@ -148,6 +154,15 @@ func setup_merge(a: String, b: String, seed_n: int, as_ghost := false) -> void:
 ## A merged beast from its recipe (as Parts.merge_recipe() gives it, and its genes keep it).
 func setup_recipe(recipe: Dictionary, as_ghost := false, skin_element := "") -> void:
 	_build(recipe, as_ghost, skin_element)
+
+
+## How high it floats above the ground at rest, in its own units: 0 for a beast that stands.
+func hover() -> float:
+	if kind == "flyer":
+		return AUTHORED_FLY if _authored else HOVER
+	if locomotion == "swim":
+		return AUTHORED_SWIM if _authored else 0.13
+	return 0.0
 
 
 func mount() -> void:
@@ -342,6 +357,7 @@ func _build(recipe: Dictionary, as_ghost: bool, skin_element := "") -> void:
 	elif kind == "flyer":
 		kind = "quad" if fi["lo"].has("leg_fl") else "biped"
 	_authored = bool(fi.get("authored_materials", false))
+	_hover = hover()
 	_hole = fi["lo"].has("deco")
 	pivot = Node3D.new()
 	add_child(pivot)
@@ -854,7 +870,7 @@ func _pose() -> void:
 	# wings flap while it's up (faster as it flies, the body rising on each beat), and fold when it lands
 	var fl := sin(_flap) * calm
 	if flyer:
-		lift = (HOVER - 0.022 * fl) * awake
+		lift = (_hover - 0.022 * fl) * awake
 		rot["wing_l"].x += (0.6 * fl + 0.15) * awake
 		rot["wing_r"].x -= (0.6 * fl + 0.15) * awake
 		# flying on: leaning into it, the feet tucked back
@@ -865,7 +881,7 @@ func _pose() -> void:
 		rot["wing_l"].x += 0.12 * sin(_bounce) * awake
 		rot["wing_r"].x -= 0.12 * sin(_bounce) * awake
 	if swimmer:
-		lift = (0.13 + 0.025 * sin(_bounce * 0.65)) * awake
+		lift = (_hover + 0.025 * sin(_bounce * 0.65)) * awake
 		var paddle := sin(_flap * 0.55) * (0.22 + 0.18 * walk) * awake * calm
 		rot["arm_l"].x += paddle
 		rot["arm_r"].x -= paddle

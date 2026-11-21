@@ -63,7 +63,7 @@ End the nightmare and return to the player waking in bed. They remark on the odd
 
 Jared has an affinity for ducks. He has befriended them wherever he has been, including the ducks in Matt’s old dungeon, and they follow him about. He knows a great many duck facts (a duck can sleep with one eye open; a duck’s webbed feet don’t feel the cold) and, being eccentric, sometimes just talks about ducks in the middle of more serious matters. Use it lightly: a fact or an aside, never a lecture, and never at the expense of a serious scene’s weight.
 
-Ducks are animals, not talking critters or beasts: they never speak and are never caught, hatched or battled. They float on water and waddle on land. A duck next to the player only quacks (a sound, no speech bubble); pressing A at one again and again steps its quack up a major scale and back down, so they sound like they are singing. A few float by grassy banks on the roads (never in towns), and Jared’s are in the dungeon of the dream and of the jail.
+Ducks are animals, not talking critters or beasts: they never speak and are never caught, hatched or battled. They float on water and waddle on land. A duck next to the player only quacks (a sound, no speech bubble); each quack is pitched a semitone or two up or down at random. A few float by grassy banks on the roads (never in towns), and Jared’s are in the dungeon of the dream and of the jail.
 
 ### Later jail escape: memory or a difficult flute song
 

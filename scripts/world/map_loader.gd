@@ -1308,8 +1308,8 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 						g["blocks"].append(p + offset)
 			return g
 		"thunderhawk":
-			# the Sky Tower's giant bird, a Guardian Grey Owl, waiting on the roof (its id is from when it was a Thunderhawk)
-			return {"kind": "story", "id": "thunderhawk", "name": "Guardian Grey Owl", "pos": p, "beast_genes": RaceDB.genes(32), "big": true,
+			# the Sky Tower's giant bird, a Hoobertus, waiting on the roof (its id is from when it was a Thunderhawk)
+			return {"kind": "story", "id": "thunderhawk", "name": "Hoobertus", "pos": p, "beast_genes": RaceDB.genes(32), "big": true,
 				"facing": Vector2i(0, 1), "building": b}
 		"kennel":
 			# the Beast Center robe

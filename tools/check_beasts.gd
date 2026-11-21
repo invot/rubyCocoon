@@ -84,8 +84,10 @@ func _init() -> void:
 	saved["genes"] = {"form": "dino_2", "body": "quad", "size": 0.86, "shade": 0.0}
 	var saved_stats: Dictionary = saved["base"].duplicate(true)
 	var migrated := Beasts.from_dict(saved)
-	_check(migrated.race == 1 and migrated.genes["form"] == RaceDB.form(1) and migrated.genes["size"] == 1.0
+	_check(migrated.race == 1 and migrated.genes["form"] == RaceDB.form(1) and is_equal_approx(float(migrated.genes["size"]), RaceDB.STAGE_SIZE[1])
 		and migrated.nickname == RaceDB.race_name(1) and migrated.base == saved_stats, "loading a legacy beast changes appearance/default name and preserves race/stats")
+	_check(RaceDB.canonical_name("Young Fire Axolotl", 0) == "Sizzlo" and RaceDB.canonical_name("Guardian Grey Owl", 32) == "Hoobertus"
+		and RaceDB.canonical_name("Umbral Fire Draco", 49) == "Umbral Dracone", "interim roster names become the short stage names")
 	saved["nickname"] = "Pebble"
 	_check(Beasts.from_dict(saved).nickname == "Pebble", "loading preserves a player-written nickname")
 	saved["genes"]["recipe"] = {"frame": "dino_2", "colours": "owl_2", "head": "owl_2"}

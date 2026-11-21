@@ -3,31 +3,31 @@ extends RefCounted
 const RaceDB = preload("res://scripts/data/race_db.gd")
 ## shell, markings, motif, width, crown (the shapes echo the beast inside).
 const SHELLS := {
-	0: ["#e9a378", "#ec6336", 0, 0.75, "fin"], # Fire Axolotl
-	3: ["#e9a378", "#ec6336", 1, 0.76, "ears"], # Fire Fennec Fox
-	6: ["#e9a378", "#ec6336", 2, 0.77, "ears"], # Fire Elephant Shrew
-	9: ["#e9a378", "#ec6336", 3, 0.77, "claws"], # Fire Mantis Shrimp
-	12: ["#b5be97", "#e6b547", 4, 0.78, "plates"], # Earth Echidna
-	15: ["#b5be97", "#e6b547", 0, 0.79, "ears"], # Earth Jerboa
-	18: ["#b5be97", "#e6b547", 1, 0.80, "ears"], # Earth Fennec Fox
-	21: ["#b5be97", "#e6b547", 2, 0.81, "fin"], # Earth Axolotl
-	24: ["#85c8c3", "#39b89b", 3, 0.81, "claws"], # Water Mantis Shrimp
-	27: ["#85c8c3", "#39b89b", 4, 0.82, "fin"], # Water Axolotl
-	30: ["#cee5ed", "#72bee9", 0, 0.83, "feathers"], # Air Grey Owl
-	33: ["#cee5ed", "#72bee9", 1, 0.84, "feathers"], # Air Poodle Moth
-	36: ["#cee5ed", "#72bee9", 2, 0.85, "feathers"], # Air Elephant Shrew
-	48: ["#e9a378", "#ec6336", 3, 0.85, "horns"], # Fire Draco
-	51: ["#85c8c3", "#39b89b", 4, 0.86, "horns"], # Water Draco
-	54: ["#b5be97", "#e6b547", 0, 0.87, "horns"], # Earth Draco
-	57: ["#cee5ed", "#72bee9", 1, 0.88, "horns"], # Air Draco
-	60: ["#cee5ed", "#72bee9", 2, 0.89, "fin"], # Air Axolotl
-	63: ["#e9a378", "#ec6336", 3, 0.89, "ears"], # Fire Jerboa
-	66: ["#85c8c3", "#39b89b", 4, 0.90, "fin"], # Water Elephant Shrew
-	69: ["#cee5ed", "#72bee9", 0, 0.91, "ears"], # Air Fennec Fox
-	72: ["#85c8c3", "#39b89b", 1, 0.92, "ears"], # Water Fennec Fox
-	75: ["#b5be97", "#e6b547", 2, 0.93, "feathers"], # Earth Poodle Moth
-	78: ["#85c8c3", "#39b89b", 3, 0.93, "fin"], # Water Yellow Boxfish
-	81: ["#85c8c3", "#39b89b", 4, 0.94, "fin"], # Water Aqua Squid
+	0: ["#e9a378", "#ec6336", 0, 0.75, "fin"], # Sizzlo
+	3: ["#e9a378", "#ec6336", 1, 0.76, "ears"], # Ashkit
+	6: ["#e9a378", "#ec6336", 2, 0.77, "ears"], # Fizzy
+	9: ["#e9a378", "#ec6336", 3, 0.77, "claws"], # Scrip
+	12: ["#b5be97", "#e6b547", 4, 0.78, "plates"], # Quillet
+	15: ["#b5be97", "#e6b547", 0, 0.79, "ears"], # Clodpip
+	18: ["#b5be97", "#e6b547", 1, 0.80, "ears"], # Dunekit
+	21: ["#b5be97", "#e6b547", 2, 0.81, "fin"], # Muddlo
+	24: ["#85c8c3", "#39b89b", 3, 0.81, "claws"], # Shrip
+	27: ["#85c8c3", "#39b89b", 4, 0.82, "fin"], # Driblo
+	30: ["#cee5ed", "#72bee9", 0, 0.83, "feathers"], # Hoobit
+	33: ["#cee5ed", "#72bee9", 1, 0.84, "feathers"], # Pooflet
+	36: ["#cee5ed", "#72bee9", 2, 0.85, "feathers"], # Zippy
+	48: ["#e9a378", "#ec6336", 3, 0.85, "horns"], # Draco
+	51: ["#85c8c3", "#39b89b", 4, 0.86, "horns"], # Dropo
+	54: ["#b5be97", "#e6b547", 0, 0.87, "horns"], # Rocco
+	57: ["#cee5ed", "#72bee9", 1, 0.88, "horns"], # Floppo
+	60: ["#cee5ed", "#72bee9", 2, 0.89, "fin"], # Pufflo
+	63: ["#e9a378", "#ec6336", 3, 0.89, "ears"], # Hotpip
+	66: ["#85c8c3", "#39b89b", 4, 0.90, "fin"], # Sippy
+	69: ["#cee5ed", "#72bee9", 0, 0.91, "ears"], # Gustkit
+	72: ["#85c8c3", "#39b89b", 1, 0.92, "ears"], # Rillkit
+	75: ["#b5be97", "#e6b547", 2, 0.93, "feathers"], # Fuzzlet
+	78: ["#85c8c3", "#39b89b", 3, 0.93, "fin"], # Bloopit
+	81: ["#85c8c3", "#39b89b", 4, 0.94, "fin"], # Stubby
 	39: ["#275a99", "#b9f4ff", 3, 0.78, "fin"],
 	40: ["#c5ece8", "#edc86f", 0, 0.75, "feathers"],
 	41: ["#a94439", "#ffc96c", 1, 0.94, "horns"],

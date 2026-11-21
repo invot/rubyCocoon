@@ -7,31 +7,33 @@ const MoveDB = preload("res://scripts/data/move_db.gd")
 
 const LINES := [
 	# Model prefix, stage names, element, second element, stage body kinds.
-	["generated_axolotl_fire", ["Young Fire Axolotl", "Fire Axolotl", "Guardian Fire Axolotl"], "fire", "", ["quad", "quad", "quad"]],
-	["generated_fennec_fox_fire", ["Young Fire Fennec Fox", "Fire Fennec Fox", "Guardian Fire Fennec Fox"], "fire", "", ["quad", "quad", "quad"]],
-	["generated_elephant_shrew_fire", ["Young Fire Elephant Shrew", "Fire Elephant Shrew", "Guardian Fire Elephant Shrew"], "fire", "", ["quad", "quad", "quad"]],
-	["generated_peacock_mantis_shrimp_fire", ["Young Fire Mantis Shrimp", "Fire Mantis Shrimp", "Guardian Fire Mantis Shrimp"], "fire", "", ["quad", "quad", "quad"]],
-	["generated_echidna_earth", ["Young Echidna", "Echidna", "Guardian Echidna"], "earth", "", ["quad", "quad", "quad"]],
-	["generated_jerboa_earth", ["Young Earth Jerboa", "Earth Jerboa", "Guardian Earth Jerboa"], "earth", "", ["biped", "biped", "biped"]],
-	["generated_fennec_fox_earth", ["Young Earth Fennec Fox", "Earth Fennec Fox", "Guardian Earth Fennec Fox"], "earth", "", ["quad", "quad", "quad"]],
-	["generated_axolotl_earth", ["Young Earth Axolotl", "Earth Axolotl", "Guardian Earth Axolotl"], "earth", "", ["quad", "quad", "quad"]],
-	["generated_peacock_mantis_shrimp_water", ["Young Water Mantis Shrimp", "Water Mantis Shrimp", "Guardian Water Mantis Shrimp"], "water", "", ["quad", "quad", "quad"]],
-	["generated_axolotl_water", ["Young Water Axolotl", "Water Axolotl", "Guardian Water Axolotl"], "water", "", ["quad", "quad", "quad"]],
-	["generated_grey_owl_air", ["Young Grey Owl", "Grey Owl", "Guardian Grey Owl"], "air", "", ["flyer", "flyer", "flyer"]],
-	["generated_poodle_moth_air", ["Young Air Poodle Moth", "Air Poodle Moth", "Guardian Air Poodle Moth"], "air", "", ["flyer", "flyer", "flyer"]],
-	["generated_elephant_shrew_air", ["Young Air Elephant Shrew", "Air Elephant Shrew", "Guardian Air Elephant Shrew"], "air", "", ["flyer", "flyer", "flyer"]],
-	["generated_draco_fire", ["Young Fire Draco", "Fire Draco", "Guardian Fire Draco"], "fire", "", ["quad", "quad", "quad"]],
-	["generated_draco_water", ["Young Water Draco", "Water Draco", "Guardian Water Draco"], "water", "", ["quad", "quad", "quad"]],
-	["generated_draco_earth", ["Young Earth Draco", "Earth Draco", "Guardian Earth Draco"], "earth", "", ["quad", "quad", "quad"]],
-	["generated_draco_air", ["Young Air Draco", "Air Draco", "Guardian Air Draco"], "air", "", ["flyer", "flyer", "flyer"]],
-	["generated_axolotl_air", ["Young Air Axolotl", "Air Axolotl", "Guardian Air Axolotl"], "air", "", ["quad", "quad", "quad"]],
-	["generated_jerboa_fire", ["Young Fire Jerboa", "Fire Jerboa", "Guardian Fire Jerboa"], "fire", "", ["biped", "biped", "biped"]],
-	["generated_elephant_shrew_water", ["Young Water Elephant Shrew", "Water Elephant Shrew", "Guardian Water Elephant Shrew"], "water", "", ["quad", "quad", "quad"]],
-	["generated_fennec_fox_air", ["Young Air Fennec Fox", "Air Fennec Fox", "Guardian Air Fennec Fox"], "air", "", ["quad", "quad", "quad"]],
-	["generated_fennec_fox_water", ["Young Water Fennec Fox", "Water Fennec Fox", "Guardian Water Fennec Fox"], "water", "", ["quad", "quad", "quad"]],
-	["generated_poodle_moth_earth", ["Young Earth Poodle Moth", "Earth Poodle Moth", "Guardian Earth Poodle Moth"], "earth", "", ["flyer", "flyer", "flyer"]],
-	["generated_yellow_boxfish_water", ["Young Yellow Boxfish", "Yellow Boxfish", "Guardian Yellow Boxfish"], "water", "", ["fish", "fish", "fish"]],
-	["generated_stubby_squid_water", ["Young Aqua Squid", "Aqua Squid", "Guardian Aqua Squid"], "water", "", ["fish", "fish", "fish"]],
+	# Names: each element has its own root and each species one set of stage suffixes (low, mid, high), e.g. the
+	# frilled lizard Drac/Drop/Rocc/Flopp + o/one/omni: Draco, Dracone, Dracomni. Short, and a family reads as one.
+	["generated_axolotl_fire", ["Sizzlo", "Sizzlotl", "Sizzlotec"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_fennec_fox_fire", ["Ashkit", "Ashfen", "Ashvix"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_elephant_shrew_fire", ["Fizzy", "Fizzeek", "Fizzeekor"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_peacock_mantis_shrimp_fire", ["Scrip", "Scrimp", "Scrimperor"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_echidna_earth", ["Quillet", "Quiller", "Quillord"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_jerboa_earth", ["Clodpip", "Clodhop", "Clodhopper"], "earth", "", ["biped", "biped", "biped"]],
+	["generated_fennec_fox_earth", ["Dunekit", "Dunefen", "Dunevix"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_axolotl_earth", ["Muddlo", "Muddlotl", "Muddlotec"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_peacock_mantis_shrimp_water", ["Shrip", "Shrimp", "Shrimperor"], "water", "", ["quad", "quad", "quad"]],
+	["generated_axolotl_water", ["Driblo", "Driblotl", "Driblotec"], "water", "", ["quad", "quad", "quad"]],
+	["generated_grey_owl_air", ["Hoobit", "Hoobert", "Hoobertus"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_poodle_moth_air", ["Pooflet", "Poofwing", "Poofwingus"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_elephant_shrew_air", ["Zippy", "Zippeek", "Zippeekor"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_draco_fire", ["Draco", "Dracone", "Dracomni"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_draco_water", ["Dropo", "Dropone", "Dropomni"], "water", "", ["quad", "quad", "quad"]],
+	["generated_draco_earth", ["Rocco", "Roccone", "Roccomni"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_draco_air", ["Floppo", "Floppone", "Floppomni"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_axolotl_air", ["Pufflo", "Pufflotl", "Pufflotec"], "air", "", ["quad", "quad", "quad"]],
+	["generated_jerboa_fire", ["Hotpip", "Hothop", "Hothopper"], "fire", "", ["biped", "biped", "biped"]],
+	["generated_elephant_shrew_water", ["Sippy", "Sippeek", "Sippeekor"], "water", "", ["quad", "quad", "quad"]],
+	["generated_fennec_fox_air", ["Gustkit", "Gustfen", "Gustvix"], "air", "", ["quad", "quad", "quad"]],
+	["generated_fennec_fox_water", ["Rillkit", "Rillfen", "Rillvix"], "water", "", ["quad", "quad", "quad"]],
+	["generated_poodle_moth_earth", ["Fuzzlet", "Fuzzwing", "Fuzzwingus"], "earth", "", ["flyer", "flyer", "flyer"]],
+	["generated_yellow_boxfish_water", ["Bloopit", "Bloopbox", "Bloopboxer"], "water", "", ["fish", "fish", "fish"]],
+	["generated_stubby_squid_water", ["Stubby", "Stubink", "Stubinkus"], "water", "", ["fish", "fish", "fish"]],
 ]
 ## how many lines have the first race ids (0..38); the rest start at LATE_BASE, after the specials (39..47)
 const EARLY_LINES := 13
@@ -41,7 +43,7 @@ const UNRELEASED := []
 ## the levels a beast grows into its line's second and third forms
 const EVOLVE := [20, 40]
 ## each stage's size (the "size" gene), and its share of the line's full stats
-const STAGE_SIZE := [1.0, 1.0, 1.0]
+const STAGE_SIZE := [0.72, 0.86, 1.0]
 const STAGE_STATS := [0.8, 0.9, 1.0]
 
 const SPECIAL := [
@@ -69,8 +71,9 @@ const ROBOT_MODELS := {43: "robot_clockwork", 44: "robot_steam", 45: "robot_gole
 const LEGENDARY_PASSIVES := {39: ["Healing Tide", "Regenerate"], 40: ["Slippery", "Swift"], 41: ["Blaze", "Thick Hide"], 42: ["Sturdy", "Rock Skin"],
 	47: ["Swift", "Rock Skin"]}
 
-## the four eggs to choose from: fire, water, earth and air
-const STARTERS := [0, 24, 12, 30]
+## the four eggs to choose from: fire, water, earth and air, one of each Draco line (Draco, Dropo, Rocco, Floppo);
+## Cocoon Cove's mascot is the Fire Draco
+const STARTERS := [48, 51, 54, 57]
 
 ## base stats per element role: hp, atk, def, spr, spd
 const ROLE_STATS := {
@@ -113,6 +116,10 @@ const PASSIVE_DESC := {
 const LEGACY_LINES := ["dino", "cactus", "marmot", "scorpion", "beetle", "boar", "tree", "worm", "crab", "frog", "owl", "bat", "berry", "draco", "dropo", "rocco", "floppo"]
 const LEGACY_NAMES := [["Embit", "Cinderex", "Pyrosaur"], ["Pricklet", "Spinesear", "Saguaroar"], ["Impkin", "Scampyre", "Infernook"], ["Nipskit", "Scorchpin", "Calderak"], ["Grubbit", "Shellhorn", "Rhinoclad"], ["Tuskit", "Bristlehog", "Crystusk"], ["Saplet", "Barkbrute", "Elderoot"], ["Wrigglet", "Mudwhip", "Abyssel"], ["Clawlet", "Snapshell", "Crustacor"], ["Tadlet", "Croakus", "Toadmiral"], ["Hootlet", "Gustowl", "Tempestrix"], ["Flittle", "Duskwing", "Nocturna"], ["Berrypuff", "Bramblume", "Galeberry"], ["Draco", "Cindrake", "Blazewyrm"], ["Dropo", "Tidrake", "Torrentwyrm"], ["Rocco", "Bouldrake", "Quakewyrm"], ["Floppo", "Glidrake", "Galewyrm"]]
 
+## The roster's first import named its forms "Young <species>", "<species>" and "Guardian <species>" (per line, in
+## LINES order); saved beasts still carrying one of those default names get their line's current name.
+const INTERIM_SPECIES := ["Fire Axolotl", "Fire Fennec Fox", "Fire Elephant Shrew", "Fire Mantis Shrimp", "Echidna", "Earth Jerboa", "Earth Fennec Fox", "Earth Axolotl", "Water Mantis Shrimp", "Water Axolotl", "Grey Owl", "Air Poodle Moth", "Air Elephant Shrew", "Fire Draco", "Water Draco", "Earth Draco", "Air Draco", "Air Axolotl", "Fire Jerboa", "Water Elephant Shrew", "Air Fennec Fox", "Water Fennec Fox", "Earth Poodle Moth", "Yellow Boxfish", "Aqua Squid"]
+
 static func canonical_form(f: String) -> String:
 	if f.begins_with("generated_"):
 		return f
@@ -131,13 +138,17 @@ static func canonical_name(n: String, id: int) -> String:
 	if not in_line(id):
 		return n
 	var i := _line_index(id)
-	if i >= LEGACY_NAMES.size():
-		return n
-	var was: String = LEGACY_NAMES[i][stage(id) - 1]
-	if n == was:
-		return race_name(id)
-	if n == "Umbral " + was:
-		return "Umbral " + race_name(id)
+	var st := stage(id) - 1
+	var olds := []
+	if i < LEGACY_NAMES.size():
+		olds.append(LEGACY_NAMES[i][st])
+	if i < INTERIM_SPECIES.size():
+		olds.append(["Young %s", "%s", "Guardian %s"][st] % INTERIM_SPECIES[i])
+	for was in olds:
+		if n == was:
+			return race_name(id)
+		if n == "Umbral " + was:
+			return "Umbral " + race_name(id)
 	return n
 
 ## Migrate appearance references and authored stage scale; preserve shade and mixed traits.
@@ -147,9 +158,10 @@ static func canonical_genes(saved: Dictionary, id: int) -> Dictionary:
 		return out
 	var saved_form := String(out.get("form", form(id)))
 	out["form"] = canonical_form(saved_form)
-	if in_line(id) and saved_form != out["form"] and not out.has("recipe"):
-		# Growth proportions are authored into the supplied GLBs.
-		out["size"] = 1.0
+	if in_line(id) and not out.has("recipe"):
+		# Each creature form fits the shared beast box (tools/import_generated_creatures.gd); a plain form is
+		# always its stage's size, so beasts saved while the young forms were drawn at full size catch up.
+		out["size"] = STAGE_SIZE[stage(id) - 1]
 	if not String(out["form"]).begins_with("generated_"):
 		out["form"] = form(id)
 	if out.has("recipe"):

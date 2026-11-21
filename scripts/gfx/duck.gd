@@ -2,19 +2,18 @@ extends Node3D
 ## A duck: Liray 3D's stylized mallard (assets/animals/duck.glb, cut down to 5k triangles with its rig and clips:
 ## Idle, Walk, Run, Swim, Eat, Quack, Flap, Blink and the Emote_ ones). Ducks are animals, never characters: they
 ## never speak, they only quack (Sfx "quack"). Jared befriended them; they float on water, waddle on land, and a duck
-## the player presses A beside quacks the next note of a scale, so pressing on and on makes them sing.
+## the player presses A beside quacks, each quack pitched a little up or down at random (see PITCH_STEPS).
 const SCENE := "res://assets/animals/duck.glb"
 ## how big a duck stands beside people (the hero is about 1.44 tall; the model is 0.36 at 1)
 const SIZE := 1.15
 ## how far a floating duck sits down into the water (its feet and belly under it), at SIZE
 const SINK := 0.045
-## the tune its quacks climb: a major scale up and back down, in semitones above the quack's own D4; it starts over
-## once nobody has made a duck quack for SONG_GAP seconds
-const SONG := [0, 2, 4, 5, 7, 9, 11, 12, 11, 9, 7, 5, 4, 2]
-const SONG_GAP := 3.0
+## how far each quack is shifted from the recording, in semitones (one picked at random per quack)
+const PITCH_STEPS := [-2, -1, 0, 1, 2]
 const LOOPS := ["Idle", "Walk", "Run", "Swim", "Eat"]
-static var _note := 0
-static var _last_quack := -1000.0
+## how many quacks there have been, and the last one's shift in semitones (tools/debug/ducks.gd reads them)
+static var quacks := 0
+static var last_step := 0
 var floating := false
 ## its size (SIZE beside people up close; the world's ducks a little bigger, to read from the gameplay camera)
 var size := SIZE
@@ -68,17 +67,11 @@ func face(way: Vector3) -> void:
 		rotation.y = atan2(way.x, way.z)
 
 
-## A quack, and its bill opening with it. sing: the next note of the scale (see SONG), else its own note.
-func quack(sing := true) -> void:
-	var step := 0
-	if sing:
-		var now := Time.get_ticks_msec() / 1000.0
-		if now - _last_quack > SONG_GAP:
-			_note = 0
-		step = SONG[_note % SONG.size()]
-		_note += 1
-		_last_quack = now
-	Sfx.play_tone("quack", pow(2.0, step / 12.0))
+## A quack, a semitone or two up or down at random, and its bill opening with it.
+func quack() -> void:
+	last_step = PITCH_STEPS.pick_random()
+	quacks += 1
+	Sfx.play_tone("quack", pow(2.0, last_step / 12.0))
 	if _anim != null and _anim.has_animation("Quack"):
 		_anim.play("Quack", 0.1)
 

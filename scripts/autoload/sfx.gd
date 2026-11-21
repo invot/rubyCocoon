@@ -89,8 +89,8 @@ const SOUNDS := {
 	"door_close": [["res://sfx/05_Environment/Environment_DoorClose_001.mp3"], -11.0],
 	# made by tools/make_sfx.py: three raps on a locked front door
 	"knock": [["res://sfx/Custom/Door_Knock.wav"], -6.0],
-	# a duck's quack, on D4 (tools/make_sfx.py): ducks.gd steps it up a scale
-	"quack": [["res://sfx/Custom/Duck_Quack.wav"], -7.0],
+	# a duck's quack (the user's recording): duck.gd shifts each one up to two semitones up or down at random
+	"quack": [["res://assets/audio/sfx/duck_quack.ogg"], -3.0],
 	# made by tools/make_sfx.py: an old bell telephone ringing (calling Dad saves the game)
 	"phone_ring": [["res://sfx/Custom/Phone_Ring.wav"], -9.0],
 	# made by tools/make_sfx.py: a ghost beast rising, and a dread hit (the intro's cage reveal)

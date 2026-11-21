@@ -75,10 +75,10 @@ const RANGER_LOOK := {"skin": "#c89068", "hair": "#3a2a1a", "shirt": "#c8a060", 
 
 ## Elder Rowan's four eggs (RaceDB.STARTERS), by the line's first form.
 const EGG_BLURB := {
-	0: "A warm, flickering egg. Fire beasts are offensive tanks: tough and hard-hitting.",
-	24: "A cool, rippling egg. Water beasts are healers who keep the team alive.",
-	12: "A heavy, pebbly egg. Earth beasts are defenders who shield their friends.",
-	30: "A light, breezy egg. Air beasts are tricksters of status and evasion.",
+	48: "A warm, flickering egg. Fire beasts are offensive tanks: tough and hard-hitting.",
+	51: "A cool, rippling egg. Water beasts are healers who keep the team alive.",
+	54: "A heavy, pebbly egg. Earth beasts are defenders who shield their friends.",
+	57: "A light, breezy egg. Air beasts are tricksters of status and evasion.",
 }
 const RELICS := {
 	"sun": {"name": "Sun Relic", "map": "vinehollow", "anchor": "relic_sun"},
@@ -2446,9 +2446,9 @@ func _chest(n: Dictionary) -> void:
 		await say(["The chest is empty."])
 		return
 	GameState.set_flag(n["chest"])
+	Sfx.play("item")  # as the lid swings, not after it lands
 	await TempleProps.open_chest(n["node"])
 	GameState.receive_item(n["item"])
-	Sfx.play("item")
 	var item_name := ItemDB.item_name(n["item"])
 	var article := "some" if item_name.ends_with("s") else ("an" if item_name.left(1).to_upper() in "AEIOU" else "a")
 	await say(["You opened the chest. Inside: %s %s!" % [article, item_name]])

@@ -105,10 +105,12 @@ const MOVES := {
 ## Each town's mascot (WorldDB.TOWNS "mascot", a race, and "signature") teaches its town's move to a beast of its own
 ## line once it has reached SIGNATURE_LEVEL: elemental, mightier than any move of its element a beast learns by
 ## levelling, and taught by nobody else (merging keeps it only for a beast of that line, see beasts.gd merge).
-## {move: the first form of the line it belongs to}; a line can be two towns' mascot, with a move from each.
-const SIGNATURE := {"bandit_blaze": 0, "tidewater_torrent": 27, "pearl_cannon": 24, "kelp_maelstrom": 66, "sirocco": 30,
-	"tumbleweed_twister": 36, "motherlode": 15, "clockwork_crusher": 12, "caldera_burst": 9, "elder_grove": 18,
-	"riverbend_rapids": 27, "moonlit_gale": 33}
+## {move: the first form of the line it belongs to}. Each town's mascot is a different species, but the roster has 11
+## species for 12 towns, so the Poodle Moth serves twice (Air in Sunwall, Earth in Vinehollow). Cocoon Cove's is the
+## Fire Draco, the line of the starter eggs.
+const SIGNATURE := {"bandit_blaze": 48, "tidewater_torrent": 27, "pearl_cannon": 24, "kelp_maelstrom": 81, "sirocco": 36,
+	"tumbleweed_twister": 33, "motherlode": 12, "clockwork_crusher": 15, "caldera_burst": 3, "elder_grove": 75,
+	"riverbend_rapids": 78, "moonlit_gale": 30}
 const SIGNATURE_LEVEL := 40
 
 ## Ordered by strength; used to build learnsets.

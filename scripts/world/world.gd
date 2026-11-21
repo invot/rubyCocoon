@@ -4340,7 +4340,11 @@ func _pickup(it: Dictionary) -> void:
 	var incoming: String = it["item"]
 	var quantity := int(it.get("count", 1))
 	var chest: bool = it.get("node") is Node3D and (it["node"] as Node3D).has_node("Lid")
+	# the chest's sound rings out as the lid swings, not after it lands
+	var sound := "item"
 	if chest and not is_equal_approx((it["node"] as Node3D).get_node("Lid").rotation.x, TempleProps.LID_OPEN):
+		Sfx.play(sound)
+		sound = ""
 		await TempleProps.open_chest(it["node"])
 	if GameState.item_room(incoming) < quantity:
 		if not await UI.ask("Your bag is full. Swap a stack for %s?" % ItemDB.item_name(incoming)):
@@ -4368,7 +4372,7 @@ func _pickup(it: Dictionary) -> void:
 		GameState.flags["bag_swap:" + String(it["flag"])] = {"item": swap["id"], "count": swap["count"]}
 		it["item"] = swap["id"]
 		it["count"] = swap["count"]
-		UI.pickup(incoming, quantity)
+		UI.pickup(incoming, quantity, sound)
 		return
 	GameState.add_item(incoming, quantity)
 	GameState.set_flag(it["flag"])
@@ -4379,7 +4383,7 @@ func _pickup(it: Dictionary) -> void:
 	else:
 		node.queue_free()
 	items.erase(it["pos"])
-	UI.pickup(incoming, quantity)
+	UI.pickup(incoming, quantity, sound)
 
 
 func _pickup_shard(sh: Dictionary) -> void:
@@ -5354,6 +5358,26 @@ func _animate_wild(w: Dictionary, delta: float) -> void:
 	for i in (w["followers"] as Array).size():
 		var f: Node3D = w["followers"][i]
 		_beast_gait(f, w["moving"], pace, hop, spd, float(w["phase"]) + 1.3 + i)
+	# a startled leap (see _wild_leap) lifts the beasts off their shades
+	if w.has("leap"):
+		for b in [lead] + (w["followers"] as Array):
+			var bn: Node3D = b
+			bn.position.y = float(w["leap"]) + (0.0 if bn.get_node_or_null("Model") is BeastRig else bn.position.y)
+
+
+## Snuck up on: the beasts jump straight up in fright, still facing away (`leap` is read by _animate_wild).
+func _wild_leap(w: Dictionary) -> void:
+	_set_mark(w, "!", MARK_SPOTTED)
+	w["leap"] = 0.0
+	var tw := create_tween()
+	tw.tween_method(func(v: float): w["leap"] = v, 0.0, 0.55, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(v: float): w["leap"] = v, 0.55, 0.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await tw.finished
+	w.erase("leap")
+	for b in [w["node"].get_node("Lead")] + (w["followers"] as Array):
+		if (b as Node3D).get_node_or_null("Model") is BeastRig:
+			(b as Node3D).position.y = 0.0
+	_set_mark(w, "")
 
 
 func _effective_wild_target() -> int:
@@ -5474,6 +5498,14 @@ func _wild_encounter(w: Dictionary, kind: String) -> void:
 		return
 	busy = true
 	_set_mark(w, "")
+	if kind == "sneak":
+		# caught off guard: it leaps in fright without turning round
+		await _wild_leap(w)
+		if not is_inside_tree():
+			return
+		var res_sneak: String = await Story.wild_battle(self, w["beasts"], kind)
+		_after_wild_battle(w, res_sneak)
+		return
 	var d: Vector2i = player_pos - w["pos"]
 	w["facing"] = Vector2i(signi(d.x), 0) if absi(d.x) >= absi(d.y) else Vector2i(0, signi(d.y))
 	_face_wild(w)
@@ -5489,6 +5521,10 @@ func _wild_encounter(w: Dictionary, kind: String) -> void:
 	if not is_inside_tree():
 		return
 	var res: String = await Story.wild_battle(self, w["beasts"], kind)
+	_after_wild_battle(w, res)
+
+
+func _after_wild_battle(w: Dictionary, res: String) -> void:
 	busy = false
 	if not is_inside_tree():
 		return

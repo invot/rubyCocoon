@@ -1162,6 +1162,9 @@ func _run_test() -> void:
 		await _do_goto("route3", "south")
 		await get_tree().create_timer(1.0).timeout
 		var foes := [Beasts.create(27, 10), Beasts.create(30, 11), Beasts.create(9, 12, true)]
+		# --foes=78,30,81: these races instead (at --foe_level, default 10)
+		if _test.has("foes"):
+			foes = Array(String(_test["foes"]).split(",")).map(func(r: String): return Beasts.create(int(r), int(_test.get("foe_level", "10"))))
 		if _test.get("kind", "") == "fishing":
 			# a beast reeled in: the dock and the water
 			start_battle({"wild": true, "foes": [Beasts.create(27, 8)], "seed": 5, "fishing": true})
@@ -5258,8 +5261,8 @@ func _mascot_test() -> void:
 	await _wait(1.5)
 	var mascot := _npc("mascot")
 	# (straight into the party: the mascot only teaches a beast you have with you)
-	# a Cinderex (the dino line's second form, as the Pyrosaur mascot's line)
-	var kin := Beasts.create(0, 39)
+	# a Dracone (the fire Draco line's second form, as Cocoon Cove's Dracomni mascot)
+	var kin := Beasts.create(WorldDB.TOWNS["caccoon"]["mascot"] - 2, 39)
 	GameState.party.append(kin)
 	UI.auto_answers = [0]
 	await Story.talk(world, mascot)
@@ -5279,9 +5282,9 @@ func _mascot_test() -> void:
 	var refused: bool = not other.known.has("bandit_blaze")
 	print("%s a %s (another fire line) isn't taught: %s" % ["ok  " if refused else "FAIL", other.nickname, UI.auto_log.back()])
 	var child := Beasts.merge(other, kin, true)
-	# (a merge keeps the parents' moves that fit its slots, so a dino child may or may not keep it)
-	var kept: bool = not child.known.has("bandit_blaze") or RaceDB.first_form(child.race) == 0
-	print("%s a merge (%s) can keep Bandit Blaze only if it's of the dino line: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
+	# (a merge keeps the parents' moves that fit its slots, so a fennec child may or may not keep it)
+	var kept: bool = not child.known.has("bandit_blaze") or RaceDB.first_form(child.race) == RaceDB.first_form(kin.race)
+	print("%s a merge (%s) can keep Bandit Blaze only if it's of the mascot's line: %s" % ["ok  " if kept else "FAIL", RaceDB.race_name(child.race), child.known.has("bandit_blaze")])
 	for ok2 in [early, learned, refused, kept]:
 		if not ok2:
 			bad += 1
