@@ -705,7 +705,7 @@ static func _bell_tower(node: Node3D, w: float, d: float, door_lx: float) -> flo
 	_railing(k, Vector3(-0.8, balc_y, zf + 0.8), Vector3(0.8, balc_y, zf + 0.8), 0.7)
 	for sx in [-0.6, 0.6]:
 		VBld._beam(k, "color", Vector3(sx, balc_y - 0.6, zf + 0.02), Vector3(sx, balc_y - 0.1, zf + 0.7), 0.05, IRON)
-	var bird := BeastModel.rig(RaceDB.genes(RaceDB.of_form("owl_3")), 1.25)
+	var bird := BeastModel.rig(RaceDB.genes(RaceDB.of_form("generated_grey_owl_air_3")), 1.25)
 	bird.position = Vector3(0, balc_y, zf + 0.55)
 	bird.rotation.y = -PI / 2.0
 	bird.name = "Bird"

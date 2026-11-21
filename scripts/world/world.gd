@@ -2824,15 +2824,18 @@ func _build_nest(p: Vector2i) -> void:
 ## Its speech bubbles hang over it (dialog_box.gd "speech_bounds").
 func _resting_guardian(temple: String) -> Node3D:
 	var root := Node3D.new()
-	var mi := MeshInstance3D.new()
+	var mi := BeastRig.new()
 	mi.name = "Model"
-	mi.mesh = VB.summon_rest_mesh(temple, RESTING_LENGTH.get(temple, 2.6))
-	# (sunk a little into the bowl, legs hidden; the coiled serpent lies on the sticks)
-	mi.position.y = BeastNest.FLOOR_H + (0.04 if temple == "air" else -0.04) + RoundChamber.dais_top(map["room"])
+	mi.setup("generated_temple_" + temple)
+	mi.state = "lie"
+	mi.settle()
+	var bb := mi.bounds()
+	var span := maxf(bb.size.x, bb.size.z)
+	mi.scale = Vector3.ONE * float(RESTING_LENGTH.get(temple, 2.9)) / maxf(span, 0.01)
+	mi.position.y = BeastNest.FLOOR_H + RoundChamber.dais_top(map["room"])
 	mi.rotation.y = -PI / 2.0 + 0.55
 	root.add_child(mi)
-	var bb: AABB = mi.mesh.get_aabb()
-	root.set_meta("speech_bounds", AABB(Vector3(-0.4, 0.0, -0.4), Vector3(0.8, mi.position.y + bb.end.y * 0.8, 0.8)))
+	root.set_meta("speech_bounds", AABB(Vector3(-0.4, 0.0, -0.4), Vector3(0.8, mi.position.y + bb.end.y * mi.scale.y, 0.8)))
 	return root
 
 
@@ -6393,7 +6396,7 @@ func _courier_arrive(tile: Vector2i) -> void:
 	busy = true
 	frozen = true
 	_clear_path()
-	courier_bird = BeastModel.rig(RaceDB.genes(RaceDB.of_form("owl_3")), 1.9)
+	courier_bird = BeastModel.rig(RaceDB.genes(RaceDB.of_form("generated_grey_owl_air_3")), 1.9)
 	add_child(courier_bird)
 	BeastModel.pose_mounted(courier_bird)
 	var land := tile_pos(tile)

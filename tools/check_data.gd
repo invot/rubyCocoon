@@ -44,7 +44,7 @@ func _const(path: String, name: String, pattern: String) -> String:
 
 ## A race id that exists: one of the lines' forms, or a legendary or robot (RaceDB.SPECIAL, after the lines).
 func _race(id, where: String) -> void:
-	var ok: bool = typeof(id) in [TYPE_INT, TYPE_FLOAT] and int(id) >= 0 and int(id) < RaceDB.count() + RaceDB.SPECIAL.size()
+	var ok: bool = typeof(id) in [TYPE_INT, TYPE_FLOAT] and (RaceDB.in_line(int(id)) or int(id) in RaceDB.LEGENDARY or int(id) in RaceDB.ROBOTS)
 	if not ok:
 		_fail("%s: no such beast %s" % [where, str(id)])
 
@@ -83,8 +83,8 @@ func _beasts() -> void:
 		for h in t.get("helpers", []):
 			_race(h, "temple %s helper" % tk)
 		_song(t.get("song", ""), "temple %s" % tk)
-		if not ResourceLoader.exists("res://assets/summons/%s.res" % tk):
-			_fail("temple %s: no summon model assets/summons/%s.res" % [tk, tk])
+		if not ResourceLoader.exists("res://assets/beasts/%s.res" % RaceDB.form(int(t["guardian"]))):
+			_fail("temple %s: no generated dragon model %s" % [tk, RaceDB.form(int(t["guardian"]))])
 	# (fishing.gd and story.gd need the game's autoloads to load, so their beasts are read from the source)
 	var pools = JSON.parse_string(_const("res://scripts/world/fishing.gd", "POOLS", "(.*)"))
 	if not pools is Array:
@@ -93,6 +93,8 @@ func _beasts() -> void:
 		for pool in pools:
 			for id in pool:
 				_race(id, "fishing pool")
+				if RaceDB.element(int(id)) != "water":
+					_fail("fishing pool: %s is not a water creature" % RaceDB.race_name(int(id)))
 	var re := RegEx.create_from_string("const BUILDER_EGG := ([0-9]+)")
 	var hit := re.search(FileAccess.get_file_as_string("res://scripts/autoload/story.gd"))
 	if hit == null:

@@ -1,48 +1,47 @@
 extends RefCounted
-## The beast races. Most belong to the 13 lines of three forms: a beast hatches as its line's first form, grows into
-## the second at Lv 20 and the third at Lv 40 (EVOLVE, beast.gd gain_xp), and only a line's third form can merge
-## (beasts.gd). A line has one element, or two neighbouring ones on the ring: the scorpion is fire and earth, and the
-## worm, an eel in the sea, earth and water. Race id = line × 3 + stage - 1 for the first 13 lines; lines added later
-## (the Draco line) come after the specials, from LATE_BASE, so saved race ids never move. Each form is drawn with its
-## own model (assets/beasts/<line>_<stage>.res, beast_rig.gd), the earlier stages smaller.
-## After the lines come the four legendary temple guardians and the Gearheart robots, then the crypt's ghost guardian,
-## in the old shape (name, element, body, head, ears, tail, back, pattern, c1, c2, c3, size). The guardians are drawn
-## with the summon models (assets/summons, voxel_beast.gd): captured with their temple's song, they become summons.
-
+## The supplied elemental creature roster. Every line has three authored forms, growing at Lv 20/40.
+## The first thirteen replacement lines retain race ids 0..38; further lines start at 48, after the
+## existing temple guardians and robots. Old saves retain their race, stats, progress and equipment.
+## Legacy model names are translated by canonical_form() when an existing beast is loaded.
 const MoveDB = preload("res://scripts/data/move_db.gd")
 
 const LINES := [
-	# line (its models' name), its forms' names, element, second element, each form's body
-	["dino", ["Embit", "Cinderex", "Pyrosaur"], "fire", "", ["quad", "quad", "biped"]],
-	["cactus", ["Pricklet", "Spinesear", "Saguaroar"], "fire", "", ["biped", "biped", "biped"]],
-	["marmot", ["Impkin", "Scampyre", "Infernook"], "fire", "", ["biped", "biped", "biped"]],
-	["scorpion", ["Nipskit", "Scorchpin", "Calderak"], "fire", "earth", ["quad", "quad", "quad"]],
-	["beetle", ["Grubbit", "Shellhorn", "Rhinoclad"], "earth", "", ["quad", "quad", "biped"]],
-	["boar", ["Tuskit", "Bristlehog", "Crystusk"], "earth", "", ["quad", "quad", "quad"]],
-	["tree", ["Saplet", "Barkbrute", "Elderoot"], "earth", "", ["biped", "biped", "biped"]],
-	["worm", ["Wrigglet", "Mudwhip", "Abyssel"], "earth", "water", ["serpent", "serpent", "serpent"]],
-	["crab", ["Clawlet", "Snapshell", "Crustacor"], "water", "", ["quad", "quad", "quad"]],
-	["frog", ["Tadlet", "Croakus", "Toadmiral"], "water", "", ["biped", "biped", "biped"]],
-	["owl", ["Hootlet", "Gustowl", "Tempestrix"], "air", "", ["flyer", "flyer", "flyer"]],
-	["bat", ["Flittle", "Duskwing", "Nocturna"], "air", "", ["flyer", "flyer", "flyer"]],
-	["berry", ["Berrypuff", "Bramblume", "Galeberry"], "air", "", ["blob", "blob", "blob"]],
-	# added after the specials (race ids from LATE_BASE): the frilled lizard in each element, one model (draco_<stage>)
-	# copied to each line's name, the difference only its colours
-	["draco", ["Draco", "Cindrake", "Blazewyrm"], "fire", "", ["quad", "quad", "quad"]],
-	["dropo", ["Dropo", "Tidrake", "Torrentwyrm"], "water", "", ["quad", "quad", "quad"]],
-	["rocco", ["Rocco", "Bouldrake", "Quakewyrm"], "earth", "", ["quad", "quad", "quad"]],
-	["floppo", ["Floppo", "Glidrake", "Galewyrm"], "air", "", ["quad", "quad", "quad"]],
+	# Model prefix, stage names, element, second element, stage body kinds.
+	["generated_axolotl_fire", ["Young Fire Axolotl", "Fire Axolotl", "Guardian Fire Axolotl"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_fennec_fox_fire", ["Young Fire Fennec Fox", "Fire Fennec Fox", "Guardian Fire Fennec Fox"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_elephant_shrew_fire", ["Young Fire Elephant Shrew", "Fire Elephant Shrew", "Guardian Fire Elephant Shrew"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_peacock_mantis_shrimp_fire", ["Young Fire Mantis Shrimp", "Fire Mantis Shrimp", "Guardian Fire Mantis Shrimp"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_echidna_earth", ["Young Echidna", "Echidna", "Guardian Echidna"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_jerboa_earth", ["Young Earth Jerboa", "Earth Jerboa", "Guardian Earth Jerboa"], "earth", "", ["biped", "biped", "biped"]],
+	["generated_fennec_fox_earth", ["Young Earth Fennec Fox", "Earth Fennec Fox", "Guardian Earth Fennec Fox"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_axolotl_earth", ["Young Earth Axolotl", "Earth Axolotl", "Guardian Earth Axolotl"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_peacock_mantis_shrimp_water", ["Young Water Mantis Shrimp", "Water Mantis Shrimp", "Guardian Water Mantis Shrimp"], "water", "", ["quad", "quad", "quad"]],
+	["generated_axolotl_water", ["Young Water Axolotl", "Water Axolotl", "Guardian Water Axolotl"], "water", "", ["quad", "quad", "quad"]],
+	["generated_grey_owl_air", ["Young Grey Owl", "Grey Owl", "Guardian Grey Owl"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_poodle_moth_air", ["Young Air Poodle Moth", "Air Poodle Moth", "Guardian Air Poodle Moth"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_elephant_shrew_air", ["Young Air Elephant Shrew", "Air Elephant Shrew", "Guardian Air Elephant Shrew"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_draco_fire", ["Young Fire Draco", "Fire Draco", "Guardian Fire Draco"], "fire", "", ["quad", "quad", "quad"]],
+	["generated_draco_water", ["Young Water Draco", "Water Draco", "Guardian Water Draco"], "water", "", ["quad", "quad", "quad"]],
+	["generated_draco_earth", ["Young Earth Draco", "Earth Draco", "Guardian Earth Draco"], "earth", "", ["quad", "quad", "quad"]],
+	["generated_draco_air", ["Young Air Draco", "Air Draco", "Guardian Air Draco"], "air", "", ["flyer", "flyer", "flyer"]],
+	["generated_axolotl_air", ["Young Air Axolotl", "Air Axolotl", "Guardian Air Axolotl"], "air", "", ["quad", "quad", "quad"]],
+	["generated_jerboa_fire", ["Young Fire Jerboa", "Fire Jerboa", "Guardian Fire Jerboa"], "fire", "", ["biped", "biped", "biped"]],
+	["generated_elephant_shrew_water", ["Young Water Elephant Shrew", "Water Elephant Shrew", "Guardian Water Elephant Shrew"], "water", "", ["quad", "quad", "quad"]],
+	["generated_fennec_fox_air", ["Young Air Fennec Fox", "Air Fennec Fox", "Guardian Air Fennec Fox"], "air", "", ["quad", "quad", "quad"]],
+	["generated_fennec_fox_water", ["Young Water Fennec Fox", "Water Fennec Fox", "Guardian Water Fennec Fox"], "water", "", ["quad", "quad", "quad"]],
+	["generated_poodle_moth_earth", ["Young Earth Poodle Moth", "Earth Poodle Moth", "Guardian Earth Poodle Moth"], "earth", "", ["flyer", "flyer", "flyer"]],
+	["generated_yellow_boxfish_water", ["Young Yellow Boxfish", "Yellow Boxfish", "Guardian Yellow Boxfish"], "water", "", ["fish", "fish", "fish"]],
+	["generated_stubby_squid_water", ["Young Aqua Squid", "Aqua Squid", "Guardian Aqua Squid"], "water", "", ["fish", "fish", "fish"]],
 ]
 ## how many lines have the first race ids (0..38); the rest start at LATE_BASE, after the specials (39..47)
 const EARLY_LINES := 13
 const LATE_BASE := 48
-## lines that exist but aren't out in the world yet (no wild beasts, eggs or kennels have them, and the museum and the
-## journal don't count them): the frilled lizards, until the user places them
-const UNRELEASED := ["draco", "dropo", "rocco", "floppo"]
+## Every supplied creature line is available for encounters, eggs and adoption.
+const UNRELEASED := []
 ## the levels a beast grows into its line's second and third forms
 const EVOLVE := [20, 40]
 ## each stage's size (the "size" gene), and its share of the line's full stats
-const STAGE_SIZE := [0.72, 0.86, 1.0]
+const STAGE_SIZE := [1.0, 1.0, 1.0]
 const STAGE_STATS := [0.8, 0.9, 1.0]
 
 const SPECIAL := [
@@ -59,8 +58,8 @@ const SPECIAL := [
 	# the ghost guardian of Gravenmoor's crypt (47), always met as a ghost
 	["Nocthrax", "air", "golem", "horned", "horns", "spike", "spikes", "plain", "#1a1420", "#3a2a3a", "#ff7a2a", 1.5],
 ]
-## the summon models the guardians are drawn with (assets/summons/<element>.res, tools/import_summons.gd)
-const LEGENDARY_FORMS := {39: "summon_water", 40: "summon_air", 41: "summon_fire", 42: "summon_earth", 47: "summon_ghost"}
+## Supplied modular temple dragons, sharing the creature rig and attack/rest poses.
+const LEGENDARY_FORMS := {39: "generated_temple_water", 40: "generated_temple_air", 41: "generated_temple_fire", 42: "generated_temple_earth", 47: "generated_temple_ghost"}
 
 const NORMAL_COUNT := 39
 const LEGENDARY := [39, 40, 41, 42, 47]
@@ -108,6 +107,74 @@ const PASSIVE_DESC := {
 	"Swift": "Starts battles with raised Speed.",
 	"Phantom": "Immune to status ailments except Haunt.",
 }
+
+
+## Archived form/name aliases exist only to translate existing saves and authored references.
+const LEGACY_LINES := ["dino", "cactus", "marmot", "scorpion", "beetle", "boar", "tree", "worm", "crab", "frog", "owl", "bat", "berry", "draco", "dropo", "rocco", "floppo"]
+const LEGACY_NAMES := [["Embit", "Cinderex", "Pyrosaur"], ["Pricklet", "Spinesear", "Saguaroar"], ["Impkin", "Scampyre", "Infernook"], ["Nipskit", "Scorchpin", "Calderak"], ["Grubbit", "Shellhorn", "Rhinoclad"], ["Tuskit", "Bristlehog", "Crystusk"], ["Saplet", "Barkbrute", "Elderoot"], ["Wrigglet", "Mudwhip", "Abyssel"], ["Clawlet", "Snapshell", "Crustacor"], ["Tadlet", "Croakus", "Toadmiral"], ["Hootlet", "Gustowl", "Tempestrix"], ["Flittle", "Duskwing", "Nocturna"], ["Berrypuff", "Bramblume", "Galeberry"], ["Draco", "Cindrake", "Blazewyrm"], ["Dropo", "Tidrake", "Torrentwyrm"], ["Rocco", "Bouldrake", "Quakewyrm"], ["Floppo", "Glidrake", "Galewyrm"]]
+
+static func canonical_form(f: String) -> String:
+	if f.begins_with("generated_"):
+		return f
+	if f.begins_with("summon_"):
+		return "generated_temple_" + f.trim_prefix("summon_").trim_suffix("_rest")
+	var split := f.rfind("_")
+	if split >= 0:
+		var i := LEGACY_LINES.find(f.left(split))
+		var st := int(f.substr(split + 1))
+		if i >= 0 and st >= 1 and st <= 3:
+			return "%s_%d" % [LINES[i][0], st]
+	return f
+
+## Translate a default species name while preserving player-written nicknames.
+static func canonical_name(n: String, id: int) -> String:
+	if not in_line(id):
+		return n
+	var i := _line_index(id)
+	if i >= LEGACY_NAMES.size():
+		return n
+	var was: String = LEGACY_NAMES[i][stage(id) - 1]
+	if n == was:
+		return race_name(id)
+	if n == "Umbral " + was:
+		return "Umbral " + race_name(id)
+	return n
+
+## Migrate appearance references and authored stage scale; preserve shade and mixed traits.
+static func canonical_genes(saved: Dictionary, id: int) -> Dictionary:
+	var out := saved.duplicate(true)
+	if is_robot(id):
+		return out
+	var saved_form := String(out.get("form", form(id)))
+	out["form"] = canonical_form(saved_form)
+	if in_line(id) and saved_form != out["form"] and not out.has("recipe"):
+		# Growth proportions are authored into the supplied GLBs.
+		out["size"] = 1.0
+	if not String(out["form"]).begins_with("generated_"):
+		out["form"] = form(id)
+	if out.has("recipe"):
+		var recipe: Dictionary = out["recipe"]
+		for group in recipe:
+			if typeof(recipe[group]) == TYPE_STRING:
+				recipe[group] = canonical_form(String(recipe[group]))
+		out["form"] = recipe.get("frame", out["form"])
+	var frame_id := of_form(String(out["form"]))
+	out["body"] = body(frame_id if frame_id >= 0 else id)
+	return out
+
+## Every released first form, including ids beyond the historic 0..38 range.
+static func first_forms() -> Array:
+	var out := []
+	for i in LINES.size():
+		if not LINES[i][0] in UNRELEASED:
+			out.append(line_base(i))
+	return out
+
+## Random selection over the complete released roster, preserving a caller's deterministic RNG.
+static func random_race(rng: RandomNumberGenerator = null) -> int:
+	var pool := first_forms()
+	var pick := rng.randi_range(0, pool.size() - 1) if rng != null else randi_range(0, pool.size() - 1)
+	return int(pool[pick])
 
 static var _ls_cache := {}
 static var _ghost_ls_cache := {}
@@ -161,7 +228,7 @@ static func _line(id: int) -> Array:
 	return LINES[maxi(_line_index(id), 0)]
 
 
-## The line a race belongs to ("dino"), "" for the legendaries and robots.
+## The generated model prefix of a line, or "" for guardians and robots.
 static func line(id: int) -> String:
 	return _line(id)[0] if in_line(id) else ""
 
@@ -187,13 +254,21 @@ static func for_level(id: int, level: int) -> int:
 	return first_form(id) + s
 
 
-## The race of one of the lines' forms ("dino_2"), or -1 (a legendary's model, or not a form).
+## The race of a generated form or an archived alias; -1 for a temple dragon or unknown form.
 static func of_form(f: String) -> int:
-	var st := int(f.get_slice("_", 1)) if f.get_slice_count("_") == 2 else 0
+	var canonical := canonical_form(f)
+	var split := canonical.rfind("_")
+	if split < 0:
+		return -1
+	var prefix := canonical.left(split)
+	var st := int(canonical.substr(split + 1))
+	if st < 1 or st > 3:
+		return -1
 	for i in LINES.size():
-		if LINES[i][0] == f.get_slice("_", 0) and st >= 1 and st <= 3:
+		if LINES[i][0] == prefix:
 			return line_base(i) + st - 1
 	return -1
+
 
 
 ## How it moves and fights: quad, biped, flyer, serpent or blob (the legendaries' and robots' old bodies).
@@ -237,8 +312,7 @@ static func genes(id: int) -> Dictionary:
 	return g
 
 
-## The model a race is drawn with: its form's ("dino_2"), a guardian's summon model ("summon_fire"), or "" for the
-## robots (their own models).
+## The generated creature or temple-dragon form, or "" for robots (which use their own models).
 static func form(id: int) -> String:
 	if in_line(id):
 		return "%s_%d" % [line(id), stage(id)]

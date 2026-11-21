@@ -14,7 +14,7 @@ const FishingGame = preload("res://scripts/ui/fishing_game.gd")
 ## The water beasts that bite, by bait (none, worms, spinner lure, glow lure): the first forms of the water lines
 ## (frog, crab, and the worm that's an eel in the sea), grown to whatever form their level gives (RaceDB.for_level);
 ## the better the bait, the likelier the rarer eel.
-const POOLS := [[27, 27, 24, 24, 21], [27, 24, 24, 21], [27, 24, 21, 21], [24, 21, 21, 27]]
+const POOLS := [[27, 27, 24, 78, 81], [27, 24, 51, 66, 81], [24, 51, 66, 72, 78, 81], [51, 66, 72, 78, 81, 81]]
 ## how many levels above the place's own each bait brings them up
 const BAIT_LEVELS := [0, 2, 5, 9]
 ## the chance something bites, at a ripple and in open water (each better bait adds a little)

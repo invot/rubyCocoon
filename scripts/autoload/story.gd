@@ -2741,7 +2741,7 @@ func pack_cap(enc: Dictionary) -> int:
 func _roll_wild_race(races: Array) -> int:
 	var w := randf()
 	if races.is_empty() or w < 0.03:
-		return randi_range(0, RaceDB.NORMAL_COUNT - 1)
+		return RaceDB.random_race()
 	if w < 0.36:
 		return int(races[0])
 	return int(races[randi_range(0, races.size() - 1)])
@@ -2790,7 +2790,7 @@ func wild_encounter(world) -> void:
 		var race: int
 		var w := randf()
 		if races.is_empty() or w < 0.03:
-			race = randi_range(0, RaceDB.NORMAL_COUNT - 1)
+			race = RaceDB.random_race()
 		elif w < 0.36:
 			race = races[0]
 		else:

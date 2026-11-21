@@ -49,7 +49,7 @@ static func rig(genes: Dictionary, k := 1.0) -> Node3D:
 
 ## How tall a rig stands as scaled (a flyer hovering), in its parent's units.
 static func height(r: Rig) -> float:
-	return (r.height() + (Rig.HOVER if r.kind == "flyer" else 0.0)) * r.scale.y
+	return (r.height() + (Rig.HOVER if r.kind == "flyer" else (0.16 if r.locomotion == "swim" else 0.0))) * r.scale.y
 
 
 ## A rig's bounds in its own space, its pieces as they stand at rest (a flyer hovering).

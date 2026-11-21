@@ -1330,7 +1330,7 @@ func _run_test() -> void:
 			GameState.heal_party()
 			var foes2 := []
 			for k in randi_range(1, 3):
-				foes2.append(Beasts.create(randi_range(0, RaceDB.NORMAL_COUNT - 1), randi_range(9, 14), randf() < 0.3))
+				foes2.append(Beasts.create(RaceDB.random_race(), randi_range(9, 14), randf() < 0.3))
 			var r: String = await start_battle({"wild": i % 2 == 0, "foes": foes2, "autoplay": true, "trainer": {"name": "Sim", "cls": "Bot"}})
 			tally[r] = tally.get(r, 0) + 1
 			print("battle ", i, ": ", r, "  party lv ", GameState.party.map(func(x): return x.level))
@@ -4838,7 +4838,15 @@ func _newbeasts_test() -> void:
 	# the cells, [column, row, label, form or [a, b, seed]]: a column per line, its stages down it; or a row per pair
 	# of parents, then a few of their merges
 	var cells := []
-	if _test.has("merge"):
+	if _test.has("forms"):
+		var form_column := 0
+		var preview_columns := maxi(1, int(_test.get("columns", "3")))
+		for explicit_form in String(_test["forms"]).split(","):
+			var form_id := RaceDB.of_form(explicit_form)
+			var caption := RaceDB.race_name(form_id) if form_id >= 0 else explicit_form.trim_prefix("generated_").replace("_", " ").capitalize()
+			cells.append([form_column % preview_columns, form_column / preview_columns, caption, explicit_form])
+			form_column += 1
+	elif _test.has("merge"):
 		var r := 0
 		for pair in String(_test["merge"]).split(","):
 			var a := pair.get_slice("+", 0)
@@ -4853,7 +4861,7 @@ func _newbeasts_test() -> void:
 		var c := 0
 		var stages := String(_test.get("stages", "1,2,3")).split(",")
 		# (--page=N: the lines NB_PAGE at a time, in RaceDB's order)
-		var lines := "dino,scorpion,berry,beetle,cactus"
+		var lines := ",".join(RaceDB.LINES.slice(0, 5).map(func(l): return String(l[0])))
 		if _test.has("page") and String(_test["page"]).is_valid_int():
 			var all: Array = RaceDB.LINES.map(func(l): return String(l[0]))
 			var from := int(_test["page"]) * NB_PAGE
@@ -4883,7 +4891,7 @@ func _newbeasts_test() -> void:
 			rig.setup_merge(cell[3][0], cell[3][1], cell[3][2], ghost)
 		else:
 			rig.setup(cell[3], ghost)
-		var s: float = 1.0 if cell[3] is Array else [0.72, 0.86, 1.0][int(String(cell[3]).get_slice("_", 1)) - 1]
+		var s: float = 1.0
 		var at: Vector3 = across * (cell[0] * dx) + Vector3(0, -cell[1] * dy, 0) + back * (cell[1] * 0.8)
 		rig.position = at
 		rig.scale = Vector3(s, s, s)

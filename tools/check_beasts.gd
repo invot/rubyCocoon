@@ -1,5 +1,5 @@
 extends SceneTree
-## Verifies the beasts of the 13 lines (race_db.gd): every form has its name, elements and model; a beast grows into
+## Verifies the beasts of the supplied creature lines (race_db.gd): every form has its name, elements and model; a beast grows into
 ## its line's next form at Lv 20 and Lv 40, keeping its moves; wild and trainers' beasts are the form their level
 ## gives; only final forms at their level limit merge, and a merge is built from both parents' models, in a recipe a
 ## save keeps.
@@ -25,8 +25,8 @@ func _init() -> void:
 			if e["type"] == "evolve":
 				evo.append("%s → %s at Lv %d" % [e["from"], e["to"], b.level])
 		_check(b.known.size() >= moves, "", false)
-	_check(evo.size() == 2 and evo[0].ends_with("Lv 20") and evo[1].ends_with("Lv 40"), "an Embit grows up: %s" % ", ".join(evo))
-	_check(b.level == 40 and b.level_cap() == 40 and RaceDB.stage(b.race) == 3 and b.genes["form"] == "dino_3", "it stops at its level limit, Lv %d, as a %s (%s)" % [b.level, b.nickname, b.genes["form"]])
+	_check(evo.size() == 2 and evo[0].ends_with("Lv 20") and evo[1].ends_with("Lv 40"), "a replacement hatchling grows up: %s" % ", ".join(evo))
+	_check(b.level == 40 and b.level_cap() == 40 and RaceDB.stage(b.race) == 3 and b.genes["form"] == RaceDB.form(2), "it stops at its level limit, Lv %d, as a %s (%s)" % [b.level, b.nickname, b.genes["form"]])
 	# the level picks the form; the two-element lines are both
 	for t in [[0, 5, 0], [0, 25, 1], [0, 45, 2], [9, 30, 10], [21, 50, 23], [30, 19, 30], [30, 20, 31]]:
 		var x := Beasts.create(t[0], t[1])
@@ -36,10 +36,10 @@ func _init() -> void:
 	var c := Beasts.create(30, 40)
 	_check(Beasts.can_merge(a, c, false) == "", "a Pyrosaur and a Tempestrix can merge")
 	var young := Beasts.create(3, 30)
-	_check(Beasts.can_merge(young, a, false) != "", "a Spinesear can't: \"%s\"" % Beasts.can_merge(young, a, false))
+	_check(Beasts.can_merge(young, a, false) != "", "a juvenile can't: \"%s\"" % Beasts.can_merge(young, a, false))
 	var m := Beasts.merge(a, c)
 	var recipe: Dictionary = m.genes.get("recipe", {})
-	_check(recipe.has("frame") and recipe["frame"] in ["dino_3", "owl_3"] and m.rank == 2 and m.level_cap() == 60, "their merge, %s (%s), rank %d, limit Lv %d: %s" % [m.nickname, m.element_text(), m.rank, m.level_cap(), JSON.stringify(recipe)])
+	_check(recipe.has("frame") and recipe["frame"] in [RaceDB.form(2), RaceDB.form(32)] and m.rank == 2 and m.level_cap() == 60, "their merge, %s (%s), rank %d, limit Lv %d: %s" % [m.nickname, m.element_text(), m.rank, m.level_cap(), JSON.stringify(recipe)])
 	var back := Beasts.from_dict(JSON.parse_string(JSON.stringify(m.to_dict())))
 	_check(JSON.stringify(back.genes.get("recipe", {})) == JSON.stringify(recipe), "a save keeps its recipe")
 	# move slots: two elemental at first, one more per growth, the best parent's plus two on a merge (split between two
@@ -66,6 +66,31 @@ func _init() -> void:
 	var old := Beasts.from_dict(legacy)
 	_check(old.elem_slots == 4 and old.moves == ["scratch", "bite", "fire_spin", "lava_slam", "heat_wave", "inferno"] and old.known == old.moves,
 		"an older save keeps the newest moves that fit: %s" % [old.moves])
+
+	# Every supplied family is released and has an authored habitat, including late ids.
+	var WorldDB = load("res://scripts/data/world_db.gd")
+	var habitats := []
+	for route in WorldDB.ROUTES.values():
+		habitats.append_array(route["races"])
+	_check(RaceDB.count() == 75 and RaceDB.first_forms().size() == 25, "all 25 supplied lines / 75 forms are released")
+	for first in RaceDB.first_forms():
+		_check(first in habitats, "%s has a wild habitat" % RaceDB.race_name(first))
+	for i in RaceDB.LEGACY_LINES.size():
+		var id: int = RaceDB.line_base(i) + 1
+		var legacy_form: String = RaceDB.LEGACY_LINES[i] + "_2"
+		_check(RaceDB.of_form(legacy_form) == id and RaceDB.canonical_form(legacy_form) == RaceDB.form(id), "legacy form alias %s resolves without changing race id" % legacy_form)
+	var saved := Beasts.create(1, 25).to_dict()
+	saved["nickname"] = "Cinderex"
+	saved["genes"] = {"form": "dino_2", "body": "quad", "size": 0.86, "shade": 0.0}
+	var saved_stats: Dictionary = saved["base"].duplicate(true)
+	var migrated := Beasts.from_dict(saved)
+	_check(migrated.race == 1 and migrated.genes["form"] == RaceDB.form(1) and migrated.genes["size"] == 1.0
+		and migrated.nickname == RaceDB.race_name(1) and migrated.base == saved_stats, "loading a legacy beast changes appearance/default name and preserves race/stats")
+	saved["nickname"] = "Pebble"
+	_check(Beasts.from_dict(saved).nickname == "Pebble", "loading preserves a player-written nickname")
+	saved["genes"]["recipe"] = {"frame": "dino_2", "colours": "owl_2", "head": "owl_2"}
+	var migrated_merge := Beasts.from_dict(saved)
+	_check(migrated_merge.genes["recipe"]["frame"] == RaceDB.form(1) and migrated_merge.genes["recipe"]["head"] == RaceDB.form(31), "saved merged parts resolve replacement models")
 	print("BEASTS CHECK DONE: %d problem(s)" % bad)
 	quit()
 

@@ -106,7 +106,7 @@ const MOVES := {
 ## line once it has reached SIGNATURE_LEVEL: elemental, mightier than any move of its element a beast learns by
 ## levelling, and taught by nobody else (merging keeps it only for a beast of that line, see beasts.gd merge).
 ## {move: the first form of the line it belongs to}; a line can be two towns' mascot, with a move from each.
-const SIGNATURE := {"bandit_blaze": 0, "tidewater_torrent": 27, "pearl_cannon": 24, "kelp_maelstrom": 21, "sirocco": 30,
+const SIGNATURE := {"bandit_blaze": 0, "tidewater_torrent": 27, "pearl_cannon": 24, "kelp_maelstrom": 66, "sirocco": 30,
 	"tumbleweed_twister": 36, "motherlode": 15, "clockwork_crusher": 12, "caldera_burst": 9, "elder_grove": 18,
 	"riverbend_rapids": 27, "moonlit_gale": 33}
 const SIGNATURE_LEVEL := 40

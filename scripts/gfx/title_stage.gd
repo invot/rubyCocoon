@@ -6,7 +6,7 @@ extends Node3D
 signal arrived
 
 const ASCENT_TIME := 4.2
-const SUMMON := "res://assets/summons/fire.res"
+const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const FONT := preload("res://ui/CormorantSC-Bold.ttf")
 const BuildEdition = preload("res://scripts/core/build_edition.gd")
 const FOV := 30.0
@@ -22,7 +22,7 @@ const NEAR_LAYER := 1
 var logo: Node3D
 var _t := 0.0
 var _arrived := false
-var _dragon: MeshInstance3D
+var _dragon: BeastRig
 var _mats: Array[ShaderMaterial] = []
 var _dragon_card: MeshInstance3D
 var _dragon_rest := Vector3.ZERO
@@ -164,16 +164,16 @@ func _dragon_up(at: Vector3) -> void:
 	vp.transparent_bg = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(vp)
-	var mesh: ArrayMesh = load(SUMMON)
-	var m := _shader("title_dragon")
-	m.set_shader_parameter("albedo_tex", (mesh.surface_get_material(0) as StandardMaterial3D).albedo_texture)
-	m.set_shader_parameter("scissor", (mesh.surface_get_material(0) as StandardMaterial3D).alpha_scissor_threshold)
-	_dragon = MeshInstance3D.new()
-	_dragon.mesh = mesh
-	_dragon.material_override = m
-	_dragon.rotation.y = 0.0
-	# (the wings beat past the mesh's resting bounds)
-	_dragon.extra_cull_margin = 1.0
+	_dragon = BeastRig.new()
+	_dragon.setup("generated_temple_fire")
+	_dragon.kind = "flyer"
+	_dragon.locomotion = "fly"
+	_dragon.rotation.y = -PI / 2.0
+	var silhouette := StandardMaterial3D.new()
+	silhouette.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	silhouette.albedo_color = Color("#100d19")
+	for child in _dragon.find_children("*", "MeshInstance3D", true, false):
+		child.material_override = silhouette
 	vp.add_child(_dragon)
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL

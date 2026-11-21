@@ -827,7 +827,7 @@ static func _pack_skytower(node: Node3D, st: Dictionary, w: float, d: float, doo
 	k.box("color", Vector3(sp.x - 0.85, gy + 2.22, sp.y), Vector3(0.35, 0.2, 0.2), Color("#f4f0e8"))
 	# Tempestrix, the owl line's last form, hovering on the front of the gallery, facing the street, its wings
 	# beating over the rail (beast_rig.gd)
-	var bird := BeastModel.rig(RaceDB.genes(RaceDB.of_form("owl_3")), 1.25)
+	var bird := BeastModel.rig(RaceDB.genes(RaceDB.of_form("generated_grey_owl_air_3")), 1.25)
 	bird.position = Vector3(c.x, gy, c.y + deck_r * 0.82)
 	bird.rotation.y = -PI / 2.0
 	bird.name = "Bird"

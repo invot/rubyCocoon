@@ -194,6 +194,10 @@ const GROUP := {"body": "body", "head": "head", "arm_l": "arms", "arm_r": "arms"
 
 ## A form's look ("dino_3": the dino line's stage 3), its line's base with that stage's changes laid over it.
 static func look(form: String) -> Dictionary:
+	# Generated models carry their supplied surface colours and crystal materials in the mesh.
+	# The legacy palette shader must not recolour those authored surfaces.
+	if form.begins_with("generated_"):
+		return {"authored_materials": true, "col": {"body": "#ffffff", "head": "#ffffff"}, "eyes": []}
 	var line := form.get_slice("_", 0)
 	var stage := form.get_slice("_", 1)
 	var l: Dictionary = LINES.get(line, {})
@@ -226,9 +230,11 @@ const SKIN_SWATCH := {
 ## colour before changing the body, so horns, feet, wings and other details keep their paint.
 static func skin_look(form: String, element: String) -> Dictionary:
 	var out := look(form)
+	if out.get("authored_materials", false) or not SKIN_PALETTES.has(element):
+		return out
 	var swatches: Array = SKIN_PALETTES[element]
 	var line := form.get_slice("_", 0)
-	var index: int = 1 if line == "worm" and element == "water" else SKIN_SWATCH[line]
+	var index: int = 1 if line == "worm" and element == "water" else int(SKIN_SWATCH.get(line, 0))
 	var skin := Color(String(swatches[index]))
 	var accent := Color(String(swatches[(index + 1) % 3]))
 	var shadow := Color(String(swatches[(index + 2) % 3]))

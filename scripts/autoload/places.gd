@@ -643,7 +643,7 @@ func skytower_desk() -> void:
 	# the first time, she gives you the company's number and how its couriers work (phone.gd: no calling it before)
 	if not GameState.flag(Phone.SKYTOWER_FLAG):
 		await Story.say(["Welcome to SkyTower Inc! First time with us? Then take our number. Any phone in the land can reach us.",
-			"Call us, and one of our couriers comes flying to you on a Tempestrix. Just step outside, under open sky, and wait about thirty seconds.",
+			"Call us, and one of our couriers comes flying to you on a Guardian Grey Owl. Just step outside, under open sky, and wait about thirty seconds.",
 			"We can fly you to any town you've visited, at twice the tower fare. Or pick up items from your bag and put them in our locker for 20 gold.",
 			"Or bring items from the locker to you. Deliveries are free! Up to twelve stacks a trip, handed over right where you stand.",
 			"One request at a time, mind: a new call replaces the last one."], KEEPERS["skytower"])
@@ -656,17 +656,17 @@ func skytower_desk() -> void:
 		if choice == 1:
 			await load("res://scripts/ui/locker_screen.gd").open()
 		else:
-			await Story.say(["The Tempestrix is waiting on the roof. He'll carry you to any town you've visited for %d gold." % FLIGHT_COST,
+			await Story.say(["The Guardian Grey Owl is waiting on the roof. He'll carry you to any town you've visited for %d gold." % FLIGHT_COST,
 				"All our towers share one free locker: 48 stacks, up to nine of an item per stack.",
 				"Call our company from any phone for a courier ride, pickup or delivery.",
 				"Raise an air beast of your own to Lv %d, and it'll carry you itself!" % FLY_LEVEL], KEEPERS["skytower"])
 
 
 
-## The Tempestrix on the Sky Tower's roof flies you to any town you've visited.
+## The Guardian Grey Owl on the Sky Tower's roof flies you to any town you've visited.
 func skytower(b: Dictionary) -> void:
 	var town: String = b.get("town", GameState.map_id)
-	await Story.say(["The Tempestrix ruffles its feathers and lowers a wing for you to climb aboard."])
+	await Story.say(["The Guardian Grey Owl ruffles its feathers and lowers a wing for you to climb aboard."])
 	await fly_menu(town, FLIGHT_COST, "")
 
 
@@ -1407,7 +1407,7 @@ const BOOK_TITLES := [
 	"\"A History of the Umbral Legion\": The pages about Nocthra have been torn out.",
 	"\"Elemental Matchups\": Fire fears the wind. Water fears the wind too. Wind fears fire.",
 	"\"Earth and Stone\": The best defence is a good Earth beast. Shield your friends!",
-	"\"Cooking with Embits\": Please don't.",
+	"\"Cooking with young Fire Axolotls\": Please don't.",
 	"\"The Twelve Towns\", a travel guide. Someone has circled Cogsworth and written 'NEVER AGAIN'.",
 	"\"Temples of the Four Winds\": Tides on the reef, Winds in the desert, Flame in the volcano, Roots in the jungle.",
 	"\"Eggs and Hatchlings\": A fresh hatchling is weak, but it grows faster than any wild beast, into a new form at Lv 20 and its last at Lv 40.",
@@ -1427,12 +1427,12 @@ const FURNITURE_LINES := {
 	"fridge": "Leftovers, a carton of milk and a jar of beast treats.",
 	"pantry": "Shelves of rice, beans and honey jars.",
 	"toilet": "It's a toilet. It's very clean.",
-	"bathtub": "A deep tub. A rubber Tadlet floats in the corner.",
+	"bathtub": "A deep tub. A rubber young Water Axolotl floats in the corner.",
 	"basin": "The tap drips, very slowly.",
 	"washer": "The washing machine is humming through a spin cycle.",
 	"sofa": "A comfy sofa, worn soft in all the right places.",
 	"armchair": "Someone's favourite armchair.",
-	"tv": "A cooking show is on. The chef is arguing with an Impkin.",
+	"tv": "A cooking show is on. The chef is arguing with an young Fire Elephant Shrew.",
 	"chair": "A sturdy wooden chair.",
 	"stool": "A stool.",
 	"coffee_table": "A little table, ringed with old mug marks.",
@@ -1459,7 +1459,7 @@ func wardrobe_mirror(world) -> void:
 		await UI.fade_in(0.25)
 
 
-## "a Pyrosaur", "an Embit", "an earth beast".
+## "a Guardian Fire Axolotl", "an young Fire Axolotl", "an earth beast".
 static func _a(word: String) -> String:
 	return ("an " if word.left(1).to_lower() in ["a", "e", "i", "o", "u"] else "a ") + word
 

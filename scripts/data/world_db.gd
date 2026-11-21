@@ -14,14 +14,14 @@ const TOWN_ORDER := ["caccoon", "tidewater", "shellhaven", "kelpwick", "dustwell
 const TOWNS := {
 	"caccoon": {"name": "Cocoon Cove", "size": "hamlet", "mascot": 2, "signature": "bandit_blaze", "biome": "coast",
 		"shops": ["center", "apothecary", "home", "house", "house", "bookstore"],
-		"blurb": "A cozy pirate cove of cliff homes and timber docks, home of the Pyrosaur. Its library welcomes new travelers."},
+		"blurb": "A cozy pirate cove of cliff homes and timber docks, home of the Guardian Fire Axolotl. Its library welcomes new travelers."},
 	"tidewater": {"name": "Bellerive", "size": "town", "mascot": 29, "signature": "tidewater_torrent", "biome": "quarter",
 		"shops": ["center", "apothecary", "electronics", "beast_gear", "bookstore", "cafe", "arena", "skytower", "house", "house", "house"],
 		"blurb": "A French Quarter harbour town of iron balconies and stone quays. Ferries sail from here to the Isle of Tides."},
 	"shellhaven": {"name": "Shellhaven", "size": "village", "mascot": 26, "signature": "pearl_cannon", "biome": "island",
 		"shops": ["center", "apothecary", "cafe", "house", "house", "house"],
 		"blurb": "A pastel mission-style resort on the west shore, with a grand hotel and a sunlit beach."},
-	"kelpwick": {"name": "Kelpwick", "size": "village", "mascot": 23, "signature": "kelp_maelstrom", "biome": "island",
+	"kelpwick": {"name": "Kelpwick", "size": "village", "mascot": 68, "signature": "kelp_maelstrom", "biome": "island",
 		"shops": ["arena", "beast_gear", "house", "house", "house"],
 		"blurb": "A modest village of round wooden homes and thrifty reef-divers, sheltered by tropical jungle. Its great hut is arena and healer both."},
 	"dustwell": {"name": "Dustwell Oasis", "size": "hamlet", "mascot": 32, "signature": "sirocco", "biome": "desert",
@@ -53,19 +53,19 @@ const TOWNS := {
 ## Each route connects `from` to `to` (to = "" for a dead end); `dir` is the edge of `from` it leaves by.
 ## races: the first forms of the lines that live there; a wild beast is the form its level gives (RaceDB.for_level).
 const ROUTES := {
-	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [2, 4], "races": [0, 27, 36, 24, 15, 30],
+	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [2, 4], "races": [0, 27, 36, 24, 15, 30, 48, 60, 72],
 		"after_flute": true, "pack": 1},
-	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [4, 7], "races": [24, 27, 12, 36, 9]},
-	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "reef", "lv": [7, 10], "races": [21, 24, 27]},
-	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [30, 15, 3, 33, 9]},
-	"dustwell_channel": {"name": "Dustwell River Landing", "from": "dustwell", "to": "", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6]},
-	"route4": {"return_only": true,"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3]},
-	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21], "temple": "air"},
-	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [15, 12, 6, 18], "legion": true},
-	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [9, 0, 6, 3], "temple": "fire"},
-	"route8": {"name": "Summit Pass", "from": "emberfall", "to": "vinehollow", "dir": "west", "biome": "mountain", "lv": [30, 36], "races": [30, 36, 33, 18, 27], "legion": true},
-	"route9": {"name": "Jungle Trail", "from": "vinehollow", "to": "riverbend", "dir": "south", "biome": "jungle", "lv": [34, 40], "races": [18, 27, 36, 24, 0], "temple": "earth"},
-	"route10": {"name": "Moor Road", "from": "riverbend", "to": "gravenmoor", "dir": "east", "biome": "moor", "lv": [40, 46], "races": [33, 21, 6, 36], "legion": true, "ghosts": 0.2},
+	"route2": {"name": "Isle Trail", "from": "shellhaven", "to": "kelpwick", "dir": "east", "biome": "island", "lv": [4, 7], "races": [24, 27, 12, 36, 9, 51, 81]},
+	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "reef", "lv": [7, 10], "races": [66, 24, 27, 78, 51, 81]},
+	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [30, 15, 3, 33, 9, 63, 69]},
+	"dustwell_channel": {"name": "Dustwell River Landing", "from": "dustwell", "to": "", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 63]},
+	"route4": {"return_only": true,"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3, 54, 75]},
+	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21, 57, 69], "temple": "air"},
+	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [15, 12, 6, 18, 54, 75], "legion": true},
+	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [9, 0, 6, 3, 48, 63], "temple": "fire"},
+	"route8": {"name": "Summit Pass", "from": "emberfall", "to": "vinehollow", "dir": "west", "biome": "mountain", "lv": [30, 36], "races": [30, 36, 33, 18, 27, 57, 60], "legion": true},
+	"route9": {"name": "Jungle Trail", "from": "vinehollow", "to": "riverbend", "dir": "south", "biome": "jungle", "lv": [34, 40], "races": [18, 27, 36, 24, 0, 54, 72], "temple": "earth"},
+	"route10": {"name": "Moor Road", "from": "riverbend", "to": "gravenmoor", "dir": "east", "biome": "moor", "lv": [40, 46], "races": [33, 21, 6, 36, 66, 81], "legion": true, "ghosts": 0.2},
 }
 
 ## The four elemental temples, and Gravenmoor's crypt. Each holds a guardian beast that can't be beaten, only
@@ -76,7 +76,7 @@ const ROUTES := {
 ## hiding the way down (interior_maps.gd). song_room: where its stones are, if not in the guardian's own room.
 const TEMPLES := {
 	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff",
-		"element": "water", "song": "song_tides", "helpers": [21],
+		"element": "water", "song": "song_tides", "helpers": [66],
 		"song_room": "temple_tides_song", "rooms": ["temple_tides_hall", "temple_water", "temple_tides_falls", "temple_tides_maze", "temple_tides_song", "temple_tides_sanctuary"]},
 	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
 		"element": "air", "song": "song_winds", "helpers": [33, 36]},

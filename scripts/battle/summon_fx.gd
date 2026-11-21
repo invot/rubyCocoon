@@ -6,7 +6,7 @@ extends Node3D
 ##   await fx.arrive(); await fx.attack(on_hit); await fx.leave()
 ## on_hit is called once, at the moment the attack lands (the battle deals its damage then).
 
-const SUMMON_DIR := "res://assets/summons/"
+const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 ## per summon: model size (its longest side, world units), how high it hovers, and its colours
 const LOOK := {
 	"water": {"size": 6.4, "hover": 1.0, "a": "#3ab0ff", "b": "#e8fbff", "light": "#5ac8ff"},
@@ -76,7 +76,7 @@ var at := Vector3.ZERO
 var toward := Vector3.FORWARD
 var targets: Array = []
 var look: Dictionary
-var model: MeshInstance3D
+var model: Node3D
 var circle: MeshInstance3D
 var light: OmniLight3D
 var _soft: Texture2D
@@ -136,10 +136,8 @@ func arrive() -> void:
 		{"dir": Vector3.UP, "spread": 18.0, "radius": size * 0.25, "gravity": Vector3(0, 1.0, 0)})
 	Sfx.play("levelup")
 	# the guardian itself: flyers swoop down from the sky, the rest rise out of the circle
-	model = MeshInstance3D.new()
-	model.mesh = load(SUMMON_DIR + element + ".res")
-	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	model.rotation.y = atan2(toward.x, toward.z)
+	model = BeastModel.rig({"form": "generated_temple_" + element, "size": 1.0})
+	model.rotation.y = atan2(-toward.z, toward.x)
 	add_child(model)
 	var rest := at + Vector3(0, hover, 0)
 	var full := Vector3.ONE * size
@@ -169,6 +167,7 @@ func arrive() -> void:
 
 # ---------------------------------------------------------------- attacks
 func attack(on_hit: Callable) -> void:
+	BeastModel.pose_cast(model, col("a"))
 	match element:
 		"fire":
 			await _fire(on_hit)

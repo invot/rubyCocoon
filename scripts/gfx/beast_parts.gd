@@ -8,6 +8,7 @@ extends RefCounted
 ## rest of the pieces it's most of (regions()): a claw its arm, a hoof its leg, a head its jaw.
 
 const Looks = preload("res://scripts/data/beast_looks.gd")
+const Races = preload("res://scripts/data/race_db.gd")
 const DIR := "res://assets/beasts/"
 const PARTS := Looks.PARTS
 ## the parts a merge can take from the parent that doesn't give the frame
@@ -51,6 +52,7 @@ const FIX := {
 ## per form: {form, mesh, arrays, joints, parents, kind, lo, hi} (lo/hi: each part's bounds), and once it's merged,
 ## regions()
 static var _forms := {}
+## Appendages always follow fins < arms < wings; longer measured legs win.
 
 
 ## How a merge of a and b is put together: {frame, colours, head/arms/wings/tail/legs: the form each comes from}.
@@ -60,6 +62,8 @@ static var _forms := {}
 ## bigger); and the other mostly gives the colours too when it gives only one part. Everything in it is a String, so it keeps
 ## as it is (in a merged beast's genes).
 static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
+	a = Races.canonical_form(a)
+	b = Races.canonical_form(b)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_n
 	var frame := a if rng.randf() < 0.5 else b
@@ -83,7 +87,113 @@ static func merge_recipe(a: String, b: String, seed_n: int) -> Dictionary:
 				break
 		r[pick] = other
 		can.erase(pick)
+	inherit_limbs(r, info(frame), info(other))
 	return r
+
+## Side fins, arms and wings occupy one inherited appendage slot. The more capable
+## pair always wins, independently of the randomly selected head, tail and colours.
+## Empty donor strings explicitly remove inferior appendages from the frame.
+static func inherit_limbs(recipe: Dictionary, fi: Dictionary, di: Dictionary) -> void:
+	var fr := appendage_rank(fi)
+	var dr := appendage_rank(di)
+	var winner := di if dr > fr else fi
+	var rank := maxi(fr, dr)
+	if rank > 0:
+		recipe["appendage"] = ["", "fins", "arms", "wings"][rank]
+		recipe["locomotion"] = "fly" if rank == 3 else ("swim" if rank == 1 else "ground")
+		recipe["arms"] = String(winner["form"]) if rank < 3 else ""
+		recipe["wings"] = String(winner["form"]) if rank == 3 else ""
+	# Keep the longer measured legs. They retain their proportions; pieces() lifts
+	# the receiving torso instead of shortening the inherited legs to its old hips.
+	if has_group(fi, "legs") and has_group(di, "legs"):
+		if leg_length(di) * body_scale(fi, di) > leg_length(fi) + 0.001:
+			recipe["legs"] = String(di["form"])
+		else:
+			recipe.erase("legs")
+
+static func appendage_rank(fi: Dictionary) -> int:
+	if has_group(fi, "wings"):
+		return 3
+	if has_group(fi, "arms"):
+		return 1 if String(fi.get("appendage", "arms")) == "fins" else 2
+	return 0
+
+static func body_scale(fi: Dictionary, di: Dictionary) -> float:
+	return clampf(sqrt(size(fi, "body") / maxf(size(di, "body"), 0.05)), 0.6, 1.6)
+
+static func leg_length(fi: Dictionary) -> float:
+	regions(fi)
+	var length := 0.0
+	for p in GROUPS["legs"]:
+		if fi["clo"].has(p):
+			length = maxf(length, (fi["cj"][p] as Vector3).y - (fi["clo"][p] as Vector3).y)
+	return length
+
+static func leg_lift(fi: Dictionary, di: Dictionary) -> float:
+	var lift := 0.0
+	var s := body_scale(fi, di)
+	for p in GROUPS["legs"]:
+		if not fi["clo"].has(p):
+			continue
+		var src := leg_from(p, di)
+		if src != "":
+			var reach := ((di["cj"][src] as Vector3).y - (di["clo"][src] as Vector3).y) * s
+			lift = maxf(lift, reach - (fi["cj"][p] as Vector3).y)
+	return lift
+
+## Reapply the current limb rules to saved recipes while retaining their chosen
+## head, tail and colours. Referenced forms include the colour donor, so an older
+## random recipe cannot silently discard that parent's superior limbs.
+static func normalize_recipe(recipe: Dictionary) -> Dictionary:
+	var out := recipe.duplicate(true)
+	var frame := Races.canonical_form(String(out.get("frame", "")))
+	if frame == "":
+		return out
+	out["frame"] = frame
+	var fi := info(frame)
+	if not bool(fi.get("authored_materials", false)):
+		return out
+	var donors := [frame]
+	for group in ["colours", "head", "arms", "wings", "tail", "legs"]:
+		var form := Races.canonical_form(String(out.get(group, "")))
+		if out.has(group):
+			out[group] = form
+		if form != "" and not form in donors:
+			donors.append(form)
+	if donors.size() == 1:
+		return out # An ordinary form keeps all of its authored anatomy.
+	var winner := fi
+	var rank := appendage_rank(fi)
+	# Retain a selected equal-rank appendage donor where the older recipe had one.
+	for group in ["arms", "wings"]:
+		var form := String(out.get(group, ""))
+		if form != "":
+			var di := info(form)
+			var candidate := appendage_rank(di)
+			if candidate >= rank and has_group(di, group):
+				winner = di
+				rank = candidate
+	var leg_winner := fi
+	var longest := leg_length(fi)
+	for donor in donors:
+		var di := info(donor)
+		var candidate := appendage_rank(di)
+		if candidate > rank:
+			winner = di
+			rank = candidate
+		var length := leg_length(di) * body_scale(fi, di)
+		if length > longest + 0.001:
+			leg_winner = di
+			longest = length
+	inherit_limbs(out, fi, winner)
+	if rank > 0:
+		out["arms"] = String(winner["form"]) if rank < 3 else ""
+		out["wings"] = String(winner["form"]) if rank == 3 else ""
+	if has_group(fi, "legs") and leg_winner["form"] != frame:
+		out["legs"] = leg_winner["form"]
+	else:
+		out.erase("legs")
+	return out
 
 
 ## How much a givable() gives, all told.
@@ -94,20 +204,19 @@ static func weight(can: Dictionary) -> float:
 	return sum
 
 
-## What donor `di` can give frame `fi` (info()s): {group: how likely}, by its size against the donor's body, and more
-## for what the frame lacks; legs only of about the frame's length (stretched much, they'd look like stilts), and no
-## arms to a frame that stands on its own.
+## Randomly inherited head/tail groups, weighted by their size against the donor's
+## body. Appendages and legs follow inherit_limbs() separately.
 static func givable(di: Dictionary, fi: Dictionary) -> Dictionary:
 	var out := {}
 	var slight_d: Array = FIX.get(di["form"], {}).get("slight", [])
 	var slight_f: Array = FIX.get(fi["form"], {}).get("slight", [])
 	for g in GROUPS:
+		if g in ["arms", "wings", "legs"]:
+			continue # These slots follow inherit_limbs(), never a random downgrade.
 		if not has_group(di, g) or g in slight_d:
 			continue
 		var lacks: bool = not has_group(fi, g) or g in slight_f
-		if lacks and (g == "head" or g == "legs"):
-			continue
-		if (g == "legs" and not legs_fit(fi, di)) or (g == "arms" and on_arms(fi)):
+		if lacks and g == "head":
 			continue
 		var big := 0.0
 		for p in GROUPS[g]:
@@ -158,11 +267,13 @@ static func has_group(fi: Dictionary, g: String) -> bool:
 
 
 static func info(f: String) -> Dictionary:
+	f = Races.canonical_form(f)
 	if _forms.has(f):
 		return _forms[f]
 	var original: ArrayMesh = load(DIR + f + ".res")
 	var arrays := original.surface_get_arrays(0)
-	var mesh := preload("res://scripts/gfx/beast_eye_mesh.gd").attach(original, f, Looks.look(f).get("eyes", []))
+	var authored := bool(original.get_meta("authored_materials", false))
+	var mesh := original if authored else preload("res://scripts/gfx/beast_eye_mesh.gd").attach(original, f, Looks.look(f).get("eyes", []))
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 	var lo := {}
@@ -176,7 +287,9 @@ static func info(f: String) -> Dictionary:
 			lo[p] = (lo[p] as Vector3).min(verts[i])
 			hi[p] = (hi[p] as Vector3).max(verts[i])
 	var d := {"form": f, "mesh": mesh, "arrays": arrays, "joints": original.get_meta("joints", {}),
-		"parents": original.get_meta("parents", {}), "kind": String(original.get_meta("body", "quad")), "lo": lo, "hi": hi}
+		"parents": original.get_meta("parents", {}), "kind": String(original.get_meta("body", "quad")), "lo": lo, "hi": hi,
+		"authored_materials": authored, "appendage": String(original.get_meta("appendage", "arms")),
+		"locomotion": String(original.get_meta("locomotion", "ground"))}
 	_forms[f] = d
 	return d
 
@@ -190,6 +303,19 @@ static func info(f: String) -> Dictionary:
 ## haunch stays the body's.
 static func regions(fi: Dictionary) -> void:
 	if fi.has("cut"):
+		return
+	if bool(fi.get("authored_materials", false)):
+		# Authored modules already have exact labels. Geometric overlap must not
+		# turn fins, crystal tips or wing feathers back into a neighbouring part.
+		var colours: PackedColorArray = fi["arrays"][Mesh.ARRAY_COLOR]
+		var labels := PackedInt32Array()
+		labels.resize(colours.size())
+		for i in labels.size():
+			labels[i] = clampi(roundi(colours[i].r * 15.0), 0, PARTS.size() - 1)
+		fi["cut"] = labels
+		fi["clo"] = fi["lo"].duplicate()
+		fi["chi"] = fi["hi"].duplicate()
+		fi["cj"] = joints(fi)
 		return
 	var arrays: Array = fi["arrays"]
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -456,14 +582,18 @@ static func joints(fi: Dictionary) -> Dictionary:
 static func pieces(recipe: Dictionary, frame_joints: Dictionary) -> Array:
 	var frame: String = recipe["frame"]
 	var fi := info(frame)
-	# each part the frame is given: [donor, its part set there]
+	regions(fi)
 	var given := {}
+	var removed := {}
 	for g in GROUPS:
 		if not recipe.has(g) or recipe[g] == frame:
 			continue
 		var donor := String(recipe[g])
+		if donor == "":
+			for p in GROUPS[g]:
+				removed[p] = true
+			continue
 		var di := info(donor)
-		regions(fi)
 		regions(di)
 		for p in GROUPS[g]:
 			var src: String = p
@@ -471,16 +601,25 @@ static func pieces(recipe: Dictionary, frame_joints: Dictionary) -> Array:
 				src = leg_from(p, di) if fi["clo"].has(p) else ""
 			if di["clo"].has(src):
 				given[p] = [donor, src]
-	if given.is_empty():
+	if given.is_empty() and removed.is_empty():
 		return [{"mesh": fi["mesh"], "face": frame}]
+	var lift := 0.0
+	var leg_donor := String(recipe.get("legs", frame))
+	if leg_donor != frame and leg_donor != "":
+		var di := info(leg_donor)
+		regions(di)
+		lift = leg_lift(fi, di)
+	if lift > 0.0:
+		for p in frame_joints:
+			frame_joints[p] += Vector3.UP * lift
 	var keep := {}
 	for p in PARTS:
-		if not given.has(p):
+		if not given.has(p) and not removed.has(p):
 			keep[p] = true
 	var out := []
 	var mesh := cut(fi, keep, {})
 	if mesh != null:
-		out.append({"mesh": mesh, "face": frame if keep.has("head") or not fi["clo"].has("head") else ""})
+		out.append({"mesh": lifted_mesh(mesh, lift), "face": frame if keep.has("head") or not fi["clo"].has("head") else ""})
 	var donors := []
 	for p in given:
 		if not given[p][0] in donors:
@@ -490,13 +629,25 @@ static func pieces(recipe: Dictionary, frame_joints: Dictionary) -> Array:
 		var moves := {}
 		for p in given:
 			if given[p][0] == donor:
-				moves[p] = move(p, given[p][1], fi, di)
+				moves[p] = move(p, given[p][1], fi, di, lift)
 				frame_joints[p] = moves[p][2]
 		mesh = cut(di, {}, moves)
 		if mesh != null:
 			out.append({"mesh": mesh, "face": donor if moves.has("head") else ""})
 	return out
 
+static func lifted_mesh(mesh: ArrayMesh, lift: float) -> ArrayMesh:
+	if lift <= 0.0:
+		return mesh
+	var arrays := mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	for i in vertices.size():
+		vertices[i].y += lift
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	var lifted := ArrayMesh.new()
+	lifted.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	lifted.surface_set_material(0, mesh.surface_get_material(0))
+	return lifted
 
 ## The donor's leg set at the frame's leg p: the one on the same side, at the same end if it has one.
 static func leg_from(p: String, di: Dictionary) -> String:
@@ -577,9 +728,10 @@ static func surface(fi: Dictionary, at: Vector3, out: Vector3, big: float) -> Ve
 ## were), a head a little against the frame's head (but no bigger than its body), on its neck; legs are stretched
 ## to the frame's (leg_stretch()), their feet on the ground; and nothing else reaches into the ground: it's made
 ## smaller, then set higher.
-static func move(p: String, src: String, fi: Dictionary, di: Dictionary) -> Array:
+static func move(p: String, src: String, fi: Dictionary, di: Dictionary, lift := 0.0) -> Array:
 	var from := attach(di, src)
 	var to := attach(fi, p) if fi["cj"].has(p) else socket(fi, p)
+	to.y += lift
 	var s := clampf(sqrt(size(fi, "body") / maxf(size(di, "body"), 0.05)), 0.6, 1.6)
 	var low: float = (di["clo"][src] as Vector3).y
 	if p == "head":
@@ -590,12 +742,11 @@ static func move(p: String, src: String, fi: Dictionary, di: Dictionary) -> Arra
 	elif p.begins_with("wing_"):
 		s = minf(s * (1.2 if not fi["clo"].has(p) else 1.0), 1.1)
 	elif p.begins_with("leg_"):
-		var sy := leg_stretch(p, src, fi, di)
-		var sx := clampf(s, sy * 0.8, sy * 1.25)
-		return [src, from, Vector3(to.x, (from.y - low) * sy, to.z + apart(p, src, di, from.z, to.z, sx)),
-			Vector3(sx, sy, sx)]
+		var sy := maxf(s, to.y / maxf(from.y - low, 0.02))
+		return [src, from, Vector3(to.x, (from.y - low) * sy, to.z + apart(p, src, di, from.z, to.z, s)),
+			Vector3(s, sy, s)]
 	# a little into the body, so the seam's hidden
-	var mid: Vector3 = (fi["clo"]["body"] + fi["chi"]["body"]) / 2.0
+	var mid: Vector3 = (fi["clo"]["body"] + fi["chi"]["body"]) / 2.0 + Vector3.UP * lift
 	to = to.move_toward(mid, SINK)
 	to.z += apart(p, src, di, from.z, to.z, s)
 	var reach := from.y - low

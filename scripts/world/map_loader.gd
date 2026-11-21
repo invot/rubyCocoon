@@ -1056,7 +1056,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			else:
 				MapGen.set_t(m, x, y, MapGen.IFLOOR)
 			if ch == "e":
-				m["exhibits"][p] = (int(b["seed"]) + exhibit_k * 11 + WorldDB.town_tier(parent) * 3) % RaceDB.NORMAL_COUNT
+				m["exhibits"][p] = RaceDB.line_races()[(int(b["seed"]) + exhibit_k * 11 + WorldDB.town_tier(parent) * 3) % RaceDB.count()]
 				exhibit_k += 1
 			elif ch == "D":
 				mats.append(p)
@@ -1300,7 +1300,7 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 				"beast_genes": RaceDB.genes(t["guardian"]), "facing": Vector2i(0, 1), "flag": "guardian_" + tk, "big": true}
 			# the temples' dragons rest in a nest of sticks round their tile (world.gd _build_nest); talking to any
 			# side of it talks to them
-			if ResourceLoader.exists("res://assets/summons/%s_rest.res" % tk):
+			if ResourceLoader.exists("res://assets/beasts/generated_temple_%s.res" % tk):
 				g["nest"] = true
 				g["blocks"] = []
 				for offset: Vector2i in load("res://scripts/gfx/beast_nest.gd").tiles(InteriorMaps.ROOMS.get(room, {})):
@@ -1308,8 +1308,8 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 						g["blocks"].append(p + offset)
 			return g
 		"thunderhawk":
-			# the Sky Tower's giant bird, a Tempestrix, waiting on the roof (its id is from when it was a Thunderhawk)
-			return {"kind": "story", "id": "thunderhawk", "name": "Tempestrix", "pos": p, "beast_genes": RaceDB.genes(32), "big": true,
+			# the Sky Tower's giant bird, a Guardian Grey Owl, waiting on the roof (its id is from when it was a Thunderhawk)
+			return {"kind": "story", "id": "thunderhawk", "name": "Guardian Grey Owl", "pos": p, "beast_genes": RaceDB.genes(32), "big": true,
 				"facing": Vector2i(0, 1), "building": b}
 		"kennel":
 			# the Beast Center robe
@@ -1348,7 +1348,7 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			var lv3 := 44 if role == "ghost_grunt" else 40
 			var team2 := []
 			for i in 2:
-				team2.append([rng.randi_range(0, RaceDB.NORMAL_COUNT - 1), lv3 + i, true])
+				team2.append([RaceDB.random_race(rng), lv3 + i, true])
 			return {"kind": "trainer", "pos": p, "facing": Vector2i(0, 1), "sight": 3, "flag": "tr_%s_%s" % [map_id, ch],
 				"name": "Grunt " + WorldDB.TRAINER_NAMES[rng.randi_range(0, 30)], "cls": "Umbral Legion", "look": GRUNT_LOOK, "legion": true,
 				"team": team2, "lines": ["None shall disturb the General's ritual!"], "defeat": "The shadows... retreat...", "vanish": true}

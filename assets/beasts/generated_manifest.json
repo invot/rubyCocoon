@@ -1,0 +1,5897 @@
+{
+  "schema_version": 1,
+  "source": "User-supplied generated creature output packs, 2026-11-19",
+  "revisions": [
+    "Earth-Water-update.zip overrides its species exports",
+    "Grey-Owl-reference-rebuild.zip is the authoritative owl",
+    "Aqua-Stubby-Squid/Stubby-Squid-complete.zip is the authoritative squid"
+  ],
+  "encoding": {
+    "color_r": "shared part index divided by 15",
+    "uv": "authored linear red, green",
+    "uv2": "authored linear blue, head gemstone emission mask",
+    "bones": "rigid authored modules"
+  },
+  "normalization": "Face +X, feet at Y=0; all stages share their line Guardian's max(height, 0.62*length) denominator",
+  "archives": {
+    "Aqua-Stubby-Squid\\Stubby-Squid-complete.zip": "de07410e59fcd3b89e1f68aef28e7b57f6fe74f8e58ae36145f8d4ee32d9d11d",
+    "Elemental-Creatures\\Axolotl.zip": "41be2852194b63ea637b30e823e0c3f2c570cf70c2c18eb16730c42537ff92fd",
+    "Elemental-Creatures\\Draco.zip": "866e08391ecf5fc3ba0936091882f9eddf403053197063ab678fd864de8f3c53",
+    "Elemental-Creatures\\Earth-Water-update.zip": "2e102679bfac5c4aeca9dce733a9831228666321722b8cc954359f3e7abe5c82",
+    "Elemental-Creatures\\Elephant-Shrew.zip": "947e2b03c9363a32d5d652765192374ab08a7cae01c399afa5b79194e2a73ffb",
+    "Elemental-Creatures\\Fennec-Fox.zip": "83809f0a72745b7d52b0270e0c7b05dd69c762d88b44fa35b19f3529267e061b",
+    "Elemental-Creatures\\Grey-Owl-reference-rebuild.zip": "a57117115ae57cce133b42045a20c43c3d13b94f14f4c3bac48001ce9296e8ad",
+    "Elemental-Creatures\\Jerboa.zip": "e8eaf598bb24d5ea94f2c5aeaa24a69919c6f624fa15214e37f68cf95842af6e",
+    "Elemental-Creatures\\Peacock-Mantis-Shrimp.zip": "927e54dcb22a00016adffd9e300fe19d883be372c74bb605c131e3ef88c07f9b",
+    "Elemental-Creatures\\Poodle-Moth.zip": "f271d2d5a18ff38f45c28891811459b1cc2f22379a078220ec8b7bd95524e0b7",
+    "Elemental-Creatures\\Temple-Dragons.zip": "027c6af212afb8f5eaa1f835b1adb422097acc49c93c28a0bb1f6834080b2262",
+    "Elemental-Creatures\\Yellow-Boxfish.zip": "41459088e119031d3f709970947de4c121b487f64ba2560041f5b48aaed08ac0"
+  },
+  "forms": [
+    {
+      "form": "generated_draco_air_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.02880142007679556,
+          0.07387033823522766,
+          0.0
+        ],
+        "leg_fl": [
+          0.09220311330586008,
+          0.09879700151423478,
+          -0.04193544312193928
+        ],
+        "leg_fr": [
+          0.09220311330586008,
+          0.09879700151423478,
+          0.04193544312193928
+        ],
+        "head": [
+          0.11384531929145646,
+          0.14571776505643036,
+          0.0
+        ],
+        "leg_bl": [
+          -0.03873516637894002,
+          0.076069747387579,
+          -0.04516124408602209
+        ],
+        "leg_br": [
+          -0.03873516637894002,
+          0.076069747387579,
+          0.04516124408602209
+        ],
+        "tail": [
+          -0.07181431656214601,
+          0.07680288377169613,
+          0.0
+        ],
+        "wing_l": [
+          0.035692908969990556,
+          0.10602572661121651,
+          -0.062096711164510064
+        ],
+        "wing_r": [
+          0.035692908969990556,
+          0.10602572661121651,
+          0.062096711164510064
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22465,
+      "triangles": 30160,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Draco.zip",
+      "source_member": "Air/Models/Young.glb",
+      "source_sha256": "9af4498920d94d5ae68035226bd6bac4950f60e8cf10fe292ed54985f3f530dc",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_air_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.10820600790511563,
+          0.13956761823336938,
+          0.0
+        ],
+        "leg_fl": [
+          0.23084517974705773,
+          0.176415741525355,
+          -0.08340677060683788
+        ],
+        "leg_fr": [
+          0.23084517974705773,
+          0.176415741525355,
+          0.08340677060683788
+        ],
+        "head": [
+          0.23392307439294652,
+          0.27612239160149626,
+          0.0
+        ],
+        "leg_bl": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          -0.08982268150408367
+        ],
+        "leg_br": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          0.08982268150408367
+        ],
+        "tail": [
+          -0.08641701864866232,
+          0.1439026984015839,
+          0.0
+        ],
+        "wing_l": [
+          0.12153635196839632,
+          0.19815612754947637,
+          -0.123506187875585
+        ],
+        "wing_r": [
+          0.12153635196839632,
+          0.19815612754947637,
+          0.123506187875585
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22593,
+      "triangles": 27892,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Draco.zip",
+      "source_member": "Air/Models/Juvenile.glb",
+      "source_sha256": "1c49da85a55cbaae8cc7ddc2022b02c2019f1ca4c187faf24a4ad96954f538bf",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_air_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.21747479172606782,
+          0.2695435419053777,
+          0.0
+        ],
+        "leg_fl": [
+          0.4388235693852302,
+          0.32300941048671417,
+          -0.17008439830882588
+        ],
+        "leg_fr": [
+          0.4388235693852302,
+          0.32300941048671417,
+          0.17008439830882588
+        ],
+        "head": [
+          0.3998877959212682,
+          0.5274378131331056,
+          0.0
+        ],
+        "leg_bl": [
+          -0.018309770075136,
+          0.27426111523679503,
+          -0.18316784817129564
+        ],
+        "leg_br": [
+          -0.018309770075136,
+          0.27426111523679503,
+          0.18316784817129564
+        ],
+        "tail": [
+          -0.13379604321146754,
+          0.27583365842657087,
+          0.0
+        ],
+        "wing_l": [
+          0.24153443821146023,
+          0.37861393180743536,
+          -0.2518557631165764
+        ],
+        "wing_r": [
+          0.24153443821146023,
+          0.37861393180743536,
+          0.2518557631165764
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 24429,
+      "triangles": 28936,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Draco.zip",
+      "source_member": "Air/Models/Guardian.glb",
+      "source_sha256": "5b4c4d56d6d7a4c5fb05725e39a6a9f7128b451bd9e5aa9c3df235d3885ecc7a",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_earth_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.02880142007679556,
+          0.07387033823522766,
+          0.0
+        ],
+        "leg_fl": [
+          0.09220311330586008,
+          0.09879700151423478,
+          -0.04193544312193928
+        ],
+        "leg_fr": [
+          0.09220311330586008,
+          0.09879700151423478,
+          0.04193544312193928
+        ],
+        "head": [
+          0.11384531929145646,
+          0.14571776505643036,
+          0.0
+        ],
+        "leg_bl": [
+          -0.03873516637894002,
+          0.076069747387579,
+          -0.04516124408602209
+        ],
+        "leg_br": [
+          -0.03873516637894002,
+          0.076069747387579,
+          0.04516124408602209
+        ],
+        "tail": [
+          -0.07181431656214601,
+          0.07680288377169613,
+          0.0
+        ],
+        "wing_l": [
+          0.035692908969990556,
+          0.10602572661121651,
+          -0.062096711164510064
+        ],
+        "wing_r": [
+          0.035692908969990556,
+          0.10602572661121651,
+          0.062096711164510064
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22465,
+      "triangles": 30160,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Draco/Earth/Models/Young.glb",
+      "source_sha256": "b1132749c79f6660b992e68cd29799bd522246e1cf7ac8ead49ca377379a54b7",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_earth_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.10820600790511563,
+          0.13956761823336938,
+          0.0
+        ],
+        "leg_fl": [
+          0.23084517974705773,
+          0.176415741525355,
+          -0.08340677060683788
+        ],
+        "leg_fr": [
+          0.23084517974705773,
+          0.176415741525355,
+          0.08340677060683788
+        ],
+        "head": [
+          0.23392307439294652,
+          0.27612239160149626,
+          0.0
+        ],
+        "leg_bl": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          -0.08982268150408367
+        ],
+        "leg_br": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          0.08982268150408367
+        ],
+        "tail": [
+          -0.08641701864866232,
+          0.1439026984015839,
+          0.0
+        ],
+        "wing_l": [
+          0.12153635196839632,
+          0.19815612754947637,
+          -0.123506187875585
+        ],
+        "wing_r": [
+          0.12153635196839632,
+          0.19815612754947637,
+          0.123506187875585
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22593,
+      "triangles": 27892,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Draco/Earth/Models/Juvenile.glb",
+      "source_sha256": "d7a685933ddd0f8abf2758971d32ca8bdbd9bb8a5a272dd48078834cd71a1e23",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_earth_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.21747479172606782,
+          0.2695435419053777,
+          0.0
+        ],
+        "leg_fl": [
+          0.4388235693852302,
+          0.32300941048671417,
+          -0.17008439830882588
+        ],
+        "leg_fr": [
+          0.4388235693852302,
+          0.32300941048671417,
+          0.17008439830882588
+        ],
+        "head": [
+          0.3998877959212682,
+          0.5274378131331056,
+          0.0
+        ],
+        "leg_bl": [
+          -0.018309770075136,
+          0.27426111523679503,
+          -0.18316784817129564
+        ],
+        "leg_br": [
+          -0.018309770075136,
+          0.27426111523679503,
+          0.18316784817129564
+        ],
+        "tail": [
+          -0.13379604321146754,
+          0.27583365842657087,
+          0.0
+        ],
+        "wing_l": [
+          0.24153443821146023,
+          0.37861393180743536,
+          -0.2518557631165764
+        ],
+        "wing_r": [
+          0.24153443821146023,
+          0.37861393180743536,
+          0.2518557631165764
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 24429,
+      "triangles": 28936,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Draco/Earth/Models/Guardian.glb",
+      "source_sha256": "26a38acd9c399e4b6375606f9be803ed10f8b5ef613ac69d18616c4389fd5ad1",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_water_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.02880142007679556,
+          0.07387033823522766,
+          0.0
+        ],
+        "leg_fl": [
+          0.09220311330586008,
+          0.09879700151423478,
+          -0.04193544312193928
+        ],
+        "leg_fr": [
+          0.09220311330586008,
+          0.09879700151423478,
+          0.04193544312193928
+        ],
+        "head": [
+          0.11384531929145646,
+          0.14571776505643036,
+          0.0
+        ],
+        "leg_bl": [
+          -0.03873516637894002,
+          0.076069747387579,
+          -0.04516124408602209
+        ],
+        "leg_br": [
+          -0.03873516637894002,
+          0.076069747387579,
+          0.04516124408602209
+        ],
+        "tail": [
+          -0.07181431656214601,
+          0.07680288377169613,
+          0.0
+        ],
+        "wing_l": [
+          0.035692908969990556,
+          0.10602572661121651,
+          -0.062096711164510064
+        ],
+        "wing_r": [
+          0.035692908969990556,
+          0.10602572661121651,
+          0.062096711164510064
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22465,
+      "triangles": 30160,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Draco/Water/Models/Young.glb",
+      "source_sha256": "d9f11a9ccbc096cd4cf89656219de005d20bed3d16aba631f4becb6ae146328e",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_water_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.10820600790511563,
+          0.13956761823336938,
+          0.0
+        ],
+        "leg_fl": [
+          0.23084517974705773,
+          0.176415741525355,
+          -0.08340677060683788
+        ],
+        "leg_fr": [
+          0.23084517974705773,
+          0.176415741525355,
+          0.08340677060683788
+        ],
+        "head": [
+          0.23392307439294652,
+          0.27612239160149626,
+          0.0
+        ],
+        "leg_bl": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          -0.08982268150408367
+        ],
+        "leg_br": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          0.08982268150408367
+        ],
+        "tail": [
+          -0.08641701864866232,
+          0.1439026984015839,
+          0.0
+        ],
+        "wing_l": [
+          0.12153635196839632,
+          0.19815612754947637,
+          -0.123506187875585
+        ],
+        "wing_r": [
+          0.12153635196839632,
+          0.19815612754947637,
+          0.123506187875585
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22593,
+      "triangles": 27892,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Draco/Water/Models/Juvenile.glb",
+      "source_sha256": "d736fccf0528cf50abee08e0d6dbff6d2fcce9a93af6db1ee54e1ff1c6ec7a29",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_water_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.21747479172606782,
+          0.2695435419053777,
+          0.0
+        ],
+        "leg_fl": [
+          0.4388235693852302,
+          0.32300941048671417,
+          -0.17008439830882588
+        ],
+        "leg_fr": [
+          0.4388235693852302,
+          0.32300941048671417,
+          0.17008439830882588
+        ],
+        "head": [
+          0.3998877959212682,
+          0.5274378131331056,
+          0.0
+        ],
+        "leg_bl": [
+          -0.018309770075136,
+          0.27426111523679503,
+          -0.18316784817129564
+        ],
+        "leg_br": [
+          -0.018309770075136,
+          0.27426111523679503,
+          0.18316784817129564
+        ],
+        "tail": [
+          -0.13379604321146754,
+          0.27583365842657087,
+          0.0
+        ],
+        "wing_l": [
+          0.24153443821146023,
+          0.37861393180743536,
+          -0.2518557631165764
+        ],
+        "wing_r": [
+          0.24153443821146023,
+          0.37861393180743536,
+          0.2518557631165764
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 24429,
+      "triangles": 28936,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Draco/Water/Models/Guardian.glb",
+      "source_sha256": "4b49bfbe3d4a814d692d56fdd756fee748619f10739ceb0cb58184dbe05cba7a",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_fire_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.02880142007679556,
+          0.07387033823522766,
+          0.0
+        ],
+        "leg_fl": [
+          0.09220311330586008,
+          0.09879700151423478,
+          -0.04193544312193928
+        ],
+        "leg_fr": [
+          0.09220311330586008,
+          0.09879700151423478,
+          0.04193544312193928
+        ],
+        "head": [
+          0.11384531929145646,
+          0.14571776505643036,
+          0.0
+        ],
+        "leg_bl": [
+          -0.03873516637894002,
+          0.076069747387579,
+          -0.04516124408602209
+        ],
+        "leg_br": [
+          -0.03873516637894002,
+          0.076069747387579,
+          0.04516124408602209
+        ],
+        "tail": [
+          -0.07181431656214601,
+          0.07680288377169613,
+          0.0
+        ],
+        "wing_l": [
+          0.035692908969990556,
+          0.10602572661121651,
+          -0.062096711164510064
+        ],
+        "wing_r": [
+          0.035692908969990556,
+          0.10602572661121651,
+          0.062096711164510064
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22465,
+      "triangles": 30160,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Draco.zip",
+      "source_member": "Fire/Models/Young.glb",
+      "source_sha256": "d75583f6c2a72816472dbd109333c41957140e912b5bbe766de668b8d1b835a3",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_fire_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.10820600790511563,
+          0.13956761823336938,
+          0.0
+        ],
+        "leg_fl": [
+          0.23084517974705773,
+          0.176415741525355,
+          -0.08340677060683788
+        ],
+        "leg_fr": [
+          0.23084517974705773,
+          0.176415741525355,
+          0.08340677060683788
+        ],
+        "head": [
+          0.23392307439294652,
+          0.27612239160149626,
+          0.0
+        ],
+        "leg_bl": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          -0.08982268150408367
+        ],
+        "leg_br": [
+          -0.022431354225395512,
+          0.14281893158941014,
+          0.08982268150408367
+        ],
+        "tail": [
+          -0.08641701864866232,
+          0.1439026984015839,
+          0.0
+        ],
+        "wing_l": [
+          0.12153635196839632,
+          0.19815612754947637,
+          -0.123506187875585
+        ],
+        "wing_r": [
+          0.12153635196839632,
+          0.19815612754947637,
+          0.123506187875585
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 22593,
+      "triangles": 27892,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Draco.zip",
+      "source_member": "Fire/Models/Juvenile.glb",
+      "source_sha256": "b0f144e45793a4dea01840a4bcc7de6e6f79b1e47fcf7d436cfecc49ef58bf97",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_draco_fire_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.21747479172606782,
+          0.2695435419053777,
+          0.0
+        ],
+        "leg_fl": [
+          0.4388235693852302,
+          0.32300941048671417,
+          -0.17008439830882588
+        ],
+        "leg_fr": [
+          0.4388235693852302,
+          0.32300941048671417,
+          0.17008439830882588
+        ],
+        "head": [
+          0.3998877959212682,
+          0.5274378131331056,
+          0.0
+        ],
+        "leg_bl": [
+          -0.018309770075136,
+          0.27426111523679503,
+          -0.18316784817129564
+        ],
+        "leg_br": [
+          -0.018309770075136,
+          0.27426111523679503,
+          0.18316784817129564
+        ],
+        "tail": [
+          -0.13379604321146754,
+          0.27583365842657087,
+          0.0
+        ],
+        "wing_l": [
+          0.24153443821146023,
+          0.37861393180743536,
+          -0.2518557631165764
+        ],
+        "wing_r": [
+          0.24153443821146023,
+          0.37861393180743536,
+          0.2518557631165764
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 24429,
+      "triangles": 28936,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Draco.zip",
+      "source_member": "Fire/Models/Guardian.glb",
+      "source_sha256": "143e198d2fb3236a9e9c65d6476022c5d756b33df0a1b56bb96a6d30bb360a86",
+      "normalizer": 4.705804776088672
+    },
+    {
+      "form": "generated_axolotl_air_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.004914935282021163,
+          0.06988317564693684,
+          0.0
+        ],
+        "leg_fl": [
+          0.0838323834313825,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_fr": [
+          0.0838323834313825,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "head": [
+          0.12493522128989487,
+          0.11427425209775284,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_br": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "tail": [
+          -0.0960007541312963,
+          0.0764596283323436,
+          -0.010686737451226008
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 49919,
+      "triangles": 55126,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Axolotl.zip",
+      "source_member": "Air/Models/Young.glb",
+      "source_sha256": "e3a05ca45dbc5d25adcd89a09c11fccb6d5c8f069681c25d09f1f8274c475563",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_air_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.04525314350886472,
+          0.13646903462609475,
+          0.0
+        ],
+        "leg_fl": [
+          0.1764962896530135,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_fr": [
+          0.1764962896530135,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "head": [
+          0.25183957795848816,
+          0.22153402820551224,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_br": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "tail": [
+          -0.14782010713754848,
+          0.14619075438652113,
+          -0.01579778555664064
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 53644,
+      "triangles": 57758,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Axolotl.zip",
+      "source_member": "Air/Models/Juvenile.glb",
+      "source_sha256": "14771ffd399bb6013672300ff19d567e6a183a9c3fbd4b907c421e6040bfba4b",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_air_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.12901921107749958,
+          0.25406349412875157,
+          0.0
+        ],
+        "leg_fl": [
+          0.3476624781251606,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_fr": [
+          0.3476624781251606,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "head": [
+          0.4675636607616643,
+          0.3986501840739293,
+          0.0
+        ],
+        "leg_bl": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_br": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "tail": [
+          -0.22088057007689077,
+          0.26816949830513676,
+          -0.022922277806230146
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 60554,
+      "triangles": 61838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Axolotl.zip",
+      "source_member": "Air/Models/Guardian.glb",
+      "source_sha256": "2197b38e871dfb5b6ddeb76984129cc658f7fc78c2fc9878ecc50d73d0b10fb2",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_earth_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.004914935282021163,
+          0.06988317564693684,
+          0.0
+        ],
+        "leg_fl": [
+          0.0838323834313825,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_fr": [
+          0.0838323834313825,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "head": [
+          0.12493522128989487,
+          0.11427425209775284,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_br": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "tail": [
+          -0.0960007541312963,
+          0.0764596283323436,
+          -0.010686737451226008
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 49919,
+      "triangles": 55126,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Axolotl/Earth/Models/Young.glb",
+      "source_sha256": "7e52e521975803d7606da1fbc13b287523330ce09aeada56a900f00dc5fbbba3",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_earth_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.04525314350886472,
+          0.13646903462609475,
+          0.0
+        ],
+        "leg_fl": [
+          0.1764962896530135,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_fr": [
+          0.1764962896530135,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "head": [
+          0.25183957795848816,
+          0.22153402820551224,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_br": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "tail": [
+          -0.14782010713754848,
+          0.14619075438652113,
+          -0.01579778555664064
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 53644,
+      "triangles": 57758,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Axolotl/Earth/Models/Juvenile.glb",
+      "source_sha256": "e6833b8b60ee7154e95405e1282f948f28366ecb34a1af8df362798ffd84aeaa",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_earth_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.12901921107749958,
+          0.25406349412875157,
+          0.0
+        ],
+        "leg_fl": [
+          0.3476624781251606,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_fr": [
+          0.3476624781251606,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "head": [
+          0.4675636607616643,
+          0.3986501840739293,
+          0.0
+        ],
+        "leg_bl": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_br": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "tail": [
+          -0.22088057007689077,
+          0.26816949830513676,
+          -0.022922277806230146
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 60554,
+      "triangles": 61838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Axolotl/Earth/Models/Guardian.glb",
+      "source_sha256": "09e5c99aebc2e02101c2c4a390bd850ccdc83fbc26c9d79ba180dea2fcebf9b1",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_water_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.004914935282021163,
+          0.06988317564693684,
+          0.0
+        ],
+        "leg_fl": [
+          0.0838323834313825,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_fr": [
+          0.0838323834313825,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "head": [
+          0.12493522128989487,
+          0.11427425209775284,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_br": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "tail": [
+          -0.0960007541312963,
+          0.0764596283323436,
+          -0.010686737451226008
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 49919,
+      "triangles": 55126,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Axolotl/Water/Models/Young.glb",
+      "source_sha256": "59274acd08cd1df93a9a34eb5369cf682e8e41e7aa2164f9b11bbec7a821a5c5",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_water_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.04525314350886472,
+          0.13646903462609475,
+          0.0
+        ],
+        "leg_fl": [
+          0.1764962896530135,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_fr": [
+          0.1764962896530135,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "head": [
+          0.25183957795848816,
+          0.22153402820551224,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_br": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "tail": [
+          -0.14782010713754848,
+          0.14619075438652113,
+          -0.01579778555664064
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 53644,
+      "triangles": 57758,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Axolotl/Water/Models/Juvenile.glb",
+      "source_sha256": "6c5caedac078575b8e9f1c5e4152ac00bc9d14097c12f12ca1d41aa2eb7ecbef",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_water_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.12901921107749958,
+          0.25406349412875157,
+          0.0
+        ],
+        "leg_fl": [
+          0.3476624781251606,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_fr": [
+          0.3476624781251606,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "head": [
+          0.4675636607616643,
+          0.3986501840739293,
+          0.0
+        ],
+        "leg_bl": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_br": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "tail": [
+          -0.22088057007689077,
+          0.26816949830513676,
+          -0.022922277806230146
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 60554,
+      "triangles": 61838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Axolotl/Water/Models/Guardian.glb",
+      "source_sha256": "d2e43b23095c4dd1cb3a61954bf9242c87b8e7ee224c2cef19115fe77d046465",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_fire_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.004914935282021163,
+          0.06988317564693684,
+          0.0
+        ],
+        "leg_fl": [
+          0.0838323834313825,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_fr": [
+          0.0838323834313825,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "head": [
+          0.12493522128989487,
+          0.11427425209775284,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          -0.04611738321487902
+        ],
+        "leg_br": [
+          -0.06413782893938995,
+          0.07810374027873526,
+          0.04611738321487902
+        ],
+        "tail": [
+          -0.0960007541312963,
+          0.0764596283323436,
+          -0.010686737451226008
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 49919,
+      "triangles": 55126,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Axolotl.zip",
+      "source_member": "Fire/Models/Young.glb",
+      "source_sha256": "8a147e85a199f7103db7c5b4b3a8d8b4de20d81922508b3c653fb29aaa6a33cd",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_fire_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.04525314350886472,
+          0.13646903462609475,
+          0.0
+        ],
+        "leg_fl": [
+          0.1764962896530135,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_fr": [
+          0.1764962896530135,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "head": [
+          0.25183957795848816,
+          0.22153402820551224,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          -0.08956129385780288
+        ],
+        "leg_br": [
+          -0.09085086613711814,
+          0.14862118070500682,
+          0.08956129385780288
+        ],
+        "tail": [
+          -0.14782010713754848,
+          0.14619075438652113,
+          -0.01579778555664064
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 53644,
+      "triangles": 57758,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Axolotl.zip",
+      "source_member": "Fire/Models/Juvenile.glb",
+      "source_sha256": "b0d3fddeda40d5e4f424d17dd895c4295c06d73557c521c0f98b09f88b8772b1",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_axolotl_fire_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.12901921107749958,
+          0.25406349412875157,
+          0.0
+        ],
+        "leg_fl": [
+          0.3476624781251606,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_fr": [
+          0.3476624781251606,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "head": [
+          0.4675636607616643,
+          0.3986501840739293,
+          0.0
+        ],
+        "leg_bl": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          -0.17262239636730792
+        ],
+        "leg_br": [
+          -0.1354686273473249,
+          0.2716960203688373,
+          0.17262239636730792
+        ],
+        "tail": [
+          -0.22088057007689077,
+          0.26816949830513676,
+          -0.022922277806230146
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 60554,
+      "triangles": 61838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Axolotl.zip",
+      "source_member": "Fire/Models/Guardian.glb",
+      "source_sha256": "a9c7760437be9225596343596804cdaefcc5b999c774bdc4241397839df6b51f",
+      "normalizer": 4.19679049893702
+    },
+    {
+      "form": "generated_echidna_earth_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.08836848394314316,
+          0.11223016880002622,
+          0.00018212759756213392
+        ],
+        "leg_fl": [
+          -0.017384336951332652,
+          0.11061652751896399,
+          -0.06168494182811947
+        ],
+        "leg_fr": [
+          -0.017384336951332652,
+          0.11061652751896399,
+          0.062049197023243734
+        ],
+        "head": [
+          -0.0069763425131296845,
+          0.1348211659710188,
+          0.00018212759756213392
+        ],
+        "leg_bl": [
+          -0.16470992681690336,
+          0.11061652751896399,
+          -0.06168494182811947
+        ],
+        "leg_br": [
+          -0.16470992681690336,
+          0.11061652751896399,
+          0.062049197023243734
+        ],
+        "tail": [
+          -0.19283573320278324,
+          0.08641188906690916,
+          0.00018212759756213392
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 37059,
+      "triangles": 31338,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Echidna/Earth/Models/Young.glb",
+      "source_sha256": "4ab425129461a42f47e9ce8bf4d7d71da2b9d2e0190bf72b90070138b5c7b592",
+      "normalizer": 4.276039214405358
+    },
+    {
+      "form": "generated_echidna_earth_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.09445857968500548,
+          0.22274871164806162,
+          0.00020269184461856288
+        ],
+        "leg_fl": [
+          0.047137875194987654,
+          0.22036334313911796,
+          -0.12216756147894489
+        ],
+        "leg_fr": [
+          0.047137875194987654,
+          0.22036334313911796,
+          0.12257294516818201
+        ],
+        "head": [
+          0.0729000214422093,
+          0.24660256735352912,
+          0.00020269184461856288
+        ],
+        "leg_bl": [
+          -0.24674156254664018,
+          0.22036334313911796,
+          -0.12216756147894489
+        ],
+        "leg_br": [
+          -0.24674156254664018,
+          0.22036334313911796,
+          0.12257294516818201
+        ],
+        "tail": [
+          -0.3028458149005048,
+          0.18458254536291416,
+          0.00020269184461856288
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 50225,
+      "triangles": 38758,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Echidna/Earth/Models/Juvenile.glb",
+      "source_sha256": "661bfab1b4a61806f145c3627b32e001b4db07332ea625f4013c159d96b65d4b",
+      "normalizer": 4.276039214405358
+    },
+    {
+      "form": "generated_echidna_earth_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.07022774227175359,
+          0.39857669203233675,
+          0.0003956842361401436
+        ],
+        "leg_fl": [
+          0.1865893679563229,
+          0.3951155896185082,
+          -0.22949370056461335
+        ],
+        "leg_fr": [
+          0.1865893679563229,
+          0.3951155896185082,
+          0.23028506903689364
+        ],
+        "head": [
+          0.23850659527021179,
+          0.42626592394383717,
+          0.0003956842361401436
+        ],
+        "leg_bl": [
+          -0.34642726326277135,
+          0.3951155896185082,
+          -0.22949370056461335
+        ],
+        "leg_br": [
+          -0.34642726326277135,
+          0.3951155896185082,
+          0.23028506903689364
+        ],
+        "tail": [
+          -0.4481850358122084,
+          0.3431983519895975,
+          0.0003956842361401436
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 55775,
+      "triangles": 41918,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Echidna/Earth/Models/Guardian.glb",
+      "source_sha256": "19265a8d369d0beba71f8b6a0b6ab9e5d019f6df847c097bfab441b70fa83681",
+      "normalizer": 4.276039214405358
+    },
+    {
+      "form": "generated_jerboa_earth_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.013601533847472664,
+          0.08611656357501334,
+          0.02643328524748844
+        ],
+        "arm_l": [
+          0.014651930494981761,
+          0.12274011940298772,
+          -0.0069764388174726995
+        ],
+        "arm_r": [
+          0.014651930494981761,
+          0.12274011940298772,
+          0.05984300931244958
+        ],
+        "head": [
+          0.02877866485896652,
+          0.12378785755124741,
+          0.02643328524748844
+        ],
+        "leg_bl": [
+          -0.02419658220842793,
+          0.07375567001978578,
+          -0.007988854272967028
+        ],
+        "leg_br": [
+          -0.02419658220842793,
+          0.07375567001978578,
+          0.06085542476794391
+        ],
+        "tail": [
+          -0.04112629661655273,
+          0.07350845327137309,
+          0.02643328524748844
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "biped",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 44060,
+      "triangles": 44606,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Jerboa/Earth/Models/Young.glb",
+      "source_sha256": "39d79ca3e5491afab29ab0b166407a1d787bd0bc391c86e567dc28ffed2493a2",
+      "normalizer": 5.861227797704487
+    },
+    {
+      "form": "generated_jerboa_earth_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          7.259072264959721e-05,
+          0.19412833257149426,
+          0.07745422586507125
+        ],
+        "arm_l": [
+          0.04183858214965596,
+          0.2663138976993263,
+          0.014283161465452757
+        ],
+        "arm_r": [
+          0.04183858214965596,
+          0.2663138976993263,
+          0.14062529026468976
+        ],
+        "head": [
+          0.0731630750716172,
+          0.2654785637120555,
+          0.07745422586507125
+        ],
+        "leg_bl": [
+          -0.015589657034918079,
+          0.1758557075944912,
+          0.012368885529379904
+        ],
+        "leg_br": [
+          -0.015589657034918079,
+          0.1758557075944912,
+          0.1425395662007626
+        ],
+        "tail": [
+          -0.052456839181045684,
+          0.16927756135804653,
+          0.07745422586507125
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "biped",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 50350,
+      "triangles": 48398,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Jerboa/Earth/Models/Juvenile.glb",
+      "source_sha256": "d84d4ddce7d2de561c70c80a3ef862f5b43e7d47e067d512094afff19e802d21",
+      "normalizer": 5.861227797704487
+    },
+    {
+      "form": "generated_jerboa_earth_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.02922123454967703,
+          0.3783360211661719,
+          0.14855251652914853
+        ],
+        "arm_l": [
+          0.08982287108347797,
+          0.5123413548507657,
+          0.03356091114041492
+        ],
+        "arm_r": [
+          0.08982287108347797,
+          0.5123413548507657,
+          0.2635441219178821
+        ],
+        "head": [
+          0.15294958097982403,
+          0.519739798355947,
+          0.14855251652914853
+        ],
+        "leg_bl": [
+          0.006495619438509834,
+          0.3518227696726728,
+          0.03007631065263166
+        ],
+        "leg_br": [
+          0.006495619438509834,
+          0.3518227696726728,
+          0.2670287224056654
+        ],
+        "tail": [
+          -0.06704194132971028,
+          0.33220304484061314,
+          0.14855251652914853
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "biped",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 54758,
+      "triangles": 51058,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Earth-Water-update.zip",
+      "source_member": "Jerboa/Earth/Models/Guardian.glb",
+      "source_sha256": "e1b9f30c780acd978601c4da3cf2a22cf1f03ee3655069a590e6708560044796",
+      "normalizer": 5.861227797704487
+    },
+    {
+      "form": "generated_jerboa_fire_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.013601533847472664,
+          0.08611656357501334,
+          0.02643328524748844
+        ],
+        "arm_l": [
+          0.014651930494981761,
+          0.12274011940298772,
+          -0.0069764388174726995
+        ],
+        "arm_r": [
+          0.014651930494981761,
+          0.12274011940298772,
+          0.05984300931244958
+        ],
+        "head": [
+          0.02877866485896652,
+          0.12378785755124741,
+          0.02643328524748844
+        ],
+        "leg_bl": [
+          -0.02419658220842793,
+          0.07375567001978578,
+          -0.007988854272967028
+        ],
+        "leg_br": [
+          -0.02419658220842793,
+          0.07375567001978578,
+          0.06085542476794391
+        ],
+        "tail": [
+          -0.04112629661655273,
+          0.07350845327137309,
+          0.02643328524748844
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "biped",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 44060,
+      "triangles": 44606,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Jerboa.zip",
+      "source_member": "Fire/Models/Young.glb",
+      "source_sha256": "aac177f8ad116253c9f3c8c82c5bb0e55c95c6b6f9cebf41339e3a3a9c6bfcff",
+      "normalizer": 5.861227797704487
+    },
+    {
+      "form": "generated_jerboa_fire_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          7.259072264959721e-05,
+          0.19412833257149426,
+          0.07745422586507125
+        ],
+        "arm_l": [
+          0.04183858214965596,
+          0.2663138976993263,
+          0.014283161465452757
+        ],
+        "arm_r": [
+          0.04183858214965596,
+          0.2663138976993263,
+          0.14062529026468976
+        ],
+        "head": [
+          0.0731630750716172,
+          0.2654785637120555,
+          0.07745422586507125
+        ],
+        "leg_bl": [
+          -0.015589657034918079,
+          0.1758557075944912,
+          0.012368885529379904
+        ],
+        "leg_br": [
+          -0.015589657034918079,
+          0.1758557075944912,
+          0.1425395662007626
+        ],
+        "tail": [
+          -0.052456839181045684,
+          0.16927756135804653,
+          0.07745422586507125
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "biped",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 50350,
+      "triangles": 48398,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Jerboa.zip",
+      "source_member": "Fire/Models/Juvenile.glb",
+      "source_sha256": "5478bfdf0836dd4a93d64c06fceaa28ef6a1fef05262d6db88302023683b1523",
+      "normalizer": 5.861227797704487
+    },
+    {
+      "form": "generated_jerboa_fire_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.02922123454967703,
+          0.3783360211661719,
+          0.14855251652914853
+        ],
+        "arm_l": [
+          0.08982287108347797,
+          0.5123413548507657,
+          0.03356091114041492
+        ],
+        "arm_r": [
+          0.08982287108347797,
+          0.5123413548507657,
+          0.2635441219178821
+        ],
+        "head": [
+          0.15294958097982403,
+          0.519739798355947,
+          0.14855251652914853
+        ],
+        "leg_bl": [
+          0.006495619438509834,
+          0.3518227696726728,
+          0.03007631065263166
+        ],
+        "leg_br": [
+          0.006495619438509834,
+          0.3518227696726728,
+          0.2670287224056654
+        ],
+        "tail": [
+          -0.06704194132971028,
+          0.33220304484061314,
+          0.14855251652914853
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "biped",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 54758,
+      "triangles": 51058,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Jerboa.zip",
+      "source_member": "Fire/Models/Guardian.glb",
+      "source_sha256": "3c2ce9634c74c3c0a48e3965db367306b11c17ac9e9f2ebfe95a3eda90fc3336",
+      "normalizer": 5.861227797704487
+    },
+    {
+      "form": "generated_elephant_shrew_fire_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.046548809275249445,
+          0.06671862772548254,
+          0.0
+        ],
+        "leg_fl": [
+          -0.0007111563784804255,
+          0.07090599375386492,
+          -0.03684878277987984
+        ],
+        "leg_fr": [
+          -0.0007111563784804255,
+          0.07090599375386492,
+          0.03684878277987984
+        ],
+        "head": [
+          0.021844766525494087,
+          0.09044701303420871,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09450805516378584,
+          0.07090599375386492,
+          -0.03684878277987984
+        ],
+        "leg_br": [
+          -0.09450805516378584,
+          0.07090599375386492,
+          0.03684878277987984
+        ],
+        "tail": [
+          -0.1213071744507204,
+          0.08067650339403681,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 25809,
+      "triangles": 27842,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Fire/Models/Young.glb",
+      "source_sha256": "5867fedeb1832586fc3ee96081bdcf933b0ce887b49c8ee29c66730d2bda62b7",
+      "normalizer": 4.9434468289407105
+    },
+    {
+      "form": "generated_elephant_shrew_fire_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.044806938858797635,
+          0.13164093014970255,
+          0.0
+        ],
+        "leg_fl": [
+          0.13683179867940398,
+          0.1378309617000959,
+          -0.07217554798129001
+        ],
+        "leg_fr": [
+          0.13683179867940398,
+          0.1378309617000959,
+          0.07217554798129001
+        ],
+        "head": [
+          0.1727338722154752,
+          0.17497102801795014,
+          0.0
+        ],
+        "leg_bl": [
+          -0.04732108651452187,
+          0.1378309617000959,
+          -0.07217554798129001
+        ],
+        "leg_br": [
+          -0.04732108651452187,
+          0.1378309617000959,
+          0.07217554798129001
+        ],
+        "tail": [
+          -0.09993619481300774,
+          0.1522743235566949,
+          -0.012353454634297819
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 31705,
+      "triangles": 31158,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Fire/Models/Juvenile.glb",
+      "source_sha256": "02755021082eb706f9ac0a5ea19700a99cc69837521e1a65093ea5fe61b5bace",
+      "normalizer": 4.9434468289407105
+    },
+    {
+      "form": "generated_elephant_shrew_fire_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.12560980457712542,
+          0.24739207559715293,
+          0.011700635545324715
+        ],
+        "leg_fl": [
+          0.2926673417282611,
+          0.25637365459768574,
+          -0.1167360726449352
+        ],
+        "leg_fr": [
+          0.2926673417282611,
+          0.25637365459768574,
+          0.14013734373558462
+        ],
+        "head": [
+          0.3651188099072128,
+          0.32822634013638186,
+          0.011700635545324715
+        ],
+        "leg_bl": [
+          -0.03740602559273273,
+          0.25637365459768574,
+          -0.1167360726449352
+        ],
+        "leg_br": [
+          -0.03740602559273273,
+          0.25637365459768574,
+          0.14013734373558462
+        ],
+        "tail": [
+          -0.1317126943223833,
+          0.27733069011040684,
+          -0.014708971257615262
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 36489,
+      "triangles": 33842,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Fire/Models/Guardian.glb",
+      "source_sha256": "b19cb106db38a48240e78202a90d82de1850002ce5fcbd8f52f7e76138fa8d87",
+      "normalizer": 4.9434468289407105
+    },
+    {
+      "form": "generated_elephant_shrew_water_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.04714519799915118,
+          0.06757343449431717,
+          0.0
+        ],
+        "leg_fl": [
+          -0.00072026779618713,
+          0.07181444954017299,
+          -0.037320893643328065
+        ],
+        "leg_fr": [
+          -0.00072026779618713,
+          0.07181444954017299,
+          0.037320893643328065
+        ],
+        "head": [
+          0.02212464419873455,
+          0.09160583061781717,
+          0.0
+        ],
+        "leg_bl": [
+          -0.0957189032884775,
+          0.07181444954017299,
+          -0.037320893643328065
+        ],
+        "leg_br": [
+          -0.0957189032884775,
+          0.07181444954017299,
+          0.037320893643328065
+        ],
+        "tail": [
+          -0.12286137598878762,
+          0.08171014007899509,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 25589,
+      "triangles": 27842,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Water/Models/Young.glb",
+      "source_sha256": "68dff2df9b12c2654b6247d2cc8f80e8a818776685ec8a7f299e17deef93483b",
+      "normalizer": 4.880912020071287
+    },
+    {
+      "form": "generated_elephant_shrew_water_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.045082757372649905,
+          0.13332752896001762,
+          0.0
+        ],
+        "leg_fl": [
+          0.13828665033223775,
+          0.1395968679099928,
+          -0.07310026944307738
+        ],
+        "leg_fr": [
+          0.13828665033223775,
+          0.1395968679099928,
+          0.07310026944307738
+        ],
+        "head": [
+          0.17464870538351795,
+          0.17721277704964633,
+          0.0
+        ],
+        "leg_bl": [
+          -0.048225622908634885,
+          0.1395968679099928,
+          -0.07310026944307738
+        ],
+        "leg_br": [
+          -0.048225622908634885,
+          0.1395968679099928,
+          0.07310026944307738
+        ],
+        "tail": [
+          -0.1015148420551671,
+          0.15422527978786243,
+          -0.016819045843797075
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 31853,
+      "triangles": 31158,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Water/Models/Juvenile.glb",
+      "source_sha256": "4eaac754b3855a20c87fd23b9d203e7b88baaa198db43af3fd2afc033bfcf18a",
+      "normalizer": 4.880912020071287
+    },
+    {
+      "form": "generated_elephant_shrew_water_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.11688678064657651,
+          0.2505616914598564,
+          0.0
+        ],
+        "leg_fl": [
+          0.2860846782698909,
+          0.25965834348851063,
+          -0.13008225413853097
+        ],
+        "leg_fr": [
+          0.2860846782698909,
+          0.25965834348851063,
+          0.13008225413853097
+        ],
+        "head": [
+          0.3594644030320895,
+          0.33243161393806764,
+          0.0
+        ],
+        "leg_bl": [
+          -0.04821762717853173,
+          0.25965834348851063,
+          -0.13008225413853097
+        ],
+        "leg_br": [
+          -0.04821762717853173,
+          0.25965834348851063,
+          0.13008225413853097
+        ],
+        "tail": [
+          -0.14373256384660635,
+          0.2808838829621449,
+          -0.03595628626202788
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 36765,
+      "triangles": 33842,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Water/Models/Guardian.glb",
+      "source_sha256": "e7b14d1119767ba5327ff3a569f1e9f5a9c2b7c4fcbf59757f06b4405bad894e",
+      "normalizer": 4.880912020071287
+    },
+    {
+      "form": "generated_elephant_shrew_air_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          -0.047143672341145255,
+          0.0675734337371208,
+          0.0
+        ],
+        "leg_fl": [
+          -0.0007187426583973036,
+          0.0718144487354538,
+          -0.03732089322512755
+        ],
+        "leg_fr": [
+          -0.0007187426583973036,
+          0.0718144487354538,
+          0.03732089322512755
+        ],
+        "head": [
+          0.022126169080534955,
+          0.09160582959132499,
+          0.0
+        ],
+        "leg_bl": [
+          -0.0957173770861773,
+          0.0718144487354538,
+          -0.03732089322512755
+        ],
+        "leg_br": [
+          -0.0957173770861773,
+          0.0718144487354538,
+          0.03732089322512755
+        ],
+        "tail": [
+          -0.12285984948234155,
+          0.08171013916338939,
+          0.0
+        ],
+        "wing_l": [
+          -0.02735229016869109,
+          0.10177011979852864,
+          -0.04014823515299437
+        ],
+        "wing_r": [
+          -0.02735229016869109,
+          0.10177011979852864,
+          0.04014823515299437
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 31017,
+      "triangles": 31210,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Air/Models/Young.glb",
+      "source_sha256": "ce8518f43fc712a4ff1100506c4efa79ca5511f5df807a6c1ea145e0f70926c9",
+      "normalizer": 4.88091207476451
+    },
+    {
+      "form": "generated_elephant_shrew_air_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.04508277555150299,
+          0.13332752746601156,
+          0.0
+        ],
+        "leg_fl": [
+          0.13828666746669152,
+          0.13959686634573545,
+          -0.07310026862394987
+        ],
+        "leg_fr": [
+          0.13828666746669152,
+          0.13959686634573545,
+          0.07310026862394987
+        ],
+        "head": [
+          0.17464872211051552,
+          0.17721277506388267,
+          0.0
+        ],
+        "leg_bl": [
+          -0.048225603684211645,
+          0.13959686634573545,
+          -0.07310026862394987
+        ],
+        "leg_br": [
+          -0.048225603684211645,
+          0.13959686634573545,
+          0.07310026862394987
+        ],
+        "tail": [
+          -0.10151482223360975,
+          0.15422527805968594,
+          -0.01661393393736104
+        ],
+        "wing_l": [
+          0.07433960092565704,
+          0.196208815319117,
+          -0.07863816511994193
+        ],
+        "wing_r": [
+          0.07433960092565704,
+          0.196208815319117,
+          0.07863816511994193
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 36815,
+      "triangles": 34094,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Air/Models/Juvenile.glb",
+      "source_sha256": "8df109e1331b3c2002eb232bab7fe30019bf3d4dce4dfb339ab12c8c7dfadcc3",
+      "normalizer": 4.88091207476451
+    },
+    {
+      "form": "generated_elephant_shrew_air_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.1168867883735182,
+          0.25056168865217904,
+          0.0
+        ],
+        "leg_fl": [
+          0.28608468410088,
+          0.2596583405789004,
+          -0.13008225268088996
+        ],
+        "leg_fr": [
+          0.28608468410088,
+          0.2596583405789004,
+          0.13008225268088996
+        ],
+        "head": [
+          0.3594644080408196,
+          0.33243161021299417,
+          0.0
+        ],
+        "leg_bl": [
+          -0.048217617601507105,
+          0.2596583405789004,
+          -0.13008225268088996
+        ],
+        "leg_br": [
+          -0.048217617601507105,
+          0.2596583405789004,
+          0.13008225268088996
+        ],
+        "tail": [
+          -0.14373255319928593,
+          0.2808838798146912,
+          -0.035517792556932354
+        ],
+        "wing_l": [
+          0.03501683970254189,
+          0.36524025499275414,
+          -0.11522436617911602
+        ],
+        "wing_r": [
+          0.03501683970254189,
+          0.36524025499275414,
+          0.11522436617911602
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 47700,
+      "triangles": 51826,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Elephant-Shrew.zip",
+      "source_member": "Air/Models/Guardian.glb",
+      "source_sha256": "5155385db816ed2f4f38dc24c58330b9c8e6681cf4156ea2fb0f4cf3918a27e1",
+      "normalizer": 4.88091207476451
+    },
+    {
+      "form": "generated_fennec_fox_air_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.013943656457937267,
+          0.07764403775231227,
+          0.0
+        ],
+        "leg_fl": [
+          0.034925437583934495,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_fr": [
+          0.034925437583934495,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "head": [
+          0.07603012859541607,
+          0.12762947596206703,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_br": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "tail": [
+          -0.09312058576555005,
+          0.095972033417758,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 24681,
+      "triangles": 27894,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Air/Models/Young.glb",
+      "source_sha256": "a1520a85d10256d95c8a625e90cb430e1236ee8c1eb24dfc93f112891847a843",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_air_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.016076087810861082,
+          0.15665000265679022,
+          0.0
+        ],
+        "leg_fl": [
+          0.11836657007033849,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_fr": [
+          0.11836657007033849,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "head": [
+          0.1884896177220127,
+          0.2502459036365972,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_br": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "tail": [
+          -0.14234730998750184,
+          0.18374356105356116,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 25907,
+      "triangles": 28590,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Air/Models/Juvenile.glb",
+      "source_sha256": "79740fd07197a75cee910d17711cf2c7d15fdc6f9ce13367ca09770a4c6863a4",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_air_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.07779672229785048,
+          0.3053624091784573,
+          0.02596039189567842
+        ],
+        "leg_fl": [
+          0.274179119554153,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_fr": [
+          0.274179119554153,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "head": [
+          0.392294468190908,
+          0.4769066405047284,
+          0.02596039189567842
+        ],
+        "leg_bl": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_br": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "tail": [
+          -0.2181170868582911,
+          0.3446746324076835,
+          0.02596039189567842
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26300,
+      "triangles": 28838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Air/Models/Guardian.glb",
+      "source_sha256": "29475dd3c298b7f0c7be4317e499719ed8f29898308cbeda46e5ee4dfdba2105",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_earth_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.013943656457937267,
+          0.07764403775231227,
+          0.0
+        ],
+        "leg_fl": [
+          0.034925437583934495,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_fr": [
+          0.034925437583934495,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "head": [
+          0.07603012859541607,
+          0.12762947596206703,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_br": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "tail": [
+          -0.09312058576555005,
+          0.095972033417758,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 24681,
+      "triangles": 27894,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Earth/Models/Young.glb",
+      "source_sha256": "0929d196f23bab95cf67feeee349ef85080313f99614cebaa03b50fbc84a7118",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_earth_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.016076087810861082,
+          0.15665000265679022,
+          0.0
+        ],
+        "leg_fl": [
+          0.11836657007033849,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_fr": [
+          0.11836657007033849,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "head": [
+          0.1884896177220127,
+          0.2502459036365972,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_br": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "tail": [
+          -0.14234730998750184,
+          0.18374356105356116,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 25907,
+      "triangles": 28590,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Earth/Models/Juvenile.glb",
+      "source_sha256": "2b67c412d2d81bdd9c014380dd0bba9d88632ebb6c086582acc2cdf0ed91bb75",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_earth_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.07779672229785048,
+          0.3053624091784573,
+          0.02596039189567842
+        ],
+        "leg_fl": [
+          0.274179119554153,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_fr": [
+          0.274179119554153,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "head": [
+          0.392294468190908,
+          0.4769066405047284,
+          0.02596039189567842
+        ],
+        "leg_bl": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_br": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "tail": [
+          -0.2181170868582911,
+          0.3446746324076835,
+          0.02596039189567842
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26300,
+      "triangles": 28838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Earth/Models/Guardian.glb",
+      "source_sha256": "146dd000795f4446bf2bd9b5141849d8ab2c0f6b7e80e91b25d47a75305ae442",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_water_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.013943656457937267,
+          0.07764403775231227,
+          0.0
+        ],
+        "leg_fl": [
+          0.034925437583934495,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_fr": [
+          0.034925437583934495,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "head": [
+          0.07603012859541607,
+          0.12762947596206703,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_br": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "tail": [
+          -0.09312058576555005,
+          0.095972033417758,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 24681,
+      "triangles": 27894,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Water/Models/Young.glb",
+      "source_sha256": "1fc4af8a197bed7f84b06c5d142d4dc59a9f971dad1f9228a6741e92680e995d",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_water_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.016076087810861082,
+          0.15665000265679022,
+          0.0
+        ],
+        "leg_fl": [
+          0.11836657007033849,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_fr": [
+          0.11836657007033849,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "head": [
+          0.1884896177220127,
+          0.2502459036365972,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_br": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "tail": [
+          -0.14234730998750184,
+          0.18374356105356116,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 25907,
+      "triangles": 28590,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Water/Models/Juvenile.glb",
+      "source_sha256": "7c756f98e9623c06e23bcf773fac672b69bf0b41f2a3e3b64d473445a9e5f038",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_water_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.07779672229785048,
+          0.3053624091784573,
+          0.02596039189567842
+        ],
+        "leg_fl": [
+          0.274179119554153,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_fr": [
+          0.274179119554153,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "head": [
+          0.392294468190908,
+          0.4769066405047284,
+          0.02596039189567842
+        ],
+        "leg_bl": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_br": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "tail": [
+          -0.2181170868582911,
+          0.3446746324076835,
+          0.02596039189567842
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26300,
+      "triangles": 28838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Water/Models/Guardian.glb",
+      "source_sha256": "fc8b14ef782c0c8f15ce1630471fae5128b4207e062c6dce0bb054e944378735",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_fire_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.013943656457937267,
+          0.07764403775231227,
+          0.0
+        ],
+        "leg_fl": [
+          0.034925437583934495,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_fr": [
+          0.034925437583934495,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "head": [
+          0.07603012859541607,
+          0.12762947596206703,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          -0.041387941645931264
+        ],
+        "leg_br": [
+          -0.06927752880978894,
+          0.08014330717999653,
+          0.041387941645931264
+        ],
+        "tail": [
+          -0.09312058576555005,
+          0.095972033417758,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 24681,
+      "triangles": 27894,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Fire/Models/Young.glb",
+      "source_sha256": "1bd78e427a599efc413211d9b4f3da4d3d656dbb2a3ad7f311230961795526c3",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_fire_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.016076087810861082,
+          0.15665000265679022,
+          0.0
+        ],
+        "leg_fl": [
+          0.11836657007033849,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_fr": [
+          0.11836657007033849,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "head": [
+          0.1884896177220127,
+          0.2502459036365972,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          -0.08157622422534871
+        ],
+        "leg_br": [
+          -0.09380058977204746,
+          0.1603445747979159,
+          0.08157622422534871
+        ],
+        "tail": [
+          -0.14234730998750184,
+          0.18374356105356116,
+          0.0
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 25907,
+      "triangles": 28590,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Fire/Models/Juvenile.glb",
+      "source_sha256": "3e53ab8c8925842ec06dad6b6935ae31513007b67bd661c2d08e7b0925639b31",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_fennec_fox_fire_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.07779672229785048,
+          0.3053624091784573,
+          0.02596039189567842
+        ],
+        "leg_fl": [
+          0.274179119554153,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_fr": [
+          0.274179119554153,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "head": [
+          0.392294468190908,
+          0.4769066405047284,
+          0.02596039189567842
+        ],
+        "leg_bl": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          -0.12446245605505425
+        ],
+        "leg_br": [
+          -0.12644813984094505,
+          0.3107231610819696,
+          0.17638323984641108
+        ],
+        "tail": [
+          -0.2181170868582911,
+          0.3446746324076835,
+          0.02596039189567842
+        ]
+      },
+      "parents": {
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26300,
+      "triangles": 28838,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Fennec-Fox.zip",
+      "source_member": "Fire/Models/Guardian.glb",
+      "source_sha256": "8e21ff3f72c554bfde64324904cd176c0895ea7bb65ece3a0a95c459c98850a3",
+      "normalizer": 4.141206217729803
+    },
+    {
+      "form": "generated_grey_owl_air_1",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          -0.0010923423955240027,
+          0.08354204628255386,
+          0.0
+        ],
+        "head": [
+          0.0048265632310618405,
+          0.20276571343098,
+          0.0
+        ],
+        "leg_bl": [
+          0.014127699924279868,
+          0.017588531663369628,
+          -0.033822318226198966
+        ],
+        "leg_br": [
+          0.014127699924279868,
+          0.017588531663369628,
+          0.033822318226198966
+        ],
+        "tail": [
+          -0.043708462780944125,
+          0.07762314632587587,
+          0.0
+        ],
+        "wing_l": [
+          -0.015466828208649348,
+          0.14213920826881413,
+          -0.05912140922536511
+        ],
+        "wing_r": [
+          -0.015466828208649348,
+          0.14213920826881413,
+          0.05912140922536511
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 31539,
+      "triangles": 31451,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Grey-Owl-reference-rebuild.zip",
+      "source_member": "Air/Models/Young.glb",
+      "source_sha256": "6566e54a636dcceb0bc62d453ba5ce5d19efa33c1f0a6f4b6127c7f347aea8fe",
+      "normalizer": 4.080146152507886
+    },
+    {
+      "form": "generated_grey_owl_air_2",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.01135852363537546,
+          0.1610660568269941,
+          0.0
+        ],
+        "head": [
+          0.02010821008042513,
+          0.37730830900381895,
+          0.0
+        ],
+        "leg_bl": [
+          0.03385771721817615,
+          0.026070897192768297,
+          -0.06499766807382842
+        ],
+        "leg_br": [
+          0.03385771721817615,
+          0.026070897192768297,
+          0.06499766807382842
+        ],
+        "tail": [
+          -0.06783863654678125,
+          0.15231637876354717,
+          0.0
+        ],
+        "wing_l": [
+          -0.009890712213204606,
+          0.2784868431269419,
+          -0.11399591440120065
+        ],
+        "wing_r": [
+          -0.009890712213204606,
+          0.2784868431269419,
+          0.11399591440120065
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 34823,
+      "triangles": 33795,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Grey-Owl-reference-rebuild.zip",
+      "source_member": "Air/Models/Juvenile.glb",
+      "source_sha256": "eb44eca68efddc3ac96182c1b006fcd82c81b47febbf61d2a47bc72bdad55679",
+      "normalizer": 4.080146152507886
+    },
+    {
+      "form": "generated_grey_owl_air_3",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.041513291384014196,
+          0.29909550182463934,
+          0.0
+        ],
+        "head": [
+          0.05420891525431846,
+          0.6817778794518695,
+          0.0
+        ],
+        "leg_bl": [
+          0.0741591811431848,
+          0.037928362130755934,
+          -0.12332891836940277
+        ],
+        "leg_br": [
+          0.0741591811431848,
+          0.037928362130755934,
+          0.12332891836940277
+        ],
+        "tail": [
+          -0.10212863247480038,
+          0.2863998468748397,
+          0.0
+        ],
+        "wing_l": [
+          0.010681063142945911,
+          0.5225384365389054,
+          -0.21227083446266762
+        ],
+        "wing_r": [
+          0.010681063142945911,
+          0.5225384365389054,
+          0.21227083446266762
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 35600,
+      "triangles": 34307,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Grey-Owl-reference-rebuild.zip",
+      "source_member": "Air/Models/Guardian.glb",
+      "source_sha256": "2552240ec0141262943dda82d94de5f65f7891c7c9796fa54811646ff583a63b",
+      "normalizer": 4.080146152507886
+    },
+    {
+      "form": "generated_peacock_mantis_shrimp_water_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.0032789113049536424,
+          0.10209812604682586,
+          0.0
+        ],
+        "arm_l": [
+          0.052679563297876236,
+          0.11433904053401328,
+          -0.052338655697744735
+        ],
+        "arm_r": [
+          0.052679563297876236,
+          0.11433904053401328,
+          0.052338655697744735
+        ],
+        "head": [
+          0.06492047778506366,
+          0.11259033995342617,
+          0.0
+        ],
+        "leg_fl": [
+          0.015816918682558967,
+          0.08148306083569391,
+          -0.045168980190414286
+        ],
+        "leg_fr": [
+          0.015816918682558967,
+          0.08148306083569391,
+          0.045168980190414286
+        ],
+        "leg_bl": [
+          -0.0212555698460826,
+          0.07059349836358124,
+          -0.045168980190414286
+        ],
+        "leg_br": [
+          -0.0212555698460826,
+          0.07059349836358124,
+          0.045168980190414286
+        ],
+        "tail": [
+          -0.13618028702092932,
+          0.04089355100511935,
+          0.0
+        ]
+      },
+      "parents": {
+        "arm_r": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26661,
+      "triangles": 28042,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Peacock-Mantis-Shrimp.zip",
+      "source_member": "Water/Models/Young.glb",
+      "source_sha256": "0b7a6957bfc26e207a6c419805e378641bb27b53f4f6449a9a6dedd82d5c7155",
+      "normalizer": 3.945783213206667
+    },
+    {
+      "form": "generated_peacock_mantis_shrimp_water_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.028758399728038987,
+          0.15092767769822288,
+          0.0
+        ],
+        "arm_l": [
+          0.14508511542799732,
+          0.169022942316479,
+          -0.10001512479926894
+        ],
+        "arm_r": [
+          0.14508511542799732,
+          0.169022942316479,
+          0.10001512479926894
+        ],
+        "head": [
+          0.16318038004625346,
+          0.16643790671501776,
+          0.0
+        ],
+        "leg_fl": [
+          0.07337615511757288,
+          0.12045321852960088,
+          -0.08631442224429965
+        ],
+        "leg_fr": [
+          0.07337615511757288,
+          0.12045321852960088,
+          0.08631442224429965
+        ],
+        "leg_bl": [
+          -0.0005559293387366285,
+          0.10435560468578534,
+          -0.08631442224429965
+        ],
+        "leg_br": [
+          -0.0005559293387366285,
+          0.10435560468578534,
+          0.08631442224429965
+        ],
+        "tail": [
+          -0.22974538576048648,
+          0.06045134690292845,
+          0.0
+        ]
+      },
+      "parents": {
+        "arm_r": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26549,
+      "triangles": 28242,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Peacock-Mantis-Shrimp.zip",
+      "source_member": "Water/Models/Juvenile.glb",
+      "source_sha256": "5a4924fa195147f5f07f4ff1778268059d249f22534ad9b62865ce0dbf90998a",
+      "normalizer": 3.945783213206667
+    },
+    {
+      "form": "generated_peacock_mantis_shrimp_water_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.021699125685544763,
+          0.2289969359698731,
+          -0.006525241271046952
+        ],
+        "arm_l": [
+          0.23924785081185607,
+          0.25525281095119656,
+          -0.18176447461233028
+        ],
+        "arm_r": [
+          0.23924785081185607,
+          0.25525281095119656,
+          0.16871399207023638
+        ],
+        "head": [
+          0.26550372579317955,
+          0.2515019525052247,
+          -0.006525241271046952
+        ],
+        "leg_fl": [
+          0.11021893955230476,
+          0.1847791142146558,
+          -0.15775910799156595
+        ],
+        "leg_fr": [
+          0.11021893955230476,
+          0.1847791142146558,
+          0.14470862544947205
+        ],
+        "leg_bl": [
+          -0.02481128541650439,
+          0.16142174671548595,
+          -0.15775910799156595
+        ],
+        "leg_br": [
+          -0.02481128541650439,
+          0.16142174671548595,
+          0.14470862544947205
+        ],
+        "tail": [
+          -0.44340505519977985,
+          0.09771751634976265,
+          -0.006525241271046952
+        ]
+      },
+      "parents": {
+        "arm_r": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 27446,
+      "triangles": 28558,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Peacock-Mantis-Shrimp.zip",
+      "source_member": "Water/Models/Guardian.glb",
+      "source_sha256": "399a6855c6fa7e385f77101a00bc64338e9ec72e04653e1a85b44e10740dfeaa",
+      "normalizer": 3.945783213206667
+    },
+    {
+      "form": "generated_peacock_mantis_shrimp_fire_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          -0.0032789113049536424,
+          0.10209812604682586,
+          0.0
+        ],
+        "arm_l": [
+          0.052679563297876236,
+          0.11433904053401328,
+          -0.052338655697744735
+        ],
+        "arm_r": [
+          0.052679563297876236,
+          0.11433904053401328,
+          0.052338655697744735
+        ],
+        "head": [
+          0.06492047778506366,
+          0.11259033995342617,
+          0.0
+        ],
+        "leg_fl": [
+          0.015816918682558967,
+          0.08148306083569391,
+          -0.045168980190414286
+        ],
+        "leg_fr": [
+          0.015816918682558967,
+          0.08148306083569391,
+          0.045168980190414286
+        ],
+        "leg_bl": [
+          -0.0212555698460826,
+          0.07059349836358124,
+          -0.045168980190414286
+        ],
+        "leg_br": [
+          -0.0212555698460826,
+          0.07059349836358124,
+          0.045168980190414286
+        ],
+        "tail": [
+          -0.13618028702092932,
+          0.04089355100511935,
+          0.0
+        ]
+      },
+      "parents": {
+        "arm_r": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26661,
+      "triangles": 28042,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Peacock-Mantis-Shrimp.zip",
+      "source_member": "Fire/Models/Young.glb",
+      "source_sha256": "07d662d3c9969355eed535babcc9293d6dde251f843ae7a47eac68c2260e2b80",
+      "normalizer": 3.945783213206667
+    },
+    {
+      "form": "generated_peacock_mantis_shrimp_fire_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.028758399728038987,
+          0.15092767769822288,
+          0.0
+        ],
+        "arm_l": [
+          0.14508511542799732,
+          0.169022942316479,
+          -0.10001512479926894
+        ],
+        "arm_r": [
+          0.14508511542799732,
+          0.169022942316479,
+          0.10001512479926894
+        ],
+        "head": [
+          0.16318038004625346,
+          0.16643790671501776,
+          0.0
+        ],
+        "leg_fl": [
+          0.07337615511757288,
+          0.12045321852960088,
+          -0.08631442224429965
+        ],
+        "leg_fr": [
+          0.07337615511757288,
+          0.12045321852960088,
+          0.08631442224429965
+        ],
+        "leg_bl": [
+          -0.0005559293387366285,
+          0.10435560468578534,
+          -0.08631442224429965
+        ],
+        "leg_br": [
+          -0.0005559293387366285,
+          0.10435560468578534,
+          0.08631442224429965
+        ],
+        "tail": [
+          -0.22974538576048648,
+          0.06045134690292845,
+          0.0
+        ]
+      },
+      "parents": {
+        "arm_r": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 26549,
+      "triangles": 28242,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Peacock-Mantis-Shrimp.zip",
+      "source_member": "Fire/Models/Juvenile.glb",
+      "source_sha256": "852ed64b0990833552bd62eb4da2a73a696dbdd53c24eb6ef80f6cb0e2e8ea2c",
+      "normalizer": 3.945783213206667
+    },
+    {
+      "form": "generated_peacock_mantis_shrimp_fire_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.021699125685544763,
+          0.2289969359698731,
+          -0.006525241271046952
+        ],
+        "arm_l": [
+          0.23924785081185607,
+          0.25525281095119656,
+          -0.18176447461233028
+        ],
+        "arm_r": [
+          0.23924785081185607,
+          0.25525281095119656,
+          0.16871399207023638
+        ],
+        "head": [
+          0.26550372579317955,
+          0.2515019525052247,
+          -0.006525241271046952
+        ],
+        "leg_fl": [
+          0.11021893955230476,
+          0.1847791142146558,
+          -0.15775910799156595
+        ],
+        "leg_fr": [
+          0.11021893955230476,
+          0.1847791142146558,
+          0.14470862544947205
+        ],
+        "leg_bl": [
+          -0.02481128541650439,
+          0.16142174671548595,
+          -0.15775910799156595
+        ],
+        "leg_br": [
+          -0.02481128541650439,
+          0.16142174671548595,
+          0.14470862544947205
+        ],
+        "tail": [
+          -0.44340505519977985,
+          0.09771751634976265,
+          -0.006525241271046952
+        ]
+      },
+      "parents": {
+        "arm_r": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 27446,
+      "triangles": 28558,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Peacock-Mantis-Shrimp.zip",
+      "source_member": "Fire/Models/Guardian.glb",
+      "source_sha256": "133115a01b9afbc3c0b41930966f113e9c79f5992bcb4ae4827b6131fe8f8daf",
+      "normalizer": 3.945783213206667
+    },
+    {
+      "form": "generated_poodle_moth_air_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          -0.005338911541849377,
+          0.11453441155138235,
+          0.0
+        ],
+        "arm_l": [
+          0.06866793261660809,
+          0.0881033886536438,
+          -0.05109996394872947
+        ],
+        "arm_r": [
+          0.06866793261660809,
+          0.0881033886536438,
+          0.05109996394872947
+        ],
+        "wing_l": [
+          0.043998986314245994,
+          0.14625162222428084,
+          -0.059910304914642325
+        ],
+        "wing_r": [
+          0.043998986314245994,
+          0.14625162222428084,
+          0.059910304914642325
+        ],
+        "head": [
+          0.0880506753896967,
+          0.137441281258368,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06877335389313108,
+          0.0881033886536438,
+          -0.05109996394872947
+        ],
+        "leg_br": [
+          -0.06877335389313108,
+          0.0881033886536438,
+          0.05109996394872947
+        ],
+        "tail": [
+          -0.07229748607839927,
+          0.11453441155138235,
+          0.0
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 31593,
+      "triangles": 24034,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Poodle-Moth.zip",
+      "source_member": "Air/Models/Young.glb",
+      "source_sha256": "16a3f40c6017a60d9ad0dc3325afd59d2fc3f1f354938376b1fa94675a25b7a0",
+      "normalizer": 3.91585390845961
+    },
+    {
+      "form": "generated_poodle_moth_air_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.0018622101693701073,
+          0.21880288684083182,
+          0.0
+        ],
+        "arm_l": [
+          0.11126363030109676,
+          0.17973092501834861,
+          -0.0755390759900707
+        ],
+        "arm_r": [
+          0.11126363030109676,
+          0.17973092501834861,
+          0.0755390759900707
+        ],
+        "wing_l": [
+          0.07479649284482003,
+          0.2656891820297989,
+          -0.0885630580889675
+        ],
+        "wing_r": [
+          0.07479649284482003,
+          0.2656891820297989,
+          0.0885630580889675
+        ],
+        "head": [
+          0.1399163800506147,
+          0.25266521545669496,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09191044231173538,
+          0.17973092501834861,
+          -0.0755390759900707
+        ],
+        "leg_br": [
+          -0.09191044231173538,
+          0.17973092501834861,
+          0.0755390759900707
+        ],
+        "tail": [
+          -0.09712002117808055,
+          0.21880288684083182,
+          0.0
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 31978,
+      "triangles": 25166,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Poodle-Moth.zip",
+      "source_member": "Air/Models/Juvenile.glb",
+      "source_sha256": "e7744e65346ab429e6d8ae17dd2041211bb0d924f4f3ef1dd51c675c73de2401",
+      "normalizer": 3.91585390845961
+    },
+    {
+      "form": "generated_poodle_moth_air_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.0351494200826989,
+          0.4157458163390587,
+          0.0
+        ],
+        "arm_l": [
+          0.19388874058204617,
+          0.35905325417127076,
+          -0.10960572156535432
+        ],
+        "arm_r": [
+          0.19388874058204617,
+          0.35905325417127076,
+          0.10960572156535432
+        ],
+        "wing_l": [
+          0.140975637503534,
+          0.483776981050891,
+          -0.128503264815572
+        ],
+        "wing_r": [
+          0.140975637503534,
+          0.483776981050891,
+          0.128503264815572
+        ],
+        "head": [
+          0.23546334249081155,
+          0.46487941527305165,
+          0.0
+        ],
+        "leg_bl": [
+          -0.10091286428572233,
+          0.35905325417127076,
+          -0.10960572156535432
+        ],
+        "leg_br": [
+          -0.10091286428572233,
+          0.35905325417127076,
+          0.10960572156535432
+        ],
+        "tail": [
+          -0.10847187257476072,
+          0.4157458163390587,
+          0.0
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 30982,
+      "triangles": 25906,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Poodle-Moth.zip",
+      "source_member": "Air/Models/Guardian.glb",
+      "source_sha256": "1899b53588a46df41d7831643174d8100d8f7fa36710d7cb6a1ef6e035febfec",
+      "normalizer": 3.91585390845961
+    },
+    {
+      "form": "generated_poodle_moth_earth_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          -0.005338911541849377,
+          0.11453441155138235,
+          0.0
+        ],
+        "arm_l": [
+          0.06866793261660809,
+          0.0881033886536438,
+          -0.05109996394872947
+        ],
+        "arm_r": [
+          0.06866793261660809,
+          0.0881033886536438,
+          0.05109996394872947
+        ],
+        "wing_l": [
+          0.043998986314245994,
+          0.14625162222428084,
+          -0.059910304914642325
+        ],
+        "wing_r": [
+          0.043998986314245994,
+          0.14625162222428084,
+          0.059910304914642325
+        ],
+        "head": [
+          0.0880506753896967,
+          0.137441281258368,
+          0.0
+        ],
+        "leg_bl": [
+          -0.06877335389313108,
+          0.0881033886536438,
+          -0.05109996394872947
+        ],
+        "leg_br": [
+          -0.06877335389313108,
+          0.0881033886536438,
+          0.05109996394872947
+        ],
+        "tail": [
+          -0.07229748607839927,
+          0.11453441155138235,
+          0.0
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 31593,
+      "triangles": 24034,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Poodle-Moth.zip",
+      "source_member": "Earth/Models/Young.glb",
+      "source_sha256": "6ba800da1f6cdb0951eb0320a1f5c155220bff3161aa01268880044558332999",
+      "normalizer": 3.91585390845961
+    },
+    {
+      "form": "generated_poodle_moth_earth_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.0018622101693701073,
+          0.21880288684083182,
+          0.0
+        ],
+        "arm_l": [
+          0.11126363030109676,
+          0.17973092501834861,
+          -0.0755390759900707
+        ],
+        "arm_r": [
+          0.11126363030109676,
+          0.17973092501834861,
+          0.0755390759900707
+        ],
+        "wing_l": [
+          0.07479649284482003,
+          0.2656891820297989,
+          -0.0885630580889675
+        ],
+        "wing_r": [
+          0.07479649284482003,
+          0.2656891820297989,
+          0.0885630580889675
+        ],
+        "head": [
+          0.1399163800506147,
+          0.25266521545669496,
+          0.0
+        ],
+        "leg_bl": [
+          -0.09191044231173538,
+          0.17973092501834861,
+          -0.0755390759900707
+        ],
+        "leg_br": [
+          -0.09191044231173538,
+          0.17973092501834861,
+          0.0755390759900707
+        ],
+        "tail": [
+          -0.09712002117808055,
+          0.21880288684083182,
+          0.0
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 31978,
+      "triangles": 25166,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Poodle-Moth.zip",
+      "source_member": "Earth/Models/Juvenile.glb",
+      "source_sha256": "b8af2278b44f8d5ed121e4c8e0b03820741c468d060a7f2f8af92d80fc309f66",
+      "normalizer": 3.91585390845961
+    },
+    {
+      "form": "generated_poodle_moth_earth_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.0351494200826989,
+          0.4157458163390587,
+          0.0
+        ],
+        "arm_l": [
+          0.19388874058204617,
+          0.35905325417127076,
+          -0.10960572156535432
+        ],
+        "arm_r": [
+          0.19388874058204617,
+          0.35905325417127076,
+          0.10960572156535432
+        ],
+        "wing_l": [
+          0.140975637503534,
+          0.483776981050891,
+          -0.128503264815572
+        ],
+        "wing_r": [
+          0.140975637503534,
+          0.483776981050891,
+          0.128503264815572
+        ],
+        "head": [
+          0.23546334249081155,
+          0.46487941527305165,
+          0.0
+        ],
+        "leg_bl": [
+          -0.10091286428572233,
+          0.35905325417127076,
+          -0.10960572156535432
+        ],
+        "leg_br": [
+          -0.10091286428572233,
+          0.35905325417127076,
+          0.10960572156535432
+        ],
+        "tail": [
+          -0.10847187257476072,
+          0.4157458163390587,
+          0.0
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_br": "body",
+        "arm_l": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "flyer",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "fly",
+      "vertices": 30982,
+      "triangles": 25906,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Poodle-Moth.zip",
+      "source_member": "Earth/Models/Guardian.glb",
+      "source_sha256": "630bdaf5dd6644975becb6de1e842499444dd659f89902f75cfbf1cc1678e6a0",
+      "normalizer": 3.91585390845961
+    },
+    {
+      "form": "generated_yellow_boxfish_water_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.041655288232875134,
+          0.13578945276785342,
+          0.0
+        ],
+        "arm_l": [
+          0.041655288232875134,
+          0.12884519287278068,
+          -0.12002392730102132
+        ],
+        "arm_r": [
+          0.041655288232875134,
+          0.12884519287278068,
+          0.12002392730102132
+        ],
+        "head": [
+          0.041655288232875134,
+          0.13578945276785342,
+          0.0
+        ],
+        "tail": [
+          -0.0890858429358285,
+          0.1411476778378164,
+          0.0
+        ]
+      },
+      "parents": {
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "fish",
+      "authored_materials": true,
+      "appendage": "fins",
+      "locomotion": "swim",
+      "vertices": 25077,
+      "triangles": 24274,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Yellow-Boxfish.zip",
+      "source_member": "Water/Models/Young.glb",
+      "source_sha256": "150c4288a33c8ab87b5604bcf8fc144da7303e46a6fa8d232ba1521a4fa1f887",
+      "normalizer": 3.2193388924642363
+    },
+    {
+      "form": "generated_yellow_boxfish_water_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.09444351946081819,
+          0.2580494975397705,
+          0.0
+        ],
+        "arm_l": [
+          0.09444351946081819,
+          0.24569298820140176,
+          -0.21544667502110715
+        ],
+        "arm_r": [
+          0.09444351946081819,
+          0.24569298820140176,
+          0.21544667502110715
+        ],
+        "head": [
+          0.09444351946081819,
+          0.2580494975397705,
+          0.0
+        ],
+        "tail": [
+          -0.1875398313937129,
+          0.26597038963997616,
+          0.0
+        ]
+      },
+      "parents": {
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "fish",
+      "authored_materials": true,
+      "appendage": "fins",
+      "locomotion": "swim",
+      "vertices": 25362,
+      "triangles": 24950,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Yellow-Boxfish.zip",
+      "source_member": "Water/Models/Juvenile.glb",
+      "source_sha256": "b99676a665000bebe5d4cd18e644359342f06e7360b08f9c9f1dab1de9057e88",
+      "normalizer": 3.2193388924642363
+    },
+    {
+      "form": "generated_yellow_boxfish_water_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head",
+        "tail"
+      ],
+      "joints": {
+        "body": [
+          0.18472453468469008,
+          0.47647508434608093,
+          0.0
+        ],
+        "arm_l": [
+          0.18472453468469008,
+          0.45468441278725114,
+          -0.39535830348893525
+        ],
+        "arm_r": [
+          0.18472453468469008,
+          0.45468441278725114,
+          0.39535830348893525
+        ],
+        "head": [
+          0.18472453468469008,
+          0.47647508434608093,
+          0.0
+        ],
+        "tail": [
+          -0.3577471278654417,
+          0.48796817123645053,
+          0.0
+        ]
+      },
+      "parents": {
+        "arm_l": "body",
+        "tail": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "fish",
+      "authored_materials": true,
+      "appendage": "fins",
+      "locomotion": "swim",
+      "vertices": 24305,
+      "triangles": 25050,
+      "gem_vertices": 128,
+      "source_archive": "Elemental-Creatures\\Yellow-Boxfish.zip",
+      "source_member": "Water/Models/Guardian.glb",
+      "source_sha256": "a9f064adea7ce3eed2eba46790bcfdf55f3f528d8cb8786023e3f215f1eb36cd",
+      "normalizer": 3.2193388924642363
+    },
+    {
+      "form": "generated_stubby_squid_water_1",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head"
+      ],
+      "joints": {
+        "head": [
+          0.04832110163608682,
+          0.1374186595045058,
+          -1.8144393730852813e-05
+        ],
+        "arm_l": [
+          -0.07036445121505286,
+          0.19836529565668842,
+          -0.10266510953848645
+        ],
+        "arm_r": [
+          -0.07036445121505286,
+          0.19836529565668842,
+          0.10262882075102475
+        ],
+        "body": [
+          -0.06394901708847361,
+          0.19515758098333474,
+          -1.8144393730852813e-05
+        ]
+      },
+      "parents": {
+        "arm_l": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "fish",
+      "authored_materials": true,
+      "appendage": "fins",
+      "locomotion": "swim",
+      "vertices": 58851,
+      "triangles": 54430,
+      "gem_vertices": 88,
+      "source_archive": "Aqua-Stubby-Squid\\Stubby-Squid-complete.zip",
+      "source_member": "Models/Hatchling.glb",
+      "source_sha256": "e0cec9ff763c177ad9699f4ff241b720c51b13c6552d70ae05afebb46d4b6fe3",
+      "normalizer": 3.9280263899416425
+    },
+    {
+      "form": "generated_stubby_squid_water_2",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head"
+      ],
+      "joints": {
+        "head": [
+          0.07491677133841852,
+          0.23201688113106791,
+          -0.00018413462047275433
+        ],
+        "arm_l": [
+          -0.12100859582677016,
+          0.3326272139806249,
+          -0.1696330880218544
+        ],
+        "arm_r": [
+          -0.12100859582677016,
+          0.3326272139806249,
+          0.16926481878090888
+        ],
+        "body": [
+          -0.1104180382118293,
+          0.32733193911844544,
+          -0.00018413462047275433
+        ]
+      },
+      "parents": {
+        "arm_l": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "fish",
+      "authored_materials": true,
+      "appendage": "fins",
+      "locomotion": "swim",
+      "vertices": 59307,
+      "triangles": 54814,
+      "gem_vertices": 88,
+      "source_archive": "Aqua-Stubby-Squid\\Stubby-Squid-complete.zip",
+      "source_member": "Models/Juvenile.glb",
+      "source_sha256": "fabd65d76b74ca600b65b2ba7b00f1d94eea27c7d4590018cf2c087831a549ea",
+      "normalizer": 3.9280263899416425
+    },
+    {
+      "form": "generated_stubby_squid_water_3",
+      "present_parts": [
+        "arm_l",
+        "arm_r",
+        "body",
+        "head"
+      ],
+      "joints": {
+        "head": [
+          0.10170455784522521,
+          0.3781850075854632,
+          -0.0008860744376137622
+        ],
+        "arm_l": [
+          -0.20913855462606346,
+          0.5378071487904759,
+          -0.2697233872900671
+        ],
+        "arm_r": [
+          -0.20913855462606346,
+          0.5378071487904759,
+          0.26795123841483964
+        ],
+        "body": [
+          -0.19233622726730212,
+          0.5294059913704512,
+          -0.0008860744376137622
+        ]
+      },
+      "parents": {
+        "arm_l": "body",
+        "head": "body",
+        "arm_r": "body"
+      },
+      "body": "fish",
+      "authored_materials": true,
+      "appendage": "fins",
+      "locomotion": "swim",
+      "vertices": 59753,
+      "triangles": 55150,
+      "gem_vertices": 88,
+      "source_archive": "Aqua-Stubby-Squid\\Stubby-Squid-complete.zip",
+      "source_member": "Models/Guardian.glb",
+      "source_sha256": "19b98989b71a0df411672c3dc81a61f90927b394a7118b9a4457330f6b63505d",
+      "normalizer": 3.9280263899416425
+    },
+    {
+      "form": "generated_temple_air",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.03995149204846895,
+          0.3000199275780644,
+          0.0
+        ],
+        "leg_fl": [
+          0.1943186026760891,
+          0.3199383046457138,
+          -0.1294691838140102
+        ],
+        "leg_fr": [
+          0.1943186026760891,
+          0.3199383046457138,
+          0.1294691838140102
+        ],
+        "head": [
+          0.28893070082329925,
+          0.6734887407403098,
+          0.0
+        ],
+        "leg_bl": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          -0.15187732091432263
+        ],
+        "leg_br": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          0.15187732091432263
+        ],
+        "tail": [
+          -0.19657875331955638,
+          0.277611790477752,
+          0.0
+        ],
+        "wing_l": [
+          0.02501273985588627,
+          0.4568768279189821,
+          -0.13942835750751767
+        ],
+        "wing_r": [
+          0.02501273985588627,
+          0.4568768279189821,
+          0.13942835750751767
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 32410,
+      "triangles": 35344,
+      "gem_vertices": 56,
+      "source_archive": "Elemental-Creatures\\Temple-Dragons.zip",
+      "source_member": "Air/Air-Temple-Dragon.glb",
+      "source_sha256": "ae1d56fb0c1207e83ff37d038313a19912f6e2fb51ac1c073d333b60f27c141a",
+      "normalizer": 15.262318371944446
+    },
+    {
+      "form": "generated_temple_earth",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.03995149204846895,
+          0.3000199275780644,
+          0.0
+        ],
+        "leg_fl": [
+          0.1943186026760891,
+          0.3199383046457138,
+          -0.1294691838140102
+        ],
+        "leg_fr": [
+          0.1943186026760891,
+          0.3199383046457138,
+          0.1294691838140102
+        ],
+        "head": [
+          0.28893070082329925,
+          0.6734887407403098,
+          0.0
+        ],
+        "leg_bl": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          -0.15187732091432263
+        ],
+        "leg_br": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          0.15187732091432263
+        ],
+        "tail": [
+          -0.19657875331955638,
+          0.277611790477752,
+          0.0
+        ],
+        "wing_l": [
+          0.02501273985588627,
+          0.4568768279189821,
+          -0.13942835750751767
+        ],
+        "wing_r": [
+          0.02501273985588627,
+          0.4568768279189821,
+          0.13942835750751767
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 32410,
+      "triangles": 35344,
+      "gem_vertices": 56,
+      "source_archive": "Elemental-Creatures\\Temple-Dragons.zip",
+      "source_member": "Earth/Earth-Temple-Dragon.glb",
+      "source_sha256": "d3c181c03d172bb99f9ffd862010654a87b5f0c515c5be81d58d29f84137d6c3",
+      "normalizer": 15.262318371944446
+    },
+    {
+      "form": "generated_temple_water",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.03995149204846895,
+          0.3000199275780644,
+          0.0
+        ],
+        "leg_fl": [
+          0.1943186026760891,
+          0.3199383046457138,
+          -0.1294691838140102
+        ],
+        "leg_fr": [
+          0.1943186026760891,
+          0.3199383046457138,
+          0.1294691838140102
+        ],
+        "head": [
+          0.28893070082329925,
+          0.6734887407403098,
+          0.0
+        ],
+        "leg_bl": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          -0.15187732091432263
+        ],
+        "leg_br": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          0.15187732091432263
+        ],
+        "tail": [
+          -0.19657875331955638,
+          0.277611790477752,
+          0.0
+        ],
+        "wing_l": [
+          0.02501273985588627,
+          0.4568768279189821,
+          -0.13942835750751767
+        ],
+        "wing_r": [
+          0.02501273985588627,
+          0.4568768279189821,
+          0.13942835750751767
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 32410,
+      "triangles": 35344,
+      "gem_vertices": 56,
+      "source_archive": "Elemental-Creatures\\Temple-Dragons.zip",
+      "source_member": "Water/Water-Temple-Dragon.glb",
+      "source_sha256": "58c45f33bdf522ead34f7882dbca8bd7fdf523b6e642bd1a090f17fe1d5f4b56",
+      "normalizer": 15.262318371944446
+    },
+    {
+      "form": "generated_temple_fire",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.03995149204846895,
+          0.3000199275780644,
+          0.0
+        ],
+        "leg_fl": [
+          0.1943186026760891,
+          0.3199383046457138,
+          -0.1294691838140102
+        ],
+        "leg_fr": [
+          0.1943186026760891,
+          0.3199383046457138,
+          0.1294691838140102
+        ],
+        "head": [
+          0.28893070082329925,
+          0.6734887407403098,
+          0.0
+        ],
+        "leg_bl": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          -0.15187732091432263
+        ],
+        "leg_br": [
+          -0.12686458198595618,
+          0.3199383046457138,
+          0.15187732091432263
+        ],
+        "tail": [
+          -0.19657875331955638,
+          0.277611790477752,
+          0.0
+        ],
+        "wing_l": [
+          0.02501273985588627,
+          0.4568768279189821,
+          -0.13942835750751767
+        ],
+        "wing_r": [
+          0.02501273985588627,
+          0.4568768279189821,
+          0.13942835750751767
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 32410,
+      "triangles": 35344,
+      "gem_vertices": 56,
+      "source_archive": "Elemental-Creatures\\Temple-Dragons.zip",
+      "source_member": "Fire/Fire-Temple-Dragon.glb",
+      "source_sha256": "9de88ac8ebdd49bb853c5d2bfc5610fb0f53a43010257197aff93f1088d18391",
+      "normalizer": 15.262318371944446
+    },
+    {
+      "form": "generated_temple_ghost",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.032994178048068146,
+          0.24777331755908694,
+          0.0
+        ],
+        "leg_fl": [
+          0.1604792009501806,
+          0.26422300663133597,
+          -0.10692291768978457
+        ],
+        "leg_fr": [
+          0.1604792009501806,
+          0.26422300663133597,
+          0.10692291768978457
+        ],
+        "head": [
+          0.2386151811474796,
+          0.5562048222082041,
+          0.0
+        ],
+        "leg_bl": [
+          -0.10477189746020825,
+          0.26422300663133597,
+          -0.1254288025761062
+        ],
+        "leg_br": [
+          -0.10477189746020825,
+          0.26422300663133597,
+          0.1254288025761062
+        ],
+        "tail": [
+          -0.1623457601892125,
+          0.22926742041679846,
+          0.0
+        ],
+        "wing_l": [
+          0.020656918137862714,
+          0.3773145730431725,
+          -0.11514776222590908
+        ],
+        "wing_r": [
+          0.020656918137862714,
+          0.3773145730431725,
+          0.11514776222590908
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 48992,
+      "triangles": 58566,
+      "gem_vertices": 560,
+      "source_archive": "Elemental-Creatures\\Temple-Dragons.zip",
+      "source_member": "Ghost/Ghost-Temple-Dragon.glb",
+      "source_sha256": "c842508e0db7f11cb1e8ebdbdb625dd6e7948c0eb4e0dba593e9bf79947a8d0f",
+      "normalizer": 21.398592697459833
+    },
+    {
+      "form": "generated_temple_spirit",
+      "present_parts": [
+        "body",
+        "head",
+        "leg_bl",
+        "leg_br",
+        "leg_fl",
+        "leg_fr",
+        "tail",
+        "wing_l",
+        "wing_r"
+      ],
+      "joints": {
+        "body": [
+          0.0326780259187222,
+          0.245399139247165,
+          0.0
+        ],
+        "leg_fl": [
+          0.15894147993096866,
+          0.2616912064438306,
+          -0.10589837608567917
+        ],
+        "leg_fr": [
+          0.15894147993096866,
+          0.2616912064438306,
+          0.10589837608567917
+        ],
+        "head": [
+          0.23632875663027722,
+          0.5508752353144976,
+          0.0
+        ],
+        "leg_bl": [
+          -0.10376796705680791,
+          0.2616912064438306,
+          -0.12422693650876616
+        ],
+        "leg_br": [
+          -0.10376796705680791,
+          0.2616912064438306,
+          0.12422693650876616
+        ],
+        "tail": [
+          -0.1607901536910197,
+          0.22707056668554856,
+          0.0
+        ],
+        "wing_l": [
+          0.020458982349145817,
+          0.3736991229014212,
+          -0.11404440968401199
+        ],
+        "wing_r": [
+          0.020458982349145817,
+          0.3736991229014212,
+          0.11404440968401199
+        ]
+      },
+      "parents": {
+        "wing_l": "body",
+        "leg_bl": "body",
+        "leg_fr": "body",
+        "leg_br": "body",
+        "wing_r": "body",
+        "tail": "body",
+        "head": "body",
+        "leg_fl": "body"
+      },
+      "body": "quad",
+      "authored_materials": true,
+      "appendage": "arms",
+      "locomotion": "ground",
+      "vertices": 48035,
+      "triangles": 58950,
+      "gem_vertices": 448,
+      "source_archive": "Elemental-Creatures\\Temple-Dragons.zip",
+      "source_member": "Spirit/Spirit-Temple-Dragon.glb",
+      "source_sha256": "8afdf82db822a841f98082d5694e4e4e263a3706787268400c2ca38684909b6d",
+      "normalizer": 21.60561899284056
+    }
+  ]
+}

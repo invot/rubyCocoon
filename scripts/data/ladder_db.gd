@@ -47,7 +47,7 @@ static func opponent(rank: int, i: int) -> Dictionary:
 		var el: String = wants[k]
 		# each line's first form (the level picks the form it has grown into)
 		var pool := []
-		for r in range(0, RaceDB.NORMAL_COUNT, 3):
+		for r in RaceDB.first_forms():
 			if RaceDB.element(r) == el:
 				pool.append(r)
 		team.append([pool[rng.randi_range(0, pool.size() - 1)], lv + rng.randi_range(-1, 1)])

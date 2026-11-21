@@ -367,7 +367,8 @@ func load_dict(d: Dictionary) -> void:
 	xp = int(d.get("xp", 0))
 	mp = int(d.get("mp", -1))
 	base = d.get("base", {})
-	genes = d.get("genes", {})
+	genes = RaceDB.canonical_genes(d.get("genes", {}), race)
+	nickname = RaceDB.canonical_name(nickname, race)
 	moves = d.get("moves", [])
 	known = d.get("known", [])
 	elem_slots = int(d.get("elem_slots", default_elem_slots(race, rank)))
@@ -382,7 +383,9 @@ func load_dict(d: Dictionary) -> void:
 	origin = d.get("origin", "wild")
 	merges = int(d.get("merges", 0))
 	abandoned = d.get("abandoned", false)
-	parents = d.get("parents", [])
+	parents = d.get("parents", []).duplicate(true)
+	for parent in parents:
+		_migrate_parent_names(parent)
 	status = ""
 	# JSON turns ints into floats; normalise lineage ids
 	var lin := []
@@ -393,3 +396,12 @@ func load_dict(d: Dictionary) -> void:
 	fit_moves()
 	if genes.has("size"):
 		genes["size"] = float(genes["size"])
+
+
+## Family snapshots retain their saved stats and ancestry; only default species labels change.
+static func _migrate_parent_names(node: Dictionary) -> void:
+	var id := int(node.get("race", -1))
+	if id >= 0 and node.has("name"):
+		node["name"] = RaceDB.canonical_name(String(node["name"]), id)
+	for parent in node.get("parents", []):
+		_migrate_parent_names(parent)

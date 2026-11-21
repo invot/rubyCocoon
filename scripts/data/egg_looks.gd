@@ -3,28 +3,36 @@ extends RefCounted
 const RaceDB = preload("res://scripts/data/race_db.gd")
 ## shell, markings, motif, width, crown (the shapes echo the beast inside).
 const SHELLS := {
-	0: ["#f6bc69", "#c94a35", 0, 0.85, "plates"], # Embit: flame chevrons, dorsal plates
-	3: ["#7cba81", "#f6d77c", 1, 0.76, "buds"], # Pricklet: cactus ribs and buds
-	6: ["#ce7957", "#fff0be", 2, 0.91, "ears"], # Impkin: warm freckles, little ears
-	9: ["#b96d62", "#ffe0a0", 3, 0.79, "horns"], # Nipskit: armoured bands
-	12: ["#83a695", "#e7ce81", 4, 0.95, "horn"], # Grubbit: split carapace, single horn
-	15: ["#9fc9dc", "#795d96", 0, 0.94, "tusks"], # Tuskit: icy chevrons and tusks
-	18: ["#d6b58c", "#659d73", 1, 0.82, "leaves"], # Saplet: wood veins and leaves
-	21: ["#f2a4b2", "#399ba7", 3, 0.72, "fin"], # Wrigglet: turquoise whorls
-	24: ["#78bfd6", "#fff0cf", 3, 0.98, "claws"], # Clawlet: seafoam bands and paired claws
-	27: ["#8fc8a1", "#497fa6", 2, 0.88, "buds"], # Tadlet: pond spots
-	30: ["#fff0c6", "#dc8c44", 0, 0.80, "feathers"], # Hootlet: feather chevrons
-	33: ["#9e8dcc", "#ef9dbc", 4, 0.74, "ears"], # Flittle: dusk membrane panels
-	36: ["#c492c8", "#f9de98", 2, 0.97, "leaves"], # Berrypuff: berry speckles and calyx
+	0: ["#e9a378", "#ec6336", 0, 0.75, "fin"], # Fire Axolotl
+	3: ["#e9a378", "#ec6336", 1, 0.76, "ears"], # Fire Fennec Fox
+	6: ["#e9a378", "#ec6336", 2, 0.77, "ears"], # Fire Elephant Shrew
+	9: ["#e9a378", "#ec6336", 3, 0.77, "claws"], # Fire Mantis Shrimp
+	12: ["#b5be97", "#e6b547", 4, 0.78, "plates"], # Earth Echidna
+	15: ["#b5be97", "#e6b547", 0, 0.79, "ears"], # Earth Jerboa
+	18: ["#b5be97", "#e6b547", 1, 0.80, "ears"], # Earth Fennec Fox
+	21: ["#b5be97", "#e6b547", 2, 0.81, "fin"], # Earth Axolotl
+	24: ["#85c8c3", "#39b89b", 3, 0.81, "claws"], # Water Mantis Shrimp
+	27: ["#85c8c3", "#39b89b", 4, 0.82, "fin"], # Water Axolotl
+	30: ["#cee5ed", "#72bee9", 0, 0.83, "feathers"], # Air Grey Owl
+	33: ["#cee5ed", "#72bee9", 1, 0.84, "feathers"], # Air Poodle Moth
+	36: ["#cee5ed", "#72bee9", 2, 0.85, "feathers"], # Air Elephant Shrew
+	48: ["#e9a378", "#ec6336", 3, 0.85, "horns"], # Fire Draco
+	51: ["#85c8c3", "#39b89b", 4, 0.86, "horns"], # Water Draco
+	54: ["#b5be97", "#e6b547", 0, 0.87, "horns"], # Earth Draco
+	57: ["#cee5ed", "#72bee9", 1, 0.88, "horns"], # Air Draco
+	60: ["#cee5ed", "#72bee9", 2, 0.89, "fin"], # Air Axolotl
+	63: ["#e9a378", "#ec6336", 3, 0.89, "ears"], # Fire Jerboa
+	66: ["#85c8c3", "#39b89b", 4, 0.90, "fin"], # Water Elephant Shrew
+	69: ["#cee5ed", "#72bee9", 0, 0.91, "ears"], # Air Fennec Fox
+	72: ["#85c8c3", "#39b89b", 1, 0.92, "ears"], # Water Fennec Fox
+	75: ["#b5be97", "#e6b547", 2, 0.93, "feathers"], # Earth Poodle Moth
+	78: ["#85c8c3", "#39b89b", 3, 0.93, "fin"], # Water Yellow Boxfish
+	81: ["#85c8c3", "#39b89b", 4, 0.94, "fin"], # Water Aqua Squid
 	39: ["#275a99", "#b9f4ff", 3, 0.78, "fin"],
 	40: ["#c5ece8", "#edc86f", 0, 0.75, "feathers"],
 	41: ["#a94439", "#ffc96c", 1, 0.94, "horns"],
 	42: ["#75977d", "#cbefc0", 4, 1.0, "horn"],
 	47: ["#473654", "#dba4ed", 1, 0.86, "horns"],
-	48: ["#e58a6a", "#f6c45a", 0, 0.84, "horns"], # Draco: ember shell, gold frill chevrons, little horns
-	51: ["#8fd3c2", "#f2a457", 0, 0.84, "horns"], # Dropo: teal shell, orange frill chevrons
-	54: ["#b3ab9c", "#e9a64f", 0, 0.84, "horns"], # Rocco: pebble-grey shell, orange chevrons
-	57: ["#a9d6ee", "#f2a457", 0, 0.84, "horns"], # Floppo: sky shell, orange chevrons
 }
 static var _icons := {}
 

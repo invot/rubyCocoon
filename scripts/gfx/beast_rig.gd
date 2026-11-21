@@ -32,6 +32,7 @@ const Looks = preload("res://scripts/data/beast_looks.gd")
 const Parts = preload("res://scripts/gfx/beast_parts.gd")
 const CastGlow = preload("res://scripts/gfx/cast_glow.gd")
 const SHADER = preload("res://scripts/gfx/beast_toon.gdshader")
+const GENERATED_SHADER = preload("res://scripts/gfx/generated_beast.gdshader")
 const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const PARTS := Looks.PARTS
 ## how long an attack takes (s), and when in it the blow lands (0..1)
@@ -56,6 +57,10 @@ signal released
 var form := ""
 ## quad, biped, flyer, serpent or blob (the frame's)
 var kind := "quad"
+## Authored water creatures float and paddle even when their anatomy has legs.
+var locomotion := "ground"
+var appendage := "arms"
+var _authored := false
 ## idle, walk or lie (it eases from one to the next)
 var state := "idle"
 var ghost := false
@@ -132,7 +137,7 @@ const RECIPE_CACHE_LIMIT := 96
 
 ## A beast of this form (as "dino_3").
 func setup(f: String, as_ghost := false, skin_element := "") -> void:
-	_build({"frame": f}, as_ghost, skin_element)
+	_build({"frame": Races.canonical_form(f)}, as_ghost, skin_element)
 
 
 ## A merged beast of two forms, mixed by the seed: which gives the frame, which its colours, what the other gives.
@@ -146,12 +151,16 @@ func setup_recipe(recipe: Dictionary, as_ghost := false, skin_element := "") -> 
 
 
 func mount() -> void:
-	if mounted or form != "owl_3":
+	if mounted or form != Races.canonical_form("owl_3"):
 		return
 	mounted = true
 	var fi := Parts.info(form)
 	var lo: Vector3 = fi["lo"]["body"]
 	var hi: Vector3 = fi["hi"]["body"]
+	if bool(fi.get("authored_materials", false)):
+		_mount_seat = Vector3(lerpf(lo.x, hi.x, 0.25), hi.y, 0)
+		_pose()
+		return
 	var neck := Vector3(_centre.x, lerpf(lo.y, hi.y, 0.58), 0)
 	_mount_seat = Vector3(lerpf(lo.x, hi.x, 0.25), lerpf(lo.y, hi.y, 0.78), 0)
 	var head := PARTS.find("head")
@@ -315,6 +324,7 @@ func bounds() -> AABB:
 
 
 func _build(recipe: Dictionary, as_ghost: bool, skin_element := "") -> void:
+	recipe = Parts.normalize_recipe(recipe)
 	for c in get_children():
 		c.queue_free()
 	mats.clear()
@@ -325,6 +335,13 @@ func _build(recipe: Dictionary, as_ghost: bool, skin_element := "") -> void:
 	form = frame
 	var fi := Parts.info(frame)
 	kind = fi["kind"]
+	locomotion = String(recipe.get("locomotion", fi.get("locomotion", "fly" if kind == "flyer" else "ground")))
+	appendage = String(recipe.get("appendage", fi.get("appendage", "arms")))
+	if locomotion == "fly":
+		kind = "flyer"
+	elif kind == "flyer":
+		kind = "quad" if fi["lo"].has("leg_fl") else "biped"
+	_authored = bool(fi.get("authored_materials", false))
 	_hole = fi["lo"].has("deco")
 	pivot = Node3D.new()
 	add_child(pivot)
@@ -350,19 +367,22 @@ func _build(recipe: Dictionary, as_ghost: bool, skin_element := "") -> void:
 	var colour_form := String(recipe.get("colours", frame))
 	if not Looks.SKIN_PALETTES.has(skin_element):
 		skin_element = Races.element(Races.of_form(colour_form))
-	var colours := Looks.look(colour_form) if ghost else Looks.skin_look(colour_form, skin_element)
+	var colours := {}
+	if not _authored:
+		colours = Looks.look(colour_form) if ghost else Looks.skin_look(colour_form, skin_element)
 	var meshes := []
 	for pc in _built[key]["pieces"]:
 		var mi := MeshInstance3D.new()
 		mi.mesh = pc["mesh"]
 		meshes.append(pc["mesh"])
 		var mat := ShaderMaterial.new()
-		mat.shader = SHADER
+		mat.shader = GENERATED_SHADER if _authored else SHADER
 		# painted eyes: from the form whose face this piece carries
-		var eyes: Array = Looks.look(pc["face"]).get("eyes", []) if pc["face"] != "" else []
-		Parts.paint(mat, colours, eyes, int(String(pc["face"]).get_slice("_", 1)))
+		var eyes: Array = Looks.look(pc["face"]).get("eyes", []) if pc["face"] != "" and not _authored else []
+		if not _authored:
+			Parts.paint(mat, colours, eyes, int(String(pc["face"]).get_slice("_", 1)))
 		# (button eyes, as the line whose face it is has: solid black with a glint)
-		var button: bool = pc["face"] != "" and bool(Looks.look(pc["face"]).get("button_eyes", false))
+		var button: bool = pc["face"] != "" and not _authored and bool(Looks.look(pc["face"]).get("button_eyes", false))
 		mat.set_shader_parameter("button_eyes", 1.0 if button else 0.0)
 		mat.set_shader_parameter("ghost", 1.0 if ghost else 0.0)
 		mat.set_shader_parameter("skin_tex", SurfaceFinish.texture("satin"))
@@ -791,6 +811,7 @@ func _pose() -> void:
 	for p in _feet:
 		reach[p] = Vector3.ZERO
 	var flyer := kind == "flyer"
+	var swimmer := locomotion == "swim"
 	var sy := 1.0
 	var sx := 1.0
 	var lift := 0.0
@@ -843,6 +864,14 @@ func _pose() -> void:
 	else:
 		rot["wing_l"].x += 0.12 * sin(_bounce) * awake
 		rot["wing_r"].x -= 0.12 * sin(_bounce) * awake
+	if swimmer:
+		lift = (0.13 + 0.025 * sin(_bounce * 0.65)) * awake
+		var paddle := sin(_flap * 0.55) * (0.22 + 0.18 * walk) * awake * calm
+		rot["arm_l"].x += paddle
+		rot["arm_r"].x -= paddle
+		rot["arm_l"].y += 0.12 * cos(_flap * 0.55) * awake
+		rot["arm_r"].y -= 0.12 * cos(_flap * 0.55) * awake
+		rot["tail"].y += 0.2 * sin(_flap * 0.55 - 0.7) * awake * calm
 	# walking
 	var ph := _step
 	if walk > 0.0:
@@ -898,6 +927,9 @@ func _pose() -> void:
 	if lie > 0.0:
 		var d := _drop * lie
 		off["body"].y -= d
+		if swimmer:
+			rot["body"].z += 0.08 * lie
+			rot["head"].z -= 0.12 * lie
 		match kind:
 			"quad":
 				rot["head"].z -= 0.3 * lie
@@ -1108,7 +1140,7 @@ func _pose() -> void:
 	var inv := pivot.transform.affine_inverse()
 	var body := Transform3D(Basis(Quaternion.from_euler(rot["body"])), _rest[0] + off["body"])
 	# the feet stand where they are (flyers' once they've landed), but for arms letting go to strike
-	var plant := lie if flyer else 1.0
+	var plant := lie if flyer or swimmer else 1.0
 	var grip := 1.0 - clampf(a + s, 0.0, 1.0)
 	if _on_hands:
 		body.origin.y -= _drop * (1.0 - grip) * awake
@@ -1148,3 +1180,12 @@ func _pose() -> void:
 		_shut = shut
 		for m in mats:
 			m.set_shader_parameter("lid_shut", shut)
+	# Every physical and elemental attack lights the actual imported forehead jewel.
+	if _authored:
+		var charge := 0.0
+		if _atk >= 0.0:
+			charge = sin(PI * clampf(_atk, 0.0, 1.0))
+		if _cst >= 0.0:
+			charge = maxf(charge, sin(PI * clampf(_cst, 0.0, 1.0)))
+		for m in mats:
+			m.set_shader_parameter("gem_glow", charge)
