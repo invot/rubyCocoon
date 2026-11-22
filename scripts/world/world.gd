@@ -389,15 +389,21 @@ func prepare_arrival_view() -> void:
 ## Compatibility (the web) compiles a shader the first time something is drawn with it: a stall of up to a second
 ## when a building or prop first comes into view. While the screen is still black, every kind of mesh and material on
 ## the map is drawn once, shrunk to a speck in front of the camera, and taken away again after a few frames.
-## The other renderers compile without stalling play, and skip this.
+## Both it and Mobile (phones) also compile a variant for anything first lit by a lamp: each kind of object walking into
+## a street lantern's light stalled mid-walk (up to 330-440 ms each, a dozen or more on a first walk round Cocoon Cove,
+## 2026-11-21), so a second set of specks stands in a tiny lamp's light. Instanced batches (grass, trees) get specks
+## that are batches of one. Forward+ lights through clusters without such variants, and skips this.
 const WARM_LIMIT := 400
+const WARM_RENDERERS := ["gl_compatibility", "mobile"]
 ## Opt-in cost experiment; ordinary gameplay keeps the existing warm-up path.
 var cost_warmup_shared := false
 var cost_warmup_stats := {}
+## the lamp-lit specks (off only to measure without them: tools/debug/first_walk.gd --warm_lit=0)
+static var cost_warm_lit := true
 
 
 func _warm_shaders() -> void:
-	if RenderingServer.get_current_rendering_method() != "gl_compatibility" or cam == null:
+	if not RenderingServer.get_current_rendering_method() in WARM_RENDERERS or cam == null:
 		return
 	# Compile the isolated fade copies behind the arrival screen as well as the
 	# opaque materials. First approaching a house must not compile them mid-step.
@@ -415,10 +421,13 @@ func _warm_shaders() -> void:
 	var seen := {}
 	var mesh_keys := {}
 	var candidates := 0
+	var warm := Node3D.new()
+	warm.name = "ShaderWarmup"
+	cam.add_child(warm)
+	warm.position = Vector3(0, 0, -2.0)
 	var specks := Node3D.new()
-	specks.name = "ShaderWarmup"
-	cam.add_child(specks)
-	specks.position = Vector3(0, 0, -2.0)
+	warm.add_child(specks)
+	specks.position = Vector3(-0.3, 0, 0)
 	specks.scale = Vector3.ONE * 0.0005
 	for gi in find_children("*", "GeometryInstance3D", true, false):
 		var mesh: Mesh = null
@@ -451,17 +460,36 @@ func _warm_shaders() -> void:
 						surfaces.append(rid)  # unknown layout: never shared
 				mesh_keys[rid] = [mesh.get_class(), mesh.get_blend_shape_count() if mesh is ArrayMesh else 0, surfaces]
 			key = [mesh_keys[rid], mats]
+		# (an instanced batch draws with its own shader variant: its speck is a batch of one in the same format)
+		var batch: MultiMesh = gi.multimesh if gi is MultiMeshInstance3D else null
+		if batch != null:
+			key.append([batch.transform_format, batch.use_colors, batch.use_custom_data])
 		if seen.has(key):
 			continue
 		seen[key] = true
-		var speck := MeshInstance3D.new()
-		speck.mesh = mesh
+		var speck: GeometryInstance3D
+		if batch != null:
+			var one := MultiMesh.new()
+			one.transform_format = batch.transform_format
+			one.use_colors = batch.use_colors
+			one.use_custom_data = batch.use_custom_data
+			one.mesh = mesh
+			one.instance_count = 1
+			one.set_instance_transform(0, Transform3D.IDENTITY)
+			if one.use_colors:
+				one.set_instance_color(0, Color.WHITE)
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = one
+			speck = mmi
+		else:
+			speck = MeshInstance3D.new()
+			speck.mesh = mesh
 		speck.material_override = gi.material_override
 		speck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		specks.add_child(speck)
 		if gi is MeshInstance3D:
 			for i in gi.get_surface_override_material_count():
-				speck.set_surface_override_material(i, gi.get_surface_override_material(i))
+				(speck as MeshInstance3D).set_surface_override_material(i, gi.get_surface_override_material(i))
 		if fade_bindings.has(gi):
 			var fading_speck := speck.duplicate() as MeshInstance3D
 			fading_speck.material_override = null
@@ -470,9 +498,19 @@ func _warm_shaders() -> void:
 			specks.add_child(fading_speck)
 		if seen.size() >= WARM_LIMIT:
 			break
+	if cost_warm_lit:
+		# the same specks again, in a lamp's light (no shadow, as the street lanterns have none), out of reach of the first
+		var lit := specks.duplicate() as Node3D
+		lit.position = Vector3(0.3, 0, 0)
+		warm.add_child(lit)
+		var lamp := OmniLight3D.new()
+		lamp.position = lit.position
+		lamp.omni_range = 0.2
+		lamp.light_energy = 0.05
+		warm.add_child(lamp)
 	cost_warmup_stats = {"shared": cost_warmup_shared, "candidates_scanned": candidates,
 		"representatives": seen.size(), "hit_limit": seen.size() >= WARM_LIMIT}
-	_drop_warmup(specks)
+	_drop_warmup(warm)
 
 
 func _drop_warmup(specks: Node3D) -> void:
