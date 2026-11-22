@@ -17,8 +17,8 @@
     let callback, bypass = false, entered = fullscreen(), pending = false;
     const style = document.createElement('style');
     style.textContent = `
-        @font-face {font-family:RCBody;src:url('LeagueSpartan.ttf');font-weight:100 900}
-        @font-face {font-family:RCHead;src:url('LeagueSpartan.ttf');font-weight:100 900}
+        @font-face {font-family:RCBody;src:url('QuattrocentoSans-Regular.ttf')}
+        @font-face {font-family:RCHead;src:url('QuattrocentoSans-Bold.ttf');font-weight:600}
         #rc-fullscreen {--unit:max(1px, min(100vh / 720, 100vw / 1280));--gem:#d21f2c;
             --top:#0009;--bottom:#0009;--line:#fff;--ink:#fff;color:var(--ink);font-family:RCBody,sans-serif;font-weight:400}
         #rc-fullscreen [hidden] {display:none !important}
