@@ -1384,8 +1384,9 @@ mounted owl and its rider.
   in (`UI.make_hero`): the creator stays hidden and paused behind it (its mirror's camera off until it shows), and its
   bedroom goes up a step at a time (`RoomBuilder.build_sliced`, the same steps as `build`; film sets give way after
   8 ms rather than 50), so the creator is ready about when the swirl has covered the screen (about 1.0 s after the
-  press against about 1.3 s loading afterwards, desktop measurement). A few one-off loads (the hero's model, the
-  window's garden, the first wall textures) still take 30-80 ms frames in the swirl's first quarter-second.
+  press against about 1.3 s loading afterwards, desktop measurement). The title reads the creator's files in the
+  background while it waits (`assets/loading/creator_preload.json`, listed by `tools/bake_creator_preload.gd`; not on the
+  web) and builds the hero's model once, so the swirl keeps only a 30-50 ms frame or two as the room goes up, and its first draw.
   `--scene=title --burst=<path> --burst_every=0.2` captures frames through it; `--idle=<s>` sits at the menu first,
   as a player would, while the title loads scripts in the background.
   The next map is built behind the artwork/fade,

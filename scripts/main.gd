@@ -330,6 +330,7 @@ func _clear_title() -> void:
 		if is_instance_valid(n):
 			n.queue_free()
 	_title_nodes = []
+	_creator_assets = []
 	screen.show()
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
@@ -354,9 +355,42 @@ func _title_backdrop() -> void:
 	# shaders can't be loaded off the main thread: load the ones the world's scripts preload first
 	for sh in THREAD_SHY:
 		load(sh)
+	_preload_creator_assets()
 	# Retrieve each completed request as well: leaving requests unclaimed retains resources until exit.
 	for path in [WORLD_PATH, "res://scripts/ui/hero_maker.gd", BATTLE_PATH, Menus.BOOK_PATH]:
 		await wait_for_script(path)
+	# The hero's model, once, just after the scripts are in: its first build cuts and dyes the kit's parts
+	# (about 45 ms cold, then a fraction of one), on an idle menu frame rather than in New Game's swirl.
+	await get_tree().create_timer(0.3).timeout
+	if not _title_nodes.is_empty() and UI.stack.size() <= 1 and _test.get("creator_preload", "1") == "1":
+		var rig: Node3D = load("res://scripts/gfx/voxel_person.gd").build({})
+		rig.free()
+
+
+## The files New Game's creator reads (its bedroom's furniture, window garden and textures, the hero's parts), listed by
+## tools/bake_creator_preload.gd. Loaded in the background while the title waits and held until the title goes, so the
+## room goes up behind the swirl without stopping it to read each one from disk (120-250 ms frames on a cold desktop).
+## Not on the web: its single-threaded build would read them on the title's own frames.
+const CREATOR_PRELOAD := "res://assets/loading/creator_preload.json"
+var _creator_assets: Array = []
+
+
+func _preload_creator_assets() -> void:
+	# (--creator_preload=0 measures without it: tools/debug/first_walk.gd)
+	if OS.has_feature("web") or not FileAccess.file_exists(CREATOR_PRELOAD) or _test.get("creator_preload", "1") == "0":
+		return
+	var parsed = JSON.parse_string(FileAccess.get_file_as_string(CREATOR_PRELOAD))
+	var pending := []
+	for f in (parsed.get("files", []) if parsed is Dictionary else []):
+		if not ResourceLoader.has_cached(f) and ResourceLoader.exists(f) and ResourceLoader.load_threaded_request(f) == OK:
+			pending.append(f)
+	for f in pending:
+		while ResourceLoader.load_threaded_get_status(f) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			await get_tree().process_frame
+		# (claimed either way: an unclaimed request keeps its resource until exit)
+		var got = ResourceLoader.load_threaded_get(f)
+		if got != null:
+			_creator_assets.append(got)
 
 
 ## Compatibility only: compile the maps' shaders while the title menu waits (shader_precompile.gd). Returns its stats,
@@ -1006,6 +1040,10 @@ func _run_test() -> void:
 		return
 	if scene == "shader-kinds":
 		await load("res://tools/debug/shader_kinds.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "bake-creator-preload":
+		await load("res://tools/bake_creator_preload.gd").new().run(self, _test)
 		get_tree().quit()
 		return
 	if scene == "bake-ground":

@@ -324,6 +324,8 @@ func make_hero():
 		await enter_swirl()
 		swirl["in"] = true
 	wind_in.call()
+	# (the swirl's first frame answers the press before the creator lays itself out)
+	await get_tree().process_frame
 	var script: GDScript = await GameState.main.wait_for_script("res://scripts/ui/hero_maker.gd")
 	var m: Control = script.new()
 	# Keep the creator inactive, and out of sight behind the swirl's see-through first arms, until its room is ready
