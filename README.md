@@ -1418,6 +1418,11 @@ mounted owl and its rider.
 - **Ground on disk**: every outdoor map's ground meshes are baked into `assets/ground/` (`scripts/world/ground_store.gd`,
   `--scene=bake-ground`), so a map's ground is read back instead of generated behind the black screen; ground a story
   has changed some other way is generated once on the device and kept in `user://ground/` (at most 24 maps).
+- **Generated meshes on disk**: Cocoon Cove's houses (each kit house reshaped for its plot), the voxel props (signposts,
+  flowers, obstacles), the house pack's painted doors and windows, the fences and the townsfolk's dyed body parts are
+  baked into `assets/baked_meshes/` (`scripts/gfx/mesh_store.gd`, `--scene=bake-meshes`) and read back on a map's first
+  visit instead of generated. Their shared materials are saved once, and their textures link back to the game's own.
+  First builds on desktop: Cocoon Cove about 945 -> 647 ms, Bellerive about 1076 -> 907 ms.
 - **No building is built while you walk**: every building on a map is built behind the arrival fade and kept, hidden
   while its base is off-screen, so walking up to one no longer stalls a frame while it is built (10-150 ms each).
 - **Light scenery**: the bushes, shrubs and trees are simplified to triangle budgets as they are baked
@@ -1803,6 +1808,10 @@ try before it counts. About three and a half minutes; `bash tools/run_tests.sh q
 - `ground`: the shipped ground meshes in `assets/ground/` match what the terrain code generates for every outdoor map,
   as a new game finds it and with its story gates, obstacles and floods changed. After changing the terrain code or a
   map's tiles, rebake with `godot --headless --path . -- --scene=bake-ground`, then `godot --headless --path . --import`.
+- `meshes`: the shipped generated meshes in `assets/baked_meshes/` match what `cove_buildings.gd`, `voxel_props.gd`,
+  `house_builder.gd`, `fence_models.gd` and `townfolk.gd` make for every outdoor map. After changing those generators,
+  the scripts or models they use (`MeshStore.GROUPS`), rebake with
+  `godot --headless --path . -- --scene=bake-meshes`, then `godot --headless --path . --import`.
 - `textures`: every 3D surface on every town, road and room, and every beast and ghost, is drawn with a texture
   (`scripts/gfx/surface_finish.gd`); only light, shade and glow effects may be plain. `--scene=texture-audit` lists the
   rest (add `--maps=caccoon,route1` or `--rooms=0` to narrow it, `--report=path.json` to save the list).

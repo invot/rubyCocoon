@@ -14,6 +14,7 @@ extends RefCounted
 const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
 const Houses = preload("res://scripts/gfx/house_models.gd")
+const MeshStore = preload("res://scripts/gfx/mesh_store.gd")
 const DIR := "res://assets/exteriors/"
 ## The crates and barrels come from KayKit's Dungeon Pack now (tools/import_kaykit.gd bakes kaykit_<name>.res beside
 ## the older pack's <name>.res, at its size): piece() and the street furniture (world.gd) load those instead.
@@ -35,10 +36,11 @@ static func piece(name: String, stone := false, tint := Color("#eee1bf")) -> Mes
 	if not _meshes.has(key):
 		var file := ("kaykit_" + name) if name in KAYKIT else name
 		_meshes[key] = load(DIR + file + ".res") if ResourceLoader.exists(DIR + file + ".res") else null
-		if _meshes[key] != null and name.begins_with("door_"):
-			_meshes[key] = _paint_door(_meshes[key], name == "door_1")
-		if _meshes[key] != null and name.begins_with("win_"):
-			_meshes[key] = Windows.dress(_meshes[key], ["trim"], false, tint, stone)
+		var plain: Mesh = _meshes[key]
+		if plain != null and name.begins_with("door_"):
+			_meshes[key] = MeshStore.fetch("houses", key, func() -> Mesh: return _paint_door(plain, name == "door_1"))
+		if plain != null and name.begins_with("win_"):
+			_meshes[key] = MeshStore.fetch("houses", key, func() -> Mesh: return Windows.dress(plain, ["trim"], false, tint, stone))
 		if _meshes[key] == null:
 			push_warning("model missing: " + DIR + name + ".res")
 	return _meshes[key]

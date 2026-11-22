@@ -4,6 +4,7 @@ extends RefCounted
 ## grass and flowers are cut-out cards and the shop icons a pixel-art texture, the way PS1 games drew them.
 
 const VM = preload("res://scripts/gfx/lowpoly_mesher.gd")
+const MeshStore = preload("res://scripts/gfx/mesh_store.gd")
 const VS := 0.0625
 
 static var _cache := {}
@@ -11,7 +12,8 @@ static var _cache := {}
 
 static func _cached(key: String, maker: Callable) -> ArrayMesh:
 	if not _cache.has(key):
-		_cache[key] = maker.call()
+		# (read back from disk where baked: mesh_store.gd)
+		_cache[key] = MeshStore.fetch("props", key, maker)
 	return _cache[key]
 
 

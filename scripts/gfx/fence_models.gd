@@ -1,6 +1,7 @@
 extends RefCounted
 ## Shared supplied fence sections, joined at corners and junctions and batched by the world.
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
+const MeshStore = preload("res://scripts/gfx/mesh_store.gd")
 ## Sections cut from a longer supplied fence (tools/prepare_fences.py): their cut ends are open, so every end left
 ## free is closed with a face of its own.
 const CUT_SECTIONS := ["stone_fence", "fence"]
@@ -25,18 +26,20 @@ static var _sources := {}
 ## Tile's fence: `mask` the neighbours its run carries on to (bits: left, right, up, down).
 static func tile(style: String, mask: int) -> ArrayMesh:
 	var key := "%s:%d" % [style, mask]
-	if _meshes.has(key):
-		return _meshes[key]
+	if not _meshes.has(key):
+		_meshes[key] = MeshStore.fetch("fences", key, func() -> Mesh: return _make_tile(style, mask))
+	return _meshes[key]
+
+
+static func _make_tile(style: String, mask: int) -> ArrayMesh:
 	var straight := mask in [0, 1, 2, 3, 4, 8, 12]
 	if PLINTHS.has(style):
-		_meshes[key] = _on_plinth(style, mask, straight)
-	elif style in SOLID_JOINS or (style in CUT_SECTIONS and straight):
-		_meshes[key] = _cut_tile(style, mask)
-	elif style in POSTED and not straight:
-		_meshes[key] = _posted_tile(style, mask)
-	else:
-		_meshes[key] = _scaled_tile(style, mask)
-	return _meshes[key]
+		return _on_plinth(style, mask, straight)
+	if style in SOLID_JOINS or (style in CUT_SECTIONS and straight):
+		return _cut_tile(style, mask)
+	if style in POSTED and not straight:
+		return _posted_tile(style, mask)
+	return _scaled_tile(style, mask)
 
 
 ## A railing on its plinth: the plinth joined at full size like a cut section, the railing posted (or whole when

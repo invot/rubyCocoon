@@ -59,6 +59,7 @@ TESTS=(
 	"vo-scenery-distance|-- --scene=vo-scenery --verify=1 --part=distance --report=res://build/perf/vo/006/distance-route-check.json|VO PERF DONE: 0 problem"
 	"vo-mesh-merger|-- --scene=vo-mesh-merger --verify=1 --report=res://build/perf/vo/006/merger-route-check.json|VO PERF DONE: 0 problem"
 	"ground|-- --scene=bake-ground --verify=1 --save_dir=res://build/ground_test_saves/|GROUND BAKE DONE: .*, 0 problem"
+	"meshes|-- --scene=bake-meshes --verify=1 --save_dir=res://build/mesh_test_saves/|MESH BAKE DONE: .*, 0 problem"
 	"textures|-- --scene=texture-audit --verify=1 --save_dir=res://build/texture_test_saves/|TEXTURE AUDIT DONE: 0 problem"
 	"transitions|-- --scene=transitions --passes=1 --save_dir=res://build/transition_test_saves/|TRANSITIONS DONE: 0 problem"
 	"hero-maker|-- --scene=creator --save_dir=res://build/creator_test_saves/|HERO MAKER DONE: 0 problem"

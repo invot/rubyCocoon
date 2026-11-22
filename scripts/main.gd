@@ -1042,6 +1042,14 @@ func _run_test() -> void:
 		await load("res://tools/debug/shader_kinds.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "bake-meshes":
+		await load("res://tools/bake_meshes.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "map-files":
+		await load("res://tools/debug/map_files.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "bake-creator-preload":
 		await load("res://tools/bake_creator_preload.gd").new().run(self, _test)
 		get_tree().quit()

@@ -6,6 +6,7 @@ const VT = preload("res://scripts/gfx/voxel_textures.gd")
 const DIR := "res://assets/exteriors/cove_"
 const Houses = preload("res://scripts/gfx/house_models.gd")
 const Windows = preload("res://scripts/gfx/cartoon_windows.gd")
+const MeshStore = preload("res://scripts/gfx/mesh_store.gd")
 const STUCCO := {
 	"red": Color("#ba3e36"),
 	"sky": Color("#a3cad8"), "coral": Color("#e4ac99"),
@@ -125,12 +126,21 @@ static func ground_storey(key: String) -> float:
 	return SHOP_STOREY if key in SHOP_STOREY_MODELS else GROUND_STOREY
 
 
-## Remove the source door slab and fit the closed building once per plot scale.
+## Remove the source door slab and fit the closed building once per plot scale (read back from disk where baked:
+## mesh_store.gd, about 275 ms of Cocoon Cove's first build).
 static func warped(key: String, scale: float) -> Mesh:
-	var m: Mesh = _meshes[key]
 	var ck := "%s@%.4f" % [key,scale]
 	if _meshes.has(ck):
 		return _meshes[ck]
+	var dressed: Mesh = MeshStore.fetch("cove", ck, func() -> Mesh: return _make_warped(key, scale))
+	_meshes[ck] = dressed
+	if not key.begins_with("hut"):
+		_meshes[ck+"#blocks"] = MeshStore.fetch("cove", ck+"#blocks", func() -> Mesh: return _stucco_blocks(dressed, key, scale))
+	return dressed
+
+
+static func _make_warped(key: String, scale: float) -> Mesh:
+	var m: Mesh = _meshes[key]
 	var door: Vector3 = DOORS[key]
 	var plastered := not key.begins_with("hut")
 	var out := ArrayMesh.new()
@@ -168,9 +178,6 @@ static func warped(key: String, scale: float) -> Mesh:
 	var dressed := Windows.dress(out, [], true, VT.WOOD.lightened(0.14) if key.begins_with("hut") else TIMBER, false, GLASS)
 	if plastered:
 		dressed = _grained_frames(dressed, scale)
-	_meshes[ck] = dressed
-	if plastered:
-		_meshes[ck+"#blocks"] = _stucco_blocks(dressed, key, scale)
 	return dressed
 
 

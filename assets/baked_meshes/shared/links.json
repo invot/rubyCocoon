@@ -1,0 +1,20 @@
+{
+	"res://assets/baked_meshes/shared/standard_material_3d_25.res": {
+		"albedo_texture": "planks_v"
+	},
+	"res://assets/baked_meshes/shared/standard_material_3d_26.res": {
+		"albedo_texture": "res:res://assets/props/stone_fence.res::ImageTexture_q6w64"
+	},
+	"res://assets/baked_meshes/shared/standard_material_3d_36.res": {
+		"albedo_texture": "res:res://assets/exteriors/cove_house_2.res::ImageTexture_kc02e"
+	},
+	"res://assets/baked_meshes/shared/standard_material_3d_42.res": {
+		"albedo_texture": "res:res://assets/exteriors/cove_house_3.res::ImageTexture_3yyuj"
+	},
+	"res://assets/baked_meshes/shared/standard_material_3d_60.res": {
+		"albedo_texture": "res:res://assets/props/iron_fence.res::ImageTexture_uv3pu"
+	},
+	"res://assets/baked_meshes/shared/standard_material_3d_78.res": {
+		"albedo_texture": "res:res://assets/props/ice_block.res::ImageTexture_e0nha"
+	}
+}

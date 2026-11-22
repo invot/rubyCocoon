@@ -1,5 +1,13 @@
 {
 	"files": [
+		"res://assets/baked_meshes/folk/1679091c5a880faf6fb5e6087eb1b2dc.res",
+		"res://assets/baked_meshes/folk/6974ce5ac660610b44d9b9fed0ff9548.res",
+		"res://assets/baked_meshes/folk/8f14e45fceea167a5a36dedd4bea2543.res",
+		"res://assets/baked_meshes/folk/a87ff679a2f3e71d9181a67b7542122c.res",
+		"res://assets/baked_meshes/folk/c4ca4238a0b923820dcc509a6f75849b.res",
+		"res://assets/baked_meshes/folk/c81e728d9d4c2f636f067f89cc14862c.res",
+		"res://assets/baked_meshes/folk/cfcd208495d565ef66e7dff9f98764da.res",
+		"res://assets/baked_meshes/folk/eccbc87e4b5ce2fe28308fd9f2a7baf3.res",
 		"res://assets/branding/gearheart_industries.svg",
 		"res://assets/interiors/books.res",
 		"res://assets/interiors/counter.res",

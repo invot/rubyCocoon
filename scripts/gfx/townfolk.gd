@@ -8,6 +8,7 @@ const DIR := "res://assets/townfolk/"
 const SHADER := preload("res://scripts/gfx/townfolk.gdshader")
 const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const Wardrobe = preload("res://scripts/data/wardrobe_db.gd")
+const MeshStore = preload("res://scripts/gfx/mesh_store.gd")
 ## The skeleton they share, where its joints are on the kit's body (centimetres, y up, facing +z, standing on y = 0;
 ## "l" is the person's left, +x): [bone, parent, joint]. Every bone's rest is unturned.
 const BONES := [
@@ -263,7 +264,10 @@ static func part_mesh(id: int) -> Mesh:
 		var fix = PART_FIXES.get(id, "eyes" if kind == "head" else ("frame" if kind == "glasses" else null))
 		if fix == null and _worn().has(id):
 			fix = _worn()[id]
-		_meshes[id] = mesh if fix == null else _fixed(mesh, fix)
+		if fix == null:
+			_meshes[id] = mesh
+		else:
+			_meshes[id] = MeshStore.fetch("folk", str(id), func() -> Mesh: return _fixed(mesh, fix))
 		return _meshes[id]
 	return _meshes[id]
 
