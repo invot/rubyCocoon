@@ -1,6 +1,6 @@
-# Every push to main/master builds a separate public demo (the demo Pages alias).
-# Full-game production Pages and the native "latest" release keep their existing automatic publishing.
-# The parallel demo reuses the existing Cloudflare repository secrets.
+# Every push to main/master builds the full game (Web, Windows, Android: the "latest" release and production Pages),
+# then, in the same job, the separate public demo (the demo Pages alias). One job, so Godot, the asset import and the
+# quick checks run once. A demo failure doesn't undo the full-game publish, which has already happened.
 # Also runs by hand from the Actions tab ("Run workflow"). The quick checks (tools/run_tests.sh quick) run first; if
 # they fail, nothing is published.
 name: Windows, Android and Web build
@@ -25,7 +25,7 @@ env:
 jobs:
   windows:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -157,70 +157,22 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy build/web --project-name=rubycoccon --branch=main
 
-  demo:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Cache Godot
-        id: godot-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/godot
-            ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-${{ env.GODOT_RELEASE }}-windows-android-web
-      - name: Download Godot
-        if: steps.godot-cache.outputs.cache-hit != 'true'
-        run: |
-          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}"
-          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_RELEASE}
-          mkdir -p ~/godot "$templates"
-          curl -fsSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip"
-          unzip -q /tmp/godot.zip -d ~/godot
-          mv ~/godot/Godot_v*_linux.x86_64 ~/godot/godot
-          chmod +x ~/godot/godot
-          curl -fsSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_export_templates.tpz"
-          unzip -q /tmp/templates.tpz -d /tmp/tpz
-          cp /tmp/tpz/templates/version.txt /tmp/tpz/templates/windows_* /tmp/tpz/templates/android_*.apk /tmp/tpz/templates/web_nothreads_*.zip "$templates/"
-      - name: Import and check demo progression
-        run: |
-          ~/godot/godot --headless --path . --import
-          GODOT=~/godot/godot bash tools/run_tests.sh quick
-          GODOT=~/godot/godot bash tools/run_tests.sh demo demo-touch
+      # the public demo, built after the full game so it reuses the import, the quick checks and the tools above
+      - name: Check demo progression
+        run: GODOT=~/godot/godot bash tools/run_tests.sh demo demo-touch
+
       - name: Build Web demo
         run: |
-          python -m pip install Pillow==11.3.0
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
           GODOT=~/godot/godot python tools/make_web.py --demo
           node --test tools/tests/web_fullscreen.test.cjs
+
       - name: Keep Web demo package
         uses: actions/upload-artifact@v4
         with:
           name: RubyCocoon-web-demo
           path: build/web_demo/
           if-no-files-found: error
-      - name: Check Cloudflare credentials
-        id: cloudflare
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::warning::Set the existing CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets to publish the demo."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
+
       - name: Deploy demo to Cloudflare Pages
         if: steps.cloudflare.outputs.ready == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         uses: cloudflare/wrangler-action@v3
