@@ -936,7 +936,7 @@ func _spell_detail(c: VBoxContainer, sid: String) -> void:
 			names.append("%s: %s" % [ItemDB.item_name(w), SpellDB.attack_name(sid, w)])
 	c.add_child(_t_label("\n".join(names)))
 	if SpellDB.has_field_use(sid):
-		c.add_child(_t_label("Play the water song near water in the field to use it there."))
+		c.add_child(_t_label("Use it on water targets in the field too, while you carry its stone."))
 
 
 # ================================================================ Beasts
@@ -1163,10 +1163,43 @@ func _tab_codex() -> void:
 		_add_row({"text": GameState.codex_text("No Codex yet"), "detail": func(c): c.add_child(_t_label("Trainers along the Coastal Path are teaching you to battle. Picnicker Mae, the last of them, has something for you."))})
 		return
 	_make_list(left_box, "Ask " + GameState.codex_name(), right_box)
+	_codex_auto_rows()
 	for g in CodexDB.menu():
 		_add_row({"header": true, "text": String(g["group"]).to_upper()})
 		for id in g["ids"]:
 			_add_row({"text": CodexDB.title(id), "detail": _codex_detail.bind(String(id)), "act": Codex.explain.bind(String(id))})
+
+
+## AUTO (battle.gd _beasts_auto): on or off for every battle, and each ring beast's strategy (Beast.auto_plan).
+func _codex_auto_rows() -> void:
+	_add_row({"header": true, "text": "AUTO"})
+	var allowed := Codex.auto_allowed()
+	var on := GameState.flag("codex_auto")
+	var why := "" if allowed else " Switch Codex tips on in Settings to use it."
+	var row := {"text": "AUTO", "right": "◄ %s ►" % ("On" if on else "Off"), "right_width": 150, "disabled": not allowed,
+		"detail": func(c): _auto_detail(c, "AUTO", "On: in every battle %s chooses your beasts' moves while you choose your own. In battle, Ask %s turns it on for one battle, or off.%s" % [GameState.codex_name(), GameState.codex_name(), why])}
+	if allowed:
+		row["adjust"] = func(_d): GameState.set_flag("codex_auto", not on)
+		row["act"] = func(): GameState.set_flag("codex_auto", not on)
+	_add_row(row)
+	var ring: Array = GameState.party.filter(func(x): return x.slot >= 0)
+	ring.sort_custom(func(x, y): return x.slot < y.slot)
+	for b in ring:
+		var plan: String = b.auto_plan if CodexDB.AUTO_PLANS.has(b.auto_plan) else "mercy"
+		var cycle := func(d: int) -> void:
+			b.auto_plan = CodexDB.AUTO_PLANS[posmod(CodexDB.AUTO_PLANS.find(plan) + d, CodexDB.AUTO_PLANS.size())]
+		var brow := {"text": b.nickname, "icon": PixelArt.beast_texture(b.genes), "right": "◄ %s ►" % CodexDB.plan_name(plan), "right_width": 200,
+			"disabled": not allowed,
+			"detail": func(c): _auto_detail(c, "%s: %s" % [b.nickname, CodexDB.plan_name(plan)], String(CodexDB.AUTO_PLAN_DESCS[plan]) + " ◄ ► changes it." + why)}
+		if allowed:
+			brow["adjust"] = func(d): cycle.call(d)
+			brow["act"] = func(): cycle.call(1)
+		_add_row(brow)
+
+
+func _auto_detail(c: VBoxContainer, title: String, text: String) -> void:
+	c.add_child(_h(title))
+	c.add_child(_t_label(text))
 
 
 func _codex_detail(c: VBoxContainer, id: String) -> void:

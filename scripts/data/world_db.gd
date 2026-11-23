@@ -50,7 +50,8 @@ const TOWNS := {
 		"blurb": "A fog-bound town beside the old graveyard. The Umbral Legion rules here now."},
 }
 
-## Each route connects `from` to `to` (to = "" for a dead end); `dir` is the edge of `from` it leaves by.
+## Each route connects `from` to `to` (to = "" for a dead end); `dir` is the edge of `from` it leaves by. A route with
+## "via" starts instead at edge "via_edge" of that other route's map (the world map still draws it from `from`).
 ## races: the first forms of the lines that live there; a wild beast is the form its level gives (RaceDB.for_level).
 const ROUTES := {
 	"route1": {"name": "Coastal Path", "from": "caccoon", "to": "tidewater", "dir": "east", "biome": "coast", "lv": [2, 4], "races": [0, 27, 36, 24, 15, 30, 48, 60, 72],
@@ -59,7 +60,8 @@ const ROUTES := {
 	"reef": {"name": "Coral Reef", "from": "kelpwick", "to": "", "dir": "east", "biome": "reef", "lv": [7, 10], "races": [66, 24, 27, 78, 51, 81]},
 	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [30, 15, 3, 33, 9, 63, 69]},
 	"dustwell_channel": {"name": "Dustwell River Landing", "from": "dustwell", "to": "", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 63]},
-	"route4": {"return_only": true,"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3, 54, 75]},
+	# via: the map its south end really joins (the river landing's far shore, by riverboat), by that map's via_edge
+	"route4": {"return_only": true,"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "via": "dustwell_channel", "via_edge": "west", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3, 54, 75]},
 	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21, 57, 69], "temple": "air"},
 	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [15, 12, 6, 18, 54, 75], "legion": true},
 	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [9, 0, 6, 3, 48, 63], "temple": "fire"},
@@ -300,6 +302,7 @@ const MAP_POS := {
 }
 const ROUTE_PATHS := {
 	"dustwell_channel": [Vector2(130, 300), Vector2(120, 276), Vector2(118, 261)],
+	"route4": [Vector2(112, 261), Vector2(96, 220), Vector2(80, 170)],
 	"reef": [Vector2(610, 475), Vector2(780, 470)],
 }
 ## The ferry between Bellerive and Shellhaven (drawn on the map, travelled by boat).
@@ -351,10 +354,22 @@ static func town_edges(town: String) -> Dictionary:
 ## Edges of a route: dir -> town id
 static func route_edges(rid: String) -> Dictionary:
 	var r: Dictionary = ROUTES[rid]
-	var out := {opposite(r["dir"]): r["from"]}
+	var out := {opposite(r["dir"]): r.get("via", r["from"])}
 	if r["to"] != "":
 		out[r["dir"]] = r["to"]
+	for other in ROUTES:
+		if ROUTES[other].get("via", "") == rid:
+			out[ROUTES[other]["via_edge"]] = other
 	return out
+
+
+## The edge of map `to` that leads back to map `from` (where you arrive walking from one into the other).
+static func arrival_edge(from: String, to: String, fallback: String) -> String:
+	var back := town_edges(to) if TOWNS.has(to) else (route_edges(to) if ROUTES.has(to) else {})
+	for d in back:
+		if back[d] == from:
+			return d
+	return fallback
 
 
 static func biome_of(map_id: String) -> Dictionary:

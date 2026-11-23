@@ -580,6 +580,7 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25, swirl := f
 	if _test.get("load_phases", "0") == "1":
 		cost_load_phases = {}
 		_cost_load_clock = Time.get_ticks_usec()
+	Story.riverboat_shore(id, spawn)
 	await _load_world(id, spawn, false, face)
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	# Draw the finished map while it's still dark, so any first-draw hitch doesn't cut into the fade (a long frame's
@@ -1309,16 +1310,39 @@ func _run_test() -> void:
 			start_battle({"wild": true, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5})
 		else:
 			var tr := {"name": "Marina", "cls": "Swimmer", "shield": 0, "look": {"skin": "#e0b090", "hair": "#2a4a8a", "shirt": "#3a8ac8", "pants": "#1a2a4a"}}
+			var bfoes := [Beasts.create(27, 10), Beasts.create(30, 11)]
 			if beaten == "robot":
 				tr = {"name": "Unit 301", "cls": "Gearheart Sentry", "shield": 0, "robot_body": RaceDB.ROBOT_MODELS[RaceDB.ROBOTS[0]]}
-			start_battle({"wild": false, "foes": [Beasts.create(27, 10), Beasts.create(30, 11)], "seed": 5, "trainer": tr})
+			elif beaten == "beaver":
+				# a well beaver (Story.WELL_BEAVERS) with its two Quillets, both knocked out before it drops
+				tr = {"name": "Nub", "cls": "Beaver", "shield": 0, "look": {"critter": "beaver"}, "claws": true}
+				bfoes = [Beasts.create(12, 12), Beasts.create(17, 12)]
+			start_battle({"wild": false, "foes": bfoes, "seed": 5, "trainer": tr})
 		await _wait(2.5)
 		var bt: Node = null
 		for c in view.get_children():
 			if c.get_script() == load(BATTLE_PATH):
 				bt = c
+		if beaten == "beaver" and _test.has("claw"):
+			# --claw=bite|slash|earth: the beaver's own attack on one of your beasts (once they're out), shot --at seconds in
+			for i in 600:
+				if bt._alive(bt.ally_slots).all(func(x): return bt.nodes.has(x)) and not bt._alive(bt.ally_slots).is_empty():
+					break
+				await get_tree().process_frame
+			await _wait(0.5)
+			bt._do_rival_claws({"attack": String(_test["claw"])})
+			await _wait(float(_test.get("at", "1.5")))
+			if _test.has("shot"):
+				_save_shot(String(_test["shot"]))
+			get_tree().quit()
+			return
 		if beaten != "":
 			GameState.shield = 0
+			if beaten == "beaver":
+				for f in bt.foe_slots:
+					if f != null:
+						f.hp = 0
+				await bt._handle_faints()
 			bt._strike(null, "ally" if beaten == "ally" else "foe")
 			await _wait(float(_test.get("at", "1.5")))
 			if _test.has("shot"):
@@ -3097,7 +3121,7 @@ func _tides_walk_test() -> void:
 	bad += await _tides_room(hall, "temple_tides_maze", "maze", [0, 1, 2, 3, 4], "tides_maze_solved", "tide_charm", "4")
 	await _tides_shot("5_hall_drained")
 	bad += _tides_check("hall drained: song door reachable", _tides_reach(hall, "temple_tides_song"))
-	bad += _tides_check("no treasure left in the hall's pit", not world.npcs.values().any(func(n): return n.get("id", "") == "chest"))
+	bad += _tides_check("one treasure on the drained floor, a few tiles from the west wall's stone panel", world.npcs.values().filter(func(n): return n.get("id", "") == "chest" and n["pos"] == Vector2i(4, 10)).size() == 1)
 	var song := await _tides_door(hall, "temple_tides_song")
 	bad += _tides_check("into the song room", world.map_id == song)
 	await _tides_shot("6_song_room_locked")
@@ -4229,32 +4253,76 @@ func _battlecmd_test() -> void:
 	if String(_test.get("scene", "")) in ["battle-focus", "battle-redirect"]:
 		return # this focused fixture starts at command selection; battlecmd covers the caption and picker checks below
 	if _test.get("scene", "") == "battlecmd":
-		# Elemental attacks (spell_db.gd): before a spell the named weapon aims straight away; after one it opens Basic and
-		# the spells, B or Back returns, and a spell spends the hero's MP and hits with its element, never critically.
-		check.call(not bt._weapon_option().has("choices"), "before any spell the weapon goes straight to aiming")
+		# AUTO (battle.gd _beasts_auto): with the Codex's tips on, it fills in every standing beast's move and target;
+		# off (or with its tips off) the beasts wait for you.
+		var flags_was := [GameState.flag("has_codex"), GameState.flag("codex_off"), GameState.flag("codex_auto")]
+		GameState.set_flag("has_codex")
+		GameState.set_flag("codex_off", false)
+		GameState.set_flag("codex_auto")
+		var arows: Array = bt._panel_rows()
+		var abeasts: Array = arows.slice(1).filter(func(r): return r.get("status", "") == "")
+		check.call(not abeasts.is_empty() and abeasts.all(func(r): return r.get("done", false) and r.has("act")), "AUTO chooses every standing beast's move")
+		var aacts: Array = bt._acts_from_rows(arows)
+		check.call(aacts.size() == abeasts.size() + 1 and aacts.slice(1).all(func(a): return String(a.get("type", "")) in ["move", "defend"]), "AUTO's choices become the beasts' actions (%s)" % str(aacts.map(func(a): return a.get("type", ""))))
+		GameState.set_flag("codex_off", true)
+		check.call(bt._panel_rows().slice(1).all(func(r): return not r.get("done", false)), "with the Codex's tips off there's no AUTO")
+		GameState.set_flag("codex_off", false)
+		bt._auto_battle = "off"
+		check.call(not bt._beasts_auto(), "AUTO can be switched off for one battle")
+		bt._auto_battle = ""
+		# each beast's AUTO plan: a healer heals a hurt ally and attacks when nobody's hurt; Save MP picks free moves
+		var ab = abeasts[0]["beast"]
+		var plan_was: String = ab.auto_plan
+		var amoves: Array = bt._usable_moves(ab)
+		var aheal := ""
+		for mv in amoves:
+			if String(bt.MoveDB.get_move(mv)["kind"]) == "heal" and bt.MoveDB.mp_cost(mv) <= ab.mp:
+				aheal = mv
+		ab.auto_plan = "heal"
+		if aheal != "":
+			var hp_was: int = ab.hp
+			ab.hp = maxi(1, ab.max_hp() / 4)
+			check.call(String(bt._ai_choose(ab, true).get("move", "")) == aheal, "AUTO Healing heals a hurt beast")
+			ab.hp = hp_was
+		ab.hp = ab.max_hp()
+		var full: Dictionary = bt._ai_choose(ab, true)
+		check.call(String(full.get("type", "")) != "move" or String(bt.MoveDB.get_move(String(full["move"]))["kind"]) == "attack", "AUTO Healing attacks when nobody needs healing")
+		ab.auto_plan = "conserve"
+		var cheap: Dictionary = bt._ai_choose(ab, true)
+		check.call(String(cheap.get("type", "")) != "move" or String(bt.MoveDB.get_move(String(cheap["move"]))["kind"]) == "attack", "AUTO Save MP attacks")
+		ab.auto_plan = plan_was
+		GameState.set_flag("has_codex", flags_was[0])
+		GameState.set_flag("codex_off", flags_was[1])
+		GameState.set_flag("codex_auto", flags_was[2])
+		bt._rows_now = p.rows
+		# Elemental attacks (spell_db.gd): no Attack submenu. The named weapon aims straight away, and each learned
+		# elemental attack sits right after it on the main bar and aims straight away too; a spell spends the hero's MP
+		# and hits with its element, never critically.
+		check.call(bt._weapon_options().size() == 1, "before any spell the trainer has just the weapon")
 		for device in ["keyboard", "gamepad", "touch"]:
 			await _battle_choice_input(device, true)
 			check.call(p.picking and not p.rows[0].has("attack_parent"), "%s aims directly before spell unlock" % device)
 			await _battle_choice_input(device, false)
 			check.call(not p.picking and p.focus == 0, "%s cancels weapon aim" % device)
 		GameState.learn_spell("water")
-		var wopt: Dictionary = bt._weapon_option()
-		var wlabels: Array = (wopt.get("choices", []) as Array).map(func(o): return String(o["label"]))
-		check.call(wopt["label"] == ItemDB.item_name(GameState.weapons()[0]) and wlabels == ["Basic", "Water Shot"] if GameState.weapons()[0] == "slingshot" else wlabels.size() == 2,
-			"after Water the named weapon opens Basic and its elemental attack (%s)" % str(wlabels))
-		# Swap in the options built for the new loadout on the live command panel.
+		var wopts: Array = bt._weapon_options()
+		var wlabels: Array = wopts.map(func(o): return String(o["label"]))
+		check.call(wlabels == ["Slingshot", "Water Shot"] if GameState.weapons()[0] == "slingshot" else wlabels.size() == 2 and wlabels[0] == ItemDB.item_name(GameState.weapons()[0]),
+			"after Water the weapon's plain shot comes first, then its elemental attack, both on the main bar (%s)" % str(wlabels))
+		check.call(wopts.all(func(o): return not o.has("choices")), "no weapon option opens a submenu")
+		# Put the new loadout's elemental attack on the live command panel, just after the weapon.
 		var weapon_row: Dictionary = p.rows[0]
 		var weapon_index: int = weapon_row["options"].find_custom(func(o): return o["id"] == "weapon")
-		var plain_weapon: Dictionary = weapon_row["options"][weapon_index]
-		weapon_row["options"][weapon_index] = wopt
-		weapon_row["sel"] = weapon_index
+		weapon_row["options"].insert(weapon_index + 1, wopts[1])
+		weapon_row["sel"] = weapon_index + 1
 		p._redraw()
 		for device in ["keyboard", "gamepad", "touch"]:
 			await _battle_choice_input(device, true)
-			check.call(weapon_row.has("attack_parent") and weapon_row["options"][0]["label"] == "Basic", "%s opens elemental attacks" % device)
+			check.call(p.picking and not weapon_row.has("attack_parent"), "%s aims an elemental attack straight from the main bar" % device)
 			await _battle_choice_input(device, false)
-			check.call(not weapon_row.has("attack_parent") and weapon_row["options"][weapon_row["sel"]]["label"] == wopt["label"], "%s returns to the equipped weapon" % device)
-		weapon_row["options"][weapon_index] = plain_weapon
+			check.call(not p.picking and weapon_row["options"][weapon_row["sel"]]["label"] == wopts[1]["label"], "%s cancels back to the elemental attack" % device)
+		weapon_row["options"].remove_at(weapon_index + 1)
+		weapon_row["sel"] = weapon_index
 		p._redraw()
 		var mp_was: int = GameState.trainer_mp
 		var foe_hp: int = foes[0].hp
@@ -4266,8 +4334,8 @@ func _battlecmd_test() -> void:
 		check.call(GameState.trainer_mp == mp_was - bt.SpellDB.mp_cost("water"), "an elemental attack spends its MP (%d -> %d)" % [mp_was, GameState.trainer_mp])
 		check.call(foes[0].hp < foe_hp, "the elemental attack lands through the weapon")
 		GameState.trainer_mp = 0
-		var low: Dictionary = bt._weapon_option()["choices"][1]
-		check.call(low.get("disabled", false) and not bt._weapon_option()["choices"][0].get("disabled", false), "short of MP the spell is greyed out and Basic stays free")
+		var low: Dictionary = bt._weapon_options()[1]
+		check.call(low.get("disabled", false) and not bt._weapon_options()[0].get("disabled", false), "short of MP the spell is greyed out and the plain shot stays free")
 		var after_hit: int = foes[0].hp
 		await bt._do_weapon({"weapon": GameState.weapons()[0], "spell": "water", "target": foes[0]})
 		check.call(foes[0].hp == after_hit and GameState.trainer_mp == 0, "a spell without MP does not turn into a Basic attack")
@@ -4369,25 +4437,18 @@ func _battlecmd_test() -> void:
 	await key.call("ui_accept")
 	check.call(p.rows[0].get("done", false) and p.focus == 1 and not p.picking, "A confirms the target: on to the top beast (focus %d)" % p.focus)
 	# the top beast: a one-target move (Bite; at Lv 20 its first move is Fire Spin, which hits all), then its target
-	await opt_to.call(p, "attack")
 	if _test.get("scene", "") == "battlecmd":
-		for device in ["keyboard", "gamepad", "touch"]:
-			await _battle_choice_input(device, true)
-			check.call(p.rows[1].has("attack_parent") and p.rows[1]["options"][0]["id"] == "move", "%s opens beast moves" % device)
-			await _battle_choice_input(device, false)
-			check.call(not p.rows[1].has("attack_parent") and p.focus == 1, "%s returns to beast actions" % device)
-		# a beast with a single move shows that move in Attack's place: no one-item submenu
-		var lone = p.rows[1]["beast"]
-		var kept_moves: Array = lone.moves.duplicate()
-		var kept_equip: String = lone.equip
-		lone.moves = ["tackle"]
-		lone.equip = ""
-		var lone_opts: Array = bt._beast_options(lone)
-		lone.moves = kept_moves
-		lone.equip = kept_equip
-		check.call(lone_opts[0].get("move", "") == "tackle" and not lone_opts[0].has("choices") and bt._beast_options(lone)[0].has("choices"),
-			"one move skips the Attack submenu; several keep it (%s)" % str(lone_opts[0].get("label", "")))
-	await key.call("ui_accept")
+		# no Attack submenu: every move sits on the beast's main bar, plain attacks, then elemental ones, then support
+		var rank := func(o: Dictionary) -> int:
+			if String(o.get("id", "")) != "move":
+				return 3
+			var m: Dictionary = bt.MoveDB.get_move(String(o["move"]))
+			return (0 if String(m["el"]) == "neutral" else 1) if String(m["kind"]) == "attack" else 2
+		var ranks: Array = (p.rows[1]["options"] as Array).map(func(o): return rank.call(o))
+		var sorted_ranks: Array = ranks.duplicate()
+		sorted_ranks.sort()
+		check.call(ranks == sorted_ranks and ranks[0] == 0 and p.rows[1]["options"].all(func(o): return not o.has("choices")),
+			"beast moves come first on the main bar, the plain attack leading (%s)" % str((p.rows[1]["options"] as Array).map(func(o): return String(o.get("label", "")))))
 	await opt_to.call(p, "move", "bite")
 	await key.call("ui_accept")
 	check.call(p.picking and p.focus == 1 and not p.rows[1].get("done", false), "the top beast's move needs its target before it's set")
@@ -4416,8 +4477,6 @@ func _battlecmd_test() -> void:
 		if o.get("id", "") == "shift":
 			shift = o
 	check.call(not shift.is_empty() and shift.get("disabled", false), "the beast in the middle can't Move: \"%s\"" % shift.get("desc", ""))
-	await opt_to.call(p, "attack")
-	await key.call("ui_accept")
 	await opt_to.call(p, "move", "fire_spin")
 	await key.call("ui_accept")
 	check.call(p.picking and p.rows[2].get("target_all", false) and bt.floating.aiming and bt.floating.tag_rects.size() == 2 and bt._target_refs.size() == 2 and bt._aim_from == fire_b and bt.aim_mesh.mesh.get_surface_count() > 0, "Fire Spin draws arches from its attacker to both foes")
@@ -4431,8 +4490,6 @@ func _battlecmd_test() -> void:
 	check.call(bt._target_refs.size() == 2, "◄ doesn't pick one out of a move that hits them all")
 	await key.call("ui_accept")
 	check.call(p.rows[2].get("done", false) and p.focus == 3, "A: on to the bottom beast")
-	await opt_to.call(p, "attack")
-	await key.call("ui_accept")
 	await opt_to.call(p, "move")
 	await key.call("ui_accept")
 	await key.call("ui_accept")
@@ -4501,8 +4558,6 @@ func _battlecmd_test() -> void:
 	await opt_to.call(p, "shift")
 	await key.call("ui_accept")
 	check.call(not p.picking and not p.rows[fire_row].get("done", false), "a second beast can't Move the same round")
-	await opt_to.call(p, "attack")
-	await key.call("ui_accept")
 	await opt_to.call(p, "move")
 	await key.call("ui_accept")
 	await key.call("ui_accept")

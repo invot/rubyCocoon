@@ -503,6 +503,12 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 				areas[Vector2i(c.x + dx, c.y + dy)] = true
 	m["fish_areas"] = areas
 	m["boats"] = src.get("boats", [])
+	# a boat that crosses: while its flag is set it's moored at the far side, its crew beside it
+	var moor: Dictionary = src.get("moored_across", {})
+	if not moor.is_empty() and flags.get(moor["flag"], false):
+		m["boats"] = moor["boats"]
+		for a in moor.get("anchor_tiles", {}):
+			m["anchors"][a] = moor["anchor_tiles"][a]
 	if src.has("beached_hull") and not flags.get("river_restored", false):
 		m["beached_hull"] = src["beached_hull"]
 	# exits along each connected edge
@@ -514,8 +520,9 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		if tiles.is_empty():
 			push_warning("Map %s has no exit on its %s edge" % [id, dir])
 			continue
+		var arrive := WorldDB.arrival_edge(id, target, WorldDB.opposite(dir))
 		for t in tiles:
-			m["exits"][t] = {"to": target, "spawn": WorldDB.opposite(dir)}
+			m["exits"][t] = {"to": target, "spawn": arrive}
 		m["spawns"][dir] = _spawn_inside(m, tiles, dir)
 	if m.has("center_front"):
 		m["spawns"]["center"] = m["center_front"]
@@ -973,6 +980,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["anchors"] = room.get("anchor_tiles", {}).duplicate()
 	# (a ladder lying fallen until its flag is set: the Dustwell Well's, down to the great chamber's floor 4)
 	m["fallen_ladders"] = [m["anchors"]["fallen_ladder"]] if room.has("ladder_flag") and not flags.get(room["ladder_flag"], false) else []
+	# (the Dustwell Well's ravines run with water once Dale has taught Water: well_cave.gd _ravine_water)
+	m["well_flowing"] = room.get("well", false) and bool(flags.get("well_restored", false))
 	m["exhibits"] = {}
 	m["shards"] = []
 	m["furniture"] = {}

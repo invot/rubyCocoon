@@ -359,12 +359,12 @@ const ROOMS := {
 			"###############",
 		],
 	},
-	## Dale's workroom: Dale on the east side of a crack, the water stone's chest across bridge 4 (-), which Dale lowers for you.
+	## Dale's workroom: Dale on the east side of a crack, a chest with his old Wellspring Pendant across bridge 4 (-), which Dale lowers for you.
 	"well_dale": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 2.0, "top_level": 3, "abyss": true, "masonry_cols": [0, 13],
 		"bridges": {"-": "well_bridge_4"},
 		"doors": {"A": "well_hub"},
-		"anchors": {"0": "dale", "1": "chest:water_stone#0"},
+		"anchors": {"0": "dale", "1": "chest:wellspring_pendant#0"},
 		"rows": [
 			"##############",
 			"####..  ..####",
@@ -1046,12 +1046,18 @@ const ROOMS := {
 	# the falls room (door 2) lowers the water a level, opening the middle walkway and the maze room's door (3); solving
 	# the maze drains the hall and shows the stone door (4), in its east wall, to the song room. There the stones teach the temple's song,
 	# which opens the door (K) to the guardian's octagon. The puzzles' rules: scripts/data/tide_puzzles.gd.
+	# Down on the drained floor, back by the west wall near the front, a smooth stone panel (Q, flush in the wall: the
+	# water_panel target, Story.WATER_TARGETS) opens to Water into the mages' sanctuary (5), with a chest (9) a few tiles off.
 	"temple_tides_hall": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
-		"doors": {"2": "temple_tides_falls", "3": "temple_tides_maze", "4": "temple_tides_song"},
-		"stone_doors": ["4"], "level_h": 0.8, "top_level": 2,
+		"doors": {"2": "temple_tides_falls", "3": "temple_tides_maze", "4": "temple_tides_song", "5": "temple_tides_sanctuary"},
+		"stone_doors": ["4", "Q"], "level_h": 0.8, "top_level": 2,
 		"water_levels": [["tides_falls_solved", -0.12], ["tides_maze_solved", -0.92]],
-		"floods": {";": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}, "+": {"flag": "tides_maze_solved", "wet": "_", "dry": ":"}},
+		"floods": {";": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}, "+": {"flag": "tides_maze_solved", "wet": "_", "dry": ":"},
+			"Q": {"flag": "water_mages_found", "wet": "L", "dry": "5"}},
+		"locked": ["A smooth stone panel set into the wall, carved with waves."],
+		"anchor_tiles": {"water_panel": Vector2i(0, 10)},
+		"anchors": {"9": "chest:tidal_tiara@tides_maze_solved"},
 		"rows": [
 			"######2##########3#############",
 			"#:::::::::::;;;;;;;;;+++++++++#",
@@ -1063,7 +1069,7 @@ const ROOMS := {
 			"#+++++++++++++++++++++++++++++#",
 			"#+++++++++++++++++++++++++++++#",
 			"#+++++++++++++++++++++++++++++#",
-			"#+++++++++++++++++++++++++++++#",
+			"Q+++9+++++++++++++++++++++++++#",
 			"#+++++++++++++++++++++++++++++#",
 			"###############################",
 		],
@@ -1089,7 +1095,7 @@ const ROOMS := {
 	# pool's floor, and two flights of steps lead down to it once it's drained.
 	"temple_tides_sanctuary": {
 		"wall": "#648da3", "rug": "#247082", "zone": "stone",
-		"doors": {"[": "temple_tides_falls"},
+		"doors": {"[": "temple_tides_hall"},
 		"anchors": {"1": "water_teacher", "2": "water_acolyte"},
 		"rows": [
 			"#############",
@@ -1103,12 +1109,11 @@ const ROOMS := {
 	},
 	"temple_tides_falls": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
-		"anchor_tiles": {"water_panel": Vector2i(1, 7)},
-		"doors": {"[": "temple_tides_hall", "]": "temple_tides_sanctuary"},
+		"doors": {"[": "temple_tides_hall"},
 		"level_h": 0.8, "top_level": 1,
 		"encounter": {"lv": [10, 12], "races": [24, 27, 21], "roam": true},
 		"water_levels": [["tides_falls_solved", -0.12]], "puzzle": "falls",
-		"floods": {"?": {"flag": "water_mages_found", "wet": "#", "dry": "]"}, "+": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}},
+		"floods": {"+": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}},
 		"anchors": {"5": "switch:0", "6": "switch:1", "7": "switch:2", "8": "switch:3", "9": "chest:tide_pendant@tides_falls_solved", "4": "tide_tablet"},
 		"rows": [
 			"#################",
@@ -1118,7 +1123,7 @@ const ROOMS := {
 			"#+++++++++++++++#",
 			"#+++++++++++++++#",
 			"#+++++++++++++++#",
-			"?+++++++9+++++++#",
+			"#+++++++9+++++++#",
 			"#+++++++++++++++#",
 			"#################",
 		],

@@ -134,6 +134,13 @@ func _run() -> void:
 		if t.has("scene") and is_instance_valid(t["scene"]):
 			t["scene"].free()
 	_check(story.WATER_TARGETS["river_lip"]["spell"] == ["torrent"] and story.WATER_TARGETS["water_panel"]["spell"].has("water"), "Water opens panels, Torrent raises the river")
+	state.gear["acc"] = "wellspring_pendant"
+	_check(is_equal_approx(state.gear_fx("spell_water"), 0.25) and state.gear_fx("spell_fire") == 0.0, "the Wellspring Pendant strengthens water attacks only")
+	state.gear["acc"] = ""
+	_check(src.contains("gear_fx(\"spell_\" + SpellDB.element(_weapon_spell))"), "the hero's elemental attacks read the spell_<element> gear effect")
+	var story_src: String = FileAccess.get_file_as_string("res://scripts/autoload/story.gd")
+	_check(story_src.count("flute_ex(\"song_tides\"") == 0 and story_src.get_slice("func field_cast", 1).get_slice("\nfunc ", 0).count("flute") == 0,
+		"learning and casting elemental spells never uses the flute")
 
 	state.main = real_main
 	fake_main.queue_free()

@@ -193,8 +193,9 @@ func dance() -> void:
 	GameState.learn_spell("water")
 	GameState.receive_item("water_stone")
 	GameState.set_flag("tides_falls_solved")
-	var falls := ML.interior_of("reef", "temple") + "@3"
-	await main._go(falls, Vector2i(2, 7))
+	GameState.set_flag("tides_maze_solved")
+	var hall := ML.interior_of("reef", "temple")
+	await main._go(hall, Vector2i(1, 10))
 	main.world.frozen = true
 	await shot("water_panel")
 	UI.auto_answers = [0]
@@ -203,7 +204,7 @@ func dance() -> void:
 	await main.world._interact()
 	while main._transitioning or not main._pending_goto.is_empty():
 		await main._wait(0.025)
-	var passage: Dictionary = main.world.map["exits"][Vector2i(0, 7)]
+	var passage: Dictionary = main.world.map["exits"][Vector2i(0, 10)]
 	await main._go(passage["to"], passage["spawn"])
 	main.world.frozen = true
 	check(main.world.map["room_key"] == "temple_tides_sanctuary" and not npc("water_acolyte").is_empty(), "the panel leads into the mages' sanctuary")

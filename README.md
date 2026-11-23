@@ -300,10 +300,13 @@ edge (the rest of the row, the keys and the pad's own Start still work).
     Tides and the water dragon strikes the opposing team.
 13. In **Dustwell Oasis**, Rosa runs the Oasis Saloon and makes the Rubywave Five play the same tune on repeat.
     The dance studio next door is open at any trainer level. The dry well leads to a cave where five beavers
-    each claim to be the third strongest. Defeat them, play the Song of Tides for Dale, and learn **Water**.
-    Break Dale’s dam, then play with him at the source dam to refill the town well. Once the water returns,
-    talk to Rosa to free the band. The river stays dry until you learn **Torrent** at the Temple of Tides and
-    play it at the river lip. Captain Reed then sails to Sunwall in the full game or offers the demo credits.
+    each claim to be the third strongest. Defeat them and Dale casts a spell that wakes the spring and refills the
+    town well, then gives you a water stone and teaches **Water**. His chest across the crack holds the Wellspring Pendant (water attacks +25%). Elemental spells never use the
+    flute: each is learned once from a teacher while you carry its element's stone. Once the water returns,
+    talk to Rosa to free the band. The lake north of town stays dry until you learn **Torrent** at the Temple of
+    Tides and use it at the dry spring at the lakebed's south end. In the full game Captain Reed's riverboat then
+    ferries you across the lake to its far (west) shore, where the Mesa Trail starts north to Sunwall; in the demo
+    he offers the credits.
 
 **The Codex** (`scripts/ui/codex.gd`, topics in `scripts/data/codex_db.gd`) explains everything after the Coastal
 Path. It is a little orange robot head (Quaternius's *Animated Robot*, head only, `tools/import_codex_head.gd`) that
@@ -326,6 +329,17 @@ can be switched off under **Settings ► Codex tips**, and then its head leaves 
 talks or you ask it something (**Ask Codex** on the trainer's bar); on a journey played for more than three hours before the Codex
 existed, it says it's switching them off itself the first time it appears. Lesson completion is saved through normal
 phone calls. See [tutorial coverage](docs/tutorials.md).
+
+**AUTO** (`battle.gd` `_beasts_auto`, `_auto_fill`, `_codex_menu`): while the Codex's tips are on, it can choose your
+beasts' moves and targets for you so you only choose your own action. In battle, **Ask Codex** (or a tap on its head)
+first offers **AUTO** or **Help with something** (its topics); AUTO can be on for **every battle** (flag `codex_auto`),
+**just this battle**, or **off**, and can be changed again at any time, the beasts' choices filling in or clearing at once.
+Never in a lesson or a Codex practice. The Start book's Codex page has the same on/off switch and a strategy for each ring
+beast (`Beast.auto_plan`, saved with the beast; `battle.gd` `_auto_plan_score`): **No mercy** (its hardest attacks, MP no
+object), **Save MP** (attacks, free moves first), **Status** (boost an ally who isn't boosted, impair a foe who isn't
+impaired) and **Healing** (heal the hurt, cure statuses, revive the fallen); Status and Healing go back to attacking when
+there's nothing for them to do. The Codex explains AUTO (topic `auto`) in a battle after the one that taught choosing for
+each beast.
 
 Townsfolk and residents add a casual hint about what to do next to whatever else they say (`chatter_db.gd` HINTS, by
 `Story.next_goal()`), so what they talk about moves on as soon as you've done it.
@@ -615,9 +629,10 @@ obstacles (driftwood, sand drifts, boulders, dust storms, ravines) still turn up
   - Then the two sides take their turns, the **faster side first**: the speed of its beasts facing the foe, helped by its trainer's level. Within a side's turn, the trainer acts first, then its beasts by priority and speed. You never see what the foe has chosen: it happens on its turn (a trainer may turn its ring then too).
   - **A target that falls first** (`ring.gd` `retarget`, `battle.gd` `_retarget`; the same rule for your beasts, your slingshot and items, and the foe's AI): when an action's turn comes and its target is down or has left the side facing the attacker, it goes to another beast standing on that side instead, the nearest slot first (a tie goes to the one facing the attacker's own row). With nobody standing there, an attack or the slingshot is turned on their trainer, who is open because that side's middle is down or empty; anything else, and any attack on a wild pack, is dropped without a message. A move that hits everyone just leaves the fallen out. A heal, boost or care item meant for an ally that has fallen goes to the standing ally with the least of its HP left; a revive is never passed on. MP is spent (and an item used up) only when the action has someone to land on. Lessons never turn a blow on a trainer by themselves.
   - Your actions are your equipped **weapon**, **Items**, **Flute**, **Watch**, and **Run** (wild) or **Forfeit** (trainers).
-    Summon and Ask Codex appear when available. Choose your weapon by name to aim it.
-    Each beast chooses **Attack** to open its moves, **Defend** to halve damage until its side's next turn,
-    or **Move** to change slots. Press B or choose Back to return from Attack.
+    Summon and Ask Codex appear when available. Attacks come first and aim straight away: the weapon by name (its
+    plain shot), then any elemental attacks learned through it.
+    Each beast's moves sit on its main bar, plain attacks first, then elemental attacks, then support moves, followed by
+    **Defend** to halve damage until its side's next turn and **Move** to change slots.
   - A plain attack lunges at its target. Any other move is cast: the camera cuts to the caster as its element's glow (white for a plain move) gathers and it lets go, then cuts to where it lands as the glow streaks in, a burst there (rising motes for a heal or a boost) with the target's hit pose and number on the same frame. A beast that Defends holds a braced stance until its side's next turn; a defended or resisted hit is blocked, and other hits knock a beast back as hard as they were (`battle_camera.gd` "cast" / "impact", `battle.gd` `_cast`).
   - Winning plays *Android Sock Hop*. A beaten wild foe vanishes in a puff of smoke; fainted beasts on either trainer's ring lie on their pads, slumped with their eyes shut. A beaten trainer (you too) drops to one knee, head bowed, catching their breath: never knocked flat, as nobody gets hurt (`voxel_person.gd` set_pose "kneel"); a beaten robot powers down. Damage numbers use Quattrocento Sans Bold.
 
@@ -1090,7 +1105,7 @@ Press **Start** (Space) to open your journal: two pages of light tan paper with 
 | Beasts | One left list: **Default element** and its name first, then your carried beasts (the ones on your ring) with their levels and their HP and MP under their names, followed by eggs. The right pane shows **occupied / unlocked slots used** and the actual 3D battle ring and beasts, without the trainer or center dais, from the battle camera's perspective; the focused beast is lit on it. A opens the beast's actions under the ring: **Info**, **Move** (Left/Right preview its compatible spots, A confirms or swaps, B cancels), **Fly** when it can carry you, and **Equip**. Beasts are swapped in and out of storage only at Beast Centers and kennels. |
 | Flute | Every song with its effect and mastery; press A to practise one. Unknown songs show where to learn them. |
 | Bag | A grid of item slots on the left page, one per stack (its count at the corner when there's more than one), in the order care, battle items, weapons, beast gear, trainer gear, sheet music, fishing, key items and tomes; the heading shows stacks used, such as **18/24**. The right page names the focused item and describes it. Choose an item for its actions: **Use**, **Equip** (gear only), **Drop** and **Back**; one that can't be chosen now is dimmed with the reason beside it (battle items: **In battle**). Using an item on a beast, or Equip, turns the left page into your battle ring with you in the middle: each cell is named, and only the beasts (or, for trainer gear, you) it would affect can be chosen: the rest are disabled. A fainted beast's cell is tagged **KO** and an ailing one its status (**PSN**, **SLP**, ...). The right page shows the chosen one's HP and MP bars, its condition explained beside them, and its stats before and after, with **Confirm** and **Cancel** under them. Drop asks first and throws one away. Key items and weapons can't be dropped. B steps back a page at a time (`scripts/ui/bag_page.gd`, rules in `scripts/core/item_use.gd`). |
-| Codex | The topics your Codex can explain (only those you're eligible to know), grouped: battle basics, your team, moves, and gear and songs. The right page shows the explanation; A has the Codex say it. |
+| Codex | AUTO on or off, and each ring beast's AUTO strategy (◄ ►), then the topics your Codex can explain (only those you're eligible to know), grouped: battle basics, your team, moves, and gear and songs. The right page shows the explanation; A has the Codex say it. |
 | Map | An aged-paper map of **Rubisa** across the left page: jagged coastlines, mountains and woodland, the twelve towns and their roads, question-mark pins for towns you haven't reached, and a flag where you are (on a road, halfway along it). The map has no town-name labels; the facing page names the selected town. Tap a town, or move the cursor with the d-pad, to read about it on the right page: its size, mascot, roads, places and arena. With an air beast that can carry you, the page offers **Fly here** (see Fast travel). |
 | Settings | 3D resolution, graphics quality, music and sound volume, text speed, interface color, touch pad, key guide, fullscreen, credits and quit to title. |
 
@@ -2092,7 +2107,7 @@ Pending-request update, 17 November 2026: New Game covers character-creator load
 
 ### Revised story and the third-strongest cave (17 November 2026)
 
-Dustwell’s well leads to five beaver trainers, roaming wild beasts, and dams. Straight passages lined with KayKit dungeon masonry cut through winding chambers of cooler grey cliff rock. Each defeated beaver moves above ground. The old Mine Road entrance has caved in, and saves from inside that cave resume at the well’s entrance with their victories and claimed treasure preserved. The north road leads into a cliff-lined channel with a walkable dry bed. Beyond the panel in the drained falls chamber of the Temple of Tides, Keeper Nerine teaches Torrent. Playing it at the river lip raises the water to the landing and floats Captain Reed's riverboat.
+Dustwell’s well leads to five beaver trainers, roaming wild beasts, and dams. Straight passages lined with KayKit dungeon masonry cut through winding chambers of cooler grey cliff rock. Each defeated beaver moves above ground. The old Mine Road entrance has caved in, and saves from inside that cave resume at the well’s entrance with their victories and claimed treasure preserved. The north road leads to a broad lake in a mesa bowl (`dustwell_channel`), its bed walkable while dry and its river draining out the east edge. Beyond the panel in the drained falls chamber of the Temple of Tides, Keeper Nerine teaches Torrent. Playing it at the dry spring at the lake's south tip fills the lake and floats Captain Reed's riverboat. The boat ferries you between the Dustwell bank and the far (west) shore (`riverboat_west`), whose road is the Mesa Trail's south end (`route4` joins the landing's west edge through its `via` and `via_edge` in `world_db.gd`). The boat waits on whichever shore you walk in from.
 
 Mom befriends Marlyse in a scene on first arriving in Cogsworth. Jared is Vexmora, the scientist seeking to save his dying mother; Matt Gearheart, his older brother, funds the research for profit. Existing internal map IDs and save flags remain compatible. The captive rescue and Caldera Road unlock remain required.
 

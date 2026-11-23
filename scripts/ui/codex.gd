@@ -308,6 +308,28 @@ static func explain(id: String) -> void:
 	_skipped = was
 
 
+## AUTO (battle.gd _beasts_auto): with the Codex's tips on, it can choose your beasts' moves while you choose your own
+## action. "codex_auto" keeps it on for every battle; a battle can also turn it on or off just for itself.
+static func auto_allowed() -> bool:
+	return has_codex() and not GameState.flag("codex_off")
+
+
+## A list the Codex asks from (its head up and untappable meanwhile): the chosen index, or -1 for B.
+static func pick(title: String, items: Array, opts := {}) -> int:
+	_ensure().visible = true
+	_asking = true
+	head.tappable = false
+	var o := {"cancel": true, "width": 420}
+	o.merge(opts, true)
+	var i: int = await UI.choose(title, items, o)
+	_asking = false
+	if is_instance_valid(head):
+		head.tappable = true
+	if i < 0 and not _shown() and is_instance_valid(head) and not (is_instance_valid(_dialog) and not _dialog.closed):
+		head.visible = false
+	return i
+
+
 ## The topics you may ask about, until you back out with B.
 static func ask() -> void:
 	if not has_codex():
@@ -322,17 +344,9 @@ static func ask() -> void:
 				items.append(CodexDB.title(id))
 		if ids.is_empty():
 			return
-		_ensure().visible = true
-		_asking = true
-		head.tappable = false
-		var i: int = await UI.choose("What would you like to know?", items, {"start": start, "cancel": true, "rows": 6, "width": 420})
-		_asking = false
-		if is_instance_valid(head):
-			head.tappable = true
+		# (pick leaves the head up if it was talking when you tapped it)
+		var i: int = await pick("What would you like to know?", items, {"start": start, "rows": 6})
 		if i < 0:
-			# (still up if it was talking when you tapped it)
-			if not _shown() and is_instance_valid(head) and not (is_instance_valid(_dialog) and not _dialog.closed):
-				head.visible = false
 			return
 		start = i
 		await explain(String(ids[i]))

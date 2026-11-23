@@ -103,7 +103,7 @@ const ITEMS := {
 	"well_rope": {"name": "Beaver Rope", "kind": "key", "price": 0, "tier": 99, "desc": "A long coil of knotted rope. Enough for the two rope bridges still down in the well."},
 	"well_ladder": {"name": "Beaver Ladder", "kind": "key", "price": 0, "tier": 99, "desc": "A sturdy wooden ladder. The well's great chamber has a fallen one that needs replacing."},
 	## An element's stone lets the hero use that element's magic, like the stones on beasts' heads.
-	"water_stone": {"name": "Water Stone", "kind": "key", "price": 0, "tier": 99, "desc": "A cool blue stone, like the ones on water beasts' heads. Carrying it lets you work water magic: water spells in battle, and the song's pull on water."},
+	"water_stone": {"name": "Water Stone", "kind": "key", "price": 0, "tier": 99, "desc": "A cool blue stone, like the ones on water beasts' heads. Carrying it lets you work water magic: water spells in battle and in the field."},
 	## Trainer weapons appear on the trainer's battle bar and are never sold or used up.
 	## weapon: target ("enemy": one foe, or an open trainer; "enemies": every foe on the side facing you), power (each
 	## hit's damage against the slingshot's), anim (the trainer's pose: voxel_person.gd set_action), order (in the bar).
@@ -123,6 +123,7 @@ const ITEMS := {
 	"old_sneakers": {"name": "Old Sneakers", "kind": "tgear", "slot": "feet", "price": 150, "tier": 0, "found": true, "fx": {"speed": 0.1}, "desc": "Scuffed but comfy. Walk 10% faster."},
 	"explorer_hat": {"name": "Explorer Hat", "kind": "tgear", "slot": "head", "price": 800, "tier": 1, "fx": {"egg": 0.03}, "desc": "Beaten wild beasts leave eggs more often: +3% egg chance."},
 	"sage_hood": {"name": "Sage Hood", "kind": "tgear", "slot": "head", "price": 1500, "tier": 4, "fx": {"xp": 0.1}, "desc": "Party gains +10% experience."},
+	"wellspring_pendant": {"name": "Wellspring Pendant", "kind": "tgear", "slot": "acc", "price": 900, "tier": 99, "found": true, "fx": {"spell_water": 0.25}, "desc": "Dale's old pendant, a drop of blue glass on a cord. Your water attacks deal 25% more damage."},
 	"hiking_boots": {"name": "Hiking Boots", "kind": "tgear", "slot": "feet", "price": 600, "tier": 1, "fx": {"speed": 0.25}, "desc": "Walk 25% faster."},
 	"wind_sandals": {"name": "Wind Sandals", "kind": "tgear", "slot": "feet", "price": 1800, "tier": 5, "fx": {"speed": 0.45}, "desc": "Walk 45% faster."},
 	"calm_lantern": {"name": "Calm Lantern", "kind": "tgear", "slot": "acc", "price": 900, "tier": 2, "fx": {"encounter": -0.4}, "desc": "40% fewer wild encounters."},

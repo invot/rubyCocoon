@@ -163,6 +163,19 @@ upholstery) over a wood grain and cloth weave of our own.
   `tools/import_iron_cage.gd` into `assets/props/iron_cage.res`). *Changes made:* its base and 36 bars merged into
   one mesh; only the colour texture kept, at 512 px and smoothed for the game's painted look (no normal or metal
   maps); tinted darker in the film.
+- **Well** by VitSh (https://sketchfab.com/VitSh), licensed under
+  [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/),
+  https://sketchfab.com/3d-models/well-016743c084c24cde9b40f18d44d60e25, supplied as `psx/town_well/well.glb`
+  (Dustwell's town well, baked by `tools/import_dustwell_church.gd` into `assets/props/town_well.res`). *Changes
+  made:* merged into one mesh two tiles across; its palette texture enlarged by whole pixels and smoothed, and the
+  shaft's green floor painted dark for the dry well.
+- **Western Church** (a whitewashed plank church, "Iglesia"), supplied by the user as `Western Church.zip` with no
+  author or licence named, so used as Creative Commons under the project's rule; kept in `psx/western_church/`
+  (Dustwell's old church, baked by `tools/import_dustwell_church.gd` into `assets/exteriors/western_church.res`).
+  *Changes made:* turned to stand y-up, scaled to 6.3 tiles across with its nave shortened to 6.6; only its colour
+  texture kept, at 1024 px with its ambient occlusion multiplied in, and smoothed (no normal, metal or roughness maps).
+  Its two crosses (the steeple's and the front door's) cut away; the air emblem and plaque hung in their place are
+  the game's own (`tools/bake_air_emblem.py`).
 - **warehouse FREE LOW-POLY FOR GAMES** by dasy444 (https://sketchfab.com/dasy444), Sketchfab Standard licence,
   https://sketchfab.com/3d-models/warehouse-free-low-poly-for-games-32eeb06ebf8a45db85ea5f98b26f33de: used only as
   a visual reference for the prologue's freight warehouse (its shape, truss roof, window bands and containers),

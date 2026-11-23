@@ -17,6 +17,11 @@ const TOPICS := {
 		"[proud] Got a question? Tap my head, or pick Ask Codex beside your trainer in battle. It never takes up your turn, and I'll help you find the answer.",
 		"[curious] Outside battle, find me on the Codex page of your Start book.",
 		"[proud] Finish every one of my lessons without skipping, and keep my tips on: then once a battle I'll heal a beast in the red!"]},
+	"auto": {"title": "What AUTO does", "group": "Battle basics", "lines": [
+		"[excited] Want a hand? Pick Ask Codex beside your trainer, then AUTO, and I'll choose your beasts' moves!",
+		"[neutral] You still choose your own action. I pick each beast's move and target, then the round begins.",
+		"[happy] Keep AUTO on for every battle, just this one, or switch it off. Ask me again any time to change it.",
+		"[curious] On my page in your Start book, give each beast a plan: No mercy, Save MP, Status or Healing."]},
 	"attack": {"title": "Attacking", "group": "Battle basics", "lines": [
 		"[neutral] Choose your own action first, then each beast's move. Left and right change a choice, A picks it, B goes back.",
 		"[determined] Then aim with left and right and confirm with A. On touch, tap a foe to aim and tap it again to confirm.",
@@ -105,6 +110,21 @@ const TOPICS := {
 		"[neutral] An elemental attack hits with your weapon and the spell's element, so aim water at fire beasts. It costs MP; Basic is free.",
 		"[happy] Your MP grows with your trainer level. Spirit Drops and other MP items work on you too. You keep two spells of each element."]},
 }
+
+## AUTO's strategies, one per beast (Beast.auto_plan; battle.gd _auto_plan_score), in the order the Start book cycles them.
+const AUTO_PLANS := ["mercy", "conserve", "status", "heal"]
+const AUTO_PLAN_NAMES := {"mercy": "No mercy", "conserve": "Save MP", "status": "Status", "heal": "Healing"}
+const AUTO_PLAN_DESCS := {
+	"mercy": "Hits as hard as it can, whatever the MP. Attacks only.",
+	"conserve": "Attacks, using free moves first and saving its MP.",
+	"status": "Boosts allies who aren't boosted and impairs foes who aren't impaired. With nothing left to do, it attacks.",
+	"heal": "Heals the hurt, cures statuses and revives the fallen. When nobody needs it, it attacks.",
+}
+
+
+static func plan_name(plan: String) -> String:
+	return String(AUTO_PLAN_NAMES.get(plan, AUTO_PLAN_NAMES["mercy"]))
+
 
 ## Little noises the Codex sometimes starts a bubble with.
 const BEEPS := ["Beep boop!", "Boop!", "Bleep bloop!", "Bzzt!", "Whirr...", "Ding!", "Beep!", "Blip blip!"]

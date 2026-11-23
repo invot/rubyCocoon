@@ -958,7 +958,8 @@ func _pose() -> void:
 	# lying down: the body comes down, its feet sliding out as its legs fold (front ones forward, back ones back; on
 	# two, sitting with them out in front)
 	if lie > 0.0:
-		var d := _drop * lie
+		# (knocked out, the body stops a little higher: its slump and lolling head must stay on top of the pad)
+		var d := _drop * lie * lerpf(1.0, 0.75, _ease(_ko))
 		off["body"].y -= d
 		if swimmer:
 			rot["body"].z += 0.08 * lie
@@ -1162,7 +1163,7 @@ func _pose() -> void:
 	if _ko > 0.0 and lie > 0.0:
 		var ko := _ease(_ko) * lie
 		rot["body"].x += 0.2 * ko
-		rot["head"].z -= 0.25 * ko
+		rot["head"].z -= 0.08 * ko
 		rot["head"].x += 0.2 * ko
 	if mounted:
 		rot["body"].z = -PI / 4.0

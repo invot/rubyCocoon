@@ -43,6 +43,9 @@ var status_turns := 0
 var origin := "wild"
 var merges := 0
 var abandoned := false
+## How the Codex's AUTO fights with this beast (battle.gd _ai_choose; the Start book's Codex page):
+## "mercy" its hardest hits, "conserve" free moves first, "status" buffs and impairing foes, "heal" its allies.
+var auto_plan := "mercy"
 ## where it stands on its trainer's battle ring (see ring.gd), or -1 (in storage, or not placed yet)
 var slot := -1
 
@@ -350,6 +353,7 @@ func to_dict() -> Dictionary:
 		"ghost": ghost, "rank": rank, "level": level, "xp": xp, "mp": mp, "base": base, "genes": genes,
 		"moves": moves, "known": known, "elem_slots": elem_slots, "passives": passives, "boosts": boosts, "equip": equip, "hp": hp,
 		"origin": origin, "merges": merges, "abandoned": abandoned, "parents": parents,
+		"auto_plan": auto_plan,
 	}
 
 
@@ -384,6 +388,7 @@ func load_dict(d: Dictionary) -> void:
 	merges = int(d.get("merges", 0))
 	abandoned = d.get("abandoned", false)
 	parents = d.get("parents", []).duplicate(true)
+	auto_plan = String(d.get("auto_plan", "mercy"))
 	for parent in parents:
 		_migrate_parent_names(parent)
 	status = ""

@@ -283,7 +283,7 @@ func learn_spell(id: String) -> bool:
 		Sfx.play("levelup")
 		var lines := ["You learned %s!" % sn]
 		if first:
-			lines.append("Your weapon in battle now opens Basic and its elemental attacks. Elemental attacks spend MP, which grows with your trainer level.")
+			lines.append("Your elemental attacks now sit beside your weapon in battle. Elemental attacks spend MP, which grows with your trainer level.")
 		await UI.say(lines)
 		return true
 	while true:

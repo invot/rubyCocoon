@@ -74,13 +74,19 @@ func _check(m: Dictionary) -> Array:
 	var seen := _flood(m, start)
 	problems.append_array(_weapon_check(m, start))
 	if m["id"] == "dustwell_channel":
+		# the riverboat ferries you to the far (west) shore and back (Story._riverboat); before Torrent fills the lake
+		# she's beached, and the far shore (the Mesa Trail's end) waits for her
+		for side in ["landing_east", "landing_west"]:
+			seen.merge(_flood(m, m["anchors"][side]))
+	if m["id"] == "dustwell_channel":
 		var blocked := {}
 		var hull: Rect2i = m.get("beached_hull", Rect2i())
 		for y in range(hull.position.y, hull.end.y):
 			for x in range(hull.position.x, hull.end.x):
 				blocked[Vector2i(x, y)] = true
 		var shore := _flood(m, m["spawns"]["south"], blocked)
-		for anchor in ["riverboat_captain", "river_lip"]:
+		# (the dry spring in the lakebed is gone once Torrent fills the lake)
+		for anchor in ["riverboat_captain", "river_lip"] if m.has("beached_hull") else ["riverboat_captain"]:
 			if not _beside(m, shore, m["anchors"][anchor]):
 				problems.append("no approach to " + anchor)
 		if shore.has(Vector2i(12, 8)) != m.has("beached_hull"):

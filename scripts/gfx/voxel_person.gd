@@ -978,8 +978,14 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		_place_phone(rig, sk, r, dt)
 	if rig.has_meta("critter_visual"):
 		var visual: Node3D = rig.get_meta("critter_visual")
-		visual.position.y = sin(phase) * 0.015 - float(rig.get_meta("kneel_w", 0.0)) * 0.3
-		visual.rotation.x = float(rig.get_meta("kneel_w", 0.0)) * 0.25
+		# beaten, a critter slumps forward and squats down on its own feet (never sinking into the floor)
+		var slump := float(rig.get_meta("kneel_w", 0.0))
+		visual.position.y = sin(phase) * 0.015 * (1.0 - slump)
+		visual.rotation.x = slump * 0.25
+		if not visual.has_meta("rest_scale"):
+			visual.set_meta("rest_scale", visual.scale)
+		var rs: Vector3 = visual.get_meta("rest_scale")
+		visual.scale = Vector3(rs.x * (1.0 + 0.08 * slump), rs.y * (1.0 - 0.18 * slump), rs.z * (1.0 + 0.08 * slump))
 	if rig.has_meta("beaver_animation"):
 		preload("res://scripts/gfx/beaver_model.gd").animate(rig.get_meta("beaver_animation"), speed)
 	if rig.has_meta("weapon_prop"):

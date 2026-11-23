@@ -100,7 +100,8 @@ func _go() -> void:
 	_painted.roughness = 0.95
 	cave_floor = DIRT_LARGE.surface_get_material(0)
 	_flat.begin(Mesh.PRIMITIVE_TRIANGLES)
-	wood = StandardMaterial3D.new()
+	_bed.begin(Mesh.PRIMITIVE_TRIANGLES)
+	wood =StandardMaterial3D.new()
 	wood.albedo_color = WOOD
 	wood.roughness = 0.9
 	rope = StandardMaterial3D.new()
@@ -143,6 +144,7 @@ func _go() -> void:
 	_flush()
 	_rims()
 	_spa()
+	_ravines()
 	_torches()
 	_clutter()
 	_floor_rocks()
@@ -190,6 +192,13 @@ func _diag_wall(p: Vector2i) -> bool:
 const PIT_DEPTH := 2.0
 var pit_y := -INF
 var pit_rim := -INF
+## The ravines' bed: grey flagstones (the user's 2026-11-23 call: a stone floor under the bridges, walls round them)
+const BED_TEX := preload("res://assets/textures/surfaces/stone.png")
+const BED_TINT := Color("#8f8d8a")
+var _bed := SurfaceTool.new()
+var _bed_n := 0
+## the bends' bed halves, [tile, corners], for their water
+var _ravine_halves := []
 
 
 func _pit_level() -> void:
@@ -250,8 +259,8 @@ func _floors() -> void:
 		for x in w:
 			var p := Vector2i(x, y)
 			if _abyss(p):
-				# (the pit's dirt floor)
-				_quad(p, pit_y)
+				# (the ravine's stone bed)
+				_bed_quad(p)
 				continue
 			if _stone(p) or _stone_door(p):
 				# the cut stone stands along the middle of its tiles: the floor runs on under it
@@ -268,6 +277,9 @@ func _floors() -> void:
 				var under := _under(p)
 				if under > pit_y + 0.01:
 					_quad(p, under)
+				else:
+					# (over a ravine: its stone bed runs on under the bridge)
+					_bed_quad(p)
 				continue
 			if _ramp(p):
 				var r := Elev.ramp_dir(map, p)
@@ -282,6 +294,18 @@ func _floors() -> void:
 	flat.mesh = _flat.commit()
 	flat.material_override = cave_floor
 	rb.parent.add_child(flat)
+	if _bed_n > 0:
+		var bed := MeshInstance3D.new()
+		_bed.generate_normals()
+		bed.mesh = _bed.commit()
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = BED_TEX
+		mat.albedo_color = BED_TINT
+		mat.roughness = 0.9
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		bed.material_override = mat
+		bed.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		rb.parent.add_child(bed)
 	for mesh: Mesh in _dirt_tiles:
 		var xfs: Array = _dirt_tiles[mesh]
 		var mm := MultiMesh.new()
@@ -382,6 +406,23 @@ func _dirt_at(mesh: Mesh, xf: Transform3D) -> void:
 	_dirt_tiles[mesh].append(xf)
 
 
+## A ravine tile's stone bed (stone.png's flagstones, a slab about a tile long), at the pit's floor.
+func _bed_quad(p: Vector2i) -> void:
+	_bed_tri(p, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1)])
+	_bed_tri(p, [Vector2(0, 0), Vector2(1, 1), Vector2(0, 1)])
+
+
+func _bed_tri(p: Vector2i, corners: Array) -> void:
+	var pts := []
+	for c: Vector2 in corners:
+		pts.append(Vector3(p.x + c.x, pit_y, p.y + c.y))
+	var up: bool = ((pts[1] as Vector3) - pts[0]).cross((pts[2] as Vector3) - pts[0]).y > 0.0
+	for k in ([0, 2, 1] if up else [0, 1, 2]):
+		_bed.set_uv(Vector2(pts[k].x, pts[k].z) * 0.5)
+		_bed.add_vertex(pts[k])
+	_bed_n += 1
+
+
 func _quad(p: Vector2i, y: float) -> void:
 	_flat_quad(Vector3(p.x, y, p.y), Vector3(p.x + 1, y, p.y + 1))
 
@@ -453,11 +494,20 @@ func _diag_wall_floor(p: Vector2i) -> void:
 	if half.is_empty():
 		return
 	var y := Elev.surface(map, p)
+	var by_ravine := false
+	var found := false
 	for d in [Vector2i.DOWN, Vector2i.UP, Vector2i.LEFT, Vector2i.RIGHT]:
 		var q: Vector2i = p + d
+		by_ravine = by_ravine or _abyss(q)
 		if _inside(q) and not rb.wallish(q.x, q.y) and not _abyss(q):
 			y = Elev.surface(map, q) if not _ramp(q) else y
+			found = true
 			break
+	if by_ravine and not found:
+		# (a bend in a ravine: its stone bed, and its water once it runs)
+		_bed_tri(p, half)
+		_ravine_halves.append([p, half])
+		return
 	_tri(p, half, y)
 
 
@@ -651,7 +701,8 @@ func _darkened(vs: PackedVector3Array, cs: PackedColorArray) -> PackedColorArray
 	for i in vs.size():
 		if vs[i].y < pit_rim:
 			var c := out[i]
-			c.r = maxf(c.r, lerpf(1.0, 0.6, clampf((vs[i].y - pit_y) / PIT_DEPTH, 0.0, 1.0)))
+			# (only gently now the ravines are lit, so their walls show down to the stone bed)
+			c.r = maxf(c.r, lerpf(0.6, 0.4, clampf((vs[i].y - pit_y) / PIT_DEPTH, 0.0, 1.0)))
 			out[i] = c
 	return out
 
@@ -1054,6 +1105,184 @@ func _spa() -> void:
 	glow.light_volumetric_fog_energy = 0.0
 	glow.position = Vector3(mid.x, Elev.surface(map, tub[0]) + 1.4, mid.y)
 	rb.parent.add_child(glow)
+
+
+## The ravines under the rope bridges: a soft light down in each, so their stone beds and rock walls show, and once Dale
+## has taught Water (map "well_flowing", the well restored) a stream running along them out of the rock towards the
+## front, fed where a ravine ends at the back wall by a waterfall down it (bridge 4's, in Dale's room).
+const WATER_DEPTH := 0.7
+const RAVINE_LIGHT := 0.75
+const RAVINE_RANGE := 4.0
+const FALL_WIDE_MAX := 1.7
+
+
+func _ravines() -> void:
+	if pit_y == -INF:
+		return
+	var flowing: bool = map.get("well_flowing", false)
+	# each ravine: its open tiles (not the stretches roofed over in the rock), joined across its bridges
+	var seen := {}
+	for y in h:
+		for x in w:
+			var start := Vector2i(x, y)
+			if seen.has(start) or not _abyss(start) or _closed_crack(start):
+				continue
+			var tiles := []
+			var todo := [start]
+			seen[start] = true
+			while not todo.is_empty():
+				var p: Vector2i = todo.pop_back()
+				tiles.append(p)
+				for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var q: Vector2i = p + d
+					if not seen.has(q) and ((_abyss(q) and not _closed_crack(q)) or _bridge(q)):
+						seen[q] = true
+						todo.append(q)
+			var mid := Vector3.ZERO
+			var n := 0
+			for p: Vector2i in tiles:
+				if _abyss(p):
+					mid += Vector3(p.x + 0.5, 0, p.y + 0.5)
+					n += 1
+			if n == 0:
+				continue
+			mid /= n
+			var glow := OmniLight3D.new()
+			glow.light_color = Color("#8fc8e8") if flowing else Color("#cfc4b2")
+			glow.light_energy = RAVINE_LIGHT * (0.6 if flowing else 1.0)
+			glow.omni_range = RAVINE_RANGE
+			glow.omni_attenuation = 0.8
+			glow.light_volumetric_fog_energy = 0.0
+			glow.shadow_enabled = false
+			glow.position = Vector3(mid.x, pit_y + (1.9 if flowing else 1.3), mid.z)
+			rb.parent.add_child(glow)
+	if flowing:
+		_ravine_water()
+
+
+func _ravine_water() -> void:
+	var water := ShaderMaterial.new()
+	water.shader = preload("res://scripts/gfx/water.gdshader")
+	water.set_shader_parameter("frames", preload("res://scripts/gfx/voxel_textures.gd").frames("water"))
+	water.set_shader_parameter("frame_count", float(preload("res://scripts/gfx/voxel_textures.gd").WATER_FRAMES))
+	water.set_shader_parameter("fps", 6.0)
+	water.set_shader_parameter("tint", Color("#1f6f9e"))
+	water.set_shader_parameter("shallow_tint", Color("#1d5f7c"))
+	water.set_shader_parameter("opacity", 0.9)
+	water.set_shader_parameter("glow", 0.0)
+	water.set_shader_parameter("froth", 0.12)
+	# (running out towards the front: the pattern moves against the drift)
+	water.set_shader_parameter("drift", Vector2(0.0, -0.55))
+	var wy := pit_y + WATER_DEPTH
+	var verts := PackedVector3Array()
+	var tris := []
+	for y in h:
+		for x in w:
+			var p := Vector2i(x, y)
+			if _abyss(p) or (_bridge(p) and _under(p) <= pit_y + 0.01):
+				tris.append([p, [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1)]])
+				tris.append([p, [Vector2(0, 0), Vector2(1, 1), Vector2(0, 1)]])
+	tris.append_array(_ravine_halves)
+	for t: Array in tris:
+		var p: Vector2i = t[0]
+		var pts := []
+		for c: Vector2 in t[1]:
+			pts.append(Vector3(p.x + c.x, wy, p.y + c.y))
+		var up: bool = ((pts[1] as Vector3) - pts[0]).cross((pts[2] as Vector3) - pts[0]).y > 0.0
+		for k in ([0, 2, 1] if up else [0, 1, 2]):
+			verts.append(pts[k])
+	if verts.is_empty():
+		return
+	var normals := PackedVector3Array()
+	normals.resize(verts.size())
+	normals.fill(Vector3.UP)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var sheet := MeshInstance3D.new()
+	sheet.mesh = am
+	sheet.material_override = water
+	sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rb.parent.add_child(sheet)
+	# a waterfall down the back wall wherever an open ravine ends against it (not one running on into the rock)
+	var runs := {}
+	for x in w:
+		for y in range(1, h):
+			var p := Vector2i(x, y)
+			if _abyss(p) and not _closed_crack(p) and _wall(p + Vector2i.UP) and not _deep(p + Vector2i.UP):
+				runs[y] = runs.get(y, []) + [x]
+	for y: int in runs:
+		var xs: Array = runs[y]
+		xs.sort()
+		var x0: int = xs[0]
+		var x1: int = xs[-1] + 1
+		var top: float = -INF
+		for x in range(x0, x1):
+			top = maxf(top, float(_top.get(Vector2i(x, y - 1), -INF)))
+		if top == -INF:
+			continue
+		_waterfall(Vector3((x0 + x1) * 0.5, top, y), minf(float(x1 - x0) * 0.85, FALL_WIDE_MAX), wy, water)
+
+
+## A sheet of water pouring from the top of the rock face at `at` (its foot's middle, z on the face), hugging the wall,
+## then curving out into the stream at wy, foam where it lands (tide_water.gd _build_wall_fall's shape).
+func _waterfall(at: Vector3, wide: float, wy: float, water: ShaderMaterial) -> void:
+	var fall: ShaderMaterial = water.duplicate()
+	fall.set_shader_parameter("opacity", 0.92)
+	fall.set_shader_parameter("fall_swell", true)
+	fall.set_shader_parameter("fall_rim", true)
+	fall.set_shader_parameter("drift", Vector2(0.0, -1.2))
+	fall.set_shader_parameter("fall_stretch", 4.5)
+	fall.set_shader_parameter("froth", 0.3)
+	var low := wy - at.y
+	var profile: Array[Vector2] = [Vector2(0.12, 0.0), Vector2(0.16, -0.4), Vector2(0.14, -1.5), Vector2(0.16, low + 0.34),
+		Vector2(0.28, low + 0.1), Vector2(0.5, low)]
+	var half := wide / 2.0
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	for i in profile.size() - 1:
+		var a := profile[i]
+		var b := profile[i + 1]
+		var n := Vector3(0, b.x - a.x, a.y - b.y).normalized()
+		for v: Vector3 in [Vector3(-half, a.y, a.x), Vector3(half, a.y, a.x), Vector3(half, b.y, b.x),
+				Vector3(-half, a.y, a.x), Vector3(half, b.y, b.x), Vector3(-half, b.y, b.x)]:
+			verts.append(v)
+			normals.append(n)
+			uvs.append(Vector2(2.0, profile[0].y - v.y))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	mi.material_override = fall
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = at
+	rb.parent.add_child(mi)
+	var foam := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.5
+	disc.bottom_radius = 0.5
+	disc.height = 0.02
+	disc.radial_segments = 16
+	disc.rings = 1
+	foam.mesh = disc
+	var fm := StandardMaterial3D.new()
+	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fm.albedo_color = Color(0.94, 0.98, 1.0, 0.72)
+	foam.material_override = fm
+	foam.position = Vector3(at.x, wy + 0.03, at.z + 0.55)
+	foam.scale = Vector3(wide + 0.3, 1.0, 0.7)
+	foam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	rb.parent.add_child(foam)
 
 
 ## Wall torches (TempleLights.wall_torch, KayKit's) on the back walls' faces, one about every TORCH_GAP tiles along each

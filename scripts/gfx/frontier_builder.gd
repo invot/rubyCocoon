@@ -7,6 +7,7 @@ extends RefCounted
 ##   their icon, and a porch roof striped in their colour; houses a tin gable roof.
 ##   The saloon (building_looks "frontier": "saloon") is two storeys with a balcony on posts across its front, batwing
 ##   doors and SALOON on its false front; the jail ("jail") one storey with barred windows, a sheriff's star and JAIL.
+##   The old church ("church") is the supplied whitewashed plank church with its steeple (_church).
 ##   The Beast Center is a little temple (voxel_buildings.gd's shrine pieces: pale stone, a stepped tiled roof with a
 ##   crystal at its peak, the pawprint on a stepped pediment) behind a colonnade where the other buildings have porches.
 ## Missing-trainer posters are pinned to the porch posts (Story's poster boards are the ones you can read).
@@ -37,6 +38,7 @@ const PORCH := 1.15
 const POST_TOP := 2.45
 const FALSE_FRONT := 1.3
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
+const SeeThrough = preload("res://scripts/gfx/see_through.gd")
 
 
 ## Whether this style builds that building (the others are voxel_buildings.gd's, in the western style).
@@ -67,6 +69,8 @@ static func build(b: Dictionary) -> Node3D:
 		"studio":
 			o.merge({"floors": 1, "front": "flat", "words": "DANCE", "ground": "wide", "awning": Color(VBld.SHOP_ROOF.get(shop, "#c84040"))})
 			b["height"] = _facade(node, w, d, rng, o)
+		"church":
+			b["height"] = _church(node, w, d)
 		"house", "home", "decor":
 			o.merge({"floors": 2 if w >= 5 and rng.randf() < 0.5 else 1, "front": "gable", "ground": "house", "upper": "house"})
 			b["height"] = _facade(node, w, d, rng, o)
@@ -80,6 +84,67 @@ static func build(b: Dictionary) -> Node3D:
 				o["words"] = b["words"]
 			b["height"] = _facade(node, w, d, rng, o)
 	return node
+
+
+## The old church the elemental mages kept, the bandits' now (Story's church bandits stand guard at its door): the
+## supplied whitewashed plank church with its belfry and steeple (assets/exteriors/western_church.res, baked by
+## tools/import_dustwell_church.gd), its door in the middle of its front; its doors are barred (building_looks
+## "knockable"). It stands south of Main Street and towers over it, so whatever of it stands between the camera and the
+## hero dissolves around them, and all of it thins away while it stands between the camera and them (see_through.gd).
+## The model's crosses are gone (tools/import_dustwell_church.gd): it was the elemental mages' church, and the air
+## emblem hangs on its door and a round air plaque stands on the steeple's cap (tools/bake_air_emblem.py). Returns
+## the height of its top.
+static func _church(node: Node3D, w: float, d: float) -> float:
+	var model: Mesh = load("res://assets/exteriors/western_church.res") if ResourceLoader.exists("res://assets/exteriors/western_church.res") else null
+	if model == null:
+		return 3.0
+	var mi := SeeThrough.new()
+	mi.mesh = model
+	var baked := model.surface_get_material(0) as BaseMaterial3D
+	mi.material_override = _see_through(baked.albedo_texture if baked != null else null)
+	mi.see_materials.append(mi.material_override)
+	# (its front steps at the plot's front)
+	var box := model.get_aabb()
+	mi.position.z = d / 2.0 - box.end.z
+	node.add_child(mi)
+	# the air emblem where the door's cross was (on its planks, 2.03 ahead of the church's middle, 1.9 up), and the
+	# plaque on the steeple's cap (13.2 up) where the cross stood on it
+	for e in [["air_emblem", Vector3(0.02, 1.9, 2.05), 1.3], ["air_plaque", Vector3(-0.05, 13.68, 1.87), 1.05]]:
+		var tex: Texture2D = load("res://assets/exteriors/%s.png" % e[0])
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE * float(e[2])
+		var em := MeshInstance3D.new()
+		em.mesh = quad
+		em.position = e[1]
+		em.material_override = _see_through(tex)
+		mi.see_materials.append(em.material_override)
+		mi.add_child(em)
+	# sealed behind its walls (its plank walls stand 2.7 either side of its middle, its front 2.0 ahead of it and its
+	# eaves 6.5 up): only planks show through the bell tower's open balcony and the gaps in its boards
+	var k := VBld.Kit.new()
+	k.box("planks", Vector3(0, 3.1, -0.62), Vector3(5.0, 6.1, 4.95), Color("#cfc4b0"))
+	# (and up under the roof's ridge, 8.5 up, as far as its slopes allow)
+	for step in [[3.6, 7.0], [3.4, 7.12], [3.1, 7.25], [2.6, 7.4], [2.0, 7.6]]:
+		k.box("planks", Vector3(0, (6.0 + step[1]) / 2.0, -0.62), Vector3(step[0], step[1] - 6.0, 4.95), Color("#cfc4b0"))
+	var seal := MeshInstance3D.new()
+	seal.mesh = k.mesh()
+	# (it thins away with the church)
+	for s in seal.mesh.get_surface_count():
+		var sm := seal.mesh.surface_get_material(s) as BaseMaterial3D
+		var see := _see_through(sm.albedo_texture if sm != null else null)
+		seal.set_surface_override_material(s, see)
+		mi.see_materials.append(see)
+	seal.position.z = mi.position.z
+	node.add_child(seal)
+	return box.size.y
+
+
+## The see-through landmark material (see_through.gdshader) over a colour texture.
+static func _see_through(tex: Texture2D) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://scripts/gfx/see_through.gdshader")
+	mat.set_shader_parameter("albedo_tex", tex)
+	return mat
 
 
 ## A store or house for the outskirts, past the map's edge: [node, radius].

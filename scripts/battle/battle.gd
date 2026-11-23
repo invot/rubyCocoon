@@ -164,7 +164,7 @@ const LESSONS := {
 		"intro": ["Lesson one: attacking! Pick your own action first, then your beast's move.",
 			"Left and right change a choice, A picks it and B goes back. Then A again on the foe. On touch, tap a foe and tap it again."],
 		"rounds": [
-			{"say": ["Pick Watch beside your trainer, then Attack and a move for {beast}."], "you": "Watch", "beast": "Attack"},
+			{"say": ["Pick Watch beside your trainer, then a move for {beast}."], "you": "Watch", "beast": "Attack"},
 			{"say": ["Nice hit! That number is the damage it did. Once more!"], "you": "Watch", "beast": "Attack"},
 		]},
 	"defend": {"level": 3, "finish": 2,
@@ -176,7 +176,7 @@ const LESSONS := {
 	"potions": {"level": 3, "finish": 3,
 		"intro": ["Lesson three: potions! Battles get rough, so always carry some."],
 		"rounds": [
-			{"say": ["Warm-up round! You Watch, and {beast} picks Attack."], "you": "Watch", "beast": "Attack"},
+			{"say": ["Warm-up round! You Watch, and {beast} picks a move."], "you": "Watch", "beast": "Attack"},
 			{"say": ["Ouch, {beast} got nipped! Here, take a Minor Potion. Pick Items beside your trainer and give it to {beast}."],
 				"give": {"minor_potion": 1}, "you": "Items", "beast": "Attack"},
 			{"say": ["Good as new! Now finish it!"], "you": "Watch", "beast": "Attack"},
@@ -228,6 +228,8 @@ var _commanding := false
 ## the Codex was tapped while nothing was being chosen: its question list opens at the battle's next pause
 ## (_codex_gate), since pausing the tree mid-action leaves the battle running on behind it
 var _codex_wanted := false
+## AUTO for this battle only (_codex_menu): "on", "off", or "" to follow the default ("codex_auto").
+var _auto_battle := ""
 ## the command panel's rows this round (see _panel_rows)
 var _rows_now: Array = []
 
@@ -1701,14 +1703,36 @@ func _lie_down(b, ease := true) -> void:
 		return
 	BeastModel.pose_guard(_model(b), false)
 	var n: Node3D = nodes[b]
+	# the model (not its node) rolls onto its side on the pad top, raised by as much as its flank sinks below it
+	var h: Node3D = n.get_node("Model")
+	var box := _local_box(h)
+	var to_y := float(n.get_meta("lift")) + maxf(0.0, box.end.z * sin(LIE_ROLL) - box.position.y * cos(LIE_ROLL))
 	if not ease:
-		n.rotation.z = -1.4
-		n.position.y = -0.3
+		h.rotation.x = LIE_ROLL
+		h.position.y = to_y
 		return
 	var tw := create_tween()
-	tw.tween_property(n, "rotation:z", -1.4, 0.35)
-	tw.parallel().tween_property(n, "position:y", -0.3, 0.5)
-	tw.parallel().tween_property(n, "scale", Vector3(0.6, 0.6, 0.6), 0.5)
+	tw.tween_property(h, "rotation:x", LIE_ROLL, 0.35)
+	tw.parallel().tween_property(h, "position:y", to_y, 0.35)
+
+
+## How far an old-style beast model rolls onto its side when it faints (its length runs along x).
+const LIE_ROLL := 1.4
+
+
+## The bounds of everything drawn under `node`, in its own space (before its own transform).
+func _local_box(node: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	var inv := node.global_transform.affine_inverse() if node.is_inside_tree() else Transform3D.IDENTITY
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).mesh == null:
+			continue
+		var rel := inv * (mi as Node3D).global_transform if node.is_inside_tree() else (mi as Node3D).transform
+		var b: AABB = rel * (mi as MeshInstance3D).mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
 
 
 func _despawn(b) -> void:
@@ -2311,7 +2335,8 @@ func _command_phase() -> Array:
 			"go":
 				break
 			"codex":
-				await Codex.ask()
+				if await _codex_menu():
+					rows = _rows_after_auto(rows)
 			"rotate":
 				if _practice != "":
 					continue
@@ -2338,7 +2363,8 @@ func _command_phase() -> Array:
 				var opt: Dictionary = rows[0]["options"][int(rows[0]["sel"])]
 				match String(opt["id"]):
 					"codex":
-						await Codex.ask()
+						if await _codex_menu():
+							rows = _rows_after_auto(rows)
 					"items":
 						var act := await _choose_item()
 						if not act.is_empty():
@@ -2402,7 +2428,7 @@ func _panel_rows() -> Array:
 	var shield := ""
 	if GameState.max_shield > 0:
 		shield = "Shield " + "◆".repeat(GameState.shield) + "◇".repeat(GameState.max_shield - GameState.shield) + "   "
-	var t_opts := [_weapon_option()]
+	var t_opts := _weapon_options()
 	t_opts.append_array([
 		{"id": "items", "label": "Items", "icon": "item", "sub": true, "desc": "Heal, cure or revive your beasts, buff your team, or hit the foes with bombs and powders."},
 		{"id": "flute", "label": "Flute", "icon": "flute", "sub": true, "disabled": not GameState.has_flute(),
@@ -2471,37 +2497,86 @@ func _panel_rows() -> Array:
 				if not row["options"][i].get("disabled", false):
 					row["sel"] = i
 					break
+			if _beasts_auto():
+				_auto_fill(row, b)
 		rows.append(row)
 	_rows_now = rows
 	return rows
 
 
-## The equipped weapon goes straight to targeting. The slingshot lesson always teaches a slingshot shot.
-func _weapon_option() -> Dictionary:
+## Whether the Codex chooses your beasts' moves (AUTO): only with its tips on, never in a lesson or its practice.
+func _beasts_auto() -> bool:
+	if tutorial or _practice != "" or rotation_lesson or not Codex.auto_allowed():
+		return false
+	if _auto_battle != "":
+		return _auto_battle == "on"
+	return GameState.flag("codex_auto")
+
+
+## AUTO: the Codex picks a beast's move and target the way a careful trainer would (_ai_choose), shown on its row as
+## if chosen. Choosing something else on the row replaces it (command_panel.gd drops "act").
+func _auto_fill(row: Dictionary, b) -> void:
+	var act := _ai_choose(b, true)
+	var want := ""
+	match String(act.get("type", "")):
+		"defend":
+			want = "defend"
+		"move":
+			want = String(act["move"])
+		_:
+			return
+	var idx := -1
+	for i in row["options"].size():
+		var o: Dictionary = row["options"][i]
+		if o.get("disabled", false):
+			continue
+		if (want == "defend" and String(o.get("id", "")) == "defend") or String(o.get("move", "")) == want:
+			idx = i
+			break
+	if idx < 0:
+		return
+	row["sel"] = idx
+	var ts := _row_targets(row, row["options"][idx])
+	row["targets"] = ts
+	var ref = act.get("target", null)
+	for j in ts.size():
+		var r2 = ts[j]["ref"]
+		var both_text := typeof(ref) == TYPE_STRING and typeof(r2) == TYPE_STRING
+		if (both_text and ref == "trainer" and r2 == "foe_trainer") \
+				or (typeof(ref) != TYPE_STRING and typeof(r2) != TYPE_STRING and r2 == ref):
+			row["target_sel"] = j
+			break
+	row["target_all"] = String(row["options"][idx].get("target", "")) in ["enemies", "allies"]
+	row["act"] = act
+	row["auto"] = true
+	row["done"] = true
+
+
+## The trainer's attacks, all on the main bar: the equipped weapon's plain shot first (by the weapon's name), then
+## each learned elemental attack through it (spell_db.gd). The slingshot lesson always teaches a slingshot shot.
+func _weapon_options() -> Array:
 	var id: String = "slingshot" if tutorial else GameState.weapons()[0]
 	var w := ItemDB.weapon(id)
 	var desc: String = {"slingshot": "Fire a stone at a foe or an exposed trainer.",
 		"boomerang": "Sweep every foe on the side facing you; the boomerang comes back to your hand.",
 		"bat": "Run up to a foe and swing: the hardest hit of the three."}.get(id, "")
-	var out := {"id": "weapon", "weapon": id, "icon": "attack", "label": ItemDB.item_name(id),
+	var basic := {"id": "weapon", "weapon": id, "icon": "attack", "label": ItemDB.item_name(id),
 		"target": w.get("target", "enemy"), "desc": desc}
+	var out := [basic]
 	if tutorial or _practice == id or not GameState.trainer_mp_unlocked() or GameState.known_spells.is_empty():
 		return out
-	# once a spell is known the named weapon opens Basic and its elemental attacks (spell_db.gd)
-	var choices := [{"id": "weapon", "weapon": id, "icon": "attack", "label": "Basic", "right": "0 MP",
-		"target": w.get("target", "enemy"), "desc": desc + " Costs no MP."}]
+	basic["right"] = "0 MP"
+	basic["desc"] = desc + " Costs no MP."
 	for sid in GameState.known_spells:
 		# (no element's magic without its stone: GameState.has_stone)
 		if not GameState.has_stone(SpellDB.element(sid)):
 			continue
 		var cost := SpellDB.mp_cost(sid)
 		var off := GameState.trainer_mp < cost
-		choices.append({"id": "weapon", "weapon": id, "spell": sid, "el": SpellDB.element(sid), "icon": SpellDB.element(sid),
+		out.append({"id": "weapon", "weapon": id, "spell": sid, "el": SpellDB.element(sid), "icon": SpellDB.element(sid),
 			"label": SpellDB.attack_name(sid, id), "right": "%d MP" % cost, "target": w.get("target", "enemy"), "disabled": off,
 			"desc": ("Not enough MP: it costs %d and you have %d." % [cost, GameState.trainer_mp]) if off
 				else "%s %s Costs %d MP (you have %d)." % [desc, String(SpellDB.get_spell(sid).get("desc", "")), cost, GameState.trainer_mp]})
-	out["choices"] = choices
-	out["desc"] = "Choose Basic or an elemental attack with your %s. B returns here." % ItemDB.item_name(id).to_lower()
 	return out
 
 
@@ -2539,6 +2614,14 @@ func _move_options(b) -> Array:
 				desc = "%s: \"%s\"" % [_tut_who(), "Defend this round!" if want_b == "Defend" else "Use %s for now. You'll try the others soon!" % MoveDB.get_move(_tut_move(b))["name"]]
 				note = desc
 		out.append({"id": "move", "move": mv, "icon": ActionIcons.for_move(mv), "label": String(m["name"]), "right": right, "desc": desc, "note": note, "target": m["target"], "disabled": off})
+	# plain attacks first, then elemental attacks, then support moves (stable within each group)
+	var rank := func(o: Dictionary) -> int:
+		var mm := MoveDB.get_move(String(o["move"]))
+		return (0 if String(mm["el"]) == "neutral" else 1) if String(mm["kind"]) == "attack" else 2
+	var sorted := []
+	for r in 3:
+		sorted.append_array(out.filter(func(o): return rank.call(o) == r))
+	out = sorted
 	if el == "neutral" and not b.ghost:
 		var plain := "%s can't use %s moves from the %s side: plain moves only." % [b.nickname, b.element_text(), Ring.side_element(ally_side).capitalize()]
 		out[0]["desc"] = plain + "\n" + String(out[0]["desc"])
@@ -2547,16 +2630,10 @@ func _move_options(b) -> Array:
 	return out
 
 
-## Top-level beast actions. Moves stay under Attack, including support moves; a beast with only one move shows that
-## move in Attack's place instead of a one-item submenu.
+## Top-level beast actions: every move on the main bar (plain attacks, elemental attacks, support moves), then
+## Defend and Move.
 func _beast_options(b) -> Array:
-	var moves := _move_options(b)
-	var attack: Dictionary = moves[0] if moves.size() == 1 else {"id": "attack", "label": "Attack", "icon": "attack", "choices": moves,
-		"desc": "Choose one of %s's moves. B returns here." % b.nickname}
-	if tutorial and _tut_beast() == "Defend":
-		attack["disabled"] = true
-		attack["desc"] = "%s: \"Defend this round!\"" % _tut_who()
-	var out := [attack]
+	var out := _move_options(b)
 	var d := {"id": "defend", "label": "Defend", "icon": "defend", "target": "none", "right": "half damage",
 		"desc": "Brace for impact: %s takes half damage until your side's next turn." % b.nickname}
 	if tutorial and _tut_beast() != "Defend":
@@ -2727,6 +2804,8 @@ func _new_battle_lessons() -> void:
 	if not Codex.has_codex():
 		return
 	await Codex.veteran()
+	# (AUTO is told in a battle after the one that taught choosing for each beast)
+	var knew_team := GameState.flag("codex_seen_team")
 	if not wild:
 		await Codex.chime("guard")
 	if (not wild and foes.size() > 1) or _alive(ally_slots).size() > 1:
@@ -2748,6 +2827,8 @@ func _new_battle_lessons() -> void:
 	for w in ["boomerang", "bat"]:
 		if GameState.weapons().has(w):
 			await _codex_lesson(w)
+	if knew_team and _alive(ally_slots).size() > 1 and not GameState.flag("codex_auto"):
+		await Codex.chime("auto")
 	if not GameState.flag("ring_rotation_taught") and GameState.party.size() > 3 and Ring.next_side(ally_ring, ally_side, 1) != ally_side:
 		GameState.set_flag("codex_seen_ring", false)
 		Codex.begin_lesson()
@@ -2785,7 +2866,63 @@ func _codex_gate() -> void:
 	if not _codex_wanted:
 		return
 	_codex_wanted = false
-	await Codex.ask()
+	await _codex_menu()
+
+
+## Asking the Codex in battle: with its tips on it offers AUTO (it chooses your beasts' moves) before its topics.
+## True if AUTO changed.
+func _codex_menu() -> bool:
+	if not Codex.auto_allowed() or tutorial or _practice != "":
+		await Codex.ask()
+		return false
+	var was := _beasts_auto()
+	var start := 0
+	while true:
+		var state := "Off"
+		if _beasts_auto():
+			state = "On, every battle" if _auto_battle == "" else "On, this battle"
+		var i: int = await Codex.pick("How can I help?", ["AUTO: %s" % state, "Help with something"], {"start": start})
+		if i < 0:
+			break
+		start = i
+		if i == 1:
+			await Codex.ask()
+			continue
+		var cur := 2
+		if _beasts_auto():
+			cur = 0 if _auto_battle == "" else 1
+		var j: int = await Codex.pick("AUTO: I choose your beasts' moves. You choose your own.",
+			["Every battle", "Just this battle", "Off", "What's AUTO?"], {"start": cur})
+		match j:
+			0:
+				GameState.set_flag("codex_auto")
+				_auto_battle = ""
+			1:
+				GameState.set_flag("codex_auto", false)
+				_auto_battle = "on"
+			2:
+				GameState.set_flag("codex_auto", false)
+				_auto_battle = ""
+			3:
+				GameState.set_flag("codex_seen_auto")
+				await Codex.explain("auto")
+				continue
+			_:
+				continue
+		Sfx.play("confirm")
+		var now := _beasts_auto()
+		if now != was:
+			UI.toast(("AUTO on: %s chooses your beasts' moves." % GameState.codex_name()) if now else "AUTO off: you choose your beasts' moves.", "notice")
+		break
+	return _beasts_auto() != was
+
+
+## The command rows again after AUTO changed: your own choice stays, the beasts' are filled in or cleared.
+func _rows_after_auto(rows: Array) -> Array:
+	var keep: Dictionary = rows[0]
+	var out := _panel_rows()
+	out[0] = keep
+	return out
 
 
 ## Done all the Codex's lessons (codex.gd mastered)? Then once a battle, as you're about to choose, it fully heals
@@ -2840,7 +2977,7 @@ const PRACTICE_SAY := {
 func _practice_hint() -> String:
 	match _practice:
 		"team":
-			return "Watch, then pick Attack and a move for each beast."
+			return "Watch, then pick a move for each beast."
 		"move":
 			return "Watch, then Move %s." % (_practice_mover.nickname if _practice_mover != null else "your beast")
 		"flute":
@@ -3131,6 +3268,10 @@ func _acts_from_rows(rows: Array) -> Array:
 		if not r.get("done", false) or r.get("status", "") != "" or r.get("beast", null) == null:
 			continue
 		var b = r["beast"]
+		if r.has("act"):
+			# (AUTO's choice, untouched)
+			acts.append(r["act"])
+			continue
 		var o2: Dictionary = r["options"][int(r["sel"])]
 		if o2["id"] == "defend":
 			acts.append({"type": "defend", "actor": b, "prio": 7})
@@ -3640,6 +3781,9 @@ func _ai_actions() -> Array:
 	var weapon := _rival_weapon_action(song_now)
 	if not weapon.is_empty():
 		out.append(weapon)
+	var claws := _rival_claws_action()
+	if not claws.is_empty():
+		out.append(claws)
 	return out
 
 
@@ -3743,7 +3887,8 @@ func _ai_pick_side() -> int:
 	return foe_side
 
 
-func _ai_choose(b) -> Dictionary:
+## `careful`: AUTO choosing for your beast (no wild-battle sloppiness).
+func _ai_choose(b, careful := false) -> Dictionary:
 	if tutorial:
 		var enemies0 := _alive(_theirs(b))
 		if enemies0.is_empty():
@@ -3761,8 +3906,9 @@ func _ai_choose(b) -> Dictionary:
 		if open:
 			return {"type": "move", "actor": b, "move": _best_attack(b, moves), "target": "trainer", "prio": 0}
 		return {"type": "none"}
-	if not tutorial and b.hp_ratio() < 0.3 and randf() < 0.25:
+	if not tutorial and not careful and b.hp_ratio() < 0.3 and randf() < 0.25:
 		return {"type": "defend", "actor": b, "prio": 7}
+	var plan: String = String(b.auto_plan) if careful else ""
 	var best_mv: String = moves[0]
 	var best_t = null
 	var best_score := -1.0
@@ -3809,7 +3955,11 @@ func _ai_choose(b) -> Dictionary:
 				if not cands.is_empty():
 					target = cands.pick_random()
 					score = 50.0 if round_no <= 3 else 25.0
-		score *= randf_range(0.5, 1.5) if wild else randf_range(0.8, 1.2)
+		if plan != "":
+			var planned := _auto_plan_score(b, plan, mv, m, score, target, allies, enemies)
+			score = float(planned[0])
+			target = planned[1]
+		score *= randf_range(0.5, 1.5) if wild and not careful else randf_range(0.8, 1.2)
 		if score > best_score:
 			best_score = score
 			best_mv = mv
@@ -3820,6 +3970,60 @@ func _ai_choose(b) -> Dictionary:
 		if randf() < (0.85 if other_shield == 0 else 0.45):
 			best_t = "trainer"
 	return {"type": "move", "actor": b, "move": best_mv, "target": best_t, "prio": int(MoveDB.get_move(best_mv).get("prio", 0))}
+
+
+## AUTO's strategy for one of your beasts (Beast.auto_plan) reweighs a move's score: [score, target].
+##   mercy     its hardest hits, MP no object; nothing but attacks
+##   conserve  attacks, free ones first
+##   status    raise an ally that isn't boosted, or impair a foe that isn't impaired; else attack
+##   heal      heal the hurt, cure a status, revive the fallen; else attack
+func _auto_plan_score(b, plan: String, mv: String, m: Dictionary, score: float, target, allies: Array, enemies: Array) -> Array:
+	var kind := String(m["kind"])
+	var cost := MoveDB.mp_cost(mv)
+	if kind == "attack":
+		match plan:
+			"mercy":
+				return [score * (1.0 + 0.004 * cost), target]
+			"conserve":
+				return [score * (1.0 if cost == 0 else 0.35), target]
+		return [score, target]
+	match plan:
+		"status":
+			if kind in ["buff", "shield"]:
+				var pool: Array = [b] if String(m["target"]) == "self" else allies
+				var calm: Array = pool.filter(func(a): return _boost(a) <= 0)
+				if not calm.is_empty():
+					return [400.0, calm[0]]
+			elif kind in ["status", "debuff"]:
+				var fresh: Array = enemies.filter(func(e): return (e.status == "") if kind == "status" else _boost(e) >= 0)
+				if not fresh.is_empty():
+					return [400.0, fresh.pick_random()]
+			return [0.0, target]
+		"heal":
+			match kind:
+				"heal":
+					var hurt: Array = ([b] if String(m["target"]) == "self" else allies).filter(func(a): return a.hp_ratio() < 0.7)
+					if not hurt.is_empty():
+						hurt.sort_custom(func(x, y): return x.hp_ratio() < y.hp_ratio())
+						return [300.0 + 200.0 * (1.0 - hurt[0].hp_ratio()), hurt[0]]
+				"cleanse":
+					var sick: Array = ([b] if String(m["target"]) == "self" else allies).filter(func(a): return a.status != "")
+					if not sick.is_empty():
+						return [380.0, sick[0]]
+				"revive":
+					if target != null:
+						return [500.0, target]
+			return [0.0, target]
+	# mercy and conserve: nothing but attacks
+	return [0.0, target]
+
+
+## A beast's stat stages added up this battle: above 0 boosted, below 0 impaired.
+func _boost(b) -> int:
+	var total := 0
+	for k in _st(b)["stages"]:
+		total += int(_st(b)["stages"][k])
+	return total
 
 
 func _best_attack(b, moves: Array) -> String:
@@ -3873,7 +4077,7 @@ func _resolve(acts: Array) -> void:
 			continue
 		if a.get("type", "none") in ["none", "flute"]:
 			continue
-		_message_subject = a.get("actor", "foe_trainer" if a.get("type", "") in ["rival_song", "rival_weapon"] else "trainer_self")
+		_message_subject = a.get("actor", "foe_trainer" if a.get("type", "") in ["rival_song", "rival_weapon", "rival_claws"] else "trainer_self")
 		_set_acting(_message_subject)
 		match a.get("type", "none"):
 			"item":
@@ -3882,6 +4086,8 @@ func _resolve(acts: Array) -> void:
 				await _do_weapon(a)
 			"rival_weapon":
 				await _do_rival_weapon(a)
+			"rival_claws":
+				await _do_rival_claws(a)
 			"strike_trainer":
 				await _strike(a.get("actor", null), "ally")
 			"shift":
@@ -3931,10 +4137,10 @@ func _field_revived(t) -> void:
 		var rig := _rig(t)
 		if rig != null:
 			rig.state = "idle"
+		var h: Node3D = n.get_node("Model")
 		var tw := create_tween()
-		tw.tween_property(n, "rotation:z", 0.0, 0.3)
-		tw.parallel().tween_property(n, "position:y", 0.0, 0.3)
-		tw.parallel().tween_property(n, "scale", Vector3.ONE * 1.15, 0.3)
+		tw.tween_property(h, "rotation:x", 0.0, 0.3)
+		tw.parallel().tween_property(h, "position:y", float(n.get_meta("lift")), 0.3)
 	_refresh()
 
 
@@ -4104,6 +4310,116 @@ func _rival_weapon_action(song_now: bool) -> Dictionary:
 	return {"type": "rival_weapon", "weapon": id, "prio": 9}
 
 
+## A critter trainer's own attacks (trainer "claws": the well's beavers). Most rounds it joins its beasts: a bite or a
+## claw slash, scampering over to one of your beasts, or earth magic, thumping its dais so a rock spike bursts up
+## under one. One hit each, as strong as a trainer's weapon (by the trainer's level), never a crit.
+const CLAW_ATTACKS := {
+	"bite": {"power": 1.0, "acc": 0.9, "line": "%s bites %s!"},
+	"slash": {"power": 0.9, "acc": 0.95, "line": "%s slashes at %s with its claws!"},
+	"earth": {"power": 1.2, "acc": 0.9, "el": "earth", "line": "%s stamps the ground. Rock Spike on %s!"},
+}
+const CLAW_CHANCE := 0.6
+
+
+func _rival_claws_action() -> Dictionary:
+	if wild or tutorial or not trainer.get("claws", false) or not is_instance_valid(rival_rig):
+		return {}
+	if randf() >= CLAW_CHANCE or _alive(ally_slots).is_empty():
+		return {}
+	return {"type": "rival_claws", "attack": CLAW_ATTACKS.keys().pick_random(), "prio": 9}
+
+
+func _do_rival_claws(a: Dictionary) -> void:
+	var targets := _alive(ally_slots)
+	if targets.is_empty() or not is_instance_valid(rival_rig):
+		return
+	var t = targets.pick_random()
+	var id := String(a.get("attack", "bite"))
+	var at: Dictionary = CLAW_ATTACKS[id]
+	await msg(String(at["line"]) % [String(trainer.get("name", "The trainer")), t.nickname], 0.5)
+	var aim := _target_point(t)
+	var home := rival_rig.position
+	if id == "earth":
+		_camera_shot("follow", "foe_trainer", t)
+		# up on its hind feet, then a thump that sends the spike up under the target
+		var tw := create_tween()
+		tw.tween_property(rival_rig, "position:y", home.y + 0.3, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(rival_rig, "position:y", home.y, 0.1).set_ease(Tween.EASE_IN)
+		await tw.finished
+		Sfx.play("explosion", 0.1)
+		await _rock_spike(t)
+		await _claw_land(t, at)
+		return
+	await _run_to(rival_rig, _front_of(t, rival_rig), aim)
+	_camera_shot("follow", "foe_trainer", t)
+	# a quick pounce in and back
+	var from := rival_rig.position
+	var into := Vector3(aim.x - from.x, 0.0, aim.z - from.z).normalized() * 0.35
+	var lt := create_tween()
+	lt.tween_property(rival_rig, "position", from + into + Vector3(0, 0.12, 0), 0.12).set_ease(Tween.EASE_OUT)
+	await lt.finished
+	Sfx.play("growl" if id == "bite" else "hit", 0.15)
+	await _claw_land(t, at)
+	var back := create_tween()
+	back.tween_property(rival_rig, "position", from, 0.15)
+	await back.finished
+	if result == "":
+		await _run_to(rival_rig, home, aim, true)
+
+
+## Accuracy and damage for a critter trainer's attack on a beast (as a weapon's, by the trainer's level).
+func _claw_land(t, at: Dictionary) -> void:
+	if t == null or t.hp <= 0:
+		return
+	var acc := float(at["acc"]) / _acc_mult(int(_st(t)["stages"]["eva"]))
+	if _st(t)["vanish"] or randf() > acc:
+		Sfx.play("miss")
+		_float_text(t, "Miss", Color.WHITE)
+		await msg("%s dodged it!" % t.nickname, 0.6)
+		return
+	var eff := 1.0
+	if at.has("el"):
+		eff = Elements.multiplier(String(at["el"]), _guard_el(t))
+	var tier := _foe_trainer_level() - 1
+	var dmg := maxi(1, int(round((3.0 + 3.0 * tier + t.max_hp() * 0.05) * randf_range(0.85, 1.15) * float(at["power"]) * eff)))
+	await _deal(null, t, {"dmg": dmg, "eff": eff, "crit": false, "pierce": false})
+
+
+## Earth magic landing: a ring of stone spikes bursts up out of the ground round a beast, with a spray of earth, then
+## sinks away.
+func _rock_spike(t) -> void:
+	if not nodes.has(t) or not is_instance_valid(nodes[t]):
+		return
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 0.16
+	cone.height = 0.75
+	cone.radial_segments = 5
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Elements.COLOR["earth"].darkened(0.25)
+	m.roughness = 0.9
+	var base: Vector3 = nodes[t].position
+	var r := 0.35 + float(nodes[t].get_meta("height")) * 0.2
+	_spell_splash(t, Elements.COLOR["earth"])
+	for k in 5:
+		var spike := MeshInstance3D.new()
+		spike.mesh = cone
+		spike.material_override = m
+		var a := TAU * k / 5.0 + 0.3
+		var out := Vector3(cos(a), 0.0, sin(a))
+		spike.position = base + out * r + Vector3(0, -0.5, 0)
+		# leaning in towards the beast
+		spike.rotation = Vector3(-out.z, 0.0, out.x) * -0.45
+		add_child(spike)
+		var tw := create_tween()
+		tw.tween_interval(k * 0.03)
+		tw.tween_property(spike, "position:y", base.y + 0.45, 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		tw.tween_interval(0.45)
+		tw.tween_property(spike, "position:y", base.y - 0.5, 0.3).set_ease(Tween.EASE_IN)
+		tw.tween_callback(spike.queue_free)
+	await get_tree().create_timer(0.2).timeout
+
+
 ## Where a trainer stands to swing a bat at a beast: just in front of it, on the trainer's side.
 func _front_of(t, rig: Node3D) -> Vector3:
 	var at: Vector3 = nodes[t].position if nodes.has(t) else FOE_CENTER
@@ -4187,6 +4503,9 @@ func _weapon_land(id: String, t) -> void:
 	if _weapon_spell != "":
 		eff = Elements.multiplier(SpellDB.element(_weapon_spell), _guard_el(t))
 		power *= SpellDB.power(_weapon_spell) * eff
+		# (the hero's gear can strengthen one element's attacks: "spell_water" on the Wellspring Pendant)
+		if _team(t) == "foe":
+			power *= 1.0 + GameState.gear_fx("spell_" + SpellDB.element(_weapon_spell))
 		_spell_splash(t, SpellDB.color(_weapon_spell))
 	var dmg := maxi(1, int(round((3.0 + 3.0 * tier + t.max_hp() * 0.05) * randf_range(0.85, 1.15) * power)))
 	await _deal(null, t, {"dmg": dmg, "eff": eff, "crit": false, "pierce": false})

@@ -1383,6 +1383,9 @@ func knock(b: Dictionary, world = null) -> void:
 	await UI.say(ChatterDB.fill(lines, GameState.player_name), "Legion Grunt" if cathedral else "Muffled Voice", null, source)
 	if cathedral:
 		await Story.say(["The cathedral doors are barred from the inside."])
+	elif b.get("frontier", "") == "church":
+		# Dustwell's old church, held by the bandits (Story CHURCH_BANDITS)
+		await Story.say(["The church doors are barred from the inside."])
 
 
 func house(b: Dictionary, resident_seed := 0) -> void:

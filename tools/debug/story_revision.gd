@@ -4,6 +4,7 @@ const Maps = preload("res://scripts/world/map_loader.gd")
 const Grid = preload("res://scripts/world/map_gen.gd")
 const Jail = preload("res://scripts/story/prison_escape.gd")
 const Family = preload("res://scripts/story/family_film.gd")
+const ItemDB = preload("res://scripts/data/item_db.gd")
 var bad := 0
 class BattleStub extends Node:
 	var _test := {"save_dir": "res://build/story_revision_stub/"}
@@ -64,42 +65,38 @@ func run(main, opts: Dictionary) -> void:
 	var fake_world := Node.new()
 	fake_world.set_script(load("res://tools/debug/story_revision_world.gd"))
 	main.add_child(fake_world)
+	# (elemental spells never use the flute: a hero without one, or the temple's song, still learns Water)
+	GameState.gear["flute"] = ""
+	GameState.songs.erase("song_tides")
+	GameState.inventory.erase("water_stone")
 	await Story._dale(fake_world, {"name": "Dale"})
-	_check(GameState.flag("dale_met") and GameState.flag("well_bridge_4") and not GameState.flag("learned_water"), "Dale lowers his bridge but teaches nothing before the water stone")
-	GameState.receive_item("water_stone")
-	await Story._dale(fake_world, {"name": "Dale"})
-	_check(not GameState.flag("learned_water"), "Dale waits until the hero brings the flute and the guardian's song")
-	GameState.gear["flute"] = "reed_flute"
-	GameState.songs.append("song_tides")
-	UI.auto_flute = [{"acc": 1.0, "mistakes": 0}, {"acc": 1.0, "mistakes": 0}]
-	await Story._dale(fake_world, {"name": "Dale"})
-	_check(GameState.flag("learned_water") and GameState.flag("dale_heard"), "Dale teaches Water once the hero carries the water stone")
-	var falls := Maps.load_map(Maps.interior_of("reef", "temple") + "@3", {"tides_falls_solved": true})
+	_check(GameState.flag("dale_met") and GameState.flag("well_restored") and GameState.flag("dale_heard"), "Dale's own spell restores the well in one talk")
+	_check(GameState.has_stone("water") and GameState.flag("learned_water"), "Dale hands over a water stone and teaches Water, with no flute")
+	_check(GameState.flag("well_bridge_4"), "Dale lowers the bridge to his chest")
+	var rooms_src := FileAccess.get_file_as_string("res://scripts/data/maps/interior_maps.gd")
+	_check(rooms_src.contains("\"chest:wellspring_pendant#0\"") and not rooms_src.contains("chest:water_stone")
+		and ItemDB.get_item("wellspring_pendant").get("kind", "") == "tgear"
+		and ItemDB.get_item("wellspring_pendant")["fx"].get("spell_water", 0.0) > 0.0, "Dale's chest holds the Wellspring Pendant, which strengthens water attacks")
+	var hall := Maps.load_map(Maps.interior_of("reef", "temple"), {"tides_falls_solved": true, "tides_maze_solved": true})
 	var panel: Dictionary = {}
-	for n in Story.extra_npcs(falls):
+	for n in Story.extra_npcs(hall):
 		if n.get("target", "") == "water_panel":
 			panel = n
 		if n.has("scene"):
 			n["scene"].free()
-	_check(falls["room_key"] == "temple_tides_falls" and not panel.is_empty(), "the real temple room keeps its Water target")
+	_check(hall["room_key"] == "temple_tides_hall" and not panel.is_empty(), "the temple's great hall keeps its Water target")
 	if not panel.is_empty():
-		UI.auto_answers = [0]
-		UI.auto_flute = [{"acc": 1.0, "mistakes": 0, "cancelled": true}]
+		UI.auto_answers = [1]
 		await Story._water_target(fake_world, panel)
-		_check(not GameState.flag("water_mages_found"), "cancelling the song leaves the panel shut")
+		_check(not GameState.flag("water_mages_found"), "declining the spell leaves the panel shut")
 		UI.auto_answers = [0]
-		UI.auto_flute = [{"acc": 0.3, "mistakes": 2}]
-		await Story._water_target(fake_world, panel)
-		_check(not GameState.flag("water_mages_found"), "a poor performance leaves the panel shut")
-		UI.auto_answers = [0]
-		UI.auto_flute = [{"acc": 0.9, "mistakes": 0}]
 		await Story._water_target(fake_world, panel)
 	_check(GameState.flag("water_mages_found"), "Water opens the temple panel")
-	var stone := Vector2i(0, 7)
-	_check(not falls["exits"].has(stone), "the closed panel has no passage")
-	var opened := Maps.load_map(falls["id"], {"tides_falls_solved": true, "water_mages_found": true})
+	var stone := Vector2i(0, 10)
+	_check(not hall["exits"].has(stone) and hall["stone_doors"].has(stone), "the closed panel is a stone door flush in the wall, with no passage")
+	var opened := Maps.load_map(hall["id"], {"tides_falls_solved": true, "tides_maze_solved": true, "water_mages_found": true})
 	var sanctuary := Maps.load_map(opened["exits"][stone]["to"], GameState.flags)
-	_check(sanctuary["room_key"] == "temple_tides_sanctuary" and sanctuary["exits"].values()[0]["to"] == falls["id"], "the sanctuary doorway leads back to the falls")
+	_check(sanctuary["room_key"] == "temple_tides_sanctuary" and sanctuary["exits"].values()[0]["to"] == hall["id"], "the sanctuary doorway leads back to the great hall")
 	var teacher := false
 	for n in Story.extra_npcs(sanctuary):
 		if n.get("id", "") == "water_teacher":

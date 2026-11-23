@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## The hero keeps at most MAX_PER_ELEMENT spells of each element (as a beast keeps a few moves): learning another
 ## means forgetting one. Water and Torrent also work in the field (Story.field_cast). Field use rests on the
-## permanent "learned_<id>" flag, so a spell forgotten for battle still answers the song at a dam or a panel.
+## permanent "learned_<id>" flag, so a spell forgotten for battle still works at a panel or the river's lip. Spells
+## never use the flute: the hero learns each once from a teacher while carrying its element's stone.
 ##
 ## Keys: name, el (Elements), power (times the weapon's plain damage), mp (cost per use), tier (1 first), field
 ## (a field use exists), names (per weapon), fx (the colour each hit flashes and floats in), desc.

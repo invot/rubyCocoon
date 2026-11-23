@@ -3791,12 +3791,17 @@ func _step(d: Vector2i, run: bool) -> bool:
 	if room_walls != null and room_walls.door_leaves.has(target) and map["exits"].has(target):
 		_through_door(target)
 		return false
+	if _locked_exit(target) and Elev.joined(map, player_pos, target):
+		_try_locked_door(target)
+		return false
 	if stair_ways.has(target) and map["exits"].has(target) and _can_step(player_pos, target):
 		_take_stairs(target)
 		return false
 	var wb = _beast_at(target)
 	if wb != null:
-		_bump_wild(wb)
+		# (only a beast on your own level: one at the foot or top of a cliff just blocks the way)
+		if Elev.joined(map, player_pos, target):
+			_bump_wild(wb)
 		return false
 	# (a block up or down a cliff can't be reached to push)
 	if pushables.has(target) and (not Elev.joined(map, player_pos, target) or not _push(target, d)):
@@ -3846,6 +3851,25 @@ func _through_door(t: Vector2i) -> void:
 	await get_tree().create_timer(0.12).timeout
 	busy = false
 	GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
+
+
+## Whether tile t is a doorway still shut by its flag (map "locked_doors": Dibble's planks in the Dustwell Well). You
+## can't walk into one: you stop in front of it and try it from there (_try_locked_door).
+func _locked_exit(t: Vector2i) -> bool:
+	var ex: Dictionary = map["exits"].get(t, {})
+	return ex.has("locked_by") and not GameState.flag(String(ex["locked_by"]))
+
+
+## Trying a locked door from the tile in front of it (walking into it, or pressing A at it): it stays shut and you
+## stay put, unless you have its key (Story.can_use_exit), when you go on through.
+func _try_locked_door(t: Vector2i) -> void:
+	_clear_path()
+	busy = true
+	var ex: Dictionary = map["exits"][t]
+	var ok: bool = await Story.can_use_exit(self, ex)
+	busy = false
+	if ok:
+		GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
 
 
 ## How fast you climb a ladder, up or down (game units a second along it; a jog on the level is 4.6).
@@ -4031,10 +4055,13 @@ func _on_step_done() -> void:
 		return
 
 
-## A trainer who can see you (straight ahead, up to their sight) comes over and battles. lessons_only: just the
-## teachers (see spot_you). A teacher whose lesson needs another one first doesn't notice you yet.
+## A trainer who can see you (straight ahead, up to their sight, and to either side up to their "side_sight", 0 for
+## most) comes over and battles. lessons_only: just the teachers (see spot_you). A teacher whose lesson needs another
+## one first doesn't notice you yet. Nobody spots you mid-climb on a ladder: they wait until you step off it.
 func _check_trainer_sight(lessons_only := false) -> bool:
 	if GameState.party.is_empty():
+		return false
+	if _ladder_dir(player_pos) != Vector2i.ZERO:
 		return false
 	for p in npcs.keys():
 		var n: Dictionary = npcs[p]
@@ -4045,21 +4072,40 @@ func _check_trainer_sight(lessons_only := false) -> bool:
 		if (lessons_only and not n.has("lesson")) or (n.has("needs") and not GameState.flag(String(n["needs"]))):
 			continue
 		var f: Vector2i = n.get("facing", Vector2i(0, 1))
-		for i in range(1, int(n.get("sight", 4)) + 1):
-			var q: Vector2i = p + f * i
-			# nobody looks past a cliff's edge (they couldn't come over to you)
-			if not Elev.joined(map, q - f, q):
-				break
-			if q == player_pos:
-				# they stop you: a tapped walk ends here
-				_clear_path()
-				busy = true
-				await _trainer_approach(n, p, i)
-				busy = false
-				return true
-			if not MapGen.walkable(MapGen.get_t(map, q.x, q.y)) or npcs.has(q):
-				break
+		var side := int(n.get("side_sight", 0))
+		var looks := [[f, int(n.get("sight", 4))], [Vector2i(f.y, -f.x), side], [Vector2i(-f.y, f.x), side]]
+		for look in looks:
+			var d: Vector2i = look[0]
+			var i := _sight_reach(p, d, int(look[1]))
+			if i == 0:
+				continue
+			# they stop you: a tapped walk ends here. Spotted from the side, they turn to you first.
+			_clear_path()
+			busy = true
+			if d != f:
+				n["facing"] = d
+				var node: Node3D = n.get("node", null)
+				if node != null and node.has_node("Body"):
+					VPer.face(node, d)
+			await _trainer_approach(n, p, i)
+			busy = false
+			return true
 	return false
+
+
+## How many tiles from p along d you stand (0 if you're not within `reach` of it, or a wall, cliff edge or someone
+## else is in the way).
+func _sight_reach(p: Vector2i, d: Vector2i, reach: int) -> int:
+	for i in range(1, reach + 1):
+		var q: Vector2i = p + d * i
+		# nobody looks past a cliff's edge (they couldn't come over to you)
+		if not Elev.joined(map, q - d, q):
+			return 0
+		if q == player_pos:
+			return i
+		if not MapGen.walkable(MapGen.get_t(map, q.x, q.y)) or npcs.has(q):
+			return 0
+	return 0
 
 
 ## The teachers don't wait for you to take a step: arriving on a map (Youngster Kit as you come through his door, the
@@ -4115,6 +4161,9 @@ func _interact() -> void:
 			busy = false
 			return
 	var t := _facing_tile()
+	if _locked_exit(t) and Elev.joined(map, player_pos, t):
+		await _try_locked_door(t)
+		return
 	# (the spa's sign hangs on the platform's railing, read from the floor below it as well as from the platform)
 	var hung: bool = interior and map.get("furniture", {}).get(t, "") == "hot_tub_sign"
 	if hung:
@@ -5458,6 +5507,9 @@ func _wild_free(p: Vector2i, w: Dictionary, from := Vector2i(-999, -999)) -> boo
 	var c := MapGen.get_t(map, p.x, p.y)
 	if not MapGen.walkable(c) or (interior and c != MapGen.MIST and not _roams_floor(c)) or c == MapGen.DOOR or c == MapGen.ICE:
 		return false
+	# beasts can't climb: they never set foot on a ladder (a rope up a cliff, the Well's wooden ones)
+	if _ladder_dir(p) != Vector2i.ZERO:
+		return false
 	# wild beasts keep out of the push puzzles, and in a town keep to its meadow
 	if map.has("puzzle_area") and (map["puzzle_area"] as Rect2i).grow(1).has_point(p):
 		return false
@@ -5486,6 +5538,9 @@ func _wild_sees(w: Dictionary) -> bool:
 	var dist := to.length()
 	if dist < 0.5:
 		return true
+	# nothing on another level notices you, by sight or by ear (a ramp's slope counts as the level it joins)
+	if not _wild_same_level(w["pos"], player_pos):
+		return false
 	if moving and move_speed > 6.0 and dist <= WILD_HEAR:
 		return true
 	var sight := WILD_SIGHT
@@ -5496,6 +5551,11 @@ func _wild_sees(w: Dictionary) -> bool:
 	if to.normalized().dot(Vector2(w["facing"]).normalized()) < 0.35:
 		return false
 	return _line_clear(w["pos"], player_pos)
+
+
+## True if tiles a and b are on the same level for a wild beast: no cliff's height between their surfaces.
+func _wild_same_level(a: Vector2i, b: Vector2i) -> bool:
+	return absf(Elev.surface(map, a) - Elev.surface(map, b)) <= Elev.LEVEL_H * 0.6
 
 
 func _line_clear(a: Vector2i, b: Vector2i) -> bool:
@@ -5667,7 +5727,7 @@ func _update_wilds(delta: float) -> void:
 			"chase":
 				if not w["moving"]:
 					var gap := absi(w["pos"].x - player_pos.x) + absi(w["pos"].y - player_pos.y)
-					if gap == 1 and not moving:
+					if gap == 1 and not moving and Elev.joined(map, w["pos"], player_pos):
 						var to_beast: Vector2i = w["pos"] - player_pos
 						_wild_encounter(w, "wild" if Vector2(facing).dot(Vector2(to_beast)) > 0.0 else "ambush")
 						return
@@ -5704,7 +5764,7 @@ func _wild_spotted(w: Dictionary) -> void:
 ## you're `far` away) it loses you.
 func _wild_track(w: Dictionary, give_up: float, far: float) -> void:
 	var dist := Vector2(player_pos - w["pos"]).length()
-	if dist <= 2.0 or _wild_sees(w) or _line_clear(w["pos"], player_pos) and dist <= WILD_SIGHT:
+	if dist <= 2.0 and _wild_same_level(w["pos"], player_pos) or _wild_sees(w) or _line_clear(w["pos"], player_pos) and dist <= WILD_SIGHT:
 		w["lost"] = 0.0
 	else:
 		w["lost"] = float(w["lost"]) + 0.12

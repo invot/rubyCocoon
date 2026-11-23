@@ -454,18 +454,25 @@ const MAPS := {
 	"dustwell": {
 		"prop_clearance": [[2, 5, 5, 2], [32, 5, 5, 2], [43, 5, 5, 2]],
 		# An old western main street (frontier_builder.gd): false-fronted stores, the saloon, the diner Beast Center
-		# and the jail in a row along Main Street, the oasis pool west of the square, missing-trainer posters about
-		# town (Story: poster_0..3), friends of the missing trainers looking for them (searcher_0..2), and Slim (convict).
+		# and the jail in a row along Main Street, the town well west of the square where the oasis pool dried up, the
+		# old church south-east of the square (the bandits', Story: church_bandit_0..1 at its door), missing-trainer
+		# posters about town (Story: poster_0..3), friends of the missing trainers looking for them (searcher_0..2), and
+		# Slim (convict).
 		"style": "frontier",
 		# keeps the saved interiors of the first town (Center, two houses, apothecary, fortune teller) where they were
-		"building_order": [[25, 2], [2, 2], [8, 2], [38, 2], [43, 2], [14, 2], [32, 2]],
+		# (then the well and the church)
+		"building_order": [[25, 2], [2, 2], [8, 2], [38, 2], [43, 2], [14, 2], [32, 2], [6, 11], [36, 12]],
 		"building_looks": {"1": {"name": "Dustwell Dance Studio", "rooms": ["dance_studio"], "public": true, "frontier": "studio", "words": "DANCE", "paint": "pink"}, "2": {"paint": "orange"}, "3": {"paint": "rose"}, "4": {"paint": "gold"},
 			"5": {"name": "Oasis Saloon", "rooms": ["saloon", "saloon_hall", "saloon_room_a", "saloon_room_b", "saloon_back", "saloon_stage", "saloon_office"], "frontier": "saloon", "paint": "red"},
 			"6": {"name": "Dustwell Jail", "rooms": ["jail"], "frontier": "jail", "paint": "yellow"},
 			# the town well: climbing down it is the way into the beavers' cave (docs/dustwell-water-arc.md)
-			"7": {"name": "Dustwell Well", "rooms": ["well_main", "well_bever1", "well_cellar", "well_nook", "well_long", "well_crack", "well_bever2", "well_bever3", "well_bever4", "well_hall", "well_bever5", "well_hub", "well_dale", "well_bedroom", "well_spa"], "well": true}},
-		# water troughs by the saloon, a wagon on the dune shelf, barrels and crates
-		"street_props": [[14, 6, "water_trough", 1], [20, 6, "barrel", 1], [36, 6, "crate", 2], [38, 17, "wagon", 1],
+			"7": {"name": "Dustwell Well", "rooms": ["well_main", "well_bever1", "well_cellar", "well_nook", "well_long", "well_crack", "well_bever2", "well_bever3", "well_bever4", "well_hall", "well_bever5", "well_hub", "well_dale", "well_bedroom", "well_spa"], "well": true},
+			# the elemental mages' old church, taken over by bandits who hunt mages: its doors barred, two of them at the
+			# door (frontier_builder.gd _church, Story._church_bandit)
+			"8": {"name": "Old Church", "frontier": "church", "knockable": true, "rooms": []}},
+		"anchor_tiles": {"church_bandit_0": Vector2i(38, 19), "church_bandit_1": Vector2i(40, 19)},
+		# water troughs by the saloon, a wagon east of the church (Slim hides behind it), barrels and crates
+		"street_props": [[14, 6, "water_trough", 1], [20, 6, "barrel", 1], [36, 6, "crate", 2], [44, 16, "wagon", 1],
 			[44, 8, "water_trough", 1], [32, 16, "barrel", 1]],
 		"rows": [
 			"TzzzzzzzTTTTTTTTTTTTTT,,TTTTTTTqqqqqqqTTTTzzzzzzzT",
@@ -477,23 +484,23 @@ const MAPS := {
 			"Tzz,,zz5,,,,,,,,,,,,,,,,,,,,,,,6q,,qqq,,,,zz,,zzzT",
 			"TT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TT",
 			"TT................L:::tt:::L....................TT",
-			"TT...____.........::8:tt::::.......4............TT",
-			"TT.._~~~~_........::::SS::::...tt...............TT",
-			"TT._~~~~~~_.......::::SS3:::...tt...............TT",
-			"TT._~~~~~~_....2..::::::::::...tt____.f.....f...TT",
-			"TT.._~~~~_........L::::::::L...JJ____...........TT",
-			"TT...____.............,,.......JJ.......f.......TT",
-			"TT....................,,.....f..................TT",
-			"TT...........@........,,........................TT",
-			"TT..........f.........,,................7.......TT",
-			"TT......__f_..........,,.1..........@........*..TT",
+			"TT....tt..........::8:tt::::.......4............TT",
+			"TT....tt..........::::SS::::...tt...............TT",
+			"TT....JJ..........::::SS3:::...tt...............TT",
+			"TT....JJ.......2..::::::::::...tt...HHHHHHH.f...TT",
+			"TT................L::::::::L........HHHHHHH.....TT",
+			"TT....................,,............HHHHHHH.....TT",
+			"TT....................,,.....f......HHHHHHH.....TT",
+			"TT...........@........,,............HHHHHHH...7.TT",
+			"TT..........f.........,,............HHHHHHH.....TT",
+			"TT......__f_..........,,.1........@.HHHHHHH..*..TT",
 			"TT......____....f....9,,........................TT",
 			"TT....................,,+.......................TT",
 			"TTTTTTTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TTTTTTTTTTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTT",
 		],
-		# the back and sides a step up, a dune shelf south-east of the square with a ramp up to it from the road
+		# the back and sides a step up
 		"heights": [
 			"20000000222222222222000000222220000000222200000002",
 			"20000000222222222222000000222220000000222200000002",
@@ -510,12 +517,12 @@ const MAPS := {
 			"21000000000000000000000000000000000000000000000012",
 			"21000000000000000000000000000000000000000000000012",
 			"21000000000000000000000000000000000000000000000012",
-			"21000000000000000000000000000000000000000000000/12",
-			"210000000000000000000000000000/11111111111111111/2",
-			"21000000000000000000000000000011111111111111111122",
-			"2100000000000000000000000000>>11111111111111111122",
-			"2100000000000000000000000000>>11111111111111111122",
-			"2/0000000000000000000000000000\\11111111111111111\\2",
+			"21000000000000000000000000000000000000000000000012",
+			"21000000000000000000000000000000000000000000000012",
+			"21000000000000000000000000000000000000000000000012",
+			"21000000000000000000000000000000000000000000000012",
+			"21000000000000000000000000000000000000000000000012",
+			"2/0000000000000000000000000000000000000000000000\\2",
 			"00000000000000000000000000000000000000000000000000",
 			"00000000000000000000000000000000000000000000000000",
 			"00000000000000000000000000000000000000000000000000",

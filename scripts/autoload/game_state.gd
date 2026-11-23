@@ -1195,6 +1195,10 @@ func load_game(slot := -2) -> bool:
 			set_flag("beaver_defeated_%d" % i)
 	if flag("well_dam_dale") or flag("well_restored"):
 		set_flag("dale_heard")
+	# (23 November 2026: Dale's lesson in Water fills the well's ravines and the well itself; Torrent is only the river's
+	# now. A journey that heard Dale out before then has its well flowing.)
+	if flag("dale_heard"):
+		set_flag("well_restored")
 	# The well's redesign (22 November 2026): magic needs its element's stone, and Dale hands over the water stone. A
 	# journey that learned water spells before stones existed keeps them working.
 	var saved_spells: Array = d.get("known_spells", [])
