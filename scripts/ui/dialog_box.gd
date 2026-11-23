@@ -247,6 +247,14 @@ func _layout_bubble() -> void:
 			var zone: Rect2 = UI.controls.cluster_zone(group, UI.controls.TOUCH_SLOP + UI.controls.NO_TAP_MARGIN)
 			var footprint := Rect2(rect.position - Vector2(0, plate_h), rect.size + Vector2(0, plate_h))
 			footprint.size.y += _below_reserve()
+			if zone.has_area() and footprint.intersects(zone) and _ctrl_anchor:
+				# The Codex's bubble hangs under its head: lifting it would cover it with the head (its hello, in the
+				# middle of the screen), so slide it sideways off the buttons first.
+				if zone.get_center().x > rect.get_center().x:
+					rect.position.x = maxf(room.position.x, minf(rect.position.x, zone.position.x - rect.size.x - 4.0))
+				else:
+					rect.position.x = minf(room.end.x - rect.size.x, maxf(rect.position.x, zone.end.x + 4.0))
+				footprint.position.x = rect.position.x
 			if zone.has_area() and footprint.intersects(zone):
 				rect.position.y = minf(rect.position.y, zone.position.y - rect.size.y - _below_reserve() - 4.0)
 	rect.position = _snap(rect.position)

@@ -193,6 +193,19 @@ func _people() -> void:
 			_dress({"face": "hero", "body": body, "person": person}, "hero %s outfit %d" % [body, person])
 	for hd in Townfolk.HAIRDOS.size():
 		_dress({"face": "hero", "hairdo": hd}, "hero hairdo %d" % hd)
+	# the buzz cuts and bald: offered to male and non-binary heroes, not female ones (each list a prefix of HAIRDOS)
+	for g in ["male", "non_binary"]:
+		if not Townfolk.hairdos_for(g).has("Bald") or not Townfolk.hairdos_for(g).has("Faux-Hawk"):
+			_fail("a %s hero isn't offered every hairdo" % g)
+	if Townfolk.hairdos_for("female").has("Bald") or Townfolk.hairdos_for("female").size() != 6:
+		_fail("a female hero is offered the male-only hairdos")
+	if not Townfolk.hairdo_parts(Townfolk.HAIRDOS.size() - 1).is_empty():
+		_fail("Bald has hair")
+	# spiky hair under a hat is fitted inside it (Townfolk._grown_hair), not the bare cut poking through
+	for hat in Townfolk.Wardrobe.HATS.size():
+		if Townfolk.hairdo_parts(2, hat) == Townfolk.hairdo_parts(2):
+			_fail("spiky hair under hat %d isn't fitted to it" % hat)
+		_dress({"face": "hero", "hairdo": 2, "hat_style": hat}, "spiky hair under hat %d" % hat)
 	# the one pack, always on, in the colour chosen
 	var o := Townfolk.outfit({"face": "hero", "pack_colour": "#3a5a8a"})
 	if not o["parts"].has(Townfolk.PACK) or o["colours"].get("pack") != Color("#3a5a8a"):

@@ -522,7 +522,7 @@ func _styles(id: String) -> Array:
 		"name":
 			return _names()
 		"hairdo":
-			return Townfolk.HAIRDOS.map(func(h: Array) -> String: return h[1])
+			return Townfolk.hairdos_for(_gender())
 	return Wardrobe.pieces(PIECES[id], _body(), _gender()).map(func(p: Array) -> String: return p[0])
 
 
@@ -561,6 +561,9 @@ func _choose_gender(i: int) -> void:
 		# (a male hero has no long skirt: a non-binary one in it changes into the body's first pants)
 		if int(pick["pants"]) >= _styles("pants").size():
 			pick["pants"] = 0
+		# (nor is a female hero offered the buzz cuts or bald: one goes back to the body's own hairdo)
+		if int(pick["hairdo"]) >= _styles("hairdo").size():
+			pick["hairdo"] = Townfolk.HERO_HAIRDO[_body()]
 		_dress()
 
 

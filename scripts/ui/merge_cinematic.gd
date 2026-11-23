@@ -75,6 +75,7 @@ var _window := Vector2i.ZERO
 var _screen := Vector2.ZERO
 var _hatchery: Node3D
 var _heading: Label
+var _curtain: ColorRect
 
 @onready var _view: SubViewport = $Viewport3D
 @onready var _picture: Sprite2D = $Picture
@@ -107,6 +108,12 @@ func setup(parent_a: Dictionary, parent_b: Dictionary, child: Dictionary) -> Nod
 
 
 func _ready() -> void:
+	# (dark backing shown while the 3D picture waits for its first real frame)
+	_curtain = ColorRect.new()
+	_curtain.color = Color.BLACK
+	_curtain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_curtain)
+	move_child(_curtain, 0)
 	_picture.texture = _view.get_texture()
 	_camera.size = FRAME_HEIGHT / zoom
 	_hatchery = HatcheryStage.new()
@@ -210,9 +217,13 @@ func _fit_to_screen() -> void:
 	var rendered := Prefs.render_size(window)
 	if window == _window and screen == _screen and _view.size == rendered:
 		return
+	var first_fit := _window == Vector2i.ZERO
 	_window = window
 	_screen = screen
-	_view.size = rendered
+	if first_fit or _view.size != rendered:
+		_view.size = rendered
+		ViewportReveal.hold(_picture, _view)
+	_curtain.size = screen
 	_picture.texture_filter = Prefs.render_filter(window)
 	_picture.scale = screen / Vector2(rendered)
 	_fill.scale = screen / _fill.texture.get_size()

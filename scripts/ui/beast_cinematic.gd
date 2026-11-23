@@ -89,6 +89,8 @@ func _ready() -> void:
 	_vp.own_world_3d = true
 	_vp.msaa_3d = Viewport.MSAA_2X
 	_vp.handle_input_locally = false
+	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_vp.size = Prefs.render_size(get_window().size)
 	add_child(_vp)
 	var screen := TextureRect.new()
 	_screen = screen
@@ -97,6 +99,7 @@ func _ready() -> void:
 	screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(screen)
+	ViewportReveal.hold(screen, _vp)
 	_stage = Node3D.new()
 	_vp.add_child(_stage)
 	_build_stage()
@@ -351,6 +354,7 @@ func _process(delta: float) -> void:
 	var render_size := Prefs.render_size(get_window().size)
 	if _vp.size != render_size:
 		_vp.size = render_size
+		ViewportReveal.hold(_screen, _vp)
 	_screen.texture_filter = Prefs.render_filter(get_window().size)
 	if preview_time >= 0:
 		_update(preview_time)

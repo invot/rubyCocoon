@@ -1077,6 +1077,7 @@ func _build_backdrop() -> void:
 	# The terrain itself carries on MARGIN tiles past the edge.
 	ground.position = Vector3(w / 2.0, -4.0, h / 2.0)
 	add_child(ground)
+	_build_open_sea(gm if _sandy() else _tex_mat(VT.terrain("top_sand", String(biome.get("sand", biome["ground"]))), true))
 	var trees: Array = biome["trees"]
 	var shrubs: Array = biome["shrubs"]
 	var rocks: Array = biome["rocks"]
@@ -1176,6 +1177,114 @@ func _build_backdrop() -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(mi)
 		hx += rng.randf_range(12.0, 18.0)
+
+
+## How far the open sea runs past the terrain's margin: far enough that its edge sits less than a pixel under the
+## horizon (any nearer and a strip of the sky's grass-tinted lower half shows between them), inside the camera's 4000 far.
+const OPEN_SEA := 3000.0
+## Coastal towns and paths (world_db.gd biomes): the open sea all round, past their woods and cliffs too.
+const COASTAL_BIOMES := ["coast", "quarter", "island"]
+
+
+## The sea running on to the horizon instead of the backdrop's flat ground showing beyond the terrain's margin: on
+## every side of a coastal town or path (COASTAL_BIOMES), and past any other edge that is mostly water (Cocoon Cove's
+## south, from the elder's dock, is where it showed). The same water over a bed at the margin's
+## own depth (Shoreline.DEEP_FLOOR), so the two meet without a step in colour. North and south strips run the full
+## width out to OPEN_SEA; east and west strips fill between them.
+func _build_open_sea(bed_mat: Material) -> void:
+	var w: int = map["w"]
+	var h: int = map["h"]
+	var sides := {"north": [], "south": [], "west": [], "east": []}
+	for x in w:
+		sides["north"].append(Vector2i(x, 0))
+		sides["south"].append(Vector2i(x, h - 1))
+	for z in h:
+		sides["west"].append(Vector2i(0, z))
+		sides["east"].append(Vector2i(w - 1, z))
+	var m := float(Terrain.MARGIN)
+	var rects: Array[Rect2] = []
+	var coastal := String(biome.get("id", "")) in COASTAL_BIOMES
+	for side: String in sides:
+		var wet := 0
+		for p: Vector2i in sides[side]:
+			if MapGen.get_t(map, p.x, p.y) == MapGen.WATER:
+				wet += 1
+		if not coastal and wet * 2 < sides[side].size():
+			continue
+		match side:
+			"north": rects.append(Rect2(-m - OPEN_SEA, -m - OPEN_SEA, w + 2.0 * (m + OPEN_SEA), OPEN_SEA))
+			"south": rects.append(Rect2(-m - OPEN_SEA, h + m, w + 2.0 * (m + OPEN_SEA), OPEN_SEA))
+			"west": rects.append(Rect2(-m - OPEN_SEA, -m, OPEN_SEA, h + 2.0 * m))
+			"east": rects.append(Rect2(w + m, -m, OPEN_SEA, h + 2.0 * m))
+	if rects.is_empty():
+		return
+	# The sea's level and bed, read from the terrain's own water (terrain_mesh.gd _liquid_mesh, _prepare_water_bed): the
+	# commonest water level, over the middle bed of the edge's water at that level (the margin copies the edge tiles,
+	# so that is the bed the margin's water shows where it meets this sea).
+	var t := _ground_mesh as Terrain
+	var levels := {}
+	var beds := {}
+	for z in h:
+		for x in w:
+			var i := t._i(x, z)
+			if t.liquid[i] != 1:
+				continue
+			var lv := (t.base_lo[i] + t.base_hi[i]) / 2.0
+			levels[lv] = int(levels.get(lv, 0)) + 1
+			if x == 0 or z == 0 or x == w - 1 or z == h - 1:
+				if not beds.has(lv):
+					beds[lv] = []
+				beds[lv].append(t._top(i))
+	if levels.is_empty():
+		return
+	var level := 0.0
+	var best := -1
+	for lv in levels:
+		if int(levels[lv]) > best:
+			best = levels[lv]
+			level = lv
+	var surface_y := level + Shoreline.WATER_Y
+	var edge_beds: Array = beds.get(level, [Shoreline.DEEP_FLOOR])
+	edge_beds.sort()
+	var bed_y := level + float(edge_beds[edge_beds.size() / 2])
+	var water := PackedVector3Array()
+	var bed := PackedVector3Array()
+	for r: Rect2 in rects:
+		var corners := [Vector3(r.position.x, 0, r.position.y), Vector3(r.end.x, 0, r.position.y), Vector3(r.end.x, 0, r.end.y), Vector3(r.position.x, 0, r.end.y)]
+		for k: int in [0, 1, 2, 0, 2, 3]:
+			water.append(corners[k] + Vector3(0, surface_y, 0))
+			bed.append(corners[k] + Vector3(0, bed_y, 0))
+	for pair in [[water, _open_sea_mat()], [bed, bed_mat]]:
+		var verts: PackedVector3Array = pair[0]
+		var normals := PackedVector3Array()
+		normals.resize(verts.size())
+		normals.fill(Vector3.UP)
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var mi := MeshInstance3D.new()
+		mi.name = "OpenSea" if verts == water else "OpenSeaBed"
+		mi.mesh = mesh
+		mi.material_override = pair[1]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+
+
+## The map's own sea water (terrain_mesh.gd _liquid), for the open sea past the margin.
+func _open_sea_mat() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = WaterShader
+	mat.set_shader_parameter("frames", VT.frames("water"))
+	mat.set_shader_parameter("frame_count", float(VT.WATER_FRAMES))
+	mat.set_shader_parameter("fps", 6.0)
+	mat.set_shader_parameter("tint", Color(biome["water"]))
+	mat.set_shader_parameter("opacity", 0.96)
+	mat.set_shader_parameter("glow", 0.0)
+	mat.set_shader_parameter("drift", Vector2(0.0, 0.03))
+	return mat
 
 
 ## True past the east or west edge within three rows south of a road leading out on that side (the camera looks north,
@@ -1387,6 +1496,15 @@ const SHADOWLESS := "|noshadow"
 
 
 ## True if anyone could walk within `r` tiles of (x, y).
+## Whether any of tile (x, y)'s eight neighbours is water.
+func _water_near(x: int, y: int) -> bool:
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if (dx != 0 or dy != 0) and MapGen.get_t(map, x + dx, y + dy) == MapGen.WATER:
+				return true
+	return false
+
+
 func _open_ground_near(x: int, y: int, r: int) -> bool:
 	for dy in range(-r, r + 1):
 		for dx in range(-r, r + 1):
@@ -1624,6 +1742,15 @@ func _cliff_rocks() -> void:
 					toward = d
 			if toward == Vector2i.ZERO or toward.x == -99 or rng.randf() >= CLIFF_ROCK_SHARE:
 				continue
+			# (only in open water: a tile-wide boulder in a narrow creek would dam half of it)
+			var open := true
+			for k in range(1, 4):
+				var o: Vector2i = p - toward * k
+				if MapGen.get_t(map, o.x, o.y) != MapGen.WATER:
+					open = false
+					break
+			if not open:
+				continue
 			var name: String = CLIFF_ROCKS[rng.randi_range(0, CLIFF_ROCKS.size() - 1)]
 			# about a tile across, standing a little out of the water and reaching well down into it
 			var bb := VA.aabb(name)
@@ -1770,6 +1897,9 @@ func _build_scatter() -> void:
 									alike = true
 						if not alike:
 							break
+					# a bent palm by a creek leans out over the water, its trunk hanging in the air: stand it upright
+					if name == "palm_bent" and _water_near(x, y):
+						name = "palm"
 					if low_row:
 						name = shrubs[rng.randi_range(0, shrubs.size() - 1)]
 						hgt = rng.randf_range(0.7, 1.0)

@@ -800,8 +800,10 @@ func _finish_tour() -> void:
 	journal_tour = false
 	_tour_cover.queue_free()
 	_restore_tour_hud()
+	# The tour ends back in the world; the next Start opens on the Trainer page.
+	last_tab = 0
 	Sfx.play("page")
-	_open_tab(0)
+	close()
 
 
 ## Rows work by direct tap or A; the d-pad remains available while the book is open.

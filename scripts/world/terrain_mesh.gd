@@ -639,6 +639,27 @@ func _prepare_water_bed() -> void:
 	for i in w * h:
 		if liquid[i] == 1 and height[i] < -0.05:
 			water_bed[i] -= smoothstep(1.0, 6.0, float(distance[i])) * 1.8
+	# Blend each bed tile with the water beside it on its level, so a creek whose banks change from low shore to cliff
+	# deepens gradually instead of stepping, and its two sides don't meet in a seam down the middle.
+	for _round in 6:
+		var blended := water_bed.duplicate()
+		for z in h:
+			for x in w:
+				var i := x + z * w
+				if liquid[i] != 1 or height[i] >= -0.05:
+					continue
+				var total := water_bed[i] * 2.0
+				var weight := 2.0
+				for d in SIDES:
+					var q: Vector2i = Vector2i(x, z) + d
+					if q.x < 0 or q.y < 0 or q.x >= w or q.y >= h:
+						continue
+					var j := q.x + q.y * w
+					if liquid[j] == 1 and height[j] < -0.05 and absf(base_lo[j] - base_lo[i]) < 0.01 and ramp[j] == 0:
+						total += water_bed[j]
+						weight += 1.0
+				blended[i] = total / weight
+		water_bed = blended
 
 
 ## Whether dry tile (x, z) stands over water as a cliff: every water tile beside it is half a level or more below it.

@@ -82,8 +82,11 @@ const HERO_OUTFITS := {"male": [0, 13, 4, 10, 11, 29],
 const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], PACK: 9}
 ## Parts made from the kit's as they load (named by a word, see part_id): name -> [the kit part it's made from, how].
 ## "let_down": a skirt let down to the shin (the kit has none so long; see _let_down); "cargo": shorts made baggy, with
-## a pocket and flap on each thigh (see _cargo). Their ids follow the kit's own parts.
-const DERIVED := {"long_skirt": [174, "let_down"], "cargo_shorts": [33, "cargo"]}
+## a pocket and flap on each thigh (see _cargo); "spiky", "high_tight", "faux_hawk": hair grown over the hero's
+## scalp, with a third entry giving the part's kind (the kit's hairdos are all soft mops: see _grown_hair). Their ids
+## follow the kit's own parts.
+const DERIVED := {"long_skirt": [174, "let_down"], "cargo_shorts": [33, "cargo"],
+	"spiky_hair": [4, "spiky", "hair"], "high_tight": [4, "high_tight", "hair"], "faux_hawk": [4, "faux_hawk", "hair"]}
 ## Below LET_DOWN_FROM (metres, as baked) a let-down skirt is drawn out to reach LET_DOWN_HEM, flaring a little.
 const LET_DOWN_FROM := 0.62
 const LET_DOWN_HEM := 0.21
@@ -162,8 +165,12 @@ const LENSES := {175: "all", 183: "all", 188: "swim", 195: "pale", 196: "dark"}
 const EYE_LINE_S := 0.66
 const EYE_LINE := "#1e1618"
 const EYE_CELL := 0.005
-## The hairdos: [whose hair it is (a person in townfolk.json), what the character creator calls it].
-const HAIRDOS := [[0, "Short"], [2, "Parted"], [4, "Spiky"], [5, "Fluffy"], [6, "Long"], [7, "Bob"]]
+## The hairdos: [whose hair it is (a person in townfolk.json), or the hair parts themselves (none: bald), what the
+## character creator calls it, and optionally the genders offered it (all without)]. Saves keep the index, so new
+## ones go on the end; those only some genders are offered stay after the rest, so each gender's list is a prefix.
+const HAIRDOS := [[0, "Short"], [2, "Parted"], [["spiky_hair"], "Spiky"], [5, "Fluffy"], [6, "Long"], [7, "Bob"],
+	[["high_tight"], "High and Tight", ["male", "non_binary"]], [["faux_hawk"], "Faux-Hawk", ["male", "non_binary"]],
+	[[], "Bald", ["male", "non_binary"]]]
 ## Each body's hairdo to begin with.
 const HERO_HAIRDO := {"male": 0, "female": 4}
 ## Whose face the hero has, whatever they wear: a friendly smile (some outfits' people frown or pout).
@@ -193,15 +200,27 @@ static func data() -> Dictionary:
 		var parts: Array = _list["parts"]
 		for name in DERIVED:
 			var from: Dictionary = parts[int(DERIVED[name][0])]
-			parts.append({"file": from["file"], "kind": from["kind"], "derived": name})
+			var how: Array = DERIVED[name]
+			_derived_at[name] = parts.size()
+			parts.append({"file": from["file"], "kind": how[2] if how.size() > 2 else from["kind"], "derived": name})
+		# and each grown cut once more for each wardrobe hat, fitted inside it (see _grown_hair)
+		for name in DERIVED:
+			if not String(DERIVED[name][1]) in ["let_down", "cargo"]:
+				for hat in Wardrobe.HATS.size():
+					_derived_at["%s/%d" % [name, hat]] = parts.size()
+					parts.append({"file": parts[_derived_at[name]]["file"], "kind": "hair", "derived": name, "hat": hat})
 	return _list
+
+
+## Where each DERIVED part is in data()["parts"], by its name (a grown cut under a hat: "<name>/<hat>").
+static var _derived_at := {}
 
 
 ## A part's id: a number as townfolk.json numbers them, or a word naming one made as it loads (DERIVED).
 static func part_id(id) -> int:
 	if id is String and not (id as String).is_valid_int():
-		var parts: Array = data()["parts"]
-		return parts.size() - DERIVED.size() + DERIVED.keys().find(id)
+		data()
+		return int(_derived_at.get(id, -1))
 	return int(id)
 
 
@@ -257,7 +276,13 @@ static func part_mesh(id: int) -> Mesh:
 			mesh = _buckled(mesh)
 		if data()["parts"][id].has("derived"):
 			var how: Array = DERIVED[data()["parts"][id]["derived"]]
-			mesh = _let_down(mesh) if how[1] == "let_down" else _cargo(mesh)
+			match String(how[1]):
+				"let_down":
+					mesh = _let_down(mesh)
+				"cargo":
+					mesh = _cargo(mesh)
+				_:
+					mesh = _grown_hair(mesh, String(how[1]), int(data()["parts"][id].get("hat", -1)))
 		if LENSES.has(id):
 			mesh = _without_lenses(mesh, LENSES[id])
 		var kind: String = data()["parts"][id]["kind"]
@@ -418,6 +443,266 @@ static func _cargo(mesh: ArrayMesh) -> ArrayMesh:
 			_add_box(arrays, c + Vector3(side * 0.006, CARGO_POCKET.y * 0.5, 0.0), flap, 0.94)
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 	return out
+
+
+## Hair grown over the hero's scalp (DERIVED "spiky", "high_tight", "faux_hawk"), made from their head (the kit's own
+## hairdos are all soft mops): the head's skin above a hairline (see _on_scalp) lifted off it, out from SCALP_CENTRE,
+## as deep as the cut says (see _hair_depth), in the hair's slot; spiky hair and the faux-hawk have pointed locks
+## besides (see SPIKES). Every lock moves with the head as the skin under it does.
+const SCALP_CENTRE := Vector3(0, 1.42, 0)
+## Where the hair stops (metres, as baked): its height over the forehead (above the brows: no bangs), over the ears,
+## and at the nape; spiky hair comes a little lower on the forehead, its front locks over it.
+const HAIRLINE := {"front": 1.62, "side": 1.43, "back": 1.24}
+const SPIKY_FRONT := 1.56
+## The ears stick out past this (metres from the middle) below EAR_TOP: their skin is never hair.
+const EAR_X := 0.33
+const EAR_TOP := 1.5
+## Each cut's locks: [which way from SCALP_CENTRE its root is, which way it points (a nudge to that way), length,
+## thickness at the root, how flat it is across (1 round; less, a blade seen from the front)].
+const SPIKES := {
+	"spiky": [
+		[Vector3(0, 1, 0.35), Vector3(0, 0.4, -0.5), 0.17, 0.085, 1.0],
+		[Vector3(0.4, 1, 0), Vector3(0.3, 0.4, -0.5), 0.16, 0.085, 1.0],
+		[Vector3(-0.4, 1, 0), Vector3(-0.3, 0.4, -0.5), 0.16, 0.085, 1.0],
+		[Vector3(0, 1, -0.45), Vector3(0, 0.2, -0.8), 0.17, 0.085, 1.0],
+		[Vector3(0.6, 0.8, -0.7), Vector3(0.3, 0.1, -0.8), 0.15, 0.08, 1.0],
+		[Vector3(-0.6, 0.8, -0.7), Vector3(-0.3, 0.1, -0.8), 0.15, 0.08, 1.0],
+		[Vector3(0.35, 0.35, -1), Vector3(0.2, -0.1, -0.9), 0.13, 0.08, 1.0],
+		[Vector3(-0.35, 0.35, -1), Vector3(-0.2, -0.1, -0.9), 0.13, 0.08, 1.0],
+		[Vector3(1, 0.65, -0.1), Vector3(0.7, 0.2, -0.6), 0.13, 0.075, 1.0],
+		[Vector3(-1, 0.65, -0.1), Vector3(-0.7, 0.2, -0.6), 0.13, 0.075, 1.0],
+		[Vector3(0.9, 0.35, -0.6), Vector3(0.6, -0.1, -0.8), 0.11, 0.07, 1.0],
+		[Vector3(-0.9, 0.35, -0.6), Vector3(-0.6, -0.1, -0.8), 0.11, 0.07, 1.0],
+		[Vector3(0, 0.6, 1), Vector3(0, 0.7, 0.3), 0.13, 0.075, 1.0],
+		[Vector3(0.45, 0.55, 0.9), Vector3(0.4, 0.5, 0.2), 0.12, 0.07, 1.0],
+		[Vector3(-0.45, 0.55, 0.9), Vector3(-0.4, 0.5, 0.2), 0.12, 0.07, 1.0],
+	],
+	# swept up and back along the middle (its ridge is grown: see _hair_depth), a few tufts on it, no bangs
+	"faux_hawk": [
+		[Vector3(0, 1, 0.45), Vector3(0, 0.9, -0.3), 0.08, 0.11, 0.8],
+		[Vector3(0, 1, -0.05), Vector3(0, 0.6, -0.6), 0.07, 0.1, 0.8],
+		[Vector3(0, 0.9, -0.5), Vector3(0, 0.3, -0.8), 0.05, 0.09, 0.8],
+	],
+}
+
+
+static func _grown_hair(mesh: ArrayMesh, how: String, hat := -1) -> ArrayMesh:
+	# under a hat (Wardrobe.HATS), the hair it covers stays inside it, and no lock goes through it
+	var cover: TriangleMesh = null
+	if hat >= 0 and hat < Wardrobe.HATS.size():
+		var faces := PackedVector3Array()
+		for id in Wardrobe.HATS[hat][1]:
+			faces.append_array(part_mesh(int(id)).get_faces())
+		cover = TriangleMesh.new()
+		cover.create_from_faces(faces)
+	var arrays := mesh.surface_get_arrays(0)
+	_unshared(arrays)
+	var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uv2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var n := pos.size()
+	# the scalp's skin (never the ears), its triangles cut along the hairline so it runs smooth rather than in the
+	# triangles' teeth: each corner kept is [a, b, t], t of the way from vertex a to b
+	var corners := []
+	for t in n / 3:
+		var skin := true
+		for k in 3:
+			skin = skin and int(uv2[t * 3 + k].x + 0.5) == 1
+		var mid := (pos[t * 3] + pos[t * 3 + 1] + pos[t * 3 + 2]) / 3.0
+		if not skin or (absf(mid.x) > EAR_X and mid.y < EAR_TOP):
+			continue
+		var poly := []
+		for k in 3:
+			var a := t * 3 + k
+			var b := t * 3 + (k + 1) % 3
+			var ga := pos[a].y - _hairline(pos[a], how)
+			var gb := pos[b].y - _hairline(pos[b], how)
+			if ga >= 0.0:
+				poly.append([a, a, 0.0])
+			if (ga >= 0.0) != (gb >= 0.0):
+				poly.append([a, b, ga / (ga - gb)])
+		for k in range(1, poly.size() - 1):
+			corners.append_array([poly[0], poly[k], poly[k + 1]])
+	for at in Mesh.ARRAY_MAX:
+		if arrays[at] == null:
+			continue
+		var src = arrays[at]
+		var stride: int = src.size() / n
+		var dst = src.duplicate()
+		dst.resize(corners.size() * stride)
+		var blend: bool = src is PackedFloat32Array or src is PackedVector3Array or src is PackedVector2Array \
+			or src is PackedColorArray
+		for i in corners.size():
+			var c: Array = corners[i]
+			var t := float(c[2])
+			for k in stride:
+				if blend:
+					dst[i * stride + k] = lerp(src[int(c[0]) * stride + k], src[int(c[1]) * stride + k], t)
+				else:
+					dst[i * stride + k] = src[int(c[0] if t < 0.5 else c[1]) * stride + k]
+		arrays[at] = dst
+	pos = arrays[Mesh.ARRAY_VERTEX]
+	uv2 = arrays[Mesh.ARRAY_TEX_UV2]
+	var rest = arrays[Mesh.ARRAY_CUSTOM0]
+	var rs: int = (rest.size() / pos.size()) if rest != null and pos.size() > 0 else 0
+	for i in pos.size():
+		var p := pos[i]
+		var q := p + (p - SCALP_CENTRE).normalized() * _hair_depth(p, how)
+		# a high-and-tight's top cut flat, standing up off its buzzed sides
+		if how == "high_tight":
+			q.y = lerpf(q.y, maxf(q.y, FLAT_TOP), _crown(p))
+		if cover != null:
+			q = _inside_hat(cover, p, q)
+		pos[i] = q
+		# (buzzed hair a little lighter, the scalp showing through: hair is only ever shaded 0.8 to 1.15)
+		uv2[i] = Vector2(2, lerpf(BUZZ_SHADE, 0.9, _crown(p)) if how != "spiky" else 0.9)
+		if rs == 8:
+			for j in 3:
+				rest.encode_half(i * 8 + j * 2, q[j])
+	arrays[Mesh.ARRAY_VERTEX] = pos
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2
+	if rest != null:
+		arrays[Mesh.ARRAY_CUSTOM0] = rest
+	for s in SPIKES.get(how, []):
+		_add_spike(arrays, s[0], s[1], s[2], s[3], s[4], cover)
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return out
+
+
+## Where a grown cut's hair stops round the head (see HAIRLINE): highest over the forehead, lowest at the nape.
+static func _hairline(p: Vector3, how: String) -> float:
+	var d := p - SCALP_CENTRE
+	var f := d.z / maxf(Vector2(d.x, d.z).length(), 0.001)
+	var front: float = SPIKY_FRONT if how == "spiky" else HAIRLINE["front"]
+	if f > 0.0:
+		return lerpf(HAIRLINE["side"], front, pow(f, 1.5))
+	return lerpf(HAIRLINE["side"], HAIRLINE["back"], -f)
+
+
+## How far a grown cut's hair stands off the scalp at a point (metres): thin at the hairline; a high-and-tight's
+## buzzed sides and short flat top, spiky hair's even crop under its locks, a faux-hawk's short sides and its ridge.
+static func _hair_depth(p: Vector3, how: String) -> float:
+	var edge := smoothstep(0.0, 0.05, p.y - _hairline(p, how))
+	var depth := 0.0
+	match how:
+		"high_tight":
+			depth = lerpf(0.007, 0.06, _crown(p))
+		"spiky":
+			depth = 0.03
+		"faux_hawk":
+			# tallest over the front of the crown, lower towards the nape
+			var lift := smoothstep(1.6, 1.7, p.y) * lerpf(0.5, 1.0, smoothstep(-0.3, 0.15, p.z))
+			depth = 0.012 + 0.14 * exp(-pow(p.x / 0.14, 2.0)) * lift
+	return 0.003 + depth * edge
+
+
+## How much of the longer hair on top of a high-and-tight (or a faux-hawk's) a point of the scalp has: none on the
+## buzzed sides, all of it above CROWN_FROM, with a short fade between.
+const CROWN_FROM := 1.69
+const BUZZ_SHADE := 1.15
+## The height of a high-and-tight's flat top (metres, as baked; the head's own top is at 1.77).
+const FLAT_TOP := 1.81
+static func _crown(p: Vector3) -> float:
+	return smoothstep(CROWN_FROM - 0.04, CROWN_FROM, p.y)
+
+
+## How far inside a hat its hair stays (metres).
+const HAT_CLEARANCE := 0.008
+
+
+## A point of grown hair (q, grown from the scalp at p) kept inside the hat over it: drawn in, towards SCALP_CENTRE,
+## to just inside the hat's own surface, if it reaches it (never below the scalp).
+static func _inside_hat(cover: TriangleMesh, p: Vector3, q: Vector3) -> Vector3:
+	var dir := (q - SCALP_CENTRE).normalized()
+	var hit: Dictionary = cover.intersect_ray(SCALP_CENTRE, dir)
+	if hit.is_empty():
+		return q
+	var reach: float = (Vector3(hit["position"]) - SCALP_CENTRE).length() - HAT_CLEARANCE
+	var r := (q - SCALP_CENTRE).length()
+	if r <= reach:
+		return q
+	return SCALP_CENTRE + dir * maxf(reach, (p - SCALP_CENTRE).length() + 0.002)
+
+
+## Adds a pointed lock to a grown cut (see SPIKES): a six-sided cone, its root sunk into the hair where `from` points
+## from SCALP_CENTRE, its tip out along `from` nudged by `lean`, every other attribute the nearest vertex's; none where
+## it would meet the hat (`cover`) worn over it.
+static func _add_spike(arrays: Array, from: Vector3, lean: Vector3, length: float, radius: float, flat: float,
+		cover: TriangleMesh = null) -> void:
+	var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var n := pos.size()
+	var dir := from.normalized()
+	var near := 0
+	var best := -2.0
+	for i in n:
+		var d := (pos[i] - SCALP_CENTRE).normalized().dot(dir)
+		if d > best:
+			best = d
+			near = i
+	var axis := (dir + lean).normalized()
+	var root := pos[near] - axis * radius * 0.5
+	var tip := root + axis * (length + radius * 0.5)
+	# across (as near the head's own left-right as the lock allows) and the third way round
+	var u := Vector3.RIGHT - axis * axis.dot(Vector3.RIGHT)
+	if u.length() < 0.2:
+		u = Vector3.BACK - axis * axis.dot(Vector3.BACK)
+	u = u.normalized()
+	var v := axis.cross(u).normalized()
+	var ring := []
+	for k in 6:
+		var a := TAU * k / 6.0
+		ring.append(root + u * cos(a) * radius * flat + v * sin(a) * radius)
+	# (under a hat: none that would go through it, nor any inside it, out of sight)
+	if cover != null:
+		for c in ring + [root]:
+			if not cover.intersect_segment(c, tip).is_empty() or not cover.intersect_segment(SCALP_CENTRE, tip).is_empty():
+				return
+	var base_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var turn := signf((pos[1] - pos[0]).cross(pos[2] - pos[0]).dot(base_n[0]))
+	var corners := PackedVector3Array()
+	var normals := PackedVector3Array()
+	for k in 6:
+		var a: Vector3 = ring[k]
+		var b: Vector3 = ring[(k + 1) % 6]
+		var outward := ((a + b) * 0.5 - root).normalized()
+		var nrm := (b - a).cross(tip - a).normalized()
+		if nrm.dot(outward) < 0.0:
+			nrm = -nrm
+		var tri := [a, b, tip]
+		if signf((b - a).cross(tip - a).dot(nrm)) != turn:
+			tri = [a, tip, b]
+		for c in tri:
+			corners.append(c)
+			normals.append(nrm)
+	var rest_at = arrays[Mesh.ARRAY_CUSTOM0]
+	for at in Mesh.ARRAY_MAX:
+		if at == Mesh.ARRAY_INDEX or arrays[at] == null:
+			continue
+		var src = arrays[at]
+		var stride: int = src.size() / n
+		var dst = src.duplicate()
+		for k in corners.size():
+			for j in stride:
+				dst.append(src[near * stride + j])
+		arrays[at] = dst
+	var p2: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var n2: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var u2: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var r2 = arrays[Mesh.ARRAY_CUSTOM0]
+	var rs: int = (rest_at.size() / n) if rest_at != null else 0
+	for k in corners.size():
+		p2[n + k] = corners[k]
+		n2[n + k] = normals[k]
+		# (the roots a little darker than the tips)
+		u2[n + k] = Vector2(2, 1.0 if corners[k].is_equal_approx(tip) else 0.92)
+		if rs == 8:
+			for j in 3:
+				r2.encode_half((n + k) * 8 + j * 2, corners[k][j])
+	arrays[Mesh.ARRAY_VERTEX] = p2
+	arrays[Mesh.ARRAY_NORMAL] = n2
+	arrays[Mesh.ARRAY_TEX_UV2] = u2
+	if r2 != null:
+		arrays[Mesh.ARRAY_CUSTOM0] = r2
 
 
 ## The Wizard Hat with a buckle on its band (see WIZARD_HAT): a square gold frame of four bars on the band's front.
@@ -933,9 +1218,8 @@ static func outfit(look: Dictionary) -> Dictionary:
 		# the hero's own face and hairdo, and no hat
 		var hd := clampi(int(look.get("hairdo", HERO_HAIRDO.get(String(look.get("body", "male")), 0))), 0, HAIRDOS.size() - 1)
 		parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["hair", "hat", "head"])
-		for id in people[HAIRDOS[hd][0]]["parts"]:
-			if kinds[int(id)]["kind"] == "hair":
-				parts.append(id)
+		var hat_i := int(look.get("hat_style", -1))
+		parts.append_array(hairdo_parts(hd, hat_i))
 		for id in people[HERO_FACE]["parts"]:
 			if kinds[int(id)]["kind"] == "head":
 				parts.append(id)
@@ -943,7 +1227,6 @@ static func outfit(look: Dictionary) -> Dictionary:
 		parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "back")
 		_wear_pack(parts, colours, Color(look.get("pack_colour", PACK_COLOUR)))
 		# the hat and glasses from the wardrobe (Wardrobe.HATS, GLASSES), in their own colours
-		var hat_i := int(look.get("hat_style", -1))
 		if hat_i >= 0 and hat_i < Wardrobe.HATS.size():
 			parts.append_array(Wardrobe.HATS[hat_i][1])
 		if look.has("glasses_style"):
@@ -1021,10 +1304,7 @@ static func outfit(look: Dictionary) -> Dictionary:
 				parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "hair")
 			# bareheaded: anyone whose hat was all the hair they had gets a hairdo (long for long hair)
 			elif not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
-				var hd: int = HAIRDOS[4 if int(look.get("hair_style", 0)) == 1 else 0][0]
-				for id in people[hd]["parts"]:
-					if kinds[int(id)]["kind"] == "hair":
-						parts.append(id)
+				parts.append_array(hairdo_parts(4 if int(look.get("hair_style", 0)) == 1 else 0))
 	_second_colours(colours, look, hero and not m.begins_with("tf"), swim)
 	if look.get("islander", false):
 		# The village's woven wrap skirt and sleeveless top, on everyone's own head and hair.
@@ -1033,6 +1313,28 @@ static func outfit(look: Dictionary) -> Dictionary:
 		if not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
 			parts.append(5)
 	return {"person": person, "parts": parts, "colours": colours}
+
+
+## A hairdo's parts (see HAIRDOS): the hair of the person it names, or the parts it lists (part ids or DERIVED names);
+## under a wardrobe hat (its index in Wardrobe.HATS), a grown cut fitted inside that hat.
+static func hairdo_parts(hd: int, hat := -1) -> Array:
+	var who = HAIRDOS[clampi(hd, 0, HAIRDOS.size() - 1)][0]
+	if who is Array:
+		return (who as Array).map(func(id) -> int:
+			var under := "%s/%d" % [id, hat]
+			return part_id(under if id is String and hat >= 0 and _derived_at.has(under) else id))
+	var kinds: Array = data()["parts"]
+	return (data()["people"][int(who)]["parts"] as Array).filter(func(id) -> bool: return kinds[int(id)]["kind"] == "hair")
+
+
+## The hairdos the character creator offers a gender, by name (a prefix of HAIRDOS: see there).
+static func hairdos_for(gender: String) -> Array:
+	var out := []
+	for h in HAIRDOS:
+		if h.size() > 2 and not (h[2] as Array).has(gender):
+			break
+		out.append(h[1])
+	return out
 
 
 ## The wardrobe's second colours (see SLEEVE_SLOT): the hero's shirt's second colour ("top2", their top's in a look
