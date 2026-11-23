@@ -84,6 +84,7 @@ TESTS=(
 	"action-icons|-- --scene=action-icons --save_dir=res://build/action_icon_saves/|ACTION ICONS DONE: 0 problem"
 	"scripts|--script res://tools/check_scripts.gd|SCRIPTS CHECK DONE: 0 of"
 	"pending-requests|--script res://tools/check_pending_requests.gd|PENDING REQUESTS DONE: 0 problem"
+	"well|-- --scene=well --save_dir=res://build/well_test/saves/ --prefs_path=res://build/well_test/settings.cfg|WELL DONE: 0 problem"
 	"story-revision|-- --scene=story-revision --save_dir=res://build/story_revision/saves/ --prefs_path=res://build/story_revision/settings.cfg|STORY REVISION DONE: 0 problem"
 	"story-revision-touch|--resolution 2400x1080 -- --scene=story-revision --touch --save_dir=res://build/story_revision_touch/saves/ --prefs_path=res://build/story_revision_touch/settings.cfg|STORY REVISION DONE: 0 problem"
 	"story-films|-- --scene=story-revision --films=1 --save_dir=res://build/story_films/saves/ --prefs_path=res://build/story_films/settings.cfg|STORY FILMS DONE: 0 problem"

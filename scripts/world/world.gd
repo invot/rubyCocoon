@@ -3102,7 +3102,7 @@ func _build_npcs() -> void:
 			VPer.face(node, n.get("facing", Vector2i(0, 1)))
 			if n.get("sit", false):
 				if n.get("floor_seat", false):
-					floor_seat(node, n.get("facing", Vector2i(0, 1)))
+					floor_seat(node, n.get("facing", Vector2i(0, 1)), n.get("cushion", true))
 				else:
 					seat(node, n.get("facing", Vector2i(0, 1)))
 				if n.has("seat_height"):
@@ -4365,7 +4365,8 @@ func _across_counter(t: Vector2i) -> Vector2i:
 
 
 func _counter_like(t: Vector2i) -> bool:
-	return MapGen.get_t(map, t.x, t.y) in [MapGen.COUNTER, MapGen.CRYSTAL, MapGen.TABLE]
+	# (Rosa is spoken to across her desk)
+	return MapGen.get_t(map, t.x, t.y) in [MapGen.COUNTER, MapGen.CRYSTAL, MapGen.TABLE] or map.get("furniture", {}).get(t, "") == "cash_desk"
 
 
 func _enter_building(b: Dictionary) -> void:
@@ -4472,9 +4473,10 @@ static func seat(node: Node3D, facing: Vector2i) -> void:
 	VPer.set_pose(node, "sit", CHAIR_SEAT, true)
 
 
-## Sits a person down on a floor cushion (a pouf under them), facing `facing`: someone on a raised platform.
-static func floor_seat(node: Node3D, facing: Vector2i) -> void:
-	var mesh := RoomBuilder.piece("home/pouf")
+## Sits a person down on a floor cushion (a pouf under them), facing `facing`: someone on a raised platform. Without
+## the cushion they sit on the bare floor (the Rubywave Five beside their bedrolls).
+static func floor_seat(node: Node3D, facing: Vector2i, cushion := true) -> void:
+	var mesh := RoomBuilder.piece("home/pouf") if cushion else null
 	if mesh != null:
 		var pouf := MeshInstance3D.new()
 		pouf.name = "Cushion"
@@ -6115,9 +6117,10 @@ func _build_room() -> void:
 	if temple:
 		env.ambient_light_color = Color("#7c88a8")
 		env.ambient_light_energy = 0.26 if not room.has("round") else 0.14
-	if key == "well_cave":
-		env.ambient_light_color = Color("#aab2ba")
-		env.ambient_light_energy = 0.47
+	if key.begins_with("well_"):
+		# the well's caves are dark, lit by their wall torches (well_cave.gd _torches), with mist over the floors
+		env.ambient_light_color = Color("#8e98aa")
+		env.ambient_light_energy = 0.2
 	if room.get("parlour", false):
 		# a fortune teller's parlour: curtains drawn, a dim violet hush, lit by its candles and the crystal ball
 		env.ambient_light_color = Color("#8a74b8")
@@ -6153,6 +6156,8 @@ func _build_room() -> void:
 	sun.light_energy = (0.45 if not dark else 0.15) if not open_air else OutdoorLight.sun_energy(biome)
 	if temple:
 		sun.light_energy = 0.1
+	elif key.begins_with("well_"):
+		sun.light_energy = 0.07
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-60, 20, 0)
 	if open_air:

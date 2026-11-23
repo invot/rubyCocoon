@@ -195,7 +195,8 @@ static func _fixture(m: Dictionary, an: String, p: Vector2i, id: String) -> bool
 		var spec := an.substr(6).get_slice("#", 0)
 		var counted: int = m["chests"].filter(func(c: Dictionary) -> bool: return not c.get("numbered", false)).size()
 		var numbered := an.contains("#")
-		m["chests"].append({"pos": p, "item": spec.get_slice("@", 0), "hidden_until": spec.get_slice("@", 1), "numbered": numbered,
+		# (an "@flag" keeps it hidden until that flag is set; without one it's there from the start)
+		m["chests"].append({"pos": p, "item": spec.get_slice("@", 0), "hidden_until": spec.get_slice("@", 1) if spec.contains("@") else "", "numbered": numbered,
 			"flag": "chest_%s_%d" % [id, int(an.get_slice("#", 1)) if numbered else counted]})
 		return true
 	if an.begins_with("switch:"):
@@ -908,6 +909,14 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		room["floor_tex"] = {"shop": "floor_marble"}
 	if pm.get("style", "") == "adobe" and not b["shop"] in ["center", "arena", "skytower", "kennel", "hideout", "temple"]:
 		room = _adobe_room(room)
+	# a rope bridge (the Dustwell Well's "bridges": symbol -> flag) is a gap until mended, then plain floor: a flood
+	# that drains when its flag is set (room_builder.gd draws the planks or the broken ends)
+	if room.has("bridges"):
+		room = room.duplicate()
+		var bridge_floods: Dictionary = (room.get("floods", {}) as Dictionary).duplicate()
+		for ch in room["bridges"]:
+			bridge_floods[ch] = {"flag": room["bridges"][ch], "wet": " ", "dry": "."}
+		room["floods"] = bridge_floods
 	var flood := _flooded(room, flags)
 	var rows: Array = flood["rows"]
 	# (a water puzzle's falls: tide_puzzles.gd)
@@ -933,11 +942,14 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			m["lattices"][q] = true
 	m["stone_doors"] = {}
 	m["basins"] = {}
+	m["bridges"] = {}
 	for y in h:
 		var raw := String(room["rows"][y])
 		for x in w:
 			if raw[x] in room.get("stone_doors", []):
 				m["stone_doors"][Vector2i(x, y)] = true
+			if room.get("bridges", {}).has(raw[x]):
+				m["bridges"][Vector2i(x, y)] = String(room["bridges"][raw[x]])
 			# (the basins at the foot of a water puzzle's falls: not walked in, full or dry)
 			if raw[x] == "_" and puzzle != "":
 				m["basins"][Vector2i(x, y)] = true
@@ -959,6 +971,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["floors"] = rooms.size() if not m["stage"] else 1
 	m["biome"] = pm["biome"]
 	m["anchors"] = room.get("anchor_tiles", {}).duplicate()
+	# (a ladder lying fallen until its flag is set: the Dustwell Well's, down to the great chamber's floor 4)
+	m["fallen_ladders"] = [m["anchors"]["fallen_ladder"]] if room.has("ladder_flag") and not flags.get(room["ladder_flag"], false) else []
 	m["exhibits"] = {}
 	m["shards"] = []
 	m["furniture"] = {}
@@ -986,6 +1000,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	# doors through to the building's other rooms (each loaded on its own): symbol -> the room's template
 	var door_rooms: Dictionary = room.get("doors", {})
 	var links := {}
+	var shut := {}
 	# what's behind each locked door, in reading order
 	var locked_texts: Array = room.get("locked", [])
 	var locked_k := 0
@@ -999,11 +1014,15 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				# (a flight of stairs can lead to another room too: down out of a drained pool, say)
 				MapGen.set_t(m, x, y, MapGen.STAIRS_DOWN if ch == "<" else (MapGen.STAIRS_UP if ch == ">" else MapGen.IDOOR))
 				links[p] = door_rooms[ch]
+				# (a door that stays shut until its flag is set: Dibble's, in the Dustwell Well, opens with Nub's key)
+				if room.get("locked_doors", {}).has(ch) and not flags.get(room["locked_doors"][ch], false):
+					shut[p] = String(room["locked_doors"][ch])
 				if ch in room.get("open_doors", []):
 					m["open_doors"][p] = true
 			elif InteriorMaps.FURNITURE.has(ch):
 				MapGen.set_t(m, x, y, MapGen.FURN)
-				m["furniture"][p] = InteriorMaps.FURNITURE[ch]
+				# (a room may dress one of its symbols as another kind: Rosa's desk is a "cash_desk")
+				m["furniture"][p] = room.get("furniture_kinds", {}).get(ch, InteriorMaps.FURNITURE[ch])
 			elif ROOM_CHARS.has(ch):
 				MapGen.set_t(m, x, y, ROOM_CHARS[ch])
 				if ch == "Z":
@@ -1144,7 +1163,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		if to < 0:
 			push_warning("%s: a door to %s, which %s doesn't have" % [key, links[t], b["shop"]])
 			continue
-		m["exits"][t] = {"to": floor_id(base, to + 1), "spawn": "from_" + key}
+		m["exits"][t] = {"to": floor_id(base, to + 1), "spawn": "from_" + key, "room": links[t]}
+		if shut.has(t):
+			m["exits"][t]["locked_by"] = shut[t]
 		m["spawns"]["from_" + String(links[t])] = t + _into_room(m, t)
 		m["spawn_face"]["from_" + String(links[t])] = _into_room(m, t)
 	for t in ups:
@@ -1169,7 +1190,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 					break
 	# (a room of pools and walkways, or a round chamber over its pit: you start at its door)
 	var front_spot := Vector2i(w / 2, h - 2)
-	if (room.has("water_levels") or room.has("round")) and not links.is_empty():
+	if (room.has("water_levels") or room.has("round") or room.get("well", false)) and not links.is_empty():
 		front_spot = m["spawns"].get("from_" + String(links.values()[0]), front_spot)
 	m["spawns"]["start"] = m["spawns"].get("entry", front_spot)
 	# where you wake up on the first morning (your home)

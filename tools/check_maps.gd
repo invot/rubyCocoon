@@ -98,7 +98,8 @@ func _check(m: Dictionary) -> Array:
 				problems.append("sign at %s blocks the door of %s" % [p, b["name"]])
 	if m["kind"] == "interior":
 		for door in m.get("front_doors", []):
-			if door.x != 0 and door.x != int(m["w"]) - 1:
+			# (the Dustwell Well is entered down a rope ladder at the back of its great chamber, the user's design)
+			if door.x != 0 and door.x != int(m["w"]) - 1 and not m.get("room", {}).get("well", false):
 				problems.append("entrance must be in a visible side wall: %s" % door)
 		for door in m["exits"]:
 			if door.y == int(m["h"]) - 1:

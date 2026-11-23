@@ -152,36 +152,46 @@ func dance() -> void:
 	await shot("studio")
 	await main._go("dustwell#5", Vector2i(7, 6))
 	main.world.frozen = true
-	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member").size() == 5, "all five band members are on stage")
 	check(Sfx.current_music() == "saloon_contract", "the saloon plays Rosa's contract song")
 	await shot("saloon")
-	var back: Array = main.world.map["exits"].values().filter(func(ex): return String(ex["to"]).ends_with("@5"))
-	check(back.size() == 1, "the saloon has a backstage exit")
+	for room in ["@5", "@6", "@7"]:
+		check(main.world.map["exits"].values().filter(func(ex): return String(ex["to"]).ends_with(room)).size() == 1, "the bar opens into saloon room " + room)
+	await main._go("dustwell#5@5", "from_saloon")
+	main.world.frozen = true
+	var band: Array = main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member")
+	check(band.size() == 5 and band.all(func(n): return n.get("sit", false)), "all five band members sit backstage by their bedrolls")
+	await shot("saloon_back")
+	await main._go("dustwell#5@6", Vector2i(4, 5))
+	main.world.frozen = true
+	check(Sfx.current_music() == "saloon_contract", "the concert hall plays the contract song")
+	await shot("saloon_stage")
+	await main._go("dustwell#5@7", "from_saloon")
+	main.world.frozen = true
+	check(not npc("rosa").is_empty() and npc("rosa").get("sit", false), "Rosa sits at her office desk")
+	check(main.world.map["furniture"].values().has("cash_desk"), "Rosa's desk holds her coin stacks")
+	await shot("saloon_office")
 	await main._go("dustwell#7", "entry")
 	main.world.frozen = true
-	check(main.world.map.get("room_key") == "well_cave" and not npc("beaver").is_empty(), "the well opens into the beavers' cave")
-	await shot("well_cave")
-	await main._go("dustwell#7", Vector2i(3, 5))
+	check(main.world.map.get("room_key") == "well_main" and not npc("fallen_ladder").is_empty(), "the well opens into its great chamber, the bottom ladder fallen")
+	await shot("well_main")
+	await main._go("dustwell#7@2", "from_well_cellar")
 	main.world.frozen = true
-	await shot("dale_dam")
-	for i in 5:
-		GameState.set_flag("beaver_defeated_%d" % i)
-	await main._go("dustwell#7", "entry")
-	check(npc("beaver").is_empty(), "all five defeated beavers have left the cave")
+	check(not npc("beaver").is_empty(), "a beaver keeps watch in the well")
+	await shot("well_beaver")
 	GameState.set_flag("well_restored")
-	await main._go("dustwell#5", "entry")
+	await main._go("dustwell#5@7", "from_saloon")
 	main.world.frozen = true
 	await Story.talk(main.world, npc("rosa"))
 	check(GameState.flag("band_freed") and npc("rubywave_member").is_empty(), "Rosa frees all five musicians after the well refills")
 	check(Sfx.current_music() == "saloon_free", "the saloon switches music as the band leaves")
 	await main._go("dustwell", Vector2i(23, 4))
 	main.world.frozen = true
-	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "beaver").size() == 5, "all five defeated beavers appear in town")
 	var wet_well: bool = main.world.map["buildings"][7].get("well_full", false)
 	check(wet_well and not GameState.flag("river_restored"), "the full well and dry river are separate states")
 	check(main.world.map["exits"].values().all(func(ex): return ex["to"] != "route4"), "boarding is the only way north")
 	GameState.gear["flute"] = "reed_flute"
 	GameState.learn_spell("water")
+	GameState.receive_item("water_stone")
 	GameState.set_flag("tides_falls_solved")
 	var falls := ML.interior_of("reef", "temple") + "@3"
 	await main._go(falls, Vector2i(2, 7))

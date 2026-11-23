@@ -145,45 +145,27 @@ func extra_npcs(map: Dictionary) -> Array:
 	var out := []
 	var id: String = map["id"]
 	out.append_array(_water_targets(map))
-	if map.get("room_key", "") == "well_cave":
-		out.append_array(fixtures(map))
-		for i in 5:
-			if not GameState.flag("beaver_defeated_%d" % i):
-				out.append({"kind": "story", "id": "beaver", "beaver": i, "name": "Beaver %s" % BEAVER_NAMES[i],
-					"pos": map["anchors"]["beaver_%d" % i], "look": {"critter": "beaver"}, "facing": Vector2i.DOWN, "still": true})
-		for which in ["dale", "source", "pocket"]:
-			if not GameState.flag("well_dam_" + which):
-				out.append({"kind": "story", "id": "dam", "dam": which, "name": "", "pos": map["anchors"]["dam_" + which],
-					"scene": _dam_scene(), "still": true, "facing": Vector2i.DOWN})
-		if not GameState.flag("well_restored"):
-			var dale_pos: Vector2i = map["anchors"]["dale_source" if GameState.flag("dale_freed") else "dale"]
-			out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": dale_pos, "look": DALE_LOOK,
-				"facing": Vector2i.DOWN, "still": true, "story": true})
+	if String(map.get("room_key", "")).begins_with("well_"):
+		out.append_array(_well_people(map))
 		return out
-	# the beavers who've left the cave grumble about town, well away from the oasis pool
-	if id == "dustwell":
-		for i in 5:
-			if GameState.flag("beaver_defeated_%d" % i):
-				out.append({"kind": "story", "id": "beaver", "beaver": i, "name": "Beaver %s" % BEAVER_NAMES[i],
-					"pos": Vector2i(11 + i * 2, 15), "look": {"critter": "beaver"}, "facing": Vector2i.DOWN, "still": true})
-		if GameState.flag("well_restored"):
-			out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": Vector2i(29, 15), "look": DALE_LOOK,
-				"facing": Vector2i.DOWN, "still": true, "story": not GameState.flag("river_restored")})
 	if map["kind"] == "interior":
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
 		var inside := out
 		inside.append_array(_lesson_trainers(map))
-		# The Rubywave Five play Rosa's stage in Dustwell's saloon until they're freed (band_freed), then move on to
-		# Cogsworth's music shop (docs/dustwell-water-arc.md).
+		# The Rubywave Five are stuck in Dustwell's saloon until they're freed (band_freed), sitting on the backstage
+		# floor beside their bedrolls between shows, then move on to Cogsworth's music shop (docs/dustwell-water-arc.md).
 		var band_at_shop: bool = GameState.flag("band_freed") and map.get("parent", "") == "cogsworth" and map.get("room_key", "") == "music_shop"
-		var band_on_stage: bool = not GameState.flag("band_freed") and map.get("room_key", "") == "saloon"
-		if band_at_shop or band_on_stage:
+		var band_backstage: bool = not GameState.flag("band_freed") and map.get("room_key", "") == "saloon_back"
+		if band_at_shop or band_backstage:
 			for i in 5:
-				inside.append({"kind": "story", "id": "rubywave_member", "member": i, "name": ["Riff", "Tempo", "Cadence", "Encore", "Bramble"][i],
-					"pos": ([Vector2i(2, 2), Vector2i(3, 2), Vector2i(5, 2), Vector2i(3, 3), Vector2i(5, 3)] if band_on_stage
-						else [Vector2i(1, 3), Vector2i(3, 3), Vector2i(7, 4), Vector2i(7, 3), Vector2i(8, 3)])[i],
+				var member := {"kind": "story", "id": "rubywave_member", "member": i, "name": ["Riff", "Tempo", "Cadence", "Encore", "Bramble"][i],
+					"pos": _at(map, "band_%d" % i, Vector2i(1 + i * 2, 3)) if band_backstage
+						else [Vector2i(1, 3), Vector2i(3, 3), Vector2i(7, 4), Vector2i(7, 3), Vector2i(8, 3)][i],
 					"look": {"model": "tf%d" % [13, 29, 62, 74, 24][i], "shirt": ["#b93646", "#3a6ab8", "#3a8a4a", "#7a4aa8", "#cf9c52"][i]},
-					"facing": Vector2i.DOWN, "still": true})
+					"facing": Vector2i.DOWN, "still": true}
+				if band_backstage:
+					member.merge({"sit": true, "floor_seat": true, "cushion": false, "seat_height": BAND_FLOOR_SEAT})
+				inside.append(member)
 		if map.get("room_key") == "temple_tides_sanctuary":
 			inside.append({"kind": "story", "id": "water_acolyte", "name": "Brother Shoal", "pos": map["anchors"]["water_acolyte"],
 				"look": DALE_LOOK.merged({"shirt": "#284d81"}, true), "still": true, "facing": Vector2i.DOWN})
@@ -215,9 +197,10 @@ func extra_npcs(map: Dictionary) -> Array:
 			if _has_anchor(map, "dance_student_%d" % s):
 				inside.append({"kind": "story", "id": "dance_student", "student": s, "name": ["Clara", "Daisy", "Hattie"][s],
 					"pos": _at(map, "dance_student_%d" % s, Vector2i.ZERO), "look": STUDENT_LOOKS[s], "facing": Vector2i(0, -1)})
-		if map.get("room_key", "") == "saloon":
-			inside.append({"kind": "story", "id": "rosa", "name": "Rosa", "pos": Vector2i(7, 3), "look": ROSA_LOOK, "facing": Vector2i(0, 1),
-				"story": GameState.flag("well_restored") and not GameState.flag("band_freed")})
+		# Rosa, sitting at the desk in her office counting her takings
+		if _has_anchor(map, "rosa"):
+			inside.append({"kind": "story", "id": "rosa", "name": "Rosa", "pos": _at(map, "rosa", Vector2i(4, 1)), "look": ROSA_LOOK, "facing": Vector2i(0, 1),
+				"sit": true, "still": true, "story": GameState.flag("well_restored") and not GameState.flag("band_freed")})
 		if map.get("room_key", "") == "ceo_4":
 			if not GameState.flag("trainers_freed"):
 				for i in 3:
@@ -476,6 +459,8 @@ const STUDENT_LOOKS := [{"skin": "#f0c8a8", "hair": "#c84a2a", "shirt": "#e86a9a
 	{"skin": "#e8b890", "hair": "#e8d080", "shirt": "#6ab8e8", "pants": "#6ab8e8", "outfit": "dress"}]
 ## Rosa, who owns the Oasis Saloon: red and black, her hair up.
 const ROSA_LOOK := {"skin": "#e8c0a0", "hair": "#2a1a1a", "shirt": "#a82a3a", "pants": "#1a1a22", "outfit": "dress", "hair_style": 2}
+## How high the Rubywave Five's seats are, sitting on the backstage floor beside their bedrolls.
+const BAND_FLOOR_SEAT := 0.08
 
 
 func _dance_teacher(n: Dictionary) -> void:
@@ -493,7 +478,8 @@ func _dance_student(n: Dictionary) -> void:
 
 
 ## Rosa, the saloon's owner: she bought up Dustwell's water barrels during the drought and keeps the Rubywave Five
-## on a one-song contract. Once the well flows and Dale is back, her hold breaks and the band goes free.
+## on a one-song contract. Once the well flows, her water's worthless, her hold breaks and the band goes free. (Dale
+## stays hidden down the well: she never learns where he went.)
 func _rosa(world, n: Dictionary) -> void:
 	GameState.set_flag("met_rosa")
 	if GameState.flag("band_freed"):
@@ -505,10 +491,11 @@ func _rosa(world, n: Dictionary) -> void:
 			"My partner Dale? Ran off years ago. Didn't even say goodbye.",
 			"And don't go poking around that dry old well. Nothing down there but dust."], n["name"])
 		return
-	await say(["Water in the well. Dale in the street, telling the whole town I lied. And here you are, looking pleased with yourself.",
+	await say(["Water in the well, and not a soul will say who did it. And here you are, looking pleased with yourself.",
 		"...Fine. The town won't buy a cup of my water now, and nobody's paying to hear that song.",
 		"Tell the band the contract's off. Go on. Tell them before I change my mind."], n["name"])
 	GameState.set_flag("band_freed")
+	await say(["A whoop comes through the wall from backstage."])
 	await say(["Free? We're FREE? We're going to Cogsworth! We'll play every song we know, and never that one again!"], "Riff")
 	for m in world.npcs.values().duplicate():
 		if m.get("id", "") == "rubywave_member":
@@ -608,6 +595,9 @@ func can_use_exit(world, ex: Dictionary) -> bool:
 	if not BuildEdition.allows_map(ex["to"]):
 		await say(["The demo's journey ends at Dustwell. You can keep exploring and battling in the places you've reached."])
 		return false
+	# a door kept shut until its flag is set (map_loader.gd "locked_doors"): Dibble's, in the well, takes Nub's key
+	if ex.has("locked_by") and not GameState.flag(String(ex["locked_by"])):
+		return await _well_door()
 	if not world.interior:
 		return true
 	# the first time you go to leave home, the phone rings: Dad, calling from work (answer it, and the game's saved)
@@ -651,8 +641,12 @@ func can_enter(world, b: Dictionary) -> bool:
 				await say(["The old tunnel has caved in."])
 				return false
 			if b.get("well", false):
+				# once Torrent has filled it, there's no way down (docs/dustwell-water-arc.md)
 				if GameState.flag("well_restored"):
-					return await ask("The well is full. The ladder still leads to a ledge above the water. Climb down?")
+					await say(["The well is full to the brim with cool, clear water. There's no climbing down it now."])
+					return false
+				if GameState.flag("dale_heard") and GameState.learned_spell("torrent") and await _well_torrent(world):
+					return false
 				return await ask("The well is bone dry. A rope ladder hangs down into the dark. Climb down?")
 			if not GameState.flag("met_sheriff"):
 				await say(["A crude wooden door in the rock. Rough voices and laughter echo from inside...",
@@ -951,7 +945,7 @@ func talk(world, n: Dictionary) -> void:
 
 
 func _talk_villager(world, n: Dictionary) -> void:
-	if world.map.get("room_key", "") == "saloon":
+	if world.map.get("room_key", "") in ["saloon", "saloon_stage"]:
 		await say(["A whole afternoon and I've heard three different tunes. I might start coming here for the music."]
 			if GameState.flag("band_freed") else ["You hear that? Same tune since breakfast. I shouldn't know the fiddle part, but I do."], n.get("name", "Guest"))
 		return
@@ -1032,13 +1026,20 @@ func next_goal() -> String:
 	if GameState.flag("guardian_water") and not GameState.flag("well_restored") and not GameState.flag("met_sheriff"):
 		if not GameState.flag("missing_trainers"):
 			return "dustwell_arrival"
-		if GameState.flag("dale_freed"):
-			return "source_dam"
 		if GameState.flag("dale_heard"):
-			return "free_dale"
-		if range(5).all(func(i): return GameState.flag("beaver_defeated_%d" % i)):
-			return "find_dale"
-		return "well" if GameState.flag("met_rosa") else "visit_rosa"
+			# Torrent from the Temple of Tides' hidden mages, then played down the well from the top
+			if GameState.learned_spell("torrent"):
+				return "well_torrent"
+			return "sanctuary" if GameState.flag("water_mages_found") else "torrent"
+		if not GameState.flag("met_rosa") and not GameState.flag("well_beaver_0"):
+			return "visit_rosa"
+		# down the well, beaver by beaver, to Dale (docs/dustwell-water-arc.md)
+		for step in [["well_beaver_0", "well"], ["well_bridge_1", "well_planks"], ["well_beaver_1", "well_nub"],
+				["well_beaver_2", "well_door"], ["well_bridge_3", "well_rope"], ["well_beaver_3", "well_crumb"],
+				["well_ladder_set", "well_ladder"], ["well_beaver_4", "well_velvet"], ["dale_met", "well_wizard"]]:
+			if not GameState.flag(step[0]):
+				return step[1]
+		return "water_stone" if GameState.item_count("water_stone") == 0 else "dale"
 	if GameState.flag("well_restored") and not GameState.flag("river_restored"):
 		if GameState.learned_spell("torrent"):
 			return "river"
@@ -1092,6 +1093,8 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	if res != "win":
 		return
 	GameState.set_flag(n["flag"])
+	if n.get("id", "") == "beaver":
+		await _beaver_won(n, name)
 	if n.has("lesson"):
 		await _lesson_done(n, name)
 		# Any automatic teacher who can see you steps in; manual teachers wait to be spoken to.
@@ -1165,10 +1168,10 @@ func _mascot(world, n: Dictionary) -> void:
 
 func _talk_story(world, n: Dictionary) -> void:
 	match n.get("id", ""):
-		"beaver":
-			await _beaver(world, n)
-		"dam":
-			await _dam(world, n)
+		"well_bridge":
+			await _well_bridge(world, n)
+		"fallen_ladder":
+			await _fallen_ladder(world, n)
 		"water_target":
 			await _water_target(world, n)
 		"dale":
@@ -1188,11 +1191,18 @@ func _talk_story(world, n: Dictionary) -> void:
 		"rubywave_member":
 			GameState.set_flag("met_rubywave")
 			if not GameState.flag("band_freed"):
-				await say([["Same song again. Same song forever. Rosa's contract says so, in very small print.",
-					"Please request something else. Anything else. She won't let us, but please.",
-					"We sleep backstage on blanket piles. Rosa says rent comes out of our pay. There is no pay.",
-					"I used to love this song. Now I hum it in my sleep. My bandmates have complained.",
-					"I joined to play the fiddle. Rosa made me learn six notes. I'm still waiting to use the seventh."][int(n["member"])]], n["name"])
+				# stuck: the contract, the debt, the sand, and the one song
+				await say([["We signed with Rosa for one summer. That was three summers ago. The contract renews itself every time we play.",
+						"We can't leave till we pay off our debt. Rosa adds the water we drink to it. Two gold a cup.",
+						"I tried to walk out once. Dustwell's all sand in every direction. I was back by supper, and that went on the bill too."],
+					["Please request something else. Anything else. She won't let us, but please.",
+						"We sleep back here on blanket piles. Rosa says rent comes out of our pay. There is no pay."],
+					["I've counted the boards on this ceiling. Two hundred and twelve. I count them again every night, in case one leaves.",
+						"If one of them ever gets out of here, I'm going with it."],
+					["I used to love this song. Now I hum it in my sleep. My bandmates have complained.",
+						"I keep dreaming we play a second song. Then I wake up, and it's showtime, and it's the first song."],
+					["I joined to play the fiddle. Rosa made me learn six notes. I'm still waiting to use the seventh.",
+						"Only Rosa can tear up that contract. I don't think anything would make her let go of us."]][int(n["member"])], n["name"])
 			else:
 				await say(["I'm the %s member of the Rubywave Five!" % ["first", "second", "fourth", "fifth", "third"][int(n["member"])],
 					"No more Rosa, no more one-song contract. We play whatever we like now!"], n["name"])
@@ -2216,121 +2226,224 @@ func _cancan_dancer(n: Dictionary) -> void:
 			"Then why are you in my room? I have a show to rehearse. Don't waste my time!"][d]], n["name"])
 
 
-# ================================================================ the Dustwell Well cave (docs/dustwell-water-arc.md)
-const BEAVER_NAMES := ["Pebble", "Nub", "Dibble", "Crumb", "Velvet"]
-## Dale, the water mage the beavers walled in: a long blue robe (his order's colour), faded from years in the dark.
+# ================================================================ the Dustwell Well (docs/dustwell-water-arc.md)
+## The well's five beavers (interior_maps.gd "well_*" rooms, anchors beaver_0..4), in the order you beat them. Each
+## swears it's the third strongest beaver, stops you like a trainer when it sees you, and stays put once beaten,
+## handing over what opens the next part of the well: Pebble's planks mend bridge 1, Nub's key opens Dibble's door,
+## Dibble's rope mends bridges 2 and 3, Crumb's ladder replaces the fallen one down to floor 4, and Velvet, the last,
+## tells you about the wizard they've all been protecting.
+const WELL_BEAVERS := [
+	{"name": "Pebble", "gift": "well_wood", "facing": Vector2i.RIGHT, "sight": 7,
+		"lines": ["Halt! Nobody gets past the third strongest beaver in this whole well.", "That's me. Pebble. Third strongest. Look it up."],
+		"won": ["Ow. Okay. Third strongest is still a medal, you know.",
+			"Here, take these planks. I chewed them myself. There's a broken bridge east of here that could use them.",
+			"Don't tell the others I helped."],
+		"again": "Third strongest. Still. Nobody can take that away from me."},
+	{"name": "Nub", "gift": "well_key", "facing": Vector2i.DOWN, "sight": 4,
+		"lines": ["You climbed all the way up here to see the third strongest beaver? I'm flattered.", "Now battle me."],
+		"won": ["Fine. FINE. You can have the key.",
+			"It opens the boarded door off the great chamber. Dibble's in there, and Dibble says Dibble is the third strongest.",
+			"Dibble lies."],
+		"again": "I'm still the third strongest. Losing a key doesn't change that."},
+	{"name": "Dibble", "gift": "well_rope", "facing": Vector2i.LEFT, "sight": 7,
+		"lines": ["Nub gave you the key? Typical Nub.", "I'm the third strongest beaver, by the way. The real one. Accept no imitations."],
+		"won": ["Ugh. Take my rope, then. It's long enough for both broken bridges down here.",
+			"It's very good rope. Third-strongest-beaver rope."],
+		"again": "That was my best rope. Third best, but still."},
+	{"name": "Crumb", "gift": "well_ladder", "facing": Vector2i.RIGHT, "sight": 8,
+		"lines": ["Hey! How did you get over the bridge? Never mind.", "Third strongest beaver. Me. Battle!"],
+		"won": ["Okay, okay, you win.",
+			"That ladder in the great chamber? We knocked it over so nobody could get down to the bottom.",
+			"Here's a new one. I built it. Please be careful with it."],
+		"again": "Third strongest AND a carpenter. Write that down."},
+	{"name": "Velvet", "gift": "", "facing": Vector2i.LEFT, "sight": 5,
+		"lines": ["(A small beaver plants its feet and puffs up as big as it can.)", "I'm... the third strongest beaver. And you're not going any further."],
+		"won": ["...All right. You can go on. But listen.",
+			"Behind me there's a wizard. A water wizard. We've been looking after him, all of us.",
+			"We dammed the water so nobody would come down the well looking for it. And then nobody came at all. That's how he wanted it.",
+			"He's kind. He fixed Crumb's tail once. Please don't hurt him. Please."],
+		"again": "You won't hurt him. Will you?"},
+]
+## Every beaver battles with the same two beasts: Quillets, the spiky little earth echidnas (the user's rule).
+const BEAVER_TEAM := [[12, 17], [12, 17]]
+## The rope bridges (map "bridges" flags): what mends each, and how it looks broken.
+const WELL_BRIDGES := {
+	"well_bridge_1": {"item": "well_wood", "broken": "The rope bridge's planks have been chewed clean through. Only the ropes are left."},
+	"well_bridge_2": {"item": "well_rope", "broken": "The bridge's ropes have been gnawed through. Its planks hang down into the gap."},
+	"well_bridge_3": {"item": "well_rope", "broken": "The bridge's ropes have been gnawed through. Its planks hang down into the gap."},
+	"well_bridge_4": {"item": "", "broken": "This bridge has been pulled up from the far side."},
+}
+## Dale, the water mage who hides at the bottom of the well: a long blue robe (his order's colour), faded from years
+## in the dark.
 const DALE_LOOK := {"robe": "hooded", "shirt": "#3a6a9a", "pants": "#2a4a6a", "hair": "#8a7a6a", "skin": "#d8a882"}
 
 
-## Each beaver swears it is the third strongest. Beat one and it agrees to leave the cave (for town, grumbling).
-func _beaver(world, n: Dictionary) -> void:
-	var i := int(n["beaver"])
-	var key := "beaver_defeated_%d" % i
-	if GameState.flag(key):
-		await say([["Up here it's quiet. No dripping. No sloshing. Just the third strongest beaver, resting.",
-			"I've been thinking. Maybe there are lots of third strongest beavers. That's fine. That's FINE.",
-			"Don't say 'river' near me. Don't say 'puddle' either.",
-			"Third strongest in the cave, third strongest in town. Consistency.",
-			"Fine, I'll admit it. The little one, Velvet... no. Never mind. Third strongest. Me."][i]], n["name"])
-		return
-	await say([["Hear that? No? Good! No dripping, no trickling. That's our work. I'm the third strongest beaver, by the way.",
-		"I am the THIRD strongest beaver. You met another one who said that? A fake. A fraud. Go away.",
-		"Those other two lied to you. I'm the third strongest. It says so on my tail. Don't check.",
-		"There might be a few thirds... but I'm the most third. The thirdest. Stand aside.",
-		"I'm... the third strongest beaver. (A much smaller beaver peeks out from behind it, then hides again.)"][i]], n["name"])
-	if GameState.alive_party().is_empty():
-		await say(["Heal your beasts first. Third strongest doesn't mean third meanest."], n["name"])
-		return
-	var outcome := await trainer_battle({"name": n["name"], "cls": "Third Strongest", "look": {"critter": "beaver"},
-		"team": [[12, 15 + i], [15, 16 + i]], "reward": 300, "defeat": "Third place is harder to hold than I thought."})
-	if outcome != "win":
-		return
-	GameState.set_flag(key)
-	var all_gone: bool = range(5).all(func(k): return GameState.flag("beaver_defeated_%d" % k))
-	await say(["That's all of us, then. The dams are yours. Don't come crying when it all gets WET."] if all_gone
-		else ["Fine! I'm leaving. It's too splashy down here anyway... or it will be, if you get your way.", "I'll be in town. Somewhere dry."], n["name"])
-	world.remove_npc(n)
-	_reveal_dustwell_chests(world, key)
+## Who and what is in a room of the well: its chests, the beaver on watch, the broken bridges, the fallen ladder and
+## Dale.
+func _well_people(map: Dictionary) -> Array:
+	var out := fixtures(map)
+	for i in WELL_BEAVERS.size():
+		if not _has_anchor(map, "beaver_%d" % i):
+			continue
+		var b: Dictionary = WELL_BEAVERS[i]
+		out.append({"kind": "trainer", "id": "beaver", "beaver": i, "name": b["name"], "cls": "Beaver", "look": {"critter": "beaver"},
+			"pos": map["anchors"]["beaver_%d" % i], "facing": b["facing"], "sight": b["sight"], "flag": "well_beaver_%d" % i,
+			"team": BEAVER_TEAM, "reward": 300, "lines": b["lines"], "defeat": b["again"]})
+	for p: Vector2i in map.get("bridges", {}):
+		var flag: String = map["bridges"][p]
+		if GameState.flag(flag):
+			continue
+		out.append({"kind": "story", "id": "well_bridge", "bridge": flag, "name": "", "pos": p, "scene": Node3D.new(),
+			"still": true, "blocking": true, "facing": Vector2i.DOWN})
+	if _has_anchor(map, "fallen_ladder") and not GameState.flag("well_ladder_set"):
+		out.append({"kind": "story", "id": "fallen_ladder", "name": "", "pos": map["anchors"]["fallen_ladder"],
+			"scene": _fallen_ladder_scene(), "still": true, "blocking": true, "facing": Vector2i.DOWN})
+	if _has_anchor(map, "dale"):
+		out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": map["anchors"]["dale"], "look": DALE_LOOK,
+			"facing": Vector2i.DOWN, "still": true, "story": not GameState.flag("dale_heard")})
+	return out
 
 
-## A dam of sticks and mud. The beavers' dams only give way to water magic (Water: field_cast).
-func _dam(world, n: Dictionary) -> void:
-	var which := String(n["dam"])
-	if not GameState.flag("dale_heard") or not GameState.learned_spell("water"):
-		if which == "dale":
-			await _dale(world, n)
-		else:
-			await say(["A dam of sticks and packed mud, chewed smooth. Somewhere behind it, very faintly, water is trying to get through."])
+## A beaten beaver's parting words, and what it hands over.
+func _beaver_won(n: Dictionary, name: String) -> void:
+	var b: Dictionary = WELL_BEAVERS[int(n["beaver"])]
+	await say(b["won"], name)
+	var gift: String = b["gift"]
+	if gift != "" and GameState.item_count(gift) == 0:
+		GameState.receive_item(gift)
+		UI.pickup(gift)
+		await say(["%s hands you the %s." % [b["name"], ItemDB.item_name(gift)]])
+
+
+## A broken rope bridge: mended with what its beaver gave you (Dale lowers his own).
+func _well_bridge(world, n: Dictionary) -> void:
+	var flag := String(n["bridge"])
+	var info: Dictionary = WELL_BRIDGES.get(flag, {})
+	if GameState.flag(flag) or info.is_empty():
 		return
-	if which == "source" and not GameState.flag("well_dam_dale"):
-		await say(["The source dam is enormous. You'd never move this much water alone.", "Dale's still walled in his cell. Free him first."])
+	var item: String = info["item"]
+	if item == "" or GameState.item_count(item) == 0:
+		await say([info["broken"]])
 		return
-	if not await field_cast(world, "water", "Play the song to move the water against the dam?"):
+	if not await ask("Mend the bridge with the %s?" % ItemDB.item_name(item)):
 		return
-	GameState.set_flag("well_dam_" + which)
-	world.remove_npc(n)
-	match which:
-		"dale":
-			GameState.set_flag("dale_freed")
-			await say(["The water swells through the dam, softens the mud, and the whole thing slumps apart."])
-			await say(["Ha! Free! Years in that hole, and it's a youngster who gets me out.",
-				"The source dam's at the top of the cave. That much water needs two flutes. Let's break it together."], "Dale")
-			GameState.main.reload_map()
-		"source":
-			await UI.flute_ex("song_tides", "At the source dam", {"mode": "demo", "performer": "Dale"})
-			GameState.set_flag("well_restored")
-			UI.toast("Dustwell's well is flowing again!")
-			await say(["You and Dale play the song together. Two flutes, one tune.",
-				"The great dam groans... then bursts. Water roars down the cave and up into the old well shaft!"])
-			await say(["Listen to that. Dustwell will be hauling up buckets by sundown.",
-				"The river north is a different matter. Lifting a whole river over that rock takes more than Water.",
-				"My teachers hid in the Temple of Tides. There's a panel in the drained chamber. You've walked right past it.",
-				"Only water opens it. Go back past Kelpwick, show them what you can do, and ask them for Torrent."], "Dale")
-			GameState.main.reload_map()
-		"pocket":
-			await say(["The little dam washes away. Something is tucked in the hollow behind it."])
-			_reveal_dustwell_chests(world, "well_dam_pocket")
-			Sfx.secret_chime()
+	GameState.set_flag(flag)
+	# (the planks are used up; the rope only once both of its bridges are mended)
+	if item == "well_wood" or GameState.flag("well_bridge_2") and GameState.flag("well_bridge_3"):
+		GameState.remove_item(item)
+	Sfx.play("item")
+	await say(["You lash the bridge back together. It sways a little, but it'll hold."])
+	await GameState.main.reload_map()
 
 
-func _reveal_dustwell_chests(world, flag: String) -> void:
-	for npc in world.npcs.values():
-		if npc.get("hidden_until", "") == flag and is_instance_valid(npc.get("node")):
-			npc["node"].show()
+## The fallen ladder above the great chamber's floor 4: Crumb's ladder replaces it.
+func _fallen_ladder(world, n: Dictionary) -> void:
+	if GameState.flag("well_ladder_set"):
+		return
+	if GameState.item_count("well_ladder") == 0:
+		await say(["The ladder down to the bottom floor lies in pieces on the ground below. Somebody knocked it over. Somebody with big teeth."])
+		return
+	if not await ask("Set Crumb's ladder against the ledge?"):
+		return
+	GameState.set_flag("well_ladder_set")
+	GameState.remove_item("well_ladder")
+	Sfx.play("item")
+	await say(["You lower the new ladder over the edge and wedge it tight. The bottom of the great chamber is in reach."])
+	await GameState.main.reload_map()
 
 
-## Dale: through his cell's dam he hears your flute, knows the song, and senses the water in you. He takes it that
-## water is all you have.
+## The broken ladder, lying where it fell on floor 4 below the ledge.
+func _fallen_ladder_scene() -> Node3D:
+	var root := Node3D.new()
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("#7a5232")
+	var Cave = load("res://scripts/gfx/well_cave.gd")
+	root.add_child(Cave.ladder(Vector3(-0.55, -0.36, 0.75), Vector3(0.45, -0.32, 1.55), Vector3(0.62, 0, -0.78), wood))
+	var stub: Node3D = Cave.ladder(Vector3(0.3, -0.38, 0.55), Vector3(0.1, -0.05, 0.25), Vector3(1, 0, 0), wood)
+	stub.scale = Vector3(0.9, 1, 0.9)
+	root.add_child(stub)
+	return root
+
+
+## The locked door off the great chamber (map "locked_doors"): Nub's key opens it, for good.
+func _well_door() -> bool:
+	if GameState.item_count("well_key") == 0:
+		await say(["A door of planks lashed with rope, with an iron keyhole. It's locked.",
+			"(From the other side:) Go away! The third strongest beaver is napping!"])
+		return false
+	await say(["You fit Nub's key in the lock. It turns with a crunch, and the planks swing aside."])
+	GameState.set_flag("well_door_open")
+	GameState.remove_item("well_key")
+	return true
+
+
+## Dale, at the bottom of the well. He hid there on purpose, with the beavers to keep people away, and he senses the
+## water in you: he lowers the bridge to the water stone, teaches Water once you carry it, and sends you to the Temple
+## of Tides for Torrent, which will break the beavers' dam from the top of the well. He asks you to tell nobody he's
+## there.
 func _dale(world, n: Dictionary) -> void:
+	var nm := "Dale"
 	if GameState.flag("well_restored"):
-		await say(["The well's full, Rosa's water barrels are worthless, and I've a story to tell this town.",
-			"Torrent is waiting in the Temple of Tides, behind the panel in the drained chamber. Use Water on it."], "Dale")
-		return
-	if GameState.flag("well_dam_dale"):
-		await say(["The source dam, at the top of the cave. Play with me and we'll break it together."], "Dale")
+		await say(["Listen to that. Water, all the way up the shaft. Thank you. And thank you for keeping quiet."], nm)
 		return
 	if GameState.flag("dale_heard"):
-		await say(["Go on, then. Play it at the dam. Ask the water. Don't order it."], "Dale")
+		if GameState.learned_spell("torrent"):
+			await say(["Torrent! I can hear it in the way you breathe. Go up to the top of the well and play it down the shaft.",
+				"The beavers' dam is at the bottom of the shaft. It won't stand a chance. And the river north will need it too."], nm)
+		else:
+			await say(["The Temple of Tides, back past Kelpwick. The panel in the drained chamber. Play Water at it and they'll let you in.",
+				"Learn Torrent, then play it down the well from the top. And not a word about me. Please."], nm)
 		return
-	if not range(5).all(func(k): return GameState.flag("beaver_defeated_%d" % k)):
-		await say(["(A voice through the dam.) Who's there? Keep it down. The beavers hate any sound like water, and that includes me.",
-			"Get them out of the cave, all five, and come back. Then we can talk properly."], "Dale")
+	if not GameState.flag("dale_met"):
+		GameState.set_flag("dale_met")
+		await say(["Velvet let you through? Then you didn't hurt my beavers. Much.",
+			"I'm Dale. I used to run the saloon with Rosa, a long time ago. I expect she told you I ran off.",
+			"In a way, I did. People came asking me to do things with water. Bigger and bigger things. So I came down here, where nobody would look."], nm)
+		await say(["...There's water in you. I felt the whole well lean towards you when you walked in. You have the gift, don't you?",
+			"Then there's something across that crack that's meant for you. Here."], nm)
+		GameState.set_flag("well_bridge_4")
+		Sfx.secret_chime()
+		await say(["Dale hums a few notes. Across the crack, the rope bridge lifts itself and settles into place."])
+		await GameState.main.reload_map()
 		return
-	await say(["(A voice through the dam.) The beavers are gone? Then you're no ordinary trainer.",
-		"Do you carry a flute? Play me something. Anything."], "Dale")
+	if GameState.item_count("water_stone") == 0:
+		await say(["Go on, over the bridge. The chest on the other side. It's yours."], nm)
+		return
+	await say(["The water stone. The same kind of stone a water beast wears on its brow. That's where their magic comes from.",
+		"It's the same for us. Every element needs its stone. Carry this one, and the water will listen to you."], nm)
 	if not GameState.has_flute() or not GameState.knows_song("song_tides"):
-		await say(["The stones at the Temple of Tides know the tune. Come back with your flute once you've heard it."], "Dale")
+		await say(["Now you need the song. The stones at the Temple of Tides know the tune. Come back with your flute once you've heard it."], nm)
 		return
+	await say(["Do you have your flute? Play me the temple's song."], nm)
 	var played := await UI.flute_ex("song_tides", "Play for Dale")
 	if played.get("cancelled", false):
 		return
-	await UI.flute_ex("song_tides", "From behind the dam", {"mode": "demo", "performer": "Dale"})
-	await say(["You know it. And when you play it... I can taste it. The water in this rock leans towards you.",
-		"You have the gift. Water magic. Rare as rain out here.",
-		"That song isn't for taming dragons. It's how you speak to water. Play it near water and mean it, and the water moves.",
-		"Try it on this dam. Gently. Ask the water. Don't order it."], "Dale")
+	await UI.flute_ex("song_tides", "Dale plays it back", {"mode": "demo", "performer": "Dale"})
+	await say(["That song isn't for taming dragons. It's how you speak to water. Play it near water and mean it, and the water moves.",
+		"That's Water, the first of the water spells. Ask the water. Don't order it."], nm)
 	await _teach_field_spell("water")
+	await say(["Now, the well. The beavers built their dam where the spring comes up, at the bottom of the shaft. It's enormous.",
+		"Water alone won't shift it. You need Torrent, and my old teachers know it. They hide in the Temple of Tides, past Kelpwick.",
+		"There's a panel in the chamber you drained. Only water opens it. Show them what you can do.",
+		"Then go up to the top of the well, in town, and play Torrent down the shaft. The dam will burst and the well will fill.",
+		"Nobody will be climbing down here after that, and that suits me fine. The river north will need Torrent too."], nm)
+	await say(["One more thing. Please, tell no one I'm here. Not Rosa. Not anyone."], nm)
 	GameState.set_flag("dale_heard")
+
+
+## The top of the well, once you know Torrent: played down the shaft, it breaks the beavers' dam and fills the well,
+## and the town has water again. True if it was played.
+func _well_torrent(world) -> bool:
+	await say(["You peer down the dry shaft. Far below, past the rope ladder, is the beavers' dam."])
+	if not await field_cast(world, "torrent", "Play Torrent down the well and break the dam?"):
+		return false
+	GameState.set_flag("well_restored")
+	await say(["The song falls down the shaft... and deep below, something groans.",
+		"With a roar, the dam bursts! Water rushes up the well, higher and higher, and spills over the stone lip."])
+	UI.toast("Dustwell's well is flowing again!")
+	await say(["Somewhere down there, safe and dry on his ledge, a water mage is smiling. You keep that to yourself."])
+	await GameState.main.reload_map()
+	return true
 
 
 ## Field water magic (docs/dustwell-implementation-plan.md step 4): the hero plays the water song at a target (a dam,
@@ -2338,6 +2451,10 @@ func _dale(world, n: Dictionary) -> void:
 func field_cast(world, spell: String, question: String) -> bool:
 	# (learned once is enough: a spell forgotten for battle still answers the song here)
 	if not SpellDB.has_field_use(spell) or not GameState.learned_spell(spell):
+		return false
+	# (each element's magic needs its stone: Dale's water stone, from the bottom of the Dustwell Well)
+	if not GameState.has_stone(SpellDB.element(spell)):
+		await say(["You play the song, but the water doesn't stir. Without a %s stone, it can't hear you." % SpellDB.element(spell)])
 		return false
 	if not GameState.has_flute():
 		await say(["You'll need your flute to play the song."])
@@ -2356,8 +2473,8 @@ func field_cast(world, spell: String, question: String) -> bool:
 ## Field water magic targets (docs/dustwell-implementation-plan.md step 4): a map tags the tile with an anchor of
 ## this name, and the target stands there until its flag is set. spell: what moves the water there (a stronger
 ## spell of the list works too); weaker: what a hero who knows only a lesser water spell is told; reload: the map
-## changes state once it's done (the river channel fills), so it's loaded again. The beavers' dams are their own
-## (_dam), since Dale and the source dam share the cave's story.
+## changes state once it's done (the river channel fills), so it's loaded again. The beavers' dam in the Dustwell Well
+## is broken from the top of the well instead (_well_torrent).
 const WATER_TARGETS := {
 	"water_panel": {"spell": ["water", "torrent"], "flag": "water_mages_found", "kind": "panel", "reload": true,
 		"look": ["A smooth stone panel set into the wall, carved with waves. There's no handle, no keyhole. It's dry to the touch."],
@@ -2428,17 +2545,6 @@ func _water_target_scene(kind: String) -> Node3D:
 
 
 ## A beaver dam across a gap: a heap of chewed logs and mud.
-func _dam_scene() -> Node3D:
-	var root := Node3D.new()
-	var painter = load("res://scripts/story/prison_stage.gd").new()
-	for k in 6:
-		var row := k / 2
-		painter.box(root, Vector3((k % 2) * 0.3 - 0.15, 0.18 + row * 0.3, 0.0), Vector3(1.0 - row * 0.18, 0.22, 0.32), ["7a5232", "6a4428", "8a6040"][k % 3])
-	painter.sphere(root, Vector3(0, 0.25, 0.2), Vector3(0.5, 0.2, 0.18), "5a4a3a")
-	painter.free()
-	return root
-
-
 func _chest(n: Dictionary) -> void:
 	if n.get("hidden_until", "") != "" and not GameState.flag(n["hidden_until"]):
 		return
@@ -2452,6 +2558,8 @@ func _chest(n: Dictionary) -> void:
 	var item_name := ItemDB.item_name(n["item"])
 	var article := "some" if item_name.ends_with("s") else ("an" if item_name.left(1).to_upper() in "AEIOU" else "a")
 	await say(["You opened the chest. Inside: %s %s!" % [article, item_name]])
+	if n["item"] == "water_stone":
+		await say(["It's cool in your hand, and it seems to hum, very faintly, like water a long way off."])
 
 
 ## Keeper Pell, outside the Temple of Tides: how its halls drain, and what prowls them.

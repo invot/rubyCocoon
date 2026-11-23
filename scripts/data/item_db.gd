@@ -97,6 +97,13 @@ const ITEMS := {
 	"bridge_planks": {"name": "Bridge Planks", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of sturdy planks, just right for patching a footbridge."},
 	"card_ledger": {"name": "Card Ledger", "kind": "key", "price": 0, "tier": 99, "desc": "Barkeep Dusty's record of the Oasis Saloon's card games. Slim's name is on every hand, all night long, the night the trainers vanished: he couldn't have taken them."},
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
+	## The Dustwell Well's beavers hand these over when beaten (docs/dustwell-water-arc.md).
+	"well_wood": {"name": "Beaver Planks", "kind": "key", "price": 0, "tier": 99, "desc": "Chewed-smooth planks from a beaver's stash. Enough to mend a broken rope bridge in the well."},
+	"well_key": {"name": "Well Key", "kind": "key", "price": 0, "tier": 99, "desc": "An old iron key, a little nibbled. It opens a locked door in the well's great chamber."},
+	"well_rope": {"name": "Beaver Rope", "kind": "key", "price": 0, "tier": 99, "desc": "A long coil of knotted rope. Enough for the two rope bridges still down in the well."},
+	"well_ladder": {"name": "Beaver Ladder", "kind": "key", "price": 0, "tier": 99, "desc": "A sturdy wooden ladder. The well's great chamber has a fallen one that needs replacing."},
+	## An element's stone lets the hero use that element's magic, like the stones on beasts' heads.
+	"water_stone": {"name": "Water Stone", "kind": "key", "price": 0, "tier": 99, "desc": "A cool blue stone, like the ones on water beasts' heads. Carrying it lets you work water magic: water spells in battle, and the song's pull on water."},
 	## Trainer weapons appear on the trainer's battle bar and are never sold or used up.
 	## weapon: target ("enemy": one foe, or an open trainer; "enemies": every foe on the side facing you), power (each
 	## hit's damage against the slingshot's), anim (the trainer's pose: voxel_person.gd set_action), order (in the bar).

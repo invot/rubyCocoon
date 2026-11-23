@@ -460,10 +460,10 @@ const MAPS := {
 		# keeps the saved interiors of the first town (Center, two houses, apothecary, fortune teller) where they were
 		"building_order": [[25, 2], [2, 2], [8, 2], [38, 2], [43, 2], [14, 2], [32, 2]],
 		"building_looks": {"1": {"name": "Dustwell Dance Studio", "rooms": ["dance_studio"], "public": true, "frontier": "studio", "words": "DANCE", "paint": "pink"}, "2": {"paint": "orange"}, "3": {"paint": "rose"}, "4": {"paint": "gold"},
-			"5": {"name": "Oasis Saloon", "rooms": ["saloon", "saloon_hall", "saloon_room_a", "saloon_room_b", "saloon_back"], "frontier": "saloon", "paint": "red"},
+			"5": {"name": "Oasis Saloon", "rooms": ["saloon", "saloon_hall", "saloon_room_a", "saloon_room_b", "saloon_back", "saloon_stage", "saloon_office"], "frontier": "saloon", "paint": "red"},
 			"6": {"name": "Dustwell Jail", "rooms": ["jail"], "frontier": "jail", "paint": "yellow"},
 			# the town well: climbing down it is the way into the beavers' cave (docs/dustwell-water-arc.md)
-			"7": {"name": "Dustwell Well", "rooms": ["well_cave"], "well": true}},
+			"7": {"name": "Dustwell Well", "rooms": ["well_main", "well_bever1", "well_cellar", "well_nook", "well_long", "well_crack", "well_bever2", "well_bever3", "well_bever4", "well_hall", "well_bever5", "well_hub", "well_dale", "well_bedroom", "well_spa"], "well": true}},
 		# water troughs by the saloon, a wagon on the dune shelf, barrels and crates
 		"street_props": [[14, 6, "water_trough", 1], [20, 6, "barrel", 1], [36, 6, "crate", 2], [38, 17, "wagon", 1],
 			[44, 8, "water_trough", 1], [32, 16, "barrel", 1]],

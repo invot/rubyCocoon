@@ -192,8 +192,13 @@ upholstery) over a wood grain and cloth weave of our own.
   no longer shown). Free for commercial use; the files may not be redistributed.
 - **KayKit Dungeon Pack 1.1** by Kay Lousberg, https://www.kaylousberg.com, CC0 (the treasure chests that hold the
   items lying about the world and the temples' treasures, the fitted and cracked masonry lining Dustwell Well's excavated halls, the crates and barrels, the street benches, made by stretching its stool along the seat, and the temple dragons' hoards of coins, trunks, arms, candles, keys and plates; baked by
-  `tools/import_kaykit.gd`).
+  `tools/import_kaykit.gd`), and the dirt floors, barrels, boxes, kegs and broken tables of the Dustwell Well's caves
+  (`-- --well-floors`). Its **1.0** release (same author and licence) gives the dungeon wall, corner, T, crossing and
+  end pieces of the well's cut stone and Dale's bedroom (`-- --well-walls`).
   See [licence](licenses/KayKit%20Dungeon%20Pack%20-%20License.txt).
+- **Modular Terrain Collection** (author not named in the download; no licence came with it, so Creative Commons by
+  the project's rule): the rope bridge sections over the Dustwell Well's cracks (`assets/nature/well_bridge.res`,
+  baked by `tools/import_modular_cliffs.gd`).
 - **Mallard Duck (Drake), Stylized, Rigged & Animated** by Liray 3D, Standard Fab licence (Jared's ducks, in the
   dream, the jail and on the roads: `assets/animals/duck.glb`, cut down to 5,000 triangles with its rig and clips).
   See [source and modifications](licenses/duck_stylized_liray3d.md).

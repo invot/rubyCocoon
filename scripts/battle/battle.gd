@@ -2491,6 +2491,9 @@ func _weapon_option() -> Dictionary:
 	var choices := [{"id": "weapon", "weapon": id, "icon": "attack", "label": "Basic", "right": "0 MP",
 		"target": w.get("target", "enemy"), "desc": desc + " Costs no MP."}]
 	for sid in GameState.known_spells:
+		# (no element's magic without its stone: GameState.has_stone)
+		if not GameState.has_stone(SpellDB.element(sid)):
+			continue
 		var cost := SpellDB.mp_cost(sid)
 		var off := GameState.trainer_mp < cost
 		choices.append({"id": "weapon", "weapon": id, "spell": sid, "el": SpellDB.element(sid), "icon": SpellDB.element(sid),

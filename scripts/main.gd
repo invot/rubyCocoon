@@ -514,7 +514,7 @@ func _room_map(id: String) -> Dictionary:
 func music_for(id: String) -> String:
 	if MapLoader.is_interior(id):
 		var m := _room_map(id)
-		if m.get("room_key", "") == "saloon":
+		if m.get("room_key", "") in ["saloon", "saloon_stage"]:
 			return "saloon_free" if GameState.flag("band_freed") else "saloon_contract"
 		return String(WorldDB.ROOM_MUSIC.get(m.get("building", {}).get("shop", ""), "shop"))
 	if WorldDB.MAP_MUSIC.has(id):
@@ -1093,6 +1093,10 @@ func _run_test() -> void:
 		return
 	if scene == "dustwell":
 		await load("res://tools/debug/dustwell.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "well":
+		await load("res://tools/debug/well.gd").new().run(self, _test)
 		get_tree().quit()
 		return
 	if scene == "gravenmoor":

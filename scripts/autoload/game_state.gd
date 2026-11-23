@@ -554,6 +554,12 @@ func learned_spell(id: String) -> bool:
 	return known_spells.has(id) or flag("learned_" + id)
 
 
+## Each element's magic needs its stone (the user's rule, docs/dustwell-water-arc.md): carrying "<element>_stone",
+## like the stones on beasts' heads, lets the hero use that element's spells in battle and in the field.
+func has_stone(el: String) -> bool:
+	return item_count(el + "_stone") > 0
+
+
 ## The known spells of one element.
 func spells_of(el: String) -> Array:
 	return SpellDB.of_element(known_spells, el)
@@ -1189,6 +1195,12 @@ func load_game(slot := -2) -> bool:
 			set_flag("beaver_defeated_%d" % i)
 	if flag("well_dam_dale") or flag("well_restored"):
 		set_flag("dale_heard")
+	# The well's redesign (22 November 2026): magic needs its element's stone, and Dale hands over the water stone. A
+	# journey that learned water spells before stones existed keeps them working.
+	var saved_spells: Array = d.get("known_spells", [])
+	for s in ["water", "torrent", "ice", "blizzard"]:
+		if item_count("water_stone") == 0 and (flag("learned_" + s) or saved_spells.has(s)):
+			inventory["water_stone"] = 1
 	if not flags.has("river_restored") and not BuildEdition.is_demo() and (
 		visited.has("sundown") or flag("met_sheriff") or flag("dance_shoes_returned")
 			or flag("well_restored") and String(d.get("map_id", "")).get_slice("#", 0) == "route4"):

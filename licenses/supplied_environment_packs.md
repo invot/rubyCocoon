@@ -23,3 +23,10 @@ Imported on 2026-11-09 for the cliffs (tools/import_cliffs.gd), Creative Commons
 The archives contain OBJ and PNG files only. They provide no author, source URL, license text or redistribution terms.
 This file records provenance, not a grant of rights. Confirm the original source terms before public distribution.
 Original archives remain unchanged outside the repository; extracted inputs and intermediate geometry stay in build/.
+
+Imported on 2026-11-22 for the Dustwell Well (tools/import_modular_cliffs.gd), Creative Commons by the user's rule:
+
+- modular_terrain_collection.zip: Cliff_Prop_Bridge_Rope_Middle.obj (the well's rope bridges). Its cliff, corner,
+  lamp, timber and rock pieces were tried and dropped; the cliffs are the outdoor cliff faces (terrain_mesh.gd) instead.
+- POLYGON - Dungeon Rocks.zip, Models.zip, Textures.zip and Dungeon_Ruins_Free.zip: looked at; nothing from them is in
+  the game.

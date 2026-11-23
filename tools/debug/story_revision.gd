@@ -47,20 +47,16 @@ func run(main, opts: Dictionary) -> void:
 	GameState.set_flag("chest_%s_4" % legacy_cave)
 	_check(GameState.save_game(9) and GameState.load_game(9) and GameState.map_id == "dustwell"
 		and GameState.flag("chest_%s_4" % new_cave), "claimed cave treasure migrates for a player saved elsewhere")
-	GameState.set_flag("beaver_defeated_2", false)
 	var town := Maps.load_map("dustwell", {})
 	var cave_id := ""
 	for building in town["buildings"]:
-		if building.get("rooms", []).has("well_cave") and building.get("well", false):
+		if building.get("rooms", []).has("well_main") and building.get("well", false):
 			cave_id = building["interior"]
-	_check(cave_id != "", "Dustwell's well leads to the cave")
+	_check(cave_id != "", "Dustwell's well leads to its great chamber")
 	var cave := Maps.load_map(cave_id, {})
-	_check(cave["chests"].size() == 6 and cave["chests"].filter(func(ch): return ch["hidden_until"] == "well_dam_pocket").size() == 2,
-		"the pocket chests wait behind their dam and the beavers' other treasures remain")
-	_check(cave["encounter"].get("ghosts", 1.0) == 0.0 and cave["encounter"]["roam"], "ordinary wild beasts inhabit cave")
-	var reachable := _reachable(cave, cave["spawns"]["entry"])
-	for key in ["beaver_0", "beaver_1", "beaver_2", "beaver_3", "beaver_4", "dam_dale", "dam_source", "dam_pocket"]:
-		_check(reachable.has(cave["anchors"][key]), "%s is reachable" % key)
+	_check(cave["room_key"] == "well_main" and cave["chests"].size() == 3 and cave["chests"].all(func(ch): return ch["hidden_until"] == ""),
+		"the great chamber's three chests are there from the start")
+	_check(cave["encounter"].get("ghosts", 1.0) == 0.0 and cave["encounter"]["roam"], "ordinary wild beasts inhabit the well")
 	var stub := BattleStub.new()
 	main.add_child(stub)
 	GameState.main = stub
@@ -69,31 +65,15 @@ func run(main, opts: Dictionary) -> void:
 	fake_world.set_script(load("res://tools/debug/story_revision_world.gd"))
 	main.add_child(fake_world)
 	await Story._dale(fake_world, {"name": "Dale"})
-	_check(not GameState.flag("learned_water"), "Dale teaches nothing while beavers remain")
-	for i in [4, 1, 0, 3, 2]:
-		await Story._beaver(fake_world, {"beaver": i, "name": "Beaver"})
-		_check(GameState.flag("beaver_defeated_%d" % i), "victory saves the beaver state")
+	_check(GameState.flag("dale_met") and GameState.flag("well_bridge_4") and not GameState.flag("learned_water"), "Dale lowers his bridge but teaches nothing before the water stone")
+	GameState.receive_item("water_stone")
 	await Story._dale(fake_world, {"name": "Dale"})
 	_check(not GameState.flag("learned_water"), "Dale waits until the hero brings the flute and the guardian's song")
 	GameState.gear["flute"] = "reed_flute"
 	GameState.songs.append("song_tides")
+	UI.auto_flute = [{"acc": 1.0, "mistakes": 0}, {"acc": 1.0, "mistakes": 0}]
 	await Story._dale(fake_world, {"name": "Dale"})
-	_check(GameState.flag("learned_water"), "Dale teaches Water once the beavers have gone")
-	UI.auto_answers = [0]
-	UI.auto_flute = [{"acc": 1.0, "mistakes": 0, "cancelled": true}]
-	await Story._dam(fake_world, {"dam": "dale", "name": ""})
-	_check(not GameState.flag("well_dam_dale"), "cancelling the song leaves Dale's dam intact")
-	UI.auto_answers = [0]
-	UI.auto_flute = [{"acc": 0.3, "mistakes": 2}]
-	await Story._dam(fake_world, {"dam": "dale", "name": ""})
-	_check(not GameState.flag("well_dam_dale"), "a poor performance leaves Dale's dam intact")
-	await Story._dam(fake_world, {"dam": "source", "name": ""})
-	_check(not GameState.flag("well_restored"), "the source dam waits until Dale is free")
-	UI.auto_answers = [0, 0]
-	UI.auto_flute = [{"acc": 0.9, "mistakes": 0}, {"acc": 0.9, "mistakes": 0}]
-	await Story._dam(fake_world, {"dam": "dale", "name": ""})
-	await Story._dam(fake_world, {"dam": "source", "name": ""})
-	_check(GameState.flag("dale_freed") and GameState.flag("well_restored"), "Water breaks Dale's dam, then the source dam")
+	_check(GameState.flag("learned_water") and GameState.flag("dale_heard"), "Dale teaches Water once the hero carries the water stone")
 	var falls := Maps.load_map(Maps.interior_of("reef", "temple") + "@3", {"tides_falls_solved": true})
 	var panel: Dictionary = {}
 	for n in Story.extra_npcs(falls):
@@ -103,6 +83,14 @@ func run(main, opts: Dictionary) -> void:
 			n["scene"].free()
 	_check(falls["room_key"] == "temple_tides_falls" and not panel.is_empty(), "the real temple room keeps its Water target")
 	if not panel.is_empty():
+		UI.auto_answers = [0]
+		UI.auto_flute = [{"acc": 1.0, "mistakes": 0, "cancelled": true}]
+		await Story._water_target(fake_world, panel)
+		_check(not GameState.flag("water_mages_found"), "cancelling the song leaves the panel shut")
+		UI.auto_answers = [0]
+		UI.auto_flute = [{"acc": 0.3, "mistakes": 2}]
+		await Story._water_target(fake_world, panel)
+		_check(not GameState.flag("water_mages_found"), "a poor performance leaves the panel shut")
 		UI.auto_answers = [0]
 		UI.auto_flute = [{"acc": 0.9, "mistakes": 0}]
 		await Story._water_target(fake_world, panel)

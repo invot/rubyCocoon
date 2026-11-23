@@ -5,6 +5,8 @@ uniform sampler2D coverage : filter_linear_mipmap;
 uniform sampler2D clouds : repeat_enable, filter_linear_mipmap;
 uniform float layer = 0.0;
 uniform float opacity = 1.0;
+// the faint mist kept over the whole plane however thin its coverage (0: none, the well's caves fade it out entirely)
+uniform float fringe_floor = 0.24;
 varying vec3 world_at;
 
 void vertex() {
@@ -22,7 +24,7 @@ void fragment() {
 	vec2 drift = (vec2(broad, detail) - 0.5) * 0.035;
 	float fringe = smoothstep(0.0, 0.16, UV.x) * smoothstep(0.0, 0.16, 1.0 - UV.x)
 		* smoothstep(0.0, 0.16, UV.y) * smoothstep(0.0, 0.16, 1.0 - UV.y);
-	float edge = max(smoothstep(0.01, 0.55, texture(coverage, UV + drift).r), fringe * 0.24);
+	float edge = max(smoothstep(0.01, 0.55, texture(coverage, UV + drift).r), fringe * fringe_floor);
 	ALBEDO = mix(vec3(0.42, 0.46, 0.51), vec3(0.71, 0.76, 0.78), broad);
 	if (OUTPUT_IS_SRGB) {
 		ALBEDO = pow(ALBEDO, vec3(0.454545));

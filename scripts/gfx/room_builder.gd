@@ -116,6 +116,9 @@ const KINDS := {
 	"bedroll": {"m": ["bedroll"], "single": true, "free": true},
 	# a chunky table, with a chest of drawers beside it where the desk has two tiles or more (desk_side)
 	"desk": {"m": ["kk_table_small"], "desk_side": "kk_cabinet_small", "top": ["books", "pencils", "globe", "home/books_stack"]},
+	# Rosa's desk in the Oasis Saloon: her takings in stacks of gold coins (the one place outside the dragons' hoards
+	# with coins, the user's 2026-11-22 direction)
+	"cash_desk": {"m": ["kk_table_small"], "top": ["coin_stacks"], "always_top": true},
 	# The large chest keeps its baked 1.7-tile width within a two-tile footprint.
 	"storage": {"m": ["kk_drawers"], "long": true},
 	# a kennel barn's hay bales (barn_builder.gd)
@@ -270,6 +273,8 @@ static func piece(name: String) -> Mesh:
 		return _bedroll()
 	if name == "hay_stack":
 		return load("res://scripts/gfx/barn_builder.gd").hay_stack()
+	if name == "coin_stacks":
+		return _coin_stacks()
 	if name in ["kk_table_low_square", "kk_table_low_2x1", "kk_table_low_2x2"]:
 		if not _meshes.has(name):
 			var size: Vector2 = {"kk_table_low_square": Vector2(0.88, 0.88), "kk_table_low_2x1": Vector2(1.84, 0.88), "kk_table_low_2x2": Vector2(1.6, 1.6)}[name]
@@ -284,6 +289,36 @@ static func piece(name: String) -> Mesh:
 		if _meshes[name] == null:
 			push_warning("model missing: " + path)
 	return _meshes[name]
+
+## Rosa's takings: KayKit's coin stacks (the dragons' hoard pieces, tools/import_kaykit.gd --hoard) in a little
+## cluster with a few loose coins, as one mesh to stand on her desk ("cash_desk").
+static func _coin_stacks() -> ArrayMesh:
+	if not _meshes.has("coin_stacks"):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var mat: Material = null
+		# (kept to the desk's front and ends, low, so Rosa's face shows over them)
+		for e in [["coin_stack_medium", -0.28, 0.08, 0.3], ["coin_stack_small", -0.12, 0.16, 1.9], ["coin_stack_medium", 0.26, 0.06, 0.8],
+				["coin_stack_small", 0.1, 0.18, 2.6], ["coin", 0.0, 0.05, 0.0], ["coin", -0.32, -0.12, 1.2]]:
+			var path := "res://assets/props/kaykit_hoard_%s.res" % e[0]
+			if not ResourceLoader.exists(path):
+				continue
+			var m: Mesh = load(path)
+			var xf := Transform3D(Basis(Vector3.UP, float(e[3])).scaled(Vector3.ONE * COIN_SCALE), Vector3(float(e[1]), 0.0, float(e[2])))
+			for s in m.get_surface_count():
+				st.append_from(m, s, xf)
+				if mat == null:
+					mat = m.surface_get_material(s)
+		var out := st.commit()
+		if out.get_surface_count() > 0 and mat != null:
+			out.surface_set_material(0, mat)
+		_meshes["coin_stacks"] = out
+	return _meshes["coin_stacks"]
+
+
+## The coin stacks' size on Rosa's desk (the hoard's pieces are sized for a dragon's floor).
+const COIN_SCALE := 0.4
+
 
 ## A makeshift bed on the floor (FURNITURE "+"): a thin striped pad, a blanket folded over its foot and a pillow.
 static func _bedroll() -> ArrayMesh:
@@ -797,6 +832,10 @@ func floor_mat(z: String) -> Material:
 
 ## Natural interiors keep the same collision map and doorway rules, with rounded, sealed rock masses.
 func _cavern() -> void:
+	if map["room"].get("well", false):
+		# the Dustwell Well's caves: levels, cracks, ladders and rope bridges (well_cave.gd)
+		preload("res://scripts/gfx/well_cave.gd").build(self)
+		return
 	var ground := MeshInstance3D.new()
 	var slab := BoxMesh.new()
 	slab.size = Vector3(w, 0.3, h)
@@ -804,14 +843,11 @@ func _cavern() -> void:
 	ground.position = Vector3(w * 0.5, -0.15, h * 0.5)
 	ground.material_override = floor_surface("floor_cave")
 	parent.add_child(ground)
-	if map["room"].has("masonry_runs"):
-		_well_walls()
-	else:
-		_rounded_cavern_walls()
+	_rounded_cavern_walls()
 	for p in [Vector2i(3, 3), Vector2i(12, 3), Vector2i(21, 3), Vector2i(4, 12), Vector2i(20, 12)]:
 		var lamp := OmniLight3D.new()
 		lamp.position = Vector3(p.x + 0.5, 2.1, p.y + 0.5)
-		lamp.light_color = Color("#ede2d3") if map["room"].has("masonry_runs") else Color("e0bf9c")
+		lamp.light_color = Color("e0bf9c")
 		lamp.light_energy = 0.65
 		lamp.omni_range = 7
 		lamp.shadow_enabled = false
@@ -861,89 +897,6 @@ func _rounded_cavern_walls() -> void:
 		parent.add_child(node)
 		if key != "shell":
 			add_prop([node], points[0], Vector2(1, points.size()))
-
-
-## Straight, two-tile bays cut through a continuous cliff shell. Use the same wall cells for
-## rendering and walking, including the mouths of the tunnels where the two finishes meet.
-func _well_walls() -> void:
-	var masonry := {}
-	for run: Rect2i in map["room"]["masonry_runs"]:
-		var vertical := run.size.y > 1
-		var length := maxi(run.size.x, run.size.y)
-		var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
-		for i in length:
-			masonry[run.position + along * i] = true
-		for i in range(0, length, 2):
-			var start := run.position + along * i
-			var span := mini(2, length - i)
-			var wall := MeshInstance3D.new()
-			wall.mesh = preload("res://assets/interiors/kaykit_wall_cracked.res") if (start.x + start.y) % 5 == 0 else preload("res://assets/interiors/kaykit_wall.res")
-			var bb := wall.mesh.get_aabb()
-			var height := 0.36 if start.y == h - 1 else 1.70
-			var scale_to_tile := Vector3(span / bb.size.x, height / bb.size.y, 0.92 / bb.size.z)
-			var basis := Basis(Vector3.UP, PI / 2.0 if vertical else 0.0).scaled_local(scale_to_tile)
-			var footprint := Vector2(1, span) if vertical else Vector2(span, 1)
-			var centre := Vector2(start) + footprint * 0.5
-			wall.transform = Transform3D(basis, Vector3(centre.x, 0, centre.y) - basis * Vector3(bb.get_center().x, bb.position.y, bb.get_center().z))
-			parent.add_child(wall)
-			if start.y < h - 1:
-				add_prop([wall], start, footprint)
-
-	var stone := StandardMaterial3D.new()
-	stone.albedo_texture = preload("res://scripts/gfx/temple_props.gd").grey_cliff_texture()
-	stone.albedo_color = Color("#b2b8bd")
-	stone.roughness = 1.0
-	stone.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	stone.uv1_triplanar = true
-	stone.uv1_scale = Vector3.ONE * 0.43
-	var exits: Dictionary = map["exits"]
-	# Small batches can fade independently when the camera looks across a rock spur.
-	for z in range(0, h, 2):
-		for x in range(0, w, 3):
-			var batch := Mesher.new()
-			var bounds := Rect2i(x, z, mini(3, w - x), mini(2, h - z))
-			for y in range(z, bounds.end.y):
-				for col in range(x, bounds.end.x):
-					var cell := Vector2i(col, y)
-					if not wallish(col, y) or masonry.has(cell) or exits.has(cell):
-						continue
-					_well_cliff_cell(batch, stone, cell, bounds, masonry)
-			if not batch.surf.is_empty():
-				var cliff := MeshInstance3D.new()
-				cliff.mesh = batch.mesh()
-				parent.add_child(cliff)
-				add_prop([cliff], bounds.position, Vector2(bounds.size))
-
-
-func _well_cliff_cell(batch: Mesher, stone: Material, cell: Vector2i, bounds: Rect2i, masonry: Dictionary) -> void:
-	var corners := [Vector2i.ZERO, Vector2i.RIGHT, Vector2i.ONE, Vector2i.DOWN]
-	var sides := [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
-	var foot := []
-	var ledge := []
-	var crown := []
-	for offset: Vector2i in corners:
-		var q := cell + offset
-		var phase := 0.65 * sin(q.x * 1.38 + q.y * 1.49) + 0.35 * cos(q.x * 2.73 - q.y * 0.84)
-		var skew := Vector3(phase, 0, cos(q.y * 2.21 - q.x * 1.37))
-		var height := 0.36 if q.y >= h - 1 else 1.85 + phase * 0.26
-		var base := Vector3(q.x, -0.04, q.y)
-		foot.append(base + skew * 0.09)
-		ledge.append(base + skew * 0.18 + Vector3.UP * height * 0.58)
-		crown.append(base - skew * 0.15 + Vector3.UP * height)
-	batch.quad("rock", stone, crown, Vector3.UP, Vector3.RIGHT, Vector3.BACK)
-	for side in 4:
-		var neighbour: Vector2i = cell + sides[side]
-		# A neighbouring batch can fade away. Cap the joint so its rock stays solid.
-		if bounds.has_point(neighbour) and wallish(neighbour.x, neighbour.y) and not masonry.has(neighbour) and not map["exits"].has(neighbour):
-			continue
-		var end := (side + 1) % 4
-		var outward := Vector3(sides[side].x, 0, sides[side].y)
-		for strip in [[foot, ledge], [ledge, crown]]:
-			var face := [strip[0][side], strip[0][end], strip[1][end], strip[1][side]]
-			var normal: Vector3 = (face[1] - face[0]).cross(face[3] - face[0]).normalized()
-			if normal.dot(outward) < 0:
-				normal = -normal
-			batch.quad("rock", stone, face, normal, Vector3.RIGHT, Vector3.UP)
 
 
 static func floor_surface(tex: String) -> ShaderMaterial:
@@ -1345,10 +1298,14 @@ func _walls() -> void:
 			var c := code(x, y)
 			if not c in WALLISH:
 				continue
+			var dungeon: bool = map.get("room", {}).get("dungeon_walls", false)
 			if y == h - 1:
 				# no front wall: only the walls running back from it come on, to the floor's front edge
 				if wallish(x, y - 1) and not c in DIAGS:
-					_bars(x, y, _foot(x, y), float(map.get("room", {}).get("wall_height", H)), false, true, false, false, true, false)
+					if dungeon:
+						_dungeon_wall(x, y, _foot(x, y), float(map.get("room", {}).get("wall_height", H)), true, false, true, false)
+					else:
+						_bars(x, y, _foot(x, y), float(map.get("room", {}).get("wall_height", H)), false, true, false, false, true, false)
 				continue
 			var top := float(map.get("room", {}).get("wall_height", H))
 			var e := wallish(x + 1, y)
@@ -1375,7 +1332,9 @@ func _walls() -> void:
 						_slant(y, ctr, ctr + Vector2(q.x, q.y) * 0.5, _foot(x, y), top, sides2[0][1], sides2[1][1], code(dx, dy))
 			match c:
 				MapGen.IWALL:
-					if _cubbies.has(Vector2i(x, y)):
+					if dungeon:
+						_dungeon_wall(x, y, _foot(x, y), top, n, e, s, wv)
+					elif _cubbies.has(Vector2i(x, y)):
 						_cubby_wall(x, y)
 					else:
 						_bars(x, y, _foot(x, y), top, horiz, vert, e, wv, n, s)
@@ -1397,9 +1356,40 @@ func _walls() -> void:
 						_bars(x, y, WIN_TOP + Elev.surface(map, Vector2i(x, y)), top, horiz, vert, e, wv, n, s)
 						_window(x, y, horiz)
 				MapGen.IDOOR, MapGen.LOCKED:
-					if top > DOOR_H:
+					if top > DOOR_H and dungeon:
+						# (only the run of the wall over the door, not its corners)
+						_dungeon_wall(x, y, DOOR_H + Elev.surface(map, Vector2i(x, y)), top, vert, horiz, vert, horiz)
+					elif top > DOOR_H:
 						_bars(x, y, DOOR_H + Elev.surface(map, Vector2i(x, y)), top, horiz, vert, e, wv, n, s)
 					_doorway(x, y, horiz, c == MapGen.LOCKED)
+
+
+## A room of dungeon walls ("dungeon_walls": Dale's bedroom under the well): the KayKit Dungeon Pack's cut-stone wall
+## piece for tile (x, y) between heights y0 and y1, by which sides it joins more wall on (n, e, s, w): a run, a corner,
+## a T, a crossing or an end (tools/import_kaykit.gd DUNGEON_WALLS). The pack's pieces are 4 units to a tile and stand
+## about its centre; the corner joins west and south, the T west, east and south, the end runs east.
+func _dungeon_wall(x: int, y: int, y0: float, y1: float, n: bool, e: bool, s: bool, wv: bool) -> void:
+	var count := int(n) + int(e) + int(s) + int(wv)
+	var mesh: Mesh = preload("res://assets/interiors/kaykit_dungeon_wall.res")
+	var turn := 0.0
+	if count == 4:
+		mesh = preload("res://assets/interiors/kaykit_dungeon_cross.res")
+	elif count == 3:
+		mesh = preload("res://assets/interiors/kaykit_dungeon_tee.res")
+		turn = 0.0 if not n else (90.0 if not wv else (180.0 if not s else 270.0))
+	elif count == 2 and n == s:
+		turn = 0.0 if e else 90.0
+	elif count == 2:
+		mesh = preload("res://assets/interiors/kaykit_dungeon_corner.res")
+		turn = 0.0 if wv and s else (90.0 if s and e else (180.0 if e and n else 270.0))
+	elif count == 1:
+		mesh = preload("res://assets/interiors/kaykit_dungeon_end.res")
+		turn = 0.0 if e else (90.0 if n else (180.0 if wv else 270.0))
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(turn)).scaled(Vector3(0.25, (y1 - y0) / 4.0, 0.25)), Vector3(x + 0.5, y0, y + 0.5))
+	_row(y)
+	(rows[y] as Node3D).add_child(mi)
 
 
 ## The wall in tile (x, y) between heights y0 and y1: a bar along each line of wall through it, each face finished
@@ -5138,6 +5128,9 @@ static func dais_at(m: Dictionary, t: Vector2i) -> float:
 func _daises() -> void:
 	var wood := _rail_mat()
 	for d in map.get("room", {}).get("dais", []):
+		# (a performance stage, "rails": false, stays open towards its audience: the Oasis Saloon's concert hall)
+		if not d.get("rails", true):
+			continue
 		var r := _dais_rect(d)
 		var steps := {}
 		for st in d.get("steps", []):
