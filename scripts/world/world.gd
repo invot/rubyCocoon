@@ -3465,6 +3465,9 @@ func _walkable(p: Vector2i) -> bool:
 		return false
 	if map.has("beached_hull") and map["beached_hull"].has_point(p):
 		return false
+	# (scenery that stands in the way: the large rocks on the well's cave floors, well_cave.gd _floor_rocks)
+	if map.get("scenery_blocks", {}).has(p):
+		return false
 	if npc_footprints.has(p) or nest_tiles.has(p):
 		return false
 	if p.x < 0 or p.y < 0 or p.x >= map["w"] or p.y >= map["h"]:
@@ -3549,8 +3552,9 @@ func _process(delta: float) -> void:
 		# on the stairs (even with the room fading out round you)
 		_climb_on(delta)
 	elif moving:
-		# the legs keep pace with the ground (a step every half turn of the phase)
-		anim_t += VPer.phase_for(delta * move_speed, move_speed)
+		# the legs keep pace with the ground (a step every half turn of the phase; on a ladder, with the climb instead)
+		if not _on_ladder:
+			anim_t += VPer.phase_for(delta * move_speed, move_speed)
 		move_t += delta * move_speed / _move_length
 		if move_t >= 1.0:
 			# a step always lands on the middle of its tile, whatever was let go of or pressed on the way
@@ -3572,6 +3576,7 @@ func _process(delta: float) -> void:
 	if not moving and _climb.is_empty():
 		# easing back to standing, then breathing and looking about
 		_stride = move_toward(_stride, 0.0, delta * 25.0)
+	_climb_ladder()
 	VPer.animate(player, anim_t, _stride)
 	if fishing != null:
 		_aim_line()
@@ -3813,8 +3818,14 @@ func _begin_step(target: Vector2i, run: bool) -> void:
 	move_from = tile_pos(player_pos)
 	move_to = tile_pos(target)
 	_move_length = Vector2(target - player_pos).length()
+	var ladder := _ladder_dir(player_pos) != Vector2i.ZERO or _ladder_dir(target) != Vector2i.ZERO
 	player_pos = target
 	move_speed = 4.6 * (1.0 + GameState.gear_fx("speed")) * (1.7 if run else 1.0)
+	if ladder:
+		# onto, along or off a ladder: hand over hand at CLIMB_SPEED, up or down it (counted along the climb, so a tall
+		# ladder takes longer than a short one)
+		var rise := move_to.y - move_from.y
+		move_speed = CLIMB_SPEED * (1.0 + GameState.gear_fx("speed")) * (1.3 if run else 1.0) * _move_length / sqrt(_move_length * _move_length + rise * rise)
 
 
 ## Going out by a door in the room's wall: you stop in front of it, and it swings open, away from you, as the room
@@ -3835,6 +3846,49 @@ func _through_door(t: Vector2i) -> void:
 	await get_tree().create_timer(0.12).timeout
 	busy = false
 	GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
+
+
+## How fast you climb a ladder, up or down (game units a second along it; a jog on the level is 4.6).
+const CLIMB_SPEED := 1.6
+## Whether you're on a ladder (_ladder_dir) this frame, and how high you were on it the frame before (the hands and feet
+## keep pace with the climb, VPer.climb_phase).
+var _on_ladder := false
+var _ladder_y := 0.0
+
+
+## The way up the ladder on tile p, or ZERO if there's none: a rope ladder up a cliff (a ROPE tile on a ramp), or one of
+## the Dustwell Well's wooden ladders (every ramp in its caves, well_cave.gd _ladders). You climb them facing them.
+func _ladder_dir(p: Vector2i) -> Vector2i:
+	if not Elev.has(map) or p.x < 0 or p.y < 0 or p.x >= map["w"] or p.y >= map["h"]:
+		return Vector2i.ZERO
+	var d := Elev.ramp_dir(map, p)
+	if d == Vector2i.ZERO:
+		return d
+	if MapGen.get_t(map, p.x, p.y) == MapGen.ROPE or String(map.get("room_key", "")).begins_with("well_"):
+		return d
+	return Vector2i.ZERO
+
+
+## A frame of the hero on a ladder, or stepping off one: on its tile you face it and climb it hand over hand (up it or
+## down it, by the way you're going), its rungs passing at the pace you climb; off it, you turn back the way you go.
+func _climb_ladder() -> void:
+	var tile := Vector2i(floori(player.position.x), floori(player.position.z))
+	var d := _ladder_dir(tile)
+	var was := _on_ladder
+	_on_ladder = d != Vector2i.ZERO
+	if _on_ladder:
+		if was:
+			anim_t += VPer.climb_phase(player.position.y - _ladder_y)
+		_ladder_y = player.position.y
+		var going := move_to - move_from
+		var up := bool(player.get_meta("climb_up", true))
+		if moving and absf(going.y) > 0.001:
+			up = going.y > 0.0
+		VPer.set_climb(player, true, up, Elev.edge(map, tile, d) - Elev.edge(map, tile, -d))
+		VPer.face(player, d, true)
+	elif was:
+		VPer.set_climb(player, false)
+		VPer.face(player, facing, true)
 
 
 ## How fast you go up and down a house's stairs (tiles a second; a jog on the level is 4.6), and how long the screen
@@ -6121,6 +6175,7 @@ func _build_room() -> void:
 		# the well's caves are dark, lit by their wall torches (well_cave.gd _torches), with mist over the floors
 		env.ambient_light_color = Color("#8e98aa")
 		env.ambient_light_energy = 0.2
+		preload("res://scripts/gfx/well_cave.gd").environment_fog(env, key)
 	if room.get("parlour", false):
 		# a fortune teller's parlour: curtains drawn, a dim violet hush, lit by its candles and the crystal ball
 		env.ambient_light_color = Color("#8a74b8")
@@ -6158,6 +6213,8 @@ func _build_room() -> void:
 		sun.light_energy = 0.1
 	elif key.begins_with("well_"):
 		sun.light_energy = 0.07
+		# (a fill light: it stays out of the caves' volumetric mist, which only the torches light)
+		sun.light_volumetric_fog_energy = 0.0
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-60, 20, 0)
 	if open_air:

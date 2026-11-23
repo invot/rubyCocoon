@@ -373,6 +373,34 @@ static func set_talking(rig: Node3D, on: bool, at_once := false) -> void:
 		rig.set_meta("talk_w", 1.0 if on else 0.0)
 
 
+## How far up a ladder one whole climbing cycle carries a person (game units): each foot steps up two rungs (the well's
+## ladders have a rung every 0.24, well_cave.gd ladder), the feet taking turns, so a foot lands on every rung.
+const CLIMB_STEP := 0.48
+## The part of a climbing cycle a foot (and the opposite hand) holds its rung, before reaching up for the next one.
+const CLIMB_HOLD := 0.72
+## How far the body leans in to a steep ladder (radians); in to a leaning one, further, towards its rungs.
+const CLIMB_LEAN := 0.2
+
+
+## Whether a person is on a ladder, facing it: climbing it, the hands reach up for the rungs and the knees come up to
+## step onto them, one side and then the other (the left hand with the right foot), head tipped up to look where
+## they're going (`up`) or down over their shoulder at the way down. They settle into it over a moment (see
+## animate). While climbing, animate's `phase` counts the height climbed: a whole turn every CLIMB_STEP, going down
+## as they climb down (climb_phase), so the hands and feet hold their rungs instead of sliding along them. `slope`:
+## how steeply the ladder leans (rise over run), so a raised foot lands further in on a leaning ladder.
+static func set_climb(rig: Node3D, on: bool, up := true, slope := 1.6, at_once := false) -> void:
+	rig.set_meta("climbing", on)
+	rig.set_meta("climb_up", up)
+	rig.set_meta("climb_slope", maxf(slope, 0.3))
+	if at_once:
+		rig.set_meta("climb_w", 1.0 if on else 0.0)
+
+
+## The climbing phase (radians) after climbing `rise` (game units; negative going down), for animate.
+static func climb_phase(rise: float) -> float:
+	return rise * TAU / CLIMB_STEP
+
+
 ## How far a person reaches out with their right hand, 0 (not at all) to 1 (arm straight out ahead, hand open), as
 ## whoever drives them sets it from moment to moment (the intro's Vexmora calling up a ghost).
 static func set_reach(rig: Node3D, w: float) -> void:
@@ -731,17 +759,22 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	rig.set_meta("kneel_w", kneel_w)
 	# (sinking down eases in and out)
 	var kw := smoothstep(0.0, 1.0, kneel_w)
+	# on a ladder (set_climb), taking hold of it
+	var climb_w := move_toward(float(rig.get_meta("climb_w", 0.0)), 1.0 if rig.get_meta("climbing", false) else 0.0, dt * 5.0)
+	rig.set_meta("climb_w", climb_w)
+	var cw := smoothstep(0.0, 1.0, climb_w)
+	var climb_lean := maxf(CLIMB_LEAN, 0.7 * (PI / 2.0 - atan(float(rig.get_meta("climb_slope", 1.6)))))
 	# a weapon held ready (a battle), and its use: over the arms, the chest's turn and the knees
 	var ready_w := move_toward(float(rig.get_meta("ready_w", 0.0)), 1.0 if String(rig.get_meta("ready", "")) != "" else 0.0, dt * 5.0)
 	rig.set_meta("ready_w", ready_w)
 	var wpose := _weapon_pose(rig, t, smoothstep(0.0, 1.0, ready_w)) if rig.has_meta("ready_kind") else {}
 	var ww := float(wpose.get("w", 0.0)) * (1.0 - kw) * (1.0 - sit_w)
-	speed = maxf(speed, 0.0) * (1.0 - sit_w) * (1.0 - kneel_w)
+	speed = maxf(speed, 0.0) * (1.0 - sit_w) * (1.0 - kneel_w) * (1.0 - cw)
 	# how much of a gait there is (0 standing), how much of it is a run, how much a sprint
 	var m := clampf(speed / 1.2, 0.0, 1.0)
 	var run := smoothstep(2.4, 4.2, speed)
 	var sprint := smoothstep(4.6, 7.8, speed)
-	var still := 1.0 - m
+	var still := (1.0 - m) * (1.0 - cw)
 	var breath := sin(t * 2.2)
 	var shift := sin(t * 0.85) * (1.0 - talk_w * 0.5)
 	# the part of each step a foot is on the ground, how far it travels back meanwhile, and how far ahead it lands
@@ -794,6 +827,15 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		var ankle: Vector3 = leg["ankle"]
 		var hip: Vector3 = leg["hip"]
 		var target := Vector2(ankle.z + z, ankle.y + y)
+		if cw > 0.0:
+			# on a ladder: the foot stands on its rung as the body climbs past it (sinking down beside the body), then
+			# the knee comes up and it steps onto the rung above; the higher the rung, the further in it is
+			var c := fposmod(u + (0.0 if side == "l" else 0.5), 1.0)
+			var k := 1.0 - c / CLIMB_HOLD if c < CLIMB_HOLD else smoothstep(0.0, 1.0, (c - CLIMB_HOLD) / (1.0 - CLIMB_HOLD))
+			var rise := CLIMB_STEP * CLIMB_HOLD * k
+			var rung := Vector2(ankle.z + 0.05 + rise / float(rig.get_meta("climb_slope", 1.6)), ankle.y + 0.015 + rise)
+			target = target.lerp(rung, cw)
+			toe = lerpf(toe, 0.0, cw)
 		feet[side] = [target, toe]
 	# sitting: the hips come down onto the seat, a little back from the edge; kneeling, down over the lowered knee
 	var seat := float(rig.get_meta("seat", 0.36))
@@ -804,6 +846,8 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	# the hips twist so the leg that lands leads; they dip on the side of the leg in the air
 	var twist := -lerpf(0.11, 0.16, run) * m * cos(TAU * u)
 	var roll := lerpf(0.045, 0.025, run) * m * sin(TAU * u) + 0.03 * still * shift * (1.0 - sit_w) * (1.0 - kw)
+	# on a ladder the hips shift a little towards the foot on the higher rung
+	roll += 0.05 * cw * sin(TAU * u)
 	# talking: one hand comes up to make a point, then the other, a few seconds each
 	var gest := t * 0.42 + float(rig.get_instance_id() % 7)
 	var hand := fposmod(floorf(gest), 2.0)
@@ -817,6 +861,8 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	var lean := lerpf(0.06, 0.3, run) * m + 0.08 * sprint + breath * 0.025 * still + 0.08 * sit_w + 0.04 * talk_w * sin(t * 1.3)
 	# kneeling: hunched over, catching their breath
 	lean += kw * (0.4 + 0.045 * sin(t * 3.4))
+	# climbing: leaning in to the ladder
+	lean += cw * climb_lean
 	var spine: Array = r["spine"]
 	var each := 1.0 / maxf(1.0, spine.size())
 	var chest_turn := float(wpose.get("twist", 0.0)) * ww
@@ -826,6 +872,8 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 	# the head keeps looking ahead, steady through the steps; talking, it nods along and tilts
 	var head: Dictionary = r["head"]
 	var nod := talk_w * (0.06 * sin(t * 4.1) * sin(t * 1.7) - 0.04) + 0.3 * kw
+	# up a ladder, looking up it; down one, down past the feet
+	nod += cw * (-0.3 if rig.get_meta("climb_up", true) else 0.3) - cw * 0.3 * climb_lean
 	var look := sin(t * 0.53) * 0.14 * still * (1.0 - 0.7 * talk_w) * (1.0 - kw)
 	_turn(sk, head, g, Quaternion(up, 0.5 * twist + look)
 		* Quaternion(lat, -0.7 * lean + nod + sin(t * 1.1) * 0.02 * still) * Quaternion(fwd, 0.2 * roll + 0.07 * talk_w * sin(t * 0.9)))
@@ -895,6 +943,14 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		a_swing = lerpf(a_swing, 0.95 if side == "l" else 0.25, kw)
 		bend = lerpf(bend, 0.7 if side == "l" else 0.2, kw)
 		# hanging on (meta "hang_w", 0-1): both arms straight up overhead, gripping something above
+		# on a ladder: the hand holds its rung as the body climbs past it, the elbow bending, then reaches up for the
+		# next (the left hand with the right foot)
+		if cw > 0.0:
+			var c := fposmod(u + (0.5 if side == "l" else 0.0), 1.0)
+			var k := 1.0 - c / CLIMB_HOLD if c < CLIMB_HOLD else smoothstep(0.0, 1.0, (c - CLIMB_HOLD) / (1.0 - CLIMB_HOLD))
+			a_swing = lerpf(a_swing, lerpf(1.75, 2.75, k), cw)
+			bend = lerpf(bend, lerpf(1.25, 0.3, k), cw)
+			spread = lerpf(spread, -0.08, cw)
 		var hang_w := float(rig.get_meta("hang_w", 0.0))
 		a_swing = lerpf(a_swing, 3.1, hang_w)
 		bend = lerpf(bend, -0.2, hang_w)

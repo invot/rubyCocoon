@@ -32,6 +32,8 @@ const ABYSS_DEPTH := 1.6
 const WALL_H := 2.4
 ## the rock wall behind the rope ladder up to the town
 const SHAFT_H := 4.0
+## how far the entrance's rope ladder rises above the top of the rock behind it
+const LADDER_OVER := 1.2
 ## the cliffs' grey (WorldDB.CLIFF_LOOKS "tint" for the outdoor ones) and how deeply they're fluted
 const ROCK_TINT := "#9c9a98"
 const FLUTES := 1.2
@@ -987,9 +989,14 @@ func _doorways() -> void:
 		var e := Vector3(p.x + 0.5, 0, p.y + 0.5) - b3 * (STONE_FACE if _stone_door(p) else 0.5)
 		if not String(ex.get("to", "")).contains("#"):
 			# the rope ladder up the well shaft to the town, hanging down the rock face, flush with the wall
-			_drop(e - along * 0.5, e + along * 0.5, y, _shaft_top(p), -b3, along)
+			var shaft := _shaft_top(p)
+			_drop(e - along * 0.5, e + along * 0.5, y, shaft, -b3, along)
+			# it runs on up past the top of the rock behind and beside it, so it plainly climbs out of the cave
+			var wall_top := shaft
+			for d in [Vector2i(back.y, back.x), -Vector2i(back.y, back.x)]:
+				wall_top = maxf(wall_top, float(_top.get(p + d, -INF)))
 			var foot := Vector3(e.x, y, e.z) - b3 * 0.42
-			rb.parent.add_child(ladder(foot, foot + Vector3(0, 3.4, 0) + b3 * 0.3, along, rope))
+			rb.parent.add_child(ladder(foot, foot + Vector3(0, wall_top - y + LADDER_OVER, 0) + b3 * 0.3, along, rope))
 			continue
 		# a black hole in the wall's face, flush with it, the wall carried on over it
 		_box(Vector3(e.x, y + 1.0, e.z) - b3 * 0.01, Vector3(0.98 if back.y != 0 else 0.02, 2.0, 0.02 if back.y != 0 else 0.98), dark)
@@ -1044,6 +1051,7 @@ func _spa() -> void:
 	glow.light_color = Color("#ffc2d8")
 	glow.light_energy = 0.6
 	glow.omni_range = 4.0
+	glow.light_volumetric_fog_energy = 0.0
 	glow.position = Vector3(mid.x, Elev.surface(map, tub[0]) + 1.4, mid.y)
 	rb.parent.add_child(glow)
 
@@ -1062,7 +1070,13 @@ func _torches() -> void:
 		if near:
 			continue
 		placed.append(at)
-		rb.parent.add_child(TempleLights.wall_torch(at + Vector3(0, TORCH_Y, 0.16), Vector3.BACK, true, 1.5, 6.5))
+		var torch := TempleLights.wall_torch(at + Vector3(0, TORCH_Y, 0.16), Vector3.BACK, true, 1.5, 6.5)
+		# the torches are the caves' hero lights: they carve bright pockets in the volumetric mist
+		for l in torch.find_children("*", "OmniLight3D", true, false):
+			(l as OmniLight3D).light_volumetric_fog_energy = TORCH_FOG
+		rb.parent.add_child(torch)
+	if not foggy(String(map.get("room_key", ""))):
+		return
 	var levels := {}
 	for y in h:
 		for x in w:
@@ -1073,13 +1087,15 @@ func _torches() -> void:
 			if not levels.has(s):
 				levels[s] = []
 			levels[s].append(p)
-	# one layer of the fields' drifting mist (field_mist.gdshader) over each level, laid only on that level's own floor
-	# tiles and fading out towards their edges, so it never runs into the walls, over a drop or off the map's front
+	# mist over each level, laid only on that level's own floor tiles and fading out towards their edges, so it never runs
+	# into the walls, over a drop or off the map's front: a volumetric FogVolume on Forward+ (dungeon_floor_fog.gdshader),
+	# and one layer of the fields' drifting mist (field_mist.gdshader) where FogVolumes don't render (Mobile, Compatibility)
+	var volumetric := RenderingServer.get_current_rendering_method() == "forward_plus"
 	var noise := FastNoiseLite.new()
 	noise.seed = 719
 	noise.frequency = 0.025
 	noise.fractal_octaves = 3
-	var clouds := ImageTexture.create_from_image(noise.get_seamless_image(256, 256))
+	var clouds: ImageTexture = null if volumetric else ImageTexture.create_from_image(noise.get_seamless_image(256, 256))
 	for s in levels:
 		var mine := {}
 		for p: Vector2i in levels[s]:
@@ -1096,6 +1112,9 @@ func _torches() -> void:
 				cover.set_pixelv(p, Color.WHITE)
 		cover.resize(w * 8, h * 8, Image.INTERPOLATE_CUBIC)
 		cover.generate_mipmaps()
+		if volumetric:
+			_fog_volume(float(s), levels[s], ImageTexture.create_from_image(cover))
+			continue
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		for p: Vector2i in levels[s]:
@@ -1116,6 +1135,78 @@ func _torches() -> void:
 		mist.material_override = mat
 		mist.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		rb.parent.add_child(mist)
+
+
+## The rooms around Dale the wizard (his workroom, where you meet him, and his bedroom) have clear air: no mist.
+const CLEAR_ROOMS := ["well_dale", "well_bedroom"]
+## the caves' mist: its volumetric FogVolumes' slate tint, how thick it lies at the floor, and how high it rises
+const FOG_TINT := Color("#4a5866")
+const FOG_DENSITY := 1.4
+const FOG_HEIGHT := 2.0
+## how much of the cave's ambient light the mist takes in, and the faint glow of its own
+const FOG_AMBIENT := 1.5
+const FOG_GLOW := Color("#55626e")
+## the torches' share of the volumetric mist's light (their halos)
+const TORCH_FOG := 4.0
+static var _fog_noise: NoiseTexture3D
+
+
+## Whether a well room has mist.
+static func foggy(key: String) -> bool:
+	return key.begins_with("well_") and not key in CLEAR_ROOMS
+
+
+## The well's caves' Environment fog (world.gd _build_room): on Forward+, a thin volumetric haze packed into the caves'
+## short sightlines, scattering forwards around the torches; the floor mist itself is _fog_volume's. None in CLEAR_ROOMS.
+static func environment_fog(env: Environment, key: String) -> void:
+	if not foggy(key) or RenderingServer.get_current_rendering_method() != "forward_plus":
+		return
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.008
+	env.volumetric_fog_length = 40.0
+	env.volumetric_fog_anisotropy = 0.7
+	env.volumetric_fog_albedo = FOG_TINT
+	env.volumetric_fog_emission = Color.BLACK
+	# (the caves are so dark that mist lit only by the torches reads as nothing: it takes in the cave's dim ambient too)
+	env.volumetric_fog_ambient_inject = FOG_AMBIENT
+
+
+## One level's floor mist on Forward+: a FogVolume box over the level's floor tiles, at least 1.5 high (thinner boxes
+## flicker between the froxels), its density masked by `cover` (the level's tiles over the whole map) and drifting noise.
+func _fog_volume(floor_y: float, tiles: Array, cover: Texture2D) -> void:
+	var lo := Vector2i(w, h)
+	var hi := Vector2i(-1, -1)
+	for p: Vector2i in tiles:
+		lo = Vector2i(mini(lo.x, p.x), mini(lo.y, p.y))
+		hi = Vector2i(maxi(hi.x, p.x), maxi(hi.y, p.y))
+	hi += Vector2i.ONE
+	var size := Vector2(hi - lo)
+	if _fog_noise == null:
+		var fn := FastNoiseLite.new()
+		fn.seed = 719
+		fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		fn.frequency = 0.03
+		fn.fractal_octaves = 3
+		_fog_noise = NoiseTexture3D.new()
+		_fog_noise.width = 64
+		_fog_noise.height = 64
+		_fog_noise.depth = 64
+		_fog_noise.seamless = true
+		_fog_noise.noise = fn
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://scripts/gfx/dungeon_floor_fog.gdshader")
+	mat.set_shader_parameter("fog_color", FOG_TINT)
+	mat.set_shader_parameter("emission_color", FOG_GLOW)
+	mat.set_shader_parameter("base_density", FOG_DENSITY)
+	mat.set_shader_parameter("noise_tex", _fog_noise)
+	mat.set_shader_parameter("coverage", cover)
+	mat.set_shader_parameter("cover_rect", Vector4(float(lo.x) / w, float(lo.y) / h, size.x / w, size.y / h))
+	var fog := FogVolume.new()
+	fog.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+	fog.size = Vector3(size.x, FOG_HEIGHT, size.y)
+	fog.position = Vector3(lo.x + size.x * 0.5, floor_y + FOG_HEIGHT * 0.5, lo.y + size.y * 0.5)
+	fog.material = mat
+	rb.parent.add_child(fog)
 
 
 ## The KayKit pack's barrels, boxes, kegs and broken tables (tools/import_kaykit.gd WELL_CLUTTER) left about the caves:
@@ -1257,12 +1348,15 @@ static func _hash01(x: int, y: int) -> float:
 
 
 ## Large rocks lying on the floor against the natural rock walls, now and then: never by cut stone, a doorway, a ladder,
-## a bridge, a drop, a chest, an item, anyone, or the clutter, and tucked against the wall, so no way through is narrowed.
+## a bridge, a drop, a chest, an item, anyone, or the clutter, and tucked against the wall. Each is solid: its tile goes
+## in the map's "scenery_blocks" (world.gd _walkable), so a rock only lies where open floor stands in front of it
+## and to both sides, and every way through stays open.
 var _keep := {}
 var _taken := {}
 
 
 func _floor_rocks() -> void:
+	map["scenery_blocks"] = {}
 	if not map.get("room", {}).get("cavern", false):
 		return
 	var mat := rock.duplicate() as StandardMaterial3D
@@ -1293,8 +1387,15 @@ func _floor_rocks() -> void:
 						clear = false
 					elif absi(dx) <= 1 and absi(dy) <= 1 and (_keep.has(q) or _taken.has(q)):
 						clear = false
+			# (open floor at its level in front of it and to both sides, so it never closes a way through)
+			var side := Vector2i(absi(lean.y), absi(lean.x))
+			for q: Vector2i in [p - lean, p - lean + side, p - lean - side, p + side, p - side]:
+				if not _inside(q) or rb.wallish(q.x, q.y) or not _solid(q) or _ramp(q) or _exit(q) or _keep.has(q) or _taken.has(q) \
+					or map["scenery_blocks"].has(q) or absf(Elev.surface(map, q) - floor_y) > 0.01:
+					clear = false
 			if not clear:
 				continue
+			map["scenery_blocks"][p] = true
 			var mi := MeshInstance3D.new()
 			mi.mesh = load("res://assets/nature/%s.res" % BOULDERS[n % BOULDERS.size()])
 			var size := 0.85 + 0.3 * _hash01(x + 5, y * 7)
