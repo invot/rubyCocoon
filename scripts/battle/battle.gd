@@ -2544,9 +2544,11 @@ func _move_options(b) -> Array:
 	return out
 
 
-## Top-level beast actions. Moves stay under Attack, including support moves.
+## Top-level beast actions. Moves stay under Attack, including support moves; a beast with only one move shows that
+## move in Attack's place instead of a one-item submenu.
 func _beast_options(b) -> Array:
-	var attack := {"id": "attack", "label": "Attack", "icon": "attack", "choices": _move_options(b),
+	var moves := _move_options(b)
+	var attack: Dictionary = moves[0] if moves.size() == 1 else {"id": "attack", "label": "Attack", "icon": "attack", "choices": moves,
 		"desc": "Choose one of %s's moves. B returns here." % b.nickname}
 	if tutorial and _tut_beast() == "Defend":
 		attack["disabled"] = true
@@ -2572,7 +2574,7 @@ func _beast_options(b) -> Array:
 	if _practice == "team" or _practice == "move":
 		# on rails: attacks only while practising choosing for each beast; Move only while practising it
 		for o in out:
-			var ok: bool = (o["id"] == "attack") if _practice == "team" else (o["id"] == "shift")
+			var ok: bool = (o["id"] in ["attack", "move"]) if _practice == "team" else (o["id"] == "shift")
 			if not ok and not o.get("disabled", false):
 				o["disabled"] = true
 				o["note"] = "%s: \"Not in this practice! %s\"" % [GameState.codex_name(), _practice_hint()]

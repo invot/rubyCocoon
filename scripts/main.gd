@@ -4372,6 +4372,17 @@ func _battlecmd_test() -> void:
 			check.call(p.rows[1].has("attack_parent") and p.rows[1]["options"][0]["id"] == "move", "%s opens beast moves" % device)
 			await _battle_choice_input(device, false)
 			check.call(not p.rows[1].has("attack_parent") and p.focus == 1, "%s returns to beast actions" % device)
+		# a beast with a single move shows that move in Attack's place: no one-item submenu
+		var lone = p.rows[1]["beast"]
+		var kept_moves: Array = lone.moves.duplicate()
+		var kept_equip: String = lone.equip
+		lone.moves = ["tackle"]
+		lone.equip = ""
+		var lone_opts: Array = bt._beast_options(lone)
+		lone.moves = kept_moves
+		lone.equip = kept_equip
+		check.call(lone_opts[0].get("move", "") == "tackle" and not lone_opts[0].has("choices") and bt._beast_options(lone)[0].has("choices"),
+			"one move skips the Attack submenu; several keep it (%s)" % str(lone_opts[0].get("label", "")))
 	await key.call("ui_accept")
 	await opt_to.call(p, "move", "bite")
 	await key.call("ui_accept")

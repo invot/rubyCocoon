@@ -326,10 +326,14 @@ static func stage_beast(look: Dictionary) -> Node3D:
 	var genes: Dictionary = look.genes
 	var model: Node3D
 	var bounds: AABB
+	# (a rig stands on its own y = 0, its feet planted there and a flyer hovering above it, so it keeps that floor
+	# rather than being lifted by its lowest piece: that would set a flyer down on the platform, its wingbeat dipping in)
+	var floor_y := NAN
 	if BeastModel.rigged(genes):
 		model = BeastModel.rig(genes)
 		model.scale = Vector3.ONE
 		bounds = BeastModel.bounds(model)
+		floor_y = 0.0
 	elif genes.has("model"):
 		model = VA.instance(String(genes.model), 1.8)
 		bounds = AABB(Vector3(-0.8, 0, -0.8), Vector3(1.6, 1.8, 1.6))
@@ -342,7 +346,8 @@ static func stage_beast(look: Dictionary) -> Node3D:
 	# Both forms use the same camera and fit the platform; grown forms remain visibly larger.
 	var s := 1.65 / maxf(extent, 0.1) * clampf(float(genes.get("size", 1.0)), 0.65, 1.25)
 	model.scale = Vector3.ONE * s
-	model.position = Vector3(-bounds.get_center().x * s, -bounds.position.y * s, -bounds.get_center().z * s)
+	var lift := -(floor_y if not is_nan(floor_y) else bounds.position.y) * s
+	model.position = Vector3(-bounds.get_center().x * s, lift, -bounds.get_center().z * s)
 	root.add_child(model)
 	root.rotation.y = -PI * 0.5
 	return root

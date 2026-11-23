@@ -300,9 +300,11 @@ const LID_OPEN := -1.9
 ## alike (no prop shows gold coins: the user's 2026-11-14 direction). Falls back to the older box-built chest if the
 ## meshes are missing.
 static func chest(open: bool) -> Node3D:
-	var kind := "chest"
-	var base: Mesh = load("res://assets/props/kaykit_%s_base.res" % kind) if ResourceLoader.exists("res://assets/props/kaykit_%s_base.res" % kind) else null
-	var top: Mesh = load("res://assets/props/kaykit_%s_lid.res" % kind) if ResourceLoader.exists("res://assets/props/kaykit_%s_lid.res" % kind) else null
+	# literal paths, so asset sweeps see both meshes are in use (the lid was swept out once, 2026-11-21)
+	const CHEST_BASE := "res://assets/props/kaykit_chest_base.res"
+	const CHEST_LID := "res://assets/props/kaykit_chest_lid.res"
+	var base: Mesh = load(CHEST_BASE) if ResourceLoader.exists(CHEST_BASE) else null
+	var top: Mesh = load(CHEST_LID) if ResourceLoader.exists(CHEST_LID) else null
 	if base == null or top == null:
 		return _box_chest(open)
 	var root := Node3D.new()
