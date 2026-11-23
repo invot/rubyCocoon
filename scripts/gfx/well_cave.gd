@@ -66,6 +66,8 @@ var _corner_outs := {}
 var cliff_mat: ShaderMaterial
 ## black quads closing the rock where the room doesn't see it (_rock_side), built with the roof
 var _blacks := []
+## the ledges' edges, for their rocky lips (_rims): [a, b, out], at the floor's height
+var _rim_edges := []
 ## the dirt floor's pieces, by mesh: the transform of each
 var _dirt_tiles := {}
 ## where torches could hang: the feet of the back walls' faces, looking at the camera
@@ -112,6 +114,7 @@ func _go() -> void:
 			for x in w:
 				if MapGen.get_t(map, x, y) == MapGen.IVOID:
 					abyss_y = minf(abyss_y, Elev.surface(map, Vector2i(x, y)))
+	_pit_level()
 	if room.has("masonry_cols"):
 		var cols: Array = room["masonry_cols"]
 		for y in h:
@@ -133,11 +136,14 @@ func _go() -> void:
 	_walls()
 	_ladders()
 	_bridges()
+	_arches()
 	_doorways()
 	_flush()
+	_rims()
 	_spa()
 	_torches()
 	_clutter()
+	_floor_rocks()
 	_roof()
 
 
@@ -177,7 +183,31 @@ func _diag_wall(p: Vector2i) -> bool:
 	return _inside(p) and _code(p) in [MapGen.IDIAG_A, MapGen.IDIAG_B]
 
 
-## A crack's bottomless tile: a gap on the room's lowest ("abyss") level.
+## The crack's floor: PIT_DEPTH under the lowest floor at its rim (pit_rim), not bottomless, so the bridges cross
+## a shallow pit with dirt at its foot.
+const PIT_DEPTH := 2.0
+var pit_y := -INF
+var pit_rim := -INF
+
+
+func _pit_level() -> void:
+	if abyss_y == -INF:
+		return
+	var rim := INF
+	for y in h:
+		for x in w:
+			var p := Vector2i(x, y)
+			if not _abyss(p):
+				continue
+			for d in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				var q: Vector2i = p + d
+				if _inside(q) and not rb.wallish(q.x, q.y) and _code(q) != MapGen.IVOID:
+					rim = minf(rim, Elev.surface(map, q))
+	pit_rim = rim if rim < INF else abyss_y + ABYSS_DEPTH
+	pit_y = pit_rim - PIT_DEPTH
+
+
+## A crack's tile: a gap on the room's lowest ("abyss") level, down to the pit's floor.
 func _abyss(p: Vector2i) -> bool:
 	return _inside(p) and abyss_y > -INF and _code(p) == MapGen.IVOID and not map["bridges"].has(p) \
 		and Elev.surface(map, p) <= abyss_y + 0.01
@@ -197,13 +227,13 @@ func _under(p: Vector2i) -> float:
 		var q: Vector2i = p + d
 		if _inside(q) and not _wall(q) and not _bridge(q) and not _abyss(q) and not _diag_wall(q):
 			return Elev.surface(map, q)
-	return abyss_y - ABYSS_DEPTH
+	return pit_y
 
 
 ## Where the ground at tile q's edge facing back along -d is, for a face dropping to it.
 func _low_side(q: Vector2i, d: Vector2i) -> float:
 	if _abyss(q):
-		return abyss_y - ABYSS_DEPTH
+		return pit_y
 	if _bridge(q):
 		return _under(q)
 	if _ramp(q):
@@ -218,9 +248,8 @@ func _floors() -> void:
 		for x in w:
 			var p := Vector2i(x, y)
 			if _abyss(p):
-				var deep := abyss_y - ABYSS_DEPTH
-				floors.quad("abyss", _black, [Vector3(x, deep, y), Vector3(x + 1, deep, y), Vector3(x + 1, deep, y + 1),
-					Vector3(x, deep, y + 1)], Vector3.UP, Vector3.RIGHT, Vector3.BACK)
+				# (the pit's dirt floor)
+				_quad(p, pit_y)
 				continue
 			if _stone(p) or _stone_door(p):
 				# the cut stone stands along the middle of its tiles: the floor runs on under it
@@ -235,7 +264,7 @@ func _floors() -> void:
 				continue
 			if _bridge(p):
 				var under := _under(p)
-				if under > abyss_y - ABYSS_DEPTH + 0.01:
+				if under > pit_y + 0.01:
 					_quad(p, under)
 				continue
 			if _ramp(p):
@@ -394,13 +423,14 @@ func _diag_ledge(p: Vector2i, dg: int) -> void:
 	if not low_open:
 		_tri(p, halves[1], lo)
 	var line: Array = [Vector2(1, 0), Vector2(0, 1)] if dg in [Elev.DIAG_NW, Elev.DIAG_SE] else [Vector2(0, 0), Vector2(1, 1)]
-	var bottom := abyss_y - ABYSS_DEPTH if low_open else lo
+	var bottom := pit_y if low_open else lo
 	var mid_low: Vector2 = (halves[1][0] + halves[1][1] + halves[1][2]) / 3.0
 	var mid_line: Vector2 = (line[0] + line[1]) / 2.0
 	var out := Vector3(mid_low.x - mid_line.x, 0, mid_low.y - mid_line.y).normalized()
 	var a := Vector3(p.x + line[0].x, 0, p.y + line[0].y)
 	var b := Vector3(p.x + line[1].x, 0, p.y + line[1].y)
 	_drop(a, b, bottom, hi, out, (b - a).normalized())
+	_rim_edges.append([a + Vector3(0, hi, 0), b + Vector3(0, hi, 0), out])
 
 
 func _tri(p: Vector2i, corners: Array, y: float) -> void:
@@ -469,13 +499,15 @@ func _cliffs() -> void:
 				if not _inside(q) or _hidden(q) or _diag_wall(q) or (fade and _wall(q)) or _stone(q) or _exit(q):
 					continue
 				var top := _edge_top(p, d)
+				if _closed_crack(q):
+					# (inside the crack running back into the rock: kept under its roof, so nothing pokes out over the back)
+					top -= SUNK
 				var low := _low_at(q, d)
 				if _open_front(q):
 					# a crack running out of the map's front: nothing hangs towards the camera, and its sides only
 					# go as deep as the floor in front of them hides
 					if d == Vector2i.DOWN:
 						continue
-					low = maxf(low, top - 0.2 - 0.27 * maxi(0, h - 2 - q.y))
 				if top - low < 0.01:
 					continue
 				var out := Vector3(d.x, 0, d.y)
@@ -484,6 +516,9 @@ func _cliffs() -> void:
 				# beside a doorway or across a ladder's tile the rock stands plain, so nothing juts into the way
 				var flat := _ramp(q) and Elev.ramp_dir(map, q) != d and Elev.ramp_dir(map, q) != -d
 				_drop(c - along * 0.5, c + along * 0.5, low, top, out, along, fade, flat)
+				# (a floor's edge over a drop gets a rocky lip; not at a ladder or a bridge's end)
+				if not fade and not _ramp(p) and not _ramp(q) and not _bridge(q) and not _bridge(p) and top - low > 0.3:
+					_rim_edges.append([c - along * 0.5 + Vector3(0, top, 0), c + along * 0.5 + Vector3(0, top, 0), out])
 
 
 ## Rock at the map's front: the front row, and in front of the front-most floor in its column and the ones beside it.
@@ -556,7 +591,7 @@ func _low_at(q: Vector2i, d: Vector2i) -> float:
 func _drop(a: Vector3, b: Vector3, low: float, top: float, out: Vector3, along: Vector3, fade := false, flat := false) -> void:
 	var ta := Vector3(a.x, top, a.z)
 	var tb := Vector3(b.x, top, b.z)
-	if fade and out == Vector3.BACK and top - low >= 1.8 and low > abyss_y + 0.01:
+	if fade and out == Vector3.BACK and top - low >= 1.8 and low > pit_y + 0.01:
 		_spots.append(Vector3((a.x + b.x) * 0.5, low, a.z))
 	_faces.append({"top": [ta, ta.lerp(tb, 0.5), tb], "foot": [low, low, low], "out": out, "flat": flat, "turf": false,
 		"fade": fade, "at": Vector2i(floori((a.x + b.x) * 0.5 - out.x * 0.25), floori((a.z + b.z) * 0.5 - out.z * 0.25))})
@@ -612,9 +647,9 @@ func _darkened(vs: PackedVector3Array, cs: PackedColorArray) -> PackedColorArray
 		return cs
 	var out := cs.duplicate()
 	for i in vs.size():
-		if vs[i].y < abyss_y:
+		if vs[i].y < pit_rim:
 			var c := out[i]
-			c.r = maxf(c.r, lerpf(1.0, 0.6, clampf((vs[i].y - (abyss_y - ABYSS_DEPTH)) / ABYSS_DEPTH, 0.0, 1.0)))
+			c.r = maxf(c.r, lerpf(1.0, 0.6, clampf((vs[i].y - pit_y) / PIT_DEPTH, 0.0, 1.0)))
 			out[i] = c
 	return out
 
@@ -670,6 +705,46 @@ func _wall_tops() -> void:
 				_top[p] = WALL_H
 			break
 		todo = left
+	var tall := float(map.get("room", {}).get("tall_back", 0.0))
+	if tall > 0.0:
+		_raise_back(tall)
+
+
+## A great chamber's rock rises higher towards its back ("tall_back" metres at most over WALL_H), in broad steps that
+## wander along the wall, and steps down along its sides towards the front.
+const BACK_STEP := 0.8
+
+
+func _raise_back(tall: float) -> void:
+	var first := h
+	var last := 0
+	for y in h:
+		for x in w:
+			if not rb.wallish(x, y) and _code(Vector2i(x, y)) != MapGen.IVOID:
+				first = mini(first, y)
+				last = maxi(last, y)
+	for p: Vector2i in _top.keys():
+		if _stone(p) or _stone_diag(p):
+			continue
+		var t := smoothstep(0.2, 1.0, clampf(float(last - p.y) / maxf(1.0, float(last - first)), 0.0, 1.0))
+		_top[p] += snappedf(tall * t * (0.55 + 0.6 * _wander(p.x)), BACK_STEP)
+
+
+## Smooth value noise along x, 0..1, changing over a few tiles.
+static func _wander(x: int) -> float:
+	var f := x / 4.5
+	var i := floori(f)
+	var a := fposmod(sin(i * 12.9898) * 43758.5453, 1.0)
+	var b := fposmod(sin((i + 1) * 12.9898) * 43758.5453, 1.0)
+	return lerpf(a, b, smoothstep(0.0, 1.0, f - i))
+
+
+## The top of the well shaft up to the town: SHAFT_H over its floor, and always a little above the rock beside it.
+func _shaft_top(p: Vector2i) -> float:
+	var t := _door_level(p) + SHAFT_H
+	for side in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		t = maxf(t, float(_top.get(p + side, -INF)) + BACK_STEP)
+	return t
 
 
 ## How low a wall tile reaches: down to the lowest floor beside it (diagonals too), or into a crack.
@@ -681,7 +756,7 @@ func _foot(p: Vector2i) -> float:
 			if not _inside(q) or _wall(q):
 				continue
 			if _abyss(q):
-				foot = minf(foot, abyss_y - ABYSS_DEPTH)
+				foot = minf(foot, pit_y)
 			elif _bridge(q):
 				foot = minf(foot, _under(q))
 			elif _ramp(q):
@@ -728,7 +803,7 @@ func _diag_cliff(p: Vector2i) -> void:
 	var out := Vector3(mid_open.x - mid_line.x, 0, mid_open.y - mid_line.y).normalized()
 	var l0 := Vector3(p.x + line[0].x, 0, p.y + line[0].y)
 	var l1 := Vector3(p.x + line[1].x, 0, p.y + line[1].y)
-	_drop(l0, l1, _foot(p), _top.get(p, WALL_H), out, (l1 - l0).normalized(), true)
+	_drop(l0, l1, _foot(p), _top.get(p, WALL_H) - (SUNK if _deep(p) else 0.0), out, (l1 - l0).normalized(), true)
 
 
 ## A cut-stone wall tile (the stretches with straight walls and square niches): the KayKit Dungeon Pack's wall piece
@@ -738,8 +813,10 @@ func _cut_stone(p: Vector2i) -> void:
 	if _inside(p + Vector2i.DOWN) and not rb.wallish(p.x, p.y + 1) and _code(p + Vector2i.DOWN) != MapGen.IVOID:
 		# (torches hang on the cut stone too, on its face towards the room)
 		_spots.append(Vector3(p.x + 0.5, _foot(p), p.y + 0.5 + STONE_FACE - 0.16))
-	rb._dungeon_wall(p.x, p.y, _foot(p), _top[p], _joins(p + Vector2i.UP), _joins(p + Vector2i.RIGHT),
-		_joins(p + Vector2i.DOWN), _joins(p + Vector2i.LEFT))
+	# (a wall running out to the map's front carries on to the floor's front edge rather than stopping short)
+	var s := _joins(p + Vector2i.DOWN) or (_hidden(p + Vector2i.DOWN) and _joins(p + Vector2i.UP))
+	rb._dungeon_wall(p.x, p.y, _foot(p), _top[p], _joins(p + Vector2i.UP), _joins(p + Vector2i.RIGHT), s,
+		_joins(p + Vector2i.LEFT))
 
 
 ## A cut-stone tile that's built: in the masonry's columns, with the room beside it (corners too), not at the front.
@@ -910,7 +987,7 @@ func _doorways() -> void:
 		var e := Vector3(p.x + 0.5, 0, p.y + 0.5) - b3 * (STONE_FACE if _stone_door(p) else 0.5)
 		if not String(ex.get("to", "")).contains("#"):
 			# the rope ladder up the well shaft to the town, hanging down the rock face, flush with the wall
-			_drop(e - along * 0.5, e + along * 0.5, y, y + SHAFT_H, -b3, along)
+			_drop(e - along * 0.5, e + along * 0.5, y, _shaft_top(p), -b3, along)
 			var foot := Vector3(e.x, y, e.z) - b3 * 0.42
 			rb.parent.add_child(ladder(foot, foot + Vector3(0, 3.4, 0) + b3 * 0.3, along, rope))
 			continue
@@ -1069,6 +1146,12 @@ func _clutter() -> void:
 			keep[p] = true
 	for p in map.get("furniture", {}):
 		keep[p] = true
+	# (never on or beside a treasure chest, a lying item or anyone standing about)
+	for list: String in ["chests", "items", "npcs"]:
+		for e in map.get(list, []):
+			if e is Dictionary and e.get("pos") is Vector2i:
+				keep[e["pos"]] = true
+	_keep = keep
 	var n := 0
 	for y in range(1, h):
 		for x in w:
@@ -1092,6 +1175,134 @@ func _clutter() -> void:
 					Vector3(x + 0.5 + off.x, floor_y, y + 0.36 + off.y))
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				rb.parent.add_child(mi)
+			_taken[p] = true
+			n += 1
+
+
+## A rocky lip along each ledge's edge, rolling from the floor over the cliff's top so no gap shows between them, in
+## lengths that swell and shrink, with now and then a big rock sitting on the edge.
+const RIM := [Vector2(-0.13, -0.01), Vector2(-0.05, 0.035), Vector2(0.04, 0.045), Vector2(0.1, 0.0), Vector2(0.13, -0.1),
+	Vector2(0.11, -0.22)]
+const BOULDERS := ["rock_big", "stone_1", "field_rock"]
+
+
+func _rims() -> void:
+	if _rim_edges.is_empty():
+		return
+	var mat := rock.duplicate() as StandardMaterial3D
+	mat.vertex_color_use_as_albedo = false
+	# (the cliffs' grey, not the lighter loose rock)
+	mat.albedo_color = Color("#7d8288")
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# (faceted, like broken rock)
+	st.set_smooth_group(-1)
+	var n_edge := 0
+	for e: Array in _rim_edges:
+		var out: Vector3 = e[2]
+		var along := ((e[1] as Vector3) - (e[0] as Vector3)).normalized()
+		# (a little past each end, so the lips meet round a corner)
+		var a: Vector3 = (e[0] as Vector3) - along * 0.12
+		var b: Vector3 = (e[1] as Vector3) + along * 0.12
+		var steps := 7
+		var top_y: float = (e[0] as Vector3).y
+		var cols := []
+		for k in steps + 1:
+			var at := a.lerp(b, float(k) / steps)
+			var swell := 0.8 + 0.5 * _hash01(roundi(at.x * 8.0), roundi(at.z * 8.0))
+			var col := []
+			for ri in RIM.size():
+				var r: Vector2 = RIM[ri]
+				# (each point knocked about a little, the ends of a length left alone so the lengths meet)
+				var jo := 0.0
+				var jy := 0.0
+				if ri > 0 and ri < RIM.size() - 1:
+					jo = (_hash01(roundi(at.x * 16.0) + ri * 5, roundi(at.z * 16.0)) - 0.5) * 0.08
+					jy = (_hash01(roundi(at.z * 16.0) + ri * 3, roundi(at.x * 16.0) + 7) - 0.5) * 0.05
+				col.append(at + out * (r.x * (swell if r.x > 0.0 else 1.0) + jo) + Vector3(0, r.y * (swell if r.y > 0.0 else 1.0) + jy, 0))
+			cols.append(col)
+		for k in steps:
+			for r in RIM.size() - 1:
+				var q := [cols[k][r], cols[k + 1][r], cols[k + 1][r + 1], cols[k][r + 1]]
+				# (wound clockwise seen from above and outside, so it faces up and out)
+				var up: bool = ((q[1] as Vector3) - q[0]).cross((q[3] as Vector3) - q[0]).dot(Vector3.UP + out) > 0.0
+				for i in ([0, 2, 1, 0, 3, 2] if up else [0, 1, 2, 0, 2, 3]):
+					# (dressed as the cliff faces are, for the cliffs' material: COLOR r how far down the rock, b and a the way it
+					# looks; UV along the edge and down from its top)
+					var v: Vector3 = q[i]
+					var down := clampf((top_y - v.y) / 2.0, 0.0, 1.0)
+					st.set_color(Color(down, 0.0, out.x * 0.5 + 0.5, out.z * 0.5 + 0.5))
+					st.set_uv(Vector2(v.x * absf(along.x) + v.z * absf(along.z), top_y - v.y + 0.02))
+					st.add_vertex(q[i])
+		# now and then a big rock on the edge, mostly over the drop
+		var mid := (a + b) * 0.5
+		if _hash01(roundi(mid.x * 4.0) + 3, roundi(mid.z * 4.0) + 11) < 0.16:
+			var mi := MeshInstance3D.new()
+			mi.mesh = load("res://assets/nature/%s.res" % BOULDERS[n_edge % BOULDERS.size()])
+			var size := 0.42 + 0.25 * _hash01(roundi(mid.x * 5.0), roundi(mid.z * 3.0))
+			mi.transform = Transform3D(Basis(Vector3.UP, TAU * _hash01(roundi(mid.z * 6.0), roundi(mid.x * 2.0))).scaled(Vector3.ONE * size),
+				mid + along * (_hash01(roundi(mid.x * 9.0), 5) - 0.5) * 0.4 + out * 0.12 - Vector3(0, 0.08, 0))
+			mi.material_override = mat
+			rb.parent.add_child(mi)
+			n_edge += 1
+	st.generate_normals()
+	var rim := MeshInstance3D.new()
+	rim.mesh = st.commit()
+	rim.material_override = cliff_mat
+	rb.parent.add_child(rim)
+
+
+static func _hash01(x: int, y: int) -> float:
+	return fposmod(sin(x * 12.9898 + y * 78.233) * 43758.5453, 1.0)
+
+
+## Large rocks lying on the floor against the natural rock walls, now and then: never by cut stone, a doorway, a ladder,
+## a bridge, a drop, a chest, an item, anyone, or the clutter, and tucked against the wall, so no way through is narrowed.
+var _keep := {}
+var _taken := {}
+
+
+func _floor_rocks() -> void:
+	if not map.get("room", {}).get("cavern", false):
+		return
+	var mat := rock.duplicate() as StandardMaterial3D
+	mat.vertex_color_use_as_albedo = false
+	mat.albedo_color = Color("#7d8288")
+	var n := 0
+	for y in h:
+		for x in w:
+			var p := Vector2i(x, y)
+			if not _solid(p) or _wall(p) or _hidden(p) or _ramp(p) or Elev.diagonal(map, p) != 0:
+				continue
+			var floor_y := Elev.surface(map, p)
+			if _edge_tile(p, floor_y) or _hash01(x * 3 + 17, y * 5 + 3) > 0.13:
+				continue
+			# the rock wall it leans on (straight, natural rock), at the same level
+			var lean := Vector2i.ZERO
+			for d in [Vector2i.UP, Vector2i.LEFT, Vector2i.RIGHT]:
+				if _wall(p + d) and not _stone(p + d) and not _masonry.has(p + d):
+					lean = d
+					break
+			if lean == Vector2i.ZERO:
+				continue
+			var clear := true
+			for dy in range(-2, 3):
+				for dx in range(-2, 3):
+					var q := p + Vector2i(dx, dy)
+					if _masonry.has(q) or _stone(q) or _stone_door(q) or _stone_diag(q) or _exit(q) or _bridge(q) or _ramp(q):
+						clear = false
+					elif absi(dx) <= 1 and absi(dy) <= 1 and (_keep.has(q) or _taken.has(q)):
+						clear = false
+			if not clear:
+				continue
+			var mi := MeshInstance3D.new()
+			mi.mesh = load("res://assets/nature/%s.res" % BOULDERS[n % BOULDERS.size()])
+			var size := 0.85 + 0.3 * _hash01(x + 5, y * 7)
+			var at := Vector3(x + 0.5, floor_y - 0.05, y + 0.5) + Vector3(lean.x, 0, lean.y) * (0.5 - size * 0.42)
+			mi.transform = Transform3D(Basis(Vector3.UP, TAU * _hash01(y + 2, x * 3)).scaled(Vector3.ONE * size), at)
+			mi.material_override = mat
+			rb.parent.add_child(mi)
+			_taken[p] = true
 			n += 1
 
 
@@ -1118,7 +1329,7 @@ func _roof() -> void:
 			if not rb.wallish(x, y) and _code(Vector2i(x, y)) != MapGen.IVOID:
 				low = minf(low, Elev.surface(map, Vector2i(x, y)))
 	if abyss_y > -INF:
-		low = minf(low, abyss_y - ABYSS_DEPTH)
+		low = minf(low, pit_y)
 	if high == -INF:
 		return
 	var front := h - 1
@@ -1126,6 +1337,17 @@ func _roof() -> void:
 		for x in range(-ROOF_OUT, w + ROOF_OUT):
 			var at := Vector2i(clampi(x, 0, w - 1), clampi(y, 0, h - 1))
 			var inside := at == Vector2i(x, y)
+			if inside and _closed_crack(at):
+				var ct := -INF
+				for side in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					ct = maxf(ct, _top.get(at + side, -INF))
+				if ct > -INF:
+					# (down on the sunk rock's tops inside, so the crack is a closed tunnel seen through its mouth)
+					ct -= SUNK
+					var cc := [Vector3(x, ct + 0.01, y), Vector3(x + 1, ct + 0.01, y), Vector3(x + 1, ct + 0.01, y + 1), Vector3(x, ct + 0.01, y + 1)]
+					for k in [0, 1, 2, 0, 2, 3]:
+						st.add_vertex(cc[k])
+				continue
 			if not (_wall(at) or _diag_wall(at) or _exit(at)) or _hidden(at):
 				continue
 			var t: float = _top.get(at, high)
@@ -1135,10 +1357,12 @@ func _roof() -> void:
 				for side in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 					t = maxf(t, _top.get(at + side, -INF))
 				if not String(map["exits"][at].get("to", "")).contains("#"):
-					t = maxf(t, _door_level(at) + SHAFT_H)
+					t = maxf(t, _shaft_top(at))
 				if t == -INF:
 					continue
-			if inside and _diag_wall(at):
+			if inside and _diag_wall(at) and _deep(at):
+				t -= SUNK
+			if inside and _diag_wall(at) and not _deep(at):
 				var open := _diag_open_half(at)
 				var a := _code(at) == MapGen.IDIAG_A
 				var halves: Array = [[Vector2(0, 0), Vector2(1, 0), Vector2(0, 1)], [Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]] if a 					else [[Vector2(0, 0), Vector2(1, 0), Vector2(1, 1)], [Vector2(0, 0), Vector2(1, 1), Vector2(0, 1)]]
@@ -1160,9 +1384,37 @@ func _roof() -> void:
 			var c := [Vector3(x0, t + 0.01, z0), Vector3(x1, t + 0.01, z0), Vector3(x1, t + 0.01, z1), Vector3(x0, t + 0.01, z1)]
 			for k in [0, 1, 2, 0, 2, 3]:
 				st.add_vertex(c[k])
+	for lid: Array in _arch_lids:
+		var a: Vector3 = lid[0]
+		var b: Vector3 = lid[1]
+		var lc := [Vector3(a.x, a.y, a.z), Vector3(b.x, a.y, a.z), Vector3(b.x, a.y, b.z), Vector3(a.x, a.y, b.z)]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.add_vertex(lc[k])
 	for q: Array in _blacks:
 		for k in [0, 1, 2, 0, 2, 3]:
 			st.add_vertex(q[k])
+	# a black curtain under the floor's front edge, so nothing dropping into a crack shows below the front
+	for x in w:
+		var fy := -1
+		for y in h:
+			if not rb.wallish(x, y) and (_code(Vector2i(x, y)) != MapGen.IVOID or _abyss(Vector2i(x, y))):
+				fy = y
+		if fy < 0:
+			continue
+		var edge := INF
+		for dx in range(0, w):
+			for sx in [x - dx, x + dx]:
+				var f := Vector2i(sx, fy)
+				if _inside(f) and not rb.wallish(f.x, f.y) and not _abyss(f) and not _bridge(f) and _code(f) != MapGen.IVOID:
+					edge = minf(edge, Elev.surface(map, f))
+			if edge < INF:
+				break
+		if edge == INF:
+			continue
+		var z := fy + 1.005
+		var cv := [Vector3(x, low - 0.5, z), Vector3(x + 1, low - 0.5, z), Vector3(x + 1, edge - 0.01, z), Vector3(x, edge - 0.01, z)]
+		for k in [0, 1, 2, 0, 2, 3]:
+			st.add_vertex(cv[k])
 	# the black walls at the left and right ends, from below the lowest floor up to the roof
 	for side in [-ROOF_OUT, w + ROOF_OUT]:
 		var a := Vector3(side, low - 0.5, -ROOF_OUT)
@@ -1176,6 +1428,73 @@ func _roof() -> void:
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	rb.parent.add_child(mi)
+
+
+## How far the rock inside a crack running back into the rock stays under the roof over it.
+const SUNK := 0.45
+
+
+## Rock with no floor beside it (corners too), only a crack running back into it: its face sunk, roofed whole.
+func _deep(p: Vector2i) -> bool:
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var q := p + Vector2i(dx, dy)
+			if _inside(q) and not rb.wallish(q.x, q.y) and not _abyss(q) and _code(q) != MapGen.IVOID:
+				return false
+	return true
+
+
+## A rocky arch where a crack runs back into the rock behind the room (the room's "arches": [left x, the back edge's z,
+## width]): the cave's rock across the crack from the rim's height up to the rock's top, its foot arching up in the
+## middle, unevenly. Behind it the black roof at its top runs ARCH_BACK tiles back, so nothing over the crack behind
+## the arch shows.
+const ARCH_BACK := 5
+var _arch_lids := []
+
+
+func _arches() -> void:
+	for arch: Array in map.get("room", {}).get("arches", []):
+		var x0 := int(arch[0])
+		var z := int(arch[1])
+		var wide := int(arch[2])
+		var top := -INF
+		for k in range(x0 - 1, x0 + wide + 1):
+			for dz in [-1, 0]:
+				top = maxf(top, _top.get(Vector2i(k, z + dz), -INF))
+		if top == -INF or pit_y == -INF:
+			continue
+		var spring := minf(pit_rim + 0.7, top - 0.8)
+		var crown := minf(pit_rim + 1.5, top - 0.4)
+		# (in six lengths, its foot rising off-centre and wandering a little, like rock worn away rather than cut)
+		var parts := 6
+		var feet := []
+		for i in parts * 2 + 1:
+			var t := float(i) / (parts * 2)
+			var lift := pow(maxf(0.0, sin(PI * pow(t, 1.25))), 0.6)
+			var wobble := (fposmod(sin((i + x0 * 7 + z * 13) * 12.9898) * 43758.5453, 1.0) - 0.5) * 0.35
+			feet.append(spring + (crown - spring) * lift + (wobble if i > 0 and i < parts * 2 else 0.0))
+		for i in parts:
+			var ta := Vector3(x0 + wide * float(i) / parts, top, z)
+			var tb := Vector3(x0 + wide * float(i + 1) / parts, top, z)
+			_faces.append({"top": [ta, ta.lerp(tb, 0.5), tb], "foot": [feet[i * 2], feet[i * 2 + 1], feet[i * 2 + 2]],
+				"out": Vector3.BACK, "flat": false, "turf": false, "fade": true, "at": Vector2i(x0 + int(wide * float(i) / parts), z)})
+			for pt: Vector3 in [ta, tb]:
+				var k := _corner_key(pt)
+				_corner_outs[k] = _corner_outs.get(k, Vector3.ZERO) + Vector3.BACK
+		# (the roof over the crack behind it, a tile wider each side)
+		_arch_lids.append([Vector3(x0 - 1, top + 0.02, z - ARCH_BACK), Vector3(x0 + wide + 1, top + 0.02, z - 0.02)])
+
+
+## A stretch of crack running back into the rock, with no floor beside it (corners too): roofed over like the rock.
+func _closed_crack(p: Vector2i) -> bool:
+	if not _abyss(p):
+		return false
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var q := p + Vector2i(dx, dy)
+			if _inside(q) and not rb.wallish(q.x, q.y) and not _abyss(q) and _code(q) != MapGen.IVOID:
+				return false
+	return true
 
 
 ## Whether tile q, beside a cut-stone tile, is open floor (where the stone's face looks).

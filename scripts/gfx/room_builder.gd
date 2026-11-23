@@ -1362,6 +1362,51 @@ func _walls() -> void:
 					elif top > DOOR_H:
 						_bars(x, y, DOOR_H + Elev.surface(map, Vector2i(x, y)), top, horiz, vert, e, wv, n, s)
 					_doorway(x, y, horiz, c == MapGen.LOCKED)
+	_dungeon_caps()
+
+
+## A dungeon room's back corners ("dungeon_walls"): a black lid over each corner square of wall and the wall behind it,
+## in the backdrop's colour, so the tops and backs of the walls round the corner never show.
+func _dungeon_caps() -> void:
+	if not map.get("room", {}).get("dungeon_walls", false):
+		return
+	var top := float(map.get("room", {}).get("wall_height", H)) + 0.01
+	var inset := 0.31
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for y in range(1, h - 1):
+		for x in range(1, w - 1):
+			if code(x, y) != MapGen.IWALL or wallish(x, y + 1):
+				continue
+			var open_l := not wallish(x - 1, y)
+			var open_r := not wallish(x + 1, y)
+			if open_l == open_r:
+				continue
+			var out := 1 if open_l else -1
+			for t in [Vector2i(0, 0), Vector2i(0, -1), Vector2i(out, 0), Vector2i(out, -1)]:
+				var x0 := float(x + t.x)
+				var x1 := x0 + 1.0
+				var z0 := float(y + t.y)
+				var z1 := z0 + 1.0
+				if t == Vector2i.ZERO:
+					# (on the room's sides only as far as the wall's face)
+					z1 -= inset
+					if open_l:
+						x0 += inset
+					else:
+						x1 -= inset
+				var c := [Vector3(x0, top, z0), Vector3(x1, top, z0), Vector3(x1, top, z1), Vector3(x0, top, z1)]
+				for k in [0, 2, 1, 0, 3, 2]:
+					st.add_vertex(c[k])
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("#0d0a10")
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
 
 
 ## A room of dungeon walls ("dungeon_walls": Dale's bedroom under the well): the KayKit Dungeon Pack's cut-stone wall

@@ -63,6 +63,7 @@ const ROOMS := {
 	## The great chamber: four floors stepping down from the back wall to the front (1 at the back, where the rope ladder comes down from the town (D), to 4 at the front). Ladders (^ in "heights") join them; the one down to floor 4 lies fallen until Beaver Crumb's ladder replaces it. Bridge 2 (-) joins floor 3's two halves once mended with rope. Doors: the nook (A), Beaver Dibble's locked room (B, Beaver Nub's key), Beaver Crumb's room (C) and the long hall towards Dale (E).
 	"well_main": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 2.0, "top_level": 4,
+		"tall_back": 3.2,
 		"bridges": {"-": "well_bridge_2"},
 		"locked_doors": {"B": "well_door_open"},
 		"encounter": {"races": [12, 15, 18, 21, 66], "lv": [15, 19], "roam": true},
@@ -184,6 +185,7 @@ const ROOMS := {
 	"well_crack": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 2.0, "top_level": 3, "abyss": true,
 		"bridges": {"-": "well_bridge_1"},
+		"arches": [[8, 9, 2]],
 		"encounter": {"races": [12, 15, 18, 21, 66], "lv": [15, 19], "roam": true},
 		"doors": {"A": "well_long", "B": "well_bever2"},
 		"anchors": {"0": "chest:spirit_drop#0"},
@@ -279,6 +281,7 @@ const ROOMS := {
 	"well_bever4": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 2.0, "top_level": 3, "abyss": true,
 		"bridges": {"-": "well_bridge_3"},
+		"arches": [[17, 5, 2]],
 		"encounter": {"races": [12, 15, 18, 21, 66], "lv": [15, 19], "roam": true},
 		"doors": {"A": "well_main"},
 		"anchors": {"0": "beaver_3", "1": "chest:revival_seed#0"},
