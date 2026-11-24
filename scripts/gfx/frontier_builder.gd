@@ -123,8 +123,9 @@ static func _church(node: Node3D, w: float, d: float) -> float:
 	# eaves 6.5 up): only planks show through the bell tower's open balcony and the gaps in its boards
 	var k := VBld.Kit.new()
 	k.box("planks", Vector3(0, 3.1, -0.62), Vector3(5.0, 6.1, 4.95), Color("#cfc4b0"))
-	# (and up under the roof's ridge, 8.5 up, as far as its slopes allow)
-	for step in [[3.6, 7.0], [3.4, 7.12], [3.1, 7.25], [2.6, 7.4], [2.0, 7.6]]:
+	# (and up under the roof's ridge, 8.5 up, as far as its slopes allow: narrow enough not to poke out through them)
+	for step in [[3.6, 7.0], [3.4, 7.12], [3.1, 7.25], [2.6, 7.4], [2.0, 7.6], [1.4, 7.75], [1.0, 7.9], [0.7, 8.05],
+			[0.45, 8.2], [0.25, 8.35]]:
 		k.box("planks", Vector3(0, (6.0 + step[1]) / 2.0, -0.62), Vector3(step[0], step[1] - 6.0, 4.95), Color("#cfc4b0"))
 	var seal := MeshInstance3D.new()
 	seal.mesh = k.mesh()

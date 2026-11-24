@@ -366,6 +366,8 @@ func _sunbeam(top: float) -> void:
 	mat.set_shader_parameter("base_fade", 0.7)
 	beam.material_override = mat
 	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# (a shaft of light, not an object: its shader fades it out, so it needs no texture)
+	beam.add_to_group("untextured_fx")
 	var tall := 8.0
 	beam.position = centre + Vector3(0, top + tall / 2.0, 0)
 	beam.scale = Vector3(1, tall, 1)

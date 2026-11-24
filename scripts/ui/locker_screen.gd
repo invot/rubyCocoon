@@ -22,6 +22,8 @@ var _pending: Dictionary = {}
 var _returned: Dictionary = {}
 ## Keep the chosen chunk's countdown visible while the dictionary compacts identical items.
 var _fragment: Dictionary = {}
+## The rows each list shows: chosen from the screen's height, then pared down until the scroll arrows clear the pad.
+var _rows := -1
 
 static func open(kind := "desk") -> Dictionary:
 	if UI.auto:
@@ -65,6 +67,22 @@ func _ready() -> void:
 	UIKit.place(body, "center", Vector2(24, 24))
 	var shift := safe.get_center() - get_viewport_rect().get_center() - Vector2(0, UI.bottom_reserve() / 2.0)
 	body.position += shift
+	_clear_pad()
+
+
+## On a phone the A/B buttons' no-tap zone reaches up over a list's scroll arrow, and a tap there belongs to the pad:
+## show one row fewer until the arrows stand clear of it, so tapping one still scrolls (scroll_rail.gd).
+func _clear_pad() -> void:
+	# (the panes lay themselves out a few frames after the screen opens)
+	for i in 8:
+		await get_tree().process_frame
+	while _rows > 2 and lists.size() > 1 and is_instance_valid(lists[1]._rail) \
+			and lists[1]._rail._down.size.y > 0.0 \
+			and UI.touch_blocks(lists[1]._rail._down.get_global_rect().get_center()):
+		_rows -= 1
+		_refresh()
+		for i in 2:
+			await get_tree().process_frame
 
 func _stock() -> Array:
 	if mode == "desk":
@@ -96,7 +114,8 @@ func _refresh(index := 0) -> void:
 	elif mode == "receive":
 		names[1] = "Bird"
 		caps[1] = Courier.LOAD_CAP
-	var rows := clampi(floori((UIKit.safe_rect(self).size.y - UI.bottom_reserve() - 220.0) / UIKit.row_h()), 2, 6)
+	var rows := _rows if _rows > 0 else clampi(floori((UIKit.safe_rect(self).size.y - UI.bottom_reserve() - 220.0) / UIKit.row_h()), 2, 6)
+	_rows = rows
 	for side in 2:
 		var data := Stacks.rows(stocks[side])
 		if _fragment.get("side", -1) == side and int(stocks[side].get(_fragment.id, 0)) >= int(_fragment.count):
