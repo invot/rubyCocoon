@@ -83,10 +83,12 @@ const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], PACK: 9
 ## Parts made from the kit's as they load (named by a word, see part_id): name -> [the kit part it's made from, how].
 ## "let_down": a skirt let down to the shin (the kit has none so long; see _let_down); "cargo": shorts made baggy, with
 ## a pocket and flap on each thigh (see _cargo); "spiky", "high_tight", "faux_hawk": hair grown over the hero's
-## scalp, with a third entry giving the part's kind (the kit's hairdos are all soft mops: see _grown_hair). Their ids
+## scalp, with a third entry giving the part's kind (the kit's hairdos are all soft mops: see _grown_hair);
+## "mage_hood": the mage's hood, built anew (see MAGE_HOOD; the kit's only lends its file). Their ids
 ## follow the kit's own parts.
 const DERIVED := {"long_skirt": [174, "let_down"], "cargo_shorts": [33, "cargo"],
-	"spiky_hair": [4, "spiky", "hair"], "high_tight": [4, "high_tight", "hair"], "faux_hawk": [4, "faux_hawk", "hair"]}
+	"spiky_hair": [4, "spiky", "hair"], "high_tight": [4, "high_tight", "hair"], "faux_hawk": [4, "faux_hawk", "hair"],
+	"mage_hood": [281, "mage_hood"]}
 ## Below LET_DOWN_FROM (metres, as baked) a let-down skirt is drawn out to reach LET_DOWN_HEM, flaring a little.
 const LET_DOWN_FROM := 0.62
 const LET_DOWN_HEM := 0.21
@@ -205,7 +207,7 @@ static func data() -> Dictionary:
 			parts.append({"file": from["file"], "kind": how[2] if how.size() > 2 else from["kind"], "derived": name})
 		# and each grown cut once more for each wardrobe hat, fitted inside it (see _grown_hair)
 		for name in DERIVED:
-			if not String(DERIVED[name][1]) in ["let_down", "cargo"]:
+			if not String(DERIVED[name][1]) in ["let_down", "cargo", "mage_hood"]:
 				for hat in Wardrobe.HATS.size():
 					_derived_at["%s/%d" % [name, hat]] = parts.size()
 					parts.append({"file": parts[_derived_at[name]]["file"], "kind": "hair", "derived": name, "hat": hat})
@@ -281,6 +283,8 @@ static func part_mesh(id: int) -> Mesh:
 					mesh = _let_down(mesh)
 				"cargo":
 					mesh = _cargo(mesh)
+				"mage_hood":
+					mesh = _mage_hood(mesh)
 				_:
 					mesh = _grown_hair(mesh, String(how[1]), int(data()["parts"][id].get("hat", -1)))
 		if LENSES.has(id):
@@ -703,6 +707,197 @@ static func _add_spike(arrays: Array, from: Vector3, lean: Vector3, length: floa
 	arrays[Mesh.ARRAY_TEX_UV2] = u2
 	if r2 != null:
 		arrays[Mesh.ARRAY_CUSTOM0] = r2
+
+
+## The mage's hood (see MAGE_HOOD), built anew round the head: `kit` (the kit's hood) only says which way its
+## triangles turn. The cowl's outer and inner walls run in rings from the face's opening back to the point; the
+## lining is a tube rolled round the opening, over both walls' edges; the capelet hangs from inside the cowl's foot
+## to its rolled hem. The cowl turns with the head, the capelet with the chest.
+static func _mage_hood(kit: ArrayMesh) -> ArrayMesh:
+	var ka := kit.surface_get_arrays(0)
+	var kp: PackedVector3Array = ka[Mesh.ARRAY_VERTEX]
+	var kn: PackedVector3Array = ka[Mesh.ARRAY_NORMAL]
+	var ki: PackedInt32Array = ka[Mesh.ARRAY_INDEX]
+	var turn := signf((kp[ki[1]] - kp[ki[0]]).cross(kp[ki[2]] - kp[ki[0]]).dot(kn[ki[0]]))
+	var h := MAGE_HOOD
+	var out := {"pos": PackedVector3Array(), "hint": PackedVector3Array(), "col": PackedColorArray(),
+		"uv2": PackedVector2Array(), "bone": PackedInt32Array(), "idx": PackedInt32Array(), "turn": turn}
+	var around := 36
+	var deep := 16
+	var tube := 10
+	var head := bone_index("head")
+	var chest := bone_index("chest")
+	var cloth := Color("#2a6a9a")
+	var lining := Color(LINING)
+	# the cowl: outer wall, then inner (a shade darker, facing in)
+	for wall in [0.0, -float(h["wall"])]:
+		var rings := []
+		var hints := []
+		for k in deep + 1:
+			var ring := []
+			var hint := []
+			for j in around:
+				var beta := TAU * j / around
+				var d := _hood_dir(lerpf(_hood_opening(beta), PI, float(k) / deep), beta)
+				ring.append(_hood_at(d, wall))
+				hint.append(d if wall == 0.0 else -d)
+			rings.append(ring)
+			hints.append(hint)
+		_hood_grid(out, rings, hints, false, Vector2(4, 1.0 if wall == 0.0 else float(h["inside"])), cloth, head)
+	# the lining rolled round the opening
+	var rings := []
+	var hints := []
+	for j in around:
+		var beta := TAU * j / around
+		var a0 := _hood_opening(beta)
+		var n := _hood_dir(a0, beta)
+		var forward := (_hood_dir(a0 - 0.01, beta) - n).normalized()
+		var mid := _hood_at(n, -float(h["wall"]) * 0.5) + forward * float(h["roll"]) * 0.35
+		var ring := []
+		var hint := []
+		for g in tube:
+			var off := n * cos(TAU * g / tube) + forward * sin(TAU * g / tube)
+			ring.append(mid + off * float(h["roll"]))
+			hint.append(off)
+		rings.append(ring)
+		hints.append(hint)
+	_hood_grid(out, rings, hints, true, Vector2(0, 1.0), lining, head)
+	# the capelet, flaring from inside the cowl's foot to its hem, and the hem rolled
+	var top: Array = h["cape_top"]
+	var hem: Array = h["cape_hem"]
+	var z0 := (h["centre"] as Vector3).z
+	rings = []
+	hints = []
+	for k in 7:
+		var t := float(k) / 6.0
+		var s := pow(t, 0.7)
+		var ring := []
+		var hint := []
+		var rx := lerpf(top[1], hem[1], s)
+		var rz := lerpf(top[2], hem[2], s)
+		for j in around:
+			var th := TAU * j / around
+			ring.append(Vector3(rx * cos(th), lerpf(top[0], hem[0], t), z0 + rz * sin(th)))
+			hint.append(Vector3(cos(th) / rx, 0.35, sin(th) / rz).normalized())
+		rings.append(ring)
+		hints.append(hint)
+	_hood_grid(out, rings, hints, false, Vector2(4, 0.92), cloth, chest)
+	rings = []
+	hints = []
+	for j in around:
+		var th := TAU * j / around
+		var flat := Vector3(cos(th) / float(hem[1]), 0, sin(th) / float(hem[2])).normalized()
+		var mid := Vector3(float(hem[1]) * cos(th), float(hem[0]), z0 + float(hem[2]) * sin(th))
+		var ring := []
+		var hint := []
+		for g in tube:
+			var off := flat * cos(TAU * g / tube) + Vector3.UP * sin(TAU * g / tube)
+			ring.append(mid + off * float(h["hem"]))
+			hint.append(off)
+		rings.append(ring)
+		hints.append(hint)
+	_hood_grid(out, rings, hints, true, Vector2(0, 1.0), lining, chest)
+	# smooth normals: each vertex its triangles' (turned outward) summed
+	var pos: PackedVector3Array = out["pos"]
+	var idx: PackedInt32Array = out["idx"]
+	var hint_of: PackedVector3Array = out["hint"]
+	var bone_of: PackedInt32Array = out["bone"]
+	var nrm := PackedVector3Array()
+	nrm.resize(pos.size())
+	for t in idx.size() / 3:
+		var a := pos[idx[t * 3]]
+		var f := (pos[idx[t * 3 + 1]] - a).cross(pos[idx[t * 3 + 2]] - a) * turn
+		for k in 3:
+			nrm[idx[t * 3 + k]] += f
+	var rest := PackedByteArray()
+	rest.resize(pos.size() * 8)
+	var bones := PackedInt32Array()
+	var weights := PackedFloat32Array()
+	for i in pos.size():
+		nrm[i] = nrm[i].normalized() if nrm[i].length_squared() > 0.0 else hint_of[i]
+		for j in 3:
+			rest.encode_half(i * 8 + j * 2, pos[i][j])
+		rest.encode_half(i * 8 + 6, 0.0)
+		bones.append_array([bone_of[i], 0, 0, 0])
+		weights.append_array([1.0, 0.0, 0.0, 0.0])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = pos
+	arrays[Mesh.ARRAY_NORMAL] = nrm
+	arrays[Mesh.ARRAY_COLOR] = out["col"]
+	arrays[Mesh.ARRAY_TEX_UV2] = out["uv2"]
+	arrays[Mesh.ARRAY_CUSTOM0] = rest
+	arrays[Mesh.ARRAY_BONES] = bones
+	arrays[Mesh.ARRAY_WEIGHTS] = weights
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_HALF << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	return mesh
+
+
+## How far round from straight ahead the hood's opening reaches (radians), at `beta` round the face (0 one cheek, a
+## quarter turn the brow): wide at the cheeks, lower under the chin than over the brow.
+static func _hood_opening(beta: float) -> float:
+	var up := deg_to_rad(float(MAGE_HOOD["up"]) if sin(beta) > 0.0 else float(MAGE_HOOD["down"]))
+	var side := deg_to_rad(float(MAGE_HOOD["side"]))
+	return 1.0 / sqrt(pow(cos(beta) / side, 2.0) + pow(sin(beta) / up, 2.0))
+
+
+## The way out from the head's middle `alpha` from straight ahead, at `beta` round the face.
+static func _hood_dir(alpha: float, beta: float) -> Vector3:
+	return Vector3.BACK * cos(alpha) + (Vector3.RIGHT * cos(beta) + Vector3.UP * sin(beta)) * sin(alpha)
+
+
+## Where the cowl's wall is along `d` (out from the head's middle), `inset` in from the outside: round as an egg,
+## drawn out into a soft point falling back from the crown.
+static func _hood_at(d: Vector3, inset: float) -> Vector3:
+	var r: Vector3 = MAGE_HOOD["radii"]
+	var ry := r.y if d.y > 0.0 else float(MAGE_HOOD["below"])
+	var reach := 1.0 / sqrt(pow(d.x / r.x, 2.0) + pow(d.y / ry, 2.0) + pow(d.z / r.z, 2.0))
+	reach += float(MAGE_HOOD["point"]) * pow(maxf(d.dot(Vector3(0, 0.72, -0.69)), 0.0), 6.0)
+	return (MAGE_HOOD["centre"] as Vector3) + d * (reach + inset)
+
+
+## Adds a sheet of rings (each a closed loop of points, the same count) to the hood being built, every triangle
+## turned to face its points' `hints`; `wrap` joins the last ring to the first. `slot` is its UV2 (colour slot and
+## lightness), `colour` its own colour (the robe's when the slot has none).
+static func _hood_grid(out: Dictionary, rings: Array, hints: Array, wrap: bool, slot: Vector2, colour: Color, bone: int) -> void:
+	var pos: PackedVector3Array = out["pos"]
+	var hint_of: PackedVector3Array = out["hint"]
+	var col: PackedColorArray = out["col"]
+	var uv2: PackedVector2Array = out["uv2"]
+	var bone_of: PackedInt32Array = out["bone"]
+	var idx: PackedInt32Array = out["idx"]
+	var base := pos.size()
+	var n: int = (rings[0] as Array).size()
+	for i in rings.size():
+		for j in n:
+			pos.append(rings[i][j])
+			hint_of.append(hints[i][j])
+			col.append(colour.srgb_to_linear())
+			uv2.append(slot)
+			bone_of.append(bone)
+	var rows := rings.size() if wrap else rings.size() - 1
+	for i in rows:
+		var i2 := (i + 1) % rings.size()
+		for j in n:
+			var j2 := (j + 1) % n
+			var q := [base + i * n + j, base + i * n + j2, base + i2 * n + j2, base + i2 * n + j]
+			var hint: Vector3 = hints[i][j] + hints[i2][j2]
+			for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]:
+				var a: Vector3 = pos[tri[0]]
+				var f := (pos[tri[1]] - a).cross(pos[tri[2]] - a)
+				if f.length_squared() < 1e-12:
+					continue
+				if signf(f.dot(hint)) != float(out["turn"]):
+					tri = [tri[0], tri[2], tri[1]]
+				idx.append_array(tri)
+	out["pos"] = pos
+	out["hint"] = hint_of
+	out["col"] = col
+	out["uv2"] = uv2
+	out["bone"] = bone_of
+	out["idx"] = idx
 
 
 ## The Wizard Hat with a buckle on its band (see WIZARD_HAT): a square gold frame of four bars on the band's front.
@@ -1186,7 +1381,17 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 ## the kit's people wear it) has it in their top's colour.
 ## Temple robes a look can wear (its "robe"), as townfolk.json part ids: "plain" the long robe with a gold collar and
 ## hem (the kit's wizard's, without the hat), "cape" the long coat with a cape and fur collar (the kit's king's).
-const ROBES := {"plain": [278, 268, 54], "hooded": [278, 268, 54, 281], "cape": [273, 272, 268, 266]}
+## "hooded" is a mage's: the long robe under the thick lined hood (MAGE_HOOD), and every mage is bald, with no hat
+## or glasses (the user's 2026-11-24 rule).
+const ROBES := {"plain": [278, 268, 54], "hooded": [278, 268, 54, "mage_hood"], "cape": [273, 272, 268, 266]}
+## The mage's hood (DERIVED "mage_hood", built in code: see _mage_hood; the kit's hood, part 281, was a thin faceted
+## shell in a blue of its own): a deep cowl round the head, two walls thick, in the robe's colour (its inside a
+## darker shade), a fat rolled lining round the face in LINING (satin), a soft point falling back from the crown and
+## a short capelet over the shoulders with a rolled hem. Sizes in metres, as baked; the head's middle is CENTRE.
+const MAGE_HOOD := {"centre": Vector3(0, 1.44, -0.01), "radii": Vector3(0.53, 0.48, 0.51), "below": 0.5,
+	"wall": 0.06, "roll": 0.075, "side": 71.0, "up": 42.0, "down": 58.0, "point": 0.26, "inside": 0.55,
+	"cape_top": [1.06, 0.34, 0.3], "cape_hem": [0.84, 0.47, 0.39], "hem": 0.035}
+const LINING := "#ecc872"
 
 
 static func outfit(look: Dictionary) -> Dictionary:
@@ -1236,6 +1441,8 @@ static func outfit(look: Dictionary) -> Dictionary:
 				parts.append_array(Wardrobe.GLASSES[gi][1])
 		if look.has("glasses_colour"):
 			colours["glasses"] = Color(look["glasses_colour"])
+	if not (hero and not m.begins_with("tf")):
+		_calm_face(parts, seed)
 	var swim: bool = look.get("outfit", "") == "swim"
 	var swim_female := false
 	if swim:
@@ -1297,11 +1504,12 @@ static func outfit(look: Dictionary) -> Dictionary:
 			parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "glasses")
 		# a temple robe over whoever they are (ROBES): their own face and hair, the robe's top, skirt and sleeves
 		if ROBES.has(String(look.get("robe", ""))):
-			var robe: Array = ROBES[String(look["robe"])]
+			var robe: Array = (ROBES[String(look["robe"])] as Array).map(part_id)
 			parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["top", "bottom", "arms", "back", "hat", "hood"])
 			parts.append_array(robe)
 			if look["robe"] == "hooded":
-				parts = parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "hair")
+				# a mage: bald under the hood, with no hat and no glasses
+				parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["hair", "glasses"])
 			# bareheaded: anyone whose hat was all the hair they had gets a hairdo (long for long hair)
 			elif not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
 				parts.append_array(hairdo_parts(4 if int(look.get("hair_style", 0)) == 1 else 0))
@@ -1410,6 +1618,35 @@ static func _warm(c: Color) -> bool:
 ## "sleeves", "novelty").
 static func _has(person: int, tag: String) -> bool:
 	return tag in data()["people"][person]["tags"]
+
+
+## The kit people whose heads have wide white eyes with pinpoint pupils: on anyone but the hero they stare (the user's
+## 2026-11-24 call: no NPC looks like that), so every NPC wears a head from CALM_FACES instead. Sorted by eye
+## colour from tools/debug/face_sheet.gd's contact sheet; the rest have big brown irises or smiling closed eyes.
+const WILD_EYES := [5, 6, 7, 8, 10, 12, 13, 15, 16, 17, 20, 24, 25, 26, 28, 29, 31, 32, 33, 34, 40, 43, 47, 49, 50,
+		53, 54, 55, 56, 57, 58, 59, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 77, 78]
+## Heads with the kit's big brown irises, smiling or neutral, for an NPC who would otherwise wear a WILD_EYES head.
+const CALM_FACES := [0, 1, 2, 3, 11, 18, 19, 21, 22, 23, 30, 35, 36, 37, 38, 39, 41, 42, 48, 51, 52, 60, 61, 62, 63, 64,
+		75, 76, 79]
+
+
+## Swaps a staring head (WILD_EYES) in `parts` for a calm one (CALM_FACES, picked by `seed`), keeping everything else.
+static func _calm_face(parts: Array, seed: int) -> void:
+	var people: Array = data()["people"]
+	var kinds: Array = data()["parts"]
+	var wild := {}
+	for i in WILD_EYES:
+		if i < people.size():
+			for id in people[i]["parts"]:
+				if kinds[int(id)]["kind"] == "head":
+					wild[int(id)] = true
+	var heads := parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] == "head")
+	if not heads.any(func(id) -> bool: return wild.has(int(id))):
+		return
+	parts.assign(parts.filter(func(id) -> bool: return kinds[int(id)]["kind"] != "head"))
+	for id in people[CALM_FACES[seed % CALM_FACES.size()]]["parts"]:
+		if kinds[int(id)]["kind"] == "head":
+			parts.append(id)
 
 
 ## One of the everyday townsfolk for a look (see outfit), the closest fit there is.

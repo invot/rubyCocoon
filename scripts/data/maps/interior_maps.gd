@@ -22,7 +22,8 @@ extends RefCounted
 ## Temples (and Gravenmoor's crypt) keep their singing stones on anchors stone_0 .. stone_3 (one per flute button:
 ## left, right, A, B) and the tablet that sings the stones' order on "tablet" (Places.song_stone / song_tablet).
 ## A room of several levels has "heights" (elevation.gd), "level_h" and "top_level" (the digit that is floor level), and
-## "water_levels" for its water, "stone_doors" for its engraved doors and "puzzle" for its levers (tide_water.gd,
+## "water_levels" for its water, "stone_doors" for its engraved doors ("stone_panels" for the ones drawn as a flush
+## panel in the wall, outlined in blue) and "puzzle" for its levers (tide_water.gd,
 ## tide_puzzles.gd; see the Temple of Tides).
 ## Rooms within a building (drawn by room_builder.gd):
 ##   d  doorway between rooms      L  locked door      Z  staff-only door (locked)
@@ -550,7 +551,7 @@ const ROOMS := {
 	"cafe": {
 		"wall": "#f0d8d0", "rug": "#c07040", "stage": true, "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
 		"locked": ["The restroom. Somebody's humming in there."],
-		"counter_phone": [6, 2],
+		"counter_phone": [8, 2],
 		"dais": [{"rect": [1, 1, 4, 5], "steps": [[4, 5]]}],
 		# (all its wood this one colour except the floor, the user's direction: room_builder.gd _one_wood)
 		"wood": "#84522f",
@@ -568,16 +569,16 @@ const ROOMS := {
 		],
 	},
 	## Dustwell's Oasis Saloon (a cafe: the barkeep sells the same snacks, Places.shop). Barkeep Dusty (1) is boxed in
-	## behind the bar, and the locked card room (Z) is behind him. Off the bar: the backstage room (!) and Rosa's office
-	## (?) through the back wall, and the concert hall (A) through the left wall (the user's 2026-11-22 layout). The
-	## stairs at the right go up to the hotel landing. Tables fill the floor.
+	## behind the bar, and the locked card room (Z) is behind him. Off the bar: Rosa's office (?) through the back wall,
+	## and the concert hall (A) through the left wall, with the band's storeroom beyond it (the user's 2026-11-22 and
+	## 2026-11-24 layouts). The stairs at the right go up to the hotel landing. Tables fill the floor.
 	"saloon": {
 		"wall": "#c47a4e", "rug": "#8a2a2a", "stage": true, "zone": "wood", "npcs": {"1": "keeper", "2": "patron", "3": "patron"},
-		"doors": {"!": "saloon_back", "?": "saloon_office", "A": "saloon_stage"},
+		"doors": {"?": "saloon_office", "A": "saloon_stage"},
 		"locked": ["The back room. Somebody in there is shuffling cards, very slowly, and humming."],
-		"counter_phone": [9, 2],
+		"counter_phone": [11, 2],
 		"rows": [
-			"#!#?####Z##########",
+			"###?####Z##########",
 			"#.....C..1.BBC.>>>#",
 			"#.....CCCCCCCC....w",
 			"#.................w",
@@ -588,24 +589,40 @@ const ROOMS := {
 			"###################",
 		],
 	},
-	## The concert hall: the band's stage runs down the left wall, one step up at its middle, and the room is laid out
-	## like a concert hall: rows of little tables, each with its chair on the far side, all facing the stage (side-on
-	## to the camera, so nobody sits with their back to it). Two regulars (1, 2) sit waiting at theirs. Its door (A)
-	## leads back to the bar.
+	## The concert hall (the user's 2026-11-24 layout): you come in from the bar through the right wall (A), and the band's
+	## storeroom is through the left (!). The stage runs along the back wall, one step up at its right end, with the
+	## band's instruments left on it and a little sound and light gear, all switched off, a speaker knocked over and the
+	## lights set down on the floor ("stage_gear", concert_hall.gd). Rows of little tables, each with a tiny lamp (and drinks on some)
+	## between two chairs that both face the stage ("seats_face"); two regulars (1, 2) sit waiting at theirs.
 	"saloon_stage": {
 		"wall": "#c47a4e", "rug": "#8a2a2a", "stage": true, "zone": "wood", "npcs": {"1": "patron", "2": "patron"},
-		"doors": {"A": "saloon"},
-		"dais": [{"rect": [1, 1, 3, 6], "steps": [[3, 4]], "rails": false}],
+		"doors": {"A": "saloon", "!": "saloon_back"},
+		"dais": [{"rect": [1, 1, 13, 2], "steps": [[12, 2]], "rails": false}],
+		"furniture_kinds": {"t": "concert_table"},
+		"seats_face": [0, -1],
+		"stage_gear": [
+			{"piece": "speaker", "at": [1, 1], "yaw": 20},
+			{"piece": "stage_lights", "at": [2, 2], "off": [0.5, 0.05], "yaw": 4, "blocks": [[2, 2], [3, 2]]},
+			{"piece": "cello", "at": [3, 1], "off": [0, -0.15], "yaw": 10, "tilt": [-10, 6]},
+			{"piece": "violin", "at": [4, 2], "yaw": 25, "tilt": [-90, 0]},
+			{"piece": "acoustic_guitar", "at": [5, 1], "off": [0, -0.25], "yaw": -10, "tilt": [-14, 0]},
+			{"piece": "drums", "at": [7, 1], "yaw": -60, "blocks": [[6, 1], [7, 1], [8, 1]]},
+			{"piece": "tambourine", "at": [8, 1], "off": [0.42, 0.36], "yaw": 40, "tilt": [0, 8]},
+			{"piece": "trumpet", "at": [9, 1], "yaw": 30},
+			{"piece": "electric_guitar", "at": [10, 1], "off": [0, -0.25], "yaw": 8, "tilt": [-14, 0]},
+			{"piece": "bar_lights", "at": [11, 1], "off": [0.5, -0.1], "yaw": -6, "blocks": [[11, 1], [12, 1]]},
+			{"piece": "speaker", "at": [13, 1], "off": [0, 0.5], "yaw": -10, "tilt": [90, 0], "blocks": [[13, 1], [13, 2]]},
+		],
 		"rows": [
-			"#####w####w###",
-			"#:::.........#",
-			"#:::.tc.tc.tc#",
-			"#:::.........A",
-			"#:::.tc.t1.tc#",
-			"#:::.........#",
-			"#:::.tc.tc.t2#",
-			"#............#",
-			"##############",
+			"###w###w###w###",
+			"#:::::::::::::#",
+			"#:::::::::::::#",
+			"#.............#",
+			"#.ctc.1tc.ctc.#",
+			"!.............A",
+			"#.ctc.ctc.ct2.#",
+			"#.............#",
+			"###############",
 		],
 	},
 	## Rosa's office, through the bar's back wall: Rosa sits at her desk (anchor rosa) with her takings stacked on it
@@ -618,7 +635,7 @@ const ROOMS := {
 		"rows": [
 			"####w####",
 			"#BB.1.FF#",
-			"#p..E..l#",
+			"#p.EEE.l#",
 			"?.......#",
 			"#.......#",
 			"#########",
@@ -662,19 +679,24 @@ const ROOMS := {
 			"###########",
 		],
 	},
-	## Backstage: the bar's storeroom, where the Rubywave Five live among the crates and shelves on blanket piles
-	## laid on the floor (bedrolls, +). Until they're freed the five sit on the floor beside their beds (anchors
-	## band_0..4, Story.extra_npcs).
+	## The band's storeroom, off the concert hall's left wall (the user's 2026-11-24 layout): a bank of steel lockers (F)
+	## and shelves of tins and boxes ("goods": "pantry") along the back, and the four cots the Rubywave Five sleep on
+	## (there are four of them; that's the joke). Until they're freed the four wander about the room (anchors
+	## band_0..3, Story.extra_npcs).
 	"saloon_back": {
-		"wall": "#a8704a", "rug": "#5a3a2a", "stage": true, "zone": "back", "doors": {"!": "saloon"},
-		"anchors": {"1": "band_0", "2": "band_1", "3": "band_2", "4": "band_3", "5": "band_4"},
+		"wall": "#a8704a", "rug": "#5a3a2a", "stage": true, "zone": "back", "doors": {"!": "saloon_stage"},
+		"anchors": {"1": "band_0", "2": "band_1", "3": "band_2", "4": "band_3"},
+		"furniture_kinds": {"F": "lockers", "b": "cot"},
+		"furniture_yaws": {Vector2i(1, 4): 0.0, Vector2i(3, 4): 0.0, Vector2i(5, 4): 0.0, Vector2i(7, 4): 0.0},
+		"goods": "pantry",
 		"rows": [
-			"####w#####w##",
-			"#FF.((..ssss#",
-			"#...........!",
-			"#+1+2+3+4+5.#",
+			"#####ww######",
+			"#FFFF..ss.ss#",
+			"#..1.....2..#",
 			"#...........#",
-			"#z..........#",
+			"#b.b.b.b.3..!",
+			"#b.b.b.b....#",
+			"#....4....z.#",
 			"#############",
 		],
 	},
@@ -1051,7 +1073,7 @@ const ROOMS := {
 	"temple_tides_hall": {
 		"wall": "#8ab8d8", "rug": "#2a6aa8",
 		"doors": {"2": "temple_tides_falls", "3": "temple_tides_maze", "4": "temple_tides_song", "5": "temple_tides_sanctuary"},
-		"stone_doors": ["4", "Q"], "level_h": 0.8, "top_level": 2,
+		"stone_doors": ["4", "Q"], "stone_panels": ["Q"], "level_h": 0.8, "top_level": 2,
 		"water_levels": [["tides_falls_solved", -0.12], ["tides_maze_solved", -0.92]],
 		"floods": {";": {"flag": "tides_falls_solved", "wet": "_", "dry": ":"}, "+": {"flag": "tides_maze_solved", "wet": "_", "dry": ":"},
 			"Q": {"flag": "water_mages_found", "wet": "L", "dry": "5"}},
@@ -1639,10 +1661,7 @@ const HOTEL_ROOMS := {
 			[18, 6, "large_plant"],
 			[19, 5, "large_plant"],
 			[19, 6, "large_plant"],
-			[4, 8, "large_plant"],
-			[4, 9, "large_plant"],
-			[5, 8, "large_plant"],
-			[5, 9, "large_plant"],
+			# (the user's 2026-11-24 call) no giant plant in the middle of the floor behind the armchairs
 			# guests' luggage, stacked against the back wall on every open tile (the user's 2026-11-15 direction)
 			[1, 4, "luggage"], [2, 4, "luggage"], [3, 4, "luggage"], [4, 4, "luggage"], [5, 4, "luggage"],
 			[14, 4, "luggage"], [15, 4, "luggage"], [18, 4, "luggage"], [19, 4, "luggage"],

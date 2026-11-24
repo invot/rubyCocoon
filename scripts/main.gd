@@ -1285,6 +1285,35 @@ func _run_test() -> void:
 		await _guardian_test(String(_test.get("temple", "water")))
 	elif scene == "tides-walk":
 		await _tides_walk_test()
+	elif scene == "tides-panel":
+		# the Temple of Tides' sealed wave panel in the drained hall's west wall, the hero beside it (--shot=...)
+		UI.auto = true
+		for f in ["ritual_done", "tides_falls_solved", "tides_maze_solved"]:
+			GameState.set_flag(f)
+		await _go("reef")
+		await _wait(1.0)
+		var hall := String(_bld("temple")["interior"])
+		await _go(hall, "entry")
+		await _settle(hall)
+		await _walk_test([Vector2i(2, 10)])
+		world.facing = Vector2i(-1, 0)
+		await _wait(float(_test.get("wait", "1.5")))
+		# (the panel stays a locked doorway in the wall, not floor under its anchor)
+		print("tides-panel: panel tile is %s" % ("a wall doorway" if MapGen.get_t(world.map, 0, 10) == MapGen.LOCKED else "NOT a wall doorway"))
+		if _test.has("shot"):
+			_save_shot(String(_test["shot"]))
+			await _wait(0.5)
+		if _test.has("shot2"):
+			# a closer look straight at the panel
+			world.cam_free = true
+			var pc := Vector3(0.5, -0.6, 10.5)
+			world.cam.position = pc + Vector3(4.0, 0.9, 1.6)
+			world.cam.look_at(pc)
+			await _wait(0.3)
+			await get_tree().process_frame
+			await RenderingServer.frame_post_draw
+			_save_shot(String(_test["shot2"]))
+			await _wait(0.5)
 	elif scene == "ring":
 		# a trainer battle on the ring, driven by key presses once the command panel is up:
 		#   --keys=a,r,a,d,u,b...  (a = A, b = B, l / r = left / right, u / d = up / down), --kind=wild for wild beasts
@@ -1452,6 +1481,8 @@ func _run_test() -> void:
 		await load("res://tools/debug/kennel.gd").new().run(self, _test)
 	elif scene == "robe-options":
 		await load("res://tools/debug/robe_options.gd").new().run(self, _test)
+	elif scene == "mage-preview":
+		await load("res://tools/debug/mage_preview.gd").new().run(self, _test)
 	elif scene == "action-icons":
 		await load("res://tools/debug/action_icons.gd").new().run(self, _test)
 	elif scene == "egg-sales":

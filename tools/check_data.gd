@@ -183,6 +183,24 @@ func _dress(look: Dictionary, who: String) -> void:
 		if not ResourceLoader.exists("res://assets/townfolk/parts/%s.res" % Townfolk.data()["parts"][int(p)]["file"]):
 			_fail("%s: part %s has no mesh" % [who, str(p)])
 			return
+	# no NPC wears a staring, pinpoint-pupil head (Townfolk.WILD_EYES; the user's 2026-11-24 rule)
+	if look.get("face", "") != "hero" and not look.is_empty():
+		var people: Array = Townfolk.data()["people"]
+		var kinds: Array = Townfolk.data()["parts"]
+		for i in Townfolk.WILD_EYES:
+			for id in people[i]["parts"]:
+				if kinds[int(id)]["kind"] == "head" and o["parts"].any(func(q) -> bool: return int(q) == int(id)):
+					_fail("%s: wears kit person %d's staring eyes" % [who, i])
+					return
+	# a mage (a hooded robe) is bald, with no hat or glasses, under the thick lined hood (the user's 2026-11-24 rule)
+	if look.get("robe", "") == "hooded":
+		var part_kinds: Array = Townfolk.data()["parts"]
+		for id in o["parts"]:
+			if part_kinds[int(id)]["kind"] in ["hair", "hat", "glasses"]:
+				_fail("%s: a mage wearing %s" % [who, part_kinds[int(id)]["kind"]])
+				return
+		if not o["parts"].any(func(q) -> bool: return int(q) == Townfolk.part_id("mage_hood")):
+			_fail("%s: a mage without the lined hood" % who)
 
 
 ## The hero in everything the character creator offers.
@@ -193,6 +211,16 @@ func _people() -> void:
 			_dress({"face": "hero", "body": body, "person": person}, "hero %s outfit %d" % [body, person])
 	for hd in Townfolk.HAIRDOS.size():
 		_dress({"face": "hero", "hairdo": hd}, "hero hairdo %d" % hd)
+	# every kit person, and a spread of random townsfolk, as NPCs
+	for i in Townfolk.data()["people"].size():
+		_dress({"model": "tf%d" % i}, "kit person %d" % i)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2411
+	for i in 200:
+		_dress(MapLoader.MapGen.random_look(rng), "random townsperson %d" % i)
+	# the mages (story.gd DALE_LOOK and its variants), over a spread of the kit's heads
+	for i in 24:
+		_dress({"robe": "hooded", "shirt": "#%02x5a8a" % (i * 9), "hair": "#%02x5a3c" % (i * 10), "skin": "#d8a882"}, "mage %d" % i)
 	# the buzz cuts and bald: offered to male and non-binary heroes, not female ones (each list a prefix of HAIRDOS)
 	for g in ["male", "non_binary"]:
 		if not Townfolk.hairdos_for(g).has("Bald") or not Townfolk.hairdos_for(g).has("Faux-Hawk"):

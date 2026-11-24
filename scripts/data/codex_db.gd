@@ -21,7 +21,7 @@ const TOPICS := {
 		"[excited] Want a hand? Pick Ask Codex beside your trainer, then AUTO, and I'll choose your beasts' moves!",
 		"[neutral] You still choose your own action. I pick each beast's move and target, then the round begins.",
 		"[happy] Keep AUTO on for every battle, just this one, or switch it off. Ask me again any time to change it.",
-		"[curious] On my page in your Start book, give each beast a plan: No mercy, Save MP, Status or Healing."]},
+		"[curious] On my page in your Start book, give each beast a plan: Full attack, Save MP, Status or Healing."]},
 	"attack": {"title": "Attacking", "group": "Battle basics", "lines": [
 		"[neutral] Choose your own action first, then each beast's move. Left and right change a choice, A picks it, B goes back.",
 		"[determined] Then aim with left and right and confirm with A. On touch, tap a foe to aim and tap it again to confirm.",
@@ -113,7 +113,7 @@ const TOPICS := {
 
 ## AUTO's strategies, one per beast (Beast.auto_plan; battle.gd _auto_plan_score), in the order the Start book cycles them.
 const AUTO_PLANS := ["mercy", "conserve", "status", "heal"]
-const AUTO_PLAN_NAMES := {"mercy": "No mercy", "conserve": "Save MP", "status": "Status", "heal": "Healing"}
+const AUTO_PLAN_NAMES := {"mercy": "Full attack", "conserve": "Save MP", "status": "Status", "heal": "Healing"}
 const AUTO_PLAN_DESCS := {
 	"mercy": "Hits as hard as it can, whatever the MP. Attacks only.",
 	"conserve": "Attacks, using free moves first and saving its MP.",

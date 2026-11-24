@@ -153,6 +153,11 @@ func _check(m: Dictionary) -> Array:
 			ok = ok or seen.has(f + d) and Elev.joined(m, f + d, f)
 		if not ok:
 			problems.append("phone at %s can't be reached" % f)
+	# nothing on the counter straight in front of the person behind it (the user's 2026-11-24 rule)
+	if m.has("counter_phone"):
+		for n in m["npcs"]:
+			if Vector2(n["pos"]).distance_to(Vector2(m["counter_phone"])) < 1.01:
+				problems.append("counter phone at %s stands in front of %s" % [m["counter_phone"], n.get("name", n.get("kind", "npc"))])
 	for b in m["buildings"]:
 		var front: Vector2i = b["door"] + Vector2i(0, 1)
 		if not seen.has(front):
@@ -387,8 +392,9 @@ func _staging(m: Dictionary) -> Array:
 				out.append("%s's %s at %s blocks the central stage; use the back or side wall" % [label, kind, lo])
 			if back == Vector2i(0, 1):
 				out.append("%s's %s at %s presents its back to the camera" % [label, kind, lo])
-		# A dining/desk chair can be in profile or face the audience; tables must be staged around that.
-		if RoomBuilder.KINDS[kind].get("chair", false) and back == Vector2i(0, 1):
+		# A dining/desk chair can be in profile or face the audience; tables must be staged around that. (An audience's
+		# seats all facing one way, "seats_face", are the motivated exception: the concert hall's face its stage.)
+		if RoomBuilder.KINDS[kind].get("chair", false) and back == Vector2i(0, 1) and not m.get("room", {}).has("seats_face"):
 			out.append("%s's chair at %s faces away; move it to the side or behind its table" % [label, lo])
 	if m.get("stage", false):
 		for y in range(2, int(m["h"]) - 1):
@@ -396,7 +402,7 @@ func _staging(m: Dictionary) -> Array:
 				if MapGen.get_t(m, x, y) in [MapGen.ORGAN, MapGen.PILLAR]:
 					out.append("%s's tall scenery at %s belongs upstage or at the sides" % [label, Vector2i(x, y)])
 		for n in m["npcs"]:
-			if n.get("sit", false) and n.get("facing", Vector2i.ZERO) == Vector2i(0, -1):
+			if n.get("sit", false) and n.get("facing", Vector2i.ZERO) == Vector2i(0, -1) and not m.get("room", {}).has("seats_face"):
 				out.append("%s's seated patron at %s has their back to the camera" % [label, n["pos"]])
 	# In a home nothing fades: anything you can walk behind stays below the hero's waist (2026-11-15).
 	for bad in RoomBuilder.front_tall(m):

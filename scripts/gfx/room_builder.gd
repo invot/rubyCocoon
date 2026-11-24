@@ -114,11 +114,18 @@ const KINDS := {
 	"basket": {"m": ["home/basket_blankets"], "single": true},
 	# a makeshift bed on the floor: a thin pad, a blanket over its foot and a pillow (the saloon band's backstage)
 	"bedroll": {"m": ["bedroll"], "single": true, "free": true},
+	# the Oasis Saloon's concert hall and the band's storeroom (concert_hall.gd): a little table with a tiny lamp
+	# (and drinks on some), a bank of steel lockers and a camp cot
+	"concert_table": {"m": ["kk_table_small"], "free": true, "single": true, "top": ["kk_lamp_table"], "always_top": true,
+		"top_scale": 0.6, "drinks": true},
+	"lockers": {"m": ["lockers"], "fit": true},
+	"cot": {"m": ["cot"]},
 	# a chunky table, with a chest of drawers beside it where the desk has two tiles or more (desk_side)
 	"desk": {"m": ["kk_table_small"], "desk_side": "kk_cabinet_small", "top": ["books", "pencils", "globe", "home/books_stack"]},
 	# Rosa's desk in the Oasis Saloon: her takings in stacks of gold coins (the one place outside the dragons' hoards
-	# with coins, the user's 2026-11-22 direction)
-	"cash_desk": {"m": ["kk_table_small"], "top": ["coin_stacks"], "always_top": true},
+	# with coins, the user's 2026-11-22 direction). Three tiles wide (the user's 2026-11-24 call): the longest table
+	# that fits, her coins at one end and her papers at the other, each kept inside the top ("ends")
+	"cash_desk": {"m": ["kk_table_long", "kk_table_medium", "kk_table_small"], "top": ["coin_stacks", "desk_papers"], "always_top": true, "ends": true},
 	# The large chest keeps its baked 1.7-tile width within a two-tile footprint.
 	"storage": {"m": ["kk_drawers"], "long": true},
 	# a kennel barn's hay bales (barn_builder.gd)
@@ -159,6 +166,7 @@ static var _wall_papers := {}
 ## portals instead of painted doors, worn stone flags underfoot and the warm light of the flames.
 const SANDSTONE := Color("#cdb896")
 const TempleLights = preload("res://scripts/gfx/temple_lights.gd")
+const ConcertHall = preload("res://scripts/gfx/concert_hall.gd")
 const FLAME := Color("#ffb04a")
 ## the stone courses' height, and a pilaster every this many tiles along a wall
 const COURSE := 0.7
@@ -269,12 +277,16 @@ static func _blocks(colour: Color) -> Material:
 
 
 static func piece(name: String) -> Mesh:
+	if name in ConcertHall.PIECES:
+		return ConcertHall.piece(name)
 	if name == "bedroll":
 		return _bedroll()
 	if name == "hay_stack":
 		return load("res://scripts/gfx/barn_builder.gd").hay_stack()
 	if name == "coin_stacks":
 		return _coin_stacks()
+	if name == "desk_papers":
+		return _desk_papers()
 	if name in ["kk_table_low_square", "kk_table_low_2x1", "kk_table_low_2x2"]:
 		if not _meshes.has(name):
 			var size: Vector2 = {"kk_table_low_square": Vector2(0.88, 0.88), "kk_table_low_2x1": Vector2(1.84, 0.88), "kk_table_low_2x2": Vector2(1.6, 1.6)}[name]
@@ -297,9 +309,9 @@ static func _coin_stacks() -> ArrayMesh:
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var mat: Material = null
-		# (kept to the desk's front and ends, low, so Rosa's face shows over them)
-		for e in [["coin_stack_medium", -0.28, 0.08, 0.3], ["coin_stack_small", -0.12, 0.16, 1.9], ["coin_stack_medium", 0.26, 0.06, 0.8],
-				["coin_stack_small", 0.1, 0.18, 2.6], ["coin", 0.0, 0.05, 0.0], ["coin", -0.32, -0.12, 1.2]]:
+		# (one compact, low pile for one end of the desk, so Rosa's face shows over the middle)
+		for e in [["coin_stack_medium", -0.14, 0.02, 0.3], ["coin_stack_small", 0.04, 0.1, 1.9], ["coin_stack_medium", 0.16, -0.06, 0.8],
+				["coin", -0.02, -0.1, 0.0], ["coin", 0.2, 0.12, 1.2]]:
 			var path := "res://assets/props/kaykit_hoard_%s.res" % e[0]
 			if not ResourceLoader.exists(path):
 				continue
@@ -314,6 +326,21 @@ static func _coin_stacks() -> ArrayMesh:
 			out.surface_set_material(0, mat)
 		_meshes["coin_stacks"] = out
 	return _meshes["coin_stacks"]
+
+
+## Rosa's paperwork for the other end of her desk: a loose stack of sheets, a ledger, an ink pot and a pen.
+static func _desk_papers() -> ArrayMesh:
+	if not _meshes.has("desk_papers"):
+		var k = load("res://scripts/gfx/voxel_buildings.gd").Kit.new()
+		for i in 4:
+			k.box("color", Vector3(-0.08 + 0.02 * sin(i * 2.1), 0.004 + 0.006 * i, 0.02 * cos(i * 1.7)), Vector3(0.24, 0.005, 0.32),
+				Color("#f4ecd8") if i % 2 == 0 else Color("#e8dcc0"), true)
+		k.box("color", Vector3(0.14, 0.015, -0.04), Vector3(0.16, 0.03, 0.22), Color("#6a2a2a"), true)
+		k.box("color", Vector3(0.14, 0.031, -0.04), Vector3(0.14, 0.004, 0.2), Color("#efe4cc"))
+		k.box("color", Vector3(0.12, 0.03, 0.14), Vector3(0.06, 0.06, 0.06), Color("#1e1e2a"), true)
+		k.box("color", Vector3(-0.06, 0.03, 0.02), Vector3(0.012, 0.012, 0.2), Color("#2a2a3a"))
+		_meshes["desk_papers"] = k.mesh()
+	return _meshes["desk_papers"]
 
 
 ## The coin stacks' size on Rosa's desk (the hoard's pieces are sized for a dragon's floor).
@@ -630,6 +657,8 @@ func _build_steps() -> Array[Callable]:
 	var room: Dictionary = map.get("room", {})
 	var out: Array[Callable] = [_floors, _levels, _daises, _stairs, _plan_cubbies, _window_boxes, _walls, _furniture, _rugs,
 		_stalls, _counters]
+	if room.has("stage_gear"):
+		out.append(ConcertHall.dress_stage.bind(self))
 	if room.get("art_walls", false):
 		out.append(_art_walls)
 	elif parlour:
@@ -1698,6 +1727,9 @@ func _portal(x: int, y: int, horiz: bool) -> void:
 ## A great stone door in an aqua-blue frame, engraved with waves round a glowing gem. It sinks into the floor to open
 ## (door_leaves "lift", see open_door), and locked it just stays shut.
 func _stone_door(x: int, y: int, horiz: bool) -> void:
+	if map.get("stone_panels", {}).has(Vector2i(x, y)):
+		_stone_panel(x, y, horiz)
+		return
 	var m := _row(y)
 	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5)
 	var along := Vector3.RIGHT if horiz else Vector3.BACK
@@ -1749,6 +1781,73 @@ func _stone_door(x: int, y: int, horiz: bool) -> void:
 		gem.emission = Color("#7fe8f4")
 		gem.emission_energy_multiplier = 1.4
 		lm.box("stone_door_gem", gem, o + Vector3(0, 1.14, 0), _axes(along, 0.2, 0.2, 0.03, horiz))
+	var mi := MeshInstance3D.new()
+	mi.mesh = lm.mesh()
+	leaf.add_child(mi)
+	_attach(x, y, leaf)
+	door_leaves[Vector2i(x, y)] = {"node": leaf, "yaw": 0.0, "past": past, "lift": -DOOR_H - 0.1, "base": c.y}
+
+
+## A sealed stone panel ("stone_panels", the user's 2026-11-24 call): no frame standing out, just a slab of the wall's
+## own stone flush in the wall, carved with waves, a thin glowing blue line round its edge, the wall's cornice carried
+## on over it. It sinks into the floor to open, like a stone door.
+func _stone_panel(x: int, y: int, horiz: bool) -> void:
+	var m := _row(y)
+	var c := Vector3(x + 0.5, Elev.surface(map, Vector2i(x, y)), y + 0.5)
+	var along := Vector3.RIGHT if horiz else Vector3.BACK
+	var into := _into_room_side(x, y, horiz)
+	var nrm := Vector3(into.x, 0, into.y)
+	# the cornice along the room's face, at the same height as on the wall either side (_plinth)
+	var face := Vector3(c.x, 0, c.z) + nrm * (T / 2.0)
+	var head := surface("cornice", stone.lightened(0.06))
+	for band in [[H - 0.42, H - 0.3, 0.06], [H - 0.3, H - 0.22, 0.09]]:
+		var b0: float = band[0]
+		var b1: float = band[1]
+		m.box("cornice", head, face + nrm * (float(band[2]) / 2.0) + Vector3(0, (b0 + b1) / 2.0, 0), _axes(along, 1.0, b1 - b0, float(band[2]), horiz))
+	var inlay := surface("inlay", _inlay_colour())
+	inlay.emission_enabled = true
+	inlay.emission = _inlay_colour()
+	inlay.emission_energy_multiplier = 0.6
+	m.box("inlay", inlay, face + nrm * 0.0325 + Vector3(0, H - 0.365, 0), _axes(along, 1.0, 0.03, 0.065, horiz))
+	var past := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = _axes(along, 0.96, DOOR_H, 0.04, horiz)
+	past.mesh = bm
+	var pm := StandardMaterial3D.new()
+	pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pm.albedo_color = Color("#101820")
+	past.material_override = pm
+	past.position = c + Vector3(0, DOOR_H / 2.0, 0)
+	past.visible = false
+	_attach(x, y, past)
+	var leaf := Node3D.new()
+	leaf.position = c
+	var lm := Mesher.new()
+	var slab := surface("stone_panel_slab", stone.darkened(0.04))
+	var line := surface("stone_panel_line", Color("#4fc4d6"))
+	line.emission_enabled = true
+	line.emission = Color("#4fc4d6")
+	line.emission_energy_multiplier = 0.9
+	var pale := surface("stone_door_pale", stone.lightened(0.1))
+	# (a hair proud of the wall either side, so its face never fights theirs)
+	lm.box("stone_panel_slab", slab, Vector3(0, DOOR_H / 2.0, 0), _axes(along, 0.98, DOOR_H, T + 0.01, horiz))
+	var half_w := 0.4
+	var lo := 0.08
+	var hi := DOOR_H - 0.1
+	for face_side in [-1.0, 1.0]:
+		var o: Vector3 = nrm * face_side * (T / 2.0 + 0.01)
+		# the blue line round its edge
+		for s in [-1.0, 1.0]:
+			lm.box("stone_panel_line", line, o + along * s * half_w + Vector3(0, (lo + hi) / 2.0, 0), _axes(along, 0.035, hi - lo + 0.035, 0.012, horiz))
+		for yy in [lo, hi]:
+			lm.box("stone_panel_line", line, o + Vector3(0, yy, 0), _axes(along, half_w * 2.0 + 0.035, 0.035, 0.012, horiz))
+		# rows of little waves carved across it
+		for row in 4:
+			var wy: float = 0.46 + row * 0.34
+			for k in 5:
+				var wx: float = -0.28 + k * 0.14
+				lm.box("stone_door_pale", pale, o + along * wx + Vector3(0, wy, 0), _axes(along, 0.1, 0.03, 0.012, horiz))
+				lm.box("stone_door_pale", pale, o + along * (wx + 0.05) + Vector3(0, wy + 0.05, 0), _axes(along, 0.05, 0.03, 0.012, horiz))
 	var mi := MeshInstance3D.new()
 	mi.mesh = lm.mesh()
 	leaf.add_child(mi)
@@ -2543,7 +2642,7 @@ func _reception_desk() -> void:
 		_along_box(m, "marble_top", marble, c + Vector3.UP * (DESK_TOP - 0.025), along, 1.0, 0.05, 0.9)
 		if q == phone_at:
 			_counter_phone(c, atan2(float(face.x), float(face.y)), DESK_TOP)
-		elif not bell_done and q.x >= w / 2 - 2:
+		elif not bell_done and q.x >= w / 2 - 2 and not _before_staff(q):
 			bell_done = true
 			var bell := MeshInstance3D.new()
 			var sm := SphereMesh.new()
@@ -2563,6 +2662,14 @@ func _reception_desk() -> void:
 	for i in 5:
 		for j in 2:
 			_row(0).box("brass", brass, board + Vector3(-0.5 + 0.25 * i, 0.15 - 0.3 * j, 0.04), Vector3(0.05, 0.1, 0.02))
+
+
+## Whether a counter tile is straight in front of (beside) someone standing at it: nothing is set down there.
+func _before_staff(q: Vector2i) -> bool:
+	for n in map.get("npcs", []):
+		if Vector2(n["pos"]).distance_to(Vector2(q)) < 1.01:
+			return true
+	return false
 
 
 ## An ancient room's counters (the Beast Center's temple): blocks of its dressed stone on a darker plinth, under a
@@ -3049,9 +3156,13 @@ static func furniture_layout(m: Dictionary, kind: String, group: Array) -> Dicti
 		# a chair faces the table beside it (its back away from it)
 		for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
 			var r: Vector2i = lo + d
-			if m.get("furniture", {}).get(r, "") in ["table", "desk", "coffee_table", "diner_table"]:
+			if m.get("furniture", {}).get(r, "") in ["table", "desk", "coffee_table", "diner_table", "concert_table"]:
 				back = -d
 				against = false
+				# (unless the room's seats all face one way: the concert hall's face the stage, a table between them)
+				if m.get("room", {}).has("seats_face"):
+					var sf: Array = m["room"]["seats_face"]
+					back = -Vector2i(int(sf[0]), int(sf[1]))
 				break
 	# the model turned so its back (-z) faces `back`
 	var yaw := 0.0
@@ -3276,12 +3387,14 @@ func _place(kind: String, group: Array) -> void:
 		# a plain cupboard standing in for a dressed one gets a few things on it
 		tops = KINDS["cabinet"]["top"]
 	var near_tops := _near_placed(group, false, _placed_tops)
-	if tops.size() > 1:
+	var ends: bool = k.get("ends", false)
+	if tops.size() > 1 and not ends:
 		tops = tops.filter(func(n): return not n in near_tops)
 	if not tops.is_empty() and (k.get("always_top", false) or used_alt or rng.randf() < 0.75):
-		var n_items := 1 if k.get("always_top", false) else rng.randi_range(1, 1 + int(span * depth))
+		# ("ends": the first top at one end of the piece, the second at the other)
+		var n_items := mini(2, tops.size()) if ends else (1 if k.get("always_top", false) else rng.randi_range(1, 1 + int(span * depth)))
 		for i in n_items:
-			var name: String = tops[rng.randi_range(0, tops.size() - 1)] if not k.get("always_top", false) else tops[0]
+			var name: String = tops[i] if ends else (tops[rng.randi_range(0, tops.size() - 1)] if not k.get("always_top", false) else tops[0])
 			if name == "":
 				continue
 			for q in group:
@@ -3297,6 +3410,12 @@ func _place(kind: String, group: Array) -> void:
 			var spread := Vector3(bb.size.x * sc.x * 0.3, 0, bb.size.z * sc.z * 0.25)
 			var off := Vector3(rng.randf_range(-1, 1) * spread.x, 0, rng.randf_range(-1, 1) * spread.z) if not k.get("always_top", false) else Vector3.ZERO
 			t.scale = Vector3.ONE * float(k.get("top_scale", 1.0))
+			if ends:
+				# toward its end of the top, its whole footprint a hand inside the edges
+				var tb: AABB = t.mesh.get_aabb()
+				var room_x := maxf(0.0, bb.size.x * sc.x / 2.0 - 0.08 - tb.size.x * t.scale.x / 2.0)
+				off = Vector3((-1.0 if i == 0 else 1.0) * minf(room_x, bb.size.x * sc.x * 0.3) - (tb.position.x + tb.size.x / 2.0) * t.scale.x,
+					0, -(tb.position.z + tb.size.z / 2.0) * t.scale.z)
 			var lift := 0.0
 			if k.has("mat"):
 				# a thin mat under it, a little bigger than it all round but never past the table's edges
@@ -3321,6 +3440,8 @@ func _place(kind: String, group: Array) -> void:
 				# it shakes when it rings
 				t.add_to_group("phones")
 			pieces.append(t)
+	if k.get("drinks", false):
+		ConcertHall.dress_table(self, pos, top_y, yaw, pieces)
 	if k.has("with"):
 		var t2 := MeshInstance3D.new()
 		t2.mesh = piece(k["with"])
@@ -3330,7 +3451,9 @@ func _place(kind: String, group: Array) -> void:
 			parent.add_child(t2)
 			pieces.append(t2)
 	if k.get("goods", false):
-		pieces.append_array(_goods(pos, yaw, bb, sc))
+		# (the band's storeroom keeps tins and boxes, concert_hall.gd)
+		pieces.append_array(ConcertHall.pantry_goods(self, pos, yaw, bb, sc) if map.get("room", {}).get("goods", "") == "pantry"
+			else _goods(pos, yaw, bb, sc))
 	if home:
 		pieces.append_array(_dress(kind, mi, bb, sc))
 	elif top_y >= TALL and not map.get("room", {}).get("no_fade", false):
@@ -3536,6 +3659,9 @@ func _counters() -> void:
 				if map.get("counter_phone", Vector2i(-1, -1)) == q:
 					var spot := Vector3(q.x + 0.5, 0, q.y + 0.5)
 					_counter_phone(spot + along * _off_block(spot.dot(along), 0.28, blocks, ends), yaw, top)
+					continue
+				# nothing stands on the counter straight in front of the keeper: they're seen and spoken to across it
+				if q.distance_to(keeper) < 1.01:
 					continue
 				var item := ""
 				var mine := false

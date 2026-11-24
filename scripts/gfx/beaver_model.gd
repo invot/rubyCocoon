@@ -15,6 +15,8 @@ static func dress(rig: Node3D) -> void:
 		player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 	player.play(&"Idle_Walk")
 	rig.set_meta("critter_visual", model)
+	# how far ahead its toe tips reach (its skinned feet, measured), where it pivots leaning forward when beaten (voxel_person.gd)
+	rig.set_meta("critter_toes", 0.66)
 	rig.set_meta("beaver_animation", player)
 
 static func animate(player: AnimationPlayer, speed: float) -> void:

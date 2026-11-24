@@ -169,6 +169,21 @@ upholstery) over a wood grain and cloth weave of our own.
   (Dustwell's town well, baked by `tools/import_dustwell_church.gd` into `assets/props/town_well.res`). *Changes
   made:* merged into one mesh two tiles across; its palette texture enlarged by whole pixels and smoothed, and the
   shaft's green floor painted dark for the dry well.
+- **JBL+Speakers STANDING TRIPOD**, **LIGHTING RIGG 8 METER CENTER** and **LIGHT BAR 10METER GANTUNG WSDESIGN** by
+  eventdesignws (https://sketchfab.com/eventdesignws), licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/),
+  https://sketchfab.com/3d-models/jblspeakers-standing-tripod-bc525345c2774620bd507c8f02794245,
+  https://sketchfab.com/3d-models/lighting-rigg-8-meter-center-98c7da13456b42beb9ec5605490419c8 and
+  https://sketchfab.com/3d-models/light-bar-10meter-gantung-wsdesign-70b5eeb80628457da69a606ebc08adcc, supplied as
+  `psx/music_gear/*.glb` (the switched-off sound and light gear on the Oasis Saloon's concert stage, prepared by
+  `tools/blender/music_gear.py` and baked by `tools/import_music_gear.gd` into `assets/props/music_speaker.res`,
+  `music_stage_lights.res` and `music_bar_lights.res`). *Changes made:* from each rig only a few of its light fixtures
+  kept, its truss, hoists, chains and cables removed and each fixture stood upright on the floor; all three decimated to a few thousand triangles; their materials
+  replaced by soft painted colour squares of one shared atlas.
+- **Lowpoly Instrument Set**, supplied by the user as `Lowpoly Instrument Set.zip` (38 uncoloured OBJ parts) with no
+  author or licence named, so used as Creative Commons under the project's rule; kept in `psx/music_gear/` (the
+  band's instruments on the Oasis Saloon's concert stage, baked as above into `assets/props/music_<instrument>.res`).
+  *Changes made:* its parts sorted into separate instruments, the long ones stood upright, each sized for the game,
+  and painted from the shared atlas (it came without materials).
 - **Western Church** (a whitewashed plank church, "Iglesia"), supplied by the user as `Western Church.zip` with no
   author or licence named, so used as Creative Commons under the project's rule; kept in `psx/western_church/`
   (Dustwell's old church, baked by `tools/import_dustwell_church.gd` into `assets/exteriors/western_church.res`).
@@ -209,9 +224,12 @@ upholstery) over a wood grain and cloth weave of our own.
   (`-- --well-floors`). Its **1.0** release (same author and licence) gives the dungeon wall, corner, T, crossing and
   end pieces of the well's cut stone and Dale's bedroom (`-- --well-walls`).
   See [licence](licenses/KayKit%20Dungeon%20Pack%20-%20License.txt).
-- **Modular Terrain Collection** (author not named in the download; no licence came with it, so Creative Commons by
-  the project's rule): the rope bridge sections over the Dustwell Well's cracks (`assets/nature/well_bridge.res`,
-  baked by `tools/import_modular_cliffs.gd`).
+- **Rope Bridge** by TheMelon (https://sketchfab.com/TheMelon),
+  https://sketchfab.com/3d-models/rope-bridge-18b72530ee144dc190aad9dc86c1c1fc, licensed under CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/) (the rope bridges over the Dustwell Well's cracks, downloaded as
+  `psx/rope_bridge/rope_bridge.glb` and baked by `tools/import_rope_bridge.gd` into `assets/props/rope_bridge_*.res`).
+  *Changes made:* one of its two halves kept without the centre pier and stretched over each gap, cut into posts,
+  planks and ropes, its three dangling planks put back in line, recoloured with the game's wood and rope.
 - **Mallard Duck (Drake), Stylized, Rigged & Animated** by Liray 3D, Standard Fab licence (Jared's ducks, in the
   dream, the jail and on the roads: `assets/animals/duck.glb`, cut down to 5,000 triangles with its rig and clips).
   See [source and modifications](licenses/duck_stylized_liray3d.md).

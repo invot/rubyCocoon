@@ -117,6 +117,16 @@ func drive(done: Array) -> void:
 	check(done[0], "lesson finishes through the real input path")
 
 
+## Captures the lake filling (Story._lake_fill_scene) while it plays: the stone glowing in the hero's hands, the camera
+## drawn back with the spring pouring, and the lake nearly full.
+func _lake_fill_shots() -> void:
+	var start := Time.get_ticks_msec()
+	for step in [["lake_stone", 2.0], ["lake_pouring", 6.0], ["lake_full", 8.6]]:
+		while Time.get_ticks_msec() - start < int(float(step[1]) * 1000.0):
+			await main._wait(0.02)
+		await shot(String(step[0]))
+
+
 ## Dustwell's studio, cave, saloon and riverboat. The runner retains the original "dance" part name.
 func dance() -> void:
 	UI.auto = true
@@ -211,19 +221,23 @@ func dance() -> void:
 	await shot("sanctuary")
 	await Story.talk(main.world, npc("water_teacher"))
 	check(GameState.learned_spell("torrent"), "Nerine teaches Torrent in the sanctuary")
-	# the spring at the lake's south tip (river_lip), which only answers once the Dustwell Well runs again
+	# the spring head on the lake's east shore (river_lip), which only answers once the Dustwell Well runs again
 	GameState.set_flag("well_restored")
-	await main._go("dustwell_channel", Vector2i(15, 16))
+	await main._go("dustwell_channel", Vector2i(26, 13))
 	main.world.frozen = true
 	UI.auto_answers = [0]
 	UI.auto_flute = [{"acc": 0.9, "mistakes": 0}]
-	main.world.facing = Vector2i.DOWN
+	main.world.facing = Vector2i.LEFT
+	var spring: Dictionary = main.world.npcs.get(Vector2i(25, 13), {})
+	check(spring.get("id", "") == "water_target" and spring.has("story_mark") and spring["story_mark"].visible, "a yellow marker shows where to cast Torrent")
+	await shot("spring_marker")
+	_lake_fill_shots()
 	await main.world._interact()
 	for i in 800:
 		if not main._transitioning and main._pending_goto.is_empty():
 			break
 		await main._wait(0.025)
-	check(GameState.flag("river_restored") and main.world._walkable(Vector2i(15, 18)) and main.world._walkable(Vector2i(27, 11)), "Torrent leaves a dry route back to the landing")
+	check(GameState.flag("river_restored") and main.world._walkable(Vector2i(25, 13)) and main.world._walkable(Vector2i(27, 11)), "Torrent leaves a dry route back to the landing")
 	check(MG.get_t(main.world.map, 12, 8) == MG.WATER and not main.world._walkable(Vector2i(12, 8)), "the restored channel is deep water")
 	await main._go("dustwell_channel", Vector2i(18, 10))
 	main.world.frozen = true

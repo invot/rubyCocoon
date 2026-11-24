@@ -3785,7 +3785,8 @@ func _step(d: Vector2i, run: bool) -> bool:
 		_begin_step(target, run)
 		_walk_dir = d
 		return true
-	if d == Vector2i(0, -1) and doors.has(target):
+	# (Dustwell's well isn't walked into: it's used, from any side, like a prop; see _well_at)
+	if d == Vector2i(0, -1) and doors.has(target) and not doors[target].get("well", false):
 		_enter_building(doors[target])
 		return false
 	if room_walls != null and room_walls.door_leaves.has(target) and map["exits"].has(target):
@@ -4193,6 +4194,8 @@ func _interact() -> void:
 		var n: Dictionary = npcs[t]
 		_face_npc(n, -facing, true)
 		await _talk(n)
+	elif not _well_at(t).is_empty():
+		await _enter_building(_well_at(t))
 	elif doors.has(t):
 		await _enter_building(doors[t])
 	elif items.has(t):
@@ -5073,6 +5076,8 @@ func _usable(t: Vector2i) -> String:
 		return "npc"
 	if _beast_at(t) != null:
 		return "beast"
+	if not _well_at(t).is_empty():
+		return "well"
 	if doors.has(t):
 		return "door"
 	if items.has(t) or shards.has(t):
@@ -5175,6 +5180,13 @@ func _sign_pos(p: Vector2i) -> Vector3:
 	return at
 
 
+## Dustwell's well, if tile t is part of it: unlike a building it is never walked into, only used (the action button,
+## or a tap) while facing any tile of it, from any side.
+func _well_at(t: Vector2i) -> Dictionary:
+	var b := _building_at(t)
+	return b if b.get("well", false) else {}
+
+
 func _building_at(t: Vector2i) -> Dictionary:
 	if MapGen.get_t(map, t.x, t.y) != MapGen.BUILDING and MapGen.get_t(map, t.x, t.y) != MapGen.DOOR:
 		return {}
@@ -5195,8 +5207,19 @@ func _go_use(t: Vector2i, kind: String, run: bool) -> void:
 			if npcs[p].get("id", "") == "kennel_keeper":
 				t = p
 				kind = "npc"
+	if kind == "door" and doors.get(t, {}).get("well", false):
+		kind = "well"
 	var spots := []
-	if kind == "weapon":
+	if kind == "well":
+		# any tile beside the well, on any side
+		var b := _well_at(t)
+		for y in range(int(b["y"]), int(b["y"]) + int(b["d"])):
+			for x in range(int(b["x"]), int(b["x"]) + int(b["w"])):
+				for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+					var q := Vector2i(x, y) + d
+					if _well_at(q).is_empty() and Elev.joined(map, q, Vector2i(x, y)):
+						spots.append(q)
+	elif kind == "weapon":
 		spots = [weapon_obstacles.approach(map["weapon_targets"][t])]
 	elif kind == "door":
 		spots = [t + Vector2i(0, 1)]
@@ -5219,6 +5242,13 @@ func _use_from_here(t: Vector2i, kind: String) -> void:
 	if kind == "weapon":
 		var target: Vector2i = map["weapon_targets"][t]["targets"][0]
 		d = Vector2i(signi(target.x - player_pos.x), signi(target.y - player_pos.y))
+	elif kind == "well":
+		# face whichever tile of the well is beside you
+		var b := _well_at(t)
+		for side in [Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1)]:
+			if _well_at(player_pos + side) == b:
+				d = side
+				break
 	elif absi(d.x) + absi(d.y) == 2:
 		d /= 2
 	facing = d

@@ -216,9 +216,9 @@ const MAPS := {
 			"~~========::===========:::==================::==============::============~~",
 			"~~========================================================================~~",
 			"~~~~~~~~~~===========================================================~~~~~~~",
-			"~~~~~~~~~~==~~~~~~~~~~~=5=~~~~~~~~~~~~~~~~~~==~~~~~~~~~~========~~~==~~~~~~~",
-			"~~~~~~~~~~==~~~~~~~~~~~==4~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~==~~~~~~~",
-			"~~~~ppppp~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~==~~~~~==ppppp~~",
+			"~~~~~~~~~~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~==~~~~~~~~~~========~~~==~~~~~~~",
+			"~~~~~~~~~~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~5=~~~~~~~~~~~~~~==~~~~~==~~~~~~~",
+			"~~~~ppppp~==~~~~~~~~~~~===~~~~~~~~~~~~~~~~~~=4~~~~~~~~~~~~~~==~~~~~==ppppp~~",
 			"~~~~ppppp~==~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~~~~~~~~==ppppp~~",
 			"~~~~ppppp~==~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~~~~~~~~==ppppp~~",
 			"~~~~=8======~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~~~~~~~~=======~~",
@@ -273,7 +273,7 @@ const MAPS := {
 		# Gil's shack and his line, by the ferry pier, and out in the harbour
 		"fish_spots": [[6, 38], [20, 31], [36, 31], [53, 34]],
 		# moored in the harbour, every one side-on to the camera and beside its pier, never between a walkway and the camera:
-		# Captain Gull's ferry off the end of the long pier, Gil's rowboat by his shack, a paddle steamer along the landing
+		# Gil's rowboat by his shack, Captain Gull's paddle steamer (the island boat) along the landing
 		# east of the steamboat pier, a shrimp trawler and a sloop at the marina, and a
 		# schooner under sail out in the bay ([x, z, yaw in degrees, model, length in tiles]; harbor_boats.gd draws the new ones)
 		# Authored dock cargo: x, y, shared street-prop mesh, stack count. Two clear walking rows remain south of it.
@@ -281,7 +281,7 @@ const MAPS := {
 			[17, 27, "crate", 2], [30, 27, "crate_open", 1], [31, 27, "crate", 1], [37, 27, "crate", 2],
 			[38, 27, "crate", 1], [49, 27, "crate", 2], [50, 27, "crate_open", 1],
 			[55, 27, "crate", 1], [64, 27, "crate", 2], [65, 27, "crate", 1], [70, 27, "crate_open", 1]],
-		"boats": [[28.55, 34.0, 90.0, "ferry", 4.8], [2.6, 35.0, 8.0, "boat_dark", 2.4], [51.4, 33.5, 90.0, "steamboat", 8.6],
+		"boats": [[2.6, 35.0, 8.0, "boat_dark", 2.4], [51.4, 33.5, 90.0, "steamboat", 8.6],
 			[64.3, 33.6, 90.0, "trawler", 3.6], [75.9, 34.0, 90.0, "sloop", 2.8],
 			[83.0, 33.0, 80.0, "schooner", 4.6]],
 		# the park (Jardin des Bêtes) between the town and the arena: wild beasts live only inside its iron fence, in the long
@@ -292,7 +292,7 @@ const MAPS := {
 		# which no stairs or ramp reach: scenery seen from the forecourt, not a place to walk
 		"rocky_beach": [[73, 3, 1, 14]],
 		"signs": [
-			"Bellerive. Ferries to the Isle of Tides leave from the long pier.",
+			"Bellerive. Captain Gull's riverboat sails to the Isle of Tides from the steamboat pier.",
 			"Jardin des Bêtes. Wild beasts roam the long grass. The arena lies on the far side: beaten beasts sometimes leave eggs!",
 		],
 	},
@@ -314,7 +314,7 @@ const MAPS := {
 			"~~~~~~~~~~HHHHHHHHHHHHHHHHHHHHHAAAAACCCCCCCCEEEEEz....q....qTT",
 			"~~~~~~~~~~~~~~~~~~~~~~~::::::::,,,,,,,,,,,,,,,,,,zz,,zqq,,qq,,",
 			"~~~=================~~~::::::::,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
-			"~~~====45===========~~~__...::...L:::::tt:::::L...........+.tt",
+			"~~~=================~~~__...::...L:::::tt:::::L...........+.tt",
 			"~~~~~~~~~~~~~~~~~~==~~~__.f.::@..::::::tt::::::...f...@.....tt",
 			"~~~~~~~~~~~~~~~~~~==~~~__...::f..::::::SS::::::.............tt",
 			"~~~~~~~~~~~~~~~~~~=======::::::::::::::SS::::::......f......tt",
@@ -329,7 +329,7 @@ const MAPS := {
 			"~~~~~~~~~~~~~~~~~~==~~~_____________________________________TT",
 			"~~~~~~~~~~~~~~~~~~==~~~_____________________________________TT",
 			"~~~~~~~~~~~~~~~~~~==~~~_____________________________________TT",
-			"~~~=================~~~aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa~~",
+			"~~~=====5=4=========~~~aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa~~",
 			"~~~=================~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~==~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
@@ -374,8 +374,9 @@ const MAPS := {
 		],
 		"anchors": {"1": "chief", "3": "mascot", "4": "ferry", "5": "dock"},
 		# All hulls and piers stay west of the original coast (now x=23); the beach opens straight onto the sea.
-		"boats": [[8.0, 10.0, 90.0, "ferry", 4.8], [16.7, 11.3, 0.0, "motor_launch", 4.2],
-			[9.0, 21.3, 90.0, "motor_yacht", 7.2], [14.5, 26.0, 90.0, "sloop", 4.2]],
+		# Captain Gull's riverboat berths between the lower piers, Gull on the pier in front of her (anchor 4).
+		"boats": [[16.7, 11.3, 0.0, "motor_launch", 4.2],
+			[9.5, 21.0, 90.0, "steamboat", 8.6], [14.5, 26.0, 90.0, "sloop", 4.2]],
 		"signs": [
 			"Shellhaven Resort. Day trips to quaint Kelpwick along the Isle Trail!",
 		],

@@ -5577,6 +5577,13 @@ func _reward_film(kind: String, before: Dictionary, after := {}, egg := {}) -> v
 
 ## Resolve each beast in party order. Growth cannot heal or change a model in the middle of a round.
 func _finish_growth() -> void:
+	# (one notice for the whole party instead of one per beast; gear can nudge a beast's share, so name the biggest)
+	var party_xp := 0
+	for b in GameState.party:
+		if participants.has(b):
+			party_xp = maxi(party_xp, int(pending_xp.get(b, 0)))
+	if party_xp > 0:
+		await msg("Your party gained %d XP." % party_xp, 0.5)
 	for b in GameState.party:
 		var amt := int(pending_xp.get(b, 0))
 		if amt <= 0:
@@ -5589,8 +5596,6 @@ func _finish_growth() -> void:
 			if e["type"] == "evolve":
 				who = e["from"]
 				break
-		if participants.has(b):
-			await msg("%s gained %d XP." % [who, amt], 0.5)
 		for e in events:
 			match e["type"]:
 				"level":

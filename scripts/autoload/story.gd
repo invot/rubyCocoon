@@ -152,19 +152,22 @@ func extra_npcs(map: Dictionary) -> Array:
 		# a teacher at home (Youngster Kit, in his cabin), or Uncle Rafe at home
 		var inside := out
 		inside.append_array(_lesson_trainers(map))
-		# The Rubywave Five are stuck in Dustwell's saloon until they're freed (band_freed), sitting on the backstage
-		# floor beside their bedrolls between shows, then move on to Cogsworth's music shop (docs/dustwell-water-arc.md).
+		# The Rubywave Five (there are four of them, and nobody mentions it) are stuck in Dustwell's saloon until they're
+		# freed (band_freed), wandering about their storeroom off the concert hall between shows, then move on to
+		# Cogsworth's music shop (docs/dustwell-water-arc.md).
 		var band_at_shop: bool = GameState.flag("band_freed") and map.get("parent", "") == "cogsworth" and map.get("room_key", "") == "music_shop"
 		var band_backstage: bool = not GameState.flag("band_freed") and map.get("room_key", "") == "saloon_back"
 		if band_at_shop or band_backstage:
-			for i in 5:
-				var member := {"kind": "story", "id": "rubywave_member", "member": i, "name": ["Riff", "Tempo", "Cadence", "Encore", "Bramble"][i],
-					"pos": _at(map, "band_%d" % i, Vector2i(1 + i * 2, 3)) if band_backstage
-						else [Vector2i(1, 3), Vector2i(3, 3), Vector2i(7, 4), Vector2i(7, 3), Vector2i(8, 3)][i],
-					"look": {"model": "tf%d" % [13, 29, 62, 74, 24][i], "shirt": ["#b93646", "#3a6ab8", "#3a8a4a", "#7a4aa8", "#cf9c52"][i]},
+			for i in 4:
+				var member := {"kind": "story", "id": "rubywave_member", "member": i, "name": ["Riff", "Tempo", "Cadence", "Encore"][i],
+					"pos": _at(map, "band_%d" % i, Vector2i(2 + i * 2, 2)) if band_backstage
+						else [Vector2i(1, 3), Vector2i(3, 3), Vector2i(7, 4), Vector2i(7, 3)][i],
+					"look": {"model": "tf%d" % [13, 29, 62, 74][i], "shirt": ["#b93646", "#3a6ab8", "#3a8a4a", "#7a4aa8"][i]},
 					"facing": Vector2i.DOWN, "still": true}
 				if band_backstage:
-					member.merge({"sit": true, "floor_seat": true, "cushion": false, "seat_height": BAND_FLOOR_SEAT})
+					# (pacing the storeroom: world.gd _roam)
+					member.erase("still")
+					member.merge({"roam": true, "home": member["pos"]})
 				inside.append(member)
 		if map.get("room_key") == "temple_tides_sanctuary":
 			inside.append({"kind": "story", "id": "water_acolyte", "name": "Brother Shoal", "pos": map["anchors"]["water_acolyte"],
@@ -414,6 +417,9 @@ func npc_has_news(n: Dictionary) -> bool:
 			return not GameState.flag("trainers_freed")
 		"tide_keeper":
 			return not GameState.flag("met_tide_keeper")
+		"water_target":
+			# (the lake's spring: the yellow marker shows where to cast Torrent once the well runs again)
+			return n.get("target", "") == "river_lip" and GameState.flag("well_restored")
 		"shaman":
 			return not GameState.flag("relic_quest") or (_relic_count() == 3 and not GameState.flag("ritual_done"))
 		"gravedigger":
@@ -467,8 +473,6 @@ const STUDENT_LOOKS := [{"skin": "#f0c8a8", "hair": "#c84a2a", "shirt": "#e86a9a
 	{"skin": "#e8b890", "hair": "#e8d080", "shirt": "#6ab8e8", "pants": "#6ab8e8", "outfit": "dress"}]
 ## Rosa, who owns the Oasis Saloon: red and black, her hair up.
 const ROSA_LOOK := {"skin": "#e8c0a0", "hair": "#2a1a1a", "shirt": "#a82a3a", "pants": "#1a1a22", "outfit": "dress", "hair_style": 2}
-## How high the Rubywave Five's seats are, sitting on the backstage floor beside their bedrolls.
-const BAND_FLOOR_SEAT := 0.08
 
 
 func _dance_teacher(n: Dictionary) -> void:
@@ -486,8 +490,9 @@ func _dance_student(n: Dictionary) -> void:
 
 
 ## Rosa, the saloon's owner: she bought up Dustwell's water barrels during the drought and keeps the Rubywave Five
-## on a one-song contract. Once the well flows, her water's worthless, her hold breaks and the band goes free. (Dale
-## stays hidden down the well: she never learns where he went.)
+## on a one-song contract. Her brother Dale hides down the well, so before it flows she's all too quick to swear
+## nobody lives there (the user's 2026-11-24 call). Once it flows, her water's worthless: she grumbles about the
+## money the band owes her, writes the debt off and the band goes free.
 func _rosa(world, n: Dictionary) -> void:
 	GameState.set_flag("met_rosa")
 	if GameState.flag("band_freed"):
@@ -495,13 +500,15 @@ func _rosa(world, n: Dictionary) -> void:
 			"Enjoy your little gift while you can. People like you never keep it quiet for long, and then the wrong people come asking."], n["name"])
 		return
 	if not GameState.flag("well_restored"):
-		await say(["Welcome to the Oasis, sugar. Water's two gold a cup, and the band plays my favourite song. All night.",
-			"My partner Dale? Ran off years ago. Didn't even say goodbye.",
-			"And don't go poking around that dry old well. Nothing down there but dust."], n["name"])
+		await say(["Welcome to the Oasis, sugar. Water's two gold a cup.",
+			"The well? What about the well? It's dry. It's empty. Nobody lives down there. Why would anybody live down a well?",
+			"So there's no reason to go climbing down to look. None at all. Buy a nice cup of water instead."], n["name"])
 		return
-	await say(["Water in the well, and not a soul will say who did it. And here you are, looking pleased with yourself.",
-		"...Fine. The town won't buy a cup of my water now, and nobody's paying to hear that song.",
-		"Tell the band the contract's off. Go on. Tell them before I change my mind."], n["name"])
+	await say(["Water in the well again, and here you are, looking pleased with yourself. Did you... no. Don't tell me.",
+		"Now, the band. Those five owe me money. Backstage rent, and every cup of water they drank. Two gold a cup, three summers.",
+		"That was the deal. They play my song until they've paid it off.",
+		"...But nobody's buying my water now, and nobody's paying to hear that song either. Keeping them is costing me.",
+		"Fine. Tell them the debt's forgiven. Go on. Tell them before I change my mind."], n["name"])
 	GameState.set_flag("band_freed")
 	await say(["A whoop comes through the wall from backstage."])
 	await say(["Free? We're FREE? We're going to Cogsworth! We'll play every song we know, and never that one again!"], "Riff")
@@ -1087,7 +1094,7 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	await say(n.get("lines", ["Let's battle!"]), name)
 	var def := {"name": n.get("name", ""), "cls": n.get("cls", "Trainer"), "team": n["team"], "defeat": n.get("defeat", ""),
 		"look": n.get("look", {}), "robot_body": n.get("robot_body", ""), "song": song, "boss": n.get("bandit_boss", false), "flute_skill": n.get("flute_skill", 0.8), "encore": n.get("encore", false)}
-	for k in ["lesson", "reward", "claws"]:
+	for k in ["lesson", "reward", "claws", "shield"]:
 		if n.has(k):
 			def[k] = n[k]
 	var res := await trainer_battle(def)
@@ -1197,15 +1204,14 @@ func _talk_story(world, n: Dictionary) -> void:
 						"We can't leave till we pay off our debt. Rosa adds the water we drink to it. Two gold a cup.",
 						"I tried to walk out once. Dustwell's all sand in every direction. I was back by supper, and that went on the bill too."],
 					["Please request something else. Anything else. She won't let us, but please.",
-						"We sleep back here on blanket piles. Rosa says rent comes out of our pay. There is no pay."],
+						"We sleep back here on camp cots. Rosa says rent comes out of our pay. There is no pay."],
 					["I've counted the boards on this ceiling. Two hundred and twelve. I count them again every night, in case one leaves.",
 						"If one of them ever gets out of here, I'm going with it."],
 					["I used to love this song. Now I hum it in my sleep. My bandmates have complained.",
 						"I keep dreaming we play a second song. Then I wake up, and it's showtime, and it's the first song."],
-					["I joined to play the fiddle. Rosa made me learn six notes. I'm still waiting to use the seventh.",
-						"Only Rosa can tear up that contract. I don't think anything would make her let go of us."]][int(n["member"])], n["name"])
+					][int(n["member"])], n["name"])
 			else:
-				await say(["I'm the %s member of the Rubywave Five!" % ["first", "second", "fourth", "fifth", "third"][int(n["member"])],
+				await say(["I'm the %s member of the Rubywave Five!" % ["first", "second", "fourth", "fifth"][int(n["member"])],
 					"No more Rosa, no more one-song contract. We play whatever we like now!"], n["name"])
 		"cancan_dancer":
 			await _cancan_dancer(n)
@@ -1291,7 +1297,7 @@ func _talk_story(world, n: Dictionary) -> void:
 				await uncle_lessons()
 			else:
 				await say([["Practise, practise, practise! A song you can play half asleep is a song that wins battles.",
-					"The ferry to the Isle of Tides leaves from the long pier. The islanders are funny about their fish.",
+					"Captain Gull's riverboat to the Isle of Tides leaves from the steamboat pier. The islanders are funny about their fish.",
 					"Your father always said: a quick tune beats a perfect one played too late. Then he'd play it perfectly AND quickly. Show-off."][randi() % 3]], "Uncle Rafe")
 		"mom":
 			if world.get_node_or_null("Ringer") != null:
@@ -1442,14 +1448,14 @@ func _ferry(world) -> void:
 			"The arena's coaches will get you ready for her. Then we'll talk boats."], "Captain Gull")
 		return
 	var dest := "shellhaven" if here == "tidewater" else "tidewater"
-	if not await ask("All aboard! The ferry sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
+	if not await ask("All aboard! The riverboat sails to %s. Life jackets optional, dramatic sea shanties mandatory. Hop on?" % WorldDB.map_name(dest), "Captain Gull"):
 		return
 	GameState.main.goto_map(dest, "dock")
 
 
 func _riverboat(world, captain: String) -> void:
 	if not GameState.flag("river_restored"):
-		var hint := "Try Torrent at the dry spring, down at the lake's south end." if GameState.learned_spell("torrent") \
+		var hint := "Try Torrent at the dry spring head, there on the shore by the ramp. The stone with the blue waves." if GameState.learned_spell("torrent") \
 			else "The river's been gone since the well went dry. Same water, I'd bet."
 		await say(["She's sitting in mud. I couldn't take you across if I wanted to.", hint], captain)
 		return
@@ -1478,7 +1484,7 @@ func riverboat_shore(map_id: String, spawn) -> void:
 
 func _water_teacher(teacher: String) -> void:
 	if GameState.learned_spell("torrent"):
-		await say(["Try Torrent at the dry spring in the lakebed north of Dustwell."], teacher)
+		await say(["Try Torrent at the dry spring head on the lake's east shore, north of Dustwell. Look for the blue carved waves."], teacher)
 		return
 	if not GameState.has_stone("water"):
 		await say(["Dale sent you? Then you know every element needs its stone. Come back when you carry a water stone."], teacher)
@@ -2303,7 +2309,9 @@ const WELL_BEAVERS := [
 	{"name": "Dibble", "gift": "well_rope", "facing": Vector2i.LEFT, "sight": BEAVER_SIGHT,
 		"lines": ["Nub gave you the key? Typical Nub.", "I'm the third strongest beaver, by the way. The real one. Accept no imitations."],
 		"won": ["Ugh. Take my rope, then. It's long enough for both broken bridges down here.",
-			"It's very good rope. Third-strongest-beaver rope."],
+			"It's very good rope. Third-strongest-beaver rope.",
+			"...Okay. Maybe I'm not the third strongest beaver.",
+			"Maybe I'm the third of something else. Some group out there that's missing its third. It happens."],
 		"again": "That was my best rope. Third best, but still."},
 	{"name": "Crumb", "gift": "well_ladder", "facing": Vector2i.RIGHT, "sight": BEAVER_SIGHT,
 		"lines": ["Hey! How did you get over the bridge? Never mind.", "Third strongest beaver. Me. Battle!"],
@@ -2322,6 +2330,8 @@ const WELL_BEAVERS := [
 ## Every beaver battles with the same two beasts: Quillets, the spiky little earth echidnas (the user's rule). The
 ## beaver fights too ("claws": battle.gd CLAW_ATTACKS): it bites, slashes and casts earth magic at your beasts.
 const BEAVER_TEAM := [[12, 17], [12, 17]]
+## Their shield: one point more than a trainer with level-17 beasts would get (battle.gd _trainer_shield; the user's rule).
+const BEAVER_SHIELD := 2
 ## The rope bridges (map "bridges" flags): what mends each, and how it looks broken.
 const WELL_BRIDGES := {
 	"well_bridge_1": {"item": "well_wood", "broken": "The rope bridge's planks have been chewed clean through. Only the ropes are left."},
@@ -2344,7 +2354,7 @@ func _well_people(map: Dictionary) -> Array:
 		var b: Dictionary = WELL_BEAVERS[i]
 		out.append({"kind": "trainer", "id": "beaver", "beaver": i, "name": b["name"], "cls": "Beaver", "look": {"critter": "beaver"},
 			"pos": map["anchors"]["beaver_%d" % i], "facing": b["facing"], "sight": b["sight"], "side_sight": BEAVER_SIDE_SIGHT, "flag": "well_beaver_%d" % i,
-			"team": BEAVER_TEAM, "reward": 300, "lines": b["lines"], "defeat": b["again"], "claws": true})
+			"team": BEAVER_TEAM, "reward": 300, "lines": b["lines"], "defeat": b["again"], "claws": true, "shield": BEAVER_SHIELD})
 	for p: Vector2i in map.get("bridges", {}):
 		var flag: String = map["bridges"][p]
 		if GameState.flag(flag):
@@ -2397,7 +2407,8 @@ func _fallen_ladder(world, n: Dictionary) -> void:
 	if GameState.flag("well_ladder_set"):
 		return
 	if GameState.item_count("well_ladder") == 0:
-		await say(["The ladder down to the bottom floor lies in pieces on the ground below. Somebody knocked it over. Somebody with big teeth."])
+		await say(["Only the top of the ladder is still hooked on the edge. The rest snapped off and lies in pieces on the ground below.",
+			"Somebody knocked it over. Somebody with big teeth. It needs a new ladder."])
 		return
 	if not await ask("Set Crumb's ladder against the ledge?"):
 		return
@@ -2452,8 +2463,8 @@ func _dale(_world, n: Dictionary) -> void:
 	if not GameState.flag("dale_met"):
 		GameState.set_flag("dale_met")
 		await say(["Velvet let you through? Then you didn't hurt my beavers. Much.",
-			"I'm Dale. I used to run the saloon with Rosa, a long time ago. I expect she told you I ran off.",
-			"In a way, I did. People came asking me to do things with water. Bigger and bigger things. So I came down here, where nobody would look."], nm)
+			"I'm Dale. Rosa's my sister. I expect she told you nobody lives down here.",
+			"She's been keeping people away from this well for years. People came asking me to do things with water. Bigger and bigger things. So I came down here, where nobody would look."], nm)
 	await say(["So the town's thirsty. The beavers built their dam where the spring comes up, and the spring's been sulking under it ever since.",
 		"It doesn't need breaking. It needs asking. Watch."], nm)
 	# Dale's spell wakes the spring: the ravines, the waterfall behind his bridge and the town's well all run again
@@ -2483,7 +2494,7 @@ func _dale(_world, n: Dictionary) -> void:
 		await say(["Dale hums a few notes. Across the crack, the rope bridge lifts itself and settles into place."])
 	await say(["The river north is another matter. That needs Torrent, and my old teachers know it. They hide in the Temple of Tides, past Kelpwick.",
 		"There's a panel in the temple's falls chamber, once you've drained it. Only water opens it. Show them what you can do."], nm)
-	await say(["One more thing. Please, tell no one I'm here. Not Rosa. Not anyone."], nm)
+	await say(["One more thing. Please, tell no one I'm here. Rosa knows, and she'll keep it to herself. Nobody else."], nm)
 	await GameState.main.reload_map()
 
 
@@ -2515,11 +2526,10 @@ const WATER_TARGETS := {
 		"ask": "Use Water and ask the water to press on the panel?",
 		"done": ["Water beads on the carved waves, runs into the grooves... and the panel sinks into the wall with a long sigh."]},
 	"river_lip": {"spell": ["torrent"], "weaker": ["water"], "flag": "river_restored", "kind": "lip", "reload": true,
-		"look": ["The old spring at the lake's south end, bone dry. All around it, the lakebed cracks in the sun."],
+		"look": ["The lake's old spring, a dry stone mouth carved with blue waves, over the cracked lakebed."],
 		"weak": ["You could coax a trickle over the lip with Water, but never a whole river.", "This needs something far stronger."],
-		"ask": "Use Torrent with everything you have and call the river back?",
-		"done": ["Deep in the rock, something answers. Water wells up from the spring, spreads across the lakebed, and keeps coming.",
-			"The lake fills, and the river runs east again!"]},
+		"ask": "Hold up the water stone and call the river back with Torrent?",
+		"done": ["The lake fills, and the river runs east again!"]},
 }
 
 
@@ -2534,7 +2544,7 @@ func _water_targets(map: Dictionary) -> Array:
 			var flush: bool = map.get("stone_doors", {}).has(anchors[key])
 			out.append({"kind": "story", "id": "water_target", "target": key, "name": "", "pos": anchors[key],
 				"scene": Node3D.new() if flush else _water_target_scene(String(t["kind"])), "still": true, "facing": Vector2i.DOWN,
-				"blocking": key == "water_panel"})
+				"blocking": true, "story": key == "river_lip", "mark_height": 1.25})
 	return out
 
 
@@ -2557,6 +2567,8 @@ func _water_target(world, n: Dictionary) -> void:
 	await say(t["look"])
 	if not await field_cast(world, String(spells.back()), String(t["ask"])):
 		return
+	if key == "river_lip":
+		await _lake_fill_scene(world, n)
 	GameState.set_flag(String(t["flag"]))
 	world.remove_npc(n)
 	await say(t["done"])
@@ -2574,9 +2586,156 @@ func _water_target_scene(kind: String) -> Node3D:
 			for k in 3:
 				painter.box(root, Vector3(-0.36, 0.35 + k * 0.38, 0), Vector3(0.04, 0.06, 0.7), "3f7fa8")
 		_:
-			painter.box(root, Vector3(0, 0.12, 0), Vector3(1.0, 0.24, 0.5), "a08060")
-			painter.box(root, Vector3(0, 0.3, -0.1), Vector3(0.8, 0.14, 0.3), "8a6a4a")
+			# the lake's dry spring on the shore: a low stone mouth with the panel's blue wave carvings and a spout
+			# over the lakebed (west). The yellow story marker floats over it (npc_has_news "water_target").
+			painter.box(root, Vector3(-0.05, 0.14, 0), Vector3(0.94, 0.28, 0.86), "9c9488")
+			painter.box(root, Vector3(-0.08, 0.285, 0), Vector3(0.7, 0.02, 0.62), "6b5a45")
+			painter.box(root, Vector3(0.3, 0.32, 0), Vector3(0.3, 0.64, 0.9), "c4beb2")
+			for k in 2:
+				painter.box(root, Vector3(0.14, 0.3 + k * 0.2, 0), Vector3(0.04, 0.08, 0.7), "3a8fd6")
+			painter.box(root, Vector3(-0.04, 0.5, 0), Vector3(0.42, 0.12, 0.2), "9c9488")
 	painter.free()
+	return root
+
+
+## Torrent at the lake's spring (WATER_TARGETS "river_lip"): the hero holds the water stone up in both hands and it
+## glows; the camera draws back over the lakebed, the spring pours over its lip and the lake rises to the banks. The
+## map is loaded again afterwards with the real water (and the riverboat afloat).
+func _lake_fill_scene(world, n: Dictionary) -> void:
+	var hero: Node3D = world.player
+	var Person = preload("res://scripts/gfx/voxel_person.gd")
+	if n.has("story_mark") and is_instance_valid(n["story_mark"]):
+		n["story_mark"].visible = false
+	var spring: Vector2i = n["pos"]
+	var toward := Vector2i(signi(spring.x - world.player_pos.x), signi(spring.y - world.player_pos.y))
+	if toward != Vector2i.ZERO and (toward.x == 0 or toward.y == 0):
+		world.facing = toward
+		Person.face(hero, toward, true)
+	# both hands up together in front (the rod's grip, without the rod), the stone between them
+	Person.set_ready(hero, "rod")
+	Person.show_weapon(hero, false)
+	var sk: Skeleton3D = hero.get_meta("skeleton")
+	var hands := [sk.find_bone("l_hand"), sk.find_bone("r_hand")]
+	var stone := _glowing_stone()
+	world.add_child(stone)
+	var gem: MeshInstance3D = stone.get_node("Gem")
+	var light: OmniLight3D = stone.get_node("Light")
+	var gem_mat: StandardMaterial3D = gem.material_override
+	# the lake rising over the bed (the bed's floor is level 0, the banks level 1), and the spring pouring over its lip
+	var lake := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(float(world.map["w"]), float(world.map["h"]))
+	lake.mesh = plane
+	# (plain blue: the pools' shader takes on the sand's colour under it here)
+	var lake_mat := StandardMaterial3D.new()
+	lake_mat.albedo_color = Color(0.17, 0.56, 0.8, 0.0)
+	lake_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	lake_mat.roughness = 0.15
+	lake_mat.metallic_specular = 0.7
+	lake_mat.emission_enabled = true
+	lake_mat.emission = Color("#1a6fa8")
+	lake_mat.emission_energy_multiplier = 0.25
+	lake.material_override = lake_mat
+	lake.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	lake.position = Vector3(world.map["w"] / 2.0, -0.1, world.map["h"] / 2.0)
+	world.add_child(lake)
+	var lip: Vector3 = world.tile_pos(spring)
+	var fall := MeshInstance3D.new()
+	var fall_box := BoxMesh.new()
+	fall_box.size = Vector3(0.14, 1.0, 0.5)
+	fall.mesh = fall_box
+	var fall_mat := StandardMaterial3D.new()
+	fall_mat.albedo_color = Color(0.55, 0.85, 1.0, 0.85)
+	fall_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fall_mat.emission_enabled = true
+	fall_mat.emission = Color(0.3, 0.65, 0.95)
+	fall_mat.emission_energy_multiplier = 0.6
+	fall.material_override = fall_mat
+	fall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	fall.visible = false
+	world.add_child(fall)
+	# the camera: from where it is to high over the lake's south shore, looking north across the bed
+	var saved_cam: Transform3D = world.cam.transform
+	var saved_free: bool = world.cam_free
+	world.cam_free = true
+	# first in close, in front of the hero, on the stone in their hands; then wide, the spring on the right third
+	var held: Vector3 = hero.global_position + Vector3(world.facing.x, 0, world.facing.y) * 0.35 + Vector3(0, 1.05, 0)
+	var ahead := Vector3(world.facing.x, 0, world.facing.y)
+	var close_at: Vector3 = held + ahead * 2.1 + ahead.cross(Vector3.UP) * -0.9 + Vector3(0, 0.55, 0)
+	var close := Transform3D(Basis.looking_at(held - close_at), close_at)
+	var middle := Vector3(lip.x - 4.5, 0.0, 9.5)
+	var wide := Transform3D(Basis.looking_at(Vector3(0, -10.0, -12.0)), middle + Vector3(0, 10.0, 12.0))
+	var t := 0.0
+	var chimed := false
+	var poured := false
+	var length := 9.0
+	while t < length and is_instance_valid(world) and is_instance_valid(hero):
+		await world.get_tree().process_frame
+		t += world.get_process_delta_time()
+		var grip := Vector3.ZERO
+		for i in hands:
+			grip += (sk.global_transform * sk.get_bone_global_pose(i)).origin / 2.0
+		stone.global_position = grip + Vector3(0, 0.1, 0)
+		# the stone glows up over the first two seconds, then pulses while the water comes
+		var glow := smoothstep(0.3, 2.0, t) * (1.0 + 0.25 * sin(t * 6.0))
+		gem.scale = Vector3.ONE * lerpf(0.4, 1.0, smoothstep(0.0, 0.6, t))
+		gem_mat.emission_energy_multiplier = 0.4 + 3.2 * glow
+		light.light_energy = 3.0 * glow
+		if t >= 1.8 and not chimed:
+			chimed = true
+			Sfx.play("heal")
+		world.cam.transform = saved_cam.interpolate_with(close, smoothstep(0.0, 1.2, t)).interpolate_with(wide, smoothstep(2.6, 4.6, t))
+		if t >= 4.0 and not poured:
+			poured = true
+			fall.visible = true
+			Sfx.play("step_water")
+		# (rising, it deepens from a sheen on the mud to the lake's blue)
+		var rise := smoothstep(4.2, 8.4, t)
+		lake.position.y = lerpf(-0.1, 0.86, rise)
+		lake_mat.albedo_color.a = lerpf(0.15, 0.95, smoothstep(4.2, 7.4, t))
+		# the fall over the spring's lip, from its spout down to the water
+		var top := lip.y + 0.5
+		var bottom := maxf(lake.position.y, 0.0)
+		fall.scale.y = maxf(0.05, top - bottom) * smoothstep(4.0, 4.4, t)
+		fall.position = Vector3(lip.x - 0.45, (top + bottom) / 2.0, lip.z)
+	Sfx.secret_chime()
+	await say(["The water stone blazes in your hands. Deep in the rock something answers, and water pours from the old spring and keeps coming."])
+	Person.set_ready(hero, "")
+	Person.show_weapon(hero, true)
+	for node in [stone, lake, fall]:
+		if is_instance_valid(node):
+			node.queue_free()
+	if is_instance_valid(world):
+		world.cam.transform = saved_cam
+		world.cam_free = saved_free
+
+
+## Dale's water stone, held up to call the lake back: a faceted blue gem with its own light.
+func _glowing_stone() -> Node3D:
+	var root := Node3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.1
+	mesh.height = 0.2
+	mesh.radial_segments = 6
+	mesh.rings = 3
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("#5fc4ff")
+	mat.emission_enabled = true
+	mat.emission = Color("#58c0ff")
+	mat.emission_energy_multiplier = 0.4
+	mat.roughness = 0.2
+	var gem := MeshInstance3D.new()
+	gem.name = "Gem"
+	gem.mesh = mesh
+	gem.material_override = mat
+	gem.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(gem)
+	var light := OmniLight3D.new()
+	light.name = "Light"
+	light.light_color = Color("#7fd0ff")
+	light.omni_range = 3.5
+	light.light_energy = 0.0
+	root.add_child(light)
 	return root
 
 

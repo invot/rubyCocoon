@@ -2,7 +2,7 @@ extends RefCounted
 ## The Dustwell Well's caves (interior_maps.gd "well_*" rooms, docs/dustwell-water-arc.md), built for room_builder.gd
 ## _cavern: a floor on each level, the Modular Terrain Collection's cliff pieces (tools/import_modular_cliffs.gd,
 ## assets/nature/well_*.res) wherever a level drops to the next and round every rock wall, bottomless cracks, leaning
-## ladders on the one-tile ramps with the cliff behind them, the pack's rope bridges (or broken ends), mine-timber door
+## ladders on the one-tile ramps with the cliff behind them, TheMelon's rope bridges (or what's left), mine-timber door
 ## frames with hanging lamps, and cut stone along the room's "masonry_cols". The rock wears cliff_rock_wide.png
 ## (tools/bake_wide_cliff.py: the cliffs' texture, spread wider so big walls don't repeat). Everything stands on
 ## elevation.gd's heights, so it matches where people walk.
@@ -39,8 +39,11 @@ const ROCK_TINT := "#9c9a98"
 const FLUTES := 1.2
 static var _rock_tex: ImageTexture
 const WOOD := Color("#8a5c38")
-## how high the bridge sections' deck stands over their origin
-const BRIDGE_DECK := 0.3
+## the rope bridge's pieces (tools/import_rope_bridge.gd): one end's posts, and the deck and ropes 1 long, stretched to
+## each span
+const BRIDGE_POSTS := preload("res://assets/props/rope_bridge_posts.res")
+const BRIDGE_DECK := preload("res://assets/props/rope_bridge_deck.res")
+const BRIDGE_ROPES := preload("res://assets/props/rope_bridge_ropes.res")
 const ROPE := Color("#c9ab78")
 
 var rb
@@ -557,8 +560,9 @@ func _cliffs() -> void:
 				var low := _low_at(q, d)
 				if _open_front(q):
 					# a crack running out of the map's front: nothing hangs towards the camera, and its sides only
-					# go as deep as the floor in front of them hides
-					if d == Vector2i.DOWN:
+					# go as deep as the floor in front of them hides (but rock where it ends at the back always shows
+					# its face, so a black gap never opens there, nor behind its waterfall: _ravine_water)
+					if d == Vector2i.DOWN and not fade:
 						continue
 				if top - low < 0.01:
 					continue
@@ -927,12 +931,39 @@ func _ladders() -> void:
 	for y in h:
 		for x in w:
 			var p := Vector2i(x, y)
-			if not _ramp(p) or p in map.get("fallen_ladders", []):
+			if not _ramp(p):
 				continue
 			var r := Elev.ramp_dir(map, p)
 			var foot := Vector3(x + 0.5, Elev.edge(map, p, -r), y + 0.5) - Vector3(r.x, 0, r.y) * 0.5
 			var top := Vector3(x + 0.5, Elev.edge(map, p, r) + 0.28, y + 0.5) + Vector3(r.x, 0, r.y) * 0.5
-			rb.parent.add_child(ladder(foot, top, Vector3(absf(r.y), 0, absf(r.x)), wood))
+			var across := Vector3(absf(r.y), 0, absf(r.x))
+			if p in map.get("fallen_ladders", []):
+				_broken_ladder_top(foot, top, across)
+			else:
+				rb.parent.add_child(ladder(foot, top, across, wood))
+
+
+## A fallen ladder's top: its hooks still caught on the ledge, the rails snapped off a few rungs down with splinters
+## jutting from the breaks, so the gap reads as a ladder to mend from above.
+func _broken_ladder_top(foot: Vector3, top: Vector3, across: Vector3) -> void:
+	var up := top - foot
+	var stub_foot := top - up * 0.3
+	rb.parent.add_child(ladder(stub_foot, top, across, wood))
+	var dir := up.normalized()
+	var basis := _along(dir, across)
+	for s: float in [-0.3, 0.3]:
+		# a splinter skewed off each snapped rail
+		var brk := stub_foot + across * s
+		var sp := MeshInstance3D.new()
+		var m := BoxMesh.new()
+		m.size = Vector3(0.035, 0.22, 0.035)
+		sp.mesh = m
+		sp.material_override = wood
+		sp.transform = Transform3D(basis.rotated(basis.z.normalized(), 0.45 * signf(s)), brk - dir * 0.09)
+		rb.parent.add_child(sp)
+	# the hooks over the lip, bright rope lashings so they catch the eye from the ledge
+	for s: float in [-0.3, 0.3]:
+		_box(top + across * s + Vector3(0, 0.02, 0), Vector3(0.12, 0.1, 0.12), rope)
 
 
 ## A ladder from `foot` to `top`, `across` its width: two rails and rungs every 0.24.
@@ -968,7 +999,10 @@ static func _along(up: Vector3, across: Vector3) -> Basis:
 	return Basis(x, up, z)
 
 
-## The rope bridges: planks between rope rails once mended; until then, just the posts and broken ends at each side.
+## The rope bridges: TheMelon's rope bridge (tools/import_rope_bridge.gd), one half of it stretched over the whole gap
+## between posts at each end. Broken as Story.WELL_BRIDGES says: the one that needs wood keeps only its ropes; the
+## ones that need rope hang down each side of the gap, half the bridge from each end's posts; Dale's, pulled up from
+## the far side, hangs whole down the gap from the posts at his end.
 func _bridges() -> void:
 	var by_flag := {}
 	for p: Vector2i in map.get("bridges", {}):
@@ -982,36 +1016,59 @@ func _bridges() -> void:
 		var mended := MapGen.walkable(_code(first))
 		var west := Vector3(first.x, y, first.y + 0.5)
 		var east := Vector3(last.x + 1, y, last.y + 0.5)
-		for end in [west, east]:
-			for s in [-0.42, 0.42]:
-				_box(end + Vector3(0, 0.36, s), Vector3(0.1, 0.8, 0.1), wood)
-		if mended:
-			# the pack's rope bridge sections (1.25 long, deck just above their foot), stretched to fit the span
-			var span := east.x - west.x
-			var k := maxi(1, roundi(span / 1.25))
-			var stretch := span / (k * 1.25)
-			for i in k:
-				var section := MeshInstance3D.new()
-				section.mesh = preload("res://assets/nature/well_bridge.res")
-				section.material_override = _painted
-				section.transform = Transform3D(Basis.from_scale(Vector3(stretch, 1.0, 0.9)),
-					Vector3(west.x + (i * 1.25 + 1.125) * stretch, y - BRIDGE_DECK, west.z))
-				rb.parent.add_child(section)
+		var span := east.x - west.x
+		# each end's posts face across the gap
+		var face := {west: Basis.IDENTITY, east: Basis(Vector3.UP, PI)}
+		for end: Vector3 in face:
+			_bridge_piece(BRIDGE_POSTS, Transform3D(face[end], end))
+		var need := _bridge_need(flag)
+		if mended or need == "well_wood":
+			var run := Transform3D(Basis.from_scale(Vector3(span, 1.0, 1.0)), west)
+			_bridge_piece(BRIDGE_ROPES, run)
+			if mended:
+				_bridge_piece(BRIDGE_DECK, run)
+		elif need == "well_rope":
+			# gnawed through in the middle: each half hangs from its posts down the side of the gap, its ropes slack
+			# along the planks, a little off the rock
+			var hang := Basis(Vector3.BACK, -1.42) * Basis.from_scale(Vector3(span * 0.5, 0.25, 1.0))
+			for end: Vector3 in face:
+				var xf := Transform3D(face[end] * hang, end + face[end] * Vector3(0.06, 0, 0))
+				_bridge_piece(BRIDGE_ROPES, xf)
+				_bridge_piece(BRIDGE_DECK, xf)
 		else:
-			# a few planks still hang from each end, dangling into the gap
-			for end in [west, east]:
-				var into := 1.0 if end == west else -1.0
-				for i in 3:
-					var plank := MeshInstance3D.new()
-					var m := BoxMesh.new()
-					m.size = Vector3(0.18, 0.05, 0.8)
-					plank.mesh = m
-					plank.material_override = wood
-					plank.position = end + Vector3(into * 0.05, -0.12 - i * 0.2, 0.06 * (i - 1))
-					plank.rotation = Vector3(0.12 * (i - 1), 0, into * (1.25 + 0.1 * i))
-					rb.parent.add_child(plank)
-				for s in [-0.42, 0.42]:
-					_box(end + Vector3(into * 0.08, 0.2, s), Vector3(0.03, 0.5, 0.03), rope)
+			# pulled up from the far side (Dale's): the whole bridge hangs down the gap from his end's posts
+			var far := east
+			var dale = map.get("anchors", {}).get("dale", null)
+			if dale is Vector2i and absf(dale.x + 0.5 - west.x) < absf(dale.x + 0.5 - east.x):
+				far = west
+			var drop := Basis(Vector3.BACK, -1.42) * Basis.from_scale(Vector3(span, 0.25, 1.0))
+			var xf := Transform3D(face[far] * drop, far + face[far] * Vector3(0.06, 0, 0))
+			_bridge_piece(BRIDGE_ROPES, xf)
+			_bridge_piece(BRIDGE_DECK, xf)
+
+
+## What mends a bridge (Story.WELL_BRIDGES): looked up at run time, so the map checks, which run without the
+## autoloads, still compile this script.
+func _bridge_need(flag: String) -> String:
+	var story := (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Story")
+	if story == null:
+		return ""
+	var bridges: Dictionary = story.get_script().get_script_constant_map().get("WELL_BRIDGES", {})
+	return String(bridges.get(flag, {}).get("item", ""))
+
+
+## One baked rope bridge piece, in the cave's wood and rope (the posts' second surface is their rope knots).
+func _bridge_piece(mesh: ArrayMesh, xf: Transform3D) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.transform = xf
+	if mesh == BRIDGE_ROPES:
+		mi.material_override = rope
+	else:
+		mi.set_surface_override_material(0, wood)
+		if mesh.get_surface_count() > 1:
+			mi.set_surface_override_material(1, rope)
+	rb.parent.add_child(mi)
 
 
 func _box(at: Vector3, size: Vector3, mat: Material) -> void:

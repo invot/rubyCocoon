@@ -948,6 +948,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		if puzzle == "maze":
 			m["lattices"][q] = true
 	m["stone_doors"] = {}
+	m["stone_panels"] = {}
 	m["basins"] = {}
 	m["bridges"] = {}
 	for y in h:
@@ -955,6 +956,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		for x in w:
 			if raw[x] in room.get("stone_doors", []):
 				m["stone_doors"][Vector2i(x, y)] = true
+				# (a stone door drawn as a flush panel in the wall: room_builder.gd _stone_panel)
+				if raw[x] in room.get("stone_panels", []):
+					m["stone_panels"][Vector2i(x, y)] = true
 			if room.get("bridges", {}).has(raw[x]):
 				m["bridges"][Vector2i(x, y)] = String(room["bridges"][raw[x]])
 			# (the basins at the foot of a water puzzle's falls: not walked in, full or dry)
@@ -1116,6 +1120,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	if m["spawns"].has("entry"):
 		spots.append(m["spawns"]["entry"])
 	for q in spots:
+		# (an anchor set in a wall, like the Temple of Tides' wave panel in its doorway, stays the wall)
+		if MapGen.get_t(m, q.x, q.y) in [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED]:
+			continue
 		MapGen.set_t(m, q.x, q.y, floor_around(m, q, MapGen.get_t(m, q.x, q.y)))
 	# the older furniture tiles are drawn as furniture too
 	for y in h:
@@ -1125,7 +1132,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			if fc == MapGen.TABLE and diner:
 				m["furniture"][Vector2i(x, y)] = "diner_table"
 			elif FURNITURE_CODES.has(fc) and not m["furniture"].has(Vector2i(x, y)):
-				m["furniture"][Vector2i(x, y)] = FURNITURE_CODES[fc]
+				# (dressed as the room's own kind if it names one for the letter: the concert hall's tables, the cots)
+				m["furniture"][Vector2i(x, y)] = room.get("furniture_kinds", {}).get(String(rows[y])[x], FURNITURE_CODES[fc])
 			# benches: the diner's are red leather booths
 			elif fc == MapGen.BENCH and not room.get("open", false):
 				m["furniture"][Vector2i(x, y)] = "booth" if diner else "bench"
@@ -1149,8 +1157,11 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			n["seat_height"] = 0.16
 		elif n.get("kind", "") in ["villager", "resident", "patron"] or n.get("id", "") == "mom":
 			if table != Vector2i.ZERO:
-				# sitting there, on a chair (see world.gd seat)
+				# sitting there, on a chair (see world.gd seat), facing it or the way the room's seats all face (the
+				# concert hall's face the stage)
 				n["facing"] = table
+				if room.has("seats_face"):
+					n["facing"] = Vector2i(int(room["seats_face"][0]), int(room["seats_face"][1]))
 				n["wander"] = false
 				n["sit"] = true
 			elif n.get("kind", "") != "patron":

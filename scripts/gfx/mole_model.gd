@@ -7,6 +7,8 @@ static func dress(rig: Node3D) -> void:
 	var root := Node3D.new()
 	body.add_child(root)
 	rig.set_meta("critter_visual", root)
+	# the tips of its feet, where it pivots leaning forward when beaten (voxel_person.gd)
+	rig.set_meta("critter_toes", 0.42)
 	var painter = load("res://scripts/story/prison_stage.gd").new()
 	painter.sphere(root, Vector3(0, 0.7, 0), Vector3(0.48, 0.64, 0.36), "84717b")
 	painter.sphere(root, Vector3(0, 1.25, 0.12), Vector3(0.4, 0.36, 0.36), "84717b")

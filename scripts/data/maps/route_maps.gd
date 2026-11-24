@@ -356,12 +356,14 @@ const MAPS := {
 		],
 	},
 	"dustwell_channel": {
-		# A broad lake in a mesa bowl, its river draining out the east edge. The water rises from a spring at the lake's
-		# south tip (river_lip, where Torrent calls it back); nothing feeds it from the north.
+		# A broad lake in a mesa bowl, its river draining out the east edge. The water rises from the old spring head on
+		# the east shore, beside the road up from Dustwell and the landing ramp (river_lip, where Torrent calls it back),
+		# standing in full view of the camera; nothing feeds it from the north. The mesa runs unbroken to the south edge
+		# (no strip below the bowl's south rim, no notch into it).
 		"floods": {"!": {"flag": "river_restored", "dry": "_", "wet": "~", "rises": true}},
 		"boats": [[24.0, 10.5, 90.0, "steamboat", 5.8]],
 		"beached_hull": Rect2i(21, 10, 6, 1),
-		"anchor_tiles": {"river_lip": Vector2i(15, 17), "riverboat_captain": Vector2i(27, 10),
+		"anchor_tiles": {"river_lip": Vector2i(25, 13), "riverboat_captain": Vector2i(27, 10),
 			"landing_east": Vector2i(27, 11), "landing_west": Vector2i(4, 10)},
 		# The far (west) shore: a low landing whose road leaves by the west edge, the Mesa Trail's south end
 		# (WorldDB "via"). Only the riverboat reaches it; while she's moored there (riverboat_west) Captain Reed waits
@@ -413,9 +415,9 @@ const MAPS := {
 			"3333333222bbbbbbbbbbb2223111111233",
 			"333333333222bbbbbbb222333111111233",
 			"33333333333222bbb22233333111111233",
-			"3333333333333222223333333111111233",
-			"3111111111111111111111111111111233",
-			"3111111111111111111111111111111233",
+			"3333333333333333333333333111111233",
+			"3333333333333333333333333111111233",
+			"3333333333333333333333333111111233",
 			"3333333333333333333333333311113333",
 		],
 	},
