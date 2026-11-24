@@ -164,12 +164,15 @@ func dance() -> void:
 	main.world.frozen = true
 	check(Sfx.current_music() == "saloon_contract", "the saloon plays Rosa's contract song")
 	await shot("saloon")
-	for room in ["@5", "@6", "@7"]:
+	for room in ["@6", "@7"]:
 		check(main.world.map["exits"].values().filter(func(ex): return String(ex["to"]).ends_with(room)).size() == 1, "the bar opens into saloon room " + room)
-	await main._go("dustwell#5@5", "from_saloon")
+	await main._go("dustwell#5@6", Vector2i(4, 5))
+	main.world.frozen = true
+	check(main.world.map["exits"].values().filter(func(ex): return String(ex["to"]).ends_with("@5")).size() == 1, "the concert hall opens into backstage")
+	await main._go("dustwell#5@5", "from_saloon_stage")
 	main.world.frozen = true
 	var band: Array = main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member")
-	check(band.size() == 5 and band.all(func(n): return n.get("sit", false)), "all five band members sit backstage by their bedrolls")
+	check(band.size() == 4 and band.all(func(n): return n.get("roam", false)), "all four of the Rubywave Five pace the storeroom backstage")
 	await shot("saloon_back")
 	await main._go("dustwell#5@6", Vector2i(4, 5))
 	main.world.frozen = true
@@ -260,7 +263,7 @@ func dance() -> void:
 	main.world.frozen = true
 	check(main.world.map_id == "sundown" and not npc("sunwall_searcher").is_empty(), "Sunwall has its missing-trainers follow-up")
 	await main._go(ML.interior_of("cogsworth", "music_shop"), "entry")
-	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member").size() == 5, "all five musicians regroup in Brass & Reed")
+	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member").size() == 4, "all four of the Rubywave Five regroup in Brass & Reed")
 	check(main.world._walkable(main.world.map["counter_phone"] + Vector2i.DOWN), "the band leaves the shop phone accessible")
 
 
