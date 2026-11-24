@@ -5287,6 +5287,8 @@ func _doorway_test() -> void:
 	bad += await _stair_walk_test(up, shot.replace(".png", "_up.png") if shot != "" else "")
 	bad += _stairs_test()
 	# into your bedroom: the door shuts behind you
+	# (your journal lies in that doorway until you pick it up, so only one who has it comes in by this door)
+	GameState.set_flag("has_journal")
 	var bed_door: Vector2i = world.map["exits"].keys().filter(func(t): return world.room_walls.door_leaves.has(t) and "home_bed" in MapLoader.load_map(world.map["exits"][t]["to"], {}).get("room_key", ""))[0]
 	bad += await _door_test(bed_door, shot.replace(".png", "_shut.png") if shot != "" else "", true)
 	# back out, down the stairs, and out of the front door
