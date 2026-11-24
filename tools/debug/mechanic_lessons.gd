@@ -130,7 +130,7 @@ func dance() -> void:
 	await main._go(north["to"], Vector2i(18, 10))
 	main.world.frozen = true
 	check(main.world._walkable(Vector2i(12, 8)), "the exposed riverbed can be walked")
-	check(not main.world._walkable(Vector2i(14, 6)), "the beached hull occupies the mud beneath it")
+	check(not main.world._walkable(Vector2i(23, 10)), "the beached hull occupies the mud beneath it")
 	await Story.talk(main.world, npc("riverboat_captain"))
 	check(main._pending_goto.is_empty() and main.world.map_id == "dustwell_channel", "the captain cannot sail from the dry channel")
 	await shot("dry_road")
@@ -211,17 +211,19 @@ func dance() -> void:
 	await shot("sanctuary")
 	await Story.talk(main.world, npc("water_teacher"))
 	check(GameState.learned_spell("torrent"), "Nerine teaches Torrent in the sanctuary")
-	await main._go("dustwell_channel", Vector2i(18, 2))
+	# the spring at the lake's south tip (river_lip), which only answers once the Dustwell Well runs again
+	GameState.set_flag("well_restored")
+	await main._go("dustwell_channel", Vector2i(15, 16))
 	main.world.frozen = true
 	UI.auto_answers = [0]
 	UI.auto_flute = [{"acc": 0.9, "mistakes": 0}]
-	main.world.facing = Vector2i.UP
+	main.world.facing = Vector2i.DOWN
 	await main.world._interact()
 	for i in 800:
 		if not main._transitioning and main._pending_goto.is_empty():
 			break
 		await main._wait(0.025)
-	check(GameState.flag("river_restored") and main.world._walkable(Vector2i(18, 3)), "Torrent leaves a dry route back to the landing")
+	check(GameState.flag("river_restored") and main.world._walkable(Vector2i(15, 18)) and main.world._walkable(Vector2i(27, 11)), "Torrent leaves a dry route back to the landing")
 	check(MG.get_t(main.world.map, 12, 8) == MG.WATER and not main.world._walkable(Vector2i(12, 8)), "the restored channel is deep water")
 	await main._go("dustwell_channel", Vector2i(18, 10))
 	main.world.frozen = true
@@ -231,12 +233,18 @@ func dance() -> void:
 		return
 	UI.auto_answers = [0]
 	await Story.talk(main.world, npc("riverboat_captain"))
-	check(main._pending_goto.get("map", main.world.map_id) == "sundown", "the captain boards for Sunwall after Torrent")
+	# (she crosses the lake to its far shore, where the Mesa Trail starts north to Sunwall: Story._riverboat)
+	check(GameState.flag("riverboat_west") and main._pending_goto.get("map", "") == "dustwell_channel", "the captain ferries you across after Torrent")
 	for i in 800:
-		if main.world.map_id == "sundown" and not main._transitioning:
+		if not main._transitioning and main._pending_goto.is_empty():
 			break
 		await main._wait(0.025)
-	check(main.world.map_id == "sundown" and not npc("sunwall_searcher").is_empty(), "the boat reaches Sunwall and its missing-trainers follow-up")
+	main.world.frozen = true
+	check(main.world.player_pos == main.world.map["anchors"]["landing_west"], "you step ashore on the west landing")
+	check(main.world.map["exits"].values().any(func(ex): return String(ex["to"]) == "route4"), "the Mesa Trail leaves the west shore")
+	await main._go("sundown")
+	main.world.frozen = true
+	check(main.world.map_id == "sundown" and not npc("sunwall_searcher").is_empty(), "Sunwall has its missing-trainers follow-up")
 	await main._go(ML.interior_of("cogsworth", "music_shop"), "entry")
 	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member").size() == 5, "all five musicians regroup in Brass & Reed")
 	check(main.world._walkable(main.world.map["counter_phone"] + Vector2i.DOWN), "the band leaves the shop phone accessible")

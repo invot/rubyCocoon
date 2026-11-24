@@ -158,6 +158,7 @@ const ROOM_DOOR_VOICES := {
 	"arena": "And the winner is... me! Sorry, still practising. Please clap through the door.",
 	"cafe": "I ordered a small coffee. I'm waiting to become small enough to drink it.",
 	"saloon": "I've shuffled so slowly I think these cards have learned patience.",
+	"saloon_hall": "Five, six, seven, KICK! Don't open it, the door's in the kick line now.",
 	"dojo": "These socks are training on their own. One just earned a black belt.",
 	"museum": "The sign said don't feed the exhibits. Nobody said the exhibits couldn't feed ME!",
 	"music_hall": "I'm warming up my voice. The mirror has asked for an encore.",

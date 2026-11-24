@@ -267,6 +267,9 @@ func build_set(id: String, parent: Node, bare := false, without: Array = []) -> 
 	for sh in THREAD_SHY:
 		load(sh)
 	var script := await wait_for_script(WORLD_PATH)
+	# (whoever asked for the set may have closed while its script loaded: the creator shut straight away)
+	if not is_instance_valid(parent):
+		return null
 	var set_world: Node3D = script.new()
 	set_world.demo = true
 	set_world.cam_free = true
@@ -4305,6 +4308,8 @@ func _battlecmd_test() -> void:
 			await _battle_choice_input(device, false)
 			check.call(not p.picking and p.focus == 0, "%s cancels weapon aim" % device)
 		GameState.learn_spell("water")
+		# (no element's magic without its stone, GameState.has_stone: Dale hands over the Water Stone)
+		GameState.receive_item("water_stone")
 		var wopts: Array = bt._weapon_options()
 		var wlabels: Array = wopts.map(func(o): return String(o["label"]))
 		check.call(wlabels == ["Slingshot", "Water Shot"] if GameState.weapons()[0] == "slingshot" else wlabels.size() == 2 and wlabels[0] == ItemDB.item_name(GameState.weapons()[0]),
