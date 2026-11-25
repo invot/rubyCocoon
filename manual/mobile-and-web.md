@@ -91,7 +91,7 @@ The [build workflow](../.github/workflows/windows-build.yml) runs on every push 
   npx wrangler pages deploy build/web_demo --project-name=rubycoccon --branch=demo
   ```
 
-- The demo includes Cocoon Cove, Bellerive, Shellhaven, Kelpwick, Dustwell Oasis, and their interiors and roads. After restoring the river, board with Captain Reed to see the credits or stay to explore and battle freely. The full game continues to Sunwall.
+- The demo includes Cocoon Cove, Bellerive, Shellhaven, Kelpwick, Dustwell Oasis, and their interiors and roads. After restoring the river, board with Captain Reed to see the credits or stay to explore and battle freely. The full game continues into the Scaraba Desert.
 - Demo saves use `user://demo_saves/`, separate from full-game saves, with no automatic import from them. The exported demo ignores development scenario arguments. For editor previews, add `--demo` after Godot's `--` separator.
 
 ### Repository secrets

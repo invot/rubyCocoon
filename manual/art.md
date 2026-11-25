@@ -29,7 +29,7 @@ The game's modern, cozy, clean stylized look and the assets that build it: the n
 - [Inside](#inside)
 - [Past the map's edge](#past-the-maps-edge)
 - [Dustwell Oasis](#dustwell-oasis)
-- [Sunwall](#sunwall)
+- [Scaraba](#scaraba)
 - [Bellerive](#bellerive)
 - [People, eggs, signs and obstacles](#people-eggs-signs-and-obstacles)
 - [Terrain and water](#terrain-and-water)
@@ -375,7 +375,7 @@ A ring of scenery nobody can reach keeps every edge and corner hidden: a deep wo
 
 - Nothing tall stands across a road leading out, or just south of one down the sides, so every way out stays in plain sight.
 - Low hedge borders continue as low planting beyond the map edge; Bellerive's Dune Road approach has low hedges on both sides to keep its narrow exit visible.
-- The desert lands (biomes with `"boulders"` in `world_db.gd`: Dune Road, Mesa Trail, Dune Sea, Dustwell and Sunwall) are walled by rock instead of plants (Sunwall's own wall and gardens inside it aside): boulders on tree tiles and in the ring, broken lines of low rocks on hedge tiles, in the last three rows and to the south, no scrub in the open, and only `"cacti"` of the tree tiles (a few percent) keeping a cactus. Their edges step up as terrain cliffs (Dustwell's, the Dune Road's and the Dune Sea's outer edges two levels).
+- The desert lands (biomes with `"boulders"` in `world_db.gd`: Dune Road, Mesa Trail, Scaraba Desert, Riposo Valley, Dustwell and Scaraba) are walled by rock instead of plants (Scaraba's own wall and gardens inside it aside): boulders on tree tiles and in the ring, broken lines of low rocks on hedge tiles, in the last three rows and to the south, no scrub in the open, and only `"cacti"` of the tree tiles (a few percent) keeping a cactus. Their edges step up as terrain cliffs (Dustwell's, the Dune Road's and the Scaraba Desert's outer edges two levels).
 - Backdrop scenery checks its full transformed mesh bounds against the continuing exit roads, so wide canopies cannot overhang them.
 
 ## Dustwell Oasis
@@ -395,9 +395,9 @@ godot --headless --path . --script res://tools/smooth_textures.gd
 godot --headless --path . --import
 ```
 
-## Sunwall
+## Scaraba
 
-Sunwall (map id `sundown`) is an old walled adobe town (map `"style": "adobe"`, `adobe_town.gd`, biome `desert`).
+Scaraba (map id `sundown`, called Sunwall until 24 November 2026) is an old walled adobe town (map `"style": "adobe"`, `adobe_town.gd`, biome `desert`).
 
 - Its houses and shops are blocks of sun-dried mud in warm earth colours with rounded corners, flat roofs behind parapets stepped up at the corners, vigas (log beam ends) under the roof and wooden drain spouts.
 - The back row's houses have a second storey set back on the roof with a ladder up to it, while a building with a street close behind it (`world.gd` `low`) keeps to one storey.

@@ -29,7 +29,7 @@ Every road between towns narrows to one bottleneck with a puzzle, getting harder
   - [Dune Road](#dune-road)
   - [Dustwell Oasis](#dustwell-oasis)
   - [Mesa Trail](#mesa-trail)
-  - [Sunwall and the Dune Sea](#sunwall-and-the-dune-sea)
+  - [The Scaraba Desert and Scaraba](#the-scaraba-desert-and-scaraba)
 - [The Mountains](#the-mountains)
   - [Copperpick and the Mine Road](#copperpick-and-the-mine-road)
   - [Cogsworth and Gearheart Tower](#cogsworth-and-gearheart-tower)
@@ -201,7 +201,7 @@ The hero knows nothing about the scheme. You start in your own bedroom, upstairs
 - Kip, Junie and Tamsin, friends of Lio, Bea and Orin, searching the town (`story.gd` SEARCHERS, POSTERS).
 - The jail's dopey **Deputy Rusk**, who asks you to catch Slim, the prisoner who walked out of his open cell.
 
-Slim is hiding behind the wagon on the dune shelf. He was framed with a trainer's flute in his saddlebag, and Barkeep Dusty's **Card Ledger** (a key item) proves he spent that night at the saloon's card table. Shown the ledger, the deputy clears Slim and asks you to help find the missing trainers and the real culprit, pointing you to Captain Dalton of the gate watch in Sunwall (flags `convict_asked`, `convict_found`, `slim_cleared`, `deputy_partner`).
+Slim is hiding behind the wagon on the dune shelf. He was framed with a trainer's flute in his saddlebag, and Barkeep Dusty's **Card Ledger** (a key item) proves he spent that night at the saloon's card table. Shown the ledger, the deputy clears Slim and asks you to help find the missing trainers and the real culprit, pointing you to Captain Dalton of the gate watch in Scaraba (flags `convict_asked`, `convict_found`, `slim_cleared`, `deputy_partner`).
 
 **The town.** Cocoon Cove lies low in a cove ringed by tall cliffs on the north, the west and the east above the road out.
 
@@ -311,9 +311,10 @@ Dustwell Oasis is an old western main street.
 
 - **Rosa** runs the Oasis Saloon and makes the Rubywave Five play the same tune on repeat. The dance studio next door is open at any trainer level.
 - The dry well leads to a cave where five beavers each claim to be the third strongest. Defeat them and Dale casts a spell that wakes the spring and refills the town well, then gives you a water stone and teaches **Water**. His chest across the crack holds the Wellspring Pendant (water attacks +25%).
+- Shortcut to the Temple of Tides: once the spring runs, a railed stairway opens in the floor just below that chest. It leads to a landing where the stream crosses the cave and Dale's rowboat waits at the foot of stone stairs. Push off and the stream carries you out to the temple's isle, where the boat runs aground on the south beach and Beachcomber Tully tells you that you crashed it. A trail leads up from the beach through the undergrowth to the temple path. Dale always has another boat tied up, so the ride works again.
 - Elemental spells never use the flute: each is learned once from a teacher while you carry its element's stone. Once the water returns, talk to Rosa to free the band.
 - The lake north of town stays dry until you learn **Torrent** at the Temple of Tides and use it at the dry spring at the lakebed's south end.
-- In the full game Captain Reed's riverboat then ferries you across the lake to its far (west) shore, where the Mesa Trail starts north to Sunwall. In the demo he offers the credits.
+- In the full game Captain Reed's riverboat then ferries you across the lake to its far (west) shore, where the Mesa Trail starts north to the Scaraba Desert. In the demo he offers the credits.
 
 **Previous map:** [Dune Road](#dune-road) · **Next map:** [Mesa Trail](#mesa-trail)
 
@@ -321,11 +322,13 @@ Dustwell Oasis is an old western main street.
 
 **Bottleneck:** A rockslide: push the boulders around until a path opens.
 
-**Previous map:** [Dustwell Oasis](#dustwell-oasis) · **Next map:** [Sunwall and the Dune Sea](#sunwall-and-the-dune-sea)
+**Previous map:** [Dustwell Oasis](#dustwell-oasis) · **Next map:** [The Scaraba Desert and Scaraba](#the-scaraba-desert-and-scaraba)
 
-### Sunwall and the Dune Sea
+### The Scaraba Desert and Scaraba
 
-Sunwall is an old walled adobe town, and the Jackals raid every caravan at its gates. Talk to Captain Dalton of the gate watch, then beat Bart the Jackal in the hideout to break the barricade and open the Dune Sea road. The **Temple of Winds** lies in the Dune Sea.
+The Mesa Trail runs north into the **Scaraba Desert** (`route5`), and the desert into **Scaraba** (map id `sundown`), an old walled adobe town whose caravans the Jackals raid. Talk to Captain Dalton of the gate watch, then beat Bart the Jackal in his hideout out in the desert. **Valkoog**, the air temple, stands in the desert.
+
+Soldiers of the gate watch stand across Scaraba's north gate: the beasts in **Riposo Valley** (`route5b`) are too strong for most trainers, so they let through only one who has beaten **Windcaller Sable** in the Scaraba Arena (`north_road_open`). Riposo Valley leads on to Copperpick. Its map is a placeholder until the valley is built (docs/scaraba-implementation-plan.md).
 
 **Previous map:** [Mesa Trail](#mesa-trail) · **Next map:** [Copperpick and the Mine Road](#copperpick-and-the-mine-road)
 
@@ -335,13 +338,13 @@ Sunwall is an old walled adobe town, and the Jackals raid every caravan at its g
 
 **Bottleneck:** The mine checkpoint. Foreman Gorran signs a Miner's Pass when you beat him at the Copperpick Arena.
 
-**Previous map:** [Sunwall and the Dune Sea](#sunwall-and-the-dune-sea) · **Next map:** [Cogsworth and Gearheart Tower](#cogsworth-and-gearheart-tower)
+**Previous map:** [The Scaraba Desert and Scaraba](#the-scaraba-desert-and-scaraba) · **Next map:** [Cogsworth and Gearheart Tower](#cogsworth-and-gearheart-tower)
 
 ### Cogsworth and Gearheart Tower
 
 Cogsworth is a steampunk city. CEO Matt Gearheart is holding it hostage and has sealed the road to the volcano. Fight up Gearheart Tower: each floor's robot sentries must fall before the stairs unlock.
 
-In Cogsworth, defeat Gearheart, then use the **Freight Lock Control** on his tower's top floor to release Lio, Bea and Orin. The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. Freeing them is required before confronting Vexmora.
+In Cogsworth, defeat Gearheart, then use the **Freight Lock Control** on his tower's top floor to release the buyers' last captives (`tower_cages_opened`). The rescued trainers reunite in town, and their testimony points to Vexmora in Gravenmoor. (Lio, Bea and Orin are to be freed from the church under Dustwell instead: docs/scaraba-implementation-plan.md.) Freeing them is required before confronting Vexmora.
 
 **Previous map:** [Copperpick and the Mine Road](#copperpick-and-the-mine-road) · **Next map:** [Caldera Road](#caldera-road)
 
@@ -403,7 +406,7 @@ Let the place and its people tell the story: avoid descriptive arrival popups.
 
 **Planned story addition (not implemented):** [The Rubywave Five](../docs/visual_overhaul/rubywave-five-story.md) links the desert to Cogsworth.
 
-- Free a four-member band from a saloon's predatory debt contract with a diamond collected after the Temple of Winds victory; their music makes a cactus blockage dance clear.
+- Free a four-member band from a saloon's predatory debt contract with a diamond collected after the Valkoog victory; their music makes a cactus blockage dance clear.
 - In Cogsworth, their two free concert tickets let you invite Gearheart Tower's superfan guard to "Table Banana", then leave them backstage so you can enter the tower.
 - The existing tower, rescue and Caldera Road unlock follow.
 

@@ -145,10 +145,10 @@ Most rooms are `stage` rooms: one compact room seen whole like a stage set (no f
 
 Towns follow one plan: a main row of buildings with their backs to the tree line, a boulevard along their doors that the town's entrances lead straight onto, and a plaza with the statue in the middle. Shops sit around the plaza and houses at the ends. Big towns have a second row well to the south, behind deep back gardens (six rows behind two-storey shops).
 
-**A town's own look:** `"style"` builds a town's buildings in a style of its own, whatever its biome's (Dustwell's `"frontier"`, `frontier_builder.gd`; Sunwall's `"adobe"`, `adobe_town.gd`).
+**A town's own look:** `"style"` builds a town's buildings in a style of its own, whatever its biome's (Dustwell's `"frontier"`, `frontier_builder.gd`; Scaraba's `"adobe"`, `adobe_town.gd`).
 
 - `building_looks` can set a building's `"paint"` (red, orange, yellow, pink, coral, gold, rose) and `"frontier"` (`"saloon"`, `"jail"`).
-- Authored `street_props` may be the two-tile `wagon`, `water_trough` or `bench` (a two-seat bench in the shared wood, `voxel_props.gd` `bench()`; procedural benches also take the next front tile east, or become a planter where it isn't free), or Sunwall's `adobe_stall`, `adobe_jars` and `adobe_well`.
+- Authored `street_props` may be the two-tile `wagon`, `water_trough` or `bench` (a two-seat bench in the shared wood, `voxel_props.gd` `bench()`; procedural benches also take the next front tile east, or become a planter where it isn't free), or Scaraba's `adobe_stall`, `adobe_jars` and `adobe_well`.
 - `"town_wall": {"low_from": row}` builds a town wall on the map's `W` tiles (`adobe_town.gd`; low from that row south).
 - `"palm_groves": [[x, y, w, d]]` grows palms on a desert town's tree tiles and low shrubs on its bush tiles there instead of boulders.
 - `prop_clearance: [[x, y, width, depth], ...]` reserves walking lanes and door approaches from both authored and procedural street furniture; authored cargo is also checked for route connectivity.

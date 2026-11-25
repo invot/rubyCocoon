@@ -288,7 +288,7 @@ func extra_npcs(map: Dictionary) -> Array:
 				out.append({"kind": "story", "id": "boat_wreck", "name": "", "pos": map["anchors"]["boat_wreck"], "scene": rowboat_scene(true),
 					"still": true, "blocking": true, "facing": Vector2i.DOWN})
 				out.append({"kind": "story", "id": "beachcomber", "name": BEACHCOMBER, "pos": map["anchors"]["beachcomber"], "look": BEACHCOMBER_LOOK,
-					"facing": Vector2i(1, 0), "still": true})
+					"facing": Vector2i(-1, 0), "still": true})
 			if _has_anchor(map, "tide_keeper") and not GameState.summons.has("water"):
 				out.append({"kind": "story", "id": "tide_keeper", "name": "Keeper Pell", "pos": _at(map, "tide_keeper", plaza), "look": KEEPER_LOOK,
 					"facing": Vector2i(-1, 0), "story": true})
@@ -1205,7 +1205,7 @@ func _talk_story(world, n: Dictionary) -> void:
 			await say(["Dale's rowboat, nose-down in the sand with a hole in its side. It won't be floating anywhere again."])
 		"beachcomber":
 			await say(["That's your boat, by the way. I'm not moving it.",
-				"The temple's up the shore and round onto the path. Keeper Pell waits by the door, if you want advice from someone who isn't me."], BEACHCOMBER)
+				"The temple's up the trail through the bushes. Keeper Pell waits by the door, if you want advice from someone who isn't me."], BEACHCOMBER)
 		"water_target":
 			await _water_target(world, n)
 		"dale":
@@ -2518,7 +2518,7 @@ func _well_boat(_world) -> void:
 	GameState.set_flag("well_boat_wrecked")
 	GameState.set_flag("well_boat_landing")
 	Sfx.play("step_water")
-	GameState.main.goto_map("reef", BOAT_LANDING, Vector2i(-1, 0), 1.2)
+	GameState.main.goto_map("reef", BOAT_LANDING, Vector2i(1, 0), 1.2)
 
 
 ## Arriving by Dale's rowboat: the crunch of it running aground, and the beachcomber right there to say so.
@@ -2532,7 +2532,7 @@ func _boat_crash(world) -> void:
 	GameState.set_flag("met_beachcomber")
 	await say(["...You crashed your boat.",
 		"Right into my beach. I was sitting right there. I had a whole morning planned.",
-		"If it's the temple you're after, it's up the shore and round onto the path. Try not to crash into that."], BEACHCOMBER)
+		"If it's the temple you're after, take the trail up through the bushes. Try not to crash into that."], BEACHCOMBER)
 
 
 ## A little wooden rowboat (the PSX pack's, voxel_manifest "boat_dark"): floating broadside on the landing's stream

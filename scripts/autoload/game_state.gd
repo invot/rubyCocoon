@@ -252,7 +252,7 @@ func new_game(pname: String, look := {}) -> void:
 	song_mastery = {}
 	crests = []
 	# Missing in older saves means the map remains available, as it was before the library.
-	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true, "codex_off": false, "has_journal": false}
+	flags = {"world_map": false, "kelpwick_hut": true, "shellhaven_west_marina": true, "scaraba_route": true, "codex_off": false, "has_journal": false}
 	flags["nightmare_tool"] = randi_range(0, NIGHTMARE_TOOLS.size() - 1)
 	codex_veteran = false
 	visited = ["caccoon"]
@@ -1101,6 +1101,39 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 	return true
 
 
+## The Scaraba chapter's new route (docs/scaraba-implementation-plan.md §3, 24 November 2026): the Mesa Trail now
+## reaches the Scaraba Desert before the town, Scaraba's north gate opens onto Riposo Valley only for a trainer who beat
+## Windcaller Sable (north_road_open), the church in Dustwell frees Lio, Bea and Orin (trainers_freed) and Gearheart
+## Tower's cages hold other captives (tower_cages_opened). A journey saved before then is fitted to it once; saves made
+## since carry the "scaraba_route" flag.
+## - trainers_freed meant the tower's cages then: they are open (tower_cages_opened).
+## - a journey already past the old desert road (Bart beaten, Valkoog's guardian, Sable's crest, the Mine Road pass, or
+##   Copperpick reached) is treated as through the whole chapter: SCARABA_CHAPTER_DONE, so it is never stopped at the
+##   north gate or sent back for scenes that did not exist when it passed.
+## - one that reached Scaraba but not beyond has crossed the desert.
+const SCARABA_CHAPTER_DONE := ["star_taught", "desert_crossed", "met_jackals", "met_sheriff", "met_sable", "met_grubb", "met_twins",
+	"valkoog_open", "met_air_keepers", "jackals_ambush", "grubb_report", "church_entered", "undercroft_beavers", "trainers_door",
+	"hoss_confessed", "jackals_disbanded", "trainers_freed", "clem_left", "sable_trainers_home", "north_road_open"]
+
+
+func _scaraba_route() -> void:
+	if flags.has("scaraba_route"):
+		return
+	flags["scaraba_route"] = true
+	if flag("trainers_freed"):
+		set_flag("tower_cages_opened")
+	var spur: String = WorldDB.ARENAS["sundown"]["crest"]
+	var past := flag("bandits_cleared") or flag("guardian_air") or flag("mine_pass_ok") or crests.has(spur) or visited.has("copperpick")
+	if past:
+		for f in SCARABA_CHAPTER_DONE:
+			set_flag(f)
+	elif visited.has("sundown") or flag("met_sheriff"):
+		set_flag("desert_crossed")
+	# (the north gate's soldiers now stand on Scaraba's gate tiles: a game saved on one steps a tile into town)
+	if map_id == "sundown" and not flag("north_road_open") and pos.y >= 0 and pos.y <= 2 and pos.x in [14, 15]:
+		pos = Vector2i(pos.x, 3)
+
+
 ## Loads a slot (default: this game's slot, else the most recent save).
 ## Kelpwick's Beast Center (its building #1) was folded into the great arena hut, so the village's later buildings each
 ## moved down one: a game saved in one of them before that comes back in the same room (from the old Center, in front
@@ -1241,6 +1274,7 @@ func load_game(slot := -2) -> bool:
 	if map_id == "shellhaven" and pos.x >= 0 and not flags.has("shellhaven_west_marina"):
 		pos.x += WorldDB.SHELLHAVEN_WEST_PADDING
 	flags["shellhaven_west_marina"] = true
+	_scaraba_route()
 	var fc: Array = d.get("facing", [0, 1])
 	facing = Vector2i(int(fc[0]), int(fc[1]))
 	_kelpwick_hut_rooms()

@@ -380,7 +380,7 @@ Equip a weapon in **Journal → Trainer → Weapon**. Your selection is saved, a
 |---|---|---|
 | **Slingshot** | Fires one stone at a beast or an exposed trainer. 90% accuracy. | Your starting weapon. |
 | **Boomerang** | Sweeps every foe on the facing side for less damage per target and returns to your hand. | Chief Coralie gives it in Kelpwick once the reef path opens. |
-| **Bat** | The hardest hit (1.6× slingshot damage), with 75% accuracy. You run up to one foe before swinging. | Captain Dalton hands it over with the Sunwall bounty. |
+| **Bat** | The hardest hit (1.6× slingshot damage), with 75% accuracy. You run up to one foe before swinging. | Captain Dalton hands it over with the Scaraba bounty. |
 
 All three are key items with no bag stack cost.
 
@@ -476,7 +476,7 @@ Fisher Gil fishes off the deck of his rusty tin shack on Bellerive's docks (`scr
 Every town has a mascot beast roaming its square and a statue of it beside, cast in bronze (the coast and the isles), silver (desert to mountains) or gold (the far towns).
 
 - The mascot teaches a beast of its own line, once it reaches **Lv 40**, the town's signature move: an elemental attack mightier than any move of its element learnt by levelling (`world_db.gd` TOWNS "signature", `move_db.gd` SIGNATURE, e.g. the Dracomni's Bandit Blaze in Cocoon Cove).
-- Each town's mascot is a different species: Dracomni (Cocoon Cove), Driblotec (Bellerive), Shrimperor (Shellhaven), Stubinkus (Kelpwick), Zippeekor (Dustwell), Poofwingus (Sunwall), Quillord (Copperpick), Clodhopper (Cogsworth), Ashvix (Emberfall), Fuzzwingus (Vinehollow), Bloopboxer (Riverbend) and Hoobertus (Gravenmoor).
+- Each town's mascot is a different species: Dracomni (Cocoon Cove), Driblotec (Bellerive), Shrimperor (Shellhaven), Stubinkus (Kelpwick), Zippeekor (Dustwell), Poofwingus (Scaraba), Quillord (Copperpick), Clodhopper (Cogsworth), Ashvix (Emberfall), Fuzzwingus (Vinehollow), Bloopboxer (Riverbend) and Hoobertus (Gravenmoor).
 - With 11 species for 12 towns, the Poodle Moth is the one that serves twice, in two elements. Nobody else teaches it, and a merge keeps it only for a beast of that line.
 - The statue's plaque explains it, and townsfolk bring it up now and then (`chatter_db.gd` MASCOT_MOVE).
 

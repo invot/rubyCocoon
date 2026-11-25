@@ -1082,6 +1082,10 @@ func _run_test() -> void:
 		await load("res://tools/debug/transitions.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "scaraba-route":
+		await load("res://tools/debug/scaraba_route.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "shellhaven-marina":
 		await load("res://tools/debug/shellhaven_marina.gd").new().run(self, _test)
 		get_tree().quit()

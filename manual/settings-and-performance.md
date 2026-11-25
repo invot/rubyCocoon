@@ -57,7 +57,7 @@ Entering a different outdoor town or path (including returning from a building a
 - a playful game-specific caption on the right (its trailing dots hidden in place, so the line never shifts)
 - a thin gem progress bar under them (`loading_screen.gd`; `--scene=loading` previews it)
 
-Towns with matching artwork use their own scene for the whole load, with the same slow zoom: Cocoon Cove's dock, Bellerive's fountain, Sunwall's sparring, Emberfall's springs, Vinehollow's grove and Gravenmoor's ghosts. `assets/loading/slideshow.json` maps town IDs to art; destinations without a matching scene retain the shuffled slideshow. Preview a match with `--scene=loading --map=tidewater`.
+Towns with matching artwork use their own scene for the whole load, with the same slow zoom: Cocoon Cove's dock, Bellerive's fountain, Scaraba's sparring, Emberfall's springs, Vinehollow's grove and Gravenmoor's ghosts. `assets/loading/slideshow.json` maps town IDs to art; destinations without a matching scene retain the shuffled slideshow. Preview a match with `--scene=loading --map=tidewater`.
 
 - Progress measures completed construction phases rather than elapsed time, and reaches full after arrival state and audio are ready. Fast transitions add no minimum display delay.
 - Room-to-room moves and same-map reloads keep short black fades. Input and pause are blocked during loading; the overlay fades away on arrival.

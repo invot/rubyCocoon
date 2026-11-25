@@ -75,6 +75,7 @@ TESTS=(
 	"battle-stage|-- --scene=battle-stage --setting=coast --save_dir=res://build/battle_stage_saves/|BATTLE STAGE DONE: 0 problem"
 	"battle-stage-touch|--resolution 2400x1080 -- --scene=battle-stage --setting=temple_water --touch --save_dir=res://build/battle_stage_touch_saves/|BATTLE STAGE DONE: 0 problem"
 	"battle-art|--script res://tools/bake_battle_art.gd -- --verify|BATTLE ART DONE: 0 problem"
+	"scaraba-route|-- --scene=scaraba-route --save_dir=res://build/scaraba_route_saves/|SCARABA ROUTE DONE: 0 problem"
 	"shellhaven-marina|-- --scene=shellhaven-marina --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"
 	"shellhaven-marina-touch|-- --scene=shellhaven-marina --touch --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"
 	"island-towns|-- --scene=island-towns --wait=0.3|ISLAND TOWNS DONE: 0 problem"
