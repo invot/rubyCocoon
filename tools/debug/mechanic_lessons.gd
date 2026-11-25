@@ -250,7 +250,7 @@ func dance() -> void:
 		return
 	UI.auto_answers = [0]
 	await Story.talk(main.world, npc("riverboat_captain"))
-	# (she crosses the lake to its far shore, where the Mesa Trail starts north to Sunwall: Story._riverboat)
+	# (she crosses the lake to its far shore, where the Mesa Trail starts north to Scaraba: Story._riverboat)
 	check(GameState.flag("riverboat_west") and main._pending_goto.get("map", "") == "dustwell_channel", "the captain ferries you across after Torrent")
 	for i in 800:
 		if not main._transitioning and main._pending_goto.is_empty():
@@ -261,7 +261,7 @@ func dance() -> void:
 	check(main.world.map["exits"].values().any(func(ex): return String(ex["to"]) == "route4"), "the Mesa Trail leaves the west shore")
 	await main._go("sundown")
 	main.world.frozen = true
-	check(main.world.map_id == "sundown" and not npc("sunwall_searcher").is_empty(), "Sunwall has its missing-trainers follow-up")
+	check(main.world.map_id == "sundown" and not npc("sunwall_searcher").is_empty(), "Scaraba has its missing-trainers follow-up")
 	await main._go(ML.interior_of("cogsworth", "music_shop"), "entry")
 	check(main.world.npcs.values().filter(func(n): return n.get("id", "") == "rubywave_member").size() == 4, "all four of the Rubywave Five regroup in Brass & Reed")
 	check(main.world._walkable(main.world.map["counter_phone"] + Vector2i.DOWN), "the band leaves the shop phone accessible")

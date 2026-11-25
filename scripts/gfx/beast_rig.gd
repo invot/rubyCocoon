@@ -130,6 +130,12 @@ var _rec_time := RECOIL_TIME
 var _grd := 0.0
 var _out := false
 var _ko := 0.0
+## how far it's raised lying down and knocked out, so its belly, flank and slumped head stay on top of the ground
+## (measured on its posed mesh once per recipe)
+var _lie_lift := 0.0
+var _ko_lift := 0.0
+var _lie_feet := 0.0
+var _ko_feet := 0.0
 ## where it gathers its glow casting: [part, where in that part's own space] for each point, and from what ("horn",
 ## "hand" or "mouth"); the glows there, built on its first cast
 var _glow_at: Array = []
@@ -456,11 +462,17 @@ func _build(recipe: Dictionary, as_ghost: bool, skin_element := "") -> void:
 		_height = measures["height"]
 		_glow_at = measures["glow"].duplicate(true)
 		cast_from = measures["cast_from"]
+		_lie_lift = measures["lie_lift"]
+		_ko_lift = measures["ko_lift"]
+		_lie_feet = measures["lie_feet"]
+		_ko_feet = measures["ko_feet"]
 	else:
 		_measure(meshes, fi, blo, bhi)
+		_measure_lying()
 		_measurements[key] = {"feet": _feet.duplicate(true), "swing": _swing.duplicate(true),
 			"fold": _fold.duplicate(), "on_hands": _on_hands, "drop": _drop, "ground": _ground, "height": _height,
-			"glow": _glow_at.duplicate(true), "cast_from": cast_from}
+			"glow": _glow_at.duplicate(true), "cast_from": cast_from, "lie_lift": _lie_lift, "ko_lift": _ko_lift,
+			"lie_feet": _lie_feet, "ko_feet": _ko_feet}
 	if ghost:
 		_add_smoke(blo, bhi)
 	_t = randf() * 10.0
@@ -624,6 +636,97 @@ func _measure(meshes: Array, fi: Dictionary, blo: Vector3, bhi: Vector3) -> void
 ## Where it gathers its glow casting (cast()), from its meshes as built (a merge's parts where they were set): the tips
 ## of its horns, where they stand out (one glow, or one on each side for a pair); else its hands, on two (or claws, on
 ## four) that it doesn't stand on; else its mouth, the front of its head (of its body, without one).
+## How far it must be raised lying down to rest and lying knocked out for none of it to sink into the ground: its
+## mesh posed both ways (mid-breath) and skinned here, its lowest points found. The body is raised, and the feet it
+## stands on (planted where they reach, so not raised with it) are reached for higher.
+func _measure_lying() -> void:
+	_lie_lift = 0.0
+	_ko_lift = 0.0
+	_lie_feet = 0.0
+	_ko_feet = 0.0
+	var was := [state, _out, _lie, _ko, _bounce]
+	state = "lie"
+	_bounce = PI / 2.0
+	_lie = 1.0
+	for ko in [0.0, 1.0]:
+		_out = ko > 0.0
+		_ko = ko
+		# (raising the body turns the legs steeper, so the feet are measured again after it; feet folded up under it
+		# rather than reaching for the ground come up only with the body: each try is kept only if it leaves all of it
+		# higher)
+		var best := [_lying_low(ko > 0.0, 0.0, 0.0), 0.0, 0.0]
+		for pass_n in 3:
+			var lo: Vector2 = best[0]
+			var up: float = best[1] + _sink(lo.x)
+			var feet: float = best[2]
+			for t in [[up, feet], [up, feet + _sink(lo.y)], [best[1] + _sink(minf(lo.x, lo.y)), feet]]:
+				var got := _lying_low(ko > 0.0, t[0], t[1])
+				if minf(got.x, got.y) > minf(best[0].x, best[0].y) + 0.0005:
+					best = [got, t[0], t[1]]
+		_set_lying_lift(ko > 0.0, best[1], best[2])
+	state = was[0]
+	_out = was[1]
+	_lie = was[2]
+	_ko = was[3]
+	_bounce = was[4]
+
+
+## Its lowest points lying down (knocked out or not) raised up and its feet reached for higher by these.
+func _lying_low(ko: bool, up: float, feet: float) -> Vector2:
+	_set_lying_lift(ko, up, feet)
+	_pose()
+	return _lowest_points()
+
+
+func _set_lying_lift(ko: bool, up: float, feet: float) -> void:
+	if ko:
+		_ko_lift = up
+		_ko_feet = feet
+	else:
+		_lie_lift = up
+		_lie_feet = feet
+
+
+## How far to raise something whose lowest point is at y (with a hair to spare).
+static func _sink(y: float) -> float:
+	return y * -1.0 + 0.006 if y < 0.0 else 0.0
+
+
+## The lowest points of its mesh as posed now, above (or below) the ground it stands on: x of everything but the
+## feet it stands on, y of those feet.
+func _lowest_points() -> Vector2:
+	var lo := Vector2(INF, INF)
+	var bones := []
+	var planted := []
+	for b in skel.get_bone_count():
+		bones.append(skel.get_bone_global_pose(b) * skel.get_bone_global_rest(b).affine_inverse())
+		planted.append(_feet.has(PARTS[b]) if b < PARTS.size() else false)
+	for mi in skel.get_children():
+		if not (mi is MeshInstance3D) or (mi as MeshInstance3D).mesh == null:
+			continue
+		var base: Transform3D = pivot.transform * skel.transform * (mi as MeshInstance3D).transform
+		var a: Array = (mi as MeshInstance3D).mesh.surface_get_arrays(0)
+		var vs: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var bs: PackedInt32Array = a[Mesh.ARRAY_BONES]
+		var ws: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+		var uv = a[Mesh.ARRAY_TEX_UV]
+		for i in vs.size():
+			# (not the eyelids and such hidden off the texture)
+			if uv != null and uv[i].x < -2.0:
+				continue
+			var p := Vector3.ZERO
+			for k in 4:
+				var w: float = ws[i * 4 + k] if not ws.is_empty() else (1.0 if k == 0 else 0.0)
+				if w > 0.0:
+					p += (bones[bs[i * 4 + k]] as Transform3D) * vs[i] * w
+			var y := (base * p).y
+			if planted[bs[i * 4]]:
+				lo.y = minf(lo.y, y)
+			else:
+				lo.x = minf(lo.x, y)
+	return Vector2(lo.x if lo.x < INF else 0.0, lo.y if lo.y < INF else 0.0)
+
+
 func _measure_glow(arrays: Array) -> void:
 	var verts := {"horn": [], "arm_l": [], "arm_r": [], "head": [], "body": []}
 	for a in arrays:
@@ -993,6 +1096,10 @@ func _pose() -> void:
 			if not _feet.has(p) and (kind == "quad" or kind == "biped"):
 				var low := d - float(w[2]) + 0.02 + (0.05 if kind == "biped" else 0.0)
 				rot[p].z += acos(clampf(1.0 - maxf(low, 0.0) / float(w[3]), -1.0, 1.0)) * lie
+		# (the feet it stands on reached for higher, as far as keeps them on top of the ground)
+		var up := lie * lerpf(_lie_feet, _ko_feet, _ease(_ko))
+		for p in _feet:
+			reach[p].y += up
 		if not flyer:
 			for p in _feet:
 				# (as far along its way as keeps the leg its length, the joint now lower)
@@ -1168,6 +1275,8 @@ func _pose() -> void:
 	if mounted:
 		rot["body"].z = -PI / 4.0
 		rot["head"].z = PI / 4.0
+	# (raised lying down, as far as keeps all of it on top of the ground)
+	lift += lie * lerpf(_lie_lift, _ko_lift, _ease(_ko))
 	pivot.position = Vector3(0.0, lift - _ground, 0.0)
 	var wide := 1.0 / sqrt(sy)
 	pivot.scale = Vector3(wide * sx, sy / sqrt(sx), wide)

@@ -149,6 +149,7 @@ func run(main, opts: Dictionary) -> void:
 	GameState.main = stub
 	GameState.flags.erase("game_cleared")
 	GameState.set_flag("trainers_freed")
+	GameState.set_flag("tower_cages_opened")
 	await Story._shutdown(fake_world, 2)
 	_check(not GameState.flag("reactor_shutdown_2"), "reactors gated behind scientist battle")
 	stub.outcome = "lose"
@@ -197,6 +198,7 @@ func _preview(main, opts: Dictionary) -> void:
 		GameState.set_flag("vexmora_defeated")
 		GameState.set_flag("nyx_defeated")
 		GameState.set_flag("trainers_freed")
+		GameState.set_flag("tower_cages_opened")
 		var place := Maps.interior_of("dustwell", "hideout") if kind == "cave" else Maps.interior_of("gravenmoor", "cathedral") + "@3"
 		await main._do_goto(place, "entry" if kind == "cave" else "start")
 		main.world.demo = true

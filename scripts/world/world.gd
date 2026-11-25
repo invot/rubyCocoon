@@ -568,7 +568,35 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 
 ## The middle of tile p, on the ground: its level or ramp (elevation.gd), and a porch's deck on top.
 func tile_pos(p: Vector2i) -> Vector3:
-	return Vector3(p.x + 0.5, _lift(p) + float(ground_h.get(p, 0.0)) + Shoreline.bottom(map, p.x + 0.5, p.y + 0.5), p.y + 0.5)
+	return Vector3(p.x + 0.5, _lift(p) + float(ground_h.get(p, 0.0)) + Shoreline.bottom(map, p.x + 0.5, p.y + 0.5) - (SPA_SINK if _in_spa(p) else 0.0), p.y + 0.5)
+
+
+## The healing spring (a room's "hot_tub" fixtures, hotel_spa.gd): you stand in it this far down, the water round your
+## middle, and climb in and out only by its front steps, over its rim (SPA_RIM above the floor).
+const SPA_SINK := 0.2
+const SPA_RIM := 0.54
+
+
+func _in_spa(p: Vector2i) -> bool:
+	return interior and map.get("furniture", {}).get(p, "") == "hot_tub"
+
+
+## Into the spring only by its step (hotel_spa.gd _steps): onto its front-right tile from the tile below, walking
+## north; out of it only back down that way.
+func _spa_way(from: Vector2i, to: Vector2i) -> bool:
+	if _in_spa(from) == _in_spa(to):
+		return true
+	var door := _spa_door()
+	return (to == door and from == door + Vector2i.DOWN) or (from == door and to == door + Vector2i.DOWN)
+
+
+## The spring's front-right tile, the one its step leads into.
+func _spa_door() -> Vector2i:
+	var best := Vector2i(-1, -1)
+	for p: Vector2i in map.get("furniture", {}):
+		if map["furniture"][p] == "hot_tub" and (p.y > best.y or (p.y == best.y and p.x > best.x)):
+			best = p
+	return best
 
 
 ## How high tile p's ground stands (its level, or the middle of its ramp, and the grass pillow on it); off the map,
@@ -978,7 +1006,7 @@ func _build_terrain() -> void:
 	for c in walls:
 		wx.append(_xf(c))
 	if map.has("town_wall"):
-		# a walled town's wall, built whole along its W tiles (Sunwall's adobe wall and gates: adobe_town.gd)
+		# a walled town's wall, built whole along its W tiles (Scaraba's adobe wall and gates: adobe_town.gd)
 		var tw := MeshInstance3D.new()
 		tw.mesh = AdobeTown.wall(map, _lift)
 		add_child(tw)
@@ -2298,7 +2326,7 @@ const STREET_WIDE := {"wagon": 2, "water_trough": 2, "bench": 2}
 
 func _street_mesh(name: String) -> Mesh:
 	if name.begins_with("adobe_"):
-		# Sunwall's market: stalls, clay jars, the well (adobe_town.gd)
+		# Scaraba's market: stalls, clay jars, the well (adobe_town.gd)
 		return AdobeTown.prop(name)
 	if name == "bench":
 		# a two-seat bench: KayKit's stool stretched along its seat (tools/import_kaykit.gd), else the old one
@@ -2588,7 +2616,7 @@ func _building_node(b: Dictionary, style: String) -> Node3D:
 		elif style == "frontier" and Frontier.handles(b["shop"]):
 			node = Frontier.build(b)
 		elif style == "adobe" and AdobeTown.handles(b["shop"]):
-			# Sunwall's flat-roofed mud-brick houses and shops (adobe_town.gd)
+			# Scaraba's flat-roofed mud-brick houses and shops (adobe_town.gd)
 			node = AdobeTown.build(b)
 		elif style == "frontier":
 			node = VBld.build(b, "western")
@@ -3482,6 +3510,8 @@ func _walkable(p: Vector2i) -> bool:
 ## True if you can step from `from` onto its neighbour `to`: free to walk on, and no cliff between (elevation.gd); onto
 ## a house's stairs only at their open end, never through the handrail or the wall beside them.
 func _can_step(from: Vector2i, to: Vector2i) -> bool:
+	if not _spa_way(from, to):
+		return false
 	if diagonal_movement:
 		var diagonal := from.x != to.x and from.y != to.y
 		return _walker_can_step(from, to, _hero_diagonal_free if diagonal else _walkable) and (not stair_ways.has(to) or from in stair_ways[to])
@@ -3577,6 +3607,7 @@ func _process(delta: float) -> void:
 		# easing back to standing, then breathing and looking about
 		_stride = move_toward(_stride, 0.0, delta * 25.0)
 	_climb_ladder()
+	_soak(delta)
 	VPer.animate(player, anim_t, _stride)
 	if fishing != null:
 		_aim_line()
@@ -3586,6 +3617,54 @@ func _process(delta: float) -> void:
 	_place_camera()
 	_fade_buildings(delta)
 	_update_hole()
+
+
+## Standing still in the healing spring: the screen takes a faint pinkish-white haze at once, and after SOAK_WAIT
+## seconds without moving it thickens for SOAK_THICKEN more, then your beasts' HP and MP are restored and their
+## ailments cleared (Beast.heal_full), with a notice in the top bar, and the haze lifts. Once per visit to the water:
+## step out and back in to soak again.
+const SOAK_WAIT := 5.0
+const SOAK_THICKEN := 1.2
+const SOAK_HAZE := 0.14
+const SOAK_THICK := 0.42
+const SOAK_TINT := Color(1.0, 0.9, 0.94)
+var _soak_t := 0.0
+var _soaked := false
+var _soak_haze: ColorRect
+
+
+func _soak(delta: float) -> void:
+	var in_spa := _in_spa(player_pos) and _climb.is_empty()
+	if not in_spa:
+		_soaked = false
+	var still := in_spa and not moving and not busy and not frozen
+	if moving or not in_spa:
+		_soak_t = 0.0
+	elif still and not UI.busy():
+		_soak_t += delta
+	var want := 0.0
+	if still and not _soaked:
+		want = SOAK_HAZE + (SOAK_THICK - SOAK_HAZE) * smoothstep(SOAK_WAIT, SOAK_WAIT + SOAK_THICKEN, _soak_t)
+	if want > 0.0 and _soak_haze == null:
+		var layer := CanvasLayer.new()
+		layer.layer = 9
+		add_child(layer)
+		_soak_haze = ColorRect.new()
+		_soak_haze.color = Color(SOAK_TINT, 0.0)
+		_soak_haze.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_soak_haze.set_anchors_preset(Control.PRESET_FULL_RECT)
+		layer.add_child(_soak_haze)
+	if _soak_haze != null:
+		_soak_haze.color.a = move_toward(_soak_haze.color.a, want, delta * (0.35 if want > _soak_haze.color.a else 0.5))
+	if still and not _soaked and _soak_t >= SOAK_WAIT + SOAK_THICKEN:
+		_soaked = true
+		GameState.heal_party()
+		Sfx.play("heal")
+		var steam: Texture2D = load("res://assets/ui/icons/glyphs/spa_steam.png")
+		if GameState.party.is_empty():
+			UI.toast("A lovely warm soak.", steam)
+		else:
+			UI.toast("Your beasts' HP and MP were fully restored, and their ailments washed away.", steam)
 
 
 ## The point `t` of the way from one tile's middle (a) to the next one's (b), on the ground: onto or off a ramp, along
@@ -3605,6 +3684,11 @@ func _along(a: Vector3, b: Vector3, t: float) -> Vector3:
 	if Elev.has(map):
 		if Elev.ramp_dir(map, ta) != Vector2i.ZERO or Elev.ramp_dir(map, tb) != Vector2i.ZERO:
 			p.y += Elev.height_at(map, p.x, p.z) - lerpf(Elev.surface(map, ta), Elev.surface(map, tb), t)
+	if _in_spa(ta) != _in_spa(tb):
+		# up the spring's steps to its rim and down the steps inside: a climb, not a straight slide through the wall
+		var u := pow(sin(PI * t), 0.55)
+		var rim := (b.y if _in_spa(ta) else a.y) + SPA_RIM
+		p.y = lerpf(a.y if t < 0.5 else b.y, rim, u)
 	return p
 
 
@@ -3792,6 +3876,9 @@ func _step(d: Vector2i, run: bool) -> bool:
 	if room_walls != null and room_walls.door_leaves.has(target) and map["exits"].has(target):
 		_through_door(target)
 		return false
+	if map["exits"].has(target) and map["exits"][target].get("steps", false) and _can_step(player_pos, target):
+		_down_steps(target)
+		return false
 	if _locked_exit(target) and Elev.joined(map, player_pos, target):
 		_try_locked_door(target)
 		return false
@@ -3854,6 +3941,22 @@ func _through_door(t: Vector2i) -> void:
 	GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
 
 
+## Down a stairway in the floor (map "step_doors": the one under Dale's chest, well_cave.gd _step_door): onto its top
+## step at the front and on down towards the back, the room fading as you go.
+func _down_steps(t: Vector2i) -> void:
+	_clear_path()
+	busy = true
+	var ex: Dictionary = map["exits"][t]
+	if not await Story.can_use_exit(self, ex):
+		busy = false
+		return
+	var top := tile_pos(t) + Vector3(0, 0, 0.35)
+	var go := func() -> void:
+		busy = false
+		GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO), STAIR_FADE)
+	_walk_stairs([tile_pos(player_pos), top, tile_pos(t) + Vector3(0, -1.0, -0.4)], {1: go})
+
+
 ## Whether tile t is a doorway still shut by its flag (map "locked_doors": Dibble's planks in the Dustwell Well). You
 ## can't walk into one: you stop in front of it and try it from there (_try_locked_door).
 func _locked_exit(t: Vector2i) -> bool:
@@ -3889,7 +3992,8 @@ func _ladder_dir(p: Vector2i) -> Vector2i:
 	var d := Elev.ramp_dir(map, p)
 	if d == Vector2i.ZERO:
 		return d
-	if MapGen.get_t(map, p.x, p.y) == MapGen.ROPE or String(map.get("room_key", "")).begins_with("well_"):
+	# (Dale's landing has a stone stairway instead: walked like any ramp)
+	if MapGen.get_t(map, p.x, p.y) == MapGen.ROPE or String(map.get("room_key", "")).begins_with("well_") 			and not map.get("room", {}).get("stone_stairs", false):
 		return d
 	return Vector2i.ZERO
 
@@ -5138,11 +5242,11 @@ func _pick(screen: Vector2) -> Dictionary:
 		var kind: String = map["furniture"][p]
 		if kind == "hot_tub_sign":
 			# the small plaque on the platform's front railing (hotel_spa.gd plaque)
-			var mid := HotelSpa.plaque_at(p, RoomBuilder.DAIS_H)
+			var on_wall := not MapGen.walkable(MapGen.get_t(map, p.x, p.y))
+			var mid := HotelSpa.wall_plaque_at(p, _lift(p + Vector2i.DOWN)) if on_wall else HotelSpa.plaque_at(p, RoomBuilder.DAIS_H)
 			boxes.append([AABB(mid - Vector3(0.42, 0.22, 0.02), Vector3(0.84, 0.44, 0.12)), p, "thing"])
-		elif kind in ["ice_maker", "hot_tub"]:
-			var height := 1.24 if kind == "ice_maker" else 0.65
-			boxes.append([AABB(tile_pos(p) + Vector3(-0.48, 0, -0.48), Vector3(0.96, height, 0.96)), p, "thing"])
+		elif kind == "ice_maker":
+			boxes.append([AABB(tile_pos(p) + Vector3(-0.48, 0, -0.48), Vector3(0.96, 1.24, 0.96)), p, "thing"])
 	for p in npcs:
 		if npcs[p].get("id", "") == "tide_switch" and not (npcs[p]["node"] as Node3D).visible:
 			continue

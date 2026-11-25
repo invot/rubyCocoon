@@ -989,7 +989,9 @@ static func animate(rig: Node3D, phase: float, speed: float, t := -1.0) -> void:
 		var squash := Basis.from_scale(Vector3(1.0 + 0.08 * slump, 1.0 - 0.18 * slump, 1.0 + 0.08 * slump))
 		visual.basis = pitch * squash * (visual.get_meta("rest_basis") as Basis)
 		var toes := Vector3(0.0, 0.0, float(rig.get_meta("critter_toes", 0.45)))
-		visual.position = toes - pitch * toes + Vector3(0.0, sin(phase) * 0.015 * (1.0 - slump), 0.0)
+		# (it stands on its own feet, not the person's hips: the Body node drops for a person kneeling down onto one
+		# knee, which would sink the critter into the floor)
+		visual.position = toes - pitch * toes + Vector3(0.0, sin(phase) * 0.015 * (1.0 - slump) - body.position.y, 0.0)
 	if rig.has_meta("beaver_animation"):
 		preload("res://scripts/gfx/beaver_model.gd").animate(rig.get_meta("beaver_animation"), speed)
 	if rig.has_meta("weapon_prop"):

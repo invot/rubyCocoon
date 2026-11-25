@@ -8,10 +8,13 @@ extends Node
 ##   shell_heard, kelp_heard, island_peace         - the Isle of Tides: Kelpwick shut the reef against Shellhaven's
 ##                                                   souvenir-hunting tourists; beating Nerissa opens it (island_peace)
 ##   guardian_water                                - also opens the Dune Road to the desert
-##   met_sheriff, bandits_cleared                  - Sunwall's bandits, the Jackals (opens the Dune Sea)
+##   met_sheriff, bandits_cleared                  - Scaraba's bandits, the Jackals (bandits_cleared: the case closed)
+##   north_road_open                               - Windcaller Sable beaten (the Spur Crest): the north-gate soldiers let
+##                                                   you through to Riposo Valley
+##   tower_cages_opened                            - Gearheart Tower's freight cages (trainers_freed: the Dustwell three)
 ##   ceo_defeated                                  - Gearheart Tower (opens Caldera Road)
-##   opening_seen, missing_trainers, trainers_freed - prologue, Dustwell's missing posters (seen on arriving), tower
-##   freight-cage rescue
+##   opening_seen, missing_trainers, trainers_freed - prologue, Dustwell's missing posters (seen on arriving), Lio,
+##   Bea and Orin home (the church undercroft, once built: docs/scaraba-implementation-plan.md WP8)
 ##   relic_quest, relic_sun, relic_moon, relic_earth, ritual_done   - the jungle ritual (raises the earth temple)
 ##   guardian_water/air/fire/earth                 - temple guardians beaten (legendary eggs)
 ##   ghost_merge, got_requiem, nyx_defeated, game_cleared   - Gravenmoor and the Umbral Legion
@@ -51,7 +54,7 @@ const REEF_CROWD := [
 ]
 ## A Shellhaven resort guest on the Isle Trail, showing off a shell prised from the Temple of Tides.
 const TOURIST_LOOK := {"skin": "#f0c8a8", "hair": "#d8a040", "shirt": "#f07aa0", "pants": "#f0e0b0", "hat": "#f4e8c0", "hair_style": 1}
-## Captain Dalton of Sunwall's gate watch: an indigo coat, sand-pale trousers and headwrap
+## Captain Dalton of Scaraba's gate watch: an indigo coat, sand-pale trousers and headwrap
 const SHERIFF_LOOK := {"skin": "#d8a880", "hair": "#2a1a10", "shirt": "#2f5a7a", "pants": "#e2d4b4", "hat": "#ece2cc", "outfit": "coat"}
 const PROTESTER_LOOK := {"skin": "#f0c8a0", "hair": "#c86a30", "shirt": "#6a6a5a", "pants": "#3a3a3a", "outfit": "apron"}
 const SHAMAN_LOOK := {"skin": "#a8704a", "hair": "#e8e0d0", "shirt": "#3a8a4a", "pants": "#6a4a2a", "hat": "#d8b040", "outfit": "robe"}
@@ -205,11 +208,12 @@ func extra_npcs(map: Dictionary) -> Array:
 			inside.append({"kind": "story", "id": "rosa", "name": "Rosa", "pos": _at(map, "rosa", Vector2i(4, 1)), "look": ROSA_LOOK, "facing": Vector2i(0, 1),
 				"sit": true, "still": true, "story": GameState.flag("well_restored") and not GameState.flag("band_freed")})
 		if map.get("room_key", "") == "ceo_4":
-			if not GameState.flag("trainers_freed"):
+			if not GameState.flag("tower_cages_opened"):
 				for i in 3:
 					var cell := TrainerCell.new()
 					cell.index = i
-					inside.append({"kind": "story", "id": "captive", "name": TrainerCell.NAMES[i], "pos": _at(map, "captive_%d" % i, Vector2i(3 + i * 4, 4)), "scene": cell, "still": true, "story": true, "captive_index": i})
+					cell.tower = true
+					inside.append({"kind": "story", "id": "captive", "name": TrainerCell.TOWER_NAMES[i], "pos": _at(map, "captive_%d" % i, Vector2i(3 + i * 4, 4)), "scene": cell, "still": true, "story": true, "captive_index": i})
 			inside.append({"kind": "story", "id": "freight_control", "name": "Freight Lock Control", "pos": _at(map, "freight_control", Vector2i(7, 6)), "scene": _freight_control_node(), "still": true, "story": true})
 		# Gil's spare fishing pole, leaning in his shack until you take it
 		if _has_anchor(map, "rod") and not GameState.flag("got_rod"):
@@ -278,6 +282,13 @@ func extra_npcs(map: Dictionary) -> Array:
 			if id == "shellhaven":
 				out.append({"kind": "story", "id": "chief_shell", "name": "Chief Marlo", "pos": _at(map, "chief", plaza), "look": CHIEF_SHELL_LOOK, "facing": Vector2i(0, 1), "story": true})
 		"reef":
+			# Dale's rowboat, run aground on the isle's south beach, and the beachcomber whose morning it spoiled
+			# (_well_boat, _boat_crash)
+			if _has_anchor(map, "boat_wreck") and GameState.flag("well_boat_wrecked"):
+				out.append({"kind": "story", "id": "boat_wreck", "name": "", "pos": map["anchors"]["boat_wreck"], "scene": rowboat_scene(true),
+					"still": true, "blocking": true, "facing": Vector2i.DOWN})
+				out.append({"kind": "story", "id": "beachcomber", "name": BEACHCOMBER, "pos": map["anchors"]["beachcomber"], "look": BEACHCOMBER_LOOK,
+					"facing": Vector2i(1, 0), "still": true})
 			if _has_anchor(map, "tide_keeper") and not GameState.summons.has("water"):
 				out.append({"kind": "story", "id": "tide_keeper", "name": "Keeper Pell", "pos": _at(map, "tide_keeper", plaza), "look": KEEPER_LOOK,
 					"facing": Vector2i(-1, 0), "story": true})
@@ -335,13 +346,19 @@ func extra_npcs(map: Dictionary) -> Array:
 						"look": sr["look"], "facing": sr["facing"], "story": true})
 		"sundown":
 			out.append({"kind": "story", "id": "sheriff", "name": "Captain Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
+			# the gate watch's soldiers across the north gate, one on each gate tile (gone once north_road_open is set)
+			var north_gate: Array = map.get("gate_tiles", [])
+			for i in north_gate.size():
+				var sd: Dictionary = NORTH_GUARDS[i % NORTH_GUARDS.size()]
+				out.append({"kind": "story", "id": "north_guard", "name": sd["name"], "pos": north_gate[i], "look": sd["look"],
+					"facing": Vector2i(0, 1), "still": true, "blocking": true})
 			out.append({"kind": "story", "id": "sunwall_searcher", "name": "Tracker Inez", "pos": Vector2i(12, 8),
 				"look": RANGER_LOOK, "facing": Vector2i.DOWN, "still": true})
 		"cogsworth":
 			out.append({"kind": "story", "id": "protester", "name": "Tinker Wren", "pos": _at(map, "protester", plaza), "look": PROTESTER_LOOK, "facing": Vector2i(0, 1), "story": true})
-			if GameState.flag("trainers_freed"):
+			if GameState.flag("tower_cages_opened"):
 				for i in 3:
-					out.append({"kind": "story", "id": "rescued_trainer", "name": TrainerCell.NAMES[i], "pos": _at(map, "protester", plaza) + Vector2i(-3 + i * 3, 1), "look": TrainerCell.LOOKS[i], "facing": Vector2i(0, 1), "still": true, "captive_index": i})
+					out.append({"kind": "story", "id": "rescued_trainer", "name": "Rescued Trainer", "pos": _at(map, "protester", plaza) + Vector2i(-3 + i * 3, 1), "look": TrainerCell.TOWER_LOOKS[i], "facing": Vector2i(0, 1), "still": true, "captive_index": i})
 		"vinehollow":
 			out.append({"kind": "story", "id": "shaman", "name": "Shaman Ayo", "pos": _at(map, "shaman", plaza), "look": SHAMAN_LOOK, "facing": Vector2i(0, 1), "story": true})
 			out.append({"kind": "story", "id": "shrine", "name": "Old Shrine", "pos": _at(map, "shrine", plaza + Vector2i(0, -2)), "asset": "head_totem", "asset_h": 1.9, "facing": Vector2i(0, 1)})
@@ -414,7 +431,7 @@ func npc_has_news(n: Dictionary) -> bool:
 		"ceo":
 			return not GameState.flag("ceo_defeated")
 		"freight_control", "captive":
-			return not GameState.flag("trainers_freed")
+			return not GameState.flag("tower_cages_opened")
 		"tide_keeper":
 			return not GameState.flag("met_tide_keeper")
 		"water_target":
@@ -447,7 +464,7 @@ func weapon_guide(n: Dictionary) -> void:
 	var status := "You've got the %s already. You're ready to try!" % name if owned else "You don't have a %s yet." % name
 	if not owned:
 		status += {"boomerang": " Chief Coralie in Kelpwick gives one to trainers who open the reef path.",
-			"bat": " Captain Dalton in Sunwall gives one with the Jackals' bounty."}.get(weapon, "")
+			"bat": " Captain Dalton in Scaraba gives one with the Jackals' bounty."}.get(weapon, "")
 	await say([mechanism, status, "Face the target from clear ground and press A, or tap it to walk to the right spot and use it. Come back if you need the weapon first."], n["name"])
 	GameState.set_flag(o["flag"] + "_explained")
 
@@ -554,6 +571,8 @@ func on_map_enter(world) -> void:
 		GameState.set_flag("seen_roots")
 	elif id == "route10" and not GameState.flag("seen_moor"):
 		GameState.set_flag("seen_moor")
+	if id == "reef" and GameState.flag("well_boat_landing"):
+		await _boat_crash(world)
 	if id == "reef":
 		for n in world.npcs.values():
 			if n.get("id", "") == "summon_coach":
@@ -663,7 +682,7 @@ func can_enter(world, b: Dictionary) -> bool:
 				return await ask("The well is bone dry. A rope ladder hangs down into the dark. Climb down?")
 			if not GameState.flag("met_sheriff"):
 				await say(["A crude wooden door in the rock. Rough voices and laughter echo from inside...",
-					"Maybe you should talk to someone in Sunwall before barging in."])
+					"Maybe you should talk to someone in Scaraba before barging in."])
 				return false
 	return true
 
@@ -1055,8 +1074,8 @@ func next_goal() -> String:
 	if GameState.flag("river_restored") and not GameState.flag("met_sheriff"):
 		return "meet_dalton" if GameState.visited.has("sundown") else "board_riverboat"
 	for step in [["island_peace", "warden"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
-			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
-			["trainers_freed", "rescue"],
+			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["north_road_open", "north_gate"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
+			["tower_cages_opened", "rescue"],
 			["guardian_fire", "flame"], ["relic_quest", "jungle"], ["ritual_done", "relics"], ["guardian_earth", "roots"],
 			["nyx_defeated", "gravenmoor"], ["game_cleared", "vexmora"]]:
 		if not GameState.flag(step[0]):
@@ -1112,8 +1131,8 @@ func _talk_trainer(world, n: Dictionary) -> void:
 	if n.get("bandit_boss", false):
 		GameState.set_flag("bandits_cleared")
 		Sfx.play("levelup")
-		await say(["\"Alright, alright! We're leavin'! The Dune Sea road's all yours!\"",
-			"Bart the Jackal and his gang scatter into the desert. The barricade on the Dune Sea road has been torn down!"])
+		await say(["\"Alright, alright! We're leavin'! The desert's all yours!\"",
+			"Bart the Jackal and his gang scatter into the dunes. The Scaraba Desert is safe to cross again!"])
 	elif n.get("legion", false) and not GameState.flag("met_legion"):
 		GameState.set_flag("met_legion")
 		await say(["So the rumours are true... The Umbral Legion is here, with beasts twisted into shadow.",
@@ -1180,6 +1199,13 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _well_bridge(world, n)
 		"fallen_ladder":
 			await _fallen_ladder(world, n)
+		"well_boat":
+			await _well_boat(world)
+		"boat_wreck":
+			await say(["Dale's rowboat, nose-down in the sand with a hole in its side. It won't be floating anywhere again."])
+		"beachcomber":
+			await say(["That's your boat, by the way. I'm not moving it.",
+				"The temple's up the shore and round onto the path. Keeper Pell waits by the door, if you want advice from someone who isn't me."], BEACHCOMBER)
 		"water_target":
 			await _water_target(world, n)
 		"dale":
@@ -1191,7 +1217,7 @@ func _talk_story(world, n: Dictionary) -> void:
 		"riverboat_captain":
 			await _riverboat(world, n["name"])
 		"sunwall_searcher":
-			await say(["Word from Cogsworth. The missing trainers are on their way home. I can finally put my boots up."]
+			await say(["Word came up the road. The missing trainers are on their way home. I can finally put my boots up."]
 				if GameState.flag("trainers_freed") else ["I followed the missing trainers' trail from Dustwell. Their tracks end beside a set of freight wagon ruts.",
 					"The wagons were headed east. See if anyone in Cogsworth remembers them."], n["name"])
 		"reactor":
@@ -1366,6 +1392,8 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _tourist(n)
 		"reef_crowd":
 			await _reef_crowd(n)
+		"north_guard":
+			await _north_guard(n)
 		"sheriff":
 			await _sheriff()
 		"protester":
@@ -1466,7 +1494,7 @@ func _riverboat(world, captain: String) -> void:
 			Sfx.music(GameState.main.music_for("dustwell_channel"))
 		return
 	var west := GameState.flag("riverboat_west")
-	var q := "Back across to the Dustwell side?" if west 		else "She's afloat and the channel's clear. Ready to cross? The Mesa Trail runs north from the far shore to Sunwall."
+	var q := "Back across to the Dustwell side?" if west 		else "She's afloat and the channel's clear. Ready to cross? The Mesa Trail runs north from the far shore into the Scaraba Desert."
 	if await ask(q, captain, "Board", "Stay"):
 		GameState.set_flag("riverboat_west", not west)
 		# (where you step ashore: the map's "landing_west" or "landing_east")
@@ -1475,7 +1503,7 @@ func _riverboat(world, captain: String) -> void:
 
 
 ## Captain Reed's riverboat crosses the river landing's lake: from the Dustwell bank to the far (west) shore, where the
-## Mesa Trail starts north to Sunwall, and back. Only she crosses between the shores, so she waits on whichever one
+## Mesa Trail starts north to the Scaraba Desert, and back. Only she crosses between the shores, so she waits on whichever one
 ## you walk onto the landing from.
 func riverboat_shore(map_id: String, spawn) -> void:
 	if map_id == "dustwell_channel" and spawn is String and spawn in ["west", "south"]:
@@ -1578,6 +1606,42 @@ func _chief(_world, n: Dictionary) -> void:
 		"If you want through, prove you're a trainer and not a tourist. Beat Reef Warden Nerissa in our great hut, the big one on the high street."], nm)
 
 
+## Soldiers of Scaraba's gate watch across the town's north gate (town_maps.gd sundown "gate", crowd). The beasts in
+## Riposo Valley are too strong for most trainers, so they let through only one who has beaten Windcaller Sable
+## (north_road_open, set with her crest: Places.arena_challenge). docs/scaraba-implementation-plan.md WP1.
+const NORTH_GUARDS := [
+	{"name": "Soldier Hamid", "look": {"skin": "#c8946c", "hair": "#1e1610", "shirt": "#2f5a7a", "pants": "#e2d4b4", "hat": "#ece2cc", "outfit": "coat"}},
+	{"name": "Soldier Nadia", "look": {"skin": "#a8704a", "hair": "#2a1a14", "shirt": "#2f5a7a", "pants": "#e2d4b4", "hat": "#ece2cc", "outfit": "coat", "body": "female"}},
+]
+
+
+func _north_guard(n: Dictionary) -> void:
+	if GameState.crests.has(WorldDB.ARENAS["sundown"]["crest"]):
+		await north_road_opened(n["name"])
+		return
+	await say(["Halt. The road north runs through Riposo Valley, and the beasts out there would eat a caravan for breakfast.",
+		"Captain's orders: only trainers strong enough to beat Windcaller Sable go through this gate.",
+		"Her arena's on the plaza. Win her crest, and we'll stand aside."], n["name"])
+
+
+## You hold Sable's Spur Crest: the north-gate soldiers stand aside (the town map clears them when it's next loaded,
+## as you leave the arena). `who` is Sable herself, just beaten, or a soldier (a save that won the crest before).
+func north_road_opened(who: String) -> void:
+	if GameState.flag("north_road_open"):
+		return
+	if who.begins_with("Soldier"):
+		await say(["You beat Sable? Then the valley's beasts had better watch out for you, not the other way round.",
+			"We'll stand aside. Riposo Valley runs all the way to Copperpick."], who)
+	else:
+		await say(["\"I'll send word to the north gate. The watch will let you through to Riposo Valley now.\"",
+			"\"Mind the beasts out there. They don't hold back the way I did.\""], who)
+	GameState.set_flag("north_road_open")
+	Sfx.play("levelup")
+	UI.toast("The north road to Riposo Valley is open!", "pin")
+	if GameState.main.world != null and GameState.main.world.map_id == "sundown":
+		await GameState.main.reload_map()
+
+
 ## True once you hold Nerissa's crest but the villagers still block the reef path (a game saved before beating her opened it).
 func _reef_earned() -> bool:
 	return GameState.crests.has(WorldDB.ARENAS["kelpwick"]["crest"]) and not GameState.flag("island_peace")
@@ -1624,8 +1688,8 @@ func _sheriff() -> void:
 			UI.pickup("revival_seed", 2, "buy")
 			UI.gold(2500)
 			await say(["You drove the Jackals out of the desert? The whole watch owes you.",
-				"Here's the bounty: 2500 gold and a couple of Revival Seeds. Sunwall's gates are always open to you.",
-				"The road north through the Dune Sea is open again. They say an old temple to the winds stands out there."], "Captain Dalton")
+				"Here's the bounty: 2500 gold and a couple of Revival Seeds. Scaraba's gates are always open to you.",
+				"The desert's safe to cross again. They say an old temple to the winds stands out in the dunes. Valkoog, the caravans call it."], "Captain Dalton")
 		if GameState.item_count("bat") <= 0:
 			# Bart the Jackal's own bat (a trainer weapon, item_db.gd WEAPONS), with the bounty or, for a game saved before,
 			# the next time you call by
@@ -1638,15 +1702,15 @@ func _sheriff() -> void:
 			await say(["The caravans come and go in peace again. My watch can finally sleep at night."], "Captain Dalton")
 		return
 	GameState.set_flag("met_sheriff")
-	await say(["Welcome to Sunwall, traveller. I'm Captain Dalton of the gate watch.",
+	await say(["Welcome to Scaraba, traveller. I'm Captain Dalton of the gate watch.",
 		"New trainers are vanishing. We found Gearheart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
-		"And Bart the Jackal's gang raids every caravan that comes to our gates, then holes up out on the Dune Sea road. They've barricaded the road north, too.",
+		"And Bart the Jackal's gang raids every caravan that comes to our gates, then holes up out in the Scaraba Desert, south of our walls.",
 		"My watch can hold the walls, but we can't chase bandits across the dunes. If you're half the trainer you look, go and teach them some manners.",
-		"Their hideout's a door in the rocks, just north of the gate."], "Captain Dalton")
+		"Their hideout's a door in the rocks, out in the dunes on the Mesa Trail side."], "Captain Dalton")
 
 
 func _protester() -> void:
-	if GameState.flag("ceo_defeated") and not GameState.flag("trainers_freed"):
+	if GameState.flag("ceo_defeated") and not GameState.flag("tower_cages_opened"):
 		await say(["You beat Gearheart? The trainers are still locked in his freight cages!", "Use the Freight Lock Control on the top floor. I'll get their families on the phone."], "Tinker Wren")
 		return
 	if GameState.flag("ceo_defeated"):
@@ -1700,7 +1764,7 @@ func _freight_control_node() -> Node3D:
 	panel.size = Vector3(0.54, 0.3, 0.04)
 	var glow := StandardMaterial3D.new()
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = Color("#72c9c5" if GameState.flag("trainers_freed") else "#d77c9a")
+	glow.albedo_color = Color("#72c9c5" if GameState.flag("tower_cages_opened") else "#d77c9a")
 	panel.material = glow
 	screen.mesh = panel
 	screen.position = Vector3(0, 0.85, 0.2)
@@ -1708,7 +1772,7 @@ func _freight_control_node() -> Node3D:
 	root.add_child(screen)
 	var label := Label3D.new()
 	label.font = UIKit.font_body()
-	label.text = "FREIGHT LOCK\nOPEN" if GameState.flag("trainers_freed") else "FREIGHT LOCK\nCOMMAND SEAL"
+	label.text = "FREIGHT LOCK\nOPEN" if GameState.flag("tower_cages_opened") else "FREIGHT LOCK\nCOMMAND SEAL"
 	label.position = Vector3(0, 1.4, 0)
 	label.font_size = 26
 	label.pixel_size = 0.004
@@ -1717,23 +1781,23 @@ func _freight_control_node() -> Node3D:
 
 
 func _free_trainers(world) -> void:
-	if GameState.flag("trainers_freed"):
+	if GameState.flag("tower_cages_opened"):
 		await say(["All freight cages are open. The transport orders have been cancelled."])
 		return
 	if not GameState.flag("ceo_defeated"):
 		await say(["FREIGHT LOCK: COMMAND SEAL REQUIRED.", "Gearheart has the seal. You'll have to defeat him first."], "Freight Lock Control")
 		return
-	GameState.set_flag("trainers_freed")
+	GameState.set_flag("tower_cages_opened")
 	GameState.set_flag("missing_trainers")
 	Sfx.play("lever")
 	for npc in world.npcs.values():
 		if npc.get("id", "") == "captive":
 			npc["node"].release()
 	await say(["You press Gearheart's command seal to the console. The freight locks snap open. All three trainers step free."])
-	await say(["I kept thinking nobody knew where we were. You found us.", "A general ordered this. Vexmora. The next shipment was bound for Gravenmoor."], "Trainer Lio")
-	await say(["We're going home. All of us. Thank you."], "Trainer Bea")
+	await say(["I kept thinking nobody knew where we were. You found us.", "A general ordered this. Vexmora. The next shipment was bound for Gravenmoor."], "Caged Trainer")
+	await say(["We're going home. All of us. Thank you."], "Caged Trainer")
 	await say(["You cancel the remaining transport orders and send the missing-trainer register to Tinker Wren.",
-		"TRAINERS RESCUED · Lio, Bea and Orin are safe. Wren will reunite them with their families.",
+		"TRAINERS RESCUED · The buyers' last captives are safe. Wren will reunite them with their families.",
 		"The trail leads to the Umbral Legion in Gravenmoor. This season belongs to trainers, not Vexmora."])
 	await GameState.main.reload_map()
 
@@ -1820,7 +1884,7 @@ func _nyx(world, n: Dictionary) -> void:
 func _finale(world, n: Dictionary) -> void:
 	if GameState.flag("game_cleared"):
 		return
-	if not GameState.flag("trainers_freed"):
+	if not GameState.flag("tower_cages_opened"):
 		await say(["The trainers in Gearheart Tower are still locked in their freight cages.", "Free them with the top-floor Freight Lock Control first. You won't leave them behind."])
 		return
 	if GameState.flag("vexmora_defeated"):
@@ -1931,7 +1995,7 @@ const SEARCHERS := [
 		"home": ["Bea wrote! She's home, and she says she's never going near a freight wagon again.", "I'm taking the posters down. Well. I'm leaving one up. For luck."]},
 	{"name": "Tamsin", "facing": Vector2i(0, 1), "look": {"skin": "#f0c8a0", "hair": "#8a3a20", "hair_style": 1, "body": "female", "shirt": "#f2c14e", "pants": "#3a5a4a", "hat": "#c86a3a", "pack": true},
 		"lines": ["Orin wrote to me every week. Then nothing.",
-			"Captain Dalton in Sunwall is asking questions. If you're heading north, would you tell him about Orin? Please?"],
+			"Captain Dalton in Scaraba is asking questions. If you're heading north, would you tell him about Orin? Please?"],
 		"sheriff": ["Did Captain Dalton say anything? ...Bandits on the Mesa Trail, he thinks. I hope that's all it is."],
 		"home": ["Orin's letter came this morning. Four pages! Three of them are about you."]},
 ]
@@ -1951,7 +2015,7 @@ func _poster(n: Dictionary) -> void:
 	if GameState.flag("trainers_freed"):
 		lines.push_front("Someone has painted FOUND across this poster in big green letters, and underneath: Home safe. Thank you!")
 	else:
-		lines.append("Any news, tell Captain Dalton in Sunwall.")
+		lines.append("Any news, tell Captain Dalton in Scaraba.")
 	await say(lines)
 
 
@@ -2021,7 +2085,7 @@ func _deputy() -> void:
 		await _deputy_partner()
 		return
 	if GameState.flag("deputy_partner"):
-		await say(["Captain Dalton's up in Sunwall, north up the Mesa Trail. Tell him what we found, partner.",
+		await say(["Captain Dalton's up in Scaraba, north up the Mesa Trail and over the desert. Tell him what we found, partner.",
 			"I'll hold the fort here. And the cells. Somebody has to. I've locked them. I've checked twice."], DEPUTY)
 		return
 	if GameState.flag("convict_found"):
@@ -2041,7 +2105,7 @@ func _deputy_partner() -> void:
 	Sfx.play("item")
 	await say(["Partners! Here: the reward that was on Slim's head. Feels wrong keeping it now. 300 gold.",
 		"Slim saw a big freight wagon roll through the night the trainers went, metal footprints all round it.",
-		"Captain Dalton in Sunwall is asking questions up north. Take him what we know. I'll keep watch here."], DEPUTY)
+		"Captain Dalton in Scaraba is asking questions up north. Take him what we know. I'll keep watch here."], DEPUTY)
 
 
 ## Slim: hiding from the deputy (framed, he says), then a free man.
@@ -2096,7 +2160,7 @@ func _church_bandit(n: Dictionary) -> void:
 ## At the saloon: once Slim has told you about the card game, Barkeep Dusty hands over the ledger that clears him.
 func card_ledger() -> void:
 	if not GameState.flag("convict_found") or GameState.flag("slim_cleared") or GameState.item_count("card_ledger") > 0:
-		await say(["And if you hear word of those missing trainers, you tell Captain Dalton up in Sunwall, y'hear?"], "Barkeep Dusty")
+		await say(["And if you hear word of those missing trainers, you tell Captain Dalton up in Scaraba, y'hear?"], "Barkeep Dusty")
 		return
 	await say(["Slim? Rusk's prisoner? He was at my card table the whole night those trainers went missing. Lost every hand, too.",
 		"It's all in my ledger. Here, take it to Rusk. That boy couldn't find his own hat if he was wearing it."], "Barkeep Dusty")
@@ -2320,7 +2384,7 @@ const WELL_BEAVERS := [
 			"Here's a new one. I built it. Please be careful with it."],
 		"again": "Third strongest AND a carpenter. Write that down."},
 	{"name": "Velvet", "gift": "", "facing": Vector2i.LEFT, "sight": BEAVER_SIGHT,
-		"lines": ["(A small beaver plants its feet and puffs up as big as it can.)", "I'm... the third strongest beaver. And you're not going any further."],
+		"lines": ["I'm... the third strongest beaver. And you're not going any further."],
 		"won": ["...All right. You can go on. But listen.",
 			"Behind me there's a wizard. A water wizard. We've been looking after him, all of us.",
 			"We dammed the water so nobody would come down the well looking for it. And then nobody came at all. That's how he wanted it.",
@@ -2339,9 +2403,9 @@ const WELL_BRIDGES := {
 	"well_bridge_3": {"item": "well_rope", "broken": "The bridge's ropes have been gnawed through. Its planks hang down into the gap."},
 	"well_bridge_4": {"item": "", "broken": "This bridge has been pulled up from the far side."},
 }
-## Dale, the water mage who hides at the bottom of the well: a long blue robe (his order's colour), faded from years
-## in the dark.
-const DALE_LOOK := {"robe": "hooded", "shirt": "#3a6a9a", "pants": "#2a4a6a", "hair": "#8a7a6a", "skin": "#d8a882"}
+## Dale, the water mage who hides at the bottom of the well: the hooded robe, two-toned in the water beasts' colours
+## (Townfolk.MAGE_COLOURS).
+const DALE_LOOK := {"robe": "hooded", "element": "water", "hair": "#8a7a6a", "skin": "#d8a882"}
 
 
 ## Who and what is in a room of the well: its chests, the beaver on watch, the broken bridges, the fallen ladder and
@@ -2364,6 +2428,9 @@ func _well_people(map: Dictionary) -> Array:
 	if _has_anchor(map, "fallen_ladder") and not GameState.flag("well_ladder_set"):
 		out.append({"kind": "story", "id": "fallen_ladder", "name": "", "pos": map["anchors"]["fallen_ladder"],
 			"scene": _fallen_ladder_scene(), "still": true, "blocking": true, "facing": Vector2i.DOWN})
+	if _has_anchor(map, "well_boat"):
+		out.append({"kind": "story", "id": "well_boat", "name": "", "pos": map["anchors"]["well_boat"], "scene": rowboat_scene(false),
+			"still": true, "blocking": true, "facing": Vector2i.DOWN})
 	if _has_anchor(map, "dale"):
 		out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": map["anchors"]["dale"], "look": DALE_LOOK,
 			"facing": Vector2i.DOWN, "still": true, "story": not GameState.flag("dale_heard")})
@@ -2432,6 +2499,90 @@ func _fallen_ladder_scene() -> Node3D:
 	return root
 
 
+## Dale's rowboat at the bottom of the stairs under his workroom (interior_maps.gd well_landing): the stream the spring
+## woke carries it out of the well to the sea, where it runs aground on the Temple of Tides' isle (the reef's south
+## beach, BOAT_LANDING). It's wrecked there for good (well_boat_wrecked), and a beachcomber points it out. Dale has
+## more than one: there's always another tied up at the landing.
+const BEACHCOMBER := "Beachcomber Tully"
+const BEACHCOMBER_LOOK := {"skin": "#c8946a", "hair": "#e8c890", "shirt": "#f0e6c8", "pants": "#4a8aa8", "hat": "#e0c070", "outfit": "coat"}
+## where you come ashore on the reef: beside the wreck (route_maps.gd reef "boat_wreck")
+const BOAT_LANDING := Vector2i(68, 24)
+
+
+func _well_boat(_world) -> void:
+	if not await ask("Dale's little rowboat, bobbing on the stream. Climb in and let the water take you to the Temple of Tides?", "", "Push off", "Stay"):
+		return
+	# (the wreck is on the beach when you get there: on_map_enter plays the crash)
+	if GameState.flag("well_boat_wrecked"):
+		GameState.set_flag("well_boat_wrecked_again")
+	GameState.set_flag("well_boat_wrecked")
+	GameState.set_flag("well_boat_landing")
+	Sfx.play("step_water")
+	GameState.main.goto_map("reef", BOAT_LANDING, Vector2i(-1, 0), 1.2)
+
+
+## Arriving by Dale's rowboat: the crunch of it running aground, and the beachcomber right there to say so.
+func _boat_crash(world) -> void:
+	GameState.set_flag("well_boat_landing", false)
+	Sfx.play("smash")
+	await world.get_tree().create_timer(0.5).timeout
+	if GameState.flag("well_boat_wrecked_again") and GameState.flag("met_beachcomber"):
+		await say(["...You crashed another boat.", "Into the same boat. Where are you even getting these?"], BEACHCOMBER)
+		return
+	GameState.set_flag("met_beachcomber")
+	await say(["...You crashed your boat.",
+		"Right into my beach. I was sitting right there. I had a whole morning planned.",
+		"If it's the temple you're after, it's up the shore and round onto the path. Try not to crash into that."], BEACHCOMBER)
+
+
+## A little wooden rowboat (the PSX pack's, voxel_manifest "boat_dark"): floating broadside on the landing's stream
+## with a plank down to it from the bank, or wrecked, heeled over nose-first in the sand with split planks beside it.
+func rowboat_scene(wrecked: bool) -> Node3D:
+	var root := Node3D.new()
+	var VA = load("res://scripts/gfx/voxel_assets.gd")
+	var mi := MeshInstance3D.new()
+	mi.mesh = VA.mesh("boat_dark")
+	var bb: AABB = VA.aabb("boat_dark")
+	var s := 2.2 / maxf(0.01, maxf(bb.size.x, bb.size.z))
+	mi.scale = Vector3.ONE * s
+	# (its length along x: broadside to the camera)
+	var turn := PI / 2.0 if bb.size.z > bb.size.x else 0.0
+	mi.rotation.y = turn
+	mi.position = -(Vector3(bb.get_center().x, bb.position.y, bb.get_center().z) * s).rotated(Vector3.UP, turn)
+	var hull := Node3D.new()
+	hull.add_child(mi)
+	root.add_child(hull)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("#8a5c38")
+	wood.roughness = 0.9
+	if not wrecked:
+		# on the stream, out in the middle of the ravine (its tile is the ravine's, a level under the banks; the landing's
+		# shallow channel, "pit_depth" 1, holds its water 0.7 above that)
+		hull.position = Vector3(0, 0.58, 0.5)
+		var plank := MeshInstance3D.new()
+		var pm := BoxMesh.new()
+		pm.size = Vector3(0.36, 0.05, 0.8)
+		plank.mesh = pm
+		plank.material_override = wood
+		plank.position = Vector3(0, 0.99, -0.35)
+		plank.rotation.x = 0.08
+		root.add_child(plank)
+		return root
+	# run aground: half up the sand, heeled over and nose-down
+	hull.position = Vector3(0.1, -0.12, 0.3)
+	hull.rotation = Vector3(0.12, 0.3, 0.42)
+	for k in 2:
+		var bit := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.9 - k * 0.3, 0.04, 0.16)
+		bit.mesh = bm
+		bit.material_override = wood
+		bit.position = Vector3(-1.3 + k * 0.35, 0.02, -0.25 + k * 0.5)
+		bit.rotation.y = 0.6 - k * 1.1
+		root.add_child(bit)
+	return root
+
+
 ## The locked door off the great chamber (map "locked_doors"): Nub's key opens it, for good.
 func _well_door() -> bool:
 	if GameState.item_count("well_key") == 0:
@@ -2458,7 +2609,8 @@ func _dale(_world, n: Dictionary) -> void:
 				"Thank you for keeping quiet about me."], nm)
 		else:
 			await say(["Listen to that. Water, all the way up the shaft. Thank you. And thank you for keeping quiet.",
-				"The river north needs more than Water, though. The Temple of Tides, past Kelpwick. The panel in the drained chamber."], nm)
+				"The river north needs more than Water, though. The Temple of Tides, past Kelpwick. The panel in the drained chamber.",
+				"Take the stairs by the chest. The stream at the bottom runs all the way out to the temple's isle, and my old rowboat's tied up there."], nm)
 		return
 	if not GameState.flag("dale_met"):
 		GameState.set_flag("dale_met")
@@ -2494,6 +2646,8 @@ func _dale(_world, n: Dictionary) -> void:
 		await say(["Dale hums a few notes. Across the crack, the rope bridge lifts itself and settles into place."])
 	await say(["The river north is another matter. That needs Torrent, and my old teachers know it. They hide in the Temple of Tides, past Kelpwick.",
 		"There's a panel in the temple's falls chamber, once you've drained it. Only water opens it. Show them what you can do."], nm)
+	await say(["You won't need to walk. The spring's stream runs out under this room, all the way to the sea, and washes up on the temple's isle.",
+		"There's a stairway down to it, by the chest. My old rowboat's tied at the bottom. Let the water take you. It knows the way."], nm)
 	await say(["One more thing. Please, tell no one I'm here. Rosa knows, and she'll keep it to herself. Nobody else."], nm)
 	await GameState.main.reload_map()
 

@@ -1,5 +1,5 @@
 extends RefCounted
-## Sunwall's old walled adobe town (a town map's "town_wall", with "style": "adobe" for its houses and shops: the
+## Scaraba's old walled adobe town (a town map's "town_wall", with "style": "adobe" for its houses and shops: the
 ## house pack's pueblos and riads, house_models.gd, and voxel_buildings.gd's flat-roofed adobe shops with vigas).
 ##
 ## The town wall stands on the map's W tiles (world.gd _build_terrain): thick sun-dried mud walls in a warm sand colour,
@@ -209,7 +209,7 @@ static func _well(k: VBld.Kit) -> void:
 
 
 # ================================================================ the town's buildings
-## Sunwall's houses and shops (the "adobe" style: a town map's "style", world.gd _building_node), built like Dustwell's
+## Scaraba's houses and shops (the "adobe" style: a town map's "style", world.gd _building_node), built like Dustwell's
 ## (frontier_builder.gd) of the house pack's wall sections for doors and windows (HouseBuilder), laid over with sun-dried
 ## mud in a warm earth colour, with VBld.Kit boxes for the rest:
 ##   a block of thick walls with rounded corners on a low plinth; a flat roof behind a parapet, stepped up at its

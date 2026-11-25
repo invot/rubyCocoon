@@ -467,7 +467,7 @@ const MAPS := {
 			"5": {"name": "Oasis Saloon", "rooms": ["saloon", "saloon_hall", "saloon_room_a", "saloon_room_b", "saloon_back", "saloon_stage", "saloon_office"], "frontier": "saloon", "paint": "red"},
 			"6": {"name": "Dustwell Jail", "rooms": ["jail"], "frontier": "jail", "paint": "yellow"},
 			# the town well: climbing down it is the way into the beavers' cave (docs/dustwell-water-arc.md)
-			"7": {"name": "Dustwell Well", "rooms": ["well_main", "well_bever1", "well_cellar", "well_nook", "well_long", "well_crack", "well_bever2", "well_bever3", "well_bever4", "well_hall", "well_bever5", "well_hub", "well_dale", "well_bedroom", "well_spa"], "well": true},
+			"7": {"name": "Dustwell Well", "rooms": ["well_main", "well_bever1", "well_cellar", "well_nook", "well_long", "well_crack", "well_bever2", "well_bever3", "well_bever4", "well_hall", "well_bever5", "well_hub", "well_dale", "well_bedroom", "well_spa", "well_landing"], "well": true},
 			# the elemental mages' old church, taken over by bandits who hunt mages: its doors barred, two of them at the
 			# door (frontier_builder.gd _church, Story._church_bandit)
 			"8": {"name": "Old Church", "frontier": "church", "knockable": true, "rooms": []}},
@@ -535,9 +535,9 @@ const MAPS := {
 		],
 	},
 	"sundown": {
-		# Sunwall: an old walled adobe town (house_models.gd's pueblos and riads, voxel_buildings.gd's flat-roofed adobe
+		# Scaraba (was Sunwall): an old walled adobe town (house_models.gd's pueblos and riads, voxel_buildings.gd's flat-roofed adobe
 		# shops with vigas) inside a mud-brick town wall on its W tiles (adobe_town.gd): tall behind and beside the town,
-		# a gate with an arch on the north road to the Dune Sea, and a waist-high parapet along the south so the street
+		# a gate with an arch on the north road to Riposo Valley, and a waist-high parapet along the south so the street
 		# stays in view, with low gate posts on the Mesa Trail road. A market plaza round the mascot statue (stalls, clay
 		# jars, the well), palms in the gardens, and Captain Dalton of the gate watch (Story: sheriff) by the plaza.
 		"style": "adobe",
@@ -554,7 +554,7 @@ const MAPS := {
 		"rows": [
 			"TTTTTTTTTTTTTT,,TTTTTTTTTTTTTTTTTTTTTTTTTTTT",
 			"TWWWWWWWWWWWWW,,WWWWWWWWWWWWWWWWWWWWWWWWWWWT",
-			"TWTttttTtttttt,,.CCCCCC.RRRRRRRRTtttTttttTWT",
+			"TWTttttTtttttt&&.CCCCCC.RRRRRRRRTtttTttttTWT",
 			"TW.HHHH.AAAAAT,,.CCCCCC.RRRRRRRR.VVV.HHHH.WT",
 			"TW.HHHH.AAAAA.,,.CCCCCC.RRRRRRRR.VVV.HHHH.WT",
 			"TW.HHHH.AAAAA.,,.CCCCCC.RRRRRRRR.VVV.HHHH.WT",
@@ -623,8 +623,11 @@ const MAPS := {
 		],
 		"anchors": {"1": "sheriff", "3": "mascot"},
 		"signs": [
-			"Sunwall. Travellers welcome inside the walls. Mind the gate after dark.",
+			"Scaraba. Travellers welcome inside the walls. Mind the gate after dark.",
 		],
+		# soldiers of the gate watch stand across the north gate (Story: north_guard) until you beat Windcaller Sable
+		# (north_road_open): the beasts in Riposo Valley are too strong for anyone weaker
+		"gate": {"flag": "north_road_open", "crowd": true, "text": "Soldiers of the gate watch stand across the north gate."},
 	},
 	"copperpick": {
 		"prop_clearance": [[5, 5, 4, 3], [39, 5, 4, 3]],

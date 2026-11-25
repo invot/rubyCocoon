@@ -106,7 +106,7 @@ const MOVES := {
 ## line once it has reached SIGNATURE_LEVEL: elemental, mightier than any move of its element a beast learns by
 ## levelling, and taught by nobody else (merging keeps it only for a beast of that line, see beasts.gd merge).
 ## {move: the first form of the line it belongs to}. Each town's mascot is a different species, but the roster has 11
-## species for 12 towns, so the Poodle Moth serves twice (Air in Sunwall, Earth in Vinehollow). Cocoon Cove's is the
+## species for 12 towns, so the Poodle Moth serves twice (Air in Scaraba, Earth in Vinehollow). Cocoon Cove's is the
 ## Fire Draco, the line of the starter eggs.
 const SIGNATURE := {"bandit_blaze": 48, "tidewater_torrent": 27, "pearl_cannon": 24, "kelp_maelstrom": 81, "sirocco": 36,
 	"tumbleweed_twister": 33, "motherlode": 12, "clockwork_crusher": 15, "caldera_burst": 3, "elder_grove": 75,

@@ -304,7 +304,12 @@ Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roo
 - The lobby uses leafy plants, with no cacti. Low wooden double doors, slightly below countertop height, block the staff passages at either end of reception.
 - The front and back reception counters are separate; the rear counter sits flush against the balcony wall, with shelves and large paintings above it and flat paper stacks on it.
 - Large leafy floor planters frame the lobby, and the lounge areas have armchairs, a reading lamp and dressed coffee tables, with the seats facing their table. The lobby has two pairs of facing armchairs with the coffee tables between them turned a quarter turn.
-- The floor planter below the reception phone is removed, and a small potted plant sits on the countertop beside the phone. Larger framed paintings also dress the lobby side walls, both hallways, guest rooms, pool and gym. Guest rooms open off both corridors. Guest rooms and the suite have no phones.
+- The floor planter below the reception phone is removed, and a small potted plant sits on the countertop beside the phone. Larger framed paintings also dress the lobby side walls, both hallways, guest rooms, pool and gym.
+- Guest rooms open off both corridors. Guest rooms and the suite have no phones or phone drawer units; the reception phone remains available.
+- Downstairs are a swimming pool with two guests and floor-to-ceiling windows, paired into two-tile-wide panes in stout, chunky wooden frames (a thick frame, a deep rail along the floor and a broad casing over each pier), with softly blurred, shining glass, clear of the room's decorative wood trim, looking into a shallow garden box with small bushes in front of its landscape backdrop.
+- A hot tub healing spring sits on an enterable raised deck in the back-left corner with inset steps, pink water sharing the pool's texture and opacity, rising steam, one low curved step outside its rim at the front-right (the only way in), and a steam-cloud sign on the outward face of its front railing, beside the clear inset entrance. You climb in by the step and stand still: a faint pinkish-white haze fills the screen, thickens after five seconds, then a top-bar notice says the party's HP and MP are restored and ailments cleared (once per visit to the water). Dale's spring in the Dustwell Well works the same way, with the same sign on the cave's back wall; every spa gets this sign. A gym has two running guests who struggle to talk.
+- Each floor has a broken ice maker; the upstairs tray contains one Revival Seed.
+- The snooty receptionist refuses guests without reservations, replacing the old 150-gold healing stay.
 
 **The marina and beach.**
 
@@ -312,7 +317,7 @@ Shellhaven is a pastel stucco resort with Spanish mission arches, terracotta roo
 - Two-tile stone walks connect the marina landing to the high street and square, with branches down both beach ramps onto the sand.
 - Captain Gull uses the same ferry as Bellerive; private berths hold a white flybridge motor yacht, a varnished pleasure launch and a furled-sail yacht, with water separating their hulls from the walking decks.
 - The beach slopes smoothly into clear shallows, with soft wave crests washing toward the sand. Trainers can walk one tile into water no more than 5 cm (about two inches) deep, with light pitter-patter footsteps; the next, deeper tile stays blocked for walking, running and tap navigation.
-- The shoreline has palms spaced along the foot of the cliff, with clear aisles and both beach ramps retained. The island's towns, trail and reef share dense tropical palms.
+- The broad beach has striped umbrellas standing in the sand over occupied chaise lounges, towels, and palms spaced along the foot of the cliff, with clear aisles and both beach ramps retained. The island's towns, trail and reef share dense tropical palms.
 
 Every interior entrance is in a visible side wall, including temples, the hideout, Gearheart Tower and the cathedral.
 
@@ -382,6 +387,14 @@ Dustwell Oasis is an old western main street (map `"style": "frontier"`, `fronti
 - The **Oasis Saloon** (a cafe inside: room `saloon`) has two storeys, a balcony across its front, batwing doors and SALOON on its false front. **Dustwell Jail** (room `jail`) has barred windows, a sheriff's star and JAIL.
 - The Beast Center is the small stone temple every town has. Missing posters hang on the porch posts; the readable ones are notice boards about town. Water troughs, a wagon, barrels and crates line the street.
 
+**Dustwell's wagon and water troughs** come from the Low Poly Western pack, painted by part. To rebuild them from the download, unzip it into a folder `lpwestern/` and run:
+
+```sh
+godot --headless --path . --script res://tools/import_western.gd -- "path/to/unzipped packs"
+godot --headless --path . --script res://tools/smooth_textures.gd
+godot --headless --path . --import
+```
+
 ## Sunwall
 
 Sunwall (map id `sundown`) is an old walled adobe town (map `"style": "adobe"`, `adobe_town.gd`, biome `desert`).
@@ -419,6 +432,25 @@ Bellerive is the game's French Quarter (`world_db.gd` biome `quarter`, building 
 - **Recolouring:** a few of the kit's parts are recoloured as they load (`Townfolk.PART_FIXES`: patchy shorts and tops made one colour, cuffs that kept the kit's tan).
   - Every piece in the hero's wardrobe is dyed all over, nothing left in the kit's own colours (`Townfolk._dye_part`).
   - A shirt takes two colours (the look's `top` and `top2`: a plain shirt's sleeves, else the trim the kit painted in a second colour: collar, yoke, stripes, bow, flames; the creator names the row for it). Pants, shoes and hats take one each, their other colours becoming lighter and darker shades of it.
+  - A few details keep their own colours whatever the dye (`Townfolk.FIXED`: shoes' laces always white, the Runners' white toe tip, the Garden Hat's red ribbon and bow, the Sun Hat's pink ones, the Duckie Hat's yellow bill, sky-blue eyes, pink cheeks, green stem and yellow flower, the Wizard Hat's black band and its gold buckle, `_buckled`).
+  - The Striped Jumper is drawn in thick bands of its two colours (`Townfolk.STRIPES`, `townfolk.gdshaderinc`), and the Bow Blouse's collar matches its skirt (`FLAT_TRIM`). Townsfolk wearing the same parts keep their old look.
+
+- **Derived pieces:** two pieces are made from the kit's parts as they load (`Townfolk.DERIVED`): the Long Skirt (female heroes, and non-binary heroes on either body), the A-line skirt let down to the shin, and the baggy Cargo Shorts with a pocket on each thigh.
+- **Older looks:** a look from an older wardrobe keeps what it wore (`wardrobe_db.gd` `upgrade`, `RETIRED`).
+- **Eyes:** every head's eyes are drawn with the outline dark, the brows the hair's colour and only the iris the eye colour.
+
+### Movement
+
+- **Talking and sitting:** people talk with their hands while they speak to you (`set_talking`), sit on a chair at a table (`set_pose`; `world.gd seat`) and, beaten in battle, drop to one knee (`set_pose` "kneel").
+- **Walk cycle:** the walk is built on the animators' walk-cycle rules. The cadence follows the speed and the stride lengthens with it, so planted feet don't skate. Each foot is placed (heel strike, roll, toe-off, a lift through the swing) and the knee bends just enough to reach it. The hips settle as a foot lands, twist with the stride while the chest twists back. Arms swing against the legs and trail them a little. A stroll (NPCs) blends into the hero's jog (more lean, a moment in the air, elbows pumping) and a sprint.
+- **Turning and idle:** people turn smoothly to a new facing, ease into and out of their pace, and stand with an idle (breathing, shifting weight, looking about).
+
+**Previews:**
+
+- `--scene=hero --pose=walk --speed=4.6` shows a stride (`--phase`, `--model=tf<n>` for one of the kit's people); `--pose=talk`, `--pose=sit` and `--pose=kneel` show the others.
+- `--pose=ready --weapon=slingshot|boomerang|bat` shows a trainer's weapon held ready, and `--pose=throw|boomerang|catch|swing --at=0,0.07,0.15,0.25` four moments of using it.
+- `--trainer=<seed>` shows four camo trainers; `--packs=1 --view=0|1` the hero's pack in four colours from behind or the side.
+- `tools/townfolk/view.gd` renders the baked people in a grid.
 
 ### Buildings, props and boards
 
@@ -487,11 +519,3 @@ Every window on a back or side wall looks out into a sealed window box (`room_bu
 - `BOX_SIZES`: an ordinary window's box is two tiles deep and runs one tile past its end windows, shrinking to one tile deep where space is short; the hotel pool's full-height windows get three deep and two past.
 - A box is never behind a door or into another room or box. Its plants and rocks stay wholly inside it, with a grass floor (parched in dry regions), the region's own nature (its small trees, shrubs, tufts, the odd rock and sometimes a stretch of its fence, seeded per box so it never changes), and the region's pre-blurred landscape round its back and ends. Its outsides and lid are the room's black background.
 - Rebake the landscapes with `godot --headless --path . --script res://tools/bake_window_views.gd` (from `assets/battle/backdrops/` into `assets/interiors/window_views/`), then `--import`.
-
-**Dustwell's wagon and water troughs** come from the Low Poly Western pack, painted by part. To rebuild them from the download, unzip it into a folder `lpwestern/` and run:
-
-```sh
-godot --headless --path . --script res://tools/import_western.gd -- "path/to/unzipped packs"
-godot --headless --path . --script res://tools/smooth_textures.gd
-godot --headless --path . --import
-```

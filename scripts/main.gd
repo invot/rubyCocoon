@@ -3005,7 +3005,7 @@ func _rescue_test() -> void:
 		bad += 1
 		print("FAIL freight cages / control missing")
 	await Story.talk(world, _npc("freight_control"))
-	if GameState.flag("trainers_freed"):
+	if GameState.flag("tower_cages_opened"):
 		bad += 1
 		print("FAIL rescue unlocked before Gearheart defeat")
 	await Story._finale(world, {})
@@ -3024,7 +3024,7 @@ func _rescue_test() -> void:
 	await _wait(0.9)
 	while _transitioning or not _pending_goto.is_empty():
 		await get_tree().process_frame
-	if not GameState.flag("trainers_freed") or world.npcs.values().any(func(n): return n.get("id", "") == "captive"):
+	if not GameState.flag("tower_cages_opened") or world.npcs.values().any(func(n): return n.get("id", "") == "captive"):
 		bad += 1
 		print("FAIL rescue state / cleared cages")
 	var before := GameState.gold
@@ -3800,7 +3800,7 @@ func _flow_test() -> void:
 	print("ceo_defeated ", GameState.flag("ceo_defeated"), " shards ", GameState.shards)
 	await Story.talk(world, _npc("freight_control"))
 	await _wait(1.0)
-	print("trainers_freed ", GameState.flag("trainers_freed"))
+	print("tower_cages_opened ", GameState.flag("tower_cages_opened"))
 	await _go("vinehollow", "center")
 	await _wait(1.5)
 	_step("shaman", [])

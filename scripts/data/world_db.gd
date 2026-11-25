@@ -27,7 +27,7 @@ const TOWNS := {
 	"dustwell": {"name": "Dustwell Oasis", "size": "hamlet", "mascot": 38, "signature": "sirocco", "biome": "desert",
 		"shops": ["center", "apothecary", "fortune", "cafe", "house", "house", "house"], "place_names": {"cafe": "Saloon"}, "landmarks": ["Jail"],
 		"blurb": "An old western town round the last cool water before the open desert."},
-	"sundown": {"name": "Sunwall", "size": "town", "mascot": 35, "signature": "tumbleweed_twister", "biome": "desert",
+	"sundown": {"name": "Scaraba", "size": "town", "mascot": 35, "signature": "tumbleweed_twister", "biome": "desert",
 		"shops": ["center", "apothecary", "trainer_gear", "cafe", "bookstore", "arena", "skytower", "house", "house", "house"],
 		"blurb": "An old walled town of sun-baked adobe, its caravans harried by bandits."},
 	"copperpick": {"name": "Copperpick", "size": "village", "mascot": 14, "signature": "motherlode", "biome": "mountain",
@@ -61,8 +61,15 @@ const ROUTES := {
 	"route3": {"name": "Dune Road", "from": "tidewater", "to": "dustwell", "dir": "north", "biome": "desert", "lv": [10, 13], "races": [30, 15, 3, 33, 9, 63, 69]},
 	"dustwell_channel": {"name": "Dustwell River Landing", "from": "dustwell", "to": "", "dir": "north", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 63]},
 	# via: the map its south end really joins (the river landing's far shore, by riverboat), by that map's via_edge
-	"route4": {"return_only": true,"name": "Mesa Trail", "from": "dustwell", "to": "sundown", "dir": "north", "via": "dustwell_channel", "via_edge": "west", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3, 54, 75]},
-	"route5": {"name": "Dune Sea", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21, 57, 69], "temple": "air"},
+	"route4": {"return_only": true,"name": "Mesa Trail", "from": "dustwell", "to": "route5", "dir": "north", "via": "dustwell_channel", "via_edge": "west", "biome": "mesa", "lv": [12, 16], "races": [36, 6, 12, 3, 54, 75]},
+	# The Scaraba Desert comes before Scaraba (docs/scaraba-implementation-plan.md): it leaves the town by its south
+	# gate and its far (south) end joins the Mesa Trail's north end (route4 "to"), so the road from the lake reaches the
+	# desert first.
+	"route5": {"name": "Scaraba Desert", "from": "sundown", "to": "route4", "dir": "south", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21, 57, 69], "temple": "air"},
+	# Riposo Valley: north from Scaraba's gate (its soldiers let through only trainers who beat Windcaller Sable:
+	# north_road_open), turning from desert to prairie on the way to Copperpick. A generated placeholder until its own
+	# map is built (plan WP10).
+	"route5b": {"name": "Riposo Valley", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [22, 26], "races": [33, 0, 15, 30, 21, 57, 69]},
 	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [15, 12, 6, 18, 54, 75], "legion": true},
 	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [9, 0, 6, 3, 48, 63], "temple": "fire"},
 	"route8": {"name": "Summit Pass", "from": "emberfall", "to": "vinehollow", "dir": "west", "biome": "mountain", "lv": [30, 36], "races": [30, 36, 33, 18, 27, 57, 60], "legion": true},
@@ -80,7 +87,7 @@ const TEMPLES := {
 	"water": {"name": "Temple of Tides", "route": "reef", "room": "temple_water", "guardian": 39, "level": 12, "glow": "#5ac8ff",
 		"element": "water", "song": "song_tides", "helpers": [66],
 		"song_room": "temple_tides_song", "rooms": ["temple_tides_hall", "temple_water", "temple_tides_falls", "temple_tides_maze", "temple_tides_song", "temple_tides_sanctuary"]},
-	"air": {"name": "Temple of Winds", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
+	"air": {"name": "Valkoog", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
 		"element": "air", "song": "song_winds", "helpers": [33, 36]},
 	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a",
 		"element": "fire", "song": "song_flame", "helpers": [3, 6]},
@@ -164,7 +171,7 @@ const ARENAS := {
 	## step above Marina's, close to the Coral Reef's. "intro": what a master says before your first challenge.
 	"kelpwick": {"element": "water", "leader": "Nerissa", "title": "Reef Warden", "team": [[21, 10], [27, 10], [24, 11]], "song": "coral", "flute": "lullaby", "crest": "Coral Crest", "gold": 1300, "look": {"shirt": "#e07a8a", "hair": "#30a0b0"},
 		"intro": "So you want the reef too? Every tourist does. Show me you're a trainer, not a sightseer!"},
-	"sundown": {"element": "air", "leader": "Rosa", "title": "Windcaller", "team": [[36, 21], [3, 21], [12, 22]], "song": "reel", "crest": "Spur Crest", "gold": 1800, "look": {"shirt": "#2f7a86", "hair": "#2a1a10", "hat": "#ece2cc"}},
+	"sundown": {"element": "air", "leader": "Sable", "title": "Windcaller", "team": [[36, 21], [3, 21], [12, 22]], "song": "reel", "crest": "Spur Crest", "gold": 1800, "look": {"shirt": "#2f7a86", "hair": "#2a1a10", "hat": "#ece2cc"}},
 	"copperpick": {"element": "earth", "leader": "Gorran", "title": "Mine Foreman", "team": [[15, 27], [9, 27], [6, 28]], "song": "dirge", "crest": "Ore Crest", "gold": 2400, "look": {"shirt": "#5a6070", "hair": "#806040", "hat": "#e8c040", "outfit": "coat"}},
 	"cogsworth": {"element": "earth", "leader": "Volta", "title": "Chief Engineer", "team": [[30, 33], [0, 33], [12, 34]], "song": "anvil", "flute": "static", "crest": "Cog Crest", "gold": 3000, "look": {"shirt": "#6a4a3a", "hair": "#f0f0f0", "hat": "#c8a040", "outfit": "apron"}},
 	"emberfall": {"element": "fire", "leader": "Brann", "title": "Forgemaster", "team": [[9, 39], [3, 39], [0, 40]], "song": "waltz", "crest": "Flame Crest", "gold": 3800, "look": {"shirt": "#8a2a1e", "hair": "#2a1a10", "outfit": "apron"}},
@@ -302,7 +309,9 @@ const MAP_POS := {
 }
 const ROUTE_PATHS := {
 	"dustwell_channel": [Vector2(130, 300), Vector2(120, 276), Vector2(118, 261)],
-	"route4": [Vector2(112, 261), Vector2(96, 220), Vector2(80, 170)],
+	"route4": [Vector2(112, 261), Vector2(102, 236), Vector2(94, 214)],
+	"route5": [Vector2(94, 214), Vector2(84, 194), Vector2(80, 170)],
+	"route5b": [Vector2(80, 170), Vector2(150, 120), Vector2(230, 80)],
 	"reef": [Vector2(610, 475), Vector2(780, 470)],
 }
 ## The ferry between Bellerive and Shellhaven (drawn on the map, travelled by boat).

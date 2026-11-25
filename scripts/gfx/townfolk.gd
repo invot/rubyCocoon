@@ -8,6 +8,7 @@ const DIR := "res://assets/townfolk/"
 const SHADER := preload("res://scripts/gfx/townfolk.gdshader")
 const SurfaceFinish = preload("res://scripts/gfx/surface_finish.gd")
 const Wardrobe = preload("res://scripts/data/wardrobe_db.gd")
+const BeastLooks = preload("res://scripts/data/beast_looks.gd")
 const MeshStore = preload("res://scripts/gfx/mesh_store.gd")
 ## The skeleton they share, where its joints are on the kit's body (centimetres, y up, facing +z, standing on y = 0;
 ## "l" is the person's left, +x): [bone, parent, joint]. Every bone's rest is unturned.
@@ -79,7 +80,11 @@ const HERO_OUTFITS := {"male": [0, 13, 4, 10, 11, 29],
 ## kit's shading (the first outfit's top and shorts); [slot, lightness]: all of it in that slot (trousers whose cuffs
 ## kept the kit's tan and clipped, and shorts in patches); a slot alone: all of it in that slot, its light and dark
 ## kept (the pack). The wardrobe's parts are dyed all over besides (see _worn, _dye_part).
-const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], PACK: 9}
+## "robe_trim": the temple robe's gold collar and hem moved to the trim slot, keeping the kit's gold unless a look
+## gives a "trim" colour (a mage's: see MAGE_COLOURS).
+const PART_FIXES := {3: "solid", 7: "solid", 66: [5, 1.0], 81: [5, 1.0], PACK: 9, 278: "robe_trim"}
+## The temple robe's gold as the kit painted it (sRGB), what its trim's lightness is measured against.
+const ROBE_GOLD := "#ffb300"
 ## Parts made from the kit's as they load (named by a word, see part_id): name -> [the kit part it's made from, how].
 ## "let_down": a skirt let down to the shin (the kit has none so long; see _let_down); "cargo": shorts made baggy, with
 ## a pocket and flap on each thigh (see _cargo); "spiky", "high_tight", "faux_hawk": hair grown over the hero's
@@ -359,6 +364,14 @@ static func _fixed(mesh: ArrayMesh, fix) -> ArrayMesh:
 		elif fix == "solid":
 			for i in uv2.size():
 				uv2[i].y = 1.0
+		elif fix == "robe_trim":
+			# the gold (slot 0, warm and saturated) into the trim slot, as light or dark as the kit painted it
+			var gold := Color(ROBE_GOLD).get_luminance()
+			for i in uv2.size():
+				var c := col[i].linear_to_srgb()
+				if int(uv2[i].x + 0.5) == 0 and c.h > 0.08 and c.h < 0.18 and c.s > 0.6:
+					var r := c.get_luminance() / gold
+					uv2[i] = Vector2(TRIM_SLOT, maxf(1.0 - 0.65 * (1.0 - r), 0.5) if r < 1.0 else minf(1.0 + 0.5 * (r - 1.0), 1.6))
 		elif fix == "frame":
 			# glasses: all in their own slot, each vertex as much lighter or darker than the part's middle tone as
 			# the kit painted it (glints and pale lenses mixed toward white)
@@ -711,8 +724,8 @@ static func _add_spike(arrays: Array, from: Vector3, lean: Vector3, length: floa
 
 ## The mage's hood (see MAGE_HOOD), built anew round the head: `kit` (the kit's hood) only says which way its
 ## triangles turn. The cowl's outer and inner walls run in rings from the face's opening back to the point; the
-## lining is a tube rolled round the opening, over both walls' edges; the capelet hangs from inside the cowl's foot
-## to its rolled hem. The cowl turns with the head, the capelet with the chest.
+## lining is a tube rolled round the opening, over both walls' edges, in the trim slot (the robe's second colour).
+## It all turns with the head.
 static func _mage_hood(kit: ArrayMesh) -> ArrayMesh:
 	var ka := kit.surface_get_arrays(0)
 	var kp: PackedVector3Array = ka[Mesh.ARRAY_VERTEX]
@@ -726,7 +739,6 @@ static func _mage_hood(kit: ArrayMesh) -> ArrayMesh:
 	var deep := 16
 	var tube := 10
 	var head := bone_index("head")
-	var chest := bone_index("chest")
 	var cloth := Color("#2a6a9a")
 	var lining := Color(LINING)
 	# the cowl: outer wall, then inner (a shade darker, facing in)
@@ -761,42 +773,8 @@ static func _mage_hood(kit: ArrayMesh) -> ArrayMesh:
 			hint.append(off)
 		rings.append(ring)
 		hints.append(hint)
-	_hood_grid(out, rings, hints, true, Vector2(0, 1.0), lining, head)
-	# the capelet, flaring from inside the cowl's foot to its hem, and the hem rolled
-	var top: Array = h["cape_top"]
-	var hem: Array = h["cape_hem"]
-	var z0 := (h["centre"] as Vector3).z
-	rings = []
-	hints = []
-	for k in 7:
-		var t := float(k) / 6.0
-		var s := pow(t, 0.7)
-		var ring := []
-		var hint := []
-		var rx := lerpf(top[1], hem[1], s)
-		var rz := lerpf(top[2], hem[2], s)
-		for j in around:
-			var th := TAU * j / around
-			ring.append(Vector3(rx * cos(th), lerpf(top[0], hem[0], t), z0 + rz * sin(th)))
-			hint.append(Vector3(cos(th) / rx, 0.35, sin(th) / rz).normalized())
-		rings.append(ring)
-		hints.append(hint)
-	_hood_grid(out, rings, hints, false, Vector2(4, 0.92), cloth, chest)
-	rings = []
-	hints = []
-	for j in around:
-		var th := TAU * j / around
-		var flat := Vector3(cos(th) / float(hem[1]), 0, sin(th) / float(hem[2])).normalized()
-		var mid := Vector3(float(hem[1]) * cos(th), float(hem[0]), z0 + float(hem[2]) * sin(th))
-		var ring := []
-		var hint := []
-		for g in tube:
-			var off := flat * cos(TAU * g / tube) + Vector3.UP * sin(TAU * g / tube)
-			ring.append(mid + off * float(h["hem"]))
-			hint.append(off)
-		rings.append(ring)
-		hints.append(hint)
-	_hood_grid(out, rings, hints, true, Vector2(0, 1.0), lining, chest)
+	_hood_grid(out, rings, hints, true, Vector2(TRIM_SLOT, 1.0), lining, head)
+	# (no capelet: below the hood the temple robe shows as the Beast Center staff wear it, collar and all)
 	# smooth normals: each vertex its triangles' (turned outward) summed
 	var pos: PackedVector3Array = out["pos"]
 	var idx: PackedInt32Array = out["idx"]
@@ -1386,12 +1364,15 @@ static func assemble(parts: Array, colours: Dictionary) -> Node3D:
 const ROBES := {"plain": [278, 268, 54], "hooded": [278, 268, 54, "mage_hood"], "cape": [273, 272, 268, 266]}
 ## The mage's hood (DERIVED "mage_hood", built in code: see _mage_hood; the kit's hood, part 281, was a thin faceted
 ## shell in a blue of its own): a deep cowl round the head, two walls thick, in the robe's colour (its inside a
-## darker shade), a fat rolled lining round the face in LINING (satin), a soft point falling back from the crown and
-## a short capelet over the shoulders with a rolled hem. Sizes in metres, as baked; the head's middle is CENTRE.
+## darker shade), a fat rolled lining round the face in the robe's second colour (trim; LINING without one) and a
+## soft point falling back from the crown; no capelet, so the robe below is the Beast Center staff's (the user's
+## 2026-11-24 call). Sizes in metres, as baked; the head's middle is CENTRE.
 const MAGE_HOOD := {"centre": Vector3(0, 1.44, -0.01), "radii": Vector3(0.53, 0.48, 0.51), "below": 0.5,
-	"wall": 0.06, "roll": 0.075, "side": 71.0, "up": 42.0, "down": 58.0, "point": 0.26, "inside": 0.55,
-	"cape_top": [1.06, 0.34, 0.3], "cape_hem": [0.84, 0.47, 0.39], "hem": 0.035}
+	"wall": 0.06, "roll": 0.075, "side": 71.0, "up": 42.0, "down": 58.0, "point": 0.26, "inside": 0.55}
 const LINING := "#ecc872"
+## A mage's robe is two-toned in their element's beast colours (the user's 2026-11-24 rule): a look's "element" picks
+## the swatches from BeastLooks.SKIN_PALETTES, these two (body, then the trim: hood lining, collar and hem).
+const MAGE_COLOURS := [0, 1]
 
 
 static func outfit(look: Dictionary) -> Dictionary:
@@ -1508,8 +1489,14 @@ static func outfit(look: Dictionary) -> Dictionary:
 			parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["top", "bottom", "arms", "back", "hat", "hood"])
 			parts.append_array(robe)
 			if look["robe"] == "hooded":
-				# a mage: bald under the hood, with no hat and no glasses
+				# a mage: bald under the hood, with no hat and no glasses, robed in their element's two beast colours
 				parts = parts.filter(func(id) -> bool: return not kinds[int(id)]["kind"] in ["hair", "glasses"])
+				var tones: Array = BeastLooks.SKIN_PALETTES.get(String(look.get("element", "")), [])
+				if tones.size() >= 2:
+					colours["top"] = Color(tones[MAGE_COLOURS[0]])
+					colours["trim"] = Color(tones[MAGE_COLOURS[1]])
+				elif look.has("trim"):
+					colours["trim"] = Color(look["trim"])
 			# bareheaded: anyone whose hat was all the hair they had gets a hairdo (long for long hair)
 			elif not parts.any(func(id) -> bool: return kinds[int(id)]["kind"] == "hair"):
 				parts.append_array(hairdo_parts(4 if int(look.get("hair_style", 0)) == 1 else 0))

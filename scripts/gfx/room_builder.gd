@@ -531,7 +531,7 @@ var temple := false
 var blocks := false
 ## a Spanish mission's finish (the template's "mission"): see _mission_decor
 var mission := false
-## an adobe house's finish (Sunwall's rooms, map_loader.gd _interior): see _adobe_decor
+## an adobe house's finish (Scaraba's rooms, map_loader.gd _interior): see _adobe_decor
 var adobe := false
 ## a fortune teller's parlour (the template's "parlour"): see _parlour_decor
 var parlour := false

@@ -157,7 +157,7 @@ The **top bar** (`scripts/ui/top_bar.gd`) is the one place for short messages at
 
 ### The menu shot
 
-When someone you're talking to opens a menu (a shop's, a Beast Center's, an arena's...), the camera eases in over about a second to an over-the-shoulder close-up of them on the left of the screen, and the menu stands on the right (beside the A/B buttons on touch).
+**The menu shot** (`world.gd` `menu_shot_begin`, from `UI.choose`) happens when someone you're talking to opens a menu (a shop's, a Beast Center's, an arena's...). The camera eases in over about a second to an over-the-shoulder close-up of them on the left of the screen, and the menu stands on the right (beside the A/B buttons on touch).
 
 - At a phone it frames the phone with more of the hero beside it.
 - Plain dialogue keeps the usual camera; the shot holds through a shop's next menu and eases back once the menus are done.

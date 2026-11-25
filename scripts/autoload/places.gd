@@ -930,6 +930,8 @@ func arena_challenge(town: String) -> String:
 		await _miner_pass(town)
 		if town == "kelpwick":
 			await Story.reef_opened(leader)
+		if town == "sundown":
+			await Story.north_road_opened(leader)
 		await Story.on_crest(leader)
 	return res
 
@@ -1476,13 +1478,7 @@ func prop(code: int, map: Dictionary, world, t: Vector2i) -> void:
 		return
 	if furniture == "hot_tub_sign":
 		await Story.say(["THE THERMAL SANCTUARY. A curated mineral spring, drawn from far beneath the earth and warmed to an exquisitely precise temperature.",
-			"Here, discerning beasts surrender their fatigue. A single languid soak fully restores HP and MP. Kindly refrain from splashing."])
-		return
-	if furniture == "hot_tub":
-		if await Story.ask("Let your beasts rest in the healing spring? Their HP and MP will be fully restored."):
-			GameState.heal_party()
-			Sfx.play("heal")
-			await Story.say(["The warm spring restores all your beasts' HP and MP."])
+			"Here, discerning beasts surrender their fatigue. Ascend the step, settle in and sit perfectly still: a single languid soak fully restores HP and MP and dissolves every ailment. Kindly refrain from splashing."])
 		return
 	if furniture == "ice_maker":
 		await Story.say(["The ice maker is broken. Not even a single cube."])

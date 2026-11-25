@@ -361,10 +361,13 @@ const ROOMS := {
 		],
 	},
 	## Dale's workroom: Dale on the east side of a crack, a chest with his old Wellspring Pendant across bridge 4 (-), which Dale lowers for you.
+	## Once the spring runs (well_restored), a stairway (S, "step_doors") opens in the floor just below the chest, down
+	## to the landing where the stream leaves the well and Dale's rowboat waits (well_landing).
 	"well_dale": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 2.0, "top_level": 3, "abyss": true, "masonry_cols": [0, 13],
 		"bridges": {"-": "well_bridge_4"},
-		"doors": {"A": "well_hub"},
+		"doors": {"A": "well_hub", "S": "well_landing"},
+		"step_doors": ["S"], "hidden_doors": {"S": "well_restored"},
 		"anchors": {"0": "dale", "1": "chest:wellspring_pendant#0"},
 		"rows": [
 			"##############",
@@ -373,7 +376,7 @@ const ROOMS := {
 			"##....  .0..##",
 			"#.....  .....#",
 			"#1....--.....A",
-			"#.....  .....#",
+			"#S....  .....#",
 			"##############",
 		],
 		"heights": [
@@ -387,11 +390,44 @@ const ROOMS := {
 			"33333333333333",
 		],
 	},
-	## Dale's hot spring: the same pink healing spring as the hotel's.
+	## The landing under Dale's workroom (its floor stairway, S): the stream the spring woke runs out of the rock and right
+	## across the cave ("ravine_drift": west to east), and a stone stairway ("stone_stairs": its ramps are steps,
+	## not ladders) leads down from the doorway's ledge to the water, where Dale's little rowboat (well_boat) is tied
+	## broadside. It rides the stream out to the sea, and runs aground on the Temple of Tides' isle (Story._well_boat).
+	"well_landing": {
+		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 1.0, "top_level": 2, "abyss": true,
+		"stone_stairs": true, "ravine_drift": [-0.55, 0.0], "pit_depth": 1.0,
+		"doors": {"A": "well_dale"},
+		# (the boat floats on the stream, so its tile stays a gap: anchor_tiles, not an anchor letter)
+		"anchor_tiles": {"well_boat": Vector2i(6, 5)},
+		"rows": [
+			"######A#######",
+			"####......####",
+			"##..........##",
+			"#............#",
+			"#............#",
+			"#            #",
+			"#            #",
+			"#............#",
+			"##############",
+		],
+		"heights": [
+			"22222222222222",
+			"22222222222222",
+			"22222222222222",
+			"11111^^^111111",
+			"11111111111111",
+			"10000000000001",
+			"10000000000001",
+			"11111111111111",
+			"11111111111111",
+		],
+	},
+	## Dale's hot spring: the same pink healing spring as the hotel's, its sign on the back wall.
 	"well_spa": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true,
 		"doors": {"A": "well_hub"},
-		"fixtures": [[2, 2, "hot_tub"], [3, 2, "hot_tub"], [2, 3, "hot_tub"], [3, 3, "hot_tub"]],
+		"fixtures": [[2, 2, "hot_tub"], [3, 2, "hot_tub"], [2, 3, "hot_tub"], [3, 3, "hot_tub"], [4, 0, "hot_tub_sign"]],
 		"rows": [
 			"#######",
 			"#....\\#",

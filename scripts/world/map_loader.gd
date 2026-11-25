@@ -868,7 +868,7 @@ static func room_set(b: Dictionary) -> Array:
 	return InteriorMaps.SHOP_ROOMS.get(shop, ["house_a"])
 
 
-## A room of an adobe town's house or shop (Sunwall): warm sand plaster walls over a band of darker earth, glazed
+## A room of an adobe town's house or shop (Scaraba): warm sand plaster walls over a band of darker earth, glazed
 ## terracotta tiles underfoot (room_builder.gd _adobe decor). The Beast Center,
 ## arena and Sky Tower keep their own rooms.
 static func _adobe_room(room: Dictionary) -> Dictionary:
@@ -1023,7 +1023,11 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		for x in w:
 			var ch := row[x]
 			var p := Vector2i(x, y)
-			if door_rooms.has(ch):
+			if door_rooms.has(ch) and room.get("hidden_doors", {}).has(ch) and not flags.get(room["hidden_doors"][ch], false):
+				# (a way that isn't there until its flag is set: the stairs in the floor down to Dale's landing, plain floor
+				# until the spring runs)
+				MapGen.set_t(m, x, y, MapGen.IFLOOR)
+			elif door_rooms.has(ch):
 				# (a flight of stairs can lead to another room too: down out of a drained pool, say)
 				MapGen.set_t(m, x, y, MapGen.STAIRS_DOWN if ch == "<" else (MapGen.STAIRS_UP if ch == ">" else MapGen.IDOOR))
 				links[p] = door_rooms[ch]
@@ -1100,8 +1104,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 				downs.append(p)
 	for fixture in room.get("fixtures", []):
 		var p := Vector2i(int(fixture[0]), int(fixture[1]))
-		# (the spa's sign hangs on the platform's railing, so its tile stays walkable; world.gd reads it from "furniture")
-		if fixture[2] != "hot_tub_sign":
+		# (the spa's sign hangs on the platform's railing, so its tile stays walkable; world.gd reads it from "furniture";
+		# the healing spring itself is walked into by its front steps and soaked in, world.gd _soak)
+		if not fixture[2] in ["hot_tub_sign", "hot_tub"]:
 			MapGen.set_t(m, p.x, p.y, MapGen.FURN)
 		m["furniture"][p] = fixture[2]
 	for swimmer in room.get("swimmers", []):
@@ -1120,8 +1125,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	if m["spawns"].has("entry"):
 		spots.append(m["spawns"]["entry"])
 	for q in spots:
-		# (an anchor set in a wall, like the Temple of Tides' wave panel in its doorway, stays the wall)
-		if MapGen.get_t(m, q.x, q.y) in [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED]:
+		# (an anchor set in a wall, like the Temple of Tides' wave panel in its doorway, stays the wall; one over a gap,
+		# like Dale's rowboat on its stream, stays the gap)
+		if MapGen.get_t(m, q.x, q.y) in [MapGen.IWALL, MapGen.IWINDOW, MapGen.IDOOR, MapGen.LOCKED, MapGen.IVOID]:
 			continue
 		MapGen.set_t(m, q.x, q.y, floor_around(m, q, MapGen.get_t(m, q.x, q.y)))
 	# the older furniture tiles are drawn as furniture too
@@ -1184,6 +1190,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			push_warning("%s: a door to %s, which %s doesn't have" % [key, links[t], b["shop"]])
 			continue
 		m["exits"][t] = {"to": floor_id(base, to + 1), "spawn": "from_" + key, "room": links[t]}
+		# (a flight of steps down through the floor, walked down into: well_cave.gd _step_doors, world.gd _down_steps)
+		if String(rows[t.y])[t.x] in room.get("step_doors", []):
+			m["exits"][t]["steps"] = true
 		if shut.has(t):
 			m["exits"][t]["locked_by"] = shut[t]
 		m["spawns"]["from_" + String(links[t])] = t + _into_room(m, t)
@@ -1384,7 +1393,7 @@ static func _room_npc(role: String, b: Dictionary, p: Vector2i, rng: RandomNumbe
 			return {"kind": "trainer", "pos": p, "facing": Vector2i(0, 1), "sight": 3, "flag": "tr_%s_%s" % [map_id, ch],
 				"name": "Bart the Jackal" if boss else "Bandit %s" % WorldDB.TRAINER_NAMES[rng.randi_range(0, 30)], "cls": "Bandit Boss" if boss else "Bandit",
 				"look": BANDIT_LOOK, "team": team, "lines": ["This here's our hideout, stranger. Turn around!"] if not boss else ["So you're the one roughin' up my boys. Let's dance!"],
-				"defeat": "Alright, alright! We'll leave Sunwall alone!" if boss else "Ugh... the boss won't like this.", "vanish": not boss, "bandit_boss": boss}
+				"defeat": "Alright, alright! We'll leave Scaraba alone!" if boss else "Ugh... the boss won't like this.", "vanish": not boss, "bandit_boss": boss}
 		"grunt", "ghost_grunt":
 			var lv3 := 44 if role == "ghost_grunt" else 40
 			var team2 := []

@@ -181,7 +181,7 @@ const MAPS := {
 			"TTTTT...~~.TTTT~..TTTTTT.!!!.TTTTTTTTTTTTT.~~~....~~~___~~~~_TTTTTTTTTTTTTTTTTT_~~~~",
 			"TTTTT..~~..TTT~...TTTTTT.!!!.TTTTTTTTTTTTT~~~.TTTT~~~___~~~~_TTTTTTTTTTTTTTTTTT_~~~~",
 			"TTTTT..~~..TTT~...TTTTTT.!!!.TTTTTTTTTTTTT~~~.TTTT~~~~~~~~~~_TTTTTTTTTTTTTTTTTT_~~~~",
-			"TTTTTTTT~~TTTTT~TTTTTTTTT!!!TTTTTTTTTTTTTT.~~~TTTT~~~~~~~~~~_TTTTTTTTTTTTTTTTTT_~~~~",
+			"TTTTTTTT~~TTTTT~TTTTTTTTT!!!TTTTTTTTTTTTTT.~~~TTTT~~~~~~~~~~____________________~~~~",
 			"TTTTTTTTT~~TTTTT~TTTTTTTT!!!TTTTTTTT~~~~~~~~~~~~~~~~~~~~~~~~~__________________~~~~~",
 			"TTTTTTTTT~~TTTTT~TTTTTTTT!!!TTTTTTTT~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
 			"TTTTTTTT~~TTTTT~TTTTTTTTT!!!TTTTTTTT~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
@@ -223,6 +223,8 @@ const MAPS := {
 		"floods": {"!": {"flag": "sluice_reef", "wet": "~", "dry": "_"}, ";": {"flag": "sluice_reef", "wet": "~", "dry": ","},
 			"?": {"flag": "sluice_reef", "wet": "~", "dry": "_", "rises": true}},
 		"anchors": {"3": "lever:sluice_reef", "4": "tide_keeper"},
+		# Dale's rowboat runs aground on the isle's south beach (Story._well_boat): the wreck, and the beachcomber there
+		"anchor_tiles": {"boat_wreck": Vector2i(69, 25), "beachcomber": Vector2i(66, 24)},
 		"levers": {"sluice_reef": {"ask": "An old sluice lever, green with moss. Pull it?",
 			"lines": ["With a groan, the sluice gate swings across. The river turns into its old channel...",
 				"...and the ford below runs dry!"],
@@ -532,7 +534,7 @@ const MAPS := {
 		"signs": [
 			"Kennel Barn. Beasts looking for a new home wait inside. Adopt one, or leave one in good hands.",
 			"Rockslide! Push the boulders to clear a way north. (Stuck? Leave the trail and come back, and they'll be back where they started.)",
-			"Mesa Trail. North: Sunwall.",
+			"Mesa Trail. North: the Scaraba Desert.",
 		],
 		"weapon_obstacles": [
 			{"id": "mesa_rock", "type": "cracked_rock", "targets": [Vector2i(7, 9)], "use_from": Vector2i(8, 9), "coach_pos": Vector2i(8, 8),
@@ -587,8 +589,8 @@ const MAPS := {
 			"TTf....T......,,..g...TT",
 			"TT.....f....f.,,..<...TT",
 			"TT.f..........,,.....#TT",
-			"TT#########&&#########TT",
-			"TT#########&&#########TT",
+			"TT#########,,#########TT",
+			"TT#########,,#########TT",
 			"TT..T....t.,,...JJJJ..TT",
 			"TT.......t.,,...JJJJ.fTT",
 			"TT..$..T...,,...JJJJ..TT",
@@ -598,7 +600,7 @@ const MAPS := {
 			"TTTTTTTTTTT,,TTTTTTTTTTT",
 			"TTTTTTTTTTT,,TTTTTTTTTTT",
 		],
-		# the Temple of Winds on a dune, up a ramp from the road; a rock wall across the south
+		# Valkoog, the air temple (TEMPLES air), on a dune, up a ramp from the road; a rock wall across the south
 		"heights": [
 			"221111111111100111111122",
 			"2/1111111111/00\\111111\\2",
@@ -658,9 +660,8 @@ const MAPS := {
 			"000000000000000000000000",
 		],
 		"signs": [
-			"The Dune Sea. Many go in. Few come out.",
+			"The Scaraba Desert. Many go in. Few come out.",
 		],
-		"gate": {"flag": "bandits_cleared", "text": "A bandit barricade blocks the road into the Dune Sea. Captain Dalton says only clearing out the gang will open it."},
 	},
 	"route6": {
 		"rows": [

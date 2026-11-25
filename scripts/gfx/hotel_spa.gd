@@ -1,5 +1,6 @@
 extends RefCounted
-## Hotel spa dressing; navigation and steps come from the room's shared dais.
+## Hotel spa dressing; navigation and steps come from the room's shared dais. The healing spring itself is walked into
+## by its own front steps (world.gd _spa_way, _soak).
 
 static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material) -> void:
 	var spa := Node3D.new()
@@ -45,7 +46,52 @@ static func build(parent: Node3D, at: Vector3, tile: Material, ivory: Material) 
 	water.set_shader_parameter("drift", Vector2(0.0, 0.03))
 	var surface := _piece(spa, pool, water, Vector3(0, 0.425, 0))
 	surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_steps(spa, tile, ivory)
 	_steam(spa)
+
+
+## The way in (world.gd _spa_way): one low curved step outside the rim, below its lip, centred on the line you walk in
+## by, the front-right tile's middle (ENTRY_X right of the spring's middle, walking north), and as wide as that tile.
+## [inner radius, outer radius, top] from the spring's middle.
+const STEP := [1.12, 1.42, 0.25]
+const ENTRY_X := 0.5
+const STEP_ARC := 21.0
+
+
+static func _steps(parent: Node3D, tile: Material, ivory: Material) -> void:
+	var r: float = (STEP[0] + STEP[1]) / 2.0
+	var turn := asin(ENTRY_X / r)
+	var top: float = STEP[2]
+	var block := _piece(parent, _arc(STEP[0], STEP[1], 0.0, top - 0.04, STEP_ARC), tile, Vector3.ZERO)
+	var cap := _piece(parent, _arc(STEP[0], STEP[1] + 0.02, top - 0.05, top, STEP_ARC + 1.0), ivory, Vector3.ZERO)
+	block.rotation.y = turn
+	cap.rotation.y = turn
+
+
+## A solid curved slab: the ring between radii r0 and r1, from y0 to y1, `half` degrees either side of +z.
+static func _arc(r0: float, r1: float, y0: float, y1: float, half: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 16
+	var at := func(r: float, a: float, y: float) -> Vector3: return Vector3(sin(a) * r, y, cos(a) * r)
+	var quad := func(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+		for v in [a, c, b, a, d, c]:
+			st.add_vertex(v)
+	for k in n:
+		var a0 := deg_to_rad(lerpf(-half, half, float(k) / n))
+		var a1 := deg_to_rad(lerpf(-half, half, float(k + 1) / n))
+		quad.call(at.call(r0, a0, y1), at.call(r1, a0, y1), at.call(r1, a1, y1), at.call(r0, a1, y1))
+		quad.call(at.call(r1, a0, y1), at.call(r1, a0, y0), at.call(r1, a1, y0), at.call(r1, a1, y1))
+		quad.call(at.call(r0, a1, y1), at.call(r0, a1, y0), at.call(r0, a0, y0), at.call(r0, a0, y1))
+	for a in [deg_to_rad(-half), deg_to_rad(half)]:
+		var s := 1.0 if a < 0.0 else -1.0
+		var p := [at.call(r0, a, y1), at.call(r0, a, y0), at.call(r1, a, y0), at.call(r1, a, y1)]
+		if s > 0.0:
+			quad.call(p[0], p[1], p[2], p[3])
+		else:
+			quad.call(p[3], p[2], p[1], p[0])
+	st.generate_normals()
+	return st.commit()
 
 
 ## The spa's small plaque: how big it is, and how high its middle stands above the platform (under the railing's
@@ -68,9 +114,24 @@ static func plaque_at(t: Vector2i, dais_h: float) -> Vector3:
 ## The spa's small plaque on the platform's front railing at fixture tile `t`, facing the camera: an ivory board with
 ## the steam glyph and two words of world lettering.
 static func plaque(parent: Node3D, t: Vector2i, dais_h: float, ivory: Material) -> void:
+	plaque_on(parent, plaque_at(t, dais_h), ivory)
+
+
+## A spa whose sign hangs on a wall instead (Dale's cave spring): the fixture is the wall tile `t` itself, read from
+## the floor in front of it, the plaque on its south face this high above floor level `floor_y`.
+const WALL_UP := 1.25
+const WALL_OUT := 0.16
+
+
+static func wall_plaque_at(t: Vector2i, floor_y: float) -> Vector3:
+	return Vector3(t.x + 0.5, floor_y + WALL_UP, t.y + 1.0 + WALL_OUT)
+
+
+## Every healing spring has this sign explaining it (Places.prop "hot_tub_sign"), at `at`, facing the camera.
+static func plaque_on(parent: Node3D, at: Vector3, ivory: Material) -> void:
 	var plate := Node3D.new()
 	plate.name = "SpaPlaque"
-	plate.position = plaque_at(t, dais_h)
+	plate.position = at
 	parent.add_child(plate)
 	var board := BoxMesh.new()
 	board.size = Vector3(PLAQUE_SIZE.x, PLAQUE_SIZE.y, PLAQUE_DEPTH)
