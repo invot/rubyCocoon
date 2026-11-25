@@ -218,7 +218,7 @@ func _pit_level() -> void:
 				if _inside(q) and not rb.wallish(q.x, q.y) and _code(q) != MapGen.IVOID:
 					rim = minf(rim, Elev.surface(map, q))
 	pit_rim = rim if rim < INF else abyss_y + ABYSS_DEPTH
-	# (a room can sink its ravine less: Dale's landing, whose stream runs just under its banks)
+	# (a room can sink its ravine less: Dale's workroom, whose channel runs just under the step at its stairs' foot)
 	pit_y = pit_rim - float(map.get("room", {}).get("pit_depth", PIT_DEPTH))
 
 
@@ -559,7 +559,7 @@ func _cliffs() -> void:
 					# (inside the crack running back into the rock: kept under its roof, so nothing pokes out over the back)
 					top -= SUNK
 				var low := _low_at(q, d)
-				if _open_front(q):
+				if _open_front(q) and not map.get("room", {}).get("front_water", false):
 					# a crack running out of the map's front: nothing hangs towards the camera, and its sides only
 					# go as deep as the floor in front of them hides (but rock where it ends at the back always shows
 					# its face, so a black gap never opens there, nor behind its waterfall: _ravine_water)
@@ -939,8 +939,9 @@ func _ladders() -> void:
 			var top := Vector3(x + 0.5, Elev.edge(map, p, r) + 0.28, y + 0.5) + Vector3(r.x, 0, r.y) * 0.5
 			var across := Vector3(absf(r.y), 0, absf(r.x))
 			if map.get("room", {}).get("stone_stairs", false):
-				# (Dale's landing: a stone stairway down to the stream, walked, not climbed)
-				_stone_steps(p, Vector2(r), Elev.edge(map, p, -r), Elev.edge(map, p, r), 4)
+				# (Dale's workroom: a stone stairway down to the water, walked, not climbed; its blocks stand on the
+				# channel's bed, so they close its open side)
+				_stone_steps(p, Vector2(r), Elev.edge(map, p, -r), Elev.edge(map, p, r), 3, pit_y)
 				continue
 			if p in map.get("fallen_ladders", []):
 				_broken_ladder_top(foot, top, across)
@@ -1091,9 +1092,6 @@ func _box(at: Vector3, size: Vector3, mat: Material) -> void:
 func _doorways() -> void:
 	for p: Vector2i in map.get("exits", {}):
 		var ex: Dictionary = map["exits"][p]
-		if ex.get("steps", false):
-			_step_door(p)
-			continue
 		var y := _door_level(p)
 		var dark := StandardMaterial3D.new()
 		dark.albedo_color = Color("#0b0809")
@@ -1146,7 +1144,7 @@ func _away(p: Vector2i) -> Vector2i:
 	return Vector2i.UP
 
 
-## Cut stone for the stairways (_step_door, _stone_steps): the ravines' flagstones, a shade lighter.
+## Cut stone for the stairways (_stone_steps): the ravines' flagstones, a shade lighter.
 var _steps_mat: StandardMaterial3D
 
 
@@ -1174,38 +1172,6 @@ func _stone_steps(p: Vector2i, up: Vector2, low: float, high: float, n: int, bas
 		var from := -0.5 + float(j) / float(n)
 		var mid := c + u * ((from + 0.5) / 2.0)
 		_box(Vector3(mid.x, (top + foot) / 2.0, mid.z), across * 0.98 + u.abs() * (0.5 - from) + Vector3(0, top - foot, 0), _step_stone())
-
-
-## A stairway down through the floor (the room's "step_doors": the one under Dale's chest): a hole in the floor with
-## stone steps going down in it towards the back (so the camera, looking in over the front, sees down them), rock round
-## its sides and back, and a faint blue light from the water below, walked down into (world.gd _down_steps).
-const STEP_DEPTH := 1.25
-func _step_door(p: Vector2i) -> void:
-	var y := _door_level(p)
-	_stone_steps(p, Vector2(0, 1), y - STEP_DEPTH, y, 5, y - STEP_DEPTH - 0.6)
-	# (the cheeks: rock on its sides and at its back, down past the bottom step)
-	var low := y - STEP_DEPTH - 0.6
-	for side in [[Vector3(p.x - 0.04, 0, p.y + 0.5), Vector3(0.1, 0, 1.0)], [Vector3(p.x + 1.04, 0, p.y + 0.5), Vector3(0.1, 0, 1.0)],
-			[Vector3(p.x + 0.5, 0, p.y - 0.04), Vector3(1.18, 0, 0.1)]]:
-		var at: Vector3 = side[0]
-		var size: Vector3 = side[1]
-		_box(Vector3(at.x, (y + low) / 2.0, at.z), size + Vector3(0, y - low, 0), rock)
-	# a stout wooden rail along its back and front, as round a house's stairwell, open towards the room (you go in from
-	# the east): posts at its corners and one between, a rail across their tops
-	for z: float in [p.y + 0.06, p.y + 0.94]:
-		for x: float in [p.x + 0.08, p.x + 0.5, p.x + 0.94]:
-			_box(Vector3(x, y + 0.4, z), Vector3(0.1, 0.8, 0.1), wood)
-		_box(Vector3(p.x + 0.51, y + 0.82, z), Vector3(0.96, 0.08, 0.12), wood)
-	# (closed in black along the room's front edge, as under the rest of the floor: nothing hangs below the front)
-	_box(Vector3(p.x + 0.5, (y - 0.02 + low) / 2.0, p.y + 1.0 + 0.02), Vector3(1.3, y - 0.02 - low, 0.04), _black)
-	var glow := OmniLight3D.new()
-	glow.light_color = Color("#8fc8e8")
-	glow.light_energy = 0.5
-	glow.omni_range = 2.2
-	glow.light_volumetric_fog_energy = 0.0
-	glow.shadow_enabled = false
-	glow.position = Vector3(p.x + 0.5, y - STEP_DEPTH + 0.3, p.y + 0.25)
-	rb.parent.add_child(glow)
 
 
 ## Dale's hot spring: the hotel's pink healing pool (its "hot_tub" fixtures, Places.prop) in the rock.
@@ -1288,6 +1254,11 @@ func _ravines() -> void:
 			rb.parent.add_child(glow)
 	if flowing:
 		_ravine_water()
+
+
+## The ravines' water, once they flow (the bed when they're dry).
+func _water_y() -> float:
+	return pit_y + (WATER_DEPTH if map.get("well_flowing", false) else 0.0)
 
 
 func _ravine_water() -> void:
@@ -1870,6 +1841,9 @@ func _roof() -> void:
 					edge = minf(edge, Elev.surface(map, f))
 			if edge < INF:
 				break
+		if _abyss(Vector2i(x, fy)) and map.get("room", {}).get("front_water", false):
+			# (a channel along the front: black only up under its water, so its surface runs right to the edge)
+			edge = minf(edge, _water_y() - 0.02)
 		if edge == INF:
 			continue
 		var z := fy + 1.005

@@ -467,10 +467,11 @@ const MAPS := {
 			"5": {"name": "Oasis Saloon", "rooms": ["saloon", "saloon_hall", "saloon_room_a", "saloon_room_b", "saloon_back", "saloon_stage", "saloon_office"], "frontier": "saloon", "paint": "red"},
 			"6": {"name": "Dustwell Jail", "rooms": ["jail"], "frontier": "jail", "paint": "yellow"},
 			# the town well: climbing down it is the way into the beavers' cave (docs/dustwell-water-arc.md)
-			"7": {"name": "Dustwell Well", "rooms": ["well_main", "well_bever1", "well_cellar", "well_nook", "well_long", "well_crack", "well_bever2", "well_bever3", "well_bever4", "well_hall", "well_bever5", "well_hub", "well_dale", "well_bedroom", "well_spa", "well_landing"], "well": true},
+			"7": {"name": "Dustwell Well", "rooms": ["well_main", "well_bever1", "well_cellar", "well_nook", "well_long", "well_crack", "well_bever2", "well_bever3", "well_bever4", "well_hall", "well_bever5", "well_hub", "well_dale", "well_bedroom", "well_spa"], "well": true},
 			# the elemental mages' old church, taken over by bandits who hunt mages: its doors barred, two of them at the
 			# door (frontier_builder.gd _church, Story._church_bandit)
-			"8": {"name": "Old Church", "frontier": "church", "knockable": true, "rooms": []}},
+			"8": {"name": "Old Church", "frontier": "church", "knockable": true,
+				"rooms": ["church_nave", "church_cellar", "church_gallery", "church_barred", "church_room"]}},
 		"anchor_tiles": {"church_bandit_0": Vector2i(38, 19), "church_bandit_1": Vector2i(40, 19)},
 		# water troughs by the saloon, a wagon east of the church (Slim hides behind it), barrels and crates
 		"street_props": [[14, 6, "water_trough", 1], [20, 6, "barrel", 1], [36, 6, "crate", 2], [44, 16, "wagon", 1],
@@ -547,6 +548,8 @@ const MAPS := {
 		"palm_groves": [[2, 2, 40, 27]],
 		# keeps the saved interiors of the old town (arena, Center, houses, shops) in the same order
 		"building_order": [[24, 2], [17, 2], [3, 3], [8, 3], [33, 3], [37, 3], [3, 18], [8, 21], [17, 21], [23, 21], [32, 18]],
+		# Inspector Grubb's house by the west wall, over the old cistern where Tam and Saffi hide (scaraba_town.gd)
+		"building_looks": {"6": {"name": "Grubb's House", "rooms": ["twins_house", "twins_cistern"], "twins": true}},
 		"prop_clearance": [[2, 6, 40, 2], [14, 2, 2, 28], [29, 13, 2, 11], [2, 24, 40, 2], [5, 21, 1, 3], [34, 21, 1, 3], [20, 12, 4, 2]],
 		# the market along the plaza's north side, jars by the plaza and the south gate, and the well west of the plaza
 		"street_props": [[18, 8, "adobe_stall", 1], [20, 8, "adobe_stall", 1], [25, 8, "adobe_stall", 1], [27, 8, "adobe_stall", 1],

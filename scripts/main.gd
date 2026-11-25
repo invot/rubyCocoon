@@ -5,6 +5,8 @@ extends Node
 ## preloaded: the title screen appears first and loads them in the background (see _title_backdrop).
 const WORLD_PATH := "res://scripts/world/world.gd"
 const BuildEdition = preload("res://scripts/core/build_edition.gd")
+const DesertCrossing = preload("res://scripts/world/desert_crossing.gd")
+const AirTemple = preload("res://scripts/world/air_temple.gd")
 const BATTLE_PATH := "res://scripts/battle/battle.gd"
 const PANEL_PATH := "res://scripts/battle/command_panel.gd"
 ## Resources the world's scripts preload that have to be loaded on the main thread (see _title_backdrop).
@@ -584,6 +586,8 @@ func _do_goto(id: String, spawn, face := Vector2i.ZERO, fade := 0.25, swirl := f
 		cost_load_phases = {}
 		_cost_load_clock = Time.get_ticks_usec()
 	Story.riverboat_shore(id, spawn)
+	# (into the Scaraba Desert: the section at the end walked in at, desert_layout.gd)
+	DesertCrossing.arrive(id, spawn)
 	await _load_world(id, spawn, false, face)
 	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	# Draw the finished map while it's still dark, so any first-draw hitch doesn't cut into the fade (a long frame's
@@ -845,6 +849,13 @@ func start_battle(cfg: Dictionary) -> String:
 	Sfx.battle_start()
 	if not _test.is_empty():
 		print("[battle] intro=", cfg.get("intro", "trainer"), " ambush=", cfg.get("ambush", ""), " foes=", cfg["foes"].map(func(f): return "%s L%d" % [f.nickname, f.level]))
+	# Valkoog's inner ways (WP6): every battle in them is fought with the twins beside you and the Air Shield up, and a
+	# loss resets the room
+	var room_key := ""
+	if is_instance_valid(world) and world.get("map") is Dictionary:
+		room_key = String(world.map.get("room_key", ""))
+	if AirTemple.in_temple(room_key):
+		AirTemple.decorate_battle(cfg)
 	var trainer_spiral: bool = not bool(cfg.get("wild", false))
 	var spiral: bool = trainer_spiral or SPIRAL_COLORS.has(String(cfg.get("intro", "")))
 	if spiral:
@@ -896,11 +907,17 @@ func start_battle(cfg: Dictionary) -> String:
 	GameState.recharge_shield()
 	if result == "lose":
 		GameState.heal_party()
-		GameState.gold = int(GameState.gold * 0.5)
-		var town := WorldDB.nearest_center(world.map_id, GameState.visited)
-		GameState.last_center = town
-		goto_map(town, "center")
-		UI.toast("You lost half your gold...", "coin")
+		if bool(cfg.get("retry_room", false)):
+			# a Valkoog room's retry (WP5): the room resets where you stand, the Air Shield gathers again, and the
+			# escort isn't punished for the fall (no gold lost, no walk back from a Beast Center)
+			GameState.refill_air_shield()
+			UI.toast("The room resets. The Air Shield gathers again.")
+		else:
+			GameState.gold = int(GameState.gold * 0.5)
+			var town := WorldDB.nearest_center(world.map_id, GameState.visited)
+			GameState.last_center = town
+			goto_map(town, "center")
+			UI.toast("You lost half your gold...", "coin")
 	if not returned_during_rewards or held_stage or result == "lose":
 		await UI.fade_in(0.3)
 	# Keep detection blocked through the fade, then grant the full field-control window only to wild battles.
@@ -975,7 +992,7 @@ func _run_test() -> void:
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
 		return
-	if scene == "bag-limit" or scene == "bag-actions" or scene == "loading-art" or scene == "item-chests":
+	if scene == "bag-limit" or scene == "bag-actions" or scene == "loading-art" or scene == "item-chests" or scene == "dungeon-export":
 		await load("res://tools/debug/%s.gd" % scene.replace("-", "_")).new().run(self, _test)
 		if _test.get("quit", "1") == "1":
 			get_tree().quit()
@@ -1082,8 +1099,20 @@ func _run_test() -> void:
 		await load("res://tools/debug/transitions.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "desert-layout":
+		await load("res://tools/debug/desert_layout.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "scaraba-town":
+		await load("res://tools/debug/scaraba_town.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "scaraba-route":
 		await load("res://tools/debug/scaraba_route.gd").new().run(self, _test)
+		get_tree().quit()
+		return
+	if scene == "scaraba-return":
+		await load("res://tools/debug/scaraba_return.gd").new().run(self, _test)
 		get_tree().quit()
 		return
 	if scene == "shellhaven-marina":
@@ -2059,6 +2088,22 @@ func _run_test() -> void:
 	elif scene == "battle-poses":
 		# the beasts' battle poses through the battle camera: a cast's cuts, Defend and a block, hits, a heal, a faint
 		await load("res://tools/debug/battle_poses.gd").new().run(self)
+	elif scene == "guest-battle":
+		# Tam and Saffi as guest combatants, the Air Shield's gauge and warning, the 1 HP guard and a retry room's
+		# refill (--shots= takes the debug battle's screenshots)
+		await load("res://tools/debug/guest_battle.gd").new().run(self, _test)
+	elif scene == "valkoog":
+		# the air temple end to end: the star on every floor, the keepers' chamber, the summit and its guardian, the
+		# released wind, the conduit's rubbing (--valkoog_shots= takes the floors' screenshots)
+		await load("res://tools/debug/valkoog.gd").new().run(self, _test)
+	elif scene == "church-after":
+		# the Dustwell church and undercroft: Grubb's key, the beavers, Hoss's confession, the strongbox and the reunion
+		# (--church_shots= takes the door, the nave, the cellar, the gallery, the trainers and the reunion)
+		await load("res://tools/debug/church_after.gd").new().run(self, _test)
+	elif scene == "scaraba-after":
+		# after Valkoog: the road ambush, Grubb's report, the searched cistern, the gate wagon both ways (--after_shots=
+		# takes the ambush, the wagon, the landing and the cistern)
+		await load("res://tools/debug/after_valkoog.gd").new().run(self, _test)
 	elif scene == "ringedit":
 		# arranging your beasts: the ring editor's rules, then tapping its cells (--shot: with a beast picked up)
 		await _ringedit_test()

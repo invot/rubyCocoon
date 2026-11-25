@@ -99,11 +99,19 @@ const ITEMS := {
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
 	## The Dustwell Well's beavers hand these over when beaten (docs/dustwell-water-arc.md).
 	"well_wood": {"name": "Beaver Planks", "kind": "key", "price": 0, "tier": 99, "desc": "Chewed-smooth planks from a beaver's stash. Enough to mend a broken rope bridge in the well."},
+	"freight_tag": {"name": "Freight Tag", "kind": "key", "price": 0, "tier": 99, "desc": "A brass tag from the scree on the Mesa Trail, stamped with a gear in a circle and a freight number. Someone moved caged beasts north through here in a hurry."},
+	"jackal_handbill": {"name": "Jackals' Handbill", "kind": "key", "price": 0, "tier": 99, "desc": "WANTED: THE WIND TWINS. Thieves and air wizards, about so high. Bounty paid by the Jackals. Bart's mark is printed at the bottom, very large."},
+	"jackal_handbills": {"name": "Jackals' Handbills", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of the Jackals' wanted notices, found in the searched cistern. The same print as the one Bart gave you, with a list of houses the twins were \"seen\" near, in his own hand: the lie, written down before the town repeated it."},
+	"coded_ledger": {"name": "Coded Ledger", "kind": "key", "price": 0, "tier": 99, "desc": "Hoss's ledger from the church strongbox, in a freight cipher. Gearheart payments, dates, and a list of names with the prices paid for them."},
+	"freight_manifest": {"name": "Freight Manifest", "kind": "key", "price": 0, "tier": 99, "desc": "A Gearheart manifest folded in with the ledger: Copperpick ore going north, and a depot at Cogsworth taking delivery of 'stock'. The trainers are entered as freight."},
+	"windward_charm": {"name": "Windward Charm", "kind": "key", "price": 0, "tier": 99, "desc": "A knot of hide and copper wire from Bart the Jackal. He says it turns an air wizard's wind aside. Jackal-made, so who knows."},
 	"well_key": {"name": "Well Key", "kind": "key", "price": 0, "tier": 99, "desc": "An old iron key, a little nibbled. It opens a locked door in the well's great chamber."},
 	"well_rope": {"name": "Beaver Rope", "kind": "key", "price": 0, "tier": 99, "desc": "A long coil of knotted rope. Enough for the two rope bridges still down in the well."},
 	"well_ladder": {"name": "Beaver Ladder", "kind": "key", "price": 0, "tier": 99, "desc": "A sturdy wooden ladder. The well's great chamber has a fallen one that needs replacing."},
 	## An element's stone lets the hero use that element's magic, like the stones on beasts' heads.
 	"water_stone": {"name": "Water Stone", "kind": "key", "price": 0, "tier": 99, "desc": "A cool blue stone, like the ones on water beasts' heads. Carrying it lets you work water magic: water spells in battle and in the field."},
+	"air_stone": {"name": "Air Stone", "kind": "key", "price": 0, "tier": 99, "desc": "A pale stone, warm and very light, from the hill behind Valkoog. Carrying it lets you work air magic: air spells in battle."},
+	"conduit_rubbing": {"name": "Conduit Rubbing", "kind": "key", "price": 0, "tier": 99, "desc": "A charcoal rubbing of the stamp on the gear-iron pipe the wind bared below Valkoog: a gear in a circle, and under it COGWORKS FREIGHT, SUBLEVEL 4."},
 	## Trainer weapons appear on the trainer's battle bar and are never sold or used up.
 	## weapon: target ("enemy": one foe, or an open trainer; "enemies": every foe on the side facing you), power (each
 	## hit's damage against the slingshot's), anim (the trainer's pose: voxel_person.gd set_action), order (in the bar).

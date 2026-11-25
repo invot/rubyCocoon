@@ -1,6 +1,8 @@
 extends Node
 ## Everything that happens inside buildings: shops, Beast Centers, arenas, temples and attractions.
 
+const ScarabaTown = preload("res://scripts/story/scaraba_town.gd")
+const DesertCrossing = preload("res://scripts/world/desert_crossing.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const LadderDB = preload("res://scripts/data/ladder_db.gd")
@@ -907,6 +909,10 @@ func arena_challenge(town: String) -> String:
 	var leader := "%s %s" % [a["title"], a["leader"]]
 	var beaten: bool = GameState.crests.has(a["crest"])
 	var song := SongDB.get_song(a["song"])
+	if town == "sundown" and not beaten and not GameState.flag("sable_trainers_home"):
+		# Sable won't fight while her three juniors are missing (scaraba_town.gd)
+		await ScarabaTown.sable_waits(leader)
+		return "skip"
 	if GameState.alive_party().is_empty():
 		var healer := "the Beast Center" if WorldDB.TOWNS.get(town, {}).get("shops", ["center"]).has("center") else "the machine in the corner"
 		await Story.say(["Your beasts can barely stand. Heal them at %s first!" % healer], leader)
@@ -1063,11 +1069,15 @@ func _learn_temple_song(tk: String) -> void:
 		await _open_song_door(tk)
 
 
-## In a temple with a song room of its own, learning the song opens the stone door to the guardian.
+## In a temple with a song room of its own, learning the song opens the stone door to the guardian (the Stone of
+## Tides' wave door, or Valkoog's wind-cut seam).
 func _open_song_door(tk: String) -> void:
-	if not WorldDB.TEMPLES[tk].has("song_room") or GameState.flag("tides_song_door"):
+	if not WorldDB.TEMPLES[tk].has("song_room"):
 		return
-	GameState.set_flag("tides_song_door")
+	var door_flag: String = String(WorldDB.TEMPLES[tk].get("song_door", "tides_song_door"))
+	if GameState.flag(door_flag):
+		return
+	GameState.set_flag(door_flag)
 	var world = GameState.main.world
 	world.refresh_tide()
 	if world.room_walls == null:
@@ -1355,16 +1365,25 @@ func fortune() -> void:
 ## Whether a building's door is locked: about a third of the houses, and the cathedral until its guard is beaten.
 ## Locked doors are painted a colour of their own (voxel_buildings.gd); all you can do is knock.
 func door_locked(b: Dictionary) -> bool:
+	# Dustwell's old church: barred until Inspector Grubb unlocks it (church_chapter.gd)
+	if b.get("frontier", "") == "church":
+		return not GameState.flag("church_entered")
 	if b.get("knockable", false):
 		return true
 	# Hotel Mariposa stands on a house plot, but it's a business: always open, whatever its seed rolls.
 	if b.get("hotel", false) or b.get("public", false):
 		return false
+	if b.get("twins", false):
+		# Grubb's house in Scaraba, over the twins' cistern: he unlocks it when you talk to him (scaraba_town.gd)
+		return not GameState.flag("met_grubb")
 	match b["shop"]:
 		"house":
 			return house_locked(b)
 		"cathedral":
 			return not GameState.flag("tr_gravenmoor_gate")
+		"temple":
+			# Valkoog's doors read the star, then wait for a gust no water stone can make (desert_crossing.gd)
+			return String(b.get("town", "")) == "route5" and not (GameState.flag("valkoog_open") or GameState.flag("guardian_air"))
 	return false
 
 
@@ -1376,6 +1395,15 @@ func house_locked(b: Dictionary) -> bool:
 
 ## Knocking on a locked door: three raps, then whoever's inside shouts something through it.
 func knock(b: Dictionary, world = null) -> void:
+	if b["shop"] == "temple" and String(b.get("town", "")) == "route5":
+		await DesertCrossing.valkoog_doors(world)
+		return
+	if b.get("twins", false):
+		Sfx.play("knock")
+		await get_tree().create_timer(0.85).timeout
+		await Story.say(["Nobody answers. Something small bumps about inside, then goes very still.",
+			"The inspector in the yellow coat by the door is watching you very carefully."])
+		return
 	Sfx.play("knock")
 	await get_tree().create_timer(0.85).timeout
 	var cathedral: bool = b["shop"] == "cathedral"
@@ -1386,8 +1414,10 @@ func knock(b: Dictionary, world = null) -> void:
 	if cathedral:
 		await Story.say(["The cathedral doors are barred from the inside."])
 	elif b.get("frontier", "") == "church":
-		# Dustwell's old church, held by the bandits (Story CHURCH_BANDITS)
-		await Story.say(["The church doors are barred from the inside."])
+		# Dustwell's old church, held by the bandits (Story CHURCH_BANDITS); after the report Grubb waits by it
+		await Story.say(["The church doors are barred from the inside.",
+			"The inspector in the yellow coat is waiting by them, watching the lock."] if GameState.flag("grubb_report")
+			else ["The church doors are barred from the inside."])
 
 
 func house(b: Dictionary, resident_seed := 0) -> void:

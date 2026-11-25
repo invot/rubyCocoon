@@ -222,6 +222,16 @@ The four temple dragons sleep in the middle of their chambers, curled up in a ra
 
 The two puzzle rooms are where strong water beasts prowl in plain sight. `--scene=tides-walk` plays the temple on foot, from the front door to the guardian's island, in a solving order (`--shots=dir` saves each stage, as you'd see it and from high above).
 
+### Valkoog
+
+**The air temple** stands on its stepped pyramid in the Scaraba Desert (`route5`'s `valkoog` section), with a storm-haze of blowing grit over the approach until its guardian is won. Tam and Saffi's stones gust the doors open (`valkoog_doors`).
+
+- Four floors (`valkoog_1..4`), each a hall with the stair on at the back and five points on its walls: vent grilles, fan blades, gust plates or spear slots. Each floor's trap stands across its stair (`air_temple.gd`'s `air_trap`, the parts animated by `scripts/gfx/air_trap.gd`): something spinning, swinging, pouring.
+- The star is the desert stone's own order (`star_locks.gd`: 1, 3, 5, 2, 4, 1). A touch lights its point, a wrong one darkens the floor, and the sixth stills the trap and tells you the next floor's first point. The points are air-keyed (the twins or the stone), and a trap is only passed once disarmed, never dodged.
+- Above them the keepers' chamber (`valkoog_keepers`): five bald mages in thick hoods at the star's points, Khepri speaking. She gives the air stone, watches the hero's first cast, and answers questions about the arch-wizard; the four singing stones and their tablet teach the Song of Winds, and the song opens the wind-cut seam to the summit.
+- The summit (`temple_air`) is the guardian's nest and hoard, and the twins come up too. Zephyrax is fought through the shared guardian flow with Tam and Saffi as guests, under the Air Shield, in a room a loss only restarts. Won over, it becomes the air summon (`guardian_air`).
+- The released wind scours the dune below: the valley's `haze` variant gives way to `scoured`, the gear conduit lies bare, and its rubbing (`conduit_rubbing`) goes in the bag.
+
 <img src="images/temple.png" width="640" alt="Inside the Temple of Flame, on the Caldera Road."><br><sub>Inside the Temple of Flame, on the Caldera Road.</sub>
 
 <img src="images/summon.jpg" width="640" alt="Pyroclast answers your song: a summon striking the opposing team."><br><sub>Pyroclast answers your song: a summon striking the opposing team.</sub>

@@ -287,6 +287,9 @@ func build(id: String, cooperative := false) -> void:
 	build_progress.emit(1.0)
 	if map.get("sandstorm", false):
 		_build_sandstorm()
+	elif map.get("haze", false):
+		# Valkoog's approach: the pyramid's storm-haze, thinner than the Dune Road's (it lifts with the air guardian)
+		_build_sandstorm(true)
 	if not cooperative:
 		_spawn_wilds.call_deferred()
 		set_process(true)
@@ -767,6 +770,13 @@ func _build_environment() -> void:
 		env.fog_sky_affect = 1.0
 		env.ambient_light_color = STORM_SAND
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	elif map.get("haze", false):
+		# Valkoog's storm-haze: the pyramid dull through the dust, not lost in it
+		env.fog_light_color = Color(biome["sky_hz"]).lerp(STORM_SAND, 0.55)
+		env.fog_density = 0.02
+		env.fog_sky_affect = 0.6
+		env.ambient_light_color = Color(biome["sun"]).lerp(STORM_SAND, 0.35)
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -781,6 +791,9 @@ func _build_environment() -> void:
 		# the sun a dull glow through the dust
 		sun.light_energy *= 0.45
 		sun.light_color = Color(biome["sun"]).lerp(STORM_SAND, 0.5)
+	elif map.get("haze", false):
+		sun.light_energy *= 0.8
+		sun.light_color = Color(biome["sun"]).lerp(STORM_SAND, 0.25)
 	add_child(sun)
 
 
@@ -789,8 +802,9 @@ const STORM_SAND := Color("#d2a86a")
 
 
 ## The sandstorm's blowing sand, carried along by the camera so it's always round you: fine grit streaming past, and
-## big soft puffs of dust rolling through.
-func _build_sandstorm() -> void:
+## big soft puffs of dust rolling through. `light` is Valkoog's storm-haze: fewer grains, slower, so the pyramid's
+## approach stays readable.
+func _build_sandstorm(light := false) -> void:
 	for kind in ["grit", "puff"]:
 		var grit: bool = kind == "grit"
 		var p := CPUParticles3D.new()
@@ -807,7 +821,7 @@ func _build_sandstorm() -> void:
 			mat.albedo_texture = _puff_texture()
 		qm.material = mat
 		p.mesh = qm
-		p.amount = 420 if grit else 40
+		p.amount = (150 if light else 420) if grit else (22 if light else 40)
 		p.lifetime = 1.6 if grit else 4.0
 		p.preprocess = p.lifetime
 		p.local_coords = false
@@ -819,8 +833,8 @@ func _build_sandstorm() -> void:
 		p.direction = Vector3(1.0, -0.15, 0.0)
 		p.spread = 6.0 if grit else 12.0
 		p.gravity = Vector3.ZERO
-		p.initial_velocity_min = 11.0 if grit else 4.0
-		p.initial_velocity_max = 16.0 if grit else 6.0
+		p.initial_velocity_min = (4.0 if light else 11.0) if grit else 4.0
+		p.initial_velocity_max = (7.0 if light else 16.0) if grit else 6.0
 		p.scale_amount_min = 0.6
 		p.scale_amount_max = 1.5
 		# pale grit, and puffs a shade darker than the air, fading in and out
@@ -3146,6 +3160,9 @@ func _build_npcs() -> void:
 				node.add_child(nl)
 				rod_lines.append(node)
 		node.position = tile_pos(p) + n.get("visual_offset", Vector3.ZERO)
+		if n.has("scale"):
+			# (a child, such as Scaraba's twins: scaraba_town.gd)
+			node.scale = Vector3.ONE * float(n["scale"])
 		if n.get("recline", false):
 			node.rotation.x = -PI / 2.0
 			node.scale = Vector3.ONE * 0.75
@@ -3876,9 +3893,6 @@ func _step(d: Vector2i, run: bool) -> bool:
 	if room_walls != null and room_walls.door_leaves.has(target) and map["exits"].has(target):
 		_through_door(target)
 		return false
-	if map["exits"].has(target) and map["exits"][target].get("steps", false) and _can_step(player_pos, target):
-		_down_steps(target)
-		return false
 	if _locked_exit(target) and Elev.joined(map, player_pos, target):
 		_try_locked_door(target)
 		return false
@@ -3941,22 +3955,6 @@ func _through_door(t: Vector2i) -> void:
 	GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO))
 
 
-## Down a stairway in the floor (map "step_doors": the one under Dale's chest, well_cave.gd _step_door): onto its top
-## step at the front and on down towards the back, the room fading as you go.
-func _down_steps(t: Vector2i) -> void:
-	_clear_path()
-	busy = true
-	var ex: Dictionary = map["exits"][t]
-	if not await Story.can_use_exit(self, ex):
-		busy = false
-		return
-	var top := tile_pos(t) + Vector3(0, 0, 0.35)
-	var go := func() -> void:
-		busy = false
-		GameState.main.goto_map(ex["to"], ex["spawn"], ex.get("face", Vector2i.ZERO), STAIR_FADE)
-	_walk_stairs([tile_pos(player_pos), top, tile_pos(t) + Vector3(0, -1.0, -0.4)], {1: go})
-
-
 ## Whether tile t is a doorway still shut by its flag (map "locked_doors": Dibble's planks in the Dustwell Well). You
 ## can't walk into one: you stop in front of it and try it from there (_try_locked_door).
 func _locked_exit(t: Vector2i) -> bool:
@@ -3992,7 +3990,7 @@ func _ladder_dir(p: Vector2i) -> Vector2i:
 	var d := Elev.ramp_dir(map, p)
 	if d == Vector2i.ZERO:
 		return d
-	# (Dale's landing has a stone stairway instead: walked like any ramp)
+	# (Dale's workroom has a stone stairway instead: walked like any ramp)
 	if MapGen.get_t(map, p.x, p.y) == MapGen.ROPE or String(map.get("room_key", "")).begins_with("well_") 			and not map.get("room", {}).get("stone_stairs", false):
 		return d
 	return Vector2i.ZERO
@@ -6365,8 +6363,9 @@ func _build_room() -> void:
 	if temple:
 		env.ambient_light_color = Color("#7c88a8")
 		env.ambient_light_energy = 0.26 if not room.has("round") else 0.14
-	if key.begins_with("well_"):
-		# the well's caves are dark, lit by their wall torches (well_cave.gd _torches), with mist over the floors
+	if key.begins_with("well_") or (key.begins_with("church_") and dark):
+		# the well's caves (and the church's dark undercroft) are lit by their wall torches (well_cave.gd _torches),
+		# with mist over the caves' floors; the whitewashed nave keeps the day's light
 		env.ambient_light_color = Color("#8e98aa")
 		env.ambient_light_energy = 0.2
 		preload("res://scripts/gfx/well_cave.gd").environment_fog(env, key)
@@ -6763,7 +6762,8 @@ func _paint(node: Node, col: Color) -> void:
 
 
 ## A room's pools of water (a temple's channels and basins): sunk below the floor in stone, a pale curb round the
-## edge, and the animated water of the outdoors on top.
+## edge, and the animated water of the outdoors on top. A flooded room turns the curb off ("pool_curb": false) and
+## can brim its water to the floor ("pool_surface").
 const POOL_DEPTH := 0.55
 const POOL_SURFACE := -0.14
 
@@ -6774,21 +6774,26 @@ func _build_pools(pools: Array) -> void:
 	var wet := {}
 	for p in pools:
 		wet[p] = true
+	var room: Dictionary = map.get("room", {})
 	var k := VBld.Kit.new()
 	var verts := PackedVector3Array()
+	var tint: Color = Color(str(room.get("pool_tint", "#2aa0d0")))
+	var surface := float(room.get("pool_surface", POOL_SURFACE))
+	var curb_on := bool(room.get("pool_curb", true))
 	# smooth pale stone, no grain (the temple's sandstone)
 	var curb := RoomBuilder.SANDSTONE.lightened(0.12)
 	for p: Vector2i in pools:
 		var c := Vector3(p.x + 0.5, 0, p.y + 0.5)
 		k.box("color", c + Vector3(0, -POOL_DEPTH - 0.03, 0), Vector3(1.0, 0.06, 1.0), Color("#2f5866"))
-		for d in FOUR_WAYS:
-			if wet.has(p + d):
-				continue
-			var out := Vector3(d.x, 0, d.y)
-			var along := Vector3(absf(d.y), 0, absf(d.x))
-			k.box("color", c + out * 0.47 + Vector3(0, -POOL_DEPTH / 2.0, 0), Vector3(0.06, POOL_DEPTH, 0.06) + along * 0.94, curb.darkened(0.3))
-			k.box("color", c + out * 0.46 + Vector3(0, 0.04, 0), Vector3(0.12, 0.08, 0.12) + along * 0.98, curb)
-		var y := POOL_SURFACE
+		if curb_on:
+			for d in FOUR_WAYS:
+				if wet.has(p + d):
+					continue
+				var out := Vector3(d.x, 0, d.y)
+				var along := Vector3(absf(d.y), 0, absf(d.x))
+				k.box("color", c + out * 0.47 + Vector3(0, -POOL_DEPTH / 2.0, 0), Vector3(0.06, POOL_DEPTH, 0.06) + along * 0.94, curb.darkened(0.3))
+				k.box("color", c + out * 0.46 + Vector3(0, 0.04, 0), Vector3(0.12, 0.08, 0.12) + along * 0.98, curb)
+		var y := surface
 		verts.append_array([Vector3(p.x, y, p.y), Vector3(p.x + 1, y, p.y), Vector3(p.x + 1, y, p.y + 1),
 			Vector3(p.x, y, p.y), Vector3(p.x + 1, y, p.y + 1), Vector3(p.x, y, p.y + 1)])
 	var basin := MeshInstance3D.new()
@@ -6805,19 +6810,19 @@ func _build_pools(pools: Array) -> void:
 	wm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var water := MeshInstance3D.new()
 	water.mesh = wm
-	water.material_override = _pool_water_mat()
+	water.material_override = _pool_water_mat(tint)
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(water)
 
 
-## The animated water of a room's pools.
-func _pool_water_mat() -> ShaderMaterial:
+## The animated water of a room's pools (a room may darken its water with "pool_tint").
+func _pool_water_mat(tint := Color("#2aa0d0")) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = WaterShader
 	mat.set_shader_parameter("frames", VT.frames("water"))
 	mat.set_shader_parameter("frame_count", float(VT.WATER_FRAMES))
 	mat.set_shader_parameter("fps", 6.0)
-	mat.set_shader_parameter("tint", Color("#2aa0d0"))
+	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("opacity", 0.84)
 	mat.set_shader_parameter("glow", 0.0)
 	mat.set_shader_parameter("drift", Vector2(0.0, 0.03))

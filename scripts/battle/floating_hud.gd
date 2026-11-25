@@ -58,6 +58,8 @@ const MINI_HP_H := 6.0
 const MINI_MP_H := 5.0
 const ORB_R := 6.5
 const SHIELD_COLOR := Color("#3fc8e6")
+## The Air Shield's label while only one point holds.
+const WARN_COLOR := Color("#ffb03a")
 ## The readout plates: as dark as the top-centre bar, and the room inside their line.
 const PLATE_ALPHA := 0.66
 ## The HP display uses the same yellow and red bands as the battle critical chance.
@@ -445,8 +447,8 @@ func _draw() -> void:
 
 ## While you choose your own action (or aim it), small plates styled like the top-centre bar (the windows' near-black
 ## in a thin white line, square): every standing beast without a bar of its own shows its HP over its MP above its
-## head, and each trainer (you, and a rival trainer) their shield points as orbs. Nothing shows while a beast is
-## choosing.
+## head, the guest combatants their name and HP (they have no MP), and each trainer (you, and a rival trainer) their
+## shield points as orbs. Nothing shows while a beast is choosing.
 func _draw_readouts() -> void:
 	if not (typeof(actor) == TYPE_STRING and actor == "trainer_self"):
 		return
@@ -454,7 +456,7 @@ func _draw_readouts() -> void:
 	var px := UIKit.body_px(LABEL_PX)
 	var line_h := font.get_height(px)
 	for b in battle.nodes:
-		if typeof(b) != TYPE_OBJECT or b.hp <= 0 or tag_rects.has(b) or battle._ref_pos(b) == null:
+		if typeof(b) != TYPE_OBJECT or b.hp <= 0 or tag_rects.has(b) or battle._ref_pos(b) == null or battle.is_guest(b):
 			continue
 		# bold "HP 63" over "MP 31" on the left, each beside its gauge
 		var lines := ["HP %d" % maxi(0, b.hp), "MP %d" % b.mp]
@@ -467,23 +469,49 @@ func _draw_readouts() -> void:
 			draw_string(font, _snap(Vector2(inner.position.x, row_y + font.get_ascent(px))), lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, px, _hp_text_color(ratios[0]) if i == 0 else UIKit.BATTLE_INK)
 			var gauge := Rect2(_snap(Vector2(inner.position.x + text_w + LABEL_GAP, row_y + (line_h - MINI_HP_H) * 0.5)), Vector2(MINI_W, MINI_HP_H))
 			_well(gauge, ratios[i], _battle_hp_color(ratios[i]) if i == 0 else MP_COLOR)
+	# the guests beside you: their name and HP (a guest has no MP, and no editable HP)
+	for g in battle.guests:
+		if g.hp <= 0 or tag_rects.has(g) or battle._ref_pos(g) == null:
+			continue
+		var name_line: String = String(g.nickname)
+		var hp_line := "HP %d/%d" % [maxi(0, int(g.hp)), int(g.max_hp())]
+		var guest_w := maxf(font.get_string_size(name_line, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x, font.get_string_size(hp_line, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x)
+		var guest_size := Vector2(PLATE_PAD * 2.0 + guest_w + LABEL_GAP + MINI_W, PLATE_PAD * 2.0 + line_h * 2.0)
+		var guest_box := _plate_above(g, guest_size)
+		# out from under the chooser's bar, which is drawn over the stage's plates
+		if menu_rect.has_area() and guest_box.intersects(menu_rect.grow(4.0)):
+			var safe := UIKit.safe_rect(self).grow(-8.0)
+			var beside: float = menu_rect.end.x + 8.0 if guest_box.get_center().x >= menu_rect.get_center().x else menu_rect.position.x - 8.0 - guest_size.x
+			guest_box.position.x = clampf(beside, safe.position.x, maxf(safe.position.x, safe.end.x - guest_size.x))
+		var guest_inner := _plate(guest_box)
+		var guest_ratio := clampf(float(g.hp) / maxf(1.0, float(g.max_hp())), 0.0, 1.0)
+		draw_string(font, _snap(Vector2(guest_inner.position.x, guest_inner.position.y + font.get_ascent(px))), name_line, HORIZONTAL_ALIGNMENT_LEFT, -1, px, UIKit.BATTLE_INK)
+		var guest_row := guest_inner.position.y + line_h
+		draw_string(font, _snap(Vector2(guest_inner.position.x, guest_row + font.get_ascent(px))), hp_line, HORIZONTAL_ALIGNMENT_LEFT, -1, px, _hp_text_color(guest_ratio))
+		var guest_gauge := Rect2(_snap(Vector2(guest_inner.position.x + guest_w + LABEL_GAP, guest_row + (line_h - MINI_HP_H) * 0.5)), Vector2(MINI_W, MINI_HP_H))
+		_well(guest_gauge, guest_ratio, _battle_hp_color(guest_ratio))
 	_shield_plate("trainer_self", int(GameState.shield), int(GameState.max_shield))
 	if not battle.wild:
 		_shield_plate("foe_trainer", int(battle.foe_shield), int(battle.foe_max_shield))
 
 
-## A trainer's shield points: a bold "SHIELD" label, then an orb for each point (hollow once spent).
+## A trainer's shield points: a bold label ("AIR SHIELD" with its count in Valkoog), then an orb for each point
+## (hollow once spent). The Air Shield's label warns in amber while only one point holds.
 func _shield_plate(ref, left: int, most: int) -> void:
 	if most <= 0 or battle._ref_pos(ref) == null:
 		return
 	var font := UIKit.font_bold()
 	var px := UIKit.body_px(LABEL_PX)
-	var label_w := font.get_string_size("SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var air: bool = ref == "trainer_self" and battle.air_shield
+	var label: String = battle.shield_label() if ref == "trainer_self" else "SHIELD"
+	if air:
+		label += " %d/%d" % [left, most]
+	var label_w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var orbs_w := most * ORB_R * 2.0 + (most - 1) * ORB_GAP
 	var size := Vector2(PLATE_PAD * 2.0 + label_w + LABEL_GAP + orbs_w, PLATE_PAD * 2.0 + maxf(ORB_R * 2.0, font.get_height(px)))
 	var inner := _plate(_plate_above(ref, size))
 	var mid_y := inner.get_center().y
-	draw_string(font, _snap(Vector2(inner.position.x, mid_y - font.get_height(px) * 0.5 + font.get_ascent(px))), "SHIELD", HORIZONTAL_ALIGNMENT_LEFT, -1, px, UIKit.BATTLE_INK)
+	draw_string(font, _snap(Vector2(inner.position.x, mid_y - font.get_height(px) * 0.5 + font.get_ascent(px))), label, HORIZONTAL_ALIGNMENT_LEFT, -1, px, WARN_COLOR if air and left <= 1 else UIKit.BATTLE_INK)
 	for i in most:
 		var c := Vector2(inner.position.x + label_w + LABEL_GAP + ORB_R + i * (ORB_R * 2.0 + ORB_GAP), mid_y)
 		if i < left:

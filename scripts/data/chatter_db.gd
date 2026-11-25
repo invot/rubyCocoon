@@ -105,6 +105,24 @@ const TOWNS := {
 }
 
 ## Gravenmoor's weather and occupation, noticed by the people living in it.
+## What Scaraba's residents say about the town's trouble, by ScarabaTown.state() (scaraba_town.gd): the first visit,
+## after Valkoog, after the church and after Sable's battle.
+const SCARABA := {
+	"first": ["Lock up your purses. The wind twins are about. The Jackals' handbills are on every post.",
+		"Three caravans gone in one week. Captain Dalton hasn't slept since Tuesday.",
+		"Windcaller Sable's arena is shut. She sits at the ringside every morning, waiting for her juniors.",
+		"The Jackals say there's treasure in Valkoog. Nobody's ever come back out of Valkoog to say there isn't."],
+	"valkoog": ["The Jackals tore their own handbills down overnight. Funny how that works.",
+		"Real wizards, living in the pyramid all this time! My grandad said so. Nobody believed him either.",
+		"The twins are home with their uncle. Hadiza's pretending she never shouted at them."],
+	"church": ["The missing trainers are home! The gate bell rang for an hour.",
+		"Sable cried at the arena when her juniors walked in. Then she told them off for being late.",
+		"The caravans are rolling again. The drivers still say their prayer twice, just in case."],
+	"sable": ["Sable's arena is open again. You can hear the wind from the market.",
+		"The north gate's open. The soldiers wave every caravan through now. They seem relieved.",
+		"The twins have started a club. It's for blowing hats off. Membership is two."],
+}
+
 const GRAVENMOOR_FOG := [
 	["When did this fog roll into town? I've had the lamps lit since breakfast.", "If you're looking for Old Mort, he's over in the graveyard. He never seems to mind it."],
 	["I can barely see the next lamp. I'm following their glow all the way home."],
@@ -273,6 +291,10 @@ const HINTS := {
 	"dale": ["Talk to the wizard again. He has more to say."],
 	"sanctuary": ["Step through the open panel and speak to Keeper Nerine."],
 	"meet_dalton": ["Find Captain Dalton at the Scaraba gate and ask about the Jackals."],
+	"grubb": ["There's a Gearheart inspector in town. Grubb, I think. He stands outside a little house by the west wall, looking worried.",
+		"The twins on those handbills? Somebody said they're Inspector Grubb's niece and nephew. Ask him."],
+	"twins": ["Grubb's house sits right on top of the old cistern, they say. Kids love a cistern.",
+		"If the twins are hiding anywhere, it's under Grubb's house. Go gently. They're only eight."],
 	"board_riverboat": ["Captain Reed's riverboat crosses the north landing's lake. From the far shore, the Mesa Trail runs north into the Scaraba Desert."],
 	"well": ["Dustwell's well went dry years back, and the river with it. Folk say there's something living down that well. Something with teeth.",
 		"Nobody can get north of Dustwell till the river's back. Have a look down the old well in the middle of town."],
@@ -377,6 +399,10 @@ const MOM_TIPS := {
 		["Grandma wants to know who lives behind that door. Go introduce yourself before she takes the ferry and does it for you."]],
 	"meet_dalton": [["The Scaraba gate watch wants to hear from visiting trainers. Ask for Captain Dalton."],
 		["They showed those Jackals on the news again. Stop at the gate watch before you go looking for them."]],
+	"grubb": [["I was watching TV, and the news showed a Gearheart inspector in Scaraba. Inspector Grubb. He looked like he wanted to tell somebody something."],
+		["Grandma wants you to know that a handbill is just somebody's side of the story. Find out who those twins really are."]],
+	"twins": [["Grandma wants you to know that scared children hide somewhere close to home. Look under Inspector Grubb's house."],
+		["I was watching TV, and the news said the Jackals' bounty on those twins went up again. Find them before the Jackals do."]],
 	"board_riverboat": [["Captain Reed's riverboat crosses the north landing's lake. From the far shore, the Mesa Trail runs north into the Scaraba Desert."],
 		["Captain Reed rang the saloon to say his boat is afloat. You can board when you're ready, dear."]],
 	"well": [["I saw Dustwell on the TV news, sweetie. A drought! The town well's been dry for years. Maybe have a look down it?"],
@@ -478,7 +504,7 @@ const MOM_AHEAD := {
 	"well_rope": "well_main", "well_crumb": "well_main", "well_ladder": "well_main", "well_velvet": "well_main",
 	"well_wizard": "well_main", "water_stone": "well_main", "dale": "well_main",
 	"rafe": "route1", "arena": "tidewater", "marina": "tidewater", "ferry": "route2", "chiefs": "route2", "warden": "kelpwick",
-	"temple": "reef", "desert": "route3", "bandits": "route4", "winds": "route5", "north_gate": "sundown", "mine": "copperpick",
+	"temple": "reef", "desert": "route3", "bandits": "route4", "grubb": "route5", "twins": "route5", "winds": "route5", "north_gate": "sundown", "mine": "copperpick",
 	"gearhart": "route6", "rescue": "route6", "flame": "route7", "jungle": "route8", "relics": "route9", "roots": "route9",
 	"gravenmoor": "route10", "vexmora": "crypt_1",
 }

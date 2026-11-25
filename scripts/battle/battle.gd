@@ -8,6 +8,8 @@ extends Node3D
 ## If a side's middle beast is down (or its middle slot is empty), its trainer can be attacked directly: each hit
 ## breaks a shield point, and a hit with no shield left loses the battle. A trainer battle ends only that way, or
 ## when someone forfeits. Wild beasts have no ring and no trainer: beat them all to win.
+## Guests (battle_guest.gd) fight beside you off the ring: their own actions, targetable, never felled. In Valkoog the
+## shield points read as the Air Shield, with its gauge and one-point warning.
 ## Fire = offense tanks, Water = healers, Earth = defenders, Air = status/evasion, Ghost = Legion.
 
 signal finished(result: String)
@@ -38,6 +40,7 @@ const VBld = preload("res://scripts/gfx/voxel_buildings.gd")
 const UIKit = preload("res://scripts/ui/ui_kit.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const CommandPanel = preload("res://scripts/battle/command_panel.gd")
+const BattleGuest = preload("res://scripts/battle/battle_guest.gd")
 const FloatingHUD = preload("res://scripts/battle/floating_hud.gd")
 const Outline = preload("res://scripts/battle/selection_outline.gdshader")
 const TargetArrow = preload("res://scripts/battle/target_arrow.gd")
@@ -82,6 +85,10 @@ var cfg: Dictionary = {}
 var wild := true
 var trainer: Dictionary = {}
 var foes: Array = []
+## guest combatants (battle_guest.gd): story companions who fight beside you, off the ring
+var guests: Array = []
+## Valkoog's Air Shield: the trainer's shield points shown as the temple's shield (a gauge, a warning, a refill)
+var air_shield := false
 var ally_slots: Array = [null, null, null]
 var foe_slots: Array = [null, null, null]
 var st := {}
@@ -266,6 +273,12 @@ func setup(c: Dictionary) -> void:
 	var map_id: String = c.get("map", "route1")
 	biome = WorldDB.biome_of(map_id)
 	indoor = "#" in map_id
+	guests = []
+	for def in c.get("guests", []):
+		var g = BattleGuest.new()
+		g.setup(def)
+		guests.append(g)
+	air_shield = bool(c.get("air_shield", not guests.is_empty() or map_id.begins_with("valkoog") or map_id == "temple_air"))
 
 
 func _ready() -> void:
@@ -1230,6 +1243,122 @@ func _build_trainers() -> void:
 	add_child(rival_bubble)
 
 
+# ================================================================ guests
+## Guest combatants (battle_guest.gd): story companions who stand beside your trainer, off the ring. They are not your
+## beasts: no command row, no slot, nothing of yours to pick or aim at. They take their own action each round, and the
+## foe may strike them without ever felling one.
+const GUEST_HEAL_BELOW := 0.55
+
+
+## What the trainer's shield points are called in this battle: Valkoog's Air Shield (the windward charm's), or a plain
+## shield everywhere else.
+func shield_label() -> String:
+	return "AIR SHIELD" if air_shield else "SHIELD"
+
+
+func is_guest(b) -> bool:
+	return b != null and typeof(b) == TYPE_OBJECT and guests.has(b)
+
+
+## The guests take their places behind you, either side of your trainer, facing the foe.
+func _spawn_guests() -> void:
+	var back := -_toward("ally")
+	var side := _right()
+	var f := _toward("ally")
+	for i in guests.size():
+		var g = guests[i]
+		var root := Node3D.new()
+		var holder := Node3D.new()
+		holder.name = "Model"
+		root.add_child(holder)
+		root.set_meta("lift", 0.0)
+		var flash := StandardMaterial3D.new()
+		flash.albedo_color = Color(1, 1, 1, 0)
+		flash.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		flash.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		root.set_meta("flash", flash)
+		var person: Node3D = VPer.build(g.look)
+		person.scale = Vector3.ONE * 0.72
+		VPer.face(person, Vector2i(0, 1))
+		holder.add_child(person)
+		for gi in holder.find_children("*", "GeometryInstance3D", true, false):
+			if not gi is CPUParticles3D:
+				gi.material_overlay = flash
+		root.rotation.y = atan2(f.x, f.z)
+		root.position = ALLY_CENTER + back * 0.75 + side * (1.0 if i % 2 == 0 else -1.0)
+		root.set_meta("height", 1.5)
+		add_child(root)
+		root.scale = Vector3(0.15, 0.15, 0.15)
+		var tw := create_tween()
+		tw.tween_property(root, "scale", Vector3.ONE * 0.78, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		nodes[g] = root
+		_hp_seen[g] = g.hp
+		var s := _st(g)
+		s["side"] = "ally"
+		s["down"] = false
+
+
+## The guests' own actions this round: whoever most needs a heal gets it while an ally is below the line, and everyone
+## else casts an air spell at a standing foe.
+func _guest_acts() -> Array:
+	var out := []
+	if guests.is_empty() or result != "":
+		return out
+	var hurt = _guest_hurt()
+	for g in guests:
+		if g.hp <= 0:
+			continue
+		var heal: String = g.heal_move()
+		if hurt != null and heal != "":
+			out.append({"type": "guest", "actor": g, "move": heal, "target": hurt, "prio": 1})
+			continue
+		var standing := _alive(foe_slots)
+		if standing.is_empty():
+			continue
+		out.append({"type": "guest", "actor": g, "move": g.attack_move(), "target": standing.pick_random(), "prio": 0})
+	return out
+
+
+## The ally who most needs a guest's heal: a party beast or the other guest, and only below the line.
+func _guest_hurt():
+	var worst = null
+	for b in _alive(ally_slots) + _alive(guests):
+		if b.hp_ratio() >= GUEST_HEAL_BELOW:
+			continue
+		if worst == null or b.hp_ratio() < worst.hp_ratio():
+			worst = b
+	return worst
+
+
+## A guest's action, resolved among your side's own: its air spell or its heal, through the shared move rules.
+func _do_guest(a: Dictionary) -> void:
+	var g = a.get("actor", null)
+	if g == null or g.hp <= 0:
+		return
+	var mv := String(a.get("move", ""))
+	var m := MoveDB.get_move(mv)
+	var t = a.get("target", null)
+	var kind := String(m.get("kind", ""))
+	if kind == "attack" and (t == null or (typeof(t) == TYPE_OBJECT and t.hp <= 0)):
+		# the foe it chose has fallen since: on to another one standing
+		var standing := _alive(foe_slots)
+		if standing.is_empty():
+			return
+		t = standing.pick_random()
+	elif kind in ["heal", "cleanse"] and (t == null or (typeof(t) == TYPE_OBJECT and t.hp <= 0)):
+		t = _guest_hurt()
+	if t == null:
+		return
+	_message_subject = null
+	_set_acting(g)
+	_camera_shot("cast", g)
+	await msg("%s cast %s!" % [g.nickname, m["name"]], 0.6)
+	await _cast(g, m, [t])
+	await _apply_move(g, t, mv, m)
+	_casting = false
+	_set_acting(null)
+
+
 func _update_shield() -> void:
 	for team in _shield_orbs:
 		var targeted := _target_refs.has("trainer_self") or _target_refs.has("trainer") if team == "ally" else _target_refs.has("foe_trainer")
@@ -1782,7 +1911,7 @@ func _message_ref(text: String):
 	var names := {"trainer_self": GameState.player_name}
 	if not wild:
 		names["foe_trainer"] = String(trainer.get("name", "Trainer"))
-	for b in GameState.party + foes + ally_ring.values() + foe_ring.values():
+	for b in GameState.party + foes + ally_ring.values() + foe_ring.values() + guests:
 		if b == null:
 			continue
 		names[b] = b.nickname
@@ -1807,7 +1936,11 @@ func _caption(text: String, subject = null) -> void:
 		subject = _prompt_ref
 		text = ("What will you do, %s?" % GameState.player_name) if typeof(subject) == TYPE_STRING else ("What will %s do?" % subject.nickname)
 	var ref = subject if subject != null else _message_ref(text)
-	var icon: Texture2D = _speaker_icons.get(ref, null) if typeof(ref) == TYPE_STRING else (PixelArt.beast_texture(ref.genes) if ref != null else null)
+	var icon: Texture2D = null
+	if typeof(ref) == TYPE_STRING:
+		icon = _speaker_icons.get(ref, null)
+	elif ref != null:
+		icon = _person_icon(ref.look, 0.0) if is_guest(ref) else PixelArt.beast_texture(ref.genes)
 	var player_subject: bool = ref in ["trainer_self", "trainer"] if typeof(ref) == TYPE_STRING else (ref != null and (GameState.party.has(ref) or ally_ring.values().has(ref)))
 	UI.top_bar.say_battle(text, icon, player_subject, _bar_width())
 
@@ -2022,6 +2155,7 @@ func _run() -> void:
 	for k in ally_ring:
 		_spawn(ally_ring[k], "ally", k)
 	_place_ring("ally")
+	_spawn_guests()
 	for b in _alive(ally_slots):
 		go.append(b.nickname)
 	_refresh()
@@ -2029,6 +2163,11 @@ func _run() -> void:
 		await msg("Nobody stands in the middle of your %s side, so you turn your ring round." % Ring.side_element(opening_side).capitalize(), 1.0)
 	if not go.is_empty():
 		await msg("Your %s side faces the foe. Go, %s!" % [Ring.side_element(ally_side).capitalize(), ", ".join(go)], 0.9)
+	if not guests.is_empty():
+		var who := []
+		for g in guests:
+			who.append(g.nickname)
+		await msg("%s come along beside you, air stones in hand." % " and ".join(who), 1.0)
 	await _start_passives()
 	_check_end()
 	await _check_exposed()
@@ -2055,6 +2194,8 @@ func _run() -> void:
 			await msg("You're still reeling from the ambush!", 0.8)
 		else:
 			acts = await _command_phase()
+			if result == "":
+				acts.append_array(_guest_acts())
 		if result != "":
 			break
 		# then the two sides take their turns, the faster one first (its beasts' speed, and its trainer's level);
@@ -3900,6 +4041,9 @@ func _ai_choose(b, careful := false) -> Dictionary:
 		moves = ["tackle"]
 	var allies := _alive(_mine(b))
 	var enemies := _alive(_theirs(b))
+	if _team(b) == "foe" and not guests.is_empty():
+		# a foe can go for the guests too: they can't be felled, but the hits still cost the escort
+		enemies = enemies + _alive(guests)
 	var other := "foe" if _team(b) == "ally" else "ally"
 	var open := _side_open(other)
 	if enemies.is_empty():
@@ -4110,6 +4254,8 @@ func _resolve(acts: Array) -> void:
 				Sfx.play("shield")
 				_refresh()
 				await msg(("%s is scared of Tra and defends!" if a.get("tra_fear", false) else "%s braces itself!") % db.nickname, 0.55)
+			"guest":
+				await _do_guest(a)
 			"move":
 				var b = a["actor"]
 				await _do_move(b, a["move"], a["target"], bool(a.get("own_trainer", false)))
@@ -4787,6 +4933,8 @@ func _strike(b, team_hit: String) -> void:
 		_update_shield()
 		_refresh()
 		await msg("%s shield absorbed the blow! (%d left)" % ["Your" if team_hit == "ally" else "%s's" % who, left - 1], 0.9)
+		if team_hit == "ally" and air_shield and GameState.shield <= 1:
+			await msg("Your Air Shield is down to its last point! One more hit and this room is lost.", 1.3)
 		return
 	Sfx.play("crit")
 	_camera_shot("knockout", target_ref)
@@ -4897,6 +5045,9 @@ func _targets_for(b, m: Dictionary, target) -> Array:
 		"self":
 			return [b]
 		"enemy":
+			# (a guest aimed at is still there: it can't be felled)
+			if is_guest(target) and target.hp > 0:
+				return [target]
 			# a target that is down or gone: the nearest foe standing, then (for an attack) their open trainer
 			var t = _retarget(target, "foe" if _team(b) == "ally" else "ally", b, m["kind"] == "attack")
 			if t == null:
@@ -4975,7 +5126,7 @@ func _apply_move(a, t, mv: String, m: Dictionary) -> void:
 					await msg("%s drained %d HP!" % [a.nickname, h], 0.6)
 			if fx.has("recoil") and dealt > 0:
 				var rc := _spare(a, maxi(1, int(dealt * float(fx["recoil"]))))
-				a.hp = maxi(0, a.hp - rc)
+				a.hp = maxi(1 if is_guest(a) else 0, a.hp - rc)
 				_float_text(a, "-%d" % rc, Color("#ff9070"))
 				_refresh()
 				await msg("%s is hurt by recoil!" % a.nickname, 0.6)
@@ -5108,6 +5259,11 @@ func _deal(a, t, r: Dictionary) -> int:
 		absorbed = mini(int(s["shield"]), dmg)
 		s["shield"] = int(s["shield"]) - absorbed
 		dmg -= absorbed
+	# a guest can't die: the hit that would fell one stops at 1 HP until a heal arrives
+	var guest_guard := false
+	if is_guest(t) and dmg > 0 and dmg > maxi(0, t.hp - 1):
+		dmg = maxi(0, t.hp - 1)
+		guest_guard = true
 	var sturdy := false
 	if not instant and not tutorial and t.passives.has("Sturdy") and not s["sturdy"] and t.hp == t.max_hp() and dmg >= t.hp:
 		dmg = t.hp - 1
@@ -5137,6 +5293,8 @@ func _deal(a, t, r: Dictionary) -> int:
 		await msg("%s is resistant." % t.nickname, 0.6, t)
 	if absorbed > 0:
 		await msg("The shield absorbed %d damage." % absorbed, 0.55, t)
+	if guest_guard:
+		await msg("%s is spent, but won't fall!" % t.nickname, 0.7, t)
 	if sturdy:
 		await msg("%s endured the hit thanks to Sturdy!" % t.nickname, 0.8)
 	if t.hp > 0 and t.status == "sleep" and randf() < 0.3:
@@ -5149,7 +5307,7 @@ func _deal(a, t, r: Dictionary) -> int:
 			refl += 0.3
 		if refl > 0.0:
 			var rd := _spare(a, maxi(1, int(dmg * refl)))
-			a.hp = maxi(0, a.hp - rd)
+			a.hp = maxi(1 if is_guest(a) else 0, a.hp - rd)
 			_float_text(a, "-%d" % rd, Color("#ff9070"))
 			_refresh()
 			await msg("%s is hurt by the thorns!" % a.nickname, 0.6)
@@ -5197,7 +5355,7 @@ func _buff(t, changes: Dictionary, quiet_fail := false) -> void:
 
 
 func _inflict(t, status: String, announce := false) -> void:
-	if t.hp <= 0 or (tutorial and _st(t)["side"] == "ally"):
+	if t.hp <= 0 or is_guest(t) or (tutorial and _st(t)["side"] == "ally"):
 		return
 	if t.status != "":
 		if announce:

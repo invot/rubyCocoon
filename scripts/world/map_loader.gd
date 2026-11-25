@@ -13,6 +13,7 @@ const TownMaps = preload("res://scripts/data/maps/town_maps.gd")
 const RouteMaps = preload("res://scripts/data/maps/route_maps.gd")
 const InteriorMaps = preload("res://scripts/data/maps/interior_maps.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
+const DesertLayout = preload("res://scripts/world/desert_layout.gd")
 
 const TILE_CHARS := {
 	"a": MapGen.SHALLOWS,
@@ -107,6 +108,11 @@ static func parent_of(id: String) -> String:
 static func load_map(id: String, flags: Dictionary) -> Dictionary:
 	if is_interior(id):
 		return _interior(id, flags)
+	# the Scaraba Desert: the section of it the hero is in (desert_layout.gd)
+	if id == DesertLayout.ROUTE:
+		var section := _parse(id, DesertLayout.source(flags), flags)
+		DesertLayout.fit_exits(section, flags)
+		return section
 	var src = TownMaps.MAPS.get(id, RouteMaps.MAPS.get(id, null))
 	if src == null:
 		return MapGen.generate(id, flags)
@@ -214,6 +220,8 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	for r in rows:
 		w = maxi(w, String(r).length())
 	var kind := "town" if WorldDB.is_town(id) else "route"
+	# (the name its items, trainers, obstacles and puzzles keep their flags under: a desert section has its own)
+	var fid: String = src.get("flag_id", id)
 	var m := MapGen._new_map(id, kind, w, h)
 	m["anchors"] = src.get("anchor_tiles", {}).duplicate()
 	m["openings"] = {}
@@ -224,12 +232,13 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 	m["pushables"] = {}
 	m["log_bridges"] = []
 	m["fence_styles"] = {}
+	m["haze"] = bool(src.get("haze", false))
 	_keep_floods(m, src, flood)
 	for key in ["ornate_bridges", "bridge_rails", "tall_trees", "low_trees"]:
 		if src.has(key):
 			m[key] = src[key]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = id.hash()
+	rng.seed = fid.hash()
 	var letters := {}
 	var ents := []
 	var obst_chars := {}
@@ -283,12 +292,12 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		if MapGen.get_t(m, p.x, p.y) != MapGen.ICE:
 			MapGen.set_t(m, p.x, p.y, _infer_floor(m, p))
 	# a solved push puzzle keeps its blocks where you left them
-	if flags.get("puzzle_" + id, false) and typeof(flags.get("pushed_" + id, null)) == TYPE_ARRAY:
+	if flags.get("puzzle_" + fid, false) and typeof(flags.get("pushed_" + fid, null)) == TYPE_ARRAY:
 		var kinds := {}
 		for p in m["pushables"]:
 			kinds[m["pushables"][p]["kind"]] = true
 		m["pushables"] = {}
-		for e2 in flags["pushed_" + id]:
+		for e2 in flags["pushed_" + fid]:
 			m["pushables"][Vector2i(int(e2[0]), int(e2[1]))] = {"kind": String(e2[2])}
 
 	# obstacles: connected groups of the same character, each with its own "cleared" flag
@@ -302,7 +311,7 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 			var ch: String = obst_chars[p0]
 			var comp := _flood(p0, func(q): return obst_chars.get(q, "") == ch, seen_o)
 			var info: Dictionary = WorldDB.OBSTACLES[ch]
-			var flag := "obst_%s_%d" % [id, gi]
+			var flag := "obst_%s_%d" % [fid, gi]
 			var group := {"id": gi, "char": ch, "kind": info["kind"], "name": info["name"], "elements": info["elements"], "flag": flag, "tiles": comp}
 			if flags.get(flag, false):
 				for q in comp:
@@ -428,10 +437,10 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		elif FACING.has(ch):
 			trainers.append([p, FACING[ch]])
 		elif ch == "$":
-			m["items"].append({"pos": p, "item": _item_for(id, rng), "flag": "item_%s_%d" % [id, item_k]})
+			m["items"].append({"pos": p, "item": _item_for(id, rng), "flag": "item_%s_%d" % [fid, item_k]})
 			item_k += 1
 		elif ch == "*":
-			m["shards"].append({"pos": p, "flag": "shard_%s_%d" % [id, shard_k]})
+			m["shards"].append({"pos": p, "flag": "shard_%s_%d" % [fid, shard_k]})
 			shard_k += 1
 		elif ch == "P":
 			m["spawns"]["start"] = p
@@ -442,8 +451,8 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 				var item_id := an.substr(5)
 				var k: int = fixed_k.get(item_id, 0)
 				fixed_k[item_id] = k + 1
-				m["items"].append({"pos": p, "item": item_id, "flag": "item_%s_%s_%d" % [id, item_id, k]})
-			elif _fixture(m, an, p, id):
+				m["items"].append({"pos": p, "item": item_id, "flag": "item_%s_%s_%d" % [fid, item_id, k]})
+			elif _fixture(m, an, p, fid):
 				pass
 			else:
 				m["anchors"][an] = p
@@ -453,13 +462,15 @@ static func _parse(id: String, src: Dictionary, flags: Dictionary) -> Dictionary
 		var bard: Dictionary = WorldDB.BARDS.get(id, {})
 		for k in trainers.size():
 			var legion: bool = legion_idx == -1 or legion_idx == k
-			var t := MapGen._make_trainer(id, k, trainers[k][0], trainers[k][1], _trainer_route(r), legion, rng)
+			var t := MapGen._make_trainer(fid, k, trainers[k][0], trainers[k][1], _trainer_route(r), legion, rng)
 			if not legion and not bard.is_empty() and int(bard["index"]) == k:
 				_make_bard(t, bard)
 			m["npcs"].append(t)
 		m["encounter"] = {"races": r["races"], "lv": r["lv"], "rate": 0.11, "ghosts": r.get("ghosts", 0.0), "after_flute": r.get("after_flute", false)}
 		if r.has("pack"):
 			m["encounter"]["pack"] = r["pack"]
+		if r.has("beasts"):
+			m["encounter"]["beasts"] = r["beasts"]
 
 	# a town's catching ground (Bellerive's park): wild beasts live only inside it, never in the streets
 	if src.has("meadow"):
@@ -893,6 +904,11 @@ static func floor_id(base: String, f: int) -> String:
 	return base if f <= 1 else "%s@%d" % [base, f]
 
 
+## Rooms the web dungeon builder previews (tools/debug/dungeon_export.gd): template key -> room, read in place of
+## InteriorMaps' room of that key. Empty in the game.
+static var preview_rooms := {}
+
+
 static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	var base := id.get_slice("@", 0)
 	var fl := floor_of(id)
@@ -905,7 +921,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	var rooms := room_set(b)
 	var key: String = rooms[clampi(fl - 1, 0, rooms.size() - 1)]
 	var room: Dictionary
-	if key.begins_with("hotel_"):
+	if preview_rooms.has(key):
+		room = preview_rooms[key]
+	elif key.begins_with("hotel_"):
 		room = InteriorMaps.HOTEL_ROOMS[key]
 	elif parent == "kelpwick":
 		room = InteriorMaps.kelpwick_room(key)
@@ -1023,11 +1041,7 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 		for x in w:
 			var ch := row[x]
 			var p := Vector2i(x, y)
-			if door_rooms.has(ch) and room.get("hidden_doors", {}).has(ch) and not flags.get(room["hidden_doors"][ch], false):
-				# (a way that isn't there until its flag is set: the stairs in the floor down to Dale's landing, plain floor
-				# until the spring runs)
-				MapGen.set_t(m, x, y, MapGen.IFLOOR)
-			elif door_rooms.has(ch):
+			if door_rooms.has(ch):
 				# (a flight of stairs can lead to another room too: down out of a drained pool, say)
 				MapGen.set_t(m, x, y, MapGen.STAIRS_DOWN if ch == "<" else (MapGen.STAIRS_UP if ch == ">" else MapGen.IDOOR))
 				links[p] = door_rooms[ch]
@@ -1190,9 +1204,6 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			push_warning("%s: a door to %s, which %s doesn't have" % [key, links[t], b["shop"]])
 			continue
 		m["exits"][t] = {"to": floor_id(base, to + 1), "spawn": "from_" + key, "room": links[t]}
-		# (a flight of steps down through the floor, walked down into: well_cave.gd _step_doors, world.gd _down_steps)
-		if String(rows[t.y])[t.x] in room.get("step_doors", []):
-			m["exits"][t]["steps"] = true
 		if shut.has(t):
 			m["exits"][t]["locked_by"] = shut[t]
 		m["spawns"]["from_" + String(links[t])] = t + _into_room(m, t)
@@ -1229,6 +1240,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	if room.has("encounter"):
 		var enc: Dictionary = room["encounter"]
 		m["encounter"] = {"races": enc.get("races", []), "lv": enc["lv"], "rate": 0.13, "ghosts": 1.0 if enc.get("ghost", false) else 0.0}
+		# each beast's own level range ({"race", "lv"}: the dungeon builder's), over the room's "lv"
+		if enc.has("beasts"):
+			m["encounter"]["beasts"] = enc["beasts"]
 		# a temple's maze: its beasts prowl the corridors in plain sight (world.gd _spawn_wilds), not in mist
 		if enc.get("roam", false):
 			m["encounter"]["roam"] = true

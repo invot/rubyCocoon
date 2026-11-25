@@ -15,6 +15,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - [Bridges and trees](#bridges-and-trees)
 - [Rooms and levels](#rooms-and-levels)
 - [Towns](#towns)
+- [The Scaraba Desert's sections](#the-scaraba-deserts-sections)
 - [Checking maps](#checking-maps)
 
 ## Tiles
@@ -53,6 +54,10 @@ In `interior_maps.gd`:
 - `K` is a kennel pen and `@` a red phone.
 - `_` is a pool of water, sunk in stone. A door symbol of `<` or `>` in `doors` is drawn as stairs.
 - An `encounter` with `"roam": true` lets its wild beasts walk the room's floor (a temple's maze) instead of only its mist.
+- An `encounter`'s optional `"beasts": [{"race": 30, "lv": [21, 24]}, ...]` gives each race its own level range. Keep
+  `"races"` (the same races, the first the most common) and `"lv"` (lowest to highest of them) beside it: phone hints
+  and pack sizes read those. DunGen, the dungeon editor (`tools/dungeon_builder`, hosted at
+  https://dungen.rubycoccon.pages.dev), writes all three.
 
 ## Weapon fixtures
 
@@ -181,6 +186,21 @@ Cocoon Cove uses the supplied, repaired pirate-cove kit (`cove_buildings.gd`).
 - Crates and barrels occupy spare edge tiles; `prop_clearance` rectangles reserve walking lanes, stairs and door approaches for both authored and procedural furniture. Its starter gear remains as `item:<id>` anchors.
 - Standard full-size doors come from `HouseModels`; the library's awning covers only its door. Each kit house's ground storey is stretched until its doorway takes that 1.8-unit door (clearly taller than the hero), and the kit's own door slab is cut away so the door lies on the wall. All source exterior openings are sealed.
 - Its `building_order` lists building origins in saved interior order; `building_looks` selects preferred house models and skins (or `cove_model` for the pirate kit), and `scenery_houses` places noninteractive buildings on solid woodland footprints. After changing its plots, run `tools/bake_cove_measurements.gd` before the Python checker.
+
+## The Scaraba Desert's sections
+
+The Scaraba Desert (`route5`) is not a single map. A layout director (`scripts/world/desert_layout.gd`) assembles it from short sections in `scripts/data/maps/desert_sections.gd`, which use the `route_maps.gd` format. One section stands at a time, still under the map id `route5`.
+
+- **Seams.** Each section runs from a seam in its rear cliff (north) to its open front (south). Crossing a seam loads the next or the previous section behind a short fade (`desert_crossing.gd`). The world keeps the section just left, so stepping back one seam is quick.
+- **The order.** The opening (from the Mesa Trail), two optional sections, the first join, Valkoog's approach, the second join, one or two more optional sections, and the oasis gate (into Scaraba). The save's seed picks the optional sections (`SKELETON`) and each join's lock face.
+- **Tags.** Each section is tagged `fixed`, `optional`, `required` (a join) or `edge`.
+- **Joins and the edge.** A join's `"ring": {"id", "center"}` puts a star lock round its centre (`star_locks.gd`): five points at `STAR_POINTS` and a tablet at `TABLET`, answered by touching the points in the order 1, 3, 5, 2, 4, 1 (flag `star_ring_<id>`). The face (stones, pillars, a duck pond that turns the centre's 3 × 3 tiles to water, or bells) is the seed's, saved in the layout's `locks`. Until then, walking on past the join in the direction you came leads into the **edge** section. At its far side the camera holds, the hero walks off alone, and after a fade they're back on the map they entered the desert from, with everything kept. A half-touched lock holds the walk-off.
+- **Set pieces.** `"sights": [{"kind", "at"}]` places a section's set pieces (`desert_sights.gd`): the springs, the reed pool, the Singing Cactus (`singing_cactus.gd`), the shrine, the sleeping statues, the band's waystation, the conduit and Valkoog's landing stars. Keep their tiles open, off the road and reachable.
+- **Variants.** `"variants": [{"id", "flag", "tiles": {"x,y": char}, "sights"}]` swap tiles (and add set pieces) once a flag is set. A section takes its variant only when it is walked into, never while it is loaded. A variant must keep both seams and the way between them.
+- **Flags.** Items, trainers and obstacles keep their flags per section (`route5_<section>`, the source's `"flag_id"`).
+- **The save.** The layout (seed, list, variants, current section, direction and entry map) is in `flags.desert_layout`. A reload rebuilds the same section.
+
+`check_maps.gd` checks every section in each of its variants. `--scene=desert-layout` (`tools/debug/desert_layout.gd`) checks the critical path over 50 seeds, every section in every variant and lock face, each face solved, the walk-off from each side, a flag set while a section is loaded, a save and reload mid-crossing, Valkoog's doors, and the set pieces. With `--desert_shots=res://build/...` (not headless) it takes a screenshot of each face and set piece instead.
 
 ## Checking maps
 

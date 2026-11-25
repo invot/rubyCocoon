@@ -13,6 +13,7 @@ const WorldDB = preload("res://scripts/data/world_db.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const WeaponObstacles = preload("res://scripts/core/weapon_obstacles.gd")
+const DesertLayout = preload("res://scripts/world/desert_layout.gd")
 
 ## The camera looks north from the south: a tree or a building this many tiles (or fewer) south of a road, a bridge,
 ## the plaza or someone standing about stands between them and the camera. (Trees in a map's last three rows are drawn
@@ -23,6 +24,7 @@ const ROADS := [MapGen.PATH, MapGen.PLAZA, MapGen.BRIDGE]
 ## The story's way-openers, all done: every map is checked as it is at the start and with these set.
 const CLEARED := {"has_starter": true, "island_peace": true, "bandits_cleared": true, "ceo_defeated": true, "ritual_done": true,
 	"sluice_reef": true, "tides_falls_solved": true, "tides_maze_solved": true, "tides_song_door": true,
+	"winds_song_door": true,
 	"well_restored": true, "river_restored": true, "water_mages_found": true}
 
 
@@ -63,6 +65,31 @@ func _init() -> void:
 			elif flags.is_empty():
 				print("%-12s ok  %dx%d  buildings %d  npcs %d  trainers %d  exits %d" % [id, m["w"], m["h"], m["buildings"].size(), m["npcs"].size(),
 					m["npcs"].filter(func(n): return n.get("kind", "") == "trainer").size(), m["exits"].size()])
+	# the Scaraba Desert (route5) is a chain of sections (desert_layout.gd): each one on its own, in each variant
+	for sid in DesertLayout.Sections.SECTIONS:
+		var variants := [""]
+		for v in DesertLayout.Sections.SECTIONS[sid].get("variants", []):
+			variants.append(String(v["id"]))
+		for vid in variants:
+			for flags in [{}, cleared]:
+				var f: Dictionary = flags.duplicate()
+				var edge: bool = sid == "edge"
+				f[DesertLayout.KEY] = {"list": ["opening"] if edge else [sid], "variants": [vid], "at": 0, "dir": 1, "edge": edge, "back": 0}
+				var m := MapLoader.load_map(DesertLayout.ROUTE, f)
+				var problems := _check(m)
+				for b in m["buildings"]:
+					for fl in range(1, MapLoader.room_set(b).size() + 1):
+						var im := MapLoader.load_map(MapLoader.floor_id(b["interior"], fl), f)
+						rooms += 1
+						for p in _check(im):
+							problems.append("[%s F%d] %s" % [b["name"], fl, p])
+				var label := "desert:%s%s" % [sid, ("/" + vid) if vid != "" else ""]
+				if problems.size() > 0:
+					bad += 1
+					print(label, " ", flags.keys(), ": ", problems)
+				elif flags.is_empty():
+					print("%-12s ok  %dx%d  buildings %d  trainers %d  exits %d" % [label, m["w"], m["h"], m["buildings"].size(),
+						m["npcs"].filter(func(n): return n.get("kind", "") == "trainer").size(), m["exits"].size()])
 	print("interiors checked: ", rooms)
 	print("MAPS WITH PROBLEMS: ", bad)
 	quit()

@@ -361,14 +361,18 @@ const ROOMS := {
 		],
 	},
 	## Dale's workroom: Dale on the east side of a crack, a chest with his old Wellspring Pendant across bridge 4 (-), which Dale lowers for you.
-	## Once the spring runs (well_restored), a stairway (S, "step_doors") opens in the floor just below the chest, down
-	## to the landing where the stream leaves the well and Dale's rowboat waits (well_landing).
+	## Its front is a cliff ("front_water": its face stands over the water, not left open like a crack's) down to a channel
+	## the crack runs into. Below the chest a ledge leads onto a stone stairway ("stone_stairs": its ramp is steps, not a
+	## ladder) running east along the cliff's foot, two tiles for its one level, to a step at the water, where Dale's
+	## rowboat (well_boat) floats once the spring runs (Story._well_boat).
 	"well_dale": {
 		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 2.0, "top_level": 3, "abyss": true, "masonry_cols": [0, 13],
+		"stone_stairs": true, "front_water": true, "pit_depth": 1.0,
 		"bridges": {"-": "well_bridge_4"},
-		"doors": {"A": "well_hub", "S": "well_landing"},
-		"step_doors": ["S"], "hidden_doors": {"S": "well_restored"},
+		"doors": {"A": "well_hub"},
 		"anchors": {"0": "dale", "1": "chest:wellspring_pendant#0"},
+		# (the boat floats on the channel, so its tile stays a gap: anchor_tiles, not an anchor letter)
+		"anchor_tiles": {"well_boat": Vector2i(5, 7)},
 		"rows": [
 			"##############",
 			"####..  ..####",
@@ -376,8 +380,9 @@ const ROOMS := {
 			"##....  .0..##",
 			"#.....  .....#",
 			"#1....--.....A",
-			"#S....  .....#",
-			"##############",
+			"#.....  .....#",
+			"#....        #",
+			"#            #",
 		],
 		"heights": [
 			"33333333333333",
@@ -387,40 +392,8 @@ const ROOMS := {
 			"33333300333333",
 			"33333333333333",
 			"33333300333333",
-			"33333333333333",
-		],
-	},
-	## The landing under Dale's workroom (its floor stairway, S): the stream the spring woke runs out of the rock and right
-	## across the cave ("ravine_drift": west to east), and a stone stairway ("stone_stairs": its ramps are steps,
-	## not ladders) leads down from the doorway's ledge to the water, where Dale's little rowboat (well_boat) is tied
-	## broadside. It rides the stream out to the sea, and runs aground on the Temple of Tides' isle (Story._well_boat).
-	"well_landing": {
-		"wall": "#726777", "rug": "#887b72", "zone": "stone", "dark": true, "cavern": true, "well": true, "level_h": 1.0, "top_level": 2, "abyss": true,
-		"stone_stairs": true, "ravine_drift": [-0.55, 0.0], "pit_depth": 1.0,
-		"doors": {"A": "well_dale"},
-		# (the boat floats on the stream, so its tile stays a gap: anchor_tiles, not an anchor letter)
-		"anchor_tiles": {"well_boat": Vector2i(6, 5)},
-		"rows": [
-			"######A#######",
-			"####......####",
-			"##..........##",
-			"#............#",
-			"#............#",
-			"#            #",
-			"#            #",
-			"#............#",
-			"##############",
-		],
-		"heights": [
-			"22222222222222",
-			"22222222222222",
-			"22222222222222",
-			"11111^^^111111",
-			"11111111111111",
-			"10000000000001",
-			"10000000000001",
-			"11111111111111",
-			"11111111111111",
+			"33<<2000000003",
+			"30000000000003",
 		],
 	},
 	## Dale's hot spring: the same pink healing spring as the hotel's, its sign on the back wall.
@@ -448,6 +421,105 @@ const ROOMS := {
 			"#c......A",
 			"#...r...#",
 			"#########",
+		],
+	},
+
+	## The old church the elemental mages kept, the Jackals' now (docs/scaraba-implementation-plan.md WP8): a whitewashed
+	## nave with the air mages' emblems (nowhere a cross), benches, a bronze ring on the back wall, the strongbox by the
+	## door and the church well beside the altar steps. Hoss and Clem hold it with Grubb at the door (church_chapter.gd).
+	"church_nave": {
+		"wall": "#e6dcc6", "rug": "#8a5a3a", "zone": "hall", "wall_tex": {"hall": "wall_plaster"},
+		"rows": [
+			"################",
+			"#..............#",
+			"#..............#",
+			"#.o..==...==.o.#",
+			"#....==...==...#",
+			"#.o..==...==.o.#",
+			"#....==...==...#",
+			"#.o..==...==.o.#",
+			"#....>.........#",
+			"#......r.......#",
+			"#..............#",
+			"DP..............#",
+			"################",
+		],
+	},
+	## The cave under the church well: the town well's shapes in a harder, colder palette (well_cave.gd), the Jackals'
+	## sentries on the way to the trainers' room, and the five beavers, friendly now (church_chapter.gd).
+	"church_cellar": {
+		"wall": "#4e4658", "rug": "#3f3632", "zone": "stone", "dark": true, "cavern": true,
+		"encounter": {"races": [12, 15, 18, 21, 66], "lv": [20, 24], "roam": true},
+		"anchors": {"0": "chest:revival_seed#0"},
+		"rows": [
+			"#..................#",
+			"#.P................#",
+			"#..................#",
+			"#..................#",
+			"#..................#",
+			"#.........0........#",
+			"#..................#",
+			"#..................#",
+			"#..<.............>.#",
+			"#..................#",
+			"#..................#",
+		],
+	},
+	## The flooded gallery deeper in (the plan's "flooded gallery the player can already solve"): the town well's water
+	## standing in the old workings, a stone walk between two long pools, and the walk straight through it.
+	"church_gallery": {
+		"wall": "#4e4658", "rug": "#3f3632", "zone": "stone", "dark": true, "floor_tex": {"hall": "floor_stone"},
+		"pool_tint": "#203a42", "pool_curb": false, "pool_surface": -0.03,
+		"encounter": {"races": [12, 15, 18, 21, 66], "lv": [20, 24], "roam": true},
+		"anchors": {"0": "chest:mega_potion#0"},
+		"rows": [
+			"######################",
+			"#________P...________#",
+			"#________....________#",
+			"#_______.....________#",
+			"#________....._______#",
+			"#______......._______#",
+			"#_______...._________#",
+			"#________....________#",
+			"#______......________#",
+			"#.<................>.#",
+			"#................0...#",
+			"######################",
+		],
+	},
+	## The room before the trainers' door, where the beavers chew through (church_chapter.gd).
+	"church_barred": {
+		"wall": "#4e4658", "rug": "#3f3632", "zone": "stone", "dark": true, "cavern": true,
+		"doors": {"B": "church_room"}, "locked_doors": {"B": "trainers_door"},
+		"rows": [
+			"#............#",
+			"#..P.........#",
+			"#............#",
+			"#............#",
+			"#............#",
+			"#............B",
+			"#............#",
+			"#............#",
+			"#.<..........#",
+			"#............#",
+		],
+	},
+	## Behind the door: the room the Jackals kept the missing trainers in (Lio, Bea, Orin and Sable's three juniors).
+	"church_room": {
+		"wall": "#5a4a3e", "rug": "#4a3a42", "zone": "stone", "dark": true,
+		"doors": {"A": "church_barred"},
+		"rows": [
+			"#..............#",
+			"#..P...........#",
+			"#..............#",
+			"#..............#",
+			"#..............#",
+			"#..............#",
+			"#..............#",
+			"#..............#",
+			"#..............A",
+			"#..............#",
+			"#..............#",
 		],
 	},
 
@@ -978,6 +1050,31 @@ const ROOMS := {
 			"#########",
 		],
 	},
+	## Inspector Grubb's house in Scaraba (sundown building 6, locked until you've met him: scaraba_town.gd): one room
+	## with a bed, and the stairs at the back down to the old cistern (twins_cistern; drawn as a flight up for now).
+	"twins_house": {
+		"wall": "#e0c8a0", "rug": "#a8503a", "stage": true, "zone": "bedroom",
+		"rows": [
+			"#####w###w###",
+			"#bb.N(...>>>#",
+			"w...........#",
+			"#Q..rrr.....#",
+			"#Q.........PD",
+			"#############",
+		],
+	},
+	## The old cistern under Grubb's house, where Tam (6) and Saffi (7) hide on two bedrolls with a basket of blankets.
+	"twins_cistern": {
+		"wall": "#b8a080", "rug": "#6a8aa0", "zone": "stone", "anchors": {"6": "tam", "7": "saffi"},
+		"rows": [
+			"###########",
+			"#+.+..[<<<#",
+			"#........P#",
+			"#..6..7...#",
+			"#(...rr...#",
+			"###########",
+		],
+	},
 	## Uncle Rafe's house in Bellerive, by the west gate: one room, where he waits (1) with your father's flute.
 	"uncle_home": {
 		"wall": "#e0d0b0", "rug": "#4a6a9a", "stage": true, "anchors": {"1": "uncle"},
@@ -1295,26 +1392,131 @@ const ROOMS := {
 			"                   ",
 		],
 	},
+	# Valkoog (WorldDB.TEMPLES "air", docs/scaraba-implementation-plan.md WP6): four floors of air-keyed traps climb to
+	# the keepers' chamber, and its wind-cut seam opens on the summit, in the old one-room temple. Every floor's star
+	# stands on anchors air_1 .. air_5 round its trap (air_trap, a blocking gust), with the twins on twin_tam /
+	# twin_saffi; the keepers' chamber has the singing stones and the star of them all. air_temple.gd keeps the rules.
+	"valkoog_1": {
+		"wall": "#e8dcc0", "rug": "#4ab8a0",
+		"anchors": {"1": "air_1", "2": "air_2", "3": "air_3", "4": "air_4", "5": "air_5", "6": "air_trap",
+			";": "twin_tam", ",": "twin_saffi"},
+		"rows": [
+			"#################",
+			"#.......>.......#",
+			"#......o6o......#",
+			"#......o.o......#",
+			"#.......1.......#",
+			"#..5.........2..#",
+			"#...............#",
+			"#..4.........3..#",
+			"#.;...........,.#",
+			"DP..............#",
+			"#################",
+		],
+	},
+	"valkoog_2": {
+		"wall": "#e0d4b8", "rug": "#3f9a8a",
+		"anchors": {"1": "air_1", "2": "air_2", "3": "air_3", "4": "air_4", "5": "air_5", "6": "air_trap",
+			";": "twin_tam", ",": "twin_saffi"},
+		"rows": [
+			"#################",
+			"#.......>.......#",
+			"#......o6o......#",
+			"#......o.o......#",
+			"#..o...1...o.o..#",
+			"#..5.........2..#",
+			"#...............#",
+			"#..4.........3..#",
+			"#.;...........,.#",
+			"#P<.............#",
+			"#################",
+		],
+	},
+	"valkoog_3": {
+		"wall": "#d8c8a8", "rug": "#4a8a8a",
+		"anchors": {"1": "air_1", "2": "air_2", "3": "air_3", "4": "air_4", "5": "air_5", "6": "air_trap",
+			";": "twin_tam", ",": "twin_saffi"},
+		"rows": [
+			"#################",
+			"#.......>.......#",
+			"#......o6o......#",
+			"#......o.o......#",
+			"#..o...1...o.o..#",
+			"#..5.........2..#",
+			"#......ooo......#",
+			"#..4.........3..#",
+			"#.;...........,.#",
+			"#P<.............#",
+			"#################",
+		],
+	},
+	"valkoog_4": {
+		"wall": "#e8dcc0", "rug": "#3f8f7a", "zone": "stone",
+		"anchors": {"1": "air_1", "2": "air_2", "3": "air_3", "4": "air_4", "5": "air_5", "6": "air_trap",
+			";": "twin_tam", ",": "twin_saffi"},
+		"rows": [
+			"#################",
+			"#.......>.......#",
+			"#......o6o......#",
+			"#......o.o......#",
+			"#..o...1...o.o..#",
+			"#..5.........2..#",
+			"#..o.........o..#",
+			"#..4.........3..#",
+			"#.;...........,.#",
+			"#P<.............#",
+			"#################",
+		],
+	},
+	# The keepers' chamber: the five stand at the star's points round a star cut in the floor, the singing stones and
+	# their tablet against the back wall, and the wind-cut seam (K) opens on the summit once the song is learned.
+	"valkoog_keepers": {
+		"wall": "#efe2c4", "rug": "#4ab8a0", "zone": "stone",
+		"doors": {"0": "temple_air"},
+		"stone_doors": ["K"],
+		"floods": {"K": {"flag": "winds_song_door", "wet": "L", "dry": "0"}},
+		"locked": ["A seam in the wall, cut by wind. It's shut, and the air round it is perfectly still."],
+		"anchor_tiles": {"tablet": Vector2i(8, 9)},
+		"anchors": {"1": "keeper_0", "2": "keeper_1", "3": "keeper_2", "4": "keeper_3", "5": "keeper_4",
+			"6": "stone_0", "7": "stone_1", "8": "stone_2", "9": "stone_3", ";": "twin_tam", ",": "twin_saffi"},
+		"rows": [
+			"#################",
+			"#.......K.......#",
+			"#..6..7..8..9...#",
+			"#...............#",
+			"#....1.....2....#",
+			"#...............#",
+			"#.......5.......#",
+			"#...............#",
+			"#....4.....3....#",
+			"#.;...........,.#",
+			"#P<.............#",
+			"#################",
+		],
+	},
+	# The summit: the dragon's nest and hoard, and the wind that answers the Song of Winds. The keepers' seam comes up
+	# into this room (a door), and the twins come along.
 	"temple_air": {
 		"wall": "#e8dcc0", "rug": "#4ab8a0",
 		# the dragon's hoard round its nest (dragon_hoard.gd): gold and treasures heaped on these tiles
 		"hoard": [Vector2i(4, 1), Vector2i(5, 1), Vector2i(6, 1), Vector2i(10, 1), Vector2i(11, 1), Vector2i(12, 1), Vector2i(1, 7), Vector2i(1, 8), Vector2i(14, 7), Vector2i(14, 8), Vector2i(13, 10), Vector2i(4, 6), Vector2i(12, 6), Vector2i(4, 9), Vector2i(12, 9), Vector2i(3, 10), Vector2i(1, 2), Vector2i(15, 2)],
 		"npcs": {"1": "guardian"},
 		"encounter": {"lv": [20, 25], "races": [33, 30, 36]},
-		"anchors": {"3": "stone_0", "4": "stone_1", "5": "stone_2", "6": "stone_3", "7": "tablet"},
+		"doors": {"0": "valkoog_keepers"},
+		"anchors": {";": "twin_tam", ",": "twin_saffi"},
 		"rows": [
 			"###w###w###w###w#",
 			"#o.....AAA.....o#",
-			"#..3..4...5..6..#",
+			"#..;.........,..#",
 			"#o.ggg.....ggg.o#",
-			"#..ggg.....ggg..#",
+			"0..ggg.....ggg..#",
 			"#o.....rrr.....o#",
 			"#......r1r......#",
 			"#..ggg.rrr.ggg..#",
 			"#..ggg.rrr.ggg..#",
 			"#o.....rrr.....o#",
 			"#.*....rrr......#",
-			"DP...7.rrr.....@#",
+			"#.....rrr.......#",
 			"#################",
 		],
 	},

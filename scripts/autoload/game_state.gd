@@ -672,6 +672,13 @@ func recharge_shield() -> void:
 	shield = max_shield
 
 
+## The Air Shield's refill between Valkoog's rooms (docs/scaraba-implementation-plan.md WP5): the windward charm's
+## wind gathers again, so a room's losses don't carry into the next one. Called at a room's door (WP6) and after a
+## lost battle in a retry room (main.start_battle).
+func refill_air_shield() -> void:
+	recharge_shield()
+
+
 # ---------------------------------------------------------------- items
 func item_count(id: String) -> int:
 	return int(inventory.get(id, 0))
@@ -1113,7 +1120,7 @@ func save_game(slot := -2, shot: Image = null) -> bool:
 ## - one that reached Scaraba but not beyond has crossed the desert.
 const SCARABA_CHAPTER_DONE := ["star_taught", "desert_crossed", "met_jackals", "met_sheriff", "met_sable", "met_grubb", "met_twins",
 	"valkoog_open", "met_air_keepers", "jackals_ambush", "grubb_report", "church_entered", "undercroft_beavers", "trainers_door",
-	"hoss_confessed", "jackals_disbanded", "trainers_freed", "clem_left", "sable_trainers_home", "north_road_open"]
+	"hoss_confessed", "jackals_disbanded", "trainers_freed", "clem_left", "dalton_ledger", "sable_trainers_home", "north_road_open"]
 
 
 func _scaraba_route() -> void:
@@ -1132,6 +1139,14 @@ func _scaraba_route() -> void:
 	# (the north gate's soldiers now stand on Scaraba's gate tiles: a game saved on one steps a tile into town)
 	if map_id == "sundown" and not flag("north_road_open") and pos.y >= 0 and pos.y <= 2 and pos.x in [14, 15]:
 		pos = Vector2i(pos.x, 3)
+
+
+## The Scaraba Desert became a chain of sections (desert_layout.gd): a game saved out in the old single desert map,
+## or in a building on it, comes back at its Mesa Trail end, by Bart's hideout.
+func _desert_sections() -> void:
+	if map_id.get_slice("#", 0) == "route5" and not flags.has("desert_layout"):
+		map_id = "route5"
+		pos = Vector2i(-1, -1)
 
 
 ## Loads a slot (default: this game's slot, else the most recent save).
@@ -1275,6 +1290,7 @@ func load_game(slot := -2) -> bool:
 		pos.x += WorldDB.SHELLHAVEN_WEST_PADDING
 	flags["shellhaven_west_marina"] = true
 	_scaraba_route()
+	_desert_sections()
 	var fc: Array = d.get("facing", [0, 1])
 	facing = Vector2i(int(fc[0]), int(fc[1]))
 	_kelpwick_hut_rooms()

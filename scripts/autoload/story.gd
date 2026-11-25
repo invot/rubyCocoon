@@ -36,6 +36,11 @@ const SpellDB = preload("res://scripts/data/spell_db.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
 const Ring = preload("res://scripts/core/ring.gd")
 const Phone = preload("res://scripts/world/phone.gd")
+const DesertCrossing = preload("res://scripts/world/desert_crossing.gd")
+const ScarabaTown = preload("res://scripts/story/scaraba_town.gd")
+const AirTemple = preload("res://scripts/world/air_temple.gd")
+const AfterValkoog = preload("res://scripts/story/after_valkoog.gd")
+const ChurchChapter = preload("res://scripts/story/church_chapter.gd")
 const TrainerCell = preload("res://scripts/story/trainer_cell.gd")
 const Frontier = preload("res://scripts/gfx/frontier_builder.gd")
 
@@ -148,6 +153,14 @@ func extra_npcs(map: Dictionary) -> Array:
 	var out := []
 	var id: String = map["id"]
 	out.append_array(_water_targets(map))
+	# the Scaraba Desert: a join's star ring (desert_crossing.gd)
+	out.append_array(DesertCrossing.ring_npcs(map))
+	# Scaraba's first visit: the Jackals at the gate, Grubb, the twins, the arena's empty places (scaraba_town.gd)
+	out.append_array(ScarabaTown.npcs(map))
+	# and after Valkoog: the road ambush, the searched cistern, the gate wagon (after_valkoog.gd)
+	out.append_array(AfterValkoog.npcs(map))
+	# the Dustwell church and its undercroft (church_chapter.gd)
+	out.append_array(ChurchChapter.npcs(map))
 	if String(map.get("room_key", "")).begins_with("well_"):
 		out.append_array(_well_people(map))
 		return out
@@ -223,6 +236,8 @@ func extra_npcs(map: Dictionary) -> Array:
 		if _has_anchor(map, "uncle"):
 			inside.append({"kind": "story", "id": "uncle", "name": "Uncle Rafe", "pos": _at(map, "uncle", Vector2i.ZERO), "look": UNCLE_LOOK, "facing": Vector2i(0, 1), "story": true})
 		inside.append_array(temple_objects(map))
+		# Valkoog's star devices, its traps, the keepers and the twins (air_temple.gd)
+		inside.append_array(AirTemple.objects(map))
 		inside.append_array(fixtures(map))
 		return inside
 	var plaza: Vector2i = map.get("plaza", Vector2i(map["w"] / 2, map["h"] / 2))
@@ -333,8 +348,8 @@ func extra_npcs(map: Dictionary) -> Array:
 			if _has_anchor(map, "convict") and GameState.flag("convict_asked"):
 				out.append({"kind": "story", "id": "convict", "name": "Slim", "pos": _at(map, "convict", plaza), "look": SLIM_LOOK,
 					"facing": Vector2i(0, 1) if GameState.flag("slim_cleared") else Vector2i(-1, 0), "story": true})
-			# two bandits barring the old church's door (CHURCH_BANDITS)
-			for i in CHURCH_BANDITS.size():
+			# two bandits barring the old church's door (CHURCH_BANDITS); after Grubb's report they're inside
+			for i in (CHURCH_BANDITS.size() if not GameState.flag("grubb_report") else 0):
 				if _has_anchor(map, "church_bandit_%d" % i):
 					var cb: Dictionary = CHURCH_BANDITS[i]
 					out.append({"kind": "story", "id": "church_bandit", "bandit": i, "name": cb["name"], "pos": _at(map, "church_bandit_%d" % i, plaza),
@@ -342,7 +357,11 @@ func extra_npcs(map: Dictionary) -> Array:
 			for i in SEARCHERS.size():
 				if _has_anchor(map, "searcher_%d" % i):
 					var sr: Dictionary = SEARCHERS[i]
-					out.append({"kind": "story", "id": "searcher", "searcher": i, "name": sr["name"], "pos": _at(map, "searcher_%d" % i, plaza),
+					# (they run to the church door for the reunion: church_chapter.gd)
+					var spot := _at(map, "searcher_%d" % i, plaza)
+					if GameState.flag("hoss_confessed") and not GameState.flag("trainers_freed"):
+						spot = ChurchChapter.SEARCH_AT[i]
+					out.append({"kind": "story", "id": "searcher", "searcher": i, "name": sr["name"], "pos": spot,
 						"look": sr["look"], "facing": sr["facing"], "story": true})
 		"sundown":
 			out.append({"kind": "story", "id": "sheriff", "name": "Captain Dalton", "pos": _at(map, "sheriff", plaza), "look": SHERIFF_LOOK, "facing": Vector2i(0, 1), "story": true})
@@ -422,6 +441,14 @@ func npc_has_news(n: Dictionary) -> bool:
 			return not GameState.flag("convict_found") or GameState.flag("slim_cleared") and not GameState.flag("slim_thanks")
 		"church_bandit":
 			return not GameState.flag("church_bandit_%d" % int(n.get("bandit", 0)))
+		"grubb":
+			return not GameState.flag("met_grubb")
+		"twin":
+			return not GameState.flag("met_twins")
+		"scaraba_tamsin":
+			return not GameState.flag("tamsin_lead")
+		"scaraba_jackal":
+			return not GameState.flag("met_jackals")
 		"searcher":
 			# until you've heard them out (and again once their friend is home)
 			var heard := "searcher_%d%s" % [int(n.get("searcher", 0)), "_home" if GameState.flag("trainers_freed") else ""]
@@ -578,6 +605,9 @@ func on_map_enter(world) -> void:
 			if n.get("id", "") == "summon_coach":
 				await talk(world, n)
 				break
+	await ScarabaTown.on_enter(world)
+	await AfterValkoog.on_enter(world)
+	await ChurchChapter.on_enter(world)
 	world.busy = false
 	world.refresh_npc_marks()
 	# a teacher who can see you where you've arrived stops you straight away
@@ -632,6 +662,9 @@ func can_use_exit(world, ex: Dictionary) -> bool:
 	# a door kept shut until its flag is set (map_loader.gd "locked_doors"): Dibble's, in the well, takes Nub's key
 	if ex.has("locked_by") and not GameState.flag(String(ex["locked_by"])):
 		return await _well_door()
+	# the Scaraba Desert's seams and its edge (desert_crossing.gd)
+	if not await DesertCrossing.use_exit(world, ex):
+		return false
 	if not world.interior:
 		return true
 	# the first time you go to leave home, the phone rings: Dad, calling from work (answer it, and the game's saved)
@@ -996,8 +1029,10 @@ func _talk_villager(world, n: Dictionary) -> void:
 		quest = "Resort folk carried off the temple's shell lamps as souvenirs. Now the tide comes in crooked."
 	elif world.map_id == "dustwell" and not GameState.flag("trainers_freed"):
 		quest = "Seen the posters? Three new trainers, gone off the roads. Folks here won't let their kids past the trough."
-	elif world.map_id == "sundown" and not GameState.flag("bandits_cleared"):
-		quest = "The Jackals hit another caravan outside the gate. Took every sack of flour. And my favourite spoon. Monsters."
+	elif world.map_id == "sundown":
+		# Scaraba's residents talk about what's changed (four states, scaraba_town.gd state())
+		var said: Array = ChatterDB.SCARABA[ScarabaTown.state()]
+		quest = said[rng.randi_range(0, said.size() - 1)]
 	elif world.map_id == "cogsworth" and not GameState.flag("ceo_defeated"):
 		quest = "Those freight wagons aren't carrying machinery. Wren heard people calling from inside. Gearheart's sentries guard every lift."
 	if world.map_id == "gravenmoor":
@@ -1073,7 +1108,7 @@ func next_goal() -> String:
 		return "sanctuary" if GameState.flag("water_mages_found") else "torrent"
 	if GameState.flag("river_restored") and not GameState.flag("met_sheriff"):
 		return "meet_dalton" if GameState.visited.has("sundown") else "board_riverboat"
-	for step in [["island_peace", "warden"], ["guardian_water", "temple"], ["met_sheriff", "desert"],
+	for step in [["island_peace", "warden"], ["guardian_water", "temple"], ["met_sheriff", "desert"], ["met_grubb", "grubb"], ["met_twins", "twins"],
 			["bandits_cleared", "bandits"], ["guardian_air", "winds"], ["north_road_open", "north_gate"], ["mine_pass_ok", "mine"], ["ceo_defeated", "gearhart"],
 			["tower_cages_opened", "rescue"],
 			["guardian_fire", "flame"], ["relic_quest", "jungle"], ["ritual_done", "relics"], ["guardian_earth", "roots"],
@@ -1288,6 +1323,18 @@ func _talk_story(world, n: Dictionary) -> void:
 			await _tide_keeper()
 		"song_stone":
 			await Places.song_stone(world, n)
+		"star_point", "star_tablet", "star_duck", "desert_sight":
+			await DesertCrossing.talk(world, n)
+		"air_point", "air_trap", "twin_guest":
+			await AirTemple.talk(world, n)
+		"air_keeper":
+			await _air_keeper(n)
+		"scaraba_jackal", "grubb", "twin", "junior_place", "junior", "scaraba_accuser", "scaraba_warden", "scaraba_driver", "scaraba_tamsin":
+			await ScarabaTown.talk(world, n)
+		"jackal_road", "cistern_search", "gate_wagon":
+			await AfterValkoog.talk(world, n)
+		"church_grubb", "church_well", "church_strongbox", "church_emblem", "church_hoss", "church_clem", "church_beaver", "church_sentry", "church_trainer", "church_junior":
+			await ChurchChapter.talk(world, n)
 		"song_tablet":
 			await Places.song_tablet(world, n)
 		"elder":
@@ -1680,6 +1727,9 @@ func _tourist(n: Dictionary) -> void:
 
 
 func _sheriff() -> void:
+	if GameState.flag("trainers_freed") and not GameState.flag("dalton_ledger"):
+		await _dalton_ledger()
+		return
 	if GameState.flag("bandits_cleared"):
 		if not GameState.flag("sheriff_thanks"):
 			GameState.set_flag("sheriff_thanks")
@@ -1701,12 +1751,38 @@ func _sheriff() -> void:
 		elif GameState.flag("sheriff_thanks"):
 			await say(["The caravans come and go in peace again. My watch can finally sleep at night."], "Captain Dalton")
 		return
-	GameState.set_flag("met_sheriff")
-	await say(["Welcome to Scaraba, traveller. I'm Captain Dalton of the gate watch.",
-		"New trainers are vanishing. We found Gearheart freight seals where the last camp stood. Those wagons go north to Cogsworth.",
-		"And Bart the Jackal's gang raids every caravan that comes to our gates, then holes up out in the Scaraba Desert, south of our walls.",
-		"My watch can hold the walls, but we can't chase bandits across the dunes. If you're half the trainer you look, go and teach them some manners.",
-		"Their hideout's a door in the rocks, out in the dunes on the Mesa Trail side."], "Captain Dalton")
+	# the briefing (WP4): the caravans and trainers, the seals and the freight tag, and why the watch can't move
+	await ScarabaTown.dalton_briefing()
+
+
+## Hoss's coded ledger comes home from the church (WP9): Dalton keeps the original, copies the manifest for the hero,
+## pays the watch's bounty and hands over Bart's bat, and says where the evidence stops.
+func _dalton_ledger() -> void:
+	GameState.set_flag("dalton_ledger")
+	GameState.set_flag("bandits_cleared")
+	var had := GameState.item_count("coded_ledger") > 0
+	if had:
+		GameState.remove_item("coded_ledger")
+	if GameState.item_count("freight_manifest") <= 0:
+		GameState.receive_item("freight_manifest")
+	await say(["Hoss's ledger. Grubb said you'd have it. Let me see."], "Captain Dalton")
+	await say(["Freight cipher. Payments, dates, names. And the trainers entered as cargo. This is the first thing on this desk that Gearheart can't explain away."], "Captain Dalton")
+	await say(["The manifest names Copperpick ore and a depot at Cogsworth. The law stops at Cogsworth's contracts, so I can't touch the company. But I can keep this, and I can pay the watch's bounty."], "Captain Dalton")
+	if had:
+		UI.toast("Dalton keeps the coded ledger. You keep the manifest copy.")
+	if not GameState.flag("sheriff_thanks"):
+		GameState.set_flag("sheriff_thanks")
+		GameState.gold += 2500
+		UI.gold(2500)
+		GameState.receive_item("revival_seed", 2)
+		UI.pickup("revival_seed", 2, "buy")
+		await say(["Here's the bounty: 2500 gold and a couple of Revival Seeds. Scaraba's gates are always open to you."], "Captain Dalton")
+	if GameState.item_count("bat") <= 0:
+		await say(["And this. Bart dropped his hickory bat when he fled that hideout.",
+			"It's yours now. It swings hard: walk right up to a foe and let them have it."], "Captain Dalton")
+		GameState.receive_item("bat")
+		Sfx.play("capture")
+		UI.toast("Received the Bat!", "item:bat")
 
 
 func _protester() -> void:
@@ -2057,7 +2133,8 @@ func deputy_waiting() -> bool:
 ## Deputy Rusk, minding Dustwell Jail (one empty cell more than he'd like).
 func _deputy() -> void:
 	if GameState.flag("trainers_freed"):
-		await say(["Gearheart, eh? Locking up trainers in freight cages.", "I've got a cell with his name on it. Literally. I painted it on. Spelled it wrong, but the thought's there."], DEPUTY)
+		await say(["Gearheart, eh? Locking up trainers in freight cages.", "I've got a cell with his name on it. Literally. I painted it on. Spelled it wrong, but the thought's there.",
+			"And Slim's a free man, hat and all. The real culprits were under the church the whole time. Under the church!"], DEPUTY)
 		return
 	if not GameState.flag("convict_asked"):
 		await say(["Oh! A visitor! Nobody visits the jail. Except prisoners. And they don't visit so much as... stay.",
@@ -2110,6 +2187,10 @@ func _deputy_partner() -> void:
 
 ## Slim: hiding from the deputy (framed, he says), then a free man.
 func _slim(n: Dictionary) -> void:
+	if GameState.flag("trainers_freed") and GameState.flag("slim_cleared"):
+		await say(["They got the real ones. The church crew, the freight, all of it. Rusk says my record's clean as a new hat.",
+			"I'm keeping the hat. It's grown on me."], n["name"])
+		return
 	if GameState.flag("slim_cleared"):
 		GameState.set_flag("slim_thanks")
 		await say(["Free as a tumbleweed! Thank you, partner. Rusk gave me my hat back.", "...It's his hat. But it's the thought."], n["name"])
@@ -2428,8 +2509,12 @@ func _well_people(map: Dictionary) -> Array:
 	if _has_anchor(map, "fallen_ladder") and not GameState.flag("well_ladder_set"):
 		out.append({"kind": "story", "id": "fallen_ladder", "name": "", "pos": map["anchors"]["fallen_ladder"],
 			"scene": _fallen_ladder_scene(), "still": true, "blocking": true, "facing": Vector2i.DOWN})
-	if _has_anchor(map, "well_boat"):
-		out.append({"kind": "story", "id": "well_boat", "name": "", "pos": map["anchors"]["well_boat"], "scene": rowboat_scene(false),
+	if _has_anchor(map, "well_boat") and GameState.flag("well_restored"):
+		# (floating on the channel: the step at the stairs' foot, beside it, stands 0.3 over the water, well_cave.gd)
+		var bp: Vector2i = map["anchors"]["well_boat"]
+		var E = preload("res://scripts/world/elevation.gd")
+		var lift: float = E.surface(map, bp + Vector2i.LEFT) - 0.3 - E.surface(map, bp)
+		out.append({"kind": "story", "id": "well_boat", "name": "", "pos": bp, "scene": rowboat_scene(false, lift),
 			"still": true, "blocking": true, "facing": Vector2i.DOWN})
 	if _has_anchor(map, "dale"):
 		out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": map["anchors"]["dale"], "look": DALE_LOOK,
@@ -2499,10 +2584,10 @@ func _fallen_ladder_scene() -> Node3D:
 	return root
 
 
-## Dale's rowboat at the bottom of the stairs under his workroom (interior_maps.gd well_landing): the stream the spring
-## woke carries it out of the well to the sea, where it runs aground on the Temple of Tides' isle (the reef's south
+## Dale's rowboat at the foot of the stairs down his workroom's front cliff (interior_maps.gd well_dale): the stream the
+## spring woke carries it out of the well to the sea, where it runs aground on the Temple of Tides' isle (the reef's south
 ## beach, BOAT_LANDING). It's wrecked there for good (well_boat_wrecked), and a beachcomber points it out. Dale has
-## more than one: there's always another tied up at the landing.
+## more than one: there's always another tied up at the foot of the stairs.
 const BEACHCOMBER := "Beachcomber Tully"
 const BEACHCOMBER_LOOK := {"skin": "#c8946a", "hair": "#e8c890", "shirt": "#f0e6c8", "pants": "#4a8aa8", "hat": "#e0c070", "outfit": "coat"}
 ## where you come ashore on the reef: beside the wreck (route_maps.gd reef "boat_wreck")
@@ -2535,9 +2620,11 @@ func _boat_crash(world) -> void:
 		"If it's the temple you're after, take the trail up through the bushes. Try not to crash into that."], BEACHCOMBER)
 
 
-## A little wooden rowboat (the PSX pack's, voxel_manifest "boat_dark"): floating broadside on the landing's stream
-## with a plank down to it from the bank, or wrecked, heeled over nose-first in the sand with split planks beside it.
-func rowboat_scene(wrecked: bool) -> Node3D:
+## A little wooden rowboat (the PSX pack's, voxel_manifest "boat_dark"): floating broadside on Dale's channel, `water`
+## over its tile, its stern against the step at the stairs' foot (west of it; nothing of it on that step, which the
+## footprint of a blocking scene would close), or wrecked, heeled over nose-first in
+## the sand with split planks beside it.
+func rowboat_scene(wrecked: bool, water := 0.0) -> Node3D:
 	var root := Node3D.new()
 	var VA = load("res://scripts/gfx/voxel_assets.gd")
 	var mi := MeshInstance3D.new()
@@ -2556,17 +2643,8 @@ func rowboat_scene(wrecked: bool) -> Node3D:
 	wood.albedo_color = Color("#8a5c38")
 	wood.roughness = 0.9
 	if not wrecked:
-		# on the stream, out in the middle of the ravine (its tile is the ravine's, a level under the banks; the landing's
-		# shallow channel, "pit_depth" 1, holds its water 0.7 above that)
-		hull.position = Vector3(0, 0.58, 0.5)
-		var plank := MeshInstance3D.new()
-		var pm := BoxMesh.new()
-		pm.size = Vector3(0.36, 0.05, 0.8)
-		plank.mesh = pm
-		plank.material_override = wood
-		plank.position = Vector3(0, 0.99, -0.35)
-		plank.rotation.x = 0.08
-		root.add_child(plank)
+		# (riding high, along the channel from the step: any lower and the water's surface shows inside the hull)
+		hull.position = Vector3(0.62, water + 0.12, 0.0)
 		return root
 	# run aground: half up the sand, heeled over and nose-down
 	hull.position = Vector3(0.1, -0.12, 0.3)
@@ -2610,7 +2688,7 @@ func _dale(_world, n: Dictionary) -> void:
 		else:
 			await say(["Listen to that. Water, all the way up the shaft. Thank you. And thank you for keeping quiet.",
 				"The river north needs more than Water, though. The Temple of Tides, past Kelpwick. The panel in the drained chamber.",
-				"Take the stairs by the chest. The stream at the bottom runs all the way out to the temple's isle, and my old rowboat's tied up there."], nm)
+				"Take the steps by the chest down to the water. It runs all the way out to the temple's isle, and my old rowboat's tied up there."], nm)
 		return
 	if not GameState.flag("dale_met"):
 		GameState.set_flag("dale_met")
@@ -2646,8 +2724,8 @@ func _dale(_world, n: Dictionary) -> void:
 		await say(["Dale hums a few notes. Across the crack, the rope bridge lifts itself and settles into place."])
 	await say(["The river north is another matter. That needs Torrent, and my old teachers know it. They hide in the Temple of Tides, past Kelpwick.",
 		"There's a panel in the temple's falls chamber, once you've drained it. Only water opens it. Show them what you can do."], nm)
-	await say(["You won't need to walk. The spring's stream runs out under this room, all the way to the sea, and washes up on the temple's isle.",
-		"There's a stairway down to it, by the chest. My old rowboat's tied at the bottom. Let the water take you. It knows the way."], nm)
+	await say(["You won't need to walk. The spring's stream runs along the foot of that cliff, out of the well to the sea, and washes up on the temple's isle.",
+		"There are steps down to it, by the chest. My old rowboat's tied at the bottom. Let the water take you. It knows the way."], nm)
 	await say(["One more thing. Please, tell no one I'm here. Rosa knows, and she'll keep it to herself. Nobody else."], nm)
 	await GameState.main.reload_map()
 
@@ -2661,7 +2739,8 @@ func field_cast(world, spell: String, question: String) -> bool:
 		return false
 	# (each element's magic needs its stone: Dale's water stone, from the bottom of the Dustwell Well)
 	if not GameState.has_stone(SpellDB.element(spell)):
-		await say(["You reach for the water, but it doesn't stir. Without a %s stone, it can't hear you." % SpellDB.element(spell)])
+		var el := SpellDB.element(spell)
+		await say(["You reach for the %s, but it doesn't stir. Without %s %s stone, it can't hear you." % [el, "an" if el.left(1) in "aeiou" else "a", el]])
 		return false
 	if not await ask(question):
 		return false
@@ -2931,6 +3010,105 @@ func _tide_keeper() -> void:
 		"An air beast on the side that faces them helps. And the priests left treasure lying about. Keep an eye out."], nm)
 
 
+# ================================================================ Valkoog's keepers (WP6)
+## The five keepers of Valkoog (A13), in the wind-cut chamber: Khepri speaks, and the others each add a line once the
+## hero has cast air. Khepri gives the air stone, teaches Gust, and answers the questions the chapter has raised.
+func _air_keeper(n: Dictionary) -> void:
+	var i := int(n.get("keeper", 0))
+	var nm := String(n.get("name", "Keeper"))
+	if i > 0:
+		if GameState.flag("air_cast_seen"):
+			await say([KEEPER_LINES[i - 1]], nm)
+		elif GameState.flag("met_air_keepers"):
+			await say(["Khepri speaks for us. Ask her what you like."], nm)
+		else:
+			await say(["You carry the water stone, and the air leans towards you. That's not a thing we see."], nm)
+		return
+	var nm_k := "Khepri"
+	if GameState.flag("met_air_keepers"):
+		await say(["Ask what you like. The stair to the summit is open; the dragon is waiting."], nm_k)
+		await _air_questions()
+		return
+	GameState.set_flag("met_air_keepers")
+	await say(["You came up through every trap we have, and the wind let you. That does not happen.",
+		"I am Khepri. These are Amunet, Sethi, Nebet and Ptahmes. We are what is left of the air."], nm_k)
+	await say(["And these two are air mages. Children, and both of them. We have not seen a new one in years. The wind has been quiet since the last arch-wizard died."], nm_k)
+	await say(["You carry a water stone, and it answers you. Then the air will answer you too, if you ask it. Hold out your hand."], nm_k)
+	if not GameState.has_stone("air"):
+		GameState.receive_item("air_stone")
+		Sfx.play("item")
+		UI.toast("Received the %s!" % ItemDB.item_name("air_stone"), "item:air_stone")
+		await say(["An air stone, from the hill behind the temple. Carry it, and the wind will listen."], nm_k)
+	elif not GameState.learned_spell("gust"):
+		await say(["You have a stone already. Then the wind is only waiting for the word."], nm_k)
+	if not GameState.learned_spell("gust"):
+		await _teach_field_spell("gust")
+	# the hero's first cast: the wind turns round the five of them and dies away
+	GameState.set_flag("air_cast_seen")
+	Sfx.play("wind")
+	await UI.flash(Color("#7fe8d0"), 1)
+	await say(["You hold out the stone. The air in the chamber turns, slow at first, then all at once: a gust runs round the five of them and is gone.",
+		"Sethi's hood blows back. None of them moves to fix it."])
+	await say(["Two elements. In one hand.",
+		"Only an arch-wizard ever did that. The last one died a hundred years ago, and the order broke apart with him and scattered.",
+		"That is why the temples are shut, the songs go unanswered, and trainers are turned away at the doors."], nm_k)
+	await say(["Then go up. Zephyrax sits at the summit, and something has been tapping the wind from below for years. It will fight you before it listens.",
+		"Our singing stones stand by the wall. Learn the Song of Winds, and play it to it once it tires."], nm_k)
+	await _air_questions()
+	await say(["Go on. We will be here, arguing about which of us said it first."], nm_k)
+
+
+## What the other four add once the hero has cast air: the same astonishment, differently.
+const KEEPER_LINES := [
+	"I have carried a stone forty years and never turned the wind in a closed room. You did it without a word.",
+	"Two elements in one hand. I thought that was a story we told children.",
+	"Don't look at me. I'm not the one who has to explain it to the other temples.",
+	"The last arch-wizard's name was on every door here, and we scratched most of them out. We may have to scratch them back in.",
+]
+
+
+## Khepri's answers: each one a question the chapter has already put in the player's mouth.
+func _air_questions() -> void:
+	var items := [
+		{"text": "What is an arch-wizard?", "desc": "The title the keepers keep saying."},
+		{"text": "Why a hundred years?", "desc": "The last one, and the scattering."},
+		{"text": "Why do the temples hide?", "desc": "The order's breaking."},
+		{"text": "What would bring them back?", "desc": "The reunion."},
+		{"text": "What is tapping the wind?", "desc": "The dragon, and the pipe."},
+		{"text": "I'll go up.", "desc": "Take the stair to the summit."},
+	]
+	while true:
+		var c: int = await UI.choose("Khepri", items, {"width": 560})
+		match c:
+			0:
+				await say(["The one who holds every stone. Not a rank we could give you; the wind decides, and four temples agreeing is a hard thing to argue with.",
+					"If fire and earth answer you as water and air have, the title is already yours. It only wants saying."], "Khepri")
+			1:
+				await say(["The last arch-wizard died a hundred years ago. Since then no one has held two elements, let alone four.",
+					"The schools each guarded their own root and stopped speaking. That is what 'scattered' means: not gone. Hiding."], "Khepri")
+			2:
+				await say(["Because the roots are all that is left. A temple is a door on one element, and a door that opens for any mage is a door that opens for the wrong ones.",
+					"The Jackals are the proof. They have been hunting air mages for a year, and they would have found the door if the twins had not gone to ground."], "Khepri")
+			3:
+				await say(["One mage all four temples will open for. Bring each of them its stone, and they will have to talk to each other again, if only to argue about you."], "Khepri")
+			4:
+				await say(["Something below the pyramid is drinking the wind before it reaches the summit. The dragon feels it and cannot reach it.",
+					"A pipe of gear-iron, under the sand, stamped with a gear. Gearheart's mark. They have been tapping the air root like a well."], "Khepri")
+			5:
+				return
+			_:
+				return
+
+
+## After Zephyrax is won over: the wind it has been holding back goes out of the temple and scours the dune below.
+func _air_release() -> void:
+	GameState.set_flag("air_released")
+	Sfx.play("wind")
+	await say(["Zephyrax beats its wings once, and the summit's air goes out of the temple like a held breath let go.",
+		"Below the pyramid the dunes flatten as if a hand had smoothed them. Something dark and straight lies bare in the scoured sand, running north."])
+	UI.toast("The released wind scours the dune below!")
+
+
 # ================================================================ temple guardians
 ## The singing stones and the tablet in a temple's room (or Gravenmoor's crypt), on its anchors stone_0 .. stone_3 and
 ## tablet. Each stone is one flute button (left, right, A, B, in their flute-game colours); the tablet sings the order
@@ -3104,6 +3282,8 @@ func _guardian(world, n: Dictionary) -> void:
 	Sfx.play("growl")
 	var talk: Dictionary = GUARDIAN_LINES.get(tk, {})
 	await say(["The %s stirs the air, and %s opens its eyes." % [SongDB.song_name(song), RaceDB.race_name(race)]])
+	if tk == "air":
+		await say(["Above you the summit's air is thin as paper. The dragon's wings beat once, and the dust jumps."])
 	if talk.has("wake"):
 		var wake: Array = (talk["wake"] as Array).duplicate()
 		wake[0] = String(wake[0]) % SongDB.song_name(song)
@@ -3123,7 +3303,11 @@ func _guardian(world, n: Dictionary) -> void:
 		for k in foes[0].base:
 			foes[0].base[k] = snappedf(float(foes[0].base[k]) / Beasts.GHOST_STAT_MULT, 0.1)
 		foes[0].heal_full()
-	var res: String = await GameState.main.start_battle({"wild": true, "foes": foes, "guardian": tk, "seed": randi(), "intro": "wild"})
+	var cfg := {"wild": true, "foes": foes, "guardian": tk, "seed": randi(), "intro": "wild"}
+	if tk == "air":
+		# fought with the twins along, on the Air Shield, with the summit's room to retry (WP5, WP6)
+		AirTemple.decorate_battle(cfg)
+	var res: String = await GameState.main.start_battle(cfg)
 	if res != "win" or not GameState.summons.has(tk):
 		return
 	if talk.has("won"):
@@ -3131,6 +3315,8 @@ func _guardian(world, n: Dictionary) -> void:
 	Sfx.play("levelup")
 	await say(["%s is your friend now: a summon!" % RaceDB.race_name(race),
 		"In battle, choose Summon and play the %s: %s arrives and strikes every foe at once. Once per battle, for one shield point." % [SongDB.song_name(song), RaceDB.race_name(race)]])
+	if tk == "air":
+		await _air_release()
 
 
 # ================================================================ battles
@@ -3170,7 +3356,7 @@ func roll_wild(map: Dictionary) -> Array:
 	var lv: Array = enc["lv"]
 	var ghost_rate: float = float(enc.get("ghosts", 0.0))
 	var first := _roll_wild_race(races)
-	var lead = _roll_wild_beast(first, lv, ghost_rate)
+	var lead = _roll_wild_beast(first, wild_levels(enc, first), ghost_rate)
 	var foes := [lead]
 	var cap := pack_cap(enc)
 	if cap <= 1:
@@ -3179,12 +3365,21 @@ func roll_wild(map: Dictionary) -> Array:
 		# safety in numbers: two or three of the same beast
 		var n := mini(cap, 3 if GameState.alive_party().size() >= 2 and randf() < 0.4 else 2)
 		for i in range(1, n):
-			foes.append(_roll_wild_beast(first, lv, ghost_rate))
+			foes.append(_roll_wild_beast(first, wild_levels(enc, first), ghost_rate))
 	elif int(lv[0]) >= PACK_MIN_LEVEL and String(lead.genes.get("body", "")) in PACK_BODIES and randf() < 0.3:
 		var n2 := mini(cap, 2 if int(lv[0]) < 26 or randf() < 0.5 else 3)
 		for i in range(1, n2):
-			foes.append(_roll_wild_beast(first if randf() < 0.7 else _roll_wild_race(races), lv, ghost_rate))
+			var mate := first if randf() < 0.7 else _roll_wild_race(races)
+			foes.append(_roll_wild_beast(mate, wild_levels(enc, mate), ghost_rate))
 	return foes
+
+
+## A wild race's level range: its own entry in the encounter's "beasts" ({"race", "lv"}) or the area's "lv".
+static func wild_levels(enc: Dictionary, race: int) -> Array:
+	for e in enc.get("beasts", []):
+		if int(e.get("race", -1)) == race and e.has("lv"):
+			return e["lv"]
+	return enc["lv"]
 
 
 ## The most beasts in one roaming group: alone on the early roads (always on the Coastal Path), pairs from Lv 7, and
@@ -3235,7 +3430,6 @@ func wild_encounter(world) -> void:
 		return
 	var enc: Dictionary = world.map["encounter"]
 	var races: Array = enc.get("races", [])
-	var lv: Array = enc["lv"]
 	var ghost_rate: float = float(enc.get("ghosts", 0.0))
 	var n := 1
 	var r := randf()
@@ -3253,7 +3447,8 @@ func wild_encounter(world) -> void:
 			race = races[0]
 		else:
 			race = races[randi_range(0, races.size() - 1)]
-		var level := randi_range(int(lv[0]), int(lv[1]))
+		var rl := wild_levels(enc, race)
+		var level := randi_range(int(rl[0]), int(rl[1]))
 		var ghost := randf() < ghost_rate
 		if ghost:
 			level += 2

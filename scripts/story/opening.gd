@@ -1641,8 +1641,6 @@ func _dream_sounds() -> void:
 func _reveal_sounds() -> void:
 	if preview:
 		return
-	if elapsed >= DOOR_OPEN and _last_time < DOOR_OPEN:
-		Sfx.play("door")
 	if elapsed >= LIFT_SHUT and _last_time < LIFT_SHUT:
 		Sfx.play("door")
 	if elapsed >= INSIDE and _last_time < INSIDE:
