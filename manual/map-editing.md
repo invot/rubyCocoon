@@ -202,6 +202,10 @@ The Scaraba Desert (`route5`) is not a single map. A layout director (`scripts/w
 
 `check_maps.gd` checks every section in each of its variants. `--scene=desert-layout` (`tools/debug/desert_layout.gd`) checks the critical path over 50 seeds, every section in every variant and lock face, each face solved, the walk-off from each side, a flag set while a section is loaded, a save and reload mid-crossing, Valkoog's doors, and the set pieces. With `--desert_shots=res://build/...` (not headless) it takes a screenshot of each face and set piece instead.
 
+## Riposo Valley
+
+`route5b` is a single 30×54 route map, not a desert-style director. Its south mouth lines up with Scaraba's north gate (x14-15) and its north mouth with Copperpick's south road (x20-21), and its biome is `prairie` (green ground and prairie trees, with the desert's sand still used at the south mouth). A rock ridge (y25-31, level 2) crosses the valley with a two-tile pass; the crayon statues stand in it, with more on side branches. They are `weapon_obstacles` entries of `type: "crayon"` with their own `flag_name` (`crayon_statue_<n>`), `blocks` on their own tile, and a `use_from` tile in front; `tools/check_maps.gd` leaves them out of the 12-tile fixture spacing rule and the exit-blocking test, because they are a story lock (Volt's `crayon_eater`), not a weapon lock. The old drovers' cut (x16, y14-22) is a one-tile shortcut gully blocked by an earth boulder (`o`). `tools/cliff_corners.gd --write` has cut the ridge's square corners.
+
 ## Checking maps
 
 **Nothing tall between a road and the camera:** `check_maps.gd` flags any tree or building up to three tiles south of a road, a bridge, the plaza or anyone standing about, further when it stands on higher ground (trees in a map's last three rows are drawn as shrubs, or low rocks in the desert, so they don't count). Use bushes, rocks, fences, water or tall grass there instead. On the Coastal Path everything south of the trail is low.

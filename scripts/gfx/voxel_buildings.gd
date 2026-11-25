@@ -219,6 +219,10 @@ static func build(b: Dictionary, style_name: String) -> Node3D:
 	if shop == "temple" and b.get("temple", "") == "water":
 		_tide_temple(node, w, d, door_lx)
 		return node
+	# Valkoog: a sandstone sanctuary on the summit of its pyramid, its doors on the stair (valkoog_pyramid.gd)
+	if shop == "temple" and b.get("temple", "") == "air":
+		load("res://scripts/gfx/valkoog_pyramid.gd").shrine(node, w, d, door_lx, locked, Color(b.get("glow", "#c8fff0")))
+		return node
 	match shop:
 		"skytower":
 			_pack_skytower(node, st, w, d, door_lx)

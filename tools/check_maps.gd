@@ -622,6 +622,9 @@ func _weapon_check(m: Dictionary, start: Vector2i) -> Array:
 	var ids := {}
 	for i in fixtures.size():
 		for j in range(i + 1, fixtures.size()):
+			# crayon statues are a designed row or a side branch's guard, not firing fixtures: spacing is theirs
+			if fixtures[i]["type"] == "crayon" or fixtures[j]["type"] == "crayon":
+				continue
 			if WeaponObstacles.distance_between(fixtures[i], fixtures[j]) < WeaponObstacles.MIN_SPACING:
 				out.append("weapon obstacles %s and %s need at least %d tiles between their interaction areas" % [fixtures[i]["id"], fixtures[j]["id"], WeaponObstacles.MIN_SPACING])
 	for o in fixtures:
@@ -632,6 +635,9 @@ func _weapon_check(m: Dictionary, start: Vector2i) -> Array:
 			out.append("unknown weapon obstacle type: " + o["type"])
 		if o["type"] == "switches" and o["targets"].size() not in [2, 3]:
 			out.append("boomerang needs two or three switches")
+		# (a crayon statue is a story lock with its key in Bellerive, so it doesn't cut the map's own paths off)
+		if o["type"] == "crayon":
+			continue
 		for p in o["targets"]:
 			if o["weapon"] != "bat" or not o["solved"]:
 				blocked[p] = true

@@ -86,11 +86,26 @@ static func build(b: Dictionary) -> Node3D:
 	return node
 
 
+## Measurements on the supplied church, in its source's units turned y-up (tools/import_dustwell_church.gd: x across,
+## y up, z towards its front; its plank walls 80 either side of x = 0.5, its front's planks 1.5 ahead of z = 0, its back
+## wall at -211, its eaves 193.6 up and its ridge 246), placed in the baked mesh by _on_church:
+##   the air emblem where the door's cross was (on its planks) and the round plaque on the steeple's cap where the
+##   cross stood on it: [texture, middle, size]
+const CHURCH_EMBLEMS := [["air_emblem", Vector3(1.1, 55.4, 9.66), 37.9], ["air_plaque", Vector3(-0.94, 399.2, 2.14), 30.6]]
+##   the planks that seal it behind its walls below its eaves (two corners), and up under the roof's ridge from
+##   CHURCH_RIDGE_FROM, as far as its slopes allow ([half width, top]: narrow enough not to poke out through them)
+const CHURCH_SEAL := [Vector3(-72.4, 1.5, -205.4), Vector3(73.5, 179.5, 1.5)]
+const CHURCH_RIDGE_FROM := 175.0
+const CHURCH_RIDGE := [[52.5, 204.2], [49.6, 207.7], [45.2, 211.5], [37.9, 215.9], [29.1, 221.7], [20.4, 226.1],
+	[14.5, 230.5], [10.2, 234.8], [6.5, 239.2], [3.6, 243.6]]
+
+
 ## The old church the elemental mages kept, the bandits' now (Story's church bandits stand guard at its door): the
-## supplied whitewashed plank church with its belfry and steeple (assets/exteriors/western_church.res, baked by
-## tools/import_dustwell_church.gd), its door in the middle of its front; its doors are barred (building_looks
-## "knockable"). It stands south of Main Street and towers over it, so whatever of it stands between the camera and the
-## hero dissolves around them, and all of it thins away while it stands between the camera and them (see_through.gd).
+## supplied whitewashed plank church with its belfry and steeple, one storey (assets/exteriors/western_church.res,
+## baked by tools/import_dustwell_church.gd without its second storey and balcony, to fill its plot), its door in the
+## middle of its front; its doors are barred (building_looks "knockable"). It stands south of Main Street and its
+## steeple rises over it, so whatever of it stands between the camera and the hero dissolves around them, and all of
+## it thins away while it stands between the camera and them (see_through.gd).
 ## The model's crosses are gone (tools/import_dustwell_church.gd): it was the elemental mages' church, and the air
 ## emblem hangs on its door and a round air plaque stands on the steeple's cap (tools/bake_air_emblem.py). Returns
 ## the height of its top.
@@ -103,30 +118,30 @@ static func _church(node: Node3D, w: float, d: float) -> float:
 	var baked := model.surface_get_material(0) as BaseMaterial3D
 	mi.material_override = _see_through(baked.albedo_texture if baked != null else null)
 	mi.see_materials.append(mi.material_override)
-	# (its front steps at the plot's front)
+	# (its corner lamps at the plot's front)
 	var box := model.get_aabb()
 	mi.position.z = d / 2.0 - box.end.z
 	node.add_child(mi)
-	# the air emblem where the door's cross was (on its planks, 2.03 ahead of the church's middle, 1.9 up), and the
-	# plaque on the steeple's cap (13.2 up) where the cross stood on it
-	for e in [["air_emblem", Vector3(0.02, 1.9, 2.05), 1.3], ["air_plaque", Vector3(-0.05, 13.68, 1.87), 1.05]]:
+	var scale: Vector3 = model.get_meta("source_scale", Vector3.ONE)
+	for e in CHURCH_EMBLEMS:
 		var tex: Texture2D = load("res://assets/exteriors/%s.png" % e[0])
 		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE * float(e[2])
+		quad.size = Vector2.ONE * float(e[2]) * scale.x
 		var em := MeshInstance3D.new()
 		em.mesh = quad
-		em.position = e[1]
+		em.position = _on_church(model, e[1])
 		em.material_override = _see_through(tex)
 		mi.see_materials.append(em.material_override)
 		mi.add_child(em)
-	# sealed behind its walls (its plank walls stand 2.7 either side of its middle, its front 2.0 ahead of it and its
-	# eaves 6.5 up): only planks show through the bell tower's open balcony and the gaps in its boards
+	# sealed behind its walls: only planks show through the bell tower's open belfry and the gaps in its boards
 	var k := VBld.Kit.new()
-	k.box("planks", Vector3(0, 3.1, -0.62), Vector3(5.0, 6.1, 4.95), Color("#cfc4b0"))
-	# (and up under the roof's ridge, 8.5 up, as far as its slopes allow: narrow enough not to poke out through them)
-	for step in [[3.6, 7.0], [3.4, 7.12], [3.1, 7.25], [2.6, 7.4], [2.0, 7.6], [1.4, 7.75], [1.0, 7.9], [0.7, 8.05],
-			[0.45, 8.2], [0.25, 8.35]]:
-		k.box("planks", Vector3(0, (6.0 + step[1]) / 2.0, -0.62), Vector3(step[0], step[1] - 6.0, 4.95), Color("#cfc4b0"))
+	var boxes := [CHURCH_SEAL]
+	for step in CHURCH_RIDGE:
+		boxes.append([Vector3(0.5 - step[0], CHURCH_RIDGE_FROM, CHURCH_SEAL[0].z), Vector3(0.5 + step[0], step[1], CHURCH_SEAL[1].z)])
+	for corners in boxes:
+		var a := _on_church(model, corners[0])
+		var b := _on_church(model, corners[1])
+		k.box("planks", (a + b) / 2.0, b - a, Color("#cfc4b0"))
 	var seal := MeshInstance3D.new()
 	seal.mesh = k.mesh()
 	# (it thins away with the church)
@@ -138,6 +153,18 @@ static func _church(node: Node3D, w: float, d: float) -> float:
 	seal.position.z = mi.position.z
 	node.add_child(seal)
 	return box.size.y
+
+
+## Where a point on the supplied church (in its source's units, turned y-up: CHURCH_EMBLEMS) is in the baked mesh:
+## lowered with everything above the second storey the bake left out, then moved and scaled as the bake did
+## (tools/import_dustwell_church.gd keeps how on the mesh).
+static func _on_church(model: Mesh, p: Vector3) -> Vector3:
+	var cut: Vector2 = model.get_meta("source_cut", Vector2.ZERO)
+	if cut != Vector2.ZERO and p.y > cut.x:
+		p.y = cut.x if p.y < cut.y else p.y - (cut.y - cut.x)
+	var off: Vector3 = model.get_meta("source_offset", Vector3.ZERO)
+	var scale: Vector3 = model.get_meta("source_scale", Vector3.ONE)
+	return (p - off) * scale
 
 
 ## The see-through landmark material (see_through.gdshader) over a colour texture.

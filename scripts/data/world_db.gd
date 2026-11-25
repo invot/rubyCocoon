@@ -67,9 +67,8 @@ const ROUTES := {
 	# desert first.
 	"route5": {"name": "Scaraba Desert", "from": "sundown", "to": "route4", "dir": "south", "biome": "desert", "lv": [16, 22], "races": [33, 0, 15, 30, 21, 57, 69], "temple": "air"},
 	# Riposo Valley: north from Scaraba's gate (its soldiers let through only trainers who beat Windcaller Sable:
-	# north_road_open), turning from desert to prairie on the way to Copperpick. A generated placeholder until its own
-	# map is built (plan WP10).
-	"route5b": {"name": "Riposo Valley", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "desert", "lv": [22, 26], "races": [33, 0, 15, 30, 21, 57, 69]},
+	# north_road_open), turning from desert to prairie on the way to Copperpick (its own map since WP10).
+	"route5b": {"name": "Riposo Valley", "from": "sundown", "to": "copperpick", "dir": "north", "biome": "prairie", "lv": [22, 26], "races": [33, 0, 15, 30, 21, 57, 69]},
 	"route6": {"name": "Mine Road", "from": "copperpick", "to": "cogsworth", "dir": "east", "biome": "mountain", "lv": [20, 25], "races": [15, 12, 6, 18, 54, 75], "legion": true},
 	"route7": {"name": "Caldera Road", "from": "cogsworth", "to": "emberfall", "dir": "north", "biome": "volcano", "lv": [26, 31], "races": [9, 0, 6, 3, 48, 63], "temple": "fire"},
 	"route8": {"name": "Summit Pass", "from": "emberfall", "to": "vinehollow", "dir": "west", "biome": "mountain", "lv": [30, 36], "races": [30, 36, 33, 18, 27, 57, 60], "legion": true},
@@ -203,6 +202,7 @@ const CLIFF_LOOKS := {
 	"volcano": {"tex": "slate", "tint": "#56483f", "scale": [0.18, 0.35], "flutes": 1.5},
 	"hotspring": {"tex": "slate", "tint": "#a08c7a", "scale": [0.3, 0.8], "flutes": 1.1},
 	"moor": {"tex": "slate", "tint": "#686070", "scale": [0.3, 0.8], "flutes": 1.1},
+	"prairie": {"tex": "sandstone", "tint": "#c9a06a", "scale": [0.4, 0.5], "flutes": 0.85, "band": ["#e0c08a", 0.3]},
 }
 
 const BIOMES := {
@@ -222,6 +222,11 @@ const BIOMES := {
 		"sky_top": "#3ab0f0", "sky_hz": "#e0f8f8", "sun": "#fffae8", "sun_e": 1.4, "amb": 0.62, "style": "island", "water": "#2aa8d8", "music": "island"},
 	# the desert lands: "boulders" stand where other lands grow woods and hedges (world.gd), only "cacti" of the tree
 	# tiles keep a cactus, and no scrub grows in the open
+	# Riposo Valley's own look: desert sand at its south mouth, green rolling grass in the north (WP10).
+	"prairie": {"ground": "#8ac25c", "side": "#a08050", "sand": "#ecd8a0", "path": "#bba176", "plaza": "#cabfa4", "tuft": "#5aa444",
+		"trees": [["tree_oak", 3], ["tree_dome", 2], ["tree_cypress", 1], ["tree_big", 1]], "rocks": ["field_rock", "rock_small", "stone_2"],
+		"shrubs": ["shrub_1", "shrub_3", "bush_1", "bush_2"], "mixed": 0.3,
+		"sky_top": "#5aa8e8", "sky_hz": "#e8f4e8", "sun": "#fff8e8", "sun_e": 1.35, "amb": 0.62, "style": "coastal", "water": "#3a90e0", "music": "coast"},
 	"desert": {"ground": "#e2c890", "side": "#b8945a", "sand": "#ecd8a0", "path": "#c8a070", "plaza": "#d8c098", "tuft": "#b8a050",
 		"trees": [["cactus_1", 2], ["cactus_2", 2], ["cactus_3", 1]], "rocks": ["field_rock", "bones_1", "bones_2", "stone_2"], "shrubs": ["bush_1", "bush_2"],
 		"boulders": ["mountain_1", "mountain_4", "mountain_5", "mountain_7", "rock_big"], "cacti": 0.06,

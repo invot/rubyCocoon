@@ -11,7 +11,10 @@ extends RefCounted
 ##   campfire      the waystation's fire
 ##   star_mark     a star cut on one of Valkoog's landings ("size" 1-6)
 ##   conduit       the gear-iron pipe the wind bared once the air guardian was calmed (dunes_b's conduit variant)
+## And a section's "pyramid" (Valkoog's): the sandstone dressing of its terraces (valkoog_pyramid.gd), as one silent
+## story object on a tile nobody can stand beside.
 const Layout = preload("res://scripts/world/desert_layout.gd")
+const Pyramid = preload("res://scripts/gfx/valkoog_pyramid.gd")
 const StarLocks = preload("res://scripts/world/star_locks.gd")
 const VA = preload("res://scripts/gfx/voxel_assets.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
@@ -60,6 +63,11 @@ static func objects(map: Dictionary) -> Array:
 			_:
 				continue
 		out.append(o)
+	# the pyramid's dressing: blocking, so it stays on its own tile (inside the temple's footprint) and nobody walks there
+	var spec: Dictionary = Layout.Sections.SECTIONS.get(String(map.get("desert_section", "")), {}).get("pyramid", {})
+	if not spec.is_empty() and map.has("elev"):
+		out.append({"kind": "story", "id": "desert_sight", "sight": "pyramid", "name": "", "facing": Vector2i(0, 1), "still": true,
+			"blocking": true, "pos": Vector2i(int(spec["anchor"][0]), int(spec["anchor"][1])), "scene": Pyramid.dressing(map, spec)})
 	return out
 
 

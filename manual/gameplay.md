@@ -454,6 +454,10 @@ All three are key items with no bag stack cost.
 - These fixtures are optional road detours, never required story gates. They begin after the Coastal Path; the first road focuses on its battle teachers and footbridge.
 - Solves and collected chests have separate permanent flags, retained by ordinary phone saves.
 
+### Key-item field tools
+
+**Riposo Valley** (`route5b`), north of Scaraba, is a long valley road that turns from sand to prairie grass at a rock ridge. The ridge's two-tile pass is shut by person-sized **crayon statues**: face one and press A, or tap it, to learn what it is (`riposo_statues_seen`); a sign points at Volt in Bellerive, and Scaraba's Sky Tower flies there and back. Volt's **Crayon Eater** is a key item, not a weapon: with it in the bag, facing a statue and pressing A (or tapping it) crunches the statue away, sets `crayon_statue_<n>` and clears its tile. Side branches hide shards behind more statues. The statues are the one required story lock built like the weapon fixtures; the old drovers' cut in the valley is a boulder-blocked shortcut (earth).
+
 ### Fishing
 
 Fisher Gil fishes off the deck of his rusty tin shack on Bellerive's docks (`scripts/world/fishing.gd`, `scripts/ui/fishing_game.gd`).

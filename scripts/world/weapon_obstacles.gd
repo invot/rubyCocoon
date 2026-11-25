@@ -19,9 +19,9 @@ func build(owner_world) -> void:
 	world = owner_world
 	for o in world.map.get("weapon_obstacles", []):
 		for p in o["targets"]:
-			if o["weapon"] == "bat" and o["solved"]:
+			if o["solved"] and (o["weapon"] == "bat" or o["type"] == "crayon"):
 				continue
-			var root := _target(o["type"], o["targets"].find(p))
+			var root := _target(o["type"], o["targets"].find(p), String(o.get("colour", "")))
 			root.position = world.tile_pos(p)
 			var d: Vector2i = o["use_from"] - p
 			root.rotation.y = clampf(atan2(float(d.x), float(d.y)), -PI / 4.0, PI / 4.0)
@@ -42,7 +42,7 @@ func build(owner_world) -> void:
 				ladder.visible = o["solved"]
 				add_child(ladder)
 				ladders[p] = ladder
-		elif not o["solved"] and o["weapon"] != "bat":
+		elif not o["solved"] and o["weapon"] != "bat" and o["type"] != "crayon":
 			for p in o.get("blocks", []):
 				var gate := MeshInstance3D.new()
 				gate.mesh = VP.obstacle("gate")
@@ -87,6 +87,9 @@ func approach(o: Dictionary) -> Vector2i:
 
 func use(o: Dictionary) -> void:
 	if not Rules.can_use(world.map, o, world.player_pos, world.facing):
+		return
+	if o["type"] == "crayon":
+		await _eat_crayon(o)
 		return
 	if not GameState.flag(o["flag"] + "_explained"):
 		for n in world.npcs.values():
@@ -168,6 +171,32 @@ func use(o: Dictionary) -> void:
 	UI.toast({"ladder": "The ladder drops into place!", "gate": "The gate opens!", "chest": "The chest drops to the ground!"}.get(o.get("effect", ""), "The way to the treasure is clear!"), "pin")
 
 
+## The crayon eater's side of a statue: the first touch explains the statues and points at Volt, and with the
+## machine the statue is crunched down and its tile goes back to the road under it.
+func _eat_crayon(o: Dictionary) -> void:
+	if not GameState.flag("riposo_statues_seen"):
+		GameState.set_flag("riposo_statues_seen")
+		await Story.say(["It's a crayon. A person-sized crayon stood on end, wrapper and all.",
+			"The paper says JEWEL POP. The tip is worn to a blunt nub, like something has been chewing at it.",
+			"A sign by the road says Volt at Sparkwire Electronics in Bellerive builds odd machines."])
+	if GameState.item_count("crayon_eater") <= 0:
+		await UI.say([Rules.hint(o, false)])
+		return
+	var node: Node3D = targets.get(o["targets"][0], null)
+	Sfx.play("smash")
+	if node != null:
+		var bite := create_tween()
+		bite.tween_property(node, "scale", Vector3(0.5, 0.22, 0.5), 0.22)
+		bite.parallel().tween_property(node, "rotation:z", 0.4, 0.22)
+		await bite.finished
+		node.queue_free()
+	targets.erase(o["targets"][0])
+	GameState.set_flag(o["flag"])
+	Rules.solve(world.map, o)
+	Sfx.secret_chime()
+	UI.toast("The crayon eater crunches it down to the wrapper. The way is clear!", "pin")
+
+
 static func _material(colour: String) -> StandardMaterial3D:
 	if not materials.has(colour):
 		var mat := StandardMaterial3D.new()
@@ -187,9 +216,11 @@ static func _part(parent: Node3D, mesh: Mesh, at: Vector3, colour: String) -> Me
 	return node
 
 
-static func _target(kind: String, variant := 0) -> Node3D:
+static func _target(kind: String, variant := 0, colour := "") -> Node3D:
 	if kind == "switches":
 		return TempleProps.button_target(false, variant)
+	if kind == "crayon":
+		return _crayon(colour if colour != "" else "#e0457b")
 	var root := Node3D.new()
 	if kind == "cracked_rock":
 		var rock := MeshInstance3D.new()
@@ -262,6 +293,48 @@ static func _target(kind: String, variant := 0) -> Node3D:
 			disc.radial_segments = 24
 			var node := _part(root, disc, Vector3(0, 1.15, 0.07 + i * 0.025), "#f4ead7" if i == 1 else ("#d9ac48" if kind == "switches" else "#bc4635"))
 			node.rotation.x = PI / 2.0
+	return root
+
+
+## A jewel-pop crayon stood on end: a wax body, a paper wrapper with a label and bands, and a blunt worn tip
+## (slightly taller than the hero). `colour` is the wax.
+static func _crayon(colour: String) -> Node3D:
+	var root := Node3D.new()
+	var wax := CylinderMesh.new()
+	wax.top_radius = 0.33
+	wax.bottom_radius = 0.38
+	wax.height = 1.85
+	wax.radial_segments = 12
+	_part(root, wax, Vector3(0, 0.95, 0), colour)
+	var tip := CylinderMesh.new()
+	tip.top_radius = 0.11
+	tip.bottom_radius = 0.33
+	tip.height = 0.36
+	tip.radial_segments = 12
+	_part(root, tip, Vector3(0, 2.05, 0), colour)
+	var nub := SphereMesh.new()
+	nub.radius = 0.12
+	nub.height = 0.16
+	_part(root, nub, Vector3(0, 2.21, 0), "#d9cbb4")
+	var paper := CylinderMesh.new()
+	paper.top_radius = 0.4
+	paper.bottom_radius = 0.4
+	paper.height = 1.02
+	paper.radial_segments = 12
+	_part(root, paper, Vector3(0, 1.0, 0), "#f2e6cf")
+	for y in [0.55, 1.45]:
+		var band := CylinderMesh.new()
+		band.top_radius = 0.405
+		band.bottom_radius = 0.405
+		band.height = 0.07
+		band.radial_segments = 12
+		_part(root, band, Vector3(0, y, 0), "#c9b58f")
+	var label := BoxMesh.new()
+	label.size = Vector3(0.4, 0.46, 0.03)
+	_part(root, label, Vector3(0, 1.0, 0.4), "#fbf4e2")
+	var mark := BoxMesh.new()
+	mark.size = Vector3(0.26, 0.1, 0.02)
+	_part(root, mark, Vector3(0, 1.0, 0.42), colour)
 	return root
 
 

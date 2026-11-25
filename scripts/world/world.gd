@@ -565,7 +565,8 @@ func spawn_at(key, face := Vector2i.ZERO) -> void:
 				room_walls.shut_door(p + d)
 				break
 	# come by a house's stairs, you're seen walking the last of them
-	if typeof(key) == TYPE_STRING and key in ["entry", "from_above"]:
+	# ("from_below": up out of a stairwell in a building whose floors go down, map_loader.gd "descends")
+	if typeof(key) == TYPE_STRING and key in ["entry", "from_above", "from_below"]:
 		_arrive_by_stairs(key, p)
 
 
@@ -6359,7 +6360,7 @@ func _build_room() -> void:
 	# (a little low, so windows, lamps and wall lights shape the room: the user's 2026-11-16 direction)
 	env.ambient_light_energy = 0.42 if not dark else 0.35
 	# the temples are dark, lit by their torches and candles (room_builder.gd _pilasters, temple_lights.gd)
-	var temple: bool = key.begins_with("temple")
+	var temple: bool = key.begins_with("temple") or room.get("temple", false)
 	if temple:
 		env.ambient_light_color = Color("#7c88a8")
 		env.ambient_light_energy = 0.26 if not room.has("round") else 0.14

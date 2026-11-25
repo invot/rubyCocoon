@@ -1115,6 +1115,10 @@ func _run_test() -> void:
 		await load("res://tools/debug/scaraba_return.gd").new().run(self, _test)
 		get_tree().quit()
 		return
+	if scene == "riposo":
+		await load("res://tools/debug/riposo_valley.gd").new().run(self, _test)
+		get_tree().quit()
+		return
 	if scene == "shellhaven-marina":
 		await load("res://tools/debug/shellhaven_marina.gd").new().run(self, _test)
 		get_tree().quit()

@@ -97,6 +97,8 @@ const ITEMS := {
 	"bridge_planks": {"name": "Bridge Planks", "kind": "key", "price": 0, "tier": 99, "desc": "A bundle of sturdy planks, just right for patching a footbridge."},
 	"card_ledger": {"name": "Card Ledger", "kind": "key", "price": 0, "tier": 99, "desc": "Barkeep Dusty's record of the Oasis Saloon's card games. Slim's name is on every hand, all night long, the night the trainers vanished: he couldn't have taken them."},
 	"miner_pass": {"name": "Miner's Pass", "kind": "key", "price": 0, "tier": 99, "desc": "Signed by Foreman Gorran. Lets you through the Mine Road checkpoint."},
+	"crayon_eater": {"name": "Crayon Eater", "kind": "key", "price": 0, "tier": 99,
+		"desc": "Volt's wax-eating machine, small enough to carry. Face a crayon statue and press A, or tap it, and it crunches through."},
 	## The Dustwell Well's beavers hand these over when beaten (docs/dustwell-water-arc.md).
 	"well_wood": {"name": "Beaver Planks", "kind": "key", "price": 0, "tier": 99, "desc": "Chewed-smooth planks from a beaver's stash. Enough to mend a broken rope bridge in the well."},
 	"freight_tag": {"name": "Freight Tag", "kind": "key", "price": 0, "tier": 99, "desc": "A brass tag from the scree on the Mesa Trail, stamped with a gear in a circle and a freight number. Someone moved caged beasts north through here in a hurry."},

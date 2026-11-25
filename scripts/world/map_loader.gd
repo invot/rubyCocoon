@@ -1208,10 +1208,20 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 			m["exits"][t]["locked_by"] = shut[t]
 		m["spawns"]["from_" + String(links[t])] = t + _into_room(m, t)
 		m["spawn_face"]["from_" + String(links[t])] = _into_room(m, t)
+	# (a building whose floors go DOWN, "descends" in each of its rooms: the Dustwell church's undercroft, the cistern
+	# under Grubb's house. Its stairwells (<) lead on to the next floor, below, and its flights (>) back up, coming out
+	# of the stairwell above at "from_below")
+	var descends: bool = room.get("descends", false)
 	for t in ups:
-		m["exits"][t] = {"to": floor_id(base, fl + 1), "spawn": "entry", "face": Vector2i(0, 1)}
+		m["exits"][t] = {"to": floor_id(base, fl - 1), "spawn": "from_below"} if descends else {"to": floor_id(base, fl + 1), "spawn": "entry", "face": Vector2i(0, 1)}
 	for t in downs:
-		m["exits"][t] = {"to": floor_id(base, fl - 1), "spawn": "from_above"}
+		m["exits"][t] = {"to": floor_id(base, fl + 1), "spawn": "from_above"} if descends else {"to": floor_id(base, fl - 1), "spawn": "from_above"}
+	if descends and not downs.is_empty() and RoomBuilder.has_flights(m):
+		var well := RoomBuilder.flight(m, downs[0])
+		var ways: Array = RoomBuilder.stair_ways_in(m).get(well["top"], [])
+		if not ways.is_empty():
+			m["spawns"]["from_below"] = ways[0]
+			m["spawn_face"]["from_below"] = (ways[0] as Vector2i) - (well["top"] as Vector2i)
 	# where you arrive coming back down from the floor above: in a house, stepping off the foot of the stairs (the only
 	# way onto them, see RoomBuilder.stair_ways_in); elsewhere beside them, facing the room
 	if not ups.is_empty():

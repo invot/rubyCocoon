@@ -720,6 +720,17 @@ func fly_to(dest: String, cost := 0) -> void:
 const SLOT_COST := 3
 
 
+## Volt's crayon-eater scene (P10): only after the hero has seen a crayon statue in Riposo Valley.
+func _volt_crayon(k: String) -> void:
+	await Story.say(["Crayon statues? Person-sized? In Riposo Valley? Someone finally built the thing I've been joking about.",
+		"It's wax, not rock. You don't cut wax. You eat it.",
+		"My first eater chewed through a whole statue, then two boxes of crayons. Test pilot was a beast with a sweet tooth and no off switch.",
+		"Here. It's a mouth on a motor. Face a crayon statue and press A, or just tap it. It'll do the rest, wrapper and all.",
+		"Don't feed it candles. It gets ideas."], k)
+	GameState.add_item("crayon_eater")
+	UI.toast("Crayon Eater added to your bag. Face a crayon statue and press A, or tap it.", "pin")
+
+
 func electronics(b: Dictionary) -> void:
 	var k: String = KEEPERS["electronics"]
 	if not GameState.flag("met_volt"):
@@ -729,6 +740,8 @@ func electronics(b: Dictionary) -> void:
 			"In a ring battle, if the beast in the middle of the side facing your foe goes down, they can come straight for you. Each shield point blocks one hit. Take a hit with none left, and it's lights out.",
 			"I can add shield points, and wire up more slots on your battle ring so you can carry more beasts. The better a trainer you are, the more I can fit: beat trainers and climb the arena ladder.",
 			"Shield points are %d crystal shards each, beast slots %d." % [SHIELD_COST, SLOT_COST]], k)
+	if GameState.flag("riposo_statues_seen") and GameState.item_count("crayon_eater") <= 0:
+		await _volt_crayon(k)
 	while true:
 		var sh_cap := GameState.shield_cap()
 		var sl_cap := GameState.slot_cap()

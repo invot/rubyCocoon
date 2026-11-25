@@ -78,6 +78,7 @@ TESTS=(
 	"desert-layout|-- --scene=desert-layout --save_dir=res://build/desert_layout_saves/|DESERT LAYOUT DONE: 0 problem"
 	"scaraba-route|-- --scene=scaraba-route --save_dir=res://build/scaraba_route_saves/|SCARABA ROUTE DONE: 0 problem"
 	"scaraba-return|-- --scene=scaraba-return --save_dir=res://build/scaraba_return_saves/|SCARABA RETURN DONE: 0 problem"
+	"riposo|-- --scene=riposo --save_dir=res://build/riposo_saves/|RIPOSO DONE: 0 problem"
 	"scaraba-town|-- --scene=scaraba-town --save_dir=res://build/scaraba_town_saves/|SCARABA TOWN DONE: 0 problem"
 	"shellhaven-marina|-- --scene=shellhaven-marina --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"
 	"shellhaven-marina-touch|-- --scene=shellhaven-marina --touch --wait=0.3|SHELLHAVEN MARINA DONE: 0 problem"

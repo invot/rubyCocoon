@@ -8,6 +8,9 @@ extends RefCounted
 ##   "ring": {"id", "center"}: the join's star lock round "center" (star_locks.gd; its face is the seed's); flag
 ##           star_ring_<id>. Keep its points (desert_layout.gd STAR_POINTS), tablet and pond tiles open and off the road.
 ##   "sights": set pieces (desert_sights.gd): [{"kind", "at": [x, y], ...}]
+##   "pyramid": {"rect": [x, y, w, h], "anchor": [x, y]}: Valkoog's sandstone dressing over the terraces and ramps in
+##           rect (valkoog_pyramid.gd), worked out from "heights"; its story object stands on anchor, a tile nobody can
+##           stand beside (inside the temple's footprint). It adds nothing to walk on or round.
 ##   "variants": [{"id", "flag", "tiles": {"x,y": char}, "sights"?}]: the first whose flag is set as the hero walks in
 ## Every variant keeps the seams and the way between them (tools/check_maps.gd, tools/debug/desert_layout.gd).
 const SECTIONS := {
@@ -535,6 +538,8 @@ const SECTIONS := {
 			{"kind": "star_mark", "size": 2, "at": [11, 9]},
 			{"kind": "star_mark", "size": 1, "at": [12, 7]},
 		],
+		# the terraces dressed in sandstone, a grand stair up the ramps, banners and braziers (valkoog_pyramid.gd)
+		"pyramid": {"rect": [6, 2, 20, 17], "anchor": [15, 3]},
 	},
 	"join_b": {
 		"tags": ["required"],

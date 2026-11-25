@@ -3,7 +3,8 @@ extends RefCounted
 const MG = preload("res://scripts/world/map_gen.gd")
 const Elev = preload("res://scripts/world/elevation.gd")
 const ItemDB = preload("res://scripts/data/item_db.gd")
-const TYPES := {"bullseye": "slingshot", "bell": "slingshot", "switches": "boomerang", "cracked_rock": "bat", "stump": "bat"}
+const TYPES := {"bullseye": "slingshot", "bell": "slingshot", "switches": "boomerang", "cracked_rock": "bat", "stump": "bat",
+	"crayon": "crayon_eater"}
 ## Measured between all targets, barriers, rewards and tap approaches, not just the fixture centres.
 const MIN_SPACING := 12.0
 
@@ -34,7 +35,7 @@ static func place(m: Dictionary, definitions: Array, flags: Dictionary) -> void:
 	m["weapon_targets"] = {}
 	for definition in definitions:
 		var o: Dictionary = definition.duplicate(true)
-		o["flag"] = flag_for(m["id"], o["id"])
+		o["flag"] = String(o.get("flag_name", flag_for(m["id"], o["id"])))
 		o["weapon"] = TYPES.get(o["type"], "")
 		o["solved"] = bool(flags.get(o["flag"], false))
 		o["floors"] = {}
@@ -70,6 +71,9 @@ static func can_use(m: Dictionary, o: Dictionary, from: Vector2i, facing: Vector
 	var direction := Vector2i(signi(delta.x), signi(delta.y))
 	if delta == Vector2i.ZERO or (delta.x != 0 and delta.y != 0) or facing != direction:
 		return false
+	if o["type"] == "crayon":
+		# A crayon statue is eaten from the tile in front of it, like a bat's swing.
+		return absi(delta.x) + absi(delta.y) == 1 and Elev.joined(m, from, o["targets"][0])
 	if o["weapon"] == "bat":
 		return absi(delta.x) + absi(delta.y) == 1 and Elev.joined(m, from, o["targets"][0])
 	var previous := from
@@ -115,6 +119,7 @@ static func clear_shot(m: Dictionary, from: Vector2i, to: Vector2i, allowed_targ
 
 static func hint(o: Dictionary, seen: bool) -> String:
 	var descriptions := {"bullseye": "A bullseye waits beyond the gap.", "bell": "A bell hangs above the ledge.",
-		"switches": "The switches line up across the water.", "cracked_rock": "Deep cracks run through this rock.", "stump": "This old stump is split down the middle."}
+		"switches": "The switches line up across the water.", "cracked_rock": "Deep cracks run through this rock.", "stump": "This old stump is split down the middle.",
+		"crayon": "A crayon statue stands in the way, taller than you and proud of it."}
 	var line: String = descriptions.get(o["type"], "Something blocks the way.")
 	return line + (" You need the %s." % ItemDB.item_name(o["weapon"]) if seen else "")

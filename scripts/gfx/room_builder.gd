@@ -618,7 +618,8 @@ static func _begin(m: Dictionary, p: Node3D, seed: int, extra: Dictionary) -> Re
 		# (a parlour's walls take far more of its dusky colour)
 		rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.7)
 	rb.ancient = room.get("ancient", String(m.get("room_key", "")).begins_with("temple"))
-	rb.temple = String(m.get("room_key", "")).begins_with("temple")
+	# (a room can say it's a temple's without the key saying so: Valkoog's halls, "temple": true)
+	rb.temple = room.get("temple", String(m.get("room_key", "")).begins_with("temple"))
 	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
 	rb.blocks = room.get("blocks", false)
 	if rb.blocks:
@@ -1624,7 +1625,8 @@ func _pilasters() -> void:
 			lever_posts[sw["pos"]] = true
 	for y in range(1, h - 1):
 		for x in range(1, w - 1):
-			if code(x, y) in WALLISH or code(x, y) == MapGen.IVOID:
+			# (none behind a flight of stairs or over a stairwell: the stone runs up there)
+			if code(x, y) in WALLISH or code(x, y) in [MapGen.IVOID, MapGen.STAIRS_UP, MapGen.STAIRS_DOWN]:
 				continue
 			for d in [Vector2i(0, -1), Vector2i(-1, 0), Vector2i(1, 0)]:
 				var wx: int = x + d.x
@@ -2830,6 +2832,10 @@ func _flight(x: int, y: int) -> void:
 			wide + rise.abs() * 0.01 + Vector3(0, step_h, 0))
 	if place != 0:
 		return
+	if ancient:
+		# (a temple's or a vault's flight: a solid stone parapet up its open side instead of a wooden handrail)
+		_stone_parapet(c, side, a1 - 0.11 if a0 < -0.5 else a0 + 0.11, rise, n, float(fit[2]))
+		return
 	# the handrail up the open side, from a newel post at the foot until it meets the top of the wall
 	var open := (a1 - 0.05) if a0 < -0.5 else (a0 + 0.05)
 	var wood := surface("frame", trim)
@@ -2885,6 +2891,9 @@ func _well(x: int, y: int) -> void:
 		var step := H / float(n * 4)
 		floor_mesher.box("floor_" + z if top == 0.0 else "stair_" + z, tread if top == 0.0 else wall_mat(z),
 			c + mid + rise * (0.5 + top - 0.01) + Vector3(0, -step / 2.0, 0), wide + rise.abs() * 0.02 + Vector3(0, step, 0))
+	if ancient:
+		_stone_kerb(c, side, a0, a1, mid, wide, rise, place, n, bottom)
+		return
 	# the rail: along the side towards the room, open at the top step, and round the far end, with a baluster every
 	# eighth of a tile so it shows against the floor
 	var wood := surface("frame", trim)
@@ -2904,6 +2913,84 @@ func _well(x: int, y: int) -> void:
 		var gaps := maxi(roundi(absf(other - open) / 0.125), 1)
 		for k in range(1, gaps):
 			floor_mesher.box("frame", wood, far + side * lerpf(open, other, float(k) / gaps) + Vector3(0, 0.41, 0), Vector3(0.04, 0.82, 0.04))
+
+
+## An ancient room's flight of steps (a temple's, a vault's: _flight) has a solid stone parapet up its open side
+## instead of a wooden handrail: a fifth of a tile thick, centred `across` from the flight's middle line, rising from a
+## squat newel block at the foot a hand's breadth over the treads, under a pale coping, and cut level where it meets
+## the top of the wall the flight climbs into. `foot` is the middle of the flight's foot tile.
+const PARAPET := 0.72
+const PARAPET_T := 0.2
+
+
+func _stone_parapet(foot: Vector3, side: Vector3, across: float, rise: Vector3, n: int, reach: float) -> void:
+	var body := wall_mat("")
+	var cap := surface("coping", stone.lightened(0.14))
+	var slope := H / float(n)
+	var s0 := -0.36
+	var s1 := float(n) - 0.5 + reach
+	var sc := (H - PARAPET) / slope - 0.5
+	# the parapet's outline along the flight: (distance up it from the foot tile's middle, height)
+	var pts: Array[Vector2] = [Vector2(s0, 0.0), Vector2(s1, 0.0)]
+	if sc < s1:
+		pts.append(Vector2(s1, H))
+		pts.append(Vector2(sc, H))
+	else:
+		pts.append(Vector2(s1, slope * (s1 + 0.5) + PARAPET))
+	pts.append(Vector2(s0, slope * (s0 + 0.5) + PARAPET))
+	var at := func(q: Vector2, face: float) -> Vector3:
+		return foot + rise * q.x + side * (across + face * PARAPET_T / 2.0) + Vector3.UP * q.y
+	for face in [-1.0, 1.0]:
+		for i in range(1, pts.size() - 1):
+			floor_mesher.tri("stair_ancient", body, [at.call(pts[0], face), at.call(pts[i], face), at.call(pts[i + 1], face)],
+				side * face, rise, Vector3.DOWN)
+	# its top (sloped, then level where it's cut), each length under its coping, and its foot end
+	for i in range(2, pts.size() - 1):
+		var a: Vector3 = at.call(pts[i], -1.0)
+		var b: Vector3 = at.call(pts[i + 1], -1.0)
+		var a2: Vector3 = at.call(pts[i], 1.0)
+		var b2: Vector3 = at.call(pts[i + 1], 1.0)
+		var nrm := (b - a).cross(side).normalized()
+		if nrm.y < 0.0:
+			nrm = -nrm
+		floor_mesher.quad("stair_ancient", body, [a, b, b2, a2], nrm, rise, side)
+		_beam("coping", cap, (a + a2) / 2.0 + nrm * 0.03, (b + b2) / 2.0 + nrm * 0.03, PARAPET_T * 0.68, true, 0.3)
+	var f0: Vector3 = at.call(pts[0], -1.0)
+	var f1: Vector3 = at.call(pts[0], 1.0)
+	var top0 := pts.back() as Vector2
+	floor_mesher.quad("stair_ancient", body, [f0, f1, f1 + Vector3.UP * top0.y, f0 + Vector3.UP * top0.y], -rise, side, Vector3.DOWN)
+	# the newel block at the foot, and its cap
+	var newel := foot + rise * (s0 + 0.04) + side * across
+	floor_mesher.box("stair_ancient", body, newel + Vector3(0, 0.52, 0), rise.abs() * 0.34 + side * 0.34 + Vector3(0, 1.04, 0))
+	floor_mesher.box("coping", cap, newel + Vector3(0, 1.08, 0), rise.abs() * 0.44 + side * 0.44 + Vector3(0, 0.08, 0))
+
+
+## An ancient room's stairwell down (_well) is ringed by a low stone kerb instead of a wooden rail: along its open
+## side but for the top step, where you go in (a squat post marks where it starts), and round its far end. The kerb
+## runs on down into the well, so no gap shows under it.
+const KERB := 0.42
+
+
+func _stone_kerb(c: Vector3, side: Vector3, a0: float, a1: float, mid: Vector3, wide: Vector3, rise: Vector3, place: int, n: int, bottom: float) -> void:
+	var body := wall_mat("")
+	var cap := surface("coping", stone.lightened(0.14))
+	var open := (a1 - 0.1) if a0 < -0.5 else (a0 + 0.1)
+	var tall := KERB - bottom
+	if place == n - 1:
+		var post := c + side * open - rise * 0.4
+		floor_mesher.box("stair_ancient", body, post + Vector3(0, (0.74 + bottom) / 2.0, 0), rise.abs() * 0.3 + side * 0.3 + Vector3(0, 0.74 - bottom, 0))
+		floor_mesher.box("coping", cap, post + Vector3(0, 0.78, 0), rise.abs() * 0.38 + side * 0.38 + Vector3(0, 0.08, 0))
+		return
+	floor_mesher.box("stair_ancient", body, c + side * open + Vector3(0, (KERB + bottom) / 2.0, 0), rise.abs() + side * 0.2 + Vector3(0, tall, 0))
+	floor_mesher.box("coping", cap, c + side * open + Vector3(0, KERB + 0.03, 0), rise.abs() * 1.02 + side * 0.28 + Vector3(0, 0.06, 0))
+	if place == 0:
+		var far := c - rise * 0.4
+		floor_mesher.box("stair_ancient", body, far + mid + Vector3(0, (KERB + bottom) / 2.0, 0), wide + rise.abs() * 0.2 + Vector3(0, tall, 0))
+		floor_mesher.box("coping", cap, far + mid + Vector3(0, KERB + 0.03, 0), wide + rise.abs() * 0.28 + Vector3(0, 0.06, 0))
+		# a squat post where the kerb turns the corner
+		var corner := far + side * open
+		floor_mesher.box("stair_ancient", body, corner + Vector3(0, (0.74 + bottom) / 2.0, 0), rise.abs() * 0.3 + side * 0.3 + Vector3(0, 0.74 - bottom, 0))
+		floor_mesher.box("coping", cap, corner + Vector3(0, 0.78, 0), rise.abs() * 0.38 + side * 0.38 + Vector3(0, 0.08, 0))
 
 
 ## A bar at any slope. The optional bevelled form softens handrails and stout posts and caps both ends.
