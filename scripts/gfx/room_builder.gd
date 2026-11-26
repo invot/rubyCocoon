@@ -130,6 +130,11 @@ const KINDS := {
 	"storage": {"m": ["kk_drawers"], "long": true},
 	# a kennel barn's hay bales (barn_builder.gd)
 	"hay": {"m": ["hay_stack"], "single": true},
+	# the workshop and yard props DunGen places (2026-11-26, the user's direction: barrels, boxes, large stones): the
+	# street pack's barrel and crate and the field pack's rocks, one to a tile and free to stand anywhere
+	"barrel": {"m": ["ext/kaykit_barrel"], "single": true, "free": true},
+	"crate": {"m": ["ext/kaykit_crate"], "single": true, "free": true},
+	"boulder": {"m": ["nature/rock_big"], "alt": ["nature/rock_small", "nature/field_rock"], "single": true, "free": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
 	"floor_lamp": {"m": ["home/floor_lamp_drum", "home/floor_lamp_tripod"], "lamp": true, "single": true},
 	"coat_stand": {"m": [], "single": true},
@@ -293,8 +298,12 @@ static func piece(name: String) -> Mesh:
 			_meshes[name] = _extend_coffee_table(size)
 		return _meshes[name]
 	if not _meshes.has(name):
-		# "ext/..." is a street piece (assets/exteriors/): the town's bench
-		var path := "res://assets/exteriors/" + name.substr(4) + ".res" if name.begins_with("ext/") else DIR + name + ".res"
+		# "ext/..." is a street piece (assets/exteriors/): the town's bench; "nature/..." a field rock or a bush
+		var path := DIR + name + ".res"
+		if name.begins_with("ext/"):
+			path = "res://assets/exteriors/" + name.substr(4) + ".res"
+		elif name.begins_with("nature/"):
+			path = "res://assets/nature/" + name.substr(7) + ".res"
 		_meshes[name] = load(path) if ResourceLoader.exists(path) else null
 		if name == "kk_book_set" and _meshes[name] != null:
 			_meshes[name] = _coloured_book_covers(_meshes[name])
@@ -521,6 +530,8 @@ var rng := RandomNumberGenerator.new()
 var w := 0
 var h := 0
 var tint := Color.WHITE
+## the room's own floor colour ("floor_colour"), white for the material's own
+var floor_tint := Color.WHITE
 var textures := {}
 var default_zone := "shop"
 var trim := Color("#5a3a26")
@@ -545,6 +556,10 @@ var stone := SANDSTONE
 ## per row of walls: a node, and the mesher its walls go into
 var rows := {}
 var _row_meshers := {}
+## black walls ("black_walls": [[x, y], …]) and false walls ("false_walls"): wall tiles drawn flat black, or not
+## drawn at all (see _black_walls and _wall_caps)
+var _blackw := {}
+var _falsew := {}
 var floor_mesher := Mesher.new()
 var lights: Array = []
 ## where daylight comes in, one per window ({"at": the glass's room-side middle, "in": the way into the room}), and the
@@ -613,6 +628,7 @@ static func _begin(m: Dictionary, p: Node3D, seed: int, extra: Dictionary) -> Re
 	var room: Dictionary = m.get("room", {})
 	# the template's wall colour tints the wall textures a little
 	rb.tint = Color.WHITE.lerp(Color(str(room.get("wall", "#ffffff"))), 0.35)
+	rb.floor_tint = Color(str(room.get("floor_colour", "#ffffff")))
 	rb.trim = Color(str(room.get("trim", "#5a3a26")))
 	rb.mission = room.get("mission", false)
 	rb.adobe = room.get("adobe", false)
@@ -653,6 +669,13 @@ func _special() -> bool:
 		return true
 	if room.get("cavern", false):
 		_cavern()
+		# (a cave's own railings, scenes a rope bridge won't do for: the cave's builder has no rails of its own)
+		_rails()
+		var rail_mesh := floor_mesher.mesh()
+		if rail_mesh.get_surface_count() > 0:
+			var rails_node := MeshInstance3D.new()
+			rails_node.mesh = rail_mesh
+			parent.add_child(rails_node)
 		return true
 	return false
 
@@ -660,7 +683,7 @@ func _special() -> bool:
 ## An ordinary room's steps, in order.
 func _build_steps() -> Array[Callable]:
 	var room: Dictionary = map.get("room", {})
-	var out: Array[Callable] = [_floors, _levels, _daises, _stairs, _plan_cubbies, _window_boxes, _walls, _furniture, _rugs,
+	var out: Array[Callable] = [_floors, _levels, _daises, _rails, _stairs, _plan_cubbies, _window_boxes, _walls, _furniture, _rugs,
 		_stalls, _counters]
 	if room.has("stage_gear"):
 		out.append(ConcertHall.dress_stage.bind(self))
@@ -854,6 +877,9 @@ func _pick(z: String, what: String) -> String:
 	if map.get("parent", "") == "kelpwick" and what == "wall":
 		return "kelpwood"
 	var own: String = map.get("room", {}).get(what + "_tex", {}).get(z, "")
+	if own == "":
+		# ("*" lays one finish in every zone of the room)
+		own = map.get("room", {}).get(what + "_tex", {}).get("*", "")
 	if own != "":
 		return own
 	var opts: Array = ZONES.get(z, ZONES["shop"])[what]
@@ -861,13 +887,14 @@ func _pick(z: String, what: String) -> String:
 
 
 func floor_mat(z: String) -> Material:
-	return floor_surface("floor_ancient" if ancient else _pick(z, "floor"))
+	return floor_surface("floor_ancient" if ancient else _pick(z, "floor"), floor_tint)
 
 
 ## Natural interiors keep the same collision map and doorway rules, with rounded, sealed rock masses.
 func _cavern() -> void:
-	if map["room"].get("well", false):
-		# the Dustwell Well's caves: levels, cracks, ladders and rope bridges (well_cave.gd)
+	if map["room"].get("well", false) or Elev.has(map):
+		# a cave of several levels (or the Dustwell Well's): rock cliffs between them, dirt floors, the ladders on its
+		# ramps and the steps of its platforms (well_cave.gd), rather than one flat slab with the heights ignored
 		preload("res://scripts/gfx/well_cave.gd").build(self)
 		return
 	var ground := MeshInstance3D.new()
@@ -899,6 +926,11 @@ func _rounded_cavern_walls() -> void:
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.95
+	# a cave wears its room's "wall" colour (DunGen's brown or grey rock), its own grey otherwise
+	var rock_colour := Color("8c7d89")
+	var room_wall := str(map.get("room", {}).get("wall", ""))
+	if room_wall != "":
+		rock_colour = rock_colour.lerp(Color(room_wall), 0.5)
 	var groups := {}
 	for y in h:
 		for x in w:
@@ -924,7 +956,7 @@ func _rounded_cavern_walls() -> void:
 			var tall := (0.35 if front else 2.5) + sin(p.x * 2.3 + p.y) * 0.12
 			var shape := Basis().scaled(Vector3(0.78, tall * 0.65, 0.78))
 			multi.set_instance_transform(i, Transform3D(shape, Vector3(p.x + 0.5, tall * 0.4, p.y + 0.5)))
-			multi.set_instance_color(i, Color("8c7d89").lightened(0.035 * sin(p.x * 1.7 + p.y)))
+			multi.set_instance_color(i, rock_colour.lightened(0.035 * sin(p.x * 1.7 + p.y)))
 		var node := MultiMeshInstance3D.new()
 		node.multimesh = multi
 		node.material_override = mat
@@ -933,8 +965,10 @@ func _rounded_cavern_walls() -> void:
 			add_prop([node], points[0], Vector2(1, points.size()))
 
 
-static func floor_surface(tex: String) -> ShaderMaterial:
-	var key := "soft_floor:" + tex
+## A floor finish: one of the pack's floors (the game's own colours unless the room names one, "floor_colour", which
+## takes the floor's pattern with it: the planks' gaps and the carpet's weave in a darker shade of it).
+static func floor_surface(tex: String, tint := Color.WHITE) -> ShaderMaterial:
+	var key := "soft_floor:" + tex + ":" + tint.to_html()
 	if _mats.has(key):
 		return _mats[key]
 	var finish := 0
@@ -975,6 +1009,10 @@ static func floor_surface(tex: String) -> ShaderMaterial:
 			finish = 4
 			base = Color("#ece7db")
 			accent = Color("#343337")
+	if tint != Color.WHITE:
+		# (the room's own floor colour: the pattern stays, in the picked colour and a darker shade)
+		base = tint
+		accent = tint.darkened(0.7) if tex == "checker" else tint.darkened(0.16)
 	var mat := ShaderMaterial.new()
 	mat.shader = SOFT_SURFACE
 	mat.set_shader_parameter("finish", finish)
@@ -991,7 +1029,14 @@ func wall_mat(z: String) -> Material:
 		return wall_surface("blocks" if blocks else "ashlar", stone)
 	if home and not adobe and not mission:
 		return _home_wall(_pick(z, "wall"))
-	return wall_surface(_pick(z, "wall"), tint if adobe or z in ["shop", "hall", "back", "office", "diner"] else Color.WHITE)
+	if adobe or z in ["shop", "hall", "back", "office", "diner"]:
+		return wall_surface(_pick(z, "wall"), tint)
+	# a room that names its own wall texture (a dungeon's bricks, boards or plaster, "wall_tex": DunGen's wall
+	# material) wears its "wall" colour, so the material and the colour picked there both show
+	var own_walls: Dictionary = map.get("room", {}).get("wall_tex", {})
+	if own_walls.has(z):
+		return wall_surface(_pick(z, "wall"), Color.WHITE.lerp(Color(str(map["room"].get("wall", "#ffffff"))), 0.7))
+	return wall_surface(_pick(z, "wall"), Color.WHITE)
 
 
 ## Whether (x, y) is part of a stage room's stairwell down: open, with no floor over it.
@@ -1325,8 +1370,16 @@ func _row(y: int) -> Mesher:
 
 
 func _walls() -> void:
+	_blackw.clear()
+	_falsew.clear()
+	for e in map.get("room", {}).get("black_walls", []):
+		_blackw[Vector2i(int(e[0]), int(e[1]))] = true
+	for e in map.get("room", {}).get("false_walls", []):
+		_falsew[Vector2i(int(e[0]), int(e[1]))] = true
 	for y in h:
 		for x in w:
+			if _blackw.has(Vector2i(x, y)) or _falsew.has(Vector2i(x, y)):
+				continue
 			if y == 0 and x > 0 and x < w - 1 and map["room"].get("mirror_wall", false):
 				continue
 			var c := code(x, y)
@@ -1397,6 +1450,82 @@ func _walls() -> void:
 						_bars(x, y, DOOR_H + Elev.surface(map, Vector2i(x, y)), top, horiz, vert, e, wv, n, s)
 					_doorway(x, y, horiz, c == MapGen.LOCKED)
 	_dungeon_caps()
+	_black_walls()
+	_wall_caps()
+
+
+## Black walls ("black_walls": [[x, y], …]): wall tiles drawn in flat, unlit black instead of the room's finish, so
+## the backs of whatever stands in front of them never show (a stage's backing, the box of a detail). Their tile stays
+## a wall for walking and for the room's shape; only the finish changes.
+func _black_walls() -> void:
+	if _blackw.is_empty():
+		return
+	var top := float(map.get("room", {}).get("wall_height", H))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p: Vector2i in _blackw:
+		if not code(p.x, p.y) in WALLISH:
+			continue
+		var y0 := _foot(p.x, p.y)
+		var e := wallish(p.x + 1, p.y)
+		var wv := wallish(p.x - 1, p.y)
+		var n := wallish(p.x, p.y - 1)
+		var s := wallish(p.x, p.y + 1)
+		var horiz := e or wv or (not n and not s)
+		var vert := n or s
+		var cx := p.x + 0.5
+		var cz := p.y + 0.5
+		if horiz:
+			for side in [-1.0, 1.0]:
+				var zf: float = cz + side * T * 0.5
+				_black_quad(st, Vector3(p.x, y0, zf), Vector3(p.x + 1, y0, zf), Vector3(p.x + 1, top, zf), Vector3(p.x, top, zf))
+		if vert:
+			for side in [-1.0, 1.0]:
+				var xf: float = cx + side * T * 0.5
+				_black_quad(st, Vector3(xf, y0, p.y), Vector3(xf, y0, p.y + 1), Vector3(xf, top, p.y + 1), Vector3(xf, top, p.y))
+		_black_quad(st, Vector3(p.x, top, p.y), Vector3(p.x + 1, top, p.y), Vector3(p.x + 1, top, p.y + 1), Vector3(p.x, top, p.y + 1))
+	_black_mesh(st)
+
+
+## Black wall caps ("black_caps"): a black ceiling tile over every wall tile of the room, carried four tiles out
+## behind the back and side walls, so from the camera the wall tops end in black rather than in the backdrop. The
+## open front row is left uncapped. A cave's own black roof (well_cave.gd) is separate.
+func _wall_caps() -> void:
+	if not map.get("room", {}).get("black_caps", false):
+		return
+	var top := float(map.get("room", {}).get("wall_height", H)) + 0.02
+	var span := 4
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for y in h:
+		for x in w:
+			if not wallish(x, y) or _falsew.has(Vector2i(x, y)) or y == h - 1:
+				continue
+			_black_quad(st, Vector3(x, top, y), Vector3(x + 1, top, y), Vector3(x + 1, top, y + 1), Vector3(x, top, y + 1))
+			if y == 0:
+				_black_quad(st, Vector3(x, top, -span), Vector3(x + 1, top, -span), Vector3(x + 1, top, y), Vector3(x, top, y))
+			if x == 0:
+				_black_quad(st, Vector3(-span, top, y), Vector3(x, top, y), Vector3(x, top, y + 1), Vector3(-span, top, y + 1))
+			if x == w - 1:
+				_black_quad(st, Vector3(x + 1, top, y), Vector3(x + 1 + span, top, y), Vector3(x + 1 + span, top, y + 1), Vector3(x + 1, top, y + 1))
+	_black_mesh(st)
+
+
+func _black_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+	for v in [a, c, b, a, d, c]:
+		st.add_vertex(v)
+
+
+func _black_mesh(st: SurfaceTool) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color("#0d0a10")
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
 
 
 ## A dungeon room's back corners ("dungeon_walls"): a black lid over each corner square of wall and the wall behind it,
@@ -1404,6 +1533,9 @@ func _walls() -> void:
 func _dungeon_caps() -> void:
 	if not map.get("room", {}).get("dungeon_walls", false):
 		return
+	if map.get("room", {}).get("black_caps", false):
+		return
+	# (the general black wall caps cover these corners whole)
 	var top := float(map.get("room", {}).get("wall_height", H)) + 0.01
 	var inset := 0.31
 	var st := SurfaceTool.new()
@@ -1898,27 +2030,26 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 			_hinged_leaf(x, y, horiz, front)
 		if front:
 			_exit_banner(m, c + Vector3(0, top + 0.30, 0), horiz)
-	if locked:
-		if map.get("staff_doors", {}).has(Vector2i(x, y)):
-			# a small brass plate: STAFF ONLY
-			for side in [-1.0, 1.0]:
-				var lab := Label3D.new()
-				load("res://scripts/gfx/world_lettering.gd").apply(lab, "STAFF ONLY")
-				lab.font_size = 14
-				lab.pixel_size = 0.006
-				lab.modulate = Color("#2a1a10")
-				lab.outline_size = 0
-				lab.position = c + Vector3(0, 1.45, 0) + across * side * 0.082
-				lab.rotation.y = (0.0 if horiz else PI / 2.0) + (0.0 if side > 0.0 else PI)
-				var plate := MeshInstance3D.new()
-				var pm := BoxMesh.new()
-				pm.size = Vector3(0.5, 0.14, 0.02)
-				plate.mesh = pm
-				plate.material_override = surface("brass", Color("#d8b050"))
-				plate.position = c + Vector3(0, 1.45, 0) + across * side * 0.07
-				plate.rotation.y = lab.rotation.y
-				_attach(x, y, plate)
-				_attach(x, y, lab)
+	# a staff door: a small brass plate on its leaf, STAFF ONLY, on a plain door's leaf as much as a locked one's
+	if map.get("staff_doors", {}).has(Vector2i(x, y)):
+		for side in [-1.0, 1.0]:
+			var lab := Label3D.new()
+			load("res://scripts/gfx/world_lettering.gd").apply(lab, "STAFF ONLY")
+			lab.font_size = 14
+			lab.pixel_size = 0.006
+			lab.modulate = Color("#2a1a10")
+			lab.outline_size = 0
+			lab.position = c + Vector3(0, 1.45, 0) + across * side * 0.082
+			lab.rotation.y = (0.0 if horiz else PI / 2.0) + (0.0 if side > 0.0 else PI)
+			var plate := MeshInstance3D.new()
+			var pm := BoxMesh.new()
+			pm.size = Vector3(0.5, 0.14, 0.02)
+			plate.mesh = pm
+			plate.material_override = surface("brass", Color("#d8b050"))
+			plate.position = c + Vector3(0, 1.45, 0) + across * side * 0.07
+			plate.rotation.y = lab.rotation.y
+			_attach(x, y, plate)
+			_attach(x, y, lab)
 
 	if mission and (ex.is_empty() or String(ex["to"]).contains("#")):
 		_mission_door_arch(x, y, horiz)
@@ -5432,6 +5563,52 @@ func _daises() -> void:
 				if i < spans.size():
 					first = int(spans[i])
 					last = first
+
+
+## A room's own railings ("rails": [[x, y, side], ...], side one of "n" "e" "s" "w"): the indoor balustrade along the edge
+## between that tile and the one beside it, on the floor there. Runs that meet carry on as one railing (DunGen's railing
+## brush paints one edge a tile), and on a platform they stand on its top.
+func _rails() -> void:
+	var list: Array = map.get("room", {}).get("rails", [])
+	if list.is_empty():
+		return
+	var wood := _rail_mat()
+	# (edges gathered by the line they run along and the floor they stand on: a run of them is one railing)
+	var runs := {}
+	for e in list:
+		if e.size() < 3:
+			continue
+		var t := Vector2i(int(e[0]), int(e[1]))
+		var side := String(e[2]).substr(0, 1).to_lower()
+		if t.x < 0 or t.y < 0 or t.x >= w or t.y >= h or not side in ["n", "e", "s", "w"]:
+			continue
+		# (Elev already has a platform's tiles a level up, so a rail on one stands on its top)
+		var lift := Elev.surface(map, t) if Elev.has(map) else 0.0
+		var along_x := side == "n" or side == "s"
+		var line := float(t.y) + (0.08 if side == "n" else 0.92) if along_x else float(t.x) + (0.08 if side == "w" else 0.92)
+		var key := "%s:%.2f:%.2f" % ["x" if along_x else "z", line, lift]
+		if not runs.has(key):
+			runs[key] = []
+		runs[key].append(t.x if along_x else t.y)
+	for key: String in runs:
+		var parts := key.split(":")
+		var along_x := parts[0] == "x"
+		var fixed := float(parts[1])
+		var lift := float(parts[2])
+		var spans: Array = runs[key]
+		spans.sort()
+		var first: int = int(spans[0])
+		var last := first
+		for i in range(1, spans.size() + 1):
+			if i < spans.size() and int(spans[i]) == last + 1:
+				last = int(spans[i])
+				continue
+			var a := Vector3(float(first), lift, fixed) if along_x else Vector3(fixed, lift, float(first))
+			var b := Vector3(float(last + 1), lift, fixed) if along_x else Vector3(fixed, lift, float(last + 1))
+			_indoor_railing(a, b, wood)
+			if i < spans.size():
+				first = int(spans[i])
+				last = first
 
 
 ## The warm wood of platforms' railings, steps and sides.

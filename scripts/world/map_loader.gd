@@ -1050,6 +1050,9 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 					shut[p] = String(room["locked_doors"][ch])
 				if ch in room.get("open_doors", []):
 					m["open_doors"][p] = true
+				# (a staff door: room_builder.gd _doorway puts its STAFF ONLY plate on the leaf)
+				if ch in room.get("staff_doors", []):
+					m["staff_doors"][p] = true
 			elif InteriorMaps.FURNITURE.has(ch):
 				MapGen.set_t(m, x, y, MapGen.FURN)
 				# (a room may dress one of its symbols as another kind: Rosa's desk is a "cash_desk")

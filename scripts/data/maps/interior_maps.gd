@@ -16,7 +16,8 @@ extends RefCounted
 ##   G  trade board   M  storage terminal   o  pillar         e  exhibit       n  organ
 ##   =  bench         ~  fountain           Y  crystal ball   D  door mat (exit)
 ##   P  where you appear when entering      1-9 people (roles in "npcs")
-##   >  stairs to the next floor   <  stairs back down/up   g  eerie mist (wild encounters)
+##   >  stairs to the next floor   <  stairs back down/up   g  wild beasts' ground (encounters)
+##   "fog": 1-10 hazes the whole room at once (world.gd _build_room FOG_STEP; 10 hides its far wall); no tile of mist
 ##   %  lava   *  crystal shard   $  hidden item   H  healing machine   I  egg incubator
 ##   K  kennel pen (a beast waiting to be adopted)   @  a red telephone (calling Dad saves the game, see phone.gd)
 ## Temples (and Gravenmoor's crypt) keep their singing stones on anchors stone_0 .. stone_3 (one per flute button:
@@ -27,6 +28,8 @@ extends RefCounted
 ## tide_puzzles.gd; see the Temple of Tides).
 ## Rooms within a building (drawn by room_builder.gd):
 ##   d  doorway between rooms      L  locked door      Z  staff-only door (locked)
+##   a door symbol in "open_doors" is left open (an archway), in "stone_doors" is the engraved stone door, in
+##   "staff_doors" carries the STAFF ONLY plate, and "locked_doors" holds it shut until its flag is set ("" = never)
 ##   "locked": what you find at each locked door, in reading order (else just that it's locked)
 ##   furniture (see FURNITURE): k kitchen counter, i kitchen sink, v stove, f fridge, j pantry, T toilet, U bathtub,
 ##   u washbasin, W washing machine, S sofa, a armchair, V television, c chair, y coffee table,

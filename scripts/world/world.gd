@@ -24,6 +24,7 @@ const BeastModel = preload("res://scripts/gfx/beast_model.gd")
 const BeastRig = preload("res://scripts/gfx/beast_rig.gd")
 const VP = preload("res://scripts/gfx/voxel_props.gd")
 const FieldMist = preload("res://scripts/gfx/field_mist.gd")
+const RoomFog = preload("res://scripts/gfx/room_fog.gd")
 const VPer = preload("res://scripts/gfx/voxel_person.gd")
 const Townfolk = preload("res://scripts/gfx/townfolk.gd")
 const PLAYER_GRACE_SHADER = preload("res://scripts/gfx/townfolk_grace.gdshader")
@@ -5539,7 +5540,7 @@ func _spawn_wilds() -> void:
 
 
 ## True if wild beasts can walk on a room's floor tile `c`: in a temple's maze ("roam"), the walkways between its
-## channels, not just the mist.
+## channels, not just their own ground.
 func _roams_floor(c: int) -> bool:
 	return map.get("encounter", {}).get("roam", false) and c in [MapGen.ITILE, MapGen.IFLOOR]
 
@@ -6397,6 +6398,8 @@ func _build_room() -> void:
 	env.adjustment_saturation = 1.15
 	if open_air:
 		OutdoorLight.grade(env)
+	# the room's fog (DunGen's Fog, 1-10): one haze over the room, in its own wall colour, paled
+	RoomFog.apply(env, room)
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -6446,7 +6449,6 @@ func _build_room() -> void:
 		wall_tex = "brick"
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(b["seed"])
-	var mist := []
 	var pools := []
 	var dk := Color("#5a3a26")
 	var lw := Color("#a8784a")
@@ -6496,9 +6498,9 @@ func _build_room() -> void:
 						floors["tile"].append(fxf)
 					continue
 				MapGen.MIST:
+					# (the wild beasts' tile: they hide here, the room's own "fog" hazes it with the rest of the room)
 					if open_air:
 						floors[main_floor].append(fxf)
-					mist.append(_xf(center, _voxel_rot(rng)))
 					continue
 				MapGen.LAVA:
 					floors["lava"].append(_xf(center + Vector3(0, -0.05, 0)))
@@ -6729,8 +6731,6 @@ func _build_room() -> void:
 	lm.emission_energy_multiplier = 1.6
 	water_mats.append(lm)
 	_multimesh(plane, floors["lava"], lm, false)
-	if not mist.is_empty():
-		add_child(FieldMist.build(mist))
 	if not Elev.has(map) or room.has("dais"):
 		_build_pools(pools)
 	elif room.has("water_levels"):
