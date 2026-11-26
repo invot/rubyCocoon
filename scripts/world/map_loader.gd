@@ -1010,6 +1010,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 	m["staff_doors"] = {}
 	m["balcony_doors"] = {}
 	m["open_doors"] = {}
+	# (a door built as a stone archway, the temples' portal, in any room: "arch_doors", DunGen's Stone archway)
+	m["arch_doors"] = {}
 	# a red telephone standing on the counter instead of on its own table (room "counter_phone": [x, y])
 	if room.has("counter_phone"):
 		m["counter_phone"] = Vector2i(int(room["counter_phone"][0]), int(room["counter_phone"][1]))
@@ -1050,6 +1052,8 @@ static func _interior(id: String, flags: Dictionary) -> Dictionary:
 					shut[p] = String(room["locked_doors"][ch])
 				if ch in room.get("open_doors", []):
 					m["open_doors"][p] = true
+				if ch in room.get("arch_doors", []):
+					m["arch_doors"][p] = true
 				# (a staff door: room_builder.gd _doorway puts its STAFF ONLY plate on the leaf)
 				if ch in room.get("staff_doors", []):
 					m["staff_doors"][p] = true

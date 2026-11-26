@@ -135,6 +135,29 @@ const KINDS := {
 	"barrel": {"m": ["ext/kaykit_barrel"], "single": true, "free": true},
 	"crate": {"m": ["ext/kaykit_crate"], "single": true, "free": true},
 	"boulder": {"m": ["nature/rock_big"], "alt": ["nature/rock_small", "nature/field_rock"], "single": true, "free": true},
+	# DunGen's dungeon dressing (2026-11-26, the user's direction: plenty of props): the KayKit dungeon and hoard
+	# pieces and the field pack's bones and stumps already in assets/props and assets/nature ("props/..." pieces),
+	# each grown or shrunk to its "height" within its footprint; candles and the standing torch give a little light
+	"keg": {"m": ["props/kaykit_well_keg"], "height": 0.95, "single": true, "free": true},
+	"big_barrel": {"m": ["props/kaykit_well_barrel_large"], "height": 1.05, "single": true, "free": true},
+	"barrel_stack": {"m": ["props/kaykit_well_barrel_small_stack"], "height": 1.1, "free": true},
+	"crate_stack": {"m": ["props/kaykit_well_box_stacked"], "height": 1.5, "free": true},
+	"big_crate": {"m": ["props/kaykit_well_box_large"], "height": 0.9, "single": true, "free": true},
+	"trunk": {"m": ["props/kaykit_hoard_trunk_medium_B"], "alt": ["props/kaykit_hoard_trunk_large_A"], "height": 0.55, "single": true, "free": true},
+	"broken_table": {"m": ["props/kaykit_well_table_medium_broken"], "height": 0.8, "free": true},
+	"candles": {"m": ["props/kaykit_hoard_candle_triple"], "alt": ["props/kaykit_hoard_candle_lit", "props/kaykit_hoard_candle_melted"], "height": 0.5, "single": true, "free": true, "lamp": true},
+	"torch_stand": {"m": ["props/torch"], "height": 1.5, "single": true, "free": true, "lamp": true},
+	"statue": {"m": ["props/mossy_statue"], "height": 2.2, "single": true, "free": true},
+	"tomb": {"m": ["props/tomb_2"], "height": 0.85, "free": true},
+	"gravestone": {"m": ["props/grave_1w"], "height": 1.0, "single": true, "free": true},
+	"iron_cage": {"m": ["props/iron_cage"], "height": 1.8, "free": true},
+	"banner": {"m": ["props/banner"], "height": 1.9, "single": true},
+	"sword_shield": {"m": ["props/kaykit_hoard_sword_shield"], "height": 0.9, "single": true},
+	"ice_block": {"m": ["props/ice_block"], "height": 0.9, "single": true, "free": true},
+	"totem": {"m": ["props/head_totem"], "height": 2.0, "free": true},
+	"bones": {"m": ["nature/bones_1"], "alt": ["nature/bones_2", "nature/bones_3"], "height": 0.45, "single": true, "free": true},
+	"stump": {"m": ["nature/stump"], "height": 0.5, "single": true, "free": true},
+	"bush": {"m": ["nature/bush_1"], "alt": ["nature/bush_2", "nature/bush_3"], "height": 0.7, "single": true, "free": true},
 	"mop": {"m": ["bucket"], "with": "broom", "single": true},
 	"floor_lamp": {"m": ["home/floor_lamp_drum", "home/floor_lamp_tripod"], "lamp": true, "single": true},
 	"coat_stand": {"m": [], "single": true},
@@ -281,6 +304,50 @@ static func _blocks(colour: Color) -> Material:
 	return mat
 
 
+## Patterned walls for a room that names its own wall material (DunGen's Brick, Wall tiles and Wood panelling): the
+## same smooth paint as the towns' walls, with soft darker joints, so the material reads at a glance. Each entry is
+## the pattern and the size in metres of the repeat the texture holds (two courses, two units across).
+const PATTERNED_WALLS := {"wall_brick": "bricks", "wall_tiles": "tiles", "wall_wood": "boards"}
+const PATTERN_REPEAT := {"bricks": Vector2(0.9, 0.44), "tiles": Vector2(0.6, 0.6), "boards": Vector2(0.56, 1.0)}
+
+
+static func _patterned(kind: String, colour: Color) -> Material:
+	var key := "pattern:%s:%s" % [kind, colour.to_html()]
+	if _mats.has(key):
+		return _mats[key]
+	var iw := 128
+	var ih := 128
+	var img := Image.create(iw, ih, false, Image.FORMAT_RGB8)
+	var shades := [0.97, 1.03, 1.0, 0.95]
+	for y in ih:
+		for x in iw:
+			var row := y * 2 / ih
+			var fy := float(y % (ih / 2)) + 0.5
+			var sx := float(x) + (iw / 4.0 if kind == "bricks" and row == 1 else 0.0)
+			var fx := fmod(sx, iw / 2.0) + 0.5
+			var unit := int(sx / (iw / 2.0)) % 2 + row * 2
+			# distance (pixels) to the nearest joint: courses and bricks, a tile grid, or boards' vertical seams only
+			var d := minf(fx, iw / 2.0 - fx)
+			if kind != "boards":
+				d = minf(d, minf(fy, ih / 2.0 - fy))
+			var face := clampf((d - 1.2) / 1.6, 0.0, 1.0)
+			var shade: float = shades[unit] if kind != "tiles" else 1.0
+			var c: Color = Color.WHITE * shade * lerpf(0.72 if kind != "tiles" else 0.86, 1.0, face)
+			c.a = 1.0
+			img.set_pixel(x, y, c)
+	img.generate_mipmaps()
+	var rep: Vector2 = PATTERN_REPEAT[kind]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	mat.albedo_texture = ImageTexture.create_from_image(img)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.95
+	mat.uv1_scale = Vector3(1.0 / rep.x, 1.0 / rep.y, 1.0)
+	_mats[key] = mat
+	return mat
+
+
 static func piece(name: String) -> Mesh:
 	if name in ConcertHall.PIECES:
 		return ConcertHall.piece(name)
@@ -304,6 +371,8 @@ static func piece(name: String) -> Mesh:
 			path = "res://assets/exteriors/" + name.substr(4) + ".res"
 		elif name.begins_with("nature/"):
 			path = "res://assets/nature/" + name.substr(7) + ".res"
+		elif name.begins_with("props/"):
+			path = "res://assets/props/" + name.substr(6) + ".res"
 		_meshes[name] = load(path) if ResourceLoader.exists(path) else null
 		if name == "kk_book_set" and _meshes[name] != null:
 			_meshes[name] = _coloured_book_covers(_meshes[name])
@@ -669,6 +738,8 @@ func _special() -> bool:
 		return true
 	if room.get("cavern", false):
 		_cavern()
+		# (DunGen's props in a cave: barrels, kegs, crates, candles, bones … stand on the cave floor's own level)
+		_furniture()
 		# (a cave's own railings, scenes a rope bridge won't do for: the cave's builder has no rails of its own)
 		_rails()
 		var rail_mesh := floor_mesher.mesh()
@@ -1034,8 +1105,13 @@ func wall_mat(z: String) -> Material:
 	# a room that names its own wall texture (a dungeon's bricks, boards or plaster, "wall_tex": DunGen's wall
 	# material) wears its "wall" colour, so the material and the colour picked there both show
 	var own_walls: Dictionary = map.get("room", {}).get("wall_tex", {})
-	if own_walls.has(z):
-		return wall_surface(_pick(z, "wall"), Color.WHITE.lerp(Color(str(map["room"].get("wall", "#ffffff"))), 0.7))
+	if own_walls.has(z) or own_walls.has("*"):
+		var tex := _pick(z, "wall")
+		var colour := Color.WHITE.lerp(Color(str(map["room"].get("wall", "#ffffff"))), 0.7)
+		# (a material picked by name shows its pattern: bricks, tiles or boards; the towns' rooms stay smooth)
+		if PATTERNED_WALLS.has(tex):
+			return _patterned(PATTERNED_WALLS[tex], Color(WALL_COLOURS[tex]) * colour)
+		return wall_surface(tex, colour)
 	return wall_surface(_pick(z, "wall"), Color.WHITE)
 
 
@@ -2000,7 +2076,7 @@ func _doorway(x: int, y: int, horiz: bool, locked: bool) -> void:
 	if map.get("stone_doors", {}).has(Vector2i(x, y)):
 		_stone_door(x, y, horiz)
 		return
-	if ancient and not locked:
+	if (ancient or map.get("arch_doors", {}).has(Vector2i(x, y))) and not locked:
 		_portal(x, y, horiz)
 		return
 	var m := _row(y)
@@ -3581,6 +3657,8 @@ func _place(kind: String, group: Array) -> void:
 	var offset: Vector2 = map.get("room", {}).get("furniture_offsets", {}).get(lo, Vector2.ZERO)
 	pos += Vector3(offset.x, 0, offset.y)
 	pos.y += dais_at(map, lo)
+	if map.get("room", {}).get("cavern", false) and Elev.has(map):
+		pos.y += Elev.surface(map, lo)
 	if k.has("height"):
 		pos.y -= bb.position.y * sc.y
 	mi.position = pos
