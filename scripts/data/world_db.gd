@@ -89,7 +89,7 @@ const TEMPLES := {
 	"air": {"name": "Valkoog", "route": "route5", "room": "temple_air", "guardian": 40, "level": 30, "glow": "#c8fff0",
 		"element": "air", "song": "song_winds", "helpers": [33, 36],
 		"song_room": "valkoog_keepers", "song_door": "winds_song_door",
-		"rooms": ["valkoog_1", "valkoog_2", "valkoog_3", "valkoog_4", "valkoog_keepers", "temple_air"]},
+		"rooms": ["valkoog_1", "valkoog_2", "valkoog_3", "valkoog_4", "valkoog_keepers", "valkoog_gale", "valkoog_spire", "temple_air"]},
 	"fire": {"name": "Temple of Flame", "route": "route7", "room": "temple_fire", "guardian": 41, "level": 40, "glow": "#ff7a3a",
 		"element": "fire", "song": "song_flame", "helpers": [3, 6]},
 	"earth": {"name": "Temple of Roots", "route": "route9", "room": "temple_earth", "guardian": 42, "level": 48, "glow": "#7ae05a",

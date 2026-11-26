@@ -14,6 +14,7 @@ const Elev = preload("res://scripts/world/elevation.gd")
 const RoomBuilder = preload("res://scripts/gfx/room_builder.gd")
 const WeaponObstacles = preload("res://scripts/core/weapon_obstacles.gd")
 const DesertLayout = preload("res://scripts/world/desert_layout.gd")
+const Wind = preload("res://scripts/world/wind_puzzle.gd")
 
 ## The camera looks north from the south: a tree or a building this many tiles (or fewer) south of a road, a bridge,
 ## the plaza or someone standing about stands between them and the camera. (Trees in a map's last three rows are drawn
@@ -24,7 +25,7 @@ const ROADS := [MapGen.PATH, MapGen.PLAZA, MapGen.BRIDGE]
 ## The story's way-openers, all done: every map is checked as it is at the start and with these set.
 const CLEARED := {"has_starter": true, "island_peace": true, "bandits_cleared": true, "ceo_defeated": true, "ritual_done": true,
 	"sluice_reef": true, "tides_falls_solved": true, "tides_maze_solved": true, "tides_song_door": true,
-	"winds_song_door": true,
+	"winds_song_door": true, "valkoog_summit_reached": true,
 	"well_restored": true, "river_restored": true, "water_mages_found": true}
 
 
@@ -99,6 +100,9 @@ func _check(m: Dictionary) -> Array:
 	var problems := []
 	var start: Vector2i = m["spawns"].get("start", m["spawns"].values()[0])
 	var seen := _flood(m, start)
+	# (a Valkoog gale room's far side is reached on its gales, once its wind-stones wake: wind_puzzle.gd)
+	if String(m.get("room", {}).get("wind", {}).get("kind", "")) == "gale":
+		seen.merge(_gale_reach(m, start))
 	problems.append_array(_weapon_check(m, start))
 	if m["id"] == "dustwell_channel":
 		# the riverboat ferries you to the far (west) shore and back (Story._riverboat); before Torrent fills the lake
@@ -586,6 +590,41 @@ func _beside(m: Dictionary, seen: Dictionary, p: Vector2i) -> bool:
 
 
 ## The tiles you can reach from start (avoid: tiles to keep off as well as the people and items).
+## Everywhere a gale room's winds can carry you (wind_puzzle.gd): every layout its vanes reach with its stones awake,
+## and up its updraft once the goal is met.
+func _gale_reach(m: Dictionary, start: Vector2i) -> Dictionary:
+	var pcs := Wind.pieces(m)
+	var woke := {}
+	for id in pcs:
+		if String(pcs[id]["kind"]) == "stone":
+			woke[String(pcs[id].get("flag", ""))] = true
+	var walk := Wind.floor_walk(m)
+	var done := Wind.done_test(m, pcs)
+	var out := {}
+	var tried := {}
+	var todo := [[Wind.fresh(pcs, woke), start]]
+	while not todo.is_empty() and tried.size() < 4000:
+		var it: Array = todo.pop_back()
+		var key := str((it[0] as Dictionary).values()) + str(it[1])
+		if tried.has(key):
+			continue
+		tried[key] = true
+		var reg := Wind.region(m, pcs, it[0], it[1], walk)
+		out.merge(reg)
+		if done.call(it[0], reg):
+			for id in pcs:
+				if String(pcs[id]["kind"]) == "updraft" and pcs[id].has("to_tile"):
+					out.merge(_flood(m, pcs[id]["to_tile"]))
+		for mv in Wind.moves(m, pcs, it[0], it[1], walk, reg):
+			todo.append([mv[1], mv[2]])
+	# (and the doorways and stairs at the edges of each side, which the solver's walk leaves out)
+	var all := {}
+	for t in out:
+		if not all.has(t):
+			all.merge(_flood(m, t))
+	return all
+
+
 func _flood(m: Dictionary, start: Vector2i, avoid := {}) -> Dictionary:
 	var seen := {start: true}
 	var q := [start]

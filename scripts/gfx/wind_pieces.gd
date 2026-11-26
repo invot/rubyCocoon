@@ -228,23 +228,29 @@ static func pinwheel() -> Node3D:
 	return root
 
 
-## A vane: a bronze sail on a round stone base, standing on the diagonal ("/" or "\"). Its "Sail" turns when it
-## flips.
+## A vane: a bowed canvas sail between bronze spars on a mast, on a round stone base, standing on the diagonal ("/"
+## or "\\"). Its "Sail" turns when it flips.
 static func vane(tilt: String) -> Node3D:
 	var root := Node3D.new()
 	_cyl(root, 0.4, 0.44, 0.18, Vector3(0, 0.09, 0), mat(SAND_DARK), 20)
-	_cyl(root, 0.08, 0.08, 0.14, Vector3(0, 0.24, 0), mat(BRONZE_DARK))
+	_cyl(root, 0.1, 0.12, 0.12, Vector3(0, 0.24, 0), mat(BRONZE_DARK))
 	var sail := Node3D.new()
 	sail.name = "Sail"
 	sail.rotation.y = vane_yaw(tilt)
 	root.add_child(sail)
-	_box(sail, Vector3(0.96, 1.15, 0.07), Vector3(0, 0.92, 0), mat(BRONZE))
-	_box(sail, Vector3(1.02, 0.08, 0.1), Vector3(0, 1.52, 0), mat(BRONZE_DARK))
-	_box(sail, Vector3(1.02, 0.08, 0.1), Vector3(0, 0.32, 0), mat(BRONZE_DARK))
-	# a teal wind-swirl on each face
-	for f in [-1.0, 1.0]:
-		_box(sail, Vector3(0.5, 0.06, 0.02), Vector3(0, 1.02, f * 0.045), mat(TEAL, 0.8))
-		_box(sail, Vector3(0.3, 0.06, 0.02), Vector3(-0.08, 0.86, f * 0.045), mat(TEAL, 0.8))
+	_cyl(sail, 0.035, 0.04, 1.5, Vector3(0, 1.0, 0), mat(BRONZE_DARK), 8)
+	_ball(sail, 0.07, Vector3(0, 1.78, 0), mat(TEAL, 1.0))
+	# the canvas in two halves, bowed back a little from the mast, with a teal band across each
+	var canvas := mat(Color("#f4ead2"))
+	for side in [-1.0, 1.0]:
+		var half := Node3D.new()
+		half.rotation.y = side * 0.22
+		sail.add_child(half)
+		_box(half, Vector3(0.46, 1.04, 0.035), Vector3(side * 0.25, 0.98, 0), canvas)
+		_box(half, Vector3(0.46, 0.09, 0.045), Vector3(side * 0.25, 1.12, 0), mat(TEAL, 0.5))
+		_box(half, Vector3(0.46, 0.05, 0.045), Vector3(side * 0.25, 0.94, 0), mat(TEAL, 0.5))
+	_box(sail, Vector3(1.04, 0.05, 0.06), Vector3(0, 1.51, 0.04), mat(BRONZE))
+	_box(sail, Vector3(1.04, 0.05, 0.06), Vector3(0, 0.45, 0.04), mat(BRONZE))
 	return root
 
 
@@ -253,25 +259,34 @@ static func vane_yaw(tilt: String) -> float:
 	return -PI / 4.0 if tilt == "/" else PI / 4.0
 
 
-## A wind-stone: a pale crystal in a carved sandstone cradle, facing the way it will blow. Its "Crystal" glows once
-## it wakes; its "Ring" turns.
+## A wind-stone: a faceted teal crystal standing point-up in a carved sandstone cradle, facing the way it will blow.
+## Its "Crystal" glows once it wakes; its "Ring" of little shards turns.
 static func wind_stone(d: String, awake: bool) -> Node3D:
 	var root := Node3D.new()
 	var body := Node3D.new()
 	body.rotation.y = yaw(d)
 	root.add_child(body)
 	_box(body, Vector3(0.82, 0.24, 0.82), Vector3(0, 0.12, 0), mat(SAND_DARK))
-	_box(body, Vector3(0.6, 0.5, 0.6), Vector3(0, 0.49, 0), mat(SAND))
-	_box(body, Vector3(0.18, 0.05, 0.3), Vector3(0, 0.76, 0.32), mat(TEAL, 1.0))
-	var crystal := _ball(body, 0.22, Vector3(0, 1.0, 0), mat(Color("#bff8ec"), 1.6 if awake else 0.15), 1.6)
+	_box(body, Vector3(0.6, 0.42, 0.6), Vector3(0, 0.45, 0), mat(SAND))
+	_box(body, Vector3(0.7, 0.08, 0.7), Vector3(0, 0.7, 0), mat(SAND_DARK))
+	# its mouth: a teal-lit notch on the face it blows from
+	_box(body, Vector3(0.22, 0.12, 0.04), Vector3(0, 0.46, 0.31), mat(TEAL, 1.2 if awake else 0.3))
+	var crystal := Node3D.new()
 	crystal.name = "Crystal"
+	crystal.position = Vector3(0, 1.06, 0)
+	body.add_child(crystal)
+	var gem := mat(Color("#5fd8c0") if awake else Color("#7fa8a0"), 1.4 if awake else 0.1)
+	# a long six-sided point above and a short one below: a crystal, never round
+	_cyl(crystal, 0.0, 0.2, 0.5, Vector3(0, 0.25, 0), gem, 6)
+	_cyl(crystal, 0.2, 0.0, 0.26, Vector3(0, -0.13, 0), gem, 6)
 	var ring := Node3D.new()
 	ring.name = "Ring"
-	ring.position = Vector3(0, 1.0, 0)
+	ring.position = Vector3(0, 1.06, 0)
 	body.add_child(ring)
 	for i in 3:
 		var a := TAU * i / 3.0
-		_box(ring, Vector3(0.08, 0.08, 0.08), Vector3(cos(a) * 0.36, 0.1 * sin(a * 2.0), sin(a) * 0.36), mat(TEAL, 1.4 if awake else 0.0))
+		var shard := _cyl(ring, 0.0, 0.05, 0.14, Vector3(cos(a) * 0.36, 0.08 * sin(a * 2.0), sin(a) * 0.36), mat(TEAL, 1.4 if awake else 0.0), 4)
+		shard.rotation.z = 0.3
 	return root
 
 
@@ -426,8 +441,9 @@ func draw_wind(paths: Array, sources: Dictionary, gale: bool, lift: Callable) ->
 
 # ---------------------------------------------------------------- a chasm
 ## A chasm's sides: cut stone faces running down from every floor edge round it, a pale lip along the top, and far
-## below a faint teal glow where the wind comes up from the pyramid's heart.
-func build_chasm(map: Dictionary, void_tile: Callable, floor_tile: Callable) -> void:
+## below a faint teal glow where the wind comes up from the pyramid's heart. `ground`: how high the floor beside it
+## stands (tile -> height), so a face under a ledge starts at the ledge.
+func build_chasm(map: Dictionary, void_tile: Callable, floor_tile: Callable, ground := Callable()) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var lip := SurfaceTool.new()
@@ -452,10 +468,11 @@ func build_chasm(map: Dictionary, void_tile: Callable, floor_tile: Callable) -> 
 				var along := Vector3(absf(d.y), 0, absf(d.x)) * 0.5
 				var n := -Vector3(d.x, 0, d.y)
 				var shade := 0.92 if d.y == 0 else (0.78 if d.y < 0 else 1.0)
-				_quad(st, c - along, c + along, c + along + Vector3(0, deep, 0), c - along + Vector3(0, deep, 0), n, Color(shade, shade, shade))
+				var top := Vector3(0, float(ground.call(q)) if ground.is_valid() else 0.0, 0)
+				_quad(st, c - along + top, c + along + top, c + along + Vector3(0, deep, 0), c - along + Vector3(0, deep, 0), n, Color(shade, shade, shade))
 				if floor_tile.call(q):
 					# the lip: a pale stone edge along the floor's side of it
-					var lc := c + Vector3(d.x, 0, d.y) * 0.06
+					var lc := c + Vector3(d.x, 0, d.y) * 0.06 + top
 					_box_st(lip, lc + Vector3(0, 0.03, 0), Vector3(absf(float(d.y)), 0, absf(float(d.x))) * 1.02 + Vector3(absf(float(d.x)), 0, absf(float(d.y))) * 0.14 + Vector3(0, 0.08, 0))
 	var walls := MeshInstance3D.new()
 	walls.mesh = st.commit()

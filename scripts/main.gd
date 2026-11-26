@@ -2097,9 +2097,12 @@ func _run_test() -> void:
 		# refill (--shots= takes the debug battle's screenshots)
 		await load("res://tools/debug/guest_battle.gd").new().run(self, _test)
 	elif scene == "valkoog":
-		# the air temple end to end: the star on every floor, the keepers' chamber, the summit and its guardian, the
+		# the air temple end to end: the wind puzzles to the keepers and to the dragon, the summit and its guardian, the
 		# released wind, the conduit's rubbing (--valkoog_shots= takes the floors' screenshots)
 		await load("res://tools/debug/valkoog.gd").new().run(self, _test)
+	elif scene == "dungeon-stairs":
+		# every multi-floor dungeon's stairs walked both ways (--stairs_shots= takes each room's stairs)
+		await load("res://tools/debug/dungeon_stairs.gd").new().run(self, _test)
 	elif scene == "church-after":
 		# the Dustwell church and undercroft: Grubb's key, the beavers, Hoss's confession, the strongbox and the reunion
 		# (--church_shots= takes the door, the nave, the cellar, the gallery, the trainers and the reunion)

@@ -10,6 +10,7 @@ The maps are plain text in `scripts/data/maps/`. Each string is one row of tiles
 - [Weapon fixtures](#weapon-fixtures)
 - [Signs](#signs)
 - [Push puzzles and anchors](#push-puzzles-and-anchors)
+- [Valkoog's wind puzzles](#valkoogs-wind-puzzles)
 - [Heights, cliffs and ramps](#heights-cliffs-and-ramps)
 - [Floods and levers](#floods-and-levers)
 - [Bridges and trees](#bridges-and-trees)
@@ -88,6 +89,16 @@ Signs (`+`) belong on verges beside paths, never on paths, paved walking lanes, 
 - **Anchors** named `item:<id>` place a fixed item (one anchor letter can be used on several tiles, each with its own flag).
 - `inspector`, `warden` and `sentinel` place the road blockers.
 - Room templates can have `anchors` too, `item:<id>` ones included.
+- A room anchor's character must mean nothing else in a room's `rows`: not a room tile (`ROOM_CHARS` in `map_loader.gd`, which keeps retired letters such as `O`, `R` and `X` as plain floor), not furniture (`InteriorMaps.FURNITURE`), not `P`, and not `*` (a shard) or `$` (a random item). The ones left are the digits and `-`, `'`, `` ` ``, `]`, `{`, `?`, `;` and `,` (plus any character a room's own `doors` claims first). Or name the tile in `anchor_tiles` instead.
+
+## Valkoog's wind puzzles
+
+A room's `"wind"` (`scripts/world/wind_puzzle.gd`, the rules and the solver; `air_temple.gd`, the play; `wind_pieces.gd`, the models) is a set of pieces, each placed on the room anchor `wind_<id>`:
+
+- `"kind": "breath"`: a keepers' hall. Vents (`"dir"`) breathe wind one way until something stops it; fans turn a quarter clockwise when pushed and send it on their way; sand jars (only with the twins along) slide the way you push until something stops them, and stop wind; pinwheels spin when wind reaches them. Its `"gate"` (`{"at": anchor, "needs": [pinwheel ids], "fed": true}`) is a sand curtain across the flight up, which falls once every pinwheel it needs spins and no wind feeds it.
+- `"kind": "gale"`: the dragon's path. Wind-stones (`"flag"`) sleep until the hero casts Gust into them (`Story.field_cast`); vanes (`"tilt"` `/` or `\`) flip when pushed and turn the wind through them; a gale carries the hero along it to its end, and one that ends over a chasm (a space in `rows`, `IVOID`) sets you back where you stepped in. `"reach": anchor` is solved once you can stand there; `"goal": id` once the gale powers that updraft (`"to": anchor`), which lifts you to its ledge.
+- Each solved room sets `valkoog_wind_<room>` and keeps its layout (`valkoog_wind` in the save). The twins hint, notice when a hall is stuck (`Wind.solve`) and offer to blow it back as it started.
+- Design a room with the solver: `Wind.solve` gives the least moves from a layout, and `--scene=valkoog` plays every room's solution through the pieces' own talk. `check_maps.gd` counts what a gale room's winds reach as reachable.
 
 ## Heights, cliffs and ramps
 
@@ -142,9 +153,12 @@ Most rooms are `stage` rooms: one compact room seen whole like a stage set (no f
 - Stairs (`>`) lead to the next room in the set, which is always a landing (`home_hall`, `house_up_hall`: two tiles deep, the stairwell `<<<` at one end and the doors to that floor's rooms off it).
 - Sky Tower lobbies have a visible side-wall entrance like home; lobbies and open-air decks use the same three-tile stair flights and recessed stairwells as home (`stair_flights` in their room templates).
 - `RoomBuilder.stair_ways_in` says where each flight can be stepped onto from (its open end only), and coming back down you step off the foot of the flight.
+- A building whose floors go **down** (`"descends": true` in each of its rooms: the Dustwell church's undercroft, the cistern under Grubb's house in Scaraba, Gravenmoor's cathedral and crypt) reads its stairs the other way: a room's stairwell (`<<<`) leads on to the next room in the set, below, and arrives at the foot of that room's flight (`from_above`); the flight (`>>>`) climbs back up and arrives beside the stairwell it came down (`from_below`). Each stair needs a wall at one end, which is where it climbs to.
+- Temple and vault rooms (`"ancient": true`, with `"blocks": true` for the template's own stone as dressed blocks) give their flights a solid stone parapet and their stairwells a low stone kerb instead of wooden rails; `"stone_stairs": true` does the same in any room (the whitewashed church nave). `"temple": true` lights a room as a temple's, dark and lit by its torches, without a `temple_` key (Valkoog's halls).
 - `world.gd` `_take_stairs` walks you on up or down the treads (`_on_flight`) while the screen goes dark (`goto_map`'s `fade`, `STAIR_FADE`), and `_arrive_by_stairs` walks the last of them on the other floor.
 - `tools/check_maps.gd` also checks the windows: none in a wall with a door to another room, and at least one wall with them in every stage room; and every flight's open end can be reached.
-- `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom.
+- Every dungeon of several floors (temples, the crypt, the undercroft, Gearheart Tower) uses the same three-tile flights and stairwells (`stair_flights`), never single stair tiles; the old one-tile stubs are only drawn for a room without it.
+- `--scene=doorway` walks round the house at home: through its doors, at its stairs from every side, and past Mom. `--scene=dungeon-stairs` walks every dungeon's stairs both ways.
 
 ## Towns
 
@@ -196,6 +210,7 @@ The Scaraba Desert (`route5`) is not a single map. A layout director (`scripts/w
 - **Tags.** Each section is tagged `fixed`, `optional`, `required` (a join) or `edge`.
 - **Joins and the edge.** A join's `"ring": {"id", "center"}` puts a star lock round its centre (`star_locks.gd`): five points at `STAR_POINTS` and a tablet at `TABLET`, answered by touching the points in the order 1, 3, 5, 2, 4, 1 (flag `star_ring_<id>`). The face (stones, pillars, a duck pond that turns the centre's 3 × 3 tiles to water, or bells) is the seed's, saved in the layout's `locks`. Until then, walking on past the join in the direction you came leads into the **edge** section. At its far side the camera holds, the hero walks off alone, and after a fade they're back on the map they entered the desert from, with everything kept. A half-touched lock holds the walk-off.
 - **Set pieces.** `"sights": [{"kind", "at"}]` places a section's set pieces (`desert_sights.gd`): the springs, the reed pool, the Singing Cactus (`singing_cactus.gd`), the shrine, the sleeping statues, the band's waystation, the conduit and Valkoog's landing stars. Keep their tiles open, off the road and reachable.
+- **Valkoog's pyramid.** `"pyramid": {"rect": [x, y, w, h], "anchor": [x, y]}` dresses the terraces inside `rect` (`valkoog_pyramid.gd`), worked out from `heights`: sandstone blocks over every riser facing west, south or east, a pale coping along each landing, a stone stair with cheek walls over each north-climbing ramp, paved landings and forecourt, braziers at the stair's foot, banners and scarab carvings. It adds nothing walkable or blocking except its silent story object on `anchor`, a tile inside the temple's footprint that nobody can stand beside. Change the heights and the dressing follows. The summit building (`Q`, temple `air`) is the sanctuary from the same script, its doorway two tiles wide and centred on the stair.
 - **Variants.** `"variants": [{"id", "flag", "tiles": {"x,y": char}, "sights"}]` swap tiles (and add set pieces) once a flag is set. A section takes its variant only when it is walked into, never while it is loaded. A variant must keep both seams and the way between them.
 - **Flags.** Items, trainers and obstacles keep their flags per section (`route5_<section>`, the source's `"flag_id"`).
 - **The save.** The layout (seed, list, variants, current section, direction and entry map) is in `flags.desert_layout`. A reload rebuilds the same section.

@@ -529,6 +529,9 @@ var ancient := false
 var temple := false
 ## an ancient room laid in dressed blocks rather than smooth ashlar (the Beast Center's, matching its outside)
 var blocks := false
+## stairs in stone, as an ancient room's (a parapet and kerb instead of a wooden rail): the template's "stone_stairs"
+## (the whitewashed Dustwell nave's worn steps down beside its well)
+var stone_stairs := false
 ## a Spanish mission's finish (the template's "mission"): see _mission_decor
 var mission := false
 ## an adobe house's finish (Scaraba's rooms, map_loader.gd _interior): see _adobe_decor
@@ -622,6 +625,7 @@ static func _begin(m: Dictionary, p: Node3D, seed: int, extra: Dictionary) -> Re
 	rb.temple = room.get("temple", String(m.get("room_key", "")).begins_with("temple"))
 	rb.stone = SANDSTONE.lerp(Color(str(room.get("wall", "#cdb896"))), 0.22)
 	rb.blocks = room.get("blocks", false)
+	rb.stone_stairs = rb.ancient or room.get("stone_stairs", false)
 	if rb.blocks:
 		# (the template's own stone, as it is outside)
 		rb.stone = Color(str(room.get("wall", "#b9b5ad")))
@@ -2832,7 +2836,7 @@ func _flight(x: int, y: int) -> void:
 			wide + rise.abs() * 0.01 + Vector3(0, step_h, 0))
 	if place != 0:
 		return
-	if ancient:
+	if stone_stairs:
 		# (a temple's or a vault's flight: a solid stone parapet up its open side instead of a wooden handrail)
 		_stone_parapet(c, side, a1 - 0.11 if a0 < -0.5 else a0 + 0.11, rise, n, float(fit[2]))
 		return
@@ -2891,7 +2895,7 @@ func _well(x: int, y: int) -> void:
 		var step := H / float(n * 4)
 		floor_mesher.box("floor_" + z if top == 0.0 else "stair_" + z, tread if top == 0.0 else wall_mat(z),
 			c + mid + rise * (0.5 + top - 0.01) + Vector3(0, -step / 2.0, 0), wide + rise.abs() * 0.02 + Vector3(0, step, 0))
-	if ancient:
+	if stone_stairs:
 		_stone_kerb(c, side, a0, a1, mid, wide, rise, place, n, bottom)
 		return
 	# the rail: along the side towards the room, open at the top step, and round the far end, with a baluster every

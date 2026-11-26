@@ -497,6 +497,9 @@ func weapon_guide(n: Dictionary) -> void:
 
 
 func field_guide_on_step(world) -> bool:
+	# (Valkoog's gales carry you, and its updraft lifts you: air_temple.gd)
+	if await AirTemple.on_step(world):
+		return true
 	for n in world.npcs.values():
 		if n.get("id", "") != "weapon_guide":
 			continue
@@ -608,6 +611,8 @@ func on_map_enter(world) -> void:
 	await ScarabaTown.on_enter(world)
 	await AfterValkoog.on_enter(world)
 	await ChurchChapter.on_enter(world)
+	# Valkoog's halls: the wind drawn and turning, the twins' first words in each (air_temple.gd)
+	await AirTemple.on_enter(world)
 	world.busy = false
 	world.refresh_npc_marks()
 	# a teacher who can see you where you've arrived stops you straight away
@@ -1325,7 +1330,7 @@ func _talk_story(world, n: Dictionary) -> void:
 			await Places.song_stone(world, n)
 		"star_point", "star_tablet", "star_duck", "desert_sight":
 			await DesertCrossing.talk(world, n)
-		"air_point", "air_trap", "twin_guest":
+		"air_point", "air_trap", "twin_guest", "wind_piece", "wind_curtain":
 			await AirTemple.talk(world, n)
 		"air_keeper":
 			await _air_keeper(n)
@@ -3026,11 +3031,11 @@ func _air_keeper(n: Dictionary) -> void:
 		return
 	var nm_k := "Khepri"
 	if GameState.flag("met_air_keepers"):
-		await say(["Ask what you like. The stair to the summit is open; the dragon is waiting."], nm_k)
+		await say(["Ask what you like. The seam opens to the song, and past it the dragon's wind will carry you, if you let it."], nm_k)
 		await _air_questions()
 		return
 	GameState.set_flag("met_air_keepers")
-	await say(["You came up through every trap we have, and the wind let you. That does not happen.",
+	await say(["You came up through all four of our halls, and the wind let you. That does not happen.",
 		"I am Khepri. These are Amunet, Sethi, Nebet and Ptahmes. We are what is left of the air."], nm_k)
 	await say(["And these two are air mages. Children, and both of them. We have not seen a new one in years. The wind has been quiet since the last arch-wizard died."], nm_k)
 	await say(["You carry a water stone, and it answers you. Then the air will answer you too, if you ask it. Hold out your hand."], nm_k)
@@ -3053,7 +3058,8 @@ func _air_keeper(n: Dictionary) -> void:
 		"Only an arch-wizard ever did that. The last one died a hundred years ago, and the order broke apart with him and scattered.",
 		"That is why the temples are shut, the songs go unanswered, and trainers are turned away at the doors."], nm_k)
 	await say(["Then go up. Zephyrax sits at the summit, and something has been tapping the wind from below for years. It will fight you before it listens.",
-		"Our singing stones stand by the wall. Learn the Song of Winds, and play it to it once it tires."], nm_k)
+		"Our singing stones stand by the wall. Learn the Song of Winds, and play it to it once it tires.",
+		"The seam behind us opens to the song. Past it the dragon's own wind blows over the shaft: wake its stones with your Gust, and ride it."], nm_k)
 	await _air_questions()
 	await say(["Go on. We will be here, arguing about which of us said it first."], nm_k)
 
@@ -3075,7 +3081,7 @@ func _air_questions() -> void:
 		{"text": "Why do the temples hide?", "desc": "The order's breaking."},
 		{"text": "What would bring them back?", "desc": "The reunion."},
 		{"text": "What is tapping the wind?", "desc": "The dragon, and the pipe."},
-		{"text": "I'll go up.", "desc": "Take the stair to the summit."},
+		{"text": "I'll go up.", "desc": "Through the seam, to the summit."},
 	]
 	while true:
 		var c: int = await UI.choose("Khepri", items, {"width": 560})

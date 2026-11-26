@@ -96,7 +96,7 @@ New Game's character creator, Continue and Load Game wind in the multicolour swi
 
 - The dedicated desktop Compatibility build (`compatibility_build`, engine shader cache off) compiles every map's shader combinations while the title menu waits (`scripts/gfx/shader_precompile.gd`), a few per frame in small off-screen views lit as the maps are, and keeps them for the session.
 - Choosing a menu item stops it, and anything left compiles behind the next fade as before.
-- The list is `assets/shaders/compat_warmup.scn`, written by `--scene=shader-manifest` (headless, every town, road and room). Regenerate it after adding maps, lighting set-ups or material kinds.
+- The list is `assets/shaders/compat_warmup.scn`, written by `--scene=shader-manifest` (headless, every town, road and room, every Scaraba Desert section in each variant with its buildings' rooms, and Valkoog's rooms as you walk in). Regenerate it after adding maps, lighting set-ups or material kinds.
 - The web and native runs with the shader cache on skip it (both measured far slower); Forward+ and Mobile don't need it.
 
 ### Ground on disk

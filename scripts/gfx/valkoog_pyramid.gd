@@ -137,15 +137,69 @@ static func dressing(map: Dictionary, spec: Dictionary) -> Node3D:
 		inner.add_child(mi)
 	var flames := []
 	for at: Vector3 in parts["fires"]:
-		var f := TempleLights.flame(at, 0.3)
-		f.name = "Flame"
-		inner.add_child(f)
-		flames.append(f)
+		for f in _flame(at):
+			inner.add_child(f)
+			flames.append(f)
 	if parts.has("light"):
 		var l := TempleLights.light(parts["light"], 0.9, 3.4)
 		inner.add_child(l)
 	root.ready.connect(func(): _settle(root, inner, flames))
 	return root
+
+
+static var _flame_mats: Array[StandardMaterial3D] = []
+static var _flame_mesh: ArrayMesh
+
+
+## A flame's drop, a unit tall from its foot: round below, drawn up to a soft point.
+static func _drop() -> ArrayMesh:
+	var prof := [Vector2(0.0, 0.0), Vector2(0.3, 0.06), Vector2(0.48, 0.22), Vector2(0.48, 0.4), Vector2(0.36, 0.6),
+		Vector2(0.2, 0.8), Vector2(0.07, 0.94), Vector2(0.0, 1.0)]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var sides := 10
+	for i in sides:
+		var a0 := TAU * i / sides
+		var a1 := TAU * (i + 1) / sides
+		for j in prof.size() - 1:
+			var p: Vector2 = prof[j]
+			var q: Vector2 = prof[j + 1]
+			var v00 := Vector3(cos(a0) * p.x, p.y, sin(a0) * p.x)
+			var v10 := Vector3(cos(a1) * p.x, p.y, sin(a1) * p.x)
+			var v01 := Vector3(cos(a0) * q.x, q.y, sin(a0) * q.x)
+			var v11 := Vector3(cos(a1) * q.x, q.y, sin(a1) * q.x)
+			# (clockwise seen from outside: the front faces)
+			for v in [v00, v11, v01, v00, v10, v11]:
+				st.set_normal(Vector3(v.x, 0.3, v.z).normalized())
+				st.add_vertex(v)
+	return st.commit()
+
+
+## A brazier's fire at `at` (the top of its coals): a soft orange drop with a golden heart, glowing (no light of its own).
+static func _flame(at: Vector3) -> Array:
+	if _flame_mats.is_empty():
+		for c in [Color("#ff7a2e"), Color("#ffd37a")]:
+			var m := StandardMaterial3D.new()
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.albedo_color = c
+			m.emission_enabled = true
+			m.emission = c
+			m.emission_energy_multiplier = 2.2
+			_flame_mats.append(m)
+		_flame_mesh = _drop()
+	var out := []
+	for i in 2:
+		var size := 0.32 if i == 0 else 0.18
+		var f := MeshInstance3D.new()
+		f.name = "Flame"
+		f.mesh = _flame_mesh
+		f.material_override = _flame_mats[i]
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# (its foot down among the coals; the golden heart a little forward and up in it)
+		f.position = at + (Vector3(0, -0.06, 0) if i == 0 else Vector3(0, 0.04, 0.08))
+		f.scale = Vector3(size, size * 1.9, size)
+		out.append(f)
+	return out
 
 
 ## Once the story object stands on its tile: the dressing back into the map's space (wherever world.gd put the object),
@@ -431,7 +485,7 @@ static func _flight(k: VBld.Kit, f: Dictionary) -> void:
 			Vector3.FORWARD, col)
 		# a joint or two down its side, so it reads as laid stone
 		for t in [0.5]:
-			var zj := r + t
+			var zj: float = r + t
 			var yj := lerpf(hi, lo, t) + PARAPET
 			k.poly("color", [Vector3(xo + side * 0.004, lo + 0.02, zj - 0.01), Vector3(xo + side * 0.004, lo + 0.02, zj + 0.01),
 				Vector3(xo + side * 0.004, yj - 0.04, zj + 0.01), Vector3(xo + side * 0.004, yj - 0.04, zj - 0.01)], out, MORTAR)
@@ -516,8 +570,8 @@ static func _scarab(k: VBld.Kit, c: Vector3) -> void:
 	for side in [-1, 1]:
 		for j in 3:
 			var y := c.y - 0.09 + j * 0.065
-			var x0 := c.x + side * 0.08
-			var x1 := c.x + side * (0.16 + 0.02 * (1 - absi(j - 1)))
+			var x0: float = c.x + side * 0.08
+			var x1: float = c.x + side * (0.16 + 0.02 * (1 - absi(j - 1)))
 			var y1 := y + (0.04 if j == 2 else (-0.04 if j == 0 else 0.0))
 			k.poly("color", [Vector3(x0, y - 0.012, z + 0.032), Vector3(x1, y1 - 0.012, z + 0.032), Vector3(x1, y1 + 0.012, z + 0.032),
 				Vector3(x0, y + 0.012, z + 0.032)], Vector3.BACK, body)
@@ -601,7 +655,7 @@ static func shrine(node: Node3D, w: float, d: float, door_lx: float, locked: boo
 		var mi := MeshInstance3D.new()
 		mi.mesh = m
 		node.add_child(mi)
-	# the temple's gem over its crown, as every elemental temple has, and a teal light at its door
+	# the temple's gem over its crown, as every elemental temple has
 	var gem := MeshInstance3D.new()
 	var pm := PrismMesh.new()
 	pm.size = Vector3(0.45, 0.75, 0.45)
@@ -615,13 +669,7 @@ static func shrine(node: Node3D, w: float, d: float, door_lx: float, locked: boo
 	gem.position = Vector3(0, 6.05, -0.2)
 	gem.set_meta("spin", true)
 	node.add_child(gem)
-	var l := OmniLight3D.new()
-	l.light_color = TEAL
-	l.light_energy = 1.1
-	l.omni_range = 3.8
-	l.shadow_enabled = false
-	l.position = Vector3(px, 1.5, d / 2.0 + 0.9)
-	node.add_child(l)
+	# (no light of its own: the teal inlays glow by themselves, and a teal light only turned the sandstone olive)
 
 
 static func _shrine_body(k: VBld.Kit, cloth: Cloth, w: float, d: float, px: float, locked: bool) -> void:
@@ -720,7 +768,7 @@ static func _portal(k: VBld.Kit, px: float, zf: float, y0: float, locked: bool) 
 	var pale := STONE.lightened(0.08)
 	var yt := 2.62
 	for side in [-1, 1]:
-		var cx := px + side * 1.12
+		var cx: float = px + side * 1.12
 		var q := [Vector3(cx - 0.2, y0, zf + 0.4), Vector3(cx + 0.2, y0, zf + 0.4), Vector3(cx + 0.2, yt, zf + 0.4), Vector3(cx - 0.2, yt, zf + 0.4)]
 		k.box("color", Vector3(cx, (y0 + yt) / 2.0, zf + 0.175), Vector3(0.4, yt - y0, 0.45), pale.darkened(0.08))
 		BeastTemple._blocks_on(k, q, Vector3.BACK, pale, 0.44, 0.4)
@@ -733,8 +781,8 @@ static func _portal(k: VBld.Kit, px: float, zf: float, y0: float, locked: bool) 
 	_disc(k, "glow", Vector3(px, yt + 0.62, zf + 0.335), 0.12, 0.12, 14, TEAL)
 	for side in [-1, 1]:
 		for j in 3:
-			var x0 := px + side * 0.16
-			var x1 := px + side * (0.68 - j * 0.1)
+			var x0: float = px + side * 0.16
+			var x1: float = px + side * (0.68 - j * 0.1)
 			var y := yt + 0.7 - j * 0.07
 			k.poly("color", [Vector3(x0, y - 0.025, zf + 0.335), Vector3(x1, y + 0.02 - j * 0.02, zf + 0.335), Vector3(x1, y + 0.05 - j * 0.02, zf + 0.335),
 				Vector3(x0, y + 0.03, zf + 0.335)], Vector3.BACK, STONE.lightened(0.1 - j * 0.04))
@@ -744,7 +792,7 @@ static func _portal(k: VBld.Kit, px: float, zf: float, y0: float, locked: bool) 
 	var shade := STONE.darkened(0.35)
 	for side in [-1, 1]:
 		# (a hair inside the pilasters' own faces, so the two never fight)
-		var x := px + side * (hw - 0.004)
+		var x: float = px + side * (hw - 0.004)
 		k.poly("color", [Vector3(x, y0, zf + 0.4), Vector3(x, y0, zd), Vector3(x, yt, zd), Vector3(x, yt, zf + 0.4)], Vector3(-side, 0, 0), shade)
 	k.poly("color", [Vector3(px - hw, yt, zd), Vector3(px + hw, yt, zd), Vector3(px + hw, yt, zf + 0.4), Vector3(px - hw, yt, zf + 0.4)], Vector3.DOWN, shade.darkened(0.2))
 	k.poly("color", [Vector3(px - hw, y0 + 0.004, zd), Vector3(px + hw, y0 + 0.004, zd), Vector3(px + hw, y0 + 0.004, zf + 0.4),
@@ -753,8 +801,8 @@ static func _portal(k: VBld.Kit, px: float, zf: float, y0: float, locked: bool) 
 		# two stone leaves, a great star carved across them, its five points glowing faintly
 		var zl := zf - 0.1
 		for side in [-1, 1]:
-			var xa := px + side * 0.006
-			var xb := px + side * hw
+			var xa: float = px + side * 0.006
+			var xb: float = px + side * hw
 			k.poly("color", [Vector3(xa, y0, zl), Vector3(xb, y0, zl), Vector3(xb, yt, zl), Vector3(xa, yt, zl)], Vector3.BACK, STONE.darkened(0.06))
 		k.box("color", Vector3(px, (y0 + yt) / 2.0, zl + 0.004), Vector3(0.014, yt - y0, 0.008), MORTAR.darkened(0.2))
 		var sc := Vector3(px, 1.45, zl + 0.008)

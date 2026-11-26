@@ -142,7 +142,7 @@ static func blow(map: Dictionary, pcs: Dictionary, st: Dictionary) -> Dictionary
 		var seen := {}
 		while true:
 			var q: Vector2i = p + way(d)
-			var k := "%d,%d,%s" % [q.x, q.y, d]
+			var k := Vector3i(q.x, q.y, "^v<>".find(d))
 			if seen.has(k):
 				break
 			seen[k] = true
@@ -186,7 +186,7 @@ static func gate_up(map: Dictionary, pcs: Dictionary, st: Dictionary, wind := {}
 
 
 ## Whether tile p is free for a piece to slide onto (or the hero to stand on): floor, no piece, not the shut curtain.
-static func free(map: Dictionary, pcs: Dictionary, st: Dictionary, p: Vector2i, occ := {}) -> bool:
+static func open_tile(map: Dictionary, pcs: Dictionary, st: Dictionary, p: Vector2i, occ := {}) -> bool:
 	if occ.is_empty():
 		occ = occupied(pcs, st)
 	if solid_tile(map, p) or chasm(map, p):
@@ -205,7 +205,7 @@ static func slide(map: Dictionary, pcs: Dictionary, st: Dictionary, id: String, 
 	var at: Vector2i = where(pcs, st, id)
 	while true:
 		var q: Vector2i = at + d
-		if q == hero or not free(map, pcs, st, q, occ) or (occ.has(q)):
+		if q == hero or not open_tile(map, pcs, st, q, occ) or (occ.has(q)):
 			break
 		at = q
 	return at
@@ -262,19 +262,22 @@ static func region(map: Dictionary, pcs: Dictionary, st: Dictionary, hero: Vecto
 	return stand
 
 
-## Every move the hero can make from `hero`: [label, new state, where the hero then stands].
-static func moves(map: Dictionary, pcs: Dictionary, st: Dictionary, hero: Vector2i, walk: Callable) -> Array:
-	var reach := region(map, pcs, st, hero, walk)
-	var occ := occupied(pcs, st)
+## Every move the hero can make from `hero`: [label, new state, where the hero then stands]. `reach`: the hero's
+## region, if it's known already.
+static func moves(map: Dictionary, pcs: Dictionary, st: Dictionary, hero: Vector2i, walk: Callable, reach := {}) -> Array:
+	if reach.is_empty():
+		reach = region(map, pcs, st, hero, walk)
 	var out := []
-	for p: Vector2i in reach:
+	for id: String in pcs:
+		var kind := String(pcs[id]["kind"])
+		if kind not in ["fan", "vane", "stone", "jar"] or (kind == "stone" and bool(st[id])):
+			continue
+		var q := where(pcs, st, id)
 		for dn in DIRS:
 			var d: Vector2i = DIRS[dn]
-			var q: Vector2i = p + d
-			if not occ.has(q):
+			var p: Vector2i = q - d
+			if not reach.has(p):
 				continue
-			var id: String = occ[q]
-			var kind := String(pcs[id]["kind"])
 			var ns := st.duplicate()
 			match kind:
 				"fan":
@@ -282,55 +285,85 @@ static func moves(map: Dictionary, pcs: Dictionary, st: Dictionary, hero: Vector
 				"vane":
 					ns[id] = "\\" if String(st[id]) == "/" else "/"
 				"stone":
-					if bool(st[id]):
-						continue
 					ns[id] = true
 				"jar":
 					var to := slide(map, pcs, st, id, d, p)
 					if to == q:
 						continue
 					ns[id] = to
-				_:
-					continue
 			var r := ride(map, pcs, ns, p, p)
 			out.append(["%s %s %s" % [kind, id, dn], ns, p if r.is_empty() else r["land"]])
 	return out
 
 
-## The least moves that solve the room from here, or null if none can (within `limit` states). `done` says when it's
-## solved: (state, region) -> bool.
+## What solve() answers when it gives up before it knows (more than `limit` layouts tried): not stuck, just unsure.
+const UNSURE := "unsure"
+
+
+## The least moves that solve the room from here, null if none can, or UNSURE past `limit` layouts. `done` says when
+## it's solved: (state, region) -> bool. A breath room's regions (no gales to carry you) depend only on where its jars
+## stand and whether its curtain's up, so each is found once and kept for every tile in it.
 static func solve(map: Dictionary, pcs: Dictionary, st: Dictionary, hero: Vector2i, walk: Callable, done: Callable, limit := 6000):
-	var key := func(s: Dictionary, h: Vector2i) -> String:
-		var ks := s.keys()
-		ks.sort()
-		var parts := []
-		for k in ks:
-			parts.append("%s=%s" % [k, str(s[k])])
-		var reg := region(map, pcs, s, h, walk)
+	var gale := String(rules(map).get("kind", "breath")) == "gale"
+	var steps := {}
+	var walk_once := func(p: Vector2i, q: Vector2i) -> bool:
+		var k := Vector4i(p.x, p.y, q.x, q.y)
+		if not steps.has(k):
+			steps[k] = walk.call(p, q)
+		return steps[k]
+	var shut := {}
+	var areas := {}
+	# [the region, its first tile in reading order (the hero's place in the layout's key)]
+	var area := func(s: Dictionary, sk: String, h: Vector2i) -> Array:
+		var lay := ""
+		if not gale:
+			if not shut.has(sk):
+				shut[sk] = gate_up(map, pcs, s)
+			lay = _jars(pcs, s) + ("|up" if shut[sk] else "")
+			if areas.has(lay) and (areas[lay] as Dictionary).has(h):
+				return areas[lay][h]
+		var reg := region(map, pcs, s, h, walk_once)
 		var low := h
 		for t: Vector2i in reg:
 			if t.y < low.y or (t.y == low.y and t.x < low.x):
 				low = t
-		return ";".join(parts) + "@" + str(low)
-	var queue := [[st, hero, []]]
-	var seen := {key.call(st, hero): true}
+		var found := [reg, low]
+		if not gale:
+			if not areas.has(lay):
+				areas[lay] = {}
+			for t in reg:
+				areas[lay][t] = found
+		return found
+	var sk0 := str(st.values())
+	var queue := [[st, hero, [], sk0]]
+	var seen := {sk0 + "@" + str((area.call(st, sk0, hero) as Array)[1]): true}
 	var head := 0
 	while head < queue.size():
 		var item: Array = queue[head]
 		head += 1
 		var s: Dictionary = item[0]
 		var h: Vector2i = item[1]
-		if done.call(s, region(map, pcs, s, h, walk)):
+		var here: Array = area.call(s, item[3], h)
+		if done.call(s, here[0]):
 			return item[2]
-		for mv in moves(map, pcs, s, h, walk):
-			var k: String = key.call(mv[1], mv[2])
+		for mv in moves(map, pcs, s, h, walk_once, here[0]):
+			var sk := str((mv[1] as Dictionary).values())
+			var k: String = sk + "@" + str((area.call(mv[1], sk, mv[2]) as Array)[1])
 			if seen.has(k):
 				continue
 			seen[k] = true
 			if seen.size() > limit:
-				return null
-			queue.append([mv[1], mv[2], (item[2] as Array) + [mv[0]]])
+				return UNSURE
+			queue.append([mv[1], mv[2], (item[2] as Array) + [mv[0]], sk])
 	return null
+
+
+static func _jars(pcs: Dictionary, s: Dictionary) -> String:
+	var out := ""
+	for id in pcs:
+		if String(pcs[id]["kind"]) == "jar":
+			out += str(s[id])
+	return out
 
 
 ## The solver's walk test, a step from p onto q: floor (not a chasm), inside the room, on the same level

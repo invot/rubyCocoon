@@ -2,8 +2,8 @@ extends RefCounted
 ## The Dustwell church and its undercroft (docs/scaraba-implementation-plan.md WP8; the outline's §5).
 ##   - After P7's report, Grubb waits at the church door and unlocks it with his inspector's key (church_entered).
 ##     Hoss and Clem are inside: Hoss by his strongbox with the old mage story, Clem quiet by the well, Grubb at the
-##     door. The well goes down into the undercroft.
-##   - The undercroft reuses the town well's cave shapes in a harder palette: the Jackals' sentries, the five beavers
+##     door. Worn stone steps beside the well go down into the undercroft (the church's floors descend).
+##   - The undercroft is the mages' old cut-stone vaults, torch-lit: the Jackals' sentries, the five beavers
 ##     (friendly now, they were beaten in the well arc), a flooded gallery, and the barred door they chew through.
 ##   - Behind the door: Lio, Bea, Orin and Sable's three juniors. Hoss comes down, is cornered and confesses (A8),
 ##     then fights for the strongbox key; beaten, he hands it over and the Jackals disband.
@@ -29,8 +29,8 @@ const OUT_CLEM := Vector2i(42, 19)
 
 const GRUBB_AT := Vector2i(2, 10)
 const HOSS_AT := Vector2i(12, 9)
-const CLEM_AT := Vector2i(6, 3)
-const WELL_AT := Vector2i(4, 8)
+const CLEM_AT := Vector2i(6, 2)
+const WELL_AT := Vector2i(5, 1)
 const STRONGBOX_AT := Vector2i(13, 9)
 const EMBLEM_AT := Vector2i(8, 0)
 const BEAVER_AT := [Vector2i(5, 3), Vector2i(9, 3), Vector2i(13, 3), Vector2i(6, 7), Vector2i(12, 7)]

@@ -936,7 +936,8 @@ func _spell_detail(c: VBoxContainer, sid: String) -> void:
 			names.append("%s: %s" % [ItemDB.item_name(w), SpellDB.attack_name(sid, w)])
 	c.add_child(_t_label("\n".join(names)))
 	if SpellDB.has_field_use(sid):
-		c.add_child(_t_label("Use it on water targets in the field too, while you carry its stone."))
+		c.add_child(_t_label("Use it on water targets in the field too, while you carry its stone." if SpellDB.element(sid) == "water"
+			else "Use it in the field too, to wake Valkoog's wind-stones, while you carry its stone."))
 
 
 # ================================================================ Beasts

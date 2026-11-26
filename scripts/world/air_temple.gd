@@ -1,28 +1,30 @@
 extends RefCounted
-## Valkoog, the air temple (docs/scaraba-implementation-plan.md WP6; the outline's §4). The pyramid's inner ways are
-## air-keyed: every trap is stilled, never dodged, by answering the desert's star on each floor (points 1, 3, 5, 2, 4
-## and the top again), and it takes an air mage to touch a vent at all — before the keepers give the hero a stone, that
-## means Tam and Saffi. Each floor's face is its own: five vents, five fans, five gust plates, five spear slots.
-##
-## Floors (interior_maps.gd, WorldDB.TEMPLES "air"): valkoog_1 .. valkoog_4 climb to the keepers' chamber, and its
-## wind-cut seam opens on the summit (temple_air). A floor's points stand on anchors air_1 .. air_5, its trap on
-## air_trap (a blocking gust the star tears apart), and the twins on twin_tam / twin_saffi.
-##   - Solved: flag valkoog_star_<room>; the trap is taken away and the stair on is clear.
-##   - A tell for the next floor: valkoog_tell_<room>, which lights its first point as the dust settles.
-##   - Every wrong point gutters out (and the gust shoves you back a step), as the desert's rings do.
-const Layout = preload("res://scripts/world/desert_layout.gd")
-const StarLocks = preload("res://scripts/world/star_locks.gd")
+## Valkoog, the air temple (docs/scaraba-implementation-plan.md WP6, its wind puzzles reworked 25 Nov 2026; the
+## outline's §4). Two climbs, each with its own set of wind puzzles (the rules: wind_puzzle.gd; the rooms:
+## interior_maps.gd; the pieces and the wind drawn: wind_pieces.gd):
+##   - To the keepers (valkoog_1 .. valkoog_4): soft breath you walk through. You turn the fans by hand; the twins'
+##     gust slides the sand jars (it takes an air mage, and before the keepers that's Tam and Saffi). Each hall's sand
+##     curtain stands across its flight up until every pinwheel it needs spins and no wind feeds it.
+##   - To the dragon (valkoog_gale, valkoog_spire), after the keepers: gales that carry you over the chasms. Only the
+##     hero's own Gust wakes a wind-stone; a push flips a vane; the spire's last gale rises from an updraft to the
+##     summit's ledge.
+## A room's half-done state is the room's while you're in it, and starts over when you walk in again (or when the twins
+## blow it back for you); a solved room keeps its pieces where they were (flag valkoog_wind_<room>, the layout in
+## flags["valkoog_wind"]). The wind-stones stay awake once woken (their own flags).
 const ScarabaTown = preload("res://scripts/story/scaraba_town.gd")
-const TrapScript = preload("res://scripts/gfx/air_trap.gd")
+const Wind = preload("res://scripts/world/wind_puzzle.gd")
+const Pieces = preload("res://scripts/gfx/wind_pieces.gd")
+const VPer = preload("res://scripts/gfx/voxel_person.gd")
+const Elev = preload("res://scripts/world/elevation.gd")
 
 const AIR_GLOW := Color("#7fe8d0")
-const DUST := Color("#d8c49a")
-## Floors in the order they climb (WorldDB.TEMPLES "air" ["rooms"], without the summit).
+## The keepers' halls in the order they climb (WorldDB.TEMPLES "air" ["rooms"]), then the chamber, the climb to the
+## dragon and the summit.
 const FLOORS := ["valkoog_1", "valkoog_2", "valkoog_3", "valkoog_4"]
 const KEEPERS_ROOM := "valkoog_keepers"
-const ROOMS := ["valkoog_1", "valkoog_2", "valkoog_3", "valkoog_4", "valkoog_keepers", "temple_air"]
-## What each floor's five points are.
-const FACES := {"valkoog_1": "vents", "valkoog_2": "fans", "valkoog_3": "plates", "valkoog_4": "spears"}
+const GALE_ROOMS := ["valkoog_gale", "valkoog_spire"]
+const SUMMIT := "temple_air"
+const ROOMS := ["valkoog_1", "valkoog_2", "valkoog_3", "valkoog_4", "valkoog_keepers", "valkoog_gale", "valkoog_spire", "temple_air"]
 ## The five keepers at the star's points (A13): bald, hooded, and one speaks.
 const KEEPERS := [
 	{"name": "Khepri", "shirt": "#3f8f7a", "skin": "#b98a5c"},
@@ -31,8 +33,15 @@ const KEEPERS := [
 	{"name": "Nebet", "shirt": "#6a5a8a", "skin": "#a06a44"},
 	{"name": "Ptahmes", "shirt": "#5a7a5a", "skin": "#d0a878"},
 ]
-## How far a floor's star has been answered (floor -> points so far): not saved, like the desert's rings.
-static var progress := {}
+const SAVED := "valkoog_wind"
+## How high a gale carries you (over the floor or the edge you left), and how fast (tiles a second).
+const RIDE_HEIGHT := 0.45
+const RIDE_SPEED := 6.5
+
+## The wind room being played: its key, its pieces (wind_puzzle.gd pieces) and their state now.
+static var room := ""
+static var pcs := {}
+static var st := {}
 
 
 static func keeper_look(i: int) -> Dictionary:
@@ -45,15 +54,19 @@ static func in_temple(room_key: String) -> bool:
 	return ROOMS.has(room_key)
 
 
+## Whether a room's wind puzzle is solved (a save from before the rework: its floor's star answered).
 static func solved(room_key: String) -> bool:
-	return GameState.flag("valkoog_star_" + room_key)
+	return GameState.flag("valkoog_wind_" + room_key) or GameState.flag("valkoog_star_" + room_key)
 
 
-## Whether the hero's side can answer a vent here: the twins' stones, or the hero's own once the keepers have taught
-## them.
+## Whether the hero's side can gust a jar: the twins, or the hero's own stone once the keepers have taught Gust.
 static func air_key_along() -> bool:
 	if GameState.has_stone("air") and GameState.learned_spell("gust"):
 		return true
+	return twins_along()
+
+
+static func twins_along() -> bool:
 	return GameState.flag("met_twins") and not GameState.flag("twins_home")
 
 
@@ -66,373 +79,586 @@ static func floor_after(room_key: String) -> String:
 	return FLOORS[at + 1]
 
 
+static func gale(map: Dictionary) -> bool:
+	return String(Wind.rules(map).get("kind", "")) == "gale"
+
+
 # ---------------------------------------------------------------- the objects
-## A temple room's story objects (Story.extra_npcs): the floor's five points and its trap, the keepers round their
-## star, and the twins.
+## A temple room's story objects (Story.extra_npcs): its wind pieces and sand curtain, the keepers round their star,
+## and the twins.
 static func objects(map: Dictionary) -> Array:
 	var key := String(map.get("room_key", ""))
 	if not ROOMS.has(key):
 		return []
-	# (a floor's star starts over when it's walked into again: like the desert's rings, its half-turned points aren't kept)
-	if FLOORS.has(key):
-		progress.clear()
 	var out := []
 	var anchors: Dictionary = map.get("anchors", {})
-	var face := String(FACES.get(key, "vents"))
-	var open := solved(key)
-	for k in range(1, 6):
-		var an := "air_%d" % k
-		if not anchors.has(an):
-			continue
-		# the floor's tell: the first point already turning when its room is walked into
-		var lit: bool = open or (k == 1 and GameState.flag("valkoog_tell_" + key))
-		var made := _point_node(face, k, lit)
-		out.append({"kind": "story", "id": "air_point", "name": "", "floor": key, "face": face, "point": k,
-			"pos": anchors[an], "scene": made[0], "glow": made[1], "light": made[2], "facing": Vector2i.DOWN, "still": true})
-	if anchors.has("air_trap") and not open:
-		out.append({"kind": "story", "id": "air_trap", "name": "", "floor": key, "face": face,
-			"pos": anchors["air_trap"], "scene": _trap_node(face), "facing": Vector2i.DOWN, "still": true, "blocking": true})
+	if not Wind.rules(map).is_empty():
+		_begin(map)
+		for id in pcs:
+			var pc: Dictionary = pcs[id]
+			# (an updraft's grate is floor you step on: it's drawn with the room, not stood in the way)
+			if String(pc["kind"]) in Wind.FLOORED:
+				continue
+			out.append({"kind": "story", "id": "wind_piece", "piece": String(id), "name": "", "pos": Wind.where(pcs, st, id),
+				"scene": _piece_node(pc), "facing": Vector2i.DOWN, "still": true})
+		var gate := Wind.gate_tile(map)
+		if gate.x >= 0 and not solved(key) and Wind.gate_up(map, pcs, st):
+			out.append({"kind": "story", "id": "wind_curtain", "name": "", "pos": gate, "scene": Pieces.curtain(),
+				"facing": Vector2i.DOWN, "still": true, "blocking": true})
 	if key == KEEPERS_ROOM:
 		for i in KEEPERS.size():
 			var an := "keeper_%d" % i
 			if anchors.has(an):
 				out.append({"kind": "story", "id": "air_keeper", "name": String(KEEPERS[i]["name"]), "keeper": i,
 					"pos": anchors[an], "look": keeper_look(i), "facing": Vector2i(0, 1), "still": true, "story": true})
-	var twins := GameState.flag("met_twins") and not GameState.flag("twins_home")
-	if twins and anchors.has("twin_tam") and anchors.has("twin_saffi"):
+	if twins_along() and anchors.has("twin_tam") and anchors.has("twin_saffi"):
 		out.append({"kind": "story", "id": "twin_guest", "twin": "tam", "name": "Tam", "pos": anchors["twin_tam"],
-			"look": ScarabaTown.TAM_LOOK, "facing": Vector2i(0, 1), "still": true})
+			"look": ScarabaTown.TAM_LOOK, "facing": Vector2i(0, 1), "still": true, "scale": 0.72})
 		out.append({"kind": "story", "id": "twin_guest", "twin": "saffi", "name": "Saffi", "pos": anchors["twin_saffi"],
-			"look": ScarabaTown.SAFFI_LOOK, "facing": Vector2i(0, 1), "still": true})
+			"look": ScarabaTown.SAFFI_LOOK, "facing": Vector2i(0, 1), "still": true, "scale": 0.72})
 	return out
 
 
+## Starts the room's wind: as it was left if it's solved, else fresh.
+static func _begin(map: Dictionary) -> void:
+	room = String(map.get("room_key", ""))
+	pcs = Wind.pieces(map)
+	st = Wind.fresh(pcs, GameState.flags)
+	var saved: Dictionary = GameState.flags.get(SAVED, {}).get(room, {})
+	if solved(room) and not saved.is_empty():
+		for id in saved:
+			if not st.has(id):
+				continue
+			var v = saved[id]
+			st[id] = Vector2i(int(v[0]), int(v[1])) if v is Array else v
+	# (a stone already woken stays awake)
+	for id in pcs:
+		if String(pcs[id]["kind"]) == "stone":
+			st[id] = GameState.flag(String(pcs[id].get("flag", ""))) or bool(st.get(id, false))
+
+
+static func _keep() -> void:
+	var all: Dictionary = GameState.flags.get(SAVED, {})
+	var out := {}
+	for id in st:
+		var v = st[id]
+		out[id] = [v.x, v.y] if v is Vector2i else v
+	all[room] = out
+	GameState.flags[SAVED] = all
+
+
+## A piece's model, as it stands now.
+static func _piece_node(pc: Dictionary) -> Node3D:
+	var id := String(pc["id"])
+	match String(pc["kind"]):
+		"vent":
+			return Pieces.vent(String(pc.get("dir", "v")))
+		"fan":
+			return Pieces.fan(String(st.get(id, "v")))
+		"jar":
+			return Pieces.jar()
+		"pinwheel":
+			return Pieces.pinwheel()
+		"vane":
+			return Pieces.vane(String(st.get(id, "/")))
+		"stone":
+			return Pieces.wind_stone(String(pc.get("dir", "v")), bool(st.get(id, false)))
+	return Node3D.new()
+
+
+# ---------------------------------------------------------------- walking in
+## Walking into one of Valkoog's rooms (Story.on_map_enter): the wind drawn and the pieces turning, a chasm's sides, the
+## keepers' star in the floor; the summit remembered (its door back to the keepers opens from there).
+static func on_enter(world) -> void:
+	var key := String(world.map.get("room_key", ""))
+	if not ROOMS.has(key):
+		return
+	if key == SUMMIT and not GameState.flag("valkoog_summit_reached"):
+		GameState.set_flag("valkoog_summit_reached")
+	var gfx := _gfx(world)
+	if key == KEEPERS_ROOM:
+		_keepers_star(world, gfx)
+	if Wind.rules(world.map).is_empty():
+		return
+	if room != key:
+		_begin(world.map)
+	if gale(world.map):
+		gfx.build_chasm(world.map, func(p: Vector2i) -> bool: return Wind.chasm(world.map, p),
+			func(p: Vector2i) -> bool: return MapGen_walkable(world.map, p),
+			func(p: Vector2i) -> float: return Elev.surface(world.map, p) if Elev.has(world.map) and MapGen_walkable(world.map, p) else 0.0)
+		for id in pcs:
+			if String(pcs[id]["kind"]) == "updraft":
+				var grate := Pieces.updraft()
+				grate.name = "Updraft_" + String(id)
+				grate.position = world.tile_pos(pcs[id]["at"])
+				gfx.add_child(grate)
+	_refresh(world)
+	if not GameState.flag("valkoog_intro_" + key) and twins_along():
+		GameState.set_flag("valkoog_intro_" + key)
+		var intro: Array = INTROS.get(key, [])
+		for line in intro:
+			await Story.say([String(line[1])], String(line[0]))
+
+
+static func MapGen_walkable(map: Dictionary, p: Vector2i) -> bool:
+	return not Wind.solid_tile(map, p) and not Wind.chasm(map, p)
+
+
+## The room's WindPieces node (wind_pieces.gd), made on first asking.
+static func _gfx(world) -> Node3D:
+	var g: Node3D = world.get_node_or_null("WindPieces")
+	if g == null:
+		g = Pieces.new()
+		g.name = "WindPieces"
+		world.add_child(g)
+	return g
+
+
+## What the twins say walking into each room the first time: [who, line].
+const INTROS := {
+	"valkoog_1": [["Saffi", "Fans! Push one and it turns. The wind goes where its little arrow points."],
+		["Tam", "And the curtain over the stairs stops once that pinwheel spins. Probably. I'm older, so I'd know."]],
+	"valkoog_2": [["Tam", "The curtain's made of wind this time. Stop its wind and it'll fall down."],
+		["Saffi", "Face a jar and we'll gust it for you. It slides till it bumps into something, so pick your bumps."]],
+	"valkoog_3": [["Saffi", "Two pinwheels. And look how much wind that curtain's wasting."]],
+	"valkoog_4": [["Tam", "Three pinwheels, three winds."], ["Saffi", "That's what I was going to say."]],
+	"valkoog_gale": [["Tam", "This wind's different. It doesn't tickle, it carries."],
+		["Saffi", "Wake the stone with your own Gust. Khepri said it has to be you."]],
+	"valkoog_spire": [["Saffi", "There's the summit door, up on that ledge."],
+		["Tam", "And that grate's an updraft. Get the wind into it and it'll lift you. Maybe."]],
+}
+
+
+# ---------------------------------------------------------------- talking
 ## What a room's object does when spoken to (Story.talk).
 static func talk(world, n: Dictionary) -> void:
 	match String(n["id"]):
-		"air_point":
-			await _touch(world, n)
-		"air_trap":
-			await _trap_talk(world, n)
+		"wind_piece":
+			await _piece_talk(world, n)
+		"wind_curtain":
+			await Story.say([_curtain_line(world.map)])
 		"twin_guest":
-			var who := "Tam" if String(n.get("twin", "tam")) == "tam" else "Saffi"
-			await Story.say([_twin_line(n)], who)
+			await _twin_talk(world, n)
 
 
-static func _twin_line(n: Dictionary) -> String:
-	var key := String(n.get("floor", ""))
-	if not solved(key):
-		return ["Watch the vents. We'll blow when you say.", "Point one first. Then skip one, going round.", "We've done this before. In the sand."].pick_random()
-	return ["See? Easy. For us.", "That's the way up. Come on.", "The wind likes you. I can tell."].pick_random()
-
-
-# ---------------------------------------------------------------- the star
-## Touching one of a floor's five points: the twins (or the hero's stone) gust it. The desert's star answers, and the
-## sixth touch stills the floor's trap.
-static func _touch(world, n: Dictionary) -> void:
-	var key := String(n["floor"])
-	var k := int(n["point"])
-	var face := String(n.get("face", FACES.get(key, "vents")))
-	if solved(key):
-		Sfx.flute_note(StarLocks.NOTES[k - 1] * 0.5)
-		await Story.say([_still_line(face)])
+static func _piece_talk(world, n: Dictionary) -> void:
+	var id := String(n.get("piece", ""))
+	if not pcs.has(id) or room != String(world.map.get("room_key", "")):
 		return
-	if not air_key_along():
-		await Story.say(["The vent is cold and dry. Whatever answers it, it isn't you.", "It wants a breath of wind."])
-		return
-	var at := int(progress.get(key, 0))
-	if Layout.STAR[at] != k:
-		progress[key] = 0
-		Sfx.play("fail")
-		_darken(world, key)
-		await Story.say([_wrong_line(face, at)])
-		return
-	at += 1
-	progress[key] = at
-	Sfx.flute_note(StarLocks.NOTES[k - 1])
-	_light(n, true)
-	if at < Layout.STAR.size():
-		return
-	progress.erase(key)
-	await _solve(world, key, face)
+	var pc: Dictionary = pcs[id]
+	var key := room
+	var done := solved(key)
+	match String(pc["kind"]):
+		"vent":
+			await Story.say(["A stone mouth breathing a soft, steady wind. It never stops." if not gale(world.map)
+				else "A stone mouth roaring with the dragon's wind."])
+		"pinwheel":
+			var spun: bool = Wind.blow(world.map, pcs, st)["spun"].has(id)
+			await Story.say(["The pinwheel whirls, its four colours blurring together." if spun
+				else "A pinwheel on a post, perfectly still. It's waiting for a breath of wind."])
+		"fan":
+			if done:
+				await Story.say(["The fan turns lazily. The way up is open."])
+				return
+			Sfx.play("lever")
+			st[id] = Wind.CW[String(st[id])]
+			_turn(world, n, Pieces.yaw(String(st[id])), "Head")
+			await _changed(world)
+		"vane":
+			if done:
+				await Story.say(["The sail hums in the wind. It's found its way."])
+				return
+			Sfx.play("lever")
+			st[id] = "\\" if String(st[id]) == "/" else "/"
+			_turn(world, n, Pieces.vane_yaw(String(st[id])), "Sail")
+			await _changed(world)
+		"stone":
+			if bool(st.get(id, false)):
+				await Story.say(["The wind-stone hums, wide awake, pouring out its gale."])
+				return
+			if not GameState.learned_spell("gust"):
+				await Story.say(["A wind-stone, pale and cold. It wants a gust of wind, and a mage's own."])
+				return
+			if not await Story.field_cast(world, "gust", "Cast Gust into the wind-stone?"):
+				return
+			GameState.set_flag(String(pc.get("flag", "")))
+			st[id] = true
+			Sfx.play("fly")
+			await UI.flash(AIR_GLOW, 1)
+			_wake_stone(n)
+			await _changed(world)
+			await Story.say(["The stone drinks in your Gust... and breathes it back out, a hundred times stronger."])
+		"jar":
+			if done:
+				await Story.say(["A big sand jar, right where it's needed."])
+				return
+			if not air_key_along():
+				await Story.say(["A big jar packed with sand. It won't budge, not for a push, and not for anything less than a gust."])
+				return
+			var d: Vector2i = world.facing
+			var to := Wind.slide(world.map, pcs, st, id, d, world.player_pos)
+			if to == Wind.where(pcs, st, id):
+				await Story.say(["The jar rocks, but there's no room for it to slide that way."])
+				return
+			Sfx.play("fly")
+			if twins_along() and not GameState.has_stone("air"):
+				await Story.say([["Whoosh!", "Hup!", "There it goes!"].pick_random()], ["Tam", "Saffi"].pick_random())
+			st[id] = to
+			await _slide_jar(world, n, to)
+			Sfx.play("smash")
+			await _changed(world)
 
 
-## The star answered: the trap tears apart, the room says what the next one is, and its first point is left turning.
-static func _solve(world, key: String, face: String) -> void:
-	GameState.set_flag("valkoog_star_" + key)
-	Sfx.secret_chime()
-	await UI.flash(AIR_GLOW, 1)
+## The wind changed: the room redrawn, the curtain stilled if it's done, the hero carried off if a gale now runs
+## through where they stand.
+static func _changed(world) -> void:
+	_refresh(world)
+	if gale(world.map):
+		var r := Wind.ride(world.map, pcs, st, world.player_pos, world.player_pos)
+		if not r.is_empty():
+			await Story.say(["Whoa! The wind catches you!"])
+			await _ride(world, r)
+	await _check_solved(world)
+
+
+static func _check_solved(world) -> void:
+	if solved(room):
+		return
+	var walk := Wind.floor_walk(world.map, _people(world))
+	var region := Wind.region(world.map, pcs, st, world.player_pos, walk)
+	if not Wind.done_test(world.map, pcs).call(st, region):
+		return
+	GameState.set_flag("valkoog_wind_" + room)
+	_keep()
+	if Wind.gate_tile(world.map).x >= 0:
+		Sfx.secret_chime()
+		await UI.flash(AIR_GLOW, 1)
+		_drop_curtain(world)
+		await Story.say([_solved_line(room)])
+	elif room == "valkoog_spire":
+		Sfx.secret_chime()
+		await Story.say(["The gale pours into the grate, and a column of air roars up out of it towards the ledge."])
+
+
+## Tiles where people stand (the twins, the keepers): the solver walks round them as you would.
+static func _people(world) -> Dictionary:
+	var out := {}
 	for p in world.npcs:
-		var m: Dictionary = world.npcs[p]
-		if m.get("id", "") == "air_point" and m.get("floor", "") == key:
-			_light(m, true)
-	await _unmake_trap(world, key)
-	await Story.say([_solved_line(face)])
-	var next := floor_after(key)
-	if next == "":
+		var id := String(world.npcs[p].get("id", ""))
+		if id in ["twin_guest", "air_keeper"]:
+			out[p] = true
+	return out
+
+
+static func _solved_line(key: String) -> String:
+	match key:
+		"valkoog_1":
+			return "The pinwheel whirls, and the sand curtain over the stairs sighs and settles into a little heap."
+		"valkoog_2":
+			return "Its wind cut off, the curtain sags, and the sand pours down into a quiet heap. The stairs are clear."
+		"valkoog_3":
+			return "Both pinwheels whirl. The curtain shivers, and falls."
+		"valkoog_4":
+			return "Three pinwheels sing in three winds, and the last curtain falls. Above, someone is humming."
+	return "The wind settles. The way on is open."
+
+
+static func _curtain_line(map: Dictionary) -> String:
+	var g: Dictionary = Wind.rules(map).get("gate", {})
+	var fed := bool(g.get("fed", false)) and bool(Wind.blow(map, pcs, st)["fed"])
+	if fed:
+		return "A curtain of sand pours across the stairs, blown along by wind from somewhere in the room. You can't see through it, let alone walk."
+	return "A curtain of stinging sand hangs across the stairs. Somewhere a pinwheel is still waiting."
+
+
+# ---------------------------------------------------------------- the twins
+## The twins: a hint for the room, and the offer to blow it back as it started. They notice when it can't be done
+## from here any more (wind_puzzle.gd solve).
+static func _twin_talk(world, n: Dictionary) -> void:
+	var who := "Tam" if String(n.get("twin", "tam")) == "tam" else "Saffi"
+	var key := String(world.map.get("room_key", ""))
+	if Wind.rules(world.map).is_empty() or solved(key):
+		await Story.say([_twin_chat(key, who)], who)
 		return
-	GameState.set_flag("valkoog_tell_" + next)
-	await Story.say([_tell_line(next)])
+	# (fans turn round and vanes flip back, so a keepers' hall can only get stuck once a jar has slid: until then
+	# there's nothing to work out, and the search, up to a second on the fourth hall, is skipped)
+	var settled := not gale(world.map) and pcs.keys().all(func(id): return String(pcs[id]["kind"]) != "jar" or Wind.where(pcs, st, id) == pcs[id]["at"])
+	var plan = [] if settled else Wind.solve(world.map, pcs, st, world.player_pos, Wind.floor_walk(world.map, _people(world)), Wind.done_test(world.map, pcs), 12000)
+	if plan == null:
+		await Story.say(["Hmm. I don't think that works any more. Something's stuck."], who)
+	else:
+		await Story.say([_hint(key, who)], who)
+	if await UI.ask("Want us to blow it all back the way it started?", who):
+		await _reset(world)
 
 
-static func _unmake_trap(world, key: String) -> void:
-	var trap := {}
-	for p in world.npcs:
-		var m: Dictionary = world.npcs[p]
-		if m.get("id", "") == "air_trap" and m.get("floor", "") == key:
-			trap = m
+static func _twin_chat(key: String, who: String) -> String:
+	if key == KEEPERS_ROOM:
+		return "Real air mages. Five of them. Don't tell them I said they're bald." if who == "Tam" else "They talk to us like we're grown-ups. I like them."
+	if key == SUMMIT:
+		return "That's the dragon. The actual dragon. Be polite." if who == "Saffi" else "I'm not scared. You go first, though."
+	return ["See? Easy. For us.", "The wind likes you. I can tell.", "Come on, the stairs are open."].pick_random()
+
+
+static func _hint(key: String, who: String) -> String:
+	var lines: Dictionary = {
+		"valkoog_1": ["Follow the wind from the vent. Where does each fan send it?", "That fan up by the wall's pointing the wrong way."],
+		"valkoog_2": ["Jars stop wind. One jar in the curtain's wind, and down it comes.", "The pillars stop jars sliding. Use them."],
+		"valkoog_3": ["What if the curtain's wind blew a pinwheel instead?", "The fan in the curtain's wind can turn it, you know."],
+		"valkoog_4": ["One wind for each pinwheel. Start with the one by the vent.", "A jar's sitting in the curtain's wind. That might be good or bad."],
+		"valkoog_gale": ["The stone's gale goes up the west wall. The sail decides where after that.", "Wake the stone first. With your Gust."],
+		"valkoog_spire": ["Get to the island first. Then the sails out there.", "The wind has to end up in the grate by the ledge."],
+	}
+	var pick: Array = lines.get(key, ["Hmm."])
+	return String(pick[0 if who == "Tam" else mini(1, pick.size() - 1)])
+
+
+## The room as it started (the twins' gust puts every piece back): reloaded around you where you stand.
+static func _reset(world) -> void:
+	room = ""
+	Sfx.play("fly")
+	await UI.flash(Color(0.95, 0.9, 0.75), 1)
+	GameState.main.goto_map(world.map_id, world.player_pos, world.facing)
+
+
+# ---------------------------------------------------------------- stepping
+## A step in one of Valkoog's gale rooms (Story.field_guide_on_step): onto a powered updraft, up to its ledge; into a
+## gale, carried to where it ends. True when the step was taken over.
+static func on_step(world) -> bool:
+	if room != String(world.map.get("room_key", "")) or not gale(world.map):
+		return false
+	var p: Vector2i = world.player_pos
+	var wind := Wind.blow(world.map, pcs, st)
+	for id in pcs:
+		var pc: Dictionary = pcs[id]
+		if String(pc["kind"]) == "updraft" and pc["at"] == p and wind["spun"].has(id) and pc.has("to_tile"):
+			await _lift(world, pc)
+			return true
+	var r := Wind.ride(world.map, pcs, st, p, p - world.facing, wind)
+	if r.is_empty():
+		return false
+	await _ride(world, r)
+	return true
+
+
+## Carried along a gale: lifted off your feet and swept along its path (round its vanes), set down where it ends; or,
+## where it ends over the chasm, let go and bumped back to the edge you stepped off.
+static func _ride(world, r: Dictionary) -> void:
+	world._clear_path()
+	world.busy = true
+	Sfx.play("fly")
+	var player: Node3D = world.player
+	var tiles: Array = r["ride"]
+	var base := float(world.tile_pos(world.player_pos).y)
+	var tw: Tween = world.create_tween()
+	var at: Vector3 = player.position
+	tw.tween_property(player, "position", at + Vector3(0, RIDE_HEIGHT, 0), 0.18)
+	at += Vector3(0, RIDE_HEIGHT, 0)
+	for t: Vector2i in tiles:
+		var ground := base if Wind.chasm(world.map, t) else float(world.tile_pos(t).y)
+		var to := Vector3(t.x + 0.5, maxf(ground, base) + RIDE_HEIGHT, t.y + 0.5)
+		tw.tween_callback(_face.bind(world, to - at))
+		tw.tween_property(player, "position", to, (to - at).length() / RIDE_SPEED)
+		at = to
+	await tw.finished
+	var land: Vector2i = r["land"]
+	if bool(r.get("drop", false)):
+		Sfx.play("jump")
+		await Story.say(["The gale lets go of you over the drop - and a gust from the twins bumps you back to the edge."] if twins_along()
+			else ["The gale lets go of you over the drop - and the dragon's wind bumps you back to the edge."])
+	var tw2: Tween = world.create_tween()
+	tw2.tween_property(player, "position", world.tile_pos(land), 0.25)
+	await tw2.finished
+	world.player_pos = land
+	player.position = world.tile_pos(land)
+	world.busy = false
+	await _twins_follow(world, land)
+	await _check_solved(world)
+
+
+static func _face(world, d: Vector3) -> void:
+	if absf(d.x) < 0.01 and absf(d.z) < 0.01:
+		return
+	var way := Vector2i(int(signf(d.x)), 0) if absf(d.x) > absf(d.z) else Vector2i(0, int(signf(d.z)))
+	world.facing = way
+	VPer.face(world.player, way, true)
+
+
+## Up an updraft's column of air to its ledge.
+static func _lift(world, pc: Dictionary) -> void:
+	world._clear_path()
+	world.busy = true
+	Sfx.play("fly")
+	var player: Node3D = world.player
+	var top: Vector2i = pc["to_tile"]
+	var end: Vector3 = world.tile_pos(top)
+	var tw: Tween = world.create_tween()
+	tw.tween_property(player, "position", player.position + Vector3(0, end.y + 1.1 - player.position.y, 0), 0.7).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(player, "position", end + Vector3(0, 0.4, 0), 0.45)
+	tw.tween_property(player, "position", end, 0.2)
+	await tw.finished
+	world.player_pos = top
+	world.facing = Vector2i(0, -1)
+	VPer.face(player, world.facing, true)
+	world.busy = false
+	await _twins_follow(world, top)
+
+
+## The twins ride after you: they reappear on the nearest free tiles beside where you landed.
+static func _twins_follow(world, land: Vector2i) -> void:
+	if not twins_along():
+		return
+	var spots := []
+	for d in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(-1, 1), Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1)]:
+		var q: Vector2i = land + d
+		if world._walkable(q) and Wind.ride(world.map, pcs, st, q, q).is_empty() and Elev.joined(world.map, land, q):
+			spots.append(q)
+	var twins: Array = world.npcs.values().filter(func(m): return m.get("id", "") == "twin_guest")
+	for i in twins.size():
+		var m: Dictionary = twins[i]
+		if i >= spots.size():
 			break
-	if trap.is_empty():
-		return
-	Sfx.play("wind")
-	world.remove_npc(trap)
-	await world.get_tree().create_timer(0.4).timeout
+		if (m["pos"] as Vector2i).distance_to(land) <= 2.0:
+			continue
+		var node: Node3D = m.get("node", null)
+		world.npcs.erase(m["pos"])
+		m["pos"] = spots[i]
+		m["home"] = spots[i]
+		world.npcs[spots[i]] = m
+		if node != null:
+			var tw: Tween = world.create_tween()
+			tw.tween_property(node, "position", world.tile_pos(spots[i]) + Vector3(0, 0.6, 0), 0.35)
+			tw.tween_property(node, "position", world.tile_pos(spots[i]), 0.2)
+			VPer.face(node, Vector2i(0, 1), true)
 
 
-static func _trap_talk(world, n: Dictionary) -> void:
-	var key := String(n["floor"])
-	var face := String(n.get("face", FACES.get(key, "vents")))
-	await Story.say([_trap_line(face)])
-	if solved(key):
-		return
-	# (disarmed, not dodged: the gust won't let you through, and there's nothing to roll away from)
-	Sfx.play("wind")
-	await world.get_tree().create_timer(0.35).timeout
-	await Story.say(["The gust shoves you back a step. There has to be a way to still it."])
-
-
-static func _light(n: Dictionary, on: bool) -> void:
-	if n.get("glow", null) == null:
-		return
-	(n["glow"] as StandardMaterial3D).emission_energy_multiplier = 1.6 if on else 0.2
-	(n["light"] as OmniLight3D).light_energy = 0.7 if on else 0.0
-
-
-static func _darken(world, key: String) -> void:
+# ---------------------------------------------------------------- drawing
+## Redraws the wind, and sets what turns turning: pinwheels and updrafts the wind reaches, fans it runs through.
+static func _refresh(world) -> void:
+	var gfx := _gfx(world)
+	var wind := Wind.blow(world.map, pcs, st)
+	var sources := {}
+	for id in pcs:
+		sources[id] = pcs[id]["at"]
+	var lift := func(t: Vector2i) -> float:
+		return 0.0 if Wind.chasm(world.map, t) else Elev.surface(world.map, t)
+	gfx.draw_wind(wind["paths"], sources, gale(world.map), lift)
+	var through := {}
+	for path in wind["paths"]:
+		for t in path["tiles"]:
+			through[t] = true
 	for p in world.npcs:
-		var m: Dictionary = world.npcs[p]
-		if m.get("id", "") == "air_point" and m.get("floor", "") == key:
-			_light(m, false)
+		var n: Dictionary = world.npcs[p]
+		if n.get("id", "") != "wind_piece" or not pcs.has(String(n.get("piece", ""))):
+			continue
+		var id := String(n["piece"])
+		var node: Node3D = n.get("node", null)
+		if node == null:
+			continue
+		match String(pcs[id]["kind"]):
+			"pinwheel":
+				gfx.spin(node.find_child("Petals", true, false), 2, -2.2 if wind["spun"].has(id) else 0.0)
+			"fan":
+				gfx.spin(node.find_child("Blades", true, false), 2, 1.6 if through.has(p) else 0.0)
+			"stone":
+				gfx.spin(node.find_child("Ring", true, false), 1, 0.5 if bool(st.get(id, false)) else 0.0)
+	for id in pcs:
+		if String(pcs[id]["kind"]) == "updraft":
+			var grate: Node3D = gfx.get_node_or_null("Updraft_" + String(id))
+			if grate != null:
+				(grate.get_node("Column") as Node3D).visible = wind["spun"].has(id)
 
 
-static func _still_line(face: String) -> String:
-	match face:
-		"fans":
-			return "The fans hang still. Their five hubs are cold."
-		"plates":
-			return "The plates are quiet underfoot, their rims dark."
-		"spears":
-			return "The five slots are empty. Nothing left to swallow."
-	return "The vents breathe a soft, even thread of air. The way up is open."
+## A fan's head or a vane's sail swinging round to its new way.
+static func _turn(world, n: Dictionary, yaw: float, part: String) -> void:
+	var node: Node3D = n.get("node", null)
+	if node == null:
+		return
+	var head: Node3D = node.find_child(part, true, false)
+	if head == null:
+		return
+	var to := yaw
+	# (the short way round)
+	while to - head.rotation.y > PI:
+		to -= TAU
+	while to - head.rotation.y < -PI:
+		to += TAU
+	var tw: Tween = world.create_tween()
+	tw.tween_property(head, "rotation:y", to, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-static func _wrong_line(face: String, at: int) -> String:
-	if at == 0:
-		return "The gust dies against the stone. Nothing answers."
-	match face:
-		"fans":
-			return "The fan coughs, slows and stops. The others go still with it."
-		"plates":
-			return "The plate thuds flat and the dust drops out of the air. Every plate goes dark."
-		"spears":
-			return "The slot spits its gust out sideways, and the other four fall silent."
-	return "The vent's hum dies away, and the other four go dark with it."
+static func _wake_stone(n: Dictionary) -> void:
+	var node: Node3D = n.get("node", null)
+	if node == null:
+		return
+	# (the crystal's facets and the ring's shards light up teal)
+	for part in ["Crystal", "Ring"]:
+		var holder := node.find_child(part, true, false)
+		if holder == null:
+			continue
+		for mi in holder.get_children():
+			if mi is MeshInstance3D:
+				mi.material_override = Pieces.mat(Color("#5fd8c0") if part == "Crystal" else Pieces.TEAL, 1.4)
 
 
-static func _solved_line(face: String) -> String:
-	match face:
-		"fans":
-			return "The five fans ring out and slow to a stop. The wind in the shaft sighs, and the way up is clear."
-		"plates":
-			return "The five plates answer like gongs. Somewhere under the floor a sluice opens, and the hissing sand pours away."
-		"spears":
-			return "The five slots swallow their gusts. The blades over the door drop, and the seam in the far wall stands open."
-	return "The five vents answer together. The wind gate at the top of the stair tears apart into dust."
+## A jar sliding over the floor to `to`; it moves in the world's people too, so nothing walks through it.
+static func _slide_jar(world, n: Dictionary, to: Vector2i) -> void:
+	var node: Node3D = n.get("node", null)
+	world.npcs.erase(n["pos"])
+	var from: Vector2i = n["pos"]
+	n["pos"] = to
+	n["home"] = to
+	world.npcs[to] = n
+	if node == null:
+		return
+	var tw: Tween = world.create_tween()
+	tw.tween_property(node, "position", world.tile_pos(to), 0.09 * maxf(1.0, from.distance_to(to))).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	await tw.finished
 
 
-static func _tell_line(next: String) -> String:
-	match String(FACES.get(next, "")):
-		"fans":
-			return "The dust from the gate drifts up the stair and settles in the shape of a fan. Five of them, waiting. The first is already turning."
-		"plates":
-			return "The dust slips up the stair and settles into five round plates. One of them is warm underfoot, as if it remembers the way."
-		"spears":
-			return "The dust runs up the stair and gathers round five slots in the wall. One slot is already bright."
-		"vents":
-			return "The dust goes up the stair and hangs there, in the shape of this room's vents. One is already lit."
-	return "At the top of the stair, a seam in the wall takes the last of the dust and holds it, bright as a blade."
+static func _drop_curtain(world) -> void:
+	for p in world.npcs.keys():
+		var n: Dictionary = world.npcs[p]
+		if n.get("id", "") == "wind_curtain":
+			Sfx.play("wind")
+			world.remove_npc(n)
 
 
-static func _trap_line(face: String) -> String:
-	match face:
-		"fans":
-			return "Five bronze fans turn in the shaft, and their wind stands in the doorway like a wall."
-		"plates":
-			return "The floor plates hiss, throwing up a curtain of stinging sand across the way on."
-		"spears":
-			return "Long blades swing across the door in slow arcs, and the wind they cut won't let you by."
-	return "A wind gate roars across the top of the stair, packing the dust into a wall you can lean on."
-
-
-# ---------------------------------------------------------------- the pieces
-## A floor's point: a vent stone, a fan, a gust plate or a spear slot, numbered over it. Returns [node, gem, light].
-static func _point_node(face: String, k: int, lit: bool) -> Array:
-	var root := Node3D.new()
-	var stone := _mat(DUST)
-	var bronze := _mat(Color("#a88a4a"))
-	var glow_y := 1.2
-	match face:
-		"fans":
-			_box(root, Vector3(0.66, 0.16, 0.66), 0.08, stone)
-			_box(root, Vector3(0.14, 1.0, 0.14), 0.58, bronze)
-			var hub := Node3D.new()
-			hub.position.y = 1.08
-			root.add_child(hub)
-			for i in 4:
-				var blade := _box(hub, Vector3(0.12, 0.44, 0.04), 0.0, bronze, Vector3(0, 0, 0))
-				blade.position = Vector3(cos(i * PI / 2.0) * 0.22, sin(i * PI / 2.0) * 0.22, 0.02)
-				blade.rotation.z = i * PI / 2.0
-			glow_y = 1.36
-		"plates":
-			var plate := MeshInstance3D.new()
-			var cm := CylinderMesh.new()
-			cm.top_radius = 0.46
-			cm.bottom_radius = 0.5
-			cm.height = 0.12
-			cm.radial_segments = 12
-			plate.mesh = cm
-			plate.material_override = bronze
-			plate.position.y = 0.06
-			root.add_child(plate)
-			glow_y = 0.16
-		"spears":
-			_box(root, Vector3(0.7, 0.18, 0.5), 0.09, stone)
-			_box(root, Vector3(0.5, 0.9, 0.12), 0.55, stone, Vector3(0, 0, -0.06))
-			# the empty slot, and the blade that would stand in it
-			_box(root, Vector3(0.1, 0.5, 0.06), 0.66, _mat(Color("#4a4038")), Vector3(0, 0, 0.09))
-			_box(root, Vector3(0.05, 0.62, 0.16), 0.7, bronze, Vector3(0, 0, 0.09))
-			glow_y = 1.3
-		_:
-			var ring := MeshInstance3D.new()
-			var rm := CylinderMesh.new()
-			rm.top_radius = 0.4
-			rm.bottom_radius = 0.46
-			rm.height = 0.36
-			rm.radial_segments = 8
-			ring.mesh = rm
-			ring.material_override = stone
-			ring.position.y = 0.18
-			root.add_child(ring)
-			glow_y = 0.5
-	var gem := StandardMaterial3D.new()
-	gem.albedo_color = AIR_GLOW
-	gem.emission_enabled = true
-	gem.emission = AIR_GLOW
-	gem.emission_energy_multiplier = 1.7 if lit else 0.2
-	var crystal := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.13
-	sm.height = 0.34
-	sm.radial_segments = 5
-	sm.rings = 2
-	crystal.mesh = sm
-	crystal.material_override = gem
-	crystal.position.y = glow_y
-	root.add_child(crystal)
-	var label := Label3D.new()
-	label.text = str(k)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 64
-	label.pixel_size = 0.006
-	label.outline_size = 12
-	label.modulate = Color("#fff8e8")
-	label.position.y = glow_y + 0.42
-	root.add_child(label)
-	var light := OmniLight3D.new()
-	light.light_color = AIR_GLOW
-	light.omni_range = 2.2
-	light.light_energy = 0.7 if lit else 0.0
-	light.position.y = glow_y
-	root.add_child(light)
-	return [root, gem, light]
-
-
-## The trap itself: a turning fan, a spinning dust column, a wind gate's funnel, or swinging blades.
-static func _trap_node(face: String) -> Node3D:
-	var root: Node3D = TrapScript.new()
-	var spin := Node3D.new()
-	spin.name = "Spin"
-	root.add_child(spin)
-	root.set("part", spin)
-	var dust := _mat(DUST)
-	dust.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dust.albedo_color = Color(0.85, 0.78, 0.6, 0.38)
-	dust.cull_mode = BaseMaterial3D.CULL_DISABLED
-	match face:
-		"fans":
-			_box(root, Vector3(0.14, 1.6, 0.14), 0.8, _mat(Color("#8a7a4a")))
-			for i in 4:
-				var blade := _box(spin, Vector3(0.16, 0.7, 0.05), 0.0, _mat(Color("#b8964a")))
-				blade.position = Vector3(cos(i * PI / 2.0) * 0.34, sin(i * PI / 2.0) * 0.34, 0.0)
-				blade.rotation.z = i * PI / 2.0 + 0.4
-			spin.position.y = 1.2
-			root.set("spin", 3.4)
-		"plates":
-			var cone := MeshInstance3D.new()
-			var cm := CylinderMesh.new()
-			cm.top_radius = 0.8
-			cm.bottom_radius = 0.08
-			cm.height = 1.7
-			cm.radial_segments = 10
-			cone.mesh = cm
-			cone.material_override = dust
-			cone.position.y = 0.85
-			spin.add_child(cone)
-			root.set("spin", 2.0)
-		"spears":
-			_box(root, Vector3(0.12, 2.0, 0.12), 1.0, _mat(Color("#8a7a4a")), Vector3(-0.7, 0, 0))
-			_box(root, Vector3(0.12, 2.0, 0.12), 1.0, _mat(Color("#8a7a4a")), Vector3(0.7, 0, 0))
-			_box(root, Vector3(1.5, 0.1, 0.12), 1.85, _mat(Color("#8a7a4a")))
-			for i in 2:
-				var blade := _box(spin, Vector3(0.08, 1.5, 0.16), 0.0, _mat(Color("#b8964a")))
-				blade.position.x = -0.45 + i * 0.9
-				blade.position.y = 1.0
-			spin.position.y = 0.0
-			root.set("spin", 1.6)
-			root.set("swing", 0.5)
-		_:
-			_box(root, Vector3(0.2, 1.7, 0.2), 0.85, dust, Vector3(-0.55, 0, 0))
-			_box(root, Vector3(0.2, 1.7, 0.2), 0.85, dust, Vector3(0.55, 0, 0))
-			var funnel := MeshInstance3D.new()
-			var fm := CylinderMesh.new()
-			fm.top_radius = 0.62
-			fm.bottom_radius = 0.2
-			fm.height = 1.6
-			fm.radial_segments = 10
-			funnel.mesh = fm
-			funnel.material_override = dust
-			funnel.position.y = 0.8
-			spin.add_child(funnel)
-			root.set("spin", 2.6)
-	return root
-
-
-static func _mat(c: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = c
-	m.roughness = 1.0
-	return m
-
-
-static func _box(parent: Node3D, size: Vector3, y: float, mat: Material, offset := Vector3.ZERO) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = size
-	mi.mesh = bm
-	mi.material_override = mat
-	mi.position = offset + Vector3(0, y, 0)
-	parent.add_child(mi)
-	return mi
+## The keepers' chamber: the star cut in its floor, in glowing teal, from point to point in the desert's order.
+static func _keepers_star(world, gfx: Node3D) -> void:
+	var anchors: Dictionary = world.map.get("anchors", {})
+	var pts := []
+	for i in 5:
+		if not anchors.has("keeper_%d" % i):
+			return
+		var a: Vector2i = anchors["keeper_%d" % i]
+		pts.append(Vector3(a.x + 0.5, 0.015, a.y + 0.5))
+	var inlay := Pieces.mat(AIR_GLOW, 0.9)
+	# 1, 3, 5, 2, 4, 1 (the keepers 0..4 stand at the points 1..5)
+	var order := [0, 2, 4, 1, 3, 0]
+	for i in order.size() - 1:
+		var a: Vector3 = pts[order[i]]
+		var b: Vector3 = pts[order[i + 1]]
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.08, 0.02, a.distance_to(b))
+		mi.mesh = bm
+		mi.material_override = inlay
+		mi.position = (a + b) / 2.0
+		mi.look_at_from_position(mi.position, b, Vector3.UP)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		gfx.add_child(mi)
+	for p in pts:
+		var disc := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.42
+		cm.bottom_radius = 0.42
+		cm.height = 0.02
+		cm.radial_segments = 20
+		disc.mesh = cm
+		disc.material_override = Pieces.mat(Color("#cdb896").lightened(0.15))
+		disc.position = p - Vector3(0, 0.004, 0)
+		gfx.add_child(disc)
 
 
 # ---------------------------------------------------------------- battles
@@ -443,7 +669,7 @@ static func decorate_battle(cfg: Dictionary) -> void:
 	cfg["retry_room"] = true
 	if cfg.has("guests"):
 		return
-	if not (GameState.flag("met_twins") and not GameState.flag("twins_home")):
+	if not twins_along():
 		return
 	cfg["guests"] = guests()
 

@@ -156,6 +156,7 @@ TESTS=(
 	"valkoog|-- --scene=valkoog --save_dir=res://build/valkoog_saves/ --prefs_path=res://build/valkoog_prefs/settings.cfg|VALKOOG DONE: 0 problem"
 	"scaraba-after|-- --scene=scaraba-after --save_dir=res://build/scaraba_after_saves/ --prefs_path=res://build/scaraba_after_prefs/settings.cfg|AFTER VALKOOG DONE: 0 problem"
 	"church-after|-- --scene=church-after --save_dir=res://build/church_saves/ --prefs_path=res://build/church_prefs/settings.cfg|CHURCH DONE: 0 problem"
+	"dungeon-stairs|-- --scene=dungeon-stairs --save_dir=res://build/stairs_saves/ --prefs_path=res://build/stairs_prefs/settings.cfg|DUNGEON STAIRS DONE: 0 problem"
 	"ringedit|-- --scene=ringedit --touch --wait=0.3|RING EDIT DONE: 0 problem"
 	"ring-start|-- --scene=ring-start --battle=1 --save_dir=res://build/ring_start_test_saves/ --wait=0.3|RING START DONE: 0 problem"
 	"ring-start-touch|-- --scene=ring-start --touch --battle=1 --save_dir=res://build/ring_start_touch_test_saves/ --wait=0.3|RING START DONE: 0 problem"

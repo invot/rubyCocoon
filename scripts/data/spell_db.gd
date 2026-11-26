@@ -28,7 +28,8 @@ const SPELLS := {
 		"names": {"slingshot": "Blizzard Shot", "boomerang": "Whiteout Arc", "bat": "Avalanche Swing"},
 		"fx": "#e8f6ff", "desc": "A howling storm of ice. Strong against fire beasts."},
 	# (Valkoog: the keepers' first lesson, once the hero carries an air stone)
-	"gust": {"name": "Gust", "el": "air", "power": 1.45, "mp": 4, "tier": 1,
+	# (in the field it wakes Valkoog's wind-stones: air_temple.gd)
+	"gust": {"name": "Gust", "el": "air", "power": 1.45, "mp": 4, "tier": 1, "field": true,
 		"names": {"slingshot": "Gust Shot", "boomerang": "Squall Arc", "bat": "Gale Swing"},
 		"fx": "#7fe8d0", "desc": "A sudden fist of wind behind each hit. Strong against earth beasts."},
 }
