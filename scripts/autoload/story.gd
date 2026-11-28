@@ -2515,12 +2515,13 @@ func _well_people(map: Dictionary) -> Array:
 		out.append({"kind": "story", "id": "fallen_ladder", "name": "", "pos": map["anchors"]["fallen_ladder"],
 			"scene": _fallen_ladder_scene(), "still": true, "blocking": true, "facing": Vector2i.DOWN})
 	if _has_anchor(map, "well_boat") and GameState.flag("well_restored"):
-		# (floating on the channel: the step at the stairs' foot, beside it, stands 0.3 over the water, well_cave.gd)
+		# (floating on the channel: the step at the stairs' foot, beside it, stands 0.3 over the water, well_cave.gd, so it
+		# is used from that step: "float", world.gd _floats)
 		var bp: Vector2i = map["anchors"]["well_boat"]
 		var E = preload("res://scripts/world/elevation.gd")
 		var lift: float = E.surface(map, bp + Vector2i.LEFT) - 0.3 - E.surface(map, bp)
 		out.append({"kind": "story", "id": "well_boat", "name": "", "pos": bp, "scene": rowboat_scene(false, lift),
-			"still": true, "blocking": true, "facing": Vector2i.DOWN})
+			"still": true, "blocking": true, "float": true, "facing": Vector2i.DOWN})
 	if _has_anchor(map, "dale"):
 		out.append({"kind": "story", "id": "dale", "name": "Dale", "pos": map["anchors"]["dale"], "look": DALE_LOOK,
 			"facing": Vector2i.DOWN, "still": true, "story": not GameState.flag("dale_heard")})
@@ -2648,8 +2649,10 @@ func rowboat_scene(wrecked: bool, water := 0.0) -> Node3D:
 	wood.albedo_color = Color("#8a5c38")
 	wood.roughness = 0.9
 	if not wrecked:
-		# (riding high, along the channel from the step: any lower and the water's surface shows inside the hull)
-		hull.position = Vector3(0.62, water + 0.12, 0.0)
+		# (riding on the channel, as the harbour's rowboats do (world.gd BOAT_DEPTH): her hull's bottom just over the water's
+		# surface, with floorboards closing her open inside, so the water's sheet never shows in her)
+		hull.position = Vector3(0.62, water + 0.03, 0.0)
+		hull.add_child(_rowboat_sole())
 		return root
 	# run aground: half up the sand, heeled over and nose-down
 	hull.position = Vector3(0.1, -0.12, 0.3)
@@ -2664,6 +2667,25 @@ func rowboat_scene(wrecked: bool, water := 0.0) -> Node3D:
 		bit.rotation.y = 0.6 - k * 1.1
 		root.add_child(bit)
 	return root
+
+
+## A rowboat's floorboards, just over her hull's bottom: the pack's model is a shell with no bottom of its own, so the
+## water she floats on would show up through her inside (the user's 2026-11-28 report). Her length runs along x here
+## (rowboat_scene turns the model broadside), so the boards do too, narrowing towards the bow and the stern.
+func _rowboat_sole() -> Node3D:
+	var sole := Node3D.new()
+	var board := StandardMaterial3D.new()
+	board.albedo_color = Color("#6d452a")
+	board.roughness = 0.95
+	for plank in [[1.4, 0.62, 0.0], [0.36, 0.42, -0.8], [0.36, 0.42, 0.8]]:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(float(plank[0]), 0.03, float(plank[1]))
+		mi.mesh = bm
+		mi.material_override = board
+		mi.position = Vector3(float(plank[2]), 0.03, 0.0)
+		sole.add_child(mi)
+	return sole
 
 
 ## The locked door off the great chamber (map "locked_doors"): Nub's key opens it, for good.

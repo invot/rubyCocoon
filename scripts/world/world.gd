@@ -4276,8 +4276,9 @@ func _interact() -> void:
 		await Places.prop(MapGen.get_t(map, t.x, t.y), map, self, t)
 		busy = false
 		return
-	# nothing up or down a cliff is in reach (but you can cast a line down into the water)
-	if not Elev.joined(map, player_pos, t) and MapGen.get_t(map, t.x, t.y) != MapGen.WATER:
+	# nothing up or down a cliff is in reach (but you can cast a line down into the water, and take a boat that floats at
+	# the water's surface from the bank or step beside it)
+	if not Elev.joined(map, player_pos, t) and MapGen.get_t(map, t.x, t.y) != MapGen.WATER and not _floats(t):
 		return
 	t = npc_footprints.get(t, t)
 	var wb = _beast_at(t)
@@ -5168,6 +5169,12 @@ func _tile_under(screen: Vector2) -> Vector2i:
 	return Vector2i(int(floor(hit.x)), int(floor(hit.z)))
 
 
+## A prop floating on the water rather than standing on its tile (Dale's rowboat, Story.rowboat_scene): its tile is a
+## gap with the water's surface over it, so it's used from the bank or step beside it whatever the drop beneath.
+func _floats(t: Vector2i) -> bool:
+	return bool(npcs.get(t, {}).get("float", false))
+
+
 ## Is there something to use on this tile? Returns "npc", "beast", "door", "item", "thing" or "".
 func _usable(t: Vector2i) -> String:
 	if room_walls != null and room_walls.shelf_doors.has(t):
@@ -5329,8 +5336,8 @@ func _go_use(t: Vector2i, kind: String, run: bool) -> void:
 		spots = [t + Vector2i(0, 1)]
 	else:
 		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
-			# (not from up or down a cliff)
-			if Elev.joined(map, t + d, t):
+			# (not from up or down a cliff; a boat floating on the water is reached from the bank or step beside it)
+			if Elev.joined(map, t + d, t) or (_floats(t) and _walkable(t + d)):
 				spots.append(t + d)
 			# people behind a counter are reached from the other side of it
 			if _counter_like(t + d):
