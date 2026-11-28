@@ -2652,7 +2652,7 @@ func rowboat_scene(wrecked: bool, water := 0.0) -> Node3D:
 		# (riding on the channel, as the harbour's rowboats do (world.gd BOAT_DEPTH): her hull's bottom just over the water's
 		# surface, with floorboards closing her open inside, so the water's sheet never shows in her)
 		hull.position = Vector3(0.62, water + 0.03, 0.0)
-		hull.add_child(_rowboat_sole())
+		mi.add_child(_rowboat_sole(mi.mesh, bb))
 		return root
 	# run aground: half up the sand, heeled over and nose-down
 	hull.position = Vector3(0.1, -0.12, 0.3)
@@ -2669,23 +2669,47 @@ func rowboat_scene(wrecked: bool, water := 0.0) -> Node3D:
 	return root
 
 
-## A rowboat's floorboards, just over her hull's bottom: the pack's model is a shell with no bottom of its own, so the
-## water she floats on would show up through her inside (the user's 2026-11-28 report). Her length runs along x here
-## (rowboat_scene turns the model broadside), so the boards do too, narrowing towards the bow and the stern.
-func _rowboat_sole() -> Node3D:
-	var sole := Node3D.new()
-	var board := StandardMaterial3D.new()
-	board.albedo_color = Color("#6d452a")
-	board.roughness = 0.95
-	for plank in [[1.4, 0.62, 0.0], [0.36, 0.42, -0.8], [0.36, 0.42, 0.8]]:
-		var mi := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(float(plank[0]), 0.03, float(plank[1]))
-		mi.mesh = bm
-		mi.material_override = board
-		mi.position = Vector3(float(plank[2]), 0.03, 0.0)
-		sole.add_child(mi)
-	return sole
+## A rowboat's floor, just above her hull's bottom: the pack's model winds the hull's bottom outward only, so looking
+## down into her you see straight through to the water she floats on (the user's 2026-11-28 report). A plate across the
+## hull's own bottom rim closes it; it is built in the hull's model space, a child of its mesh, so it takes its scale and
+## the turn that lays the boat broadside.
+func _rowboat_sole(mesh: Mesh, bb: AABB) -> MeshInstance3D:
+	var plate := MeshInstance3D.new()
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("#6d452a")
+	wood.roughness = 0.95
+	# (drawn from either side: the inside of a hull is seen from above, its underside from a low camera)
+	wood.cull_mode = BaseMaterial3D.CULL_DISABLED
+	plate.material_override = wood
+	if mesh.get_surface_count() == 0:
+		return plate
+	# the hull's bottom rim: the vertices at its lowest, by corner of the model's own grid
+	var rim := {}
+	var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	for v in verts:
+		if v.y <= bb.position.y + 0.02:
+			rim[Vector2(snappedf(v.x, 0.01), snappedf(v.z, 0.01))] = true
+	var pts: Array = rim.keys()
+	if pts.size() < 3:
+		return plate
+	var mid := Vector2.ZERO
+	for p: Vector2 in pts:
+		mid += p
+	mid /= float(pts.size())
+	# (a fan around the rim, from its middle out: the hull's outline runs one way round it)
+	pts.sort_custom(func(a: Vector2, b: Vector2) -> bool:
+		return atan2(a.y - mid.y, a.x - mid.x) < atan2(b.y - mid.y, b.x - mid.x))
+	var y: float = bb.position.y + 0.03
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in pts.size():
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[(i + 1) % pts.size()]
+		for p: Vector3 in [Vector3(mid.x, y, mid.y), Vector3(a.x, y, a.y), Vector3(b.x, y, b.y)]:
+			st.set_normal(Vector3.UP)
+			st.add_vertex(p)
+	plate.mesh = st.commit()
+	return plate
 
 
 ## The locked door off the great chamber (map "locked_doors"): Nub's key opens it, for good.
